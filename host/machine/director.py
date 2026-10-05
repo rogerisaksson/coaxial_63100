@@ -46,8 +46,9 @@ SLIP_M = 0.04
 #: unrolled and unturned.
 BLEND_S = 0.3
 
-#: She rises and starts at `gait.CADENCE` whatever is asked; walking goes to the asked
-#: cadence at PACE_RATE strides/s a second.
+#: Every walk begins at `gait.CADENCE` whatever is asked - risen, from standing, got up -;
+#: walking goes to the asked cadence at PACE_RATE strides/s a second. Begun at 1.02 strides/s
+#: she ran to 1.1 m/s where its plan has 0.85 and fell in 4 runs of 6 (2026-10-05).
 PACE_RATE = 0.1
 
 #: The legs' drives' heat as their boards report it: `spent` of a drive's envelope, 1 at its
@@ -140,7 +141,6 @@ class Director:
         self.getup = getup.GetUp(self.machine)
         self.arrival.land(drop, up, stagger, stage)
         self.stage, self.fallen_at, self.since = self.arrival.stage, None, 0.0
-        self.walker.cadence = gait.CADENCE
         self.walker.reset()
         self.blend, self.curl_from = None, {}
         self.falling_at, self.curl_to, self.tilt_was, self.touched_at = None, {}, None, None
@@ -273,6 +273,7 @@ class Director:
                 if self.age >= BLEND_S:
                     self.blend = None
             if self.stage == 'ready':
+                self.walker.cadence = gait.CADENCE
                 self.walker.begin(out, scale=arrival.FIRST,
                                   ball_ahead=self.walker.ball_ahead('left'), lean=gait.LEAN_DEG)
                 self.stage, self.since = 'walk', 0.0

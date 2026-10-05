@@ -36,10 +36,16 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
    parry at 0.65-1.0 strides/s, steady or from the squat, 393, 384 and 604
    J/m where 561, 885 and 608; held by test_gynoid_gait.py (`looks.FORM`),
    smoked on the armada
-   (`tools/sim/armada.py`, 12 s). Left: her knee lands at 25-28 deg (1-3
+   (`tools/sim/armada.py`, 12 s); the scoreboard's twelve walks on their
+   form, begun as the director begins her, and no parry from the squat
+   over a spread of side gains (`capture.CATCH` 7 cm;
+   docs/findings/balance.md). Left: her knee lands at 25-28 deg (1-3
    on a take of a woman's, 24 on the walk approved 2026-10-03) and is
    straightened under her weight, hip and knee 620 W over a tenth of the
-   stride; crouched she still walks for less - 371 J/m at a stance knee of
+   stride - 23 mm of leg, 12 the pelvis's roll, low on the landing side
+   at touchdown, 8 her sag under the trailing ankle; the roll's peak
+   cannot move while the capture point's course is a table
+   (`capture.XI_NOM`); crouched she still walks for less - 371 J/m at a stance knee of
    12 deg against 398 at 6, at 1.0 strides/s 462 at 24 against 609 -, the
    knee's stop at -5 deg unused, the leg held off it by its drive; sat
    back limp out of her crouch, shoved past saving, her head meets the
@@ -47,20 +53,18 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
    25 or 27 - a kneel is no fall, and is called one (item 15); at a
    stance knee of 4.5, her recordings' (2-5 deg, to -3), she parries 5
    times in three strides at 1.0 strides/s; the stride 0.75 m where a
-   woman's is 1.29 at the same 0.85 a second; begun standing at its own
-   pace, as the scoreboard's twelve walks are (`gait_montecarlo --suite
-   look`, 36 s), 2 fell - at 0.88 and 1.02 strides/s - and 52 parried
-   where none fell and 222 parried, 67-82 a walk at 0.65: the scoreboard
-   rejects it there (`looks.FORM`, since 2026-10-05; an event a reward
-   its share parried); at 1.0 strides/s she is on an edge - a parry in
-   three strides or none by the sideways gain's fourth digit, 2 in the
-   spread on CI's runner where 1 here (`looks.PARRIES` 3 for it); at
-   0.65 strides/s the swinging foot clears the floor by 0.1 mm. DOD: a
-   spread's parries at 1 or under on any host; the scoreboard's walks on their form, none
-   fallen; `looks.FORM`'s landing knee at 15; test_gynoid_gait.py
-   asserting fewer J/m than the same walk crouched to 12, 18, 24 and 30
-   deg at each pace; the stance knee at 4.5 or on its stop; the stride at
-   1.0 m or over.
+   woman's is 1.29 at the same 0.85 a second; her start from standing (a
+   halt's) is on an edge, 1 of 6 a side gain 0.3 % apart down and 2
+   parried; her speed is her own, 0.96 m/s at 1.0 strides/s where the
+   plan has 0.83, 581 W; `looks.PARRIES` 3 since CI's runner parried
+   twice in a spread at 4 cm; at 0.65 strides/s the swinging foot clears
+   the floor by 0.1 mm. DOD: a spread's parries at 1 or under on any
+   host; her standing start clean over a spread of side gains; her speed
+   within 5 % of her plan's at 1.0 strides/s; the capture point's course
+   her own walk's, the roll's peak free to move; `looks.FORM`'s landing
+   knee at 15; test_gynoid_gait.py asserting fewer J/m than the same walk
+   crouched to 12, 18, 24 and 30 deg at each pace; the stance knee at 4.5
+   or on its stop; the stride at 1.0 m or over.
 2. **The leg stack on the run** (the user, 2026-10-04: the most simplicity,
    the fewest gearbox and electronics variants). One stack on every drive
    since 2026-10-05 (docs/DIMENSIONS.md, docs/findings/stacks.md): 60 x 20

@@ -331,11 +331,14 @@ squat. The board's own are in [FINDINGS](../FINDINGS.md).
   knee 2-5 deg where her foot bears her alone behind the plumb line, to -3,
   landing at 13-28. The gynoid's suites: 28, the falls 44, the faults
   9, the stand 6, the gait 41, none failed.
-- The scoreboard's twelve walks on the strut walk (2026-10-05; begun
-  standing at 0.65, 0.85, 0.9 and 1.0 strides/s, each 2 % either way, 14
-  s): 2 fell - at 0.88, 5.6 s in, and at 1.02, 11.5 s in - and 52 parried;
-  on the head before it none fell and 222 parried, 67-82 a walk at 0.65.
-  From the squat, started at 0.85 and glided to her pace as the page has
-  her, none of either. One knob at a time: the pre-swing at 26 and 28 1
-  fell, the let-go's easing 0.12 1, 0.15 none, 0.18 3, 0.22 7 - no order
-  in it.
+- The landing knee by measure (2026-10-05, steady at 0.85 strides/s): 28
+  deg at touchdown, 6 at 0.19 of the stride, 23 mm of leg let out under
+  her weight - 12 the pelvis's roll, its landing side 2.9 deg low at
+  touchdown (`gait._roll`, its peak at 0.33), 8 her sag, 6-8 mm under her
+  target at 0.39-0.49 of the trailing foot's stance, the rest the plan's
+  dip. The roll's peak at 0.29 and 0.25: the knee 25.0 and 20.4, her
+  head's bob 10 and 6 mm, and parries at 0.65 strides/s - the capture
+  point's course moves with it ([balance](balance.md)). The swing's reach
+  (`stance.SWING_REACH` 0.985-0.9985): nothing. A leg taking her from
+  where she is and up at 0.12 m/s: her knee back at 19 deg at 0.65, 383
+  -> 483-558 J/m - the leg's snap is her load's transfer.

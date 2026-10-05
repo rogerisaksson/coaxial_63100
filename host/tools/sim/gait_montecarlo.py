@@ -142,9 +142,10 @@ def trial(job):
         events.rig(event, director, body.nodes['pelvis'].world)
     else:
         # Standing, through the arrival's lean, as the page starts her: started dead through
-        # the walker, the first stride fell at 0.85 on sprung toes (2026-10-04).
+        # the walker, the first stride fell at 0.85 on sprung toes (2026-10-04); begun at her
+        # pace, not glided to it (`director.PACE_RATE`), 2 walks of 12 fell (2026-10-05).
         director.begin(drop=0.002 + RISE_DROP_M * (k + 1), stage='stand')
-        director.cadence = director.walker.cadence = pace * (1.0 + WALK_SPREAD * k)
+        director.cadence = pace * (1.0 + WALK_SPREAD * k)
     body.loop.step(0.0)
     bus, world = body.loop.bus, body.nodes['pelvis'].world
     seconds = SECONDS[kind]

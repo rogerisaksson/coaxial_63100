@@ -44,10 +44,10 @@ PACES, SETTLE, STRIDES, ROBOT_GB = (0.85, 0.65, 1.0), 2, 3, 1.2
 #: TRIAL_S of her time; her rows a second.
 STEADY, TRIAL_S, ROWS_HZ = 3, 14.0, 60.0
 
-#: A candidate's starts, (way, pace, seconds of hers): standing, begun at the pace itself as the
-#: scoreboard's walks are, and from the squat, started at her own pace and glided to it as the
-#: page has her - each from a mark taken there, its parries counted. Steady alone, a search's
-#: best landed its knee at 9 degrees and fell in 2 rises of 9 and 2 walks of 12 (2026-10-05).
+#: A candidate's starts, (way, pace, seconds of hers): standing and from the squat, begun at
+#: her own pace and glided to it as the director has her - each from a mark taken there, its
+#: parries counted. Steady alone, a search's best landed its knee at 9 degrees and fell in 2
+#: rises of 9 and 2 walks of 12 (2026-10-05).
 STARTS = (('stand', 0.65, 9.0), ('stand', 0.882, 9.0), ('stand', 1.02, 9.0),
           ('squat', 0.85, 13.0), ('squat', 1.0, 13.0))
 
@@ -110,8 +110,7 @@ class Robot:
 
     def relaw(self):
         """The law's modules loaded anew from their files, she and her marks walking on under
-        them: each of her objects made its class's new self. Whether her state still fits is the
-        next trial's to find (`tried`)."""
+        them: each of her objects made its class's new self."""
         for name in LAW:
             importlib.reload(sys.modules['machine.' + name])
         for mark in self.marks.values():
@@ -144,16 +143,14 @@ class Robot:
     def tried(self, values, pace, way='steady', seconds=0.0):
         """{measure: value} of the walk `values` makes of hers at `pace`: from her mark, swapped
         in, SETTLE strides on, over STRIDES whole ones - or, `way` 'stand' or 'squat', of her
-        start under it (`_started`). The law's files changed, they are loaded first; a law her
-        marks do not fit, she walks in under it again, once."""
+        start under it (`_started`). The law's files changed, they are loaded and she walks in
+        under them first: a mark is its own law's walk - kept, a walk braked another way stood
+        in for this one's and fell at every pace (2026-10-05)."""
         run = ((lambda: self._tried(values, pace)) if way == 'steady'
                else (lambda: self._started(values, way, pace, seconds)))
         if _stamp() != self.law:
             self.relaw()
-            try:
-                return run()
-            except Exception:                 # her state from the law before: walked in anew
-                self._walk_in()
+            self._walk_in()
         return run()
 
     def _started(self, values, way, pace, seconds):
@@ -165,8 +162,6 @@ class Robot:
         self.replay.back(self.begun[way])
         knobs.set_(values)
         self.director.cadence = pace
-        if way == 'stand':
-            self.director.walker.cadence = pace
         bus, parries, was = self.body.loop.bus, 0, self.director.stage
         until = bus['t'] + seconds
         while bus['t'] < until:

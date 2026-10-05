@@ -198,3 +198,37 @@ shoves, the scoreboard and its searches. The board's own are in
   0.37 s later. Aimed anew every pass past 12 deg of tip until an arm
   lands: of the 16 crouch falls her head never on the floor in 14, at 0.71
   and 0.87 m/s in two, the peaks' medians 4.1 and 3.7 kN.
+- The catch against her own walk (2026-10-05, `capture.CATCH`). At 4 cm,
+  from the squat at 0.85 strides/s she parried a plain floor in 2 runs of
+  6 a side gain 0.1 % apart, 16 and 10 times, at 1.0 in 5 of 6: her
+  start's last strides run 44-74 mm off the course, and early in a fast
+  swing her own leg's swing-out - the hip's roll 5-6 deg past its
+  setpoint, the ankle 6-7 cm out - jerks the pelvis 12 mm the other way,
+  34 mm of landing asked in a clean step, 60 in a parried one. At 7 cm
+  none of 12 from the squat; the events held 48 of 90 where 47 (hole 1
+  and 0, sill 6 and 7, rug 1 and 0, slip 15 and 16, soa 8 and 7, hot 9,
+  lace 0, nudge 8), the five gynoid suites as before.
+- Begun standing (2026-10-05). The director starts every walk at 0.85
+  strides/s and glides to her pace; the scoreboard set the walker's pace
+  over that and 2 walks of 12 fell, 52 parried (the head before the strut:
+  none, 222, 67-82 a walk at 0.65): at 1.02 she ran to 1.0-1.1 m/s where
+  its plan has 0.85, the catch on her three steps running every 2.6 s,
+  down in its third round, 4 runs of 6; at 0.88 her fifth step landed late
+  on a knee at 23-26 deg, asked straight in 40 ms under 752 N - 17 N on
+  both feet, 3 cm up, 0.56 -> 0.27 m/s - and she fell 2 s on. One knob at
+  a time under it, the pre-swing at 26 and 28 1 fell, the let-go's easing
+  0.12 1, 0.15 none, 0.18 3, 0.22 7: no order in it. As the director
+  starts her all 12 hold on their form. Her standing start stays on an
+  edge: from its second step the capture point runs 51-65 mm off the
+  course, her weight not over the standing foot as the other lifts, and
+  its fourth lands 130 mm wide (119 from the squat); of 6 a side gain
+  0.3 % apart 1 fell and 2 parried 3-19 times, and over ramps of 2.5, 3.5,
+  4.5 and 6 s (`stance.RAMP_S`) by 3 gains 2 fell, 3.5 and 6 clean.
+- Her speed is her own (2026-10-05). The phase follows her
+  (`stance.advance`) and nothing holds her to the pace asked: at 1.0
+  strides/s she walks 0.96 m/s where the plan has 0.83, 581 W. A foot
+  landed further ahead of a body going fast (`landing.FORE_K`) is no
+  brake, it lengthens her stride: read against the pace asked instead of
+  the phase's rate, 0.65 -> 0.68 m/s at 0.85 strides/s, at a gain of 1.5
+  0.83 and 639 J/m. The foot under the hip later in its stance
+  (`gait.STANCE_AT` 0.265): 0.78 m/s and 349 W at 1.0.

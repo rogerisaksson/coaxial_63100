@@ -50,9 +50,12 @@ CAPTURE = np.dtype([(n, 'f8') for n in PARAMS + ('x', 'latched', 'swapping', 'ne
 #: CROSS: kept 2 cm on its own side, a swap put it down there, away from her fall, it bore under
 #: 150 N and the other stepped out on nothing; held of 48 shoves of 60 N: 0 then, crossing 10,
 #: 15 or 20 cm 21, 22, 21, swapping past 15 or 25 cm 18 and 21 (2026-10-01). MARGIN and GAIN
-#: retuned (`physics.STAGED`).
+#: retuned (`physics.STAGED`). A catch at 4 cm met her own walk: her start's last strides run
+#: 44-74 mm off, her swinging leg's own reaction 34-60 early in a fast swing - from the squat
+#: she parried a plain floor in 7 of 12 runs a side gain 0.3 % apart; at 7 cm in none, the
+#: events held 48 of 90 where 47 (2026-10-05).
 MARGIN, GAIN, DEAD, CROSS, SWAP, FROM_U, LATCH_U, CATCH, WIDE = (
-    0.0351513, 1.10781, 0.01, -0.15, 0.25, 0.12, 0.7, 0.04, 0.3)
+    0.0351513, 1.10781, 0.01, -0.15, 0.25, 0.12, 0.7, 0.07, 0.3)
 
 
 def state(rows=2, **params) -> NDArray:
