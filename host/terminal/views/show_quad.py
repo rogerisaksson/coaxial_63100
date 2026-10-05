@@ -21,6 +21,7 @@ from contextlib import suppress
 from rich.text import Text
 
 from coaxial import Coaxial63100
+from coaxial.devices.thermal import THROTTLE_AT
 from coaxial.draw import braille
 from coaxial.errors import RigError
 from coaxial.graphics import gpu, quadcopter
@@ -66,9 +67,12 @@ STO_SETTLE_S = 0.05
 #: held at 16 A, which a hover cannot give (2026-09-28).
 GO = ('CONVERGING', 'STABLE')
 
-#: The envelope's room full tilt waits for, its worst share on every board: a third flight
-#: 12 s after the second's burn went at 0.46, throttled at 0.94 and climbed on 27 A.
-ROOM = 0.4
+#: The envelope's room full tilt waits for, its worst share on every board: what a flight
+#: spends, under the throttle's point. Ten flights on end peaked at 0.73 from hovers at 0.46;
+#: at 0.4, under the hover's own 0.42 since the dry loss's refit, the third never left its
+#: hover (2026-10-05).
+SPEND = 0.3
+ROOM = THROTTLE_AT - SPEND
 
 #: The least of the clamp a derated board's spool is allowed for, of the whole.
 DERATE_FLOOR = 0.25
@@ -229,7 +233,7 @@ def compose(console, origin, rotors, frame, route, trace, now, apex, ready, art)
     known = sum((r['ident'] or {}).get('state') in GO for r in rotors)
     worst = max(((r['budget'] or {}).get('worst') or 0.0) for r in rotors)
     waiting = name == 'hover' and not ready
-    why = ('' if not waiting else ', full tilt waits' if known < len(rotors)
+    why = (' converging' if not waiting else ', full tilt waits' if known < len(rotors)
            else ', cooling to %.0f %%' % (100.0 * ROOM))
     flying = hud('FLIGHT', [
         ('stage', Text(name.upper(), style='alarm' if name in ('full tilt', 'burn') else 'value')),
@@ -239,8 +243,7 @@ def compose(console, origin, rotors, frame, route, trace, now, apex, ready, art)
         ('thrust', '%8.1f of %.1f N' % (lift, weight)),
         ('tilt', '%8.1f deg, %.2f m off' % (tilt, math.hypot(frame['at'][0], frame['at'][2]))),
         ('apex', '%8.1f m' % apex),
-        ('TH OBS', Text('%d of 4 converging%s' % (known, why),
-                        style='alarm' if waiting else 'value')),
+        ('TH OBS', Text('%d of 4%s' % (known, why), style='alarm' if waiting else 'value')),
         ('SOA', '%8.0f %% worst' % (100.0 * worst))])
     lines = []
     for label, rotor in zip(ROTORS, rotors):

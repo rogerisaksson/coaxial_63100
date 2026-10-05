@@ -8,8 +8,9 @@
 A 2 kg frame on four direct-drive 63100 rotors under APC 20x10E propellers (board/emu/worlds/
 quad.json) on skids: gravity, the air on it and the floor. The flight spools, lifts to a hover
 and holds it until the boards' thermal observers have converged - blasted at the floor's
-margin they throttle and trip - goes full tilt into the sky, falls with the rotors idling and
-burns to stop dead 10 cm over the floor, holds there and lands. The rotors are the caller's.
+margin they throttle and trip - goes full tilt into the sky, falls on rotors run down to
+their idle and burns to a stop 10 cm over the floor, holds there and lands. The rotors are the
+caller's.
 """
 import importlib
 import math
@@ -41,11 +42,13 @@ DISC_M, SKID_M = 0.06, 0.12
 #: the frame's weight, the quad sitting on the floor.
 HOVER_M, FLOOR_M, IDLE_RAD_S = 1.5, 0.1, 60.0
 
-#: The altitude loop, 1/s^2 and 1/s: a couple of rad/s, damped; the attitude's, 1/s^2 and 1/s
-#: on the tilt and its rate, and the yaw's damping, 1/s; the spot's, 1/s^2 and 1/s, the frame
-#: tilted back over where it rose, its lean at most LEAN_M_S2. A rotor 5 % weak held the frame
-#: 5 degrees over on the tilt's loop alone and walked it 8 m in a hover (2026-09-28).
-KP, KD = 4.0, 3.0
+#: The altitude loop about a height and its rate, 1/s^2 and 1/s: both poles at KD / 2, 5
+#: rad/s. At 2 rad/s on the height alone the lift trailed its ramp 0.4 m and the hold crept 3 s
+#: down to its mark (2026-10-05). The attitude's, 1/s^2 and 1/s on the tilt and its rate, and
+#: the yaw's damping, 1/s; the spot's, 1/s^2 and 1/s, the frame tilted back over where it rose,
+#: its lean at most LEAN_M_S2. A rotor 5 % weak held the frame 5 degrees over on the tilt's
+#: loop alone and walked it 8 m in a hover (2026-09-28).
+KP, KD = 25.0, 10.0
 TILT_KP, TILT_KD, YAW_KD = 60.0, 12.0, 4.0
 SPOT_KP, SPOT_KD, LEAN_M_S2 = 1.0, 1.6, 3.0
 
@@ -58,17 +61,26 @@ HEADROOM = 0.9
 STAGES = (('spool', 2.0), ('lift', 3.0), ('hover', 3.0), ('full tilt', 2.0), ('fall', None),
           ('burn', None), ('hold', 3.0), ('land', 3.0))
 
-#: The burn, flown to its mark: begun when the deceleration that stops the fall at FLOOR_M is
-#: this share of the rotors' and the air's, the rotors' spool from idle to their top run at
-#: the fall's speed first, s, at the whole clamp. Scheduled once at full thrust it stopped
-#: 0.86 m up; begun at 85 %, the rotors spooled from idle on the 50 A clamp, the switches
-#: at 0.95 of the envelope throttled, and a flight burned into the floor at 9.7 m/s; at 55 %,
-#: 0.32 and 0.73, stopped 0.3 m up (2026-09-28).
+#: The burn, flown down a speed for each height over its mark (`descent`): braked at this share
+#: of what the rotors' headroom gives, then eased in on the altitude loop's own pole, the
+#: rotors' spool from idle run at the fall's speed first, s, at the whole clamp. Scheduled once
+#: at full thrust it stopped 0.86 m up; begun at 85 %, the rotors spooled from idle on the 50
+#: A clamp, the switches at 0.95 of the envelope throttled, and a flight burned into the floor
+#: at 9.7 m/s (2026-09-28). Asked the pull that stops it, the spool's allowance kept through
+#: the burn, it stopped 0.44 m up and crept 3 s to its mark (2026-10-05).
 BURN_SHARE, SPOOL_S = 0.55, 0.3
 
-#: The burn hands the frame to the hold's damped loop at this speed down, m/s: ended at a
-#: standstill it crept 7 s on rotors lagging 0.08 s, and bounced 1.8 m on 0.15.
+#: The burn is the hold's from this speed down, m/s.
 HANDOVER_M_S = 0.5
+
+#: The landing's reference ends this far under the floor, m: the skids down before the spool.
+PRESS_M = 0.02
+
+#: A rotor's run down from its top on its propeller's drag alone, s: the can's and the
+#: propeller's 9.2e-4 kg m^2 over K_DRAG at 310 rad/s. The fall and the landed spool ask their
+#: idle no faster: stepped to it, the loops braked at the clamp and spent 0.16-0.25 of the
+#: envelope, on the floor and ahead of the burn (2026-10-05).
+RUNDOWN_S = 0.58
 
 #: The world's step, s.
 STEP_S = 0.002
@@ -160,8 +172,24 @@ def mix(state, thrust):
 
 
 def flight():
-    """The flight at its first stage."""
-    return {'stage': 0, 'at': 0.0}
+    """The flight at its first stage: the stage, when it began, the thrust it began on and the
+    last asked, N."""
+    return {'stage': 0, 'at': 0.0, 'begun': 0.0, 'asked': 0.0}
+
+
+def descent(over, brake):
+    """The speed down the burn flies `over` m above its mark, m/s: the altitude loop's own
+    approach near it, `brake`'s constant pull above where the two meet in speed and pull."""
+    pole = 0.5 * KD
+    near = brake / (pole * pole)
+    return pole * over if over <= near else math.sqrt(2.0 * brake * (over - 0.5 * near))
+
+
+def ease(x):
+    """A move's share made `x` of the way through its time, its rate and its rate's, at rest
+    at both ends."""
+    x = max(0.0, min(1.0, x))
+    return x * x * (3.0 - 2.0 * x), 6.0 * x * (1.0 - x), 6.0 - 12.0 * x
 
 
 def plan(route, frame, top, now, ready=True, spool_s=SPOOL_S):
@@ -170,31 +198,41 @@ def plan(route, frame, top, now, ready=True, spool_s=SPOOL_S):
     the four rotors' thrust at their fastest, N, `spool_s` their spool to it, s."""
     name, seconds = STAGES[route['stage']]
     into = now - route['at']
-    air = 0.5 * RHO * BODY_CDA * frame['v'] * frame['v']
-    need = frame['v'] * frame['v'] / (
-        2.0 * max(0.02, frame['h'] + frame['v'] * spool_s - FLOOR_M))
+    h, v = frame['h'], frame['v']
+    brake = BURN_SHARE * (HEADROOM * top / MASS_KG - GRAVITY)
     done = ((into >= seconds and (ready or name != 'hover')) if seconds is not None else
-            (name == 'fall' and frame['v'] < 0.0
-             and need >= BURN_SHARE * ((HEADROOM * top + air) / MASS_KG - GRAVITY))
-            or (name == 'burn' and frame['v'] >= -HANDOVER_M_S))
+            (name == 'fall' and v < 0.0 and -v >= descent(h + v * spool_s - FLOOR_M, brake))
+            or (name == 'burn' and v >= -HANDOVER_M_S))
     if done:
-        route['stage'] = (route['stage'] + 1) % len(STAGES)
-        route['at'] = now
-        name, into = STAGES[route['stage']][0], 0.0
+        route.update(stage=(route['stage'] + 1) % len(STAGES), at=now, begun=route['asked'])
+        name, seconds = STAGES[route['stage']]
+        into = 0.0
+    route['asked'] = thrust = _thrust(name, seconds, into, route['begun'], h, v, top, brake)
+    return name, thrust
+
+
+def _thrust(name, seconds, into, begun, h, v, top, brake):
+    """The thrust a stage asks `into` s of it, N, begun on `begun`."""
     idle = 4.0 * K_THRUST * IDLE_RAD_S ** 2
     if name in ('spool', 'fall'):
-        return name, idle
+        # Down to the idle as the propellers run down, from the thrust the stage began on.
+        down = RUNDOWN_S * math.sqrt(top / begun) if begun > idle else 0.0
+        return max(idle, begun / (1.0 + into / down) ** 2) if down else idle
     if name == 'full tilt':
-        return name, HEADROOM * top
-    if name == 'burn':
-        return name, min(HEADROOM * top, max(idle, MASS_KG * (GRAVITY + need) - air))
-    if name == 'lift':
-        height = HOVER_M * min(1.0, into / STAGES[1][1])
-    elif name == 'land':
-        height = FLOOR_M * max(0.0, 1.0 - into / STAGES[-1][1])
-    else:
-        height = HOVER_M if name == 'hover' else FLOOR_M
-    return name, max(idle, MASS_KG * (GRAVITY + KP * (height - frame['h']) - KD * frame['v']))
+        return HEADROOM * top
+    # A height, its rate and its rate's to fly: the lift and the landing eased, the burn's
+    # the speed its height over the mark allows, the air's drag its own.
+    height, rate, pull, air = (HOVER_M if name == 'hover' else FLOOR_M), 0.0, 0.0, 0.0
+    if name in ('lift', 'land'):
+        span = HOVER_M if name == 'lift' else -(FLOOR_M + PRESS_M)
+        share, slope, bend = ease(into / seconds)
+        height = (0.0 if name == 'lift' else FLOOR_M) + span * share
+        rate, pull = span * slope / seconds, span * bend / (seconds * seconds)
+    elif name == 'burn' and h - FLOOR_M > brake / (0.25 * KD * KD):
+        height, rate, pull = h, -descent(h - FLOOR_M, brake), brake
+        air = 0.5 * RHO * BODY_CDA * v * v
+    wanted = MASS_KG * (GRAVITY + pull + KP * (height - h) + KD * (rate - v)) - air
+    return min(HEADROOM * top, max(idle, wanted))
 
 
 def speed_for(thrust):

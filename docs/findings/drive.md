@@ -39,6 +39,16 @@ rotor's pages and their demos. The board's own are in
   164 rpm/s the first half second where a constant rate stepped 552 on. QUAD's
   0.4 s stabs made 49 changes a minute and a 48 A step; 16 and 22 now. The
   feed reads the drive every pass: 16.2 states a second of 8.8 (2026-09-28).
+- QUAD on its four stand-ins: the third flight never left its hover, the
+  hover's share 0.42 over a room of 0.4 since the dry loss's refit; the burn
+  stopped 0.44 m up and crept 3.1 s to its mark; the lift trailed its ramp
+  0.4 m; the landing dropped its last 3 cm; the fall's and the landed
+  spool's rotors, braked to their idle at the clamp, spent 0.16-0.25 of the
+  envelope. The room is the throttle's point less a flight's 0.3; one
+  altitude loop, 5 rad/s about a height and its rate; the burn flown down a
+  speed for each height over its mark, within 2 cm of it 1.6-1.8 s on; the
+  thrust run down as the propellers do. Four flights on end, the lift at
+  1.50 m, down still, the share flat on the floor (2026-10-05).
 - The rotor page, the bench's word: the magnets blurred through a 1/80 s
   shutter (208-386 cells, 0.10 a frame at most; the smear's ring flipped
   0.29), the windings whole at their current's brightness and gone on a
