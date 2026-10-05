@@ -62,3 +62,13 @@ The gynoid running: a bounce a foot, flight between (`machine/runner.py`,
   At 0.26 s, taken from 1.5 to 2.0, she ran 30 s at 1.91 m/s, 282 J/m; at
   0.32, down at 10.6 s: the stance wants to shorten with her speed, about
   half a metre of floor a stance.
+- Glued to her walk (2026-10-05; in the lab, never on the page). Into the
+  run: from the walk's single support at 1.05 strides/s, her pelvis 0.10
+  m past the standing ball, that leg pushes her off in 0.15 s - on in 3
+  timings of 4. Back: the walk begun again at a landing, in mid-stance,
+  blended over 0.1-1.0 s, at 0.9 m/s, after a last stance with no push
+  to the walk's height, or with the other foot set down ahead as the
+  walk lands one - down 25 times of 25, 0.1-0.5 s after it: the walk's
+  plan carries her pelvis to where its phase has it, 0.84 to 2.39 m/s in
+  70 ms, a hip asked from -31 to +6 deg in 80. Two generators, a state
+  each: no hand-over between them holds (docs/TODO.md item 28).

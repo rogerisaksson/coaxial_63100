@@ -193,3 +193,13 @@ were sized on, the candidates, and what the one stack leaves open
   and 623 J/m where the frame before had 393, 384 and 604; at none, the
   landing knee 30.0 at 0.65 strides/s, the form's 30. Her run on them:
   docs/findings/run.md.
+- Her drives' heat in still air (2026-10-05; `drives.COOLING` 1.0 where
+  the oil assumed is 0.3; the boards as built, 10 min of heat a run, the
+  windings the hottest node): walking 0.85 strides/s the hip 62 C, the
+  knee 52, a board's switches 41; at 1.0 the hip 94, the knee 77. Running
+  asked 1.5 m/s the knee 114 C and derated to 0.64, down at 6 min; asked
+  1.75, 113 C and 0.69, down at 4. At a cooling of 0.6 the running knee
+  89 C; in oil 57-64. She walks on in air; her run is minutes long (the
+  user: it need not be longer, the FETs' safe area the worry). The model
+  means a switch's loss over an electrical turn: stalled, one carries
+  all of it.

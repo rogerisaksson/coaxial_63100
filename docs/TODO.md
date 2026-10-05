@@ -80,19 +80,14 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
    first stride; the sneaker's heel spheres 797 and 49.8 % where the box's
    sole 604 and 73.7). Standing first (the user, 2026-10-04), the floor
    perturbed a little under her, then walking. Standing rigged and scored
-   (`events.STANDING`, the 'stand' suite, test_gynoid_stand.py; the
-   board stiff and free, the bricks abreast and staggered): the nudges and
-   the stiff board 100 %, the shoves 66-67 at 120 N, the bricks 96 and 63,
-   the free rocker 100 (docs/findings/standing.md). The reflex one law
+   (`events.STANDING`, the 'stand' suite, test_gynoid_stand.py;
+   docs/findings/standing.md). The reflex one law
    (`machine.dcm`, 2026-10-04: the capture point in the sole's hold, a step
    due only outside it, the foot bearing less landing on the ray from the
    standing foot through the capture point as it will be; no case for a
    side or a rig), measured on the push polar (`events.PUSH_DEG`, 48
    pushes over 8 ways): 25 stood - 60 N 12 of 12, 80 N 10, 100 N 3 (from
-   behind and from the front, on one step), 120 N none. Each foot bearing
-   its share of her weight (`bearing.shared`): 32 - 100 N 9 of 12, from
-   her sides on the loaded leg's side step, 120 N 3, 60 N 9 - and the
-   bricks 96 and 63 %, the rockers 100. The soles' load through its
+   behind and from the front, on one step), 120 N none. The soles' load through its
    sensor's band and the stepping foot one that can land where the capture
    point goes (2026-10-04): 30 - 60 N 12 of 12, 80 N 11, 100 N 7, 120 N
    none -, the bricks 100 and 84 %, the rockers 100. Next, in the same
@@ -269,11 +264,17 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
     bearing out in `bearing.py`): the trial into its own module. DOD:
     `test_structure` on the layout, each file under 5 k.
 
-28. **S and F: her walk into the run and back** (the user, 2026-10-05).
-    In the lab the standing leg pushes her off into the run
-    (`Runner.enter`): on in 3 timings of 4; back at a landing she is down
-    at once. DOD: F to her fastest run and S back, 10 of 10 over a spread
-    of timings, on the page.
+28. **One law for her going, S and F on it** (the user, 2026-10-05: no
+    scenario a moment; balance automatic over a second at most, intent a
+    stream of setpoints; "balance point", "clearance", "interference").
+    A limb bears or is free; the capture point against what the bearing
+    ones hold says when and where the next contact is due; walk and run
+    one law, two numbers - her speed, the share of a step a foot stands.
+    The run glued into the walk: in, 3 of 4; back, down 25 of 25
+    (docs/findings/run.md). DOD: in the lab the one law stands, walks,
+    runs and passes between on its setpoints alone, 10 of 10 over a
+    spread; her walk on it on `looks.FORM` at no more J/m; F to her
+    fastest run and S back on the page.
 29. **Her tubes, corners and flanges** (the user, 2026-10-05): carbon
     tubes cut to length, epoxied into printed corners; a gearbox on a
     flange, its output through it; motor, box and board outermost, a
@@ -282,7 +283,9 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
     The holders are the 70 mm stacks': on the U8s her frame's parts are
     19 mm into each other at the hips where 9 (`tools/sim/fit.py`). DOD:
     no pair closer than before, each tube in its holder, each board on
-    its flange; the motors' heat in air against the walk and the run.
+    its flange. In still air she walks on and runs 4-6 min
+    (docs/findings/stacks.md); the heat's model means a FET's loss over
+    an electrical turn: stalled, one carries it all.
 
 ## Bench
 
