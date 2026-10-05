@@ -141,3 +141,9 @@ were sized on, the candidates, and what the one stack leaves open
   knee against 21 and 14, 6 mm past her shell at the elbow against 5, 2 at
   the hip roll. As laid the scoreboard 318.7 and 84.9 %, every rise and
   walk; felled by the shove she is up and walking at 33.0 s, 2 tries.
+- The one stack on the walk of 2026-10-05 - the stance leg a strut, the
+  catch at 7 cm, the lean before the shift (`drive_sizes`, 1.5x): T 0.87
+  at the hip, 0.67 at the knee, 0.32 at the hip's roll where 0.90, 0.79
+  and 0.45, the rms 41, 36 and 41 N m where 42, 39 and 49; the knee's
+  parry 1007 deg/s, 1.17 of its volts, where 1034; the peaks its clamp as
+  before (A 1.50, P 1.24-1.35, S 1.45 at the hips, knees and spine).

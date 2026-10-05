@@ -70,12 +70,12 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
    the fewest gearbox and electronics variants). One stack on every drive
    since 2026-10-05 (docs/DIMENSIONS.md, docs/findings/stacks.md): 60 x 20
    mm at KV 90, a 64 mm box at 1:30, a 70 mm 50 A inverter; 21 of each, 20
-   part types, her 28.4 kg; T 0.90 at the hip and under it everywhere at
-   1.5x. Left: the hips', knees' and spine's peaks are its 124 N m clamp (A
+   part types, her 28.4 kg; T 0.87 at the hip and under it everywhere at
+   1.5x (the walk of 2026-10-05). Left: the hips', knees' and spine's peaks are its 124 N m clamp (A
    1.50, P 1.24-1.35, S 1.45) - the margin as the clamp, every servo's its
    drive's peak / 1.5, rose and walked as far and held 81.7 % of the
-   scoreboard against 83.7 on a 16 mm stack; the knee's parry 1034 deg/s,
-   1.20 of KV 90's at 48 V - the pack's lowest volts and the KV; her get-up
+   scoreboard against 83.7 on a 16 mm stack; the knee's parry 1007 deg/s,
+   1.17 of KV 90's at 48 V - the pack's lowest volts and the KV; her get-up
    on it is 2 keyframe sets of 96 searched, the rest leaving her down -
    the crouch solved for her centre of mass over her feet, not a pose
    searched on a build; a fall asked a knee's box 763 N m of its 128
