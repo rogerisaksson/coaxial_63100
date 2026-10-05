@@ -69,6 +69,13 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
 - Alternate (op 10) proven 2026-08-30: 12 mid-run reads, both triples, scope.
   A zero triple every other period is no half frequency: the pulse sits on
   the underflow, two quarter pulses a period, the same edges (2026-10-05).
+- Dry, three legs at 50 %, 63 ns, a rested 60 s: the NTC's rise at 50 / 25
+  kHz, K - 24.2 V 8.2 / 5.1, 33.8 V 9.9 / 5.4-5.9, 43.8 V 13.0 / 6.3, 53.8 V
+  14.6 / 8.2, 60.8 V 17.7 / 9.2; armed without an edge 0.6. A staircase 25-50
+  kHz at 33.8 V, 60
+  s a step: 55.7 C, no knee. At 33.7 ns 11.5 K for 24.2 V's 8.2: 0.66 W
+  through both FETs; 42 ns as 63 at 24 and 34 V (`tools/bench/dry_heat.py`,
+  2026-10-05).
 - The unmodified board arms with the break in circuit: AFE_ON low, PE15 high
   at once, the latch its low left cleared (op 5), MOE. 300 s and twenty 60 s
   runs, no trip; `switch.py` does so (2026-10-05).
@@ -140,6 +147,27 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
 
 ## Thermal
 
+- Dry at 50 kHz, the converters calibrated, the room ~22 C. 300 s at 33.8 V:
+  NTC 33.1 -> 54.5 C, the MCU's die +14.3 K, the A1335's +12.3. 150 s at 43.8
+  V: NTC +21.4, the dies +12.9 and +11.0. The network had the NTC at +4.2 and
+  +3.6. Fitted to both cooldowns (NTC rms 0.3-0.5 K, the dies 0.4-1.4): a
+  leg's dry watts the camera's dump (1.20 W at 24.6 V for three, all of it in
+  the legs) and 0.40 W of gate drive, 3.4 and 4.4 W; the NTC 0.56 of the V
+  patch over the centre, no lag of its own; the laminate 21 J/K - the 49 of a
+  25 min step is its parts'; the in-plane graph as it was. The same numbers:
+  the camera's switching state +19.0 K at the NTC for its 18.9, the 60 s
+  point 9.55 for 9.75. The law runs 11 % over at 53.8 V, 7 % at 60.8
+  (2026-10-05).
+- The MCU's die reads its package: 46.0 C awake where the camera has the
+  package at 47, 4.0 K lower asleep (0.49 W). With the 40.5 K/W of the
+  uncalibrated converter the observer held the laminate at 2 C, the legs at
+  91-104 and the room at 7-33 C on a board at 33; now the NTC at 33.2 for
+  33.5 and the room at 21.6 (2026-10-05).
+- The refit on the board, its record's laminate 21 J/K, dry and blind: 120 s
+  at 53.8 V the observer's NTC 57.85 C for the thermistor's 57.90 (a rise of
+  25.4 K for 24.3); 300 s at 23.9 V 51.9 for 50.1 (19.1 for 17.4). Thirty
+  seconds on it runs 4 K over, the anchor's to take. Its room: 35-43 C in a
+  room of 22 on that record, 21.6 on the default 49 J/K (2026-10-05).
 - The stand-in's load is its balanced `load_cycle`: 569ae47's turning vector
   walked the heat U, V, W, the hottest leg 9 times in 16 s (2026-09-28).
 - The tour on an emulated board's world (coaxial.model.rooms): the thermal
@@ -179,8 +207,6 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   them; they write the base, the scales re-applied (2026-09-26).
 - Steady state at 5.30 mOhm: continuous 19.1 A vs a 105 C laminate, 22.0 A vs
   a 125 C junction. Throttle at 90 % of span (2026-09-05).
-- Model above ~40 C board is extrapolation. Settles it: a camera run under
-  load, and an NTC slope after a power step.
 - Identification (host, vs a ground truth): air path box 2.0 -> 1.93, fan
   0.5 -> 0.50 in three cycles, innovation 0.05 K. Spread and NTC share are not
   observable from a cooldown and are held.

@@ -19,7 +19,9 @@ Fitted parts come from `0x6D` kind 4, never from a name. Host rules:
   board is unmodified (R93 on +5): AFE_ON high unpowers its drivers, and no
   current is measured while switching there. Emulated and simulated boards
   follow the schematic: the pilot heard with AFE_ON up supplies them.
-- Measured: duty 1-100 % dry; 26 pulse runs into 8 ohm at 25/31 V,
+- Measured: duty 1-100 % dry; three legs switching dry at 24-60.8 V, 25
+  and 50 kHz, the thermal observer within 0.2 K of the thermistor after 120
+  s blind at 53.8 V (2026-10-05); 26 pulse runs into 8 ohm at 25/31 V,
   3.1-3.75 A. Drive: 2 922 cycles/period, drivers off. Bootloader on the
   bench board (2026-10-05, the ST-Link's port, COM3 on the laptop): the app
   runs from D2 SRAM, and `Coaxial63100.open()` loads the host's own build

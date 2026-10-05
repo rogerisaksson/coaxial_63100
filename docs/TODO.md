@@ -308,10 +308,9 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
 - **Motion papers on the emulator**: `motion` and `applications` set J and
   load through `drive.model`, which an emulated drive keeps. DOD: the
   world's flywheel takes a host-set load; both run on the emulator.
-- **Thermal observer at short periods** (the NTC anchor re-inverts a
-  standing miss every sample; under 30 s the leg patches wind away). DOD: a
-  derivation inverting only the unexplained growth, or a floor on the
-  period; `tools/bench/power_check.py` at 1-5 s keeps its patches.
+- **Thermal observer at short periods**: the NTC anchor inverted a standing
+  miss x12-27 a sample, x1.8 since the refit. DOD:
+  `tools/bench/power_check.py` at 1-5 s keeps its patches.
 - **STO chain**: R93 to 3V3D, a master's pilot on RS485, Cinj/Clevel with
   and without it, one arm with neither bypass (`tools/bench/sto_probe.py`);
   the keepalive from a timer interrupt (the identification's shadow step
@@ -326,10 +325,10 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
 - **Scope**: counted hold (MINOR 8), dead-time skew (record holds 0),
   `Q_RING` in `inverter.py`. DOD: each seen on the scope.
 - **Thermal**: a camera under load (`board_to_ambient` at high dT, per-leg
-  `to_board`), a power step and the NTC's slope, a thermocouple on a
-  winding. DOD: the drivers', regulators', AFE's and laminate's ceilings
-  measured, not estimated.
-- **Spans**: phase gain. DOD: spanned as the DC link is.
+  `to_board`, the NTC's share under load), a thermocouple on a
+  winding, the supply's amps dry. DOD: the ceilings measured; the laminate's
+  21 J/K and its parts' 28 two nodes, the room found on them; `f_sw` a gate op.
+- **Spans**: phase gain, the DC link. DOD: both against a DMM.
 
 ## Host
 

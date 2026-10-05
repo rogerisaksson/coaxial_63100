@@ -29,7 +29,8 @@
 #define EDGE_MOUNTS         6
 
 /** The bulk figures every laminate default is shared out of: the passive
-    state's 1.2 W over 10 K, and the 6.8 minute constant it settled with. */
+    state's 1.2 W over 10 K and its 6.8 minute constant. A 300 s burst heats
+    21 J/K of it (2026-10-05). */
 #define BULK_TO_AMBIENT 8.33f
 #define BULK_CAPACITY   49.0f
 
@@ -202,10 +203,9 @@ void thermal_defaults(thermal_cfg_t *cfg)
   }
   cfg->rad_board_stator = 0.0f;
 
-  /* The thermistor, in the centre patch beside the V driver. */
-  cfg->ntc_sees  = 0.30f;
-  cfg->ntc_tau_s = sqrtf((cfg->node[THERMAL_PATCH_V].capacity * 15.0f)
-                         * (cfg->node[THERMAL_BOARD].capacity * 48.0f));
+  /* The thermistor beside the V driver, as two dry runs' cooldowns have it. */
+  cfg->ntc_sees  = 0.56f;
+  cfg->ntc_tau_s = 0.5f;
 }
 
 float thermal_board_to_ambient_at(const thermal_cfg_t *cfg, float rise_k)
@@ -563,12 +563,11 @@ void thermal_losses(thermal_loss_t *loss)
      IAUCN10S7N021, two in series: 3.6 mOhm at 25 C. */
   loss->r_hotswap = 3.6e-3f;
 
-  /* Measured 2026-08-28: three legs, 50 %, 24.6 V link, no load -> 1.20 W
-     from difference 4-1 on the dead surface: the C_oss dump and the gate
-     charge, and nothing else, since nothing was conducting. */
+  /* The C_oss dump, three legs at 24.6 V, in the legs (2026-08-28); with the
+     gate's, the bench's dry 2.4, 3.4, 4.1 W at 24, 34, 44 V. */
   loss->switching_watt = 1.20f;
   loss->switch_volts   = 24.6f;
-  loss->driver_share   = 0.50f;
+  loss->driver_share   = 1.0f;
 
   /* Static. Consistent with the supply's 50 mA: 0.666+0.484+0.05 = 1.20 W. */
   loss->mcu_watt = 0.666f;
@@ -584,8 +583,9 @@ void thermal_losses(thermal_loss_t *loss)
   loss->coss_vj    = 0.7f;
   loss->t_switch_s = 14.0e-9f;
   loss->v_sd       = 0.85f;
-  loss->q_g        = 81.0e-9f;
-  loss->v_drive    = 12.0f;
+  /* As driven: the FET's 81 nC, its damper, the loop's ring (2026-10-05). */
+  loss->q_g        = 267.0e-9f;
+  loss->v_drive    = 15.0f;
   loss->buck_eff   = 0.85f;
 
   /* The winding: the record's `motor_r_uohm`, 50 mOhm as a placeholder until

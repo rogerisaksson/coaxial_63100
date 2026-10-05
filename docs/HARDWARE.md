@@ -34,7 +34,8 @@ tabled here. Nothing is measured against an instrument unless it says so.
   -32 418 ppm of 2026-08-30 was the converter's offset; 33.84 V at a supply's
   34 (2026-10-05).
 - NTC: Murata NCU18XH103D60RB, R25 10 k, B 3380 K, vs 10 k 0.1 %. 30 mK
-  resolution.
+  resolution. Beside the V gate driver: 0.56 of the V patch's rise over the
+  centre, as fast as the laminate.
 - +5V sense 10 k / 10 k; Vgate 57 k / 10 k (ratio 6.70), traced 2026-08-27.
 - Differential channels are offset binary, 32768 = 0 V.
 

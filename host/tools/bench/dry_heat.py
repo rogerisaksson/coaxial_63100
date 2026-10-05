@@ -100,7 +100,7 @@ def main():
     p.add_argument('--start', type=float, default=None, help='a rested run starts under this, C')
     p.add_argument('--stairs', action='store_true', help='no rest between the points')
     p.add_argument('--limit', type=float, default=NTC_MAX_C, help='--stairs stops at this NTC, C')
-    p.add_argument('--volts', type=float, default=36.0, help='the link above which nothing is armed')
+    p.add_argument('--volts', type=float, default=62.0, help='the link above which nothing is armed')
     a = p.parse_args()
 
     points = [tuple(int(x) for x in point.split(':')) for point in a.points.split(',')]

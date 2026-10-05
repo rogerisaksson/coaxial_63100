@@ -22,7 +22,7 @@ EDGE_WINDING_STATOR, EDGE_STATOR_ROTOR, EDGE_MOUNT_FIRST = 22, 23, 24
 #: test that asked the code for its own expectation would agree with a
 #: typo - and it is `electronics/`'s pick and place that says what it
 #: should be, which `test_sensorless.py` checks against the file.
-NTC_SEES_LEG = 0.30
+NTC_SEES_LEG = 0.56
 
 #: K/W from a leg's switches into the laminate under them, as
 #: `thermal_defaults` sets it. Named for the same reason as the fraction
@@ -852,46 +852,20 @@ def test_the_thermistor_has_mass(report, lib):
 GAMMA = 1.0 / 3.0
 
 
-def test_the_reading_lags_between_the_two_nodes(report, lib):
-    """Its constant is the geometric mean of the pair it sits between."""
+def test_the_reading_keeps_its_pairs_pace(report, lib):
+    """The element has no constant of its own worth the name: two dry runs'
+    cooldowns had it at the laminate's pace (bench, 2026-10-05)."""
     model = Model(lib)
-    # Off the model, not off a number typed here: the pair is the V leg's patch
-    # and the centre, and their constants are their capacities across the paths
-    # `thermal_defaults` quotes for them - 15 K/W from the leg's patch to the
-    # rest of the board, 48 from the centre.
-    leg = model.capacity('patch_v') * 15.0
-    board = model.capacity('board') * 48.0
-
-    # The two nodes held, so the target does not move while the reading walks
-    # toward it.
     hot, cold = 120.0, 40.0
     target = cold + NTC_SEES_LEG * (hot - cold)
-    zero = {}
-    start = None
-    for step in range(400):
+    for _ in range(100):
         model.place('patch_v', hot)
         model.place('board', cold)
-        if start is None:
-            model.step(zero, 1e-4)
-            start = model.ntc()
-        model.step(zero, 0.05)
-        if (step + 1) * 0.05 >= 1.0:
-            break
-    if start is None:
-        raise AssertionError('the model never stepped')
-    share = (model.ntc() - start) / max(1e-9, target - start)
-    tau = -1.0 / math.log(max(1e-9, 1.0 - min(0.999999, share)))
-
-    report.check('the reading lags past the patch it watches',
-                 tau > leg, '%.1f s against the leg patch %.1f s'
-                 % (tau, leg))
-    report.check('and short of the centre, which is the other end of what '
-                 'it sits between',
-                 tau < board, '%.1f s against the centre %.0f s'
-                 % (tau, board))
-    report.check('the geometric mean of the two, near enough',
-                 abs(tau / math.sqrt(leg * board) - 1.0) < 0.15,
-                 '%.1f s against %.1f' % (tau, math.sqrt(leg * board)))
+        model.step({}, 0.05)
+    report.check('five seconds beside a held pair and the reading is their '
+                 'weighted average',
+                 abs(model.ntc() - target) < 0.02 * (hot - cold),
+                 '%.1f C against %.1f' % (model.ntc(), target))
 
 
 def test_the_thermistor_never_reads_above_its_source(report, lib):
@@ -903,13 +877,11 @@ def test_the_thermistor_never_reads_above_its_source(report, lib):
         watt = power(lib, phase_amps=(0.0, amps, 0.0), duty=(0.0, 0.5, 0.0),
                      link_volts=48.0, switching=True)
         model = Model(lib)
-        lagged = False
         worst = -1e9
         for _ in range(int(120.0 / dt)):
             model.step(watt, dt)
             leg, board = model.at('patch_v'), model.at('board')
             ntc = model.ntc()
-            lagged = lagged or ntc < board + NTC_SEES_LEG * (leg - board) - 1.0
             worst = max(worst, ntc - max(leg, board))
         for _ in range(int(120.0 / dt)):
             model.step({}, dt)
@@ -920,8 +892,6 @@ def test_the_thermistor_never_reads_above_its_source(report, lib):
                      'leaves the pair it sits between (it read %.1f K over '
                      'the leg)' % (amps, read_over),
                      worst <= 1e-3, '%+.3f K outside' % worst)
-        report.check('and it still lags on the way up at %.0f A' % amps,
-                     lagged)
 
 
 def test_the_burst_budget_rests_on_an_unmeasured_capacity(report, lib):
@@ -1385,7 +1355,7 @@ ROSTER = (test_the_derate_is_a_ramp, test_derating_is_not_tripping,
           test_the_conduction_is_split_where_it_is_made,
           test_conduction_is_a_mean_square_not_a_sample,
           test_the_thermistor_has_mass,
-          test_the_reading_lags_between_the_two_nodes,
+          test_the_reading_keeps_its_pairs_pace,
           test_the_thermistor_never_reads_above_its_source,
           test_the_burst_budget_rests_on_an_unmeasured_capacity,
           test_it_refuses_nothing_and_returns_no_codes,

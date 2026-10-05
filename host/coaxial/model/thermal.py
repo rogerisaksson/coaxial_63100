@@ -18,10 +18,11 @@ AMBIENT = 25.0
 #: constant shows a load step in half a minute.
 HASTE = 10.0
 
-#: The two camera states the NTC compensation is derived from.
+#: The two camera states the NTC compensation is derived from, the thermistor's
+#: taken down the uncalibrated converter's 1000 codes: 1.9 and 2.6 K (2026-10-05).
 MEASURED = {
-    'passive': {'ntc': 36.0, 'board': 30.0},
-    'switching': {'ntc': 55.6, 'board': 40.0},
+    'passive': {'ntc': 34.1, 'board': 30.0},
+    'switching': {'ntc': 53.0, 'board': 40.0},
 }
 
 #: The NTC's constant offset over the board, K. Mounting and the channel's
@@ -87,7 +88,7 @@ def pretty(node):
 #: At 100 A a FET's 9 W puts its junction 6.2 K over its node: 131 C against
 #: the sheet's 175. A camera run under load, emissivity corrected, settles it.
 LEG_TO_BOARD = 28.0
-DRIVER_SWITCH_WATT = 0.60 / 3
+DRIVER_SWITCH_WATT = 2.40 / 3
 
 #: The leg nodes' heat capacity, J/K, lumped for three. Not measured, and the
 #: envelope divides by it: `soak_j`, `hold_seconds` and the throttle's window
@@ -107,38 +108,19 @@ CAPACITY_GAMMA = 1.0 / 3.0
 DRIVER_RISE_SWITCHING = DRIVER_SWITCH_WATT * LEG_TO_BOARD
 
 #: Where the thermistor sits between the board and the V leg, 0 to 1: an
-#: element of the network (Silva 2022), so it reads a weighted average and
-#: never leaves the interval: a linear `board + 1.71 x rise + offset` reads
-#: 6.0 K over its heater at rest, 77 K at a 100 K rise.
-#:
-#: The campaign cannot measure it: its switching state, 9.6 K over board and
-#: offset on a 5.6 K rise (`DRIVER_RISE_SWITCHING`), implies 1.71, which no
-#: passive body can have, so the inconsistency stays a residual
-#: (`NTC_CAMPAIGN_RESIDUAL_K`). 0.30 is geometry off the pick-and-place (NTC1
-#: at 99.62, 79.83 mm), f = ln(R/r)/ln(R/a) with R 46 mm and a 1.5 mm:
-#:
-#:    U1V, the V gate driver     8.2 mm    f = 0.50
-#:    Q2V, a V half-bridge FET  15.1 mm    f = 0.33
-#:    Q1V, the other            17.7 mm    f = 0.28
-#:    the next-nearest driver   28.0 mm
-#:
-#: At 100 A the FETs make 18.4 W of the node's 18.6: power-weighted, 0.304.
-#: U1V nearest by 3.4x confirms THERMAL_NTC_NEIGHBOUR.
-NTC_SEES_DRIVERS = 0.30
+#: element of the network (Silva 2022), never outside the interval. Two dry
+#: runs' cooldowns beside both dies fit 0.56 (2026-10-05); the pick-and-place
+#: has the V gate driver 8.2 mm off, f = 0.50, the V FETs 15-18 mm, 0.28-0.33.
+NTC_SEES_DRIVERS = 0.56
 
 #: K/W off the board at the calibration rise, and its heat capacity, J/K -
 #: named here because `NTC_TAU_S` derives from them.
 BOARD_TO_AMBIENT = 8.33
 BOARD_CAPACITY = 49.0
 
-#: How slowly the modelled thermistor follows, s: the geometric mean of the
-#: constants it sits between, the V leg's patch (15 K/W, ~98 s) and the
-#: centre (48 K/W, ~470 s) - ~215 s. What lags is the laminate round it, not
-#: the part (a milligram of ceramic, under a second). At the leg's own 5.32 s
-#: it would be as quick as the FET it watches; the SOA acts in 0.2-0.7 s. The
-#: online identification or a power step's NTC slope settles it.
-NTC_TAU_S = math.sqrt((BOARD_CAPACITY * 0.134 * 15.0)
-                      * (BOARD_CAPACITY * 0.199 * 48.0))
+#: How slowly the modelled thermistor follows, s: it kept the laminate's pace
+#: through both cooldowns (2026-10-05).
+NTC_TAU_S = 0.5
 
 #: What the campaign's switching state misses by with the element: the
 #: thermistor-against-camera disagreement, kept visible, not absorbed.
@@ -297,12 +279,11 @@ CFG = {
     'rad_board_stator': 0.0,
 }
 
-#: Power per node while three legs switch at 50 %. The 1.20 W from difference
-#: 4-1 fell roughly half on the supply corner - gate charge comes out of the
-#: +15V7 buck - and half on the bridge.
+#: Power per node while three legs switch at 50 %, dry at 24.6 V: the dump
+#: and the gate's in the legs, the gate's buck's on the supply corner.
 POWER_SWITCHING = dict([(n, DRIVER_SWITCH_WATT) for n in DRIVERS]
                        + [(n, 0.0) for n in PHASES]
-                       + [('mcu', 0.666), ('regulators', 1.134), ('afe', 0.0)])
+                       + [('mcu', 0.666), ('regulators', 0.746), ('afe', 0.0)])
 
 
 def board_from_ntc(ntc_c, driver_rise_k=0.0):
@@ -408,10 +389,10 @@ def settled_fraction(minutes, cfg=CFG):
 #: `thermal_losses`: what `thermal_power_estimate` runs on, the board's before its record.
 LOSSES = {
     'rds_on': inverter.RDS_ON, 'rds_alpha': 7.8e-3, 'r_shunt': inverter.SHUNT,
-    'r_hotswap': 3.6e-3, 'switching_watt': 1.20, 'switch_volts': 24.6, 'driver_share': 0.50,
+    'r_hotswap': 3.6e-3, 'switching_watt': 1.20, 'switch_volts': 24.6, 'driver_share': 1.0,
     'mcu_watt': 0.666, 'ldo_watt': 0.534, 'afe_watt': 0.13, 'f_sw': inverter.FSW,
     'coss_cjo': 15.6e-9, 'coss_m': 0.45, 'coss_vj': 0.7, 't_switch_s': 14.0e-9, 'v_sd': 0.85,
-    'q_g': 81.0e-9, 'v_drive': 12.0, 'buck_eff': 0.85, 'r_phase': 0.05, 'k_iron': 0.0,
+    'q_g': 267.0e-9, 'v_drive': 15.0, 'buck_eff': 0.85, 'r_phase': 0.05, 'k_iron': 0.0,
     'mcu_sleep_watt': 0.49,
 }
 

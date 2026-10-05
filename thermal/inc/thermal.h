@@ -173,7 +173,7 @@ typedef struct
   float coss_vj;
   float t_switch_s;      /**< current-voltage overlap per period, on + off */
   float v_sd;            /**< the body diode's drop, V */
-  float q_g;             /**< total gate charge, C, one FET */
+  float q_g;             /**< a gate's charge a period as driven, C */
   float v_drive;         /**< what the gates are driven to, V */
   float buck_eff;        /**< the +15V7 buck's efficiency, for its loss */
   float r_phase;         /**< the winding, line to neutral: the record's */

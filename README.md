@@ -389,7 +389,9 @@ suite is theirs): `board/src/board_boot.c`, `board/src/board_clock.c`,
 
 **Bench.** The bench board is unmodified (R93 on +5): AFE_ON high unpowers
 its drivers, and no current is measured while switching there. Measured:
-duty 1-100 % dry; 26 pulse runs into 8 ohm at 25 and 31 V, 3.1-3.75 A.
+duty 1-100 % dry; three legs switching dry at 24-60.8 V, 25 and 50 kHz, the
+thermal observer within 0.2 K of the thermistor after 120 s blind at 53.8 V;
+26 pulse runs into 8 ohm at 25 and 31 V, 3.1-3.75 A.
 
 ## References
 
