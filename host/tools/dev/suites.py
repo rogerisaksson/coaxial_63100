@@ -290,6 +290,8 @@ TOUCHES = (
     ('host/machine/parts.py',                  (CONTROLLER, CTRL_CORE, CYCLIC)),
     ('host/machine/cyclic.py',                 (CYCLIC,)),
     ('host/machine/quad.py',                   ('test_views_quad.py', STRUCTURE)),
+    ('host/machine/flying.py',                 ('test_views_quad.py', STRUCTURE)),
+    ('host/machine/aerobatics.py',             ('test_views_quad.py', STRUCTURE)),
     ('host/coaxial/graphics/quadcopter.py',    ('test_views_quad.py', RENDER)),
     ('host/machine/',                          (CONTROLLER, GYNOID, GYNOID_FAULTS, GYNOID_FALLS,
                                                 GYNOID_STAND, GYNOID_GAIT, GYNOID_RUN,

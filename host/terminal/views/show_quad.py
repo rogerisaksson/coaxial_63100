@@ -1,12 +1,14 @@
-"""QUAD: four coaxial boards flying a frame in MuJoCo, full tilt into the sky, a stop 10 cm up.
+"""QUAD: four coaxial boards flying a frame in MuJoCo, its routine, full tilt, a stop 10 cm up.
 
 A 2 kg frame (machine.quad) spooled on the floor, lifted to a hover and held there until the four
-boards' thermal observers have left UNCERTAIN, then sent full tilt into the sky, fallen and burned
-to a stop 10 cm over the floor, held and landed. Each rotor a stand-in board armed on the
-master's pilot, its drive sensorless on the 63100 outrunner's model under an APC 20x10E
-propeller, its speed loop on the drive's own estimate; the frame in MuJoCo on the four rotors'
-thrust and drag, gravity and the air, held level over its spot by the mixer. The camera sits close
-on the floor before a flight, pulls back as it lifts and follows it up, looking down on it
+boards' thermal observers have left UNCERTAIN, then flown through its routine
+(machine.aerobatics' card on machine.flying's law): a pirouette, an orbit and a corkscrew up, a
+roll and a flip over a toss, the corkscrew back down; its envelopes' room back, sent full tilt
+into the sky, fallen and burned to a stop 10 cm over the floor, held and landed. Each rotor a
+stand-in board armed on the master's pilot, its drive sensorless on the 63100 outrunner's model
+under an APC 20x10E propeller, its speed loop on the drive's own estimate; the frame in MuJoCo
+on the four rotors' thrust and drag, gravity and the air. The camera sits close on the floor
+before a flight, pulls back as it lifts and follows it, looking down on it
 (coaxial.graphics.quadcopter); the height over the last half minute is a box at the side.
 
     python terminal/views/show_quad.py
@@ -27,7 +29,8 @@ from coaxial.errors import RigError
 from coaxial.graphics import gpu, quadcopter
 from coaxial.model.thermal import MOTOR
 from coaxial.simulated.sto import PILOT_VOLTS
-from machine import quad
+from machine import aerobatics, quad
+from machine.flying import FALL, Flying
 from machine.modes import SIMULATED
 from machine.parts import SpeedPI
 from terminal.loader import TO_MENU
@@ -49,12 +52,16 @@ ROTOR_J, ROTOR_B = 1.2e-4 + 8e-4, 8e-4
 
 #: The rotors' speed loop, Hz, and their top, mechanical rad/s: the 24 V link's ceiling on
 #: the 63100 at the clamp, measured - 2 960 rpm, the q inductance's drop at 50 A beside the
-#: back-EMF; the flux's alone, 454, planned the burn on twice the thrust there was.
+#: back-EMF; the flux's alone, 454, planned the burn on twice the thrust there was. The four's
+#: thrust there, N.
 SPEED_HZ, TOP_RAD_S = 3.0, 310.0
+TOP_N = 4.0 * quad.K_THRUST * TOP_RAD_S * TOP_RAD_S
 
-#: The flight's step, s - the stand-in's boards answer out of memory - and the thermal reads'
-#: period, s.
-PHYSICS_S, THERMAL_S = 0.01, 0.25
+#: The flight's step, s - the stand-in's boards answer out of memory -, the longest a pass
+#: steps it, and the thermal reads' period, s. The flight's clock is its passes' sum: a pass in
+#: twenty ran 50 ms, the routine's rows asked by the wall's clock moved further than their
+#: pass and the rotors' loops went to their clamp on what that looked like (2026-10-05).
+PHYSICS_S, PASS_S, THERMAL_S = 0.01, 0.05, 0.25
 
 #: The STO chain's charge on the master's pilot before the interlock passes, s, on the wall's
 #: clock the stand-in's chain runs on: opened, a board's charge pump read 2.16 V of the 3.0
@@ -74,7 +81,7 @@ GO = ('CONVERGING', 'STABLE')
 SPEND = 0.3
 ROOM = THROTTLE_AT - SPEND
 
-#: The least of the clamp a derated board's spool is allowed for, of the whole.
+#: The least of its pull a derated board's burn is braked on, of the whole.
 DERATE_FLOOR = 0.25
 
 #: The camera: the reach framed about the quad on the floor before a flight and in the air, m,
@@ -118,17 +125,16 @@ def arm(rig):
             'budget': {}, 'ident': {}, 'board_c': None}
 
 
-def step(rotors, sky, route, clock, dt, ready):
-    """The flight `dt` s on: the plan's thrust shared over the rotors to hold the frame level
-    over its spot - full tilt once `ready` - each rotor's loop after its share, the propeller on
-    each shaft, and the frame in MuJoCo on the four rotors' thrust and drag. The burn allows for
-    the most derated board's spool."""
-    top = 4.0 * quad.K_THRUST * TOP_RAD_S * TOP_RAD_S
+def step(rotors, sky, route, flying, clock, dt, ready):
+    """The flight `dt` s on, its stage: the routine's row asked of the law - left once `ready`
+    and the frame held, where it waits for them - each rotor's loop after the law's thrust for
+    it, the propeller on each shaft, and the frame in MuJoCo on the four rotors' thrust and
+    drag. A burn is braked on the most derated board's share; its row falls first."""
     derate = min(((r['budget'] or {}).get('derate') or 1.0) for r in rotors)
     state = sky.state()
-    name, thrust = quad.plan(route, state, top, clock, ready,
-                             quad.SPOOL_S / max(DERATE_FLOOR, min(1.0, derate)))
-    for rotor, share in zip(rotors, quad.mix(state, thrust)):
+    name, flying.ask = aerobatics.fly(route, clock, [word for word, holds in (
+        ('ready', ready), ('held', flying.held)) if holds])
+    for rotor, share in zip(rotors, flying.step(state, dt, max(DERATE_FLOOR, min(1.0, derate)))):
         drive = rotor['rig'].board.drive
         now = drive.state()
         rotor['w_hat'] = (now.get('omega_hat') or 0.0) / rotor['pairs']
@@ -140,12 +146,12 @@ def step(rotors, sky, route, clock, dt, ready):
         drive.write(iq_ref=rotor['iq'])
         drive.model.configure(load=quad.K_DRAG * rotor['w'] * abs(rotor['w']))
     sky.step([r['w'] for r in rotors], dt)
-    return name
+    return FALL if name == 'burn' and flying.doing == FALL else name
 
 
 def room(rotors):
-    """Whether full tilt may go: every observer out of UNCERTAIN and every envelope with ROOM,
-    none throttling."""
+    """Whether the routine and full tilt may go: every observer out of UNCERTAIN and every
+    envelope with ROOM, none throttling."""
     return all((r['ident'] or {}).get('state') in GO
                and ((r['budget'] or {}).get('worst') or 0.0) <= ROOM
                and not (r['budget'] or {}).get('throttling') for r in rotors)
@@ -223,18 +229,28 @@ def observer_word(ident):
     return WORD[state] if margin >= 100 else '%s %d' % (WORD[state], margin)
 
 
-def compose(console, origin, rotors, frame, route, trace, now, apex, ready, art):
-    """One frame: the quad in the viewport, the flight, its rotors and the height's trace at the
-    side."""
-    name = quad.STAGES[route['stage']][0]
+def observers(rotors, waiting):
+    """The four observers in a row's words: who is stable and who converges - or, `waiting`,
+    how many are out of UNCERTAIN and what the routine waits for. `4 of 4 converging` it said
+    whatever they were, STABLE from 49-70 s of a flight (2026-10-05)."""
+    states = [(r['ident'] or {}).get('state') for r in rotors]
+    known, stable = sum(s in GO for s in states), states.count('STABLE')
+    if waiting:
+        return '%d of %d, %s' % (known, len(states), 'the routine waits' if known < len(states)
+                                 else 'cooling to %.0f %%' % (100.0 * ROOM))
+    if stable == len(states):
+        return '%d of %d stable' % (stable, len(states))
+    return '%d stable, %d converging%s' % (
+        stable, known - stable, ' of %d' % len(states) if known < len(states) else '')
+
+
+def compose(console, origin, rotors, frame, name, waiting, trace, now, apex, art):
+    """One frame: the quad in the viewport, the flight at its stage `name` - `waiting` for the
+    boards -, its rotors and the height's trace at the side."""
     weight = quad.MASS_KG * quad.GRAVITY
     lift = sum(quad.K_THRUST * r['w'] * r['w'] for r in rotors)
     tilt = math.degrees(math.acos(max(-1.0, min(1.0, float(frame['turn'][1][1])))))
-    known = sum((r['ident'] or {}).get('state') in GO for r in rotors)
     worst = max(((r['budget'] or {}).get('worst') or 0.0) for r in rotors)
-    waiting = name == 'hover' and not ready
-    why = (' converging' if not waiting else ', full tilt waits' if known < len(rotors)
-           else ', cooling to %.0f %%' % (100.0 * ROOM))
     flying = hud('FLIGHT', [
         ('stage', Text(name.upper(), style='alarm' if name in ('full tilt', 'burn') else 'value')),
         ('height', '%8.2f m' % frame['h']),
@@ -243,7 +259,7 @@ def compose(console, origin, rotors, frame, route, trace, now, apex, ready, art)
         ('thrust', '%8.1f of %.1f N' % (lift, weight)),
         ('tilt', '%8.1f deg, %.2f m off' % (tilt, math.hypot(frame['at'][0], frame['at'][2]))),
         ('apex', '%8.1f m' % apex),
-        ('TH OBS', Text('%d of 4%s' % (known, why), style='alarm' if waiting else 'value')),
+        ('TH OBS', Text(observers(rotors, waiting), style='alarm' if waiting else 'value')),
         ('SOA', '%8.0f %% worst' % (100.0 * worst))])
     lines = []
     for label, rotor in zip(ROTORS, rotors):
@@ -295,10 +311,11 @@ def main(argv=None):
     card = gpu.adapter()
     lit = gpu.LitRaster(found=card) if card is not None else None
     say('ok', 'drawing', lit.name if lit is not None else 'this process, dots')
-    sky, route, trace = quad.Sky(), quad.flight(), []
+    sky, route, trace = quad.Sky(), aerobatics.routine(), []
     began = time.monotonic()
-    held = {'at': 0.0, 'thermal_at': 0.0, 'apex': 0.0, 'frame': sky.state(), 'ready': False,
-            'reset': False}
+    held = {'at': 0.0, 'clock': 0.0, 'thermal_at': 0.0, 'apex': 0.0, 'frame': sky.state(),
+            'ready': False, 'reset': False, 'flying': Flying(TOP_N, aerobatics.DOWN),
+            'stage': aerobatics.CARD[0][0]}
     camera = {'reach': NEAR_M, 'yaw': YAW, 't': None, 'zoom': 1.0}
 
     def zoomed(k):
@@ -311,26 +328,28 @@ def main(argv=None):
         """The flight's side of a frame, on the feed's thread: steps of PHYSICS_S."""
         with suppress(RigError):
             now = time.monotonic() - began
-            dt = min(0.05, max(0.0, now - held['at']))
+            dt = min(PASS_S, max(0.0, now - held['at']))
             held['at'] = now
             if dt <= 0.0:
                 return
+            clock = held['clock'] = held['clock'] + dt
             if held['reset']:
-                # R: the frame back on its skids at its spot, the flight from its spool, the
+                # R: the frame back on its skids at its spot, the routine from its spool, the
                 # rotors' loops from rest - on this thread, the one that steps the world.
                 held['reset'] = False
                 sky.reset()
-                route.update(quad.flight(), at=now)
+                route.update(aerobatics.routine(), at=clock)
+                held['flying'] = Flying(TOP_N, aerobatics.DOWN)
                 reset(rotors)
                 trace.clear()
                 held['apex'] = 0.0
                 camera['reach'] = NEAR_M
-            step(rotors, sky, route, now, dt, held['ready'])
+            held['stage'] = step(rotors, sky, route, held['flying'], clock, dt, held['ready'])
             frame = held['frame'] = sky.state()
-            held['apex'] = frame['h'] if quad.STAGES[route['stage']][0] == 'full tilt' \
+            held['apex'] = frame['h'] if held['stage'] == 'full tilt' \
                 else max(held['apex'], frame['h'])
-            trace.append((now, frame['h']))
-            while trace and now - trace[0][0] > TRACE_S:
+            trace.append((clock, frame['h']))
+            while trace and clock - trace[0][0] > TRACE_S:
                 trace.pop(0)
             if now - held['thermal_at'] >= THERMAL_S:
                 held['thermal_at'] = now
@@ -348,7 +367,7 @@ def main(argv=None):
         frame = held['frame']
         dt = 0.0 if camera['t'] is None else now - camera['t']
         camera['t'] = now
-        want = NEAR_M if quad.STAGES[route['stage']][0] == 'spool' else FAR_M
+        want = NEAR_M if held['flying'].ask['height'] <= 0.0 else FAR_M
         camera['reach'] += (want - camera['reach']) * min(1.0, dt / PULL_S)
         camera['yaw'] += ORBIT_DEG_S * dt
         reach, (x, y, z) = camera['reach'] / camera['zoom'], frame['at']
@@ -358,8 +377,9 @@ def main(argv=None):
             frame, [(r['angle'], r['w'], (r['budget'] or {}).get('winding_c'), r['board_c'])
                     for r in rotors], width, height, yaw=camera['yaw'], pitch=PITCH,
             reach=reach, centre=(x, y - trail, z), colour=terminal, lit=lit))
-        return compose(board_view, origin, rotors, frame, route, list(trace), now,
-                       held['apex'], held['ready'], art)
+        waiting = 'ready' in route['card'][route['row']][4] and not held['ready']
+        return compose(board_view, origin, rotors, frame, held['stage'], waiting, list(trace),
+                       held['clock'], held['apex'], art)
 
     try:
         leaving = run_view(board_view, terminal, 1.0 / max(args.hz, 0.5), args.frames, draw,

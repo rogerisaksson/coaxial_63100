@@ -163,12 +163,14 @@ class SimulatedDrive(DrivePlant, DriveObservers, DriveCapture, DriveControl):
     @_rotor_locked
     def _rpm(self):
         """The rotor, rpm mechanical, off the tracker as board_thermal.c's speed_now takes it
-        off the observer; none while off."""
+        off the observer, by the record's pole pairs; none while off. By the bench motor's 7
+        the QUAD page's 63100, 14, cooled its boards on 2 941 rpm at 1 471 (2026-10-05)."""
         if self._mode == 'off':
             return 0.0
         omega = self._omega_hat if self._mode == 'sensorless' and self._source == 'model' \
             else self._omega()
-        return abs(omega) / self.POLES * 60.0 / (2.0 * math.pi)
+        pairs = self._params.get('motor_pole_pairs') or self.DEFAULTS['motor_pole_pairs']
+        return abs(omega) / pairs * 60.0 / (2.0 * math.pi)
 
     def state(self):
         # The rotor up to now, first.

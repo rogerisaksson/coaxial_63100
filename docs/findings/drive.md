@@ -49,6 +49,25 @@ rotor's pages and their demos. The board's own are in
   speed for each height over its mark, within 2 cm of it 1.6-1.8 s on; the
   thrust run down as the propellers do. Four flights on end, the lift at
   1.50 m, down still, the share flat on the floor (2026-10-05).
+- QUAD's routine, `machine.aerobatics`' card on `machine.flying`'s one law: a
+  pirouette, an orbit and a corkscrew to 8 m, a roll and a flip over a toss,
+  the way back down, full tilt, the burn - 59.9 s on ideal rotors, 0.5 g at
+  most outside its turns, the pole 2.7 m off; on four stand-ins no board
+  throttling, SOA 0.50 at most in its figures. On the way: the heading's loop
+  at 16/8 on the discs' drag swung the rotors 1 470-2 080 rpm at the clamp in
+  a pirouette of 180 deg/s (4/4, the turn fed on, 120 deg/s: 16 A); the spot's
+  at 4/3.2 rang an orbit's bank 19-31 degrees on 14 of margin (1/1.6, the air
+  fed on: 24-25); a roll on rotors run down as their propellers do went 1.6 m
+  aside whichever way the thrust was cut - the collective bears the weight
+  over a turn begun and ended alike; the thrust slewed 15 N/s swung a hover
+  0.4 m; a pass of the page 14 ms and one in twenty 50, the rows asked by the
+  wall's clock: the flight's clock is its passes' sum (2026-10-05).
+- The stand-in's thermal air took the rotor's rpm by the bench motor's 7 pole
+  pairs: QUAD's 63100, 14, cooled its boards on 2 941 rpm at 1 471; by the
+  record's now, as `board_thermal.c`. Its four observers were STABLE from
+  49-55 s of a flight, 66-70 with the routine - air 1.00, capacity 1.00-1.01,
+  the room 25.1 of 25.0 C; the page said `4 of 4 converging` whatever they
+  were (2026-10-05).
 - The rotor page, the bench's word: the magnets blurred through a 1/80 s
   shutter (208-386 cells, 0.10 a frame at most; the smear's ring flipped
   0.29), the windings whole at their current's brightness and gone on a
