@@ -255,16 +255,17 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
     `test_structure` on the layout, each file under 5 k.
 
 28. **One law for her going, S and F on it** (the user, 2026-10-05: no scenario
-    a moment; intent a stream of setpoints). In, off the page
-    (`machine/going.py`, `tools/sim/ways.py`, docs/findings/going.md): a gait a
-    row of 16 setpoints; asked a row she stands, walks, jogs, runs 1.5 m/s and
-    stands again, 43 ways of 44 over a spread; the director hands her to it
-    from its stand (`machine/pace.py`). Left: S and F on the page; a shove's
-    parry - shoved, up 4 of 24; her turns; her form, priced 70 - toes 6 mm back
-    at lift, head 49 mm aside, the pelvis's roll 0.7 deg of 3; her rows found
-    from a stand; a run past 1.5 m/s; the runner and the walk's modules gone
-    into it. DOD: F to her fastest run and S back on the page, 10 of 10; her
-    walk on it on `looks.FORM` at no more J/m; shoved, up as the walk as built.
+    a moment; intent a stream of setpoints). In (`machine/going.py`,
+    `tools/sim/ways.py`, docs/findings/going.md): a gait a row of 16 setpoints;
+    asked a row she stands, walks, jogs, runs 1.5 m/s and stands again, 43 ways
+    of 44 over a spread; on the page under J, S and F its rows
+    (`machine/pace.py`). Left: the page hers without J - the floor's events and
+    her style on the law; a shove's parry - shoved, up 4 of 24; her turns; her
+    form, priced 70 - toes 6 mm back at lift, head 49 mm aside, the pelvis's
+    roll 0.7 deg of 3; her rows found from a stand; a run past 1.5 m/s; the
+    runner and the walk's modules gone into it. DOD: F to her fastest run and S
+    back on the page, 10 of 10; her walk on it on `looks.FORM` at no more J/m;
+    shoved, up as the walk as built.
 29. **Her tubes, corners and flanges** (the user, 2026-10-05): carbon
     tubes cut to length, epoxied into printed corners; a gearbox on a
     flange, its output through it; motor, box and board outermost, a

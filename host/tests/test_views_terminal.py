@@ -356,12 +356,35 @@ def test_the_humanoid_pages_mouse(report):
                  '2026-10-03)', state['yaw'] < viewpoint.YAW, '%s' % state)
 
 
+def test_the_humanoid_pages_pace(report):
+    """S and F step her cadence; J hands her going to the one law (`machine.pace`), S and F
+    then its rows from her stand to the run; J again, the walk as built."""
+    import types
+    from terminal.views import humanoid_keys, viewpoint
+    sent = []
+    body = types.SimpleNamespace(send=lambda **command: sent.append(command))
+    keys = humanoid_keys.table(viewpoint.KEYS, ('strong',), ('torque',))
+    state: dict = {'body': body, 'cadence': 0.85, 'law': False, 'pace': -1.0}
+    humanoid_keys.act_on(keys, ['f'], state)
+    report.check('F a step of her cadence', sent == [{'cadence': 0.9}], '%s' % sent)
+    del sent[:]
+    humanoid_keys.act_on(keys, list('jffffffs'), state)
+    asked = [command.get('pace') for command in sent]
+    report.check('J asks her stand of the law, F its rows to the run and no further, S one back',
+                 asked == [-1.0, -0.5, 0.0, 0.5, 0.75, 1.0, 1.0, 0.75], '%s' % asked)
+    del sent[:]
+    humanoid_keys.act_on(keys, ['j'], state)
+    report.check('J again, the walk as built', sent == [{'pace': None}] and not state['law'],
+                 '%s' % sent)
+
+
 ROSTER = (test_the_page_tool_holds_one_frame, test_the_screen_keeps_its_own_rate,
           test_the_chrome_at_its_edges,
           test_each_page_draws_on_a_terminal, test_the_console_it_draws_on,
           test_the_crt_draws_on_the_terminal, test_the_terminal_is_asked_how_tall_a_cell_is,
           test_every_page_scrolls_its_boxes, test_a_frame_rasterises_as_the_terminal_draws_it,
-          test_the_attitude_caps_its_frame_rate, test_the_humanoid_pages_mouse)
+          test_the_attitude_caps_its_frame_rate, test_the_humanoid_pages_mouse,
+          test_the_humanoid_pages_pace)
 
 def main(argv=None):
     """Every test, or those the command line's words name, or its --shard k/n (tools.dev.focus)."""

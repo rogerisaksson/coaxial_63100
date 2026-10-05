@@ -16,8 +16,8 @@ by as much before that one is due with `both` under 0: both bear between, a walk
 a run. The free one is due the other foot's `step` on and, the more both bear a step, as her hip
 is half a step past the standing foot or her capture point has run a step's width from it. A
 gait is a row of `machine.gaits`; asked no speed she stands, and steps only as her capture point
-leaves her feet's hold. On a flat floor: her turns and a shove's parry are not in it, and
-nothing of it is on the page (docs/findings/going.md).
+leaves her feet's hold. On a flat floor: her turns and a shove's parry are not in it; on the
+page under J (`machine.pace`; docs/findings/going.md).
 """
 import math
 

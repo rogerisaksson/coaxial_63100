@@ -5,8 +5,8 @@ The gynoid's stand, walk and run as the setpoints of one law
 `tools/sim/go.py`; the user's, 2026-10-05): what the law is, what a walk
 and a stand asked of it, what it walks and runs at. The walk as built is
 in [walk](walk.md), the run in [run](run.md), the page's standing law in
-[standing](standing.md). Nothing of it is on the page; `tools/sim/ways.py`
-is its spread of timings.
+[standing](standing.md). On the page under J; `tools/sim/ways.py` is its
+spread of timings.
 
 - The law (2026-10-05). A limb bears or is free. What bears carries the
   pelvis: its height the bounce's - from where and how fast she came down
@@ -204,3 +204,11 @@ is its spread of timings.
   m/s, jogged, ran 1.5 m/s from 36 to 44 s and was back at her jog at
   50. Down, the director's fall and get-up are hers; risen, she stands
   for the law again.
+- On the page (2026-10-05; `terminal/views/humanoid_keys.py`). J hands
+  her going to the law - landed anew, risen, standing - and S and F step
+  the row asked: her stand, a slow walk, her walk, her jog, a faster
+  one, the run; J again, the walk as built. Its body process driven so:
+  stood from 6 s, asked on at 16 walked 0.6-0.8 m/s, her jog from 28,
+  the run from 37 to 47 at 1.3-1.7 m/s, asked to a stand at 46 and
+  standing at 60. On the law the floor's events and the walk's style do
+  nothing.

@@ -8,10 +8,9 @@ Her figure in MuJoCo, each joint a drive (`machine.physics`), her director setti
 millisecond (`machine.director`) in a process paced to the wall clock (`machine.running`); drawn
 from her joints' read-back, lit on the GPU where a card answers (`coaxial.graphics.gynoid`), each
 drive called out at the viewport's edge. The keys by group on TAB (GROUPS): the floor's events
-ahead (TRIPS), the gym's rigs she lands on (RIGS), a board glitched (GLITCHED).
+ahead, the gym's rigs she lands on, a board glitched (`terminal.views.humanoid_keys`).
 """
 import argparse
-import csv
 import math
 import os
 import sys
@@ -24,7 +23,7 @@ from coaxial.graphics import gpu, gynoid
 from coaxial_ollama.client import Chosen
 from machine import ansi, figure, gait, style
 from machine.director import moment
-from machine.figure import JOINTS, SEGMENTS, frames, quat
+from machine.figure import JOINTS, quat
 from machine.routines import TYPES
 from machine.running import Running
 from terminal.loader import TO_MENU
@@ -32,12 +31,12 @@ from terminal.views.overlay import (BOX_GROUND, BRAKE_INK, CALLOUT_W, DARK_INK, 
                                     NUMBER_INK, SMALL, STAND, STANDING, TORQUE_INK, data_labels,
                                     data_legend, traffic)
 from terminal.views import viewpoint
+from terminal.views.humanoid_keys import CADENCE, act_on, row, table
 from terminal.views.playback import Playback
 from terminal.ui import screen as _screen
 from terminal.ui.screen import PORT, FPS_CAP, closing, run_view, say
 from terminal.ui.scroll import HUD_WIDTH
 from terminal.ui.stage import footer, frame_of, help_rows, helped, hud, stage
-from tools import REPO
 
 _screen.CHATTER = False     # the boot bar replaced the scroll
 
@@ -46,15 +45,12 @@ TITLE = 'HUMANOID'
 #: Where she runs: no port, no board; the band says it and the chip is DYNAMIC.
 ORIGIN = Origin(False, 'dynamic', 0, 'dynamic', 'GRAVITY 9.81 - MUJOCO', 'dynamic', 0)
 
-#: The cadence's bounds and a key's step, strides a second: under 0.6 she fell from her first
-#: stride, at 0.95 within two seconds (2026-09-25).
-CADENCE, CADENCE_STEP = (0.6, 0.9), 0.05
 
 #: The band's meters, METER cells each: her pace (strides/s at each mark) and her style on
-#: `style.SWAY`'s axis, Z and X a SWAY_STEP of it.
+#: `style.SWAY`'s axis.
 PACES = ((0.0, 'still'), (gait.CADENCE, 'walk'), (1.6, 'run'))
 STYLES = ((-1.0, 'catwalk'), (0.0, 'normal'), (1.0, 'swagger'))
-METER, SWAY_STEP = 21, 0.25
+METER = 21
 
 
 def meter(value, marks):
@@ -81,25 +77,14 @@ def meter(value, marks):
 def gauges(state):
     """The band's PACE and STYLE meters from what the page asked of her."""
     out = Text('PACE ', style='bar.dim')
-    out.append_text(meter(state['cadence'], PACES))
+    k = state['pace']
+    out.append_text(meter(state['cadence'] if not state['law'] else gait.CADENCE * (1.0 + k)
+                          if k <= 0.0 else gait.CADENCE + (PACES[-1][0] - gait.CADENCE) * k,
+                          PACES))
     out.append('   STYLE ', style='bar.dim')
     out.append_text(meter(state['sway'], STYLES))
     return out
 
-#: The boards G and H glitch, in turn, and how long G's SOA lasts, s.
-GLITCHED, SOA_S = ('left_knee', 'right_knee', 'left_hip', 'right_hip'), 0.5
-
-#: What she trips on, by the digit that lays it (Ctrl letters: Ctrl+S paused the terminal,
-#: 2026-09-28).
-TRIPS = dict(zip('123456', ('hole', 'rug', 'sill', 'slip', 'lace', 'stairs')))
-
-#: Where R's recordings go, a CSV from a press to the next: every state the page hears from her,
-#: 10-20 a second of her time (HEADER).
-RECORDINGS = os.path.join(REPO, 'build', 'recordings')
-HEADER = (['t', 'stage', 'yaw', 'speed', 'phase', 'left_load', 'right_load',
-           'x', 'y', 'z', 'qw', 'qx', 'qy', 'qz'] + list(JOINTS)
-          + ['%s_%s' % (seg[0], axis) for seg in SEGMENTS for axis in 'xyz']
-          + ['set_' + j for j in JOINTS] + ['watts'])
 
 #: What the callouts show, T stepping through: each drive's torque, its heat (its worst node,
 #: the thermal observer's scale), its power; the legend's words and the heat's span, C.
@@ -171,10 +156,9 @@ def labels(now, called, shown='torque'):
 #: her there -, the view, the page.
 BAR = (('TAB', 'KEYS'), ('S F', 'PACE'), ('P', 'PUSH'), ('1-6', 'FLOOR'), ('7-0', 'GYM'),
        ('A', 'AGAIN'), ('R', 'RECORD'), ('Q', 'EXIT'), ('ESC', 'MENU'))
-RIGS = dict(zip('7890', ('brick', 'brick_on', 'board', 'rocker')))
 GROUPS = (
     ('BODY', (('S F', 'pace'), ('Z X', 'catwalk .. swagger'), ('K , .', 'style knob, trim'),
-              ('A', 'again: lands anew'))),
+              ('A', 'again: lands anew'), ('J', 'one law: S F stand .. run'))),
     ('FLOOR', (('1', 'hole'), ('2', 'rug'), ('3', 'sill'), ('4', 'slip'), ('5', 'lace'),
                ('6', 'stairs'))),
     ('GYM', (('7', 'two bricks: she stands'), ('8', 'bricks staggered'), ('9', 'board, stiff'),
@@ -202,6 +186,7 @@ def boxes(state, now, name):
     angles = now['angles'] if now else {}
     out = [hud('BODY', [
         ('status', _status(now)),
+        ('pace', '%+.2f of her way' % state['pace']) if state['law'] else
         ('cadence', '%.2f strides/s' % state['cadence']),
         ('speed', '%.2f m/s' % (now['speed'] if now else 0.0)),
         ('phase', '%.2f of a stride' % (now['phase'] if now else 0.0)),
@@ -283,103 +268,9 @@ def _ahead(now):
     return '1-6'
 
 
-def _tripped(event):
-    def trip(state):
-        state['tripped'] = event
-        state['body'].send(event=event)
-    return trip
-
-
-def _glitched(kind):
-    def glitch(state):
-        joint = GLITCHED[state['glitches'] % len(GLITCHED)]
-        state['glitches'] += 1
-        state['glitched'] = (joint, kind)
-        state['body'].send(glitch=(joint, kind, SOA_S))
-    return glitch
-
-
-def _paced(step):
-    def pace(state):
-        state['cadence'] = max(CADENCE[0], min(CADENCE[1], state['cadence'] + step))
-        state['body'].send(cadence=state['cadence'])
-    return pace
-
-
 def _knob(value, unit):
     """A style knob's value, metres in mm."""
     return '%.0f mm' % (value * 1e3) if unit == 'm' else ('%.2f %s' % (value, unit)).rstrip()
-
-
-def _next_knob(state):
-    """K: the next style knob to trim."""
-    state['knob'] = style.NAMES[(style.NAMES.index(state['knob']) + 1) % len(style.NAMES)]
-
-
-def _trimmed(steps):
-    """, and .: the knob picked a step down or up, the walk eased over to it (`machine.style`)."""
-    return lambda state: state['body'].send(style=(state['knob'], steps))
-
-
-def _swayed(step):
-    """Z and X: her walk a step toward the catwalk or the swagger, every knob eased over to it."""
-    def sway(state):
-        state['sway'] = max(-1.0, min(1.0, state['sway'] + step))
-        state['body'].send(sway=state['sway'])
-    return sway
-
-
-def row(now, yaw):
-    """A recording's row (HEADER) at the page's `yaw`."""
-    placed = frames(now['angles'], now['where'], quat(*now['turn']))
-    asked = now.get('set', {})
-    return ([round(now['t'], 4), now['stage'], yaw, now['speed'], now['phase']]
-            + list(now['loads']) + list(now['where']) + list(now['turn'])
-            + [now['angles'].get(j, 0.0) for j in JOINTS]
-            + [v for seg in SEGMENTS for v in placed[seg[0]][0]]
-            + [asked.get(j, float('nan')) for j in JOINTS] + [now.get('watts', float('nan'))])
-
-
-def _recorded(state):
-    """R: recording from now; again: written to RECORDINGS, its name on the page."""
-    if state['recording'] is None:
-        state['recording'], state['recorded'] = [], None
-        return
-    rows, state['recording'] = state['recording'], None
-    os.makedirs(RECORDINGS, exist_ok=True)
-    path = os.path.join(RECORDINGS, time.strftime('humanoid_%Y%m%d_%H%M%S.csv'))
-    with open(path, 'w', newline='', encoding='utf-8') as f:
-        writer = csv.writer(f)
-        writer.writerow(HEADER)
-        writer.writerows(rows)
-    state['recorded'] = path
-
-
-def _befell(event):
-    """P, N, B: `event` (`events.befall`) toward her left and right in turn."""
-    def befall(state):
-        state['side'] = -state['side']
-        state['body'].send(befall=(event, 0 if state['side'] > 0.0 else 1))
-    return befall
-
-
-def _rigged(key):
-    """7-0: landed anew on the rig (RIGS), standing; the key again, the floor."""
-    def rig(state):
-        state['rig'] = None if state['rig'] == RIGS[key] else RIGS[key]
-        state['body'].send(rig=state['rig'])
-    return rig
-
-
-#: What C steps her through: dressed, her shell, her mechanism (`coaxial.graphics.mechanism`),
-#: her drives alone - the stick figure.
-SKINS = ('dressed', 'shell', 'mechanism', 'actuators')
-
-
-#: What each key does to the view's state.
-def _skinned(state):
-    """The next of SKINS."""
-    state['skin'] = SKINS[(SKINS.index(state['skin']) + 1) % len(SKINS)]
 
 
 def _seen(state):
@@ -387,34 +278,8 @@ def _seen(state):
     return state['skin'] if state['skin'] in ('mechanism', 'actuators') else None
 
 
-KEYS = dict(
-    list(viewpoint.KEYS.items()) + [('[', _paced(-CADENCE_STEP)), (']', _paced(CADENCE_STEP))]
-    + [(k, _paced(-CADENCE_STEP)) for k in 'sS'] + [(k, _paced(CADENCE_STEP)) for k in 'fF']
-    + [('p', _befell('shove')), ('P', _befell('shove_on')), ('n', _befell('nudge')),
-       ('N', _befell('nudge_on'))] + [(k, _befell('brick')) for k in 'bB']
-    + [(k, _glitched('soa')) for k in 'gG'] + [(k, _glitched('hot')) for k in 'hH']
-    + [(k, _tripped(event)) for k, event in TRIPS.items()]
-    + [(k, _rigged(k)) for k in RIGS]
-    + [(k, lambda state: state['body'].send(restart=True)) for k in 'aA']
-    + [(k, lambda state: state.update(orbit=not state['orbit'])) for k in 'oO']
-    + [(k, lambda state: state.update(called=CALLING[(CALLING.index(state['called']) + 1)
-                                                     % len(CALLING)])) for k in 'lL']
-    + [(k, _recorded) for k in 'rR']
-    + [(k, _next_knob) for k in 'kK'] + [(',', _trimmed(-1)), ('.', _trimmed(1))]
-    + [(k, _swayed(-SWAY_STEP)) for k in 'zZ'] + [(k, _swayed(SWAY_STEP)) for k in 'xX']
-    + [(k, lambda state: state.update(shown=SHOWN[(SHOWN.index(state['shown']) + 1)
-                                                  % len(SHOWN)])) for k in 'tT']
-    + [(k, _skinned) for k in 'cC']
-    + [(k, lambda state: state.update(data=not state['data'])) for k in 'dD'])
-
-
-def act_on(typed, state, wheel=0.0):
-    if wheel:
-        viewpoint.zoomed(state, max(0.5, 1.0 + wheel))
-    state.setdefault('typed', []).extend(typed)
-    for key in typed:
-        if key in KEYS:
-            KEYS[key](state)
+#: What each key does to the view's state.
+KEYS = table(viewpoint.KEYS, CALLING, SHOWN)
 
 
 def main(argv=None):
@@ -447,7 +312,8 @@ def main(argv=None):
              'side': 1.0, 'last_t': None, 'called': 'strong', 'follow': gynoid.Follow(),
              'recording': None, 'recorded': None, 'glitches': 0, 'glitched': None,
              'tripped': None, 'playback': Playback(), 'shown': 'torque', 'skin': 'dressed',
-             'data': False, 'traffic': None, 'knob': style.NAMES[0], 'sway': 0.0, 'rig': None}
+             'data': False, 'traffic': None, 'knob': style.NAMES[0], 'sway': 0.0, 'rig': None,
+             'law': False, 'pace': -1.0}
 
     def draw():
         said = []
@@ -501,7 +367,7 @@ def main(argv=None):
                     break
                 time.sleep(0.01)
         leaving = run_view(board_view, terminal, 1.0 / max(1.0, args.hz),
-                           args.frames, draw, on_input=lambda typed, wheel: act_on(typed, state, wheel),
+                           args.frames, draw, on_input=lambda typed, wheel: act_on(KEYS, typed, state, wheel),
                            **viewpoint.mouse(state, lambda: size_of(board_view, args)))
     finally:
         body.close()

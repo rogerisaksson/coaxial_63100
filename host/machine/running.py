@@ -50,7 +50,7 @@ def _run(commands, states, cadence, local):
     """The worker: the machine, the director, the loop paced to the clock."""
     import numpy as np
 
-    from machine import Machine, events, style
+    from machine import Machine, events, pace, style
     from machine.director import Director
     from machine.figure import JOINTS
     from machine.heat import GATES_ON
@@ -79,12 +79,14 @@ def _run(commands, states, cadence, local):
     while True:
         try:
             while True:
-                command = commands.get_nowait()
+                command, again = commands.get_nowait(), False
                 if command is None:
                     return
                 if 'cadence' in command:
                     director.cadence = float(command['cadence'])
                 if 'pace' in command:
+                    # the law taken up or let go: landed anew, standing for it or walking
+                    again = (command['pace'] is None) != (director.pace is None)
                     director.pace = command['pace']
                 if 'push' in command:
                     world.push(command['push'], command.get('seconds', 0.1))
@@ -100,7 +102,7 @@ def _run(commands, states, cadence, local):
                     style.trim(*command['style'])
                 if 'sway' in command:
                     style.sway(command['sway'])
-                if command.get('restart') or 'rig' in command:
+                if command.get('restart') or 'rig' in command or again:
                     begin()
                     wall0, sim0 = time.perf_counter(), bus['t']
         except queue.Empty:
@@ -151,7 +153,7 @@ def _run(commands, states, cadence, local):
                               bus['pelvis.pose.qz']),
                      'speed': bus['pelvis.pose.vz'], 'phase': director.walker.phase,
                      'velocity': (bus['pelvis.pose.vx'], bus['pelvis.pose.vz']),
-                     'cadence': director.cadence, 'stage': director.stage,
+                     'cadence': director.cadence, 'stage': pace.stage(director),
                      'fallen': director.stage == 'fallen', 'slips': director.slips,
                      'stir': director.pendulum.stir, 'stirs': director.pendulum.stirs,
                      'swing': director.pendulum.swing,

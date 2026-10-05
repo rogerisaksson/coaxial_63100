@@ -29,6 +29,13 @@ def settled(director):
     return a.frames[-1][0] == 'stand'
 
 
+def stage(director):
+    """Her stage for the page: the director's, on the law the gait of the row she goes on."""
+    k = director.k[0]
+    return director.stage if director.stage != 'go' else (
+        'stand' if k <= -1.0 else 'walk' if k <= 0.25 else 'jog' if k <= 0.5 else 'run')
+
+
 def take(director, bus, out):
     """The law taking her as she stands on both feet, her setpoints `out` before it."""
     law = director.going = going.Going(director.machine, gaits.STAND)

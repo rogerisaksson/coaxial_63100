@@ -2,7 +2,7 @@
 """The gynoid as the eye sees her, measured a stage a row: simulated, or a HUMANOID recording.
 
 From the squat as the page runs her, or a recording (R, build/recordings/*.csv) - the same rows
-either way (`show_humanoid.row`).
+either way (`humanoid_keys.row`).
 
     python tools/sim/look.py                        # from the squat, 16 s
     python tools/sim/look.py --last                 # the newest recording
@@ -69,7 +69,8 @@ def simulated(to_s, values, cadence=0.85, halt_s=None, event=None, event_s=EVENT
     body.arm()
     world = body.nodes['pelvis'].world
     director = Director(body, cadence, stand_s=math.inf if stand else 0.0)
-    director.begin(*((0.002,) + events.rigged(stand) if stand else ()))
+    up, stagger = events.rigged(stand) if stand else (0.0, 0.0)
+    director.begin(up=up, stagger=stagger)
     if stand:
         events.rig(stand, director, world)
     body.loop.step(0.0)
@@ -103,10 +104,10 @@ def simulated(to_s, values, cadence=0.85, halt_s=None, event=None, event_s=EVENT
 
 
 def sample(bus, director, world, asked=None):
-    """A row as the page records it (`show_humanoid.row`), from the loop's bus: the loose hinges
+    """A row as the page records it (`humanoid_keys.row`), from the loop's bus: the loose hinges
     beside it, and how near her feet come."""
     from machine.figure import JOINTS
-    from terminal.views.show_humanoid import HEADER, row
+    from terminal.views.humanoid_keys import HEADER, row
     now = {'t': bus['t'], 'stage': director.stage, 'speed': bus['pelvis.pose.vz'],
            'phase': director.walker.phase,
            'loads': (bus['pelvis.pose.left_load'], bus['pelvis.pose.right_load']),
