@@ -87,10 +87,10 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
    standing foot through the capture point as it will be; no case for a
    side or a rig), measured on the push polar (`events.PUSH_DEG`, 48
    pushes over 8 ways): 25 stood - 60 N 12 of 12, 80 N 10, 100 N 3 (from
-   behind and from the front, on one step), 120 N none. The soles' load through its
-   sensor's band and the stepping foot one that can land where the capture
-   point goes (2026-10-04): 30 - 60 N 12 of 12, 80 N 11, 100 N 7, 120 N
-   none -, the bricks 100 and 84 %, the rockers 100. Next, in the same
+   behind and from the front, on one step), 120 N none. The soles' load
+   through its sensor's band and the stepping foot one that can land
+   where the capture point goes (2026-10-04): 30 - 60 N 12 of 12, 80 N
+   11, 100 N 7, 120 N none -, the bricks 100 and 84 %, the rockers 100. Next, in the same
    plane: the 120 N pushes (the share's rate against the band,
    standing.md); the stance back at her standing height after a step - she
    stays 5-12 cm down on bent knees; the trunk
