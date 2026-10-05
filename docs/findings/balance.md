@@ -242,3 +242,17 @@ shoves, the scoreboard and its searches. The board's own are in
   it - changes none of it and is not taken: at 0.65 strides/s 437 J/m
   where 383 and her toes back 4.2 mm where 0.6, the table's 15-38 mm off
   there landing her feet wider.
+- Her first step is a fall toward the swinging foot (2026-10-05, begun
+  standing, the feet 161 mm apart). As the right foot lifts her centre of
+  mass stands 39 mm inside the left ball - the keyframe's 27
+  (`arrival.LIFT_IN`), the sole's edge at 45 - and the capture point 35
+  mm inside and going on, past the edge 0.1 s later; through the lean her
+  weight has come back, 140 N a foot where 230 and 50 after the shift.
+  The foot lands 126 mm from the standing one where the walk's track has
+  60, and the feet come in step by step on the capture law's asking, the
+  walk's plan narrow from the first (`Walker.begin`, no `wide` since
+  2026-09-27). Shifted further by the keyframes (`SHIFT_IN` 0.03 where
+  0.043, `LIFT_IN` as built and 0.015) she is down in every start of 30,
+  standing and from the squat; over 0.9 s (`SHIFT_S`) the standing ones
+  hold, 0-10 parries, from the squat still down: a shift on a clock
+  overshoots the sole, as on 2026-09-26.

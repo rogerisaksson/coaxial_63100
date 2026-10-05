@@ -61,7 +61,9 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
    twice in a spread at 4 cm; at 0.65 strides/s the swinging foot clears
    the floor by 0.1 mm. DOD: a spread's parries at 1 or under on any
    host; her starts clean, standing and from the squat, over a spread of
-   side gains, the roll's peak at 0.27; her speed within 5 % of her
+   side gains, the roll's peak at 0.27 - the first step taken once her
+   capture point is over the standing sole, not on a clock
+   (docs/findings/balance.md); her speed within 5 % of her
    plan's at 1.0 strides/s; `looks.FORM`'s landing knee at 15; test_gynoid_gait.py asserting fewer J/m than the same walk
    crouched to 12, 18, 24 and 30 deg at each pace; the stance knee at 4.5
    or on its stop; the stride at 1.0 m or over.
