@@ -55,7 +55,7 @@ SPANS = {
              'gaits.WALK.under': (0.0, 0.117), 'gaits.WALK.land': (-20.0, 5.0),
              'gaits.WALK.off': (0.0, 30.0), 'gaits.WALK.list': (0.0, 8.0),
              'gaits.WALK.reach': (0.12, 0.36), 'going.TURN_K': (0.6, 1.8),
-             'going.SPEED_I': (0.0, 0.03), 'going.LIFT_M': (0.004, 0.03),
+             'going.SPEED_I': (0.0, 0.03), 'free.LIFT_M': (0.004, 0.03),
              'strut.FLAT_S': (0.04, 0.25)},
     'between': {'gaits.JOG.speed': (0.6, 1.2), 'gaits.JOG.step': (0.36, 0.58),
                 'gaits.JOG.stand': (0.26, 0.64), 'gaits.JOG.up': (0.0, 0.1),
@@ -81,7 +81,7 @@ def placed(law):
     leg START_U of its swing from where it left the floor behind her, the right coming down -
     or, no rise asked, mid-stance on her right foot on a strut, the left on its way by from
     where it left the floor a step behind."""
-    from machine import figure, gait, going, strut, walkplan
+    from machine import figure, free, gait, going, strut, walkplan
     from machine.figure import LEG, SOLE_BALL, apply, rx, ry, sub
     from machine.runner import START_M, START_U
     a = law.ask
@@ -138,9 +138,9 @@ def placed(law):
         law.y = {'t': 1.0, 'span': 1.0, 'landed': pelvis[1], 'rate': 0.0,
                  'from': (pelvis[1], 0.0, 0.0), 'to': (pelvis[1] + 1.0, 0.0, 0.0)}
         stood = {'right': figure.leg(-1.0, pelvis, turn, flat, ry(0.0))}
-    angles = law._upper({'left': -20.0, 'right': 20.0})
+    angles = free.upper(law, {'left': -20.0, 'right': 20.0})
     for side, sign in walkplan.SIDES:
-        joints = stood.get(side) or law.swung(law.legs[side], sign, pelvis, turn, v)
+        joints = stood.get(side) or free.swung(law, law.legs[side], sign, pelvis, turn, v)
         for k, q in zip(LEG, joints):
             angles[side + k] = math.degrees(q)
     angles['left_foot'] = angles['right_foot'] = 0.0
@@ -166,6 +166,7 @@ def went(track, to_s, values=None, form=None, shoves=(), asked=False):
     from machine.modes import DYNAMIC
     if both is not None:
         gaits.WALK['stand'] = gaits.WALK['step'] + both
+    gaits.derive()
     track = sorted(track)
 
     row = [track[0][1], 0.0]             # asked: the row she goes on, her seconds on it
@@ -241,8 +242,7 @@ def went(track, to_s, values=None, form=None, shoves=(), asked=False):
         got = strides.measured(rows)
         got['energy'] = next((g['drawn'] for g in reversed(segments) if g['to'] > form[0]),
                              math.inf)
-        measured = {name: got.get(name, math.nan) for name, _least, _most in looks.FORM}
-        measured.update(broken=[(name, v, bound) for name, v, bound in looks.broken(got)],
+        measured = dict(got, broken=[(name, v, bound) for name, v, bound in looks.broken(got)],
                         price=looks.priced(got))
     body.disarm()
     body.close()
@@ -255,7 +255,7 @@ def searched(kind, generations, lam, log_path, sigma=0.2):
     row costs its price from FROM_S of WALK_S on each of STARTS - down before then, what she
     did not walk of her way, over any price; her jog's, what of PASSAGES she was not up for
     and a little of her last J/m."""
-    from machine import gaits, going, strut
+    from machine import free, gaits, going, strut
     from tools.dev import focus
     from tools.sim import cmaes
     walks = kind == 'walk'
@@ -268,7 +268,8 @@ def searched(kind, generations, lam, log_path, sigma=0.2):
         if name == 'both':
             return gaits.WALK['stand'] - gaits.WALK['step']
         owner, name, *key = name.split('.')
-        value = getattr({'gaits': gaits, 'going': going, 'strut': strut}[owner], name)
+        value = getattr({'gaits': gaits, 'going': going, 'strut': strut, 'free': free}[owner],
+                        name)
         return float(value[key[0]] if key else value)
 
     def cost(result, values):
@@ -312,8 +313,9 @@ def shown(result):
                   g['steps'], g['stance'], 100.0 * g['both'], g['knee'], g['ahead'], g['load']))
     form = result['form']
     if form:
-        print('form: ' + ' | '.join('%s %.1f' % (k, v) for k, v in form.items()
-                                    if k not in ('broken', 'price')))
+        from tools.sim import looks
+        print('form: ' + ' | '.join('%s %.1f' % (k, form.get(k, math.nan))
+                                    for k, _least, _most in looks.FORM))
         print('off it: %s; priced %.1f' % (', '.join('%s %.1f (%g)' % b for b in form['broken'])
                                            or 'nothing', form['price']))
     print('fell at %.2f s' % result['fell'] if result['fell'] else 'up')

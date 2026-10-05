@@ -21,8 +21,11 @@ from tools import REPO
 CADENCE, CADENCE_STEP = (0.6, 0.9), 0.05
 
 #: J: her going on the one law (`machine.pace`), S and F then a step of LEVELS on her way
-#: (`gaits.between`): her stand, a slow walk, her walk, her jog, a faster one, the run.
-LEVELS = (-1.0, -0.5, 0.0, 0.5, 0.75, 1.0)
+#: (`gaits.between`): her stand, two slow walks, her walk, her jog, two faster, the run. On the
+#: walk as built they step its cadence, 0.6-0.9 strides/s: the page's meter two cells down and
+#: none up (the user, 2026-10-05). The law's walk is the page's own once it is a woman's
+#: (docs/TODO.md item 28).
+LEVELS = (-1.0, -0.6, -0.3, 0.0, 0.5, 0.7, 0.85, 1.0)
 
 #: Z and X move her style SWAY_STEP of `style.SWAY`'s axis.
 SWAY_STEP = 0.25
@@ -51,7 +54,11 @@ SKINS = ('dressed', 'shell', 'mechanism', 'actuators')
 
 
 def _tripped(event):
+    """1-6: `event` laid where her walk meets it - the walk as built's: on the law she is
+    handed to that first."""
     def trip(state):
+        if state['law']:
+            _lawed(state)
         state['tripped'] = event
         state['body'].send(event=event)
     return trip
@@ -67,7 +74,8 @@ def _glitched(kind):
 
 
 def _paced(step):
-    """S and F: her cadence a step; on the one law, the row asked the next of LEVELS."""
+    """S and F: on the one law the row asked the next of LEVELS; on the walk as built, its
+    cadence a step."""
     def pace(state):
         if state['law']:
             at = min(range(len(LEVELS)), key=lambda i: abs(LEVELS[i] - state['pace']))
@@ -80,9 +88,9 @@ def _paced(step):
 
 
 def _lawed(state):
-    """J: her going handed to the one law (`machine.pace`), landed anew and standing; again,
+    """J: her going handed to the one law (`machine.pace`) at its walk, landed anew; again,
     back to the walk as built."""
-    state['law'], state['pace'] = not state['law'], -1.0
+    state['law'], state['pace'] = not state['law'], 0.0
     state['body'].send(pace=state['pace'] if state['law'] else None)
 
 
@@ -142,7 +150,12 @@ def _rigged(key):
     """7-0: landed anew on the rig (RIGS), standing; the key again, the floor."""
     def rig(state):
         state['rig'] = None if state['rig'] == RIGS[key] else RIGS[key]
-        state['body'].send(rig=state['rig'])
+        if state['law']:
+            # on the law she stands on it till F asks her on
+            state['pace'] = -1.0
+            state['body'].send(pace=-1.0, rig=state['rig'])
+        else:
+            state['body'].send(rig=state['rig'])
     return rig
 
 

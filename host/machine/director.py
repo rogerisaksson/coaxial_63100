@@ -34,8 +34,10 @@ FALLEN_M, FALLEN_DEG, SQUAT_FALLEN_M = 0.55, 35.0, 0.3
 GETUP_TRIES = 3
 
 #: Standing and stepping (`machine.stand`): watched for a fall as walking, a step's lunge
-#: past TREAD_DEG (the brick's step down read as a fall at 12.3 degrees, 2026-10-04).
-STANDING, TREAD_DEG = ('stand', 'tread'), 25.0
+#: past TREAD_DEG (the brick's step down read as a fall at 12.3 degrees, 2026-10-04); going on
+#: the one law, GO_DEG past FALLING_DEG: its trunk leans 5-6 degrees and tipped to 12.7 in
+#: rounds she stood through (2026-10-05).
+STANDING, TREAD_DEG, GO_DEG = ('stand', 'tread'), 25.0, 6.0
 
 
 #: A stance foot bearing `stance.BEARS_N` slid past SLIP_M is held where it is: at 2 cm the
@@ -377,7 +379,7 @@ class Director:
         self.fall_rate = 0.0 if self.tilt_was is None else (
             (tilt - self.tilt_was[0]) / max(1e-6, t - self.tilt_was[1]))
         self.tilt_was = (tilt, t)
-        deg = TREAD_DEG if self.stage == 'tread' else FALLING_DEG
+        deg = TREAD_DEG if self.stage == 'tread' else FALLING_DEG + GO_DEG * (self.stage == 'go')
         return bus['pelvis.pose.y'] < FALLING_M or (tilt > deg and self.fall_rate > FALLING_DEG_S)
 
     def _fall_way(self, bus):

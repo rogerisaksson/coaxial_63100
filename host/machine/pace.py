@@ -31,9 +31,10 @@ def settled(director):
 
 def stage(director):
     """Her stage for the page: the director's, on the law the gait of the row she goes on."""
+    if director.stage != 'go':
+        return director.stage
     k = director.k[0]
-    return director.stage if director.stage != 'go' else (
-        'stand' if k <= -1.0 else 'walk' if k <= 0.25 else 'jog' if k <= 0.5 else 'run')
+    return 'stand' if k <= -1.0 else 'walk' if k <= 0.25 else 'jog' if k <= 0.5 else 'run'
 
 
 def take(director, bus, out):

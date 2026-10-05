@@ -161,6 +161,7 @@ WALK = (
     ('head nod', 'deg', lambda rs: _ptp(_lean(_p(r, 'neck'), _p(r, 'head')) for r in rs)),
     ('arm', 'deg', lambda rs: _ptp(float(r['left_shoulder']) for r in rs)),
     ('elbow', 'deg', lambda rs: _ptp(float(r['left_elbow']) for r in rs)),
+    ('elbow bent', 'deg', lambda rs: _mean(float(r['left_elbow']) for r in rs)),
     ('strike', 'N', lambda rs: max(max(float(r['left_load']), float(r['right_load'])) for r in rs)),
     ('feet apart', 'mm', lambda rs: _mean(abs(_p(r, 'left_foot')[0] - _p(r, 'right_foot')[0])
                                           for r in rs if float(r['left_load']) > 60.0
@@ -188,6 +189,8 @@ WALK = (
     ('knee swinging', 'deg', lambda rs: max((float(r['left_knee']) for r in _mid_swings(rs)),
                                             default=math.nan)),
     ('knee at landing', 'deg', lambda rs: _mean(float(b['left_knee']) for a, b in _landings(rs))),
+    ('knee at lift', 'deg', lambda rs: _mean(float(a['left_knee']) for a, b in _lifts(rs))),
+    ('heel at lift', 'deg', lambda rs: _mean(_heel(a) for a, b in _lifts(rs))),
     # the stance leg a strut: its knee while her foot bears her alone, its ankle behind its hip
     ('knee behind plumb', 'deg', lambda rs: max((float(r['left_knee']) for r in _alone(rs)
                                                  if _p(r, 'left_foot')[2] < _p(r, 'left_thigh')[2]),
@@ -269,6 +272,14 @@ def _foot(r):
     ahead, out = figure.apply(foot, (0.0, 0.0, 1.0)), figure.apply(foot, (1.0, 0.0, 0.0))
     return (math.degrees(math.atan2(ahead[0], ahead[2])),
             math.degrees(math.asin(max(-1.0, min(1.0, out[1])))))
+
+
+def _heel(r):
+    """The left heel's rise, deg: the ankle's line to the toes' joint off where the sole is flat."""
+    from machine import gait
+    ankle, toes = _p(r, 'left_foot'), _p(r, 'left_toes')
+    return math.degrees(math.asin(max(-1.0, min(1.0, (ankle[1] - toes[1]) / math.dist(ankle, toes))))
+                        - math.atan2(gait.ANKLE_H - gait.TOE_RY, gait.BALL))
 
 
 def _touchdown(rs):
@@ -357,16 +368,27 @@ def measured(rows):
     return out
 
 
-def walked(rows):
-    """The steady walk's look: WALK over the rows from WALK_FROM_S after the walk begins."""
+def steady(rows):
+    """The steady walk's rows: from WALK_FROM_S after the walk begins."""
     walk = [r for r in rows if r['stage'] in ('walk', 'catch')]
-    if not walk:
+    return [r for r in walk if float(r['t']) >= float(walk[0]['t']) + WALK_FROM_S]
+
+
+def walked(rows, take=None):
+    """The steady walk's look: WALK over its rows, then how far off a woman's normal walk it
+    is and what of it is out of her band (`normal.BAND`: by place, where WALK's are by the
+    soles' loads); written a take at `take` (`fbx.wrote`)."""
+    from tools.sim import fbx, normal
+    walk = steady(rows)
+    if len(walk) < 2:
         return
-    from_t = float(walk[0]['t']) + WALK_FROM_S
-    steady = [r for r in walk if float(r['t']) >= from_t]
-    if len(steady) < 2:
-        return
-    got = measured(steady)
-    print('\n9 walk from %.2f s to %.2f s' % (from_t, float(steady[-1]['t'])))
+    got = measured(walk)
+    print('\n9 walk from %.2f s to %.2f s' % (float(walk[0]['t']), float(walk[-1]['t'])))
     print('  ' + ' | '.join('%s %.1f %s' % (name, got[name], unit) for name, unit, _f in WALK)
           + ' | catches %d | energy %.0f J/m' % (got['catches'], got.get('energy', math.nan)))
+    far, out = normal.off(normal.measured(*fbx.joints(walk)))
+    print("  off a woman's walk %.2f%s" % (far, ''.join(
+        ' | %s %.3g (%g)' % o for o in out)))
+    if take:
+        fbx.wrote(take, walk)
+        print('  written %s: %d frames' % (take, len(walk)))

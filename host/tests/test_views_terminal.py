@@ -357,24 +357,33 @@ def test_the_humanoid_pages_mouse(report):
 
 
 def test_the_humanoid_pages_pace(report):
-    """S and F step her cadence; J hands her going to the one law (`machine.pace`), S and F
-    then its rows from her stand to the run; J again, the walk as built."""
+    """S and F step the row asked of her way on the one law (`machine.pace`), from her stand to
+    the run and no further; J hands her to the walk as built, S and F then its cadence; a floor
+    event hands her to it too, a rig stands her on the law."""
     import types
     from terminal.views import humanoid_keys, viewpoint
     sent = []
     body = types.SimpleNamespace(send=lambda **command: sent.append(command))
     keys = humanoid_keys.table(viewpoint.KEYS, ('strong',), ('torque',))
-    state: dict = {'body': body, 'cadence': 0.85, 'law': False, 'pace': -1.0}
-    humanoid_keys.act_on(keys, ['f'], state)
-    report.check('F a step of her cadence', sent == [{'cadence': 0.9}], '%s' % sent)
-    del sent[:]
-    humanoid_keys.act_on(keys, list('jffffffs'), state)
+    state: dict = {'body': body, 'cadence': 0.85, 'law': True, 'pace': 0.0, 'rig': None}
+    humanoid_keys.act_on(keys, list('fffffsssssssss'), state)
     asked = [command.get('pace') for command in sent]
-    report.check('J asks her stand of the law, F its rows to the run and no further, S one back',
-                 asked == [-1.0, -0.5, 0.0, 0.5, 0.75, 1.0, 1.0, 0.75], '%s' % asked)
+    levels = humanoid_keys.LEVELS
+    report.check('F her rows up to the run and no further, S down to her stand and no further',
+                 asked == list(levels[4:]) + [levels[-1]] + list(levels[-2::-1]) + [levels[0]] * 2,
+                 '%s' % asked)
     del sent[:]
-    humanoid_keys.act_on(keys, ['j'], state)
-    report.check('J again, the walk as built', sent == [{'pace': None}] and not state['law'],
+    humanoid_keys.act_on(keys, list('jf'), state)
+    report.check('J the walk as built, F then a step of its cadence',
+                 sent == [{'pace': None}, {'cadence': 0.9}] and not state['law'], '%s' % sent)
+    del sent[:]
+    humanoid_keys.act_on(keys, list('j27'), state)
+    report.check('J back on the law at its walk; a floor event hands her to the walk as built',
+                 sent[:3] == [{'pace': 0.0}, {'pace': None}, {'event': 'rug'}], '%s' % sent[:3])
+    del sent[:]
+    humanoid_keys.act_on(keys, list('j8'), state)
+    report.check('on the law a rig stands her till F',
+                 sent[-1] == {'pace': -1.0, 'rig': 'brick_on'} and state['pace'] == -1.0,
                  '%s' % sent)
 
 

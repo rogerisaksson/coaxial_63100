@@ -225,7 +225,9 @@ tests/              suites, .counts.json (measured sizes)
 - The gynoid: `test_gynoid.py` on fantasy boards (`physics.ENVELOPE` 0,
   their SOA never binding) - her walk, her clothes, her look;
   `test_gynoid_faults.py` on her boards as built - the envelope derating and
-  tripping them, glitches, a lace caught.
+  tripping them, glitches, a lace caught; `test_gynoid_gait.py` her walk's
+  form, held to its take (tests/takes/walk.fbx) and to a woman's band
+  (`tools/sim/normal.py`).
 - The stand-in is the emulated world's reference: `tools/dev/ab.py` runs a
   page on both, a process a page, and marks a read missing, a range apart
   over the board seconds both cover, or a number the physics rules out;

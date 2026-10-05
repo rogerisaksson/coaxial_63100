@@ -109,8 +109,31 @@ def test_the_director_hands_her_to_the_law(report):
         body.close()
 
 
+#: The law's walk beside a woman's normal one (`tools.sim.normal.BAND`): what of it is on her
+#: band - her arms hang and swing, 2026-10-05: bent 80 deg and still before - and how far off
+#: it the walk may be in all: 4.1, on stilts (the user) - the swinging knee 26 deg, no heel's
+#: rise, the pelvis level, her feet 0.29 legs apart (docs/TODO.md item 28).
+ON_BAND, OFF_BAND, WALK_S = ('elbow bent', 'elbow', 'arm', 'hand out'), 4.5, 14.0
+
+
+def test_its_walk_beside_a_womans(report):
+    """The walk's row, as the page walks her on the law from the squat: ON_BAND's measures on a
+    woman's band, the walk no further off it than OFF_BAND."""
+    from tools.sim import fbx, look, normal, strides
+    now = normal.measured(*fbx.joints(strides.steady(look.simulated(WALK_S, {}, pace=0.0))))
+    far, out = normal.off(now)
+    bands = {name: (least, most) for name, _unit, least, most in normal.BAND}
+    for name in ON_BAND:
+        report.check('%s %g to %g' % ((name,) + bands[name]),
+                     bands[name][0] <= now.get(name, float('nan')) <= bands[name][1],
+                     '%.3g' % now.get(name, float('nan')))
+    report.check('no further off a woman\'s walk than %g' % OFF_BAND, far <= OFF_BAND,
+                 '%.2f: %s' % (far, ', '.join('%s %.3g (%g)' % o for o in out)))
+
+
 ROSTER = [test_a_gait_is_a_row_of_the_same_names, test_her_rows_go_on,
-          test_her_ways_on_setpoints_alone, test_the_director_hands_her_to_the_law]
+          test_her_ways_on_setpoints_alone, test_the_director_hands_her_to_the_law,
+          test_its_walk_beside_a_womans]
 
 
 def main(argv=None):

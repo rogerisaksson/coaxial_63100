@@ -5,8 +5,8 @@ The gynoid's stand, walk and run as the setpoints of one law
 `tools/sim/go.py`; the user's, 2026-10-05): what the law is, what a walk
 and a stand asked of it, what it walks and runs at. The walk as built is
 in [walk](walk.md), the run in [run](run.md), the page's standing law in
-[standing](standing.md). On the page under J; `tools/sim/ways.py` is its
-spread of timings.
+[standing](standing.md). On the page under J, S and F its rows;
+`tools/sim/ways.py` is its spread of timings.
 
 - The law (2026-10-05). A limb bears or is free. What bears carries the
   pelvis: its height the bounce's - from where and how fast she came down
@@ -204,11 +204,58 @@ spread of timings.
   m/s, jogged, ran 1.5 m/s from 36 to 44 s and was back at her jog at
   50. Down, the director's fall and get-up are hers; risen, she stands
   for the law again.
+- The walk's row had two walks (2026-10-05). Asked 0.76 m/s she walked
+  0.81, her knee landing at 18 deg, a step 0.49 s - her feet placed at
+  the row's reach, 0.33 m ahead - or 0.64 m/s, the knee landing at 28
+  deg, a step 0.54 s, her feet 0.28 m ahead: slow, the law placed them
+  nearer to speed her, and nearer under the same pelvis the leg came
+  down bent and the step short. Which, her start decided: her feet 0.19
+  m apart where 0.17, or the director's stand under her, the second -
+  its jog then 1.1-1.2 m/s for 0.8 and the page's presses up 7 timings
+  of 12 where the tool's world had 11. Asked 0.80 or more there is one,
+  0.82 m/s. One at 0.76 from every start within 4 s, the knee 18 deg,
+  with a walk's step never shorter than the speed asked has it and her
+  standing leg leaning her 0.5 of her speed's error over the pendulum's
+  rate where 0.2 (`hold.LEAN_K`) - 0.2 still where she flies: at 0.5
+  there her ways were up 47 of 104 where 80. The page's presses under
+  the director then: up 20 timings of 24, down as the run speeds up.
+- Tried on her way between gaits and left out (2026-10-05). A flight no
+  longer than her rise carries her (0.10 s at the run's 0.49 m/s, none
+  on the row between): her ways asked up 23 of 50 where 53 of 56. The
+  free sole kept clear to 0.9 or 0.95 of its swing: one walk in both
+  worlds, its knee landing at 34-37 deg.
 - On the page (2026-10-05; `terminal/views/humanoid_keys.py`). J hands
-  her going to the law - landed anew, risen, standing - and S and F step
-  the row asked: her stand, a slow walk, her walk, her jog, a faster
-  one, the run; J again, the walk as built. Its body process driven so:
-  stood from 6 s, asked on at 16 walked 0.6-0.8 m/s, her jog from 28,
-  the run from 37 to 47 at 1.3-1.7 m/s, asked to a stand at 46 and
-  standing at 60. On the law the floor's events and the walk's style do
-  nothing.
+  her going to the law at its walk - landed anew, risen, standing, then
+  on - and S and F step the row asked: her stand, two slow walks, her
+  walk, her jog, two faster, the run; J again, the walk as built, S and
+  F its cadence - 0.60-0.90 strides/s, 0.39-0.72 m/s: the meter two
+  cells down and none up (the user). The law's was the page's own for an
+  evening: on stilts, her arms bent and not swinging at her sides (the
+  user) - the walk as built's again till the law's is a woman's. Driven
+  as the keys drive it: walked 0.6-0.8 m/s, her jog, the run 1.3-1.7 m/s
+  for 10 s, stood again at 60 s; walking 200 s her hips' laminate 60 C,
+  0.37 of its span spent, nothing derated. The floor's events hand her
+  to the walk as built; its style does nothing on the law.
+- Its walk beside a woman's (2026-10-05; `tools/sim/normal.py`,
+  [normal](normal.md)): 4.1 off her band where the walk as built 2.0 - the
+  swinging knee 26 deg (52-78), 12 as its toes leave (30-60), the heel
+  1.5 deg up then (28-62), the pelvis rolling 1.9 and turning 0.9 deg
+  (5-15, 4-22), her feet 0.29 legs apart (0.02-0.22), its step 0.81 for
+  its time (1.1-1.8). Her arms were the runner's, elbows 80 deg and
+  still: the row's now (`elbow`, `play`; 24 deg bent, 16 of play,
+  `machine.free`), the walk 394 J/m where 424. Tried, each alone on the
+  row, 16 s from a stand: the knee's fold 30 and 45 deg - swinging 41
+  and 56, the toes 40 and 81 mm back as they lift, 0.70 and 0.63 m/s for
+  0.76; a step of 0.60 s, both feet down 0.10-0.12 s of it - the toes
+  not back, 0.86-0.90 m/s, her head's bob 36-52 mm, the knee 15-17 deg
+  behind plumb; the pelvis rolled 4 deg over the standing leg, none as a
+  foot lands - rolling 10 deg, her feet 26 cm apart; the heel risen 35
+  deg through the s both feet bear - the knee 54 deg at its lift and 53
+  swinging, 0.90 m/s at 591 J/m, her ways up 28 of 104 where 77; with
+  the fold 25 or the longer step as well, down in her first steps - a
+  step of 0.6 s took the pelvis 6-8 cm down a flat foot's arc and the
+  next leg's bounce threw her up off the floor. In, and of no weight on
+  the row as it is: the pelvis kept up where the free foot's landing
+  meets the floor, the standing heel rising as that asks; the heel's
+  rise through the double support, the foot about to leave's alone; the
+  pelvis's roll none at a landing and the spine against it.

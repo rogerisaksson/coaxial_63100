@@ -21,7 +21,7 @@ from rich.text import Text
 from coaxial.comm.session import Origin
 from coaxial.graphics import gpu, gynoid
 from coaxial_ollama.client import Chosen
-from machine import ansi, figure, gait, style
+from machine import ansi, figure, gait, gaits, style
 from machine.director import moment
 from machine.figure import JOINTS, quat
 from machine.routines import TYPES
@@ -157,8 +157,9 @@ def labels(now, called, shown='torque'):
 BAR = (('TAB', 'KEYS'), ('S F', 'PACE'), ('P', 'PUSH'), ('1-6', 'FLOOR'), ('7-0', 'GYM'),
        ('A', 'AGAIN'), ('R', 'RECORD'), ('Q', 'EXIT'), ('ESC', 'MENU'))
 GROUPS = (
-    ('BODY', (('S F', 'pace'), ('Z X', 'catwalk .. swagger'), ('K , .', 'style knob, trim'),
-              ('A', 'again: lands anew'), ('J', 'one law: S F stand .. run'))),
+    ('BODY', (('S F', 'pace'), ('A', 'again: lands anew'),
+              ('J', 'one law: S F stand .. run'), ('Z X', 'catwalk .. swagger'),
+              ('K , .', 'style knob, trim'))),
     ('FLOOR', (('1', 'hole'), ('2', 'rug'), ('3', 'sill'), ('4', 'slip'), ('5', 'lace'),
                ('6', 'stairs'))),
     ('GYM', (('7', 'two bricks: she stands'), ('8', 'bricks staggered'), ('9', 'board, stiff'),
@@ -186,7 +187,7 @@ def boxes(state, now, name):
     angles = now['angles'] if now else {}
     out = [hud('BODY', [
         ('status', _status(now)),
-        ('pace', '%+.2f of her way' % state['pace']) if state['law'] else
+        ('pace', '%.2f m/s asked' % gaits.between(state['pace'])['speed']) if state['law'] else
         ('cadence', '%.2f strides/s' % state['cadence']),
         ('speed', '%.2f m/s' % (now['speed'] if now else 0.0)),
         ('phase', '%.2f of a stride' % (now['phase'] if now else 0.0)),
@@ -313,7 +314,7 @@ def main(argv=None):
              'recording': None, 'recorded': None, 'glitches': 0, 'glitched': None,
              'tripped': None, 'playback': Playback(), 'shown': 'torque', 'skin': 'dressed',
              'data': False, 'traffic': None, 'knob': style.NAMES[0], 'sway': 0.0, 'rig': None,
-             'law': False, 'pace': -1.0}
+             'law': False, 'pace': 0.0}
 
     def draw():
         said = []

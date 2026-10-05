@@ -1,163 +1,29 @@
 #!/usr/bin/env python3
-"""A mocap take's walk, measured as tools/sim/look.py measures hers: a binary FBX skeleton.
+"""Takes' walks measured as tools/sim/look.py measures hers, beside a woman's normal walk.
 
-    python tools/sim/mocap.py TAKE.fbx              # its straight walking, look.py's walk names
+    python tools/sim/mocap.py TAKE.fbx [..]         # a column a take, the first the reference
     python tools/sim/mocap.py TAKE.fbx --joints     # each joint's first and last place, m
 
-The take's longest straight walk only - a turn at the runway's end and a pose left out - each
-measure against its path, not the room: a stride's running mean is the path. Joints are named
-by their last ':' part (Hips, LeftUpLeg, LeftLeg, LeftFoot, Spine, Neck, Head, LeftArm, ..).
+A take (`fbx.take`: binary or ASCII, a mocap's, an animation's or her own, `look.py --fbx`):
+its longest straight walk only - a turn at the runway's end and a pose left out - each measure
+against its path, not the room: a stride's running mean is the path. Its line in look.py's
+names, then `normal.BAND`'s measures beside the band, how far off it the take is and how far
+from the first.
 """
 import argparse
 import os
-import struct
 import sys
-import zlib
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from coaxial.model.blocks import numpy as np  # noqa: E402   behind the OpenBLAS cap
-
-#: FBX time units a second; the orders of `RotationOrder`, the first axis applied first.
-KTIME = 46186158000.0
-ORDERS = ('xyz', 'xzy', 'yzx', 'yxz', 'zxy', 'zyx')
+from tools.sim import normal  # noqa: E402
+from tools.sim.fbx import take  # noqa: E402
 
 #: The straight walk: at least WALKING of the take's top speed, its heading within TURN_DEG of
 #: the walk's; TRIM_S off each end, where she gathers pace or slows. A take travelling less than
 #: IN_PLACE_M walks on the spot: all of it is measured, ahead of her hips' line.
 WALKING, TURN_DEG, TRIM_S, IN_PLACE_M = 0.6, 15.0, 0.5, 1.0
-
-#: The joints by another rig's name (Rokoko's, the 01-07 takes of WALK-RUN-CYCLES-MOCAP).
-ALIASES = {'LeftThigh': 'LeftUpLeg', 'RightThigh': 'RightUpLeg', 'LeftShin': 'LeftLeg',
-           'RightShin': 'RightLeg', 'Spine1': 'Spine'}
-
-
-def nodes(data):
-    """[(name, properties, children)] of a binary FBX (7.x; 64-bit headers from 7500)."""
-    head = '<QQQB' if struct.unpack_from('<I', data, 23)[0] >= 7500 else '<IIIB'
-    size = struct.calcsize(head)
-
-    def prop(pos):
-        code, pos = chr(data[pos]), pos + 1
-        if code in 'YCIFDL':
-            fmt = {'Y': '<h', 'C': '<?', 'I': '<i', 'F': '<f', 'D': '<d', 'L': '<q'}[code]
-            return struct.unpack_from(fmt, data, pos)[0], pos + struct.calcsize(fmt)
-        if code in 'fdlib':
-            n, packed, length = struct.unpack_from('<III', data, pos)
-            raw = data[pos + 12:pos + 12 + length]
-            kind = {'f': '<f4', 'd': '<f8', 'l': '<i8', 'i': '<i4', 'b': '?'}[code]
-            return (np.frombuffer(zlib.decompress(raw) if packed else raw, kind, n),
-                    pos + 12 + length)
-        n = struct.unpack_from('<I', data, pos)[0]
-        raw = data[pos + 4:pos + 4 + n]
-        return (raw.decode('utf-8', 'replace') if code == 'S' else raw), pos + 4 + n
-
-    def node(pos):
-        end, count, _length, n = struct.unpack_from(head, data, pos)
-        if end == 0:
-            return None, pos + size + n
-        name, pos = data[pos + size:pos + size + n].decode('ascii', 'replace'), pos + size + n
-        props = []
-        for _ in range(count):
-            value, pos = prop(pos)
-            props.append(value)
-        kids = []
-        while pos < end:
-            kid, pos = node(pos)
-            if kid is None:
-                break
-            kids.append(kid)
-        return (name, props, kids), end
-
-    out, pos = [], 27
-    while pos + size < len(data):
-        top, pos = node(pos)
-        if top is None:
-            break
-        out.append(top)
-    return out
-
-
-def _props(n):
-    """{name: values} of a node's Properties70."""
-    block = next((k for k in n[2] if k[0] == 'Properties70'), None)
-    return {} if block is None else {p[1][0]: p[1][4:] for p in block[2] if p[0] == 'P'}
-
-
-def _turns(deg, order):
-    """(n, 3, 3) rotations from Euler degrees (n, 3), `order`'s first axis applied first."""
-    c, s = np.cos(np.radians(deg)), np.sin(np.radians(deg))
-    one, nil = np.ones(len(deg)), np.zeros(len(deg))
-    by = {'x': (one, nil, nil, nil, c[:, 0], -s[:, 0], nil, s[:, 0], c[:, 0]),
-          'y': (c[:, 1], nil, s[:, 1], nil, one, nil, -s[:, 1], nil, c[:, 1]),
-          'z': (c[:, 2], -s[:, 2], nil, s[:, 2], c[:, 2], nil, nil, nil, one)}
-    out = np.broadcast_to(np.eye(3), (len(deg), 3, 3))
-    for axis in order:
-        out = np.stack(by[axis], 1).reshape(-1, 3, 3) @ out
-    return out
-
-
-def take(path):
-    """(times s, {joint: (n, 3) places, m, y up}) of a take, every joint at every key's time.
-
-    A joint's place: its parent's, then Lcl Translation, PreRotation, Lcl Rotation and the
-    inverse of PostRotation (offsets, pivots and scaling taken as none, as a mocap's are)."""
-    with open(path, 'rb') as f:
-        top = {n[0]: n for n in nodes(f.read())}
-    settings = _props(top['GlobalSettings'])
-    metres = float(settings.get('UnitScaleFactor', [1.0])[0]) / 100.0
-    up = int(settings.get('UpAxis', [1])[0])
-    objects = {n[1][0]: n for n in top['Objects'][2]}
-    models = {i: n for i, n in objects.items() if n[0] == 'Model'}
-    parent, channel, curve = {}, {}, {}
-    for c in top['Connections'][2]:
-        kind, a, b = c[1][:3]
-        what = objects.get(a, ('',))[0]
-        if kind == 'OO' and a in models and b in models:
-            parent[a] = b
-        elif kind == 'OP' and what == 'AnimationCurveNode' and b in models:
-            channel[(b, c[1][3])] = a
-        elif kind == 'OP' and what == 'AnimationCurve':
-            curve[(b, c[1][3][-1])] = a
-    keys = {}
-    for (node, axis), i in curve.items():
-        t = next(k for k in objects[i][2] if k[0] == 'KeyTime')[1][0] / KTIME
-        v = next(k for k in objects[i][2] if k[0] == 'KeyValueFloat')[1][0]
-        keys[(node, axis)] = (t, v.astype(float))
-    times = np.unique(np.concatenate([t for t, _v in keys.values()]))
-
-    def lcl(i, name):
-        node, rest = channel.get((i, name)), _props(models[i]).get(name, [0.0, 0.0, 0.0])
-        if node is not None:                                   # an axis without keys: its default
-            given = _props(objects[node])
-            rest = [given.get('d|' + a, [rest[k]])[0] for k, a in enumerate('XYZ')]
-        return np.stack([np.interp(times, *keys[(node, a)]) if (node, a) in keys
-                         else np.full(len(times), float(rest[j]))
-                         for j, a in enumerate('XYZ')], 1)
-
-    placed = {}
-
-    def place(i):
-        if i not in placed:
-            props = _props(models[i])
-            pre = _turns(np.array([props.get('PreRotation', [0, 0, 0])], float), 'xyz')
-            post = _turns(np.array([props.get('PostRotation', [0, 0, 0])], float), 'xyz')
-            order = ORDERS[int(props.get('RotationOrder', [0])[0])]
-            turn = pre @ _turns(lcl(i, 'Lcl Rotation'), order) @ np.transpose(post, (0, 2, 1))
-            at = lcl(i, 'Lcl Translation')
-            if i in parent:
-                up_turn, up_at = place(parent[i])
-                turn, at = up_turn @ turn, np.einsum('nij,nj->ni', up_turn, at) + up_at
-            placed[i] = (turn, at)
-        return placed[i]
-
-    joints = {n[1][1].split('\x00')[0].split(':')[-1]: place(i)[1] * metres
-              for i, n in models.items()}
-    joints.update({ours: joints[theirs] for theirs, ours in ALIASES.items()
-                   if theirs in joints and ours not in joints})
-    if up == 2:
-        joints = {k: np.stack([p[:, 0], p[:, 2], -p[:, 1]], 1) for k, p in joints.items()}
-    return times, joints
 
 
 def _mean(a, n):
@@ -238,26 +104,58 @@ def walked(times, joints):
             ('thighs closest', float(thighs.min()) * 1e3, 'mm')]
 
 
+def walk(times, joints):
+    """(times, joints) of the take's straight walk: all of it where it walks on the spot."""
+    moved = joints['Hips'][-1] - joints['Hips'][0]
+    if np.hypot(moved[0], moved[2]) <= IN_PLACE_M:
+        return times, joints
+    cut = straight(times, joints['Hips'])
+    if len(times[cut]) < 2 or times[cut][-1] - times[cut][0] < TRIM_S:
+        return times, joints                     # a short take: a loop, all of it
+    return times[cut], {k: p[cut] for k, p in joints.items()}
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
-    parser.add_argument('take', help='a binary FBX with a skeleton')
+    parser.add_argument('take', nargs='+', help='an FBX with a skeleton; the first the reference')
     parser.add_argument('--joints', action='store_true', help="each joint's first and last place")
     args = parser.parse_args(argv)
-    times, joints = take(args.take)
-    print('%s: %d frames, %.2f s, %.0f Hz, %d joints' % (
-        os.path.basename(args.take), len(times), times[-1] - times[0],
-        (len(times) - 1) / (times[-1] - times[0]), len(joints)))
-    if args.joints:
-        for name, p in joints.items():
-            print('  %-16s %s .. %s' % (name, np.round(p[0], 3), np.round(p[-1], 3)))
-    try:
-        measured = walked(times, joints)
-    except (KeyError, ValueError) as e:
-        print('mocap: %s' % e)
-        return 1
-    print(' | '.join(('%s %.2f %s' if unit in ('s', 'm/s', '/s') else '%s %.1f %s') % (k, v, unit)
-                     for k, v, unit in measured))
-    return 0
+    walks, failed = [], 0
+    for k, path in enumerate(args.take):
+        try:
+            times, joints = take(path)
+        except (KeyError, ValueError, StopIteration, OSError) as e:
+            print('%s: not read: %s' % (os.path.basename(path), e))
+            failed = 1
+            continue
+        print('%d %s: %d frames, %.2f s, %.0f Hz, %d joints' % (
+            k + 1, os.path.basename(path), len(times), times[-1] - times[0],
+            (len(times) - 1) / (times[-1] - times[0]), len(joints)))
+        if args.joints:
+            for name, p in joints.items():
+                print('  %-16s %s .. %s' % (name, np.round(p[0], 3), np.round(p[-1], 3)))
+        try:
+            print('  ' + ' | '.join(('%s %.2f %s' if unit in ('s', 'm/s', '/s') else '%s %.1f %s')
+                                    % (name, v, unit) for name, v, unit in walked(times, joints)))
+        except (KeyError, ValueError) as e:
+            print('  mocap: %s' % e)
+        try:
+            found = normal.measured(*walk(times, joints))
+            if not found['strides']:                       # a turning take: all of it
+                found = normal.measured(times, joints)
+        except (KeyError, ValueError) as e:
+            print('  normal: %s' % e)
+            failed = 1
+            continue
+        print('  %d strides%s, a leg %.2f m, %.2f m/s' % (
+            found['strides'], ', a loop' if found['loop'] else '', found['leg'],
+            found.get('speed', float('nan'))))
+        if found['strides']:
+            walks.append((str(k + 1), found))
+    for a in range(0, len(walks), 10):
+        print()
+        print('\n'.join(normal.table(walks[:1] * (a > 0) + walks[a:a + 10])))
+    return failed
 
 
 if __name__ == '__main__':

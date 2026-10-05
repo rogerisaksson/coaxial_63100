@@ -368,6 +368,9 @@ TOUCHES = (
     ('host/tools/sim/replay.py',               (STRUCTURE, GYNOID_GAIT)),
     ('host/tools/sim/run.py',                  (STRUCTURE, GYNOID_RUN)),
     ('host/tools/sim/go.py',                   (STRUCTURE, GYNOID_GOING)),
+    ('host/tools/sim/normal.py',               (STRUCTURE, GYNOID_GAIT, GYNOID_GOING)),
+    ('host/tools/sim/fbx.py',                  (STRUCTURE, GYNOID_GAIT, GYNOID_GOING)),
+    ('host/tests/takes/',                      (GYNOID_GAIT,)),
     # BENCH: firmware in the main loop is what slows the board (the thermal
     # observer's per-poll ADC and SPI reads; a poll that lost a Modbus byte).
     ('comms/',                                 (WIRE, NATIVE, EMULATOR, CONFORMANCE, 'test_mcp.py',

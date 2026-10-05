@@ -256,16 +256,15 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
 
 28. **One law for her going, S and F on it** (the user, 2026-10-05: no scenario
     a moment; intent a stream of setpoints). In (`machine/going.py`,
-    `tools/sim/ways.py`, docs/findings/going.md): a gait a row of 16 setpoints;
-    asked a row she stands, walks, jogs, runs 1.5 m/s and stands again, 43 ways
-    of 44 over a spread; on the page under J, S and F its rows
-    (`machine/pace.py`). Left: the page hers without J - the floor's events and
-    her style on the law; a shove's parry - shoved, up 4 of 24; her turns; her
-    form, priced 70 - toes 6 mm back at lift, head 49 mm aside, the pelvis's
-    roll 0.7 deg of 3; her rows found from a stand; a run past 1.5 m/s; the
-    runner and the walk's modules gone into it. DOD: F to her fastest run and S
-    back on the page, 10 of 10; her walk on it on `looks.FORM` at no more J/m;
-    shoved, up as the walk as built.
+    `tools/sim/ways.py`, docs/findings/going.md), on the page under J. Left:
+    its walk a woman's and then the page's own - on stilts, the user: 4.1 off
+    `normal.BAND` where the walk as built 2.0, the swinging knee 26 deg of 52,
+    no heel's rise, the pelvis level, her feet 0.29 legs apart; her ways 77 of
+    104, the page's 20 of 24; a shove's parry; her turns; the floor's events
+    and her style on the law; a run past 1.5 m/s; the runner and the walk's
+    modules gone into it. DOD: F to her fastest run and S back on the page, 10
+    of 10; its walk on `looks.FORM` and `normal.BAND` at no more J/m; shoved,
+    up as the walk as built.
 29. **Her tubes, corners and flanges** (the user, 2026-10-05): carbon
     tubes cut to length, epoxied into printed corners; a gearbox on a
     flange, its output through it; motor, box and board outermost, a
@@ -345,6 +344,8 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
   link from the latched sample. DOD: the MCU's die and the phases join
   them; a sweep over a locked channel says so.
 - **Debug `-O0`**. DOD: `-Og` measured (LOOP counters, keepalive gap).
+- **`heat.py`'s dry loss** 1.2 W, the bench's fit 2.4-4.4 at 24-44 V. DOD: the
+  fit's.
 - **`intent.py` has no thermal kind**: warmth questions become an NTC read.
   DOD: answered from the live model, measured against it.
 - **`test_native_heat`** lost the cold room on CI 3.12 (925a173). DOD:

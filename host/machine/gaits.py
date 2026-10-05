@@ -15,14 +15,14 @@ import math
 #: The run's is `machine.runner`'s: asked 1.5 m/s, 1.44-1.47 at 508-522 J/m drawn (2026-10-05).
 RUN = {'speed': 1.5, 'step': 0.40, 'stand': 0.30, 'up': 0.0, 'rise': 0.49, 'bounce': 0.30,
        'land': 14.0, 'knee': 22.0, 'lean': 6.0, 'fold': 55.0, 'track': 0.035, 'off': 50.0,
-       'list': 0.0, 'under': 0.117, 'folded': 1.0, 'reach': 0.36}
+       'list': 0.0, 'under': 0.117, 'folded': 1.0, 'reach': 0.36, 'elbow': 80.0, 'play': 0.0}
 #: The walk's, found: 2 240 rows priced as the scoreboard prices a walk (`looks.priced`), a foot
 #: always down and the strut the form's - 1 357 walked their 10 s - before her stand was in the
 #: law. On the law as it is: 0.81 m/s at 392 J/m, its knee landing at 18 deg, priced 72
 #: (2026-10-05).
 WALK = {'speed': 0.76, 'step': 0.528, 'stand': 0.581, 'up': 0.10, 'rise': 0.0, 'bounce': 0.253,
         'land': -12.9, 'knee': 19.4, 'lean': 5.1, 'fold': 10.0, 'track': 0.048, 'off': 1.7,
-        'list': 0.0, 'under': 0.037, 'folded': 0.65, 'reach': 0.248}
+        'list': 0.0, 'under': 0.037, 'folded': 0.65, 'reach': 0.248, 'elbow': 30.0, 'play': 0.9}
 #: Her jog, the run's row at the walk's speed: her way from the walk to the run passes it. On
 #: its speed alone the run's row goes 0.54 m/s at 936 J/m asked 0.6, 0.74 at 704 asked 0.8,
 #: 0.99 at 602, 1.19 at 547 (2026-10-05). Before it a row found between, at 1.42 m/s, passed
@@ -48,6 +48,12 @@ KNOTS = (-1.0, 0.0, 0.25, 0.5, 1.0)
 #: run over 3 s, her leaps grew, 0.43 to 0.54 s a step, and she was down; over 5 and over 10 s
 #: she ran 1.5 m/s (2026-10-05).
 RATES, DWELL_S = ((0.0, 1.0), (0.5, 0.5), (1.0, 0.1)), 2.0
+
+
+def derive():
+    """EASE and STAND anew from the walk's row and her jog's as they are: a knob moved those."""
+    EASE.update(dict(WALK, stand=JOG['stand'], step=JOG['step']))
+    STAND.update(dict(WALK, speed=0.0))
 
 
 def mix(a, b, k):

@@ -21,7 +21,10 @@ from machine.runner import eased
 #: LEAN_M at most; asked under GOES_M_S she stands the more. At 0.4 of it, stood again after a
 #: walk her centre of mass crept 6 cm back and 3 across in 1.6 s, a step fell due, and she was
 #: down 5 s on: up through her ways asked 27 of 38 where 37 (2026-10-05).
-LEAN_K, HOLD_K, LEAN_D, LEAN_M, GOES_M_S = 0.2, 1.5, 0.014, 0.025, 0.34
+LEAN_K, HOLD_K, LEAN_D, LEAN_M, GOES_M_S = 0.5, 1.5, 0.014, 0.025, 0.34
+#: Where she flies the lean is FLY_LEAN of a walk's. At 0.2 walking too, the walk's row asked
+#: 0.76 m/s kept 0.64 from some starts; at 0.5 flying too, her ways were up 47 of 104 where 80.
+FLY_LEAN = 0.4
 
 #: A step is wanted asked STIRS_M_S or over. The other foot leaves with her capture point no
 #: more than `track` and SHIFT_M in from the one that stays, or bearing under LIGHT_N. Waited for
@@ -98,7 +101,7 @@ def lean(law, standing, a, com):
     the free foot came down 11 cm from it, hers then 11 cm in from that one and off across at
     1.5 m/s (2026-10-05)."""
     c, s = math.cos(law.heading), math.sin(law.heading)
-    still = stood(a['speed'])
+    still, share = stood(a['speed']), law.share()
     mid = [sum(law.legs[side]['flat'][i] for side in standing) / len(standing) for i in (0, 2)]
     if len(standing) == 2 and law.stays is not None:
         stay = law.legs[law.stays]['flat']
@@ -109,7 +112,8 @@ def lean(law, standing, a, com):
     xi = point(law, com)
     e = (mid[0] - xi[0], mid[1] - xi[1])
     along = (still * (HOLD_K * (e[0] * s + e[1] * c + a['under']) - LEAN_D * on_v)
-             + (1.0 - still) * LEAN_K * (a['speed'] - on_v) / law.omega)
+             + (1.0 - still) * LEAN_K * (share + FLY_LEAN * (1.0 - share))
+             * (a['speed'] - on_v) / law.omega)
     across = (HOLD_K * (e[0] * c - e[1] * s) - LEAN_D * x_v) * (
         (still if law.stays is None else 1.0) if len(standing) == 2 else 0.0)
     far = math.hypot(along, across)

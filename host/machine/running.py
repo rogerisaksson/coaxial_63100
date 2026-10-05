@@ -1,6 +1,7 @@
 """The gynoid in a process of her own, paced to the wall clock: whoever draws her never slows her.
 
     body = Running(cadence=0.85)         # a DYNAMIC gynoid landed in the squat, her director
+    body = Running(pace=0.0)             # - her going the one law's, its walk (`machine.pace`)
     body.send(cadence=1.0); body.send(push=(0.0, 0.0, 120.0))
     body.send(glitch=('left_knee', 'soa', 0.5))   # a board glitched (`World.glitch`)
     body.send(event='sill')              # laid where her walk meets it (`machine.events`)
@@ -46,7 +47,7 @@ def _landed(director, world, rig):
     director.machine.loop.step(0.0)
 
 
-def _run(commands, states, cadence, local):
+def _run(commands, states, cadence, local, pace_asked):
     """The worker: the machine, the director, the loop paced to the clock."""
     import numpy as np
 
@@ -58,6 +59,7 @@ def _run(commands, states, cadence, local):
     machine = Machine.discover('gynoid', execution_mode=DYNAMIC)
     machine.arm()
     director = Director(machine, cadence, local=local)
+    director.pace = pace_asked
     world = machine.nodes['pelvis'].world
     dt = 1.0 / RATE_HZ
     k = dt / AVERAGE_S
@@ -84,8 +86,7 @@ def _run(commands, states, cadence, local):
                     return
                 if 'cadence' in command:
                     director.cadence = float(command['cadence'])
-                if 'pace' in command:
-                    # the law taken up or let go: landed anew, standing for it or walking
+                if 'pace' in command:        # the law taken up or let go: landed anew
                     again = (command['pace'] is None) != (director.pace is None)
                     director.pace = command['pace']
                 if 'push' in command:
@@ -183,11 +184,11 @@ class Running:
     """The gynoid's worker process: `send` it commands, read its `latest` state; `local` the
     model that plans her get-up (`machine.planner`), picklable."""
 
-    def __init__(self, cadence=0.85, local=None):
+    def __init__(self, cadence=0.85, local=None, pace=None):
         context = multiprocessing.get_context('spawn')
         self._commands, self._states = context.Queue(), context.Queue(maxsize=8)
-        self._process = context.Process(target=_run, args=(self._commands, self._states, cadence, local),
-                                        daemon=True)
+        self._process = context.Process(target=_run, daemon=True, args=(
+            self._commands, self._states, cadence, local, pace))
         self._process.start()
         self._last = None
 

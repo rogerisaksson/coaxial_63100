@@ -4,8 +4,11 @@
 From the squat as the page runs her, or a recording (R, build/recordings/*.csv) - the same rows
 either way (`humanoid_keys.row`).
 
-    python tools/sim/look.py                        # from the squat, 16 s
+    python tools/sim/look.py                        # from the squat, 16 s: the page's walk
+    python tools/sim/look.py --pace 0.5 --to 24     # asked her jog (`gaits.between`'s row)
+    python tools/sim/look.py --built                # the walk as built, the page's J
     python tools/sim/look.py --last                 # the newest recording
+    python tools/sim/look.py --fbx build/walk.fbx   # her steady walk written a take (mocap.py)
     python tools/sim/look.py --csv build/recordings/humanoid_20260928_070724.csv
     python tools/sim/look.py SOFT_KNEE=6            # a knob moved (tools/sim/gait_montecarlo)
     python tools/sim/look.py --to 24 --halt 15      # halted at 15 s: 11 halt, 12 settle, ..
@@ -45,8 +48,9 @@ LEG_KINDS = ('hip_yaw', 'hip_roll', 'hip', 'knee', 'ankle', 'ankle_roll')
 
 
 def simulated(to_s, values, cadence=0.85, halt_s=None, event=None, event_s=EVENT_S, pushes=(),
-              stand=None):
-    """The rows from the squat, `to_s` seconds, the director as the page runs her - halted at
+              stand=None, pace=None):
+    """The rows from the squat, `to_s` seconds, the director as the page runs her - `pace` the
+    row asked of her way on the one law (`machine.pace`), None the walk as built; halted at
     `halt_s`, an `event` laid from `event_s` (`machine.events`), pushed at each of `pushes` (s)
     as the page's P pushes, its side swapped each time; standing on `stand`'s rig
     (`events.STANDING`), it befalling her at `event_s`; LEG_GAIN among `values` stiffening
@@ -68,7 +72,8 @@ def simulated(to_s, values, cadence=0.85, halt_s=None, event=None, event_s=EVENT
     body = Machine.discover('gynoid', execution_mode=DYNAMIC)
     body.arm()
     world = body.nodes['pelvis'].world
-    director = Director(body, cadence, stand_s=math.inf if stand else 0.0)
+    director = Director(body, cadence, stand_s=math.inf if stand or pace is not None else 0.0)
+    director.pace = pace
     up, stagger = events.rigged(stand) if stand else (0.0, 0.0)
     director.begin(up=up, stagger=stagger)
     if stand:
@@ -106,9 +111,10 @@ def simulated(to_s, values, cadence=0.85, halt_s=None, event=None, event_s=EVENT
 def sample(bus, director, world, asked=None):
     """A row as the page records it (`humanoid_keys.row`), from the loop's bus: the loose hinges
     beside it, and how near her feet come."""
+    from machine import pace
     from machine.figure import JOINTS
     from terminal.views.humanoid_keys import HEADER, row
-    now = {'t': bus['t'], 'stage': director.stage, 'speed': bus['pelvis.pose.vz'],
+    now = {'t': bus['t'], 'stage': pace.stage(director), 'speed': bus['pelvis.pose.vz'],
            'phase': director.walker.phase,
            'loads': (bus['pelvis.pose.left_load'], bus['pelvis.pose.right_load']),
            'where': (bus['pelvis.pose.x'], bus['pelvis.pose.y'], bus['pelvis.pose.z']),
@@ -210,6 +216,9 @@ def main(argv=None):
     parser.add_argument('--last', action='store_true', help='the newest recording')
     parser.add_argument('--to', type=float, default=16.0, help='seconds simulated from the squat')
     parser.add_argument('--cadence', type=float, default=0.85, help='strides a second asked')
+    parser.add_argument('--pace', type=float, default=0.0,
+                        help='the row asked of her way on the one law: -1 her stand .. 1 the run')
+    parser.add_argument('--built', action='store_true', help="the walk as built, the page's J")
     parser.add_argument('--halt', type=float, help='halted at this second, into the squat')
     parser.add_argument('--event', help='a floor event laid: hole, sill, slip, rug, lace, soa, hot')
     parser.add_argument('--event-at', type=float, default=EVENT_S, help='laid from this second')
@@ -220,6 +229,7 @@ def main(argv=None):
                         help="pushed at these seconds as the page's P pushes")
     parser.add_argument('--brief', action='store_true',
                         help="the stages in a line and the walk's measures: no tables")
+    parser.add_argument('--fbx', help='her steady walk written a take here (`fbx.wrote`)')
     parser.add_argument('knobs', nargs='*', metavar='NAME=V', help='constants moved')
     args = parser.parse_args(argv)
     found = glob.glob(os.path.join(REPO, 'build', 'recordings', '*.csv')) if args.last else []
@@ -228,14 +238,15 @@ def main(argv=None):
         return 1
     path = args.csv or (max(found, key=os.path.getmtime) if found else None)
     values = {k: float(v) for k, v in (kv.split('=') for kv in args.knobs)}
-    rows = recorded(path) if path else simulated(args.to, values, args.cadence, args.halt,
-                                                 args.event, args.event_at, args.push, args.stand)
+    rows = recorded(path) if path else simulated(
+        args.to, values, args.cadence, args.halt, args.event, args.event_at, args.push,
+        args.stand, None if args.built or args.halt or args.event else args.pace)
     print(path or 'simulated from the squat, %.1f s %s' % (
         args.to, ' '.join(args.knobs)))
     groups, ref = staged(rows)
     if args.brief:
         print(' '.join('%s@%.2f' % (stage, float(mine[0]['t'])) for stage, mine in groups))
-        walked(rows)
+        walked(rows, args.fbx)
         return 0
     print('%-14s %6s | %s' % ('moment', 'from s', ' | '.join(
         '%-15s' % ('%s %s' % (name, unit)) for name, unit, _f in MEASURES)))
@@ -250,7 +261,7 @@ def main(argv=None):
             '%s %s %.0f C x%.2f' % (stage, r['hot_joint'], r['hot'], min(x['derate'] for x in mine))
             for stage, mine in groups for r in [max(mine, key=lambda x: x['hot'])]))
     seams(rows, groups, ref)
-    walked(rows)
+    walked(rows, args.fbx)
     fell(rows)
     return 0
 

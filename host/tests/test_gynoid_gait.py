@@ -2,8 +2,11 @@
 2026-10-05) - the pelvis rolling over a stance leg whose knee is all but straight, the leg on
 behind the plumb line, her head still, her feet quiet, no parry asked. `tools.sim.looks.FORM` is
 the form, `tools.sim.armada.Robot` her walking: marked steady at each pace and gone back to
-(`tools.sim.replay`), a pace's measure 4 s of her time. Her rises, falls and parries are the
-other gynoid suites'."""
+(`tools.sim.replay`), a pace's measure 4 s of her time. Her walk as it was approved is a take,
+tests/takes/walk.fbx, and a woman's normal walk a band (`tools.sim.normal`): she is held to
+both (the user, 2026-10-05: a metric, an .fbx its reference, a test of what broke). Her rises,
+falls and parries are the other gynoid suites'."""
+import os
 import sys
 
 from tools.dev.focus import chosen
@@ -21,7 +24,22 @@ SQUAT_S = 16.0
 #: thousandth either way.
 SPREAD = (1.0, 1.001, 0.999)
 
-_ROBOT = []
+#: Her walk as approved: `python tools/sim/look.py --built --to 12 --fbx tests/takes/walk.fbx`
+#: (2026-10-05), the same TAKE_S from the squat here. Written anew only with a walk approved.
+TAKE_S, TAKE = 12.0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'takes', 'walk.fbx')
+
+#: Her walk is its take's with each measure within WITHIN of its band's width: two windows of
+#: one walk differ by 0.03 at most - the knee at its landing 0.3 deg, at its lift 0.5.
+WITHIN = 0.1
+
+#: What of her walk as built is out of a woman's band (`normal.BAND`), each no further than
+#: this (2026-10-05: 1.04, 75.2 %, 29.5 and 32.1 deg, 0.015 legs): her step short for its
+#: time, both feet down a quarter of a stride a step, her knee landing bent (docs/TODO.md item
+#: 1), her pelvis rising and falling 12 mm.
+KNOWN = {'walk ratio': 0.98, 'stance': 77.0, 'knee at landing': 31.0,
+         'thigh ahead at landing': 33.5, 'pelvis bob': 0.012}
+
+_ROBOT, _STEADY = [], []
 
 
 def _robot():
@@ -73,7 +91,8 @@ def test_from_the_squat_she_walks_off_unparried(report):
     each pace to SQUAT_S with no parry and her knee straight behind the plumb line: what is seen
     in the page's first seconds."""
     from tools.sim import look, looks, strides
-    most = dict((name, top) for name, _least, top in looks.FORM)['knee behind plumb']
+    most = dict((name, top) for name, _least, top in looks.FORM
+                if top is not None)['knee behind plumb']
     for pace in PACES:
         rows = look.simulated(SQUAT_S, {}, cadence=pace)
         walk = [r for r in rows if r['stage'] in ('walk', 'catch')]
@@ -87,8 +106,59 @@ def test_from_the_squat_she_walks_off_unparried(report):
                      knee <= most, '%.1f' % knee)
 
 
+def _steady():
+    """Her steady walk's rows as the page walks her from the squat, TAKE_S of it: once."""
+    if not _STEADY:
+        from tools.sim import look, strides
+        _STEADY.append(strides.steady(look.simulated(TAKE_S, {})))
+    return _STEADY[0]
+
+
+def test_her_walk_is_its_take(report):
+    """Her walk written a take reads back to the mm, and it is the walk approved: each measure
+    of `normal.BAND` its reference take's, within WITHIN of the band's width."""
+    from coaxial.model.blocks import numpy as np
+    from tools import REPO
+    from tools.sim import fbx, normal
+    rows = _steady()
+    path = os.path.join(REPO, 'build', 'takes', 'test_gynoid_gait.fbx')
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    fbx.wrote(path, rows)
+    times, read = fbx.take(path)
+    _t, hers = fbx.joints(rows)
+    worst = max(float(np.abs(read[name] - hers[name]).max()) for name in hers)
+    report.check('written a take, every joint reads back within a mm',
+                 len(times) == len(rows) and worst < 1e-3,
+                 '%.3f mm over %d frames, %d joints' % (1e3 * worst, len(times), len(hers)))
+    now, was = normal.measured(*fbx.joints(rows)), normal.measured(*fbx.take(TAKE))
+    report.check('her strides and the take\'s are measured', now['strides'] >= 4 <= was['strides'],
+                 '%d and %d' % (now['strides'], was['strides']))
+    for widths, name, mine, its in sorted(normal.apart(now, was)[1], key=lambda e: e[1]):
+        report.check('%s as her take has it' % name, widths <= WITHIN,
+                     '%.3g, the take %.3g' % (mine, its))
+
+
+def test_her_walk_beside_a_womans(report):
+    """Each measure of a woman's normal walk (`normal.BAND`) is met by hers, or is one of KNOWN
+    and no further out than there."""
+    from tools.sim import fbx, normal
+    now = normal.measured(*fbx.joints(_steady()))
+    for name, unit, least, most in normal.BAND:
+        v, known = float(now.get(name, float('nan'))), KNOWN.get(name)
+        low, high = float(least), float(most)
+        if known is not None:
+            low, high = min(low, known), max(high, known)
+        report.check('%s %g to %g %s%s' % (name, least, most, unit, '' if known is None
+                                           else ', known out to %g' % known),
+                     low <= v <= high, '%.3g' % v)
+    report.check('nothing of KNOWN is back in her band unnoticed',
+                 all(not least <= now[name] <= most for name, _u, least, most in normal.BAND
+                     if name in KNOWN), 'off it %.2f' % normal.off(now)[0])
+
+
 ROSTER = [test_her_walk_holds_its_form, test_gone_back_she_walks_the_same,
-          test_from_the_squat_she_walks_off_unparried]
+          test_from_the_squat_she_walks_off_unparried, test_her_walk_is_its_take,
+          test_her_walk_beside_a_womans]
 
 
 def main(argv=None):

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Her ways on the one law over a spread of timings, a group a row: how many she is up through.
 
-    python tools/sim/ways.py                       # every group, 92 trials through the relay
+    python tools/sim/ways.py                       # every group, 104 trials through the relay
     python tools/sim/ways.py --only run -v         # the groups named so, each trial's segments
     python tools/sim/ways.py hold.HOLD_K=0.8       # under a constant moved
 
@@ -20,6 +20,12 @@ sys.path.insert(0, HOST)
 
 #: Standing again, her last row is asked once more LAST_S before the end: a segment to judge.
 LAST_S = 3.0
+
+
+#: The page's S and F from her walk to the run and down to her stand, (s on, row): a press
+#: every 3-8 s (`humanoid_keys.LEVELS`).
+STEPPED = ((0.0, 0.5), (6.0, 0.7), (10.0, 0.85), (14.0, 1.0), (22.0, 0.85), (25.0, 0.7),
+           (28.0, 0.5), (34.0, 0.0), (40.0, -0.3), (44.0, -0.6), (48.0, -1.0))
 
 
 def still(result):
@@ -59,6 +65,8 @@ GROUPS = [
         '0:-1 1:1 9.5:0 16:1 30:-1', '0:-1 1:1 11:0.5 19:1 31:-1', '0:-1 1:0.5 4:0 8:1 28:-1',
         '0:-1 1:1 5:-1 12:1 30:-1', '0:-1 1:1 12.5:-1 24:0.5 32:-1', '0:-1 1:0 3:1 6:0 14:-1')]),
     ('the run held', 60.0, up, [('ask 0:-1 1:1', ''), ('ask 0:-1 1.4:1', '')]),
+    ("stepped as the page's keys", 66.0, still, [('ask 0:-1 1:0 ' + ' '.join(
+        '%g:%g' % (6.0 + 0.19 * i + t, k) for t, k in STEPPED), '') for i in range(12)]),
     ('nudged standing', 10.0, stood, [('0:-1', '4:38:%d' % d) for d in range(0, 360, 45)]),
     ('shoved standing', 12.0, still, [('0:-1', '4:120:%d' % d) for d in range(0, 360, 45)]),
     ('nudged walking', 16.0, up, [('0:-1 1:-1 2:0 16:0', '%g:38:%d' % (t, d))
