@@ -331,3 +331,11 @@ squat. The board's own are in [FINDINGS](../FINDINGS.md).
   knee 2-5 deg where her foot bears her alone behind the plumb line, to -3,
   landing at 13-28. The gynoid's suites: 28, the falls 44, the faults
   9, the stand 6, the gait 41, none failed.
+- The scoreboard's twelve walks on the strut walk (2026-10-05; begun
+  standing at 0.65, 0.85, 0.9 and 1.0 strides/s, each 2 % either way, 14
+  s): 2 fell - at 0.88, 5.6 s in, and at 1.02, 11.5 s in - and 52 parried;
+  on the head before it none fell and 222 parried, 67-82 a walk at 0.65.
+  From the squat, started at 0.85 and glided to her pace as the page has
+  her, none of either. One knob at a time: the pre-swing at 26 and 28 1
+  fell, the let-go's easing 0.12 1, 0.15 none, 0.18 3, 0.22 7 - no order
+  in it.

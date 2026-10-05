@@ -124,7 +124,9 @@ Fitted parts come from `0x6D` kind 4, never from a name. Host rules:
   form, test_gynoid_gait.py holds it; docs/TODO.md item 1.
 - **Smoke her walk first**: after any change reaching it,
   `python tools/sim/armada.py` (12 s on the armada kept up, `--up`) - her
-  form, J/m and parries at three paces - quoted before anything else. A
+  form, J/m and parries at three paces - and
+  `python tools/sim/gait_montecarlo.py --suite look` (36 s: her rises, her
+  walks begun standing at four paces), quoted before anything else. A
   candidate is tried from a walking robot's mark (`--grid`, `--search`),
   never from the squat.
 - **Simulated before emulated.** *Emulated* is the image on Renode: SIL.

@@ -17,11 +17,9 @@ PACES = (0.85, 0.65, 1.0)
 #: (2026-10-05).
 SQUAT_S = 16.0
 
-#: A pace is judged on a spread of walks, the sideways gain a thousandth either way, their
-#: measures meaned and their parries summed, PARRIES at most: one walk scores chance - at 1.0
-#: strides/s the gain's fourth digit made one parry in three strides or none, 18 walks about it
-#: none (2026-10-05).
-SPREAD, PARRIES = (1.0, 1.001, 0.999), 1
+#: A pace is judged on a spread of walks (`looks.spread`, `looks.PARRIES`): the sideways gain a
+#: thousandth either way.
+SPREAD = (1.0, 1.001, 0.999)
 
 _ROBOT = []
 
@@ -38,30 +36,23 @@ def test_her_walk_holds_its_form(report):
     """At each pace every condition of `looks.FORM` is met over the spread: the knee while her
     foot bears her alone behind the plumb line, the knee at its landing, the leg behind the plumb
     line, the standing hip up, the toes not back at their lift, her head's bob, surge and sway,
-    the strike - and of the spread's nine strides at most PARRIES parried."""
+    the strike - and of the spread's nine strides at most `looks.PARRIES` parried."""
     from tools.sim import knobs, looks
     robot, gain = _robot(), knobs.now('walker.SIDE_K')
     for pace in PACES:
         walks = [robot.tried({'walker.SIDE_K': gain * k} if k != 1.0 else {}, pace)
                  for k in SPREAD]
-        fell = sum(1 for m in walks if m.get('fell'))
-        report.check('at %.2f strides/s she walks on' % pace, not fell,
-                     '%d of %d fell' % (fell, len(walks)) if fell else
-                     '%.0f J/m at %.2f m/s' % (walks[0]['energy'], walks[0]['speed']))
-        if fell:
+        m = looks.spread(walks)
+        report.check('at %.2f strides/s she walks on' % pace, not m['fell'],
+                     '%.0f J/m at %.2f m/s' % (m.get('energy', 0.0), m.get('speed', 0.0)))
+        if m['fell']:
             continue
-        parries = sum(m.get('catches', 0) for m in walks)
-        report.check('at %.2f: at most %d parry in the spread' % (pace, PARRIES),
-                     parries <= PARRIES, '%d in %d walks' % (parries, len(walks)))
+        off = dict((b[0], b) for b in looks.broken(m, looks.PARRIES))
         for name, least, most in looks.FORM:
-            if name == 'catches':
-                continue
-            got = [m[name] for m in walks if name in m]
-            v = sum(got) / len(got) if len(got) == len(walks) else float('nan')
+            most = looks.PARRIES if name == 'catches' else most
             report.check('at %.2f: %s %s' % (pace, name, 'at least %g' % least
                                               if least is not None else 'at most %g' % most),
-                         v == v and (least is None or v >= least) and (most is None or v <= most),
-                         '%.1f' % v)
+                         name not in off, '%.1f' % m.get(name, float('nan')))
 
 
 def test_gone_back_she_walks_the_same(report):

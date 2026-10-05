@@ -47,13 +47,17 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
    25 or 27 - a kneel is no fall, and is called one (item 15); at a
    stance knee of 4.5, her recordings' (2-5 deg, to -3), she parries 5
    times in three strides at 1.0 strides/s; the stride 0.75 m where a
-   woman's is 1.29 at the same 0.85 a second; the scoreboard
-   (`gait_montecarlo`) still weighs an event's fall 300 its share and
-   knows nothing of `looks.FORM`. DOD: `looks.FORM`'s landing knee at 15;
-   test_gynoid_gait.py asserting fewer J/m than the same walk crouched to
-   12, 18, 24 and 30 deg at each pace; the stance knee at 4.5 or on its
-   stop; the scoreboard rejecting a walk off the form and scoring an event
-   on its parry; the stride at 1.0 m or over.
+   woman's is 1.29 at the same 0.85 a second; begun standing at its own
+   pace, as the scoreboard's twelve walks are (`gait_montecarlo --suite
+   look`, 36 s), 2 fell - at 0.88 and 1.02 strides/s - and 52 parried
+   where none fell and 222 parried, 67-82 a walk at 0.65: the scoreboard
+   rejects it there (`looks.FORM`, since 2026-10-05; an event a reward
+   its share parried); at 0.65 strides/s the swinging foot clears the
+   floor by 0.1 mm. DOD: the scoreboard's walks on their form, none
+   fallen; `looks.FORM`'s landing knee at 15; test_gynoid_gait.py
+   asserting fewer J/m than the same walk crouched to 12, 18, 24 and 30
+   deg at each pace; the stance knee at 4.5 or on its stop; the stride at
+   1.0 m or over.
 2. **The leg stack on the run** (the user, 2026-10-04: the most simplicity,
    the fewest gearbox and electronics variants). One stack on every drive
    since 2026-10-05 (docs/DIMENSIONS.md, docs/findings/stacks.md): 60 x 20

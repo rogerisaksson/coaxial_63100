@@ -1389,8 +1389,8 @@ def test_the_gynoid(report):
     feet = [i for i, part in enumerate(body.parts) if part[0] in ('left_foot', 'right_foot')]
     walking, _normals = body.pose(gait.walk(0.0))
     reach = [walking[slice(*body.spans[i]), 2].mean() for i in feet]
-    report.check('gynoid: as a foot lands the feet are a stride apart, the left ahead',
-                 reach[0] - reach[1] > 0.35, '%.2f m' % (reach[0] - reach[1]))
+    report.check('gynoid: as a foot lands the feet are a step apart, the left ahead',
+                 reach[0] - reach[1] > 0.9 * gait.STRIDE_M / 2.0, '%.2f m' % (reach[0] - reach[1]))
     here = gynoid.render(gait.walk(0.3), 48, 22, colour=False)
     report.check('gynoid: drawn here, 22 lines of 48 cells, her dots in them',
                  len(here) == 22 and all(len(line) == 48 for line in here)

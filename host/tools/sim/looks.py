@@ -74,11 +74,30 @@ FORM = (('knee behind plumb', None, 10.0), ('knee at landing', None, 30.0),
 ENERGY_J_M, FORM_K, FELL = 100.0, 20.0, 1000.0
 
 
-def broken(measures):
-    """[(measure, value, bound)]: FORM's conditions `measures` does not meet; one unmeasured is
-    not met."""
+#: A pace is judged on a spread of walks, their measures meaned and their parries summed,
+#: PARRIES at most: one walk scores chance - at 1.0 strides/s the sideways gain's fourth digit
+#: made one parry in three strides or none, 18 walks about it none (2026-10-05).
+PARRIES = 1
+
+
+def spread(walks):
+    """{measure: value} of a spread of `walks` [{measure: value}]: each measure all of them have
+    meaned, their parries (`catches`) summed; fallen if any fell."""
+    out = {}
+    for name in set().union(*walks):
+        got = [m[name] for m in walks if m.get(name, math.nan) == m.get(name, math.nan)]
+        if len(got) == len(walks):
+            out[name] = sum(got) if name == 'catches' else sum(got) / len(got)
+    out['fell'] = max(m.get('fell', 0.0) for m in walks)
+    return out
+
+
+def broken(measures, parries=0):
+    """[(measure, value, bound)]: FORM's conditions `measures` does not meet, `parries` let by
+    (a spread's, PARRIES); one unmeasured is not met."""
     out = []
     for name, least, most in FORM:
+        most = parries if name == 'catches' else most
         v = measures.get(name, math.nan)
         if v != v or (least is not None and v < least) or (most is not None and v > most):
             out.append((name, v, least if least is not None else most))

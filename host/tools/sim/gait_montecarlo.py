@@ -17,11 +17,12 @@ terminal page runs her:
 SUITES (`--suite`): look, the rises and the walks on fantasy boards, SOA never binding
 (`physics.ENVELOPE` 0); walk; faults, the events and the falls on the boards as built; stand; all.
 `held`, the share of the trials' time she stood; `stir`, the pendulum's mean over the
-walks, mm. The cost (2026-10-01): a walk on its look and power (`looks.cost`, `stir` with it), a
-fall in it ignored; an event on its parry, a rise on its start, a fall the heaviest, FALL_K the
-share fallen; a fall past saving on its landing's peak, body and head. A single run scores
-chance - the rise flips on 0.5 % of any knob (docs/findings/walk.md, 2026-09-26) - a spread of
-them scores it.
+walks, mm. The cost (2026-10-05, the user: a fall punished is met by a crouch): a walk off its
+form (`looks.FORM`, its spread's) is rejected; on it, its look and power (`looks.cost`, `stir`
+with it); an event, a rise and a stand each a reward, PARRY_K the share of its runs she ended
+on her feet - a fall earns nothing and costs nothing; a fall past saving on its landing's
+peak, body and head. A single run scores chance - the rise flips on 0.5 % of any knob
+(docs/findings/walk.md, 2026-09-26) - a spread of them scores it.
 
     python tools/sim/gait_montecarlo.py                      # as built
     python tools/sim/gait_montecarlo.py --search SURGE_DEG=0:4 SWAY_K=0:2 --generations 12
@@ -37,6 +38,7 @@ import time
 from machine import events
 from tools.dev import background
 from tools.sim import cmaes, knobs
+from tools.sim import looks as form
 from tools.sim.looks import LOOKS, cost as look_of, shown
 
 #: (kind, pace, event): the trials. The floor's events took the shoves' place (a shove hardly
@@ -78,13 +80,15 @@ RISE_DROP_M = 0.002
 #: every millisecond, its peak taken over IMPACT_S (the cost of each: `tools.sim.looks`).
 LOOK_HZ, IMPACT_S, TOUCH_N, QUIET_S = 50.0, 0.03, 30.0, 0.1
 
-#: An event's fall, FALL_K the share of its runs that fell: the heaviest - one more of 30 is 10. A
+#: An event parried - she on her feet to its end -, PARRY_K the share of its runs: one more of
+#: 30 is 10; until 2026-10-05 a fall's price, FALL_K, the same 300 - every cost since is 300 a
+#: kind of trial run under those before. A
 #: fall past saving, its landing over LAND_S from the fall: LAND_K a kN of the peak her body bears
 #: on the floor, feet aside, HEAD_K a kN of her head's; GEAR_K a share past its rating of the
 #: worst gearbox's peak torque (`World.geared`, `drives.shock`) - broken.
-FALL_K, LAND_S, LAND_K, HEAD_K, GEAR_K = 300.0, 1.5, 2.0, 10.0, 100.0
+PARRY_K, LAND_S, LAND_K, HEAD_K, GEAR_K = 300.0, 1.5, 2.0, 10.0, 100.0
 
-#: A stand's cost: its stir, mm, from its event on, TREAD_K a step taken, a fall FALL_K.
+#: A stand's cost: its stir, mm, from its event on, TREAD_K a step taken; stood, PARRY_K.
 TREAD_K = 1.0
 
 #: Every trial and job, `suite()` narrowing from them, not itself (2026-10-04).
@@ -221,7 +225,9 @@ def trial(job):
     what = '%.1f m' % bus['pelvis.pose.z'] + (', tipped %.0f deg' % tilt if laid else '')
     if fell is not None:
         what = 'fell at %.1f s' % fell + (', up at %.1f s' % up if up else ', down') + ', ' + what
-    walked = {name: f(rows) for name, _unit, f in strides.WALK if name in LOOKS} if rows else {}
+    measured = strides.measured(rows) if len(rows) > 2 else {}
+    walked = {name: v for name, v in measured.items()
+              if name in LOOKS or name == 'energy' or any(name == f[0] for f in form.FORM)}
     if impacts:
         walked.update(impact=sum(impacts) / len(impacts), touch=sum(touches) / len(touches),
                       rate=sum(rates) / len(rates))
@@ -240,29 +246,33 @@ def trial(job):
 
 
 def by_trial(results):
-    """[(held, stir, [what], {look: value}, look's cost)] a trial each, in TRIALS' order, from
-    its runs' results in JOBS' order: the held share its spread's mean, the stir and the look's
-    cost its judged runs' (`JUDGED`), nan with none; the measures shown the first run's."""
+    """[(held, stir, [what], {look: value}, look's cost, off its form)] a trial each, in TRIALS'
+    order, from its runs' results in JOBS' order: the held share its spread's mean, the stir and
+    the look's cost its judged runs' (`JUDGED`), nan with none; the measures shown the first
+    run's; a walk's form its spread's (`looks.broken`), [(measure, value, bound)]."""
     out = []
     for t in TRIALS:
         mine = [r for (u, _k), r in zip(JOBS, results) if u == t]
         judged = [r for r in mine if r[1] is not None and (t[0] != 'walk' or all(
             r[3].get(n, math.nan) == r[3].get(n, math.nan) for n in JUDGED))]
         mean = (lambda xs: sum(xs) / len(xs)) if judged else (lambda xs: math.nan)
+        off = (form.broken(form.spread([r[3] for r in mine]), form.PARRIES)
+               if t[0] == 'walk' else [])
         out.append((sum(r[0] for r in mine) / len(mine), mean([r[1] for r in judged]),
-                    [r[2] for r in mine], mine[0][3], mean([look_of(r[3]) for r in judged])))
+                    [r[2] for r in mine], mine[0][3], mean([look_of(r[3]) for r in judged]),
+                    off))
     return out
 
 
 def score(results):
     """(cost, held, stir) of one candidate's run results, in JOBS' order: the walks' look and
-    power, the events', the rises' and the stands' falls, the stands' stir and steps, the
-    landings past saving."""
+    power - a walk off its form, rejected -, the events, the rises and the stands parried, the
+    stands' stir and steps, the landings past saving."""
     trials = by_trial(results)
     held = sum(t[0] for t in trials) / len(trials)
     walks = [t for (kind, _p, _e), t in zip(TRIALS, trials) if kind == 'walk']
     walked = [t for t in walks if t[1] == t[1]]
-    if walks and not walked:
+    if walks and (not walked or any(t[5] for t in walks)):
         return math.inf, held, math.nan
     stir = sum(t[1] for t in walked) / len(walked) if walked else math.nan
     cost = (stir + sum(t[4] for t in walked) / len(walked)
@@ -274,7 +284,7 @@ def score(results):
             for kind, w in runs if kind == 'fall']
     for falls in ([w.get('fell', 1.0) for kind, w in runs if kind == which]
                   for which in ('event', 'rise', 'stand')):
-        cost += FALL_K * sum(falls) / len(falls) if falls else 0.0
+        cost -= PARRY_K * (1.0 - sum(falls) / len(falls)) if falls else 0.0
     stands = [w['stir'] + TREAD_K * w['treads'] for kind, w in runs
               if kind == 'stand' and w.get('stir', math.nan) == w.get('stir', math.nan)]
     cost += sum(stands) / len(stands) if stands else 0.0
@@ -305,9 +315,10 @@ def _show(values, cost, held, stir, results: list | tuple = ()):
     print('%-40s cost %6.2f  held %5.1f %%  stir %5.2f mm' % (
         ' '.join('%s=%g' % kv for kv in values.items()) or 'as it is', cost, 100 * held, stir))
     trials = by_trial(results) if results else []
-    for (kind, pace, event), (h, s, whats, looks, _c) in zip(TRIALS, trials):
-        print('    %-5s %.2f %-9s %5.1f %%  %s%s%s' % (
+    for (kind, pace, event), (h, s, whats, looks, _c, off) in zip(TRIALS, trials):
+        print('    %-5s %.2f %-9s %5.1f %%  %s%s%s%s' % (
             kind, pace, event or '', 100 * h, ' | '.join(whats),
+            '  OFF ITS FORM: ' + ', '.join('%s %.1f (%g)' % b for b in off) if off else '',
             '  stir %.2f mm' % s if kind == 'walk' else
             '  stir %.2f mm, %d treads' % (s, looks.get('treads', 0)) if kind == 'stand' else '',
             '  ' + shown(looks) if kind == 'walk' and looks
