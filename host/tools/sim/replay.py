@@ -92,7 +92,10 @@ def mark(body, director):
             if attrs[k][0] is None and v is not None:
                 queue.extend(_within(v))
         held[id(o)] = (o, attrs)
+    # Her boards take their own of it now: left to their next step, a reset before it (a
+    # second `Director.begin`) left the mark with none, and her going back to it a dead bus.
     world.block.marked[0] += 1
+    world.buses.step()
     spec = mj.mjtState.mjSTATE_INTEGRATION
     state = np.empty(mj.mj_stateSize(world.model, spec))
     mj.mj_getState(world.model, world.data, state, spec)
