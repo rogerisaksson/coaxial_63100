@@ -72,48 +72,43 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
    DOD: every joint's A, P, T and V under 1 on the run and the gym's
    scenes at the settled margin, no joint's J over 1; the pack's volts,
    the cooling and each joint's ratio baked.
-3. **Balance by micro-steps, as on stilts** (the user, 2026-10-04): the
-   support a point under each stance ball, nothing of the sole's shape to
-   the controller, a small quick step toward the capture point whenever it
-   leaves, standing and walking alike - else the control is too sensitive
-   to initial conditions (a 3 mm move of the heel's spheres felled the
-   first stride; the sneaker's heel spheres 797 and 49.8 % where the box's
-   sole 604 and 73.7). Standing first (the user, 2026-10-04), the floor
-   perturbed a little under her, then walking. Standing rigged and scored
-   (`events.STANDING`, the 'stand' suite, test_gynoid_stand.py;
-   docs/findings/standing.md). The reflex one law
-   (`machine.dcm`, 2026-10-04: the capture point in the sole's hold, a step
-   due only outside it, the foot bearing less landing on the ray from the
-   standing foot through the capture point as it will be; no case for a
-   side or a rig), measured on the push polar (`events.PUSH_DEG`, 48
-   pushes over 8 ways): 25 stood - 60 N 12 of 12, 80 N 10, 100 N 3 (from
-   behind and from the front, on one step), 120 N none. The soles' load
-   through its sensor's band and the stepping foot one that can land
-   where the capture point goes (2026-10-04): 30 - 60 N 12 of 12, 80 N
-   11, 100 N 7, 120 N none -, the bricks 100 and 84 %, the rockers 100. Next, in the same
-   plane: the 120 N pushes (the share's rate against the band,
-   standing.md); the stance back at her standing height after a step - she
-   stays 5-12 cm down on bent knees; the trunk
-   thrown into the fall (the angular momentum, a CMP past the sole, 60 N m
-   17 cm on her 35 kg) as a torque - a lean on the spine's setpoints did
-   nothing; a ready crouch as the capture point strays - her standing
-   legs are straight, 3.8 cm of reach along the floor. Then walking: a
-   hole, a sill, a slope, a tilt, a brick gone. The way (the user,
-   2026-10-04): little
-   Python - the reflexes a prose stream encoded into meta-movement
-   patterns over a small vocabulary of moves (step, lean, crouch, hold,
-   catch; `machine.planner`'s way), a table of when and what the local
-   model and the observer pick from, each hypothesis a line, not a
-   controller. The aim a meta-control-law that learns a hard surface and
-   keeps her balance on it. DOD, from the LLM to the metal: a 'stand'
-   suite on the
-   scoreboard - the nudges, the bricks, the board - 100 % standing, on the
-   board still but for micro-adjustments under the walk's stir; point feet
-   (`figure`'s contacts a sphere at each ball, a knob) and the box sole
-   alike; the walk's events joined by the slope, the tilt and the brick,
-   the scoreboard at or over today's; the first stride stands with the
-   heel and the toes moved +-1 cm; the sprung toes (item 6) held by it;
-   the patterns driven over the bus to the emulated boards (`emulator://`,
+3. **Balance by micro-steps, as on stilts** (the user, 2026-10-04): the support
+   a point under each stance ball, nothing of the sole's shape to the
+   controller, a small quick step toward the capture point whenever it leaves,
+   standing and walking alike - else the control is too sensitive to initial
+   conditions (a 3 mm move of the heel's spheres felled the first stride; the
+   sneaker's heel spheres 797 and 49.8 % where the box's sole 604 and 73.7).
+   Standing first (the user, 2026-10-04), the floor perturbed a little under
+   her, then walking. Standing rigged and scored (`events.STANDING`, the
+   'stand' suite, test_gynoid_stand.py; docs/findings/standing.md). The reflex
+   one law (`machine.dcm`, 2026-10-04: the capture point in the sole's hold, a
+   step due only outside it, the foot bearing less landing on the ray from the
+   standing foot through the capture point as it will be; no case for a side or
+   a rig), measured on the push polar (`events.PUSH_DEG`, 48 pushes over 8
+   ways): 25 stood - 60 N 12 of 12, 80 N 10, 100 N 3 (from behind and from the
+   front, on one step), 120 N none. The soles' load through its sensor's band
+   and the stepping foot one that can land where the capture point goes
+   (2026-10-04): 30 - 60 N 12 of 12, 80 N 11, 100 N 7, 120 N none -, the bricks
+   100 and 84 %, the rockers 100. Next, in the same plane: the 120 N pushes
+   (the share's rate against the band, standing.md); the stance back at her
+   standing height after a step - she stays 5-12 cm down on bent knees; the
+   trunk thrown into the fall (the angular momentum, a CMP past the sole, 60 N
+   m 17 cm on her 35 kg) as a torque - a lean on the spine's setpoints did
+   nothing; a ready crouch as the capture point strays - her standing legs are
+   straight, 3.8 cm of reach along the floor. Then walking: a hole, a sill, a
+   slope, a tilt, a brick gone. The way (the user, 2026-10-04): little Python -
+   the reflexes a prose stream encoded into meta-movement patterns over a small
+   vocabulary of moves (step, lean, crouch, hold, catch; `machine.planner`'s
+   way), a table of when and what the local model and the observer pick from,
+   each hypothesis a line, not a controller. The aim a meta-control-law that
+   learns a hard surface and keeps her balance on it. DOD, from the LLM to the
+   metal: a 'stand' suite on the scoreboard - the nudges, the bricks, the board
+   - 100 % standing, on the board still but for micro-adjustments under the
+   walk's stir; point feet (`figure`'s contacts a sphere at each ball, a knob)
+   and the box sole alike; the walk's events joined by the slope, the tilt and
+   the brick, the scoreboard at or over today's; the first stride stands with
+   the heel and the toes moved +-1 cm; the sprung toes (item 6) held by it; the
+   patterns driven over the bus to the emulated boards (`emulator://`,
    `native://`), the drives turning, not the simulated director alone.
 4. **Running** (`machine/runner.py`, test_gynoid_run.py,
    docs/findings/run.md): from a flight at her speed she holds 0.72-1.65
