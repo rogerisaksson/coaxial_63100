@@ -57,9 +57,11 @@ SPANS = {
                 'gaits.MID.under': (0.03, 0.117), 'gaits.MID.folded': (0.5, 1.0),
                 'gaits.MID.reach': (0.2, 0.36)}}
 
-#: A walk's row is walked WALK_S and priced from FROM_S; a row between is tried on PASSAGES,
-#: walk to run and back, PASS_S each.
-WALK_S, FROM_S, PASS_S = 10.0, 4.0, 16.0
+#: A walk's row is walked WALK_S and priced from FROM_S on each of STARTS - her pelvis that
+#: share of half her feet's width toward the foot she is placed on (`going.START_IN`): on one
+#: walk the best row's price was chance, 25 and to three digits of it 92 -; a row between is
+#: tried on PASSAGES, walk to run and back, PASS_S each.
+WALK_S, FROM_S, PASS_S, STARTS = 14.0, 6.0, 16.0, (0.15, 0.25, 0.35)
 PASSAGES = ('0:0 4:0 7:1 16:1', '0:1 4:1 7:0 16:0')
 
 
@@ -217,8 +219,11 @@ def searched(kind, generations, lam, log_path, sigma=0.2):
     from machine import gaits, going
     from tools.dev import focus
     from tools.sim import cmaes
-    tracks, to_s = (('0:0',), WALK_S) if kind == 'walk' else (PASSAGES, PASS_S)
-    form = ['--form', '%g,%g' % (FROM_S, to_s)] if kind == 'walk' else []
+    walks = kind == 'walk'
+    to_s = WALK_S if walks else PASS_S
+    # a trial: its track and what else it sets
+    trials = ([('0:0', ['--form', '%g,%g' % (FROM_S, to_s), 'going.START_IN=%g' % k])
+               for k in STARTS] if walks else [(track, []) for track in PASSAGES])
 
     def now(name):
         if name == 'both':
@@ -231,7 +236,7 @@ def searched(kind, generations, lam, log_path, sigma=0.2):
         if result is None:
             return 400.0
         up, last = result['fell'] or to_s, result['segments'][-1]
-        if kind != 'walk':
+        if not walks:
             return 10.0 * (to_s - up) / to_s + 3e-4 * min(last['drawn'], 4000.0)
         price = result['form'].get('price', math.nan)
         if not result['fell'] and price == price:
@@ -242,8 +247,8 @@ def searched(kind, generations, lam, log_path, sigma=0.2):
     def runs(_pool, cands):
         jobs = [focus.Job('%d|%d' % (i, k), [sys.executable, '-X', 'utf8', os.path.abspath(__file__),
                                               '--json', '--to', str(to_s), '--track', track]
-                          + form + ['%s=%r' % kv for kv in c.items()], 1.2, 600.0)
-                for i, c in enumerate(cands) for k, track in enumerate(tracks)]
+                          + more + ['%s=%r' % kv for kv in c.items()], 1.2, 600.0)
+                for i, c in enumerate(cands) for k, (track, more) in enumerate(trials)]
         out = {}
         for job, text, _code, _s in focus.relay(jobs):
             line = next((ln[7:] for ln in reversed(text.splitlines())
@@ -251,7 +256,7 @@ def searched(kind, generations, lam, log_path, sigma=0.2):
             out[job.name] = json.loads(line) if line else None
         got = []
         for i, c in enumerate(cands):
-            each = [out['%d|%d' % (i, k)] for k in range(len(tracks))]
+            each = [out['%d|%d' % (i, k)] for k in range(len(trials))]
             got.append((sum(cost(r, c) for r in each) / len(each),
                         min((r['fell'] or to_s) if r else 0.0 for r in each), 0.0, None))
         return got
@@ -284,11 +289,13 @@ def main(argv=None):
     parser.add_argument('--search', choices=sorted(SPANS), help='CMA-ES over its spans')
     parser.add_argument('--generations', type=int, default=60)
     parser.add_argument('--lam', type=int, default=32, help='candidates a generation')
+    parser.add_argument('--sigma', type=float, default=0.2, help='the first step, of a span')
     parser.add_argument('--log', default='build/go_search.jsonl', help='a candidate a line')
     parser.add_argument('knobs', nargs='*', metavar='NAME=V', help='constants moved')
     args = parser.parse_args(argv)
     if args.search:
-        print('BEST ' + json.dumps(searched(args.search, args.generations, args.lam, args.log)))
+        print('BEST ' + json.dumps(searched(args.search, args.generations, args.lam, args.log,
+                                            args.sigma)))
         return 0
     track = [tuple(float(x) for x in p.split(':')) for p in args.track.split()]
     values = {k: float(v) for k, v in (kv.split('=') for kv in args.knobs)}

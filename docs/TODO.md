@@ -258,17 +258,18 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
     a moment; balance automatic over a second at most, intent a stream of
     setpoints; "balance point", "clearance", "interference"). In, off the page
     (`machine/going.py`, `tools/sim/go.py`, docs/findings/going.md): a gait a
-    row of 16 setpoints - the walk's found on the scoreboard's price, 0.99 m/s
-    at 360 J/m with a foot always down, the run's the runner's, one between.
+    row of 16 setpoints - the walk's found on the scoreboard's price, 0.95 m/s
+    at 366 J/m with a foot always down, the run's the runner's, one between.
     Left: her passage on any timing - walk, run and walk again on 2 of 10, into
     the run at 1.56-1.93 m/s for 1.5, her speed unheld (0.99 for 0.76); her
-    form on it, priced 26 - the pelvis's roll over the stance leg 0.6 deg where
-    3, her head's bob 34 mm, a strike 483 N; her stand, start and stop on it -
-    in the lab up through all three on 1 timing of 4, her first steps the weak
-    place; her turns and parries; the runner and the walk's modules gone into
-    it. DOD: the one law stands, walks, runs and passes between on its
-    setpoints alone, 10 of 10 over a spread; her walk on it on `looks.FORM` at
-    no more J/m; F to her fastest run and S back on the page.
+    form on it, priced 92, its fourth digit chance - the pelvis's roll over the
+    stance leg 0.6 deg where 3, her head's bob 34 mm, a strike 483 N; her
+    stand, start and stop on it - in the lab all three on 1 timing of 4, her
+    first steps the weak place; her turns and parries; the runner and the
+    walk's modules gone into it. DOD: the one law stands, walks, runs and
+    passes between on its setpoints alone, 10 of 10 over a spread; her walk on
+    it on `looks.FORM` at no more J/m; F to her fastest run and S back on the
+    page.
 29. **Her tubes, corners and flanges** (the user, 2026-10-05): carbon
     tubes cut to length, epoxied into printed corners; a gearbox on a
     flange, its output through it; motor, box and board outermost, a

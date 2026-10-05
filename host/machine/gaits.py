@@ -15,8 +15,10 @@ RUN = {'speed': 1.5, 'step': 0.40, 'stand': 0.30, 'up': 0.0, 'rise': 0.49, 'boun
        'land': 14.0, 'knee': 22.0, 'lean': 6.0, 'fold': 55.0, 'track': 0.035, 'off': 50.0,
        'list': 0.0, 'under': 0.117, 'folded': 1.0, 'reach': 0.36}
 #: The walk's, found: 2 240 rows priced as the scoreboard prices a walk (`looks.priced`), a foot
-#: always down and the strut the form's - 1 357 walked their 10 s; this one 30 s, 67 steps at
-#: 0.99 m/s, 360 J/m drawn, its knee landing at 17.8 deg and 10.6 behind plumb (2026-10-05).
+#: always down and the strut the form's - 1 357 walked their 10 s. The best, 0.99 m/s at 360
+#: J/m, priced 25; this row is it to three digits: 0.95 m/s at 366 J/m, its knee landing at 17
+#: deg, priced 92 - her toes 8.6 mm back at their lift where 1.9 -, and to four digits another
+#: way a stumble, 336: found on one walk, a row's price is chance (2026-10-05).
 WALK = {'speed': 0.76, 'step': 0.528, 'stand': 0.581, 'up': 0.10, 'rise': 0.0, 'bounce': 0.253,
         'land': -12.9, 'knee': 19.4, 'lean': 5.1, 'fold': 10.0, 'track': 0.048, 'off': 1.7,
         'list': 0.0, 'under': 0.037, 'folded': 0.65, 'reach': 0.248}

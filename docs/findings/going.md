@@ -68,7 +68,11 @@ law in [standing](standing.md). Nothing of it is on the page.
   back 2.1 mm at lift (2), her head's bob 34 mm (30), a strike 483 N
   (450), the pelvis's roll over the stance leg 0.6 deg (3): its price
   26.3. Asked 0.76 m/s she walks 0.99, the speed's integral at its 0.15
-  m; rolled 3 deg over the stance leg, 0.64 m/s at 610 J/m.
+  m; rolled 3 deg over the stance leg, 0.64 m/s at 610 J/m. Found on one
+  walk, its price is chance: its numbers to three digits, the row in
+  `gaits.WALK`, walk 0.95 m/s at 366 J/m priced 92, her toes 8.6 mm back
+  at their lift where 1.9; to four digits another way, 0.87 m/s and a
+  stumble, 336. A row is now priced on three starts (`go.STARTS`).
 - From the walk's row to the run's and back, the rows mixed in a
   straight line over 4 s (2026-10-05): across both ways on her
   setpoints alone, and down 3.6 s into the run, 1.9 s into the walk; the
