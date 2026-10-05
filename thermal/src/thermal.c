@@ -179,9 +179,9 @@ void thermal_defaults(thermal_cfg_t *cfg)
   cfg->node[THERMAL_AFE].capacity        = 0.30f;
   cfg->node[THERMAL_HOTSWAP].capacity    = 0.50f;   /* two TDSON-8, an MSOP, a fuse */
 
-  /* Junction over package per watt, for the two parts that report their own
-     die. */
-  cfg->node[THERMAL_MCU].rth_die = 40.5f;
+  /* Junction over package per watt for the two reporting a die; the MCU's
+     reads its package (46.0 C at the camera's 47, 2026-10-05). */
+  cfg->node[THERMAL_MCU].rth_die = 0.0f;
   cfg->node[THERMAL_AFE].rth_die = 3.8f;
 
   /* The motor. */
@@ -574,6 +574,8 @@ void thermal_losses(thermal_loss_t *loss)
   loss->mcu_watt = 0.666f;
   loss->ldo_watt = 0.534f;
   loss->afe_watt = 0.13f;      /* from 2-1: the whole AFE chain and sensors */
+  /* Asleep the die sits 4.0 K lower through 22.5 K/W (2026-10-05). */
+  loss->mcu_sleep_watt = 0.49f;
 
   /* The switching loss as functions, 2026-09-05. */
   loss->f_sw       = 50.0e3f;
@@ -719,8 +721,9 @@ void thermal_power_estimate(thermal_power_t *out, const thermal_load_t *load,
     out->watt[THERMAL_STATOR] += loss->k_iron * krpm * krpm;
   }
 
-  /* Static. */
-  out->watt[THERMAL_MCU]        += loss->mcu_watt;
+  /* Static; asleep with AFE_ON low, the stage off. */
+  out->watt[THERMAL_MCU]        += (load->afe_on || load->switching)
+                                   ? loss->mcu_watt : loss->mcu_sleep_watt;
   out->watt[THERMAL_REGULATORS] += loss->ldo_watt;
   out->watt[THERMAL_AFE]        += load->afe_on ? loss->afe_watt : 0.0f;
 }

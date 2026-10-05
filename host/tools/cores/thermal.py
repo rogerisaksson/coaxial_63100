@@ -194,7 +194,7 @@ def losses(lib):
              'switch_volts', 'driver_share', 'mcu_watt', 'ldo_watt',
              'afe_watt', 'f_sw', 'coss_cjo', 'coss_m', 'coss_vj',
              't_switch_s', 'v_sd', 'q_g', 'v_drive', 'buck_eff', 'r_phase',
-             'k_iron')
+             'k_iron', 'mcu_sleep_watt')
     assert len(names) == lib.thm_loss_slots()
     out = (ctypes.c_float * len(names))()
     lib.thm_losses(out)

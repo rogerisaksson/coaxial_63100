@@ -118,21 +118,21 @@ def test_a_lift_climbs_on_its_thrust(report, lib):
 
 
 def test_the_heat_reads_as_its_observer_models_it(report, lib):
-    """A board's heat, thermal.c's network: from the room, each die over its node by its
-    watts through R_th,JC at once - 0.666 W through 40.5 K/W, 0.13 W through 3.8 with AFE_ON."""
+    """A board's heat, thermal.c's network: from the room, the MCU's die at its package, the
+    A1335's over its node by its watts through R_th,JC at once - 0.13 W through 3.8 with AFE_ON."""
     load, seen = (ctypes.c_float * 10)(), (ctypes.c_float * 3)()
     load[0] = 1.0
     lib.emu_heat_reset(0, 25.0)
     lib.emu_heat_step(0, 0.1, load, seen)
     ntc, mcu, a1335 = seen
     report.check('the NTC starts at the room, the dies over it by their junctions',
-                 abs(ntc - 25.0) < 0.01 and abs(mcu - ntc - 0.666 * 40.5) < 0.1
+                 abs(ntc - 25.0) < 0.01 and abs(mcu - ntc) < 0.1
                  and abs(a1335 - ntc - 0.13 * 3.8) < 0.1,
                  'NTC %.2f, MCU %.2f, A1335 %.2f C' % (ntc, mcu, a1335))
     for _ in range(1200):
         lib.emu_heat_step(0, 0.1, load, seen)
     report.check("two minutes on, the MCU's package has risen over its patch",
-                 seen[1] - seen[0] > 0.666 * 40.5 + 10.0,
+                 seen[1] - seen[0] > 10.0,
                  'MCU %.2f over the NTC' % (seen[1] - seen[0]))
 
 

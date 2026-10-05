@@ -57,8 +57,8 @@ def test_inverter(r):
     r.check('the ring settles before the sample across the whole sweep',
             all(inverter.blanking(v) > 100e-9 for v in (23.0, 43.0, 63.0)),
             [inverter.blanking(v) for v in (23.0, 63.0)])
-    r.check('v_dt is Vdc t_dead / Ts: 75 mV at the no-load link',
-            abs(inverter.dead_time_volts(44.4) - 0.0748) < 5e-4,
+    r.check('v_dt is Vdc t_dead / Ts: 140 mV at the no-load link',
+            abs(inverter.dead_time_volts(44.4) - 0.1403) < 5e-4,
             inverter.dead_time_volts(44.4))
     r.check('the knee is 2 Qoss over the dead time',
             abs(inverter.knee_amps(63.0)

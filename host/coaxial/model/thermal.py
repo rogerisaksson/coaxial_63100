@@ -265,10 +265,10 @@ MOTOR_CAPACITY = {'winding': 180.0, 'stator': 360.0, 'rotor': 180.0}
 MOTOR_TO_AMBIENT = {'stator': 1.65, 'rotor': 4.0}
 FORCED = dict([(n, 0.3) for n in LAMINATE]
               + [('stator', 0.5), ('rotor', 1.0)])
-#: Junction over node per watt: R_th,JC for a leg's FETs, the campaign's
-#: 27 K at 0.666 W for the MCU's die, 0.5 K at 0.13 W for the A1335's.
+#: Junction over node per watt: R_th,JC for a leg's FETs, 0.5 K at 0.13 W for
+#: the A1335's die; the MCU's reads its package (bench, 2026-10-05).
 RTH_DIE = dict([(n, 0.69) for n in DRIVERS]
-               + [('mcu', 40.5), ('afe', 3.8)])
+               + [('mcu', 0.0), ('afe', 3.8)])
 
 CFG = {
     'board_to_ambient': BOARD_TO_AMBIENT,     # K/W at BOARD_CAL_RISE_K, not a constant
@@ -412,6 +412,7 @@ LOSSES = {
     'mcu_watt': 0.666, 'ldo_watt': 0.534, 'afe_watt': 0.13, 'f_sw': inverter.FSW,
     'coss_cjo': 15.6e-9, 'coss_m': 0.45, 'coss_vj': 0.7, 't_switch_s': 14.0e-9, 'v_sd': 0.85,
     'q_g': 81.0e-9, 'v_drive': 12.0, 'buck_eff': 0.85, 'r_phase': 0.05, 'k_iron': 0.0,
+    'mcu_sleep_watt': 0.49,
 }
 
 
@@ -468,7 +469,8 @@ def power_estimate(load, phase_c=None, loss=None):
     rpm = load.get('speed_rpm') or 0.0
     if loss['k_iron'] > 0.0 and rpm > 0.0:
         out['stator'] += loss['k_iron'] * (rpm / 1000.0) ** 2
-    out['mcu'] += loss['mcu_watt']
+    out['mcu'] += (loss['mcu_watt'] if load.get('afe_on') or load.get('switching')
+                   else loss['mcu_sleep_watt'])
     out['regulators'] += loss['ldo_watt']
     out['afe'] += loss['afe_watt'] if load.get('afe_on') else 0.0
     return out

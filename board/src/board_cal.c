@@ -73,8 +73,8 @@ static const board_cal_t CAL_DEFAULTS =
   .vg_r_top_ohm     = 57000UL,        /* R119 47k + R113 element 3 10k */
   .vg_r_bottom_ohm  = 10000UL,        /* R113 element 4, PA5 to GND */
 
-  /* 30 ns, asked for 2026-08-29. */
-  .deadtime_ns      = 30UL,
+  /* DTG 15, 63.2 ns: 33.7 shot through dry, 42 did not (bench, 2026-10-05). */
+  .deadtime_ns      = 60UL,
 
   /* No trim until something is measured. */
   .deadtime_skew    = 0UL,

@@ -8,8 +8,8 @@ SECTIONS = [
     section(
         'The dead time, read from the silicon',
         md('`check()` re-reads BDTR DTG every time; DTG 0 refuses (the 2EDL8034 has no '
-           "interlock). 4.21 ns a count. `.ioc` DTG 19 = 79 ns; the record's DTG 8 = 33.7 "
-           "ns (7 counts tripped the supply's OCP, 2026-08-29)."),
+           "interlock). 4.21 ns a count. `.ioc` DTG 19 = 79 ns; the record's DTG 15 = 63.2 "
+           "ns (8 counts still shot through dry, 10 did not, 2026-10-05)."),
         code('''stage = device.gates
 dead = stage.dead_time()
 check = stage.check()
@@ -26,8 +26,8 @@ for counts, which in ((check['deadtime_floor'], 'the firmware floor, 20 ns round
                       (127, 'the ceiling of the register')):
     print('  %3d   %5.1f   %s' % (counts, counts * DTS_NS, which))
 print()
-print('the stage reads DTG %d = %d ns, %.1fx the record\\'s 33.7 ns'
-      % (check['deadtime'], check['deadtime_ns'], check['deadtime_ns'] / 33.7))'''),
+print('the stage reads DTG %d = %d ns, %.1fx the record\\'s 63.2 ns'
+      % (check['deadtime'], check['deadtime_ns'], check['deadtime_ns'] / 63.2))'''),
         ),
     section(
         'Arming, and what refuses first',
@@ -169,7 +169,7 @@ print('pwm_enabled', released['pwm_enabled'], ' break_bypassed', released['break
         'What switching costs: the constants',
         md("`coaxial.model.inverter`: FSW, dead time, the FET's junction law (VDMOS model, "
            '`half_bridge.asc`), L_LOOP, the shunt. RDS_ON 1.8 mohm typical (2.1 max).'),
-        code('''print('FSW %.0f Hz  TS %.1f us  T_DEAD %.1f ns (DTG 8)  T_DEAD_SIM %.1f ns  T_MIN_PULSE %.0f ns'
+        code('''print('FSW %.0f Hz  TS %.1f us  T_DEAD %.1f ns (DTG 15)  T_DEAD_SIM %.1f ns  T_MIN_PULSE %.0f ns'
       % (inverter.FSW, inverter.TS * 1e6, inverter.T_DEAD * 1e9,
          inverter.T_DEAD_SIM * 1e9, inverter.T_MIN_PULSE * 1e9))
 print('RDS_ON %.1f mohm  RTH_JC %.2f K/W  SHUNT %.1f mohm  L_LOOP %.1f nH  Q_RING %.1f (assumed)'

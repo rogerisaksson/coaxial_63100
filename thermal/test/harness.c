@@ -24,8 +24,8 @@
 /* LOSS_ORDER: rds_on, rds_alpha, r_shunt, r_hotswap, switching_watt,
    switch_volts, driver_share, mcu_watt, ldo_watt, afe_watt, f_sw, coss_cjo,
    coss_m, coss_vj, t_switch_s, v_sd, q_g, v_drive, buck_eff, r_phase,
-   k_iron. */
-#define LOSS_SLOTS 21
+   k_iron, mcu_sleep_watt. */
+#define LOSS_SLOTS 22
 
 /* CFG_ORDER, per node: capacity, to_ambient, area_share, rth_die, forced. */
 #define CFG_PER_NODE 5
@@ -566,4 +566,5 @@ API void thm_losses(float *out)
   out[18] = loss.buck_eff;
   out[19] = loss.r_phase;
   out[20] = loss.k_iron;
+  out[21] = loss.mcu_sleep_watt;
 }

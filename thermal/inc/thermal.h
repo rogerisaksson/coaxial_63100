@@ -178,6 +178,7 @@ typedef struct
   float buck_eff;        /**< the +15V7 buck's efficiency, for its loss */
   float r_phase;         /**< the winding, line to neutral: the record's */
   float k_iron;          /**< stator iron loss, W per (krpm)^2; 0 unknown */
+  float mcu_sleep_watt;  /**< asleep in WFI: AFE_ON low and the stage off */
 } thermal_loss_t;
 
 /** The loss constants as measured/traced on this board. */

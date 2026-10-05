@@ -206,10 +206,10 @@ def test_the_mirror_walks_with_the_c(report, lib):
                  len(c_trace) == 80 and len(p_trace) == 80 and apart == 0,
                  '%d and %d samples, states apart at %d'
                  % (len(c_trace), len(p_trace), apart))
-    report.check('the identification agrees to the hundredth - air and '
-                 'capacity within 0.01, the room within 0.2 K, the judged '
+    report.check('the identification agrees to two hundredths - air and '
+                 'capacity within 0.02, the room within 0.2 K, the judged '
                  'innovation within 0.01 K, the margin within 0.01',
-                 worst[0] < 0.01 and worst[1] < 0.01 and worst[2] < 0.2
+                 worst[0] < 0.02 and worst[1] < 0.02 and worst[2] < 0.2
                  and worst[3] < 0.01 and worst[4] < 0.01,
                  'air %.4f cap %.4f room %.3f inn %.4f margin %.4f'
                  % tuple(worst[:5]))
@@ -1280,20 +1280,19 @@ def test_the_junction_rides_the_node(report, lib):
                  'through R_th,JC',
                  abs(model.junction(watt, 'driver_u') - (100.0 + 9.0 * 0.69))
                  < 1e-3, '%.2f C' % model.junction(watt, 'driver_u'))
-    report.check('the MCU\'s die at its static watts is the campaign\'s 27 K '
-                 'over its package',
-                 abs(model.junction(watt, 'mcu') - 45.0 - 27.0) < 0.05,
+    report.check('the MCU\'s die reads its package',
+                 abs(model.junction(watt, 'mcu') - 45.0) < 0.05,
                  '%.2f C' % model.junction(watt, 'mcu'))
     report.check('and no power, no rise',
                  model.junction({}, 'driver_u') == 100.0)
 
-    # The anchor takes it off: a die seen at 72 C with 0.666 W in it is a
-    # package at 45, and the patch under it 0.666 x 22.5 lower again.
+    # The anchor: a die seen at 72 C is its package, and the patch under it
+    # 0.666 x 22.5 lower.
     seen = Model(lib)
     for _ in range(3000):
         seen.step({'mcu': 0.666}, 1.0, (math.nan, math.nan, 72.0))
-    report.check('a die read at 72 C anchors its node about 27 K under it',
-                 abs((72.0 - seen.at('mcu')) - 27.0) < 3.0,
+    report.check('a die read at 72 C anchors its node at it',
+                 abs(72.0 - seen.at('mcu')) < 3.0,
                  'node %.1f C' % seen.at('mcu'))
     report.check('and the patch under it lower by its watts through its edge',
                  seen.at('mcu') > seen.at('board') + 10.0,

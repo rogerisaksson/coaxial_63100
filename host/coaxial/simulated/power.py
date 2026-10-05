@@ -37,7 +37,7 @@ class SimulatedGateDrivers(GateControl):
     PERIOD = 2376
     #: DTG's step at 237.5 MHz, ps.
     DTS_PS = 4210
-    #: The record's dead time as Board_PwmInit writes it: DTG 8, 33.7 ns (inverter.T_DEAD);
+    #: The record's dead time as Board_PwmInit writes it: DTG 15, 63.2 ns (inverter.T_DEAD);
     #: CubeMX's 19 lasts until then.
     DEADTIME = round(inverter.T_DEAD * 1e12 / DTS_PS)
     TRIGGER = 2360
