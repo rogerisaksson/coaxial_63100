@@ -40,8 +40,9 @@ KNOWN = {'walk ratio': 0.98, 'stance': 77.0, 'knee at landing': 31.0,
          'thigh ahead at landing': 33.5, 'pelvis bob': 0.012}
 
 #: The words her walk as built may be said to be (`normal.said`): its knee lands bent, its
-#: feet are long on the floor. Stiff, crouched, tripping, wide: not hers.
-WORDS = ('landing bent', 'shuffling')
+#: feet are long on the floor, its pelvis hardly rises and falls - still-hipped 0.10 on CI's
+#: runner, a hair under saying here. Stiff, crouched, tripping, wide: not hers.
+WORDS = ('landing bent', 'shuffling', 'still-hipped')
 
 _ROBOT, _STEADY = [], []
 

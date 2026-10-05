@@ -237,14 +237,15 @@ PORT = ('test_mcp.py', 'test_parity.py')
 #: Suites that run their tests through tools.dev.focus.chosen: past a slice of the run they go
 #: on as shards side by side.
 SHARDED = (SENSORLESS, CONTROLLER, GYNOID, GYNOID_FAULTS, GYNOID_FALLS, GYNOID_STAND,
-           GYNOID_GAIT, 'test_simulated.py', 'test_views_segments.py', DAQ_API)
+           GYNOID_GAIT, GYNOID_GOING, 'test_simulated.py', 'test_views_segments.py', DAQ_API)
 
 #: A sharded suite's seconds where none are recorded (tests/.counts.json, not committed): CI's
 #: checkout ran test_gynoid_falls.py whole, 532 s here, and its 300 s cut it (2026-10-01); with
 #: its get-ups after a fall 540 + 2 x 38 (2026-10-03); their starts hot after a minute's walk
 #: 822 here, 886 on CI's runner in two shards of 443, each cut at 300 (2026-10-04).
-#: The gait suite 209 s here whole (2026-10-05), its three tests a robot each in shards.
-FRESH_S = {GYNOID_FALLS: 850.0, GYNOID_GAIT: 450.0}
+#: The gait suite 209 s here whole (2026-10-05), its three tests a robot each in shards; the
+#: going suite 295 s, a way asked over two or three timings (2026-10-06).
+FRESH_S = {GYNOID_FALLS: 850.0, GYNOID_GAIT: 450.0, GYNOID_GOING: 300.0}
 
 #: The emulator's groups and each one's time, s, a Renode each: the rig's took 150 of the
 #: suite's 211 one after another here, and CI's runner ran the Release image's past 240
@@ -331,6 +332,7 @@ TOUCHES = (
     ('host/tools/cores/thermal.py',            (THERMAL,)),
     ('host/tools/cores/',                      (WIRE, NATIVE, NATIVE_HEAT)),
     ('host/tools/dev/counts.py',               ('test_ollama_runner.py',)),
+    ('host/tests/takes/',                      (GYNOID_GAIT,)),
     ('host/tests/',                            ()),          # decided by name below
     # Firmware and protocol: the byte-level master is the point of it - but the
     # portable core is also compiled and run on this host, which is the only
@@ -370,7 +372,6 @@ TOUCHES = (
     ('host/tools/sim/go.py',                   (STRUCTURE, GYNOID_GOING)),
     ('host/tools/sim/normal.py',               (STRUCTURE, GYNOID_GAIT, GYNOID_GOING)),
     ('host/tools/sim/fbx.py',                  (STRUCTURE, GYNOID_GAIT, GYNOID_GOING)),
-    ('host/tests/takes/',                      (GYNOID_GAIT,)),
     # BENCH: firmware in the main loop is what slows the board (the thermal
     # observer's per-poll ADC and SPI reads; a poll that lost a Modbus byte).
     ('comms/',                                 (WIRE, NATIVE, EMULATOR, CONFORMANCE, 'test_mcp.py',
