@@ -4,13 +4,15 @@
     python tools/sim/go.py                              # the walk's row, 12 s
     python tools/sim/go.py --track "0:1" --to 10        # the run's
     python tools/sim/go.py --track "0:-1 2:-1 3:0 9:0 10:-1" --to 16    # stood, walked, stood
+    python tools/sim/go.py --ask "0:-1 2:1 20:-1" --to 36               # asked the run and back
     python tools/sim/go.py --track "0:-1" --shove "4:120:90"            # shoved toward her left
     python tools/sim/go.py gaits.WALK.knee=16 going.TURN_K=1.4 --form 6,12
     python tools/sim/go.py --search walk --log build/go_walk.jsonl     # how the rows were found
 
 A track is "t:k ..": at `t` s the row `k` of her way (`gaits.between`: -1 her stand, 0 the
-walk's, 0.5 her jog, 1 the run's), linear in time between its points; she is placed as its
-first row has her (`placed`). A row a segment between them: her speed, J/m drawn and of work,
+walk's, 0.5 her jog, 1 the run's), linear in time between its points - `--ask`, each the row
+wanted from then on, hers following as `gaits.toward` has it; she is placed as its first row
+has her (`placed`). A row a segment between them: her speed, J/m drawn and of work,
 her steps - their stance, the share landed with the other foot down, the knee as they land, a
 sole's load. `--form a,b` samples the look's rows from a to b s and prices them as the
 scoreboard prices a walk (`looks.priced`). `--search` is CMA-ES over SPANS through the relay
@@ -67,11 +69,10 @@ SPANS = {
 #: A walk's row is walked WALK_S from a stand - stood each of STARTS s, then asked on over a
 #: second - and priced from FROM_S: on one walk placed at its speed the best row's price was
 #: chance, 25 and to three digits of it 92, and of 32 rows about it 13 fell in their first
-#: steps on any placing. Her jog's row is tried on PASSAGES - from the walk and back at two
-#: timings, on to the run -, PASS_S each.
-WALK_S, FROM_S, PASS_S, STARTS = 16.0, 8.0, 18.0, (1.0, 1.3, 1.6)
-PASSAGES = ('0:-1 1:-1 2:0 5:0 6:0.5 10:0.5 11:0 18:0', '0:-1 1:-1 2:0 6:0 7:0.5 10:0.5 11:0 18:0',
-            '0:-1 1:-1 2:0 5:0 6:0.5 9:0.5 12:1 18:1')
+#: steps on any placing. Her jog's row is tried on PASSAGES, rows asked: to her jog and to a
+#: stand again, to the run and to a stand again, PASS_S each.
+WALK_S, FROM_S, PASS_S, STARTS = 16.0, 8.0, 40.0, (1.0, 1.3, 1.6)
+PASSAGES = ('0:-1 1:0.5 13:-1', '0:-1 1.4:0.5 14.1:-1', '0:-1 1.2:1 18:-1', '0:-1 1.7:1 19.3:-1')
 
 
 def placed(law):
@@ -149,11 +150,13 @@ def placed(law):
     return angles
 
 
-def went(track, to_s, values=None, form=None, shoves=()):
+def went(track, to_s, values=None, form=None, shoves=(), asked=False):
     """{'fell': s or None, 'segments': [{from, to, k, speed, drawn, work, steps, stance, both,
     knee, ahead, load}], 'form': {measure: value, 'broken': [..], 'price': ..}} of `to_s` s on
-    `track` [(s, k)] under `values` {name: value}, the look's rows taken over `form` (from, to),
-    shoved as `shoves` [(s, newtons, degrees from behind toward her left)], `events.SHOVE_S` each."""
+    `track` [(s, k)] - `asked`, each the row wanted from then on, hers following it as
+    `gaits.toward` has it - under `values` {name: value}, the look's rows taken over `form`
+    (from, to), shoved as `shoves` [(s, newtons, degrees from behind toward her left)],
+    `events.SHOVE_S` each."""
     from coaxial.model.blocks import numpy as np
     from tools.sim import knobs
     values = dict(values or {})
@@ -165,7 +168,11 @@ def went(track, to_s, values=None, form=None, shoves=()):
         gaits.WALK['stand'] = gaits.WALK['step'] + both
     track = sorted(track)
 
+    row = [track[0][1], 0.0]             # asked: the row she goes on, her seconds on it
+
     def mixed(now):
+        if asked:
+            return row[0]
         if now <= track[0][0]:
             return track[0][1]
         for (t0, k0), (t1, k1) in zip(track, track[1:]):
@@ -202,6 +209,9 @@ def went(track, to_s, values=None, form=None, shoves=()):
         seg.update({'from': end, 'z': bus['pelvis.pose.z'], 'drawn': 0.0, 'work': 0.0,
                     'k': mixed(end), 'load': 0.0})
     while bus['t'] < to_s:
+        if asked:
+            row[:] = gaits.toward(row[0], row[1], next(
+                k for t, k in reversed(track) if t <= bus['t'] or t == track[0][0]), 0.001)
         law.ask = gaits.between(mixed(bus['t']))
         if shoves and bus['t'] >= shoves[0][0]:
             _at, newtons, way = shoves.pop(0)
@@ -251,8 +261,8 @@ def searched(kind, generations, lam, log_path, sigma=0.2):
     walks = kind == 'walk'
     to_s = WALK_S if walks else PASS_S
     # a trial: its track and what else it sets
-    trials = ([('0:-1 %g:-1 %g:0' % (k, k + 1.0), ['--form', '%g,%g' % (FROM_S, to_s)])
-               for k in STARTS] if walks else [(track, []) for track in PASSAGES])
+    trials = ([('--track', '0:-1 %g:-1 %g:0' % (k, k + 1.0), ['--form', '%g,%g' % (FROM_S, to_s)])
+               for k in STARTS] if walks else [('--ask', track, []) for track in PASSAGES])
 
     def now(name):
         if name == 'both':
@@ -275,9 +285,9 @@ def searched(kind, generations, lam, log_path, sigma=0.2):
 
     def runs(_pool, cands):
         jobs = [focus.Job('%d|%d' % (i, k), [sys.executable, '-X', 'utf8', os.path.abspath(__file__),
-                                              '--json', '--to', str(to_s), '--track', track]
+                                              '--json', '--to', str(to_s), how, track]
                           + more + ['%s=%r' % kv for kv in c.items()], 1.2, 600.0)
-                for i, c in enumerate(cands) for k, (track, more) in enumerate(trials)]
+                for i, c in enumerate(cands) for k, (how, track, more) in enumerate(trials)]
         out = {}
         for job, text, _code, _s in focus.relay(jobs):
             line = next((ln[7:] for ln in reversed(text.splitlines())
@@ -313,6 +323,8 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
     parser.add_argument('--track', default='0:0', help='"t:k ..", k -1 her stand, 0 the walk, '
                         '1 the run')
+    parser.add_argument('--ask', help='"t:k ..": the row wanted from t on, hers following it '
+                        '(`gaits.toward`), in place of --track')
     parser.add_argument('--to', type=float, default=12.0, help='seconds simulated')
     parser.add_argument('--form', help='from,to s: the look sampled there and priced')
     parser.add_argument('--shove', default='', help='"t:newtons:deg ..", 0 from behind, 90 '
@@ -329,11 +341,12 @@ def main(argv=None):
         print('BEST ' + json.dumps(searched(args.search, args.generations, args.lam, args.log,
                                             args.sigma)))
         return 0
-    track = [tuple(float(x) for x in p.split(':')) for p in args.track.split()]
+    track = [tuple(float(x) for x in p.split(':')) for p in (args.ask or args.track).split()]
     values = {k: float(v) for k, v in (kv.split('=') for kv in args.knobs)}
     form = tuple(float(x) for x in args.form.split(',')) if args.form else None
     result = went(track, args.to, values, form,
-                  [tuple(float(x) for x in p.split(':')) for p in args.shove.split()])
+                  [tuple(float(x) for x in p.split(':')) for p in args.shove.split()],
+                  bool(args.ask))
     if args.json:
         print('RESULT ' + json.dumps(result))
     else:

@@ -17,9 +17,11 @@ from machine import dcm
 from machine.runner import eased
 
 #: Her standing legs lean her LEAN_K m a m her capture point is off where it is asked - HOLD_K
-#: standing, what she still moves taken back LEAN_D of it -, LEAN_M at most; asked under
-#: GOES_M_S she stands the more.
-LEAN_K, HOLD_K, LEAN_D, LEAN_M, GOES_M_S = 0.2, 0.4, 0.014, 0.025, 0.34
+#: standing, the page's (`arrival.COM_K`), what she still moves taken back LEAN_D of it -,
+#: LEAN_M at most; asked under GOES_M_S she stands the more. At 0.4 of it, stood again after a
+#: walk her centre of mass crept 6 cm back and 3 across in 1.6 s, a step fell due, and she was
+#: down 5 s on: up through her ways asked 27 of 38 where 37 (2026-10-05).
+LEAN_K, HOLD_K, LEAN_D, LEAN_M, GOES_M_S = 0.2, 1.5, 0.014, 0.025, 0.34
 
 #: A step is wanted asked STIRS_M_S or over. The other foot leaves with her capture point no
 #: more than `track` and SHIFT_M in from the one that stays, or bearing under LIGHT_N. Waited for

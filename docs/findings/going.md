@@ -5,7 +5,8 @@ The gynoid's stand, walk and run as the setpoints of one law
 `tools/sim/go.py`; the user's, 2026-10-05): what the law is, what a walk
 and a stand asked of it, what it walks and runs at. The walk as built is
 in [walk](walk.md), the run in [run](run.md), the page's standing law in
-[standing](standing.md). Nothing of it is on the page.
+[standing](standing.md). Nothing of it is on the page; `tools/sim/ways.py`
+is its spread of timings.
 
 - The law (2026-10-05). A limb bears or is free. What bears carries the
   pelvis: its height the bounce's - from where and how fast she came down
@@ -165,3 +166,41 @@ in [walk](walk.md), the run in [run](run.md), the page's standing law in
   m/s where 0.10, still in 1.1 s where 1.7 - and stood again after a
   walk on 8 timings of 10, down 17-18 s in; on with every step hardly
   going, 6 of 10.
+- Between two gaits their mix is none, a third is (2026-10-05). From her
+  jog, each of the walk's shares taken alone and held: its time, up; its
+  bounce, its landing or its swing, down in 2 s; its bounce and landing
+  together, up, with its swing too, up; all at once, down - a stance
+  that still flies ended falling, -0.5 to -0.7 m/s as the foot left, and
+  she came down on the next at 1 m/s. `gaits.EASE` is the walk's shape
+  on the jog's time, a knot of her way between them. Through it half a
+  second a move and 2 s on it: to her jog up 23 timings of 24, back to
+  her walk 24 of 24; a second a move, 2 of 6 to her jog; her walk and
+  her jog mixed straight over 0.6-3 s, back 12 of 20; through EASE with
+  no stay over 2-6 s, 12 of 24 back and 8 of 24 on. The row taken up
+  only as a foot lands: every way worse, to her jog 2 of 8. The bounce
+  lasting the stance where she flies: back 5 of 16. Her rise as she
+  leaves fed back a step after another, 0.1-0.3 of it: the run's row
+  down at 1.2 m/s.
+- Her jog to the run (2026-10-05). Asked faster over 3 s her bounce
+  grows - she comes down 0.57, 0.61, 0.68, 0.74 m/s, leaves rising 0.71,
+  0.83, 0.96 where 0.49 is asked, the knee to 75 deg - and she is down;
+  over 5 and over 10 s she runs 1.5 m/s, coming down 0.23 m/s at speed
+  where 0.54 jogging. `gaits.toward` is how fast a row asked is
+  followed: a second from her stand to her walk, half a second between
+  the knots about EASE and 2 s on each, 5 s from her jog to the run.
+- Her ways asked, over a spread (2026-10-05; `tools/sim/ways.py`, 92
+  trials). Stood, walked, stood again 10 of 10; to her jog and to a
+  stand again 8 of 8; to the run - 1.5 m/s - and to a stand again 11 of
+  12; turned back on her way 6 of 6; the run held a minute 2 of 2;
+  slower walks 6 of 6: 43 ways of 44. With her standing legs' hold at
+  0.4 of the page's, 27 of 38: stood again after a walk her centre of
+  mass crept 6 cm back and 3 across in 1.6 s, a step fell due and she
+  was down 5 s on. Nudged (38 N): standing 8 of 8, walking 7, running 4.
+  Shoved (120 N): standing 0 of 8, walking 4, running 0.
+- Under the director (2026-10-05; `machine/pace.py`). Standing settled
+  in the arrival's stand, a pace asked, the law takes her where she is -
+  its legs standing where hers are, its setpoints eased from the
+  director's over 0.3 s: from the squat she rose, stood, walked 0.82
+  m/s, jogged, ran 1.5 m/s from 36 to 44 s and was back at her jog at
+  50. Down, the director's fall and get-up are hers; risen, she stands
+  for the law again.

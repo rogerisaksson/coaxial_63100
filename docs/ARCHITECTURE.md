@@ -126,7 +126,8 @@ machine/            any board family, no import of one: roles (Input, Stream,
                     side step), runner (her run from a flight: a bounce a
                     foot), going over gaits, hold and strut (stand, walk
                     and run one law, a gait a row of its setpoints; off the
-                    page), arrival (keyframes,
+                    page), pace (the director's hand to that law), arrival
+                    (keyframes,
                     the CoM fed back: the
                     squat, the rise, the first step, the settling), stand
                     (standing: the soles' points her support, a step toward

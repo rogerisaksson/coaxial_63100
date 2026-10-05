@@ -39,7 +39,7 @@ RECOVER_S, LIE_MAX_S = 3.0, 15.0
 def _landed(director, world, rig):
     """Landed anew: on `rig` (`events.STANDING`), standing on it; None the floor, walking."""
     from machine import events
-    director.arrival.stand_s = math.inf if rig else 0.0
+    director.arrival.stand_s = math.inf if rig or director.pace is not None else 0.0
     director.begin(*((0.002,) + events.rigged(rig) if rig else ()))
     if rig:
         events.rig(rig, director, world)
@@ -84,13 +84,14 @@ def _run(commands, states, cadence, local):
                     return
                 if 'cadence' in command:
                     director.cadence = float(command['cadence'])
+                if 'pace' in command:
+                    director.pace = command['pace']
                 if 'push' in command:
                     world.push(command['push'], command.get('seconds', 0.1))
                 if 'befall' in command:
                     events.befall(command['befall'][0], director, world, command['befall'][1])
                 if 'rig' in command:
                     floor['rig'] = command['rig']
-                    command = dict(command, restart=True)
                 if 'glitch' in command:
                     world.glitch(*command['glitch'])
                 if 'event' in command:
@@ -99,7 +100,7 @@ def _run(commands, states, cadence, local):
                     style.trim(*command['style'])
                 if 'sway' in command:
                     style.sway(command['sway'])
-                if command.get('restart'):
+                if command.get('restart') or 'rig' in command:
                     begin()
                     wall0, sim0 = time.perf_counter(), bus['t']
         except queue.Empty:
@@ -189,7 +190,8 @@ class Running:
         self._last = None
 
     def send(self, **command):
-        """{'cadence': strides/s} | {'push': (x, y, z) N, 'seconds': s} | {'glitch': (joint,
+        """{'cadence': strides/s} | {'pace': a row of her way on the one law (`machine.pace`),
+        None the walker's} | {'push': (x, y, z) N, 'seconds': s} | {'glitch': (joint,
         kind, s)} | {'event': one of `events.EVENTS`, laid where her walk meets it} |
         {'befall': (one of `events.STANDING`, k)}: on her now | {'rig': one of them or
         None}: landed anew on it, standing | {'style': (knob, steps)}: a knob of

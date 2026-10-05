@@ -17,8 +17,8 @@ toward the fall; down and still, her drives cut and checked (`machine.down`), sh
 import math
 from concurrent.futures import ThreadPoolExecutor
 
-from machine import (arrival, down, drives, falls, figure, gait, getup, heat, observer, planner,
-                     stance, stand, walker, walkplan)
+from machine import (arrival, down, drives, falls, figure, gait, getup, heat, observer, pace,
+                     planner, stance, stand, walker, walkplan)
 
 #: Falling, past the walker's recovery: the trunk (`_trunk`) tipped past FALLING_DEG and tipping
 #: on faster than FALLING_DEG_S, or the pelvis under FALLING_M, walking. Fallen - under FALLEN_M
@@ -94,6 +94,10 @@ class Director:
         self.walk_s, self.rest_s = walk_s, rest_s
         self.stage, self.fallen_at, self.slips = 'squat', None, 0
         self.since, self.blend, self.age = 0.0, None, 0.0
+        #: The row asked of her way on the one law (`machine.pace`), None the walker's; the row
+        #: she goes on and her seconds on it; the law.
+        self.pace: float | None = None
+        self.k, self.going = (-1.0, 0.0), None
         #: Since when she falls and her arms and neck from and to what (`falls.reach`); the tilt last
         #: pass, (deg, s), and its rate, deg/s; when an arm met the floor; since when she tucks and
         #: from where, (s, {joint: deg}); her drives down.
@@ -252,6 +256,9 @@ class Director:
                 self.stage, self.blend, self.age, self.since = 'squat', out, 0.0, 0.0
             self.walker.last = out
             return out
+        if self.stage == 'go':
+            out = self.walker.last = pace.step(self, dt)
+            return out
         if self.stage in arrival.STAGES:
             out = self.arrival.step(dt)
             if self.arrival.stage != self.stage and self.arrival.stage == 'rest':
@@ -279,15 +286,17 @@ class Director:
                 self.stage, self.since = 'walk', 0.0
             elif self.stage == 'rest' and self.rest_s is not None and self.since > self.rest_s:
                 self.rise()
+            if self.pace is not None and self.pace > -1.0 and pace.settled(self):
+                pace.take(self, bus, out)
             self.walker.last = out
             return out
         self._watch(bus)
         hot = self.spent()
         if self.walker.held is None:
             step = PACE_RATE * dt
-            pace = self.asked - max(0.0, self.asked - EASE_FLOOR) * min(1.0, max(
+            to = self.asked - max(0.0, self.asked - EASE_FLOOR) * min(1.0, max(
                 0.0, (hot - EASE_AT) / (EASE_FULL - EASE_AT)))
-            self.walker.cadence += max(-step, min(step, pace - self.walker.cadence))
+            self.walker.cadence += max(-step, min(step, to - self.walker.cadence))
         out = self.walker.step(dt)
         if self.stage == 'halt':
             if self.walker.halted and min(bus['pelvis.pose.left_load'],

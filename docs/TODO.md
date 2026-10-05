@@ -255,20 +255,16 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
     `test_structure` on the layout, each file under 5 k.
 
 28. **One law for her going, S and F on it** (the user, 2026-10-05: no scenario
-    a moment; balance automatic over a second at most, intent a stream of
-    setpoints; "balance point", "clearance", "interference"). In, off the page
-    (`machine/going.py`, `hold.py`, `tools/sim/go.py`, docs/findings/going.md):
-    a gait a row of 16 setpoints; on them alone she stands, is asked on, walks
-    0.75-0.81 m/s at 380-397 J/m - slower as asked - and stands again, 10
-    timings of 10; her jog the run's row at the walk's speed, from her walk 8
-    of 8. Left: back from her jog to her walk, 6 of 11, and on to the run, 2 of
-    4 - out of a walk her jog bounces 11 cm; a shove's parry - standing, the
-    page's 120 N fells her 8 of 8; her turns; her form, priced 72 - her toes
-    6.5 mm back at lift, her head 46 mm aside, the pelvis's roll 0.7 deg where
-    3; her rows found again from a stand; the runner and the walk's modules
-    gone into it. DOD: the one law stands, walks, runs and passes between on
-    its setpoints alone, 10 of 10 over a spread; her walk on it on `looks.FORM`
-    at no more J/m; F to her fastest run and S back on the page.
+    a moment; intent a stream of setpoints). In, off the page
+    (`machine/going.py`, `tools/sim/ways.py`, docs/findings/going.md): a gait a
+    row of 16 setpoints; asked a row she stands, walks, jogs, runs 1.5 m/s and
+    stands again, 43 ways of 44 over a spread; the director hands her to it
+    from its stand (`machine/pace.py`). Left: S and F on the page; a shove's
+    parry - shoved, up 4 of 24; her turns; her form, priced 70 - toes 6 mm back
+    at lift, head 49 mm aside, the pelvis's roll 0.7 deg of 3; her rows found
+    from a stand; a run past 1.5 m/s; the runner and the walk's modules gone
+    into it. DOD: F to her fastest run and S back on the page, 10 of 10; her
+    walk on it on `looks.FORM` at no more J/m; shoved, up as the walk as built.
 29. **Her tubes, corners and flanges** (the user, 2026-10-05): carbon
     tubes cut to length, epoxied into printed corners; a gearbox on a
     flange, its output through it; motor, box and board outermost, a
@@ -280,6 +276,11 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
     its flange. In still air she walks on and runs 4-6 min
     (docs/findings/stacks.md); the heat's model means a FET's loss over
     an electrical turn: stalled, one carries it all.
+30. **A dance of her moves** (the user, 2026-10-05): up on her toes and
+    tripping on them, down again, round in a circle - her skirt swishing -, sat
+    on a chair one leg over the other, up and the sequence again; each a row or
+    a keyframe, a track its choreography. DOD: twice round on the page, no
+    fall.
 
 ## Bench
 
