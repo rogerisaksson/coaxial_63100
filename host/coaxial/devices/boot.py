@@ -67,17 +67,17 @@ def chunks_of(image):
     return [image[i:i + CHUNK] for i in range(0, len(image), CHUNK)]
 
 
-def image_of(elf):
+def image_of(elf, gap=0xFF):
     """The image the bootloader takes, cut from a linked ELF: every loaded
-    segment inside RUN at its load address, gaps 0xFF, as long as its
-    header says - exact where objcopy's binary would span an empty
-    section's DTCM address."""
+    segment inside RUN at its load address, gaps `gap` - the store's 0xFF -
+    as long as its header says: exact where objcopy's binary would span an
+    empty section's DTCM address."""
     data = Path(elf).read_bytes()
     if data[:4] != b'\x7fELF' or data[4] != 1 or data[5] != 1:
         raise errors.RigError('%s is not a 32-bit little-endian ELF' % elf)
     phoff = struct.unpack_from('<I', data, 0x1C)[0]
     size, count = struct.unpack_from('<HH', data, 0x2A)
-    body = bytearray(b'\xff' * RUN_BYTES)
+    body = bytearray(bytes((gap,)) * RUN_BYTES)
     for i in range(count):
         kind, offset, _vaddr, paddr, filesz = struct.unpack_from('<5I', data, phoff + i * size)
         if kind == 1 and filesz and RUN_BASE <= paddr < RUN_BASE + RUN_BYTES:

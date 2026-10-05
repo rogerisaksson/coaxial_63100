@@ -330,7 +330,7 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
   `to_board`, the NTC's share under load), a thermocouple on a
   winding, the supply's amps dry. DOD: the ceilings measured; the laminate's
   21 J/K and its parts' 28 two nodes, the room found on them; `f_sw` a gate op.
-- **Spans**: phase gain, the DC link. DOD: both against a DMM.
+- **Spans**: phase gain, the DC link. DOD: both by a DMM.
 
 ## Host
 
@@ -356,6 +356,6 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
 - **`testline/plans/coaxial_63100_fct.yaml`** limits are placeholders.
   DOD: measured.
 - **`CMD_LINK_SHARE_PCT`** 75 unmeasured on a populated RS485 segment.
-- **QUAD's aerobatics**: a freestyle routine, smooth. DOD: on the page, a test.
+- **QUAD's aerobatics**: a freestyle routine. DOD: on the page, a test.
 - **Gate op 10** (alternate) has no period count.
 - **`coaxial_63020`** has no pin table in `boot_main.c`.

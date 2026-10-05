@@ -59,10 +59,12 @@ def test_the_image_proves_itself(report, rig, emu):
     failed = sorted(name for name, c in checks.items() if c['status'] == 'fail')
     report.check('the self test answers, none of it failed', bool(checks) and not failed,
                  ', '.join(failed) or '%d checks' % len(checks))
-    length = checks['image_len']['value']
-    report.check("its code's CRC is the build's",
-                 checks['image_crc']['value'] == crc16(boot.image_of(ELF)[:length]),
-                 '%d bytes' % length)
+    # A gap between two segments is the store's 0xFF through the bootloader and the loader's 0
+    # here: one linker lays the vectors and the header in one segment, CI's in two (2026-10-05).
+    length, got = checks['image_len']['value'], checks['image_crc']['value']
+    want = [crc16(boot.image_of(ELF, gap)[:length]) for gap in (0xFF, 0x00)]
+    report.check("its code's CRC is the build's", got in want,
+                 '%d bytes, %04X of %s' % (length, got, ' or '.join('%04X' % c for c in want)))
 
 
 def test_the_front_end_feeds_the_image(report, rig, emu):
