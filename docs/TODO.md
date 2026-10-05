@@ -356,6 +356,5 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
 - **`testline/plans/coaxial_63100_fct.yaml`** limits are placeholders.
   DOD: measured.
 - **`CMD_LINK_SHARE_PCT`** 75 unmeasured on a populated RS485 segment.
-- **QUAD's pack**: 63 V, a droop; spent, it lands; bus and power traced.
 - **Gate op 10** (alternate) has no period count.
 - **`coaxial_63020`** has no pin table in `boot_main.c`.

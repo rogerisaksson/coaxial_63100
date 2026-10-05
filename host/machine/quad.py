@@ -1,11 +1,13 @@
-"""A quad on four coaxial boards in MuJoCo: its frame, on what its rotors turn.
+"""A quad on four coaxial boards in MuJoCo: its frame, on what its rotors turn, and its pack.
 
     sky = Sky()                                   # the frame on the floor, y up
     sky.step(rotor_speeds, dt)                    # the frame on what the rotors turn
+    volts = drawn(cells, watts, dt)               # its pack's bus under what they take
 
 A 2 kg frame on four direct-drive 63100 rotors under APC 20x10E propellers (board/emu/worlds/
-quad.json) on skids: gravity, the air on it and the floor. Its flying is `machine.flying`'s law
-on `machine.aerobatics`' rows; the rotors are the caller's.
+quad.json) on skids: gravity, the air on it and the floor; its boards on one pack of 15 cells,
+63 V full. Its flying is `machine.flying`'s law on `machine.aerobatics`' rows; the rotors are
+the caller's.
 """
 import importlib
 import math
@@ -109,3 +111,36 @@ class Sky:
 def speed_for(thrust):
     """A rotor's speed for `thrust` of its own, mechanical rad/s."""
     return math.sqrt(max(0.0, thrust) / K_THRUST)
+
+
+#: The pack: PACK_CELLS in series, a cell's open volts by the share of its charge left - a LiPo's
+#: curve, 63 V full -, its charge, A h - a demo's, a few flights -, and its and its leads'
+#: resistance, ohm, the bus drooping that much a link amp: assumptions with a name each. Spent
+#: at RESERVE of its charge.
+PACK_CELLS, PACK_AH, PACK_OHM, RESERVE = 15, 0.22, 0.12, 0.2
+CELL_V = ((0.0, 3.30), (0.05, 3.50), (0.2, 3.70), (0.5, 3.85), (0.9, 4.05), (1.0, 4.20))
+
+
+def open_volts(left):
+    """The pack's volts unloaded with `left` of its charge in it."""
+    left = max(0.0, min(1.0, left))
+    for (a, low), (b, high) in zip(CELL_V, CELL_V[1:]):
+        if left <= b:
+            return PACK_CELLS * (low + (high - low) * (left - a) / (b - a))
+    return PACK_CELLS * CELL_V[-1][1]
+
+
+def pack():
+    """A fresh pack: the share of its charge left, its bus's volts, the amps and watts it gave
+    last."""
+    return {'left': 1.0, 'volts': open_volts(1.0), 'amps': 0.0, 'watts': 0.0}
+
+
+def drawn(cells, watts, dt):
+    """The pack `cells` `dt` s on with `watts` taken at its bus - given, braked into: the bus's
+    volts, its open volts less PACK_OHM a link amp, its charge less what those amps took."""
+    volts = open_volts(cells['left'])
+    amps = (volts - math.sqrt(max(0.0, volts * volts - 4.0 * PACK_OHM * watts))) / (2.0 * PACK_OHM)
+    cells.update(left=max(0.0, min(1.0, cells['left'] - amps * dt / (3600.0 * PACK_AH))),
+                 volts=volts - PACK_OHM * amps, amps=amps, watts=watts)
+    return cells['volts']

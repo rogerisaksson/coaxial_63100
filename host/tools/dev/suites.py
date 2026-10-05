@@ -117,6 +117,9 @@ GYNOID_GOING = 'test_gynoid_going.py'
 #: The cyclic executive (machine.cyclic): its steps against machine.parts, its cycle on a toy rotor.
 CYCLIC = 'test_cyclic.py'
 
+#: The quad's flight on ideal rotors: its routine, its law, its pack.
+QUAD = 'test_quad.py'
+
 RENDER = 'test_render.py'
 
 DEFAULT_SUITES = (STRUCTURES + (CORE, SHTP, DRIVE, DRIVE_OBSERVER, FILTER, THERMAL, DAQ_CORE,
@@ -124,7 +127,8 @@ DEFAULT_SUITES = (STRUCTURES + (CORE, SHTP, DRIVE, DRIVE_OBSERVER, FILTER, THERM
                    CTRL_CORE, WORLD_CORE, WIRE, NATIVE, NATIVE_HEAT, EMULATOR,
                    SENSORLESS,
                    BROKER, DAQ_API, CONTROLLER, GYNOID, GYNOID_FAULTS, GYNOID_FALLS,
-                   GYNOID_STAND, GYNOID_GAIT, GYNOID_RUN, GYNOID_GOING, CYCLIC, BOOT) + VIEWS
+                   GYNOID_STAND, GYNOID_GAIT, GYNOID_RUN, GYNOID_GOING, CYCLIC, QUAD, BOOT)
+                  + VIEWS
                   + (RENDER,) + OLLAMA
                   + ('test_mcp.py', 'test_simulated.py', 'test_parity.py',
                      BENCH))
@@ -155,6 +159,7 @@ JOINS = (
     (12, GYNOID_RUN),
     (12, GYNOID_GOING),
     (12, CYCLIC),
+    (12, QUAD),
     (12, BOOT),
     (15, CORE),
     (20, SHTP),
@@ -289,9 +294,9 @@ TOUCHES = (
     ('host/machine/ansi.py',                   ('test_simulated.py', CONTROLLER)),
     ('host/machine/parts.py',                  (CONTROLLER, CTRL_CORE, CYCLIC)),
     ('host/machine/cyclic.py',                 (CYCLIC,)),
-    ('host/machine/quad.py',                   ('test_views_quad.py', STRUCTURE)),
-    ('host/machine/flying.py',                 ('test_views_quad.py', STRUCTURE)),
-    ('host/machine/aerobatics.py',             ('test_views_quad.py', STRUCTURE)),
+    ('host/machine/quad.py',                   (QUAD, 'test_views_quad.py', STRUCTURE)),
+    ('host/machine/flying.py',                 (QUAD, 'test_views_quad.py', STRUCTURE)),
+    ('host/machine/aerobatics.py',             (QUAD, 'test_views_quad.py', STRUCTURE)),
     ('host/coaxial/graphics/quadcopter.py',    ('test_views_quad.py', RENDER)),
     ('host/machine/',                          (CONTROLLER, GYNOID, GYNOID_FAULTS, GYNOID_FALLS,
                                                 GYNOID_STAND, GYNOID_GAIT, GYNOID_RUN,

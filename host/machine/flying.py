@@ -4,9 +4,12 @@
     flying.ask = aerobatics.HOVER                  # any pass: the setpoints, nothing else
     thrusts = flying.step(sky.state(), dt)      # each rotor's thrust, every pass
 
-The frame is asked a height and the pace it may go there at; a speed along its heading and
-across it, its heading's turn, and how much its spot goes home; turns about its nose and about
-its wing. Up and down it flies a speed for each distance from its height (`descent`): the
+The frame is asked a height, that height's own rate and pull, and the pace it may go there at;
+a speed along its heading and across it, its heading's turn, and how much its spot goes home;
+turns about its nose and about its wing. A row's height told from an eased one by what it
+moved a pass, a pass of 50 ms took the landed row for 9.6 m/s and its end for a pull of 100
+m/s^2: the frame left the floor for 3 m (2026-10-05). Up and down it flies a speed for each
+distance from its height (`descent`): the
 altitude loop's own approach near it, the rotors' pull - rising, gravity's - above where the two
 meet, its pace at most and come to as gently. Asked a height far under it at any pace it is let
 fall, the rotors run down as their propellers do, and burns as that speed comes to be its own.
@@ -42,8 +45,11 @@ SPOT_KP, SPOT_KD, LEAN_M_S2 = 1.0, 1.6, 8.0
 HOME_K, HOME_M_S = 1.5, 3.0
 
 #: The rotors' collective at most, of their top: at every rotor's cap the tilt's loop had
-#: nothing left to turn with, and a rotor 5 % weak flipped the frame (2026-09-28).
-HEADROOM = 0.9
+#: nothing left to turn with, and a rotor 5 % weak flipped the frame (2026-09-28). And what
+#: it is sped up on at least, of its weight, whatever the boards' envelopes leave: a
+#: landing's. The collective itself held to their share, a burn's stop lost it as the burn
+#: spent it and pressed the skids 2 cm into the floor (2026-10-05).
+HEADROOM, LEAST = 0.9, 1.5
 
 #: A height is flown to braked at this share of what the rotors' headroom gives - rising, of
 #: gravity: the rest is the rotors' spool's, begun KD's band ahead of the speed. Scheduled once
@@ -73,9 +79,6 @@ ROUND_K = 6.0
 #: Held: within this of its height, m, and of its spot, m, this slow, m/s, its turns whole
 #: within this, rad.
 HELD_M, HELD_SPOT_M, HELD_M_S, HELD_RAD = 0.03, 0.15, 0.15, 0.05
-
-#: A height asked this much faster than the last, m/s, is a row's jump: no rate of its own.
-JUMP_M_S = 20.0
 
 #: What it is doing where it is asked a height far under it: let fall, burning.
 FALL, BURN = 'fall', 'burn'
@@ -111,44 +114,40 @@ class Flying:
         self.turns, self.turning = [0.0, 0.0], [0.0, 0.0]
         #: The collective asked last, N.
         self.thrust = self.idle
-        #: The height asked last and its rate, m/s: the reference's own.
-        self.height, self.rate = self.ask['height'], 0.0
         #: Its spot, world (x, z), m, and the speed that went at last, m/s.
         self.spot, self.speed = [0.0, 0.0], (0.0, 0.0)
         self.held, self.doing = False, None
 
     # -- the setpoints' own ------------------------------------------------------------------
 
-    def climb(self, h, v, dt, share):
-        """(the pull asked up, m/s^2, what it is doing) for the frame at `h` climbing `v`, the
-        rotors' pull `share` of their own."""
+    def climb(self, h, v, room):
+        """(the pull asked up, m/s^2, what it is doing) for the frame at `h` climbing `v`,
+        `room` the pull up the boards' envelopes leave it, m/s^2."""
         a = self.ask
         over = a['height'] - h
-        # an eased height's own rate, its pace at most, and pull, as gentle - come to its pace
-        # in PACE_S; a row's jump has no rate
+        # its height's own rate, its pace at most, and pull, as gentle - come to its pace in
+        # PACE_S
         gentle = a['pace'] / PACE_S
-        moved = a['height'] - self.height
-        rate = max(-a['pace'], min(a['pace'], moved / dt)) if abs(moved) < JUMP_M_S * dt else 0.0
-        push = max(-gentle, min(gentle, (rate - self.rate) / dt))
-        self.height, self.rate = a['height'], rate
+        rate = max(-a['pace'], min(a['pace'], a['climb']))
+        push = max(-gentle, min(gentle, a['push'])) if rate == a['climb'] else 0.0
         way = 1.0 if over >= 0.0 else -1.0
         left, toward, going, pole = abs(over), way * (v - rate), way * v, 0.5 * KD
         # braked as its pace asks or as its height needs, the rotors' share - rising, gravity's
         # - at most
-        hard = BRAKE_SHARE * (share * (HEADROOM * self.top / MASS_KG - GRAVITY) if way < 0.0
-                              else GRAVITY)
+        hard = BRAKE_SHARE * (room if way < 0.0 else GRAVITY)
         soft = min(gentle, hard)
         need = pole * pole * (left - math.sqrt(max(0.0, left * left - (toward / pole) ** 2))) \
             if toward > 0.0 else 0.0
         brake = min(hard, max(soft, need))
         # the speed its distance allows on its height's own, its pace at most, and that
         # speed's own fall, begun where its pace's stop turns: sped toward its height as
-        # gently, the height's own pull in it, and stopped outright going from it
+        # gently - up, on its room at most -, the height's own pull in it, and stopped
+        # outright going from it
         cruise = a['pace'] - way * rate
         speed = min(descent(left, brake), cruise)
         slows = min(brake, pole * pole * left, KD * max(0.0, cruise - descent(left, soft)))
         pull = way * (min(KD * (way * rate + speed - max(going, 0.0)) - slows + way * push,
-                          gentle) - KD * min(going, 0.0))
+                          min(gentle, room) if way > 0.0 else gentle) - KD * min(going, 0.0))
         falls = way < 0.0 and left > brake / (pole * pole)
         return pull, (FALL if MASS_KG * (GRAVITY + pull) <= self.idle else BURN) if falls else None
 
@@ -196,13 +195,15 @@ class Flying:
 
     def step(self, frame, dt, share=1.0):
         """Each rotor's thrust, N, for the frame as `frame` (`quad.Sky.state`) has it, `dt` s
-        on; `share` what the rotors have of their pull, a board derated."""
+        on; `share` what the boards' envelopes leave of the rotors' pull: what it is sped up on
+        and a fall's stop is planned on - the stop itself takes what it must."""
         a = self.ask
         turn = [[float(frame['turn'][r][c]) for c in range(3)] for r in range(3)]
         spin, at, vel = frame['spin'], frame['at'], frame['vel']
         rate = math.radians(a['turn'])
         self.heading += rate * dt
-        up_pull, self.doing = self.climb(frame['h'], frame['v'], dt, share)
+        room = max(LEAST * MASS_KG * GRAVITY, share * HEADROOM * self.top) / MASS_KG - GRAVITY
+        up_pull, self.doing = self.climb(frame['h'], frame['v'], room)
         along = self.lean(at, vel, dt)
         # the discs' lean - against gravity at least, LEAN_M_S2's angle at most - the nose's
         # heading, its turns on them

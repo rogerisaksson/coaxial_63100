@@ -2,6 +2,9 @@
 
     flying.ask = aerobatics.HOVER                    # any pass: the setpoints, nothing else
     name, row = aerobatics.fly(route, now, holds)    # the card's row for now, eased in
+
+Spent - its pack, its boards' envelopes - the routine comes down from wherever it is and waits
+on the floor until it is fit.
 """
 import math
 
@@ -9,12 +12,12 @@ from machine.gaits import mix
 from machine.quad import FLOOR_M, HOVER_M
 
 #: A figure a row of setpoints: height, m over the floor, and the pace it may go there at, m/s,
-#: come to and stopped from in a second;
-#: speed along its heading and slide across it, m/s; turn, its heading's, deg/s; home, how much
-#: its spot goes back where it rose, 0 to 1; roll and flip, turns/s about its nose and about its
-#: wing.
-HOVER = {'height': HOVER_M, 'pace': 1.5, 'speed': 0.0, 'slide': 0.0, 'turn': 0.0, 'home': 1.0,
-         'roll': 0.0, 'flip': 0.0}
+#: come to and stopped from in a second; climb and push, that height's own rate and pull, m/s
+#: and m/s^2 - a row's none, its easing's on the way to it; speed along its heading and slide
+#: across it, m/s; turn, its heading's, deg/s; home, how much its spot goes back where it rose,
+#: 0 to 1; roll and flip, turns/s about its nose and about its wing.
+HOVER = {'height': HOVER_M, 'pace': 1.5, 'climb': 0.0, 'push': 0.0, 'speed': 0.0, 'slide': 0.0,
+         'turn': 0.0, 'home': 1.0, 'roll': 0.0, 'flip': 0.0}
 #: Full tilt: a height out of reach, at any pace.
 SKY = dict(HOVER, height=1000.0, pace=100.0)
 #: The stop over the floor, from wherever it is: let fall, burned, held. And on the floor: let
@@ -43,15 +46,17 @@ FLIP = dict(HIGH, flip=-1.25)
 #: Pressed on the floor, its height asked this far under it, m: the skids down, the rotors
 #: bearing all but a twentieth of it - where a landing ends and a lift begins.
 PRESSED = dict(HOVER, height=-0.02)
+#: Down to the stop's mark over its spot from wherever it is, at a pace.
+OVER = dict(HOVER, height=FLOOR_M, pace=2.0)
 
 #: The routine: (name, row, seconds on it at least, seconds eased into it, what it waits for
-#: before it leaves). `ready`: the boards' thermal observers and their envelopes' room; `held`:
-#: the frame at its height and its spot, still, its turns whole.
+#: before it leaves). `held`: the frame at its height and its spot, still, its turns whole;
+#: `fit`: a pack with more than its reserve in it, the boards' envelopes with their room.
 CARD = (
-    ('idle', DOWN, 2.0, 0.0, ''),
+    ('idle', DOWN, 2.0, 0.0, 'fit'),
     ('spool', PRESSED, 2.5, 2.5, ''),
     ('lift', HOVER, 3.0, 3.0, ''),
-    ('hover', HOVER, 3.0, 0.0, 'ready'),
+    ('hover', HOVER, 3.0, 0.0, ''),
     ('pirouette', PIROUETTE, 3.0, 2.0, ''),
     ('poise', HOVER, 2.0, 2.0, ''),
     ('orbit', ORBIT, LAP_S, 1.5, ''),
@@ -64,12 +69,16 @@ CARD = (
     ('flip', FLIP, 0.8, 0.0, ''),
     ('catch', HIGH, 3.0, 0.0, ''),
     ('unwind', UNWIND, LAP_S, 1.5, ''),
-    ('level', HOVER, 2.0, 1.5, 'held ready'),
+    ('level', HOVER, 2.0, 1.5, 'held'),
     ('full tilt', SKY, 2.0, 0.0, ''),
     ('burn', STOP, 0.0, 0.0, 'held'),
-    ('hold', STOP, 3.0, 0.0, ''),
+    ('hold', STOP, 1.5, 0.0, ''),
+    ('descend', OVER, 1.5, 1.5, 'held'),
     ('land', PRESSED, 3.0, 3.0, ''),
 )
+#: `spent` among what holds takes the routine to this row from any before it - but one that
+#: waits to be fit, where it is on the floor already.
+SPENT_TO = 'descend'
 
 
 def ease(x):
@@ -79,21 +88,35 @@ def ease(x):
     return x * x * x * (10.0 - 15.0 * x + 6.0 * x * x)
 
 
+def eased(was, row, into, seconds):
+    """The row `into` s of the way from `was` to `row`, eased over `seconds` - none, it is
+    there -, its height's own rate and pull on it."""
+    if not 0.0 <= into < seconds:
+        return dict(row)
+    x, span = into / seconds, row['height'] - was['height']
+    return dict(mix(was, row, ease(x)), climb=span * 30.0 * x * x * (1.0 - x) ** 2 / seconds,
+                push=span * 60.0 * x * (1.0 - x) * (1.0 - 2.0 * x) / (seconds * seconds))
+
+
 def routine(card=CARD):
     """A routine at its first row: the row it is on, when that began and the row it left."""
     return {'row': 0, 'at': 0.0, 'was': dict(card[0][1]), 'card': card}
 
 
-def fly(route, now, holds=('ready', 'held')):
+def fly(route, now, holds=('held', 'fit')):
     """(the figure's name, its row for `now`): `route` moved on where its row's seconds are up
-    and all it waits for is among `holds`, the row eased in from the one left over its own
-    seconds."""
+    and all it waits for is among `holds` - or to SPENT_TO's row, `spent` among them - the row
+    eased in from the one left over its own seconds."""
     card = route['card']
-    name, row, seconds, eased, waits = card[route['row']]
+    name, row, seconds, over, waits = card[route['row']]
     into = now - route['at']
-    if into >= seconds and set(waits.split()) <= set(holds):
-        route.update(row=(route['row'] + 1) % len(card), at=now,
-                     was=mix(route['was'], row, ease(into / eased) if eased > 0.0 else 1.0))
-        name, row, seconds, eased, waits = card[route['row']]
-        into = 0.0
-    return name, mix(route['was'], row, ease(into / eased) if eased > 0.0 else 1.0)
+    here = eased(route['was'], row, into, over)
+    down = next((k for k, figure in enumerate(card) if figure[0] == SPENT_TO), 0)
+    if 'spent' in holds and route['row'] < down and 'fit' not in waits.split():
+        route.update(row=down, at=now, was=here)
+    elif into >= seconds and set(waits.split()) <= set(holds):
+        route.update(row=(route['row'] + 1) % len(card), at=now, was=here)
+    else:
+        return name, here
+    name, row, _seconds, over, _waits = card[route['row']]
+    return name, eased(route['was'], row, 0.0, over)

@@ -200,7 +200,8 @@ class SimulatedDrive(DrivePlant, DriveObservers, DriveCapture, DriveControl):
             'theta_cmd': (self._cmd_at(time.time())[0] if self._mode == 'hold'
                           else self._sp['theta']) % (2 * math.pi),
             'omega_cmd': self._omega(),
-            'id': iid, 'iq': iq, 'vd': vd, 'vq': vq, 'vdc': DCBUS_V,
+            'id': iid, 'iq': iq, 'vd': vd, 'vq': vq,
+            'vdc': self._model['vdc'] if self._source == 'model' else DCBUS_V,
             'eps': (eps_amps / gain) if gain else 0.0, 'eps_amps': eps_amps,
             'ih': ih, 'e_bemf': self._bemf_error(rotor), 'periods': periods,
             # isr_cycles_last, isr_cycles_max (1620 its floor), exit_ticks_max

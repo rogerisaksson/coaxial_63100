@@ -68,6 +68,25 @@ rotor's pages and their demos. The board's own are in
   49-55 s of a flight, 66-70 with the routine - air 1.00, capacity 1.00-1.01,
   the room 25.1 of 25.0 C; the page said `4 of 4 converging` whatever they
   were (2026-10-05).
+- QUAD on its pack, 15 cells: 63 V full, 0.12 ohm, 0.22 A h - a demo's. A
+  flight takes a fifth of it; full tilt and the burn 1.5-1.85 kW, the bus to
+  56.2-56.9 V; spent at a fifth it comes down from wherever at 2 m/s and is
+  changed on the floor in 3 s, the observers kept. At 63 V the gate stage's
+  dump is the envelope: on the bench's still air, 8.33 K/W, a hover stood at
+  0.65-0.72 and every board throttled by the corkscrew; the record says a
+  propeller's wash, 2.5 K/W - an assumption - and the stand-in's truth is
+  laid on it: 0.52-0.60 in the figures, the hottest node 77-116 C. The rotors
+  are asked the share of their pull the envelopes leave - the least room 0.08
+  under a throttle's point, of 0.3; what the frame is sped up on and a fall's
+  stop is planned on, never what a stop may take: 0.71-0.81 at most over
+  three flights, none throttling, flown from the first hover with the
+  observers UNCERTAIN, the apex 36-39 m. Held to the collective itself, a
+  burn spent its own stop and pressed the skids 2 cm into the floor; brought
+  down the moment the share was none, it left its burn 3.5 m up. A row's
+  height told from an eased one by what it moved a pass, a 50 ms pass took
+  the landed row for 9.6 m/s and launched the frame 3 m: a row brings its
+  height's rate and pull. A rotor's speed asked 700 rad/s^2 at most: stepped,
+  a pass was the whole clamp and 0.2 of an envelope for a read (2026-10-05).
 - The rotor page, the bench's word: the magnets blurred through a 1/80 s
   shutter (208-386 cells, 0.10 a frame at most; the smear's ring flipped
   0.29), the windings whole at their current's brightness and gone on a
