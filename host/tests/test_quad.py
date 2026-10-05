@@ -109,7 +109,7 @@ def test_its_figures_are_flown(report):
     a banked lap about the point ahead of it, the corkscrew that lap climbed, the roll and the
     flip each once over and caught where they were tossed from, the way back down - gently, and
     clear of the pole."""
-    from coaxial.graphics import quadcopter
+    from coaxial.graphics import scenery
     from machine import aerobatics, quad
     flight = spans(flown())
     seen = {}
@@ -167,7 +167,7 @@ def test_its_figures_are_flown(report):
     hard = ('roll', 'flip', 'catch', 'full tilt', 'burn')
     pull = max(abs(r['a']) / quad.GRAVITY for r in flown() if r['name'] not in hard)
     still = [r['thrust'] for r in spin]
-    px, pz = quadcopter.POLE_AT
+    px, pz = scenery.POLE_AT
     pole = min(math.hypot(r['x'] - px, r['z'] - pz) for r in flown())
     report.check('gently: 0.7 g at most outside its turns, full tilt and the burn, the '
                  'pirouette on its hover\'s thrust within 1 N; the pole 1.5 m off at the least',

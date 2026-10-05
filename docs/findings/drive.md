@@ -87,6 +87,27 @@ rotor's pages and their demos. The board's own are in
   the landed row for 9.6 m/s and launched the frame 3 m: a row brings its
   height's rate and pull. A rotor's speed asked 700 rad/s^2 at most: stepped,
   a pass was the whole clamp and 0.2 of an envelope for a read (2026-10-05).
+- QUAD's course, `machine.course`, flown after the routine has warmed the
+  boards: 14 gates of 3.4 m on a line of 141 m - an alley of trees, a house's
+  ridge, round a mast, between two cars, a slalom. On ideal rotors a lap
+  21.6 s, 10.7 m/s and 69 degrees at the most, every gate within 0.43 m of
+  its middle on passes of 10-50 ms; on four stand-ins 28 s, 0.20-0.28 m over
+  three flights, the envelopes at 0.54-0.82, the rotors asked 58 % of their
+  pull at the mean through a lap - never all of it, never none - none
+  throttling. What it took of the law: a row's own pull (a bend's, asked
+  0.2 s ahead) and a nose free of its heading - a turn of the frame is the
+  discs' drag's, 10 N of thrust apart a N m: held on the heading the rotors
+  were at their clamp 12 % of a lap and two boards throttled at 0.94, free
+  3 % and 0.82; the discs leant against what is asked up, not all of
+  gravity (at a crest a bend had 0.6 of its pull); the tilt's loop on the
+  discs' axis alone - a nose 66 degrees behind its heading turned the tilt's
+  torque round and the frame went over - its miss answered as 0.6 rad at the
+  most: whole, a lean turned back asked more than the rotors slew and the
+  page's frame swung 75, 87, 121 degrees over, 4 m lost. The lap's pull is
+  the envelopes' share of its lean: planned on the law's reach it never
+  eased. A flight is begun on 0.7 of the pull: an idle board is at
+  0.52-0.56, not cool, and waited for all of it the page stood 120 s on the
+  floor (2026-10-06).
 - The rotor page, the bench's word: the magnets blurred through a 1/80 s
   shutter (208-386 cells, 0.10 a frame at most; the smear's ring flipped
   0.29), the windings whole at their current's brightness and gone on a

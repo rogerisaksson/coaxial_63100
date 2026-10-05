@@ -6,12 +6,13 @@
 `pose` is `machine.quad.Sky.state()`'s, its 'turn' and 'at'; `rotors` each rotor's (angle rad,
 speed rad/s, can C, board C), the can and its board painted their heat (`ansi.thermal_rgb`). A
 propeller slower than BLADES_RAD_S shows its blades; faster, the disc they sweep, its rim dotted
-where the frame does not cover it. The ground's grid to the horizon's edge and a pole marked
-each metre up stand in the world; the camera frames `reach` m about `centre`, SIGHT reaches off.
+where the frame does not cover it. The ground's grid to the horizon's edge, a pole marked each
+metre up and what stands about the course are its world (`coaxial.graphics.scenery`); the camera
+frames `reach` m about `centre`, SIGHT reaches off.
 """
 import math
 
-from coaxial.graphics import engine, shapes
+from coaxial.graphics import engine, scenery, shapes
 from coaxial.graphics.callouts import line
 from coaxial.graphics.lit import CORE, PLATE, braille, paint, project, splat
 from machine import ansi, quad
@@ -19,13 +20,6 @@ from machine import ansi, quad
 #: The camera: the eye's distance in reaches framed, and the reach the quad fills, m - the
 #: propellers' tips 0.68 m out.
 SIGHT, REACH = 3.75, 0.8
-
-#: The ground's grids, (pitch, half extent) m: a metre's about the spot, ten metres' to the
-#: horizon's edge; a line is drawn from NEAR_M before the eye.
-GROUND, NEAR_M = ((1.0, 10.0), (10.0, 150.0)), 0.2
-
-#: The pole: where it stands, m, how high it is marked, and a mark's half width, the tenth's.
-POLE_AT, POLE_TOP_M, TICK_M, TENTH_M = (-2.5, -2.5), 60, 0.06, 0.16
 
 #: The frame's parts, m: the centre plate and the dome on it, an arm's tube, a can (the 63100,
 #: 63 mm by 100 mm) and its board under it, a skid's leg, a propeller's blade, a hub.
@@ -39,7 +33,7 @@ CARBON, MASK, PROP = (70, 74, 84), (30, 110, 64), (205, 205, 200)
 #: The speed below which a propeller shows its blades, rad/s; the swept disc's rim, a dot
 #: every RIM_EVERY of its line, and the inks.
 BLADES_RAD_S, RIM_EVERY = 20.0, 2
-RIM_INK, POLE_INK = (120, 132, 150), (40, 130, 140)
+RIM_INK = (120, 132, 150)
 
 
 def _at(mesh, turn=None, spot=(0.0, 0.0, 0.0)):
@@ -187,77 +181,12 @@ def _discs(pose, rotors, m, cam, centre):
     return [(rim, RIM_INK)]
 
 
-def _pole(m, cam, centre):
-    """[(dots, ink)]: the pole up from the floor at POLE_AT, a mark each metre, wider each ten."""
-    from coaxial.model.blocks import numpy as np
-    x, z = POLE_AT
-    ends = []
-    for h in range(POLE_TOP_M):
-        half = TENTH_M if (h + 1) % 10 == 0 else TICK_M
-        ends += [(x, float(h), z), (x, h + 1.0, z), (x - half, h + 1.0, z), (x + half, h + 1.0, z)]
-    sx, sy, w = project(np.asarray(ends), m, cam, centre)
-    # A metre of it drawn where both its ends are before the eye and near the view: one behind
-    # the eye projects through it, one beside it to a line of a million dots.
-    room = 2.0 * max(cam['width'], cam['height'])
-    near = (w > 0.0) & (np.abs(sx - cam['cx']) < room) & (np.abs(sy - cam['cy']) < room)
-    dots = np.zeros((cam['height'], cam['width']), bool)
-    for a in range(0, len(ends), 2):
-        if near[a] and near[a + 1]:
-            line(dots, (sx[a], sy[a]), (sx[a + 1], sy[a + 1]))
-    return [(dots, POLE_INK)]
-
-
-def _ground(m, cam, centre):
-    """The ground's grid lines as a (height, width) brightness, each dot by its depth: 0 none,
-    far dimmer. A line is cut NEAR_M before the eye and at the view's edges, its depth carried
-    along it - linear on the screen, as 1/z is."""
-    from coaxial.model.blocks import numpy as np
-    ends = []
-    for pitch, half in GROUND:
-        for t in np.arange(-half, half + 1e-9, pitch):
-            ends += [(-half, 0.0, t), (half, 0.0, t), (t, 0.0, -half), (t, 0.0, half)]
-    q = (np.asarray(ends) - centre) @ np.asarray(m, float).reshape(3, 3).T
-    a, b = q[0::2], q[1::2]
-    limit = cam['distance'] - NEAR_M
-    keep = (a[:, 2] < limit) | (b[:, 2] < limit)
-    a, b = a[keep], b[keep]
-    for p, o in ((a, b), (b, a)):
-        cut = p[:, 2] > limit
-        t = (limit - p[cut, 2]) / (o[cut, 2] - p[cut, 2])
-        p[cut] += (o[cut] - p[cut]) * t[:, None]
-
-    def screen(v):
-        w = 1.0 / (cam['distance'] - v[:, 2])
-        return (cam['cx'] + cam['scale'] * w * v[:, 0],
-                cam['cy'] - cam['scale'] * cam.get('aspect', 0.5) * w * v[:, 1], w)
-    (ax, ay, aw), (bx, by, bw) = screen(a), screen(b)
-    width, height = cam['width'], cam['height']
-    out = np.zeros((height, width))
-    for x0, y0, w0, x1, y1, w1 in zip(ax, ay, aw, bx, by, bw):
-        lo, hi = 0.0, 1.0
-        for p, d, top in ((x0, x1 - x0, width - 1.0), (y0, y1 - y0, height - 1.0)):
-            if abs(d) < 1e-12:
-                if not 0.0 <= p <= top:
-                    lo, hi = 1.0, 0.0
-                continue
-            t0, t1 = sorted(((0.0 - p) / d, (top - p) / d))
-            lo, hi = max(lo, t0), min(hi, t1)
-        if lo >= hi:
-            continue
-        n = int(max(abs(x1 - x0), abs(y1 - y0)) * (hi - lo)) + 2
-        t = np.linspace(lo, hi, n)
-        xs = np.rint(x0 + (x1 - x0) * t).astype(int)
-        ys = np.rint(y0 + (y1 - y0) * t).astype(int)
-        shine = 0.2 + 0.8 * np.clip((w0 + (w1 - w0) * t) * cam['distance'], 0.0, 1.0)
-        np.maximum.at(out, (ys, xs), shine)
-    return out
-
-
 def render(pose, rotors, width, height, yaw=30.0, pitch=18.0, reach=REACH, centre=None,
-           colour=True, lit=None, world=True):
+           colour=True, lit=None, world=True, gate=None):
     """The quad at `pose` on its `rotors`, `width` x `height` cells, `reach` m framed about
     `centre` (the quad's middle) from SIGHT reaches off: lines. `lit` a `gpu.LitRaster`, or
-    None to splat its dots here; `world` False the quad alone, no ground under it and no pole."""
+    None to splat its dots here; `world` False the quad alone, nothing under it or about it;
+    `gate` the course's gates stood too, the one of that number lit."""
     from coaxial.model.blocks import numpy as np
     m = shapes.view(yaw, pitch)
     fine = engine.fine(engine.camera(width, height, reach, distance=SIGHT * reach))
@@ -273,5 +202,6 @@ def render(pose, rotors, width, height, yaw=30.0, pitch=18.0, reach=REACH, centr
     if not world:
         return braille(depth, rgb, np.zeros(depth.shape), width, height, colour,
                        props=_discs(pose, rotors, m, fine, centre))
-    return braille(depth, rgb, _ground(m, fine, centre), width, height, colour,
-                   props=_discs(pose, rotors, m, fine, centre) + _pole(m, fine, centre))
+    return braille(depth, rgb, scenery.ground(m, fine, centre), width, height, colour,
+                   props=_discs(pose, rotors, m, fine, centre)
+                   + scenery.props(m, fine, centre, gate))

@@ -116,8 +116,9 @@ def braille(depth, rgb, floor, width, height, colour=True, overlay=None, leaders
             props=()):
     """Dot rasters down to cells: a dot where the light clears the blue noise, the silhouette and
     every depth step always; the floor's dots where nothing covers it, the `leaders`' dots and
-    the `props`' [(dots, ink)] in their inks; the `overlay`'s cells {(row, col): (codepoint,
-    key)} over all (`callouts`). Lines, ANSI where `colour`."""
+    the `props`' [(dots, ink)] in their inks - an ink, or one a cell, (height, width, 3); the
+    `overlay`'s cells {(row, col): (codepoint, key)} over all (`callouts`). Lines, ANSI where
+    `colour`."""
     from coaxial.model.blocks import numpy as np
     covered = depth > 0.0
     for dots, _ink in props:

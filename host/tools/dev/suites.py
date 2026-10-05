@@ -117,8 +117,9 @@ GYNOID_GOING = 'test_gynoid_going.py'
 #: The cyclic executive (machine.cyclic): its steps against machine.parts, its cycle on a toy rotor.
 CYCLIC = 'test_cyclic.py'
 
-#: The quad's flight on ideal rotors: its routine, its law, its pack.
-QUAD = 'test_quad.py'
+#: The quad's flight on ideal rotors, its course's gates, its page; what a change reaches.
+QUAD, QUAD_COURSE, QUAD_PAGE = 'test_quad.py', 'test_quad_course.py', 'test_views_quad.py'
+QUADS = (QUAD, QUAD_COURSE, QUAD_PAGE, STRUCTURE)
 
 RENDER = 'test_render.py'
 
@@ -127,7 +128,8 @@ DEFAULT_SUITES = (STRUCTURES + (CORE, SHTP, DRIVE, DRIVE_OBSERVER, FILTER, THERM
                    CTRL_CORE, WORLD_CORE, WIRE, NATIVE, NATIVE_HEAT, EMULATOR,
                    SENSORLESS,
                    BROKER, DAQ_API, CONTROLLER, GYNOID, GYNOID_FAULTS, GYNOID_FALLS,
-                   GYNOID_STAND, GYNOID_GAIT, GYNOID_RUN, GYNOID_GOING, CYCLIC, QUAD, BOOT)
+                   GYNOID_STAND, GYNOID_GAIT, GYNOID_RUN, GYNOID_GOING, CYCLIC, QUAD,
+                   QUAD_COURSE, BOOT)
                   + VIEWS
                   + (RENDER,) + OLLAMA
                   + ('test_mcp.py', 'test_simulated.py', 'test_parity.py',
@@ -160,6 +162,7 @@ JOINS = (
     (12, GYNOID_GOING),
     (12, CYCLIC),
     (12, QUAD),
+    (12, QUAD_COURSE),
     (12, BOOT),
     (15, CORE),
     (20, SHTP),
@@ -229,7 +232,7 @@ ALONE = (BENCH, CONFORMANCE, LIVE)
 #: Suites that hold a board to the wall's time, a page drawing beside it: alone where the host
 #: has four batons or fewer - CI's runner stood native's attitude page 4.7-8.3 s beside the
 #: others while it drew on (2026-09-28).
-REAL_TIME = (NATIVE, NATIVE_HEAT)
+REAL_TIME = (NATIVE, NATIVE_HEAT, QUAD_PAGE)
 
 #: Suites that may reach the board's port: one at a time, beside the rest.
 PORT = ('test_mcp.py', 'test_parity.py')
@@ -237,15 +240,17 @@ PORT = ('test_mcp.py', 'test_parity.py')
 #: Suites that run their tests through tools.dev.focus.chosen: past a slice of the run they go
 #: on as shards side by side.
 SHARDED = (SENSORLESS, CONTROLLER, GYNOID, GYNOID_FAULTS, GYNOID_FALLS, GYNOID_STAND,
-           GYNOID_GAIT, GYNOID_GOING, 'test_simulated.py', 'test_views_segments.py', DAQ_API)
+           GYNOID_GAIT, GYNOID_GOING, 'test_simulated.py', 'test_views_segments.py', DAQ_API,
+           QUAD_PAGE)
 
 #: A sharded suite's seconds where none are recorded (tests/.counts.json, not committed): CI's
 #: checkout ran test_gynoid_falls.py whole, 532 s here, and its 300 s cut it (2026-10-01); with
 #: its get-ups after a fall 540 + 2 x 38 (2026-10-03); their starts hot after a minute's walk
 #: 822 here, 886 on CI's runner in two shards of 443, each cut at 300 (2026-10-04).
 #: The gait suite 209 s here whole (2026-10-05), its three tests a robot each in shards; the
-#: going suite 295 s, a way asked over two or three timings (2026-10-06).
-FRESH_S = {GYNOID_FALLS: 850.0, GYNOID_GAIT: 450.0, GYNOID_GOING: 300.0}
+#: going suite 295 s, a way asked over two or three timings; the quad's page 211 s, a flight
+#: a shard - one after the other they ran past the gate's 423 s (2026-10-06).
+FRESH_S = {GYNOID_FALLS: 850.0, GYNOID_GAIT: 450.0, GYNOID_GOING: 300.0, QUAD_PAGE: 250.0}
 
 #: The emulator's groups and each one's time, s, a Renode each: the rig's took 150 of the
 #: suite's 211 one after another here, and CI's runner ran the Release image's past 240
@@ -295,10 +300,12 @@ TOUCHES = (
     ('host/machine/ansi.py',                   ('test_simulated.py', CONTROLLER)),
     ('host/machine/parts.py',                  (CONTROLLER, CTRL_CORE, CYCLIC)),
     ('host/machine/cyclic.py',                 (CYCLIC,)),
-    ('host/machine/quad.py',                   (QUAD, 'test_views_quad.py', STRUCTURE)),
-    ('host/machine/flying.py',                 (QUAD, 'test_views_quad.py', STRUCTURE)),
-    ('host/machine/aerobatics.py',             (QUAD, 'test_views_quad.py', STRUCTURE)),
-    ('host/coaxial/graphics/quadcopter.py',    ('test_views_quad.py', RENDER)),
+    ('host/machine/quad.py',                   QUADS),
+    ('host/machine/flying.py',                 QUADS),
+    ('host/machine/aerobatics.py',             QUADS),
+    ('host/machine/course.py',                 QUADS),
+    ('host/coaxial/graphics/quadcopter.py',    (QUAD_PAGE, RENDER)),
+    ('host/coaxial/graphics/scenery.py',       (QUAD_PAGE, RENDER)),
     ('host/machine/',                          (CONTROLLER, GYNOID, GYNOID_FAULTS, GYNOID_FALLS,
                                                 GYNOID_STAND, GYNOID_GAIT, GYNOID_RUN,
                                                 GYNOID_GOING, CYCLIC,

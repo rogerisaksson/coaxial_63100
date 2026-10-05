@@ -1,4 +1,4 @@
-"""The QUAD page on four stand-in boards: their air, its words, its traces, its flights."""
+"""The QUAD page on four stand-in boards: their air, its words, traces and world, its flights."""
 import math
 import sys
 import time
@@ -7,6 +7,7 @@ from tools.dev.focus import chosen
 from views_kit import Report
 
 from test_quad import spans
+from test_quad_course import CLEAR_M, passes, reach, worst
 
 
 def test_the_boards_air_is_the_rotors(report):
@@ -15,7 +16,7 @@ def test_the_boards_air_is_the_rotors(report):
     from coaxial import Coaxial63100
     from machine import quad
     from machine.modes import SIMULATED
-    from terminal.views import show_quad as view
+    from terminal.views.quad import flight as view
     rig = Coaxial63100(execution_mode=SIMULATED).open()
     try:
         rotor = view.arm(rig)
@@ -48,7 +49,7 @@ def test_the_page_words_its_boards(report):
     under a throttle's point of a flight's spend, a throttling board's derate, taken and given
     back over their seconds."""
     from coaxial.devices.thermal import THROTTLE_AT
-    from terminal.views import show_quad as view
+    from terminal.views.quad import flight as view
 
     def rotors(*states):
         return [{'ident': {'state': s}, 'budget': {}} for s in states]
@@ -110,8 +111,56 @@ def test_its_traces_are_drawn(report):
                  'dots a row, top down: %s' % spike)
 
 
+def test_its_world_is_drawn(report):
+    """coaxial.graphics.scenery from behind the grid, the alley's gate ahead: the course's gates
+    stood only where one is named, that one in its own ink; an eye flown through a gate's frame
+    and past the trees draws no line across the view; far off, nothing; the ground its grid."""
+    from coaxial.graphics import engine, quadcopter, scenery, shapes
+    from coaxial.model.blocks import numpy as np
+    m, reach_m = shapes.view(180.0, 18.0), 4.0
+    cam = engine.fine(engine.camera(100, 36, reach_m, distance=quadcopter.SIGHT * reach_m))
+
+    def lit(dots, ink, name):
+        """The cells of `ink`'s hue among those with dots."""
+        want = np.asarray(scenery.INKS[name], float)
+        cells = dots.reshape(36, 4, 100, 2).any(axis=(1, 3))
+        size = np.linalg.norm(ink, axis=2)
+        like = (ink @ want) / np.maximum(1e-9, size * np.linalg.norm(want))
+        return int((cells & (size > 0.0) & (like > 0.9995)).sum())
+    (bare, bare_ink), = scenery.props(m, cam, (0.0, 2.0, 5.0))
+    (stood, ink), = scenery.props(m, cam, (0.0, 2.0, 5.0), 1)
+    report.check('the gates stood only where one is named, the one flown to next in its ink',
+                 stood.sum() > bare.sum() + 200 and lit(stood, ink, 'next') >= 20
+                 and lit(bare, bare_ink, 'next') == 0 and lit(bare, bare_ink, 'gate') == 0
+                 and lit(stood, ink, 'gate') >= 20 and lit(bare, bare_ink, 'tree') >= 20,
+                 '%d dots for %d bare; %d cells of the next gate\'s ink, %d of the others\', %d '
+                 'of the trees\'' % (stood.sum(), bare.sum(), lit(stood, ink, 'next'),
+                                    lit(stood, ink, 'gate'), lit(bare, bare_ink, 'tree')))
+    most = 0.0
+    for z in np.arange(-22.0, 32.0, 0.5):
+        (dots, _ink), = scenery.props(m, cam, (0.0, 2.2, float(z)), 1)
+        most = max(most, float(dots.mean()))
+    (far, _ink), = scenery.props(m, cam, (0.0, 2.0, 400.0), 1)
+    report.check('an eye flown through the gates\' frames and past the trees draws under a '
+                 'tenth of the view; 400 m off, nothing',
+                 0.0 < most <= 0.1 and far.sum() == 0,
+                 '%.1f %% of the dots at the most, %d far off' % (100.0 * most, far.sum()))
+    floor = scenery.ground(m, cam, (0.0, 2.0, 5.0))
+    report.check('the ground its grid, dimmer the further off',
+                 floor.shape == (cam['height'], cam['width']) and 0.0 < floor.max() <= 1.0
+                 and 200 <= (floor > 0.0).sum() and floor[floor > 0.0].min() >= 0.2,
+                 '%d dots, %.2f-%.2f bright' % ((floor > 0.0).sum(), floor[floor > 0.0].min(),
+                                               floor.max()))
+
+
 #: The page's flights drawn this long at most, s.
 LANDED_S = 200.0
+
+#: The course's laps are judged where the flight's clock - its passes' sum, a pass 50 ms at the
+#: most - kept within this of the wall's, the stand-in's motors': under the gate's load, its
+#: passes starved, the rotors ran on between them and a gate was passed 1.56 m off its middle
+#: (2026-10-06).
+BEHIND = 0.2
 
 #: The page's pack for its test, A h: a first flight whole, spent early in the second.
 TEST_PACK_AH = 0.075
@@ -129,9 +178,10 @@ def test_the_page_flies_four_boards(report):
     from machine import aerobatics, quad
     from terminal.ui.screen import FPS_CAP
     from terminal.views import show_quad as view
+    from terminal.views.quad import flight as flown
     from tools.render import page
 
-    rows, real, pack_ah = [], view.compose, quad.PACK_AH
+    rows, real, pack_ah, card = [], view.compose, quad.PACK_AH, flown.CARD
     first = aerobatics.CARD[[name for name, *_row in aerobatics.CARD].index('hover') + 1][0]
 
     class Again(Exception):
@@ -151,7 +201,8 @@ def test_the_page_flies_four_boards(report):
         if flight['stage'] == first and any(r['name'] == 'swap' for r in rows):
             raise Again
         return out
-    view.compose, quad.PACK_AH = compose, TEST_PACK_AH
+    # The routine alone: its flights one after the other, as before the course followed it.
+    view.compose, quad.PACK_AH, flown.CARD = compose, TEST_PACK_AH, aerobatics.CARD
     # Drawn into the flight after the pack's change, LANDED_S at most: drawn 48 s, on CI's
     # host, its boards' observers slower, the first hold was still coming down as the frames
     # ran out (2026-09-28).
@@ -160,7 +211,7 @@ def test_the_page_flies_four_boards(report):
     except Again:
         pass
     finally:
-        view.compose, quad.PACK_AH = real, pack_ah
+        view.compose, quad.PACK_AH, flown.CARD = real, pack_ah, card
     rate = (len(rows) - 1) / max(1e-9, rows[-1]['t'] - rows[0]['t']) if len(rows) > 1 else 0.0
     if rate < 4.0:
         report.skip('the flight', 'the page drew %.1f frames a second' % rate)
@@ -177,14 +228,14 @@ def test_the_page_flies_four_boards(report):
                  bool(early) and 'STABLE' not in early[0]['states']
                  and not any(r['tripped'] for r in rows)
                  and bool(hard) and min(r['share'] for r in hard) < 1.0
-                 and max(r['soa'] for r in hard) > THROTTLE_AT - view.UNDER - view.SPEND,
+                 and max(r['soa'] for r in hard) > THROTTLE_AT - flown.UNDER - flown.SPEND,
                  'the %s at %.1f s on %s; SOA %.2f at most, %.0f %% of their pull at the least' % (
                      first, early[0]['t'] - rows[0]['t'], early[0]['states'],
                      max(r['soa'] for r in rows), 100.0 * min((r['share'] for r in hard),
                                                               default=math.nan))
                  if early else 'no %s' % first)
     # Out of UNCERTAIN it stays out: the landing and the pack's change leave the observers be.
-    known = [sum(s in view.GO for s in r['states']) for r in rows]
+    known = [sum(s in flown.GO for s in r['states']) for r in rows]
     report.check('the observers kept through the landings and the pack\'s change',
                  max(known) == 4 and all(b >= a for a, b in zip(known, known[1:])),
                  '%d known at the end, fewer after more %d times' % (
@@ -200,16 +251,20 @@ def test_the_page_flies_four_boards(report):
                  low >= 0.05 and bool(held) and abs(held[-1] - quad.FLOOR_M) <= 0.05,
                  'lowest %.3f m, held at last %.3f m' % (low, held[-1] if held else math.nan))
     sag = min((r['volts'] for r in tilt), default=math.nan)
-    # Its reads' greatest: CI's runner caught 880-999 W of the kilowatt in three gates of four
-    # (2026-10-06), this host 1 kW and over; and its first frame there comes with the rotors
-    # already drawing, the bus more than 0.2 V under its 63 - within 1.5 V of them.
+    # Its start: the first two seconds' middle - the rotors' spool to their idle is 0.5 V under
+    # it for a frame and their run back 0.2 V over it, and on CI's runner the first frame comes
+    # with them already drawing: within 1.5 V under its 63. Its reads' greatest: CI's runner
+    # caught 880-999 W of the kilowatt in three gates of four, this host 1 kW and over
+    # (2026-10-06).
+    early = sorted(r['volts'] for r in rows if r['t'] - rows[0]['t'] <= 2.0)
+    full = early[len(early) // 2]
     report.check('the bus droops a volt and more under full tilt\'s kilowatt, 63 V at its start',
-                 -1.5 < rows[0]['volts'] - quad.open_volts(1.0) < 0.2
+                 -1.5 < full - quad.open_volts(1.0) < 0.2
                  and bool(tilt) and max(r['watts'] for r in tilt) >= 850.0
                  and sag <= quad.open_volts(tilt[0]['left']) - 1.0,
-                 '%.1f V under %.0f W, %.1f open; %.1f V at the first frame' % (
-                     sag, max((r['watts'] for r in tilt), default=math.nan),
-                     quad.open_volts(tilt[0]['left']) if tilt else math.nan, rows[0]['volts']))
+                 '%.1f V at its start; %.1f V under %.0f W, %.1f open' % (
+                     full, sag, max((r['watts'] for r in tilt), default=math.nan),
+                     quad.open_volts(tilt[0]['left']) if tilt else math.nan))
     names = [name for name, _rows in spans(rows)]
     swap = names.index('swap') if 'swap' in names else len(names)
     spent = next((r for r in rows if r['left'] <= quad.RESERVE), None)
@@ -218,16 +273,99 @@ def test_the_page_flies_four_boards(report):
                  spent is not None and spent['h'] > 1.0
                  and names[swap - 2:swap] == ['descend', 'land'] and rows[-1]['name'] == first
                  and rows[-1]['left'] > 0.9,
-                 'spent at %.1f m in the %s; %s; %.0f %% in it at the end' % (
+                 'spent at %.1f m in the %s; %s; %.0f %% in it at the end, in its %s' % (
                      spent['h'], spent['name'], ' '.join(names[max(0, swap - 3):swap + 2]),
-                     100.0 * rows[-1]['left']) if spent else 'never spent: %.0f %% left' % (
-                         100.0 * rows[-1]['left']))
+                     100.0 * rows[-1]['left'], rows[-1]['name'])
+                 if spent else 'never spent: %.0f %% left' % (100.0 * rows[-1]['left']))
     report.check('and the boards\' thermal observers spend their SOA',
                  max(r['soa'] for r in rows) >= 0.15, '%.2f at most' % max(r['soa'] for r in rows))
 
 
+def test_the_page_flies_its_course(report):
+    """The page's course on its four stand-in boards, from the floor and back: flown from
+    behind, its gates stood in the view; every gate passed inside its opening on each lap it
+    flew; the boards' envelopes cutting the rotors' pull through its laps - all of it never
+    theirs - and none tripped; landed where it rose."""
+    from machine import course
+    from terminal.ui.screen import FPS_CAP
+    from terminal.views import show_quad as view
+    from terminal.views.quad import flight as flown
+    from tools.render import page
+
+    rows, frames, real, step, card = [], [], view.compose, flown.step, flown.CARD
+
+    class Landed(Exception):
+        """The course flown and the floor under it again."""
+
+    def stepped(rotors, sky, route, flying, flight, clock, dt):
+        name = step(rotors, sky, route, flying, flight, clock, dt)
+        frame, lap = sky.state(), route.get('lap') or {}
+        rows.append({'name': name, 'x': float(frame['at'][0]), 'y': frame['h'],
+                     'z': float(frame['at'][2]), 'dt': dt, 't': time.monotonic(),
+                     'v': math.sqrt(sum(float(c) ** 2 for c in frame['vel'])),
+                     'share': flight['share'], 'laps': lap.get('laps', 0), 'of': lap.get('of', 0),
+                     'tripped': any((r['budget'] or {}).get('tripped') for r in rotors)})
+        return name
+
+    def compose(console, origin, rotors, frame, flight, trace, now, art):
+        frames.append({'t': time.monotonic(), 'name': flight['stage'],
+                       'cells': sum(0x2800 < ord(c) <= 0x28FF for c in art)})
+        # Landed, or LANDED_S of the wall's time drawn: a starved page's flight takes its
+        # frames' count four times that long.
+        if (rows and rows[-1]['name'] in ('idle', 'cool', 'swap') and any(
+                r['name'] == 'land' for r in rows)) or frames[-1]['t'] - frames[0]['t'] > LANDED_S:
+            raise Landed
+        return real(console, origin, rotors, frame, flight, trace, now, art)
+    view.compose, flown.step, flown.CARD = compose, stepped, course.CARD
+    try:
+        page.frame('quad', 150, 44, frames=int(LANDED_S * FPS_CAP))
+    except Landed:
+        pass
+    finally:
+        view.compose, flown.step, flown.CARD = real, step, card
+    rate = (len(frames) - 1) / max(1e-9, frames[-1]['t'] - frames[0]['t']) if len(frames) > 1 else 0.0
+    laps = [r for r in rows if r['name'] == 'lap']
+    behind = 1.0 - sum(r['dt'] for r in laps[1:]) / max(1e-9, laps[-1]['t'] - laps[0]['t']) \
+        if len(laps) > 1 else 0.0
+    if rate < 4.0 or behind > BEHIND:
+        report.skip('the course', 'the page drew %.1f frames a second, its flight\'s clock '
+                    '%.0f %% behind the wall\'s' % (rate, 100.0 * behind))
+        return
+    floor = [f['cells'] for f in frames if f['name'] in ('idle', 'cool')][:5]
+    aloft = [f['cells'] for f in frames if f['name'] == 'lap']
+    report.check('its world drawn about it on its laps: the gates, the trees, the houses',
+                 bool(aloft) and bool(floor) and min(aloft) >= 300 and
+                 sorted(aloft)[len(aloft) // 2] >= 600,
+                 '%d braille cells at the least and %d at the middle on its laps' % (
+                     min(aloft or [0]), sorted(aloft or [0])[len(aloft) // 2]))
+    flew = laps[-1]['of'] if laps else 0
+    gates, room = passes(rows), course.GATE_M / 2.0 - reach() - CLEAR_M
+    counted = [len(gates[g]) for g in range(1, len(course.GATES))]
+    report.check('every gate passed on each lap it flew, its middle within %.2f m of the '
+                 'frame\'s' % room,
+                 flew >= 1 and counted == [flew] * len(counted) and worst(gates) <= room,
+                 '%d of %d laps, passes %s, %.2f m off at the most; its clock %.0f %% behind '
+                 'the wall\'s' % (flew, course.LAPS, counted, worst(gates), 100.0 * behind))
+    lapped = sum(r['dt'] for r in laps)
+    cut = sum(r['dt'] for r in laps if r['share'] < 1.0)
+    report.check('the boards\' envelopes cut the rotors\' pull through nine tenths of its laps, '
+                 'to under two thirds of it; none tripped',
+                 bool(laps) and cut >= 0.9 * lapped and min(r['share'] for r in laps) <= 0.65
+                 and not any(r['tripped'] for r in rows),
+                 '%.0f %% of %.1f s under all of their pull, %.0f %% of it at the least' % (
+                     100.0 * cut / max(1e-9, lapped), lapped,
+                     100.0 * min((r['share'] for r in laps), default=math.nan)))
+    down = [r for r in rows if r['name'] == 'land']
+    report.check('landed where it rose',
+                 bool(down) and abs(down[-1]['y']) <= 0.01
+                 and math.hypot(down[-1]['x'], down[-1]['z']) <= 0.3,
+                 '%.3f m up, %.2f m off' % (down[-1]['y'], math.hypot(down[-1]['x'], down[-1]['z']))
+                 if down else 'never landed')
+
+
 ROSTER = (test_the_boards_air_is_the_rotors, test_the_page_words_its_boards,
-          test_its_traces_are_drawn, test_the_page_flies_four_boards)
+          test_its_traces_are_drawn, test_its_world_is_drawn, test_the_page_flies_four_boards,
+          test_the_page_flies_its_course)
 
 
 def main(argv=None):

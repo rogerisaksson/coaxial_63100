@@ -5,20 +5,23 @@
     thrusts = flying.step(sky.state(), dt)      # each rotor's thrust, every pass
 
 The frame is asked a height, that height's own rate and pull, and the pace it may go there at;
-a speed along its heading and across it, its heading's turn, and how much its spot goes home;
-turns about its nose and about its wing. A row's height told from an eased one by what it
-moved a pass, a pass of 50 ms took the landed row for 9.6 m/s and its end for a pull of 100
-m/s^2: the frame left the floor for 3 m (2026-10-05). Up and down it flies a speed for each
-distance from its height (`descent`): the
-altitude loop's own approach near it, the rotors' pull - rising, gravity's - above where the two
-meet, its pace at most and come to as gently. Asked a height far under it at any pace it is let
-fall, the rotors run down as their propellers do, and burns as that speed comes to be its own.
-Along the floor its spot goes at
-the speed asked - home, as far as that is asked - and it leans to keep on it and into what that
-speed changes by. Its discs keep that lean and its nose its heading, turned about its own axes
-as far as its roll and its flip have come - asked no longer, a turn comes round to the whole
-one - and the thrust is what of it all its discs give where they point; turned over, they
-bear its weight. A figure is a row of `machine.aerobatics`; nothing here knows one from another.
+a speed along its heading and across it and a pull of the row's own with them, its heading's
+turn and how firmly its nose is held on it, its place and how much its spot goes there, and
+the lean it may take; turns about its nose and about its wing. Up and down it
+flies a speed for each distance from its height (`descent`): the altitude loop's own approach
+near it, the rotors' pull - rising, gravity's - above where the two meet, its pace at most and
+come to as gently. Asked a height far under it at any pace it is let fall, the rotors run down
+as their propellers do, and burns as that speed comes to be its own. Along the floor its spot
+goes at the speed asked - to its place, as far as that is asked - and it leans to keep on it
+and into what that speed changes by, as far as it may and the boards' envelopes leave it the
+pull to. Its discs keep that lean and its nose its heading, turned about its own axes as far
+as its roll and its flip have come - asked no longer, a turn comes round to the whole one -
+and the thrust is what of it all its discs give where they point; turned over, they bear its
+weight. A figure is a row of `machine.aerobatics`; nothing here knows one from another.
+
+A row's height told from an eased one by what it moved a pass, a pass of 50 ms took the landed
+row for 9.6 m/s and its end for a pull of 100 m/s^2: the frame left the floor for 3 m
+(2026-10-05).
 """
 import math
 
@@ -38,10 +41,10 @@ KD = 10.0
 #: (2026-10-05).
 TILT_KP, TILT_KD, YAW_KP, YAW_KD = 60.0, 12.0, 4.0, 4.0
 
-#: Along the floor: the spot's loop, 1/s^2 and 1/s, and the lean at most, m/s^2 - in a hover
-#: 39 degrees, its angle at most whatever is asked up; its spot goes home at this gain, 1/s,
-#: this fast at most, m/s.
-SPOT_KP, SPOT_KD, LEAN_M_S2 = 1.0, 1.6, 8.0
+#: Along the floor: the spot's loop, 1/s^2 and 1/s - at 4 and 3.2 an orbit's bank rang 19-31
+#: degrees on 14 of margin (2026-10-05); its spot goes to its place at this gain, 1/s, this
+#: fast at most, m/s.
+SPOT_KP, SPOT_KD = 1.0, 1.6
 HOME_K, HOME_M_S = 1.5, 3.0
 
 #: The rotors' collective at most, of their top: at every rotor's cap the tilt's loop had
@@ -80,6 +83,19 @@ ROUND_K = 6.0
 #: within this, rad.
 HELD_M, HELD_SPOT_M, HELD_M_S, HELD_RAD = 0.03, 0.15, 0.15, 0.05
 
+#: Its discs lean against what is asked up, this share of gravity at the least: leant against
+#: all of gravity while asked to fall, the thrust cut for the fall took the pull along the
+#: floor with it - over a crest at 0.3 of its weight a bend had 0.6 of its pull and the frame
+#: ran 1.2 m wide of its line (2026-10-05).
+LIGHT = 0.5
+
+#: The tilt's miss is answered as this much at the most, rad: what the rotors' spool turns the
+#: discs for. Answered whole, a lean turned back through a quarter turn asked more than they
+#: slew, the tilt swung wider each time - 75, 87, 121 degrees on the page's boards, 4 m of
+#: height gone; on rotors 0.12 s and 500 rad/s^2 to a speed three laps of six ended over, none
+#: at this (2026-10-06).
+TILT_MISS = 0.6
+
 #: What it is doing where it is asked a height far under it: let fall, burning.
 FALL, BURN = 'fall', 'burn'
 
@@ -114,8 +130,9 @@ class Flying:
         self.turns, self.turning = [0.0, 0.0], [0.0, 0.0]
         #: The collective asked last, N.
         self.thrust = self.idle
-        #: Its spot, world (x, z), m, and the speed that went at last, m/s.
-        self.spot, self.speed = [0.0, 0.0], (0.0, 0.0)
+        #: Its spot, world (x, z), m, and the speed that went at last, m/s; the pull along the
+        #: floor the boards' envelopes left it last, m/s^2, and their share it came of.
+        self.spot, self.speed, self.most, self.share = [0.0, 0.0], (0.0, 0.0), 0.0, 1.0
         self.held, self.doing = False, None
 
     # -- the setpoints' own ------------------------------------------------------------------
@@ -151,24 +168,26 @@ class Flying:
         falls = way < 0.0 and left > brake / (pole * pole)
         return pull, (FALL if MASS_KG * (GRAVITY + pull) <= self.idle else BURN) if falls else None
 
-    def lean(self, at, vel, dt):
-        """The pull asked along the floor, world (x, z), m/s^2: its spot gone on at the speed
-        asked and home, the frame kept on it and leant into what that speed changed by and
-        the air takes of it."""
+    def lean(self, at, vel, dt, most):
+        """The pull asked along the floor, world (x, z), m/s^2, `most` at the most: its spot
+        gone on at the speed asked and to its place, the frame kept on it and leant into what
+        that speed changed by, the row's own pull and what the air takes of it."""
         a = self.ask
         c, s = math.cos(self.heading), math.sin(self.heading)
-        far = math.hypot(self.spot[0], self.spot[1])
+        off = (self.spot[0] - a['x'], self.spot[1] - a['z'])
+        far = math.hypot(off[0], off[1])
         home = -a['home'] * min(HOME_K, HOME_M_S / far if far > 0.0 else HOME_K)
-        speed = (a['speed'] * s + a['slide'] * c + home * self.spot[0],
-                 a['speed'] * c - a['slide'] * s + home * self.spot[1])
-        into = [(now - was) / dt for now, was in zip(speed, self.speed)]
+        speed = (a['speed'] * s + a['slide'] * c + home * off[0],
+                 a['speed'] * c - a['slide'] * s + home * off[1])
+        into = [(now - was) / dt + more for now, was, more in zip(
+            speed, self.speed, (a['surge'] * s + a['sway'] * c, a['surge'] * c - a['sway'] * s))]
         air = 0.5 * RHO * BODY_CDA * math.hypot(speed[0], speed[1]) / MASS_KG
         self.speed = speed
         self.spot = [p + v * dt for p, v in zip(self.spot, speed)]
         out = [into[k] + air * speed[k] + SPOT_KD * (speed[k] - float(vel[axis]))
                + SPOT_KP * (self.spot[k] - float(at[axis])) for k, axis in enumerate((0, 2))]
         size = math.hypot(out[0], out[1])
-        return [x * min(1.0, LEAN_M_S2 / size) if size > 0.0 else 0.0 for x in out]
+        return [x * min(1.0, most / size) if size > 0.0 else 0.0 for x in out]
 
     def turned(self, dt):
         """Its turns' rates about its nose and its wing, rad/s, the turns moved on `dt`: as
@@ -193,6 +212,14 @@ class Flying:
 
     # -- every pass --------------------------------------------------------------------------
 
+    def seen(self, frame, dt):
+        """What a row's giver may know of the flight before the pass of `dt` s (a routine's
+        `seen`): where the frame is and goes, the law's spot and heading, the share of their
+        pull the boards' envelopes left it and the pull along the floor that is."""
+        return {'dt': dt, 'most': self.most, 'share': self.share, 'heading': self.heading,
+                'spot': tuple(self.spot), 'at': [float(x) for x in frame['at']],
+                'vel': [float(x) for x in frame['vel']]}
+
     def step(self, frame, dt, share=1.0):
         """Each rotor's thrust, N, for the frame as `frame` (`quad.Sky.state`) has it, `dt` s
         on; `share` what the boards' envelopes leave of the rotors' pull: what it is sped up on
@@ -202,26 +229,34 @@ class Flying:
         spin, at, vel = frame['spin'], frame['at'], frame['vel']
         rate = math.radians(a['turn'])
         self.heading += rate * dt
-        room = max(LEAST * MASS_KG * GRAVITY, share * HEADROOM * self.top) / MASS_KG - GRAVITY
-        up_pull, self.doing = self.climb(frame['h'], frame['v'], room)
-        along = self.lean(at, vel, dt)
-        # the discs' lean - against gravity at least, LEAN_M_S2's angle at most - the nose's
-        # heading, its turns on them
-        up = _unit((along[0], GRAVITY + max(0.0, up_pull), along[1]))
+        self.share = share
+        reach = max(LEAST * MASS_KG * GRAVITY, share * HEADROOM * self.top) / MASS_KG
+        up_pull, self.doing = self.climb(frame['h'], frame['v'], reach - GRAVITY)
+        self.most = math.sqrt(reach * reach - GRAVITY * GRAVITY)
+        along = self.lean(at, vel, dt, min(a['lean'], self.most))
+        # the discs' lean - against what is asked up - the nose's heading, its turns on them
+        up = _unit((along[0], max(GRAVITY + up_pull, LIGHT * GRAVITY), along[1]))
         nose = (math.sin(self.heading), 0.0, math.cos(self.heading))
         dot = sum(n * u for n, u in zip(nose, up))
         ahead = _unit([n - dot * u for n, u in zip(nose, up)])
         across = _cross(up, ahead)
         rates = self.turned(dt)
         want = mul(tuple(zip(across, up, ahead)), mul(rz(self.turns[0]), rx(self.turns[1])))
+        # the tilt's loop on where the discs' axis is of where it is wanted, in the frame's own
+        # axes - whatever its nose's miss: on the whole attitude's, a nose 66 degrees behind its
+        # heading turned the tilt's torque 33 degrees round and the frame went over (2026-10-05)
         miss = mul(t(want), turn)
-        tilt = (0.5 * (miss[2][1] - miss[1][2]), 0.5 * (miss[0][2] - miss[2][0]),
-                0.5 * (miss[1][0] - miss[0][1]))
-        asked = (rates[1] + rate * want[1][0], rate * want[1][1], rates[0] + rate * want[1][2])
+        tilt = (-miss[1][2], 0.5 * (miss[0][2] - miss[2][0]), miss[1][0])
+        less = min(1.0, TILT_MISS / max(1e-9, math.hypot(tilt[0], tilt[2])))
+        tilt = (tilt[0] * less, tilt[1], tilt[2] * less)
+        # its lean turns with its heading whatever its nose; the nose as firmly as it is asked
+        nose_ = a['nose']
+        asked = (rates[1] + rate * turn[1][0], nose_ * rate * turn[1][1],
+                 rates[0] + rate * turn[1][2])
         torque = [INERTIA[k] * (-kp * tilt[k] - kd * (float(spin[k]) - asked[k]))
-                  for k, (kp, kd) in enumerate(((TILT_KP, TILT_KD), (YAW_KP, YAW_KD),
+                  for k, (kp, kd) in enumerate(((TILT_KP, TILT_KD), (nose_ * YAW_KP, YAW_KD),
                                                 (TILT_KP, TILT_KD)))]
-        torque[1] += INERTIA[1] * (rate - self.swing) / dt * want[1][1]
+        torque[1] += nose_ * INERTIA[1] * (rate - self.swing) / dt * want[1][1]
         self.swing = rate
         # what its discs give of the pull where they point; turned over, its weight - a whole
         # turn's push is none; under the idle, run down to it

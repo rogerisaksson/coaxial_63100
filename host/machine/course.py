@@ -1,0 +1,237 @@
+"""The quad's course: gates in the air among trees, houses and cars, a lap a line flown as rows.
+
+    route = aerobatics.routine(course.CARD)                  # on the floor, its laps ahead
+    route['seen'] = flying.seen(sky.state(), dt)             # what the line's rows go by
+    name, flying.ask = aerobatics.fly(route, now, holds)     # the card's row, or the line's for now
+
+The line is a closed curve through every gate along its heading, a Hermite span a gate. The frame
+is flown along it as fast as its lean lets it: each bend at the speed a share of the pull along
+the floor turns it - the row's LEAN_M_S2, the boards' envelopes' at most (`flying.most`) - braked
+for ahead of it, a crest no faster than it may fall. So a lap is as fast as the FETs' envelopes
+are cool: asked more lean than they leave it for long, it flies on them. `TREES`, `HOUSES`,
+`CARS` and `MASTS` stand about the line, for whoever draws it (`coaxial.graphics.scenery`).
+"""
+import functools
+import math
+
+from machine.aerobatics import DOWN, HOVER, OVER, PRESSED
+
+#: A gate: its middle (x, y, z), m from where the frame rises, y up, and its heading, degrees
+#: from z toward x - flown through along it; its opening GATE_M square, the floor under it at
+#: the lowest. The first stands over the spot, the lap's start and its finish; then the alley
+#: between two trees, up and over the house's ridge, three quarters round the mast and down
+#: it, the dive between two cars, the low bend, the slalom's two trees and home.
+GATE_M = 3.4
+GATES = ((0.0, 2.0, 0.0, 0.0), (0.0, 2.5, 14.0, 0.0), (7.0, 6.0, 23.0, 90.0),
+         (19.0, 7.5, 23.0, 90.0), (31.0, 7.0, 21.5, 90.0), (36.5, 6.0, 27.0, 0.0),
+         (31.0, 5.0, 32.5, 270.0), (25.5, 4.0, 27.0, 180.0), (27.0, 3.2, 15.0, 180.0),
+         (27.0, 1.1, 3.0, 180.0), (20.0, 2.2, -6.0, 270.0), (13.0, 2.6, -3.5, 270.0),
+         (6.0, 3.0, -8.5, 270.0), (2.5, 2.6, -5.0, 315.0))
+
+#: What stands about the line. A tree: (x, z, its height, its crown's radius), m. A house: (x, z,
+#: its width along x, its depth along z, its walls' height, its ridge's), the ridge along x. A
+#: car: (x, z, its heading, degrees), CAR_M wide, high and long. A mast: (x, z, its side, its
+#: height).
+TREES = ((-3.5, 14.0, 6.0, 1.4), (3.5, 14.0, 7.0, 1.6), (8.0, 15.0, 7.5, 1.8),
+         (21.0, 17.5, 6.5, 1.6), (13.0, -7.0, 6.0, 1.5), (6.0, -4.5, 6.5, 1.5),
+         (-8.0, 6.0, 7.0, 1.7), (-9.0, 21.0, 9.0, 2.0), (35.0, 2.0, 7.0, 1.6),
+         (13.0, 34.0, 8.0, 1.9), (31.0, -11.0, 6.5, 1.6), (-6.0, -12.0, 7.5, 1.8),
+         (41.0, 34.0, 8.5, 2.0), (-12.0, -3.0, 6.0, 1.5))
+HOUSES = ((13.0, 23.0, 8.0, 6.0, 3.0, 4.6), (36.0, 13.0, 7.0, 8.0, 3.0, 4.8),
+          (-13.0, 11.0, 6.0, 8.0, 2.8, 4.4))
+CARS = ((24.0, 3.0, 0.0), (30.0, 3.0, 180.0), (21.0, -11.0, 95.0), (15.0, -12.0, 85.0),
+        (2.0, 21.0, 20.0), (40.0, 22.0, 5.0))
+CAR_M = (1.8, 1.4, 4.4)
+MASTS = ((31.0, 27.0, 1.6, 14.0),)
+
+#: The line: a span's tangents this much of its chord, sampled every DS m; its laps.
+TENSION, DS, LAPS = 1.0, 0.25, 2
+
+#: The lean a lap asks, m/s^2 - 64 degrees, more than the envelopes leave it for long - and
+#: its speed at most, m/s. The pull it is planned on is the envelopes' share of that lean,
+#: EASY_M_S2 at the least, come down to in EASE_S of the whole and back up in twice that:
+#: planned on what the law's reach left, 11 m/s^2 with the envelopes spent, a lap never eased
+#: and the boards stood at 0.94 of theirs, two throttling (2026-10-06). Of that pull a bend
+#: takes GRIP, the brake before it BRAKE and the way out of it GO; bends are braked for
+#: AHEAD_M ahead; a crest is flown no faster than lets it fall DROP_M_S2, the rotors kept
+#: turning for the bend on it. At 0.55, 0.4 and 0.4 the frame was 1.4 m off its line and a
+#: gate was missed; over the house's crest at 0.3 of its weight it stood 90 degrees over and
+#: fell 0.86 m under its line, 0.70 m over the ridge (2026-10-05).
+LEAN_M_S2, EASY_M_S2, EASE_S, TOP_M_S = 20.0, 4.0, 2.0, 12.0
+GRIP, BRAKE, GO, AHEAD_M, DROP_M_S2 = 0.4, 0.25, 0.25, 40.0, 4.0
+
+#: The frame's place on the line is looked for REACH_M on from the last; the law's spot is kept
+#: on the line, SLACK_M from that place along it at most; a bend's pull is asked LEAD_S ahead
+#: of it - what the discs' turn and the rotors' spool trail a pull by; the frame's miss of the
+#: line is taken back over LOOK_S of its speed, LOOK_M at least. Its heading comes round to
+#: its way at AIM_K, 1/s, no faster than TURN_RAD_S, and its lean turns with it; its nose is
+#: left free of it: a turn of the frame is the discs' drag's, 10 N of thrust apart a N m -
+#: held on its heading, the rotors were at their clamp 12 % of a lap, 5 % with the heading
+#: still - and then the lean's own turn trailed its bend and a gate was passed 0.65 m wide
+#: (2026-10-06). It stands STAND_M from its finish, this slow.
+#: How it came to this, each measured on a lap of jittered passes (2026-10-05): flown by the
+#: clock it fell 10 m behind its place and cut its bends 4 m inside their gates; its spot homed
+#: to the frame's own place, the law kept the frame's speed, 2.5 m/s under the plan's; its
+#: speed's way led with the bend, it flew 0.9 m inside the mast's gates; the row for the
+#: pass's start, a pass of 30 ms after one of 14 asked twice the bend's pull.
+REACH_M, SLACK_M, LEAD_S, LOOK_S, LOOK_M = 3.0, 2.0, 0.2, 0.6, 3.0
+AIM_K, TURN_RAD_S, STAND_M, STAND_M_S = 5.0, math.tau, 0.6, 0.5
+
+#: The lap's rows: the hover's, at a lap's pace up and down, its nose free; the lean a row
+#: may take this much of the pull it is planned on.
+RACE, LEAN_OVER = dict(HOVER, pace=12.0, nose=0.0), 1.5
+#: On the grid: over its spot in the first gate.
+GRID = dict(HOVER, height=GATES[0][1])
+
+
+def _span(a, b, u):
+    """The point `u` of the way along the Hermite span from gate `a` to gate `b`: through each
+    along its heading, level."""
+    chord = TENSION * math.dist(a[:3], b[:3])
+    out = []
+    for k in range(3):
+        m0, m1 = ((chord * math.sin(math.radians(g[3])), 0.0, chord * math.cos(math.radians(g[3])))[k]
+                  for g in (a, b))
+        out.append((2 * u ** 3 - 3 * u ** 2 + 1) * a[k] + (u ** 3 - 2 * u ** 2 + u) * m0
+                   + (-2 * u ** 3 + 3 * u ** 2) * b[k] + (u ** 3 - u ** 2) * m1)
+    return tuple(out)
+
+
+@functools.lru_cache(maxsize=None)
+def track():
+    """The line, a sample every DS m round the lap: {'at': its points, 'way': its unit
+    tangents, 'bends': its (curvature, 1/m, its slope's own, 1/m, its bearing's turn, rad/m),
+    'gates': where each gate is along it, m, 'length', 'step'}."""
+    fine, marks = [], []
+    for i, gate in enumerate(GATES):
+        marks.append(len(fine))
+        fine += [_span(gate, GATES[(i + 1) % len(GATES)], u / 64.0) for u in range(64)]
+    run = [0.0]
+    for p, q in zip(fine, fine[1:] + fine[:1]):
+        run.append(run[-1] + math.dist(p, q))
+    length, n = run[-1], int(run[-1] / DS)
+    at, k = [], 0
+    for j in range(n):
+        s = j * length / n
+        while run[k + 1] < s:
+            k += 1
+        share = (s - run[k]) / max(1e-9, run[k + 1] - run[k])
+        p, q = fine[k], fine[(k + 1) % len(fine)]
+        at.append(tuple(a + (b - a) * share for a, b in zip(p, q)))
+    way = []
+    for j in range(n):
+        d = [b - a for a, b in zip(at[j - 1], at[(j + 1) % n])]
+        size = math.sqrt(sum(x * x for x in d))
+        way.append(tuple(x / size for x in d))
+    step = length / n
+    bends = [(math.dist(way[j - 2], way[(j + 2) % n]) / (4.0 * step),
+              (way[(j + 2) % n][1] - way[j - 2][1]) / (4.0 * step),
+              ((math.atan2(way[(j + 2) % n][0], way[(j + 2) % n][2])
+                - math.atan2(way[j - 2][0], way[j - 2][2]) + math.pi) % math.tau - math.pi)
+              / (4.0 * step)) for j in range(n)]
+    return {'at': at, 'way': way, 'bends': bends, 'length': length, 'step': step,
+            'gates': [run[m] for m in marks]}
+
+
+def _on(row, s):
+    """A row of the line - its points, its tangents, its bends - `s` samples along it, between
+    two."""
+    n = len(row)
+    k, share = int(math.floor(s)) % n, s - math.floor(s)
+    return tuple(a + (b - a) * share for a, b in zip(row[k], row[(k + 1) % n]))
+
+
+def nearest(line_, point, low, high):
+    """How many samples along the line - between two, whole laps counted - its point nearest
+    the (x, y, z) `point` over the floor is, of those from `low` to `high`."""
+    n, step = len(line_['at']), line_['step']
+    k = min(range(low, high + 1), key=lambda j: (
+        (line_['at'][j % n][0] - point[0]) ** 2 + (line_['at'][j % n][2] - point[2]) ** 2))
+    here, way = line_['at'][k % n], line_['way'][k % n]
+    past = (point[0] - here[0]) * way[0] + (point[2] - here[2]) * way[2]
+    return k + max(-0.5, min(0.5, past / step))
+
+
+def line(route, now):
+    """The lap's row for now (`aerobatics.fly`'s giver), by what `route['seen']` says
+    (`Flying.seen`) - where the frame is and goes, the law's spot and heading, the share of
+    their pull the envelopes leave, the pass's seconds, whether it is `spent`: its speed the
+    one the bends ahead allow on that share of its lean, along the line's way and back onto
+    it, its bend's pull asked LEAD_S ahead, its spot kept on the line. Its laps flown - spent,
+    the one it is on - it stands in the first gate, `lapped`."""
+    lap = route.get('lap')
+    if lap is None or lap['began'] != route['at']:
+        lap = route['lap'] = {'began': route['at'], 'k': 0, 'v': 0.0, 'laps': 0, 'gate': 1,
+                              'of': LAPS, 'pull': 0.0}
+    seen, line_ = route.get('seen') or {}, track()
+    n, step = len(line_['at']), line_['step']
+    dt, heading = seen.get('dt', 0.0), seen.get('heading', 0.0)
+    at, vel = seen.get('at', line_['at'][0]), seen.get('vel', (0.0, 0.0, 0.0))
+    # the pull it is planned on: the envelopes' share of its lean, come to slowly
+    ease = LEAN_M_S2 * dt / EASE_S
+    pull = lap['pull'] = max(EASY_M_S2, lap['pull'] - ease, min(
+        LEAN_M_S2 * seen.get('share', 1.0), seen.get('most', LEAN_M_S2), lap['pull'] + 0.5 * ease))
+    # where the frame is on the line, from where it was on
+    s = nearest(line_, at, lap['k'], lap['k'] + int(REACH_M / step))
+    if seen.get('spent'):
+        lap['of'] = min(lap['of'], int(s) // n + 1)
+    end = float(lap['of'] * n)
+    s = min(end, s)
+    k = lap['k'] = int(s)
+    here, way = _on(line_['at'], s), _on(line_['way'], s)
+    along = max(0.0, sum(float(v) * w for v, w in zip(vel, way)))
+    # what the law takes the change of spans the pass to come: asked for where that ends
+    on = min(end, s + along * dt / step)
+    lead = min(end, on + LEAD_S * lap['v'] / step)
+    # as fast as the bends ahead allow, each braked for from here, a crest as its fall; to a
+    # stand at its finish; come to no faster than GO of the pull
+    allowed = min(TOP_M_S, math.sqrt(2.0 * BRAKE * pull * (end - lead) * step))
+    for j in range(min(int(AHEAD_M / step), int(end - lead))):
+        bend, rise, _veer = line_['bends'][(int(lead) + j) % n]
+        bend += max(0.0, -rise) * GRIP * pull / DROP_M_S2
+        if bend * allowed * allowed > GRIP * pull:
+            allowed = min(allowed, math.sqrt(GRIP * pull / bend + 2.0 * BRAKE * pull * step
+                                             * max(0.0, j - lead % 1.0)))
+    speed = lap['v'] = min(allowed, lap['v'] + GO * pull * dt)
+    lap.update(laps=min(lap['of'] - 1, k // n),
+               gate=next((g for g, mark in enumerate(line_['gates']) if mark > (k % n) * step), 0))
+    if (end - s) * step <= STAND_M and math.sqrt(sum(float(v) ** 2 for v in vel)) <= STAND_M_S:
+        route['holds'] = ('lapped',)
+    # its way: the line's, the frame's miss of the line taken back over its look
+    to, veer = _on(line_['way'], on), _on(line_['bends'], on)[2]
+    look = max(LOOK_M, LOOK_S * speed)
+    aim = math.atan2(look * to[0] - (at[0] - here[0]), look * to[2] - (at[2] - here[2]))
+    # its heading round to it as the line turns, and its speed along that way
+    turn = speed * veer + AIM_K * ((aim - heading + math.pi) % math.tau - math.pi)
+    turn = max(-TURN_RAD_S, min(TURN_RAD_S, turn))
+    nose = heading + turn * dt
+    flat = speed * math.hypot(to[0], to[2])
+    # the pull its bend takes a lag ahead, over the one where it is: the row's own
+    ahead, bent = _on(line_['way'], lead), _on(line_['bends'], lead)[2]
+    more = [flat * flat * (bent * a / math.hypot(ahead[0], ahead[2])
+                           - veer * b / math.hypot(to[0], to[2]))
+            for a, b in ((ahead[2], to[2]), (-ahead[0], -to[0]))]
+    # the law's spot onto the line, no further along it from the frame than its slack
+    slack = SLACK_M / step
+    spot = seen.get('spot', (here[0], here[2]))
+    place = _on(line_['at'], max(s - slack, min(s + slack, end, nearest(
+        line_, (spot[0], 0.0, spot[1]), k - int(slack), k + int(slack) + 1))))
+    c, sn = math.cos(nose), math.sin(nose)
+    return dict(RACE, height=here[1], climb=along * way[1], lean=LEAN_OVER * pull,
+                push=along * along * _on(line_['bends'], s)[1], x=place[0], z=place[2],
+                speed=flat * math.cos(aim - nose), slide=flat * math.sin(aim - nose),
+                surge=more[0] * sn + more[1] * c, sway=more[0] * c - more[1] * sn,
+                turn=math.degrees(turn))
+
+
+#: The course's flight: from the floor onto its grid, its laps, and down.
+CARD = (
+    ('idle', DOWN, 2.0, 0.0, 'fit'),
+    ('spool', PRESSED, 2.5, 2.5, ''),
+    ('lift', GRID, 3.0, 3.0, ''),
+    ('grid', GRID, 1.0, 0.0, 'held'),
+    ('lap', line, 0.0, 0.0, 'lapped'),
+    ('level', GRID, 1.5, 1.0, 'held'),
+    ('descend', OVER, 1.5, 1.5, 'held'),
+    ('land', PRESSED, 3.0, 3.0, ''),
+)

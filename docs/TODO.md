@@ -287,7 +287,7 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
 
 - **Bootloader**, on the board since 2026-10-05. DOD: a power cycle runs
   the store at unit 1, PWR_CR3 written on a fresh supply; the prefix
-  search's real collision seen (CRC error, timeout or both); 10 Mbit on
+  search's real collision seen; 10 Mbit on
   the bench adapter measured; a torn flash word's bus fault handled.
 - **From D2 SRAM**. DOD: the ITCM sample path under the drive (a wrong
   copy hard-faults on the first ADC interrupt); LOOP cycle counters and
@@ -311,7 +311,7 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
   load through `drive.model`, which an emulated drive keeps. DOD: the
   world's flywheel takes a host-set load; both run on the emulator.
 - **Thermal observer at short periods**: the NTC anchor inverted a standing
-  miss x12-27 a sample, x1.8 since the refit. DOD:
+  miss x1.8 since the refit. DOD:
   `tools/bench/power_check.py` at 1-5 s keeps its patches.
 - **STO chain**: R93 to 3V3D, a master's pilot on RS485, Cinj/Clevel with
   and without it, one arm with neither bypass (`tools/bench/sto_probe.py`);
@@ -354,6 +354,7 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
 - **`test_sensorless`** overpowered-servo check flakes ~1 in 4 in the full
   gate; `test_daq_api`'s first record had no dt once in it, 82 of 82
   alone (2026-10-05). DOD: 20 gates green.
+- **Thermal page review**: 29 findings, unapplied.
 - **A1335 CRC** reported, not checked. DOD: the polynomial known, checked.
 - **`testline/plans/coaxial_63100_fct.yaml`** limits are placeholders.
   DOD: measured.

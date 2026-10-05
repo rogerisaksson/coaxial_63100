@@ -7,6 +7,7 @@ Spent - its pack, its boards' envelopes - the routine comes down from wherever i
 on the floor until it is fit.
 """
 import math
+from typing import Any
 
 from machine.gaits import mix
 from machine.quad import FLOOR_M, HOVER_M
@@ -14,10 +15,15 @@ from machine.quad import FLOOR_M, HOVER_M
 #: A figure a row of setpoints: height, m over the floor, and the pace it may go there at, m/s,
 #: come to and stopped from in a second; climb and push, that height's own rate and pull, m/s
 #: and m/s^2 - a row's none, its easing's on the way to it; speed along its heading and slide
-#: across it, m/s; turn, its heading's, deg/s; home, how much its spot goes back where it rose,
-#: 0 to 1; roll and flip, turns/s about its nose and about its wing.
+#: across it, m/s, surge and sway a pull along and across it over what those speeds' change
+#: takes, m/s^2 - a line's bend, asked ahead of it; turn, its heading's, deg/s, and nose, how
+#: firmly its nose is held on that heading, 0 to 1 - free, its lean alone turns with it; x and
+#: z, its place, m from where it rose, and home, how much its spot goes there, 0 to 1; lean,
+#: the pull along the floor it may take, m/s^2 - 39 degrees in a hover; roll and flip,
+#: turns/s about its nose and about its wing.
 HOVER = {'height': HOVER_M, 'pace': 1.5, 'climb': 0.0, 'push': 0.0, 'speed': 0.0, 'slide': 0.0,
-         'turn': 0.0, 'home': 1.0, 'roll': 0.0, 'flip': 0.0}
+         'surge': 0.0, 'sway': 0.0, 'turn': 0.0, 'nose': 1.0, 'x': 0.0, 'z': 0.0, 'home': 1.0,
+         'lean': 8.0, 'roll': 0.0, 'flip': 0.0}
 #: Full tilt: a height out of reach, at any pace.
 SKY = dict(HOVER, height=1000.0, pace=100.0)
 #: The stop over the floor, from wherever it is: let fall, burned, held. And on the floor: let
@@ -51,7 +57,9 @@ OVER = dict(HOVER, height=FLOOR_M, pace=2.0)
 
 #: The routine: (name, row, seconds on it at least, seconds eased into it, what it waits for
 #: before it leaves). `held`: the frame at its height and its spot, still, its turns whole;
-#: `fit`: a pack with more than its reserve in it, the boards' envelopes with their room.
+#: `fit`: a pack with more than its reserve in it, the boards' envelopes with their room. A
+#: row may be what gives one - `row(route, now)` - where its setpoints are not a figure's but
+#: a line's (`machine.course`); what it holds itself it leaves in the route's `holds`.
 CARD = (
     ('idle', DOWN, 2.0, 0.0, 'fit'),
     ('spool', PRESSED, 2.5, 2.5, ''),
@@ -76,8 +84,9 @@ CARD = (
     ('descend', OVER, 1.5, 1.5, 'held'),
     ('land', PRESSED, 3.0, 3.0, ''),
 )
-#: `spent` among what holds takes the routine to this row from any before it - but one that
-#: waits to be fit, where it is on the floor already.
+#: `spent` among what holds takes the routine to the next row of this name - but from one that
+#: waits to be fit, on the floor already, and from one that gives its own row: a line ends
+#: itself (`machine.course`: where it is on it, things stand under it).
 SPENT_TO = 'descend'
 
 
@@ -103,20 +112,21 @@ def routine(card=CARD):
     return {'row': 0, 'at': 0.0, 'was': dict(card[0][1]), 'card': card}
 
 
-def fly(route, now, holds=('held', 'fit')):
+def fly(route, now, holds=('held', 'fit')) -> tuple[str, dict[str, Any]]:
     """(the figure's name, its row for `now`): `route` moved on where its row's seconds are up
-    and all it waits for is among `holds` - or to SPENT_TO's row, `spent` among them - the row
-    eased in from the one left over its own seconds."""
+    and all it waits for is among `holds` - or to the next SPENT_TO's row, `spent` among them -
+    the row eased in from the one left over its own seconds."""
     card = route['card']
     name, row, seconds, over, waits = card[route['row']]
     into = now - route['at']
-    here = eased(route['was'], row, into, over)
-    down = next((k for k, figure in enumerate(card) if figure[0] == SPENT_TO), 0)
-    if 'spent' in holds and route['row'] < down and 'fit' not in waits.split():
-        route.update(row=down, at=now, was=here)
-    elif into >= seconds and set(waits.split()) <= set(holds):
-        route.update(row=(route['row'] + 1) % len(card), at=now, was=here)
+    here = eased(route['was'], row, into, over) if isinstance(row, dict) else row(route, now)
+    down = next((k for k in range(route['row'] + 1, len(card)) if card[k][0] == SPENT_TO), None)
+    if ('spent' in holds and down is not None and isinstance(row, dict)
+            and 'fit' not in waits.split()):
+        route.update(row=down, at=now, was=here, holds=())
+    elif into >= seconds and set(waits.split()) <= set(holds) | set(route.get('holds', ())):
+        route.update(row=(route['row'] + 1) % len(card), at=now, was=here, holds=())
     else:
         return name, here
     name, row, _seconds, over, _waits = card[route['row']]
-    return name, eased(route['was'], row, 0.0, over)
+    return name, eased(route['was'], row, 0.0, over) if isinstance(row, dict) else row(route, now)
