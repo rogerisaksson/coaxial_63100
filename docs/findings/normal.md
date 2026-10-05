@@ -58,3 +58,17 @@ Her walk as built is in [walk](walk.md), the one law's in
   gait's name. The one law's: stiff 2.38, shuffling 0.78, still-hipped
   0.48, landing bent 0.45, tripping 0.42, wide 0.37 - on stilts, the
   user's word for it.
+- Asked in the same words (2026-10-05; the user: a middle layer that
+  blends, concepts as tuples; `style.MANNERS`, `look.py --manner`, the
+  body's 'manner' command). A manner is a line through the walk as
+  built's constants from where they are tuned, asked ((manner, amount),
+  ..) and summed: crouched 1 the standing knee at 24 deg - read back
+  crouched 0.56, Groucho's, 465 J/m where 434; at 15 deg no word yet.
+  Catwalk 1 the style's catwalk end - swaying 0.11, a catwalk; at 2,
+  swaying 0.75. Swagger 1 its other end - still-hipped 0.13. No line yet
+  for leaning, tripping and wide: her stride at 0.6 m fell at 6.6 s, her
+  feet 2 cm wider drew 1008 J/m, the pre-swing at 8 deg fell at 10 s,
+  her lean is her start's alone - the walk as built is as narrow an
+  optimum as the one law's. A walk into the wind, by four takes of one:
+  crouched 1.0-1.9, landing bent 1.5-2.5, tripping 0.9-1.1, wide
+  0.5-0.8, leaning 0.4-1.2 - the trunk 8-22 deg ahead -, slow.

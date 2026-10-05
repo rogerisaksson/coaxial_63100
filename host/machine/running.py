@@ -101,8 +101,8 @@ def _run(commands, states, cadence, local, pace_asked):
                     event = [command['event'], LEAD]
                 if 'style' in command:
                     style.trim(*command['style'])
-                if 'sway' in command:
-                    style.sway(command['sway'])
+                for key in {'sway', 'manner'} & set(command):
+                    getattr(style, key)(command[key])
                 if command.get('restart') or 'rig' in command or again:
                     begin()
                     wall0, sim0 = time.perf_counter(), bus['t']
@@ -199,8 +199,8 @@ class Running:
         {'befall': (one of `events.STANDING`, k)}: on her now | {'rig': one of them or
         None}: landed anew on it, standing | {'style': (knob, steps)}: a knob of
         `machine.style` trimmed, the walk eased over to it | {'sway': s}: every knob at s on
-        `style.SWAY`'s axis, -1 catwalk to 1 swagger | {'restart': True}: landed in the squat
-        again."""
+        `style.SWAY`'s axis, -1 catwalk to 1 swagger | {'manner': ((manner, amount), ..)}: her
+        walk in `style.MANNERS`' concepts | {'restart': True}: landed in the squat again."""
         self._commands.put(command)
 
     def latest(self, into=None):

@@ -55,6 +55,7 @@ BAND = (
     ('elbow', 'deg', 5.0, 45.0),
     ('arm', 'deg', 15.0, 65.0),
     ('hand out', 'leg', 0.08, 0.28),
+    ('trunk lean', 'deg', -5.0, 9.0),
     ('pelvis roll', 'deg', 5.0, 15.0),
     ('pelvis turn', 'deg', 4.0, 22.0),
     ('pelvis bob', 'leg', 0.02, 0.07),
@@ -84,6 +85,8 @@ WORDS = (
     ('swinging', (('arm', 1), ('elbow', 1), ('knee swinging', 1))),
     ('shuffling', (('stance', 1), ('toes up at landing', -1), ('heel at lift', -1))),
     ('flying', (('vault', -1),)),
+    ('leaning', (('trunk lean', 1),)),
+    ('leaning back', (('trunk lean', -1),)),
     ('slow', (('pace', -1),)),
     ('brisk', (('pace', 1),)),
 )
@@ -142,7 +145,9 @@ def signals(times, joints):
         ahead = -ahead
     leg = float(np.mean([np.linalg.norm(j[s + 'Leg'] - j[s + 'UpLeg'], axis=1)
                          + np.linalg.norm(j[s + 'Foot'] - j[s + 'Leg'], axis=1) for s in SIDES]))
+    head = np.asarray(joints['Head'], float) - mid
     sig = {'mid': mid, 'side': side, 'height': mid[:, 1],
+           'lean': np.degrees(np.arctan2((head * ahead).sum(1), head[:, 1])),
            'roll': np.degrees(np.arcsin(np.clip(hips[:, 1] / np.linalg.norm(hips, axis=1), -1, 1))),
            'turn': np.degrees(np.arcsin(np.clip((flat * ahead).sum(1), -1.0, 1.0)))}
     for s, sign in zip(SIDES, (1.0, -1.0)):
@@ -226,6 +231,7 @@ def measured(times, joints):
                     ('elbow bent', sig['elbow' + s][a:b].mean()),
                     ('elbow', np.ptp(sig['elbow' + s][a:b])), ('arm', np.ptp(sig['arm' + s][a:b])),
                     ('hand out', sig['out' + s][a:b].mean() / leg),
+                    ('trunk lean', sig['lean'][a:b].mean()),
                     ('pelvis roll', np.ptp(sig['roll'][a:b])),
                     ('pelvis turn', np.ptp(sig['turn'][a:b])),
                     ('pelvis bob', np.ptp(sig['height'][a:o_land + 1]) / leg),

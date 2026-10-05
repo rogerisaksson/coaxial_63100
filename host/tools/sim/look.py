@@ -9,6 +9,7 @@ either way (`humanoid_keys.row`).
     python tools/sim/look.py --built                # the walk as built, the page's J
     python tools/sim/look.py --last                 # the newest recording
     python tools/sim/look.py --fbx build/walk.fbx   # her steady walk written a take (mocap.py)
+    python tools/sim/look.py --built --manner "crouched:0.5 catwalk:1"   # `style.MANNERS`
     python tools/sim/look.py --csv build/recordings/humanoid_20260928_070724.csv
     python tools/sim/look.py SOFT_KNEE=6            # a knob moved (tools/sim/gait_montecarlo)
     python tools/sim/look.py --to 24 --halt 15      # halted at 15 s: 11 halt, 12 settle, ..
@@ -48,7 +49,7 @@ LEG_KINDS = ('hip_yaw', 'hip_roll', 'hip', 'knee', 'ankle', 'ankle_roll')
 
 
 def simulated(to_s, values, cadence=0.85, halt_s=None, event=None, event_s=EVENT_S, pushes=(),
-              stand=None, pace=None):
+              stand=None, pace=None, manner=()):
     """The rows from the squat, `to_s` seconds, the director as the page runs her - `pace` the
     row asked of her way on the one law (`machine.pace`), None the walk as built; halted at
     `halt_s`, an `event` laid from `event_s` (`machine.events`), pushed at each of `pushes` (s)
@@ -65,7 +66,8 @@ def simulated(to_s, values, cadence=0.85, halt_s=None, event=None, event_s=EVENT
         peak, kp, kd, armature = physics.SERVO[kind]
         physics.SERVO[kind] = (peak, kp * gain, kd * math.sqrt(gain), armature)
     knobs.set_(values)
-    from machine import Machine, events
+    from machine import Machine, events, style
+    style.manner(manner)
     from machine.director import Director
     from machine.figure import SEGMENTS
     from machine.modes import DYNAMIC
@@ -230,6 +232,8 @@ def main(argv=None):
     parser.add_argument('--brief', action='store_true',
                         help="the stages in a line and the walk's measures: no tables")
     parser.add_argument('--fbx', help='her steady walk written a take here (`fbx.wrote`)')
+    parser.add_argument('--manner', default='', help='"manner:amount ..": the walk as built in '
+                        "`style.MANNERS`' concepts")
     parser.add_argument('knobs', nargs='*', metavar='NAME=V', help='constants moved')
     args = parser.parse_args(argv)
     found = glob.glob(os.path.join(REPO, 'build', 'recordings', '*.csv')) if args.last else []
@@ -240,7 +244,8 @@ def main(argv=None):
     values = {k: float(v) for k, v in (kv.split('=') for kv in args.knobs)}
     rows = recorded(path) if path else simulated(
         args.to, values, args.cadence, args.halt, args.event, args.event_at, args.push,
-        args.stand, None if args.built or args.halt or args.event else args.pace)
+        args.stand, None if args.built or args.halt or args.event else args.pace,
+        tuple((m.split(':')[0], float(m.split(':')[1])) for m in args.manner.split()))
     print(path or 'simulated from the squat, %.1f s %s' % (
         args.to, ' '.join(args.knobs)))
     groups, ref = staged(rows)

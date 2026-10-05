@@ -4,6 +4,7 @@
     style.state()                 # {name: value} of every knob
     style.trim('turn', +1)        # a step up, within its bounds
     style.sway(-0.5)              # every knob half way to the catwalk (`SWAY`)
+    style.manner((('crouched', 0.5), ('catwalk', 1.0)))   # concepts and how much of each
 
 The HUMANOID page trims them (`running`'s 'style' command), a controller the same way; each is a
 constant of the module that owns it, so `look.py NAME=V` and the Monte Carlo move them too.
@@ -32,6 +33,21 @@ SWAY = {'turn': (8.0, 4.0, 5.0), 'drop': (7.0, 6.0, 4.0), 'shift': (0.014, 0.010
 #: Where on it she walks.
 AXIS = 0.0
 
+#: Her walk's manners (the user, 2026-10-05: a middle layer that blends, concepts as tuples): a
+#: manner a line through the walk's constants from where they are tuned - (module, constant,
+#: its value at an amount of 1) -, asked as ((manner, amount), ..) and their offsets summed.
+#: Read back in `tools.sim.normal`'s words: crouched 1, her standing knee 24 deg - crouched
+#: 0.56, Groucho's, at 465 J/m; catwalk 1 `SWAY`'s end - swaying 0.11, and 0.75 at 2 -, a
+#: catwalk; swagger 1 its other end. Leaning, tripping and wide have no line yet: her stride
+#: at 0.6 m fell at 6.6 s, her feet 2 cm wider drew 1008 J/m, her lean is her start's alone.
+MANNERS = {'crouched': ((gait, 'KNEE_SOFT_DEG', 24.0),),
+           'catwalk': tuple(_BY[name][1:3] + (v[0],) for name, v in SWAY.items()),
+           'swagger': tuple(_BY[name][1:3] + (v[2],) for name, v in SWAY.items())}
+#: Each constant a manner moves, as tuned; the manners she walks in.
+TUNED = {(module, constant): float(getattr(module, constant))
+         for line in MANNERS.values() for module, constant, _at_one in line}
+ASKED = ()
+
 
 def value(name):
     _n, module, constant = _BY[name][:3]
@@ -58,6 +74,24 @@ def trim(name, steps):
 def state():
     """{name: value} of every knob."""
     return {name: value(name) for name in NAMES}
+
+
+def manner(asked):
+    """Her walk as `asked`, ((manner, amount), ..): each constant a manner moves at its tuned
+    value and every manner's offset times its amount, a knob's within its bounds; the plan
+    eased over (`walkplan.retable`). () is the walk as tuned."""
+    global ASKED
+    moved = dict(TUNED)
+    for name, amount in asked:
+        for module, constant, at_one in MANNERS[name]:
+            moved[module, constant] += amount * (at_one - TUNED[module, constant])
+    bounds = {(k[1], k[2]): k[4:6] for k in KNOBS}
+    for (module, constant), v in moved.items():
+        low, high = bounds.get((module, constant), (-1e9, 1e9))
+        setattr(module, constant, max(low, min(high, v)))
+    walkplan.retable()
+    ASKED = tuple((name, float(amount)) for name, amount in asked)
+    return ASKED
 
 
 def sway(s):

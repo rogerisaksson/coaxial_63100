@@ -166,9 +166,35 @@ def test_her_walk_beside_a_womans(report):
                  ', '.join(named) or 'no gait named')
 
 
+#: Her manners asked (`style.MANNERS`) and what her walk is then, measured: (asked, the gait
+#: `normal.named` has it).
+MANNERS = (((('crouched', 1.0),), "Groucho's"), ((('catwalk', 2.0),), 'a catwalk'))
+
+
+def test_her_manners_answer_their_words(report):
+    """A concept asked of her walk is read back off it: crouched, Groucho's; a catwalk, one -
+    and she walks on. Her walk as tuned is neither."""
+    from machine import style
+    from tools.sim import fbx, look, normal, strides
+    try:
+        for asked, gait in MANNERS:
+            rows = look.simulated(TAKE_S, {}, manner=asked)
+            walk = strides.steady(rows)
+            named = normal.named(normal.measured(*fbx.joints(walk))) if len(walk) > 60 else []
+            report.check('asked %s she walks on, %s' % (
+                ', '.join('%s %g' % m for m in asked), gait),
+                rows[-1]['stage'] == 'walk' and gait in named,
+                '%s; %s' % (rows[-1]['stage'], ', '.join(named) or 'no gait named'))
+    finally:
+        style.manner(())
+    named = normal.named(normal.measured(*fbx.joints(_steady())))
+    report.check("as tuned neither Groucho's nor a catwalk",
+                 not set(named) & {"Groucho's", 'a catwalk'}, ', '.join(named) or 'no gait named')
+
+
 ROSTER = [test_her_walk_holds_its_form, test_gone_back_she_walks_the_same,
           test_from_the_squat_she_walks_off_unparried, test_her_walk_is_its_take,
-          test_her_walk_beside_a_womans]
+          test_her_walk_beside_a_womans, test_her_manners_answer_their_words]
 
 
 def main(argv=None):

@@ -278,10 +278,10 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
     on a chair one leg over the other, up and the sequence again; each a row or
     a keyframe, a track its choreography. DOD: twice round on the page, no
     fall.
-31. **A language for how she moves** (the user, 2026-10-05: stiff, Groucho,
-    catwalk, run, sit, rise each on a reference, transitions too). In:
-    `normal.WORDS`. DOD: a row's setpoints answering each word; sitting and
-    rising; a passage judged against a take's.
+31. **A language for how she moves** (the user, 2026-10-05: each concept on a
+    reference, asked as tuples). In: `normal.WORDS`, `style.MANNERS`. DOD:
+    leaning, tripping, wide asked too, on the law's row; sitting, rising; a
+    passage judged against a take's.
 
 ## Bench
 
