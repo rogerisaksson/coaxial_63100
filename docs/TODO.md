@@ -54,16 +54,15 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
    25 or 27 - a kneel is no fall, and is called one (item 15); at a
    stance knee of 4.5, her recordings' (2-5 deg, to -3), she parries 5
    times in three strides at 1.0 strides/s; the stride 0.75 m where a
-   woman's is 1.29 at the same 0.85 a second; her start from standing (a
-   halt's) is on an edge, 1 of 6 a side gain 0.3 % apart down and 2
-   parried; her speed is her own, 0.96 m/s at 1.0 strides/s where the
-   plan has 0.83, 581 W; `looks.PARRIES` 3 since CI's runner parried
+   woman's is 1.29 at the same 0.85 a second; her speed is her own, 0.96
+   m/s at 1.0 strides/s where the plan has 0.83, 581 W, and begun
+   standing and glided to 1.02 she falls in 1 start of 6; `looks.PARRIES` 3 since CI's runner parried
    twice in a spread at 4 cm; at 0.65 strides/s the swinging foot clears
    the floor by 0.1 mm. DOD: a spread's parries at 1 or under on any
    host; her starts clean, standing and from the squat, over a spread of
-   side gains, the roll's peak at 0.27 - the first step taken once her
-   capture point is over the standing sole, not on a clock
-   (docs/findings/balance.md); her speed within 5 % of her
+   side gains, the roll's peak at 0.27 (5 gains of 6 from the squat since
+   the lean leads the shift, docs/findings/balance.md); her speed within
+   5 % of her
    plan's at 1.0 strides/s; `looks.FORM`'s landing knee at 15; test_gynoid_gait.py asserting fewer J/m than the same walk
    crouched to 12, 18, 24 and 30 deg at each pace; the stance knee at 4.5
    or on its stop; the stride at 1.0 m or over.

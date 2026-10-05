@@ -256,3 +256,12 @@ shoves, the scoreboard and its searches. The board's own are in
   standing and from the squat; over 0.9 s (`SHIFT_S`) the standing ones
   hold, 0-10 parries, from the squat still down: a shift on a clock
   overshoots the sole, as on 2026-09-26.
+- The lean before the shift (2026-10-05, `arrival.keyframes`): leant on
+  both feet, then onto the left, the foot lifted as her weight comes over
+  it, the capture point 24-28 mm inside the standing ball at the lift
+  where 35. Of 30 starts, standing and from the squat, 6 side gains 0.3 %
+  apart: 29 with no parry and 1 down - begun standing, glided to 1.02
+  strides/s - where 21, 3 down and 6 parried. The events held 48 of 90 as
+  before; shoved down at 1.0 strides/s she is up and walking 22.5 s on.
+  With the roll's peak at 0.27 the standing starts all clean, from the
+  squat 1 gain of 6 parries, 27-33 times.

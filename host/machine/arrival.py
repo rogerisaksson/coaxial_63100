@@ -6,9 +6,9 @@
 
 Keyframes in the task space - the pelvis and its tilt, each ankle and its foot's pitch, the
 spine, head and arms - eased from one to the next, the legs by IK; her centre of mass held to
-each keyframe's own, the pelvis's target moved against its error. She rises over her feet, shifts
-onto the left and swings the right a short step ahead: `ready` for `machine.walker` at the
-landing. On a knee, four points on the floor fought the feedback and threw her; from a squat her
+each keyframe's own, the pelvis's target moved against its error. She rises over her feet, leans
+on, shifts onto the left and swings the right a short step ahead as her weight comes over it:
+`ready` for `machine.walker` at the landing. On a knee, four points on the floor fought the feedback and threw her; from a squat her
 feet carry her (2026-09-25).
 """
 import math
@@ -46,7 +46,11 @@ FEET_Z = (gait.BALL - gait.HEEL) / 2.0
 #: the first step (2026-09-26). At 3.5 cm the stance hip rolled -4.4 degrees, at 5.5 -2.5;
 #: perturbed starts held 15, 14 of 16, at 6.5 6 of 10, at 7.5 1 (2026-09-28). Hips 190 mm apart
 #: and heavier shanks: 5.5 and 1.5 held 3 of 9 drops into the squat, 4.5 and 2.5 8 (2026-10-02);
-#: retuned (`physics.STAGED`).
+#: retuned (`physics.STAGED`). The shift is her last move before the foot lifts, the lean before
+#: it: shifted first, through the lean her weight came back - 140 N a foot where 230 and 50 -
+#: and the foot lifted with the capture point 35 mm inside the standing ball, where 24-28; of
+#: 30 starts, standing and from the squat, 6 side gains 0.3 % apart, 3 fell and 6 parried,
+#: where none of either (2026-10-05).
 SHIFT_IN, LIFT_IN = 0.0428292, 0.027228
 
 #: Risen, the knees soft as the stand's (`gait.STAND_KNEE`); the pelvis SINK_M lower as her weight
@@ -73,7 +77,7 @@ RISE_MID, RISE_MID_S = 0.8, 0.85
 SQUAT_S, LOOK_S, PUSH_S, RISE_S, STAND_S, SHIFT_S = 0.4, 0.2, 0.65, 1.3, 0.05, 0.6
 
 #: Before the right foot lifts her weight is brought LEAN_M ahead of the ankles over LEAN_S s -
-#: she leans forward, then steps - and LIFT_ON_M further as the foot lifts LIFT_UP_M over
+#: she leans on both feet, shifts, then steps - and LIFT_ON_M on as the foot lifts LIFT_UP_M over
 #: LIFT_S: falling on over the left foot's ball as the walk takes her. Brought forward as the
 #: foot lifted, the pelvis tipped back 2 deg then 5 forward; handed on still 2 cm further she
 #: tipped backwards, landing 16 cm out, the next step 20 (2026-09-27). The torso straight till
@@ -191,8 +195,8 @@ def keyframes(cadence=gait.CADENCE, stand_s=0.0) -> list[tuple[str, float, dict[
                                  right_elbow=10.0, right_gripper=18.0, left_shoulder=0.0,
                                  left_elbow=10.0, left_wrist=5.0, left_gripper=18.0)),
                 0.0, FEET_Z)
-    shift = over(rise, FEET_X - SHIFT_IN, FEET_Z)
-    lean = over(shift, FEET_X - SHIFT_IN, LEAN_M)
+    lean = over(rise, 0.0, LEAN_M)
+    shift = over(lean, FEET_X - SHIFT_IN, LEAN_M)
     # The right foot lifted and swung half a step while her weight goes on over the left foot's
     # ball; the walker takes her on from there, mid-swing, at the phase her lean says
     # (`Walker.begin`), and lands the foot as the walk lands it. Set down first in the walk's
@@ -200,14 +204,14 @@ def keyframes(cadence=gait.CADENCE, stand_s=0.0) -> list[tuple[str, float, dict[
     # walk tipped both feet at once and she hopped (2026-09-25); set down from a lean, she hopped
     # off the left leg (2026-09-27).
     half = 0.5 * gait.STRIDE_M * FIRST * gait.pace(cadence) * gait.STANCE_AT
-    lifted = soft(dict(lean, right=((-FEET_X, gait.ANKLE_H + LIFT_UP_M, half), 0.0), fall=1.0,
+    lifted = soft(dict(shift, right=((-FEET_X, gait.ANKLE_H + LIFT_UP_M, half), 0.0), fall=1.0,
                        tilt=gait.LEAN_DEG,
-                       joints=dict(lean['joints'], neck=lean['joints']['neck'] - gait.LEAN_DEG)),
+                       joints=dict(shift['joints'], neck=shift['joints']['neck'] - gait.LEAN_DEG)),
                   'left', SOFT_KNEE, FEET_X - LIFT_IN, LEAN_M + LIFT_ON_M)
     return [('squat', 0.0, squat), ('squat', SQUAT_S, squat), ('look', LOOK_S, look),
             ('push', PUSH_S, push), ('rise', RISE_MID_S, rising), ('rise', RISE_S - RISE_MID_S, rise),
-            ('stand', STAND_S + stand_s, rise), ('shift', SHIFT_S, shift),
-            ('lean', LEAN_S, lean), ('step', LIFT_S, lifted), ('ready', 1e9, lifted)]
+            ('stand', STAND_S + stand_s, rise), ('lean', LEAN_S, lean),
+            ('shift', SHIFT_S, shift), ('step', LIFT_S, lifted), ('ready', 1e9, lifted)]
 
 
 def moved(frame, dx, dz, yaw=0.0, dy=0.0) -> dict[str, Any]:
