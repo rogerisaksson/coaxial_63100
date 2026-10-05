@@ -257,19 +257,18 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
 28. **One law for her going, S and F on it** (the user, 2026-10-05: no scenario
     a moment; balance automatic over a second at most, intent a stream of
     setpoints; "balance point", "clearance", "interference"). In, off the page
-    (`machine/going.py`, `tools/sim/go.py`, docs/findings/going.md): a gait a
-    row of 16 setpoints - the walk's found on the scoreboard's price, 0.95 m/s
-    at 366 J/m with a foot always down, the run's the runner's, one between.
-    Left: her passage on any timing - walk, run and walk again on 2 of 10, into
-    the run at 1.56-1.93 m/s for 1.5, her speed unheld (0.99 for 0.76); her
-    form on it, priced 92, its fourth digit chance - the pelvis's roll over the
-    stance leg 0.6 deg where 3, her head's bob 34 mm, a strike 483 N; her
-    stand, start and stop on it - in the lab all three on 1 timing of 4, her
-    first steps the weak place; her turns and parries; the runner and the
-    walk's modules gone into it. DOD: the one law stands, walks, runs and
-    passes between on its setpoints alone, 10 of 10 over a spread; her walk on
-    it on `looks.FORM` at no more J/m; F to her fastest run and S back on the
-    page.
+    (`machine/going.py`, `hold.py`, `tools/sim/go.py`, docs/findings/going.md):
+    a gait a row of 16 setpoints; on them alone she stands, is asked on, walks
+    0.75-0.81 m/s at 380-397 J/m - slower as asked - and stands again, 10
+    timings of 10; her jog the run's row at the walk's speed, from her walk 8
+    of 8. Left: back from her jog to her walk, 6 of 11, and on to the run, 2 of
+    4 - out of a walk her jog bounces 11 cm; a shove's parry - standing, the
+    page's 120 N fells her 8 of 8; her turns; her form, priced 72 - her toes
+    6.5 mm back at lift, her head 46 mm aside, the pelvis's roll 0.7 deg where
+    3; her rows found again from a stand; the runner and the walk's modules
+    gone into it. DOD: the one law stands, walks, runs and passes between on
+    its setpoints alone, 10 of 10 over a spread; her walk on it on `looks.FORM`
+    at no more J/m; F to her fastest run and S back on the page.
 29. **Her tubes, corners and flanges** (the user, 2026-10-05): carbon
     tubes cut to length, epoxied into printed corners; a gearbox on a
     flange, its output through it; motor, box and board outermost, a

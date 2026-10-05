@@ -13,7 +13,7 @@ import importlib
 MODULES = ('walker', 'gait', 'walkplan', 'landing', 'stance', 'arrival', 'director', 'falls', 'parry', 'dcm', 'bearing',
            'getup', 'observer',
            'capture', 'physics', 'mjcf', 'build', 'buses', 'events', 'drives', 'stand', 'floor',
-           'figure', 'runner', 'going', 'gaits')
+           'figure', 'runner', 'going', 'gaits', 'hold', 'strut')
 
 
 def _modules():

@@ -1,10 +1,11 @@
 # Findings: her going on one law
 
-The gynoid's walk and run as the setpoints of one law (`machine/going.py`
-over `machine/gaits.py`, `tools/sim/go.py`; the user's, 2026-10-05): what
-the law is, what a walk asked of it, what it walks and runs at. The walk
-as built is in [walk](walk.md), the run in [run](run.md), the standing
-law in [standing](standing.md). Nothing of it is on the page.
+The gynoid's stand, walk and run as the setpoints of one law
+(`machine/going.py` over `gaits.py`, `hold.py` and `strut.py`,
+`tools/sim/go.py`; the user's, 2026-10-05): what the law is, what a walk
+and a stand asked of it, what it walks and runs at. The walk as built is
+in [walk](walk.md), the run in [run](run.md), the page's standing law in
+[standing](standing.md). Nothing of it is on the page.
 
 - The law (2026-10-05). A limb bears or is free. What bears carries the
   pelvis: its height the bounce's - from where and how fast she came down
@@ -72,7 +73,7 @@ law in [standing](standing.md). Nothing of it is on the page.
   walk, its price is chance: its numbers to three digits, the row in
   `gaits.WALK`, walk 0.95 m/s at 366 J/m priced 92, her toes 8.6 mm back
   at their lift where 1.9; to four digits another way, 0.87 m/s and a
-  stumble, 336. A row is now priced on three starts (`go.STARTS`).
+  stumble, 336.
 - From the walk's row to the run's and back, the rows mixed in a
   straight line over 4 s (2026-10-05): across both ways on her
   setpoints alone, and down 3.6 s into the run, 1.9 s into the walk; the
@@ -95,22 +96,72 @@ law in [standing](standing.md). Nothing of it is on the page.
   233 the median, 1.19 kW at 95 % and 1.93 at most - the walk as built
   peaks 4.1 kW at 0.65 m/s; the run's at 1.5 m/s 773 W, 705, 2.2 kW and
   4.0.
-- Her stand, start and stop on it (2026-10-05; in the lab,
-  `build/lab_going_stand.patch`). Her standing legs lean her toward where
-  her capture point is asked - over the middle of her feet as she stands,
-  ahead by the speed asked over the pendulum's rate as she goes - and a
-  foot leaves only as a step is due: she is asked on, or her capture
-  point is out of her feet's hold (`dcm.due`). Standing: 10 s on no step
-  with the pelvis asked 0.2 m a m of it or more, down at 3.3 s with none;
-  stopped on a wide stance her centre of mass crept 8 cm back in 4 s at
-  0.2 and a step fell due - at the page's 1.5 (`arrival.COM_K`) she
-  stands. Stood 2 s, asked on over 1 s, walking 7 s at 0.79 m/s for 0.76,
-  asked to a stand over 1 s and standing 11 s more: up, 22 s, on 1 timing
-  of 4; on the others down 2-6 s into her start, a first step 0.5 s long
-  and her capture point run off across. Her feet across from her centre
-  of mass's capture point, not her hip's: before, they fell short of it
-  and walked off after it. Asked onto her feet's line where it is
-  nearest, nothing held her along it: down at 5.1 s standing. Her calves
-  on it as she stands alone - going, their half a degree felled the walk
-  at 5.7 s. 288 settings of its eight constants over four timings: none
-  up on all.
+- Her stand on it, what her legs do (2026-10-05; `hold.py`). Her
+  standing legs lean her toward where her capture point is asked - over
+  the middle of her feet as she stands, ahead by the speed asked over
+  the pendulum's rate as she goes - and a foot leaves only as a step is
+  wanted: she is asked on, or her capture point is out of her feet's
+  hold (`dcm.due`). Standing: 10 s on no step with the pelvis asked 0.2
+  m a m of it or more, down at 3.3 s with none; asked onto her feet's
+  line where it is nearest, nothing held her along it, down at 5.1 s.
+  Her feet across from her centre of mass's capture point, not her
+  hip's: before, they fell short of it and walked off after it.
+- Across, her walk is the pendulum's (2026-10-05; `tools/sim/go.py`'s
+  steps traced): her steps 0.167 m wide (sd 6 mm), her capture point
+  0.037 m in from the standing ankle as the other foot leaves (sd 1 mm)
+  and 0.127 as it lands 0.40 s on - 3.3 a second from a centre of
+  pressure 4 mm in from the ankle. Of 192 rows about the walk's 133
+  fell, most within 4 s, all across: a foot down at its 11 cm clearance
+  left her capture point 0.09-0.11 m in from it, the next step 0.33-0.64
+  m wide on a swing of 0.5 s, the one after at the clearance again -
+  0.105, 0.332, 0.099, 0.641 m and down; slowed to 0.38 m/s, a swing
+  took 1.0 s.
+- A free foot due by her capture point across, and a foot's leave waited
+  for (2026-10-05). A foot is due, too, as her capture point has run as
+  far across from the standing one as a step's swing takes it from
+  `track`, e^(omega t); both feet down, her legs bring it to `track` in
+  from the foot that stays - across with both down alone: held over one
+  foot it stayed there, the free foot came down 11 cm from it and she
+  was off across at 1.5 m/s - and the other leaves as it is no further
+  in than that and 2 cm. Stood, asked on over 0.1-3 s, walked at
+  0.64-0.77 m/s, asked to a stand and stood, 20 s: 10 timings of 10
+  where 0 of 4 before, down in her stop at 15-17 s. Slower walks hold:
+  asked 0.19, 0.38 and 0.57 m/s she goes 0.13, 0.36 and 0.49, 20 s from
+  a stand and from her walk. Of 32 rows about the walk's, up 14 s on
+  three placings: 9 on the law as it was, 14 with her stand's hold, 19
+  with these.
+- Shoved on it (2026-10-05; `go.py --shove`, the page's 38 and 120 N for
+  0.12 s from eight ways). Standing, nudged: no step, 8 of 8, her speed
+  0.10 m/s at most and still in 1.7 s. Shoved: down on all 8 within 2 s,
+  0-4 steps - a step hardly going takes its swing's 0.48 s. Walking:
+  nudged up 7 of 8, shoved 5 of 8. As the standing reflex has it
+  (`machine.stand`: the foot that can land where her capture point goes,
+  on the ray through it, due as it has run): down on all 8 still, and
+  after a walk she stood on 2 timings of 10, 7-16 steps each - a foot
+  down on the ray leaves her capture point 2 cm from it, on the edge of
+  her hold, and steps again. Not in the law.
+- One rule for a walk's steps and a run's (2026-10-05). A foot leaves
+  `both` s after the other landed and, `both` under 0, by as much before
+  that one is due: the run's stance of `stand` s is the same rule. The
+  free foot is due the other's `step` on, and by where she is the more
+  both feet bear a step, in full from 0.05 s of it. The walk's row and
+  the run's go as before, 0.78 m/s at 397 J/m and 1.44 at 522.
+- Her jog (2026-10-05): the run's row at the walk's speed, the row her
+  way from walk to run passes. On its speed alone the run's row holds
+  0.54 m/s asked 0.6 (936 J/m), 0.74 asked 0.8 (704), 0.99 (602), 1.19
+  (547), 1.46 (521) - with her speed's gain twice a walk's where she
+  flies; on a walk's, asked 1.0 she ran 0.7 for 3 s, then away past 1.47
+  and down at 7.5 s. From her walk to her jog over a second: up 8
+  timings of 8; back to her walk 6 of 11, her steps 0.13-0.48 m long by
+  turns and a foot caught 0.13 s into its swing; on to the run 2 of 4.
+  Out of her walk her jog bounces 11 cm, the pelvis 0.826-0.940 m and
+  the knee to 79 deg, leaving the floor at 0.72-0.86 m/s where 0.49 is
+  asked, a step 0.43-0.54 s; asked faster she leaps further and is down.
+  A stance ended as she rises as asked: down at 1.0 s at any speed.
+- Tried on her stand and left out (2026-10-05). A swing's clock, a foot
+  due a step after the other landed at most: her walk settled at
+  0.59-0.61 m/s for 0.76, its knee landing at 28 deg. Her calves as on
+  the page (`arrival.CALF_DEG_M`), standing on both feet: a nudge's 0.08
+  m/s where 0.10, still in 1.1 s where 1.7 - and stood again after a
+  walk on 8 timings of 10, down 17-18 s in; on with every step hardly
+  going, 6 of 10.
