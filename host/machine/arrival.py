@@ -28,6 +28,15 @@ FEET_X = 0.08
 #: the flat rises 91.8 -> 78.5 % (2026-10-04).
 COM_K, COM_D, PULL_M, PULL_UP_M = 1.5, 0.15, 0.05, 0.15
 
+#: Standing, her calves take her sway (the user, 2026-10-05): both ankles asked CALF_DEG_M deg a
+#: m her capture point is ahead of where the keyframe has her centre of mass, CALF_DEG at most -
+#: an ankle's 26 N m/deg moves the pressure under her soles 17 cm a degree. Nudged 40 and 80 N
+#: for 0.1 s from behind it swung back 6 and 31 mm past its rest where 12 and 42 by the pelvis
+#: alone, still in 0.50 and 0.94 s where 0.54 and 1.36; the stand's scoreboard 89.0 % where 87.7,
+#: the staggered bricks 100 where 85.5. To 1 deg, 87.3 %; at 250 deg/m to 2.5 deg, 80 N from the
+#: front felled her (2026-10-05).
+CALF_DEG_M, CALF_DEG = 96.0, 0.5
+
 #: Entered moving, the first keyframe is reached slowing from her speed, within ENTER_S s.
 ENTER_S = (0.4, 1.5)
 
@@ -370,4 +379,10 @@ class Arrival:
         out['spine'] += walker.PLUMB * (frame['tilt']
                                         - math.degrees(math.atan2(local[2][1], local[1][1])))
         bearing.legs(self.borne, self.pinned, frame, turn, now, bus, dt, bool(self.stand_s), out)
+        if self.stage == 'stand':
+            reach = math.sqrt(max(0.3, bus['pelvis.pose.com_y']) / 9.81)
+            ahead = ((com[0] - want[0] + self.v[0] * reach) * way[0]
+                     + (com[1] - want[2] + self.v[1] * reach) * way[1])
+            for side, _sign in walkplan.SIDES:
+                out[side + '_ankle'] += max(-CALF_DEG, min(CALF_DEG, CALF_DEG_M * ahead))
         return out

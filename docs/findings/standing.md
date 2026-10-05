@@ -214,3 +214,16 @@ board's own are in [FINDINGS](../FINDINGS.md).
   share's rate at 0.1 m/s and falls at 0.3; from a side at 0.1 she falls
   and at 0.3 stands - at 5 ms and 0.3 both stand. The 120 N pushes are the
   rate's and the band's to find together.
+- Her calves in her stand (the user, 2026-10-05: nobody stands frozen -
+  calves, thighs and toes balance her in the small, the toes of little
+  use in a shoe; `arrival.CALF_DEG_M`). Untouched, her capture point
+  moved 0.0 mm a second. Nudged on the trunk for 0.1 s, its swing past
+  its rest and back, and when it is still: 40 N from behind +29/-12 mm
+  and 0.54 s by the pelvis alone, +26/-6 and 0.50 with both ankles asked
+  96 deg a m of it to half a degree; 80 N +72/-42 and 1.36 s, +70/-31
+  and 0.94; 40 N from the front +13/-36 and 0.61, +9/-31 and 0.53; 80 N
+  from the front a step either way. The stand's scoreboard 89.0 % where
+  87.7 (30 runs), the staggered bricks 100 where 85.5, her stir on the
+  nudges 0.03 mm where 0.05 and on the free rocker 0.09 where 0.32; to 1
+  deg 87.3 %, at 150 deg/m 87.6; the pelvis's own damping at 0.35-0.45 s
+  (`arrival.COM_D`) fell to 80 N from the front.

@@ -87,3 +87,7 @@ law in [standing](standing.md). Nothing of it is on the page.
 - In main (2026-10-05; her boards as built): the walk's row 12 s at 0.94
   m/s, 367 J/m drawn, 26 steps and both feet down at each; the run's
   1.46 m/s at 517. `go.py --search walk|between` is the search.
+- What it draws (2026-10-05): the walk's row at 0.96 m/s 352 W meaned,
+  233 the median, 1.19 kW at 95 % and 1.93 at most - the walk as built
+  peaks 4.1 kW at 0.65 m/s; the run's at 1.5 m/s 773 W, 705, 2.2 kW and
+  4.0.

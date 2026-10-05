@@ -203,3 +203,9 @@ were sized on, the candidates, and what the one stack leaves open
   user: it need not be longer, the FETs' safe area the worry). The model
   means a switch's loss over an electrical turn: stalled, one carries
   all of it.
+- What her walk draws (2026-10-05, her motors as bought; on the page the
+  user finds it natural, its momentary power fairly low, a fine flow at
+  the lower pace), from 2 s into it: at 0.65 strides/s (0.48 m/s) 193 W
+  meaned, 129 the median, 570 at 95 % and 2.66 kW at most - 7 rows of 591
+  over 1 kW -, 405 J/m; at 0.85 (0.65 m/s) 276 W, 177, 894 and 4.1 kW, 22
+  rows over 1 kW, 427 J/m.
