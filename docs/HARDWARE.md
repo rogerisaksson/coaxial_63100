@@ -132,3 +132,11 @@ numbers to the C. Observer steps 100 ms, NTC sampled every 30 s.
 - `host/coaxial/model/inverter.py` carries the power-stage constants traced from
   the LTspice submodule `electronic_simulations` (Q_RING assumed 1.0).
 - `render/models/coaxial_63100.stl`: 100 mm disc, 10 mm bore.
+- `electronic_simulations/3d_models/Coaxial 63100.glb` (2026-10-05; Draco,
+  2 630 parts, read by their bounds): the laminate 100 mm round, 1.59 mm;
+  parts 10.8 mm over it (one of 10.4 x 13.7 mm at r 27 mm, a header 9.3)
+  and 2.3 under, 14.7 mm in all. Five 11.5 mm terminals through it at r
+  40-43 mm, 7.1 mm up: the phases' three side by side, the supply's two a
+  quarter turn on; two 4.6 x 6.8 mm parts beside each phase's, r 34-45 mm.
+  The power on the rim, the MCU inside 70 mm; the parts' boxes 4 338 mm^2
+  on top, 860 under - a 70 mm disc is 3 848 a side.

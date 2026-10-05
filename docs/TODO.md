@@ -31,65 +31,52 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
    extended and goes on past the plumb line; the Groucho walk is left to
    the others; a biped on straight legs draws less than one crouched, and
    moving its legs does not change that). Back since 2026-10-05
-   (`stance.rolled`, `stance.carrying`; docs/findings/walk.md): her knee 7
-   deg while her foot bears her alone behind the plumb line where 16.7, no
-   parry at 0.65-1.0 strides/s, steady or from the squat, 393, 384 and 604
-   J/m where 561, 885 and 608; held by test_gynoid_gait.py (`looks.FORM`),
-   smoked on the armada
-   (`tools/sim/armada.py`, 12 s); the scoreboard's twelve walks on their
-   form, begun as the director begins her, and no parry from the squat
-   over a spread of side gains (`capture.CATCH` 7 cm;
-   docs/findings/balance.md). Left: her knee lands at 25-28 deg (1-3
-   on a take of a woman's, 24 on the walk approved 2026-10-03) and is
-   straightened under her weight, hip and knee 620 W over a tenth of the
-   stride - 23 mm of leg, 12 the pelvis's roll, low on the landing side
-   at touchdown, 8 her sag under the trailing ankle; the roll's peak at
-   0.27 of the stride lands it at 21-24 and takes her head's bob to 8 mm,
-   steady, and her starts from the squat parry with it; crouched she
-   still walks for less - 371 J/m at a stance knee of
-   12 deg against 398 at 6, at 1.0 strides/s 462 at 24 against 609 -, the
-   knee's stop at -5 deg unused, the leg held off it by its drive; sat
-   back limp out of her crouch, shoved past saving, her head meets the
-   floor at 1.6-4.0 m/s in 1 or 2 falls of 16 at a pre-swing knee of 23,
-   25 or 27 - a kneel is no fall, and is called one (item 15); at a
-   stance knee of 4.5, her recordings' (2-5 deg, to -3), she parries 5
-   times in three strides at 1.0 strides/s; the stride 0.75 m where a
-   woman's is 1.29 at the same 0.85 a second; her speed is her own, 0.96
-   m/s at 1.0 strides/s where the plan has 0.83, 581 W, and begun
-   standing and glided to 1.02 she falls in 1 start of 6; `looks.PARRIES` 3 since CI's runner parried
+   (`stance.rolled`, `stance.carrying`), held by test_gynoid_gait.py
+   (`looks.FORM`), smoked on the armada; its numbers in
+   docs/findings/walk.md and balance.md. Left: her knee lands at 25-28
+   deg (24 on the walk approved 2026-10-03) and is straightened under her
+   weight - the roll's peak at 0.27 of the stride lands it at 21-24, and
+   her starts from the squat parry with it; crouched she still walks for
+   less, 371 J/m at a stance knee of 12 deg against 398 at 6; the knee's
+   stop at -5 deg unused, the leg held off it by its drive; a kneel is
+   called a fall (item 15); at a stance knee of 4.5, her recordings', she
+   parries 5 times in three strides at 1.0 strides/s; the stride 0.75 m
+   where a woman's is 1.29; her speed is her own, 0.96 m/s at 1.0
+   strides/s where the plan has 0.83, and glided to 1.02 from standing
+   she falls in 1 start of 6; `looks.PARRIES` 3 since CI's runner parried
    twice in a spread at 4 cm; at 0.65 strides/s the swinging foot clears
    the floor by 0.1 mm. DOD: a spread's parries at 1 or under on any
    host; her starts clean, standing and from the squat, over a spread of
-   side gains, the roll's peak at 0.27 (5 gains of 6 from the squat since
-   the lean leads the shift, docs/findings/balance.md); her speed within
-   5 % of her
-   plan's at 1.0 strides/s; `looks.FORM`'s landing knee at 15; test_gynoid_gait.py asserting fewer J/m than the same walk
-   crouched to 12, 18, 24 and 30 deg at each pace; the stance knee at 4.5
-   or on its stop; the stride at 1.0 m or over.
+   side gains, the roll's peak at 0.27; her speed within 5 % of her
+   plan's at 1.0 strides/s; `looks.FORM`'s landing knee at 15;
+   test_gynoid_gait.py asserting fewer J/m than the same walk crouched to
+   12, 18, 24 and 30 deg at each pace; the stance knee at 4.5 or on its
+   stop; the stride at 1.0 m or over.
 2. **The leg stack on the run** (the user, 2026-10-04: the most simplicity,
    the fewest gearbox and electronics variants). One stack on every drive
    since 2026-10-05 (docs/DIMENSIONS.md, docs/findings/stacks.md): 60 x 20
-   mm at KV 90, a 64 mm box at 1:30, a 70 mm 50 A inverter; 21 of each, 20
-   part types, her 28.4 kg; T 0.87 at the hip and under it everywhere at
-   1.5x (the walk of 2026-10-05). Left: the hips', knees' and spine's peaks are its 124 N m clamp (A
-   1.50, P 1.24-1.35, S 1.45) - the margin as the clamp, every servo's its
-   drive's peak / 1.5, rose and walked as far and held 81.7 % of the
-   scoreboard against 83.7 on a 16 mm stack; the knee's parry 1007 deg/s,
-   1.17 of KV 90's at 48 V - the pack's lowest volts and the KV; her get-up
-   on it is 2 keyframe sets of 96 searched, the rest leaving her down -
-   the crouch solved for her centre of mass over her feet, not a pose
-   searched on a build; a fall asked a knee's box 763 N m of its 128
-   (item 7); the 70 mm inverter is an estimate from the 63100's, itself on
-   no joint; every inverter in its own stack stands the elbow 8 mm past
-   her shell (four stand apart, `drives.BOARDS`); the elbow, the neck and
-   the head feel their rotors 7.8, 2.9 and 33 times their loads on the
-   1:30 box - a belt stage 1:4-1:6 in its place, decided 2026-10-04,
-   pending a ratio a stack (`drives.RATIO` is one for all); the governor
-   on the setpoints, 911 and 61.0 % of the scoreboard - its form; the
-   example of a row for docs/DIMENSIONS.md did not arrive. DOD: every leg
-   joint's A, P, T and V under 1 on the run and the gym's scenes at the
-   settled margin, no joint's J over 1; the pack's volts, the KV and the
-   stages baked.
+   mm at KV 90, a 64 mm box at 1:30, a 70 mm 50 A inverter; T 0.87 at the
+   hip at 1.5x on the walk. Left: the hips', knees' and spine's peaks are
+   its 124 N m clamp (A 1.50, P 1.24-1.35, S 1.45); the knee's parry 1007
+   deg/s, 1.17 of KV 90's at 48 V - the pack's lowest volts and the KV;
+   her get-up on it is 2 keyframe sets of 96 searched - the crouch solved
+   for her centre of mass over her feet, not a pose searched on a build;
+   a fall asked a knee's box 763 N m of its 128 (item 11); the 70 mm
+   inverter is an estimate from the 63100's, itself on no joint, 10 mm
+   thick in a stack and 12 apart (`skeleton.BOARD_T`) where the 63100 is
+   14.7 by its model (docs/HARDWARE.md); her boards' types - one, two or
+   three (the user, 2026-10-05: the 63100's 100 mm, 63 V and 100 A stands
+   ready, a smaller and a still smaller thought of; one or two is the
+   aim, the run's demand decides); every inverter in its own stack stands
+   the elbow 8 mm past her shell (four stand apart, `drives.BOARDS`); the
+   elbow, the neck and the head feel their rotors 7.8, 2.9 and 33 times
+   their loads on the 1:30 box - a belt stage 1:4-1:6 in its place,
+   decided 2026-10-04, pending a ratio a stack; the governor on the
+   setpoints, 911 and 61.0 % of the scoreboard - its form; the example of
+   a row for docs/DIMENSIONS.md did not arrive. DOD: every leg joint's A,
+   P, T and V under 1 on the run and the gym's scenes at the settled
+   margin, no joint's J over 1; the pack's volts, the KV and the stages
+   baked; her boards' types settled.
 3. **Balance by micro-steps, as on stilts** (the user, 2026-10-04): the
    support a point under each stance ball, nothing of the sole's shape to
    the controller, a small quick step toward the capture point whenever it
