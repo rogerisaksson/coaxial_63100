@@ -1,4 +1,4 @@
-/** startup_boot.s - Bootloader reset: stack, FPU, code to ITCM, data to DTCM, main(). */
+/** startup_boot.s - Bootloader reset: stack, supply, FPU, code to ITCM, data to DTCM, main(). */
 
   .syntax unified
   .cpu cortex-m7
@@ -22,6 +22,20 @@
   .type  Reset_Handler, %function
 Reset_Handler:
   ldr   sp, =_estack
+
+/* The supply, the application's: the LDO. PWR_CR3's low byte is written once
+   after power-on, before RAM is written or VOS and the clock move (RM0433
+   6.4.1, 6.8.4); locked since, this writes nothing. Then ACTVOSRDY. */
+  ldr   r0, =0x5802480C
+  ldr   r1, [r0]
+  bic   r1, r1, #0x07
+  orr   r1, r1, #0x02
+  str   r1, [r0]
+  ldr   r0, =0x58024804
+WaitSupply:
+  ldr   r1, [r0]
+  tst   r1, #(1 << 13)
+  beq   WaitSupply
 
 /* The FPU: CPACR grants CP10 and CP11 full access. The toolchain's ABI is
    hard-float, and a compiler may move 64-bit data through the VFP even

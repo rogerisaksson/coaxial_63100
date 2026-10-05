@@ -161,8 +161,8 @@ static void dwt_init(void)
 
 static void clocks_up(void)
 {
-  /* The LDO, as reset left it, settled; then VOS1 - one scale up from VOS3,
-     so APB may run at 80 MHz. */
+  /* The LDO, as the startup configured it, settled; then VOS1 - one scale up
+     from VOS3, so APB may run at 80 MHz. */
   while ((PWR->CSR1 & PWR_CSR1_ACTVOSRDY) == 0U) {}
   PWR->D3CR = (PWR->D3CR & ~PWR_D3CR_VOS_Msk) | PWR_D3CR_VOS_1 | PWR_D3CR_VOS_0;
   while ((PWR->D3CR & PWR_D3CR_VOSRDY) == 0U) {}
@@ -189,8 +189,6 @@ static void clocks_up(void)
   RCC->CFGR = (RCC->CFGR & ~RCC_CFGR_SW_Msk) | RCC_CFGR_SW_PLL1;
   while ((RCC->CFGR & RCC_CFGR_SWS_Msk) != RCC_CFGR_SWS_PLL1) {}
 
-  RCC->AHB4ENR |= RCC_AHB4ENR_GPIOAEN | RCC_AHB4ENR_GPIOBEN | RCC_AHB4ENR_GPIOCEN
-                  | RCC_AHB4ENR_GPIODEN | RCC_AHB4ENR_GPIOEEN;
   /* D2 SRAM, where the application runs - left on through the jump. */
   RCC->AHB2ENR |= RCC_AHB2ENR_SRAM1EN | RCC_AHB2ENR_SRAM2EN | RCC_AHB2ENR_SRAM3EN;
   (void)RCC->AHB2ENR;
@@ -231,6 +229,9 @@ static void pin_set(GPIO_TypeDef *port, uint8_t pin, bool high)
 
 static void pins_up(const board_t *b)
 {
+  RCC->AHB4ENR |= RCC_AHB4ENR_GPIOAEN | RCC_AHB4ENR_GPIOBEN | RCC_AHB4ENR_GPIOCEN
+                  | RCC_AHB4ENR_GPIODEN | RCC_AHB4ENR_GPIOEEN;
+  (void)RCC->AHB4ENR;
   for (uint32_t i = 0U; i < b->count; i++)
   {
     const pin_t *p = &b->pins[i];
@@ -580,12 +581,7 @@ static void jump(void)
 {
   const uint32_t *vectors = (const uint32_t *)BOOT_RUN_BASE;
 
-  boot_hand.magic = BOOT_HAND_MAGIC;
-  boot_hand.stay = 0U;
-  boot_hand.unit = boot_unit();
-  boot_hand.position = boot_position();
-  boot_hand.flags = boot_flags();
-  boot_image(&boot_hand.bytes, &boot_hand.crc);
+  boot_hand_over(&boot_hand);
   clocks_down();
   __DSB();
   __ISB();
@@ -619,8 +615,8 @@ int main(void)
 {
   s.board = board_of(BOOT_BOARD);
   dwt_init();
+  pins_up(s.board);            /* on HSI: a crystal that never starts leaves the gates driven */
   clocks_up();
-  pins_up(s.board);
   usart_up(s.board->rs485[0], BOOT_BAUD, true);
   usart_up(s.board->rs485[1], BOOT_BAUD, true);
   usart_up(s.board->console, CONSOLE_BAUD, false);

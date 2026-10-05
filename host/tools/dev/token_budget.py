@@ -37,7 +37,6 @@ HEAVY = {
     'thermal/src/thermal.c': 8500,
     'host/machine/physics.py': 7500,
     'board/native/native.c': 7600,
-    'host/tests/test_boot_core.py': 7400,
     'host/tests/test_conformance.py': 7400,
     'host/tests/test_modbus_core.py': 7300,
     'board/src/board_thermal.c': 7200,

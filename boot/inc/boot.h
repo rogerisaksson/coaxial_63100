@@ -17,7 +17,7 @@ extern "C" {
 #define BOOT_UNIT            247U
 
 /** A chunk of image: 224 bytes is seven flash words, and with the frame
-    around it 252 bytes on the wire, inside the 253 a PDU allows. */
+    around it 232 bytes on the wire, inside the 253 a PDU allows. */
 #define BOOT_CHUNK_BYTES     224U
 #define BOOT_WORD_BYTES      32U      /**< one flash word, 256 bits */
 #define BOOT_WORDS_PER_CHUNK (BOOT_CHUNK_BYTES / BOOT_WORD_BYTES)
@@ -93,7 +93,7 @@ typedef struct
 {
   uint32_t magic;      /**< BOOT_HAND_MAGIC once a bootloader assigned the rest */
   uint32_t stay;       /**< BOOT_STAY_MAGIC when the application asks back */
-  uint8_t  unit;
+  uint8_t  unit;       /**< 0: nobody assigned one, the application keeps its own */
   uint8_t  position;
   uint8_t  flags;
   uint8_t  reserved;
@@ -188,11 +188,14 @@ bool boot_ready(uint32_t hand_bytes, uint32_t hand_crc);
     slot hands the application. */
 void boot_image(uint32_t *bytes, uint32_t *crc);
 
+/** The slot as the application finds it: the image verified, and the node's
+    identity - this run's assign, else what a warm slot still holds, else
+    none. 247 is a blank node in its bootloader, never an application. */
+void boot_hand_over(boot_hand_t *slot);
+
 /** What the hardware layer asks after each frame. */
 boot_state_t boot_state(void);
 uint8_t      boot_unit(void);             /**< BOOT_UNIT until assigned */
-uint8_t      boot_position(void);         /**< 0 until assigned */
-uint8_t      boot_flags(void);            /**< assign's flags */
 bool         boot_wants_go(void);         /**< a go for a sealed node */
 bool         boot_terminates(void);       /**< assign's flag bit 0 */
 uint32_t     boot_chunks_ignored(void);   /**< chunks with no erase */

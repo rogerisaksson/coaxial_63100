@@ -38,6 +38,8 @@ DAQ_CORE = 'test_daq_core.py'
 #: stream, the bitmap, the seal - on a RAM flash, before any register
 #: is touched (docs/BOOT.md).
 BOOT_CORE = 'test_boot_core.py'
+#: The host's client, `load` and the front door's own-image step through that C.
+BOOT_CLIENT = 'test_boot_client.py'
 
 #: machine/'s parts and feedback as the C a board will loop on, stepped beside
 #: host/machine/parts.py.
@@ -117,7 +119,7 @@ CYCLIC = 'test_cyclic.py'
 RENDER = 'test_render.py'
 
 DEFAULT_SUITES = (STRUCTURES + (CORE, SHTP, DRIVE, DRIVE_OBSERVER, FILTER, THERMAL, DAQ_CORE,
-                                BOOT_CORE,
+                                BOOT_CORE, BOOT_CLIENT,
                    CTRL_CORE, WORLD_CORE, WIRE, NATIVE, NATIVE_HEAT, EMULATOR,
                    SENSORLESS,
                    BROKER, DAQ_API, CONTROLLER, GYNOID, GYNOID_FAULTS, GYNOID_FALLS,
@@ -166,6 +168,7 @@ JOINS = (
     # The bootloader's core: a compiler and a second, and the one thing that
     # decides whether a blank node ever runs anything.
     (20, BOOT_CORE),
+    (20, BOOT_CLIENT),
     (20, CTRL_CORE),
     (20, WORLD_CORE),
     (20, WIRE),
@@ -261,7 +264,7 @@ TOUCHES = (
                                                 'test_parity.py')),
     ('host/coaxial/comm/ports.py',             (BROKER, 'test_mcp.py',
                                                 'test_ollama_link.py')),
-    ('host/coaxial/rig.py',                    (DAQ_API, 'test_simulated.py',
+    ('host/coaxial/rig.py',                    (DAQ_API, 'test_simulated.py', BOOT_CLIENT,
                                                 *VIEWS)),
     ('host/coaxial/acquire/record.py',         (DAQ_API,)),
     ('host/coaxial/acquire/fanout.py',         (DAQ_API, BROKER)),
@@ -312,7 +315,8 @@ TOUCHES = (
     ('host/terminal/ui/',                      (STRUCTURE, *VIEWS,
                                                 'test_simulated.py')),
     ('host/tools/cores/build.py',              (CORE, SHTP, DRIVE, DRIVE_OBSERVER, FILTER,
-                                                THERMAL, DAQ_CORE, BOOT_CORE, CTRL_CORE)),
+                                                THERMAL, DAQ_CORE, BOOT_CORE, BOOT_CLIENT,
+                                                CTRL_CORE)),
     ('host/tools/cores/drive.py',              (STRUCTURE, DRIVE, DRIVE_OBSERVER, SENSORLESS)),
     ('host/tools/cores/thermal.py',            (THERMAL,)),
     ('host/tools/cores/',                      (WIRE, NATIVE, NATIVE_HEAT)),
@@ -368,8 +372,8 @@ TOUCHES = (
     # The acquisition engine is hardware-free like the observer, so the host
     # build covers it; the glue that reads the converter is board_daq.c and the
     # bench's, and the record's bytes cross the wire.
-    ('boot/',                                  (BOOT_CORE, STRUCTURE)),
-    ('host/coaxial/devices/boot.py',           (BOOT, STRUCTURE)),
+    ('boot/',                                  (BOOT_CORE, BOOT_CLIENT, STRUCTURE)),
+    ('host/coaxial/devices/boot.py',           (BOOT, BOOT_CLIENT, STRUCTURE)),
     ('host/coaxial/simulated/boot.py',         (BOOT, STRUCTURE)),
     ('host/tools/target/flash_nodes.py',       (BOOT, STRUCTURE)),
     ('daq/',                                   (DAQ_CORE, CONFORMANCE, 'test_parity.py',

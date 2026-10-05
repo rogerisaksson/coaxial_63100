@@ -191,27 +191,25 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
 
 ## Bootloader
 
-- Not run on a board. 15 488 B Debug / 8 312 B Release (2026-09-23);
-  host-tested core (64 checks) and master on a stand-in bus of four (24).
-- Identity via a 32-byte DTCM slot, not the record (keeps the bench's
-  CAL_VERSION 13 record valid).
-- A node keeps an image whose size and CRC match: no erase, no programmed word.
-- First bench act: `build_and_flash.py --boot`: without the bootloader in
-  sector 0 nothing copies the store into RAM.
-- The master sent chunks 50 ms after erase and sealed with a 0.5 s timeout;
-  the node erases (~s) and programs in its receive path. Waits added.
-- The application runs from D2 SRAM (0x30000000, 288 K, unused before): 201 K
-  Debug, 135 K Release. Flash keeps a sealed copy, written only where its
-  CRC differs; nothing runs unverified. The master's `missing` bitmap was
-  1 K for the 1792 K flash image, past one reply; 165 B now (2026-09-23).
-- Found by driving the host's `Boot` client through the C core: the
-  bootloader echoed device and op in front of every 0x6E reply, where the
-  application sends the fields alone; `missing`, `dump` called the
-  `remaining` property (2026-09-23).
-- Run on the emulator: a blank node on a 10 Mbit limb takes this host's build
-  through `Coaxial63100.open()`, 139 K in 17 s at 475 MIPS. It answered its
-  own RS485 echo (RE tied low) until the echo was drained after each reply
-  (2026-09-25).
+- On the board, the ST-Link's port (2026-10-05): Debug 201 544 B, 900 chunks
+  20.6 s, verify 0.28 s, seal with persist 2.6 s (2 sectors, 6 300 words),
+  `go` to the application's answer 0.13 s; `open()` on another image 19.7 s.
+  From D2 SRAM: conformance 110/110, 17 719 angle updates/s, 106 % of flash's.
+- Flashed over SWD, a warm board ran RAM's old image on: the slot named it.
+  `build_and_flash.py` clears the slot (2026-10-05).
+- The host streamed chunks 2 ms after each write; the probe's port shifts a
+  232 B frame out in 20.1 ms: frames ran together, 0 of 634 held. A
+  broadcast's settle counts from the frame's last bit (`Transport.on_wire`);
+  Renode's adapter spaced them itself (2026-10-05).
+- After `go` the application wakes as a console on the ST-Link's port:
+  `from_bootloader` polled binary for 5 s. It hands over first (2026-10-05).
+- Unassigned, the bootloader handed over unit 247, the blank nodes': the
+  application answered there and `open()` took it for a bootloader; a warm
+  reset renamed an assigned node. `boot_hand_over`: this run's assign, a warm
+  slot's own, else unit 0 and the application's own (2026-10-05).
+- VOS1 was set with PWR_CR3 unwritten (RM0433 6.8.4: once after power-on,
+  before VOS or the clock). Written now, the LDO; unproven - the bench read
+  0x42, locked since power-on (2026-10-05).
 - On a bus the host looked for a blank node, and polled the application after
   `go`, at one rate: the bootloader listens at 10 Mbit, the application at its
   record's `link_baud`. Renode's rate-blind lines and a limb adapter set apart

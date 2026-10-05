@@ -430,7 +430,7 @@ def test_smart_selection(report):
     # The four named switches are what everybody types.
     quarter = {*table.STRUCTURES, table.CORE, table.SHTP, 'test_simulated.py', table.DRIVE,
                table.DRIVE_OBSERVER, table.FILTER, table.THERMAL, table.BOOT_CORE,
-               table.CTRL_CORE, table.WORLD_CORE, table.WIRE, table.SENSORLESS, table.DAQ_API,
+               table.BOOT_CLIENT, table.CTRL_CORE, table.WORLD_CORE, table.WIRE, table.SENSORLESS, table.DAQ_API,
                table.CONTROLLER, table.GYNOID, table.GYNOID_FAULTS, table.GYNOID_FALLS,
                table.GYNOID_STAND, table.GYNOID_GAIT, table.GYNOID_RUN, table.CYCLIC,
                table.BOOT} | set(table.OLLAMA)

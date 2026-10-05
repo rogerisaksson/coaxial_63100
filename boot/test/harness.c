@@ -189,6 +189,16 @@ API void boot_h_image(uint32_t *out)
   boot_image(&out[0], &out[1]);
 }
 
+/* The slot, 32 bytes in and out: what the jump leaves the application. */
+API void boot_h_hand(uint8_t *slot)
+{
+  boot_hand_t hand;
+
+  memcpy(&hand, slot, sizeof(hand));
+  boot_hand_over(&hand);
+  memcpy(slot, &hand, sizeof(hand));
+}
+
 API int      boot_h_state(void)         { return (int)boot_state(); }
 API int      boot_h_unit(void)          { return (int)boot_unit(); }
 API int      boot_h_go(void)            { return boot_wants_go() ? 1 : 0; }

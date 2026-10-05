@@ -10,7 +10,7 @@ from coaxial import errors
 from coaxial.comm import protocol
 from coaxial.comm.protocol import BootOp
 from coaxial.devices.subsystem import Device
-from coaxial.comm.transport import ACK
+from coaxial.comm.transport import ACK, HANDOVER_LEAST, hand_to_binary
 from coaxial.comm.wire import Reader
 
 #: The wire's shapes, boot.h's numbers.
@@ -29,6 +29,10 @@ SEAL_MAGIC = 0x4C414553
 PERSIST = 0x01
 RECORD_BASE = 0x081E0000
 RECORD_MAX = 2048
+#: The handover slot (boot_hand_t, the top 32 B of DTCM): magic, stay, then unit | position
+#: << 8 | flags << 16, the image's size and CRC. No magic: a power-up, or a debugger's start.
+HAND_AT = 0x2001FFE0
+HAND_MAGIC = 0x444E4148
 #: A blank node's unit, before assign gives it its own; the bootloader's
 #: line rate, the one the master's transport opens at.
 BLANK_UNIT = 247
@@ -393,6 +397,12 @@ def on_bus(transport):
     return getattr(getattr(transport, 'serial', None), 'console', True) is False
 
 
+def wakes_as_console(transport):
+    """Whether the application behind `transport` wakes as a text console this process hands
+    over: a port of its own that is no bus (a broker hands its own over)."""
+    return getattr(transport, 'serial', None) is not None and not on_bus(transport)
+
+
 def to_bootloader(transport):
     """`transport` onto the bootloader's rate; the rate it left, the application's."""
     was = transport.baud
@@ -435,8 +445,11 @@ def from_bootloader(transport, image, unit=1, position=1, flags=0, persist=True,
         transport.set_baud(app_baud)
     app = Board(transport, unit=unit).boot
     want = (len(image), zlib.crc32(image))
+    console = wakes_as_console(transport)
     until = time.monotonic() + GO_S * transport.time_scale
     while True:
+        if console:
+            hand_to_binary(transport, 2 * HANDOVER_LEAST)
         try:
             state = app.state()
             if state['image'] == want:

@@ -375,13 +375,64 @@ def test_ack_skips_the_quiet_time(report):
         tmod.serial = real
 
 
+def test_a_broadcast_waits_out_its_frame(report):
+    """Frames with no reply between them leave t3.5 on the wire, not at the write: a probe's
+    port returns from the write with the frame still to shift out."""
+    import time
+    import types
+
+    from coaxial.comm import transport as tmod
+
+    class _Line:
+        """A port that takes a frame whole and says when."""
+
+        def __init__(self, *args, **kwargs):
+            self.written = []
+            self.in_waiting = 0
+
+        def write(self, data):
+            self.written.append((time.perf_counter(), len(data)))
+            return len(data)
+
+        def read(self, n=1):
+            return b''
+
+        def flush(self):
+            pass
+
+        def reset_input_buffer(self):
+            pass
+
+    real = tmod.serial
+    tmod.serial = types.SimpleNamespace(Serial=_Line, serial_for_url=_Line,
+                                        SerialException=Exception)
+    try:
+        port = tmod.Transport('STUB', 115200)
+        for _chunk in range(3):
+            port.broadcast(0x6E, bytes(228), settle=0.002)
+        try:
+            port.request(1, 0x6E, b'', timeout=0.0)
+        except tmod.NoReplyError:
+            pass
+        sent = port.serial.written
+        least = min(b[0] - a[0] for a, b in zip(sent, sent[1:]))
+        owed = sent[0][1] * tmod.CHAR_BITS / 115200 + port.interframe_gap
+        report.check('a chunk, 232 B at 115 200, is 20.1 ms on the wire', sent[0][1] == 232
+                     and abs(port.on_wire(232) - 0.0201389) < 1e-6, sent[0])
+        report.check('each next frame starts t3.5 after the last one left the wire',
+                     least >= owed, '%.1f ms of %.1f' % (1e3 * least, 1e3 * owed))
+    finally:
+        tmod.serial = real
+
+
 def main():
     report = Report()
     for test in (test_one_client, test_two_sessions,
                  test_errors_cross_as_themselves,
                  test_a_client_never_hands_the_line_back,
                  test_a_stale_address_is_not_a_broker, test_frame_length,
-                 test_ack_skips_the_quiet_time):
+                 test_ack_skips_the_quiet_time,
+                 test_a_broadcast_waits_out_its_frame):
         print('\n-- %s --' % test.__name__[5:].replace('_', ' '))
         test(report)
     print('\n%d passed, %d failed' % (report.passed, report.failed))

@@ -17,6 +17,8 @@ from coaxial.errors import ConnectError, CrcError, FrameError, ModbusException, 
 #: code in front, the CRC behind.
 HEAD_BYTES = 2
 CRC_BYTES = 2
+#: A character on the wire, 8N1: the start bit, the eight, the stop.
+CHAR_BITS = 10
 #: The bit a slave sets on the function code to answer an exception.
 EXCEPTION = 0x80
 
@@ -224,6 +226,12 @@ class Transport:
 
     # -- framing -----------------------------------------------------------
 
+    def on_wire(self, frame_bytes):
+        """Seconds of the board's a frame of `frame_bytes` takes on the wire. A probe's port
+        takes it whole and shifts it out at the baud: 232 B at 115 200, 20.1 ms after the
+        write returned."""
+        return frame_bytes * CHAR_BITS / self.baud
+
     def _pay_gap(self):
         """What is left of t3.5 since the line went quiet, slept."""
         owed = self.interframe_gap * self._time_scale - (time.monotonic() - self._quiet_since)
@@ -250,6 +258,8 @@ class Transport:
             self._clean = False
             self.serial.write(frame)
             self.serial.flush()
+        # Quiet once the frame has left: a reply moves it on, a broadcast has nothing else.
+        self._quiet_since = time.monotonic() + self.on_wire(len(frame)) * self._time_scale
 
     def receive(self, exact_payload=None, timeout=None, reply_shape=None):
         budget = (self.DEFAULT_TIMEOUT if timeout is None else timeout) * self._time_scale
@@ -328,11 +338,12 @@ class Transport:
         return payload
 
     def broadcast(self, function, payload=b'', settle=0.05):
-        """Acted on by every slave, answered by none. Nothing to return."""
+        """Acted on by every slave, answered by none. Nothing to return. `settle` counts from
+        the frame's last bit: streamed 2 ms apart from the write, 232 B frames ran together on
+        the ST-Link's port and a bootloader took none of 634 (FINDINGS 2026-10-05)."""
         self._rescale()
         self.transmit(BROADCAST, function, payload)
-        if settle:
-            self.sleep(settle)
+        self.sleep(self.on_wire(HEAD_BYTES + len(payload) + CRC_BYTES) + (settle or 0.0))
 
 
 #: The shape of every `u8 took` reply: one byte on success, the

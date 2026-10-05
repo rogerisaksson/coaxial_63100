@@ -281,7 +281,7 @@ def flash(elf, path):
         return False
     # The application is linked for RAM: what flash takes is its sealed
     # copy at the store, which the bootloader verifies and copies at reset.
-    target, sealed = [str(elf)], None
+    target, sealed, slot = [str(elf)], None, []
     # The store only behind this build's bootloader: written behind the application of 2026-09-16,
     # which ran from flash over sectors 0 and 1, it broke it - the board restarted in a loop, its
     # 5 V and 15 V rails switching in turn (2026-10-02).
@@ -290,15 +290,19 @@ def flash(elf, path):
               'what runs from flash there - --boot flashes it first')
         return False
     if elf.name == APP:
-        from coaxial.devices.boot import STORE_BASE, image_of, store_of
+        from coaxial.devices.boot import HAND_AT, STORE_BASE, image_of, store_of
         image = image_of(elf)
         sealed = (len(image), zlib.crc32(image))
         store = elf.with_suffix('.store.bin')
         store.write_bytes(store_of(image))
         target = [str(store), '0x%08X' % STORE_BASE]
+        # A warm slot names the image RAM still holds, and the bootloader runs that one:
+        # flashed over a running Debug image, the board went on running it (2026-10-05).
+        # Cleared, the start is a power-up's and the store runs.
+        slot = ['-w32', '0x%08X' % HAND_AT, '0x00000000']
     # SWD, not JTAG: any connect on this probe that asserts NRST fails with
     # "Unable to get core ID". --start runs from flash start: the bootloader.
-    argv = [programmer, '-c', 'port=SWD', 'mode=UR', '-d'] + target + ['-v', '--start']
+    argv = [programmer, '-c', 'port=SWD', 'mode=UR', '-d'] + target + ['-v'] + slot + ['--start']
     code, output, elapsed = run(argv, cwd=str(ROOT), path=path)
     if code != 0:
         print('FLASH  FAIL  exit=%d  %.1fs' % (code, elapsed))

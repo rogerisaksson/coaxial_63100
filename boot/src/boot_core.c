@@ -658,6 +658,28 @@ void boot_image(uint32_t *bytes, uint32_t *crc)
   *crc = s.run_crc;
 }
 
+void boot_hand_over(boot_hand_t *slot)
+{
+  const bool warm = (slot->magic == BOOT_HAND_MAGIC);
+
+  if (s.state >= BOOT_ASSIGNED)
+  {
+    slot->unit = s.unit;
+    slot->position = s.position;
+    slot->flags = s.flags;
+  }
+  else if (!warm)
+  {
+    slot->unit = 0U;
+    slot->position = 0U;
+    slot->flags = 0U;
+  }
+  slot->magic = BOOT_HAND_MAGIC;
+  slot->stay = 0U;
+  slot->bytes = s.run_bytes;
+  slot->crc = s.run_crc;
+}
+
 boot_state_t boot_state(void)
 {
   return s.state;
@@ -666,16 +688,6 @@ boot_state_t boot_state(void)
 uint8_t boot_unit(void)
 {
   return s.unit;
-}
-
-uint8_t boot_position(void)
-{
-  return s.position;
-}
-
-uint8_t boot_flags(void)
-{
-  return s.flags;
 }
 
 bool boot_wants_go(void)

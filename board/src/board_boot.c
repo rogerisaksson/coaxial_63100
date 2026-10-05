@@ -53,7 +53,7 @@ void Board_BootInit(void)
   {
     return;                          /* no bootloader assigned anything */
   }
-  (void)modbus_map_set_unit_id(boot_hand.unit);
+  (void)modbus_map_set_unit_id(boot_hand.unit);   /* 0, nobody assigned one: refused, the map's own stays */
   Board_SetTermination((boot_hand.flags & BOOT_FLAG_TERMINATE) != 0U);
 }
 

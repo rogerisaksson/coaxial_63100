@@ -284,13 +284,13 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
 
 ## Bench
 
-- **Bootloader**: `build_and_flash.py --boot`, the app's sealed store, a
-  boot into D2 SRAM, an image loaded over the ST-Link's port and persisted.
-  DOD: the prefix search's real collision seen (CRC error, timeout or both);
-  10 Mbit on the bench adapter measured.
-- **First flash since 2026-09-16**. DOD: the ITCM sample path boots (a
-  wrong copy hard-faults on the first ADC interrupt); `test_bench.py` at
-  its baseline; LOOP cycle counters and `__sbrk_heap_end` stable an hour.
+- **Bootloader**, on the board since 2026-10-05. DOD: a power cycle runs
+  the store at unit 1, PWR_CR3 written on a fresh supply; the prefix
+  search's real collision seen (CRC error, timeout or both); 10 Mbit on
+  the bench adapter measured; a torn flash word's bus fault handled.
+- **From D2 SRAM**. DOD: the ITCM sample path under the drive (a wrong
+  copy hard-faults on the first ADC interrupt); LOOP cycle counters and
+  `__sbrk_heap_end` stable an hour.
 - **Drive**: a current loop closed through a winding,
   `tools/bench/commission.py` past its dry run. DOD: record ids 15..44
   (motor R, L, lambda, gains, injection, dead-time table) measured.

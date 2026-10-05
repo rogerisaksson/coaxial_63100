@@ -20,10 +20,11 @@ Fitted parts come from `0x6D` kind 4, never from a name. Host rules:
   current is measured while switching there. Emulated and simulated boards
   follow the schematic: the pilot heard with AFE_ON up supplies them.
 - Measured: duty 1-100 % dry; 26 pulse runs into 8 ohm at 25/31 V,
-  3.1-3.75 A. Drive: 2 922 cycles/period, drivers off. Bootloader run on
-  the emulator only: the app runs from D2 SRAM, and `Coaxial63100.open()`
-  loads the host's own build into a board running another or waiting blank
-  (docs/BOOT.md). Open work: docs/TODO.md.
+  3.1-3.75 A. Drive: 2 922 cycles/period, drivers off. Bootloader on the
+  bench board (2026-10-05, the ST-Link's port, COM3 on the laptop): the app
+  runs from D2 SRAM, and `Coaxial63100.open()` loads the host's own build
+  into a board running another or waiting blank (docs/BOOT.md); a power
+  cycle and 10 Mbit unproven. Open work: docs/TODO.md.
 - Emulated: the image on Renode's STM32H753 (`board/emu`, `host/tools/emu`),
   its front end from the schematic and LTspice (`electronic_simulations`,
   `afe_spice.py`), the A1335, the BNO085 and the STO chain on the master's

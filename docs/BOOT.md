@@ -4,8 +4,8 @@ The bootloader is the only firmware a node keeps for good. The application
 runs from RAM and comes from the master over Modbus RTU: every node of a
 type, by broadcast, at power-up. Flash keeps a sealed copy for a power-up
 with no master. A host always runs the image it was built with, so nothing
-on a node is versioned. Built and host-tested; **not yet run on a board**
-(2026-09-23).
+on a node is versioned. On the bench board over the ST-Link's port since
+2026-10-05; 10 Mbit and a power cycle are open.
 
 ## Principle: the checksum is the gate
 
@@ -48,17 +48,23 @@ on a node is versioned. Built and host-tested; **not yet run on a board**
   DTCM, NOLOAD in both linker scripts): unit, position, flags, and the size
   and crc of the image verified. `Board_BootInit` applies unit id and
   termination. No magic (a debugger started the app) = unit 1, image unknown.
+- The slot's identity (`boot_hand_over`): this run's assign; else what a warm
+  slot holds; else unit 0, and the application keeps its own unit 1. Unit 247
+  is a blank node in its bootloader, never an application.
 - Unit id = position down the limb. The last node closes the 120 ohm
   termination (PE14).
 
 ## Reset
 
-1. Pins first: six gate inputs, PA10, PB2, PE14 driven low (nothing floats).
-2. Clocks: HSE 25 MHz / 5 x 64 / 2 = 160 MHz, APB1 80 -> BRR 16 = exactly
-   10 Mbit (VOS1). Registers only, no HAL. D2 SRAM clocks on.
-3. USART2 + UART5 at 10 Mbit, USART3 (the ST-Link's port) at 115 200. All
+1. The supply, in the startup before RAM is written: PWR_CR3 as the
+   application's (LDO), then ACTVOSRDY.
+2. Pins, on HSI: six gate inputs, PA10, PB2, PE14 driven low (nothing
+   floats, a dead crystal included).
+3. Clocks: VOS1, HSE 25 MHz / 5 x 64 / 2 = 160 MHz, APB1 80 -> BRR 16 =
+   exactly 10 Mbit. Registers only, no HAL. D2 SRAM clocks on.
+4. USART2 + UART5 at 10 Mbit, USART3 (the ST-Link's port) at 115 200. All
    three serve Modbus; no text lines, since they would land inside frames.
-4. The gate (`boot_ready`): RAM holding the image the slot names, or the
+5. The gate (`boot_ready`): RAM holding the image the slot names, or the
    store's sealed copy verified and copied. Ready and not asked to stay:
    listen 300 ms for `hold`, then jump. Otherwise wait for the master.
 
@@ -73,7 +79,7 @@ hold      broadcast repeatedly from power-up
 who       prefix search on uid; a collision (CRC error) splits the prefix
 assign    uid -> unit, position, terminate; unknown uid is named, not assigned
 erase     one broadcast per type; RAM or store holding it: kept or copied
-chunk     224 B each into RAM, 2 ms apart (t3.5)
+chunk     224 B each into RAM, 2 ms after the frame's last bit (t3.5)
 missing   per node; re-send, three rounds (bitmap <= 165 B, one reply)
 verify    per node
 record    per node, 224 B pages
@@ -83,9 +89,11 @@ go        broadcast
 
 The bootloader works inside its receive path, so the master waits
 (`coaxial.devices.boot`: ERASE_S, CHUNK_S, VERIFY_S, SEAL_S, PERSIST_S).
-Estimates: 200 K = 915 chunks, ~2 s at 10 Mbit, ~22 s at 115 200 on the
-ST-Link's port. Persist adds 2 sectors' erase. The same image again costs round
-trips only.
+A chunk's frame is 232 B: 20.1 ms on the wire at 115 200, which the host
+waits out. Measured on the ST-Link's port (2026-10-05): 201 544 B, 900
+chunks, 20.6 s; verify 0.28 s; seal with persist 2.6 s; `go` to the
+application's answer 0.13 s. Estimate: ~2 s at 10 Mbit. The same image again
+costs round trips only.
 
 ## The host's own build
 
@@ -93,8 +101,9 @@ trips only.
 build (`$COAXIAL_IMAGE`, else the newest `build/*/coaxial_63100.elf`). If they
 differ, `coaxial.devices.boot.load` sends `stay`, runs the master's sequence on
 that one node at unit 247 with its unit, position and flags given back,
-persists, sends `go`, and waits until the application names the new image. That
-happens once per build; the ST-Link's port costs ~22 s. Exceptions:
+persists, sends `go`, hands the ST-Link's port from the console it wakes as,
+and waits until the application names the new image. That happens once per
+build; the ST-Link's port costs ~22 s. Exceptions:
 
 - No build at hand: nothing is compared.
 - Image (0, 0), meaning a debugger started the app: left alone.
@@ -131,14 +140,15 @@ store/records/<bus>/<position>.record
 
 - `test_boot_core.py`: the C core on byte-array flash and RAM via gcc and
   ctypes. It covers the store, a warm reset, a power cycle, a torn store,
-  the host's own `Boot` client byte for byte through `boot_pdu`, and a
-  running node reloaded through `load` and the front door's step.
+  the slot's identity.
+- `test_boot_client.py`: the host's own `Boot` client byte for byte through
+  `boot_pdu`, a running node reloaded through `load`, the front door's step.
 - `test_boot.py`: the master against `SimulatedBoot` / `SimulatedSegment`,
   persist, and the image cut from an ELF.
 - `test_structure` holds PROTOCOL.md's device 11 table to both servers.
 
 ## Open (bench)
 
-10 Mbit on the bench adapter; D2 SRAM execution speed against flash; erase
-time per sector; what a real collision looks like; a `coaxial_63020` pin
-table; the first `open()` loading a build over the ST-Link's port.
+10 Mbit on the bench adapter; a power cycle (PWR_CR3 on a fresh supply, the
+store alone, unit 1); D2 SRAM execution speed against flash; erase time per
+sector; what a real collision looks like; a `coaxial_63020` pin table.

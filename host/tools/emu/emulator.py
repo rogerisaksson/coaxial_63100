@@ -34,6 +34,7 @@ import serial
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from tools import REPO  # noqa: E402
+from coaxial.devices.boot import HAND_AT, HAND_MAGIC  # noqa: E402
 from coaxial.simulated.sto import PILOT_HZ  # noqa: E402
 from tools.emu import world as worlds  # noqa: E402
 from tools.emu.probes import (ANSI, answers, boot_answers, heard_quiet, heard_until,  # noqa: E402
@@ -63,11 +64,7 @@ READY_S = 60.0
 #: The monitor's prompt, `(machine)` after a line's end - Renode ends lines \n\r or \r\r\n.
 PROMPT = re.compile(r'[\r\n]\([^)\r\n]*\)\s*$')
 
-#: The handover slot a bootloader leaves (boot/inc/boot.h boot_hand_t, the top 32 B of DTCM):
-#: magic, stay, then unit | position << 8 | flags << 16, the image's size and CRC - zero, as
-#: a debugger leaves them.
-HAND_AT = 0x2001FFE0
-HAND_MAGIC = 0x444E4148
+#: assign's flag in the handover slot: the last node closes the termination.
 FLAG_TERMINATE = 0x01
 #: The 96-bit unique id (UID_BASE): its first word told apart per node.
 UID_AT = 0x1FF1E800
