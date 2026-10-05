@@ -43,9 +43,10 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
    on a take of a woman's, 24 on the walk approved 2026-10-03) and is
    straightened under her weight, hip and knee 620 W over a tenth of the
    stride - 23 mm of leg, 12 the pelvis's roll, low on the landing side
-   at touchdown, 8 her sag under the trailing ankle; the roll's peak
-   cannot move while the capture point's course is a table
-   (`capture.XI_NOM`); crouched she still walks for less - 371 J/m at a stance knee of
+   at touchdown, 8 her sag under the trailing ankle; the roll's peak at
+   0.27 of the stride lands it at 21-24 and takes her head's bob to 8 mm,
+   steady, and her starts from the squat parry with it; crouched she
+   still walks for less - 371 J/m at a stance knee of
    12 deg against 398 at 6, at 1.0 strides/s 462 at 24 against 609 -, the
    knee's stop at -5 deg unused, the leg held off it by its drive; sat
    back limp out of her crouch, shoved past saving, her head meets the
@@ -59,10 +60,9 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
    plan has 0.83, 581 W; `looks.PARRIES` 3 since CI's runner parried
    twice in a spread at 4 cm; at 0.65 strides/s the swinging foot clears
    the floor by 0.1 mm. DOD: a spread's parries at 1 or under on any
-   host; her standing start clean over a spread of side gains; her speed
-   within 5 % of her plan's at 1.0 strides/s; the capture point's course
-   her own walk's, the roll's peak free to move; `looks.FORM`'s landing
-   knee at 15; test_gynoid_gait.py asserting fewer J/m than the same walk
+   host; her starts clean, standing and from the squat, over a spread of
+   side gains, the roll's peak at 0.27; her speed within 5 % of her
+   plan's at 1.0 strides/s; `looks.FORM`'s landing knee at 15; test_gynoid_gait.py asserting fewer J/m than the same walk
    crouched to 12, 18, 24 and 30 deg at each pace; the stance knee at 4.5
    or on its stop; the stride at 1.0 m or over.
 2. **The leg stack on the run** (the user, 2026-10-04: the most simplicity,

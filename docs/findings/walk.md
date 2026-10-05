@@ -336,9 +336,10 @@ squat. The board's own are in [FINDINGS](../FINDINGS.md).
   her weight - 12 the pelvis's roll, its landing side 2.9 deg low at
   touchdown (`gait._roll`, its peak at 0.33), 8 her sag, 6-8 mm under her
   target at 0.39-0.49 of the trailing foot's stance, the rest the plan's
-  dip. The roll's peak at 0.29 and 0.25: the knee 25.0 and 20.4, her
-  head's bob 10 and 6 mm, and parries at 0.65 strides/s - the capture
-  point's course moves with it ([balance](balance.md)). The swing's reach
+  dip. The roll's peak at 0.29 and 0.27, steady over 6 side gains: on
+  its form, the knee 25, 22 and 21 and 24, 21 and 22 deg at 0.85, 0.65
+  and 1.0 strides/s, her head's bob 10 and 8 mm - and her starts parry
+  ([balance](balance.md)). The swing's reach
   (`stance.SWING_REACH` 0.985-0.9985): nothing. A leg taking her from
   where she is and up at 0.12 m/s: her knee back at 19 deg at 0.65, 383
   -> 483-558 J/m - the leg's snap is her load's transfer.

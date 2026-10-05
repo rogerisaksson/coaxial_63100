@@ -232,3 +232,13 @@ shoves, the scoreboard and its searches. The board's own are in
   the phase's rate, 0.65 -> 0.68 m/s at 0.85 strides/s, at a gain of 1.5
   0.83 and 639 J/m. The foot under the hip later in its stance
   (`gait.STANCE_AT` 0.265): 0.78 m/s and 349 W at 1.0.
+- The roll's peak against her starts (2026-10-05, 6 side gains 0.3 %
+  apart; `gait._roll`'s peak, of the stride). At 0.33, as built, from the
+  squat none of 12 starts parries and standing 1 of 6 falls, 2 parry; at
+  0.29 from the squat 4 of 12 parry, 13-26 times, standing 3 of 6, one 85
+  times; at 0.27 standing none of 18, from the squat 10 of 12, 7-47 times.
+  Steady she is on her form at all three. The course learned as her own
+  walk's - each leg's, a swing that was no catch taken into it, 0.4 of
+  it - changes none of it and is not taken: at 0.65 strides/s 437 J/m
+  where 383 and her toes back 4.2 mm where 0.6, the table's 15-38 mm off
+  there landing her feet wider.
