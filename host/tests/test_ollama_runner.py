@@ -428,27 +428,16 @@ def test_smart_selection(report):
                  'joins at %d %%' % table.LIVE_FROM)
 
     # The four named switches are what everybody types.
-    for percent, expect in ((25, {*table.STRUCTURES, table.CORE,
-                                  table.SHTP, 'test_simulated.py',
-                                  table.DRIVE, table.DRIVE_OBSERVER, table.FILTER,
-                                  table.THERMAL, table.BOOT_CORE, table.CTRL_CORE, table.WORLD_CORE, table.WIRE,
-                                  table.SENSORLESS, table.DAQ_API,
-                                  table.CONTROLLER, table.GYNOID, table.GYNOID_FAULTS,
-                                  table.GYNOID_FALLS, table.GYNOID_STAND, table.GYNOID_GAIT,
-                                  table.CYCLIC, table.BOOT,
-                                  } | set(table.OLLAMA)),
-                            (75, {*table.STRUCTURES, table.CORE,
-                                  table.SHTP, 'test_simulated.py',
-                                  table.DRIVE, table.DRIVE_OBSERVER, table.FILTER,
-                                  table.THERMAL, table.BOOT_CORE, table.CTRL_CORE, table.WORLD_CORE, table.WIRE,
-                                  table.SENSORLESS, table.DAQ_API,
-                                  table.CONTROLLER, table.GYNOID, table.GYNOID_FAULTS,
-                                  table.GYNOID_FALLS, table.GYNOID_STAND, table.GYNOID_GAIT,
-                                  table.CYCLIC, table.BOOT,
-                                  'test_parity.py', 'test_mcp.py', table.EMULATOR,
-                                  table.NATIVE, table.NATIVE_HEAT, table.CONFORMANCE,
-                                  table.BENCH}
-                             | set(table.OLLAMA))):
+    quarter = {*table.STRUCTURES, table.CORE, table.SHTP, 'test_simulated.py', table.DRIVE,
+               table.DRIVE_OBSERVER, table.FILTER, table.THERMAL, table.BOOT_CORE,
+               table.CTRL_CORE, table.WORLD_CORE, table.WIRE, table.SENSORLESS, table.DAQ_API,
+               table.CONTROLLER, table.GYNOID, table.GYNOID_FAULTS, table.GYNOID_FALLS,
+               table.GYNOID_STAND, table.GYNOID_GAIT, table.GYNOID_RUN, table.CYCLIC,
+               table.BOOT} | set(table.OLLAMA)
+    for percent, expect in ((25, quarter),
+                            (75, quarter | {'test_parity.py', 'test_mcp.py', table.EMULATOR,
+                                            table.NATIVE, table.NATIVE_HEAT, table.CONFORMANCE,
+                                            table.BENCH})):
         suites, _ = table.plan_for(percent)
         report.check('%d %% is what it always was' % percent,
                      set(suites) == expect,

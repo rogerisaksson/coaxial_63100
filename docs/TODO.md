@@ -56,7 +56,9 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
    the fewest gearbox and electronics variants). One stack on every drive
    since 2026-10-05 (docs/DIMENSIONS.md, docs/findings/stacks.md): 60 x 20
    mm at KV 90, a 64 mm box at 1:30, a 70 mm 50 A inverter; T 0.87 at the
-   hip at 1.5x on the walk. Left: the hips', knees' and spine's peaks are
+   hip at 1.5x on the walk, 1.17 on her run at 1.94 m/s, which she runs
+   the same on 40 A and on 36 V (docs/findings/run.md). Left: the hips',
+   knees' and spine's peaks are
    its 124 N m clamp (A 1.50, P 1.24-1.35, S 1.45); the knee's parry 1007
    deg/s, 1.17 of KV 90's at 48 V - the pack's lowest volts and the KV;
    her get-up on it is 2 keyframe sets of 96 searched - the crouch solved
@@ -125,9 +127,16 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
    heel and the toes moved +-1 cm; the sprung toes (item 6) held by it;
    the patterns driven over the bus to the emulated boards (`emulator://`,
    `native://`), the drives turning, not the simulated director alone.
-4. **Running**: a gait with flight, from the walk's search. DOD: 2 m/s
-   standing on the scoreboard, no strike over 2 kN, the parries, falls and
-   get-ups of the biped's suite held as walking.
+4. **Running** (`machine/runner.py`, test_gynoid_run.py,
+   docs/findings/run.md): from a flight at her speed she holds 1.27-1.94
+   m/s a minute, a sole 866 N at most. Left: asked 2.25 she is down in
+   10-16 s - her foot lands 0.3-1.1 m/s on over the floor and slides, her
+   weight on it 60 ms late; her speed wanders 0.5 m/s landing to landing
+   from 1.75 up; 253 J/m where her walk has 384; her walk into it, her
+   turns, the director and the tty; every smoother swing tried has her
+   down, its kinks holding her up. DOD: 2 m/s standing on the scoreboard,
+   no strike over 2 kN, the parries, falls and get-ups of the biped's
+   suite held as walking.
 5. **The push-off without toe motors** (the user, 2026-10-04: the motors
    off the feet, 21 drives; the toes alone flex, at the ball, a thin
    carbon-fibre sandwich with TPU or TPU round carbon rods glued with

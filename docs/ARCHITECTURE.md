@@ -123,7 +123,8 @@ machine/            any board family, no import of one: roles (Input, Stream,
                     (the standing feet, their legs' joints, the phase's
                     pace), capture (where
                     a swinging foot lands across: on the capture point, or a
-                    side step), arrival (keyframes, the CoM fed back: the
+                    side step), runner (her run from a flight: a bounce a
+                    foot), arrival (keyframes, the CoM fed back: the
                     squat, the rise, the first step, the settling), stand
                     (standing: the soles' points her support, a step toward
                     the capture point out of it), director
@@ -174,7 +175,8 @@ tools/render/       renderer checks against the exporter; ansi2png; attitude (th
                     page's last frame, simulated, to a PNG)
 tools/sim/          the drive core on this host: montecarlo, observer_run;
                     gait_montecarlo (the gynoid through fixed trials); look
-                    (her start a stage a row, simulated or a recording)
+                    (her start a stage a row, simulated or a recording); run
+                    (her run a landing a row, her drives against it)
 tools/cores/        build: the portable cores' gcc build;
                     drive, thermal: their ctypes harnesses;
                     fakeboard: comms/, the record and the observer over

@@ -224,6 +224,7 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
 | Subject | File |
 | --- | --- |
 | The gynoid walking: her plan, its shape and her look, the start from the squat | [findings/walk.md](findings/walk.md) |
+| The gynoid running: a bounce a foot, what it asks of her drives, how her feet come down | [findings/run.md](findings/run.md) |
 | The gynoid's feet: the toes without a motor, the sole's give, the push-off on them | [findings/feet.md](findings/feet.md) |
 | The gynoid kept up: the capture law and the side step, the floor's events and shoves, the scoreboard and its searches | [findings/balance.md](findings/balance.md) |
 | The gynoid standing: the rigs under her, the one law in the capture point's plane, the push polar | [findings/standing.md](findings/standing.md) |

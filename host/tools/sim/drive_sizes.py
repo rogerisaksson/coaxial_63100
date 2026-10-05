@@ -3,7 +3,7 @@
 
     python tools/sim/drive_sizes.py              # the rise and 24 s of walk, simulated
     python tools/sim/drive_sizes.py --cached RATIO=36   # the last run's demand, the stacks as set
-    python tools/sim/drive_sizes.py --cached --run      # with a run's demand folded in (RUN)
+    python tools/sim/drive_sizes.py --cached --run      # with her run's demand folded in
 
 A row a joint kind (the worse side), from the squat through the walk as the page runs her, the
 drive's numbers at MARGIN times what she asked, each 1 where its part binds (docs/findings/drives.md):
@@ -48,31 +48,20 @@ SCENE_S = 8.0
 #: 1.5 - 1.26 of A's amps, 1.19 of its volts - where the walk, the gym and the run ask less).
 #: Each scene's peaks, speeds and watts go into the cache at its margin over MARGIN.
 MARGINS = {'slip': 1.2, 'nudge': 1.2, 'hole': 1.2, 'shove': 1.2}
-#: A run's demand a kind at the 2 m/s the running item asks (peak N m, peak deg/s, peak W) a kg,
-#: the rms RUN_RMS of the peak; folded in with `--run`. Estimated from the literature's 3-3.5 m/s
-#: peaks (Novacheck 1998, Schache 2011, Dorn 2012: hip 2.7, knee 3.0, ankle 3.6 N m; 450, 650,
-#: 850 deg/s; 7, 10, 12 W): the hip's moment near-linear in speed, the knee's and the ankle's
-#: nearly flat, the speeds 0.75 of them. At those peaks and 1.5x, amps x volts outran the pack's
-#: volts x the inverter's amps - 1.26 x 1.19 at 48 V, 1.07 x 1.07 at 63 V - with no ratio or KV
-#: to move it (2026-10-04).
-RUN = {'hip': (1.6, 330.0, 4.0), 'knee': (2.6, 500.0, 6.0), 'ankle': (3.0, 650.0, 8.0),
-       'hip_roll': (1.4, 220.0, 2.0), 'hip_yaw': (0.5, 220.0, 0.7), 'ankle_roll': (0.7, 220.0, 1.0),
-       'spine': (1.2, 150.0, 1.5), 'spine_roll': (1.0, 150.0, 1.0), 'waist': (0.4, 150.0, 0.7)}
-RUN_RMS = 0.4
+#: A run's demand, folded in with `--run`: RUN_S s at RUN_MPS asked, simulated as she runs
+#: (`tools.sim.run`), her fastest held. The literature's a kg at 2 m/s (Novacheck 1998, Schache
+#: 2011, Dorn 2012: hip 1.6, knee 2.6, ankle 3.0 N m, the rms 0.4 of it; 330, 500, 650 deg/s)
+#: asked her hip, knee and ankle 18, 30 and 34 N m rms; her run asks 47, 40 and 51 (2026-10-05).
+RUN_MPS, RUN_S = 2.0, 12.0
 
 
-def running(got):
-    """`got` {joint: (peak, rms, speed, watts, load)} with a run's demand (RUN) folded in: each
-    the larger, the load hers; a kg of her as built (`figure.mass`) - of the woman's 55 the knee
-    was asked 143 N m where her 32.3 kg ask 84 (2026-10-04)."""
-    from machine import drives, figure
-    kg = figure.mass()
-    out = {}
-    for joint, (peak, rms, speed, watts, load) in got.items():
-        nm_kg, deg_s, w_kg = RUN.get(drives.kind(joint), (0.0, 0.0, 0.0))
-        out[joint] = (max(peak, nm_kg * kg), max(rms, RUN_RMS * nm_kg * kg),
-                      max(speed, deg_s), max(watts, w_kg * kg), load)
-    return out
+def running(got, values):
+    """`got` {joint: (peak, rms, speed, watts, load)} with her run's demand folded in: each the
+    larger, the load as it was."""
+    from tools.sim import run
+    ran = run.ran(RUN_MPS, RUN_S, values)[2]
+    return {j: tuple(max(a, b) for a, b in zip(row[:4], ran[j][:4])) + (row[4],)
+            for j, row in got.items()}
 
 
 def held(joint):
@@ -185,7 +174,7 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
     parser.add_argument('--to', type=float, default=28.0, help='seconds simulated from the squat')
     parser.add_argument('--cached', action='store_true', help="the last run's demand")
-    parser.add_argument('--run', action='store_true', help="a run's demand folded in (RUN)")
+    parser.add_argument('--run', action='store_true', help="her run's demand folded in")
     parser.add_argument('knobs', nargs='*', metavar='NAME=V', help='constants moved')
     args = parser.parse_args(argv)
     values = {k: float(v) for k, v in (kv.split('=') for kv in args.knobs)}
@@ -193,7 +182,7 @@ def main(argv=None):
         from tools.sim import knobs
         knobs.set_(values)
         got = json.load(open(CACHE))
-        got = running(got) if args.run else got
+        got = running(got, values) if args.run else got
     else:
         # The scenes' demands folded: the peaks, the rms and the power their most, the load
         # its mean.
