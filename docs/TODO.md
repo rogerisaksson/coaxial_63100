@@ -52,8 +52,11 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
    look`, 36 s), 2 fell - at 0.88 and 1.02 strides/s - and 52 parried
    where none fell and 222 parried, 67-82 a walk at 0.65: the scoreboard
    rejects it there (`looks.FORM`, since 2026-10-05; an event a reward
-   its share parried); at 0.65 strides/s the swinging foot clears the
-   floor by 0.1 mm. DOD: the scoreboard's walks on their form, none
+   its share parried); at 1.0 strides/s she is on an edge - a parry in
+   three strides or none by the sideways gain's fourth digit, 2 in the
+   spread on CI's runner where 1 here (`looks.PARRIES` 3 for it); at
+   0.65 strides/s the swinging foot clears the floor by 0.1 mm. DOD: a
+   spread's parries at 1 or under on any host; the scoreboard's walks on their form, none
    fallen; `looks.FORM`'s landing knee at 15; test_gynoid_gait.py
    asserting fewer J/m than the same walk crouched to 12, 18, 24 and 30
    deg at each pace; the stance knee at 4.5 or on its stop; the stride at

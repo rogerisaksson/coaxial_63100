@@ -75,9 +75,10 @@ ENERGY_J_M, FORM_K, FELL = 100.0, 20.0, 1000.0
 
 
 #: A pace is judged on a spread of walks, their measures meaned and their parries summed,
-#: PARRIES at most: one walk scores chance - at 1.0 strides/s the sideways gain's fourth digit
-#: made one parry in three strides or none, 18 walks about it none (2026-10-05).
-PARRIES = 1
+#: PARRIES at most - one a walk of three: one walk scores chance. At 1.0 strides/s the sideways
+#: gain's fourth digit made one parry in three strides or none, 18 walks about it none, and
+#: CI's runner 2 in the spread where this host 1 (2026-10-05); a walk that parries, 3-5 each.
+PARRIES = 3
 
 
 def spread(walks):

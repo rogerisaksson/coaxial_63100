@@ -290,9 +290,12 @@ class Armada:
             for name in names:
                 path = os.path.join(self.root, 'done', name)
                 if name not in out and os.path.exists(path):
-                    with open(path) as f:
-                        out[name] = json.load(f)['result']
-                    os.remove(path)
+                    try:                      # held by the host's scanner: next round
+                        with open(path) as f:
+                            out[name] = json.load(f)['result']
+                        os.remove(path)
+                    except (OSError, ValueError):
+                        pass
             if self.thread is not None and self.ended and not self.thread.is_alive():
                 raise RuntimeError('the armada ended: %s' % self.ended[-1][1][-400:])
             self._requeue()
