@@ -109,9 +109,10 @@ CONTROLLER = 'test_controller.py'
 #: The gynoid on fantasy boards, their SOA never binding: her walk, her clothes, her look; on her
 #: boards as built: the envelope derating and tripping them, glitches; shoved, tripped and down;
 #: standing on the floor's rigs, nudged; her walk's form on the flat floor (`looks.FORM`), her
-#: run's (`run.FORM`).
+#: run's (`run.FORM`); her going on the one law, its rows (`go.FORM`).
 GYNOID, GYNOID_FAULTS, GYNOID_FALLS = 'test_gynoid.py', 'test_gynoid_faults.py', 'test_gynoid_falls.py'
 GYNOID_STAND, GYNOID_GAIT, GYNOID_RUN = 'test_gynoid_stand.py', 'test_gynoid_gait.py', 'test_gynoid_run.py'
+GYNOID_GOING = 'test_gynoid_going.py'
 
 #: The cyclic executive (machine.cyclic): its steps against machine.parts, its cycle on a toy rotor.
 CYCLIC = 'test_cyclic.py'
@@ -123,7 +124,7 @@ DEFAULT_SUITES = (STRUCTURES + (CORE, SHTP, DRIVE, DRIVE_OBSERVER, FILTER, THERM
                    CTRL_CORE, WORLD_CORE, WIRE, NATIVE, NATIVE_HEAT, EMULATOR,
                    SENSORLESS,
                    BROKER, DAQ_API, CONTROLLER, GYNOID, GYNOID_FAULTS, GYNOID_FALLS,
-                   GYNOID_STAND, GYNOID_GAIT, GYNOID_RUN, CYCLIC, BOOT) + VIEWS
+                   GYNOID_STAND, GYNOID_GAIT, GYNOID_RUN, GYNOID_GOING, CYCLIC, BOOT) + VIEWS
                   + (RENDER,) + OLLAMA
                   + ('test_mcp.py', 'test_simulated.py', 'test_parity.py',
                      BENCH))
@@ -152,6 +153,7 @@ JOINS = (
     (12, GYNOID_STAND),
     (12, GYNOID_GAIT),
     (12, GYNOID_RUN),
+    (12, GYNOID_GOING),
     (12, CYCLIC),
     (12, BOOT),
     (15, CORE),
@@ -290,7 +292,8 @@ TOUCHES = (
     ('host/machine/quad.py',                   ('test_views_quad.py', STRUCTURE)),
     ('host/coaxial/graphics/quadcopter.py',    ('test_views_quad.py', RENDER)),
     ('host/machine/',                          (CONTROLLER, GYNOID, GYNOID_FAULTS, GYNOID_FALLS,
-                                                GYNOID_STAND, GYNOID_GAIT, GYNOID_RUN, CYCLIC,
+                                                GYNOID_STAND, GYNOID_GAIT, GYNOID_RUN,
+                                                GYNOID_GOING, CYCLIC,
                                                 'test_simulated.py', 'test_mcp.py')),
     ('host/coaxial/graphics/gynoid.py',        (RENDER, *VIEWS, GYNOID)),
     ('host/coaxial/graphics/shapes.py',        (RENDER, *VIEWS, GYNOID)),
@@ -357,6 +360,7 @@ TOUCHES = (
     ('host/tools/sim/armada.py',               (STRUCTURE, GYNOID_GAIT)),
     ('host/tools/sim/replay.py',               (STRUCTURE, GYNOID_GAIT)),
     ('host/tools/sim/run.py',                  (STRUCTURE, GYNOID_RUN)),
+    ('host/tools/sim/go.py',                   (STRUCTURE, GYNOID_GOING)),
     # BENCH: firmware in the main loop is what slows the board (the thermal
     # observer's per-poll ADC and SPI reads; a poll that lost a Modbus byte).
     ('comms/',                                 (WIRE, NATIVE, EMULATOR, CONFORMANCE, 'test_mcp.py',

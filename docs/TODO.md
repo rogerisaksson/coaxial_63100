@@ -81,35 +81,30 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
    Standing first (the user, 2026-10-04), the floor perturbed a little under
    her, then walking. Standing rigged and scored (`events.STANDING`, the
    'stand' suite, test_gynoid_stand.py; docs/findings/standing.md). The reflex
-   one law (`machine.dcm`, 2026-10-04: the capture point in the sole's hold, a
-   step due only outside it, the foot bearing less landing on the ray from the
-   standing foot through the capture point as it will be; no case for a side or
-   a rig), measured on the push polar (`events.PUSH_DEG`, 48 pushes over 8
-   ways): 25 stood - 60 N 12 of 12, 80 N 10, 100 N 3 (from behind and from the
-   front, on one step), 120 N none. The soles' load through its sensor's band
-   and the stepping foot one that can land where the capture point goes
-   (2026-10-04): 30 - 60 N 12 of 12, 80 N 11, 100 N 7, 120 N none -, the bricks
-   100 and 84 %, the rockers 100. Next, in the same plane: the 120 N pushes
-   (the share's rate against the band, standing.md); the stance back at her
-   standing height after a step - she stays 5-12 cm down on bent knees; the
-   trunk thrown into the fall (the angular momentum, a CMP past the sole, 60 N
-   m 17 cm on her 35 kg) as a torque - a lean on the spine's setpoints did
-   nothing; a ready crouch as the capture point strays - her standing legs are
-   straight, 3.8 cm of reach along the floor. Then walking: a hole, a sill, a
-   slope, a tilt, a brick gone. The way (the user, 2026-10-04): little Python -
-   the reflexes a prose stream encoded into meta-movement patterns over a small
-   vocabulary of moves (step, lean, crouch, hold, catch; `machine.planner`'s
-   way), a table of when and what the local model and the observer pick from,
-   each hypothesis a line, not a controller. The aim a meta-control-law that
-   learns a hard surface and keeps her balance on it. DOD, from the LLM to the
-   metal: a 'stand' suite on the scoreboard - the nudges, the bricks, the board
-   - 100 % standing, on the board still but for micro-adjustments under the
-   walk's stir; point feet (`figure`'s contacts a sphere at each ball, a knob)
-   and the box sole alike; the walk's events joined by the slope, the tilt and
-   the brick, the scoreboard at or over today's; the first stride stands with
-   the heel and the toes moved +-1 cm; the sprung toes (item 6) held by it; the
-   patterns driven over the bus to the emulated boards (`emulator://`,
-   `native://`), the drives turning, not the simulated director alone.
+   one law (`machine.dcm`, 2026-10-04), measured on the push polar
+   (`events.PUSH_DEG`, 48 pushes over 8 ways): 25 stood. The soles' load
+   through its sensor's band and the stepping foot one that can land where the
+   capture point goes (2026-10-04): 30 - 60 N 12 of 12, 80 N 11, 100 N 7, 120 N
+   none -, the bricks 100 and 84 %, the rockers 100. Next, in the same plane:
+   the 120 N pushes (the share's rate against the band, standing.md); the
+   stance back at her standing height after a step - she stays 5-12 cm down on
+   bent knees; the trunk thrown into the fall (the angular momentum, a CMP past
+   the sole, 60 N m 17 cm on her 35 kg) as a torque - a lean on the spine's
+   setpoints did nothing; a ready crouch as the capture point strays - her
+   standing legs are straight, 3.8 cm of reach along the floor. Then walking: a
+   hole, a sill, a slope, a tilt, a brick gone. The way (the user, 2026-10-04):
+   little Python - reflexes over a small vocabulary of moves, a table the local
+   model and the observer pick from, each hypothesis a line. The aim a
+   meta-control-law that learns a hard surface and keeps her balance on it.
+   DOD, from the LLM to the metal: a 'stand' suite on the scoreboard - the
+   nudges, the bricks, the board - 100 % standing, on the board still but for
+   micro-adjustments under the walk's stir; point feet (`figure`'s contacts a
+   sphere at each ball, a knob) and the box sole alike; the walk's events
+   joined by the slope, the tilt and the brick, the scoreboard at or over
+   today's; the first stride stands with the heel and the toes moved +-1 cm;
+   the sprung toes (item 6) held by it; the patterns driven over the bus to the
+   emulated boards (`emulator://`, `native://`), the drives turning, not the
+   simulated director alone.
 4. **Running** (`machine/runner.py`, test_gynoid_run.py,
    docs/findings/run.md): from a flight at her speed she holds 0.72-1.65
    m/s half a minute on her motors as bought, 357-267 J/m, a sole 665 N at
@@ -259,17 +254,21 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
     bearing out in `bearing.py`): the trial into its own module. DOD:
     `test_structure` on the layout, each file under 5 k.
 
-28. **One law for her going, S and F on it** (the user, 2026-10-05: no
-    scenario a moment; balance automatic over a second at most, intent a
-    stream of setpoints; "balance point", "clearance", "interference").
-    A limb bears or is free; the capture point against what the bearing
-    ones hold says when and where the next contact is due; walk and run
-    one law, two numbers - her speed, the share of a step a foot stands.
-    The run glued into the walk: in, 3 of 4; back, down 25 of 25
-    (docs/findings/run.md). DOD: in the lab the one law stands, walks,
-    runs and passes between on its setpoints alone, 10 of 10 over a
-    spread; her walk on it on `looks.FORM` at no more J/m; F to her
-    fastest run and S back on the page.
+28. **One law for her going, S and F on it** (the user, 2026-10-05: no scenario
+    a moment; balance automatic over a second at most, intent a stream of
+    setpoints; "balance point", "clearance", "interference"). In, off the page
+    (`machine/going.py`, `tools/sim/go.py`, docs/findings/going.md): a gait a
+    row of 16 setpoints - the walk's found on the scoreboard's price, 0.99 m/s
+    at 360 J/m with a foot always down, the run's the runner's, one between.
+    Left: her passage on any timing - walk, run and walk again on 2 of 10, into
+    the run at 1.56-1.93 m/s for 1.5, her speed unheld (0.99 for 0.76); her
+    form on it, priced 26 - the pelvis's roll over the stance leg 0.6 deg where
+    3, the knee 10.6 behind plumb, her head's bob 34 mm, a strike 483 N; her
+    stand, start and stop on it, a step due as the capture point leaves its
+    hold; her turns and parries; the runner and the walk's modules gone into
+    it. DOD: the one law stands, walks, runs and passes between on its
+    setpoints alone, 10 of 10 over a spread; her walk on it on `looks.FORM` at
+    no more J/m; F to her fastest run and S back on the page.
 29. **Her tubes, corners and flanges** (the user, 2026-10-05): carbon
     tubes cut to length, epoxied into printed corners; a gearbox on a
     flange, its output through it; motor, box and board outermost, a
@@ -350,7 +349,8 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
 - **`test_native_heat`** lost the cold room on CI 3.12 (925a173). DOD:
   STABLE again within FIND_S on CI.
 - **`test_sensorless`** overpowered-servo check flakes ~1 in 4 in the full
-  gate. DOD: 20 gates green.
+  gate; `test_daq_api`'s first record had no dt once in it, 82 of 82
+  alone (2026-10-05). DOD: 20 gates green.
 - **A1335 CRC** reported, not checked. DOD: the polynomial known, checked.
 - **`testline/plans/coaxial_63100_fct.yaml`** limits are placeholders.
   DOD: measured.
