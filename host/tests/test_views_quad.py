@@ -201,14 +201,15 @@ def test_the_page_flies_four_boards(report):
                  'lowest %.3f m, held at last %.3f m' % (low, held[-1] if held else math.nan))
     sag = min((r['volts'] for r in tilt), default=math.nan)
     # Its reads' greatest: CI's runner caught 880-999 W of the kilowatt in three gates of four
-    # (2026-10-06), this host 1 kW and over.
+    # (2026-10-06), this host 1 kW and over; and its first frame there comes with the rotors
+    # already drawing, the bus more than 0.2 V under its 63 - within 1.5 V of them.
     report.check('the bus droops a volt and more under full tilt\'s kilowatt, 63 V at its start',
-                 abs(rows[0]['volts'] - quad.open_volts(1.0)) < 0.2
+                 -1.5 < rows[0]['volts'] - quad.open_volts(1.0) < 0.2
                  and bool(tilt) and max(r['watts'] for r in tilt) >= 850.0
                  and sag <= quad.open_volts(tilt[0]['left']) - 1.0,
-                 '%.1f V under %.0f W, %.1f open' % (
+                 '%.1f V under %.0f W, %.1f open; %.1f V at the first frame' % (
                      sag, max((r['watts'] for r in tilt), default=math.nan),
-                     quad.open_volts(tilt[0]['left']) if tilt else math.nan))
+                     quad.open_volts(tilt[0]['left']) if tilt else math.nan, rows[0]['volts']))
     names = [name for name, _rows in spans(rows)]
     swap = names.index('swap') if 'swap' in names else len(names)
     spent = next((r for r in rows if r['left'] <= quad.RESERVE), None)
