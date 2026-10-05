@@ -264,4 +264,7 @@ shoves, the scoreboard and its searches. The board's own are in
   strides/s - where 21, 3 down and 6 parried. The events held 48 of 90 as
   before; shoved down at 1.0 strides/s she is up and walking 22.5 s on.
   With the roll's peak at 0.27 the standing starts all clean, from the
-  squat 1 gain of 6 parries, 27-33 times.
+  squat 1 gain of 6 parries, 27-33 times; at 0.28-0.30 1 or 2 gains of 6,
+  one down, at 0.31 none. Stood 0.4 s before the lean where 0.05
+  (`STAND_S`): 27 of 30, one gain's standing start parried 14-22 times,
+  and with the peak at 0.29 and 0.27 from the squat 4 gains of 6 parry.
