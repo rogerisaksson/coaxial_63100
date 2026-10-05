@@ -188,6 +188,13 @@ WALK = (
     ('knee swinging', 'deg', lambda rs: max((float(r['left_knee']) for r in _mid_swings(rs)),
                                             default=math.nan)),
     ('knee at landing', 'deg', lambda rs: _mean(float(b['left_knee']) for a, b in _landings(rs))),
+    # the stance leg a strut: its knee while her foot bears her alone, its ankle behind its hip
+    ('knee behind plumb', 'deg', lambda rs: max((float(r['left_knee']) for r in _alone(rs)
+                                                 if _p(r, 'left_foot')[2] < _p(r, 'left_thigh')[2]),
+                                                default=math.nan)),
+    ('leg behind plumb', 'deg', lambda rs: max((_lean(_p(r, 'left_foot'), _p(r, 'left_thigh'))
+                                                for r in _alone(rs)), default=math.nan)),
+    ('hip over stance', 'deg', lambda rs: _mean(_roll(r) for r in _alone(rs))),
     ('toe out', 'deg', lambda rs: _mean(_foot(r)[0] for r in _alone(rs))),
     ('foot roll', 'deg', lambda rs: _mean(_foot(r)[1] for r in _alone(rs))),
     ('ankle roll', 'deg', lambda rs: _mean(float(r['left_ankle_roll']) for r in _alone(rs))),
@@ -209,13 +216,24 @@ def _held(rs, k, bears):
 
 
 def _landings(rs):
+    """The left foot's landings: it comes to bear with its ankle ahead of its hip - its toes'
+    load coming and going as the leg gives way behind her is no landing (2026-10-05)."""
     return [(a, b) for k, (a, b) in enumerate(zip(rs, rs[1:]), 1)
-            if float(a['left_load']) <= BEARS_N < float(b['left_load']) and _held(rs, k, True)]
+            if float(a['left_load']) <= BEARS_N < float(b['left_load']) and _held(rs, k, True)
+            and _p(b, 'left_foot')[2] > _p(b, 'left_thigh')[2]]
 
 
 def _lifts(rs):
-    return [(a, b) for k, (a, b) in enumerate(zip(rs, rs[1:]), 1)
-            if float(a['left_load']) > BEARS_N >= float(b['left_load']) and _held(rs, k, False)]
+    """Its lifts: the last time it stops bearing before each landing after the first."""
+    downs = [(k, a, b) for k, (a, b) in enumerate(zip(rs, rs[1:]), 1)
+             if float(a['left_load']) > BEARS_N >= float(b['left_load']) and _held(rs, k, False)]
+    lands = [float(b['t']) for _a, b in _landings(rs)] + [math.inf]
+    out = []
+    for start, end in zip([-math.inf] + lands, lands):
+        mine = [(a, b) for _k, a, b in downs if start < float(b['t']) < end]
+        if mine and (start > -math.inf or end < math.inf):
+            out.append(mine[-1])
+    return out
 
 
 def _slips(rs):
@@ -327,14 +345,28 @@ def _turn(r):
     return math.degrees(math.atan2(2.0 * (x * z + w * y), 1.0 - 2.0 * (x * x + y * y)))
 
 
+def measured(rows):
+    """{measure: value}: WALK over a walk's `rows`, and what no row says alone - the parries she
+    needed (`catches`) and, where the rows carry her power, the energy a metre (J/m)."""
+    out = {name: f(rows) for name, _unit, f in WALK}
+    out['catches'] = sum(1 for a, b in zip(rows, rows[1:]) if b['stage'] == 'catch' != a['stage'])
+    watts = [float(r['watts']) for r in rows if r.get('watts') not in (None, '')]
+    on = float(rows[-1]['z']) - float(rows[0]['z'])
+    if watts and on > 0.1:
+        out['energy'] = _mean(watts) * (float(rows[-1]['t']) - float(rows[0]['t'])) / on
+    return out
+
+
 def walked(rows):
     """The steady walk's look: WALK over the rows from WALK_FROM_S after the walk begins."""
-    walk = [r for r in rows if r['stage'] == 'walk']
+    walk = [r for r in rows if r['stage'] in ('walk', 'catch')]
     if not walk:
         return
     from_t = float(walk[0]['t']) + WALK_FROM_S
     steady = [r for r in walk if float(r['t']) >= from_t]
     if len(steady) < 2:
         return
+    got = measured(steady)
     print('\n9 walk from %.2f s to %.2f s' % (from_t, float(steady[-1]['t'])))
-    print('  ' + ' | '.join('%s %.1f %s' % (name, f(steady), unit) for name, unit, f in WALK))
+    print('  ' + ' | '.join('%s %.1f %s' % (name, got[name], unit) for name, unit, _f in WALK)
+          + ' | catches %d | energy %.0f J/m' % (got['catches'], got.get('energy', math.nan)))

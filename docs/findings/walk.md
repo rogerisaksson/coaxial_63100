@@ -277,3 +277,57 @@ squat. The board's own are in [FINDINGS](../FINDINGS.md).
   the median 468 -> 335. The board 578 -> 299, held 76.8 % against main's
   495; the same knobs to 17, 6 and 3 digits 263, 306 and 420 - its chance.
   `landing.PARRY_HURRY` 0.29 (2026-10-03).
+- Her walk went Groucho and what sold it (the user, 2026-10-05: she
+  sneaks with her legs out in front; `look.py` from the squat, the left
+  leg through its stance, 8-9 strides): on 2026-10-03 (945a6a8) the knee
+  24 deg at its landing, 6.8 as the leg passes plumb, 2-8 going back, the
+  pelvis 9-29 mm under its stand; the motors off the feet (e957a3a) she
+  fell at 9.2 s, and 5d2f296 answered the fall with the heel off at 0.5
+  where 0.36 - 34, 20.6 and 16-17 deg, the pelvis 22-53 mm down, the
+  scoreboard 78.6 % held where 65.8; the slip's fix (eb03ee0) held the knee
+  at 16.4 (`stance.HEEL_REACH` 0.99) on a stride of 0.75 m where 0.85. A
+  take of a woman's catwalk (`tools/sim/mocap.py`'s, her size: thigh 0.40,
+  shank 0.41 m; 1.09 m/s on a stride of 1.29 m, 0.85 a second): the knee
+  1-3 deg at its landing, 2-5 through the stance, the leg 23-25 behind
+  plumb as its ankle moves, the toes not back at all, the pelvis 20 mm
+  under its top at each landing and 31 mm a stride.
+- A straight leg costs her more than a bent one, and where (2026-10-05;
+  steady at 0.85 strides/s, 0.63-0.66 m/s, her boards' own 53 W in each):
+  the walk as built 365 W, 561 J/m - work 151, copper 160; the stance
+  knee at 6 deg 402 W, at 18 264, at 30 256, the hips' and knees' work and
+  copper 247 W against 133 and 123. By the left leg's phase, a twentieth
+  each: where it only stands, the knee at 1.5 deg, the knee draws 1 W at
+  6 N m rms; landed bent 21-27 deg and straightened under her weight, hip
+  and knee 620 W over 0.12-0.17; let go at 6 deg into a swing of 57, 895
+  W over one twentieth; the two legs solved for one pelvis in the double
+  support, the hips' roll 73-78 N m rms each. Her mechanics ask some 10 W.
+  A leg carrying as its sole bears of what the two bear (lab): 364 -> 341
+  W as built, the knee at plumb 12.3 -> 3.4 deg, the toes back 2 mm, no
+  parry. The power is steady from 2 s into the walk: 368, 372 and 373 W
+  from 2, 4 and 8 s.
+- Her stance leg a strut again (2026-10-05; `gait._limit`,
+  `stance.rolled`, `stance.carrying`): the hips no longer planned down to
+  the trailing leg's flat foot - held level before 2026-09-25 the knees
+  stood 33-40 deg, swept 16 at most, the hips up and down 20 mm -, the
+  leg held at its soft knee's length, its heel solved to 30 halvings, a
+  leg carrying as its sole bears of what the two bear, the knee giving up
+  to 24 deg through the double support. Steady at 0.85, 0.65 and 1.0
+  strides/s (`tools/sim/armada.py`): 393, 384 and 604 J/m where 561, 885
+  and 608; the knee 7.1, 6.8 and 8.1 deg behind the plumb line where 16.7,
+  16.5 and 18.3, landing at 28, 25 and 26 where 33, 31 and 34; the toes
+  back 0.8, 0.5 and 0.1 mm; no parry where 0, 8 and 0; her head's bob 13,
+  12 and 16 mm where 22, 25 and 28; the strike 363, 401 and 385 N where
+  391, 367 and 399. The pre-swing's knee: steady at 1.0 strides/s 18 deg
+  4 parries, 20-25 none, 28 3; from the squat 20 one or two as her start
+  ends, 22 two and 7 at 1.0, 23 one at 0.65 and at 1.0, 24-26 none; under
+  15 she fell, a strut to its lift too; shoved past saving 16 times, her
+  head at the floor at 1.6-4.0 m/s once or twice at 23, 25 and 27, at 0.5
+  at 26, never at 22 and 24 - sat back limp out of the crouch each time.
+  By the stance knee, J/m at 0.85 (the pre-swing at 25): 3 deg 426, 4.5
+  408, 6 398, 9 380, 12 371, 18 394 - the heel solved to 12 halvings 545,
+  429, 394 and 381 at 3, 6, 9 and 12, a knee at 3 deg asked 0.2 deg
+  another way each pass and its board reading its rate between two
+  frames. Her own recordings of 2026-10-02 and -03 (build/recordings): the
+  knee 2-5 deg where her foot bears her alone behind the plumb line, to -3,
+  landing at 13-28. The gynoid's suites: 28, the falls 44, the faults
+  9, the stand 6, the gait 41, none failed.

@@ -111,6 +111,22 @@ Fitted parts come from `0x6D` kind 4, never from a name. Host rules:
   second measurement shows it gone. Measure against the body, not the
   plumb line: a torso plumb over bent knees leans back. A running page
   keeps the code it started with.
+- **Her walk is a human's; its form is a condition, never a price** (the
+  user, 2026-10-05). On a flat, smooth floor one walk passes: the least
+  energy a metre, the pelvis rolling over a stance leg whose knee is all
+  but straight from its landing till it is behind her. A crouch falls
+  less and so does crawling: a fall is met by a parry - where the foot
+  lands -, never by the gait's shape, stride or height; the scoreboard
+  rewards parries and rejects a walk off its form. A straight leg costing
+  more than a bent one is a fault in how it is driven: found, not tuned
+  round. What is solved stays: a fix that moves a solved measure is
+  undone. Mocap is a reference, not a search space. `looks.FORM` is the
+  form, test_gynoid_gait.py holds it; docs/TODO.md item 1.
+- **Smoke her walk first**: after any change reaching it,
+  `python tools/sim/armada.py` (12 s on the armada kept up, `--up`) - her
+  form, J/m and parries at three paces - quoted before anything else. A
+  candidate is tried from a walking robot's mark (`--grid`, `--search`),
+  never from the squat.
 - **Simulated before emulated.** *Emulated* is the image on Renode: SIL.
   *Simulated* is a pure software model claiming no hardware, real or
   emulated. Nothing goes on the emulator until a plausible simulated model

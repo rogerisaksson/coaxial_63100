@@ -42,9 +42,9 @@ TRACK_M, WIDEN_M, STAND_M = 0.03, 0.01, HIP_HALF
 
 #: The walk: metres a stride (two steps) at `stride` 1 - 1.15 was more than her 0.77 m legs
 #: reach behind at toe-off, and the hips sank to let them. At 1.0 (the toe-off at 0.66) the
-#: pelvis dipped 49 mm under the stand and the head went 56 mm fore and aft; at 0.85, 34 and 35,
-#: the scoreboard's cost 7.74 -> 7.18, held 83.7 %, the stir 3.4 -> 2.3 mm (2026-09-28); 0.75
-#: with the heel by reach (`stance.rolled`).
+#: pelvis dipped 49 mm under the stand, the head 56 mm fore and aft; at 0.85, 34 and 35, the
+#: scoreboard 7.74 -> 7.18, held 83.7 %, the stir 3.4 -> 2.3 mm (2026-09-28); 0.75 with the
+#: heel by reach (`stance.rolled`).
 STRIDE_M = 0.75
 
 #: The cadence a stride of 1 goes with, strides a second; faster, the steps lengthen as the
@@ -71,12 +71,11 @@ KNEE_MIN_DEG = 4.0
 #: The foot lands on its heel, toes up LAND_DEG (`pitch_of`), and rolls about it flat by SETTLE;
 #: its heel rises from HEEL_OFF about the ball and leaves the floor at toe-off, TOE_OFF. Landed on
 #: the ball, heel up, the landing knee stood at 42 degrees and the step struck 3.3 body weights
-#: (2026-09-26). Toes up 15 for 9.3, the heel strike's peak 1.55 -> 1.1 kN, 20 alike; the
-#: front leg's reach at the strike grows with it but the plan's height is the trailing leg's,
-#: flat and 22 cm behind, so the landing knee bends the more (2026-09-27). Off at 0.62 the thigh
-#: still stood 1 degree ahead of upright as the toes left the floor, 196 mm behind the hip -
-#: her feet in front (`STANCE_AT`); at 0.66, 8.5 behind, 235 mm; 0.68, 11.7 and the head's bob
-#: 31 mm; 0.7, 22.9 and her head 140 mm fore and aft (2026-09-28).
+#: (2026-09-26). Toes up 15 for 9.3, the heel strike's peak 1.55 -> 1.1 kN, 20 alike
+#: (2026-09-27). Off at 0.62 the thigh still stood 1 degree ahead of upright as the toes left
+#: the floor, 196 mm behind the hip - her feet in front (`STANCE_AT`); at 0.66, 8.5 behind, 235
+#: mm; 0.68, 11.7 and the head's bob 31 mm; 0.7, 22.9 and her head 140 mm fore and aft
+#: (2026-09-28).
 SETTLE, HEEL_OFF, TOE_OFF, LAND_DEG, LAND_RATE = 0.13, 0.5, 0.66, 15.0, -75.0
 
 #: The foot's pitch at toe-off, degrees toes-up, and its rate and acceleration there, a stride
@@ -127,10 +126,6 @@ def _knots(stride):
 #: held 83.8 -> 85.6 %, the stir 2.6 -> 3.6 mm; at 0.2 alone the surge doubled, 0.14 fell
 #: (2026-09-28).
 STANCE_AT = 0.24
-
-#: The hips ride as high as a stance leg reaches (REACH), smoothed: held level, the knees stood
-#: at 33-40 degrees, a crouch. Swept (2026-09-25): stance knee at most 16 degrees, the thigh 20
-#: behind upright at toe-off, the hips rising and falling 20 mm.
 
 #: The pelvis alone moves: over the stance leg (metres; at 3 cm both legs leaned together, a
 #: parallelogram), dropping on the swing side (degrees,
@@ -209,7 +204,8 @@ def _yaw(p, stride):
 
 
 def _limit(p, stride):
-    """How high the hips' mid-point can ride at `p`: every foot on the floor within REACH; a foot
+    """How high the hips' mid-point can ride at `p`: every foot on the floor within REACH, one
+    whose ball is behind its hip holding her where its heel came off (`stance.rolled`); a foot
     in the air holds nothing up."""
     reach = REACH
     roll, yaw = math.radians(_roll(p) * stride), math.radians(_yaw(p, stride))
@@ -217,10 +213,15 @@ def _limit(p, stride):
     for sign, q in ((1.0, p), (-1.0, (p + 0.5) % 1.0)):
         if q % 1.0 >= TOE_OFF:
             continue
-        x, y, _pitch = planted(q, stride)
+        x, y, pitch = planted(q, stride)
         dx = x + sign * HIP_HALF * math.sin(yaw)
-        low = min(low, y + math.sqrt(max(0.0, reach * reach - dx * dx))
-                  - sign * HIP_HALF * math.sin(roll))
+        high = y + math.sqrt(max(0.0, reach * reach - dx * dx))
+        ball = STRIDE_M * stride * (STANCE_AT - q % 1.0) + BALL + sign * HIP_HALF * math.sin(yaw)
+        if pitch <= 0.0 and ball < 0.0:
+            ax, ay = pivot(ball, 0.0, -BALL, ANKLE_H, TOE_DEG)
+            high = min(ANKLE_H + math.sqrt(reach * reach - BALL * BALL),
+                       ay + math.sqrt(max(0.0, reach * reach - ax * ax)))
+        low = min(low, high - sign * HIP_HALF * math.sin(roll))
     return low
 
 

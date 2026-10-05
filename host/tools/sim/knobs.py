@@ -21,7 +21,22 @@ def _modules():
 
 
 def set_(values):
-    """{name: value} set where each lives (the module's brief)."""
+    """{name: value} set where each lives (the module's brief), the fits and tables cleared."""
+    mods = put(values)
+    gait, walkplan = mods[1], mods[2]
+    gait._FITS.clear()
+    walkplan._TABLES.clear()
+
+
+def swap(values):
+    """{name: value} set under way: the plan eased from its tables before to the new
+    (`walkplan.retable`), every other constant at once."""
+    _modules()[2].retable()
+    put(values)
+
+
+def put(values):
+    """{name: value} set where each lives, nothing cleared; the modules."""
     mods = _modules()
     for name, value in values.items():
         module, _dot, name = name.partition('.') if '.' in name else ('', '', name)
@@ -34,9 +49,7 @@ def set_(values):
             getattr(owner, table)[key] = value
         else:
             setattr(owner, table, value)
-    gait, walkplan = mods[1], mods[2]
-    gait._FITS.clear()
-    walkplan._TABLES.clear()
+    return mods
 
 
 def now(name):

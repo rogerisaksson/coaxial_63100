@@ -58,3 +58,16 @@ own are in [FINDINGS](../FINDINGS.md).
   The squat's down ends on arrival in 0.6-0.7 s of its 2; the scan's timeouts are
   answers, not alarms (it branches). The humanoid prompt: 1 434 characters
   (2026-09-24).
+- An armada of her, each walking steady (2026-10-05; the user: a known
+  law walking, the unknown swapped in, back to a known state at a fall, no
+  kilowatts on repetitions; `tools/sim/armada.py`, `tools/sim/replay.py`):
+  her world, her boards' processes, the loop and the director marked
+  between passes and gone back to - the walk gone back to the same to the
+  last digit of her pose and 332.9 W over 3 s; her boards held at the
+  mark's setpoints as at a reset instead, 382 W. A candidate at three
+  paces 12 s on robots kept up, 30 trials 28 s on 12 robots, a robot up
+  and marked at three paces in 10 s; from the squat a run was 60-90 s. The
+  law's modules reloaded under a walking robot: a constant changed in
+  stance.py and back, her walk's numbers there and back to the digit. A
+  file the host's scanner held killed a robot at a rename and 8 of 12 in a
+  minute at their signs of life: each tried again now.

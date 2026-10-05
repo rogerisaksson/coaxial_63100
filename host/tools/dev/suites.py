@@ -106,9 +106,9 @@ CONTROLLER = 'test_controller.py'
 
 #: The gynoid on fantasy boards, their SOA never binding: her walk, her clothes, her look; on her
 #: boards as built: the envelope derating and tripping them, glitches; shoved, tripped and down;
-#: standing on the floor's rigs, nudged.
+#: standing on the floor's rigs, nudged; her walk's form on the flat floor (`looks.FORM`).
 GYNOID, GYNOID_FAULTS, GYNOID_FALLS = 'test_gynoid.py', 'test_gynoid_faults.py', 'test_gynoid_falls.py'
-GYNOID_STAND = 'test_gynoid_stand.py'
+GYNOID_STAND, GYNOID_GAIT = 'test_gynoid_stand.py', 'test_gynoid_gait.py'
 
 #: The cyclic executive (machine.cyclic): its steps against machine.parts, its cycle on a toy rotor.
 CYCLIC = 'test_cyclic.py'
@@ -120,7 +120,7 @@ DEFAULT_SUITES = (STRUCTURES + (CORE, SHTP, DRIVE, DRIVE_OBSERVER, FILTER, THERM
                    CTRL_CORE, WORLD_CORE, WIRE, NATIVE, NATIVE_HEAT, EMULATOR,
                    SENSORLESS,
                    BROKER, DAQ_API, CONTROLLER, GYNOID, GYNOID_FAULTS, GYNOID_FALLS,
-                   GYNOID_STAND, CYCLIC, BOOT) + VIEWS
+                   GYNOID_STAND, GYNOID_GAIT, CYCLIC, BOOT) + VIEWS
                   + (RENDER,) + OLLAMA
                   + ('test_mcp.py', 'test_simulated.py', 'test_parity.py',
                      BENCH))
@@ -147,6 +147,7 @@ JOINS = (
     (12, GYNOID_FAULTS),
     (12, GYNOID_FALLS),
     (12, GYNOID_STAND),
+    (12, GYNOID_GAIT),
     (12, CYCLIC),
     (12, BOOT),
     (15, CORE),
@@ -224,13 +225,14 @@ PORT = ('test_mcp.py', 'test_parity.py')
 #: Suites that run their tests through tools.dev.focus.chosen: past a slice of the run they go
 #: on as shards side by side.
 SHARDED = (SENSORLESS, CONTROLLER, GYNOID, GYNOID_FAULTS, GYNOID_FALLS, GYNOID_STAND,
-           'test_simulated.py', 'test_views_segments.py', DAQ_API)
+           GYNOID_GAIT, 'test_simulated.py', 'test_views_segments.py', DAQ_API)
 
 #: A sharded suite's seconds where none are recorded (tests/.counts.json, not committed): CI's
 #: checkout ran test_gynoid_falls.py whole, 532 s here, and its 300 s cut it (2026-10-01); with
 #: its get-ups after a fall 540 + 2 x 38 (2026-10-03); their starts hot after a minute's walk
 #: 822 here, 886 on CI's runner in two shards of 443, each cut at 300 (2026-10-04).
-FRESH_S = {GYNOID_FALLS: 850.0}
+#: The gait suite 209 s here whole (2026-10-05), its three tests a robot each in shards.
+FRESH_S = {GYNOID_FALLS: 850.0, GYNOID_GAIT: 450.0}
 
 #: The emulator's groups and each one's time, s, a Renode each: the rig's took 150 of the
 #: suite's 211 one after another here, and CI's runner ran the Release image's past 240
@@ -283,8 +285,8 @@ TOUCHES = (
     ('host/machine/quad.py',                   ('test_views_quad.py', STRUCTURE)),
     ('host/coaxial/graphics/quadcopter.py',    ('test_views_quad.py', RENDER)),
     ('host/machine/',                          (CONTROLLER, GYNOID, GYNOID_FAULTS, GYNOID_FALLS,
-                                                GYNOID_STAND, CYCLIC, 'test_simulated.py',
-                                                'test_mcp.py')),
+                                                GYNOID_STAND, GYNOID_GAIT, CYCLIC,
+                                                'test_simulated.py', 'test_mcp.py')),
     ('host/coaxial/graphics/gynoid.py',        (RENDER, *VIEWS, GYNOID)),
     ('host/coaxial/graphics/shapes.py',        (RENDER, *VIEWS, GYNOID)),
     ('host/coaxial/graphics/lit.py',           (RENDER, *VIEWS, GYNOID)),
@@ -344,6 +346,10 @@ TOUCHES = (
     ('host/coaxial/model/blocks.py',           (SENSORLESS, DRIVE)),
     ('host/coaxial/control/motion.py',         (SENSORLESS, 'test_simulated.py')),
     ('host/tools/sim/montecarlo.py',           (STRUCTURE, DRIVE)),
+    ('host/tools/sim/looks.py',                (STRUCTURE, GYNOID_GAIT)),
+    ('host/tools/sim/strides.py',              (STRUCTURE, GYNOID_GAIT)),
+    ('host/tools/sim/armada.py',               (STRUCTURE, GYNOID_GAIT)),
+    ('host/tools/sim/replay.py',               (STRUCTURE, GYNOID_GAIT)),
     # BENCH: firmware in the main loop is what slows the board (the thermal
     # observer's per-poll ADC and SPI reads; a poll that lost a Modbus byte).
     ('comms/',                                 (WIRE, NATIVE, EMULATOR, CONFORMANCE, 'test_mcp.py',

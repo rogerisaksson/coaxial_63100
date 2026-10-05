@@ -16,7 +16,7 @@ emulator or the bench, not the simulated director alone. The platform
 layer under the patterns (the user, 2026-10-04): classical IK - the
 arrival's keyframes, the capture point placing each foot - hybrid with
 reinforcement learning, the learned part a residual on the IK's setpoints
-trained against MuJoCo by the grinder's loop (item 2), a table the
+trained against MuJoCo by the grinder's loop (item 3), a table the
 director reads, not a controller a hypothesis. Every special case is a
 sign the problem wants a more general form - a space it lives in, the
 capture point's plane for standing (the user, 2026-10-04). Every item
@@ -26,7 +26,35 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
 
 ## Gynoid, in order
 
-1. **The leg stack on the run** (the user, 2026-10-04: the most simplicity,
+1. **Her walk a human's, held by test** (the user, 2026-10-05: human
+   walking of low loss rolls with the hip; the stance leg going back is
+   extended and goes on past the plumb line; the Groucho walk is left to
+   the others; a biped on straight legs draws less than one crouched, and
+   moving its legs does not change that). Back since 2026-10-05
+   (`stance.rolled`, `stance.carrying`; docs/findings/walk.md): her knee 7
+   deg while her foot bears her alone behind the plumb line where 16.7, no
+   parry at 0.65-1.0 strides/s, steady or from the squat, 393, 384 and 604
+   J/m where 561, 885 and 608; held by test_gynoid_gait.py (`looks.FORM`),
+   smoked on the armada
+   (`tools/sim/armada.py`, 12 s). Left: her knee lands at 25-28 deg (1-3
+   on a take of a woman's, 24 on the walk approved 2026-10-03) and is
+   straightened under her weight, hip and knee 620 W over a tenth of the
+   stride; crouched she still walks for less - 371 J/m at a stance knee of
+   12 deg against 398 at 6, at 1.0 strides/s 462 at 24 against 609 -, the
+   knee's stop at -5 deg unused, the leg held off it by its drive; sat
+   back limp out of her crouch, shoved past saving, her head meets the
+   floor at 1.6-4.0 m/s in 1 or 2 falls of 16 at a pre-swing knee of 23,
+   25 or 27 - a kneel is no fall, and is called one (item 15); at a
+   stance knee of 4.5, her recordings' (2-5 deg, to -3), she parries 5
+   times in three strides at 1.0 strides/s; the stride 0.75 m where a
+   woman's is 1.29 at the same 0.85 a second; the scoreboard
+   (`gait_montecarlo`) still weighs an event's fall 300 its share and
+   knows nothing of `looks.FORM`. DOD: `looks.FORM`'s landing knee at 15;
+   test_gynoid_gait.py asserting fewer J/m than the same walk crouched to
+   12, 18, 24 and 30 deg at each pace; the stance knee at 4.5 or on its
+   stop; the scoreboard rejecting a walk off the form and scoring an event
+   on its parry; the stride at 1.0 m or over.
+2. **The leg stack on the run** (the user, 2026-10-04: the most simplicity,
    the fewest gearbox and electronics variants). One stack on every drive
    since 2026-10-05 (docs/DIMENSIONS.md, docs/findings/stacks.md): 60 x 20
    mm at KV 90, a 64 mm box at 1:30, a 70 mm 50 A inverter; 21 of each, 20
@@ -39,7 +67,7 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
    on it is 2 keyframe sets of 96 searched, the rest leaving her down -
    the crouch solved for her centre of mass over her feet, not a pose
    searched on a build; a fall asked a knee's box 763 N m of its 128
-   (item 6); the 70 mm inverter is an estimate from the 63100's, itself on
+   (item 7); the 70 mm inverter is an estimate from the 63100's, itself on
    no joint; every inverter in its own stack stands the elbow 8 mm past
    her shell (four stand apart, `drives.BOARDS`); the elbow, the neck and
    the head feel their rotors 7.8, 2.9 and 33 times their loads on the
@@ -50,7 +78,7 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
    joint's A, P, T and V under 1 on the run and the gym's scenes at the
    settled margin, no joint's J over 1; the pack's volts, the KV and the
    stages baked.
-2. **Balance by micro-steps, as on stilts** (the user, 2026-10-04): the
+3. **Balance by micro-steps, as on stilts** (the user, 2026-10-04): the
    support a point under each stance ball, nothing of the sole's shape to
    the controller, a small quick step toward the capture point whenever it
    leaves, standing and walking alike - else the control is too sensitive
@@ -95,13 +123,13 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
    (`figure`'s contacts a sphere at each ball, a knob) and the box sole
    alike; the walk's events joined by the slope, the tilt and the brick,
    the scoreboard at or over today's; the first stride stands with the
-   heel and the toes moved +-1 cm; the sprung toes (item 5) held by it;
+   heel and the toes moved +-1 cm; the sprung toes (item 6) held by it;
    the patterns driven over the bus to the emulated boards (`emulator://`,
    `native://`), the drives turning, not the simulated director alone.
-3. **Running**: a gait with flight, from the walk's search. DOD: 2 m/s
+4. **Running**: a gait with flight, from the walk's search. DOD: 2 m/s
    standing on the scoreboard, no strike over 2 kN, the parries, falls and
    get-ups of the biped's suite held as walking.
-4. **The push-off without toe motors** (the user, 2026-10-04: the motors
+5. **The push-off without toe motors** (the user, 2026-10-04: the motors
    off the feet, 21 drives; the toes alone flex, at the ball, a thin
    carbon-fibre sandwich with TPU or TPU round carbon rods glued with
    silicone, `TOE_K` 10 and `TOE_LOSS` 0.3; the whole sole's foam and TPU
@@ -129,14 +157,14 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
    and 86.4, the slip in its cost); the slip 3 and 4 mm at 0.65 and 1.0
    strides/s. DOD: the toes back at lift under 2 mm on every walk, the
    scoreboard's held at or over 86.4 %; the grinder on the faults suite
-   with `stance.LET_Q`, `gait.LIFT_M`, `stance.HEEL_REACH`.
-5. **A real sneaker** (the user, 2026-10-04; the sole printed in TPU with
+   with `stance.LET_Q`, `gait.LIFT_M`, `stance.PRE_SWING_DEG`.
+6. **A real sneaker** (the user, 2026-10-04; the sole printed in TPU with
    air pockets, the shoe over it so nothing breaks): a 37-38's length, width,
    heel and toe spring; its sole's give, its forefoot's bend as the sprung
    toe, its grip, its heel's roll at the strike, its mass. DOD: each from a
    shoe's numbers; the scoreboard held; the strike's N and the touch's m/s
    quoted before and after.
-6. **Her shell as armour** (the user, 2026-10-04): plates and cops over
+7. **Her shell as armour** (the user, 2026-10-04): plates and cops over
    what a fall lands on - the knees', hips', elbows' and shoulders' stacks,
    the seat, the head -, each a printed panel over its gel pad
    (`figure.PADS`), the joints covered. DOD: the floor's force on a drum, a
@@ -144,20 +172,20 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
    and 0; the look practical and technological, no chrome, no lit lines,
    the plates under her jeans and T-shirt and read through them as shape
    only (the user, 2026-10-04), judged on a PNG.
-7. **Fewest parts** (the user; `tools/sim/bom.py` 25 types): every holder
+8. **Fewest parts** (the user; `tools/sim/bom.py` 25 types): every holder
    and lever a 2.5D print. DOD: one bearing size, one rod end; the hip
    roll's spur pair and the ankles' bent rods each kept only where its cut
    costs the scoreboard; no flex past 0.25 deg (`members.py`); a part
    number a part, sourced as a vehicle maker's (rod ends, cardan and
    Rzeppa joints, gear pairs, bearings off the shelf).
-8. **Her flex** (the user, 2026-10-03): a joint-side sensor on every drive,
+9. **Her flex** (the user, 2026-10-03): a joint-side sensor on every drive,
    or the wind-up fed forward (a motor-side loop fell her walk). DOD: the
    user's pick; `drives.BOX_K` measured on a prototype and the walk
    standing at `physics.WOUND` 1; the marginal members (the tibia's lower
    run 0.31 deg, the femur's 0.25, the roll's horn 0.26) under 0.25; the
    pelvis's back member 9 mm into the hip roll's holders and the folded
    femur 6 into the fork's arm cleared.
-9. **Gearboxes one stage, hollow, printable** (the user, 2026-10-03): a
+10. **Gearboxes one stage, hollow, printable** (the user, 2026-10-03): a
    roller wave - catalogue needle rollers between an NA49/NA69 bearing on
    the eccentric and a 7075 lobed ring, A 1:36-41, B 1:40-43 - round the
    motor's bore, standard rollers, pins or balls, tolerances a consumer
@@ -170,35 +198,35 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
    <https://smorygo.com/wave_reducer>) printed, a prototype's torque and
    backlash measured, the races grooved or the balls rollers (a stock
    race's ball 7.46 GPa).
-10. **Gearboxes past their momentary ratings** in falls (an ankle 3.7, a
+11. **Gearboxes past their momentary ratings** in falls (an ankle 3.7, a
    knee 3.4, a hip roll 1.9): each drive's compliance a motor-side degree
    of freedom, torque limiters where it is not. DOD: none over 1.0 in the
    scoreboard's falls.
-11. **Arms down getting up** (the user, 2026-10-03; the throw stands her
+12. **Arms down getting up** (the user, 2026-10-03; the throw stands her
     up 5 of 5, held low none of 5 hot or cold): hands pushing on the
     knees, or the hip's torque up. DOD: the user's pick; 5 of 5 hot with
     the hands under 620 mm from the chest through the lift.
-12. **The get-up's end** (the user, 2026-10-03): she rocks on her feet
+13. **The get-up's end** (the user, 2026-10-03): she rocks on her feet
     before she stands (each foot 85-246 N every 0.5 s, the split's rms
     0.44-0.67 against 0.21 standing); her feet apart fore and aft as she
     rolls onto them (174-186 mm across, -2..+22 fore and aft). DOD: the
     split's rms at 0.25; the feet a minimal step apart, 40-80 mm.
-13. **No abrupt moves getting up**: a hand 860 deg/s, a shoulder 720, an
+14. **No abrupt moves getting up**: a hand 860 deg/s, a shoulder 720, an
     elbow 711, a foot 4.9 m/s; 20.9 s from the fall to walking, the loop
     0.82 x real time. DOD: every joint under 400 deg/s and every foot
     under 2 m/s; under 15 s; the loop at 1.0.
-14. **Past saving** (P's 120 N, held 0 of 48): the fall is called
+15. **Past saving** (P's 120 N, held 0 of 48): the fall is called
     0.06-0.25 s before the floor; a lace dives her onto her hands; the tuck
     (`falls.TUCK`) brought her head to the floor at 3.6 kN; lying her arms
     point straight out. DOD: a hand and a knee take the fall, called 0.3 s
     before the floor, the body drawn in, the head under 2 kN.
-15. **The scoreboard's events**: the hole 77 %, the rug 29, the lace 26,
+16. **The scoreboard's events**: the hole 77 %, the rug 29, the lace 26,
     the nudge 54; the walk at 1.0 strides/s falls 3 of 3; the page's sill 3
     cm on fells 12 of 12 where the scoreboard's spread holds; the stairs'
     first riser fells her (met at 0.85-0.9 of a swing, 1.4 kN); the halt
     falls in its settle. DOD: each event over 75 %, the 1.0 walk standing,
     the sill's spread the page's, the stairs climbed, 8 halts of 8.
-16. **A softer walk** (strikes 1272 N, work 254 W, copper 160 of 482
+17. **A softer walk** (strikes 1272 N, work 254 W, copper 160 of 482
     drawn; the ears bob 11 mm, 56 fore and aft): a stiffer spine or a gyro
     lead on the torso, a shorter stride at a higher cadence, a landing on
     the ball, softer soles, the pendulum placing the step (PEND_K fell at
@@ -206,37 +234,37 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
     the user; undone at 583 and 59.8 % where 535 and 64.5) retuned with.
     DOD: strikes under 1000 N, the ears under 8 and 40 mm, the scoreboard
     held.
-17. **Her walk retuned per build** (a scoreboard scores chance:
+18. **Her walk retuned per build** (a scoreboard scores chance:
     near-identical builds 150 apart). DOD: the walk's knobs re-searched
     after each build change, the scoreboard quoted.
-18. **Her skeleton colliding** (`physics.SKELETON`): the crouch past
+19. **Her skeleton colliding** (`physics.SKELETON`): the crouch past
     saving put her head on the floor at 1.03-1.66 m/s in 3 of 64 falls.
     DOD: 0 of 64.
-19. **The obstacles' contacts**: toes 20 mm into the sill, fingers 26 into
+20. **The obstacles' contacts**: toes 20 mm into the sill, fingers 26 into
     the floor at MuJoCo's 0.02 s; at 0.01 the head 10 kN. DOD: overlap or
     force, the user's call (asked 2026-10-01), the set measured on it.
-20. **Carbon shells and clothes** shaped over the structure as built
+21. **Carbon shells and clothes** shaped over the structure as built
     (`fit.py` 0 mm past her shell and clothes in every pose); her seat
     soft, not two spheres; the panels' seams finer than 20 corners a ring;
     her jeans as a coarse cloth (~6 x 5 vertices a leg, her body's
     contacts alone, the step under 0.5 ms). DOD: each measured; no seam on
     a PNG.
-21. **Fewer drives**: the fingers a fist (`drives.WAYS`), their boards
+22. **Fewer drives**: the fingers a fist (`drives.WAYS`), their boards
     still on the arms' buses; the quick-releases' give not modelled; the
     shoulder has no stop (219 deg asked). DOD: the boards gone with the
     drives, the give modelled, a shoulder stop measured.
-22. **Her boards on their buses** (`machine.buses`): an emulated limb in a
+23. **Her boards on their buses** (`machine.buses`): an emulated limb in a
     process's place; the firmware's map wanting the walk's registers
     (`machine.rtu`); the IMU on the axis bus. DOD: the walk on emulated
     boards end to end.
-23. **R in the tty crashes it** (the user, 2026-10-03; not headless). DOD:
+24. **R in the tty crashes it** (the user, 2026-10-03; not headless). DOD:
     reproduced from the user's traceback, fixed, a test on it.
-24. **The planner's server** after LOCAL_TRIES local failures. DOD: a
+25. **The planner's server** after LOCAL_TRIES local failures. DOD: a
     failed local plan asks the server, measured on a fall.
-25. **MuJoCo Warp** on the RTX 4080 SUPER (the user, 2026-10-02): the
+26. **MuJoCo Warp** on the RTX 4080 SUPER (the user, 2026-10-02): the
     scoreboard's worlds batched. DOD: its step against the CPU's 0.31 ms
     measured first; the boards at 1 kHz beside it.
-26. **`machine/` in subpackages**; `gait_montecarlo.py` stands at its 6 k
+27. **`machine/` in subpackages**; `gait_montecarlo.py` stands at its 6 k
     cap, `director.py` at 5.9 (2026-10-04; `arrival.py` 5.2 with its legs'
     bearing out in `bearing.py`): the trial into its own module. DOD:
     `test_structure` on the layout, each file under 5 k.

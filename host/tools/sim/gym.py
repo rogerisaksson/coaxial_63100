@@ -51,7 +51,7 @@ KNOBS = {
     'bearing.PRESS_M': (0.0, 0.02, 'a stepping foot reaching this far under its mark, m'),
     'stance.HALT': (0.3, 0.8, "halting, the stride down to this of its own"),
     'stance.HEEL_UP_DEG': (0.0, 60.0, "the stance heel rising as its leg runs out of reach, deg at most; 0 off"),
-    'stance.HEEL_REACH': (0.95, 1.0, "rising once its ankle is this of the leg's reach from the hip"),
+    'stance.PRE_SWING_DEG': (15.0, 40.0, 'the knee a leg has given up to as its toes leave'),
     'stance.LET_Q': (0.0, 0.2, 'a foot let go easing from where it stood into its swing, of the stride'),
     'gait.LIFT_M': (0.02, 0.06, "the swinging foot's least height over the floor, m"),
     'dcm.HOLD_M.across': (0.02, 0.06, "standing: the sole's hold across, past its point, m"),

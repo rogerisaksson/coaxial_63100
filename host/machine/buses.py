@@ -40,6 +40,7 @@ the same port and block. A limb a process where the machine has THREADS_A_LIMB h
 a limb, else the limbs shared out by their boards (`share`).
 """
 import collections
+import copy
 import math
 import os
 import socket
@@ -72,13 +73,19 @@ FIELDS = (('time', 'd', 1), ('seq', 'q', 1), ('epoch', 'q', 1), ('done', 'q', 'B
           ('hold', 'd', 'J'), ('gains', 'd', '2J'), ('air', 'd', 'J'), ('rds', 'd', 'J'),
           ('warm', 'd', 'J'), ('envelope', 'd', 1), ('drive', 'd', '6J'), ('rotor', 'd', 'J'),
           ('play', 'd', 'J'), ('scale', 'd', 'J'), ('emf', 'd', 'J'), ('ohm', 'd', 'J'),
-          ('volts', 'd', 1), ('pair', 'd', 'J'), ('flex', 'd', 'J'))
+          ('volts', 'd', 1), ('pair', 'd', 'J'), ('flex', 'd', 'J'), ('marked', 'q', 1),
+          ('backed', 'q', 1), ('back_to', 'q', 1))
 
 #: A board's setpoint's acceleration, read between frames, filtered over ACCEL_S: mdeg frames a
 #: millisecond apart step it by 17 rad/s^2.
 ACCEL_S = 0.005
 
 HOST = '127.0.0.1'
+
+#: What a mark keeps of a bus's boards (`tools.sim.replay`: `marked` bumped, each bus keeps its
+#: own; `backed` bumped, each goes back to its mark `back_to`).
+MARKED = ('target', 'rate', 'set_at', 'framed', 'accel', 'seen', 'inbox', 'mail', 'heat',
+          'heat_at', 'free_at')
 
 #: A board's reading before its first reply: still, at the room's, nothing spent, gates on.
 QUIET = (0.0, 0.0, heat.AMBIENT_C, 0.0, 1.0, heat.GATES_ON)
@@ -190,6 +197,7 @@ class Segment:
         self.heat, self.heat_at = heat.Heat(self.drives), 0.0
         self.free_at, self.received, self.bad = 0.0, 0, 0
         self.epoch = block.epoch[0]
+        self.snaps, self.marked, self.backed = {}, block.marked[0], block.backed[0]
         self.server = socket.socket()
         self.server.bind((HOST, 0))
         self.server.listen(1)
@@ -237,10 +245,18 @@ class Segment:
         """A step at `now`: frames landed set the boards' targets, each board's PD writes its
         torque within its clamp, its heat steps, polls landed are answered with the board's
         state now and gate writes with their echoes."""
-        b, h = self.block, self.heat
+        b = self.block
         if b.epoch[0] != self.epoch:
             self.epoch = b.epoch[0]
             self.hold(now)
+        if b.marked[0] != self.marked:
+            self.marked = b.marked[0]
+            self.snaps[self.marked] = copy.deepcopy([getattr(self, k) for k in MARKED])
+        if b.backed[0] != self.backed:
+            self.backed = b.backed[0]
+            for k, v in zip(MARKED, copy.deepcopy(self.snaps[b.back_to[0]])):
+                setattr(self, k, v)
+        h = self.heat
         self.hear()
         while self.inbox and self.inbox[0][0] <= now:
             at, setpoints = self.inbox.popleft()

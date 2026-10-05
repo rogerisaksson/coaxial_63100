@@ -156,7 +156,6 @@ def legs(w, out, bus, qs, legs, feet, held, swings, target, turn, turn_now, pel)
     pitched as the plan's swing had it struck the floor on its edge, 2200 N, 5 cm before its
     ankle was down (2026-09-26)."""
     for (side, sign), q, (_ankle, _tw, _pi, toes), foot in zip(walkplan.SIDES, qs, legs, feet):
-        b = walkplan.carried(q)
         at = held[side] if side in held else swings[side]
         if flat(w, side, q):
             foot, toes = FLAT, 0.0
@@ -168,19 +167,8 @@ def legs(w, out, bus, qs, legs, feet, held, swings, target, turn, turn_now, pel)
             at = tuple(p + a + (s - p - a) * k for p, a, s in zip(pel, was, at))
             up = [math.atan2(-r[1][2], r[1][1]) for r in (turned, foot)]
             foot = mul(ry(math.atan2(-foot[2][0], foot[0][0])), rx(up[0] + (up[1] - up[0]) * k))
-        load = bus['pelvis.pose.%s_load' % side]
-        if q < gait.TOE_OFF + BEARS_UNTIL and load > LANDED_N:
-            b = max(b, min(1.0, load / BEARS_N))
-        elif w.flight >= FLIGHT_S:
-            b = 0.0
-        if w.side is not None:
-            bears = w.side['out'] if w.side['stage'] == 'down' else w.side['down']
-            b = 1.0 if side == bears else 0.0
-            hip_from = (pel[0], target[1], target[2]) if b else pel
-        else:
-            hip_from = tuple(b * a + (1.0 - b) * c for a, c in zip(target, pel))
-        reach = turn if b >= 1.0 else mul(walkplan.turned(tuple(b * c for c in walkplan.vee(mul(turn, t(turn_now))))), turn_now)
-        for k, v in zip(LEG, figure.leg(sign, hip_from, reach, at, foot)):
+        _b, hip_from, leans = carrying(w, bus, side, q, held, target, turn, turn_now, pel)
+        for k, v in zip(LEG, figure.leg(sign, hip_from, leans, at, foot)):
             out[side + k] = math.degrees(v)
         out[side + '_foot'] = toes
 
@@ -196,48 +184,96 @@ def held(w, qs, legs):
                   for p in ((SOLE_HEEL if pitch > 0.0 and foot is not FLAT else SOLE_BALL),)}
 
 
-#: The heel rises as the leg runs out of reach: a stance foot whose ball stands behind the hip
-#: rolls up on it until its ankle is within HEEL_REACH of the leg's reach of the hip,
-#: HEEL_UP_DEG at most; 0, by the plan's phase alone (`gait.HEEL_OFF`) - the knee snapped
-#: straight at 520 deg/s before the heel rose and the foot, bearing nothing 20 ms after the
-#: other landed, slid back 92 mm before its swing (the user's; `look.py`'s toes back at lift).
-#: At 45 deg and 0.99: 8 mm, the walk's power 560 -> 369 W, and the walk at 1.0 strides/s down
-#: at 6.3 s, its feet landing 5 cm less ahead - held at a stride of 0.75 m (`gait.STRIDE_M`);
-#: at 0.97, 73-78 % of the scoreboard. Let go, the foot goes with the pelvis from where it
-#: stood and eases into its swing over LET_Q of the stride: asked from 16 to 42 deg of knee in
-#: a pass it still went back 10 mm; over 0.1, 1-4 mm at 0.65-1.0 strides/s, over 0.06 11-20.
-#: With the swing 45 mm up (`gait.LIFT_M`; at 25 the rug felled her 3 of 3) the scoreboard
-#: 250.5 and 82.9 % against 265.9 and 86.4: every rise and walk, the walks' power 317-487 W
-#: against 507-882; a sill at 0.65 strides/s and a nudge fell her 2 of 3 each, none before
-#: (2026-10-04, docs/findings/feet.md).
-HEEL_UP_DEG, HEEL_REACH, LET_Q = 45.0, 0.99, 0.1
+#: A stance leg is a strut (the user, 2026-10-05: the stance leg going back extended and on past
+#: the plumb line, no Groucho): its knee soft (`gait.KNEE_SOFT_DEG`) while it carries her, its
+#: heel rising as that length asks once its ball is behind its hip, HEEL_UP_DEG at most; from the
+#: other foot's landing to its own lift the knee gives up to PRE_SWING_DEG, the toes where they
+#: stand; let go, the foot goes with the pelvis from where it stood and eases into its swing over
+#: LET_Q of the stride. By the plan's phase alone (`gait.HEEL_OFF`) the knee snapped straight at
+#: 520 deg/s before the heel rose and the foot, bearing nothing 20 ms after the other landed, slid
+#: back 92 mm before its swing (the user's, 2026-10-04; `look.py`'s toes back at lift). Held at
+#: 0.99 of her reach, 8 mm and the walk's power 560 -> 369 W, the walk at 1.0 strides/s down at
+#: 6.3 s until the stride came to 0.75 m, at 0.97 73-78 % of the scoreboard - and her knee went
+#: back at 16.4 degrees. Let go from 16 to 42 degrees of knee in a pass the toes still went back
+#: 10 mm; eased over 0.1, 1-4 mm, over 0.06 11-20; the swing 45 mm up (`gait.LIFT_M`; at 25 the
+#: rug felled her 3 of 3). At the soft knee's length her knee goes back at 7 degrees; a strut
+#: to its lift she fell; giving up to 35 the toes went back 3.3 mm; steady at 1.0 strides/s she
+#: parried 4 times at 18 and 3 at 28, and from the squat twice as her start ended at 22 and 7
+#: times at 1.0; at 24-26 never, steady or from the squat, at 0.65-1.0. Shoved past saving 16
+#: times, sat back limp out of her crouch her head met the floor at 1.6-4.0 m/s once or twice
+#: at 23, 25 and 27, at 24 never (`falls`: a kneel is no fall yet). At 25 the toes back 0.8 mm,
+#: 398, 410 and 609 J/m against 561, 885 and 608 (2026-10-05, docs/findings/walk.md).
+HEEL_UP_DEG, PRE_SWING_DEG, LET_Q = 45.0, 24.0, 0.1
 
 
-def rolled(w, qs, legs, feet, held, target, turn):
-    """(`feet`, `held`) with each stance foot behind the hip rolled up on its ball as far as its
-    leg's reach asks (HEEL_UP_DEG): its turn and its ankle (`held`'s)."""
+def knee(q):
+    """A stance leg's knee, deg, at its phase `q`: soft while it carries her, given up to
+    PRE_SWING_DEG from the other foot's landing to its own lift."""
+    return gait.KNEE_SOFT_DEG + (PRE_SWING_DEG - gait.KNEE_SOFT_DEG) * gait.eased(
+        (q % 1.0 - 0.5) / (gait.TOE_OFF - 0.5))
+
+
+def length(bend):
+    """A leg's length hip to ankle, m, its knee bent `bend` deg."""
+    return math.sqrt(gait.THIGH ** 2 + gait.SHANK ** 2
+                     + 2.0 * gait.THIGH * gait.SHANK * math.cos(math.radians(bend)))
+
+
+def carrying(w, bus, side, q, held, target, turn, turn_now, pel):
+    """(how much this leg carries, the pelvis's place its joints are solved from, its turn). A leg
+    still bearing is a stance leg whatever the phase says; with both feet down each carries as
+    its sole bears of what the two bear; in a side step the bearing foot alone. Both solved for
+    the one pelvis in the double support, the hips' roll drives stood 73-78 N m rms against
+    each other and the rear foot, bearing 30-120 N, was swung 18 mm back by the pelvis's
+    attitude turned back past its error (2026-10-05)."""
+    b = walkplan.carried(q)
+    load = bus['pelvis.pose.%s_load' % side]
+    if q < gait.TOE_OFF + BEARS_UNTIL and load > LANDED_N:
+        b = max(b, min(1.0, load / BEARS_N))
+    elif w.flight >= FLIGHT_S:
+        b = 0.0
+    other = bus['pelvis.pose.%s_load' % walkplan._OTHER[side]]
+    if side in held and other > LANDED_N:
+        b = min(b, load / (load + other))
+    if w.side is not None:
+        bears = w.side['out'] if w.side['stage'] == 'down' else w.side['down']
+        b = 1.0 if side == bears else 0.0
+        hip_from = (pel[0], target[1], target[2]) if b else pel
+    else:
+        hip_from = tuple(b * a + (1.0 - b) * c for a, c in zip(target, pel))
+    leans = turn if b >= 1.0 else mul(walkplan.turned(tuple(
+        b * c for c in walkplan.vee(mul(turn, t(turn_now))))), turn_now)
+    return b, hip_from, leans
+
+
+def rolled(w, bus, qs, legs, feet, held, target, turn, turn_now, pel):
+    """(`feet`, `held`) with each stance foot whose ball is behind its hip rolled up on it as far
+    as its leg's length asks (`knee`), HEEL_UP_DEG at most: its turn and its ankle (`held`'s).
+    Solved to 0.011 degrees of heel (12 halvings) a knee at 3 degrees was asked 0.2 degrees
+    another way each pass, and its board, reading its rate between two frames, drew 545 J/m
+    where 428 (2026-10-05)."""
     if not HEEL_UP_DEG:
         return feet, held
     feet, held = list(feet), dict(held)
-    reach = gait.REACH * HEEL_REACH
     for k, ((side, sign), q, (_ankle, twist, pitch, _toes)) in enumerate(zip(walkplan.SIDES, qs,
                                                                              legs)):
         if side not in held or feet[k] is FLAT or pitch > 0.0 or flat(w, side, q):
             continue
-        hip, ahead = figure.hip(sign, target, turn), apply(ry(twist), (0.0, 0.0, 1.0))
-        ball = w.anchor[side]
+        _b, hip_from, leans = carrying(w, bus, side, q, held, target, turn, turn_now, pel)
+        hip, ahead = figure.hip(sign, hip_from, leans), apply(ry(twist), (0.0, 0.0, 1.0))
+        ball, reach = w.anchor[side], length(knee(q))
 
         def ankle(up):
             return sub(ball, apply(mul(ry(twist), rx(math.radians(up))), SOLE_BALL))
 
         def far(up):
             return math.dist(hip, ankle(up)) - reach
-        lo = -pitch
+        lo = 0.0
         if (hip[0] - ball[0]) * ahead[0] + (hip[2] - ball[2]) * ahead[2] <= 0.0 or far(lo) <= 0.0:
             continue
-        hi = max(lo, HEEL_UP_DEG)
+        hi = HEEL_UP_DEG
         if far(hi) < 0.0:
-            for _ in range(12):
+            for _ in range(30):
                 mid = 0.5 * (lo + hi)
                 lo, hi = (mid, hi) if far(mid) > 0.0 else (lo, mid)
         feet[k], held[side] = mul(ry(twist), rx(math.radians(hi))), ankle(hi)
@@ -303,10 +339,10 @@ def advance(w, dt, length, balls, pel, bus):
 
 def reachable(w, target, turn, held, qs):
     """The pelvis's target, lowered to where each stance leg reaches it."""
-    # Never higher than a stance leg reaches (`gait.REACH`): a foot landed on a longer stride
+    # Never higher than a stance leg reaches, its knee soft: a foot landed on a longer stride
     # than the plan's now - shortening to a stop - held her up on a straight leg, and its
     # heel's rise threw her off the floor (2026-09-26).
-    reach = gait.REACH
+    reach = length(gait.KNEE_SOFT_DEG)
     for (side, sign), q in zip(walkplan.SIDES, qs):
         if side in held and walkplan.carried(q) > 0.0:
             hip = figure.hip(sign, target, turn)
