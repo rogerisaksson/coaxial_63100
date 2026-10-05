@@ -71,3 +71,9 @@ own are in [FINDINGS](../FINDINGS.md).
   stance.py and back, her walk's numbers there and back to the digit. A
   file the host's scanner held killed a robot at a rename and 8 of 12 in a
   minute at their signs of life: each tried again now.
+- With the bench attached the gate's test_mcp ran live, 397 s and 9 red:
+  `program` scanned 16 units on the port and its rig's close wrote to the
+  session's closed broker client, a ValueError past every `suppress(RigError)`;
+  an AFE read behind a GPIOB write said on=1, the rail's users having raised
+  AFE_ON again. The fleet's checks on the stand-in, the pin's on the write's
+  own readback, the closed client a ConnectError: 59 in 28 s (2026-10-05).

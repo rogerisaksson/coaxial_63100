@@ -127,6 +127,13 @@ def test_one_client(report):
                      fake.calls[-1] == ('broadcast', 0x41, b'\x09'),
                      str(fake.calls[-1]))
         client.close()
+        try:
+            client.request(1, 0x41, b'')
+            said = 'answered'
+        except errors.ConnectError as exc:
+            said = str(exc)
+        report.check('a closed client raises the library\'s error, not the socket\'s',
+                     'is closed' in said, said)
     finally:
         stop()
 

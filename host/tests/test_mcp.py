@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """End-to-end test of the MCP server, plus a token accounting."""
 import json
+import re
 import subprocess
 import sys
 import time
@@ -171,15 +172,18 @@ def exercise(server, report):
                   server.tool('gpio_port', {'op': 'read', 'port': 'E'}),
                   ['GPIOE=0x'])
     # Writing 0 across all of GPIOB would clear PB10/PB11 and sever the link.
-    report.result('gpio_port write masks reserved',
-                  server.tool('gpio_port', {'op': 'write', 'port': 'B',
-                                            'mask': 0xFFFF, 'value': 0}),
-                  ['GPIOB=0x', 'reserved:'])
+    wrote = report.result('gpio_port write masks reserved',
+                          server.tool('gpio_port', {'op': 'write', 'port': 'B',
+                                                    'mask': 0xFFFF, 'value': 0}),
+                          ['GPIOB=0x', 'reserved:'])
     report.check('link survived the masked write',
                  'echo ok' in server.tool('link', {'op': 'echo', 'text': 'alive'}),
                  'PB10/PB11 held while the rest of GPIOB went low')
+    # The write's own readback: on a board the rail's users take AFE_ON up again within
+    # their lease, and an afe read behind the write said on=1 (the bench, 2026-10-05).
+    port_b = re.search(r'GPIOB=0x([0-9A-Fa-f]+)', wrote)
     report.check('unreserved PB2 really was cleared',
-                 server.tool('afe_power', {'action': 'read'}).startswith('on=0'),
+                 port_b is not None and not int(port_b.group(1), 16) & 0x0004,
                  'the AFE switch is not reserved, so the write reached it')
     server.tool('afe_power', {'action': 'on'})
     report.result('link echo', server.tool('link', {'op': 'echo',
@@ -198,7 +202,10 @@ def exercise(server, report):
                   ['ident:', 'margin', 'room', 'innovation'])
     report.result('test_gate close', server.tool('test_gate', {'enable': False}),
                   ['gate=0'])
-    # Every node a joint, a program as text: what a small model writes.
+
+
+def programs(server, report):
+    """Every node a joint, a program as text: what a small model writes."""
     report.result('program card', server.tool('program', {'op': 'card'}),
                   ['One step a line', 'left_knee', '-90..90', '<name>.deg'])
     report.result('program run', server.tool('program', {
@@ -298,6 +305,15 @@ def main():
         handshake(server, report)
         tools = tool_list(server, report)
         exercise(server, report)
+        # The fleet is the stand-in's: a bench board is one node, and no test arms it.
+        fleet = ServerProcess(['--simulated']) if found.real else server
+        try:
+            if fleet is not server:
+                handshake(fleet, Report())
+            programs(fleet, report)
+        finally:
+            if fleet is not server:
+                fleet.close()
         weak_model_arguments(server, report)
         error_paths(server, report)
         server.tool('link', {'op': 'release'})

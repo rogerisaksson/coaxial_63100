@@ -87,10 +87,16 @@ class BrokerTransport:
         self.port = self._ask({'op': 'port'})['port']
 
     def _ask(self, message):
-        with self._lock:
-            self._file.write(_line(message))
-            self._file.flush()
-            raw = self._file.readline()
+        try:
+            with self._lock:
+                self._file.write(_line(message))
+                self._file.flush()
+                raw = self._file.readline()
+        except ValueError as exc:
+            # This client, closed: a rig whose session scanned, then released its stage, raised
+            # ValueError past every `suppress(RigError)` (2026-10-05).
+            raise errors.ConnectError("the session broker's connection for %s is closed: %s"
+                                      % (self.port, exc)) from exc
 
         if not raw:
             raise errors.NoReplyError(
