@@ -378,7 +378,63 @@ def test_the_humanoid_pages_pace(report):
                  '%s' % sent)
 
 
-ROSTER = (test_the_page_tool_holds_one_frame, test_the_screen_keeps_its_own_rate,
+def test_the_stand_shows_its_acts(report):
+    """The front page's stand through its cycle, its three pictures stood in for: the board,
+    her, the quad and the board again, each torn into the next about its turn - and the board
+    alone where no card lights the others. Then the quad as the stand draws it."""
+    import time
+    from terminal import stand
+    was = dict(stand._STAGE), stand._draw, stand._her, stand._quad, stand.time
+    clock = {'now': 1000.0}
+
+    class Clock:
+        monotonic = staticmethod(lambda: clock['now'])
+
+    def picture(letter):
+        return lambda _view, width, height: '\n'.join([letter * width] * height)
+    stand._draw, stand._her, stand._quad = picture('B'), picture('H'), picture('Q')
+    stand.time = Clock
+    view = {'opened': 1000.0}
+    cycle = stand.BOARD_S + stand.HER_S + stand.QUAD_S
+
+    def at(seconds):
+        clock['now'] = 1000.0 + seconds
+        return set(stand.turntable(view, 20, 6)) - set('\n')
+    try:
+        stand._STAGE.update(ready=True, lit=object())
+        got = [at(1.0), at(stand.BOARD_S + 2.0), at(stand.BOARD_S + stand.HER_S + 2.0),
+               at(cycle + 2.0)]
+        report.check('the stand: the board, her, the quad and the board again',
+                     got == [{'B'}, {'H'}, {'Q'}, {'B'}], str(got))
+        torn = [at(stand.BOARD_S), at(stand.BOARD_S + stand.HER_S), at(cycle)]
+        report.check('the stand: each torn into the next about its turn',
+                     all(pair <= mix for pair, mix in zip(({'B', 'H'}, {'H', 'Q'}, {'Q', 'B'}),
+                                                          torn)), str([sorted(m)[:6] for m in torn]))
+        stand._STAGE.update(lit=None)
+        alone = [at(stand.BOARD_S + 2.0), at(stand.BOARD_S + stand.HER_S + 2.0)]
+        report.check('the stand: the board alone where no card lights the others',
+                     alone == [{'B'}, {'B'}], str(alone))
+    finally:
+        stand._draw, stand._her, stand._quad, stand.time = was[1:]
+        stand._STAGE.clear()
+        stand._STAGE.update(was[0])
+    # On the CPU where no card answers: its dots, as the QUAD page draws them.
+    from coaxial.graphics import gpu
+    card = gpu.adapter()
+    stand._STAGE['lit'] = gpu.LitRaster(found=card) if card is not None else None
+    try:
+        art = stand._quad({'opened': time.monotonic() - cycle + 1.0, 'spun': 1.0}, 52, 18)
+    finally:
+        stand._STAGE.clear()
+        stand._STAGE.update(was[0])
+    lines = art.split('\n')
+    report.check('the stand: the quad drawn alone, 52 x 18 cells of it',
+                 len(lines) == 18 and sum(0x2800 < ord(c) <= 0x28FF for c in art) >= 60,
+                 '%d lines, %d braille cells' % (len(lines),
+                                                sum(0x2800 < ord(c) <= 0x28FF for c in art)))
+
+
+ROSTER = (test_the_stand_shows_its_acts, test_the_page_tool_holds_one_frame, test_the_screen_keeps_its_own_rate,
           test_the_chrome_at_its_edges,
           test_each_page_draws_on_a_terminal, test_the_console_it_draws_on,
           test_the_crt_draws_on_the_terminal, test_the_terminal_is_asked_how_tall_a_cell_is,

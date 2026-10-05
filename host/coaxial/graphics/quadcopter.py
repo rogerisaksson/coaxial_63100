@@ -254,10 +254,10 @@ def _ground(m, cam, centre):
 
 
 def render(pose, rotors, width, height, yaw=30.0, pitch=18.0, reach=REACH, centre=None,
-           colour=True, lit=None):
+           colour=True, lit=None, world=True):
     """The quad at `pose` on its `rotors`, `width` x `height` cells, `reach` m framed about
     `centre` (the quad's middle) from SIGHT reaches off: lines. `lit` a `gpu.LitRaster`, or
-    None to splat its dots here."""
+    None to splat its dots here; `world` False the quad alone, no ground under it and no pole."""
     from coaxial.model.blocks import numpy as np
     m = shapes.view(yaw, pitch)
     fine = engine.fine(engine.camera(width, height, reach, distance=SIGHT * reach))
@@ -270,5 +270,8 @@ def render(pose, rotors, width, height, yaw=30.0, pitch=18.0, reach=REACH, centr
     else:
         positions, normals, uv, materials, _index = _posed(pose, rotors, True)
         depth, rgb = splat((positions, normals, materials, uv), m, fine, centre)
+    if not world:
+        return braille(depth, rgb, np.zeros(depth.shape), width, height, colour,
+                       props=_discs(pose, rotors, m, fine, centre))
     return braille(depth, rgb, _ground(m, fine, centre), width, height, colour,
                    props=_discs(pose, rotors, m, fine, centre) + _pole(m, fine, centre))

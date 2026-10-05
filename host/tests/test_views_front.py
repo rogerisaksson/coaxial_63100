@@ -38,6 +38,9 @@ def test_the_loader_reads_the_pages(report):
     report.check('loader: the front page draws the loader\'s list',
                  menu.ENTRIES == entries and menu.SUB == sub and menu.OPEN == opens,
                  str(menu.ENTRIES[:2]))
+    report.check('loader: the front page names every page in kana',
+                 all(name in menu.KANA for _key, name, _what in entries),
+                 str([name for _key, name, _what in entries if name not in menu.KANA]))
     names = sorted(loader.names())
     report.check('loader: every name answers - the pages and the items',
                  names == sorted(['session', 'imu', 'angle', 'adc', 'gate_drivers',

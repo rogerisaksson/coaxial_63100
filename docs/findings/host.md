@@ -29,6 +29,10 @@ own are in [FINDINGS](../FINDINGS.md).
 - Front page model drawn at inner height - 2 and inside a 1-column padding:
   a blank row top and bottom, a column each wall. Now the box's full
   inside (2026-09-23, checked at 90x28, 120x36, 200x60).
+- The front page's stand shows the quad after her, 9 s alone in a hover and
+  once over its nose: 10 ms a frame on the card, 69 on the CPU, where the
+  stand keeps to the board (`terminal/stand.py`); QUAD's row had no kana
+  (2026-10-05).
 - Rotor observer at a 200x60 terminal (can 95 dots, tuned at 21): ring stroke
   grew to 3.0 dots half-width, pulled teeth floated loose. Stroke capped
   at 1.0 (0.8 broke into dots), undriven tooth length drawn as track,

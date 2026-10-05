@@ -3,7 +3,8 @@
 
 A list to the left under `// MAIN TERMINAL ACCESS`, the board itself to the
 right, turning slowly - the toon mesh off the CAD export, so the first thing
-the terminal shows is the hardware it is for. No session is opened here:
+the terminal shows is the hardware it is for - and in turn what it drives, her
+and the quad (`terminal.stand`). No session is opened here:
 the page has to be instant, so the only live datum is whether a broker is
 serving, fetched by a background thread: probed inline it cost 2 029 ms a
 frame (tools/render/uibench.py), 0.5 frames/s.
@@ -15,7 +16,6 @@ when run as a script; stdout is the drawing's either way:
     101 + index  the picked entry, in ENTRIES order
 """
 import argparse
-import math
 import sys
 import threading
 import time
@@ -29,8 +29,8 @@ from rich.text import Text
 
 from terminal import loader
 from terminal import readout
+from terminal import stand
 from terminal.ui import screen as _screen
-from terminal.ui import glitch
 from terminal.ui.console import Keys
 from terminal.ui.marquee import Marquee
 from terminal.ui.rate import Corner, rate_of
@@ -46,11 +46,6 @@ _screen.CHATTER = False     # the boot bar replaced the scroll
 #: ENTRIES from 101; a second question's later options take codes past
 #: the list, and the loader reads every one back.
 ENTRIES, SUB, OPEN, _PICKS = loader.listing()
-
-#: Degrees of yaw per second for the idle tumble, with slower sways
-#: about the other two axes riding on top - all three turn, none of them
-#: fast enough to read as spinning.
-TURN_DPS = 30.0
 
 #: What the masthead knows. `held` is how many sessions have the port,
 #: `board` whether one answers anywhere at all - None until asked, 'emulated' where none does
@@ -185,150 +180,6 @@ def asking(sub):
     return Group(*lines)
 
 
-#: The turntable's zoom: it opens at SWELL_FROM, fills to SWELL_LO over
-#: SWELL_IN seconds, then breathes between SWELL_LO and SWELL_HI while
-#: it turns. Grabbed - a drag turns it, the wheel zooms it - it holds
-#: still; released, the tumble and the breath resume from where it was
-#: left: the pose is state, and the breath re-seats its phase on the
-#: zoom it finds.
-SWELL_FROM, SWELL_IN = 0.25, 2.5
-SWELL_LO, SWELL_HI = 0.75, 1.20
-SWELL_PERIOD = 11.0
-#: render()'s zoom 1.0 fits the bounding sphere at any attitude, which in
-#: the box is 56% of its width - measured, and 2.0 is the first zoom
-#: that reaches every edge. The envelope is in shares of the box, so
-#: it rides on this base: 1.2 lands at 2.16, past the box, so the
-#: board clips into its frame; 0.75 at 1.35, four fifths of it.
-SWELL_BASE = 1.8
-#: Seconds after the last touch before the idle motion takes over again.
-HOLD = 0.6
-
-
-def seat(zoom):
-    """The breath's phase whose zoom is nearest `zoom`, on the rising
-    side, so it climbs first from wherever the hand let go."""
-    mid = (SWELL_LO + SWELL_HI) / 2.0
-    half = (SWELL_HI - SWELL_LO) / 2.0
-    return math.asin(max(-1.0, min(1.0, (zoom - mid) / half)))
-
-
-def _swell(view, now):
-    """The fill, eased out: fast at first, settling at SWELL_LO."""
-    t = (now - view['opened']) / SWELL_IN
-    view['zoom'] = SWELL_FROM + (SWELL_LO - SWELL_FROM) * (
-        1.0 - (1.0 - t) ** 3)
-
-
-def _breathe(view, dt):
-    """The breath: the zoom rides a sine between SWELL_LO and SWELL_HI,
-    seated where the swell or the hand left it."""
-    if view['phase'] is None:
-        view['phase'] = seat(view['zoom'])
-    view['phase'] += dt * 2.0 * math.pi / SWELL_PERIOD
-    mid = (SWELL_LO + SWELL_HI) / 2.0
-    half = (SWELL_HI - SWELL_LO) / 2.0
-    want = mid + half * math.sin(view['phase'])
-    # Toward the envelope rather than onto it: a zoom the wheel left outside
-    # the band glides back instead of snapping.
-    view['zoom'] += (want - view['zoom']) * min(1.0, 4.0 * dt)
-
-
-def idle(view, now, dt):
-    """One frame of the turntable on its own: tumble, and breathe."""
-    from terminal.views.show_render import turn
-
-    if now - view['touched'] < HOLD:
-        return
-    if view['phase'] is None and now - view['opened'] < SWELL_IN:
-        _swell(view, now)
-    else:
-        _breathe(view, dt)
-    wobble = view['spun'] = view['spun'] + dt
-    turn(view, (0.35 * math.sin(wobble * 0.5),
-                0.25 * math.sin(wobble * 0.83 + 1.3), 1.0),
-         TURN_DPS * dt)
-
-
-def grab(view, keys, moved, now):
-    """The hand on the turntable: wheel zoom, and a left-drag turn
-    (show_render's `carry`) that pauses the idle motion while it lasts."""
-    from terminal.views.show_render import carry
-
-    if moved:
-        view['zoom'] = max(0.25, min(4.0, view['zoom'] * (1.0 + moved)))
-        view['touched'], view['phase'] = now, None
-    dx, dy = keys.dragged()
-    if dx or dy:
-        view['touched'], view['phase'] = now, None
-    carry(view, dx, dy)
-
-
-#: The stand shows the board BOARD_S, then her walking HER_S, in place as her plan has it
-#: (`machine.gait`), torn from one to the other over TORN_S (`terminal.ui.glitch`) - where a
-#: card lights her: on the CPU a frame of her took 280 ms, on the card 6 (2026-09-28).
-BOARD_S, HER_S, TORN_S = 14.0, 9.0, 0.5
-
-
-def turntable(view, width=52, height=18):
-    """The board on the stand, at the pose and zoom the view holds - lit as the render demo
-    lights it: camera straight down the axis, no horizon - and in turn her, walking.
-    """
-    if not _STAGE['ready']:
-        return ''
-    elapsed = time.monotonic() - view['opened']
-    cycle, half = BOARD_S + HER_S, TORN_S / 2.0
-    c = elapsed % cycle
-    if _STAGE.get('lit') is None or elapsed < half or half <= c < BOARD_S - half:
-        return _draw(view, width, height)
-    if BOARD_S + half <= c < cycle - half:
-        return _her(view, width, height)
-    board, her = (_draw(view, width, height).split('\n'), _her(view, width, height).split('\n'))
-    if abs(c - BOARD_S) < half:
-        return '\n'.join(glitch.torn(board, her, (c - BOARD_S + half) / TORN_S, int(elapsed * 30)))
-    k = ((c + cycle if c < half else c) - (cycle - half)) / TORN_S
-    return '\n'.join(glitch.torn(her, board, k, int(elapsed * 30)))
-
-
-def _her(view, width, height):
-    """Her walking on the stand, in place, turning as the board turns."""
-    from coaxial.graphics import gynoid
-    from machine import gait
-    from machine.figure import rz
-    t = time.monotonic() - view['opened']
-    lateral, roll, rise, _level = gait.sway(t)
-    return '\n'.join(gynoid.render(gait.walk(t, glance=False), width, height,
-                                    yaw=(view['spun'] * TURN_DPS) % 360.0, lit=_STAGE['lit'],
-                                    root=((lateral, rise, 0.0), rz(math.radians(roll)))))
-
-
-def _draw(view, width, height):
-    from coaxial.graphics import wireframe
-
-    return wireframe.render(view['pose'], width, height, zoom=view['zoom'],
-                            horizon=False, tip=0.0, lift=0.5,
-                            least=wireframe.CREW_LEAST, crew=_STAGE.get('crew'))
-
-
-#: The turntable's solids build off the frame loop: the page is up in the
-#: import's 0.3 s and the board arrives when the parse and two decimations
-#: are done; drawn inline, the first frame waited 2.0 s, the parse twice.
-_STAGE: dict = {'ready': False}
-
-
-def _warm():
-    try:
-        _draw({'pose': (0.0, 0.0, 0.0, 1.0), 'zoom': SWELL_FROM}, 8, 4)
-        # On the card where one answers: 64 ms a frame at 52x18 on the CPU (2026-09-25).
-        from coaxial.graphics import gpu, shading
-        _STAGE['crew'] = gpu.card_crew(art=shading._face())
-        card = gpu.adapter()
-        if card is not None:
-            _STAGE['lit'] = gpu.LitRaster(found=card)
-            _her({'opened': time.monotonic(), 'spun': 0.0}, 8, 4)
-    finally:
-        _STAGE['ready'] = True
-
-
 #: The turntable's box: this many columns of the page, and the drawing
 #: fills the box's inside, so a zoom past 1.0 clips into the frame.
 BOX = 58
@@ -355,7 +206,7 @@ def compose(port, picked, view, size=None, who=None, rate=''):
     state = view.setdefault('readout', readout.fresh(time.monotonic()))
     column = Layout()
     column.split_column(
-        Layout(Panel(Corner(Chrome(Align(Marquee(turntable(view, wide - 2, above)),
+        Layout(Panel(Corner(Chrome(Align(Marquee(stand.turntable(view, wide - 2, above)),
                                          align='center', vertical='middle'),
                                    'COAXIAL 63100', tags=False), rate),
                      title=Text(' COAXIAL 63100 ', style='name'),
@@ -475,11 +326,7 @@ def main(argv=None, preload=None):
     who = OPEN.get(args.open)
     if who is not None:
         picked = who[0]
-    # The turntable's state: pose and zoom persist across a grab, so the idle
-    # motion carries on from wherever the hand left it.
-    view = {'pose': (0.0, 0.0, 0.0, 1.0), 'zoom': SWELL_FROM,
-            'phase': None, 'opened': began, 'touched': -1e9, 'spun': 0.0,
-            'carry': (0.0, 0.0)}
+    view = stand.fresh(began)
     last = began
 
     if not console and not args.frames:
@@ -498,7 +345,7 @@ def main(argv=None, preload=None):
     else:
         threading.Thread(target=_watch_link, args=(args.port,),
                          daemon=True).start()
-    warm = threading.Thread(target=_warm, daemon=True)
+    warm = threading.Thread(target=stand.warm, daemon=True)
     warm.start()
     state = preload if preload is not None else loader.fresh()
     _BROKER['preload'] = state
@@ -523,7 +370,7 @@ def main(argv=None, preload=None):
         while True:
             frame += 1
             now = time.monotonic()
-            idle(view, now, now - last)
+            stand.idle(view, now, now - last)
             last = now
             live.update(compose(args.port, picked, view, page.size, who,
                                 rate_of(page).label()), refresh=True)
@@ -540,7 +387,7 @@ def main(argv=None, preload=None):
                 continue
             if leave:
                 return 0
-            grab(view, keys, moved, time.monotonic())
+            stand.grab(view, keys, moved, time.monotonic())
             if who is not None:
                 who, chosen = _sub_act(typed, who)
             else:
