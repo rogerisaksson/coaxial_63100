@@ -263,9 +263,9 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
     Left: her passage on any timing - walk, run and walk again on 2 of 10, into
     the run at 1.56-1.93 m/s for 1.5, her speed unheld (0.99 for 0.76); her
     form on it, priced 26 - the pelvis's roll over the stance leg 0.6 deg where
-    3, the knee 10.6 behind plumb, her head's bob 34 mm, a strike 483 N; her
-    stand, start and stop on it, a step due as the capture point leaves its
-    hold; her turns and parries; the runner and the walk's modules gone into
+    3, her head's bob 34 mm, a strike 483 N; her stand, start and stop on it -
+    in the lab up through all three on 1 timing of 4, her first steps the weak
+    place; her turns and parries; the runner and the walk's modules gone into
     it. DOD: the one law stands, walks, runs and passes between on its
     setpoints alone, 10 of 10 over a spread; her walk on it on `looks.FORM` at
     no more J/m; F to her fastest run and S back on the page.

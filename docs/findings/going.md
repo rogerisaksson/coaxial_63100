@@ -91,3 +91,22 @@ law in [standing](standing.md). Nothing of it is on the page.
   233 the median, 1.19 kW at 95 % and 1.93 at most - the walk as built
   peaks 4.1 kW at 0.65 m/s; the run's at 1.5 m/s 773 W, 705, 2.2 kW and
   4.0.
+- Her stand, start and stop on it (2026-10-05; in the lab,
+  `build/lab_going_stand.patch`). Her standing legs lean her toward where
+  her capture point is asked - over the middle of her feet as she stands,
+  ahead by the speed asked over the pendulum's rate as she goes - and a
+  foot leaves only as a step is due: she is asked on, or her capture
+  point is out of her feet's hold (`dcm.due`). Standing: 10 s on no step
+  with the pelvis asked 0.2 m a m of it or more, down at 3.3 s with none;
+  stopped on a wide stance her centre of mass crept 8 cm back in 4 s at
+  0.2 and a step fell due - at the page's 1.5 (`arrival.COM_K`) she
+  stands. Stood 2 s, asked on over 1 s, walking 7 s at 0.79 m/s for 0.76,
+  asked to a stand over 1 s and standing 11 s more: up, 22 s, on 1 timing
+  of 4; on the others down 2-6 s into her start, a first step 0.5 s long
+  and her capture point run off across. Her feet across from her centre
+  of mass's capture point, not her hip's: before, they fell short of it
+  and walked off after it. Asked onto her feet's line where it is
+  nearest, nothing held her along it: down at 5.1 s standing. Her calves
+  on it as she stands alone - going, their half a degree felled the walk
+  at 5.7 s. 288 settings of its eight constants over four timings: none
+  up on all.
