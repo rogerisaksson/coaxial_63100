@@ -266,37 +266,38 @@ def test_what_is_ahead_is_seen(report):
                  '%s; %s' % (seen, through))
 
 
-def test_a_line_ends_itself(report):
-    """A routine's card with a row that gives its own (aerobatics.fly): spent, a figure's row
-    leaves for its flight's way down - not the card's first, nor on it the next flight's -; the
-    line's row stays its own until it holds what it waits for."""
-    from machine import aerobatics
-
-    def line(route, _now):
-        if route.get('done'):
-            route['holds'] = ('lapped',)
-        return dict(aerobatics.HOVER, speed=2.0)
-    card = (('idle', aerobatics.DOWN, 0.0, 0.0, 'fit'), ('hover', aerobatics.HOVER, 9.0, 0.0, ''),
-            ('descend', aerobatics.OVER, 0.0, 0.0, 'held'),
-            ('idle', aerobatics.DOWN, 0.0, 0.0, 'fit'), ('lift', aerobatics.HOVER, 9.0, 0.0, ''),
-            ('lap', line, 0.0, 0.0, 'lapped'), ('descend', aerobatics.OVER, 0.0, 0.0, 'held'))
-    went = []
-    for row in (1, 2, 4, 5):
-        route = dict(aerobatics.routine(card), row=row)
-        went.append(aerobatics.fly(route, 1.0, ('spent',))[0])
-        went.append(route['row'])
-    report.check('spent: the first flight\'s hover to its own way down and no further from '
-                 'there, the second\'s lift to the second\'s, the line\'s row its own',
-                 went == ['descend', 2, 'descend', 2, 'descend', 6, 'lap', 5], str(went))
-    route = dict(aerobatics.routine(card), row=5)
-    first = aerobatics.fly(route, 1.0, ('fit',))
-    route['done'] = True
-    aerobatics.fly(route, 2.0, ('fit',))
-    after = aerobatics.fly(route, 3.0, ('fit',))
-    report.check('the line gives its row, and holding what it waits for it is left',
-                 first[0] == 'lap' and first[1]['speed'] == 2.0 and after[0] == 'descend'
-                 and route['row'] == 6,
-                 '%s at %.1f m/s, then %s' % (first[0], first[1]['speed'], after[0]))
+def test_its_tuner_scores(report):
+    """tools.sim.quad_race: a candidate's constants set where they live and its line laid
+    again; a flight's cost its laps' seconds, a gate passed wide and a thing near counted,
+    one struck or a lap short the dearest."""
+    from machine import course
+    from tools.sim import quad_race as race
+    was = (course.GRIP, course.WAYS, course.track()['length'])
+    try:
+        race.put({'course.GRIP': 0.5, 'turn3': 10.0, 'tense3': 1.2})
+        put = (course.GRIP, course.WAYS[3], race.now('turn3'), race.now('course.GRIP'),
+               course.track()['length'])
+    finally:
+        course.GRIP, course.WAYS = was[:2]
+        course.track.cache_clear()
+    report.check('a constant set where it lives, gate 3 crossed turned and tensed, the line '
+                 'laid again',
+                 put[:4] == (0.5, (10.0, 1.2), 10.0, 0.5) and abs(put[4] - was[2]) > 0.01
+                 and course.track()['length'] == was[2],
+                 '%s; the line %.2f m where %.2f' % (put[:2], put[4], was[2]))
+    flown = {'laps': [20.0, 19.0], 'miss': 0.4, 'room': 0.5, 'struck': None}
+    costs = [race.cost_of(dict(flown, **more)) for more in (
+        {}, {'miss': race.MISS_M + 0.1}, {'room': race.ROOM_M - 0.1}, {'struck': 'tree'},
+        {'laps': [20.0]})]
+    cost, whole, miss = race.score([flown, dict(flown, struck='tree')])
+    report.check('laps of 39 s cost them; a gate 0.1 m wider %.0f s more, 0.1 m less about the '
+                 'frame %.0f; struck or a lap short %.0f; a candidate its flights\' mean' % (
+                     0.1 * race.MISS_K, 0.1 * race.ROOM_K, race.STRUCK_S),
+                 all(abs(got - want) < 1e-9 for got, want in zip(costs, (
+                     39.0, 39.0 + 0.1 * race.MISS_K, 39.0 + 0.1 * race.ROOM_K, race.STRUCK_S,
+                     race.STRUCK_S))) and abs(cost - (39.0 + race.STRUCK_S) / 2.0) < 1e-9
+                 and whole == 0.5 and miss == 0.4,
+                 '%s; %.1f, %.0f %% whole' % (['%.1f' % c for c in costs], cost, 100 * whole))
 
 
 def test_its_tilt_is_its_discs_own(report):
@@ -375,7 +376,7 @@ def test_its_world_is_drawn(report):
 
 
 ROSTER = (test_its_gates_are_flown, test_it_flies_on_its_envelopes, test_its_gates_in_wind,
-          test_what_stands_is_solid, test_what_is_ahead_is_seen, test_a_line_ends_itself,
+          test_what_stands_is_solid, test_what_is_ahead_is_seen, test_its_tuner_scores,
           test_its_tilt_is_its_discs_own, test_its_world_is_drawn)
 
 

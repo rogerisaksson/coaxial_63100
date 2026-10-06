@@ -336,8 +336,41 @@ def test_it_holds_in_wind(report):
                      gusty[0], 100.0 * gusty[1]))
 
 
+def test_a_line_ends_itself(report):
+    """A routine's card with a row that gives its own (aerobatics.fly): spent, a figure's row
+    leaves for its flight's way down - not the card's first, nor on it the next flight's -; the
+    line's row stays its own until it holds what it waits for."""
+    from machine import aerobatics
+
+    def line(route, _now):
+        if route.get('done'):
+            route['holds'] = ('lapped',)
+        return dict(aerobatics.HOVER, speed=2.0)
+    card = (('idle', aerobatics.DOWN, 0.0, 0.0, 'fit'), ('hover', aerobatics.HOVER, 9.0, 0.0, ''),
+            ('descend', aerobatics.OVER, 0.0, 0.0, 'held'),
+            ('idle', aerobatics.DOWN, 0.0, 0.0, 'fit'), ('lift', aerobatics.HOVER, 9.0, 0.0, ''),
+            ('lap', line, 0.0, 0.0, 'lapped'), ('descend', aerobatics.OVER, 0.0, 0.0, 'held'))
+    went = []
+    for row in (1, 2, 4, 5):
+        route = dict(aerobatics.routine(card), row=row)
+        went.append(aerobatics.fly(route, 1.0, ('spent',))[0])
+        went.append(route['row'])
+    report.check('spent: the first flight\'s hover to its own way down and no further from '
+                 'there, the second\'s lift to the second\'s, the line\'s row its own',
+                 went == ['descend', 2, 'descend', 2, 'descend', 6, 'lap', 5], str(went))
+    route = dict(aerobatics.routine(card), row=5)
+    first = aerobatics.fly(route, 1.0, ('fit',))
+    route['done'] = True
+    aerobatics.fly(route, 2.0, ('fit',))
+    after = aerobatics.fly(route, 3.0, ('fit',))
+    report.check('the line gives its row, and holding what it waits for it is left',
+                 first[0] == 'lap' and first[1]['speed'] == 2.0 and after[0] == 'descend'
+                 and route['row'] == 6,
+                 '%s at %.1f m/s, then %s' % (first[0], first[1]['speed'], after[0]))
+
+
 ROSTER = (test_the_flight_stops_at_its_mark, test_its_figures_are_flown, test_spent_it_comes_down,
-          test_its_pack, test_its_air, test_it_holds_in_wind)
+          test_a_line_ends_itself, test_its_pack, test_its_air, test_it_holds_in_wind)
 
 
 def main(argv=None):

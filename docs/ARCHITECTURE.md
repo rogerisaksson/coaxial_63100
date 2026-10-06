@@ -181,7 +181,9 @@ tools/render/       renderer checks against the exporter; ansi2png; attitude (th
 tools/sim/          the drive core on this host: montecarlo, observer_run;
                     gait_montecarlo (the gynoid through fixed trials); look
                     (her start a stage a row, simulated or a recording); run
-                    (her run a landing a row, her drives against it)
+                    (her run a landing a row, her drives against it);
+                    quad_race (the quad's laps through fixed flights, a search
+                    over its plan and its line)
 tools/cores/        build: the portable cores' gcc build;
                     drive, thermal: their ctypes harnesses;
                     fakeboard: comms/, the record and the observer over

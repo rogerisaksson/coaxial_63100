@@ -51,8 +51,11 @@ MASTS = ((31.0, 27.0, 1.6, 14.0),)
 #: CAR_CABIN of its width and of its length; a gate's bars and posts BAR_M thick, m.
 CROWN, TRUNK_M, CAR_LOW, CAR_BODY, CAR_CABIN, BAR_M = 0.35, 0.12, 0.25, 0.55, (0.9, 0.5), 0.05
 
-#: The line: a span's tangents this much of its chord, sampled every DS m; its laps.
+#: The line: a span's tangents this much of its chord, sampled every DS m; its laps. And how
+#: it crosses each gate, a row a gate: turned off the gate's heading, degrees, and its tangent
+#: there, of TENSION's - a tuner's to find (`tools/sim/quad_race.py`); the first as it stands.
 TENSION, DS, LAPS = 1.0, 0.25, 2
+WAYS = ((0.0, 1.0),) * len(GATES)
 
 #: The lean a lap asks, m/s^2 - 67 degrees, more than the envelopes leave it for long - and
 #: its speed at most, m/s. The pull it is planned on is the envelopes' share of that lean,
@@ -140,13 +143,14 @@ def solids():
 
 
 def _span(a, b, u):
-    """The point `u` of the way along the Hermite span from gate `a` to gate `b`: through each
-    along its heading, level."""
+    """The point `u` of the way along the Hermite span from crossing `a` to crossing `b` - a
+    gate's middle, the way through it, degrees, and its tangent's tension: through each along
+    its way, level."""
     chord = TENSION * math.dist(a[:3], b[:3])
     out = []
     for k in range(3):
-        m0, m1 = ((chord * math.sin(math.radians(g[3])), 0.0, chord * math.cos(math.radians(g[3])))[k]
-                  for g in (a, b))
+        m0, m1 = ((g[4] * chord * math.sin(math.radians(g[3])), 0.0,
+                   g[4] * chord * math.cos(math.radians(g[3])))[k] for g in (a, b))
         out.append((2 * u ** 3 - 3 * u ** 2 + 1) * a[k] + (u ** 3 - 2 * u ** 2 + u) * m0
                    + (-2 * u ** 3 + 3 * u ** 2) * b[k] + (u ** 3 - u ** 2) * m1)
     return tuple(out)
@@ -159,9 +163,11 @@ def track():
     'swings': what that turn changes by a metre, 1/m^2, 'gates': where each gate is along it,
     m, 'length', 'step'}."""
     fine, marks = [], []
-    for i, gate in enumerate(GATES):
+    cross = [(x, y, z, heading + turn, tension)
+             for (x, y, z, heading), (turn, tension) in zip(GATES, WAYS)]
+    for i, gate in enumerate(cross):
         marks.append(len(fine))
-        fine += [_span(gate, GATES[(i + 1) % len(GATES)], u / 64.0) for u in range(64)]
+        fine += [_span(gate, cross[(i + 1) % len(cross)], u / 64.0) for u in range(64)]
     run = [0.0]
     for p, q in zip(fine, fine[1:] + fine[:1]):
         run.append(run[-1] + math.dist(p, q))

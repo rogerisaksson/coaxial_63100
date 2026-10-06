@@ -117,7 +117,7 @@ GYNOID_GOING = 'test_gynoid_going.py'
 #: The cyclic executive (machine.cyclic): its steps against machine.parts, its cycle on a toy rotor.
 CYCLIC = 'test_cyclic.py'
 
-#: The quad's flight on ideal rotors, its course's gates, its page; what a change reaches.
+#: The quad's suites; what a change reaches.
 QUAD, QUAD_COURSE, QUAD_PAGE = 'test_quad.py', 'test_quad_course.py', 'test_views_quad.py'
 QUADS = (QUAD, QUAD_COURSE, QUAD_PAGE, 'test_views_quad_flight.py', STRUCTURE)
 
@@ -307,7 +307,7 @@ TOUCHES = (
     ('host/machine/flying.py',                 QUADS),
     ('host/machine/aerobatics.py',             QUADS),
     ('host/machine/course.py',                 QUADS),
-    ('host/coaxial/graphics/quadcopter.py',    (QUAD_PAGE, RENDER)),
+    ('host/coaxial/graphics/quadcopter.py',    QUADS + (RENDER,)),
     ('host/coaxial/graphics/scenery.py',       QUADS + (RENDER,)),
     ('host/machine/',                          (CONTROLLER, GYNOID, GYNOID_FAULTS, GYNOID_FALLS,
                                                 GYNOID_STAND, GYNOID_GAIT, GYNOID_RUN,
@@ -381,6 +381,7 @@ TOUCHES = (
     ('host/tools/sim/go.py',                   (STRUCTURE, GYNOID_GOING)),
     ('host/tools/sim/normal.py',               (STRUCTURE, GYNOID_GAIT, GYNOID_GOING)),
     ('host/tools/sim/fbx.py',                  (STRUCTURE, GYNOID_GAIT, GYNOID_GOING)),
+    ('host/tools/sim/quad_race.py',            QUADS),
     # BENCH: firmware in the main loop is what slows the board (the thermal
     # observer's per-poll ADC and SPI reads; a poll that lost a Modbus byte).
     ('comms/',                                 (WIRE, NATIVE, EMULATOR, CONFORMANCE, 'test_mcp.py',

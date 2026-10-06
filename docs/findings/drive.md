@@ -170,6 +170,16 @@ rotor's pages and their demos. The board's own are in
   in a world of its own - a margin on the flown one's discs bore the frame
   4.5 cm off the floor); a thing in its way and the law short of pull, it
   has all the rotors give for 0.6 s, 5 s of it a flight.
+- QUAD's tuner scores a candidate flown, not planned (`tools/sim/quad_race.py`,
+  2026-10-06): a line searched for its planned lap's seconds - each gate
+  crossed 0.25 m off its middle and turned 25 degrees at the most - was
+  planned 20.2 to 17.8 s and flown 19.1 and 18.3 where 20.8 and 19.4, but
+  0.9-1.05 m off its gates and into one; turned alone, planned 18.6 and
+  flown 5 % the shorter, 0.65-0.97 m off. Its scoreboard: the card on ideal
+  rotors and on four boards, still air and three winds, 8 flights in 15 s
+  on the relay - laps 20.8/19.4 and 21.8/20.8 s as built, a gate 0.52 m off
+  at the most; a candidate its constants by name and its line's crossings
+  (`course.WAYS`), searched by `cmaes`.
 - The rotor page, the bench's word: the magnets blurred through a 1/80 s
   shutter (208-386 cells, 0.10 a frame at most; the smear's ring flipped
   0.29), the windings whole at their current's brightness and gone on a
