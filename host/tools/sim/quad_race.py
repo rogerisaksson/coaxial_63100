@@ -15,7 +15,8 @@ a pack with each of PACKS of its charge. A trial's cost is its laps' seconds, by
 clock; MISS_K a metre a gate's middle is passed further off than MISS_M, ROOM_K a metre the
 frame has less than ROOM_M about it, both of the frame as built; struck, STRUCK_S and no laps
 counted. A candidate's is its trials' mean: a line found on its planned seconds alone was
-flown 0.9 m off its gates (2026-10-06).
+flown 0.9 m off its gates (2026-10-06). Told beside it, not counted: the rotors' thrust of
+their top, the flight's jerk, m/s^3 rms, and how often a lap its pull along its way turned.
 
     python tools/sim/quad_race.py                                    # as built
     python tools/sim/quad_race.py --suite boards --grid course.GRIP=0.6,0.7,0.8
@@ -68,6 +69,10 @@ TOP_RAD_S, LAG_S, SPOOL_RAD_S2 = 310.0, 0.08, 900.0
 #: The cost beside the laps' seconds: a gate's middle passed further off than MISS_M, s a
 #: metre; less than ROOM_M about the frame's reach, s a metre; a flight struck.
 MISS_M, MISS_K, ROOM_M, ROOM_K, STRUCK_S = 0.45, 30.0, 0.35, 30.0, 90.0
+
+#: How a flight flowed (`flowed`): its pull smoothed over this long, s, and a turn of its pull
+#: along its way counted from this much either way, m/s^2.
+FLOW_S, FLOW_M_S2 = 0.1, 1.0
 
 #: A run's commit on the relay, GB, and its seconds at the most.
 RUN_GB, RUN_S = 0.5, 240.0
@@ -154,6 +159,32 @@ def room(rows):
     return least - quad.reach()
 
 
+def flowed(laps):
+    """How a flight's laps flowed, from their rows (t, x, y, z, m/s, the pull flown x, y, z,
+    the rotors' thrust of their top): (that thrust's mean; its jerk, m/s^3 rms, the pull
+    smoothed over FLOW_S; how often a lap its pull along its way turned from speeding to
+    slowing or back, FLOW_M_S2 either way)."""
+    rows = [row for lap in sorted(laps) for row in laps[lap]]
+    if len(rows) < 3:
+        return math.nan, math.nan, math.nan
+    pulls, k = [], 0
+    for i, row in enumerate(rows):
+        while rows[k][0] < row[0] - FLOW_S:
+            k += 1
+        pulls.append([sum(r[n] for r in rows[k:i + 1]) / (i + 1 - k) for n in (5, 6, 7)])
+    square, turns, was = 0.0, 0, 0.0
+    for i in range(1, len(rows)):
+        dt = rows[i][0] - rows[i - 1][0]
+        way = [rows[i][n] - rows[i - 1][n] for n in (1, 2, 3)]
+        far = math.sqrt(sum(x * x for x in way)) or 1.0
+        square += sum((a - b) ** 2 for a, b in zip(pulls[i], pulls[i - 1])) / dt
+        along = sum(a * x for a, x in zip(pulls[i], way)) / far
+        if abs(along) >= FLOW_M_S2 and along * was <= 0.0:
+            turns, was = turns + (was != 0.0), along
+    return (sum(r[8] for r in rows) / len(rows), math.sqrt(square / (rows[-1][0] - rows[0][0])),
+            turns / len(laps))
+
+
 def ideal(air, _room=BENCH, _left=1.0):
     """The card on ideal rotors in `air`, the frame as it is sized - its rotors as fast at
     their tips, its passes by its clock: (the laps' rows by lap, what it struck, 0, 1, 0)."""
@@ -181,7 +212,8 @@ def ideal(air, _room=BENCH, _left=1.0):
             frame = sky.state()
             laps.setdefault((route.get('lap') or {}).get('laps', 0), []).append(
                 (t, float(frame['at'][0]), frame['h'], float(frame['at'][2]),
-                 math.sqrt(sum(float(c) ** 2 for c in frame['vel']))))
+                 math.sqrt(sum(float(c) ** 2 for c in frame['vel'])),
+                 *(float(c) for c in frame['acc']), sum(x * x for x in w) / (4.0 * top * top)))
     return laps, sky.hit, 0.0, 1.0, 0.0
 
 
@@ -206,7 +238,9 @@ def boards(air, room=BENCH, left=1.0):
                 if flight['stage'] == 'lap':
                     laps.setdefault((route.get('lap') or {}).get('laps', 0), []).append(
                         (t, float(frame['at'][0]), frame['h'], float(frame['at'][2]),
-                         math.sqrt(sum(float(c) ** 2 for c in frame['vel']))))
+                         math.sqrt(sum(float(c) ** 2 for c in frame['vel'])),
+                         *(float(c) for c in frame['acc']),
+                         sum(quad.K_THRUST * r['w'] ** 2 for r in rotors) / view.TOP_N))
                     soa = max([soa] + [(r['budget'] or {}).get('worst') or 0.0 for r in rotors])
                     least = min(least, flight['share'])
             if t - read >= 0.1:
@@ -233,10 +267,12 @@ def trial(values, job):
         None if seed is None else quad.air(seed), room_, left)
     rows = [row[1:] for lap in sorted(laps) for row in laps[lap]]
     miss, passes = missed(rows) if rows else (math.nan, 0)
+    thrust, jerk, turns = flowed(laps)
     return {'laps': [(laps[lap][-1][0] - laps[lap][0][0]) / clock for lap in sorted(laps)],
             'miss': miss / size, 'passes': passes,
             'room': room(rows) / size if rows else math.nan, 'struck': struck,
-            'soa': soa, 'share': least, 'wep': wep}
+            'soa': soa, 'share': least, 'wep': wep, 'thrust': thrust,
+            'jerk': jerk * clock ** 3 / size, 'turns': turns}
 
 
 def cost_of(result):
@@ -283,8 +319,10 @@ def _show(values, cost, whole, miss, results):
         print('    %-6s %-6s %-6s %s' % (rotors, 'still' if seed is None else 'air %d' % seed, (
             'x%g' % size if size != 1.0 else room_ if room_ != BENCH
             else '%.0f %%' % (100 * left) if left != 1.0 else ''), (
-            'laps %s s, a gate %.2f m off, %.2f m about it%s%s' % (
+            'laps %s s, a gate %.2f m off, %.2f m about it, thrust %.0f %%, jerk %.0f, %.0f '
+            'turns%s%s' % (
                 ' '.join('%.1f' % x for x in r['laps']) or '-', r['miss'], r['room'],
+                100 * r['thrust'], r['jerk'], r['turns'],
                 ', SOA %.2f, pull %.0f %% at the least, WEP %.1f s' % (
                     r['soa'], 100 * r['share'], r['wep']) if rotors == 'boards' else '',
                 '  STRUCK %s' % r['struck'] if r['struck'] else '')) if r else 'lost'))
