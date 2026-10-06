@@ -15,6 +15,7 @@ import functools
 import math
 
 from machine.aerobatics import DOWN, HOVER, OVER, PRESSED
+from machine.quad import BODY_CDA, MASS_KG, RHO
 
 #: A gate: its middle (x, y, z), m from where the frame rises, y up, and its heading, degrees
 #: from z toward x - flown through along it; its opening GATE_M square, the floor under it at
@@ -152,13 +153,24 @@ def nearest(line_, point, low, high):
     return k + max(-0.5, min(0.5, past / step))
 
 
+def bend_speed(bend, grip, wind):
+    """The speed a bend of `bend`, 1/m, is flown at on `grip`, m/s^2 across it, in a wind of
+    `wind`, m/s: the wind's drag across takes its share first - 0.5 rho CdA (v + w) w a kg,
+    all of the wind across and with the frame's own speed in it - a fifth of the grip left at
+    the least."""
+    air = 0.5 * RHO * BODY_CDA / MASS_KG * wind
+    left = max(0.2 * grip, grip - air * wind)
+    return 2.0 * left / (air + math.sqrt(air * air + 4.0 * bend * left))
+
+
 def line(route, now):
     """The lap's row for now (`aerobatics.fly`'s giver), by what `route['seen']` says
     (`Flying.seen`) - where the frame is and goes, the law's spot and heading, the share of
     their pull the envelopes leave, the pass's seconds, whether it is `spent`: its speed the
-    one the bends ahead allow on that share of its lean, along the line's way and back onto
-    it, its bend's pull asked LEAD_S ahead, its spot kept on the line. Its laps flown - spent,
-    the one it is on - it stands in the first gate, `lapped`."""
+    one the bends ahead allow on that share of its lean and what the wind as learnt leaves of
+    it (`bend_speed`), along the line's way and back onto it, its bend's pull asked LEAD_S
+    ahead, its spot kept on the line. Its laps flown - spent, the one it is on - it stands in
+    the first gate, `lapped`."""
     lap = route.get('lap')
     if lap is None or lap['began'] != route['at']:
         lap = route['lap'] = {'began': route['at'], 'k': 0, 'v': 0.0, 'laps': 0, 'gate': 1,
@@ -167,6 +179,7 @@ def line(route, now):
     n, step = len(line_['at']), line_['step']
     dt, heading = seen.get('dt', 0.0), seen.get('heading', 0.0)
     at, vel = seen.get('at', line_['at'][0]), seen.get('vel', (0.0, 0.0, 0.0))
+    wind = math.hypot(*seen.get('wind', (0.0, 0.0)))
     # the pull it is planned on: the envelopes' share of its lean, come to slowly
     ease = LEAN_M_S2 * dt / EASE_S
     pull = lap['pull'] = max(EASY_M_S2, lap['pull'] - ease, min(
@@ -189,8 +202,9 @@ def line(route, now):
     for j in range(min(int(AHEAD_M / step), int(end - lead))):
         bend, rise, _veer = line_['bends'][(int(lead) + j) % n]
         bend += max(0.0, -rise) * GRIP * pull / DROP_M_S2
-        if bend * allowed * allowed > GRIP * pull:
-            allowed = min(allowed, math.sqrt(GRIP * pull / bend + 2.0 * BRAKE * pull * step
+        if bend > 0.0 and allowed > bend_speed(bend, GRIP * pull, wind):
+            allowed = min(allowed, math.sqrt(bend_speed(bend, GRIP * pull, wind) ** 2
+                                             + 2.0 * BRAKE * pull * step
                                              * max(0.0, j - lead % 1.0)))
     speed = lap['v'] = min(allowed, lap['v'] + GO * pull * dt)
     lap.update(laps=min(lap['of'] - 1, k // n),

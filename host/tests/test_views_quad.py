@@ -1,4 +1,4 @@
-"""The QUAD page on four stand-in boards: their air, its words and traces, its flights."""
+"""The QUAD page on four stand-in boards: their air, its words, traces and wind, its flights."""
 import math
 import sys
 import time
@@ -118,25 +118,52 @@ def test_its_traces_are_drawn(report):
               60.0 + 0.3 * k) for k in range(150)]
     high, low = traces.heights(trace, 15.0, 36), traces.buses(trace, 15.0, 36)
     plain = [''.join(c for c in line if 0x2800 <= ord(c) <= 0x28FF) for line in high + low]
-    report.check('eight rows of height and power, four of bus and temperature, 36 cells wide',
+    report.check('seven rows of height and power, four of bus and temperature, 36 cells wide',
                  len(high) == traces.HEIGHT_ROWS and len(low) == traces.BUS_ROWS
                  and len({len(p) for p in plain}) == 1 and len(plain[0]) == 36 - 15,
                  '%d and %d rows, %s cells of plot' % (len(high), len(low),
                                                       sorted({len(p) for p in plain})))
     text = '\n'.join(high + low)
-    report.check('each curve in its own ink, its scale on its own side in that ink',
-                 all(ink in text for ink in (traces.HEIGHT, traces.POWER, traces.BUS, traces.TEMP))
-                 and high[0].startswith(traces.HEIGHT) and traces.POWER + '├ 2kW' in high[0]
-                 and low[0].startswith(traces.BUS) and '63 V' in low[0]
-                 and traces.TEMP + '├ 105 C' in low[0],
+    report.check('a plot\'s left curve and its right in their inks, both plots alike, each '
+                 'scale on its own side in its curve\'s',
+                 all(ink in text for ink in (traces.LEFT, traces.RIGHT))
+                 and high[0].startswith(traces.LEFT) and traces.RIGHT + '├ 2kW' in high[0]
+                 and low[0].startswith(traces.LEFT + '   63 ┤') and '   57 ┤' in low[-1]
+                 and traces.RIGHT + '├ 105C' in low[0],
                  '%r | %r' % (high[0][-12:], low[0][-12:]))
     spike = [sum(c != chr(0x2800) for c in p) for p in plain[:traces.HEIGHT_ROWS]]
     flat = traces.heights([row[:3] + (150.0 + k,) + row[4:] for k, row in enumerate(trace)],
                           15.0, 36)
     report.check('the pass at 1.9 kW a spike up the plot, none without it',
-                 spike[1] >= 1 and traces.POWER + '├ 2kW' in high[0]
-                 and traces.POWER + '├ 1kW' in flat[0],
+                 spike[1] >= 1 and traces.RIGHT + '├ 2kW' in high[0]
+                 and traces.RIGHT + '├ 1kW' in flat[0],
                  'dots a row, top down: %s' % spike)
+
+
+def test_its_wind_is_pointed(report):
+    """terminal.views.quad.wind: the dial's up is into the screen - a wind along the heading of
+    a frame seen from behind points up, against it down; its needle the longer the stronger;
+    its rows the dial and the air's kind, kept, in words."""
+    from machine import quad
+    from terminal.views.quad import wind
+    ways = [math.degrees(wind.seen((0.0, 0.0, z), 180.0)[0]) for z in (3.0, -3.0)]
+    dots = [sum(bin(cell).count('1') for row in wind.dial(0.7, share)[1] for cell in row)
+            for share in (0.1, 0.5, 1.0)]
+    report.check('a tail wind seen from behind points up, a head wind down; a needle the '
+                 'longer the stronger',
+                 abs(ways[0]) < 1e-6 and abs(abs(ways[1]) - 180.0) < 1e-6
+                 and dots[0] < dots[1] < dots[2],
+                 '%.0f and %.0f degrees from up; %s dots' % (ways[0], ways[1], dots))
+    air = quad.air(3, 'gusty')
+    for _ in range(500):
+        quad.blown(air, 0.02)
+    lines = wind.pointer(air, 5.0, 30.0)
+    report.check('%d rows of %d cells of dial, the kind and its wind beside it' % (
+        wind.ROWS, 2 * wind.ROWS),
+        [sum(0x2800 <= ord(c) <= 0x28FF for c in line) for line in lines]
+        == [2 * wind.ROWS] * wind.ROWS
+        and 'GUSTY' in lines[0] and 'kept' in lines[1] and 'm/s' in lines[2],
+        lines[2].split('  ')[-1])
 
 
 #: The page's flights drawn this long at most, s.
@@ -185,13 +212,12 @@ def paged(card, done, pack_ah=None):
                        'gate': kw.get('gate'), 'cells': 0})
         return was[4](*args, **kw)
 
-    def compose(console, origin, rotors, frame, flight, trace, now, art):
+    def compose(console, origin, rotors, frame, flight, trace, now, art, **kw):
         frames[-1]['cells'] = sum(0x2800 < ord(c) <= 0x28FF for c in art)
-        # Flown, or LANDED_S of the wall's time drawn: a starved page's flight takes its
-        # frames' count four times that long.
+        # Flown, or LANDED_S of the wall's time drawn.
         if done(flew, flight['stage']) or frames[-1]['t'] - frames[0]['t'] > LANDED_S:
             raise Done
-        return was[0](console, origin, rotors, frame, flight, trace, now, art)
+        return was[0](console, origin, rotors, frame, flight, trace, now, art, **kw)
     view.compose, flown.step, flown.CARD, quad.PACK_AH, view.quadcopter.render = (
         compose, stepped, card, pack_ah or was[3], render)
     try:
@@ -253,9 +279,8 @@ def test_the_page_flies_four_boards(report):
                  low >= 0.05 and bool(held) and abs(held[-1] - quad.FLOOR_M) <= 0.05,
                  'lowest %.3f m, held at last %.3f m' % (low, held[-1] if held else math.nan))
     sag = min((r['volts'] for r in tilt), default=math.nan)
-    # Its start: the first two seconds' middle - the rotors' spool to their idle is 0.5 V under
-    # it for a step and their run back 0.2 V over it. Its kilowatt a step's: 0.15 s of full
-    # tilt's two, and a frame's read of it was 814 W on CI's runner (2026-10-06).
+    # Its start: the first two seconds' middle, the rotors' spool to their idle in it. Its
+    # kilowatt a step's: 0.15 s of full tilt's two, a frame's read 814 W on CI (2026-10-06).
     early = sorted(r['volts'] for r in rows if r['t'] - rows[0]['t'] <= 2.0)
     full = early[len(early) // 2]
     report.check('the bus droops a volt and more under full tilt\'s kilowatt, 63 V at its start',
@@ -375,7 +400,7 @@ def test_a_late_pass_is_its_steps(report):
 
 ROSTER = (test_the_boards_air_is_the_rotors, test_a_rotor_turns_by_its_pass,
           test_the_page_words_its_boards,
-          test_its_traces_are_drawn, test_the_page_flies_four_boards,
+          test_its_traces_are_drawn, test_its_wind_is_pointed, test_the_page_flies_four_boards,
           test_the_page_flies_its_course, test_a_late_pass_is_its_steps)
 
 

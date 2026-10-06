@@ -35,6 +35,9 @@ own are in [FINDINGS](../FINDINGS.md).
   nodes, the four's torque once a pass about the frame's own axes - the frame
   the same to 1e-13 over 8 s of tumbling: 3.4 ms, 17.9-18.8 frames, 19.2
   with nothing flown (2026-10-06).
+- QUAD's two plots inked and marked alike: a plot's left curve and its scale
+  one ink, its right another, the bus a mark a row as the height (the user,
+  2026-10-06; orange and red had been the bus's and the temperature's).
 - Model weights (7.6 GB) reloaded per suite were most of a run: loaded once,
   released once. A run killed from outside leaves 8.4 GB on the card.
 - The offline gate was 400 s of sleeping on the stand-in's clock; suites run

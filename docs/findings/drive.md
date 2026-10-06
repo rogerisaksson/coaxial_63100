@@ -125,6 +125,24 @@ rotor's pages and their demos. The board's own are in
   the same feed, the corkscrew 26.2 A on 0.75 of the pull and over, `home`
   3.0 s; full tilt's kilowatt is 0.15 s of its two, read a step
   (2026-10-06).
+- QUAD's air (`machine.quad`: `AIR`, `blown`; the user, 2026-10-06): a kind
+  of weather at a time - calm, constant, gusty, changing, turbulent, 20 s
+  each or one kept (W) - a wind of 0.5-4 m/s at 5 m, sheared along the
+  floor, 1 - cos gusts of 2.4-4 m/s over it, eddies of 0.1-1.2 m/s rms, the
+  frame's and each disc's; the frame's drag is against it, a disc's thrust
+  the more for air rising. None of it is told to the law, which learns the
+  wind from its drag in 0.12 s (`Flying.aired`): a hover at 5 m in 3.9 m/s
+  stood 0.68 m off its spot unlearnt and never `held`, 0.03 m learnt; in
+  gusts to 6.8 m/s 0.23 m at the most. Its push learnt and not the wind, a
+  lap in a constant wind passed a gate 0.65 m off where 0.37 in still air -
+  the push turns with the frame's own speed through a bend; the wind
+  itself, 0.36-0.44. A bend is planned on what the wind leaves of its grip
+  (`course.bend_speed`): gusty 0.78 to 0.50 m, turbulent 0.94 to 0.58, a
+  lap 1 s the slower. On the page's four boards the routine's fall went
+  3.5 m downwind and was back on its spot by its stop; the laps 29.0 and
+  25.7 s, a gate 0.23 m off at the most, the boards to 0.76 of their
+  envelopes, none throttling. Its pointer is the way it blows as the view
+  has it, its size and its kind (`terminal/views/quad/wind.py`).
 - The rotor page, the bench's word: the magnets blurred through a 1/80 s
   shutter (208-386 cells, 0.10 a frame at most; the smear's ring flipped
   0.29), the windings whole at their current's brightness and gone on a

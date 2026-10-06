@@ -325,7 +325,7 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
   scope, pulses symmetric about the underflow 30 us after the sample, a
   skew set mid-run falling back to RCR 0.
 - **Scope**: counted hold (MINOR 8), dead-time skew (record holds 0),
-  `Q_RING` in `inverter.py`. DOD: each seen on the scope.
+  `Q_RING` in `inverter.py`. DOD: each on the scope.
 - **Thermal**: a camera under load (`board_to_ambient` at high dT, per-leg
   `to_board`, the NTC's share under load), a thermocouple on a
   winding, the supply's amps dry. DOD: the ceilings measured; the laminate's
@@ -340,10 +340,10 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
   `emu_world_motor`); one source for both; the fallback where nothing
   answers.
 - **`tools/sim/montecarlo.py`** (the FOC loop's) runs a pool of its own.
-  DOD: its jobs as shards on the relay, the library loaded once a shard.
+  DOD: its jobs shards on the relay, the library loaded once each.
 - **The meter under the drive**: `read_index` serves the NTC and the DC
-  link from the latched sample. DOD: the MCU's die and the phases join
-  them; a sweep over a locked channel says so.
+  link from the latched sample. DOD: the MCU's die and the phases too;
+  a sweep over a locked channel says so.
 - **Debug `-O0`**. DOD: `-Og` measured (LOOP counters, keepalive gap).
 - **`heat.py`'s dry loss** 1.2 W, the bench's fit 2.4-4.4 at 24-44 V. DOD: it.
 - **`intent.py` has no thermal kind**: warmth questions become an NTC read.
@@ -352,8 +352,7 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
   within FIND_S there.
 - **`test_sensorless`** overpowered servo flakes 1 gate in 4, `test_daq_api`'s
   first dt once (2026-10-05). DOD: 20 green.
-- **QUAD's air**: gusts, turbulence; a pointer for the wind's way, size and
-  kind. DOD: its gates kept.
+- **QUAD**: what stands collides; its laps at its fastest. DOD: gates kept.
 - **A1335 CRC** reported, not checked. DOD: the polynomial known, checked.
 - **`testline/plans/coaxial_63100_fct.yaml`** limits are placeholders.
   DOD: measured.

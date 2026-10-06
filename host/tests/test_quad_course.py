@@ -23,15 +23,16 @@ def reach():
 
 
 @functools.lru_cache(maxsize=None)
-def lapped(share=1.0, spent_at=None):
+def lapped(share=1.0, spent_at=None, air=False):
     """The course's card once through, a row a pass: machine.quad's frame in MuJoCo on rotors
     lagging to their speed, on `share` of their pull, its passes a page's - 10 to 30 ms, one
-    in twenty 50; `spent` from `spent_at` s on."""
+    in twenty 50; `spent` from `spent_at` s on; in still air, or - `air` - the air's tour."""
     from machine import aerobatics, course, quad
     from machine.flying import Flying
     dice = random.Random(1)
     sky, route = quad.Sky(), aerobatics.routine(course.CARD)
     flying = Flying(4.0 * quad.K_THRUST * TOP_RAD_S ** 2, aerobatics.DOWN)
+    blown = quad.air() if air else None
     w, t, rows = [0.0] * 4, 0.0, []
     while t < 240.0:
         dt = 0.05 if dice.random() < 0.05 else dice.choice((0.01, 0.014, 0.02, 0.03))
@@ -44,7 +45,9 @@ def lapped(share=1.0, spent_at=None):
         for k, thrust in enumerate(flying.step(state, dt, share)):
             more = (min(TOP_RAD_S, quad.speed_for(thrust)) - w[k]) * min(1.0, dt / LAG_S)
             w[k] += max(-SPOOL_RAD_S2 * dt, min(SPOOL_RAD_S2 * dt, more))
-        sky.step(w, dt)
+        if blown:
+            quad.blown(blown, dt)
+        sky.step(w, dt, blown)
         state, lap = sky.state(), route.get('lap') or {}
         rows.append({'t': t, 'name': name, 'x': float(state['at'][0]), 'y': state['h'],
                      'z': float(state['at'][2]),
@@ -176,6 +179,25 @@ def test_it_flies_on_its_envelopes(report):
                      last['name'], last['y'], math.hypot(last['x'], last['z'])))
 
 
+def test_its_gates_in_wind(report):
+    """The course in the air's tour - a constant wind, gusts, a changing one and eddies in its
+    two laps, none of it told to the law: every gate passed inside its opening, the frame
+    clear of its frame; its laps a tenth slower at the most."""
+    from machine import course
+    still, rows = lapped(), lapped(air=True)
+    gates, room = passes(rows), course.GATE_M / 2.0 - reach() - CLEAR_M
+    counted = [len(gates[g]) for g in range(1, len(course.GATES))]
+    report.check('every gate passed on both laps in the wind, its middle within %.2f m' % room,
+                 counted == [course.LAPS] * len(counted) and worst(gates) <= room,
+                 'passes %s, %.2f m off at the most, %.2f in still air' % (
+                     counted, worst(gates), worst(passes(still))))
+    times = [[lap_seconds(flown, lap) for lap in range(course.LAPS)] for flown in (still, rows)]
+    report.check('its laps in the wind no more than a tenth slower',
+                 all(0.9 * a <= b <= 1.1 * a for a, b in zip(*times)),
+                 '%s s in the wind, %s still' % (' '.join('%.1f' % x for x in times[1]),
+                                                ' '.join('%.1f' % x for x in times[0])))
+
+
 def test_a_line_ends_itself(report):
     """A routine's card with a row that gives its own (aerobatics.fly): spent, a figure's row
     leaves for its flight's way down - not the card's first, nor on it the next flight's -; the
@@ -223,7 +245,8 @@ def test_its_tilt_is_its_discs_own(report):
         flying = Flying(4.0 * quad.K_THRUST * TOP_RAD_S ** 2, dict(aerobatics.HOVER, slide=3.0, **row))
         turn = ry(math.radians(yawed))
         thrusts = flying.step({'turn': turn, 'spin': (0.0, 0.0, 0.0), 'vel': (0.0, 0.0, 0.0),
-                               'at': (0.0, quad.HOVER_M, 0.0), 'h': quad.HOVER_M, 'v': 0.0}, 0.01)
+                               'at': (0.0, quad.HOVER_M, 0.0), 'h': quad.HOVER_M, 'v': 0.0,
+                               'acc': (0.0, 0.0, 0.0), 'lift': quad.MASS_KG * quad.GRAVITY}, 0.01)
         arms = [(turn[0][0] * x + turn[0][2] * z, turn[2][0] * x + turn[2][2] * z)
                 for x, z in quad.ROTOR_AT]
         return (sum(n * x for n, (x, _z) in zip(thrusts, arms)),
@@ -283,8 +306,8 @@ def test_its_world_is_drawn(report):
                                                floor.max()))
 
 
-ROSTER = (test_its_gates_are_flown, test_it_flies_on_its_envelopes, test_a_line_ends_itself,
-          test_its_tilt_is_its_discs_own, test_its_world_is_drawn)
+ROSTER = (test_its_gates_are_flown, test_it_flies_on_its_envelopes, test_its_gates_in_wind,
+          test_a_line_ends_itself, test_its_tilt_is_its_discs_own, test_its_world_is_drawn)
 
 
 def main(argv=None):

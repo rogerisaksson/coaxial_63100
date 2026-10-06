@@ -19,13 +19,13 @@ MARKS = (0.0, 0.1, 0.5, 1.0, 2.0, 5.0, 10.0, 20.0, 50.0, 100.0, 200.0)
 
 #: The power's scale, W to at least this in steps of POWER_STEP_W; the bus's and the
 #: temperature's, over at least these about what they were, V and K; each plot's rows.
-POWER_W, POWER_STEP_W, BUS_V, TEMP_K, HEIGHT_ROWS, BUS_ROWS = 1000.0, 500.0, 4.0, 10.0, 8, 4
+POWER_W, POWER_STEP_W, BUS_V, TEMP_K, HEIGHT_ROWS, BUS_ROWS = 1000.0, 500.0, 6.0, 10.0, 7, 4
 
-#: The inks, as the side column takes them: SGR over a string, not rich's styles. The power's
-#: and the temperature's neither the height's green nor the bus's yellow, a scale its curve's
-#: (the bench, 2026-10-05).
+#: The inks, as the side column takes them: SGR over a string, not rich's styles. A plot's
+#: left curve and its scale, its right one's: the height's and the bus's, the power's and the
+#: temperature's (the bench, 2026-10-05; both plots alike, 2026-10-06).
 RESET = '\x1b[0m'
-HEIGHT, POWER, BUS, TEMP = '\x1b[38;5;51m', '\x1b[38;5;207m', '\x1b[38;5;214m', '\x1b[38;5;203m'
+LEFT, RIGHT = '\x1b[38;5;51m', '\x1b[38;5;207m'
 
 
 def height_y(h):
@@ -95,10 +95,12 @@ def plot(now, width, rows, left, right, rule=None, spikes=False):
     return lines
 
 
-def _range(values, least):
-    """(low, high) whole about `values`, `least` apart at least."""
+def _range(values, least, steps=1):
+    """(low, high) whole about `values`, `least` apart at least and a whole number a step of
+    `steps`."""
     high = math.ceil(max(values))
-    return min(high - least, math.floor(min(values))), high
+    low = min(high - least, math.floor(min(values)))
+    return high - steps * math.ceil((high - low) / steps), high
 
 
 def heights(trace, now, width):
@@ -108,20 +110,22 @@ def heights(trace, now, width):
              '%g' % m for m in MARKS}
     top = max([POWER_W] + [POWER_STEP_W * math.ceil(w / POWER_STEP_W) for _t, _h, _v, w, _c in trace])
     return plot(now, width, HEIGHT_ROWS,
-                ([(t, height_y(h)) for t, h, _v, _w, _c in trace], marks, HEIGHT),
+                ([(t, height_y(h)) for t, h, _v, _w, _c in trace], marks, LEFT),
                 ([(t, w / top) for t, _h, _v, w, _c in trace],
-                 {0: '%gkW' % (top / 1000.0), HEIGHT_ROWS - 1: '0'}, POWER),
+                 {0: '%gkW' % (top / 1000.0), HEIGHT_ROWS - 1: '0'}, RIGHT),
                 rule=height_y(quad.FLOOR_M), spikes=True)
 
 
 def buses(trace, now, width):
-    """The bus, V up its left, and the boards' hottest node, C down its right, each on the
-    range it had."""
-    low, high = _range([v for _t, _h, v, _w, _c in trace] or [quad.open_volts(1.0)], BUS_V)
+    """The bus, V up its left - a mark a row - and the boards' hottest node, C down its
+    right, each on the range it had; inked and marked as the height and the power are."""
+    low, high = _range([v for _t, _h, v, _w, _c in trace] or [quad.open_volts(1.0)], BUS_V,
+                       BUS_ROWS - 1)
     warm = [(t, c) for t, _h, _v, _w, c in trace if c is not None]
     cool, hot = _range([c for _t, c in warm] or [25.0], TEMP_K)
     return plot(now, width, BUS_ROWS,
                 ([(t, (v - low) / (high - low)) for t, _h, v, _w, _c in trace],
-                 {0: '%g V' % high, BUS_ROWS - 1: '%g' % low}, BUS),
+                 {r: '%g' % (high - r * (high - low) / (BUS_ROWS - 1)) for r in range(BUS_ROWS)},
+                 LEFT),
                 ([(t, (c - cool) / (hot - cool)) for t, c in warm],
-                 {0: '%g C' % hot, BUS_ROWS - 1: '%g' % cool}, TEMP))
+                 {0: '%gC' % hot, BUS_ROWS - 1: '%g' % cool}, RIGHT))

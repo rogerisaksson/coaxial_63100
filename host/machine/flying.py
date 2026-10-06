@@ -96,6 +96,15 @@ LIGHT = 0.5
 #: at this (2026-10-06).
 TILT_MISS = 0.6
 
+#: The air is learnt in this long, s, off the floor - OFF_M up, where the floor's own push is
+#: none - from what the frame speeds up by over what its rotors' speeds and gravity give it:
+#: along the floor that is its drag, and the wind the speed that drag is of; up, what is left
+#: of it is the air's lift. A wind is told to nothing here. Unlearnt, a wind of 3.9 m/s held a
+#: hover 0.68 m off its spot - the spot's loop is 1 /s^2 - and none of its waits was `held`;
+#: its push learnt and not the wind, a lap in that wind passed a gate 0.65 m off where 0.37
+#: in still air: the push turns with the frame's own speed through a bend (2026-10-06).
+AIR_S, OFF_M = 0.12, 0.03
+
 #: What it is doing where it is asked a height far under it: let fall, burning.
 FALL, BURN = 'fall', 'burn'
 
@@ -134,6 +143,9 @@ class Flying:
         #: floor the boards' envelopes left it last, m/s^2, and their share it came of.
         self.spot, self.speed, self.most, self.share = [0.0, 0.0], (0.0, 0.0), 0.0, 1.0
         self.held, self.doing = False, None
+        #: The air as learnt: its speed along the floor, world (x, z), m/s, and its lift on
+        #: the frame, m/s^2.
+        self.wind, self.lifted = [0.0, 0.0], 0.0
 
     # -- the setpoints' own ------------------------------------------------------------------
 
@@ -171,7 +183,8 @@ class Flying:
     def lean(self, at, vel, dt, most):
         """The pull asked along the floor, world (x, z), m/s^2, `most` at the most: its spot
         gone on at the speed asked and to its place, the frame kept on it and leant into what
-        that speed changed by, the row's own pull and what the air takes of it."""
+        that speed changed by, the row's own pull and what the air takes of it, at the speed
+        asked through the wind as learnt."""
         a = self.ask
         c, s = math.cos(self.heading), math.sin(self.heading)
         off = (self.spot[0] - a['x'], self.spot[1] - a['z'])
@@ -181,10 +194,11 @@ class Flying:
                  a['speed'] * c - a['slide'] * s + home * off[1])
         into = [(now - was) / dt + more for now, was, more in zip(
             speed, self.speed, (a['surge'] * s + a['sway'] * c, a['surge'] * c - a['sway'] * s))]
-        air = 0.5 * RHO * BODY_CDA * math.hypot(speed[0], speed[1]) / MASS_KG
+        through = [v - w for v, w in zip(speed, self.wind)]
+        air = 0.5 * RHO * BODY_CDA * math.hypot(through[0], through[1]) / MASS_KG
         self.speed = speed
         self.spot = [p + v * dt for p, v in zip(self.spot, speed)]
-        out = [into[k] + air * speed[k] + SPOT_KD * (speed[k] - float(vel[axis]))
+        out = [into[k] + air * through[k] + SPOT_KD * (speed[k] - float(vel[axis]))
                + SPOT_KP * (self.spot[k] - float(at[axis])) for k, axis in enumerate((0, 2))]
         size = math.hypot(out[0], out[1])
         return [x * min(1.0, most / size) if size > 0.0 else 0.0 for x in out]
@@ -212,13 +226,33 @@ class Flying:
 
     # -- every pass --------------------------------------------------------------------------
 
+    def aired(self, frame, turn, dt):
+        """The air learnt `dt` s on, off the floor: the wind along the floor from the frame's
+        drag - what it slows by over its rotors' thrust, 0.5 rho CdA |u| u of its speed u
+        through the air, solved for u on its own climb - and the air's lift, what it rises by
+        over that drag's own part up."""
+        vel, k = [float(x) for x in frame['vel']], 0.5 * RHO * BODY_CDA / MASS_KG
+        took = [frame['lift'] / MASS_KG * turn[axis][1] - (GRAVITY if axis == 1 else 0.0)
+                - float(frame['acc'][axis]) for axis in range(3)]
+        size = math.hypot(took[0], took[2]) / k
+        # |u_h| of |f_h| = k sqrt(|u_h|^2 + v_y^2) |u_h|
+        fast = math.sqrt(max(0.0, 0.5 * (math.sqrt(vel[1] ** 4 + 4.0 * size * size)
+                                         - vel[1] * vel[1])))
+        whole = math.hypot(fast, vel[1])
+        aloft, gain = frame['h'] > OFF_M, min(1.0, dt / AIR_S)
+        for n, axis in enumerate((0, 2)):
+            wind = vel[axis] - (took[axis] / (k * whole) if whole > 1e-9 else 0.0)
+            self.wind[n] += ((wind if aloft else 0.0) - self.wind[n]) * gain
+        self.lifted += ((k * whole * vel[1] - took[1] if aloft else 0.0) - self.lifted) * gain
+
     def seen(self, frame, dt):
         """What a row's giver may know of the flight before the pass of `dt` s (a routine's
         `seen`): where the frame is and goes, the law's spot and heading, the share of their
-        pull the boards' envelopes left it and the pull along the floor that is."""
+        pull the boards' envelopes left it and the pull along the floor that is, the wind as
+        learnt."""
         return {'dt': dt, 'most': self.most, 'share': self.share, 'heading': self.heading,
                 'spot': tuple(self.spot), 'at': [float(x) for x in frame['at']],
-                'vel': [float(x) for x in frame['vel']]}
+                'vel': [float(x) for x in frame['vel']], 'wind': tuple(self.wind)}
 
     def step(self, frame, dt, share=1.0):
         """Each rotor's thrust, N, for the frame as `frame` (`quad.Sky.state`) has it, `dt` s
@@ -231,7 +265,9 @@ class Flying:
         self.heading += rate * dt
         self.share = share
         reach = max(LEAST * MASS_KG * GRAVITY, share * HEADROOM * self.top) / MASS_KG
+        self.aired(frame, turn, dt)
         up_pull, self.doing = self.climb(frame['h'], frame['v'], reach - GRAVITY)
+        up_pull -= self.lifted
         self.most = math.sqrt(reach * reach - GRAVITY * GRAVITY)
         along = self.lean(at, vel, dt, min(a['lean'], self.most))
         # the discs' lean - against what is asked up - the nose's heading, its turns on them

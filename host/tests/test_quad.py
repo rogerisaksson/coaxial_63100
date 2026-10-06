@@ -1,4 +1,4 @@
-"""The quad's flight: its routine (machine.aerobatics on machine.flying) on ideal rotors, its pack."""
+"""The quad's flight: its routine (machine.aerobatics on machine.flying) on ideal rotors, its pack, its air."""
 import functools
 import math
 import sys
@@ -234,8 +234,110 @@ def test_its_pack(report):
                  '%d s, %.1f V under it' % (seconds, cells['volts']))
 
 
+def test_its_air(report):
+    """machine.quad's air, a kind kept a minute: the wind its kind's, gusts over it where the
+    kind has them, its way swung in a changing one and kept in a constant, its eddies their
+    size; the same from the same seed; sheared along the floor and rising nowhere at it; its
+    kinds toured in turn, and stepped by hand."""
+    from machine import quad
+
+    def minute(kind, seed=3):
+        air, rows = quad.air(seed, kind), []
+        for _ in range(3000):
+            wind = quad.blown(air, 0.02)
+            rows.append((math.hypot(wind[0], wind[2]), math.atan2(wind[0], wind[2]),
+                         air['blows'], air['eddy'][0], air['eddy'][1]))
+        return rows[500:]
+    seen = {kind: minute(kind) for kind in quad.AIR}
+    mean = {kind: sum(r[0] for r in rows) / len(rows) for kind, rows in seen.items()}
+    gust = {kind: max(r[2] for r in rows) for kind, rows in seen.items()}
+    swing = {kind: math.degrees(max(r[1] for r in rows) - min(r[1] for r in rows))
+             for kind, rows in seen.items()}
+    report.check('a constant wind its 4 m/s on one way, a calm under 1; gusts in the gusty one '
+                 'alone of the two, 2 m/s and more; a changing one\'s way swung 100 degrees',
+                 abs(mean['constant'] - quad.AIR['constant'][0]) <= 0.3 and mean['calm'] < 1.0
+                 and gust['constant'] == 0.0 and gust['gusty'] >= 2.0
+                 and swing['constant'] <= 20.0 and swing['changing'] >= 100.0,
+                 'means %s m/s; gusts %.1f and %.1f; ways swung %.0f and %.0f degrees' % (
+                     ' '.join('%.1f' % mean[k] for k in quad.AIR), gust['constant'], gust['gusty'],
+                     swing['constant'], swing['changing']))
+    rough = [math.sqrt(sum(r[k] ** 2 for r in seen['turbulent']) / len(seen['turbulent']))
+             for k in (3, 4)]
+    size = quad.AIR['turbulent'][5]
+    report.check('a turbulent one\'s eddies their size along the floor, %.1f of it up' % quad.EDDY_UP,
+                 0.6 * size <= rough[0] <= 1.4 * size
+                 and 0.6 * quad.EDDY_UP * size <= rough[1] <= 1.4 * quad.EDDY_UP * size,
+                 '%.2f and %.2f m/s rms of %.1f' % (rough[0], rough[1], size))
+    report.check('the same air from the same seed, another from another',
+                 minute('gusty') == seen['gusty'] and minute('gusty', 4) != seen['gusty'],
+                 '%d passes alike' % len(seen['gusty']))
+    low, ref, high = (quad.wind_at((4.0, 1.0, 0.0), h) for h in (0.0, quad.REF_M, 100.0))
+    report.check('sheared along the floor - under half of it at the floor, %.1f of it at the most '
+                 '- and rising nowhere at the floor' % quad.SHEAR_MOST,
+                 low[0] < 2.0 and low[1] == 0.0 and ref == (4.0, 1.0, 0.0)
+                 and abs(high[0] - quad.SHEAR_MOST * 4.0) < 1e-9,
+                 '%.2f m/s at the floor, %.2f up there; %.1f at %g m' % (
+                     low[0], low[1], high[0], 100.0))
+    air, kinds = quad.air(), []
+    for _ in range(len(quad.TOUR)):
+        kinds.append(air['kind'])
+        quad.blown(air, quad.KIND_S)
+    by_hand = []
+    for _ in range(len(quad.TOUR) + 1):
+        quad.kept(air)
+        by_hand.append((air['kind'], air['kept']))
+    report.check('its kinds toured in turn, %.0f s each; by hand each kept in turn, then the tour '
+                 'again' % quad.KIND_S,
+                 tuple(kinds) == quad.TOUR
+                 and by_hand == [(kind, True) for kind in quad.TOUR] + [(quad.TOUR[0], False)],
+                 '%s; %s' % (' '.join(kinds), ' '.join(k for k, _kept in by_hand)))
+
+
+def test_it_holds_in_wind(report):
+    """The law in the air, a hover at 5 m on rotors lagging 0.08 s: in a constant wind it is
+    held on its spot, the wind as it has learnt it the wind on it - unlearnt, half a metre off
+    and never held; in gusts within half a metre."""
+    from machine import aerobatics, flying as law, quad
+
+    def hover(kind, learn=True):
+        """(the furthest off its spot, m, the share of the passes held, how far the law's wind
+        was off the wind on it, m/s rms) over 20 s of the air, 12 s into it."""
+        was = law.AIR_S
+        law.AIR_S = was if learn else math.inf
+        try:
+            sky, air = quad.Sky(), quad.air(3, kind)
+            flying = law.Flying(4.0 * quad.K_THRUST * 310.0 ** 2, dict(aerobatics.HOVER, height=5.0))
+            w, t, rows = [0.0] * 4, 0.0, []
+            while t < 40.0:
+                for k, thrust in enumerate(flying.step(sky.state(), 0.02, 1.0)):
+                    w[k] += (min(310.0, quad.speed_for(thrust)) - w[k]) * 0.25
+                wind = quad.blown(air, 0.02) if t >= 8.0 else (0.0, 0.0, 0.0)
+                sky.step(w, 0.02, air if t >= 8.0 else None)
+                t += 0.02
+                if t >= 20.0:
+                    s = sky.state()
+                    here = quad.wind_at(wind, s['h'])
+                    rows.append((math.hypot(float(s['at'][0]) - flying.spot[0],
+                                            float(s['at'][2]) - flying.spot[1]), flying.held,
+                                 math.hypot(flying.wind[0] - here[0], flying.wind[1] - here[2])))
+        finally:
+            law.AIR_S = was
+        return (max(r[0] for r in rows), sum(r[1] for r in rows) / len(rows),
+                math.sqrt(sum(r[2] ** 2 for r in rows) / len(rows)))
+    steady, blind, gusty = hover('constant'), hover('constant', False), hover('gusty')
+    report.check('a wind of 4 m/s: on its spot within 0.2 m and held nine passes of ten, the '
+                 'wind learnt within 0.3 m/s of it; unlearnt, 0.5 m off and never held',
+                 steady[0] <= 0.2 and steady[1] >= 0.9 and steady[2] <= 0.3
+                 and blind[0] >= 0.5 and blind[1] <= 0.1,
+                 '%.2f m off, held %.0f %%, its wind %.2f m/s off; unlearnt %.2f m off, held '
+                 '%.0f %%' % (steady[0], 100.0 * steady[1], steady[2], blind[0], 100.0 * blind[1]))
+    report.check('in gusts to 7 m/s within half a metre of its spot',
+                 gusty[0] <= 0.5, '%.2f m off at the most, held %.0f %% of it' % (
+                     gusty[0], 100.0 * gusty[1]))
+
+
 ROSTER = (test_the_flight_stops_at_its_mark, test_its_figures_are_flown, test_spent_it_comes_down,
-          test_its_pack)
+          test_its_pack, test_its_air, test_it_holds_in_wind)
 
 
 def main(argv=None):

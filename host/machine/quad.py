@@ -1,17 +1,20 @@
-"""A quad on four coaxial boards in MuJoCo: its frame, on what its rotors turn, and its pack.
+"""A quad on four coaxial boards in MuJoCo: its frame, on what its rotors turn, its air, its pack.
 
     sky = Sky()                                   # the frame on the floor, y up
-    sky.step(rotor_speeds, dt)                    # the frame on what the rotors turn
+    wind = blown(air, dt)                         # the air on: its wind, its gusts, its eddies
+    sky.step(rotor_speeds, dt, air)               # the frame on what the rotors turn, in that air
     volts = drawn(cells, watts, dt)               # its pack's bus under what they take
 
 A 2 kg frame on four direct-drive 63100 rotors under APC 20x10E propellers (board/emu/worlds/
 quad.json) on skids: gravity, the air on it and the floor; its boards on one pack of 15 cells,
-63 V full. Its flying is `machine.flying`'s law on `machine.aerobatics`' rows; the rotors are
-the caller's.
+63 V full. The air is a kind of weather at a time (`AIR`): a wind, its way swinging, gusts over
+it and eddies in it - what the frame is flown through, none of it told to its law. Its flying
+is `machine.flying`'s law on `machine.aerobatics`' rows; the rotors are the caller's.
 """
 import importlib
 import math
 import os
+import random
 
 #: The frame, kg, and gravity, m/s^2.
 MASS_KG, GRAVITY = 2.0, 9.81
@@ -41,6 +44,39 @@ HOVER_M, FLOOR_M, IDLE_RAD_S = 1.5, 0.1, 60.0
 
 #: The world's step, s.
 STEP_S = 0.002
+
+#: The air's kinds, a row each - a day's weather over a field at REF_M, assumptions: the wind's
+#: mean, m/s; how far its way swings either side, degrees, and a swing's seconds; its gusts'
+#: size over the mean, m/s, and the seconds between two; its eddies', m/s rms.
+AIR = {
+    'calm':      (0.5,  0.0,  0.0, 0.0, 0.0, 0.1),
+    'constant':  (4.0,  0.0,  0.0, 0.0, 0.0, 0.2),
+    'gusty':     (3.0, 15.0,  8.0, 4.0, 5.0, 0.5),
+    'changing':  (3.5, 80.0, 14.0, 1.0, 9.0, 0.3),
+    'turbulent': (2.5, 25.0,  6.0, 2.0, 6.0, 1.2),
+}
+
+#: The kinds in turn, KIND_S of each, the air come to a kind's sizes over EASE_S and round to
+#: its own way, within TURN_DEG of the last.
+TOUR, KIND_S, EASE_S, TURN_DEG = tuple(AIR), 20.0, 4.0, 120.0
+
+#: A gust: up and down again as 1 - cos over so long, s, so much of its kind's size, within
+#: GUST_DEG of the wind's way.
+GUST_S, GUST_SHARE, GUST_DEG = (1.5, 3.0), (0.6, 1.0), 30.0
+
+#: The eddies: the frame's turn over in EDDY_S; each disc has one of its own besides,
+#: EDDY_DISC of the size, over in EDDY_DISC_S; up and down EDDY_UP of along the floor.
+EDDY_S, EDDY_DISC_S, EDDY_DISC, EDDY_UP = 1.5, 0.3, 0.5, 0.5
+
+#: The wind over the ground: (h / REF_M) ** SHEAR of what it is at REF_M, counted from SHEAR_M
+#: up and SHEAR_MOST at the most; the air rises and falls not at all at the floor, wholly from
+#: RISE_M up.
+REF_M, SHEAR, SHEAR_M, SHEAR_MOST, RISE_M = 5.0, 0.2, 0.1, 1.5, 3.0
+
+#: A disc's thrust is the more for the air rising through it: RISE of that rise over its
+#: pitch's speed, a 20x10's 0.254 m a turn. The frame's own climb is not counted: its thrust
+#: is quad.json's, a static one.
+RISE, PITCH_M = 0.5, 0.254
 
 #: The frame's inertia, kg m^2 about its axes: a rotor's share of its mass at each corner.
 _CORNER = MASS_KG / 8.0 * 2.0 * ARM_M * ARM_M
@@ -72,42 +108,132 @@ class Sky:
         self.model = self._mj.MjModel.from_xml_string(mjcf())
         self.data = self._mj.MjData(self.model)
         self.frame = self.model.body('frame').id
+        #: What the rotors gave at the last step in still air, N: their speeds' own.
+        self.lift = 0.0
         self._mj.mj_forward(self.model, self.data)
 
     def reset(self):
         """The frame back on its skids at its spot, still."""
         self._mj.mj_resetData(self.model, self.data)
+        self.lift = 0.0
         self._mj.mj_forward(self.model, self.data)
 
     def state(self):
         """{'h', 'v', 'a'}: the frame's height over its rest on the skids, m, its climb, m/s,
         and acceleration, m/s^2, up; 'turn' its 3x3 in the world, 'spin' its rates about its
-        own axes, rad/s, 'at' its middle, m."""
+        own axes, rad/s, 'at' its middle, m, 'vel' and 'acc' its speed and what that changes
+        by in the world; 'lift' what its rotors' speeds give in still air, N."""
         d = self.data
         return {'h': float(d.qpos[1]) - (SKID_M + 0.015), 'v': float(d.qvel[1]),
                 'a': float(d.qacc[1]), 'turn': d.xmat[self.frame].reshape(3, 3).copy(),
                 'spin': d.qvel[3:6].copy(), 'at': d.qpos[0:3].copy(),
-                'vel': d.qvel[0:3].copy()}
+                'vel': d.qvel[0:3].copy(), 'acc': d.qacc[0:3].copy(), 'lift': self.lift}
 
-    def step(self, speeds, dt):
+    def step(self, speeds, dt, air=None):
         """The frame `dt` s on under the rotors at `speeds`, mechanical rad/s: each one's thrust
-        up its axis at its place, their drags' torques about it, the air on the frame."""
+        up its axis at its place, their drags' torques about it, the air on the frame - still,
+        or `air` (`blown`): its drag against the wind where it is, a quarter of it at each
+        disc in that disc's own eddy, a disc's thrust the more for the air rising through it."""
         np, d = self._np, self.data
         # The four's lift and their torque about the frame's own axes, the pass's: a thrust up
         # the frame's axis at (x, z) turns it (-z, 0, x) of itself, the drags about that axis.
         # Crossed a rotor a step in the world's frame, 40 crosses were 1.0 ms of a 20 ms pass.
         thrusts = [K_THRUST * w * w for w in speeds]
+        self.lift = sum(thrusts)
+        wind, push, twist = np.zeros(3), np.zeros(3), np.zeros(3)
+        if air is not None:
+            turn, h = d.xmat[self.frame].reshape(3, 3), float(d.qpos[1]) - (SKID_M + 0.015)
+            wind = np.array(wind_at(air['wind'], h))
+            still = d.qvel[0:3] - wind
+            drag = np.linalg.norm(still) * still
+            for k, ((x, z), eddy) in enumerate(zip(ROTOR_AT, air['eddies'])):
+                own = np.array(wind_at(eddy, h))
+                thrusts[k] *= max(0.0, 1.0 + RISE * (wind[1] + own[1]) * turn[1, 1]
+                                  / max(1.0, PITCH_M * abs(speeds[k]) / math.tau))
+                more = -0.125 * RHO * BODY_CDA * (np.linalg.norm(still - own) * (still - own)
+                                                  - drag)
+                arm = turn @ (x, 0.0, z)
+                push += more
+                twist += (arm[1] * more[2] - arm[2] * more[1], arm[2] * more[0] - arm[0] * more[2],
+                          arm[0] * more[1] - arm[1] * more[0])
         lift = sum(thrusts)
         about = np.array([-sum(t * z for t, (_x, z) in zip(thrusts, ROTOR_AT)),
                           sum(spin * K_DRAG * w * w for spin, w in zip(SPIN, speeds)),
                           sum(t * x for t, (x, _z) in zip(thrusts, ROTOR_AT))])
         for _ in range(max(1, int(round(dt / STEP_S)))):
             turn = d.xmat[self.frame].reshape(3, 3)
-            v = d.qvel[0:3]
-            d.xfrc_applied[self.frame, 0:3] = (lift * turn[:, 1]
-                                               - 0.5 * RHO * BODY_CDA * np.linalg.norm(v) * v)
-            d.xfrc_applied[self.frame, 3:6] = turn @ about
+            v = d.qvel[0:3] - wind
+            d.xfrc_applied[self.frame, 0:3] = (
+                lift * turn[:, 1] - 0.5 * RHO * BODY_CDA * np.linalg.norm(v) * v + push)
+            d.xfrc_applied[self.frame, 3:6] = turn @ about + twist
             self._mj.mj_step(self.model, d)
+
+
+def air(seed=3, kind=None):
+    """Air before its first second, still: the 'kind' it is in - toured from TOUR's first, or
+    `kind` 'kept' -, how long 'for', its sizes 'come' so far (the wind's mean, its way's swing,
+    its gusts', its eddies'); the 'way' its wind blows, rad from z toward x, the way it comes
+    round 'to' and its 'swing'; its 'gust' (s into it, of, its share, rad off the way) and the
+    seconds to the 'next'; the frame's 'eddy' and each disc's, m/s; what they make: its 'wind'
+    at REF_M, m/s in the world, the gust in it 'blows', m/s."""
+    return {'kind': kind or TOUR[0], 'kept': kind is not None, 'for': 0.0, 'come': [0.0] * 4,
+            'way': 0.0, 'to': 0.0, 'swing': 0.0, 'gust': None, 'next': 0.0, 'blows': 0.0,
+            'eddy': [0.0] * 3, 'eddies': [[0.0] * 3 for _ in ROTOR_AT],
+            'dice': random.Random(seed), 'wind': (0.0, 0.0, 0.0)}
+
+
+def blown(air, dt):
+    """The air `dt` s on, its wind at REF_M: its kind's turn over, TOUR's next and a new way;
+    its sizes eased to its kind's and its way round, swung; a gust begun where one is due,
+    risen and fallen; its eddies turned over, each as far as its seconds let it."""
+    dice = air['dice']
+    air['for'] += dt
+    if not air['kept'] and air['for'] >= KIND_S:
+        air['kind'], air['for'] = TOUR[(TOUR.index(air['kind']) + 1) % len(TOUR)], 0.0
+        air['to'] += math.radians(dice.uniform(-TURN_DEG, TURN_DEG))
+    mean, veer, veer_s, gust, every, rough = AIR[air['kind']]
+    ease = min(1.0, dt / EASE_S)
+    mean, veer, gust, rough = air['come'] = [was + (now - was) * ease for was, now in zip(
+        air['come'], (mean, veer, gust, rough))]
+    air['way'] += (air['to'] - air['way']) * ease
+    air['swing'] += math.tau * dt / veer_s if veer_s else 0.0
+    way = air['way'] + math.radians(veer) * math.sin(air['swing'])
+    if air['gust'] is None:
+        air['next'] -= dt
+        if every and air['next'] <= 0.0:
+            air['gust'] = (0.0, dice.uniform(*GUST_S), dice.uniform(*GUST_SHARE),
+                           math.radians(dice.uniform(-GUST_DEG, GUST_DEG)))
+            air['next'] = every * dice.uniform(0.5, 1.5)
+    blows, off = 0.0, 0.0
+    if air['gust'] is not None:
+        into, of, share, off = air['gust']
+        blows = 0.5 * share * gust * (1.0 - math.cos(math.tau * into / of))
+        air['gust'] = (into + dt, of, share, off) if into + dt < of else None
+    for eddy, size, over in [(air['eddy'], rough, EDDY_S)] + [
+            (own, EDDY_DISC * rough, EDDY_DISC_S) for own in air['eddies']]:
+        keep = math.exp(-dt / over)
+        kick = size * math.sqrt(1.0 - keep * keep)
+        for k in range(3):
+            eddy[k] = eddy[k] * keep + (EDDY_UP if k == 1 else 1.0) * kick * dice.gauss(0.0, 1.0)
+    air['blows'] = blows
+    air['wind'] = (mean * math.sin(way) + blows * math.sin(way + off) + air['eddy'][0],
+                   air['eddy'][1],
+                   mean * math.cos(way) + blows * math.cos(way + off) + air['eddy'][2])
+    return air['wind']
+
+
+def kept(air):
+    """The air's kind stepped by hand: TOUR's first, kept, then the next; after the last, the
+    tour again."""
+    k = TOUR.index(air['kind']) + 1 if air['kept'] else 0
+    air['kind'], air['kept'], air['for'] = TOUR[k % len(TOUR)], k < len(TOUR), 0.0
+
+
+def wind_at(wind, h):
+    """The air's speed `wind`, m/s at REF_M, where the frame is `h` m up: sheared along the
+    floor, its rise and fall none at the floor."""
+    low = min(SHEAR_MOST, (max(h, SHEAR_M) / REF_M) ** SHEAR)
+    return (low * wind[0], low * min(1.0, max(0.0, h) / RISE_M) * wind[1], low * wind[2])
 
 
 def speed_for(thrust):

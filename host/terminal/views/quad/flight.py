@@ -116,10 +116,11 @@ def arm(rig):
 def fresh():
     """The flights' own before the first: the stage, the apex, the share of their pull the
     envelopes leave and how long it has been none, the lap, how long a spent pack has stood,
-    the pack's cells and a flight's peaks of them."""
+    the pack's cells and a flight's peaks of them, the air they are flown in (`quad.air`)."""
     cells = quad.pack()
     return {'stage': CARD[0][0], 'apex': 0.0, 'share': 1.0, 'gone': 0.0, 'lap': None,
-            'stood': 0.0, 'cells': cells, 'peak': {'watts': 0.0, 'low': cells['volts']}}
+            'stood': 0.0, 'cells': cells, 'peak': {'watts': 0.0, 'low': cells['volts']},
+            'air': quad.air()}
 
 
 def steps(dt):
@@ -150,8 +151,8 @@ def step(rotors, sky, route, flying, flight, clock, dt):
     pack or the boards' envelopes spent - each rotor's loop after the law's thrust for it,
     within the share of their pull the envelopes leave; the propeller on each shaft, the
     pack's bus under what the four take, and the frame in MuJoCo on the rotors' thrust and
-    drag - the stand-ins' rotors and heat stepped those `dt` s with it, whatever the wall's
-    clock did. The burn's row falls first; where the card waits to be fit a spent pack is
+    drag in the flight's air, blown those `dt` s on - the stand-ins' rotors and heat stepped
+    them with it, whatever the wall's clock did. The burn's row falls first; where the card waits to be fit a spent pack is
     changed and the boards cool."""
     cells, share = flight['cells'], flight['share']
     flat = cells['left'] <= quad.RESERVE
@@ -183,7 +184,10 @@ def step(rotors, sky, route, flying, flight, clock, dt):
         heat = rotor['rig'].board.thermal
         heat.fast_forward(dt * heat.HASTE, live=True)
     quad.drawn(cells, watts, dt)
-    sky.step([r['w'] for r in rotors], dt)
+    air = flight.get('air')
+    if air is not None:
+        quad.blown(air, dt)
+    sky.step([r['w'] for r in rotors], dt, air)
     if 'fit' in route['card'][route['row']][4].split() and (flat or share < FIT):
         return 'swap' if flat else 'cool'
     return FALL if name == 'burn' and flying.doing == FALL else name

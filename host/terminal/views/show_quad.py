@@ -11,10 +11,12 @@ its boards and their thermal observers warmed on it; then the course (machine.co
 through fourteen gates, between trees, over a house, round a mast and between two cars, as
 fast as the boards' envelopes leave it the lean for. The rotors are asked what those envelopes
 leave of their pull; a pack or the envelopes spent, it comes down for a charged one, or to
-cool. The camera sits close on the floor before a flight, pulls back as it lifts and follows
-it, looking down on it - on the course from behind it, round as it turns
-(coaxial.graphics.quadcopter, scenery); the height and the power, the bus and the hottest board
-over the last half minute are boxes at the side (terminal.views.quad.traces).
+cool. It is flown in the air's weather (machine.quad): a wind, gusts over it and eddies in it,
+a kind at a time or one kept (W), none of it told to the law - its way and size a pointer at
+the side (terminal.views.quad.wind). The camera sits close on the floor before a flight, pulls
+back as it lifts and follows it, looking down on it - on the course from behind it, round as it
+turns (coaxial.graphics.quadcopter, scenery); the height and the power, the bus and the hottest
+board over the last half minute are boxes at the side (terminal.views.quad.traces).
 
     python terminal/views/show_quad.py
     python terminal/views/show_quad.py --frames 60
@@ -39,7 +41,7 @@ from terminal.ui.screen import FPS_CAP, Feed, closing, run_view, say
 from terminal.ui.scroll import HUD_WIDTH
 from terminal.ui.stage import boot, frame_of, hud, stage
 from terminal.views.quad import flight as flown
-from terminal.views.quad import traces
+from terminal.views.quad import traces, wind
 
 TITLE = 'QUAD'
 
@@ -67,11 +69,12 @@ CHASE_M, CHASE_K, CHASE_S = 4.0, 2.0, 0.3
 ZOOM_STEP, ZOOM = 1.15, (0.25, 4.0)
 
 
-def compose(console, origin, rotors, frame, flight, trace, now, art):
+def compose(console, origin, rotors, frame, flight, trace, now, art, yaw=0.0):
     """One frame: the quad in the viewport; at the side the `flight` - its stage, its apex or
     its `lap`, its pack `cells`, their `peak`, the `share` of their pull its rotors are asked
-    and how long it has been `gone` - the rotors, and `trace` drawn: the height and the power,
-    the bus and the hottest board."""
+    and how long it has been `gone` - its `air`'s wind as the view, `yaw` degrees round, has
+    it, the rotors, and `trace` drawn: the height and the power, the bus and the hottest
+    board."""
     name, cells, peak, share = flight['stage'], flight['cells'], flight['peak'], flight['share']
     weight = quad.MASS_KG * quad.GRAVITY
     lift = sum(quad.K_THRUST * r['w'] * r['w'] for r in rotors)
@@ -82,8 +85,7 @@ def compose(console, origin, rotors, frame, flight, trace, now, art):
         ('stage', Text(name.upper(), style='alarm' if name in ('full tilt', 'burn', 'swap', 'cool')
                        else 'value')),
         ('height', '%8.2f m' % frame['h']),
-        ('climb', '%+8.1f m/s' % frame['v']),
-        ('pull', '%+8.1f g' % (frame['a'] / quad.GRAVITY)),
+        ('climb', '%+8.1f m/s, %+.1f g' % (frame['v'], frame['a'] / quad.GRAVITY)),
         ('thrust', '%8.1f of %.1f N' % (lift, weight)),
         ('tilt', '%8.1f deg, %.2f m off' % (tilt, math.hypot(frame['at'][0], frame['at'][2]))),
         ('lap', '%8s gate %d, %.1f m/s' % (
@@ -107,11 +109,14 @@ def compose(console, origin, rotors, frame, flight, trace, now, art):
             'THR' if budget.get('throttling') else policy_word(rotor['ident'])[0]),
             style='alarm' if hot else 'value')))
     return frame_of(console, origin, TITLE, art,
-                    [flying, hud('ROTORS  rpm, current, SOA, TH OBS', lines),
+                    [flying, hud('WIND  the way it blows, in the view',
+                                 wind.pointer(flight['air'], frame['h'], yaw)),
+                     hud('ROTORS  rpm, current, SOA, TH OBS', lines),
                      hud('HEIGHT m, POWER  last %.0f s' % traces.TRACE_S,
                          traces.heights(trace, now, HUD_WIDTH - 4)),
                      hud('BUS V, PEAK TEMP C', traces.buses(trace, now, HUD_WIDTH - 4))],
-                    (('+ -', 'ZOOM'), ('R', 'RESET'), ('Q', 'EXIT'), ('ESC', 'MENU')))
+                    (('+ -', 'ZOOM'), ('W', 'WIND'), ('R', 'RESET'), ('Q', 'EXIT'),
+                     ('ESC', 'MENU')))
 
 
 def look(camera, flying, frame, chased, dt):
@@ -172,14 +177,16 @@ def main(argv=None):
     sky, route, trace = quad.Sky(), aerobatics.routine(flown.CARD), []
     began = time.monotonic()
     held = {'at': 0.0, 'clock': 0.0, 'thermal_at': 0.0, 'frame': sky.state(), 'reset': False,
-            'flying': Flying(flown.TOP_N, aerobatics.DOWN), 'flight': flown.fresh()}
+            'wind': False, 'flying': Flying(flown.TOP_N, aerobatics.DOWN),
+            'flight': flown.fresh()}
     camera = {'reach': NEAR_M, 'yaw': YAW, 't': None, 'zoom': 1.0}
 
     def zoomed(k):
         camera['zoom'] = max(ZOOM[0], min(ZOOM[1], camera['zoom'] * k))
     keys = dict([(k, lambda: zoomed(ZOOM_STEP)) for k in '+=']
                 + [(k, lambda: zoomed(1.0 / ZOOM_STEP)) for k in '-_']
-                + [(k, lambda: held.update(reset=True)) for k in 'rR'])
+                + [(k, lambda: held.update(reset=True)) for k in 'rR']
+                + [(k, lambda: held.update(wind=True)) for k in 'wW'])
 
     def sample():
         """The flight's side of a frame, on the feed's thread: a pass of it."""
@@ -191,6 +198,10 @@ def main(argv=None):
                 return
             flight = held['flight']
             cells = flight['cells']
+            if held['wind']:
+                # W: the air's next kind, kept - on the thread that blows it.
+                held['wind'] = False
+                quad.kept(flight['air'])
             if held['reset']:
                 # R: the frame back on its skids at its spot, its flights from the routine's
                 # spool on a fresh pack, the rotors' loops from rest - on this thread, the one
@@ -237,7 +248,7 @@ def main(argv=None):
             reach=reach, centre=centre, colour=terminal, lit=lit,
             gate=(held['flight']['lap'] or {}).get('gate', 1) if chased else None))
         return compose(board_view, origin, rotors, frame, held['flight'], list(trace),
-                       held['clock'], art)
+                       held['clock'], art, yaw=camera['yaw'])
 
     try:
         leaving = run_view(board_view, terminal, 1.0 / max(args.hz, 0.5), args.frames, draw,
