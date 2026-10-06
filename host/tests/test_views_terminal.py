@@ -205,8 +205,8 @@ def test_every_page_scrolls_its_boxes(report):
              for i in range(6)]
     shown = scroll.paged(console, boxes)
     at, seen, total = scroll.scroll_state(console)['pages']
-    report.check('a short terminal shows what fits and says the rest are '
-                 'below', at == 0 and 0 < seen < total == 6
+    report.check('a short terminal shows what fits - two boxes of five rows in '
+                 'twelve - and says the rest are below', at == 0 and seen == 2 and total == 6
                  and scroll.DOWN in shown[-1].plain,
                  '%d of %d shown' % (seen, total))
     scroll.scroll_by(console, 1)
@@ -443,7 +443,77 @@ def test_the_stand_shows_its_acts(report):
                                                 sum(0x2800 < ord(c) <= 0x28FF for c in art)))
 
 
+def test_the_thermal_page_arms_with_the_break_in(report):
+    """THERMAL OBSERVER's --switch (`switch_on`) on a rig that only notes what it is asked: a
+    real board's stage armed with AFE_ON off, the latch cleared and the break in circuit -
+    tools/bench/switch.py's order (docs/HARDWARE.md, 2026-10-05) - a demo board's with AFE_ON
+    on and its chain bypassed; put back, the duty, the stage and AFE_ON as it was found."""
+    from terminal.views import show_thermal_observer as page
+
+    said = []
+
+    class Afe:
+        up = True
+
+        def off(self):
+            self.write(False)
+
+        def on(self):
+            self.write(True)
+
+        def is_on(self):
+            return Afe.up
+
+        def write(self, state):
+            said.append('afe %s' % ('on' if state else 'off'))
+            Afe.up = state
+
+    class Gates:
+        def clear(self):
+            said.append('clear')
+
+        def on(self, bypass_sto=False, ignore_interlock=False):
+            said.append('arm, bypassed %s' % bypass_sto)
+
+        def off(self):
+            said.append('disarm')
+
+    class Rig:
+        gates = Gates()
+
+        class board:
+            afe = Afe()
+
+        @staticmethod
+        def write(analog):
+            said.append('duty %s' % sorted(analog.values()))
+
+    load, demo, settle = {'Phase U': 0.2}, page._screen.demo, page.BREAK_SETTLE_S
+    page._screen.demo, page.BREAK_SETTLE_S = (lambda origin: origin == 'demo'), 0.0
+    try:
+        page.switch_on(Rig, 'bench', load)
+        bench = said[:]
+        del said[:]
+        done = page.put_back(Rig, load) + page.afe_back(Rig, True)
+        back = said[:]
+        del said[:]
+        page.switch_on(Rig, 'demo', load)
+    finally:
+        page._screen.demo, page.BREAK_SETTLE_S = demo, settle
+    report.check('a real board: AFE_ON off, the latch cleared, armed with the break in '
+                 'circuit, then the duty',
+                 bench == ['afe off', 'clear', 'arm, bypassed False', 'duty [0.2]'], str(bench))
+    report.check('put back: the duty to zero, the stage down, AFE_ON on as it was found',
+                 back == ['duty [0.0]', 'disarm', 'afe on']
+                 and [name for name, _what in done] == ['duty', 'gate stage', 'AFE_ON']
+                 and not any(str(what).startswith('FAILED') for _name, what in done),
+                 '%s | %s' % (back, done))
+    report.check('a demo board: AFE_ON on, its chain bypassed - no pilot is laid there',
+                 said == ['afe on', 'arm, bypassed True', 'duty [0.2]'], str(said))
+
+
 ROSTER = (test_the_stand_shows_its_acts, test_the_page_tool_holds_one_frame, test_the_screen_keeps_its_own_rate,
+          test_the_thermal_page_arms_with_the_break_in,
           test_the_chrome_at_its_edges,
           test_each_page_draws_on_a_terminal, test_the_console_it_draws_on,
           test_the_crt_draws_on_the_terminal, test_the_terminal_is_asked_how_tall_a_cell_is,

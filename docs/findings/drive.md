@@ -107,7 +107,12 @@ rotor's pages and their demos. The board's own are in
   the envelopes' share of its lean: planned on the law's reach it never
   eased. A flight is begun on 0.7 of the pull: an idle board is at
   0.52-0.56, not cool, and waited for all of it the page stood 120 s on the
-  floor (2026-10-06).
+  floor. The stand-ins' rotors and heat are stepped the pass's seconds
+  (`SimulatedDrive.paced`, `fast_forward`): on the wall's clock a pass 0.25 s
+  late turned the rotors those seconds under a setpoint meant for 50 ms, and
+  under the gate's load a gate was passed 2.7 m off; paced, 0.22 m alone and
+  0.25 m beside fourteen busy processes, the envelopes at 0.74 and 0.79
+  (2026-10-06).
 - The rotor page, the bench's word: the magnets blurred through a 1/80 s
   shutter (208-386 cells, 0.10 a frame at most; the smear's ring flipped
   0.29), the windings whole at their current's brightness and gone on a

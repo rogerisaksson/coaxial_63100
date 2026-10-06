@@ -10,30 +10,13 @@ from terminal.views.rotor.thermal import _policy, headrooms, watts, watts_bar, w
 
 
 #: Their names on the leaders. SWITCH, not BOARD: the margin is the six leg
-#: nodes and the laminate they heat; the MCU and regulators trip but are not
-#: in it (`soa_undriven_mask`).
+#: nodes; the MCU and regulators trip but are not in it
+#: (`soa_undriven_mask`).
 HEADROOM_NAMES = ('SWITCH SOA', 'MOTOR SOA')
 
 #: The degree sign as U+1D52: U+00B0 is East Asian Ambiguous width, and a
 #: terminal set for it shears every caption row carrying a temperature.
 DEGREE = chr(0x1D52)
-
-
-def _place(row, name, columns, right_edge=False, until=None):
-    """Write `name` over `columns`, centred, clamped to the frame."""
-    if not columns or not name:
-        return None
-    middle = (min(columns) + max(columns)) / 2.0
-    at = (BOX.width - len(name) if right_edge
-          else int(round(middle - (len(name) - 1) / 2.0)))
-    # A name wider than its group leans inward.
-    if not right_edge:
-        at = min(at, max(columns) + 1 - len(name))
-    if until is not None:
-        at = min(at, until + 1 - len(name))
-    at = max(0, min(BOX.width - len(name), at))
-    row[at:at + len(name)] = name
-    return at
 
 
 def reference(view):
@@ -83,8 +66,6 @@ def _legend_targets(view, left, right):
     """Every legend as `(row, text, ink, column, centred)`."""
     bars = headrooms(view)
     said = []
-    first, last = cross_section.span(BOX.width, BOX.rows,
-                               LEFT_COLUMNS, RIGHT_COLUMNS)
     # The measurement first: everything under it is an estimate.
     seen = (view.get('thermal') or {}).get('ntc')
     if len(left) > NTC_AT and seen is not None:

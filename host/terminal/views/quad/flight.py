@@ -77,9 +77,6 @@ SWAP_S = 3.0
 #: throttling by the corkscrew (2026-10-05).
 WASH_K_PER_W = 2.5
 
-#: A word for each observer's state, as the rotor page's TH OBS shows it.
-WORD = {'UNCERTAIN': 'UNCR', 'CONVERGING': 'CONV', 'STABLE': 'STBL'}
-
 
 def arm(rig):
     """A stand-in board's stage and drive for flight: its gates on the master's pilot, the
@@ -114,8 +111,9 @@ def step(rotors, sky, route, flying, flight, clock, dt):
     pack or the boards' envelopes spent - each rotor's loop after the law's thrust for it,
     within the share of their pull the envelopes leave; the propeller on each shaft, the
     pack's bus under what the four take, and the frame in MuJoCo on the rotors' thrust and
-    drag. The burn's row falls first; where the card waits to be fit a spent pack is changed
-    and the boards cool."""
+    drag - the stand-ins' rotors and heat stepped those `dt` s with it, whatever the wall's
+    clock did. The burn's row falls first; where the card waits to be fit a spent pack is
+    changed and the boards cool."""
     cells, share = flight['cells'], flight['share']
     flat = cells['left'] <= quad.RESERVE
     spent, frame = flat or flight['gone'] >= GONE_S, sky.state()
@@ -125,6 +123,8 @@ def step(rotors, sky, route, flying, flight, clock, dt):
     watts = 0.0
     for rotor, thrust in zip(rotors, flying.step(frame, dt, share)):
         drive = rotor['rig'].board.drive
+        # The rotor on the flight's clock, not the wall's: the pass's seconds, however late.
+        drive.paced(dt)
         now = drive.state()
         rotor['w_hat'] = (now.get('omega_hat') or 0.0) / rotor['pairs']
         rotor['amps'] = math.hypot(now.get('id') or 0.0, now.get('iq') or 0.0)
@@ -138,6 +138,11 @@ def step(rotors, sky, route, flying, flight, clock, dt):
                                        measured=rotor['w_hat'])['command']
         drive.write(iq_ref=rotor['iq'])
         drive.model.configure(load=quad.K_DRAG * rotor['w'] * abs(rotor['w']), vdc=cells['volts'])
+        # Its heat on the flight's clock as well, the pass's seconds at the stand-in's haste: on
+        # the wall's a starved pass's currents stood for all it waited, and a loaded host's
+        # boards read 0.94 of their envelopes where 0.82 (2026-10-06).
+        heat = rotor['rig'].board.thermal
+        heat.fast_forward(dt * heat.HASTE, live=True)
     quad.drawn(cells, watts, dt)
     sky.step([r['w'] for r in rotors], dt)
     if 'fit' in route['card'][route['row']][4].split() and (flat or share < FIT):
@@ -191,15 +196,6 @@ def warmth(rig):
     nodes = thermal.state().get('nodes') or {}
     board = [c for n, c in nodes.items() if n not in MOTOR and c is not None]
     return thermal.budget(), thermal.identification(), max(board) if board else None
-
-
-def observer_word(ident):
-    """An observer's state and the margin it acts on, `CONV 88` - or a dash before it answers."""
-    state = (ident or {}).get('state')
-    if state not in WORD:
-        return '-'
-    margin = int(round(100.0 * (ident.get('margin') or 0.0)))
-    return WORD[state] if margin >= 100 else '%s %d' % (WORD[state], margin)
 
 
 def observers(rotors):

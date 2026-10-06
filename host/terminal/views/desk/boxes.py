@@ -24,7 +24,7 @@ def chain_box(chain, sweeps, channels=0):
     if chain is None:
         return hud(title, [
             '  none - the window averages instead',
-            '  the loop could not be measured to design one',
+            '  no loop rate measured for one',
             '  loop    %8s sweeps/s' % ('%.0f' % sweeps if sweeps else '-'),
         ])
 
@@ -108,7 +108,7 @@ def buffer_box(state, host, link=None):
         room = '' if capacity is None else ' of %d' % capacity
         bar = gauge(min(1.0, held / top), 12)
         return ['  %-7s ' % name + bar + ' %4d' % held,
-                '          peak %4d%s   dropped %d' % (peak, room, dropped)]
+                '          peak %d%s, dropped %d' % (peak, room, dropped)]
 
     lines = []
     if link is not None:
@@ -123,7 +123,7 @@ def buffer_box(state, host, link=None):
                      state.get('worst') or 0, state.get('dropped') or 0,
                      capacity)
     if link is not None and link.get('rate'):
-        lines.append('  link    %6.1f reads/s%s'
+        lines.append('  link %6.1f reads/s%s'
                      % (link['rate'], _line_share(link)))
 
     # The rate in the title, as LOW PASS carries its channel count, in a unit

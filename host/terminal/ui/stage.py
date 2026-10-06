@@ -41,7 +41,8 @@ from terminal.ui.chrome import KANA, Chrome, Crt, clock
 from terminal.ui.marquee import Marquee
 from terminal.ui.sto import chip as sto_chip
 from terminal.ui.rate import Corner, rate_of
-from terminal.ui.scroll import DOWN, HUD_WIDTH, UP, _fills, _rows_of, paged, scroll_state
+from terminal.ui.scroll import (DOWN, HUD_WIDTH, UP, _fills, _height_of, _rows_of, paged,
+                                scroll_state)
 
 
 #: The palette, named. Blade Runner's teal and sodium over Alien's phosphor
@@ -388,7 +389,9 @@ def hud(title, rows):
             body.append('%*s ' % (width, row[0]), style='label')
             value = row[1]
         else:
-            body.append(' ' * (width + 1))
+            # No labels, no column for them: a full row of 36 was 37 with its blank, and
+            # TUBES' last tube an ellipsis (2026-10-05).
+            body.append(' ' * (width + 1 if width else 0))
             value = row
         if not isinstance(value, Text):
             value = Text.from_ansi(str(value)) if isinstance(row, str) else Text(str(value))
@@ -487,6 +490,9 @@ def panels_of(console, origin, title, groups, keys):
         strip = Layout(name='row%d' % r)
         if len(row) > 1:
             strip.split_row(*[Layout(cell) for cell in row])
+            # As tall as its tallest box where the screen has the rows: split evenly, SESSION's
+            # THERMAL showed 17 of its 20 nodes at 150 x 44 (2026-10-05).
+            strip.minimum_size = max(_height_of(cell) for cell in row)
         else:
             strip.update(row[0])
         # A single-cell row is a strip - the dash - and stays one line.

@@ -32,7 +32,6 @@ class SimulatedThermal(ThermalTruth, ThermalEnvelope, ThermalRecord, ThermalCont
 
     WINDING_K_PER_W = pmsm.WINDING_K_PER_W
     WINDING_J_PER_K = pmsm.WINDING_J_PER_K
-    WINDING_LIMIT_C = 120.0
 
     IDENT_NOISE_K = 0.1
 
@@ -86,8 +85,7 @@ class SimulatedThermal(ThermalTruth, ThermalEnvelope, ThermalRecord, ThermalCont
         self._truth = {n: thermal.AMBIENT for n in self.NODES}
         self._truth_ntc = thermal.AMBIENT
         #: The room the truth stands in, and the observer's estimate of
-        #: it - `thermal.c` infers ambient from the laminate's losses,
-        #: there being no sensor for it, and so does the mirror's anchor.
+        #: it - the identification's, there being no sensor for it.
         self._truth_ambient = thermal.AMBIENT
         self._ambient = thermal.AMBIENT
         self._situation: Optional[str] = None
@@ -128,7 +126,6 @@ class SimulatedThermal(ThermalTruth, ThermalEnvelope, ThermalRecord, ThermalCont
 
     def state(self):
         self._advance()
-        centre = self._node['board']
         power = self._last_power or {}
         seen = self._seen
         # Measured where a sample has been taken - the truth's thermometers -

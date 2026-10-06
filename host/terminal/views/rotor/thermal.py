@@ -6,7 +6,7 @@ from rich.text import Text
 
 from coaxial.devices.thermal import THROTTLE_AT
 from coaxial.draw import cross_section
-from coaxial.draw.gauges import (margin_class as soa_class, temp_share,
+from coaxial.draw.gauges import (margin_class as soa_class, policy_word, temp_share,
                                  thermometer_class as ntc_class)
 from coaxial.model import thermal as _thermal
 from motor import pmsm
@@ -28,13 +28,8 @@ HEADROOM_AMBER = 0.5
 
 TRACK_GLYPH = chr(0x2812)
 
-#: The identification's states as the foot says them (the bench's
-#: abbreviations), in the margin's inks.
-POLICY_WORD = {'STABLE': 'STABLE', 'CONVERGING': 'CONV',
-               'UNCERTAIN': 'UNCR'}
-
-POLICY_SHORT = {'STABLE': 'STBL'}
-
+#: The identification's states' inks at the foot, the margin's (`gauges.policy_word` words
+#: them).
 POLICY_INK = {'STABLE': cross_section.SOA_OK, 'CONVERGING': cross_section.SOA_WARN,
               'UNCERTAIN': cross_section.SOA_TRIP}
 
@@ -46,25 +41,12 @@ def _policy(view):
     before op 10 answers.
     """
     ident = view.get('ident')
-    state = ident['state'] if ident else None
-    if state in POLICY_INK:
-        word, ink = _policy_word(ident, state)
-        return 'TH OBS', word, ink
+    word, tripped = policy_word(ident)
+    if tripped:
+        return 'TH OBS', word, cross_section.INK[cross_section.SOA_TRIP]
+    if ident and ident.get('state') in POLICY_INK:
+        return 'TH OBS', word, cross_section.INK[POLICY_INK[ident['state']]]
     return 'TH OBS', '-', cross_section.LEADER_GREY
-
-
-def _policy_word(ident, state):
-    """The state's word with the margin's percent, or the trip's."""
-    margin = ident.get('margin', 1.0)
-    percent = int(round(100.0 * margin))
-    cap = ident.get('trip_cap', 1.0)
-    floor = ident.get('margin_floor', _thermal.IDENT_MARGIN_FLOOR)
-    if cap < 1.0 and abs(margin - cap) < 1e-6 and margin < floor - 1e-6:
-        return 'TRIP %d%%' % percent, cross_section.INK[cross_section.SOA_TRIP]
-    word = POLICY_WORD[state]
-    if percent < 100:
-        word = '%s %d%%' % (POLICY_SHORT.get(state, word), percent)
-    return word, cross_section.INK[POLICY_INK[state]]
 
 
 def winding(view):
@@ -262,13 +244,13 @@ def thermal_rows(view):
         rows.append((_thermal.pretty(node), bar))
     for node in BOARD_NODES:
         if node in used:
-            rows.append((node, soa_bar(used[node], tripped).append(
-                '%3.0f%% %5.1fC' % (100.0 * used[node],
-                                    degrees.get(node, float('nan'))))
-                or None))
-    rows.append(('headroom', '%9.0f %% left, worst %s'
-                 % (100.0 * headroom(view),
-                    (budget or {}).get('worst_node', '?'))))
+            bar = soa_bar(used[node], tripped)
+            bar.append('%3.0f%% %5.1fC' % (100.0 * used[node],
+                                           degrees.get(node, float('nan'))))
+            rows.append((node, bar))
+    # A row inside the box: `regulators`' ten cells leave a value 25, and five of these
+    # ran to 38 (2026-10-05). The worst node is `worst`'s row.
+    rows.append(('headroom', '%6.0f %% left' % (100.0 * headroom(view))))
     factor = (budget or {}).get('derate')
     if factor is not None:
         rows.append(('throttle', Text(' %3.0f %% of the clamp ' % (100 * factor),
@@ -278,30 +260,28 @@ def thermal_rows(view):
     soak = (budget or {}).get('soak_j') or {}
     worst_node = (budget or {}).get('worst_node')
     if worst_node in soak:
-        rows.append(('soak', '%9.1f J left in %s' % (soak[worst_node],
-                                                     worst_node)))
+        rows.append(('soak', '%6.1f J left' % soak[worst_node]))
     # The two gauges along the foot, named in the order they lie there.
-    rows.append(('winding', '%9.1f C %s, upper foot bar'
+    rows.append(('winding', '%6.1f C %s, upper bar'
                  % (winding(view),
                     'board' if 'winding_c' in (view.get('budget') or {})
                     else 'est')))
-    rows.append(('power', '%9.1f W of %.0f log, lower' % (watts(view),
-                                                          WATTS_SCALE)))
+    rows.append(('power', '%6.1f W lower, log %.0f kW' % (watts(view),
+                                                          WATTS_SCALE / 1000.0)))
     if view['load']:
-        rows.append(('load loop', '%9.1f A of %.0f, %s'
+        rows.append(('load loop', '%6.1f A of %.0f, %s'
                      % (view['load_amps'], LOAD_PEAK_A,
                         'rising' if view['load_rising'] else 'falling')))
-    rows.append(('NTC', '%7.1f C' % th['ntc'] if th.get('ntc') is not None
-                 else '%7s' % 'unread'))
+    rows.append(('NTC', '%6.1f C' % th['ntc'] if th.get('ntc') is not None
+                 else '%6s' % 'unread'))
     # The room as identified (the board has no sensor for it), and on the
     # stand-in the truth's, so the tour reads off this page too.
     ident = view.get('ident') or {}
     if ident.get('ambient') is not None:
         truth = ident.get('truth') or {}
-        rows.append(('room', '%7.1f C identified%s'
+        rows.append(('room', '%6.1f C found%s'
                      % (ident['ambient'],
-                        '  sim %s %.0f' % (truth['situation'], truth['ambient'])
-                        if truth else '')))
+                        ', sim %.0f' % truth['ambient'] if truth else '')))
     if budget:
         left = budget.get('seconds_to_limit')
         rows.append(('worst', '%-11s %3.0f%%%s'

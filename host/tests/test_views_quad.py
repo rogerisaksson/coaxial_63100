@@ -44,6 +44,34 @@ def test_the_boards_air_is_the_rotors(report):
                  link is not None and abs(link - quad.open_volts(1.0)) < 0.01, '%s V' % link)
 
 
+def test_a_rotor_turns_by_its_pass(report):
+    """A stand-in drive paced by its page (`SimulatedDrive.paced`): spun up over the same
+    passes it comes to the same speed however long the wall's clock stood between them."""
+    from coaxial import Coaxial63100
+    from machine.modes import SIMULATED
+    from terminal.views.quad import flight as view
+    came = []
+    for stall in (0.0, 0.12):
+        rig = Coaxial63100(execution_mode=SIMULATED).open()
+        try:
+            view.arm(rig)
+            drive = rig.board.drive
+            drive.write(iq_ref=8.0)
+            for k in range(20):
+                drive.paced(0.01)
+                speed = drive.model.read()['omega']
+                if k in (5, 12):
+                    time.sleep(stall)
+            came.append(speed)
+        finally:
+            rig.board.drive.off()
+            rig.gates.off()
+            rig.close()
+    report.check('twenty passes of 10 ms at 8 A, two of them 0.12 s late: the same speed',
+                 came[0] > 50.0 and abs(came[1] - came[0]) <= 1e-6 * came[0],
+                 '%.3f and %.3f rad/s electrical' % tuple(came))
+
+
 def test_the_page_words_its_boards(report):
     """The TH OBS row - who is stable, who converges - and the envelopes' share: the least room
     under a throttle's point of a flight's spend, a throttling board's derate, taken and given
@@ -157,9 +185,9 @@ def test_its_world_is_drawn(report):
 LANDED_S = 200.0
 
 #: The course's laps are judged where the flight's clock - its passes' sum, a pass 50 ms at the
-#: most - kept within this of the wall's, the stand-in's motors': under the gate's load, its
-#: passes starved, the rotors ran on between them and a gate was passed 1.56 m off its middle
-#: (2026-10-06).
+#: most - kept within this of the wall's: a page starved past it has not landed in LANDED_S.
+#: (Its rotors ran on the wall's clock once, and under the gate's load a gate was passed
+#: 1.56 m off its middle; they are stepped the pass's seconds now, 2026-10-06.)
 BEHIND = 0.2
 
 #: The page's pack for its test, A h: a first flight whole, spent early in the second.
@@ -363,7 +391,8 @@ def test_the_page_flies_its_course(report):
                  if down else 'never landed')
 
 
-ROSTER = (test_the_boards_air_is_the_rotors, test_the_page_words_its_boards,
+ROSTER = (test_the_boards_air_is_the_rotors, test_a_rotor_turns_by_its_pass,
+          test_the_page_words_its_boards,
           test_its_traces_are_drawn, test_its_world_is_drawn, test_the_page_flies_four_boards,
           test_the_page_flies_its_course)
 

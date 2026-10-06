@@ -244,7 +244,7 @@ def test_the_foot_carries_the_policy(report):
         row = legend.gutter_caption(a_view(20.0, {
             'state': state, 'margin': IDENT_MARGIN[state]}))[-1]
         inks[state] = ('38;5;%dm%s' % (cross_section.INK[thermal.POLICY_INK[state]],
-                                       thermal.POLICY_WORD[state])) in row
+                                       thermal.policy_word({'state': state})[0])) in row
         trims[state] = visible(row)
     # The trim is said while there is one (the bench: "make it visible that it
     # throttles at 80 % of the SOA already, then 90, then 100 as the model's
@@ -320,7 +320,7 @@ def test_the_foot_says_trip_while_the_cap_holds(report):
             ident['margin_floor'] = floor
         return thermal._policy({'ident': ident})
 
-    label, word, ink = foot('STABLE', 0.72, 0.72)
+    label, word, ink = foot('STABLE', 0.7204, 0.7212)
     report.check('the trip cap in hand under the floor says TRIP with the '
                  'capped percent, in the trip\'s red',
                  word == 'TRIP 72%' and ink == cross_section.INK[cross_section.SOA_TRIP],

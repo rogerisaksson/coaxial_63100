@@ -17,7 +17,7 @@ def test_the_thermal_map_is_a_halftone_with_its_parts_marked(report):
     from machine import ansi
     from coaxial.model.thermal import ALL_NODES
 
-    warm = {n: 40.0 for n in ALL_NODES if n != 'board'}
+    warm = {n: 40.0 for n in ALL_NODES}
     cells = 88
 
     def picture(nodes):
@@ -69,6 +69,12 @@ def test_the_thermal_map_is_a_halftone_with_its_parts_marked(report):
                  dots(strip(hot)) > dots(strip(said)) + 40,
                  '%d dots against %d' % (dots(strip(hot)),
                                          dots(strip(said))))
+    from terminal.views import show_thermal_observer as page
+    middle = picture(dict(warm, board=95.0))
+    drawn = [page.picture({'nodes': dict(warm, board=c)}, False, 20) for c in (40.0, 95.0)]
+    report.check('a hotter centre patch is a denser halftone, on the page\'s own map too',
+                 dots(strip(middle)) > dots(strip(said)) + 40 and drawn[0] != drawn[1],
+                 '%d dots against %d' % (dots(strip(middle)), dots(strip(said))))
     report.check('the ramp is blended to 24 bits on the field',
                  '38;2;' in said)
     report.check('the frames and the labels wear the mark ink',
@@ -136,7 +142,8 @@ def test_the_thermal_page_shows_its_evidence(report):
     from coaxial.simulated.thermal.observer import SimulatedThermal
     from terminal.ui.screen import plain as visible
     from terminal.views import show_thermal_observer as page
-    from terminal.ui import stage
+    from terminal.views.thermal import boxes
+    from terminal.ui import scroll, stage
 
     def ident(margin, state='CONVERGING'):
         return {'state': state, 'margin': margin, 'margin_floor': 0.8,
@@ -149,7 +156,8 @@ def test_the_thermal_page_shows_its_evidence(report):
                 'ambient_sigma': 4.2, 'updates': 3, 'saves': 0,
                 'since_save_s': None,
                 'truth': {'situation': 'box', 'air': 2.0, 'capacity': 1.0,
-                          'ambient': 25.0, 'since_s': 240.0, 'load_a': 30.0}}
+                          'ambient': 25.0, 'since_s': 240.0, 'load_a': 18.0,
+                          'asked_a': 30.0}}
 
     rows = page.evidence_rows(ident(0.8))
     said = visible(rows[1])
@@ -159,10 +167,14 @@ def test_the_thermal_page_shows_its_evidence(report):
                  'bar alone - its figures are HEADROOM\'s',
                  len(rows) == 2 and rows[0] == ''
                  and said.startswith('   TH OBS ') and len(said.split()) == 3
-                 and page.envelope_rows(ident(0.8)) == [
+                 and boxes.envelope_rows(ident(0.8)) == [
                      ('margin', '0.80'), ('floor', '0.80'),
                      ('innovation', '0.17 K'), ('doubt', 'air 0.37')],
-                 '%s | %s' % (said, page.envelope_rows(ident(0.8))))
+                 '%s | %s' % (said, boxes.envelope_rows(ident(0.8))))
+    capped = [boxes.envelope_rows(dict(ident(margin), trip_cap=cap))[0][1]
+              for margin, cap in ((0.7004, 0.7012), (0.70, 0.75), (0.91, 1.0))]
+    report.check('the margin is called the trip\'s cap within a trim step and a half of it',
+                 capped == ['0.70  the trip cap', '0.70', '0.91'], str(capped))
 
     def bar_of(margin):
         return visible(page.evidence_rows(ident(margin))[1]).split()[2]
@@ -197,7 +209,7 @@ def test_the_thermal_page_shows_its_evidence(report):
     import unicodedata
 
     def at(room, innovation=0.1):
-        return page.room_hint({'ambient': room, 'innovation_k': innovation})
+        return boxes.room_hint({'ambient': room, 'innovation_k': innovation})
 
     report.check('the hint above the board shivers under 5 C, is mild to '
                  '35 and sweats from there - on the ESTIMATED room - thinks '
@@ -206,23 +218,23 @@ def test_the_thermal_page_shows_its_evidence(report):
                  at(-25.0) == 'cold' and at(20.0) == 'mild'
                  and at(34.9) == 'mild' and at(45.0) == 'hot'
                  and at(20.0, 0.3) == 'unsure' and at(-25.0, 2.0) == 'unsure'
-                 and page.room_hint(None) == '' and page.room_hint({}) == ''
-                 and page.ROOM_HINTS['unsure'] == '🤒 🤔'
-                 and all(' ' in pair for pair in page.ROOM_HINTS.values())
+                 and boxes.room_hint(None) == '' and boxes.room_hint({}) == ''
+                 and boxes.ROOM_HINTS['unsure'] == '🤒 🤔'
+                 and all(' ' in pair for pair in boxes.ROOM_HINTS.values())
                  # Every glyph wide on its own, no variation selector: a narrow
                  # character made emoji by one ran the row a cell long and
                  # broke the frame beside it.
                  and all(len(pair) == 3 and all(
                      unicodedata.east_asian_width(ch) == 'W'
                      for ch in pair.replace(' ', ''))
-                     for pair in page.ROOM_HINTS.values()),
-                 ' '.join(page.ROOM_HINTS[at(c)] for c in (-25.0, 20.0, 45.0)))
+                     for pair in boxes.ROOM_HINTS.values()),
+                 ' '.join(boxes.ROOM_HINTS[at(c)] for c in (-25.0, 20.0, 45.0)))
     # Hysteresis (the bench: "so the emoji do not flutter near the limits"): a
     # held word stands two kelvin past its threshold, and the thermometer
     # stands until the innovation is under 0.2 K.
     def held(room, word, innovation=0.1):
-        return page.room_hint({'ambient': room, 'innovation_k': innovation},
-                              held=word)
+        return boxes.room_hint({'ambient': room, 'innovation_k': innovation},
+                               held=word)
 
     report.check('a held word stands two kelvin past its threshold - cold '
                  'at 6.5, hot at 33.5, mild at 3.5 and 36.5 - and lets go '
@@ -238,27 +250,28 @@ def test_the_thermal_page_shows_its_evidence(report):
                  ' '.join(held(c, 'cold') for c in (6.5, 7.5)))
     # In SENSE, beside the room (the bench: "maybe move the emojis to the
     # SENSE block on the right, a bit more uniform").
-    rows = page.ident_rows(ident(0.91))
+    rows = boxes.ident_rows(ident(0.91))
     room = [value for label, value in rows if label == 'room'][0]
     report.check('and the hint sits in SENSE beside the room, the pair '
                  'after the figure',
                  room.plain.startswith('24.5 ±4.2 C')
-                 and room.plain.endswith(page.ROOM_HINTS['mild']),
+                 and room.plain.endswith(boxes.ROOM_HINTS['mild']),
                  room.plain)
 
-    # SENSE: one fact a row, none wider than the panel.
-    rows = page.ident_rows(ident(0.91))
+    # SENSE: one fact a row.
+    rows = boxes.ident_rows(ident(0.91))
     texts = [(str(label), value if isinstance(value, str) else value.plain)
              for label, value in rows]
     # `sim`, not `truth` - the bench: only in simulated mode is the thermal
     # situation known.
+    off = dict(ident(0.91)['truth'], load_a=0.0, asked_a=0.0)
     report.check('SENSE carries the identification one fact a row - model, '
-                 'air, cap, room, the simulation in two and the load - none '
-                 'wider than the panel',
+                 'air, cap, room, the simulation in two and the load, let '
+                 'through of asked, idle where none is',
                  [l for l, _v in texts] == ['model', 'air', 'cap', 'room',
                                             'sim', '', 'load']
-                 and all(len(l) + 1 + len(v) <= page.PANEL_W - 4
-                         for l, v in texts),
+                 and texts[-1][1] == '18 of 30 A rms'
+                 and boxes.ident_rows(dict(ident(0.91), truth=off))[-1] == ('load', 'idle'),
                  texts)
     state = {'nodes': {}, 'ntc': 59.8, 'error': 0.54, 'seconds': 240,
              'settled': True, 'seen_s_ago': 4.0, 'sample_every_s': 30.0,
@@ -266,13 +279,13 @@ def test_the_thermal_page_shows_its_evidence(report):
     budget = {'worst': 0.42, 'worst_node': 'phase_v',
               'seconds_to_limit': 12.0, 'throttling': False,
               'tripped': False, 'used': {}}
-    console = Console(record=True, width=page.PANEL_W + 2,
+    console = Console(record=True, width=scroll.HUD_WIDTH,
                       force_terminal=True, color_system='truecolor',
                       theme=stage.THEME)
     # The map's letters explained: a box of its own under SENSE, each row the
     # mark's references off the pick and place and what they are.
     from coaxial.draw.thermalmap import MARKS
-    rows = dict(page.map_rows())
+    rows = dict(boxes.map_rows())
     report.check('MAP says what every mark is - U, V, W, REG, MCU, HS, AFE '
                  'and NTC - with the references its frame is drawn round',
                  [label for label, _r, _w, _m in MARKS]
@@ -287,18 +300,25 @@ def test_the_thermal_page_shows_its_evidence(report):
                  and all(len(value) <= page.PANEL_W - 8
                          for value in rows.values()),
                  rows)
-    sense, headroom = page.status_boxes(state, budget, ident=ident(0.91))[:3:2]
-    console.print(sense)
-    console.print(headroom)
+    # At the column's own width, in its states: a reading, none yet, a cold room, a limit.
+    cold = dict(ident(0.91), ambient=-25.0, truth=dict(ident(0.91)['truth'], ambient=-25.0))
+    waiting = dict(state, ntc=None, mcu=None, afe=None, seconds=2, seen_s_ago=0.0)
+    spent = dict(budget, worst=1.0, seconds_to_limit=None)
+    sense, headroom = boxes.status_boxes(state, budget, ident=ident(0.91))[:3:2]
+    for box in (sense, headroom, boxes.status_boxes(waiting, spent, ident=cold)[0],
+                boxes.status_boxes(waiting, spent, ident=cold)[2],
+                boxes.status_boxes(dict(state, ntc=None), dict(budget, seconds_to_limit=None),
+                                   afe=False)[2]):
+        console.print(box)
     said = re.sub('\x1b\\[[0-9;]*m', '', console.export_text(styles=True))
     lines = [l for l in said.splitlines()]
-    report.check('drawn at the panel\'s width nothing is cropped: the NTC '
-                 'and its error, the sample interval and the last sample '
-                 'are rows of their own, and HEADROOM carries the margin, '
-                 'the floor and the innovation under the soak',
+    report.check('drawn at the column\'s width nothing is cropped: the NTC, the observer\'s '
+                 'run, the sample interval and the last sample rows of their own, no error '
+                 'of a reading a sample old; HEADROOM\'s margin, floor and innovation',
                  '…' not in said
                  and any('NTC 59.8 C' in l for l in lines)
-                 and any('err +0.54 K' in l for l in lines)
+                 and not any(' err ' in l for l in lines)
+                 and any('run 240 s' in l for l in lines)
                  and any('sample 30 s' in l for l in lines)
                  and any('last 4 s ago' in l for l in lines)
                  and any('margin 0.91' in l for l in lines)
@@ -306,6 +326,13 @@ def test_the_thermal_page_shows_its_evidence(report):
                  and any('innovation 0.17 K' in l for l in lines)
                  and said.find('soak') < said.find('margin 0.91'),
                  said)
+    report.check('no thermometer yet: `last` a dash, the first sample\'s seconds said; the '
+                 'worst node at its ceiling at the limit, under it not heating',
+                 any('open loop, sample in 28 s' in l for l in lines)
+                 and any(l.split()[1:3] == ['last', '-'] for l in lines if 'last' in l)
+                 and any('to limit at the limit' in l for l in lines)
+                 and any('to limit not heating' in l for l in lines),
+                 [l for l in lines if 'last' in l or 'limit' in l or 'loop' in l])
 
 
 def test_the_headroom_box_carries_a_solid_bar_with_a_tip(report):
@@ -318,8 +345,8 @@ def test_the_headroom_box_carries_a_solid_bar_with_a_tip(report):
 
     from coaxial.draw import cross_section, gauges
     from machine import ansi
-    from terminal.views import show_thermal_observer as page
-    from terminal.ui import stage
+    from terminal.views.thermal import boxes
+    from terminal.ui import scroll, stage
 
     half = gauges.bar(0.5, 16)
     line = re.sub('\x1b\\[[0-9;]*m', '', half)
@@ -352,9 +379,9 @@ def test_the_headroom_box_carries_a_solid_bar_with_a_tip(report):
     budget = {'worst': 0.42, 'worst_node': 'phase_v',
               'seconds_to_limit': 12.0, 'throttling': False,
               'tripped': False, 'used': {}}
-    console = Console(record=True, width=44, force_terminal=True,
+    console = Console(record=True, width=scroll.HUD_WIDTH, force_terminal=True,
                       color_system='truecolor', theme=stage.THEME)
-    console.print(page.status_boxes(state, budget)[2])   # SENSE, MAP, then HEADROOM
+    console.print(boxes.status_boxes(state, budget)[2])   # SENSE, MAP, then HEADROOM
     said = re.sub('\x1b\\[[0-9;]*m', '', console.export_text(styles=True))
     report.check('the box is HEADROOM, and the level is labelled soak',
                  'HEADROOM' in said and 'soak' in said and 'BUDGET' not in said,

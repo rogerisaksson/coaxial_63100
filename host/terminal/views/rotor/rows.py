@@ -16,7 +16,7 @@ from terminal.views.rotor.thermal import envelope_acting
 FLOOR_MARGIN = 3.0
 
 
-#: The instrument column is 40 cells: a label of 9, a value of 24.
+#: The instrument column is 40 cells: a label of 9, a value of 26.
 def drive_rows(view):
     s = view['state']
     return [
@@ -147,11 +147,11 @@ def status_rows(view):
              % (speed / pairs * 60.0 / math.tau, torque(view))),
             ('back-EMF', regime(view)),
             ('loops', loops or 'none - the drive is on its own'),
-            ('travel', '%9.1f deg %7.2f turns %s'
-             % (gone, gone / 360.0,
-                # As the can and the bead turn on the page: positive is counter-clockwise,
-                # SHAFT ANGLE's dial's way (2026-09-27).
-                'ccw' if speed >= 0.0 else 'cw')),
+            # As the can and the bead turn on the page: positive is counter-clockwise, SHAFT
+            # ANGLE's dial's way (2026-09-27). Its turns a row of their own: one row was 31
+            # cells of the box's 27 (2026-10-05).
+            ('travel', '%8.1f deg %s' % (gone, 'ccw' if speed >= 0.0 else 'cw')),
+            ('', '%8.2f turns' % (gone / 360.0)),
             # The cell's shape, and where the number came from.
             ('cell', '%.2f tall %s' % (view.get('aspect', cross_section.CELL_ASPECT),
                                        view.get('aspect_how', 'assumed')))]
@@ -189,7 +189,7 @@ def chain_rows(view):
              % (100.0 * math.cos(o['error']))),
             ('carried by', '%7s %-5s %6.0f %%'
              % (share, '', 100.0 * o['blend'])),
-            ('hand-over', '%7.0f %-5s %6.0f rad/s'
+            ('hand-over', '%7.0f %-5s %6.0f r/s'
              % (o['blend_lo'], 'to', o['blend_hi'])),
             ('lambda', '%7.4f %-5s %6.1f %%'
              % (o['lambda_hat'], 'V.s',

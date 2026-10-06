@@ -15,6 +15,16 @@ from machine.roles import Input
 #: `soa_throttle_ppm` default (from 0.85: that took a sixth of every burst).
 THROTTLE_AT = 0.90
 
+#: The step the board trims its margin in (THERMAL_MARGIN_STEP): the margin it reports stands
+#: within this of the cap it follows, the wire's ppm beside.
+MARGIN_STEP = 0.001
+
+
+def at_trip_cap(margin, cap):
+    """Whether the margin the envelope acts on is the trip's cap: within a step and a half of
+    it. Asked equal to 1e-6, a board said so one poll in sixty (2026-10-05)."""
+    return cap is not None and cap < 1.0 and abs(margin - cap) < 1.5 * MARGIN_STEP
+
 #: `since_save_s` on the wire when the record was never written this boot
 #: - always, since MINOR 16: the board keeps nothing it identified.
 _NEVER_SAVED = 0xFFFFFFFF

@@ -278,11 +278,22 @@ class DrivePlant:
         wn = math.sqrt(max(l2, 1e-9) / (2.0 * self.TS))
         return min(max(wn / (2.0 * math.pi), 1.0), 5000.0)
 
+    def paced(self, dt):
+        """The rotor turned `dt` s more at its next request, and by nothing but what it is told
+        from then on - a world stepped on its own clock tells each pass's; None, the wall's
+        clock again. On the wall's a pass 0.25 s late turned the rotor those seconds under a
+        setpoint meant for 50 ms: QUAD's frame, stepped its 50, passed a gate 2.7 m off under
+        the gate's load (2026-10-06)."""
+        self._pace = None if dt is None else (self._pace or 0.0) + float(dt)
+
     def _advance_model(self):
         """Turn the virtual rotor by the torque the dq solution makes."""
         motor = self._motor_model()
         now = time.time()
-        dt = min(now - self._motor_at, CATCH_UP_S)
+        if self._pace is None:
+            dt = min(now - self._motor_at, CATCH_UP_S)
+        else:
+            dt, self._pace = self._pace, 0.0
         self._motor_at = now
         if dt <= 0.0:
             return motor

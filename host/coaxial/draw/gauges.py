@@ -1,13 +1,35 @@
 """Levels in braille: the one instrument every page draws a level with."""
-from coaxial.devices.thermal import THROTTLE_AT
+from coaxial.devices.thermal import THROTTLE_AT, at_trip_cap
 from coaxial.draw import cross_section
 from coaxial.draw.cross_section import Frame, INK, SOA_OK, TRACK
 from coaxial.graphics.raster import DOTS_X, DOTS_Y
+from coaxial.model.thermal import IDENT_MARGIN_FLOOR
 from machine import ansi
 
 #: The tick class a caller puts on a gauge - a burst's extreme, a held
 #: peak - here so a view need not reach into `cross_section` for it.
 MARK = cross_section.MARK
+
+#: The identification's states as a page says them (the bench's abbreviations): whole, and
+#: beside a margin's percent.
+POLICY_WORD = {'STABLE': 'STABLE', 'CONVERGING': 'CONV', 'UNCERTAIN': 'UNCR'}
+POLICY_SHORT = {'STABLE': 'STBL'}
+
+
+def policy_word(ident):
+    """(word, the trip's) for an identification: its state with the margin the envelope acts
+    on - `UNCR 80%`, `CONV 93%`, `STBL 97%`, `STABLE` whole - `TRIP 72%` where that margin is
+    the trip's cap under the floor, a dash before it has answered."""
+    state = (ident or {}).get('state')
+    if state not in POLICY_WORD:
+        return '-', False
+    margin = ident.get('margin', 1.0)
+    percent = int(round(100.0 * margin))
+    floor = ident.get('margin_floor', IDENT_MARGIN_FLOOR)
+    if at_trip_cap(margin, ident.get('trip_cap', 1.0)) and margin < floor - 1e-6:
+        return 'TRIP %d%%' % percent, True
+    word = POLICY_WORD[state]
+    return ('%s %d%%' % (POLICY_SHORT.get(state, word), percent) if percent < 100 else word), False
 
 
 def gauge(share, cells, cls=SOA_OK, centre=None, marks=(), colour=True):
@@ -42,7 +64,7 @@ def gauge(share, cells, cls=SOA_OK, centre=None, marks=(), colour=True):
 PEAK = (0,)
 
 def bar(share, cells, cls=SOA_OK, tip=MARK, colour=True):
-    """One row, `cells` wide: a SOLID level - every dot of every cell to the
+    """One row, `cells` wide: a solid level - every dot of every cell to the
     level, `⣿⣿⣿` in `cls` - ending in a column of `tip`'s ink, `⡇` or `⢸`
     whichever lane the level ends in, and the rest of the scale a track
     of grey columns the cell's full height, `⡇` a cell.

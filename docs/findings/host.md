@@ -14,6 +14,18 @@ own are in [FINDINGS](../FINDINGS.md).
   readings a second to a 20 fps page. Start to start now (2026-09-28).
 - THERMAL OBSERVER said `AFE off` with AFE_ON high: it had no reading because
   the first sample is 30 s after opening. It says which now (2026-09-28).
+- THERMAL OBSERVER and the pages' side columns, a review's 29 findings against
+  the refit: `--switch` armed a real board with the break bypassed - AFE_ON
+  off, the latch cleared, the break in circuit now, AFE_ON put back as found;
+  the map's centre patch was stripped, its middle 9.6 K off; a hud counted
+  one row since 2026-09-27 and the column never paged - the page's 78 lines
+  cut at 42, SESSION's THERMAL 17 of its 20 nodes; TUBES 37 cells in 36, the
+  NTC's tube an ellipsis; ten rows on three pages wider than their boxes;
+  the stand-in's budget never had seconds to its limit, and its load cycle
+  put 45 A through the hot swap; the trip's cap was asked equal to 1e-6 of a
+  margin trimmed in 1e-3; SENSE's `err` read +9 K on a model 0.1 K out. The
+  boxes are `terminal/views/thermal/boxes.py`; the real board's `--switch`
+  is held by its order alone, not run on the bench (2026-10-06).
 - Model weights (7.6 GB) reloaded per suite were most of a run: loaded once,
   released once. A run killed from outside leaves 8.4 GB on the card.
 - The offline gate was 400 s of sleeping on the stand-in's clock; suites run

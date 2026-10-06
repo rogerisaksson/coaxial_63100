@@ -207,8 +207,9 @@ class ThermalEnvelope:
     def budget(self):
         self._advance()
         worst, name, used = self._worst()
+        # thermal.c's rule: the seconds while it heads for its ceiling, none at it or cooling
         return {'used': used, 'worst': worst, 'worst_node': name,
-                'seconds_to_limit': None,
+                'seconds_to_limit': self._hold(name) or None,
                 'throttling': worst >= THROTTLE_AT,
                 'tripped': self._tripped(), 'trips': self._trips,
                 'derate': self._derate_held, 'soak_j': self.soak_j(),

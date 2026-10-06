@@ -11,7 +11,6 @@ a bench turns it in seven seconds. On a real board nothing here touches the stag
 """
 import math
 import time
-from contextlib import suppress
 
 from coaxial.comm.hostclock import clock_of
 from coaxial.errors import RigError
@@ -129,12 +128,19 @@ def stop_motor(rig):
     """The drive off, the stage down, the break and the converters given back after a demo: the
     next page on the same board finds it still, and an emulated one idles again. What it did,
     for the closing list."""
-    with suppress(RigError):
-        rig.drive.off()
-        rig.gates.off()
-        rig.board.gate_drivers.configure(sync=False)
-        return [('demo motor', 'drive off, stage down, break and converters back')]
-    return [('demo motor', 'could not be stopped')]
+    failed = []
+    # Each on its own: one guard over the three, a drive that refused left the stage up and
+    # the converters held, and the closing list said nothing (2026-10-05).
+    for what, undo in (('the drive', rig.drive.off), ('the stage', rig.gates.off),
+                       ('the converters',
+                        lambda: rig.board.gate_drivers.configure(sync=False))):
+        try:
+            undo()
+        except RigError as exc:
+            failed.append('%s: %s' % (what, exc))
+    if failed:
+        return [('demo motor', 'FAILED: %s' % '; '.join(failed))]
+    return [('demo motor', 'drive off, stage down, break and converters back')]
 
 
 def cycle_motor(rig, origin, on_s, off_s, amps=None):
@@ -152,8 +158,10 @@ def cycle_motor(rig, origin, on_s, off_s, amps=None):
         if on and held['step'] is None:
             held['step'] = turn_motor(rig, origin, amps, LOAD_HZ)
         elif not on and held['step'] is not None:
-            stop_motor(rig)
-            held['step'] = None
-        if held['step'] is not None:
+            # Stopped, or asked again the next sample: forgotten on a stop that did not take,
+            # the drive ran on and refused the next on-phase's source every sample.
+            if not stop_motor(rig)[0][1].startswith('FAILED'):
+                held['step'] = None
+        if on and held['step'] is not None:
             held['step']()
     return step

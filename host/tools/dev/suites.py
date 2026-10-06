@@ -259,6 +259,9 @@ FRESH_S = {GYNOID_FALLS: 850.0, GYNOID_GAIT: 450.0, GYNOID_GOING: 300.0, QUAD_PA
 EMULATOR_GROUPS = {'board': 480, 'blank': 900, 'conformance': 480, 'bus': 480,
                    'fallback': 480}
 
+#: What a change to a page the world's heat is judged on reaches.
+HEATED = (STRUCTURE, *VIEWS, NATIVE_HEAT, 'test_simulated.py')
+
 # What a change to each part of the tree can plausibly have broken.
 TOUCHES = (
     ('host/coaxial_ollama/debug.py',           OLLAMA + ('live:all',)),
@@ -322,12 +325,10 @@ TOUCHES = (
     # A live view is a loop, a screen and a cable around a renderer that is
     # tested on its own.
     # The two pages the world's heat is judged on, their demo's loads and tour on native.
-    ('host/terminal/views/show_rotor_observer.py', (STRUCTURE, *VIEWS, NATIVE_HEAT,
-                                                    'test_simulated.py')),
-    ('host/terminal/views/rotor/',             (STRUCTURE, *VIEWS, NATIVE_HEAT,
-                                                'test_simulated.py')),
-    ('host/terminal/views/show_thermal_observer.py', (STRUCTURE, *VIEWS, NATIVE_HEAT,
-                                                      'test_simulated.py')),
+    ('host/terminal/views/show_rotor_observer.py', HEATED),
+    ('host/terminal/views/rotor/',             HEATED),
+    ('host/terminal/views/show_thermal_observer.py', HEATED),
+    ('host/terminal/views/thermal/',           HEATED),
     ('host/terminal/views/',                   (STRUCTURE, *VIEWS,
                                                 'test_simulated.py')),
     ('host/terminal/ui/',                      (STRUCTURE, *VIEWS,

@@ -113,8 +113,7 @@ DRIVER_RISE_SWITCHING = DRIVER_SWITCH_WATT * LEG_TO_BOARD
 #: has the V gate driver 8.2 mm off, f = 0.50, the V FETs 15-18 mm, 0.28-0.33.
 NTC_SEES_DRIVERS = 0.56
 
-#: K/W off the board at the calibration rise, and its heat capacity, J/K -
-#: named here because `NTC_TAU_S` derives from them.
+#: K/W off the board at the calibration rise, and its heat capacity, J/K.
 BOARD_TO_AMBIENT = 8.33
 BOARD_CAPACITY = 49.0
 

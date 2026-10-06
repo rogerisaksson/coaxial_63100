@@ -151,11 +151,18 @@ def test_quad_stabs_either_way(report):
     if not paced(report, 'the quad\'s stabs', kept, rate):
         return
     targets = [float(s[3] or 0.0) for s in motions.CYCLE if s[0] == 'QUAD' and s[1] == 'stab']
-    moved = [st[-1][3] - st[0][3] for name, st in stages if name == 'stab']
-    report.check('each stab moves the speed toward its target',
+    stabs = [st for name, st in stages if name == 'stab']
+    moved = [st[-1][3] - st[0][3] for st in stabs]
+    # A stab up under a clamp the envelope throttled lifts nothing, as FIXED WING's blip: CI's
+    # 3.12 runner, -22 rpm toward 2 400 (18c4f90, 2026-10-06).
+    held = [any(r[6] for r in st) for st in stabs]
+    report.check('each stab moves the speed toward its target, one up unless the envelope '
+                 'holds the clamp',
                  len(moved) == len(targets) and all(
-                     m * (t - 2000.0) > 0.0 for m, t in zip(moved, targets)),
-                 ', '.join('%+.0f rpm toward %.0f' % mt for mt in zip(moved, targets)))
+                     m * (t - 2000.0) > 0.0 or (throttled and t > 2000.0)
+                     for m, t, throttled in zip(moved, targets, held)),
+                 ', '.join('%+.0f rpm toward %.0f%s' % (m, t, ' throttled' if throttled else '')
+                           for m, t, throttled in zip(moved, targets, held)))
 
 
 def test_joint_holds_against_its_load(report):

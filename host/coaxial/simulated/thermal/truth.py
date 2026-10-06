@@ -62,7 +62,7 @@ class ThermalTruth:
     #: identifier is told it - the board's 30 mK NTC and 125 mK dies.
     NOISE_K = 0.05
 
-    #: The page's load cycle, model s: 6 min at 30 A, 14 cooling - two wall
+    #: The default load cycle, model s: 6 min at 30 A, 14 cooling - two wall
     #: minutes at HASTE (bench 2026-09-06).
     CYCLE_AMPS, CYCLE_ON_S, CYCLE_OFF_S = 30.0, 360.0, 840.0
 
@@ -184,8 +184,8 @@ class ThermalTruth:
                 self._node, self._ntc, self._cfg, power, sample,
                 self._speed_rpm, self._since_seen_s, self._ambient)
             self._since_seen_s = 0.0
-        # The reading follows the two patches it sits between, at the
-        # laminate's lag, never outside them (docs/papers, 2.3).
+        # The reading follows the two patches it sits between, never outside
+        # them (docs/papers, 2.3).
         self._ntc = thermal_ident.ntc_follow(self._node, self._ntc,
                                              self._cfg, dt)[0]
         # The identification beside it, on the same power and slice; a sample
@@ -314,18 +314,20 @@ class ThermalTruth:
     def truth(self):
         """The ground truth as a page may show it beside the estimate: its
         situation, the scales that make it, how long it has stood, and
-        the load the cycle has on it now - absent on a board, which has
-        no truth to tell.
+        the load the cycle has on it now and what it asks this phase - absent
+        on a board, which has no truth to tell.
         """
         name = self._situation or 'bench'
         laid = self.SITUATIONS[name]
+        cycle = self._cycle
+        seen = self._cycle_sample() if cycle else None
         return {'situation': name, 'air': laid['air'],
                 'capacity': laid['capacity'], 'ambient': self._truth_ambient,
                 'switches': self._switches,
                 'since_s': self._model_s - self._switched_s,
                 'switching': self._switching, 'tour': self._tour,
-                'load_a': self._cycle_sample()['amps'][0] if self._cycle
-                else None}
+                'load_a': seen['amps'][0] if seen else None,
+                'asked_a': (cycle[0] if seen['switching'] else 0.0) if cycle and seen else None}
 
     def load_cycle(self, amps=CYCLE_AMPS, on_s=CYCLE_ON_S, off_s=CYCLE_OFF_S):
         """Drive a load on and off from the model's own clock: `on_s` at
@@ -339,7 +341,7 @@ class ThermalTruth:
             return {'amps': 0.0, 'on_s': 0.0, 'off_s': 0.0}
         if not (float(on_s) > 0.0 and float(off_s) > 0.0):
             raise RigError('a cycle is seconds on and seconds off, both '
-                           'above zero - the walk is 360 and 840')
+                           'above zero - the default is 360 and 840')
         self._cycle = (float(amps), float(on_s), float(off_s), self._model_s)
         self._cycle_trip = None
         return {'amps': float(amps), 'on_s': float(on_s),
@@ -362,7 +364,11 @@ class ThermalTruth:
             self._cycle_trip = index
             return idle
         amps *= self._derate_held
-        return {'amps': (amps, amps, amps), 'switching': True, 'duty': (0.5, 0.5, 0.5)}
+        # Three legs' rms at half duty are no link's current: summed as a held vector's, 45 A
+        # went through the hot swap, 7.3 W of it, and it led the envelope from the cycle's
+        # fourth second (2026-10-05).
+        return {'amps': (amps, amps, amps), 'switching': True, 'duty': (0.5, 0.5, 0.5),
+                'link_amps': 0.0}
 
     def _load(self, dt, seen):
         """`thermal_load_t` off the sample, as board_thermal.c's load_now: each leg's mean
@@ -374,7 +380,8 @@ class ThermalTruth:
                          for sq, a in zip(self._squares, amps)]
         return {'phase_amps': amps, 'phase_sq': self._squares,
                 'duty': seen.get('duty') or self._duty(), 'switching': switching,
-                'link_volts': seen.get('link') or 0.0, 'link_amps': -1.0,
+                'link_volts': seen.get('link') or 0.0,
+                'link_amps': seen.get('link_amps', -1.0),
                 'afe_on': self._afe_on(), 'speed_rpm': self._speed_rpm,
                 't_dead_s': inverter.T_DEAD}
 

@@ -49,7 +49,6 @@ HEAVY = {
     'host/coaxial/simulated/acquire/daq.py': 6400,
     'host/coaxial/control/commission.py': 6400,
     'thermal/src/thermal_ident.c': 6400,
-    'host/terminal/views/show_thermal_observer.py': 6300,
     'board/src/board_adc.c': 6200,
     'host/coaxial/kalman/thermal_ident.py': 6200,
     'board/src/board_pwm.c': 6100,

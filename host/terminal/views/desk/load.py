@@ -145,7 +145,7 @@ def _line_share(link):
     """
     if not (link.get('baud') and link.get('bits')):
         return ''
-    return '   %2.0f%% of line' % (100.0 * link['bits'] / float(link['baud']))
+    return ', %.0f%% of line' % (100.0 * link['bits'] / float(link['baud']))
 
 
 #: Bytes a read costs beyond its records: unit, function code and CRC

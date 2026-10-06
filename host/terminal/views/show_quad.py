@@ -29,6 +29,7 @@ from rich.text import Text
 
 from coaxial import Coaxial63100
 from coaxial.errors import RigError
+from coaxial.draw.gauges import policy_word
 from coaxial.graphics import gpu, quadcopter
 from machine import aerobatics, quad
 from machine.flying import Flying
@@ -102,7 +103,7 @@ def compose(console, origin, rotors, frame, flight, trace, now, art):
                or budget.get('tripped'))
         lines.append((label, Text('%4.0f rpm %4.1f A SOA %3.0f%% %s' % (
             rotor['w'] * 60.0 / math.tau, rotor['amps'], 100.0 * (budget.get('worst') or 0.0),
-            'THR' if budget.get('throttling') else flown.observer_word(rotor['ident'])),
+            'THR' if budget.get('throttling') else policy_word(rotor['ident'])[0]),
             style='alarm' if hot else 'value')))
     return frame_of(console, origin, TITLE, art,
                     [flying, hud('ROTORS  rpm, current, SOA, TH OBS', lines),

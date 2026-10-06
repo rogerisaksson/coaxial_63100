@@ -227,7 +227,7 @@ def acquisition_block(got):
 
 
 def dash(session, got):
-    """One line over the six blocks: what the system is doing right now."""
+    """One line over the seven blocks: what the system is doing right now."""
     afe, gates = got.get('afe'), got.get('gates')
     spend, therm = got.get('budget'), got.get('thermal')
 
@@ -259,7 +259,7 @@ def dash(session, got):
 
 
 def frame(session, console, note, got=None):
-    """The dashboard on the stage: dash strip, six instruments, key bar - off `got`, a round
+    """The dashboard on the stage: dash strip, seven instruments, key bar - off `got`, a round
     of reads taken elsewhere (a Feed), or one taken here."""
     got = snapshot(session) if got is None else got
     rows = [[Text.from_ansi(dash(session, got))],

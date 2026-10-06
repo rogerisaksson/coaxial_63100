@@ -123,6 +123,9 @@ class SimulatedDrive(DrivePlant, DriveObservers, DriveCapture, DriveControl):
         self._motor = None
         self._motor_at = 0.0
         self._motor_acc = 0.0
+        #: Seconds the rotor is owed by a world stepped on its own clock (`paced`), None on
+        #: the wall's.
+        self._pace = None
         #: The back-EMF chain, built on the first ask: a stand-in
         #: nobody asks for observers should not be integrating
         #: two of them in the background.

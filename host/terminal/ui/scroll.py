@@ -3,14 +3,15 @@ import weakref
 
 from rich import box
 from rich.panel import Panel
-from rich.table import Table
 from rich.text import Text
 
 
 def _rows_of(panel):
-    """Content lines in a hud, for sizing its Layout."""
+    """Content lines in a hud, for sizing its Layout: its Text's. Counted as a grid's rows
+    - a hud was one until 2026-09-27 - every box was one line and the column never paged
+    (2026-10-05)."""
     inner = panel.renderable
-    return len(inner.rows) if isinstance(inner, Table) and inner.rows else 1
+    return inner.plain.count('\n') + 1 if isinstance(inner, Text) else 1
 
 
 def _fills(console):
