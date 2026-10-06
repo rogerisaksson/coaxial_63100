@@ -10,7 +10,7 @@ leg, its elbow bent as the row has it.
 """
 import math
 
-from machine import figure, gait
+from machine import figure, gait, hold, motors
 from machine.figure import SOLE_BALL, SOLE_HEEL, add, apply
 from machine.runner import ARM, COAST_S, LEVEL, eased, pitched
 
@@ -33,6 +33,14 @@ ARM_S = 0.1
 #: The swinging thigh comes on LEAD of its knee's fold.
 LEAD = 0.32
 
+#: A row's `swing` of a free foot's way is one screw under its hip (`machine.motors`), from
+#: the pose it left with to its landing's, times a shape off it in the foot's own frame: the
+#: ankle the row's `lift` m up and the foot pitched its `tip` deg, the heel up - in full
+#: SHAPED / 2 of its swing in, none from SHAPED on.
+SHAPED = 0.6
+#: TRIAL: the foot's pitch past the screw TIP_K of its pitch as it left, in place of `tip`.
+TIP_K = 0.0
+
 
 def swung(law, leg, sign, pel, now, v):
     """A free leg's six joints, rad, `leg['u']` of its way from where it left the floor to
@@ -47,8 +55,10 @@ def swung(law, leg, sign, pel, now, v):
         return joints
     u = leg['u']
     coast = COAST_S * (1.0 - math.exp(-leg['t'] / COAST_S))
-    joints = [p + r * coast + (q - p - r * coast) * eased(u)
-              for p, r, q in zip(leg['from'], leg['rate'], joints)]
+    left = [p + r * coast for p, r in zip(leg['from'], leg['rate'])]
+    going = a['swing'] * (1.0 - hold.stood(a['speed']))
+    screw = screwed(law, leg, sign, pel, now, left, ankle, foot) if going > 0.0 else None
+    joints = [p + (q - p) * eased(u) for p, q in zip(left, joints)]
     fold = math.radians(a['fold']) * math.sin(math.pi * min(1.0, u / a['folded']))
     # the thigh comes on as the knee folds: the fold alone took the toes 40-81 mm back
     joints[3] += fold
@@ -56,7 +66,27 @@ def swung(law, leg, sign, pel, now, v):
     rise = (leg['rise'] * (1.0 - eased(u / LEVEL))
             + math.radians(a['land']) * eased((u - LEVEL) / (1.0 - LEVEL)))
     joints[4] = rise - (pitched(now) + joints[2] + joints[3])
+    if screw is not None:
+        joints = [p + going * (q - p) for p, q in zip(joints, screw)]
     return joints
+
+
+def screwed(law, leg, sign, pel, now, left, ankle, foot):
+    """A free leg's six joints `leg['u']` of the one screw under its hip (SHAPED), from
+    the pose the joints `left` have it in to its landing's - `ankle`, the `foot`'s turn - in
+    its shape."""
+    a, u = law.ask, leg['u']
+    hip = motors.of(figure.ry(law.heading), figure.hip(sign, pel, now))
+    under = motors.inv(hip)
+    at, turn = figure.foot_of(sign, pel, now, left)
+    bump = math.sin(math.pi * min(1.0, u / SHAPED)) ** 2
+    tip = TIP_K * max(0.0, leg['rise']) if TIP_K else math.radians(a['tip'])
+    shape = motors.mul(motors.of(None, (0.0, a['lift'] * bump, 0.0)),
+                       motors.about(motors.AXIS['x'], tip * bump))
+    m = motors.mul(hip, motors.mul(motors.between(
+        motors.mul(under, motors.of(turn, at)), motors.mul(under, motors.of(foot, ankle)),
+        eased(u)), shape))
+    return figure.leg(sign, pel, now, motors.place(m), motors.turn(m))
 
 
 def lifted(law, leg, sign, pel, now, joints):

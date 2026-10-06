@@ -24,7 +24,8 @@ import re
 RUN = {'speed': 1.5, 'step': 0.40, 'stand': 0.30, 'up': 0.0, 'rise': 0.49, 'bounce': 0.30,
        'land': 14.0, 'knee': 22.0, 'lean': 6.0, 'fold': 55.0, 'track': 0.035, 'off': 50.0,
        'list': 0.0, 'under': 0.117, 'folded': 1.0, 'reach': 0.36, 'elbow': 80.0, 'play': 0.0,
-       'turn': 0.0, 'strut': 6.0, 'weigh': 0.0, 'hang': 0.0}
+       'turn': 0.0, 'strut': 6.0, 'weigh': 0.0, 'hang': 0.0, 'swing': 0.0, 'tip': 0.0,
+       'lift': 0.0}
 #: The walk's, a woman's as near as found (2026-10-06): searched from the walk as built's time
 #: on a walk's price and its widths off `tools.sim.normal.BAND`, 1 920 rows, then on its J/m,
 #: a stop and a passage to her jog and back too, 960. 0.85 m/s at 502 J/m, 0.20-0.26 off the
@@ -33,7 +34,8 @@ RUN = {'speed': 1.5, 'step': 0.40, 'stand': 0.30, 'up': 0.0, 'rise': 0.49, 'boun
 WALK = {'speed': 0.87, 'step': 0.522, 'stand': 0.651, 'up': 0.104, 'rise': 0.0, 'bounce': 0.107,
         'land': -4.9, 'knee': 11.8, 'lean': 4.9, 'fold': 45.2, 'track': 0.044, 'off': 2.1,
         'list': 3.1, 'under': 0.036, 'folded': 0.63, 'reach': 0.333, 'elbow': 30.0, 'play': 0.9,
-        'turn': 1.1, 'strut': 6.0, 'weigh': 0.0, 'hang': 0.0}
+        'turn': 1.1, 'strut': 6.0, 'weigh': 0.0, 'hang': 0.0, 'swing': 1.0, 'tip': 15.0,
+        'lift': 0.04}
 #: Her jog, the run's row at the walk's speed: her way from the walk to the run passes it. On
 #: its speed alone the run's row goes 0.54 m/s at 936 J/m asked 0.6, 0.74 at 704 asked 0.8,
 #: 0.99 at 602, 1.19 at 547 (2026-10-05). Before it a row found between, at 1.42 m/s, passed
@@ -51,7 +53,8 @@ JOG = dict(RUN, speed=0.8)
 QUICK = {'speed': 0.76, 'step': 0.528, 'stand': 0.581, 'up': 0.10, 'rise': 0.0, 'bounce': 0.253,
          'land': -12.9, 'knee': 19.4, 'lean': 5.1, 'fold': 10.0, 'track': 0.048, 'off': 1.7,
          'list': 0.0, 'under': 0.037, 'folded': 0.65, 'reach': 0.248, 'elbow': 30.0, 'play': 0.9,
-         'turn': 0.0, 'strut': 6.0, 'weigh': 0.0, 'hang': 0.0}
+         'turn': 0.0, 'strut': 6.0, 'weigh': 0.0, 'hang': 0.0, 'swing': 0.0, 'tip': 0.0,
+         'lift': 0.0}
 EASE = dict(QUICK, stand=JOG['stand'], step=JOG['step'])
 #: Standing: the walk's row at no speed.
 STAND = dict(WALK, speed=0.0)
