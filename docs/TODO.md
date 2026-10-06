@@ -280,8 +280,8 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
     reference, asked as tuples; 2026-10-06: a base, its accents by amount, a
     transition between two). In: `normal.WORDS`, `gaits.MANNERS`, M Z X. In
     too: a pose's accent with a side, let go before she goes. DOD: tripping no
-    shuffle; 100 % a take's measure; a planner asking them of a wind or a
-    slope; sitting, rising.
+    shuffle; 100 % a take's measure; a walk into 20 N of wind; a planner asking
+    the accent; sitting, rising.
 
 ## Bench
 

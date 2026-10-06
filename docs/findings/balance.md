@@ -318,3 +318,16 @@ shoves, the scoreboard and its searches. The board's own are in
   past her, the foot steps out 73 cm more and she goes on sideways: 36
   of 64 as before, out. Each recovery step a leap; smaller and sooner,
   or across the standing leg, is the reflex's to find (docs/TODO.md).
+- Into a steady wind, on the one law (2026-10-06; a force on her trunk
+  against her way, up over 2 s, held 16 s). 10 N: she slows 0.85 to 0.70
+  m/s and walks on; in the accent `into the wind` 0.81. 20 N: down in 3
+  s, in the accent backward at 0.11 m/s and down in 7; 30 N down in 3-4
+  s. A shove of 70 N for 0.12 s from ahead she stands 8 of 8: it is the
+  steady force she has nothing for - her standing legs lean her 2.5 cm
+  at the most (`hold.LEAN_M`), 8.6 N of it, and a walk's steps are not
+  laid back under her for a speed she lacks. Tried and out: her feet's
+  pattern taken 3 cm back with the accent, 0.89 m/s at 10 N and down at
+  20; 6 cm, down as it came in; that taken back by the speed she is
+  short of, summed a landing - the first steps of a start wind it up and
+  she is down at 4.7 s. The accent is the posture, the force's answer is
+  the law's to find: a walk that leans as a whole, from its feet.
