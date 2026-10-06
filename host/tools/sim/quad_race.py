@@ -9,8 +9,9 @@ card flown once through among what stands, solid:
 - ideal: rotors lagging to their speed, on all of their pull, a page's passes;
 - boards: four stand-in boards (the page's flight, no page), their envelopes binding;
 
-each in still air and in the air's tour from SEEDS (`--seeds`), and - ideal - as a frame of each of SIZES
-on a course as much larger (`quad.sized`). A trial's cost is its laps' seconds, by its frame's
+each in still air and in the air's tour from SEEDS (`--seeds`); ideal, as a frame of each of
+SIZES on a course as much larger (`quad.sized`); the boards, laid in each of ROOMS and begun on
+a pack with each of PACKS of its charge. A trial's cost is its laps' seconds, by its frame's
 clock; MISS_K a metre a gate's middle is passed further off than MISS_M, ROOM_K a metre the
 frame has less than ROOM_M about it, both of the frame as built; struck, STRUCK_S and no laps
 counted. A candidate's is its trials' mean: a line found on its planned seconds alone was
@@ -37,17 +38,25 @@ from tools import REPO  # noqa: E402
 from tools.dev import background  # noqa: E402
 from tools.sim import cmaes  # noqa: E402
 
-#: The air's seeds a candidate is flown in, beside still air (`--seeds`: a run's own), and the
-#: frames' sizes beside the one built.
-SEEDS, SIZES = (3, 4, 5), (0.75, 1.5)
+#: The air's seeds a candidate is flown in, beside still air (`--seeds`: a run's own); the
+#: frames' sizes beside the one built; the boards' rooms beside the bench (`coaxial.model.
+#: rooms`: stuffy, half again the air's path - 21.5 and 20.5 s at 0.76 of their envelopes where
+#: the bench's 19.6 and 18.6 at 0.68; toasty, 45 C, spends them, 0.92, a lap of 34 s and down,
+#: 2026-10-06) and what their pack begins on beside all of its charge.
+SEEDS, SIZES, ROOMS, PACKS = (3, 4, 5), (0.75, 1.5), ('stuffy',), (0.6,)
 SUITES = {'all': ('ideal', 'boards'), 'ideal': ('ideal',), 'boards': ('boards',)}
+BENCH = 'bench'
 
 
 def trials(seeds=SEEDS, suite='all'):
-    """The trials of `suite` in still air and the air of `seeds`: [(rotors, seed, size)]."""
-    return [t for t in [(rotors, seed, 1.0) for rotors in ('ideal', 'boards')
-                        for seed in (None,) + tuple(seeds)]
-            + [('ideal', None, size) for size in SIZES] if t[0] in SUITES[suite]]
+    """The trials of `suite`: [(rotors, the air's seed or None for still, the frame's size,
+    the boards' room, the pack's charge)]."""
+    rows = [(rotors, seed, 1.0, BENCH, 1.0) for rotors in ('ideal', 'boards')
+            for seed in (None,) + tuple(seeds)]
+    rows += [('ideal', None, size, BENCH, 1.0) for size in SIZES]
+    rows += [('boards', None, 1.0, room, 1.0) for room in ROOMS]
+    rows += [('boards', None, 1.0, BENCH, left) for left in PACKS]
+    return [row for row in rows if row[0] in SUITES[suite]]
 
 #: The ideal rotors: their top, rad/s, their lag to a speed, s, the fastest they are spun up or
 #: down, rad/s^2 (tests/test_quad_course.py's).
@@ -142,7 +151,7 @@ def room(rows):
     return least - quad.reach()
 
 
-def ideal(air):
+def ideal(air, _room=BENCH, _left=1.0):
     """The card on ideal rotors in `air`, the frame as it is sized - its rotors as fast at
     their tips, its passes by its clock: (the laps' rows by lap, what it struck, 0, 1, 0)."""
     dice = random.Random(1)
@@ -173,16 +182,20 @@ def ideal(air):
     return laps, sky.hit, 0.0, 1.0, 0.0
 
 
-def boards(air):
-    """The card on four stand-in boards in `air` (the page's flight): (the laps' rows by lap,
-    what it struck, the boards' worst envelope, the least share of their pull, its seconds on
-    emergency power)."""
+def boards(air, room=BENCH, left=1.0):
+    """The card on four stand-in boards in `air` (the page's flight), laid in `room` - told
+    to no observer - on a pack with `left` of its charge: (the laps' rows by lap, what it
+    struck, the boards' worst envelope, the least share of their pull, its seconds on emergency
+    power)."""
     from coaxial import Coaxial63100
     from machine.modes import SIMULATED
     view = owner('flight.CARD')[0]
     rotors = [view.arm(Coaxial63100(execution_mode=SIMULATED).open()) for _ in range(4)]
+    for rotor in rotors:
+        rotor['rig'].board.thermal.situation(room)
     sky, route = quad.Sky(course.solids()), aerobatics.routine(course.CARD)
     law, flight = flying.Flying(view.TOP_N, aerobatics.DOWN), view.fresh()
+    flight['cells'].update(left=left, volts=quad.open_volts(left))
     flight['air'], t, read, laps, soa, least = air, 0.0, 0.0, {}, 0.0, 1.0
     try:
         while t < 150.0 and flight['stage'] != 'land' and not sky.hit:
@@ -210,11 +223,11 @@ def trial(values, job):
     miss and the room about the frame, m of the frame as built, what it struck, the boards'
     worst envelope and least share, its WEP's seconds."""
     put(values)
-    rotors, seed, size = job
+    rotors, seed, size, room_, left = job
     sized(size)
     clock = quad.scales()[1]
     laps, struck, soa, least, wep = (ideal if rotors == 'ideal' else boards)(
-        None if seed is None else quad.air(seed))
+        None if seed is None else quad.air(seed), room_, left)
     rows = [row[1:] for lap in sorted(laps) for row in laps[lap]]
     miss, passes = missed(rows) if rows else (math.nan, 0)
     return {'laps': [(laps[lap][-1][0] - laps[lap][0][0]) / clock for lap in sorted(laps)],
@@ -244,7 +257,7 @@ def run(_pool, candidates):
     """[(cost, whole, miss, results)] for `candidates`, every flight of each a job on the relay
     (`focus.relay`), its result the JSON line it prints (`--one`); one lost counts as struck."""
     from tools.dev import focus
-    seeds = [str(seed) for rotors, seed, _size in JOBS if rotors == JOBS[0][0] and seed is not None]
+    seeds = [str(job[1]) for job in JOBS if job[0] == JOBS[0][0] and job[1] is not None]
     jobs = [focus.Job('%d.%d' % (c, k), [sys.executable, '-X', 'utf8', os.path.abspath(__file__),
                                          '--suite', SUITE, '--seeds', *seeds,
                                          '--one', json.dumps(values), str(k)], RUN_GB, RUN_S)
@@ -263,9 +276,10 @@ def run(_pool, candidates):
 def _show(values, cost, whole, miss, results):
     print('%-44s cost %6.2f  whole %3.0f %%  miss %.2f m' % (
         ' '.join('%s=%g' % kv for kv in values.items()) or 'as it is', cost, 100 * whole, miss))
-    for (rotors, seed, size), r in zip(JOBS, results):
-        print('    %-6s %-6s %-5s %s' % (rotors, 'still' if seed is None else 'air %d' % seed,
-                                         '' if size == 1.0 else 'x%g' % size, (
+    for (rotors, seed, size, room_, left), r in zip(JOBS, results):
+        print('    %-6s %-6s %-6s %s' % (rotors, 'still' if seed is None else 'air %d' % seed, (
+            'x%g' % size if size != 1.0 else room_ if room_ != BENCH
+            else '%.0f %%' % (100 * left) if left != 1.0 else ''), (
             'laps %s s, a gate %.2f m off, %.2f m about it%s%s' % (
                 ' '.join('%.1f' % x for x in r['laps']) or '-', r['miss'], r['room'],
                 ', SOA %.2f, pull %.0f %% at the least, WEP %.1f s' % (

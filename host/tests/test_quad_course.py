@@ -302,13 +302,14 @@ def test_its_tuner_scores(report):
 
 def test_a_frame_of_another_size(report):
     """quad.sized, the law, the routine and the course after it: frames smaller and larger,
-    each on a course as much larger and rotors as fast at their tips, fly their laps - as
-    long by their own clocks, every gate as near in their own reaches. And built again."""
+    each on a course as much larger and rotors as fast at their tips, fly their laps as
+    long by their own clocks, a gate as near in their own reaches. And built again."""
     from machine import course, quad
     from tools.sim import quad_race as race
     was = (quad.MASS_KG, course.GATES, course.SWING_S)
     try:
-        flown = {size: race.trial({}, ('ideal', None, size)) for size in (1.0,) + race.SIZES}
+        flown = {size: race.trial({}, ('ideal', None, size, race.BENCH, 1.0))
+                 for size in (1.0,) + race.SIZES}
     finally:
         race.sized(1.0)
     room = course.GATE_M / 2.0 - reach() - CLEAR_M

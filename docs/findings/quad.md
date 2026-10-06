@@ -198,3 +198,16 @@ The board's own are in [FINDINGS](../FINDINGS.md).
   the least where 34-48, a gate 0.50 m off at the most where 0.67; on
   ideal rotors 19.4 and 18.5 s, 0.54 m. 38.8 as the tuner counts it over
   18 flights where 41.7; over 0.13 s a gate was struck.
+- The boards' room and their pack among the tuner's trials (2026-10-06; a
+  robust optimiser, the user). Laid in a room no observer is told of, a
+  full pack: the bench 19.6 and 18.6 s at 0.68 of their envelopes; cold,
+  -25 C, 19.1 and 17.9 at 0.54, all of their pull; a fan 19.7 and 18.4,
+  a heat sink 19.3 and 18.0; temperate, 20 C, 21.3 and 20.4 at 0.73 -
+  cooler than the bench and slower, its observers UNCERTAIN where the
+  bench is what they begin on; stuffy, half again the air's path, 21.5 and
+  20.5 at 0.76; a box, twice it, 24.8 and 24.3 at 0.80; toasty, 45 C, one
+  lap of 34 s at 0.92, none of their pull left, spent and down. A pack
+  begun at 60 % flies 19.2 and 18.1 s at 0.65, the link 3 V lower.
+  Settled an hour idle in its room first, the stage on, a board is at
+  88 C on the bench and never fit to fly. Stuffy and the 60 % pack are a
+  candidate's eleventh and twelfth flights.
