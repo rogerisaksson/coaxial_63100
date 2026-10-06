@@ -92,14 +92,16 @@ WORDS = (
 )
 SAID = 0.1
 
-#: A gait by name: (name, the words it is, the words it is not) - a run first, a walk's
-#: words not its own. Stilts and Groucho's are what her walk is not to be (CLAUDE.md), a
-#: catwalk and a run what it may be asked.
-GAITS = (('a run', ('flying',), ()), ('on stilts', ('stiff',), ('flying',)),
-         ("Groucho's", ('crouched',), ('flying',)),
-         ('a catwalk', ('swaying',), ('wide', 'flying')),
-         ('a waddle', ('wide', 'swaying'), ('flying',)),
-         ('a shuffle', ('shuffling', 'tripping'), ('flying',)))
+#: A gait by name: (name, the words it is, the words it is not, how far each of its words at
+#: the least) - a run first, a walk's words not its own. Stilts and Groucho's are what her
+#: walk is not to be (CLAUDE.md), a catwalk and a run what it may be asked. On stilts from
+#: stiff 0.5: the one law's first walk 2.38, its second 0.31 - the heel 20 deg up as its toes
+#: leave where 28 -, no stilts; Groucho's from crouched 0.4: her standing knee at 24 deg 0.56.
+GAITS = (('a run', ('flying',), (), 0.25), ('on stilts', ('stiff',), ('flying',), 0.5),
+         ("Groucho's", ('crouched',), ('flying',), 0.4),
+         ('a catwalk', ('swaying',), ('wide', 'flying'), 0.3),
+         ('a waddle', ('wide', 'swaying'), ('flying',), 0.3),
+         ('a shuffle', ('shuffling', 'tripping'), ('flying',), 0.3))
 
 #: A take no longer than LOOP_S whose last pose is its first within LOOP_LEG legs is a loop:
 #: three of it, the seam out.
@@ -280,10 +282,10 @@ def said(measures):
 
 def named(measures):
     """The gaits of GAITS a walk is, by name: 'a woman's walk' with no word said."""
-    words = {word for word, _far in said(measures)}
-    return [name for name, needs, never in GAITS
-            if all(w in words for w in needs) and not any(w in words for w in never)] or (
-        [] if words else ["a woman's walk"])
+    words = dict(said(measures))
+    return [name for name, needs, never, least in GAITS
+            if all(words.get(w, 0.0) >= least for w in needs)
+            and not any(w in words for w in never)] or ([] if words else ["a woman's walk"])
 
 
 def apart(a, b):

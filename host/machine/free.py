@@ -26,6 +26,9 @@ SOLE_TOE = (0.0, -gait.ANKLE_H, gait.BALL + gait.TOE_M)
 #: An elbow follows its shoulder's reach ahead ARM_S behind it.
 ARM_S = 0.1
 
+#: The swinging thigh comes on LEAD of its knee's fold.
+LEAD = 0.32
+
 
 def swung(law, leg, sign, pel, now, v):
     """A free leg's six joints, rad, `leg['u']` of its way from where it left the floor to
@@ -42,7 +45,10 @@ def swung(law, leg, sign, pel, now, v):
     coast = COAST_S * (1.0 - math.exp(-leg['t'] / COAST_S))
     joints = [p + r * coast + (q - p - r * coast) * eased(u)
               for p, r, q in zip(leg['from'], leg['rate'], joints)]
-    joints[3] += math.radians(a['fold']) * math.sin(math.pi * min(1.0, u / a['folded']))
+    fold = math.radians(a['fold']) * math.sin(math.pi * min(1.0, u / a['folded']))
+    # the thigh comes on as the knee folds: the fold alone took the toes 40-81 mm back
+    joints[3] += fold
+    joints[2] -= LEAD * law.share() * fold
     rise = (leg['rise'] * (1.0 - eased(u / LEVEL))
             + math.radians(a['land']) * eased((u - LEVEL) / (1.0 - LEVEL)))
     joints[4] = rise - (pitched(now) + joints[2] + joints[3])
@@ -74,13 +80,13 @@ def lifted(law, leg, sign, pel, now, joints):
                                             ankle[2] - sign * out * s), foot))
 
 
-def upper(law, swing, roll=0.0, dt=0.0):
+def upper(law, swing, roll=0.0, dt=0.0, yaw=0.0):
     """The upper body: the arms against the legs' swing {side: deg ahead}, an elbow bent the
     row's `elbow` and `play` deg more a deg its shoulder reaches ahead - on the runner's 80
     deg, still, her walk's arms stood out before her (the user, 2026-10-05) -; the spine
     against the pelvis's `roll`, rad."""
     a = law.ask
-    out = {'spine_roll': math.degrees(roll), 'spine': 0.0, 'waist': 0.0,
+    out = {'spine_roll': math.degrees(roll), 'spine': 0.0, 'waist': -math.degrees(yaw),
            'neck': -0.5 * a['lean'], 'head': 0.0}
     for side in ('left', 'right'):
         ahead = out[side + '_shoulder'] = -ARM * swing[side]

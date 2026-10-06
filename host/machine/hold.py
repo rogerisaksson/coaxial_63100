@@ -22,6 +22,13 @@ from machine.runner import eased
 #: walk her centre of mass crept 6 cm back and 3 across in 1.6 s, a step fell due, and she was
 #: down 5 s on: up through her ways asked 27 of 38 where 37 (2026-10-05).
 LEAN_K, HOLD_K, LEAN_D, LEAN_M, GOES_M_S = 0.5, 1.5, 0.014, 0.025, 0.34
+#: Standing, a foot CLOSE_M behind the other is brought up beside it.
+CLOSE_M = 0.12
+#: A foot waits for her capture point as she goes under WAITS_M_S[0], not at all from [1].
+WAITS_M_S = (0.25, 0.5)
+#: A walk's one standing foot leans her IN_K m a m her capture point is nearer than IN_M
+#: inside its ankle's line.
+IN_M, IN_K = 0.02, 1.5
 #: Where she flies the lean is FLY_LEAN of a walk's. At 0.2 walking too, the walk's row asked
 #: 0.76 m/s kept 0.64 from some starts; at 0.5 flying too, her ways were up 47 of 104 where 80.
 FLY_LEAN = 0.4
@@ -70,6 +77,13 @@ def staying(law, a, loads):
                                                  off[0] * s + off[1] * c)):
         return more, True
     if a['speed'] < STIRS_M_S:
+        # standing with one foot CLOSE_M or more ahead of the other: the rear one is brought
+        # up beside it - left so after a walk's last step, her hold's line a diagonal, she
+        # crept back and stepped about till she fell (2026-10-06)
+        left, right = law.legs['left']['flat'], law.legs['right']['flat']
+        on = (left[0] - right[0]) * s + (left[2] - right[2]) * c
+        if abs(on) > CLOSE_M and abs(law.v[0] * s + law.v[2] * c) < STIRS_M_S:
+            return ('left' if on > 0.0 else 'right'), False
         return None, False
     if law.stays is not None:
         return law.stays, False
@@ -89,7 +103,11 @@ def leaves(law, side, a, loads, share):
     stay, sign = law.legs[law.stays]['flat'], 1.0 if side == 'left' else -1.0
     xi = point(law, law.com)
     far = sign * ((xi[0] - stay[0]) * c - (xi[1] - stay[2]) * s)
-    return far * share < a['track'] + SHIFT_M or loads[side] < LIGHT_N
+    # going, a foot leaves on its time: waited for, both feet down under hips going on at
+    # 0.8 m/s, she was carried past them on her rear toes and fell (2026-10-05)
+    waits = 1.0 - eased((law.v[0] * s + law.v[2] * c - WAITS_M_S[0])
+                        / (WAITS_M_S[1] - WAITS_M_S[0]))
+    return far * share * waits < a['track'] + SHIFT_M or loads[side] < LIGHT_N
 
 
 def lean(law, standing, a, com):
@@ -116,6 +134,14 @@ def lean(law, standing, a, com):
              * (a['speed'] - on_v) / law.omega)
     across = (HOLD_K * (e[0] * c - e[1] * s) - LEAN_D * x_v) * (
         (still if law.stays is None else 1.0) if len(standing) == 2 else 0.0)
+    if len(standing) == 1 and share > 0.0:
+        # one foot down: her capture point within IN_M of its ankle's line, or out past it,
+        # is leaned back in - the swing foot cannot cross to catch her there
+        side = standing[0]
+        sign, flat = (1.0 if side == 'left' else -1.0), law.legs[side]['flat']
+        out = sign * ((xi[0] - flat[0]) * c - (xi[1] - flat[2]) * s) + IN_M
+        if out > 0.0:
+            across = -sign * IN_K * share * out
     far = math.hypot(along, across)
     k = min(1.0, LEAN_M / far) if far > 0.0 else 0.0
     return k * (along * s + across * c), k * (along * c - across * s)

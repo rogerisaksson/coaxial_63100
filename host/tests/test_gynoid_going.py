@@ -16,7 +16,7 @@ GO_S = 10.0
 #: row}) - a row asked again marks a segment's end.
 WAYS = (('stood, asked on and to a stand again', '0:-1 1.5:0 4.5:0 9:-1 12:-1', 15.0,
          {0: 'stand', 2: 'walk', 4: 'stand again'}),
-        ('asked the run and to a stand again', '0:-1 1:1 16:1 20:-1 36:-1', 39.0,
+        ('asked the run and to a stand again', '0:-1 1:1 18:1 22:-1 40:-1', 43.0,
          {0: 'stand', 2: 'run', 4: 'stand again'}))
 
 
@@ -33,7 +33,7 @@ def test_a_gait_is_a_row_of_the_same_names(report):
     """Her rows hold the same setpoints; her way between them passes each at its knot, and the
     row she goes on stays DWELL_S on a gait between before it leaves it."""
     from machine import gaits
-    rows = (gaits.STAND, gaits.WALK, gaits.EASE, gaits.JOG, gaits.RUN)
+    rows = (gaits.STAND, gaits.WALK, gaits.QUICK, gaits.EASE, gaits.JOG, gaits.RUN)
     report.check('the rows share their names', len({frozenset(row) for row in rows}) == 1,
                  '%d' % len(gaits.WALK))
     off = max(abs(gaits.between(k)[name] - row[name])
@@ -44,9 +44,9 @@ def test_a_gait_is_a_row_of_the_same_names(report):
         k, on = gaits.toward(k, on, 1.0, 0.001)
         if k in gaits.KNOTS and k not in at:
             at[k] = 0.001 * i
-    stays = [round(at[0.25] - at[0.0], 2), round(at[0.5] - at[0.25], 2)]
-    report.check('asked the run from her stand she stays on her walk and on the row between',
-                 at.get(1.0, 99.0) < 15.0 and min(stays) >= gaits.DWELL_S,
+    stays = [round(at[b] - at[a], 2) for a, b in ((0.0, 0.125), (0.125, 0.25), (0.25, 0.5))]
+    report.check('asked the run from her stand she stays on her walk and on each row between',
+                 at.get(1.0, 99.0) < 17.0 and min(stays) >= gaits.DWELL_S,
                  'at the run in %.1f s, %s s a gait' % (at.get(1.0, 99.0), stays))
 
 
@@ -115,7 +115,7 @@ def test_the_director_hands_her_to_the_law(report):
         report.check('the law takes her from the stand, and nothing takes her from the law',
                      stages == ['stand', 'go'], ' '.join(stages))
         walked = (z[8.0] - z[5.0]) / 3.0
-        report.check('asked on she walks', 0.6 < walked < 0.9, '%.2f m/s' % walked)
+        report.check('asked on she walks', 0.6 < walked < 1.0, '%.2f m/s' % walked)
         after = (z[13.0] - z[10.0]) / 3.0
         report.check('asked to a stand she stands', abs(after) < 0.05, '%.2f m/s' % after)
     finally:
@@ -123,10 +123,13 @@ def test_the_director_hands_her_to_the_law(report):
 
 
 #: The law's walk beside a woman's normal one (`tools.sim.normal.BAND`): what of it is on her
-#: band - her arms hang and swing, 2026-10-05: bent 80 deg and still before - and how far off
-#: it the walk may be in all: 4.1, on stilts (the user) - the swinging knee 26 deg, no heel's
-#: rise, the pelvis level, her feet 0.29 legs apart (docs/TODO.md item 28).
-ON_BAND, OFF_BAND, WALK_S = ('elbow bent', 'elbow', 'arm', 'hand out'), 4.5, 14.0
+#: band, how far off it the walk may be in all, the words it may be said to be. 0.34 off it,
+#: stiff 0.33 - the knee 28 deg and the heel 20 as its toes leave - since 2026-10-06; on
+#: stilts (the user) before: 4.1 off, the swinging knee 26 deg, no heel's rise, the pelvis
+#: level, her feet 0.29 legs apart, her arms bent 80 deg and still.
+ON_BAND = ('elbow bent', 'elbow', 'arm', 'hand out', 'knee swinging', 'knee at landing',
+           'knee straightest', 'pelvis roll', 'feet apart', 'walk ratio', 'vault')
+OFF_BAND, WORDS, WALK_S = 1.0, ('stiff', 'shuffling', 'still-hipped'), 14.0
 
 
 def test_its_walk_beside_a_womans(report):
@@ -142,8 +145,12 @@ def test_its_walk_beside_a_womans(report):
                      '%.3g' % now.get(name, float('nan')))
     report.check('no further off a woman\'s walk than %g' % OFF_BAND, far <= OFF_BAND,
                  '%.2f: %s' % (far, ', '.join('%s %.3g (%g)' % o for o in out)))
-    report.check('in words, as it is (item 28: not on stilts)', True, '%s - %s' % (
-        ', '.join('%s %.2f' % w for w in normal.said(now)), ', '.join(normal.named(now))))
+    said = normal.said(now)
+    report.check('in words, none but %s, each under 0.5: no stilts' % ', '.join(WORDS),
+                 all(word in WORDS and far < 0.5 for word, far in said)
+                 and 'on stilts' not in normal.named(now),
+                 '%s - %s' % (', '.join('%s %.2f' % w for w in said) or 'none',
+                              ', '.join(normal.named(now)) or 'no gait named'))
 
 
 ROSTER = [test_a_gait_is_a_row_of_the_same_names, test_her_rows_go_on,

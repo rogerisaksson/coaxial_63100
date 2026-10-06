@@ -262,44 +262,53 @@ in [walk](walk.md), the run in [run](run.md), the page's standing law in
   meets the floor, the standing heel rising as that asks; the heel's
   rise through the double support, the foot about to leave's alone; the
   pelvis's roll none at a landing and the spine against it.
-- A woman's walk sought on the law (2026-10-06; in worktrees, not in).
-  On the walk as built's time - a step 0.59 s, both feet down 0.16-0.20
-  s of it, the free foot's reach 0.32 m - the standing heel rises 28-38
-  deg by its strut's need as it leaves, the toes not back, the strike
+- A woman's walk on the law (2026-10-06; `gaits.WALK`, `QUICK`). On the
+  walk as built's time - a step 0.59 s, both feet down 0.16-0.20 s of
+  it, the free foot's reach 0.32 m - the standing heel rises 28-38 deg
+  by its strut's need as it leaves, the toes not back, the strike
   340-400 N, her feet 12-14 cm apart: 0.78 m/s at 471-514 J/m, priced 22
   where 60-105. With the knee's fold 40 deg, the thigh coming on half of
   it, the pelvis listed 4 and turned 4 deg (a row's `turn`, the waist
-  against it): 0.76 m/s, 615 J/m, 1.30 off a woman's band from three
-  starts. Searched from there (CMA-ES, 24 knobs, 1 920 rows, priced as a
-  walk and 15 a width off the band): a step 0.52 s, 0.15 s of it on both
-  feet, the fold 48 deg, the feet's track 0.039 m, the knee landing at
-  10-15 deg - 0.34-0.51 off the band, in words the knee and the heel a
-  little low as the toes leave, `looks.FORM` met or the head 1-3 mm too
-  far aside, 0.71-0.77 m/s; and 690-776 J/m: the ankles' work 101 J/m
-  where 31, the knees' 100 where 64, the hips' 83 where 59. Her ways on
-  such a row 27 of 104 where 77, every passage to her jog down in a
-  step; with the row first found a knot between as her quick step 35,
-  her capture point leaned back in as it nears the standing ankle's line
-  46, a going foot leaving on its time 49, a closing step where she
-  stands staggered: stood, walked and stood 9 of 10. On the searched row
-  39, its stops 3 of 10: the search's constants were every row's, and
-  her stand's.
-- What felled her on the way (2026-10-06, each by trace). Both feet down
-  and the rear one kept for her capture point while her hips went on at
-  0.8 m/s: carried past the lead foot on the rear toes, the lead sole at
-  5-100 N - the pelvis's cap is the higher of the two reaches. Her
-  capture point over or outside the standing ankle through a single
-  support at a track of 0.035 m: the next foot lands inside it. A stop
-  on a long step, her feet 0.18 m staggered: crept back, stepped about.
-  Standing after a stop, the pelvis 3 mm over what her legs reach flat:
-  a heel rose to reach her, its ball pushed her back, and the further
-  back the more - no higher than both reach flat, standing, and 2 stops
-  of 3 held. The heel risen through the double support while that leg
-  still bears her; standing, a foot risen on its heel as the row turned;
-  given to the load's passing, nothing at 0.05 s of double support. The
-  free foot's toes pinned through the first of its swing: her parry's
-  steps are done in a tenth of a second. The fold alone: the toes 40-81
-  mm back. A first step laid for the speed asked, 0.25 m ahead at 0.2
-  m/s: she could not pass over it - laid for her pace and 0.2 m/s more.
-  The pelvis neither listing nor turning as she stands: down in her
-  first steps, the search's row leaning on its list from the first.
+  against it): 615 J/m, 1.30 off a woman's band. Searched from there
+  (CMA-ES, 24 knobs, 1 920 rows, a walk's price and 15 a width off the
+  band): 0.34-0.51 off it, `looks.FORM` met, at 690-776 J/m - the
+  ankles' work 101 J/m where 31, the knees' 100 where 64, the hips' 83
+  where 59 -, its stops 3 of 10: the search's constants were every
+  row's, and her stand's. Searched again on the row's own setpoints and
+  the walk's own ways, its J/m by 25, a stop and a passage to her jog
+  and back among its trials (960 rows): a step 0.52 s, 0.13 s of it on
+  both feet, the fold 45 deg with the thigh coming on 0.32 of it, the
+  pelvis listing 3 deg and turning 1, the feet's track 0.044 m. In: 0.81
+  m/s at 574 J/m, 0.34-0.41 off the band - the heel 20 deg up as its
+  toes leave where 28, the knee 27-28 where 30 -, `looks.FORM` but her
+  head 38 mm aside and the standing hip 2.9 deg up where 3; in words
+  stiff 0.31, shuffling 0.24, no stilts. The row first found is her
+  quick step, a knot between her walk and EASE: on the walk's own shape
+  every passage to her jog was down in a step. Her ways 68 of 104 where
+  77 - nudged walking up 4 of 8 where 7, shoved 0 where 4, to her jog
+  and back 6 of 8 where 8 -; the page's presses under the director 23 of
+  24 where 20.
+- What felled her on the way, and what was done (2026-10-06, each by
+  trace). Both feet down and the rear one kept for her capture point
+  while her hips went on at 0.8 m/s: carried past the lead foot on the
+  rear toes, the lead sole at 5-100 N - a going foot leaves on its time
+  (`hold.WAITS_M_S`). Her capture point over or outside the standing
+  ankle through a single support at a track of 0.035 m, the next foot
+  landing inside it: leaned back in as it nears that ankle's line
+  (`hold.IN_M`). A stop on a long step, her feet 0.18 m staggered -
+  crept back, stepped about: the rear one brought up beside the other
+  (`hold.CLOSE_M`). Standing after a stop, the pelvis 3 mm over what her
+  legs reach flat: a heel rose to reach her, its ball pushed her back,
+  and the further back the more - standing she is no higher than both
+  reach flat. A first step laid for the speed asked, 0.25 m ahead at 0.2
+  m/s, she could not pass over: laid for her pace and 0.36 m/s more
+  (`going.GAINS_M_S`), a free foot down 1.5 steps after the other at the
+  latest (`LATE`). The fold alone, the toes 40-81 mm back: the thigh
+  comes on with it (`free.LEAD`). Tried and out: the heel risen through
+  the double support while that leg still bears her - stuck, and a foot
+  merely standing rose on its heel as the row turned; given to the
+  load's passing it is in and does nothing at this row's 2 deg. The free
+  foot's toes pinned through the first of its swing: her parry's steps
+  are done in a tenth of a second. The pelvis neither listing nor
+  turning as she stands: down in her first steps, a searched row leaning
+  on its list from the first.

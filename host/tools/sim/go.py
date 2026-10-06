@@ -29,10 +29,11 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 
 #: What her rows hold on a flat floor, (measure, least, most), held by test_gynoid_going.py:
 #: her speed, m/s, the J/m she draws, the knee as a foot lands, deg, the share of her landings
-#: with the other foot down, her steps. The walk's row walked 0.75-0.81 m/s at 380-397 J/m, its
-#: knee landing at 18-20 deg; the run's ran 1.44 m/s at 522; her jog 0.69-0.76 at 739-801;
-#: standing she took no step, and stood again after a walk one or two (2026-10-05).
-FORM = {'walk': (('speed', 0.65, 0.9), ('drawn', None, 450.0), ('knee', None, 30.0),
+#: with the other foot down, her steps. The walk's row walks 0.81 m/s at 574 J/m, its knee
+#: landing at 9-11 deg - 0.75-0.81 at 380-397, 18-20 deg, the row first found, her quick step
+#: now; the run's ran 1.44 m/s at 522; her jog 0.69-0.76 at 739-801; standing she took no
+#: step, and stood again after a walk one or two (2026-10-06).
+FORM = {'walk': (('speed', 0.65, 0.95), ('drawn', None, 650.0), ('knee', None, 30.0),
                  ('both', 1.0, None)),
         'run': (('speed', 1.35, 1.6), ('drawn', None, 620.0), ('both', None, 0.0)),
         'jog': (('speed', 0.55, 0.95), ('drawn', None, 900.0), ('both', None, 0.0)),
@@ -48,15 +49,15 @@ FELL_M, FELL_DEG, ROWS_HZ, STAND_WIDE_M = 0.55, 55.0, 60.0, 0.17
 #: With the stance free and the strut to 14 deg the search found a walk with no foot down a
 #: tenth of a second a step, its knee 14 deg behind plumb: 346 J/m, priced 50.5 (2026-10-05).
 SPANS = {
-    'walk': {'gaits.WALK.speed': (0.6, 1.0), 'gaits.WALK.step': (0.40, 0.62), 'both': (0.03, 0.25),
-             'gaits.WALK.bounce': (0.08, 0.35), 'gaits.WALK.knee': (6.0, 26.0),
-             'gaits.WALK.lean': (0.0, 6.0), 'gaits.WALK.fold': (10.0, 60.0),
+    'walk': {'gaits.WALK.speed': (0.6, 1.0), 'gaits.WALK.step': (0.40, 0.70), 'both': (0.03, 0.25),
+             'gaits.WALK.bounce': (0.08, 0.35), 'gaits.WALK.knee': (4.0, 26.0),
+             'gaits.WALK.lean': (0.0, 6.0), 'gaits.WALK.fold': (5.0, 60.0),
              'gaits.WALK.folded': (0.5, 1.0), 'gaits.WALK.track': (0.0, 0.05),
-             'gaits.WALK.under': (0.0, 0.117), 'gaits.WALK.land': (-20.0, 5.0),
-             'gaits.WALK.off': (0.0, 30.0), 'gaits.WALK.list': (0.0, 8.0),
-             'gaits.WALK.reach': (0.12, 0.36), 'going.TURN_K': (0.6, 1.8),
-             'going.SPEED_I': (0.0, 0.03), 'free.LIFT_M': (0.004, 0.03),
-             'strut.FLAT_S': (0.04, 0.25)},
+             'gaits.WALK.under': (0.0, 0.117), 'gaits.WALK.land': (-25.0, 5.0),
+             'gaits.WALK.off': (0.0, 50.0), 'gaits.WALK.list': (0.0, 8.0),
+             'gaits.WALK.turn': (0.0, 8.0), 'gaits.WALK.up': (0.0, 0.12),
+             'gaits.WALK.reach': (0.12, 0.40), 'going.GAINS_M_S': (0.1, 1.5),
+             'going.LATE': (1.0, 2.0), 'free.LEAD': (0.0, 1.0)},
     'between': {'gaits.JOG.speed': (0.6, 1.2), 'gaits.JOG.step': (0.36, 0.58),
                 'gaits.JOG.stand': (0.26, 0.64), 'gaits.JOG.up': (0.0, 0.1),
                 'gaits.JOG.rise': (0.0, 0.5), 'gaits.JOG.bounce': (0.1, 0.32),
@@ -72,6 +73,13 @@ SPANS = {
 #: steps on any placing. Her jog's row is tried on PASSAGES, rows asked: to her jog and to a
 #: stand again, to the run and to a stand again, PASS_S each.
 WALK_S, FROM_S, PASS_S, STARTS = 16.0, 8.0, 40.0, (1.0, 1.3, 1.6)
+#: A walk's price takes BAND_K a width it is off a woman's band (`normal.off`).
+BAND_K = 30.0
+#: Its energy, J/m, by ENERGY_J_M in a walk's cost; its stop asked too (STOP), down or still
+#: going at its end as a fall.
+ENERGY_J_M, STOP = 25.0, ('--ask', '0:-1 1.2:0 9.2:-1 13:-1', [])
+#: And a passage, its seconds: to her jog and to a stand again.
+PASSAGE, PASSAGE_S = ('--ask', '0:-1 1.3:0.5 12:-1 27:-1', []), 30.0
 PASSAGES = ('0:-1 1:0.5 13:-1', '0:-1 1.4:0.5 14.1:-1', '0:-1 1.2:1 18:-1', '0:-1 1.7:1 19.3:-1')
 
 
@@ -242,8 +250,10 @@ def went(track, to_s, values=None, form=None, shoves=(), asked=False):
         got = strides.measured(rows)
         got['energy'] = next((g['drawn'] for g in reversed(segments) if g['to'] > form[0]),
                              math.inf)
+        from tools.sim import fbx, normal
+        far, out = normal.off(normal.measured(*fbx.joints(rows)))
         measured = dict(got, broken=[(name, v, bound) for name, v, bound in looks.broken(got)],
-                        price=looks.priced(got))
+                        price=looks.priced(got), off=far, out=out)
     body.disarm()
     body.close()
     return {'fell': fell, 'segments': segments, 'form': measured}
@@ -262,7 +272,8 @@ def searched(kind, generations, lam, log_path, sigma=0.2):
     to_s = WALK_S if walks else PASS_S
     # a trial: its track and what else it sets
     trials = ([('--track', '0:-1 %g:-1 %g:0' % (k, k + 1.0), ['--form', '%g,%g' % (FROM_S, to_s)])
-               for k in STARTS] if walks else [('--ask', track, []) for track in PASSAGES])
+               for k in STARTS] + [STOP, PASSAGE] if walks
+              else [('--ask', track, []) for track in PASSAGES])
 
     def now(name):
         if name == 'both':
@@ -278,15 +289,20 @@ def searched(kind, generations, lam, log_path, sigma=0.2):
         up, last = result['fell'] or to_s, result['segments'][-1]
         if not walks:
             return 10.0 * (to_s - up) / to_s + 3e-4 * min(last['drawn'], 4000.0)
+        if walks and not result['form'] and not result['fell']:        # her stop
+            return 0.0 if abs(last['speed']) < 0.05 and last['steps'] <= 3 else 300.0
         price = result['form'].get('price', math.nan)
         if not result['fell'] and price == price:
-            return min(250.0, price)
+            return min(280.0, price + BAND_K * result['form'].get('off', 10.0)
+                       + result['form'].get('energy', 2000.0) / ENERGY_J_M)
         way = values.get('gaits.WALK.speed', gaits.WALK['speed']) * to_s
         return 300.0 + 10.0 * (1.0 - max(0.0, min(1.0, last['speed'] * up / way)))
 
     def runs(_pool, cands):
         jobs = [focus.Job('%d|%d' % (i, k), [sys.executable, '-X', 'utf8', os.path.abspath(__file__),
-                                              '--json', '--to', str(to_s), how, track]
+                                              '--json', '--to', str(
+                                                  PASSAGE_S if track == PASSAGE[1] else to_s),
+                                              how, track]
                           + more + ['%s=%r' % kv for kv in c.items()], 1.2, 600.0)
                 for i, c in enumerate(cands) for k, (how, track, more) in enumerate(trials)]
         out = {}
@@ -318,6 +334,8 @@ def shown(result):
                                     for k, _least, _most in looks.FORM))
         print('off it: %s; priced %.1f' % (', '.join('%s %.1f (%g)' % b for b in form['broken'])
                                            or 'nothing', form['price']))
+        print("off a woman's walk %.2f: %s" % (form.get('off', math.nan), ', '.join(
+            '%s %.3g (%g)' % tuple(o) for o in form.get('out', []))))
     print('fell at %.2f s' % result['fell'] if result['fell'] else 'up')
 
 

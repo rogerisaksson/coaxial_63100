@@ -72,3 +72,9 @@ Her walk as built is in [walk](walk.md), the one law's in
   optimum as the one law's. A walk into the wind, by four takes of one:
   crouched 1.0-1.9, landing bent 1.5-2.5, tripping 0.9-1.1, wide
   0.5-0.8, leaning 0.4-1.2 - the trunk 8-22 deg ahead -, slow.
+- The one law's walk since 2026-10-06 ([going](going.md)): 0.34 off the
+  band where 4.10, stiff 0.31 and shuffling 0.24 where stiff 2.38 - a
+  gait is named from how much of its words (`GAITS`): on stilts from
+  stiff 0.5, Groucho's from crouched 0.4, a run from flying 0.25.
+  test_gynoid_going.py holds eleven of its measures on the band, the
+  walk within 1.0 of it and its words under 0.5.

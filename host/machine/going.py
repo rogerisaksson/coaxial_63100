@@ -41,6 +41,14 @@ SPEED_I, TURN_K, FLY_K = 0.013, 1.6, 1.0
 #: stands on.
 ON_S, SLOW_M_S, WIDE, START_IN = 0.14, 0.3, 6.0, 0.25
 
+#: A walk's steps are laid for the speed asked, no more than GAINS_M_S over her last step's
+#: mean; a free foot is down LATE of a step after the other landed, wherever she is.
+GAINS_M_S, LATE = 0.36, 1.53
+
+#: The foot about to leave has its heel's rise in full as the other bears GIVEN more of her
+#: than it, of what both bear.
+GIVEN = 0.502
+
 #: A foot is down touching or bearing (`runner.TOUCH_M`, `LANDED_N`) from `free.LANDS_U` of its
 #: swing - or bearing BEARS_N wherever its swing is: what bears her is a contact, planned or not;
 #: one at 250-500 N mid-swing was none and she fell on it -, SWUNG_S at least in the air. At its
@@ -94,7 +102,12 @@ class Going:
         there = (0.5 * v * self.support()
                  + SPEED_S * (1.0 + FLY_K * (1.0 - share)) * (v - a['speed'])
                  + self.bias * (1.0 - hold.stood(a['speed'])))
-        return max(there, share * 0.5 * a['speed'] * self.support())
+        return max(there, share * 0.5 * self.goes() * self.support())
+
+    def goes(self):
+        """The speed her steps are laid for, m/s: the one asked, GAINS_M_S over her last step's
+        mean at most."""
+        return min(self.ask['speed'], max(0.0, self.pace) + GAINS_M_S)
 
     def landing(self, sign, hip, v, to_go=0.0, reach=0.0, beside=None):
         """(ankle, foot's turn) of the landing pose under `hip`, `to_go` s before it lands: the
@@ -157,7 +170,7 @@ class Going:
                            -(0.0 if other['stands'] else START_G) * G * span ** 2),
                   'to': (end, rate * span, 0.0)}
 
-    def _carried(self, standing, lead, pel, com, turn, dt):
+    def _carried(self, standing, lead, pel, com, turn, dt, loads=None):
         """({side: (ankle, foot's turn)}, the pelvis's target) with `standing` legs down, the
         one landed last `lead`: the bounce's height and on as she left it, never over what the
         legs that carry her reach; along the floor where she is, leaned as `hold.lean` has it."""
@@ -194,15 +207,24 @@ class Going:
                     self.legs[lead]['flat'], strut.rocker(
                         self.legs[lead], off, on[lead], sunk,
                         strut.heel(a['off'] * share, on[lead])), self.heading))))
+        # standing on both feet she is no higher than both reach flat: over it a heel rose to
+        # reach her, its ball pushed her back, and the further back the more (2026-10-06)
+        still = hold.stood(a['speed'])
+        if still > 0.0 and len(standing) == 2:
+            flat = min(strut.reach(1.0 if side == 'left' else -1.0, (pel[0], pel[2]), turn,
+                                   strut.ankle(self.legs[side]['flat'], 0.0, self.heading))
+                       for side in standing)
+            cap += still * (min(cap, flat) - cap)
         lean = hold.lean(self, standing, a, com)
         target, feet = (pel[0] + lean[0], min(y, cap), pel[2] + lean[1]), {}
         for side in standing:
             leg, sign = self.legs[side], 1.0 if side == 'left' else -1.0
             pre = 0.0
-            if share > 0.0 and self.stays not in (None, side):
-                both = a['stand'] - a['step']
-                pre = math.radians(a['off']) * share * eased(self.legs[lead]['t'] / both) * (
-                    1.0 - eased(self.legs[lead]['t'] / both - 2.0))
+            if share > 0.0 and self.stays not in (None, side) and loads is not None:
+                # the foot about to leave: its heel up as it gives its load to the other
+                gone = (loads[lead] - loads[side]) / max(1.0, loads[lead] + loads[side])
+                pre = math.radians(a['off']) * share * eased(gone / GIVEN) * eased(
+                    self.legs[lead]['t'] / (a['stand'] - a['step']))
             pitch = strut.rocker(leg, off, on[side], sunk, max(pre, strut.need(
                 figure.hip(sign, target, turn), leg['flat'], self.heading)))
             feet[side] = (strut.ankle(leg['flat'], pitch, self.heading),
@@ -226,9 +248,10 @@ class Going:
         c, s = math.cos(self.heading), math.sin(self.heading)
         on = sub(figure.hip(-sign, pel, now), other['flat'])
         air = a['step'] - both
-        due = max(max(0.0, (0.5 * a['speed'] * a['step'] + a['under'] - (on[0] * s + on[2] * c))
+        due = max(max(0.0, (0.5 * self.goes() * a['step'] + a['under'] - (on[0] * s + on[2] * c))
                       / max(SLOW_M_S, v[0] * s + v[2] * c)),
                   (air - leg['t']) * hold.stood(a['speed']))
+        due = min(due, max(0.0, LATE * a['step'] - other['t']))
         xi = hold.point(self, com)
         far = sign * ((xi[0] - other['flat'][0]) * c - (xi[1] - other['flat'][2]) * s)
         if far > 0.0:
@@ -302,11 +325,16 @@ class Going:
         # as it lands, `list` half a step on, none a step on
         roll = math.radians(a['list']) * {'left': -1.0, 'right': 1.0}.get(lead, 0.0) * math.sin(
             math.pi * min(1.0, self.legs[lead]['t'] / a['step']) if lead else 0.0)
-        want = mul(mul(ry(self.heading), rx(math.radians(a['lean']))), figure.rz(-roll))
+        # and turned with the leg that lands: its hip `turn` ahead as it comes down, the
+        # other's a step on; standing longer, square again
+        beat = self.legs[lead]['t'] / a['step'] if lead else 2.0
+        yaw = math.radians(a['turn']) * {'left': -1.0, 'right': 1.0}.get(lead, 0.0) * (
+            math.cos(math.pi * beat) if beat <= 1.0 else eased(beat - 1.0) - 1.0)
+        want = mul(mul(ry(self.heading + yaw), rx(math.radians(a['lean']))), figure.rz(-roll))
         turn = mul(walkplan.turned(tuple(TURN_K * e for e in walkplan.vee(mul(want, t(now))))),
                    want)
-        feet, target = (self._carried(standing, lead, pel, com, turn, dt) if standing else
-                        ({}, pel))
+        feet, target = (self._carried(standing, lead, pel, com, turn, dt, loads) if standing
+                        else ({}, pel))
         out, swing = {}, {}
         for side, sign in walkplan.SIDES:
             leg, other = self.legs[side], self.legs[walkplan._OTHER[side]]
@@ -334,6 +362,6 @@ class Going:
                 out[side + k] = math.degrees(q)
             out[side + '_foot'] = 0.0
             swing[side] = -out[side + '_hip']
-        out.update(free.upper(self, swing, roll, dt))
+        out.update(free.upper(self, swing, roll, dt, yaw))
         self.last = out
         return out
