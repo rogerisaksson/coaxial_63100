@@ -273,17 +273,21 @@ shoves, the scoreboard and its searches. The board's own are in
   read by the foot that stood as it began - the user: what follows a
   shove is the standing leg's; a trip the swinging foot's). 38 N, one
   foot down: from behind 6 of 6 up and from ahead 6 of 6; over the
-  standing foot 2 of 6, to her free side 1 of 6 - the free foot could
-  land there and does not in time: it is aimed by her centre of mass's
-  speed, filtered, after the shove. By the moment: the standing foot
-  0.44 s down, the free one coming down, 15 of 16 up; 0.16-0.30 s down,
-  the free one just gone, 16 of 32. 70 N: from ahead 8 of 8, from behind
-  5 of 8, any way with a side to it 4 of 48. 120 N: none, standing,
-  walking or running. A shove of 120 N for 0.12 s moves her capture
-  point 14 cm, and it runs on as e^(3.3 t): a tenth of a second later
-  seen, a step 39 % longer. The way on (the user): detectors at an
-  impulse the IMU has - a shove, a slip, a strike -, a table under the
-  law's own pace, keyed by the shove's way from the standing foot, that
-  foot's seconds down and one foot or both; its answer the law's own
-  handles - which foot leaves now, where it lands, how long - so the
-  hand back is the law's next step.
+  standing foot 2 of 6, to her free side 1 of 6 - traced, 0.17 s into a
+  stance: the free foot is aimed across at her capture point as it is,
+  110 mm from the standing foot, not as it will be when the foot is
+  down; that point runs 38 to 125 mm in 0.14 s, the aim after it to 169,
+  the foot in to 134 and out again, down 3 cm short; the steps after are
+  hurried, 0.24 s each, a sole struck 740-800 N, her capture point
+  0.54-0.73 m ahead of the standing foot, till a foot is not there. By
+  the moment: the standing foot 0.44 s down, the free one coming down,
+  15 of 16 up; 0.16-0.30 s down, the free one just gone, 16 of 32. 70 N:
+  from ahead 8 of 8, from behind 5 of 8, any way with a side to it 4 of
+  48. 120 N: none, standing, walking or running. A shove of 120 N for
+  0.12 s moves her capture point 14 cm, and it runs on as e^(3.3 t): a
+  tenth of a second later seen, a step 39 % longer. The way on (the
+  user): detectors at an impulse the IMU has - a shove, a slip, a strike
+  -, a table under the law's own pace, keyed by the shove's way from the
+  standing foot, that foot's seconds down and one foot or both; its
+  answer the law's own handles - which foot leaves now, where it lands,
+  how long - so the hand back is the law's next step.
