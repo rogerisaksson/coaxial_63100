@@ -53,13 +53,18 @@ CROWN, TRUNK_M, CAR_LOW, CAR_BODY, CAR_CABIN, BAR_M = 0.35, 0.12, 0.25, 0.55, (0
 
 #: The line: a span's tangents this much of its chord, sampled every DS m; its laps. And how
 #: it crosses each gate, a row a gate: turned off the gate's heading, degrees, and its tangent
-#: there, of TENSION's - the tuner's (`tools/sim/quad_race.py`); the first as it stands.
-TENSION, DS, LAPS = 1.186, 0.25, 2
-WAYS = tuple((turn, 1.0) for turn in (0.0, 13.4, -25.0, 8.4, -16.1, 6.6, 10.5, 2.7, 4.1, 8.4,
-                                      -16.1, -13.6, 6.2, 18.3))
+#: there, of TENSION's - the tuner's (`tools/sim/quad_race.py`); the first as it stands. It
+#: rises through a gate SLOPE of the way from the gate before it to the one after, the first
+#: level: level through each, the climb from the second gate to the third - 3.5 m in 12.5 -
+#: was an S of 10 m/s^2 up and down at 10 m/s, the frame 1.9 m under it; rising, 0.26 m, a
+#: lap 17.8 s where 19.3 on the same plan, and half its size flies where it struck
+#: (2026-10-06).
+TENSION, DS, LAPS, SLOPE = 1.167, 0.25, 2, 1.075
+WAYS = tuple((turn, 1.0) for turn in (0.0, 6.2, -17.3, 10.7, -10.9, 7.0, 5.4, 11.3, -5.6, 10.0,
+                                      -10.2, -10.2, 2.7, 16.9))
 
-#: The lean a lap asks, of the pull along the floor all of the frame's rotors give - 22 m/s^2,
-#: 66 degrees, more than the envelopes leave it for long - and its speed at most, m/s. The
+#: The lean a lap asks, of the pull along the floor all of the frame's rotors give - 27 m/s^2,
+#: 70 degrees, more than the envelopes leave it for long - and its speed at most, m/s. The
 #: pull it is planned on is the envelopes' share of that lean, EASY of the frame's whole at
 #: the least, come down to in EASE_S of the whole and back up in twice that:
 #: planned on what the law's reach left, 11 m/s^2 with the envelopes spent, a lap never eased
@@ -76,12 +81,14 @@ WAYS = tuple((turn, 1.0) for turn in (0.0, 13.4, -25.0, 8.4, -16.1, 6.6, 10.5, 2
 #: about the frame; at 26 one wind had it 0.74 m off a gate and nothing about it; the swing
 #: not counted, a lean of 26 struck the slalom's gate in four flights of four. Stiffer loops
 #: do not buy it: the tilt's at twice its gain rang, the spot's at four struck a gate - a
-#: lean turns no faster than the rotors spool. The tuner's, 60 generations of 20 flown on
-#: ideal rotors (2026-10-06) - these, LEAD_S, LOOK_S, TENSION and the line's crossings: laps
-#: 19.2 and 18.1 s where 20.8 and 19.5, on four boards 20.8 and 20.0 where 21.9 and 20.7;
-#: in six winds and at three sizes it never flew, a gate 0.61 m off at the most where 0.92.
-LEAN, EASY, EASE_S, TOP_M_S = 0.642, 0.116, 2.0, 12.0
-GRIP, BRAKE, GO, AHEAD_M, DROP, SWING_S = 0.795, 0.39, 0.3, 40.0, 0.408, 0.83
+#: lean turns no faster than the rotors spool. The tuner's, flown on ideal rotors (2026-10-06)
+#: - these, LEAD_S, LOOK_S, SOFT_S, TENSION, SLOPE and the line's crossings. On the level
+#: line, 60 generations of 20: laps 19.2 and 18.1 s where 20.8 and 19.5. On the line rising
+#: through its gates, 80 of 24: 16.1 and 15.3, on four boards 16.4 and 15.9 where 21.9 and
+#: 20.7 as the day began, in a stuffy room 18.2 and 17.1; in four winds it never flew a gate
+#: 0.59 m off at the most.
+LEAN, EASY, EASE_S, TOP_M_S = 0.794, 0.116, 2.0, 12.0
+GRIP, BRAKE, GO, AHEAD_M, DROP, SWING_S = 0.639, 0.395, 0.386, 40.0, 0.679, 0.576
 STOP = 0.25
 
 #: The frame's place on the line is looked for REACH_M on from the last; the law's spot is kept
@@ -103,7 +110,7 @@ STOP = 0.25
 #: the rotors spooled for the pull that stepped with it - on the four boards in seven winds
 #: laps 20.2-20.7 and 19.6-20.7 s, their envelopes at 0.72-0.77, a gate 0.67 m off at the
 #: most; softened, 19.5-19.7 and 18.6-19.1, 0.66-0.69, 0.50 m (2026-10-06).
-REACH_M, SLACK_M, LEAD_S, LOOK_S, LOOK_M, SOFT_S = 3.0, 2.0, 0.154, 0.467, 3.0, 0.1
+REACH_M, SLACK_M, LEAD_S, LOOK_S, LOOK_M, SOFT_S = 3.0, 2.0, 0.146, 0.334, 3.0, 0.096
 AIM_K, TURN_RAD_S, STAND_M, STAND_M_S = 5.0, math.tau, 0.6, 0.5
 
 #: The lap's rows: the hover's, at a lap's pace up and down, its nose free; the lean a row
@@ -185,12 +192,12 @@ def solids():
 
 def _span(a, b, u):
     """The point `u` of the way along the Hermite span from crossing `a` to crossing `b` - a
-    gate's middle, the way through it, degrees, and its tangent's tension: through each along
-    its way, level."""
+    gate's middle, the way through it, degrees, its tangent's tension and its rise, m a m
+    along the floor: through each along its way."""
     chord = TENSION * math.dist(a[:3], b[:3])
     out = []
     for k in range(3):
-        m0, m1 = ((g[4] * chord * math.sin(math.radians(g[3])), 0.0,
+        m0, m1 = ((g[4] * chord * math.sin(math.radians(g[3])), g[4] * chord * g[5],
                    g[4] * chord * math.cos(math.radians(g[3])))[k] for g in (a, b))
         out.append((2 * u ** 3 - 3 * u ** 2 + 1) * a[k] + (u ** 3 - 2 * u ** 2 + u) * m0
                    + (-2 * u ** 3 + 3 * u ** 2) * b[k] + (u ** 3 - u ** 2) * m1)
@@ -204,8 +211,13 @@ def track():
     'swings': what that turn changes by a metre, 1/m^2, 'gates': where each gate is along it,
     m, 'length', 'step'}."""
     fine, marks = [], []
-    cross = [(x, y, z, heading + turn, tension)
-             for (x, y, z, heading), (turn, tension) in zip(GATES, WAYS)]
+    count = len(GATES)
+    rises = [SLOPE * (GATES[(i + 1) % count][1] - GATES[i - 1][1]) / (
+        math.dist(GATES[i - 1][:3:2], GATES[i][:3:2])
+        + math.dist(GATES[i][:3:2], GATES[(i + 1) % count][:3:2])) if i else 0.0
+        for i in range(count)]
+    cross = [(x, y, z, heading + turn, tension, rise)
+             for (x, y, z, heading), (turn, tension), rise in zip(GATES, WAYS, rises)]
     for i, gate in enumerate(cross):
         marks.append(len(fine))
         fine += [_span(gate, cross[(i + 1) % len(cross)], u / 64.0) for u in range(64)]

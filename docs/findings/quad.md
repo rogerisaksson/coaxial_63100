@@ -211,3 +211,27 @@ The board's own are in [FINDINGS](../FINDINGS.md).
   Settled an hour idle in its room first, the stage on, a board is at
   88 C on the bench and never fit to fly. Stuffy and the 60 % pack are a
   candidate's eleventh and twelfth flights.
+- QUAD's line rises through its gates (`course.SLOPE`, 2026-10-06). Level
+  through each, a climb is an S: from the second gate to the third, 3.5 m
+  in 12.5, 10 m/s^2 up and down at 10 m/s, and the frame 1.9 m under its
+  line. Crossed at the slope from the gate before to the one after, 0.26 m,
+  and a lap 17.8 s where 19.3 on the level line's plan, a gate 0.65 m off
+  where 0.48; half its size, struck on every plan before, flies 9.5 and
+  8.8 s. Searched on that line, 80 generations of 24 on ideal rotors: 16.1
+  and 15.3 s, a gate 0.45 m off; the four boards 16.4 and 15.9 at
+  0.67-0.74 of their envelopes, stuffy 18.2 and 17.1, the pack at 60 % 16.4
+  and 15.9 - 33.3 as the tuner counts it where 38.5, 33.2 in four winds it
+  never flew. A point round that line on the plan's shares: 14.0 s, 15.1
+  with the swing's limit.
+- What looks jerky (the user, 2026-10-06: as of line segments, not one fast
+  and smooth move). Flown on ideal rotors, the pull smoothed over 0.1 s:
+  as the day began its jerk 48-52 m/s^3 rms, its discs leaning over
+  137-146 deg/s rms, its pull along its way turning from speeding to
+  slowing 27-29 times a lap; tuned on the rising line 43-46, 123-133,
+  20-23. The line's joints are not it: a closed C2 cubic spline through
+  the gates' middles, by chord length, flown on the same plan - 16.4 and
+  15.5 s - jerks 43-44 and turns 20-26 times, 0.04 m about the frame where
+  0.5; with a monotone cubic's heights 47-50. The tuner's crossings lie
+  8.0 deg rms off the way from the gate before to the one after, 13.0 off
+  the gates' own headings: it had turned the line toward a spline's. What
+  jerks is the plan, a burst of speed and a brake a gate.

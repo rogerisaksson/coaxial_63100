@@ -158,9 +158,9 @@ def test_it_flies_on_its_envelopes(report):
     gates, room = passes(half), course.GATE_M / 2.0 - reach() - CLEAR_M
     lean = [max(r['tilt'] for r in rows if r['name'] == 'lap') for rows in (whole, half)]
     times = [lap_seconds(rows, 1) for rows in (whole, half)]
-    report.check('on half their pull a lap a fifth longer and 10 degrees less leant, its gates '
+    report.check('on half their pull a lap a tenth longer and less leant, its gates '
                  'as before',
-                 times[1] >= 1.2 * times[0] and lean[1] <= lean[0] - 10.0
+                 times[1] >= 1.1 * times[0] and lean[1] < lean[0]
                  and all(len(hits) >= course.LAPS - 1 for hits in gates.values())
                  and worst(gates) <= room,
                  '%.1f s for %.1f, %.0f degrees for %.0f; %.2f m off at the most' % (

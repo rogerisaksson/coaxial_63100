@@ -354,7 +354,7 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
 - **`test_sensorless`** overpowered servo flakes 1 gate in 4, `test_daq_api`'s
   first dt once (2026-10-05). DOD: 20 green.
 - **QUAD**: its optimiser robust and fast as hell (findings/quad.md) -
-  rooms, pack in its trials, the lean's swing, half its size.
+  smooth too: jerk in its cost, a spline's line, the swing.
 - **A1335 CRC** reported, not checked. DOD: the polynomial known, checked.
 - **`testline/plans/coaxial_63100_fct.yaml`** limits are placeholders.
   DOD: measured.
