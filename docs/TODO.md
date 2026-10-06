@@ -278,10 +278,10 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
     round on the page, no fall.
 31. **A language for how she moves** (the user, 2026-10-05: each concept on a
     reference, asked as tuples; 2026-10-06: a base, its accents by amount, a
-    transition between two). In: `normal.WORDS`, `gaits.MANNERS`, M Z X. DOD: a
-    catwalk; tripping no shuffle; a standing accent with a side; 100 % a take's
-    measure; a transition a path and a gate; a planner asking them of a wind or
-    a slope; sitting, rising.
+    transition between two). In: `normal.WORDS`, `gaits.MANNERS`, M Z X. DOD:
+    tripping no shuffle; a standing accent with a side; 100 % a take's measure;
+    a transition a path and a gate; a planner asking them of a wind or a slope;
+    sitting, rising.
 
 ## Bench
 

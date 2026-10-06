@@ -162,7 +162,8 @@ def placed(law):
 
 def formed(rows, segments, window):
     """A window's form: the look's measures of its `rows`, what of `looks.FORM` they break,
-    their price; how far off a woman's band, in words and by name (`tools.sim.normal`)."""
+    their price; her walk's by place (`normal.measured`), how far off a woman's band, in
+    words and by name."""
     if len(rows) <= 30:
         return {}
     from tools.sim import fbx, looks, normal, strides
@@ -172,7 +173,7 @@ def formed(rows, segments, window):
     far, out = normal.off(walk)
     return dict(got, broken=[(name, v, bound) for name, v, bound in looks.broken(got)],
                 price=looks.priced(got), off=far, out=out, said=normal.said(walk),
-                named=normal.named(walk))
+                named=normal.named(walk), walk={name: float(v) for name, v in walk.items()})
 
 
 def went(track, to_s, values=None, form=None, shoves=(), asked=False, manner=()):
@@ -257,10 +258,10 @@ def went(track, to_s, values=None, form=None, shoves=(), asked=False, manner=())
         seg['load'] = max(seg['load'], bus['pelvis.pose.left_load'], bus['pelvis.pose.right_load'])
         if bus['t'] - said >= 1.0 / ROWS_HZ and any(a <= bus['t'] < b for a, b in windows):
             from tools.sim import look
-            said, row = bus['t'], look.sample(bus, stand_in, world)
+            said, seen = bus['t'], look.sample(bus, stand_in, world)
             for (a, b), into in zip(windows, rows):
                 if a <= bus['t'] < b:
-                    into.append(row)
+                    into.append(seen)
         if marks and bus['t'] >= marks[0]:
             close(marks.pop(0))
         up = 1.0 - 2.0 * (bus['pelvis.pose.qx'] ** 2 + bus['pelvis.pose.qz'] ** 2)

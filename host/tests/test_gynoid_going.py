@@ -168,10 +168,11 @@ def test_its_walk_beside_a_womans(report):
 #: Her manners on the law, each asked alone at an amount of 1 as she walks: (manner, the words
 #: it is to be read back in) - MANNER_FOR s each, read over its last READ_S, from FROM_S on,
 #: then plain again. Up through it on 12 timings of 12: leaning 0.50 at 559 J/m, crouched 0.58
-#: at 409, wide 0.68 at 495, tripping 0.36 at 666, into the wind leaning 0.48 and crouched 0.31
-#: at 539, and plain again 0.26 off a woman's band (2026-10-06).
+#: at 409, wide 0.68 at 495, tripping 0.36 at 666, catwalk swaying 0.40 at 570, into the wind
+#: leaning 0.48 and crouched 0.31 at 529, and plain again 0.21 off a woman's band (2026-10-06).
 MANNERS = (('leaning', ('leaning',)), ('crouched', ('crouched',)), ('wide', ('wide',)),
-           ('tripping', ('tripping',)), ('into the wind', ('leaning', 'crouched')))
+           ('tripping', ('tripping',)), ('catwalk', ('swaying',)),
+           ('into the wind', ('leaning', 'crouched')))
 FROM_S, MANNER_FOR, READ_S = 8.0, 8.0, 5.0
 
 

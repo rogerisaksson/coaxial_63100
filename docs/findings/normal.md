@@ -86,21 +86,25 @@ Her walk as built is in [walk](walk.md), the one law's in
   the less the less a walk's the row is: leaning her trunk 9 deg more;
   crouched the standing knee - the row's `strut`, a setpoint since - 18
   deg more and the landing knee 14; wide her feet's track 36 mm;
-  tripping a step 0.1 s shorter; into the wind leaning 1, crouched 0.8,
-  tripping 0.4. One walk through them and plain again, read back:
-  leaning 0.50 at 559 J/m; crouched 0.58, Groucho's, at 409; wide 0.68
-  at 495; tripping 0.36 with shuffling 0.57 - a shuffle, the heel 13 deg
-  up as its toes leave - at 666; into the wind leaning 0.48, crouched
-  0.31, landing bent 0.77 at 539; plain again 0.26 off the band at 494.
-  Bent legs carry a lean: leaned 12 deg more she fell from her stand,
-  with the standing knee at 18 deg she walked so, at 24 deg leaned 15
-  more. No catwalk on the law yet: its pelvis turned 5 deg fell at 3.9
-  s, listed 6 deg it walked. test_gynoid_going.py holds each manner's
-  words and the plain walk after them; M picks a manner on the page, Z
-  and X its amount, each keeping its own. The user's frame (2026-10-06):
-  a base - a pose, a gait -, its accents by amount, a transition between
-  two. As built: standing is the gait's row at no speed, so one base and
-  its accents within what bears her; a transition a thing of its own
-  where two bases' mix is no movement - her walk to her jog by the knots
-  QUICK and EASE and a stay, 23 of 24 where 2 of 6 mixed straight - or
-  where what bears her changes.
+  tripping a step 0.1 s shorter; catwalk the pelvis's list 1.9 deg more
+  and its turn 12.9; into the wind leaning 1, crouched 0.8, tripping
+  0.4. One walk through them and plain again, read back: leaning 0.50 at
+  559 J/m; crouched 0.58, Groucho's, at 409; wide 0.68 at 495; tripping
+  0.36 with shuffling 0.57 - a shuffle, the heel 13 deg up as its toes
+  leave - at 666; catwalk swaying 0.40, a catwalk, the pelvis turning 29
+  deg and rolling 11.5, at 570; into the wind leaning 0.48, crouched
+  0.31, landing bent 0.77 at 529; plain again 0.21 off the band at 497 -
+  up through all six on 12 timings of 12. Bent legs carry a lean: leaned
+  12 deg more she fell from her stand, with the standing knee at 18 deg
+  she walked so, at 24 deg leaned 15 more. The catwalk came with the
+  free foot's raise eased and no foot hurried: before, its pelvis turned
+  5 deg fell at 3.9 s; now 16 deg walks, and with the list at 6 falls
+  from her stand. test_gynoid_going.py holds each manner's words and the
+  plain walk after them; M picks a manner on the page, Z and X its
+  amount, each keeping its own. The user's frame (2026-10-06): a base -
+  a pose, a gait -, its accents by amount, a transition between two. As
+  built: standing is the gait's row at no speed, so one base and its
+  accents within what bears her; a transition a thing of its own where
+  two bases' mix is no movement - her walk to her jog by the knots QUICK
+  and EASE and a stay, 23 of 24 where 2 of 6 mixed straight - or where
+  what bears her changes.

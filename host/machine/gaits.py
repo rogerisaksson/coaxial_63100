@@ -80,9 +80,11 @@ BESIDE_S = 0.05
 #: J/m (2026-10-06): leaning 0.50 at 559, her trunk 16 deg - at 12 deg more she fell from her
 #: stand, and with her knees bent 18 was up at 17 and at 20: bent legs carry a lean -;
 #: crouched 0.58, Groucho's, at 409; wide 0.68, her feet 0.36 legs apart, at 495; tripping
-#: 0.36, a step 0.42 s, at 666.
+#: 0.36, a step 0.42 s, at 666; catwalk swaying 0.40, the pelvis turning 29 deg and rolling
+#: 11.5, at 570 - its list 6 deg and its turn 16 fell from her stand.
 MANNERS = {'leaning': {'lean': 9.0}, 'crouched': {'strut': 18.0, 'knee': 14.0},
            'wide': {'track': 0.036}, 'tripping': {'step': -0.1, 'stand': -0.1},
+           'catwalk': {'list': 1.9, 'turn': 12.9},
            'into the wind': (('leaning', 1.0), ('crouched', 0.8), ('tripping', 0.4))}
 MANNER_S = 2.0
 
