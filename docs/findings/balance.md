@@ -309,6 +309,12 @@ shoves, the scoreboard and its searches. The board's own are in
   were, 501 J/m and 0.20; the page's presses under the director 66 of 72
   either way. The user: a recovery is two steps or more of staggering;
   the thing is to see it at once and to get a leg out - which this is,
-  the leg out in full. Left: over the standing foot from 70 N, where no
-  free foot can land - the free one down at once and the standing one
-  out; 120 N.
+  the leg out in full. Left, over the standing foot from 70 N, traced:
+  the first step down as ever, the second a side step of 62 cm that
+  catches her, her soles bearing 20-150 N for 60 ms after it, her
+  capture point 7 cm outside that foot and held there 0.5 s; the other
+  foot in beside it, and both down 0.74 s as that point runs on - a foot
+  leaves only with it over the one that stays. Let leave at once with it
+  past her, the foot steps out 73 cm more and she goes on sideways: 36
+  of 64 as before, out. Each recovery step a leap; smaller and sooner,
+  or across the standing leg, is the reflex's to find (docs/TODO.md).
