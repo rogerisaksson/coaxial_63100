@@ -1,8 +1,9 @@
 """The QUAD page's flight: four stand-in boards armed, a pass of it, their envelopes' share.
 
     rotor = arm(Coaxial63100(execution_mode=SIMULATED).open())     # a board for flight, four times
-    stage = step(rotors, sky, route, flying, flight, clock, dt)    # a pass of the flight
-    flight['share'] = envelope(rotors, flight['share'], dt)        # what the boards leave of the pull
+    flight = fresh()                                               # the flights' own, on the floor
+    for clock, frame in passed(rotors, sky, route, flying, flight, clock, dt):   # a pass, its steps
+        ...
 
 `CARD` is what the page flies, flight after flight: the routine (machine.aerobatics), its boards
 and their observers warmed on it, then the course (machine.course).
@@ -71,6 +72,12 @@ FIT = 0.7
 #: A spent pack is changed on the floor in this long, s.
 SWAP_S = 3.0
 
+#: The flight is stepped this long at the most, s: a late pass is its steps. Stepped 50 ms - a
+#: starved page's every pass - the frame rang on its rotors: 30 A through the corkscrew where
+#: 24 at 45 ms, the envelopes' share at 0.22, `home` never held and the pack spent on it 38 s
+#: later (2026-10-06).
+STEP_S = 0.025
+
 #: A board's laminate to the air under its propeller, K/W, in its record: a third of the
 #: bench's still air, an assumption - the wash over both faces. On the bench's 8.33 the
 #: pack's 63 V had the gate stage at 0.65-0.72 of its envelope in a hover and every board
@@ -104,6 +111,38 @@ def arm(rig):
             'amps': 0.0, 'angle': 0.0, 'ask': 0.0,
             'pi': SpeedPI(SPEED_HZ, I_MAX, kt, ROTOR_J, ROTOR_B, quad.K_DRAG),
             'budget': {}, 'ident': {}, 'board_c': None}
+
+
+def fresh():
+    """The flights' own before the first: the stage, the apex, the share of their pull the
+    envelopes leave and how long it has been none, the lap, how long a spent pack has stood,
+    the pack's cells and a flight's peaks of them."""
+    cells = quad.pack()
+    return {'stage': CARD[0][0], 'apex': 0.0, 'share': 1.0, 'gone': 0.0, 'lap': None,
+            'stood': 0.0, 'cells': cells, 'peak': {'watts': 0.0, 'low': cells['volts']}}
+
+
+def steps(dt):
+    """A pass of `dt` s as the flight's steps, s each: STEP_S at the most."""
+    count = max(1, math.ceil(dt / STEP_S - 1e-9))
+    return [dt / count] * count
+
+
+def passed(rotors, sky, route, flying, flight, clock, dt):
+    """The flight a pass of `dt` s on from `clock`, (its clock, the frame) after each of its
+    steps: the envelopes' share and how long it has been none, the card's row flown, its lap
+    where the row is a line's, a spent pack changed where it has stood to be."""
+    for part in steps(dt):
+        clock += part
+        row = route['row']
+        flight['share'] = envelope(rotors, flight['share'], part)
+        flight['gone'] = flight['gone'] + part if flight['share'] <= 0.0 else 0.0
+        name = flight['stage'] = step(rotors, sky, route, flying, flight, clock, part)
+        flight['lap'] = route.get('lap') if callable(route['card'][route['row']][1]) else None
+        frame = sky.state()
+        flight['stood'] = kept(flight, flight['stood'], name, route['row'] != row
+                               and 'fit' in route['card'][row][4].split(), frame, part)
+        yield clock, frame
 
 
 def step(rotors, sky, route, flying, flight, clock, dt):

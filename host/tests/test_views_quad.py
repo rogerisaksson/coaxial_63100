@@ -1,4 +1,4 @@
-"""The QUAD page on four stand-in boards: their air, its words, traces and world, its flights."""
+"""The QUAD page on four stand-in boards: their air, its words and traces, its flights."""
 import math
 import sys
 import time
@@ -139,48 +139,6 @@ def test_its_traces_are_drawn(report):
                  'dots a row, top down: %s' % spike)
 
 
-def test_its_world_is_drawn(report):
-    """coaxial.graphics.scenery from behind the grid, the alley's gate ahead: the course's gates
-    stood only where one is named, that one in its own ink; an eye flown through a gate's frame
-    and past the trees draws no line across the view; far off, nothing; the ground its grid."""
-    from coaxial.graphics import engine, quadcopter, scenery, shapes
-    from coaxial.model.blocks import numpy as np
-    m, reach_m = shapes.view(180.0, 18.0), 4.0
-    cam = engine.fine(engine.camera(100, 36, reach_m, distance=quadcopter.SIGHT * reach_m))
-
-    def lit(dots, ink, name):
-        """The cells of `ink`'s hue among those with dots."""
-        want = np.asarray(scenery.INKS[name], float)
-        cells = dots.reshape(36, 4, 100, 2).any(axis=(1, 3))
-        size = np.linalg.norm(ink, axis=2)
-        like = (ink @ want) / np.maximum(1e-9, size * np.linalg.norm(want))
-        return int((cells & (size > 0.0) & (like > 0.9995)).sum())
-    (bare, bare_ink), = scenery.props(m, cam, (0.0, 2.0, 5.0))
-    (stood, ink), = scenery.props(m, cam, (0.0, 2.0, 5.0), 1)
-    report.check('the gates stood only where one is named, the one flown to next in its ink',
-                 stood.sum() > bare.sum() + 200 and lit(stood, ink, 'next') >= 20
-                 and lit(bare, bare_ink, 'next') == 0 and lit(bare, bare_ink, 'gate') == 0
-                 and lit(stood, ink, 'gate') >= 20 and lit(bare, bare_ink, 'tree') >= 20,
-                 '%d dots for %d bare; %d cells of the next gate\'s ink, %d of the others\', %d '
-                 'of the trees\'' % (stood.sum(), bare.sum(), lit(stood, ink, 'next'),
-                                    lit(stood, ink, 'gate'), lit(bare, bare_ink, 'tree')))
-    most = 0.0
-    for z in np.arange(-22.0, 32.0, 0.5):
-        (dots, _ink), = scenery.props(m, cam, (0.0, 2.2, float(z)), 1)
-        most = max(most, float(dots.mean()))
-    (far, _ink), = scenery.props(m, cam, (0.0, 2.0, 400.0), 1)
-    report.check('an eye flown through the gates\' frames and past the trees draws under a '
-                 'tenth of the view; 400 m off, nothing',
-                 0.0 < most <= 0.1 and far.sum() == 0,
-                 '%.1f %% of the dots at the most, %d far off' % (100.0 * most, far.sum()))
-    floor = scenery.ground(m, cam, (0.0, 2.0, 5.0))
-    report.check('the ground its grid, dimmer the further off',
-                 floor.shape == (cam['height'], cam['width']) and 0.0 < floor.max() <= 1.0
-                 and 200 <= (floor > 0.0).sum() and floor[floor > 0.0].min() >= 0.2,
-                 '%d dots, %.2f-%.2f bright' % ((floor > 0.0).sum(), floor[floor > 0.0].min(),
-                                               floor.max()))
-
-
 #: The page's flights drawn this long at most, s.
 LANDED_S = 200.0
 
@@ -192,57 +150,79 @@ BEHIND = 0.2
 TEST_PACK_AH = 0.075
 
 
-def test_the_page_flies_four_boards(report):
-    """The page on its four stand-in boards and a small pack, into its third flight: the quad
-    drawn in the viewport; flown from its first hover, no observer STABLE yet, inside the
-    boards' envelopes - none tripped, the pull cut under full tilt; full tilt past 20 m, the
-    fall burned to a
-    stop over the floor and held at 10 cm; the bus drooping under it; the pack spent in the
-    second flight, the way down, a charged one on the floor and its routine again - the
-    observers kept through it all."""
-    from coaxial.devices.thermal import THROTTLE_AT
-    from machine import aerobatics, quad
+def paged(card, done, pack_ah=None):
+    """The page headless on `card` - and a pack of `pack_ah` A h - until `done(the stages flown,
+    the one it is in)` at a frame, LANDED_S drawn at the most: (a row a step of its flight, a
+    row a frame - its stage, its art's braille cells, the gate lit - its frames a second)."""
+    from machine import quad
     from terminal.ui.screen import FPS_CAP
     from terminal.views import show_quad as view
     from terminal.views.quad import flight as flown
     from tools.render import page
+    steps, frames, flew = [], [], set()
+    was = view.compose, flown.step, flown.CARD, quad.PACK_AH, view.quadcopter.render
 
-    rows, real, pack_ah, card = [], view.compose, quad.PACK_AH, flown.CARD
-    first = aerobatics.CARD[[name for name, *_row in aerobatics.CARD].index('hover') + 1][0]
+    class Done(Exception):
+        """What it was flown for is flown."""
 
-    class Again(Exception):
-        """The flight after the pack's change in its routine."""
+    def stepped(rotors, sky, route, flying, flight, clock, dt):
+        name = was[1](rotors, sky, route, flying, flight, clock, dt)
+        frame, lap, cells = sky.state(), route.get('lap') or {}, flight['cells']
+        flew.add(name)
+        steps.append({'name': name, 't': time.monotonic(), 'dt': dt, 'x': float(frame['at'][0]),
+                      'y': frame['h'], 'z': float(frame['at'][2]),
+                      'v': math.sqrt(sum(float(c) ** 2 for c in frame['vel'])),
+                      'share': flight['share'], 'laps': lap.get('laps', 0), 'of': lap.get('of', 0),
+                      'amps': max(r['amps'] for r in rotors),
+                      'soa': max((r['budget'] or {}).get('worst') or 0.0 for r in rotors),
+                      'states': [(r['ident'] or {}).get('state') for r in rotors],
+                      'tripped': any((r['budget'] or {}).get('tripped') for r in rotors),
+                      'volts': cells['volts'], 'watts': cells['watts'], 'left': cells['left']})
+        return name
+
+    def render(*args, **kw):
+        frames.append({'t': time.monotonic(), 'name': steps[-1]['name'] if steps else '',
+                       'gate': kw.get('gate'), 'cells': 0})
+        return was[4](*args, **kw)
 
     def compose(console, origin, rotors, frame, flight, trace, now, art):
-        out = real(console, origin, rotors, frame, flight, trace, now, art)
-        cells = flight['cells']
-        rows.append({'t': time.monotonic(), 'name': flight['stage'], 'h': frame['h'],
-                     'amps': max(r['amps'] for r in rotors),
-                     'soa': max((r['budget'] or {}).get('worst') or 0.0 for r in rotors),
-                     'states': [(r['ident'] or {}).get('state') for r in rotors],
-                     'cells': sum(0x2800 < ord(c) <= 0x28FF for c in art),
-                     'tripped': any((r['budget'] or {}).get('tripped') for r in rotors),
-                     'share': flight['share'], 'volts': cells['volts'], 'watts': cells['watts'],
-                     'left': cells['left']})
-        if flight['stage'] == first and any(r['name'] == 'swap' for r in rows):
-            raise Again
-        return out
-    # The routine alone: its flights one after the other, as before the course followed it.
-    view.compose, quad.PACK_AH, flown.CARD = compose, TEST_PACK_AH, aerobatics.CARD
-    # Drawn into the flight after the pack's change, LANDED_S at most.
+        frames[-1]['cells'] = sum(0x2800 < ord(c) <= 0x28FF for c in art)
+        # Flown, or LANDED_S of the wall's time drawn: a starved page's flight takes its
+        # frames' count four times that long.
+        if done(flew, flight['stage']) or frames[-1]['t'] - frames[0]['t'] > LANDED_S:
+            raise Done
+        return was[0](console, origin, rotors, frame, flight, trace, now, art)
+    view.compose, flown.step, flown.CARD, quad.PACK_AH, view.quadcopter.render = (
+        compose, stepped, card, pack_ah or was[3], render)
     try:
         page.frame('quad', 150, 44, frames=int(LANDED_S * FPS_CAP))
-    except Again:
+    except Done:
         pass
     finally:
-        view.compose, quad.PACK_AH, flown.CARD = real, pack_ah, card
-    rate = (len(rows) - 1) / max(1e-9, rows[-1]['t'] - rows[0]['t']) if len(rows) > 1 else 0.0
+        view.compose, flown.step, flown.CARD, quad.PACK_AH, view.quadcopter.render = was
+    return steps, frames, (len(frames) - 1) / max(1e-9, frames[-1]['t'] - frames[0]['t'])
+
+
+def test_the_page_flies_four_boards(report):
+    """The page on its four stand-in boards and a small pack, into its third flight: the quad
+    drawn in the viewport; flown from its first hover, no observer STABLE yet, inside the
+    boards' envelopes - none tripped, the pull cut under full tilt; full tilt past 20 m, the
+    fall burned to a stop over the floor and held at 10 cm; the bus drooping under it; the pack
+    spent in the second flight, the way down, a charged one on the floor and its routine again
+    - the observers kept through it all."""
+    from coaxial.devices.thermal import THROTTLE_AT
+    from machine import aerobatics, quad
+    from terminal.views.quad import flight as flown
+    first = aerobatics.CARD[[name for name, *_row in aerobatics.CARD].index('hover') + 1][0]
+    # The routine alone, flight after flight, into the one after the pack's change.
+    rows, frames, rate = paged(aerobatics.CARD, lambda flew, now: now == first and 'swap' in flew,
+                               TEST_PACK_AH)
     if rate < 4.0:
         report.skip('the flight', 'the page drew %.1f frames a second' % rate)
         return
     report.check('the quad drawn in the viewport, every frame',
-                 min(r['cells'] for r in rows) >= 150, '%d braille cells at the least'
-                 % min(r['cells'] for r in rows))
+                 min(f['cells'] for f in frames) >= 150, '%d braille cells at the least'
+                 % min(f['cells'] for f in frames))
     early = [r for r in rows if r['name'] == first][:1]
     hard = [r for r in rows if r['name'] in ('full tilt', 'burn')]
     report.check('flown from its first hover, no observer STABLE yet; no board tripped through '
@@ -263,26 +243,24 @@ def test_the_page_flies_four_boards(report):
                  '%d known at the end, fewer after more %d times' % (
                      known[-1], sum(b < a for a, b in zip(known, known[1:]))))
     tilt = [r for r in rows if r['name'] == 'full tilt']
-    held = [r['h'] for r in rows if r['name'] == 'hold']
-    low = min((r['h'] for r in rows if r['name'] in ('burn', 'hold')), default=math.nan)
+    held = [r['y'] for r in rows if r['name'] == 'hold']
+    low = min((r['y'] for r in rows if r['name'] in ('burn', 'hold')), default=math.nan)
     report.check('full tilt past 20 m',
-                 bool(tilt) and max(r['h'] for r in rows) >= 20.0,
+                 bool(tilt) and max(r['y'] for r in rows) >= 20.0,
                  '%.1f A at most, %.1f m' % (max((r['amps'] for r in tilt), default=0.0),
-                                            max(r['h'] for r in rows)))
+                                            max(r['y'] for r in rows)))
     report.check('the fall burned to a stop over the floor, held at 10 cm',
                  low >= 0.05 and bool(held) and abs(held[-1] - quad.FLOOR_M) <= 0.05,
                  'lowest %.3f m, held at last %.3f m' % (low, held[-1] if held else math.nan))
     sag = min((r['volts'] for r in tilt), default=math.nan)
     # Its start: the first two seconds' middle - the rotors' spool to their idle is 0.5 V under
-    # it for a frame and their run back 0.2 V over it, and on CI's runner the first frame comes
-    # with them already drawing: within 1.5 V under its 63. Its reads' greatest: CI's runner
-    # caught 880-999 W of the kilowatt in three gates of four, this host 1 kW and over
-    # (2026-10-06).
+    # it for a step and their run back 0.2 V over it. Its kilowatt a step's: 0.15 s of full
+    # tilt's two, and a frame's read of it was 814 W on CI's runner (2026-10-06).
     early = sorted(r['volts'] for r in rows if r['t'] - rows[0]['t'] <= 2.0)
     full = early[len(early) // 2]
     report.check('the bus droops a volt and more under full tilt\'s kilowatt, 63 V at its start',
                  -1.5 < full - quad.open_volts(1.0) < 0.2
-                 and bool(tilt) and max(r['watts'] for r in tilt) >= 850.0
+                 and bool(tilt) and max(r['watts'] for r in tilt) >= 1000.0
                  and sag <= quad.open_volts(tilt[0]['left']) - 1.0,
                  '%.1f V at its start; %.1f V under %.0f W, %.1f open' % (
                      full, sag, max((r['watts'] for r in tilt), default=math.nan),
@@ -292,11 +270,11 @@ def test_the_page_flies_four_boards(report):
     spent = next((r for r in rows if r['left'] <= quad.RESERVE), None)
     report.check('its pack spent in the air, the way down, a charged one on the floor, and its '
                  'routine again',
-                 spent is not None and spent['h'] > 1.0
+                 spent is not None and spent['y'] > 1.0
                  and names[swap - 2:swap] == ['descend', 'land'] and rows[-1]['name'] == first
                  and rows[-1]['left'] > 0.9,
                  'spent at %.1f m in the %s; %s; %.0f %% in it at the end, in its %s' % (
-                     spent['h'], spent['name'], ' '.join(names[max(0, swap - 3):swap + 2]),
+                     spent['y'], spent['name'], ' '.join(names[max(0, swap - 3):swap + 2]),
                      100.0 * rows[-1]['left'], rows[-1]['name'])
                  if spent else 'never spent: %.0f %% left' % (100.0 * rows[-1]['left']))
     report.check('and the boards\' thermal observers spend their SOA',
@@ -309,49 +287,8 @@ def test_the_page_flies_its_course(report):
     its opening on each lap it flew; the boards' envelopes cutting the rotors' pull through its
     laps - all of it never theirs - and none tripped; landed where it rose."""
     from machine import course
-    from terminal.ui.screen import FPS_CAP
-    from terminal.views import show_quad as view
-    from terminal.views.quad import flight as flown
-    from tools.render import page
-
-    rows, frames, real, step, card = [], [], view.compose, flown.step, flown.CARD
-    lit, drew = [], view.quadcopter.render
-
-    class Landed(Exception):
-        """The course flown and the floor under it again."""
-
-    def stepped(rotors, sky, route, flying, flight, clock, dt):
-        name = step(rotors, sky, route, flying, flight, clock, dt)
-        frame, lap = sky.state(), route.get('lap') or {}
-        rows.append({'name': name, 'x': float(frame['at'][0]), 'y': frame['h'],
-                     'z': float(frame['at'][2]), 'dt': dt, 't': time.monotonic(),
-                     'v': math.sqrt(sum(float(c) ** 2 for c in frame['vel'])),
-                     'share': flight['share'], 'laps': lap.get('laps', 0), 'of': lap.get('of', 0),
-                     'tripped': any((r['budget'] or {}).get('tripped') for r in rotors)})
-        return name
-
-    def compose(console, origin, rotors, frame, flight, trace, now, art):
-        frames.append({'t': time.monotonic(), 'name': flight['stage'],
-                       'cells': sum(0x2800 < ord(c) <= 0x28FF for c in art)})
-        # Landed, or LANDED_S of the wall's time drawn: a starved page's flight takes its
-        # frames' count four times that long.
-        if (rows and rows[-1]['name'] in ('idle', 'cool', 'swap') and any(
-                r['name'] == 'land' for r in rows)) or frames[-1]['t'] - frames[0]['t'] > LANDED_S:
-            raise Landed
-        return real(console, origin, rotors, frame, flight, trace, now, art)
-
-    def render(*args, **kw):
-        lit.append((rows[-1]['name'] if rows else '', kw.get('gate')))
-        return drew(*args, **kw)
-    view.compose, flown.step, flown.CARD, view.quadcopter.render = (
-        compose, stepped, course.CARD, render)
-    try:
-        page.frame('quad', 150, 44, frames=int(LANDED_S * FPS_CAP))
-    except Landed:
-        pass
-    finally:
-        view.compose, flown.step, flown.CARD, view.quadcopter.render = real, step, card, drew
-    rate = (len(frames) - 1) / max(1e-9, frames[-1]['t'] - frames[0]['t']) if len(frames) > 1 else 0.0
+    rows, frames, rate = paged(course.CARD, lambda flew, now: now in ('idle', 'cool', 'swap')
+                               and 'land' in flew)
     laps = [r for r in rows if r['name'] == 'lap']
     behind = 1.0 - sum(r['dt'] for r in laps[1:]) / max(1e-9, laps[-1]['t'] - laps[0]['t']) \
         if len(laps) > 1 else 0.0
@@ -374,8 +311,8 @@ def test_the_page_flies_its_course(report):
                  flew >= 1 and counted == [flew] * len(counted) and worst(gates) <= room,
                  '%d of %d laps, passes %s, %.2f m off at the most; its clock %.0f %% behind '
                  'the wall\'s' % (flew, course.LAPS, counted, worst(gates), 100.0 * behind))
-    ahead = {g for name, g in lit if name == 'lap'}
-    after = {g for name, g in lit if name in ('descend', 'land')}
+    ahead = {f['gate'] for f in frames if f['name'] == 'lap'}
+    after = {f['gate'] for f in frames if f['name'] in ('descend', 'land')}
     report.check('the gate lit: each in its turn on its laps, the first again on its way down',
                  ahead == set(range(len(course.GATES))) and after == {1},
                  '%d of them on its laps, %s after' % (len(ahead), sorted(after)))
@@ -396,10 +333,50 @@ def test_the_page_flies_its_course(report):
                  if down else 'never landed')
 
 
+def test_a_late_pass_is_its_steps(report):
+    """The flight on four stand-in boards, every pass the page's longest (flight.passed): taken
+    in steps of STEP_S at the most, its corkscrew is flown on most of the rotors' pull and
+    `home` held in its seconds. Stepped whole, the frame rang on its rotors: 30 A, 22 % of
+    their pull, `home` never held."""
+    from coaxial import Coaxial63100
+    from machine import aerobatics, quad
+    from machine.flying import Flying
+    from machine.modes import SIMULATED
+    from terminal.views.quad import flight as flown
+    report.check('a pass of 50 ms is two steps, one of 20 its own',
+                 flown.steps(0.05) == [0.025, 0.025] and flown.steps(0.02) == [0.02],
+                 '%s and %s' % (flown.steps(0.05), flown.steps(0.02)))
+    rotors = [flown.arm(Coaxial63100(execution_mode=SIMULATED).open()) for _ in range(4)]
+    rows, clock, read = [], 0.0, 0.0
+    try:
+        sky, route = quad.Sky(), aerobatics.routine(flown.CARD)
+        flying, flight = Flying(flown.TOP_N, aerobatics.DOWN), flown.fresh()
+        while clock < 34.0 and flight['stage'] != 'toss':
+            for clock, _frame in flown.passed(rotors, sky, route, flying, flight, clock, 0.05):
+                rows.append((flight['stage'], clock, flight['share'],
+                             max(r['amps'] for r in rotors)))
+            if clock - read >= 0.1:
+                read = clock
+                for rotor in rotors:
+                    rotor['budget'], rotor['ident'], rotor['board_c'] = flown.warmth(rotor['rig'])
+    finally:
+        for rotor in rotors:
+            rotor['rig'].board.drive.off()
+            rotor['rig'].gates.off()
+            rotor['rig'].close()
+    hard = [r for r in rows if r[0] in ('corkscrew', 'home')]
+    report.check('passes of 50 ms: the corkscrew on three fifths of the rotors\' pull and more, '
+                 'home held in its seconds',
+                 flight['stage'] == 'toss' and clock <= 28.5 and min(r[2] for r in hard) >= 0.6,
+                 '%s at %.1f s; %.0f %% of their pull at the least, %.1f A at the most' % (
+                     flight['stage'], clock, 100.0 * min((r[2] for r in hard), default=math.nan),
+                     max((r[3] for r in hard), default=math.nan)))
+
+
 ROSTER = (test_the_boards_air_is_the_rotors, test_a_rotor_turns_by_its_pass,
           test_the_page_words_its_boards,
-          test_its_traces_are_drawn, test_its_world_is_drawn, test_the_page_flies_four_boards,
-          test_the_page_flies_its_course)
+          test_its_traces_are_drawn, test_the_page_flies_four_boards,
+          test_the_page_flies_its_course, test_a_late_pass_is_its_steps)
 
 
 def main(argv=None):

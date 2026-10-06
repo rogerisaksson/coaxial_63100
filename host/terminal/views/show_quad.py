@@ -46,10 +46,11 @@ TITLE = 'QUAD'
 #: The rotors, round the frame: front left, front right, rear right, rear left.
 ROTORS = ('FL', 'FR', 'RR', 'RL')
 
-#: The flight's step, s - the stand-in's boards answer out of memory -, the longest a pass
-#: steps it, and the thermal reads' period, s. The flight's clock is its passes' sum: a pass in
-#: twenty ran 50 ms, the routine's rows asked by the wall's clock moved further than their
-#: pass and the rotors' loops went to their clamp on what that looked like (2026-10-05).
+#: The feed's period, s - the stand-in's boards answer out of memory -, the longest a pass
+#: takes the flight on, in its steps (`flight.steps`), and the thermal reads' period, s. The
+#: flight's clock is its passes' sum: a pass in twenty ran 50 ms, the routine's rows asked by
+#: the wall's clock moved further than their pass and the rotors' loops went to their clamp on
+#: what that looked like (2026-10-05).
 PHYSICS_S, PASS_S, THERMAL_S = 0.01, 0.05, 0.1
 
 #: The camera: the reach framed about the quad on the floor before a flight and in the air, m,
@@ -170,11 +171,8 @@ def main(argv=None):
     say('ok', 'drawing', lit.name if lit is not None else 'this process, dots')
     sky, route, trace = quad.Sky(), aerobatics.routine(flown.CARD), []
     began = time.monotonic()
-    full = quad.open_volts(1.0)
     held = {'at': 0.0, 'clock': 0.0, 'thermal_at': 0.0, 'frame': sky.state(), 'reset': False,
-            'flying': Flying(flown.TOP_N, aerobatics.DOWN), 'swap': 0.0,
-            'flight': {'stage': flown.CARD[0][0], 'apex': 0.0, 'share': 1.0, 'gone': 0.0,
-                       'lap': None, 'cells': quad.pack(), 'peak': {'watts': 0.0, 'low': full}}}
+            'flying': Flying(flown.TOP_N, aerobatics.DOWN), 'flight': flown.fresh()}
     camera = {'reach': NEAR_M, 'yaw': YAW, 't': None, 'zoom': 1.0}
 
     def zoomed(k):
@@ -184,14 +182,13 @@ def main(argv=None):
                 + [(k, lambda: held.update(reset=True)) for k in 'rR'])
 
     def sample():
-        """The flight's side of a frame, on the feed's thread: steps of PHYSICS_S."""
+        """The flight's side of a frame, on the feed's thread: a pass of it."""
         with suppress(RigError):
             now = time.monotonic() - began
             dt = min(PASS_S, max(0.0, now - held['at']))
             held['at'] = now
             if dt <= 0.0:
                 return
-            clock = held['clock'] = held['clock'] + dt
             flight = held['flight']
             cells = flight['cells']
             if held['reset']:
@@ -201,26 +198,20 @@ def main(argv=None):
                 held['reset'] = False
                 sky.reset()
                 route.pop('lap', None)
-                route.update(aerobatics.routine(flown.CARD), at=clock)
+                route.update(aerobatics.routine(flown.CARD), at=held['clock'])
                 held['flying'] = Flying(flown.TOP_N, aerobatics.DOWN)
                 flown.reset(rotors)
                 trace.clear()
                 cells.update(quad.pack())
-                flight.update(apex=0.0, share=1.0, gone=0.0)
+                flight.update(apex=0.0, share=1.0, gone=0.0, stood=0.0)
                 camera['reach'] = NEAR_M
-            row = route['row']
-            flight['share'] = flown.envelope(rotors, flight['share'], dt)
-            flight['gone'] = flight['gone'] + dt if flight['share'] <= 0.0 else 0.0
-            name = flight['stage'] = flown.step(rotors, sky, route, held['flying'], flight,
-                                                clock, dt)
-            flight['lap'] = route.get('lap') if callable(route['card'][route['row']][1]) else None
-            frame = held['frame'] = sky.state()
-            held['swap'] = flown.kept(flight, held['swap'], name, route['row'] != row
-                                      and 'fit' in route['card'][row][4].split(), frame, dt)
-            trace.append((clock, frame['h'], cells['volts'], cells['watts'],
-                          max((r['board_c'] for r in rotors if r['board_c'] is not None),
-                              default=None)))
-            while trace and clock - trace[0][0] > traces.TRACE_S:
+            for clock, frame in flown.passed(rotors, sky, route, held['flying'], flight,
+                                             held['clock'], dt):
+                held['clock'], held['frame'] = clock, frame
+                trace.append((clock, frame['h'], cells['volts'], cells['watts'],
+                              max((r['board_c'] for r in rotors if r['board_c'] is not None),
+                                  default=None)))
+            while trace and held['clock'] - trace[0][0] > traces.TRACE_S:
                 trace.pop(0)
             if now - held['thermal_at'] >= THERMAL_S:
                 held['thermal_at'] = now

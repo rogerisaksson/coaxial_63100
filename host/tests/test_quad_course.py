@@ -1,4 +1,4 @@
-"""The quad's course (machine.course) on ideal rotors: its gates, what stands, its envelopes."""
+"""The quad's course (machine.course) on ideal rotors: its gates, what stands, drawn, its envelopes."""
 import functools
 import math
 import random
@@ -241,8 +241,50 @@ def test_its_tilt_is_its_discs_own(report):
                  '%.2f N apart held, %.2f free' % (turned[2], free[2]))
 
 
+def test_its_world_is_drawn(report):
+    """coaxial.graphics.scenery from behind the grid, the alley's gate ahead: the course's gates
+    stood only where one is named, that one in its own ink; an eye flown through a gate's frame
+    and past the trees draws no line across the view; far off, nothing; the ground its grid."""
+    from coaxial.graphics import engine, quadcopter, scenery, shapes
+    from coaxial.model.blocks import numpy as np
+    m, reach_m = shapes.view(180.0, 18.0), 4.0
+    cam = engine.fine(engine.camera(100, 36, reach_m, distance=quadcopter.SIGHT * reach_m))
+
+    def lit(dots, ink, name):
+        """The cells of `ink`'s hue among those with dots."""
+        want = np.asarray(scenery.INKS[name], float)
+        cells = dots.reshape(36, 4, 100, 2).any(axis=(1, 3))
+        size = np.linalg.norm(ink, axis=2)
+        like = (ink @ want) / np.maximum(1e-9, size * np.linalg.norm(want))
+        return int((cells & (size > 0.0) & (like > 0.9995)).sum())
+    (bare, bare_ink), = scenery.props(m, cam, (0.0, 2.0, 5.0))
+    (stood, ink), = scenery.props(m, cam, (0.0, 2.0, 5.0), 1)
+    report.check('the gates stood only where one is named, the one flown to next in its ink',
+                 stood.sum() > bare.sum() + 200 and lit(stood, ink, 'next') >= 20
+                 and lit(bare, bare_ink, 'next') == 0 and lit(bare, bare_ink, 'gate') == 0
+                 and lit(stood, ink, 'gate') >= 20 and lit(bare, bare_ink, 'tree') >= 20,
+                 '%d dots for %d bare; %d cells of the next gate\'s ink, %d of the others\', %d '
+                 'of the trees\'' % (stood.sum(), bare.sum(), lit(stood, ink, 'next'),
+                                    lit(stood, ink, 'gate'), lit(bare, bare_ink, 'tree')))
+    most = 0.0
+    for z in np.arange(-22.0, 32.0, 0.5):
+        (dots, _ink), = scenery.props(m, cam, (0.0, 2.2, float(z)), 1)
+        most = max(most, float(dots.mean()))
+    (far, _ink), = scenery.props(m, cam, (0.0, 2.0, 400.0), 1)
+    report.check('an eye flown through the gates\' frames and past the trees draws under a '
+                 'tenth of the view; 400 m off, nothing',
+                 0.0 < most <= 0.1 and far.sum() == 0,
+                 '%.1f %% of the dots at the most, %d far off' % (100.0 * most, far.sum()))
+    floor = scenery.ground(m, cam, (0.0, 2.0, 5.0))
+    report.check('the ground its grid, dimmer the further off',
+                 floor.shape == (cam['height'], cam['width']) and 0.0 < floor.max() <= 1.0
+                 and 200 <= (floor > 0.0).sum() and floor[floor > 0.0].min() >= 0.2,
+                 '%d dots, %.2f-%.2f bright' % ((floor > 0.0).sum(), floor[floor > 0.0].min(),
+                                               floor.max()))
+
+
 ROSTER = (test_its_gates_are_flown, test_it_flies_on_its_envelopes, test_a_line_ends_itself,
-          test_its_tilt_is_its_discs_own)
+          test_its_tilt_is_its_discs_own, test_its_world_is_drawn)
 
 
 def main(argv=None):

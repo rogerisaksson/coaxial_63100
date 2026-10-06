@@ -117,6 +117,14 @@ rotor's pages and their demos. The board's own are in
   way down the card went on to the next flight's, that flight never flown;
   the finish's gate stayed lit through the next flight's lift: a flight's
   own way down, the first gate (2026-10-06).
+- A starved QUAD page's every pass is its longest, 50 ms, and stepped whole
+  the frame rang on its rotors: the corkscrew at 30 A where 24 at 45 ms,
+  the envelopes' share 0.22, `home` never held - 41 s on it with the feed
+  every 60 ms, the pack at 67 % - and CI read full tilt's kilowatt as 814 W
+  off a frame. A pass is its steps, 25 ms at the most (`flight.passed`):
+  the same feed, the corkscrew 26.2 A on 0.75 of the pull and over, `home`
+  3.0 s; full tilt's kilowatt is 0.15 s of its two, read a step
+  (2026-10-06).
 - The rotor page, the bench's word: the magnets blurred through a 1/80 s
   shutter (208-386 cells, 0.10 a frame at most; the smear's ring flipped
   0.29), the windings whole at their current's brightness and gone on a

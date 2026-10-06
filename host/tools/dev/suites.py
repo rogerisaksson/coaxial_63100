@@ -308,7 +308,7 @@ TOUCHES = (
     ('host/machine/aerobatics.py',             QUADS),
     ('host/machine/course.py',                 QUADS),
     ('host/coaxial/graphics/quadcopter.py',    (QUAD_PAGE, RENDER)),
-    ('host/coaxial/graphics/scenery.py',       (QUAD_PAGE, RENDER)),
+    ('host/coaxial/graphics/scenery.py',       QUADS + (RENDER,)),
     ('host/machine/',                          (CONTROLLER, GYNOID, GYNOID_FAULTS, GYNOID_FALLS,
                                                 GYNOID_STAND, GYNOID_GAIT, GYNOID_RUN,
                                                 GYNOID_GOING, CYCLIC,
