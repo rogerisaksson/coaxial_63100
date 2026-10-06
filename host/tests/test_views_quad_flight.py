@@ -1,4 +1,4 @@
-"""The QUAD page's flight on four stand-in boards, no page: their air, its late passes, a wreck."""
+"""The QUAD page's flight on four stand-in boards, no page: its late passes, a wreck, its WEP."""
 import math
 import sys
 
@@ -157,8 +157,76 @@ def test_struck_it_is_begun_again(report):
                  if again < len(rows) else 'never put back')
 
 
+def test_war_emergency_power(report):
+    """flight.emergency: all of the rotors' pull where the law asks more than the envelopes
+    leave it and a thing is in the frame's way - not for either alone -, kept WEP_HOLD_S past
+    it, WEP_S of it a flight, whole again on the floor; and the law's lean in one all that
+    pull gives, whatever its row's."""
+    from machine import aerobatics, quad
+    from machine.flying import Flying
+    from terminal.views.quad import flight as view
+
+    class Sky:
+        """What is ahead, as told."""
+        thing: str | None = None
+        asked = 0
+
+        def ahead(self, _seconds):
+            self.asked += 1
+            return self.thing and (self.thing, 0.3)
+
+    class Law:
+        short = False
+    sky, law, flight = Sky(), Law(), view.fresh()
+    route = {'card': view.CARD, 'row': 4}
+
+    def step(share=0.4, dt=0.1):
+        return view.emergency(flight, sky, law, route, share, dt)
+    calm = step()
+    law.short = True
+    clear = step()
+    sky.thing, law.short = 'tree', False
+    unasked = (step(), sky.asked)
+    law.short = True
+    whole, taken = step(1.0), step()
+    report.check('the envelopes\' share while nothing is in its way or it asks no more than it '
+                 'has; all of the pull where both, a tree named - not on all of it already',
+                 calm == clear == unasked[0] == (0.4, False) and unasked[1] == 1
+                 and whole == (1.0, False) and taken == (1.0, True)
+                 and flight['wep']['from'] == 'tree' and flight['wep']['taken'] == 1,
+                 '%s, %s, %s; %s; %s from a %s' % (calm, clear, unasked[0], whole, taken,
+                                                   flight['wep']['from']))
+    sky.thing = None
+    kept = [step()[1] for _ in range(8)]
+    sky.thing = 'tree'
+    spent = [step()[1] for _ in range(80)]
+    route['row'] = 0
+    floor = (step(), flight['wep']['left'])
+    report.check('kept %.1f s past it; %.0f s of it a flight and no more; whole again where the '
+                 'card waits to be fit' % (view.WEP_HOLD_S, view.WEP_S),
+                 kept == [True] * 5 + [False] * 3 and sum(spent) == 44 and not spent[-1]
+                 and floor == ((0.4, False), view.WEP_S),
+                 '%d steps past it, %d more of 80 on it, %.1f s left on the floor' % (
+                     sum(kept), sum(spent), floor[1]))
+    leans = []
+    for emergency in (False, True):
+        flying = Flying(view.TOP_N, dict(aerobatics.HOVER, x=30.0, lean=2.0))
+        flying.spot = [30.0, 0.0]
+        level = [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]
+        thrusts = flying.step({'turn': level, 'spin': (0.0, 0.0, 0.0), 'vel': (0.0, 0.0, 0.0),
+                               'at': (0.0, quad.HOVER_M, 0.0), 'h': quad.HOVER_M, 'v': 0.0,
+                               'acc': (0.0, 0.0, 0.0), 'lift': quad.MASS_KG * quad.GRAVITY},
+                              0.01, 0.4, emergency)
+        leans.append((abs(thrusts[1] + thrusts[2] - thrusts[0] - thrusts[3]), flying.short))
+    report.check('its spot 30 m off, the law short of its row\'s lean of 2 m/s^2; in an '
+                 'emergency its discs turned harder, for all the pull the rotors have',
+                 leans[0][1] and leans[1][0] > 1.5 * leans[0][0] > 0.0,
+                 '%.1f N across its discs, %.1f in an emergency' % (leans[0][0], leans[1][0]))
+
+
 ROSTER = (test_the_boards_air_is_the_rotors, test_a_rotor_turns_by_its_pass,
-          test_a_late_pass_is_its_steps, test_struck_it_is_begun_again)
+          test_a_late_pass_is_its_steps, test_struck_it_is_begun_again,
+          test_war_emergency_power)
 
 
 def main(argv=None):

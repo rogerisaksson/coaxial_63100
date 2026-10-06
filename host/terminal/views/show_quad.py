@@ -81,7 +81,7 @@ def compose(console, origin, rotors, frame, flight, trace, now, art, yaw=0.0):
     lift = sum(quad.K_THRUST * r['w'] * r['w'] for r in rotors)
     tilt = math.degrees(math.acos(max(-1.0, min(1.0, float(frame['turn'][1][1])))))
     worst = max(((r['budget'] or {}).get('worst') or 0.0) for r in rotors)
-    lap = flight.get('lap')
+    lap, wep = flight.get('lap'), flight['wep']
     flying = hud('FLIGHT', [
         ('stage', Text(('%s %s' % (name, flown.struck(flight))).upper().strip(), style='alarm'
                        if name in ('full tilt', 'burn', 'swap', 'cool', flown.CRASHED)
@@ -95,8 +95,10 @@ def compose(console, origin, rotors, frame, flight, trace, now, art, yaw=0.0):
             math.hypot(float(frame['vel'][0]), float(frame['vel'][2]))))
         if lap else ('apex', '%8.1f m' % flight['apex']),
         ('TH OBS', flown.observers(rotors)),
-        ('SOA', Text('%8.0f %% worst, pull %.0f %%' % (100.0 * worst, 100.0 * share),
-                     style='alarm' if share < 1.0 else 'value')),
+        ('SOA', Text('%8.0f %% worst, %s' % (100.0 * worst, 'WEP %.1f s' % wep['left']
+                                             if wep['on'] > 0.0 else 'pull %.0f %%' % (
+                                                 100.0 * share)),
+                     style='alarm' if share < 1.0 or wep['on'] > 0.0 else 'value')),
         ('bus', '%8.1f V, low %.1f' % (cells['volts'], peak['low'])),
         ('pack', Text('%8.0f %% left, %.1f A' % (100.0 * cells['left'], cells['amps']),
                       style='alarm' if cells['left'] <= quad.RESERVE else 'value')),

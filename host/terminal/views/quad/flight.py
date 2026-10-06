@@ -60,8 +60,10 @@ GO = ('CONVERGING', 'STABLE')
 #: trims its ceilings to 0.8 and its share's room with them; waited for at a room of 0.4, the
 #: hover's own share 0.42, the third flight never left its hover; its room counted to the
 #: throttle's own point, full tilt on a pack half spent stood at 0.90. Spent GONE_S, it comes
-#: down; at once, a burn's own spend took it off its burn (2026-10-05).
-SPEND, UNDER, TAKEN_S, RECOVER_S, GONE_S = 0.3, 0.08, 0.5, 2.0, 2.0
+#: down; at once, a burn's own spend took it off its burn (2026-10-05). At 0.08 under it the
+#: laps had 0.38 of the rotors' pull at the least, at 0.04 0.52 and a lap 1.5 s the shorter,
+#: the boards at 0.70-0.74 of their envelopes (2026-10-06).
+SPEND, UNDER, TAKEN_S, RECOVER_S, GONE_S = 0.3, 0.04, 0.5, 2.0, 2.0
 
 #: A flight is begun on this share of the rotors' pull at the least. All of it is a board at
 #: 0.52 of its envelope or under, and an idle board is not cool: on the gate stage's dump at
@@ -77,6 +79,12 @@ SWAP_S = 3.0
 #: 24 at 45 ms, the envelopes' share at 0.22, `home` never held and the pack spent on it 38 s
 #: later (2026-10-06).
 STEP_S = 0.025
+
+#: War emergency power: a thing in the frame's way within RISK_S as it goes (`quad.Sky.ahead`)
+#: and the boards' envelopes leaving the law less pull than it asks to keep off it, the law
+#: has all of the rotors' pull for WEP_HOLD_S - the boards run to their own throttle's point,
+#: past the flight's - WEP_S of it a flight, given back on the floor.
+RISK_S, WEP_HOLD_S, WEP_S = 0.5, 0.6, 5.0
 
 #: Struck, a flight is over: its stage this, its rotors stopped and the wreck left where it
 #: falls for so long, s; then the frame is on its spot again and the flight begun over.
@@ -125,11 +133,13 @@ def fresh():
     """The flights' own before the first: the stage, the apex, the share of their pull the
     envelopes leave and how long it has been none, the lap, how long a spent pack has stood,
     the pack's cells and a flight's peaks of them, the air they are flown in (`quad.air`),
-    the wreck of one struck - what it struck, how long ago - and how many were."""
+    the wreck of one struck - what it struck, how long ago - and how many were; its emergency
+    power: the seconds left of it, how long it is on yet, what it was taken from, how often."""
     cells = quad.pack()
     return {'stage': CARD[0][0], 'apex': 0.0, 'share': 1.0, 'gone': 0.0, 'lap': None,
             'stood': 0.0, 'cells': cells, 'peak': {'watts': 0.0, 'low': cells['volts']},
-            'air': quad.air(), 'wreck': None, 'crashes': 0}
+            'air': quad.air(), 'wreck': None, 'crashes': 0,
+            'wep': {'left': WEP_S, 'on': 0.0, 'from': None, 'taken': 0}}
 
 
 def struck(flight):
@@ -184,7 +194,7 @@ def step(rotors, sky, route, flying, flight, clock, dt):
         name, flying.ask = aerobatics.fly(route, clock, [word for word, holds in (
             ('held', flying.held), ('spent', spent), ('fit', not flat and share >= FIT))
             if holds])
-        thrusts = flying.step(frame, dt, share)
+        thrusts = flying.step(frame, dt, *emergency(flight, sky, flying, route, share, dt))
     else:
         name, thrusts = CRASHED, [0.0] * len(rotors)
         wreck['for'] += dt
@@ -234,6 +244,28 @@ def step(rotors, sky, route, flying, flight, clock, dt):
     if 'fit' in route['card'][route['row']][4].split() and (flat or share < FIT):
         return 'swap' if flat else 'cool'
     return FALL if name == 'burn' and flying.doing == FALL else name
+
+
+def emergency(flight, sky, flying, route, share, dt):
+    """(the share of the rotors' pull the law has this step, whether on war emergency
+    power): the envelopes' - or, on it, all of the pull and all the lean that gives. Taken
+    where the law asks more than the envelopes leave it (`Flying.short`) and a thing is in
+    the frame's way within RISK_S; kept WEP_HOLD_S past that; WEP_S of it a flight, whole
+    again where the card waits to be fit."""
+    wep = flight.get('wep')
+    if wep is None:
+        return share, False
+    if 'fit' in route['card'][route['row']][4].split():
+        wep.update(left=WEP_S, on=0.0)
+        return share, False
+    risk = sky.ahead(RISK_S) if flying.short and share < 1.0 and wep['left'] > 0.0 else None
+    if risk:
+        wep['taken'] += wep['on'] < 1e-9
+        wep.update(on=WEP_HOLD_S, **{'from': risk[0]})
+    if wep['on'] < 1e-9 or wep['left'] < 1e-9:
+        return share, False
+    wep.update(on=wep['on'] - dt, left=wep['left'] - dt)
+    return 1.0, True
 
 
 def envelope(rotors, was, dt):

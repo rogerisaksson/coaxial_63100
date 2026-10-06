@@ -54,18 +54,25 @@ CROWN, TRUNK_M, CAR_LOW, CAR_BODY, CAR_CABIN, BAR_M = 0.35, 0.12, 0.25, 0.55, (0
 #: The line: a span's tangents this much of its chord, sampled every DS m; its laps.
 TENSION, DS, LAPS = 1.0, 0.25, 2
 
-#: The lean a lap asks, m/s^2 - 64 degrees, more than the envelopes leave it for long - and
+#: The lean a lap asks, m/s^2 - 67 degrees, more than the envelopes leave it for long - and
 #: its speed at most, m/s. The pull it is planned on is the envelopes' share of that lean,
 #: EASY_M_S2 at the least, come down to in EASE_S of the whole and back up in twice that:
 #: planned on what the law's reach left, 11 m/s^2 with the envelopes spent, a lap never eased
 #: and the boards stood at 0.94 of theirs, two throttling (2026-10-06). Of that pull a bend
 #: takes GRIP, the brake before it BRAKE and the way out of it GO; bends are braked for
 #: AHEAD_M ahead; a crest is flown no faster than lets it fall DROP_M_S2, the rotors kept
-#: turning for the bend on it. At 0.55, 0.4 and 0.4 the frame was 1.4 m off its line and a
-#: gate was missed; over the house's crest at 0.3 of its weight it stood 90 degrees over and
-#: fell 0.86 m under its line, 0.70 m over the ridge (2026-10-05).
-LEAN_M_S2, EASY_M_S2, EASE_S, TOP_M_S = 20.0, 4.0, 2.0, 12.0
-GRIP, BRAKE, GO, AHEAD_M, DROP_M_S2 = 0.4, 0.25, 0.25, 40.0, 4.0
+#: turning for the bend on it; a bend's pull swings from one side to the other in SWING_S at
+#: the fastest - what the discs take to lean over, the rotors' spool in it. Over the house's
+#: crest at 0.3 of its weight it stood 90 degrees over and fell 0.86 m under its line
+#: (2026-10-05). On the page's four boards, still air and six winds (2026-10-06): at a grip of
+#: 0.4 and a lean of 20 its laps 26.4 and 25.4 s, 28.2 in a wind; at 0.7 and 23, the swing
+#: counted, 21.8 and 20.6, 22.3 in the worst wind, a gate 0.53 m off at the most and 0.37 m
+#: about the frame; at 26 one wind had it 0.74 m off a gate and nothing about it; the swing
+#: not counted, a lean of 26 struck the slalom's gate in four flights of four. Stiffer loops
+#: do not buy it: the tilt's at twice its gain rang, the spot's at four struck a gate - a
+#: lean turns no faster than the rotors spool.
+LEAN_M_S2, EASY_M_S2, EASE_S, TOP_M_S = 23.0, 4.0, 2.0, 12.0
+GRIP, BRAKE, GO, AHEAD_M, DROP_M_S2, SWING_S = 0.7, 0.25, 0.25, 40.0, 4.0, 0.6
 
 #: The frame's place on the line is looked for REACH_M on from the last; the law's spot is kept
 #: on the line, SLACK_M from that place along it at most; a bend's pull is asked LEAD_S ahead
@@ -149,7 +156,8 @@ def _span(a, b, u):
 def track():
     """The line, a sample every DS m round the lap: {'at': its points, 'way': its unit
     tangents, 'bends': its (curvature, 1/m, its slope's own, 1/m, its bearing's turn, rad/m),
-    'gates': where each gate is along it, m, 'length', 'step'}."""
+    'swings': what that turn changes by a metre, 1/m^2, 'gates': where each gate is along it,
+    m, 'length', 'step'}."""
     fine, marks = [], []
     for i, gate in enumerate(GATES):
         marks.append(len(fine))
@@ -177,8 +185,9 @@ def track():
               ((math.atan2(way[(j + 2) % n][0], way[(j + 2) % n][2])
                 - math.atan2(way[j - 2][0], way[j - 2][2]) + math.pi) % math.tau - math.pi)
               / (4.0 * step)) for j in range(n)]
-    return {'at': at, 'way': way, 'bends': bends, 'length': length, 'step': step,
-            'gates': [run[m] for m in marks]}
+    swings = [abs(bends[(j + 2) % n][2] - bends[j - 2][2]) / (4.0 * step) for j in range(n)]
+    return {'at': at, 'way': way, 'bends': bends, 'swings': swings, 'length': length,
+            'step': step, 'gates': [run[m] for m in marks]}
 
 
 def _on(row, s):
@@ -217,7 +226,9 @@ def line(route, now):
     one the bends ahead allow on that share of its lean and what the wind as learnt leaves of
     it (`bend_speed`), along the line's way and back onto it, its bend's pull asked LEAD_S
     ahead, its spot kept on the line. Its laps flown - spent, the one it is on - it stands in
-    the first gate, `lapped`."""
+    the first gate, `lapped`. Where the line's turn swings, no faster than the bend's pull
+    goes from one side to the other in SWING_S: v^3 a metre of swing is the pull's change a
+    second."""
     lap = route.get('lap')
     if lap is None or lap['began'] != route['at']:
         lap = route['lap'] = {'began': route['at'], 'k': 0, 'v': 0.0, 'laps': 0, 'gate': 1,
@@ -253,6 +264,12 @@ def line(route, now):
             allowed = min(allowed, math.sqrt(bend_speed(bend, GRIP * pull, wind) ** 2
                                              + 2.0 * BRAKE * pull * step
                                              * max(0.0, j - lead % 1.0)))
+        swing = line_['swings'][(int(lead) + j) % n]
+        if swing > 0.0:
+            swung = (2.0 * GRIP * pull / (SWING_S * swing)) ** (1.0 / 3.0)
+            if allowed > swung:
+                allowed = min(allowed, math.sqrt(swung * swung + 2.0 * BRAKE * pull * step
+                                                 * max(0.0, j - lead % 1.0)))
     speed = lap['v'] = min(allowed, lap['v'] + GO * pull * dt)
     lap.update(laps=min(lap['of'] - 1, k // n),
                gate=next((g for g, mark in enumerate(line_['gates']) if mark > (k % n) * step), 0))

@@ -155,6 +155,21 @@ rotor's pages and their demos. The board's own are in
   left 4 s, the frame on its spot again and its flight begun over. Through
   the tour's air nothing is struck, the routine and two laps: on ideal
   rotors a gate 0.50 m off at the most, on the page's four boards 0.27.
+- QUAD's laps a fifth shorter, and its WEP (the user, 2026-10-06). On the
+  page's four boards, still air and six winds: a bend's grip 0.4 of the pull
+  and a lean of 20 m/s^2 flew its laps in 26.4 and 25.4 s, 28.2 in a wind; a
+  grip of 0.7, a lean of 23, the bend's pull swung from side to side in
+  0.6 s at the fastest (`course.SWING_S`) and the flight's envelope 0.04
+  under the boards' throttle where 0.08: 21.8 and 20.6 s, 22.3 in the worst
+  wind, a gate 0.53 m off at the most, the boards at 0.71-0.74 of their
+  envelopes. What bounds it is how fast a lean turns, the rotors' spool: the
+  tilt's loop at twice its gain rang, the spot's at four times struck a
+  gate, a lean of 26 without the swing's limit struck the slalom's gate
+  four flights of four. War emergency power (`flight.emergency`): the
+  frame's ghost flown 0.5 s on as it goes (`quad.Sky.ahead`, 36 us a look,
+  in a world of its own - a margin on the flown one's discs bore the frame
+  4.5 cm off the floor); a thing in its way and the law short of pull, it
+  has all the rotors give for 0.6 s, 5 s of it a flight.
 - The rotor page, the bench's word: the magnets blurred through a 1/80 s
   shutter (208-386 cells, 0.10 a frame at most; the smear's ring flipped
   0.29), the windings whole at their current's brightness and gone on a

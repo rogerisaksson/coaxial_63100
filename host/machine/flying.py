@@ -146,6 +146,9 @@ class Flying:
         #: The air as learnt: its speed along the floor, world (x, z), m/s, and its lift on
         #: the frame, m/s^2.
         self.wind, self.lifted = [0.0, 0.0], 0.0
+        #: Whether it asked more pull along the floor last than it had: its row's lean, or
+        #: what the boards' envelopes left it.
+        self.short = False
 
     # -- the setpoints' own ------------------------------------------------------------------
 
@@ -201,6 +204,7 @@ class Flying:
         out = [into[k] + air * through[k] + SPOT_KD * (speed[k] - float(vel[axis]))
                + SPOT_KP * (self.spot[k] - float(at[axis])) for k, axis in enumerate((0, 2))]
         size = math.hypot(out[0], out[1])
+        self.short = size > most
         return [x * min(1.0, most / size) if size > 0.0 else 0.0 for x in out]
 
     def turned(self, dt):
@@ -254,10 +258,11 @@ class Flying:
                 'spot': tuple(self.spot), 'at': [float(x) for x in frame['at']],
                 'vel': [float(x) for x in frame['vel']], 'wind': tuple(self.wind)}
 
-    def step(self, frame, dt, share=1.0):
+    def step(self, frame, dt, share=1.0, emergency=False):
         """Each rotor's thrust, N, for the frame as `frame` (`quad.Sky.state`) has it, `dt` s
         on; `share` what the boards' envelopes leave of the rotors' pull: what it is sped up on
-        and a fall's stop is planned on - the stop itself takes what it must."""
+        and a fall's stop is planned on - the stop itself takes what it must. In an
+        `emergency` its lean is all that pull gives, whatever its row's."""
         a = self.ask
         turn = [[float(frame['turn'][r][c]) for c in range(3)] for r in range(3)]
         spin, at, vel = frame['spin'], frame['at'], frame['vel']
@@ -269,7 +274,7 @@ class Flying:
         up_pull, self.doing = self.climb(frame['h'], frame['v'], reach - GRAVITY)
         up_pull -= self.lifted
         self.most = math.sqrt(reach * reach - GRAVITY * GRAVITY)
-        along = self.lean(at, vel, dt, min(a['lean'], self.most))
+        along = self.lean(at, vel, dt, self.most if emergency else min(a['lean'], self.most))
         # the discs' lean - against what is asked up - the nose's heading, its turns on them
         up = _unit((along[0], max(GRAVITY + up_pull, LIGHT * GRAVITY), along[1]))
         nose = (math.sin(self.heading), 0.0, math.cos(self.heading))
