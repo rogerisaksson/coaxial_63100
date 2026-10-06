@@ -167,7 +167,10 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   at 53.8 V the observer's NTC 57.85 C for the thermistor's 57.90 (a rise of
   25.4 K for 24.3); 300 s at 23.9 V 51.9 for 50.1 (19.1 for 17.4). Thirty
   seconds on it runs 4 K over, the anchor's to take. Its room: 35-43 C in a
-  room of 22 on that record, 21.6 on the default 49 J/K (2026-10-05).
+  room of 22 on that record, 21.6 on the default 49 J/K (2026-10-05). Idle
+  two hours on it, AFE_ON off but for reads: UNCERTAIN, the air's scale at
+  its floor, 0.25, the capacity's 2.09 - 44 J/K, the transient's 49 -, the
+  room 33.4 C, the board's own 33 (2026-10-06).
 - The stand-in's load is its balanced `load_cycle`: 569ae47's turning vector
   walked the heat U, V, W, the hottest leg 9 times in 16 s (2026-09-28).
 - The tour on an emulated board's world (coaxial.model.rooms): the thermal

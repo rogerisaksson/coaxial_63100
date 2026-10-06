@@ -93,18 +93,20 @@ class Sky:
         """The frame `dt` s on under the rotors at `speeds`, mechanical rad/s: each one's thrust
         up its axis at its place, their drags' torques about it, the air on the frame."""
         np, d = self._np, self.data
+        # The four's lift and their torque about the frame's own axes, the pass's: a thrust up
+        # the frame's axis at (x, z) turns it (-z, 0, x) of itself, the drags about that axis.
+        # Crossed a rotor a step in the world's frame, 40 crosses were 1.0 ms of a 20 ms pass.
+        thrusts = [K_THRUST * w * w for w in speeds]
+        lift = sum(thrusts)
+        about = np.array([-sum(t * z for t, (_x, z) in zip(thrusts, ROTOR_AT)),
+                          sum(spin * K_DRAG * w * w for spin, w in zip(SPIN, speeds)),
+                          sum(t * x for t, (x, _z) in zip(thrusts, ROTOR_AT))])
         for _ in range(max(1, int(round(dt / STEP_S)))):
             turn = d.xmat[self.frame].reshape(3, 3)
-            up = turn[:, 1]
-            force, torque = np.zeros(3), np.zeros(3)
-            for (x, z), spin, w in zip(ROTOR_AT, SPIN, speeds):
-                thrust = K_THRUST * w * w
-                force += thrust * up
-                torque += (np.cross(turn @ np.array([x, DISC_M, z]), thrust * up)
-                           + spin * K_DRAG * w * w * up)
             v = d.qvel[0:3]
-            d.xfrc_applied[self.frame, 0:3] = force - 0.5 * RHO * BODY_CDA * np.linalg.norm(v) * v
-            d.xfrc_applied[self.frame, 3:6] = torque
+            d.xfrc_applied[self.frame, 0:3] = (lift * turn[:, 1]
+                                               - 0.5 * RHO * BODY_CDA * np.linalg.norm(v) * v)
+            d.xfrc_applied[self.frame, 3:6] = turn @ about
             self._mj.mj_step(self.model, d)
 
 

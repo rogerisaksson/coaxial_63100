@@ -186,8 +186,6 @@ LANDED_S = 200.0
 
 #: The course's laps are judged where the flight's clock - its passes' sum, a pass 50 ms at the
 #: most - kept within this of the wall's: a page starved past it has not landed in LANDED_S.
-#: (Its rotors ran on the wall's clock once, and under the gate's load a gate was passed
-#: 1.56 m off its middle; they are stepped the pass's seconds now, 2026-10-06.)
 BEHIND = 0.2
 
 #: The page's pack for its test, A h: a first flight whole, spent early in the second.
@@ -231,9 +229,7 @@ def test_the_page_flies_four_boards(report):
         return out
     # The routine alone: its flights one after the other, as before the course followed it.
     view.compose, quad.PACK_AH, flown.CARD = compose, TEST_PACK_AH, aerobatics.CARD
-    # Drawn into the flight after the pack's change, LANDED_S at most: drawn 48 s, on CI's
-    # host, its boards' observers slower, the first hold was still coming down as the frames
-    # ran out (2026-09-28).
+    # Drawn into the flight after the pack's change, LANDED_S at most.
     try:
         page.frame('quad', 150, 44, frames=int(LANDED_S * FPS_CAP))
     except Again:
@@ -248,8 +244,6 @@ def test_the_page_flies_four_boards(report):
                  min(r['cells'] for r in rows) >= 150, '%d braille cells at the least'
                  % min(r['cells'] for r in rows))
     early = [r for r in rows if r['name'] == first][:1]
-    # On a host as loaded as the gate's the boards' clocks outrun the flight's and a share
-    # stood at 0.92 for a read (2026-10-05): what must hold is that none trips.
     hard = [r for r in rows if r['name'] in ('full tilt', 'burn')]
     report.check('flown from its first hover, no observer STABLE yet; no board tripped through '
                  'it all, the envelopes cutting the rotors\' pull under full tilt and the burn',
@@ -311,9 +305,9 @@ def test_the_page_flies_four_boards(report):
 
 def test_the_page_flies_its_course(report):
     """The page's course on its four stand-in boards, from the floor and back: flown from
-    behind, its gates stood in the view; every gate passed inside its opening on each lap it
-    flew; the boards' envelopes cutting the rotors' pull through its laps - all of it never
-    theirs - and none tripped; landed where it rose."""
+    behind, its gates stood in the view, the one flown to next lit; every gate passed inside
+    its opening on each lap it flew; the boards' envelopes cutting the rotors' pull through its
+    laps - all of it never theirs - and none tripped; landed where it rose."""
     from machine import course
     from terminal.ui.screen import FPS_CAP
     from terminal.views import show_quad as view
@@ -321,6 +315,7 @@ def test_the_page_flies_its_course(report):
     from tools.render import page
 
     rows, frames, real, step, card = [], [], view.compose, flown.step, flown.CARD
+    lit, drew = [], view.quadcopter.render
 
     class Landed(Exception):
         """The course flown and the floor under it again."""
@@ -344,13 +339,18 @@ def test_the_page_flies_its_course(report):
                 r['name'] == 'land' for r in rows)) or frames[-1]['t'] - frames[0]['t'] > LANDED_S:
             raise Landed
         return real(console, origin, rotors, frame, flight, trace, now, art)
-    view.compose, flown.step, flown.CARD = compose, stepped, course.CARD
+
+    def render(*args, **kw):
+        lit.append((rows[-1]['name'] if rows else '', kw.get('gate')))
+        return drew(*args, **kw)
+    view.compose, flown.step, flown.CARD, view.quadcopter.render = (
+        compose, stepped, course.CARD, render)
     try:
         page.frame('quad', 150, 44, frames=int(LANDED_S * FPS_CAP))
     except Landed:
         pass
     finally:
-        view.compose, flown.step, flown.CARD = real, step, card
+        view.compose, flown.step, flown.CARD, view.quadcopter.render = real, step, card, drew
     rate = (len(frames) - 1) / max(1e-9, frames[-1]['t'] - frames[0]['t']) if len(frames) > 1 else 0.0
     laps = [r for r in rows if r['name'] == 'lap']
     behind = 1.0 - sum(r['dt'] for r in laps[1:]) / max(1e-9, laps[-1]['t'] - laps[0]['t']) \
@@ -374,6 +374,11 @@ def test_the_page_flies_its_course(report):
                  flew >= 1 and counted == [flew] * len(counted) and worst(gates) <= room,
                  '%d of %d laps, passes %s, %.2f m off at the most; its clock %.0f %% behind '
                  'the wall\'s' % (flew, course.LAPS, counted, worst(gates), 100.0 * behind))
+    ahead = {g for name, g in lit if name == 'lap'}
+    after = {g for name, g in lit if name in ('descend', 'land')}
+    report.check('the gate lit: each in its turn on its laps, the first again on its way down',
+                 ahead == set(range(len(course.GATES))) and after == {1},
+                 '%d of them on its laps, %s after' % (len(ahead), sorted(after)))
     lapped = sum(r['dt'] for r in laps)
     cut = sum(r['dt'] for r in laps if r['share'] < 1.0)
     report.check('the boards\' envelopes cut the rotors\' pull through nine tenths of its laps, '

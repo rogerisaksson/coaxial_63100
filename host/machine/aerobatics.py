@@ -84,9 +84,10 @@ CARD = (
     ('descend', OVER, 1.5, 1.5, 'held'),
     ('land', PRESSED, 3.0, 3.0, ''),
 )
-#: `spent` among what holds takes the routine to the next row of this name - but from one that
-#: waits to be fit, on the floor already, and from one that gives its own row: a line ends
-#: itself (`machine.course`: where it is on it, things stand under it).
+#: `spent` among what holds takes the routine to its flight's row of this name, the next before
+#: one that waits to be fit - but from one that waits to be fit, on the floor already, and from
+#: one that gives its own row: a line ends itself (`machine.course`: where it is on it, things
+#: stand under it).
 SPENT_TO = 'descend'
 
 
@@ -112,15 +113,27 @@ def routine(card=CARD):
     return {'row': 0, 'at': 0.0, 'was': dict(card[0][1]), 'card': card}
 
 
+def _way_down(card, row):
+    """The SPENT_TO's row of the flight `row` is in and ahead of it, or None: a flight is the
+    rows up to the next that waits to be fit. Sought to the card's end, a pack spent on the
+    first flight's way down went on to the second's, and its flight was never flown."""
+    for k in range(row + 1, len(card)):
+        if 'fit' in card[k][4].split():
+            return None
+        if card[k][0] == SPENT_TO:
+            return k
+    return None
+
+
 def fly(route, now, holds=('held', 'fit')) -> tuple[str, dict[str, Any]]:
     """(the figure's name, its row for `now`): `route` moved on where its row's seconds are up
-    and all it waits for is among `holds` - or to the next SPENT_TO's row, `spent` among them -
-    the row eased in from the one left over its own seconds."""
+    and all it waits for is among `holds` - or to its flight's SPENT_TO's row, `spent` among
+    them - the row eased in from the one left over its own seconds."""
     card = route['card']
     name, row, seconds, over, waits = card[route['row']]
     into = now - route['at']
     here = eased(route['was'], row, into, over) if isinstance(row, dict) else row(route, now)
-    down = next((k for k in range(route['row'] + 1, len(card)) if card[k][0] == SPENT_TO), None)
+    down = _way_down(card, route['row'])
     if ('spent' in holds and down is not None and isinstance(row, dict)
             and 'fit' not in waits.split()):
         route.update(row=down, at=now, was=here, holds=())

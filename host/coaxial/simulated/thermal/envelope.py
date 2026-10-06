@@ -81,25 +81,28 @@ class ThermalEnvelope:
         """
         return min(self._ident.margin(self._margin_floor), self._trip_cap_now())
 
-    def _limit(self, name):
+    def _limit(self, name, margin=None):
         """One node's ceiling as the envelope acts on it: the record's, its
         span over the reference trimmed by the margin - the floor while
         the model is doubted whole, one when not at all, the trip cap
         after a trip - as `board_thermal.c` trims it, so the silicon and
         the laminate are not run to ceilings computed on a network just
-        proved wrong.
+        proved wrong. `margin` where the caller has it: asked a node, a
+        slice's envelope weighed the identification's doubt 42 times.
         """
         top = self.LIMIT.get(name, self.DEFAULT_LIMIT)
-        return thermal.AMBIENT + self._margin() * (top - thermal.AMBIENT)
+        if margin is None:
+            margin = self._margin()
+        return thermal.AMBIENT + margin * (top - thermal.AMBIENT)
 
     def _used(self):
         """Each node as a fraction of its own ceiling, from the room the
         observer believes it stands in, clamped to 0..1 -
         `thermal_budget` in the C, line for line.
         """
-        used = {}
+        used, margin = {}, self._margin()
         for name in self.NODES:
-            span = self._limit(name) - self._ambient
+            span = self._limit(name, margin) - self._ambient
             if not span > 0.0:
                 used[name] = 0.0
                 continue
@@ -156,14 +159,14 @@ class ThermalEnvelope:
         self._derate_held = max(0.0, min(1.0, self._derate_held))
         return self._derate_held
 
-    def _hold(self, name):
+    def _hold(self, name, margin=None):
         """Seconds this node can stay at its net power before its ceiling -
         the soak over what is going into it - or None when it is not
         heading there.
         """
         net = (self._last_net or {}).get(name, 0.0)
         capacity = self._cfg['capacity'].get(name, 0.0)
-        top = self._limit(name)
+        top = self._limit(name, margin)
         if net <= 0.0 or capacity <= 0.0 or top <= self._ambient:
             return None
         togo = top - self._node[name]
@@ -175,11 +178,11 @@ class ThermalEnvelope:
         projected temperature, so a node at ambient has its whole soak in
         front of it and a burst runs.
         """
-        worst = 0.0
+        worst, margin = 0.0, self._margin()
         for name in self.NODES:
             if name in self.UNDRIVEN:
                 continue
-            hold = self._hold(name)
+            hold = self._hold(name, margin)
             if hold is None:
                 continue
             worst = max(worst, min(1.0, 1.0 - hold / self.LOOKAHEAD_S))
@@ -197,9 +200,9 @@ class ThermalEnvelope:
         """Joules each node can still absorb before its ceiling: `capacity x
         (limit - t)`, never negative.
         """
-        out = {}
+        out, margin = {}, self._margin()
         for name in self.NODES:
-            top = self._limit(name)
+            top = self._limit(name, margin)
             out[name] = max(0.0, self._cfg['capacity'].get(name, 0.0)
                             * (top - self._node[name]))
         return out

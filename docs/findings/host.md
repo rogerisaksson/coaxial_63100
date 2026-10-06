@@ -24,8 +24,17 @@ own are in [FINDINGS](../FINDINGS.md).
   the stand-in's budget never had seconds to its limit, and its load cycle
   put 45 A through the hot swap; the trip's cap was asked equal to 1e-6 of a
   margin trimmed in 1e-3; SENSE's `err` read +9 K on a model 0.1 K out. The
-  boxes are `terminal/views/thermal/boxes.py`; the real board's `--switch`
-  is held by its order alone, not run on the bench (2026-10-06).
+  boxes are `terminal/views/thermal/boxes.py`. The real board's `--switch`
+  on the bench at 23.9 V: armed with the break in circuit, three legs at
+  50 % for 5 s - the observer's drivers 31 to 41 C blind, the thermistor
+  0.9 K up after -, disarmed, AFE_ON off as found (2026-10-06).
+- QUAD's pass on its four stand-ins was 5.1 ms of 20, its frames 16.2-17.0 a
+  second on a lap: a slice's envelope weighed the identification's doubt a
+  node, 42 times (0.6 ms a pass), and the frame's forces were crossed a rotor
+  a step in the world's frame, 40 crosses (1.0 ms). One margin a walk of the
+  nodes, the four's torque once a pass about the frame's own axes - the frame
+  the same to 1e-13 over 8 s of tumbling: 3.4 ms, 17.9-18.8 frames, 19.2
+  with nothing flown (2026-10-06).
 - Model weights (7.6 GB) reloaded per suite were most of a run: loaded once,
   released once. A run killed from outside leaves 8.4 GB on the card.
 - The offline gate was 400 s of sleeping on the stand-in's clock; suites run

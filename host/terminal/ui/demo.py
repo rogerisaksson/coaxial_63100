@@ -60,7 +60,7 @@ def turn_motor(rig, origin, amps=None, hz=None):
     began = time.monotonic()
     wrote = {'at': 0.0}
 
-    def step(_now=None):
+    def step():
         # A ramp over DEMO_S: a write every STEP_S, not every frame - a feed's every sample held
         # an emulated board's link.
         now = time.monotonic()
@@ -108,7 +108,7 @@ def sweep_motor(rig, origin, turns=SWEEP_TURNS, over=SWEEP_S):
     began = time.monotonic()
     asked = {'at': began, 'angle': 0.0, 'rate': 0.0}
 
-    def step(_now=None):
+    def step():
         # A write every STEP_S, not every frame - a feed's every sample held an emulated
         # board's link.
         now = time.monotonic()
@@ -153,7 +153,7 @@ def cycle_motor(rig, origin, on_s, off_s, amps=None):
     began = clock.now()
     held: dict = {'step': None}
 
-    def step(_now=None):
+    def step():
         on = (clock.now() - began) % (on_s + off_s) < on_s
         if on and held['step'] is None:
             held['step'] = turn_motor(rig, origin, amps, LOAD_HZ)

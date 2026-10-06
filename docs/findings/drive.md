@@ -111,8 +111,12 @@ rotor's pages and their demos. The board's own are in
   (`SimulatedDrive.paced`, `fast_forward`): on the wall's clock a pass 0.25 s
   late turned the rotors those seconds under a setpoint meant for 50 ms, and
   under the gate's load a gate was passed 2.7 m off; paced, 0.22 m alone and
-  0.25 m beside fourteen busy processes, the envelopes at 0.74 and 0.79
-  (2026-10-06).
+  0.25 m beside fourteen busy processes, the envelopes at 0.74 and 0.79. A
+  pack gives the routine 21 % of itself and the course 27 %: spent on a lap
+  of every fourth flight, ended at that lap's finish. Spent on a flight's
+  way down the card went on to the next flight's, that flight never flown;
+  the finish's gate stayed lit through the next flight's lift: a flight's
+  own way down, the first gate (2026-10-06).
 - The rotor page, the bench's word: the magnets blurred through a 1/80 s
   shutter (208-386 cells, 0.10 a frame at most; the smear's ring flipped
   0.29), the windings whole at their current's brightness and gone on a

@@ -55,49 +55,35 @@ def _lane(column, first):
     return 0 if column < first else 1
 
 
-def _legend(row, text, ink, column, centred):
-    """One legend: a name with its value, an arrowhead over its own column,
-    and the row it was written on.
-    """
-    return (row, text, ink, column, centred)
-
-
 def _legend_targets(view, left, right):
-    """Every legend as `(row, text, ink, column, centred)`."""
+    """Every legend as `(row, text, ink, column)`: a name with its value, the
+    row it is written on and the column its arrowhead is over."""
     bars = headrooms(view)
     said = []
     # The measurement first: everything under it is an estimate.
     seen = (view.get('thermal') or {}).get('ntc')
     if len(left) > NTC_AT and seen is not None:
         # Its own tube's colour: the thermometer ramp, not a margin's.
-        said.append(_legend(0, reference(view),
-                            cross_section.INK[ntc_class(seen)], left[NTC_AT], True))
+        said.append((0, reference(view), cross_section.INK[ntc_class(seen)], left[NTC_AT]))
     # SWITCH second and BOARD last, with the motor's margin between them.
-    for group, columns, name, centred in (
-            (SOA_NODES, left, 'SWITCH TEMPS', True),):
-        peak, cls = hottest(view, group)
-        if peak is None or not columns:
-            continue
+    peak, cls = hottest(view, SOA_NODES)
+    if peak is not None and left:
         # The middle of its own group, not the edge nearest the motor.
-        seat = columns[len(columns) // 2 - 2]
-        said.append(_legend(len(said), '%s %.1f %sC' % (name, peak, DEGREE),
-                            cross_section.INK[cls], seat, centred))
+        said.append((len(said), 'SWITCH TEMPS %.1f %sC' % (peak, DEGREE),
+                     cross_section.INK[cls], left[len(left) // 2 - 2]))
 
     # The margins next, under the NTC and nearest the tubes they name.
     for index in reversed(range(len(HEADROOM_TITLES))):
         if len(right) > HEADROOM_AT:
             share, cls = bars[index]
-            said.append(_legend(
-                len(said),
-                # A decimal: the tube cannot show one.
-                '%s %.1f %%' % (HEADROOM_NAMES[index], 100.0 * share),
-                cross_section.INK[cls], right[HEADROOM_AT + index], True))
+            # A decimal: the tube cannot show one.
+            said.append((len(said), '%s %.1f %%' % (HEADROOM_NAMES[index], 100.0 * share),
+                         cross_section.INK[cls], right[HEADROOM_AT + index]))
     peak, cls = hottest(view, BOARD_NODES)
     if peak is not None and right:
         # One tube further in than the middle of its four.
-        said.append(_legend(
-            len(said), 'BOARD TEMPS %.1f %sC' % (peak, DEGREE),
-            cross_section.INK[cls], right[len(BOARD_NODES) // 2 - 1], True))
+        said.append((len(said), 'BOARD TEMPS %.1f %sC' % (peak, DEGREE),
+                     cross_section.INK[cls], right[len(BOARD_NODES) // 2 - 1]))
 
     return said
 
@@ -122,7 +108,7 @@ def legend_drops(view, left, right):
     return [(0, column, HOP_ROWS, cross_section.LEADER_GREY,
              _lane(column, cross_section.span(BOX.width, BOX.rows,
                                         LEFT_COLUMNS, RIGHT_COLUMNS)[0]))
-            for _row, _text, _ink, column, _centred
+            for _row, _text, _ink, column
             in _legend_targets(view, left, right)] if HOP_ROWS else []
 
 
@@ -137,11 +123,11 @@ def _legend_rows(view, left, right):
         marks = []
         # Leaders already falling pass through first; the words go clear of
         # them, or a leader breaks at the captions.
-        for row, _text, _ink, column, _in in said:
+        for row, _text, _ink, column in said:
             if row < index:
                 line[column] = DROP[_lane(column, first)]
                 marks.append((column, 1, cross_section.LEADER_GREY))
-        for row, text, ink, column, centred in said:
+        for row, text, ink, column in said:
             if row != index:
                 continue
             # Centred over the motor when the head is out in a gutter's

@@ -244,7 +244,7 @@ def main(argv=None):
             frame, [(r['angle'], r['w'], (r['budget'] or {}).get('winding_c'), r['board_c'])
                     for r in rotors], width, height, yaw=camera['yaw'], pitch=PITCH,
             reach=reach, centre=centre, colour=terminal, lit=lit,
-            gate=(route.get('lap') or {}).get('gate', 1) if chased else None))
+            gate=(held['flight']['lap'] or {}).get('gate', 1) if chased else None))
         return compose(board_view, origin, rotors, frame, held['flight'], list(trace),
                        held['clock'], art)
 

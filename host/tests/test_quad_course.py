@@ -178,8 +178,8 @@ def test_it_flies_on_its_envelopes(report):
 
 def test_a_line_ends_itself(report):
     """A routine's card with a row that gives its own (aerobatics.fly): spent, a figure's row
-    leaves for the next way down of its card, not the first; the line's row stays its own until
-    it holds what it waits for."""
+    leaves for its flight's way down - not the card's first, nor on it the next flight's -; the
+    line's row stays its own until it holds what it waits for."""
     from machine import aerobatics
 
     def line(route, _now):
@@ -191,13 +191,13 @@ def test_a_line_ends_itself(report):
             ('idle', aerobatics.DOWN, 0.0, 0.0, 'fit'), ('lift', aerobatics.HOVER, 9.0, 0.0, ''),
             ('lap', line, 0.0, 0.0, 'lapped'), ('descend', aerobatics.OVER, 0.0, 0.0, 'held'))
     went = []
-    for row in (1, 4, 5):
+    for row in (1, 2, 4, 5):
         route = dict(aerobatics.routine(card), row=row)
         went.append(aerobatics.fly(route, 1.0, ('spent',))[0])
         went.append(route['row'])
-    report.check('spent: the first flight\'s hover to its own way down, the second\'s lift to '
-                 'the second\'s, the line\'s row its own',
-                 went == ['descend', 2, 'descend', 6, 'lap', 5], str(went))
+    report.check('spent: the first flight\'s hover to its own way down and no further from '
+                 'there, the second\'s lift to the second\'s, the line\'s row its own',
+                 went == ['descend', 2, 'descend', 2, 'descend', 6, 'lap', 5], str(went))
     route = dict(aerobatics.routine(card), row=5)
     first = aerobatics.fly(route, 1.0, ('fit',))
     route['done'] = True

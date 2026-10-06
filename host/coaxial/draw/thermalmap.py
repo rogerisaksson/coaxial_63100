@@ -142,10 +142,6 @@ MARKS = (
     ('NTC', ('NTC1',), (0.0, 9.6), FRAME_MM),
 )
 
-#: A label's cell is about this wide in millimetres on an 88-cell board;
-#: what a side placement steps a label clear of its frame by.
-LABEL_STEP_MM = 2.5
-
 
 def frame(refs, margin=FRAME_MM):
     """`(cx, cy, hw, hh)`: the box round some parts' bodies, `margin`
@@ -166,21 +162,13 @@ def frame(refs, margin=FRAME_MM):
             (right - left) / 2.0, (top - bottom) / 2.0)
 
 
-def label_at(box, where, label):
-    """Where a label's centre goes, millimetres, for a frame `box` and a
-    placement: `bottom` or `top` on the frame's line, `inside`, `above`,
-    `below`, `left`, `right` beside it, or a point."""
+def label_at(box, where):
+    """Where a label's centre goes, millimetres, for a frame `box`: the
+    middle of its bottom line for `bottom`, or the point given."""
     if isinstance(where, tuple):
         return where
-    cx, cy, hw, hh = box
-    half = LABEL_STEP_MM * len(label) / 2.0
-    return {'inside': (cx, cy),
-            'bottom': (cx, cy - hh),
-            'top': (cx, cy + hh),
-            'above': (cx, cy + hh + LABEL_STEP_MM),
-            'below': (cx, cy - hh - LABEL_STEP_MM),
-            'right': (cx + hw + half + 1.0, cy),
-            'left': (cx - hw - half - 1.0, cy)}[where]
+    cx, cy, _hw, hh = box
+    return cx, cy - hh
 
 #: Two characters a cell in the plain ramp, so pixels come out square. In
 #: the halftone a cell is one character.
@@ -190,11 +178,6 @@ CELL = '  '
 #: board. Twenty steps, not nine: 120 K over nine characters is 13 K a step
 #: and drew the board flat.
 RAMP = '.,:;~-=+ic*xX#$%8W@'
-
-#: Lines the scale - the bar and its tick labels - spends below the
-#: picture, counted by the caller: none since 2026-08-30, as it rides
-#: beside the board as a vertical rail, hottest at the top.
-SCALE_LINES = 0
 
 #: The halftone's range, the share of a cell's dots lit at the ramp's cold and
 #: hot ends; the dots carry the temperature with the palette off. Under 0.4 a
@@ -433,7 +416,7 @@ def _mask(cells, down, marks):
 
     labels = {}
     for (label, _refs, where, _margin), box in zip(marks, boxes):
-        lx, ly = label_at(box, where, label)
+        lx, ly = label_at(box, where)
         col = int((lx / dx + (wide - 1) / 2.0) // 2) - len(label) // 2
         row = int(((high - 1) / 2.0 - ly / dy) // 4)
         for k, ch in enumerate(label):
@@ -522,10 +505,9 @@ def render(nodes, board_c, cells=None, colour=None, layout=None, title=None,
     if colour is None:
         colour = bool(getattr(sys.stdout, 'isatty', lambda: False)())
     if cells is None:
-        # SCALE_LINES plus the blank above them is what render itself adds;
-        # anything else in the frame is the caller's to count.
-        cells = _fit(colour, (SCALE_LINES + trailing)
-                     if reserve is None else reserve,
+        # The blanks after it are what render itself adds; anything else in
+        # the frame is the caller's to count.
+        cells = _fit(colour, trailing if reserve is None else reserve,
                      margin + RAIL_W)
     layout = LAYOUT if layout is None else layout
 

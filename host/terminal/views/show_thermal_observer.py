@@ -17,7 +17,7 @@ from rich.text import Text
 from coaxial import Coaxial63100
 from coaxial.comm.session import standing
 from coaxial.draw import cross_section, gauges
-from coaxial.draw.thermalmap import CELL_ASPECT, SCALE_LINES, render
+from coaxial.draw.thermalmap import CELL_ASPECT, render
 from coaxial.errors import NoReplyError, RigError
 from coaxial.model import thermal
 from coaxial.model.thermal import IDENT_MARGIN_FLOOR
@@ -35,12 +35,8 @@ _screen.CHATTER = False     # the boot bar replaced the scroll
 #: edges, the crosses' gutter row.
 HEAD_LINES = 4
 
-#: Below the scale: the keys (TRAILING covers the blank above them).
+#: Below the map: the keys.
 FOOT_LINES = 1
-
-#: Blank lines between the scale and the keys. Zero since 2026-08-30:
-#: the row went to the board, which was asked a size up.
-TRAILING = 0
 
 #: Under the board: a blank and the evidence bar - `evidence_rows`.
 #: Counted in the reserve, or the board is drawn two rows too tall and
@@ -107,7 +103,7 @@ def picture(state, console, reserve, aspect=CELL_ASPECT):
     # in the caller's reserve.
     return [''] + render(nodes, board_c=board_c, colour=console,
                          margin=PANEL_W, reserve=reserve,
-                         trailing=TRAILING, aspect=aspect).split('\n')
+                         trailing=0, aspect=aspect).split('\n')
 
 
 #: PE15 up behind AFE_ON before the latch is cleared, s (tools/bench/switch.py).
@@ -238,8 +234,7 @@ def main():
         period = 1.0 / max(a.hz, 0.2)
         # Everything in the frame that is not picture, so `render` can size the
         # board to what is left.
-        reserve = (HEAD_LINES + 1 + SCALE_LINES + TRAILING + FOOT_LINES
-                   + GAUGE_LINES)
+        reserve = HEAD_LINES + 1 + FOOT_LINES + GAUGE_LINES
         last = {'body': ['  waiting for device 8'], 'boxes': [], 'ident': None,
                 'ident_at': float('-inf'), 'hint': None, 'quiet': None}
         leaving = None

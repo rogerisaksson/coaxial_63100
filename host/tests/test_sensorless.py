@@ -530,8 +530,7 @@ def test_the_map_places_its_parts_from_the_file(r):
                  for leg in 'UVW'}))
 
     for label, refs, where, margin in thermalmap.MARKS:
-        lx, ly = thermalmap.label_at(thermalmap.frame(refs, margin), where,
-                                     label)
+        lx, ly = thermalmap.label_at(thermalmap.frame(refs, margin), where)
         reach = math.hypot(lx, ly)
         r.check('%s is labelled on the board, clear of the rim and the bore'
                 % label,
