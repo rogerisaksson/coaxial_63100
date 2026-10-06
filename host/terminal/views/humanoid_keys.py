@@ -24,11 +24,12 @@ from tools import REPO
 CADENCE, CADENCE_STEP = (0.6, 1.0), 0.05
 
 #: J: her going on the one law (`machine.pace`), S and F then a step of LEVELS on her way
-#: (`gaits.between`): her stand, two slow walks, her walk, her jog, two faster, the run. On the
+#: (`gaits.between`): her stand, two slow walks - 0.52 and 0.66 m/s, strolled; at the row -0.6,
+#: 0.32 m/s, a shuffle on stilts -, her walk, her jog, two faster, the run. On the
 #: walk as built they step its cadence, 0.6-0.9 strides/s: the page's meter two cells down and
 #: none up (the user, 2026-10-05). The law's walk is the page's own once it is a woman's
 #: (docs/TODO.md item 28).
-LEVELS = (-1.0, -0.6, -0.3, 0.0, 0.5, 0.7, 0.85, 1.0)
+LEVELS = (-1.0, -0.3, -0.15, 0.0, 0.5, 0.7, 0.85, 1.0)
 
 #: Z and X move her style SWAY_STEP of `style.SWAY`'s axis. On the one law M picks the next of
 #: its manners (`gaits.MANNERS`) and Z and X move that one's amount MANNER_STEP, 0 to 1, each

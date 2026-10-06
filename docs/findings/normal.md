@@ -122,3 +122,18 @@ Her walk as built is in [walk](walk.md), the one law's in
   asked to a stand at 14 s, standing at 15.5 and on her left leg again
   by 17. test_gynoid_going.py holds it. My reading of the user's
   "line-up": the weight on one leg, the hip out.
+- Her slow walks strolled (2026-10-06; `gaits.STROLLS`, the accent
+  `strolling`, asked by a slow walk's row itself). A woman's step keeps
+  its ratio to its time at any pace; the law's slow walks kept the
+  walk's 0.52 s: at the row -0.3, 0.59 m/s, a step 0.39 legs, her walk
+  ratio 0.73 where 1.1-1.8, 1.53 off the band - on stilts, a shuffle. On
+  a step 0.14 s longer: 0.52 m/s, the ratio 1.08, 0.73 off (shuffling
+  0.55, stiff 0.39), no gait's name, at 695 J/m; at the row -0.15, 0.66
+  m/s and 0.39 off at 550. Longer still she falls - 0.72 s at 0.6 m/s,
+  0.70 at 0.45 -, and the row -0.6, 0.32 m/s, stays a shuffle on stilts:
+  the page's S steps -0.15 and -0.3 now. As a knot of her way between
+  her stand and her walk it felled her stops, 7 of 10 where 10, a stop
+  passing through its step's time: it is an accent, and let go before
+  she stops - stopped on the long step, down 3 timings of 12. Her ways
+  76 of 104, the page's presses under the director 66 of 72, as before
+  it.

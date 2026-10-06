@@ -50,13 +50,27 @@ def test_a_gait_is_a_row_of_the_same_names(report):
     report.check('asked the run from her stand she stays on her walk and on each row between',
                  at.get(1.0, 99.0) < 17.0 and min(stays) >= gaits.DWELL_S,
                  'at the run in %.1f s, %s s a gait' % (at.get(1.0, 99.0), stays))
+    k, on, now, slow = -1.0, 0.0, {}, gaits.STROLLS[1]
+    for _ in range(5000):
+        k, on, now = gaits.passed(k, on, slow, now, (), 0.001)
+    strolled, left = (k, now.get('strolling', 0.0)), None
+    for i in range(5000):
+        k, on, now = gaits.passed(k, on, -1.0, now, (), 0.001)
+        if left is None and k < slow:
+            left = (0.001 * i, now.get('strolling', 0.0))
+    left = left or (99.0, 1.0)
+    report.check('asked a slow walk she strolls, and lets that go before she stops',
+                 strolled == (slow, 1.0) and left[1] == 0.0 and k == -1.0,
+                 'on the row %.2f strolling %.2f; off it %.1f s after the stop was asked, '
+                 'strolling %.2f' % (strolled + left))
 
 
 def test_her_rows_go_on(report):
-    """On the walk's row, asked on from a stand, and on the run's, placed at its speed, she
-    is up GO_S on, every condition of `go.FORM` met."""
+    """On the walk's row, asked on from a stand, on the run's, placed at its speed, and asked
+    a slow walk, strolling, she is up GO_S on, every condition of `go.FORM` met."""
     from tools.sim import go
-    for name, track in (('walk', [(0.0, -1.0), (1.0, 0.0), (6.0, 0.0)]), ('run', [(0.0, 1.0)])):
+    for name, track in (('walk', [(0.0, -1.0), (1.0, 0.0), (6.0, 0.0)]), ('run', [(0.0, 1.0)]),
+                        ('stroll', [(0.0, -1.0), (1.0, -0.3), (6.0, -0.3)])):
         result = go.went(track, track[-1][0] + GO_S, asked=len(track) > 1)
         went = result['segments'][-1]
         report.check('on the %s row she goes on' % name, not result['fell'],

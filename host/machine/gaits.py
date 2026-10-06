@@ -90,8 +90,15 @@ MANNERS = {'leaning': {'lean': 9.0}, 'crouched': {'strut': 18.0, 'knee': 14.0},
            'wide': {'track': 0.036}, 'tripping': {'step': -0.1, 'stand': -0.1},
            'catwalk': {'list': 1.9, 'turn': 12.9},
            'hip left': {'weigh': 0.8, 'hang': 7.0}, 'hip right': {'weigh': -0.8, 'hang': 7.0},
+           'strolling': {'step': 0.138, 'stand': 0.172},
            'into the wind': (('leaning', 1.0), ('crouched', 0.8), ('tripping', 0.4))}
 MANNER_S = 2.0
+#: Asked a slow walk she strolls, an accent of its own - a step 0.14 s longer, as a woman's
+#: keeps its ratio to its time: none under the row STROLLS[0] of her way, in full at [1], none
+#: at her walk's. At the row -0.3, 0.52 m/s: 0.73 off a woman's band where 1.53, on stilts and
+#: a shuffle by name before, her walk ratio 1.08 where 0.73; at -0.15, 0.66 m/s and 0.39. On
+#: a step of 0.72 s she fell, and at the row -0.6 on 0.60 s (2026-10-06).
+STROLLS = (-0.45, -0.3)
 #: Her stand's own setpoints: an accent that moves them is a pose's, let go before she goes
 #: on - walked off from her weight on one leg she was down in 1.2 s (2026-10-06).
 POSES = frozenset(('weigh', 'hang'))
@@ -121,9 +128,14 @@ def posed(amounts):
 def passed(k, held, want, now, asked, dt):
     """(k, held, {manner: amount}) `dt` s on: her way toward the row `want` (`toward`), her
     accents toward `asked` (`manners`) - a pose's let go before she leaves her stand, and
-    hers again as she stands."""
-    now = manners(now, asked, dt, going=want > -1.0 or k > -1.0)
-    return toward(k, held, -1.0 if k <= -1.0 and posed(now) else want, dt) + (now,)
+    hers again as she stands; asked a slow walk, strolling, and that let go before she stops:
+    stopped on its long step she was down 3 timings of 12."""
+    strolls = max(0.0, min((want - STROLLS[0]) / (STROLLS[1] - STROLLS[0]), want / STROLLS[1]))
+    now = manners(now, tuple(asked) + (('strolling', strolls),), dt,
+                  going=want > -1.0 or k > -1.0)
+    if k <= -1.0 and posed(now) or want <= -1.0 < k < 0.0 and now.get('strolling', 0.0) > 0.0:
+        want = k
+    return toward(k, held, want, dt) + (now,)
 
 
 def plain(asked, k=1.0, into=None):

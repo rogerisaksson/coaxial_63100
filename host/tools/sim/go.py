@@ -33,12 +33,14 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 #: her speed, m/s, the J/m she draws, the knee as a foot lands, deg, the share of her landings
 #: with the other foot down, her steps. The walk's row walks 0.85 m/s at 502 J/m, its knee
 #: landing at 11-12 deg - 0.75-0.81 at 380-397, 18-20 deg, the row first found, her quick step
-#: now; the run's ran 1.44 m/s at 522; her jog 0.69-0.76 at 739-801; standing she took no
+#: now; asked the row -0.3 she strolls 0.52 m/s at 695; the run's ran 1.44 m/s at 522; her jog
+#: 0.69-0.76 at 739-801; standing she took no
 #: step, and stood again after a walk one or two (2026-10-06).
 FORM = {'walk': (('speed', 0.65, 0.95), ('drawn', None, 600.0), ('knee', None, 30.0),
                  ('both', 1.0, None)),
         'run': (('speed', 1.35, 1.6), ('drawn', None, 620.0), ('both', None, 0.0)),
         'jog': (('speed', 0.55, 0.95), ('drawn', None, 900.0), ('both', None, 0.0)),
+        'stroll': (('speed', 0.4, 0.65), ('drawn', None, 850.0), ('both', 1.0, None)),
         'stand': (('speed', -0.03, 0.03), ('steps', None, 0.0)),
         'stand again': (('speed', -0.05, 0.05), ('steps', None, 3.0))}
 

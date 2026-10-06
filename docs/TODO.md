@@ -256,13 +256,13 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
 
 28. **One law for her going, S and F on it** (the user, 2026-10-05). In, under
     J (docs/findings/going.md). Left: its walk the page's own - 0.20 off
-    `normal.BAND`, the user to say - at 502 J/m; her ways 77 of 104; a shove's
+    `normal.BAND`, the user to say - at 502 J/m; her ways 76 of 104; a shove's
     parry, a reflex under it (the user, 2026-10-06; balance.md): a leg out at
     once, by impulse and standing foot - `ways.py --polar` 70 N 36 of 64, 120 N
-    5; her turns; its slow walks a shuffle; the floor's events on the law; a
-    run past 1.5 m/s; the runner and the walk's modules gone into it. DOD: F to
-    her fastest run and S back on the page, 10 of 10; its walk on `looks.FORM`
-    and `normal.BAND` at no more J/m; shoved, up as the walk as built.
+    5; her turns; a walk under 0.5 m/s; the floor's events on the law; a run
+    past 1.5 m/s; the runner and the walk's modules gone into it. DOD: F to her
+    fastest run and S back on the page, 10 of 10; its walk on `looks.FORM` and
+    `normal.BAND` at no more J/m; shoved, up as the walk as built.
 29. **Her tubes, corners and flanges** (the user, 2026-10-05): carbon
     tubes cut to length, epoxied into printed corners; a gearbox on a
     flange, its output through it; motor, box and board outermost, a

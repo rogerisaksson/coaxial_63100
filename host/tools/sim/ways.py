@@ -29,7 +29,7 @@ LAST_S = 3.0
 #: The page's S and F from her walk to the run and down to her stand, (s on, row): a press
 #: every 3-8 s (`humanoid_keys.LEVELS`).
 STEPPED = ((0.0, 0.5), (6.0, 0.7), (10.0, 0.85), (14.0, 1.0), (22.0, 0.85), (25.0, 0.7),
-           (28.0, 0.5), (34.0, 0.0), (40.0, -0.3), (44.0, -0.6), (48.0, -1.0))
+           (28.0, 0.5), (34.0, 0.0), (40.0, -0.15), (44.0, -0.3), (48.0, -1.0))
 
 
 def still(result):
