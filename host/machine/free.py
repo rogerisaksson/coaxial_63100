@@ -16,7 +16,11 @@ from machine.runner import ARM, COAST_S, LEVEL, eased, pitched
 
 #: Clearance. A free sole is LIFT_M over the floor from LIFTS_U of its swing to LANDS_U, let go
 #: over DOWN_U: raised to it, the foot as it was - a knee's fold slewed 230 deg/s lost to the
-#: knee's own 340 unfolding. A landing's ankle is CLEAR_M across from a standing one's still
+#: knee's own 340 unfolding -, a walk's eased up to it from where it left: at once, its toes'
+#: point counted under the floor as the heel is up, the knee was asked 23 deg more in a pass,
+#: the ankle 13, and a walk drew 571 J/m where 502; a run's eased so over any of its swing was
+#: down on her way back to a stand, 1-2 timings of 12 up where 11-12 (2026-10-06). A landing's
+#: ankle is CLEAR_M across from a standing one's still
 #: down then, and the free foot as far within PASS_M of it along her way: 6-7 cm apart it
 #: struck the standing foot, 180-475 N on both soles' sensors; held so in a run, her feet 7 cm
 #: apart, she was down in 3 s (2026-10-05).
@@ -65,7 +69,9 @@ def lifted(law, leg, sign, pel, now, joints):
     # was lifted 1.6 cm, the run's knee 28 deg where 22, and she was down at 0.8 s
     low = min(add(ankle, apply(foot, q))[1]
               for q in (SOLE_HEEL, SOLE_BALL) + (SOLE_TOE,) * (u <= LANDS_U))
-    up = max(0.0, clear - low) if clear > 0.0 else 0.0
+    # a walk's foot peels off its toes: raised over LIFTS_U; a run's is drawn up at once
+    up = ((1.0 - law.share() * (1.0 - eased(u / LIFTS_U))) * max(0.0, clear - low)
+          if clear > 0.0 else 0.0)
     c, s = math.cos(law.heading), math.sin(law.heading)
     out = 0.0
     if leg.get('beside') is not None:

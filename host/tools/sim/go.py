@@ -31,11 +31,11 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 
 #: What her rows hold on a flat floor, (measure, least, most), held by test_gynoid_going.py:
 #: her speed, m/s, the J/m she draws, the knee as a foot lands, deg, the share of her landings
-#: with the other foot down, her steps. The walk's row walks 0.81 m/s at 574 J/m, its knee
-#: landing at 9-11 deg - 0.75-0.81 at 380-397, 18-20 deg, the row first found, her quick step
+#: with the other foot down, her steps. The walk's row walks 0.85 m/s at 502 J/m, its knee
+#: landing at 11-12 deg - 0.75-0.81 at 380-397, 18-20 deg, the row first found, her quick step
 #: now; the run's ran 1.44 m/s at 522; her jog 0.69-0.76 at 739-801; standing she took no
 #: step, and stood again after a walk one or two (2026-10-06).
-FORM = {'walk': (('speed', 0.65, 0.95), ('drawn', None, 650.0), ('knee', None, 30.0),
+FORM = {'walk': (('speed', 0.65, 0.95), ('drawn', None, 600.0), ('knee', None, 30.0),
                  ('both', 1.0, None)),
         'run': (('speed', 1.35, 1.6), ('drawn', None, 620.0), ('both', None, 0.0)),
         'jog': (('speed', 0.55, 0.95), ('drawn', None, 900.0), ('both', None, 0.0)),
@@ -178,7 +178,8 @@ def formed(rows, segments, window):
 def went(track, to_s, values=None, form=None, shoves=(), asked=False, manner=()):
     """{'fell': s or None, 'segments': [{from, to, k, speed, drawn, work, steps, stance, both,
     knee, ahead, load}], 'forms': [{measure: value, 'broken': [..], 'price': ..}], 'form': the
-    first of them} of `to_s` s on `track` [(s, k)] - `asked`, each the row wanted from then on,
+    first of them, 'steps': [(landed s, side, left s)]} of `to_s` s on `track` [(s, k)] -
+    `asked`, each the row wanted from then on,
     hers following it as `gaits.toward` has it - under `values` {name: value}, in the manners
     `manner` [(s, ((manner, amount), ..))], each asked from then on; the look's rows taken
     over `form`, (from, to) or several, shoved as `shoves` [(s, newtons, degrees from behind
@@ -272,7 +273,7 @@ def went(track, to_s, values=None, form=None, shoves=(), asked=False, manner=())
     body.disarm()
     body.close()
     return {'fell': fell, 'segments': segments, 'form': forms[0] if forms else {},
-            'forms': forms}
+            'forms': forms, 'steps': [(s['t'], s['side'], s.get('off')) for s in law.steps]}
 
 
 def searched(kind, generations, lam, log_path, sigma=0.2):

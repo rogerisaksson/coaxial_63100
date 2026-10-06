@@ -25,9 +25,9 @@ RUN = {'speed': 1.5, 'step': 0.40, 'stand': 0.30, 'up': 0.0, 'rise': 0.49, 'boun
        'turn': 0.0, 'strut': 6.0}
 #: The walk's, a woman's as near as found (2026-10-06): searched from the walk as built's time
 #: on a walk's price and its widths off `tools.sim.normal.BAND`, 1 920 rows, then on its J/m,
-#: a stop and a passage to her jog and back too, 960. 0.81 m/s at 574 J/m, 0.34-0.41 off the
-#: band - the heel 20 deg up as its toes leave where 28, the knee 27 where 30 -, `looks.FORM`
-#: but her head 38 mm aside; her ways 68 of 104, the page's presses 23 of 24.
+#: a stop and a passage to her jog and back too, 960. 0.85 m/s at 502 J/m, 0.20-0.26 off the
+#: band - the heel 22 deg up as its toes leave where 28 -, `looks.FORM` but her head 42 mm
+#: aside and bobbing 33; her ways 69 of 104, the page's presses 21 of 24.
 WALK = {'speed': 0.87, 'step': 0.522, 'stand': 0.651, 'up': 0.104, 'rise': 0.0, 'bounce': 0.107,
         'land': -4.9, 'knee': 11.8, 'lean': 4.9, 'fold': 45.2, 'track': 0.044, 'off': 2.1,
         'list': 3.1, 'under': 0.036, 'folded': 0.63, 'reach': 0.333, 'elbow': 30.0, 'play': 0.9,
@@ -77,10 +77,10 @@ BESIDE_S = 0.05
 #: manner a row's setpoints moved, each this far at an amount of 1 - or other manners,
 #: ((manner, amount), ..). Asked as such tuples, their amounts 0 to 1 and summed, each coming
 #: on and going over MANNER_S. Alone on the walk's row, in `tools.sim.normal`'s words and at
-#: J/m (2026-10-06): leaning 0.50 at 780, her trunk 16 deg - at 12 deg more she fell from her
-#: stand, and with her knees bent 18 was up at 17 and at 20, 582 and 597 J/m: bent legs carry
-#: a lean -; crouched 0.60, Groucho's, at 500; wide 0.71, her feet 0.36 legs apart, at 608;
-#: tripping 0.36, a step 0.42 s, at 820.
+#: J/m (2026-10-06): leaning 0.50 at 559, her trunk 16 deg - at 12 deg more she fell from her
+#: stand, and with her knees bent 18 was up at 17 and at 20: bent legs carry a lean -;
+#: crouched 0.58, Groucho's, at 409; wide 0.68, her feet 0.36 legs apart, at 495; tripping
+#: 0.36, a step 0.42 s, at 666.
 MANNERS = {'leaning': {'lean': 9.0}, 'crouched': {'strut': 18.0, 'knee': 14.0},
            'wide': {'track': 0.036}, 'tripping': {'step': -0.1, 'stand': -0.1},
            'into the wind': (('leaning', 1.0), ('crouched', 0.8), ('tripping', 0.4))}

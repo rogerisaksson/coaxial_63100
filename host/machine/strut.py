@@ -63,10 +63,13 @@ def need(hip, flat, heading, knee):
 def rocker(leg, off, on, sunk, need=0.0):
     """A standing foot's pitch, rad, the heel up: what it landed with given to the floor - on
     its ball as she sinks `sunk` m, on its heel in FLAT_S -, and the heel's rise as her hip
-    goes `on` m ahead of the ankle (`heel`) or as its leg's length asks, `need`."""
+    goes `on` m ahead of the ankle (`heel`) or as its leg's length asks, `need` - on its heel,
+    as its toes come down: risen at once it was taken about its ball, the knee asked 8 and
+    21 deg within 20 ms of a landing (2026-10-06)."""
     landed, up = leg['landed'], max(need, heel(off, on))
     if landed <= 0.0:
-        return landed * (1.0 - eased(leg['t'] / FLAT_S)) + up
+        k = eased(leg['t'] / FLAT_S)
+        return landed * (1.0 - k) + up * k
     high = gait.BALL * math.sin(landed)
     give = high * math.exp(-ABSORB * max(0.0, sunk) / high) if high > 1e-6 else 0.0
     return max(math.asin(min(1.0, give / gait.BALL)), up)

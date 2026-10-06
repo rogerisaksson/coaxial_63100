@@ -268,3 +268,22 @@ shoves, the scoreboard and its searches. The board's own are in
   one down, at 0.31 none. Stood 0.4 s before the lean where 0.05
   (`STAND_S`): 27 of 30, one gain's standing start parried 14-22 times,
   and with the peak at 0.29 and 0.27 from the squat 4 gains of 6 parry.
+- A shove by her stride, on the one law (2026-10-06; `ways.py --polar`:
+  walking, a shove at each of 8 moments of a stride from each of 8 ways,
+  read by the foot that stood as it began - the user: what follows a
+  shove is the standing leg's; a trip the swinging foot's). 38 N, one
+  foot down: from behind 6 of 6 up and from ahead 6 of 6; over the
+  standing foot 2 of 6, to her free side 1 of 6 - the free foot could
+  land there and does not in time: it is aimed by her centre of mass's
+  speed, filtered, after the shove. By the moment: the standing foot
+  0.44 s down, the free one coming down, 15 of 16 up; 0.16-0.30 s down,
+  the free one just gone, 16 of 32. 70 N: from ahead 8 of 8, from behind
+  5 of 8, any way with a side to it 4 of 48. 120 N: none, standing,
+  walking or running. A shove of 120 N for 0.12 s moves her capture
+  point 14 cm, and it runs on as e^(3.3 t): a tenth of a second later
+  seen, a step 39 % longer. The way on (the user): detectors at an
+  impulse the IMU has - a shove, a slip, a strike -, a table under the
+  law's own pace, keyed by the shove's way from the standing foot, that
+  foot's seconds down and one foot or both; its answer the law's own
+  handles - which foot leaves now, where it lands, how long - so the
+  hand back is the law's next step.

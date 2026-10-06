@@ -323,3 +323,30 @@ in [walk](walk.md), the run in [run](run.md), the page's standing law in
   shuffling 0.67, tripping 0.53, a shuffle on stilts: a woman's step
   keeps its ratio to its time at any pace, the law's slow walks keep the
   walk's time.
+- What her walk on the law draws, by joint and by where in a stride
+  (2026-10-06; her draw the work her drives do, braking giving nothing
+  back, their copper's heat and the boards' own 53 W). At 0.84 m/s
+  570-582 J/m: 279 of work, 229 copper, 63 the boards'; 196 braked - the
+  knees 85 worked and 80 braked, the ankles 108 and 74, the hips 69 and
+  32. Half of it in three passages of a stride: a landing's first 0.1 s,
+  90 J/m; the other foot's landing, 49; the foot's leaving, 135 - there
+  the knee asked 23 deg more in a pass and the ankle 13, its toes' point
+  counted under the floor as the heel is up and raised at once
+  (`free.lifted`). A walk's foot eased up to its clearance over the
+  first fifth of its swing: 502 J/m (four starts, 496-516), as the page
+  runs her 485 and 0.20 off a woman's band where 0.34, a sole's strike
+  352 N where 428, her head bobbing 33 mm where 30. A run's is drawn up
+  at once: eased over any of its swing she was down on her way back to a
+  stand, 1-2 timings of 12 where 11-12. A foot on its heel has its
+  heel's rise only as its toes come down (`strut.rocker`): taken about
+  its ball at once, the knee was asked 8 and 21 deg within 20 ms of a
+  landing - 8 J/m. Her ways 69 of 104 where 68, the page's keys 12 of 12
+  where 9, its presses under the director 21 of 24 where 23. Tried and
+  out: the lead leg a strut from its landing, its knee from the bend it
+  landed with to the row's - 531 J/m where 506; what stands eased over a
+  foot's landing or leaving - 514 where 512; the fold a smooth bump over
+  the whole swing - 446, the knee 17.5 deg as its toes leave where 27,
+  stiff 0.46: out till the knee bends before the toes leave; the free
+  foot's ankle by its own way, not level - 576; the leaving knee bent as
+  its load passes - 10 deg 527, 30 deg down in her first steps: its foot
+  bears 345 N again as it pushes off, the load passing twice.

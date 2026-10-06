@@ -135,13 +135,13 @@ def test_the_director_hands_her_to_the_law(report):
 
 
 #: The law's walk beside a woman's normal one (`tools.sim.normal.BAND`): what of it is on her
-#: band, how far off it the walk may be in all, the words it may be said to be. 0.34 off it,
-#: stiff 0.33 - the knee 28 deg and the heel 20 as its toes leave - since 2026-10-06; on
+#: band, how far off it the walk may be in all, the words it may be said to be. 0.20 off it,
+#: stiff 0.17 - the heel 22 deg up as its toes leave where 28 - since 2026-10-06; on
 #: stilts (the user) before: 4.1 off, the swinging knee 26 deg, no heel's rise, the pelvis
 #: level, her feet 0.29 legs apart, her arms bent 80 deg and still.
 ON_BAND = ('elbow bent', 'elbow', 'arm', 'hand out', 'knee swinging', 'knee at landing',
            'knee straightest', 'pelvis roll', 'feet apart', 'walk ratio', 'vault')
-OFF_BAND, WORDS, WALK_S = 1.0, ('stiff', 'shuffling', 'still-hipped'), 14.0
+OFF_BAND, WORDS, WALK_S = 0.6, ('stiff', 'shuffling', 'still-hipped'), 14.0
 
 
 def test_its_walk_beside_a_womans(report):
@@ -167,9 +167,9 @@ def test_its_walk_beside_a_womans(report):
 
 #: Her manners on the law, each asked alone at an amount of 1 as she walks: (manner, the words
 #: it is to be read back in) - MANNER_FOR s each, read over its last READ_S, from FROM_S on,
-#: then plain again. Up through it on 12 timings of 12: leaning 0.49 at 733 J/m, crouched 0.60
-#: at 509, wide 0.71 at 578, tripping 0.36 at 785, into the wind leaning 0.47 and crouched 0.30
-#: at 568-607, and plain again 0.33 off a woman's band (2026-10-06).
+#: then plain again. Up through it on 12 timings of 12: leaning 0.50 at 559 J/m, crouched 0.58
+#: at 409, wide 0.68 at 495, tripping 0.36 at 666, into the wind leaning 0.48 and crouched 0.31
+#: at 539, and plain again 0.26 off a woman's band (2026-10-06).
 MANNERS = (('leaning', ('leaning',)), ('crouched', ('crouched',)), ('wide', ('wide',)),
            ('tripping', ('tripping',)), ('into the wind', ('leaning', 'crouched')))
 FROM_S, MANNER_FOR, READ_S = 8.0, 8.0, 5.0

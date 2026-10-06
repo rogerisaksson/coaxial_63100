@@ -4,11 +4,15 @@
     python tools/sim/ways.py                       # every group, 104 trials through the relay
     python tools/sim/ways.py --only run -v         # the groups named so, each trial's segments
     python tools/sim/ways.py hold.HOLD_K=0.8       # under a constant moved
+    python tools/sim/ways.py --polar 38 70         # shoved walking, by her stride and its way
 
 A trial is `go.py --json` on a track or on rows asked ('ask ..', hers following as
 `gaits.toward` has it), shoved or not; a group passes it as she is up at its end and what the
 group asks of its last segment holds - standing again, the last LAST_S s are judged alone. The
 measure of docs/TODO.md's item on her going: nothing here is a price, a fall ends a trial.
+`--polar`: walking, a shove at each of TIMES from each of 8 ways, read by the foot that stood
+as it began (the user, 2026-10-06: what follows a shove is the standing leg's) - a parry's
+measure.
 """
 import argparse
 import json
@@ -80,6 +84,51 @@ GROUPS = [
 ]
 
 
+#: A shove's seconds over a stride, and its ways as the standing foot has them: the force's,
+#: deg from behind toward her left, the left foot down - mirrored, the right.
+TIMES = tuple(7.0 + 0.14 * i for i in range(8))
+FROM = {0: 'from behind', 45: 'behind, over', 90: 'over the foot', 135: 'ahead, over',
+        180: 'from ahead', 225: 'ahead, free', 270: 'to her free side', 315: 'behind, free'}
+
+
+def polar(newtons, knobs=()):
+    """Printed: walking on the walk's row, shoved `newtons` N at each of TIMES from each of
+    FROM's ways - a row a time, the foot down as it began, its seconds down and how many
+    were, up or the seconds till she was down; then up of all by the way as that foot has it,
+    one foot down and both."""
+    from tools.dev import focus
+    tool = os.path.join(HOST, 'tools', 'sim', 'go.py')
+    jobs = [focus.Job('%g|%d' % (t, way), [
+        sys.executable, '-X', 'utf8', tool, '--json', '--to', '16', '--track', '0:-1 1:-1 2:0',
+        '--shove', '%g:%g:%d' % (t, newtons, way)] + list(knobs), 1.2, 900.0)
+        for t in TIMES for way in FROM]
+    out = {}
+    for job, text, _code, _s in focus.relay(jobs):
+        line = next((ln[7:] for ln in reversed(text.splitlines()) if ln.startswith('RESULT ')),
+                    None)
+        out[job.name] = json.loads(line) if line else None
+    print('%g N   foot  s down feet | %s' % (newtons, ' '.join('%4d' % way for way in FROM)))
+    tally = {}
+    for t in TIMES:
+        cells, foot, since, feet = [], '?', 0.0, 0
+        for way in FROM:
+            r = out['%g|%d' % (t, way)]
+            landed = [s for s in r['steps'] if s[0] <= t] if r else []
+            if not landed:
+                cells.append('lost')
+                continue
+            (at, foot, _off), before = landed[-1], landed[-2:-1]
+            since, feet = t - at, 2 if before and (before[0][2] or 1e9) > t else 1
+            up = tally.setdefault((feet, FROM[way if foot == 'left' else (360 - way) % 360]),
+                                  [0, 0])
+            up[0], up[1] = up[0] + (not r['fell']), up[1] + 1
+            cells.append('  up' if not r['fell'] else '%4.1f' % (r['fell'] - t))
+        print('%6.2f  %-5s %5.2f  %d   | %s' % (t, foot, since, feet, ' '.join(cells)))
+    for feet, said in ((1, 'one foot down'), (2, 'both feet down')):
+        print('  %s: %s' % (said, '; '.join('%s %d of %d' % ((name,) + tuple(tally[feet, name]))
+                                           for name in FROM.values() if (feet, name) in tally)))
+
+
 def gone(only=(), knobs=()):
     """[(group, [(track, shoves, result or None, passed)])] of GROUPS - those with a word of
     `only` in their name - under `knobs` ['NAME=V'], every trial a job of the relay."""
@@ -110,8 +159,14 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
     parser.add_argument('--only', nargs='*', default=(), help='groups with one of these words')
     parser.add_argument('-v', action='store_true', help='every trial, its segments')
+    parser.add_argument('--polar', type=float, nargs='*', metavar='N',
+                        help='shoved walking by her stride and its way, each of these newtons')
     parser.add_argument('knobs', nargs='*', metavar='NAME=V', help='constants moved')
     args = parser.parse_args(argv)
+    for newtons in args.polar or ():
+        polar(newtons, args.knobs)
+    if args.polar is not None:
+        return 0
     total = [0, 0]
     for group, trials in gone(args.only, args.knobs):
         off = ['lost' if r is None else '%.1f' % r['fell'] if r['fell'] else 'not as asked'

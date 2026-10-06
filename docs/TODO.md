@@ -254,14 +254,15 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
     bearing out in `bearing.py`): the trial into its own module. DOD:
     `test_structure` on the layout, each file under 5 k.
 
-28. **One law for her going, S and F on it** (the user, 2026-10-05). In
-    (`machine/going.py`, docs/findings/going.md), under J. Left: its walk the
-    page's own - 0.34 off `normal.BAND`, the user to say - at 574 J/m where
-    433; her ways 68 of 104, nudged walking 4 of 8; a shove's parry; her turns;
-    its slow walks a shuffle; the floor's events on the law; a run past 1.5
-    m/s; the runner and the walk's modules gone into it. DOD: F to her fastest
-    run and S back on the page, 10 of 10; its walk on `looks.FORM` and
-    `normal.BAND` at no more J/m; shoved, up as the walk as built.
+28. **One law for her going, S and F on it** (the user, 2026-10-05). In, under
+    J (docs/findings/going.md). Left: its walk the page's own - 0.20 off
+    `normal.BAND`, the user to say - at 502 J/m; her ways 69 of 104; a shove's
+    parry, a reflex under it (the user, 2026-10-06; balance.md): a table keyed
+    by the impulse and the standing foot - `ways.py --polar`, 38 N aside 3 of
+    12; her turns; its slow walks a shuffle; the floor's events on the law; a
+    run past 1.5 m/s; the runner and the walk's modules gone into it. DOD: F to
+    her fastest run and S back on the page, 10 of 10; its walk on `looks.FORM`
+    and `normal.BAND` at no more J/m; shoved, up as the walk as built.
 29. **Her tubes, corners and flanges** (the user, 2026-10-05): carbon
     tubes cut to length, epoxied into printed corners; a gearbox on a
     flange, its output through it; motor, box and board outermost, a
@@ -270,18 +271,17 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
     The holders are the 70 mm stacks': on the U8s her frame's parts are
     19 mm into each other at the hips where 9 (`tools/sim/fit.py`). DOD:
     no pair closer than before, each tube in its holder, each board on
-    its flange. In still air she walks on and runs 4-6 min
-    (docs/findings/stacks.md); the heat's model means a FET's loss over
-    an electrical turn: stalled, one carries it all.
+    its flange.
 30. **A dance of her moves** (the user, 2026-10-05): up on her toes and
     tripping on them, down again, round in a circle - her skirt swishing -, sat
-    on a chair one leg over the other, up and the sequence again; each a row or
-    a keyframe, a track its choreography. DOD: twice round on the page, no
-    fall.
+    on a chair one leg over the other, up and the sequence again. DOD: twice
+    round on the page, no fall.
 31. **A language for how she moves** (the user, 2026-10-05: each concept on a
-    reference, asked as tuples). In: `normal.WORDS`, `gaits.MANNERS`, M Z X.
-    DOD: a catwalk on the law; tripping no shuffle; a planner asking them of a
-    wind or a slope; sitting, rising; a passage judged against a take's.
+    reference, asked as tuples; 2026-10-06: a base, its accents by amount, a
+    transition between two). In: `normal.WORDS`, `gaits.MANNERS`, M Z X. DOD: a
+    catwalk; tripping no shuffle; a standing accent with a side; 100 % a take's
+    measure; a transition a path and a gate; a planner asking them of a wind or
+    a slope; sitting, rising.
 
 ## Bench
 
