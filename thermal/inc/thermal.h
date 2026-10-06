@@ -99,8 +99,8 @@ typedef struct
       centre patch, 0 to 1: the steady-state fraction of the element it sits
       in. */
   float ntc_sees;
-  /** How slowly the modelled thermistor follows, seconds - the laminate
-      around it, which has no node of its own. */
+  /** How slowly the modelled thermistor follows the two patches it sits
+      between, seconds. */
   float ntc_tau_s;
 
   /** Radiation between the board's face and the stator's back, W/K at 300 K

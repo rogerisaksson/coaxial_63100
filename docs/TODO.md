@@ -354,7 +354,6 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
 - **`test_sensorless`** overpowered-servo check flakes ~1 in 4 in the full
   gate; `test_daq_api`'s first record had no dt once in it, 82 of 82
   alone (2026-10-05). DOD: 20 gates green.
-- **`thermal.h`'s `ntc_tau_s` comment** stale.
 - **A1335 CRC** reported, not checked. DOD: the polynomial known, checked.
 - **`testline/plans/coaxial_63100_fct.yaml`** limits are placeholders.
   DOD: measured.
