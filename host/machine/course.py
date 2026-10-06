@@ -242,13 +242,20 @@ def _on(row, s):
 
 def nearest(line_, point, low, high):
     """How many samples along the line - between two, whole laps counted - its point nearest
-    the (x, y, z) `point` over the floor is, of those from `low` to `high`."""
+    the (x, y, z) `point` over the floor is, of those from `low` to `high`: from the nearest
+    sample onto the line as it lies between two, twice. By that sample's own tangent, half a
+    step either way, a frame off its line in a bend jumped at every sample, and its asked
+    speed's change with it: 4.3 m/s^2 rms rough a pass to the next where 3.0, a rotor's
+    spool on the boards 8.5 A rms where 7.6 (2026-10-06)."""
     n, step = len(line_['at']), line_['step']
     k = min(range(low, high + 1), key=lambda j: (
         (line_['at'][j % n][0] - point[0]) ** 2 + (line_['at'][j % n][2] - point[2]) ** 2))
-    here, way = line_['at'][k % n], line_['way'][k % n]
-    past = (point[0] - here[0]) * way[0] + (point[2] - here[2]) * way[2]
-    return k + max(-0.5, min(0.5, past / step))
+    s = float(k)
+    for _ in range(2):
+        here, way = _on(line_['at'], s), _on(line_['way'], s)
+        past = (point[0] - here[0]) * way[0] + (point[2] - here[2]) * way[2]
+        s = max(k - 1.0, min(k + 1.0, s + past / (way[0] * way[0] + way[2] * way[2]) / step))
+    return s
 
 
 def bend_speed(bend, grip, wind):

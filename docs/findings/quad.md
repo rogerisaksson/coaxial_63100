@@ -181,3 +181,9 @@ The board's own are in [FINDINGS](../FINDINGS.md).
   and the way out on what a bend leaves of the grip, the plan 8.0 m/s
   mean and the frame 7.2; the line a quintic, its bend whole through the
   gates, struck the slalom's last.
+- The frame's place on its line, found between the line's samples
+  (`course.nearest`, 2026-10-06): on the tuned plan, still air and seven
+  winds (`quad_race --seeds`), the four boards' laps 20.2-20.7 and
+  19.6-20.7 s where 20.8-21.3 and 20.2-21.2, their envelopes at 0.72-0.77
+  and 34-48 % of the pull left at the least where 31-43. The tilt's loop
+  at (100, 20) on that plan spent them: 0.77-0.84, laps 21-22.6 s.

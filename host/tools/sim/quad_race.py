@@ -9,7 +9,7 @@ card flown once through among what stands, solid:
 - ideal: rotors lagging to their speed, on all of their pull, a page's passes;
 - boards: four stand-in boards (the page's flight, no page), their envelopes binding;
 
-each in still air and in the air's tour from SEEDS, and - ideal - as a frame of each of SIZES
+each in still air and in the air's tour from SEEDS (`--seeds`), and - ideal - as a frame of each of SIZES
 on a course as much larger (`quad.sized`). A trial's cost is its laps' seconds, by its frame's
 clock; MISS_K a metre a gate's middle is passed further off than MISS_M, ROOM_K a metre the
 frame has less than ROOM_M about it, both of the frame as built; struck, STRUCK_S and no laps
@@ -37,12 +37,17 @@ from tools import REPO  # noqa: E402
 from tools.dev import background  # noqa: E402
 from tools.sim import cmaes  # noqa: E402
 
-#: The air's seeds a candidate is flown in, beside still air, and the frames' sizes beside the
-#: one built; the trials: (rotors, seed, size).
+#: The air's seeds a candidate is flown in, beside still air (`--seeds`: a run's own), and the
+#: frames' sizes beside the one built.
 SEEDS, SIZES = (3, 4, 5), (0.75, 1.5)
-TRIALS = tuple((rotors, seed, 1.0) for rotors in ('ideal', 'boards')
-               for seed in (None,) + SEEDS) + tuple(('ideal', None, size) for size in SIZES)
 SUITES = {'all': ('ideal', 'boards'), 'ideal': ('ideal',), 'boards': ('boards',)}
+
+
+def trials(seeds=SEEDS, suite='all'):
+    """The trials of `suite` in still air and the air of `seeds`: [(rotors, seed, size)]."""
+    return [t for t in [(rotors, seed, 1.0) for rotors in ('ideal', 'boards')
+                        for seed in (None,) + tuple(seeds)]
+            + [('ideal', None, size) for size in SIZES] if t[0] in SUITES[suite]]
 
 #: The ideal rotors: their top, rad/s, their lag to a speed, s, the fastest they are spun up or
 #: down, rad/s^2 (tests/test_quad_course.py's).
@@ -239,9 +244,10 @@ def run(_pool, candidates):
     """[(cost, whole, miss, results)] for `candidates`, every flight of each a job on the relay
     (`focus.relay`), its result the JSON line it prints (`--one`); one lost counts as struck."""
     from tools.dev import focus
+    seeds = [str(seed) for rotors, seed, _size in JOBS if rotors == JOBS[0][0] and seed is not None]
     jobs = [focus.Job('%d.%d' % (c, k), [sys.executable, '-X', 'utf8', os.path.abspath(__file__),
-                                         '--suite', SUITE, '--one', json.dumps(values), str(k)],
-                      RUN_GB, RUN_S)
+                                         '--suite', SUITE, '--seeds', *seeds,
+                                         '--one', json.dumps(values), str(k)], RUN_GB, RUN_S)
             for c, values in enumerate(candidates) for k in range(len(JOBS))]
     got = {}
     for job, text, _code, _s in focus.relay(jobs):
@@ -267,7 +273,7 @@ def _show(values, cost, whole, miss, results):
                 '  STRUCK %s' % r['struck'] if r['struck'] else '')) if r else 'lost'))
 
 
-SUITE, JOBS = 'all', list(TRIALS)
+SUITE, JOBS = 'all', trials()
 
 
 def main(argv=None):
@@ -284,10 +290,12 @@ def main(argv=None):
     parser.add_argument('--sigma', type=float, default=0.15, help='the first step, of a span')
     parser.add_argument('--log', default=LOG, help='every candidate, a line')
     parser.add_argument('--suite', choices=sorted(SUITES), default='all')
+    parser.add_argument('--seeds', type=int, nargs='*', default=list(SEEDS),
+                        help="the air's seeds flown, beside still air")
     parser.add_argument('--one', nargs=2, metavar=('VALUES', 'K'),
                         help="one flight on the relay: a candidate's JSON and its job's index")
     args = parser.parse_args(argv)
-    SUITE, JOBS = args.suite, [t for t in TRIALS if t[0] in SUITES[args.suite]]
+    SUITE, JOBS = args.suite, trials(args.seeds, args.suite)
     background.lower()
     if args.one:
         print(json.dumps({'result': trial(json.loads(args.one[0]), JOBS[int(args.one[1])])}))
