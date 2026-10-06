@@ -53,18 +53,20 @@ CROWN, TRUNK_M, CAR_LOW, CAR_BODY, CAR_CABIN, BAR_M = 0.35, 0.12, 0.25, 0.55, (0
 
 #: The line: a span's tangents this much of its chord, sampled every DS m; its laps. And how
 #: it crosses each gate, a row a gate: turned off the gate's heading, degrees, and its tangent
-#: there, of TENSION's - a tuner's to find (`tools/sim/quad_race.py`); the first as it stands.
-TENSION, DS, LAPS = 1.0, 0.25, 2
-WAYS = ((0.0, 1.0),) * len(GATES)
+#: there, of TENSION's - the tuner's (`tools/sim/quad_race.py`); the first as it stands.
+TENSION, DS, LAPS = 1.186, 0.25, 2
+WAYS = tuple((turn, 1.0) for turn in (0.0, 13.4, -25.0, 8.4, -16.1, 6.6, 10.5, 2.7, 4.1, 8.4,
+                                      -16.1, -13.6, 6.2, 18.3))
 
-#: The lean a lap asks, of the pull along the floor all of the frame's rotors give - 23 m/s^2,
-#: 67 degrees, more than the envelopes leave it for long - and its speed at most, m/s. The
+#: The lean a lap asks, of the pull along the floor all of the frame's rotors give - 22 m/s^2,
+#: 66 degrees, more than the envelopes leave it for long - and its speed at most, m/s. The
 #: pull it is planned on is the envelopes' share of that lean, EASY of the frame's whole at
 #: the least, come down to in EASE_S of the whole and back up in twice that:
 #: planned on what the law's reach left, 11 m/s^2 with the envelopes spent, a lap never eased
 #: and the boards stood at 0.94 of theirs, two throttling (2026-10-06). Of that pull a bend
-#: takes GRIP, the brake before it BRAKE and the way out of it GO; bends are braked for
-#: AHEAD_M ahead; a crest is flown no faster than lets it fall DROP of gravity, the rotors kept
+#: takes GRIP, the brake before it BRAKE and the way out of it GO, the brake to its finish
+#: STOP - at a bend's 0.39 it stood 0.36 m past the gate, through it at 2.6 m/s; bends are
+#: braked for AHEAD_M ahead; a crest is flown no faster than lets it fall DROP of gravity, the rotors kept
 #: turning for the bend on it; a bend's pull swings from one side to the other in SWING_S at
 #: the fastest - what the discs take to lean over, the rotors' spool in it. Over the house's
 #: crest at 0.3 of its weight it stood 90 degrees over and fell 0.86 m under its line
@@ -74,9 +76,13 @@ WAYS = ((0.0, 1.0),) * len(GATES)
 #: about the frame; at 26 one wind had it 0.74 m off a gate and nothing about it; the swing
 #: not counted, a lean of 26 struck the slalom's gate in four flights of four. Stiffer loops
 #: do not buy it: the tilt's at twice its gain rang, the spot's at four struck a gate - a
-#: lean turns no faster than the rotors spool.
-LEAN, EASY, EASE_S, TOP_M_S = 0.668, 0.116, 2.0, 12.0
-GRIP, BRAKE, GO, AHEAD_M, DROP, SWING_S = 0.7, 0.25, 0.25, 40.0, 0.408, 0.6
+#: lean turns no faster than the rotors spool. The tuner's, 60 generations of 20 flown on
+#: ideal rotors (2026-10-06) - these, LEAD_S, LOOK_S, TENSION and the line's crossings: laps
+#: 19.2 and 18.1 s where 20.8 and 19.5, on four boards 20.8 and 20.0 where 21.9 and 20.7;
+#: in six winds and at three sizes it never flew, a gate 0.61 m off at the most where 0.92.
+LEAN, EASY, EASE_S, TOP_M_S = 0.642, 0.116, 2.0, 12.0
+GRIP, BRAKE, GO, AHEAD_M, DROP, SWING_S = 0.795, 0.39, 0.3, 40.0, 0.408, 0.83
+STOP = 0.25
 
 #: The frame's place on the line is looked for REACH_M on from the last; the law's spot is kept
 #: on the line, SLACK_M from that place along it at most; a bend's pull is asked LEAD_S ahead
@@ -92,7 +98,7 @@ GRIP, BRAKE, GO, AHEAD_M, DROP, SWING_S = 0.7, 0.25, 0.25, 40.0, 0.408, 0.6
 #: to the frame's own place, the law kept the frame's speed, 2.5 m/s under the plan's; its
 #: speed's way led with the bend, it flew 0.9 m inside the mast's gates; the row for the
 #: pass's start, a pass of 30 ms after one of 14 asked twice the bend's pull.
-REACH_M, SLACK_M, LEAD_S, LOOK_S, LOOK_M = 3.0, 2.0, 0.2, 0.6, 3.0
+REACH_M, SLACK_M, LEAD_S, LOOK_S, LOOK_M = 3.0, 2.0, 0.154, 0.467, 3.0
 AIM_K, TURN_RAD_S, STAND_M, STAND_M_S = 5.0, math.tau, 0.6, 0.5
 
 #: The lap's rows: the hover's, at a lap's pace up and down, its nose free; the lean a row
@@ -294,7 +300,7 @@ def line(route, now):
     lead = min(end, on + LEAD_S * lap['v'] / step)
     # as fast as the bends ahead allow, each braked for from here, a crest as its fall; to a
     # stand at its finish; come to no faster than GO of the pull
-    allowed = min(TOP_M_S, math.sqrt(2.0 * BRAKE * pull * (end - lead) * step))
+    allowed = min(TOP_M_S, math.sqrt(2.0 * STOP * pull * (end - lead) * step))
     for j in range(min(int(AHEAD_M / step), int(end - lead))):
         bend, rise, _veer = line_['bends'][(int(lead) + j) % n]
         bend += max(0.0, -rise) * GRIP * pull / (DROP * quad.GRAVITY)
