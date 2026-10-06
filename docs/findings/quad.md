@@ -187,3 +187,14 @@ The board's own are in [FINDINGS](../FINDINGS.md).
   19.6-20.7 s where 20.8-21.3 and 20.2-21.2, their envelopes at 0.72-0.77
   and 34-48 % of the pull left at the least where 31-43. The tilt's loop
   at (100, 20) on that plan spent them: 0.77-0.84, laps 21-22.6 s.
+- The plan's speed stepped, and the boards spooled for it (2026-10-06): from
+  its way out of a bend to its brake for the next the asked speed's change
+  is 14 m/s^2 in a pass, and the collective follows the pull at once where
+  the lean takes 0.4 s. The speed asked now comes to the plan's over 0.1 s
+  (`course.SOFT_S`), the plan looked up as much further on - without that
+  it stood past its finish again: on the four boards in seven winds laps
+  19.5-19.7 and 18.6-19.1 s where 20.2-20.7 and 19.6-20.7, their
+  envelopes at 0.66-0.69 where 0.72-0.77 and 56-67 % of the pull left at
+  the least where 34-48, a gate 0.50 m off at the most where 0.67; on
+  ideal rotors 19.4 and 18.5 s, 0.54 m. 38.8 as the tuner counts it over
+  18 flights where 41.7; over 0.13 s a gate was struck.

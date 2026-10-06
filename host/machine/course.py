@@ -98,7 +98,12 @@ STOP = 0.25
 #: to the frame's own place, the law kept the frame's speed, 2.5 m/s under the plan's; its
 #: speed's way led with the bend, it flew 0.9 m inside the mast's gates; the row for the
 #: pass's start, a pass of 30 ms after one of 14 asked twice the bend's pull.
-REACH_M, SLACK_M, LEAD_S, LOOK_S, LOOK_M = 3.0, 2.0, 0.154, 0.467, 3.0
+#: The speed it asks comes to the plan's over SOFT_S, the plan looked up as much further on:
+#: it steps from its way out of a bend to its brake for the next, 14 m/s^2 in a pass, and
+#: the rotors spooled for the pull that stepped with it - on the four boards in seven winds
+#: laps 20.2-20.7 and 19.6-20.7 s, their envelopes at 0.72-0.77, a gate 0.67 m off at the
+#: most; softened, 19.5-19.7 and 18.6-19.1, 0.66-0.69, 0.50 m (2026-10-06).
+REACH_M, SLACK_M, LEAD_S, LOOK_S, LOOK_M, SOFT_S = 3.0, 2.0, 0.154, 0.467, 3.0, 0.1
 AIM_K, TURN_RAD_S, STAND_M, STAND_M_S = 5.0, math.tau, 0.6, 0.5
 
 #: The lap's rows: the hover's, at a lap's pace up and down, its nose free; the lean a row
@@ -113,7 +118,7 @@ GRID = dict(HOVER, height=GATES[0][1])
 #: plan goes by that frame's clock (`sized`); its shares and its angles are any frame's.
 _UNITS = {'GATE_M': (1, 0), 'TRUNK_M': (1, 0), 'BAR_M': (1, 0), 'DS': (1, 0), 'AHEAD_M': (1, 0),
           'REACH_M': (1, 0), 'SLACK_M': (1, 0), 'LOOK_M': (1, 0), 'STAND_M': (1, 0),
-          'EASE_S': (0, 1), 'TOP_M_S': (1, -1), 'SWING_S': (0, 1), 'LEAD_S': (0, 1),
+          'EASE_S': (0, 1), 'TOP_M_S': (1, -1), 'SWING_S': (0, 1), 'LEAD_S': (0, 1), 'SOFT_S': (0, 1),
           'LOOK_S': (0, 1), 'AIM_K': (0, -1), 'TURN_RAD_S': (0, -1), 'STAND_M_S': (1, -1)}
 _PLACED = {'GATES': (3,), 'TREES': (), 'HOUSES': (), 'CARS': (2,), 'CAR_M': None, 'MASTS': ()}
 _BUILT, _SET, _ROWS = {}, {}, []
@@ -280,8 +285,8 @@ def line(route, now):
     second."""
     lap = route.get('lap')
     if lap is None or lap['began'] != route['at']:
-        lap = route['lap'] = {'began': route['at'], 'k': 0, 'v': 0.0, 'laps': 0, 'gate': 1,
-                              'of': LAPS, 'pull': 0.0}
+        lap = route['lap'] = {'began': route['at'], 'k': 0, 'v': 0.0, 'asks': 0.0, 'laps': 0,
+                              'gate': 1, 'of': LAPS, 'pull': 0.0}
     seen, line_ = route.get('seen') or {}, track()
     n, step = len(line_['at']), line_['step']
     dt, heading = seen.get('dt', 0.0), seen.get('heading', 0.0)
@@ -306,21 +311,23 @@ def line(route, now):
     on = min(end, s + along * dt / step)
     lead = min(end, on + LEAD_S * lap['v'] / step)
     # as fast as the bends ahead allow, each braked for from here, a crest as its fall; to a
-    # stand at its finish; come to no faster than GO of the pull
-    allowed = min(TOP_M_S, math.sqrt(2.0 * STOP * pull * (end - lead) * step))
-    for j in range(min(int(AHEAD_M / step), int(end - lead))):
-        bend, rise, _veer = line_['bends'][(int(lead) + j) % n]
+    # stand at its finish; come to no faster than GO of the pull - for where it is as much
+    # further on as its asked speed trails
+    soon = min(end, lead + SOFT_S * lap['v'] / step)
+    allowed = min(TOP_M_S, math.sqrt(2.0 * STOP * pull * (end - soon) * step))
+    for j in range(min(int(AHEAD_M / step), int(end - soon))):
+        bend, rise, _veer = line_['bends'][(int(soon) + j) % n]
         bend += max(0.0, -rise) * GRIP * pull / (DROP * quad.GRAVITY)
         if bend > 0.0 and allowed > bend_speed(bend, GRIP * pull, wind):
             allowed = min(allowed, math.sqrt(bend_speed(bend, GRIP * pull, wind) ** 2
                                              + 2.0 * BRAKE * pull * step
-                                             * max(0.0, j - lead % 1.0)))
-        swing = line_['swings'][(int(lead) + j) % n]
+                                             * max(0.0, j - soon % 1.0)))
+        swing = line_['swings'][(int(soon) + j) % n]
         if swing > 0.0:
             swung = (2.0 * GRIP * pull / (SWING_S * swing)) ** (1.0 / 3.0)
             if allowed > swung:
                 allowed = min(allowed, math.sqrt(swung * swung + 2.0 * BRAKE * pull * step
-                                                 * max(0.0, j - lead % 1.0)))
+                                                 * max(0.0, j - soon % 1.0)))
     speed = lap['v'] = min(allowed, lap['v'] + GO * pull * dt)
     lap.update(laps=min(lap['of'] - 1, k // n),
                gate=next((g for g, mark in enumerate(line_['gates']) if mark > (k % n) * step), 0))
@@ -334,7 +341,8 @@ def line(route, now):
     turn = speed * veer + AIM_K * ((aim - heading + math.pi) % math.tau - math.pi)
     turn = max(-TURN_RAD_S, min(TURN_RAD_S, turn))
     nose = heading + turn * dt
-    flat = speed * math.hypot(to[0], to[2])
+    lap['asks'] += (speed - lap['asks']) * min(1.0, dt / SOFT_S)
+    flat = lap['asks'] * math.hypot(to[0], to[2])
     # the pull its bend takes a lag ahead, over the one where it is: the row's own
     ahead, bent = _on(line_['way'], lead), _on(line_['bends'], lead)[2]
     more = [flat * flat * (bent * a / math.hypot(ahead[0], ahead[2])
