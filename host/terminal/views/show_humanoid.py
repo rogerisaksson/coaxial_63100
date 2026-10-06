@@ -47,7 +47,7 @@ ORIGIN = Origin(False, 'dynamic', 0, 'dynamic', 'GRAVITY 9.81 - MUJOCO', 'dynami
 
 
 #: The band's meters, METER cells each: her pace (strides/s at each mark) and her style on
-#: `style.SWAY`'s axis.
+#: `style.SWAY`'s axis - on the one law, how much of the manner picked.
 PACES = ((0.0, 'still'), (gait.CADENCE, 'walk'), (1.6, 'run'))
 STYLES = ((-1.0, 'catwalk'), (0.0, 'normal'), (1.0, 'swagger'))
 METER = 21
@@ -81,6 +81,11 @@ def gauges(state):
     out.append_text(meter(state['cadence'] if not state['law'] else gait.CADENCE * (1.0 + k)
                           if k <= 0.0 else gait.CADENCE + (PACES[-1][0] - gait.CADENCE) * k,
                           PACES))
+    if state['law']:
+        out.append('   MANNER ', style='bar.dim')
+        out.append_text(meter(state['manners'].get(state['manner'], 0.0),
+                              ((0.0, 'none'), (0.5, state['manner']), (1.0, 'all'))))
+        return out
     out.append('   STYLE ', style='bar.dim')
     out.append_text(meter(state['sway'], STYLES))
     return out
@@ -159,6 +164,7 @@ BAR = (('TAB', 'KEYS'), ('S F', 'PACE'), ('P', 'PUSH'), ('1-6', 'FLOOR'), ('7-0'
 GROUPS = (
     ('BODY', (('S F', 'pace'), ('A', 'again: lands anew'),
               ('J', 'one law: S F stand .. run'), ('Z X', 'catwalk .. swagger'),
+              ('M Z X', 'on the law: a manner, less, more'),
               ('K , .', 'style knob, trim'))),
     ('FLOOR', (('1', 'hole'), ('2', 'rug'), ('3', 'sill'), ('4', 'slip'), ('5', 'lace'),
                ('6', 'stairs'))),
@@ -189,6 +195,8 @@ def boxes(state, now, name):
         ('status', _status(now)),
         ('pace', '%.2f m/s asked' % gaits.between(state['pace'])['speed']) if state['law'] else
         ('cadence', '%.2f strides/s' % state['cadence']),
+        *([('manner', ', '.join('%s %.2g' % kv for kv in state['manners'].items()) or 'plain')]
+          if state['law'] else []),
         ('speed', '%.2f m/s' % (now['speed'] if now else 0.0)),
         ('phase', '%.2f of a stride' % (now['phase'] if now else 0.0)),
         ('soles', '%3.0f %3.0f N' % (now['loads'] if now else (0.0, 0.0))),
@@ -314,7 +322,7 @@ def main(argv=None):
              'recording': None, 'recorded': None, 'glitches': 0, 'glitched': None,
              'tripped': None, 'playback': Playback(), 'shown': 'torque', 'skin': 'dressed',
              'data': False, 'traffic': None, 'knob': style.NAMES[0], 'sway': 0.0, 'rig': None,
-             'law': False, 'pace': 0.0}
+             'law': False, 'pace': 0.0, 'manner': next(iter(gaits.MANNERS)), 'manners': {}}
 
     def draw():
         said = []

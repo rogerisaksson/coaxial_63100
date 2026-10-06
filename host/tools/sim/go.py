@@ -7,6 +7,7 @@
     python tools/sim/go.py --ask "0:-1 2:1 20:-1" --to 36               # asked the run and back
     python tools/sim/go.py --track "0:-1" --shove "4:120:90"            # shoved toward her left
     python tools/sim/go.py gaits.WALK.knee=16 going.TURN_K=1.4 --form 6,12
+    python tools/sim/go.py --to 24 --manner "8:leaning:1,crouched:0.5; 16:" --form "12,16 20,24"
     python tools/sim/go.py --search walk --log build/go_walk.jsonl     # how the rows were found
 
 A track is "t:k ..": at `t` s the row `k` of her way (`gaits.between`: -1 her stand, 0 the
@@ -15,8 +16,9 @@ wanted from then on, hers following as `gaits.toward` has it; she is placed as i
 has her (`placed`). A row a segment between them: her speed, J/m drawn and of work,
 her steps - their stance, the share landed with the other foot down, the knee as they land, a
 sole's load. `--form a,b` samples the look's rows from a to b s and prices them as the
-scoreboard prices a walk (`looks.priced`). `--search` is CMA-ES over SPANS through the relay
-(`searched`): a fall ends a trial and is no price of its own.
+scoreboard prices a walk (`looks.priced`), a window a form. `--manner` is her manners asked
+from t on (`gaits.MANNERS`), a segment's end too. `--search` is CMA-ES over SPANS through the
+relay (`searched`): a fall ends a trial and is no price of its own.
 """
 import argparse
 import json
@@ -104,7 +106,7 @@ def placed(law):
         flats = {side: (sign * 0.5 * STAND_WIDE_M, gait.ANKLE_H, 0.0)
                  for side, sign in walkplan.SIDES}
         at = (0.0, a['under'] - apply(turn, (0.0, -gait.HIP_DROP, 0.0))[2])
-        pelvis = (0.0, min(strut.reach(sign, at, turn, flats[side])
+        pelvis = (0.0, min(strut.reach(sign, at, turn, flats[side], a['strut'])
                            for side, sign in walkplan.SIDES), at[1])
         law.legs = {side: {'stands': True, 't': 1.0, 'flat': flats[side], 'landed': 0.0,
                            'was': None, 'off': (0.0,) * 6} for side in flats}
@@ -132,11 +134,11 @@ def placed(law):
         hip = apply(turn, (-gait.HIP_HALF, -gait.HIP_DROP, 0.0))
         flat = (-0.5 * wide, gait.ANKLE_H, 0.0)
         at = (-going.START_IN * 0.5 * wide, flat[2] - hip[2])
-        pelvis = (at[0], strut.reach(-1.0, at, turn, flat), at[1])
+        pelvis = (at[0], strut.reach(-1.0, at, turn, flat, a['strut']), at[1])
         # the left leg as it left: a step behind, the pelvis `gone` s back, its heel as asked
         back = (pelvis[0], pelvis[1], pelvis[2] - a['speed'] * gone)
         left = (0.5 * wide, gait.ANKLE_H, flat[2] - a['speed'] * a['step'])
-        up = strut.need(figure.hip(1.0, back, turn), left, law.heading)
+        up = strut.need(figure.hip(1.0, back, turn), left, law.heading, a['strut'])
         was = figure.leg(1.0, back, turn, strut.ankle(left, up, law.heading), rx(up))
         law.legs = {'right': {'stands': True, 't': mid, 'flat': flat, 'landed': 0.0,
                               'was': None, 'off': (0.0,) * 6},
@@ -158,13 +160,29 @@ def placed(law):
     return angles
 
 
-def went(track, to_s, values=None, form=None, shoves=(), asked=False):
+def formed(rows, segments, window):
+    """A window's form: the look's measures of its `rows`, what of `looks.FORM` they break,
+    their price; how far off a woman's band, in words and by name (`tools.sim.normal`)."""
+    if len(rows) <= 30:
+        return {}
+    from tools.sim import fbx, looks, normal, strides
+    got = strides.measured(rows)
+    got['energy'] = next((g['drawn'] for g in segments if g['to'] > window[0]), math.inf)
+    walk = normal.measured(*fbx.joints(rows))
+    far, out = normal.off(walk)
+    return dict(got, broken=[(name, v, bound) for name, v, bound in looks.broken(got)],
+                price=looks.priced(got), off=far, out=out, said=normal.said(walk),
+                named=normal.named(walk))
+
+
+def went(track, to_s, values=None, form=None, shoves=(), asked=False, manner=()):
     """{'fell': s or None, 'segments': [{from, to, k, speed, drawn, work, steps, stance, both,
-    knee, ahead, load}], 'form': {measure: value, 'broken': [..], 'price': ..}} of `to_s` s on
-    `track` [(s, k)] - `asked`, each the row wanted from then on, hers following it as
-    `gaits.toward` has it - under `values` {name: value}, the look's rows taken over `form`
-    (from, to), shoved as `shoves` [(s, newtons, degrees from behind toward her left)],
-    `events.SHOVE_S` each."""
+    knee, ahead, load}], 'forms': [{measure: value, 'broken': [..], 'price': ..}], 'form': the
+    first of them} of `to_s` s on `track` [(s, k)] - `asked`, each the row wanted from then on,
+    hers following it as `gaits.toward` has it - under `values` {name: value}, in the manners
+    `manner` [(s, ((manner, amount), ..))], each asked from then on; the look's rows taken
+    over `form`, (from, to) or several, shoved as `shoves` [(s, newtons, degrees from behind
+    toward her left)], `events.SHOVE_S` each."""
     from coaxial.model.blocks import numpy as np
     from tools.sim import knobs
     values = dict(values or {})
@@ -195,12 +213,14 @@ def went(track, to_s, values=None, form=None, shoves=(), asked=False):
     placed(law)
     body.loop.step(0.0)
     bus, d, at = body.loop.bus, world.data, np.array(world.vadr)
-    marks = [p[0] for p in track[1:] if p[0] < to_s] + [to_s]
+    marks = sorted({p[0] for p in list(track[1:]) + list(manner) if 0.0 < p[0] < to_s}) + [to_s]
+    windows = [form] if form and not isinstance(form[0], tuple) else list(form or ())
+    amounts, manner = {}, sorted(manner)
     seg = {'from': 0.0, 'z': bus['pelvis.pose.z'], 'drawn': 0.0, 'work': 0.0, 'k': mixed(0.0),
            'load': 0.0}
     stand_in = types.SimpleNamespace(stage='walk', walker=types.SimpleNamespace(phase=0.0),
                                      touched_at=None)
-    segments, rows, said, fell, shoves = [], [], -1.0, None, sorted(shoves)
+    segments, rows, said, fell, shoves = [], [[] for _w in windows], -1.0, None, sorted(shoves)
 
     def close(end):
         on, span = bus['pelvis.pose.z'] - seg['z'], end - seg['from']
@@ -221,7 +241,9 @@ def went(track, to_s, values=None, form=None, shoves=(), asked=False):
         if asked:
             row[:] = gaits.toward(row[0], row[1], next(
                 k for t, k in reversed(track) if t <= bus['t'] or t == track[0][0]), 0.001)
-        law.ask = gaits.between(mixed(bus['t']))
+        amounts = gaits.manners(amounts, next((m for t, m in reversed(manner)
+                                               if t <= bus['t']), ()), 0.001)
+        law.ask = gaits.mannered(gaits.between(mixed(bus['t'])), amounts)
         if shoves and bus['t'] >= shoves[0][0]:
             _at, newtons, way = shoves.pop(0)
             world.push((newtons * math.sin(math.radians(way)), 0.0,
@@ -232,10 +254,12 @@ def went(track, to_s, values=None, form=None, shoves=(), asked=False):
         power = np.array(d.ctrl[:len(at)]) * np.array(d.qvel[at])
         seg['work'] += float(power[power > 0.0].sum()) * 0.001
         seg['load'] = max(seg['load'], bus['pelvis.pose.left_load'], bus['pelvis.pose.right_load'])
-        if form and form[0] <= bus['t'] < form[1] and bus['t'] - said >= 1.0 / ROWS_HZ:
+        if bus['t'] - said >= 1.0 / ROWS_HZ and any(a <= bus['t'] < b for a, b in windows):
             from tools.sim import look
-            said = bus['t']
-            rows.append(look.sample(bus, stand_in, world))
+            said, row = bus['t'], look.sample(bus, stand_in, world)
+            for (a, b), into in zip(windows, rows):
+                if a <= bus['t'] < b:
+                    into.append(row)
         if marks and bus['t'] >= marks[0]:
             close(marks.pop(0))
         up = 1.0 - 2.0 * (bus['pelvis.pose.qx'] ** 2 + bus['pelvis.pose.qz'] ** 2)
@@ -244,19 +268,11 @@ def went(track, to_s, values=None, form=None, shoves=(), asked=False):
             fell = bus['t']
             close(fell)
             break
-    measured = {}
-    if form and len(rows) > 30:
-        from tools.sim import looks, strides
-        got = strides.measured(rows)
-        got['energy'] = next((g['drawn'] for g in reversed(segments) if g['to'] > form[0]),
-                             math.inf)
-        from tools.sim import fbx, normal
-        far, out = normal.off(normal.measured(*fbx.joints(rows)))
-        measured = dict(got, broken=[(name, v, bound) for name, v, bound in looks.broken(got)],
-                        price=looks.priced(got), off=far, out=out)
+    forms = [formed(r, segments, w) for w, r in zip(windows, rows)]
     body.disarm()
     body.close()
-    return {'fell': fell, 'segments': segments, 'form': measured}
+    return {'fell': fell, 'segments': segments, 'form': forms[0] if forms else {},
+            'forms': forms}
 
 
 def searched(kind, generations, lam, log_path, sigma=0.2):
@@ -327,15 +343,16 @@ def shown(result):
               'ahead, a sole %4.0f N' % (
                   g['from'], g['to'], g['k'][0], g['k'][1], g['speed'], g['drawn'], g['work'],
                   g['steps'], g['stance'], 100.0 * g['both'], g['knee'], g['ahead'], g['load']))
-    form = result['form']
-    if form:
+    for form in filter(None, result['forms']):
         from tools.sim import looks
         print('form: ' + ' | '.join('%s %.1f' % (k, form.get(k, math.nan))
                                     for k, _least, _most in looks.FORM))
         print('off it: %s; priced %.1f' % (', '.join('%s %.1f (%g)' % b for b in form['broken'])
                                            or 'nothing', form['price']))
-        print("off a woman's walk %.2f: %s" % (form.get('off', math.nan), ', '.join(
-            '%s %.3g (%g)' % tuple(o) for o in form.get('out', []))))
+        print("off a woman's walk %.2f: %s" % (form['off'], ', '.join(
+            '%s %.3g (%g)' % tuple(o) for o in form['out'])))
+        print('in words: %s%s' % (', '.join('%s %.2f' % tuple(w) for w in form['said'])
+                                  or 'none', ''.join(' - ' + n for n in form['named'])))
     print('fell at %.2f s' % result['fell'] if result['fell'] else 'up')
 
 
@@ -346,7 +363,9 @@ def main(argv=None):
     parser.add_argument('--ask', help='"t:k ..": the row wanted from t on, hers following it '
                         '(`gaits.toward`), in place of --track')
     parser.add_argument('--to', type=float, default=12.0, help='seconds simulated')
-    parser.add_argument('--form', help='from,to s: the look sampled there and priced')
+    parser.add_argument('--form', help='"from,to ..", s: the look sampled there and priced')
+    parser.add_argument('--manner', default='', help='"t:manner:amount,manner:amount; ..": '
+                        'her manners asked from t on (`gaits.MANNERS`)')
     parser.add_argument('--shove', default='', help='"t:newtons:deg ..", 0 from behind, 90 '
                         'toward her left')
     parser.add_argument('--json', action='store_true', help='the result, a line')
@@ -363,10 +382,12 @@ def main(argv=None):
         return 0
     track = [tuple(float(x) for x in p.split(':')) for p in (args.ask or args.track).split()]
     values = {k: float(v) for k, v in (kv.split('=') for kv in args.knobs)}
-    form = tuple(float(x) for x in args.form.split(',')) if args.form else None
+    form = [tuple(float(x) for x in w.split(',')) for w in (args.form or '').split()]
+    from machine import gaits
     result = went(track, args.to, values, form,
                   [tuple(float(x) for x in p.split(':')) for p in args.shove.split()],
-                  bool(args.ask))
+                  bool(args.ask), [(float(m.split(':')[0]), gaits.told(m.split(':', 1)[1]))
+                                   for m in args.manner.split(';') if m.strip()])
     if args.json:
         print('RESULT ' + json.dumps(result))
     else:

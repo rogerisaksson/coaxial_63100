@@ -312,3 +312,14 @@ in [walk](walk.md), the run in [run](run.md), the page's standing law in
   are done in a tenth of a second. The pelvis neither listing nor
   turning as she stands: down in her first steps, a searched row leaning
   on its list from the first.
+- The strut a row's setpoint (2026-10-06; `strut`, deg: the standing
+  knee the pelvis is never over, 6 the form's). Bent more, the walk's
+  row draws less: 528 J/m at 10 deg - 0.25 off a woman's band where
+  0.41, the knee 29-30 deg as its toes leave -, 503 at 14, 502 at 18,
+  500 at 24, where 574 at 6: the straight leg's cost is how it is
+  driven, the item's energy, not its shape. Asked 0.6 m/s on the walk's
+  step time she goes 0.59 at 848 J/m, a step 0.39 legs, her walk ratio
+  0.73 where 1.1-1.8, the heel 7 deg up as its toes leave - stiff 0.61,
+  shuffling 0.67, tripping 0.53, a shuffle on stilts: a woman's step
+  keeps its ratio to its time at any pace, the law's slow walks keep the
+  walk's time.

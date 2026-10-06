@@ -101,7 +101,7 @@ BOOT = 'test_boot.py'
 VIEWS = ('test_views_terminal.py', 'test_views_front.py', 'test_views_rotor.py',
          'test_views_drawing.py', 'test_views_gauges.py', 'test_views_thermal.py',
          'test_views_demo.py', 'test_views_segments.py',
-         'test_views_quad.py')
+         'test_views_quad.py', 'test_views_humanoid.py')
 
 #: The composed controller and its parts, against a toy rotor and the stand-in.
 CONTROLLER = 'test_controller.py'
@@ -248,9 +248,9 @@ SHARDED = (SENSORLESS, CONTROLLER, GYNOID, GYNOID_FAULTS, GYNOID_FALLS, GYNOID_S
 #: its get-ups after a fall 540 + 2 x 38 (2026-10-03); their starts hot after a minute's walk
 #: 822 here, 886 on CI's runner in two shards of 443, each cut at 300 (2026-10-04).
 #: The gait suite 209 s here whole (2026-10-05), its three tests a robot each in shards; the
-#: going suite 295 s, a way asked over two or three timings; the quad's page 211 s, a flight
+#: going suite 427 s, a way asked over two or three timings; the quad's page 211 s, a flight
 #: a shard - one after the other they ran past the gate's 423 s (2026-10-06).
-FRESH_S = {GYNOID_FALLS: 850.0, GYNOID_GAIT: 450.0, GYNOID_GOING: 300.0, QUAD_PAGE: 250.0}
+FRESH_S = {GYNOID_FALLS: 850.0, GYNOID_GAIT: 450.0, GYNOID_GOING: 430.0, QUAD_PAGE: 250.0}
 
 #: The emulator's groups and each one's time, s, a Renode each: the rig's took 150 of the
 #: suite's 211 one after another here, and CI's runner ran the Release image's past 240
@@ -312,7 +312,8 @@ TOUCHES = (
     ('host/machine/',                          (CONTROLLER, GYNOID, GYNOID_FAULTS, GYNOID_FALLS,
                                                 GYNOID_STAND, GYNOID_GAIT, GYNOID_RUN,
                                                 GYNOID_GOING, CYCLIC,
-                                                'test_simulated.py', 'test_mcp.py')),
+                                                'test_simulated.py', 'test_mcp.py',
+                                                'test_views_humanoid.py')),
     ('host/coaxial/graphics/gynoid.py',        (RENDER, *VIEWS, GYNOID)),
     ('host/coaxial/graphics/shapes.py',        (RENDER, *VIEWS, GYNOID)),
     ('host/coaxial/graphics/lit.py',           (RENDER, *VIEWS, GYNOID)),

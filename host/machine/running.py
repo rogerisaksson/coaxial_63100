@@ -47,6 +47,21 @@ def _landed(director, world, rig):
     director.machine.loop.step(0.0)
 
 
+def _styled(director, command):
+    """A command's style: a knob trimmed, the walk on `style.SWAY`'s axis, her manners - the
+    one law's on it (`gaits.MANNERS`), else the walk as built's (`style.MANNERS`)."""
+    from machine import style
+    if 'style' in command:
+        style.trim(*command['style'])
+    if 'sway' in command:
+        style.sway(command['sway'])
+    if 'manner' in command:
+        if director.pace is None:
+            style.manner(command['manner'])
+        else:
+            director.manner = tuple(command['manner'])
+
+
 def _run(commands, states, cadence, local, pace_asked):
     """The worker: the machine, the director, the loop paced to the clock."""
     import numpy as np
@@ -99,10 +114,7 @@ def _run(commands, states, cadence, local, pace_asked):
                     world.glitch(*command['glitch'])
                 if 'event' in command:
                     event = [command['event'], LEAD]
-                if 'style' in command:
-                    style.trim(*command['style'])
-                for key in {'sway', 'manner'} & set(command):
-                    getattr(style, key)(command[key])
+                _styled(director, command)
                 if command.get('restart') or 'rig' in command or again:
                     begin()
                     wall0, sim0 = time.perf_counter(), bus['t']
@@ -200,7 +212,8 @@ class Running:
         None}: landed anew on it, standing | {'style': (knob, steps)}: a knob of
         `machine.style` trimmed, the walk eased over to it | {'sway': s}: every knob at s on
         `style.SWAY`'s axis, -1 catwalk to 1 swagger | {'manner': ((manner, amount), ..)}: her
-        walk in `style.MANNERS`' concepts | {'restart': True}: landed in the squat again."""
+        walk in its manners, on the law `gaits.MANNERS`, else `style.MANNERS` | {'restart':
+        True}: landed in the squat again."""
         self._commands.put(command)
 
     def latest(self, into=None):

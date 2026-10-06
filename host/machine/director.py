@@ -97,9 +97,9 @@ class Director:
         self.stage, self.fallen_at, self.slips = 'squat', None, 0
         self.since, self.blend, self.age = 0.0, None, 0.0
         #: The row asked of her way on the one law (`machine.pace`), None the walker's; the row
-        #: she goes on and her seconds on it; the law.
+        #: she goes on and her seconds on it; the law; her manners asked and as they are.
         self.pace: float | None = None
-        self.k, self.going = (-1.0, 0.0), None
+        self.k, self.going, self.manner, self.manners = (-1.0, 0.0), None, (), {}
         #: Since when she falls and her arms and neck from and to what (`falls.reach`); the tilt last
         #: pass, (deg, s), and its rate, deg/s; when an arm met the floor; since when she tucks and
         #: from where, (s, {joint: deg}); her drives down.

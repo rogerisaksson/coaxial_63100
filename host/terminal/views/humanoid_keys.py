@@ -8,10 +8,11 @@ that state, moves it and sends her body (`machine.running`) what it asks. R's re
 their rows (HEADER, `row`) are here with the key that writes them.
 """
 import csv
+import math
 import os
 import time
 
-from machine import style
+from machine import gaits, style
 from machine.figure import JOINTS, SEGMENTS, frames, quat
 from terminal.views import viewpoint
 from tools import REPO
@@ -29,8 +30,10 @@ CADENCE, CADENCE_STEP = (0.6, 1.0), 0.05
 #: (docs/TODO.md item 28).
 LEVELS = (-1.0, -0.6, -0.3, 0.0, 0.5, 0.7, 0.85, 1.0)
 
-#: Z and X move her style SWAY_STEP of `style.SWAY`'s axis.
-SWAY_STEP = 0.25
+#: Z and X move her style SWAY_STEP of `style.SWAY`'s axis. On the one law M picks the next of
+#: its manners (`gaits.MANNERS`) and Z and X move that one's amount MANNER_STEP, 0 to 1, each
+#: keeping its own: a blend - leaning 0.5 and crouched 0.25, into a wind (the user, 2026-10-05).
+SWAY_STEP, MANNER_STEP = 0.25, 0.25
 
 #: The boards G and H glitch, in turn, and how long G's SOA lasts, s.
 GLITCHED, SOA_S = ('left_knee', 'right_knee', 'left_hip', 'right_hip'), 0.5
@@ -91,7 +94,10 @@ def _paced(step):
 
 def _lawed(state):
     """J: her going handed to the one law (`machine.pace`) at its walk, landed anew; again,
-    back to the walk as built."""
+    back to the walk as built, her manners on the law let go first."""
+    if state.get('manners'):
+        state['manners'] = {}
+        state['body'].send(manner=())
     state['law'], state['pace'] = not state['law'], 0.0
     state['body'].send(pace=state['pace'] if state['law'] else None)
 
@@ -106,9 +112,29 @@ def _trimmed(steps):
     return lambda state: state['body'].send(style=(state['knob'], steps))
 
 
+def _picked(state):
+    """M: the next of the one law's manners picked for Z and X; on the walk as built, her
+    going handed to the law."""
+    if not state['law']:
+        return _lawed(state)
+    names = tuple(gaits.MANNERS)
+    state['manner'] = names[(names.index(state['manner']) + 1) % len(names)
+                            if state.get('manner') in names else 0]
+
+
 def _swayed(step):
-    """Z and X: her walk a step toward the catwalk or the swagger, every knob eased over to it."""
+    """Z and X: on the walk as built a step toward the catwalk or the swagger, every knob
+    eased over to it; on the one law the manner picked a step less or more, the others as
+    they are."""
     def sway(state):
+        if state['law']:
+            name = state.setdefault('manner', next(iter(gaits.MANNERS)))
+            now = dict(state.get('manners', {}))
+            now[name] = max(0.0, min(1.0, now.get(name, 0.0)
+                                     + math.copysign(MANNER_STEP, step)))
+            state['manners'] = {k: v for k, v in now.items() if v > 0.0}
+            state['body'].send(manner=tuple(state['manners'].items()))
+            return
         state['sway'] = max(-1.0, min(1.0, state['sway'] + step))
         state['body'].send(sway=state['sway'])
     return sway
@@ -188,7 +214,7 @@ def table(view, calling, shown):
                                                       % len(shown)])) for k in 'tT']
         + [(k, _skinned) for k in 'cC']
         + [(k, lambda state: state.update(data=not state['data'])) for k in 'dD']
-        + [(k, _lawed) for k in 'jJ'])
+        + [(k, _lawed) for k in 'jJ'] + [(k, _picked) for k in 'mM'])
 
 
 def act_on(keys, typed, state, wheel=0.0):

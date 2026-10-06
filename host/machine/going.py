@@ -55,10 +55,6 @@ GIVEN = 0.502
 #: pose and nothing under it, it reaches on down REACH_M_S.
 BEARS_N, SWUNG_S, REACH_M_S = 250.0, 0.12, 0.3
 
-#: A walk's ways - a landing kept clear of the standing foot (`free.CLEAR_M`), a foot due by
-#: where she is - are hers the more both feet bear a step, in full from BESIDE_S of it.
-BESIDE_S = 0.05
-
 
 class Going:
 
@@ -89,9 +85,8 @@ class Going:
         return min(self.ask['step'], self.ask['stand'])
 
     def share(self):
-        """How much of a walk the row asked is, 0 to 1: the s both feet bear a step, of
-        BESIDE_S."""
-        return min(1.0, max(0.0, (self.ask['stand'] - self.ask['step']) / BESIDE_S))
+        """How much of a walk the row asked is, 0 to 1 (`gaits.share`)."""
+        return gaits.share(self.ask)
 
     def ahead(self, v):
         """How far ahead of its hip a foot's sole comes down, m, at her speed `v` - a walk's
@@ -161,7 +156,8 @@ class Going:
         # her off the floor, the knee 37 to 6 deg in 0.1 s (2026-10-05)
         span = a['bounce']
         tops = [strut.top(sign, (pel[0] + v[0] * k, pel[2] + v[2] * k), now, flat, self.heading,
-                          a['off'] * (1.0 - self.share())) for k in (span, span + 1e-3)]
+                          a['off'] * (1.0 - self.share()), a['strut'])
+                for k in (span, span + 1e-3)]
         end, rate = pel[1] + a['up'], a['rise']
         if end >= tops[0]:
             end, rate = tops[0], (tops[1] - tops[0]) / 1e-3
@@ -195,7 +191,7 @@ class Going:
         # reach she came onto a straight leg at 531 N, 0.92 to 0.5 m/s (2026-10-05)
         cap = max(strut.reach(1.0 if side == 'left' else -1.0, (pel[0], pel[2]), turn, strut.ankle(
             self.legs[side]['flat'], strut.rocker(self.legs[side], off, on[side], sunk)
-            if side == lead else math.radians(strut.HEEL_UP_DEG), self.heading))
+            if side == lead else math.radians(strut.HEEL_UP_DEG), self.heading), a['strut'])
             for side in standing)
         # a walk's one foot down keeps her up where the free foot's landing meets the floor,
         # its heel rising as that asks: on a flat foot's arc she came down 6-8 cm a step of
@@ -206,14 +202,14 @@ class Going:
                 1.0 if lead == 'left' else -1.0, (pel[0], pel[2]), turn, strut.ankle(
                     self.legs[lead]['flat'], strut.rocker(
                         self.legs[lead], off, on[lead], sunk,
-                        strut.heel(a['off'] * share, on[lead])), self.heading))))
+                        strut.heel(a['off'] * share, on[lead])), self.heading), a['strut'])))
         # standing on both feet she is no higher than both reach flat: over it a heel rose to
         # reach her, its ball pushed her back, and the further back the more (2026-10-06)
         still = hold.stood(a['speed'])
         if still > 0.0 and len(standing) == 2:
             flat = min(strut.reach(1.0 if side == 'left' else -1.0, (pel[0], pel[2]), turn,
-                                   strut.ankle(self.legs[side]['flat'], 0.0, self.heading))
-                       for side in standing)
+                                   strut.ankle(self.legs[side]['flat'], 0.0, self.heading),
+                                   a['strut']) for side in standing)
             cap += still * (min(cap, flat) - cap)
         lean = hold.lean(self, standing, a, com)
         target, feet = (pel[0] + lean[0], min(y, cap), pel[2] + lean[1]), {}
@@ -226,7 +222,7 @@ class Going:
                 pre = math.radians(a['off']) * share * eased(gone / GIVEN) * eased(
                     self.legs[lead]['t'] / (a['stand'] - a['step']))
             pitch = strut.rocker(leg, off, on[side], sunk, max(pre, strut.need(
-                figure.hip(sign, target, turn), leg['flat'], self.heading)))
+                figure.hip(sign, target, turn), leg['flat'], self.heading, a['strut'])))
             feet[side] = (strut.ankle(leg['flat'], pitch, self.heading),
                           mul(ry(self.heading), rx(pitch)))
         return feet, target

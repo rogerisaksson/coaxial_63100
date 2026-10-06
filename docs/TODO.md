@@ -258,10 +258,10 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
     (`machine/going.py`, docs/findings/going.md), under J. Left: its walk the
     page's own - 0.34 off `normal.BAND`, the user to say - at 574 J/m where
     433; her ways 68 of 104, nudged walking 4 of 8; a shove's parry; her turns;
-    the floor's events and her style on the law; a run past 1.5 m/s; the runner
-    and the walk's modules gone into it. DOD: F to her fastest run and S back
-    on the page, 10 of 10; its walk on `looks.FORM` and `normal.BAND` at no
-    more J/m; shoved, up as the walk as built.
+    its slow walks a shuffle; the floor's events on the law; a run past 1.5
+    m/s; the runner and the walk's modules gone into it. DOD: F to her fastest
+    run and S back on the page, 10 of 10; its walk on `looks.FORM` and
+    `normal.BAND` at no more J/m; shoved, up as the walk as built.
 29. **Her tubes, corners and flanges** (the user, 2026-10-05): carbon
     tubes cut to length, epoxied into printed corners; a gearbox on a
     flange, its output through it; motor, box and board outermost, a
@@ -279,9 +279,9 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
     a keyframe, a track its choreography. DOD: twice round on the page, no
     fall.
 31. **A language for how she moves** (the user, 2026-10-05: each concept on a
-    reference, asked as tuples). In: `normal.WORDS`, `style.MANNERS`. DOD:
-    leaning, tripping, wide asked too, on the law's row; sitting, rising; a
-    passage judged against a take's.
+    reference, asked as tuples). In: `normal.WORDS`, `gaits.MANNERS`, M Z X.
+    DOD: a catwalk on the law; tripping no shuffle; a planner asking them of a
+    wind or a slope; sitting, rising; a passage judged against a take's.
 
 ## Bench
 

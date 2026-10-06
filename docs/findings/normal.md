@@ -78,3 +78,23 @@ Her walk as built is in [walk](walk.md), the one law's in
   stiff 0.5, Groucho's from crouched 0.4, a run from flying 0.25.
   test_gynoid_going.py holds eleven of its measures on the band, the
   walk within 1.0 of it and its words under 0.5.
+- Asked on the one law (2026-10-06; `gaits.MANNERS`, `go.py --manner`,
+  the page's M, Z and X). A manner is a row's setpoints moved, or other
+  manners, its amount 0 to 1 coming on and going over 2 s as she walks,
+  the less the less a walk's the row is: leaning her trunk 9 deg more;
+  crouched the standing knee - the row's `strut`, a setpoint since - 18
+  deg more and the landing knee 14; wide her feet's track 36 mm;
+  tripping a step 0.1 s shorter; into the wind leaning 1, crouched 0.8,
+  tripping 0.4. One walk through them and plain again, up on 12 timings
+  of 12, read back: leaning 0.49 at 733 J/m; crouched 0.60, Groucho's,
+  at 509; wide 0.71 at 578; tripping 0.36 with shuffling 0.74 - a
+  shuffle, the heel 12 deg up as its toes leave - at 785; into the wind
+  leaning 0.47, crouched 0.30, landing bent 0.79 at 568-607; plain again
+  0.33 off the band. Bent legs carry a lean: leaned 12 deg more she fell
+  from her stand, with the standing knee at 18 deg she walked so at 582
+  J/m, at 24 deg leaned 15 more at 597; leaning 1 alone draws 733-780
+  J/m, 540 with that knee at 18. No catwalk on the law yet: its pelvis
+  turned 5 deg fell at 3.9 s, listed 6 deg it walked at 628 J/m.
+  test_gynoid_going.py holds each manner's words and the plain walk
+  after them; M picks a manner on the page, Z and X its amount, each
+  keeping its own.

@@ -4,9 +4,10 @@
 From the squat as the page runs her, or a recording (R, build/recordings/*.csv) - the same rows
 either way (`humanoid_keys.row`).
 
-    python tools/sim/look.py                        # from the squat, 16 s: the page's walk
+    python tools/sim/look.py                        # from the squat, 16 s: the one law's walk
     python tools/sim/look.py --pace 0.5 --to 24     # asked her jog (`gaits.between`'s row)
-    python tools/sim/look.py --built                # the walk as built, the page's J
+    python tools/sim/look.py --manner "leaning:0.5 crouched:0.3"       # in `gaits.MANNERS`
+    python tools/sim/look.py --built                # the walk as built, the page's own
     python tools/sim/look.py --last                 # the newest recording
     python tools/sim/look.py --fbx build/walk.fbx   # her steady walk written a take (mocap.py)
     python tools/sim/look.py --built --manner "crouched:0.5 catwalk:1"   # `style.MANNERS`
@@ -51,7 +52,9 @@ LEG_KINDS = ('hip_yaw', 'hip_roll', 'hip', 'knee', 'ankle', 'ankle_roll')
 def simulated(to_s, values, cadence=0.85, halt_s=None, event=None, event_s=EVENT_S, pushes=(),
               stand=None, pace=None, manner=()):
     """The rows from the squat, `to_s` seconds, the director as the page runs her - `pace` the
-    row asked of her way on the one law (`machine.pace`), None the walk as built; halted at
+    row asked of her way on the one law (`machine.pace`), None the walk as built, in the
+    manners `manner` ((manner, amount), ..), that walk's (`gaits.MANNERS`, `style.MANNERS`);
+    halted at
     `halt_s`, an `event` laid from `event_s` (`machine.events`), pushed at each of `pushes` (s)
     as the page's P pushes, its side swapped each time; standing on `stand`'s rig
     (`events.STANDING`), it befalling her at `event_s`; LEG_GAIN among `values` stiffening
@@ -67,7 +70,7 @@ def simulated(to_s, values, cadence=0.85, halt_s=None, event=None, event_s=EVENT
         physics.SERVO[kind] = (peak, kp * gain, kd * math.sqrt(gain), armature)
     knobs.set_(values)
     from machine import Machine, events, style
-    style.manner(manner)
+    style.manner(manner if pace is None else ())
     from machine.director import Director
     from machine.figure import SEGMENTS
     from machine.modes import DYNAMIC
@@ -75,7 +78,7 @@ def simulated(to_s, values, cadence=0.85, halt_s=None, event=None, event_s=EVENT
     body.arm()
     world = body.nodes['pelvis'].world
     director = Director(body, cadence, stand_s=math.inf if stand or pace is not None else 0.0)
-    director.pace = pace
+    director.pace, director.manner = pace, () if pace is None else manner
     up, stagger = events.rigged(stand) if stand else (0.0, 0.0)
     director.begin(up=up, stagger=stagger)
     if stand:
@@ -232,8 +235,8 @@ def main(argv=None):
     parser.add_argument('--brief', action='store_true',
                         help="the stages in a line and the walk's measures: no tables")
     parser.add_argument('--fbx', help='her steady walk written a take here (`fbx.wrote`)')
-    parser.add_argument('--manner', default='', help='"manner:amount ..": the walk as built in '
-                        "`style.MANNERS`' concepts")
+    parser.add_argument('--manner', default='', help='"manner:amount ..": her walk in its '
+                        'manners (`gaits.MANNERS`; --built, `style.MANNERS`)')
     parser.add_argument('knobs', nargs='*', metavar='NAME=V', help='constants moved')
     args = parser.parse_args(argv)
     found = glob.glob(os.path.join(REPO, 'build', 'recordings', '*.csv')) if args.last else []
@@ -242,10 +245,11 @@ def main(argv=None):
         return 1
     path = args.csv or (max(found, key=os.path.getmtime) if found else None)
     values = {k: float(v) for k, v in (kv.split('=') for kv in args.knobs)}
+    from machine import gaits
     rows = recorded(path) if path else simulated(
         args.to, values, args.cadence, args.halt, args.event, args.event_at, args.push,
         args.stand, None if args.built or args.halt or args.event else args.pace,
-        tuple((m.split(':')[0], float(m.split(':')[1])) for m in args.manner.split()))
+        gaits.told(args.manner))
     print(path or 'simulated from the squat, %.1f s %s' % (
         args.to, ' '.join(args.knobs)))
     groups, ref = staged(rows)

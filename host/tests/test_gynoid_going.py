@@ -1,7 +1,8 @@
 """The gynoid's going on the one law (`machine.going`) on a flat, smooth floor: her walk's row
 walks on, a foot always down, her run's runs on, a flight a step; asked on from a stand she
 walks, asked the run she passes her walk and her jog to it, and asked to a stand she stands
-again; the director hands her to the law from its stand. `tools.sim.go.FORM` is what her rows
+again; the director hands her to the law from its stand; her manners (`gaits.MANNERS`) come on
+and go as she walks, each read back in its words. `tools.sim.go.FORM` is what her rows
 hold, `tools.sim.go.went` her going, on her boards as built; `tools/sim/ways.py` is the spread.
 Her walk as built is test_gynoid_gait.py's, the runner test_gynoid_run.py's."""
 import sys
@@ -90,10 +91,14 @@ def test_her_ways_on_setpoints_alone(report):
             held(report, '%s, %s' % (what, name), up[0]['segments'][i], go.FORM[name])
 
 
+#: The manner asked of her as she walks under the director.
+CROUCHED = (('crouched', 1.0),)
+
+
 def test_the_director_hands_her_to_the_law(report):
     """Landed standing under the director, a pace asked: the law takes her from the arrival's
-    stand and she walks; asked to a stand she stands, the law's still."""
-    from machine import Machine
+    stand and she walks, crouched as asked; asked to a stand she stands, the law's still."""
+    from machine import Machine, gaits
     from machine.director import Director
     from machine.modes import DYNAMIC
     body = Machine.discover('gynoid', execution_mode=DYNAMIC)
@@ -103,19 +108,26 @@ def test_the_director_hands_her_to_the_law(report):
         director.pace = -1.0
         director.begin(drop=0.004, stage='stand')
         body.loop.step(0.0)
-        bus, stages, z = body.loop.bus, [], {}
-        for until, pace in ((1.5, -1.0), (5.0, 0.0), (8.0, 0.0), (10.0, -1.0), (13.0, -1.0)):
-            director.pace = pace
+        bus, stages, z, strut = body.loop.bus, [], {}, {}
+        for until, pace, manner in ((1.5, -1.0, ()), (5.0, 0.0, ()), (8.0, 0.0, CROUCHED),
+                                    (10.0, -1.0, ()), (13.0, -1.0, ())):
+            director.pace, director.manner = pace, manner
             while bus['t'] < until and director.stage != 'fallen':
                 body.loop.write(**director.step(0.001))
                 body.loop.step(0.001)
                 if director.stage not in stages[-1:]:
                     stages.append(director.stage)
             z[until] = bus['pelvis.pose.z']
+            strut[until] = director.going and director.going.ask['strut']
         report.check('the law takes her from the stand, and nothing takes her from the law',
                      stages == ['stand', 'go'], ' '.join(stages))
         walked = (z[8.0] - z[5.0]) / 3.0
         report.check('asked on she walks', 0.6 < walked < 1.0, '%.2f m/s' % walked)
+        bent = gaits.MANNERS['crouched']['strut']
+        report.check('asked crouched as she walks, her strut is that manner\'s in %g s and '
+                     'the row\'s again as long after it is let go' % gaits.MANNER_S,
+                     abs(strut[8.0] - strut[5.0] - bent) < 1e-6 and strut[13.0] == strut[5.0],
+                     '%.1f, %.1f, %.1f deg' % (strut[5.0], strut[8.0], strut[13.0]))
         after = (z[13.0] - z[10.0]) / 3.0
         report.check('asked to a stand she stands', abs(after) < 0.05, '%.2f m/s' % after)
     finally:
@@ -153,9 +165,52 @@ def test_its_walk_beside_a_womans(report):
                               ', '.join(normal.named(now)) or 'no gait named'))
 
 
+#: Her manners on the law, each asked alone at an amount of 1 as she walks: (manner, the words
+#: it is to be read back in) - MANNER_FOR s each, read over its last READ_S, from FROM_S on,
+#: then plain again. Up through it on 12 timings of 12: leaning 0.49 at 733 J/m, crouched 0.60
+#: at 509, wide 0.71 at 578, tripping 0.36 at 785, into the wind leaning 0.47 and crouched 0.30
+#: at 568-607, and plain again 0.33 off a woman's band (2026-10-06).
+MANNERS = (('leaning', ('leaning',)), ('crouched', ('crouched',)), ('wide', ('wide',)),
+           ('tripping', ('tripping',)), ('into the wind', ('leaning', 'crouched')))
+FROM_S, MANNER_FOR, READ_S = 8.0, 8.0, 5.0
+
+
+def test_her_manners_in_their_words(report):
+    """One walk on the law through each of MANNERS and to her plain walk again, on the first
+    of SHIFTS she is up through: each manner said in its words (`normal.said`), and her walk
+    then no further off a woman's band than OFF_BAND - a manner comes on and goes as she
+    walks."""
+    from tools.sim import go
+    spans = [(FROM_S + i * MANNER_FOR, name) for i, (name, _words) in enumerate(MANNERS)]
+    end = FROM_S + len(MANNERS) * MANNER_FOR
+    windows = [(t + MANNER_FOR - READ_S, t + MANNER_FOR) for t, _name in spans] + [
+        (end + MANNER_FOR - READ_S, end + MANNER_FOR)]
+    went, result = [], {}
+    for shift in SHIFTS:
+        result = go.went([(0.0, -1.0), (1.3 + shift, -1.0), (2.3 + shift, 0.0)],
+                         end + MANNER_FOR, form=windows,
+                         manner=[(t, ((name, 1.0),)) for t, name in spans] + [(end, ())])
+        went.append('down at %.1f s' % result['fell'] if result['fell'] else 'up')
+        if not result['fell']:
+            break
+    report.check('she is up through her manners, each coming on and going as she walks',
+                 not result['fell'], ', '.join(went))
+    if result['fell']:
+        return
+    for (name, words), form in zip(MANNERS, result['forms']):
+        said = dict(form['said'])
+        report.check('%s: said %s' % (name, ' and '.join(words)),
+                     all(word in said for word in words),
+                     ', '.join('%s %.2f' % w for w in form['said']) + ' at %.0f J/m' % form['energy'])
+    plain = result['forms'][-1]
+    report.check('plain again, no further off a woman\'s walk than %g' % OFF_BAND,
+                 plain['off'] <= OFF_BAND, '%.2f: %s' % (plain['off'], ', '.join(
+                     '%s %.2f' % tuple(w) for w in plain['said']) or 'no word'))
+
+
 ROSTER = [test_a_gait_is_a_row_of_the_same_names, test_her_rows_go_on,
           test_her_ways_on_setpoints_alone, test_the_director_hands_her_to_the_law,
-          test_its_walk_beside_a_womans]
+          test_its_walk_beside_a_womans, test_her_manners_in_their_words]
 
 
 def main(argv=None):

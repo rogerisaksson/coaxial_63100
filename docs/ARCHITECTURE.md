@@ -125,7 +125,8 @@ machine/            any board family, no import of one: roles (Input, Stream,
                     a swinging foot lands across: on the capture point, or a
                     side step), runner (her run from a flight: a bounce a
                     foot), going over gaits, hold and strut (stand, walk
-                    and run one law, a gait a row of its setpoints), pace
+                    and run one law, a gait a row of its setpoints, a
+                    manner those moved), pace
                     (the director's hand to that law, the page's J), arrival
                     (keyframes,
                     the CoM fed back: the
@@ -227,7 +228,8 @@ tests/              suites, .counts.json (measured sizes)
   `test_gynoid_faults.py` on her boards as built - the envelope derating and
   tripping them, glitches, a lace caught; `test_gynoid_gait.py` her walk's
   form, held to its take (tests/takes/walk.fbx) and to a woman's band
-  (`tools/sim/normal.py`).
+  (`tools/sim/normal.py`); `test_gynoid_going.py` the one law's rows, her
+  ways between them, her manners read back in that band's words.
 - The stand-in is the emulated world's reference: `tools/dev/ab.py` runs a
   page on both, a process a page, and marks a read missing, a range apart
   over the board seconds both cover, or a number the physics rules out;

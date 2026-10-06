@@ -6,7 +6,8 @@
 
 `director.pace` is the row asked of her way - -1 her stand, 0 the walk's, 0.5 her jog, 1 the
 run's -, None the law off and the walker hers. The row she goes on follows it no faster than
-she does (`gaits.toward`). Standing settled on both feet, the law (`machine.going`) takes her
+she does (`gaits.toward`), in the manners asked (`director.manner`, `gaits.manners`). Standing
+settled on both feet, the law (`machine.going`) takes her
 where she is: its legs standing where hers are, the pelvis at its height, every setpoint eased
 from the one before. Down, the director's fall and get-up are hers as ever, and risen she stands
 for the law again.
@@ -52,6 +53,7 @@ def take(director, bus, out):
              'from': (pel[1], 0.0, 0.0), 'to': (pel[1], 0.0, 0.0)}
     law.last, law.pace = dict(out), 0.0
     director.stage, director.k, director.blend, director.age = 'go', (-1.0, 0.0), dict(out), 0.0
+    director.manners = {}
 
 
 def step(director, dt):
@@ -59,7 +61,8 @@ def step(director, dt):
     d = director
     k, on = d.k
     d.k = gaits.toward(k, on, -1.0 if d.pace is None else d.pace, dt)
-    d.going.ask = gaits.between(d.k[0])
+    d.manners = gaits.manners(d.manners, d.manner, dt)
+    d.going.ask = gaits.mannered(gaits.between(d.k[0]), d.manners)
     out = d.going.step(dt)
     if d.blend is not None:
         d.age += dt
