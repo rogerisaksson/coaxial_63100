@@ -248,3 +248,21 @@ The board's own are in [FINDINGS](../FINDINGS.md).
   answered to 1.2 rad where 0.6, 2.4-7.5; its loop at (140, 20) and 1.5,
   1.8-5.6. Its rotors never above 97 % of their top in it. On the laps
   they give 37 % of their thrust, none ever at its top.
+- QUAD's plan on a circle of its grip, and its tilt's loop (2026-10-06; the
+  user: the motors at their most, a bend rock-hard and no speed lost out
+  of it - MotoGP, F1). The brake before a bend and the way out of it were
+  shares of the pull whatever the bend took; they are 0.744 and 0.847 of
+  what the bend there leaves of the grip, 0.77, run back from the far end
+  of what is looked at - 45 generations of 16 on ideal rotors: 15.5 and
+  15.1 s where 16.1 and 15.3, but a gate 0.73 m off in a wind it never
+  flew and the frame 5.8 m/s under its plan out of a bend, a lean coming
+  round at 3 rad/s. The tilt's loop at 140 and 20, its miss answered to
+  1.2 rad: 14.9 and 14.4 s, its pull turning 14 times a lap where 18, its
+  jerk 42 m/s^3 where 46; the four boards 15.3 and 15.2 at 0.68-0.71 of
+  their envelopes, a gate 0.40-0.42 m off in still air and nine winds;
+  x0.75 and x1.5 14.9 and 14.4 by their clocks; a pack at 60 % 14.9 and
+  14.6; stuffy 17.9 and 17.0 at 0.83, 9 % of the pull left at the least -
+  the stiffer loop's heat. 30.4 as the tuner counts twelve trials where
+  33.1. The rotors give 37-39 % of their thrust yet: a point with all of
+  their pull along the floor laps in 9.3 s, with the plan's lean and
+  shares in 12.9.

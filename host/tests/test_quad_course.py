@@ -133,9 +133,9 @@ def test_its_gates_are_flown(report):
                  '; '.join('%s %.2f m' % pair for pair in near[:3]))
     laps = [r for r in rows if r['name'] == 'lap']
     times = [lap_seconds(rows, lap) for lap in range(course.LAPS)]
-    report.check('a lap of %.0f m in 15-30 s, 9 m/s and 50 degrees of lean in it'
+    report.check('a lap of %.0f m in 10-30 s, 9 m/s and 50 degrees of lean in it'
                  % course.track()['length'],
-                 all(15.0 <= s <= 30.0 for s in times) and max(r['v'] for r in laps) >= 9.0
+                 all(10.0 <= s <= 30.0 for s in times) and max(r['v'] for r in laps) >= 9.0
                  and 50.0 <= max(r['tilt'] for r in laps) <= 80.0,
                  '%s s, %.1f m/s and %.0f degrees at the most' % (
                      ' and '.join('%.1f' % s for s in times), max(r['v'] for r in laps),

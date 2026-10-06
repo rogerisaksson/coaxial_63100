@@ -37,8 +37,12 @@ KD = 10.0
 #: held the frame 5 degrees over on the tilt's loop alone and walked it 8 m in a hover
 #: (2026-09-28). The heading's torque is the discs' drag, 0.5 N m in a hover: at 16 and 8 a
 #: pirouette of 180 deg/s swung the rotors 1 470-2 080 rpm at the clamp, both ways
-#: (2026-10-05).
-TILT_KP, TILT_KD, YAW_KP, YAW_KD = 60.0, 12.0, 4.0, 4.0
+#: (2026-10-05). The tilt's at 60 and 12, its miss answered to 0.6 rad, brought a lean round
+#: at 3 rad/s: asked a speed rising and falling 20 m/s^2 every 0.9 s the frame was 5-12 m/s
+#: under it at each turn, and 5 m/s under its lap's plan out of a bend; at 140 and 20 and
+#: 1.2 rad 2-6, a lap 14.9 and 14.4 s where 15.5 and 15.2, a gate 0.48 m off where 0.67, the
+#: four boards' envelopes as before; at 200 and 24 it flew into the floor (2026-10-06).
+TILT_KP, TILT_KD, YAW_KP, YAW_KD = 140.0, 20.0, 4.0, 4.0
 
 #: Along the floor: the spot's loop, 1/s^2 and 1/s - at 4 and 3.2 an orbit's bank rang 19-31
 #: degrees on 14 of margin (2026-10-05); its spot goes to its place at this gain, 1/s, this
@@ -93,7 +97,7 @@ LIGHT = 0.5
 #: slew, the tilt swung wider each time - 75, 87, 121 degrees on the page's boards, 4 m of
 #: height gone; on rotors 0.12 s and 500 rad/s^2 to a speed three laps of six ended over, none
 #: at this (2026-10-06).
-TILT_MISS = 0.6
+TILT_MISS = 1.2
 
 #: The air is learnt in this long, s, off the floor - OFF_M up, where the floor's own push is
 #: none - from what the frame speeds up by over what its rotors' speeds and gravity give it:

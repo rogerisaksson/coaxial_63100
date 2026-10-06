@@ -63,32 +63,26 @@ TENSION, DS, LAPS, SLOPE = 1.167, 0.25, 2, 1.075
 WAYS = tuple((turn, 1.0) for turn in (0.0, 6.2, -17.3, 10.7, -10.9, 7.0, 5.4, 11.3, -5.6, 10.0,
                                       -10.2, -10.2, 2.7, 16.9))
 
-#: The lean a lap asks, of the pull along the floor all of the frame's rotors give - 27 m/s^2,
-#: 70 degrees, more than the envelopes leave it for long - and its speed at most, m/s. The
+#: The lean a lap asks, of the pull along the floor all of the frame's rotors give - 26 m/s^2,
+#: 69 degrees, more than the envelopes leave it for long - and its speed at most, m/s. The
 #: pull it is planned on is the envelopes' share of that lean, EASY of the frame's whole at
-#: the least, come down to in EASE_S of the whole and back up in twice that:
-#: planned on what the law's reach left, 11 m/s^2 with the envelopes spent, a lap never eased
-#: and the boards stood at 0.94 of theirs, two throttling (2026-10-06). Of that pull a bend
-#: takes GRIP, the brake before it BRAKE and the way out of it GO, the brake to its finish
-#: STOP - at a bend's 0.39 it stood 0.36 m past the gate, through it at 2.6 m/s; bends are
-#: braked for AHEAD_M ahead; a crest is flown no faster than lets it fall DROP of gravity, the rotors kept
-#: turning for the bend on it; a bend's pull swings from one side to the other in SWING_S at
-#: the fastest - what the discs take to lean over, the rotors' spool in it. Over the house's
-#: crest at 0.3 of its weight it stood 90 degrees over and fell 0.86 m under its line
-#: (2026-10-05). On the page's four boards, still air and six winds (2026-10-06): at a grip of
-#: 0.4 and a lean of 20 its laps 26.4 and 25.4 s, 28.2 in a wind; at 0.7 and 23, the swing
-#: counted, 21.8 and 20.6, 22.3 in the worst wind, a gate 0.53 m off at the most and 0.37 m
-#: about the frame; at 26 one wind had it 0.74 m off a gate and nothing about it; the swing
-#: not counted, a lean of 26 struck the slalom's gate in four flights of four. Stiffer loops
-#: do not buy it: the tilt's at twice its gain rang, the spot's at four struck a gate - a
-#: lean turns no faster than the rotors spool. The tuner's, flown on ideal rotors (2026-10-06)
-#: - these, LEAD_S, LOOK_S, SOFT_S, TENSION, SLOPE and the line's crossings. On the level
-#: line, 60 generations of 20: laps 19.2 and 18.1 s where 20.8 and 19.5. On the line rising
-#: through its gates, 80 of 24: 16.1 and 15.3, on four boards 16.4 and 15.9 where 21.9 and
-#: 20.7 as the day began, in a stuffy room 18.2 and 17.1; in four winds it never flew a gate
-#: 0.59 m off at the most.
-LEAN, EASY, EASE_S, TOP_M_S = 0.794, 0.116, 2.0, 12.0
-GRIP, BRAKE, GO, AHEAD_M, DROP, SWING_S = 0.639, 0.395, 0.386, 40.0, 0.679, 0.576
+#: the least, come down to in EASE_S of the whole and back up in twice that: planned on what
+#: the law's reach left, a lap never eased and the boards stood at 0.94 of their envelopes,
+#: two throttling (2026-10-06). Of that pull the plan has GRIP, a circle: a bend takes what
+#: its speed asks of it, the brake before it BRAKE and the way out of it GO of what the bend
+#: there leaves; the brake to its finish STOP of the pull - at a bend's it stood 0.36 m past
+#: the gate, through it at 2.6 m/s; bends are braked for AHEAD_M ahead; a crest is flown no
+#: faster than lets it fall DROP of gravity; a bend's pull swings from one side to the other
+#: in SWING_S at the fastest.
+#: The tuner's (`tools/sim/quad_race.py`, 2026-10-06), flown - these, LEAD_S, LOOK_S, SOFT_S,
+#: TENSION, SLOPE and the line's crossings: on the level line 19.2 and 18.1 s where 20.8 and
+#: 19.5 as the day began; on the line rising through its gates 16.1 and 15.3; the brake and
+#: the way out on the circle, where shares of the pull whatever the bend, 15.5 and 15.1; the
+#: tilt's loop stiffer (`flying.TILT_KP`), 14.9 and 14.4 - on four boards 15.3 and 15.1
+#: where 21.9 and 20.7, a gate 0.42 m off at the most in six winds it never flew, stuffy
+#: 17.7 and 17.1.
+LEAN, EASY, EASE_S, TOP_M_S = 0.753, 0.116, 2.0, 13.0
+GRIP, BRAKE, GO, AHEAD_M, DROP, SWING_S = 0.77, 0.744, 0.847, 40.0, 0.705, 0.511
 STOP = 0.25
 
 #: The frame's place on the line is looked for REACH_M on from the last; the law's spot is kept
@@ -110,7 +104,7 @@ STOP = 0.25
 #: the rotors spooled for the pull that stepped with it - on the four boards in seven winds
 #: laps 20.2-20.7 and 19.6-20.7 s, their envelopes at 0.72-0.77, a gate 0.67 m off at the
 #: most; softened, 19.5-19.7 and 18.6-19.1, 0.66-0.69, 0.50 m (2026-10-06).
-REACH_M, SLACK_M, LEAD_S, LOOK_S, LOOK_M, SOFT_S = 3.0, 2.0, 0.146, 0.334, 3.0, 0.096
+REACH_M, SLACK_M, LEAD_S, LOOK_S, LOOK_M, SOFT_S = 3.0, 2.0, 0.159, 0.283, 3.0, 0.13
 AIM_K, TURN_RAD_S, STAND_M, STAND_M_S = 5.0, math.tau, 0.6, 0.5
 
 #: The lap's rows: the hover's, at a lap's pace up and down, its nose free; the lean a row
@@ -322,25 +316,28 @@ def line(route, now):
     # what the law takes the change of spans the pass to come: asked for where that ends
     on = min(end, s + along * dt / step)
     lead = min(end, on + LEAD_S * lap['v'] / step)
-    # as fast as the bends ahead allow, each braked for from here, a crest as its fall; to a
-    # stand at its finish; come to no faster than GO of the pull - for where it is as much
-    # further on as its asked speed trails
+    # as fast as the bends ahead allow on a circle of its grip - a bend at the speed all of the
+    # grip turns it, a crest as its fall, braked for and come out of on what the bend there
+    # leaves of the grip - run back from the far end of what is looked at to where it is as
+    # much further on as its asked speed trails; to a stand at its finish
     soon = min(end, lead + SOFT_S * lap['v'] / step)
-    allowed = min(TOP_M_S, math.sqrt(2.0 * STOP * pull * (end - soon) * step))
-    for j in range(min(int(AHEAD_M / step), int(end - soon))):
-        bend, rise, _veer = line_['bends'][(int(soon) + j) % n]
-        bend += max(0.0, -rise) * GRIP * pull / (DROP * quad.GRAVITY)
-        if bend > 0.0 and allowed > bend_speed(bend, GRIP * pull, wind):
-            allowed = min(allowed, math.sqrt(bend_speed(bend, GRIP * pull, wind) ** 2
-                                             + 2.0 * BRAKE * pull * step
-                                             * max(0.0, j - soon % 1.0)))
-        swing = line_['swings'][(int(soon) + j) % n]
+    grip, base, far = GRIP * pull, int(soon), min(int(AHEAD_M / step), int(end - soon))
+    crest, swung = grip / (DROP * quad.GRAVITY), 2.0 * grip / SWING_S
+    square, bend = TOP_M_S * TOP_M_S, 0.0
+    for j in range(far, -1, -1):
+        bend, rise, _veer = line_['bends'][(base + j) % n]
+        bend += max(0.0, -rise) * crest
+        if bend > 0.0:
+            square = min(square, bend_speed(bend, grip, wind) ** 2)
+        swing = line_['swings'][(base + j) % n]
         if swing > 0.0:
-            swung = (2.0 * GRIP * pull / (SWING_S * swing)) ** (1.0 / 3.0)
-            if allowed > swung:
-                allowed = min(allowed, math.sqrt(swung * swung + 2.0 * BRAKE * pull * step
-                                                 * max(0.0, j - soon % 1.0)))
-    speed = lap['v'] = min(allowed, lap['v'] + GO * pull * dt)
+            square = min(square, (swung / swing) ** (2.0 / 3.0))
+        if j:
+            left = math.sqrt(max(0.0, grip * grip - (square * bend) ** 2))
+            square += 2.0 * BRAKE * left * step * (1.0 if j > 1 else 1.0 - soon % 1.0)
+    allowed = min(TOP_M_S, math.sqrt(min(square, 2.0 * STOP * pull * (end - soon) * step)))
+    left = math.sqrt(max(0.0, grip * grip - (lap['v'] ** 2 * bend) ** 2))
+    speed = lap['v'] = min(allowed, lap['v'] + GO * left * dt)
     lap.update(laps=min(lap['of'] - 1, k // n),
                gate=next((g for g, mark in enumerate(line_['gates']) if mark > (k % n) * step), 0))
     if (end - s) * step <= STAND_M and math.sqrt(sum(float(v) ** 2 for v in vel)) <= STAND_M_S:
