@@ -255,14 +255,14 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
     `test_structure` on the layout, each file under 5 k.
 
 28. **One law for her going, S and F on it** (the user, 2026-10-05). In, under
-    J (docs/findings/going.md). Left: its walk the page's own - 0.20 off
+    J (findings/going.md). Left: its walk the page's own - 0.20 off
     `normal.BAND`, the user to say - at 502 J/m; her ways 76 of 104; a shove's
-    parry, a reflex under it (the user, 2026-10-06; balance.md): a leg out at
-    once, by impulse and standing foot - `ways.py --polar` 70 N 36 of 64, 120 N
-    5; her turns; a walk under 0.5 m/s; the floor's events on the law; a run
-    past 1.5 m/s; the runner and the walk's modules gone into it. DOD: F to her
-    fastest run and S back on the page, 10 of 10; its walk on `looks.FORM` and
-    `normal.BAND` at no more J/m; shoved, up as the walk as built.
+    parry, a reflex under it (balance.md): a leg out at once, by impulse and
+    standing foot - `ways.py --polar` 70 N 36 of 64, 120 N 5; her turns; a walk
+    under 0.5 m/s; the floor's events on the law; a run past 1.5 m/s; the
+    runner and the walk's modules gone into it. DOD: F to her fastest run and S
+    back on the page, 10 of 10; its walk on `looks.FORM` and `normal.BAND` at
+    no more J/m; shoved, up as the walk as built.
 29. **Her tubes, corners and flanges** (the user, 2026-10-05): carbon
     tubes cut to length, epoxied into printed corners; a gearbox on a
     flange, its output through it; motor, box and board outermost, a
@@ -276,12 +276,13 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
     tripping on them, down again, round in a circle - her skirt swishing -, sat
     on a chair one leg over the other, up and the sequence again. DOD: twice
     round on the page, no fall.
-31. **A language for how she moves** (the user, 2026-10-05: each concept on a
-    reference, asked as tuples; 2026-10-06: a base, its accents by amount, a
-    transition between two). In: `normal.WORDS`, `gaits.MANNERS`, M Z X. In
-    too: a pose's accent with a side, let go before she goes. DOD: tripping no
-    shuffle; 100 % a take's measure; a walk into 20 N of wind; a planner asking
-    the accent; sitting, rising.
+31. **A language for how she moves** (the user, 2026-10-05, 06: concepts on
+    references, as tuples; a base, its accents, a transition). In:
+    `normal.WORDS`, `gaits.MANNERS`, M Z X. DOD: tripping no shuffle; 100 % a
+    take's measure; a walk into 20 N of wind, the accent asked of it; sitting,
+    rising.
+32. **Her kinematics on dual quaternions** (the user, 2026-10-06;
+    findings/kinematics.md). DOD: a posture term, a C core; her arms on it.
 
 ## Bench
 
