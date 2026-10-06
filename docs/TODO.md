@@ -250,19 +250,18 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
     scoreboard's worlds batched. DOD: its step against the CPU's 0.31 ms
     measured first; the boards at 1 kHz beside it.
 27. **`machine/` in subpackages**; `gait_montecarlo.py` stands at its 6 k
-    cap, `director.py` at 5.9 (2026-10-04; `arrival.py` 5.2 with its legs'
-    bearing out in `bearing.py`): the trial into its own module. DOD:
-    `test_structure` on the layout, each file under 5 k.
+    cap, `director.py` at 5.9 (2026-10-04; `arrival.py` 5.2): the trial
+    into its own module. DOD: `test_structure` on the layout, each file
+    under 5 k.
 
 28. **One law for her going, S and F on it** (the user, 2026-10-05). In, under
     J (findings/going.md). Left: its walk the page's own - 0.20 off
     `normal.BAND`, the user to say - at 502 J/m; her ways 76 of 104; a shove's
     parry, a reflex under it (balance.md): a leg out at once, by impulse and
-    standing foot - `ways.py --polar` 70 N 36 of 64, 120 N 5; her turns; a walk
-    under 0.5 m/s; the floor's events on the law; a run past 1.5 m/s; the
-    runner and the walk's modules gone into it. DOD: F to her fastest run and S
-    back on the page, 10 of 10; its walk on `looks.FORM` and `normal.BAND` at
-    no more J/m; shoved, up as the walk as built.
+    standing foot; her turns; a walk under 0.5 m/s; the floor's events on the
+    law; a run past 1.5 m/s; the runner and the walk gone into it. DOD: F to
+    her fastest run and S back on the page, 10 of 10; its walk on `looks.FORM`
+    and `normal.BAND` at no more J/m; shoved, up as the walk as built.
 29. **Her tubes, corners and flanges** (the user, 2026-10-05): carbon
     tubes cut to length, epoxied into printed corners; a gearbox on a
     flange, its output through it; motor, box and board outermost, a
@@ -281,8 +280,9 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
     `normal.WORDS`, `gaits.MANNERS`, M Z X. DOD: tripping no shuffle; 100 % a
     take's measure; a walk into 20 N of wind, the accent asked of it; sitting,
     rising.
-32. **Her kinematics on dual quaternions** (the user, 2026-10-06;
-    findings/kinematics.md). DOD: a posture term, a C core; her arms on it.
+32. **Her kinematics on dual quaternions** (the user, 2026-10-06: an algebra
+    round the hacking; findings/kinematics.md). DOD: a posture term, a C core;
+    her legs, her arms, a take and her jeans' seams on it.
 
 ## Bench
 

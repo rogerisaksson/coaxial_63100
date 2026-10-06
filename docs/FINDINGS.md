@@ -278,7 +278,7 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
 | The gynoid's going on one law: stand, walk and run as its setpoints, what a walk asked of it, the rows found | [findings/going.md](findings/going.md) |
 | A woman's walk as her metric: the band, walks off it, her walk as a take | [findings/normal.md](findings/normal.md) |
 | The gynoid's feet: the toes without a motor, the sole's give, the push-off on them | [findings/feet.md](findings/feet.md) |
-| The gynoid's kinematics: the figure's recipes, dual quaternions in their place | [findings/kinematics.md](findings/kinematics.md) |
+| The gynoid's kinematics: the figure's recipes, dual quaternions in their place, her jeans' seams on them | [findings/kinematics.md](findings/kinematics.md) |
 | The gynoid kept up: the capture law and the side step, the floor's events and shoves, the scoreboard and its searches | [findings/balance.md](findings/balance.md) |
 | The gynoid standing: the rigs under her, the one law in the capture point's plane, the push polar | [findings/standing.md](findings/standing.md) |
 | The gynoid's build, her buses, her falls and her get-up, her drawing and her clothes | [findings/body.md](findings/body.md) |
