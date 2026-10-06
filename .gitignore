@@ -50,6 +50,8 @@ htmlcov/
 # fitted, and docs/HARDWARE.md points at it.
 !electronics/*.csv
 *.log
+# A search's candidates, a line each, where it was run from.
+gait_montecarlo.jsonl
 # Runner transcripts are the same thing in another format.
 host/data/
 !docs/**/*.log
