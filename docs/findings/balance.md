@@ -329,5 +329,12 @@ shoves, the scoreboard and its searches. The board's own are in
   pattern taken 3 cm back with the accent, 0.89 m/s at 10 N and down at
   20; 6 cm, down as it came in; that taken back by the speed she is
   short of, summed a landing - the first steps of a start wind it up and
-  she is down at 4.7 s. The accent is the posture, the force's answer is
-  the law's to find: a walk that leans as a whole, from its feet.
+  she is down at 4.7 s. Traced at 20 N: she lands 0.16-0.19 m behind a
+  foot at 0.36-0.42 m/s and does not pass over it - stalled 95 mm behind
+  it, back at 0.5 m/s and down. A step is laid for her last step's pace
+  and 0.36 m/s more, which a walk gains in still air and not against
+  0.34 m/s a step of wind; laid for what she gained on her last step
+  too, the same - shorter steps, and still nothing that pushes: her
+  feet's pattern taken back by the wind's worth as it comes on, 58 mm,
+  down as soon. The accent is the posture; the push against a steady
+  force - a slope's too - is the law's to find.
