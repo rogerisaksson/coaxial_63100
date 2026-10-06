@@ -235,3 +235,16 @@ The board's own are in [FINDINGS](../FINDINGS.md).
   8.0 deg rms off the way from the gate before to the one after, 13.0 off
   the gates' own headings: it had turned the line toward a spline's. What
   jerks is the plan, a burst of speed and a brake a gate.
+- Monotone slopes through the gates (Fritsch-Carlson's, the user's
+  thought, 2026-10-06), the plan and the crossings searched again on them,
+  45 generations of 20: 16.3 and 15.5 s where the secant's 16.1 and 15.3,
+  a gate 0.38 m off where 0.45 - 31.9 as the tuner counts it where 31.6,
+  and it had stretched them a quarter, toward the secant's. The secant's
+  line goes 0.03 m under its lowest gate and 0.07 over its highest: kept.
+- How fast its pull turns (2026-10-06): from a hover, asked a speed rising
+  20 m/s^2 along its nose and then falling as fast, every 0.9 s, the frame
+  is 5-12 m/s under what it is asked when the next turn comes - half a
+  second of its pull a turn - and 1-2 m off its height; the tilt's miss
+  answered to 1.2 rad where 0.6, 2.4-7.5; its loop at (140, 20) and 1.5,
+  1.8-5.6. Its rotors never above 97 % of their top in it. On the laps
+  they give 37 % of their thrust, none ever at its top.
