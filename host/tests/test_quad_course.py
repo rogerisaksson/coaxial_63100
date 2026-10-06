@@ -17,20 +17,20 @@ TOP_RAD_S, LAG_S, SPOOL_RAD_S2 = 310.0, 0.08, 900.0
 
 def reach():
     """The frame from its middle to a propeller's tip, m."""
-    from coaxial.graphics import quadcopter
     from machine import quad
-    return math.hypot(*quad.ROTOR_AT[0]) + quadcopter.BLADE_R
+    return math.hypot(*quad.ROTOR_AT[0]) + quad.DISC_R
 
 
 @functools.lru_cache(maxsize=None)
 def lapped(share=1.0, spent_at=None, air=False):
     """The course's card once through, a row a pass: machine.quad's frame in MuJoCo on rotors
     lagging to their speed, on `share` of their pull, its passes a page's - 10 to 30 ms, one
-    in twenty 50; `spent` from `spent_at` s on; in still air, or - `air` - the air's tour."""
+    in twenty 50; `spent` from `spent_at` s on; in still air, or - `air` - the air's tour;
+    among what stands, solid (`course.solids`)."""
     from machine import aerobatics, course, quad
     from machine.flying import Flying
     dice = random.Random(1)
-    sky, route = quad.Sky(), aerobatics.routine(course.CARD)
+    sky, route = quad.Sky(course.solids()), aerobatics.routine(course.CARD)
     flying = Flying(4.0 * quad.K_THRUST * TOP_RAD_S ** 2, aerobatics.DOWN)
     blown = quad.air() if air else None
     w, t, rows = [0.0] * 4, 0.0, []
@@ -53,7 +53,7 @@ def lapped(share=1.0, spent_at=None, air=False):
                      'z': float(state['at'][2]),
                      'v': math.sqrt(sum(float(c) ** 2 for c in state['vel'])),
                      'tilt': math.degrees(math.acos(max(-1.0, min(1.0, float(state['turn'][1][1]))))),
-                     'laps': lap.get('laps', 0), 'of': lap.get('of', 0)})
+                     'laps': lap.get('laps', 0), 'of': lap.get('of', 0), 'hit': state['hit']})
         t += dt
     return tuple(rows)
 
@@ -187,8 +187,10 @@ def test_its_gates_in_wind(report):
     still, rows = lapped(), lapped(air=True)
     gates, room = passes(rows), course.GATE_M / 2.0 - reach() - CLEAR_M
     counted = [len(gates[g]) for g in range(1, len(course.GATES))]
-    report.check('every gate passed on both laps in the wind, its middle within %.2f m' % room,
-                 counted == [course.LAPS] * len(counted) and worst(gates) <= room,
+    report.check('every gate passed on both laps in the wind, its middle within %.2f m, '
+                 'nothing struck' % room,
+                 counted == [course.LAPS] * len(counted) and worst(gates) <= room
+                 and not any(r['hit'] for r in rows),
                  'passes %s, %.2f m off at the most, %.2f in still air' % (
                      counted, worst(gates), worst(passes(still))))
     times = [[lap_seconds(flown, lap) for lap in range(course.LAPS)] for flown in (still, rows)]
@@ -196,6 +198,48 @@ def test_its_gates_in_wind(report):
                  all(0.9 * a <= b <= 1.1 * a for a, b in zip(*times)),
                  '%s s in the wind, %s still' % (' '.join('%.1f' % x for x in times[1]),
                                                 ' '.join('%.1f' % x for x in times[0])))
+
+
+def test_what_stands_is_solid(report):
+    """machine.quad's world with the course's things in it (course.solids): every tree, house,
+    car, mast and gate, the first gate with no bar along the floor; the frame put in a tree's
+    crown, in a house, on a car, against the mast and across a gate's bar has struck each -
+    the gate only while the gates stand; on its skids on the floor nothing, a disc on the
+    floor the floor."""
+    from machine import course, quad
+    things = course.solids()
+    kinds = [name.rstrip('0123456789') for _shape, name, *_size in things]
+    bars = [sum(name == 'gate%d' % k for _shape, name, *_size in things) for k in (0, 3)]
+    report.check('a trunk and a crown a tree, walls and a roof a house, a body and a cabin a '
+                 'car, the mast; a gate six bars, the first three: the floor its lower edge',
+                 [kinds.count(kind) for kind in ('tree', 'house', 'car', 'mast')]
+                 == [2 * len(course.TREES), 2 * len(course.HOUSES), 2 * len(course.CARS),
+                     len(course.MASTS)] and bars == [3, 6],
+                 '%d things; gate 0 %d bars, gate 3 %d' % (len(things), bars[0], bars[1]))
+    sky = quad.Sky(things)
+
+    def put(at, over=0.0):
+        """What the frame has struck a step after it is put at `at`, `over` rad about its
+        nose."""
+        sky.reset()
+        sky.data.qpos[0:3] = at
+        sky.data.qpos[3:7] = (math.cos(over / 2.0), 0.0, 0.0, math.sin(over / 2.0))
+        sky.step([0.0] * 4, quad.STEP_S)
+        return sky.state()['hit']
+    tree, house, car, mast = course.TREES[0], course.HOUSES[0], course.CARS[0], course.MASTS[0]
+    bar = (course.GATES[1][0], course.GATES[1][1] + course.GATE_M / 2.0, course.GATES[1][2])
+    struck = [put((tree[0], 0.6 * tree[2], tree[1])), put((house[0], 2.0, house[1])),
+              put((car[0], 0.6, car[1])), put((mast[0], 5.0, mast[1])), put(bar)]
+    sky.stand(False)
+    free = put(bar)
+    sky.stand(True)
+    rest = [put((0.0, quad.SKID_M + 0.015, 0.0)), put((8.0, 0.3, -15.0), math.pi / 2.0)]
+    report.check('put in a tree\'s crown, a house, a car, the mast and across a gate\'s bar it '
+                 'has struck each - the gate only while the gates stand; on its skids nothing, '
+                 'a disc on the floor the floor',
+                 struck == ['tree', 'house', 'car', 'mast', 'gate1'] and free is None
+                 and rest == [None, 'floor'],
+                 '%s; the gates down %s; on the floor %s' % (struck, free, rest))
 
 
 def test_a_line_ends_itself(report):
@@ -307,7 +351,8 @@ def test_its_world_is_drawn(report):
 
 
 ROSTER = (test_its_gates_are_flown, test_it_flies_on_its_envelopes, test_its_gates_in_wind,
-          test_a_line_ends_itself, test_its_tilt_is_its_discs_own, test_its_world_is_drawn)
+          test_what_stands_is_solid, test_a_line_ends_itself, test_its_tilt_is_its_discs_own,
+          test_its_world_is_drawn)
 
 
 def main(argv=None):

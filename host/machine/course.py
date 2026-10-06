@@ -19,11 +19,12 @@ from machine.quad import BODY_CDA, MASS_KG, RHO
 
 #: A gate: its middle (x, y, z), m from where the frame rises, y up, and its heading, degrees
 #: from z toward x - flown through along it; its opening GATE_M square, the floor under it at
-#: the lowest. The first stands over the spot, the lap's start and its finish; then the alley
+#: the lowest. The first stands over the spot, the lap's start and its finish, the floor its
+#: lower edge: a bar there was in the frame's way up, struck 8 cm off the floor; then the alley
 #: between two trees, up and over the house's ridge, three quarters round the mast and down
 #: it, the dive between two cars, the low bend, the slalom's two trees and home.
 GATE_M = 3.4
-GATES = ((0.0, 2.0, 0.0, 0.0), (0.0, 2.5, 14.0, 0.0), (7.0, 6.0, 23.0, 90.0),
+GATES = ((0.0, 1.7, 0.0, 0.0), (0.0, 2.5, 14.0, 0.0), (7.0, 6.0, 23.0, 90.0),
          (19.0, 7.5, 23.0, 90.0), (31.0, 7.0, 21.5, 90.0), (36.5, 6.0, 27.0, 0.0),
          (31.0, 5.0, 32.5, 270.0), (25.5, 4.0, 27.0, 180.0), (27.0, 3.2, 15.0, 180.0),
          (27.0, 1.1, 3.0, 180.0), (20.0, 2.2, -6.0, 270.0), (13.0, 2.6, -3.5, 270.0),
@@ -44,6 +45,11 @@ CARS = ((24.0, 3.0, 0.0), (30.0, 3.0, 180.0), (21.0, -11.0, 95.0), (15.0, -12.0,
         (2.0, 21.0, 20.0), (40.0, 22.0, 5.0))
 CAR_M = (1.8, 1.4, 4.4)
 MASTS = ((31.0, 27.0, 1.6, 14.0),)
+
+#: Their shapes: a tree's crown a six-sided cone from CROWN of its height up, on a trunk
+#: TRUNK_M thick; a car's body from CAR_LOW m up to CAR_BODY of its height, its cabin on it
+#: CAR_CABIN of its width and of its length; a gate's bars and posts BAR_M thick, m.
+CROWN, TRUNK_M, CAR_LOW, CAR_BODY, CAR_CABIN, BAR_M = 0.35, 0.12, 0.25, 0.55, (0.9, 0.5), 0.05
 
 #: The line: a span's tangents this much of its chord, sampled every DS m; its laps.
 TENSION, DS, LAPS = 1.0, 0.25, 2
@@ -83,6 +89,47 @@ AIM_K, TURN_RAD_S, STAND_M, STAND_M_S = 5.0, math.tau, 0.6, 0.5
 RACE, LEAN_OVER = dict(HOVER, pace=12.0, nose=0.0), 1.5
 #: On the grid: over its spot in the first gate.
 GRID = dict(HOVER, height=GATES[0][1])
+
+
+def gate(x, y, z, heading, size=GATE_M):
+    """A gate's edges, [(an end, the other)]: its opening's frame, `size` square to its
+    heading, the floor under it at the lowest, on two posts."""
+    c, s, half = math.cos(math.radians(heading)), math.sin(math.radians(heading)), size / 2
+    frame = [(x + a * c, max(0.0, y + b), z - a * s)
+             for a, b in ((-half, -half), (half, -half), (half, half), (-half, half))]
+    return list(zip(frame, frame[1:] + frame[:1])) + [(p, (p[0], 0.0, p[2])) for p in frame[:2]]
+
+
+def solids():
+    """What stands, as the frame's world has it to fly into (`quad.mjcf`): a tree its trunk and
+    its cone, a house its walls and its roof, a car its body and its cabin, a mast; a gate
+    (`gateN`) its bars and its posts - none along the floor, where the floor is its lower
+    edge."""
+    out = []
+    for x, z, high, crown in TREES:
+        foot = CROWN * high
+        out += [('rod', 'tree', (x, 0.0, z), (x, foot, z), TRUNK_M),
+                ('hull', 'tree', [(x + crown * math.cos(k * math.tau / 6), foot,
+                                   z + crown * math.sin(k * math.tau / 6)) for k in range(6)]
+                 + [(x, high, z)])]
+    for x, z, wide, deep, wall, ridge in HOUSES:
+        out += [('box', 'house', (x, wall / 2, z), (wide / 2, wall / 2, deep / 2), 0.0),
+                ('hull', 'house', [(x + a * wide / 2, wall, z + b * deep / 2)
+                                   for a in (-1, 1) for b in (-1, 1)]
+                 + [(x + a * wide / 2, ridge, z) for a in (-1, 1)])]
+    wide, high, long_ = CAR_M
+    for x, z, heading in CARS:
+        out += [('box', 'car', (x, (CAR_LOW + CAR_BODY * high) / 2, z),
+                 (wide / 2, (CAR_BODY * high - CAR_LOW) / 2, long_ / 2), heading),
+                ('box', 'car', (x, (1.0 + CAR_BODY) * high / 2, z),
+                 (CAR_CABIN[0] * wide / 2, (1.0 - CAR_BODY) * high / 2,
+                  CAR_CABIN[1] * long_ / 2), heading)]
+    for x, z, side, high in MASTS:
+        out.append(('box', 'mast', (x, high / 2, z), (side / 2, high / 2, side / 2), 0.0))
+    for k, place in enumerate(GATES):
+        out += [('rod', 'gate%d' % k, a, b, BAR_M) for a, b in gate(*place)
+                if max(a[1], b[1]) > 0.0]
+    return out
 
 
 def _span(a, b, u):

@@ -101,7 +101,7 @@ BOOT = 'test_boot.py'
 VIEWS = ('test_views_terminal.py', 'test_views_front.py', 'test_views_rotor.py',
          'test_views_drawing.py', 'test_views_gauges.py', 'test_views_thermal.py',
          'test_views_demo.py', 'test_views_segments.py',
-         'test_views_quad.py', 'test_views_humanoid.py')
+         'test_views_quad.py', 'test_views_quad_flight.py', 'test_views_humanoid.py')
 
 #: The composed controller and its parts, against a toy rotor and the stand-in.
 CONTROLLER = 'test_controller.py'
@@ -119,7 +119,7 @@ CYCLIC = 'test_cyclic.py'
 
 #: The quad's flight on ideal rotors, its course's gates, its page; what a change reaches.
 QUAD, QUAD_COURSE, QUAD_PAGE = 'test_quad.py', 'test_quad_course.py', 'test_views_quad.py'
-QUADS = (QUAD, QUAD_COURSE, QUAD_PAGE, STRUCTURE)
+QUADS = (QUAD, QUAD_COURSE, QUAD_PAGE, 'test_views_quad_flight.py', STRUCTURE)
 
 RENDER = 'test_render.py'
 
@@ -249,7 +249,7 @@ SHARDED = (SENSORLESS, CONTROLLER, GYNOID, GYNOID_FAULTS, GYNOID_FALLS, GYNOID_S
 #: 822 here, 886 on CI's runner in two shards of 443, each cut at 300 (2026-10-04).
 #: The gait suite 209 s here whole (2026-10-05), its three tests a robot each in shards; the
 #: going suite 427 s, a way asked over two or three timings; the quad's page 211 s, a flight
-#: a shard - one after the other they ran past the gate's 423 s (2026-10-06).
+#: a shard.
 FRESH_S = {GYNOID_FALLS: 850.0, GYNOID_GAIT: 450.0, GYNOID_GOING: 430.0, QUAD_PAGE: 250.0}
 
 #: The emulator's groups and each one's time, s, a Renode each: the rig's took 150 of the

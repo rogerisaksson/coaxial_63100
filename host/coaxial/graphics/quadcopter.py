@@ -25,7 +25,7 @@ SIGHT, REACH = 3.75, 0.8
 #: 63 mm by 100 mm) and its board under it, a skid's leg, a propeller's blade, a hub.
 PLATE_R, PLATE_H = 0.1, 0.03
 ARM_R, CAN_R, CAN_L, BOARD_R, BOARD_H = 0.012, 0.0315, 0.1, 0.034, 0.005
-LEG_R, FOOT_R, BLADE_R, BLADE_W, HUB_R = 0.008, 0.015, 0.254, 0.022, 0.014
+LEG_R, FOOT_R, BLADE_W, HUB_R = 0.008, 0.015, 0.022, 0.014
 
 #: Their colours: carbon, the boards' solder mask, the propellers.
 CARBON, MASK, PROP = (70, 74, 84), (30, 110, 64), (205, 205, 200)
@@ -80,8 +80,8 @@ def parts():
 def blades():
     """A propeller's two blades about its hub, y its axis."""
     prop = paint(PROP)
-    return [('blade', shapes.ellipsoid((s * BLADE_R / 2.0, 0.0, 0.0),
-                                       (BLADE_R / 2.0, 0.004, BLADE_W), prop, rows=8))
+    return [('blade', shapes.ellipsoid((s * quad.DISC_R / 2.0, 0.0, 0.0),
+                                       (quad.DISC_R / 2.0, 0.004, BLADE_W), prop, rows=8))
             for s in (-1.0, 1.0)]
 
 
@@ -166,7 +166,7 @@ def _discs(pose, rotors, m, cam, centre):
     turn, at = np.asarray(pose['turn'], float), np.asarray(pose['at'], float)
     rim = np.zeros((cam['height'], cam['width']), bool)
     k = np.arange(96) * (2.0 * math.pi / 96)
-    ring = np.stack([np.cos(k), np.zeros_like(k), np.sin(k)], 1) * BLADE_R
+    ring = np.stack([np.cos(k), np.zeros_like(k), np.sin(k)], 1) * quad.DISC_R
     for (x, z), (_angle, w, _can, _board) in zip(quad.ROTOR_AT, rotors):
         if abs(w) < BLADES_RAD_S:
             continue

@@ -35,8 +35,11 @@ ARM_M = 0.3
 ROTOR_AT = ((-ARM_M, ARM_M), (ARM_M, ARM_M), (ARM_M, -ARM_M), (-ARM_M, -ARM_M))
 SPIN = (1.0, -1.0, 1.0, -1.0)
 
-#: The discs' height over the frame's middle, and the skids' under it, m.
+#: The discs' height over the frame's middle, and the skids' under it, m; what of the frame
+#: strikes a thing: a disc, a 20 in propeller's radius and half its depth, and the hub's half
+#: sizes, m.
 DISC_M, SKID_M = 0.06, 0.12
+DISC_R, DISC_HALF_M, HUB_M = 0.254, 0.008, (0.06, 0.03, 0.06)
 
 #: The hover's height, the stop over the floor, m, and the rotors' idle, rad/s: a sixth of
 #: the frame's weight, the quad sitting on the floor.
@@ -83,51 +86,99 @@ _CORNER = MASS_KG / 8.0 * 2.0 * ARM_M * ARM_M
 INERTIA = (_CORNER, 2.0 * _CORNER, _CORNER)
 
 
-def mjcf():
+def mjcf(things=()):
     """The quad as MuJoCo's XML, y up: the frame free over the floor, its mass a plate's with a
-    rotor at each corner, on four skid feet."""
-    feet = ''.join('<geom type="sphere" size="0.015" pos="%g %g %g" contype="1" '
-                   'conaffinity="1"/>' % (0.7 * x, -SKID_M, 0.7 * z) for x, z in ROTOR_AT)
-    return ('<mujoco model="quad"><option timestep="%g" gravity="0 %g 0"/><worldbody>'
-            '<geom name="floor" type="plane" size="50 50 0.1" zaxis="0 1 0" contype="1" '
-            'conaffinity="1"/>'
+    rotor at each corner, on four skid feet, its discs and its hub what it strikes with;
+    `things` what stands about it (`course.solids`), each ('box', its name, its middle, its
+    half sizes, its heading, degrees), ('rod', name, an end, the other, its radius) or
+    ('hull', name, the points it is the hull of), m."""
+    mine = ''.join('<geom name="skid%d" type="sphere" size="0.015" pos="%g %g %g"/>'
+                   '<geom name="disc%d" type="cylinder" size="%g %g" pos="%g %g %g" '
+                   'euler="90 0 0"/>' % (k, 0.7 * x, -SKID_M, 0.7 * z, k, DISC_R, DISC_HALF_M,
+                                         x, DISC_M, z) for k, (x, z) in enumerate(ROTOR_AT))
+    mine += '<geom name="hub" type="box" size="%g %g %g"/>' % HUB_M
+    hulls, stood = '', ''
+    for n, (shape, name, *size) in enumerate(things):
+        if shape == 'box':
+            stood += '<geom name="%s.%d" type="box" pos="%g %g %g" size="%g %g %g" ' \
+                     'euler="0 %g 0"/>' % ((name, n) + tuple(size[0]) + tuple(size[1])
+                                           + (size[2],))
+        elif shape == 'rod':
+            stood += '<geom name="%s.%d" type="capsule" fromto="%g %g %g %g %g %g" ' \
+                     'size="%g"/>' % ((name, n) + tuple(size[0]) + tuple(size[1]) + (size[2],))
+        else:
+            hulls += '<mesh name="hull%d" vertex="%s"/>' % (
+                n, ' '.join('%g' % c for point in size[0] for c in point))
+            stood += '<geom name="%s.%d" type="mesh" mesh="hull%d"/>' % (name, n, n)
+    return ('<mujoco model="quad"><option timestep="%g" gravity="0 %g 0"/><asset>%s</asset>'
+            '<worldbody><geom name="floor" type="plane" size="50 50 0.1" zaxis="0 1 0"/>%s'
             '<body name="frame" pos="0 %g 0"><freejoint name="root"/>'
             '<inertial pos="0 0 0" mass="%g" diaginertia="%g %g %g"/>%s</body>'
-            '</worldbody></mujoco>' % ((STEP_S, -GRAVITY, SKID_M + 0.015, MASS_KG)
-                                       + INERTIA + (feet,)))
+            '</worldbody></mujoco>' % ((STEP_S, -GRAVITY, hulls, stood, SKID_M + 0.015, MASS_KG)
+                                       + INERTIA + (mine,)))
 
 
 class Sky:
 
-    """The frame in MuJoCo on the floor, stepped on its rotors' speeds."""
+    """The frame in MuJoCo on the floor among `things` (`mjcf`), stepped on its rotors'
+    speeds."""
 
-    def __init__(self):
+    def __init__(self, things=()):
         os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
         self._mj = importlib.import_module('mujoco')
         self._np = importlib.import_module('numpy')
-        self.model = self._mj.MjModel.from_xml_string(mjcf())
+        self.model = self._mj.MjModel.from_xml_string(mjcf(things))
         self.data = self._mj.MjData(self.model)
         self.frame = self.model.body('frame').id
         #: What the rotors gave at the last step in still air, N: their speeds' own.
         self.lift = 0.0
+        #: What the frame struck first since it was put on its spot - a thing's name, the
+        #: 'floor' with more of it than its skids - or None.
+        self.hit = None
+        names = [self.model.geom(g).name for g in range(self.model.ngeom)]
+        self._names = [name.split('.')[0] for name in names]
+        self._mine = {g for g in range(self.model.ngeom)
+                      if self.model.geom_bodyid[g] == self.frame}
+        self._feet = {(min(g, names.index('floor')), max(g, names.index('floor')))
+                      for g, name in enumerate(names) if name.startswith('skid')}
+        self._gates = [g for g, name in enumerate(names) if name.startswith('gate')]
+        self.gated = True
         self._mj.mj_forward(self.model, self.data)
 
     def reset(self):
-        """The frame back on its skids at its spot, still."""
+        """The frame back on its skids at its spot, still, nothing struck."""
         self._mj.mj_resetData(self.model, self.data)
-        self.lift = 0.0
+        self.lift, self.hit = 0.0, None
         self._mj.mj_forward(self.model, self.data)
+
+    def stand(self, gates):
+        """The gates among the things stood in the frame's way, or `gates` False - not: they
+        stand for the course's flights alone, as they are drawn."""
+        if gates != self.gated:
+            self.gated = gates
+            for g in self._gates:
+                self.model.geom_contype[g] = self.model.geom_conaffinity[g] = int(gates)
+
+    def _struck(self):
+        """What the frame touches with more than a skid on the floor: its name, or None."""
+        pairs = self.data.contact.geom[:self.data.ncon]
+        for a, b in pairs.tolist():
+            if (min(a, b), max(a, b)) not in self._feet and (a in self._mine or b in self._mine):
+                return self._names[b if a in self._mine else a]
+        return None
 
     def state(self):
         """{'h', 'v', 'a'}: the frame's height over its rest on the skids, m, its climb, m/s,
         and acceleration, m/s^2, up; 'turn' its 3x3 in the world, 'spin' its rates about its
         own axes, rad/s, 'at' its middle, m, 'vel' and 'acc' its speed and what that changes
-        by in the world; 'lift' what its rotors' speeds give in still air, N."""
+        by in the world; 'lift' what its rotors' speeds give in still air, N; 'hit' what it
+        struck first, or None."""
         d = self.data
         return {'h': float(d.qpos[1]) - (SKID_M + 0.015), 'v': float(d.qvel[1]),
                 'a': float(d.qacc[1]), 'turn': d.xmat[self.frame].reshape(3, 3).copy(),
                 'spin': d.qvel[3:6].copy(), 'at': d.qpos[0:3].copy(),
-                'vel': d.qvel[0:3].copy(), 'acc': d.qacc[0:3].copy(), 'lift': self.lift}
+                'vel': d.qvel[0:3].copy(), 'acc': d.qacc[0:3].copy(), 'lift': self.lift,
+                'hit': self.hit}
 
     def step(self, speeds, dt, air=None):
         """The frame `dt` s on under the rotors at `speeds`, mechanical rad/s: each one's thrust
@@ -167,6 +218,8 @@ class Sky:
                 lift * turn[:, 1] - 0.5 * RHO * BODY_CDA * np.linalg.norm(v) * v + push)
             d.xfrc_applied[self.frame, 3:6] = turn @ about + twist
             self._mj.mj_step(self.model, d)
+            if d.ncon and self.hit is None:
+                self.hit = self._struck()
 
 
 def air(seed=3, kind=None):

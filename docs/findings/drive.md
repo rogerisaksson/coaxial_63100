@@ -143,6 +143,18 @@ rotor's pages and their demos. The board's own are in
   25.7 s, a gate 0.23 m off at the most, the boards to 0.76 of their
   envelopes, none throttling. Its pointer is the way it blows as the view
   has it, its size and its kind (`terminal/views/quad/wind.py`).
+- QUAD's world is solid (`course.solids` in `quad.mjcf`; the user,
+  2026-10-06): a tree its trunk and its cone, a house its walls and roof, a
+  car, the mast, a gate's bars - 128 things -, the frame's discs and hub
+  what it strikes with; a pass 0.12 ms the dearer. The first gate's lower
+  bar stood 0.3 m over the spot, in the lift's way, struck 8 cm up: the
+  floor is its lower edge. The gates stand for the course's flights alone,
+  as they are drawn: full tilt goes up through the first one's top bar.
+  Struck, a flight is over (`flight.CRASHED`): its rotors cut - asked to a
+  stand through their loops, sensorless, they hunted at 17 A -, the wreck
+  left 4 s, the frame on its spot again and its flight begun over. Through
+  the tour's air nothing is struck, the routine and two laps: on ideal
+  rotors a gate 0.50 m off at the most, on the page's four boards 0.27.
 - The rotor page, the bench's word: the magnets blurred through a 1/80 s
   shutter (208-386 cells, 0.10 a frame at most; the smear's ring flipped
   0.29), the windings whole at their current's brightness and gone on a

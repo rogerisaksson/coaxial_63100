@@ -1,4 +1,4 @@
-"""The QUAD page on four stand-in boards: their air, its words, traces and wind, its flights."""
+"""The QUAD page on four stand-in boards: its words, its traces and its wind, its flights."""
 import math
 import sys
 import time
@@ -8,68 +8,6 @@ from views_kit import Report
 
 from test_quad import spans
 from test_quad_course import CLEAR_M, passes, reach, worst
-
-
-def test_the_boards_air_is_the_rotors(report):
-    """A stand-in board armed as the page arms it, its 63100 at a hover's speed: the rpm its
-    thermal network's air sees is the rotor's own, by the record's pole pairs."""
-    from coaxial import Coaxial63100
-    from machine import quad
-    from machine.modes import SIMULATED
-    from terminal.views.quad import flight as view
-    rig = Coaxial63100(execution_mode=SIMULATED).open()
-    try:
-        rotor = view.arm(rig)
-        drive, w = rig.board.drive, 0.0
-        hover = quad.speed_for(quad.MASS_KG * quad.GRAVITY / 4.0)
-        began = time.monotonic()
-        while time.monotonic() - began < 3.0:
-            now = drive.state()
-            w_hat = (now.get('omega_hat') or 0.0) / rotor['pairs']
-            w = drive.model.read()['omega'] / rotor['pairs']
-            drive.write(iq_ref=rotor['pi'].step(0.01, setpoint=hover, measured=w_hat)['command'])
-            drive.model.configure(load=quad.K_DRAG * w * abs(w))
-            time.sleep(0.01)
-        air = rig.board.thermal.state().get('speed_rpm') or 0.0
-        link = drive.state().get('vdc')
-    finally:
-        rig.board.drive.off()
-        rig.gates.off()
-        rig.close()
-    rpm = w * 60.0 / math.tau
-    report.check('the air sees the rotor\'s own rpm at a hover, within 3 %',
-                 rpm > 1000.0 and abs(air - rpm) <= 0.03 * rpm,
-                 'the rotor %.0f rpm, the air %.0f' % (rpm, air))
-    report.check('its link is the pack\'s, 63 V full, and its drive says so',
-                 link is not None and abs(link - quad.open_volts(1.0)) < 0.01, '%s V' % link)
-
-
-def test_a_rotor_turns_by_its_pass(report):
-    """A stand-in drive paced by its page (`SimulatedDrive.paced`): spun up over the same
-    passes it comes to the same speed however long the wall's clock stood between them."""
-    from coaxial import Coaxial63100
-    from machine.modes import SIMULATED
-    from terminal.views.quad import flight as view
-    came = []
-    for stall in (0.0, 0.12):
-        rig = Coaxial63100(execution_mode=SIMULATED).open()
-        try:
-            view.arm(rig)
-            drive = rig.board.drive
-            drive.write(iq_ref=8.0)
-            for k in range(20):
-                drive.paced(0.01)
-                speed = drive.model.read()['omega']
-                if k in (5, 12):
-                    time.sleep(stall)
-            came.append(speed)
-        finally:
-            rig.board.drive.off()
-            rig.gates.off()
-            rig.close()
-    report.check('twenty passes of 10 ms at 8 A, two of them 0.12 s late: the same speed',
-                 came[0] > 50.0 and abs(came[1] - came[0]) <= 1e-6 * came[0],
-                 '%.3f and %.3f rad/s electrical' % tuple(came))
 
 
 def test_the_page_words_its_boards(report):
@@ -251,10 +189,11 @@ def test_the_page_flies_four_boards(report):
                  % min(f['cells'] for f in frames))
     early = [r for r in rows if r['name'] == first][:1]
     hard = [r for r in rows if r['name'] in ('full tilt', 'burn')]
-    report.check('flown from its first hover, no observer STABLE yet; no board tripped through '
-                 'it all, the envelopes cutting the rotors\' pull under full tilt and the burn',
+    report.check('flown from its first hover, no observer STABLE yet; no board tripped and '
+                 'nothing struck, the envelopes cutting the rotors\' pull under full tilt and '
+                 'the burn',
                  bool(early) and 'STABLE' not in early[0]['states']
-                 and not any(r['tripped'] for r in rows)
+                 and not any(r['tripped'] or r['name'] == 'crashed' for r in rows)
                  and bool(hard) and min(r['share'] for r in hard) < 1.0
                  and max(r['soa'] for r in hard) > THROTTLE_AT - flown.UNDER - flown.SPEND,
                  'the %s at %.1f s on %s; SOA %.2f at most, %.0f %% of their pull at the least' % (
@@ -332,8 +271,9 @@ def test_the_page_flies_its_course(report):
     gates, room = passes(rows), course.GATE_M / 2.0 - reach() - CLEAR_M
     counted = [len(gates[g]) for g in range(1, len(course.GATES))]
     report.check('every gate passed on each lap it flew, its middle within %.2f m of the '
-                 'frame\'s' % room,
-                 flew >= 1 and counted == [flew] * len(counted) and worst(gates) <= room,
+                 'frame\'s, nothing struck' % room,
+                 flew >= 1 and counted == [flew] * len(counted) and worst(gates) <= room
+                 and not any(r['name'] == 'crashed' for r in rows),
                  '%d of %d laps, passes %s, %.2f m off at the most; its clock %.0f %% behind '
                  'the wall\'s' % (flew, course.LAPS, counted, worst(gates), 100.0 * behind))
     ahead = {f['gate'] for f in frames if f['name'] == 'lap'}
@@ -358,50 +298,8 @@ def test_the_page_flies_its_course(report):
                  if down else 'never landed')
 
 
-def test_a_late_pass_is_its_steps(report):
-    """The flight on four stand-in boards, every pass the page's longest (flight.passed): taken
-    in steps of STEP_S at the most, its corkscrew is flown on most of the rotors' pull and
-    `home` held in its seconds. Stepped whole, the frame rang on its rotors: 30 A, 22 % of
-    their pull, `home` never held."""
-    from coaxial import Coaxial63100
-    from machine import aerobatics, quad
-    from machine.flying import Flying
-    from machine.modes import SIMULATED
-    from terminal.views.quad import flight as flown
-    report.check('a pass of 50 ms is two steps, one of 20 its own',
-                 flown.steps(0.05) == [0.025, 0.025] and flown.steps(0.02) == [0.02],
-                 '%s and %s' % (flown.steps(0.05), flown.steps(0.02)))
-    rotors = [flown.arm(Coaxial63100(execution_mode=SIMULATED).open()) for _ in range(4)]
-    rows, clock, read = [], 0.0, 0.0
-    try:
-        sky, route = quad.Sky(), aerobatics.routine(flown.CARD)
-        flying, flight = Flying(flown.TOP_N, aerobatics.DOWN), flown.fresh()
-        while clock < 34.0 and flight['stage'] != 'toss':
-            for clock, _frame in flown.passed(rotors, sky, route, flying, flight, clock, 0.05):
-                rows.append((flight['stage'], clock, flight['share'],
-                             max(r['amps'] for r in rotors)))
-            if clock - read >= 0.1:
-                read = clock
-                for rotor in rotors:
-                    rotor['budget'], rotor['ident'], rotor['board_c'] = flown.warmth(rotor['rig'])
-    finally:
-        for rotor in rotors:
-            rotor['rig'].board.drive.off()
-            rotor['rig'].gates.off()
-            rotor['rig'].close()
-    hard = [r for r in rows if r[0] in ('corkscrew', 'home')]
-    report.check('passes of 50 ms: the corkscrew on three fifths of the rotors\' pull and more, '
-                 'home held in its seconds',
-                 flight['stage'] == 'toss' and clock <= 28.5 and min(r[2] for r in hard) >= 0.6,
-                 '%s at %.1f s; %.0f %% of their pull at the least, %.1f A at the most' % (
-                     flight['stage'], clock, 100.0 * min((r[2] for r in hard), default=math.nan),
-                     max((r[3] for r in hard), default=math.nan)))
-
-
-ROSTER = (test_the_boards_air_is_the_rotors, test_a_rotor_turns_by_its_pass,
-          test_the_page_words_its_boards,
-          test_its_traces_are_drawn, test_its_wind_is_pointed, test_the_page_flies_four_boards,
-          test_the_page_flies_its_course, test_a_late_pass_is_its_steps)
+ROSTER = (test_the_page_words_its_boards, test_its_traces_are_drawn, test_its_wind_is_pointed,
+          test_the_page_flies_four_boards, test_the_page_flies_its_course)
 
 
 def main(argv=None):

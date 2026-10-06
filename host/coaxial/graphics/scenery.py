@@ -111,15 +111,6 @@ def _box(x, z, wide, deep, low, high, heading=0.0):
     return _loop(down) + _loop(up) + list(zip(down, up))
 
 
-def gate(x, y, z, heading, size=course.GATE_M):
-    """A gate's edges: its opening's frame, square to its heading, the floor under it at the
-    lowest, on two posts."""
-    c, s, half = math.cos(math.radians(heading)), math.sin(math.radians(heading)), size / 2
-    frame = [(x + a * c, max(0.0, y + b), z - a * s)
-             for a, b in ((-half, -half), (half, -half), (half, half), (-half, half))]
-    return _loop(frame) + [(p, (p[0], 0.0, p[2])) for p in frame[:2]]
-
-
 @functools.lru_cache(maxsize=None)
 def standing():
     """(ends, inks): every edge of what stands whatever is flown - the pole, the trees, the
@@ -131,7 +122,7 @@ def standing():
         edges['pole'] += [((x, float(h), z), (x, h + 1.0, z)),
                           ((x - half, h + 1.0, z), (x + half, h + 1.0, z))]
     for x, z, high, crown in course.TREES:
-        foot, top = 0.35 * high, (x, high, z)
+        foot, top = course.CROWN * high, (x, high, z)
         ring = [(x + crown * math.cos(k * math.tau / 6), foot, z + crown * math.sin(k * math.tau / 6))
                 for k in range(6)]
         edges['tree'] += [((x, 0.0, z), (x, foot, z))] + _loop(ring) + [(p, top) for p in ring]
@@ -141,8 +132,9 @@ def standing():
             (end, (end[0], wall, z + side * deep / 2)) for end in ends for side in (-1.0, 1.0)]
     wide, high, long_ = course.CAR_M
     for x, z, heading in course.CARS:
-        edges['car'] += (_box(x, z, wide, long_, 0.25, 0.55 * high, heading)
-                         + _box(x, z, 0.9 * wide, 0.5 * long_, 0.55 * high, high, heading))
+        edges['car'] += (_box(x, z, wide, long_, course.CAR_LOW, course.CAR_BODY * high, heading)
+                         + _box(x, z, course.CAR_CABIN[0] * wide, course.CAR_CABIN[1] * long_,
+                                course.CAR_BODY * high, high, heading))
     for x, z, side, high in course.MASTS:
         edges['mast'] += _box(x, z, side, side, 0.0, high)
         for k in range(1, int(high / 3.5) + 1):
@@ -155,9 +147,9 @@ def gates(ahead):
     """(ends, inks) of the course's gates, the one `ahead` lit and doubled."""
     edges = {'gate': [], 'next': []}
     for k, (x, y, z, heading) in enumerate(course.GATES):
-        edges['next' if k == ahead else 'gate'] += gate(x, y, z, heading)
+        edges['next' if k == ahead else 'gate'] += course.gate(x, y, z, heading)
         if k == ahead:
-            edges['next'] += gate(x, y, z, heading, 0.94 * course.GATE_M)[:4]
+            edges['next'] += course.gate(x, y, z, heading, 0.94 * course.GATE_M)[:4]
     return _laid(edges)
 
 

@@ -15,7 +15,7 @@ from coaxial.devices.thermal import THROTTLE_AT
 from coaxial.model.thermal import BOARD_CAPACITY, MOTOR
 from coaxial.simulated.sto import PILOT_VOLTS
 from machine import aerobatics, course, quad
-from machine.flying import FALL
+from machine.flying import FALL, Flying
 from machine.parts import SpeedPI
 
 #: The page's flights, one after the other and again: the routine first - the boards warm and
@@ -78,6 +78,14 @@ SWAP_S = 3.0
 #: later (2026-10-06).
 STEP_S = 0.025
 
+#: Struck, a flight is over: its stage this, its rotors stopped and the wreck left where it
+#: falls for so long, s; then the frame is on its spot again and the flight begun over.
+CRASHED, CRASH_S = 'crashed', 4.0
+
+#: What it struck, in words (`quad.Sky.hit`); a gate by its number.
+STRUCK = {'tree': 'into a tree', 'house': 'into a house', 'car': 'into a car',
+          'mast': 'into the mast', 'floor': 'on the floor'}
+
 #: A board's laminate to the air under its propeller, K/W, in its record: a third of the
 #: bench's still air, an assumption - the wash over both faces. On the bench's 8.33 the
 #: pack's 63 V had the gate stage at 0.65-0.72 of its envelope in a hover and every board
@@ -116,11 +124,18 @@ def arm(rig):
 def fresh():
     """The flights' own before the first: the stage, the apex, the share of their pull the
     envelopes leave and how long it has been none, the lap, how long a spent pack has stood,
-    the pack's cells and a flight's peaks of them, the air they are flown in (`quad.air`)."""
+    the pack's cells and a flight's peaks of them, the air they are flown in (`quad.air`),
+    the wreck of one struck - what it struck, how long ago - and how many were."""
     cells = quad.pack()
     return {'stage': CARD[0][0], 'apex': 0.0, 'share': 1.0, 'gone': 0.0, 'lap': None,
             'stood': 0.0, 'cells': cells, 'peak': {'watts': 0.0, 'low': cells['volts']},
-            'air': quad.air()}
+            'air': quad.air(), 'wreck': None, 'crashes': 0}
+
+
+def struck(flight):
+    """What the flight's wreck struck, in words, or ''."""
+    what = (flight.get('wreck') or {}).get('what') or ''
+    return STRUCK.get(what, what.replace('gate', 'into gate '))
 
 
 def steps(dt):
@@ -151,17 +166,38 @@ def step(rotors, sky, route, flying, flight, clock, dt):
     pack or the boards' envelopes spent - each rotor's loop after the law's thrust for it,
     within the share of their pull the envelopes leave; the propeller on each shaft, the
     pack's bus under what the four take, and the frame in MuJoCo on the rotors' thrust and
-    drag in the flight's air, blown those `dt` s on - the stand-ins' rotors and heat stepped
-    them with it, whatever the wall's clock did. The burn's row falls first; where the card waits to be fit a spent pack is
-    changed and the boards cool."""
+    drag in the flight's air, blown those `dt` s on, among what stands - the course's gates
+    for its flights alone; the stand-ins' rotors and heat stepped those seconds with it,
+    whatever the wall's clock did. The burn's row falls first; where the card waits to be fit
+    a spent pack is changed and the boards cool. Struck (`quad.Sky.hit`), it is CRASHED: its
+    rotors stopped, and CRASH_S on the frame on its spot and its flight begun again."""
     cells, share = flight['cells'], flight['share']
     flat = cells['left'] <= quad.RESERVE
     spent, frame = flat or flight['gone'] >= GONE_S, sky.state()
-    route['seen'] = dict(flying.seen(frame, dt), spent=spent)
-    name, flying.ask = aerobatics.fly(route, clock, [word for word, holds in (
-        ('held', flying.held), ('spent', spent), ('fit', not flat and share >= FIT)) if holds])
+    sky.stand(lined(route))
+    wreck = flight.get('wreck')
+    if wreck is None and frame['hit']:
+        wreck = flight['wreck'] = {'what': frame['hit'], 'for': 0.0}
+        flight['crashes'] += 1
+    if wreck is None:
+        route['seen'] = dict(flying.seen(frame, dt), spent=spent)
+        name, flying.ask = aerobatics.fly(route, clock, [word for word, holds in (
+            ('held', flying.held), ('spent', spent), ('fit', not flat and share >= FIT))
+            if holds])
+        thrusts = flying.step(frame, dt, share)
+    else:
+        name, thrusts = CRASHED, [0.0] * len(rotors)
+        wreck['for'] += dt
+        if wreck['for'] >= CRASH_S:
+            row = max(k for k in range(route['row'] + 1) if 'fit' in route['card'][k][4].split())
+            route.update(row=row, at=clock, was=dict(route['card'][row][1]), holds=())
+            route.pop('lap', None)
+            sky.reset()
+            Flying.__init__(flying, flying.top, aerobatics.DOWN)
+            reset(rotors)
+            flight['wreck'] = None
     watts = 0.0
-    for rotor, thrust in zip(rotors, flying.step(frame, dt, share)):
+    for rotor, thrust in zip(rotors, thrusts):
         drive = rotor['rig'].board.drive
         # The rotor on the flight's clock, not the wall's: the pass's seconds, however late.
         drive.paced(dt)
@@ -172,10 +208,15 @@ def step(rotors, sky, route, flying, flight, clock, dt):
                         + (now.get('vq') or 0.0) * (now.get('iq') or 0.0))
         rotor['w'] = drive.model.read()['omega'] / rotor['pairs']
         rotor['angle'] = (rotor['angle'] + rotor['w'] * dt) % math.tau
-        more = min(TOP_RAD_S, quad.speed_for(thrust)) - rotor['ask']
-        rotor['ask'] += max(-SPOOL_RAD_S2 * dt, min(SPOOL_RAD_S2 * dt, more))
-        rotor['iq'] = rotor['pi'].step(dt, setpoint=rotor['ask'],
-                                       measured=rotor['w_hat'])['command']
+        if wreck is None:
+            more = min(TOP_RAD_S, quad.speed_for(thrust)) - rotor['ask']
+            rotor['ask'] += max(-SPOOL_RAD_S2 * dt, min(SPOOL_RAD_S2 * dt, more))
+            rotor['iq'] = rotor['pi'].step(dt, setpoint=rotor['ask'],
+                                           measured=rotor['w_hat'])['command']
+        else:
+            # Cut: run down on its propeller's drag. Asked to a stand through its loop, a
+            # sensorless rotor hunted about it at 17 A (2026-10-06).
+            rotor['ask'] = rotor['iq'] = 0.0
         drive.write(iq_ref=rotor['iq'])
         drive.model.configure(load=quad.K_DRAG * rotor['w'] * abs(rotor['w']), vdc=cells['volts'])
         # Its heat on the flight's clock as well, the pass's seconds at the stand-in's haste: on
@@ -188,6 +229,8 @@ def step(rotors, sky, route, flying, flight, clock, dt):
     if air is not None:
         quad.blown(air, dt)
     sky.step([r['w'] for r in rotors], dt, air)
+    if name == CRASHED:
+        return name
     if 'fit' in route['card'][route['row']][4].split() and (flat or share < FIT):
         return 'swap' if flat else 'cool'
     return FALL if name == 'burn' and flying.doing == FALL else name

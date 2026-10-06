@@ -9,9 +9,10 @@ take; the frame in MuJoCo on the rotors' thrust and drag, gravity and the air
 and a flip over a toss, full tilt into the sky, the fall burned to a stop 10 cm over the floor -
 its boards and their thermal observers warmed on it; then the course (machine.course): two laps
 through fourteen gates, between trees, over a house, round a mast and between two cars, as
-fast as the boards' envelopes leave it the lean for. The rotors are asked what those envelopes
-leave of their pull; a pack or the envelopes spent, it comes down for a charged one, or to
-cool. It is flown in the air's weather (machine.quad): a wind, gusts over it and eddies in it,
+fast as the boards' envelopes leave it the lean for. What stands is solid: struck, the flight
+is over, the wreck lies where it falls and the flight is begun again. The rotors are asked
+what those envelopes leave of their pull; a pack or the envelopes spent, it comes down for a
+charged one, or to cool. It is flown in the air's weather (machine.quad): a wind, gusts over it and eddies in it,
 a kind at a time or one kept (W), none of it told to the law - its way and size a pointer at
 the side (terminal.views.quad.wind). The camera sits close on the floor before a flight, pulls
 back as it lifts and follows it, looking down on it - on the course from behind it, round as it
@@ -33,7 +34,7 @@ from coaxial import Coaxial63100
 from coaxial.errors import RigError
 from coaxial.draw.gauges import policy_word
 from coaxial.graphics import gpu, quadcopter
-from machine import aerobatics, quad
+from machine import aerobatics, course, quad
 from machine.flying import Flying
 from machine.modes import SIMULATED
 from terminal.loader import TO_MENU
@@ -82,7 +83,8 @@ def compose(console, origin, rotors, frame, flight, trace, now, art, yaw=0.0):
     worst = max(((r['budget'] or {}).get('worst') or 0.0) for r in rotors)
     lap = flight.get('lap')
     flying = hud('FLIGHT', [
-        ('stage', Text(name.upper(), style='alarm' if name in ('full tilt', 'burn', 'swap', 'cool')
+        ('stage', Text(('%s %s' % (name, flown.struck(flight))).upper().strip(), style='alarm'
+                       if name in ('full tilt', 'burn', 'swap', 'cool', flown.CRASHED)
                        else 'value')),
         ('height', '%8.2f m' % frame['h']),
         ('climb', '%+8.1f m/s, %+.1f g' % (frame['v'], frame['a'] / quad.GRAVITY)),
@@ -174,7 +176,7 @@ def main(argv=None):
     card = gpu.adapter()
     lit = gpu.LitRaster(found=card) if card is not None else None
     say('ok', 'drawing', lit.name if lit is not None else 'this process, dots')
-    sky, route, trace = quad.Sky(), aerobatics.routine(flown.CARD), []
+    sky, route, trace = quad.Sky(course.solids()), aerobatics.routine(flown.CARD), []
     began = time.monotonic()
     held = {'at': 0.0, 'clock': 0.0, 'thermal_at': 0.0, 'frame': sky.state(), 'reset': False,
             'wind': False, 'flying': Flying(flown.TOP_N, aerobatics.DOWN),
@@ -214,7 +216,7 @@ def main(argv=None):
                 flown.reset(rotors)
                 trace.clear()
                 cells.update(quad.pack())
-                flight.update(apex=0.0, share=1.0, gone=0.0, stood=0.0)
+                flight.update(apex=0.0, share=1.0, gone=0.0, stood=0.0, wreck=None)
                 camera['reach'] = NEAR_M
             for clock, frame in flown.passed(rotors, sky, route, held['flying'], flight,
                                              held['clock'], dt):
