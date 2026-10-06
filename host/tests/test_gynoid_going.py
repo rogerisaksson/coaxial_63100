@@ -208,9 +208,11 @@ def test_her_manners_in_their_words(report):
                      '%s %.2f' % tuple(w) for w in plain['said']) or 'no word'))
 
 
-ROSTER = [test_a_gait_is_a_row_of_the_same_names, test_her_rows_go_on,
-          test_her_ways_on_setpoints_alone, test_the_director_hands_her_to_the_law,
-          test_its_walk_beside_a_womans, test_her_manners_in_their_words]
+#: The two long ones first: a shard takes every n-th (`focus.chosen`), and CI's three held
+#: them in one, 220 and 111 s here, cut at 300 s (f8c6b1b, 2026-10-06).
+ROSTER = [test_her_ways_on_setpoints_alone, test_her_manners_in_their_words,
+          test_her_rows_go_on, test_a_gait_is_a_row_of_the_same_names,
+          test_the_director_hands_her_to_the_law, test_its_walk_beside_a_womans]
 
 
 def main(argv=None):
