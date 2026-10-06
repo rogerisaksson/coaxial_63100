@@ -59,10 +59,10 @@ def take(director, bus, out):
 def step(director, dt):
     """{joint: degrees} of her going on the law this pass, eased in from the director's last."""
     d = director
-    k, on = d.k
-    d.k = gaits.toward(k, on, -1.0 if d.pace is None else d.pace, dt)
-    d.manners = gaits.manners(d.manners, d.manner, dt)
-    d.going.ask = gaits.mannered(gaits.between(d.k[0]), d.manners)
+    k, on, d.manners = gaits.passed(*d.k, -1.0 if d.pace is None else d.pace, d.manners,
+                                    d.manner, dt)
+    d.k = (k, on)
+    d.going.ask = gaits.mannered(gaits.between(k), d.manners)
     out = d.going.step(dt)
     if d.blend is not None:
         d.age += dt

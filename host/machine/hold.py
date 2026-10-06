@@ -121,6 +121,11 @@ def lean(law, standing, a, com):
     c, s = math.cos(law.heading), math.sin(law.heading)
     still, share = stood(a['speed']), law.share()
     mid = [sum(law.legs[side]['flat'][i] for side in standing) / len(standing) for i in (0, 2)]
+    if len(standing) == 2 and law.stays is None:
+        # standing, her weight toward one foot as asked
+        left, right = law.legs['left']['flat'], law.legs['right']['flat']
+        mid = [m + 0.5 * a['weigh'] * still * (p - q)
+               for m, p, q in zip(mid, (left[0], left[2]), (right[0], right[2]))]
     if len(standing) == 2 and law.stays is not None:
         stay = law.legs[law.stays]['flat']
         shift = (stay[0] - mid[0]) * c - (stay[2] - mid[1]) * s

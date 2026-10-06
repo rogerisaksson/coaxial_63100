@@ -240,11 +240,13 @@ def went(track, to_s, values=None, form=None, shoves=(), asked=False, manner=())
         seg.update({'from': end, 'z': bus['pelvis.pose.z'], 'drawn': 0.0, 'work': 0.0,
                     'k': mixed(end), 'load': 0.0})
     while bus['t'] < to_s:
+        accents = next((m for t, m in reversed(manner) if t <= bus['t']), ())
         if asked:
-            row[:] = gaits.toward(row[0], row[1], next(
-                k for t, k in reversed(track) if t <= bus['t'] or t == track[0][0]), 0.001)
-        amounts = gaits.manners(amounts, next((m for t, m in reversed(manner)
-                                               if t <= bus['t']), ()), 0.001)
+            row[0], row[1], amounts = gaits.passed(row[0], row[1], next(
+                k for t, k in reversed(track) if t <= bus['t'] or t == track[0][0]), amounts,
+                accents, 0.001)
+        else:
+            amounts = gaits.manners(amounts, accents, 0.001, mixed(bus['t']) > -1.0)
         law.ask = gaits.mannered(gaits.between(mixed(bus['t'])), amounts)
         if shoves and bus['t'] >= shoves[0][0]:
             _at, newtons, way = shoves.pop(0)

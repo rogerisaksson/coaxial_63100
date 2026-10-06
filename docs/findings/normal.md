@@ -108,3 +108,17 @@ Her walk as built is in [walk](walk.md), the one law's in
   two bases' mix is no movement - her walk to her jog by the knots QUICK
   and EASE and a stay, 23 of 24 where 2 of 6 mixed straight - or where
   what bears her changes.
+- A pose's accent and its way into a walk (2026-10-06; the user: a pose
+  a base and its accents, a transition from it to a gait; `gaits.POSES`,
+  `passed`). Two setpoints her stand alone reads: `weigh`, how far
+  toward one foot her weight is, and `hang`, the pelvis rolled up over
+  that leg. hip left, hip right: 77-80 % of her on that sole, the pelvis
+  rolled 5.5 deg, the other knee 29 deg where 10, the pelvis 19 mm down;
+  from one side to the other in 2 s, no step. Asked on from it at once
+  she was down in 1.2 s, her capture point 63 mm outside the loaded foot
+  as the roll went. A transition is then a gate: a pose's accent is let
+  go, 2 s, before the row leaves her stand, and is hers again as she
+  stands - asked on at 6 s her first step at 8.1, 0.85 m/s by 11 s;
+  asked to a stand at 14 s, standing at 15.5 and on her left leg again
+  by 17. test_gynoid_going.py holds it. My reading of the user's
+  "line-up": the weight on one leg, the hip out.

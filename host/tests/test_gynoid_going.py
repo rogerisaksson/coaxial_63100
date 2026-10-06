@@ -2,7 +2,8 @@
 walks on, a foot always down, her run's runs on, a flight a step; asked on from a stand she
 walks, asked the run she passes her walk and her jog to it, and asked to a stand she stands
 again; the director hands her to the law from its stand; her manners (`gaits.MANNERS`) come on
-and go as she walks, each read back in its words. `tools.sim.go.FORM` is what her rows
+and go as she walks, each read back in its words, and a pose's is let go before she leaves
+her stand. `tools.sim.go.FORM` is what her rows
 hold, `tools.sim.go.went` her going, on her boards as built; `tools/sim/ways.py` is the spread.
 Her walk as built is test_gynoid_gait.py's, the runner test_gynoid_run.py's."""
 import sys
@@ -209,11 +210,64 @@ def test_her_manners_in_their_words(report):
                      '%s %.2f' % tuple(w) for w in plain['said']) or 'no word'))
 
 
+#: A pose's accent, her weight on her left leg: POSED of her on that sole at the least, her
+#: right knee FREE_DEG more bent than her left - 77-80 % and 18 deg (2026-10-06); asked on at
+#: ON_S and to a stand at OFF_S, judged a second before each and at the end.
+POSE, POSED, FREE_DEG, ON_S, OFF_S, POSE_S = (('hip left', 1.0),), 0.7, 10.0, 6.0, 14.0, 21.0
+
+
+def test_a_pose_is_let_go_before_she_goes(report):
+    """Standing with her weight on one leg as asked (`gaits.MANNERS`, POSES), asked on: the
+    accent is out before her first step, she walks, and asked to a stand it is hers again."""
+    from machine import Machine, gaits, going
+    from machine.modes import DYNAMIC
+    from tools.sim import go
+    body = Machine.discover('gynoid', execution_mode=DYNAMIC)
+    try:
+        body.arm()
+        law = going.Going(body, gaits.STAND)
+        go.placed(law)
+        body.loop.step(0.0)
+        bus, k, held, now, read, first = body.loop.bus, -1.0, 0.0, {}, {}, None
+        while bus['t'] < POSE_S and bus['pelvis.pose.y'] > go.FELL_M:
+            t = bus['t']
+            k, held, now = gaits.passed(k, held, 0.0 if ON_S <= t < OFF_S else -1.0, now, POSE,
+                                        0.001)
+            law.ask = gaits.mannered(gaits.between(k), now)
+            body.loop.write(**law.step(0.001))
+            body.loop.step(0.001)
+            if first is None and law.steps:
+                first = (t, gaits.posed(now))
+            for at in (ON_S - 1.0, OFF_S - 1.0, POSE_S - 0.5):
+                if at not in read and t >= at:
+                    left, right = (bus['pelvis.pose.%s_load' % s] for s in ('left', 'right'))
+                    read[at] = (left / max(1.0, left + right),
+                                bus['right_knee.deg'] - bus['left_knee.deg'], bus['pelvis.pose.z'])
+        report.check('she is up through it', bus['t'] >= POSE_S, '%.1f s' % bus['t'])
+        if bus['t'] < POSE_S:
+            return
+        for what, at in (('asked, standing', ON_S - 1.0),
+                         ('hers again as she stands', POSE_S - 0.5)):
+            share, bent, _z = read[at]
+            report.check('%s: her weight on her left leg, her right knee soft' % what,
+                         share >= POSED and bent >= FREE_DEG,
+                         '%.0f %% on her left sole, the right knee %.0f deg more' % (
+                             100.0 * share, bent))
+        report.check('asked on, the accent is out before her first step',
+                     first is not None and first[0] >= ON_S and first[1] == 0.0,
+                     'none' if first is None else 'a step at %.2f s, %.2f of it in' % first)
+        walked = (read[OFF_S - 1.0][2] - read[ON_S - 1.0][2]) / (OFF_S - ON_S)
+        report.check('and she walks', walked > 0.3, '%.2f m/s meaned from her stand' % walked)
+    finally:
+        body.close()
+
+
 #: The two long ones first: a shard takes every n-th (`focus.chosen`), and CI's three held
 #: them in one, 220 and 111 s here, cut at 300 s (f8c6b1b, 2026-10-06).
 ROSTER = [test_her_ways_on_setpoints_alone, test_her_manners_in_their_words,
-          test_her_rows_go_on, test_a_gait_is_a_row_of_the_same_names,
-          test_the_director_hands_her_to_the_law, test_its_walk_beside_a_womans]
+          test_a_pose_is_let_go_before_she_goes, test_a_gait_is_a_row_of_the_same_names,
+          test_her_rows_go_on, test_its_walk_beside_a_womans,
+          test_the_director_hands_her_to_the_law]
 
 
 def main(argv=None):

@@ -326,6 +326,8 @@ class Going:
         # as it lands, `list` half a step on, none a step on
         roll = math.radians(a['list']) * {'left': -1.0, 'right': 1.0}.get(lead, 0.0) * math.sin(
             math.pi * min(1.0, self.legs[lead]['t'] / a['step']) if lead else 0.0)
+        # standing, her weight on one leg: rolled up over it
+        roll -= math.radians(a['hang']) * a['weigh'] * hold.stood(a['speed'])
         # and turned with the leg that lands: its hip `turn` ahead as it comes down, the
         # other's a step on; standing longer, square again
         beat = self.legs[lead]['t'] / a['step'] if lead else 2.0

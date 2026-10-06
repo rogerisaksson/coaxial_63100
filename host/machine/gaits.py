@@ -2,7 +2,7 @@
 
     going.ask = gaits.between(0.3)              # -1 her stand, 0 the walk's row, 1 the run's
     k, held = gaits.toward(k, held, 1.0, dt)    # asked the run: the row she goes on, a pass on
-    now = gaits.manners(now, (('leaning', 0.5), ('crouched', 0.3)), dt)    # concepts, blended
+    k, held, now = gaits.passed(k, held, 1.0, now, (('leaning', 0.5),), dt)    # and her accents
     going.ask = gaits.mannered(gaits.between(k), now)                      # the row in them
 """
 import math
@@ -17,12 +17,14 @@ import re
 #: share of its swing the knee's fold takes; reach, m ahead of its hip the free foot may wait;
 #: elbow, her elbow's bend, deg, and play, deg more a deg its shoulder reaches ahead; turn, the
 #: pelvis's with the leg that lands, deg; strut, the knee, deg, the pelvis is never over what
-#: a standing leg reaches on (`machine.strut`): 6, the form's all but straight.
+#: a standing leg reaches on (`machine.strut`): 6, the form's all but straight; standing,
+#: weigh, how far toward her left foot her weight is, -1 her right to 1, and hang, deg the
+#: pelvis rolls up over that leg a unit of it.
 #: The run's is `machine.runner`'s: asked 1.5 m/s, 1.44-1.47 at 508-522 J/m drawn (2026-10-05).
 RUN = {'speed': 1.5, 'step': 0.40, 'stand': 0.30, 'up': 0.0, 'rise': 0.49, 'bounce': 0.30,
        'land': 14.0, 'knee': 22.0, 'lean': 6.0, 'fold': 55.0, 'track': 0.035, 'off': 50.0,
        'list': 0.0, 'under': 0.117, 'folded': 1.0, 'reach': 0.36, 'elbow': 80.0, 'play': 0.0,
-       'turn': 0.0, 'strut': 6.0}
+       'turn': 0.0, 'strut': 6.0, 'weigh': 0.0, 'hang': 0.0}
 #: The walk's, a woman's as near as found (2026-10-06): searched from the walk as built's time
 #: on a walk's price and its widths off `tools.sim.normal.BAND`, 1 920 rows, then on its J/m,
 #: a stop and a passage to her jog and back too, 960. 0.85 m/s at 502 J/m, 0.20-0.26 off the
@@ -31,7 +33,7 @@ RUN = {'speed': 1.5, 'step': 0.40, 'stand': 0.30, 'up': 0.0, 'rise': 0.49, 'boun
 WALK = {'speed': 0.87, 'step': 0.522, 'stand': 0.651, 'up': 0.104, 'rise': 0.0, 'bounce': 0.107,
         'land': -4.9, 'knee': 11.8, 'lean': 4.9, 'fold': 45.2, 'track': 0.044, 'off': 2.1,
         'list': 3.1, 'under': 0.036, 'folded': 0.63, 'reach': 0.333, 'elbow': 30.0, 'play': 0.9,
-        'turn': 1.1, 'strut': 6.0}
+        'turn': 1.1, 'strut': 6.0, 'weigh': 0.0, 'hang': 0.0}
 #: Her jog, the run's row at the walk's speed: her way from the walk to the run passes it. On
 #: its speed alone the run's row goes 0.54 m/s at 936 J/m asked 0.6, 0.74 at 704 asked 0.8,
 #: 0.99 at 602, 1.19 at 547 (2026-10-05). Before it a row found between, at 1.42 m/s, passed
@@ -49,7 +51,7 @@ JOG = dict(RUN, speed=0.8)
 QUICK = {'speed': 0.76, 'step': 0.528, 'stand': 0.581, 'up': 0.10, 'rise': 0.0, 'bounce': 0.253,
          'land': -12.9, 'knee': 19.4, 'lean': 5.1, 'fold': 10.0, 'track': 0.048, 'off': 1.7,
          'list': 0.0, 'under': 0.037, 'folded': 0.65, 'reach': 0.248, 'elbow': 30.0, 'play': 0.9,
-         'turn': 0.0, 'strut': 6.0}
+         'turn': 0.0, 'strut': 6.0, 'weigh': 0.0, 'hang': 0.0}
 EASE = dict(QUICK, stand=JOG['stand'], step=JOG['step'])
 #: Standing: the walk's row at no speed.
 STAND = dict(WALK, speed=0.0)
@@ -81,12 +83,18 @@ BESIDE_S = 0.05
 #: stand, and with her knees bent 18 was up at 17 and at 20: bent legs carry a lean -;
 #: crouched 0.58, Groucho's, at 409; wide 0.68, her feet 0.36 legs apart, at 495; tripping
 #: 0.36, a step 0.42 s, at 666; catwalk swaying 0.40, the pelvis turning 29 deg and rolling
-#: 11.5, at 570 - its list 6 deg and its turn 16 fell from her stand.
+#: 11.5, at 570 - its list 6 deg and its turn 16 fell from her stand. Standing, hip left:
+#: 77 % of her on her left sole, the pelvis rolled 5.5 deg up over it, her right knee 29 deg
+#: where 10.
 MANNERS = {'leaning': {'lean': 9.0}, 'crouched': {'strut': 18.0, 'knee': 14.0},
            'wide': {'track': 0.036}, 'tripping': {'step': -0.1, 'stand': -0.1},
            'catwalk': {'list': 1.9, 'turn': 12.9},
+           'hip left': {'weigh': 0.8, 'hang': 7.0}, 'hip right': {'weigh': -0.8, 'hang': 7.0},
            'into the wind': (('leaning', 1.0), ('crouched', 0.8), ('tripping', 0.4))}
 MANNER_S = 2.0
+#: Her stand's own setpoints: an accent that moves them is a pose's, let go before she goes
+#: on - walked off from her weight on one leg she was down in 1.2 s (2026-10-06).
+POSES = frozenset(('weigh', 'hang'))
 
 
 def derive():
@@ -105,6 +113,19 @@ def told(text):
                  for name, amount in re.findall(r"([A-Za-z' ]+):\s*([-+.\d]+)", text))
 
 
+def posed(amounts):
+    """How much of a pose's accent she is in, of `amounts` {manner: amount}."""
+    return max((v for name, v in amounts.items() if POSES & set(MANNERS[name])), default=0.0)
+
+
+def passed(k, held, want, now, asked, dt):
+    """(k, held, {manner: amount}) `dt` s on: her way toward the row `want` (`toward`), her
+    accents toward `asked` (`manners`) - a pose's let go before she leaves her stand, and
+    hers again as she stands."""
+    now = manners(now, asked, dt, going=want > -1.0 or k > -1.0)
+    return toward(k, held, -1.0 if k <= -1.0 and posed(now) else want, dt) + (now,)
+
+
 def plain(asked, k=1.0, into=None):
     """{manner: amount} of `asked` ((manner, amount), ..), each manner made of others as
     those."""
@@ -117,12 +138,14 @@ def plain(asked, k=1.0, into=None):
     return into
 
 
-def manners(now, asked, dt):
+def manners(now, asked, dt, going=False):
     """{manner: amount} `dt` s on from `now`, asked `asked` ((manner, amount), ..): each
-    amount, 0 to 1, a full one in MANNER_S."""
+    amount, 0 to 1, a full one in MANNER_S; `going`, a pose's is none."""
     want, step, out = plain(asked), dt / MANNER_S, {}
     for name in set(now) | set(want):
         at, to = now.get(name, 0.0), max(0.0, min(1.0, want.get(name, 0.0)))
+        if going and POSES & set(MANNERS[name]):
+            to = 0.0
         at += max(-step, min(step, to - at))
         if at > 0.0:
             out[name] = at
