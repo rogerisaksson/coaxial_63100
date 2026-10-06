@@ -19,7 +19,10 @@ flown 0.9 m off its gates (2026-10-06).
 
     python tools/sim/quad_race.py                                    # as built
     python tools/sim/quad_race.py --suite boards --grid course.GRIP=0.6,0.7,0.8
-    python tools/sim/quad_race.py --search course.GRIP=0.5:0.9 turn11=-25:25 --generations 12
+    python tools/sim/quad_race.py --search course.GRIP=0.5:0.9 turn11=-25:25 --verify 6 7 8
+
+A search overfits what it flew: `--verify` flies its find beside its start in the air of seeds
+it never searched in, every trial, and says which holds.
 """
 import argparse
 import itertools
@@ -306,6 +309,8 @@ def main(argv=None):
     parser.add_argument('--suite', choices=sorted(SUITES), default='all')
     parser.add_argument('--seeds', type=int, nargs='*', default=list(SEEDS),
                         help="the air's seeds flown, beside still air")
+    parser.add_argument('--verify', type=int, nargs='*', default=[], metavar='SEED',
+                        help="a search's find and its start flown in these seeds' air, every trial")
     parser.add_argument('--one', nargs=2, metavar=('VALUES', 'K'),
                         help="one flight on the relay: a candidate's JSON and its job's index")
     args = parser.parse_args(argv)
@@ -327,6 +332,9 @@ def main(argv=None):
                 args.sigma, start=fixed)
             print('BEST %.2f %s' % (cost, json.dumps(values)))
             cands = [dict(fixed, **(values or {}))]
+            if args.verify:
+                SUITE, JOBS = 'all', trials(args.verify)
+                cands.append(fixed)
         elif args.grid:
             axes = [(k, [float(x) for x in v.split(',')])
                     for k, v in (a.split('=') for a in args.grid)]
@@ -337,6 +345,10 @@ def main(argv=None):
         ranked = sorted(zip(cands, run(None, cands)), key=lambda cg: cg[1][0])
         for values, (cost, whole, miss, results) in ranked:
             _show(values, cost, whole, miss, results)
+        if args.search and args.verify:
+            print('the find %s where it never searched: %.2f, its start %.2f' % (
+                'holds' if ranked[0][0] is cands[0] else 'does not hold',
+                *[got[0] for cand in cands for values, got in ranked if values is cand]))
     print('%d candidates, %d flights, %.0f s' % (len(cands), len(cands) * len(JOBS),
                                                 time.time() - began))
     return 0
