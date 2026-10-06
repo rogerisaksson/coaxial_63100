@@ -27,7 +27,7 @@ RUN = {'speed': 1.5, 'step': 0.40, 'stand': 0.30, 'up': 0.0, 'rise': 0.49, 'boun
 #: on a walk's price and its widths off `tools.sim.normal.BAND`, 1 920 rows, then on its J/m,
 #: a stop and a passage to her jog and back too, 960. 0.85 m/s at 502 J/m, 0.20-0.26 off the
 #: band - the heel 22 deg up as its toes leave where 28 -, `looks.FORM` but her head 42 mm
-#: aside and bobbing 33; her ways 69 of 104, the page's presses 21 of 24.
+#: aside and bobbing 33; her ways 77 of 104, the page's presses 66 of 72.
 WALK = {'speed': 0.87, 'step': 0.522, 'stand': 0.651, 'up': 0.104, 'rise': 0.0, 'bounce': 0.107,
         'land': -4.9, 'knee': 11.8, 'lean': 4.9, 'fold': 45.2, 'track': 0.044, 'off': 2.1,
         'list': 3.1, 'under': 0.036, 'folded': 0.63, 'reach': 0.333, 'elbow': 30.0, 'play': 0.9,

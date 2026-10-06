@@ -341,7 +341,7 @@ in [walk](walk.md), the run in [run](run.md), the page's standing law in
   heel's rise only as its toes come down (`strut.rocker`): taken about
   its ball at once, the knee was asked 8 and 21 deg within 20 ms of a
   landing - 8 J/m. Her ways 69 of 104 where 68, the page's keys 12 of 12
-  where 9, its presses under the director 21 of 24 where 23. Tried and
+  where 9, its presses under the director 66 of 72 either way. Tried and
   out: the lead leg a strut from its landing, its knee from the bend it
   landed with to the row's - 531 J/m where 506; what stands eased over a
   foot's landing or leaving - 514 where 512; the fold a smooth bump over

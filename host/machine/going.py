@@ -251,7 +251,12 @@ class Going:
         xi = hold.point(self, com)
         far = sign * ((xi[0] - other['flat'][0]) * c - (xi[1] - other['flat'][2]) * s)
         if far > 0.0:
-            due = min(due, max(0.0, air + math.log(a['track'] / far) / self.omega))
+            # no sooner than what is left of its swing at the swing's own pace: hurried, the
+            # foot came down 3 cm short of her and the steps after it shorter still - shoved
+            # 38 N from eight ways at eight moments of a stride, up 44 of 64 where 64
+            # (2026-10-06)
+            due = min(due, max(air * (1.0 - leg.get('u', 1.0)),
+                               air + math.log(a['track'] / far) / self.omega))
         return to_go + share * (due - to_go)
 
     def step(self, dt):

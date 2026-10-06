@@ -291,3 +291,24 @@ shoves, the scoreboard and its searches. The board's own are in
   standing foot, that foot's seconds down and one foot or both; its
   answer the law's own handles - which foot leaves now, where it lands,
   how long - so the hand back is the law's next step.
+- A free foot not hurried (2026-10-06; `going._due`). Her capture point
+  running across, the foot was due as that point reached where a step's
+  swing takes it - hurried so it came down short (above). It is due no
+  sooner than what is left of its swing at the swing's own pace, the
+  row's `step` less the s both feet bear, 0.39 s walking. Shoved
+  walking, up of 64: 38 N 62 where 44, with a side to it 46 of 48 where
+  28; 70 N 36 where 17, to her free side 4 of 6 and over the standing
+  foot 1 of 6; 120 N 5 where none. By the least a whole swing may take,
+  38 and 70 N: 0.30 s 44 and 17; 0.35 s 59 and 28; 0.40 s 64 and 37;
+  0.45 s 63 and 40; her capture point hurrying no foot at all, 54 and
+  23. Tried and out: the foot aimed where that point is heading, its
+  rate meaned over 30 ms times the seconds to go - half of it 42 of 64
+  at 38 N, all of it the plain walk down. Her ways 77 of 104 where 69:
+  nudged walking 8 of 8 where 4, turned back on her way 6 of 6 where 4,
+  nudged running 6 of 8 where 4; her walk's draw and its band as they
+  were, 501 J/m and 0.20; the page's presses under the director 66 of 72
+  either way. The user: a recovery is two steps or more of staggering;
+  the thing is to see it at once and to get a leg out - which this is,
+  the leg out in full. Left: over the standing foot from 70 N, where no
+  free foot can land - the free one down at once and the standing one
+  out; 120 N.
