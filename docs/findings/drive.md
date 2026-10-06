@@ -180,6 +180,18 @@ rotor's pages and their demos. The board's own are in
   on the relay - laps 20.8/19.4 and 21.8/20.8 s as built, a gate 0.52 m off
   at the most; a candidate its constants by name and its line's crossings
   (`course.WAYS`), searched by `cmaes`.
+- QUAD's frame at any size (`quad.sized`, 2026-10-06): its shape and its
+  propellers' tips' speed kept, its lengths go by its size, its mass by the
+  cube, its rotors' pull by the square and their spool, the frame's clock,
+  by the size: speeds as they were, pulls 1/size. The law's gains, the
+  routine's rows and the course - gates, plan - go by that size and clock
+  from tables of their units (`_UNITS`); a lap's lean is a share of the
+  frame's whole pull, a crest's fall of gravity. On ideal rotors in still
+  air, the course as much larger: x0.75 16.4 and 15.6 s, x1 20.8 and 19.5,
+  x1.5 30.2 and 28.1, x2 40.1 and 37.4 - 20.0-21.9 and 18.7-20.8 by their
+  clocks -, a gate 0.68-0.92 of the frame's reach off its middle. Gravity
+  is no frame's: x0.5, 71 m/s^2 along the floor, came into the climb
+  1.6 m/s fast, went 0.7 m over and struck the second gate's top bar.
 - The rotor page, the bench's word: the magnets blurred through a 1/80 s
   shutter (208-386 cells, 0.10 a frame at most; the smear's ring flipped
   0.29), the windings whole at their current's brightness and gone on a

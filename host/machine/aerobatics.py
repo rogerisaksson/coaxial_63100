@@ -9,6 +9,7 @@ on the floor until it is fit.
 import math
 from typing import Any
 
+from machine import quad
 from machine.gaits import mix
 from machine.quad import FLOOR_M, HOVER_M
 
@@ -89,6 +90,39 @@ CARD = (
 #: one that gives its own row: a line ends itself (`machine.course`: where it is on it, things
 #: stand under it).
 SPENT_TO = 'descend'
+
+
+#: A row's setpoints that have a unit, each by the powers of its metres and its seconds, and
+#: the routine's own: at a frame of another size they go by its size and its clock (`sized`).
+KEYS = {'height': (1, 0), 'pace': (1, -1), 'climb': (1, -1), 'push': (1, -2), 'speed': (1, -1),
+        'slide': (1, -1), 'surge': (1, -2), 'sway': (1, -2), 'turn': (0, -1), 'x': (1, 0),
+        'z': (1, 0), 'lean': (1, -2), 'roll': (0, -1), 'flip': (0, -1)}
+_UNITS = {'ORBIT_M': (1, 0), 'ORBIT_M_S': (1, -1), 'LAP_S': (0, 1), 'TOP_M': (1, 0),
+          'FLOOR_M': (1, 0), 'HOVER_M': (1, 0)}
+_BUILT, _ROWS, _CARD = {}, [], []
+
+
+def resized(card, rows):
+    """`card`'s seconds and the setpoints of `rows` - [(a row, as built)] - for the frame as
+    it is sized: the card."""
+    size, clock = quad.scales()
+    for row, built in rows:
+        row.update({key: built[key] * size ** metres * clock ** seconds
+                    for key, (metres, seconds) in KEYS.items()})
+    return tuple((name, row, seconds * clock, over * clock, waits)
+                 for name, row, seconds, over, waits in card)
+
+
+def sized():
+    """The routine for the frame as `quad.sized` has it: every row's setpoints and its card's
+    seconds."""
+    global CARD
+    if not _ROWS:
+        _ROWS.extend((row, dict(row)) for row in globals().values()
+                     if isinstance(row, dict) and 'height' in row and row is not KEYS)
+        _CARD.append(CARD)
+    quad.rescaled(globals(), _UNITS, _BUILT)
+    CARD = resized(_CARD[0], _ROWS)
 
 
 def ease(x):

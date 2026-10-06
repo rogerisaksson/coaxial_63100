@@ -18,7 +18,7 @@ TOP_RAD_S, LAG_S, SPOOL_RAD_S2 = 310.0, 0.08, 900.0
 def reach():
     """The frame from its middle to a propeller's tip, m."""
     from machine import quad
-    return math.hypot(*quad.ROTOR_AT[0]) + quad.DISC_R
+    return quad.reach()
 
 
 @functools.lru_cache(maxsize=None)
@@ -233,7 +233,7 @@ def test_what_stands_is_solid(report):
     sky.stand(False)
     free = put(bar)
     sky.stand(True)
-    rest = [put((0.0, quad.SKID_M + 0.015, 0.0)), put((8.0, 0.3, -15.0), math.pi / 2.0)]
+    rest = [put((0.0, quad.SKID_M + quad.FOOT_M, 0.0)), put((8.0, 0.3, -15.0), math.pi / 2.0)]
     report.check('put in a tree\'s crown, a house, a car, the mast and across a gate\'s bar it '
                  'has struck each - the gate only while the gates stand; on its skids nothing, '
                  'a disc on the floor the floor',
@@ -258,7 +258,7 @@ def test_what_is_ahead_is_seen(report):
     off = (mast[0] + 3.5, 9.0, mast[1] + 3.5)
     seen = [ahead(off, (-5.66, 0.0, -5.66)), ahead(off, (5.66, 0.0, 5.66)),
             ahead(off, (-1.41, 0.0, -1.41))]
-    through = [ahead((gate[0] + x, gate[1] + quad.SKID_M + 0.015, gate[2] - 3.0), (0.0, 0.0, 8.0))
+    through = [ahead((gate[0] + x, gate[1] + quad.SKID_M + quad.FOOT_M, gate[2] - 3.0), (0.0, 0.0, 8.0))
                for x in (0.0, 1.2)]
     report.check('the mast in its way at 8 m/s from 5 m, not going from it nor at 2 m/s; a '
                  'gate\'s bar 1.2 m off its middle, nothing on it',
@@ -269,7 +269,7 @@ def test_what_is_ahead_is_seen(report):
 def test_its_tuner_scores(report):
     """tools.sim.quad_race: a candidate's constants set where they live and its line laid
     again; a flight's cost its laps' seconds, a gate passed wide and a thing near counted,
-    one struck or a lap short the dearest."""
+    one struck the dearest."""
     from machine import course
     from tools.sim import quad_race as race
     was = (course.GRIP, course.WAYS, course.track()['length'])
@@ -298,6 +298,34 @@ def test_its_tuner_scores(report):
                      race.STRUCK_S))) and abs(cost - (39.0 + race.STRUCK_S) / 2.0) < 1e-9
                  and whole == 0.5 and miss == 0.4,
                  '%s; %.1f, %.0f %% whole' % (['%.1f' % c for c in costs], cost, 100 * whole))
+
+
+def test_a_frame_of_another_size(report):
+    """quad.sized, the law, the routine and the course after it: frames smaller and larger,
+    each on a course as much larger and rotors as fast at their tips, fly their laps - as
+    long by their own clocks, every gate as near in their own reaches. And built again."""
+    from machine import course, quad
+    from tools.sim import quad_race as race
+    was = (quad.MASS_KG, course.GATES, course.SWING_S)
+    try:
+        flown = {size: race.trial({}, ('ideal', None, size)) for size in (1.0,) + race.SIZES}
+    finally:
+        race.sized(1.0)
+    room = course.GATE_M / 2.0 - reach() - CLEAR_M
+    built = flown[1.0]['laps']
+    report.check('frames of %s times its size: their laps flown, nothing struck, a gate '
+                 'within %.2f m and a lap within a fifth, in the built frame\'s measure' % (
+                     ' and '.join('%g' % s for s in race.SIZES), room),
+                 all(len(f['laps']) == course.LAPS and not f['struck'] and f['miss'] <= room
+                     and all(0.8 * a <= b <= 1.2 * a for a, b in zip(built, f['laps']))
+                     for f in flown.values()),
+                 '; '.join('x%g laps %s s, a gate %.2f m off%s' % (
+                     size, ' '.join('%.1f' % x for x in f['laps']), f['miss'],
+                     ', struck %s' % f['struck'] if f['struck'] else '')
+                     for size, f in flown.items()))
+    report.check('and built again: its mass, its gates, its plan\'s times',
+                 (quad.MASS_KG, course.GATES, course.SWING_S) == was,
+                 '%.1f kg' % quad.MASS_KG)
 
 
 def test_its_tilt_is_its_discs_own(report):
@@ -377,7 +405,7 @@ def test_its_world_is_drawn(report):
 
 ROSTER = (test_its_gates_are_flown, test_it_flies_on_its_envelopes, test_its_gates_in_wind,
           test_what_stands_is_solid, test_what_is_ahead_is_seen, test_its_tuner_scores,
-          test_its_tilt_is_its_discs_own, test_its_world_is_drawn)
+          test_a_frame_of_another_size, test_its_tilt_is_its_discs_own, test_its_world_is_drawn)
 
 
 def main(argv=None):

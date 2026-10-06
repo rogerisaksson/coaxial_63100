@@ -35,10 +35,10 @@ ARM_M = 0.3
 ROTOR_AT = ((-ARM_M, ARM_M), (ARM_M, ARM_M), (ARM_M, -ARM_M), (-ARM_M, -ARM_M))
 SPIN = (1.0, -1.0, 1.0, -1.0)
 
-#: The discs' height over the frame's middle, and the skids' under it, m; what of the frame
-#: strikes a thing: a disc, a 20 in propeller's radius and half its depth, and the hub's half
-#: sizes, m.
-DISC_M, SKID_M = 0.06, 0.12
+#: The discs' height over the frame's middle, the skids' under it and a skid's foot's radius,
+#: m; what of the frame strikes a thing: a disc, a 20 in propeller's radius and half its
+#: depth, and the hub's half sizes, m.
+DISC_M, SKID_M, FOOT_M = 0.06, 0.12, 0.015
 DISC_R, DISC_HALF_M, HUB_M = 0.254, 0.008, (0.06, 0.03, 0.06)
 
 #: Looked ahead (`Sky.ahead`), a thing this near the frame's discs or hub is in its way, m.
@@ -47,6 +47,11 @@ NEAR_M = 0.15
 #: The hover's height, the stop over the floor, m, and the rotors' idle, rad/s: a sixth of
 #: the frame's weight, the quad sitting on the floor.
 HOVER_M, FLOOR_M, IDLE_RAD_S = 1.5, 0.1, 60.0
+
+#: Its rotors come to a speed asked of them in about this long, s: the frame's clock. The
+#: law's loops (`flying`) and the lap's plan (`course`) are tuned by it and go by it at
+#: another size - the tilt's loop at twice its gain rang on these rotors (2026-10-06).
+SPIN_S = 0.08
 
 #: The world's step, s.
 STEP_S = 0.002
@@ -88,6 +93,53 @@ RISE, PITCH_M = 0.5, 0.254
 _CORNER = MASS_KG / 8.0 * 2.0 * ARM_M * ARM_M
 INERTIA = (_CORNER, 2.0 * _CORNER, _CORNER)
 
+#: The frame's numbers as they go with its size, each by the size to this power (`sized`):
+#: its lengths, its mass, its propellers' thrust and their drag's torque at a speed, its
+#: drag's area, its rotors' idle - a sixth of its weight at any size.
+_POWERS = {'MASS_KG': 3.0, 'ARM_M': 1.0, 'K_THRUST': 4.0, 'K_DRAG': 5.0, 'BODY_CDA': 2.0,
+           'DISC_M': 1.0, 'SKID_M': 1.0, 'FOOT_M': 1.0, 'DISC_R': 1.0, 'DISC_HALF_M': 1.0,
+           'PITCH_M': 1.0, 'NEAR_M': 1.0, 'IDLE_RAD_S': -0.5, 'HOVER_M': 1.0, 'FLOOR_M': 1.0,
+           'SPIN_S': 1.0}
+_BUILT = dict({name: globals()[name] for name in _POWERS}, HUB_M=HUB_M)
+
+
+def sized(size=1.0):
+    """The frame `size` times as large, its shape and its propellers' tips' speed kept: its
+    lengths by `size`, its mass by the cube and its inertia by the fifth, its propellers'
+    thrust by the fourth and their drag's torque by the fifth at a speed, its drag's area by
+    the square, its rotors as much slower to a speed - set where they live, for every
+    reader. Its rotors' top is 1/size of theirs, the caller's as they are. The law, the
+    routine and the course go by it once each is `sized` after it."""
+    scope = globals()
+    for name, power in _POWERS.items():
+        scope[name] = _BUILT[name] * size ** power
+    arm, corner = scope['ARM_M'], scope['MASS_KG'] / 8.0 * 2.0 * scope['ARM_M'] ** 2
+    scope.update(HUB_M=tuple(size * x for x in _BUILT['HUB_M']),
+                 ROTOR_AT=((-arm, arm), (arm, arm), (arm, -arm), (-arm, -arm)),
+                 INERTIA=(corner, 2.0 * corner, corner))
+
+
+def reach():
+    """The frame from its middle to a propeller's tip, m."""
+    return math.hypot(*ROTOR_AT[0]) + DISC_R
+
+
+def scales():
+    """(the frame's size, its clock) of the frame's as built: what its lengths and its times
+    go by."""
+    return ARM_M / _BUILT['ARM_M'], SPIN_S / _BUILT['SPIN_S']
+
+
+def rescaled(scope, units, built):
+    """`scope`'s constants named in `units` - {name: (m, s)}, the powers of its metres and its
+    seconds - set for the frame as it is sized, from `built`: their values for the frame as
+    built, taken the first time."""
+    size, clock = scales()
+    if not built:
+        built.update({name: scope[name] for name in units})
+    for name, (metres, seconds) in units.items():
+        scope[name] = built[name] * size ** metres * clock ** seconds
+
 
 def mjcf(things=(), near=0.0):
     """The quad as MuJoCo's XML, y up: the frame free over the floor, its mass a plate's with a
@@ -97,9 +149,9 @@ def mjcf(things=(), near=0.0):
     heading, degrees), ('rod', name, an end, the other, its radius) or ('hull', name, the
     points it is the hull of), m."""
     near = 'margin="%g"' % near
-    mine = ''.join('<geom name="skid%d" type="sphere" size="0.015" pos="%g %g %g"/>'
+    mine = ''.join('<geom name="skid%d" type="sphere" size="%g" pos="%g %g %g"/>'
                    '<geom name="disc%d" type="cylinder" size="%g %g" pos="%g %g %g" '
-                   'euler="90 0 0" %s/>' % (k, 0.7 * x, -SKID_M, 0.7 * z, k, DISC_R,
+                   'euler="90 0 0" %s/>' % (k, FOOT_M, 0.7 * x, -SKID_M, 0.7 * z, k, DISC_R,
                                             DISC_HALF_M, x, DISC_M, z, near)
                    for k, (x, z) in enumerate(ROTOR_AT))
     mine += '<geom name="hub" type="box" size="%g %g %g" %s/>' % (HUB_M + (near,))
@@ -120,7 +172,7 @@ def mjcf(things=(), near=0.0):
             '<worldbody><geom name="floor" type="plane" size="50 50 0.1" zaxis="0 1 0"/>%s'
             '<body name="frame" pos="0 %g 0"><freejoint name="root"/>'
             '<inertial pos="0 0 0" mass="%g" diaginertia="%g %g %g"/>%s</body>'
-            '</worldbody></mujoco>' % ((STEP_S, -GRAVITY, hulls, stood, SKID_M + 0.015, MASS_KG)
+            '</worldbody></mujoco>' % ((STEP_S, -GRAVITY, hulls, stood, SKID_M + FOOT_M, MASS_KG)
                                        + INERTIA + (mine,)))
 
 
@@ -203,7 +255,7 @@ class Sky:
         by in the world; 'lift' what its rotors' speeds give in still air, N; 'hit' what it
         struck first, or None."""
         d = self.data
-        return {'h': float(d.qpos[1]) - (SKID_M + 0.015), 'v': float(d.qvel[1]),
+        return {'h': float(d.qpos[1]) - (SKID_M + FOOT_M), 'v': float(d.qvel[1]),
                 'a': float(d.qacc[1]), 'turn': d.xmat[self.frame].reshape(3, 3).copy(),
                 'spin': d.qvel[3:6].copy(), 'at': d.qpos[0:3].copy(),
                 'vel': d.qvel[0:3].copy(), 'acc': d.qacc[0:3].copy(), 'lift': self.lift,
@@ -222,7 +274,7 @@ class Sky:
         self.lift = sum(thrusts)
         wind, push, twist = np.zeros(3), np.zeros(3), np.zeros(3)
         if air is not None:
-            turn, h = d.xmat[self.frame].reshape(3, 3), float(d.qpos[1]) - (SKID_M + 0.015)
+            turn, h = d.xmat[self.frame].reshape(3, 3), float(d.qpos[1]) - (SKID_M + FOOT_M)
             wind = np.array(wind_at(air['wind'], h))
             still = d.qvel[0:3] - wind
             drag = np.linalg.norm(still) * still

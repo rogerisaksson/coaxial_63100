@@ -9,10 +9,12 @@ card flown once through among what stands, solid:
 - ideal: rotors lagging to their speed, on all of their pull, a page's passes;
 - boards: four stand-in boards (the page's flight, no page), their envelopes binding;
 
-each in still air and in the air's tour from SEEDS. A trial's cost is its laps' seconds; MISS_K
-a metre a gate's middle is passed further off than MISS_M, ROOM_K a metre the frame has less
-than ROOM_M about it; struck, STRUCK_S and no laps counted. A candidate's is its trials' mean:
-a line found on its planned seconds alone was flown 0.9 m off its gates (2026-10-06).
+each in still air and in the air's tour from SEEDS, and - ideal - as a frame of each of SIZES
+on a course as much larger (`quad.sized`). A trial's cost is its laps' seconds, by its frame's
+clock; MISS_K a metre a gate's middle is passed further off than MISS_M, ROOM_K a metre the
+frame has less than ROOM_M about it, both of the frame as built; struck, STRUCK_S and no laps
+counted. A candidate's is its trials' mean: a line found on its planned seconds alone was
+flown 0.9 m off its gates (2026-10-06).
 
     python tools/sim/quad_race.py                                    # as built
     python tools/sim/quad_race.py --suite boards --grid course.GRIP=0.6,0.7,0.8
@@ -35,9 +37,11 @@ from tools import REPO  # noqa: E402
 from tools.dev import background  # noqa: E402
 from tools.sim import cmaes  # noqa: E402
 
-#: The air's seeds a candidate is flown in, beside still air; the trials: (rotors, seed).
-SEEDS = (3, 4, 5)
-TRIALS = tuple((rotors, seed) for rotors in ('ideal', 'boards') for seed in (None,) + SEEDS)
+#: The air's seeds a candidate is flown in, beside still air, and the frames' sizes beside the
+#: one built; the trials: (rotors, seed, size).
+SEEDS, SIZES = (3, 4, 5), (0.75, 1.5)
+TRIALS = tuple((rotors, seed, 1.0) for rotors in ('ideal', 'boards')
+               for seed in (None,) + SEEDS) + tuple(('ideal', None, size) for size in SIZES)
 SUITES = {'all': ('ideal', 'boards'), 'ideal': ('ideal',), 'boards': ('boards',)}
 
 #: The ideal rotors: their top, rad/s, their lag to a speed, s, the fastest they are spun up or
@@ -80,6 +84,14 @@ def put(values):
     course.track.cache_clear()
 
 
+def sized(size):
+    """The frame, its law, its routine and its course `size` times as built."""
+    quad.sized(size)
+    flying.sized()
+    aerobatics.sized()
+    course.sized()
+
+
 def now(name):
     """A constant's value where it lives."""
     way = re.fullmatch(r'(turn|tense)(\d+)', name)
@@ -108,7 +120,8 @@ def room(rows):
     - beside it or over it, whichever is more."""
     least = math.inf
     for x, z, high, crown in course.TREES:
-        least = min([least] + [math.hypot(r[0] - x, r[2] - z) - crown for r in rows if r[1] <= high])
+        least = min([least] + [math.hypot(r[0] - x, r[2] - z) - crown
+                               for r in rows if r[1] <= high])
     for x, z, wide, deep, _wall, ridge in course.HOUSES:
         least = min([least] + [max(abs(r[0] - x) - wide / 2, abs(r[2] - z) - deep / 2,
                                    r[1] - ridge) for r in rows])
@@ -121,25 +134,28 @@ def room(rows):
     for x, z, side, high in course.MASTS:
         least = min([least] + [max(math.hypot(r[0] - x, r[2] - z) - side, r[1] - high)
                                for r in rows])
-    return least - math.hypot(*quad.ROTOR_AT[0]) - quad.DISC_R
+    return least - quad.reach()
 
 
 def ideal(air):
-    """The card on ideal rotors in `air`: (the laps' rows by lap, what it struck, 0, 1, 0)."""
+    """The card on ideal rotors in `air`, the frame as it is sized - its rotors as fast at
+    their tips, its passes by its clock: (the laps' rows by lap, what it struck, 0, 1, 0)."""
     dice = random.Random(1)
+    size, clock = quad.scales()
+    top, lag, spool = TOP_RAD_S / size, LAG_S * clock, SPOOL_RAD_S2 / (size * clock)
     sky, route = quad.Sky(course.solids()), aerobatics.routine(course.CARD)
-    law = flying.Flying(4.0 * quad.K_THRUST * TOP_RAD_S ** 2, aerobatics.DOWN)
+    law = flying.Flying(4.0 * quad.K_THRUST * top ** 2, aerobatics.DOWN)
     w, t, laps = [0.0] * 4, 0.0, {}
-    while t < 150.0:
-        dt = 0.05 if dice.random() < 0.05 else dice.choice((0.01, 0.014, 0.02, 0.03))
+    while t < 150.0 * clock:
+        dt = clock * (0.05 if dice.random() < 0.05 else dice.choice((0.01, 0.014, 0.02, 0.03)))
         state = sky.state()
         route['seen'] = dict(law.seen(state, dt), spent=False)
         name, law.ask = aerobatics.fly(route, t, (['held'] if law.held else []) + ['fit'])
         if name == 'land' or state['hit']:
             break
         for k, thrust in enumerate(law.step(state, dt, 1.0)):
-            more = (min(TOP_RAD_S, quad.speed_for(thrust)) - w[k]) * min(1.0, dt / LAG_S)
-            w[k] += max(-SPOOL_RAD_S2 * dt, min(SPOOL_RAD_S2 * dt, more))
+            more = (min(top, quad.speed_for(thrust)) - w[k]) * min(1.0, dt / lag)
+            w[k] += max(-spool * dt, min(spool * dt, more))
         if air:
             quad.blown(air, dt)
         sky.step(w, dt, air)
@@ -185,17 +201,20 @@ def boards(air):
 
 
 def trial(values, job):
-    """One flight of a candidate: its laps' seconds, the gates' worst miss and the room about
-    the frame, m, what it struck, the boards' worst envelope and least share, its WEP's
-    seconds."""
+    """One flight of a candidate: its laps' seconds by the frame's clock, the gates' worst
+    miss and the room about the frame, m of the frame as built, what it struck, the boards'
+    worst envelope and least share, its WEP's seconds."""
     put(values)
-    rotors, seed = job
+    rotors, seed, size = job
+    sized(size)
+    clock = quad.scales()[1]
     laps, struck, soa, least, wep = (ideal if rotors == 'ideal' else boards)(
         None if seed is None else quad.air(seed))
     rows = [row[1:] for lap in sorted(laps) for row in laps[lap]]
     miss, passes = missed(rows) if rows else (math.nan, 0)
-    return {'laps': [laps[lap][-1][0] - laps[lap][0][0] for lap in sorted(laps)], 'miss': miss,
-            'passes': passes, 'room': room(rows) if rows else math.nan, 'struck': struck,
+    return {'laps': [(laps[lap][-1][0] - laps[lap][0][0]) / clock for lap in sorted(laps)],
+            'miss': miss / size, 'passes': passes,
+            'room': room(rows) / size if rows else math.nan, 'struck': struck,
             'soa': soa, 'share': least, 'wep': wep}
 
 
@@ -238,8 +257,9 @@ def run(_pool, candidates):
 def _show(values, cost, whole, miss, results):
     print('%-44s cost %6.2f  whole %3.0f %%  miss %.2f m' % (
         ' '.join('%s=%g' % kv for kv in values.items()) or 'as it is', cost, 100 * whole, miss))
-    for (rotors, seed), r in zip(JOBS, results):
-        print('    %-6s %-6s %s' % (rotors, 'still' if seed is None else 'air %d' % seed, (
+    for (rotors, seed, size), r in zip(JOBS, results):
+        print('    %-6s %-6s %-5s %s' % (rotors, 'still' if seed is None else 'air %d' % seed,
+                                         '' if size == 1.0 else 'x%g' % size, (
             'laps %s s, a gate %.2f m off, %.2f m about it%s%s' % (
                 ' '.join('%.1f' % x for x in r['laps']) or '-', r['miss'], r['room'],
                 ', SOA %.2f, pull %.0f %% at the least, WEP %.1f s' % (

@@ -26,8 +26,7 @@ row for 9.6 m/s and its end for a pull of 100 m/s^2: the frame left the floor fo
 import math
 
 from machine.figure import mul, rx, rz, t
-from machine.quad import (ARM_M, BODY_CDA, GRAVITY, IDLE_RAD_S, INERTIA, K_DRAG, K_THRUST,
-                          MASS_KG, RHO, ROTOR_AT, SPIN)
+from machine import quad
 
 #: The altitude loop's gain on its rate, 1/s: both its poles at KD / 2, 5 rad/s. At 2 rad/s on
 #: the height alone the lift trailed its ramp 0.4 m and the hold crept 3 s down to its mark
@@ -108,6 +107,21 @@ AIR_S, OFF_M = 0.12, 0.03
 #: What it is doing where it is asked a height far under it: let fall, burning.
 FALL, BURN = 'fall', 'burn'
 
+#: The law's constants that have a unit, each by the powers of its metres and its seconds:
+#: at a frame of another size they go by its size and its clock (`sized`); its shares and its
+#: angles are any frame's.
+_UNITS = {'KD': (0, -1), 'TILT_KP': (0, -2), 'TILT_KD': (0, -1), 'YAW_KP': (0, -2),
+          'YAW_KD': (0, -1), 'SPOT_KP': (0, -2), 'SPOT_KD': (0, -1), 'HOME_K': (0, -1),
+          'HOME_M_S': (1, -1), 'PACE_S': (0, 1), 'RUNDOWN_S': (0, 1), 'ROUND_K': (0, -1),
+          'HELD_M': (1, 0), 'HELD_SPOT_M': (1, 0), 'HELD_M_S': (1, -1), 'AIR_S': (0, 1),
+          'OFF_M': (1, 0)}
+_BUILT = {}
+
+
+def sized():
+    """The law for the frame as `quad.sized` has it."""
+    quad.rescaled(globals(), _UNITS, _BUILT)
+
 
 def descent(over, brake):
     """The speed the frame flies `over` m from its height, m/s: the altitude loop's own approach
@@ -132,7 +146,7 @@ class Flying:
 
     def __init__(self, top, ask):
         self.top, self.ask = top, dict(ask)
-        self.idle = 4.0 * K_THRUST * IDLE_RAD_S ** 2
+        self.idle = 4.0 * quad.K_THRUST * quad.IDLE_RAD_S ** 2
         #: Its heading, rad about up from z, and its turn, rad/s; how far it has turned about
         #: its nose and its wing, rad, and how fast, rad/s.
         self.heading, self.swing = 0.0, 0.0
@@ -142,6 +156,8 @@ class Flying:
         #: Its spot, world (x, z), m, and the speed that went at last, m/s; the pull along the
         #: floor the boards' envelopes left it last, m/s^2, and their share it came of.
         self.spot, self.speed, self.most, self.share = [0.0, 0.0], (0.0, 0.0), 0.0, 1.0
+        #: The pull along the floor all of the rotors' pull gives, m/s^2: the frame's own.
+        self.full = math.sqrt(max(0.0, (HEADROOM * top / quad.MASS_KG) ** 2 - quad.GRAVITY ** 2))
         self.held, self.doing = False, None
         #: The air as learnt: its speed along the floor, world (x, z), m/s, and its lift on
         #: the frame, m/s^2.
@@ -166,7 +182,7 @@ class Flying:
         left, toward, going, pole = abs(over), way * (v - rate), way * v, 0.5 * KD
         # braked as its pace asks or as its height needs, the rotors' share - rising, gravity's
         # - at most
-        hard = BRAKE_SHARE * (room if way < 0.0 else GRAVITY)
+        hard = BRAKE_SHARE * (room if way < 0.0 else quad.GRAVITY)
         soft = min(gentle, hard)
         need = pole * pole * (left - math.sqrt(max(0.0, left * left - (toward / pole) ** 2))) \
             if toward > 0.0 else 0.0
@@ -181,7 +197,8 @@ class Flying:
         pull = way * (min(KD * (way * rate + speed - max(going, 0.0)) - slows + way * push,
                           min(gentle, room) if way > 0.0 else gentle) - KD * min(going, 0.0))
         falls = way < 0.0 and left > brake / (pole * pole)
-        return pull, (FALL if MASS_KG * (GRAVITY + pull) <= self.idle else BURN) if falls else None
+        light = quad.MASS_KG * (quad.GRAVITY + pull) <= self.idle
+        return pull, (FALL if light else BURN) if falls else None
 
     def lean(self, at, vel, dt, most):
         """The pull asked along the floor, world (x, z), m/s^2, `most` at the most: its spot
@@ -198,7 +215,7 @@ class Flying:
         into = [(now - was) / dt + more for now, was, more in zip(
             speed, self.speed, (a['surge'] * s + a['sway'] * c, a['surge'] * c - a['sway'] * s))]
         through = [v - w for v, w in zip(speed, self.wind)]
-        air = 0.5 * RHO * BODY_CDA * math.hypot(through[0], through[1]) / MASS_KG
+        air = 0.5 * quad.RHO * quad.BODY_CDA * math.hypot(through[0], through[1]) / quad.MASS_KG
         self.speed = speed
         self.spot = [p + v * dt for p, v in zip(self.spot, speed)]
         out = [into[k] + air * through[k] + SPOT_KD * (speed[k] - float(vel[axis]))
@@ -235,8 +252,8 @@ class Flying:
         drag - what it slows by over its rotors' thrust, 0.5 rho CdA |u| u of its speed u
         through the air, solved for u on its own climb - and the air's lift, what it rises by
         over that drag's own part up."""
-        vel, k = [float(x) for x in frame['vel']], 0.5 * RHO * BODY_CDA / MASS_KG
-        took = [frame['lift'] / MASS_KG * turn[axis][1] - (GRAVITY if axis == 1 else 0.0)
+        vel, k = [float(x) for x in frame['vel']], 0.5 * quad.RHO * quad.BODY_CDA / quad.MASS_KG
+        took = [frame['lift'] / quad.MASS_KG * turn[axis][1] - (quad.GRAVITY if axis == 1 else 0.0)
                 - float(frame['acc'][axis]) for axis in range(3)]
         size = math.hypot(took[0], took[2]) / k
         # |u_h| of |f_h| = k sqrt(|u_h|^2 + v_y^2) |u_h|
@@ -252,9 +269,10 @@ class Flying:
     def seen(self, frame, dt):
         """What a row's giver may know of the flight before the pass of `dt` s (a routine's
         `seen`): where the frame is and goes, the law's spot and heading, the share of their
-        pull the boards' envelopes left it and the pull along the floor that is, the wind as
-        learnt."""
-        return {'dt': dt, 'most': self.most, 'share': self.share, 'heading': self.heading,
+        pull the boards' envelopes left it, the pull along the floor that is and what all of
+        it would be, the wind as learnt."""
+        return {'dt': dt, 'most': self.most, 'share': self.share, 'full': self.full,
+                'heading': self.heading,
                 'spot': tuple(self.spot), 'at': [float(x) for x in frame['at']],
                 'vel': [float(x) for x in frame['vel']], 'wind': tuple(self.wind)}
 
@@ -269,14 +287,14 @@ class Flying:
         rate = math.radians(a['turn'])
         self.heading += rate * dt
         self.share = share
-        reach = max(LEAST * MASS_KG * GRAVITY, share * HEADROOM * self.top) / MASS_KG
+        reach = max(LEAST * quad.MASS_KG * quad.GRAVITY, share * HEADROOM * self.top) / quad.MASS_KG
         self.aired(frame, turn, dt)
-        up_pull, self.doing = self.climb(frame['h'], frame['v'], reach - GRAVITY)
+        up_pull, self.doing = self.climb(frame['h'], frame['v'], reach - quad.GRAVITY)
         up_pull -= self.lifted
-        self.most = math.sqrt(reach * reach - GRAVITY * GRAVITY)
+        self.most = math.sqrt(reach * reach - quad.GRAVITY * quad.GRAVITY)
         along = self.lean(at, vel, dt, self.most if emergency else min(a['lean'], self.most))
         # the discs' lean - against what is asked up - the nose's heading, its turns on them
-        up = _unit((along[0], max(GRAVITY + up_pull, LIGHT * GRAVITY), along[1]))
+        up = _unit((along[0], max(quad.GRAVITY + up_pull, LIGHT * quad.GRAVITY), along[1]))
         nose = (math.sin(self.heading), 0.0, math.cos(self.heading))
         dot = sum(n * u for n, u in zip(nose, up))
         ahead = _unit([n - dot * u for n, u in zip(nose, up)])
@@ -294,17 +312,17 @@ class Flying:
         nose_ = a['nose']
         asked = (rates[1] + rate * turn[1][0], nose_ * rate * turn[1][1],
                  rates[0] + rate * turn[1][2])
-        torque = [INERTIA[k] * (-kp * tilt[k] - kd * (float(spin[k]) - asked[k]))
+        torque = [quad.INERTIA[k] * (-kp * tilt[k] - kd * (float(spin[k]) - asked[k]))
                   for k, (kp, kd) in enumerate(((TILT_KP, TILT_KD), (nose_ * YAW_KP, YAW_KD),
                                                 (TILT_KP, TILT_KD)))]
-        torque[1] += nose_ * INERTIA[1] * (rate - self.swing) / dt * want[1][1]
+        torque[1] += nose_ * quad.INERTIA[1] * (rate - self.swing) / dt * want[1][1]
         self.swing = rate
         # what its discs give of the pull where they point; turned over, its weight - a whole
         # turn's push is none; under the idle, run down to it
-        wanted = MASS_KG * (along[0] * turn[0][1] + max(0.0, GRAVITY + up_pull) * turn[1][1]
-                            + along[1] * turn[2][1])
+        wanted = quad.MASS_KG * (along[0] * turn[0][1] + along[1] * turn[2][1]
+                                 + max(0.0, quad.GRAVITY + up_pull) * turn[1][1])
         if any(self.turns):
-            wanted = MASS_KG * GRAVITY
+            wanted = quad.MASS_KG * quad.GRAVITY
         elif wanted <= self.idle:
             down = RUNDOWN_S * math.sqrt(self.top / self.thrust) if self.thrust > self.idle else 0.0
             wanted = max(self.idle, self.thrust / (1.0 + dt / down) ** 2) if down else self.idle
@@ -320,9 +338,9 @@ class Flying:
         """The collective and `torque`, N m about the frame's axes, shared over the rotors - an
         X, its diagonals spun alike - none under nothing nor over its top: the tilt's torque
         kept, the collective next, the heading's what they leave."""
-        reach, cap = 4.0 * ARM_M * ARM_M, self.top / 4.0
-        parts = [-torque[0] * z / reach + torque[2] * x / reach for x, z in ROTOR_AT]
+        reach, cap = 4.0 * quad.ARM_M * quad.ARM_M, self.top / 4.0
+        parts = [-torque[0] * z / reach + torque[2] * x / reach for x, z in quad.ROTOR_AT]
         each = max(-min(parts), min(self.thrust / 4.0, cap - max(parts)))
         room = max(0.0, min(min(each + part, cap - each - part) for part in parts))
-        yaw = max(-room, min(room, torque[1] * K_THRUST / (4.0 * K_DRAG)))
-        return [max(0.0, min(cap, each + part + yaw * s)) for part, s in zip(parts, SPIN)]
+        yaw = max(-room, min(room, torque[1] * quad.K_THRUST / (4.0 * quad.K_DRAG)))
+        return [max(0.0, min(cap, each + part + yaw * s)) for part, s in zip(parts, quad.SPIN)]

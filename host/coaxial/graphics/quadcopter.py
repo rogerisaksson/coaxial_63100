@@ -25,7 +25,7 @@ SIGHT, REACH = 3.75, 0.8
 #: 63 mm by 100 mm) and its board under it, a skid's leg, a propeller's blade, a hub.
 PLATE_R, PLATE_H = 0.1, 0.03
 ARM_R, CAN_R, CAN_L, BOARD_R, BOARD_H = 0.012, 0.0315, 0.1, 0.034, 0.005
-LEG_R, FOOT_R, BLADE_W, HUB_R = 0.008, 0.015, 0.022, 0.014
+LEG_R, BLADE_W, HUB_R = 0.008, 0.022, 0.014
 
 #: Their colours: carbon, the boards' solder mask, the propellers.
 CARBON, MASK, PROP = (70, 74, 84), (30, 110, 64), (205, 205, 200)
@@ -73,7 +73,7 @@ def parts():
                 ('leg%d' % k, _at(shapes.drum(LEG_R, quad.SKID_M, 'y', carbon), None,
                                   (0.7 * x, -quad.SKID_M / 2.0, 0.7 * z))),
                 ('foot%d' % k, shapes.ellipsoid((0.7 * x, -quad.SKID_M, 0.7 * z),
-                                                (FOOT_R, FOOT_R, FOOT_R), PLATE, rows=6))]
+                                                (quad.FOOT_M,) * 3, PLATE, rows=6))]
     return out
 
 
