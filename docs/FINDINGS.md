@@ -211,6 +211,15 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   74 housed, 53 on a fan's sink, 37 on a plate, 76 in PAO, 80 in oil. A
   record load or defaults lays the observer's network anew; it ran the old
   one till a boot.
+- A world mounts its board (2026-10-09): its JSON names its link and its
+  application, laid on the plant's heat and told the board as the rig opens it
+  (board/emu/worlds/dyno.json, 63 V on a fan's sink). The rotor observer's
+  demo there: in still air at 63 V its switches sat at their ceiling, the
+  clamp throttled to nothing, in five segments of seven; on the sink at 50 A
+  0.24-0.60 of their span, never throttled; at 90 A the observer's crossover
+  rose to 129 rad/s, over DYNO's spool on the 10 A under it; at 70 A 0.91 in
+  SPIN, 0.81 in DYNO (the board 0.94), throttled to 0.57 - the stand-in 0.93
+  and 0.95, to 0.42.
 - The envelope must step and evaluate per 100 ms slice: a 1 s step let the
   driver node reach 178 C before the clamp saw it. Catch-up capped 2 s.
 - A rail another had just raised was read without the settle a borrow gets,

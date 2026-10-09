@@ -13,14 +13,20 @@ typedef struct
   thermal_t th;
   thermal_loss_t loss;
   thermal_power_t power;
+  thermal_app_t app;            /**< what the board is mounted in */
+  float air, capacity;          /**< the room's scales on that */
 } world_heat_t;
 
 /** The board at `ambient`, C, every node there: thermal.c's defaults and loss table. */
 void world_heat_init(world_heat_t *h, float ambient);
 
 /** The board's room: `ambient`, C, and its air path and laminate capacity scaled as a
-    situation lays them on - thermal_ident's rule, the one the observer finds them by. */
+    situation lays them on - thermal_ident's rule, the one the observer finds them by - on the
+    network its application has. */
 void world_heat_room(world_heat_t *h, float ambient, float air, float capacity);
+
+/** What the board is mounted in (thermal_application): its room laid again on that. */
+void world_heat_application(world_heat_t *h, thermal_app_t app);
 
 /** `dt` s on `load`; what the three thermometers read into `seen`: the NTC's element, each die
     its node plus its watts through R_th,JC. */

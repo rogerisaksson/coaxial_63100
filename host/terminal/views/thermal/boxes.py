@@ -130,10 +130,10 @@ IDENT_NOISE_K = 0.1
 
 def envelope_rows(ident):
     """HEADROOM's rows for the identification: the margin the envelope keeps
-    of every span now, the floor it rose from, the innovation that moves
-    it, and which term holds the margin down - the innovation, or the air
-    path's, the capacity's or the room's sigma - `none` when the span is
-    earned.
+    of every span now, the floor it rose from, what the board is mounted in,
+    the innovation that moves it, and which term holds the margin down - the
+    innovation, or the air path's, the capacity's or the room's sigma -
+    `none` when the span is earned.
     """
 
     if not ident:
@@ -143,6 +143,8 @@ def envelope_rows(ident):
                                    '  the trip cap' if held else ''))]
     if ident.get('margin_floor') is not None:
         rows.append(('floor', '%.2f' % ident['margin_floor']))
+    if ident.get('application'):
+        rows.append(('mounted', ident['application'].replace('_', ' ')))
     rows.append(('innovation', '%.2f K' % ident.get('innovation_k', 0.0)))
     sigma = ident.get('sigma') or {}
     if sigma and ident.get('ambient_sigma') is not None:

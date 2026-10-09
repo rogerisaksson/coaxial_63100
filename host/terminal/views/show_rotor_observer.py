@@ -56,6 +56,7 @@ from terminal.ui.screen import PORT, FPS_CAP, Feed, closing, mode_of, open_rig, 
 from terminal.ui.stage import frame_of, hud, stage
 from terminal.ui.stage import mode_of as port_mode
 from terminal.views.rotor.keys import LIMITS, MODES, RATING_A, act
+from tools.emu import world as worlds
 from terminal.views.rotor.layout import (BOARD_NODES, BOX, CAPTION_ROWS,
                                          HEADROOM_GAP, LEFT_COLUMNS, NTC_GAP, RIGHT_COLUMNS,
                                          SOA_NODES, fit)
@@ -65,7 +66,7 @@ from terminal.views.rotor.motions import turn_the_handle
 from terminal.views.rotor.rows import (chain_rows, drive_rows, loop_rows,
                                        observer_rows, phase_amps, phase_rows, pointer_rate,
                                        status_rows, travel)
-from terminal.views.rotor.thermal import (headrooms, ntc_bar, policy_margin,
+from terminal.views.rotor.thermal import (headrooms, held, ntc_bar, policy_margin,
                                           soa_bars, thermal_rows, watts_bar, winding)
 
 _screen.CHATTER = False     # the boot bar replaced the scroll
@@ -178,9 +179,9 @@ def compose(rig, origin, console, view):
                          + foot_furniture()[0],
                          rules=foot_furniture()[1],
                          top=None,
-                         bottom=[(temp_share(winding(view)),
-                                  cross_section.SOA_WARN),
-                                 watts_bar(view)],
+                         bottom=held(view, [(temp_share(winding(view)),
+                                             cross_section.SOA_WARN),
+                                            watts_bar(view)]),
                          colour=True)
     art = '\n'.join(caption + [art] + foot)
     panels = [('STATUS', status_rows(view)),
@@ -264,7 +265,7 @@ def parse_args(argv):
                    help="the demo from this segment on: SPIN, SERVO, STEPPER, FIXED WING, ...")
     for name, default in (('iq', 0.0), ('id', 0.0), ('omega', 300.0),
                           ('accel', 1500.0), ('v_inj', 1.0), ('vd', 0.5),
-                          ('vdc', 24.0)):
+                          ('vdc', 63.0)):
         p.add_argument('--' + name.replace('_', '-'), type=float, default=default)
     p.add_argument('--inj-periods', type=int, default=None)
     for name in ('kp', 'ki', 'l1', 'l2', 'i_max', 'i_trip', 'w_lo', 'w_hi',
@@ -334,11 +335,14 @@ DEMO_IQ = 0.06
 
 DEMO_STEP = 0.01
 
-#: A clamp the load can reach: at the record's 5 A the legs took 0.4 W
-#: against 1.8 W of housekeeping; 50 A puts ~40 W in them.
-DEMO_I_MAX = 50.0
+#: A clamp the load can reach, and the trip at the board's rating: at the record's 5 A the
+#: legs took 0.4 W against 1.8 W of housekeeping; on the dyno's sink at 63 V, 50 A left the
+#: switches at 0.60 of their span at the most, never throttled. The observer's crossover goes
+#: with the clamp: at 90 A it handed over at 129 rad/s, over DYNO's spool on the 10 A under
+#: it, 118 (2026-10-09).
+DEMO_I_MAX = 70.0
 
-DEMO_I_TRIP = 70.0
+DEMO_I_TRIP = 100.0
 
 #: The iq step on a board, and on the stand-in's ADC source.
 BOARD_STEP = 0.1
@@ -371,18 +375,25 @@ def demo_defaults(args, origin):
     return DEMO_STEP
 
 
+#: Where the page runs on `native://`: its dyno, the pack's 63 V on a fan's sink
+#: (board/emu/worlds/dyno.json); `--vdc` the stand-in's.
+DYNO = 'native://?world=dyno'
+
+
 def _link(args):
     """(rig, params, was_on, step) with the front end where the source needs it;
     None when the board would not open."""
-    rig = open_rig('LINKING ROTOR OBSERVER', port=args.port,
+    rig = open_rig('LINKING ROTOR OBSERVER', port=DYNO if args.port == 'native://' else args.port,
                    power_afe=False,
                    execution_mode=mode_of(args))
     if rig is None:
         return None
     origin, board = rig.origin, rig.board
     if not origin.real:
-        # The stand-in tours its rooms as the identification earns them: TH OBS
-        # walks UNCR, CONV, STABLE on the foot (bench 2026-09-06).
+        # The stand-in on the dyno's sink as an emulated board's world has it, and touring its
+        # rooms as the identification earns them: TH OBS walks UNCR, CONV, STABLE on the foot
+        # (bench 2026-09-06).
+        rig.thermal.configure(application=worlds.mounted(worlds.load('dyno')))
         rig.thermal.situation('tour')
     if args.source is None:
         # An emulated board's plant is its motor (board/emu/worlds/bench.json, the demo's

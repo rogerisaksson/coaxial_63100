@@ -283,8 +283,8 @@ def span(width, height, n_left=0, n_right=0, rows=None):
 
 
 def _gauge(dots, owner, width, height, row, share, cls,
-           n_left=0, n_right=0, part=None):
-    """One horizontal level across the motor's width, from the left."""
+           n_left=0, n_right=0, part=None, peak=None):
+    """One horizontal level across the motor's width, from the left; a held `peak` its tick."""
     if row < 0 or row >= height:
         return
     first, last = span(width, height, n_left, n_right)
@@ -297,6 +297,8 @@ def _gauge(dots, owner, width, height, row, share, cls,
     lo, hi = max(0, first) * DOTS_X, min(width - 1, last) * DOTS_X + DOTS_X
     filled = int(max(0.0, min(1.0, share)) * (hi - lo) + 0.5)
     _level(dots, owner, row, lo, hi, lo, lo + filled, cls)
+    if peak is not None:
+        _mark(dots, owner, row, lo + int(max(0.0, min(1.0, peak)) * (hi - lo - 1) + 0.5), MARK)
 
 
 def _level(dots, owner, row, lo, hi, start, end, cls):
@@ -321,9 +323,7 @@ def _level(dots, owner, row, lo, hi, start, end, cls):
 
 
 def _mark(dots, owner, row, x, cls, ys=GAUGE_Y):
-    """A tick at dot column `x`, on dot rows `ys` - a level's height for a
-    burst's extreme, the top dot alone for a held peak.
-    """
+    """A tick at dot column `x`, on dot rows `ys`."""
     col = x // DOTS_X
     if 0 <= row < len(dots) and 0 <= col < len(dots[row]):
         for y in ys:
@@ -724,7 +724,8 @@ def _instruments(frame, seat, left, right, top, bottom):
     for index, gauge in enumerate(floor):
         _gauge(frame.dots, frame.owner, frame.width, frame.height,
                frame.height - FLOOR_INSET - len(floor) + index,
-               gauge[0], gauge[1], len(left or ()), len(right or ()))
+               gauge[0], gauge[1], len(left or ()), len(right or ()),
+               peak=gauge[2] if len(gauge) > 2 else None)
 
 
 def motor(rotor_deg, slots=24, poles=28, width=40, height=22, drive=None,

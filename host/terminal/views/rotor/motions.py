@@ -5,12 +5,10 @@ from machine.parts import SpeedPI
 from motor.pmsm import RAD_S_PER_RPM
 
 
-#: The heavy start (B, and every BURST_EVERY_S on the stand-in): 43 A for
-#: 1 s, bounded by heat, not the clamp. Measured on the stand-in 2026-09-06:
-#: 0.57 of the span on a cold board at the 80 % floor, 0.82 warm and stable;
-#: 1.4-1.8 s reached no higher (0.68, 0.71). 38 A into a 40 A clamp reached
-#: 0.70, so the clamp went to 50.
-BURST_A = 43.0
+#: The heavy start (B, and every BURST_EVERY_S on the stand-in): 80 A for 1 s, bounded by
+#: heat, not the clamp - on 24 V in still air 43 A took the switches to 0.82 of their span
+#: warm (2026-09-06).
+BURST_A = 80.0
 
 BURST_S = 1.0
 
@@ -128,9 +126,9 @@ def load_loop(rig, view):
         rig.board.drive.write(id_ref=view['load_amps'])
 
 
-#: The load stage's torque as the q amps it takes: the board's continuous rating, 19.1 A
-#: against a 105 C laminate and 22.0 A against a 125 C junction (FINDINGS, 2026-09-05).
-LOAD_A = 20.0
+#: The load stage's torque as the q amps it takes: 20 A, still air's continuous, left the
+#: dyno's switches at 0.57 of their span on its sink at 63 V (2026-10-09).
+LOAD_A = 40.0
 
 #: A joint's load held on the vector, q amps - gravity at the end of a limb, the rotor a few
 #: degrees off its angle under HOLD_A - and a servo's as it moves, its mass and friction: some
@@ -195,8 +193,8 @@ STEP_EASE = 0.3
 STEP_A = 12.0
 
 #: A propeller on the shaft through the loaded stages, torque k w|w|: this at the cycle's top,
-#: 3 300 rpm. At the 24.8 V link vq tops out at vdc/sqrt 3 = 14.3 V, so a kilowatt is ~48 A at
-#: the ceiling; 0.8 left the scenarios light (bench, 2026-09-28).
+#: 3 300 rpm. At 2.0 the 10 A under SEND_FROM spooled DYNO's rotor to 97 rad/s and no further,
+#: its clamp never opened (2026-10-09); 0.8 left the scenarios light at 24 V (2026-09-28).
 PROP_KW = 1.2
 
 #: A ramp takes this share of its stage, and the speed holds for the rest.

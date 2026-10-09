@@ -63,6 +63,22 @@ def gauge(share, cells, cls=SOA_OK, centre=None, marks=(), colour=True):
 #: reads apart from a burst extreme's full-height tick beside it.
 PEAK = (0,)
 
+#: A held peak (`peak`) stands PEAK_HOLD_S at the most its level reached, then falls back to
+#: it ever faster, PEAK_FALL of the scale a second squared: from the top in a second.
+PEAK_HOLD_S, PEAK_FALL = 0.8, 2.0
+
+
+def peak(state, share, dt):
+    """A held peak `dt` s on, `(where, s held, falling a second)` from `state`, None at first:
+    up with `share` at once, held PEAK_HOLD_S, then falling to it ever faster."""
+    at, held, falling = state or (share, 0.0, 0.0)
+    if share >= at:
+        return share, 0.0, 0.0
+    if held < PEAK_HOLD_S:
+        return at, held + dt, 0.0
+    falling += PEAK_FALL * dt
+    return max(share, at - falling * dt), held + dt, falling
+
 def bar(share, cells, cls=SOA_OK, tip=MARK, colour=True):
     """One row, `cells` wide: a solid level - every dot of every cell to the
     level, `⣿⣿⣿` in `cls` - ending in a column of `tip`'s ink, `⡇` or `⢸`

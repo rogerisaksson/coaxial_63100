@@ -27,14 +27,16 @@ PLANT = 'sysbus.gpioPortE.plant'
 STO = 'sysbus.gpioPortA.sto'
 #: Where the front end hangs: AFE_ON, PB2.
 AFE = 'sysbus.gpioPortB.afe'
-#: The link a board without a world sits on, V: the stand-in's. A world's plant sets its own.
+#: The link a board without a world sits on, V: the stand-in's. A world names its own (`link`),
+#: its motors' else.
 LINK_VOLTS = DCBUS_V
 
 SOURCES = [os.path.join(REPO, 'world', 'src', name)
            for name in ('world.c', 'world_emu.c', 'world_heat.c', 'world_sto.c')] + [
     os.path.join(REPO, 'drive', 'src', name)
     for name in ('drive.c', 'drive_math.c', 'drive_model.c', 'drive_observer.c')] + [
-    os.path.join(REPO, 'thermal', 'src', name) for name in ('thermal.c', 'thermal_ident.c')]
+    os.path.join(REPO, 'thermal', 'src', name)
+    for name in ('thermal.c', 'thermal_ident.c', 'thermal_app.c')]
 INCLUDES = [os.path.join(REPO, part) for part in ('world/inc', 'drive/inc', 'thermal/inc')]
 
 #: world.h's enums by the names the files use.
@@ -126,10 +128,20 @@ def _values(given, table):
     return out
 
 
-def _motor(name):
+def _motor(name, link=None):
+    """A motor's MOTOR values off its profile, on `link` V where the world names one."""
     with open(os.path.join(PROFILES, name + '.json'), encoding='utf-8') as f:
-        model = json.load(f)['model']
+        model = dict(json.load(f)['model'])
+    if link is not None:
+        model['vdc'] = link
     return [float(model[key]) for key in MOTOR]
+
+
+def mounted(world):
+    """What a world has its boards mounted in (`thermal_app.APPLICATIONS`), still air unless
+    it names one."""
+    from coaxial.model.thermal_app import STILL
+    return (world or {}).get('application', STILL)
 
 
 def commands(world, node, lib, first):
@@ -148,5 +160,11 @@ def commands(world, node, lib, first):
     out += ['%s Node %d' % (PLANT, node),
             '%s Load %d %s' % (PLANT, LOADS[load_.get('kind', 'free')],
                                ' '.join(_decimal(v) for v in _values(load_, LOAD))),
-            '%s Motor %s' % (PLANT, ' '.join(_decimal(v) for v in _motor(nodes[node]['motor'])))]
+            '%s Motor %s' % (PLANT, ' '.join(_decimal(v) for v in _motor(
+                nodes[node]['motor'], world.get('link'))))]
+    if 'link' in world:
+        out.append('%s DcBusVolts %s' % (AFE, _decimal(world['link'])))
+    if 'application' in world:
+        from coaxial.model.thermal_app import APPLICATIONS
+        out.append('%s Application %d' % (PLANT, APPLICATIONS.index(world['application'])))
     return out

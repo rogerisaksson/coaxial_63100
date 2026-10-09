@@ -105,6 +105,7 @@ namespace Antmicro.Renode.Peripherals.Analog
             heatReset = Export<HeatReset>("emu_heat_reset");
             heatStep = Export<HeatStep>("emu_heat_step");
             heatRoom = Export<HeatRoom>("emu_heat_room");
+            heatApplication = Export<HeatApplication>("emu_heat_application");
             worldDrag = Export<WorldDrag>("emu_world_drag");
         }
 
@@ -163,6 +164,10 @@ namespace Antmicro.Renode.Peripherals.Analog
         public double Air { get => air; set { air = value; roomLaid = false; } }
 
         public double Capacity { get => capacity; set { capacity = value; roomLaid = false; } }
+
+        /// <summary>What the board is mounted in, thermal_app_t: its heat's network so, laid at
+        /// the next heat step.</summary>
+        public int Application { get => application; set { application = value; roomLaid = false; } }
 
         /// <summary>The load's drag, N m per (rad/s)^2, and a torque against its turning, N m -
         /// a page's propeller and its stage - laid live on the world.</summary>
@@ -383,6 +388,7 @@ namespace Antmicro.Renode.Peripherals.Analog
             }
             if(!roomLaid)
             {
+                heatApplication(Node, application);
                 heatRoom(Node, (float)ambient, (float)air, (float)capacity);
                 roomLaid = true;
             }
@@ -429,6 +435,8 @@ namespace Antmicro.Renode.Peripherals.Analog
         private delegate void HeatRoom(int i, float ambient, float air, float capacity);
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         private delegate void WorldDrag(int i, float kDrag, float torque);
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        private delegate void HeatApplication(int i, int app);
 
         private static IntPtr native;
         private static WorldReset worldReset;
@@ -441,6 +449,7 @@ namespace Antmicro.Renode.Peripherals.Analog
         private static HeatReset heatReset;
         private static HeatStep heatStep;
         private static HeatRoom heatRoom;
+        private static HeatApplication heatApplication;
         private static WorldDrag worldDrag;
 
         private readonly IMachine machine;
@@ -457,6 +466,7 @@ namespace Antmicro.Renode.Peripherals.Analog
         private double ambient = 25.0;
         private double air = 1.0;
         private double capacity = 1.0;
+        private int application;
         private bool roomLaid = true;
         private double drag;
         private double loadTorque;

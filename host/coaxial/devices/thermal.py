@@ -273,7 +273,12 @@ class Thermal(Device, ThermalControl, device=protocol.DEVICE_THERMAL):
         return self._ack(ThermalOp.SET_MARGIN, pack(('i32', micro(floor))))
 
     def _set_application(self, name):
-        return self._ack(ThermalOp.APPLICATION, pack(('u8', application(name))))
+        """Op 15; an emulated board's world laid so as well, as the stand-in lays its truth."""
+        took = self._ack(ThermalOp.APPLICATION, pack(('u8', application(name))))
+        mount = getattr(getattr(self.board.transport, 'serial', None), 'mount', None)
+        if mount is not None:
+            mount(application(name))
+        return took
 
     def airspeed(self, m_s, truth=None):
         """The frame's airspeed across the board, m/s, as the host knows it: its observer's

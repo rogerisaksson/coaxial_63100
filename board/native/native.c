@@ -7,9 +7,8 @@
    down-count converts the injected groups and runs ADC3's interrupt; a meter read converts
    its channel. The plant steps between edges on the compares in force. The front end is
    board/emu/Coaxial63100_AFE.cs's - the schematic's networks, LTspice's phase transfer, the
-   board's spread from its seed, the converter's noise - and the heat
-   Coaxial63100_Plant.cs's; the A1335 reads the plant's shaft, the BNO085 ticks each
-   millisecond (native_a1335.c, native_bno085.c, their pins and buses native_io.c's). The
+   board's spread, the converter's noise - and the heat Coaxial63100_Plant.cs's; the A1335 reads the plant's shaft, the BNO085 ticks each
+   millisecond (native_a1335.c, native_bno085.c, native_io.c). The
    rest of the board API is the fake board's, weak there. A read of the cycle counter or the
    tick moves the clock, so a spin ends, and runs the interrupts due unless PRIMASK holds
    them. Driven by tools/cores/native.py. */
@@ -897,6 +896,12 @@ void native_room(double ambient, double air, double capacity)
   world_heat_room(&n.heat, (float)ambient, (float)air, (float)capacity);
 }
 
+/** This board's heat mounted in `app`, thermal_app_t. */
+void native_application(int app)
+{
+  world_heat_application(&n.heat, (thermal_app_t)app);
+}
+
 void native_haste(double haste)
 {
   n.haste = (haste > 0.0) ? (float)haste : 1.0f;
@@ -1035,9 +1040,8 @@ void native_run_to(uint64_t us)
 }
 
 /** A limb's boards - each its own copy of this library, `run_to` their native_run_to - on
-    from `from` to `to` us together, `step` us at a time: one call from the host, which lets its
-    interpreter go for all of it. A call a step, the page drawing beside it, held a board to
-    21 % of real time and its reads for seconds (2026-09-28). */
+    from `from` to `to` us together, `step` us at a time: one call from the host, its
+    interpreter let go. A call a step held a board to 21 % of real time (2026-09-28). */
 void native_lockstep(void (*const *run_to)(uint64_t), int boards, uint64_t from, uint64_t to,
                      uint64_t step)
 {

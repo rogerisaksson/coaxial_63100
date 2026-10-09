@@ -6,7 +6,7 @@ from rich.text import Text
 
 from coaxial.devices.thermal import THROTTLE_AT
 from coaxial.draw import cross_section
-from coaxial.draw.gauges import (margin_class as soa_class, policy_word, temp_share,
+from coaxial.draw.gauges import (margin_class as soa_class, peak, policy_word, temp_share,
                                  thermometer_class as ntc_class)
 from coaxial.model import thermal as _thermal
 from motor import pmsm
@@ -79,6 +79,19 @@ def watts(view):
     """What the stage is putting into the motor, electrical, watts."""
     s = view['state']
     return 1.5 * (s['vd'] * s['id'] + s['vq'] * s['iq'])
+
+
+def held(view, gauges):
+    """The foot's gauges `(share, class)` as `(share, class, held peak)`, each peak a frame on
+    (`gauges.peak`)."""
+    now = time.monotonic()
+    dt, view['held_at'] = now - view.get('held_at', now), now
+    peaks = view.setdefault('peaks', {})
+    out = []
+    for k, (share, cls) in enumerate(gauges):
+        peaks[k] = peak(peaks.get(k), share, dt)
+        out.append((share, cls, peaks[k][0]))
+    return out
 
 
 def watts_bar(view):

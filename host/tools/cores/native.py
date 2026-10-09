@@ -29,6 +29,7 @@ import urllib.parse
 import serial
 from serial.serialutil import SerialBase
 
+from coaxial.model.thermal_app import APPLICATIONS
 from coaxial.simulated.sto import PILOT_HZ
 from tools import REPO
 from tools.cores import fakeboard
@@ -150,7 +151,8 @@ class World:
             load = spec.get('load', {})
             lib.emu_world_load(node, worlds.LOADS[load.get('kind', 'free')],
                                *[ctypes.c_float(v) for v in worlds._values(load, worlds.LOAD)])
-            lib.emu_plant_attach(node, *[ctypes.c_float(v) for v in worlds._motor(spec['motor'])])
+            lib.emu_plant_attach(node, *[ctypes.c_float(v) for v in worlds._motor(
+                spec['motor'], self.spec.get('link'))])
         self.step = ctypes.cast(lib.emu_plant_step, ctypes.c_void_p).value
         self.shaft = ctypes.cast(lib.emu_plant_state, ctypes.c_void_p).value
 
@@ -187,7 +189,9 @@ class Board:
             lib.native_hand(unit, *hand)
         lib.native_open()
         lib.native_afe(*afe_values(), SEED | unit)
-        lib.native_link(worlds.LINK_VOLTS)
+        lib.native_link((world.spec if world else {}).get('link', worlds.LINK_VOLTS))
+        if world is not None:
+            lib.native_application(APPLICATIONS.index(worlds.mounted(world.spec)))
         if world is not None and node < len(world.spec['nodes']):
             lib.native_world(world.step, world.shaft, node, world.pole_pairs(node))
         self.unit = unit
@@ -229,6 +233,7 @@ class Limb:
     def __init__(self, nodes, world=None):
         self.console = not nodes
         self.world = World(world) if world else None
+        self.mounting = worlds.mounted(self.world.spec if self.world else None)
         self.boards = [Board(unit, self.world, unit - 1,
                              None if self.console else (unit, TERMINATE if unit == nodes else 0))
                        for unit in range(1, max(1, nodes) + 1)]
@@ -260,6 +265,17 @@ class Limb:
         with self.lock:
             for board in self.boards:
                 board.lib.native_room(ambient, air, capacity)
+
+    def mount(self, app):
+        """Every board's world's heat mounted in `app`, thermal_app_t's number."""
+        with self.lock:
+            for board in self.boards:
+                board.lib.native_application(app)
+        self.mounting = APPLICATIONS[app]
+
+    def mounted(self):
+        """What the limb's world has its boards mounted in now."""
+        return self.mounting
 
     def drag(self, k_drag, torque, unit=1):
         """The unit's load in its world laid live: its drag, N m per (rad/s)^2, and a torque
@@ -376,6 +392,7 @@ class Serial(SerialBase):
             raise serial.SerialException(str(exc)) from exc
         self.heat_clock = self._limb.heat_clock
         self.room = self._limb.room
+        self.mount, self.mounted = self._limb.mount, self._limb.mounted()
         self.drag = self._limb.drag
         self.pilot = self._limb.pilot
         #: The units a scan probes, and whether the port is a board's console.

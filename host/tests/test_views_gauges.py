@@ -370,11 +370,36 @@ def test_every_frame_corner_on_the_map_is_a_right_angle(report):
                  drawn([1, 0]) == ['\u28b0', '\u2846', '\u2838', '\u2807'])
 
 
+def test_a_held_peak_falls_ever_faster(report):
+    """gauges.peak: up with its level at once, held PEAK_HOLD_S, then back to the level ever
+    faster and no further; a floor gauge draws it, a tick in the mark's ink past its level."""
+    from coaxial.draw import cross_section, gauges
+    state, dt, trace = None, 0.05, []
+    for k in range(80):
+        state = gauges.peak(state, 0.9 if k < 4 else 0.2, dt)
+        trace.append(state[0])
+    held = trace[3:4 + int(gauges.PEAK_HOLD_S / dt)]
+    falls = [a - b for a, b in zip(trace, trace[1:]) if a - b > 1e-12][:-1]
+    report.check('up at once, held %.1f s, then falling ever faster to its level and no further'
+                 % gauges.PEAK_HOLD_S,
+                 all(abs(x - 0.9) < 1e-12 for x in held) and len(falls) >= 3
+                 and all(b > a for a, b in zip(falls, falls[1:])) and min(trace) >= 0.2 - 1e-12
+                 and abs(trace[-1] - 0.2) < 1e-12,
+                 'held %.2f for %d frames, falls %s' % (
+                     held[-1], len(held), ' '.join('%.3f' % f for f in falls[:5])))
+    bare = cross_section.render(0.0, bottom=[(0.3, cross_section.WATTS)]).splitlines()[-1]
+    peaked = cross_section.render(0.0, bottom=[(0.3, cross_section.WATTS, 0.8)]).splitlines()[-1]
+    moved = [k for k, (a, b) in enumerate(zip(bare, peaked)) if a != b]
+    report.check('a floor gauge draws its held peak: one tick past its level',
+                 len(moved) == 1 and moved[0] > 0.5 * len(bare),
+                 'cells %s of %d changed' % (moved, len(bare)))
+
+
 ROSTER = (test_the_soa_legend_reads_the_whole_soa, test_every_gauge_shows_its_own_scale,
           test_the_dial_is_round_on_this_terminal, test_the_sweep_decays_behind_the_needle,
           test_the_face_wears_its_two_scales,
           test_the_power_face_has_its_middle_at_half_a_kilowatt,
-          test_every_frame_corner_on_the_map_is_a_right_angle)
+          test_every_frame_corner_on_the_map_is_a_right_angle, test_a_held_peak_falls_ever_faster)
 
 def main(argv=None):
     """Every test, or those the command line's words name, or its --shard k/n (tools.dev.focus)."""

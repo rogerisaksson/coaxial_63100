@@ -312,10 +312,12 @@ def thermal_ident(ident):
     cap = ident.get('trip_cap')
     held = (cap is not None and cap < 1.0
             and abs(ident.get('margin', 1.0) - cap) < 1e-6)
-    lines = ['ident: %s   margin %.2f of every span%s%s'
+    lines = ['ident: %s   margin %.2f of every span%s%s%s'
              % (ident.get('state', '?'), ident.get('margin', 1.0),
                 ', floor %.2f' % floor if floor is not None else '',
-                ' - the trip cap, recovering' if held else '')]
+                ' - the trip cap, recovering' if held else '',
+                ', mounted %s' % ident['application'].replace('_', ' ')
+                if ident.get('application') else '')]
     scales, sigma = ident.get('scales') or {}, ident.get('sigma') or {}
     online = [name for name in (ident.get('online') or []) if name in scales]
     if online:

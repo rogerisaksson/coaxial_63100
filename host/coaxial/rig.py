@@ -227,9 +227,14 @@ class Coaxial63100(Task, TaskStream, Acquisition):
         # MCU's node a kelvin ahead of the observer by the open (findings/emulation.md,
         # 2026-09-26).
         board.thermal.configure(clock=thermal.HASTE)
-        heat = getattr(getattr(board.transport, 'serial', None), 'heat_clock', None)
+        serial = getattr(board.transport, 'serial', None)
+        heat = getattr(serial, 'heat_clock', None)
         if heat is not None:
             heat(thermal.HASTE)
+        # What its world has it mounted in, its record told so.
+        mounted = getattr(serial, 'mounted', None)
+        if mounted:
+            board.thermal.configure(application=mounted)
         cal = board.calibration.read()
         told = cal['params']['shunt_uohm'] * cal['params']['amp_gain_ppm'] * 1e-12
         ppm = int(round((told / afe_values()[0] - 1.0) * 1e6))

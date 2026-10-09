@@ -1,0 +1,19 @@
+{
+  "name": "dyno",
+  "note": "The rotor observer's dyno: the bench's motor on the demo's flywheel (bench.json's), on the pack's 63 V, its board on a fan's finned sink (thermal_app.c's fan_sink): at 63 V in still air the demo's switches sat at their ceiling, the clamp throttled to nothing, in five of its seven segments (2026-10-09).",
+  "link": 63.0,
+  "application": "fan_sink",
+  "body": {
+    "kind": "ground"
+  },
+  "nodes": [
+    {
+      "name": "rotor",
+      "motor": "outrunner_14p",
+      "load": {
+        "kind": "rotor",
+        "inertia": 0.008
+      }
+    }
+  ]
+}

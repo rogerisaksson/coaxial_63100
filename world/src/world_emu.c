@@ -176,6 +176,16 @@ void emu_heat_room(int i, float ambient, float air, float capacity)
   world_heat_room(&s.heat[i], ambient, air, capacity);
 }
 
+/** Board `i`'s heat mounted in `app`, thermal_app_t (world_heat_application). */
+void emu_heat_application(int i, int app)
+{
+  if ((i < 0) || (i >= (int)WORLD_MOTORS))
+  {
+    return;
+  }
+  world_heat_application(&s.heat[i], (thermal_app_t)app);
+}
+
 /** Board `i`'s heat on `dt` s. in: AFE_ON, MOE, the three duties, the legs' mean squares (A^2),
     the link (V), the shaft (rpm); out: the NTC's element, the MCU's die, the A1335's die (C). */
 void emu_heat_step(int i, float dt, const float *in, float *out)

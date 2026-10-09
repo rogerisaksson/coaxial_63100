@@ -82,10 +82,8 @@ IDLE_MIPS = 50
 
 #: How far a limb's boards run apart before they wait for each other, s: 8 idle boards run
 #: 390 M instructions a wall second in all at 500 us, 387 M at 100 us, 367 M at 1 ms (MPU off,
-#: 2026-09-25). The bus's bytes cross at
-#: these boundaries, so it stays under RTU's t1.5 of 750 us inside a frame: 1 ms broke every
-#: frame longer than a quantum's bytes. One board's too: Renode's 100 us cost it 0.13 wall s
-#: a virtual s idle (2026-09-27).
+#: 2026-09-25). The bus's bytes cross at these boundaries, under RTU's t1.5 of 750 us: 1 ms
+#: broke every frame longer than a quantum's bytes (2026-09-27).
 QUANTUM = '0.0005'
 
 #: main()'s time between the handlers while an ADC waits on TRGO2, us, the rest skipped
@@ -273,6 +271,13 @@ class Emulator:
         """Every plant's world in a room (coaxial.model.rooms): ambient, C, air path and
         capacity scaled."""
         self._set(worlds.PLANT, Ambient=ambient, Air=air, Capacity=capacity)
+
+    def mount(self, app):
+        """Every plant's heat mounted in `app`, thermal_app_t's."""
+        self._set(worlds.PLANT, Application=app)
+
+    def mounted(self):
+        return worlds.mounted(self.world)
 
     def drag(self, k_drag, torque):
         """Every plant's load laid live (native.Limb.drag): drag, N m per (rad/s)^2, torque."""
