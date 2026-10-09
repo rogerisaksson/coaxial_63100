@@ -236,15 +236,20 @@ class Sky:
     def ahead(self, seconds, looks=3):
         """(what the frame would strike, the seconds to it) as it goes - its speed and what
         that changes by kept, its discs and hub with NEAR_M to spare - within `seconds`, or
-        None: its ghost put where it will be, `looks` times on the way."""
+        None: its ghost put where it will be, `looks` times on the way. What it is that near
+        already is not ahead: on the floor it lifts from and lands on, WEP was 5 s a flight
+        (2026-10-09)."""
         d, ghost = self.data, self._ghost
+        ghost.qpos[:] = d.qpos
+        self._mj.mj_fwdPosition(self._seen, ghost)
+        near = self._struck(ghost, NEAR_M)
         for k in range(1, looks + 1):
             t = seconds * k / looks
             ghost.qpos[:] = d.qpos
             ghost.qpos[0:3] += d.qvel[0:3] * t + 0.5 * d.qacc[0:3] * t * t
             self._mj.mj_fwdPosition(self._seen, ghost)
             thing = self._struck(ghost, NEAR_M)
-            if thing:
+            if thing and thing != near:
                 return thing, t
         return None
 

@@ -26,8 +26,9 @@ CARD = aerobatics.CARD + course.CARD
 #: Each rotor's machine, its clamp and trip for a flight, A, and the can and propeller turning,
 #: kg m^2 and N m s (quad.json's propeller, the 63100's can). The hover takes 5.7 A; on a 50 A
 #: clamp the spools into full tilt and the burn put the switches at 0.95 of the envelope a
-#: second flight, throttled, and it burned into the floor at 7.8 m/s (2026-09-28).
-PROFILE, I_MAX, I_TRIP = 'outrunner_63100_14p', 30.0, 45.0
+#: second flight, throttled, and it burned into the floor at 7.8 m/s (2026-09-28). The drive's
+#: own clamp is WEP's, I_WEP: the speed loop holds the flight to I_MAX.
+PROFILE, I_MAX, I_TRIP, I_WEP = 'outrunner_63100_14p', 30.0, 45.0, 40.0
 ROTOR_J, ROTOR_B = 1.2e-4 + 8e-4, 8e-4
 
 #: The rotors' speed loop, Hz, and the top the flight is flown on, mechanical rad/s: a 24 V
@@ -37,6 +38,9 @@ ROTOR_J, ROTOR_B = 1.2e-4 + 8e-4, 8e-4
 #: four's thrust there, N.
 SPEED_HZ, TOP_RAD_S = 3.0, 310.0
 TOP_N = 4.0 * quad.K_THRUST * TOP_RAD_S * TOP_RAD_S
+#: WEP's: the pack's 63 V at the clamp, and the four's thrust there.
+TOP_WEP_RAD_S = 432.0
+TOP_WEP_N = 4.0 * quad.K_THRUST * TOP_WEP_RAD_S * TOP_WEP_RAD_S
 
 #: A rotor's speed is asked no faster than this, rad/s^2: half the clamp to turn the can and
 #: its propeller. Stepped, 14 rad/s more in a pass was the whole clamp, and the gate stage's
@@ -62,8 +66,9 @@ GO = ('CONVERGING', 'STABLE')
 #: throttle's own point, full tilt on a pack half spent stood at 0.90. Spent GONE_S, it comes
 #: down; at once, a burn's own spend took it off its burn (2026-10-05). At 0.08 under it the
 #: laps had 0.38 of the rotors' pull at the least, at 0.04 0.52 and a lap 1.5 s the shorter,
-#: the boards at 0.70-0.74 of their envelopes (2026-10-06).
-SPEND, UNDER, TAKEN_S, RECOVER_S, GONE_S = 0.3, 0.04, 0.5, 2.0, 2.0
+#: the boards at 0.70-0.74 of their envelopes (2026-10-06). That spend was 27 K of a 100 K
+#: span; a leg's is its FETs' junction's 150 since (2026-10-09): 0.2.
+SPEND, UNDER, TAKEN_S, RECOVER_S, GONE_S = 0.2, 0.04, 0.5, 2.0, 2.0
 
 #: A flight is begun on this share of the rotors' pull at the least. All of it is a board at
 #: 0.52 of its envelope or under, and an idle board is not cool: on the gate stage's dump at
@@ -80,10 +85,13 @@ SWAP_S = 3.0
 #: later (2026-10-06).
 STEP_S = 0.025
 
-#: War emergency power: a thing in the frame's way within RISK_S as it goes (`quad.Sky.ahead`)
-#: and the boards' envelopes leaving the law less pull than it asks to keep off it, the law
-#: has all of the rotors' pull for WEP_HOLD_S - the boards run to their own throttle's point,
-#: past the flight's - WEP_S of it a flight, given back on the floor.
+#: War emergency power, on an observer's word: the law asking more than it has, the frame's
+#: ghost flown RISK_S on as it goes strikes a thing (`quad.Sky.ahead`) - on the ghost's word
+#: alone, every dive at a gate and every way down to land took it, 2.3 s a flight
+#: (2026-10-09). For WEP_HOLD_S the law has all of it - no
+#: envelope's share, the boards' thermal derate held off (`thermal.wep`, the trip standing),
+#: I_WEP and TOP_WEP_RAD_S, its lean whatever its row's or, the floor ahead, what is left of
+#: the pull after what it asks up - WEP_S of it a flight, given back on the floor.
 RISK_S, WEP_HOLD_S, WEP_S = 0.5, 0.6, 5.0
 
 #: Struck, a flight is over: its stage this, its rotors stopped and the wreck left where it
@@ -116,7 +124,7 @@ def arm(rig):
     rig.gates.on()
     drive = board.drive
     drive.configure(profile=PROFILE)
-    drive.configure(drv_i_max=I_MAX, drv_i_trip=I_TRIP)
+    drive.configure(drv_i_max=I_WEP, drv_i_trip=I_TRIP)
     drive.model.configure(j=ROTOR_J, b=ROTOR_B, load=0.0, vdc=quad.open_volts(1.0))
     drive.configure(source='model')
     drive.on('sensorless')
@@ -194,7 +202,12 @@ def step(rotors, sky, route, flying, flight, clock, dt):
         name, flying.ask = aerobatics.fly(route, clock, [word for word, holds in (
             ('held', flying.held), ('spent', spent), ('fit', not flat and share >= FIT))
             if holds])
-        thrusts = flying.step(frame, dt, *emergency(flight, sky, flying, route, share, dt))
+        share, wep = emergency(flight, sky, flying, route, share, dt)
+        flying.top = TOP_WEP_N if wep else TOP_N
+        thrusts = flying.step(frame, dt, share, wep)
+        if flight['wep'].pop('fresh', False):
+            for rotor in rotors:
+                rotor['rig'].board.thermal.wep(WEP_HOLD_S)
     else:
         name, thrusts = CRASHED, [0.0] * len(rotors)
         wreck['for'] += dt
@@ -203,7 +216,7 @@ def step(rotors, sky, route, flying, flight, clock, dt):
             route.update(row=row, at=clock, was=dict(route['card'][row][1]), holds=())
             route.pop('lap', None)
             sky.reset()
-            Flying.__init__(flying, flying.top, aerobatics.DOWN)
+            Flying.__init__(flying, TOP_N, aerobatics.DOWN)
             reset(rotors)
             flight['wreck'] = None
     watts = 0.0
@@ -219,8 +232,12 @@ def step(rotors, sky, route, flying, flight, clock, dt):
         rotor['w'] = drive.model.read()['omega'] / rotor['pairs']
         rotor['angle'] = (rotor['angle'] + rotor['w'] * dt) % math.tau
         if wreck is None:
-            more = min(TOP_RAD_S, quad.speed_for(thrust)) - rotor['ask']
-            rotor['ask'] += max(-SPOOL_RAD_S2 * dt, min(SPOOL_RAD_S2 * dt, more))
+            given = I_WEP if flying.top > TOP_N else I_MAX
+            more = min(TOP_WEP_RAD_S if given > I_MAX else TOP_RAD_S,
+                       quad.speed_for(thrust)) - rotor['ask']
+            spool = SPOOL_RAD_S2 * given / I_MAX
+            rotor['ask'] += max(-spool * dt, min(spool * dt, more))
+            rotor['pi'].limit = given
             rotor['iq'] = rotor['pi'].step(dt, setpoint=rotor['ask'],
                                            measured=rotor['w_hat'])['command']
         else:
@@ -247,25 +264,26 @@ def step(rotors, sky, route, flying, flight, clock, dt):
 
 
 def emergency(flight, sky, flying, route, share, dt):
-    """(the share of the rotors' pull the law has this step, whether on war emergency
-    power): the envelopes' - or, on it, all of the pull and all the lean that gives. Taken
-    where the law asks more than the envelopes leave it (`Flying.short`) and a thing is in
-    the frame's way within RISK_S; kept WEP_HOLD_S past that; WEP_S of it a flight, whole
-    again where the card waits to be fit."""
+    """(the share of the rotors' pull the law has this step, what war emergency power is
+    taken from or None): the envelopes' - or, on it, all of the pull. Taken where the law
+    asks more than it has (`Flying.short`) and the frame's ghost strikes a thing within RISK_S
+    (the observer); kept WEP_HOLD_S past that,
+    the boards told afresh (`fresh`); WEP_S of it a flight, whole again where the card waits
+    to be fit."""
     wep = flight.get('wep')
     if wep is None:
-        return share, False
+        return share, None
     if 'fit' in route['card'][route['row']][4].split():
         wep.update(left=WEP_S, on=0.0)
-        return share, False
-    risk = sky.ahead(RISK_S) if flying.short and share < 1.0 and wep['left'] > 0.0 else None
+        return share, None
+    risk = sky.ahead(RISK_S) if flying.short and wep['left'] > 0.0 else None
     if risk:
         wep['taken'] += wep['on'] < 1e-9
-        wep.update(on=WEP_HOLD_S, **{'from': risk[0]})
+        wep.update(on=WEP_HOLD_S, fresh=True, **{'from': risk[0]})
     if wep['on'] < 1e-9 or wep['left'] < 1e-9:
-        return share, False
+        return share, None
     wep.update(on=wep['on'] - dt, left=wep['left'] - dt)
-    return 1.0, True
+    return 1.0, wep['from']
 
 
 def envelope(rotors, was, dt):

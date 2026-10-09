@@ -111,6 +111,9 @@ AIR_S, OFF_M = 0.12, 0.03
 #: What it is doing where it is asked a height far under it: let fall, burning.
 FALL, BURN = 'fall', 'burn'
 
+#: What an emergency is taken from where the law puts its height first (`step`).
+FLOOR = 'floor'
+
 #: The law's constants that have a unit, each by the powers of its metres and its seconds:
 #: at a frame of another size they go by its size and its clock (`sized`); its shares and its
 #: angles are any frame's.
@@ -280,11 +283,12 @@ class Flying:
                 'spot': tuple(self.spot), 'at': [float(x) for x in frame['at']],
                 'vel': [float(x) for x in frame['vel']], 'wind': tuple(self.wind)}
 
-    def step(self, frame, dt, share=1.0, emergency=False):
+    def step(self, frame, dt, share=1.0, emergency=None):
         """Each rotor's thrust, N, for the frame as `frame` (`quad.Sky.state`) has it, `dt` s
         on; `share` what the boards' envelopes leave of the rotors' pull: what it is sped up on
         and a fall's stop is planned on - the stop itself takes what it must. In an
-        `emergency` its lean is all that pull gives, whatever its row's."""
+        `emergency` - what it is taken from - its lean is all that pull gives, whatever its
+        row's; the FLOOR ahead, what is left of it after what it asks up."""
         a = self.ask
         turn = [[float(frame['turn'][r][c]) for c in range(3)] for r in range(3)]
         spin, at, vel = frame['spin'], frame['at'], frame['vel']
@@ -296,7 +300,15 @@ class Flying:
         up_pull, self.doing = self.climb(frame['h'], frame['v'], reach - quad.GRAVITY)
         up_pull -= self.lifted
         self.most = math.sqrt(reach * reach - quad.GRAVITY * quad.GRAVITY)
-        along = self.lean(at, vel, dt, self.most if emergency else min(a['lean'], self.most))
+        cap = min(a['lean'], self.most)
+        if emergency == FLOOR:
+            # up first: the pull along the floor what is left after what it asks up
+            up_need = max(quad.GRAVITY + up_pull, LIGHT * quad.GRAVITY)
+            cap = math.sqrt(max(0.0, reach * reach - up_need * up_need))
+        elif emergency:
+            cap = self.most
+        along = self.lean(at, vel, dt, cap)
+        self.short = self.short or quad.GRAVITY + up_pull > reach
         # the discs' lean - against what is asked up - the nose's heading, its turns on them
         up = _unit((along[0], max(quad.GRAVITY + up_pull, LIGHT * quad.GRAVITY), along[1]))
         nose = (math.sin(self.heading), 0.0, math.cos(self.heading))

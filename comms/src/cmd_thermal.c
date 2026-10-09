@@ -411,6 +411,25 @@ static cmd_status_t h_thermal_set_clock(rd_t *in, wr_t *out)
   return CMD_OK;
 }
 
+/** op 14 - the clamp's thermal derate held at one `ms`, the trip standing (MINOR 25). */
+static cmd_status_t h_thermal_wep(rd_t *in, wr_t *out)
+{
+  const uint32_t ms = rd_u32(in);
+
+  if (!rd_ok(in))
+  {
+    return CMD_ERR_LENGTH;
+  }
+  if (!Board_ThermalWep(ms))
+  {
+    wr_took(out, "WEP is 0 .. 2000 ms, the trip standing - and the observer "
+                  "starts with the board");
+    return CMD_OK;
+  }
+  wr_took(out, NULL);
+  return CMD_OK;
+}
+
 cmd_status_t cmd_thermal_op(uint8_t op, rd_t *in, wr_t *out)
 {
   switch (op)
@@ -429,6 +448,7 @@ cmd_status_t cmd_thermal_op(uint8_t op, rd_t *in, wr_t *out)
     case THERMAL_OP_IDENT_RESET: return h_thermal_ident_reset(out);
     case THERMAL_OP_SET_MARGIN:  return h_thermal_set_margin(in, out);
     case THERMAL_OP_SET_CLOCK:   return h_thermal_set_clock(in, out);
+    case THERMAL_OP_WEP:         return h_thermal_wep(in, out);
     default:             return CMD_ERR_VALUE;
   }
 }

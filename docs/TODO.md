@@ -300,7 +300,7 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
   ceiling, a load run. DOD: all three on target; `Board_SyncMeanSquare`'s
   ISR cost measured.
 - **Sensorless below w_lo** (the estimate never converges on a physical
-  plant, native or Renode; the stand-in's mode is a stub): (1) the front
+  plant; the stand-in's mode a stub): (1) the front
   end's response at 12.5 and 25 kHz, one AC run of
   electronic_simulations/afe/amplifiers.asc; (2) the injection:
   `drv_inj_periods` >= 2, `demod_gain` carrying (n - 1) / n, the current
@@ -345,16 +345,17 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
 - **The meter under the drive**: `read_index` serves the NTC and the DC
   link from the latched sample. DOD: the MCU's die and the phases too;
   a sweep over a locked channel says so.
-- **Debug `-O0`**. DOD: `-Og` measured (LOOP counters, keepalive gap).
+- **Debug `-O0`**. DOD: `-Og` measured (LOOP, keepalive gap).
 - **`heat.py`'s dry loss** 1.2 W, the bench's fit 2.4-4.4 at 24-44 V. DOD: it.
-- **`intent.py` has no thermal kind**: warmth questions become an NTC read.
-  DOD: answered from the live model.
+- **`intent.py` has no thermal kind**: warmth asked is an NTC read. DOD:
+  the live model's.
 - **`test_native_heat`** lost the cold room on CI 3.12 (925a173). DOD: STABLE
   within FIND_S there.
 - **`test_sensorless`** overpowered servo flakes 1 gate in 4, `test_daq_api`'s
   first dt once (2026-10-05). DOD: 20 green.
-- **QUAD** fast as hell (findings/quad.md) on the FETs' whole SOA:
-  robust where it struck the floor; the flight's cut to their span.
+- **QUAD**: its thermal observers' modes and sysident stable in flight;
+  then a bigger, technical course - zig-zags, narrow gaps, a house's
+  open windows, climbs, dives - its racing line flown on boards too.
 - **A1335 CRC** reported, not checked. DOD: the polynomial known, checked.
 - **`testline/plans/coaxial_63100_fct.yaml`** limits are placeholders.
   DOD: measured.

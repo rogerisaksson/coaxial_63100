@@ -266,3 +266,23 @@ The board's own are in [FINDINGS](../FINDINGS.md).
   33.1. The rotors give 37-39 % of their thrust yet: a point with all of
   their pull along the floor laps in 9.3 s, with the plan's lean and
   shares in 12.9.
+- QUAD on the FETs' whole SOA (FINDINGS 2026-10-09): one course on four
+  boards no longer meets its envelopes - all of their pull, 14.8 and 14.3 s,
+  stuffy alike. The flight's own cut keeps the kelvins it was measured in:
+  SPEND 0.3 of a 100 K span is 0.2 of the junction's 150.
+- WEP past the SOA (the user, 2026-10-09: where a wreck is a fact, give it
+  all; on an observer's word alone). Thermal op 14 holds a board's thermal
+  derate at one, 2 s at the most, the trip on its record's ceiling standing
+  (MINOR 25); on WEP the rotors' clamp is 40 A where 30, their top - the
+  pack's 63 V at the clamp - 432 rad/s where 310, the law's lean what that gives
+  or, the floor ahead, what is left after what it asks up. The observer: the
+  law short of what it asks, up counted, and its ghost striking within
+  0.5 s - on the ghost alone every dive at a gate and every way down to land
+  took it, 2.3 s a flight; on both, the plan as adopted none.
+- A search with the floor in its cost, eight winds and two sizes on ideal
+  rotors: 12.5 and 11.9 s in four winds it never flew, and on four boards
+  into the floor every flight, 0.2 s into the second lap - the V into the
+  first gate, 2.6 m to 1.7 and up again, level through it at 13 m/s. Ideal
+  rotors 25 % quicker to their speed struck there too: a knife's edge, not a
+  spool. WEP came 0.33 s before the floor, the climb held to its pace's
+  12 m/s^2. A search flies the boards as well.

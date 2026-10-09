@@ -144,6 +144,10 @@
 #define THERMAL_TRIP_MARGIN        0.70f
 #define THERMAL_TRIP_RECOVER_PER_S (0.30f / 1800.0f)
 
+/** The longest WEP (thermal op 14) holds the derate off for one ask: a host lost in
+    one gives the envelope back this soon. */
+#define THERMAL_WEP_MAX_MS 2000U
+
 /** How long the link may be silent before the host's holds are dropped. */
 #define BOARD_POWER_HOST_QUIET_MS 10000U
 

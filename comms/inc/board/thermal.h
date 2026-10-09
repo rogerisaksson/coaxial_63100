@@ -162,6 +162,11 @@ void Board_ThermalSampling(uint32_t *every_ms, uint32_t *settle_ms);
     trip cap run on it; the settle on the wall. 1 .. THERMAL_HASTE_MAX. */
 bool Board_ThermalSetClock(uint32_t haste);
 
+/** The clamp's thermal derate held at one for `ms` from now, the trip on the record's
+    ceiling standing: a host's last resort where a wreck is near. Zero ends it; past
+    THERMAL_WEP_MAX_MS, or the observer not running, false. */
+bool Board_ThermalWep(uint32_t ms);
+
 #ifdef __cplusplus
 }
 #endif

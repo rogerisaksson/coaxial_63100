@@ -376,8 +376,9 @@ Ops:
 | 9 set edge | `u8 edge, i32 r_milli` | `u8 took`; negative opens it (MINOR 13) |
 | 10 ident | - | below |
 | 11 ident reset | - | `u8 took`; scales to one, UNCERTAIN, the margin at the floor - nothing is written, so nothing is refused for (MINOR 14) |
-| 12 set margin | `i32 floor_ppm` | `u8 took`; the floor into the record's RAM copy, cal op 2 persists it - refused outside 1 .. 1 000 000 in the board's words, zero would put every ceiling at 25 C the moment it booted (MINOR 16) |
-| 13 set clock | `u32 haste` | `u8 took`; the observer's clock, thermal s a wall s: sampling, derate recovery and the trip cap on it, the settle on the wall; 1 on a bench, `coaxial.model.thermal.HASTE` on an emulated MCU with its plant - refused outside 1 .. 1000 (MINOR 22) |
+| 12 set margin | `i32 floor_ppm` | `u8 took`; the floor into the record's RAM copy, cal op 2 persists it - refused outside 1 .. 1 000 000: zero puts every ceiling at 25 C (MINOR 16) |
+| 13 set clock | `u32 haste` | `u8 took`; thermal s a wall s for sampling, derate recovery, the trip cap; 1 on a bench, `thermal.HASTE` emulated - refused outside 1 .. 1000 (MINOR 22) |
+| 14 wep | `u32 ms` | `u8 took`; the clamp's thermal derate held at one that long, the trip standing - WEP's; 0 ends it, refused past 2000 (MINOR 25) |
 
 Op 0: `u8 ntc_measured, i32 ntc_centi, u8 count`, per node `i32 centi`,
 `i32 ambient_centi, i32 expected_ntc_centi, u32 seconds, u8 settled`;
@@ -543,7 +544,7 @@ MINOR appends; MAJOR breaks a codec.
 | 13 | twenty thermal nodes, the count says so; op 0 appends the FET junction rises and the speed; ops 7, 8, 9 read the node table, the edge table, set an edge |
 | 14 | thermal op 10 reads the online identification - state, which scales move, each scale and sigma, innovation, the envelope's margin, saves; op 11 resets it |
 | 15 | thermal op 10 appends the room as identified, `i32 ambient_centi, i32 ambient_sigma_centi` - the board has no ambient sensor |
-| 16 | thermal op 10 appends `i32 margin_floor_micro` and writes `saves` 0, `since_save_s` never - the margin is continuous on the doubt, the state a word, nothing kept; op 12 sets the floor; op 11 no longer refuses while armed |
+| 16 | thermal op 10 appends `i32 margin_floor_micro`, `saves` 0, `since_save_s` never - the margin continuous on the doubt; op 12 sets the floor; op 11 no longer refuses while armed |
 | 17 | thermal op 10 appends `i32 trip_cap_micro`, the trip cap as it stands, so a host can say whether the trip or the model holds the margin |
 | 18 | device 11 BOOT as the application serves it: op 10 `state`, op 12 `stay`; the rest refused in words. The image sits at 0x08020000 with its header, and a bootloader's assignment reaches it through the handover slot (BOOT.md) |
 | 19 | device 11 `state` appends `u32 image_bytes, u32 image_crc, u8 flags` - the image the bootloader verified and ran, and assign's flags; `seal` takes `[u8 flags]`. The application runs from D2 SRAM at 0x30000000; flash at 0x08020000 keeps a sealed copy (BOOT.md) |
@@ -552,6 +553,7 @@ MINOR appends; MAJOR breaks a codec.
 | 22 | thermal op 13 sets the observer's clock; the state's `seconds` and `seen_ms_ago` on it |
 | 23 | gate drivers op 0 appends `u8 nfault, i32 vgate_mv`: the STO chain's FAULTOUT on PE15 and the drivers' supply |
 | 24 | drive op 0 appends `i32 turns`: the estimate unwrapped, theta_hat + 2 pi turns |
+| 25 | thermal op 14, WEP - war emergency power: the derate held off, the trip standing |
 
 MAJOR 2 (2026-08-29): thermal nodes went per leg, indices repurposed.
 A host ignores fields past what it knows. `test_conformance.py` holds a

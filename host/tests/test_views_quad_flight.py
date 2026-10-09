@@ -178,10 +178,10 @@ def test_the_envelopes_cut(report):
 
 
 def test_war_emergency_power(report):
-    """flight.emergency: all of the rotors' pull where the law asks more than the envelopes
-    leave it and a thing is in the frame's way - not for either alone -, kept WEP_HOLD_S past
-    it, WEP_S of it a flight, whole again on the floor; and the law's lean in one all that
-    pull gives, whatever its row's."""
+    """flight.emergency: all of the rotors' pull, whatever the envelopes leave, where the law
+    asks more than it has and a thing is in the frame's way - not for either alone -, kept
+    WEP_HOLD_S past it, WEP_S of it a flight, whole again on the floor; and the law's lean in
+    one all that pull gives, whatever its row's."""
     from machine import aerobatics, quad
     from machine.flying import Flying
     from terminal.views.quad import flight as view
@@ -210,9 +210,9 @@ def test_war_emergency_power(report):
     law.short = True
     whole, taken = step(1.0), step()
     report.check('the envelopes\' share while nothing is in its way or it asks no more than it '
-                 'has; all of the pull where both, a tree named - not on all of it already',
-                 calm == clear == unasked[0] == (0.4, False) and unasked[1] == 1
-                 and whole == (1.0, False) and taken == (1.0, True)
+                 'has; all of the pull where both, a tree named, on all of it already as well',
+                 calm == clear == unasked[0] == (0.4, None) and unasked[1] == 1
+                 and whole == taken == (1.0, 'tree')
                  and flight['wep']['from'] == 'tree' and flight['wep']['taken'] == 1,
                  '%s, %s, %s; %s; %s from a %s' % (calm, clear, unasked[0], whole, taken,
                                                    flight['wep']['from']))
@@ -224,12 +224,12 @@ def test_war_emergency_power(report):
     floor = (step(), flight['wep']['left'])
     report.check('kept %.1f s past it; %.0f s of it a flight and no more; whole again where the '
                  'card waits to be fit' % (view.WEP_HOLD_S, view.WEP_S),
-                 kept == [True] * 5 + [False] * 3 and sum(spent) == 44 and not spent[-1]
-                 and floor == ((0.4, False), view.WEP_S),
+                 kept == ['tree'] * 5 + [None] * 3 and spent.count('tree') == 43
+                 and not spent[-1] and floor == ((0.4, None), view.WEP_S),
                  '%d steps past it, %d more of 80 on it, %.1f s left on the floor' % (
-                     sum(kept), sum(spent), floor[1]))
+                     kept.count('tree'), spent.count('tree'), floor[1]))
     leans = []
-    for emergency in (False, True):
+    for emergency in (None, 'tree'):
         flying = Flying(view.TOP_N, dict(aerobatics.HOVER, x=30.0, lean=2.0))
         flying.spot = [30.0, 0.0]
         level = [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]
@@ -244,9 +244,42 @@ def test_war_emergency_power(report):
                  '%.1f N across its discs, %.1f in an emergency' % (leans[0][0], leans[1][0]))
 
 
+def test_wep_past_the_soa(report):
+    """Thermal op 14 on the stand-in: the clamp's thermal derate held at one for the seconds
+    asked, given back after them, the trip on the record's ceiling standing; 2 s at most."""
+    from coaxial.errors import RigError
+    from coaxial.simulated.thermal.observer import SimulatedThermal
+    th = SimulatedThermal(situation='bench')
+    th.fast_forward(0.0)
+    clamp, trips = [], []
+    th._derate_to, th._gate = clamp.append, lambda: trips.append(1) or True
+    top = th.LIMIT['driver_u']
+    th._node['driver_u'] = th._ambient + 0.97 * (top - th._ambient)
+    th._envelope()
+    held = clamp[-1]
+    th.wep(0.5)
+    th._envelope()
+    on = clamp[-1]
+    th._model_s += 0.6 * th.HASTE
+    th._envelope()
+    report.check('a leg at 97 % of its span: its clamp shut, WEP opens it for 0.5 s, then shut',
+                 held == 0.0 and on == 1.0 and clamp[-1] == 0.0,
+                 '%.2f, %.2f, %.2f' % (held, on, clamp[-1]))
+    th._node['driver_u'] = top + 1.0
+    th.wep(0.5)
+    th._envelope()
+    try:
+        th.wep(3.0)
+        refused = False
+    except RigError:
+        refused = True
+    report.check('on WEP the trip stands at the record\'s ceiling, and 3 s is refused',
+                 len(trips) == 1 and refused, '%d trips, refused %s' % (len(trips), refused))
+
+
 ROSTER = (test_the_boards_air_is_the_rotors, test_a_rotor_turns_by_its_pass,
           test_a_late_pass_is_its_steps, test_struck_it_is_begun_again,
-          test_the_envelopes_cut, test_war_emergency_power)
+          test_the_envelopes_cut, test_war_emergency_power, test_wep_past_the_soa)
 
 
 def main(argv=None):

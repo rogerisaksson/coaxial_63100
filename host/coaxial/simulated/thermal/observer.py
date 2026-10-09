@@ -68,6 +68,8 @@ class SimulatedThermal(ThermalTruth, ThermalEnvelope, ThermalRecord, ThermalCont
         self._last_power = None
         self._last_net = None
         self._derate_held = 1.0
+        #: The model second WEP holds the derate off until (thermal op 14).
+        self._wep_until = -1.0
         self._derate_at = None
         self._node = {n: thermal.AMBIENT for n in self.NODES}
         #: The modelled thermistor reading, lagged (`thermal.NTC_TAU_S`).
@@ -155,6 +157,14 @@ class SimulatedThermal(ThermalTruth, ThermalEnvelope, ThermalRecord, ThermalCont
 
     def _set_sample(self, every_s, settle_s=0.3):
         self._every_s, self._settle_s = every_s, settle_s
+        return True
+
+    def _wep(self, seconds):
+        if not 0.0 <= seconds <= 2.0:
+            raise RigError('WEP is 0 .. 2 s, the trip standing')
+        self._wep_until = self._model_s + seconds * self.HASTE
+        if seconds > 0.0 and self._derate_to is not None:
+            self._derate_to(1.0)
         return True
 
     def _set_clock(self, haste):

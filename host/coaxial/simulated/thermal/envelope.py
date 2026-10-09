@@ -22,6 +22,7 @@ class ThermalEnvelope:
     _ident: Any
     _last_net: Any
     _last_power: Any
+    _wep_until: Any
     _margin_floor: Any
     _model_s: Any
     _node: Any
@@ -51,8 +52,9 @@ class ThermalEnvelope:
 
     def _envelope(self):
         """The one place this class acts rather than reports."""
-        # First the derate.
-        applied = self._derate_applied(self.derate())
+        # First the derate - held off through WEP (thermal op 14).
+        applied = (1.0 if self._model_s < self._wep_until
+                   else self._derate_applied(self.derate()))
         if self._derate_to is not None:
             self._derate_to(applied)
         # Then the trip, only if that was not enough - on every node, not

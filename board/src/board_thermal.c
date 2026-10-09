@@ -26,10 +26,8 @@ _Static_assert(BOARD_THERMAL_IDENT_SCALES == THERMAL_IDENT_RECORD,
     is the iron's own air path. */
 #define WINDING_INTO_IRON            0.25f
 
-/** The thermal glue's state: the observer with its losses and power, the
-    envelope and its budget, the sampling of the three thermometers, the
-    identification beside the observer, and the margin the ceilings are
-    trimmed by. */
+/** The thermal glue's state: the observer, its losses and power, the envelope and its
+    budget, the three thermometers' sampling, the identification, the ceilings' margin. */
 static struct
 {
   thermal_t th;
@@ -46,6 +44,9 @@ static struct
   uint32_t trips;
   bool ready;
   uint32_t last_ms;
+  /* The clamp's derate held off until this tick: thermal op 14. */
+  bool wep;
+  uint32_t wep_until;
   bool holding;                   /**< the thermal observer holds the AFE rail */
   uint32_t held_ms;               /**< when it took it */
   bool afe_was;                   /**< the rail at the last poll */
@@ -82,10 +83,8 @@ static struct
   .trip_cap = 1.0f, .haste = 1U
 };
 
-/* THERMAL_IDENT_NOISE_K, THERMAL_MARGIN_REF_C and THERMAL_MARGIN_STEP - the
-   identification's noise floor, the margin's reference and how far it must
-   move to re-trim - are in board_limits.h with the rest of the fixed
-   numbers. */
+/* The identification's noise floor, the margin's reference and its re-trim step are in
+   board_limits.h. */
 
 /** The floor the margin rises from: the record's, ppm of the span. */
 static float margin_floor(void)
@@ -517,16 +516,14 @@ static void step_slice(const thermal_load_t *load, const thermal_sense_t *seen,
   thermal_step(&s.th, &s.power, seen, load, dt);
   /* The STO chain's pump fed between the steps: a slice at -O0 is 140 000 instructions. */
   Board_StoKeepalive();
-  /* The identification, beside it: the shadow and its sensitivities step
-     with the same power and the same slice; when a sample moves the scales
-     the observer's network takes them at once. */
+  /* The identification beside it, on the same power and slice; a sample that moves the
+     scales re-applies them at once. */
   if (thermal_ident_step(&s.ident, &s.th, &s.base, &s.power, load, seen, dt))
   {
     thermal_ident_apply(&s.ident, &s.base, &s.th.cfg);
   }
   Board_StoKeepalive();
-  /* The room is the identification's: the board has no ambient sensor, and
-     the observer's rise is against what the identification says the room is. */
+  /* The room is the identification's: the board has no ambient sensor. */
   s.th.ambient = thermal_ident_ambient(&s.ident);
   thermal_budget(&s.th, &s.power, &s.soa, &s.budget);
   Board_StoKeepalive();
@@ -540,7 +537,8 @@ static void step_slice(const thermal_load_t *load, const thermal_sense_t *seen,
     `clock` the observer's. */
 static void hold_envelope(uint32_t slice, uint32_t clock)
 {
-  Board_DriveDerate(derate_applied(s.budget.derate, slice));
+  s.wep = s.wep && ((int32_t)(s.wep_until - HAL_GetTick()) > 0);
+  Board_DriveDerate(s.wep ? 1.0f : derate_applied(s.budget.derate, slice));
 
   if (!s.budget.tripped || !Board_PwmIsEnabled())
   {
@@ -680,9 +678,8 @@ bool Board_ThermalBudget(board_budget_t *out)
   out->millis_to_limit = s.budget.millis_to_limit;
   out->throttling = s.budget.throttling;
   out->tripped = s.budget.tripped;
-  /* What is applied, not what the arithmetic asked for: the recovery slew is
-     part of the answer and a host that saw the raw factor would see it
-     flicker while the clamp did not. */
+  /* What is applied, the recovery slew in it: the raw factor flickers where the clamp
+     does not. */
   out->derate = Board_DriveDerating();
   for (uint8_t i = 0U; i < BOARD_THERMAL_NODES; i++)
   {
@@ -846,6 +843,21 @@ void Board_ThermalSampling(uint32_t *every_ms, uint32_t *settle_ms)
 {
   *every_ms = s.every_ms;
   *settle_ms = s.settle_ms;
+}
+
+bool Board_ThermalWep(uint32_t ms)
+{
+  if (!s.ready || (ms > THERMAL_WEP_MAX_MS))
+  {
+    return false;
+  }
+  s.wep = (ms > 0U);
+  s.wep_until = HAL_GetTick() + ms;
+  if (s.wep)
+  {
+    Board_DriveDerate(1.0f);
+  }
+  return true;
 }
 
 bool Board_ThermalSetClock(uint32_t haste)

@@ -79,10 +79,13 @@ class ThermalControl(Input):
         node=, to_board, capacity                         a node's first path out, J/K
         node=, limit_c, throttle_at                       a node's ceiling, derating from
         edge=, k_per_w                                    an edge by index; None opens it
+    wep(seconds)  war emergency power: the clamp's thermal derate held at one that long, 2 s at the most,
+        the trip standing: a host's last resort where a wreck is near (WEP); 0 ends it
     """
 
     # What the class this mixes into brings.
     _reset_identification: Any
+    _wep: Any
 
     #: setting -> (its keys, the primitive, defaults)
     SETTINGS = {
@@ -101,6 +104,9 @@ class ThermalControl(Input):
 
     def read(self, count=None, timeout=None):
         return self.state()
+
+    def wep(self, seconds):
+        return self._wep(seconds)
 
     def reset(self):
         return self._reset_identification()
@@ -363,6 +369,9 @@ class Thermal(Device, ThermalControl, device=protocol.DEVICE_THERMAL):
         return self._ack(ThermalOp.SET_LIMIT, pack(
             ('u8', _index(node)), ('i32', milli(limit_c)),
             ('i32', micro(throttle_at))))
+
+    def _wep(self, seconds):
+        return self._ack(ThermalOp.WEP, pack(('u32', milli(seconds))))
 
     def _set_clock(self, haste):
         if haste != int(haste):

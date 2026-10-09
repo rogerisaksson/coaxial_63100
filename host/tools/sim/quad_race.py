@@ -139,8 +139,9 @@ def missed(rows):
 
 def room(rows):
     """The least room about the frame's reach, m: its middle to each tree, house, car and mast
-    - beside it or over it, whichever is more."""
-    least = math.inf
+    - beside it or over it, whichever is more - and to the floor: a frame banked 84 degrees in
+    the slalom's last bend fell from 1.9 m into it (2026-10-09)."""
+    least = min(r[1] + quad.SKID_M + quad.FOOT_M for r in rows)
     for x, z, high, crown in course.TREES:
         least = min([least] + [math.hypot(r[0] - x, r[2] - z) - crown
                                for r in rows if r[1] <= high])
@@ -187,12 +188,17 @@ def flowed(laps):
 
 def ideal(air, _room=BENCH, _left=1.0):
     """The card on ideal rotors in `air`, the frame as it is sized - its rotors as fast at
-    their tips, its passes by its clock: (the laps' rows by lap, what it struck, 0, 1, 0)."""
+    their tips, its passes by its clock, war emergency power as the page's flight takes it:
+    (the laps' rows by lap, what it struck, 0, 1, its seconds on WEP)."""
+    view = owner('flight.CARD')[0]
     dice = random.Random(1)
     size, clock = quad.scales()
     top, lag, spool = TOP_RAD_S / size, LAG_S * clock, SPOOL_RAD_S2 / (size * clock)
+    wep_top, wep_spool = view.TOP_WEP_RAD_S / size, spool * view.I_WEP / view.I_MAX
     sky, route = quad.Sky(course.solids()), aerobatics.routine(course.CARD)
     law = flying.Flying(4.0 * quad.K_THRUST * top ** 2, aerobatics.DOWN)
+    normal, given = law.top, 4.0 * quad.K_THRUST * wep_top ** 2
+    flight = {'wep': {'left': view.WEP_S * clock, 'on': 0.0, 'from': None, 'taken': 0}}
     w, t, laps = [0.0] * 4, 0.0, {}
     while t < 150.0 * clock:
         dt = clock * (0.05 if dice.random() < 0.05 else dice.choice((0.01, 0.014, 0.02, 0.03)))
@@ -201,9 +207,12 @@ def ideal(air, _room=BENCH, _left=1.0):
         name, law.ask = aerobatics.fly(route, t, (['held'] if law.held else []) + ['fit'])
         if name == 'land' or state['hit']:
             break
-        for k, thrust in enumerate(law.step(state, dt, 1.0)):
-            more = (min(top, quad.speed_for(thrust)) - w[k]) * min(1.0, dt / lag)
-            w[k] += max(-spool * dt, min(spool * dt, more))
+        _share, wep = view.emergency(flight, sky, law, route, 1.0, dt / clock)
+        law.top = given if wep else normal
+        fast, spun = (wep_top, wep_spool) if wep else (top, spool)
+        for k, thrust in enumerate(law.step(state, dt, 1.0, wep)):
+            more = (min(fast, quad.speed_for(thrust)) - w[k]) * min(1.0, dt / lag)
+            w[k] += max(-spun * dt, min(spun * dt, more))
         if air:
             quad.blown(air, dt)
         sky.step(w, dt, air)
@@ -214,7 +223,7 @@ def ideal(air, _room=BENCH, _left=1.0):
                 (t, float(frame['at'][0]), frame['h'], float(frame['at'][2]),
                  math.sqrt(sum(float(c) ** 2 for c in frame['vel'])),
                  *(float(c) for c in frame['acc']), sum(x * x for x in w) / (4.0 * top * top)))
-    return laps, sky.hit, 0.0, 1.0, 0.0
+    return laps, sky.hit, 0.0, 1.0, view.WEP_S - flight['wep']['left'] / clock
 
 
 def boards(air, room=BENCH, left=1.0):
@@ -320,11 +329,11 @@ def _show(values, cost, whole, miss, results):
             'x%g' % size if size != 1.0 else room_ if room_ != BENCH
             else '%.0f %%' % (100 * left) if left != 1.0 else ''), (
             'laps %s s, a gate %.2f m off, %.2f m about it, thrust %.0f %%, jerk %.0f, %.0f '
-            'turns%s%s' % (
+            'turns%s%s%s' % (
                 ' '.join('%.1f' % x for x in r['laps']) or '-', r['miss'], r['room'],
                 100 * r['thrust'], r['jerk'], r['turns'],
-                ', SOA %.2f, pull %.0f %% at the least, WEP %.1f s' % (
-                    r['soa'], 100 * r['share'], r['wep']) if rotors == 'boards' else '',
+                ', SOA %.2f, pull %.0f %% at the least' % (r['soa'], 100 * r['share'])
+                if rotors == 'boards' else '', ', WEP %.1f s' % r['wep'] if r['wep'] else '',
                 '  STRUCK %s' % r['struck'] if r['struck'] else '')) if r else 'lost'))
 
 
