@@ -623,11 +623,13 @@ def test_the_datasheet_against_the_thermal_model(r):
     r.check('one FET at 100 A puts its junction a few K over its case, '
             'not tens',
             5.0 < over < 8.0, '%.1f W, %.1f K over' % (watt, over))
-    r.check('so a 125 C ceiling on the copper is well under the 175 C the '
-            'sheet allows - the ceiling is conservative, not optimistic',
-            125.0 + over < inverter.T_J_MAX - 30.0,
-            '%.0f C junction against %.0f C' % (125.0 + over,
-                                                inverter.T_J_MAX))
+    r.check('so the envelope judges a leg on that junction, against the '
+            '%.0f C the sheet allows' % inverter.T_J_MAX,
+            thermal.CEILING_C['driver_u'] == inverter.T_J_MAX
+            and abs(thermal.judged('driver_u', 125.0, 2.0 * watt) - 125.0 - over) < 1e-9,
+            '%.1f C over a 125 C leg, its ceiling %.0f C' % (
+                thermal.judged('driver_u', 125.0, 2.0 * watt) - 125.0,
+                thermal.CEILING_C['driver_u']))
 
     # The spreading resistance, where the sheet and the model disagree.
     patch = 0.0

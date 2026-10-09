@@ -387,7 +387,7 @@ def settled_fraction(minutes, cfg=CFG):
 
 #: `thermal_losses`: what `thermal_power_estimate` runs on, the board's before its record.
 LOSSES = {
-    'rds_on': inverter.RDS_ON, 'rds_alpha': 7.8e-3, 'r_shunt': inverter.SHUNT,
+    'rds_on': inverter.RDS_ON, 'rds_alpha': 5.55e-3, 'rds_beta': 1.78e-5, 'r_shunt': inverter.SHUNT,
     'r_hotswap': 3.6e-3, 'switching_watt': 1.20, 'switch_volts': 24.6, 'driver_share': 1.0,
     'mcu_watt': 0.666, 'ldo_watt': 0.534, 'afe_watt': 0.13, 'f_sw': inverter.FSW,
     'coss_cjo': 15.6e-9, 'coss_m': 0.45, 'coss_vj': 0.7, 't_switch_s': 14.0e-9, 'v_sd': 0.85,
@@ -426,7 +426,8 @@ def power_estimate(load, phase_c=None, loss=None):
     for leg, (driver, phase) in enumerate(zip(DRIVERS, PHASES)):
         rds = loss['rds_on']
         if phase_c is not None and not math.isnan(phase_c[leg]):
-            rds *= max(0.5, 1.0 + loss['rds_alpha'] * (phase_c[leg] - 25.0))
+            d = phase_c[leg] - 25.0
+            rds *= max(0.5, 1.0 + loss['rds_alpha'] * d + loss['rds_beta'] * d * d)
         sq = squares[leg] if squares[leg] > 0.0 else amps[leg] * amps[leg]
         irms = math.sqrt(sq)
         out[driver] += sq * rds
@@ -517,12 +518,22 @@ IDENT_STATES = ('UNCERTAIN', 'CONVERGING', 'STABLE')
 IDENT_MARGIN_FLOOR = 0.80
 
 
-#: The record's default ceilings, C: laminate 105, motor 120, silicon 125
-#: (`board_cal.c`). In force: the reference plus margin x span (`ceiling_of`);
-#: a board's own live in its record (cal op 0).
+#: The record's default ceilings, C: laminate 105, motor 120, silicon 125, a leg
+#: its FETs' junction, `inverter.T_J_MAX` (`board_cal.c`). In force: the
+#: reference plus margin x span (`ceiling_of`); a board's own live in its
+#: record (cal op 0).
 CEILING_REF_C = 25.0
 CEILING_DEFAULT_C = 125.0
-CEILING_C = dict([(n, 105.0) for n in LAMINATE] + [(n, 120.0) for n in MOTOR])
+CEILING_C = dict([(n, 105.0) for n in LAMINATE] + [(n, 120.0) for n in MOTOR]
+                 + [(n, inverter.T_J_MAX) for n in DRIVERS])
+
+
+def judged(node, celsius, watt, cfg=CFG):
+    """`thermal_junction`, what the envelope judges a node on: its die where it has one
+    (`rth_die`) - a leg's node two FETs and a driver, each FET half its watts - itself where
+    not."""
+    rth = cfg['rth_die'].get(node, 0.0)
+    return celsius + (0.5 if node in DRIVERS else 1.0) * watt * rth if rth > 0.0 else celsius
 
 
 def ceiling_of(node, margin=1.0, ceilings=None):

@@ -75,7 +75,8 @@ typedef struct
       measured figures. */
   float area_share;
   /** Junction over node per watt in the part, K/W: `R_th,JC` for the FETs
-      (0.69, datasheets/mosfet), the die's own for the two that report one. */
+      (0.69, datasheets/mosfet), the die's own for the two that report one.
+      A node with one is judged on its die (`thermal_junction`). */
   float rth_die;
   /** How much better the node's air path carries per sqrt(krpm) of rotor
       speed - forced convection, `Nu ~ Re^1/2` over a plate. */
@@ -157,7 +158,9 @@ typedef struct
 typedef struct
 {
   float rds_on;          /**< one FET at 25 C, IAUCN10S7N021 = 1.8 mOhm */
-  float rds_alpha;       /**< its tempco, per K - rds_on*(1+a*(Tj-25)) */
+  /** Its law in the junction: rds_on*(1 + a*d + b*d*d), d = Tj - 25 K. */
+  float rds_alpha;
+  float rds_beta;
   float r_shunt;         /**< phase shunt, RU1||RU2 = 3.5 mOhm */
   float r_hotswap;       /**< LM5069 pass FETs, in the link */
   float switching_watt;  /**< the no-load switching loss at `switch_volts` */
@@ -196,7 +199,8 @@ void thermal_power_estimate(thermal_power_t *out, const thermal_load_t *load,
 /** What each node may reach. */
 typedef struct
 {
-  float limit_c[THERMAL_NODES];  /**< absolute ceiling per node, degrees C */
+  /** Absolute ceiling per node, degrees C: a node with a die, its die's. */
+  float limit_c[THERMAL_NODES];
   float throttle_at;             /**< fraction of budget where derating starts */
   /** The reaction window the throttle keeps, seconds. */
   float lookahead_s;
@@ -210,7 +214,8 @@ typedef struct
 /** What is spent of the thermal budget, and how long is left. */
 typedef struct
 {
-  uint8_t used[THERMAL_NODES];   /**< 0 at ambient, 255 at the limit */
+  /** 0 at ambient, 255 at the limit: a node with a die, its die. */
+  uint8_t used[THERMAL_NODES];
   uint8_t worst;                 /**< among the nodes the clamp reaches */
   uint8_t worst_node;
   int32_t millis_to_limit;       /**< for `worst_node`; -1 = not heading there */

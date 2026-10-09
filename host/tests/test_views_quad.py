@@ -170,7 +170,7 @@ def paged(card, done, pack_ah=None):
 def test_the_page_flies_four_boards(report):
     """The page on its four stand-in boards and a small pack, into its third flight: the quad
     drawn in the viewport; flown from its first hover, no observer STABLE yet, inside the
-    boards' envelopes - none tripped, the pull cut under full tilt; full tilt past 20 m, the
+    boards' envelopes - none tripped, under their throttle; full tilt past 20 m, the
     fall burned to a stop over the floor and held at 10 cm; the bus drooping under it; the pack
     spent in the second flight, the way down, a charged one on the floor and its routine again
     - the observers kept through it all."""
@@ -190,12 +190,10 @@ def test_the_page_flies_four_boards(report):
     early = [r for r in rows if r['name'] == first][:1]
     hard = [r for r in rows if r['name'] in ('full tilt', 'burn')]
     report.check('flown from its first hover, no observer STABLE yet; no board tripped and '
-                 'nothing struck, the envelopes cutting the rotors\' pull under full tilt and '
-                 'the burn',
+                 'nothing struck, full tilt and the burn under the boards\' throttle',
                  bool(early) and 'STABLE' not in early[0]['states']
                  and not any(r['tripped'] or r['name'] == 'crashed' for r in rows)
-                 and bool(hard) and min(r['share'] for r in hard) < 1.0
-                 and max(r['soa'] for r in hard) > THROTTLE_AT - flown.UNDER - flown.SPEND,
+                 and bool(hard) and max(r['soa'] for r in hard) < THROTTLE_AT,
                  'the %s at %.1f s on %s; SOA %.2f at most, %.0f %% of their pull at the least' % (
                      first, early[0]['t'] - rows[0]['t'], early[0]['states'],
                      max(r['soa'] for r in rows), 100.0 * min((r['share'] for r in hard),
@@ -248,8 +246,9 @@ def test_the_page_flies_four_boards(report):
 def test_the_page_flies_its_course(report):
     """The page's course on its four stand-in boards, from the floor and back: flown from
     behind, its gates stood in the view, the one flown to next lit; every gate passed inside
-    its opening on each lap it flew; the boards' envelopes cutting the rotors' pull through its
-    laps - all of it never theirs - and none tripped; landed where it rose."""
+    its opening on each lap it flew; the boards under their throttle, none tripped; landed where
+    it rose."""
+    from coaxial.devices.thermal import THROTTLE_AT
     from machine import course
     rows, frames, rate = paged(course.CARD, lambda flew, now: now in ('idle', 'cool', 'swap')
                                and 'land' in flew)
@@ -281,13 +280,11 @@ def test_the_page_flies_its_course(report):
     report.check('the gate lit: each in its turn on its laps, the first again on its way down',
                  ahead == set(range(len(course.GATES))) and after == {1},
                  '%d of them on its laps, %s after' % (len(ahead), sorted(after)))
-    lapped = sum(r['dt'] for r in laps)
-    cut = sum(r['dt'] for r in laps if r['share'] < 1.0)
-    report.check('the boards\' envelopes cut the rotors\' pull through most of its laps; none '
-                 'tripped',
-                 bool(laps) and cut >= 0.5 * lapped and not any(r['tripped'] for r in rows),
-                 '%.0f %% of %.1f s under all of their pull, %.0f %% of it at the least' % (
-                     100.0 * cut / max(1e-9, lapped), lapped,
+    report.check('the boards under their throttle through its laps; none tripped',
+                 bool(laps) and max(r['soa'] for r in laps) < THROTTLE_AT
+                 and not any(r['tripped'] for r in rows),
+                 'SOA %.2f at the most, %.0f %% of the pull at the least' % (
+                     max((r['soa'] for r in laps), default=math.nan),
                      100.0 * min((r['share'] for r in laps), default=math.nan)))
     down = [r for r in rows if r['name'] == 'land']
     report.check('landed where it rose',

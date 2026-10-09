@@ -26,11 +26,12 @@ LAMINATE = ('board', 'patch_u', 'patch_v', 'patch_w', 'patch_left',
 BUDGET = ('worst', 'worst_node', 'millis', 'throttling', 'tripped', 'derate')
 
 #: The envelope this tree's calibration record carries, stated rather than
-#: read: 125 C on every node but the board's copper and the winding, 105 on
-#: the copper, 120 on the winding, throttling from 90 % of the span and
-#: looking two seconds ahead. Another board's record carries other numbers;
-#: the arithmetic is the same.
-LIMIT_C, BOARD_LIMIT_C, WINDING_LIMIT_C = 125.0, 105.0, 120.0
+#: read: 125 C on every node but the board's copper, the winding and the legs,
+#: 105 on the copper, 120 on the winding, 175 on a leg's FET junction (the
+#: IAUCN10S7N021's sheet), throttling from 90 % of the span and looking two
+#: seconds ahead. Another board's record carries other numbers; the arithmetic
+#: is the same.
+LIMIT_C, BOARD_LIMIT_C, WINDING_LIMIT_C, LEG_LIMIT_C = 125.0, 105.0, 120.0, 175.0
 THROTTLE_AT, LOOKAHEAD_S = 0.90, 2.0
 
 AMBIENT = 20.0
@@ -110,7 +111,8 @@ class Model:
 
     def limits(self):
         return [BOARD_LIMIT_C if name in LAMINATE
-                else WINDING_LIMIT_C if name == 'winding' else LIMIT_C
+                else WINDING_LIMIT_C if name == 'winding'
+                else LEG_LIMIT_C if name.startswith('driver_') else LIMIT_C
                 for name in NODES]
 
     def edge_r(self, edge):
@@ -190,7 +192,7 @@ def power(lib, phase_amps=(0.0, 0.0, 0.0), duty=(0.0, 0.0, 0.0),
 
 
 def losses(lib):
-    names = ('rds_on', 'rds_alpha', 'r_shunt', 'r_hotswap', 'switching_watt',
+    names = ('rds_on', 'rds_alpha', 'rds_beta', 'r_shunt', 'r_hotswap', 'switching_watt',
              'switch_volts', 'driver_share', 'mcu_watt', 'ldo_watt',
              'afe_watt', 'f_sw', 'coss_cjo', 'coss_m', 'coss_vj',
              't_switch_s', 'v_sd', 'q_g', 'v_drive', 'buck_eff', 'r_phase',

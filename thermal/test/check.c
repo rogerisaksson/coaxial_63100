@@ -174,7 +174,8 @@ static int rds_tempco(void)
                          - 100.0f * 100.0f * loss.r_shunt;
   const float fet_hot = hot.watt[THERMAL_PHASE_U]
                         - 100.0f * 100.0f * loss.r_shunt;
-  const float want = 1.0f + loss.rds_alpha * 75.0f;
+  const float want = 1.0f + loss.rds_alpha * 75.0f
+                     + loss.rds_beta * 75.0f * 75.0f;
 
   printf("\n100 A conduction, the FET share by phase-node temperature\n");
   printf("  25 C %6.2f W   100 C %6.2f W   ratio %.3f against %.3f asked\n",

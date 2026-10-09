@@ -21,11 +21,11 @@
    switching, afe_on, phase_sq[0..2], speed_rpm, t_dead_s. */
 #define LOAD_SLOTS 15
 
-/* LOSS_ORDER: rds_on, rds_alpha, r_shunt, r_hotswap, switching_watt,
-   switch_volts, driver_share, mcu_watt, ldo_watt, afe_watt, f_sw, coss_cjo,
-   coss_m, coss_vj, t_switch_s, v_sd, q_g, v_drive, buck_eff, r_phase,
-   k_iron, mcu_sleep_watt. */
-#define LOSS_SLOTS 22
+/* LOSS_ORDER: rds_on, rds_alpha, rds_beta, r_shunt, r_hotswap,
+   switching_watt, switch_volts, driver_share, mcu_watt, ldo_watt, afe_watt,
+   f_sw, coss_cjo, coss_m, coss_vj, t_switch_s, v_sd, q_g, v_drive, buck_eff,
+   r_phase, k_iron, mcu_sleep_watt. */
+#define LOSS_SLOTS 23
 
 /* CFG_ORDER, per node: capacity, to_ambient, area_share, rth_die, forced. */
 #define CFG_PER_NODE 5
@@ -547,24 +547,25 @@ API void thm_losses(float *out)
   thermal_losses(&loss);
   out[0] = loss.rds_on;
   out[1] = loss.rds_alpha;
-  out[2] = loss.r_shunt;
-  out[3] = loss.r_hotswap;
-  out[4] = loss.switching_watt;
-  out[5] = loss.switch_volts;
-  out[6] = loss.driver_share;
-  out[7] = loss.mcu_watt;
-  out[8] = loss.ldo_watt;
-  out[9] = loss.afe_watt;
-  out[10] = loss.f_sw;
-  out[11] = loss.coss_cjo;
-  out[12] = loss.coss_m;
-  out[13] = loss.coss_vj;
-  out[14] = loss.t_switch_s;
-  out[15] = loss.v_sd;
-  out[16] = loss.q_g;
-  out[17] = loss.v_drive;
-  out[18] = loss.buck_eff;
-  out[19] = loss.r_phase;
-  out[20] = loss.k_iron;
-  out[21] = loss.mcu_sleep_watt;
+  out[2] = loss.rds_beta;
+  out[3] = loss.r_shunt;
+  out[4] = loss.r_hotswap;
+  out[5] = loss.switching_watt;
+  out[6] = loss.switch_volts;
+  out[7] = loss.driver_share;
+  out[8] = loss.mcu_watt;
+  out[9] = loss.ldo_watt;
+  out[10] = loss.afe_watt;
+  out[11] = loss.f_sw;
+  out[12] = loss.coss_cjo;
+  out[13] = loss.coss_m;
+  out[14] = loss.coss_vj;
+  out[15] = loss.t_switch_s;
+  out[16] = loss.v_sd;
+  out[17] = loss.q_g;
+  out[18] = loss.v_drive;
+  out[19] = loss.buck_eff;
+  out[20] = loss.r_phase;
+  out[21] = loss.k_iron;
+  out[22] = loss.mcu_sleep_watt;
 }

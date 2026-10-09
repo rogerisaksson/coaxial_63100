@@ -157,6 +157,26 @@ def test_struck_it_is_begun_again(report):
                  if again < len(rows) else 'never put back')
 
 
+def test_the_envelopes_cut(report):
+    """flight.envelope: all of the rotors' pull while every board has SPEND of its span in hand
+    under its throttle's point, less UNDER; none at that point; a throttling board's own derate
+    on it - taken over TAKEN_S, given back over RECOVER_S."""
+    from coaxial.devices.thermal import THROTTLE_AT
+    from terminal.views.quad import flight as view
+    top = THROTTLE_AT - view.UNDER
+
+    def cut(worst, derate=1.0, was=1.0, dt=10.0):
+        return view.envelope([{'budget': {'worst': 0.1}},
+                              {'budget': {'worst': worst, 'derate': derate}}], was, dt)
+    halves = (cut(top - view.SPEND), cut(top - 0.5 * view.SPEND), cut(top), cut(0.95, 0.5))
+    report.check('all of it SPEND under the point, half at half of it, none at it or past it',
+                 [round(h, 6) for h in halves] == [1.0, 0.5, 0.0, 0.0], str(halves))
+    report.check('a cut taken over TAKEN_S and given back over RECOVER_S',
+                 abs(cut(top, dt=0.1) - (1.0 - 0.1 / view.TAKEN_S)) < 1e-9
+                 and abs(cut(top - view.SPEND, was=0.0, dt=0.1) - 0.1 / view.RECOVER_S) < 1e-9,
+                 '%.3f and %.3f' % (cut(top, dt=0.1), cut(top - view.SPEND, was=0.0, dt=0.1)))
+
+
 def test_war_emergency_power(report):
     """flight.emergency: all of the rotors' pull where the law asks more than the envelopes
     leave it and a thing is in the frame's way - not for either alone -, kept WEP_HOLD_S past
@@ -226,7 +246,7 @@ def test_war_emergency_power(report):
 
 ROSTER = (test_the_boards_air_is_the_rotors, test_a_rotor_turns_by_its_pass,
           test_a_late_pass_is_its_steps, test_struck_it_is_begun_again,
-          test_war_emergency_power)
+          test_the_envelopes_cut, test_war_emergency_power)
 
 
 def main(argv=None):

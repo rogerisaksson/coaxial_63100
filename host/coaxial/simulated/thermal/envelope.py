@@ -21,6 +21,7 @@ class ThermalEnvelope:
     _gate: Any
     _ident: Any
     _last_net: Any
+    _last_power: Any
     _margin_floor: Any
     _model_s: Any
     _node: Any
@@ -95,6 +96,11 @@ class ThermalEnvelope:
             margin = self._margin()
         return thermal.AMBIENT + margin * (top - thermal.AMBIENT)
 
+    def _judged(self, name):
+        """What a node is judged on: its die where it has one (`thermal.judged`)."""
+        return thermal.judged(name, self._node[name],
+                              (self._last_power or {}).get(name, 0.0), self._cfg)
+
     def _used(self):
         """Each node as a fraction of its own ceiling, from the room the
         observer believes it stands in, clamped to 0..1 -
@@ -106,7 +112,7 @@ class ThermalEnvelope:
             if not span > 0.0:
                 used[name] = 0.0
                 continue
-            part = (self._node[name] - self._ambient) / span
+            part = (self._judged(name) - self._ambient) / span
             used[name] = max(0.0, min(1.0, part))
         return used
 
@@ -123,7 +129,7 @@ class ThermalEnvelope:
         """
         for name in self.NODES:
             top = self.LIMIT.get(name, self.DEFAULT_LIMIT)
-            if top > self._ambient and self._node[name] >= top:
+            if top > self._ambient and self._judged(name) >= top:
                 return True
         return False
 
@@ -169,7 +175,7 @@ class ThermalEnvelope:
         top = self._limit(name, margin)
         if net <= 0.0 or capacity <= 0.0 or top <= self._ambient:
             return None
-        togo = top - self._node[name]
+        togo = top - self._judged(name)
         return (togo * capacity / net) if togo > 0.0 else 0.0
 
     def _soon(self):
@@ -204,7 +210,7 @@ class ThermalEnvelope:
         for name in self.NODES:
             top = self._limit(name, margin)
             out[name] = max(0.0, self._cfg['capacity'].get(name, 0.0)
-                            * (top - self._node[name]))
+                            * (top - self._judged(name)))
         return out
 
     def budget(self):

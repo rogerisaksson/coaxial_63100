@@ -190,6 +190,18 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   x3), part capacities, NTC fraction 0.30 (pick-place geometry, R a floor).
 - Datasheet IAUCN10S7N021: Rth JC 0.69 K/W (6.2 K at 100 A), Rth JA 25.9 K/W,
   Rds(on) 1.8 typ / 2.1 max mOhm (model books typ, -17 % worst case).
+- The SOA to that sheet (Rev 1.2, the user, 2026-10-09): a leg is judged on
+  its FETs' junction - its node and each FET's half of its watts through
+  R_th,JC; Z_th at 100 ms, the envelope's slice, 0.68 - against 175 C, where
+  its node against 125 C left 44 K of it unused. Rds(on) second order on
+  Fig. 8, 5.55e-3/K and 1.78e-5/K^2, within 1.2 % from -55 to 175 C; the
+  0.78 %/K was 5.7 % off. The 2EDL8034 sits 8-13 mm from its FETs on the
+  leg's patch, whose 105 C laminate holds it under its own 125. Current is
+  no ceiling: 175 A DC, 779 A for 100 us, against the board's 100. QUAD's
+  course on four boards: 0.65-0.80 of their envelopes and the pull cut to
+  21-58 % became 0.48-0.58 and all of it - laps 14.8 and 14.3 s where 15.3
+  and 15.2, in a stuffy room where 17.9 and 17.0; there the laminate binds
+  next. A board's stored record keeps its own ceilings.
 - The envelope must step and evaluate per 100 ms slice: a 1 s step let the
   driver node reach 178 C before the clamp saw it. Catch-up capped 2 s.
 - A rail another had just raised was read without the settle a borrow gets,

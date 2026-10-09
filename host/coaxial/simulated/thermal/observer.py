@@ -148,8 +148,7 @@ class SimulatedThermal(ThermalTruth, ThermalEnvelope, ThermalRecord, ThermalCont
             'error': self._ntc - ntc,
             # MINOR 13: each leg's FET junction over its node - half the node's
             # watts through R_th,JC - and the speed the air saw.
-            'junction_over': [0.5 * power.get(n, 0.0)
-                              * self._cfg['rth_die'].get(n, 0.0)
+            'junction_over': [thermal.judged(n, 0.0, power.get(n, 0.0), self._cfg)
                               for n in thermal.DRIVERS],
             'speed_rpm': int(self._speed_rpm),
         }

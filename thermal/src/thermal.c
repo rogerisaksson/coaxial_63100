@@ -13,9 +13,8 @@
 /** How hard the sensors pull the model per second, 1/s. */
 #define THERMAL_ANCHOR_HZ 0.05f
 
-/** The longest gap since the previous sample over which a thermistor miss is
-    still read as the V patch's: three of the board's thirty second
-    intervals. */
+/** The longest gap since the last sample over which an NTC miss is still
+    read as the V patch's: three 30 s intervals. */
 #define THERMAL_NTC_INVERT_MAX_S 90.0f
 
 /** How close to the V patch the element, read or modelled, counts as held at
@@ -135,15 +134,13 @@ void thermal_defaults(thermal_cfg_t *cfg)
     n->area_share = PATCHES[i].share;
     n->capacity   = BULK_CAPACITY * PATCHES[i].share;
     n->to_ambient = BULK_TO_AMBIENT / PATCHES[i].share;
-    /* The rotor's air reaches the board's face behind the stator: an
-       estimate of a third of the improvement the stator itself gets, and
-       nothing on a bench, where the speed is zero. */
+    /* The rotor's air on the face behind the stator: a third of the
+       stator's gain, an estimate; none on a bench. */
     n->forced     = 0.3f;
   }
 
-  /* In-plane conductance between patches: `G = k_sheet * L / d`, the shared
-     boundary over the centre distance, with one sheet conductance for the
-     whole laminate. */
+  /* In-plane: `G = k_sheet * L / d`, the shared boundary over the centre
+     distance, one sheet conductance for the whole laminate. */
   static const float PATCH_R[12] =
   {
     39.0f,  /* U-V */         39.0f,  /* V-W */
@@ -362,14 +359,25 @@ static void net_flows(const thermal_t *th, const thermal_power_t *p,
   }
 }
 
+/** A node against its ceiling: its die where it has one, itself where not. */
+static float judged(const thermal_t *th, const thermal_power_t *p, int node)
+{
+  if ((p != NULL) && (th->cfg.node[node].rth_die > 0.0f))
+  {
+    return thermal_junction(th, p, (thermal_node_t)node);
+  }
+  return th->t[node];
+}
+
 /** How long this node can stay at this power before its ceiling, seconds:
     the soak divided by what is going into it. */
-static float hold_seconds(const thermal_t *th, const float *net,
-                          const thermal_soa_t *soa, thermal_node_t node)
+static float hold_seconds(const thermal_t *th, const thermal_power_t *p,
+                          const float *net, const thermal_soa_t *soa,
+                          thermal_node_t node)
 {
   const float gain = net[node];
   const float capacity = th->cfg.node[node].capacity;
-  const float togo = soa->limit_c[node] - th->t[node];
+  const float togo = soa->limit_c[node] - judged(th, p, node);
 
   if (!(gain > 0.0f) || !(capacity > 0.0f))
   {
@@ -399,7 +407,8 @@ static float derate_of(float spent, const thermal_soa_t *soa)
 
 /** A node's place between ambient and its ceiling as the wire carries it,
     0-255 - or -1 with no ceiling above ambient. */
-static int used_of(const thermal_t *th, const thermal_soa_t *soa, int node)
+static int used_of(const thermal_t *th, const thermal_power_t *p,
+                   const thermal_soa_t *soa, int node)
 {
   const float span = soa->limit_c[node] - th->ambient;
 
@@ -407,30 +416,30 @@ static int used_of(const thermal_t *th, const thermal_soa_t *soa, int node)
   {
     return -1;
   }
-  const float part = (th->t[node] - th->ambient) / span;
+  const float part = (judged(th, p, node) - th->ambient) / span;
 
   return (int)(uint8_t)(fminf(fmaxf(part, 0.0f), 1.0f) * 255.0f);
 }
 
 /** A node's spend: where it is between ambient and its ceiling, and how far
     into the reaction window its hold has come - the bigger. */
-static float spend_of(const thermal_t *th, const float *net,
-                      const thermal_soa_t *soa, thermal_node_t node)
+static float spend_of(const thermal_t *th, const thermal_power_t *p,
+                      const float *net, const thermal_soa_t *soa,
+                      thermal_node_t node)
 {
-  const int used = used_of(th, soa, node);
+  const int used = used_of(th, p, soa, node);
 
   if (used < 0)
   {
     return -1.0f;
   }
-  /* As the wire says it: `used` is a byte, and the ramp acts on the same
-     number a host reads, so the clamp a board applied and the spend it
-     reported cannot disagree by a byte's worth of ramp. */
+  /* `used` as the wire says it, a byte: the clamp applied and the spend
+     reported agree to it. */
   float part = (float)used / 255.0f;
 
   if (soa->lookahead_s > 0.0f)
   {
-    const float hold = hold_seconds(th, net, soa, node);
+    const float hold = hold_seconds(th, p, net, soa, node);
 
     if (hold >= 0.0f)
     {
@@ -465,7 +474,7 @@ void thermal_budget(const thermal_t *th, const thermal_power_t *p,
 
   for (int i = 0; i < THERMAL_NODES; i++)
   {
-    const int used = used_of(th, soa, i);
+    const int used = used_of(th, p, soa, i);
 
     if (used < 0)
     {
@@ -476,11 +485,12 @@ void thermal_budget(const thermal_t *th, const thermal_power_t *p,
     /* The trip, on the record's own ceiling - any node at it, driven or not. */
     const float limit = soa->limit_c[i];
     const float top = (soa->trip_c[i] > 0.0f) ? soa->trip_c[i] : limit;
+    const float at = judged(th, p, i);
 
-    out->tripped = out->tripped || (th->t[i] >= top);
+    out->tripped = out->tripped || (at >= top);
 
     /* What is left in it, in joules. */
-    const float left = limit - th->t[i];
+    const float left = limit - at;
 
     out->soak_j[i] = (left > 0.0f) ? (th->cfg.node[i].capacity * left) : 0.0f;
 
@@ -488,7 +498,7 @@ void thermal_budget(const thermal_t *th, const thermal_power_t *p,
     {
       continue;              /* nothing the clamp does moves this one */
     }
-    spent = fmaxf(spent, spend_of(th, net, soa, (thermal_node_t)i));
+    spent = fmaxf(spent, spend_of(th, p, net, soa, (thermal_node_t)i));
     if (out->used[i] >= out->worst)
     {
       out->worst = out->used[i];
@@ -500,7 +510,7 @@ void thermal_budget(const thermal_t *th, const thermal_power_t *p,
 
   /* Time left, for the node that has least of it - the same hold the
      throttle acts on. */
-  const float left = hold_seconds(th, net, soa,
+  const float left = hold_seconds(th, p, net, soa,
                                   (thermal_node_t)out->worst_node);
 
   if (left > 0.0f)
@@ -521,7 +531,7 @@ float thermal_node_derate(const thermal_t *th, const thermal_power_t *p,
   float net[THERMAL_NODES];
 
   net_flows(th, p, th->speed_rpm, net);
-  const float spent = spend_of(th, net, soa, node);
+  const float spent = spend_of(th, p, net, soa, node);
 
   return (spent < 0.0f) ? 1.0f : derate_of(spent, soa);
 }
@@ -551,10 +561,11 @@ void thermal_losses(thermal_loss_t *loss)
   }
   memset(loss, 0, sizeof(*loss));
 
-  /* The IAUCN10S7N021 VDMOS model in electronic_simulations: Ron 1.8 mOhm at
-     25 C. */
+  /* IAUCN10S7N021: 1.8 mOhm at 25 C, x2.24 at 175 - Fig. 8 (Rev 1.2) to
+     1.2 %; first order, 5.7 % off. */
   loss->rds_on    = 1.8e-3f;
-  loss->rds_alpha = 7.8e-3f;
+  loss->rds_alpha = 5.55e-3f;
+  loss->rds_beta  = 1.78e-5f;
 
   /* RU1||RU2, two Vishay WSHM28187L000FEA of 7 mOhm - docs/HARDWARE.md. */
   loss->r_shunt = 3.5e-3f;
@@ -588,8 +599,8 @@ void thermal_losses(thermal_loss_t *loss)
   loss->v_drive    = 15.0f;
   loss->buck_eff   = 0.85f;
 
-  /* The winding: the record's `motor_r_uohm`, 50 mOhm as a placeholder until
-     the commissioning writes it; the glue overwrites this from the record. */
+  /* The winding: the record's `motor_r_uohm`, 50 mOhm until commissioning
+     writes it. */
   loss->r_phase = 0.05f;
   loss->k_iron  = 0.0f;
 }
@@ -624,14 +635,15 @@ static float switch_scale(const thermal_loss_t *loss, float link)
   return (loss->switch_volts > 0.0f) ? (link / loss->switch_volts) : 1.0f;
 }
 
-/* A leg's Rds(on) at its node's temperature: first order, floored at half. */
+/* A leg's Rds(on) at its node's temperature: second order, floored at half. */
 static float leg_rds(const thermal_loss_t *loss, const float *phase_c, int leg)
 {
   float rds = loss->rds_on;
 
   if ((phase_c != NULL) && !isnan(phase_c[leg]))
   {
-    float factor = 1.0f + loss->rds_alpha * (phase_c[leg] - 25.0f);
+    const float d = phase_c[leg] - 25.0f;
+    float factor = 1.0f + (loss->rds_alpha * d) + (loss->rds_beta * d * d);
 
     if (factor < 0.5f)
     {
@@ -675,9 +687,8 @@ void thermal_power_estimate(thermal_power_t *out, const thermal_load_t *load,
   float link_from_phases = 0.0f;
   float sq_total = 0.0f;
 
-  /* The no-load switching per driven leg: the calibrated figure scaled by
-     the C_oss energy's own law between the link it was measured at and the
-     link now. */
+  /* The no-load switching a driven leg: calibrated, scaled to this link by
+     the C_oss energy's law. */
   const float link = (load->link_volts > 0.0f) ? load->link_volts
                                                : loss->switch_volts;
   const float per_leg = (loss->switching_watt / 3.0f) * switch_scale(loss, link);
@@ -845,9 +856,8 @@ float thermal_board_from_ntc(const thermal_cfg_t *cfg, float ntc_c,
   return ntc_c - cfg->ntc_sees * patch_rise_k;
 }
 
-/** Pull one node to its die, and return the patch under it that implies: the
-    node is patch + P * R into it, so subtracting reaches the patch without
-    passing through anything else. */
+/** Pull one node to its die; the patch under it that implies, the node
+    being patch + P * R. */
 static float anchor_die(thermal_t *th, thermal_node_t node, float seen,
                         const thermal_power_t *p, float k, float rate)
 {
@@ -914,9 +924,8 @@ static void anchor_ntc(thermal_t *th, const thermal_sense_t *seen, float k,
   const float miss = seen->ntc_c - th->ntc;
   const float leg = th->t[THERMAL_NTC_PATCH];
   const float centre = th->t[THERMAL_BOARD];
-  /* Held at the leg, the element is the leg's patch and the miss is that
-     patch's, one for one; between the patches, it is the share the V
-     patch shows through. */
+  /* At the leg the miss is the leg's patch's, one for one; between the
+     patches, the share the V patch shows through. */
   /* Within a band of the leg counts as at it: otherwise the element, set to
      a reading a hair under the patch and integrated below it, makes the
      free gain act on a miss that is the patch's one for one - a
@@ -1085,9 +1094,8 @@ int thermal_ntc_follow(thermal_t *th, float dt_s)
     th->ntc = ntc_target(th);
   }
 
-  /* Never past either of them: a passive element between two nodes
-     cannot read outside the pair, whatever its own lag - the series network
-     of docs/papers, 2.3. */
+  /* Never outside the pair: a passive element between two nodes, whatever
+     its lag (docs/papers, 2.3). */
   const float centre = th->t[THERMAL_BOARD];
   const float leg = th->t[THERMAL_NTC_PATCH];
   const thermal_node_t low_at = (centre < leg) ? THERMAL_BOARD

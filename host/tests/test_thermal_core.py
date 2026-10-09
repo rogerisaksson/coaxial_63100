@@ -6,7 +6,7 @@ import sys
 from typing import Any, Dict, Tuple
 
 from tools.cores.build import build, find_cc
-from tools.cores.thermal import (AMBIENT, BOARD_LIMIT_C, LAMINATE, LIMIT_C,
+from tools.cores.thermal import (AMBIENT, BOARD_LIMIT_C, LAMINATE, LEG_LIMIT_C, LIMIT_C,
                                  LOOKAHEAD_S, NODES, SCALES, SOURCES, THERMAL,
                                  THROTTLE_AT, WINDING_LIMIT_C, GroundTruth,
                                  Ident, Model, edges, losses, power)
@@ -724,9 +724,9 @@ def test_the_conduction_is_split_where_it_is_made(report, lib):
     # The FET's resistance climbs with its own node.
     hot = power(lib, phase_amps=(amps, 0.0, 0.0), switching=False,
                 phase_c=(100.0, 25.0, 25.0))
-    want = 1.0 + loss['rds_alpha'] * 75.0
+    want = 1.0 + loss['rds_alpha'] * 75.0 + loss['rds_beta'] * 75.0 ** 2
     report.check('the FET share follows the node it heats, by the '
-                 'datasheet chord',
+                 'datasheet\'s curve',
                  abs(hot['driver_u'] / got['driver_u'] - want) < 0.01,
                  '%.3f against %.3f' % (hot['driver_u'] / got['driver_u'],
                                         want))
@@ -996,7 +996,7 @@ def test_a_ceiling_pulled_in_under_a_node_does_not_trip(report, lib):
     trimmed one.
     """
     model = Model(lib)
-    model.place('driver_u', AMBIENT + 0.92 * (LIMIT_C - AMBIENT))
+    model.place('driver_u', AMBIENT + 0.92 * (LEG_LIMIT_C - AMBIENT))
     whole = model.budget()
     report.check('at 92 % of the record\'s span a driver throttles and does '
                  'not trip',
@@ -1016,11 +1016,32 @@ def test_a_ceiling_pulled_in_under_a_node_does_not_trip(report, lib):
     report.check('a caller giving no trip ceilings is judged on the trimmed '
                  'ones, as every caller before', before['tripped'],
                  before['tripped'])
-    model.place('driver_u', LIMIT_C + 0.5)
+    model.place('driver_u', LEG_LIMIT_C + 0.5)
     at = model.budget(limits=trimmed, trip=model.limits())
     report.check('and at the record\'s ceiling it trips, the clamp closed',
                  at['tripped'] and at['derate'] == 0.0,
                  'tripped %s, clamp %.3f' % (at['tripped'], at['derate']))
+
+
+def test_a_leg_is_judged_on_its_junction(report, lib):
+    """A leg's node is its FETs' copper; the envelope judges it on their junction - the
+    node and each FET's half of its watts through R_th,JC - against the sheet's 175 C,
+    as the mirror does (`thermal.judged`)."""
+    from coaxial.model import thermal
+    model, watt = Model(lib), {'driver_u': 20.0}
+    model.place('driver_u', 150.0)
+    junction = model.junction(watt, 'driver_u')
+    got = model.budget(watt)
+    report.check('20 W in a leg at 150 C: its spend the junction\'s, 6.9 K over it, to a byte',
+                 abs(junction - 156.9) < 0.05 and abs(got['used']['driver_u'] - (
+                     junction - AMBIENT) / (LEG_LIMIT_C - AMBIENT)) < 1.0 / 255.0
+                 and abs(thermal.judged('driver_u', 150.0, 20.0) - junction) < 1e-3,
+                 '%.2f C, used %.3f' % (junction, got['used']['driver_u']))
+    model.place('driver_u', 170.0)
+    hot, cold = model.budget(watt), model.budget()
+    report.check('at 170 C the 20 W leg trips on its junction and the idle one does not',
+                 hot['tripped'] and not cold['tripped'] and hot['soak_j']['driver_u'] == 0.0,
+                 'tripped %s and %s' % (hot['tripped'], cold['tripped']))
 
 
 def test_the_winding_is_an_envelope_of_its_own(report, lib):
@@ -1336,6 +1357,7 @@ def test_a_long_step_is_sub_stepped(report, lib):
 
 ROSTER = (test_the_derate_is_a_ramp, test_derating_is_not_tripping,
           test_a_ceiling_pulled_in_under_a_node_does_not_trip,
+          test_a_leg_is_judged_on_its_junction,
           test_the_winding_is_an_envelope_of_its_own,
           test_the_laminate_is_a_graph_that_reproduces_the_bulk,
           test_the_switching_loss_follows_the_coss_law,

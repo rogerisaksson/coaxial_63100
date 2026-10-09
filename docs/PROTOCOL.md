@@ -386,7 +386,8 @@ u8 mcu_measured, i32 mcu_centi, u32 seen_ms_ago`, `u32 steps`; MINOR 13
 appends `i32 x3 junction_over_centi` - each leg's FET junction over its
 node - and `i32 speed_rpm`.
 
-Op 4: `u8 count`, per node `u8 used` (0 at ambient, 255 at the limit),
+Op 4: `u8 count`, per node `u8 used` (0 at ambient, 255 at the limit; a
+leg's FET junction),
 `u8 worst, u8 worst_node, i32 millis_to_limit, u8 throttling,
 u8 tripped, u32 trips`; MINOR 11 appends `i32 derate_micro`, per node
 `i32 soak_mj`, per phase `i32 duty_micro`; MINOR 12 appends the winding,

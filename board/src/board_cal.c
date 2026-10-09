@@ -37,8 +37,11 @@ static const board_cal_t CAL_DEFAULTS =
   .channels         = BOARD_CAL_CHANNELS,
 
   /* The thermal envelope, centi-degrees C per node in thermal_node_t order:
-     driver U/V/W, phase U/V/W, mcu, regulators, afe, board. */
-  .soa_limit_centi  = { 12500, 12500, 12500,      /* driver U, V, W */
+     driver U/V/W, phase U/V/W, mcu, regulators, afe, board. A leg is judged
+     on its FETs' junction: the IAUCN10S7N021's 175 C (Rev 1.2); its
+     2EDL8034 sits 8-13 mm off them on the leg's patch, whose laminate holds
+     it 20 K under its own 125. */
+  .soa_limit_centi  = { 17500, 17500, 17500,      /* driver U, V, W */
                         12500, 12500, 12500,      /* phase  U, V, W */
                         12500, 12500, 12500, 10500,  /* mcu, regs, afe, centre */
                         /* CAL_VERSION 13: the hot swap's FETs are the
