@@ -2,6 +2,7 @@
 #include "thermal.h"
 
 #include <math.h>
+#include <stddef.h>
 
 /* Ballpark, every figure: a reason each, a measurement none, until a test cycle runs in
    the application (the user, 2026-10-09). Per application, thermal_app_t's order: still air,

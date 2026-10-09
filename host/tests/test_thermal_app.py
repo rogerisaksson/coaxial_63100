@@ -143,7 +143,7 @@ def main():
         print('  SKIP  no host C compiler; setup.ps1 installs one')
         print('\n0 passed, 0 failed')
         return 0
-    lib_path, warnings = build(cc, SOURCES, [os.path.join(THERMAL, 'inc')], name='thermalcore')
+    lib_path, warnings = build(cc, SOURCES, [os.path.join(THERMAL, 'inc')], name='thermalapp')
     lib = ctypes.CDLL(lib_path)
     report = Report()
     report.check('thermal/ builds warning-free with the firmware flags', not warnings,
