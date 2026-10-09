@@ -19,16 +19,20 @@ import random
 #: The frame, kg, and gravity, m/s^2.
 MASS_KG, GRAVITY = 2.0, 9.81
 
-#: A rotor's thrust and drag against its speed squared, mechanical rad/s: quad.json's CT 0.10
-#: on the 0.508 m disc, and motor.loads' APC20x10E fit.
-K_THRUST, K_DRAG = 2.07e-4, 5.143e-6
+#: A rotor's thrust and drag against its speed squared, mechanical rad/s: a 16x14's, CT 0.133
+#: and CP 0.077 - the APC20x10E's (quad.json's CT 0.10, motor.loads' fit, CP 0.032) scaled to
+#: its pitch as APC's thin electric series go. On the pack's 63 V the 20x10 held the 63100 to
+#: 34 % of its no-load speed at its 30 A and to a pitch's speed of 12.5 m/s at the 2 960 rpm
+#: it was flown on, the frame level at 13 m/s; a 16x14 at 60 A turns 7 350 rpm, the link's
+#: ceiling, 13 times the frame's weight, 43 m/s its pitch's speed (2026-10-09).
+K_THRUST, K_DRAG = 1.0995e-4, 4.136e-6
 
 #: The air on the frame, m^2 of drag area - an assumption, a 2 kg frame and four 0.5 m discs
 #: edge on - and its density, kg/m^3.
 BODY_CDA, RHO = 0.15, 1.2
 
 #: Where the rotors stand round the frame's middle, m, x right and z ahead in its own frame,
-#: the discs 0.6 m apart for 0.508 m props, and the way each turns seen from above: the
+#: the discs 0.6 m apart for 0.406 m props, and the way each turns seen from above: the
 #: diagonals alike, so their drags' torques cancel. Front left, front right, rear right, rear
 #: left.
 ARM_M = 0.3
@@ -36,17 +40,17 @@ ROTOR_AT = ((-ARM_M, ARM_M), (ARM_M, ARM_M), (ARM_M, -ARM_M), (-ARM_M, -ARM_M))
 SPIN = (1.0, -1.0, 1.0, -1.0)
 
 #: The discs' height over the frame's middle, the skids' under it and a skid's foot's radius,
-#: m; what of the frame strikes a thing: a disc, a 20 in propeller's radius and half its
+#: m; what of the frame strikes a thing: a disc, a 16 in propeller's radius and half its
 #: depth, and the hub's half sizes, m.
 DISC_M, SKID_M, FOOT_M = 0.06, 0.12, 0.015
-DISC_R, DISC_HALF_M, HUB_M = 0.254, 0.008, (0.06, 0.03, 0.06)
+DISC_R, DISC_HALF_M, HUB_M = 0.2032, 0.008, (0.06, 0.03, 0.06)
 
 #: Looked ahead (`Sky.ahead`), a thing this near the frame's discs or hub is in its way, m.
 NEAR_M = 0.15
 
 #: The hover's height, the stop over the floor, m, and the rotors' idle, rad/s: a sixth of
 #: the frame's weight, the quad sitting on the floor.
-HOVER_M, FLOOR_M, IDLE_RAD_S = 1.5, 0.1, 60.0
+HOVER_M, FLOOR_M, IDLE_RAD_S = 1.5, 0.1, 86.0
 
 #: Its rotors come to a speed asked of them in about this long, s: the frame's clock. The
 #: law's loops (`flying`) and the lap's plan (`course`) are tuned by it and go by it at
@@ -84,10 +88,10 @@ EDDY_S, EDDY_DISC_S, EDDY_DISC, EDDY_UP = 1.5, 0.3, 0.5, 0.5
 #: RISE_M up.
 REF_M, SHEAR, SHEAR_M, SHEAR_MOST, RISE_M = 5.0, 0.2, 0.1, 1.5, 3.0
 
-#: A disc's thrust is the more for the air rising through it: RISE of that rise over its
-#: pitch's speed, a 20x10's 0.254 m a turn. The frame's own climb is not counted: its thrust
-#: is quad.json's, a static one.
-RISE, PITCH_M = 0.5, 0.254
+#: A disc's thrust falls with the air through it along its axis - the frame's own way, the
+#: wind's and its eddy's against it -, to none at INFLOW_J0 of its pitch's speed, a 16x14's
+#: 0.356 m a turn: APC's zero thrust stands a little past the geometric pitch.
+INFLOW_J0, PITCH_M = 1.05, 0.3556
 
 #: The frame's inertia, kg m^2 about its axes: a rotor's share of its mass at each corner.
 _CORNER = MASS_KG / 8.0 * 2.0 * ARM_M * ARM_M
@@ -145,7 +149,7 @@ def mjcf(things=(), near=0.0):
     """The quad as MuJoCo's XML, y up: the frame free over the floor, its mass a plate's with a
     rotor at each corner, on four skid feet, its discs and its hub what it strikes with -
     their contacts found `near` m off, for a frame that is only looked at; `things` what
-    stands about it (`course.solids`), each ('box', its name, its middle, its half sizes, its
+    stands about it (`grounds.solids`), each ('box', its name, its middle, its half sizes, its
     heading, degrees), ('rod', name, an end, the other, its radius) or ('hull', name, the
     points it is the hull of), m."""
     near = 'margin="%g"' % near
@@ -278,15 +282,18 @@ class Sky:
         thrusts = [K_THRUST * w * w for w in speeds]
         self.lift = sum(thrusts)
         wind, push, twist = np.zeros(3), np.zeros(3), np.zeros(3)
-        if air is not None:
-            turn, h = d.xmat[self.frame].reshape(3, 3), float(d.qpos[1]) - (SKID_M + FOOT_M)
+        turn = d.xmat[self.frame].reshape(3, 3)
+        if air is None:
+            along = float(np.dot(d.qvel[0:3], turn[:, 1]))
+            thrusts = [t * inflow(along, w) for t, w in zip(thrusts, speeds)]
+        else:
+            h = float(d.qpos[1]) - (SKID_M + FOOT_M)
             wind = np.array(wind_at(air['wind'], h))
             still = d.qvel[0:3] - wind
             drag = np.linalg.norm(still) * still
             for k, ((x, z), eddy) in enumerate(zip(ROTOR_AT, air['eddies'])):
                 own = np.array(wind_at(eddy, h))
-                thrusts[k] *= max(0.0, 1.0 + RISE * (wind[1] + own[1]) * turn[1, 1]
-                                  / max(1.0, PITCH_M * abs(speeds[k]) / math.tau))
+                thrusts[k] *= inflow(float(np.dot(still - own, turn[:, 1])), speeds[k])
                 more = -0.125 * RHO * BODY_CDA * (np.linalg.norm(still - own) * (still - own)
                                                   - drag)
                 arm = turn @ (x, 0.0, z)
@@ -375,16 +382,22 @@ def wind_at(wind, h):
     return (low * wind[0], low * min(1.0, max(0.0, h) / RISE_M) * wind[1], low * wind[2])
 
 
+def inflow(along, w):
+    """A disc's thrust's share with the air through it `along` its axis, m/s - the disc moving
+    up it -, at `w` rad/s: falling to none at INFLOW_J0 of its pitch's speed."""
+    return max(0.0, 1.0 - along / (INFLOW_J0 * max(1.0, PITCH_M * abs(w) / math.tau)))
+
+
 def speed_for(thrust):
     """A rotor's speed for `thrust` of its own, mechanical rad/s."""
     return math.sqrt(max(0.0, thrust) / K_THRUST)
 
 
 #: The pack: PACK_CELLS in series, a cell's open volts by the share of its charge left - a LiPo's
-#: curve, 63 V full -, its charge, A h - a demo's, a few flights -, and its and its leads'
+#: curve, 63 V full -, its charge, A h - a racer's, a few flights -, and its and its leads'
 #: resistance, ohm, the bus drooping that much a link amp: assumptions with a name each. Spent
-#: at RESERVE of its charge.
-PACK_CELLS, PACK_AH, PACK_OHM, RESERVE = 15, 0.22, 0.12, 0.2
+#: at RESERVE of its charge. At 0.12 ohm the four's 8 kW at their clamps took the bus to half.
+PACK_CELLS, PACK_AH, PACK_OHM, RESERVE = 15, 1.0, 0.04, 0.2
 CELL_V = ((0.0, 3.30), (0.05, 3.50), (0.2, 3.70), (0.5, 3.85), (0.9, 4.05), (1.0, 4.20))
 
 

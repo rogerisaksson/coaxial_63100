@@ -74,10 +74,7 @@ TAGS = {
     'language': 'the session language, its lock, and the phrase table',
 }
 
-#: test_ollama.py was 5,496 lines and 733 checks - a third of every check
-#: this tree has, in one file, and the reason a tier could not be asked for at
-#: any useful resolution. One file per subject now: the largest is 218 checks
-#: and the smallest 12, so a budget can actually choose.
+#: The ollama suites, a file a subject - 12 to 218 checks - so a budget can choose among them.
 OLLAMA = tuple('test_ollama_%s.py' % tag for tag in TAGS)
 
 BENCH = 'test_bench.py'
@@ -306,6 +303,7 @@ TOUCHES = (
     ('host/machine/flying.py',                 QUADS),
     ('host/machine/aerobatics.py',             QUADS),
     ('host/machine/course.py',                 QUADS),
+    ('host/machine/grounds.py',                QUADS + (RENDER,)),
     ('host/coaxial/graphics/quadcopter.py',    QUADS + (RENDER,)),
     ('host/coaxial/graphics/scenery.py',       QUADS + (RENDER,)),
     ('host/machine/',                          (CONTROLLER, GYNOID, GYNOID_FAULTS, GYNOID_FALLS,

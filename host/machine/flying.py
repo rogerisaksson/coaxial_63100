@@ -72,11 +72,11 @@ BRAKE_SHARE = 0.55
 #: swung 0.4 m about its height and never held (2026-10-05).
 PACE_S = 1.0
 
-#: A rotor's run down from its top on its propeller's drag alone, s: the can's and the
-#: propeller's 9.2e-4 kg m^2 over K_DRAG at 310 rad/s. Asked less than their idle the rotors
+#: A rotor's run down from its top on its propeller's drag alone, s: the can's and a 16x14's
+#: 4.5e-4 kg m^2 over K_DRAG at 700 rad/s. Asked less than their idle the rotors
 #: come to it no faster: stepped to it, the loops braked at the clamp and spent 0.16-0.25 of
 #: the envelope, on the floor and ahead of a burn (2026-10-05).
-RUNDOWN_S = 0.58
+RUNDOWN_S = 0.155
 
 #: A turn leaves the whole one and comes to it at this gain, 1/s, on how far from it it is: at
 #: both ends alike, what the discs push as it begins they push back as it ends.

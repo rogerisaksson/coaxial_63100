@@ -23,29 +23,26 @@ from machine.parts import SpeedPI
 #: 2026-10-05).
 CARD = aerobatics.CARD + course.CARD
 
-#: Each rotor's machine, its clamp and trip for a flight, A, and the can and propeller turning,
-#: kg m^2 and N m s (quad.json's propeller, the 63100's can). The hover takes 5.7 A; on a 50 A
-#: clamp the spools into full tilt and the burn put the switches at 0.95 of the envelope a
-#: second flight, throttled, and it burned into the floor at 7.8 m/s (2026-09-28). The drive's
-#: own clamp is WEP's, I_WEP: the speed loop holds the flight to I_MAX.
-PROFILE, I_MAX, I_TRIP, I_WEP = 'outrunner_63100_14p', 30.0, 45.0, 40.0
-ROTOR_J, ROTOR_B = 1.2e-4 + 8e-4, 8e-4
+#: Each rotor's machine, its clamp and trip for a flight, A - the clamp the boards' envelopes
+#: bind under, WEP's past them, the trip the board's rating -, and the can and a 16x14 turning,
+#: kg m^2 and N m s. The drive's own clamp is WEP's, I_WEP: the speed loop holds the flight to
+#: I_MAX.
+PROFILE, I_MAX, I_TRIP, I_WEP = 'outrunner_63100_14p', 60.0, 100.0, 90.0
+ROTOR_J, ROTOR_B = 1.2e-4 + 3.3e-4, 8e-4
 
-#: The rotors' speed loop, Hz, and the top the flight is flown on, mechanical rad/s: a 24 V
-#: link's ceiling on the 63100 at a 50 A clamp, measured - 2 960 rpm, the q inductance's drop
-#: beside the back-EMF; the flux's alone, 454, planned the burn on twice the thrust there was.
-#: On the pack's 63 V the clamp's 30 A turn the propeller 432: 6.5 A are left to spool on. The
-#: four's thrust there, N.
-SPEED_HZ, TOP_RAD_S = 3.0, 310.0
+#: The rotors' speed loop, Hz, and the top the flight is flown on, mechanical rad/s: the 16x14
+#: on the pack's 63 V at the clamp, measured on a stand-in - 703 at 60 A, 691 on a sagged 55 V;
+#: on the 24 V link the 20x10 stood at 310 (2026-10-09). The four's thrust there, N.
+SPEED_HZ, TOP_RAD_S = 3.0, 700.0
 TOP_N = 4.0 * quad.K_THRUST * TOP_RAD_S * TOP_RAD_S
-#: WEP's: the pack's 63 V at the clamp, and the four's thrust there.
-TOP_WEP_RAD_S = 432.0
+#: WEP's: 739 at its 90 A, 66 A of it, the link's ceiling; and the four's thrust there.
+TOP_WEP_RAD_S = 735.0
 TOP_WEP_N = 4.0 * quad.K_THRUST * TOP_WEP_RAD_S * TOP_WEP_RAD_S
 
 #: A rotor's speed is asked no faster than this, rad/s^2: half the clamp to turn the can and
-#: its propeller. Stepped, 14 rad/s more in a pass was the whole clamp, and the gate stage's
-#: envelope 0.2 the higher for a read - 0.91 once in a flight (2026-10-05).
-SPOOL_RAD_S2 = 700.0
+#: its propeller, 0.5 x 0.0435 N m/A x 60 A over ROTOR_J. Stepped, 14 rad/s more in a pass was
+#: the whole clamp, and the gate stage's envelope 0.2 the higher for a read (2026-10-05).
+SPOOL_RAD_S2 = 2900.0
 
 #: The STO chain's charge on the master's pilot before the interlock passes, s, on the wall's
 #: clock the stand-in's chain runs on: opened, a board's charge pump read 2.16 V of the 3.0

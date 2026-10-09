@@ -294,3 +294,22 @@ The board's own are in [FINDINGS](../FINDINGS.md).
   49 s. Told (op 16, the ground speed, held 1 s): STABLE at 27 s and kept,
   air 0.999-1.002, 0.05 K; in a 4-6 m/s gust told the ground speed alone,
   kept, air 0.97-0.99, 0.09 K, the margin 0.91 at its least.
+- Propped for its pack (2026-10-09): flown on the 24 V link's 310 rad/s top on
+  the 63 V pack, its rotors ran at 0.54-0.71 of it between the gates and the
+  frame stood at 13.0-13.8 m/s on the straights, the plan's 13 m/s cap 58-100 %
+  of each; the 20x10's pitch speed there 12.5 m/s, the 63100 at 34 % of its
+  12 000 rpm no-load on its 30 A. 16x14s (CT 0.133, CP 0.077, the 20x10's
+  scaled to its pitch): on a stand-in at 63 V 703 rad/s at the 60 A clamp, 11.1
+  times the frame's weight; 739 at WEP's 90 A, 66 A of it, the link's ceiling;
+  691 on a sagged 55 V; their pitch's speed 40 m/s. The thrust now falls with
+  the air through each disc, to none at 1.05 of its pitch's speed; the pack a
+  racer's, 0.04 ohm: at 0.12 the four's 8 kW took the bus to half.
+- The larger course (2026-10-09, machine.grounds): 176 m, 16 gates of 2.6-3.4 m,
+  two slaloms, a 9.4 m climb, a 10 m dive, a hall's windows, a 3 m alley.
+  Searched, crossings off their middles: 17.9 and 17.0 s with a small frame's
+  tip 0.26 m past its margin at 30 s a metre; at 150, and the straights on
+  THROTTLE of the pull, 19.6 and 19.2, on boards 19.5 and 19.0, in two winds
+  it never flew the same, every tip inside, their SOA 0.65-0.75; THROTTLE 0.6
+  lapped in 17 s, a tip 0.4 m out, the boards at 0.94-0.96 - the narrow gates
+  bind before the motors. A knife-edge, 91 degrees for 70 ms, out of the alley;
+  the page's course on boards passed a gate 1 cm inside its room, once 1 out.

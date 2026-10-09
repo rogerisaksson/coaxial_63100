@@ -35,6 +35,10 @@ CARBON, MASK, PROP = (70, 74, 84), (30, 110, 64), (205, 205, 200)
 BLADES_RAD_S, RIM_EVERY = 20.0, 2
 RIM_INK = (120, 132, 150)
 
+#: A thrust's arrow up its rotor's axis from the hub, m a newton - a rotor's top, 54 N, 1.35 m,
+#: a hover's 4.9 N 0.12 m -, its head a fifth of it, and its ink.
+ARROW_M_PER_N, ARROW_HEAD, ARROW_INK = 0.025, 0.2, (205, 110, 255)
+
 
 def _at(mesh, turn=None, spot=(0.0, 0.0, 0.0)):
     """`mesh` turned by the 3x3 `turn` and moved to `spot`, its frame's."""
@@ -181,12 +185,34 @@ def _discs(pose, rotors, m, cam, centre):
     return [(rim, RIM_INK)]
 
 
+def _arrows(pose, thrusts, m, cam, centre):
+    """[(dots, ink)]: each rotor's thrust, `thrusts` N, an arrow up its axis from its hub."""
+    from coaxial.model.blocks import numpy as np
+    turn, at = np.asarray(pose['turn'], float), np.asarray(pose['at'], float)
+    up, side = turn[:, 1], turn[:, 0]
+    drawn = np.zeros((cam['height'], cam['width']), bool)
+    for (x, z), thrust in zip(quad.ROTOR_AT, thrusts):
+        length = ARROW_M_PER_N * max(0.0, thrust)
+        if length <= 0.0:
+            continue
+        hub = at + turn @ np.array([x, quad.DISC_M, z])
+        tip = hub + length * up
+        back = tip - ARROW_HEAD * length * up
+        points = np.array([hub, tip, back + 0.5 * ARROW_HEAD * length * side,
+                           back - 0.5 * ARROW_HEAD * length * side])
+        sx, sy, _w = project(points, m, cam, centre)
+        for a, b in ((0, 1), (1, 2), (1, 3)):
+            line(drawn, (sx[a], sy[a]), (sx[b], sy[b]))
+    return [(drawn, ARROW_INK)]
+
+
 def render(pose, rotors, width, height, yaw=30.0, pitch=18.0, reach=REACH, centre=None,
-           colour=True, lit=None, world=True, gate=None):
+           colour=True, lit=None, world=True, gate=None, thrusts=None, line_=False):
     """The quad at `pose` on its `rotors`, `width` x `height` cells, `reach` m framed about
     `centre` (the quad's middle) from SIGHT reaches off: lines. `lit` a `gpu.LitRaster`, or
     None to splat its dots here; `world` False the quad alone, nothing under it or about it;
-    `gate` the course's gates stood too, the one of that number lit."""
+    `gate` the course's gates stood too, the one of that number lit, and `line_` the line it
+    asks through them; `thrusts` each rotor's, N, its arrow."""
     from coaxial.model.blocks import numpy as np
     m = shapes.view(yaw, pitch)
     fine = engine.fine(engine.camera(width, height, reach, distance=SIGHT * reach))
@@ -199,9 +225,9 @@ def render(pose, rotors, width, height, yaw=30.0, pitch=18.0, reach=REACH, centr
     else:
         positions, normals, uv, materials, _index = _posed(pose, rotors, True)
         depth, rgb = splat((positions, normals, materials, uv), m, fine, centre)
+    own = _discs(pose, rotors, m, fine, centre) + (
+        _arrows(pose, thrusts, m, fine, centre) if thrusts is not None else [])
     if not world:
-        return braille(depth, rgb, np.zeros(depth.shape), width, height, colour,
-                       props=_discs(pose, rotors, m, fine, centre))
+        return braille(depth, rgb, np.zeros(depth.shape), width, height, colour, props=own)
     return braille(depth, rgb, scenery.ground(m, fine, centre), width, height, colour,
-                   props=_discs(pose, rotors, m, fine, centre)
-                   + scenery.props(m, fine, centre, gate))
+                   props=own + scenery.props(m, fine, centre, gate, line_))

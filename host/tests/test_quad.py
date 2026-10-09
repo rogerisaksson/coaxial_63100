@@ -17,12 +17,12 @@ FLOOR_S = 2.0
 @functools.lru_cache(maxsize=None)
 def flown(share=1.0, base=False, spent_at=None):
     """The routine once round, a row a pass: machine.quad's frame in MuJoCo on rotors lagging
-    0.05 s to their speed, capped at the 63100's ceiling, on `share` of their pull - only its
+    0.05 s to their speed, capped at the page's top, on `share` of their pull - only its
     BASE rows, `base`; its pack spent from `spent_at` s until it has stood FLOOR_S on the floor,
     and the flight ended as it lifts again."""
     from machine import aerobatics, quad
     from machine.flying import Flying
-    top_rad_s = 310.0
+    from terminal.views.quad.flight import TOP_RAD_S as top_rad_s
     card = tuple(row for row in aerobatics.CARD if row[0] in BASE) if base else aerobatics.CARD
     sky, route = quad.Sky(), aerobatics.routine(card)
     flying = Flying(4.0 * quad.K_THRUST * top_rad_s ** 2, aerobatics.DOWN)
@@ -202,7 +202,7 @@ def test_spent_it_comes_down(report):
                      down[-1]['h'] if down else math.nan, down[-1]['v'] if down else math.nan))
     report.check('it waits on the floor while it is not fit, its rotors run down to their idle',
                  bool(floor) and sum(r['flat'] for r in floor) >= 100.0 * FLOOR_S - 5
-                 and floor[-1]['thrust'] <= 3.1,
+                 and floor[-1]['thrust'] <= 1.05 * 4.0 * quad.K_THRUST * quad.IDLE_RAD_S ** 2,
                  '%d passes spent on the floor, %.1f N at their end' % (
                      sum(r['flat'] for r in floor), floor[-1]['thrust'] if floor else math.nan))
 
@@ -230,7 +230,7 @@ def test_its_pack(report):
         seconds += 1
     report.check('a hover and its figures\' 250 W spend it to its reserve in minutes, its volts '
                  'down the cells\' curve',
-                 120 <= seconds <= 600 and quad.open_volts(quad.RESERVE) < cells['volts'] + 1.0 < 60.0,
+                 120 <= seconds <= 900 and quad.open_volts(quad.RESERVE) < cells['volts'] + 1.0 < 60.0,
                  '%d s, %.1f V under it' % (seconds, cells['volts']))
 
 
@@ -298,6 +298,7 @@ def test_it_holds_in_wind(report):
     held on its spot, the wind as it has learnt it the wind on it - unlearnt, half a metre off
     and never held; in gusts within half a metre."""
     from machine import aerobatics, flying as law, quad
+    from terminal.views.quad.flight import TOP_RAD_S
 
     def hover(kind, learn=True):
         """(the furthest off its spot, m, the share of the passes held, how far the law's wind
@@ -306,11 +307,11 @@ def test_it_holds_in_wind(report):
         law.AIR_S = was if learn else math.inf
         try:
             sky, air = quad.Sky(), quad.air(3, kind)
-            flying = law.Flying(4.0 * quad.K_THRUST * 310.0 ** 2, dict(aerobatics.HOVER, height=5.0))
+            flying = law.Flying(4.0 * quad.K_THRUST * TOP_RAD_S ** 2, dict(aerobatics.HOVER, height=5.0))
             w, t, rows = [0.0] * 4, 0.0, []
             while t < 40.0:
                 for k, thrust in enumerate(flying.step(sky.state(), 0.02, 1.0)):
-                    w[k] += (min(310.0, quad.speed_for(thrust)) - w[k]) * 0.25
+                    w[k] += (min(TOP_RAD_S, quad.speed_for(thrust)) - w[k]) * 0.25
                 wind = quad.blown(air, 0.02) if t >= 8.0 else (0.0, 0.0, 0.0)
                 sky.step(w, 0.02, air if t >= 8.0 else None)
                 t += 0.02

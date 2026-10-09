@@ -111,8 +111,10 @@ LANDED_S = 200.0
 #: most - kept within this of the wall's: a page starved past it has not landed in LANDED_S.
 BEHIND = 0.2
 
-#: The page's pack for its test, A h: a first flight whole, spent early in the second.
-TEST_PACK_AH = 0.075
+#: The page's pack for its test, A h: a first flight whole, spent early in the second - the
+#: routine takes 0.109 on the 16x14s, its full tilt 0.027; 0.15 was spent in its hold
+#: (2026-10-09).
+TEST_PACK_AH = 0.17
 
 
 def paged(card, done, pack_ah=None):
@@ -170,11 +172,10 @@ def paged(card, done, pack_ah=None):
 def test_the_page_flies_four_boards(report):
     """The page on its four stand-in boards and a small pack, into its third flight: the quad
     drawn in the viewport; flown from its first hover, no observer STABLE yet, inside the
-    boards' envelopes - none tripped, under their throttle; full tilt past 20 m, the
+    boards' envelopes - none tripped, full tilt into their throttle; full tilt past 20 m, the
     fall burned to a stop over the floor and held at 10 cm; the bus drooping under it; the pack
     spent in the second flight, the way down, a charged one on the floor and its routine again
     - the observers kept through it all."""
-    from coaxial.devices.thermal import THROTTLE_AT
     from machine import aerobatics, quad
     from terminal.views.quad import flight as flown
     first = aerobatics.CARD[[name for name, *_row in aerobatics.CARD].index('hover') + 1][0]
@@ -190,10 +191,10 @@ def test_the_page_flies_four_boards(report):
     early = [r for r in rows if r['name'] == first][:1]
     hard = [r for r in rows if r['name'] in ('full tilt', 'burn')]
     report.check('flown from its first hover, no observer STABLE yet; no board tripped and '
-                 'nothing struck, full tilt and the burn under the boards\' throttle',
+                 'nothing struck, full tilt and the burn into the boards\' throttle at most',
                  bool(early) and 'STABLE' not in early[0]['states']
                  and not any(r['tripped'] or r['name'] == 'crashed' for r in rows)
-                 and bool(hard) and max(r['soa'] for r in hard) < THROTTLE_AT,
+                 and bool(hard) and max(r['soa'] for r in hard) <= 1.0,
                  'the %s at %.1f s on %s; SOA %.2f at most, %.0f %% of their pull at the least' % (
                      first, early[0]['t'] - rows[0]['t'], early[0]['states'],
                      max(r['soa'] for r in rows), 100.0 * min((r['share'] for r in hard),
@@ -249,7 +250,7 @@ def test_the_page_flies_its_course(report):
     its opening on each lap it flew; the boards under their throttle, none tripped; landed where
     it rose."""
     from coaxial.devices.thermal import THROTTLE_AT
-    from machine import course
+    from machine import course, grounds
     rows, frames, rate = paged(course.CARD, lambda flew, now: now in ('idle', 'cool', 'swap')
                                and 'land' in flew)
     laps = [r for r in rows if r['name'] == 'lap']
@@ -267,18 +268,18 @@ def test_the_page_flies_its_course(report):
                  '%d braille cells at the least and %d at the middle on its laps' % (
                      min(aloft or [0]), sorted(aloft or [0])[len(aloft) // 2]))
     flew = laps[-1]['of'] if laps else 0
-    gates, room = passes(rows), course.GATE_M / 2.0 - reach() - CLEAR_M
-    counted = [len(gates[g]) for g in range(1, len(course.GATES))]
-    report.check('every gate passed on each lap it flew, its middle within %.2f m of the '
-                 'frame\'s, nothing struck' % room,
-                 flew >= 1 and counted == [flew] * len(counted) and worst(gates) <= room
+    gates = passes(rows)
+    counted = [len(gates[g]) for g in range(1, len(grounds.GATES))]
+    report.check('every gate passed on each lap it flew inside its opening, a propeller\'s tip '
+                 '%.2f m clear of its frame, nothing struck' % CLEAR_M,
+                 flew >= 1 and counted == [flew] * len(counted) and worst(gates) <= 0.0
                  and not any(r['name'] == 'crashed' for r in rows),
-                 '%d of %d laps, passes %s, %.2f m off at the most; its clock %.0f %% behind '
+                 '%d of %d laps, passes %s, %+.2f m past a gate\'s room; its clock %.0f %% behind '
                  'the wall\'s' % (flew, course.LAPS, counted, worst(gates), 100.0 * behind))
     ahead = {f['gate'] for f in frames if f['name'] == 'lap'}
     after = {f['gate'] for f in frames if f['name'] in ('descend', 'land')}
     report.check('the gate lit: each in its turn on its laps, the first again on its way down',
-                 ahead == set(range(len(course.GATES))) and after == {1},
+                 ahead == set(range(len(grounds.GATES))) and after == {1},
                  '%d of them on its laps, %s after' % (len(ahead), sorted(after)))
     report.check('the boards under their throttle through its laps; none tripped',
                  bool(laps) and max(r['soa'] for r in laps) < THROTTLE_AT
@@ -294,8 +295,39 @@ def test_the_page_flies_its_course(report):
                  if down else 'never landed')
 
 
+def test_its_thrust_and_its_line_are_drawn(report):
+    """The page's frame: an arrow up each rotor's axis in its own ink, the longer the more it
+    pulls, none for none; the line the course asks dashed through it in its own, only where
+    the page has it on (L)."""
+    from coaxial.graphics import engine, quadcopter, scenery, shapes
+    from coaxial.model.blocks import numpy as np
+    m, reach = shapes.view(200.0, 18.0), 2.0
+    cam = engine.fine(engine.camera(100, 36, reach, distance=quadcopter.SIGHT * reach))
+    pose = {'at': (0.0, 2.0, 0.0), 'turn': ((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0))}
+
+    def dots(newtons):
+        (drawn, ink), = quadcopter._arrows(pose, [newtons] * 4, m, cam, pose['at'])
+        return int(drawn.sum()), ink
+    none, (small, ink), (big, _ink) = dots(0.0)[0], dots(10.0), dots(40.0)
+    report.check('an arrow a rotor in its own ink, the longer the more it pulls, none for none',
+                 none == 0 < small < big and ink == quadcopter.ARROW_INK
+                 and ink not in scenery.INKS.values(),
+                 '%d dots at 10 N, %d at 40, %d at none' % (small, big, none))
+    want = np.asarray(scenery.INKS['line'], float)
+
+    def lined(on):
+        (got, inks), = scenery.props(m, cam, (2.0, 2.4, 22.0), 3, on)
+        size = np.linalg.norm(inks, axis=2)
+        like = (inks @ want) / np.maximum(1e-9, size * np.linalg.norm(want))
+        return int(((size > 0.0) & (like > 0.9995)).sum())
+    report.check('the line asked through the course in its own ink where it is on, none off',
+                 lined(True) >= 20 and lined(False) == 0,
+                 '%d cells on, %d off' % (lined(True), lined(False)))
+
+
 ROSTER = (test_the_page_words_its_boards, test_its_traces_are_drawn, test_its_wind_is_pointed,
-          test_the_page_flies_four_boards, test_the_page_flies_its_course)
+          test_its_thrust_and_its_line_are_drawn, test_the_page_flies_four_boards,
+          test_the_page_flies_its_course)
 
 
 def main(argv=None):

@@ -2,8 +2,8 @@
 """Monte Carlo over the quad's laps: each candidate through the same flights, a process a core.
 
 A candidate is a few constants of its lap - `machine.course`'s, `machine.flying`'s, the page's
-`flight`'s, each by `module.NAME` - and of its line through the gates: `turnN` and `tenseN`,
-gate N's row of `course.WAYS`. Its trials, the same for every candidate, each the course's
+`flight`'s, each by `module.NAME` - and of its line through the gates: `turnN`, `tenseN`,
+`acrossN` and `upN`, gate N's row of `course.WAYS`. Its trials, the same for every candidate, each the course's
 card flown once through among what stands, solid:
 
 - ideal: rotors lagging to their speed, on all of their pull, a page's passes;
@@ -12,8 +12,8 @@ card flown once through among what stands, solid:
 each in still air and in the air's tour from SEEDS (`--seeds`); ideal, as a frame of each of
 SIZES on a course as much larger (`quad.sized`); the boards, laid in each of ROOMS and begun on
 a pack with each of PACKS of its charge. A trial's cost is its laps' seconds, by its frame's
-clock; MISS_K a metre a gate's middle is passed further off than MISS_M, ROOM_K a metre the
-frame has less than ROOM_M about it, both of the frame as built; struck, STRUCK_S and no laps
+clock; MISS_K a metre a propeller's tip passes nearer a gate's frame than MISS_M, ROOM_K a
+metre the frame has less than ROOM_M about it, both of the frame as built; struck, STRUCK_S and no laps
 counted. A candidate's is its trials' mean: a line found on its planned seconds alone was
 flown 0.9 m off its gates (2026-10-06). Told beside it, not counted: the rotors' thrust of
 their top, the flight's jerk, m/s^3 rms, and how often a lap its pull along its way turned.
@@ -37,7 +37,7 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from machine import aerobatics, course, flying, quad  # noqa: E402
+from machine import aerobatics, course, flying, grounds, quad  # noqa: E402
 from tools import REPO  # noqa: E402
 from tools.dev import background  # noqa: E402
 from tools.sim import cmaes  # noqa: E402
@@ -62,20 +62,26 @@ def trials(seeds=SEEDS, suite='all'):
     rows += [('boards', None, 1.0, BENCH, left) for left in PACKS]
     return [row for row in rows if row[0] in SUITES[suite]]
 
-#: The ideal rotors: their top, rad/s, their lag to a speed, s, the fastest they are spun up or
-#: down, rad/s^2 (tests/test_quad_course.py's).
-TOP_RAD_S, LAG_S, SPOOL_RAD_S2 = 310.0, 0.08, 900.0
+#: The ideal rotors' lag to a speed, s; their top and spool are the page's flight's.
+LAG_S = 0.08
 
-#: The cost beside the laps' seconds: a gate's middle passed further off than MISS_M, s a
-#: metre; less than ROOM_M about the frame's reach, s a metre; a flight struck.
-MISS_M, MISS_K, ROOM_M, ROOM_K, STRUCK_S = 0.45, 30.0, 0.35, 30.0, 90.0
+#: The cost beside the laps' seconds: a propeller's tip nearer a gate's frame than MISS_M, s a
+#: metre - a 3.4 m gate's middle passed 0.67 m off, a 2.6 m window's 0.27 -; less than ROOM_M
+#: about the frame's reach, s a metre; a flight struck. At 30 s a metre a search bought 2 s a
+#: lap with a small frame's tip 0.26 m past its margin (2026-10-09).
+MISS_M, MISS_K, ROOM_M, ROOM_K, STRUCK_S = 0.35, 150.0, 0.35, 30.0, 90.0
 
 #: How a flight flowed (`flowed`): its pull smoothed over this long, s, and a turn of its pull
 #: along its way counted from this much either way, m/s^2.
 FLOW_S, FLOW_M_S2 = 0.1, 1.0
 
-#: A run's commit on the relay, GB, and its seconds at the most.
-RUN_GB, RUN_S = 0.5, 240.0
+#: A run's commit on the relay, GB, and its seconds at the most; the relay's batons, None its
+#: own (`--batons`: fewer leave the page's terminal a core).
+RUN_GB, RUN_S, BATONS = 0.5, 240.0, None
+
+#: A crossing's tuned names, in its row's order (`course.WAYS`).
+WAY_ROW = ('turn', 'tense', 'across', 'up')
+WAY = r'(%s)(\d+)' % '|'.join(WAY_ROW)
 
 #: Where a constant lives, by its name's module.
 MODULES = {'course': course, 'flying': flying, 'quad': quad}
@@ -93,13 +99,13 @@ def owner(name):
 
 
 def put(values):
-    """{name: value} set where each lives - `module.NAME`, or `turnN`, `tenseN` in gate N's
-    row of `course.WAYS` - and the line laid again."""
+    """{name: value} set where each lives - `module.NAME`, or `turnN`, `tenseN`, `acrossN`,
+    `upN` in gate N's row of `course.WAYS` - and the line laid again."""
     ways = [list(way) for way in course.WAYS]
     for name, value in values.items():
-        way = re.fullmatch(r'(turn|tense)(\d+)', name)
+        way = re.fullmatch(WAY, name)
         if way:
-            ways[int(way.group(2))][way.group(1) == 'tense'] = float(value)
+            ways[int(way.group(2))][WAY_ROW.index(way.group(1))] = float(value)
         else:
             setattr(*owner(name), float(value))
     course.WAYS = tuple(tuple(way) for way in ways)
@@ -107,57 +113,45 @@ def put(values):
 
 
 def sized(size):
-    """The frame, its law, its routine and its course `size` times as built."""
+    """The frame, its law, its routine, its grounds and its course `size` times as built."""
     quad.sized(size)
     flying.sized()
     aerobatics.sized()
+    grounds.sized()
     course.sized()
 
 
 def now(name):
     """A constant's value where it lives."""
-    way = re.fullmatch(r'(turn|tense)(\d+)', name)
+    way = re.fullmatch(WAY, name)
     if way:
-        return course.WAYS[int(way.group(2))][way.group(1) == 'tense']
+        return course.WAYS[int(way.group(2))][WAY_ROW.index(way.group(1))]
     return float(getattr(*owner(name)))
 
 
 def missed(rows):
-    """(the furthest a gate's middle was passed off, m, across or up; the passes) of the laps'
-    rows (x, y, z, m/s)."""
-    worst, count = 0.0, 0
-    for gx, gy, gz, heading in course.GATES:
+    """(the most a propeller's tip passed nearer a gate's frame than MISS_M, m - none past it,
+    less than nothing; the passes) of the laps' rows (x, y, z, m/s)."""
+    worst, count = -math.inf, 0
+    for gx, gy, gz, heading, size in grounds.GATES:
+        leaves = size / 2.0 - quad.reach() - MISS_M
         nx, nz = math.sin(math.radians(heading)), math.cos(math.radians(heading))
         for a, b in zip(rows, rows[1:]):
             before = (a[0] - gx) * nx + (a[2] - gz) * nz
             after = (b[0] - gx) * nx + (b[2] - gz) * nz
             if before < 0.0 <= after and math.hypot(b[0] - gx, b[2] - gz) < 6.0 and b[3] > 1.0:
-                worst = max(worst, abs((b[0] - gx) * nz - (b[2] - gz) * nx), abs(b[1] - gy))
+                worst = max(worst, abs((b[0] - gx) * nz - (b[2] - gz) * nx) - leaves,
+                            abs(b[1] - gy) - leaves)
                 count += 1
     return worst, count
 
 
 def room(rows):
-    """The least room about the frame's reach, m: its middle to each tree, house, car and mast
-    - beside it or over it, whichever is more - and to the floor: a frame banked 84 degrees in
-    the slalom's last bend fell from 1.9 m into it (2026-10-09)."""
+    """The least room about the frame's reach, m: its middle to each thing standing
+    (`grounds.clearances`) and to the floor: a frame banked 84 degrees in the slalom's last
+    bend fell from 1.9 m into it (2026-10-09)."""
     least = min(r[1] + quad.SKID_M + quad.FOOT_M for r in rows)
-    for x, z, high, crown in course.TREES:
-        least = min([least] + [math.hypot(r[0] - x, r[2] - z) - crown
-                               for r in rows if r[1] <= high])
-    for x, z, wide, deep, _wall, ridge in course.HOUSES:
-        least = min([least] + [max(abs(r[0] - x) - wide / 2, abs(r[2] - z) - deep / 2,
-                                   r[1] - ridge) for r in rows])
-    wide, high, long_ = course.CAR_M
-    for x, z, heading in course.CARS:
-        c, s = math.cos(math.radians(heading)), math.sin(math.radians(heading))
-        least = min([least] + [max(abs((r[0] - x) * c - (r[2] - z) * s) - wide / 2,
-                                   abs((r[0] - x) * s + (r[2] - z) * c) - long_ / 2,
-                                   r[1] - high) for r in rows])
-    for x, z, side, high in course.MASTS:
-        least = min([least] + [max(math.hypot(r[0] - x, r[2] - z) - side, r[1] - high)
-                               for r in rows])
-    return least - quad.reach()
+    return min(least, grounds.clearances([r[:3] for r in rows])[0][1]) - quad.reach()
 
 
 def flowed(laps):
@@ -193,9 +187,9 @@ def ideal(air, _room=BENCH, _left=1.0):
     view = owner('flight.CARD')[0]
     dice = random.Random(1)
     size, clock = quad.scales()
-    top, lag, spool = TOP_RAD_S / size, LAG_S * clock, SPOOL_RAD_S2 / (size * clock)
+    top, lag, spool = view.TOP_RAD_S / size, LAG_S * clock, view.SPOOL_RAD_S2 / (size * clock)
     wep_top, wep_spool = view.TOP_WEP_RAD_S / size, spool * view.I_WEP / view.I_MAX
-    sky, route = quad.Sky(course.solids()), aerobatics.routine(course.CARD)
+    sky, route = quad.Sky(grounds.solids()), aerobatics.routine(course.CARD)
     law = flying.Flying(4.0 * quad.K_THRUST * top ** 2, aerobatics.DOWN)
     normal, given = law.top, 4.0 * quad.K_THRUST * wep_top ** 2
     flight = {'wep': {'left': view.WEP_S * clock, 'on': 0.0, 'from': None, 'taken': 0}}
@@ -223,7 +217,7 @@ def ideal(air, _room=BENCH, _left=1.0):
                 (t, float(frame['at'][0]), frame['h'], float(frame['at'][2]),
                  math.sqrt(sum(float(c) ** 2 for c in frame['vel'])),
                  *(float(c) for c in frame['acc']), sum(x * x for x in w) / (4.0 * top * top)))
-    return laps, sky.hit, 0.0, 1.0, view.WEP_S - flight['wep']['left'] / clock
+    return laps, sky.hit, 0.0, 1.0, (view.WEP_S - flight['wep']['left']) / clock
 
 
 def boards(air, room=BENCH, left=1.0):
@@ -237,7 +231,7 @@ def boards(air, room=BENCH, left=1.0):
     rotors = [view.arm(Coaxial63100(execution_mode=SIMULATED).open()) for _ in range(4)]
     for rotor in rotors:
         rotor['rig'].board.thermal.situation(room)
-    sky, route = quad.Sky(course.solids()), aerobatics.routine(course.CARD)
+    sky, route = quad.Sky(grounds.solids()), aerobatics.routine(course.CARD)
     law, flight = flying.Flying(view.TOP_N, aerobatics.DOWN), view.fresh()
     flight['cells'].update(left=left, volts=quad.open_volts(left))
     flight['air'], t, read, laps, soa, least = air, 0.0, 0.0, {}, 0.0, 1.0
@@ -289,7 +283,7 @@ def cost_of(result):
     a lap short, STRUCK_S."""
     if not result or result['struck'] or len(result['laps']) < course.LAPS:
         return STRUCK_S
-    return (sum(result['laps']) + MISS_K * max(0.0, result['miss'] - MISS_M)
+    return (sum(result['laps']) + MISS_K * max(0.0, result['miss'])
             + ROOM_K * max(0.0, ROOM_M - result['room']))
 
 
@@ -311,7 +305,7 @@ def run(_pool, candidates):
                                          '--one', json.dumps(values), str(k)], RUN_GB, RUN_S)
             for c, values in enumerate(candidates) for k in range(len(JOBS))]
     got = {}
-    for job, text, _code, _s in focus.relay(jobs):
+    for job, text, _code, _s in focus.relay(jobs, BATONS):
         line = next((ln for ln in reversed(text.splitlines()) if ln.startswith('{')), None)
         got[job.name] = json.loads(line)['result'] if line else None
     out = []
@@ -328,7 +322,8 @@ def _show(values, cost, whole, miss, results):
         print('    %-6s %-6s %-6s %s' % (rotors, 'still' if seed is None else 'air %d' % seed, (
             'x%g' % size if size != 1.0 else room_ if room_ != BENCH
             else '%.0f %%' % (100 * left) if left != 1.0 else ''), (
-            'laps %s s, a gate %.2f m off, %.2f m about it, thrust %.0f %%, jerk %.0f, %.0f '
+            'laps %s s, a gate\'s frame %+.2f m past its margin, %.2f m about it, thrust %.0f %%, '
+            'jerk %.0f, %.0f '
             'turns%s%s%s' % (
                 ' '.join('%.1f' % x for x in r['laps']) or '-', r['miss'], r['room'],
                 100 * r['thrust'], r['jerk'], r['turns'],
@@ -341,7 +336,7 @@ SUITE, JOBS = 'all', trials()
 
 
 def main(argv=None):
-    global SUITE, JOBS
+    global SUITE, JOBS, BATONS
     parser = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
     parser.add_argument('--set', nargs='*', default=[], metavar='NAME=V',
                         help='constants for every candidate')
@@ -358,10 +353,11 @@ def main(argv=None):
                         help="the air's seeds flown, beside still air")
     parser.add_argument('--verify', type=int, nargs='*', default=[], metavar='SEED',
                         help="a search's find and its start flown in these seeds' air, every trial")
+    parser.add_argument('--batons', type=int, help="the relay's, its own where none")
     parser.add_argument('--one', nargs=2, metavar=('VALUES', 'K'),
                         help="one flight on the relay: a candidate's JSON and its job's index")
     args = parser.parse_args(argv)
-    SUITE, JOBS = args.suite, trials(args.seeds, args.suite)
+    SUITE, JOBS, BATONS = args.suite, trials(args.seeds, args.suite), args.batons
     background.lower()
     if args.one:
         print(json.dumps({'result': trial(json.loads(args.one[0]), JOBS[int(args.one[1])])}))

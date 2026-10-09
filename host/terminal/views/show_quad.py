@@ -34,7 +34,7 @@ from coaxial import Coaxial63100
 from coaxial.errors import RigError
 from coaxial.draw.gauges import policy_word
 from coaxial.graphics import gpu, quadcopter
-from machine import aerobatics, course, quad
+from machine import aerobatics, grounds, quad
 from machine.flying import Flying
 from machine.modes import SIMULATED
 from terminal.loader import TO_MENU
@@ -70,6 +70,13 @@ CHASE_M, CHASE_K, CHASE_S = 4.0, 2.0, 0.3
 ZOOM_STEP, ZOOM = 1.15, (0.25, 4.0)
 
 
+def thrusts(frame, rotors):
+    """Each rotor's thrust, N, as the frame flies: its speed's, less the air through its disc."""
+    turn = frame['turn']
+    along = sum(float(v) * float(turn[k][1]) for k, v in enumerate(frame['vel']))
+    return [quad.K_THRUST * r['w'] * r['w'] * quad.inflow(along, r['w']) for r in rotors]
+
+
 def compose(console, origin, rotors, frame, flight, trace, now, art, yaw=0.0):
     """One frame: the quad in the viewport; at the side the `flight` - its stage, its apex or
     its `lap`, its pack `cells`, their `peak`, the `share` of their pull its rotors are asked
@@ -102,7 +109,7 @@ def compose(console, origin, rotors, frame, flight, trace, now, art, yaw=0.0):
         ('bus', '%8.1f V, low %.1f' % (cells['volts'], peak['low'])),
         ('pack', Text('%8.0f %% left, %.1f A' % (100.0 * cells['left'], cells['amps']),
                       style='alarm' if cells['left'] <= quad.RESERVE else 'value')),
-        ('power', '%8.0f W, peak %.0f' % (cells['watts'], peak['watts']))])
+        ('power x4', '%8.0f W, peak %.0f' % (cells['watts'], peak['watts']))])
     lines = []
     for label, rotor in zip(ROTORS, rotors):
         budget = rotor['budget'] or {}
@@ -116,10 +123,11 @@ def compose(console, origin, rotors, frame, flight, trace, now, art, yaw=0.0):
                     [flying, hud('WIND  the way it blows, in the view',
                                  wind.pointer(flight['air'], frame['h'], yaw)),
                      hud('ROTORS  rpm, current, SOA, TH OBS', lines),
-                     hud('HEIGHT m, POWER  last %.0f s' % traces.TRACE_S,
+                     hud('HEIGHT m, POWER OF ALL FOUR  last %.0f s' % traces.TRACE_S,
                          traces.heights(trace, now, HUD_WIDTH - 4)),
                      hud('BUS V, PEAK TEMP C', traces.buses(trace, now, HUD_WIDTH - 4))],
-                    (('+ -', 'ZOOM'), ('W', 'WIND'), ('R', 'RESET'), ('Q', 'EXIT'),
+                    (('+ -', 'ZOOM'), ('W', 'WIND'), ('T', 'THRUST'), ('L', 'LINE'),
+                     ('R', 'RESET'), ('Q', 'EXIT'),
                      ('ESC', 'MENU')))
 
 
@@ -178,11 +186,11 @@ def main(argv=None):
     card = gpu.adapter()
     lit = gpu.LitRaster(found=card) if card is not None else None
     say('ok', 'drawing', lit.name if lit is not None else 'this process, dots')
-    sky, route, trace = quad.Sky(course.solids()), aerobatics.routine(flown.CARD), []
+    sky, route, trace = quad.Sky(grounds.solids()), aerobatics.routine(flown.CARD), []
     began = time.monotonic()
     held = {'at': 0.0, 'clock': 0.0, 'thermal_at': 0.0, 'frame': sky.state(), 'reset': False,
             'wind': False, 'flying': Flying(flown.TOP_N, aerobatics.DOWN),
-            'flight': flown.fresh()}
+            'flight': flown.fresh(), 'arrows': True, 'line': True}
     camera = {'reach': NEAR_M, 'yaw': YAW, 't': None, 'zoom': 1.0}
 
     def zoomed(k):
@@ -190,7 +198,9 @@ def main(argv=None):
     keys = dict([(k, lambda: zoomed(ZOOM_STEP)) for k in '+=']
                 + [(k, lambda: zoomed(1.0 / ZOOM_STEP)) for k in '-_']
                 + [(k, lambda: held.update(reset=True)) for k in 'rR']
-                + [(k, lambda: held.update(wind=True)) for k in 'wW'])
+                + [(k, lambda: held.update(wind=True)) for k in 'wW']
+                + [(k, lambda: held.update(arrows=not held['arrows'])) for k in 'tT']
+                + [(k, lambda: held.update(line=not held['line'])) for k in 'lL'])
 
     def sample():
         """The flight's side of a frame, on the feed's thread: a pass of it."""
@@ -250,7 +260,9 @@ def main(argv=None):
             frame, [(r['angle'], r['w'], (r['budget'] or {}).get('winding_c'), r['board_c'])
                     for r in rotors], width, height, yaw=camera['yaw'], pitch=PITCH,
             reach=reach, centre=centre, colour=terminal, lit=lit,
-            gate=(held['flight']['lap'] or {}).get('gate', 1) if chased else None))
+            gate=(held['flight']['lap'] or {}).get('gate', 1) if chased else None,
+            thrusts=thrusts(frame, rotors) if held['arrows'] else None,
+            line_=chased and held['line']))
         return compose(board_view, origin, rotors, frame, held['flight'], list(trace),
                        held['clock'], art, yaw=camera['yaw'])
 

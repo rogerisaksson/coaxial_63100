@@ -288,8 +288,8 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
 
 - **Bootloader**, on the board since 2026-10-05. DOD: a power cycle runs
   the store at unit 1, PWR_CR3 written on a fresh supply; the prefix
-  search's real collision seen; 10 Mbit on
-  the bench adapter measured; a torn flash word's bus fault handled.
+  search's real collision seen; 10 Mbit on the bench adapter measured; a
+  torn flash word's bus fault handled.
 - **From D2 SRAM**. DOD: the ITCM sample path under the drive (a wrong
   copy hard-faults on the first ADC interrupt); LOOP cycle counters and
   `__sbrk_heap_end` stable an hour.
@@ -311,8 +311,8 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
 - **Motion papers on the emulator**: `motion` and `applications` set J and
   load through `drive.model`, which an emulated drive keeps. DOD: the
   world's flywheel takes a host-set load; both run on the emulator.
-- **Thermal observer at short periods**: the NTC anchor inverted a standing
-  miss x1.8 since the refit. DOD:
+- **Thermal observer at short periods**: the NTC anchor inverts a standing
+  miss x1.8. DOD:
   `tools/bench/power_check.py` at 1-5 s keeps its patches.
 - **STO chain**: R93 to 3V3D, a master's pilot on RS485, Cinj/Clevel with
   and without it, one arm with neither bypass (`tools/bench/sto_probe.py`);
@@ -332,7 +332,7 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
   winding, the supply's amps dry. DOD: the ceilings measured; the laminate's
   21 J/K and its parts' 28 two nodes, the room found on them; `f_sw` a gate op;
   `thermal_app.c`'s tables fitted on a test cycle in each.
-- **Spans**: phase gain, the DC link. DOD: both by a DMM.
+- **Spans**: phase gain, the DC link. DOD: by a DMM.
 
 ## Host
 
@@ -350,12 +350,12 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
 - **`heat.py`'s dry loss** 1.2 W, the bench's fit 2.4-4.4 at 24-44 V. DOD: it.
 - **`intent.py` has no thermal kind**: warmth asked is an NTC read. DOD:
   the live model's.
-- **`test_native_heat`** lost the cold room on CI 3.12 (925a173). DOD: STABLE
-  within FIND_S there.
 - **`test_sensorless`** overpowered servo flakes 1 gate in 4, `test_daq_api`'s
   first dt once (2026-10-05). DOD: 20 green.
-- **QUAD**: a bigger, technical course - zig-zags, narrow gaps, a house's
-  open windows, climbs, dives - its racing line flown on boards too.
+- **QUAD**: the 16x14s' tilt loop for their pull, the line on more of it
+  (THROTTLE 0.6: 17 s laps, a tip 0.4 m out). DOD: laps under 18 s on boards,
+  tips 0.05 m inside. An emulated drone's heat its airspeed; the humanoid's
+  boards in oil (the gynoid's).
 - **A1335 CRC** reported, not checked. DOD: the polynomial known, checked.
 - **`testline/plans/coaxial_63100_fct.yaml`** limits are placeholders.
   DOD: measured.

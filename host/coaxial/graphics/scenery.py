@@ -14,7 +14,7 @@ import functools
 import math
 
 from coaxial.graphics.raster import DOTS_X, DOTS_Y
-from machine import course
+from machine import grounds
 
 #: The ground's grids, (pitch, half extent) m: a metre's about the spot, ten metres' to the
 #: horizon's edge; a line is drawn from NEAR_M before the eye.
@@ -28,7 +28,10 @@ POLE_AT, POLE_TOP_M, TICK_M, TENTH_M = (-2.5, -2.5), 60, 0.06, 0.16
 #: point, and is not drawn smaller: a band of every far thing's dots along the horizon.
 INKS = {'pole': (40, 130, 140), 'tree': (70, 170, 90), 'house': (150, 165, 200),
         'car': (200, 90, 110), 'mast': (150, 150, 150), 'gate': (235, 110, 40),
-        'next': (255, 235, 90)}
+        'next': (255, 235, 90), 'line': (80, 200, 235)}
+
+#: The line the course asks, drawn a dash of LINE_DASH samples every other.
+LINE_DASH = 2
 FAR_INK, FAR_SIZE = 0.25, 0.25
 
 
@@ -121,21 +124,24 @@ def standing():
         half = TENTH_M if (h + 1) % 10 == 0 else TICK_M
         edges['pole'] += [((x, float(h), z), (x, h + 1.0, z)),
                           ((x - half, h + 1.0, z), (x + half, h + 1.0, z))]
-    for x, z, high, crown in course.TREES:
-        foot, top = course.CROWN * high, (x, high, z)
+    for x, z, high, crown in grounds.TREES:
+        foot, top = grounds.CROWN * high, (x, high, z)
         ring = [(x + crown * math.cos(k * math.tau / 6), foot, z + crown * math.sin(k * math.tau / 6))
                 for k in range(6)]
         edges['tree'] += [((x, 0.0, z), (x, foot, z))] + _loop(ring) + [(p, top) for p in ring]
-    for x, z, wide, deep, wall, ridge in course.HOUSES:
+    for hall in grounds.HOUSES + grounds.HALLS:
+        x, z, wide, deep, wall, ridge = hall
         ends = [(x - wide / 2, ridge, z), (x + wide / 2, ridge, z)]
         edges['house'] += _box(x, z, wide, deep, 0.0, wall) + [tuple(ends)] + [
             (end, (end[0], wall, z + side * deep / 2)) for end in ends for side in (-1.0, 1.0)]
-    wide, high, long_ = course.CAR_M
-    for x, z, heading in course.CARS:
-        edges['car'] += (_box(x, z, wide, long_, course.CAR_LOW, course.CAR_BODY * high, heading)
-                         + _box(x, z, course.CAR_CABIN[0] * wide, course.CAR_CABIN[1] * long_,
-                                course.CAR_BODY * high, high, heading))
-    for x, z, side, high in course.MASTS:
+    for g in grounds.windows():
+        edges['house'] += grounds.gate(*grounds.GATES[g])[:4]
+    wide, high, long_ = grounds.CAR_M
+    for x, z, heading in grounds.CARS:
+        edges['car'] += (_box(x, z, wide, long_, grounds.CAR_LOW, grounds.CAR_BODY * high, heading)
+                         + _box(x, z, grounds.CAR_CABIN[0] * wide, grounds.CAR_CABIN[1] * long_,
+                                grounds.CAR_BODY * high, high, heading))
+    for x, z, side, high in grounds.MASTS:
         edges['mast'] += _box(x, z, side, side, 0.0, high)
         for k in range(1, int(high / 3.5) + 1):
             edges['mast'] += _box(x, z, side, side, 3.5 * k, 3.5 * k)[:4]
@@ -146,10 +152,12 @@ def standing():
 def gates(ahead):
     """(ends, inks) of the course's gates, the one `ahead` lit and doubled."""
     edges = {'gate': [], 'next': []}
-    for k, (x, y, z, heading) in enumerate(course.GATES):
-        edges['next' if k == ahead else 'gate'] += course.gate(x, y, z, heading)
+    framed = grounds.windows()
+    for k, (x, y, z, heading, size) in enumerate(grounds.GATES):
+        if k not in framed:
+            edges['next' if k == ahead else 'gate'] += grounds.gate(x, y, z, heading, size)
         if k == ahead:
-            edges['next'] += course.gate(x, y, z, heading, 0.94 * course.GATE_M)[:4]
+            edges['next'] += grounds.gate(x, y, z, heading, 0.94 * size)[:4]
     return _laid(edges)
 
 
@@ -162,14 +170,28 @@ def _laid(edges):
     return np.asarray(ends, float).reshape(-1, 3), np.asarray(inks, int)
 
 
-def props(m, cam, centre, gate=None):
+def asked():
+    """(ends, inks) of the line the course asks (`course.track`), dashed."""
+    from coaxial.model.blocks import numpy as np
+    from machine import course
+    at = course.track()['at']
+    ends = [end for k in range(0, len(at), 2 * LINE_DASH)
+            for end in (at[k], at[(k + LINE_DASH) % len(at)])]
+    return np.asarray(ends, float), np.full(len(ends) // 2, list(INKS).index('line'))
+
+
+def props(m, cam, centre, gate=None, line_=False):
     """[(dots, inks)] for `lit.braille`: what stands in the camera `cam` looking with `m` at
-    `centre` - with the course's gates where `gate` is the one flown to next - its dots and a
-    cell's ink, the nearest edge's, dimmer the further off."""
+    `centre` - with the course's gates where `gate` is the one flown to next, and the line it
+    asks with `line_` - its dots and a cell's ink, the nearest edge's, dimmer the further
+    off."""
     from coaxial.model.blocks import numpy as np
     ends, inks = standing()
     if gate is not None:
         more, theirs = gates(gate)
+        ends, inks = np.vstack([ends, more]), np.concatenate([inks, theirs])
+    if line_:
+        more, theirs = asked()
         ends, inks = np.vstack([ends, more]), np.concatenate([inks, theirs])
     ys, xs, w, which = strokes(ends, m, cam, centre)
     size = w * cam['distance']

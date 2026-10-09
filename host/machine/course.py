@@ -8,63 +8,33 @@ The line is a closed curve through every gate along its heading, a Hermite span 
 is flown along it as fast as its lean lets it: each bend at the speed a share of the pull along
 the floor turns it - LEAN of the frame's whole, the boards' envelopes' at most (`flying.most`) - braked
 for ahead of it, a crest no faster than it may fall. So a lap is as fast as the FETs' envelopes
-are cool: asked more lean than they leave it for long, it flies on them. `TREES`, `HOUSES`,
-`CARS` and `MASTS` stand about the line, for whoever draws it (`coaxial.graphics.scenery`).
+are cool: asked more lean than they leave it for long, it flies on them. Its gates and what
+stands about it are `machine.grounds`'.
 """
 import functools
 import math
 
 from machine.aerobatics import DOWN, HOVER, OVER, PRESSED, resized
-from machine import quad
-
-#: A gate: its middle (x, y, z), m from where the frame rises, y up, and its heading, degrees
-#: from z toward x - flown through along it; its opening GATE_M square, the floor under it at
-#: the lowest. The first stands over the spot, the lap's start and its finish, the floor its
-#: lower edge: a bar there was in the frame's way up, struck 8 cm off the floor; then the alley
-#: between two trees, up and over the house's ridge, three quarters round the mast and down
-#: it, the dive between two cars, the low bend, the slalom's two trees and home.
-GATE_M = 3.4
-GATES = ((0.0, 1.7, 0.0, 0.0), (0.0, 2.5, 14.0, 0.0), (7.0, 6.0, 23.0, 90.0),
-         (19.0, 7.5, 23.0, 90.0), (31.0, 7.0, 21.5, 90.0), (36.5, 6.0, 27.0, 0.0),
-         (31.0, 5.0, 32.5, 270.0), (25.5, 4.0, 27.0, 180.0), (27.0, 3.2, 15.0, 180.0),
-         (27.0, 1.1, 3.0, 180.0), (20.0, 2.2, -6.0, 270.0), (13.0, 2.6, -3.5, 270.0),
-         (6.0, 3.0, -8.5, 270.0), (2.5, 2.6, -5.0, 315.0))
-
-#: What stands about the line. A tree: (x, z, its height, its crown's radius), m. A house: (x, z,
-#: its width along x, its depth along z, its walls' height, its ridge's), the ridge along x. A
-#: car: (x, z, its heading, degrees), CAR_M wide, high and long. A mast: (x, z, its side, its
-#: height).
-TREES = ((-3.5, 14.0, 6.0, 1.4), (3.5, 14.0, 7.0, 1.6), (8.0, 15.0, 7.5, 1.8),
-         (21.0, 17.5, 6.5, 1.6), (13.0, -7.0, 6.0, 1.5), (6.0, -4.5, 6.5, 1.5),
-         (-8.0, 6.0, 7.0, 1.7), (-9.0, 21.0, 9.0, 2.0), (35.0, 2.0, 7.0, 1.6),
-         (13.0, 34.0, 8.0, 1.9), (31.0, -11.0, 6.5, 1.6), (-6.0, -12.0, 7.5, 1.8),
-         (41.0, 34.0, 8.5, 2.0), (-12.0, -3.0, 6.0, 1.5))
-HOUSES = ((13.0, 23.0, 8.0, 6.0, 3.0, 4.6), (36.0, 13.0, 7.0, 8.0, 3.0, 4.8),
-          (-13.0, 11.0, 6.0, 8.0, 2.8, 4.4))
-CARS = ((24.0, 3.0, 0.0), (30.0, 3.0, 180.0), (21.0, -11.0, 95.0), (15.0, -12.0, 85.0),
-        (2.0, 21.0, 20.0), (40.0, 22.0, 5.0))
-CAR_M = (1.8, 1.4, 4.4)
-MASTS = ((31.0, 27.0, 1.6, 14.0),)
-
-#: Their shapes: a tree's crown a six-sided cone from CROWN of its height up, on a trunk
-#: TRUNK_M thick; a car's body from CAR_LOW m up to CAR_BODY of its height, its cabin on it
-#: CAR_CABIN of its width and of its length; a gate's bars and posts BAR_M thick, m.
-CROWN, TRUNK_M, CAR_LOW, CAR_BODY, CAR_CABIN, BAR_M = 0.35, 0.12, 0.25, 0.55, (0.9, 0.5), 0.05
+from machine import grounds, quad
 
 #: The line: a span's tangents this much of its chord, sampled every DS m; its laps. And how
-#: it crosses each gate, a row a gate: turned off the gate's heading, degrees, and its tangent
-#: there, of TENSION's - the tuner's (`tools/sim/quad_race.py`); the first as it stands. It
-#: rises through a gate SLOPE of the way from the gate before it to the one after, the first
-#: level: level through each, the climb from the second gate to the third - 3.5 m in 12.5 -
-#: was an S of 10 m/s^2 up and down at 10 m/s, the frame 1.9 m under it; rising, 0.26 m, a
-#: lap 17.8 s where 19.3 on the same plan, and half its size flies where it struck
-#: (2026-10-06).
-TENSION, DS, LAPS, SLOPE = 1.167, 0.25, 2, 1.075
-WAYS = tuple((turn, 1.0) for turn in (0.0, 6.2, -17.3, 10.7, -10.9, 7.0, 5.4, 11.3, -5.6, 10.0,
-                                      -10.2, -10.2, 2.7, 16.9))
+#: it crosses each gate, a row a gate - the tuner's (`tools/sim/quad_race.py`), the first as
+#: it stands: turned off the gate's heading, degrees; its tangent there, of TENSION's; where
+#: across and up its opening, m off its middle - its apex. It rises through a gate SLOPE of
+#: the way from the gate before it to the one after, the first level: level through each, a
+#: climb of 3.5 m in 12.5 was an S of 10 m/s^2 up and down at 10 m/s (2026-10-06).
+TENSION, DS, LAPS, SLOPE = 1.098, 0.25, 2, 1.067
+WAYS = ((3.8, 0.988, -0.20, -0.50), (-20.5, 1.163, 0.14, -0.05), (-8.8, 1.036, -0.09, -0.23),
+        (1.6, 1.042, 0.20, 0.12), (-10.3, 0.722, 0.11, -0.04), (-6.4, 0.709, -0.44, -0.09),
+        (8.3, 1.348, 0.06, 0.13), (2.0, 0.741, -0.52, -0.09), (3.1, 0.767, -0.09, -0.33),
+        (-2.9, 0.780, -0.14, 0.05), (-6.3, 0.735, -0.21, -0.06), (-13.6, 0.936, 0.04, 0.13),
+        (-4.3, 1.209, -0.36, -0.11), (1.3, 0.818, -0.36, 0.09), (12.3, 1.091, 0.20, 0.11),
+        (3.1, 1.041, 0.29, -0.28))
 
 #: The lean a lap asks, of the pull along the floor all of the frame's rotors give - 26 m/s^2,
-#: 69 degrees, more than the envelopes leave it for long - and its speed at most, m/s. The
+#: 69 degrees, more than the envelopes leave it for long - and its speed at most, m/s, below
+#: the one its pull holds against the frame's drag: capped at 13 its rotors ran at 0.54-0.71
+#: of their top between the gates, at the cap 58-100 % of each straight (2026-10-09). The
 #: pull it is planned on is the envelopes' share of that lean, EASY of the frame's whole at
 #: the least, come down to in EASE_S of the whole and back up in twice that: planned on what
 #: the law's reach left, a lap never eased and the boards stood at 0.94 of their envelopes,
@@ -74,15 +44,16 @@ WAYS = tuple((turn, 1.0) for turn in (0.0, 6.2, -17.3, 10.7, -10.9, 7.0, 5.4, 11
 #: the gate, through it at 2.6 m/s; bends are braked for AHEAD_M ahead; a crest is flown no
 #: faster than lets it fall DROP of gravity; a bend's pull swings from one side to the other
 #: in SWING_S at the fastest.
-#: The tuner's (`tools/sim/quad_race.py`, 2026-10-06), flown - these, LEAD_S, LOOK_S, SOFT_S,
-#: TENSION, SLOPE and the line's crossings: on the level line 19.2 and 18.1 s where 20.8 and
-#: 19.5 as the day began; on the line rising through its gates 16.1 and 15.3; the brake and
-#: the way out on the circle, where shares of the pull whatever the bend, 15.5 and 15.1; the
-#: tilt's loop stiffer (`flying.TILT_KP`), 14.9 and 14.4 - on four boards 15.3 and 15.1
-#: where 21.9 and 20.7, a gate 0.42 m off at the most in six winds it never flew, stuffy
-#: 17.7 and 17.1.
-LEAN, EASY, EASE_S, TOP_M_S = 0.753, 0.116, 2.0, 13.0
-GRIP, BRAKE, GO, AHEAD_M, DROP, SWING_S = 0.77, 0.744, 0.847, 40.0, 0.705, 0.511
+#: These, LEAD_S, LOOK_S, SOFT_S, TENSION, SLOPE and the line's crossings are the tuner's: on
+#: the larger course with the 16x14s, laps of 17.9 and 17.0 s with a small frame's tip 0.26 m
+#: past its margin; a gate's margin weighed five times, 19.6 and 19.2, on four boards 19.5 and
+#: 19.0, in two winds it never flew 19.5-19.8 and 19.0-19.9, every tip inside (2026-10-09).
+LEAN, EASY, EASE_S, TOP_M_S = 0.249, 0.05, 2.0, 22.2
+#: Out of a bend and into the next it pulls along its way on THROTTLE of the pull its frame
+#: has, as LEAN is of it - its grip an ellipse, the bend's across and this along -, the bend's
+#: grip at the least: on the bend's, a 16x14 ran at 0.19 of its top between the gates.
+THROTTLE = 0.30
+GRIP, BRAKE, GO, AHEAD_M, DROP, SWING_S = 0.751, 0.682, 0.941, 40.0, 0.511, 0.484
 STOP = 0.25
 
 #: The frame's place on the line is looked for REACH_M on from the last; the law's spot is kept
@@ -94,99 +65,47 @@ STOP = 0.25
 #: held on its heading, the rotors were at their clamp 12 % of a lap, 5 % with the heading
 #: still - and then the lean's own turn trailed its bend and a gate was passed 0.65 m wide
 #: (2026-10-06). It stands STAND_M from its finish, this slow.
-#: How it came to this, each measured on a lap of jittered passes (2026-10-05): flown by the
-#: clock it fell 10 m behind its place and cut its bends 4 m inside their gates; its spot homed
-#: to the frame's own place, the law kept the frame's speed, 2.5 m/s under the plan's; its
-#: speed's way led with the bend, it flew 0.9 m inside the mast's gates; the row for the
-#: pass's start, a pass of 30 ms after one of 14 asked twice the bend's pull.
-#: The speed it asks comes to the plan's over SOFT_S, the plan looked up as much further on:
-#: it steps from its way out of a bend to its brake for the next, 14 m/s^2 in a pass, and
-#: the rotors spooled for the pull that stepped with it - on the four boards in seven winds
-#: laps 20.2-20.7 and 19.6-20.7 s, their envelopes at 0.72-0.77, a gate 0.67 m off at the
-#: most; softened, 19.5-19.7 and 18.6-19.1, 0.66-0.69, 0.50 m (2026-10-06).
-REACH_M, SLACK_M, LEAD_S, LOOK_S, LOOK_M, SOFT_S = 3.0, 2.0, 0.159, 0.283, 3.0, 0.13
+#: Flown by the clock it fell 10 m behind its place and cut its bends 4 m inside their gates;
+#: its spot homed to the frame's own place, it kept the frame's speed, 2.5 m/s under the plan's
+#: (2026-10-05). The speed it asks comes to the plan's over SOFT_S, the plan looked up as much
+#: further on: it stepped from its way out of a bend to its brake for the next, 14 m/s^2 in a
+#: pass (2026-10-06).
+REACH_M, SLACK_M, LEAD_S, LOOK_S, LOOK_M, SOFT_S = 3.0, 2.0, 0.135, 0.309, 3.0, 0.223
 AIM_K, TURN_RAD_S, STAND_M, STAND_M_S = 5.0, math.tau, 0.6, 0.5
 
 #: The lap's rows: the hover's, at a lap's pace up and down, its nose free; the lean a row
 #: may take this much of the pull it is planned on.
 RACE, LEAN_OVER = dict(HOVER, pace=12.0, nose=0.0), 1.5
 #: On the grid: over its spot in the first gate.
-GRID = dict(HOVER, height=GATES[0][1])
+GRID = dict(HOVER, height=grounds.GATES[0][1])
 
 
-#: The course's constants that have a unit, each by the powers of its metres and its seconds,
-#: and what is placed on it: for a frame of another size the course is as much larger and its
-#: plan goes by that frame's clock (`sized`); its shares and its angles are any frame's.
-_UNITS = {'GATE_M': (1, 0), 'TRUNK_M': (1, 0), 'BAR_M': (1, 0), 'DS': (1, 0), 'AHEAD_M': (1, 0),
+#: The course's constants that have a unit, each by the powers of its metres and its seconds:
+#: for a frame of another size the course is as much larger (`grounds.sized`) and its plan goes
+#: by that frame's clock (`sized`); its shares and its angles are any frame's.
+_UNITS = {'DS': (1, 0), 'AHEAD_M': (1, 0),
           'REACH_M': (1, 0), 'SLACK_M': (1, 0), 'LOOK_M': (1, 0), 'STAND_M': (1, 0),
           'EASE_S': (0, 1), 'TOP_M_S': (1, -1), 'SWING_S': (0, 1), 'LEAD_S': (0, 1), 'SOFT_S': (0, 1),
           'LOOK_S': (0, 1), 'AIM_K': (0, -1), 'TURN_RAD_S': (0, -1), 'STAND_M_S': (1, -1)}
-_PLACED = {'GATES': (3,), 'TREES': (), 'HOUSES': (), 'CARS': (2,), 'CAR_M': None, 'MASTS': ()}
 _BUILT, _SET, _ROWS = {}, {}, []
 
 
 def sized():
-    """The course for the frame as `quad.sized` has it: its gates and what stands, each where
-    and as large - a heading the same -, its plan's lengths and times, its rows and its
-    card's seconds; the line laid again."""
+    """The course for the frame as `quad.sized` has it, its grounds `sized` first: its plan's
+    lengths and times, its rows and its card's seconds; the line laid again."""
     global CARD
-    scope, size = globals(), quad.scales()[0]
     if not _SET:
-        _SET.update({name: scope[name] for name in _PLACED}, CARD=CARD)
+        _SET.update(CARD=CARD)
         _ROWS.extend((row, dict(row)) for row in (RACE, GRID))
-    quad.rescaled(scope, _UNITS, _BUILT)
-    for name, angles in _PLACED.items():
-        scope[name] = tuple(size * v for v in _SET[name]) if angles is None else tuple(
-            tuple(v if k in angles else size * v for k, v in enumerate(row)) for row in _SET[name])
+    quad.rescaled(globals(), _UNITS, _BUILT)
     CARD = resized(_SET['CARD'], _ROWS)
     track.cache_clear()
 
 
-def gate(x, y, z, heading, size=None):
-    """A gate's edges, [(an end, the other)]: its opening's frame, `size` square to its
-    heading, the floor under it at the lowest, on two posts."""
-    c, s = math.cos(math.radians(heading)), math.sin(math.radians(heading))
-    half = (GATE_M if size is None else size) / 2
-    frame = [(x + a * c, max(0.0, y + b), z - a * s)
-             for a, b in ((-half, -half), (half, -half), (half, half), (-half, half))]
-    return list(zip(frame, frame[1:] + frame[:1])) + [(p, (p[0], 0.0, p[2])) for p in frame[:2]]
-
-
-def solids():
-    """What stands, as the frame's world has it to fly into (`quad.mjcf`): a tree its trunk and
-    its cone, a house its walls and its roof, a car its body and its cabin, a mast; a gate
-    (`gateN`) its bars and its posts - none along the floor, where the floor is its lower
-    edge."""
-    out = []
-    for x, z, high, crown in TREES:
-        foot = CROWN * high
-        out += [('rod', 'tree', (x, 0.0, z), (x, foot, z), TRUNK_M),
-                ('hull', 'tree', [(x + crown * math.cos(k * math.tau / 6), foot,
-                                   z + crown * math.sin(k * math.tau / 6)) for k in range(6)]
-                 + [(x, high, z)])]
-    for x, z, wide, deep, wall, ridge in HOUSES:
-        out += [('box', 'house', (x, wall / 2, z), (wide / 2, wall / 2, deep / 2), 0.0),
-                ('hull', 'house', [(x + a * wide / 2, wall, z + b * deep / 2)
-                                   for a in (-1, 1) for b in (-1, 1)]
-                 + [(x + a * wide / 2, ridge, z) for a in (-1, 1)])]
-    wide, high, long_ = CAR_M
-    for x, z, heading in CARS:
-        out += [('box', 'car', (x, (CAR_LOW + CAR_BODY * high) / 2, z),
-                 (wide / 2, (CAR_BODY * high - CAR_LOW) / 2, long_ / 2), heading),
-                ('box', 'car', (x, (1.0 + CAR_BODY) * high / 2, z),
-                 (CAR_CABIN[0] * wide / 2, (1.0 - CAR_BODY) * high / 2,
-                  CAR_CABIN[1] * long_ / 2), heading)]
-    for x, z, side, high in MASTS:
-        out.append(('box', 'mast', (x, high / 2, z), (side / 2, high / 2, side / 2), 0.0))
-    for k, place in enumerate(GATES):
-        out += [('rod', 'gate%d' % k, a, b, BAR_M) for a, b in gate(*place)
-                if max(a[1], b[1]) > 0.0]
-    return out
-
 
 def _span(a, b, u):
-    """The point `u` of the way along the Hermite span from crossing `a` to crossing `b` - a
-    gate's middle, the way through it, degrees, its tangent's tension and its rise, m a m
+    """The point `u` of the way along the Hermite span from crossing `a` to crossing `b` - where
+    it crosses a gate, the way through it, degrees, its tangent's tension and its rise, m a m
     along the floor: through each along its way."""
     chord = TENSION * math.dist(a[:3], b[:3])
     out = []
@@ -204,14 +123,16 @@ def track():
     tangents, 'bends': its (curvature, 1/m, its slope's own, 1/m, its bearing's turn, rad/m),
     'swings': what that turn changes by a metre, 1/m^2, 'gates': where each gate is along it,
     m, 'length', 'step'}."""
-    fine, marks = [], []
-    count = len(GATES)
-    rises = [SLOPE * (GATES[(i + 1) % count][1] - GATES[i - 1][1]) / (
-        math.dist(GATES[i - 1][:3:2], GATES[i][:3:2])
-        + math.dist(GATES[i][:3:2], GATES[(i + 1) % count][:3:2])) if i else 0.0
+    fine, marks, gates = [], [], grounds.GATES
+    count = len(gates)
+    rises = [SLOPE * (gates[(i + 1) % count][1] - gates[i - 1][1]) / (
+        math.dist(gates[i - 1][:3:2], gates[i][:3:2])
+        + math.dist(gates[i][:3:2], gates[(i + 1) % count][:3:2])) if i else 0.0
         for i in range(count)]
-    cross = [(x, y, z, heading + turn, tension, rise)
-             for (x, y, z, heading), (turn, tension), rise in zip(GATES, WAYS, rises)]
+    cross = [(x + across * math.cos(math.radians(heading)), y + up,
+              z - across * math.sin(math.radians(heading)), heading + turn, tension, rise)
+             for (x, y, z, heading, _size), (turn, tension, across, up), rise
+             in zip(gates, WAYS, rises)]
     for i, gate in enumerate(cross):
         marks.append(len(fine))
         fine += [_span(gate, cross[(i + 1) % len(cross)], u / 64.0) for u in range(64)]
@@ -322,8 +243,11 @@ def line(route, now):
     # much further on as its asked speed trails; to a stand at its finish
     soon = min(end, lead + SOFT_S * lap['v'] / step)
     grip, base, far = GRIP * pull, int(soon), min(int(AHEAD_M / step), int(end - soon))
+    push = max(grip, THROTTLE / LEAN * pull)
     crest, swung = grip / (DROP * quad.GRAVITY), 2.0 * grip / SWING_S
-    square, bend = TOP_M_S * TOP_M_S, 0.0
+    top = min(TOP_M_S, math.sqrt(max(pull, push) * quad.MASS_KG
+                                 / (0.5 * quad.RHO * quad.BODY_CDA)))
+    square, bend = top * top, 0.0
     for j in range(far, -1, -1):
         bend, rise, _veer = line_['bends'][(base + j) % n]
         bend += max(0.0, -rise) * crest
@@ -333,10 +257,10 @@ def line(route, now):
         if swing > 0.0:
             square = min(square, (swung / swing) ** (2.0 / 3.0))
         if j:
-            left = math.sqrt(max(0.0, grip * grip - (square * bend) ** 2))
+            left = push * math.sqrt(max(0.0, 1.0 - (square * bend / grip) ** 2))
             square += 2.0 * BRAKE * left * step * (1.0 if j > 1 else 1.0 - soon % 1.0)
-    allowed = min(TOP_M_S, math.sqrt(min(square, 2.0 * STOP * pull * (end - soon) * step)))
-    left = math.sqrt(max(0.0, grip * grip - (lap['v'] ** 2 * bend) ** 2))
+    allowed = min(top, math.sqrt(min(square, 2.0 * STOP * pull * (end - soon) * step)))
+    left = push * math.sqrt(max(0.0, 1.0 - (lap['v'] ** 2 * bend / grip) ** 2))
     speed = lap['v'] = min(allowed, lap['v'] + GO * left * dt)
     lap.update(laps=min(lap['of'] - 1, k // n),
                gate=next((g for g, mark in enumerate(line_['gates']) if mark > (k % n) * step), 0))
@@ -363,7 +287,7 @@ def line(route, now):
     place = _on(line_['at'], max(s - slack, min(s + slack, end, nearest(
         line_, (spot[0], 0.0, spot[1]), k - int(slack), k + int(slack) + 1))))
     c, sn = math.cos(nose), math.sin(nose)
-    return dict(RACE, height=here[1], climb=along * way[1], lean=LEAN_OVER * pull,
+    return dict(RACE, height=here[1], climb=along * way[1], lean=LEAN_OVER * max(pull, push),
                 push=along * along * _on(line_['bends'], s)[1], x=place[0], z=place[2],
                 speed=flat * math.cos(aim - nose), slide=flat * math.sin(aim - nose),
                 surge=more[0] * sn + more[1] * c, sway=more[0] * c - more[1] * sn,
