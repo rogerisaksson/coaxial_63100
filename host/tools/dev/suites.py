@@ -22,11 +22,8 @@ DRIVE_OBSERVER = 'test_drive_observer.py'
 
 FILTER = 'test_filter_core.py'
 
-#: The thermal envelope as the C that will run on the board. The
-#: network had `check.c` - the calibration campaign's own report -
-#: and the SOA arithmetic that gates a real stage had nothing at all,
-#: only a tested Python mirror. That was the wrong way round.
-THERMAL = 'test_thermal_core.py'
+#: The thermal envelope and the applications' networks as the C that will run on the board.
+THERMAL, THERMAL_APP = 'test_thermal_core.py', 'test_thermal_app.py'
 
 #: The acquisition engine as the C that will run on the board - the
 #: ring, the window, the ladder, the tone, the live accumulator -
@@ -123,7 +120,8 @@ QUADS = (QUAD, QUAD_COURSE, QUAD_PAGE, 'test_views_quad_flight.py', STRUCTURE)
 
 RENDER = 'test_render.py'
 
-DEFAULT_SUITES = (STRUCTURES + (CORE, SHTP, DRIVE, DRIVE_OBSERVER, FILTER, THERMAL, DAQ_CORE,
+DEFAULT_SUITES = (STRUCTURES + (CORE, SHTP, DRIVE, DRIVE_OBSERVER, FILTER, THERMAL, THERMAL_APP,
+                                DAQ_CORE,
                                 BOOT_CORE, BOOT_CLIENT,
                    CTRL_CORE, WORLD_CORE, WIRE, NATIVE, NATIVE_HEAT, EMULATOR,
                    SENSORLESS,
@@ -175,6 +173,7 @@ JOINS = (
     (20, FILTER),
     # The SOA envelope, same shape and same cost: a compiler and a second.
     (20, THERMAL),
+    (20, THERMAL_APP),
     # The bootloader's core: a compiler and a second, and the one thing that
     # decides whether a blank node ever runs anything.
     (20, BOOT_CORE),
@@ -338,7 +337,7 @@ TOUCHES = (
                                                 THERMAL, DAQ_CORE, BOOT_CORE, BOOT_CLIENT,
                                                 CTRL_CORE)),
     ('host/tools/cores/drive.py',              (STRUCTURE, DRIVE, DRIVE_OBSERVER, SENSORLESS)),
-    ('host/tools/cores/thermal.py',            (THERMAL,)),
+    ('host/tools/cores/thermal.py',            (THERMAL, THERMAL_APP)),
     ('host/tools/cores/',                      (WIRE, NATIVE, NATIVE_HEAT)),
     ('host/tools/dev/counts.py',               ('test_ollama_runner.py',)),
     ('host/tests/takes/',                      (GYNOID_GAIT,)),
@@ -390,10 +389,9 @@ TOUCHES = (
                                                 'test_mcp.py', 'test_parity.py', BENCH)),
     ('core/',                                  (EMULATOR, CONFORMANCE, BENCH)),
     ('host/tools/emu/',                        (EMULATOR,)),
-    # The observer and its envelope are hardware-free like the filter, so the
-    # host build is what covers them; the board glue that acts on the budget
-    # lives in board/ and is the bench's.
-    ('thermal/',                               (THERMAL, NATIVE_HEAT, CONFORMANCE, BENCH)),
+    # Hardware-free like the filter: the host build covers it; board/'s glue is the bench's.
+    ('thermal/',                               (THERMAL, THERMAL_APP, NATIVE_HEAT, CONFORMANCE,
+                                                BENCH)),
     # The acquisition engine is hardware-free like the observer, so the host
     # build covers it; the glue that reads the converter is board_daq.c and the
     # bench's, and the record's bytes cross the wire.
@@ -405,6 +403,7 @@ TOUCHES = (
                                                 BENCH)),
     ('host/coaxial/model/thermal.py',          (THERMAL, 'test_sensorless.py',
                                                 STRUCTURE)),
+    ('host/coaxial/model/thermal_app.py',      (THERMAL_APP, 'test_simulated.py')),
     # A NOTEBOOK EXAMPLE reaches the library and nothing else reaches it.
     ('notebook_examples/',                     (STRUCTURE,)),
     # And the file the notebooks are written FROM.

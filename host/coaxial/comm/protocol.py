@@ -148,6 +148,8 @@ class ThermalOp(IntEnum):
     SET_MARGIN = 12
     SET_CLOCK = 13
     WEP = 14
+    APPLICATION = 15
+    AIRSPEED = 16
 
 
 class PowerOp(IntEnum):

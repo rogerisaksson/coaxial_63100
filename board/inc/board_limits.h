@@ -148,6 +148,11 @@
     one gives the envelope back this soon. */
 #define THERMAL_WEP_MAX_MS 2000U
 
+/** The host's word on the airspeed (thermal op 16) holds this long, then none: a host gone
+    quiet leaves the observer the rotor's wash alone. Past THERMAL_AIRSPEED_MAX_MM_S, refused. */
+#define THERMAL_AIRSPEED_HOLD_MS   1000U
+#define THERMAL_AIRSPEED_MAX_MM_S  100000U
+
 /** How long the link may be silent before the host's holds are dropped. */
 #define BOARD_POWER_HOST_QUIET_MS 10000U
 

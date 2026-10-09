@@ -1429,7 +1429,7 @@ def test_thermal_identification(report):
                                   'innovation_k', 'margin', 'updates',
                                   'saves', 'since_save_s', 'truth',
                                   'ambient', 'ambient_sigma', 'margin_floor',
-                                  'trip_cap'},
+                                  'trip_cap', 'application'},
                      sorted(got))
         report.check('its state is one of the three and the scales are the '
                      'four, in wire order',

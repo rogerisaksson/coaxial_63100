@@ -8,7 +8,8 @@ from tools import REPO
 THERMAL = os.path.join(REPO, 'thermal')
 SOURCES = [os.path.join(THERMAL, 'test', 'harness.c'),
            os.path.join(THERMAL, 'src', 'thermal.c'),
-           os.path.join(THERMAL, 'src', 'thermal_ident.c')]
+           os.path.join(THERMAL, 'src', 'thermal_ident.c'),
+           os.path.join(THERMAL, 'src', 'thermal_app.c')]
 
 #: The nodes, in the order `thermal.h` declares them. Named here so a
 #: failure says `phase_u` and not `3`; the count is asked of the C.
@@ -72,6 +73,11 @@ class Model:
         lib.thm_coss_energy.restype = f
         lib.thm_coss_energy.argtypes = [f]
         lib.thm_power_r.argtypes = [fp, fp, f, fp]
+        lib.thm_application.argtypes = [p, i]
+        lib.thm_air_rpm.restype = f
+        lib.thm_air_rpm.argtypes = [i, f, f]
+        lib.thm_cfg.argtypes = [p, fp]
+        lib.thm_bulk.argtypes = [p, fp]
         self.lib = lib
         self.n = lib.thm_nodes()
         self.slots = lib.thm_budget_slots()
@@ -126,6 +132,21 @@ class Model:
 
     def radiate_to_stator(self, w_per_k):
         self.lib.thm_set_rad_board_stator(self.h, w_per_k)
+
+    def application(self, index):
+        """The network as thermal_app_t `index` has it, in place."""
+        self.lib.thm_application(self.h, index)
+
+    def network(self):
+        """{'nodes': {name: (capacity, to_ambient, area_share, rth_die, forced)}, 'edges': [K/W],
+        'board_to_ambient': K/W} - the C's network as it stands."""
+        out = (ctypes.c_float * (5 * self.n))()
+        self.lib.thm_cfg(self.h, out)
+        bulk = (ctypes.c_float * 5)()
+        self.lib.thm_bulk(self.h, bulk)
+        return {'nodes': {name: tuple(out[5 * i:5 * i + 5]) for i, name in enumerate(NODES)},
+                'edges': [self.edge_r(e) for e in range(self.lib.thm_edges())],
+                'board_to_ambient': bulk[0]}
 
     def to_ambient_at(self, node, rise_k, speed_rpm=0.0):
         return self.lib.thm_to_ambient_at(self.h, NODES.index(node), rise_k,

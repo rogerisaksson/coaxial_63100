@@ -24,7 +24,7 @@
 /** Named edges the glue and the defaults reach for. */
 #define EDGE_WINDING_STATOR 22
 #define EDGE_STATOR_ROTOR   23
-#define EDGE_MOUNT_FIRST    24
+#define EDGE_MOUNT_FIRST    THERMAL_EDGE_MOUNT_FIRST
 #define EDGE_MOUNTS         6
 
 /** The bulk figures every laminate default is shared out of: the passive

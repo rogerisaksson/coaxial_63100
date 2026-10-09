@@ -93,12 +93,14 @@ typedef struct
   /** MINOR 17: the trip cap as it stands - THERMAL_TRIP_MARGIN at a trip,
       recovering at THERMAL_TRIP_RECOVER_PER_S - or one with no trip in hand. */
   float    trip_cap;
+  /** MINOR 26: what the board is mounted in, thermal_app_t. */
+  uint8_t  application;
 } board_thermal_ident_t;
 
 bool Board_ThermalIdent(board_thermal_ident_t *out);
 
-/** Forget what was identified: scales to one, the room where the observer
-    has it, UNCERTAIN, the margin at the floor. */
+/** The network laid anew from the record and what was identified forgotten: scales to one,
+    the room where the observer has it, UNCERTAIN, the margin at the floor. */
 bool Board_ThermalIdentReset(void);
 
 /** One edge of the network: which two nodes, and the K/W across it now. */
@@ -166,6 +168,16 @@ bool Board_ThermalSetClock(uint32_t haste);
     ceiling standing: a host's last resort where a wreck is near. Zero ends it; past
     THERMAL_WEP_MAX_MS, or the observer not running, false. */
 bool Board_ThermalWep(uint32_t ms);
+
+/** What the board is mounted in, thermal_app_t, into the record: the network laid anew
+    and the identification started over on it. Not an application, or the observer not
+    running, false. */
+bool Board_ThermalSetApplication(uint8_t app);
+
+/** The frame's airspeed across the board, mm/s, the host's word: what the observer's forced
+    terms see beside the rotor's wash where the application is one, THERMAL_AIRSPEED_HOLD_MS
+    and then none. Past THERMAL_AIRSPEED_MAX_MM_S, or the observer not running, false. */
+bool Board_ThermalAirspeed(uint32_t mm_s);
 
 #ifdef __cplusplus
 }

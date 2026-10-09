@@ -330,7 +330,8 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
 - **Thermal**: a camera under load (`board_to_ambient` at high dT, per-leg
   `to_board`, the NTC's share under load), a thermocouple on a
   winding, the supply's amps dry. DOD: the ceilings measured; the laminate's
-  21 J/K and its parts' 28 two nodes, the room found on them; `f_sw` a gate op.
+  21 J/K and its parts' 28 two nodes, the room found on them; `f_sw` a gate op;
+  `thermal_app.c`'s tables fitted on a test cycle in each.
 - **Spans**: phase gain, the DC link. DOD: both by a DMM.
 
 ## Host
@@ -353,8 +354,7 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
   within FIND_S there.
 - **`test_sensorless`** overpowered servo flakes 1 gate in 4, `test_daq_api`'s
   first dt once (2026-10-05). DOD: 20 green.
-- **QUAD**: its thermal observers' modes and sysident stable in flight;
-  then a bigger, technical course - zig-zags, narrow gaps, a house's
+- **QUAD**: a bigger, technical course - zig-zags, narrow gaps, a house's
   open windows, climbs, dives - its racing line flown on boards too.
 - **A1335 CRC** reported, not checked. DOD: the polynomial known, checked.
 - **`testline/plans/coaxial_63100_fct.yaml`** limits are placeholders.

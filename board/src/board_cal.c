@@ -11,15 +11,24 @@
 /* Layout history: 2 supply senses, 4 thermal envelope, 5 dead time, 6 skew,
    7 per-leg nodes, 8 drive, 9 RS485 baud, 10 lookahead, 11 undriven mask,
    12 winding, 13 twenty-node network, 14 identified scales, 15 margin floor
-   (nothing identified is kept). */
-#define CAL_VERSION 15U
+   (nothing identified is kept), 16 application. */
+#define CAL_VERSION 16U
 
-/** The two versions before this one. */
-#define CAL_PREVIOUS_VERSION    14U
-#define CAL_OLDER_VERSION       13U
-#define CAL_PREVIOUS_PREFIX     offsetof(board_cal_t, soa_margin_floor_ppm)
-#define CAL_PREVIOUS_CRC_OFFSET (CAL_PREVIOUS_PREFIX + 4U * sizeof(uint32_t))
-#define CAL_OLDER_CRC_OFFSET    CAL_PREVIOUS_PREFIX
+#define CAL_FLOOR_AT offsetof(board_cal_t, soa_margin_floor_ppm)
+#define CAL_APP_AT   offsetof(board_cal_t, thermal_app)
+
+/** The versions a stored record is taken from: the bytes of it kept, where its CRC is. */
+static const struct
+{
+  uint32_t version;
+  size_t kept;
+  size_t crc_at;
+} CAL_EARLIER[] =
+{
+  { 15U, CAL_APP_AT, CAL_APP_AT },
+  { 14U, CAL_FLOOR_AT, CAL_FLOOR_AT + 4U * sizeof(uint32_t) },
+  { 13U, CAL_FLOOR_AT, CAL_FLOOR_AT },
+};
 
 /* The image written is padded to whole flash words; the record is a few hundred
    bytes against a 128 KB sector. */
@@ -130,47 +139,42 @@ static bool cal_valid(const board_cal_t *cal)
          (cal->crc == cal_crc(cal));
 }
 
-/** A record of one of the two previous versions: the same prefix, its CRC
-    where its own layout ended. */
-static bool cal_previous_valid(const board_cal_t *stored)
+/** Of a record an earlier version wrote, the bytes kept; 0 for none. */
+static size_t cal_earlier(const board_cal_t *stored)
 {
   const uint8_t *bytes = (const uint8_t *)stored;
-  uint16_t crc;
-  size_t at;
 
-  if (stored->version == CAL_PREVIOUS_VERSION)
+  for (size_t i = 0U; i < sizeof(CAL_EARLIER) / sizeof(CAL_EARLIER[0]); i++)
   {
-    at = CAL_PREVIOUS_CRC_OFFSET;
+    uint16_t crc;
+
+    memcpy(&crc, bytes + CAL_EARLIER[i].crc_at, sizeof(crc));
+    if ((stored->version == CAL_EARLIER[i].version) && (stored->magic == CAL_MAGIC) &&
+        (stored->channels == BOARD_CAL_CHANNELS) &&
+        (crc == modbus_crc16(bytes, CAL_EARLIER[i].crc_at)))
+    {
+      return CAL_EARLIER[i].kept;
+    }
   }
-  else if (stored->version == CAL_OLDER_VERSION)
-  {
-    at = CAL_OLDER_CRC_OFFSET;
-  }
-  else
-  {
-    return false;
-  }
-  memcpy(&crc, bytes + at, sizeof(crc));
-  return (stored->magic == CAL_MAGIC) &&
-         (stored->channels == BOARD_CAL_CHANNELS) &&
-         (crc == modbus_crc16(bytes, at));
+  return 0U;
 }
 
-/** Take a stored record into RAM: this version whole, either previous one as
-    a prefix with the floor at its default. */
+/** Take a stored record into RAM: this version whole, an earlier one's kept bytes over
+    the defaults. */
 static bool cal_take(const board_cal_t *stored)
 {
+  const size_t kept = cal_earlier(stored);
+
   if (cal_valid(stored))
   {
     s_cal = *stored;
     return true;
   }
-  if (cal_previous_valid(stored))
+  if (kept > 0U)
   {
     s_cal = CAL_DEFAULTS;
-    memcpy(&s_cal, stored, CAL_PREVIOUS_PREFIX);
+    memcpy(&s_cal, stored, kept);
     s_cal.version = CAL_VERSION;
-    s_cal.soa_margin_floor_ppm = CAL_DEFAULTS.soa_margin_floor_ppm;
     s_cal.crc = cal_crc(&s_cal);
     return true;
   }
@@ -198,7 +202,7 @@ bool Board_CalStored(void)
 {
   const board_cal_t *stored = (const board_cal_t *)Board_FlashRecord();
 
-  return cal_valid(stored) || cal_previous_valid(stored);
+  return cal_valid(stored) || (cal_earlier(stored) > 0U);
 }
 
 void Board_CalDefaults(void)
@@ -414,6 +418,13 @@ bool Board_CalSetMarginFloor(uint32_t ppm)
     return false;
   }
   s_cal.soa_margin_floor_ppm = ppm;
+  s_cal.crc = cal_crc(&s_cal);
+  return true;
+}
+
+bool Board_CalSetApplication(uint32_t app)
+{
+  s_cal.thermal_app = app;
   s_cal.crc = cal_crc(&s_cal);
   return true;
 }

@@ -179,6 +179,20 @@ API void thm_bulk(const thermal_t *th, float *out)
   out[4] = th->cfg.ntc_tau_s;
 }
 
+/** The model's network as `app` has it, in place (thermal_application). */
+API void thm_application(thermal_t *th, int app)
+{
+  if (th != NULL)
+  {
+    thermal_application(&th->cfg, (thermal_app_t)app);
+  }
+}
+
+API float thm_air_rpm(int app, float speed_rpm, float airspeed_m_s)
+{
+  return thermal_air_rpm((thermal_app_t)app, speed_rpm, airspeed_m_s);
+}
+
 API void thm_set_rad_board_stator(thermal_t *th, float w_per_k)
 {
   if (th != NULL)

@@ -9,6 +9,7 @@ from coaxial.devices.subsystem import Device
 from coaxial.errors import RigError
 from coaxial.model import rooms
 from coaxial.model.thermal import ALL_NODES, IDENT_SCALES, IDENT_STATES, PHASES
+from coaxial.model.thermal_app import APPLICATIONS
 from machine.roles import Input
 
 #: Where derating starts, a fraction of a node's ceiling: the record's
@@ -31,6 +32,13 @@ _NEVER_SAVED = 0xFFFFFFFF
 
 #: An edge's K/W on the wire when the edge is open.
 OPEN_EDGE = -1
+
+
+def application(name):
+    """An application's index on the wire, or a raise naming them."""
+    if name not in APPLICATIONS:
+        raise RigError('an application is one of %s' % ', '.join(APPLICATIONS))
+    return APPLICATIONS.index(name)
 
 
 def _node(index):
@@ -74,6 +82,7 @@ class ThermalControl(Input):
         sample_every_s, sample_settle_s                   how often the NTC borrows AFE_ON
         clock                                             thermal s per wall s, whole
         margin_floor                                      (0, 1] of every span
+        application                                       what it is mounted in, APPLICATIONS
         board_to_ambient, board_capacity                  the bulk: K/W, J/K
         winding_limit_c, winding_k_per_w, winding_j_per_k  0 C disables it
         node=, to_board, capacity                         a node's first path out, J/K
@@ -92,6 +101,7 @@ class ThermalControl(Input):
         'sample': (('sample_every_s', 'sample_settle_s'), '_set_sample',
                    {'sample_settle_s': 0.3}),
         'margin_floor': (('margin_floor',), '_set_margin_floor', {}),
+        'application': (('application',), '_set_application', {}),
         'clock': (('clock',), '_set_clock', {}),
         'board': (('board_to_ambient', 'board_capacity'), '_set_board', {}),
         'winding': (('winding_limit_c', 'winding_k_per_w', 'winding_j_per_k'), '_set_winding',
@@ -249,6 +259,9 @@ class Thermal(Device, ThermalControl, device=protocol.DEVICE_THERMAL):
         # MINOR 17: the trip cap as it stands, one with no trip in hand.
         if r.remaining >= 4:
             got['trip_cap'] = r.micro()
+        # MINOR 26: what it is mounted in.
+        if r.remaining >= 1:
+            got['application'] = label(APPLICATIONS, r.u8(), 'application')
         if self._room is not None:
             got['truth'] = self._toured(self._room, got['state'] == 'STABLE')
         return got
@@ -258,6 +271,18 @@ class Thermal(Device, ThermalControl, device=protocol.DEVICE_THERMAL):
 
     def _set_margin_floor(self, floor):
         return self._ack(ThermalOp.SET_MARGIN, pack(('i32', micro(floor))))
+
+    def _set_application(self, name):
+        return self._ack(ThermalOp.APPLICATION, pack(('u8', application(name))))
+
+    def airspeed(self, m_s, truth=None):
+        """The frame's airspeed across the board, m/s, as the host knows it: its observer's
+        beside the rotor's wash in the airstream, held a second (op 16). `truth`, the air the
+        stand-in's truth flies in, a board has of its own."""
+        if truth is not None:
+            raise RigError('a board flies in its own air - the stand-in\'s truth is told one '
+                           '(simulated=True)')
+        return self._ack(ThermalOp.AIRSPEED, pack(('u32', milli(m_s))))
 
     def _world(self):
         """The room hook of the world under an emulated board - native's, Renode's - or None."""

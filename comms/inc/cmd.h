@@ -60,6 +60,8 @@ extern "C" {
 #define THERMAL_OP_SET_MARGIN   12U
 #define THERMAL_OP_SET_CLOCK    13U
 #define THERMAL_OP_WEP          14U
+#define THERMAL_OP_APPLICATION  15U
+#define THERMAL_OP_AIRSPEED     16U
 
 /** Device 9's ops: the rails and who holds them. */
 #define POWER_OP_STATE        0U  /**< -> u8 rails, per rail on, users, count, blocked, leased */
@@ -166,7 +168,7 @@ extern "C" {
 /* 2.0, 2026-08-29: the thermal nodes went per leg, which REPURPOSED wire
    indices - device 8 node order and the cal record's ceilings both. */
 #define CMD_PROTO_MAJOR 2U
-#define CMD_PROTO_MINOR 25U        /* history: PROTOCOL.md, Versioning */
+#define CMD_PROTO_MINOR 26U        /* history: PROTOCOL.md, Versioning */
 
 /** Request payload length of a command that takes a variable-length payload. */
 #define CMD_LEN_VARIABLE 0xFFU

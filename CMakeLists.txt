@@ -52,6 +52,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     # Thermal: the lumped-node observer.
     thermal/src/thermal.c
     thermal/src/thermal_ident.c
+    thermal/src/thermal_app.c
 
     # DAQ: the acquisition engine - the ring, the summing window, the
     # anti-alias ladder, the tone and the live accumulator.
@@ -123,6 +124,7 @@ set(COAXIAL_SOURCES
     # Thermal: the lumped-node observer.
     thermal/src/thermal.c
     thermal/src/thermal_ident.c
+    thermal/src/thermal_app.c
     daq/src/daq.c
     drive/src/drive.c drive/src/drive_math.c drive/src/drive_model.c
     drive/src/drive_observer.c
@@ -158,6 +160,7 @@ set_source_files_properties(
     # Thermal: the lumped-node observer.
     thermal/src/thermal.c
     thermal/src/thermal_ident.c
+    thermal/src/thermal_app.c
     daq/src/daq.c
     drive/src/drive.c drive/src/drive_math.c drive/src/drive_model.c
     drive/src/drive_observer.c
@@ -189,7 +192,7 @@ set_source_files_properties(
 # The thermal observer, in main() between the STO keepalive's edges: at -O0 a slice of its
 # identification held main() 236 us, past what the chain's pump carries (2026-09-27).
 set_source_files_properties(
-    thermal/src/thermal.c thermal/src/thermal_ident.c
+    thermal/src/thermal.c thermal/src/thermal_ident.c thermal/src/thermal_app.c
     PROPERTIES COMPILE_OPTIONS "-O2;-fno-math-errno;-Wextra;-Wshadow;-Wconversion")
 # And the HAL in front of it: HAL_ADC_IRQHandler is every flag check in the
 # peripheral before the callback runs, fifty thousand times a second.

@@ -1,10 +1,10 @@
 """The stand-in's thermal record: the network as held, each setter, the identification."""
 from typing import Any
 
-from coaxial.devices.thermal import THROTTLE_AT
+from coaxial.devices.thermal import THROTTLE_AT, application
 from coaxial.errors import RigError
 from coaxial.kalman import thermal_ident
-from coaxial.model import thermal
+from coaxial.model import thermal, thermal_app
 
 
 class ThermalRecord:
@@ -16,7 +16,10 @@ class ThermalRecord:
     NODES: Any
     _advance: Any
     _ambient: Any
+    _app: Any
     _base: Any
+    _net: Any
+    _situate: Any
     _cfg: Any
     _ident: Any
     _margin: Any
@@ -56,9 +59,20 @@ class ThermalRecord:
         return self._refresh()
 
     def _refresh(self):
-        """The base the setters write, with the identified scales on it: network_refresh."""
-        self._cfg = self._ident.apply(self._base)
+        """The base the setters write in its application, the identified scales on it:
+        network_refresh."""
+        self._net = thermal_app.applied(self._base, self._app)
+        self._cfg = self._ident.apply(self._net)
         return True
+
+    def _set_application(self, name):
+        """What the board is mounted in, thermal op 15: its network laid anew, the truth in it
+        as well, the identification started over."""
+        application(name)
+        self._app = name
+        self._net = thermal_app.applied(self._base, name)
+        self._situate()
+        return self._reset_identification()
 
     def _set_node(self, node, to_board, capacity):
         """One node's first path out and its capacity - the sink edge for a
@@ -116,6 +130,7 @@ class ThermalRecord:
                'saves': 0, 'since_save_s': None,
                'margin_floor': self._margin_floor,
                'trip_cap': self._trip_cap_now(),
+               'application': self._app,
                'truth': self.truth()}
         return got
 
@@ -125,7 +140,7 @@ class ThermalRecord:
         """
         self._ident = thermal_ident.Identifier(self.IDENT_NOISE_K,
                                                self._ambient)
-        self._cfg = self._ident.apply(self._base)
+        self._cfg = self._ident.apply(self._net)
         return True
 
     def _set_margin_floor(self, floor):

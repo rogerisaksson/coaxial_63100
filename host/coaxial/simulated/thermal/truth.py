@@ -5,7 +5,7 @@ from typing import Any
 
 from coaxial.errors import RigError
 from coaxial.kalman import thermal_ident
-from coaxial.model import inverter, rooms, thermal
+from coaxial.model import inverter, rooms, thermal, thermal_app
 from motor import catalog
 
 
@@ -32,6 +32,8 @@ class ThermalTruth:
     _squares: Any
     _steps: Any
     _truth_power: Any
+    _app: Any
+    _airspeed: Any
     _tripped: Any
 
     #: Each leg's mean square follows its square at this constant, s: the board's sync window
@@ -79,6 +81,7 @@ class ThermalTruth:
             (1.0 - thermal.WINDING_INTO_IRON) * self.WINDING_K_PER_W
         self._base['ntc_sees'] = thermal.NTC_SEES_DRIVERS
         self._base['ntc_tau_s'] = thermal.NTC_TAU_S
+        self._net = thermal_app.applied(self._base, self._app)
 
     def _start_in_room(self):
         """The board starts in its room, as a board does: the truth at the
@@ -93,7 +96,7 @@ class ThermalTruth:
         self._truth_ntc = self._ntc = start
         self._ambient = start
         self._ident = thermal_ident.Identifier(self.IDENT_NOISE_K, start)
-        self._cfg = self._ident.apply(self._base)
+        self._cfg = self._ident.apply(self._net)
 
     def _advance(self):
         """The network integrated forward to now, in steps it can take."""
@@ -143,6 +146,12 @@ class ThermalTruth:
         """
         self._steps += 1
         self._speed_rpm = float(self._speed_of() or 0.0)
+        # The air the forced terms see: the rotor's wash, and the frame's flight across it - the
+        # truth's own, the observer's the host's word while it holds.
+        told, held_s, flown = self._airspeed
+        truth_rpm = thermal_app.air_rpm(self._app, self._speed_rpm, flown)
+        air_rpm = thermal_app.air_rpm(self._app, self._speed_rpm,
+                                      told if self._model_s < held_s else 0.0)
         load = self._load(dt, seen)
         # The truth's FETs at its own legs, the observer's at its estimate, as the plant and the
         # board each have them (world_heat.c, board_thermal.c).
@@ -152,7 +161,7 @@ class ThermalTruth:
         # The truth first, on its own network, its thermistor by the same rule
         # as the observer's below.
         net = thermal.net_flows(self._truth, truth_power, self._truth_cfg,
-                                self._truth_ambient, self._speed_rpm)
+                                self._truth_ambient, truth_rpm)
         truth_cfg = self._laid()
         for name in self.NODES:
             capacity = truth_cfg['capacity'].get(name, 0.0)
@@ -163,7 +172,7 @@ class ThermalTruth:
         # Then the observer, on the base with the identified scales and the
         # room as it believes it to be.
         net = thermal.net_flows(self._node, power, self._cfg,
-                                self._ambient, self._speed_rpm)
+                                self._ambient, air_rpm)
         self._last_net = net
         for name in self.NODES:
             capacity = self._cfg['capacity'].get(name, 0.0)
@@ -182,7 +191,7 @@ class ThermalTruth:
             self._seen = dict(sample)
             self._ntc, self._settled = thermal_ident.anchor(
                 self._node, self._ntc, self._cfg, power, sample,
-                self._speed_rpm, self._since_seen_s, self._ambient)
+                air_rpm, self._since_seen_s, self._ambient)
             self._since_seen_s = 0.0
         # The reading follows the two patches it sits between, never outside
         # them (docs/papers, 2.3).
@@ -190,9 +199,9 @@ class ThermalTruth:
                                              self._cfg, dt)[0]
         # The identification beside it, on the same power and slice; a sample
         # that moves the scales re-applies them at once.
-        if self._ident.step(self._node, self._ntc, self._base, power,
-                            self._speed_rpm, sample, dt):
-            self._cfg = self._ident.apply(self._base)
+        if self._ident.step(self._node, self._ntc, self._net, power,
+                            air_rpm, sample, dt):
+            self._cfg = self._ident.apply(self._net)
         # The room is the identification's, as on the board: no sensor reads
         # it, and the observer's rise is against what it believes.
         self._ambient = self._ident.ambient
@@ -227,6 +236,16 @@ class ThermalTruth:
         self._advance()
         watts = (self._truth_power or {}).get(name, 0.0)
         return self._truth[name] + watts * self._laid()['rth_die'].get(name, 0.0)
+
+    def airspeed(self, m_s, truth=None):
+        """The frame's airspeed across the board as the host knows it, m/s, held a wall second
+        on the observer's clock (op 16); the truth's own air `truth`, the told where none."""
+        if not 0.0 <= float(m_s) <= thermal_app.AIRSPEED_MAX_M_S:
+            raise RigError('an airspeed is 0 .. 100 000 mm/s, held a second - and the observer '
+                           'starts with the board')
+        held_s = self._model_s + thermal_app.AIRSPEED_HOLD_S * self.HASTE
+        self._airspeed = (float(m_s), held_s, float(m_s if truth is None else truth))
+        return True
 
     def _laid(self):
         """The truth's configuration for the situation laid on, which every
@@ -275,11 +294,16 @@ class ThermalTruth:
         self._situation = name
         self._switched_s = self._model_s
         self._truth_ambient = float(laid['ambient'])
-        self._truth_cfg = thermal_ident.apply(
-            (laid['air'], laid['capacity'], 1.0, 1.0), self._base)
+        self._situate()
         if self._switching:
             self._switch_at = time.time() + self._random.uniform(
                 *self.SWITCH_EVERY_S)
+
+    def _situate(self):
+        """The truth's network: the situation's scales on the record's in its application."""
+        laid = self.SITUATIONS[self._situation]
+        self._truth_cfg = thermal_ident.apply((laid['air'], laid['capacity'], 1.0, 1.0),
+                                              self._net)
 
     def _tour_step(self, dt):
         """The tour `dt` model s on (coaxial.model.rooms.step)."""

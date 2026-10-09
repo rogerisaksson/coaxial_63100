@@ -353,6 +353,8 @@ static cmd_status_t h_thermal_ident(wr_t *out)
   wr_i32(out, (int32_t)(id.margin_floor * PPM_PER_UNIT));
   /* MINOR 17, appended: the trip cap as it stands, micro; one with none. */
   wr_i32(out, (int32_t)(id.trip_cap * PPM_PER_UNIT));
+  /* MINOR 26, appended: the application, thermal_app_t. */
+  wr_u8(out, id.application);
   return CMD_OK;
 }
 
@@ -430,6 +432,45 @@ static cmd_status_t h_thermal_wep(rd_t *in, wr_t *out)
   return CMD_OK;
 }
 
+/** op 15 - what the board is mounted in, into the record; the identification starts over
+    on its network (MINOR 26). */
+static cmd_status_t h_thermal_application(rd_t *in, wr_t *out)
+{
+  const uint8_t app = rd_u8(in);
+
+  if (!rd_ok(in))
+  {
+    return CMD_ERR_LENGTH;
+  }
+  if (!Board_ThermalSetApplication(app))
+  {
+    wr_took(out, "an application is 0 .. 6: still air, airstream, enclosure, fan sink, "
+                  "cold plate, PAO, transformer oil - and the observer starts with the board");
+    return CMD_OK;
+  }
+  wr_took(out, NULL);
+  return CMD_OK;
+}
+
+/** op 16 - the frame's airspeed across the board, mm/s, held a second (MINOR 26). */
+static cmd_status_t h_thermal_airspeed(rd_t *in, wr_t *out)
+{
+  const uint32_t mm_s = rd_u32(in);
+
+  if (!rd_ok(in))
+  {
+    return CMD_ERR_LENGTH;
+  }
+  if (!Board_ThermalAirspeed(mm_s))
+  {
+    wr_took(out, "an airspeed is 0 .. 100 000 mm/s, held a second - and the observer "
+                  "starts with the board");
+    return CMD_OK;
+  }
+  wr_took(out, NULL);
+  return CMD_OK;
+}
+
 cmd_status_t cmd_thermal_op(uint8_t op, rd_t *in, wr_t *out)
 {
   switch (op)
@@ -449,6 +490,8 @@ cmd_status_t cmd_thermal_op(uint8_t op, rd_t *in, wr_t *out)
     case THERMAL_OP_SET_MARGIN:  return h_thermal_set_margin(in, out);
     case THERMAL_OP_SET_CLOCK:   return h_thermal_set_clock(in, out);
     case THERMAL_OP_WEP:         return h_thermal_wep(in, out);
+    case THERMAL_OP_APPLICATION: return h_thermal_application(in, out);
+    case THERMAL_OP_AIRSPEED:    return h_thermal_airspeed(in, out);
     default:             return CMD_ERR_VALUE;
   }
 }

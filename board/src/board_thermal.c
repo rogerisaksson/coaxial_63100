@@ -14,13 +14,10 @@
 
 /* The reply's arrays are sized by literals in board.h; the loops that fill
    them run to the enum in thermal.h. */
-_Static_assert(BOARD_THERMAL_NODES == (int)THERMAL_NODES,
-               "board.h's node count and thermal.h's enum disagree - the "
-               "reply array would be written past its end");
-_Static_assert(BOARD_THERMAL_EDGES == THERMAL_EDGES,
-               "board.h's edge count and thermal.h's table disagree");
+_Static_assert(BOARD_THERMAL_NODES == (int)THERMAL_NODES, "board.h's node count is thermal.h's");
+_Static_assert(BOARD_THERMAL_EDGES == THERMAL_EDGES, "board.h's edge count is thermal.h's");
 _Static_assert(BOARD_THERMAL_IDENT_SCALES == THERMAL_IDENT_RECORD,
-               "board.h's scale count and thermal_ident.h's record disagree");
+               "board.h's scale count is thermal_ident.h's");
 
 /** Of the winding's K/W, the share that is the edge into the iron; the rest
     is the iron's own air path. */
@@ -47,6 +44,9 @@ static struct
   /* The clamp's derate held off until this tick: thermal op 14. */
   bool wep;
   uint32_t wep_until;
+  /* The host's airspeed across the board, m/s, held until this tick: op 16. */
+  float airspeed;
+  uint32_t airspeed_until;
   bool holding;                   /**< the thermal observer holds the AFE rail */
   uint32_t held_ms;               /**< when it took it */
   bool afe_was;                   /**< the rail at the last poll */
@@ -67,13 +67,11 @@ static struct
   /* The identification beside the observer. */
   thermal_ident_t ident;
   thermal_cfg_t base;
-  /** The margin the ceilings are trimmed by now - what the board acts on and
-      what op 10 reports: the identification's, or the trip cap while one is
-      in force, whichever is less. */
+  /** The margin the ceilings are trimmed by (op 10): the identification's or the trip
+      cap's, the less. */
   float margin;
-  /** The trip cap and when it was set - THERMAL_TRIP_MARGIN at a trip,
-      recovering at THERMAL_TRIP_RECOVER_PER_S; one and nothing to recover
-      when no trip is in force. */
+  /** The trip cap and when it was set: THERMAL_TRIP_MARGIN at a trip, recovering at
+      THERMAL_TRIP_RECOVER_PER_S; one with no trip. */
   float trip_cap;
   uint32_t trip_ms;
 } s = {
@@ -82,9 +80,6 @@ static struct
   .settle_ms = THERMAL_SAMPLE_SETTLE_MS, .margin = 1.0f,
   .trip_cap = 1.0f, .haste = 1U
 };
-
-/* The identification's noise floor, the margin's reference and its re-trim step are in
-   board_limits.h. */
 
 /** The floor the margin rises from: the record's, ppm of the span. */
 static float margin_floor(void)
@@ -132,8 +127,7 @@ static void soa_from_cal(void)
        housekeeping nodes are judged but not throttled on. */
     s.soa.undriven[i] = ((cal->soa_undriven_mask >> i) & 1UL) != 0UL;
   }
-  /* The winding's ceiling is the record's own field, kept since 12 so op 6
-     and id 48 keep their meaning; zero disables it as before. */
+  /* The winding's ceiling: its own field (op 6, id 48); zero disables it. */
   s.soa.limit_c[THERMAL_WINDING] = (float)cal->winding_limit_centi / CENTI_PER_UNIT;
   s.soa.throttle_at = (float)cal->soa_throttle_ppm / PPM_PER_UNIT;
   s.soa.lookahead_s = (float)cal->soa_lookahead_ms / MILLI_PER_UNIT;
@@ -261,7 +255,7 @@ static void lay_winding(thermal_cfg_t *cfg, const board_cal_t *cal)
 }
 
 /** The network: the core's defaults with every non-zero record entry laid
-    over its own field, in the order the overrides stack. */
+    over its own field, in the order the overrides stack, then the application. */
 static void network_from_cal(thermal_cfg_t *cfg)
 {
   const board_cal_t *cal = Board_Cal();
@@ -272,6 +266,7 @@ static void network_from_cal(thermal_cfg_t *cfg)
   lay_nodes(cfg, cal);
   lay_edges(cfg, cal);
   lay_winding(cfg, cal);
+  thermal_application(cfg, (thermal_app_t)cal->thermal_app);
 }
 
 /** The losses: the core's table with the record's phase resistance, the one
@@ -381,16 +376,14 @@ static void sense_sample(uint32_t now, uint32_t clock, thermal_sense_t *out)
   out->afe_c = NAN;
   out->mcu_c = NAN;
 
-  /* Zero is off: the period test is unsigned, so a zero period would borrow
-     the rail on every poll instead of never, and pin PE15 low. */
+  /* Zero is off: unsigned, a zero period would borrow the rail every poll. */
   const bool due = (s.every_ms != 0U) && ((clock - s.sampled_ms) >= s.every_ms);
 
   if (!s.holding && !due)
   {
     return;
   }
-  /* Somebody else already has the rail up - read it and borrow nothing, once its reference
-     has had the settle a borrow gets. */
+  /* The rail up by another: read once it has settled, borrow nothing. */
   if (!s.holding && Board_AfeOn())
   {
     if ((now - s.afe_up_ms) >= s.settle_ms)
@@ -441,17 +434,15 @@ static float speed_now(void)
   return mech * 60.0f / (2.0f * 3.14159265f);
 }
 
-/** What heats the board this step: the duties, the phase currents while the
-    synced triple is armed, the link voltage when the AFE lets it be read,
-    the dead time the record holds, the speed the drive estimates. */
+/** What heats the board this step: the duties, the synced triple's currents, the link
+    while the AFE reads it, the record's dead time, the drive's speed. */
 static void load_now(thermal_load_t *load)
 {
   const uint32_t period = Board_PwmPeriod();
 
   load->afe_on = Board_AfeOn();
-  /* The drivers switch on their supply alone: FAULTOUT (PE15) enables U9's +15V7 on the
-     schematic's board, and on the unmodified bench board follows AFE_ON inversely, high while
-     its drivers are supplied. */
+  /* The drivers' supply is FAULTOUT's (PE15): U9's +15V7 on the schematic's board; on the
+     unmodified bench board it follows AFE_ON inversely. */
   load->switching = Board_PwmIsEnabled() && Board_Pe15();
   for (uint8_t i = 0U; i < 3U; i++)
   {
@@ -487,9 +478,7 @@ static void load_now(thermal_load_t *load)
   load->speed_rpm = speed_now();
 }
 
-/** After every poll: the ceilings follow the margin, re-trimmed when it has
-    moved a step - every sample while the evidence comes in, never on a slice
-    that changed nothing. */
+/** After every poll: the ceilings re-trimmed once the margin has moved a step. */
 static void margin_follow(void)
 {
   const float now = margin_now();
@@ -513,12 +502,18 @@ static void step_slice(const thermal_load_t *load, const thermal_sense_t *seen,
                              s.th.t[THERMAL_DRIVER(2)] };
 
   thermal_power_estimate(&s.power, load, &s.loss, phase_c);
-  thermal_step(&s.th, &s.power, seen, load, dt);
+  /* The air the step sees: the rotor's wash and the host's airspeed while it holds. */
+  thermal_load_t aired = *load;
+  const bool told = (int32_t)(s.airspeed_until - HAL_GetTick()) > 0;
+
+  aired.speed_rpm = thermal_air_rpm((thermal_app_t)Board_Cal()->thermal_app, load->speed_rpm,
+                                    told ? s.airspeed : 0.0f);
+  thermal_step(&s.th, &s.power, seen, &aired, dt);
   /* The STO chain's pump fed between the steps: a slice at -O0 is 140 000 instructions. */
   Board_StoKeepalive();
   /* The identification beside it, on the same power and slice; a sample that moves the
      scales re-applies them at once. */
-  if (thermal_ident_step(&s.ident, &s.th, &s.base, &s.power, load, seen, dt))
+  if (thermal_ident_step(&s.ident, &s.th, &s.base, &s.power, &aired, seen, dt))
   {
     thermal_ident_apply(&s.ident, &s.base, &s.th.cfg);
   }
@@ -637,9 +632,7 @@ bool Board_ThermalState(board_thermal_t *out)
   out->mcu_measured = !isnan(s.last_seen.mcu_c);
   out->mcu_centidegc = out->mcu_measured
                        ? (int32_t)(s.last_seen.mcu_c * CENTI_PER_UNIT) : 0;
-  /* A flag, not `s.seen_ms != 0`: the clock is 0 at init and again at its
-     wrap, and a sample taken on that tick would read "just now" for as long
-     as the board stayed up. */
+  /* A flag, not `s.seen_ms != 0`: the clock reads 0 at init and at its wrap. */
   out->seen_ms_ago = s.seen ? (s.millis - s.seen_ms) : 0U;
 
   for (int i = 0; i < THERMAL_NODES; i++)
@@ -685,8 +678,7 @@ bool Board_ThermalBudget(board_budget_t *out)
   {
     out->soak_j[i] = s.budget.soak_j[i];
   }
-  /* The effective duty, off the compares themselves rather than off whatever
-     was last asked for: what the clamp and the derate left. */
+  /* The effective duty, off the compares: what the clamp and the derate left. */
   {
     const uint32_t period = Board_PwmPeriod();
 
@@ -716,8 +708,7 @@ bool Board_ThermalSetWinding(float limit_c, float k_per_w, float j_per_k)
   {
     return false;
   }
-  /* The estimate carries on from where it is: a new ceiling or a new
-     constant changes what the winding is judged by, not what it is at. */
+  /* The estimate carries on: a ceiling or a constant moves the judge, not the winding. */
   network_refresh();
   soa_from_cal();
   return true;
@@ -757,8 +748,7 @@ bool Board_ThermalSetNode(uint8_t node, float k_per_w, float capacity)
   {
     return false;
   }
-  /* And into the record's RAM copy, the same number: what the observer runs
-     and what a save would keep cannot differ. */
+  /* And into the record: what runs is what a save keeps. */
   const int edge = thermal_sink_edge((thermal_node_t)node);
 
   if (edge >= 0)
@@ -860,6 +850,17 @@ bool Board_ThermalWep(uint32_t ms)
   return true;
 }
 
+bool Board_ThermalAirspeed(uint32_t mm_s)
+{
+  if (!s.ready || (mm_s > THERMAL_AIRSPEED_MAX_MM_S))
+  {
+    return false;
+  }
+  s.airspeed = (float)mm_s / MILLI_PER_UNIT;
+  s.airspeed_until = HAL_GetTick() + THERMAL_AIRSPEED_HOLD_MS;
+  return true;
+}
+
 bool Board_ThermalSetClock(uint32_t haste)
 {
   if (!s.ready || (haste == 0U) || (haste > THERMAL_HASTE_MAX))
@@ -907,6 +908,7 @@ bool Board_ThermalIdent(board_thermal_ident_t *out)
   out->ambient_sigma_k = thermal_ident_sigma(&s.ident, THERMAL_IDENT_AMBIENT);
   out->margin_floor = margin_floor();
   out->trip_cap = trip_cap_now();
+  out->application = (uint8_t)Board_Cal()->thermal_app;
   return true;
 }
 
@@ -916,10 +918,18 @@ bool Board_ThermalIdentReset(void)
   {
     return false;
   }
+  network_from_cal(&s.base);
   thermal_ident_init(&s.ident, s.th.ambient, THERMAL_IDENT_NOISE_K);
   thermal_ident_apply(&s.ident, &s.base, &s.th.cfg);
   soa_from_cal();
   return true;
+}
+
+bool Board_ThermalSetApplication(uint8_t app)
+{
+  /* What was identified was the old network's. */
+  return s.ready && (app < (uint8_t)THERMAL_APPS) && Board_CalSetApplication(app)
+         && Board_ThermalIdentReset();
 }
 
 bool Board_ThermalSetMarginFloor(float floor)

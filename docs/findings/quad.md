@@ -286,3 +286,11 @@ The board's own are in [FINDINGS](../FINDINGS.md).
   rotors 25 % quicker to their speed struck there too: a knife's edge, not a
   spool. WEP came 0.33 s before the floor, the climb held to its pace's
   12 m/s^2. A search flies the boards as well.
+- The boards' observers in flight (2026-10-09, four boards, 4 min): on the
+  bench's network, the frame's flight over them untold, the air scale ran
+  0.59-1.33 and the room 22-30 C against 25; all four fell from STABLE to
+  UNCERTAIN at 46 s for good. In the airstream (thermal op 15), the wash
+  going with the rotor's speed, the flight still untold: 0.73-1.05, back at
+  49 s. Told (op 16, the ground speed, held 1 s): STABLE at 27 s and kept,
+  air 0.999-1.002, 0.05 K; in a 4-6 m/s gust told the ground speed alone,
+  kept, air 0.97-0.99, 0.09 K, the margin 0.91 at its least.

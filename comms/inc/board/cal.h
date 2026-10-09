@@ -173,12 +173,19 @@ typedef struct
      in (`thermal_ident_margin`). */
   uint32_t soa_margin_floor_ppm;
 
+  /* CAL_VERSION 16: what the board is mounted in, thermal_app_t; 0 still air, the
+     network as laid above. */
+  uint32_t thermal_app;
+
   uint16_t crc;
 } board_cal_t;
 
 /** The margin floor into the record's RAM copy, ppm of the span;
     `Board_CalSave` is what commits it. */
 bool Board_CalSetMarginFloor(uint32_t ppm);
+
+/** The application into the record's RAM copy, thermal_app_t, unchecked here. */
+bool Board_CalSetApplication(uint32_t app);
 
 /** Overlay one node's, one edge's or the bulk's network entry in the
     record's RAM copy; `Board_CalSave` is what commits it. */

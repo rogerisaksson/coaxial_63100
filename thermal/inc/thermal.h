@@ -49,6 +49,10 @@ typedef enum
 /** The edges: which two nodes each conductance joins. */
 #define THERMAL_EDGES 30
 
+/** The first of the mount's six: the stator onto the rim patches U, V, W, left, bottom,
+    right, open on a bench. */
+#define THERMAL_EDGE_MOUNT_FIRST 24
+
 typedef struct
 {
   uint8_t a;
@@ -298,6 +302,30 @@ float thermal_board_from_ntc(const thermal_cfg_t *cfg, float ntc_c,
 
 /** Defaults: the network as derived for this board. */
 void thermal_defaults(thermal_cfg_t *cfg);
+
+/** What the board is mounted in, and so how its network sheds its heat. */
+typedef enum
+{
+  THERMAL_APP_STILL = 0,      /**< still air, a bench: the network as measured */
+  THERMAL_APP_AIRSTREAM,      /**< in its rotor's wash, a drone's */
+  THERMAL_APP_ENCLOSURE,      /**< sealed in a finned aluminium housing */
+  THERMAL_APP_FAN_SINK,       /**< its legs on a fan's finned sink */
+  THERMAL_APP_COLD_PLATE,     /**< its legs on a liquid's cold plate */
+  THERMAL_APP_IMMERSION_PAO,  /**< immersed in PAO */
+  THERMAL_APP_IMMERSION_OIL,  /**< immersed in transformer oil */
+  THERMAL_APPS
+} thermal_app_t;
+
+/** The network `cfg`, the still air's, as `app` has it: its laminate's air and forced
+    gain, its legs onto the body, the body's air, capacity and forced gain, the bell's air
+    (thermal_app.c, ballpark). Still air leaves it as it is. */
+void thermal_application(thermal_cfg_t *cfg, thermal_app_t app);
+
+/** The rotor speed whose wash alone is the air over the board: `speed_rpm`, or where `app`'s
+    air is a rotor's wash, that and the frame's `airspeed_m_s` across it in quadrature, h going
+    as the root of the air (thermal_app.c). What a step's forced terms see; the iron's losses
+    keep the rotor's own. */
+float thermal_air_rpm(thermal_app_t app, float speed_rpm, float airspeed_m_s);
 
 /** Change one node's sink and capacity while the observer runs.
     @return False for an unknown node or a non-positive value. */

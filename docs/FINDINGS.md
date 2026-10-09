@@ -202,6 +202,15 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   21-58 % became 0.48-0.58 and all of it - laps 14.8 and 14.3 s where 15.3
   and 15.2, in a stuffy room where 17.9 and 17.0; there the laminate binds
   next. A board's stored record keeps its own ceilings.
+- Applications (the user, 2026-10-09): what a board is mounted in, thermal
+  op 15 into the record (CAL_VERSION 16) - still air, a rotor's wash, a
+  sealed finned housing, a fan's sink, a cold plate, PAO, transformer oil -
+  laid over the still air's network by `thermal_app.c`, ballpark until a
+  test cycle runs in each. At 3 W a leg, 1.5 its shunts, 20 the winding,
+  the legs settle at 184 C in still air, 115 in a hover's wash (1 470 rpm),
+  74 housed, 53 on a fan's sink, 37 on a plate, 76 in PAO, 80 in oil. A
+  record load or defaults lays the observer's network anew; it ran the old
+  one till a boot.
 - The envelope must step and evaluate per 100 ms slice: a 1 s step let the
   driver node reach 178 C before the clamp saw it. Catch-up capped 2 s.
 - A rail another had just raised was read without the settle a borrow gets,

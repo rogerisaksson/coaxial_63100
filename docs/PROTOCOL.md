@@ -375,10 +375,12 @@ Ops:
 | 8 edges | - | `u8 count`, per edge `u8 a, u8 b, i32 r_milli`, zero for an open one (MINOR 13) |
 | 9 set edge | `u8 edge, i32 r_milli` | `u8 took`; negative opens it (MINOR 13) |
 | 10 ident | - | below |
-| 11 ident reset | - | `u8 took`; scales to one, UNCERTAIN, the margin at the floor - nothing is written, so nothing is refused for (MINOR 14) |
-| 12 set margin | `i32 floor_ppm` | `u8 took`; the floor into the record's RAM copy, cal op 2 persists it - refused outside 1 .. 1 000 000: zero puts every ceiling at 25 C (MINOR 16) |
-| 13 set clock | `u32 haste` | `u8 took`; thermal s a wall s for sampling, derate recovery, the trip cap; 1 on a bench, `thermal.HASTE` emulated - refused outside 1 .. 1000 (MINOR 22) |
-| 14 wep | `u32 ms` | `u8 took`; the clamp's thermal derate held at one that long, the trip standing - WEP's; 0 ends it, refused past 2000 (MINOR 25) |
+| 11 ident reset | - | `u8 took`; the record's network laid anew, scales to one, UNCERTAIN, the margin at the floor (MINOR 14); cal ops 6 and 7 do it too |
+| 12 set margin | `i32 floor_ppm` | `u8 took`; into the record, cal op 2 saves it; 1 .. 1 000 000 (MINOR 16) |
+| 13 set clock | `u32 haste` | `u8 took`; thermal s a wall s, 1 on a bench; 1 .. 1000 (MINOR 22) |
+| 14 wep | `u32 ms` | `u8 took`; the clamp's thermal derate held at one that long, the trip standing; 0 ends it, 2000 at most (MINOR 25) |
+| 15 application | `u8 app` | `u8 took`; what it is mounted in, into the record: 0 still air, 1 airstream, 2 enclosure, 3 fan sink, 4 cold plate, 5 PAO, 6 transformer oil - the network laid as `thermal_app.c` has it, the identification started over (MINOR 26) |
+| 16 airspeed | `u32 mm_s` | `u8 took`; the frame's across the board, held 1 s: in the airstream the forced terms see it beside the rotor's wash; 100 000 at most (MINOR 26) |
 
 Op 0: `u8 ntc_measured, i32 ntc_centi, u8 count`, per node `i32 centi`,
 `i32 ambient_centi, i32 expected_ntc_centi, u32 seconds, u8 settled`;
@@ -401,7 +403,7 @@ scale k), `u8 count` (4), per scale `i32 scale_milli, i32 sigma_milli`
 in the order air, capacity, spread, ntc, `i32 innovation_milli_k,
 i32 margin_micro, u32 updates, u32 saves, u32 since_save_s`; MINOR 15
 appends `i32 ambient_centi, i32 ambient_sigma_centi`, MINOR 16
-`i32 margin_floor_micro`, MINOR 17 `i32 trip_cap_micro`.
+`i32 margin_floor_micro`, MINOR 17 `i32 trip_cap_micro`, MINOR 26 `u8 application`.
 
 Scales are multipliers on the record's network (1000 = default), in the
 order air, capacity, spread, ntc; only air, capacity and the room are
@@ -543,17 +545,18 @@ MINOR appends; MAJOR breaks a codec.
 | 12 | thermal budget appends the winding - estimate, spend, own factor; thermal op 6 sets its envelope |
 | 13 | twenty thermal nodes, the count says so; op 0 appends the FET junction rises and the speed; ops 7, 8, 9 read the node table, the edge table, set an edge |
 | 14 | thermal op 10 reads the online identification - state, which scales move, each scale and sigma, innovation, the envelope's margin, saves; op 11 resets it |
-| 15 | thermal op 10 appends the room as identified, `i32 ambient_centi, i32 ambient_sigma_centi` - the board has no ambient sensor |
-| 16 | thermal op 10 appends `i32 margin_floor_micro`, `saves` 0, `since_save_s` never - the margin continuous on the doubt; op 12 sets the floor; op 11 no longer refuses while armed |
-| 17 | thermal op 10 appends `i32 trip_cap_micro`, the trip cap as it stands, so a host can say whether the trip or the model holds the margin |
-| 18 | device 11 BOOT as the application serves it: op 10 `state`, op 12 `stay`; the rest refused in words. The image sits at 0x08020000 with its header, and a bootloader's assignment reaches it through the handover slot (BOOT.md) |
-| 19 | device 11 `state` appends `u32 image_bytes, u32 image_crc, u8 flags` - the image the bootloader verified and ran, and assign's flags; `seal` takes `[u8 flags]`. The application runs from D2 SRAM at 0x30000000; flash at 0x08020000 keeps a sealed copy (BOOT.md) |
+| 15 | thermal op 10 appends the room as identified |
+| 16 | thermal op 10 appends the margin floor, op 12 sets it; nothing identified is kept |
+| 17 | thermal op 10 appends the trip cap as it stands |
+| 18 | device 11 BOOT as the application serves it: op 10 `state`, op 12 `stay`, the rest refused in words (BOOT.md) |
+| 19 | device 11 `state` appends the image verified and run and assign's flags; `seal` takes `[u8 flags]` (BOOT.md) |
 | 20 | device 12 CTRL, the board's loop: slots, a wire, rows streamed and held; the `dec` wire type |
 | 21 | link op 0 on the port carrying the request refused in words, `u8 0, str`, where it answered ILLEGAL DATA VALUE |
 | 22 | thermal op 13 sets the observer's clock; the state's `seconds` and `seen_ms_ago` on it |
 | 23 | gate drivers op 0 appends `u8 nfault, i32 vgate_mv`: the STO chain's FAULTOUT on PE15 and the drivers' supply |
 | 24 | drive op 0 appends `i32 turns`: the estimate unwrapped, theta_hat + 2 pi turns |
 | 25 | thermal op 14, WEP - war emergency power: the derate held off, the trip standing |
+| 26 | thermal op 15 the application, op 16 the airspeed; op 10 appends the application |
 
 MAJOR 2 (2026-08-29): thermal nodes went per leg, indices repurposed.
 A host ignores fields past what it knows. `test_conformance.py` holds a

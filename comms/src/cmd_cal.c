@@ -194,7 +194,7 @@ static cmd_status_t h_cal_load(rd_t *in, wr_t *out)
   {
     return CMD_ERR_DEVICE;      /* nothing valid stored; record untouched */
   }
-
+  (void)Board_ThermalIdentReset();     /* the observer on the record's network */
   wr_u8(out, 1U);
   return CMD_OK;
 }
@@ -205,6 +205,7 @@ static cmd_status_t h_cal_defaults(rd_t *in, wr_t *out)
   (void)in;
 
   Board_CalDefaults();
+  (void)Board_ThermalIdentReset();
   wr_u8(out, 1U);
   return CMD_OK;
 }

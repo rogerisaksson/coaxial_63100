@@ -12,7 +12,7 @@ import math
 import time
 
 from coaxial.devices.thermal import THROTTLE_AT
-from coaxial.model.thermal import BOARD_CAPACITY, MOTOR
+from coaxial.model.thermal import MOTOR
 from coaxial.simulated.sto import PILOT_VOLTS
 from machine import aerobatics, course, quad
 from machine.flying import FALL, Flying
@@ -102,20 +102,19 @@ CRASHED, CRASH_S = 'crashed', 4.0
 STRUCK = {'tree': 'into a tree', 'house': 'into a house', 'car': 'into a car',
           'mast': 'into the mast', 'floor': 'on the floor'}
 
-#: A board's laminate to the air under its propeller, K/W, in its record: a third of the
-#: bench's still air, an assumption - the wash over both faces. On the bench's 8.33 the
-#: pack's 63 V had the gate stage at 0.65-0.72 of its envelope in a hover and every board
-#: throttling by the corkscrew (2026-10-05).
-WASH_K_PER_W = 2.5
+#: What a board is mounted in: its rotor's wash, 2.5 K/W off the laminate in a hover against
+#: the bench's 8.33 (thermal_app.c). On 8.33 the pack's 63 V had the gate stage at 0.65-0.72
+#: of its envelope in a hover and every board throttling by the corkscrew (2026-10-05).
+APPLICATION = 'airstream'
 
 
 def arm(rig):
     """A stand-in board's stage and drive for flight: its gates on the master's pilot, the
     63100's model under the propeller's inertia, a flight's clamp, sensorless."""
     board = rig.board
-    # Its record's air under the propeller, and the stand-in's truth laid on that record: the
-    # observer and the board it watches in the same air from the first pass.
-    board.thermal.configure(board_to_ambient=WASH_K_PER_W, board_capacity=BOARD_CAPACITY)
+    # In its rotor's wash, and the stand-in's truth laid on that: the observer and the board it
+    # watches in the same air from the first pass.
+    board.thermal.configure(application=APPLICATION)
     board.thermal.situation('bench')
     board.afe.on()
     rig.pilot(PILOT_VOLTS)
@@ -252,6 +251,9 @@ def step(rotors, sky, route, flying, flight, clock, dt):
         heat = rotor['rig'].board.thermal
         heat.fast_forward(dt * heat.HASTE, live=True)
     quad.drawn(cells, watts, dt)
+    told, through = airspeeds(frame, flight.get('air'))
+    for rotor in rotors:
+        rotor['rig'].board.thermal.airspeed(told, truth=through)
     air = flight.get('air')
     if air is not None:
         quad.blown(air, dt)
@@ -261,6 +263,14 @@ def step(rotors, sky, route, flying, flight, clock, dt):
     if 'fit' in route['card'][route['row']][4].split() and (flat or share < FIT):
         return 'swap' if flat else 'cool'
     return FALL if name == 'burn' and flying.doing == FALL else name
+
+
+def airspeeds(frame, air):
+    """(the frame's speed as its flight controller has it - over the ground -, its speed
+    through `air`), m/s: what its boards' observers are told, what their truths fly in."""
+    wind = quad.wind_at(air['wind'], frame['h']) if air else (0.0, 0.0, 0.0)
+    return (math.sqrt(sum(float(v) ** 2 for v in frame['vel'])),
+            math.sqrt(sum((float(v) - u) ** 2 for v, u in zip(frame['vel'], wind))))
 
 
 def emergency(flight, sky, flying, route, share, dt):

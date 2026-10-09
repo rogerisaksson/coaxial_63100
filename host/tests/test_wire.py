@@ -232,6 +232,43 @@ def test_the_acquisition_records_decode(report, rig):
                  '%d records, first %s' % (len(records), records[:1]))
 
 
+def test_the_application_is_laid(report, rig):
+    """What a board is mounted in, through the firmware's wire: laid and reported, kept by a
+    save and laid again by a load; refused past the tables, the airspeed past its range."""
+    from coaxial.comm.protocol import ThermalOp
+    from coaxial.comm.wire import pack
+    from coaxial.errors import RigError
+    t, cal = rig.board.thermal, rig.board.calibration
+
+    def laid():
+        return t.identification()['application'], t.network()['edges'][24][2]
+
+    t.configure(application='cold_plate')
+    first = laid()
+    cal.save()
+    t.configure(application='still')
+    still = laid()
+    cal.load()
+    loaded = laid()
+    refused = []
+    for name, call in (('application 7', lambda: t._ack(ThermalOp.APPLICATION, pack(('u8', 7)))),
+                       ('airspeed 150 m/s', lambda: t.airspeed(150.0)),
+                       ('a truth told a board', lambda: t.airspeed(1.0, truth=2.0))):
+        try:
+            call()
+        except RigError:
+            refused.append(name)
+    taken = t.airspeed(12.0)
+    t.configure(application='still')
+    cal.save()
+    report.check('an application is laid, reported, saved and loaded; the airspeed taken',
+                 first == ('cold_plate', 1.0) and still == ('still', 0.0)
+                 and loaded == first and bool(taken),
+                 'laid %s, still %s, loaded %s' % (first, still, loaded))
+    report.check('refused: an application past the tables, an airspeed past 100 m/s, a truth',
+                 len(refused) == 3, str(refused))
+
+
 def test_the_record_survives_a_save(report, rig):
     """An edit is volatile until saved; a load reads back what was saved."""
     cal = rig.board.calibration
@@ -270,7 +307,8 @@ def main():
                      test_settings_are_taken, test_the_wire_refuses,
                      test_every_verb_answers_or_refuses,
                      test_acquisition_answers_or_refuses,
-                     test_the_acquisition_records_decode, test_the_record_survives_a_save,
+                     test_the_acquisition_records_decode, test_the_application_is_laid,
+                     test_the_record_survives_a_save,
                      test_the_bench_conformance_holds):
             print('\n-- %s --' % test.__name__[5:].replace('_', ' '))
             test(report, rig)

@@ -5,7 +5,7 @@ from typing import Callable, Optional
 from coaxial.devices.thermal import ThermalControl
 from coaxial.errors import RigError
 from coaxial.kalman import thermal_ident
-from coaxial.model import thermal
+from coaxial.model import thermal, thermal_app
 from coaxial.simulated.thermal.envelope import ThermalEnvelope
 from coaxial.simulated.thermal.record import ThermalRecord
 from coaxial.simulated.thermal.truth import ThermalTruth
@@ -68,6 +68,8 @@ class SimulatedThermal(ThermalTruth, ThermalEnvelope, ThermalRecord, ThermalCont
         self._last_power = None
         self._last_net = None
         self._derate_held = 1.0
+        #: The host's airspeed across the board, the model s it holds to, the truth's own air.
+        self._airspeed = (0.0, -1.0, 0.0)
         #: The model second WEP holds the derate off until (thermal op 14).
         self._wep_until = -1.0
         self._derate_at = None
@@ -79,6 +81,8 @@ class SimulatedThermal(ThermalTruth, ThermalEnvelope, ThermalRecord, ThermalCont
         #: or nothing.
         self._speed_rpm = 0.0
         self._speed_of = lambda: 0.0
+        #: What the board is mounted in (`thermal_app`), and its record's network so.
+        self._app = thermal_app.STILL
         self._lay_base()
         # The ground truth: a second board, the base with a situation laid over
         # it, integrated on the same power and read through three noisy
@@ -122,7 +126,7 @@ class SimulatedThermal(ThermalTruth, ThermalEnvelope, ThermalRecord, ThermalCont
         #: what the live path samples instead of the drive while one runs.
         self._cycle = None
         self._cycle_trip = None     # the cycle index a trip ended early
-        self._cfg = self._ident.apply(self._base)
+        self._cfg = self._ident.apply(self._net)
         self.situation(situation)
         self._start_in_room()
 
