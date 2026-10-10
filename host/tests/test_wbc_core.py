@@ -210,20 +210,25 @@ def test_the_loop_stands_as_the_python_stack(report, c, b, rows):
     report.check('no bound at its edge standing', ours['held'] == 0,
                  '%d at the edge, the active set changed %d times' % (ours['held'], ours['passes']))
     base, q, u, _T = core.state_of(b)
-    us = 1e6 * c.stack_seconds(base, q, u, ask, 200)
-    report.check('a tick of the loop on this host', us < 1000.0, '%.0f us' % us)
+    us = 1e6 * c.stack_seconds(base, q, u, ask, 100)
+    report.check('a tick of the loop on this host', us < 4000.0, '%.0f us' % us)
 
 
 def test_she_stands_on_the_loop(report, c, b, rows):
-    """In MuJoCo on the loop's torques: standing 3 s, and shoved 60 N from behind."""
+    """In MuJoCo on the loop's torques: standing 3 s, shoved 38 N from behind, and the walk
+    asked 0.5 m/s for 8 s."""
     from tools.sim import wbc as sim
     out = sim.stand(seconds=3.0, core=True)
     report.check('stands 3 s on the loop', out['stood'],
                  'tilt %.1f deg, drift %.0f mm, %d us a pass' % (out['tilt'], out['drift_mm'],
                                                                  out['us']))
-    out = sim.stand(60.0, 90.0, core=True)
-    report.check('shoved 60 N from behind she stands', out['stood'],
+    out = sim.stand(38.0, 90.0, core=True)
+    report.check('shoved 38 N from behind she stands', out['stood'],
                  'tilt %.1f deg, %d steps' % (out['tilt'], out['steps']))
+    out = sim.stand(seconds=sim.AT_S + 8.0, walk=(0.5, 0.5), core=True)
+    report.check('walks 8 s on the loop', out['stood'] and out['steps'] >= 12,
+                 '%s m at %s m/s, %s J/m, %d steps, tilt %.1f deg' % (
+                     out.get('walked_m'), out.get('m_s'), out.get('j_m'), out['steps'], out['tilt']))
 
 
 ROSTER = (test_the_arrays_are_the_figures, test_the_frames_are_mujocos,

@@ -57,8 +57,9 @@ filter/   anti-alias biquad chain
 ctrl/     machine.parts and a feedback in C, rows played: device 12, ticked in
           the drive's sample (board_ctrl.c); host-tested
 wbc/      her chain on its static model (wbc_model.c, written by
-          tools/cores/model.py): poses, Jacobians, M, bias; the loop over it,
-          asks of R^k into torques by priority, clipped to the drives; host-tested
+          tools/cores/model.py): poses, Jacobians, M, bias; the loop over it
+          (wbc_stack.c the levels and bounds, wbc_solve.c the dual active set),
+          asks of R^k into torques by priority within the bounds; host-tested
 daq/      acquisition engine (ring, window, ladder, tone, live)
 shtp/     BNO08X transport
 boot/     bootloader: boot_core.c (portable) + boot_main.c (registers),

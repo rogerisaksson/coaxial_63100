@@ -233,8 +233,9 @@ def _trace(now, phase, s, home, tilt, out, body, worst):
     nearest its clamp, the stack's worst slack, and the loop's bounds at their edge."""
     import numpy as np
     share = np.abs(out['tau'] / body.top)
-    edge = ('  edge %s over %.2g changes %d stuck %d' % (out['guarded'], out['residual'],
-                                                    out['passes'], out['stuck'])
+    edge = ('  edge %s over %.2g changes %d stuck %d levels %s ids %s' % (
+        out['guarded'], out['residual'], out['passes'], out['stuck'],
+        ['%.2g' % a for a in out['alpha']], out['ids'][:14])
             if 'guarded' in out else '')
     print('%5.3f %-6s com %+6.1f %+6.1f mm  tilt %4.1f  cop %s  tau %.2f %s  slack %.2g%s'
           % (now, phase, 1e3 * (s['com'][0] - home[0]), 1e3 * (s['com'][2] - home[2]), tilt,

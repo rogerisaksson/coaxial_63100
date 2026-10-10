@@ -290,3 +290,41 @@ broken by up to 1 600 (unit rows); at 80 changes a level the bounds hold
   draws more torque (|tau| 40.5 against 33.3). The loop's lower speed on its
   own walk, and so most of its J/m (the housekeeping and the copper a second
   over fewer metres), is the next measure: each solver's own walk.
+
+### The loop in the stack's own space
+
+The loop reformulated with the python stack's variables - every acceleration
+and each standing sole's corner forces in shares of her weight - the dynamics'
+undriven rows, the held joints and the standing soles exact as level 0, the
+levels under them in an orthonormal null-space basis cut per level, each
+solved by Goldfarb and Idnani's dual active set (a bound in the span of those
+held moves the duals alone), with the stack's two rules: the levels below
+weighed 1e-3 into a level's flat directions, and a bound held with a dual over
+1e-2 kept as an equality below (1e-7 felled her at 38 N, 1e-1 felled the
+walk). 2026-10-11:
+
+| Measure | Loop | The python stack |
+| --- | --- | --- |
+| the walk, 8 s at 0.5 m/s asked | 16 steps, 1.58-1.65 m, 0.26-0.27 m/s, 739-768 J/m, tilt 1.4 deg | 16 steps, 1.88 m, 0.31 m/s, 792 J/m |
+| shoved from 8 ways, stood of 8: 38 / 60 / 80 / 100 / 120 N | 8 / 7 / 6 / 0 / 0 | 8 / 8 / 7 / 7 / 3 |
+| WEP used over a polar's 8 shoves, 100 N | 1.1 s | 12.7 s |
+| shadowing the stack's walk, single support | 8.2 N m apart (median), chatter 0.73 N m a tick, swing 4.6 of 34 m/s^2 | chatter 2.9, swing 5.6 |
+| a tick on this host at -O2, 63 variables | 1470 us | - |
+| standing, asked to stay | 0.00 N m apart, level 0 met to 5e-8 | - |
+
+- What each change bought, measured on the loop's own walk: the stack's
+  variables alone (the torque space left) quietened the arms' structure but
+  fell at 4 steps; level 0 all but unregularised and the forces in shares of
+  her weight, 7 steps at 0.39 m/s; the null basis in place of the leaky
+  projector, exact levels but an explosion where a bound's reduced row vanished;
+  Goldfarb-Idnani, convergence but 6 steps; the tie-break, the arms following
+  the trunk (shoulders 4 N m, 1 % at the clamp, where 10-20 N m at 16-42 %)
+  and the walk whole with the band back on.
+- Tried and dropped, each measured: the band and the margins soft through
+  slacks (the walk fell at 2.6 s); the tie-break at 1e-4 (both fell); no
+  tie-break (both fell); bounds never held below (both fell); a bound freed
+  barred from returning (bounds left broken).
+- Open: 60 N from straight behind falls where the other seven ways stand; 100
+  and 120 N fall, the loop granting WEP a tenth of what the stack does; the
+  tick 1.5 ms here (the tie-break's rows and up to 160 active-set steps a
+  level), its cycles on native and Renode unmeasured.

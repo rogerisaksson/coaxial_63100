@@ -185,11 +185,10 @@ the files under docs/FINDINGS.md. An item is deleted when its DOD is met.
 36. **The latent stack** (32, 34; wbc.md): her physics as static arrays, one C
     loop over them (`wbc/`), R^k the only thing upward, the model feeding R^k
     as data.
-    + Loop: the single-support compromise - shadowing the stack's walk the
-      loop meets the tasks alike but spreads a saturated swing 25 N m
-      differently; its walk 13 steps at 0.12 m/s where the stack's 16 at
-      0.31, the polar 8/4/3/2 of 8 where 8/7/7/3. A tick's cycles on native
-      and Renode.
+    + Loop: 100 and 120 N shoves (0 of 8 where the stack 7 and 3; WEP 1.1 s
+      where 12.7) and 60 N from straight behind; the tick 1.5 ms here, its
+      cycles on native and Renode; the walk's last 0.04 m/s and 30 J/m to
+      the stack's (wbc.md).
     + Bottom, each board: the ESO (`parts.Eso`, `CTRL_ESO`) measured where
       joints reverse against the drag - the walk on the loop, a virtual
       spring's stick-slip on the boards as built.

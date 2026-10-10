@@ -59,16 +59,16 @@ void wbc_body_momentum(const wbc_body_t *b, const double com[3], double k[3]);
 
 /** The commanded torques: the drives', then the held joints'. */
 #define WBC_X (WBC_DRIVEN + WBC_HELD)
-/** The loop's variables: the torques, then each sole's six internal forces among its corners. */
-#define WBC_V (WBC_X + 12)
-/** The most contact rows: two soles standing. */
-#define WBC_C 12
-/** The levels - the held joints, the centre of mass, the turns, a swing, the form - and the
-    most rows one lays. */
+/** The loop's variables: every acceleration, then each sole's four corners' forces, world, in
+    shares of her weight (the python stack's scaling: the regularisation stays negligible). */
+#define WBC_F 12
+#define WBC_V (WBC_N + 2 * WBC_F)
+/** The levels - the dynamics' undriven rows, the held joints and the standing soles (exact);
+    the centre of mass; the turns and a swing; nothing; the form - and the most rows one lays. */
 #define WBC_LEVELS 5
 #define WBC_ROWS 96
-/** A level of this many rows or fewer, its bounds held included, cuts the null space under it. */
-#define WBC_SMALL 32
+/** A level of this many rows or fewer cuts the null space under it. */
+#define WBC_SMALL 48
 /** The most bounds a tick, and the most of them reported at their edge. */
 #define WBC_INEQ 160
 #define WBC_EXTRA 32
@@ -100,10 +100,10 @@ typedef struct
 } wbc_ask_t;
 
 /** What the loop answers: the drives' torques; every acceleration (u's order); each sole's
-    wrench (m, f) in the world and its load; the bounds at their edge, how many and which, the
-    active set's changes this tick, the most any bound is over; the drives asked past their
-    clamps, each drive's load of its clamp, the inertia each drive's torque meets; each sole's
-    corner forces, world, 3 a corner. */
+    wrench (m, f) in the world about its middle and its load; the bounds at their edge, how
+    many and which, the active set's changes this tick, the most any bound is over; the drives
+    asked past their clamps, each drive's load of its clamp, the inertia each drive's torque
+    meets alone; each sole's corner forces, world, 3 a corner; the levels whose set ran out. */
 typedef struct
 {
   double tau[WBC_DRIVEN];
@@ -118,68 +118,70 @@ typedef struct
   double residual;                /**< the most a bound is over, unit rows */
   int    over[WBC_DRIVEN];
   double load[WBC_DRIVEN];
-  double jeff[WBC_DRIVEN];        /**< each drive's effective inertia under the body and the contacts, kg m^2 */
-  double force[2][12];
-  int    stuck;                   /**< levels whose active set ran out of changes */
+  double jeff[WBC_DRIVEN];
+  double force[2][WBC_F];
+  int    stuck;
+  double clipped[2];              /**< 1: a swing's ask whole */
 } wbc_out_t;
 
 /** The loop's memory, laid once. */
 typedef struct
 {
-  double chol[WBC_N][WBC_N];      /**< M's Cholesky factor, lower */
-  double w[WBC_N][WBC_X];         /**< M^-1 S^T */
-  double w0[WBC_N];               /**< -M^-1 h */
-  double jc[WBC_C][WBC_N];        /**< the standing soles' Jacobians */
-  double c[WBC_C];                /**< their accelerations asked: still */
-  double y[WBC_N][WBC_C];         /**< M^-1 Jc^T */
-  double lam[WBC_C][WBC_C];       /**< (Jc M^-1 Jc^T)^-1 */
-  double bb[WBC_N][WBC_X];        /**< udot = u0 + bb tau */
-  double u0[WBC_N];
-  double ll[WBC_C][WBC_X];        /**< lambda = l0 + ll tau */
-  double l0[WBC_C];
-  double corner[2][4][3];         /**< each sole's corners about its middle, world */
-  double wp[2][12][6];            /**< its corner forces from its wrench, least norm */
-  double bw[2][12][6];            /**< and the six ways they share it without moving it */
+  double chol[WBC_N][WBC_N];      /**< M's Cholesky factor, lower, for each drive's inertia */
+  int    freed[WBC_N];            /**< the dofs no drive and no stop holds, and how many */
+  int    nfree;
+  double jsole[2][6][WBC_N];      /**< each standing sole's Jacobian at its middle, world (w, v) */
+  double dsole[2][6];             /**< and its drift */
+  double jcorner[2][4][3][WBC_N]; /**< each corner's linear Jacobian, world */
+  double pcorner[2][4][3];        /**< and where it is */
+  double sole_p[2][3];            /**< each sole's middle, world */
+  double fs;                      /**< her weight, N: a corner force variable is a share of it */
+  double tc[WBC_DRIVEN][WBC_V];   /**< each drive's torque over the variables, and its offset */
+  double toff[WBC_DRIVEN];
   double la[WBC_LEVELS][WBC_ROWS][WBC_V]; /**< each level's rows over the variables this tick */
   double lr[WBC_LEVELS][WBC_ROWS];
   int    lrows[WBC_LEVELS];
-  double ab[WBC_ROWS][WBC_V];     /**< the level being solved: its rows in the null space */
+  double ab[WBC_ROWS][WBC_V];     /**< the level being solved: its rows in the reduced coordinates */
   double rho[WBC_ROWS];
-  double nn[WBC_V][WBC_V];        /**< the null space so far, a projector */
+  double zb[WBC_V][WBC_V];        /**< the null space so far, an orthonormal basis in its first zm columns */
+  int    zm;
+  double zn[WBC_V][WBC_V];        /**< the next basis, in the reduced coordinates */
   double g[WBC_SMALL][WBC_SMALL]; /**< a level's Gram matrix, then its factor */
-  double qq[WBC_SMALL][WBC_V];
+  double qq[WBC_ROWS][WBC_V];     /**< a level's rows orthonormalised, their span */
   double hh[WBC_V][WBC_V];        /**< a level's curvature, and with its damping, factored */
+  double lowab[WBC_LEVELS][WBC_ROWS][WBC_V]; /**< the levels below in a level's reduced coordinates: its tie-break */
+  double lowrhs[WBC_LEVELS][WBC_ROWS];
+  double lowcol[WBC_V];
   double kk[WBC_V][WBC_V];
   double ga[WBC_INEQ][WBC_V];     /**< the bounds, ga v <= gh, unit rows; their kinds and ids */
   double gh[WBC_INEQ];
   int    gkind[WBC_INEQ];
   int    gid[WBC_INEQ];
   int    ineq;
-  double gb[WBC_INEQ][WBC_V];     /**< the bounds in the level's null space */
+  double gb[WBC_INEQ][WBC_V];     /**< the bounds in the reduced coordinates */
   double hb[WBC_INEQ];
+  int    gfixed[WBC_INEQ];        /**< a bound the level being solved cannot move */
+  double ud[WBC_V];               /**< the held bounds' duals, and the pending bound's */
+  double upend;
+  double sfac[WBC_V][WBC_V];      /**< S factored */
   int    wset[WBC_LEVELS][WBC_V]; /**< each level's bounds held, warm across ticks */
   int    wn[WBC_LEVELS];
   int    wsized[WBC_LEVELS];      /**< the bounds a level's set was made among */
   int    iterations;              /**< the set's changes this tick */
   int    stuck;                   /**< levels that ran out of changes */
   double vw[WBC_V][WBC_V];        /**< K^-1 of the held bounds' rows */
-  double sm[WBC_V][WBC_V];        /**< their Schur complement, then its factor */
+  double sm[WBC_V][WBC_V];        /**< their Schur complement S = N K^-1 N^T */
   double tau[WBC_LEVELS][WBC_V];  /**< each level's contribution */
-  double total[WBC_V];            /**< their sum: the torques, then the internal forces */
-  double udot_now[WBC_N];         /**< what they give */
-  double lam_now[WBC_C];
+  double total[WBC_V];            /**< their sum: the accelerations, then the corners' forces */
+  double torque[WBC_X];           /**< the drives' torques they give; the held joints' 0 */
   double load_now[WBC_DRIVEN];
-  double force[2][12];            /**< each sole's corner forces, world */
   double pmap[WBC_DRIVEN][WBC_X]; /**< each drive's load from the torques */
   double ceiling[WBC_DRIVEN];     /**< this tick's bound on each load, and the clamp as derated */
   double nominal[WBC_DRIVEN];
   double edge_lo[2];              /**< a sole's centre of pressure within, x then z, its foot's frame */
   double edge_hi[2];
-  double sole_r[2][9];            /**< each sole's frame in the world, and its middle */
-  double sole_p[2][3];
   int    standing[2];             /**< each sole's place among the contacts, -1 swinging */
   int    nst;
-  int    nc;
   double load[WBC_DRIVEN];        /**< the last tick's load of each clamp: WEP where it ran near */
   double com[3];
   double jcom[3][WBC_N];

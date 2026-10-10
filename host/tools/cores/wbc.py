@@ -56,7 +56,7 @@ class Out(ctypes.Structure):
                 ('bears', _d * 2), ('held', _i), ('passes', _i), ('guarded', _i * 5),
                 ('ids', _i * 32), ('alpha', _d * 3), ('residual', _d), ('over', _i * DRIVEN),
                 ('load', _d * DRIVEN), ('jeff', _d * DRIVEN), ('force', (_d * 12) * 2),
-                ('stuck', _i)]
+                ('stuck', _i), ('clipped', _d * 2)]
 
 
 def ask_of(ask):
@@ -203,7 +203,7 @@ class Core:
                 'over': np.array(out.over, bool),
                 'load': np.array(out.load), 'jeff': np.array(out.jeff),
                 'force': np.array([list(f) for f in out.force]).reshape(2, 4, 3),
-                'stuck': int(out.stuck)}
+                'stuck': int(out.stuck), 'clipped': list(out.clipped)}
 
     def stack_seconds(self, base, q, u, ask, reps=200):
         """Seconds a tick of the loop on this host."""
@@ -240,4 +240,5 @@ def stack_step(b, s, ask, core=None):
             'over': out['over'], 'slack': [], 'held': out['held'], 'passes': out['passes'],
             'guarded': out['guarded'], 'ids': out['ids'], 'residual': out['residual'],
             'alpha': out['alpha'], 'force': out['force'], 'stuck': out['stuck'],
+            'clipped': out['clipped'],
             'wrench': out['wrench'], 'load': out['load']}
