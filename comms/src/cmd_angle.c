@@ -78,6 +78,7 @@ static cmd_status_t h_angle_latest(rd_t *in, wr_t *out)
   wr_u8(out, st.reg);
   wr_u16(out, st.value);
   wr_u8(out, st.crc);
+  wr_u32(out, st.crc_errors);
 
   return CMD_OK;
 }

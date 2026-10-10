@@ -211,7 +211,7 @@ class SimulatedAngle(AngleSensor):
             'register': self._reg,
             'register_name': angle.REGISTERS.get(self._reg,
                                                  '0x%02X' % self._reg),
-            'value': value, 'crc': angle.crc4(value),
+            'value': value, 'crc': angle.crc4(value), 'crc_errors': 0,
         }
         if self._reg == angle.ANG:
             got['degrees'] = angle.degrees(value)

@@ -64,6 +64,21 @@ static struct
   .poll_reg = ANGLE_REG_ANG
 };
 
+/* The CRC a reply should end with: x^4 + x + 1, seed 0xF, over its sixteen data bits MSB
+   first - board/emu's and board/native's A1335, and coaxial.devices.angle.crc4. */
+static uint8_t crc4(uint16_t value)
+{
+  uint8_t crc = 0xFU;
+
+  for (int8_t bit = 15; bit >= 0; bit--)
+  {
+    const uint8_t top = (uint8_t)(((crc >> 3) & 1U) ^ ((value >> (uint8_t)bit) & 1U));
+
+    crc = (uint8_t)(((uint8_t)(crc << 1) & 0xFU) ^ ((top != 0U) ? 0x3U : 0U));
+  }
+  return crc;
+}
+
 static uint32_t prescaler_under(uint32_t limit_hz)
 {
   s.kernel_hz = HAL_RCCEx_GetPeriphCLKFreq(RCC_PERIPHCLK_SPI4);
@@ -589,6 +604,10 @@ void Board_AnglePoll(void)
   s.state.crc   = crc;
   s.state.have  = true;
   s.state.updates++;
+  if (crc != crc4(value))
+  {
+    s.state.crc_errors++;
+  }
 
   const int16_t logged[3] = { (int16_t)value, (int16_t)crc,
                               (int16_t)r.reg };

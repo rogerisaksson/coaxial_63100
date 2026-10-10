@@ -349,7 +349,8 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
 - **QUAD raw** (the user, 2026-10-10): laps 14.1-17.0 s on boards, every
   tip 0.07 m inside. DOD: an emulated drone's heat its airspeed; gynoid
   boards in oil.
-- **A1335 CRC** reported, not checked. DOD: the polynomial known, checked.
+- **A1335 CRC** counted (MINOR 28) on the stand-ins' polynomial. DOD:
+  `crc_errors` 0 on the bench.
 - **`testline/plans/coaxial_63100_fct.yaml`** limits are placeholders.
   DOD: measured.
 - **`CMD_LINK_SHARE_PCT`** 75 unmeasured on a populated RS485 segment.

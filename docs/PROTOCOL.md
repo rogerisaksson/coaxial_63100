@@ -226,7 +226,7 @@ A1335 on SPI4. Ops:
 | --- | --- | --- |
 | 0 read | `u8 reg` | `u8 reg, u16 value, u8 crc` |
 | 1 write | `u8 reg, u8 value` | empty; 03 above 0x3F, 04 when the part will not take it |
-| 2 latest | - | `u8 loop, u8 error, u32 updates, u32 errors, u8 have, u8 reg, u16 value, u8 crc` |
+| 2 latest | - | `u8 loop, u8 error, u32 updates, u32 errors, u8 have, u8 reg, u16 value, u8 crc, u32 crc_errors` |
 | 3 hold | - | `u8 loop` |
 | 4 resume | - | `u8 loop` |
 | 5 pollreg | `[u8 reg]` | `u8 reg` the loop reads |
@@ -555,9 +555,10 @@ MINOR appends; MAJOR breaks a codec.
 | 22 | thermal op 13 sets the observer's clock; the state's `seconds` and `seen_ms_ago` on it |
 | 23 | gate drivers op 0 appends `u8 nfault, i32 vgate_mv`: the STO chain's FAULTOUT on PE15 and the drivers' supply |
 | 24 | drive op 0 appends `i32 turns`: the estimate unwrapped, theta_hat + 2 pi turns |
-| 25 | thermal op 14, WEP - war emergency power: the derate held off, the trip standing |
+| 25 | thermal op 14, WEP: the derate held off, the trip standing |
 | 26 | thermal op 15 the application, op 16 the airspeed; op 10 appends the application |
 | 27 | gate op 10 takes an optional period count |
+| 28 | angle op 2 appends `u32 crc_errors` |
 
 MAJOR 2 (2026-08-29): thermal nodes went per leg, indices repurposed.
 A host ignores fields past what it knows. `test_conformance.py` holds a

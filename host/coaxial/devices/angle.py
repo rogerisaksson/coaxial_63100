@@ -139,6 +139,8 @@ class Angle(Device, AngleSensor, device=protocol.DEVICE_ANGLE):
             'register_name': _name(register),
             'value': value if have else None,
             'crc': crc,
+            # MINOR 28: replies whose CRC is not crc4's.
+            'crc_errors': r.maybe('u32'),
         })
         if have:
             got.update(DECODED.get(register, _nothing)(value))

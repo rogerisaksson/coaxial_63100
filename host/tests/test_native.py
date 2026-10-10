@@ -151,7 +151,8 @@ def test_the_parts_answer(report, rig):
             shaft = limb.boards[0].lib.native_shaft_degrees() % 360.0
         limb.angle(1, 250.0)
         b.transport.sleep(0.05)
-        degrees = b.angle.state().get('degrees')
+        state = b.angle.state()
+        degrees = state.get('degrees')
         with b.imu.configuring():
             ident = b.imu.product_id()
         limb.imu(1, [0.0, 0.0, 3.5] + [0.0] * 9 + [1.0])
@@ -167,6 +168,9 @@ def test_the_parts_answer(report, rig):
                  '%s read, the shaft %.3f to %.3f' % (read, before, shaft))
     report.check('and the angle put, to a count',
                  degrees is not None and abs(degrees - 250.0) <= ANGLE_COUNT, str(degrees))
+    report.check('every reply\'s CRC its data\'s (MINOR 28)',
+                 state.get('updates') and state.get('crc_errors') == 0,
+                 '%s errors in %s' % (state.get('crc_errors'), state.get('updates')))
     report.check('the BNO085 answers its product id', bool(ident.get('sw_version')), str(ident))
     report.check('and reads what is piped, to a count',
                  abs(accel.get('z', 0.0) - 3.5) <= ACCEL_COUNT, str(accel))
