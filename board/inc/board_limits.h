@@ -122,27 +122,8 @@
 
 #define THERMAL_SAMPLE_SETTLE_MS 500U
 
-/** The thermometers' floor for the online identification, kelvin: the NTC
-    quantises at about 30 mK and TSEN at 125 mK, and a sample is one reading
-    of each. */
-#define THERMAL_IDENT_NOISE_K 0.1f
-
-/** The margin policy's reference, degrees C: what a ceiling's span is
-    measured up from when the identification's doubt trims it (the record's
-    floor, 0.8 by default, up to one as the evidence comes in -
-    `thermal_ident_margin`). */
-#define THERMAL_MARGIN_REF_C 25.0f
-
-/** How much the margin must have moved since the ceilings were last trimmed
-    for them to be trimmed again - a thousandth, so the twenty spans are not
-    rewritten on every slice for a number that did not change to the
-    precision the wire carries. */
-#define THERMAL_MARGIN_STEP 0.001f
-
-/** The trip cap, what the margin is held to after the envelope has dropped
-    the stage, and how fast that hold lets go. */
-#define THERMAL_TRIP_MARGIN        0.70f
-#define THERMAL_TRIP_RECOVER_PER_S (0.30f / 1800.0f)
+/* The identification's floor, the margin's reference and step, the trip cap and the derate's
+   recovery are the envelope's own: thermal_run.h. */
 
 /** The longest WEP (thermal op 14) holds the derate off for one ask: a host lost in
     one gives the envelope back this soon. */
