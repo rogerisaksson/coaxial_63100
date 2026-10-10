@@ -122,7 +122,7 @@ Ld, Lq and lambda back out of the run, uncertainties attached.
 
 `notebook_examples/drive.ipynb` compiles the firmware's own control law and
 searches its tuning against thousands of drawn plants across the 23-63 V link
-sweep, one process per core - the controller schedule, its robustness, and the
+sweep, sharded on the relay - the controller schedule, its robustness, and the
 speed where back-EMF alone loses the rotor.
 `notebook_examples/commissioning.ipynb` is the bench-day procedure end to end -
 commission, identify, search a robust tune with the compiled control law, write

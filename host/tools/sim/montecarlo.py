@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Monte Carlo over the firmware's FOC loop, one process per core.
+"""Monte Carlo over the firmware's FOC loop, its jobs sharded on the relay.
 
 The C is the firmware's, through `tools/cores/drive.py`: the current loop,
 the injection demodulator, the rotor observer, the dead-time table, against
@@ -12,18 +12,21 @@ A run: injection finds the rotor from a random error, a raised cosine to
 injection again. Its cost is one number, `sigma_theta + speed_err +
 10 trip`: the truth angle error in radians rms after the lock, the
 speed error over the top speed rms, and a stage drop. The plant is never
-what the controller was told, so the cost is a robustness figure.
+what the controller was told, so the cost is a robustness figure. A sweep's
+jobs go in shards on the relay (`tools.dev.focus`), each a process that
+loads the library once.
 
     python tools/sim/montecarlo.py                   # 43 V, a small search
     python tools/sim/montecarlo.py --vdc 63 --candidates 32 --draws 16
 """
 import argparse
-import concurrent.futures
 import ctypes
+import json
 import math
 import os
 import random
 import sys
+import tempfile
 import time
 
 from coaxial.model.blocks import Signals, SpeedLoop
@@ -62,9 +65,14 @@ KNOBS = {'bw_i': (300.0, 2500.0, True),     # current loop, Hz
          'w_ratio': (1.5, 4.0, True),       # w_hi over w_lo
          'bw_w': (1.0, 20.0, True)}         # speed loop, Hz
 
+#: A shard on the relay: its commit, GB, its time at most, s, and how many a baton - a slow one
+#: is then not a sweep's whole tail.
+SHARD_GB, SHARD_S, SHARDS_A_BATON = 0.6, 3600.0, 4
+
+
 class _Worker:
     """The drive core's library, one per process: the parent builds it,
-    `_load` opens it in each worker, `hold` hands an open one in."""
+    `_load` opens it in each shard, `hold` hands an open one in."""
     lib = None
 
 
@@ -267,27 +275,62 @@ def run_job(job):
         run.d.close()
 
 
+class Relay:
+    """What a sweep runs on: the library built once, `batons` of the relay's (`tools.dev.focus`)
+    - None, its own. A pool of its own beside the relay took the cores the relay counts free."""
+
+    def __init__(self, batons=None, lib=None):
+        self.batons, self.lib = batons, lib or library()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+
 def pool(workers=None, lib=None):
-    """One process per core, each holding the library; open it once for a
-    session - a pool per round respawned 61 interpreters three times and
-    the third spawn died of commit charge on a host with no page-file
-    headroom.
-    """
-    return concurrent.futures.ProcessPoolExecutor(
-        max_workers=workers or min(os.cpu_count() or 1, 61), initializer=_load,
-        initargs=(lib or library(),))
+    """The relay a session's sweeps run on, `workers` batons of it; built once for a session - a
+    pool per round respawned 61 interpreters three times and the third spawn died of commit
+    charge on a host with no page-file headroom."""
+    return Relay(workers, lib)
 
 
 def sweep(pool, jobs, progress=True):
-    """Every job through the pool; a DataFrame back."""
+    """Every job in SHARDS_A_BATON shards a baton on `pool`'s relay, each a process loading the
+    library once; a DataFrame back, a row a job in their order."""
     import pandas as pd
-    rows, t0, seen = [], time.perf_counter(), 0
-    for row in pool.map(run_job, jobs, chunksize=4):
-        rows.append(row)
-        seen += 1
-        if progress and seen % max(1, len(jobs) // 10) == 0:
-            print('  %5d / %d runs, %.0f s' % (seen, len(jobs), time.perf_counter() - t0))
+    from tools.dev import focus
+    count = max(1, min(len(jobs), SHARDS_A_BATON * (pool.batons or focus.physical_cores())))
+    rows, t0, seen = [None] * len(jobs), time.perf_counter(), 0
+    with tempfile.TemporaryDirectory() as tmp:
+        shards = []
+        for k in range(count):
+            path = os.path.join(tmp, 'shard_%d.json' % k)
+            with open(path, 'w', encoding='utf-8') as f:
+                json.dump([[i, jobs[i]] for i in range(k, len(jobs), count)], f)
+            shards.append(focus.Job('montecarlo %d' % k, [
+                sys.executable, '-X', 'utf8', os.path.abspath(__file__), '--shard', path,
+                '--lib', pool.lib], SHARD_GB, SHARD_S))
+        for job, text, _code, _s in focus.relay(shards, pool.batons):
+            line = next((ln for ln in reversed(text.splitlines()) if ln.startswith('{')), None)
+            if line is None:
+                raise RuntimeError('%s: %s' % (job.name, text.strip()[-2000:]))
+            for i, row in json.loads(line)['rows']:
+                rows[i] = row
+                seen += 1
+            if progress:
+                print('  %5d / %d runs, %.0f s' % (seen, len(jobs), time.perf_counter() - t0))
     return pd.DataFrame(rows)
+
+
+def shard(path, lib):
+    """A shard's jobs, `path`'s [index, job] pairs, on the library at `lib`: one JSON line,
+    {'rows': [[index, row], ..]}."""
+    _load(lib)
+    with open(path, encoding='utf-8') as f:
+        jobs = json.load(f)
+    print(json.dumps({'rows': [[i, run_job(job)] for i, job in jobs]}))
 
 
 def candidates(count, seed, box=None):
@@ -382,8 +425,13 @@ def main():
     ap.add_argument('--candidates', type=int, default=8)
     ap.add_argument('--draws', type=int, default=4)
     ap.add_argument('--refine', type=int, default=6)
-    ap.add_argument('--workers', type=int, default=None)
+    ap.add_argument('--workers', type=int, default=None, help="the relay's batons, its own where none")
+    ap.add_argument('--shard', help='a shard of a sweep: its jobs, JSON (`sweep`)')
+    ap.add_argument('--lib', help="the shard's library")
     args = ap.parse_args()
+    if args.shard:
+        shard(args.shard, args.lib)
+        return 0
     import pandas as pd
     pd.set_option('display.width', 200)
     t0 = time.perf_counter()

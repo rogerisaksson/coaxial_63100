@@ -766,7 +766,7 @@ BENCH = ('`isr_cycles_max` and `exit_ticks_max` first. With a motor: '
 REFERENCES = [
     ('host/coaxial/model/sensorless.py', 'the five observers, `choose_injection` and `decide`'),
     ('host/coaxial/model/blocks.py', 'the current loop, the plant and the speed loop the search closes'),
-    ('host/tools/sim/montecarlo.py', "the firmware's C searched over the link sweep, one process per core"),
+    ('host/tools/sim/montecarlo.py', "the firmware's C searched over the link sweep, sharded on the relay"),
     ('host/tests/test_drive_core.py', 'the C held to the Python it was ported from, over drawn plants'),
     ('drive/src/drive_observer.c', 'the back-EMF chain the board runs beside the loop, op 14'),
     ('host/coaxial/devices/drive.py', 'device 10: `state`, `read` (the window), `model`, `observers`, `params` (the record)'),

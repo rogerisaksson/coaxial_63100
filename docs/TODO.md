@@ -341,8 +341,6 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
   DOD: the body's balance and gait from the SIL (`Limb.imu`,
   `emu_world_motor`); one source for both; the fallback where nothing
   answers.
-- **`tools/sim/montecarlo.py`** (the FOC loop's) runs a pool of its own.
-  DOD: its jobs shards on the relay, the library loaded once each.
 - **The meter under the drive**: `read_index` serves the NTC and the DC
   link from the latched sample. DOD: the MCU's die and the phases too;
   a sweep over a locked channel says so.
