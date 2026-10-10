@@ -37,6 +37,18 @@ void thermal_run_refresh(thermal_run_t *r)
   thermal_ident_apply(&r->ident, &r->base, &r->th.cfg);
 }
 
+void thermal_run_winding(thermal_cfg_t *cfg, float k_per_w, float j_per_k)
+{
+  const int into_iron = thermal_sink_edge(THERMAL_WINDING);
+
+  cfg->node[THERMAL_WINDING].capacity = j_per_k;
+  if ((k_per_w > 0.0f) && (into_iron >= 0))
+  {
+    cfg->r_edge[into_iron] = THERMAL_WINDING_INTO_IRON * k_per_w;
+    cfg->node[THERMAL_STATOR].to_ambient = (1.0f - THERMAL_WINDING_INTO_IRON) * k_per_w;
+  }
+}
+
 float thermal_run_trip_cap(const thermal_run_t *r, uint32_t clock_ms)
 {
   if (r->trip_cap >= 1.0f)

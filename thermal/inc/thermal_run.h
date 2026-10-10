@@ -31,6 +31,9 @@ extern "C" {
 /** How fast the applied derate recovers, per second; down is at once. */
 #define THERMAL_DERATE_RECOVER_PER_S 0.05f
 
+/** The winding's K/W from the copper into the iron, the rest the iron's own air path. */
+#define THERMAL_WINDING_INTO_IRON 0.25f
+
 typedef struct
 {
   thermal_t th;
@@ -75,6 +78,10 @@ void thermal_run_identify(thermal_run_t *r);
 
 /** The record's network again under the identified scales: `r->base` laid anew. */
 void thermal_run_refresh(thermal_run_t *r);
+
+/** A record's winding into `cfg`: its J/K, and its K/W to the air split into the iron
+    (THERMAL_WINDING_INTO_IRON) and the iron's own path where it has one. */
+void thermal_run_winding(thermal_cfg_t *cfg, float k_per_w, float j_per_k);
 
 /** The trip cap at `clock_ms`: what it was set to and what the minutes since gave back. */
 float thermal_run_trip_cap(const thermal_run_t *r, uint32_t clock_ms);

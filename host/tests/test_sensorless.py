@@ -652,28 +652,6 @@ def test_the_datasheet_against_the_thermal_model(r):
             '%.1f mOhm typ against 2.1 max' % (inverter.RDS_ON * 1e3))
 
 
-def test_the_stand_in_thermistor_stays_between_its_nodes(r):
-    """The stand-in's own copy of the thermistor lag carries the chain's
-    bound.
-    """
-    from coaxial.model import thermal
-    from coaxial.simulated.thermal.observer import SimulatedThermal
-
-    model = SimulatedThermal()
-    worst = -1e9
-    for on in (True, False):
-        seen = {'amps': (0.0, 25.0, 0.0) if on else (0.0, 0.0, 0.0),
-                'switching': on}
-        for _ in range(int(120.0 / 0.05)):
-            model._integrate(0.05, seen)
-            leg = model._node[thermal.NTC_NEIGHBOUR]
-            board, ntc = model._node['board'], model._ntc
-            worst = max(worst, ntc - max(leg, board), min(leg, board) - ntc)
-    r.check('25 A for two minutes then off: the stand-in\'s reading never '
-            'leaves the pair it sits between', worst <= 1e-6,
-            '%+.3f K outside' % worst)
-
-
 def test_the_stand_in_throttles_on_the_winding_too(r):
     """The stand-in's stage backs off on the motor's SOA as well as the
     switches', the way `board_thermal.c` does since MINOR 12.
@@ -686,7 +664,8 @@ def test_the_stand_in_throttles_on_the_winding_too(r):
     # same graph, keeps its own: the record's 120, on a winding ten times the
     # bench's resistance, whose own heat outruns the legs'.
     model.LIMIT, model.DEFAULT_LIMIT = {'winding': 120.0}, 1e4
-    model._losses = dict(model._losses, r_phase=10.0 * model.WINDING_R)
+    model._lay_envelope()
+    model._set_phase_r(10.0 * model.WINDING_R)
     got, gate = [], []
     model._derate_to = got.append
     model._gate = lambda: gate.append(True) or True
@@ -705,8 +684,7 @@ def test_the_stand_in_throttles_on_the_winding_too(r):
             and cold['winding_derate'] == 1.0, str(cold))
     throttled_at, tripped_at, stage_got = None, None, None
     for i in range(int(120.0 / 0.1)):
-        model._integrate(0.1, seen)
-        model._envelope()
+        model.fast_forward(0.1, seen=seen, live=True)
         b = model.budget()
         if throttled_at is None and b['winding_derate'] < 1.0:
             # The factor the stage held at that moment: by the end of the loop
@@ -740,7 +718,6 @@ ROSTER = (test_inverter, test_the_placements_behind_the_thermal_model,
           test_the_map_places_its_parts_from_the_file,
           test_the_board_stays_in_the_laminar_regime,
           test_the_datasheet_against_the_thermal_model,
-          test_the_stand_in_thermistor_stays_between_its_nodes,
           test_the_stand_in_throttles_on_the_winding_too,
           test_loop, test_motion,
           test_autodetect_recovers_each_motor,

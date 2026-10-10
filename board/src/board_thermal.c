@@ -20,10 +20,6 @@ _Static_assert(BOARD_THERMAL_EDGES == THERMAL_EDGES, "board.h's edge count is th
 _Static_assert(BOARD_THERMAL_IDENT_SCALES == THERMAL_IDENT_RECORD,
                "board.h's scale count is thermal_ident.h's");
 
-/** Of the winding's K/W, the share that is the edge into the iron; the rest
-    is the iron's own air path. */
-#define WINDING_INTO_IRON            0.25f
-
 /** The thermal glue's state: the observer, its losses and power, the envelope and its
     budget, the three thermometers' sampling, the identification, the ceilings' margin. */
 static struct
@@ -188,16 +184,8 @@ static void lay_edges(thermal_cfg_t *cfg, const board_cal_t *cal)
     K/W into the iron, the rest the iron's air path. */
 static void lay_winding(thermal_cfg_t *cfg, const board_cal_t *cal)
 {
-  const float k = (float)cal->winding_k_per_w_milli / MILLI_PER_UNIT;
-  const int into_iron = thermal_sink_edge(THERMAL_WINDING);
-
-  cfg->node[THERMAL_WINDING].capacity =
-      (float)cal->winding_j_per_k_milli / MILLI_PER_UNIT;
-  if ((k > 0.0f) && (into_iron >= 0))
-  {
-    cfg->r_edge[into_iron] = WINDING_INTO_IRON * k;
-    cfg->node[THERMAL_STATOR].to_ambient = (1.0f - WINDING_INTO_IRON) * k;
-  }
+  thermal_run_winding(cfg, (float)cal->winding_k_per_w_milli / MILLI_PER_UNIT,
+                      (float)cal->winding_j_per_k_milli / MILLI_PER_UNIT);
 }
 
 /** The network: the core's defaults with every non-zero record entry laid

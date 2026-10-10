@@ -108,13 +108,13 @@ def test_the_stand_in_is_mounted(report, lib):
     rig = Coaxial63100(execution_mode=SIMULATED).open()
     try:
         th = rig.board.thermal
-        was = th._ident
         taken = th.configure(application='enclosure')
         got = th.identification()
         edge = th.network()['edges'][thermal_app.EDGE_MOUNT_FIRST]
         report.check('the stand-in takes an application, its network and identification anew',
                      taken == {'application': True} and got['application'] == 'enclosure'
-                     and th._ident is not was and _close(edge[2], thermal_app.LEG_MOUNT[2]),
+                     and got['state'] == 'UNCERTAIN' and got['updates'] == 0
+                     and _close(edge[2], thermal_app.LEG_MOUNT[2]),
                      '%s, mount %.2f K/W' % (got['application'], edge[2]))
         try:
             th.configure(application='water')
@@ -124,11 +124,12 @@ def test_the_stand_in_is_mounted(report, lib):
         report.check('an application it has no table for is refused', refused)
         th.configure(application='airstream')
         th.airspeed(20.0, truth=24.0)
-        told, held_s, flown = th._airspeed
+        told, flown = th._air()
         th.fast_forward(thermal_app.AIRSPEED_HOLD_S * th.HASTE + 1.0)
+        gone, still = th._air()
         report.check('the told airspeed holds a second of its wall, the truth\'s own beside it',
-                     told == 20.0 and flown == 24.0 and th._model_s > held_s,
-                     'told %.0f m/s to %.1f model s, truth %.0f' % (told, held_s, flown))
+                     told == 20.0 and flown == 24.0 and gone == 0.0 and still == 24.0,
+                     'told %.0f m/s then %.0f, truth %.0f' % (told, gone, flown))
     finally:
         rig.close()
 

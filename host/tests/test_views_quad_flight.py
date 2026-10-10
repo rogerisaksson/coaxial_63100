@@ -252,21 +252,24 @@ def test_wep_past_the_soa(report):
     th.fast_forward(0.0)
     clamp, trips = [], []
     th._derate_to, th._gate = clamp.append, lambda: trips.append(1) or True
+    th._sample = lambda: {'amps': (0.0, 0.0, 0.0), 'switching': True}
     top = th.LIMIT['driver_u']
-    th._node['driver_u'] = th._ambient + 0.97 * (top - th._ambient)
-    th._envelope()
+    hot = th.state()['ambient'] + 0.97 * (top - th.state()['ambient'])
+    th._place('driver_u', hot)
+    th._judge()
     held = clamp[-1]
     th.wep(0.5)
-    th._envelope()
+    th._judge()
     on = clamp[-1]
-    th._model_s += 0.6 * th.HASTE
-    th._envelope()
+    th.fast_forward(0.6 * th.HASTE)
+    th._place('driver_u', hot)
+    th._judge()
     report.check('a leg at 97 % of its span: its clamp shut, WEP opens it for 0.5 s, then shut',
                  held == 0.0 and on == 1.0 and clamp[-1] == 0.0,
                  '%.2f, %.2f, %.2f' % (held, on, clamp[-1]))
-    th._node['driver_u'] = top + 1.0
+    th._place('driver_u', top + 1.0)
     th.wep(0.5)
-    th._envelope()
+    th._judge()
     try:
         th.wep(3.0)
         refused = False

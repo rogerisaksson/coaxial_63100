@@ -42,7 +42,7 @@ LIMITS = ('board_limits.h', 'comms_limits.h')
 #: to each other here rather than remembered.
 MIRRORS = (
     ('coaxial.model.thermal', 'WINDING_INTO_IRON',
-     'board/src/board_thermal.c', 'WINDING_INTO_IRON', 1.0),
+     'thermal/inc/thermal_run.h', 'THERMAL_WINDING_INTO_IRON', 1.0),
     ('coaxial.model.thermal', 'IDENT_MARGIN_FLOOR',
      'comms/inc/board/thermal.h', 'BOARD_SOA_MARGIN_FLOOR_PPM', 1e-6),
     ('coaxial.simulated.values', 'ACCUMULATE_MAX',

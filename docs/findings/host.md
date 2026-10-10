@@ -130,3 +130,9 @@ own are in [FINDINGS](../FINDINGS.md).
   on four boards): 19.4 s, 52 M calls; the stand-in's thermal mirror 12 of
   them - the truth's integration 11.5 s cumulative, the identification's
   propagation 8.1, `net_flows` 157 k calls, 19 M dict reads -, MuJoCo 0.19.
+- The stand-in on the board's C (2026-10-10): its observer, identification
+  and envelope `thermal_run.c` - the board's own since 1f3ad19 - on a truth
+  that is `world_heat.c`, a slot of `world_stand.c`'s; the Python a thin
+  edge, its three mirror modules gone, its replies in the wire's units. A
+  QUAD course on four stand-ins 19.4 -> 5.1 s, 52 -> 10 M calls, its laps
+  14.18 and 14.96 s; test_simulated 60 -> 18 s.

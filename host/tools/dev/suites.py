@@ -384,6 +384,7 @@ TOUCHES = (
     # observer's per-poll ADC and SPI reads; a poll that lost a Modbus byte).
     ('comms/',                                 (WIRE, NATIVE, EMULATOR, CONFORMANCE, 'test_mcp.py',
                                                 BENCH)),
+    ('board/src/board_mem.c',                  (BOARD_MEM, EMULATOR, CONFORMANCE)),
     ('board/',                                 (WIRE, NATIVE, NATIVE_HEAT, EMULATOR, CONFORMANCE,
                                                 'test_mcp.py', 'test_parity.py', BENCH)),
     ('core/',                                  (EMULATOR, CONFORMANCE, BENCH)),
@@ -399,7 +400,6 @@ TOUCHES = (
     ('host/coaxial/simulated/boot.py',         (BOOT, STRUCTURE)),
     ('host/tools/target/flash_nodes.py',       (BOOT, STRUCTURE)),
     ('host/tools/target/current.py',           (BOOT, STRUCTURE)),
-    ('board/src/board_mem.c',                  (BOARD_MEM, EMULATOR, CONFORMANCE)),
     ('daq/',                                   (DAQ_CORE, CONFORMANCE, 'test_parity.py',
                                                 BENCH)),
     ('host/coaxial/model/thermal.py',          (THERMAL, 'test_sensorless.py',
