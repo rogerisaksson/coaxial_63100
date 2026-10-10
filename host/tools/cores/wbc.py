@@ -55,7 +55,7 @@ class Out(ctypes.Structure):
     _fields_ = [('tau', _d * DRIVEN), ('udot', _d * N), ('wrench', (_d * 6) * 2),
                 ('bears', _d * 2), ('held', _i), ('passes', _i), ('guarded', _i * 5),
                 ('ids', _i * 32), ('alpha', _d * 3), ('residual', _d), ('over', _i * DRIVEN),
-                ('load', _d * DRIVEN), ('jeff', _d * DRIVEN)]
+                ('load', _d * DRIVEN), ('jeff', _d * DRIVEN), ('force', (_d * 12) * 2)]
 
 
 def ask_of(ask):
@@ -200,7 +200,8 @@ class Core:
                 'ids': [i for i in out.ids if i >= 0], 'residual': float(out.residual),
                 'alpha': list(out.alpha),
                 'over': np.array(out.over, bool),
-                'load': np.array(out.load), 'jeff': np.array(out.jeff)}
+                'load': np.array(out.load), 'jeff': np.array(out.jeff),
+                'force': np.array([list(f) for f in out.force]).reshape(2, 4, 3)}
 
     def stack_seconds(self, base, q, u, ask, reps=200):
         """Seconds a tick of the loop on this host."""
@@ -236,5 +237,5 @@ def stack_step(b, s, ask, core=None):
     return {'tau': out['tau'], 'qacc': T @ out['udot'] + dT_u, 'bears': out['bears'], 'cop': cop,
             'over': out['over'], 'slack': [], 'held': out['held'], 'passes': out['passes'],
             'guarded': out['guarded'], 'ids': out['ids'], 'residual': out['residual'],
-            'alpha': out['alpha'],
+            'alpha': out['alpha'], 'force': out['force'],
             'wrench': out['wrench'], 'load': out['load']}

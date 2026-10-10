@@ -16,6 +16,11 @@ void wbc_quat_of(const double r[9], double q[4]);
 /** The world-frame rotation vector taking `have` to `want`, rad: machine.wbc.turn_error. */
 void wbc_turn_error(const double want[4], const double have[4], double out[3]);
 
+/** A sole's corners about its middle, world, into the least-norm split of a wrench among their
+    forces (12 x 6) and six orthonormal ways they share it without moving it; 0 where the
+    corners are degenerate. */
+int wbc_corner_split(const double corner[4][3], double wp[12][6], double bw[12][6]);
+
 /** A level's rows this tick, least squares in the null space so far under every bound (the
     active set), its torques into s->tau[level]; then the null space under them for the next. */
 void wbc_level_solve(wbc_stack_t *s, int level, int last);

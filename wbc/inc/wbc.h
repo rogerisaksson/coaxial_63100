@@ -59,16 +59,18 @@ void wbc_body_momentum(const wbc_body_t *b, const double com[3], double k[3]);
 
 /** The commanded torques: the drives', then the held joints'. */
 #define WBC_X (WBC_DRIVEN + WBC_HELD)
+/** The loop's variables: the torques, then each sole's six internal forces among its corners. */
+#define WBC_V (WBC_X + 12)
 /** The most contact rows: two soles standing. */
 #define WBC_C 12
 /** The levels - the held joints, the centre of mass, the turns, a swing, the form - and the
     most rows one lays. */
 #define WBC_LEVELS 5
-#define WBC_ROWS 64
-/** A level of this many rows or fewer cuts the null space under it. */
-#define WBC_SMALL 16
+#define WBC_ROWS 96
+/** A level of this many rows or fewer, its bounds held included, cuts the null space under it. */
+#define WBC_SMALL 32
 /** The most bounds a tick, and the most of them reported at their edge. */
-#define WBC_INEQ 128
+#define WBC_INEQ 160
 #define WBC_EXTRA 32
 
 /** What the loop is asked, R^k: a sole bears or swings; the centre of mass's acceleration; the
@@ -99,8 +101,9 @@ typedef struct
 
 /** What the loop answers: the drives' torques; every acceleration (u's order); each sole's
     wrench (m, f) in the world and its load; the bounds at their edge, how many and which, the
-    active set's changes this tick, the most any bound is over; the drives asked past their clamps,
-    each drive's load of its clamp, and the inertia each drive's torque meets. */
+    active set's changes this tick, the most any bound is over; the drives asked past their
+    clamps, each drive's load of its clamp, the inertia each drive's torque meets; each sole's
+    corner forces, world, 3 a corner. */
 typedef struct
 {
   double tau[WBC_DRIVEN];
@@ -109,13 +112,14 @@ typedef struct
   double bears[2];
   int    held;
   int    passes;
-  int    guarded[5];              /**< at their edge, by kind: a load, a sole pressing, its cone, its centre of pressure, a stop */
-  int    ids[WBC_EXTRA];          /**< which: kind * 1000 + who * 10 + which * 2 + upper */
+  int    guarded[5];              /**< at their edge, by kind: a load, a corner pressing, its cone, a centre of pressure, a stop */
+  int    ids[WBC_EXTRA];          /**< which */
   double alpha[3];                /**< 1: every level whole */
   double residual;                /**< the most a bound is over, unit rows */
   int    over[WBC_DRIVEN];
   double load[WBC_DRIVEN];
   double jeff[WBC_DRIVEN];        /**< each drive's effective inertia under the body and the contacts, kg m^2 */
+  double force[2][12];
 } wbc_out_t;
 
 /** The loop's memory, laid once. */
@@ -132,40 +136,43 @@ typedef struct
   double u0[WBC_N];
   double ll[WBC_C][WBC_X];        /**< lambda = l0 + ll tau */
   double l0[WBC_C];
-  double la[WBC_LEVELS][WBC_ROWS][WBC_X]; /**< each level's rows over tau this tick */
+  double corner[2][4][3];         /**< each sole's corners about its middle, world */
+  double wp[2][12][6];            /**< its corner forces from its wrench, least norm */
+  double bw[2][12][6];            /**< and the six ways they share it without moving it */
+  double la[WBC_LEVELS][WBC_ROWS][WBC_V]; /**< each level's rows over the variables this tick */
   double lr[WBC_LEVELS][WBC_ROWS];
   int    lrows[WBC_LEVELS];
-  double ab[WBC_ROWS][WBC_X];     /**< the level being solved: its rows in the null space */
+  double ab[WBC_ROWS][WBC_V];     /**< the level being solved: its rows in the null space */
   double rho[WBC_ROWS];
-  double nn[WBC_X][WBC_X];        /**< the null space so far, a projector */
+  double nn[WBC_V][WBC_V];        /**< the null space so far, a projector */
   double g[WBC_SMALL][WBC_SMALL]; /**< a level's Gram matrix, then its factor */
-  double qq[WBC_SMALL][WBC_X];
-  double hh[WBC_X][WBC_X];        /**< a level's curvature, and with its damping, factored */
-  double kk[WBC_X][WBC_X];
-  double ga[WBC_INEQ][WBC_X];     /**< the bounds, ga tau <= gh, unit rows; their kinds and ids */
+  double qq[WBC_SMALL][WBC_V];
+  double hh[WBC_V][WBC_V];        /**< a level's curvature, and with its damping, factored */
+  double kk[WBC_V][WBC_V];
+  double ga[WBC_INEQ][WBC_V];     /**< the bounds, ga v <= gh, unit rows; their kinds and ids */
   double gh[WBC_INEQ];
   int    gkind[WBC_INEQ];
   int    gid[WBC_INEQ];
   int    ineq;
-  double gb[WBC_INEQ][WBC_X];     /**< the bounds in the level's null space */
+  double gb[WBC_INEQ][WBC_V];     /**< the bounds in the level's null space */
   double hb[WBC_INEQ];
-  int    wset[WBC_LEVELS][WBC_X]; /**< each level's bounds held, warm across ticks */
+  int    wset[WBC_LEVELS][WBC_V]; /**< each level's bounds held, warm across ticks */
   int    wn[WBC_LEVELS];
   int    wsized[WBC_LEVELS];      /**< the bounds a level's set was made among */
   int    iterations;              /**< the set's changes this tick */
-  double vw[WBC_X][WBC_X];        /**< K^-1 of the held bounds' rows */
-  double sm[WBC_X][WBC_X];        /**< their Schur complement, then its factor */
-  double tau[WBC_LEVELS][WBC_X];  /**< each level's contribution */
-  double total[WBC_X];            /**< their sum, the torques */
+  double vw[WBC_V][WBC_V];        /**< K^-1 of the held bounds' rows */
+  double sm[WBC_V][WBC_V];        /**< their Schur complement, then its factor */
+  double tau[WBC_LEVELS][WBC_V];  /**< each level's contribution */
+  double total[WBC_V];            /**< their sum: the torques, then the internal forces */
   double udot_now[WBC_N];         /**< what they give */
   double lam_now[WBC_C];
   double load_now[WBC_DRIVEN];
+  double force[2][12];            /**< each sole's corner forces, world */
   double pmap[WBC_DRIVEN][WBC_X]; /**< each drive's load from the torques */
   double ceiling[WBC_DRIVEN];     /**< this tick's bound on each load, and the clamp as derated */
   double nominal[WBC_DRIVEN];
-  double cop_lo[2];               /**< a sole's centre of pressure within, x then z, about its middle */
-  double cop_hi[2];
-  double lever;                   /**< a sole's torsion's lever, m */
+  double edge_lo[2];              /**< a sole's centre of pressure within, x then z, its foot's frame */
+  double edge_hi[2];
   double sole_r[2][9];            /**< each sole's frame in the world, and its middle */
   double sole_p[2][3];
   int    standing[2];             /**< each sole's place among the contacts, -1 swinging */

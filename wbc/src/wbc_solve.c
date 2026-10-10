@@ -1,5 +1,5 @@
 /** wbc_solve.c - the loop's numerics: Cholesky, a level's active set in the null space of the
-    levels above, the drives' loads through their rods. */
+    levels above, a sole's corner forces from its wrench, the drives' loads through their rods. */
 #include "wbc_solve.h"
 
 #include <math.h>
@@ -13,7 +13,6 @@ static const double TOL = 1e-7;
 /** The levels whose rows are bounds, each scaled to unit norm before the solve. */
 static const int LEVEL_UNIT[WBC_LEVELS] = {1, 1, 0, 0, 0};
 
-/** a, n x n by rows of `ld`, into its lower Cholesky factor in place; 0 where not positive. */
 int wbc_cholesky(int n, int ld, double *a)
 {
   for (int j = 0; j < n; j++)
@@ -44,7 +43,6 @@ int wbc_cholesky(int n, int ld, double *a)
   return 1;
 }
 
-/** x = (L L^T)^-1 b. */
 void wbc_chol_solve(int n, int ld, const double *l, const double *b, double *x)
 {
   for (int i = 0; i < n; i++)
@@ -69,7 +67,6 @@ void wbc_chol_solve(int n, int ld, const double *l, const double *b, double *x)
   }
 }
 
-/** The quaternion (w, x, y, z) of a frame's rotation. */
 void wbc_quat_of(const double r[9], double q[4])
 {
   const double tr = r[0] + r[4] + r[8];
@@ -112,7 +109,6 @@ void wbc_quat_of(const double r[9], double q[4])
   }
 }
 
-/** The world-frame rotation vector taking `have` to `want`, rad: machine.wbc.turn_error. */
 void wbc_turn_error(const double want[4], const double have[4], double out[3])
 {
   const double w0 = have[0], x0 = have[1], y0 = have[2], z0 = have[3];
@@ -137,17 +133,132 @@ void wbc_turn_error(const double want[4], const double have[4], double out[3])
   }
 }
 
-/* ---- the levels --------------------------------------------------------------------------- */
+int wbc_corner_split(const double corner[4][3], double wp[12][6], double bw[12][6])
+{
+  double w[6][12], g[6][6], e[6], sol[6], p[12][12];
+  int    found = 0;
 
-/** A level's rows this tick, least squares in the null space so far under every bound (ADMM),
-    its torques into s->tau[level]; then the null space under them for the next. */
+  /* W: the wrench (m, f) about the middle from the corners' forces: m += r x f, f += f. */
+  memset(w, 0, sizeof(w));
+  for (int c = 0; c < 4; c++)
+  {
+    const double *r = corner[c];
+
+    w[0][3 * c + 1] = -r[2];
+    w[0][3 * c + 2] = r[1];
+    w[1][3 * c] = r[2];
+    w[1][3 * c + 2] = -r[0];
+    w[2][3 * c] = -r[1];
+    w[2][3 * c + 1] = r[0];
+    for (int i = 0; i < 3; i++)
+    {
+      w[3 + i][3 * c + i] = 1.0;
+    }
+  }
+  /* W+ = W^T (W W^T)^-1. */
+  for (int i = 0; i < 6; i++)
+  {
+    for (int j = 0; j < 6; j++)
+    {
+      double v = 0.0;
+
+      for (int k = 0; k < 12; k++)
+      {
+        v += w[i][k] * w[j][k];
+      }
+      g[i][j] = v;
+    }
+    g[i][i] += 1e-12;
+  }
+  if (!wbc_cholesky(6, 6, &g[0][0]))
+  {
+    return 0;
+  }
+  for (int j = 0; j < 6; j++)
+  {
+    memset(e, 0, sizeof(e));
+    e[j] = 1.0;
+    wbc_chol_solve(6, 6, &g[0][0], e, sol);
+    for (int k = 0; k < 12; k++)
+    {
+      double v = 0.0;
+
+      for (int i = 0; i < 6; i++)
+      {
+        v += w[i][k] * sol[i];
+      }
+      wp[k][j] = v;
+    }
+  }
+  /* The projector onto what W does not see, I - W+ W, and six orthonormal columns of it. */
+  for (int k = 0; k < 12; k++)
+  {
+    for (int m = 0; m < 12; m++)
+    {
+      double v = (k == m) ? 1.0 : 0.0;
+
+      for (int i = 0; i < 6; i++)
+      {
+        v -= wp[k][i] * w[i][m];
+      }
+      p[k][m] = v;
+    }
+  }
+  for (int m = 0; (m < 12) && (found < 6); m++)
+  {
+    double col[12], nrm = 0.0;
+
+    for (int k = 0; k < 12; k++)
+    {
+      col[k] = p[k][m];
+    }
+    for (int j = 0; j < found; j++)
+    {
+      double dot = 0.0;
+
+      for (int k = 0; k < 12; k++)
+      {
+        dot += col[k] * bw[k][j];
+      }
+      for (int k = 0; k < 12; k++)
+      {
+        col[k] -= dot * bw[k][j];
+      }
+    }
+    for (int k = 0; k < 12; k++)
+    {
+      nrm += col[k] * col[k];
+    }
+    nrm = sqrt(nrm);
+    if (nrm > 1e-6)
+    {
+      for (int k = 0; k < 12; k++)
+      {
+        bw[k][found] = col[k] / nrm;
+      }
+      found++;
+    }
+  }
+  for (int j = found; j < 6; j++)
+  {
+    for (int k = 0; k < 12; k++)
+    {
+      bw[k][j] = 0.0;
+    }
+  }
+  return found == 6;
+}
+
 void wbc_level_solve(wbc_stack_t *s, int level, int last)
 {
   const int rows = s->lrows[level], ineq = s->ineq;
-  double    sum[WBC_X], x[WBC_X], x0[WBC_X], rhs[WBC_X], q[WBC_X], srhs[WBC_X], lambda[WBC_X];
+  double    sum[WBC_V], x[WBC_V], x0[WBC_V], rhs[WBC_V], q[WBC_V], srhs[WBC_V], lambda[WBC_V];
   double    big = 0.0, mu;
+  int       cut;
 
-  for (int k = 0; k < WBC_X; k++)
+  memset(lambda, 0, sizeof(lambda));
+
+  for (int k = 0; k < WBC_V; k++)
   {
     sum[k] = 0.0;
     for (int j = 0; j < level; j++)
@@ -165,11 +276,11 @@ void wbc_level_solve(wbc_stack_t *s, int level, int last)
   {
     double got = 0.0, nrm = 0.0;
 
-    for (int k = 0; k < WBC_X; k++)
+    for (int k = 0; k < WBC_V; k++)
     {
       double v = 0.0;
 
-      for (int m = 0; m < WBC_X; m++)
+      for (int m = 0; m < WBC_V; m++)
       {
         v += s->la[level][i][m] * s->nn[m][k];
       }
@@ -181,23 +292,23 @@ void wbc_level_solve(wbc_stack_t *s, int level, int last)
     if (LEVEL_UNIT[level])
     {
       nrm = sqrt(nrm);
-      for (int k = 0; k < WBC_X; k++)
+      for (int k = 0; k < WBC_V; k++)
       {
         s->ab[i][k] = (nrm > 1e-12) ? s->ab[i][k] / nrm : 0.0;
       }
       s->rho[i] = (nrm > 1e-12) ? s->rho[i] / nrm : 0.0;
     }
   }
-  /* The bounds into the null space: gb y <= hb, what the torques so far leave. */
+  /* The bounds into the null space: gb y <= hb, what the variables so far leave. */
   for (int i = 0; i < ineq; i++)
   {
     double got = 0.0;
 
-    for (int k = 0; k < WBC_X; k++)
+    for (int k = 0; k < WBC_V; k++)
     {
       double v = 0.0;
 
-      for (int m = 0; m < WBC_X; m++)
+      for (int m = 0; m < WBC_V; m++)
       {
         v += s->ga[i][m] * s->nn[m][k];
       }
@@ -207,9 +318,9 @@ void wbc_level_solve(wbc_stack_t *s, int level, int last)
     s->hb[i] = s->gh[i] - got;
   }
   /* H = ab^T ab, q = -ab^T rho; K = H + mu I, factored. */
-  for (int k = 0; k < WBC_X; k++)
+  for (int k = 0; k < WBC_V; k++)
   {
-    for (int m = 0; m < WBC_X; m++)
+    for (int m = 0; m < WBC_V; m++)
     {
       double v = 0.0;
 
@@ -229,16 +340,16 @@ void wbc_level_solve(wbc_stack_t *s, int level, int last)
   big = (big > 1e-12) ? big : 1e-12;
   mu = REG * big;
   memcpy(s->kk, s->hh, sizeof(s->kk));
-  for (int k = 0; k < WBC_X; k++)
+  for (int k = 0; k < WBC_V; k++)
   {
     s->kk[k][k] += mu;
     rhs[k] = -q[k];
   }
-  if (!wbc_cholesky(WBC_X, WBC_X, &s->kk[0][0]))
+  if (!wbc_cholesky(WBC_V, WBC_V, &s->kk[0][0]))
   {
     return;
   }
-  wbc_chol_solve(WBC_X, WBC_X, &s->kk[0][0], rhs, x0);
+  wbc_chol_solve(WBC_V, WBC_V, &s->kk[0][0], rhs, x0);
   /* The working set, warm from the last tick where the bounds are as many. */
   if (s->wsized[level] != ineq)
   {
@@ -258,7 +369,7 @@ void wbc_level_solve(wbc_stack_t *s, int level, int last)
       /* v_j = K^-1 g_j; S = G_W K^-1 G_W^T; lambda = S^-1 (G_W x0 - h_W); x = x0 - sum lambda_j v_j. */
       for (int j = 0; j < k; j++)
       {
-        wbc_chol_solve(WBC_X, WBC_X, &s->kk[0][0], s->gb[s->wset[level][j]], s->vw[j]);
+        wbc_chol_solve(WBC_V, WBC_V, &s->kk[0][0], s->gb[s->wset[level][j]], s->vw[j]);
       }
       for (int i = 0; i < k; i++)
       {
@@ -269,26 +380,26 @@ void wbc_level_solve(wbc_stack_t *s, int level, int last)
         {
           double sij = 0.0;
 
-          for (int m = 0; m < WBC_X; m++)
+          for (int m = 0; m < WBC_V; m++)
           {
             sij += gi[m] * s->vw[j][m];
           }
           s->sm[i][j] = sij;
         }
         s->sm[i][i] += 1e-12;
-        for (int m = 0; m < WBC_X; m++)
+        for (int m = 0; m < WBC_V; m++)
         {
           v += gi[m] * x0[m];
         }
         srhs[i] = v;
       }
-      if (!wbc_cholesky(k, WBC_X, &s->sm[0][0]))
+      if (!wbc_cholesky(k, WBC_V, &s->sm[0][0]))
       {
         s->wn[level]--;
         continue;
       }
-      wbc_chol_solve(k, WBC_X, &s->sm[0][0], srhs, lambda);
-      for (int m = 0; m < WBC_X; m++)
+      wbc_chol_solve(k, WBC_V, &s->sm[0][0], srhs, lambda);
+      for (int m = 0; m < WBC_V; m++)
       {
         double v = x0[m];
 
@@ -326,7 +437,7 @@ void wbc_level_solve(wbc_stack_t *s, int level, int last)
       {
         continue;
       }
-      for (int m = 0; m < WBC_X; m++)
+      for (int m = 0; m < WBC_V; m++)
       {
         v += s->gb[i][m] * x[m];
       }
@@ -336,36 +447,41 @@ void wbc_level_solve(wbc_stack_t *s, int level, int last)
         add = i;
       }
     }
-    if ((add < 0) || (k >= WBC_X))
+    if ((add < 0) || (k >= WBC_V))
     {
       break;
     }
     s->wset[level][k] = add;
     s->wn[level]++;
   }
-  /* The torques, in the null space; the null space less this level's rows for the next. */
-  for (int k = 0; k < WBC_X; k++)
+  /* The variables, in the null space; the null space less this level's rows for the next. */
+  for (int k = 0; k < WBC_V; k++)
   {
     double v = 0.0;
 
-    for (int m = 0; m < WBC_X; m++)
+    for (int m = 0; m < WBC_V; m++)
     {
       v += s->nn[k][m] * x[m];
     }
     s->tau[level][k] = v;
   }
-  if (last || (rows > WBC_SMALL))
+  if (last)
+  {
+    return;
+  }
+  cut = rows;
+  if (cut > WBC_SMALL)
   {
     return;
   }
   big = 0.0;
-  for (int i = 0; i < rows; i++)
+  for (int i = 0; i < cut; i++)
   {
-    for (int j = 0; j < rows; j++)
+    for (int j = 0; j < cut; j++)
     {
       double v = 0.0;
 
-      for (int k = 0; k < WBC_X; k++)
+      for (int k = 0; k < WBC_V; k++)
       {
         v += s->ab[i][k] * s->ab[j][k];
       }
@@ -373,35 +489,35 @@ void wbc_level_solve(wbc_stack_t *s, int level, int last)
     }
     big = (s->g[i][i] > big) ? s->g[i][i] : big;
   }
-  for (int i = 0; i < rows; i++)
+  for (int i = 0; i < cut; i++)
   {
     s->g[i][i] += DAMP * big + 1e-300;
   }
-  if (!wbc_cholesky(rows, WBC_SMALL, &s->g[0][0]))
+  if (!wbc_cholesky(cut, WBC_SMALL, &s->g[0][0]))
   {
     return;
   }
-  for (int k = 0; k < WBC_X; k++)
+  for (int k = 0; k < WBC_V; k++)
   {
     double col[WBC_ROWS] = {0.0}, sol[WBC_ROWS] = {0.0};
 
-    for (int i = 0; i < rows; i++)
+    for (int i = 0; i < cut; i++)
     {
       col[i] = s->ab[i][k];
     }
-    wbc_chol_solve(rows, WBC_SMALL, &s->g[0][0], col, sol);
-    for (int i = 0; i < rows; i++)
+    wbc_chol_solve(cut, WBC_SMALL, &s->g[0][0], col, sol);
+    for (int i = 0; i < cut; i++)
     {
       s->qq[i][k] = sol[i];
     }
   }
-  for (int k = 0; k < WBC_X; k++)
+  for (int k = 0; k < WBC_V; k++)
   {
-    for (int m = 0; m < WBC_X; m++)
+    for (int m = 0; m < WBC_V; m++)
     {
       double v = 0.0;
 
-      for (int i = 0; i < rows; i++)
+      for (int i = 0; i < cut; i++)
       {
         v += s->ab[i][k] * s->qq[i][m];
       }
@@ -410,9 +526,6 @@ void wbc_level_solve(wbc_stack_t *s, int level, int last)
   }
 }
 
-/* ---- the drives' loads -------------------------------------------------------------------- */
-
-/** Each drive's load from the drives' torques: a pair's as its rods share them. */
 void wbc_loads(const double tau[WBC_X], double load[WBC_DRIVEN])
 {
   for (int j = 0; j < WBC_DRIVEN; j++)
@@ -440,7 +553,6 @@ void wbc_loads(const double tau[WBC_X], double load[WBC_DRIVEN])
   }
 }
 
-/** The drives' torques from their loads: the inverse of `loads`. */
 void wbc_unload(const double load[WBC_DRIVEN], double tau[WBC_X])
 {
   for (int j = 0; j < WBC_DRIVEN; j++)

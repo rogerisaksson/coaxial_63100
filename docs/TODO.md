@@ -214,10 +214,13 @@ the files under docs/FINDINGS.md. An item is deleted when its DOD is met.
       standing they see 0.1 N m, no signal (wbc.md).
     + Done: the bounds as inequalities in every level, an active set (`wbc_solve.c`);
       the stand and a 60 N shove held, the walk 4 steps (wbc.md).
-    + Next: the soles' corner forces as variables beside the torques, their
-      pyramids the bounds, as the python stack has them - its single-support
-      answer is 23 N m off the loop's for want of them; then the polar and
-      the walk against the stack's, and the observer's worth on the walk.
+    + Done: the corners' forces as variables beside the torques, their
+      pyramids the bounds: standing 0.00 N m off the stack, the walk 13
+      steps at 0.12 m/s (the stack 16 at 0.31).
+    + Next: the single-support compromise - the stack's tie-break activates
+      pyramid faces at its centre-of-mass level and holds them below, the
+      loop's does not; 25 N m apart with the tasks met alike (wbc.md) -
+      then the walk against the stack's and the observer's worth on it.
     + DOD: the stand and the walk on the C loop with their measures kept
       (J/m, band, polar); a step < 1 ms on a 475 MHz M7.
 

@@ -240,3 +240,33 @@ standing). 2026-10-10:
   corner pyramids (one corner unloaded, three on their faces) - its corner
   forces are variables the 6D wrench has not. Next: the corners' forces as the
   loop's variables beside the torques, their pyramids its bounds.
+
+### The corners' forces as variables
+
+Each standing sole's four corner forces, as the python stack has them: the
+wrench's least-norm split among the corners plus six internal forces, variables
+beside the torques; the pyramids (four faces and pressing a corner) and the
+centre of pressure's margin bounds on them; the forces' regularisation on the
+twelve components. 2026-10-10:
+
+| Measure | Result |
+| --- | --- |
+| standing, asked to stay, against `machine.wbc.step` | 0.00 N m apart |
+| a tick on this host at -O2, 37 variables, 134 bounds | 415 us |
+| shoved from 8 ways at 60 / 80 / 100 / 120 N, the MPC's steps, WEP: stood of 8 | 8 / 4 / 3 / 2; the stack 8 / 7 / 7 / 3 |
+| the walk | 13 steps, 0.51 m, 0.12 m/s, down at 7.3 s; the stack 16 steps, 1.88 m, 0.31 m/s |
+| shadowing the stack's walk, double support | 0.4 N m apart (median), 0.7 at most |
+| the same, single support | 25 N m (median), 108 at most |
+
+- The ask of one single-support tick cut down: as made 49 N m apart; without
+  the swing's rows 4.9; without the fold 6.5; without both 4.5; the turns, the
+  centre of mass, the posture, the momentum and WEP taken out in turn leave
+  5-6. Both solvers meet the tasks alike there (the centre of mass's
+  acceleration, the turns within 0.5 rad/s^2, 1 of 17 m/s^2 of the swing, the
+  posture 141-146 rad/s^2 off): the 45 N m is in how the saturated swing's
+  compromise is spread over the joints, decided by which pyramid faces are
+  active - the stack's six at its centre-of-mass level (its 1e-3 tie-break
+  toward the lower levels activates them, and it holds them below), the
+  loop's none. Both of the stack's rules tried in the loop: the bounds held
+  below the level that presses them, 35 N m apart (median); its tie-break,
+  27.5, and the loop's own walk 6 steps where 13. Neither kept. Open.
