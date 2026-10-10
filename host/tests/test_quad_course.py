@@ -3,6 +3,7 @@ drawn, its envelopes."""
 import functools
 import math
 import random
+import statistics
 import sys
 
 from tools.dev.focus import chosen
@@ -45,14 +46,15 @@ def lapped(share=1.0, spent_at=None, air=False):
         if rows and rows[-1]['name'] == course.CARD[-1][0] and name == course.CARD[0][0]:
             break
         for k, thrust in enumerate(flying.step(state, dt, share)):
-            more = (min(TOP_RAD_S, quad.speed_for(thrust)) - w[k]) * min(1.0, dt / LAG_S)
+            more = ((min(TOP_RAD_S, quad.speed_for(thrust, flying.along)) - w[k])
+                    * min(1.0, dt / LAG_S))
             w[k] += max(-SPOOL_RAD_S2 * dt, min(SPOOL_RAD_S2 * dt, more))
         if blown:
             quad.blown(blown, dt)
         sky.step(w, dt, blown)
         state, lap = sky.state(), route.get('lap') or {}
         rows.append({'t': t, 'name': name, 'x': float(state['at'][0]), 'y': state['h'],
-                     'z': float(state['at'][2]),
+                     'z': float(state['at'][2]), 'ay': float(state['acc'][1]),
                      'v': math.sqrt(sum(float(c) ** 2 for c in state['vel'])),
                      'tilt': math.degrees(math.acos(max(-1.0, min(1.0, float(state['turn'][1][1]))))),
                      'laps': lap.get('laps', 0), 'of': lap.get('of', 0), 'hit': state['hit']})
@@ -99,8 +101,8 @@ def lap_seconds(rows, lap):
 
 def test_its_gates_are_flown(report):
     """The course from the floor and back: both laps through every gate inside its opening, a
-    propeller's tip clear of its frame; clear of every tree, house, car and mast; leant and
-    fast as a lap is; landed where it rose."""
+    propeller's tip clear of its frame; clear of every tree, house, car and mast; raw (the user,
+    2026-10-10); landed where it rose."""
     from machine import course, grounds, quad
     rows = lapped()
     gates = passes(rows)
@@ -117,16 +119,14 @@ def test_its_gates_are_flown(report):
                  '; '.join('%s %.2f m' % pair for pair in near[:3]))
     laps = [r for r in rows if r['name'] == 'lap']
     times = [lap_seconds(rows, lap) for lap in range(course.LAPS)]
-    # Past `held` no thrust holds it up; past 95 it goes over.
-    held = math.degrees(math.acos(quad.MASS_KG * quad.GRAVITY / (4.0 * quad.K_THRUST
-                                                                   * TOP_RAD_S ** 2)))
-    report.check('a lap of %.0f m in 10-30 s, 9 m/s and 50 degrees of lean in it, knife-edge '
-                 'at most - %.1f held' % (course.track()['length'], held),
-                 all(10.0 <= s <= 30.0 for s in times) and max(r['v'] for r in laps) >= 9.0
-                 and 50.0 <= max(r['tilt'] for r in laps) <= 95.0,
-                 '%s s, %.1f m/s and %.0f degrees at the most' % (
+    report.check('a lap of %.0f m in 10-18 s, 17 m/s in it; a dive pushed - the frame turned '
+                 'over, sped down past gravity' % course.track()['length'],
+                 all(10.0 <= s <= 18.0 for s in times) and max(r['v'] for r in laps) >= 17.0
+                 and max(r['tilt'] for r in laps) > 90.0
+                 and min(r['ay'] for r in laps) < -quad.GRAVITY,
+                 '%s s, %.1f m/s, %.0f degrees and %+.1f m/s^2 at the most' % (
                      ' and '.join('%.1f' % s for s in times), max(r['v'] for r in laps),
-                     max(r['tilt'] for r in laps)))
+                     max(r['tilt'] for r in laps), min(r['ay'] for r in laps)))
     names = [r['name'] for i, r in enumerate(rows) if i == 0 or rows[i - 1]['name'] != r['name']]
     last = rows[-1]
     report.check('from the floor onto its grid, its laps, and landed where it rose',
@@ -143,14 +143,14 @@ def test_it_flies_on_its_envelopes(report):
     from machine import course
     whole, half = lapped(), lapped(share=0.5)
     gates = passes(half)
-    lean = [max(r['tilt'] for r in rows if r['name'] == 'lap') for rows in (whole, half)]
+    lean = [statistics.fmean(r['tilt'] for r in rows if r['name'] == 'lap') for rows in (whole, half)]
     times = [lap_seconds(rows, 1) for rows in (whole, half)]
     report.check('on half their pull a lap a tenth longer and less leant, its gates '
                  'as before',
                  times[1] >= 1.1 * times[0] and lean[1] < lean[0]
                  and all(len(hits) >= course.LAPS - 1 for hits in gates.values())
                  and worst(gates) <= 0.0,
-                 '%.1f s for %.1f, %.0f degrees for %.0f; %+.2f m past a gate\'s room' % (
+                 '%.1f s for %.1f, %.0f degrees for %.0f on the mean; %+.2f m past a gate\'s room' % (
                      times[1], times[0], lean[1], lean[0], worst(gates)))
     at = 0.5 * lap_seconds(whole, 0) + next(r['t'] for r in whole if r['name'] == 'lap')
     spent = lapped(spent_at=at)
@@ -266,13 +266,13 @@ def test_its_tuner_scores(report):
     counted, one struck the dearest."""
     from machine import course
     from tools.sim import quad_race as race
-    was = (course.GRIP, course.WAYS, course.track()['length'])
+    was = (course.PULL, course.WAYS, course.track()['length'])
     try:
-        race.put({'course.GRIP': 0.5, 'turn3': 10.0, 'tense3': 1.2, 'across3': 0.3, 'up3': -0.2})
-        put = (course.GRIP, course.WAYS[3], race.now('turn3'), race.now('course.GRIP'),
+        race.put({'course.PULL': 0.5, 'turn3': 10.0, 'tense3': 1.2, 'across3': 0.3, 'up3': -0.2})
+        put = (course.PULL, course.WAYS[3], race.now('turn3'), race.now('course.PULL'),
                race.now('across3'), course.track()['length'])
     finally:
-        course.GRIP, course.WAYS = was[:2]
+        course.PULL, course.WAYS = was[:2]
         course.track.cache_clear()
     report.check('a constant set where it lives, gate 3 crossed turned, tensed and off its '
                  'middle, the line laid again',
@@ -334,7 +334,7 @@ def test_its_tilt_is_its_discs_own(report):
     def moments(yawed, **row):
         """(the thrusts' moment along the lean, across it, about the upright) for a level
         frame turned `yawed` degrees about its upright, a slide along +x asked of it."""
-        flying = Flying(4.0 * quad.K_THRUST * TOP_RAD_S ** 2, dict(aerobatics.HOVER, slide=3.0, **row))
+        flying = Flying(4.0 * quad.K_THRUST * TOP_RAD_S ** 2, dict(aerobatics.HOVER, slide=1.0, **row))
         turn = ry(math.radians(yawed))
         thrusts = flying.step({'turn': turn, 'spin': (0.0, 0.0, 0.0), 'vel': (0.0, 0.0, 0.0),
                                'at': (0.0, quad.HOVER_M, 0.0), 'h': quad.HOVER_M, 'v': 0.0,

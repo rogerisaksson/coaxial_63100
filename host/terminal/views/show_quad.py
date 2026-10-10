@@ -1,15 +1,16 @@
 """QUAD: four coaxial boards flying a frame in MuJoCo, its routine, then gates among trees.
 
 A 2 kg frame (machine.quad) on four stand-in boards, each armed on the master's pilot, its
-drive sensorless on the 63100 outrunner's model under an APC 20x10E propeller, its speed loop
+drive sensorless on the 63100 outrunner's model under a 16x14 propeller, its speed loop
 on the drive's own estimate; the four on one pack, 63 V full, its bus drooping under what they
 take; the frame in MuJoCo on the rotors' thrust and drag, gravity and the air
 (terminal.views.quad.flight). It flies flight after flight: first its routine
 (machine.aerobatics on machine.flying's law) - a pirouette, an orbit and a corkscrew up, a roll
 and a flip over a toss, full tilt into the sky, the fall burned to a stop 10 cm over the floor -
 its boards and their thermal observers warmed on it; then the course (machine.course): two laps
-through fourteen gates, between trees, over a house, round a mast and between two cars, as
-fast as the boards' envelopes leave it the lean for. What stands is solid: struck, the flight
+through sixteen gates - two slaloms, a climb, a dive, a hall's windows, an alley - raw, as fast
+as its thrust takes it, a dive pushed down inverted, the boards' envelopes spent and war
+emergency power where it pays (the user, 2026-10-10). What stands is solid: struck, the flight
 is over, the wreck lies where it falls and the flight is begun again. The rotors are asked
 what those envelopes leave of their pull; a pack or the envelopes spent, it comes down for a
 charged one, or to cool. It is flown in the air's weather (machine.quad): a wind, gusts over it and eddies in it,
@@ -182,7 +183,7 @@ def main(argv=None):
         ready()
     origin = rotors[0]['rig'].origin
     say('warn', 'rotors', 'four stand-in boards on the pilot, sensorless on the 63100 under '
-        'APC 20x10E')
+        '16x14s')
     card = gpu.adapter()
     lit = gpu.LitRaster(found=card) if card is not None else None
     say('ok', 'drawing', lit.name if lit is not None else 'this process, dots')

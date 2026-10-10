@@ -313,3 +313,17 @@ The board's own are in [FINDINGS](../FINDINGS.md).
   lapped in 17 s, a tip 0.4 m out, the boards at 0.94-0.96 - the narrow gates
   bind before the motors. A knife-edge, 91 degrees for 70 ms, out of the alley;
   the page's course on boards passed a gate 1 cm inside its room, once 1 out.
+- Raw (the user, 2026-10-10: a dive pushed inverted, no level flight kept).
+  The race paced at 12 m/s and 12 m/s^2, its discs against 0.5 g at the
+  least, a crest no faster than 0.511 g let it fall: never past -8.8 m/s^2
+  down. On a sphere about gravity, its discs free, it turned over to 125
+  degrees for a 0.4 m miss in a bend and fell into the floor; as far down as
+  its line asks and 0.26 g past it, whole. Its rotors asked through the air
+  along their discs, the law learnt their loss for a wind against it until it
+  learnt on the thrust it believes; a dive's drag, 9 m/s^2 at 20 m/s, held it
+  2.5 m over its line until the climb took it. Rotors lagging 80 ms past their
+  spool struck where the boards, a pass, flew whole. Searched over boards,
+  winds, sizes and heat: 13.8 and 14.0 s, 18.8 m/s, turned over 159 degrees,
+  -32.5 m/s^2; on boards 14.0-16.2 s, SOA 0.83-1.00, WEP 0.6-1.8 s. Gate 8
+  crossed 0.11 m higher: the boards' tips 0.10-0.15 m inside in four winds,
+  the page's 0.14 past its room's; run again, a stuffy room struck gate 6.

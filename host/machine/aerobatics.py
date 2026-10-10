@@ -21,10 +21,13 @@ from machine.quad import FLOOR_M, HOVER_M
 #: firmly its nose is held on that heading, 0 to 1 - free, its lean alone turns with it; x and
 #: z, its place, m from where it rose, and home, how much its spot goes there, 0 to 1; lean,
 #: the pull along the floor it may take, m/s^2 - 39 degrees in a hover; roll and flip,
-#: turns/s about its nose and about its wing.
+#: turns/s about its nose and about its wing; light, the least share of gravity its discs lean
+#: against, under none pointed down - half in a figure: leant against all of it while asked to
+#: fall, the thrust cut for the fall took the pull along the floor with it, over a crest at 0.3
+#: of its weight a bend had 0.6 of its pull and the frame ran 1.2 m wide (2026-10-05).
 HOVER = {'height': HOVER_M, 'pace': 1.5, 'climb': 0.0, 'push': 0.0, 'speed': 0.0, 'slide': 0.0,
          'surge': 0.0, 'sway': 0.0, 'turn': 0.0, 'nose': 1.0, 'x': 0.0, 'z': 0.0, 'home': 1.0,
-         'lean': 8.0, 'roll': 0.0, 'flip': 0.0}
+         'lean': 8.0, 'roll': 0.0, 'flip': 0.0, 'light': 0.5}
 #: Full tilt: a height out of reach, at any pace.
 SKY = dict(HOVER, height=1000.0, pace=100.0)
 #: The stop over the floor, from wherever it is: let fall, burned, held. And on the floor: let

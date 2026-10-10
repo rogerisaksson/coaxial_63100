@@ -247,9 +247,8 @@ def test_the_page_flies_four_boards(report):
 def test_the_page_flies_its_course(report):
     """The page's course on its four stand-in boards, from the floor and back: flown from
     behind, its gates stood in the view, the one flown to next lit; every gate passed inside
-    its opening on each lap it flew; the boards under their throttle, none tripped; landed where
-    it rose."""
-    from coaxial.devices.thermal import THROTTLE_AT
+    its opening on each lap it flew; the boards to their ceiling at the most, none tripped;
+    landed where it rose."""
     from machine import course, grounds
     rows, frames, rate = paged(course.CARD, lambda flew, now: now in ('idle', 'cool', 'swap')
                                and 'land' in flew)
@@ -281,8 +280,9 @@ def test_the_page_flies_its_course(report):
     report.check('the gate lit: each in its turn on its laps, the first again on its way down',
                  ahead == set(range(len(grounds.GATES))) and after == {1},
                  '%d of them on its laps, %s after' % (len(ahead), sorted(after)))
-    report.check('the boards under their throttle through its laps; none tripped',
-                 bool(laps) and max(r['soa'] for r in laps) < THROTTLE_AT
+    report.check('the boards to their ceiling at the most through its laps, raw (the user, '
+                 '2026-10-10); none tripped',
+                 bool(laps) and max(r['soa'] for r in laps) <= 1.0
                  and not any(r['tripped'] for r in rows),
                  'SOA %.2f at the most, %.0f %% of the pull at the least' % (
                      max((r['soa'] for r in laps), default=math.nan),

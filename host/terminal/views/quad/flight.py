@@ -230,7 +230,7 @@ def step(rotors, sky, route, flying, flight, clock, dt):
         if wreck is None:
             given = I_WEP if flying.top > TOP_N else I_MAX
             more = min(TOP_WEP_RAD_S if given > I_MAX else TOP_RAD_S,
-                       quad.speed_for(thrust)) - rotor['ask']
+                       quad.speed_for(thrust, flying.along)) - rotor['ask']
             spool = SPOOL_RAD_S2 * given / I_MAX
             rotor['ask'] += max(-spool * dt, min(spool * dt, more))
             rotor['pi'].limit = given

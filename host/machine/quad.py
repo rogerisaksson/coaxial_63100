@@ -5,7 +5,7 @@
     sky.step(rotor_speeds, dt, air)               # the frame on what the rotors turn, in that air
     volts = drawn(cells, watts, dt)               # its pack's bus under what they take
 
-A 2 kg frame on four direct-drive 63100 rotors under APC 20x10E propellers (board/emu/worlds/
+A 2 kg frame on four direct-drive 63100 rotors under 16x14 propellers (board/emu/worlds/
 quad.json) on skids: gravity, the air on it and the floor; its boards on one pack of 15 cells,
 63 V full. The air is a kind of weather at a time (`AIR`): a wind, its way swinging, gusts over
 it and eddies in it - what the frame is flown through, none of it told to its law. Its flying
@@ -388,9 +388,11 @@ def inflow(along, w):
     return max(0.0, 1.0 - along / (INFLOW_J0 * max(1.0, PITCH_M * abs(w) / math.tau)))
 
 
-def speed_for(thrust):
-    """A rotor's speed for `thrust` of its own, mechanical rad/s."""
-    return math.sqrt(max(0.0, thrust) / K_THRUST)
+def speed_for(thrust, along=0.0):
+    """A rotor's speed for `thrust` of its own, mechanical rad/s, the air `along` its axis
+    (`inflow`): the root of K w^2 (1 - along / (INFLOW_J0 PITCH_M w / tau)) = thrust."""
+    lose = K_THRUST * max(0.0, along) * math.tau / (INFLOW_J0 * PITCH_M)
+    return (lose + math.sqrt(lose * lose + 4.0 * K_THRUST * max(0.0, thrust))) / (2.0 * K_THRUST)
 
 
 #: The pack: PACK_CELLS in series, a cell's open volts by the share of its charge left - a LiPo's

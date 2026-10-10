@@ -13,14 +13,14 @@ each in still air and in the air's tour from SEEDS (`--seeds`); ideal, as a fram
 SIZES on a course as much larger (`quad.sized`); the boards, laid in each of ROOMS and begun on
 a pack with each of PACKS of its charge. A trial's cost is its laps' seconds, by its frame's
 clock; MISS_K a metre a propeller's tip passes nearer a gate's frame than MISS_M, ROOM_K a
-metre the frame has less than ROOM_M about it, both of the frame as built; struck, STRUCK_S and no laps
-counted. A candidate's is its trials' mean: a line found on its planned seconds alone was
+metre the frame has less than ROOM_M about it, both of the frame as built; struck, STRUCK_S and as
+much again for the share of its gates it never passed, no laps counted. A candidate's is its trials' mean: a line found on its planned seconds alone was
 flown 0.9 m off its gates (2026-10-06). Told beside it, not counted: the rotors' thrust of
 their top, the flight's jerk, m/s^3 rms, and how often a lap its pull along its way turned.
 
     python tools/sim/quad_race.py                                    # as built
-    python tools/sim/quad_race.py --suite boards --grid course.GRIP=0.6,0.7,0.8
-    python tools/sim/quad_race.py --search course.GRIP=0.5:0.9 turn11=-25:25 --verify 6 7 8
+    python tools/sim/quad_race.py --suite boards --grid course.PULL=0.6,0.7,0.8
+    python tools/sim/quad_race.py --search course.PULL=0.5:0.9 turn11=-25:25 --verify 6 7 8
 
 A search overfits what it flew: `--verify` flies its find beside its start in the air of seeds
 it never searched in, every trial, and says which holds.
@@ -62,8 +62,11 @@ def trials(seeds=SEEDS, suite='all'):
     rows += [('boards', None, 1.0, BENCH, left) for left in PACKS]
     return [row for row in rows if row[0] in SUITES[suite]]
 
-#: The ideal rotors' lag to a speed, s; their top and spool are the page's flight's.
-LAG_S = 0.08
+#: The ideal rotors' lag to a speed past their spool, s; their top and spool are the page's
+#: flight's: a stand-in rotor under the page's speed loop came to its ask a pass after its
+#: spool, 40 ms for 50 rad/s and 60 for 100 at 20 ms passes (2026-10-10). At 0.08 the raw
+#: plan struck its gates where the boards flew it whole.
+LAG_S = 0.02
 
 #: The cost beside the laps' seconds: a propeller's tip nearer a gate's frame than MISS_M, s a
 #: metre - a 3.4 m gate's middle passed 0.67 m off, a 2.6 m window's 0.27 -; less than ROOM_M
@@ -131,15 +134,19 @@ def now(name):
 
 def missed(rows):
     """(the most a propeller's tip passed nearer a gate's frame than MISS_M, m - none past it,
-    less than nothing; the passes) of the laps' rows (x, y, z, m/s)."""
+    less than nothing; the passes) of the laps' rows (x, y, z, m/s), MISS_M of the frame as
+    built: unscaled, a frame of 0.75 its size was held 0.47 of its own from a gate's frame
+    (2026-10-10)."""
     worst, count = -math.inf, 0
+    size_, clock = quad.scales()
     for gx, gy, gz, heading, size in grounds.GATES:
-        leaves = size / 2.0 - quad.reach() - MISS_M
+        leaves = size / 2.0 - quad.reach() - MISS_M * size_
         nx, nz = math.sin(math.radians(heading)), math.cos(math.radians(heading))
         for a, b in zip(rows, rows[1:]):
             before = (a[0] - gx) * nx + (a[2] - gz) * nz
             after = (b[0] - gx) * nx + (b[2] - gz) * nz
-            if before < 0.0 <= after and math.hypot(b[0] - gx, b[2] - gz) < 6.0 and b[3] > 1.0:
+            if (before < 0.0 <= after and math.hypot(b[0] - gx, b[2] - gz) < 6.0 * size_
+                    and b[3] > size_ / clock):
                 worst = max(worst, abs((b[0] - gx) * nz - (b[2] - gz) * nx) - leaves,
                             abs(b[1] - gy) - leaves)
                 count += 1
@@ -205,7 +212,7 @@ def ideal(air, _room=BENCH, _left=1.0):
         law.top = given if wep else normal
         fast, spun = (wep_top, wep_spool) if wep else (top, spool)
         for k, thrust in enumerate(law.step(state, dt, 1.0, wep)):
-            more = (min(fast, quad.speed_for(thrust)) - w[k]) * min(1.0, dt / lag)
+            more = (min(fast, quad.speed_for(thrust, law.along)) - w[k]) * min(1.0, dt / lag)
             w[k] += max(-spun * dt, min(spun * dt, more))
         if air:
             quad.blown(air, dt)
@@ -280,9 +287,13 @@ def trial(values, job):
 
 def cost_of(result):
     """A trial's cost, s: its laps' seconds and what its misses and its room cost - struck, or
-    a lap short, STRUCK_S."""
+    a lap short, STRUCK_S and as much again for the share of its gates it never passed: at
+    STRUCK_S whatever it passed, a search's every candidate struck alike and it had no way
+    out (2026-10-10)."""
     if not result or result['struck'] or len(result['laps']) < course.LAPS:
-        return STRUCK_S
+        gates = course.LAPS * len(grounds.GATES) - 1
+        passed = (result or {}).get('passes', gates if result else 0)
+        return STRUCK_S * (2.0 - min(1.0, passed / gates))
     return (sum(result['laps']) + MISS_K * max(0.0, result['miss'])
             + ROOM_K * max(0.0, ROOM_M - result['room']))
 

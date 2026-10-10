@@ -39,7 +39,8 @@ def flown(share=1.0, base=False, spent_at=None):
         if rows and rows[-1]['name'] == card[-1][0] and name == card[0][0] and spent_at is None:
             break
         for k, thrust in enumerate(flying.step(sky.state(), 0.01, share)):
-            w[k] += (min(top_rad_s, quad.speed_for(thrust)) - w[k]) * min(1.0, 0.01 / 0.05)
+            w[k] += ((min(top_rad_s, quad.speed_for(thrust, flying.along)) - w[k])
+                     * min(1.0, 0.01 / 0.05))
         sky.step(w, 0.01)
         state = sky.state()
         rows.append({'t': t, 'name': name, 'h': state['h'], 'v': state['v'], 'a': state['a'],
@@ -294,11 +295,12 @@ def test_its_air(report):
 
 
 def test_it_holds_in_wind(report):
-    """The law in the air, a hover at 5 m on rotors lagging 0.08 s: in a constant wind it is
-    held on its spot, the wind as it has learnt it the wind on it - unlearnt, half a metre off
-    and never held; in gusts within half a metre."""
+    """The law in the air, a hover at 5 m on the boards' rotors (quad_race.LAG_S past the
+    page's spool): in a constant wind it is held on its spot, the wind as it has learnt it the
+    wind on it - unlearnt, ten times as far off and never held; in gusts within half a metre."""
     from machine import aerobatics, flying as law, quad
-    from terminal.views.quad.flight import TOP_RAD_S
+    from terminal.views.quad.flight import SPOOL_RAD_S2, TOP_RAD_S
+    from tools.sim.quad_race import LAG_S
 
     def hover(kind, learn=True):
         """(the furthest off its spot, m, the share of the passes held, how far the law's wind
@@ -311,7 +313,9 @@ def test_it_holds_in_wind(report):
             w, t, rows = [0.0] * 4, 0.0, []
             while t < 40.0:
                 for k, thrust in enumerate(flying.step(sky.state(), 0.02, 1.0)):
-                    w[k] += (min(TOP_RAD_S, quad.speed_for(thrust)) - w[k]) * 0.25
+                    more = ((min(TOP_RAD_S, quad.speed_for(thrust, flying.along)) - w[k])
+                            * min(1.0, 0.02 / LAG_S))
+                    w[k] += max(-SPOOL_RAD_S2 * 0.02, min(SPOOL_RAD_S2 * 0.02, more))
                 wind = quad.blown(air, 0.02) if t >= 8.0 else (0.0, 0.0, 0.0)
                 sky.step(w, 0.02, air if t >= 8.0 else None)
                 t += 0.02
@@ -327,9 +331,9 @@ def test_it_holds_in_wind(report):
                 math.sqrt(sum(r[2] ** 2 for r in rows) / len(rows)))
     steady, blind, gusty = hover('constant'), hover('constant', False), hover('gusty')
     report.check('a wind of 4 m/s: on its spot within 0.2 m and held nine passes of ten, the '
-                 'wind learnt within 0.3 m/s of it; unlearnt, 0.5 m off and never held',
+                 'wind learnt within 0.3 m/s of it; unlearnt, ten times as far off and never held',
                  steady[0] <= 0.2 and steady[1] >= 0.9 and steady[2] <= 0.3
-                 and blind[0] >= 0.5 and blind[1] <= 0.1,
+                 and blind[0] >= 10.0 * steady[0] and blind[1] <= 0.1,
                  '%.2f m off, held %.0f %%, its wind %.2f m/s off; unlearnt %.2f m off, held '
                  '%.0f %%' % (steady[0], 100.0 * steady[1], steady[2], blind[0], 100.0 * blind[1]))
     report.check('in gusts to 7 m/s within half a metre of its spot',
