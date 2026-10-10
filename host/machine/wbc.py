@@ -57,10 +57,10 @@ CONTACT_K, HELD_K = 20.0, 50.0
 #: rows laid for the drives that bore more than NEAR of their clamps the step before.
 CLAMP_SHARE, NEAR = 0.95, 0.6
 
-#: The drives granted WEP, those that carry her: granted every drive, the head, the neck, the
-#: elbows and the shoulders ran at their stacks' 51 N m, 6.4, 3.4, 2.1 and 1.3 times their
-#: clamps, swung as weights (120 N, 2026-10-10).
-CARRY = ('hip_yaw', 'hip_roll', 'hip', 'knee', 'ankle', 'ankle_roll', 'spine_roll', 'spine', 'waist')
+#: Her neck's and head's ranges, deg, the stack's own - the model has none: granted WEP, the
+#: head and the neck ran at their stacks' 51 N m, 6.4 and 3.4 times their clamps, spun as
+#: weights (120 N, 2026-10-10).
+RANGES = {'neck': (-45.0, 60.0), 'head': (-80.0, 80.0)}
 
 #: (kp 1/s^2, kd 1/s): the turns', the posture's and a swinging sole's (at 400 and 40 a 0.2 s
 #: step lagged its path 11 cm, 100 N, 2026-10-10); the angular momentum bled at MOMENTUM_K 1/s - at 10 on the level under the centre of mass it pinned both soles'
@@ -139,7 +139,6 @@ class Body:
         self.clamp = np.array([min(physics.SERVO[kind(j)][0], drives.peak(j)) if physics.CLAMPED
                                else physics.SERVO[kind(j)][0] for j in names])
         self.wep = np.maximum(self.clamp, [drives.peak(j) for j in names])
-        self.carries = np.array([kind(j) in CARRY for j in names])
         self.top = CLAMP_SHARE * self.clamp
         #: Each drive's load the last step, of its clamp as derated (`_currents`); those of
         #: them over NEAR granted WEP this step.
@@ -152,8 +151,9 @@ class Body:
         self.single = np.ones(len(names), bool)
         for p, r in self.pairs:
             self.single[p] = self.single[r] = False
-        stops = [(k, m.jnt_range[m.joint(j).id]) for k, j in enumerate(names)
-                 if m.jnt_limited[m.joint(j).id]]
+        stops = [(k, m.jnt_range[m.joint(j).id] if m.jnt_limited[m.joint(j).id]
+                  else np.radians(RANGES[kind(j)])) for k, j in enumerate(names)
+                 if m.jnt_limited[m.joint(j).id] or kind(j) in RANGES]
         self.stops = np.array([k for k, _r in stops], int)
         self.stop_lo = np.array([r[0] for _k, r in stops])
         self.stop_hi = np.array([r[1] for _k, r in stops])
@@ -209,13 +209,13 @@ def sense(b, qpos, qvel):
 
 
 def step(b, s, ask):
-    """{tau, qacc, force, cop, slack, held, over}: the stack solved for `ask` - stance (left,
+    """{tau, qacc, force, cop, bears, slack, held, over}: the stack solved for `ask` - stance (left,
     right) bools; com_acc (3,) m/s^2; turns (pelvis, trunk) quaternions; swing {side: (sole's
     place, speed, acceleration, quaternion)}; fold {side: (knee rad, rad/s, rad/s^2)}, a
     swinging knee's; posture, the driven joints' rad; optionally kdot (3,) N m, else the
     angular momentum bled; derate, each drive's board's (1); wep, the drives granted war
-    emergency power (none). `over`: the drives asked past their clamps, whose boards must hold
-    their derates off this step."""
+    emergency power (none). `bears`: each sole's planned load, N; `over`: the drives asked past
+    their clamps, whose boards must hold their derates off this step."""
     n = b.n
     stance = [k for k in (0, 1) if ask['stance'][k]]
     nx = n + 12 * len(stance)
@@ -233,17 +233,18 @@ def step(b, s, ask):
         raise MachineError('the whole-body stack found no solution')
     b.warm[key] = active
     f = b.mass * G * x[n:].reshape(-1, 3)
-    cop = []
-    for j in range(len(stance)):
+    cop, bears = [], [0.0, 0.0]
+    for j, k in enumerate(stance):
         load = f[4 * j:4 * j + 4, 1]
+        bears[k] = float(load.sum())
         cop.append(b.corners[:, (0, 2)].T @ load / load.sum() if load.sum() > 1e-6 else None)
     b.load = np.abs(Th @ x + th) / nominal
     past = b.load > 1.0 + 1e-6
     over = past.copy()
     for p, r in b.pairs:
         over[p] = over[r] = past[p] or past[r]
-    return {'tau': T @ x + t0, 'qacc': x[:n], 'force': f, 'cop': cop, 'slack': slack,
-            'held': active, 'over': over}
+    return {'tau': T @ x + t0, 'qacc': x[:n], 'force': f, 'cop': cop, 'bears': bears,
+            'slack': slack, 'held': active, 'over': over}
 
 
 def _held(b, s, ask, stance):
@@ -278,7 +279,7 @@ def _held(b, s, ask, stance):
         Gs.append(Gf)
         hs.append(np.tile([0.0, 0.0, 0.0, 0.0, -F_MIN_N / fs], nc))
     nominal = b.clamp * np.broadcast_to(np.asarray(ask.get('derate', 1.0), float), b.clamp.shape)
-    granted = np.broadcast_to(np.asarray(ask.get('wep', False), bool), b.clamp.shape) & b.carries
+    granted = np.broadcast_to(np.asarray(ask.get('wep', False), bool), b.clamp.shape)
     # WEP's ceiling only for those whose soft rows are laid (`_levels`): unlaid, the head was
     # asked 3.6 times its clamp from under NEAR in one step (80 N from behind, 2026-10-10).
     b.near = np.flatnonzero(granted & (b.load > NEAR))

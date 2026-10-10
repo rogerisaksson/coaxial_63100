@@ -49,3 +49,14 @@ measured by `tools/sim/wbc.py` in a world without buses. The board's own are in
   1600 and 80 100 N stood 8 of 8 where 4, 900 and 60 7.
 - A step on the stack costs 1.6-2.6 ms in Python, 11 at worst while the MPC
   weighs four steps (2026-10-10).
+- The polar spread, each way shoved at three moments 35 ms apart, 24 shoves a
+  force (2026-10-10): 60 N 24 of 24 and no step, 80 N 24, 100 N 20, 120 N 16.
+  The MPC's soles 2 cm inside their edges (`mpc.MARGIN_M`) stepped where the
+  stack alone stood: 60 N 22 of 24 and 44 steps - at 5 mm none. The end's pull
+  to the support's middle at 0.01: 100 N 18, 120 N 9, 60 N 28 steps - kept at 1.
+  A sole the stack laid weight on that bore nothing 50 ms swings
+  (`balance.LOST_S`): counted standing on 0 N for 0.6 s, her rear foot drifted
+  10 cm and she fell aside, the MPC seeing her on both feet. WEP granted every
+  drive (the user: the thermal observer ignored, a blown MOSFET before a broken
+  robot), the neck's and the head's ranges the stack's own (`wbc.RANGES`).
+

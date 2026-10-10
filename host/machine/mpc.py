@@ -10,8 +10,8 @@ the ZMP constant in each, it is linear in them. A hypothesis is a schedule of su
 the hull of both soles all along; stepping, the standing sole from the call to the landing at
 r, then the landed sole round r - r free within the standing foot's reach. Each is a QP (`qp.solve`): the
 ZMP in its support (hard), the DCM at the end inside the last support (soft, TERMINAL_W - a
-second's capture), the ZMP near its support's middle, r near where the foot is, the ZMP's moves
-smooth. She steps where standing cannot capture her (its end's slack) and a step can: the
+second's capture), the ZMP near its support's middle, r near a stance beside the standing sole,
+the ZMP's moves smooth. She steps where standing cannot capture her (its end's slack) and a step can: the
 cheapest. World frame: x her left, z ahead.
 """
 import math
@@ -31,8 +31,10 @@ DTS = np.array([0.05] * 10 + [0.1] * 5)
 N = len(DTS)
 STARTS = np.concatenate([[0.0], np.cumsum(DTS)])
 
-#: A sole's support about its middle: half its width and half its length less MARGIN_M.
-MARGIN_M = 0.02
+#: A sole's support about its middle: half its width and half its length less MARGIN_M - at 0.02
+#: she stepped where the stack alone stood on its ankles and hips, 60 N from 8 ways 22 of 24
+#: and 44 steps where 24 and none (2026-10-10).
+MARGIN_M = 0.005
 HALF = (SOLE_HALF - MARGIN_M, (BALL + HEEL) / 2.0 - MARGIN_M)
 
 #: The weights: the ZMP off its support's middle (1/m^2), the landing off the foot's place,
@@ -40,8 +42,10 @@ HALF = (SOLE_HALF - MARGIN_M, (BALL + HEEL) / 2.0 - MARGIN_M)
 #: slack past its support.
 MIDDLE_W, REACH_W, END_W, MOVE_W, TERMINAL_W = 1.0, 0.5, 1.0, 0.1, 1e4
 
-#: A step's reach from the standing sole's middle, its frame: across (out from it) and along.
-ACROSS_M, ALONG_M = (0.12, 0.45), (-0.40, 0.50)
+#: A step's reach from the standing sole's middle, its frame: across (out from it) and along;
+#: its landing priced off a stance WIDTH_M beside it - priced off where the foot was, after a
+#: 46 cm lunge her rear foot stepped 8 cm and 8 steps more followed her down (120 N, 2026-10-10).
+ACROSS_M, ALONG_M, WIDTH_M = (0.12, 0.45), (-0.40, 0.50), 0.19
 
 #: A step's swing, s, from its call: its sole lifted at once, the ZMP on the standing one - held
 #: on its sole while it unloaded, its soft contact kept it pressed and she leaned onto it (80 N
@@ -110,11 +114,17 @@ def reach(centre, yaw, side):
                       along @ o + ALONG_M[1], -(along @ o) - ALONG_M[0]]))
 
 
+def beside(centre, yaw, side):
+    """Where the `side` foot stands beside the standing sole's middle, WIDTH_M across."""
+    across, _along = _axes(yaw)
+    return np.asarray(centre, float) + (WIDTH_M if side == 'left' else -WIDTH_M) * across
+
+
 def _solve(xi, omega, supports, step=None):
     """(cost, ZMPs (N, 2), landing (2,) or None, the DCM at the end, the end's slack m) of a
     schedule: `supports` an interval each, (normals, offsets, middle) or None - the landed sole
-    round the landing; `step` (the landed sole's yaw, its reach (normals, offsets), where the
-    foot is) where one lands."""
+    round the landing; `step` (the landed sole's yaw, its reach (normals, offsets), its stance
+    beside the standing sole) where one lands."""
     a = np.exp(omega * DTS)
     after = np.concatenate([np.cumprod(a[::-1])[::-1][1:], [1.0]])
     gamma = after * (1.0 - a)
@@ -201,7 +211,8 @@ def plan(xi, omega, feet, flight=None):
         centre, yaw = feet[OTHER[side]]
         k = max(1, _at(left_s))
         cost, p, r, end, slack = _solve(xi, omega, [box(centre, yaw)] * k + [None] * (N - k),
-                                        (feet[side][1], reach(centre, yaw, side), feet[side][0]))
+                                        (feet[side][1], reach(centre, yaw, side),
+                                         beside(centre, yaw, side)))
         return {'p': p[0] if p is not None else np.asarray(centre, float),
                 'step': (side, left_s, r if r is not None else np.asarray(feet[side][0])),
                 'xi_end': end, 'cost': cost, 'captured': slack < CAPTURED_M}
@@ -217,7 +228,8 @@ def plan(xi, omega, feet, flight=None):
         for swing in SWINGS:
             k = max(1, _at(swing))
             c, p, r, e, sl = _solve(xi, omega, [box(centre, yaw)] * k + [None] * (N - k),
-                                    (feet[side][1], reach(centre, yaw, side), feet[side][0]))
+                                    (feet[side][1], reach(centre, yaw, side),
+                                     beside(centre, yaw, side)))
             if p is not None and r is not None and (sl, c) < (worst, best['cost']):
                 worst = sl
                 best = {'p': p[0], 'step': (side, swing, r), 'xi_end': e,

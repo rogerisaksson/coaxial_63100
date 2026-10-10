@@ -20,8 +20,9 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-#: Shoved at AT_S, judged at TO_S; fallen past HELD_DEG of the pelvis's tilt.
-AT_S, TO_S, HELD_DEG = 1.0, 4.0, 25.0
+#: Shoved at AT_S, judged TO_S later; fallen past HELD_DEG of the pelvis's tilt; a polar's
+#: spread of shoves SPREAD_S apart.
+AT_S, TO_S, HELD_DEG, SPREAD_S = 1.0, 3.0, 25.0, 0.035
 
 #: The stand's law without steps: the ZMP asked XI_K/omega past the capture point, away from
 #: the soles' middle.
@@ -88,10 +89,10 @@ def _under(m, body, root):
     return False
 
 
-def stand(push=0.0, way=0.0, seconds=TO_S, trace=False, wep=True, steps=True):
-    """{stood, tilt deg, drift m, top share, us a step, wep s, steps, ..} standing `seconds`,
-    shoved `push` N from `way` deg at AT_S; `wep` war emergency power granted; `steps` the MPC's
-    law, else the capture point's alone."""
+def stand(push=0.0, way=0.0, seconds=None, trace=False, wep=True, steps=True, at=AT_S):
+    """{stood, tilt deg, drift m, top share, us a step, wep s, steps, ..} standing `seconds` (TO_S
+    past the shove), shoved `push` N from `way` deg at `at`; `wep` war emergency power granted;
+    `steps` the MPC's law, else the capture point's alone."""
     import numpy as np
     from machine import balance, gait, physics, wbc
     from machine.errors import MachineError
@@ -120,12 +121,14 @@ def stand(push=0.0, way=0.0, seconds=TO_S, trace=False, wep=True, steps=True):
     mid = (s['feet'][0]['sole'][[0, 2]] + s['feet'][1]['sole'][[0, 2]]) / 2.0
     st = balance.state(s, body.knees)
     pushed, tilt, drift, top, cost, passes, worst = False, 0.0, 0.0, 0.0, 0.0, 0, 0.0
-    failed, down, force, was = None, None, np.zeros(6), 'stand'
+    failed, down, force, was, bears = None, None, np.zeros(6), 'stand', (0.0, 0.0)
     a = math.radians(way)
+    seconds = at + TO_S if seconds is None else seconds
     while now[0] < seconds:
         t0 = time.perf_counter()
         s = wbc.sense(body, world.data.qpos, world.data.qvel)
-        ask = balance.step(st, s, loads(world, force), now[0]) if steps else law(s, st, mid)
+        ask = (balance.step(st, s, loads(world, force), now[0], bears=bears) if steps
+               else law(s, st, mid))
         try:
             out = wbc.step(body, s, dict(ask, wep=left > 0.0))
         except MachineError as exc:
@@ -134,6 +137,7 @@ def stand(push=0.0, way=0.0, seconds=TO_S, trace=False, wep=True, steps=True):
         cost += time.perf_counter() - t0
         passes += 1
         world.feed[body.driven] = out['tau']
+        bears = out['bears']
         hold = np.where(out['over'], WEP_HOLD_S, np.maximum(0.0, hold - 0.001))
         left -= 0.001 * bool(hold.any())
         world.limit[joints] = np.where(hold > 0.0, body.wep, clamp[joints])
@@ -143,7 +147,7 @@ def stand(push=0.0, way=0.0, seconds=TO_S, trace=False, wep=True, steps=True):
         world.target[body.driven] = ref_q
         top = max(top, float(np.abs(out['tau'] / body.top).max()))
         worst = max([worst] + [float(sl.max()) for sl in out['slack'] if len(sl)])
-        if push and not pushed and now[0] >= AT_S:
+        if push and not pushed and now[0] >= at:
             world.push((push * math.cos(a), 0.0, push * math.sin(a)), 0.12)
             pushed = True
         now[0] += 0.001
@@ -179,13 +183,16 @@ def stand(push=0.0, way=0.0, seconds=TO_S, trace=False, wep=True, steps=True):
             'steps': st['steps'] if steps else 0, 'down': down}
 
 
-def polar(forces, wep=True, steps=True):
-    """A shove from each of WAYS at each of `forces`, a relay job each: {N: [stood way ..]}."""
+def polar(forces, wep=True, steps=True, spread=1):
+    """A shove from each of WAYS at each of `forces`, `spread` moments apart, a relay job each:
+    {N: [stood way ..]}."""
     from tools.dev import focus
     flags = ([] if wep else ['--no-wep']) + ([] if steps else ['--no-step'])
-    jobs = [focus.Job('%g@%d' % (n, w), [sys.executable, '-X', 'utf8', os.path.abspath(__file__),
-                                         '--one', str(n), str(w)] + flags, 0.6, 900.0, None)
-            for n in forces for w in WAYS]
+    jobs = [focus.Job('%g@%d.%d' % (n, w, i), [sys.executable, '-X', 'utf8',
+                                               os.path.abspath(__file__), '--one', str(n), str(w),
+                                               '--at', str(AT_S + SPREAD_S * i)] + flags,
+                      0.6, 900.0, None)
+            for n in forces for w in WAYS for i in range(spread)]
     rows = []
     for _job, text, _code, _s in focus.relay(jobs):
         line = next((ln for ln in reversed(text.splitlines()) if ln.startswith('{')), None)
@@ -196,8 +203,8 @@ def polar(forces, wep=True, steps=True):
         print('%4g N  %d of %d stood, WEP %.1f s, %d steps   %s' % (
             n, sum(r['stood'] for r in mine), len(mine), sum(r['wep_s'] for r in mine),
             sum(r['steps'] for r in mine), '  '.join(
-                '%d:%s%s' % (r['way'], 'up' if r['stood'] else 'FAIL' if r['failed'] else 'DOWN',
-                             '/%d' % r['steps'] if r['steps'] else '') for r in mine)))
+                '%d:%s' % (w, ''.join('u' if r['stood'] else 'F' if r['failed'] else '.'
+                                      for r in mine if r['way'] == w)) for w in WAYS)))
     return rows
 
 
@@ -206,15 +213,17 @@ def main(argv=None):
     parser.add_argument('--polar', nargs='*', type=float, metavar='N')
     parser.add_argument('--one', nargs=2, type=float, metavar=('N', 'WAY'))
     parser.add_argument('--still', type=float, default=10.0, metavar='S')
+    parser.add_argument('--at', type=float, default=AT_S, metavar='S', help='when the shove comes')
+    parser.add_argument('--spread', type=int, default=1, help="a polar's shoves at each way")
     parser.add_argument('-v', action='store_true', help='a row every 25 ms')
     parser.add_argument('--no-wep', action='store_true', help='no war emergency power')
     parser.add_argument('--no-step', action='store_true', help='the capture point alone')
     args = parser.parse_args(argv)
     flags = {'wep': not args.no_wep, 'steps': not args.no_step}
     if args.polar:
-        polar(args.polar, **flags)
+        polar(args.polar, spread=args.spread, **flags)
     elif args.one:
-        print(json.dumps(stand(args.one[0], args.one[1], trace=args.v, **flags)))
+        print(json.dumps(stand(args.one[0], args.one[1], trace=args.v, at=args.at, **flags)))
     else:
         print(json.dumps(stand(seconds=args.still, trace=args.v, **flags)))
     return 0

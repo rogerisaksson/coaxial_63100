@@ -5,7 +5,8 @@
                                               # loads (left, right) the soles' N
 
 The MPC (`machine.mpc`) plans every TICK_S from her capture point: standing on, or a step - its
-side, when it lands and where. A step lifts its sole at the call: up first, its knee folding,
+side, when it lands and where; a sole that bears nothing a while is a step of its own. A step
+lifts its sole at the call: up first, its knee folding,
 then along a quintic to the landing, re-aimed each tick until FREEZE_S before it is due, lifted
 LIFT_M at the middle; down, it stands where it bears LAND_N, past its time descending at
 DESCEND_M_S. The centre of mass's acceleration is the LIPM's from
@@ -28,6 +29,13 @@ TICK_S, FREEZE_S = 0.02, 0.06
 #: A swing's lift at its middle, m; the load a landed sole bears to stand, N; a late sole's
 #: descent, m/s.
 LIFT_M, LAND_N, DESCEND_M_S = 0.05, 20.0, 0.2
+
+#: A standing sole the stack laid more than 2 LOST_N on that bears under LOST_N for LOST_S stands
+#: no more: it swings, put down where the MPC says - counted standing on 0 N for 0.6 s, her rear
+#: foot drifted 10 cm, the MPC saw her on both and she fell aside with no step called (100 N
+#: from behind, 2026-10-10); by its load alone, a sole the stack unloaded stepped, 126 steps in
+#: 24 shoves of 60 N where 2 in 8.
+LOST_N, LOST_S = 15.0, 0.05
 
 #: A swinging sole rises alone over LIFT_FIRST of its swing before it travels; it stands where it
 #: bears after LANDS_U of it - from 0.5 and 0.15, 0.2 s side steps came down 11 cm short (100 N,
@@ -91,8 +99,9 @@ def _fold(st, now):
             -a * math.pi ** 2 * math.sin(math.pi * u) / T ** 2)
 
 
-def step(st, s, loads, now, dt=0.001):
-    """The stack's ask this step: the phase moved on, the MPC planned on its tick."""
+def step(st, s, loads, now, dt=0.001, bears=(0.0, 0.0)):
+    """The stack's ask this step: the phase moved on, the MPC planned on its tick; `loads` each
+    sole's load, N, `bears` what the stack laid on it the step before (`wbc.step`)."""
     k = SIDES.index(st['side']) if st['side'] else None
     if st['phase'] == 'swing':
         sole = s['feet'][k]['sole']
@@ -101,13 +110,19 @@ def step(st, s, loads, now, dt=0.001):
                 or (late and sole[1] < 0.003):
             st.update(phase='stand', side=None, tick=now)
             k = None
+    light = st.setdefault('light', [0.0, 0.0])
+    for i in (0, 1):
+        light[i] = (light[i] + dt if st['phase'] == 'stand' and loads[i] < LOST_N
+                    and bears[i] > 2.0 * LOST_N else 0.0)
     c, v = s['com'], s['vcom']
     omega = math.sqrt(G / max(0.3, c[1]))
     if now >= st['tick'] - 1e-9:
         st['tick'] = now + TICK_S
         xi = c[[0, 2]] + v[[0, 2]] / omega
         if st['phase'] == 'stand':
-            out = mpc.plan(xi, omega, feet(s))
+            lost = [i for i in (0, 1) if light[i] >= LOST_S and not light[1 - i]]
+            out = (mpc.plan(xi, omega, feet(s), (SIDES[lost[0]], mpc.SWINGS[0])) if lost
+                   else mpc.plan(xi, omega, feet(s)))
             if out['step'] is not None:
                 side, due, land = out['step']
                 k = SIDES.index(side)
@@ -116,6 +131,7 @@ def step(st, s, loads, now, dt=0.001):
                           at=f['sole'][[0, 2]].copy(), speed=np.zeros(2), acc=np.zeros(2),
                           yaw=math.atan2(f['R'][0, 2], f['R'][2, 2]),
                           knee=float(s['q'][st['knees'][k]]), steps=st['steps'] + 1)
+                light[:] = [0.0, 0.0]
         else:
             left = max(TICK_S, st['land_at'] - now)
             out = mpc.plan(xi, omega, feet(s), (st['side'], left))
