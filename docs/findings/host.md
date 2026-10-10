@@ -111,6 +111,6 @@ own are in [FINDINGS](../FINDINGS.md).
   strewn; at 12 px, lines 1.3, letters -3, 11 x 22 - 2:1, read as Extended
   (the user); letters -5 (VS Code's least), lines 1.2, 9 x 20, 205 x 47
   where Consolas' 205 x 43. Latin glyphs past their cell overlap it, never
-  rescaled.
+  rescaled. Too wide and janky either way (the user): back on VS Code's own.
   DTC's Eurostile Extended reaches Chromium as Times New Roman: a cmap
   subtable truncated.
