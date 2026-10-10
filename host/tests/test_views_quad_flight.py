@@ -17,7 +17,7 @@ def flown(seconds, until, things=(), dt=0.05):
     from machine.modes import SIMULATED
     from terminal.views.quad import flight as view
     rotors = [view.arm(Coaxial63100(execution_mode=SIMULATED).open()) for _ in range(4)]
-    rows, clock, read = [], 0.0, 0.0
+    rows, clock = [], 0.0
     try:
         sky, route = quad.Sky(things), aerobatics.routine(view.CARD)
         flying, flight = Flying(view.TOP_N, aerobatics.DOWN), view.fresh()
@@ -25,10 +25,6 @@ def flown(seconds, until, things=(), dt=0.05):
             for clock, frame in view.passed(rotors, sky, route, flying, flight, clock, dt):
                 rows.append((flight['stage'], clock, flight['share'],
                              max(r['amps'] for r in rotors), frame['h']))
-            if clock - read >= 0.1:
-                read = clock
-                for rotor in rotors:
-                    rotor['budget'], rotor['ident'], rotor['board_c'] = view.warmth(rotor['rig'])
     finally:
         for rotor in rotors:
             rotor['rig'].board.drive.off()
@@ -103,13 +99,14 @@ def test_a_rotor_turns_by_its_pass(report):
 
 
 def test_a_late_pass_is_its_steps(report):
-    """Every pass the page's longest (flight.passed): taken in steps of STEP_S at the most, its
-    corkscrew is flown on most of the rotors' pull and `home` held in its seconds. Stepped
+    """Every pass the page's longest (flight.passed): taken in steps of STEP_S, the rest owed,
+    its corkscrew is flown on most of the rotors' pull and `home` held in its seconds. Stepped
     whole, the frame rang on its rotors: 30 A, 22 % of their pull, `home` never held."""
     from terminal.views.quad import flight as view
-    report.check('a pass of 50 ms is two steps, one of 20 its own',
-                 view.steps(0.05) == [0.025, 0.025] and view.steps(0.02) == [0.02],
-                 '%s and %s' % (view.steps(0.05), view.steps(0.02)))
+    count, owed = view.steps(0.05)
+    report.check('a pass of 50 ms is two steps of 20 and 10 ms owed, one of 19 none',
+                 count == 2 and abs(owed - 0.01) < 1e-12 and view.steps(0.019)[0] == 0,
+                 '%d and %.3f s owed, %d' % (count, owed, view.steps(0.019)[0]))
     rows, flight = flown(34.0, lambda flight: flight['stage'] == 'toss')
     hard = [r for r in rows if r[0] in ('corkscrew', 'home')]
     report.check('passes of 50 ms: the corkscrew on three fifths of the rotors\' pull and more, '

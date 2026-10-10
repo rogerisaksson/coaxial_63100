@@ -76,11 +76,15 @@ FIT = 0.7
 #: A spent pack is changed on the floor in this long, s.
 SWAP_S = 3.0
 
-#: The flight is stepped this long at the most, s: a late pass is its steps. Stepped 50 ms - a
-#: starved page's every pass - the frame rang on its rotors: 30 A through the corkscrew where
-#: 24 at 45 ms, the envelopes' share at 0.22, `home` never held and the pack spent on it 38 s
-#: later (2026-10-06).
-STEP_S = 0.025
+#: The flight is stepped this long, s - the race's (tools/sim/quad_race.py) -, a pass's
+#: seconds short of a step owed to the next: stepped as the wall's passes came, a loaded page
+#: flew its air's eddies drawn on other steps and crossed gate 0 0.97 m low, one flight in nine
+#: (2026-10-10). Stepped 50 ms the frame rang on its rotors: 30 A through the corkscrew where
+#: 24 at 45 ms (2026-10-06).
+STEP_S = 0.02
+
+#: The boards' observers are read this often by the flight's clock, s.
+THERMAL_S = 0.1
 
 #: War emergency power, on an observer's word: the law asking more than it has, the frame's
 #: ghost flown RISK_S on as it goes strikes a thing (`quad.Sky.ahead`) - on the ghost's word
@@ -141,9 +145,11 @@ def fresh():
     envelopes leave and how long it has been none, the lap, how long a spent pack has stood,
     the pack's cells and a flight's peaks of them, the air they are flown in (`quad.air`),
     the wreck of one struck - what it struck, how long ago - and how many were; its emergency
-    power: the seconds left of it, how long it is on yet, what it was taken from, how often."""
+    power: the seconds left of it, how long it is on yet, what it was taken from, how often;
+    the seconds a pass owes its next step, the clock its observers were read at."""
     cells = quad.pack()
     return {'stage': CARD[0][0], 'apex': 0.0, 'share': 1.0, 'gone': 0.0, 'lap': None,
+            'owed': 0.0, 'read': 0.0,
             'stood': 0.0, 'cells': cells, 'peak': {'watts': 0.0, 'low': cells['volts']},
             'air': quad.air(), 'wreck': None, 'crashes': 0,
             'wep': {'left': WEP_S, 'on': 0.0, 'from': None, 'taken': 0}}
@@ -155,17 +161,19 @@ def struck(flight):
     return STRUCK.get(what, what.replace('gate', 'into gate '))
 
 
-def steps(dt):
-    """A pass of `dt` s as the flight's steps, s each: STEP_S at the most."""
-    count = max(1, math.ceil(dt / STEP_S - 1e-9))
-    return [dt / count] * count
+def steps(owed):
+    """(the steps of STEP_S `owed` s holds, the seconds still owed)."""
+    count = int(owed / STEP_S + 1e-9)
+    return count, max(0.0, owed - count * STEP_S)
 
 
 def passed(rotors, sky, route, flying, flight, clock, dt):
-    """The flight a pass of `dt` s on from `clock`, (its clock, the frame) after each of its
-    steps: the envelopes' share and how long it has been none, the card's row flown, its lap
-    where the row is a line's, a spent pack changed where it has stood to be."""
-    for part in steps(dt):
+    """The flight a pass of `dt` s on from `clock` - what it owed before -, (its clock, the
+    frame) after each of its steps: the envelopes' share and how long it has been none, the
+    card's row flown, its lap where the row is a line's, a spent pack changed where it has stood
+    to be; the boards' observers read every THERMAL_S."""
+    count, flight['owed'] = steps(flight['owed'] + dt)
+    for part in [STEP_S] * count:
         clock += part
         row = route['row']
         flight['share'] = envelope(rotors, flight['share'], part)
@@ -175,6 +183,10 @@ def passed(rotors, sky, route, flying, flight, clock, dt):
         frame = sky.state()
         flight['stood'] = kept(flight, flight['stood'], name, route['row'] != row
                                and 'fit' in route['card'][row][4].split(), frame, part)
+        if clock - flight['read'] >= THERMAL_S - 1e-9:
+            flight['read'] = clock
+            for rotor in rotors:
+                rotor['budget'], rotor['ident'], rotor['board_c'] = warmth(rotor['rig'])
         yield clock, frame
 
 

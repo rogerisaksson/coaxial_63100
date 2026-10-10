@@ -50,12 +50,11 @@ TITLE = 'QUAD'
 #: The rotors, round the frame: front left, front right, rear right, rear left.
 ROTORS = ('FL', 'FR', 'RR', 'RL')
 
-#: The feed's period, s - the stand-in's boards answer out of memory -, the longest a pass
-#: takes the flight on, in its steps (`flight.steps`), and the thermal reads' period, s. The
-#: flight's clock is its passes' sum: a pass in twenty ran 50 ms, the routine's rows asked by
-#: the wall's clock moved further than their pass and the rotors' loops went to their clamp on
-#: what that looked like (2026-10-05).
-PHYSICS_S, PASS_S, THERMAL_S = 0.01, 0.05, 0.1
+#: The feed's period, s - the stand-in's boards answer out of memory -, and the longest a pass
+#: takes the flight on, in its steps (`flight.steps`). The flight's clock is its steps' sum: a
+#: pass in twenty ran 50 ms, the routine's rows asked by the wall's clock moved further than
+#: their pass and the rotors' loops went to their clamp on what that looked like (2026-10-05).
+PHYSICS_S, PASS_S = 0.01, 0.05
 
 #: The camera: the reach framed about the quad on the floor before a flight and in the air, m,
 #: the pull from one to the other, s, its look down, degrees, its turn about the quad, degrees a
@@ -189,7 +188,7 @@ def main(argv=None):
     say('ok', 'drawing', lit.name if lit is not None else 'this process, dots')
     sky, route, trace = quad.Sky(grounds.solids()), aerobatics.routine(flown.CARD), []
     began = time.monotonic()
-    held = {'at': 0.0, 'clock': 0.0, 'thermal_at': 0.0, 'frame': sky.state(), 'reset': False,
+    held = {'at': 0.0, 'clock': 0.0, 'frame': sky.state(), 'reset': False,
             'wind': False, 'flying': Flying(flown.TOP_N, aerobatics.DOWN),
             'flight': flown.fresh(), 'arrows': True, 'line': True}
     camera = {'reach': NEAR_M, 'yaw': YAW, 't': None, 'zoom': 1.0}
@@ -239,10 +238,6 @@ def main(argv=None):
                                   default=None)))
             while trace and held['clock'] - trace[0][0] > traces.TRACE_S:
                 trace.pop(0)
-            if now - held['thermal_at'] >= THERMAL_S:
-                held['thermal_at'] = now
-                for rotor in rotors:
-                    rotor['budget'], rotor['ident'], rotor['board_c'] = flown.warmth(rotor['rig'])
 
     feed = Feed(sample, period=PHYSICS_S).start()
     board_view = stage()

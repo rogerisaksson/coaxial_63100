@@ -241,7 +241,7 @@ def boards(air, room=BENCH, left=1.0):
     sky, route = quad.Sky(grounds.solids()), aerobatics.routine(course.CARD)
     law, flight = flying.Flying(view.TOP_N, aerobatics.DOWN), view.fresh()
     flight['cells'].update(left=left, volts=quad.open_volts(left))
-    flight['air'], t, read, laps, soa, least = air, 0.0, 0.0, {}, 0.0, 1.0
+    flight['air'], t, laps, soa, least = air, 0.0, {}, 0.0, 1.0
     try:
         while t < 150.0 and flight['stage'] != 'land' and not sky.hit:
             for t, frame in view.passed(rotors, sky, route, law, flight, t, 0.02):
@@ -253,10 +253,6 @@ def boards(air, room=BENCH, left=1.0):
                          sum(quad.K_THRUST * r['w'] ** 2 for r in rotors) / view.TOP_N))
                     soa = max([soa] + [(r['budget'] or {}).get('worst') or 0.0 for r in rotors])
                     least = min(least, flight['share'])
-            if t - read >= 0.1:
-                read = t
-                for rotor in rotors:
-                    rotor['budget'], rotor['ident'], rotor['board_c'] = view.warmth(rotor['rig'])
     finally:
         for rotor in rotors:
             rotor['rig'].board.drive.off()

@@ -268,3 +268,8 @@ The board's own are in [FINDINGS](../FINDINGS.md).
   boards' tips 0.07-0.15 m inside in four winds, a stuffy room and a pack at
   60 %, every flight whole, where a wind's passed 0.02 out; 0.3 or 0.4 under
   struck or passed 0.6 out - the line's shape at the finish carries round.
+- The page in the race's steps (2026-10-10): stepped as the wall's passes
+  came, a loaded page drew its air's eddies on other steps, gate 0 crossed
+  0.97 m low, 0.15 past its room, one flight in nine. In 20 ms steps, the rest
+  owed, the observers read on the flight's clock: one flight whatever the
+  wall, 14.24 and 14.98 s, every tip 0.25 m inside.
