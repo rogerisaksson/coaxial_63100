@@ -53,7 +53,7 @@ class Out(ctypes.Structure):
 
     _fields_ = [('tau', _d * DRIVEN), ('udot', _d * N), ('wrench', (_d * 6) * 2),
                 ('bears', _d * 2), ('alpha', _d * LEVELS), ('over', _i * DRIVEN),
-                ('load', _d * DRIVEN)]
+                ('load', _d * DRIVEN), ('jeff', _d * DRIVEN)]
 
 
 def ask_of(ask):
@@ -193,7 +193,7 @@ class Core:
         return {'tau': np.array(out.tau), 'udot': np.array(out.udot),
                 'wrench': np.array([list(w) for w in out.wrench]), 'bears': list(out.bears),
                 'alpha': list(out.alpha), 'over': np.array(out.over, bool),
-                'load': np.array(out.load)}
+                'load': np.array(out.load), 'jeff': np.array(out.jeff)}
 
     def stack_seconds(self, base, q, u, ask, reps=200):
         """Seconds a tick of the loop on this host."""

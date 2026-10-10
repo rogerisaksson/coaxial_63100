@@ -856,10 +856,13 @@ void wbc_stack_step(wbc_body_t *b, wbc_stack_t *s, const wbc_frame_t *base,
   unload(load, total);
   for (int j = 0; j < WBC_DRIVEN; j++)
   {
+    const double gain = s->bb[dof_of(j)][j];
+
     out->tau[j] = total[j];
     out->over[j] = fabs(before[j]) > nominal[j] * (1.0 + 1e-6);
     out->load[j] = fabs(load[j]) / nominal[j];
     s->load[j] = out->load[j];
+    out->jeff[j] = (gain > 1e-9) ? 1.0 / gain : 0.0;
   }
   for (int j = 0; j < WBC_DRIVEN; j++)
   {

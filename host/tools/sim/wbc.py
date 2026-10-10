@@ -28,6 +28,12 @@ AT_S, TO_S, HELD_DEG, SPREAD_S = 1.0, 3.0, 25.0, 0.035
 #: the soles' middle.
 XI_K = 2.0
 
+#: The drives' disturbance observers' bandwidth, rad/s (`--inner eso`, `--eso-wo`).
+ESO_WO = 100.0
+
+#: The centre of mass's creep along the floor, mm/s, over a stand's last CREEP_S.
+CREEP_S = 2.0
+
 #: A walk measured from TIMED_FROM_S after it is asked, s.
 TIMED_FROM_S = 2.0
 
@@ -95,14 +101,17 @@ def _under(m, body, root):
 
 
 def stand(push=0.0, way=0.0, seconds=None, trace=False, wep=True, steps=True, at=AT_S, walk=None,
-          core=False):
+          core=False, inner='pd'):
     """{stood, tilt deg, drift m, top share, us a step, wep s, steps, ..} standing `seconds` (TO_S
     past the shove), shoved `push` N from `way` deg at `at`; `wep` war emergency power granted;
     `steps` the MPC's law, else the capture point's alone; `walk` (m/s, s a step) asked from
     `at` on, her walk's metres, m/s and J/m measured from TIMED_FROM_S into it; `core` the
-    loop in C (`tools.cores.wbc.stack_step`) in the python stack's place."""
+    loop in C (`tools.cores.wbc.stack_step`) in the python stack's place; `inner` the drives'
+    own loop: 'pd' round a reference integrated from the stack's accelerations, 'eso' each
+    drive's disturbance observed (`parts.Eso` at ESO_WO) and taken off its torque, 'none' the
+    torque as asked."""
     import numpy as np
-    from machine import balance, gait, physics, wbc
+    from machine import balance, gait, parts, physics, wbc
     from machine.errors import MachineError
     from machine.drives import kind
     from machine.figure import JOINTS, SEGMENTS
@@ -116,7 +125,7 @@ def stand(push=0.0, way=0.0, seconds=None, trace=False, wep=True, steps=True, at
     s = wbc.sense(body, world.data.qpos, world.data.qvel)
     low = min(float(f['pts'][:, 1].min()) for f in s['feet'])
     world.reset(pose, where=(0.0, 1.0 - low, 0.0))
-    world.gains[:] *= SERVO_SHARE
+    world.gains[:] *= SERVO_SHARE if inner == 'pd' else 0.0
     world.gains[~body.driven] = 0.0
     free_kp = world.gains[:, 0].copy()
     legs = [[i for i, j in enumerate(JOINTS) if j.startswith(side) and kind(j) in LEG_KINDS]
@@ -132,6 +141,7 @@ def stand(push=0.0, way=0.0, seconds=None, trace=False, wep=True, steps=True, at
     ours = hers - {m.body(seg[0]).id for seg in SEGMENTS if seg[0].endswith(('_foot', '_toes'))}
     s = wbc.sense(body, world.data.qpos, world.data.qvel)
     home = s['com'].copy()
+    esos = [parts.Eso(float(s['M'][d, d]), ESO_WO) for d in body.act] if inner == 'eso' else []
     mid = (s['feet'][0]['sole'][[0, 2]] + s['feet'][1]['sole'][[0, 2]]) / 2.0
     st = balance.state(s, body.knees)
     pushed, tilt, drift, top, cost, passes, worst = False, 0.0, 0.0, 0.0, 0.0, 0, 0.0
@@ -139,6 +149,7 @@ def stand(push=0.0, way=0.0, seconds=None, trace=False, wep=True, steps=True, at
     a = math.radians(way)
     seconds = at + TO_S if seconds is None else seconds
     walked, drawn, z0 = None, 0.0, None
+    settled = None
     while now[0] < seconds:
         t0 = time.perf_counter()
         s = wbc.sense(body, world.data.qpos, world.data.qvel)
@@ -151,7 +162,7 @@ def stand(push=0.0, way=0.0, seconds=None, trace=False, wep=True, steps=True, at
             break
         cost += time.perf_counter() - t0
         passes += 1
-        world.feed[body.driven] = out['tau']
+        world.feed[body.driven] = _torques(esos, world, body, out)
         bears = out['bears']
         for k, leg in enumerate(legs):
             world.gains[leg, 0] = free_kp[leg] * (STANDING_KP if ask['stance'][k] else 1.0)
@@ -180,6 +191,8 @@ def stand(push=0.0, way=0.0, seconds=None, trace=False, wep=True, steps=True, at
         tilt = max(tilt, math.degrees(math.acos(max(-1.0, min(1.0, 1.0 - 2.0 * (q[1] ** 2
                                                                               + q[3] ** 2))))))
         drift = max(drift, float(np.linalg.norm((s['com'] - home)[[0, 2]])))
+        if settled is None and now[0] >= seconds - CREEP_S:
+            settled = s['com'][[0, 2]].copy()
         down = down or touched(world, ours, hers)
         if trace and steps and st['phase'] != was:
             omega = math.sqrt(9.81 / s['com'][1])
@@ -207,19 +220,39 @@ def stand(push=0.0, way=0.0, seconds=None, trace=False, wep=True, steps=True, at
                 and tilt <= HELD_DEG, 'steps': st['steps'], 'tilt': round(tilt, 1),
                 'us': round(1e6 * cost / max(1, passes)), 'failed': failed, 'down': down,
                 't': round(now[0], 3)}
+    creep = (float(np.linalg.norm(s['com'][[0, 2]] - settled)) / CREEP_S if settled is not None
+             else None)
     return {'push': push, 'way': way, 'stood': not failed and not down and tilt <= HELD_DEG,
             'failed': failed, 'tilt': round(tilt, 1), 'drift_mm': round(1e3 * drift, 1),
+            'creep_mm_s': None if creep is None else round(1e3 * creep, 2),
+            'disturbance_nm': round(float(np.mean([abs(e.j * e.d) for e in esos])), 2) if esos
+            else None,
             'top': round(top, 2), 'us': round(1e6 * cost / max(1, passes)), 'slack': worst,
             't': round(now[0], 3), 'wep_s': round(WEP_S - left, 3) if wep else 0.0,
             'steps': st['steps'] if steps else 0, 'down': down}
 
 
-def polar(forces, wep=True, steps=True, spread=1, core=False):
+def _torques(esos, world, body, out):
+    """The drives' torques this pass: the stack's, less what each observer sees of its drive's
+    own disturbance; the inertia each observer scales by the loop's own, where it gives it."""
+    import numpy as np
+    if not esos:
+        return out['tau']
+    seen, planned, jeff = world.data.qpos[body.qact], out['qacc'][body.act], out.get('jeff')
+    taken = []
+    for k, e in enumerate(esos):
+        if jeff is not None:
+            e.j = float(jeff[k])
+        taken.append(e.step(0.001, measured=float(seen[k]), command=float(planned[k]))['estimate'])
+    return out['tau'] - np.array(taken)
+
+
+def polar(forces, wep=True, steps=True, spread=1, core=False, inner='pd'):
     """A shove from each of WAYS at each of `forces`, `spread` moments apart, a relay job each:
     {N: [stood way ..]}."""
     from tools.dev import focus
     flags = (([] if wep else ['--no-wep']) + ([] if steps else ['--no-step'])
-             + (['--core'] if core else []))
+             + (['--core'] if core else []) + ['--inner', inner])
     jobs = [focus.Job('%g@%d.%d' % (n, w, i), [sys.executable, '-X', 'utf8',
                                                os.path.abspath(__file__), '--one', str(n), str(w),
                                                '--at', str(AT_S + SPREAD_S * i)] + flags,
@@ -241,6 +274,7 @@ def polar(forces, wep=True, steps=True, spread=1, core=False):
 
 
 def main(argv=None):
+    global ESO_WO
     parser = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
     parser.add_argument('--polar', nargs='*', type=float, metavar='N')
     parser.add_argument('--one', nargs=2, type=float, metavar=('N', 'WAY'))
@@ -253,8 +287,13 @@ def main(argv=None):
     parser.add_argument('--no-wep', action='store_true', help='no war emergency power')
     parser.add_argument('--no-step', action='store_true', help='the capture point alone')
     parser.add_argument('--core', action='store_true', help='the loop in C, not the python stack')
+    parser.add_argument('--inner', default='pd', choices=('pd', 'eso', 'none'),
+                        help="the drives' own loop")
+    parser.add_argument('--eso-wo', type=float, default=ESO_WO, help="the observers' rad/s")
     args = parser.parse_args(argv)
-    flags = {'wep': not args.no_wep, 'steps': not args.no_step, 'core': args.core}
+    ESO_WO = args.eso_wo
+    flags = {'wep': not args.no_wep, 'steps': not args.no_step, 'core': args.core,
+             'inner': args.inner}
     if args.walk:
         speed, step_s, secs = args.walk
         print(json.dumps(stand(seconds=AT_S + secs, trace=args.v, walk=(speed, step_s), **flags)))

@@ -195,13 +195,28 @@ the files under docs/FINDINGS.md. An item is deleted when its DOD is met.
     + Upward: the law's rows as asks - balance point, contacts, clearances,
       turns, hands - and the leg recipes gone; the get-up's words rows of
       asks; the model picks and fills rows (`decide`), never code.
+    + Bottom, each board: an ESO/ADRC `ctrl` part against the FOC loop - the
+      drive's own friction, backlash, cogging and drift estimated around the
+      loop's predicted acceleration and cancelled, the actuator an ideal
+      torque source; the body's dynamics and the contacts are not its
+      disturbance. Measured need: creep 5 mm/s on pure torque, an ankle's
+      deadband 24 mm (wbc.md); a virtual spring's stick-slip on the boards
+      as built, with and without it, the measure.
+    + Behaviour: impedance (K, D a task, inputs) and a CPG's phases in R^k
+      in balance.py's and going.py's place; dynamic equations, no stages.
+    + Top: the model writes K and the phases, nothing else.
     + Wire: 10 Mbit proven; a feedforward torque register (PROTOCOL MINOR).
     + Done: the arrays; the chain's poses, Jacobians, M and bias in C against
       MuJoCo; the loop (`wbc_stack.c`) 0.01 N m off the python stack standing,
       125 us a tick here, stands 3 s and a 60 N shove in MuJoCo
       (test_wbc_core.py); both presets build it at 0 warnings.
-    + Next: the polar on the loop against the stack's; the pyramids, the
-      centre of pressure and the stops as clips; the walk (`--walk --core`).
+    + Done: `parts.Eso` and `CTRL_ESO`, twins, `--inner eso` in the stand;
+      standing they see 0.1 N m, no signal (wbc.md).
+    + Next: the loop's walk falls at its first step, the neck at its WEP
+      peak: saturation in the null space in the clip's place; the centre of
+      pressure, the friction cone, the stops and the neck's ranges as rows
+      held at their bound; then the polar and the walk against the stack's,
+      and the observer's worth measured on the walk.
     + DOD: the stand and the walk on the C loop with their measures kept
       (J/m, band, polar); a step < 1 ms on a 475 MHz M7.
 

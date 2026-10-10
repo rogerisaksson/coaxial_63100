@@ -8,10 +8,11 @@
 #define CTRL_RAD_DEG 0.01745329252f
 
 const char *const ctrl_kind_names[CTRL_KINDS] = {
-  "", "Gain", "Slew", "Wrap", "LowPass", "SpeedKalman", "PI", "AngleHold", "Direct", "SpeedPI"
+  "", "Gain", "Slew", "Wrap", "LowPass", "SpeedKalman", "PI", "AngleHold", "Direct", "SpeedPI",
+  "Eso"
 };
 
-const uint8_t ctrl_kind_params[CTRL_KINDS] = { 0U, 1U, 1U, 1U, 1U, 5U, 3U, 5U, 1U, 7U };
+const uint8_t ctrl_kind_params[CTRL_KINDS] = { 0U, 1U, 1U, 1U, 1U, 5U, 3U, 5U, 1U, 7U, 2U };
 
 static float clamp(float v, float limit)
 {
@@ -88,6 +89,26 @@ static float speed_kalman(ctrl_part_t *part, float dt, float measured, float com
   part->y += gain_k * (measured - part->y);
   part->was *= 1.0f - gain_k;
   return part->y;
+}
+
+/** machine.parts.Eso: y the angle, x the speed, was the disturbance, rad/s^2; j was out. */
+static float eso(ctrl_part_t *part, float dt, float measured, float command)
+{
+  const float *p = part->p;     /* j wo */
+  const float  wo = p[1];
+  float        e;
+
+  if (!part->primed)
+  {
+    part->primed = true;
+    part->y = measured;
+    return 0.0f;
+  }
+  e = measured - part->y;
+  part->y += dt * (part->x + 3.0f * wo * e);
+  part->x += dt * (command + part->was + 3.0f * wo * wo * e);
+  part->was += dt * wo * wo * wo * e;
+  return p[0] * part->was;
 }
 
 static float pi(ctrl_part_t *part, float dt, float setpoint, float measured, float accel,
@@ -171,7 +192,7 @@ static const ctrl_filter_fn FILTERS[CTRL_KINDS] = {
 };
 
 static const ctrl_estimate_fn ESTIMATORS[CTRL_KINDS] = {
-  [CTRL_SPEED_KALMAN] = speed_kalman
+  [CTRL_SPEED_KALMAN] = speed_kalman, [CTRL_ESO] = eso
 };
 
 static const ctrl_regulate_fn REGULATORS[CTRL_KINDS] = {

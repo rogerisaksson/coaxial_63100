@@ -30,6 +30,7 @@ CASES = {
     'AngleHold': (parts.AngleHold(7.0, 0.3, 2.0, 5.0, 1.5), 'regulate'),
     'Direct': (parts.Direct(2.0), 'regulate'),
     'SpeedPI': (parts.SpeedPI(3.0, 2.0, KT, J, B, 1e-9, 0.10472), 'regulate'),
+    'Eso': (parts.Eso(0.3, 20.0), 'estimate'),
 }
 
 

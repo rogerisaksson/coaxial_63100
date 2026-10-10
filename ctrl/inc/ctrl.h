@@ -18,6 +18,7 @@ typedef enum
   CTRL_ANGLE_HOLD,    /**< poles theta0 ki trim most */
   CTRL_DIRECT,        /**< limit */
   CTRL_SPEED_PI,      /**< hz limit kt j b load_k scale */
+  CTRL_ESO,           /**< j wo */
   CTRL_KINDS
 } ctrl_kind_t;
 

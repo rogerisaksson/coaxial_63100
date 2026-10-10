@@ -94,7 +94,8 @@ typedef struct
 
 /** What the loop answers: the drives' torques; every acceleration (u's order); each sole's
     wrench (m, f) in the world and its load; of each level, the share the polytope let
-    through; the drives asked past their clamps, and each drive's load of its clamp. */
+    through; the drives asked past their clamps, each drive's load of its clamp, and the
+    inertia each drive's torque meets. */
 typedef struct
 {
   double tau[WBC_DRIVEN];
@@ -104,6 +105,7 @@ typedef struct
   double alpha[WBC_LEVELS];
   int    over[WBC_DRIVEN];
   double load[WBC_DRIVEN];
+  double jeff[WBC_DRIVEN];        /**< each drive's effective inertia under the body and the contacts, kg m^2 */
 } wbc_out_t;
 
 /** The loop's memory, laid once. */

@@ -183,3 +183,32 @@ height's band and WEP's share are tasks or clips, or absent. 2026-10-10:
 | in MuJoCo on the loop, 3 s | stood, tilt 0.8 deg, drift 28 mm |
 | shoved 60 N from behind, the MPC's steps | stood, tilt 1.5 deg, no step |
 | shoved from 8 ways at 60 / 80 / 100 / 120 N, the MPC's steps, WEP: stood of 8 | the loop 7 / 4 / 0 / 1; the stack 8 / 7 / 7 / 3 |
+
+### The drives' own loop under it
+
+`machine.parts.Eso` and `CTRL_ESO`, twins (test_ctrl_core.py): Han's extended
+state observer on a joint's angle about the acceleration the loop planned for
+it, the drive's own residual taken off its torque, the inertia the loop's own
+(`jeff`, 1 / B_jj under the body and the contacts). `tools/sim/wbc.py --inner
+none|pd|eso [--eso-wo]`, standing 6 s on the loop, the centre of mass over the
+last 2 s (2026-10-10):
+
+| Inner loop | MPC's steps: creep mm/s, drift mm, tilt deg | capture point alone |
+| --- | --- | --- |
+| none, the torque as asked | 3.06, 33.6, 1.9 | 1.33, 16.4, 0.9 |
+| PD round the integrated reference | 1.73, 36.2, 0.9 | 1.39, 24.7, 0.6 |
+| ESO at 100 rad/s | 1.55, 21.5, 0.7 | 1.69, 18.6, 0.7 |
+| ESO at 400 rad/s | 1.64, 20.6, 0.7 | 1.69, 18.6, 0.7 |
+
+- Standing, the observers see 0.1 N m: the joints hardly move, the drag is
+  stiction without a signal, and the MPC's own replanning wanders more than
+  the friction. The measure that separates the three is a walk, where every
+  joint reverses against the drag each step.
+- The walk on the loop (`--walk 0.5 0.5 8 --core`) falls at its first step
+  with each inner loop, tilt 25 deg at 1.7 s; the python stack walks 1.88 m,
+  0.31 m/s, 792 J/m. The trace: as the swing begins the neck's torque sits at
+  3.6 times its top, its WEP peak, and the swinging sole gets little - the
+  clip scales a whole level back when one weak drive saturates, where the QP
+  redistributes within the clamps. Next: saturation in the null space (the
+  drive held at its bound, the level solved again in the rest), the centre of
+  pressure, the friction cone and the stops as rows held at their bound.

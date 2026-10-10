@@ -100,6 +100,35 @@ class SpeedKalman(Estimator):
         self.w, self.p = None, self.r
 
 
+class Eso(Estimator):
+
+    """A drive's own disturbance, N m, from its joint's angle and the acceleration the loop
+    predicted for it (`command`): Han's extended state observer at bandwidth wo, gains 3 wo,
+    3 wo^2, wo^3, the nominal plant angle'' = command + d. `estimate` is j d, the torque to
+    take off the command so the drive acts as the loop's ideal torque source; the body's
+    dynamics and the contacts, in `command`, are not its disturbance."""
+
+    OUTPUTS = ('estimate', 'angle', 'speed')
+    PARAMS = ('j', 'wo')
+
+    def __init__(self, j=0.1, wo=50.0):
+        self.j, self.wo = float(j), float(wo)
+        self.reset()
+
+    def step(self, dt, measured=0.0, command=0.0):
+        if self.angle is None:
+            self.angle = measured
+        else:
+            e, wo = measured - self.angle, self.wo
+            self.angle += dt * (self.speed + 3.0 * wo * e)
+            self.speed += dt * (command + self.d + 3.0 * wo * wo * e)
+            self.d += dt * wo * wo * wo * e
+        return {'estimate': self.j * self.d, 'angle': self.angle, 'speed': self.speed}
+
+    def reset(self):
+        self.angle, self.speed, self.d = None, 0.0, 0.0
+
+
 # -- regulators ------------------------------------------------------------------------
 
 class PI(Regulator):
