@@ -194,11 +194,25 @@ def test_the_two_implementations_share_their_names(report, _boot):
         report.check('the rig exposes it as board.boot', isinstance(device.board.boot, BootControl))
 
 
+def test_the_images_their_sources(report, _boot):
+    """The terminal's check (tools/target/current.py): ninja's dry run read for what it would
+    build, nothing where it has no work."""
+    from tools.target.current import pending
+    said = ("ninja: Entering directory `build/Release'\n"
+            '[1/3] Building C object CMakeFiles/app.dir/comms/src/cmd_board.c.obj\n'
+            '[2/3] Linking C executable coaxial_63100.elf\n')
+    report.check('a tree behind says its steps and the first, a current one nothing',
+                 pending(said) == '3 steps, the first Building C object '
+                                  'CMakeFiles/app.dir/comms/src/cmd_board.c.obj'
+                 and pending('ninja: no work to do.\n') == '',
+                 repr(pending(said)))
+
+
 def main():
     report = Report()
     for test in (test_one_node_flashed, test_the_same_image_kept, test_refusals, test_a_bus_of_four,
                  test_the_store, test_the_image_from_an_elf,
-                 test_the_two_implementations_share_their_names):
+                 test_the_two_implementations_share_their_names, test_the_images_their_sources):
         print('\n-- %s --' % test.__name__[5:].replace('_', ' '))
         test(report, SimulatedBoot())
     print('\n%d passed, %d failed' % (report.passed, report.failed))

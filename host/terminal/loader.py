@@ -226,6 +226,10 @@ def main(argv=None):
     parser.add_argument('--frames', type=int, default=0,
                         help='draw this many and exit - the smoke')
     args = parser.parse_args(argv)
+    if sys.stdin.isatty() and not args.frames:
+        # A pull's sources, built before a page runs their images (tools/target/current.py).
+        from tools.target import current
+        current.ensure()
     state = fresh()
     threading.Thread(target=preload, args=(state,), daemon=True).start()
     if args.frames and not args.name:

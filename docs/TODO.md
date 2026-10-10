@@ -183,9 +183,6 @@ met.
   unavoidable; state one contiguous array, steps branch-free passes over
   it. DOD: the hot paths ranked by them, each cut or named unavoidable; a
   model's change one change in every executive.
-- **A pull rebuilds** (the user, 2026-10-10): a terminal opened on stale
-  binaries - the images, the host's C libraries - starts their build and
-  says so. DOD: a pull, a terminal, the build begun and said.
 - **native://**: a limb's world on a fixed mount as board/emu's; one
   Transport a rig on a URL bus. DOD: the body's balance and gait from the
   SIL; the fallback where nothing answers.

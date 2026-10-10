@@ -121,3 +121,8 @@ own are in [FINDINGS](../FINDINGS.md).
 - `test_sensorless` 20 of 20 green, 136 checks each, and `test_daq_api` 20
   of 20, 82 each, on the relay beside a quad grid (2026-10-10): the servo's
   1 gate in 4 and the first dt's once of 2026-10-05 not seen.
+- A pull rebuilds (the user, 2026-10-10): the terminal, opened in a console,
+  asks each tree's ninja what it would build (0.04 s) and builds Debug and
+  Release where either is behind, said, Release last - the newest
+  `open()` loads (tools/target/current.py). The host's C libraries are
+  built in each process already. A source touched: both built in 3.9 s.
