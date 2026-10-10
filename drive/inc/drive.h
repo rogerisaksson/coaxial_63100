@@ -359,6 +359,9 @@ void drive_sincos(float theta, float *s, float *c);
 /** atan2, a polynomial: 1.7e-6 worst, no library call. */
 float drive_atan2(float y, float x);
 
+/** tanh, a rational on the clamped argument: a float's few ulps, no branch nor library call. */
+float drive_tanh(float x);
+
 /** The dead-time table at `amps`, odd in the current. */
 float drive_dt_volts(const drive_params_t *p, float amps);
 

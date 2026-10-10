@@ -357,6 +357,11 @@ API float drv_wrap(float theta)
   return drive_wrap(theta);
 }
 
+API float drv_tanh(float x)
+{
+  return drive_tanh(x);
+}
+
 API float drv_dt_volts(const drive_t *d, float amps)
 {
   return drive_dt_volts(&d->p, amps);

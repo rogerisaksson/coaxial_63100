@@ -115,7 +115,11 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   `Board_AdcPhaseSlot`, `Board_AdcDifferential`, `Board_AfeOn`,
   `Board_CalApply` and its 64-bit divide (`__udivmoddi4`, 40 branches),
   `Board_AngleState`, `lrintf`, `memset`/`memcpy`, the virtual plant's
-  `tanhf` and libm's errno path. The UARTs interrupt a byte.
+  `tanhf` and libm's errno path. The UARTs interrupt a byte. Cut: those
+  into ITCM, the calibration a laid Q28 scale (an SMULL and a shift), the
+  rounding `vrintr`, `drive_tanh` a clamped rational - 74 functions, 358
+  branches, 53 divides; on Renode the virtual plant's ISR 1 728 -> 1 682
+  instructions, its advance 320 -> 274.
 
 ## IMU (BNO085)
 

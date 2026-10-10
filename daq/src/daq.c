@@ -325,7 +325,7 @@ static bool filtered(daq_t *d, uint8_t field, int32_t sum, uint16_t count,
   {
     return false;
   }
-  *out = (int32_t)lrintf(y * (float)count);
+  *out = (int32_t)nearbyintf(y * (float)count);
   return true;
 }
 
@@ -712,7 +712,7 @@ static int32_t tone_next(daq_tone_t *t)
   {
     tone_renormalise(t, x, y);
   }
-  return (int32_t)lrintf(t->offset + (t->amp * t->y));
+  return (int32_t)nearbyintf(t->offset + (t->amp * t->y));
 }
 
 void daq_tone_poll(daq_t *d, uint32_t now, uint32_t burst)

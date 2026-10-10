@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """The control law, on this host, against a motor that exists only here: modes, the current
 loop, an I/f start, trips, polarity, dead time, moments, the model."""
+import ctypes
 import math
 import sys
 
@@ -42,6 +43,11 @@ def test_math(r, lib):
                 and 0.0 <= min(duty) and max(duty) <= 1.0, (scale, duty))
         scale, duty = d.svm(5.0, 0.0, 0.0)
         r.check('svm: no link means no duty', duty == (0.0, 0.0, 0.0), duty)
+        lib.drv_tanh.restype, lib.drv_tanh.argtypes = ctypes.c_float, [ctypes.c_float]
+        worst = max(abs(lib.drv_tanh(x / 64.0) - math.tanh(x / 64.0))
+                    for x in range(-1024, 1025))
+        r.check('tanh: within a float\'s few ulps of the library\'s over +-16', worst < 1e-6,
+                '%.2e at the worst' % worst)
         r.check('wrap keeps [0, 2 pi)',
                 abs(d.wrap(-0.5) - (TWO_PI - 0.5)) < 1e-5
                 and d.wrap(TWO_PI) == 0.0 and abs(d.wrap(7.0) - (7.0 - TWO_PI)) < 1e-5)

@@ -87,7 +87,7 @@ static void omega_add(drive_model_t *m, float d)
 
 static float model_ld(const drive_model_t *m)
 {
-  return m->p.ld * (1.0f - m->p.sat * tanhf(m->id / m->p.i_sat));
+  return m->p.ld * (1.0f - m->p.sat * drive_tanh(m->id / m->p.i_sat));
 }
 
 void drive_model_sample(drive_model_t *m, drive_sample_t *out)
@@ -125,7 +125,7 @@ void drive_model_advance(drive_model_t *m, const float *duty, float ts)
   {
     for (uint8_t k = 0U; k < DRIVE_PHASES; k++)
     {
-      v[k] -= m->p.v_dt * tanhf(m->i_abc[k] / m->p.i_knee);
+      v[k] -= m->p.v_dt * drive_tanh(m->i_abc[k] / m->p.i_knee);
     }
   }
 

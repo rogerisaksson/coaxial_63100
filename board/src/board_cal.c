@@ -37,6 +37,28 @@ static const struct
 
 static board_cal_t s_cal;
 
+/* Each channel's offset and gain_ppm/1e6 in Q28, laid from the record wherever it changes - zero
+   the identity, the row past them an unknown index's: a read an SMULL and a shift, where a 64-bit
+   divide ran __udivmoddi4's 40 branches a DAQ sample (2026-10-10). */
+#define CAL_SCALE_Q 28
+static struct
+{
+  int32_t offset;
+  int32_t gain;
+} s_laid[BOARD_CAL_CHANNELS + 1U];
+
+static void lay(void)
+{
+  for (uint32_t i = 0U; i < BOARD_CAL_CHANNELS; i++)
+  {
+    const int64_t gain = (int64_t)s_cal.chan[i].gain_ppm * ((int64_t)1 << CAL_SCALE_Q) / 1000000;
+    const int64_t most = INT32_MAX - ((int64_t)1 << CAL_SCALE_Q);
+
+    s_laid[i].offset = s_cal.chan[i].offset_raw;
+    s_laid[i].gain = (int32_t)((gain < most) ? gain : most);
+  }
+}
+
 /* Compiled-in defaults: what the schematic says, traced 2026-08-26 from
    electronics/Coaxial 63100 Schematics.pdf. */
 static const board_cal_t CAL_DEFAULTS =
@@ -168,6 +190,7 @@ static bool cal_take(const board_cal_t *stored)
   if (cal_valid(stored))
   {
     s_cal = *stored;
+    lay();
     return true;
   }
   if (kept > 0U)
@@ -176,6 +199,7 @@ static bool cal_take(const board_cal_t *stored)
     memcpy(&s_cal, stored, kept);
     s_cal.version = CAL_VERSION;
     s_cal.crc = cal_crc(&s_cal);
+    lay();
     return true;
   }
   return false;
@@ -191,6 +215,7 @@ void Board_CalInit(void)
   /* Never written, or written by an older layout, or corrupted. */
   s_cal = CAL_DEFAULTS;
   s_cal.crc = cal_crc(&s_cal);
+  lay();
 }
 
 const board_cal_t *Board_Cal(void)
@@ -209,6 +234,7 @@ void Board_CalDefaults(void)
 {
   s_cal = CAL_DEFAULTS;
   s_cal.crc = cal_crc(&s_cal);
+  lay();
 }
 
 bool Board_CalLoad(void)
@@ -445,6 +471,7 @@ bool Board_CalSetChannel(uint8_t index, int32_t offset_raw, int32_t gain_ppm)
 
   s_cal.chan[index].offset_raw = offset_raw;
   s_cal.chan[index].gain_ppm = gain_ppm;
+  lay();
   return true;
 }
 
@@ -463,21 +490,9 @@ bool Board_CalChannel(uint8_t index, int32_t *offset_raw, int32_t *gain_ppm)
 
 int32_t Board_CalApply(uint8_t index, int32_t raw)
 {
-  if (index >= BOARD_CAL_CHANNELS)
-  {
-    return raw;
-  }
+  const uint32_t k = (index < BOARD_CAL_CHANNELS) ? index : BOARD_CAL_CHANNELS;
+  const int64_t scaled = (int64_t)(raw - s_laid[k].offset)
+                         * (s_laid[k].gain + ((int32_t)1 << CAL_SCALE_Q));
 
-  const board_cal_chan_t *c = &s_cal.chan[index];
-  const int64_t corrected = (int64_t)raw - (int64_t)c->offset_raw;
-
-  if (c->gain_ppm == 0)
-  {
-    return (int32_t)corrected;
-  }
-
-  /* 64-bit because a full-scale code times a million overflows 32 bits at
-     4295 counts, which every channel here exceeds. */
-  return (int32_t)(corrected +
-                   (corrected * (int64_t)c->gain_ppm) / 1000000);
+  return (int32_t)((scaled + ((int64_t)1 << (CAL_SCALE_Q - 1))) >> CAL_SCALE_Q);
 }
