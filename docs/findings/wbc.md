@@ -1,87 +1,145 @@
-# Findings: her balance as one convex QP
+# Findings: balance as one convex QP
 
 The whole-body stack (`machine/wbc.py`) on its solver (`machine/qp.py`), the
-MPC a second ahead (`machine/mpc.py`), the step it calls (`machine/balance.py`),
-measured by `tools/sim/wbc.py` in a world without buses. The board's own are in
-[FINDINGS](../FINDINGS.md); the law as built is in [standing](standing.md).
+MPC a second ahead (`machine/mpc.py`), the step (`machine/balance.py`),
+measured by `tools/sim/wbc.py` in a world without buses. The board's
+findings: [FINDINGS](../FINDINGS.md); the law as built: [standing](standing.md).
 
-- The solver: Goldfarb and Idnani's dual active set, refactored by one QR a
-  change - KKT 3.8e-12 on 1000 random QPs, warm 0.3 ms against 5 cold. On a
-  stack it broke five ways, each now in `qp.py`: a level's tie-break at 1e-8
-  (condition 1.6e8) found infeasible with z = 0 meeting every row (1e-6 of its
-  curvature solves it); rows met to 1e-9 by the level above, past what the null
-  space could move (clipped at zero); a row in the span of the held ones 2.4e-6
-  over, its dual step driving the multipliers to 1e15 (met under 1e-5); rows
-  5e-17 to 327 long failing the interior point (scaled to unit norm); and rows
-  a level held with a positive multiplier left inequalities below it - the
-  feasible set without interior, both methods failing - joined to the
-  equalities, judged by the task's own multipliers, the tie-break the levels
-  below at 1e-3 (2026-10-10).
-- The levels as measured, each move with its failure (2026-10-10): the angular
-  momentum bled at 10 /s on the level under the centre of mass pinned both
-  soles' centres of pressure to their edges, flipping each 50 ms - 3 /s, with
-  her form; the swinging sole above the turns pitched the pelvis 4 -> 25 deg
-  in 0.1 s to throw the foot - the turns beside it; her height held on the
-  balance's level straightened her standing knees 6 -> 1 deg - her height
-  under the turns, her weight within 3 m/s^2 on the balance's level; the
-  centres of pressure's margin there froze corners at their friction's edge
-  and no sole rose - on the swing's level.
-- Standing on pure torque the gearboxes' drag (1.2-2.2 N m, `physics.BACKDRIVE`)
-  left her centre of mass creeping 5 mm/s, 24 mm of it an ankle's deadband at
-  the law's gain; the drives' PD at half `physics.SERVO`'s kp round a
-  reference integrated from the stack's accelerations: 0.3 mm in 2 s
-  (2026-10-10).
-- Shoved 0.12 s on the trunk from 8 ways, no step: 38 N 8 of 8, 60 N 8, 80 N 4
-  (the sides and the back diagonals), 100 N 2 (the sides), 120 N 0 - where the
-  law as built, stepping on boards as built, 12 of 12, 12, 12 (1-2 steps along
-  her way at 80), 2 and 0. With the MPC's steps: 8 of 8, 8, 7, 7, 3
-  (2026-10-10).
-- War emergency power granted every drive: the head, the neck, the elbows and
-  the shoulders ran at their stacks' 51 N m, 6.4, 3.4, 2.1 and 1.3 times their
-  clamps, swung as weights; granted the legs and the trunk alone 100 N stood 7
-  of 8 where 8, 120 N 3 where 4 (2026-10-10).
-- The step (2026-10-10): its sole unloaded 50-200 ms before it rose still bore
-  54 N - the soft contact (`mjcf.SOLE_S`) keeps a sole held still pressed - and
-  took 280 N back as she leaned onto it: lifted at the call. Straight, its
-  knee lifts it only to second order - asked up 17 m/s^2, the stack gave 1.5
-  (0.09 of the row in the null space below the contacts): the knee folded 45
-  deg over its line. Its path at 400 and 40 lagged 11 cm in a 0.2 s step; at
-  1600 and 80 100 N stood 8 of 8 where 4, 900 and 60 7.
-- A step on the stack costs 1.6-2.6 ms in Python, 11 at worst while the MPC
-  weighs four steps (2026-10-10).
-- The polar spread, each way shoved at three moments 35 ms apart, 24 shoves a
-  force (2026-10-10): 60 N 24 of 24 and no step, 80 N 24, 100 N 20, 120 N 16.
-  The MPC's soles 2 cm inside their edges (`mpc.MARGIN_M`) stepped where the
-  stack alone stood: 60 N 22 of 24 and 44 steps - at 5 mm none. The end's pull
-  to the support's middle at 0.01: 100 N 18, 120 N 9, 60 N 28 steps - kept at 1.
-  A sole the stack laid weight on that bore nothing 50 ms swings
-  (`balance.LOST_S`): counted standing on 0 N for 0.6 s, her rear foot drifted
-  10 cm and she fell aside, the MPC seeing her on both feet. WEP granted every
-  drive (the user: the thermal observer ignored, a blown MOSFET before a broken
-  robot), the neck's and the head's ranges the stack's own (`wbc.RANGES`).
-- Her walk on the stack (`tools/sim/wbc.py --walk`, 2026-10-10): the MPC two
-  landings ahead, each about the one before, its end the LIPM's periodic
-  capture point (w/2 tanh(wT/2) off her midline, l/(e^wT - 1) ahead) and her
-  pace along her way - planned to stop on its second step her feet landed
-  0.26, -0.16, 0.32 m wide and she fell aside; lifted at once from standing,
-  her capture point ran 0.19 m out over the standing sole (0.4 s on both
-  first). Asked 0.5 m/s at 0.5 s a step: up through 16 steps in 8 s, 0.25 m/s,
-  705 J/m; with the drives' PD at a tenth of its kp 0.29 and 637, none 0.30
-  and 592; the pace's weight 10, 100 or 1000 the same - she lags her plan,
-  braked about 20 N in the left foot's stance (the soles -9.9 and +6.8 N s
-  along her way over 2 s), her toes bearing 16 N a sole unmodelled, her knees
-  on their -5 deg stops.
-- Her walk braked at each landing (2026-10-10): its trailing sole, rolled onto
-  its toes, bore none of the 135-297 N the stack laid on it flat while both
-  stood, and the landed sole braked 40-45 N - double support 0.1 s: 0.30 m/s,
-  1015 J/m asked 0.5; 0.03 s: 0.36 and 746 with the pace priced each interval,
-  0.31 and 792 priced at its end alone (kept, fewer terms). A standing leg's PD round the
-  integrated reference fought the stack (an ankle +15 N m against -11): kp at
-  a tenth there. Faster steps walked slower - 0.26 m/s at 0.4 s a step, 0.17
-  at 0.35 -, the pace priced each interval and not only at the end the same:
-  her steps' length is what is short, 0.18 m at 0.5 s where the law's 0.375.
-- The ZMP's margin and the capture's apart (2026-10-10): 5 mm both - 60-120 N
-  24, 24, 20, 16 of 24, the walk 0.31 m/s; the ZMP 1 cm, the capture 5 mm -
-  24, 23, 21, 21 and 0.31; the ZMP 2 cm - 23, 23, 20, 23 and 0.31. Kept at 5 mm
-  both: the 1 cm lost test_wbc's 80 N from behind.
+## Solver
 
+Goldfarb and Idnani's dual active set, one QR refactor a change: KKT 3.8e-12
+on 1000 random QPs; warm 0.3 ms, cold 5 ms. Failures on the stack, each
+handled in `qp.py` (2026-10-10):
+
+| Failure | Handling |
+| --- | --- |
+| a level's tie-break at 1e-8 (condition 1.6e8) found infeasible, z = 0 meeting every row | tie-break at 1e-6 of the level's curvature |
+| rows met to 1e-9 by the level above, past what the null space can move | clipped at zero |
+| a row in the span of the held ones, 2.4e-6 over: its dual step drove the multipliers to 1e15 | met under 1e-5 |
+| rows 5e-17 to 327 long failed the interior point | scaled to unit norm |
+| rows a level held with a positive multiplier left as inequalities below it: no interior, both methods failed | joined to the equalities, judged by the task's own multipliers; the tie-break the levels below at 1e-3 |
+
+## Levels
+
+Each level's content and the failure that placed it (2026-10-10):
+
+| Task | Placement | Failure elsewhere |
+| --- | --- | --- |
+| angular momentum, bled at 3 /s | form's level | at 10 /s under the CoM: both soles' CoPs pinned to their edges, flipping each 50 ms |
+| swinging sole | beside the turns | above them: the pelvis pitched 4 -> 25 deg in 0.1 s to throw the foot |
+| height | under the turns; the weight within 3 m/s^2 on the balance's level | on the balance's level: standing knees straightened 6 -> 1 deg |
+| CoP margin | the swing's level | on the balance's level: corners frozen at their friction's edge, no sole rose |
+
+## Standing on torque
+
+Gearbox drag 1.2-2.2 N m (`physics.BACKDRIVE`) on pure torque: CoM creep 5
+mm/s, 24 mm of it an ankle's deadband at the law's gain. The drives' PD at
+half `physics.SERVO`'s kp round a reference integrated from the stack's
+accelerations: 0.3 mm in 2 s (2026-10-10).
+
+## Shoves
+
+0.12 s on the trunk from 8 ways (2026-10-10), stood of 8; the law as built,
+stepping on boards as built, of 12:
+
+| N | stack, no step | stack, MPC's steps | law as built |
+| --- | --- | --- | --- |
+| 38 | 8 | 8 | 12 |
+| 60 | 8 | 8 | 12 |
+| 80 | 4 (the sides, the back diagonals) | 7 | 12, 1-2 steps along the way |
+| 100 | 2 (the sides) | 7 | 2 |
+| 120 | 0 | 3 | 0 |
+
+Spread polar, each way at three moments 35 ms apart, 24 shoves a force: 60 N
+24 of 24 with no step, 80 N 24, 100 N 20, 120 N 16 (2026-10-10).
+
+| Variant | 60 / 80 / 100 / 120 N of 24 | Kept |
+| --- | --- | --- |
+| MPC soles 2 cm inside their edges (`mpc.MARGIN_M`) | 22 at 60 N, 44 steps | no: 5 mm, no step |
+| end's pull to the support's middle 0.01 | 100 N 18, 120 N 9, 60 N 28 steps | no: 1 |
+| ZMP 5 mm, capture 5 mm | 24 / 24 / 20 / 16, walk 0.31 m/s | yes |
+| ZMP 1 cm, capture 5 mm | 24 / 23 / 21 / 21, walk 0.31 | no: lost test_wbc's 80 N from behind |
+| ZMP 2 cm | 23 / 23 / 20 / 23, walk 0.31 | no |
+
+- A sole the stack loaded that bore nothing for 50 ms swings
+  (`balance.LOST_S`). Counted standing on 0 N for 0.6 s, the rear foot
+  drifted 10 cm and the gynoid fell aside, the MPC seeing both feet down.
+- WEP granted every drive: the thermal observer ignored, a blown MOSFET
+  before a broken robot. The neck's and head's ranges the stack's own
+  (`wbc.RANGES`): unbounded, the head, neck, elbows and shoulders ran at
+  their stacks' 51 N m, 6.4, 3.4, 2.1 and 1.3 times their clamps, swung as
+  weights. Granted the legs and trunk alone: 100 N stood 7 of 8 where 8, 120
+  N 3 where 4 (2026-10-10).
+
+## Step
+
+2026-10-10:
+
+| Fault | Measured | Fix |
+| --- | --- | --- |
+| sole unloaded 50-200 ms before rising | still bore 54 N (`mjcf.SOLE_S` keeps a still sole pressed); took 280 N back as the body leaned onto it | lifted at the call |
+| straight knee lifts its sole only to second order | asked up 17 m/s^2, given 1.5 (0.09 of the row in the null space below the contacts) | the knee folded 45 deg over its line |
+| swing path at 400 and 40 | lagged 11 cm in a 0.2 s step | 1600 and 80: 100 N stood 8 of 8 where 4; 900 and 60: 7 |
+
+A step on the stack costs 1.6-2.6 ms in Python, 11 at worst while the MPC
+weighs four steps.
+
+## Walk
+
+`tools/sim/wbc.py --walk`, 0.5 m/s at 0.5 s a step asked (2026-10-10).
+
+- MPC: two landings ahead, each about the one before; its end the LIPM's
+  periodic capture point, (w/2) tanh(wT/2) off the midline and l/(e^wT - 1)
+  ahead, and the pace along the way. Planned to stop on its second step,
+  the feet landed 0.26, -0.16, 0.32 m wide and the gynoid fell aside. Lifted at
+  once from standing, the capture point ran 0.19 m out over the standing
+  sole: 0.4 s on both soles first.
+- Up through 16 steps in 8 s:
+
+| Variant | m/s | J/m |
+| --- | --- | --- |
+| drives' PD at SERVO_SHARE everywhere | 0.25 | 705 |
+| drives' PD at 0.1 of kp | 0.29 | 637 |
+| no PD | 0.30 | 592 |
+| pace weight 10, 100 or 1000 | same | same |
+| double support 0.1 s | 0.30 | 1015 |
+| double support 0.03 s, pace priced each interval | 0.36 | 746 |
+| double support 0.03 s, pace priced at the end (kept) | 0.31 | 792 |
+| 0.4 s a step | 0.26 | - |
+| 0.35 s a step | 0.17 | - |
+
+- A standing leg's PD round the integrated reference fought the stack (an
+  ankle +15 N m against -11): kp at a tenth there.
+- The steps are short: 0.18 m at 0.5 s where the law's 0.375. Braked ~20 N
+  in the left foot's stance (the soles -9.9 and +6.8 N s along the way over
+  2 s); the toes bear 16 N a sole, unmodelled; the knees on their -5 deg
+  stops.
+
+### The landing, by heel and toe-base cells
+
+A cell under each heel and toe base, the floor's vertical load split by
+lever between z = -HEEL and BALL, the toes' to the toe base; a probe on
+`tools/sim/wbc.py --walk` (2026-10-10):
+
+| t s | trailing sole, cells / plan N | landing sole, cells / plan N | landing sole m/s down |
+| --- | --- | --- | --- |
+| 3.316 | 274 + 23 / 299 | 0 / 0 | 0.43 |
+| 3.320 | 17 + 4 / 135 | 0 + 529 / 162, 114 against the way | 0.39 |
+| 3.324 | 5 + 0 / 127 | 439 + 379 / 131 | 0.27 |
+| 3.332 | 6 + 0 / 121 | 332 + 232 / 78 | 0.09 |
+| 3.348 | 0 / 138 | 180 + 94 / 42 | 0.04 |
+
+- The landing sole comes down toe base first at 0.39-0.47 m/s, its swing's
+  profile 0.25 -> 0; the impact lifts the body off the trailing sole within
+  a millisecond.
+- Both soles stay flat: the trailing heel 1.7 mm under its toe base, its toes
+  at 0 deg. The roll onto the toes recorded here before was not measured.
+- In single support the stack's plan flips from one millisecond to the next
+  among three solutions, the turns' errors 0.6 and 0.4 deg and the angular
+  momentum steady: the rows its levels hold change each step.
+
+| Heel / toe base, N | Right ankle, N m | Rows held, L1 / L2 | L2 slack |
+| --- | --- | --- | --- |
+| 165 / 149 | +7.7 | 2 / 7 | 0 |
+| 39 / 274 | +29.6 | 0 / 8 | 0 |
+| 289 / 0 | -16.6 | 6 / 7 | 1.4e-2 |
