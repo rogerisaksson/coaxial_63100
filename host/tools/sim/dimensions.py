@@ -97,7 +97,7 @@ def text():
     out += ['',
             "A stack its inverter's disc, its outrunner and its gearbox on one axis; kg",
             "with the inverter. Peak at the gearbox's output at the inverter's amps;",
-            'holds, for ever in the oil (`drives.COOLING` %.1f, assumed); deg/s unloaded'
+            'holds, for ever in still air (`drives.COOLING` %.1f); deg/s unloaded'
             % drives.COOLING,
             "at the pack's lowest, %.0f V; the rotor as its joint feels it through the"
             % drives.PACK_V, 'box.', '', '## Axes']

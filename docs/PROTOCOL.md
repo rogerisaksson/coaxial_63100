@@ -380,7 +380,7 @@ Ops:
 | 12 set margin | `i32 floor_ppm` | `u8 took`; into the record, cal op 2 saves it; 1 .. 1 000 000 (MINOR 16) |
 | 13 set clock | `u32 haste` | `u8 took`; thermal s a wall s, 1 on a bench; 1 .. 1000 (MINOR 22) |
 | 14 wep | `u32 ms` | `u8 took`; the clamp's thermal derate held at one that long, the trip standing; 0 ends it, 2000 at most (MINOR 25) |
-| 15 application | `u8 app` | `u8 took`; what it is mounted in, into the record: 0 still air, 1 airstream, 2 enclosure, 3 fan sink, 4 cold plate, 5 PAO, 6 transformer oil - the network laid as `thermal_app.c` has it, the identification started over (MINOR 26) |
+| 15 application | `u8 app` | `u8 took`; what it is mounted in, into the record: 0 still air, 1 airstream, 2 enclosure, 3 fan sink, 4 cold plate, 5 PAO, 6 transformer oil, 7 a joint's holder (MINOR 30) - the network laid as `thermal_app.c` has it, the identification started over (MINOR 26) |
 | 16 airspeed | `u32 mm_s` | `u8 took`; the frame's across the board, held 1 s: in the airstream the forced terms see it beside the rotor's wash; 100 000 at most (MINOR 26) |
 
 Op 0: `u8 ntc_measured, i32 ntc_centi, u8 count`, per node `i32 centi`,
@@ -534,7 +534,7 @@ MINOR appends; MAJOR breaks a codec.
 | --- | --- |
 | 1 | gate op 10 alternate |
 | 2 | device 10 DRIVE; the DC link appended to gate op 0 |
-| 3 | a DAQ record ends with `u16 count`; accumulate 0 closes on the clock - resizes the record, op 5 says the stride |
+| 3 | a DAQ record ends with `u16 count`; accumulate 0 closes on the clock; op 5 says the stride |
 | 4 | DAQ op 0 appends the buffer level, capacity and high-water mark |
 | 5 | DAQ op 4 appends the backlog |
 | 6 | IMU op 8 appends the three vectors, each with its own `have` |
@@ -545,7 +545,7 @@ MINOR appends; MAJOR breaks a codec.
 | 11 | thermal budget appends the derate, the soak joules and the effective duty |
 | 12 | thermal budget appends the winding - estimate, spend, own factor; thermal op 6 sets its envelope |
 | 13 | twenty thermal nodes, the count says so; op 0 appends the FET junction rises and the speed; ops 7, 8, 9 read the node table, the edge table, set an edge |
-| 14 | thermal op 10 reads the online identification - state, which scales move, each scale and sigma, innovation, the envelope's margin, saves; op 11 resets it |
+| 14 | thermal op 10 reads the online identification, op 11 resets it |
 | 15 | thermal op 10 appends the room as identified |
 | 16 | thermal op 10 appends the margin floor, op 12 sets it; nothing identified is kept |
 | 17 | thermal op 10 appends the trip cap as it stands |
@@ -561,6 +561,7 @@ MINOR appends; MAJOR breaks a codec.
 | 27 | gate op 10 a period count |
 | 28 | angle op 2 appends `u32 crc_errors` |
 | 29 | 0x6B appends `u16 locked` |
+| 30 | thermal op 15 takes 7, a joint's holder |
 
 MAJOR 2 (2026-08-29): thermal nodes went per leg, indices repurposed.
 A host ignores fields past what it knows. `test_conformance.py` holds a

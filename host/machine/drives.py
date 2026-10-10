@@ -92,10 +92,9 @@ BOX_K = {'B': 9.0e3}
 INVERTERS = {100: (0.100, 100.0, 0.2, 3.6, 0.015)}
 
 #: The drives' cooling: each winding's and laminate's K/W to the air times this - 1 in air. Her
-#: electronics in an enclosure of transformer oil or the like, each stator bolted onto its
-#: inverter through a thermal interface, the oil and the stator's metal evening their
-#: temperatures (the user, 2026-10-04): an assumed 0.3, measured when the enclosure exists.
-COOLING = 0.3
+#: joints air-cooled, a board's back on an aluminium holder over a third of it, on its motor or
+#: gearbox, its only cooling (the user, 2026-10-10; 0.3 in oil, 2026-10-04).
+COOLING = 1.0
 
 #: Each kind's stack: (frame, box, inverter), its winding its frame's KV: 100 turns the knee
 #: 960 deg/s at 48 V where it asks 860-1007, 85 would 816 - a joint's torque times its speed over

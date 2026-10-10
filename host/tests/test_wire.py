@@ -238,6 +238,7 @@ def test_the_application_is_laid(report, rig):
     from coaxial.comm.protocol import ThermalOp
     from coaxial.comm.wire import pack
     from coaxial.errors import RigError
+    from coaxial.model import thermal_app
     t, cal = rig.board.thermal, rig.board.calibration
 
     def laid():
@@ -251,7 +252,9 @@ def test_the_application_is_laid(report, rig):
     cal.load()
     loaded = laid()
     refused = []
-    for name, call in (('application 7', lambda: t._ack(ThermalOp.APPLICATION, pack(('u8', 7)))),
+    past = len(thermal_app.APPLICATIONS)
+    for name, call in (('application %d' % past,
+                        lambda: t._ack(ThermalOp.APPLICATION, pack(('u8', past)))),
                        ('airspeed 150 m/s', lambda: t.airspeed(150.0)),
                        ('a truth told a board', lambda: t.airspeed(1.0, truth=2.0))):
         try:

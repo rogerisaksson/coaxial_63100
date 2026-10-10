@@ -209,3 +209,8 @@ were sized on, the candidates, and what the one stack leaves open
   meaned, 129 the median, 570 at 95 % and 2.66 kW at most - 7 rows of 591
   over 1 kW -, 405 J/m; at 0.85 (0.65 m/s) 276 W, 177, 894 and 4.1 kW, 22
   rows over 1 kW, 427 J/m.
+- Air-cooled (the user, 2026-10-10): a board's back on an aluminium holder
+  over a third of it, on its motor or gearbox, its only cooling -
+  `drives.COOLING` 1, thermal_app_t's `joint` on the humanoid's worlds. The
+  U8 holds 40 N m for ever where 74 in oil, the MN6007 19 where 35; her
+  walk's smoke and the look suite to the digit as in oil.

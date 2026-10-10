@@ -7,49 +7,54 @@
 /* Ballpark, every figure: a reason each, a measurement none, until a test cycle runs in
    the application (the user, 2026-10-09). Per application, thermal_app_t's order: still air,
    a rotor's wash, a sealed finned housing, a fan's finned sink, a liquid's plate, PAO,
-   transformer oil. */
+   transformer oil, a joint's holder - an aluminium one under its legs, a third of its back,
+   on its motor or gearbox, all in still air (the user, 2026-10-10). */
 
 /** The laminate's air path over the still air's: a sealed housing's air rides on the
     housing, three times; oil's natural convection 100-150 W/m^2 K against air's 7 with
     its radiation, a sixteenth and a twelfth. */
 static const float APP_LAMINATE_AIR[THERMAL_APPS] = { 1.0f, 1.0f, 3.0f, 1.0f, 1.0f,
-                                                      0.06f, 0.08f };
+                                                      0.06f, 0.08f, 1.0f };
 
 /** Its forced gain per sqrt(krpm): behind the stator a third of the stator's; in the wash
     1.9 - a hover's 1 470 rpm at 2.5 K/W, the slipstream going as the rotor's speed and h as
     its root; sealed none; the oil stirred. */
 static const float APP_LAMINATE_FORCED[THERMAL_APPS] = { 0.3f, 1.9f, 0.0f, 0.3f, 0.3f,
-                                                         0.2f, 0.2f };
+                                                         0.2f, 0.2f, 0.3f };
 
 /** A leg's switches into the laminate under them, K/W, 0 the still air's 12: pressed on
     the body through a pad, the vias straight under them. */
-static const float APP_LEG_INTO[THERMAL_APPS] = { 0.0f, 0.0f, 4.0f, 3.0f, 2.0f, 0.0f, 0.0f };
+static const float APP_LEG_INTO[THERMAL_APPS] = { 0.0f, 0.0f, 4.0f, 3.0f, 2.0f, 0.0f, 0.0f,
+                                                 4.0f };
 
 /** Each leg's patch onto the body, K/W, 0 open: a gap pad under the leg. */
-static const float APP_LEG_MOUNT[THERMAL_APPS] = { 0.0f, 0.0f, 2.0f, 1.5f, 1.0f, 0.0f, 0.0f };
+static const float APP_LEG_MOUNT[THERMAL_APPS] = { 0.0f, 0.0f, 2.0f, 1.5f, 1.0f, 0.0f, 0.0f,
+                                                  2.0f };
 
 /** The other rim patches onto the body, K/W, 0 open: their standoffs. */
 static const float APP_RIM_MOUNT[THERMAL_APPS] = { 0.0f, 0.0f, 20.0f, 20.0f, 20.0f,
-                                                   0.0f, 0.0f };
+                                                   0.0f, 0.0f, 20.0f };
 
 /** The body - the stator's iron and whatever it and the board are fixed to - its air path
     over the still air's, the J/K that adds and its forced gain: a finned housing 1 K/W and
     270 J/K of aluminium, a fan's sink 0.4 and 180, a plate 0.05 to its coolant and 100; in
-    the wash the motor's own air forced harder; in oil as the laminate, a little less. */
+    the wash the motor's own air forced harder; in oil as the laminate, a little less; a
+    joint's holder and box 250 J/K, the holder's skin beside the motor's. */
 static const float APP_BODY_AIR[THERMAL_APPS] = { 1.0f, 1.0f, 0.6f, 0.25f, 0.03f,
-                                                  0.1f, 0.12f };
+                                                  0.1f, 0.12f, 0.8f };
 static const float APP_BODY_CAPACITY[THERMAL_APPS] = { 0.0f, 0.0f, 270.0f, 180.0f, 100.0f,
-                                                       0.0f, 0.0f };
+                                                       0.0f, 0.0f, 250.0f };
 static const float APP_BODY_FORCED[THERMAL_APPS] = { 0.5f, 1.5f, 0.0f, 0.0f, 0.0f,
-                                                     0.2f, 0.2f };
+                                                     0.2f, 0.2f, 0.5f };
 
 /** The bell's air path over the still air's: in oil as the body's. */
-static const float APP_BELL_AIR[THERMAL_APPS] = { 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0.1f, 0.12f };
+static const float APP_BELL_AIR[THERMAL_APPS] = { 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0.1f, 0.12f,
+                                                 1.0f };
 
 /** A rotor's wash over its speed, m/s per krpm, where the wash is the air: twice the induced
     speed, 6.35 m/s at a hover's 1 470 rpm; 0 where the air is not a rotor's. */
 static const float APP_WASH_M_S_PER_KRPM[THERMAL_APPS] = { 0.0f, 4.32f, 0.0f, 0.0f, 0.0f,
-                                                           0.0f, 0.0f };
+                                                           0.0f, 0.0f, 0.0f };
 
 void thermal_application(thermal_cfg_t *cfg, thermal_app_t app)
 {

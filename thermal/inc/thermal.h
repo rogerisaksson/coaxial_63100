@@ -320,6 +320,7 @@ typedef enum
   THERMAL_APP_COLD_PLATE,     /**< its legs on a liquid's cold plate */
   THERMAL_APP_IMMERSION_PAO,  /**< immersed in PAO */
   THERMAL_APP_IMMERSION_OIL,  /**< immersed in transformer oil */
+  THERMAL_APP_JOINT,          /**< its legs on a holder on its motor or gearbox: a joint's */
   THERMAL_APPS
 } thermal_app_t;
 

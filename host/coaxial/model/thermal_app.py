@@ -7,26 +7,27 @@ import copy
 import math
 
 #: thermal_app_t, in order: still air (a bench), a rotor's wash (a drone's), a sealed finned
-#: aluminium housing, a fan's finned sink, a liquid's cold plate, PAO, transformer oil.
+#: aluminium housing, a fan's finned sink, a liquid's cold plate, PAO, transformer oil, a
+#: joint's holder on its motor or gearbox.
 APPLICATIONS = ('still', 'airstream', 'enclosure', 'fan_sink', 'cold_plate', 'immersion_pao',
-                'immersion_oil')
+                'immersion_oil', 'joint')
 STILL = APPLICATIONS[0]
 
 #: Per application: the laminate's air path over the still air's and its forced gain per
 #: sqrt(krpm); a leg's switches into their patch, K/W, 0 the still air's; each leg's patch
 #: and the other rim patches onto the body, K/W, 0 open; the body's (the stator's) air path
 #: over the still air's, the J/K it gains and its forced gain; the bell's air path.
-LAMINATE_AIR = (1.0, 1.0, 3.0, 1.0, 1.0, 0.06, 0.08)
-LAMINATE_FORCED = (0.3, 1.9, 0.0, 0.3, 0.3, 0.2, 0.2)
-LEG_INTO = (0.0, 0.0, 4.0, 3.0, 2.0, 0.0, 0.0)
-LEG_MOUNT = (0.0, 0.0, 2.0, 1.5, 1.0, 0.0, 0.0)
-RIM_MOUNT = (0.0, 0.0, 20.0, 20.0, 20.0, 0.0, 0.0)
-BODY_AIR = (1.0, 1.0, 0.6, 0.25, 0.03, 0.1, 0.12)
-BODY_CAPACITY = (0.0, 0.0, 270.0, 180.0, 100.0, 0.0, 0.0)
-BODY_FORCED = (0.5, 1.5, 0.0, 0.0, 0.0, 0.2, 0.2)
-BELL_AIR = (1.0, 1.0, 1.0, 1.0, 1.0, 0.1, 0.12)
+LAMINATE_AIR = (1.0, 1.0, 3.0, 1.0, 1.0, 0.06, 0.08, 1.0)
+LAMINATE_FORCED = (0.3, 1.9, 0.0, 0.3, 0.3, 0.2, 0.2, 0.3)
+LEG_INTO = (0.0, 0.0, 4.0, 3.0, 2.0, 0.0, 0.0, 4.0)
+LEG_MOUNT = (0.0, 0.0, 2.0, 1.5, 1.0, 0.0, 0.0, 2.0)
+RIM_MOUNT = (0.0, 0.0, 20.0, 20.0, 20.0, 0.0, 0.0, 20.0)
+BODY_AIR = (1.0, 1.0, 0.6, 0.25, 0.03, 0.1, 0.12, 0.8)
+BODY_CAPACITY = (0.0, 0.0, 270.0, 180.0, 100.0, 0.0, 0.0, 250.0)
+BODY_FORCED = (0.5, 1.5, 0.0, 0.0, 0.0, 0.2, 0.2, 0.5)
+BELL_AIR = (1.0, 1.0, 1.0, 1.0, 1.0, 0.1, 0.12, 1.0)
 #: A rotor's wash over its speed, m/s per krpm, where the wash is the air; 0 where it is not.
-WASH_M_S_PER_KRPM = (0.0, 4.32, 0.0, 0.0, 0.0, 0.0, 0.0)
+WASH_M_S_PER_KRPM = (0.0, 4.32, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
 
 #: The host's word on the airspeed holds this long, wall s (THERMAL_AIRSPEED_HOLD_MS), and
 #: goes to this at the most, m/s (THERMAL_AIRSPEED_MAX_MM_S).
