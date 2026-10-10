@@ -42,7 +42,8 @@ answers (wgpu); `COAXIAL_GPU=0` keeps them on the CPU.
 ## 2 The board
 
 Three phase shunts, the DC link and an NTC through the analogue front end,
-sampled on TIM1 at 50 kHz; the gate drivers supplied by the STO chain.
+sampled on TIM1 at 50 kHz; the gate drivers supplied by the STO chain. Its
+schematic and layout: [Coaxial-63100 on CircuitMaker](https://workspace.circuitmaker.com/Projects/Details/RogerIsakssonLehtipalo/Coaxial-63100).
 
 <details><summary>The front end, the gate stage, the parts, the link</summary>
 

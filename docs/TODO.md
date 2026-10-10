@@ -352,10 +352,10 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
   the live model's.
 - **`test_sensorless`** overpowered servo flakes 1 gate in 4, `test_daq_api`'s
   first dt once (2026-10-05). DOD: 20 green.
-- **QUAD**: the 16x14s' tilt loop for their pull, the line on more of it
-  (THROTTLE 0.6: 17 s laps, a tip 0.4 m out). DOD: laps under 18 s on boards,
-  tips 0.05 m inside. An emulated drone's heat its airspeed; the humanoid's
-  boards in oil (the gynoid's).
+- **QUAD raw** (the user, 2026-10-10): dives pushed inverted, all the
+  pull planned. DOD: laps under 18 s on boards, tips 0.05 m inside; an
+  emulated drone's heat its airspeed; the gynoid's boards in oil.
+- **The tty in Eurostile** (the user, 2026-10-10). DOD: cells 2:1.
 - **A1335 CRC** reported, not checked. DOD: the polynomial known, checked.
 - **`testline/plans/coaxial_63100_fct.yaml`** limits are placeholders.
   DOD: measured.
