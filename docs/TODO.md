@@ -185,13 +185,13 @@ the files under docs/FINDINGS.md. An item is deleted when its DOD is met.
 36. **The latent stack** (32, 34; wbc.md): her physics as static arrays, one C
     loop over them (`wbc/`), R^k the only thing upward, the model feeding R^k
     as data.
-    + Loop: 100 and 120 N shoves (0 of 8 where the stack 7 and 3; WEP 1.1 s
-      where 12.7) and 60 N from straight behind; the tick 1.5 ms here, its
-      cycles on native and Renode; the walk's last 0.04 m/s and 30 J/m to
-      the stack's (wbc.md).
-    + Bottom, each board: the ESO (`parts.Eso`, `CTRL_ESO`) measured where
-      joints reverse against the drag - the walk on the loop, a virtual
-      spring's stick-slip on the boards as built.
+    + Loop: 100 and 120 N shoves (with the observer 4 and 0 of 8 where the
+      stack 7 and 3; WEP 0.2 s where 12.7); the tick 1.5 ms here, its cycles
+      on native and Renode (wbc.md).
+    + Bottom, each board: the ESO (`parts.Eso`, `CTRL_ESO`; on the loop's walk
+      0.32 m/s and 634 J/m where the PD 0.26 and 768) onto the boards as
+      built: a virtual spring's stick-slip there, its torque and acceleration
+      registers on the wire.
     + Behaviour: impedance (K, D a task, inputs) and a CPG's phases in R^k
       in balance.py's and going.py's place; dynamic equations, no stages.
     + Upward: the law's rows as asks - balance point, contacts, clearances,

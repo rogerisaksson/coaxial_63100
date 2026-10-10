@@ -328,3 +328,23 @@ walk). 2026-10-11:
   and 120 N fall, the loop granting WEP a tenth of what the stack does; the
   tick 1.5 ms here (the tie-break's rows and up to 160 active-set steps a
   level), its cycles on native and Renode unmeasured.
+
+### The observer under the walking loop
+
+The loop's walk, 8 s at 0.5 m/s asked, with each inner loop under it
+(`--inner`), 2026-10-11:
+
+| Inner loop | Walked | m/s | J/m | Tilt, deg |
+| --- | --- | --- | --- | --- |
+| the torque as asked | 1.87 m | 0.31 | 668 | 1.6 |
+| PD round the reference integrated from the loop's accelerations | 1.58 m | 0.26 | 768 | 1.5 |
+| ESO at 100 rad/s, the drive's residual taken off | 1.89 m | 0.32 | 655 | 1.2 |
+| ESO at 400 rad/s | 1.91 m | 0.32 | 634 | 1.2 |
+
+- Where the joints reverse against the drag every step the observer shows
+  its worth: a tenth more speed and a sixth less energy than the PD the stack
+  walks on, and under the stack's own 792 J/m. Standing it saw nothing
+  (0.1 N m); the walk was its measure.
+- Shoved from 8 ways with the observer under the loop, stood of 8: 38 N 8,
+  60 N 8 (straight behind too, where the PD fell), 80 N 7, 100 N 4 (the PD 0);
+  the stack 8 / 8 / 7 / 7.
