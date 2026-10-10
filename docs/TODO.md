@@ -348,9 +348,9 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
 - **`heat.py`'s dry loss** 1.2 W, the bench's fit 2.4-4.4 at 24-44 V. DOD: it.
 - **`test_sensorless`** overpowered servo flakes 1 gate in 4, `test_daq_api`'s
   first dt once (2026-10-05). DOD: 20 green.
-- **QUAD raw** (the user, 2026-10-10), laps 14.1-16.5 s on boards, every
-  flight whole. DOD: every boards tip 0.05 m inside (a wind's 0.02 out); an
-  emulated drone's heat its airspeed; gynoid boards in oil.
+- **QUAD raw** (the user, 2026-10-10): laps 14.1-17.0 s on boards, every
+  tip 0.07 m inside. DOD: an emulated drone's heat its airspeed; gynoid
+  boards in oil.
 - **A1335 CRC** reported, not checked. DOD: the polynomial known, checked.
 - **`testline/plans/coaxial_63100_fct.yaml`** limits are placeholders.
   DOD: measured.

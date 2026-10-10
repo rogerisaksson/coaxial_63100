@@ -264,3 +264,7 @@ The board's own are in [FINDINGS](../FINDINGS.md).
   The sphere eased at a share of what the envelopes left came down slowest
   where they left least, a stuffy room's spent boards asked twice their pull
   for 2 s, into a house; at a share of all of it every flight whole.
+- Gate 0 crossed 0.3 m higher, 0.2 under its middle (2026-10-10): the
+  boards' tips 0.07-0.15 m inside in four winds, a stuffy room and a pack at
+  60 %, every flight whole, where a wind's passed 0.02 out; 0.3 or 0.4 under
+  struck or passed 0.6 out - the line's shape at the finish carries round.
