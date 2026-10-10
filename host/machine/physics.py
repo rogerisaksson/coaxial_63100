@@ -161,6 +161,9 @@ class World:
         self.free = m.dof_damping[self.vadr].copy()
         self.target = np.zeros(len(JOINTS))
         self.rate = np.zeros(len(JOINTS))
+        #: A torque a joint fed forward onto its PD, N m - the whole-body law's (`machine.wbc`):
+        #: a world without buses alone.
+        self.feed = np.zeros(len(JOINTS))
         self.was, self.stamp = self.target.copy(), 0.0
         #: The buses and their block (`machine.buses`), the bus of each joint; the torque limit
         #: a step; the host's setpoints pending a broadcast and when they were written.
@@ -309,7 +312,7 @@ class World:
             else:
                 ref = self.target + self.rate * (d.time - start)
                 tau = (self.gains[:, 0] * (ref - d.qpos[self.qadr])
-                       + self.gains[:, 1] * (self.rate - d.qvel[self.vadr]))
+                       + self.gains[:, 1] * (self.rate - d.qvel[self.vadr]) + self.feed)
                 tau = np.where(self.shorted | self.cut, 0.0, tau)
                 d.ctrl[:] = paired(np, self.pairs, tau, self.limit, self.kt)
             power = d.ctrl * d.qvel[self.vadr]

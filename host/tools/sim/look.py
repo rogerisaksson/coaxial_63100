@@ -133,7 +133,26 @@ def sample(bus, director, world, asked=None):
                 feet=world.gap(LEFT_FOOT, RIGHT_FOOT), lifted=world.lifted(LEFT_FOOT),
                 landed=director.touched_at is not None,
                 trunk=world.gap(('torso', 'head', 'upper_arm', 'forearm', 'hand'),
-                                ('thigh', 'shank')))
+                                ('thigh', 'shank')), ahead=_ahead(world),
+                **_held(world))
+
+
+def _held(world):
+    """What her spine's drive and her hips' pitch drives give, N m."""
+    from machine.figure import JOINTS
+    tau = world.data.ctrl
+    return {'spine_nm': float(tau[JOINTS.index('spine')]),
+            'hips_nm': float(tau[JOINTS.index('left_hip')] + tau[JOINTS.index('right_hip')])}
+
+
+def _ahead(world):
+    """Her upper body's centre of mass ahead of her hips' axis, m, along her way (z)."""
+    m, d = world.model, world.data
+    torso, pelvis = m.body('torso').id, m.body('pelvis').id
+    hips = (d.xpos[m.body('left_thigh').id][2] + d.xpos[m.body('right_thigh').id][2]) / 2.0
+    up, kg = m.body_subtreemass[torso], m.body_mass[pelvis]
+    z = (up * d.subtree_com[torso][2] + kg * d.xipos[pelvis][2]) / (up + kg)
+    return float(z - hips)
 
 
 def _down(world, ours):

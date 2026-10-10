@@ -135,6 +135,34 @@ met.
 32. **Her kinematics on dual quaternions** (the user, 2026-10-06;
     kinematics.md). DOD: a posture term, a C core; her legs, her arms, a
     take and her jeans' seams on it.
+33. **Her back hollowed, nothing held for the pose** (the user,
+    2026-10-10): on the one law her pelvis tips 5.2 deg, her spine
+    straight, her upper body 25 mm ahead of her hips, the spine holding
+    2.5 N m (`look.py`: torso ahead, pelvis tilt, spine bent, mass ahead
+    of hips, spine holds); the walk as built 0.3 mm, 0.1 N m. Tried
+    (build/wbc/*_hollow.py): the trunk's seat back on the pelvis by
+    (0.12 + HIP_DROP) tan 5 deg, the spine back 5 deg, the walk as
+    built's pelvis tipped 5 deg as its start's lean goes - the spines
+    0.0-0.7 N m, the mass over her hips, the law 486 -> 439-449 J/m; but
+    the law, its feet laid from the hip on her mass ahead of it, went its
+    walk row backward at 0.26 m/s and fell in 4 checks more, and 3 falls
+    checks failed (the head down at 2.7-3.5 m/s, a get-up late). DOD: both
+    walks' spine and hips under 0.5 N m held on their strides' means; the
+    going and falls suites as on 2026-10-10 (54 of 56, 44 of 44).
+34. **Her balance one convex QP a step** (the user, 2026-10-10: an
+    MPC over a whole-body stack, the constraints the design - friction
+    cones, the drives' and joints' limits, the contacts held; the ZMP in
+    the support, collisions, priorities by null space; WEP where a fall
+    is near). `machine/qp.py`, `wbc.py`, `mpc.py`, `balance.py`,
+    `tools/sim/wbc.py`, bus-less (`World.feed`). Standing without a
+    step: 38 N 8 of 8, 60 N 8, 80 N 4 - the sides, the back diagonals -,
+    100 N 2, 120 N 0, where the law with its steps 12 of 12, 12, 12, 2,
+    0. Left: a step's sole does not rise, its knee straight (a vertical
+    acceleration only to second order; the fold, `balance.FOLD_DEG`);
+    the legs' collisions; 2-11 ms a step in Python. DOD: 120 N from 8
+    ways stood on steps; 10 m walked at 0.5-1.0 m/s, J/m against the
+    law's; the stack over the buses (a torque register, PROTOCOL MINOR);
+    a step under 1 ms (a C core).
 
 ## Bench
 

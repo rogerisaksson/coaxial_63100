@@ -99,6 +99,12 @@ def _lean(a, b):
     return math.degrees(math.atan2(b[2] - a[2], b[1] - a[1]))
 
 
+def _tilt(r):
+    """The pelvis's tilt, deg, + its top tipped forward."""
+    w, x, y, z = (float(r[k]) for k in ('qw', 'qx', 'qy', 'qz'))
+    return math.degrees(math.atan2(2.0 * (y * z + w * x), 1.0 - 2.0 * (x * x + z * z)))
+
+
 def _roll(r):
     """The pelvis's roll, deg, + her left hip up."""
     w, x, y, z = (float(r[k]) for k in ('qw', 'qx', 'qy', 'qz'))
@@ -155,6 +161,15 @@ WALK = (
     ('head aside', 'mm', lambda rs: _ptp(_surge(rs, lambda r: _p(r, 'head')[0])) * 1e3),
     ('pelvis fore-aft', 'mm', lambda rs: _ptp(_surge(rs, lambda r: float(r['z']))) * 1e3),
     ('torso pitch', 'deg', lambda rs: _ptp(_lean(_p(r, 'torso'), _p(r, 'neck')) for r in rs)),
+    # how she carries her trunk: its lean, the pelvis's tilt and the spine between (a hollow back
+    # the spine under 0 with the pelvis tipped on), her upper body's mass ahead of her hips
+    ('torso ahead', 'deg', lambda rs: _mean(_lean(_p(r, 'torso'), _p(r, 'neck')) for r in rs)),
+    ('pelvis tilt', 'deg', lambda rs: _mean(_tilt(r) for r in rs)),
+    ('spine bent', 'deg', lambda rs: _mean(float(r['spine']) for r in rs)),
+    ('mass ahead of hips', 'mm', lambda rs: _mean(float(r.get('ahead', math.nan)) for r in rs)
+     * 1e3),
+    ('spine holds', 'N m', lambda rs: _mean(float(r.get('spine_nm', math.nan)) for r in rs)),
+    ('hips hold', 'N m', lambda rs: _mean(float(r.get('hips_nm', math.nan)) for r in rs)),
     ('hip punch', 'cm/s', lambda rs: 100.0 * max(abs(float(b['x']) - float(a['x']))
                                                  / max(1e-6, float(b['t']) - float(a['t']))
                                                  for a, b in zip(rs, rs[1:]))),
