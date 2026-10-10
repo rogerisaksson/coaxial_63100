@@ -120,6 +120,7 @@ typedef struct
   double load[WBC_DRIVEN];
   double jeff[WBC_DRIVEN];        /**< each drive's effective inertia under the body and the contacts, kg m^2 */
   double force[2][12];
+  int    stuck;                   /**< levels whose active set ran out of changes */
 } wbc_out_t;
 
 /** The loop's memory, laid once. */
@@ -160,6 +161,7 @@ typedef struct
   int    wn[WBC_LEVELS];
   int    wsized[WBC_LEVELS];      /**< the bounds a level's set was made among */
   int    iterations;              /**< the set's changes this tick */
+  int    stuck;                   /**< levels that ran out of changes */
   double vw[WBC_V][WBC_V];        /**< K^-1 of the held bounds' rows */
   double sm[WBC_V][WBC_V];        /**< their Schur complement, then its factor */
   double tau[WBC_LEVELS][WBC_V];  /**< each level's contribution */

@@ -182,45 +182,24 @@ the files under docs/FINDINGS.md. An item is deleted when its DOD is met.
 35. **Docs as technical documents**: no attributions, no narrative; tables
     and numbers. Done: TODO.
     + DOD: docs/, the READMEs and the code comments outside vendor code.
-36. **The latent stack** (32, 34; wbc.md): her physics offline into static
-    arrays, one C loop over them, R^k the only thing upward, the model
-    feeding R^k as data.
-    + Offline: `tools/cores/model.py` writes `wbc/inc/wbc_model.h` from the
-      compiled figure - a DOF a link (parent, frame, screw, spatial inertia
-      with the rotor's), stops, clamps; no logic.
-    + Loop: `wbc/`, C11, host-tested against MuJoCo (FK, J, M, bias):
-      the contacts' orthogonal decomposition, the tasks by priority in the
-      free space, the torques clipped to the polytope level by level; a
-      step's cycles on native and Renode.
+36. **The latent stack** (32, 34; wbc.md): her physics as static arrays, one C
+    loop over them (`wbc/`), R^k the only thing upward, the model feeding R^k
+    as data.
+    + Loop: the single-support compromise - shadowing the stack's walk the
+      loop meets the tasks alike but spreads a saturated swing 25 N m
+      differently; its walk 13 steps at 0.12 m/s where the stack's 16 at
+      0.31, the polar 8/4/3/2 of 8 where 8/7/7/3. A tick's cycles on native
+      and Renode.
+    + Bottom, each board: the ESO (`parts.Eso`, `CTRL_ESO`) measured where
+      joints reverse against the drag - the walk on the loop, a virtual
+      spring's stick-slip on the boards as built.
+    + Behaviour: impedance (K, D a task, inputs) and a CPG's phases in R^k
+      in balance.py's and going.py's place; dynamic equations, no stages.
     + Upward: the law's rows as asks - balance point, contacts, clearances,
       turns, hands - and the leg recipes gone; the get-up's words rows of
       asks; the model picks and fills rows (`decide`), never code.
-    + Bottom, each board: an ESO/ADRC `ctrl` part against the FOC loop - the
-      drive's own friction, backlash, cogging and drift estimated around the
-      loop's predicted acceleration and cancelled, the actuator an ideal
-      torque source; the body's dynamics and the contacts are not its
-      disturbance. Measured need: creep 5 mm/s on pure torque, an ankle's
-      deadband 24 mm (wbc.md); a virtual spring's stick-slip on the boards
-      as built, with and without it, the measure.
-    + Behaviour: impedance (K, D a task, inputs) and a CPG's phases in R^k
-      in balance.py's and going.py's place; dynamic equations, no stages.
     + Top: the model writes K and the phases, nothing else.
     + Wire: 10 Mbit proven; a feedforward torque register (PROTOCOL MINOR).
-    + Done: the arrays; the chain's poses, Jacobians, M and bias in C against
-      MuJoCo; the loop (`wbc_stack.c`) 0.01 N m off the python stack standing,
-      125 us a tick here, stands 3 s and a 60 N shove in MuJoCo
-      (test_wbc_core.py); both presets build it at 0 warnings.
-    + Done: `parts.Eso` and `CTRL_ESO`, twins, `--inner eso` in the stand;
-      standing they see 0.1 N m, no signal (wbc.md).
-    + Done: the bounds as inequalities in every level, an active set (`wbc_solve.c`);
-      the stand and a 60 N shove held, the walk 4 steps (wbc.md).
-    + Done: the corners' forces as variables beside the torques, their
-      pyramids the bounds: standing 0.00 N m off the stack, the walk 13
-      steps at 0.12 m/s (the stack 16 at 0.31).
-    + Next: the single-support compromise - the stack's tie-break activates
-      pyramid faces at its centre-of-mass level and holds them below, the
-      loop's does not; 25 N m apart with the tasks met alike (wbc.md) -
-      then the walk against the stack's and the observer's worth on it.
     + DOD: the stand and the walk on the C loop with their measures kept
       (J/m, band, polar); a step < 1 ms on a 475 MHz M7.
 

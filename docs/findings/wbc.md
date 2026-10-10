@@ -270,3 +270,23 @@ twelve components. 2026-10-10:
   loop's none. Both of the stack's rules tried in the loop: the bounds held
   below the level that presses them, 35 N m apart (median); its tie-break,
   27.5, and the loop's own walk 6 steps where 13. Neither kept. Open.
+
+### The active set given room
+
+The active set's 20 changes a level ran out in every swing and left bounds
+broken by up to 1 600 (unit rows); at 80 changes a level the bounds hold
+(1e-9) and no level runs out. 2026-10-10:
+
+| Measure | Result |
+| --- | --- |
+| the walk, 8 s at 0.5 m/s asked | 17 steps, 1.08 m, 0.18 m/s, 2944 J/m, stood; the stack 16 steps, 1.88 m, 0.31 m/s, 792 J/m |
+| shoved from 8 ways at 60 / 80 / 100 / 120 N, stood of 8 | 7 / 5 / 2 / 0; the stack 8 / 7 / 7 / 3 |
+| a tick standing | 410 us; a swing's tick 20-90 changes of the active set |
+
+- Shadowing the stack's walk tick by tick, WEP off for both: 16 N m apart in
+  single support (median; 21 with WEP: each solver's own WEP history differs),
+  0.04 in double; the loop chatters less (0.75 N m a tick against the stack's
+  2.9), achieves more of the swing's ask (7.8 of 34 m/s^2 against 5.6) and
+  draws more torque (|tau| 40.5 against 33.3). The loop's lower speed on its
+  own walk, and so most of its J/m (the housekeeping and the copper a second
+  over fewer metres), is the next measure: each solver's own walk.

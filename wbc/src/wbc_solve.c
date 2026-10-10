@@ -8,7 +8,7 @@
 static const double DAMP = 1e-6, REG = 1e-6;
 /** The active set: at most MAXIT changes a level a tick; a multiplier under -TOL frees its
     bound, a bound over by more than TOL joins. */
-#define MAXIT 20
+#define MAXIT 80
 static const double TOL = 1e-7;
 /** The levels whose rows are bounds, each scaled to unit norm before the solve. */
 static const int LEVEL_UNIT[WBC_LEVELS] = {1, 1, 0, 0, 0};
@@ -453,6 +453,10 @@ void wbc_level_solve(wbc_stack_t *s, int level, int last)
     }
     s->wset[level][k] = add;
     s->wn[level]++;
+    if (it == MAXIT - 1)
+    {
+      s->stuck++;
+    }
   }
   /* The variables, in the null space; the null space less this level's rows for the next. */
   for (int k = 0; k < WBC_V; k++)

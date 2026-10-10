@@ -224,7 +224,7 @@ static void lay_bounds(wbc_body_t *b, wbc_stack_t *s, const double u[WBC_N],
         lc[6 * k + 4] = sign / wbc_total_mass;
       }
       over_lambda(s, a, &h, lc, sign * ay + HEIGHT_BAND, 1.0);
-      bound(s, 1, 1020 + (sign > 0), a, h);
+      bound(s, 1, 1200 + (sign > 0), a, h);
     }
   }
   for (int k = 0; k < 2; k++)
@@ -739,6 +739,7 @@ void wbc_stack_step(wbc_body_t *b, wbc_stack_t *s, const wbc_frame_t *base,
   lay_levels(b, s, u, ask);
   lay_bounds(b, s, u, ask);
   s->iterations = 0;
+  s->stuck = 0;
   memset(s->nn, 0, sizeof(s->nn));
   for (int v = 0; v < WBC_V; v++)
   {
@@ -787,6 +788,7 @@ void wbc_stack_step(wbc_body_t *b, wbc_stack_t *s, const wbc_frame_t *base,
   }
   out->held = active;
   out->passes = s->iterations;
+  out->stuck = s->stuck;
   out->alpha[0] = out->alpha[1] = out->alpha[2] = 1.0;
 
   /* Whatever is still over its ceiling is clamped; what the variables give, out. */
