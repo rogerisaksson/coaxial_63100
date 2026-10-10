@@ -28,9 +28,6 @@ AT_S, TO_S, HELD_DEG, SPREAD_S = 1.0, 3.0, 25.0, 0.035
 #: the soles' middle.
 XI_K = 2.0
 
-#: The drives of a leg (`drives.kind`).
-LEG_KINDS = ('hip_yaw', 'hip_roll', 'hip', 'knee', 'ankle', 'ankle_roll')
-
 #: A walk measured from TIMED_FROM_S after it is asked, s.
 TIMED_FROM_S = 2.0
 
@@ -107,6 +104,7 @@ def stand(push=0.0, way=0.0, seconds=None, trace=False, wep=True, steps=True, at
     from machine.errors import MachineError
     from machine.drives import kind
     from machine.figure import JOINTS, SEGMENTS
+    from tools.sim.look import LEG_KINDS
     global NAMES
     world, body = physics.World(), wbc.Body()
     NAMES = [j for j, d in zip(JOINTS, body.driven) if d]

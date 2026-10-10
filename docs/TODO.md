@@ -155,9 +155,9 @@ met.
     the support, collisions, priorities by null space; WEP where a fall
     is near; wbc.md). `machine/qp.py`, `wbc.py`, `mpc.py`, `balance.py`,
     `tools/sim/wbc.py`, bus-less (`World.feed`). Shoved from 8 ways at 3
-    moments with its steps: 60 N 24 of 24, 80 N 23, 100 N 21, 120 N 21,
+    moments with its steps: 60 N 24 of 24, 80 N 24, 100 N 20, 120 N 16,
     where the law 12 of 12, 12, 2, 0; 3-7 steps where one would do. Its
-    walk, asked 0.5 m/s: up, 0.31-0.36 m/s, 750-790 J/m, its steps 0.18 m
+    walk, asked 0.5 m/s: up, 0.31 m/s, 792 J/m, its steps 0.16 m
     where the law's 0.375 - the trailing sole rolls onto its toes, the
     stack's sole flat. Left: a sole rolling on its ball as a contact; the
     legs' collisions; 1.6-11 ms a step in Python. DOD: 120 N

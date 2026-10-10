@@ -74,12 +74,14 @@ measured by `tools/sim/wbc.py` in a world without buses. The board's own are in
 - Her walk braked at each landing (2026-10-10): its trailing sole, rolled onto
   its toes, bore none of the 135-297 N the stack laid on it flat while both
   stood, and the landed sole braked 40-45 N - double support 0.1 s: 0.30 m/s,
-  1015 J/m asked 0.5; 0.03 s: 0.36 and 746. A standing leg's PD round the
+  1015 J/m asked 0.5; 0.03 s: 0.36 and 746 with the pace priced each interval,
+  0.31 and 792 priced at its end alone (kept, fewer terms). A standing leg's PD round the
   integrated reference fought the stack (an ankle +15 N m against -11): kp at
   a tenth there. Faster steps walked slower - 0.26 m/s at 0.4 s a step, 0.17
   at 0.35 -, the pace priced each interval and not only at the end the same:
   her steps' length is what is short, 0.18 m at 0.5 s where the law's 0.375.
 - The ZMP's margin and the capture's apart (2026-10-10): 5 mm both - 60-120 N
-  24, 24, 20, 16 of 24, the walk 0.36 m/s; the ZMP 1 cm, the capture 5 mm -
-  24, 23, 21, 21 and 0.31; the ZMP 2 cm - 23, 23, 20, 23 and 0.31.
+  24, 24, 20, 16 of 24, the walk 0.31 m/s; the ZMP 1 cm, the capture 5 mm -
+  24, 23, 21, 21 and 0.31; the ZMP 2 cm - 23, 23, 20, 23 and 0.31. Kept at 5 mm
+  both: the 1 cm lost test_wbc's 80 N from behind.
 
