@@ -126,3 +126,7 @@ own are in [FINDINGS](../FINDINGS.md).
   Release where either is behind, said, Release last - the newest
   `open()` loads (tools/target/current.py). The host's C libraries are
   built in each process already. A source touched: both built in 3.9 s.
+- Where a stand-in flight's time goes (2026-10-10, cProfile, the QUAD course
+  on four boards): 19.4 s, 52 M calls; the stand-in's thermal mirror 12 of
+  them - the truth's integration 11.5 s cumulative, the identification's
+  propagation 8.1, `net_flows` 157 k calls, 19 M dict reads -, MuJoCo 0.19.

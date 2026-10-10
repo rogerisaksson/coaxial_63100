@@ -109,6 +109,13 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
 - D-cache stays off: the record is read back through a pointer; .data/.bss
   are in DTCM. Sample path runs from ITCM (~30 K Debug, 27 K Release).
 - An edited linker script did not relink until `LINK_DEPENDS` was set.
+- ADC3's interrupt reaches 93 functions, 4 504 instructions, 436
+  conditional branches, 69 divides (`tools/target/hot.py`, Release,
+  2026-10-10). Outside ITCM, each behind a veneer: the handler,
+  `Board_AdcPhaseSlot`, `Board_AdcDifferential`, `Board_AfeOn`,
+  `Board_CalApply` and its 64-bit divide (`__udivmoddi4`, 40 branches),
+  `Board_AngleState`, `lrintf`, `memset`/`memcpy`, the virtual plant's
+  `tanhf` and libm's errno path. The UARTs interrupt a byte.
 
 ## IMU (BNO085)
 
