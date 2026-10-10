@@ -346,8 +346,6 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
   a sweep over a locked channel says so.
 - **Debug `-O0`**. DOD: `-Og` measured (LOOP, keepalive gap).
 - **`heat.py`'s dry loss** 1.2 W, the bench's fit 2.4-4.4 at 24-44 V. DOD: it.
-- **`test_sensorless`** overpowered servo flakes 1 gate in 4, `test_daq_api`'s
-  first dt once (2026-10-05). DOD: 20 green.
 - **QUAD raw** (the user, 2026-10-10): laps 14.1-17.0 s on boards, every
   tip 0.07 m inside. DOD: an emulated drone's heat its airspeed; gynoid
   boards in oil.

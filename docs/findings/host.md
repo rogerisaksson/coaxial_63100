@@ -118,3 +118,6 @@ own are in [FINDINGS](../FINDINGS.md).
   intent's thermal kind. On llama3.1:8b, on the CPU - Ollama 0.35.1's CUDA
   runner failed its PTX JIT on the RTX 4060's driver 617.42 - three warmth
   rows called `thermal`, the NTC's still `analog_read`, 19-28 s a row.
+- `test_sensorless` 20 of 20 green, 136 checks each, and `test_daq_api` 20
+  of 20, 82 each, on the relay beside a quad grid (2026-10-10): the servo's
+  1 gate in 4 and the first dt's once of 2026-10-05 not seen.
