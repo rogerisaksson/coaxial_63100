@@ -190,7 +190,15 @@ API void thm_application(thermal_t *th, int app)
 
 API float thm_air_rpm(int app, float speed_rpm, float airspeed_m_s)
 {
-  return thermal_air_rpm((thermal_app_t)app, speed_rpm, airspeed_m_s);
+  thermal_cfg_t cfg;
+  thermal_load_t load;
+
+  thermal_defaults(&cfg);
+  thermal_application(&cfg, (thermal_app_t)app);
+  memset(&load, 0, sizeof load);
+  load.speed_rpm = speed_rpm;
+  load.airspeed_m_s = airspeed_m_s;
+  return thermal_air_rpm(&cfg, &load);
 }
 
 API void thm_set_rad_board_stator(thermal_t *th, float w_per_k)

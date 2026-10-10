@@ -324,8 +324,8 @@ static void net_flows(const thermal_t *th, const thermal_power_t *p,
       net[b] += flow;
     }
   }
-  /* The faces: each patch against the stator's back, by its share, the
-     bracket scaled to its value at the room the figure is quoted for. */
+  /* The faces: each patch against the stator's back by its share, the
+     bracket at the figure's room. */
   if (cfg->rad_board_stator > 0.0f)
   {
     const float at_room = rad_bracket(26.85f, 26.85f);     /* 300 K */
@@ -468,8 +468,8 @@ void thermal_budget(const thermal_t *th, const thermal_power_t *p,
 
   net_flows(th, p, th->speed_rpm, net);
 
-  /* The clamp's factor, on the worse of where a node is and how long it has
-     - over every node the clamp reaches (a spend is never under its used). */
+  /* The clamp's factor, on the worse of where a node is and how long it has,
+     over every node it reaches. */
   float spent = 0.0f;
 
   for (int i = 0; i < THERMAL_NODES; i++)
@@ -816,10 +816,8 @@ void thermal_init(thermal_t *th, const thermal_cfg_t *cfg, float celsius)
   th->ntc = celsius;
 }
 
-/** Where the thermistor's element is heading: the weighted average of the
-    two patches it is tied to, `f` clamped to [0, 1] here rather than
-    trusted, because a record is a thing a bench writes and an element
-    outside its own interval is a defect. */
+/** Where the thermistor's element is heading: the weighted average of its
+    two patches, `f` clamped to [0, 1] - a record is a bench's. */
 static float ntc_target(const thermal_t *th)
 {
   const float centre = th->t[THERMAL_BOARD];
@@ -925,11 +923,9 @@ static void anchor_ntc(thermal_t *th, const thermal_sense_t *seen, float k,
   const float leg = th->t[THERMAL_NTC_PATCH];
   const float centre = th->t[THERMAL_BOARD];
   /* At the leg the miss is the leg's patch's, one for one; between the
-     patches, the share the V patch shows through. */
-  /* Within a band of the leg counts as at it: otherwise the element, set to
-     a reading a hair under the patch and integrated below it, makes the
-     free gain act on a miss that is the patch's one for one - a
-     twelvefold overshoot every third sample. */
+     patches, the share the V patch shows through. Within a band of the leg
+     counts as at it: a hair under, the free gain overshot twelvefold every
+     third sample. */
   const bool at_leg = (leg >= centre)
                       && ((seen->ntc_c >= leg - THERMAL_NTC_AT_LEG_K)
                           || (th->ntc >= leg - THERMAL_NTC_AT_LEG_K));
@@ -1036,6 +1032,14 @@ static void anchor(thermal_t *th, const thermal_power_t *p,
   }
 }
 
+float thermal_air_rpm(const thermal_cfg_t *cfg, const thermal_load_t *load)
+{
+  const float wash = cfg->wash_m_s_per_krpm;
+  const float flown = (wash > 0.0f) ? (1000.0f * fmaxf(load->airspeed_m_s, 0.0f) / wash) : 0.0f;
+
+  return sqrtf((load->speed_rpm * load->speed_rpm) + (flown * flown));
+}
+
 void thermal_step(thermal_t *th, const thermal_power_t *p,
                   const thermal_sense_t *seen, const thermal_load_t *load,
                   float dt_s)
@@ -1048,7 +1052,7 @@ void thermal_step(thermal_t *th, const thermal_power_t *p,
   {
     dt_s = THERMAL_DT_MAX;
   }
-  const float speed = (load != NULL) ? load->speed_rpm : 0.0f;
+  const float speed = (load != NULL) ? thermal_air_rpm(&th->cfg, load) : 0.0f;
 
   th->speed_rpm = speed;
 

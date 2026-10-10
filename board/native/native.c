@@ -7,8 +7,8 @@
    down-count converts the injected groups and runs ADC3's interrupt; a meter read converts
    its channel. The plant steps between edges on the compares in force. The front end is
    board/emu/Coaxial63100_AFE.cs's - the schematic's networks, LTspice's phase transfer, the
-   board's spread, the converter's noise - and the heat Coaxial63100_Plant.cs's; the A1335 reads the plant's shaft, the BNO085 ticks each
-   millisecond (native_a1335.c, native_bno085.c, native_io.c). The
+   board's spread, the converter's noise -, the heat the plant's; the A1335 reads its shaft,
+   the BNO085 ticks each millisecond (native_a1335.c, native_bno085.c, native_io.c). The
    rest of the board API is the fake board's, weak there. A read of the cycle counter or the
    tick moves the clock, so a spin ends, and runs the interrupts due unless PRIMASK holds
    them. Driven by tools/cores/native.py. */
@@ -122,6 +122,7 @@ static struct
   uint64_t heat_at;
   world_heat_t heat;
   float haste;                        /* the heat's clock, thermal s per virtual s */
+  float airspeed;                     /* m/s through the air: the heat flies in it */
   thermal_sense_t seen;
 
   world_sto_t sto;
@@ -306,7 +307,7 @@ static void native_clock_to(uint64_t at)
 }
 
 /* MOE set, the six outputs enabled and the drivers supplied: the 2EDL8034's outputs follow
-   TIM1. The firmware enables the six together: one leg open alone is not modelled. */
+   TIM1; one leg open alone is not modelled. */
 static bool native_driven(void)
 {
   const uint32_t outputs = TIM_CCER_CC1E | TIM_CCER_CC1NE | TIM_CCER_CC2E | TIM_CCER_CC2NE
@@ -383,8 +384,7 @@ static void native_heat(void)
   for (uint8_t leg = 0U; leg < BOARD_PWM_PHASES; leg++)
   {
     load.duty[leg] = (float)n.active[leg] / arr;
-    /* Over the seconds the squares cover: a plant step across several heat steps gives its
-       mean to each, not all of it to the first and none to the rest. */
+    /* Over the seconds the squares cover: a plant step across heat steps gives each its mean. */
     if (n.squared_s > 0.0)
     {
       n.mean_sq[leg] = (float)(n.squares[leg] / n.squared_s);
@@ -396,6 +396,7 @@ static void native_heat(void)
   load.link_volts = (float)afe.dc;
   load.link_amps = -1.0f;
   load.speed_rpm = (float)(fabs(w.speed) * 60.0 / (2.0 * NATIVE_PI));
+  load.airspeed_m_s = n.airspeed;
   world_heat_step(&n.heat, &load, dt, &n.seen);
   afe.ntc_c = n.seen.ntc_c;
   afe.die_c = n.seen.mcu_c;
@@ -658,8 +659,8 @@ uint32_t Board_Cycles(void)
   return (uint32_t)n.cycles;
 }
 
-/* Asleep until an interrupt: SysTick's millisecond, or the timer's edge when one of its
-   interrupts is on - no further than the host's step. The interrupt runs as PRIMASK lets it. */
+/* Asleep until an interrupt - SysTick's millisecond, the timer's edge where one is on - no
+   further than the host's step; it runs as PRIMASK lets it. */
 void native_wfi(void)
 {
   uint64_t at = n.tick_at;
@@ -902,6 +903,12 @@ void native_application(int app)
   world_heat_application(&n.heat, (thermal_app_t)app);
 }
 
+/** The frame flown through the air at `m_s`, m/s: this board's heat's truth in it. */
+void native_airspeed(double m_s)
+{
+  n.airspeed = (float)m_s;
+}
+
 void native_haste(double haste)
 {
   n.haste = (haste > 0.0) ? (float)haste : 1.0f;
@@ -931,7 +938,7 @@ void native_angle(double degrees)
 }
 
 /* The handover slot a bootloader leaves (boot_hand_t), native_hand's; board_boot.c's reading
-   of it below, which cannot build here - its image header takes the linker's addresses. */
+   of it below - its image header takes the linker's addresses. */
 static struct
 {
   bool    assigned;
@@ -973,9 +980,8 @@ board_identity_t Board_Identity(void)
   return id;
 }
 
-/** Power on: the fake board's stack, TIM1 as CubeMX leaves it and the update its UG makes,
-    then the board's own init in main()'s order - the stage, the record, its dead time, the
-    triple and the drive. */
+/** Power on: the fake board's stack, TIM1 as CubeMX leaves it, then the board's init in
+    main()'s order. */
 void native_open(void)
 {
   memset(&n, 0, sizeof n);
@@ -1039,9 +1045,9 @@ void native_run_to(uint64_t us)
   }
 }
 
-/** A limb's boards - each its own copy of this library, `run_to` their native_run_to - on
-    from `from` to `to` us together, `step` us at a time: one call from the host, its
-    interpreter let go. A call a step held a board to 21 % of real time (2026-09-28). */
+/** A limb's boards - each its own copy of this library, `run_to` their native_run_to - from
+    `from` to `to` us together, `step` us at a time, in one call: a call a step held a board
+    to 21 % of real time (2026-09-28). */
 void native_lockstep(void (*const *run_to)(uint64_t), int boards, uint64_t from, uint64_t to,
                      uint64_t step)
 {

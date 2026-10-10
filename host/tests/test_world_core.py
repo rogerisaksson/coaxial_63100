@@ -12,7 +12,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from coaxial.model.inverter import GATE_UVLO_V  # noqa: E402
 from coaxial.simulated.values import DCBUS_V  # noqa: E402
 from tools.cores.build import build, find_cc  # noqa: E402
-from tools.emu.world import INCLUDES, SOURCES  # noqa: E402
+from coaxial.model.thermal_app import APPLICATIONS  # noqa: E402
+from tools.emu.world import INCLUDES, SOURCES, heat_row  # noqa: E402
 
 from test_modbus_core import Report  # noqa: E402
 
@@ -37,6 +38,7 @@ def library():
     lib.emu_world_motor.argtypes = [i, f, f]
     lib.emu_world_advance.argtypes = [d]
     lib.emu_heat_reset.argtypes = [i, f]
+    lib.emu_heat_application.argtypes = [i, i]
     lib.emu_heat_step.argtypes = [i, f, ctypes.POINTER(f), ctypes.POINTER(f)]
     lib.emu_sto_reset.argtypes = [i]
     lib.emu_sto_step.argtypes = [i, f, ctypes.POINTER(f), i, ctypes.POINTER(f),
@@ -120,8 +122,7 @@ def test_a_lift_climbs_on_its_thrust(report, lib):
 def test_the_heat_reads_as_its_observer_models_it(report, lib):
     """A board's heat, thermal.c's network: from the room, the MCU's die at its package, the
     A1335's over its node by its watts through R_th,JC at once - 0.13 W through 3.8 with AFE_ON."""
-    load, seen = (ctypes.c_float * 10)(), (ctypes.c_float * 3)()
-    load[0] = 1.0
+    load, seen = heat_row(afe_on=1.0), (ctypes.c_float * 3)()
     lib.emu_heat_reset(0, 25.0)
     lib.emu_heat_step(0, 0.1, load, seen)
     ntc, mcu, a1335 = seen
@@ -134,6 +135,21 @@ def test_the_heat_reads_as_its_observer_models_it(report, lib):
     report.check("two minutes on, the MCU's package has risen over its patch",
                  seen[1] - seen[0] > 10.0,
                  'MCU %.2f over the NTC' % (seen[1] - seen[0]))
+
+
+def test_the_frame_flies_in_its_air(report, lib):
+    """A board in its rotor's wash, its frame flown through the air (thermal_load_t's
+    airspeed, the core's one fold): two minutes on its thermistor under one standing still."""
+    rise = []
+    for unit, m_s in ((0, 0.0), (1, 24.0)):
+        load, seen = heat_row(afe_on=1.0, airspeed_m_s=m_s), (ctypes.c_float * 3)()
+        lib.emu_heat_reset(unit, 25.0)
+        lib.emu_heat_application(unit, APPLICATIONS.index('airstream'))
+        for _ in range(1200):
+            lib.emu_heat_step(unit, 0.1, load, seen)
+        rise.append(seen[0] - 25.0)
+    report.check('flown at 24 m/s its NTC risen less than standing',
+                 0.0 < rise[1] < rise[0], 'still %.2f K, flown %.2f K' % tuple(rise))
 
 
 #: The chain's circuit (electronic_simulations/sto, the STO and RS485 sheets): U4's VIT+ and
@@ -288,7 +304,7 @@ def main():
     lib = library()
     for test in (test_a_joint_swings_as_a_pendulum, test_a_vehicle_rolls_back_down_its_slope,
                  test_a_lift_climbs_on_its_thrust, test_the_heat_reads_as_its_observer_models_it,
-                 test_the_pilot_releases_the_sto_chain, test_each_loss_trips_the_sto_chain,
+                 test_the_frame_flies_in_its_air, test_the_pilot_releases_the_sto_chain, test_each_loss_trips_the_sto_chain,
                  test_the_pilot_window, test_the_sto_chain_holds_settled,
                  test_a_library_outlives_only_its_process):
         print('\n-- %s --' % test.__name__[5:].replace('_', ' '))

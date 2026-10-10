@@ -502,12 +502,11 @@ static void step_slice(const thermal_load_t *load, const thermal_sense_t *seen,
                              s.th.t[THERMAL_DRIVER(2)] };
 
   thermal_power_estimate(&s.power, load, &s.loss, phase_c);
-  /* The air the step sees: the rotor's wash and the host's airspeed while it holds. */
+  /* The host's airspeed while it holds; the core folds it into the rotor's wash. */
   thermal_load_t aired = *load;
   const bool told = (int32_t)(s.airspeed_until - HAL_GetTick()) > 0;
 
-  aired.speed_rpm = thermal_air_rpm((thermal_app_t)Board_Cal()->thermal_app, load->speed_rpm,
-                                    told ? s.airspeed : 0.0f);
+  aired.airspeed_m_s = told ? s.airspeed : 0.0f;
   thermal_step(&s.th, &s.power, seen, &aired, dt);
   /* The STO chain's pump fed between the steps: a slice at -O0 is 140 000 instructions. */
   Board_StoKeepalive();

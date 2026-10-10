@@ -112,6 +112,10 @@ typedef struct
       for the whole face - `eps sigma A F 4 T^3` - scaled by each patch's
       share and by the two temperatures' bracket. */
   float rad_board_stator;
+
+  /** A rotor's wash over its speed, m/s per krpm, where the board's air is a
+      rotor's wash; 0 where it is not (thermal_application). */
+  float wash_m_s_per_krpm;
 } thermal_cfg_t;
 
 /** Live state. Owned by the caller; `thermal_init` fills it. */
@@ -156,6 +160,9 @@ typedef struct
   /** The dead time between a leg's two gates, seconds - the record's
       `deadtime_ns` - for the body diode's conduction across it. */
   float t_dead_s;
+  /** The frame's speed through the air across the board, m/s: the host's word
+      on a board (thermal op 16), the world's flight on its truth. */
+  float airspeed_m_s;
 } thermal_load_t;
 
 /** Resistances, charges and times the estimator needs. */
@@ -321,11 +328,11 @@ typedef enum
     (thermal_app.c, ballpark). Still air leaves it as it is. */
 void thermal_application(thermal_cfg_t *cfg, thermal_app_t app);
 
-/** The rotor speed whose wash alone is the air over the board: `speed_rpm`, or where `app`'s
-    air is a rotor's wash, that and the frame's `airspeed_m_s` across it in quadrature, h going
-    as the root of the air (thermal_app.c). What a step's forced terms see; the iron's losses
-    keep the rotor's own. */
-float thermal_air_rpm(thermal_app_t app, float speed_rpm, float airspeed_m_s);
+/** The rotor speed whose wash alone is the air `load` puts over the board, rpm: its rotor's,
+    and where `cfg`'s air is a rotor's wash its frame's airspeed across it in quadrature, h
+    going as the root of the air. What a step's forced terms see; the iron's losses keep the
+    rotor's own. */
+float thermal_air_rpm(const thermal_cfg_t *cfg, const thermal_load_t *load);
 
 /** Change one node's sink and capacity while the observer runs.
     @return False for an unknown node or a non-positive value. */

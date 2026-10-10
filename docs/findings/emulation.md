@@ -228,3 +228,7 @@ board's own are in [FINDINGS](../FINDINGS.md).
   skip 0.6, no translation flushes (~1 000 blocks a virtual s). Real time
   under the drive is out of the emulator's reach as the firmware stands:
   every access is the ISR's own (2026-09-27).
+- The heat's airspeed one input (2026-10-10): `thermal_load_t` carries it and
+  the core folds it once into the wash (`thermal_air_rpm` on the cfg's), for
+  the board's observer and the world's truth alike; native's and Renode's
+  plants fly in the host's, the world's heat step taking the whole load.

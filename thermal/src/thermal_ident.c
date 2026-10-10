@@ -682,7 +682,7 @@ bool thermal_ident_step(thermal_ident_t *id, const thermal_t *th,
   {
     return false;
   }
-  const float speed = (load != NULL) ? load->speed_rpm : 0.0f;
+  const float speed = (load != NULL) ? thermal_air_rpm(base, load) : 0.0f;
 
   if (!id->primed)
   {

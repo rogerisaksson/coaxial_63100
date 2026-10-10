@@ -282,12 +282,17 @@ class Thermal(Device, ThermalControl, device=protocol.DEVICE_THERMAL):
 
     def airspeed(self, m_s, truth=None):
         """The frame's airspeed across the board, m/s, as the host knows it: its observer's
-        beside the rotor's wash in the airstream, held a second (op 16). `truth`, the air the
-        stand-in's truth flies in, a board has of its own."""
-        if truth is not None:
-            raise RigError('a board flies in its own air - the stand-in\'s truth is told one '
-                           '(simulated=True)')
-        return self._ack(ThermalOp.AIRSPEED, pack(('u32', milli(m_s))))
+        beside the rotor's wash in the airstream, held a second (op 16). `truth`, the air an
+        emulated board's world flies in - native's, Renode's - as the stand-in's truth; a board
+        has its own."""
+        flown = getattr(getattr(self.board.transport, 'serial', None), 'airspeed', None)
+        if truth is not None and flown is None:
+            raise RigError('a board flies in its own air - an emulated board\'s world and the '
+                           'stand-in\'s truth are told one')
+        took = self._ack(ThermalOp.AIRSPEED, pack(('u32', milli(m_s))))
+        if truth is not None and flown is not None:
+            flown(float(truth))
+        return took
 
     def _world(self):
         """The room hook of the world under an emulated board - native's, Renode's - or None."""

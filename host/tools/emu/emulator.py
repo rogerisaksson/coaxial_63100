@@ -76,8 +76,7 @@ FAITHFUL_MIPS = 475
 
 #: The core's speed while no ADC waits on TRGO2 - no drive runs to the part's budget. The
 #: polls' register accesses, 17 a pass, cost the same at any rate: idle with the AFE on 2.0
-#: wall s a virtual s at 100, 1.2 at 50, 1.4 at 25 (the quantum's round trips left), 475's
-#: 5.2 (2026-09-27). The link's ring holds a frame at any pass rate.
+#: wall s a virtual s at 100, 1.2 at 50, 1.4 at 25, 475's 5.2 (2026-09-27).
 IDLE_MIPS = 50
 
 #: How far a limb's boards run apart before they wait for each other, s: 8 idle boards run
@@ -88,13 +87,13 @@ QUANTUM = '0.0005'
 
 #: main()'s time between the handlers while an ADC waits on TRGO2, us, the rest skipped
 #: (Coaxial63100_Plant.LoopSlice): under the drive 2.5 wall s a virtual s against 16.5 whole,
-#: 0.25 us 2.4, 1 us 5.3 (2026-09-25). Paced emulators only; the suites run main() whole.
+#: 0.25 us 2.4, 1 us 5.3 (2026-09-25). Paced emulators only.
 LOOP_SLICE_US = 0.5
 
-#: MPU_CTRL.ENABLE masked on the bus, the image's MPU off: tlib keeps no TLB entry for a page
-#: inside an enabled region's span whose subregion is disabled, and walks the MPU on every
-#: access there - CubeMX's 4 GB region, SRD 0x87, spans ITCM, DTCM and D2 SRAM. Idle at
-#: 100 MIPS 8.2 -> 1.4 wall s a virtual s (2026-09-25). The suites run it on (`mpu`).
+#: MPU_CTRL.ENABLE masked on the bus, the image's MPU off: tlib walks the MPU on every access
+#: inside an enabled region's span whose subregion is disabled - CubeMX's 4 GB region, SRD 0x87,
+#: spans ITCM, DTCM and D2 SRAM. Idle at 100 MIPS 8.2 -> 1.4 wall s a virtual s (2026-09-25).
+#: The suites run it on (`mpu`).
 MPU_OFF = 'sysbus SetHookBeforePeripheralWrite sysbus.nvic "value = value & ~1" <0xD94, 0xD97>'
 
 #: Wall s the emulation's speed is taken over once up.
@@ -275,6 +274,10 @@ class Emulator:
     def mount(self, app):
         """Every plant's heat mounted in `app`, thermal_app_t's."""
         self._set(worlds.PLANT, Application=app)
+
+    def airspeed(self, m_s):
+        """Every plant's frame through the air at `m_s`, m/s: its heat's truth."""
+        self._set(worlds.PLANT, Airspeed=m_s)
 
     def mounted(self):
         return worlds.mounted(self.world)

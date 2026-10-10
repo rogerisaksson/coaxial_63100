@@ -176,6 +176,16 @@ void emu_heat_room(int i, float ambient, float air, float capacity)
   world_heat_room(&s.heat[i], ambient, air, capacity);
 }
 
+/** Board `i`'s heat's nodes now, C: THERMAL_NODES into `out`. */
+void emu_heat_nodes(int i, float *out)
+{
+  if ((i < 0) || (i >= (int)WORLD_MOTORS))
+  {
+    return;
+  }
+  memcpy(out, s.heat[i].th.t, sizeof s.heat[i].th.t);
+}
+
 /** Board `i`'s heat mounted in `app`, thermal_app_t (world_heat_application). */
 void emu_heat_application(int i, int app)
 {
@@ -186,8 +196,10 @@ void emu_heat_application(int i, int app)
   world_heat_application(&s.heat[i], (thermal_app_t)app);
 }
 
-/** Board `i`'s heat on `dt` s. in: AFE_ON, MOE, the three duties, the legs' mean squares (A^2),
-    the link (V), the shaft (rpm); out: the NTC's element, the MCU's die, the A1335's die (C). */
+/** Board `i`'s heat on `dt` s. in, its thermal_load_t a row of EMU_HEAT_IN: AFE_ON, MOE, the
+    three duties, the legs' mean squares (A^2), the link (V), the shaft (rpm), the frame's airspeed
+    (m/s), the link's amps (<0 off the legs'), the dead time (s), the legs' amps (A); out: the
+    NTC's element, the MCU's die, the A1335's die (C). */
 void emu_heat_step(int i, float dt, const float *in, float *out)
 {
   if ((i < 0) || (i >= (int)WORLD_MOTORS))
@@ -206,8 +218,14 @@ void emu_heat_step(int i, float dt, const float *in, float *out)
     load.phase_sq[k] = in[5 + k];
   }
   load.link_volts = in[8];
-  load.link_amps = -1.0f;
   load.speed_rpm = in[9];
+  load.airspeed_m_s = in[10];
+  load.link_amps = in[11];
+  load.t_dead_s = in[12];
+  for (int k = 0; k < 3; k++)
+  {
+    load.phase_amps[k] = in[13 + k];
+  }
   world_heat_step(&s.heat[i], &load, dt, &seen);
   out[0] = seen.ntc_c;
   out[1] = seen.mcu_c;

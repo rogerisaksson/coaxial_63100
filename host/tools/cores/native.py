@@ -185,6 +185,7 @@ class Board:
         lib.native_pilot.argtypes = [ctypes.c_double] * 3
         lib.native_link.argtypes = [ctypes.c_double]
         lib.native_room.argtypes = [ctypes.c_double] * 3
+        lib.native_airspeed.argtypes = [ctypes.c_double]
         if hand is not None:
             lib.native_hand(unit, *hand)
         lib.native_open()
@@ -276,6 +277,12 @@ class Limb:
     def mounted(self):
         """What the limb's world has its boards mounted in now."""
         return self.mounting
+
+    def airspeed(self, m_s):
+        """Every board's frame flown through the air at `m_s`, m/s: their heat's truth in it."""
+        with self.lock:
+            for board in self.boards:
+                board.lib.native_airspeed(m_s)
 
     def drag(self, k_drag, torque, unit=1):
         """The unit's load in its world laid live: its drag, N m per (rad/s)^2, and a torque

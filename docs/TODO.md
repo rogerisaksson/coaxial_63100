@@ -336,21 +336,26 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
 
 ## Host
 
-- **native://**: a limb's world on a fixed mount as board/emu's; the AFE,
-  A1335 and BNO085 repeat board/emu's C#; one Transport a rig on a URL bus.
-  DOD: the body's balance and gait from the SIL (`Limb.imu`,
-  `emu_world_motor`); one source for both; the fallback where nothing
-  answers.
-- **The meter under the drive** serves the phases, the DC link and the NTC
-  from the latched sample; a burst names the rest locked (MINOR 29). DOD:
-  the MCU's die - its sensor's 9 us of sampling in a 20 us period.
+- **native://**: a limb's world on a fixed mount as board/emu's; one
+  Transport a rig on a URL bus. DOD: the body's balance and gait from the
+  SIL (`Limb.imu`, `emu_world_motor`); the fallback where nothing answers.
+- **The MCU's die under the drive**: its sensor's 9 us of sampling in a
+  20 us period. DOD: read.
 - **Debug `-O0`**. DOD: `-Og` measured (LOOP, keepalive gap).
 - **`heat.py`'s dry loss** 1.2 W, the bench's fit 2.4-4.4 at 24-44 V. DOD: it.
-- **QUAD raw** (the user, 2026-10-10): laps 14.1-17.0 s on boards, every
-  tip 0.07 m inside. DOD: an emulated drone's heat its airspeed; gynoid
-  boards in oil.
-- **A1335 CRC** counted (MINOR 28) on the stand-ins' polynomial. DOD:
-  `crc_errors` 0 on the bench.
+- **Full DOD, the whole** (the user, 2026-10-10): one code, other executives:
+  the stand-in on the C cores and the world (its heat next, the observer,
+  the drive), native's AFE, A1335 and BNO085 board/emu's own, the mirrors
+  gone; every hot path's jumps, interrupts and stalls cut but the
+  unavoidable; state one contiguous array, steps branch-free passes over it.
+  DOD: the hot paths ranked by them, each cut or named unavoidable; a model's
+  change one change in every executive.
+- **A pull rebuilds** (the user, 2026-10-10): a terminal opened on stale
+  binaries - the images, the host's C libraries - starts their build and
+  says so. DOD: a pull, a terminal, the build begun and said.
+- **Gynoid boards in oil**: her worlds mounted in it. DOD: so.
+- **A1335 CRC** (MINOR 28) the stand-ins' polynomial. DOD: `crc_errors` 0
+  on the bench.
 - **`testline/plans/coaxial_63100_fct.yaml`** limits are placeholders.
   DOD: measured.
 - **`CMD_LINK_SHARE_PCT`** 75 unmeasured on a populated RS485 segment.

@@ -51,18 +51,6 @@ static const float APP_BELL_AIR[THERMAL_APPS] = { 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 
 static const float APP_WASH_M_S_PER_KRPM[THERMAL_APPS] = { 0.0f, 4.32f, 0.0f, 0.0f, 0.0f,
                                                            0.0f, 0.0f };
 
-float thermal_air_rpm(thermal_app_t app, float speed_rpm, float airspeed_m_s)
-{
-  if (((unsigned)app >= (unsigned)THERMAL_APPS) || !(APP_WASH_M_S_PER_KRPM[app] > 0.0f) ||
-      !(airspeed_m_s > 0.0f))
-  {
-    return speed_rpm;
-  }
-  const float flown_rpm = 1000.0f * airspeed_m_s / APP_WASH_M_S_PER_KRPM[app];
-
-  return sqrtf((speed_rpm * speed_rpm) + (flown_rpm * flown_rpm));
-}
-
 void thermal_application(thermal_cfg_t *cfg, thermal_app_t app)
 {
   if ((cfg == NULL) || ((int)app <= (int)THERMAL_APP_STILL) || (app >= THERMAL_APPS))
@@ -80,6 +68,7 @@ void thermal_application(thermal_cfg_t *cfg, thermal_app_t app)
     }
   }
   cfg->board_to_ambient *= APP_LAMINATE_AIR[app];
+  cfg->wash_m_s_per_krpm = APP_WASH_M_S_PER_KRPM[app];
   for (int leg = 0; leg < 3; leg++)
   {
     if (APP_LEG_INTO[app] > 0.0f)

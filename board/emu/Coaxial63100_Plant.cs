@@ -169,6 +169,10 @@ namespace Antmicro.Renode.Peripherals.Analog
         /// the next heat step.</summary>
         public int Application { get => application; set { application = value; roomLaid = false; } }
 
+        /// <summary>The frame's speed through the air, m/s: its heat's truth flies in it
+        /// (thermal_load_t.airspeed_m_s), a drone's.</summary>
+        public double Airspeed { get; set; }
+
         /// <summary>The load's drag, N m per (rad/s)^2, and a torque against its turning, N m -
         /// a page's propeller and its stage - laid live on the world.</summary>
         public double Drag { get => drag; set { drag = value; LayDrag(); } }
@@ -377,6 +381,8 @@ namespace Antmicro.Renode.Peripherals.Analog
             periods = 0;
             load[8] = (float)afe.DcBusVolts;
             load[9] = Math.Abs(shaft[1]) * 60f / (2f * (float)Math.PI);
+            load[10] = (float)Airspeed;
+            load[11] = -1f;                         // the link's amps: off the legs
             if(native == IntPtr.Zero || !Thermal)
             {
                 return;
@@ -459,7 +465,7 @@ namespace Antmicro.Renode.Peripherals.Analog
         private readonly double[] squares = new double[3];
         private long periods;
         // AFE_ON, MOE, the duties, the legs' mean squares, the link, the shaft's rpm: emu_heat_step's.
-        private readonly float[] load = new float[10];
+        private readonly float[] load = new float[16];
         private readonly float[] seen = { 25f, 25f, 25f };
         private bool heated;
         private double haste = 1.0;

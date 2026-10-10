@@ -9,6 +9,7 @@ wheel). The world core's library (world/, built for this host) is what the emula
 plants step (board/emu/Coaxial63100_Plant.cs); this module only reads the files and says them
 to the monitor.
 """
+import ctypes
 import glob
 import json
 import math
@@ -48,6 +49,22 @@ BODY = (('mass', 0.0), ('gravity', 9.81), ('slope_deg', 0.0), ('crr', 0.0), ('cd
 LOAD = (('gear', 1.0), ('inertia', 0.0), ('mass', 0.0), ('arm', 0.0), ('damping', 0.0),
         ('k_drag', 0.0), ('k_thrust', 0.0), ('radius', 0.0), ('angle_deg', 0.0))
 MOTOR = ('r', 'ld', 'lq', 'lambda', 'pole_pairs', 'j', 'b', 'vdc', 'noise')
+
+
+#: The heat step's row (world_emu.c's emu_heat_step): a thermal_load_t's fields in its order.
+HEAT_IN = ('afe_on', 'switching', 'duty_u', 'duty_v', 'duty_w', 'sq_u', 'sq_v', 'sq_w',
+           'link_volts', 'speed_rpm', 'airspeed_m_s', 'link_amps', 't_dead_s',
+           'amps_u', 'amps_v', 'amps_w')
+
+
+def heat_row(**given):
+    """A heat step's row, `given` by HEAT_IN's names: the link's amps off the legs' (-1) unless
+    given, the rest 0."""
+    row = (ctypes.c_float * len(HEAT_IN))()
+    row[HEAT_IN.index('link_amps')] = -1.0
+    for name, value in given.items():
+        row[HEAT_IN.index(name)] = value
+    return row
 
 
 def names():
