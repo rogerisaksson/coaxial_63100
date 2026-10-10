@@ -353,8 +353,9 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
 - **`test_sensorless`** overpowered servo flakes 1 gate in 4, `test_daq_api`'s
   first dt once (2026-10-05). DOD: 20 green.
 - **QUAD raw** (the user, 2026-10-10), laps 14.0-16.2 s on boards. DOD:
-  every boards flight whole run after run, a stuffy room's too; an emulated
-  drone's heat its airspeed; the gynoid's boards in oil.
+  every boards flight whole a run, stuffy rooms too - stand-ins read the
+  wall's clock, not a flight's: SOA 0.83, 0.91 on a flight twice; an
+  emulated drone's heat its airspeed; gynoid boards in oil.
 - **A1335 CRC** reported, not checked. DOD: the polynomial known, checked.
 - **`testline/plans/coaxial_63100_fct.yaml`** limits are placeholders.
   DOD: measured.
