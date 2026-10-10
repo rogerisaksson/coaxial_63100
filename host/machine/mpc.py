@@ -31,10 +31,12 @@ DTS = np.array([0.05] * 10 + [0.1] * 5)
 N = len(DTS)
 STARTS = np.concatenate([[0.0], np.cumsum(DTS)])
 
-#: A sole's support about its middle: half its width and half its length less MARGIN_M - at 0.02
-#: she stepped where the stack alone stood on its ankles and hips, 60 N from 8 ways 22 of 24
-#: and 44 steps where 24 and none (2026-10-10).
-MARGIN_M = 0.005
+#: A sole's support about its middle: half its width and half its length less MARGIN_M for the
+#: ZMP, CAPTURE_M for where the DCM ends captured - at 0.02 for both she stepped where the stack
+#: alone stood on its ankles and hips, 60 N from 8 ways 22 of 24 and 44 steps where 24 and none;
+#: at 0.005 for both her walk's sole rolled onto its toes under the ZMP on its edge, the stack
+#: laying weight on it flat (2026-10-10).
+MARGIN_M, CAPTURE_M = 0.01, 0.005
 HALF = (SOLE_HALF - MARGIN_M, (BALL + HEEL) / 2.0 - MARGIN_M)
 
 #: The weights: the ZMP off its support's middle (1/m^2), the landing off the foot's place,
@@ -177,7 +179,7 @@ def _solve(xi, omega, supports, steps=(), going=None):
             row = at(n, land=land, end=True)
             row[S + min(i, 3)] = -1.0
             rows.append(row)
-            rhs.append(d - float(n @ xi0))
+            rhs.append(d + MARGIN_M - CAPTURE_M - float(n @ xi0))
         for axis in (0, 1):
             near(at(np.eye(2)[axis], land=land, end=True),
                  (0.0 if land is not None else mid[axis]) - xi0[axis], END_W)

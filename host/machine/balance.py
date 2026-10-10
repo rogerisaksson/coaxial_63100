@@ -42,13 +42,19 @@ LOST_N, LOST_S = 15.0, 0.05
 #: 2026-10-10).
 LIFT_FIRST, LANDS_U = 0.10, 0.75
 
+#: A swinging sole's travel along the floor done by TRAVEL_U of its swing, the rest straight
+#: down: landing on the move, her left sole came down at 860 N and -106 N along her way.
+TRAVEL_U = 0.85
+
 #: The centre of mass's height held by (kp 1/s^2, kd 1/s).
 HEIGHT_KD = (100.0, 20.0)
 
 #: Walking (`st['walk']`: m/s, s from a landing to the next), both soles bear DS_S after each
 #: landing before the next lifts, START_S before the first: lifted at once from standing, her
-#: capture point ran 0.19 m out over the standing sole and each step after landed wider.
-DS_S, START_S = 0.1, 0.4
+#: capture point ran 0.19 m out over the standing sole and each step after landed wider; at
+#: 0.1 the trailing sole, on its toes, bore nothing the stack laid on it and each landing braked
+#: her 40 N - 0.30 m/s and 1015 J/m asked 0.5, at 0.03 0.36 and 746.
+DS_S, START_S = 0.03, 0.4
 
 #: A swinging knee folds FOLD_DEG over its line from its lift to LANDS_DEG, at the swing's middle:
 #: straight, a knee lifts its sole only to second order - asked up 17 m/s^2 the stack gave it
@@ -164,9 +170,10 @@ def step(st, s, loads, now, dt=0.001, bears=(0.0, 0.0)):
                                 omega ** 2 * (c[2] - p[1])])}
     if st['phase'] == 'swing':
         ask['stance'] = tuple(i != k for i in range(2))
-        T = max(dt, st['land_at'] - now)
-        rising = now < st['lift_at'] + LIFT_FIRST * (st['land_at'] - st['lift_at'])
-        at, speed, acc = (st['at'], np.zeros(2), np.zeros(2)) if rising or now >= st['land_at']             else quintic(st['at'], st['speed'], st['acc'], np.asarray(st['land'], float), T,
+        span = st['land_at'] - st['lift_at']
+        T = max(dt, st['land_at'] - (1.0 - TRAVEL_U) * span - now)
+        rising = now < st['lift_at'] + LIFT_FIRST * span
+        at, speed, acc = (st['at'], np.zeros(2), np.zeros(2)) if rising or T <= dt             else quintic(st['at'], st['speed'], st['acc'], np.asarray(st['land'], float), T,
                          min(dt, T))
         st.update(at=at, speed=speed, acc=acc)
         y, vy, ay = _lift(st, now + dt)

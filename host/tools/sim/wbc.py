@@ -28,6 +28,9 @@ AT_S, TO_S, HELD_DEG, SPREAD_S = 1.0, 3.0, 25.0, 0.035
 #: the soles' middle.
 XI_K = 2.0
 
+#: The drives of a leg (`drives.kind`).
+LEG_KINDS = ('hip_yaw', 'hip_roll', 'hip', 'knee', 'ankle', 'ankle_roll')
+
 #: A walk measured from TIMED_FROM_S after it is asked, s.
 TIMED_FROM_S = 2.0
 
@@ -35,8 +38,10 @@ TIMED_FROM_S = 2.0
 WAYS = tuple(range(0, 360, 45))
 
 #: The drives' PD (`physics.SERVO`'s gains times SERVO_SHARE: kp, kd) round a reference
-#: integrated from the stack's accelerations, leaking to the joints' angles over LEAK_S.
-SERVO_SHARE, LEAK_S = (0.5, 1.0), 0.2
+#: integrated from the stack's accelerations, leaking to the joints' angles over LEAK_S; a
+#: standing leg's at STANDING_KP of kp - at the free limbs' share, walking, its ankle's PD gave
+#: +15 N m against the stack's -11 and braked her 15 N along her way.
+SERVO_SHARE, LEAK_S, STANDING_KP = (0.5, 1.0), 0.2, 0.1
 
 #: War emergency power as the quad has it (`terminal/views/quad/flight.py`): a drive the stack
 #: asks past its clamp (`wbc.step`'s over) has its board's derate held off and its clamp at its
@@ -100,6 +105,7 @@ def stand(push=0.0, way=0.0, seconds=None, trace=False, wep=True, steps=True, at
     import numpy as np
     from machine import balance, gait, physics, wbc
     from machine.errors import MachineError
+    from machine.drives import kind
     from machine.figure import JOINTS, SEGMENTS
     global NAMES
     world, body = physics.World(), wbc.Body()
@@ -111,6 +117,9 @@ def stand(push=0.0, way=0.0, seconds=None, trace=False, wep=True, steps=True, at
     world.reset(pose, where=(0.0, 1.0 - low, 0.0))
     world.gains[:] *= SERVO_SHARE
     world.gains[~body.driven] = 0.0
+    free_kp = world.gains[:, 0].copy()
+    legs = [[i for i, j in enumerate(JOINTS) if j.startswith(side) and kind(j) in LEG_KINDS]
+            for side in ('left_', 'right_')]
     clamp, joints = world.limit.copy(), np.flatnonzero(body.driven)
     hold, left = np.zeros(len(body.clamp)), WEP_S if wep else 0.0
     ref_q = world.data.qpos[body.qact].copy()
@@ -143,6 +152,8 @@ def stand(push=0.0, way=0.0, seconds=None, trace=False, wep=True, steps=True, at
         passes += 1
         world.feed[body.driven] = out['tau']
         bears = out['bears']
+        for k, leg in enumerate(legs):
+            world.gains[leg, 0] = free_kp[leg] * (STANDING_KP if ask['stance'][k] else 1.0)
         hold = np.where(out['over'], WEP_HOLD_S, np.maximum(0.0, hold - 0.001))
         left -= 0.001 * bool(hold.any())
         world.limit[joints] = np.where(hold > 0.0, body.wep, clamp[joints])
