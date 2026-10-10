@@ -143,3 +143,23 @@ lever between z = -HEEL and BALL, the toes' to the toe base; a probe on
 | 165 / 149 | +7.7 | 2 / 7 | 0 |
 | 39 / 274 | +29.6 | 0 / 8 | 0 |
 | 289 / 0 | -16.6 | 6 / 7 | 1.4e-2 |
+
+## The chain in C
+
+`wbc/` on the arrays `tools/cores/model.py` writes from the compiled figure (34 links,
+a degree of freedom each, the pelvis floating: screws, spatial inertias with the rotors'
+armatures, stops), against MuJoCo at 40 random configurations (test_wbc_core.py,
+2026-10-10):
+
+| Quantity | Worst apart |
+| --- | --- |
+| a body's frame | 1.0e-15 m |
+| mass matrix, the armatures on its diagonal | 4.6e-14 |
+| bias C u + g | 1.7e-13 |
+| a point's Jacobian, w and v in the world | 1.7e-15 |
+| a step - pose, M, bias, both soles' Jacobians - on this host at -O2 | 14.5 us |
+
+- The pelvis's twist is its own frame's (w, v); MuJoCo's free joint carries v in
+  the world and w in the body, so M = T^T M_mj T and the bias takes M_mj dT u
+  beside h_mj. Both presets build the chain at 0 warnings; nothing on the board
+  calls it yet.

@@ -177,10 +177,29 @@ the files under docs/FINDINGS.md. An item is deleted when its DOD is met.
       contact; leg collisions; 1.6-11 ms a step in Python.
     + DOD: 120 N from 8 ways stood, <= 2 steps; 10 m walked at 0.5-1.0 m/s,
       J/m against the law's; the stack over the buses (a torque register,
-      PROTOCOL MINOR); a step < 1 ms (a C core).
+      PROTOCOL MINOR); a step < 1 ms (a C core: M, the bias and the
+      Jacobians from the figure's own screws, MuJoCo the reference).
 35. **Docs as technical documents**: no attributions, no narrative; tables
     and numbers. Done: TODO.
     + DOD: docs/, the READMEs and the code comments outside vendor code.
+36. **The latent stack** (32, 34; wbc.md): her physics offline into static
+    arrays, one C loop over them, R^k the only thing upward, the model
+    feeding R^k as data.
+    + Offline: `tools/cores/model.py` writes `wbc/inc/wbc_model.h` from the
+      compiled figure - a DOF a link (parent, frame, screw, spatial inertia
+      with the rotor's), stops, clamps; no logic.
+    + Loop: `wbc/`, C11, host-tested against MuJoCo (FK, J, M, bias):
+      the contacts' orthogonal decomposition, the tasks by priority in the
+      free space, the torques clipped to the polytope level by level; a
+      step's cycles on native and Renode.
+    + Upward: the law's rows as asks - balance point, contacts, clearances,
+      turns, hands - and the leg recipes gone; the get-up's words rows of
+      asks; the model picks and fills rows (`decide`), never code.
+    + Wire: 10 Mbit proven; a feedforward torque register (PROTOCOL MINOR).
+    + Done: the arrays; the chain's poses, Jacobians, M and bias in C against
+      MuJoCo (test_wbc_core.py); both presets build it at 0 warnings.
+    + DOD: the stand and the walk on the C loop with their measures kept
+      (J/m, band, polar); a step < 1 ms on a 475 MHz M7.
 
 ## Bench
 

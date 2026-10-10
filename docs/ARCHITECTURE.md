@@ -56,6 +56,8 @@ thermal/  20-node observer, envelope, online identification
 filter/   anti-alias biquad chain
 ctrl/     machine.parts and a feedback in C, rows played: device 12, ticked in
           the drive's sample (board_ctrl.c); host-tested
+wbc/      her chain on its static model (wbc_model.c, written by
+          tools/cores/model.py): poses, Jacobians, M, bias; host-tested
 daq/      acquisition engine (ring, window, ladder, tone, live)
 shtp/     BNO08X transport
 boot/     bootloader: boot_core.c (portable) + boot_main.c (registers),
@@ -90,52 +92,7 @@ Three domains; imports run one way: `coaxial` -> `machine`, `motor`.
 motor/              pmsm (Motor, Parameters, TWO_PI, RAD_S_PER_RPM), catalog
                     (5230SL, BENCH_MOTOR), loads (Propeller), sysid; imports
                     nothing here
-machine/            any board family, no import of one: roles (Input, Stream,
-                    Output, Controller; Part: Filter, Estimator, Regulator),
-                    errors, controller (Loop of Feedbacks over float channels),
-                    cyclic (that pass data-oriented: a frame, the parts as
-                    steps over rows, one edge), parts, panel, wiring, ansi
-                    (palette), sequencer (lines or tables: a step waits for
-                    its targets or tests, its time a timeout; jumps,
-                    routines; check, summary), alarms (L H
-                    logged, LL HH and stop() trip, the sequencer's hooks), nodes
-                    (Node, Nodes, FAMILIES), machine (Machine, Actuator, fit;
-                    node_hz: a feedback its node runs, the host forwarding),
-                    routines (types: a body of subsystems, a bus each), live
-                    (fed a line at a time, a buffer, woken with a line, a
-                    failsafe), simulated (pack, camera), virtual (VIRTUAL: a
-                    type's joints where told, no board), gait (a walk's angles)
-                    over curves (an ease, Hermite, Catmull-Rom: pure),
-                    figure (the gynoid's segments, masses, leg IK), physics
-                    (DYNAMIC: the figure in MuJoCo, a drive a joint) over floor
-                    (the slab, a sill, a patch, a rug, a stair), rtu
-                    (Modbus RTU: CRC-16, a pass's frames), buses (its boards on
-                    a bus a limb, a process each in lockstep with the world over
-                    a shared block, the host's frames bytes on a socket a bus),
-                    heat (a drive's board's heat: three nodes, the envelope's
-                    derate and trip, said in its reply), drives (two motors as
-                    bought, one box, one board; a joint's, where it sits),
-                    events (what she
-                    trips on, laid where her walk meets it), walker
-                    (her setpoints each ms: the pass, balance) over walkplan
-                    (the plan's tables by phase), landing (where a swinging
-                    foot goes: the plan's, a catch, a side step) and stance
-                    (the standing feet, their legs' joints, the phase's
-                    pace), capture (where
-                    a swinging foot lands across: on the capture point, or a
-                    side step), runner (her run from a flight: a bounce a
-                    foot), going over gaits, hold and strut (stand, walk
-                    and run one law, a gait a row of its setpoints, a
-                    manner those moved), pace
-                    (the director's hand to that law, the page's J), arrival
-                    (keyframes,
-                    the CoM fed back: the
-                    squat, the rise, the first step, the settling), stand
-                    (standing: the soles' points her support, a step toward
-                    the capture point out of it), director
-                    (which move has her, catches, falls), pendulum (virtual,
-                    between her ears: how smoothly she goes, one number),
-                    running (her own process, paced to the clock)
+machine/            any board family, no import of one; modules below
 coaxial/            rig.py = Coaxial63100, the front door; cli, errors, memory;
                     node (the family for machine: Coaxial node, joint, surface,
                     rotor, torque); profiles/ (a motor's drive record and
@@ -167,7 +124,7 @@ terminal/ui/        what they draw with: stage, chrome (the house HUD: CRT snow,
                     clock, kana tags), screen, console, scroll, ..
 tools/dev/          run_tests, pick_tests, counts, host_map, target_map,
                     warm_model, lint (markdownlint + pyright, the hooks),
-                    measure_first (the prompt hook: her movement named, measure), ab (every
+                    measure_first (the prompt hook: a movement described, measured), ab (every
                     page's reads, emulated against the stand-in and the physics),
                     focus (a suite's tests by name, its watchdog, the relay: a
                     baton a physical core, a queue longest first, as the free
@@ -180,12 +137,14 @@ tools/render/       renderer checks against the exporter; ansi2png; attitude (th
                     page's last frame, simulated, to a PNG)
 tools/sim/          the drive core on this host: montecarlo, observer_run;
                     gait_montecarlo (the gynoid through fixed trials); look
-                    (her start a stage a row, simulated or a recording); run
-                    (her run a landing a row, her drives against it);
+                    (the start a stage a row, simulated or a recording); run
+                    (the run a landing a row, the drives against it); wbc
+                    (the whole-body stack standing, shoved, walking);
                     quad_race (the quad's laps through fixed flights, a search
                     over its plan and its line)
 tools/cores/        build: the portable cores' gcc build;
-                    drive, thermal: their ctypes harnesses;
+                    drive, thermal, wbc: their ctypes harnesses; model: her
+                    figure as static arrays (wbc/);
                     fakeboard: comms/, the record and the observer over
                     board/fake as
                     fakeboard://; native: the same with the board layer on
@@ -213,6 +172,51 @@ tests/              suites, .counts.json (measured sizes)
 - Stand-in: five buses (AX, LL, RL, LA, RA), four nodes each; reports
   proto 2.23, firmware "simulated". `test_parity.py` holds it to the board.
 
+### machine/
+
+| Module | Is |
+| --- | --- |
+| roles | Input, Stream, Output, Controller; Part: Filter, Estimator, Regulator |
+| errors | the library's exceptions |
+| controller | a Loop of Feedbacks over float channels |
+| cyclic | that pass data-oriented: a frame, the parts as steps over rows, one edge |
+| parts, panel, wiring | the parts, the panel, their wiring |
+| ansi | the palette |
+| sequencer | lines or tables: a step waits for its targets or tests, its time a timeout; jumps, routines; check, summary |
+| alarms | L H logged; LL HH and stop() trip; the sequencer's hooks |
+| nodes | Node, Nodes, FAMILIES |
+| machine | Machine, Actuator, fit; node_hz: a feedback its node runs, the host forwarding |
+| routines | types: a body of subsystems, a bus each |
+| live | fed a line at a time, a buffer, woken with a line, a failsafe |
+| simulated | pack, camera |
+| virtual | VIRTUAL: a type's joints where told, no board |
+| curves | an ease, Hermite, Catmull-Rom: pure |
+| figure | the gynoid's segments, masses, leg IK |
+| physics | DYNAMIC: the figure in MuJoCo, a drive a joint |
+| floor | the slab, a sill, a patch, a rug, a stair |
+| rtu | Modbus RTU: CRC-16, a pass's frames |
+| buses | the boards on a bus a limb, a process each in lockstep with the world over a shared block, the host's frames bytes on a socket a bus |
+| heat | a drive's board's heat: three nodes, the envelope's derate and trip, reported in its reply |
+| drives | two motors as bought, one box, one board; each joint's drive and where it sits |
+| events | obstacles, laid where the walk meets them |
+| gait, walkplan | a walk's angles; the plan's tables by phase |
+| walker | the setpoints each ms: the pass, balance |
+| landing | where a swinging foot goes: the plan's, a catch, a side step |
+| stance | the standing feet, their legs' joints, the phase's pace |
+| capture | where a swinging foot lands across: on the capture point, or a side step |
+| runner | the run from a flight: a bounce a foot |
+| going, gaits, hold, strut | stand, walk and run as one law; a gait a row of its setpoints; a manner those moved |
+| pace | the director's hand-off to that law, the page's J |
+| arrival | keyframes, the CoM fed back: the squat, the rise, the first step, the settling |
+| stand | standing: the soles' points the support, a step toward the capture point out of it |
+| director | which move is active; catches, falls |
+| pendulum | virtual, between the ears: the gait's smoothness as one number |
+| running | its own process, paced to the clock |
+| qp | dense convex QP: dual active set, an interior-point fallback, a strict hierarchy by null space |
+| wbc | the whole-body stack: accelerations and corner forces a step, torques after |
+| mpc | the DCM over a 1 s horizon: ZMPs and landings |
+| balance | the stack's ask a step: the MPC's plan, a step's swing and fold |
+
 ## Tests
 
 - Sizes live in `host/tests/.counts.json` (measured each run); no document
@@ -225,13 +229,17 @@ tests/              suites, .counts.json (measured sizes)
   mirrors of firmware constants vs the C.
 - Suites that touch only the stand-in run four at a time (offline gate
   ~142 s); mcp, parity, bench, conformance, live run alone after.
-- The gynoid: `test_gynoid.py` on fantasy boards (`physics.ENVELOPE` 0,
-  their SOA never binding) - her walk, her clothes, her look;
-  `test_gynoid_faults.py` on her boards as built - the envelope derating and
-  tripping them, glitches, a lace caught; `test_gynoid_gait.py` her walk's
-  form, held to its take (tests/takes/walk.fbx) and to a woman's band
-  (`tools/sim/normal.py`); `test_gynoid_going.py` the one law's rows, her
-  ways between them, her manners read back in that band's words.
+- The gynoid's suites:
+
+| Suite | Holds |
+| --- | --- |
+| `test_gynoid.py` | on fantasy boards (`physics.ENVELOPE` 0, their SOA never binding): the walk, the clothes, the look |
+| `test_gynoid_faults.py` | on the boards as built: the envelope derating and tripping them, glitches, a caught lace |
+| `test_gynoid_gait.py` | the walk's form, held to its take (tests/takes/walk.fbx) and to a woman's band (`tools/sim/normal.py`) |
+| `test_gynoid_going.py` | the one law's rows, the ways between them, its manners read back in the band's words |
+| `test_wbc.py` | the QP solver's KKT, two levels' priority, standing, shoves with and without a step |
+| `test_wbc_core.py` | her chain in C against MuJoCo: frames, M, bias, Jacobians at random configurations; a step's time |
+
 - The stand-in is the emulated world's reference: `tools/dev/ab.py` runs a
   page on both, a process a page, and marks a read missing, a range apart
   over the board seconds both cover, or a number the physics rules out;
