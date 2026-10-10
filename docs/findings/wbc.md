@@ -146,10 +146,10 @@ lever between z = -HEEL and BALL, the toes' to the toe base; a probe on
 
 ## The chain in C
 
-`wbc/` on the arrays `tools/cores/model.py` writes from the compiled figure (34 links,
-a degree of freedom each, the pelvis floating: screws, spatial inertias with the rotors'
-armatures, stops), against MuJoCo at 40 random configurations (test_wbc_core.py,
-2026-10-10):
+`wbc/` on the arrays `tools/cores/model.py` writes from the compiled figure
+(34 links, a degree of freedom each, the pelvis floating: screws, spatial
+inertias with the rotors' armatures, stops), against MuJoCo at 40 random
+configurations (test_wbc_core.py, 2026-10-10):
 
 | Quantity | Worst apart |
 | --- | --- |
