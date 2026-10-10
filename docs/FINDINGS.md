@@ -324,6 +324,7 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
 | The gynoid's kinematics: the figure's recipes, dual quaternions in their place, her jeans' seams on them | [findings/kinematics.md](findings/kinematics.md) |
 | The gynoid kept up: the capture law and the side step, the floor's events and shoves, the scoreboard and its searches | [findings/balance.md](findings/balance.md) |
 | The gynoid standing: the rigs under her, the one law in the capture point's plane, the push polar | [findings/standing.md](findings/standing.md) |
+| The gynoid's balance as one convex QP: the stack, its solver, the MPC and its step | [findings/wbc.md](findings/wbc.md) |
 | The gynoid's build, her buses, her falls and her get-up, her drawing and her clothes | [findings/body.md](findings/body.md) |
 | The gynoid's drives: motors, gearboxes, inverters, the numbers that size them | [findings/drives.md](findings/drives.md) |
 | One stack for every drive: the demand behind it, the candidates, the stacks as built | [findings/stacks.md](findings/stacks.md) |

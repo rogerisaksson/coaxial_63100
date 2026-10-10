@@ -67,3 +67,11 @@ might stand in their place. Her going's are in [going](going.md).
   one construction a leg's order of joints: a recipe still, in a clearer
   hand. So the motors, with a solve; the conformal algebra to derive a
   closed form where one is wanted.
+- Her back on the law (the user, 2026-10-10: no hollow, front-heavy): the
+  pelvis tipped 5.2 deg by the row's lean, the spine straight, the trunk 6.3
+  deg on, her upper body 25.2 mm ahead of her hips, the spine holding 2.5 N m
+  where the walk as built 0.3 mm and 0.1 (`look.py`'s new columns). The
+  spine taking the lean out: 9.5 mm, 0.4 N m, 484 J/m; with the trunk's seat
+  15 mm back on the pelvis, -3.8 mm, 0.6 N m, 439 J/m - but its walk row went
+  backward at 0.26 m/s and 4 checks more of test_gynoid_going fell, the
+  falls suite 3 (TODO 33).

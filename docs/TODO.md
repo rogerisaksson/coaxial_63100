@@ -153,16 +153,14 @@ met.
     MPC over a whole-body stack, the constraints the design - friction
     cones, the drives' and joints' limits, the contacts held; the ZMP in
     the support, collisions, priorities by null space; WEP where a fall
-    is near). `machine/qp.py`, `wbc.py`, `mpc.py`, `balance.py`,
-    `tools/sim/wbc.py`, bus-less (`World.feed`). Standing without a
-    step: 38 N 8 of 8, 60 N 8, 80 N 4 - the sides, the back diagonals -,
-    100 N 2, 120 N 0, where the law with its steps 12 of 12, 12, 12, 2,
-    0. Left: a step's sole does not rise, its knee straight (a vertical
-    acceleration only to second order; the fold, `balance.FOLD_DEG`);
-    the legs' collisions; 2-11 ms a step in Python. DOD: 120 N from 8
-    ways stood on steps; 10 m walked at 0.5-1.0 m/s, J/m against the
-    law's; the stack over the buses (a torque register, PROTOCOL MINOR);
-    a step under 1 ms (a C core).
+    is near; wbc.md). `machine/qp.py`, `wbc.py`, `mpc.py`, `balance.py`,
+    `tools/sim/wbc.py`, bus-less (`World.feed`). Shoved from 8 ways with
+    its steps: 38 N 8 of 8, 60 N 8, 80 N 7, 100 N 7, 120 N 3, where the
+    law 12 of 12, 12, 12, 2, 0; up to 10 steps where one would do. Left:
+    the legs' collisions; walking; 1.6-11 ms a step in Python. DOD: 120 N
+    from 8 ways stood, 2 steps at most; 10 m walked at 0.5-1.0 m/s, J/m
+    against the law's; the stack over the buses (a torque register,
+    PROTOCOL MINOR); a step under 1 ms (a C core).
 
 ## Bench
 
