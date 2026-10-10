@@ -1,15 +1,20 @@
-/** wbc_stack.c - the loop: the asks of R^k into the drives' torques, by priority, clipped.
+/** wbc_stack.c - the loop: the asks of R^k into the drives' torques, by priority, within bounds.
 
     Unknown the commanded torques, the drives' and the held joints'. The soles standing still
     and the dynamics make every acceleration and each sole's wrench affine in them (M's
     Cholesky, the contacts' Schur complement). Each level's rows are met least squares in the
-    null space of the levels above: a small level by its Gram matrix, damped by DAMP of its
-    largest diagonal (the redundancy under it cut), the last and longest by its normal
-    equations damped by REG. The polytope: each drive's load within its clamp as derated, its
-    peak under war emergency power where it ran near its clamp; the lowest level scaled back
-    first; a pair's rods shared as machine.wbc._currents has it. machine.wbc's levels, its
-    inequalities as tasks and clips (docs/findings/wbc.md). */
+    null space of the levels above, under every bound - each drive's load within its clamp as
+    derated (its peak under war emergency power where it ran near its clamp), a sole pressing
+    and inside its friction cone, its centre of pressure inside its margin, a joint short of
+    its stop - by a primal-dual active set: the level's equality-constrained problem solved
+    exactly for the bounds held (Schur complement over M's and the level's factors), a bound
+    whose multiplier turns negative freed, the most broken one taken, at most MAXIT changes a
+    level a tick, the set warm from the last tick. The null space under a level is cut by its
+    rows' Gram matrix, damped by DAMP of its largest diagonal. A pair's rods
+    share loads as machine.wbc._currents has it. machine.wbc's levels and inequalities,
+    deterministic (docs/findings/wbc.md). The numerics: wbc_solve.c. */
 #include "wbc.h"
+#include "wbc_solve.h"
 
 #include <math.h>
 #include <string.h>
@@ -22,7 +27,11 @@ static const double SWING_KP = 1600.0, SWING_KD = 80.0, MOMENTUM_K = 3.0;
 static const double TURN_W = 3.0, MOMENTUM_W = 0.3, POSTURE_W = 1.0, TORQUE_W = 3.0;
 static const double FORCE_W = 1.0, HEIGHT_W = 1.0, FOLD_W = 0.3;
 static const double CLAMP_SHARE = 0.95, NEAR = 0.6;
-static const double DAMP = 1e-6, REG = 1e-6;
+static const double MU = 0.6, MARGIN_M = 0.015, LIMIT_S = 0.05, STOP_RAD = 0.01, HEIGHT_BAND = 3.0;
+/** A bound within ACTIVE of its edge is reported at it. */
+static const double ACTIVE = 1e-3;
+/** The level a swinging sole and its fold are laid on: under the turns, or beside them. */
+#define SWING_LEVEL 2
 
 /** The dof a commanded torque x drives. */
 static int dof_of(int x)
@@ -30,135 +39,13 @@ static int dof_of(int x)
   return 5 + ((x < WBC_DRIVEN) ? wbc_driven[x] : wbc_held[x - WBC_DRIVEN]);
 }
 
-/** a, n x n by rows of `ld`, into its lower Cholesky factor in place; 0 where not positive. */
-static int cholesky(int n, int ld, double *a)
-{
-  for (int j = 0; j < n; j++)
-  {
-    double d = a[j * ld + j];
-
-    for (int k = 0; k < j; k++)
-    {
-      d -= a[j * ld + k] * a[j * ld + k];
-    }
-    if (d <= 0.0)
-    {
-      return 0;
-    }
-    d = sqrt(d);
-    a[j * ld + j] = d;
-    for (int i = j + 1; i < n; i++)
-    {
-      double s = a[i * ld + j];
-
-      for (int k = 0; k < j; k++)
-      {
-        s -= a[i * ld + k] * a[j * ld + k];
-      }
-      a[i * ld + j] = s / d;
-    }
-  }
-  return 1;
-}
-
-/** x = (L L^T)^-1 b. */
-static void chol_solve(int n, int ld, const double *l, const double *b, double *x)
-{
-  for (int i = 0; i < n; i++)
-  {
-    double s = b[i];
-
-    for (int k = 0; k < i; k++)
-    {
-      s -= l[i * ld + k] * x[k];
-    }
-    x[i] = s / l[i * ld + i];
-  }
-  for (int i = n - 1; i >= 0; i--)
-  {
-    double s = x[i];
-
-    for (int k = i + 1; k < n; k++)
-    {
-      s -= l[k * ld + i] * x[k];
-    }
-    x[i] = s / l[i * ld + i];
-  }
-}
-
-/** The quaternion (w, x, y, z) of a frame's rotation. */
-static void quat_of(const double r[9], double q[4])
-{
-  const double tr = r[0] + r[4] + r[8];
-
-  if (tr > 0.0)
-  {
-    const double s = sqrt(tr + 1.0) * 2.0;
-
-    q[0] = 0.25 * s;
-    q[1] = (r[7] - r[5]) / s;
-    q[2] = (r[2] - r[6]) / s;
-    q[3] = (r[3] - r[1]) / s;
-  }
-  else if ((r[0] > r[4]) && (r[0] > r[8]))
-  {
-    const double s = sqrt(1.0 + r[0] - r[4] - r[8]) * 2.0;
-
-    q[0] = (r[7] - r[5]) / s;
-    q[1] = 0.25 * s;
-    q[2] = (r[1] + r[3]) / s;
-    q[3] = (r[2] + r[6]) / s;
-  }
-  else if (r[4] > r[8])
-  {
-    const double s = sqrt(1.0 + r[4] - r[0] - r[8]) * 2.0;
-
-    q[0] = (r[2] - r[6]) / s;
-    q[1] = (r[1] + r[3]) / s;
-    q[2] = 0.25 * s;
-    q[3] = (r[5] + r[7]) / s;
-  }
-  else
-  {
-    const double s = sqrt(1.0 + r[8] - r[0] - r[4]) * 2.0;
-
-    q[0] = (r[3] - r[1]) / s;
-    q[1] = (r[2] + r[6]) / s;
-    q[2] = (r[5] + r[7]) / s;
-    q[3] = 0.25 * s;
-  }
-}
-
-/** The world-frame rotation vector taking `have` to `want`, rad: machine.wbc.turn_error. */
-static void turn_error(const double want[4], const double have[4], double out[3])
-{
-  const double w0 = have[0], x0 = have[1], y0 = have[2], z0 = have[3];
-  const double w1 = want[0], x1 = want[1], y1 = want[2], z1 = want[3];
-  double       w = w1 * w0 + x1 * x0 + y1 * y0 + z1 * z0;
-  double       v[3] = {-w1 * x0 + x1 * w0 - y1 * z0 + z1 * y0,
-                       -w1 * y0 + y1 * w0 - z1 * x0 + x1 * z0,
-                       -w1 * z0 + z1 * w0 - x1 * y0 + y1 * x0};
-  double       s;
-
-  if (w < 0.0)
-  {
-    w = -w;
-    v[0] = -v[0];
-    v[1] = -v[1];
-    v[2] = -v[2];
-  }
-  s = sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
-  for (int k = 0; k < 3; k++)
-  {
-    out[k] = (s > 1e-12) ? v[k] * (2.0 * atan2(s, w) / s) : 2.0 * v[k];
-  }
-}
+/* ---- rows over tau ------------------------------------------------------------------------ */
 
 /** A row over tau from one over udot: coef . (u0 + bb tau) = rhs, weighted. */
-static void row_udot(wbc_stack_t *s, const double coef[WBC_N], double rhs, double weight)
+static void over_udot(const wbc_stack_t *s, double *a, double *r, const double coef[WBC_N],
+                      double rhs, double weight)
 {
-  double *a = s->a[s->rows];
-  double  off = 0.0;
+  double off = 0.0;
 
   for (int x = 0; x < WBC_X; x++)
   {
@@ -179,15 +66,14 @@ static void row_udot(wbc_stack_t *s, const double coef[WBC_N], double rhs, doubl
   {
     a[x] *= weight;
   }
-  s->r[s->rows] = weight * (rhs - off);
-  s->rows++;
+  *r = weight * (rhs - off);
 }
 
 /** A row over tau from one over the soles' wrenches: coef . (l0 + ll tau) = rhs, weighted. */
-static void row_lambda(wbc_stack_t *s, const double coef[WBC_C], double rhs, double weight)
+static void over_lambda(const wbc_stack_t *s, double *a, double *r, const double coef[WBC_C],
+                        double rhs, double weight)
 {
-  double *a = s->a[s->rows];
-  double  off = 0.0;
+  double off = 0.0;
 
   for (int x = 0; x < WBC_X; x++)
   {
@@ -208,257 +94,251 @@ static void row_lambda(wbc_stack_t *s, const double coef[WBC_C], double rhs, dou
   {
     a[x] *= weight;
   }
-  s->r[s->rows] = weight * (rhs - off);
-  s->rows++;
+  *r = weight * (rhs - off);
 }
 
-/** A row on one torque: weight tau_x = weight rhs. */
-static void row_tau(wbc_stack_t *s, int x, double rhs, double weight)
+/** The next of `level`'s rows this tick, from one over udot, over the wrenches, or on one
+    torque (weight tau_x = weight rhs). */
+static void row_udot(wbc_stack_t *s, int level, const double coef[WBC_N], double rhs,
+                     double weight)
 {
-  for (int k = 0; k < WBC_X; k++)
-  {
-    s->a[s->rows][k] = 0.0;
-  }
-  s->a[s->rows][x] = weight;
-  s->r[s->rows] = weight * rhs;
-  s->rows++;
+  const int i = s->lrows[level]++;
+
+  over_udot(s, s->la[level][i], &s->lr[level][i], coef, rhs, weight);
 }
 
-/** The rows laid, least squares in the null space so far: this level's torques, and the null
-    space under them for the next. The last level by its damped normal equations. */
-static void level_solve(wbc_stack_t *s, int level, int last)
+static void row_lambda(wbc_stack_t *s, int level, const double coef[WBC_C], double rhs,
+                       double weight)
 {
-  const int rows = s->rows;
-  double    sum[WBC_X], z[WBC_ROWS], rhs[WBC_X], y[WBC_X], big;
+  const int i = s->lrows[level]++;
 
-  for (int x = 0; x < WBC_X; x++)
-  {
-    sum[x] = 0.0;
-    for (int k = 0; k < level; k++)
-    {
-      sum[x] += s->tau[k][x];
-    }
-    s->tau[level][x] = 0.0;
-  }
-  if (rows == 0)
+  over_lambda(s, s->la[level][i], &s->lr[level][i], coef, rhs, weight);
+}
+
+static void row_tau(wbc_stack_t *s, int level, int x, double rhs, double weight)
+{
+  const int i = s->lrows[level]++;
+
+  memset(s->la[level][i], 0, sizeof(s->la[level][i]));
+  s->la[level][i][x] = weight;
+  s->lr[level][i] = weight * rhs;
+}
+
+/* ---- the bounds --------------------------------------------------------------------------- */
+
+/** A bound a . tau <= h kept this tick, its row scaled to unit norm; its kind, and which. */
+static void bound(wbc_stack_t *s, int kind, int id, const double a[WBC_X], double h)
+{
+  double nrm = 0.0;
+
+  if (s->ineq >= WBC_INEQ)
   {
     return;
   }
-  for (int i = 0; i < rows; i++)
+  for (int x = 0; x < WBC_X; x++)
   {
-    double got = 0.0;
-
-    for (int x = 0; x < WBC_X; x++)
-    {
-      double v = 0.0;
-
-      for (int k = 0; k < WBC_X; k++)
-      {
-        v += s->a[i][k] * s->nn[k][x];
-      }
-      s->ab[i][x] = v;
-      got += s->a[i][x] * sum[x];
-    }
-    s->rho[i] = s->r[i] - got;
+    nrm += a[x] * a[x];
   }
-  if ((rows <= WBC_SMALL) && !last)
+  nrm = sqrt(nrm);
+  if (nrm < 1e-12)
   {
-    big = 0.0;
-    for (int i = 0; i < rows; i++)
-    {
-      for (int j = 0; j < rows; j++)
-      {
-        double v = 0.0;
-
-        for (int x = 0; x < WBC_X; x++)
-        {
-          v += s->ab[i][x] * s->ab[j][x];
-        }
-        s->g[i][j] = v;
-      }
-      big = (s->g[i][i] > big) ? s->g[i][i] : big;
-    }
-    for (int i = 0; i < rows; i++)
-    {
-      s->g[i][i] += DAMP * big + 1e-300;
-    }
-    if (!cholesky(rows, WBC_SMALL, &s->g[0][0]))
-    {
-      return;
-    }
-    chol_solve(rows, WBC_SMALL, &s->g[0][0], s->rho, z);
-    for (int x = 0; x < WBC_X; x++)
-    {
-      double v = 0.0;
-
-      for (int i = 0; i < rows; i++)
-      {
-        v += s->ab[i][x] * z[i];
-      }
-      s->tau[level][x] = v;
-    }
-    /* The null space less this level's range: nn -= ab^T G^-1 ab. */
-    for (int x = 0; x < WBC_X; x++)
-    {
-      double col[WBC_ROWS] = {0.0}, sol[WBC_ROWS] = {0.0};
-
-      for (int i = 0; i < rows; i++)
-      {
-        col[i] = s->ab[i][x];
-      }
-      chol_solve(rows, WBC_SMALL, &s->g[0][0], col, sol);
-      for (int i = 0; i < rows; i++)
-      {
-        s->qq[i][x] = sol[i];
-      }
-    }
-    for (int x = 0; x < WBC_X; x++)
-    {
-      for (int k = 0; k < WBC_X; k++)
-      {
-        double v = 0.0;
-
-        for (int i = 0; i < rows; i++)
-        {
-          v += s->ab[i][x] * s->qq[i][k];
-        }
-        s->nn[x][k] -= v;
-      }
-    }
     return;
   }
-  big = 0.0;
   for (int x = 0; x < WBC_X; x++)
   {
-    for (int k = 0; k < WBC_X; k++)
-    {
-      double v = 0.0;
+    s->ga[s->ineq][x] = a[x] / nrm;
+  }
+  s->gh[s->ineq] = h / nrm;
+  s->gkind[s->ineq] = kind;
+  s->gid[s->ineq] = id;
+  s->ineq++;
+}
 
-      for (int i = 0; i < rows; i++)
-      {
-        v += s->ab[i][x] * s->ab[i][k];
-      }
-      s->hh[x][k] = v;
-    }
-    big = (s->hh[x][x] > big) ? s->hh[x][x] : big;
-    rhs[x] = 0.0;
-    for (int i = 0; i < rows; i++)
-    {
-      rhs[x] += s->ab[i][x] * s->rho[i];
-    }
-  }
-  for (int x = 0; x < WBC_X; x++)
+/** Onto a coefficient vector over the wrenches: a sole's own axis `axis` of its moment (`of`
+    0) or its force (3), times `scale`. */
+static void sole_axis(const wbc_stack_t *s, int k, int of, int axis, double scale,
+                      double lc[WBC_C])
+{
+  const double *r = s->sole_r[k];
+  const int     at = 6 * s->standing[k] + of;
+
+  for (int i = 0; i < 3; i++)
   {
-    s->hh[x][x] += REG * big + 1e-300;
-  }
-  if (cholesky(WBC_X, WBC_X, &s->hh[0][0]))
-  {
-    chol_solve(WBC_X, WBC_X, &s->hh[0][0], rhs, y);
-    memcpy(s->tau[level], y, sizeof(y));
+    lc[at + i] += scale * r[3 * i + axis];
   }
 }
 
-/** Each drive's load from the drives' torques: a pair's as its rods share them. */
-static void loads(const double tau[WBC_X], double load[WBC_DRIVEN])
+/** A bound over the wrenches, coef . lambda <= rhs. */
+static void bound_lambda(wbc_stack_t *s, int kind, int id, const double lc[WBC_C], double rhs)
 {
-  for (int j = 0; j < WBC_DRIVEN; j++)
-  {
-    load[j] = tau[j];
-  }
-  for (int j = 0; j < WBC_DRIVEN; j++)
-  {
-    const int pair = wbc_pair[wbc_driven[j]];
+  double a[WBC_X], h;
 
-    if (pair > 0)
-    {
-      int other = -1;
-
-      for (int k = 0; k < WBC_DRIVEN; k++)
-      {
-        if (wbc_driven[k] == pair - 1)
-        {
-          other = k;
-        }
-      }
-      if (other >= 0)
-      {
-        const double kj = wbc_kt[wbc_driven[j]], ko = wbc_kt[wbc_driven[other]];
-        const double a = tau[j] / kj, c = tau[other] / ko;
-
-        load[j] = (a + c) * kj;
-        load[other] = (a - c) * ko;
-      }
-    }
-  }
+  over_lambda(s, a, &h, lc, rhs, 1.0);
+  bound(s, kind, id, a, h);
 }
 
-/** The drives' torques from their loads: the inverse of `loads`. */
-static void unload(const double load[WBC_DRIVEN], double tau[WBC_X])
+/** Every bound this tick: the drives' loads, her vertical acceleration within HEIGHT_BAND of
+    its ask, each standing sole pressing, inside its cone and its centre of pressure inside
+    its margin, each stop LIMIT_S ahead. */
+static void lay_bounds(wbc_body_t *b, wbc_stack_t *s, const double u[WBC_N],
+                       const wbc_ask_t *ask)
 {
-  for (int j = 0; j < WBC_DRIVEN; j++)
+  double a[WBC_X], lc[WBC_C], coef[WBC_N], h;
+
+  s->ineq = 0;
+  if (s->nc)
   {
-    tau[j] = load[j];
+    const double ay = ask->com_acc[1] + WBC_G;
+
+    for (int sign = -1; sign <= 1; sign += 2)
+    {
+      memset(lc, 0, sizeof(lc));
+      for (int k = 0; k < s->nst; k++)
+      {
+        lc[6 * k + 4] = sign / wbc_total_mass;
+      }
+      bound_lambda(s, 1, 1020 + (sign > 0), lc, sign * ay + HEIGHT_BAND);
+    }
   }
   for (int j = 0; j < WBC_DRIVEN; j++)
   {
-    const int pair = wbc_pair[wbc_driven[j]];
-
-    if (pair > 0)
+    for (int x = 0; x < WBC_X; x++)
     {
-      int other = -1;
-
-      for (int k = 0; k < WBC_DRIVEN; k++)
+      a[x] = s->pmap[j][x];
+    }
+    bound(s, 0, j * 10 + 1, a, s->ceiling[j]);
+    for (int x = 0; x < WBC_X; x++)
+    {
+      a[x] = -s->pmap[j][x];
+    }
+    bound(s, 0, j * 10, a, s->ceiling[j]);
+  }
+  for (int k = 0; k < 2; k++)
+  {
+    if (s->standing[k] < 0)
+    {
+      continue;
+    }
+    /* Pressing: -f_y <= 0. */
+    memset(lc, 0, sizeof(lc));
+    sole_axis(s, k, 3, 1, -1.0, lc);
+    bound_lambda(s, 1, 1000 + k * 10, lc, 0.0);
+    /* The cone: +-f_axis - mu f_y <= 0, across and along. */
+    for (int axis = 0; axis < 3; axis += 2)
+    {
+      for (int sign = -1; sign <= 1; sign += 2)
       {
-        if (wbc_driven[k] == pair - 1)
-        {
-          other = k;
-        }
+        memset(lc, 0, sizeof(lc));
+        sole_axis(s, k, 3, axis, (double)sign, lc);
+        sole_axis(s, k, 3, 1, -MU, lc);
+        bound_lambda(s, 2, 2000 + k * 10 + axis * 2 + (sign > 0), lc, 0.0);
       }
-      if (other >= 0)
-      {
-        const double kj = wbc_kt[wbc_driven[j]], ko = wbc_kt[wbc_driven[other]];
-        const double a = 0.5 * (load[j] / kj + load[other] / ko);
-        const double c = 0.5 * (load[j] / kj - load[other] / ko);
+    }
+    /* Its torsion: +-m_y - mu lever f_y <= 0, the lever half the margin's shorter side. */
+    for (int sign = -1; sign <= 1; sign += 2)
+    {
+      memset(lc, 0, sizeof(lc));
+      sole_axis(s, k, 0, 1, (double)sign, lc);
+      sole_axis(s, k, 3, 1, -MU * s->lever, lc);
+      bound_lambda(s, 2, 2000 + k * 10 + 6 + (sign > 0), lc, 0.0);
+    }
+    /* The centre of pressure, x = m_z / f_y within [lo, hi]: m_z - hi f_y <= 0, lo f_y - m_z <= 0;
+       z = -m_x / f_y: -m_x - hi f_y <= 0, m_x + lo f_y <= 0. */
+    memset(lc, 0, sizeof(lc));
+    sole_axis(s, k, 0, 2, 1.0, lc);
+    sole_axis(s, k, 3, 1, -s->cop_hi[0], lc);
+    bound_lambda(s, 3, 3000 + k * 10 + 1, lc, 0.0);
+    memset(lc, 0, sizeof(lc));
+    sole_axis(s, k, 0, 2, -1.0, lc);
+    sole_axis(s, k, 3, 1, s->cop_lo[0], lc);
+    bound_lambda(s, 3, 3000 + k * 10, lc, 0.0);
+    memset(lc, 0, sizeof(lc));
+    sole_axis(s, k, 0, 0, -1.0, lc);
+    sole_axis(s, k, 3, 1, -s->cop_hi[1], lc);
+    bound_lambda(s, 3, 3000 + k * 10 + 3, lc, 0.0);
+    memset(lc, 0, sizeof(lc));
+    sole_axis(s, k, 0, 0, 1.0, lc);
+    sole_axis(s, k, 3, 1, s->cop_lo[1], lc);
+    bound_lambda(s, 3, 3000 + k * 10 + 2, lc, 0.0);
+  }
+  for (int j = 0; j < WBC_DRIVEN; j++)
+  {
+    const int    link = wbc_driven[j], d = 5 + link;
+    const double lo = wbc_stop[link][0], hi = wbc_stop[link][1];
 
-        tau[j] = a * kj;
-        tau[other] = c * ko;
-      }
+    if (lo < hi)
+    {
+      const double ahead = b->q[d - 6] + u[d] * LIMIT_S;
+      const double most = 2.0 * (hi - STOP_RAD - ahead) / (LIMIT_S * LIMIT_S);
+      const double least = 2.0 * (lo + STOP_RAD - ahead) / (LIMIT_S * LIMIT_S);
+
+      memset(coef, 0, sizeof(coef));
+      coef[d] = 1.0;
+      over_udot(s, a, &h, coef, most, 1.0);
+      bound(s, 4, 4000 + j * 10 + 1, a, h);
+      coef[d] = -1.0;
+      over_udot(s, a, &h, coef, -least, 1.0);
+      bound(s, 4, 4000 + j * 10, a, h);
     }
   }
 }
 
 void wbc_stack_init(wbc_stack_t *s)
 {
+  double unit[WBC_X], load[WBC_DRIVEN];
+
   memset(s, 0, sizeof(*s));
+  for (int x = 0; x < WBC_X; x++)
+  {
+    memset(unit, 0, sizeof(unit));
+    unit[x] = 1.0;
+    wbc_loads(unit, load);
+    for (int j = 0; j < WBC_DRIVEN; j++)
+    {
+      s->pmap[j][x] = load[j];
+    }
+  }
+  /* The corners about the sole's middle, where the wrench is taken. */
+  s->cop_lo[0] = s->cop_lo[1] = 1e9;
+  s->cop_hi[0] = s->cop_hi[1] = -1e9;
+  for (int c = 0; c < 4; c++)
+  {
+    const double x = wbc_sole_corner[c][0] - wbc_sole_at[0];
+    const double z = wbc_sole_corner[c][2] - wbc_sole_at[2];
+
+    s->cop_lo[0] = (x < s->cop_lo[0]) ? x : s->cop_lo[0];
+    s->cop_hi[0] = (x > s->cop_hi[0]) ? x : s->cop_hi[0];
+    s->cop_lo[1] = (z < s->cop_lo[1]) ? z : s->cop_lo[1];
+    s->cop_hi[1] = (z > s->cop_hi[1]) ? z : s->cop_hi[1];
+  }
+  for (int k = 0; k < 2; k++)
+  {
+    s->cop_lo[k] += MARGIN_M;
+    s->cop_hi[k] -= MARGIN_M;
+  }
+  s->lever = 0.5 * (((s->cop_hi[0] - s->cop_lo[0]) < (s->cop_hi[1] - s->cop_lo[1]))
+                    ? s->cop_hi[0] - s->cop_lo[0] : s->cop_hi[1] - s->cop_lo[1]);
 }
 
-void wbc_stack_step(wbc_body_t *b, wbc_stack_t *s, const wbc_frame_t *base,
-                    const double q[WBC_N - 6], const double u[WBC_N], const wbc_ask_t *ask,
-                    wbc_out_t *out)
+/* ---- the tick ----------------------------------------------------------------------------- */
+
+/** The dynamics at the pose: M = L L^T, udot = u0 + bb tau, the soles' wrenches l0 + ll tau;
+    0 where M or the contacts cannot be factored. */
+static int prepare(wbc_body_t *b, wbc_stack_t *s, const double u[WBC_N], const wbc_ask_t *ask)
 {
-  const double origin[3] = {0.0, 0.0, 0.0};
-  double       e[WBC_N], col[WBC_N], coef[WBC_N], lc[WBC_C], tmp[6], have[4], err[3];
-  double       ceiling[WBC_DRIVEN], nominal[WBC_DRIVEN], total[WBC_X], before[WBC_DRIVEN];
-  double       load[WBC_DRIVEN], sole[2][3];
-  int          standing[2], nst = 0;
+  double e[WBC_N], col[WBC_N];
+  int    nst = 0;
 
-  wbc_body_pose(b, base, q);
-  wbc_body_mass(b);
-  wbc_body_bias(b, u);
-  wbc_body_com(b, s->com, s->jcom);
-
-  /* M = L L^T; w = M^-1 S^T, w0 = -M^-1 h. */
   memcpy(s->chol, b->m, sizeof(s->chol));
-  if (!cholesky(WBC_N, WBC_N, &s->chol[0][0]))
+  if (!wbc_cholesky(WBC_N, WBC_N, &s->chol[0][0]))
   {
-    memset(out, 0, sizeof(*out));
-    return;
+    return 0;
   }
   for (int x = 0; x < WBC_X; x++)
   {
     memset(e, 0, sizeof(e));
     e[dof_of(x)] = 1.0;
-    chol_solve(WBC_N, WBC_N, &s->chol[0][0], e, col);
+    wbc_chol_solve(WBC_N, WBC_N, &s->chol[0][0], e, col);
     for (int n = 0; n < WBC_N; n++)
     {
       s->w[n][x] = col[n];
@@ -468,13 +348,12 @@ void wbc_stack_step(wbc_body_t *b, wbc_stack_t *s, const wbc_frame_t *base,
   {
     e[n] = -b->h[n];
   }
-  chol_solve(WBC_N, WBC_N, &s->chol[0][0], e, s->w0);
-
-  /* The standing soles: Jc udot = c, their twists damped to rest. */
+  wbc_chol_solve(WBC_N, WBC_N, &s->chol[0][0], e, s->w0);
   for (int k = 0; k < 2; k++)
   {
-    standing[k] = ask->stance[k] ? nst : -1;
-    wbc_body_point(b, wbc_sole[k], wbc_sole_at, sole[k]);
+    s->standing[k] = ask->stance[k] ? nst : -1;
+    wbc_body_point(b, wbc_sole[k], wbc_sole_at, s->sole_p[k]);
+    memcpy(s->sole_r[k], b->t[wbc_sole[k]].r, sizeof(s->sole_r[k]));
     if (ask->stance[k])
     {
       double drift[6];
@@ -495,14 +374,20 @@ void wbc_stack_step(wbc_body_t *b, wbc_stack_t *s, const wbc_frame_t *base,
       nst++;
     }
   }
+  s->nst = nst;
   s->nc = 6 * nst;
-  if (s->nc)
+  if (s->nc == 0)
+  {
+    memcpy(s->bb, s->w, sizeof(s->bb));
+    memcpy(s->u0, s->w0, sizeof(s->u0));
+    return 1;
+  }
   {
     double gram[WBC_C][WBC_C], rhs[WBC_C], sol[WBC_C];
 
     for (int i = 0; i < s->nc; i++)
     {
-      chol_solve(WBC_N, WBC_N, &s->chol[0][0], s->jc[i], col);
+      wbc_chol_solve(WBC_N, WBC_N, &s->chol[0][0], s->jc[i], col);
       for (int n = 0; n < WBC_N; n++)
       {
         s->y[n][i] = col[n];
@@ -520,22 +405,17 @@ void wbc_stack_step(wbc_body_t *b, wbc_stack_t *s, const wbc_frame_t *base,
         }
         gram[i][j] = v;
       }
-    }
-    for (int i = 0; i < s->nc; i++)
-    {
       gram[i][i] += 1e-12;
     }
-    if (!cholesky(s->nc, WBC_C, &gram[0][0]))
+    if (!wbc_cholesky(s->nc, WBC_C, &gram[0][0]))
     {
-      memset(out, 0, sizeof(*out));
-      return;
+      return 0;
     }
-    /* lam = gram^-1; ll = -lam Jc w; l0 = lam (c - Jc w0). */
     for (int j = 0; j < s->nc; j++)
     {
       memset(rhs, 0, sizeof(rhs));
       rhs[j] = 1.0;
-      chol_solve(s->nc, WBC_C, &gram[0][0], rhs, sol);
+      wbc_chol_solve(s->nc, WBC_C, &gram[0][0], rhs, sol);
       for (int i = 0; i < s->nc; i++)
       {
         s->lam[i][j] = sol[i];
@@ -603,49 +483,44 @@ void wbc_stack_step(wbc_body_t *b, wbc_stack_t *s, const wbc_frame_t *base,
       }
     }
   }
-  else
-  {
-    memcpy(s->bb, s->w, sizeof(s->bb));
-    memcpy(s->u0, s->w0, sizeof(s->u0));
-  }
+  return 1;
+}
 
-  /* The null space whole, and the levels. */
-  memset(s->nn, 0, sizeof(s->nn));
-  for (int x = 0; x < WBC_X; x++)
-  {
-    s->nn[x][x] = 1.0;
-  }
+/** The levels' rows this tick, from the ask. */
+static void lay_levels(wbc_body_t *b, wbc_stack_t *s, const double u[WBC_N],
+                       const wbc_ask_t *ask)
+{
+  const double origin[3] = {0.0, 0.0, 0.0};
+  const double fs = wbc_total_mass * WBC_G;
+  double       coef[WBC_N], lc[WBC_C], have[4], err[3];
+
+  memset(s->lrows, 0, sizeof(s->lrows));
 
   /* Level 0: the held joints brought to rest. */
-  s->rows = 0;
   for (int k = 0; k < WBC_HELD; k++)
   {
     const int d = 5 + wbc_held[k];
 
     memset(coef, 0, sizeof(coef));
     coef[d] = 1.0;
-    row_udot(s, coef, -HELD_K * u[d], 1.0);
+    row_udot(s, 0, coef, -HELD_K * u[d], 1.0);
   }
-  level_solve(s, 0, 0);
 
   /* Level 1: the centre of mass along the floor, by Newton on the soles' forces. */
-  s->rows = 0;
   if (s->nc)
   {
     for (int axis = 0; axis < 3; axis += 2)
     {
       memset(lc, 0, sizeof(lc));
-      for (int k = 0; k < nst; k++)
+      for (int k = 0; k < s->nst; k++)
       {
         lc[6 * k + 3 + axis] = 1.0 / wbc_total_mass;
       }
-      row_lambda(s, lc, ask->com_acc[axis], 1.0);
+      row_lambda(s, 1, lc, ask->com_acc[axis], 1.0);
     }
   }
-  level_solve(s, 1, 0);
 
-  /* Level 2: the pelvis's and the trunk's turns, a swinging sole and its knee's fold. */
-  s->rows = 0;
+  /* Level 2: the pelvis's and the trunk's turns; level 3: a swinging sole and its knee's fold. */
   for (int t = 0; t < 2; t++)
   {
     const int link = t ? wbc_trunk : 0;
@@ -653,8 +528,8 @@ void wbc_stack_step(wbc_body_t *b, wbc_stack_t *s, const wbc_frame_t *base,
 
     wbc_body_jacobian(b, link, origin, s->jac);
     wbc_body_drift(b, link, origin, drift);
-    quat_of(b->t[link].r, have);
-    turn_error(ask->turn[t], have, err);
+    wbc_quat_of(b->t[link].r, have);
+    wbc_turn_error(ask->turn[t], have, err);
     for (int i = 0; i < 3; i++)
     {
       double w = 0.0;
@@ -667,7 +542,7 @@ void wbc_stack_step(wbc_body_t *b, wbc_stack_t *s, const wbc_frame_t *base,
     }
     for (int i = 0; i < 3; i++)
     {
-      row_udot(s, s->jac[i], wdot[i] - drift[i], TURN_W);
+      row_udot(s, 2, s->jac[i], wdot[i] - drift[i], TURN_W);
     }
   }
   for (int k = 0; k < 2; k++)
@@ -686,17 +561,17 @@ void wbc_stack_step(wbc_body_t *b, wbc_stack_t *s, const wbc_frame_t *base,
           twist[i] += s->jac[i][n] * u[n];
         }
       }
-      quat_of(b->t[wbc_sole[k]].r, have);
-      turn_error(ask->swing_quat[k], have, err);
+      wbc_quat_of(s->sole_r[k], have);
+      wbc_turn_error(ask->swing_quat[k], have, err);
       for (int i = 0; i < 3; i++)
       {
         a6[i] = TURN_KP * err[i] - TURN_KD * twist[i];
-        a6[3 + i] = ask->swing_acc[k][i] + SWING_KP * (ask->swing_at[k][i] - sole[k][i])
+        a6[3 + i] = ask->swing_acc[k][i] + SWING_KP * (ask->swing_at[k][i] - s->sole_p[k][i])
                     + SWING_KD * (ask->swing_speed[k][i] - twist[3 + i]);
       }
       for (int i = 0; i < 6; i++)
       {
-        row_udot(s, s->jac[i], a6[i] - drift[i], 1.0);
+        row_udot(s, SWING_LEVEL, s->jac[i], a6[i] - drift[i], 1.0);
       }
     }
     if (ask->fold[k])
@@ -705,48 +580,45 @@ void wbc_stack_step(wbc_body_t *b, wbc_stack_t *s, const wbc_frame_t *base,
 
       memset(coef, 0, sizeof(coef));
       coef[d] = 1.0;
-      row_udot(s, coef, ask->fold_acc[k] + SWING_KP * (ask->fold_knee[k] - b->q[d - 6])
+      row_udot(s, SWING_LEVEL, coef, ask->fold_acc[k] + SWING_KP * (ask->fold_knee[k] - b->q[d - 6])
                + SWING_KD * (ask->fold_rate[k] - u[d]), FOLD_W);
     }
   }
-  level_solve(s, 2, 0);
 
-  /* Level 3, her form: her height, the angular momentum, the posture, the torques, the forces. */
-  s->rows = 0;
+  /* Level 4, her form: her height, the angular momentum, the posture, the torques, the forces. */
   if (s->nc)
   {
     double k3[3], kdot[3];
 
     memset(lc, 0, sizeof(lc));
-    for (int k = 0; k < nst; k++)
+    for (int k = 0; k < s->nst; k++)
     {
       lc[6 * k + 4] = 1.0 / wbc_total_mass;
     }
-    row_lambda(s, lc, ask->com_acc[1] + WBC_G, HEIGHT_W);
+    row_lambda(s, 4, lc, ask->com_acc[1] + WBC_G, HEIGHT_W);
     wbc_body_momentum(b, s->com, k3);
     for (int i = 0; i < 3; i++)
     {
       kdot[i] = ask->kdot_given ? ask->kdot[i] : -MOMENTUM_K * k3[i];
     }
-    /* k-dot = sum of each sole's moment and (sole - com) x its force. */
+    /* k-dot = the sum of each sole's moment and (sole - com) x its force. */
     for (int i = 0; i < 3; i++)
     {
       memset(lc, 0, sizeof(lc));
       for (int k = 0; k < 2; k++)
       {
-        if (standing[k] >= 0)
+        if (s->standing[k] >= 0)
         {
-          const double d[3] = {sole[k][0] - s->com[0], sole[k][1] - s->com[1],
-                               sole[k][2] - s->com[2]};
-          const int    at = 6 * standing[k];
+          const double d[3] = {s->sole_p[k][0] - s->com[0], s->sole_p[k][1] - s->com[1],
+                               s->sole_p[k][2] - s->com[2]};
+          const int    at = 6 * s->standing[k];
 
           lc[at + i] = 1.0;
-          /* (d x f)_i */
           lc[at + 3 + (i + 1) % 3] += -d[(i + 2) % 3];
           lc[at + 3 + (i + 2) % 3] += d[(i + 1) % 3];
         }
       }
-      row_lambda(s, lc, kdot[i], MOMENTUM_W);
+      row_lambda(s, 4, lc, kdot[i], MOMENTUM_W);
     }
   }
   for (int j = 0; j < WBC_DRIVEN; j++)
@@ -755,112 +627,145 @@ void wbc_stack_step(wbc_body_t *b, wbc_stack_t *s, const wbc_frame_t *base,
 
     memset(coef, 0, sizeof(coef));
     coef[d] = 1.0;
-    row_udot(s, coef, POSTURE_KP * (ask->posture[j] - b->q[d - 6]) - POSTURE_KD * u[d],
+    row_udot(s, 4, coef, POSTURE_KP * (ask->posture[j] - b->q[d - 6]) - POSTURE_KD * u[d],
              POSTURE_W);
   }
   for (int j = 0; j < WBC_DRIVEN; j++)
   {
-    row_tau(s, j, 0.0, TORQUE_W / (CLAMP_SHARE * wbc_clamp[wbc_driven[j]]));
+    row_tau(s, 4, j, 0.0, TORQUE_W / (CLAMP_SHARE * wbc_clamp[wbc_driven[j]]));
   }
   for (int i = 0; i < s->nc; i++)
   {
-    const double fs = wbc_total_mass * WBC_G;
-    const double scale = (i % 6 < 3) ? fs * fabs(wbc_sole_corner[0][0]) : fs;
+    const double scale = (i % 6 < 3) ? fs * (s->cop_hi[0] + MARGIN_M) : fs;
 
     memset(lc, 0, sizeof(lc));
     lc[i] = 1.0 / scale;
-    row_lambda(s, lc, 0.0, FORCE_W);
+    row_lambda(s, 4, lc, 0.0, FORCE_W);
   }
-  level_solve(s, 3, 1);
+}
 
-  /* The polytope: each drive's load within its ceiling, the lowest level scaled back first. */
+/** What the torques s->total give: every acceleration, each sole's wrench, each drive's load. */
+static void evaluate(wbc_stack_t *s)
+{
+  for (int n = 0; n < WBC_N; n++)
+  {
+    s->udot_now[n] = s->u0[n];
+    for (int x = 0; x < WBC_X; x++)
+    {
+      s->udot_now[n] += s->bb[n][x] * s->total[x];
+    }
+  }
+  for (int i = 0; i < s->nc; i++)
+  {
+    s->lam_now[i] = s->l0[i];
+    for (int x = 0; x < WBC_X; x++)
+    {
+      s->lam_now[i] += s->ll[i][x] * s->total[x];
+    }
+  }
+  wbc_loads(s->total, s->load_now);
+}
+
+void wbc_stack_step(wbc_body_t *b, wbc_stack_t *s, const wbc_frame_t *base,
+                    const double q[WBC_N - 6], const double u[WBC_N], const wbc_ask_t *ask,
+                    wbc_out_t *out)
+{
+  double before[WBC_DRIVEN], load[WBC_DRIVEN];
+  int    active = 0;
+
+  wbc_body_pose(b, base, q);
+  wbc_body_mass(b);
+  wbc_body_bias(b, u);
+  wbc_body_com(b, s->com, s->jcom);
+  if (!prepare(b, s, u, ask))
+  {
+    memset(out, 0, sizeof(*out));
+    return;
+  }
   for (int j = 0; j < WBC_DRIVEN; j++)
   {
-    nominal[j] = wbc_clamp[wbc_driven[j]] * ask->derate[j];
-    ceiling[j] = (ask->wep && (s->load[j] > NEAR)) ? wbc_peak[wbc_driven[j]] : nominal[j];
-    if (ceiling[j] < nominal[j])
+    s->nominal[j] = wbc_clamp[wbc_driven[j]] * ask->derate[j];
+    s->ceiling[j] = (ask->wep && (s->load[j] > NEAR)) ? wbc_peak[wbc_driven[j]] : s->nominal[j];
+    if (s->ceiling[j] < s->nominal[j])
     {
-      ceiling[j] = nominal[j];
+      s->ceiling[j] = s->nominal[j];
     }
+  }
+  lay_levels(b, s, u, ask);
+  lay_bounds(b, s, u, ask);
+  s->iterations = 0;
+  memset(s->nn, 0, sizeof(s->nn));
+  for (int x = 0; x < WBC_X; x++)
+  {
+    s->nn[x][x] = 1.0;
+  }
+  for (int level = 0; level < WBC_LEVELS; level++)
+  {
+    wbc_level_solve(s, level, level == WBC_LEVELS - 1);
   }
   for (int x = 0; x < WBC_X; x++)
   {
-    total[x] = 0.0;
+    s->total[x] = 0.0;
     for (int k = 0; k < WBC_LEVELS; k++)
     {
-      total[x] += s->tau[k][x];
+      s->total[x] += s->tau[k][x];
     }
   }
-  loads(total, before);
-  for (int k = 0; k < WBC_LEVELS; k++)
+  evaluate(s);
+  wbc_loads(s->total, before);
+
+  /* The bounds met, and how: the most any is over, those at their edge. */
+  out->residual = 0.0;
+  memset(out->guarded, 0, sizeof(out->guarded));
+  for (int i = 0; i < WBC_EXTRA; i++)
   {
-    out->alpha[k] = 1.0;
+    out->ids[i] = -1;
   }
-  for (int level = WBC_LEVELS - 1; level > 0; level--)
+  for (int i = 0; i < s->ineq; i++)
   {
-    double rest[WBC_X], base_load[WBC_DRIVEN], delta[WBC_DRIVEN], alpha = 1.0;
+    double v = -s->gh[i];
 
     for (int x = 0; x < WBC_X; x++)
     {
-      rest[x] = 0.0;
-      for (int k = 0; k < WBC_LEVELS; k++)
-      {
-        if (k != level)
-        {
-          rest[x] += out->alpha[k] * s->tau[k][x];
-        }
-      }
+      v += s->ga[i][x] * s->total[x];
     }
-    loads(rest, base_load);
-    loads(s->tau[level], delta);
-    for (int j = 0; j < WBC_DRIVEN; j++)
+    out->residual = (v > out->residual) ? v : out->residual;
+    if (v > -ACTIVE)
     {
-      if (delta[j] != 0.0)
+      out->guarded[s->gkind[i]]++;
+      if (active < WBC_EXTRA)
       {
-        const double room = (delta[j] > 0.0) ? ceiling[j] - base_load[j]
-                                             : -ceiling[j] - base_load[j];
-        double       a = room / delta[j];
+        out->ids[active] = s->gid[i];
+      }
+      active++;
+    }
+  }
+  out->held = active;
+  out->passes = s->iterations;
+  out->alpha[0] = out->alpha[1] = out->alpha[2] = 1.0;
 
-        if (a < 0.0)
-        {
-          a = 0.0;
-        }
-        if (a < alpha)
-        {
-          alpha = a;
-        }
-      }
-    }
-    out->alpha[level] = alpha;
-  }
-  for (int x = 0; x < WBC_X; x++)
-  {
-    total[x] = 0.0;
-    for (int k = 0; k < WBC_LEVELS; k++)
-    {
-      total[x] += out->alpha[k] * s->tau[k][x];
-    }
-  }
-  loads(total, load);
+  /* Whatever is still over its ceiling is clamped; what the torques give, out. */
+  memcpy(load, s->load_now, sizeof(load));
   for (int j = 0; j < WBC_DRIVEN; j++)
   {
-    if (load[j] > ceiling[j])
+    if (load[j] > s->ceiling[j])
     {
-      load[j] = ceiling[j];
+      load[j] = s->ceiling[j];
     }
-    if (load[j] < -ceiling[j])
+    if (load[j] < -s->ceiling[j])
     {
-      load[j] = -ceiling[j];
+      load[j] = -s->ceiling[j];
     }
   }
-  unload(load, total);
+  wbc_unload(load, s->total);
+  evaluate(s);
   for (int j = 0; j < WBC_DRIVEN; j++)
   {
     const double gain = s->bb[dof_of(j)][j];
 
-    out->tau[j] = total[j];
-    out->over[j] = fabs(before[j]) > nominal[j] * (1.0 + 1e-6);
-    out->load[j] = fabs(load[j]) / nominal[j];
+    out->tau[j] = s->total[j];
+    out->over[j] = fabs(before[j]) > s->nominal[j] * (1.0 + 1e-6);
+    out->load[j] = fabs(load[j]) / s->nominal[j];
     s->load[j] = out->load[j];
     out->jeff[j] = (gain > 1e-9) ? 1.0 / gain : 0.0;
   }
@@ -879,34 +784,15 @@ void wbc_stack_step(wbc_body_t *b, wbc_stack_t *s, const wbc_frame_t *base,
       }
     }
   }
-
-  /* What the clipped torques give: every acceleration, each sole's wrench. */
-  for (int n = 0; n < WBC_N; n++)
-  {
-    out->udot[n] = s->u0[n];
-    for (int x = 0; x < WBC_X; x++)
-    {
-      out->udot[n] += s->bb[n][x] * total[x];
-    }
-  }
+  memcpy(out->udot, s->udot_now, sizeof(out->udot));
   for (int k = 0; k < 2; k++)
   {
     out->bears[k] = 0.0;
     memset(out->wrench[k], 0, sizeof(out->wrench[k]));
-    if (standing[k] >= 0)
+    if (s->standing[k] >= 0)
     {
-      for (int i = 0; i < 6; i++)
-      {
-        double v = s->l0[6 * standing[k] + i];
-
-        for (int x = 0; x < WBC_X; x++)
-        {
-          v += s->ll[6 * standing[k] + i][x] * total[x];
-        }
-        out->wrench[k][i] = v;
-      }
+      memcpy(out->wrench[k], s->lam_now + 6 * s->standing[k], sizeof(out->wrench[k]));
       out->bears[k] = out->wrench[k][4];
     }
   }
-  (void)tmp;
 }

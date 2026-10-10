@@ -207,8 +207,8 @@ def test_the_loop_stands_as_the_python_stack(report, c, b, rows):
     report.check('each sole bears as the python stack plans', all(
         abs(ours['bears'][k] - theirs['bears'][k]) < 0.02 * sum(theirs['bears']) for k in (0, 1)),
                  'C %.0f %.0f N, python %.0f %.0f N' % (*ours['bears'], *theirs['bears']))
-    report.check('every level let through whole', all(a == 1.0 for a in ours['alpha']),
-                 'alpha %s' % ['%.2f' % a for a in ours['alpha']])
+    report.check('no bound at its edge standing', ours['held'] == 0,
+                 '%d at the edge, the active set changed %d times' % (ours['held'], ours['passes']))
     base, q, u, _T = core.state_of(b)
     us = 1e6 * c.stack_seconds(base, q, u, ask, 200)
     report.check('a tick of the loop on this host', us < 1000.0, '%.0f us' % us)

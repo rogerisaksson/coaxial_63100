@@ -212,3 +212,31 @@ last 2 s (2026-10-10):
   redistributes within the clamps. Next: saturation in the null space (the
   drive held at its bound, the level solved again in the rest), the centre of
   pressure, the friction cone and the stops as rows held at their bound.
+
+### The bounds as inequalities
+
+The loop's bounds - the loads, the vertical acceleration's band, a sole
+pressing, its cone and its torsion, its centre of pressure, the stops - are
+inequalities in every level, solved by a primal-dual active set (exact
+equality-constrained solves by Schur complement, the set warm across ticks, at
+most 20 changes a level); the four ways tried before it are in git (held rows
+scaled, batch saturation, level scaling, ADMM at 30 iterations: 1.07 N m off
+standing). 2026-10-10:
+
+| Measure | Result |
+| --- | --- |
+| standing, asked to stay, against `machine.wbc.step` | 0.01 N m apart, no bound at its edge |
+| a tick on this host at -O2 | 205 us |
+| in MuJoCo, 3 s | stood, tilt 0.3 deg, drift 25 mm |
+| shoved 60 N from behind | stood, tilt 5.8 deg, no step |
+| the walk | 4 steps, down at 2.8 s; the python stack 16 steps |
+
+- The python stack walked while the loop shadowed every tick on the same
+  state and ask: in double support 0.8 N m apart (median; 3.3 at most), in
+  single support 23 N m (median; 65 at most) with the swing beside the turns,
+  29 under them, the standing sole's load 59 N apart at most. One tick dumped:
+  the same net force on the sole, the centre of pressure 7 cm apart, and so the
+  ankle's, knee's and hip's torques 17-28 N m apart; the stack's active rows all
+  corner pyramids (one corner unloaded, three on their faces) - its corner
+  forces are variables the 6D wrench has not. Next: the corners' forces as the
+  loop's variables beside the torques, their pyramids its bounds.

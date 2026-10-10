@@ -16,6 +16,7 @@ from tools.cores.model import HEADER, rotation
 SOURCES = [os.path.join(REPO, 'wbc', 'test', 'harness.c'),
            os.path.join(REPO, 'wbc', 'src', 'wbc_body.c'),
            os.path.join(REPO, 'wbc', 'src', 'wbc_stack.c'),
+           os.path.join(REPO, 'wbc', 'src', 'wbc_solve.c'),
            os.path.join(REPO, 'wbc', 'src', 'wbc_model.c')]
 INCLUDES = [os.path.join(REPO, 'wbc', 'inc')]
 #: The firmware compiles the chain at -O2 (CMakeLists.txt).
@@ -30,8 +31,8 @@ def _define(name):
     return int(found.group(1))
 
 
-#: The model's sizes, as wbc_model.h defines them; the levels, as wbc.h does.
-N, DRIVEN, LEVELS = _define('WBC_N'), _define('WBC_DRIVEN'), 4
+#: The model's sizes, as wbc_model.h defines them.
+N, DRIVEN = _define('WBC_N'), _define('WBC_DRIVEN')
 _d, _i = ctypes.c_double, ctypes.c_int
 
 
@@ -52,7 +53,8 @@ class Out(ctypes.Structure):
     """wbc_out_t: what the loop answers."""
 
     _fields_ = [('tau', _d * DRIVEN), ('udot', _d * N), ('wrench', (_d * 6) * 2),
-                ('bears', _d * 2), ('alpha', _d * LEVELS), ('over', _i * DRIVEN),
+                ('bears', _d * 2), ('held', _i), ('passes', _i), ('guarded', _i * 5),
+                ('ids', _i * 32), ('alpha', _d * 3), ('residual', _d), ('over', _i * DRIVEN),
                 ('load', _d * DRIVEN), ('jeff', _d * DRIVEN)]
 
 
@@ -101,6 +103,7 @@ def typed(lib):
     lib.wbh_momentum.argtypes = [dp, dp]
     lib.wbh_seconds.restype = d
     lib.wbh_seconds.argtypes = [dp, dp, dp, i, i, i]
+    lib.wbh_stack_init.argtypes = []
     lib.wbh_stack.argtypes = [dp, dp, dp, ctypes.POINTER(Ask), ctypes.POINTER(Out)]
     lib.wbh_stack_seconds.restype = d
     lib.wbh_stack_seconds.argtypes = [dp, dp, dp, ctypes.POINTER(Ask), i]
@@ -127,6 +130,7 @@ class Core:
 
     def __init__(self, lib=None):
         self.lib = lib or library()
+        self.lib.wbh_stack_init()
         self.links, self.n = int(self.lib.wbh_links()), int(self.lib.wbh_n())
         self.names = [self.lib.wbh_name(k).decode() for k in range(self.links)]
         self.parent = [int(self.lib.wbh_parent(k)) for k in range(self.links)]
@@ -187,12 +191,15 @@ class Core:
 
     def stack(self, base, q, u, ask):
         """One tick of the loop for `ask` (`machine.wbc.step`'s dict): {tau, udot, wrench, bears,
-        alpha, over, load}, udot in u's order."""
+        held, passes, over, load, jeff}, udot in u's order."""
         base, q, u, out = _arr(base), _arr(q), _arr(u), Out()
         self.lib.wbh_stack(_ptr(base), _ptr(q), _ptr(u), ctypes.byref(ask_of(ask)), ctypes.byref(out))
         return {'tau': np.array(out.tau), 'udot': np.array(out.udot),
                 'wrench': np.array([list(w) for w in out.wrench]), 'bears': list(out.bears),
-                'alpha': list(out.alpha), 'over': np.array(out.over, bool),
+                'held': int(out.held), 'passes': int(out.passes), 'guarded': list(out.guarded),
+                'ids': [i for i in out.ids if i >= 0], 'residual': float(out.residual),
+                'alpha': list(out.alpha),
+                'over': np.array(out.over, bool),
                 'load': np.array(out.load), 'jeff': np.array(out.jeff)}
 
     def stack_seconds(self, base, q, u, ask, reps=200):
@@ -214,7 +221,8 @@ def state_of(b):
 
 def stack_step(b, s, ask, core=None):
     """`machine.wbc.step`'s answer from the loop in C, on her `wbc.Body` as `sense` left it:
-    {tau, qacc (MuJoCo's qvel order), bears, cop, over, slack, held, alpha, wrench}."""
+    {tau, qacc (MuJoCo's qvel order), bears, cop, over, slack, held, passes, wrench, load,
+    jeff}; `held` the rows held at a bound this tick, `passes` the solves after the first."""
     core = core or Core()
     base, q, u, T = state_of(b)
     out = core.stack(base, q, u, ask)
@@ -226,5 +234,7 @@ def stack_step(b, s, ask, core=None):
             m, f = out['wrench'][k][:3], out['wrench'][k][3:]
             cop.append(np.array([m[2] / f[1], -m[0] / f[1]]) if f[1] > 1e-6 else None)
     return {'tau': out['tau'], 'qacc': T @ out['udot'] + dT_u, 'bears': out['bears'], 'cop': cop,
-            'over': out['over'], 'slack': [], 'held': (), 'alpha': out['alpha'],
+            'over': out['over'], 'slack': [], 'held': out['held'], 'passes': out['passes'],
+            'guarded': out['guarded'], 'ids': out['ids'], 'residual': out['residual'],
+            'alpha': out['alpha'],
             'wrench': out['wrench'], 'load': out['load']}

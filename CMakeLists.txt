@@ -71,6 +71,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     # Wbc: her chain on its static model, and the loop over it.
     wbc/src/wbc_body.c
     wbc/src/wbc_stack.c
+    wbc/src/wbc_solve.c
     wbc/src/wbc_model.c
 
     # Board layer: this hardware, behind comms/inc/board.h.
@@ -136,7 +137,7 @@ set(COAXIAL_SOURCES
     drive/src/drive.c drive/src/drive_math.c drive/src/drive_model.c
     drive/src/drive_observer.c
     filter/src/filter.c ctrl/src/ctrl.c
-    wbc/src/wbc_body.c wbc/src/wbc_stack.c wbc/src/wbc_model.c
+    wbc/src/wbc_body.c wbc/src/wbc_stack.c wbc/src/wbc_solve.c wbc/src/wbc_model.c
     board/src/board_adc.c board/src/board_clock.c board/src/board_selftest.c
     board/src/board_io.c board/src/board_imu.c board/src/board_angle.c
     board/src/board_cal.c board/src/board_flash.c
@@ -174,7 +175,7 @@ set_source_files_properties(
     drive/src/drive.c drive/src/drive_math.c drive/src/drive_model.c
     drive/src/drive_observer.c
     filter/src/filter.c
-    wbc/src/wbc_body.c wbc/src/wbc_stack.c wbc/src/wbc_model.c
+    wbc/src/wbc_body.c wbc/src/wbc_stack.c wbc/src/wbc_solve.c wbc/src/wbc_model.c
     comms/src/wire.c comms/src/cmd.c comms/src/cmd_board.c
     comms/src/cmd_test.c comms/src/cmd_imu.c comms/src/cmd_cal.c
     comms/src/cmd_gate_drivers.c
@@ -195,7 +196,7 @@ set_source_files_properties(
     daq/src/daq.c
     # ctrl.c ticks inside the drive's sample.
     ctrl/src/ctrl.c
-    wbc/src/wbc_body.c wbc/src/wbc_stack.c
+    wbc/src/wbc_body.c wbc/src/wbc_stack.c wbc/src/wbc_solve.c
     PROPERTIES COMPILE_OPTIONS "-O2;-fno-math-errno;-Wextra;-Wshadow;-Wconversion")
 set_source_files_properties(
     board/src/board_drive.c board/src/board_ctrl.c board/src/board_sync.c board/src/board_daq.c

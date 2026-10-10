@@ -150,6 +150,7 @@ def stand(push=0.0, way=0.0, seconds=None, trace=False, wep=True, steps=True, at
     seconds = at + TO_S if seconds is None else seconds
     walked, drawn, z0 = None, 0.0, None
     settled = None
+    guarded = [0, 0, 0, 0, 0]
     while now[0] < seconds:
         t0 = time.perf_counter()
         s = wbc.sense(body, world.data.qpos, world.data.qvel)
@@ -163,6 +164,7 @@ def stand(push=0.0, way=0.0, seconds=None, trace=False, wep=True, steps=True, at
         cost += time.perf_counter() - t0
         passes += 1
         world.feed[body.driven] = _torques(esos, world, body, out)
+        guarded = [a + b for a, b in zip(guarded, out.get('guarded', guarded))]
         bears = out['bears']
         for k, leg in enumerate(legs):
             world.gains[leg, 0] = free_kp[leg] * (STANDING_KP if ask['stance'][k] else 1.0)
@@ -204,13 +206,7 @@ def stand(push=0.0, way=0.0, seconds=None, trace=False, wep=True, steps=True, at
                 st.get('captured')))
         was = st['phase']
         if trace and passes % 25 == 0:
-            share = np.abs(out['tau'] / body.top)
-            print('%5.3f %-6s com %+6.1f %+6.1f mm  tilt %4.1f  cop %s  tau %.2f %s  slack %.2g'
-                  % (now[0], st['phase'] if steps else '-', 1e3 * (s['com'][0] - home[0]),
-                     1e3 * (s['com'][2] - home[2]), tilt,
-                     ' '.join('(%+.0f %+.0f)' % tuple(1e3 * c) if c is not None else '-'
-                              for c in out['cop']),
-                     float(share.max()), NAMES[int(share.argmax())], worst))
+            _trace(now[0], st['phase'] if steps else '-', s, home, tilt, out, body, worst)
         if tilt > HELD_DEG or s['com'][1] < 0.5 * home[1] or down:
             break
     if walked:
@@ -226,10 +222,24 @@ def stand(push=0.0, way=0.0, seconds=None, trace=False, wep=True, steps=True, at
             'failed': failed, 'tilt': round(tilt, 1), 'drift_mm': round(1e3 * drift, 1),
             'creep_mm_s': None if creep is None else round(1e3 * creep, 2),
             'disturbance_nm': round(float(np.mean([abs(e.j * e.d) for e in esos])), 2) if esos
-            else None,
+            else None, 'guarded': guarded,
             'top': round(top, 2), 'us': round(1e6 * cost / max(1, passes)), 'slack': worst,
             't': round(now[0], 3), 'wep_s': round(WEP_S - left, 3) if wep else 0.0,
             'steps': st['steps'] if steps else 0, 'down': down}
+
+
+def _trace(now, phase, s, home, tilt, out, body, worst):
+    """A row of the stand's trace: where she is, the soles' centres of pressure, the drive
+    nearest its clamp, the stack's worst slack, and the loop's bounds at their edge."""
+    import numpy as np
+    share = np.abs(out['tau'] / body.top)
+    edge = ('  edge %s %s over %.2g' % (out['guarded'], out['ids'], out['residual'])
+            if 'guarded' in out else '')
+    print('%5.3f %-6s com %+6.1f %+6.1f mm  tilt %4.1f  cop %s  tau %.2f %s  slack %.2g%s'
+          % (now, phase, 1e3 * (s['com'][0] - home[0]), 1e3 * (s['com'][2] - home[2]), tilt,
+             ' '.join('(%+.0f %+.0f)' % tuple(1e3 * c) if c is not None else '-'
+                      for c in out['cop']),
+             float(share.max()), NAMES[int(share.argmax())], worst, edge))
 
 
 def _torques(esos, world, body, out):

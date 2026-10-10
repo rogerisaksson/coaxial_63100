@@ -212,11 +212,12 @@ the files under docs/FINDINGS.md. An item is deleted when its DOD is met.
       (test_wbc_core.py); both presets build it at 0 warnings.
     + Done: `parts.Eso` and `CTRL_ESO`, twins, `--inner eso` in the stand;
       standing they see 0.1 N m, no signal (wbc.md).
-    + Next: the loop's walk falls at its first step, the neck at its WEP
-      peak: saturation in the null space in the clip's place; the centre of
-      pressure, the friction cone, the stops and the neck's ranges as rows
-      held at their bound; then the polar and the walk against the stack's,
-      and the observer's worth measured on the walk.
+    + Done: the bounds as inequalities in every level, an active set (`wbc_solve.c`);
+      the stand and a 60 N shove held, the walk 4 steps (wbc.md).
+    + Next: the soles' corner forces as variables beside the torques, their
+      pyramids the bounds, as the python stack has them - its single-support
+      answer is 23 N m off the loop's for want of them; then the polar and
+      the walk against the stack's, and the observer's worth on the walk.
     + DOD: the stand and the walk on the C loop with their measures kept
       (J/m, band, polar); a step < 1 ms on a 475 MHz M7.
 
