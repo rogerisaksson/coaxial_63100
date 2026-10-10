@@ -87,6 +87,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     board/src/board_drive.c
     board/src/board_ctrl.c
     board/src/board_boot.c
+    board/src/board_mem.c
 
     # Comms stack: cmd (request/response) over proto (Modbus) over dev (USART3).
     comms/src/console.c
@@ -138,7 +139,7 @@ set(COAXIAL_SOURCES
     board/src/board_daq.c
     board/src/board_thermal.c
     board/src/board_power.c
-    board/src/board_drive.c board/src/board_ctrl.c board/src/board_boot.c
+    board/src/board_drive.c board/src/board_ctrl.c board/src/board_boot.c board/src/board_mem.c
     comms/src/console.c comms/src/wire.c comms/src/dev_uart.c
     comms/src/cmd.c comms/src/cmd_board.c comms/src/cmd_test.c
     comms/src/cmd_angle.c comms/src/cmd_device.c comms/src/cmd_link.c
