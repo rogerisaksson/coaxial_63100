@@ -578,6 +578,8 @@ def test_intent(r):
                                               {'kind': 'analog'}),))
     r.check('a read compiles to the read for its kind',
             intent.plan('read', 'digital') == (('digital_read', {}),))
+    r.check('warmth reads the thermal observer',
+            intent.plan('read', 'thermal') == (('thermal', {'op': 'state'}),))
     r.check('and "both" compiles to both calls, in order',
             [n for n, _ in intent.plan('read', 'both')]
             == ['analog_read', 'digital_read'])

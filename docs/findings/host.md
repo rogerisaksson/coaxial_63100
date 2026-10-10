@@ -114,3 +114,7 @@ own are in [FINDINGS](../FINDINGS.md).
   rescaled. Too wide and janky either way (the user): back on VS Code's own.
   DTC's Eurostile Extended reaches Chromium as Times New Roman: a cmap
   subtable truncated.
+- Warmth asked reads the thermal observer, every node (2026-10-10): the
+  intent's thermal kind. On llama3.1:8b, on the CPU - Ollama 0.35.1's CUDA
+  runner failed its PTX JIT on the RTX 4060's driver 617.42 - three warmth
+  rows called `thermal`, the NTC's still `analog_read`, 19-28 s a row.

@@ -19,8 +19,8 @@ INTENTS = {
 # Measured against gemma4:12b, 12 questions, ~2.75 s each.
 
 # Which kind of channel, where the intent has one.
-KINDS = ('analog', 'digital', 'imu', 'angle', 'subsystems', 'parts',
-         'both', 'none')
+KINDS = ('analog', 'digital', 'imu', 'angle', 'thermal', 'subsystems',
+         'parts', 'both', 'none')
 
 # Intent to tool, for the pairs where it is unambiguous.
 TOOL = {
@@ -34,6 +34,7 @@ READ = {
     'analog': 'analog_read',
     'digital': 'digital_read',
     'imu': 'imu',
+    'thermal': 'thermal',
     'both': 'analog_read and digital_read',
     'none': 'analog_read',
 }
@@ -55,7 +56,7 @@ ASK = """Classify this operator's question. Do not answer it.
 Intents:
 %s
 
-Kinds: analog, digital, imu, angle, subsystems, parts, both, none.
+Kinds: analog, digital, imu, angle, thermal, subsystems, parts, both, none.
 
 The noun decides, never the verb. "List", "give me", "show" say nothing:
 channels, pins, inputs is map; values, readings, measurements is read.
@@ -73,7 +74,10 @@ question about what is fitted on it - which components, which parts, what is
 mounted, bestyckning, komponenter - is the parts kind. A question naming
 the angle sensor, the shaft angle, the rotor position, vinkel or
 vinkelgivare is the angle kind - that is the A1335 on SPI4, and it is
-neither the IMU nor an ADC channel.
+neither the IMU nor an ADC channel. A question about how warm or hot the
+board, its FETs, its legs or its motor is - temperatur, varm, het, varme -
+is the thermal kind: the thermal observer's estimate of every node. A
+question naming the NTC itself is the analog kind.
 
 JSON only: {"intent": "...", "kind": "...", "why": "a few words"}
 
@@ -103,6 +107,7 @@ def plan(intent, kind):
         return {'analog': (analog,), 'digital': (digital,),
                 'imu': (('imu', {'op': 'read'}),),
                 'angle': (('angle', {'op': 'read'}),),
+                'thermal': (('thermal', {'op': 'state'}),),
                 'both': (analog, digital)}.get(kind, (analog,))
     if intent == 'orient':
         return (('orientation', {'op': 'once'}),)
