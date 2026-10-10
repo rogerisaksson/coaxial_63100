@@ -136,3 +136,9 @@ own are in [FINDINGS](../FINDINGS.md).
   edge, its three mirror modules gone, its replies in the wire's units. A
   QUAD course on four stand-ins 19.4 -> 5.1 s, 52 -> 10 M calls, its laps
   14.18 and 14.96 s; test_simulated 60 -> 18 s.
+- The rotor demo on the board's envelope (2026-10-10): the stand-in on the C
+  throttles as the Python copy did (the derate within 0.02 at 36 and 70 A),
+  but the page's rhythm moved - a dip under the held load slowed the rotor
+  under SEND_FROM, its 10 A short of the load: stalled, the switches 15-18 %
+  where 20. The dynamometer eased by the derate, as an operator backs a
+  brake off; a spin's up 4 s where 3.5 ended at 13 A. Green 4 of 4.
