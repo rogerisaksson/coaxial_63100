@@ -27,6 +27,13 @@
     // cells at ONE brightness: the surface texture and the whole dark half
     // of the ramp gone, measured. 1 shows the colours as sent.
     "terminal.integrated.minimumContrastRatio": 1,
+    // The tty in Eurostile (the user, 2026-10-10; setup.ps1's fonts area installs it). A cell is
+    // its face's W: at 12 px, lines 1.3 and letters -3 px, 11 x 22 device px at 125 % - 2:1, as
+    // the pages draw; Consolas 14 is 2.44 (VS Code 1.141's xterm in Edge, 2026-10-10).
+    "terminal.integrated.fontFamily": "Eurostile",
+    "terminal.integrated.fontSize": 12,
+    "terminal.integrated.lineHeight": 1.3,
+    "terminal.integrated.letterSpacing": -3,
     "cmake.cmakePath": "cube-cmake",
     "cmake.configureArgs": [
         "-DCMAKE_COMMAND=cube-cmake"

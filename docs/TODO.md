@@ -355,7 +355,6 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
 - **QUAD raw** (the user, 2026-10-10): dives pushed inverted, all the
   pull planned. DOD: laps under 18 s on boards, tips 0.05 m inside; an
   emulated drone's heat its airspeed; the gynoid's boards in oil.
-- **The tty in Eurostile** (the user, 2026-10-10). DOD: cells 2:1.
 - **A1335 CRC** reported, not checked. DOD: the polynomial known, checked.
 - **`testline/plans/coaxial_63100_fct.yaml`** limits are placeholders.
   DOD: measured.

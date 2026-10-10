@@ -105,3 +105,10 @@ own are in [FINDINGS](../FINDINGS.md).
   an AFE read behind a GPIOB write said on=1, the rail's users having raised
   AFE_ON again. The fleet's checks on the stand-in, the pin's on the write's
   own readback, the closed client a ConnectError: 59 in 28 s (2026-10-05).
+- The tty's face (2026-10-10, VS Code 1.141's xterm 6.1 in Edge 154, WebGL,
+  125 %): a cell is the face's W wide, its braille and boxes drawn to fill it.
+  Consolas 14 is 9 x 22 device px, 2.44; Eurostile 14 17 x 19, its text
+  strewn; at 12 px, lines 1.3, letters -3, 11 x 22 - 2:1, 168 x 43 where
+  Consolas' 205 x 43. Latin glyphs past their cell overlap it, never rescaled.
+  DTC's Eurostile Extended reaches Chromium as Times New Roman: a cmap
+  subtable truncated.

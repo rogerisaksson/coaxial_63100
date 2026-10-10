@@ -23,6 +23,8 @@ mx.scratch
 *.code-workspace
 .cache/
 compile_commands.json
+# The tty's faces, licensed to the user, not to this public repo (setup/fonts.ps1).
+setup/fonts/
 
 # ---- Python (host/) --------------------------------------------------------
 __pycache__/

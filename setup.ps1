@@ -7,7 +7,7 @@
     install   the plan, after one yes (-Yes: none)                           setup\<area>.ps1
     build     both images, Debug and Release, zero warnings                  setup\build.ps1
     emulate   the Debug image on Renode, answering the library               setup\build.ps1
-    Areas: machine, python, toolchain, emulator, ollama. Exit 0: nothing outstanding.
+    Areas: machine, python, toolchain, emulator, ollama, fonts. Exit 0: nothing outstanding.
     Every shell afterwards: . .\env.ps1
 .PARAMETER Check
     Report only: no pull, no install, no build.
@@ -87,8 +87,8 @@ $script:Python = $null
 $script:Packages = $false
 $script:Argv = $PSBoundParameters
 
-foreach ($part in 'report', 'machine', 'python', 'toolchain', 'emulator', 'ollama', 'checks',
-                  'update', 'build') {
+foreach ($part in 'report', 'machine', 'python', 'toolchain', 'emulator', 'ollama', 'fonts',
+                  'checks', 'update', 'build') {
     . (Join-Path $Root "setup\$part.ps1")
 }
 
@@ -109,6 +109,7 @@ function Invoke-Dependencies {
     Install-CubeIDE
     Install-Renode
     Install-Simulations
+    Install-Fonts
     if (-not $SkipOllama) { Install-Ollama -Python $script:Python }
 }
 
