@@ -1,7 +1,6 @@
 """Invented readings: the channel table, nominals, drift and tumble every device draws from.
 """
 import math
-import random
 
 from coaxial.devices.scaling import ADC_CODES, KELVIN_AT_ZERO_C, NTC_ONBOARD
 
@@ -143,22 +142,22 @@ def phase_codes(signal, amps, theta):
     return amps * math.cos(theta - leg * PHASE_STEP) / AMPS_PER_CODE
 
 
-def _spread(meta, mean, powered, extra=0.0):
-    """One burst's mean and its two extremes, as the board reports them."""
+def _spread(meta, mean, powered, rng, extra=0.0):
+    """One burst's mean and its two extremes, as the board reports them, its noise `rng`'s."""
     index = meta['index']
     if not powered:
         return {'mean_raw': mean, 'min_raw': int(mean), 'max_raw': int(mean)}
 
-    reach = RIPPLE[index] * random.uniform(0.55, 1.0)
-    if random.random() < GUST_CHANCE:
+    reach = RIPPLE[index] * rng.uniform(0.55, 1.0)
+    if rng.random() < GUST_CHANCE:
         reach *= GUST
     # What the motor moved within the burst, on top of the noise.
     reach += extra
 
     floor, ceiling = ((-32768, 32767) if meta['differential']
                       else (0, 65535))
-    low = max(floor, mean - reach * random.uniform(0.7, 1.0))
-    high = min(ceiling, mean + reach * random.uniform(0.7, 1.0))
+    low = max(floor, mean - reach * rng.uniform(0.7, 1.0))
+    high = min(ceiling, mean + reach * rng.uniform(0.7, 1.0))
     return {'mean_raw': mean, 'min_raw': int(low), 'max_raw': int(high)}
 
 

@@ -284,11 +284,12 @@ class Flying:
     def seen(self, frame, dt):
         """What a row's giver may know of the flight before the pass of `dt` s (a routine's
         `seen`): where the frame is and goes, the law's spot and heading, the share of their
-        pull the boards' envelopes left it and the pull that is at rest, m/s^2, the air along
-        the discs their thrust is none at, m/s (`quad.inflow`), the wind as learnt."""
-        w = quad.speed_for(self.top / 4.0)
-        return {'dt': dt, 'share': self.share, 'heading': self.heading,
-                'pull': max(LEAST * quad.GRAVITY, self.share * HEADROOM * self.top / quad.MASS_KG),
+        pull the boards' envelopes left it, the pull that is at rest and what all of it would
+        be, m/s^2, the air along the discs their thrust is none at, m/s (`quad.inflow`), the
+        wind as learnt."""
+        w, full = quad.speed_for(self.top / 4.0), HEADROOM * self.top / quad.MASS_KG
+        return {'dt': dt, 'share': self.share, 'heading': self.heading, 'full': full,
+                'pull': max(LEAST * quad.GRAVITY, self.share * full),
                 'pitch': quad.INFLOW_J0 * quad.PITCH_M * w / math.tau,
                 'spot': tuple(self.spot), 'at': [float(x) for x in frame['at']],
                 'vel': [float(x) for x in frame['vel']], 'wind': tuple(self.wind)}

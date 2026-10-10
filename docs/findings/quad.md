@@ -151,66 +151,14 @@ The board's own are in [FINDINGS](../FINDINGS.md).
   clocks -, a gate 0.68-0.92 of the frame's reach off its middle. Gravity
   is no frame's: x0.5, 71 m/s^2 along the floor, came into the climb
   1.6 m/s fast, went 0.7 m over and struck the second gate's top bar.
-- QUAD's first tuned laps (`quad_race`, 2026-10-06): 60 generations of 20,
-  each flown on ideal rotors in still air and three winds, over the plan's
-  shares and times and the line's crossings - a bend's grip 0.795, its brake
-  0.39, its way out 0.3, a lean 0.642 of the frame's pull, its swing 0.83 s,
-  the tangents 1.19 of their chords, thirteen crossings turned 25 degrees at
-  the most: laps 19.2 and 18.1 s where 20.8 and 19.5, on the four boards
-  20.9 and 20.7 where 21.9 and 20.7 - 41.1 where 43.4 as the tuner counts
-  it. In six winds and at three sizes it never flew, a gate 0.61 m off at
-  the most where 0.92, 41.3 where 46.2. Braked for its finish as for a
-  bend it stood 0.36 m past the first gate, through it at 2.6 m/s: the
-  finish is its own, `course.STOP`.
-- Where QUAD's lap goes (2026-10-06, as built before the tuner's). On ideal
-  rotors the pull flown along the floor is 6.7-7.1 m/s^2 mean, 12.5 at the
-  90th, of 23 asked; the rotors at 33 % of their thrust, none at its top; its
-  speed's top never met, the way out of a bend bounding 40-50 % of a lap. A
-  lean swings 60 degrees in 0.4 s, 3 rad/s - `TILT_MISS` of the tilt's
-  gains - and a span is 1.0-1.7 s: the frame trails its plan 3 m/s out of
-  a bend, is 1.9 over it into the next, 0.9 m off its line between gates.
-  The line's bend steps at every gate, a cubic's: 10.8 m/s^2 in a metre at
-  10 m/s. On the four boards a rotor's 10.8 A rms are 6.8 its propeller's
-  drag and 8.5 its spool - the four together 326 rad/s^2 rms, apart 240:
-  the asked speed's change, differenced a pass, is 4.3 m/s^2 rms rough a
-  pass to the next, 3.0 with the frame's place found between the line's
-  samples - on a bend, off the line, it jumped at each. Tried at the plan
-  as built, none adopted: the tilt's loop at (100, 20) a gate 0.38 m off
-  where 0.58 on the boards, laps the same; its torque led past the spool
-  with those gains, the boards' envelopes spent, laps 33-38 s; the brake
-  and the way out on what a bend leaves of the grip, the plan 8.0 m/s
-  mean and the frame 7.2; the line a quintic, its bend whole through the
-  gates, struck the slalom's last.
-- The frame's place on its line, found between the line's samples
-  (`course.nearest`, 2026-10-06): on the tuned plan, still air and seven
-  winds (`quad_race --seeds`), the four boards' laps 20.2-20.7 and
-  19.6-20.7 s where 20.8-21.3 and 20.2-21.2, their envelopes at 0.72-0.77
-  and 34-48 % of the pull left at the least where 31-43. The tilt's loop
-  at (100, 20) on that plan spent them: 0.77-0.84, laps 21-22.6 s.
-- The plan's speed stepped, and the boards spooled for it (2026-10-06): from
-  its way out of a bend to its brake for the next the asked speed's change
-  is 14 m/s^2 in a pass, and the collective follows the pull at once where
-  the lean takes 0.4 s. The speed asked now comes to the plan's over 0.1 s
-  (`course.SOFT_S`), the plan looked up as much further on - without that
-  it stood past its finish again: on the four boards in seven winds laps
-  19.5-19.7 and 18.6-19.1 s where 20.2-20.7 and 19.6-20.7, their
-  envelopes at 0.66-0.69 where 0.72-0.77 and 56-67 % of the pull left at
-  the least where 34-48, a gate 0.50 m off at the most where 0.67; on
-  ideal rotors 19.4 and 18.5 s, 0.54 m. 38.8 as the tuner counts it over
-  18 flights where 41.7; over 0.13 s a gate was struck.
-- The boards' room and their pack among the tuner's trials (2026-10-06; a
-  robust optimiser, the user). Laid in a room no observer is told of, a
-  full pack: the bench 19.6 and 18.6 s at 0.68 of their envelopes; cold,
-  -25 C, 19.1 and 17.9 at 0.54, all of their pull; a fan 19.7 and 18.4,
-  a heat sink 19.3 and 18.0; temperate, 20 C, 21.3 and 20.4 at 0.73 -
-  cooler than the bench and slower, its observers UNCERTAIN where the
-  bench is what they begin on; stuffy, half again the air's path, 21.5 and
-  20.5 at 0.76; a box, twice it, 24.8 and 24.3 at 0.80; toasty, 45 C, one
-  lap of 34 s at 0.92, none of their pull left, spent and down. A pack
-  begun at 60 % flies 19.2 and 18.1 s at 0.65, the link 3 V lower.
-  Settled an hour idle in its room first, the stage on, a board is at
-  88 C on the bench and never fit to fly. Stuffy and the 60 % pack are a
-  candidate's eleventh and twelfth flights.
+- The circle plan's tuning (2026-10-06, the first course; the sphere's since
+  2026-10-10): laps from 20.8 and 19.5 s to 14.9 and 14.4 on ideal rotors,
+  15.3 and 15.2 on four boards. What holds: the frame's place found between
+  the line's samples (`course.nearest`) - by a sample's own tangent the asked
+  speed's change ran 4.3 m/s^2 rms a pass, 3.0 between; the speed asked eased
+  to the plan's over SOFT_S, the plan looked up as much further - stepped,
+  14 m/s^2 in a pass, it stood past its finish; braked for its finish as for
+  a bend it stood 0.36 m past the first gate (`course.STOP`).
 - QUAD's line rises through its gates (`course.SLOPE`, 2026-10-06). Level
   through each, a climb is an S: from the second gate to the third, 3.5 m
   in 12.5, 10 m/s^2 up and down at 10 m/s, and the frame 1.9 m under its
@@ -248,24 +196,6 @@ The board's own are in [FINDINGS](../FINDINGS.md).
   answered to 1.2 rad where 0.6, 2.4-7.5; its loop at (140, 20) and 1.5,
   1.8-5.6. Its rotors never above 97 % of their top in it. On the laps
   they give 37 % of their thrust, none ever at its top.
-- QUAD's plan on a circle of its grip, and its tilt's loop (2026-10-06; the
-  user: the motors at their most, a bend rock-hard and no speed lost out
-  of it - MotoGP, F1). The brake before a bend and the way out of it were
-  shares of the pull whatever the bend took; they are 0.744 and 0.847 of
-  what the bend there leaves of the grip, 0.77, run back from the far end
-  of what is looked at - 45 generations of 16 on ideal rotors: 15.5 and
-  15.1 s where 16.1 and 15.3, but a gate 0.73 m off in a wind it never
-  flew and the frame 5.8 m/s under its plan out of a bend, a lean coming
-  round at 3 rad/s. The tilt's loop at 140 and 20, its miss answered to
-  1.2 rad: 14.9 and 14.4 s, its pull turning 14 times a lap where 18, its
-  jerk 42 m/s^3 where 46; the four boards 15.3 and 15.2 at 0.68-0.71 of
-  their envelopes, a gate 0.40-0.42 m off in still air and nine winds;
-  x0.75 and x1.5 14.9 and 14.4 by their clocks; a pack at 60 % 14.9 and
-  14.6; stuffy 17.9 and 17.0 at 0.83, 9 % of the pull left at the least -
-  the stiffer loop's heat. 30.4 as the tuner counts twelve trials where
-  33.1. The rotors give 37-39 % of their thrust yet: a point with all of
-  their pull along the floor laps in 9.3 s, with the plan's lean and
-  shares in 12.9.
 - QUAD on the FETs' whole SOA (FINDINGS 2026-10-09): one course on four
   boards no longer meets its envelopes - all of their pull, 14.8 and 14.3 s,
   stuffy alike. The flight's own cut keeps the kelvins it was measured in:
@@ -327,3 +257,10 @@ The board's own are in [FINDINGS](../FINDINGS.md).
   -32.5 m/s^2; on boards 14.0-16.2 s, SOA 0.83-1.00, WEP 0.6-1.8 s. Gate 8
   crossed 0.11 m higher: the boards' tips 0.10-0.15 m inside in four winds,
   the page's 0.14 past its room's; run again, a stuffy room struck gate 6.
+- A flight on stand-ins its own (2026-10-10): their front end drew its noise
+  from the module's random and their heat ran on the wall's clock until a
+  flight's first pass - run twice, SOA 0.83 then 0.91, a stuffy room whole or
+  into gate 6. Seeded, on the flight's clock from their arming: to the digit.
+  The sphere eased at a share of what the envelopes left came down slowest
+  where they left least, a stuffy room's spent boards asked twice their pull
+  for 2 s, into a house; at a share of all of it every flight whole.

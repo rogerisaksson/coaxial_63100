@@ -109,6 +109,9 @@ def arm(rig):
     """A stand-in board's stage and drive for flight: its gates on the master's pilot, the
     63100's model under the propeller's inertia, a flight's clamp, sensorless."""
     board = rig.board
+    # Its heat on the flight's clock from here: on the wall's until the first pass, four boards
+    # armed took a run's own seconds of it, and a flight run again was another (2026-10-10).
+    board.thermal.fast_forward(0.0)
     # In its rotor's wash, and the stand-in's truth laid on that: the observer and the board it
     # watches in the same air from the first pass.
     board.thermal.configure(application=APPLICATION)

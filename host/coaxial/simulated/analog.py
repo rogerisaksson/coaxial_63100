@@ -50,8 +50,14 @@ class SimulatedAfe(Output):
 
 class SimulatedAnalog(Input):
     """Invented readings, in the shape the real ones come in."""
+
+    #: Its noise's seed: on the module's random a flight on four stand-ins was another flight
+    #: run again, its boards' SOA 0.83 then 0.91 (2026-10-10).
+    NOISE_SEED = 2
+
     def __init__(self, afe):
         self._afe = afe
+        self._random = random.Random(self.NOISE_SEED)
         #: The drive whose current the phases carry - the board wires it.
         self.drive: Any = None
         #: The thermal stand-in whose MCU die the die channel reads - the board wires it.
@@ -100,7 +106,7 @@ class SimulatedAnalog(Input):
             if self._afe._on:
                 mean = (quiet_code(index, thermal, self.sto)
                         + phase_codes(meta['signal'], amps, theta)
-                        + random.uniform(-DRIFT[index], DRIFT[index]))
+                        + self._random.uniform(-DRIFT[index], DRIFT[index]))
                 record = self.calibration
                 if trimmed and record is not None:
                     mean = record.apply(index, mean)
@@ -110,7 +116,7 @@ class SimulatedAnalog(Input):
                 # measured on the board.
                 mean = 0.0 if meta['differential'] else ADC_HALF_CODES
             chosen[index] = _spread(
-                meta, mean, self._afe._on,
+                meta, mean, self._afe._on, self._random,
                 swing if meta['signal'] in ('Phase U', 'Phase V', 'Phase W')
                 else 0.0)
         return {'samples': samples, 'rate_hz': rate or 2000.0,

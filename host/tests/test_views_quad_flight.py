@@ -38,8 +38,9 @@ def flown(seconds, until, things=(), dt=0.05):
 
 
 def test_the_boards_air_is_the_rotors(report):
-    """A stand-in board armed as the page arms it, its 63100 at a hover's speed: the rpm its
-    thermal network's air sees is the rotor's own, by the record's pole pairs."""
+    """A stand-in board armed and stepped as the page arms and steps it, its 63100 at a hover's
+    speed: the rpm its thermal network's air sees is the rotor's own, by the record's pole
+    pairs."""
     from coaxial import Coaxial63100
     from machine import quad
     from machine.modes import SIMULATED
@@ -56,6 +57,7 @@ def test_the_boards_air_is_the_rotors(report):
             w = drive.model.read()['omega'] / rotor['pairs']
             drive.write(iq_ref=rotor['pi'].step(0.01, setpoint=hover, measured=w_hat)['command'])
             drive.model.configure(load=quad.K_DRAG * w * abs(w))
+            rig.board.thermal.fast_forward(0.01 * rig.board.thermal.HASTE, live=True)
         air = rig.board.thermal.state().get('speed_rpm') or 0.0
         link = drive.state().get('vdc')
     finally:

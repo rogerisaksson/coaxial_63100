@@ -243,7 +243,9 @@ def line(route, now):
     # the sphere it is planned on: PULL of what the envelopes leave, FLOOR of gravity at the
     # least - spent, PULL of the law's least was under gravity -, come to slowly
     whole = max(FLOOR * quad.GRAVITY, PULL * seen.get('pull', 2.0 * quad.GRAVITY))
-    ease = whole * dt / EASE_S
+    # at a share of all of it a second: of what is left, a stuffy room's spent boards were
+    # asked twice what they had for 2 s and it flew into a house (2026-10-10)
+    ease = PULL * seen.get('full', 2.0 * quad.GRAVITY) * dt / EASE_S
     pull = lap['pull'] = whole if not lap['pull'] else max(lap['pull'] - ease, min(
         whole, lap['pull'] + 0.5 * ease))
     # where the frame is on the line, from where it was on
