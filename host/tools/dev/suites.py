@@ -30,6 +30,7 @@ THERMAL, THERMAL_APP = 'test_thermal_core.py', 'test_thermal_app.py'
 #: hardware-free since 2026-09-14 and, until then, tested only by the
 #: bench after a flash.
 DAQ_CORE = 'test_daq_core.py'
+BOARD_MEM = 'test_board_mem.py'
 
 #: The bootloader's state machine as the C that will run - the chunk
 #: stream, the bitmap, the seal - on a RAM flash, before any register
@@ -42,7 +43,7 @@ BOOT_CLIENT = 'test_boot_client.py'
 #: host/machine/parts.py.
 CTRL_CORE = 'test_ctrl_core.py'
 
-#: What the motors turn (world/): loads and bodies against closed forms, the emulator's plant.
+#: What the motors turn (world/): loads and bodies against closed forms.
 WORLD_CORE = 'test_world_core.py'
 
 #: The device clients through the firmware's own wire - comms/ built for this host over a
@@ -50,7 +51,7 @@ WORLD_CORE = 'test_world_core.py'
 WIRE = 'test_wire.py'
 
 #: The real-time engine for SIL and HIL (tools.cores.native): the board layer's drive path on
-#: this host keeps the wall's time. Not the firmware's validation: that is EMULATOR's, on Renode.
+#: this host keeps the wall's time; the firmware's validation is EMULATOR's.
 NATIVE = 'test_native.py'
 NATIVE_HEAT = 'test_native_heat.py'
 
@@ -74,7 +75,7 @@ TAGS = {
     'language': 'the session language, its lock, and the phrase table',
 }
 
-#: The ollama suites, a file a subject - 12 to 218 checks - so a budget can choose among them.
+#: The ollama suites, a file a subject - 12 to 218 checks - a budget chooses among them.
 OLLAMA = tuple('test_ollama_%s.py' % tag for tag in TAGS)
 
 BENCH = 'test_bench.py'
@@ -108,7 +109,7 @@ GYNOID, GYNOID_FAULTS, GYNOID_FALLS = 'test_gynoid.py', 'test_gynoid_faults.py',
 GYNOID_STAND, GYNOID_GAIT, GYNOID_RUN = 'test_gynoid_stand.py', 'test_gynoid_gait.py', 'test_gynoid_run.py'
 GYNOID_GOING = 'test_gynoid_going.py'
 
-#: The cyclic executive (machine.cyclic): its steps against machine.parts, its cycle on a toy rotor.
+#: The cyclic executive (machine.cyclic): its steps against machine.parts, a cycle on a toy rotor.
 CYCLIC = 'test_cyclic.py'
 
 #: The quad's suites; what a change reaches.
@@ -118,7 +119,7 @@ QUADS = (QUAD, QUAD_COURSE, QUAD_PAGE, 'test_views_quad_flight.py', STRUCTURE)
 RENDER = 'test_render.py'
 
 DEFAULT_SUITES = (STRUCTURES + (CORE, SHTP, DRIVE, DRIVE_OBSERVER, FILTER, THERMAL, THERMAL_APP,
-                                DAQ_CORE,
+                                DAQ_CORE, BOARD_MEM,
                                 BOOT_CORE, BOOT_CLIENT,
                    CTRL_CORE, WORLD_CORE, WIRE, NATIVE, NATIVE_HEAT, EMULATOR,
                    SENSORLESS,
@@ -383,6 +384,7 @@ TOUCHES = (
     # observer's per-poll ADC and SPI reads; a poll that lost a Modbus byte).
     ('comms/',                                 (WIRE, NATIVE, EMULATOR, CONFORMANCE, 'test_mcp.py',
                                                 BENCH)),
+    ('board/src/board_mem.c',                  (BOARD_MEM, EMULATOR, CONFORMANCE)),
     ('board/',                                 (WIRE, NATIVE, NATIVE_HEAT, EMULATOR, CONFORMANCE,
                                                 'test_mcp.py', 'test_parity.py', BENCH)),
     ('core/',                                  (EMULATOR, CONFORMANCE, BENCH)),

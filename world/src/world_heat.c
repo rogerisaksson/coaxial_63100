@@ -12,6 +12,7 @@ void world_heat_init(world_heat_t *h, float ambient)
 
   thermal_defaults(&cfg);
   thermal_init(&h->th, &cfg, ambient);
+  h->base = cfg;
   thermal_losses(&h->loss);
   memset(&h->power, 0, sizeof(h->power));
   h->app = THERMAL_APP_STILL;
@@ -23,7 +24,7 @@ void world_heat_room(world_heat_t *h, float ambient, float air, float capacity)
   thermal_cfg_t base;
   thermal_ident_t laid;
 
-  thermal_defaults(&base);
+  base = h->base;
   thermal_application(&base, h->app);
   memset(&laid, 0, sizeof(laid));
   laid.scale[THERMAL_IDENT_AIR] = air;
@@ -39,6 +40,12 @@ void world_heat_room(world_heat_t *h, float ambient, float air, float capacity)
 void world_heat_application(world_heat_t *h, thermal_app_t app)
 {
   h->app = app;
+  world_heat_room(h, h->th.ambient, h->air, h->capacity);
+}
+
+void world_heat_base(world_heat_t *h, const thermal_cfg_t *base)
+{
+  h->base = *base;
   world_heat_room(h, h->th.ambient, h->air, h->capacity);
 }
 

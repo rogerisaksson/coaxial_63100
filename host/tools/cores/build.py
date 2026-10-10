@@ -1,4 +1,6 @@
 """A portable C core built with the host's compiler into a shared library."""
+import glob
+import hashlib
 import os
 import subprocess
 from shutil import which
@@ -47,6 +49,32 @@ def build(cc, sources, includes, name, extra=()):
     if done.returncode != 0:
         raise RuntimeError(done.stderr.strip()[-2000:])
     return lib, [l for l in (done.stderr or '').splitlines() if 'warning:' in l]
+
+
+def cached(sources, includes, name, extra=()):
+    """(path, warnings) of a library built once for these sources', their headers' and the
+    flags' bytes, shared by every process that asks - a stand-in opened in each of a gate's
+    suites built it once -, a compiler sought only where none is built yet."""
+    digest = hashlib.sha1(' '.join(FLAGS + list(extra)).encode())
+    digest.update(str(bool(os.environ.get('COAXIAL_GCOV'))).encode())
+    headers = sorted(h for d in includes for h in glob.glob(os.path.join(d, '*.h')))
+    for path in list(sources) + headers:
+        with open(path, 'rb') as f:
+            digest.update(f.read())
+    lib = os.path.join(OUT, '%s_%s%s' % (name, digest.hexdigest()[:12],
+                                          '.dll' if os.name == 'nt' else '.so'))
+    if os.path.exists(lib):
+        return lib, []
+    cc = find_cc()
+    if cc is None:
+        raise RuntimeError('%s is C built on this host, and there is no C compiler here '
+                           '(setup.ps1 installs one)' % name)
+    made, warnings = build(cc, sources, includes, '%s_%d' % (name, os.getpid()), extra)
+    try:
+        os.replace(made, lib)
+    except OSError:
+        return made, warnings           # another process's is there, loaded
+    return lib, warnings
 
 
 # setup.ps1's probe, before host/ is installed: winget's gcc is on PATH in new shells only.

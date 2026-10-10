@@ -53,6 +53,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     thermal/src/thermal.c
     thermal/src/thermal_ident.c
     thermal/src/thermal_app.c
+    thermal/src/thermal_run.c
 
     # DAQ: the acquisition engine - the ring, the summing window, the
     # anti-alias ladder, the tone and the live accumulator.
@@ -87,6 +88,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     board/src/board_drive.c
     board/src/board_ctrl.c
     board/src/board_boot.c
+    board/src/board_mem.c
 
     # Comms stack: cmd (request/response) over proto (Modbus) over dev (USART3).
     comms/src/console.c
@@ -125,6 +127,7 @@ set(COAXIAL_SOURCES
     thermal/src/thermal.c
     thermal/src/thermal_ident.c
     thermal/src/thermal_app.c
+    thermal/src/thermal_run.c
     daq/src/daq.c
     drive/src/drive.c drive/src/drive_math.c drive/src/drive_model.c
     drive/src/drive_observer.c
@@ -138,7 +141,7 @@ set(COAXIAL_SOURCES
     board/src/board_daq.c
     board/src/board_thermal.c
     board/src/board_power.c
-    board/src/board_drive.c board/src/board_ctrl.c board/src/board_boot.c
+    board/src/board_drive.c board/src/board_ctrl.c board/src/board_boot.c board/src/board_mem.c
     comms/src/console.c comms/src/wire.c comms/src/dev_uart.c
     comms/src/cmd.c comms/src/cmd_board.c comms/src/cmd_test.c
     comms/src/cmd_angle.c comms/src/cmd_device.c comms/src/cmd_link.c
@@ -161,6 +164,7 @@ set_source_files_properties(
     thermal/src/thermal.c
     thermal/src/thermal_ident.c
     thermal/src/thermal_app.c
+    thermal/src/thermal_run.c
     daq/src/daq.c
     drive/src/drive.c drive/src/drive_math.c drive/src/drive_model.c
     drive/src/drive_observer.c
@@ -193,6 +197,7 @@ set_source_files_properties(
 # identification held main() 236 us, past what the chain's pump carries (2026-09-27).
 set_source_files_properties(
     thermal/src/thermal.c thermal/src/thermal_ident.c thermal/src/thermal_app.c
+    thermal/src/thermal_run.c
     PROPERTIES COMPILE_OPTIONS "-O2;-fno-math-errno;-Wextra;-Wshadow;-Wconversion")
 # And the HAL in front of it: HAL_ADC_IRQHandler is every flag check in the
 # peripheral before the callback runs, fifty thousand times a second.

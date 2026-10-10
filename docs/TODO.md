@@ -205,12 +205,13 @@ met.
 ## Host
 
 - **Full DOD, the whole** (the user, 2026-10-10): one code, other
-  executives: the stand-in on the C cores and the world (its heat next, the
-  observer, the drive), native's AFE, A1335 and BNO085 board/emu's own, the
-  mirrors gone; every hot path's jumps, interrupts and stalls cut but the
-  unavoidable; state one contiguous array, steps branch-free passes over
-  it. DOD: the hot paths ranked by them, each cut or named unavoidable; a
-  model's change one change in every executive.
+  executives: the stand-in on the C cores and the world (its heat and
+  observer since 2026-10-10, the drive next), native's AFE, A1335 and
+  BNO085 board/emu's own, the mirrors gone; every hot path's jumps,
+  interrupts and stalls cut but the unavoidable; state one contiguous
+  array, steps branch-free passes over it. DOD: the hot paths ranked by
+  them, each cut or named unavoidable; a model's change one change in
+  every executive.
 - **native://**: a limb's world on a fixed mount as board/emu's; one
   Transport a rig on a URL bus. DOD: the body's balance and gait from the
   SIL; the fallback where nothing answers.

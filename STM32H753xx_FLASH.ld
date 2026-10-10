@@ -63,6 +63,7 @@ SECTIONS
     *board/src/board_pwm.c.obj(.text .text.*)
     *board/src/board_clock.c.obj(.text .text.*)
     *board/src/board_log.c.obj(.text .text.*)
+    *board/src/board_mem.c.obj(.text .text.*)
     *(.text.Board_AdcInjectedSlot)
     *(.text.Board_DigitalMask)
     *(.text.Board_DigitalCount)

@@ -119,7 +119,9 @@ long-form record to 2026-09-23 is `git show 430b91f:docs/FINDINGS.md`.
   into ITCM, the calibration a laid Q28 scale (an SMULL and a shift), the
   rounding `vrintr`, `drive_tanh` a clamped rational - 74 functions, 358
   branches, 53 divides; on Renode the virtual plant's ISR 1 728 -> 1 682
-  instructions, its advance 320 -> 274.
+  instructions, its advance 320 -> 274. newlib-nano's `memset`/`memcpy`, a
+  byte a turn, the board's own a word a turn in ITCM (`board_mem.c`): the
+  reach in ITCM but a mode change's two NVIC calls.
 
 ## IMU (BNO085)
 

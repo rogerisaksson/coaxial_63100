@@ -1395,19 +1395,22 @@ def test_a_ceiling_pulled_in_under_a_node_closes_the_clamp(report):
     th = SimulatedThermal(situation='bench')
     th.fast_forward(0.0)                    # the caller owns the clock
     top = th.LIMIT.get('driver_u', th.DEFAULT_LIMIT)
-    th._node['driver_u'] = th._ambient + 0.92 * (top - th._ambient)
+    ambient = th.state()['ambient']
+    th._place('driver_u', ambient + 0.92 * (top - ambient))
+    th.fast_forward(0.0)                    # judged where it stands
     got = th.budget()
+    margin = th.identification()['margin']
     report.check('a fresh stand-in trims every ceiling to the floor, and a '
                  'driver at 92 %% of the record\'s span reads 100 %% of the '
-                 'trimmed one with the clamp closed (margin %.2f)'
-                 % th._margin(),
-                 abs(th._margin() - th._margin_floor) < 1e-9
+                 'trimmed one with the clamp closed (margin %.2f)' % margin,
+                 abs(margin - th._margin_floor) < 1e-6
                  and got['used']['driver_u'] >= 0.999 and th.derate() == 0.0,
                  'used %.3f, clamp %.3f' % (got['used']['driver_u'],
                                             th.derate()))
     report.check('and it is NOT tripped: the trip is judged on the '
                  'record\'s ceiling', not got['tripped'], got['tripped'])
-    th._node['driver_u'] = top + 0.1
+    th._place('driver_u', top + 0.1)
+    th.fast_forward(0.0)
     report.check('at the record\'s ceiling it trips',
                  th.budget()['tripped'], th.budget()['tripped'])
 
@@ -1778,7 +1781,7 @@ def test_thermal_identification(report):
                     max(used.values())))
     hot.fast_forward(900.0, seen=idle, live=True)
     fifteen = hot.identification()['margin']
-    earned = hot._ident.margin(hot._margin_floor)
+    earned = hot._earned()
     hot.fast_forward(1200.0, seen=idle, live=True)
     later = hot.identification()['margin']
     report.check('and it comes back a percent a minute: the cap about 0.85 '
@@ -1786,7 +1789,7 @@ def test_thermal_identification(report):
                  'where that is less, and only the identification' + chr(39) + 's '
                  'thirty-five on',
                  abs(fifteen - min(earned, 0.85)) < 0.03
-                 and abs(later - hot._ident.margin(hot._margin_floor)) < 1e-9,
+                 and abs(later - hot._earned()) < 1e-6,
                  'margin %.3f at 15 min (earned %.3f), %.3f at 35'
                  % (fifteen, earned, later))
 
