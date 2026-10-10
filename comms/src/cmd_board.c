@@ -252,8 +252,9 @@ static cmd_status_t h_analog_burst(rd_t *in, wr_t *out)
   board_burst_t stats[BOARD_BURST_MAX_CHAN];
   uint8_t       count = 0U;
   uint32_t      elapsed = 0U;
+  uint16_t      locked = 0U;
 
-  if (!Board_AdcBurst(mask, samples, interval, stats, &count, &elapsed))
+  if (!Board_AdcBurst(mask, samples, interval, stats, &count, &elapsed, &locked))
   {
     return CMD_ERR_DEVICE;
   }
@@ -270,6 +271,7 @@ static cmd_status_t h_analog_burst(rd_t *in, wr_t *out)
     wr_i32(out, stats[i].max_raw);
     wr_u32(out, stats[i].sd_milliraw);
   }
+  wr_u16(out, locked);
 
   return CMD_OK;
 }

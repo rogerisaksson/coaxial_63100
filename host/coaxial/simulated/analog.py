@@ -120,7 +120,7 @@ class SimulatedAnalog(Input):
                 swing if meta['signal'] in ('Phase U', 'Phase V', 'Phase W')
                 else 0.0)
         return {'samples': samples, 'rate_hz': rate or 2000.0,
-                'channels': chosen}
+                'channels': chosen, 'locked': []}
 
     def ntc_temperature(self, adc_chan=None, ntc_params=None,
                         samples=64, sample_rate=2000.0):

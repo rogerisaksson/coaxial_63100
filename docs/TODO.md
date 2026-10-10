@@ -341,9 +341,9 @@ each live in docs/FINDINGS.md's files. A line goes when its DOD is met.
   DOD: the body's balance and gait from the SIL (`Limb.imu`,
   `emu_world_motor`); one source for both; the fallback where nothing
   answers.
-- **The meter under the drive**: `read_index` serves the NTC and the DC
-  link from the latched sample. DOD: the MCU's die and the phases too;
-  a sweep over a locked channel says so.
+- **The meter under the drive** serves the phases, the DC link and the NTC
+  from the latched sample; a burst names the rest locked (MINOR 29). DOD:
+  the MCU's die - its sensor's 9 us of sampling in a 20 us period.
 - **Debug `-O0`**. DOD: `-Og` measured (LOOP, keepalive gap).
 - **`heat.py`'s dry loss** 1.2 W, the bench's fit 2.4-4.4 at 24-44 V. DOD: it.
 - **QUAD raw** (the user, 2026-10-10): laps 14.1-17.0 s on boards, every

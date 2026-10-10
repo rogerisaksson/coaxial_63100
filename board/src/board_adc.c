@@ -299,10 +299,7 @@ _Static_assert(BOARD_CAL_CHANNELS ==
                "the calibration record and the ADC table disagree on how "
                "many channels there are");
 
-/* The CH_* constants are positions in the table above, and read_index takes
-   them without a bounds check - it is called from paths that pass a
-   constant, so the check would only ever fire on a table that had already
-   been edited wrong. */
+/* The CH_* constants index the table unchecked: these hold them inside it. */
 _Static_assert(CH_MCU_DIE < (sizeof(s_adcTable) / sizeof(s_adcTable[0])),
                "CH_MCU_DIE is past the end of the ADC table");
 
@@ -462,8 +459,7 @@ bool Board_PhaseRaw(int32_t *u, int32_t *v, int32_t *w)
     return false;
   }
 
-  /* Short-circuited: once one phase has failed the scan is refused whole,
-     and the remaining conversions would only cost time to discard. */
+  /* One failed phase refuses the scan whole. */
   if (!read_index(CH_PHASE_U, u, &fu) ||
       !read_index(CH_PHASE_V, v, &fv) ||
       !read_index(CH_PHASE_W, w, &fw))
@@ -562,8 +558,7 @@ bool Board_Ntc(int32_t *raw, int32_t *centidegc)
   return true;
 }
 
-/* Zero and span live here rather than in board_cal.c because both have to
-   take a reading, and the ADC is this file's. */
+/* Zero and span here: both take a reading. */
 
 /* The row a zero or a span acts on, with the record's offset and gain for
    it; NULL past the table, with nowhere to report, or with no record. */
@@ -730,7 +725,8 @@ static void wait_until(uint32_t start_cycles, uint32_t target_cycles)
 }
 
 bool Board_AdcBurst(uint16_t mask, uint16_t samples, uint32_t interval_us,
-                    board_burst_t *out, uint8_t *count, uint32_t *elapsed_us)
+                    board_burst_t *out, uint8_t *count, uint32_t *elapsed_us,
+                    uint16_t *locked)
 {
   const uint8_t  total   = Board_AdcCount();
   const uint32_t per_us  = SystemCoreClock / US_PER_S;
@@ -749,10 +745,18 @@ bool Board_AdcBurst(uint16_t mask, uint16_t samples, uint32_t interval_us,
 
   uint8_t n = 0U;
 
+  *locked = 0U;
   for (uint8_t i = 0U; i < total; i++)
   {
     if ((mask & (uint16_t)(1U << i)) == 0U)
     {
+      continue;
+    }
+    /* read_index's test: under the drive, what the injected group latches; the rest
+       named locked - refused whole, a burst said only 04. */
+    if (Board_SyncArmed() && !Board_AdcInjected(i))
+    {
+      *locked |= (uint16_t)(1U << i);
       continue;
     }
 
@@ -762,7 +766,9 @@ bool Board_AdcBurst(uint16_t mask, uint16_t samples, uint32_t interval_us,
 
   if (n == 0U)
   {
-    return false;
+    *count = 0U;
+    *elapsed_us = 0U;
+    return *locked != 0U;
   }
 
   welford_t acc[BOARD_BURST_MAX_CHAN];

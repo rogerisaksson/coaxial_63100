@@ -96,9 +96,11 @@ rig.close()'''
 
 def test_the_injected_triple_runs(report, rig, emu):
     """The sync armed: the injected triple counts once a PWM period on TIM1's TRGO2, and rank 2
-    on ADC3 follows the DC link as the front end is fed it."""
+    on ADC3 follows the DC link as the front end is fed it; a burst under it reads what the
+    group latches and names the rest locked (MINOR 29)."""
     b = rig.board
     b.afe.on()
+    index = {c['signal']: c['index'] for c in b.analog.channels()}
     try:
         b.gate_drivers.configure(sync=True)
         seen = []
@@ -106,6 +108,7 @@ def test_the_injected_triple_runs(report, rig, emu):
             emu.command('%s DcBusVolts %g' % (AFE, volts))
             b.transport.sleep(0.05)                 # of the board's: 2 500 periods
             seen.append(b.gate_drivers.state())
+        held = b.analog.burst((1 << index['NTC']) | (1 << index['Cinj']), 2)
     finally:
         b.gate_drivers.configure(sync=False)
         emu.command('%s DcBusVolts %s' % (AFE, worlds._decimal(worlds.LINK_VOLTS)))
@@ -117,6 +120,9 @@ def test_the_injected_triple_runs(report, rig, emu):
     report.check('its rank 2 follows the DC link fed in',
                  (last['dcbus_raw'] or 0) > (first['dcbus_raw'] or 0),
                  '12 V -> %s, 36 V -> %s' % (first['dcbus_raw'], last['dcbus_raw']))
+    report.check('a burst under it reads the latched NTC and names Cinj locked',
+                 list(held['channels']) == [index['NTC']] and held['locked'] == [index['Cinj']],
+                 '%s read, %s locked' % (sorted(held['channels']), held['locked']))
 
 
 def test_the_angle_sensor_reads(report, rig, emu):

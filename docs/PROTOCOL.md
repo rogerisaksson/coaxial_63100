@@ -161,7 +161,8 @@ Request: `u16 mask, u16 samples, u32 interval_us`; the mask non-zero,
 samples 1 to 10 000, and `samples x interval` at most 5 s. Reply:
 `u16 samples, u32 elapsed_us, u8 count`, then per channel
 `u8 index, i32 mean_milliraw, i32 min_raw, i32 max_raw,
-u32 sd_milliraw`. A timed-out conversion is 04.
+u32 sd_milliraw`, then `u16 locked`, unread under the drive. A timed-out
+conversion is 04.
 
 ### 0x6C SELF_TEST
 
@@ -280,7 +281,7 @@ except the two before (prefix layouts). Ids and defaults: `board_cal.c`.
 | 7 gap reset | - | `u8`; forgets the worst keepalive gap |
 | 8 dutyq | `u32 x3 Q16.16 ticks` | `u8 took`; sigma-delta dither |
 | 9 deadtime | `u32 ns, i8 skew` | `u8 took`, then `u32 ns, i8 skew, u8 floor` as applied |
-| 10 alternate | `u16 x3 A, u16 x3 B` [, `u32 periods`] | `u8 took`; A one period, B the next, `periods` in all |
+| 10 alternate | `u16 x3 A, u16 x3 B` [, `u32 periods`] | `u8 took`; A a period, B the next, `periods` in all |
 
 Op 0: `u8 flags` (0x01 ready, 0x02 enabled, 0x04 fault, 0x08 sync
 ready, 0x10 sync armed, 0x20 afe_on, 0x40 pilot ok, 0x80 level ok),
@@ -555,10 +556,11 @@ MINOR appends; MAJOR breaks a codec.
 | 22 | thermal op 13 sets the observer's clock; the state's `seconds` and `seen_ms_ago` on it |
 | 23 | gate drivers op 0 appends `u8 nfault, i32 vgate_mv`: the STO chain's FAULTOUT on PE15 and the drivers' supply |
 | 24 | drive op 0 appends `i32 turns`: the estimate unwrapped, theta_hat + 2 pi turns |
-| 25 | thermal op 14, WEP: the derate held off, the trip standing |
-| 26 | thermal op 15 the application, op 16 the airspeed; op 10 appends the application |
-| 27 | gate op 10 takes an optional period count |
+| 25 | thermal op 14, WEP: the derate held off |
+| 26 | thermal op 15 the application, op 16 the airspeed |
+| 27 | gate op 10 a period count |
 | 28 | angle op 2 appends `u32 crc_errors` |
+| 29 | 0x6B appends `u16 locked` |
 
 MAJOR 2 (2026-08-29): thermal nodes went per leg, indices repurposed.
 A host ignores fields past what it knows. `test_conformance.py` holds a

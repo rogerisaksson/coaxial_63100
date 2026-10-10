@@ -115,9 +115,12 @@ typedef struct
     @param  out          At least Board_AdcCount() entries.
     @param  count        Channels actually measured, in ascending index order.
     @param  elapsed_us   Wall time the burst took, so the host can see the rate
+    @param  locked       Channels of `mask` left unread: under the drive's hold on the
+                         converters the meter reads only what the injected group latches.
     @return False if the mask is empty, the count is out of range, the burst */
 bool Board_AdcBurst(uint16_t mask, uint16_t samples, uint32_t interval_us,
-                    board_burst_t *out, uint8_t *count, uint32_t *elapsed_us);
+                    board_burst_t *out, uint8_t *count, uint32_t *elapsed_us,
+                    uint16_t *locked);
 
 /** Sample one ADC back to back and return basic noise statistics.
     @param  adc_index  1..3; the differential phase channel on that ADC.

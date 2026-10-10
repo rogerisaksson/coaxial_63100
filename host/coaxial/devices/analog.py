@@ -98,12 +98,15 @@ class Analog(Subsystem, Input):
         elapsed_us = reader.u32()
         per_channel = {reader.u8(): self._statistics(reader)
                        for _ in range(reader.u8())}
+        # MINOR 29: what the drive's hold on the converters left unread.
+        locked = reader.maybe('u16') or 0
 
         return {
             'samples': samples,
             'elapsed_us': elapsed_us,
             'rate_hz': (samples * 1e6 / elapsed_us) if elapsed_us else None,
             'channels': per_channel,
+            'locked': [i for i in range(16) if locked >> i & 1],
         }
 
     @staticmethod
@@ -120,6 +123,9 @@ class Analog(Subsystem, Input):
     def _one(self, index, samples, sample_rate):
         """Burst a single channel and return just its statistics."""
         result = self.burst(1 << index, samples, sample_rate)
+        if index in result['locked']:
+            raise DeviceStateError('channel %d is locked: the drive holds the converters, the '
+                                   'meter has what its injected group latches' % index)
         if index not in result['channels']:
             raise PayloadError('the burst answered channels %s, not %d'
                                % (sorted(result['channels']), index))

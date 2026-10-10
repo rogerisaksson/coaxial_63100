@@ -87,9 +87,14 @@ static const board_chan_t s_chan[] =
   { 3U, 18U, "internal",    false, "MCU die", BOARD_UNIT_CENTIDEGC },
 };
 
-FAKE_WEAK bool Board_AdcBurst(uint16_t mask, uint16_t samples, uint32_t interval_us, board_burst_t *out, uint8_t *count, uint32_t *elapsed_us)
+FAKE_WEAK bool Board_AdcBurst(uint16_t mask, uint16_t samples, uint32_t interval_us, board_burst_t *out, uint8_t *count, uint32_t *elapsed_us, uint16_t *locked)
 {
   uint8_t n = 0U;
+
+  if (locked != NULL)
+  {
+    *locked = 0U;
+  }
 
   if ((out == NULL) || (count == NULL) || (elapsed_us == NULL) || (samples == 0U))
   {
