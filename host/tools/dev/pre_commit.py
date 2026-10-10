@@ -46,7 +46,10 @@ def staged():
     for path in _git('diff', '--cached', '--name-only', '--diff-filter=ACMR').splitlines():
         if path.endswith(token_budget.EXTENSIONS) and not any(
                 part.lower() in token_budget.SKIP for part in path.split('/')[:-1]):
-            yield path, len(_git('show', ':' + path)) / 4.0
+            text = _git('show', ':' + path)
+            if token_budget.GENERATED in text.split('\n', 1)[0]:
+                continue
+            yield path, len(text) / 4.0
 
 
 def how(path):

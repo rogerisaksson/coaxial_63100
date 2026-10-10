@@ -1,7 +1,8 @@
-"""Her chain on the static model (wbc/) against MuJoCo, and a step's time on this host.
+"""Her chain and the loop on the static model (wbc/) against MuJoCo and the python stack.
 
 The arrays as the figure compiles; the core's poses, Jacobians, mass matrix and bias at random
-configurations."""
+configurations; the loop's torques standing against `machine.wbc.step`'s; her stand and a shove
+in MuJoCo on the loop; a step's and a tick's time on this host."""
 import ctypes
 import os
 import sys
@@ -48,13 +49,16 @@ def _mujoco(b, q, v):
     mj.mj_fwdVelocity(m, d)
     mj.mj_fullM(m, d, b._M)
     M = b._M[:n, :n].copy()
-    return {'T': T, 'R': R, 'M': M, 'h': d.qfrc_bias[:n].copy(), 'base': np.r_[R.ravel(), q[:3]],
-            'u': np.linalg.solve(T, v[:n])}
+    u = np.linalg.solve(T, v[:n])
+    dT_u = np.zeros(n)
+    dT_u[:3] = R @ np.cross(u[:3], u[3:6])
+    return {'T': T, 'R': R, 'M': M, 'h': d.qfrc_bias[:n] - d.qfrc_passive[:n],
+            'base': np.r_[R.ravel(), q[:3]], 'u': u, 'dT_u': dT_u}
 
 
 def test_the_arrays_are_the_figures(report, c, b, rows):
     """The header and the source hold what the figure compiles to today."""
-    for path, text in zip((model.HEADER, model.SOURCE), model.render(rows, b.m.opt.gravity)):
+    for path, text in zip((model.HEADER, model.SOURCE), model.render(rows, b)):
         with open(path, encoding='utf-8', newline='') as f:
             same = f.read() == text
         report.check('%s is the figure\'s' % os.path.relpath(path, model.REPO).replace(os.sep, '/'),
@@ -91,20 +95,50 @@ def test_the_mass_matrix_is_mujocos(report, c, b, rows):
 
 
 def test_the_bias_is_mujocos(report, c, b, rows):
-    """C u + g in the core's coordinates: T^T (h_mujoco + M_mujoco dT u), dT u the pelvis's
-    frame turning under its world-frame velocity."""
+    """C u + g less the springs' and dampers' torques, in the core's coordinates: T^T (h_mujoco
+    + M_mujoco dT u), dT u the pelvis's frame turning under its world-frame velocity."""
     import numpy as np
     rng, worst = np.random.default_rng(7), 0.0
     for q, v in _configurations(b, rows, rng):
         at = _mujoco(b, q, v)
         c.pose(at['base'], q[7:7 + c.n - 6])
-        u = at['u']
-        dT_u = np.zeros(c.n)
-        dT_u[:3] = at['R'] @ np.cross(u[:3], u[3:6])
-        h = at['T'].T @ (at['h'] + at['M'] @ dT_u)
-        worst = max(worst, float(np.abs(c.bias(u) - h).max()))
+        h = at['T'].T @ (at['h'] + at['M'] @ at['dT_u'])
+        worst = max(worst, float(np.abs(c.bias(at['u']) - h).max()))
     report.check('bias within %.0e over %d configurations' % (APART, POSES), worst < APART,
                  'worst %.1e' % worst)
+
+
+def test_the_centre_of_mass_is_mujocos(report, c, b, rows):
+    """Her centre of mass and its Jacobian, the angular momentum about it, a point's drift
+    J-dot u (the world's, J_mujoco-dot v + J_mujoco dT u) on the soles and the trunk."""
+    import numpy as np
+    rng, apart = np.random.default_rng(17), {'centre': 0.0, 'Jacobian': 0.0, 'momentum': 0.0,
+                                             'drift': 0.0}
+    jp, jr, am = np.zeros((3, b.m.nv)), np.zeros((3, b.m.nv)), np.zeros((3, b.m.nv))
+    links = [c.names.index(name) for name in POINTED[:2]] + [c.names.index('waist')]
+    for q, v in _configurations(b, rows, rng):
+        at = _mujoco(b, q, v)
+        c.pose(at['base'], q[7:7 + c.n - 6])
+        c.bias(at['u'])
+        com, j = c.com()
+        b.mj.mj_jacSubtreeCom(b.m, b.d, jp, b.pelvis)
+        apart['centre'] = max(apart['centre'], float(np.abs(com - b.d.subtree_com[b.pelvis]).max()))
+        apart['Jacobian'] = max(apart['Jacobian'], float(np.abs(j - jp[:, :c.n] @ at['T']).max()))
+        b.mj.mj_angmomMat(b.m, b.d, am, b.pelvis)
+        apart['momentum'] = max(apart['momentum'],
+                                float(np.abs(c.momentum(com) - am[:, :c.n] @ v[:c.n]).max()))
+        for link in links:
+            body = rows[link]['body']
+            for r in (b.sole, np.zeros(3)):
+                at_world = b.d.xpos[body] + b.d.xmat[body].reshape(3, 3) @ r
+                b.mj.mj_jac(b.m, b.d, jp, jr, at_world, body)
+                drift = np.vstack([jr[:, :c.n], jp[:, :c.n]]) @ at['dT_u']
+                b.mj.mj_jacDot(b.m, b.d, jp, jr, at_world, body)
+                drift += np.vstack([jr[:, :c.n], jp[:, :c.n]]) @ v[:c.n]
+                apart['drift'] = max(apart['drift'], float(np.abs(c.drift(link, r) - drift).max()))
+    for name, worst in apart.items():
+        report.check('%s within %.0e over %d configurations' % (name, APART, POSES),
+                     worst < APART, 'worst %.1e' % worst)
 
 
 def test_the_jacobians_are_mujocos(report, c, b, rows):
@@ -141,9 +175,62 @@ def test_a_step_on_this_host(report, c, b, rows):
     report.check('a step on this host', us < 1000.0, '%.1f us' % us)
 
 
+def _standing(b):
+    """Her stand's state in `b` and the ask that keeps it: both soles, no acceleration, the
+    turns and the posture as they are."""
+    import numpy as np
+    from machine import gait, physics, wbc
+    world = physics.World()
+    world.reset(gait.stand())
+    s = wbc.sense(b, world.data.qpos, world.data.qvel)
+    low = min(float(f['pts'][:, 1].min()) for f in s['feet'])
+    world.reset(gait.stand(), where=(0.0, 1.0 - low, 0.0))
+    s = wbc.sense(b, world.data.qpos, world.data.qvel)
+    ask = {'stance': (True, True), 'com_acc': np.zeros(3),
+           'turns': (s['turns'][0]['quat'], s['turns'][1]['quat']), 'posture': s['q'].copy(),
+           'derate': 1.0, 'wep': False}
+    return s, ask
+
+
+def test_the_loop_stands_as_the_python_stack(report, c, b, rows):
+    """Standing still, asked to stay: the loop's torques against `machine.wbc.step`'s, whose
+    inequalities all sleep there; its clip untouched; a tick's time."""
+    import numpy as np
+    from machine import wbc
+    s, ask = _standing(b)
+    theirs = wbc.step(b, s, ask)
+    ours = core.stack_step(b, s, ask, c)
+    apart = float(np.abs(ours['tau'] - theirs['tau']).max())
+    scale = float(np.abs(theirs['tau']).max())
+    report.check('torques within 2 %% of the largest (%.1f N m) of the python stack\'s' % scale,
+                 apart < 0.02 * scale, 'apart %.2f N m' % apart)
+    report.check('each sole bears as the python stack plans', all(
+        abs(ours['bears'][k] - theirs['bears'][k]) < 0.02 * sum(theirs['bears']) for k in (0, 1)),
+                 'C %.0f %.0f N, python %.0f %.0f N' % (*ours['bears'], *theirs['bears']))
+    report.check('every level let through whole', all(a == 1.0 for a in ours['alpha']),
+                 'alpha %s' % ['%.2f' % a for a in ours['alpha']])
+    base, q, u, _T = core.state_of(b)
+    us = 1e6 * c.stack_seconds(base, q, u, ask, 200)
+    report.check('a tick of the loop on this host', us < 1000.0, '%.0f us' % us)
+
+
+def test_she_stands_on_the_loop(report, c, b, rows):
+    """In MuJoCo on the loop's torques: standing 3 s, and shoved 60 N from behind."""
+    from tools.sim import wbc as sim
+    out = sim.stand(seconds=3.0, core=True)
+    report.check('stands 3 s on the loop', out['stood'],
+                 'tilt %.1f deg, drift %.0f mm, %d us a pass' % (out['tilt'], out['drift_mm'],
+                                                                 out['us']))
+    out = sim.stand(60.0, 90.0, core=True)
+    report.check('shoved 60 N from behind she stands', out['stood'],
+                 'tilt %.1f deg, %d steps' % (out['tilt'], out['steps']))
+
+
 ROSTER = (test_the_arrays_are_the_figures, test_the_frames_are_mujocos,
           test_the_mass_matrix_is_mujocos, test_the_bias_is_mujocos,
-          test_the_jacobians_are_mujocos, test_a_step_on_this_host)
+          test_the_jacobians_are_mujocos, test_the_centre_of_mass_is_mujocos,
+          test_a_step_on_this_host, test_the_loop_stands_as_the_python_stack,
+          test_she_stands_on_the_loop)
 
 
 def main(argv=None):
@@ -159,7 +246,7 @@ def main(argv=None):
     report.check('wbc/ builds warning-free with the firmware flags', not warnings,
                  '; '.join(warnings[:3]))
     c, b = core.Core(core.typed(ctypes.CDLL(lib_path))), wbc.Body()
-    rows = model.links(b.m)
+    rows = model.links(b)
     for test in chosen(ROSTER, sys.argv[1:] if argv is None else argv):
         print('\n-- %s --' % test.__name__[5:].replace('_', ' '))
         test(report, c, b, rows)

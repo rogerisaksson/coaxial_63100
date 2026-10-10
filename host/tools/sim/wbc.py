@@ -94,16 +94,19 @@ def _under(m, body, root):
     return False
 
 
-def stand(push=0.0, way=0.0, seconds=None, trace=False, wep=True, steps=True, at=AT_S, walk=None):
+def stand(push=0.0, way=0.0, seconds=None, trace=False, wep=True, steps=True, at=AT_S, walk=None,
+          core=False):
     """{stood, tilt deg, drift m, top share, us a step, wep s, steps, ..} standing `seconds` (TO_S
     past the shove), shoved `push` N from `way` deg at `at`; `wep` war emergency power granted;
     `steps` the MPC's law, else the capture point's alone; `walk` (m/s, s a step) asked from
-    `at` on, her walk's metres, m/s and J/m measured from TIMED_FROM_S into it."""
+    `at` on, her walk's metres, m/s and J/m measured from TIMED_FROM_S into it; `core` the
+    loop in C (`tools.cores.wbc.stack_step`) in the python stack's place."""
     import numpy as np
     from machine import balance, gait, physics, wbc
     from machine.errors import MachineError
     from machine.drives import kind
     from machine.figure import JOINTS, SEGMENTS
+    from tools.cores.wbc import stack_step
     from tools.sim.look import LEG_KINDS
     global NAMES
     world, body = physics.World(), wbc.Body()
@@ -142,7 +145,7 @@ def stand(push=0.0, way=0.0, seconds=None, trace=False, wep=True, steps=True, at
         ask = (balance.step(st, s, loads(world, force), now[0], bears=bears) if steps
                else law(s, st, mid))
         try:
-            out = wbc.step(body, s, dict(ask, wep=left > 0.0))
+            out = ((stack_step if core else wbc.step)(body, s, dict(ask, wep=left > 0.0)))
         except MachineError as exc:
             failed = '%s at %.3f s' % (exc, now[0])
             break
@@ -211,11 +214,12 @@ def stand(push=0.0, way=0.0, seconds=None, trace=False, wep=True, steps=True, at
             'steps': st['steps'] if steps else 0, 'down': down}
 
 
-def polar(forces, wep=True, steps=True, spread=1):
+def polar(forces, wep=True, steps=True, spread=1, core=False):
     """A shove from each of WAYS at each of `forces`, `spread` moments apart, a relay job each:
     {N: [stood way ..]}."""
     from tools.dev import focus
-    flags = ([] if wep else ['--no-wep']) + ([] if steps else ['--no-step'])
+    flags = (([] if wep else ['--no-wep']) + ([] if steps else ['--no-step'])
+             + (['--core'] if core else []))
     jobs = [focus.Job('%g@%d.%d' % (n, w, i), [sys.executable, '-X', 'utf8',
                                                os.path.abspath(__file__), '--one', str(n), str(w),
                                                '--at', str(AT_S + SPREAD_S * i)] + flags,
@@ -248,8 +252,9 @@ def main(argv=None):
     parser.add_argument('-v', action='store_true', help='a row every 25 ms')
     parser.add_argument('--no-wep', action='store_true', help='no war emergency power')
     parser.add_argument('--no-step', action='store_true', help='the capture point alone')
+    parser.add_argument('--core', action='store_true', help='the loop in C, not the python stack')
     args = parser.parse_args(argv)
-    flags = {'wep': not args.no_wep, 'steps': not args.no_step}
+    flags = {'wep': not args.no_wep, 'steps': not args.no_step, 'core': args.core}
     if args.walk:
         speed, step_s, secs = args.walk
         print(json.dumps(stand(seconds=AT_S + secs, trace=args.v, walk=(speed, step_s), **flags)))

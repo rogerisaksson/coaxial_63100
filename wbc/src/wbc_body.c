@@ -226,6 +226,7 @@ void wbc_body_pose(wbc_body_t *b, const wbc_frame_t *base, const double q[WBC_N 
   for (int i = 1; i < WBC_LINKS; i++)
   {
     wbc_frame_t x, e, inv;
+    double      near[3];
 
     memcpy(x.r, wbc_x[i], 9U * sizeof(double));
     memcpy(x.p, wbc_x[i] + 9, 3U * sizeof(double));
@@ -234,6 +235,10 @@ void wbc_body_pose(wbc_body_t *b, const wbc_frame_t *base, const double q[WBC_N 
     compose(&b->t[wbc_parent[i]], &b->l[i], &b->t[i]);
     invert(&b->l[i], &inv);
     adjoint(&inv, b->a[i]);
+    b->q[i - 1] = q[i - 1];
+    rotate(b->t[i].r, wbc_s[i], b->axis[i]);
+    cross(wbc_s[i], wbc_s[i] + 3, near);        /* w x v: the axis's point nearest the origin */
+    wbc_body_point(b, i, near, b->anchor[i]);
   }
 }
 
@@ -332,7 +337,8 @@ void wbc_body_bias(wbc_body_t *b, const double u[WBC_N])
     {
       b->f[wbc_parent[i]][k] += up[k];
     }
-    b->h[5 + i] = dot6(wbc_s[i], b->f[i]);
+    b->h[5 + i] = dot6(wbc_s[i], b->f[i]) + wbc_passive[i][0] * (b->q[i - 1] - wbc_passive[i][2])
+                  + wbc_passive[i][1] * u[5 + i];
   }
   memcpy(b->h, b->f[0], 6U * sizeof(double));
 }
@@ -396,6 +402,111 @@ void wbc_body_jacobian(const wbc_body_t *b, int link, const double r[3], double 
     for (int k = 0; k < 3; k++)
     {
       j[3 + k][c] = o[k];
+    }
+  }
+}
+
+void wbc_body_com(wbc_body_t *b, double com[3], double j[3][WBC_N])
+{
+  double c[3], d[3], col[3];
+
+  for (int i = 0; i < WBC_LINKS; i++)
+  {
+    wbc_body_point(b, i, wbc_com[i], c);
+    b->sub_m[i] = wbc_mass[i];
+    for (int k = 0; k < 3; k++)
+    {
+      b->sub_mc[i][k] = wbc_mass[i] * c[k];
+    }
+  }
+  for (int i = WBC_LINKS - 1; i > 0; i--)
+  {
+    const int p = wbc_parent[i];
+
+    b->sub_m[p] += b->sub_m[i];
+    for (int k = 0; k < 3; k++)
+    {
+      b->sub_mc[p][k] += b->sub_mc[i][k];
+    }
+  }
+  for (int k = 0; k < 3; k++)
+  {
+    com[k] = b->sub_mc[0][k] / b->sub_m[0];
+    d[k] = com[k] - b->t[0].p[k];
+  }
+  memset(j, 0, 3U * WBC_N * sizeof(double));
+  /* The pelvis's columns: its w turns the centre about it, -[d] R0; its v carries it, R0. */
+  for (int c0 = 0; c0 < 3; c0++)
+  {
+    const double rc[3] = {b->t[0].r[c0], b->t[0].r[3 + c0], b->t[0].r[6 + c0]};
+
+    cross(d, rc, col);
+    for (int row = 0; row < 3; row++)
+    {
+      j[row][c0] = -col[row];
+      j[row][3 + c0] = rc[row];
+    }
+  }
+  /* A hinge turns all it carries about its axis: z x (its share of the centre, from the axis). */
+  for (int i = 1; i < WBC_LINKS; i++)
+  {
+    const double share = b->sub_m[i] / b->sub_m[0];
+
+    for (int k = 0; k < 3; k++)
+    {
+      d[k] = b->sub_mc[i][k] / b->sub_m[0] - share * b->anchor[i][k];
+    }
+    cross(b->axis[i], d, col);
+    for (int row = 0; row < 3; row++)
+    {
+      j[row][5 + i] = col[row];
+    }
+  }
+}
+
+void wbc_body_drift(const wbc_body_t *b, int link, const double r[3], double out[6])
+{
+  const double *w = b->v[link], *v = b->v[link] + 3, *wd = b->vd[link], *vd = b->vd[link] + 3;
+  double        a[3], wr[3], t1[3], t2[3];
+
+  /* a = vd + wd x r + w x (v + w x r), into the world; the bias's -g taken back out. */
+  cross(w, r, wr);
+  for (int k = 0; k < 3; k++)
+  {
+    t1[k] = v[k] + wr[k];
+  }
+  cross(w, t1, t2);
+  cross(wd, r, wr);
+  for (int k = 0; k < 3; k++)
+  {
+    a[k] = vd[k] + wr[k] + t2[k];
+  }
+  rotate(b->t[link].r, wd, out);
+  rotate(b->t[link].r, a, out + 3);
+  for (int k = 0; k < 3; k++)
+  {
+    out[3 + k] += wbc_gravity[k];
+  }
+}
+
+void wbc_body_momentum(const wbc_body_t *b, const double com[3], double k[3])
+{
+  double pm[6], ang[3], lin[3], d[3], c[3];
+
+  k[0] = k[1] = k[2] = 0.0;
+  for (int i = 0; i < WBC_LINKS; i++)
+  {
+    apply6(wbc_g[i], b->v[i], pm);
+    rotate(b->t[i].r, pm, ang);
+    rotate(b->t[i].r, pm + 3, lin);
+    for (int n = 0; n < 3; n++)
+    {
+      d[n] = b->t[i].p[n] - com[n];
+    }
+    cross(d, lin, c);
+    for (int n = 0; n < 3; n++)
+    {
+      k[n] += ang[n] + c[n];
     }
   }
 }

@@ -96,3 +96,52 @@ API double wbh_seconds(const double *base, const double *q, const double *u, int
   }
   return (double)(clock() - t0) / (double)CLOCKS_PER_SEC / (double)reps;
 }
+
+API void wbh_com(double *com, double *j)
+{
+  wbc_body_com(&body, com, (double (*)[WBC_N])j);
+}
+
+API void wbh_drift(int link, const double *r, double *out)
+{
+  wbc_body_drift(&body, link, r, out);
+}
+
+API void wbh_momentum(const double *com, double *k)
+{
+  wbc_body_momentum(&body, com, k);
+}
+
+static wbc_stack_t stack;
+
+API void wbh_stack_init(void)
+{
+  wbc_stack_init(&stack);
+}
+
+/** One tick of the loop from the pelvis's frame, the hinges' rad and u, for `ask`. */
+API void wbh_stack(const double *base, const double *q, const double *u, const wbc_ask_t *ask,
+                   wbc_out_t *out)
+{
+  wbc_frame_t f;
+
+  frame_of(base, &f);
+  wbc_stack_step(&body, &stack, &f, q, u, ask, out);
+}
+
+/** Seconds a tick of the loop, over reps. */
+API double wbh_stack_seconds(const double *base, const double *q, const double *u,
+                             const wbc_ask_t *ask, int reps)
+{
+  static wbc_out_t out;
+  wbc_frame_t      f;
+  clock_t          t0;
+
+  frame_of(base, &f);
+  t0 = clock();
+  for (int k = 0; k < reps; k++)
+  {
+    wbc_stack_step(&body, &stack, &f, q, u, ask, &out);
+  }
+  return (double)(clock() - t0) / (double)CLOCKS_PER_SEC / (double)reps;
+}

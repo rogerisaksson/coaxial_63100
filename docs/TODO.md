@@ -197,7 +197,11 @@ the files under docs/FINDINGS.md. An item is deleted when its DOD is met.
       asks; the model picks and fills rows (`decide`), never code.
     + Wire: 10 Mbit proven; a feedforward torque register (PROTOCOL MINOR).
     + Done: the arrays; the chain's poses, Jacobians, M and bias in C against
-      MuJoCo (test_wbc_core.py); both presets build it at 0 warnings.
+      MuJoCo; the loop (`wbc_stack.c`) 0.01 N m off the python stack standing,
+      125 us a tick here, stands 3 s and a 60 N shove in MuJoCo
+      (test_wbc_core.py); both presets build it at 0 warnings.
+    + Next: the polar on the loop against the stack's; the pyramids, the
+      centre of pressure and the stops as clips; the walk (`--walk --core`).
     + DOD: the stand and the walk on the C loop with their measures kept
       (J/m, band, polar); a step < 1 ms on a 475 MHz M7.
 

@@ -5,7 +5,8 @@
     python tools/dev/token_budget.py --all      # the whole distribution
 
 A token is taken as four characters: code and English alike. ST's generated code (core/,
-Drivers/, the startup) is never read and not counted.
+Drivers/, the startup) and a file whose first line says a tool writes it (GENERATED) are
+never read and not counted.
 """
 import argparse
 import os
@@ -58,6 +59,9 @@ HEAVY = {
 #: What is read, by extension.
 EXTENSIONS = ('.py', '.c', '.h', '.cs', '.md', '.ps1')
 
+#: A file whose first line carries this is written by a tool, never read.
+GENERATED = 'not by hand'
+
 #: Trees never read: generated, vendored, built.
 SKIP = ('core', 'drivers', 'build', '.git', '.venv', 'node_modules', '__pycache__',
         'notebook_examples', 'cmake', 'electronic_simulations')
@@ -76,6 +80,9 @@ def files():
         for name in names:
             if name.endswith(EXTENSIONS) and not name.startswith('startup_'):
                 path = os.path.join(top, name)
+                with open(path, encoding='utf-8', errors='replace') as f:
+                    if GENERATED in f.readline():
+                        continue
                 yield os.path.relpath(path, REPO).replace(os.sep, '/'), tokens(path)
 
 

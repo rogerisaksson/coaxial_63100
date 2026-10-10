@@ -163,3 +163,23 @@ configurations (test_wbc_core.py, 2026-10-10):
   the world and w in the body, so M = T^T M_mj T and the bias takes M_mj dT u
   beside h_mj. Both presets build the chain at 0 warnings; nothing on the board
   calls it yet.
+
+## The loop in C
+
+`wbc_stack.c` over the chain: the torques of the drives and the held joints
+the unknowns; the soles standing still and the dynamics make every
+acceleration and each sole's wrench affine in them (M's Cholesky, the
+contacts' Schur complement); the levels of `machine.wbc` in the null space of
+those above - a small level by its Gram matrix damped at 1e-6, the last by its
+normal equations; the polytope on the drives' loads, the lowest level scaled
+back first, then a hard clamp. The inequalities of the python stack are not in
+it: the friction pyramids, the sole's centre of pressure, the stops, the
+height's band and WEP's share are tasks or clips, or absent. 2026-10-10:
+
+| Measure | Result |
+| --- | --- |
+| standing, asked to stay: the loop's torques against `machine.wbc.step`'s | 0.01 N m apart, the largest 2.9 |
+| a tick: pose, M, bias, centre, the contacts, 4 levels, the clip; this host at -O2 | 125 us |
+| in MuJoCo on the loop, 3 s | stood, tilt 0.8 deg, drift 28 mm |
+| shoved 60 N from behind, the MPC's steps | stood, tilt 1.5 deg, no step |
+| shoved from 8 ways at 60 / 80 / 100 / 120 N, the MPC's steps, WEP: stood of 8 | the loop 7 / 4 / 0 / 1; the stack 8 / 7 / 7 / 3 |
