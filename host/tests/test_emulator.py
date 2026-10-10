@@ -244,7 +244,10 @@ def test_a_blank_node_takes_the_host_build(report):
 
 def test_emulated_falls_back_where_none_runs(report):
     """EMULATED on a machine with no Renode - CI's host job, a bare checkout - opens the
-    stand-in and says why, as HARDWARE does where no board answers."""
+    stand-in and says why, as HARDWARE does where no board answers. The stand-in's C is built
+    here first: the child finds no compiler either, and loads what is built."""
+    from tools.cores import stand
+    stand.library()
     done = subprocess.run([sys.executable, '-X', 'utf8', '-c', FALLS_BACK],
                           env=dict(os.environ, **NOWHERE), capture_output=True, text=True,
                           encoding='utf-8', timeout=120)

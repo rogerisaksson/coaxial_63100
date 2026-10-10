@@ -145,13 +145,15 @@ SERVO_LOAD_A = 8.0
 #: spooled at SPOOL_RPM_S at most, 'hold' a held vector, 'step' one stepped. On the demo's
 #: flywheel (J 8e-3, b 5e-4) a coast of J/b = 16 s. The stages were 0.4 s at their shortest,
 #: QUAD's stabs, 49 changes a minute and the current 48 A apart between two frames there; a
-#: second and more now, 20 a minute at most.
+#: second and more now, 20 a minute at most. A spin's up 4 s: the board's envelope, its clock
+#: at haste, throttles a spool at the clamp, and at 3.5 one ended still drawing 13 A
+#: (2026-10-10).
 CYCLE = (
     ('SPIN', 'align', 1.5, 0.0, 0.0, 'hold'),
-    ('SPIN', 'up', 3.5, 3300.0, 0.0, 'free'),
+    ('SPIN', 'up', 4.0, 3300.0, 0.0, 'free'),
     ('SPIN', 'coast', 4.0, None, 0.0, 'free'),
     ('SPIN', 'brake', 3.0, 0.0, 0.0, 'free'),
-    ('SPIN', 'up', 3.5, -3300.0, 0.0, 'free'),
+    ('SPIN', 'up', 4.0, -3300.0, 0.0, 'free'),
     ('SPIN', 'coast', 4.0, None, 0.0, 'free'),
     ('SPIN', 'brake', 3.0, 0.0, 0.0, 'free'),
     ('DYNO', 'spool', 5.0, 1500.0, 0.0, 'speed'),
@@ -343,9 +345,13 @@ def sweep(rig, view):
     elif rpm:
         # The stage's load grows with the rotor's speed to its stage's, a dynamometer's: laid on
         # whole at the stage's start, a rotor the up left under the clamp's step - 10 A through
-        # zero - lost to it and ran backwards, -635 rpm on a loaded host (2026-09-28).
+        # zero - lost to it and ran backwards, -635 rpm on a loaded host (2026-09-28). Eased by
+        # the envelope's derate, as an operator backs a brake off a throttled board: held whole,
+        # the clamp's dip slowed the rotor under SEND_FROM, its 10 A short of the load there
+        # (2026-10-10).
         view['stage_load'] = view.get('load_full', 0.0) * min(
-            1.0, abs(w_hat) / (abs(rpm) * RAD_S_PER_RPM))
+            1.0, abs(w_hat) / (abs(rpm) * RAD_S_PER_RPM)) * float(
+                (view.get('budget') or {}).get('derate', 1.0))
     # The propeller on the loaded stages, fed forward in the loop as well; SPIN's rotor free.
     drag = 0.0 if how == 'free' else prop_k()
     pi.load_k = drag
