@@ -42,6 +42,11 @@ HALF = (SOLE_HALF - MARGIN_M, (BALL + HEEL) / 2.0 - MARGIN_M)
 #: slack past its support.
 MIDDLE_W, REACH_W, END_W, MOVE_W, TERMINAL_W = 1.0, 0.5, 1.0, 0.1, 1e4
 
+#: A walk's DCM at the end off its periodic place (`periodic`), and off where her pace takes it
+#: along her way, their weights: planned to stop on its second step, her feet landed wider each
+#: step - 0.26, -0.16, 0.32 m - and she fell aside; unpaced, asked 0.5 m/s she went 0.21.
+GOING_W, PACE_W = 10.0, 10.0
+
 #: A step's reach from the standing sole's middle, its frame: across (out from it) and along;
 #: its landing priced off a stance WIDTH_M beside it - priced off where the foot was, after a
 #: 46 cm lunge her rear foot stepped 8 cm and 8 steps more followed her down (120 N, 2026-10-10).
@@ -104,45 +109,45 @@ def hull(points):
     return np.array(normals), np.array(offsets), np.mean(np.array(ring), axis=0)
 
 
-def reach(centre, yaw, side):
-    """(normals, offsets) of where the `side` foot may land from the standing sole's middle."""
+def reach(yaw, side):
+    """(normals, offsets) of where the `side` foot may land from a standing sole's middle, about it."""
     across, along = _axes(yaw)
     across = across * (1.0 if side == 'left' else -1.0)
-    o = np.asarray(centre, float)
     return (np.array([across, -across, along, -along]),
-            np.array([across @ o + ACROSS_M[1], -(across @ o) - ACROSS_M[0],
-                      along @ o + ALONG_M[1], -(along @ o) - ALONG_M[0]]))
+            np.array([ACROSS_M[1], -ACROSS_M[0], ALONG_M[1], -ALONG_M[0]]))
 
 
-def beside(centre, yaw, side):
-    """Where the `side` foot stands beside the standing sole's middle, WIDTH_M across."""
-    across, _along = _axes(yaw)
-    return np.asarray(centre, float) + (WIDTH_M if side == 'left' else -WIDTH_M) * across
+def beside(yaw, side, ahead=0.0):
+    """The `side` foot's stance from a standing sole's middle, about it: WIDTH_M across, `ahead`
+    m along."""
+    across, along = _axes(yaw)
+    return (WIDTH_M if side == 'left' else -WIDTH_M) * across + ahead * along
 
 
-def _solve(xi, omega, supports, step=None):
-    """(cost, ZMPs (N, 2), landing (2,) or None, the DCM at the end, the end's slack m) of a
-    schedule: `supports` an interval each, (normals, offsets, middle) or None - the landed sole
-    round the landing; `step` (the landed sole's yaw, its reach (normals, offsets), its stance
-    beside the standing sole) where one lands."""
+def _solve(xi, omega, supports, steps=(), going=None):
+    """(cost, ZMPs (N, 2), landings [(2,)], the DCM at the end, the end's slack m) of a schedule:
+    `supports` an interval each - (normals, offsets, middle), or j, landing j's sole round it;
+    `steps` a landing each, (its sole's yaw, its reach about its anchor (normals, offsets), its
+    place about its anchor priced, the anchor: a fixed (x, z) or the landing before); `going`
+    (j, offset, (along, ahead)) a walk's end, the DCM `offset` from landing j and `ahead` m
+    along - else it ends captured, inside the last support."""
     a = np.exp(omega * DTS)
     after = np.concatenate([np.cumprod(a[::-1])[::-1][1:], [1.0]])
     gamma = after * (1.0 - a)
-    nr = 2 if step else 0
-    R, S = 2 * N, 2 * N + nr
+    R, S = 2 * N, 2 * N + 2 * len(steps)
     nv = S + 4
     H, g, rows, rhs = np.zeros((nv, nv)), np.zeros(nv), [], []
-    landed = box((0.0, 0.0), step[0] if step else 0.0)
+    boxes = [box((0.0, 0.0), st[0]) for st in steps]
 
-    def at(n, k=0, land=False, end=False):
-        """A row n . (the ZMP of interval k, or the DCM at the end) less n . r if `land`."""
+    def at(n, k=0, land=None, end=False):
+        """A row n . (the ZMP of interval k, or the DCM at the end) less n . r_land."""
         row = np.zeros(nv)
         if end:
             row[:N], row[N:2 * N] = n[0] * gamma, n[1] * gamma
         else:
             row[k], row[N + k] = n
-        if land:
-            row[R:R + 2] = -n
+        if land is not None:
+            row[R + 2 * land:R + 2 * land + 2] -= n
         return row
 
     def near(row, want, w):
@@ -150,51 +155,65 @@ def _solve(xi, omega, supports, step=None):
         H[:, :] += w * np.outer(row, row)
         g[:] -= w * want * row
 
+    def support(sup):
+        return (boxes[sup], sup) if isinstance(sup, int) else (sup, None)
+
     for k, sup in enumerate(supports):
-        normals, offs, mid = sup if sup is not None else landed
+        (normals, offs, mid), land = support(sup)
         for n, d in zip(normals, offs):
-            rows.append(at(n, k, land=sup is None))
+            rows.append(at(n, k, land))
             rhs.append(d)
         for axis in (0, 1):
-            e = np.eye(2)[axis]
-            near(at(e, k, land=sup is None), 0.0 if sup is None else mid[axis], MIDDLE_W)
+            near(at(np.eye(2)[axis], k, land), 0.0 if land is not None else mid[axis], MIDDLE_W)
     for k in range(1, N):
         for axis in (0, 1):
             row = np.zeros(nv)
             row[axis * N + k], row[axis * N + k - 1] = 1.0, -1.0
             near(row, 0.0, MOVE_W)
     xi0 = float(np.prod(a)) * np.asarray(xi, float)
-    last = supports[-1]
-    normals, offs, mid = last if last is not None else landed
-    for i, (n, d) in enumerate(zip(normals, offs)):
-        row = at(n, land=last is None, end=True)
-        row[S + min(i, 3)] = -1.0
-        rows.append(row)
-        rhs.append(d - float(n @ xi0))
-    for axis in (0, 1):
-        e = np.eye(2)[axis]
-        near(at(e, land=last is None, end=True),
-             (0.0 if last is None else mid[axis]) - xi0[axis], END_W)
+    (normals, offs, mid), land = support(supports[-1])
+    if going is None:
+        for i, (n, d) in enumerate(zip(normals, offs)):
+            row = at(n, land=land, end=True)
+            row[S + min(i, 3)] = -1.0
+            rows.append(row)
+            rhs.append(d - float(n @ xi0))
+        for axis in (0, 1):
+            near(at(np.eye(2)[axis], land=land, end=True),
+                 (0.0 if land is not None else mid[axis]) - xi0[axis], END_W)
+    else:
+        j, offset, pace = going
+        for axis in (0, 1):
+            near(at(np.eye(2)[axis], land=j, end=True), offset[axis] - xi0[axis], GOING_W)
+        # where her pace takes her capture point over the horizon, along her way
+        along, ahead = pace
+        near(at(along, end=True), ahead - float(along @ xi0), PACE_W)
     for i in range(4):
         H[S + i, S + i] += TERMINAL_W
         rows.append(-np.eye(nv)[S + i])
         rhs.append(0.0)
-    if step:
-        _yaw, (rn, rd), foot = step
-        near(np.eye(nv)[R], foot[0], REACH_W)
-        near(np.eye(nv)[R + 1], foot[1], REACH_W)
+    for j, (_yaw, (rn, rd), place, anchor) in enumerate(steps):
+        # r_j - anchor: about a fixed point, or about the landing before
+        rel = np.zeros((2, nv))
+        rel[:, R + 2 * j:R + 2 * j + 2] = np.eye(2)
+        off = np.zeros(2)
+        if isinstance(anchor, int):
+            rel[:, R + 2 * anchor:R + 2 * anchor + 2] -= np.eye(2)
+        else:
+            off = np.asarray(anchor, float)
+        for axis in (0, 1):
+            near(rel[axis], place[axis] + off[axis], REACH_W)
         for n, d in zip(rn, rd):
-            row = np.zeros(nv)
-            row[R:R + 2] = n
-            rows.append(row)
-            rhs.append(d)
+            rows.append(n @ rel)
+            rhs.append(d + float(n @ off))
     H += 1e-9 * np.eye(nv)
     y, _held, _u = qp.solve(H, g, np.array(rows), np.array(rhs))
     if y is None:
-        return math.inf, None, None, None, math.inf
+        return math.inf, None, [], None, math.inf
     p = np.stack([y[:N], y[N:2 * N]], axis=1)
     end = xi0 + np.array([gamma @ y[:N], gamma @ y[N:2 * N]])
-    return (float(0.5 * y @ H @ y + g @ y), p, y[R:R + 2].copy() if step else None, end,
+    return (float(0.5 * y @ H @ y + g @ y), p,
+            [y[R + 2 * j:R + 2 * j + 2].copy() for j in range(len(steps))], end,
             float(y[S:S + 4].max()))
 
 
@@ -203,18 +222,60 @@ def _at(seconds):
     return int(min(N, np.searchsorted(STARTS[:-1], seconds - 1e-9)))
 
 
-def plan(xi, omega, feet, flight=None):
+def _steps(feet, side, first, then=None, ahead=0.0, both_s=0.0):
+    """(supports, steps) of `side` landing in `first` s - and the other `then` s after, if asked
+    - each placed `ahead` m along its standing sole's heading; both soles bearing `both_s` s
+    before it lifts."""
+    centre, yaw = feet[OTHER[side]]
+    k, kb = max(1, _at(first)), min(_at(both_s), max(0, _at(first) - 1))
+    supports = ([hull(corners(*feet['left']) + corners(*feet['right']))] * kb
+                + [box(centre, yaw)] * (k - kb))
+    steps = [(feet[side][1], reach(yaw, side), beside(yaw, side, ahead), centre)]
+    if then is None:
+        return supports + [0] * (N - k), steps
+    k2 = max(k + 1, _at(first + then))
+    steps.append((yaw, reach(feet[side][1], OTHER[side]),
+                  beside(feet[side][1], OTHER[side], ahead), 0))
+    return supports + [0] * (k2 - k) + [1] * (N - k2), steps
+
+
+def periodic(omega, step_s, length, feet, side, landed_s):
+    """Where a walk's DCM is about the `side` sole landed `landed_s` s into the horizon at its
+    end, the LIPM's periodic gait: (w/2) tanh(omega T/2) off her midline at a landing, inside the
+    new sole, and l/(e^(omega T) - 1) ahead of it, run on e^(omega u) u past it."""
+    e = math.exp(omega * step_s)
+    grow = math.exp(omega * max(0.0, STARTS[-1] - landed_s))
+    across, along = _axes(feet[side][1])
+    inward = -1.0 if side == 'left' else 1.0
+    return grow * (inward * WIDTH_M / 2.0 * (1.0 - math.tanh(omega * step_s / 2.0)) * across
+                   + length / (e - 1.0) * along)
+
+
+def plan(xi, omega, feet, flight=None, walk=None):
     """{p, step, xi_end, cost, captured} for the capture point `xi` (x, z) at `omega`: `feet`
-    {side: (sole's middle (x, z), yaw)}; `flight` (side, s to its landing) a step under way."""
+    {side: (sole's middle (x, z), yaw)}; `flight` (side, s to its landing) a step under way;
+    `walk` (m/s, s a step, the side to step next, s on both soles before it lifts): her walk's
+    steps, two in the horizon."""
+    if walk is not None:
+        speed, step_s, nxt, both_s = walk
+        side, first = flight if flight is not None else (nxt, step_s)
+        supports, steps = _steps(feet, side, first, step_s, speed * step_s, both_s)
+        along = _axes(feet[OTHER[side]][1])[1]
+        cost, p, r, end, slack = _solve(xi, omega, supports, steps,
+                                        (1, periodic(omega, step_s, speed * step_s, feet,
+                                                     OTHER[side], first + step_s),
+                                         (along, float(along @ np.asarray(xi, float))
+                                          + speed * float(STARTS[-1]))))
+        centre = feet[OTHER[side]][0]
+        return {'p': p[0] if p is not None else np.asarray(centre, float),
+                'step': (side, first, r[0] if r else np.asarray(feet[side][0])),
+                'xi_end': end, 'cost': cost, 'captured': slack < CAPTURED_M}
     if flight is not None:
         side, left_s = flight
-        centre, yaw = feet[OTHER[side]]
-        k = max(1, _at(left_s))
-        cost, p, r, end, slack = _solve(xi, omega, [box(centre, yaw)] * k + [None] * (N - k),
-                                        (feet[side][1], reach(centre, yaw, side),
-                                         beside(centre, yaw, side)))
-        return {'p': p[0] if p is not None else np.asarray(centre, float),
-                'step': (side, left_s, r if r is not None else np.asarray(feet[side][0])),
+        supports, steps = _steps(feet, side, left_s)
+        cost, p, r, end, slack = _solve(xi, omega, supports, steps)
+        return {'p': p[0] if p is not None else np.asarray(feet[OTHER[side]][0], float),
+                'step': (side, left_s, r[0] if r else np.asarray(feet[side][0])),
                 'xi_end': end, 'cost': cost, 'captured': slack < CAPTURED_M}
     both = hull(corners(*feet['left']) + corners(*feet['right']))
     cost, p, _r, end, slack = _solve(xi, omega, [both] * N)
@@ -224,14 +285,11 @@ def plan(xi, omega, feet, flight=None):
         return best
     worst = slack
     for side in SIDES:
-        centre, yaw = feet[OTHER[side]]
         for swing in SWINGS:
-            k = max(1, _at(swing))
-            c, p, r, e, sl = _solve(xi, omega, [box(centre, yaw)] * k + [None] * (N - k),
-                                    (feet[side][1], reach(centre, yaw, side),
-                                     beside(centre, yaw, side)))
-            if p is not None and r is not None and (sl, c) < (worst, best['cost']):
+            supports, steps = _steps(feet, side, swing)
+            c, p, r, e, sl = _solve(xi, omega, supports, steps)
+            if p is not None and r and (sl, c) < (worst, best['cost']):
                 worst = sl
-                best = {'p': p[0], 'step': (side, swing, r), 'xi_end': e,
+                best = {'p': p[0], 'step': (side, swing, r[0]), 'xi_end': e,
                         'cost': c, 'captured': sl < CAPTURED_M}
     return best

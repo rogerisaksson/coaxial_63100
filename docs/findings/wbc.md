@@ -59,4 +59,16 @@ measured by `tools/sim/wbc.py` in a world without buses. The board's own are in
   10 cm and she fell aside, the MPC seeing her on both feet. WEP granted every
   drive (the user: the thermal observer ignored, a blown MOSFET before a broken
   robot), the neck's and the head's ranges the stack's own (`wbc.RANGES`).
+- Her walk on the stack (`tools/sim/wbc.py --walk`, 2026-10-10): the MPC two
+  landings ahead, each about the one before, its end the LIPM's periodic
+  capture point (w/2 tanh(wT/2) off her midline, l/(e^wT - 1) ahead) and her
+  pace along her way - planned to stop on its second step her feet landed
+  0.26, -0.16, 0.32 m wide and she fell aside; lifted at once from standing,
+  her capture point ran 0.19 m out over the standing sole (0.4 s on both
+  first). Asked 0.5 m/s at 0.5 s a step: up through 16 steps in 8 s, 0.25 m/s,
+  705 J/m; with the drives' PD at a tenth of its kp 0.29 and 637, none 0.30
+  and 592; the pace's weight 10, 100 or 1000 the same - she lags her plan,
+  braked about 20 N in the left foot's stance (the soles -9.9 and +6.8 N s
+  along her way over 2 s), her toes bearing 16 N a sole unmodelled, her knees
+  on their -5 deg stops.
 

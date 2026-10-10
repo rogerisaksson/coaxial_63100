@@ -156,8 +156,10 @@ met.
     is near; wbc.md). `machine/qp.py`, `wbc.py`, `mpc.py`, `balance.py`,
     `tools/sim/wbc.py`, bus-less (`World.feed`). Shoved from 8 ways at 3
     moments with its steps: 60 N 24 of 24, 80 N 24, 100 N 20, 120 N 16,
-    where the law 12 of 12, 12, 2, 0; 3-7 steps where one would do. Left:
-    the legs' collisions; walking; 1.6-11 ms a step in Python. DOD: 120 N
+    where the law 12 of 12, 12, 2, 0; 3-7 steps where one would do. Its
+    walk, asked 0.5 m/s: up, 0.25-0.30 m/s, 590-700 J/m, lagging its plan.
+    Left: the walk's pace and J/m; the legs' collisions; 1.6-11 ms a step
+    in Python. DOD: 120 N
     from 8 ways stood, 2 steps at most; 10 m walked at 0.5-1.0 m/s, J/m
     against the law's; the stack over the buses (a torque register,
     PROTOCOL MINOR); a step under 1 ms (a C core).

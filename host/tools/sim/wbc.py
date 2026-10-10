@@ -28,6 +28,9 @@ AT_S, TO_S, HELD_DEG, SPREAD_S = 1.0, 3.0, 25.0, 0.035
 #: the soles' middle.
 XI_K = 2.0
 
+#: A walk measured from TIMED_FROM_S after it is asked, s.
+TIMED_FROM_S = 2.0
+
 #: The ways a polar shoves from, deg: 0 her left, 90 ahead.
 WAYS = tuple(range(0, 360, 45))
 
@@ -89,10 +92,11 @@ def _under(m, body, root):
     return False
 
 
-def stand(push=0.0, way=0.0, seconds=None, trace=False, wep=True, steps=True, at=AT_S):
+def stand(push=0.0, way=0.0, seconds=None, trace=False, wep=True, steps=True, at=AT_S, walk=None):
     """{stood, tilt deg, drift m, top share, us a step, wep s, steps, ..} standing `seconds` (TO_S
     past the shove), shoved `push` N from `way` deg at `at`; `wep` war emergency power granted;
-    `steps` the MPC's law, else the capture point's alone."""
+    `steps` the MPC's law, else the capture point's alone; `walk` (m/s, s a step) asked from
+    `at` on, her walk's metres, m/s and J/m measured from TIMED_FROM_S into it."""
     import numpy as np
     from machine import balance, gait, physics, wbc
     from machine.errors import MachineError
@@ -124,6 +128,7 @@ def stand(push=0.0, way=0.0, seconds=None, trace=False, wep=True, steps=True, at
     failed, down, force, was, bears = None, None, np.zeros(6), 'stand', (0.0, 0.0)
     a = math.radians(way)
     seconds = at + TO_S if seconds is None else seconds
+    walked, drawn, z0 = None, 0.0, None
     while now[0] < seconds:
         t0 = time.perf_counter()
         s = wbc.sense(body, world.data.qpos, world.data.qvel)
@@ -147,6 +152,13 @@ def stand(push=0.0, way=0.0, seconds=None, trace=False, wep=True, steps=True, at
         world.target[body.driven] = ref_q
         top = max(top, float(np.abs(out['tau'] / body.top).max()))
         worst = max([worst] + [float(sl.max()) for sl in out['slack'] if len(sl)])
+        if walk and now[0] >= at:
+            st['walk'] = walk
+            if now[0] >= at + TIMED_FROM_S:
+                if z0 is None:
+                    z0, t0w = float(s['com'][2]), now[0]
+                drawn += world.drawn() * 0.001
+                walked = (float(s['com'][2]) - z0, now[0] - t0w)
         if push and not pushed and now[0] >= at:
             world.push((push * math.cos(a), 0.0, push * math.sin(a)), 0.12)
             pushed = True
@@ -176,6 +188,13 @@ def stand(push=0.0, way=0.0, seconds=None, trace=False, wep=True, steps=True, at
                      float(share.max()), NAMES[int(share.argmax())], worst))
         if tilt > HELD_DEG or s['com'][1] < 0.5 * home[1] or down:
             break
+    if walked:
+        metres, secs = walked
+        return {'walked_m': round(metres, 2), 'm_s': round(metres / max(secs, 1e-6), 2),
+                'j_m': round(drawn / max(metres, 1e-6)), 'stood': not failed and not down
+                and tilt <= HELD_DEG, 'steps': st['steps'], 'tilt': round(tilt, 1),
+                'us': round(1e6 * cost / max(1, passes)), 'failed': failed, 'down': down,
+                't': round(now[0], 3)}
     return {'push': push, 'way': way, 'stood': not failed and not down and tilt <= HELD_DEG,
             'failed': failed, 'tilt': round(tilt, 1), 'drift_mm': round(1e3 * drift, 1),
             'top': round(top, 2), 'us': round(1e6 * cost / max(1, passes)), 'slack': worst,
@@ -215,12 +234,17 @@ def main(argv=None):
     parser.add_argument('--still', type=float, default=10.0, metavar='S')
     parser.add_argument('--at', type=float, default=AT_S, metavar='S', help='when the shove comes')
     parser.add_argument('--spread', type=int, default=1, help="a polar's shoves at each way")
+    parser.add_argument('--walk', nargs=3, type=float, metavar=('M_S', 'STEP_S', 'SECONDS'),
+                        help='walk at M_S, a step STEP_S, for SECONDS')
     parser.add_argument('-v', action='store_true', help='a row every 25 ms')
     parser.add_argument('--no-wep', action='store_true', help='no war emergency power')
     parser.add_argument('--no-step', action='store_true', help='the capture point alone')
     args = parser.parse_args(argv)
     flags = {'wep': not args.no_wep, 'steps': not args.no_step}
-    if args.polar:
+    if args.walk:
+        speed, step_s, secs = args.walk
+        print(json.dumps(stand(seconds=AT_S + secs, trace=args.v, walk=(speed, step_s), **flags)))
+    elif args.polar:
         polar(args.polar, spread=args.spread, **flags)
     elif args.one:
         print(json.dumps(stand(args.one[0], args.one[1], trace=args.v, at=args.at, **flags)))

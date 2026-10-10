@@ -45,6 +45,11 @@ LIFT_FIRST, LANDS_U = 0.10, 0.75
 #: The centre of mass's height held by (kp 1/s^2, kd 1/s).
 HEIGHT_KD = (100.0, 20.0)
 
+#: Walking (`st['walk']`: m/s, s from a landing to the next), both soles bear DS_S after each
+#: landing before the next lifts, START_S before the first: lifted at once from standing, her
+#: capture point ran 0.19 m out over the standing sole and each step after landed wider.
+DS_S, START_S = 0.1, 0.4
+
 #: A swinging knee folds FOLD_DEG over its line from its lift to LANDS_DEG, at the swing's middle:
 #: straight, a knee lifts its sole only to second order - asked up 17 m/s^2 the stack gave it
 #: 1.5 (80 N from behind, 2026-10-10).
@@ -108,7 +113,7 @@ def step(st, s, loads, now, dt=0.001, bears=(0.0, 0.0)):
         late = now >= st['land_at']
         if (loads[k] >= LAND_N and now - st['lift_at'] > LANDS_U * (st['land_at'] - st['lift_at'])) \
                 or (late and sole[1] < 0.003):
-            st.update(phase='stand', side=None, tick=now)
+            st.update(phase='stand', side=None, tick=now, stood=now, next=mpc.OTHER[st['side']])
             k = None
     light = st.setdefault('light', [0.0, 0.0])
     for i in (0, 1):
@@ -119,10 +124,23 @@ def step(st, s, loads, now, dt=0.001, bears=(0.0, 0.0)):
     if now >= st['tick'] - 1e-9:
         st['tick'] = now + TICK_S
         xi = c[[0, 2]] + v[[0, 2]] / omega
+        walk = st.get('walk')
         if st['phase'] == 'stand':
             lost = [i for i in (0, 1) if light[i] >= LOST_S and not light[1 - i]]
-            out = (mpc.plan(xi, omega, feet(s), (SIDES[lost[0]], mpc.SWINGS[0])) if lost
-                   else mpc.plan(xi, omega, feet(s)))
+            nxt = st.get('next', 'left')
+            if walk and st.get('walking') is None:
+                st.update(walking=now, stood=now + START_S - DS_S)
+            lift_in = st.get('stood', 0.0) + DS_S - now
+            if walk and lift_in <= 1e-9:
+                out = mpc.plan(xi, omega, feet(s), (nxt, walk[1] - DS_S),
+                               (walk[0], walk[1], nxt, 0.0))
+            elif walk:
+                out = dict(mpc.plan(xi, omega, feet(s), (nxt, lift_in + walk[1] - DS_S),
+                                    (walk[0], walk[1], nxt, lift_in)), step=None)
+            elif lost:
+                out = mpc.plan(xi, omega, feet(s), (SIDES[lost[0]], mpc.SWINGS[0]))
+            else:
+                out = mpc.plan(xi, omega, feet(s))
             if out['step'] is not None:
                 side, due, land = out['step']
                 k = SIDES.index(side)
@@ -134,7 +152,8 @@ def step(st, s, loads, now, dt=0.001, bears=(0.0, 0.0)):
                 light[:] = [0.0, 0.0]
         else:
             left = max(TICK_S, st['land_at'] - now)
-            out = mpc.plan(xi, omega, feet(s), (st['side'], left))
+            out = mpc.plan(xi, omega, feet(s), (st['side'], left),
+                           (walk[0], walk[1], mpc.OTHER[st['side']], 0.0) if walk else None)
             if st['land_at'] - now > FREEZE_S:
                 st['land'] = out['step'][2]
         st['p'], st['captured'] = out['p'], out['captured']
