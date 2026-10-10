@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Her axes by their drive's type, as docs/DIMENSIONS.md has them.
+"""The gynoid's axes by drive type, as docs/DIMENSIONS.md has them.
 
     python tools/sim/dimensions.py            # the page, printed
     python tools/sim/dimensions.py --write    # docs/DIMENSIONS.md written
@@ -67,10 +67,10 @@ def text():
     rows = types()
     driven = [j for j in JOINTS if not drives.passive(j)]
     out = ['# Dimensions', '',
-           'Her axes by their drive\'s type: %d driven on %d type%s, %d without a drive. The'
+           'The gynoid\'s axes by drive type: %d driven on %d type%s, %d without a drive.'
            % (len(driven), len(rows), '' if len(rows) == 1 else 's', len(JOINTS) - len(driven)),
-           'candidate of record, laid in `machine/drives.py` and written by',
-           '`tools/sim/dimensions.py --write`; why it is this one, docs/findings/stacks.md.', '',
+           'The candidate of record, laid in `machine/drives.py` and written by',
+           '`tools/sim/dimensions.py --write`; the rationale: docs/findings/stacks.md.', '',
            '## Types', '',
            '| type | drives | motor | gearbox | inverter | stack mm | kg | peak N m | holds N m '
            '| deg/s | rotor kg m2 |',
@@ -97,7 +97,7 @@ def text():
     out += ['',
             "A stack its inverter's disc, its outrunner and its gearbox on one axis; kg",
             "with the inverter. Peak at the gearbox's output at the inverter's amps;",
-            'holds, for ever in still air (`drives.COOLING` %.1f); deg/s unloaded'
+            'holds, indefinitely in still air (`drives.COOLING` %.1f); deg/s unloaded'
             % drives.COOLING,
             "at the pack's lowest, %.0f V; the rotor as its joint feels it through the"
             % drives.PACK_V, 'box.', '', '## Axes']

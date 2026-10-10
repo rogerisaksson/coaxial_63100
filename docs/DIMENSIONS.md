@@ -1,8 +1,8 @@
 # Dimensions
 
-Her axes by their drive's type: 21 driven on 2 types, 6 without a drive. The
-candidate of record, laid in `machine/drives.py` and written by
-`tools/sim/dimensions.py --write`; why it is this one, docs/findings/stacks.md.
+The gynoid's axes by drive type: 21 driven on 2 types, 6 without a drive.
+The candidate of record, laid in `machine/drives.py` and written by
+`tools/sim/dimensions.py --write`; the rationale: docs/findings/stacks.md.
 
 ## Types
 
@@ -13,7 +13,7 @@ candidate of record, laid in `machine/drives.py` and written by
 
 A stack its inverter's disc, its outrunner and its gearbox on one axis; kg
 with the inverter. Peak at the gearbox's output at the inverter's amps;
-holds, for ever in still air (`drives.COOLING` 1.0); deg/s unloaded
+holds, indefinitely in still air (`drives.COOLING` 1.0); deg/s unloaded
 at the pack's lowest, 48 V; the rotor as its joint feels it through the
 box.
 
