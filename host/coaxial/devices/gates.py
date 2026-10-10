@@ -10,7 +10,7 @@ class GateControl(Output, ABC):
     """The board's gate-drive ops, behind `0x6E` device 4.
 
     write(ticks, periods=0)      all three compares, for `periods` (0: until the next write)
-    write(ticks, then=b)         two triples, swapped every PWM period
+    write(ticks, then=b)         two triples, swapped every PWM period, `periods` in all
     write(fractions=f)           fractions of full scale, dithered in Q16.16
     configure(dead_time_ns, skew, trigger, bypass_break, sync)
         DTG (floored at 20 ns) and its skew; CCR4, where the triple is sampled;
@@ -22,7 +22,7 @@ class GateControl(Output, ABC):
         if fractions is not None:
             return self._duty_fine(tuple(fractions))
         if then is not None:
-            return self._alternate(ticks, then)
+            return self._alternate(ticks, then, periods)
         return self._duty(ticks, periods)
 
     def configure(self, dead_time_ns=None, skew=0, trigger=None, bypass_break=None, sync=None):
@@ -76,8 +76,9 @@ class GateControl(Output, ABC):
         """The same as fractions of full scale, in Q16.16."""
 
     @abstractmethod
-    def _alternate(self, ticks_a, ticks_b):
-        """Two triples, A one period and B the next."""
+    def _alternate(self, ticks_a, ticks_b, periods):
+        """Two triples, A one period and B the next, `periods` in all (0: until the next
+        write)."""
 
     @abstractmethod
     def _dead_time(self, nanoseconds, skew):

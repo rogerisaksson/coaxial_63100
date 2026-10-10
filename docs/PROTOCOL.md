@@ -280,7 +280,7 @@ except the two before (prefix layouts). Ids and defaults: `board_cal.c`.
 | 7 gap reset | - | `u8`; forgets the worst keepalive gap |
 | 8 dutyq | `u32 x3 Q16.16 ticks` | `u8 took`; sigma-delta dither |
 | 9 deadtime | `u32 ns, i8 skew` | `u8 took`, then `u32 ns, i8 skew, u8 floor` as applied |
-| 10 alternate | `u16 x3 A, u16 x3 B` | `u8 took`; A one period, B the next |
+| 10 alternate | `u16 x3 A, u16 x3 B` [, `u32 periods`] | `u8 took`; A one period, B the next, `periods` in all |
 
 Op 0: `u8 flags` (0x01 ready, 0x02 enabled, 0x04 fault, 0x08 sync
 ready, 0x10 sync armed, 0x20 afe_on, 0x40 pilot ok, 0x80 level ok),
@@ -557,6 +557,7 @@ MINOR appends; MAJOR breaks a codec.
 | 24 | drive op 0 appends `i32 turns`: the estimate unwrapped, theta_hat + 2 pi turns |
 | 25 | thermal op 14, WEP - war emergency power: the derate held off, the trip standing |
 | 26 | thermal op 15 the application, op 16 the airspeed; op 10 appends the application |
+| 27 | gate op 10 takes an optional period count |
 
 MAJOR 2 (2026-08-29): thermal nodes went per leg, indices repurposed.
 A host ignores fields past what it knows. `test_conformance.py` holds a

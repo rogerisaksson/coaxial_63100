@@ -270,7 +270,7 @@ class SimulatedGateDrivers(GateControl):
         self._compares = tuple(max(0.0, min(1.0, f)) * period for f in fractions)
         return True
 
-    def _alternate(self, ticks_a, ticks_b):
+    def _alternate(self, ticks_a, ticks_b, periods=0):
         ticks_a, ticks_b = tuple(int(t) for t in ticks_a), tuple(int(t) for t in ticks_b)
         if len(ticks_a) != 3 or len(ticks_b) != 3:
             raise ValueError('two triples of 3 compare values')
@@ -280,8 +280,10 @@ class SimulatedGateDrivers(GateControl):
             raise RigError('the board refused %r / %r - past ARR (simulated)'
                            % (ticks_a, ticks_b))
         # The stand-in holds A: the real board's state shows whichever triple
-        # the last update wrote.
+        # the last update wrote. Counted as the duty's hold is.
         self._compares = ticks_a
+        self._hold_until = (time.monotonic() + periods / self.PWM_HZ
+                            if periods else None)
         return True
 
     def _sync(self, on):

@@ -103,7 +103,7 @@ extern "C" {
 #define GATEDRIVERS_OP_GAP_RESET 7U   /**< -> u8; forget the worst keepalive gap */
 #define GATEDRIVERS_OP_DUTY_FINE 8U   /**< u32 x3 ticks Q16.16 -> u8 took */
 #define GATEDRIVERS_OP_DEADTIME 9U   /**< u32 ns, i8 skew -> u8 took */
-#define GATEDRIVERS_OP_ALTERNATE 10U /**< u16 x3 ticks A, u16 x3 ticks B -> u8 took: A one period, B the next */
+#define GATEDRIVERS_OP_ALTERNATE 10U /**< u16 x3 ticks A, u16 x3 ticks B [, u32 periods] -> u8 took: A one period, B the next */
 
 /** Device 5's ops: the measurement ring. */
 #define LOG_OP_STATE    0U   /**< -> u8 sources, u16 count, u16 depth, u32 dropped */
@@ -168,7 +168,7 @@ extern "C" {
 /* 2.0, 2026-08-29: the thermal nodes went per leg, which REPURPOSED wire
    indices - device 8 node order and the cal record's ceilings both. */
 #define CMD_PROTO_MAJOR 2U
-#define CMD_PROTO_MINOR 26U        /* history: PROTOCOL.md, Versioning */
+#define CMD_PROTO_MINOR 27U        /* history: PROTOCOL.md, Versioning */
 
 /** Request payload length of a command that takes a variable-length payload. */
 #define CMD_LEN_VARIABLE 0xFFU

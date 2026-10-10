@@ -464,7 +464,7 @@ uint32_t Board_PwmPeriodsLeft(void)
   return s.countdown;
 }
 
-const char *Board_PwmSetAlternate(const uint16_t *a, const uint16_t *b)
+const char *Board_PwmSetAlternate(const uint16_t *a, const uint16_t *b, uint32_t periods)
 {
   if ((a == NULL) || (b == NULL))
   {
@@ -486,10 +486,11 @@ const char *Board_PwmSetAlternate(const uint16_t *a, const uint16_t *b)
   }
 
   /* The interrupt owns the compares from here: the dither is off, A is in
-     the registers now and B is what the next overflow writes. */
+     the registers now and B is what the next overflow writes - counted down
+     with the train, so the count starts with its first period. */
   const uint32_t masked = Board_IrqHold();
   s.dither = false;
-  s.countdown = 0U;
+  s.countdown = periods;
   for (uint8_t phase = 0U; phase < BOARD_PWM_PHASES; phase++)
   {
     s.alt[0][phase] = a[phase];

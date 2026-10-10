@@ -115,8 +115,9 @@ class GateDrivers(Device, GateControl, device=protocol.DEVICE_GATE_DRIVERS):
         counted = pack(('u32', int(periods))) if periods else b''
         return self._ack(GateOp.DUTY, _triple(ticks) + counted)
 
-    def _alternate(self, ticks_a, ticks_b):
-        return self._ack(GateOp.ALTERNATE, _triple(ticks_a) + _triple(ticks_b))
+    def _alternate(self, ticks_a, ticks_b, periods=0):
+        counted = pack(('u32', int(periods))) if periods else b''
+        return self._ack(GateOp.ALTERNATE, _triple(ticks_a) + _triple(ticks_b) + counted)
 
     def _duty_fine(self, fractions):
         if len(fractions) != PHASES:

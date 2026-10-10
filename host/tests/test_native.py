@@ -420,6 +420,30 @@ def test_the_sto_chain_follows_the_pilot(report, rig):
                  'MOE %s then %s' % (armed['pwm_enabled'], broken['pwm_enabled']))
 
 
+def test_an_alternate_counts_its_periods(report, rig):
+    """Gate op 10 counted (MINOR 27): A one period and B the next, as many as asked, then every
+    compare zero - board_pwm.c's own countdown under native's TIM1."""
+    b = rig.board
+    b.afe.on()
+    try:
+        rig.pilot(PILOT_VOLTS)
+        b.transport.sleep(STO_SETTLE_S)
+        b.gate_drivers.clear()
+        rig.gates.on()
+        b.gate_drivers.write((200, 0, 0), then=(0, 200, 0), periods=500)
+        live = b.gate_drivers.state()
+        b.transport.sleep(0.03)
+        done = b.gate_drivers.state()
+    finally:
+        rig.gates.off()
+        b.afe.off()
+    report.check('500 periods: A or B as the last update wrote, its count running, then all zero',
+                 tuple(live['duty']) in ((200, 0, 0), (0, 200, 0)) and 0 < live['periods_left'] <= 500
+                 and tuple(done['duty']) == (0, 0, 0) and done['periods_left'] == 0,
+                 '%s, %s left; then %s, %s left' % (live['duty'], live['periods_left'],
+                                                    done['duty'], done['periods_left']))
+
+
 def sto_seen(board):
     """PE15, BIF and the chain's three pins: Cinj and Clevel at the pin, +15V7 as the gate
     drivers' state reads it through the record's divider."""
@@ -435,7 +459,8 @@ def sto_seen(board):
 RIG = (test_it_stands_as_an_emulated_board, test_the_clock_keeps_the_wall,
        test_the_demo_motor_turns_in_real_time, test_the_parts_answer,
        test_the_current_is_the_worlds, test_the_drive_lets_the_rotor_go,
-       test_the_sto_chain_follows_the_pilot, test_a_page_drawing_leaves_the_board_its_time,
+       test_the_sto_chain_follows_the_pilot, test_an_alternate_counts_its_periods,
+       test_a_page_drawing_leaves_the_board_its_time,
        test_the_thermometers_read_the_world)
 
 #: The suite's time, s: the rig's tests ran 20 s (2026-09-27); the humanoid's fleet its own.

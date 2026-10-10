@@ -87,8 +87,9 @@ const char *Board_PwmSetAllFine(const uint32_t *ticks_q16);
 
 /** Two compare triples, A one PWM period and B the next, swapped by the
     update interrupt at every overflow so each lands - preloaded - at the
-    underflow and owns a whole period. */
-const char *Board_PwmSetAlternate(const uint16_t *a, const uint16_t *b);
+    underflow and owns a whole period; `periods` of them in all, then zeroed
+    as a counted hold is (0: until the next write). */
+const char *Board_PwmSetAlternate(const uint16_t *a, const uint16_t *b, uint32_t periods);
 void Board_PwmDutyRequested(uint32_t *ticks_q16);
 void Board_PwmDitherStep(void);
 

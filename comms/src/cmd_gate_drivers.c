@@ -135,11 +135,12 @@ static cmd_status_t h_gate_drivers_duty(rd_t *in, wr_t *out)
 }
 
 /** op 10 - two triples, A one period and B the next, swapped by TIM1's
-    update interrupt for as long as they stand. */
+    update interrupt for as long as they stand, or `periods` of them. */
 static cmd_status_t h_gate_drivers_alternate(rd_t *in, wr_t *out)
 {
   uint16_t a[BOARD_PWM_PHASES];
   uint16_t b[BOARD_PWM_PHASES];
+  uint32_t periods = 0U;
 
   for (uint8_t i = 0U; i < BOARD_PWM_PHASES; i++)
   {
@@ -149,12 +150,16 @@ static cmd_status_t h_gate_drivers_alternate(rd_t *in, wr_t *out)
   {
     b[i] = rd_u16(in);
   }
+  if (rd_left(in) != 0U)
+  {
+    periods = rd_u32(in);
+  }
   if (!rd_ok(in))
   {
     return CMD_ERR_LENGTH;
   }
 
-  wr_took(out, Board_PwmSetAlternate(a, b));
+  wr_took(out, Board_PwmSetAlternate(a, b, periods));
   return CMD_OK;
 }
 

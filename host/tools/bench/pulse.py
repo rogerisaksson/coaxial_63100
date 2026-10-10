@@ -36,7 +36,7 @@ LANDING = 0.015
 #: pulse is a whole number of periods, spoken since protocol 2.8.
 PWM_HZ = 50000
 MS_PER_PERIOD = 1000.0 / PWM_HZ
-COUNTED_SINCE = (2, 8)
+COUNTED_SINCE, ALTERNATE_COUNTED_SINCE = (2, 8), (2, 27)
 #: Seconds of slack: short of the spin the sleep stops, and past a
 #: counted pulse before the next write, so it cannot land inside it.
 SLACK_S = 0.002
@@ -44,12 +44,13 @@ SLACK_S = 0.002
 
 def _counted(rig, a):
     """Periods the board counts for the on-time itself: none for a
-    link-timed hold, an alternate train (op 10 carries no count),
-    or a firmware from before the count."""
-    if a.on <= 0.0 or a.alternate:
+    link-timed hold, or a firmware from before the count - an alternate
+    train's (op 10) from before its own."""
+    if a.on <= 0.0:
         return 0
     info = rig.board.version_info or rig.board.system.version()
-    if (info['proto_major'], info['proto_minor']) < COUNTED_SINCE:
+    since = ALTERNATE_COUNTED_SINCE if a.alternate else COUNTED_SINCE
+    if (info['proto_major'], info['proto_minor']) < since:
         return 0
     return max(1, round(a.on * PWM_HZ))
 
@@ -135,8 +136,8 @@ def main():
                 time.sleep(a.gap)
             t0 = time.perf_counter()
             if a.alternate:
-                # The board swaps A and B every period from here on.
-                rig.board.gate_drivers.write(ticks, then=back)
+                # The board swaps A and B every period from here, `counted` of them.
+                rig.board.gate_drivers.write(ticks, then=back, periods=counted)
             elif counted:
                 rig.board.gate_drivers.write(ticks, periods=counted)
             else:

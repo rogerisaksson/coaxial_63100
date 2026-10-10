@@ -780,10 +780,12 @@ FAKE_WEAK const char * Board_PwmSetAllFine(const uint32_t *ticks_q16)
   return NULL;
 }
 
-FAKE_WEAK const char * Board_PwmSetAlternate(const uint16_t *a, const uint16_t *b)
+FAKE_WEAK const char * Board_PwmSetAlternate(const uint16_t *a, const uint16_t *b,
+                                              uint32_t periods)
 {
   (void)a;
   (void)b;
+  (void)periods;
   return NULL;
 }
 
