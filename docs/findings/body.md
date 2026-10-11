@@ -368,3 +368,10 @@ Build, buses, falls, get-up, drawing and clothes; the drives in
   bearing, the M 7 mm back: over +-35 deg its lever 1.33 at rest, 1.48-1.73
   toward the ends, its transmission 53 deg at worst, 2.9-3.7 kN in its rod;
   over spine -30..85 and roll +-35 the closest 1 mm.
+- 2026-10-11 (`bom.py`, `fit.py`, `members.py`): 21 part types, one bearing
+  size, one rod end, tubes of 7 stock sizes; standing, the elbow 20, the
+  shoulder 15 and the hip yaw 6 mm past the clothes; over 45 poses the
+  closest pairs -13 to -19 mm (the pelvis's frame and the hip roll's drum
+  rolling onto her front, the arm bones and the ankles' rods sitting back);
+  2 members of 61 past a limit, the shank's first run flexing 0.29 deg, the
+  spine roll's horn 0.26.

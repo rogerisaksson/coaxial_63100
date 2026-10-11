@@ -56,13 +56,17 @@ the files under docs/FINDINGS.md. An item is deleted when its DOD is met.
      the plates under the clothes read as shape only, judged on a PNG.
 5. **Fewest parts** (`tools/sim/bom.py`): every holder and lever a 2.5D
    print.
+   + Now (`bom.py`, 2026-10-11): 21 part types; one bearing size, one rod
+     end, tubes of 7 stock sizes; the spur pair and the bent rods in.
    + DOD: one bearing size, one rod end; the hip roll's spur pair and the
      ankles' bent rods kept only where removing them costs the scoreboard;
      no flex > 0.25 deg; every bought part a vehicle maker's stock part.
 6. **Structural flex**: the drive's loop on the motor's encoder, the
    whole-body law on the joint's sensor (`physics.WOUND` 1, drives.md); on
    the gearboxes as bodies the walk on setpoints stands but drags its toes,
-   the loop on its torques walks.
+   the loop on its torques walks. 2 of 61 members flex past 0.25 deg at
+   0.6 of the peak (`members.py`, 2026-10-11): the shank's first run 0.29,
+   the spine roll's horn 0.26.
    + DOD: `drives.BOX_K` and the toes' `TOE_K`, `TOE_LOSS` measured on
      prototypes; the page's walk on the loop at `physics.BOXED` 1 on its
      form; every member < 0.25 deg.
@@ -75,6 +79,9 @@ the files under docs/FINDINGS.md. An item is deleted when its DOD is met.
       end; a prototype's torque and backlash measured.
 8. **Gearboxes past their momentary ratings in falls**: each drive's
    compliance a motor-side degree of freedom, else torque limiters.
+   + Now (P's shove on the walk as built, 2026-10-11): 3 of 21 past it
+     over the walk, the fall and the get-up: the left hip 1.53, the right
+     1.41, the left hip yaw 1.20; the spine 0.99, a knee 0.97.
    + DOD: none > 1.0 in the scoreboard's falls.
 9. **Arms down while getting up**: hands on the knees, or more hip torque;
    decision open.
@@ -115,6 +122,10 @@ the files under docs/FINDINGS.md. An item is deleted when its DOD is met.
     MuJoCo's 0.02 s; overlap or force, decision open.
     + DOD: the decision; the set measured on it.
 16. **Carbon shells and clothes** over the structure as built.
+    + Now (`fit.py`, 2026-10-11): standing, the elbow 20, the shoulder 15
+      and the hip yaw 6 mm past the clothes; over 45 poses 8 pairs overlap
+      13-19 mm - the pelvis's frame and the hip roll's drum rolling onto
+      her front, the arm bones and the ankles' rods sitting back.
     + DOD: `fit.py` 0 mm past them in every pose; seat soft; jeans a coarse
       cloth < 0.5 ms a step; no seam on a PNG.
 17. **Boards on their buses** (`machine.buses`).
