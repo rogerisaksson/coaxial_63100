@@ -119,6 +119,9 @@ the files under docs/FINDINGS.md. An item is deleted when its DOD is met.
       and a tilt among the events; the 1.0 walk standing; the sill's
       spread the page's; stairs climbed; 8 halts of 8.
 14. **Skeleton collisions** (`physics.SKELETON`).
+    + Now (2026-10-11): at 1 she falls in the rise from the squat and gets
+      up into it again, never walking; at 0, P's shove's fall puts the head
+      0.08 m over the floor, on it.
     + DOD: head on the floor in 0 of 64 falls.
 15. **Obstacle contacts**: toes into the sill, fingers into the floor at
     MuJoCo's 0.02 s; overlap or force, decision open.
