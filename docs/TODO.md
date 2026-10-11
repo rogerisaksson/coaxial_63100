@@ -52,6 +52,8 @@ the files under docs/FINDINGS.md. An item is deleted when its DOD is met.
      quoted before and after.
 4. **Shell as armour**: printed plates over gel pads (`figure.PADS`) where a
    fall lands.
+   + Now (`gait_montecarlo`, 2026-10-11): the shove's three falls 0.00 kN
+     on a drum, a board or a tube, the hands' landing 4.4.
    + DOD: floor force on a drum, a board or a tube 0 in the falls suite;
      the plates under the clothes read as shape only, judged on a PNG.
 5. **Fewest parts** (`tools/sim/bom.py`): every holder and lever a 2.5D
