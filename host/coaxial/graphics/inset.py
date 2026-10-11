@@ -18,7 +18,7 @@ TITLE_INK, NOTE_INK, PLATE = (0, 215, 215), (255, 175, 0), (8, 14, 16)
 
 #: Her eyes' picture: its title, and the share of a hull's ink laid over what it covers and
 #: along its edge.
-EYES, TINT, EDGE = 'LEFT EYE', 0.15, 0.7
+EYES, TINT, EDGE = 'VISION', 0.15, 0.7
 
 
 def pixels(rgb):
