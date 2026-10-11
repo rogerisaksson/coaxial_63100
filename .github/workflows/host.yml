@@ -25,9 +25,14 @@ jobs:
           cache: pip
           cache-dependency-path: host/requirements.txt
       - run: pip install -r host/requirements.txt && pip install --no-deps -e host
+      # Her eyes render (machine.sight, MuJoCo's renderer): the runner has no display, so
+      # Mesa's EGL in software - without, mjr_makeContext raised and test_sight crashed.
+      - run: sudo apt-get update && sudo apt-get install -y libegl1 libgl1-mesa-dri
       - run: python tools/dev/run_tests.py --offline 2>&1 | tee run.log; exit ${PIPESTATUS[0]}
         shell: bash
         working-directory: host
+        env:
+          MUJOCO_GL: egl
       # A red run must be readable without the Actions UI: the tail of the
       # runner's own output lands as a commit comment, public like the repo.
       - if: failure()
