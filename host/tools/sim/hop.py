@@ -4,6 +4,7 @@
     python tools/sim/hop.py                  # one hop standing: flight, apex, landing, stood
     python tools/sim/hop.py --push 18 -v     # the throw's ask, m/s^2; traced 10 ms a row
     python tools/sim/hop.py --core           # on the loop in C (`tools.cores.wbc.stack_step`)
+    python tools/sim/hop.py --wrench         # on the step without an active set (`machine.wrench`)
     python tools/sim/hop.py --hops 3         # that many, one after another
     ... --load 0.12 0.6 --push-s 0.2         # the load's depth m and time s, the throw's s
     ... --held                               # her soles never released: the stack as it was
@@ -84,11 +85,12 @@ def crouched(posture, names, deg):
 
 
 def hop(push=PUSH, hops=1, core=False, trace=False, fly=True, inner='pd', free=True, stack=False,
-        spring=True):
+        spring=True, wrench=False):
     """{stood, flights, flight_s, apex_mm, clear_mm, landed_n, tilt, stances, ..}: `hops` hops
     standing, her throw `push` m/s^2. `fly` False, her soles are never released - the stack as
     it was; `free` False, her trunk is asked upright through the throw; `spring` False, her throw
-    is asked to its time's end; `trace` a row every 10 ms, `stack` the stand's own rows."""
+    is asked to its time's end; `wrench`, on `machine.wrench`'s step; `trace` a row every 10 ms,
+    `stack` the stand's own rows."""
     from machine import balance, flight
     from machine.gait import SHANK, THIGH
     from tools.sim import wbc as sim
@@ -152,7 +154,7 @@ def hop(push=PUSH, hops=1, core=False, trace=False, fly=True, inner='pd', free=T
         return ask
 
     out = sim.stand(seconds=AT_S + hops * period, steps=False, core=core, asked=asked, inner=inner,
-                    trace=stack)
+                    trace=stack, wrench=wrench)
     for row in rec['rows']:
         print(row)
     return {'stood': out['stood'], 'flights': rec['flights'], 'flight_s': round(rec['air'] * 0.001, 3),
@@ -171,6 +173,7 @@ def main(argv=None):
                         help='the load: how far her height is let down, over how long')
     parser.add_argument('--push-s', type=float, metavar='S')
     parser.add_argument('--core', action='store_true', help='the loop in C')
+    parser.add_argument('--wrench', action='store_true', help='the step without an active set')
     parser.add_argument('--held', action='store_true', help='her soles never released: the stack as it was')
     parser.add_argument('--timed', action='store_true', help="her throw asked to its time's end")
     parser.add_argument('--upright', action='store_true',
@@ -185,7 +188,7 @@ def main(argv=None):
     if args.push_s:
         PUSH_S = args.push_s
     print(json.dumps(hop(args.push, args.hops, args.core, args.verbose, not args.held, args.inner,
-                         not args.upright, args.stack, not args.timed)))
+                         not args.upright, args.stack, not args.timed, args.wrench)))
 
 
 if __name__ == '__main__':

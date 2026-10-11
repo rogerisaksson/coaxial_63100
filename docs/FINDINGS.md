@@ -375,6 +375,7 @@ Six firmware defects, no hardware fault:
 | Balance as one convex QP: the stack, its solver, the MPC, the step | [findings/wbc.md](findings/wbc.md) |
 | Flight on the stack: which soles stand from one pass, a hop stood | [findings/flight.md](findings/flight.md) |
 | Orthokinematics: her movement as text, a latent loop with no branch, her modes on her body, her walk on it, the page's gym | [findings/orthokinematics.md](findings/orthokinematics.md) |
+| Her whole body's step without an active set: 21 unknowns, four solves | [findings/wrench.md](findings/wrench.md) |
 | Build, buses, falls, get-up, drawing, clothes | [findings/body.md](findings/body.md) |
 | Drives: motors, gearboxes, inverters, sizing | [findings/drives.md](findings/drives.md) |
 | One stack for every drive: demand, candidates, stacks as built | [findings/stacks.md](findings/stacks.md) |

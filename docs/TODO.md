@@ -133,7 +133,10 @@ gets a line at the end of [DONE](DONE.md).
       pitched and a heel risen in `land`; her legs above their soles
       clear of each other.
     + Loop: a tick 26.8 M instructions on the image, 56 ms on the M7 where
-      the DOD's 1; 120 N shoves 1 of 8 where the stack 3.
+      the DOD's 1; 120 N shoves 0 of 8 where the stack 6. A step without an
+      active set (`machine/wrench.py`, wrench.md) stands, walks and hops in
+      python: 80 N 4 of 8 where the stack 7, its walk 1 400 J/m where 259;
+      in C, its tick on the M7.
     + Bottom, each board: the ESO (`parts.Eso`, `CTRL_ESO`) onto the boards
       as built on the motor's encoder; torque and acceleration registers on
       the wire.
@@ -291,6 +294,10 @@ gets a line at the end of [DONE](DONE.md).
   contiguous array, steps branch-free passes over it. DOD: the hot paths
   ranked by them, each cut or named unavoidable; a model's change one
   change in every executive.
+- **test_controller's timed checks**: a velocity loop on the stand-in
+  faulted overcurrent once on the runner (15 of 15 passed here); the ring
+  test read her right shoulder and elbow alike, 23.6-23.7 Hz, in 2 runs of
+  12 here. DOD: neither in 50 runs.
 - **`Velocity`'s start** (`coaxial.control.motion`): sensorless at rest, as
   a rotor node's was - right while the estimate lies within a quarter turn
   of the rotor. DOD: `motion.started`, its ramp from where that leaves the

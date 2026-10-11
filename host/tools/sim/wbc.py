@@ -6,6 +6,7 @@
     python tools/sim/wbc.py --one 80 90 -v       # one: N and way (0 her left, 90 ahead), traced
     ... --no-step                                # the capture point's law alone, no MPC, no step
     ... --no-wep                                 # no war emergency power
+    ... --core | --wrench                        # the loop in C | the step without an active set
 
 A shove is `events.SHOVE_S` on the trunk at AT_S; she has stood if to the end her pelvis keeps
 within `test_gynoid_stand.HELD_DEG` of upright and nothing but her soles touches the floor.
@@ -40,16 +41,8 @@ TIMED_FROM_S = 2.0
 #: The ways a polar shoves from, deg: 0 her left, 90 ahead.
 WAYS = tuple(range(0, 360, 45))
 
-#: The drives' PD (`physics.SERVO`'s gains times SERVO_SHARE: kp, kd) round a reference
-#: integrated from the stack's accelerations, leaking to the joints' angles over LEAK_S; a
-#: standing leg's at STANDING_KP of kp - at the free limbs' share, walking, its ankle's PD gave
-#: +15 N m against the stack's -11 and braked her 15 N along her way.
-SERVO_SHARE, LEAK_S, STANDING_KP = (0.5, 1.0), 0.2, 0.1
-
-#: War emergency power as the quad has it (`terminal/views/quad/flight.py`): a drive the stack
-#: asks past its clamp (`wbc.step`'s over) has its board's derate held off and its clamp at its
-#: stack's peak for WEP_HOLD_S past its last need, WEP_S of it a run.
-WEP_HOLD_S, WEP_S = 0.6, 5.0
+#: The drives' PD round the stack's reference and war emergency power, as the loop has them.
+from machine.sprung import LEAK_S, SERVO_SHARE, STANDING_KP, WEP_HOLD_S, WEP_S  # noqa: E402
 
 NAMES = ()
 
@@ -101,18 +94,18 @@ def _under(m, body, root):
 
 
 def stand(push=0.0, way=0.0, seconds=None, trace=False, wep=True, steps=True, at=AT_S, walk=None,
-          core=False, inner='pd', asked=None):
+          core=False, inner='pd', asked=None, wrench=False):
     """{stood, tilt deg, drift m, top share, us a step, wep s, steps, ..} standing `seconds` (TO_S
     past the shove), shoved `push` N from `way` deg at `at`; `wep` war emergency power granted;
     `steps` the MPC's law, else the capture point's alone; `walk` (m/s, s a step) asked from
     `at` on, her walk's metres, m/s and J/m measured from TIMED_FROM_S into it; `core` the
-    loop in C (`tools.cores.wbc.stack_step`) in the python stack's place; `inner` the drives'
-    own loop: 'pd' round a reference integrated from the stack's accelerations, 'eso' each
-    drive's disturbance observed (`parts.Eso` at ESO_WO) and taken off its torque, 'none' the
-    torque as asked; `asked` a law of the caller's in the MPC's place: (st, s, loads, now,
-    bears, body) -> the stack's ask."""
+    loop in C, `wrench` the step without an active set (`machine.wrench`), in the python
+    stack's place; `inner` the drives' own loop: 'pd' round a reference integrated from the
+    stack's accelerations, 'eso' each drive's disturbance observed (`parts.Eso` at ESO_WO) and
+    taken off its torque, 'none' the torque as asked; `asked` a law of the caller's in the
+    MPC's place: (st, s, loads, now, bears, body) -> the stack's ask."""
     import numpy as np
-    from machine import balance, gait, parts, physics, wbc
+    from machine import balance, gait, parts, physics, wbc, wrench as bare
     from machine.errors import MachineError
     from machine.drives import kind
     from machine.figure import JOINTS, SEGMENTS
@@ -161,7 +154,7 @@ def stand(push=0.0, way=0.0, seconds=None, trace=False, wep=True, steps=True, at
                else balance.step(st, s, loads(world, force), now[0], bears=bears) if steps
                else law(s, st, mid))
         try:
-            out = ((stack_step if core else wbc.step)(body, s, dict(ask, wep=left > 0.0)))
+            out = (bare.step if wrench else stack_step if core else wbc.step)(body, s, dict(ask, wep=left > 0.0))
         except MachineError as exc:
             failed = '%s at %.3f s' % (exc, now[0])
             break
@@ -267,12 +260,12 @@ def _torques(esos, world, body, out):
     return out['tau'] - np.array(taken)
 
 
-def polar(forces, wep=True, steps=True, spread=1, core=False, inner='pd'):
+def polar(forces, wep=True, steps=True, spread=1, core=False, inner='pd', wrench=False):
     """A shove from each of WAYS at each of `forces`, `spread` moments apart, a relay job each:
     {N: [stood way ..]}."""
     from tools.dev import focus
     flags = (([] if wep else ['--no-wep']) + ([] if steps else ['--no-step'])
-             + (['--core'] if core else []) + ['--inner', inner])
+             + (['--core'] if core else []) + (['--wrench'] if wrench else []) + ['--inner', inner])
     jobs = [focus.Job('%g@%d.%d' % (n, w, i), [sys.executable, '-X', 'utf8',
                                                os.path.abspath(__file__), '--one', str(n), str(w),
                                                '--at', str(AT_S + SPREAD_S * i)] + flags,
@@ -307,6 +300,8 @@ def main(argv=None):
     parser.add_argument('--no-wep', action='store_true', help='no war emergency power')
     parser.add_argument('--no-step', action='store_true', help='the capture point alone')
     parser.add_argument('--core', action='store_true', help='the loop in C, not the python stack')
+    parser.add_argument('--wrench', action='store_true',
+                        help='the step without an active set (machine.wrench), not the stack')
     parser.add_argument('--rigid', action='store_true', help='the gearboxes rigid (`physics.BOXED`)')
     parser.add_argument('--inner', default='pd', choices=('pd', 'eso', 'none'),
                         help="the drives' own loop")
@@ -316,7 +311,7 @@ def main(argv=None):
     from machine import physics
     physics.BOXED = 0.0 if args.rigid else 1.0
     flags = {'wep': not args.no_wep, 'steps': not args.no_step, 'core': args.core,
-             'inner': args.inner}
+             'inner': args.inner, 'wrench': args.wrench}
     if args.walk:
         speed, step_s, secs = args.walk
         print(json.dumps(stand(seconds=AT_S + secs, trace=args.v, walk=(speed, step_s), **flags)))

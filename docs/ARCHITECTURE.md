@@ -244,6 +244,7 @@ tests/              suites, .counts.json (measured sizes)
 | running | its own process, paced to the clock |
 | qp | dense convex QP: dual active set, an interior-point fallback, a strict hierarchy by null space |
 | wbc | the whole-body stack: accelerations and corner forces a step, torques after |
+| wrench | the stack's step without an active set: each sole's wrench or acceleration and her upper body's accelerations by one least squares, four times, clipped |
 | mpc | the DCM over a 1 s horizon: ZMPs and landings |
 | balance | the stack's ask a step: the MPC's plan, a step's swing and fold |
 
@@ -273,6 +274,7 @@ tests/              suites, .counts.json (measured sizes)
 | `test_terms.py` | her movements' terms: its rows her figure's, a term moving her in MuJoCo as its name says by either limb, its stops, what she has not |
 | `test_wbc.py` | the QP solver's KKT, two levels' priority, standing, shoves with and without a step |
 | `test_wbc_core.py` | her chain in C against MuJoCo: frames, M, bias, Jacobians at random configurations; a step's time |
+| `test_wrench.py` | the step without an active set: a step standing beside the stack's, her stand, nudges held, the MPC's walk, a hop |
 | `test_flight.py` | which soles stand, from one pass alone; a landing within her reach; the loop in C against the python stack with no sole standing; a hop stood on both, three in a row on the loop |
 | `test_ortho.py` | a text compiled to rows, what is none refused; no branch in the core or the renderer; her state blended and turned; crouched, shifted, bowed, on one sole; her walk on her own payloads; the first texts as given; the gym's worker and keys |
 

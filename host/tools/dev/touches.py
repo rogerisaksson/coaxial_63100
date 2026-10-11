@@ -6,7 +6,7 @@ from tools.dev.suites import (AERO_CORE, BENCH, BOARD_MEM, BOOT, BOOT_CLIENT, BO
                               GYNOID_FAULTS, GYNOID_GAIT, GYNOID_GOING, GYNOID_RUN, GYNOID_STAND,
                               HEATED, NATIVE, NATIVE_HEAT, OLLAMA, ORTHO, QUADS, REACH, RENDER, ROOM,
                               SENSORLESS, SHTP, SIGHT, STREAMS, STRUCTURE, TERMS, THERMAL,
-                              THERMAL_APP, VIEWS, WBC, WBC_CORE, WIRE, WORLD_CORE)
+                              THERMAL_APP, VIEWS, WBC, WBC_CORE, WIRE, WORLD_CORE, WRENCH)
 
 # What a change to each part of the tree can plausibly have broken.
 TOUCHES = (
@@ -64,7 +64,7 @@ TOUCHES = (
     ('host/machine/',                          (CONTROLLER, GYNOID, GYNOID_FAULTS, GYNOID_FALLS,
                                                 GYNOID_STAND, GYNOID_GAIT, GYNOID_RUN,
                                                 GYNOID_GOING, ROOM, SIGHT, REACH, TERMS, WBC, WBC_CORE,
-                                                FLIGHT, ORTHO, CYCLIC,
+                                                FLIGHT, WRENCH, ORTHO, CYCLIC,
                                                 'test_simulated.py', 'test_mcp.py',
                                                 'test_views_humanoid.py')),
     ('host/coaxial/graphics/gynoid.py',        (RENDER, *VIEWS, GYNOID)),
@@ -97,8 +97,8 @@ TOUCHES = (
     ('host/tools/cores/wbc.py',                (STRUCTURE, WBC_CORE, FLIGHT)),
     ('host/tools/cores/aero.py',               (STRUCTURE, AERO_CORE, STREAMS)),
     ('host/tools/sim/streams.py',              (STRUCTURE, STREAMS)),
-    ('host/tools/sim/wbc.py',                  (STRUCTURE, WBC, WBC_CORE, FLIGHT)),
-    ('host/tools/sim/hop.py',                  (STRUCTURE, FLIGHT)),
+    ('host/tools/sim/wbc.py',                  (STRUCTURE, WBC, WBC_CORE, FLIGHT, WRENCH)),
+    ('host/tools/sim/hop.py',                  (STRUCTURE, FLIGHT, WRENCH)),
     ('host/tools/sim/ortho.py',                (STRUCTURE, ORTHO)),
     ('host/tools/cores/terms.py',              (STRUCTURE, TERMS)),
     ('host/tools/cores/',                      (WIRE, NATIVE, NATIVE_HEAT)),
