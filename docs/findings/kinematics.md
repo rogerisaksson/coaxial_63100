@@ -93,3 +93,41 @@ No lumbar curve, front-heavy (`look.py`'s new columns).
 
 The last walked its walk row backward at 0.26 m/s; 4 more checks of
 test_gynoid_going fell, the falls suite 3 (docs/TODO.md, lumbar curve).
+
+## A leg's reach over its foot
+
+Static arrays (`machine/reach_rows.py`, laid by `tools/cores/reach.py`) read
+by `machine/reach.py`, a limb an index; tests/test_reach.py holds them.
+
+- A hip's place in its foot's frame is the ankle's roll, the ankle's pitch
+  and the knee; the hip's three joints take the pelvis's turn. The pelvis
+  level and the foot flat, the hip's yaw is the foot's from the pelvis's
+  heading.
+- Stops: the figure compiles the knee's (-5..165) and the hip's yaw's (25
+  either side); the ankle's are its rods' strokes, -50..45 in pitch and 15
+  either side in roll (`linkage.ROLLED`), no stop in the model. The rods'
+  dead centre lies further: at -50 in pitch, 43 in roll.
+
+| Hip over its ankle, the foot flat | What bounds it along the toes |
+| --- | --- |
+| 0.64 m and up | the leg's length alone: a circle, 0.124 m at 0.76 |
+| 0.50-0.635 | ahead, the ankle past -50: at 0.60 m the hip out from 0.131 to 0.451 m ahead, a strip under the length beyond |
+| under 0.545 | behind, the straight leg leant past the ankle's 45: a strip to 3 mm deep under the length |
+| under 0.505 | the hip behind its ankle, 4-99 mm |
+
+- Across, 0.268 of the hip's height either side: 0.20 m at 0.76.
+- A flat foot at her walking height reaches 0.124 m: her steps of 0.49 m
+  are on a risen heel and a landing toes up (`strut.ankle`). `land` lays a
+  foot flat; a pitched one is read in its own frame (`over`).
+- Rising from the squat and walking, 16 s at 0.85 m/s, her joints ran:
+  ankle -41.3..10.8, its roll -0.8..4.2, knee -0.8..128.6, hip's yaw
+  -6.7..1.8. Over 9 s every pass inside the rows: 50 mm at the least
+  (rising, 1.22 s), the yaw 18.3 deg inside, the leg at its length as she
+  stands up (3.63 s).
+- The rows, 109 from 0.10 to 0.64 m: none of 60 000 hips they hold is past
+  a stop; of what the stops allow 3.5 % is left out (a row's caution, and
+  all under 0.10 m: sat on her heels), at the leg's length 23 % (the strip
+  beyond the island). 2 768 places landed stand in MuJoCo to 1e-15 m, every
+  stopped joint inside its stop; her right is her left mirrored to 0.
+- Not in it: her legs above their soles clear of each other (`clear` is the
+  soles'), a hip's roll and pitch (no stop), a landing pitched.

@@ -106,6 +106,7 @@ CONTROLLER = 'test_controller.py'
 GYNOID, GYNOID_FAULTS, GYNOID_FALLS = 'test_gynoid.py', 'test_gynoid_faults.py', 'test_gynoid_falls.py'
 GYNOID_STAND, GYNOID_GAIT, GYNOID_RUN = 'test_gynoid_stand.py', 'test_gynoid_gait.py', 'test_gynoid_run.py'
 GYNOID_GOING, WBC, ROOM, SIGHT = 'test_gynoid_going.py', 'test_wbc.py', 'test_room.py', 'test_sight.py'
+REACH = 'test_reach.py'
 THRUSTS = 'test_thrusts.py'
 
 #: The cyclic executive (machine.cyclic): its steps against machine.parts, a cycle on a toy rotor.
@@ -123,7 +124,7 @@ DEFAULT_SUITES = (STRUCTURES + (CORE, SHTP, DRIVE, DRIVE_OBSERVER, FILTER, THERM
                    CTRL_CORE, WORLD_CORE, WIRE, NATIVE, NATIVE_HEAT, EMULATOR,
                    SENSORLESS,
                    BROKER, DAQ_API, CONTROLLER, GYNOID, GYNOID_FAULTS, GYNOID_FALLS,
-                   GYNOID_STAND, GYNOID_GAIT, GYNOID_RUN, GYNOID_GOING, ROOM, SIGHT, WBC, CYCLIC, QUAD,
+                   GYNOID_STAND, GYNOID_GAIT, GYNOID_RUN, GYNOID_GOING, ROOM, SIGHT, REACH, WBC, CYCLIC, QUAD,
                    THRUSTS, QUAD_COURSE, BOOT)
                   + VIEWS
                   + (RENDER,) + OLLAMA
@@ -152,6 +153,7 @@ JOINS = (
     (12, GYNOID_GOING),
     (12, ROOM),
     (12, SIGHT),
+    (12, REACH),
     (12, WBC),
     (12, CYCLIC),
     (12, QUAD),
@@ -307,7 +309,7 @@ TOUCHES = (
     ('host/coaxial/graphics/scenery.py',       QUADS + (RENDER,)),
     ('host/machine/',                          (CONTROLLER, GYNOID, GYNOID_FAULTS, GYNOID_FALLS,
                                                 GYNOID_STAND, GYNOID_GAIT, GYNOID_RUN,
-                                                GYNOID_GOING, ROOM, SIGHT, WBC, CYCLIC,
+                                                GYNOID_GOING, ROOM, SIGHT, REACH, WBC, CYCLIC,
                                                 'test_simulated.py', 'test_mcp.py',
                                                 'test_views_humanoid.py')),
     ('host/coaxial/graphics/gynoid.py',        (RENDER, *VIEWS, GYNOID)),
@@ -335,6 +337,7 @@ TOUCHES = (
                                                 CTRL_CORE)),
     ('host/tools/cores/drive.py',              (STRUCTURE, DRIVE, DRIVE_OBSERVER, SENSORLESS)),
     ('host/tools/cores/thermal.py',            (THERMAL, THERMAL_APP)),
+    ('host/tools/cores/reach.py',              (STRUCTURE, REACH)),
     ('host/tools/cores/',                      (WIRE, NATIVE, NATIVE_HEAT)),
     ('host/tools/dev/counts.py',               ('test_ollama_runner.py',)),
     ('host/tests/takes/',                      (GYNOID_GAIT,)),

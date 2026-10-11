@@ -122,10 +122,10 @@ gets a line at the end of [DONE](DONE.md).
     over them (`wbc/`), R^k the only thing upward, the model feeding R^k as
     data. No rule a case and no branch on the leg she stands on: what a
     limb reaches is laid in advance and a landing read from it.
-    + Reach: a foot's reachable places and yaws by pelvis height, its margin
-      to full extension and to the nearest stop, two feet clear of each
-      other, the soles' hold regions - static arrays (`machine/reach.py`)
-      the law reads; the standing limb landing again is a hop.
+    + Reach (`machine/reach.py`, kinematics.md): the law reading it, a
+      limb an index and the standing one landing again a hop; a landing
+      pitched and a heel risen in `land`; her legs above their soles
+      clear of each other.
     + Loop: a tick 26.8 M instructions on the image, 56 ms on the M7 where
       the DOD's 1; 120 N shoves 1 of 8 where the stack 3.
     + Bottom, each board: the ESO (`parts.Eso`, `CTRL_ESO`) onto the boards

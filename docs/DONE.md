@@ -36,3 +36,5 @@ it names. A closed item is cut from the list and gets its line here, last.
     docstrings, docs and test labels.
 17. MuJoCo Warp's step on her world against the CPU's
     ([host](findings/host.md)).
+18. Her leg's reach over its foot as static arrays, read with no side in
+    the code ([kinematics](findings/kinematics.md)).

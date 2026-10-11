@@ -38,6 +38,8 @@ ROD_AT = {'ankle': ('ankle', 0.045, 0.012), 'ankle_roll': ('ankle', -0.047, -0.0
 #: A parallel pair: a joint and its roll, two drives turning both - the first through their rods'
 #: levers together, the second through their offsets over their cranks against each other.
 PAIRS = {'ankle': 'ankle_roll'}
+#: The roll each pair's rods were laid over, deg either side.
+ROLLED = {'ankle': 15.0}
 
 #: A rod's radius, m: solid carbon, 12 mm round and 0.3 m long it buckles at 7 kN; a drive's 88 N m
 #: on its 20 mm crank is 4.4 kN, 6.8 at the transmission's worst, pulling at the push-off

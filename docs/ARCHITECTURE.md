@@ -146,7 +146,8 @@ tools/sim/          the drive core on this host: montecarlo, observer_run;
                     over its plan and its line)
 tools/cores/        build: the portable cores' gcc build;
                     drive, thermal, wbc: their ctypes harnesses; model: her
-                    figure as static arrays (wbc/);
+                    figure as static arrays (wbc/); reach: a leg's reach
+                    over its foot as static arrays (machine/);
                     fakeboard: comms/, the record and the observer over
                     board/fake as
                     fakeboard://; native: the same with the board layer on
@@ -194,6 +195,7 @@ tests/              suites, .counts.json (measured sizes)
 | virtual | VIRTUAL: a type's joints where told, no board |
 | curves | an ease, Hermite, Catmull-Rom: pure |
 | figure | the gynoid's segments, masses, leg IK |
+| reach | a leg's reach over its foot from static arrays (reach_rows, laid by tools/cores/reach.py): margins, the flat place landed, two feet's gap; a limb an index |
 | physics | DYNAMIC: the figure in MuJoCo, a drive a joint |
 | gearbox | each drive's gearbox: the rotor free across its play, the box wound up past it, the link turned |
 | room | a living room round her: glass walls, furniture, a door, a lamp, and its words |
@@ -244,6 +246,7 @@ tests/              suites, .counts.json (measured sizes)
 | `test_gynoid_going.py` | the one law's rows, the ways between them, its manners read back in the band's words |
 | `test_room.py` | the law's turns, walking and stepping round standing; out through the room's door |
 | `test_sight.py` | the stereo against the renderer's depth; her map against the room, the chair and the table told, a way planned clear; the page's picture |
+| `test_reach.py` | her leg's reach: its rows her figure's, what they hold within her stops, a place landed in MuJoCo by either limb, rising and walking inside them |
 | `test_wbc.py` | the QP solver's KKT, two levels' priority, standing, shoves with and without a step |
 | `test_wbc_core.py` | her chain in C against MuJoCo: frames, M, bias, Jacobians at random configurations; a step's time |
 
