@@ -19,6 +19,7 @@ from machine import aerobatics, course, quad
 from machine.controller import Feedback
 from machine.flying import FALL, Flying
 from machine.parts import Gain, Slew, SpeedPI
+from tools.cores import aero
 
 #: The page's flights, one after the other and again: the routine first - the boards warm and
 #: their observers out of UNCERTAIN before the course asks its lean of them.
@@ -95,6 +96,9 @@ STEP_S = 0.02
 
 #: The boards' observers are read this often by the flight's clock, s.
 THERMAL_S = 0.1
+
+#: The core's pass (aero/), s: the world's step, STEP_S / TICK_S of them a step of the flight.
+TICK_S = quad.STEP_S
 
 #: War emergency power, on an observer's word: the law asking more than it has, the frame's
 #: ghost flown RISK_S on as it goes strikes a thing (`quad.Sky.ahead`) - on the ghost's word
@@ -269,17 +273,7 @@ def step(rotors, sky, route, flying, flight, clock, dt):
     watts = 0.0
     for rotor, thrust in zip(rotors, thrusts):
         drive, loop = rotor['rig'].board.drive, rotor['rig'].board.ctrl
-        # The rotor on the flight's clock, not the wall's: the pass's seconds, however late.
-        drive.paced(dt)
-        now = drive.state()
-        rotor['w_hat'] = (now.get('omega_hat') or 0.0) / rotor['pairs']
-        rotor['fault'] = now.get('fault')
-        rotor['iq'] = now.get('iq') or 0.0
-        rotor['amps'] = math.hypot(now.get('id') or 0.0, rotor['iq'])
-        watts += 1.5 * ((now.get('vd') or 0.0) * (now.get('id') or 0.0)
-                        + (now.get('vq') or 0.0) * (now.get('iq') or 0.0))
-        rotor['w'] = drive.model.read()['omega'] / rotor['pairs']
-        rotor['angle'] = (rotor['angle'] + rotor['w'] * dt) % math.tau
+        watts += turned(rotor, dt)
         if wreck is None:
             rotor['ask'] = max(LEAST_RAD_S, min(
                 TOP_WEP_RAD_S if flying.top > TOP_N else TOP_RAD_S,
@@ -310,6 +304,55 @@ def step(rotors, sky, route, flying, flight, clock, dt):
     if 'fit' in route['card'][route['row']][4].split() and (flat or share < FIT):
         return 'swap' if flat else 'cool'
     return FALL if name == 'burn' and flying.doing == FALL else name
+
+
+def turned(rotor, dt):
+    """A rotor `dt` s on by the flight's clock - not the wall's: the pass's seconds, however
+    late - as its board has it: its speed as estimated and as it turns, its fault, its
+    currents; the watts its stage took."""
+    drive = rotor['rig'].board.drive
+    drive.paced(dt)
+    now = drive.state()
+    rotor['w_hat'] = (now.get('omega_hat') or 0.0) / rotor['pairs']
+    rotor['fault'] = now.get('fault')
+    rotor['iq'] = now.get('iq') or 0.0
+    rotor['amps'] = math.hypot(now.get('id') or 0.0, rotor['iq'])
+    rotor['w'] = drive.model.read()['omega'] / rotor['pairs']
+    rotor['angle'] = (rotor['angle'] + rotor['w'] * dt) % math.tau
+    return 1.5 * ((now.get('vd') or 0.0) * (now.get('id') or 0.0)
+                  + (now.get('vq') or 0.0) * (now.get('iq') or 0.0))
+
+
+def flown(rotors, sky, core, payload, flight, dt, wep=False):
+    """The flight `dt` s on on `payload` (aero/), the core's passes of TICK_S: each board's
+    rotor read; its reach from the speed its loop is asked - the loop's slew either way, up no
+    faster than its board's current gives (`reached`) -; the core's thrusts asked of the
+    loops; the frame on the rotors' speeds in the flight's air. Then the step's own: the
+    pack's bus, the boards' heat and their airspeed. The core's last answer."""
+    cells, air = flight['cells'], flight.get('air')
+    clamp, top = (I_WEP, TOP_WEP_RAD_S) if wep else (I_MAX, TOP_RAD_S)
+    watts, count, out = 0.0, max(1, int(round(dt / TICK_S))), None
+    for _ in range(count):
+        watts += sum(turned(rotor, TICK_S) for rotor in rotors) / count
+        most = [(reached(r, clamp, TICK_S) - r['w_hat']) / TICK_S for r in rotors]
+        out = core.step(payload, aero.reading(sky.state(), *aero.reach(
+            [r['ask'] for r in rotors], [r['w_hat'] for r in rotors], TICK_S, SPOOL_RAD_S2,
+            LEAST_RAD_S, top, most), TICK_S))
+        for rotor, speed in zip(rotors, aero.speeds(out.thrust)):
+            rotor['ask'] = speed
+            rotor['rig'].board.ctrl.write(speed)
+            rotor['rig'].board.drive.model.configure(
+                load=quad.K_DRAG * rotor['w'] * abs(rotor['w']), vdc=cells['volts'])
+        if air is not None:
+            quad.blown(air, TICK_S)
+        sky.step([r['w'] for r in rotors], TICK_S, air)
+    quad.drawn(cells, watts, dt)
+    told, through = airspeeds(sky.state(), air)
+    for rotor in rotors:
+        heat = rotor['rig'].board.thermal
+        heat.fast_forward(dt * heat.HASTE, live=True)
+        heat.airspeed(told, truth=through)
+    return out
 
 
 def airspeeds(frame, air):

@@ -5,15 +5,19 @@
     python tools/sim/streams.py my.aero --seconds 3,2 --air 3    # a file's, in the tour's air
     python tools/sim/streams.py --upsets                         # a hover asked from upsets
 
+    python tools/sim/streams.py --boards                         # on four stand-in boards
+
 A row a stream: where it ends - height, speed, the nose's and the wing's rise, the rotors' axis
 off up, the rates -, and over it the axis's tilt, the most any rate was, the heights, the share
-of its passes a rotor stood at an end of its reach, what was struck. The rotors come to a
-thrust asked inside their reach a pass on (`reach`), a rotor's own lag taken out of the ask.
+of its passes a rotor stood at an end of its reach, what was struck. The ideal rotors come to a
+thrust asked inside their reach a pass on (`aero.reach`), a rotor's own lag taken out of the
+ask; the boards' are their own loops', a pass of the core each of the world's steps.
 """
 import argparse
 import math
 import os
 import sys
+from typing import Any
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
@@ -43,14 +47,6 @@ def symbols():
     return {'MAX_SYS_THRUST': 4.0 * quad.K_THRUST * TOP_RAD_S ** 2 / quad.MASS_KG}
 
 
-def reach(speeds, dt, slew=SPOOL_RAD_S2, least=None, top=TOP_RAD_S):
-    """(each rotor's thrust as its speed has it, at the least and the most it reaches `dt` on),
-    N: its speed `slew` either way, inside its idle and its top."""
-    k, least = quad.K_THRUST, quad.IDLE_RAD_S if least is None else least
-    return ([k * w * w for w in speeds], [k * max(least, w - slew * dt) ** 2 for w in speeds],
-            [k * min(top, w + slew * dt) ** 2 for w in speeds])
-
-
 def tilt(turn):
     """(the nose's rise, the wing's, the rotors' axis off up), degrees, of the frame's axes."""
     return tuple(math.degrees(f(max(-1.0, min(1.0, float(x))))) for f, x in (
@@ -77,10 +73,10 @@ class Flight:
     def step(self, payload):
         """One pass on `payload`: (the frame as read, the core's answer)."""
         dt, state = self.dt, self.sky.state()
-        out = self.core.step(payload, aero.reading(state, *reach(self.w, dt), dt))
+        out = self.core.step(payload, aero.reading(state, *aero.reach(
+            self.w, self.w, dt, SPOOL_RAD_S2, quad.IDLE_RAD_S, TOP_RAD_S), dt))
         gain = min(1.0, dt / LAG_S)
-        for k in range(4):
-            want = math.sqrt(max(0.0, out.thrust[k]) / quad.K_THRUST)
+        for k, want in enumerate(aero.speeds(out.thrust)):
             more = (min(TOP_RAD_S, self.w[k] + (want - self.w[k]) / gain) - self.w[k]) * gain
             self.w[k] += max(-SPOOL_RAD_S2 * dt, min(SPOOL_RAD_S2 * dt, more))
         if self.air:
@@ -90,13 +86,62 @@ class Flight:
         return state, out
 
 
+class Boards:
+
+    """The frame on the floor on four stand-in boards armed as the page's flight arms them
+    (`terminal.views.quad.flight`), no page: a step the flight's, the core's passes in it."""
+
+    def __init__(self, air=None, things=()):
+        from coaxial import Coaxial63100
+        from machine.modes import SIMULATED
+        from terminal.views.quad import flight as view
+        self.view, self.sky, self.core = view, quad.Sky(things), aero.Core()
+        self.rotors = [view.arm(Coaxial63100(execution_mode=SIMULATED).open()) for _ in range(4)]
+        self.flight: dict[str, Any] = dict(view.fresh(), air=air)
+        self.clock, self.dt, self.peak = 0.0, view.STEP_S, {}
+
+    def step(self, payload):
+        """One step of the flight on `payload`: (the frame as read, the core's last answer)."""
+        state, peak = self.sky.state(), self.peak
+        for rotor in self.rotors:
+            rotor['budget'] = rotor['rig'].board.thermal.budget()
+        out = self.view.flown(self.rotors, self.sky, self.core, payload, self.flight, self.dt)
+        self.clock += self.dt
+        budgets = [rotor['budget'] or {} for rotor in self.rotors]
+        peak.update(
+            soa=max([peak.get('soa', 0.0)] + [b.get('worst') or 0.0 for b in budgets]),
+            amps=max([peak.get('amps', 0.0)] + [rotor['amps'] for rotor in self.rotors]),
+            hold=min([peak.get('hold', math.inf)]
+                     + [b.get('hold_amps', math.inf) for b in budgets]),
+            volts=min(peak.get('volts', math.inf), self.flight['cells']['volts']),
+            tripped=peak.get('tripped', 0) + sum(bool(r['fault']) for r in self.rotors))
+        return state, out
+
+    def peaks(self):
+        """The boards' own since the last asked: their worst envelope, the most amps a stage
+        carried and the least a board held, the pack's lowest bus, the steps a drive stood
+        tripped."""
+        peak, self.peak = self.peak, {}
+        return peak
+
+    def close(self):
+        """The boards' stages off, their sessions closed."""
+        for rotor in self.rotors:
+            rotor['rig'].board.drive.off()
+            rotor['rig'].gates.off()
+            rotor['rig'].close()
+
+
 def flown(flight, payloads, seconds):
     """The payloads flown one after the other, each its seconds: a row each - {'id', 'ends':
     the frame after it, 'nose', 'wing', 'off': its tilt then, 'offs', 'heights': the least and
     the most over it, 'spin': the most any rate was, 'bound': the share of its passes a rotor
-    stood at an end, 'passes': [(clock, frame, thrusts, bound)]}."""
+    stood at an end, 'passes': [(clock, frame, thrusts, bound)], 'boards': their own over it
+    (`Boards.peaks`) or None}."""
     rows = []
     for payload, span in zip(payloads, seconds):
+        if hasattr(flight, 'peaks'):
+            flight.peaks()
         passes = []
         for _ in range(int(round(span / flight.dt))):
             state, out = flight.step(payload)
@@ -109,7 +154,8 @@ def flown(flight, payloads, seconds):
                      'heights': (min(s['h'] for _t, s, _f, _b in passes),
                                  max(s['h'] for _t, s, _f, _b in passes)),
                      'spin': max(abs(float(x)) for _t, s, _f, _b in passes for x in s['spin']),
-                     'bound': sum(1 for *_x, b in passes if b) / len(passes), 'passes': passes})
+                     'bound': sum(1 for *_x, b in passes if b) / len(passes), 'passes': passes,
+                     'boards': flight.peaks() if hasattr(flight, 'peaks') else None})
     return rows
 
 
@@ -153,6 +199,8 @@ def main(argv=None):
     parser.add_argument('--hover', type=float, default=4.0,
                         help='the first stream flown again after the last, s; 0: not')
     parser.add_argument('--upsets', action='store_true', help='a hover asked from upsets')
+    parser.add_argument('--boards', action='store_true',
+                        help='on four stand-in boards, their envelopes binding')
     args = parser.parse_args(argv)
     if args.upsets:
         for off in TILTS:
@@ -174,9 +222,18 @@ def main(argv=None):
         again = aero.payload(bytes(payloads[0]))
         again.sequence_id = max(p.sequence_id for p in payloads) + 1
         payloads, seconds = payloads + [again], seconds + [args.hover]
-    for row in flown(Flight(air=None if args.air is None else quad.air(args.air)), payloads,
-                     seconds):
-        _show(row)
+    air = None if args.air is None else quad.air(args.air)
+    boards = Boards(air) if args.boards else None
+    try:
+        for row in flown(boards or Flight(air), payloads, seconds):
+            _show(row)
+            if row['boards']:
+                print('       boards: SOA %(soa).2f and %(amps).0f A at the most, %(hold).0f A '
+                      'held at the least, the pack to %(volts).1f V, %(tripped)d steps tripped'
+                      % row['boards'])
+    finally:
+        if boards:
+            boards.close()
     return 0
 
 

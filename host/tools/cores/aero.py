@@ -7,6 +7,7 @@ The core the firmware builds, on this host; one library a process.
 """
 import ctypes
 import functools
+import math
 import os
 import struct
 
@@ -116,6 +117,23 @@ def payload(compiled):
     """A `machine.aerolisp.CompiledAeroPayload`, or its bytes, as the core's."""
     return Payload.from_buffer_copy(compiled if isinstance(compiled, (bytes, bytearray))
                                     else compiled.pack())
+
+
+def reach(asked, turning, dt, slew, least, top, most=None):
+    """(each rotor's thrust as its speed has it, at the least and the most it reaches `dt`
+    on), N - a reading's: from the speed its loop is `asked`, rad/s, `slew` rad/s^2 either
+    way, up no faster than `most` where its board's current gives less, inside `least` and
+    `top`; `turning` its speed as it is."""
+    k = quad.K_THRUST
+    up = [slew] * len(asked) if most is None else [min(slew, each) for each in most]
+    return ([k * w * w for w in turning], [k * max(least, w - slew * dt) ** 2 for w in asked],
+            [k * max(least, min(top, w + rise * dt)) ** 2 for w, rise in zip(asked, up)])
+
+
+def speeds(thrusts):
+    """Each rotor's speed for its thrust, rad/s: K w^2, in still air - what the air through
+    its disc takes is the observers'."""
+    return [math.sqrt(max(0.0, f) / quad.K_THRUST) for f in thrusts]
 
 
 def reading(state, given, lo, hi, dt):

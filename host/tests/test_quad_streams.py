@@ -2,8 +2,8 @@
 """Flight intent as text, compiled and flown: `machine.aerolisp`, `machine.intents`, aero/.
 
 The power loop's four streams as payloads; a stream laid over the one before it; what is no
-stream refused; the four flown on ideal rotors in MuJoCo (`tools/sim/streams.py`); a hover's
-stream in the tour's air; a hover asked from upsets."""
+stream refused; the four flown on ideal rotors in MuJoCo (`tools/sim/streams.py`) and on four
+stand-in boards; a hover's stream in the tour's air; a hover asked from upsets."""
 import math
 import struct
 import sys
@@ -156,6 +156,51 @@ def test_the_power_loop_is_flown(report):
                          stood['heights'][0]))
 
 
+def test_the_power_loop_on_four_boards(report):
+    """The four streams and the hover again on four stand-in boards, the core's pass each of
+    the world's steps inside the flight's: stood, turned over, caught and stood again as on
+    the ideal rotors; no drive tripped, no node of a board past its throttle's point - asked
+    all the rotors give, each board holds its own clamp."""
+    from coaxial.devices.thermal import THROTTLE_AT
+    from machine import aerolisp, intents
+    from terminal.views.quad import flight as view
+    from tools.cores import aero
+    from tools.sim import streams
+    compiled = aerolisp.compiled(intents.POWER_LOOP, streams.symbols())
+    payloads = [aero.payload(p) for p in compiled]
+    again = aero.payload(compiled[0])
+    again.sequence_id = 205
+    flight = streams.Boards()
+    try:
+        hover, dive, _over, catch, stood = streams.flown(
+            flight, payloads + [again], list(intents.POWER_LOOP_S) + [4.0])
+    finally:
+        flight.close()
+    report.check('201 and 202 on the boards: to 1.5 m, then on its nose and ahead',
+                 abs(hover['ends']['h'] - 1.5) < 0.01 and abs(dive['nose'] + 45.0) < 8.0
+                 and float(dive['ends']['vel'][2]) > 8.0,
+                 '%.3f m; nose %.1f deg, %.1f m/s ahead' % (
+                     hover['ends']['h'], dive['nose'], dive['ends']['vel'][2]))
+    report.check('203 and 204: over past its back, caught on the tilt asked',
+                 catch['offs'][1] > 150.0 and abs(catch['off'] - 80.0) < 25.0,
+                 '%.0f deg off at the most, %.1f at the catch\'s end' % (
+                     catch['offs'][1], catch['off']))
+    report.check('standing at its height again, nothing struck',
+                 abs(stood['ends']['h'] - 1.5) < 0.02 and stood['ends']['hit'] is None
+                 and max(abs(float(x)) for x in stood['ends']['spin']) < 0.1,
+                 '%.3f m, rates %.2f rad/s' % (
+                     stood['ends']['h'], max(abs(float(x)) for x in stood['ends']['spin'])))
+    boards = [row['boards'] for row in (hover, dive, _over, catch, stood)]
+    report.check('no drive tripped, no node past its throttle\'s point, the clamp kept',
+                 sum(b['tripped'] for b in boards) == 0
+                 and max(b['soa'] for b in boards) <= THROTTLE_AT + 1.0 / 255.0
+                 and max(b['amps'] for b in boards) < view.I_MAX + 3.0
+                 and catch['boards']['hold'] < view.I_MAX,
+                 'SOA %.2f and %.0f A at the most, %.0f A held at the least in the catch' % (
+                     max(b['soa'] for b in boards), max(b['amps'] for b in boards),
+                     catch['boards']['hold']))
+
+
 def test_a_hover_keeps_still_in_the_air(report):
     """A hover's stream through the tour's five kinds of air, 100 s, no place asked: the frame
     leans into the wind and keeps its speed along the floor under 1 m/s, its height to the
@@ -201,7 +246,8 @@ def test_a_hover_is_stood_from_an_upset(report):
 
 ROSTER = (test_the_power_loop_compiles, test_a_stream_alone_is_its_authors_bytes,
           test_what_is_no_stream_is_refused, test_the_power_loop_is_flown,
-          test_a_hover_keeps_still_in_the_air, test_a_hover_is_stood_from_an_upset)
+          test_the_power_loop_on_four_boards, test_a_hover_keeps_still_in_the_air,
+          test_a_hover_is_stood_from_an_upset)
 
 
 def main(argv=None):

@@ -225,9 +225,6 @@ gets a line at the end of [DONE](DONE.md).
   observer for the air, the precession and a weak rotor, an active set over
   the rotors' thrusts inside what each board holds. Above the core no
   mixing, no Euler angle, no air; in it no `if`.
-  + On four boards: 201-204 and the upsets on the stand-ins a pass of 2
-    ms, each board's reach from its hold and its loop (streams.md: flown on
-    ideal rotors).
   + The page's card and the course as streams: `machine.flying`'s clauses,
     `thrusts`, `flight.envelope`, `emergency`, `FIT`, `GONE_S`,
     `Flying.short` gone; the action space computed beforehand

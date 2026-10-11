@@ -131,3 +131,23 @@ asked again:
   by the drag's torque alone.
 - A stream says nothing of when: 204 comes at its injector's time, and a
   turn asked at 314 rad/s is over in 20 ms in a vacuum.
+
+## On four boards
+
+The page's four stand-in boards (`terminal.views.quad.flight.flown`), the
+core's pass each of the world's 2 ms inside the flight's 20: a board's reach
+is the speed its loop is asked, its loop's slew either way, up no faster than
+the current it holds gives; its rotor's thrust as given is its estimate's.
+
+| Stream | Ends | Boards |
+| --- | --- | --- |
+| 201 | 1.500 m | 52 A at the most as it lifts, SOA 0.35 |
+| 202 | nose 47 degrees down, 10.4 m/s ahead, 2.70 m | 54 A, SOA 0.57 |
+| 203 | every rotor at an end | 60 A, SOA 0.67 |
+| 204 | over to 161 degrees, caught 78.5 off | 61 A, SOA 0.89, 46 A held at the least, the pack to 59.8 V |
+| 201 again | 1.500 m, still | SOA 0.89, 45 A held |
+
+- No drive tripped, no node past its throttle's point: asked all the rotors
+  give, each board holds its own clamp and its reach says so.
+- Four boards a pass of 2 ms: 0.31 s of this host a flight's second (0.11 at
+  20 ms), 53 us a board's step and state.
