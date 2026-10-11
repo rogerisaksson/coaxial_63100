@@ -1,48 +1,38 @@
-"""Flight on the stack (`machine.flight`): her soles released together as she leaves the floor, one
-alone only as lost, taken again as she comes down; a landing under her within her leg's reach;
-the loop in C meeting a flying sole's ask as the python stack does; a hop stood on both."""
+"""Flight on the stack (`machine.flight`): which soles stand told from one pass - each as it bears,
+an unloaded one beside one that bears or with her at rest; a landing under her within her leg's
+reach; the loop in C meeting a flying sole's ask as the python stack does; a hop stood on both."""
 import math
 import sys
 
 from tools.dev.focus import chosen
 from gynoid_kit import Report
 
-#: The stack laying this on each sole, N, and a sole pressing or not.
-LAID, PRESSED, LIGHT = 150.0, 300.0, 0.0
+#: A sole pressing or not, N; one on the floor, a millimetre over it, in the air, m.
+PRESSED, LIGHT = 300.0, 0.0
+ON, NEAR, UP = 0.0, 0.001, 0.02
 
 
-def _run(passes):
-    """`flight.released` after `passes` ((meant, loads, bears, rising), ..), a millisecond each."""
-    from machine import flight
-    st, out = flight.state(), (False, False)
-    for meant, loads, bears, rising in passes:
-        out = flight.released(st, meant, loads, bears, rising, 0.001)
-    return out
-
-
-def test_her_soles_leave_the_floor_together(report):
-    """`flight.released`, a millisecond a pass: one sole light beside one that bears is kept 49
-    ms and released alone at 50, the stack laying weight on it - never where it lays none; both
-    light, both go in the pass the fourth millisecond ends; one in the air is taken again as it
-    bears while she comes down, not while she rises; a sole the ask swings is never hers to
-    release."""
-    both, lay = (True, True), (LAID, LAID)
-    lone = [(both, (LIGHT, PRESSED), lay, 0.0)]
-    kept, lost = _run(lone * 49), _run(lone * 50)
-    shifted = _run([(both, (LIGHT, PRESSED), (0.0, 2.0 * LAID), 0.0)] * 200)
-    report.check('a sole light beside one that bears goes alone only as lost, the stack counting on it',
-                 kept == (False, False) and lost == (True, False) and shifted == (False, False),
-                 '49 ms %s, 50 ms %s, her weight shifted off it 200 ms %s' % (kept, lost, shifted))
-    left = [(both, (LIGHT, LIGHT), lay, 0.5)]
-    early, off = _run(left * 3), _run(left * 4)
-    report.check('both light, both leave in the one pass', early == (False, False) and off == (True, True),
-                 '3 ms %s, 4 ms %s' % (early, off))
-    brushed = _run(left * 4 + [(both, (30.0, LIGHT), lay, 0.7)])
-    landed = _run(left * 4 + [(both, (30.0, LIGHT), lay, -0.5)])
-    report.check('a sole is taken again as it bears while she comes down, not as she rises',
-                 brushed == (True, True) and landed == (False, True), 'rising %s, falling %s' % (brushed, landed))
-    swung = _run([((True, False), (LIGHT, LIGHT), (LAID, 0.0), 0.0)] * 60)
-    report.check('a sole the ask swings is not released', swung == (True, False), '%s' % (swung,))
+def test_her_soles_stand_as_they_bear(report):
+    """`flight.standing` of one pass: at rest on the floor both stand before either bears, and an
+    unloaded one beside one that bears whatever her speed; bearing nothing as she rises both
+    leave in the one pass, a millimetre over the floor; as she falls none stands until one
+    bears; one bearing alone stands at every speed of hers; a sole the ask swings never."""
+    from machine.flight import standing
+    both = (True, True)
+    rest = standing(both, (LIGHT, LIGHT), (ON, ON), 0.0)
+    beside = [standing(both, (LIGHT, PRESSED), (ON, ON), v) for v in (-0.5, 0.0, 0.3, 0.8)]
+    report.check('at rest on the floor both stand, and an unloaded sole beside one that bears',
+                 rest == both and beside == [both] * 4, 'at rest %s, beside %s' % (rest, beside))
+    left = standing(both, (LIGHT, LIGHT), (NEAR, NEAR), 0.6)
+    fell = standing(both, (LIGHT, LIGHT), (NEAR, UP), -0.8)
+    report.check('bearing nothing as she rises both leave in the one pass; as she falls none stands',
+                 left == fell == (False, False), 'rising %s, falling %s' % (left, fell))
+    first = standing(both, (30.0, LIGHT), (ON, NEAR), -0.8)
+    alone = [standing(both, (PRESSED, LIGHT), (ON, UP), v) for v in (-0.8, 0.05, 0.1, 0.11, 0.3, 0.8)]
+    report.check('one that bears stands at every speed of hers, the other with it once on the floor',
+                 first == both and alone == [(True, False)] * 6, 'the second beside it %s, alone %s' % (first, alone))
+    swung = standing((True, False), (PRESSED, PRESSED), (ON, ON), 0.0)
+    report.check('a sole the ask swings is never stood on', swung == (True, False), '%s' % (swung,))
 
 
 def test_a_landing_is_under_her_within_reach(report):
@@ -140,7 +130,7 @@ def test_she_hops_on_the_loop(report):
                  % (out['flight_s'], out['clear_mm'], out['landed_n'], out['tilt'], out['stances']))
 
 
-ROSTER = [test_her_soles_leave_the_floor_together, test_a_landing_is_under_her_within_reach,
+ROSTER = [test_her_soles_stand_as_they_bear, test_a_landing_is_under_her_within_reach,
           test_the_loop_meets_a_flying_soles_ask, test_she_hops_and_stands, test_she_hops_on_the_loop]
 
 

@@ -373,7 +373,7 @@ Six firmware defects, no hardware fault:
 | Balance: the capture law, the side step, floor events, shoves, the scoreboard | [findings/balance.md](findings/balance.md) |
 | Standing: the rigs, the one law in the capture point's plane, the push polar | [findings/standing.md](findings/standing.md) |
 | Balance as one convex QP: the stack, its solver, the MPC, the step | [findings/wbc.md](findings/wbc.md) |
-| Flight on the stack: her soles released and taken again, a hop stood | [findings/flight.md](findings/flight.md) |
+| Flight on the stack: which soles stand from one pass, a hop stood | [findings/flight.md](findings/flight.md) |
 | Build, buses, falls, get-up, drawing, clothes | [findings/body.md](findings/body.md) |
 | Drives: motors, gearboxes, inverters, sizing | [findings/drives.md](findings/drives.md) |
 | One stack for every drive: demand, candidates, stacks as built | [findings/stacks.md](findings/stacks.md) |

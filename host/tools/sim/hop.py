@@ -13,8 +13,9 @@ The ask is the stack's own (`wbc.step`): her stand's law (`tools.sim.wbc.law`) a
 middle; her height let down LOAD_M over LOAD_S, her posture crouched with it and leant until
 her centre of mass is over her soles (`crouched`); then her centre of mass asked up `--push`
 m/s^2 for PUSH_S, her posture back the way it came, her trunk's turn unasked; then her stand's
-law again. Nothing of it names the flight: her soles leave the floor bearing nothing and
-`flight.step` releases them, asks each to its landing and stands them again as they bear.
+law again. Nothing of it names the flight: her soles leave the floor bearing nothing,
+`flight.step` asks each to its landing and stands it again as it bears. She flies while
+neither bears `flight.TOUCH_N`.
 `tools.sim.wbc.stand`'s world, no buses.
 """
 import argparse
@@ -29,8 +30,9 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 #: SETTLE_S to land and stand before the next; her throw asked PUSH m/s^2 up.
 AT_S, LOAD_M, LOAD_S, PUSH_S, SETTLE_S, PUSH = 0.5, 0.10, 0.5, 0.15, 1.5, 14.0
 
-#: She flies while neither sole bears BEARS_N.
-BEARS_N = 1.0
+#: A flight is one that lasts FLOWN passes: her soles' loads cross `flight.TOUCH_N` twice
+#: in the 3 ms they leave the floor in.
+FLOWN = 20
 
 
 def _eased(u):
@@ -84,8 +86,7 @@ def hop(push=PUSH, hops=1, core=False, trace=False, fly=True, inner='pd', free=T
     from machine.gait import SHANK, THIGH
     from tools.sim import wbc as sim
     period = LOAD_S + PUSH_S + SETTLE_S
-    fs = flight.state()
-    rec = {'air': 0, 'apex': 0.0, 'clear': 0.0, 'landed': 0.0, 'flights': 0, 'flying': False,
+    rec = {'air': 0, 'apex': 0.0, 'clear': 0.0, 'landed': 0.0, 'flights': 0, 'run': 0,
            'home': 0.0, 'stances': [], 'rows': []}
     thighs = []
     knee = 2.0 * math.degrees(math.acos(1.0 - LOAD_M / (THIGH + SHANK)))
@@ -114,18 +115,19 @@ def hop(push=PUSH, hops=1, core=False, trace=False, fly=True, inner='pd', free=T
                 ask['turns'] = ()
         ask['com_acc'] = acc
         if fly:
-            ask = flight.step(fs, ask, loads, bears, s, [body.d.xpos[i] for i in thighs])
-        flying = now >= AT_S and loads[0] < BEARS_N and loads[1] < BEARS_N
+            ask = flight.step(ask, loads, s, [body.d.xpos[i] for i in thighs])
+        flying = now >= AT_S and max(loads) < flight.TOUCH_N
         low = min(float(f['pts'][:, 1].min()) for f in s['feet'])
         if flying:
             rec['air'] += 1
+            rec['run'] += 1
             rec['apex'] = max(rec['apex'], float(s['com'][1]) - rec['home'])
             rec['clear'] = max(rec['clear'], low)
-        elif rec['flying']:
-            rec['flights'] += 1
+        else:
+            rec['flights'] += rec['run'] >= FLOWN
+            rec['run'] = 0
         if not flying and rec['air']:
             rec['landed'] = max(rec['landed'], loads[0] + loads[1])
-        rec['flying'] = flying
         stance = ''.join('S' if k else '-' for k in ask['stance'])
         if not rec['stances'] or rec['stances'][-1] != stance:
             rec['stances'].append(stance)

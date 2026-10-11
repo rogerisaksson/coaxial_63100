@@ -126,7 +126,7 @@ gets a line at the end of [DONE](DONE.md).
     data. No rule a case and no branch on the leg she stands on: what a
     limb reaches is laid in advance and a landing read from it.
     + Flight (`machine/flight.py`, flight.md): the strike at a landing,
-      1.8-2.6 kN at 0.8 m/s; the loop in C down at 56 mm under her soles
+      1.9-2.6 kN at 0.8 m/s; the loop in C down at 56 mm under her soles
       and at the second of three hops of 31; a hop on one sole.
     + Reach (`machine/reach.py`, kinematics.md): the law reading it, a
       limb an index and the standing one landing again a hop; a landing
