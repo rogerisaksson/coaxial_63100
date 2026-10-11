@@ -326,8 +326,9 @@ def test_smart_selection(report):
                      live == expect_live, ', '.join(sorted(live)) or 'none')
 
     # The first row that prefixes a path takes it.
-    shadowed = [path for at, (path, _) in enumerate(table.TOUCHES)
-                if any(path.startswith(above) for above, _ in table.TOUCHES[:at])]
+    from tools.dev.touches import TOUCHES
+    shadowed = [path for at, (path, _) in enumerate(TOUCHES)
+                if any(path.startswith(above) for above, _ in TOUCHES[:at])]
     report.check('every row of the path map can match: none sits under a '
                  'shorter prefix above it', not shadowed, ', '.join(shadowed))
 

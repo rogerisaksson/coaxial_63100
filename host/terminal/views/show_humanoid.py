@@ -215,7 +215,7 @@ GROUPS = (
              ('shift', 'along her way'), ('B', 'a brick gone'), ('G H', 'a knee in its SOA, hot'))),
     ('VIEW', (('<- ->', 'turn, or drag'), ('UP DOWN', 'move, or right drag'),
               ('WHEEL + -', 'zoom'), ('O', 'orbit'), ('V', 'home'),
-              ('C', 'clothes .. stick'), ('L', 'labels'),
+              ('C', 'clothes .. stick'), ('L', 'labels'), ('W', "her eyes' picture"),
               ('T', 'torque, heat, power'), ('D', 'data'))),
     ('PAGE', (('R', 'record, then save'), ('TAB ?', 'these keys'), ('Q', 'exit'),
               ('ESC', 'menu'))))
@@ -363,8 +363,9 @@ def main(argv=None):
              'side': 1.0, 'last_t': None, 'called': 'strong', 'follow': gynoid.Follow(),
              'recording': None, 'recorded': None, 'glitches': 0, 'glitched': None,
              'tripped': None, 'playback': Playback(), 'shown': 'torque', 'skin': 'dressed',
-             'data': False, 'traffic': None, 'knob': style.NAMES[0], 'sway': 0.0, 'rig': None,
-             'law': False, 'pace': 0.0, 'manner': next(iter(gaits.MANNERS)), 'manners': {}}
+             'data': False, 'eyes': True, 'traffic': None, 'knob': style.NAMES[0], 'sway': 0.0,
+             'rig': None, 'law': False, 'pace': 0.0, 'manner': next(iter(gaits.MANNERS)),
+             'manners': {}}
 
     def draw():
         said = []
@@ -408,8 +409,9 @@ def main(argv=None):
                                           heat={j: h[0] for j, h in now['heat'].items()},
                                           props=now.get('props'),
                                           mark=marked(state, now, time.monotonic()),
-                                          inset=(inset.cells(now['seen'], width)
-                                                 if now.get('seen') else None),
+                                          inset=(inset.eyes(now['seen'], width, height)
+                                                 if state['eyes'] and now.get('seen')
+                                                 else None),
                                           legend=(legend(state['shown'], width)
                                                   if state['called'] != 'none' else None),
                                           dressed=state['skin'] == 'dressed',

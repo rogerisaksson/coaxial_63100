@@ -133,7 +133,7 @@ def test_her_map_is_the_room(report):
                      and all(len(h) >= 3 for _k, _i, h in seen[1]),
                      '%d hulls: %s' % (len(seen[1]), ', '.join(k for k, _i, _h in seen[1])) if seen else 'none')
         from coaxial.graphics import inset
-        cells = inset.cells(seen, 120)
+        cells = inset.eyes(seen, 120, 40)
         report.check('the picture\'s cells fill its frame', len(cells) >= sight.VIEW[0] * sight.VIEW[1] // 2,
                      '%d cells' % len(cells))
     finally:

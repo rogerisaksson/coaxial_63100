@@ -40,3 +40,6 @@ it names. A closed item is cut from the list and gets its line here, last.
     the code ([kinematics](findings/kinematics.md)).
 19. The stand-in's drive and loop on the board's C, QUAD's rotors on their
     boards' own loops ([host](findings/host.md), [quad](findings/quad.md)).
+20. The picture in the viewport's corner in the instruments' frame, a key
+    that takes it away; the quad's carried camera on a stabilised gimbal
+    ([quad](findings/quad.md), [sight](findings/sight.md)).

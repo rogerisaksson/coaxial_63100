@@ -113,7 +113,10 @@ coaxial/graphics/   board renderer (wireframe pipeline + one module per concern)
                     where none), gynoid (the figure's body, posed and lit),
                     shapes and lit (a lit mesh's parts, its light and its
                     braille), callouts (framed rows, leaders), quadcopter and
-                    scenery (the quad of machine.quad and its course, drawn)
+                    scenery (the quad of machine.quad and its course, drawn),
+                    inset (a picture in the viewport's corner, the
+                    instruments' frame: her eyes' view; the quad's carried
+                    camera's, onboard)
 coaxial/kalman/     estimators: thermal_ident (mirrors thermal_ident.c),
                     observer
 coaxial/simulated/  the stand-in, same reply shapes as the board; acquire/
@@ -203,6 +206,7 @@ tests/              suites, .counts.json (measured sizes)
 | gearbox | each drive's gearbox: the rotor free across its play, the box wound up past it, the link turned |
 | room | a living room round her: glass walls, furniture, a door, a lamp, and its words |
 | sight | her eyes: a stereo pair on her head, the disparity by block matching, the map she keeps, its things, her way round them |
+| gimbal | a camera on a stabilised gimbal: its sight level, after the way its frame goes |
 | floor | the slab, a sill, a patch, a rug, a stair |
 | rtu | Modbus RTU: CRC-16, a pass's frames |
 | buses | the boards on a bus a limb, a process each in lockstep with the world over a shared block, the host's frames bytes on a socket a bus |
@@ -259,8 +263,8 @@ tests/              suites, .counts.json (measured sizes)
   `test_native` holds the board's thermometers, current and legs to the
   world's.
 - Tiers: `run_tests.ps1` sells checks by percentage; suites join by
-  seconds per check. `TOUCHES` maps a changed path to its suites; `CHEAP`
-  ones settle without asking the model.
+  seconds per check. `touches.TOUCHES` maps a changed path to its suites;
+  `CHEAP` ones settle without asking the model.
 - CI: `host.yml` runs `--offline` on Python 3.12 and 3.14; `firmware.yml`
   builds both images in Debug and Release, fails on any warning, keeps the
   ELFs.

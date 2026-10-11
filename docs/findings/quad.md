@@ -394,3 +394,23 @@ race, 12 flights (`quad_race.py --suite all`):
   (`thrusts.shared`'s `least`), the row above.
 - On I_WEP in their loops the boards stood at 1.00 of their envelopes in
   full tilt: I_MAX kept.
+
+## The carried camera
+
+A camera under the frame on a stabilised gimbal (`machine.gimbal`), its
+picture in the page's corner (`coaxial.graphics.onboard`, C): the page's own
+world from the lens, dots over a level sky and ground.
+
+- The sight follows the way the frame goes, not its nose: over two laps the
+  nose stood over 45 degrees off the way 64 % of the time, 74 at the median,
+  up to 180. At rest the nose's, as far as the frame stands upright.
+- Over two laps on ideal rotors: the frame tilted to 155 degrees, a quarter
+  of the time over 76, the horizon's two ends 0.000 dot rows apart; the gate
+  flown to next in the picture 85 % of the time.
+- A grid's lines end where they would stand under two dots apart: drawn to
+  the scenery's far limit they closed to a band three rows thick under the
+  horizon.
+- 1.0 ms a picture at the median, 36 by 12 cells.
+- MuJoCo's renderer on the frame's world, 1.1 ms a shot at 320 x 240: a
+  gate's 5 cm bars are under a pixel 10 m off and gone in 36 x 24; the dots
+  kept.

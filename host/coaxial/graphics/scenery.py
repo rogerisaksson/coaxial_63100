@@ -81,21 +81,22 @@ def ground(m, cam, centre):
     """The ground's grid lines as a (height, width) brightness, each dot by its depth: 0 none,
     far dimmer."""
     from coaxial.model.blocks import numpy as np
-    ys, xs, w, _which = strokes(_grid(), m, cam, centre)
+    ys, xs, w, _which = strokes(grid()[0], m, cam, centre)
     out = np.zeros((cam['height'], cam['width']))
     np.maximum.at(out, (ys, xs), 0.2 + 0.8 * np.clip(w * cam['distance'], 0.0, 1.0))
     return out
 
 
 @functools.lru_cache(maxsize=None)
-def _grid():
-    """The ground's grid lines' ends, (2n, 3)."""
+def grid():
+    """The ground's grid lines: (their ends, (2n, 3); a line's grid's pitch, m)."""
     from coaxial.model.blocks import numpy as np
-    ends = []
+    ends, pitches = [], []
     for pitch, half in GROUND:
         for t in np.arange(-half, half + 1e-9, pitch):
             ends += [(-half, 0.0, t), (half, 0.0, t), (t, 0.0, -half), (t, 0.0, half)]
-    return np.asarray(ends)
+            pitches += [pitch, pitch]
+    return np.asarray(ends), np.asarray(pitches)
 
 
 def _loop(points):
@@ -180,11 +181,9 @@ def asked():
     return np.asarray(ends, float), np.full(len(ends) // 2, list(INKS).index('line'))
 
 
-def props(m, cam, centre, gate=None, line_=False):
-    """[(dots, inks)] for `lit.braille`: what stands in the camera `cam` looking with `m` at
-    `centre` - with the course's gates where `gate` is the one flown to next, and the line it
-    asks with `line_` - its dots and a cell's ink, the nearest edge's, dimmer the further
-    off."""
+def edges(gate=None, line_=False):
+    """(ends, inks) of every edge that stands - with the course's gates where `gate` is the one
+    flown to next, and the line it asks with `line_`."""
     from coaxial.model.blocks import numpy as np
     ends, inks = standing()
     if gate is not None:
@@ -193,15 +192,34 @@ def props(m, cam, centre, gate=None, line_=False):
     if line_:
         more, theirs = asked()
         ends, inks = np.vstack([ends, more]), np.concatenate([inks, theirs])
+    return ends, inks
+
+
+def drawn(ends, m, cam, centre, reach=None):
+    """(ys, xs, which, share): the dots of the edges `ends` worth drawing in `cam`, the
+    furthest first - a cell takes its nearest's -, each its edge's number and the share of its
+    ink it keeps, FAR_INK to 1; an edge no further off than its `reach`, m, where given."""
+    from coaxial.model.blocks import numpy as np
     ys, xs, w, which = strokes(ends, m, cam, centre)
     size = w * cam['distance']
     near = np.argsort(size)
-    near = near[size[near] >= FAR_SIZE]
+    near = near[(size[near] >= FAR_SIZE) & (
+        True if reach is None else w[near] * np.asarray(reach)[which[near]] >= 1.0)]
     ys, xs, which, size = ys[near], xs[near], which[near], size[near]
+    return ys, xs, which, FAR_INK + (1.0 - FAR_INK) * np.clip(
+        (size - FAR_SIZE) / (1.0 - FAR_SIZE), 0.0, 1.0)
+
+
+def props(m, cam, centre, gate=None, line_=False):
+    """[(dots, inks)] for `lit.braille`: what stands in the camera `cam` looking with `m` at
+    `centre` (`edges`) - its dots and a cell's ink, the nearest edge's, dimmer the further
+    off."""
+    from coaxial.model.blocks import numpy as np
+    ends, inks = edges(gate, line_)
+    ys, xs, which, share = drawn(ends, m, cam, centre)
     dots = np.zeros((cam['height'], cam['width']), bool)
     dots[ys, xs] = True
-    fade = FAR_INK + (1.0 - FAR_INK) * np.clip((size - FAR_SIZE) / (1.0 - FAR_SIZE), 0.0, 1.0)
     ink = np.zeros((cam['height'] // DOTS_Y, cam['width'] // DOTS_X, 3))
     ink[ys // DOTS_Y, xs // DOTS_X] = (
-        np.asarray(list(INKS.values()), float)[inks[which]] * fade[:, None])
+        np.asarray(list(INKS.values()), float)[inks[which]] * share[:, None])
     return [(dots, ink)]

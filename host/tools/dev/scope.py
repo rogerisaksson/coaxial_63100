@@ -5,7 +5,8 @@ from coaxial_ollama import client as clientmod
 from coaxial_ollama.capability import choose, probe
 from tools.dev import pick_tests
 from tools.dev.suites import (CHEAP, CONFORMANCE, DEFAULT_SUITES, FULL_EVERY, LIVE, OLLAMA, ROOT,
-                              STRUCTURES, TOUCHES, plan_for)
+                              STRUCTURES, plan_for)
+from tools.dev.touches import TOUCHES
 
 
 # Every tag this run put on the card, so one `finally` can hand them back.

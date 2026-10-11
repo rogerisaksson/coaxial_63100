@@ -263,6 +263,7 @@ def table(view, calling, shown):
                                                       % len(shown)])) for k in 'tT']
         + [(k, _skinned) for k in 'cC']
         + [(k, lambda state: state.update(data=not state['data'])) for k in 'dD']
+        + [(k, lambda state: state.update(eyes=not state['eyes'])) for k in 'wW']
         + [(k, _lawed) for k in 'jJ'] + [(k, _picked) for k in 'mM'] + [(' ', _charged)]
         + [(k, _worded(word)) for key, word in WORDS.items() for k in (key, key.upper())])
 

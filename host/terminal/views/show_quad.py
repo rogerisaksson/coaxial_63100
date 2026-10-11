@@ -18,7 +18,9 @@ a kind at a time or one kept (W), none of it told to the law - its way and size 
 the side (terminal.views.quad.wind). The camera sits close on the floor before a flight, pulls
 back as it lifts and follows it, looking down on it - on the course from behind it, round as it
 turns (coaxial.graphics.quadcopter, scenery); the height and the power, the bus and the hottest
-board over the last half minute are boxes at the side (terminal.views.quad.traces).
+board over the last half minute are boxes at the side (terminal.views.quad.traces). In the
+viewport's corner the picture of the camera it carries on a stabilised gimbal (machine.gimbal,
+coaxial.graphics.onboard), there or not (C).
 
     python terminal/views/show_quad.py
     python terminal/views/show_quad.py --frames 60
@@ -34,8 +36,8 @@ from rich.text import Text
 from coaxial import Coaxial63100
 from coaxial.errors import RigError
 from coaxial.draw.gauges import policy_word
-from coaxial.graphics import gpu, quadcopter
-from machine import aerobatics, grounds, quad
+from coaxial.graphics import gpu, inset, onboard, quadcopter
+from machine import aerobatics, gimbal, grounds, quad
 from machine.flying import Flying
 from machine.modes import SIMULATED
 from terminal.loader import TO_MENU
@@ -127,8 +129,29 @@ def compose(console, origin, rotors, frame, flight, trace, now, art, yaw=0.0):
                          traces.heights(trace, now, HUD_WIDTH - 4)),
                      hud('BUS V, PEAK TEMP C', traces.buses(trace, now, HUD_WIDTH - 4))],
                     (('+ -', 'ZOOM'), ('W', 'WIND'), ('T', 'THRUST'), ('L', 'LINE'),
-                     ('R', 'RESET'), ('Q', 'EXIT'),
-                     ('ESC', 'MENU')))
+                     ('C', 'CAMERA'), ('R', 'RESET'), ('Q', 'EXIT'), ('ESC', 'MENU')))
+
+
+def carried(frame, aim, gate, line_, width, height):
+    """The carried camera's picture for `quadcopter.render`'s `inset`: the world from its lens
+    on the `frame`, its sight `aim` (`gimbal.step`), with the course's gates where `gate` is the
+    one flown to next - how far off it is the picture's note - and its line with `line_`."""
+    eye = gimbal.lens(frame['at'], frame['turn'])
+    note = '' if gate is None else 'GATE %d  %.0f m' % (
+        gate, math.dist(eye, grounds.GATES[gate % len(grounds.GATES)][:3]))
+    return inset.docked(onboard.picture(eye, aim, gate, line_), width, height, 'GIMBAL', note)
+
+
+def hands(held, zoomed):
+    """{key: what it does}: the page's keys on its `held` state, `zoomed` the view's zoom times
+    its argument."""
+    return dict([(k, lambda: zoomed(ZOOM_STEP)) for k in '+=']
+                + [(k, lambda: zoomed(1.0 / ZOOM_STEP)) for k in '-_']
+                + [(k, lambda: held.update(reset=True)) for k in 'rR']
+                + [(k, lambda: held.update(wind=True)) for k in 'wW']
+                + [(k, lambda: held.update(arrows=not held['arrows'])) for k in 'tT']
+                + [(k, lambda: held.update(line=not held['line'])) for k in 'lL']
+                + [(k, lambda: held.update(carried=not held['carried'])) for k in 'cC'])
 
 
 def look(camera, flying, frame, chased, dt):
@@ -190,17 +213,13 @@ def main(argv=None):
     began = time.monotonic()
     held = {'at': 0.0, 'clock': 0.0, 'frame': sky.state(), 'reset': False,
             'wind': False, 'flying': Flying(flown.TOP_N, aerobatics.DOWN),
-            'flight': flown.fresh(), 'arrows': True, 'line': True}
+            'flight': flown.fresh(), 'arrows': True, 'line': True, 'carried': True,
+            'aim': gimbal.REST}
     camera = {'reach': NEAR_M, 'yaw': YAW, 't': None, 'zoom': 1.0}
 
     def zoomed(k):
         camera['zoom'] = max(ZOOM[0], min(ZOOM[1], camera['zoom'] * k))
-    keys = dict([(k, lambda: zoomed(ZOOM_STEP)) for k in '+=']
-                + [(k, lambda: zoomed(1.0 / ZOOM_STEP)) for k in '-_']
-                + [(k, lambda: held.update(reset=True)) for k in 'rR']
-                + [(k, lambda: held.update(wind=True)) for k in 'wW']
-                + [(k, lambda: held.update(arrows=not held['arrows'])) for k in 'tT']
-                + [(k, lambda: held.update(line=not held['line'])) for k in 'lL'])
+    keys = hands(held, zoomed)
 
     def sample():
         """The flight's side of a frame, on the feed's thread: a pass of it."""
@@ -232,6 +251,8 @@ def main(argv=None):
                 camera['reach'] = NEAR_M
             for clock, frame in flown.passed(rotors, sky, route, held['flying'], flight,
                                              held['clock'], dt):
+                held['aim'] = gimbal.step(held['aim'], frame['turn'], frame['vel'],
+                                          clock - held['clock'])
                 held['clock'], held['frame'] = clock, frame
                 trace.append((clock, frame['h'], cells['volts'], cells['watts'],
                               max((r['board_c'] for r in rotors if r['board_c'] is not None),
@@ -252,13 +273,15 @@ def main(argv=None):
         chased = flown.lined(route)
         reach, centre = look(camera, held['flying'], frame, chased, dt)
         width, height = size_of(board_view)
+        gate = (held['flight']['lap'] or {}).get('gate', 1) if chased else None
         art = '\n'.join(quadcopter.render(
             frame, [(r['angle'], r['w'], (r['budget'] or {}).get('winding_c'), r['board_c'])
                     for r in rotors], width, height, yaw=camera['yaw'], pitch=PITCH,
-            reach=reach, centre=centre, colour=terminal, lit=lit,
-            gate=(held['flight']['lap'] or {}).get('gate', 1) if chased else None,
+            reach=reach, centre=centre, colour=terminal, lit=lit, gate=gate,
             thrusts=thrusts(frame, rotors) if held['arrows'] else None,
-            line_=chased and held['line']))
+            line_=chased and held['line'],
+            inset=carried(frame, held['aim'], gate, chased and held['line'], width, height)
+            if held['carried'] else None))
         return compose(board_view, origin, rotors, frame, held['flight'], list(trace),
                        held['clock'], art, yaw=camera['yaw'])
 

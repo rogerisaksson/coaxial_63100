@@ -55,3 +55,14 @@ straight. Out through the door: from her stand she crosses the
 door line 0.30 m from the nearer post; E pressed as she walks, 0.41 m (before
 her eyes, the walk's restart fell short of the door); aligned within 3.4 deg
 before the last stretch (6 deg crossed it 0.19 m from the post and she fell).
+
+## The picture on the page
+
+In the instruments' frame (`coaxial.graphics.inset`: rounded, its title in
+the top edge, what she has told in the bottom one), W takes it away. A hull
+is its ink along its edge and lightly over what it covers: filled at 0.45 the
+wall's hull tinted the whole picture. A kind's label a plate at its hull's top
+left, moved a row off another's: `thing` under `lamp` read `thlamp`. The four
+rows of black over the walls are the room's: it has no ceiling. In a viewport
+12 rows high the picture threw an IndexError once she had looked: nothing is
+drawn where it has no room.

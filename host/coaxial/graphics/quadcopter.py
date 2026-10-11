@@ -207,12 +207,13 @@ def _arrows(pose, thrusts, m, cam, centre):
 
 
 def render(pose, rotors, width, height, yaw=30.0, pitch=18.0, reach=REACH, centre=None,
-           colour=True, lit=None, world=True, gate=None, thrusts=None, line_=False):
+           colour=True, lit=None, world=True, gate=None, thrusts=None, line_=False, inset=None):
     """The quad at `pose` on its `rotors`, `width` x `height` cells, `reach` m framed about
     `centre` (the quad's middle) from SIGHT reaches off: lines. `lit` a `gpu.LitRaster`, or
     None to splat its dots here; `world` False the quad alone, nothing under it or about it;
     `gate` the course's gates stood too, the one of that number lit, and `line_` the line it
-    asks through them; `thrusts` each rotor's, N, its arrow."""
+    asks through them; `thrusts` each rotor's, N, its arrow; `inset` cells {(row, col):
+    (codepoint, key)} laid over all."""
     from coaxial.model.blocks import numpy as np
     m = shapes.view(yaw, pitch)
     fine = engine.fine(engine.camera(width, height, reach, distance=SIGHT * reach))
@@ -228,6 +229,7 @@ def render(pose, rotors, width, height, yaw=30.0, pitch=18.0, reach=REACH, centr
     own = _discs(pose, rotors, m, fine, centre) + (
         _arrows(pose, thrusts, m, fine, centre) if thrusts is not None else [])
     if not world:
-        return braille(depth, rgb, np.zeros(depth.shape), width, height, colour, props=own)
-    return braille(depth, rgb, scenery.ground(m, fine, centre), width, height, colour,
+        return braille(depth, rgb, np.zeros(depth.shape), width, height, colour, inset,
+                       props=own)
+    return braille(depth, rgb, scenery.ground(m, fine, centre), width, height, colour, inset,
                    props=own + scenery.props(m, fine, centre, gate, line_))
