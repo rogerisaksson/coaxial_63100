@@ -14,7 +14,7 @@ renderer, which only reads the file, does not.
 
 The face was an 8 x 8 Bayer dither, and at a real window (150 x 44) its
 hierarchy showed: two-by-two clusters of dots that read as small square
-blocks across the board - "blocky as hell", the bench said, after the
+blocks across the board, after the
 Bayer had replaced a sparser lattice that was blocky in its own way.
 Interleaved gradient noise and the R2 sequence were rastered beside it:
 a regular diagonal screen, and a half-structured one. Blue noise has no

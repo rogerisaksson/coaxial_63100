@@ -8,7 +8,7 @@ from views_kit import Report
 
 
 def test_the_demo_actually_loads_the_motor(report):
-    """The stand-in's rotor demo to the end of its load stage, as the bench asked for it: up
+    """The stand-in's rotor demo to the end of its load stage: up
     clockwise against a propeller to near a kilowatt, coast, brake, the same the other way, a
     load held at speed. Each stage does what its physics says - the coast on J dw/dt = -b w -
     k w|w| - the bead never turns back against the rotor and speeds and slows with it, and

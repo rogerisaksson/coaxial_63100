@@ -246,9 +246,8 @@ def test_the_foot_carries_the_policy(report):
         inks[state] = ('38;5;%dm%s' % (cross_section.INK[thermal.POLICY_INK[state]],
                                        thermal.policy_word({'state': state})[0])) in row
         trims[state] = visible(row)
-    # The trim is said while there is one (the bench: "make it visible that it
-    # throttles at 80 % of the SOA already, then 90, then 100 as the model's
-    # uncertainty goes to zero"), and the row stays its width.
+    # The trim is said while there is one - 80 % of the SOA, then 90, then 100
+    # as the model's uncertainty goes to zero -, and the row stays its width.
     report.check('the ceiling it leaves is on the row: UNCR 80%, CONV 90%, '
                  'and STABLE alone at the whole span',
                  'TH OBS UNCR 80%' in trims['UNCERTAIN']
@@ -303,11 +302,11 @@ def test_the_foot_carries_the_policy(report):
 
 def test_the_foot_says_trip_while_the_cap_holds(report):
     """`TRIP 72%` in the trip's red while the trip cap holds the margin
-    under the floor, whatever the model's state - the bench seeing STBL
+    under the floor, whatever the model's state - STBL was shown
     at 70 % of SOA, a number no state can give; the state's
     own word with the percent in force once the cap is over the floor -
-    the bench's point that it must let go of TRIP once over 80 %, its
-    line being `WINDING 97.7 C TH OBS TRIP 89%` (the same day); and the
+    it lets go of TRIP once over 80 %, where the line read
+    `WINDING 97.7 C TH OBS TRIP 89%`; and the
     state's word and the model's number once the cap has recovered past
     the model.
     """

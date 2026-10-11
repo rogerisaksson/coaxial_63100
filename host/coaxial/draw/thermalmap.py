@@ -128,8 +128,8 @@ FRAME_MM = 1.0
 #: and the frame's stand-off, mm. REG is the two bucks and two LDOs left of
 #: the MCU, whose frame stands 3 mm off the package; each phase takes its
 #: shunts at the rim; HS runs from the bore's edge to the rim (FETs 14-15 mm,
-#: controller 23, fuse and varistor 31, terminals 40). All on the bench's
-#: word.
+#: controller 23, fuse and varistor 31, terminals 40), none of it
+#: from the layout files.
 MARKS = (
     ('MCU', ('U3',), 'bottom', 3.0),
     ('REG', ('U8', 'U9', 'U1', 'U7'), 'bottom', FRAME_MM),
@@ -301,7 +301,7 @@ def _density(celsius):
 _MASKS = {}
 
 #: A frame's dot rows: the top across row 1, the bottom across row 2, the
-#: sides down a lane - right-angled corners, `⡖⠒⠒⢲` over `⠧⠤⠤⠼` (bench).
+#: sides down a lane - right-angled corners, `⡖⠒⠒⢲` over `⠧⠤⠤⠼`.
 #: Sampled from millimetres the corners came out ragged.
 FRAME_TOP, FRAME_BOTTOM = 1, 2
 

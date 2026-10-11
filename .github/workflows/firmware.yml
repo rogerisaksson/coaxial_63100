@@ -27,7 +27,7 @@ jobs:
       - run: cmake --preset ${{ matrix.preset }}
       - run: cmake --build --preset ${{ matrix.preset }} 2>&1 | tee build.log; exit ${PIPESTATUS[0]}
         shell: bash
-      # Zero warnings is the bench's rule (CLAUDE.md), so it is the runner's.
+      # Zero warnings is the project's rule (CLAUDE.md), so it is the runner's.
       - run: |
           if grep -n "warning:" build.log; then
             echo "the build must be warning-free"; exit 1

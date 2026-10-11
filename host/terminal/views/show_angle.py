@@ -39,7 +39,7 @@ REG_FIELD = 0x2A
 #: The face, in character cells, bounded by the height: a dot is square
 #: and the circle round. The dot matrix has four times the rows and twice
 #: the columns of the 52 by 21 character face, whose rim was thirteen
-#: columns of full stops. Cut from 64 by 23 on the bench's word once the
+#: columns of full stops. Cut from 64 by 23 once the
 #: face was drawn round on its terminal (`aspect.aspect_of`, the rotor
 #: observer's probe): like the motor page, an instrument that fills its
 #: box - sized to the terminal every frame; these where it does

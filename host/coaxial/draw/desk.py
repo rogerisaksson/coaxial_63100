@@ -24,7 +24,7 @@ SCALE = 13
 #: seconds for the whole bar, and on a phase swinging over a couple of
 #: seconds the caret was never where the bar had been but where it was
 #: seconds ago. A quarter ran first - 3.2 cells behind at the sweep's
-#: worst - and the bench asked for "a bit slower": 0.15 is 5.1 cells.
+#: worst -, too quick to follow: 0.15 is 5.1 cells.
 RELEASE = 0.15
 
 #: The least a held peak moves an update, as a fraction of full scale, so

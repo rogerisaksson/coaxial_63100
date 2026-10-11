@@ -47,7 +47,7 @@ OUTLINES_KEPT = 4
 #: their own loops and no tangle. Then grouped into connected LOOPS and
 #: drawn only when a loop spans OUTLINE_CELLS on screen: a part smaller
 #: than that is a flickering fragment, not a drawing - filtered rather
-#: than drawn, on the bench's word - and comes back as the zoom brings
+#: than drawn - and comes back as the zoom brings
 #: it up.
 OUTLINE_DEG = 60.0
 OUTLINE_RISE = 0.02

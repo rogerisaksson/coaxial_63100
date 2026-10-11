@@ -38,7 +38,7 @@ from coaxial.model.thermal import CFG, NTC_OFFSET, STATE_IS as WHAT, STATES, tau
 from terminal.ui.screen import say
 from tools.thermal.thermal_validate import CAMERA
 
-#: The bench's one power number, untrusted by its owner: everything absolute
+#: The bench's one power number, untrusted: everything absolute
 #: below is conditional on it and prints as such.
 ASSUMED_PASSIVE_W = 24.0 * 0.050
 

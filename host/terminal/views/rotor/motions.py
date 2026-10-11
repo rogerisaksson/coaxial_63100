@@ -132,12 +132,12 @@ LOAD_A = 40.0
 
 #: A joint's load held on the vector, q amps - gravity at the end of a limb, the rotor a few
 #: degrees off its angle under HOLD_A - and a servo's as it moves, its mass and friction: some
-#: current through the phases for the thermal observer to follow (bench).
+#: current through the phases for the thermal observer to follow.
 JOINT_LOAD_A = 8.0
 SERVO_LOAD_A = 8.0
 
 
-#: The demo in segments, the bench's words: an application each, its stages
+#: The demo in segments: an application each, its stages
 #: driven by the speed loop, a held vector or one stepped. A stage: its segment, its name,
 #: seconds, the speed it ramps to - rpm, None: no current, the rotor on its drag - the load on
 #: the stand-in's shaft in q amps, and how: 'free' the unloaded rotor spooled at the clamp, no
@@ -205,7 +205,7 @@ RAMP_SHARE = 0.67
 #: faster and faster - held, and eased off over SPOOL_LAND onto its speed. At a constant rate
 #: the current stepped on at the first frame (488 rpm/s at 0.25 s), the lag held under the 10 A
 #: clamp through zero caught up at 1 379 rpm/s where it opened, and the top stopped dead: on
-#: and off (bench).
+#: and off.
 SPOOL_RISE, SPOOL_LAND = 0.5, 0.15
 SPOOL_PEAK = 1.0 / (1.0 - 0.5 * (SPOOL_RISE + SPOOL_LAND))
 

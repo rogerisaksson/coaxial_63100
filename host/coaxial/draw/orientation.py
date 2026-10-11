@@ -88,7 +88,7 @@ MOUNT = MOUNTS[0][1]
 
 
 #: Which raw quaternion components MIRROR before the mount is applied.
-#: NONE: the mount answers this without a dial. Bench court,
+#: NONE: the mount answers this without a dial. On the bench,
 #: three observations against the tipped camera: board-X rotation drew as
 #: Y, board-Y drew as X, CCW yaw drew CCW - an axis SWAP with Z clean,
 #: which no mirror produces and only a 90-degree mount does. Three
@@ -483,9 +483,8 @@ def _fit(cols, rows, zoom=1.0, model=None):
 #: Where the board's centre sits down the attitude page, as a share of
 #: its height (cy = height * LIFT). It sat above the frame's middle so
 #: the model cleared the horizon line instead of sitting on it, and
-#: came down a row at a time on the bench's word: 0.36 was the fit,
-#: 0.39, 0.42 ("a bit high up"), and dead
-#: centre - "move it down so it sits centred in the box".
+#: came down a row at a time: 0.36 was the fit, 0.39 and 0.42 sat
+#: high, and dead centre.
 #: A constant, not a fit per frame: the sphere's centre stays put while
 #: the board tilts, so it never reads as translating.
 LIFT = 0.5

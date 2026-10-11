@@ -391,8 +391,7 @@ def _link(args):
     origin, board = rig.origin, rig.board
     if not origin.real:
         # The stand-in on the dyno's sink as an emulated board's world has it, and touring its
-        # rooms as the identification earns them: TH OBS walks UNCR, CONV, STABLE on the foot
-        # (bench).
+        # rooms as the identification earns them: TH OBS walks UNCR, CONV, STABLE on the foot.
         rig.thermal.configure(application=worlds.mounted(worlds.load('dyno')))
         rig.thermal.situation('tour')
     if args.source is None:
@@ -496,7 +495,7 @@ def main(argv=None):
     leaving = None
     thermal_at, panels_at, ident_at = [0.0], [0.0], [0.0]
     # Thermal observer read period, s: the stand-in and native answer out of memory - read every
-    # 2 s native's looked slow beside the rotor, 0.47 a second (bench) - a link does
+    # 2 s native's looked slow beside the rotor, 0.47 a second - a link does
     # not. The three reads cost 18 ms of a 50 ms tick on the emulator, where the four every tick
     # already cost 23 ms - asked four times a second they blew the frame and the page froze and
     # raced.

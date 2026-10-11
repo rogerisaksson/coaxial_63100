@@ -24,7 +24,7 @@ _BACKDROP = {}
 #: at the camera's feet and the horizon itself. AERIAL PERSPECTIVE - a
 #: line's contrast falls as exp(-depth / L), and FAN_HAZE is what is
 #: left of it at the horizon. Flat-toned, the fan got BRIGHTER toward
-#: the horizon ("more realistic", the bench asked): the lines converge,
+#: the horizon, as a real one does: the lines converge,
 #: several land in one cell, and a cell of six dots at one tone is
 #: three times the ink of one with two. So a cell's grey is divided by
 #: the square root of the LINES through it - lines, not dots: a steep
@@ -71,7 +71,7 @@ _RUNS = {}
 
 #: THE FAN MOVES WITH THE RUNGS. Its lines are dashed, DASH of each spacing lit from a
 #: rung outward, and the dashes scroll toward the camera with the rungs: the floor reads
-#: as travelled, not drawn ("the vertical lines follow the horizontal ones").
+#: as travelled, not drawn.
 #: Past DASHED spacings the fan runs solid into the haze - dashes there are under a dot
 #: row and shimmer. The fan's dots are cast once a window size; a step keeps its dashes.
 DASH = 0.5

@@ -22,8 +22,7 @@ extern "C" {
 #define BOARD_THERMAL_IDENT_SCALES 4
 
 /** The margin floor's default, parts per million of every ceiling's span:
-    the bench's 80 % - "keep to 80 % of the SOA when switching starts, with
-    the thermal situation unknown". */
+    80 % of the SOA while switching starts with the thermal situation unknown. */
 #define BOARD_SOA_MARGIN_FLOOR_PPM 800000UL
 
 /** The indices, for a record or a host that has to name one. */

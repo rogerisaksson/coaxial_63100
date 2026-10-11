@@ -46,7 +46,7 @@ GAUGE_CELLS = 20
 
 
 #: The page's load cycle, thermal s: 2 min at 30 A a phase rms, 4 idle - 36 wall s at HASTE
-#: (bench: "pulse a bit faster"): the stand-in's own `load_cycle`, an emulated
+#: (a slower one read as stuck): the stand-in's own `load_cycle`, an emulated
 #: board's demo motor.
 PAGE_CYCLE_ON_S, PAGE_CYCLE_OFF_S = 120.0, 240.0
 PAGE_CYCLE_AMPS = 30.0 * math.sqrt(2.0)
@@ -63,7 +63,7 @@ IDENT_EVERY_S = 5.0
 def evidence_class(level):
     """The bar's colour by how much of its span the model has earned:
     red below a third, yellow to two thirds, green above - red to
-    yellow to green as it fills, the bench's ramp for it."""
+    yellow to green as it fills."""
     if level < 1.0 / 3.0:
         return cross_section.SOA_TRIP
     return cross_section.SOA_WARN if level < 2.0 / 3.0 else cross_section.SOA_OK
@@ -83,8 +83,7 @@ def evidence_rows(ident, colour=True):
     level = max(0.0, min(1.0, level))
     cls = evidence_class(level)
     bar = gauges.bar(level, GAUGE_CELLS, cls=cls, colour=colour)
-    # The label in the leaders' grey, constant; only the bar changes colour
-    # (bench).
+    # The label in the leaders' grey, constant; only the bar changes colour.
     label = ('\x1b[38;5;%dmTH OBS\x1b[0m' % cross_section.LEADER_GREY) if colour \
         else 'TH OBS'
     return ['', '   %s %s' % (label, bar)]
@@ -99,7 +98,7 @@ def picture(state, console, reserve, aspect=CELL_ASPECT):
 
     # Every node: `board` is the centre patch, and stripped of it - the bulk board's cut -
     # the map's middle was its neighbours' mean, 9.6 K off. The
-    # leading blank moves the board one row down the frame - asked, and counted
+    # leading blank moves the board one row down the frame, counted
     # in the caller's reserve.
     return [''] + render(nodes, board_c=board_c, colour=console,
                          margin=PANEL_W, reserve=reserve,
@@ -209,7 +208,7 @@ def main():
         ready()
         origin = rig.origin
         # On a demo board, however reached: the stand-in or an emulated board's world. Keyed
-        # on the flag, the page ran without its load (bench).
+        # on the flag, the page ran without its load.
         if _screen.demo(origin):
             # The tour (temperate, cold, toasty, repeating), moved on once the identification
             # has earned the room.

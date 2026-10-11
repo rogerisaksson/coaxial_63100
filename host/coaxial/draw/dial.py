@@ -112,7 +112,7 @@ LABEL_INK = ansi.ASH
 
 
 #: The scales: the die -40 to 150 C (A1335 datasheet), the field 0-1200 G.
-#: Each in three bands, blue under normal, green, red past (bench): the die's normal is where this board works, 15-65 C (the
+#: Each in three bands, blue under normal, green, red past: the die's normal is where this board works, 15-65 C (the
 #: thermal ramp read a room-temperature die as cold); the field's is the
 #: datasheet's recommended 300-1000 G - weak or absent under, too close past.
 DIE_RANGE = (-40.0, 150.0)
@@ -466,7 +466,7 @@ def caption(degrees, field=None, gauss=True):
 #: its mark, two for the tube, one of air against the face.
 SCALE_W = 8
 #: The tube: two cells wide, solid - the reading's ink to the reading, ash
-#: glass above (one dotted column read as a stray line; bench).
+#: glass above (one dotted column read as a stray line).
 TUBE_W = 2
 
 

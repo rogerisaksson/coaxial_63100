@@ -28,7 +28,7 @@ CAMERA = {
                   'bridge': 50.1, 'afe': 40.0, 'hotswap': 46.0, 'ntc': 55.6},
 }
 
-#: Measured, but through a supply whose shunt the owner does not trust.
+#: Measured, but through a supply whose shunt is not trusted.
 SUPPLY_IDLE_A = 0.050
 LINK_V = 24.0
 DISC_AREA_M2 = 2 * 3.14159 * 0.05 ** 2

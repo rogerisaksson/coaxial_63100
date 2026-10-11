@@ -92,7 +92,7 @@ class SimulatedThermal(ThermalControl):
     #: Wall seconds between switches when they are on: long enough for STABLE between them.
     SWITCH_EVERY_S = (180.0, 360.0)
 
-    #: The default load cycle, model s: 6 min at 30 A, 14 cooling (bench).
+    #: The default load cycle, model s: 6 min at 30 A, 14 cooling.
     CYCLE_AMPS, CYCLE_ON_S, CYCLE_OFF_S = 30.0, 360.0, 840.0
 
     #: The tour judged this often while it runs, model s: a minute's call once took it whole.

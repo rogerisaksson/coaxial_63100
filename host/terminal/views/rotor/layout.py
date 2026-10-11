@@ -12,7 +12,7 @@ NOMINAL_HEIGHT = 24
 
 #: Caption rows above the drawing: the two margins first, then the gutter
 #: groups' names and hottest readings beside the NTC. One foot row: WINDING,
-#: the thermal observer's policy, POWER (bench).
+#: the thermal observer's policy, POWER.
 CAPTION_ROWS, FOOT_ROWS = 5, 1
 
 
@@ -40,8 +40,8 @@ VIEWPORT_COLUMNS = 4
 PAGE_ROWS = 4
 
 #: The narrowest drawing and lowest band on any terminal: below them the
-#: gutters' names run into the legend. 52 wide (from 46, the bench's "a
-#: shade bigger") is also what a piped run draws.
+#: gutters' names run into the legend. 52 wide (from 46)
+#: is also what a piped run draws.
 NOMINAL_WIDTH = 52
 
 MIN_WIDTH = 40

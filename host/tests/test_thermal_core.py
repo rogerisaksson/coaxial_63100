@@ -418,7 +418,7 @@ def test_the_scales_are_identified_against_a_ground_truth(report, lib):
     report.check('with the state back to CONVERGING or STABLE',
                  ident.state() in ('CONVERGING', 'STABLE'), ident.state())
 
-    # Nothing is resumed (the bench's rule): a fresh identifier is
+    # Nothing is resumed: a fresh identifier is
     # at the floor and doubted whole, whatever an earlier run found. A good
     # observer earns its span within a few samples; a resumed one runs on last
     # week's box.

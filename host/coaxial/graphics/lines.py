@@ -41,7 +41,7 @@ OUTLINE_GRACE = 0.012
 OUTLINE_SLOPE = 1.0
 
 
-#: The least part outlined, cells across, the bench's choice. At the
+#: The least part outlined, cells across. At the
 #: view's zoom (46.8 cells per unit) five drew 43 loops, three 65, two
 #: 95 - the smallest a part 2.1 mm wide, an 0805 on its edge; 1.5 would
 #: draw 112 and one 167, into the 0603s and the chip-scale parts, which

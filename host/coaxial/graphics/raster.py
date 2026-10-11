@@ -7,9 +7,9 @@ import struct
 
 #: The pixels: braille, a 2x4 dot matrix per cell, so a drawing rasters
 #: at twice the column and four times the row resolution and reads as a
-#: fine dotted line - the same dots the chat page's spinner spins, asked
-#: for by the bench as "pixels". Dots only: an ASCII stroke fallback
-#: (`- | / \`) was built and taken out on the bench's word - the slashes
+#: fine dotted line - the same dots the chat page's spinner spins.
+#: Dots only: an ASCII stroke fallback
+#: (`- | / \`) was built and taken out - the slashes
 #: read as jank next to the dots, and the console that runs this already
 #: shows the spinner.
 BRAILLE = 0x2800

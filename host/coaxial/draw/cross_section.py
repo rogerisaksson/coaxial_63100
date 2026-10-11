@@ -58,7 +58,7 @@ def _drive(amps, full=None):
 
 
 #: Where the bead rides, a fraction of the can's radius: in the can's wall,
-#: between its two edges (bench: a mark off the rotor indicates nothing).
+#: between its two edges (a mark off the rotor indicates nothing).
 POINTER_SEAT = (1.0 + F_CAN_INNER) / 2.0
 
 #: The bead, U+0298: Consolas has it, so the terminal draws it in its own

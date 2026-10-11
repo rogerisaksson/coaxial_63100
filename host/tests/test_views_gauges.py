@@ -203,8 +203,8 @@ def test_the_sweep_decays_behind_the_needle(report):
 
 def test_the_face_wears_its_two_scales(report):
     """SHAFT ANGLE's die temperature and field stand either side of the face
-    as tubes on their own ranges - the scales beside it the bench asked
-    for, die temperature and field strength in gauss.
+    as tubes on their own ranges - the scales beside it:
+    die temperature and field strength in gauss.
     """
     from coaxial.draw import dial
     from machine import ansi

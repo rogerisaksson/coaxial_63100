@@ -45,7 +45,7 @@ CURSOR = '█'
 #: The leader column is the page's: its longest label, a space and at
 #: least one dot - never past half the box. A fixed column either put a
 #: label that filled it a column out or left it with no dot at all, and
-#: the bench asked for both the line-up and the dot (UART5 TERMINATION).
+#: a page wants both the line-up and the dot (UART5 TERMINATION).
 def _column(labels, width):
     longest = max((len(label) for label in labels), default=0)
     return min(longest + 2, max(6, width // 2))

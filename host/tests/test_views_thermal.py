@@ -80,7 +80,7 @@ def test_the_thermal_map_is_a_halftone_with_its_parts_marked(report):
     report.check('the frames and the labels wear the mark ink',
                  ansi.code(thermalmap.MARK_INK) in said)
 
-    # Frames, not areas (the bench's word): a marked cell draws the line's
+    # Frames, not areas: a marked cell draws the line's
     # dots alone, so no marked cell is solid and the marks are a thin share of
     # the board.
     lit = [(ch, fg) for row in ansi.parse(said) for ch, fg, _bg in row
@@ -98,8 +98,8 @@ def test_the_thermal_map_is_a_halftone_with_its_parts_marked(report):
     report.check('and the frames are a thin share of the board',
                  0 < len(marked) < 0.25 * len(lit),
                  '%d marked of %d lit' % (len(marked), len(lit)))
-    # Right angles: the frames are box-drawing in braille, the bench's own
-    # glyphs - corners, and straight runs between them.
+    # Right angles: the frames are box-drawing in braille -
+    # corners, and straight runs between them.
     corners = {pair: sum(marked.count(ch) for ch in pair)
                for pair in ('⡖⢰', '⢲⡆', '⠧⠸', '⠼⠇')}
     runs = {ch: marked.count(ch) for ch in '⠒⠤⡇⢸'}
@@ -161,8 +161,7 @@ def test_the_thermal_page_shows_its_evidence(report):
 
     rows = page.evidence_rows(ident(0.8))
     said = visible(rows[1])
-    # The bar alone (the bench: "remove the text to the right of the scale,
-    # move it to HEADROOM"); its figures are `envelope_rows`.
+    # The bar alone, no text to its right; its figures are `envelope_rows`.
     report.check('two rows under the board: a blank, then TH OBS and the '
                  'bar alone - its figures are HEADROOM\'s',
                  len(rows) == 2 and rows[0] == ''
@@ -184,8 +183,7 @@ def test_the_thermal_page_shows_its_evidence(report):
                         (1.0, cross_section.SOA_OK)):
         row = page.evidence_rows(ident(margin))[1]
         head, _bar = row.split('TH OBS')[0], row.split('TH OBS')[1]
-        # The label constant in the leaders' grey (the bench: "only the
-        # thermometer changes colour"), the bar's ink after it.
+        # The label constant in the leaders' grey, the bar's ink after it.
         greys[margin] = ('38;5;%dm' % cross_section.LEADER_GREY) in head
         inks[margin] = (cls is None or ('38;5;%dm' % cross_section.INK[cls])
                         in row.split('TH OBS')[1])
@@ -204,7 +202,7 @@ def test_the_thermal_page_shows_its_evidence(report):
     report.check('and a dash before the board has answered op 10',
                  'TH OBS -' in visible(page.evidence_rows(None)[1]),
                  visible(page.evidence_rows(None)[1]))
-    # The room's hint, on the estimated room: the bench's emoji pairs, and the
+    # The room's hint, on the estimated room: the emoji pairs, and the
     # thermometer thinking while the innovation is large.
     import unicodedata
 
@@ -229,7 +227,7 @@ def test_the_thermal_page_shows_its_evidence(report):
                      for ch in pair.replace(' ', ''))
                      for pair in boxes.ROOM_HINTS.values()),
                  ' '.join(boxes.ROOM_HINTS[at(c)] for c in (-25.0, 20.0, 45.0)))
-    # Hysteresis (the bench: "so the emoji do not flutter near the limits"): a
+    # Hysteresis, so the emoji do not flutter near the limits: a
     # held word stands two kelvin past its threshold, and the thermometer
     # stands until the innovation is under 0.2 K.
     def held(room, word, innovation=0.1):
@@ -248,8 +246,7 @@ def test_the_thermal_page_shows_its_evidence(report):
                  and held(20.0, 'unsure', 0.15) == 'mild'
                  and held(20.0, 'mild', 0.25) == 'mild',
                  ' '.join(held(c, 'cold') for c in (6.5, 7.5)))
-    # In SENSE, beside the room (the bench: "maybe move the emojis to the
-    # SENSE block on the right, a bit more uniform").
+    # In SENSE, beside the room.
     rows = boxes.ident_rows(ident(0.91))
     room = [value for label, value in rows if label == 'room'][0]
     report.check('and the hint sits in SENSE beside the room, the pair '
@@ -337,7 +334,7 @@ def test_the_thermal_page_shows_its_evidence(report):
 
 def test_the_headroom_box_carries_a_solid_bar_with_a_tip(report):
     """The thermal observer's spend is HEADROOM, its level one row of `⣿`
-    ending in an orange `⡇` or `⢸`, labelled `soak` (the bench's word): not
+    ending in an orange `⡇` or `⢸`, labelled `soak`: not
     BUDGET's `[⣿⣿⠒⠒] 42 %`, nor three rows of braille.
     """
     import re

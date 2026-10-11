@@ -740,7 +740,7 @@ def test_desk(report):
     for row in quiet:
         row['span'] = (-207.4, 207.4) if row['differential'] else (0.0, 3.3)
     gate_drivers.update(quiet)
-    # The release (bench): a quarter of the distance to the bar's
+    # The release: a quarter of the distance to the bar's
     # level an update, the fixed decay at the least - not the fixed decay
     # alone, which took eight seconds for the whole bar and was always seconds
     # behind a swinging phase.
@@ -938,8 +938,7 @@ def test_ascii3d(report):
                  0.85 <= wide / tall <= 1.18,
                  '%.2f wide to tall' % (wide / tall))
 
-    report.check('a board seen face-on uses more than one character - that '
-                 'was the whole complaint',
+    report.check('a board seen face-on uses more than one character',
                  len(set(flat.replace(' ', '').replace('\n', ''))) > 3,
                  'glyphs %s' % ''.join(sorted(
                      set(flat.replace(' ', '').replace('\n', '')))))
@@ -1630,7 +1629,7 @@ def test_thermal_identification(report):
                  and cold.situation('temperate')['ambient'] == 20.0,
                  got['truth'])
 
-    # An idling board stays UNCERTAIN, the bench's rule: nothing burning,
+    # An idling board stays UNCERTAIN: nothing burning,
     # nothing moving, nothing to learn from, so the margin stays in hand until
     # something switches.
     still = SimulatedThermal(situation='box')
@@ -1646,9 +1645,8 @@ def test_thermal_identification(report):
                  % (got['updates'], got['state'], got['scales']['air'],
                     got['margin']))
 
-    # The load cycle a page in simulated mode lays on (bench: "show
-    # the board's temperatures from a simulated load cycle, so one sees the
-    # regions warm and cool"): six model minutes at 30 A and fourteen idle,
+    # The load cycle a page in simulated mode lays on, so the regions are
+    # seen to warm and cool: six model minutes at 30 A and fourteen idle,
     # from the model's own clock, under the envelope; measured live in a box:
     # the legs reach the throttle point inside two minutes and the clamp holds
     # driver U near 95-105 C on 12 to 19 A of the 30 asked for.
@@ -1686,7 +1684,7 @@ def test_thermal_identification(report):
                  and cyc.truth()['load_a'] is None
                  and _refused(lambda: cast(Any, Thermal).load_cycle(None)))
 
-    # The tour (bench): temperate, cold, toasty and round again,
+    # The tour: temperate, cold, toasty and round again,
     # moved on when the identification has earned the room - STABLE held a
     # hundred model seconds, ten of wall time, five minutes after the move at
     # the least - or after fifty minutes regardless.
@@ -1742,8 +1740,7 @@ def test_thermal_identification(report):
                  'ntc %.1f, room %.1f' % (born['ntc'],
                                           warm.identification()['ambient']))
 
-    # The trip cap (bench: "it should trip the limits and push the
-    # SOA limit down to maybe 70 %, or some other graceful degradation"): after
+    # The trip cap, a graceful degradation: after
     # the envelope has dropped the stage the margin is held at 0.70, recovering
     # a percent a minute of model time, and the spend is measured from the room
     # the observer believes in and clamped to one - in the cold room it had

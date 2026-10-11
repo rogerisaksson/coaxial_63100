@@ -192,7 +192,7 @@ def exercise(server, report):
     report.result('link state', server.tool('link', {'op': 'state'}),
                   ['bus_message='])
     # The thermal observer (device 8), three questions, each headed and its
-    # one measurement named: the bench's rule sends "how hot is the board" to
+    # one measurement named: the rule sends "how hot is the board" to
     # the local model, which has no other way to device 8.
     report.result('thermal state', server.tool('thermal', {'op': 'state'}),
                   ['thermal:', 'legs', 'room', 'ESTIMATE'])

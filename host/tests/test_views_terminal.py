@@ -306,8 +306,8 @@ def test_a_frame_rasterises_as_the_terminal_draws_it(report):
 
 
 def test_the_attitude_caps_its_frame_rate(report):
-    """Every view draws at most FPS_CAP frames a second whatever `--hz` asks - the bench's
-    word, so the laptop's fans stay down - BOARD ATTITUDE never slower than one every two
+    """Every view draws at most FPS_CAP frames a second whatever `--hz` asks - so the
+    laptop's fans stay down - BOARD ATTITUDE never slower than one every two
     seconds."""
     from terminal.ui.screen import FPS_CAP
     from terminal.views import show_orientation as view

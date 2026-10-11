@@ -206,8 +206,8 @@ def chip(origin):
     return modes('SIM')
 
 
-#: The execution modes the band names, the page's own in its chip's colours (the bench's
-#: word): the firmware's image on Renode, the stand-in, the board layer built for
+#: The execution modes the band names, the page's own in its chip's colours:
+#: the firmware's image on Renode, the stand-in, the board layer built for
 #: this host.
 MODES = (('EMU', 'chip.emu'), ('SIM', 'chip.sim'), ('NAT', 'chip.nat'))
 

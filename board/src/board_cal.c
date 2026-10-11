@@ -143,7 +143,7 @@ static const board_cal_t CAL_DEFAULTS =
   .drv_trigger_ticks        = 0UL,
   .link_baud                = 115200UL,     /* the number the docs promised */
   .chan             = { { 0, 0 } },   /* no offset, no gain trim */
-  .soa_margin_floor_ppm     = BOARD_SOA_MARGIN_FLOOR_PPM,  /* the bench's 80 % */
+  .soa_margin_floor_ppm     = BOARD_SOA_MARGIN_FLOOR_PPM,  /* 80 % */
 };
 
 /* CRC-16 over everything ahead of the crc field itself. */

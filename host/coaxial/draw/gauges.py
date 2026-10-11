@@ -10,7 +10,7 @@ from machine import ansi
 #: peak - here so a view need not reach into `cross_section` for it.
 MARK = cross_section.MARK
 
-#: The identification's states as a page says them (the bench's abbreviations): whole, and
+#: The identification's states as a page says them: whole, and
 #: beside a margin's percent.
 POLICY_WORD = {'STABLE': 'STABLE', 'CONVERGING': 'CONV', 'UNCERTAIN': 'UNCR'}
 POLICY_SHORT = {'STABLE': 'STBL'}
@@ -110,7 +110,7 @@ def bar(share, cells, cls=SOA_OK, tip=MARK, colour=True):
 #: judges nothing by it (invariant 10) and the colours carry the real
 #: ceilings. From -35 so a winter bench starts on the tube rather than
 #: under it, to 130 so a node at the record's highest ceiling (125) is
-#: seen short of the top - the bench's numbers.
+#: seen short of the top.
 TEMP_FLOOR_C, TEMP_SCALE_C = -35.0, 130.0
 
 

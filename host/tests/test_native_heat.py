@@ -5,7 +5,7 @@ The world laid in the tour's rooms (coaxial.model.rooms) at a raised haste, the 
 load on it: the identification STABLE in the first room, the tour on to the next, the board
 cooling or warming faster than the observer expects and the state lost, then STABLE again. And
 the rotor page's demo, its loads on the world: the switches into their SOA and the envelope
-throttling them there, no node past its ceiling - the bench's words. The tour's
+throttling them there, no node past its ceiling. The tour's
 deadlines are on the observer's own clock: a slow host stretches the wall's time, not the
 world's.
 

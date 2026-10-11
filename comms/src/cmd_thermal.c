@@ -383,7 +383,7 @@ static cmd_status_t h_thermal_set_margin(rd_t *in, wr_t *out)
   if ((floor_ppm <= 0) || (floor_ppm > 1000000L))
   {
     wr_took(out, "the floor is a fraction of the span, 1 .. 1 000 000 ppm - "
-                  "800 000 is the bench's; zero would trip the stage at boot");
+                  "800 000 is the default; zero would trip the stage at boot");
     return CMD_OK;
   }
   if (!Board_ThermalSetMarginFloor((float)floor_ppm / PPM_PER_UNIT))

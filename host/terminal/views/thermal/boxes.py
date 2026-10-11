@@ -14,18 +14,18 @@ from terminal.ui.stage import hud
 
 #: The room hint above the board, on the estimated ambient (op 10): cold
 #: under 5 C, hot from 35, 'unsure' while the filtered innovation is 0.3 K or
-#: more (UNCERTAIN's ratio on this board's 0.1). Emoji on the bench's word
+#: more (UNCERTAIN's ratio on this board's 0.1). Emoji
 #: (after braille pictograms), two cells at the terminal's size:
 #: no escape scales a glyph (DECDHL is undone in Windows Terminal and
 #: xterm.js).
 ROOM_COLD_C, ROOM_HOT_C = 5.0, 35.0
 ROOM_UNSURE_K = 0.3
-#: Hysteresis, so a boundary room keeps its word (bench): a held
+#: Hysteresis, so a boundary room keeps its word: a held
 #: word stands until the room is this far past its threshold, and 'unsure'
 #: until the innovation is under ROOM_SURE_K.
 ROOM_HYSTERESIS_K = 2.0
 ROOM_SURE_K = 0.2
-#: Each hint is two single-code-point emoji with a space between (bench):
+#: Each hint is two single-code-point emoji with a space between:
 #: the snowflake and thermometer asked for are narrow characters with a
 #: variation selector, counted one cell and drawn two, and the SENSE frame
 #: shifted.
@@ -158,7 +158,7 @@ def envelope_rows(ident):
     return rows
 
 
-#: The map's marks in words, a box under SENSE (bench).
+#: The map's marks in words, a box under SENSE.
 MAP_WORDS = {'U': 'FETs, shunts', 'V': 'FETs, shunts', 'W': 'FETs, shunts',
              'REG': 'regulators', 'MCU': 'the STM32', 'HS': 'hot swap',
              'AFE': 'front end', 'NTC': 'thermistor, by the bore'}
@@ -208,7 +208,7 @@ def status_boxes(state, budget, aspect=None, ident=None, hint=None, afe=None):
         # No `err` row: the model now against a reading a sample old read +9 K on a model
         # 0.1 K out; the miss as judged is HEADROOM's innovation.
         sense = [('NTC', '%.1f C' % state['ntc'])]
-    # One fact a row (bench): `sample every 30 s - last 0 s ago`
+    # One fact a row: `sample every 30 s - last 0 s ago`
     # as one row was cropped at the panel's edge. `run`: how long the observer has, with a
     # thermometer or without; `last` a dash until one has answered.
     answered = any(state.get(name) is not None for name in ('ntc', 'mcu', 'afe'))

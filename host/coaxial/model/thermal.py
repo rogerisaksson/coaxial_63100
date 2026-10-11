@@ -9,7 +9,7 @@ SECONDS_PER_MINUTE = 60.0
 #: is the iron's own air path - board_thermal.c's WINDING_INTO_IRON.
 WINDING_INTO_IRON = 0.25
 
-#: The room, assumed: 25 C on the bench's word.
+#: The room, assumed: 25 C.
 #: The board cannot read it itself; the stand-in starts every node here.
 AMBIENT = 25.0
 
