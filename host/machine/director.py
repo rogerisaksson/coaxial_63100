@@ -22,11 +22,10 @@ from machine import (arrival, down, drives, errands, falls, figure, gait, getup,
 
 #: Falling, past the walker's recovery: the trunk (`_trunk`) tipped past FALLING_DEG and tipping
 #: on faster than FALLING_DEG_S, or the pelvis under FALLING_M, walking. Fallen - under FALLEN_M
-#: or tipped past FALLEN_DEG walking, under SQUAT_FALLEN_M in the arrival's moves - is down. Read
-#: on the pelvis, a parry's step pitched it 9 degrees at 141 deg/s and the fall called shorted
-#: her legs as the foot landed on the capture point (2026-10-01); on the head, 0.77 kg whipped
-#: 5.4 m/s under P's shove called her down 0.08 s in and it struck at 1.75 and 3.57 m/s; on the
-#: trunk in none of 16 (2026-10-02).
+#: or tipped past FALLEN_DEG walking, under SQUAT_FALLEN_M in the arrival's moves, doing a word
+#: `errands.fallen` - is down. Read on the pelvis, a parry's step pitched it 9 deg at 141 deg/s
+#: and the call shorted her legs (2026-10-01); on the head, 0.77 kg whipped 5.4 m/s under P's
+#: shove called her down 0.08 s in; on the trunk in none of 16 (2026-10-02).
 FALLING_DEG, FALLING_DEG_S, FALLING_M = 12.0, 60.0, 0.65
 FALLEN_M, FALLEN_DEG, SQUAT_FALLEN_M = 0.55, 35.0, 0.3
 
@@ -369,7 +368,7 @@ class Director:
     def _falling(self, bus):
         """Past recovery, walking (FALLING_DEG ..)."""
         if (self.stage in arrival.STAGES and self.stage not in STANDING
-                or self.stage in getup.STAGES):
+                or self.stage in getup.STAGES or self.stage == 'errand'):
             self.tilt_was = None
             return False
         tilt, t = self._tilt(bus), bus['t']
@@ -393,6 +392,8 @@ class Director:
             return bus['pelvis.pose.y'] < SQUAT_FALLEN_M
         if self.stage in getup.STAGES:
             return False
+        if self.stage == 'errand':
+            return errands.fallen(self, bus)
         return bus['pelvis.pose.y'] < FALLEN_M or self._tilt(bus) > FALLEN_DEG
 
     def _foot(self, bus, side, sign):

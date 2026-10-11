@@ -149,8 +149,9 @@ class Going:
         """A foot down at `at` on the floor: it stands, and the height's law is laid anew."""
         a = self.ask
         flat = sub((at[0], 0.0, at[2]), apply(ry(self.heading), SOLE_HEEL if on_heel else SOLE_BALL))
-        leg.update(stands=True, t=0.0, flat=flat, was=last, off=None,
-                   landed=pitched(foot) if on_heel else max(0.0, pitched(foot)))
+        leg.update(stands=True, t=0.0, flat=flat, yaw=self.heading, was=last, off=None,
+                   landed=(pitched(foot, self.heading) if on_heel
+                           else max(0.0, pitched(foot, self.heading))))
         # the bounce: to `up` over her landing and rising as asked - or, that over what the
         # strut will reach then, onto the strut as it will be going: ended 10 cm up it threw
         # her off the floor, the knee 37 to 6 deg in 0.1 s (2026-10-05)
@@ -180,18 +181,20 @@ class Going:
              + self.y['rate'] * ON_S * (1.0 - math.exp(-max(0.0, self.y['t'] - self.y['span'])
                                                        / ON_S)))
         sunk = self.y['landed'] - y
-        c, s = math.cos(self.heading), math.sin(self.heading)
-        on = {}
+        # a standing foot keeps the yaw it landed with; the heading is where the next lands
+        # and the pelvis turns to: turned with the heading every pass, the planted foot
+        # fought the floor and she fell turning 0.1 rad/s (2026-10-11)
+        on, yaw = {}, {side: self.legs[side].get('yaw', self.heading) for side in standing}
         for side in standing:
             ahead = sub(figure.hip(1.0 if side == 'left' else -1.0, (pel[0], y, pel[2]), turn),
                         self.legs[side]['flat'])
-            on[side] = ahead[0] * s + ahead[2] * c
+            on[side] = ahead[0] * math.sin(yaw[side]) + ahead[2] * math.cos(yaw[side])
         # the leg landed last on its own heel's place; another, its heel as far up as it goes:
         # both down, the one that reaches her carries her - let fall 1.4 cm to the new leg's
         # reach she came onto a straight leg at 531 N, 0.92 to 0.5 m/s (2026-10-05)
         cap = max(strut.reach(1.0 if side == 'left' else -1.0, (pel[0], pel[2]), turn, strut.ankle(
             self.legs[side]['flat'], strut.rocker(self.legs[side], off, on[side], sunk)
-            if side == lead else math.radians(strut.HEEL_UP_DEG), self.heading), a['strut'])
+            if side == lead else math.radians(strut.HEEL_UP_DEG), yaw[side]), a['strut'])
             for side in standing)
         # a walk's one foot down keeps her up where the free foot's landing meets the floor,
         # its heel rising as that asks: on a flat foot's arc she came down 6-8 cm a step of
@@ -202,13 +205,13 @@ class Going:
                 1.0 if lead == 'left' else -1.0, (pel[0], pel[2]), turn, strut.ankle(
                     self.legs[lead]['flat'], strut.rocker(
                         self.legs[lead], off, on[lead], sunk,
-                        strut.heel(a['off'] * share, on[lead])), self.heading), a['strut'])))
+                        strut.heel(a['off'] * share, on[lead])), yaw[lead]), a['strut'])))
         # standing on both feet she is no higher than both reach flat: over it a heel rose to
         # reach her, its ball pushed her back, and the further back the more (2026-10-06)
         still = hold.stood(a['speed'])
         if still > 0.0 and len(standing) == 2:
             flat = min(strut.reach(1.0 if side == 'left' else -1.0, (pel[0], pel[2]), turn,
-                                   strut.ankle(self.legs[side]['flat'], 0.0, self.heading),
+                                   strut.ankle(self.legs[side]['flat'], 0.0, yaw[side]),
                                    a['strut']) for side in standing)
             cap += still * (min(cap, flat) - cap)
         lean = hold.lean(self, standing, a, com)
@@ -222,9 +225,9 @@ class Going:
                 pre = math.radians(a['off']) * share * eased(gone / GIVEN) * eased(
                     self.legs[lead]['t'] / (a['stand'] - a['step']))
             pitch = strut.rocker(leg, off, on[side], sunk, max(pre, strut.need(
-                figure.hip(sign, target, turn), leg['flat'], self.heading, a['strut'])))
-            feet[side] = (strut.ankle(leg['flat'], pitch, self.heading),
-                          mul(ry(self.heading), rx(pitch)))
+                figure.hip(sign, target, turn), leg['flat'], yaw[side], a['strut'])))
+            feet[side] = (strut.ankle(leg['flat'], pitch, yaw[side]),
+                          mul(ry(yaw[side]), rx(pitch)))
         return feet, target
 
     def _due(self, leg, other, sign, pel, now, com, v, both, share):
@@ -293,11 +296,14 @@ class Going:
                 on_heel = back[1] < ball[1]
                 self._landed(leg, other, sign, pel, now, v, back if on_heel else ball, on_heel,
                              foot, last)
-                on = pel[0] * s + pel[2] * c
-                self.pace = ((on - self.mark[0]) / (bus['t'] - self.mark[1])
-                             if self.mark is not None and bus['t'] > self.mark[1] else
+                # from where the last step began, along the heading now: two positions
+                # projected on two headings differ by her distance from the origin times
+                # the turn - turning 0.3 rad/s 3.6 m out she read 0.1 m/s at 0.65 (2026-10-11)
+                self.pace = (((pel[0] - self.mark[0]) * s + (pel[2] - self.mark[1]) * c)
+                             / (bus['t'] - self.mark[2])
+                             if self.mark is not None and bus['t'] > self.mark[2] else
                              v[0] * s + v[2] * c)
-                self.mark = (on, bus['t'])
+                self.mark = (pel[0], pel[2], bus['t'])
                 # a walk's steps are not shortened: nothing to wind up for it
                 self.bias = max(-BIAS_M * (1.0 - share), min(BIAS_M, self.bias + SPEED_I * (
                     self.pace - a['speed'])))
@@ -312,7 +318,8 @@ class Going:
                 # `both` s after the other landed - before it is due, `both` under 0: a run's
                 # flight, its stance `stand` s as the other's step is on time
                 self.stays = None
-                leg.update(stands=False, t=0.0, rise=pitched(now) + last[2] + last[3] + last[4],
+                leg.update(stands=False, t=0.0,
+                           rise=pitched(now, self.heading) + last[2] + last[3] + last[4],
                            rate=self.rates.get(side, (0.0,) * 6), to_go=None, u=0.0, reach=0.0,
                            meets=None, **{'from': last})
                 row = next((r for r in reversed(self.steps) if r['side'] == side), None)

@@ -110,9 +110,12 @@ def heel(on, landed, sunk):
                math.radians(HEEL_OFF_DEG) * eased((on - HEEL_FROM_M) / (HEEL_TO_M - HEEL_FROM_M)))
 
 
-def pitched(turn):
-    """A turn's pitch on, rad."""
-    return math.atan2(turn[2][1], turn[1][1])
+def pitched(turn, heading=0.0):
+    """A turn's pitch on along `heading`, rad: its up-axis's lean that way. Read along the
+    world's z, a foot landed facing 90 deg read its roll as its pitch, and turning 0.3 rad/s
+    she fell at 11 s (2026-10-11)."""
+    return math.atan2(turn[0][1] * math.sin(heading) + turn[2][1] * math.cos(heading),
+                      turn[1][1])
 
 
 class Runner:

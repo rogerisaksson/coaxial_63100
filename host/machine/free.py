@@ -65,7 +65,7 @@ def swung(law, leg, sign, pel, now, v):
     joints[2] -= LEAD * law.share() * fold
     rise = (leg['rise'] * (1.0 - eased(u / LEVEL))
             + math.radians(a['land']) * eased((u - LEVEL) / (1.0 - LEVEL)))
-    joints[4] = rise - (pitched(now) + joints[2] + joints[3])
+    joints[4] = rise - (pitched(now, law.heading) + joints[2] + joints[3])
     if screw is not None:
         joints = [p + going * (q - p) for p, q in zip(joints, screw)]
     return joints

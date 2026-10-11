@@ -47,7 +47,7 @@ def take(director, bus, out):
         angles = tuple(math.radians(bus.get(side + k + '.deg', 0.0)) for k in figure.LEG)
         ankle, _foot = figure.foot_of(sign, pel, now, angles)
         law.legs[side] = {'stands': True, 't': 1.0, 'flat': (ankle[0], gait.ANKLE_H, ankle[2]),
-                          'landed': 0.0, 'off': None,
+                          'yaw': law.heading, 'landed': 0.0, 'off': None,
                           'was': tuple(math.radians(out[side + k]) for k in figure.LEG)}
     law.y = {'t': 1.0, 'span': 1.0, 'landed': pel[1], 'rate': 0.0,
              'from': (pel[1], 0.0, 0.0), 'to': (pel[1], 0.0, 0.0)}

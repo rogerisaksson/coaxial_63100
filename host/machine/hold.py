@@ -38,6 +38,13 @@ FLY_LEAN = 0.4
 #: within SHIFT_M either way, a foot down 2.4 cm from it kept the other on the floor, and her
 #: capture point ran 3.7 cm out over the first: down at 1.4 s (2026-10-05).
 STIRS_M_S, SHIFT_M, LIGHT_N = 0.067, 0.02, 43.0
+#: Standing, a foot this far off her heading, rad, steps round onto it.
+TWIST_RAD = 0.35
+
+
+def wrapped(a):
+    """`a` rad into (-pi, pi]."""
+    return (a + math.pi) % math.tau - math.pi
 
 
 def stood(speed):
@@ -84,6 +91,12 @@ def staying(law, a, loads):
         on = (left[0] - right[0]) * s + (left[2] - right[2]) * c
         if abs(on) > CLOSE_M and abs(law.v[0] * s + law.v[2] * c) < STIRS_M_S:
             return ('left' if on > 0.0 else 'right'), False
+        # a foot TWIST_RAD or more off her heading steps round onto it: the one less off
+        # stays, as off, the one bearing more
+        twist = {side: abs(wrapped(law.heading - law.legs[side].get('yaw', law.heading)))
+                 for side in law.legs}
+        if max(twist.values()) > TWIST_RAD:
+            return min(twist, key=lambda side: (twist[side], -loads[side])), False
         return None, False
     if law.stays is not None:
         return law.stays, False

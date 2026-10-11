@@ -181,11 +181,28 @@ the files under docs/FINDINGS.md. An item is deleted when its DOD is met.
     + DOD: the stand and the walk on the C loop with their measures kept
       (J/m, band, polar); a step < 1 ms on a 475 MHz M7.
 
-32. **The law's turn, then the room's words** (room.md): the one law turns
-    0.05 rad/s walking and not on the spot - a 10 m curve, no target in the
-    6 x 5 m room reached; a turn row (the landing yawed, the pelvis after it)
-    measured on the form, then sit, lie, out and the lamp (`machine.errands`,
-    keys U I E Y) walked to and done, and tests of each.
+32. **The room's words** (room.md): the law turns (turns.md: walking
+    0.3 rad/s, standing 0.5 stepping round); out walks through the door;
+    test_room.py holds the three.
+    + Lamp: her hand placed at a point - the arm's two joints solved for the
+      switch from the pelvis as read, or the reach as she walks the last
+      0.4 m: the arc from a set angle crosses the switch's 8 cm only
+      0.39-0.44 m off it, the halt scatters her 0.1-0.3 m.
+    + Sit and lie: a step back to the seat, or the pelvis let down on the
+      law; stepping round wants 0.5 m clear, the keyframes reach 0.45 m
+      back; lain along the bed from its foot she tumbled.
+    + DOD: U, I, E, Y from the page, each done and up again, in
+      test_room.py.
+
+33. **Knowledge and models of her surroundings** (the user, 2026-10-11, as she
+    walked into the door post on the page): classical image analysis and
+    stereo vision - a camera pair on her head rendered from the world,
+    disparity to depth, the depth classified into the room's things (walls,
+    door, furniture) as boxes on a map she keeps, and her errands' ways
+    planned round them; the world's own geometry read by nothing of hers.
+    + DOD: the map's boxes against the room's within 0.1 m; out through the
+      door clearing its posts by 0.25 m, 10 of 10 from anywhere in the room;
+      a chair moved into her way walked round; on the page.
 
 ## Bench
 

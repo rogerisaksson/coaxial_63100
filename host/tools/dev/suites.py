@@ -105,7 +105,7 @@ CONTROLLER = 'test_controller.py'
 #: run's (`run.FORM`); her going on the one law, its rows (`go.FORM`).
 GYNOID, GYNOID_FAULTS, GYNOID_FALLS = 'test_gynoid.py', 'test_gynoid_faults.py', 'test_gynoid_falls.py'
 GYNOID_STAND, GYNOID_GAIT, GYNOID_RUN = 'test_gynoid_stand.py', 'test_gynoid_gait.py', 'test_gynoid_run.py'
-GYNOID_GOING, WBC = 'test_gynoid_going.py', 'test_wbc.py'
+GYNOID_GOING, WBC, ROOM = 'test_gynoid_going.py', 'test_wbc.py', 'test_room.py'
 THRUSTS = 'test_thrusts.py'
 
 #: The cyclic executive (machine.cyclic): its steps against machine.parts, a cycle on a toy rotor.
@@ -123,7 +123,7 @@ DEFAULT_SUITES = (STRUCTURES + (CORE, SHTP, DRIVE, DRIVE_OBSERVER, FILTER, THERM
                    CTRL_CORE, WORLD_CORE, WIRE, NATIVE, NATIVE_HEAT, EMULATOR,
                    SENSORLESS,
                    BROKER, DAQ_API, CONTROLLER, GYNOID, GYNOID_FAULTS, GYNOID_FALLS,
-                   GYNOID_STAND, GYNOID_GAIT, GYNOID_RUN, GYNOID_GOING, WBC, CYCLIC, QUAD,
+                   GYNOID_STAND, GYNOID_GAIT, GYNOID_RUN, GYNOID_GOING, ROOM, WBC, CYCLIC, QUAD,
                    THRUSTS, QUAD_COURSE, BOOT)
                   + VIEWS
                   + (RENDER,) + OLLAMA
@@ -155,6 +155,7 @@ JOINS = (
     (12, GYNOID_GAIT),
     (12, GYNOID_RUN),
     (12, GYNOID_GOING),
+    (12, ROOM),
     (12, WBC),
     (12, CYCLIC),
     (12, QUAD),
@@ -309,7 +310,7 @@ TOUCHES = (
     ('host/coaxial/graphics/scenery.py',       QUADS + (RENDER,)),
     ('host/machine/',                          (CONTROLLER, GYNOID, GYNOID_FAULTS, GYNOID_FALLS,
                                                 GYNOID_STAND, GYNOID_GAIT, GYNOID_RUN,
-                                                GYNOID_GOING, WBC, CYCLIC,
+                                                GYNOID_GOING, ROOM, WBC, CYCLIC,
                                                 'test_simulated.py', 'test_mcp.py',
                                                 'test_views_humanoid.py')),
     ('host/coaxial/graphics/gynoid.py',        (RENDER, *VIEWS, GYNOID)),

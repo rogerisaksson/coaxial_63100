@@ -360,6 +360,7 @@ Six firmware defects, no hardware fault:
 | Walk: plan, shape, look, start from the squat | [findings/walk.md](findings/walk.md) |
 | Run: a bounce a foot, its demand on the drives, landings | [findings/run.md](findings/run.md) |
 | One going law: stand, walk and run as setpoints; its rows | [findings/going.md](findings/going.md) |
+| Turns on the law: walking 0.3 rad/s, stepping round standing 0.5; the two frame bugs | [findings/turns.md](findings/turns.md) |
 | A woman's walk as the metric: the band, walks off it, the take | [findings/normal.md](findings/normal.md) |
 | Feet: passive toes, the sole's give, the push-off | [findings/feet.md](findings/feet.md) |
 | The living room: glass walls, furniture, a door, a lamp; the words and the law's turn | [findings/room.md](findings/room.md) |

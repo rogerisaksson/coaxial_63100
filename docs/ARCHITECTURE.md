@@ -241,6 +241,7 @@ tests/              suites, .counts.json (measured sizes)
 | `test_gynoid_faults.py` | on the boards as built: the envelope derating and tripping them, glitches, a caught lace |
 | `test_gynoid_gait.py` | the walk's form, held to its take (tests/takes/walk.fbx) and to a woman's band (`tools/sim/normal.py`) |
 | `test_gynoid_going.py` | the one law's rows, the ways between them, its manners read back in the band's words |
+| `test_room.py` | the law's turns, walking and stepping round standing; out through the room's door |
 | `test_wbc.py` | the QP solver's KKT, two levels' priority, standing, shoves with and without a step |
 | `test_wbc_core.py` | her chain in C against MuJoCo: frames, M, bias, Jacobians at random configurations; a step's time |
 

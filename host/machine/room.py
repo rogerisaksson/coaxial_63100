@@ -30,21 +30,22 @@ LAMP_AT, POST_H, SHADE = (-2.5, -1.0), 0.75, (0.15, 0.12, 0.15)
 SWITCH_AT, SWITCH = (1.05, -0.5), (0.03, 0.04, 0.02)
 #: A touch of the switch toggles the lamp, and not again for this long, s.
 SWITCH_S = 0.6
+#: The switch's (x, z), world.
+SWITCH_XZ = (-WIDE + THICK + SWITCH[2], SWITCH_AT[1])
 
 #: What she does there, by word: where she walks to (x, z), which way she then faces (rad about
-#: up from z), and what she does (`director`): 'sit' on the chair, 'lie' on the bed, 'out'
-#: through the door, 'lamp' the switch under her hand.
-WORDS = {'sit': ((CHAIR_AT[0], CHAIR_AT[1] - 0.35), math.pi, 'sit'),
-         'lie': ((BED_AT[0] + BED[0] + 0.35, BED_AT[1]), math.pi / 2.0, 'lie'),
-         'out': (((DOOR_X[0] + DOOR_X[1]) / 2.0, TO + 1.0), 0.0, 'out'),
-         'lamp': ((-WIDE + 0.45, SWITCH_AT[1]), -math.pi / 2.0, 'lamp'),
-         'up': (None, None, 'up')}
-
-#: The waypoints (x, z) a word's walk goes by before its target, where it is faced the other
-#: way round from the squat (facing +z at the origin): a loop the law's heading can follow.
-WAYS = {'sit': ((0.8, 1.8), (2.2, 2.4), (2.4, 1.2)),
-        'lie': ((-0.3, 0.3), (-0.6, 2.9), (-1.0, 2.6)),
-        'lamp': ((-1.4, 0.2), (-2.0, -0.9), (-2.5, -1.4), (-2.5, -0.9))}
+#: up from z), what she does (`director`) - 'sit' on the chair, 'lie' on the bed, 'out' through
+#: the door, 'lamp' the switch under her hand - and the heading she comes to it on: the chair's
+#: target 0.6 m before its seat, come at along the gap to the table (an approach from the
+#: table's side ran under it, 0.45 m before the seat her toes met its legs stepping round); the
+#: bed's 0.45 m off its foot, lain along it (lain across it she rolled off its far side); the
+#: switch's 0.28 m off the wall, her right hand's 0.27 m before it (2026-10-11).
+WORDS = {'sit': ((CHAIR_AT[0], CHAIR_AT[1] - 0.6), math.pi, 'sit', math.pi / 2.0),
+         'lie': ((BED_AT[0], BED_AT[1] - BED[2] - 0.45), math.pi, 'lie', -math.pi / 2.0),
+         'out': (((DOOR_X[0] + DOOR_X[1]) / 2.0, TO + 1.0), 0.0, 'out', 0.0),
+         'lamp': ((-WIDE + THICK + 0.28, SWITCH_AT[1] + 0.27), -math.pi / 2.0, 'lamp',
+                  -math.pi / 2.0),
+         'up': (None, None, 'up', None)}
 
 
 def _box(name, at, half, contacts, extra=''):
