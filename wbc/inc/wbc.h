@@ -76,7 +76,8 @@ void wbc_body_momentum(const wbc_body_t *b, const double com[3], double k[3]);
 #define WBC_EXTRA 32
 
 /** What the loop is asked, R^k: a sole bears or swings; the centre of mass's acceleration; the
-    pelvis's and the trunk's turns; a swinging sole's place, speed, acceleration and turn; a
+    pelvis's and the trunk's turns, one of all zeros unasked; a swinging sole's place, speed,
+    acceleration and turn; a
     swinging knee's fold; the posture; each drive's derate; war emergency power; the angular
     momentum's rate, or none to bleed it. World frame; quaternions (w, x, y, z); the drives in
     wbc_driven's order. */

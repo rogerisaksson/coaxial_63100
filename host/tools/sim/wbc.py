@@ -101,7 +101,7 @@ def _under(m, body, root):
 
 
 def stand(push=0.0, way=0.0, seconds=None, trace=False, wep=True, steps=True, at=AT_S, walk=None,
-          core=False, inner='pd'):
+          core=False, inner='pd', asked=None):
     """{stood, tilt deg, drift m, top share, us a step, wep s, steps, ..} standing `seconds` (TO_S
     past the shove), shoved `push` N from `way` deg at `at`; `wep` war emergency power granted;
     `steps` the MPC's law, else the capture point's alone; `walk` (m/s, s a step) asked from
@@ -109,7 +109,8 @@ def stand(push=0.0, way=0.0, seconds=None, trace=False, wep=True, steps=True, at
     loop in C (`tools.cores.wbc.stack_step`) in the python stack's place; `inner` the drives'
     own loop: 'pd' round a reference integrated from the stack's accelerations, 'eso' each
     drive's disturbance observed (`parts.Eso` at ESO_WO) and taken off its torque, 'none' the
-    torque as asked."""
+    torque as asked; `asked` a law of the caller's in the MPC's place: (st, s, loads, now,
+    bears, body) -> the stack's ask."""
     import numpy as np
     from machine import balance, gait, parts, physics, wbc
     from machine.errors import MachineError
@@ -156,7 +157,8 @@ def stand(push=0.0, way=0.0, seconds=None, trace=False, wep=True, steps=True, at
     while now[0] < seconds:
         t0 = time.perf_counter()
         s = wbc.sense(body, world.data.qpos, world.data.qvel)
-        ask = (balance.step(st, s, loads(world, force), now[0], bears=bears) if steps
+        ask = (asked(st, s, loads(world, force), now[0], bears, body) if asked
+               else balance.step(st, s, loads(world, force), now[0], bears=bears) if steps
                else law(s, st, mid))
         try:
             out = ((stack_step if core else wbc.step)(body, s, dict(ask, wep=left > 0.0)))

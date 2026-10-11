@@ -393,6 +393,13 @@ static void lay_level(wbc_body_t *b, wbc_stack_t *s, const double u[WBC_N],
   }
   for (int i = 0; i < WBC_S; i++)
   {
+    /* A standing sole's margins only: laid for a sole in the air too, their weight set the
+       level's scale and the levels below came in as strong as a swinging sole's own ask -
+       with no sole standing 33 of 115 m/s^2 of it was met, the python stack 110. */
+    if (s->standing[i / 4] < 0)
+    {
+      continue;
+    }
     memset(a, 0, sizeof(a));
     a[WBC_N + 2 * WBC_F + i] = 1.0;
     lay(s, 2, a, 0.0, sqrt(SLACK_W));
@@ -406,6 +413,13 @@ static void lay_level(wbc_body_t *b, wbc_stack_t *s, const double u[WBC_N],
       const int link = t ? wbc_trunk : 0;
       double    drift[6], wdot[3];
 
+      /* A turn of all zeros is unasked: with no sole standing there is nothing to turn her
+         against, and asked she spun her legs to hold her trunk still. */
+      if ((ask->turn[t][0] == 0.0) && (ask->turn[t][1] == 0.0) && (ask->turn[t][2] == 0.0)
+          && (ask->turn[t][3] == 0.0))
+      {
+        continue;
+      }
       wbc_body_jacobian(b, link, origin, s->jac);
       wbc_body_drift(b, link, origin, drift);
       wbc_quat_of(b->t[link].r, have);

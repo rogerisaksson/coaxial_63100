@@ -147,6 +147,7 @@ tools/sim/          the drive core on this host: montecarlo, observer_run;
                     (the start a stage a row, simulated or a recording); run
                     (the run a landing a row, the drives against it); wbc
                     (the whole-body stack standing, shoved, walking);
+                    hop (a hop on it: thrown, flown, landed);
                     quad_race (the quad's laps through fixed flights, a search
                     over its plan and its line)
 tools/cores/        build: the portable cores' gcc build;
@@ -204,6 +205,7 @@ tests/              suites, .counts.json (measured sizes)
 | figure | the gynoid's segments, masses, leg IK |
 | reach | a leg's reach over its foot from static arrays (reach_rows, laid by tools/cores/reach.py): margins, the flat place landed, two feet's gap; a limb an index |
 | terms | her movements by their orthopaedic names from static arrays (term_rows, laid by tools/cores/terms.py): a part and a movement, its joint kind, sign and stops |
+| flight | on the whole-body stack: her soles released together as she leaves the floor, each asked to its landing (reach), taken again as she comes down |
 | physics | DYNAMIC: the figure in MuJoCo, a drive a joint |
 | gearbox | each drive's gearbox: the rotor free across its play, the box wound up past it, the link turned |
 | room | a living room round her: glass walls, furniture, a door, a lamp, and its words |
@@ -259,6 +261,7 @@ tests/              suites, .counts.json (measured sizes)
 | `test_terms.py` | her movements' terms: its rows her figure's, a term moving her in MuJoCo as its name says by either limb, its stops, what she has not |
 | `test_wbc.py` | the QP solver's KKT, two levels' priority, standing, shoves with and without a step |
 | `test_wbc_core.py` | her chain in C against MuJoCo: frames, M, bias, Jacobians at random configurations; a step's time |
+| `test_flight.py` | her soles released together and one alone only as lost; a landing within her reach; the loop in C against the python stack with no sole standing; a hop stood on both |
 
 - The stand-in is the emulated world's reference: `tools/dev/ab.py` runs a
   page on both, a process a page, and marks a read missing, a range apart

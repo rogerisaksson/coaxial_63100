@@ -50,3 +50,6 @@ it names. A closed item is cut from the list and gets its line here, last.
     at 55 V 673.5 rad/s where 650.5 ([drive](findings/drive.md)).
 23. Her movements' orthopaedic terms as laid rows, a joint and its sign found
     in her figure ([kinematics](findings/kinematics.md)).
+24. Flight on the whole-body stack: her soles released as she leaves the
+    floor and taken again as she lands; a hop stood on the python stack
+    and on the loop in C ([flight](findings/flight.md)).

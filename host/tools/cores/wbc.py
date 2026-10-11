@@ -60,12 +60,13 @@ class Out(ctypes.Structure):
 
 
 def ask_of(ask):
-    """An `Ask` from `machine.wbc.step`'s dict: stance, com_acc, turns, swing, fold, posture,
-    derate, wep, kdot."""
+    """An `Ask` from `machine.wbc.step`'s dict: stance, com_acc, turns - none asked, all zeros
+    -, swing, fold, posture, derate, wep, kdot."""
     a = Ask()
     for k in (0, 1):
         a.stance[k] = int(bool(ask['stance'][k]))
-        a.turn[k][:] = [float(x) for x in ask['turns'][k]]
+    for k, turn in enumerate(ask['turns']):
+        a.turn[k][:] = [float(x) for x in turn]
     a.com_acc[:] = [float(x) for x in ask['com_acc']]
     for k, (at, speed, acc, quat) in ask.get('swing', {}).items():
         a.swing[k] = 1

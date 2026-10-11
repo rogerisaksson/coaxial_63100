@@ -1,11 +1,11 @@
 """What a change to each part of the tree reaches: a path's prefix, its suites."""
 from tools.dev.suites import (BENCH, BOARD_MEM, BOOT, BOOT_CLIENT, BOOT_CORE, BROKER, CONFORMANCE,
                               CONTROLLER, CORE, CTRL_CORE, CYCLIC, DAQ_API, DAQ_CORE, DRIVE,
-                              DRIVE_OBSERVER, EMULATOR, FILTER, GYNOID, GYNOID_FALLS,
+                              DRIVE_OBSERVER, EMULATOR, FILTER, FLIGHT, GYNOID, GYNOID_FALLS,
                               GYNOID_FAULTS, GYNOID_GAIT, GYNOID_GOING, GYNOID_RUN, GYNOID_STAND,
                               HEATED, NATIVE, NATIVE_HEAT, OLLAMA, QUADS, REACH, RENDER, ROOM,
                               SENSORLESS, SHTP, SIGHT, STRUCTURE, TERMS, THERMAL, THERMAL_APP,
-                              VIEWS, WBC, WIRE, WORLD_CORE)
+                              VIEWS, WBC, WBC_CORE, WIRE, WORLD_CORE)
 
 # What a change to each part of the tree can plausibly have broken.
 TOUCHES = (
@@ -60,7 +60,8 @@ TOUCHES = (
     ('host/coaxial/graphics/inset.py',         QUADS + (SIGHT, 'test_views_humanoid.py')),
     ('host/machine/',                          (CONTROLLER, GYNOID, GYNOID_FAULTS, GYNOID_FALLS,
                                                 GYNOID_STAND, GYNOID_GAIT, GYNOID_RUN,
-                                                GYNOID_GOING, ROOM, SIGHT, REACH, TERMS, WBC, CYCLIC,
+                                                GYNOID_GOING, ROOM, SIGHT, REACH, TERMS, WBC, WBC_CORE,
+                                                FLIGHT, CYCLIC,
                                                 'test_simulated.py', 'test_mcp.py',
                                                 'test_views_humanoid.py')),
     ('host/coaxial/graphics/gynoid.py',        (RENDER, *VIEWS, GYNOID)),
@@ -89,6 +90,9 @@ TOUCHES = (
     ('host/tools/cores/drive.py',              (STRUCTURE, DRIVE, DRIVE_OBSERVER, SENSORLESS)),
     ('host/tools/cores/thermal.py',            (THERMAL, THERMAL_APP)),
     ('host/tools/cores/reach.py',              (STRUCTURE, REACH)),
+    ('host/tools/cores/wbc.py',                (STRUCTURE, WBC_CORE, FLIGHT)),
+    ('host/tools/sim/wbc.py',                  (STRUCTURE, WBC, WBC_CORE, FLIGHT)),
+    ('host/tools/sim/hop.py',                  (STRUCTURE, FLIGHT)),
     ('host/tools/cores/terms.py',              (STRUCTURE, TERMS)),
     ('host/tools/cores/',                      (WIRE, NATIVE, NATIVE_HEAT)),
     ('host/tools/dev/counts.py',               ('test_ollama_runner.py',)),
@@ -105,6 +109,7 @@ TOUCHES = (
     # on the host beside it.
     ('filter/',                                (FILTER,)),
     ('ctrl/',                                  (CTRL_CORE,)),
+    ('wbc/',                                   (WBC_CORE, FLIGHT, EMULATOR)),
     ('world/',                                 (WORLD_CORE, NATIVE, NATIVE_HEAT, EMULATOR)),
     ('host/coaxial/acquire/bessel.py',         (FILTER, STRUCTURE)),
     # The control law is hardware-free like the SHTP layer, and its suite
