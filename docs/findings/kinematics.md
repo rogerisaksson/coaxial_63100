@@ -57,7 +57,7 @@ build/prototypes/skin.py (2026-10-06).
   in the outline gone; seated, the seat's bowl under the thigh gone; at 120
   deg an ear of ~7 mm on the thigh's front, the shell's rings 5 cm apart:
   the method's bulge, where a stiff shell's corner reads as a knee.
-- Not in the drawing (TODO 32).
+- Not in the drawing (TODO 31).
 
 ## Two papers read
 
@@ -94,4 +94,4 @@ build/prototypes/skin.py (2026-10-06).
 | plus the trunk's seat 15 mm back on the pelvis | -3.8 mm | 0.6 N m | 439 |
 
 The last walked its walk row backward at 0.26 m/s; 4 more checks of
-test_gynoid_going fell, the falls suite 3 (TODO 33).
+test_gynoid_going fell, the falls suite 3 (TODO 32).

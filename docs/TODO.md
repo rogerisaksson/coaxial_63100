@@ -73,10 +73,12 @@ the files under docs/FINDINGS.md. An item is deleted when its DOD is met.
    + DOD: one bearing size, one rod end; the hip roll's spur pair and the
      ankles' bent rods kept only where removing them costs the scoreboard;
      no flex > 0.25 deg; every bought part a vehicle maker's stock part.
-9. **Structural flex**: a joint-side sensor on every drive, or the wind-up
-   fed forward; decision open.
-   + DOD: the decision; `drives.BOX_K` measured on a prototype; the walk
-     standing at `physics.WOUND` 1; every member < 0.25 deg.
+9. **Structural flex**: the drive's loop on the motor's encoder, the
+   whole-body law on the joint's sensor (`physics.WOUND` 1, drives.md); on
+   the gearboxes as bodies the walk on setpoints stands but drags its toes,
+   the loop on its torques walks.
+   + DOD: `drives.BOX_K` measured on a prototype; the page's walk on the
+     loop at `physics.BOXED` 1 on its form; every member < 0.25 deg.
 10. **Gearboxes: one stage, hollow, printable**: a roller wave round the
     motor's bore, stock rollers, consumer-printer tolerances, backdrivable
     (<https://mevirtuoso.com/wave-reducer-simulator/>,
@@ -120,34 +122,32 @@ the files under docs/FINDINGS.md. An item is deleted when its DOD is met.
       shoulder stop.
 23. **Boards on their buses** (`machine.buses`).
     + DOD: the walk on emulated boards end to end.
-24. **R in the tty crashes it**.
-    + DOD: reproduced from the reported traceback, fixed, a test on it.
-25. **Planner server** after LOCAL_TRIES local failures.
+24. **Planner server** after LOCAL_TRIES local failures.
     + DOD: measured on a fall.
-26. **MuJoCo Warp**: the scoreboard's worlds batched on the GPU.
+25. **MuJoCo Warp**: the scoreboard's worlds batched on the GPU.
     + DOD: its step measured against the CPU's 0.31 ms first.
-27. **`machine/` in subpackages**, every file < 5 k tokens (`director.py`
+26. **`machine/` in subpackages**, every file < 5 k tokens (`director.py`
     6.0, `arrival.py` 5.6).
     + DOD: `test_structure` on the layout.
-28. **One going law, S and F on it** (going.md).
+27. **One going law, S and F on it** (going.md).
     + DOD: F up to the fastest run and S back on the page, 10 of 10; its
       walk on `looks.FORM` and `normal.BAND` at no more J/m; shoved,
       standing as the walk as built.
-29. **Tubes, corners and flanges**: carbon tubes epoxied into printed
+28. **Tubes, corners and flanges**: carbon tubes epoxied into printed
     corners; a gearbox on a flange; motor, box and board outermost; a
     grille or a heat sink on the FETs; a quick-release per limb.
     + DOD: no pair closer than before; each tube in its holder; each board
       on its flange.
-30. **A dance from the move set**: on the toes and tripping, down, a turn
+29. **A dance from the move set**: on the toes and tripping, down, a turn
     with the skirt swinging, seated legs crossed, up again.
     + DOD: twice through on the page, no fall.
-31. **Movement language** (`normal.WORDS`, `gaits.MANNERS`).
+30. **Movement language** (`normal.WORDS`, `gaits.MANNERS`).
     + DOD: tripping without a shuffle; 100 % of a take's measure; a walk
       into 20 N of wind with the asked accent; sitting, rising.
-32. **Kinematics on dual quaternions** (kinematics.md).
+31. **Kinematics on dual quaternions** (kinematics.md).
     + DOD: a posture term, a C core; the legs, the arms, a take and the
       jeans' seams on it.
-33. **Lumbar curve, no holding torque for the pose**.
+32. **Lumbar curve, no holding torque for the pose**.
     + Now, on the one law (`look.py`: torso ahead, pelvis tilt, spine bent,
       mass ahead of hips, spine holds): pelvis tipped 5.2 deg, spine
       straight, upper body 25 mm ahead of the hips, spine holding 2.5 N m;
@@ -161,28 +161,11 @@ the files under docs/FINDINGS.md. An item is deleted when its DOD is met.
       checks failed (head down at 2.7-3.5 m/s, a get-up late).
     + DOD: both walks' spine and hip torques < 0.5 N m on their stride
       means; going and falls suites as on 2026-10-10 (54 of 56, 44 of 44).
-34. **Balance as one convex QP per step** (wbc.md): an MPC over a
-    whole-body stack. Held: friction cones, drive and joint limits, the
-    contacts. Soft: the ZMP in the support, collisions. Priorities by null
-    space; WEP where a fall is near. `machine/qp.py`, `wbc.py`, `mpc.py`,
-    `balance.py`, `tools/sim/wbc.py`; no buses (`World.feed`).
-    + Now, shoved from 8 ways at 3 moments: 60/80/100/120 N stood 24/24/20/16
-      of 24 (the law 12/12/2/0 of 12); 3-7 steps where one would do.
-    + Now, walk asked 0.5 m/s: 0.31 m/s, 792 J/m, steps 0.16 m (the law
-      0.375). Touchdown at 0.39 m/s down, 818 N on the landing sole against
-      162 planned, the trailing sole 0-19 N against 122-141; in single
-      support the stance sole's load flips heel <-> toe base every 4 ms.
-    + Next: a pressure cell under each heel and toe base, the held contact
-      and the landing judged from them; a sole rolling on its ball as a
-      contact; leg collisions; 1.6-11 ms a step in Python.
-    + DOD: 120 N from 8 ways stood, <= 2 steps; 10 m walked at 0.5-1.0 m/s,
-      J/m against the law's; the stack over the buses (a torque register,
-      PROTOCOL MINOR); a step < 1 ms (a C core: M, the bias and the
-      Jacobians from the figure's own screws, MuJoCo the reference).
-35. **Docs as technical documents**: no attributions, no narrative; tables
+33. **Docs as technical documents**: no attributions, no narrative; tables
     and numbers. Done: TODO.
     + DOD: docs/, the READMEs and the code comments outside vendor code.
-36. **The latent stack** (32, 34; wbc.md): her physics as static arrays, one C
+34. **The latent stack** (31; wbc.md, the Python stack before it): her
+    physics as static arrays, one C
     loop over them (`wbc/`), R^k the only thing upward, the model feeding R^k
     as data.
     + Loop: 120 N shoves (1 of 8 where the stack 3); the tick 2.1 ms here;
@@ -206,7 +189,7 @@ the files under docs/FINDINGS.md. An item is deleted when its DOD is met.
     + DOD: the stand and the walk on the C loop with their measures kept
       (J/m, band, polar); a step < 1 ms on a 475 MHz M7.
 
-37. **The law's turn, then the room's words** (room.md): the one law turns
+35. **The law's turn, then the room's words** (room.md): the one law turns
     0.05 rad/s walking and not on the spot - a 10 m curve, no target in the
     6 x 5 m room reached; a turn row (the landing yawed, the pelvis after it)
     measured on the form, then sit, lie, out and the lamp (`machine.errands`,

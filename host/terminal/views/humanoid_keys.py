@@ -28,7 +28,7 @@ CADENCE, CADENCE_STEP = (0.6, 1.0), 0.05
 #: 0.32 m/s, a shuffle on stilts -, her walk, her jog, two faster, the run. On the
 #: walk as built they step its cadence, 0.6-0.9 strides/s: the page's meter two cells down and
 #: none up (the user, 2026-10-05). The law's walk is the page's own once it is a woman's
-#: (docs/TODO.md item 28).
+#: (docs/TODO.md item 27).
 LEVELS = (-1.0, -0.3, -0.15, 0.0, 0.5, 0.7, 0.85, 1.0)
 
 #: Z and X move her style SWAY_STEP of `style.SWAY`'s axis. On the one law M picks the next of

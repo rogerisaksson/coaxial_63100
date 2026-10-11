@@ -77,6 +77,12 @@ kilowatts spent on repetitions.
 
 - A `Feed` slept its period after the read: a 20 ms read at 50 ms fed 14
   readings a second to a 20 fps page. Start to start now (2026-09-28).
+- HUMANOID's R crashed the page at once on 2026-10-03 with no traceback
+  kept; headless it took R and saved 97 rows then, and R starting, three
+  states and R saving is test_views_humanoid.py's since 2026-10-11. The
+  suspect stands: a page started before `buses.FIELDS` changed (play and
+  flex then; delta, delta_d and ahead on 2026-10-11) reads a block of
+  another layout - a page is restarted after a pull.
 - THERMAL OBSERVER said `AFE off` with AFE_ON high: no reading yet, the first
   sample is 30 s after opening. It says which now (2026-09-28).
 - THERMAL OBSERVER and the side columns, a review's 29 findings against the

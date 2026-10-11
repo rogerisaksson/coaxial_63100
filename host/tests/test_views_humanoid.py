@@ -116,8 +116,37 @@ def test_a_held_space_charges_a_push(report):
                  and abs(math.sqrt(sum(x * x for x in a)) - 1.0) < 1e-9, '%s %s' % (a, b))
 
 
+def test_r_records_and_saves(report):
+    """R starts a recording, every state the page hears becomes a row (HEADER), R again writes
+    the CSV under RECORDINGS and names it on the page - headless, as the page takes R."""
+    import csv
+    import os
+    import tempfile
+    from machine.figure import JOINTS
+    from terminal.views import humanoid_keys
+    now = {'t': 1.25, 'stage': 'walk', 'speed': 0.5, 'phase': 0.3, 'loads': (200.0, 300.0),
+           'where': (0.0, 0.9, 1.0), 'turn': (1.0, 0.0, 0.0, 0.0), 'set': {'left_knee': 20.0},
+           'watts': 150.0, 'angles': {j: 0.0 for j in JOINTS}}
+    was, humanoid_keys.RECORDINGS = humanoid_keys.RECORDINGS, tempfile.mkdtemp()
+    try:
+        state: dict = {'recording': None, 'recorded': None, 'yaw': 60.0}
+        humanoid_keys._recorded(state)
+        state['recording'] += [humanoid_keys.row(now, state['yaw']) for _ in range(3)]
+        humanoid_keys._recorded(state)
+        path = state['recorded']
+        with open(path, newline='', encoding='utf-8') as f:
+            rows = list(csv.reader(f))
+        report.check('R, three states, R: a CSV of the header and three rows, every field filled',
+                     rows[0] == humanoid_keys.HEADER and len(rows) == 4
+                     and all(len(r) == len(humanoid_keys.HEADER) for r in rows[1:])
+                     and state['recording'] is None and os.path.basename(path).startswith('humanoid_'),
+                     '%s: %d rows of %d fields' % (os.path.basename(path), len(rows) - 1, len(rows[-1])))
+    finally:
+        humanoid_keys.RECORDINGS = was
+
+
 ROSTER = (test_the_humanoid_pages_mouse, test_the_humanoid_pages_pace,
-          test_a_held_space_charges_a_push)
+          test_a_held_space_charges_a_push, test_r_records_and_saves)
 
 
 def main(argv=None):
