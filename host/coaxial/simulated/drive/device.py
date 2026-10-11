@@ -1,27 +1,42 @@
-"""The stand-in drive: its state, modes, setpoints and parameters, on one lock."""
+"""The stand-in drive: the board's law on its motor in C (world_drive.c), this its edge."""
 import math
-import random
 import threading
 import time
 from typing import Callable, Optional, Any
 
-from coaxial.devices.drive import MODES, PARAMS, SOURCES, DriveControl
+from coaxial.devices.drive import (DT_ROWS, FAULTS, MODE_NAMES, MODES, PARAMS, SOURCES,
+                                   DriveControl)
 from coaxial.errors import RigError
 from coaxial.simulated.drive.capture import DriveCapture
 from coaxial.simulated.drive.locked import _rotor_locked
-from coaxial.simulated.drive.observers import DriveObservers
 from coaxial.simulated.drive.plant import DrivePlant
+from coaxial.simulated.slots import Slots
 from coaxial.simulated.values import DCBUS_V
 from motor.catalog import BENCH_MOTOR
 from motor.pmsm import WINDING_J_PER_K, WINDING_K_PER_W
+from tools.cores import stand
+
+#: world_drive.c's slots.
+_DRIVES = Slots(stand.SLOTS)
+
+#: The most of the wall's time the law is run at one request, s: a board nobody asked for
+#: longer stood still that long. Under any procedure's wait (commissioning's ramp, 1.05 s);
+#: a second of it is 14 ms here.
+CATCH_UP_S = 2.0
+
+#: The record's drive parameters by the law's names (drive_params_t, harness.c's PARAM_ORDER).
+LAW = {'motor_r': 'r', 'motor_ld': 'ld', 'motor_lq': 'lq', 'motor_lambda': 'lambda',
+       'motor_pole_pairs': 'pole_pairs', 'drv_kp': 'kp', 'drv_ki': 'ki', 'drv_l1': 'l1',
+       'drv_l2': 'l2', 'drv_inj_volts': 'inj_volts', 'drv_inj_periods': 'inj_periods',
+       'drv_inj_phase': 'inj_phase', 'drv_eps_gain': 'eps_gain', 'drv_i_trip': 'i_trip',
+       'drv_v_frac': 'v_frac', 'drv_w_lo': 'w_lo', 'drv_w_hi': 'w_hi',
+       'drv_dt_step': 'dt_step'}
 
 
-class SimulatedDrive(DrivePlant, DriveObservers, DriveCapture, DriveControl):
-    """The control law's device without a motor: a locked rotor at zero
-    electrical angle, a phase resistance, two inductances that bend with
-    the d current, a flux linkage and a dead-time voltage error - enough
-    for every commissioning step to recover a number it can check against
-    the constants below.
+class SimulatedDrive(DrivePlant, DriveCapture, DriveControl):
+    """The control law's device without a board: drive.c's law, a PWM period at a time, on
+    drive_model.c's motor - the bench motor below, free on its bearings behind the stage -, so
+    every commissioning step recovers a number it can check against these constants.
     """
 
     #: One definition, in `motor.catalog`, so this motor cannot drift
@@ -37,249 +52,100 @@ class SimulatedDrive(DrivePlant, DriveObservers, DriveCapture, DriveControl):
     I_KNEE = 0.3
     #: TIM1's counter clock. Centre-aligned, so a period is 2 x ARR.
     CLK = 237.5e6
-    #: Where the stage switches, and the one place it is written. The
-    #: `.ioc` sets ARR 2375 off 237.5 MHz, which is 50 kHz, and nothing on
-    #: the wire moves it - ARR comes from CubeMX and the board only reads
-    #: it back. The stand-in takes 10 kHz to 100 kHz instead, so the
-    #: observers, the injection and the model can be tried across the
-    #: range:
-    #:
-    #:     rig.board.drive._sim.pwm_hz = 100e3
-    #:
-    #: `TS`, `FS` and `PERIOD` all follow it, and so does everything that
-    #: reads them - the chain steps at whatever `TS` says, the way
-    #: `drive_observer_step` takes its `ts` from the drive rather than a
-    #: constant of its own.
+    #: Where the stage switches: the `.ioc`'s ARR 2375 off 237.5 MHz.
     PWM_HZ = 50e3
-    PWM_HZ_MIN = 10e3
-    PWM_HZ_MAX = 100e3
-
-    @property
-    def pwm_hz(self):
-        """Where the stage switches, Hz."""
-        return self._pwm_hz or self.PWM_HZ
-
-    @pwm_hz.setter
-    def pwm_hz(self, hz):
-        hz = float(hz)
-        if not self.PWM_HZ_MIN <= hz <= self.PWM_HZ_MAX:
-            raise RigError(
-                'a switching frequency of %.0f Hz is outside %.0f to %.0f - '
-                'below it the current ripple runs away and above it the '
-                'dead time is a bigger share of the period than the duty'
-                % (hz, self.PWM_HZ_MIN, self.PWM_HZ_MAX))
-        self._pwm_hz = hz
-        # The chain's constants are rates, not per-period gains, so they carry
-        # across a change; its integrators do not - they hold flux accumulated
-        # at the old period.
-        self._obs = None
-
-    @property
-    def TS(self):
-        """One control period, seconds."""
-        return 1.0 / self.pwm_hz
-
-    @property
-    def FS(self):
-        """Control periods a second - what a window or a moments run fills at."""
-        return self.pwm_hz
-
-    @property
-    def PERIOD(self):
-        """ARR + 1, which is what `Board_PwmPeriod` answers."""
-        return int(round(self.CLK / (2.0 * self.pwm_hz))) + 1
+    #: One control period, s, and how many a second - what a window or a moments run fills at.
+    TS = 1.0 / PWM_HZ
+    FS = PWM_HZ
+    #: ARR + 1, which is what `Board_PwmPeriod` answers.
+    PERIOD = int(round(CLK / (2.0 * PWM_HZ))) + 1
     BEST_TRIGGER = 2300                          #: where the pickup is least
+
+    #: Where the estimate starts, rad: off the rotor at theta0, as a board's is at power-up.
+    THETA_HAT = 0.7
 
     def __init__(self):
         # One rotor, two threads.
         self._lock = threading.RLock()
-        self._mode = 'off'
-        #: The stage's PWM when set by hand, else PWM_HZ; and the shaft,
-        #: accumulated - electrical theta wraps, the mechanical angle
-        #: a shaft sensor reads does not.
-        self._pwm_hz: Optional[float] = None
-        self._mech = 0.0
-        self._fault: Optional[str] = None
+        self._slot = _DRIVES.take(self)
+        self._lib = stand.library()
+        self._law = stand.law(self._slot, self.TS)
         self._sp = {'id_ref': 0.0, 'iq_ref': 0.0, 'theta': 0.0,
                     'omega_target': 0.0, 'accel': 0.0, 'vd': 0.0, 'vq': 0.0,
                     'pol_volts': 0.0, 'pol_periods': 0, 'pol_gap': 0}
         self._params = {}
-        self._theta_hat = 0.7
-        #: The estimate unwrapped: theta_hat and its whole turns, as drive.c counts them.
-        self._hat_path = 0.7
-        self._theta_hat_at = time.time()
-        self._trigger = 2360
-        self._mode_at = time.time()
-        #: HOLD's command, [theta, omega, when]: stepped as drive.c's command_frame.
-        self._cmd = [0.0, 0.0, self._mode_at]
-        self._window_at = time.time()
-        self._mom = None
-        self._pol = (0.0, 0.0)
-        self._cycles_max = 0
         self._source = 'adc'
-        #: The virtual source's rotor, built on demand. The ADC source,
-        #: every caller's default, keeps its rotor still (see `model`), so
-        #: no motor integrates in the background.
-        self._motor = None
-        self._motor_at = 0.0
-        self._motor_acc = 0.0
-        #: Seconds the rotor is owed by a world stepped on its own clock (`paced`), None on
-        #: the wall's.
-        self._pace = None
-        #: The back-EMF chain, built on the first ask: a stand-in
-        #: nobody asks for observers should not be integrating
-        #: two of them in the background.
-        self._obs = None
-        self._obs_at = 0.0
-        self._obs_frame = 0.0
-        self._obs_flux_omega = 0.0
-        self._obs_synced = None
-        #: Whether the bridge is switching, asked of whatever
-        #: owns the gates. None until the board wires it, and then the
-        #: drive's own mode stands in - a drive with no stage behind it.
+        #: The wall's clock the law stands at, the part of a period it is owed, and the
+        #: seconds a world stepped on its own clock told it (`paced`), None on the wall's.
+        self._at = time.time()
+        self._owed = 0.0
+        self._pace: Optional[float] = None
+        self._trigger = 2360
+        self._mom = None
+        self._cycles_max = 0
+        #: The board wires these: MOE and whether the bridge switches on it, asked of whatever
+        #: owns the gates - none, a drive with no stage behind it, armed with its modes -, the
+        #: triple armed at a mode as Board_DriveSetMode arms it, the AFE's rail, what a trip
+        #: drops, the record's raw parameters.
+        self._moe: Optional[Callable[[], Any]] = None
         self._switching: Optional[Callable[[], Any]] = None
-        #: What the thermal envelope is scaling the clamp by, 1 to 0.
-        self._derate = 1.0
-        #: The board's triple and AFE, which the board wires: armed at a mode, as
-        #: Board_DriveSetMode arms it.
         self._arm_sync: Optional[Callable[[], Any]] = None
         self._sync_armed: Callable[[], bool] = lambda: True
         self._afe_on: Callable[[], bool] = lambda: True
-        self._omega_hat = 0.0
+        self._drop: Optional[Callable[[], Any]] = None
+        self._record: Callable[[], dict] = dict
+        #: What the thermal envelope is scaling the clamp by, 1 to 0.
+        self._derate = 1.0
         self._model = {'r': self.R, 'ld': self.LD, 'lq': self.LQ,
                        'lambda': self.LAMBDA, 'pole_pairs': float(self.POLES),
                        'sat': self.SAT, 'i_sat': self.I_SAT, 'j': 2e-5,
                        'b': 1e-5, 'load': 0.0, 'v_dt': self.V_DT,
                        'i_knee': self.I_KNEE, 'vdc': DCBUS_V, 'noise': 0.0,
                        'theta0': 0.0, 'sub': 4.0}
-        #: What the model's current noise is drawn from.
-        self._rng = random.Random(self.NOISE_SEED)
+        self._law.model_params(**self._model)
+        self._lib.world_drive_rest(self._slot)
+        self._law.set_theta(self.THETA_HAT)
+        self._load()
 
-    def _bemf_error(self, rotor):
-        """drive.c's e_bemf: the back-EMF's angle in the estimate's frame - the estimate's
-        error off the rotor - where the back-EMF has weight, above drv_w_lo; none below."""
-        if rotor is None or abs(self._omega_hat) <= self._p('drv_w_lo', 0.0):
-            return 0.0
-        return math.atan2(math.sin(rotor['theta'] - self._theta_hat),
-                          math.cos(rotor['theta'] - self._theta_hat))
+    # -- the clock --------------------------------------------------------
 
-    @_rotor_locked
-    def _rpm(self):
-        """The rotor, rpm mechanical, off the tracker as board_thermal.c's speed_now takes it
-        off the observer, by the record's pole pairs; none while off. By the bench motor's 7
-        the QUAD page's 63100, 14, cooled its boards on 2 941 rpm at 1 471."""
-        if self._mode == 'off':
-            return 0.0
-        omega = self._omega_hat if self._mode == 'sensorless' and self._source == 'model' \
-            else self._omega()
-        pairs = self._params.get('motor_pole_pairs') or self.DEFAULTS['motor_pole_pairs']
-        return abs(omega) / pairs * 60.0 / (2.0 * math.pi)
+    def paced(self, dt):
+        """The law run `dt` s more at its next request, and by nothing but what it is told
+        from then on - a world stepped on its own clock tells each pass's; None, the wall's
+        clock again. On the wall's a pass 0.25 s late turned the rotor those seconds under a
+        setpoint meant for 50 ms: QUAD's frame, stepped its 50, passed a gate 2.7 m off under
+        the gate's load."""
+        with self._lock:
+            self._pace = None if dt is None else (self._pace or 0.0) + float(dt)
+            self._at = time.time()
 
-    def state(self):
-        # The rotor up to now, first.
-        rotor = self._read_model() if self._source == 'model' else None
-        self._converge()
-        iid, iq, vd, vq = self._dq()
-        iid, iq = self._noisy(iid, iq, share=self.CLARKE_NOISE)
-        ih, eps_amps = self._ih()
-        periods = self._periods_since(self._mode_at)
-        if self._mode == 'polarity':
-            self._settle_polarity(periods)
-        gain = self._p('drv_eps_gain', 0.0)
-        return {
-            'mode': self._mode, 'fault': self._fault,
-            # The bridge's state, not the mode's.
-            'stage_enabled': bool(self._switching()) if self._switching
-                             else self._mode != 'off',
-            'afe_on': self._afe_on(),
-            'injecting': bool(self._p('drv_inj_volts', 0.0)) and self._mode in ('hold', 'sensorless'),
-            'owns_compares': self._mode != 'off', 'sync_armed': self._sync_armed(),
-            # On the model source the observer is the tracker that follows the
-            # virtual rotor - a speed loop over omega_hat read 0.0 for ever
-            # while the rotor did 8600 rad/s.
-            'theta_hat': self._theta_hat,
-            'omega_hat': (self._omega_hat if self._source == 'model'
-                          else 0.0),
-            'theta_cmd': (self._cmd_at(time.time())[0] if self._mode == 'hold'
-                          else self._sp['theta']) % (2 * math.pi),
-            'omega_cmd': self._omega(),
-            'id': iid, 'iq': iq, 'vd': vd, 'vq': vq,
-            'vdc': self._model['vdc'] if self._source == 'model' else DCBUS_V,
-            'eps': (eps_amps / gain) if gain else 0.0, 'eps_amps': eps_amps,
-            'ih': ih, 'e_bemf': self._bemf_error(rotor), 'periods': periods,
-            # isr_cycles_last, isr_cycles_max (1620 its floor), exit_ticks_max
-            # (op 0's MINOR 2) and cycles are the stand-in's constants, not
-            # measurements.
-            'isr_cycles_last': 1450, 'isr_cycles_max': max(self._cycles_max, 1620),
-            'pol_pos': self._pol[0], 'pol_neg': self._pol[1],
-            'trigger': self._trigger if self._sync_armed() else 0, 'ts': self.TS,
-            'exit_ticks_max': 2921,
-            'cycles': {'sample': 610, 'step': 1690, 'advance': 620},
-            'turns': round((self._hat_path - self._theta_hat) / (2 * math.pi)),
-        }
+    def _stage(self):
+        """(MOE, the bridge switching on it), as whatever owns the gates has them."""
+        supplied = bool(self._switching()) if self._switching else True
+        return (bool(self._moe()) if self._moe else supplied), supplied
 
-    @_rotor_locked
-    def _set_mode(self, name):
-        if name not in MODES:
-            raise ValueError('%r is not a mode; they are %s' % (name, ', '.join(MODES)))
-        if name == 'polarity' and not self._sp['pol_periods']:
-            raise RigError('polarity needs pol_periods above zero - one pulse '
-                           'of no length measures nothing (simulated)')
-        # Integrate the old mode's time, then change.
-        if self._source == 'model':
-            self._read_model()
-        if name == 'hold':
-            # drive_set_mode: out of a turning sensorless frame onto the rotor, else standing
-            # at the setpoint's angle.
-            turning = self._mode == 'sensorless' and abs(self._omega_hat) > self._p('drv_w_lo', 0.0)
-            self._cmd = ([self._theta_hat, self._omega_hat, time.time()] if turning
-                         else [self._sp['theta'], 0.0, time.time()])
-        self._mode = name
-        self._fault = None
-        self._mode_at = time.time()
-        # Board_DriveSetMode arms the triple for any mode but off.
-        if name != 'off' and self._arm_sync is not None:
-            self._arm_sync()
-        if name != 'off':
-            self._pol = (0.0, 0.0)
-        return True
+    def _advance(self):
+        """The law brought to now, in whole periods: the wall's seconds since it last was,
+        CATCH_UP_S at most, or what its world told; a trip drops the stage."""
+        now = time.time()
+        if self._pace is None:
+            dt = max(0.0, min(now - self._at, CATCH_UP_S))
+        else:
+            dt, self._pace = self._pace, 0.0
+        self._at = now
+        whole = self._owed + dt * self.FS
+        periods = int(whole)
+        self._owed = whole - periods
+        if periods and self._lib.world_drive_run(self._slot, periods, *self._stage()):
+            if self._drop is not None:
+                self._drop()
 
-    @_rotor_locked
-    def _set_setpoints(self, **values):
-        for name in values:
-            if name not in self._sp:
-                raise ValueError('%r is not a setpoint; they are %s' % (name, ', '.join(self._sp)))
-        if self._source == 'model':
-            self._read_model()                       # the old command's time, first
-        if self._mode == 'hold':
-            # The command to now on the old setpoints; a new theta shifts it (drive.c's
-            # drive_set_theta_setpoint).
-            now = time.time()
-            theta, omega = self._cmd_at(now)
-            if 'theta' in values:
-                theta += float(values['theta']) - self._sp['theta']
-            self._cmd = [theta, omega, now]
-        self._sp.update({k: float(v) for k, v in values.items()})
-        return dict(values)
+    def _now(self):
+        """(the law's state, its slot's row) at this moment."""
+        self._advance()
+        return self._law.state(), stand.row(self._slot)
 
-    def setpoints(self):
-        return dict(self._sp)
-
-    @_rotor_locked
-    def set_theta(self, radians):
-        self._estimate(radians)
-        self._theta_hat_at = time.time()
-        return True
-
-    @_rotor_locked
-    def _set_source(self, name):
-        if name not in SOURCES:
-            raise ValueError('%r is not a source; they are %s' % (name, ', '.join(SOURCES)))
-        if self._mode != 'off':
-            raise RigError('the drive is running - mode 0 first, then change '
-                           'where its samples come from (simulated)')
-        self._source = name
-        return True
+    # -- the record -------------------------------------------------------
 
     #: What an uncommissioned board answers: the firmware's compiled-in
     #: placeholders (board_cal.c), in SI, the same as the real record reads.
@@ -302,12 +168,126 @@ class SimulatedDrive(DrivePlant, DriveObservers, DriveCapture, DriveControl):
         return {name: self._params.get(name, self.DEFAULTS.get(name, 0.0))
                 for name in PARAMS}
 
+    def _load(self):
+        """Board_DriveParamsFromCal: the record's parameters into the law, the clamp under the
+        envelope's derate, the dead-time table's rows."""
+        record, raw = self.params(), self._record()
+        law = {name: record[key] for key, name in LAW.items()}
+        law['i_max'] = record['drv_i_max'] * self._derate
+        law['sign'] = -1.0 if record['drv_sign'] < 0.0 else 1.0
+        law.update(('dt%d' % k, raw.get(row, 0) / 1e3) for k, row in enumerate(DT_ROWS))
+        self._law.params(**law)
+
+    @_rotor_locked
     def _write_params(self, **values):
         for name in values:
             if name not in PARAMS:
                 raise ValueError('%r is not a drive parameter; they are %s'
                                  % (name, ', '.join(PARAMS)))
+        self._advance()
         self._params.update({k: float(v) for k, v in values.items()})
         if 'drv_trigger_ticks' in values and values['drv_trigger_ticks']:
             self._trigger = int(values['drv_trigger_ticks'])
+        self._load()
         return dict(values)
+
+    @_rotor_locked
+    def reload(self):
+        self._advance()
+        self._load()
+        return True
+
+    @_rotor_locked
+    def _derate_to(self, factor):
+        """Board_DriveDerate: the clamp scaled, 0..1 - never raised."""
+        self._advance()
+        self._derate = max(0.0, min(1.0, factor))
+        self._load()
+
+    # -- modes and setpoints ----------------------------------------------
+
+    @_rotor_locked
+    def state(self):
+        law, row = self._now()
+        return {
+            'mode': MODE_NAMES[int(law['mode'])], 'fault': FAULTS[int(law['fault'])],
+            # The bridge's state, not the mode's.
+            'stage_enabled': self._stage()[1] if self._switching else law['mode'] != 0.0,
+            'afe_on': self._afe_on(),
+            'injecting': bool(row['injecting']),
+            'owns_compares': bool(row['driven']), 'sync_armed': self._sync_armed(),
+            'theta_hat': law['theta_hat'], 'omega_hat': law['omega_hat'],
+            'theta_cmd': law['theta_cmd'], 'omega_cmd': law['omega_cmd'],
+            'id': law['id'], 'iq': law['iq'], 'vd': law['vd'], 'vq': law['vq'],
+            'vdc': law['vdc'],
+            'eps': law['eps'], 'eps_amps': law['eps_amps'],
+            'ih': law['ih'], 'e_bemf': law['e_bemf'], 'periods': int(row['periods']),
+            # isr_cycles_last, isr_cycles_max (1620 its floor), exit_ticks_max
+            # (op 0's MINOR 2) and cycles are the stand-in's constants, not
+            # measurements.
+            'isr_cycles_last': 1450, 'isr_cycles_max': max(self._cycles_max, 1620),
+            'pol_pos': law['pol_pos'], 'pol_neg': law['pol_neg'],
+            'trigger': self._trigger if self._sync_armed() else 0, 'ts': self.TS,
+            'exit_ticks_max': 2921,
+            'cycles': {'sample': 610, 'step': 1690, 'advance': 620},
+            'turns': int(law['turns']),
+        }
+
+    @_rotor_locked
+    def _set_mode(self, name):
+        if name not in MODES:
+            raise ValueError('%r is not a mode; they are %s' % (name, ', '.join(MODES)))
+        self._advance()
+        # Board_DriveSetMode: the triple armed for any mode but off, the record taken again.
+        if name != 'off' and self._arm_sync is not None:
+            self._arm_sync()
+        self._load()
+        why = self._law.mode(MODES[name], self._stage()[0], self._afe_on())
+        if why:
+            raise RigError('%s (simulated)' % why)
+        return True
+
+    @_rotor_locked
+    def _set_setpoints(self, **values):
+        for name in values:
+            if name not in self._sp:
+                raise ValueError('%r is not a setpoint; they are %s' % (name, ', '.join(self._sp)))
+        self._advance()                              # the old command's time, first
+        self._sp.update({k: float(v) for k, v in values.items()})
+        self._law.setpoints(**self._sp)
+        return dict(values)
+
+    def setpoints(self):
+        return dict(self._sp)
+
+    @_rotor_locked
+    def set_theta(self, radians):
+        self._advance()
+        self._law.set_theta(radians)
+        return True
+
+    @_rotor_locked
+    def _set_source(self, name):
+        if name not in SOURCES:
+            raise ValueError('%r is not a source; they are %s' % (name, ', '.join(SOURCES)))
+        if self._now()[0]['mode'] != 0.0:
+            raise RigError('the drive is running - mode 0 first, then change '
+                           'where its samples come from (simulated)')
+        self._source = name
+        self._law.source(name == 'model')
+        self._lib.world_drive_rest(self._slot)
+        return True
+
+    @_rotor_locked
+    def _read_observers(self):
+        """The chain the firmware runs (drive_observer.c), as the law stepped it."""
+        law, _row = self._now()
+        obs = self._law.obs()
+        return {'valid': bool(obs['valid']), 'theta': obs['theta'], 'omega': obs['omega'],
+                'blend': obs['blend'],
+                'dual_theta': obs['dual_theta'], 'dual_omega': obs['dual_omega'],
+                'flux_theta': obs['flux_theta'], 'flux_omega': obs['flux_omega'],
+                'lambda_hat': obs['lambda_hat'],
+                'theta_hat': law['theta_hat'], 'omega_hat': law['omega_hat'],
+                'blend_lo': obs['blend_lo'], 'blend_hi': obs['blend_hi'], 'wc': obs['wc'],
+                'error': (obs['theta'] - law['theta_hat'] + math.pi) % math.tau - math.pi}

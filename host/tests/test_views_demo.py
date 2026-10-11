@@ -21,7 +21,6 @@ def test_the_demo_actually_loads_the_motor(report):
     from terminal.ui.screen import FPS_CAP
     from terminal.views import show_rotor_observer as view
     from terminal.views.rotor import motions
-    from coaxial.simulated.drive.plant import CATCH_UP_S
     from tools.render import page
 
     seconds = 0.0
@@ -116,14 +115,14 @@ def test_the_demo_actually_loads_the_motor(report):
                      '%.0f rpm/s, the peak %.0f' % (early, peak))
     def starved(index):
         """Whether the page stalled through stage `index` and into the next: the time between
-        frames past the stand-in plant's catch-up - and motions.sweep's step, clamped alike - is
-        time the plant and the reference never turned, and past 5 % of the stage, the brake's
+        frames past motions.sweep's step is time its reference never turned under a board
+        that ran on, and past 5 % of the stage, the brake's
         own tolerance, the stage's physics is not the page's to judge. CI's runner braked
         993 -> 221 rpm, another host 993 -> -69 beside a heavy suite."""
         times = [row[0] for row in stages[index][1]]
         if index + 1 < len(stages):
             times.append(stages[index + 1][1][0][0])
-        dropped = sum(max(0.0, b - a - CATCH_UP_S) for a, b in zip(times, times[1:]))
+        dropped = sum(max(0.0, b - a - motions.STEP_MOST_S) for a, b in zip(times, times[1:]))
         # And the page's rate: the speed loop steps a frame, designed at 20 a second - under
         # half of it, CI's load held -595 rpm on 10 A with nothing dropped (78a1038).
         rate = (len(times) - 1) / max(1e-9, times[-1] - times[0])
@@ -133,7 +132,7 @@ def test_the_demo_actually_loads_the_motor(report):
         if name in ('coast', 'brake') and index + 1 == len(stages):
             continue                      # the window ends in it: not whole
         if name in ('coast', 'brake') and starved(index):
-            report.skip('the %s\'s physics' % name, 'the page stalled past the plant\'s catch-up')
+            report.skip('the %s\'s physics' % name, 'the page stalled past its step')
             continue
         if name == 'coast' and abs(st[0][2]) > 500.0:
             # J dw/dt = -b w - k w|w|, closed form, from where the coast began.
@@ -155,7 +154,11 @@ def test_the_demo_actually_loads_the_motor(report):
     # against the vector's own size 0.02 A lit them as 50 did.
     counted = [(name, row) for name, st in stages for row in st if row[9] is not None]
     magnets = [row[9][cross_section.NORTH] + row[9][cross_section.SOUTH] for _, row in counted]
-    steps = [abs(b - a) / max(1, a) for a, b in zip(magnets, magnets[1:])]
+    # A frame against the one before it at the page's rate: one that came two frames late
+    # draws a rotor the board turned on meanwhile - 0.27 beside a gate's suites.
+    times = [row[0] for _, row in counted]
+    steps = [abs(b - a) / max(1, a) for a, b, was, now in zip(magnets, magnets[1:], times, times[1:])
+             if now - was <= 2.0 / FPS_CAP]
     report.check('the magnets drawn in every frame, turning or not: none under half the most, '
                  'none a quarter off the frame before',
                  bool(steps) and min(magnets) >= 0.5 * max(magnets) and max(steps) <= 0.25,
@@ -178,7 +181,7 @@ def test_the_demo_actually_loads_the_motor(report):
     # starts off - CI's runner held -711 rpm on 10 A (2c15fe4).
     if loads and any(starved(index) for index in range(max(0, loads[-1][0] - 2),
                                                        loads[-1][0] + 1)):
-        report.skip('the load\'s physics', 'the page stalled past the plant\'s catch-up')
+        report.skip('the load\'s physics', 'the page stalled past its step')
     else:
         # Unless the envelope holds it back: the dyno runs the switches into their SOA, and a
         # throttled clamp let 1 500 rpm sag to 1 299 on its 50 A.

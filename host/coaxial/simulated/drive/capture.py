@@ -1,28 +1,23 @@
-"""The stand-in's captures: the window, the moments, the phase currents with pickup."""
+"""The stand-in's captures: the law's window, and the converters' moments with their pickup."""
 import math
 import random
 import time
 from typing import Any
 
-from coaxial.simulated.values import DCBUS_V, NOMINAL
-from motor.pmsm import HALF_SQRT3
+from coaxial.simulated.drive.locked import _rotor_locked
+from coaxial.simulated.values import NOMINAL
 
 
 class DriveCapture:
 
-    """What the drive records for the host: windows and moments at the sample point."""
+    """What the drive records for the host: the law's own window, and the raw codes at the
+    sample point - the stand-in's front end, invented: its rest, its noise, its gains."""
 
     # What the class this mixes into brings.
+    FS: Any
     PERIOD: Any
-    _converge: Any
-    _dq: Any
-    _ih: Any
-    _mode: Any
-    _p: Any
-    _periods_since: Any
-    _sp: Any
-
-    SIGMA_I = 0.02      #: current noise on the shunts, A rms
+    _law: Any
+    _now: Any
 
     #: Raw codes at rest - THE SAME rest point every other path reads
     #: (`NOMINAL`), U, V, W and the DC link. It was a second table with
@@ -40,40 +35,23 @@ class DriveCapture:
     #: The shunt chains' gain mismatch the commissioning has to find.
     GAIN = (1.0, 1.01, 0.995)
 
+    @_rotor_locked
     def _take_window(self):
-        self._converge()
-        n = max(1, self._periods_since(self._window_at))
-        self._window_at = time.time()
-        iid, iq, vd, vq = self._dq()
-        ih, eps_amps = self._ih()
-        gain = self._p('drv_eps_gain', 0.0)
-        n_inj = self._p('drv_inj_periods', 1.0) or 1.0
-        sd_eps = (self.SIGMA_I / n_inj / gain) if gain else 0.0
-        fields = {
-            'id': {'n': n, 'mean': iid, 'sd': self.SIGMA_I},
-            'iq': {'n': n, 'mean': iq, 'sd': self.SIGMA_I},
-            'vd': {'n': n, 'mean': vd, 'sd': 0.01},
-            'vq': {'n': n, 'mean': vq, 'sd': 0.01},
-            'eps': {'n': n // 2, 'mean': 0.0, 'sd': sd_eps},
-            'ih': {'n': n // 2, 'mean': ih, 'sd': self.SIGMA_I / math.sqrt(2)},
-            'vdc': {'n': n, 'mean': DCBUS_V, 'sd': 0.003},
-        }
-        rng = random.Random(n)
-        return {'n': n, 'fields': fields,
-                'rho': [rng.uniform(-0.008, 0.008) for _ in range(7)],
-                'i_peak': math.hypot(iid, iq) + 3 * self.SIGMA_I}
+        """The law's window since the last take (drive_window_take), as cmd_drive.c's op 5
+        answers it: each field's count, mean and deviation, the innovation's autocorrelation."""
+        self._now()
+        window = self._law.window()
+        lag = window.pop('lag')
+        window['rho'] = [x / lag[0] if lag[0] > 0.0 else 0.0 for x in lag[1:]]
+        return window
 
     def _phase_amps(self):
-        """The held current vector as the three phase currents, with the gain
-        mismatch each shunt chain puts on its own.
-        """
-        iid, iq, _, _ = self._dq()
-        if self._mode not in ('hold', 'volt'):
+        """The three phase currents a held vector leaves on the shunts; none on one that turns,
+        whose mean over a count is none."""
+        law, row = self._now()
+        if law['mode'] not in (1.0, 2.0) or law['omega_cmd']:
             return (0.0, 0.0, 0.0)
-        th = self._sp['theta']
-        ia = iid * math.cos(th) - iq * math.sin(th)
-        ib = iid * math.sin(th) + iq * math.cos(th)
-        return (ia, -0.5 * ia + HALF_SQRT3 * ib, -0.5 * ia - HALF_SQRT3 * ib)
+        return (row['amps_u'], row['amps_v'], row['amps_w'])
 
     def _pickup(self):
         """Switching pickup at the sample point: a bump mid-period, where a 50
@@ -86,11 +64,12 @@ class DriveCapture:
         self._mom = (time.time(), int(periods))
         return True
 
+    @_rotor_locked
     def _read_moments(self):
         if self._mom is None:
             n, want = 0, 0
         else:
-            n = min(self._periods_since(self._mom[0]), self._mom[1])
+            n = min(int((time.time() - self._mom[0]) * self.FS), self._mom[1])
             want = self._mom[1]
         rng = random.Random(self._trigger + n)
         channels = {}
@@ -104,9 +83,6 @@ class DriveCapture:
                               'lo': int(mean - 3.5 * sd), 'hi': int(mean + 3.5 * sd)}
         return {'done': bool(want) and n >= want, 'n': n, 'want': want,
                 'trigger': self._trigger, 'channels': channels}
-
-    def reload(self):
-        return True
 
     def reset_cycles(self):
         self._cycles_max = 0

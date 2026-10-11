@@ -80,6 +80,22 @@ kilowatts spent on repetitions.
   under SEND_FROM, its 10 A short of the load; stalled, the switches at 15-18
   % where 20. The dynamometer eased by the derate, as an operator backs a
   brake off; a spin's ramp up 4 s where 3.5 ended at 13 A. Green 4 of 4.
+- The drive on the C: `drive.c` on `drive_model.c`, a slot of
+  `world_drive.c`'s, named through the cores' harness; the closed forms
+  (`_dq`, `_spin`, `_converge`, `_ih`) and the observers' Python copy gone.
+  282 ns a period here, 14 ms a board second: QUAD's four rotors 60 ms a
+  flight second where the closed form took 40.
+- A QUAD rotor through the flight's loop, the law against the closed form:
+  450.0 and 450.0 rad/s on 27.5 A, 690.0 on 58.0; 33 rad/s apart at most,
+  in a 2 900 rad/s^2 spool.
+- What the law asks that the closed form did not: the record commissioned
+  (on the placeholders a 63100 trips at its first torque), the estimate
+  locked before it, MOE for a mode on the converters, a trip that drops the
+  stage, a shaft that turns when it is overpowered.
+- The loop on the C: device 12 is `ctrl_loop.c`, the part's (`board_ctrl.c`
+  its angle and its guard) and a stand-in's, ticked in the slot's own
+  sample; the stand-in's thread and its 200 Hz gone. QUAD's rotors on it
+  ([quad](quad.md)).
 
 ## Pages
 

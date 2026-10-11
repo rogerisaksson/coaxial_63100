@@ -206,11 +206,16 @@ class Servo(_Mode):
         return abs(self._error) <= tol
 
     def to(self, degrees, tol=0.5, tries=4):
-        """Drive the shaft to `degrees`: move, settle, measure, correct."""
+        """Drive the shaft to `degrees`: move, settle, measure, correct. A shaft seen turning
+        a pole pitch and more while it is measured has slipped its vector, and no correction
+        holds it: overpowered on the board's law it turned 11 460 deg/s, slewed after for
+        minutes."""
         for _ in range(int(tries)):
             self._check()
             if self._arrived(degrees, tol):
                 return degrees - self._error
+            if self._swing > TURN / self.poles:
+                break
             self._slew(self._error)
             self._clock.sleep(self.settle)
         self._check()

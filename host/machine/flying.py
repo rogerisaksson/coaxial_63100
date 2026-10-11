@@ -159,6 +159,9 @@ class Flying:
     def __init__(self, top, ask):
         self.top, self.ask = top, dict(ask)
         self.idle = 4.0 * quad.K_THRUST * quad.IDLE_RAD_S ** 2
+        #: The four's thrust at the slowest their rotors may turn in flight, N: none, where
+        #: they may stop.
+        self.least = 0.0
         #: Its heading, rad about up from z, and its turn, rad/s; how far it has turned about
         #: its nose and its wing, rad, and how fast, rad/s.
         self.heading, self.swing = 0.0, 0.0
@@ -376,4 +379,5 @@ class Flying:
                      and not any(self.turns)
                      and math.hypot(float(at[0]) - self.spot[0],
                                     float(at[2]) - self.spot[1]) <= HELD_SPOT_M)
-        return (thrusts.stacked if STACKED else thrusts.shared)(self.top, self.thrust, torque)
+        return (thrusts.stacked if STACKED else thrusts.shared)(self.top, self.thrust, torque,
+                                                                self.least)

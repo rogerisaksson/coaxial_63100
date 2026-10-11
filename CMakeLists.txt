@@ -68,6 +68,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     filter/src/filter.c
     # Ctrl: machine.parts and a feedback, the board's loop.
     ctrl/src/ctrl.c
+    ctrl/src/ctrl_loop.c
     # Wbc: her chain on its static model, and the loop over it.
     wbc/src/wbc_body.c
     wbc/src/wbc_stack.c
@@ -137,7 +138,7 @@ set(COAXIAL_SOURCES
     daq/src/daq.c
     drive/src/drive.c drive/src/drive_math.c drive/src/drive_model.c
     drive/src/drive_observer.c
-    filter/src/filter.c ctrl/src/ctrl.c
+    filter/src/filter.c ctrl/src/ctrl.c ctrl/src/ctrl_loop.c
     wbc/src/wbc_body.c wbc/src/wbc_stack.c wbc/src/wbc_solve.c wbc/src/wbc_model.c
     board/src/board_adc.c board/src/board_clock.c board/src/board_selftest.c
     board/src/board_io.c board/src/board_imu.c board/src/board_angle.c
@@ -196,7 +197,7 @@ set_source_files_properties(
     filter/src/filter.c
     daq/src/daq.c
     # ctrl.c ticks inside the drive's sample.
-    ctrl/src/ctrl.c
+    ctrl/src/ctrl.c ctrl/src/ctrl_loop.c
     wbc/src/wbc_body.c wbc/src/wbc_stack.c wbc/src/wbc_solve.c
     PROPERTIES COMPILE_OPTIONS "-O2;-fno-math-errno;-Wextra;-Wshadow;-Wconversion")
 set_source_files_properties(

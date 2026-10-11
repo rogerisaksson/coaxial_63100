@@ -98,7 +98,8 @@ API void drv_setpoints_set(drive_t *d, const float *v, int n)
   {
     return;
   }
-  s->id_ref = v[0];  s->iq_ref = v[1];  s->theta = v[2];
+  s->id_ref = v[0];  s->iq_ref = v[1];
+  drive_set_theta_setpoint(d, v[2]);
   s->omega_target = v[3];  s->accel = v[4];
   s->vd = v[5];  s->vq = v[6];  s->pol_volts = v[7];
   s->pol_periods = (uint16_t)v[8];  s->pol_gap = (uint16_t)v[9];
@@ -296,24 +297,28 @@ API void drv_obs_reset(drive_t *d)
   drive_observer_init(&d->obs, &d->p, d->ts);
 }
 
+#define OBS 12
+
 API int drv_obs_count(void)
 {
-  return 8;
+  return OBS;
 }
 
 /** The observer chain's state, drive_observer.c, in the order Drive.obs in
     tools/cores/drive.py names it: the blend, then each observer on its own,
-    then what the chain says about the motor. */
+    what the chain says about the motor, whether it holds a back-EMF and the
+    band it hands over across. */
 API void drv_obs(const drive_t *d, float *v, int n)
 {
-  const float got[8] = {
+  const float got[OBS] = {
     d->obs.theta, d->obs.omega, d->obs.blend,
     d->obs.dual_theta, d->obs.pll_omega,
     d->obs.flux_only, d->obs.flux_omega,
     d->obs.lambda_hat,
+    d->obs.valid ? 1.0f : 0.0f, d->obs.blend_lo, d->obs.blend_hi, d->obs.wc,
   };
 
-  for (int k = 0; (k < n) && (k < 8); k++)
+  for (int k = 0; (k < n) && (k < OBS); k++)
   {
     v[k] = got[k];
   }

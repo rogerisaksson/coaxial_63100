@@ -46,12 +46,10 @@ def test_the_boards_air_is_the_rotors(report):
         rotor = view.arm(rig)
         drive, w = rig.board.drive, 0.0
         hover = quad.speed_for(quad.MASS_KG * quad.GRAVITY / 4.0)
+        rig.board.ctrl.write(hover)
         for _ in range(300):
             drive.paced(0.01)
-            now = drive.state()
-            w_hat = (now.get('omega_hat') or 0.0) / rotor['pairs']
             w = drive.model.read()['omega'] / rotor['pairs']
-            drive.write(iq_ref=rotor['pi'].step(0.01, setpoint=hover, measured=w_hat)['command'])
             drive.model.configure(load=quad.K_DRAG * w * abs(w))
             rig.board.thermal.fast_forward(0.01 * rig.board.thermal.HASTE, live=True)
         air = rig.board.thermal.state().get('speed_rpm') or 0.0
@@ -82,6 +80,7 @@ def test_a_rotor_turns_by_its_pass(report):
         try:
             view.arm(rig)
             drive = rig.board.drive
+            rig.board.ctrl.off()
             drive.write(iq_ref=8.0)
             for k in range(20):
                 drive.paced(0.01)

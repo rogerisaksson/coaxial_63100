@@ -304,14 +304,16 @@ class Commissioning:
 
     # -- step 2: the inverter ---------------------------------------------
 
-    def sign_check(self, volts=0.3, seconds=0.05):
+    def sign_check(self, volts=0.3, seconds=0.05, settle=0.15):
         """A small positive d voltage on phase a: the current it makes says
-        which way the shunts read.
+        which way the shunts read. `settle`: the rotor the steps before left
+        turning stopped on the vector's own damping - a free one at -129
+        rad/s read 0.14 +- 0.08 A after 0.02 s, 0.1912 +- 0.0000 after 0.15.
         """
         self._stage()
         self.drive.write(vd=volts, vq=0.0, theta=0.0)
         self.drive.on('volt')
-        w = self._window(0.02, seconds)
+        w = self._window(settle, seconds)
         self.drive.off()
         iid = w['fields']['id']['mean']
         sd = w['fields']['id']['sd']

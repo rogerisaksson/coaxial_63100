@@ -171,6 +171,17 @@ gets a line at the end of [DONE](DONE.md).
       door clearing its posts by 0.25 m, 10 of 10 from anywhere in the room;
       a chair moved into her way walked round; on the page.
 
+## Quad
+
+- **Flown to WEP, no rules**: the flight kinematically determined inside an
+  action space computed beforehand - what the four can pull at each
+  airspeed, tilt, pack voltage and envelope, WEP its outer shell, gusts
+  inside it -; no clause on which envelope it happens to be in
+  (`flight.envelope`, `emergency`, `FIT`, `GONE_S`, `Flying.short`: gone).
+  DOD: on the law's rotors (Host, one code), `quad_race.py`'s laps against
+  today's, the pull left unused and the WEP taken a flight quoted, gusts
+  flown; no strike more.
+
 ## Bench
 
 - **Bootloader**. DOD: a power cycle runs the store at unit 1, PWR_CR3
@@ -212,12 +223,19 @@ gets a line at the end of [DONE](DONE.md).
 ## Host
 
 - **One code, several executives**: the stand-in on the C cores and the
-  world (its heat and observer, the drive next); native's
+  world (its heat, observer, drive and loop; its acquisition next); native's
   AFE, A1335 and BNO085 board/emu's own; the mirrors removed; every hot
   path's jumps, interrupts and stalls cut but the unavoidable; state one
   contiguous array, steps branch-free passes over it. DOD: the hot paths
   ranked by them, each cut or named unavoidable; a model's change one
   change in every executive.
+- **L map at no bias** reads L / 2.3 on the cores (drive.md): the
+  dead-time table and the model's error on the sampled current's sign under
+  an fs/2 ripple. DOD: Ld and Lq within 5 % at no bias.
+- **The chain beside the loop** (`obs`) loses a rotor spooled at 81 000
+  rad/s^2. DOD: it follows a QUAD's spool, or is cut.
+- **A date refused**: `test_layout` holds the tree's text free of dates.
+  DOD: the last 15 files stripped, the check in `--structure`.
 - **native://**: a limb's world on a fixed mount as board/emu's; one
   Transport a rig on a URL bus. DOD: the body's balance and gait from the
   SIL; the fallback where nothing answers.

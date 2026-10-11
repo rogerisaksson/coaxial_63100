@@ -1277,22 +1277,27 @@ def test_views(report):
 
 
 def test_virtual_rotor(report):
-    """The model source turns a rotor; the ADC source deliberately does not."""
+    """The law turns its model's rotor: torque, the estimate's lag, a held vector."""
     import time
     from coaxial.simulated import SimulatedDrive
 
-    still = SimulatedDrive().model.read()
-    report.check('the ADC source keeps its still rotor',
-                 still['theta'] == 0.0 and 'theta_hat' not in still, still)
+    still = SimulatedDrive()
+    time.sleep(0.02)
+    still = still.model.read()
+    report.check('a rotor nothing drives stands still',
+                 still['theta'] == 0.0 and still['omega'] == 0.0, still)
 
     def spin(iq, l2, seconds=0.02):
-        # The sensorless mode is the torque path: iq commutated on the rotor.
+        # The sensorless mode is the torque path: iq commutated on the rotor - from a frame
+        # held onto it first, the law's estimate starting off it.
         drive = SimulatedDrive()
         drive.configure(source='model')
-        drive.model.reset()
         drive.configure(drv_l2=l2)
-        drive.write(iq_ref=iq)
-        drive._mode = 'sensorless'
+        drive.write(id_ref=1.0, theta=0.0)
+        drive.hold()
+        time.sleep(seconds)
+        drive.write(id_ref=0.0, iq_ref=iq)
+        drive.on('sensorless')
         time.sleep(seconds)
         drive.model.read()
         time.sleep(seconds)
@@ -1301,26 +1306,24 @@ def test_virtual_rotor(report):
     fast = spin(2.0, 100.0)
     report.check('torque turns the virtual rotor', fast['omega'] > 100.0,
                  fast['omega'])
-    report.check('and the estimate comes back with it',
-                 'theta_hat' in fast and 'error' in fast, sorted(fast))
+    report.check('and the estimate comes with it, the truth beside it',
+                 abs(fast['error']) < 0.03 and fast['omega_hat'] > 100.0,
+                 (fast['error'], fast['omega_hat']))
 
-    slow = spin(0.2, 100.0)
-    report.check('a tenth of the torque lags a fraction as much',
-                 abs(fast['error']) > 5.0 * abs(slow['error']),
-                 (fast['error'], slow['error']))
-
-    # alpha / wn^2, so a fifth of the natural frequency is twenty-five times
-    # the lag.
+    # The estimate's lag under the same acceleration is alpha ts / l2: 0.007 rad at the
+    # record's 100, 0.18 at 4 (0.001-0.008 and 0.13-0.14 here).
     loose = spin(2.0, 4.0)
-    ratio = abs(loose['error']) / abs(fast['error'])
-    report.check('the lag goes as 1 / wn^2', 15.0 < ratio < 40.0, ratio)
+    report.check('a looser PLL lags by its gain',
+                 0.05 < abs(loose['error']) < 0.4, loose['error'])
 
     turning = SimulatedDrive()
     turning.configure(source='model')
-    turning.write(iq_ref=2.0)
-    turning._mode = 'hold'
-    time.sleep(0.05)
-    turning.model.read()
+    turning.write(id_ref=2.0, omega_target=300.0, accel=3000.0)
+    turning.hold()
+    time.sleep(0.15)
+    report.check('a held vector turned takes the rotor with it',
+                 turning.model.read()['omega'] > 100.0, turning.model.read()['omega'])
+    turning.off()
     turning.model.reset()
     report.check('model.reset() puts the rotor back at rest',
                  abs(turning.model.read()['omega']) < 1.0,

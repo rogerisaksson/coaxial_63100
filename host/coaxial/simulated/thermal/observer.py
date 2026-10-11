@@ -7,32 +7,21 @@ This class is the stand-in board's edge: the load gathered off its drive, the ro
 laid, the clamp and the stage acted on, the views named as the board's device names them.
 """
 import ctypes
-import gc
 import math
 import random
 import time
-import weakref
 from typing import Callable, Optional
 
 from coaxial.comm.wire import BYTE_FRACTION, CENTI, MICRO, MILLI, centi, micro, milli
 from coaxial.devices.thermal import THROTTLE_AT, ThermalControl, application
 from coaxial.errors import RigError
 from coaxial.model import inverter, rooms, thermal, thermal_app
+from coaxial.simulated.slots import Slots
 from motor import catalog, pmsm
 from tools.cores import stand
 
-#: The slots no stand-in holds, the lowest first.
-_FREE = list(range(stand.SLOTS))
-
-
-def _slot():
-    """A free slot - after a collection, where cycles hold the last of them."""
-    if not _FREE:
-        gc.collect()
-    if not _FREE:
-        raise RigError('every one of the %d stand-in boards a process holds is taken'
-                       % stand.SLOTS)
-    return _FREE.pop(0)
+#: world_stand.c's slots.
+_HEATS = Slots(stand.SLOTS)
 
 
 def _none(value):
@@ -99,8 +88,7 @@ class SimulatedThermal(ThermalControl):
     TOUR_STEP_S = 5.0
 
     def __init__(self, sample=None, situation='bench', seed=7):
-        self._slot = _slot()
-        weakref.finalize(self, _FREE.append, self._slot)
+        self._slot = _HEATS.take(self)
         self._lib = stand.library()
         #: The board's cadence, 30 s (THERMAL_SAMPLE_EVERY_MS), and its settle.
         self._every_s, self._settle_s = 30.0, 0.5

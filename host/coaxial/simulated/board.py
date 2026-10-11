@@ -99,10 +99,12 @@ class SimulatedBoard:
         self.thermal._speed_of = self.drive._rpm
         self.thermal._afe_on = lambda: self.afe.state()['on']
         self.thermal._meter_locked = lambda: self.gate_drivers._armed
-        # The drive's triple is the gate drivers', armed at a mode; the AFE the board's.
+        # The drive's triple is the gate drivers', armed at a mode; the AFE the board's, the
+        # record's dead-time rows its calibration's.
         self.drive._arm_sync = lambda: self.gate_drivers._sync(True)
         self.drive._sync_armed = lambda: self.gate_drivers._armed
         self.drive._afe_on = self.thermal._afe_on
+        self.drive._record = lambda: self.calibration.read()['params']
         self.gate_drivers._afe_on = self.thermal._afe_on
         # The STO chain: +5 the AFE's switch, the pump main() awake, FAULTOUT onto PE15, its
         # nodes on three channels.
@@ -114,9 +116,12 @@ class SimulatedBoard:
         self.gate_drivers._thermal = self.daq.thermal = self.thermal
         # And what it drops at a ceiling: the stage.
         self.thermal._gate = self._drop_stage
-        # And what the drive reports as switching: the bridge, supplied, so a dropped
-        # stage or a tripped STO chain stops making current in the model too.
+        # And what the drive's law is told and its bridge does: MOE, and the drivers supplied
+        # under it, so a dropped stage or a tripped STO chain stops making current in the model
+        # too; a trip of its own drops the stage.
+        self.drive._moe = self.gate_drivers._moe
         self.drive._switching = self.gate_drivers._driving
+        self.drive._drop = self._drop_stage
         # And the throttle: the drive's clamp and the compares' duty.
         self.thermal._derate_to = self._derate_drive
         self.thermal._duty = self._effective_duty
@@ -135,7 +140,7 @@ class SimulatedBoard:
         self.angle.drive = self.drive
         # The board's loop measures the drive and the shaft, and drives the drive.
         self.ctrl = SimulatedCtrl()
-        self.ctrl.drive, self.ctrl.angle = self.drive, self.angle
+        self.ctrl.drive = self.drive
         # And the A1335's die is as warm as the board it sits on.
         self.angle.thermal = self.thermal
         self.daq.angle = self.angle
@@ -156,7 +161,7 @@ class SimulatedBoard:
         """Scale the drive's current clamp. `Board_DriveDerate`'s twin."""
         drive = self.drive
         if isinstance(drive, SimulatedDrive):
-            drive._derate = max(0.0, min(1.0, factor))
+            drive._derate_to(factor)
 
     def _effective_duty(self):
         """What the compares hold, as a fraction of the period."""

@@ -5,44 +5,14 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "ctrl_loop.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/** What the loop measures: the A1335's angle, deg; the observer's speed, rad/s; iq, A. */
-#define BOARD_CTRL_ANGLE    0U
-#define BOARD_CTRL_OMEGA    1U
-#define BOARD_CTRL_IQ       2U
-#define BOARD_CTRL_MEASURES 3U
-
-/** Where its command goes: the drive's theta, rad; iq_ref, A. */
-#define BOARD_CTRL_THETA    0U
-#define BOARD_CTRL_IQ_REF   1U
-#define BOARD_CTRL_COMMANDS 2U
-
-/** Slots, in the order a pass runs them. */
-#define BOARD_CTRL_SLOTS    4U
-
-/** The loop as it stands, its channels in their units. */
-typedef struct
-{
-  bool     running;
-  bool     playing;
-  uint8_t  measured;
-  uint8_t  command;
-  uint16_t hz;          /**< the tick rate kept: the PWM rate over a whole divider */
-  uint16_t rows;        /**< queued, the one playing not counted */
-  uint16_t free;
-  float    queued_s;    /**< the queued rows and what is left of the one playing */
-  uint32_t played;      /**< rows finished */
-  uint32_t idle;        /**< ticks with no row playing */
-  uint32_t blind;       /**< ticks with no reading: the command stood */
-  float    setpoint;
-  float    ref;
-  float    value;
-  float    estimate;
-  float    out;
-} board_ctrl_state_t;
+/** The loop as it stands: the core's. */
+typedef ctrl_loop_state_t board_ctrl_state_t;
 
 void Board_CtrlState(board_ctrl_state_t *out);
 

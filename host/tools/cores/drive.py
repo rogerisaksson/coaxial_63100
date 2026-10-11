@@ -43,17 +43,24 @@ def wrap_pi(x):
     return x - TWO_PI * math.floor((x + math.pi) / TWO_PI)
 
 
-class Drive:
-    """One controller behind the harness, with named access."""
+#: The chain's state as harness.c's drv_obs writes it.
+OBS = ('theta', 'omega', 'blend', 'dual_theta', 'dual_omega', 'flux_theta', 'flux_omega',
+       'lambda_hat', 'valid', 'blend_lo', 'blend_hi', 'wc')
 
-    def __init__(self, lib, ts=TS):
+
+class Drive:
+    """One controller behind the harness, with named access: its own, or the one `at` a
+    pointer another holds (a stand-in's slot, tools.cores.stand)."""
+
+    def __init__(self, lib, ts=TS, at=None):
         self.lib = lib
         lib.drv_new.restype = ctypes.c_void_p
         lib.drv_set_mode.restype = ctypes.c_char_p
         lib.drv_svm.restype = ctypes.c_float
         lib.drv_wrap.restype = ctypes.c_float
         lib.drv_dt_volts.restype = ctypes.c_float
-        self.h = ctypes.c_void_p(lib.drv_new(ctypes.c_float(ts)))
+        self.own = at is None
+        self.h = ctypes.c_void_p(lib.drv_new(ctypes.c_float(ts)) if self.own else at)
         self.n_params = lib.drv_param_count()
         self.n_states = lib.drv_state_count()
         self.n_window = lib.drv_window_count()
@@ -73,14 +80,13 @@ class Drive:
 
     def obs(self):
         """The chain's state: what drv_obs writes, named."""
-        buf = (ctypes.c_float * 8)()
-        self.lib.drv_obs(self.h, buf, 8)
-        return dict(zip(('theta', 'omega', 'blend', 'dual_theta',
-                         'dual_omega', 'flux_theta', 'flux_omega',
-                         'lambda_hat'), list(buf)))
+        buf = (ctypes.c_float * len(OBS))()
+        self.lib.drv_obs(self.h, buf, len(OBS))
+        return dict(zip(OBS, list(buf)))
 
     def close(self):
-        self.lib.drv_free(self.h)
+        if self.own:
+            self.lib.drv_free(self.h)
 
     def params(self, **kw):
         arr = (ctypes.c_float * self.n_params)()

@@ -10,6 +10,7 @@ A joint (deg, the drive holding an angle), a surface (a joint of narrow span), a
 import math
 
 from coaxial.comm.hostclock import clock_of
+from coaxial.control.commission import Commissioning
 from coaxial.comm.session import standing
 from coaxial.errors import RigError
 from machine.controller import Feedback
@@ -170,6 +171,9 @@ class Rotor(_OnDrive):
         if rig.simulated:
             drive.configure(source='model')
             drive.model.configure(b=1e-5, load=0.0)
+            # The stand-in's record commissioned as a bench's is: on its placeholders the
+            # board's law loses a rotor from rest and trips.
+            Commissioning(rig).gains()
         self._gates(arming)
         drive.write(id_ref=0.0, iq_ref=0.0)
         drive.on('sensorless')

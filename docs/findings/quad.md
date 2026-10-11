@@ -372,3 +372,25 @@ race, 12 flights each (`quad_race.py --suite all`):
   hand's kept (`flying.STACKED` 0), the stack there for the law's sake. A row
   of K_DRAG / K_THRUST, 0.04, fell under the stack's tie-break and the
   heading's torque came 15 % short: the rows are laid at unit scale.
+
+## On the board's law
+
+Four stand-ins on `drive.c` and their own loops (`ctrl_loop.c`, 1 kHz); the
+race, 12 flights (`quad_race.py --suite all`):
+
+| Rotors | Boards laps, s | A gate's frame past its margin, m | SOA | Pull at the least | Struck |
+| --- | --- | --- | --- | --- | --- |
+| the closed form, the flight's loop a pass | 14.0-14.3, 14.6-15.6 | -0.13 to -0.15 | 0.83-1.00 | 35-48 % | stuffy gate 1 |
+| the law, the boards' loops | 13.8-14.3, 14.3-15.3 | -0.14 to -0.17, air 5 +0.03 | 0.78-0.94 | 23-60 % | none |
+
+- The flight's own speed loop, a pass of 20 ms a step: 38 A of braking held a
+  pass took a rotor from 197 rad/s through its crossover to 37, the estimate
+  lost it on the torque's turn and two boards tripped in the burn, 2.7 m up.
+  At 5 ms it held. The loop is the board's.
+- A rotor asked under its crossover (66 rad/s) is lost: asked none in a fall
+  one went to -5 rad/s and tripped; flown with no least, 6 flights of 6
+  struck. Asked its idle at the least and the allocation not told, a gate's
+  frame +0.36 m past its margin and the floor struck in a wind; told
+  (`thrusts.shared`'s `least`), the row above.
+- On I_WEP in their loops the boards stood at 1.00 of their envelopes in
+  full tilt: I_MAX kept.

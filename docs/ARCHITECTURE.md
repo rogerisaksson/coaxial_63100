@@ -54,8 +54,9 @@ modbus/   crc, slave, rtu, map          portable C11, host-tested
 drive/    control law + motor model     portable C11, host-tested
 thermal/  20-node observer, envelope, online identification
 filter/   anti-alias biquad chain
-ctrl/     machine.parts and a feedback in C, rows played: device 12, ticked in
-          the drive's sample (board_ctrl.c); host-tested
+ctrl/     machine.parts and a feedback in C, rows played; ctrl_loop.c that
+          loop on a drive, device 12, ticked in the drive's sample - the part's
+          (board_ctrl.c) and a stand-in's; host-tested
 wbc/      her chain on its static model (wbc_model.c, written by
           tools/cores/model.py): poses, Jacobians, M, bias; the loop over it
           (wbc_stack.c the levels and bounds, wbc_solve.c the dual active set),
@@ -116,7 +117,8 @@ coaxial/graphics/   board renderer (wireframe pipeline + one module per concern)
 coaxial/kalman/     estimators: thermal_ident (mirrors thermal_ident.c),
                     observer
 coaxial/simulated/  the stand-in, same reply shapes as the board; acquire/
-                    drive/ thermal/
+                    drive/ thermal/: the board's law and observer in C, a slot
+                    of world/src's each, these their edges
 coaxial_mcp/        MCP server (stdio), docs tool
 coaxial_ollama/     local-model runner
 terminal/           python -m terminal: loader, menu, readout
@@ -145,8 +147,9 @@ tools/sim/          the drive core on this host: montecarlo, observer_run;
                     quad_race (the quad's laps through fixed flights, a search
                     over its plan and its line)
 tools/cores/        build: the portable cores' gcc build;
-                    drive, thermal, wbc: their ctypes harnesses; model: her
-                    figure as static arrays (wbc/); reach: a leg's reach
+                    drive, thermal, wbc: their ctypes harnesses; stand: the
+                    stand-in's slots (world_stand.c, world_drive.c); model:
+                    her figure as static arrays (wbc/); reach: a leg's reach
                     over its foot as static arrays (machine/);
                     fakeboard: comms/, the record and the observer over
                     board/fake as

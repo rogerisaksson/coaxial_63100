@@ -287,14 +287,25 @@ def test_commissioning_recovers_the_stand_in(r):
                 dt['measured'] and abs(dt['r'] - S.R) < 0.05 * S.R
                 and abs(dt['v_dt'] - S.V_DT) < 0.05 * S.V_DT, (dt['r'], dt['v_dt']))
         lm = c.l_map(points=8)
-        r.check('Ld and Lq within 5 %',
-                lm['measured'] and abs(lm['ld'] - S.LD) < 0.05 * S.LD
-                and abs(lm['lq'] - S.LQ) < 0.05 * S.LQ, (lm['ld'], lm['lq']))
-        r.check('dL/L is the saliency, about 0.2',
-                abs(lm['dl_over_l'] - 0.2) < 0.03, lm['dl_over_l'])
+
+        def bent(amps):
+            return S.LD * (1.0 - S.SAT * math.tanh(amps / S.I_SAT))
+
+        # Read where the ripple stays off zero: at none the law's dead-time table and the
+        # model's error both follow the sampled current's sign, which an fs/2 ripple turns
+        # every period - L / 2.3 (docs/findings/drive.md). On a rotor that rings on its
+        # vector, 1-6 % short.
+        at = lm['rows'][2.0]
+        r.check('Ld and Lq within 10 % at 2 A of bias',
+                lm['measured'] and abs(at['ld'] - bent(2.0)) < 0.1 * bent(2.0)
+                and abs(at['lq'] - S.LQ) < 0.1 * S.LQ, (at['ld'], at['lq']))
+        saliency = (S.LQ - bent(2.0)) / (S.LQ + bent(2.0))
+        r.check('dL/L is the saliency there',
+                abs(at['dl_over_l'] - saliency) < 0.03, (at['dl_over_l'], saliency))
         r.check('a bias current bends Ld',
-                lm['rows'][3.0]['ld'] < 0.85 * lm['rows'][0.0]['ld'],
-                (lm['rows'][3.0]['ld'], lm['rows'][0.0]['ld']))
+                abs(lm['rows'][3.0]['ld'] - bent(3.0)) < 0.1 * bent(3.0)
+                and lm['rows'][3.0]['ld'] < at['ld'],
+                (lm['rows'][3.0]['ld'], at['ld']))
         fl = c.flux()
         r.check('lambda within 10 %',
                 fl['measured'] and abs(fl['lambda'] - S.LAMBDA) < 0.1 * S.LAMBDA,
@@ -367,6 +378,9 @@ def test_motion(r):
                        power_afe=False).open()
     try:
         rig.drive.configure(source='model')
+        # The record commissioned first, as a bench's: on the placeholders the law's estimate
+        # lost a rotor the block before left turning, and tripped at 100 A.
+        Commissioning(rig).gains()
         try:
             rig.motion.stepper(amps=2.0)
             r.check('motion refuses an unarmed stage', False)
@@ -413,19 +427,20 @@ def test_motion(r):
                 r.check('an overpowered servo raises, not returns',
                         'holding torque' in str(exc), exc)
             rig.drive.model.configure(load=0.0)
-        sim = stand_in_drive(rig)
+        trip_at = rig.drive.params()['drv_i_trip']
         try:
             with rig.motion.velocity(amps=4.0, hz=2.0) as v:
                 def trip(_):
-                    sim._fault = 'overcurrent'
+                    rig.drive.configure(drv_i_trip=0.5)      # under what the spin carries
                 v.rpm(600, seconds=2.0, watch=trip)
             r.check('a trip mid-spin ends the loop with the reason', False)
         except RigError as exc:
             r.check('a trip mid-spin ends the loop with the reason',
                     'overcurrent' in str(exc), exc)
-        sim._fault = None
-        r.check('and the drive is OFF after the aborted block',
-                rig.drive.state()['mode'] == 'off')
+        r.check('and the drive is OFF after the aborted block, its stage dropped',
+                rig.drive.state()['mode'] == 'off' and rig.gates.is_on() is False)
+        rig.drive.configure(drv_i_trip=trip_at)
+        rig.gates.on(bypass_sto=True, ignore_interlock=True)
 
         # The aborted block leaves a coasting flywheel (tau = j/b is seconds);
         # the next check wants a known rotor, as a bench block would brake

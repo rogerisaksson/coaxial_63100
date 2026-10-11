@@ -180,6 +180,10 @@ CYCLE = (
     ('JOINT', 'hold', 8.0, 0.0, JOINT_LOAD_A, 'hold'),
 )
 
+#: The demo's reference is stepped this long at the most, s: a frame later than it is time the
+#: reference never turned, the board's law running on under it.
+STEP_MOST_S = 0.25
+
 #: Where the demo starts: a segment's name, or None for the cycle's first (`--segment`).
 START_AT = None
 
@@ -337,7 +341,7 @@ def sweep(rig, view):
             pi.was = w_hat
         view['looped'] = False
         view['speed_at'] = now
-    dt = min(0.25, max(0.0, now - view.get('speed_at', now)))
+    dt = min(STEP_MOST_S, max(0.0, now - view.get('speed_at', now)))
     view['speed_at'] = now
     if how == 'hold':
         view['stage_load'] = view.get('load_full', 0.0)       # gravity's: whatever the speed

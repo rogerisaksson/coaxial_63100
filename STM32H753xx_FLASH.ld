@@ -55,6 +55,7 @@ SECTIONS
     *drive/src/*.c.obj(.text .text.*)
     *filter/src/filter.c.obj(.text .text.*)
     *ctrl/src/ctrl.c.obj(.text .text.*)
+    *ctrl/src/ctrl_loop.c.obj(.text .text.*)
     *daq/src/daq.c.obj(.text .text.*)
     *board/src/board_daq.c.obj(.text .text.*)
     *board/src/board_drive.c.obj(.text .text.*)

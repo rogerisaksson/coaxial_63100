@@ -318,8 +318,9 @@ static void sense_sample(uint32_t now, uint32_t clock, thermal_sense_t *out)
   s.sampled_ms = clock;
 }
 
-/** The rotor's mechanical speed, rpm, off the drive's observer: its
-    electrical rad/s over the record's pole pairs. */
+/** The rotor's mechanical speed, rpm, off the estimate the loop runs on: its electrical rad/s
+    over the record's pole pairs. The chain beside it (obs, a PLL of 200 and 8 000) does not
+    acquire a rotor spooled at 81 000 rad/s^2: 0-4 rad/s at a hover's 2 957. */
 static float speed_now(void)
 {
   const drive_t *d = Board_Drive();
@@ -329,7 +330,7 @@ static float speed_now(void)
   {
     return 0.0f;
   }
-  const float mech = fabsf(d->obs.omega) / (float)pairs;   /* rad/s */
+  const float mech = fabsf(d->omega_hat) / (float)pairs;   /* rad/s */
 
   return mech * 60.0f / (2.0f * 3.14159265f);
 }

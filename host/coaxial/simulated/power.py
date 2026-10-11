@@ -1,6 +1,6 @@
 """The power stage stood down: the rails, and the gate drivers under the real arming policy."""
 import time
-from typing import Any
+from typing import Any, Callable
 
 from coaxial.devices.gates import GateControl
 from coaxial.devices.power import named
@@ -66,7 +66,7 @@ class SimulatedGateDrivers(GateControl):
         self._at_trigger = 0
         #: Whether the AFE's reference is up, and the thermal stand-in the NTC follows; the
         #: board wires both.
-        self._afe_on = lambda: True
+        self._afe_on: Callable[[], bool] = lambda: True
         self._thermal: Any = None
         self._updates = 0
         self._keepalive = 0
@@ -85,6 +85,11 @@ class SimulatedGateDrivers(GateControl):
             self._fault = True
             self._enabled = False
         return self._sto
+
+    def _moe(self):
+        """MOE, as the chain's break leaves it."""
+        self._chain()
+        return self._enabled
 
     def _driving(self):
         """MOE set and the drivers supplied: the 2EDL8034's outputs follow TIM1."""

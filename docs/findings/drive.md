@@ -93,10 +93,8 @@ rotor's pages and their demos. The board's findings:
   state every 50 board ms through a cycle on all three): the can's
   wobble is the low-speed estimate.
   + The innovation abs(eps) over the rock is 0.72 on native, 0.78 on Renode,
-    0.05 on the stand-in (whose sensorless mode is a stub:
-    simulated/drive/plant.py `_converge` pulls theta_hat onto the rotor, `_ih`
-    a closed form), and 0.2 on all three at speed, where the back-EMF observer
-    holds.
+    0.05 on the stand-in's closed form then (the law since), and 0.2 on all
+    three at speed, where the back-EMF observer holds.
   + The part samples at the counter's top (CCR5 = ARR - 15, the low switches
     on for the shunts); an fs/2 injection sampled there sits on its triangle's
     midpoints, and the demodulator's gain is (n - 1) / n of the model's: none
@@ -114,6 +112,35 @@ rotor's pages and their demos. The board's findings:
     them a period early, the demodulator's sign turned: it now steps half a
     period, the compares landing at the underflow and TRGO2 at the top, as
     board/native has it.
+
+## The law under the stand-in
+
+- Commissioning's steps on the law and its model, 51 checks. The sign check
+  read 0.14 +- 0.08 A on a rotor the gain step left turning at -129 rad/s,
+  0.1912 +- 0.0000 after 0.15 s on the vector's own damping (`sign_check`'s
+  settle). The L map at no bias reads L / 2.3: the law's dead-time table and
+  the model's error both follow the sampled current's sign, which an fs/2
+  ripple turns each period; within 2 % at 2 and 3 A of bias.
+- The chain beside the loop (`obs`, a PLL of 200 and 8 000) does not acquire
+  a rotor spooled at 81 000 rad/s^2: 0-4 rad/s at a hover's 2 957.
+  `board_thermal.c` took the air's rotor speed off it: off the loop's
+  estimate now.
+- A held rotor overpowered (1.2 N m on 3 A) turns at -11 460 deg/s on the
+  bridge's braking, 20-28 A; the servo slewed after it for minutes. A shaft
+  swinging a pole pitch while it is measured ends the move.
+- The estimate's lag under 36 750 rad/s^2 on the placeholders: 0.001-0.008
+  rad at l2 100, 0.13-0.14 at 4 (alpha ts / l2: 0.007, 0.18). At 0.2 A from
+  rest with no injection it is lost under w_lo.
+- From rest on the injection, a 63100 and its propeller asked 30 A: the
+  estimate ran 2.8 rad ahead in 20 ms and the rotor spun back to -44 rad/s
+  before it locked. Its gains laid for that spool (l1 0.18, l2 444) ran the
+  estimate to 1 026 rad/s in 5 ms and tripped. Started as a stepper, the
+  vector turned to 86 rad/s on 15 A in 0.4 s: 0.003 rad off at the
+  hand-over.
+- Device 12's theta command stood still on the part: `board_ctrl.c` wrote
+  the setpoint, which a held frame reads at its mode alone. Through
+  `drive_set_theta_setpoint` now, the part's and a stand-in's one tick
+  (`ctrl_loop.c`).
 
 ## Pages
 
