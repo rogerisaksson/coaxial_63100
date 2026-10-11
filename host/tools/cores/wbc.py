@@ -136,6 +136,10 @@ class Core:
         self.names = [self.lib.wbh_name(k).decode() for k in range(self.links)]
         self.parent = [int(self.lib.wbh_parent(k)) for k in range(self.links)]
 
+    def reset(self):
+        """The loop's memory cleared: the loads WEP is granted on, the warm set."""
+        self.lib.wbh_stack_init()
+
     def pose(self, base, q):
         """Every link's frame in the world, (links, 12): R by rows, then p. `base` the pelvis's
         the same way, `q` the hinges' rad."""
@@ -222,11 +226,18 @@ def state_of(b):
     return np.r_[R.ravel(), qpos[:3]], qpos[7:7 + n - 6].copy(), np.linalg.solve(T, qvel[:n]), T
 
 
+@functools.lru_cache(maxsize=None)
+def shared():
+    """The one `Core` a process shares: a `Core()` clears the loop's memory - the loads WEP is
+    granted on, the warm set - so a core a tick had neither (2026-10-11)."""
+    return Core()
+
+
 def stack_step(b, s, ask, core=None):
     """`machine.wbc.step`'s answer from the loop in C, on her `wbc.Body` as `sense` left it:
     {tau, qacc (MuJoCo's qvel order), bears, cop, over, slack, held, passes, wrench, load,
     jeff}; `held` the rows held at a bound this tick, `passes` the solves after the first."""
-    core = core or Core()
+    core = core or shared()
     base, q, u, T = state_of(b)
     out = core.stack(base, q, u, ask)
     dT_u = np.zeros(b.n)

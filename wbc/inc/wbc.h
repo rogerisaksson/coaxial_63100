@@ -62,7 +62,9 @@ void wbc_body_momentum(const wbc_body_t *b, const double com[3], double k[3]);
 /** The loop's variables: every acceleration, then each sole's four corners' forces, world, in
     shares of her weight (the python stack's scaling: the regularisation stays negligible). */
 #define WBC_F 12
-#define WBC_V (WBC_N + 2 * WBC_F)
+/** The slacks: each sole's four centre-of-pressure margins. */
+#define WBC_S 8
+#define WBC_V (WBC_N + 2 * WBC_F + WBC_S)
 /** The levels - the dynamics' undriven rows, the held joints and the standing soles (exact);
     the centre of mass; the turns and a swing; nothing; the form - and the most rows one lays. */
 #define WBC_LEVELS 5

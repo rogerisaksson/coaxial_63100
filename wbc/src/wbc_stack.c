@@ -25,16 +25,25 @@ static const double SWING_KP = 1600.0, SWING_KD = 80.0, MOMENTUM_K = 3.0;
 static const double TURN_W = 3.0, MOMENTUM_W = 0.3, POSTURE_W = 1.0, TORQUE_W = 3.0;
 static const double FORCE_W = 1.0, HEIGHT_W = 1.0, FOLD_W = 0.3;
 static const double CLAMP_SHARE = 0.95, NEAR = 0.6;
+/** A margin's slack weighed SLACK_W (its square root a row) on the turns' level: hard, the
+    turns went unmet by 5-60 rad/s^2 under 100 N and the head took its peak in their stead
+    (2026-10-11). */
+static const double SLACK_W = 1e3;
 static const double MU = 0.6, MARGIN_M = 0.015, LIMIT_S = 0.05, STOP_RAD = 0.01, HEIGHT_BAND = 3.0;
 /** A bound within ACTIVE of its edge is reported at it. */
 static const double ACTIVE = 1e-3;
 /** The level a swinging sole and its fold are laid on: beside the turns, as the python stack. */
 #define SWING_LEVEL 2
 
-/** The variable a corner's force component is. */
+/** The variable a corner's force component is; the variable a sole's margin's slack is. */
 static int fvar(int k, int c, int axis)
 {
   return WBC_N + WBC_F * k + 3 * c + axis;
+}
+
+static int svar(int k, int axis, int side)
+{
+  return WBC_N + 2 * WBC_F + 4 * k + axis + side;
 }
 
 /* ---- rows over the variables ----------------------------------------------------------- */
@@ -175,7 +184,11 @@ static void lay_bounds(wbc_body_t *b, wbc_stack_t *s, const double u[WBC_N],
         {
           a[fvar(k, c, 1)] = -sign * (wbc_sole_corner[c][axis] - edge);
         }
+        a[svar(k, axis, side)] = -1.0;
         bound(s, 3, 3000 + k * 10 + axis + side, a, 0.0);
+        memset(a, 0, sizeof(a));
+        a[svar(k, axis, side)] = -1.0;
+        bound(s, 3, 5000 + k * 10 + axis + side, a, 0.0);
       }
     }
   }
@@ -371,6 +384,12 @@ static void lay_levels(wbc_body_t *b, wbc_stack_t *s, const double u[WBC_N],
       }
       lay(s, 1, a, ask->com_acc[axis], 1.0);
     }
+  }
+  for (int i = 0; i < WBC_S; i++)
+  {
+    memset(a, 0, sizeof(a));
+    a[WBC_N + 2 * WBC_F + i] = 1.0;
+    lay(s, 2, a, 0.0, sqrt(SLACK_W));
   }
 
   /* Level 2: the pelvis's and the trunk's turns, a swinging sole and its knee's fold beside. */
@@ -586,7 +605,7 @@ void wbc_stack_step(wbc_body_t *b, wbc_stack_t *s, const wbc_frame_t *base,
       v += s->ga[i][m] * s->total[m];
     }
     out->residual = (v > out->residual) ? v : out->residual;
-    if (v > -ACTIVE)
+    if ((v > -ACTIVE) && (s->gid[i] < 5000))
     {
       out->guarded[s->gkind[i]]++;
       if (active < WBC_EXTRA)

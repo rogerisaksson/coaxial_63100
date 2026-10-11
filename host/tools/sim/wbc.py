@@ -115,9 +115,11 @@ def stand(push=0.0, way=0.0, seconds=None, trace=False, wep=True, steps=True, at
     from machine.errors import MachineError
     from machine.drives import kind
     from machine.figure import JOINTS, SEGMENTS
-    from tools.cores.wbc import stack_step
+    from tools.cores.wbc import shared, stack_step
     from tools.sim.look import LEG_KINDS
     global NAMES
+    if core:
+        shared().reset()
     world, body = physics.World(), wbc.Body()
     NAMES = [j for j, d in zip(JOINTS, body.driven) if d]
     pose = gait.stand()

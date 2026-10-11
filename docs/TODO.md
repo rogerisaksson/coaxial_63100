@@ -185,9 +185,8 @@ the files under docs/FINDINGS.md. An item is deleted when its DOD is met.
 36. **The latent stack** (32, 34; wbc.md): her physics as static arrays, one C
     loop over them (`wbc/`), R^k the only thing upward, the model feeding R^k
     as data.
-    + Loop: 100 and 120 N shoves (with the observer 4 and 0 of 8 where the
-      stack 7 and 3; WEP 0.2 s where 12.7); the tick 1.5 ms here, its cycles
-      on native and Renode (wbc.md).
+    + Loop: 120 N shoves (1 of 8 where the stack 3); the tick 2.1 ms here,
+      its cycles on native and Renode (wbc.md).
     + Bottom, each board: the ESO (`parts.Eso`, `CTRL_ESO`; on the loop's walk
       0.32 m/s and 634 J/m where the PD 0.26 and 768) onto the boards as
       built: a virtual spring's stick-slip there, its torque and acceleration
@@ -201,6 +200,24 @@ the files under docs/FINDINGS.md. An item is deleted when its DOD is met.
     + Wire: 10 Mbit proven; a feedforward torque register (PROTOCOL MINOR).
     + DOD: the stand and the walk on the C loop with their measures kept
       (J/m, band, polar); a step < 1 ms on a 475 MHz M7.
+
+37. **Play and hysteresis in the joints**: a gap the rotor runs free across
+    before its torque reaches the link, the box's wind-up, its drag - the
+    numbers of a good printed gearbox - in `physics.World`; the walk, the
+    polar and the observer's worth measured on them.
+38. **Drives that want another box and motor**: by drive, the walk's and the
+    shoves' peak and RMS torque, speed, time at the clamp and copper against
+    its type's ratings; the few categories that would serve, never one a
+    joint (stacks.md).
+39. **A shove from the tty**: a key held charges a push along the viewport's
+    normal onto her, released it lands; a crosshair where it lands; she parries
+    or falls.
+40. **A living room**: glass walls that do not break, furniture, obstacles she
+    parries; the house's words - sit on the chair, lie in the bed, open the
+    door and go out, the lamp on and off - as rows of asks.
+41. **One law for the quad and her**: the quad's thrusts allocated by the same
+    hierarchy under bounds (`machine.qp`) over its own model and tasks, if it
+    can be; its laps against today's.
 
 ## Bench
 

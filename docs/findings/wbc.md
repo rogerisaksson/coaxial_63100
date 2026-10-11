@@ -321,13 +321,19 @@ walk). 2026-10-11:
   the trunk (shoulders 4 N m, 1 % at the clamp, where 10-20 N m at 16-42 %)
   and the walk whole with the band back on.
 - Tried and dropped, each measured: the band and the margins soft through
-  slacks (the walk fell at 2.6 s); the tie-break at 1e-4 (both fell); no
-  tie-break (both fell); bounds never held below (both fell); a bound freed
-  barred from returning (bounds left broken).
-- Open: 60 N from straight behind falls where the other seven ways stand; 100
-  and 120 N fall, the loop granting WEP a tenth of what the stack does; the
-  tick 1.5 ms here (the tie-break's rows and up to 160 active-set steps a
-  level), its cycles on native and Renode unmeasured.
+  slacks together (the walk fell at 2.6 s, with the band at 1000 m/s^2 by
+  mistake at the time); the tie-break at 1e-4 (both fell); no tie-break
+  (both fell); bounds never held below (both fell); a bound freed barred
+  from returning (bounds left broken).
+- Open: the tick 2.1 ms here (the tie-break's rows, every bound projected
+  into each level's coordinates), its cycles on native and Renode
+  unmeasured.
+- The loop granted WEP a tenth of what the stack did (0.2 s of 12.7 over a
+  polar) because `tools.sim.wbc` built a `Core` a tick, and a `Core()` clears
+  the loop's memory: the loads WEP is granted on and the warm set. One shared
+  core (`tools.cores.wbc.shared`): at 100 N WEP 18.9 s (the stack 21.3), 5 of
+  8 stood (4; the stack 7), the walk 1.91 m at 0.32 m/s and 671 J/m as
+  before (2026-10-11).
 
 ### The observer under the walking loop
 
@@ -348,3 +354,32 @@ The loop's walk, 8 s at 0.5 m/s asked, with each inner loop under it
 - Shoved from 8 ways with the observer under the loop, stood of 8: 38 N 8,
   60 N 8 (straight behind too, where the PD fell), 80 N 7, 100 N 4 (the PD 0);
   the stack 8 / 8 / 7 / 7.
+
+### The margins soft
+
+Under 100 N the stack and the loop part at 1.08 s on the same state: the
+loop's head, neck and shoulders at their peaks (51 N m, the sign turning
+every 10 ms), its active set 34-41 bounds to the stack's 22-29, the turns
+unmet by 5-60 rad/s^2 - and she stays in double support on one sole's edge
+where the stack steps. The stack's centre-of-pressure margins are soft (a
+slack each on the turns' level, weighed 1e3); the loop's were hard, so with
+the centre of pressure at its margin only the head and the arms were left
+to turn her. The margins soft the same way (WBC_S slacks, 2026-10-11), the
+band hard as before:
+
+| | Hard margins | Soft margins | Stack |
+| --- | --- | --- | --- |
+| 60 N stood of 8 | 8 | 8 | 8 |
+| 80 N | 7 | 8 | 7 |
+| 100 N | 5 (WEP 18.9 s) | 7 (WEP 0.6 s) | 7 (WEP 21.3 s) |
+| 120 N | 0 | 1 | 3 |
+| Walk 8 s, ESO | 1.91 m, 0.32 m/s, 671 J/m | 1.94 m, 0.32 m/s, 325 J/m | - |
+| Walk, PD | 1.58 m, 0.26 m/s, 768 J/m | 2.31 m, 0.38 m/s, 265 J/m | 792 J/m |
+| Walk, the torque as asked | 1.87 m, 0.31 m/s, 668 J/m | 1.91 m, 0.32 m/s, 309 J/m | - |
+| Tick here, standing / single support | 1.9 ms | 2.1 / 2.1 ms (cold 2.3) | 10-20 ms |
+
+- Half the energy a metre with the whole sole to stand on: the ankles no
+  longer fight the margin every step.
+- The slacks' own non-negativity (ids 5000+) sits at zero whenever a margin
+  is slack-free: left out of the bounds counted at their edge.
+- At 120 N she falls 7 of 8 where the stack 5: open.
