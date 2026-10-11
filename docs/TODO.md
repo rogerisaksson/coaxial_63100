@@ -144,8 +144,9 @@ the files under docs/FINDINGS.md. An item is deleted when its DOD is met.
     + DOD: both walks' spine and hip torques < 0.5 N m on their stride
       means; going and falls suites as on 2026-10-10 (54 of 56, 44 of 44).
 25. **Docs as technical documents**: no attributions, no narrative; tables
-    and numbers. Now: docs/ done; code comments 98 in 40 files
-    (`grep "the user"`).
+    and numbers. Now: docs/, the READMEs and the code comments done but 7
+    in arrival.py, graphics/gynoid.py and humanoid_keys.py (`grep "the
+    user"`).
     + DOD: docs/, the READMEs and the code comments outside vendor code.
 26. **The latent stack** (wbc.md, the Python stack before it): her
     physics as static arrays, one C
