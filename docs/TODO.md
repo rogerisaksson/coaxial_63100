@@ -32,12 +32,7 @@ the files under docs/FINDINGS.md. An item is deleted when its DOD is met.
      test_gynoid_gait.py asserts fewer J/m than the same walk crouched to
      12, 18, 24 and 30 deg at each pace; stance knee 4.5 deg or on its stop;
      stride >= 1.0 m.
-2. **Drives as bought**: off-the-shelf motors, one gearbox, one board,
-   air-cooled (docs/DIMENSIONS.md, stacks.md).
-   + DOD: every joint's A, P, T and V < 1 on the run and the gym's scenes
-     at the settled margin, no joint's J > 1; pack voltage, cooling and each
-     joint's ratio fixed in the model.
-3. **Balance by micro-steps, as on stilts** (standing.md): a point contact
+2. **Balance by micro-steps, as on stilts** (standing.md): a point contact
    under each ball; a quick step toward the capture point whenever it
    leaves, standing and walking alike; one reflex law (`machine.dcm`); a
    small move vocabulary the model picks from.
@@ -49,109 +44,103 @@ the files under docs/FINDINGS.md. An item is deleted when its DOD is met.
      tilt and brick, scoreboard >= its 2026-10-04 value; first stride
      standing with heel and toes moved +-1 cm; the patterns driven over the
      bus to emulated boards.
-4. **Running** (`machine/runner.py`, run.md).
+3. **Running** (`machine/runner.py`, run.md).
    + Now: 0.72-1.65 m/s held. Open: 2.0 m/s, the foot sliding at landing,
      turns.
    + DOD: 2 m/s standing on the scoreboard; no strike > 2 kN; the biped
      suite's parries, falls and get-ups as walking.
-5. **Push-off without toe motors**: passive toes, a flexing carbon/TPU
+4. **Push-off without toe motors**: passive toes, a flexing carbon/TPU
    sandwich (feet.md).
    + DOD: every rise and walk standing; standing knee < 10 deg at
      mid-stance; the knees' T in `drive_sizes` as with driven toes; damping
      from the sandwich's data; toes back within 2 mm at lift; scoreboard >=
      86.4 %.
-6. **A real sneaker**: a TPU sole with air pockets under a shoe.
+5. **A real sneaker**: a TPU sole with air pockets under a shoe.
    + DOD: a size 37-38's length, width, springs, give, bend, grip, roll and
      mass from a shoe's data; scoreboard held; strike N and touchdown m/s
      quoted before and after.
-7. **Shell as armour**: printed plates over gel pads (`figure.PADS`) where a
+6. **Shell as armour**: printed plates over gel pads (`figure.PADS`) where a
    fall lands.
    + DOD: floor force on a drum, a board or a tube 0 in the falls suite;
      the plates under the clothes read as shape only, judged on a PNG.
-8. **Fewest parts** (`tools/sim/bom.py`): every holder and lever a 2.5D
+7. **Fewest parts** (`tools/sim/bom.py`): every holder and lever a 2.5D
    print.
    + DOD: one bearing size, one rod end; the hip roll's spur pair and the
      ankles' bent rods kept only where removing them costs the scoreboard;
      no flex > 0.25 deg; every bought part a vehicle maker's stock part.
-9. **Structural flex**: the drive's loop on the motor's encoder, the
+8. **Structural flex**: the drive's loop on the motor's encoder, the
    whole-body law on the joint's sensor (`physics.WOUND` 1, drives.md); on
    the gearboxes as bodies the walk on setpoints stands but drags its toes,
    the loop on its torques walks.
    + DOD: `drives.BOX_K` measured on a prototype; the page's walk on the
      loop at `physics.BOXED` 1 on its form; every member < 0.25 deg.
-10. **Gearboxes: one stage, hollow, printable**: a roller wave round the
+9. **Gearboxes: one stage, hollow, printable**: a roller wave round the
     motor's bore, stock rollers, consumer-printer tolerances, backdrivable
     (<https://mevirtuoso.com/wave-reducer-simulator/>,
     <https://smorygo.com/wave_reducer>).
     + DOD: worst roller under 7075's yield at each size's peak; scoreboard
       held at the stages' caps; joint breakaway < 10 N at its segment's
       end; a prototype's torque and backlash measured.
-11. **Gearboxes past their momentary ratings in falls**: each drive's
+10. **Gearboxes past their momentary ratings in falls**: each drive's
     compliance a motor-side degree of freedom, else torque limiters.
     + DOD: none > 1.0 in the scoreboard's falls.
-12. **Arms down while getting up**: hands on the knees, or more hip torque;
+11. **Arms down while getting up**: hands on the knees, or more hip torque;
     decision open.
     + DOD: the decision; 5 of 5 hot; hands within 620 mm of the chest
       through the lift.
-13. **Get-up end**: rocking before standing, feet split fore and aft.
+12. **Get-up end**: rocking before standing, feet split fore and aft.
     + DOD: split rms 0.25; feet 40-80 mm apart.
-14. **No abrupt get-up moves**.
+13. **No abrupt get-up moves**.
     + DOD: every joint < 400 deg/s, every foot < 2 m/s; fall to walking <
       15 s; the loop at 1.0.
-15. **Falls past saving**.
+14. **Falls past saving**.
     + DOD: a hand and a knee take the fall, called 0.3 s before the floor;
       the body drawn in; head < 2 kN.
-16. **Scoreboard events**.
+15. **Scoreboard events**.
     + Now (`gait_montecarlo --suite all`, 2026-10-11): rises and walks 100 %
       (1.00 off its form, knee behind plumb 10.6); sill, slip, hot, nudge
       100 %, rug 79, hole 77, soa 76, lace 31 (26 on 2026-10-04,
       balance.md); the shoves past saving 25-46 %; stairs not in it.
     + DOD: each > 75 %; the 1.0 walk standing; the sill's spread the
       page's; stairs climbed; 8 halts of 8.
-17. **Softer walk**.
+16. **Softer walk**.
     + DOD: strikes < 1000 N; ears < 8 and 40 mm; scoreboard held.
-18. **Walk retuned per build**.
-    + DOD: the knobs re-searched after each build change, the scoreboard
-      quoted.
-19. **Skeleton collisions** (`physics.SKELETON`).
+17. **Skeleton collisions** (`physics.SKELETON`).
     + DOD: head on the floor in 0 of 64 falls.
-20. **Obstacle contacts**: toes into the sill, fingers into the floor at
+18. **Obstacle contacts**: toes into the sill, fingers into the floor at
     MuJoCo's 0.02 s; overlap or force, decision open.
     + DOD: the decision; the set measured on it.
-21. **Carbon shells and clothes** over the structure as built.
+19. **Carbon shells and clothes** over the structure as built.
     + DOD: `fit.py` 0 mm past them in every pose; seat soft; jeans a coarse
       cloth < 0.5 ms a step; no seam on a PNG.
-22. **Fewer drives**: the fingers a fist (`drives.WAYS`).
+20. **Fewer drives**: the fingers a fist (`drives.WAYS`).
     + DOD: their boards removed; the quick-releases' give modelled; a
       shoulder stop.
-23. **Boards on their buses** (`machine.buses`).
+21. **Boards on their buses** (`machine.buses`).
     + DOD: the walk on emulated boards end to end.
-24. **Planner server** after LOCAL_TRIES local failures.
+22. **Planner server** after LOCAL_TRIES local failures.
     + DOD: measured on a fall.
-25. **MuJoCo Warp**: the scoreboard's worlds batched on the GPU.
+23. **MuJoCo Warp**: the scoreboard's worlds batched on the GPU.
     + DOD: its step measured against the CPU's 0.31 ms first.
-26. **`machine/` in subpackages**, every file < 5 k tokens (`director.py`
+24. **`machine/` in subpackages**, every file < 5 k tokens (`director.py`
     6.0, `arrival.py` 5.6).
     + DOD: `test_structure` on the layout.
-27. **One going law, S and F on it** (going.md).
+25. **One going law, S and F on it** (going.md).
     + DOD: F up to the fastest run and S back on the page, 10 of 10; its
       walk on `looks.FORM` and `normal.BAND` at no more J/m; shoved,
       standing as the walk as built.
-28. **Tubes, corners and flanges**: carbon tubes epoxied into printed
+26. **Tubes, corners and flanges**: carbon tubes epoxied into printed
     corners; a gearbox on a flange; motor, box and board outermost; a
     grille or a heat sink on the FETs; a quick-release per limb.
     + DOD: no pair closer than before; each tube in its holder; each board
       on its flange.
-29. **A dance from the move set**: on the toes and tripping, down, a turn
+27. **A dance from the move set**: on the toes and tripping, down, a turn
     with the skirt swinging, seated legs crossed, up again.
     + DOD: twice through on the page, no fall.
-30. **Movement language** (`normal.WORDS`, `gaits.MANNERS`).
+28. **Movement language** (`normal.WORDS`, `gaits.MANNERS`).
     + DOD: tripping without a shuffle; 100 % of a take's measure; a walk
       into 20 N of wind with the asked accent; sitting, rising.
-31. **Kinematics on dual quaternions** (kinematics.md).
-    + DOD: a posture term, a C core; the legs, the arms, a take and the
-      jeans' seams on it.
-32. **Lumbar curve, no holding torque for the pose**.
+29. **Lumbar curve, no holding torque for the pose**.
     + Now, on the one law (`look.py`: torso ahead, pelvis tilt, spine bent,
       mass ahead of hips, spine holds): pelvis tipped 5.2 deg, spine
       straight, upper body 25 mm ahead of the hips, spine holding 2.5 N m;
@@ -165,10 +154,10 @@ the files under docs/FINDINGS.md. An item is deleted when its DOD is met.
       checks failed (head down at 2.7-3.5 m/s, a get-up late).
     + DOD: both walks' spine and hip torques < 0.5 N m on their stride
       means; going and falls suites as on 2026-10-10 (54 of 56, 44 of 44).
-33. **Docs as technical documents**: no attributions, no narrative; tables
+30. **Docs as technical documents**: no attributions, no narrative; tables
     and numbers. Done: TODO.
     + DOD: docs/, the READMEs and the code comments outside vendor code.
-34. **The latent stack** (31; wbc.md, the Python stack before it): her
+31. **The latent stack** (wbc.md, the Python stack before it): her
     physics as static arrays, one C
     loop over them (`wbc/`), R^k the only thing upward, the model feeding R^k
     as data.
@@ -193,7 +182,7 @@ the files under docs/FINDINGS.md. An item is deleted when its DOD is met.
     + DOD: the stand and the walk on the C loop with their measures kept
       (J/m, band, polar); a step < 1 ms on a 475 MHz M7.
 
-35. **The law's turn, then the room's words** (room.md): the one law turns
+32. **The law's turn, then the room's words** (room.md): the one law turns
     0.05 rad/s walking and not on the spot - a 10 m curve, no target in the
     6 x 5 m room reached; a turn row (the landing yawed, the pelvis after it)
     measured on the form, then sit, lie, out and the lamp (`machine.errands`,
