@@ -228,7 +228,10 @@ def test_the_acquisition_records_decode(report, rig):
     names = {f['signal'] for f in layout['fields']}
     report.check('a software-clocked task\'s records decode to its layout, in time order',
                  len(records) >= 4 and all(names <= set(r) for r in records)
-                 and all(x['at'] < y['at'] for x, y in zip(records, records[1:])),
+                 # the stamps are 32-bit cycles, round every 9.04 s at 475 MHz: a recording
+                 # across the wrap on CI (2026-10-11)
+                 and all(((y['at'] - x['at']) & 0xFFFFFFFF) < 2 ** 31
+                         for x, y in zip(records, records[1:])),
                  '%d records, first %s' % (len(records), records[:1]))
 
 

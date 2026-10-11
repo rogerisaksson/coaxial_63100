@@ -238,7 +238,7 @@ PORT = ('test_mcp.py', 'test_parity.py')
 #: Suites that run their tests through tools.dev.focus.chosen: past a slice of the run they go
 #: on as shards side by side.
 SHARDED = (SENSORLESS, CONTROLLER, GYNOID, GYNOID_FAULTS, GYNOID_FALLS, GYNOID_STAND,
-           GYNOID_GAIT, GYNOID_GOING, 'test_simulated.py', 'test_views_segments.py', DAQ_API,
+           GYNOID_GAIT, GYNOID_GOING, ROOM, 'test_simulated.py', 'test_views_segments.py', DAQ_API,
            QUAD_PAGE)
 
 #: A sharded suite's seconds where none are recorded (tests/.counts.json, not committed): CI's
