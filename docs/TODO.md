@@ -102,6 +102,10 @@ the files under docs/FINDINGS.md. An item is deleted when its DOD is met.
     + DOD: a hand and a knee take the fall, called 0.3 s before the floor;
       the body drawn in; head < 2 kN.
 16. **Scoreboard events**.
+    + Now (`gait_montecarlo --suite all`, 2026-10-11): rises and walks 100 %
+      (1.00 off its form, knee behind plumb 10.6); sill, slip, hot, nudge
+      100 %, rug 79, hole 77, soa 76, lace 31 (26 on 2026-10-04,
+      balance.md); the shoves past saving 25-46 %; stairs not in it.
     + DOD: each > 75 %; the 1.0 walk standing; the sill's spread the
       page's; stairs climbed; 8 halts of 8.
 17. **Softer walk**.
