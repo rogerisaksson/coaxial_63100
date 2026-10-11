@@ -225,17 +225,20 @@ gets a line at the end of [DONE](DONE.md).
   observer for the air, the precession and a weak rotor, an active set over
   the rotors' thrusts inside what each board holds. Above the core no
   mixing, no Euler angle, no air; in it no `if`.
-  + Core, compiler: host-tested through gcc; streams 201-204 compiled.
-  + 201-204 flown on four boards, the impedances rendered quoted.
+  + On four boards: 201-204 and the upsets on the stand-ins a pass of 2
+    ms, each board's reach from its hold and its loop (streams.md: flown on
+    ideal rotors).
   + The page's card and the course as streams: `machine.flying`'s clauses,
     `thrusts`, `flight.envelope`, `emergency`, `FIT`, `GONE_S`,
     `Flying.short` gone; the action space computed beforehand
     (`machine/pull.py`) what the compiler plans in, WEP its outer shell.
-  + The core on the image: a tick's cycles (device, PROTOCOL MINOR).
+  + The core on the image: a tick's cycles, the same whatever it is asked
+    (device, PROTOCOL MINOR).
+  + A hover stood from 12 rad/s about the rotors' axis a quarter turn off:
+    the heading's torque is what the tilt's asks leave (streams.md).
   + DOD: `quad_race.py`'s laps against today's on the law's rotors, every
     flight whole, gusts flown; the pull left unused and the WEP taken a
-    flight quoted; `test_structure` holds `aero/src` free of `if`, `else`,
-    `switch`, `while`, `?`.
+    flight quoted.
 
 ## Bench
 

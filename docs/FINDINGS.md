@@ -380,6 +380,7 @@ Six firmware defects, no hardware fault:
 | The drive and its observers: stand-in, emulator, native://, rotor pages | [findings/drive.md](findings/drive.md) |
 | QUAD: frame, air, law, routine, course, tuner | [findings/quad.md](findings/quad.md) |
 | The envelope in flight: a climb, a hover, what a board may carry | [findings/envelope.md](findings/envelope.md) |
+| Flown from compiled streams: the text, the core with no branch, the rotors' reach, upsets, the power loop | [findings/streams.md](findings/streams.md) |
 | Renode, native:// and CI: the emulated image, peripherals, speed | [findings/emulation.md](findings/emulation.md) |
 | Host pages, tooling, suites, the local model's runner | [findings/host.md](findings/host.md) |
 

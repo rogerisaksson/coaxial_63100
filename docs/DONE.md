@@ -62,3 +62,8 @@ it names. A closed item is cut from the list and gets its line here, last.
 27. Her hops on the loop in C: which soles stand told from one pass, her
     throw a spring that lets go under her standing height; 48 mm and
     three in a row stood ([flight](findings/flight.md)).
+28. The quad's flight intent as text compiled to payloads
+    (`machine.aerolisp`), a core in C under them with no branch, in its
+    sources or in the M7's code (`aero/`): the power loop's four streams
+    flown on ideal rotors, caught 79 degrees off of 80 and stood again; a
+    hover stood from upsets ([streams](findings/streams.md)).

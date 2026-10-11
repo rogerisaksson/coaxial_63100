@@ -61,6 +61,11 @@ wbc/      her chain on its static model (wbc_model.c, written by
           tools/cores/model.py): poses, Jacobians, M, bias; the loop over it
           (wbc_stack.c the levels and bounds, wbc_solve.c the dual active set),
           asks of R^k into torques by priority within the bounds; host-tested
+aero/     a frame flown from a compiled intent (machine.aerolisp's payload):
+          its blend, oscillator and observers, the lift inside its constraints
+          (aero.c), where up is asked and the torque there (aero_turn.c), the
+          thrusts shared by an active set (aero_share.c); a choice a mask
+          (aero_bits.h), no branch; host-tested, not yet in the image
 daq/      acquisition engine (ring, window, ladder, tone, live)
 shtp/     BNO08X transport
 boot/     bootloader: boot_core.c (portable) + boot_main.c (registers),
@@ -149,9 +154,10 @@ tools/sim/          the drive core on this host: montecarlo, observer_run;
                     (the whole-body stack standing, shoved, walking);
                     hop (a hop on it: thrown, flown, landed);
                     quad_race (the quad's laps through fixed flights, a search
-                    over its plan and its line)
+                    over its plan and its line); streams (a text's streams
+                    flown on aero/, ideal rotors; a hover asked from upsets)
 tools/cores/        build: the portable cores' gcc build;
-                    drive, thermal, wbc: their ctypes harnesses; stand: the
+                    drive, thermal, wbc, aero: their ctypes harnesses; stand: the
                     stand-in's slots (world_stand.c, world_drive.c); model:
                     her figure as static arrays (wbc/); reach: a leg's reach
                     over its foot as static arrays (machine/); terms: her
@@ -211,6 +217,8 @@ tests/              suites, .counts.json (measured sizes)
 | room | a living room round her: glass walls, furniture, a door, a lamp, and its words |
 | sight | her eyes: a stereo pair on her head, the disparity by block matching, the map she keeps, its things, her way round them |
 | gimbal | a camera on a stabilised gimbal: its sight level, after the way its frame goes |
+| aerolisp | flight intent as text - `(stream_inject ..)`: latent targets, a stiffness and a damping a mode, an oscillator, task constraints - compiled to aero/'s payloads, a stream laid over the one before |
+| intents | the quad's flights as that text, and each stream's seconds |
 | floor | the slab, a sill, a patch, a rug, a stair |
 | rtu | Modbus RTU: CRC-16, a pass's frames |
 | buses | the boards on a bus a limb, a process each in lockstep with the world over a shared block, the host's frames bytes on a socket a bus |
@@ -263,6 +271,12 @@ tests/              suites, .counts.json (measured sizes)
 | `test_wbc_core.py` | her chain in C against MuJoCo: frames, M, bias, Jacobians at random configurations; a step's time |
 | `test_flight.py` | which soles stand, from one pass alone; a landing within her reach; the loop in C against the python stack with no sole standing; a hop stood on both, three in a row on the loop |
 
+- The quad's streams: `test_aero_core.py` holds aero/ to its form - no
+  branch in its sources, no flag set from its data in this host's code -,
+  its share to the best of every set of rotors held at an end, its
+  impedance to the closed form in a vacuum; `test_quad_streams.py` the
+  text's payloads and the power loop flown, a hover in the tour's air and
+  from upsets.
 - The stand-in is the emulated world's reference: `tools/dev/ab.py` runs a
   page on both, a process a page, and marks a read missing, a range apart
   over the board seconds both cover, or a number the physics rules out;

@@ -1,11 +1,12 @@
 """What a change to each part of the tree reaches: a path's prefix, its suites."""
-from tools.dev.suites import (BENCH, BOARD_MEM, BOOT, BOOT_CLIENT, BOOT_CORE, BROKER, CONFORMANCE,
+from tools.dev.suites import (AERO_CORE, BENCH, BOARD_MEM, BOOT, BOOT_CLIENT, BOOT_CORE, BROKER,
+                              CONFORMANCE,
                               CONTROLLER, CORE, CTRL_CORE, CYCLIC, DAQ_API, DAQ_CORE, DRIVE,
                               DRIVE_OBSERVER, EMULATOR, FILTER, FLIGHT, GYNOID, GYNOID_FALLS,
                               GYNOID_FAULTS, GYNOID_GAIT, GYNOID_GOING, GYNOID_RUN, GYNOID_STAND,
                               HEATED, NATIVE, NATIVE_HEAT, OLLAMA, QUADS, REACH, RENDER, ROOM,
-                              SENSORLESS, SHTP, SIGHT, STRUCTURE, TERMS, THERMAL, THERMAL_APP,
-                              VIEWS, WBC, WBC_CORE, WIRE, WORLD_CORE)
+                              SENSORLESS, SHTP, SIGHT, STREAMS, STRUCTURE, TERMS, THERMAL,
+                              THERMAL_APP, VIEWS, WBC, WBC_CORE, WIRE, WORLD_CORE)
 
 # What a change to each part of the tree can plausibly have broken.
 TOUCHES = (
@@ -48,7 +49,9 @@ TOUCHES = (
     ('host/machine/ansi.py',                   ('test_simulated.py', CONTROLLER)),
     ('host/machine/parts.py',                  (CONTROLLER, CTRL_CORE, CYCLIC)),
     ('host/machine/cyclic.py',                 (CYCLIC,)),
-    ('host/machine/quad.py',                   QUADS),
+    ('host/machine/quad.py',                   QUADS + (AERO_CORE, STREAMS)),
+    ('host/machine/aerolisp.py',               (AERO_CORE, STREAMS)),
+    ('host/machine/intents.py',                (STREAMS,)),
     ('host/machine/flying.py',                 QUADS),
     ('host/machine/aerobatics.py',             QUADS),
     ('host/machine/course.py',                 QUADS),
@@ -91,6 +94,8 @@ TOUCHES = (
     ('host/tools/cores/thermal.py',            (THERMAL, THERMAL_APP)),
     ('host/tools/cores/reach.py',              (STRUCTURE, REACH)),
     ('host/tools/cores/wbc.py',                (STRUCTURE, WBC_CORE, FLIGHT)),
+    ('host/tools/cores/aero.py',               (STRUCTURE, AERO_CORE, STREAMS)),
+    ('host/tools/sim/streams.py',              (STRUCTURE, STREAMS)),
     ('host/tools/sim/wbc.py',                  (STRUCTURE, WBC, WBC_CORE, FLIGHT)),
     ('host/tools/sim/hop.py',                  (STRUCTURE, FLIGHT)),
     ('host/tools/cores/terms.py',              (STRUCTURE, TERMS)),
@@ -109,6 +114,7 @@ TOUCHES = (
     # on the host beside it.
     ('filter/',                                (FILTER,)),
     ('ctrl/',                                  (CTRL_CORE,)),
+    ('aero/',                                  (AERO_CORE, STREAMS)),
     ('wbc/',                                   (WBC_CORE, FLIGHT, EMULATOR)),
     ('world/',                                 (WORLD_CORE, NATIVE, NATIVE_HEAT, EMULATOR)),
     ('host/coaxial/acquire/bessel.py',         (FILTER, STRUCTURE)),

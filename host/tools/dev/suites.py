@@ -111,6 +111,9 @@ REACH, TERMS = 'test_reach.py', 'test_terms.py'
 #: The loop in C against MuJoCo and the python stack (wbc/); flight on both.
 WBC_CORE, FLIGHT = 'test_wbc_core.py', 'test_flight.py'
 THRUSTS = 'test_thrusts.py'
+#: The frame's core (aero/) in a vacuum: its form, its share, its impedance; a text's streams
+#: compiled and flown on it.
+AERO_CORE, STREAMS = 'test_aero_core.py', 'test_quad_streams.py'
 
 #: The cyclic executive (machine.cyclic): its steps against machine.parts, a cycle on a toy rotor.
 CYCLIC = 'test_cyclic.py'
@@ -130,7 +133,7 @@ DEFAULT_SUITES = (STRUCTURES + (CORE, SHTP, DRIVE, DRIVE_OBSERVER, FILTER, THERM
                    BROKER, DAQ_API, CONTROLLER, GYNOID, GYNOID_FAULTS, GYNOID_FALLS,
                    GYNOID_STAND, GYNOID_GAIT, GYNOID_RUN, GYNOID_GOING, ROOM, SIGHT, REACH, TERMS, WBC,
                    WBC_CORE, FLIGHT, CYCLIC, QUAD,
-                   THRUSTS, QUAD_COURSE, BOOT)
+                   THRUSTS, AERO_CORE, STREAMS, QUAD_COURSE, BOOT)
                   + VIEWS
                   + (RENDER,) + OLLAMA
                   + ('test_mcp.py', 'test_simulated.py', 'test_parity.py',
@@ -165,6 +168,7 @@ JOINS = (
     (12, CYCLIC),
     (12, QUAD),
     (12, QUAD_COURSE),
+    (12, STREAMS),
     (12, BOOT),
     (15, CORE),
     (20, SHTP),
@@ -185,6 +189,7 @@ JOINS = (
     (20, CTRL_CORE),
     (20, WORLD_CORE),
     (20, WBC_CORE),
+    (20, AERO_CORE),
     (20, WIRE),
     (20, SENSORLESS),
     (35, 'test_parity.py'),
