@@ -408,7 +408,8 @@ the 100 N polar as before:
   level's, the bounds', the bounds' reduced, 117 KB): standing exact, the
   walk fell at its first step - a bound's violation on O(10-100) variables
   carries 1e-5 from a float row where the active set judges at 1e-7.
-- Left for 512 KB: the bounds' reduced rows for the set and the pending bound
-  alone (49 KB, and the violations checked in full coordinates: the tick's
-  largest cost), the Schur matrices over WBC_SMALL (54 KB), `qq` over the
+- The bounds reduced only as they enter the set, the violations checked in
+  full coordinates (`reduced`, `gs`): 541 KB, the tick 1.6-1.7 ms (2.0-2.1),
+  the polar and the walk as before.
+- Left for 512 KB: the Schur matrices over WBC_SMALL (54 KB), `qq` over the
   reduced dimension (14 KB); or the problem's own dimension.

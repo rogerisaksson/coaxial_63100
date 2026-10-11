@@ -158,9 +158,11 @@ typedef struct
   int    gkind[WBC_INEQ];
   int    gid[WBC_INEQ];
   int    ineq;
-  double gb[WBC_INEQ][WBC_V];     /**< the bounds in the reduced coordinates */
-  double hb[WBC_INEQ];
-  int    gfixed[WBC_INEQ];        /**< a bound the level being solved cannot move */
+  double gs[WBC_V][WBC_V];        /**< the held bounds in the reduced coordinates, in the set's order, and */
+  double hs[WBC_V];               /**< what the variables so far leave them; every bound reduced was 89 KB */
+  double gp[WBC_V];               /**< the pending bound's, the same */
+  double hp;
+  int    gfixed[WBC_INEQ];        /**< a bound the level being solved cannot move, found as it is tried */
   double ud[WBC_V];               /**< the held bounds' duals, and the pending bound's */
   double upend;
   double sfac[WBC_V][WBC_V];      /**< S factored */

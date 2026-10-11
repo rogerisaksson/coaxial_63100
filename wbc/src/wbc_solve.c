@@ -156,16 +156,44 @@ static double dot(const double *g, const double *v, int m)
 }
 
 /** Bound i into the set at place k: v_i = K^-1 g_i, and S's new row. */
+/** Bound i in the reduced coordinates, g y <= h with h what the variables so far (`sum`)
+    leave; 0 where this level cannot move it (its reduced row all but zero). */
+static int reduced(const wbc_stack_t *s, int i, int m, const double *sum, double *g, double *h)
+{
+  double got = 0.0, nrm = 0.0;
+
+  for (int c = 0; c < m; c++)
+  {
+    double v = 0.0;
+
+    for (int w = 0; w < WBC_V; w++)
+    {
+      v += s->ga[i][w] * s->zb[w][c];
+    }
+    g[c] = v;
+    nrm += v * v;
+  }
+  for (int w = 0; w < WBC_V; w++)
+  {
+    got += s->ga[i][w] * sum[w];
+  }
+  *h = s->gh[i] - got;
+  return nrm >= 1e-12;
+}
+
+/** The pending bound (gp, hp) into the set with v = K^-1 g and its dual; S grown by it. */
 static void set_add(wbc_stack_t *s, int level, int i, int m, const double *vi, double dual)
 {
   const int k = s->wn[level];
 
   s->wset[level][k] = i;
   memcpy(s->vw[k], vi, (size_t)WBC_V * sizeof(double));
+  memcpy(s->gs[k], s->gp, (size_t)WBC_V * sizeof(double));
+  s->hs[k] = s->hp;
   s->ud[k] = dual;
   for (int j = 0; j <= k; j++)
   {
-    const double v = dot(s->gb[s->wset[level][j]], vi, m);
+    const double v = dot(s->gs[j], vi, m);
 
     s->sm[k][j] = v;
     s->sm[j][k] = v;
@@ -182,6 +210,8 @@ static void set_drop(wbc_stack_t *s, int level, int l)
   {
     s->wset[level][l] = s->wset[level][k];
     memcpy(s->vw[l], s->vw[k], (size_t)WBC_V * sizeof(double));
+    memcpy(s->gs[l], s->gs[k], (size_t)WBC_V * sizeof(double));
+    s->hs[l] = s->hs[k];
     s->ud[l] = s->ud[k];
     for (int j = 0; j <= k; j++)
     {
@@ -220,7 +250,7 @@ void wbc_level_solve(wbc_stack_t *s, int level, int last)
   const int ineq = s->ineq, m = s->zm;
   int       rows;
   double    sum[WBC_V], y[WBC_V], y0[WBC_V], rhs[WBC_V], q[WBC_V], nv[WBC_V], r[WBC_V];
-  double    vp[WBC_V], z[WBC_V], big = 0.0, mu;
+  double    vp[WBC_V], z[WBC_V], gp[WBC_V], big = 0.0, mu;
   double  (*zn)[WBC_V] = s->ab;   /* the next basis, built where the rows were: they are in qq by then */
   int       pending = -1, feasible = 1;
 
@@ -270,30 +300,10 @@ void wbc_level_solve(wbc_stack_t *s, int level, int last)
       s->rho[i] = (nrm > 1e-12) ? s->rho[i] / nrm : 0.0;
     }
   }
-  /* The bounds in the reduced coordinates: gb y <= hb, what the variables so far leave; a
-     bound this level cannot move (its reduced row all but zero) is the levels' above. */
-  for (int i = 0; i < ineq; i++)
-  {
-    double got = 0.0, nrm = 0.0;
-
-    for (int c = 0; c < m; c++)
-    {
-      double v = 0.0;
-
-      for (int w = 0; w < WBC_V; w++)
-      {
-        v += s->ga[i][w] * s->zb[w][c];
-      }
-      s->gb[i][c] = v;
-      nrm += v * v;
-    }
-    for (int w = 0; w < WBC_V; w++)
-    {
-      got += s->ga[i][w] * sum[w];
-    }
-    s->hb[i] = s->gh[i] - got;
-    s->gfixed[i] = nrm < 1e-12;
-  }
+  /* A bound is reduced as it is tried (`reduced`): every bound reduced up front was the tick's
+     largest cost and 89 KB of the state (2026-10-11). One this level cannot move is the
+     levels' above, found then. */
+  memset(s->gfixed, 0, (size_t)ineq * sizeof(int));
   /* H = ab^T ab, q = -ab^T rho; K = H + mu I, factored; y0 = -K^-1 q. */
   for (int c = 0; c < m; c++)
   {
@@ -396,24 +406,21 @@ void wbc_level_solve(wbc_stack_t *s, int level, int last)
     s->wn[level] = 0;
     s->wsized[level] = ineq;
   }
-  for (int j = 0; j < s->wn[level]; j++)
-  {
-    if (s->gfixed[s->wset[level][j]])
-    {
-      s->wset[level][j--] = s->wset[level][--s->wn[level]];
-    }
-  }
   {
     const int k0 = s->wn[level];
+    int       warm[WBC_V];
 
+    memcpy(warm, s->wset[level], (size_t)k0 * sizeof(int));
     s->wn[level] = 0;
     for (int j = 0; j < k0; j++)
     {
-      const int i = s->wset[level][j];
-
-      wbc_chol_solve(m, WBC_V, &s->kk[0][0], s->gb[i], vp);
-      s->wset[level][j] = i;
-      set_add(s, level, i, m, vp, 0.0);
+      if (!reduced(s, warm[j], m, sum, s->gp, &s->hp))
+      {
+        s->gfixed[warm[j]] = 1;
+        continue;
+      }
+      wbc_chol_solve(m, WBC_V, &s->kk[0][0], s->gp, vp);
+      set_add(s, level, warm[j], m, vp, 0.0);
     }
   }
   for (int it = 0; it < MAXIT; it++)
@@ -423,7 +430,7 @@ void wbc_level_solve(wbc_stack_t *s, int level, int last)
 
     for (int j = 0; j < k; j++)
     {
-      nv[j] = dot(s->gb[s->wset[level][j]], y0, m) - s->hb[s->wset[level][j]];
+      nv[j] = dot(s->gs[j], y0, m) - s->hs[j];
     }
     if (k > 0)
     {
@@ -471,9 +478,20 @@ void wbc_level_solve(wbc_stack_t *s, int level, int last)
     s->iterations++;
     if (pending < 0)
     {
+      /* The most broken bound, each checked where it is: x = sum + Z y. */
+      for (int v = 0; v < WBC_V; v++)
+      {
+        double x = sum[v];
+
+        for (int c = 0; c < m; c++)
+        {
+          x += s->zb[v][c] * y[c];
+        }
+        gp[v] = x;
+      }
       for (int i = 0; i < ineq; i++)
       {
-        double v;
+        double v = -s->gh[i];
         int    in = 0;
 
         for (int j = 0; j < k; j++)
@@ -484,7 +502,10 @@ void wbc_level_solve(wbc_stack_t *s, int level, int last)
         {
           continue;
         }
-        v = dot(s->gb[i], y, m) - s->hb[i];
+        for (int w = 0; w < WBC_V; w++)
+        {
+          v += s->ga[i][w] * gp[w];
+        }
         if (v > most)
         {
           most = v;
@@ -495,7 +516,13 @@ void wbc_level_solve(wbc_stack_t *s, int level, int last)
       {
         break;
       }
-      wbc_chol_solve(m, WBC_V, &s->kk[0][0], s->gb[pending], vp);
+      if (!reduced(s, pending, m, sum, s->gp, &s->hp))
+      {
+        s->gfixed[pending] = 1;
+        pending = -1;
+        continue;
+      }
+      wbc_chol_solve(m, WBC_V, &s->kk[0][0], s->gp, vp);
       s->upend = 0.0;
     }
     /* The directions: r = S^-1 N v_p, z = v_p - sum r_j v_j. */
@@ -503,7 +530,7 @@ void wbc_level_solve(wbc_stack_t *s, int level, int last)
     {
       for (int j = 0; j < k; j++)
       {
-        nv[j] = dot(s->gb[s->wset[level][j]], vp, m);
+        nv[j] = dot(s->gs[j], vp, m);
       }
       if (!schur_solve(s, k, nv, r))
       {
@@ -529,9 +556,9 @@ void wbc_level_solve(wbc_stack_t *s, int level, int last)
         l = j;
       }
     }
-    nz = dot(s->gb[pending], z, m);
-    viol = dot(s->gb[pending], y, m) - s->hb[pending];
-    if (nz <= 1e-12 * dot(s->gb[pending], s->gb[pending], m))
+    nz = dot(s->gp, z, m);
+    viol = dot(s->gp, y, m) - s->hp;
+    if (nz <= 1e-12 * dot(s->gp, s->gp, m))
     {
       /* In the span of those held: the duals alone. */
       if (l < 0)
@@ -601,7 +628,7 @@ void wbc_level_solve(wbc_stack_t *s, int level, int last)
     {
       if (s->ud[j] > HOLD)
       {
-        memcpy(s->ab[all], s->gb[s->wset[level][j]], sizeof(s->ab[all]));
+        memcpy(s->ab[all], s->gs[j], sizeof(s->ab[all]));
         all++;
       }
     }

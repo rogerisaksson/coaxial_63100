@@ -172,10 +172,10 @@ the files under docs/FINDINGS.md. An item is deleted when its DOD is met.
     physics as static arrays, one C
     loop over them (`wbc/`), R^k the only thing upward, the model feeding R^k
     as data.
-    + Loop: 120 N shoves (1 of 8 where the stack 3); the tick 2.1 ms here;
-      its state 591 KB in doubles (1 174 before the diet) where the AXI SRAM
-      is 512 - the bounds' reduced rows for the set alone, the Schur over
-      WBC_SMALL -, then its cycles on Renode (wbc.md).
+    + Loop: 120 N shoves (1 of 8 where the stack 3); the tick 1.7 ms here;
+      its state 541 KB in doubles (1 174 before the diet) where the AXI SRAM
+      is 512 - the Schur over WBC_SMALL, `qq` over the reduced dimension -,
+      then its cycles on Renode (wbc.md).
     + Bottom, each board: the ESO (`parts.Eso`, `CTRL_ESO`; on the gearboxes
       8 of 8 at 100 N where the PD 2, drives.md) onto the boards as built,
       reading the motor's encoder: the play's stick-slip there, its torque
