@@ -1,7 +1,8 @@
 # Findings: walk
 
-The walk as built: its plan, shape and look, the start from the squat. The
-board's findings: [FINDINGS](../FINDINGS.md).
+The walk as built: its plan, shape and look, the start from the squat; the
+straight leg's cost: [straight](straight.md). The board's findings:
+[FINDINGS](../FINDINGS.md).
 
 ## Plan and shape
 
@@ -298,29 +299,6 @@ damping acting on every corner's motion.
 | 5d2f296: the heel off at 0.5 where 0.36 | 34 | 20.6 | 16-17 | 22-53 mm; scoreboard 78.6 % held where 65.8 |
 | the slip's fix (eb03ee0), `stance.HEEL_REACH` 0.99, stride 0.75 m where 0.85 | - | 16.4 | - | - |
 | a woman's catwalk take (`tools/sim/mocap.py`'s, scaled: thigh 0.40, shank 0.41 m; 1.09 m/s on a 1.29 m stride, 0.85 a second) | 1-3 | 2-5 through the stance | the leg 23-25 behind plumb as its ankle moves, the toes not back | 20 mm under its top at each landing, 31 mm a stride |
-
-### Straight leg cost
-
-A straight leg costs more than a bent one, and where (2026-10-05; steady at
-0.85 strides/s, 0.63-0.66 m/s, the boards' own 53 W in each): the walk as
-built 365 W, 561 J/m (work 151, copper 160).
-
-| Stance knee | W | Hips' and knees' work and copper W |
-| --- | --- | --- |
-| 6 deg | 402 | 247 |
-| 18 | 264 | 133 |
-| 30 | 256 | 123 |
-
-- By the left leg's phase, a twentieth each: where it only stands, the knee
-  at 1.5 deg, the knee draws 1 W at 6 N m rms; landed bent 21-27 deg and
-  straightened under load, hip and knee 620 W over 0.12-0.17; released at 6
-  deg into a swing of 57, 895 W over one twentieth; the two legs solved for
-  one pelvis in the double support, the hips' roll 73-78 N m rms each. The
-  mechanics ask some 10 W.
-- A leg carrying as its sole bears of what the two bear (lab): 364 -> 341 W
-  as built, the knee at plumb 12.3 -> 3.4 deg, the toes back 2 mm, no parry.
-  The power is steady from 2 s into the walk: 368, 372 and 373 W from 2, 4
-  and 8 s.
 
 ### The stance leg a strut
 

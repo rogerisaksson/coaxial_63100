@@ -364,24 +364,12 @@ on its list from the first).
 ## The strut a row's setpoint
 
 `strut`, deg: the standing knee the pelvis is never over, 6 the form's
-(2026-10-06). Bent more, the walk's row draws less:
-
-| strut deg | 6 | 10 | 14 | 18 | 24 |
-| --- | --- | --- | --- | --- | --- |
-| J/m | 574 | 528 | 503 | 502 | 500 |
-
-At 10 deg 0.25 off the band where 0.41, the knee 29-30 deg as its toes leave.
-The straight leg's cost is how it is driven (the energy), not its shape.
-Asked 0.6 m/s on the walk's step time: 0.59 at 848 J/m, a step 0.39 legs, the
-walk ratio 0.73 where 1.1-1.8, the heel 7 deg up as its toes leave; stiff
-0.61, shuffling 0.67, tripping 0.53: a shuffle on stilts. A woman's step
-keeps its ratio to its time at any pace; the law's slow walks keep the walk's
-time.
-
-- 2026-10-11, from the squat, strut 6 at 485 J/m against the crouched
-  manner at 390, by drive and twentieth of the stride: the knees 290 against
-  189 of work and copper; the excess in the first tenth after each landing
-  (+65) and at the swing's end (+43), the stance alike.
+(2026-10-06); bent more, the row draws less, and where its drives pay:
+[straight](straight.md). Asked 0.6 m/s on the walk's step time: 0.59 at
+848 J/m, a step 0.39 legs, the walk ratio 0.73 where 1.1-1.8, the heel 7 deg
+up as its toes leave; stiff 0.61, shuffling 0.67, tripping 0.53: a shuffle
+on stilts. A woman's step keeps its ratio to its time at any pace; the law's
+slow walks keep the walk's time.
 
 ## What the walk draws, by joint and phase
 

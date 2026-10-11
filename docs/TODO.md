@@ -27,10 +27,14 @@ the files under docs/FINDINGS.md. An item is deleted when its DOD is met.
    + Now (2026-10-11, look.py from the squat, the armada): the walk as
      built lands at 26-30 deg, 0 parries over its starts; the law's at
      12.2, 485 J/m, 0.20 off the band, stride 0.89 m. The crouched manner
-     (strut 18) measures 390: the straight leg's drives pay at each
-     landing's first tenth (+65 J/m) and at the swing's end (+43), the
-     stance alike - a fault in how the landing and the swing are driven,
-     to find; never a form to take (going.md).
+     (strut 18) measures 390 for three faults in the driving, a leg a
+     stride (straight.md): the knee landed at 15 deg and driven to 5 under
+     load (+37 J/m), the trailing knee held stiff through the other foot's
+     landing with no push-off before it (+25), the swing's knee braked by
+     its servo into its landing (+26); the standing twentieths alike.
+   + Next: the knee landed straight and yielding under load, the trailing
+     ankle's push-off before the other foot lands, the swing let go to its
+     pendulum; each measured on the same table.
    + DOD: parries per spread <= 1 on any host; clean starts, standing and
      from the squat, over a spread of side gains, roll peak 0.27; speed
      within 5 % of plan at 1.0 strides/s; `looks.FORM` landing knee 15 deg;
