@@ -1,7 +1,7 @@
 # Findings: the straight leg
 
 The stance leg extended, as a woman's, or where its drives pay instead
-(docs/TODO.md 1). The walk as built: [walk](walk.md); the one law's:
+(docs/TODO.md, walk form). The walk as built: [walk](walk.md); the one law's:
 [going](going.md); the band: [normal](normal.md).
 
 ## The walk as built
@@ -40,77 +40,91 @@ At 10 deg 0.25 off the band where 0.41, the knee 29-30 deg as its toes leave.
 
 ## Where the straight leg's drives pay
 
-From the squat (`look.py --pace 0`, the foot eased up): strut 6
-at 485 J/m landing at 12.2 deg, 0.20 off the band; the crouched manner
-(strut 18, knee 14) 390 at 27.5, 1.80 off; both 0.85 m/s on a 1.15 s stride.
-Every drive by the world's own meters, 5 to 16 s, J/m:
+The law's walk from the squat - strut 6, landing knee 11.8 deg asked - and its
+crouched manner, strut 24 and 25.8: both 0.85 m/s on a 1.15 s stride, 0.98 m,
+her 31.1 kg. Every drive, a world step a row from 5 to 16 s, the work on each
+joint's travel over its step, J/m (`look.py` reads the same two walks 485 and
+390, its draw sampled 60 times a second):
 
 | Walk | Work | Braked | Copper | Drawn, the boards' 63 with it |
 | --- | --- | --- | --- | --- |
-| straight | 225 | 186 | 190 | 477 |
-| crouched | 185 | 144 | 134 | 381 |
+| straight | 242 | 170 | 190 | 495 |
+| crouched | 196 | 135 | 134 | 393 |
 
-Its work less its braking is 39 straight and 41 crouched: what the floor and
-the joints' drag take. The straight walk's 96 more are 56 of copper and 40 of
-work its own drives brake away again.
+- Of the straight walk's 102 more, 56 are copper and 46 work, 35 of that
+  braked away again; the work less its braking is 72 and 61.
+- The world's work and braking meters took a step's torque on the speed
+  before it and read 225 and 186, 185 and 144: on the speed after it now
+  (`World.advance`), the joint's travel, as `World.drawn` has it.
 
-Both legs' hips, knees and ankles by twentieth of a leg's stride from its
-landing, the other foot landing at 0.50, 8 strides (`World.advance`'s rule;
-the table as first written, 7800cbb5, called these one leg's: its probe
-counted each of the world's steps twice):
+Both legs' hips, knees and ankles by the phase of each leg's own stride, the
+other foot landing at 0.50, 8 strides; the two legs within 0.5 J/m of each
+other. Knee deg; work / braking / copper J/m:
 
-| Of the stride | Straight: knee deg; work / braking / copper J/m | Crouched | Over, work and copper |
+| Of the stride | Straight | Crouched | Over, work and copper |
 | --- | --- | --- | --- |
-| 0-0.1, the landing | 15 -> 5; 36 / 33 / 44 | 28 -> 24; 17 / 16 / 25 | +37, the knee +18 |
-| 0.1-0.4, standing | 5-7; 14 / 10 / 17 | 24-25; 12 / 10 / 13 | +6 |
-| 0.4-0.5, the tenth before the other foot lands | 7-8; 3 / 16 / 10, the ankle's work 0.3 | 25; 0 / 14 / 7, the ankle's 0.1 | +5; no push-off in either |
-| 0.5-0.6, the other foot's landing, this leg trailing | 5; 39 / 18 / 35 | 24; 30 / 10 / 18 | +25, the knee +14 |
-| 0.6-0.65, the leaving: the foot lifted, the ankle's 30 of work | 11; 60 / 9 / 27 | 29; 60 / 8 / 27 | 0 |
-| 0.65-0.8, the swing | 36-52; 23 / 38 / 5 | 54-69; 24 / 39 / 6 | -2 |
-| 0.8-1.0, the swing's end: the knee extended to its landing | 35 -> 10; 45 / 48 / 38, the knee 12 / 19 / 14 | 50 -> 25; 32 / 37 / 24, the knee 9 / 14 / 9 | +26, the knee +9 |
-| the stride | 220 / 172 / 175 | 177 / 134 / 120 | +97 |
+| 0-0.1, the landing | 12; 38 / 31 / 44 | 27; 18 / 16 / 25 | +38, the knees +19 |
+| 0.1-0.4, standing | 6; 15 / 9 / 17 | 24; 12 / 10 / 13 | +6 |
+| 0.4-0.5, before the other foot lands | 7; 3 / 16 / 10, the ankles' work 0.3 | 25; 0 / 14 / 7, the ankles' 0.1 | +6 |
+| 0.5-0.6, the other foot lands, this leg trailing | 5; 41 / 16 / 34, the ankles' work 26 | 24; 31 / 9 / 18, the ankles' 24 | +26, the knees +14 |
+| 0.6-0.65, the leaving | 11; 62 / 8 / 27, the ankles' work 31 | 29; 63 / 9 / 27, the ankles' 33 | -1 |
+| 0.65-0.8, the swing | 46; 23 / 37 / 5 | 63; 25 / 38 / 6 | -2 |
+| 0.8-1.0, the swing's end | 21; 46 / 46 / 38 | 34; 33 / 35 / 25 | +26, the knees +9 |
+| the stride | 228 / 164 / 175 | 183 / 130 / 121 | +98 |
+
+- No push-off before a landing in either walk: the ankles' work comes after
+  the other foot is down, a quarter of it under load and a third as the
+  foot leaves.
+- The first table of this page, 7800cbb5, called these one leg's: its probe
+  counted a world step twice, the second time on the speed after it.
 
 ## The landing, a pass a row
 
 The law's own targets and both legs' setpoints over a left landing
-(`Going._carried` and `hold.lean` traced, the boards' torques beside them); the
-pelvis going 0.98 m/s on and 0.30 down as the foot lands:
+(`Going._carried` and `hold.lean` wrapped, the boards' torques beside them;
+one landing a walk, a second alike), the pelvis going 0.98 m/s on and 0.30
+down as the foot lands:
 
-| When | What the law asks | Straight | Crouched |
+| When | What the law does | Straight | Crouched |
 | --- | --- | --- | --- |
-| the landing's pass | the height's target from over the pelvis as read - the standing leg's sag, 3.4 and 4.3 mm - to the pelvis as read | the trailing knee 6.1 -> 11.5 deg in the pass | 24.0 -> 26.6 |
-| the 12 ms after | the landing leg shortened as she closes on its foot, 0.59 m/s along it | its knee 11.8 -> 20.4 deg, 717 deg/s | 25.8 -> 28.2, 200 deg/s |
-| to 0.1 s | the bounce: dipped 7 mm, lifted 28 onto the strut's arc; both soles 632 N at 60 ms and 183 at 120, her weight 323 | the knees at their 108 N m clamp 21 % of the landing's passes, 16 % of the trailing leg's | 6 %, 2 % |
-| the leaving's pass, 0.13 s on | the height's target down 4.2 mm from the bounce's end to the standing leg's arc, the lean across from 10 mm to none | the standing knee 6.0 -> 9.1 deg in the pass, its hip, knee and ankle at their clamps | 24.0 -> 24.6 |
+| the landing's pass, the trailing leg | the height's target steps from over the pelvis as read, the one standing leg's arc, to the pelvis as read, where the bounce is laid: 3.7 and 4.6 mm | 2.8 mm of leg: its knee asked 6.1 -> 11.5 deg in the pass | 3.8 mm: 24.0 -> 26.6 |
+| the 12 ms after, the landing leg | handed from its swing's pose to its standing solution, the difference faded out over 30 ms | the solution out of reach, its knee 0: held at 11.8 by the difference for 3 passes, then 3.5 deg in one as the solution comes into reach; 20.4 at 12 ms, 8.1 mm of leg | 19 mm inside its reach: 25.8 -> 28.2, 3.8 mm |
+| to 0.1 s | the bounce asks 5 mm down at 26 ms, then up onto the strut's arc: the pelvis dips 7 mm (8) at 40 ms and is up 20 by 0.1 s; both soles 632 N (642) at 60 ms and 183 (179) at 120, her weight 306 | the knees at their 108 N m clamp 21 % of the landing's passes, 16 % of the trailing leg's | 6 %, 2 % |
+| the leaving's pass, 0.13 s on | the height's target falls 4.2 mm (3.8) from the bounce's end onto the standing leg's arc; the lean across from 10 mm to none | the fall taken by the ankle, 3.3 deg in the pass; the knee asked 9.1 where the strut's 6 from there on - the arc taken at the pelvis as read, the target the lean's 7.4 mm ahead of it; hip, knee and ankle at their clamps under 4 ms | 2.2 deg; 24.6 where 24; at their clamps alike |
 
-- A millimetre of leg is 2.8 deg of knee at 6 deg of bend (dL/dtheta 20
-  mm/rad), 1.3 at 12, 0.7 at 24 (80 mm/rad). The law's pelvis target steps 3
-  to 8 mm at its own events, in both walks alike; a straight leg turns each
-  into 3-9 deg of knee and its hip's and ankle's share, a bent one into 1-3.
-  The fault is the target's steps and the bounce's dip and lift; the bent
-  leg hides them.
-- Asked to follow her fall onto its foot, a knee at 12 deg wants 717 deg/s
-  from rest: its drive pulls the leg in at its clamp, 4-9 ms, then against
-  it, the hip and the ankle with it.
+- dL/dtheta = a b sin(theta) / L: 20 mm/rad at a 6 deg knee, 40 at 12, 80
+  at 24 - 2.8, 1.4 and 0.7 deg of knee a millimetre of leg -, and at full
+  extension the knee goes as the root of what the leg lacks: 0.4 mm short is
+  3.7 deg. The straight leg lands 4 mm from its full length.
+- The height's target steps 3.7-4.6 mm at a landing and 3.8-4.2 at a
+  leaving, the lean 10 mm across, in both walks alike. A standing knee's
+  setpoint steps 3.1-5.4 deg in the pass straight, 0.6-2.6 bent.
+- Not shown: that these steps are the landings' 64 J/m - no run has one out.
+  Not separated from them: the knee's rate term (35 N m s/rad on a 108 N m
+  clamp, 177 deg/s of setpoint past its own) and its rotor (0.177 kg m^2: 113
+  kg along the leg at 12 deg, 24 at 26). The swing's end, +26, has no pelvis
+  target in it.
 
 ## Tried on the law
 
-The walk's row from the squat on the measures above; J/m drawn
-unless said, work / braking / copper both legs':
+The walk's row from the squat, a run each. The first four by `look.py`,
+where the row as it is reads 485 J/m; the rest by the world's meters over
+5-16 s, where it reads 495 at 0.85 m/s:
 
 | Change | Result |
 | --- | --- |
-| the landing knee asked 6 deg (the row's 11.8) | lands at 4.7-4.9; 566 where 485; the landing's twentieth 25 / 25 / 42 where 20 / 17 / 32, the swing's last two 30 / 35 / 32 where 12 / 17 / 18 |
-| the landing pose reaching the floor, the row's knee its least bend | lands at 4.7-5.5; 599, 0.26 off the band; the landing 26 / 29 / 50 |
-| a push-off: the standing heel up 5, 10 or 20 deg over the last 0.12 s before the free foot lands, kept while it gives its load - on the strut's cap; with the floor-reaching pose; lifting the pelvis's target by the ankle's rise | down in 4.0-6.1 s each: at a fixed landing length the sole hung 9-13 mm up for 0.15 s; on the cap the heel rose under an unmoved target and the knee bent 10 -> 13; with the target lifted she lost her way from the first step, 0.08 m/s at 3.3 s, and fell back |
-| the fold's second half a raised cosine, no slope at its end | 532, 0.22 off; the swing's last fifth 74 where 83, the knee's unfolding moved to 0.80-0.85 and braked there, 31 |
-| the knees springs along their legs: each board's gains laid a pass from its own angle, kp = min(900, K J^2 + 30), kd = min(35, C J^2 + 2), J = dL/dtheta; K 125 kN/m, C 5.5 kN s/m - a knee's 900 N m/rad is 2.2 MN/m along the leg at 6 deg, 140 kN/m at 24 | 468 at 0.79 m/s where 477 at 0.85: the knees' copper at the landing 7 where 23, the hips' and ankles' 47 where 21; the standing knee at 0-2 deg; K 60: down at 5.5 s; K 300: 520; the damping alone 472, the stiffness alone 697, in stance alone down at 9 s |
-| the row's `off` 8, 15, 25 deg (the standing heel's rise toward the free foot's landing) | 485, 492, 512 |
-| the row's `bounce` 0.07, 0.16, 0.22 s | 504; 471 at 0.80 m/s; 494 |
+| the landing knee asked 6 deg (the row's 11.8) | lands at 4.7-4.9; 566 |
+| the landing pose reaching the floor, the row's knee its least bend | lands at 4.7-5.5; 599, 0.26 off the band |
+| a push-off: the standing heel up 5, 10 or 20 deg over the last 0.12 s before the free foot lands, kept while it gives its load - on the strut's arc; with the floor-reaching pose; lifting the pelvis's target by the ankle's rise | down in 4.0-6.1 s each: the sole hung 9-13 mm up for 0.15 s; the heel rose under an unmoved target and the knee bent 10 -> 13; with the target lifted she lost her way from the first step, 0.08 m/s at 3.3 s |
+| the fold's second half a raised cosine, no slope at its end | 532, 0.22 off; the knee's unfolding moved to 0.80-0.85 of the stride and braked there |
+| each knee's board gains laid a pass from its own angle, kp = min(900, K J^2 + 30), kd = min(35, C J^2 + 2), J = dL/dtheta; K 125 kN/m, C 5.5 kN s/m - a knee's 900 N m/rad is 2.2 MN/m along its leg at 6 deg, 140 kN/m at 24 | 483 at 0.79 m/s on a 1.34 s stride, landing at 4.0 deg and standing at 0-2: the knees' copper at the landing a third, the hips' and ankles' doubled; the leg no softer, its hip and ankle holding 0.4 of its length's stiffness through the same lever. K 300: 536; K 60: down at 5.5 s; the stiffness alone 721 |
+| the knee's damping alone so, in swing and stance | 487 at 0.80 m/s: 26 less at the two landings, 18 more at the swing's end |
+| the knee's damping so in stance alone | floored at 2 N m s/rad down in 5.7-7.3 s at C 2.5-25; floored at 6: 469 at 0.80 m/s, the knees at their clamp 4.1 % where 6.8 |
+| the row's `off` 8, 15, 25 deg (the standing heel's rise toward the free foot's landing) | 502, 510, 530 |
+| the row's `bounce` 0.07, 0.16, 0.22 s | 521; 488 at 0.80 m/s; 511 |
 
-- No shape of the setpoints, no gain of the knee and no knob of the row
-  takes the cost out: softer knees move it to the hips and ankles, every
-  joint of a leg following the same stepped target. The pelvis's target
-  carried over the law's events - its height and its lean continuous
-  through a landing and a leaving, the landing leg not retracted under her -
-  is the law's to find (docs/TODO.md 1).
+- None lowers a metre's draw at her pace; the knee's damping by its lever in
+  stance takes 5 % of it at a pace 6 % slower. Untried: the height's target
+  begun at a landing where it was, not at the pelvis as read; a standing leg
+  solved from the leg as it landed, so no hand-over from out of reach
+  (docs/TODO.md, walk form).

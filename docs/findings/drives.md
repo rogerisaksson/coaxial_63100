@@ -167,8 +167,9 @@ centres a fall and a capture step never reach.
 
 ## Demand over five scenes
 
-The walk, a slip, a nudge, a hole, P's shove at 1.5x (`drive_sizes.SCENES`). One walk's knee asked 1231 deg/s with a catch in it, 561
-without. With the parries, on the spur build:
+The walk, a slip, a nudge, a hole, P's shove at 1.5x (`drive_sizes.SCENES`).
+One walk's knee asked 1231 deg/s with a catch in it, 561 without. With the
+parries, on the spur build:
 
 | Joint | T | P | V | Other |
 | --- | --- | --- | --- | --- |
@@ -356,9 +357,9 @@ the other flank 85 ms later before the link turns back (test_gynoid.py).
   (792 rigid), all at the printed stiffness - the roller box's to be
   measured again.
 - So the loop's world has the boxes (test_wbc_core.py, `tools/sim/wbc.py`,
-  `--rigid` off) and the walker's stays rigid till the page walks on the
-  loop (docs/TODO.md 26): a form held on setpoints through a gearbox's lost
-  motion is the torque loop's to hold.
+  `--rigid` off) and the walker's stays rigid till the page walks on the loop
+  (docs/TODO.md, the latent stack): a form held on setpoints through a
+  gearbox's lost motion is the torque loop's to hold.
 - The drives' speed, back-EMF and copper are the rotor's; the boards see the
   rotor's angle past the joint's on the block (`delta`, `delta_d`, `ahead`).
 - Rigid, the boards keep the encoder deadband the walk's band was measured

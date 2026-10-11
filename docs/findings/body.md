@@ -148,7 +148,12 @@ Build, buses, falls, get-up, drawing and clothes; the drives in
   deg/s (the elbows 1 190, the hips 640, the sprung toes 2 000), the feet 2.9
   and 3.2 m/s, the hands 6.4-7.3; the hands 0.86 m from the torso at the
   farthest through the lift and the crouch; the feet 178 mm apart fore and
-  aft as she first stands, 168 as she walks again.
+  aft as she first stands, 168 as she walks again. Through it 3 gearboxes
+  of 21 pass their momentary rating: the hips 1.41-1.53, a hip's yaw 1.20.
+- The skeleton's collisions on (`physics.SKELETON` 1): rising, each thigh's
+  bone meets its hip's yaw gimbal 4.1 mm deep at 2.0-2.1 kN and its roll
+  gimbal at 1.0-1.2, each ankle's cross its rod at 0.6 - pairs apart
+  standing and in the squat, `mjcf._APART`'s two poses; down at 2.55 s.
 
 ## Page
 

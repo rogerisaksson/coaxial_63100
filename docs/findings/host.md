@@ -35,6 +35,14 @@ Pages, tooling, suites and the local model's runner. The board's findings:
   either is behind, Release last, so `open()` loads the newest
   (tools/target/current.py). The host's C libraries are built in each process
   already. A source touched: both built in 3.9 s.
+- MuJoCo Warp on her world as built (mujoco_warp 3.15, an RTX 4080 SUPER;
+  her model from its default pose, no control, 86 contacts): the CPU steps
+  it in 0.31 ms, 3 200 a second a core; Warp 14 ms a step for one world,
+  0.27 ms a world for 64, 0.039 for 512, 0.018 for 2 048, 0.015 for 8 192 -
+  66 000 world steps a second, 21 cores' worth. A pass of her walk is 1.3 ms
+  of wall, the world's step 0.1-0.3 of it: the physics batched alone gains a
+  quarter at most, and pays once her law and her boards step as arrays
+  beside it (docs/TODO.md, the latent stack).
 
 ## Armada
 

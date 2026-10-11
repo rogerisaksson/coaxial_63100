@@ -100,7 +100,8 @@ Fitted parts come from `0x6D` kind 4, never from a name. Host rules:
 - **Narrowest test first** while a bug is live. **Green before the next
   item**, pre-existing failures included.
 - **Work goes into docs/TODO.md** the moment it is asked or found, and its
-  line is deleted when done: the list, not the conversation, carries it.
+  line is deleted when done, a line added at the end of docs/DONE.md: the
+  list, not the conversation, carries it.
   Unclear or self-contradicting: ask.
 - **Suspect your own code before the hardware**: reference implementation,
   init order (MSP callbacks reset pins), widths and byte order, worst-case
@@ -123,7 +124,7 @@ Fitted parts come from `0x6D` kind 4, never from a name. Host rules:
   leg costing more than a bent one is a fault in how it is driven: found, not
   tuned round. What is solved stays: a fix that moves a solved measure is
   undone. Mocap is a reference, not a search space. `looks.FORM` is the form,
-  test_gynoid_gait.py holds it; docs/TODO.md item 1.
+  test_gynoid_gait.py holds it; docs/TODO.md, walk form.
 - **Smoke her walk first**: after any change reaching it,
   `python tools/sim/armada.py` (12 s on the armada kept up, `--up`) - her
   form, J/m and parries at three paces - and

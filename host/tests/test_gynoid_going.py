@@ -81,7 +81,7 @@ def test_her_rows_go_on(report):
 
 #: A way is asked each of SHIFTS s later and she is up through LEAST of them: a host's floats
 #: decide a passage's steps - CI's runner down at 30.4 s on her way back from the run, this
-#: host up through it on 12 timings of 12 (docs/TODO.md item 23).
+#: host up through it on 12 timings of 12 (docs/TODO.md, movement language).
 SHIFTS, LEAST = (0.0, 0.13, 0.26), 2
 
 
