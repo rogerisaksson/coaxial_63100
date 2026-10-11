@@ -11,7 +11,7 @@ the suites and the log's last results - a decision model picking the suite when 
 knobs' spans to search, the suite, the search's size, held to RUNS runs at most (the relay's). The
 search runs as `gait_montecarlo --search` runs it; its best - cost, held, values - goes to LOG
 and into the next prompt. The model and the relay grind; the reasoning and the smoke tests stay
-mine (the user, 2026-10-04).
+mine (2026-10-04).
 """
 import argparse
 import contextlib

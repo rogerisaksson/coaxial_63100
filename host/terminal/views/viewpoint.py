@@ -50,7 +50,7 @@ def orbited(state, t):
 
 def mouse(state, size):
     """`run_view`'s mouse: held throughout, F the page's pace; a left drag turns - across, the
-    other way round her than the arrows (the user, 2026-10-03) -, a right drag moves, `size` () ->
+    other way round her than the arrows (2026-10-03) -, a right drag moves, `size` () ->
     the drawing's (width, height); the wheel zooms through `on_input`."""
     return {'mouse': True, 'select': frozenset(), 'scroll_keys': False,
             'on_drag': lambda dx, dy: turned(state, -dx, dy),

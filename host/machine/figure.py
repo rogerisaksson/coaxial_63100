@@ -84,7 +84,7 @@ CONTACTS = (('foot', 'box', (SOLE_HALF, 0.03, (BALL + HEEL) / 2.0),
             ('toes', 'box', (0.045, 0.015, TOE_M / 2.0), (0.0, 0.001, TOE_M / 2.0)))
 
 #: Her feet as point contacts, a sphere POINT_R under each sole's centre alone (`contacts`): the
-#: stilts her standing counts on (`machine.stand`; the user, 2026-10-04), 1 to build her so.
+#: stilts her standing counts on (`machine.stand`, 2026-10-04), 1 to build her so.
 POINT_FEET, POINT_R = 0.0, 0.01
 
 

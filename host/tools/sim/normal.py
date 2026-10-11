@@ -31,7 +31,7 @@ G = 9.81
 #: or a studio's (2026-10-05): three of four a suit's on it, the fourth a foot's width off; a
 #: runway's catwalk 1.3 off - its arms 82 deg, its roll 23; her walk as built 2.0 - its knee
 #: lands at 30 deg, both feet bear 25 % of a stride a step, its step is short for its time; the
-#: one law's 4.0, on stilts (the user): the swinging knee 26 deg, no heel's rise, the pelvis
+#: one law's 4.0, on stilts: the swinging knee 26 deg, no heel's rise, the pelvis
 #: level, her feet 22 cm apart. Zeni's lift reads 3-6 % of a stride late: `stance` to 70.
 #: `walk ratio` is a step, legs, times its seconds, sqrt(leg / g): her step for its time,
 #: whatever her pace. `vault` is the pelvis over the standing foot above where it was as that
@@ -64,7 +64,7 @@ BAND = (
     ('feet apart', 'leg', 0.02, 0.22),
 )
 
-#: A walk in words (the user, 2026-10-05: what is a stiff walk without a soft one to hold it
+#: A walk in words (2026-10-05: what is a stiff walk without a soft one to hold it
 #: to): (word, ((measure, side), ..)) - how far those measures are out of their bands on that
 #: side, -1 under and 1 over, by the bands' widths; 0 on a woman's walk, said from SAID. Stiff:
 #: the leg goes by unbent, its foot lifted flat - stilts. Crouched: never on a straight leg,

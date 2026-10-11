@@ -319,8 +319,8 @@ def footer(pairs, width=0):
 
 
 #: The key help: a page's keys by group on a panel that slides up from the bar on TAB or ? over
-#: SLIDE_S and down again HELP_S after the last key, by itself - the old taskbar (the user,
-#: 2026-10-04).
+#: SLIDE_S and down again HELP_S after the last key, by itself - the old taskbar 
+#: (2026-10-04).
 HELP_KEYS, SLIDE_S, HELP_S = ('\t', '?'), 0.25, 8.0
 
 

@@ -34,17 +34,17 @@ from machine import events  # noqa: E402
 from tools import REPO  # noqa: E402
 
 #: Each number at this times what she asked: heavy lifts off the floor at half again, nothing
-#: tuned at its limit (the user, 2026-10-03).
+#: tuned at its limit (2026-10-03).
 MARGIN = 1.5
 CACHE = os.path.join(REPO, 'build', 'drive_demand.json')
 #: The demand's scenes, each from the squat: the walk alone, then a slip, a nudge, a hole and
 #: the page's shove laid at SCENE_S - her parries and falls ask the peaks (one walk's knee asked
 #: 1231 deg/s with a catch in it, 561 without, 2026-10-03) - and the gym's, standing on each rig
-#: of `events.STANDING` after 'stand:' (the user, 2026-10-04).
+#: of `events.STANDING` after 'stand:' (2026-10-04).
 SCENES = (None, 'slip', 'nudge', 'hole', 'shove') + tuple('stand:' + e for e in events.STANDING)
 SCENE_S = 8.0
-#: A scene's margin where it is not MARGIN: the parries' and the falls' 1.2 (the user's call,
-#: taken 2026-10-04: a catch's 171 N m and 1259 deg/s at the hip bound the hips and knees at
+#: A scene's margin where it is not MARGIN: the parries' and the falls' 1.2 (taken
+#: 2026-10-04: a catch's 171 N m and 1259 deg/s at the hip bound the hips and knees at
 #: 1.5 - 1.26 of A's amps, 1.19 of its volts - where the walk, the gym and the run ask less).
 #: Each scene's peaks, speeds and watts go into the cache at its margin over MARGIN.
 MARGINS = {'slip': 1.2, 'nudge': 1.2, 'hole': 1.2, 'shove': 1.2}

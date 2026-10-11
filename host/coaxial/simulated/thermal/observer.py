@@ -2,7 +2,7 @@
 
 thermal/src/thermal_run.c - the observer, its identification and its envelope as the board runs
 them - stepped on world/src/world_heat.c's truth, a slot of world/src/world_stand.c's
-(tools.cores.stand): one code with the part and the emulated worlds (the user, 2026-10-10).
+(tools.cores.stand): one code with the part and the emulated worlds (2026-10-10).
 This class is the stand-in board's edge: the load gathered off its drive, the room and its tour
 laid, the clamp and the stage acted on, the views named as the board's device names them.
 """

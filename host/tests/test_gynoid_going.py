@@ -152,7 +152,7 @@ def test_the_director_hands_her_to_the_law(report):
 #: The law's walk beside a woman's normal one (`tools.sim.normal.BAND`): what of it is on her
 #: band, how far off it the walk may be in all, the words it may be said to be. 0.20 off it,
 #: stiff 0.17 - the heel 22 deg up as its toes leave where 28 - since 2026-10-06; on
-#: stilts (the user) before: 4.1 off, the swinging knee 26 deg, no heel's rise, the pelvis
+#: stilts before: 4.1 off, the swinging knee 26 deg, no heel's rise, the pelvis
 #: level, her feet 0.29 legs apart, her arms bent 80 deg and still.
 ON_BAND = ('elbow bent', 'elbow', 'arm', 'hand out', 'knee swinging', 'knee at landing',
            'knee straightest', 'pelvis roll', 'feet apart', 'walk ratio', 'vault')

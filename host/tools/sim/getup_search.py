@@ -30,11 +30,11 @@ from tools.sim import cmaes
 FALLS = (('shove', -1), ('shove', 0), ('shove', 1), ('hole', 0), ('lace', 0))
 SHOVE_S = 60.0
 
-#: A run's seconds; walking again once WALKED_S in her walk without falling (the user,
-#: 2026-10-03: the first 'walk' stage counted, the fall right after it never seen); not by RUN_S
+#: A run's seconds; walking again once WALKED_S in her walk without falling 
+#: (2026-10-03: the first 'walk' stage counted, the fall right after it never seen); not by RUN_S
 #: KEPT_K, and TRY_K a try past the first.
 RUN_S, WALKED_S, KEPT_K, TRY_K = 60.0, 3.0, 60.0, 10.0
-#: Her look getting up (the user, 2026-10-03: no praying, the arms down, not thrown out): from
+#: Her look getting up (2026-10-03: no praying, the arms down, not thrown out): from
 #: the sit on (LOOKED), the seconds her hands are past HANDS_M from her chest (544 mm hanging,
 #: 730 thrown on in the lift) and her torso past TORSO_DEG from upright (80-99 in the crouch),
 #: LOOK_K each.
@@ -164,7 +164,7 @@ def trial(job):
 
 def relayed(args):
     """[the JSON each printed] of `args` lists run as jobs on the relay, this file's `--one`
-    modes (`focus.relay`: a baton a physical core, never a pool of its own - the user,
+    modes (`focus.relay`: a baton a physical core, never a pool of its own -
     2026-10-03), in their order; a run lost None."""
     import os
     from tools.dev import focus

@@ -5,10 +5,10 @@
 #include <stddef.h>
 
 /* Ballpark, every figure: a reason each, a measurement none, until a test cycle runs in
-   the application (the user, 2026-10-09). Per application, thermal_app_t's order: still air,
+   the application (2026-10-09). Per application, thermal_app_t's order: still air,
    a rotor's wash, a sealed finned housing, a fan's finned sink, a liquid's plate, PAO,
    transformer oil, a joint's holder - an aluminium one under its legs, a third of its back,
-   on its motor or gearbox, all in still air (the user, 2026-10-10). */
+   on its motor or gearbox, all in still air (2026-10-10). */
 
 /** The laminate's air path over the still air's: a sealed housing's air rides on the
     housing, three times; oil's natural convection 100-150 W/m^2 K against air's 7 with

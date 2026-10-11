@@ -119,7 +119,7 @@ def lifted(law, leg, sign, pel, now, joints):
 def upper(law, swing, roll=0.0, dt=0.0, yaw=0.0):
     """The upper body: the arms against the legs' swing {side: deg ahead}, an elbow bent the
     row's `elbow` and `play` deg more a deg its shoulder reaches ahead - on the runner's 80
-    deg, still, her walk's arms stood out before her (the user, 2026-10-05) -; the spine
+    deg, still, her walk's arms stood out before her (2026-10-05) -; the spine
     against the pelvis's `roll`, rad."""
     a = law.ask
     out = {'spine_roll': math.degrees(roll), 'spine': 0.0, 'waist': -math.degrees(yaw),

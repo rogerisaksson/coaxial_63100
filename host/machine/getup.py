@@ -50,7 +50,7 @@ UNFOLD = (('ease', 'unfold', 1.0, _pose(0.0, 0.0, 0.0, 0.0, 20.0, 0.0, 90.0)),
 #: 12 bare (2026-10-01); lifted by the floor-up plan instead she stood in none of 224, the knees
 #: never off the floor.
 #: Her hands put down under her shoulders, 100 deg, not reached out ahead at the search's 131 and
-#: 163 (the user): 16 falls of 16 up as before (2026-10-01).
+#: 163: 16 falls of 16 up as before (2026-10-01).
 #: The crouch's hip -126.5: her thighs as modules (r 58 -> 72 mm) meet her torso at -126, -140
 #: before; asked -138.7 the hip drove 100 N m into it, on her hands 0.17 m ahead of her feet, and
 #: none of 5 falls walked again; re-searched over the onto feet's three, 5 of 5 (2026-10-03).
@@ -67,7 +67,7 @@ SIT_BACK = (('ease', 'sit', 0.6, _pose(-130.0, 158.2, 12.2, 60.0, -20.0, 54.3, 1
 #: on her hands out and her torso bowed (`getup_search`, 2026-10-04): as they were she walked
 #: again from 0 of 5, 3 tries each, hands out 18.8 s, bowed 9.3; these 5 of 5 at 22.8-23.4 s, 1
 #: try, 4.5 and 5.3 s - the arms thrown up to 151 deg for the lift's 0.5 s, as before (142).
-#: With the arms held low (the shoulders 30, the elbows straight; the user's wish is down) the
+#: With the arms held low (the shoulders 30, the elbows straight; the aim is down) the
 #: best of 96 stood her up from none of 5, hot or cold (hands out 1.4 s, bowed 5.9): the throw
 #: is what lifts her off her heels.
 #: On the one stack (2026-10-05, her 28.4 kg) those left her down from 0 of 5, 3 tries each -
@@ -97,7 +97,7 @@ def _mirrored(pose):
     return out
 
 
-#: From her back onto her front, the arms pushing, the legs near straight (the user, 2026-10-02):
+#: From her back onto her front, the arms pushing, the legs near straight (2026-10-02):
 #: the bottom arm overhead, the top arm bent by her side; the top arm pressed down and straightened,
 #: its knee 60 -> 13 deg, the trunk turning; the recovery position, the top knee down in front;
 #: into what the knees under begins from - ended prone flat, she rolled back. CMA-ES over its 30

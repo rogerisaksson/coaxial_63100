@@ -32,7 +32,7 @@ TOE_OUT, TOE_K, PRONATE_DEG, PRONATE_K = (5.0, 15.0), 0.5, 3.0, 0.5
 CLEAR_MM, CLEAR_K = 5.0, 0.2
 
 #: The rear foot's toes back along the floor at their lift past SLIP_MM, SLIP_K a mm: the step
-#: ends with the foot lifted and moving forward at once (the user, 2026-10-04) - 92 mm with the
+#: ends with the foot lifted and moving forward at once (2026-10-04) - 92 mm with the
 #: heel rising by the phase alone (`stance.HEEL_UP_DEG`).
 SLIP_MM, SLIP_K = 2.0, 0.5
 
@@ -56,7 +56,7 @@ LOAD_PCT, LOAD_K = 0.0, 4.0
 #: the boards' own - ENERGY_K a watt past ENERGY_W; 482 W at 0.85 strides/s (2026-10-01).
 ENERGY_W, ENERGY_K = 300.0, 0.05
 
-#: Her walk's form on a flat, smooth floor (the user, 2026-10-05): a condition, never weighed
+#: Her walk's form on a flat, smooth floor (2026-10-05): a condition, never weighed
 #: against a fall - (measure, least, most), `strides.measured`'s names. The stance leg a strut,
 #: its knee all but straight while her foot bears her alone behind the plumb line; the leg on
 #: behind the plumb line; the pelvis rolled up over the standing hip; the toes not back as they

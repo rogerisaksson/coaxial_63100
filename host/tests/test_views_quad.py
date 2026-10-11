@@ -280,7 +280,7 @@ def test_the_page_flies_its_course(report):
     report.check('the gate lit: each in its turn on its laps, the first again on its way down',
                  ahead == set(range(len(grounds.GATES))) and after == {1},
                  '%d of them on its laps, %s after' % (len(ahead), sorted(after)))
-    report.check('the boards to their ceiling at the most through its laps, raw (the user, '
+    report.check('the boards to their ceiling at the most through its laps, raw ('
                  '2026-10-10); none tripped',
                  bool(laps) and max(r['soa'] for r in laps) <= 1.0
                  and not any(r['tripped'] for r in rows),

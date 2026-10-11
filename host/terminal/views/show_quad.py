@@ -10,7 +10,7 @@ and a flip over a toss, full tilt into the sky, the fall burned to a stop 10 cm 
 its boards and their thermal observers warmed on it; then the course (machine.course): two laps
 through sixteen gates - two slaloms, a climb, a dive, a hall's windows, an alley - raw, as fast
 as its thrust takes it, a dive pushed down inverted, the boards' envelopes spent and war
-emergency power where it pays (the user, 2026-10-10). What stands is solid: struck, the flight
+emergency power where it pays (2026-10-10). What stands is solid: struck, the flight
 is over, the wreck lies where it falls and the flight is begun again. The rotors are asked
 what those envelopes leave of their pull; a pack or the envelopes spent, it comes down for a
 charged one, or to cool. It is flown in the air's weather (machine.quad): a wind, gusts over it and eddies in it,

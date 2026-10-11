@@ -30,7 +30,7 @@ WAYS = ((3.8, 0.988, -0.20, -0.20), (-20.5, 1.163, 0.14, -0.05), (-8.8, 1.036, -
         (-4.3, 1.209, -0.36, -0.11), (1.3, 0.818, -0.36, 0.09), (12.3, 1.091, 0.20, 0.11),
         (3.1, 1.041, 0.29, -0.28))
 
-#: The plan (the user, 2026-10-10: raw - a dive pushed inverted, no level flight kept): a
+#: The plan (2026-10-10: raw - a dive pushed inverted, no level flight kept): a
 #: sphere about gravity, PULL of what the boards' envelopes leave of the rotors' thrust, the
 #: thrust v^2 k + a t + g up wherever that points. A bend takes what its speed asks across; it
 #: is braked for BRAKE and sped out of GO of what is left along its way, the air through the

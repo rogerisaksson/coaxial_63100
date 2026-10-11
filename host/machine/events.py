@@ -69,7 +69,7 @@ def lay(event, director, world, k=0, strides=0):
         }[event], bus['pelvis.pose.x'], h)
 
 
-#: Standing (the user, 2026-10-04): a nudge or a shove from her side ('nudge', 'shove') or
+#: Standing (2026-10-04): a nudge or a shove from her side ('nudge', 'shove') or
 #: along her way ('nudge_on', 'shove_on'); a brick taken from under a foot, the feet abreast
 #: ('brick') or the left BRICK_STAGGER_M ahead ('brick_on'); a nudge on a balance board, stiff
 #: ('board', rocking about her way; 'board_on', across it) or free ('rocker', 'rocker_on').

@@ -49,7 +49,7 @@ JOG = dict(RUN, speed=0.8)
 #: together, up, with its swing too, up; all of it at once, down.
 #: Her quick step, the walk's row as first found - 2 240 rows on a walk's price before her
 #: stand was in the law: a foot always down, 0.53 s a step, the knee folding 10 deg, 0.81 m/s
-#: at 392 J/m. On stilts as her walk (the user, 2026-10-05), 4.1 off a woman's band: her way
+#: at 392 J/m. On stilts as her walk (2026-10-05), 4.1 off a woman's band: her way
 #: between her walk and EASE since - on the walk's own shape every passage to her jog was down
 #: in a step.
 QUICK = {'speed': 0.76, 'step': 0.528, 'stand': 0.581, 'up': 0.10, 'rise': 0.0, 'bounce': 0.253,
@@ -80,7 +80,7 @@ RATES, DWELL_S = ((0.0, 1.0), (0.5, 0.5), (1.0, 0.1)), 2.0
 #: manners - are a row's the more both feet bear a step, in full from BESIDE_S of it.
 BESIDE_S = 0.05
 
-#: Her manners (the user, 2026-10-05: a middle layer that blends, concepts as tuples): a
+#: Her manners (2026-10-05: a middle layer that blends, concepts as tuples): a
 #: manner a row's setpoints moved, each this far at an amount of 1 - or other manners,
 #: ((manner, amount), ..). Asked as such tuples, their amounts 0 to 1 and summed, each coming
 #: on and going over MANNER_S. Alone on the walk's row, in `tools.sim.normal`'s words and at

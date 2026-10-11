@@ -1,6 +1,6 @@
 """Standing: a point under each sole the support, a quick step whenever the capture point leaves.
 
-As on stilts (the user, 2026-10-04), by one law in the capture point's plane (`machine.dcm`).
+As on stilts (2026-10-04), by one law in the capture point's plane (`machine.dcm`).
 
     frames = stand.needed(director, bus, dt, out)   # a step's keyframes, or None
     director.arrival.play(frames)                    # the step, then standing again

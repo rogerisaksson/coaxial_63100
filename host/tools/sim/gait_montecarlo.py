@@ -17,7 +17,7 @@ terminal page runs her:
 SUITES (`--suite`): look, the rises and the walks on fantasy boards, SOA never binding
 (`physics.ENVELOPE` 0); walk; faults, the events and the falls on the boards as built; stand; all.
 `held`, the share of the trials' time she stood; `stir`, the pendulum's mean over the
-walks, mm. The cost (2026-10-05, the user: a fall punished is met by a crouch): a walk off its
+walks, mm. The cost (2026-10-05: a fall punished is met by a crouch): a walk off its
 form (`looks.FORM`, its spread's) is rejected; on it, its look and power (`looks.cost`, `stir`
 with it); an event, a rise and a stand each a reward, PARRY_K the share of its runs she ended
 on her feet - a fall earns nothing and costs nothing; a fall past saving on its landing's
@@ -157,7 +157,7 @@ def trial(job):
     np, m, d = world._np, world.model, world.data
     ours = {m.body(seg[0]).id: seg[0] for seg in figure.SEGMENTS}
     # Her skeleton's parts, welded bodies of their own where `physics.SKELETON` collides them:
-    # a drum, a board or a tube the floor meets is what a fall breaks (the armour, the user,
+    # a drum, a board or a tube the floor meets is what a fall breaks (the armour,
     # 2026-10-04).
     bare_parts = {i for i in skeleton.owners(m) if i not in ours}
     force, drawn, landing, head, bare = np.zeros(6), 0.0, 0.0, 0.0, 0.0
@@ -294,7 +294,7 @@ def score(results):
 
 def run(_pool, candidates):
     """[(cost, held, stir, results)] for `candidates`, every run of each a job on the relay
-    (`focus.relay`: a baton a physical core, never a pool of its own - the user, 2026-10-03), its
+    (`focus.relay`: a baton a physical core, never a pool of its own - 2026-10-03), its
     result the JSON line it prints (`--one`); a run lost counts as fallen."""
     from tools.dev import focus
     jobs = [focus.Job('%d.%d' % (c, k), [sys.executable, '-X', 'utf8', os.path.abspath(__file__),

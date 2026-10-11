@@ -25,7 +25,7 @@ from machine import qp  # noqa: E402
 from machine.figure import SOLE_HALF  # noqa: E402
 from machine.gait import BALL, HEEL  # noqa: E402
 
-#: The horizon, the user's second: intervals of 0.05 s for half of it, then 0.1 - at 20 of 0.05 a
+#: The horizon, a second: intervals of 0.05 s for half of it, then 0.1 - at 20 of 0.05 a
 #: plan of five hypotheses took 13-25 ms, more than its 20 ms tick.
 DTS = np.array([0.05] * 10 + [0.1] * 5)
 N = len(DTS)

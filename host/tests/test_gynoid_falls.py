@@ -27,7 +27,7 @@ LANDING_S, PEAK_KN, HEAD_MS = 1.5, 7.0, 1.0
 
 
 #: Felled by the page's P walking (`tools.sim.getup_search`'s falls), she is up and walking again
-#: UP_S after she lay down, a test a side (the user, 2026-10-03: she must get up after a fall).
+#: UP_S after she lay down, a test a side (2026-10-03: she must get up after a fall).
 #: Before the drives went to modules 5 falls of 5 walked at 20.5 s, after them none of 5 - the
 #: gate had nothing that walked her up from the floor (2026-10-03). Felled hot after a minute's
 #: walk (`getup_search.SHOVE_S`), 3 s walking again counts: up at 22.8-23.4 s (2026-10-04).

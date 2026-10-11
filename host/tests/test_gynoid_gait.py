@@ -1,10 +1,10 @@
-"""The gynoid's walk on a flat, smooth floor, steady, as the page walks her: a human's (the user,
-2026-10-05) - the pelvis rolling over a stance leg whose knee is all but straight, the leg on
+"""The gynoid's walk on a flat, smooth floor, steady, as the page walks her: a human's 
+(2026-10-05) - the pelvis rolling over a stance leg whose knee is all but straight, the leg on
 behind the plumb line, her head still, her feet quiet, no parry asked. `tools.sim.looks.FORM` is
 the form, `tools.sim.armada.Robot` her walking: marked steady at each pace and gone back to
 (`tools.sim.replay`), a pace's measure 4 s of her time. Her walk as it was approved is a take,
 tests/takes/walk.fbx, and a woman's normal walk a band (`tools.sim.normal`): she is held to
-both (the user, 2026-10-05: a metric, an .fbx its reference, a test of what broke). Her rises,
+both (2026-10-05: a metric, an .fbx its reference, a test of what broke). Her rises,
 falls and parries are the other gynoid suites'."""
 import os
 import sys

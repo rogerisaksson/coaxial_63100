@@ -184,14 +184,14 @@ def held(w, qs, legs):
                   for p in ((SOLE_HEEL if pitch > 0.0 and foot is not FLAT else SOLE_BALL),)}
 
 
-#: A stance leg is a strut (the user, 2026-10-05: the stance leg going back extended and on past
+#: A stance leg is a strut (2026-10-05: the stance leg going back extended and on past
 #: the plumb line, no Groucho): its knee soft (`gait.KNEE_SOFT_DEG`) while it carries her, its
 #: heel rising as that length asks once its ball is behind its hip, HEEL_UP_DEG at most; from the
 #: other foot's landing to its own lift the knee gives up to PRE_SWING_DEG, the toes where they
 #: stand; let go, the foot goes with the pelvis from where it stood and eases into its swing over
 #: LET_Q of the stride. By the plan's phase alone (`gait.HEEL_OFF`) the knee snapped straight at
 #: 520 deg/s before the heel rose and the foot, bearing nothing 20 ms after the other landed, slid
-#: back 92 mm before its swing (the user's, 2026-10-04; `look.py`'s toes back at lift). Held at
+#: back 92 mm before its swing (2026-10-04; `look.py`'s toes back at lift). Held at
 #: 0.99 of her reach, 8 mm and the walk's power 560 -> 369 W, the walk at 1.0 strides/s down at
 #: 6.3 s until the stride came to 0.75 m, at 0.97 73-78 % of the scoreboard - and her knee went
 #: back at 16.4 degrees. Let go from 16 to 42 degrees of knee in a pass the toes still went back

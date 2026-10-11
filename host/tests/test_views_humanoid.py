@@ -33,7 +33,7 @@ def test_the_humanoid_pages_mouse(report):
     viewpoint.KEYS['v'](state)
     report.check('V home', all(state[k] == v for k, v in viewpoint.HOME.items()))
     viewpoint.mouse(state, lambda: (120, 50))['on_drag'](5, 0)
-    report.check('a left drag to the right turns her the way the left arrow does (the user, '
+    report.check('a left drag to the right turns her the way the left arrow does ('
                  '2026-10-03)', state['yaw'] < viewpoint.YAW, '%s' % state)
 
 

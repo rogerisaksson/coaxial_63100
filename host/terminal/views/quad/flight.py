@@ -19,8 +19,8 @@ from machine.flying import FALL, Flying
 from machine.parts import SpeedPI
 
 #: The page's flights, one after the other and again: the routine first - the boards warm and
-#: their observers out of UNCERTAIN before the course asks its lean of them (the user,
-#: 2026-10-05).
+#: their observers out of UNCERTAIN before the course asks its lean of them 
+#: (2026-10-05).
 CARD = aerobatics.CARD + course.CARD
 
 #: Each rotor's machine, its clamp and trip for a flight, A - the clamp the boards' envelopes

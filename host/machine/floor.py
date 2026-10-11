@@ -40,7 +40,7 @@ STEPS, RISE_M, RUN_M, TOP_M = 5, 0.08, 0.425, 1.5
 #: board (`place` 'board'): a plank BOARD half sizes, BOARD_KG, hinged BOARD_HINGE_M over the
 #: plane in a gap of the slab, its top at the floor, rocking about her way - turned a quarter,
 #: across it - until an edge meets the plane; its hinge sprung BOARD_K N m/rad - stiff, it
-#: gives a little (the user, 2026-10-04); free at 0 - and damped BOARD_C N m s/rad (`board`).
+#: gives a little (2026-10-04); free at 0 - and damped BOARD_C N m s/rad (`board`).
 BRICK, BOARD, BOARD_HINGE_M, BOARD_KG = (0.06, 0.031, 0.125), (0.25, 0.005, 0.20), 0.02, 1.2
 BOARD_K, BOARD_C = 3000.0, 20.0
 

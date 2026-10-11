@@ -22,7 +22,7 @@ WALL_M, CF_KG_M3 = 0.002, 1600.0
 
 #: What a segment holds besides its shell and its drives, (kg, where in its frame, m) - estimated:
 #: in the torso two 15S2P packs of 21700 cells, 48-63 V, 540 Wh each with its BMS and case, one in
-#: each flank of her lower ribs (the user, 2026-10-02), and the computer and the harness; the
+#: each flank of her lower ribs (2026-10-02), and the computer and the harness; the
 #: pelvis's power distribution; the head's cameras and IMU; the ankle's rod down the shin
 #: (`linkage`); her clothes and her sneakers.
 HOLDS = {'torso': ((2.4, (0.065, 0.17, -0.005)), (2.4, (-0.065, 0.17, -0.005)),

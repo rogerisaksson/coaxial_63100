@@ -1,7 +1,7 @@
 """Her bare look: printable panels over her skeleton, the joints left open.
 
 Each limb's shell a light panel, its ends open and dark at the joints where the skeleton, the
-drives and the rods show, the neck and the waist open too (the user, 2026-10-02).
+drives and the rods show, the neck and the waist open too (2026-10-02).
 
     meshes = panels.over(meshes)        # {segment: mesh} with their shells' corners re-painted
 """

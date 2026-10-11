@@ -51,9 +51,9 @@ BENDS = {'ankle': (0.045, 0.180, 0.0139), 'ankle_roll': (-0.047, 0.205, 0.0193)}
 
 #: Each belt, toothed steel cord: its drive's pulley's radius and its joint's, m - the ratio
 #: theirs, constant - and how far out to her side of the limb's axis it runs. None where its give
-#: under her weight would show in her walk - the knee's 141 N m was a 3.4 kN pull (the user,
-#: 2026-10-02). The toes' from their own stack, 36 mm out, past its gearbox (`drives.STACKS`).
-#: The elbow's and the wrist's went (the user's fewest parts, 2026-10-04): the elbow's stack on
+#: under her weight would show in her walk - the knee's 141 N m was a 3.4 kN pull 
+#: (2026-10-02). The toes' from their own stack, 36 mm out, past its gearbox (`drives.STACKS`).
+#: The elbow's and the wrist's went (fewest parts, 2026-10-04): the elbow's stack on
 #: its own axis, 68 mm across an elbow of 56 - a human's breadth -, the wrist held.
 BELTS = {'foot': (0.010, 0.010, 0.036)}
 
@@ -71,7 +71,7 @@ GEARS = {'hip_roll': 1.67}
 #: 24 mm off the fork's legs - its 1:1 spur pair's 100 mm wheels stood in the pitch's bracket's
 #: sweep, and a stage at 1:40 wants 1.5 after it. Between the M's face and the roll's bearing, its
 #: M 7 mm back: over spine -30..85 and roll +-35 the closest 1 mm (2026-10-03). A crank-rocker
-#: (the user: the crank turns 360 deg, the limb reverses at the dead centres, never into a stop)
+#: (the crank turns 360 deg, the limb reverses at the dead centres, never into a stop)
 #: was measured at the hip roll on two strokes and kept neither (docs/findings/drives.md): its
 #: dead centres are stops to a fall. The right's the left's mirrored in x (`four_bar`).
 #: A four-bar's crank and horn: steel plates 2 PLATE_R thick, drawn and collided as such (16 mm

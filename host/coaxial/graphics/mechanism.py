@@ -19,7 +19,7 @@ from machine.figure import FOREARM, UPPER_ARM
 from machine.gait import ANKLE_H, BALL, HEEL, SHANK, THIGH
 
 #: The colours: the carbon's, the rods' and their ball joints' steel, the quick-releases' printed
-#: polymer - violet, off the heat's ramp: orange read as a warm hip (the user, 2026-10-02) - and
+#: polymer - violet, off the heat's ramp: orange read as a warm hip (2026-10-02) - and
 #: each drive's drum by its frame (`drives.FRAMES`).
 CARBON, ROD, STEEL, POLYMER = (92, 94, 106), (214, 214, 224), (246, 246, 246), (150, 100, 220)
 #: A spur pair's face width, m (`linkage.GEARS`): its pinion on its drive's output face, its wheel

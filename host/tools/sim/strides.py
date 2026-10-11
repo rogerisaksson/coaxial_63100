@@ -257,7 +257,7 @@ def _lifts(rs):
 def _slips(rs):
     """How far back the left toes go, each stride, from where they stood as the foot last bore
     her alone before they go ahead of it, m: a foot let go still pushing slides back along the
-    floor (the user, 2026-10-04). From the row its load read under BEARS_N, a load read through
+    floor (2026-10-04). From the row its load read under BEARS_N, a load read through
     20 ms came after the slide and the measure said 0 of 93 mm."""
     out, alone = [], {id(r) for r in _alone(rs)}
     for k, r in enumerate(rs[:-1]):

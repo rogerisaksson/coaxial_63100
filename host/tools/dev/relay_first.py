@@ -21,7 +21,7 @@ REASON = (
     'Suites go through the relay, all a change reaches in one call: `python '
     'tools/dev/run_tests.py --file test_a.py --file test_b.py:word,word` (--smart: what the '
     'diff reaches; --offline: the gate) - a baton a physical core, the long suites as shards. '
-    'A suite run straight holds one core while the rest idle (the user, 2026-09-28).')
+    'A suite run straight holds one core while the rest idle (2026-09-28).')
 
 
 def main():

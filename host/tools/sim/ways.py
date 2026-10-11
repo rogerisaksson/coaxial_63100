@@ -11,7 +11,7 @@ A trial is `go.py --json` on a track or on rows asked ('ask ..', hers following 
 group asks of its last segment holds - standing again, the last LAST_S s are judged alone. The
 measure of docs/TODO.md's item on her going: nothing here is a price, a fall ends a trial.
 `--polar`: walking, a shove at each of TIMES from each of 8 ways, read by the foot that stood
-as it began (the user, 2026-10-06: what follows a shove is the standing leg's) - a parry's
+as it began (2026-10-06: what follows a shove is the standing leg's) - a parry's
 measure.
 """
 import argparse

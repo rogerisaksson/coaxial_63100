@@ -22,8 +22,8 @@ gate drive sagging runs the FETs in their SOA). Heat runs HASTE times the clock.
 
 #: The switches' on-resistance and the shunts', ohm (IAUCN10S7N021, two WSHM2818 in parallel);
 #: the switching's watts with the gates on, unshorted, and the housekeeping's always (MCU,
-#: regulators, AFE): thermal.c's loss table; idle, a board draws about 1.4 W (the user,
-#: 2026-10-02).
+#: regulators, AFE): thermal.c's loss table; idle, a board draws about 1.4 W 
+#: (2026-10-02).
 RDS_OHM, SHUNT_OHM, SWITCHING_W, HOUSEKEEPING_W = 1.8e-3, 3.5e-3, 1.2, 1.33
 
 #: The nodes: the switches, the laminate under them, the winding. The switches' and the

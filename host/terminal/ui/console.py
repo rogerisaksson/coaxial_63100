@@ -72,12 +72,12 @@ MOUSE_OFF = '\033[?1006l\033[?1002l'
 
 #: Bracketed paste while a view holds the mouse, a paste dropped whole: VS Code's right click
 #: pastes with nothing selected (rightClickBehavior copyPaste, Windows' default), its A restarting
-#: the HUMANOID page's walk (the user, 2026-10-02).
+#: the HUMANOID page's walk (2026-10-02).
 PASTE_ON, PASTE_OFF = '\033[?2004h', '\033[?2004l'
 
 #: Holding the mouse, a view says so again every HOLD_S: reporting went off under a running page -
-#: the terminal's or a process on the same console - and drag and pan died together (the user,
-#: 2026-10-03).
+#: the terminal's or a process on the same console - and drag and pan died together 
+#: (2026-10-03).
 HOLD_S = 1.0
 
 #: A wheel notch, as a fraction of the distance to the model. 12 % a notch is

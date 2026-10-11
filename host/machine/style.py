@@ -33,7 +33,7 @@ SWAY = {'turn': (8.0, 4.0, 5.0), 'drop': (7.0, 6.0, 4.0), 'shift': (0.014, 0.010
 #: Where on it she walks.
 AXIS = 0.0
 
-#: Her walk's manners (the user, 2026-10-05: a middle layer that blends, concepts as tuples): a
+#: Her walk's manners (2026-10-05: a middle layer that blends, concepts as tuples): a
 #: manner a line through the walk's constants from where they are tuned - (module, constant,
 #: its value at an amount of 1) -, asked as ((manner, amount), ..) and their offsets summed.
 #: Read back in `tools.sim.normal`'s words: crouched 1, her standing knee 24 deg - crouched
