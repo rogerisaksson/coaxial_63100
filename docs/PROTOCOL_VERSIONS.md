@@ -36,6 +36,7 @@ appends; MAJOR breaks a codec.
 | 29 | 0x6B appends `u16 locked` |
 | 30 | thermal op 15 takes 7, a joint's holder |
 | 31 | device 13 WBC |
+| 32 | thermal op 4 appends `i32 hold_milliamps`: the clamp held to what the envelope leaves |
 
 MAJOR 2: thermal nodes went per leg, indices repurposed.
 A host ignores fields past what it knows. `test_conformance.py` holds a

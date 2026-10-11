@@ -172,6 +172,8 @@ static cmd_status_t h_thermal_budget(wr_t *out)
   wr_i32(out, (int32_t)(b.winding_c * CENTI_PER_UNIT));
   wr_u8(out, b.winding_used);
   wr_i32(out, (int32_t)(b.winding_derate * PPM_PER_UNIT));
+  /* MINOR 32, appended: what the stage may carry now. */
+  wr_i32(out, (int32_t)(b.hold_amps * MILLI_PER_UNIT));
   return CMD_OK;
 }
 

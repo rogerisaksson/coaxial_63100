@@ -395,7 +395,10 @@ leg's FET junction),
 `u8 worst, u8 worst_node, i32 millis_to_limit, u8 throttling,
 u8 tripped, u32 trips`; MINOR 11 appends `i32 derate_micro`, per node
 `i32 soak_mj`, per phase `i32 duty_micro`; MINOR 12 appends the winding,
-`i32 winding_centi, u8 winding_used, i32 winding_derate_micro`.
+`i32 winding_centi, u8 winding_used, i32 winding_derate_micro`; MINOR 32
+`i32 hold_milliamps`, the phase current the stage may carry with every node
+its clamp reaches keeping 0.5 s to its throttle point - the clamp is held
+to it, `throttling` set while it is.
 
 Op 10: THE ONLINE IDENTIFICATION beside the observer
 (`thermal/inc/thermal_ident.h`, MINOR 14): `u8 state` (0 UNCERTAIN,

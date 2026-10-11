@@ -24,7 +24,31 @@ def test_the_thrusts_are_shared_as_her_torques(report):
                  'tilt %.2f of %.2f N m, collective %.0f of %.0f N' % (got + (torque[0], lift)))
 
 
-ROSTER = (test_the_thrusts_are_shared_as_her_torques,)
+def test_a_rotor_capped_takes_the_four_down(report):
+    """A rotor with less in it than its share of the top (`caps`): by hand the tilt's torque
+    kept and the collective what that rotor leaves; as the stack the tilt and the collective
+    both, the heading's torque what they cost; none capped, as before."""
+    from machine import quad, thrusts
+    top, lift = 4.0 * quad.K_THRUST * 700.0 ** 2, quad.MASS_KG * quad.GRAVITY
+    torque, caps = (0.3, 0.0, -0.2), [top / 4.0, 0.5 * lift / 4.0, top / 4.0, top / 4.0]
+    asked, got = 2.0 * lift, {}
+    for name, share in (('hand', thrusts.shared), ('stack', thrusts.stacked)):
+        f = got[name] = share(top, asked, torque, 0.0, caps)
+        tilt = (-sum(x * z for x, (_x, z) in zip(f, quad.ROTOR_AT)),
+                sum(x * a for x, (a, _z) in zip(f, quad.ROTOR_AT)))
+        report.check('by the %s: a rotor at half a hover\'s share, the tilt\'s torque kept'
+                     % name, max(abs(tilt[0] - torque[0]), abs(tilt[1] - torque[2])) < 0.01
+                     and f[1] <= caps[1] + 1e-6,
+                     'tilt %+.3f %+.3f N m, %s N' % (tilt + (' '.join('%.1f' % x for x in f),)))
+    report.check('the hand\'s collective gives way to it, the stack\'s is kept',
+                 sum(got['hand']) < lift and abs(sum(got['stack']) - asked) < 0.01 * asked,
+                 '%.1f and %.1f N of %.1f asked' % (sum(got['hand']), sum(got['stack']), asked))
+    free = [top / 4.0] * 4
+    report.check('no rotor capped under its share: as with none',
+                 thrusts.shared(top, lift, torque, 0.0, free) == thrusts.shared(top, lift, torque))
+
+
+ROSTER = (test_the_thrusts_are_shared_as_her_torques, test_a_rotor_capped_takes_the_four_down)
 
 
 def main(argv=None):

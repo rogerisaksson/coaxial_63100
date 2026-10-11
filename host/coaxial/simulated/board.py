@@ -124,6 +124,7 @@ class SimulatedBoard:
         self.drive._drop = self._drop_stage
         # And the throttle: the drive's clamp and the compares' duty.
         self.thermal._derate_to = self._derate_drive
+        self.thermal._clamp_of = self.drive._clamp
         self.thermal._duty = self._effective_duty
         # The drive is what the phases and the gates follow: a record and the
         # modulation that produced it come from one electrical angle, or they

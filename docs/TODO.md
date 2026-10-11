@@ -205,26 +205,44 @@ gets a line at the end of [DONE](DONE.md).
 
 ## Quad
 
-- **A board's envelope in a climb**: one board of the four throttled or
-  tripped in a fast climb cuts its rotor alone and the frame tumbles. DOD:
-  the four's pull taken down together before any one's envelope cuts it,
-  the envelope a part of the action space; the fastest climbs in every air
-  with no rotor cut alone, no tumble.
-- **Warm in a hover**: the boards' heat at a hover's amps with their
-  propellers' wash over them. DOD: where the watts come from and what the
-  wash carries off, measured; the fault found, in the heat's model or in
-  how the air is given it.
-- **Flown to WEP, no rules**: the flight kinematically determined inside an
-  action space computed beforehand - what the four can pull at each
-  airspeed, tilt, pack voltage and envelope, WEP its outer shell, gusts
-  inside it -; no clause on which envelope it happens to be in
-  (`flight.envelope`, `emergency`, `FIT`, `GONE_S`, `Flying.short`: gone).
-  DOD: on the law's rotors (Host, one code), `quad_race.py`'s laps against
-  today's, the pull left unused and the WEP taken a flight quoted, gusts
-  flown; no strike more.
+- **The carried camera into its turns**: its sight level and along its
+  way, as flat as a rail's. DOD: it looks a little into a turn and rolls a
+  share of the frame's bank with it, a turn read in the picture; a hover's
+  horizon level.
+- **The heat's clock in flight**: ten thermal seconds a flight's
+  (`HASTE`): full tilt's 2 s are 20 of heat, the legs at their throttle's
+  point 0.2 s in (envelope.md). DOD: flown on the flight's own seconds,
+  the observers out of UNCERTAIN before a first flight; the race on it.
+- **The plan on boards that hold their pull**: `course.PULL` gridded alone
+  to 0.37 (envelope.md); BRAKE, GO and the crossings are the search's on
+  boards that had 34-60 % of it. DOD: `quad_race.py --search` over them,
+  the laps against 14.2-15.2 s, every flight whole.
+- **Flown from compiled streams, no rules**: a flight's intent is text
+  (`stream_inject`: latent targets on six modes, a stiffness and a damping
+  a mode, an oscillator, task constraints; a mode dropped is NaN) compiled
+  to flat payloads, and a core in C under them with no branch (`aero/`):
+  the regulator on SO(3) from the payload's impedances, an extended state
+  observer for the air, the precession and a weak rotor, an active set over
+  the rotors' thrusts inside what each board holds. Above the core no
+  mixing, no Euler angle, no air; in it no `if`.
+  + Core, compiler: host-tested through gcc; streams 201-204 compiled.
+  + 201-204 flown on four boards, the impedances rendered quoted.
+  + The page's card and the course as streams: `machine.flying`'s clauses,
+    `thrusts`, `flight.envelope`, `emergency`, `FIT`, `GONE_S`,
+    `Flying.short` gone; the action space computed beforehand
+    (`machine/pull.py`) what the compiler plans in, WEP its outer shell.
+  + The core on the image: a tick's cycles (device, PROTOCOL MINOR).
+  + DOD: `quad_race.py`'s laps against today's on the law's rotors, every
+    flight whole, gusts flown; the pull left unused and the WEP taken a
+    flight quoted; `test_structure` holds `aero/src` free of `if`, `else`,
+    `switch`, `while`, `?`.
 
 ## Bench
 
+- **25 kHz under a 63 V drive**: a hover's heat is its legs' dry switching,
+  6.45 W of 9.4 (envelope.md); the bench's dry rise halves at 25 kHz. DOD:
+  TIM1's period and the law's ts from the record; the ripple on a 33 uH
+  winding measured; a hover's legs at it.
 - **Bootloader**. DOD: a power cycle runs the store at unit 1, PWR_CR3
   written on a fresh supply; the prefix search's real collision seen; 10
   Mbit on the bench adapter; a torn flash word's bus fault handled.

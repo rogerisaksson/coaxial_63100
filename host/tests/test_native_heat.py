@@ -124,9 +124,10 @@ def test_the_tour_loses_and_finds_the_room(report):
 
 def test_the_demo_takes_the_switches_into_their_soa(report):
     """The rotor page's demo on native, its loads on the world - the propeller its drag, the
-    stages' torque: the envelope throttles the switches past 0.9 of their span in the first
-    spin-up and holds every node under its ceiling. On the flywheel's current alone native's
-    demo stood at 0.85 and never throttled."""
+    stages' torque: the envelope holds the switches' clamp in the first spin-up, their nodes
+    at their throttle's point and none past it, every node under its ceiling. On the
+    flywheel's current alone native's demo stood at 0.85 and its clamp was never held."""
+    from coaxial.devices import thermal as thermal_device
     from coaxial.model import thermal
     from terminal.ui.screen import FPS_CAP
     from terminal.views import show_rotor_observer as view
@@ -140,7 +141,8 @@ def test_the_demo_takes_the_switches_into_their_soa(report):
         budget = v.get('budget') or {}
         if budget:
             rows.append((v.get('stage'), budget.get('worst') or 0.0,
-                         bool(budget.get('throttling')), bool(budget.get('tripped'))))
+                         bool(budget.get('throttling')), bool(budget.get('tripped')),
+                         budget.get('derate', 1.0)))
         return out
     view.compose, thermal.HASTE, motions.START_AT = compose, SOA_HASTE, SOA_FROM
     try:
@@ -149,10 +151,12 @@ def test_the_demo_takes_the_switches_into_their_soa(report):
         view.compose, thermal.HASTE, motions.START_AT = real, was, began
     first = next((r for r in rows if r[2]), None)
     worst = max((r[1] for r in rows), default=0.0)
-    report.check('the envelope throttles the switches in the dyno\'s run, past 0.9 of their '
-                 'span',
-                 first is not None and first[1] >= 0.9,
-                 'first at %s, %.2f of the span' % (first[0], first[1]) if first
+    report.check('the envelope holds the switches\' clamp in the dyno\'s run, their nodes at '
+                 '%.1f of their span and none past it' % thermal_device.THROTTLE_AT,
+                 first is not None and thermal_device.THROTTLE_AT - 0.05 <= worst
+                 <= thermal_device.THROTTLE_AT + 1.0 / 255.0,
+                 'first at %s on %.2f of the clamp, %.3f of the span at the most'
+                 % (first[0], first[4], worst) if first
                  else 'never, %.2f at most in %d reads' % (worst, len(rows)))
     report.check('and holds every node under its ceiling, none tripped',
                  rows and worst <= 1.0 and not any(r[3] for r in rows),

@@ -30,7 +30,8 @@ SLOTS = 64
 
 #: world_stand_run's row (WORLD_STAND_IN), in order.
 ROW = ('afe_on', 'switching', 'duty_u', 'duty_v', 'duty_w', 'amps_u', 'amps_v', 'amps_w',
-       'link_volts', 'link_amps', 'speed_rpm', 't_dead_s', 'meter_locked', 'acting')
+       'link_volts', 'link_amps', 'speed_rpm', 't_dead_s', 'meter_locked', 'acting',
+       'clamp_amps', 'sq_u', 'sq_v', 'sq_w')
 
 #: The views (world_stand.h's enum) and how many floats the longest fills.
 STATE, BUDGET, IDENT, NETWORK, TRUTH = range(5)
@@ -39,6 +40,9 @@ VIEW_FLOATS = 256
 #: world_drive_read's row (WORLD_DRIVE_ROW), in order.
 DRIVE_ROW = ('periods', 'trips', 'injecting', 'driven', 'duty_u', 'duty_v', 'duty_w',
              'amps_u', 'amps_v', 'amps_w', 'shaft')
+
+#: world_drive_window's row (WORLD_DRIVE_WINDOW_ROW), in order.
+WINDOW_ROW = ('sq_u', 'sq_v', 'sq_w', 'link_amps', 'periods')
 
 #: world_drive_loop_read's row (WORLD_DRIVE_LOOP_ROW), in order: ctrl_loop_state_t's.
 LOOP_ROW = ('running', 'playing', 'measured', 'command', 'hz', 'rows', 'free', 'queued_s',
@@ -75,6 +79,8 @@ def library():
     lib.world_drive_run.restype = u
     lib.world_drive_read.argtypes = [i, ctypes.POINTER(ctypes.c_double)]
     lib.world_drive_read.restype = i
+    lib.world_drive_window.argtypes = [i, ctypes.POINTER(ctypes.c_double)]
+    lib.world_drive_window.restype = i
     lib.world_drive_loop.argtypes = [i]
     lib.world_drive_loop.restype = ctypes.c_void_p
     lib.world_drive_loop_read.argtypes = [i, ctypes.POINTER(ctypes.c_double)]
@@ -114,6 +120,13 @@ def row(slot):
     out = (ctypes.c_double * len(DRIVE_ROW))()
     library().world_drive_read(slot, out)
     return dict(zip(DRIVE_ROW, out))
+
+
+def window(slot):
+    """Slot `slot`'s drive's window, named (WINDOW_ROW), taken."""
+    out = (ctypes.c_double * len(WINDOW_ROW))()
+    library().world_drive_window(slot, out)
+    return dict(zip(WINDOW_ROW, out))
 
 
 def loop(slot):

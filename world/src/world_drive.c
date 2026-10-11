@@ -103,6 +103,17 @@ uint32_t world_drive_run(int i, uint32_t periods, bool moe, bool supplied)
                          / d->model.p.pole_pairs);
     b->theta_was = d->model.theta;
     tripped += trip ? 1U : 0U;
+    if (out.driven)
+    {
+      for (int p = 0; p < (int)DRIVE_PHASES; p++)
+      {
+        const double amps = (double)d->model.i_abc[p];
+
+        b->squares[p] += amps * amps;
+        b->linked += (double)out.duty[p] * amps;
+      }
+      b->counted++;
+    }
   }
   if (periods > 0U)
   {
@@ -135,6 +146,29 @@ int world_drive_read(int i, double *out)
     out[n++] = (double)b->law.model.i_abc[k];
   }
   out[n++] = b->shaft;
+  return n;
+}
+
+int world_drive_window(int i, double *out)
+{
+  world_drive_t *b = at(i);
+  int n = 0;
+
+  if ((b == NULL) || (out == NULL))
+  {
+    return 0;
+  }
+  const double periods = (b->counted > 0U) ? (double)b->counted : 1.0;
+
+  for (int p = 0; p < (int)DRIVE_PHASES; p++)
+  {
+    out[n++] = b->squares[p] / periods;
+    b->squares[p] = 0.0;
+  }
+  out[n++] = b->linked / periods;
+  out[n++] = (double)b->counted;
+  b->linked = 0.0;
+  b->counted = 0U;
   return n;
 }
 

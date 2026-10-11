@@ -25,6 +25,10 @@ extern "C" {
 /** The loop's row (`LOOP_ROW`): ctrl_loop_state_t's fields in their order. */
 #define WORLD_DRIVE_LOOP_ROW 16
 
+/** The window's row (`WINDOW_ROW`): each phase's mean square, A^2, and the link's mean amps
+    over the periods the bridge switched since it was last taken, and how many those were. */
+#define WORLD_DRIVE_WINDOW_ROW 5
+
 typedef struct
 {
   drive_t law;              /**< the board's: modes, loop, observers; its model the motor */
@@ -34,6 +38,9 @@ typedef struct
   float duty[DRIVE_PHASES]; /**< the last period's compares, 0..1 */
   bool driven;              /**< and whether the bridge switched on them */
   uint32_t trips;
+  double squares[DRIVE_PHASES]; /**< the phases' squares summed a switched period, A^2 */
+  double linked;            /**< and the link's amps, each duty its phase's share */
+  uint32_t counted;         /**< over this many periods since the window was taken */
 } world_drive_t;
 
 /** Slot `i` fresh at a period of `ts` s: the law at its defaults, the rotor at rest. */
@@ -56,6 +63,10 @@ uint32_t world_drive_run(int i, uint32_t periods, bool moe, bool supplied);
 
 /** Slot `i`'s row into `out` (WORLD_DRIVE_ROW); how many. */
 int world_drive_read(int i, double *out);
+
+/** Slot `i`'s window into `out` (WORLD_DRIVE_WINDOW_ROW), taken: counted anew from here, as
+    the board's sync is by its heat (Board_SyncMeanSquare). How many. */
+int world_drive_window(int i, double *out);
 
 /** Slot `i`'s loop as it stands into `out` (WORLD_DRIVE_LOOP_ROW); how many. */
 int world_drive_loop_read(int i, double *out);

@@ -396,6 +396,7 @@ static void run_slice(const thermal_load_t *load, const thermal_sense_t *seen, u
   s.wep = s.wep && ((int32_t)(s.wep_until - HAL_GetTick()) > 0);
   in.wep = s.wep;
   in.switching = Board_PwmIsEnabled();
+  in.clamp_amps = Board_DriveClamp();
   thermal_run_slice(&s.run, &in, &out, Board_StoKeepalive);
   Board_DriveDerate(out.derate);
   if (out.drop)
@@ -553,6 +554,7 @@ bool Board_ThermalBudget(board_budget_t *out)
   out->winding_c = s.run.th.t[THERMAL_WINDING];
   out->winding_used = budget->used[THERMAL_WINDING];
   out->winding_derate = s.run.winding_derate;
+  out->hold_amps = s.run.hold_amps;
   return true;
 }
 

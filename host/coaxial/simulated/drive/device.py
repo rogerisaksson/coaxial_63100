@@ -96,6 +96,8 @@ class SimulatedDrive(DrivePlant, DriveCapture, DriveControl):
         self._record: Callable[[], dict] = dict
         #: What the thermal envelope is scaling the clamp by, 1 to 0.
         self._derate = 1.0
+        #: The sync's last window: the phases' mean squares, the link's mean amps.
+        self._counted = ((0.0, 0.0, 0.0), 0.0)
         self._model = {'r': self.R, 'ld': self.LD, 'lq': self.LQ,
                        'lambda': self.LAMBDA, 'pole_pairs': float(self.POLES),
                        'sat': self.SAT, 'i_sat': self.I_SAT, 'j': 2e-5,
@@ -196,6 +198,10 @@ class SimulatedDrive(DrivePlant, DriveCapture, DriveControl):
         self._advance()
         self._load()
         return True
+
+    def _clamp(self):
+        """Board_DriveClamp: the clamp as the record has it, A."""
+        return self._params.get('drv_i_max', self.DEFAULTS.get('drv_i_max', 0.0))
 
     @_rotor_locked
     def _derate_to(self, factor):

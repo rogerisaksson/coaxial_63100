@@ -250,7 +250,10 @@ static void load_of(world_stand_t *b, const float *in, float dt, bool stage, the
 
     b->squares[k] += (sq - b->squares[k]) * follow;
     load->phase_amps[k] = amps[k];
-    load->phase_sq[k] = b->squares[k];
+    /* Counted where the drive counts them: followed off one sample a slice, a leg of a
+       rotor at 1.4 kHz stood 30 K over its neighbour by where the samples fell. */
+    load->phase_sq[k] = ((in[15 + k] >= 0.0f) && !(b->cycle[0] > 0.0f) && switching)
+                        ? in[15 + k] : b->squares[k];
   }
   load->switching = switching;
   load->afe_on = in[0] != 0.0f;
@@ -316,6 +319,7 @@ void world_stand_run(int i, const float *in, float seconds, float *out)
     /* Not acting, the envelope holds still: no derate slewed, no stage dropped. */
     step.wep = ((int32_t)(b->wep_until_ms - b->clock_ms) > 0) || (in[13] == 0.0f);
     step.switching = stage && (in[1] != 0.0f) && (in[13] != 0.0f);
+    step.clamp_amps = in[14];
     thermal_run_slice(&b->run, &step, &acted, NULL);
     applied = acted.derate;
     stage = stage && !acted.drop;
@@ -437,7 +441,8 @@ static int view_budget(const world_stand_t *b, float *out)
   n = put(out, n, b->run.th.t[THERMAL_WINDING]);
   n = put(out, n, (float)g->used[THERMAL_WINDING]);
   n = put(out, n, b->run.winding_derate);
-  return put(out, n, (float)b->run.trips);
+  n = put(out, n, (float)b->run.trips);
+  return put(out, n, b->run.hold_amps);
 }
 
 static int view_ident(const world_stand_t *b, float *out)

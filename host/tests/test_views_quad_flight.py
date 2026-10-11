@@ -155,24 +155,101 @@ def test_struck_it_is_begun_again(report):
                  if again < len(rows) else 'never put back')
 
 
-def test_the_envelopes_cut(report):
-    """flight.envelope: all of the rotors' pull while every board has SPEND of its span in hand
-    under its throttle's point, less UNDER; none at that point; a throttling board's own derate
-    on it - taken over TAKEN_S, given back over RECOVER_S."""
+def test_a_board_holds_its_clamp(report):
+    """A board asked its rotor's top from a hover: it carries what its envelope leaves
+    (`hold_amps`) and no more, its legs come to their throttle's point and none past it, the
+    three of them alike - their mean squares counted, not sampled -; it says its clamp is
+    held, and trips nothing."""
+    from coaxial import Coaxial63100
     from coaxial.devices.thermal import THROTTLE_AT
+    from machine import quad
+    from machine.modes import SIMULATED
     from terminal.views.quad import flight as view
-    top = THROTTLE_AT - view.UNDER
+    rig = Coaxial63100(execution_mode=SIMULATED).open()
+    try:
+        rotor = view.arm(rig)
+        drive, loop, heat = rig.board.drive, rig.board.ctrl, rig.board.thermal
+        rows, t = [], 0.0
+        while t < 13.5:
+            loop.write(211.0 if t < 12.0 else view.TOP_RAD_S)
+            drive.paced(view.STEP_S)
+            w = drive.model.read()['omega'] / rotor['pairs']
+            drive.model.configure(load=quad.K_DRAG * w * abs(w))
+            heat.fast_forward(view.STEP_S * heat.HASTE, live=True)
+            t += view.STEP_S
+            if t >= 12.0:
+                rows.append((drive.state()['iq'], heat.budget()))
+        squares, legs = drive.sample()['squares'], heat.state()['nodes']
+    finally:
+        rig.board.drive.off()
+        rig.gates.off()
+        rig.close()
+    first, last = rows[0][1]['hold_amps'], rows[-1][1]['hold_amps']
+    # against the clamp it was given, the step before
+    over = max(iq - was['hold_amps'] for (iq, _b), (_iq, was) in zip(rows[1:], rows))
+    report.check('from a hover it may carry its clamp; at its top what its legs balance on',
+                 first >= view.I_MAX > last > 0.5 * view.I_MAX,
+                 '%.1f A at the hover, %.1f A 1.5 s into its top' % (first, last))
+    report.check('it carries what it may and no more', over < 0.05 * view.I_MAX,
+                 '%.1f A over at the most, %.1f A at its end' % (over, rows[-1][0]))
+    worst = max(b['worst'] for _iq, b in rows)
+    report.check('its legs come to their throttle\'s point and none past it; its clamp held, '
+                 'it says so, and trips nothing',
+                 THROTTLE_AT - 0.05 < worst <= THROTTLE_AT + 1.0 / 255.0
+                 and rows[-1][1]['throttling'] and not rows[0][1]['throttling']
+                 and not any(b['tripped'] for _iq, b in rows),
+                 'envelope %.3f at the most, of %.2f' % (worst, THROTTLE_AT))
+    warm = [legs[n] for n in ('driver_u', 'driver_v', 'driver_w')]
+    amps = rows[-1][0]
+    report.check('the three legs alike: each phase\'s mean square half its amplitude\'s',
+                 max(warm) - min(warm) < 0.1 * (min(warm) - 25.0)
+                 and all(abs(sq - 0.5 * amps * amps) < 0.05 * amps * amps for sq in squares),
+                 'legs %s C; mean squares %s of %.0f A^2' % (
+                     ' '.join('%.0f' % c for c in warm), ' '.join('%.0f' % sq for sq in squares),
+                     0.5 * amps * amps))
 
-    def cut(worst, derate=1.0, was=1.0, dt=10.0):
-        return view.envelope([{'budget': {'worst': 0.1}},
-                              {'budget': {'worst': worst, 'derate': derate}}], was, dt)
-    halves = (cut(top - view.SPEND), cut(top - 0.5 * view.SPEND), cut(top), cut(0.95, 0.5))
-    report.check('all of it SPEND under the point, half at half of it, none at it or past it',
-                 [round(h, 6) for h in halves] == [1.0, 0.5, 0.0, 0.0], str(halves))
-    report.check('a cut taken over TAKEN_S and given back over RECOVER_S',
-                 abs(cut(top, dt=0.1) - (1.0 - 0.1 / view.TAKEN_S)) < 1e-9
-                 and abs(cut(top - view.SPEND, was=0.0, dt=0.1) - 0.1 / view.RECOVER_S) < 1e-9,
-                 '%.3f and %.3f' % (cut(top, dt=0.1), cut(top - view.SPEND, was=0.0, dt=0.1)))
+
+def test_full_tilt_cuts_no_rotor_alone(report):
+    """The page's card to its first full tilt and through it, four boards: none past its
+    throttle's point or tripped, the four on the same current - each its own board's hold -,
+    the frame on its axis."""
+    from coaxial import Coaxial63100
+    from coaxial.devices.thermal import THROTTLE_AT
+    from machine import aerobatics, quad
+    from machine.flying import Flying
+    from machine.modes import SIMULATED
+    from terminal.views.quad import flight as view
+    rotors = [view.arm(Coaxial63100(execution_mode=SIMULATED).open()) for _ in range(4)]
+    rows, clock = [], 0.0
+    try:
+        sky, route = quad.Sky(()), aerobatics.routine(view.CARD)
+        flying, flight = Flying(view.TOP_N, aerobatics.DOWN), view.fresh()
+        while clock < 60.0 and flight['stage'] != 'fall':
+            for clock, frame in view.passed(rotors, sky, route, flying, flight, clock, 0.05):
+                if flight['stage'] == 'full tilt':
+                    rows.append((clock, [r['amps'] for r in rotors],
+                                 [dict(r['budget'] or {}) for r in rotors],
+                                 math.degrees(math.acos(max(-1.0, min(
+                                     1.0, float(frame['turn'][1][1]))))), frame['h']))
+    finally:
+        for rotor in rotors:
+            rotor['rig'].board.drive.off()
+            rotor['rig'].gates.off()
+            rotor['rig'].close()
+    cut = [(t, k) for t, _a, budgets, _tilt, _h in rows for k, b in enumerate(budgets)
+           if b.get('tripped') or (b.get('worst') or 0.0) > THROTTLE_AT + 1.0 / 255.0]
+    report.check('a full tilt flown, no board of the four past its throttle\'s point or '
+                 'tripped in it', len(rows) > 50 and not cut,
+                 '%d steps, %s' % (len(rows), cut[:3] or 'none past it'))
+    began = rows[0][0] + 0.5
+    apart = max(max(a) - min(a) for t, a, _b, _tilt, _h in rows if t >= began)
+    most = max(max(a) for _t, a, _b, _tilt, _h in rows)
+    report.check('the four on the same current, a tenth of their clamp apart at the most',
+                 apart < 0.1 * view.I_MAX and most > 0.6 * view.I_MAX,
+                 '%.1f A apart at the most, %.1f A the most' % (apart, most))
+    tilt = max(tilt for _t, _a, _b, tilt, _h in rows)
+    report.check('the frame on its axis up it', tilt < 20.0,
+                 '%.1f deg at the most, %.1f m up at its end' % (tilt, rows[-1][4]))
 
 
 def test_war_emergency_power(report):
@@ -279,8 +356,9 @@ def test_wep_past_the_soa(report):
 
 
 ROSTER = (test_the_boards_air_is_the_rotors, test_a_rotor_turns_by_its_pass,
+          test_a_board_holds_its_clamp, test_full_tilt_cuts_no_rotor_alone,
           test_a_late_pass_is_its_steps, test_struck_it_is_begun_again,
-          test_the_envelopes_cut, test_war_emergency_power, test_wep_past_the_soa)
+          test_war_emergency_power, test_wep_past_the_soa)
 
 
 def main(argv=None):

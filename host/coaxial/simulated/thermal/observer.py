@@ -102,6 +102,7 @@ class SimulatedThermal(ThermalControl):
         self._duty: Callable[[], tuple] = lambda: (0.0, 0.0, 0.0)
         self._derate_to: Optional[Callable[[float], None]] = None
         self._speed_of: Callable[[], float] = lambda: 0.0
+        self._clamp_of: Callable[[], float] = lambda: 0.0
         self._app = thermal_app.STILL
         self._random = random.Random(seed)
         self._margin_floor = self.MARGIN_FLOOR
@@ -139,7 +140,9 @@ class SimulatedThermal(ThermalControl):
                             + (float(sample.get('link') or 0.0),
                                float(sample.get('link_amps', -1.0)),
                                float(self._speed_of() or 0.0), inverter.T_DEAD,
-                               float(bool(self._meter_locked())), float(bool(acting))))
+                               float(bool(self._meter_locked())), float(bool(acting)),
+                               float(self._clamp_of() or 0.0))
+                            + tuple(sample.get('squares') or (-1.0, -1.0, -1.0)))
 
     def _run(self, model_seconds, seen, live):
         """`model_seconds` of the pair, the envelope acting on the board where `live`; on a
@@ -241,7 +244,9 @@ class SimulatedThermal(ThermalControl):
                 'duty': [_u(d) for d in (self._duty() or (0.0, 0.0, 0.0))],
                 # MINOR 12: the winding's estimate, spend and own factor.
                 'winding_c': _c(v[47]), 'winding_used': v[48] / BYTE_FRACTION,
-                'winding_derate': _u(v[49])}
+                'winding_derate': _u(v[49]),
+                # MINOR 32: what the stage may carry now.
+                'hold_amps': _m(v[51])}
 
     def derate(self):
         """What the current clamp is asked to be multiplied by now, before its recovery's

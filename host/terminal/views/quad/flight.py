@@ -13,7 +13,6 @@ import time
 
 from coaxial.control.commission import Commissioning
 from coaxial.control.motion import started
-from coaxial.devices.thermal import THROTTLE_AT
 from coaxial.model.thermal import MOTOR
 from coaxial.simulated.sto import PILOT_VOLTS
 from machine import aerobatics, course, quad
@@ -70,18 +69,13 @@ STO_SETTLE_S = 0.05
 GO = ('CONVERGING', 'STABLE')
 
 #: The boards' envelopes in the flight's: the rotors are asked the share of their pull that
-#: the least room UNDER a throttle's point leaves, of SPEND - what full tilt and a burn spend,
-#: ten flights on end peaking at 0.73 from hovers at 0.46 - times a throttling board's own
-#: derate: taken over TAKEN_S, given back over RECOVER_S - a pass at the clamp is 0.2 of an
-#: envelope for one read, the thermal clock ten times the flight's. An observer UNCERTAIN
-#: trims its ceilings to 0.8 and its share's room with them; waited for at a room of 0.4, the
-#: hover's own share 0.42, the third flight never left its hover; its room counted to the
-#: throttle's own point, full tilt on a pack half spent stood at 0.90. Spent GONE_S, it comes
-#: down; at once, a burn's own spend took it off its burn. At 0.08 under it the
-#: laps had 0.38 of the rotors' pull at the least, at 0.04 0.52 and a lap 1.5 s the shorter,
-#: the boards at 0.70-0.74 of their envelopes. That spend was 27 K of a 100 K
-#: span; a leg's is its FETs' junction's 150 since: 0.2.
-SPEND, UNDER, TAKEN_S, RECOVER_S, GONE_S = 0.2, 0.04, 0.5, 2.0, 2.0
+#: the board with the least in it may carry (`thermal.budget`'s `hold_amps`, of I_MAX) - each
+#: board holds its own clamp to that, and no node of it comes to its throttle. Asked by a
+#: rule on the envelopes' room, read ten times a second, full tilt had the four at 57 A for
+#: 0.1 s, then each board throttled on its own - 33, 8, 32 and 18 A - and the frame went
+#: over to 83 degrees. The share none for GONE_S, it comes down: at once, a burn's own spend
+#: took it off its burn.
+GONE_S = 2.0
 
 #: A flight is begun on this share of the rotors' pull at the least. All of it is a board at
 #: 0.52 of its envelope or under, and an idle board is not cool: on the gate stage's dump at
@@ -157,7 +151,7 @@ def arm(rig):
                              prefilter=Slew(SPOOL_RAD_S2), measure=Gain(1.0 / pairs)))
     board.ctrl.wire('omega_hat', 'iq_ref', LOOP_HZ)
     rotor = {'rig': rig, 'pairs': pairs, 'kt': kt, 'w': 0.0, 'w_hat': 0.0, 'iq': 0.0,
-             'amps': 0.0, 'angle': 0.0, 'ask': 0.0, 'cut': False,
+             'amps': 0.0, 'angle': 0.0, 'ask': 0.0, 'cut': False, 'fault': None,
              'budget': {}, 'ident': {}, 'board_c': None}
     spun(rotor)
     return rotor
@@ -213,7 +207,9 @@ def passed(rotors, sky, route, flying, flight, clock, dt):
     for part in [STEP_S] * count:
         clock += part
         row = route['row']
-        flight['share'] = envelope(rotors, flight['share'], part)
+        for rotor in rotors:
+            rotor['budget'] = rotor['rig'].board.thermal.budget()
+        flight['share'] = envelope(rotors)
         flight['gone'] = flight['gone'] + part if flight['share'] <= 0.0 else 0.0
         name = flight['stage'] = step(rotors, sky, route, flying, flight, clock, part)
         flight['lap'] = route.get('lap') if callable(route['card'][route['row']][1]) else None
@@ -253,6 +249,8 @@ def step(rotors, sky, route, flying, flight, clock, dt):
         share, wep = emergency(flight, sky, flying, route, share, dt)
         flying.top = TOP_WEP_N if wep else TOP_N
         flying.least = 4.0 * quad.K_THRUST * LEAST_RAD_S * LEAST_RAD_S
+        flying.caps = [quad.K_THRUST * w * w * quad.inflow(flying.along, w) for w in (
+            reached(r, I_WEP if wep else I_MAX, dt) for r in rotors)]
         thrusts = flying.step(frame, dt, share, wep)
         if flight['wep'].pop('fresh', False):
             for rotor in rotors:
@@ -275,6 +273,7 @@ def step(rotors, sky, route, flying, flight, clock, dt):
         drive.paced(dt)
         now = drive.state()
         rotor['w_hat'] = (now.get('omega_hat') or 0.0) / rotor['pairs']
+        rotor['fault'] = now.get('fault')
         rotor['iq'] = now.get('iq') or 0.0
         rotor['amps'] = math.hypot(now.get('id') or 0.0, rotor['iq'])
         watts += 1.5 * ((now.get('vd') or 0.0) * (now.get('id') or 0.0)
@@ -344,13 +343,22 @@ def emergency(flight, sky, flying, route, share, dt):
     return 1.0, wep['from']
 
 
-def envelope(rotors, was, dt):
-    """What the boards' envelopes leave of the rotors' pull, 0..1, `dt` s after it was `was`."""
-    budgets = [r['budget'] or {} for r in rotors]
-    share = min(min(1.0, b.get('derate') or 1.0)
-                * max(0.0, min(1.0, (THROTTLE_AT - UNDER - (b.get('worst') or 0.0)) / SPEND))
-                for b in budgets)
-    return max(was - dt / TAKEN_S, min(share, was + dt / RECOVER_S))
+def envelope(rotors):
+    """What the boards' envelopes leave of the rotors' pull, 0..1: the least any of them may
+    carry (`hold_amps`), of the flight's clamp."""
+    return max(0.0, min([1.0] + [(r['budget'] or {}).get('hold_amps', I_MAX) / I_MAX
+                                 for r in rotors]))
+
+
+def reached(rotor, clamp, dt):
+    """The speed a rotor reaches `dt` s on at the most, rad/s: from the one its board says it
+    has, on what the current that board may carry - `clamp` A at the most - leaves over its
+    propeller's drag and its own; none of it on a tripped drive. Its cap in the thrusts'
+    share: counted from its speed and its loop's slew, a rotor behind what it was asked had
+    its next ask cut to that, and the laps were 0.3 s the longer."""
+    w = rotor['w_hat']
+    amps = 0.0 if rotor['fault'] else min(clamp, (rotor['budget'] or {}).get('hold_amps', clamp))
+    return w + (rotor['kt'] * amps - quad.K_DRAG * w * abs(w) - ROTOR_B * w) / ROTOR_J * dt
 
 
 def kept(flight, stood, stage, off, frame, dt):

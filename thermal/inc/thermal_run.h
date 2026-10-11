@@ -34,6 +34,14 @@ extern "C" {
 /** The winding's K/W from the copper into the iron, the rest the iron's own air path. */
 #define THERMAL_WINDING_INTO_IRON 0.25f
 
+/** The hold's current is found to this many halvings of its span, and under this where the
+    executive names no clamp, A; the window it keeps to a throttle point, s: five of the run's
+    slices, the clamp laid a slice - a node closes a fifth of its way a slice and none over.
+    On the throttle's own window, 2 s, a 63100's legs at a hover's 87 C had 47 A of 60. */
+#define THERMAL_HOLD_HALVINGS 10
+#define THERMAL_HOLD_MOST_A   400.0f
+#define THERMAL_HOLD_S        0.5f
+
 typedef struct
 {
   thermal_t th;
@@ -49,7 +57,9 @@ typedef struct
   float trip_cap;                /**< one with no trip in hand */
   uint32_t trip_ms;
   float winding_derate;          /**< the winding's own factor beside the whole's */
-  float derate;                  /**< as applied: its recovery slewed */
+  float slewed;                  /**< the throttle's factor, its recovery slewed */
+  float hold_amps;               /**< what the stage may carry now (thermal_run_hold_amps) */
+  float derate;                  /**< as applied: the less of the two */
   uint32_t trips;
 } thermal_run_t;
 
@@ -61,6 +71,7 @@ typedef struct
   uint32_t clock_ms;             /**< the observer's clock */
   bool wep;                      /**< the derate held off (thermal op 14) */
   bool switching;                /**< the stage enabled: a trip drops it */
+  float clamp_amps;              /**< the drive's clamp as its record has it, A; 0 none */
 } thermal_run_in_t;
 
 typedef struct
@@ -93,8 +104,15 @@ void thermal_run_envelope(thermal_run_t *r, uint32_t clock_ms);
 /** The ceilings trimmed again where the margin has moved a step since. */
 void thermal_run_follow(thermal_run_t *r, uint32_t clock_ms);
 
+/** The most current, A of a phase's amplitude under `most`, the stage may carry with every
+    node the clamp reaches keeping THERMAL_HOLD_S to its throttle point: the run's power with
+    its phases at that current, none warming a node at that point or past it. Asked no more,
+    a node comes to its throttle point and no further. */
+float thermal_run_hold_amps(const thermal_run_t *r, const thermal_load_t *load, float most);
+
 /** A slice: the losses on the estimate's own legs, the step, the identification beside it,
-    the room, the budget, the clamp's derate held - `between` run between the costly parts. */
+    the room, the budget, the clamp's derate held - the throttle's, or what the hold leaves of
+    the clamp, the less; `between` run between the costly parts. */
 void thermal_run_slice(thermal_run_t *r, const thermal_run_in_t *in, thermal_run_out_t *out,
                        void (*between)(void));
 

@@ -15,6 +15,9 @@ void Board_DriveDerate(float factor);
 /** What that factor is now. */
 float Board_DriveDerating(void);
 
+/** The clamp as the record has it, A, the factor aside. */
+float Board_DriveClamp(void);
+
 #ifdef __cplusplus
 }
 #endif

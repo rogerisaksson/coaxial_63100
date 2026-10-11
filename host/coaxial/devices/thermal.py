@@ -229,6 +229,10 @@ class Thermal(Device, ThermalControl, device=protocol.DEVICE_THERMAL):
             got['winding_c'] = r.centi()
             got['winding_used'] = r.fraction()
             got['winding_derate'] = r.micro()
+        # MINOR 32: the current the stage may carry now, every node the clamp reaches
+        # keeping its reaction window to its throttle point.
+        if r.remaining >= 4:
+            got['hold_amps'] = r.milli()
         return got
 
     def identification(self, **kwargs):

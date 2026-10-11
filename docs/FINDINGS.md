@@ -84,6 +84,12 @@ table under [Subjects](#subjects).
 | 53.8 | 14.6 | 8.2 |
 | 60.8 | 17.7 | 9.2 |
 
+- In the rig's free air at 23.9 V (`dry_heat.py --cool`): 7.35 K at 50 kHz
+  and 3.84 at 25, 60 s each; 301 s at 50 kHz 36.65 to 50.97 C, the
+  model's still air 12.7 K from idle for its 14.3. Its cooldown 7.04 K over
+  55 s and 9.20 over 250 (rms 0.06 K), half its way back in 71 s where the
+  model's still air has 140: 5.1 K/W on the board's 49 J/K against 8.33.
+
 - The unmodified board arms with the break in circuit: AFE_ON low, PE15 high
   at once, the latch's low cleared (op 5), MOE. 300 s and twenty 60 s runs,
   no trip; `switch.py` does so.
@@ -373,6 +379,7 @@ Six firmware defects, no hardware fault:
 | One stack for every drive: demand, candidates, stacks as built | [findings/stacks.md](findings/stacks.md) |
 | The drive and its observers: stand-in, emulator, native://, rotor pages | [findings/drive.md](findings/drive.md) |
 | QUAD: frame, air, law, routine, course, tuner | [findings/quad.md](findings/quad.md) |
+| The envelope in flight: a climb, a hover, what a board may carry | [findings/envelope.md](findings/envelope.md) |
 | Renode, native:// and CI: the emulated image, peripherals, speed | [findings/emulation.md](findings/emulation.md) |
 | Host pages, tooling, suites, the local model's runner | [findings/host.md](findings/host.md) |
 

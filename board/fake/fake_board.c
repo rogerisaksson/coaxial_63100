@@ -1043,6 +1043,12 @@ FAKE_WEAK float Board_DriveDerating(void)
   return s.derated ? s.derate : 1.0f;
 }
 
+/* No drive, no clamp: the hold is reported, the factor the throttle's alone. */
+FAKE_WEAK float Board_DriveClamp(void)
+{
+  return 0.0f;
+}
+
 /* What board_daq.c reads besides: no timer, so no injected sequence; the H7's eight
    sampling times; no drivable pin. */
 FAKE_WEAK bool Board_AdcInjected(uint8_t index)

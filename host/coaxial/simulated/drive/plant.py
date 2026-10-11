@@ -5,6 +5,7 @@ from typing import Any
 from coaxial.devices.drive import MODE_NAMES, MODEL_IDS
 from coaxial.simulated.drive.locked import _rotor_locked
 from motor.pmsm import RAD_S_PER_RPM
+from tools.cores import stand
 
 #: 1 / sqrt 3: beta off two phases.
 INV_SQRT3 = 1.0 / math.sqrt(3.0)
@@ -17,6 +18,7 @@ class DrivePlant:
 
     # What the class this mixes into brings.
     DEFAULTS: Any
+    _counted: Any
     _law: Any
     _lib: Any
     _lock: Any
@@ -66,11 +68,18 @@ class DrivePlant:
     def sample(self):
         """What a sampler in the control interrupt sees now: the phases' amps - none on a
         bridge that does not switch, the model source's being its own -, whether it does, the
-        link."""
+        link; and what its sync counted since it was last asked - each phase's mean square
+        and the link's mean amps (`world_drive_window`), the last where it counted nothing."""
         law, row = self._now()
         on = self._stage()[1] if self._switching else law['mode'] != 0.0
         amps = (row['amps_u'], row['amps_v'], row['amps_w']) if on else (0.0, 0.0, 0.0)
-        return {'amps': amps, 'switching': bool(on), 'link': self._model['vdc']}
+        counted = stand.window(self._slot)
+        if counted['periods']:
+            self._counted = ((counted['sq_u'], counted['sq_v'], counted['sq_w']),
+                             counted['link_amps'])
+        squares, link = self._counted if on else ((0.0, 0.0, 0.0), 0.0)
+        return {'amps': amps, 'switching': bool(on), 'link': self._model['vdc'],
+                'squares': squares, 'link_amps': link}
 
     @_rotor_locked
     def _carrying(self):

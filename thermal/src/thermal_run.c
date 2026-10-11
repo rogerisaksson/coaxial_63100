@@ -22,6 +22,8 @@ void thermal_run_init(thermal_run_t *r, const thermal_cfg_t *base, const thermal
   r->trip_cap = 1.0f;
   r->trip_ms = 0U;
   r->winding_derate = 1.0f;
+  r->slewed = 1.0f;
+  r->hold_amps = 0.0f;
   r->derate = 1.0f;
   r->trips = 0U;
 }
@@ -97,10 +99,96 @@ void thermal_run_follow(thermal_run_t *r, uint32_t clock_ms)
   }
 }
 
-/** The derate as applied: down at once, up at THERMAL_DERATE_RECOVER_PER_S. */
+/** The losses with every phase at `amps` of amplitude and the rest as `load` has it: the hot
+    swap's from the run's own, the link's current following the phases'. */
+static void power_at(const thermal_run_t *r, const thermal_load_t *load, const float *phase_c,
+                     float amps, thermal_power_t *out)
+{
+  thermal_load_t at = *load;
+  float squares = 0.0f;
+
+  for (int leg = 0; leg < 3; leg++)
+  {
+    const float a = load->phase_amps[leg];
+
+    squares += (load->phase_sq[leg] > 0.0f) ? load->phase_sq[leg] : (a * a);
+    at.phase_amps[leg] = (leg == 0) ? amps : (-0.5f * amps);
+    at.phase_sq[leg] = 0.5f * amps * amps;
+  }
+  at.link_amps = 0.0f;
+  thermal_power_estimate(out, &at, &r->loss, phase_c);
+  /* Three phases' mean squares are 1.5 of an amplitude's square. */
+  if (squares > 1.0e-3f)
+  {
+    out->watt[THERMAL_HOTSWAP] += r->power.watt[THERMAL_HOTSWAP] * 1.5f * amps * amps / squares;
+  }
+}
+
+/** Whether every node the clamp reaches keeps `seconds` to its throttle point with `p` in it
+    for what the run has, `net` its flows now: none warming there or past it. */
+static bool holds(const thermal_run_t *r, const thermal_power_t *p, const float *net,
+                  float seconds)
+{
+  const thermal_t *th = &r->th;
+
+  for (int i = 0; i < (int)THERMAL_NODES; i++)
+  {
+    const float span = r->soa.limit_c[i] - th->ambient;
+    const float gain = net[i] + p->watt[i] - r->power.watt[i];
+    const float capacity = th->cfg.node[i].capacity;
+
+    if (r->soa.undriven[i] || !(span > 0.0f) || !(gain > 0.0f) || !(capacity > 0.0f))
+    {
+      continue;
+    }
+    const float at = (th->cfg.node[i].rth_die > 0.0f)
+                     ? thermal_junction(th, p, (thermal_node_t)i) : th->t[i];
+    const float togo = th->ambient + r->soa.throttle_at * span - at;
+
+    if (togo * capacity < gain * seconds)
+    {
+      return false;
+    }
+  }
+  return true;
+}
+
+float thermal_run_hold_amps(const thermal_run_t *r, const thermal_load_t *load, float most)
+{
+  const float phase_c[3] = { r->th.t[THERMAL_DRIVER(0)], r->th.t[THERMAL_DRIVER(1)],
+                             r->th.t[THERMAL_DRIVER(2)] };
+  float net[THERMAL_NODES];
+  thermal_power_t p;
+  float low = 0.0f;
+  float high = most;
+
+  thermal_net_flows(&r->th, &r->power, r->th.speed_rpm, net);
+  power_at(r, load, phase_c, most, &p);
+  if (holds(r, &p, net, THERMAL_HOLD_S))
+  {
+    return most;
+  }
+  for (int k = 0; k < THERMAL_HOLD_HALVINGS; k++)
+  {
+    const float mid = 0.5f * (low + high);
+
+    power_at(r, load, phase_c, mid, &p);
+    if (holds(r, &p, net, THERMAL_HOLD_S))
+    {
+      low = mid;
+    }
+    else
+    {
+      high = mid;
+    }
+  }
+  return low;
+}
+
+/** The throttle's factor as applied: down at once, up at THERMAL_DERATE_RECOVER_PER_S. */
 static float ramp(thermal_run_t *r, float want, uint32_t since_ms)
 {
-  float held = r->derate;
+  float held = r->slewed;
 
   if (want <= held)
   {
@@ -112,7 +200,7 @@ static float ramp(thermal_run_t *r, float want, uint32_t since_ms)
     held = (held > want) ? want : held;
   }
   held = (held < 0.0f) ? 0.0f : ((held > 1.0f) ? 1.0f : held);
-  r->derate = held;
+  r->slewed = held;
   return held;
 }
 
@@ -151,7 +239,19 @@ void thermal_run_slice(thermal_run_t *r, const thermal_run_in_t *in, thermal_run
      whole's already includes it. */
   r->winding_derate = thermal_node_derate(&r->th, &r->power, &r->soa, THERMAL_WINDING);
 
-  out->derate = in->wep ? 1.0f : ramp(r, r->budget.derate, in->slice_ms);
+  pump(between);
+  /* What the stage may carry, and of the clamp: asked no more, no node comes to throttle. */
+  r->hold_amps = thermal_run_hold_amps(
+    r, &in->load, (in->clamp_amps > 0.0f) ? in->clamp_amps : THERMAL_HOLD_MOST_A);
+  {
+    const float throttle = ramp(r, r->budget.derate, in->slice_ms);
+    const float held = (in->clamp_amps > 0.0f) ? (r->hold_amps / in->clamp_amps) : 1.0f;
+
+    r->derate = in->wep ? 1.0f : ((held < throttle) ? held : throttle);
+    /* A clamp held under its record's is throttled: the word a host reads. */
+    r->budget.throttling = r->budget.throttling || (!in->wep && (held < 1.0f));
+  }
+  out->derate = r->derate;
   out->drop = r->budget.tripped && in->switching;
   if (out->drop)
   {

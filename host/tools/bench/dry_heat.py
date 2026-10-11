@@ -3,6 +3,7 @@
     python tools/bench/dry_heat.py --port COM3 --points 50:60,25:60     # kHz:dead_ns, rested each
     python tools/bench/dry_heat.py --port COM3 --points 25:60,30:60,35:60 --stairs --limit 60
     python tools/bench/dry_heat.py --port COM3 --points 0:60            # armed at zero: no edge
+    python tools/bench/dry_heat.py --port COM3 --seconds 300 --cool 420 # and its cooldown
 
 All three legs at 50 %, so no volts across whatever is on the phases; the break in circuit
 (AFE_ON low, PE15 high, the latch cleared). The thermistor needs AFE_ON, which takes this
@@ -10,7 +11,8 @@ board's drivers' supply: it is read before a run and 0.6 s after its gates. A fr
 TIM1's ARR, written over SWD with the stage off - the firmware has no op for it - and put back
 at the end; the dead time the gate device's, put back too. A rested run waits for the NTC nearly
 still (and under --start), its drift taken off the rise; --stairs runs the points one behind the
-other and stops at --limit. Nothing is armed above --volts or 65 C.
+other and stops at --limit; --cool reads the thermistor every COOL_S after the last run, the
+board's way back to its air. Nothing is armed above --volts or 65 C.
 """
 import argparse
 import re
@@ -28,8 +30,8 @@ NTC_MAX_C = 65.0
 TIM1_ARR, ARR_50K = 0x4001002C, 2375
 #: The reference up behind AFE_ON, and PE15 up behind its fall, s.
 AFE_UP_S, PE15_UP_S = 0.6, 0.4
-#: A rested start: the NTC's drift under this, K/s, read this far apart, s.
-STILL_K_PER_S, STILL_S = 0.01, 15.0
+#: A rested start: the NTC's drift under this, K/s, read this far apart, s; a cooldown's reads.
+STILL_K_PER_S, STILL_S, COOL_S = 0.01, 15.0, 5.0
 
 
 def swd(*args):
@@ -101,6 +103,7 @@ def main():
     p.add_argument('--stairs', action='store_true', help='no rest between the points')
     p.add_argument('--limit', type=float, default=NTC_MAX_C, help='--stairs stops at this NTC, C')
     p.add_argument('--volts', type=float, default=62.0, help='the link above which nothing is armed')
+    p.add_argument('--cool', type=float, default=0.0, help='read the cooldown this long after, s')
     a = p.parse_args()
 
     points = [tuple(int(x) for x in point.split(':')) for point in a.points.split(',')]
@@ -136,6 +139,12 @@ def main():
             if a.stairs and after >= a.limit:
                 print('enough: %.2f C at %d kHz' % (after, khz))
                 break
+        cooled, began = [], time.time()
+        while time.time() - began < a.cool:
+            time.sleep(COOL_S)
+            cooled.append('%.0f:%.2f' % (time.time() - began, ntc(rig)[0]))
+        if cooled:
+            print('cooldown, s:C  ' + ' '.join(cooled), flush=True)
     finally:
         if armed:
             with suppress(RigError):

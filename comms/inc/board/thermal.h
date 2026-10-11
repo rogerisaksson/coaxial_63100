@@ -133,6 +133,9 @@ typedef struct
   float    winding_c;
   uint8_t  winding_used;
   float    winding_derate;
+  /** MINOR 32: the current the stage may carry now, A of a phase's amplitude - every node
+      the clamp reaches keeping its reaction window to its throttle point. */
+  float    hold_amps;
 } board_budget_t;
 
 bool Board_ThermalBudget(board_budget_t *out);

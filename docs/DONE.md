@@ -53,3 +53,9 @@ it names. A closed item is cut from the list and gets its line here, last.
 24. Flight on the whole-body stack: her soles released as she leaves the
     floor and taken again as she lands; a hop stood on the python stack
     and on the loop in C ([flight](findings/flight.md)).
+25. A board holds its clamp to what its envelope leaves and says it
+    (MINOR 32); the flight's share and each rotor's cap on it: full tilt on
+    four with no node past its throttle's point, 9 deg off its axis where
+    83 ([envelope](findings/envelope.md)).
+26. A hover's heat: its legs' dry switching, 6.45 W of 9.4; the wash takes
+    the laminate from 91 to 60 C ([envelope](findings/envelope.md)).

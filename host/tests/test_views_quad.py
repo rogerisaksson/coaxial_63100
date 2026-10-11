@@ -11,10 +11,8 @@ from test_quad_course import CLEAR_M, passes, reach, worst
 
 
 def test_the_page_words_its_boards(report):
-    """The TH OBS row - who is stable, who converges - and the envelopes' share: the least room
-    under a throttle's point of a flight's spend, a throttling board's derate, taken and given
-    back over their seconds."""
-    from coaxial.devices.thermal import THROTTLE_AT
+    """The TH OBS row - who is stable, who converges - and the envelopes' share: what the
+    board with the least in it may carry, of the flight's clamp."""
     from terminal.views.quad import flight as view
 
     def rotors(*states):
@@ -27,24 +25,15 @@ def test_the_page_words_its_boards(report):
     report.check('four stable say so, a mix its counts',
                  got == [want for _s, want in cases], str(got))
 
-    def boards(*budgets):
-        return [{'budget': b} for b in budgets]
-    under = THROTTLE_AT - view.UNDER
-    cool, warm = {'worst': under - view.SPEND}, {'worst': under - 0.5 * view.SPEND}
-    hot, cut = {'worst': under}, {'worst': 0.2, 'derate': 0.5}
-    held = [view.envelope(boards(cool, cool, cool, b), was, 10.0) for b, was in (
-        (cool, 1.0), (warm, 1.0), (hot, 1.0), (cut, 1.0), ({}, 1.0))]
-    report.check('the whole of their pull with a flight\'s spend of room, half of it with half, '
-                 'none %.2f under the throttle; a board\'s own derate' % view.UNDER,
-                 all(abs(a - b) < 1e-9 for a, b in zip(held, (1.0, 0.5, 0.0, 0.5, 1.0))),
-                 str(['%.2f' % s for s in held]))
-    step = 0.1
-    report.check('taken over %.1f s and given back over %.1f' % (view.TAKEN_S, view.RECOVER_S),
-                 abs(view.envelope(boards(hot), 1.0, step) - (1.0 - step / view.TAKEN_S)) < 1e-9
-                 and abs(view.envelope(boards(cool), 0.0, step) - step / view.RECOVER_S) < 1e-9,
-                 '%.2f after %.1f s at the throttle, %.2f after as long cool' % (
-                     view.envelope(boards(hot), 1.0, step), step,
-                     view.envelope(boards(cool), 0.0, step)))
+    def boards(*amps):
+        return [{'budget': {} if a is None else {'hold_amps': a}} for a in amps]
+    whole, wep = view.I_MAX, view.I_WEP
+    held = [view.envelope(boards(*amps)) for amps in (
+        (wep, whole, wep, wep), (wep, 0.5 * whole, wep, whole), (wep, wep, 0.0, wep),
+        (None, None, None, None))]
+    report.check('all of their pull where every board holds the clamp, the least board\'s '
+                 'share where one holds less, none where one holds none; all before any has '
+                 'said', held == [1.0, 0.5, 0.0, 1.0], str(held))
 
 
 def test_its_traces_are_drawn(report):

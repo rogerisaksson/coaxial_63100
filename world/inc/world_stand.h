@@ -25,8 +25,9 @@ extern "C" {
 /** The run's row, in order (`STAND_IN`, coaxial.simulated.thermal): AFE_ON, the bridge
     switching, the three duties, the legs' amps, the link's volts and amps (<0 off the legs),
     the rotor's rpm, the dead time s, the meter held by the drive (no MCU die), the envelope
-    acting on the stage. */
-#define WORLD_STAND_IN 14
+    acting on the stage, the drive's clamp as its record has it, A, the legs' mean squares as
+    its sync counted them, A^2 (<0 off the legs' amps, followed). */
+#define WORLD_STAND_IN 18
 
 /** The run's out: the derate as last applied, whether a trip dropped the stage, the steps. */
 #define WORLD_STAND_OUT 3

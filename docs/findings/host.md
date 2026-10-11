@@ -92,6 +92,9 @@ kilowatts spent on repetitions.
   (on the placeholders a 63100 trips at its first torque), the estimate
   locked before it, MOE for a mode on the converters, a trip that drops the
   stage, a shaft that turns when it is overpowered.
+- The stand-in's heat on the drive's sync: each phase's mean square and the
+  link's mean amps counted a period (`world_drive_window`), not one sample a
+  slice ([envelope](envelope.md)).
 - A rotor node (`coaxial.node.Rotor`) armed sensorless at rest: the machine
   types' routines tripped 2 runs of 3, a rotor backwards past its limit or
   10 A at an arm. Started as a stepper and stopped before its stage goes
