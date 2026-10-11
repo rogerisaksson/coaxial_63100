@@ -217,9 +217,11 @@ static int schur_solve(wbc_stack_t *s, int k, const double *b, double *r)
 
 void wbc_level_solve(wbc_stack_t *s, int level, int last)
 {
-  const int rows = s->lrows[level], ineq = s->ineq, m = s->zm;
+  const int ineq = s->ineq, m = s->zm;
+  int       rows;
   double    sum[WBC_V], y[WBC_V], y0[WBC_V], rhs[WBC_V], q[WBC_V], nv[WBC_V], r[WBC_V];
   double    vp[WBC_V], z[WBC_V], big = 0.0, mu;
+  double  (*zn)[WBC_V] = s->ab;   /* the next basis, built where the rows were: they are in qq by then */
   int       pending = -1, feasible = 1;
 
   for (int v = 0; v < WBC_V; v++)
@@ -231,6 +233,8 @@ void wbc_level_solve(wbc_stack_t *s, int level, int last)
     }
     s->tau[level][v] = 0.0;
   }
+  s->relay(s->ctx, level);
+  rows = s->lrows;
   if ((rows == 0) || (m == 0))
   {
     return;
@@ -246,16 +250,16 @@ void wbc_level_solve(wbc_stack_t *s, int level, int last)
 
       for (int w = 0; w < WBC_V; w++)
       {
-        v += s->la[level][i][w] * s->zb[w][c];
+        v += s->la[i][w] * s->zb[w][c];
       }
       s->ab[i][c] = v;
       nrm += v * v;
     }
     for (int w = 0; w < WBC_V; w++)
     {
-      got += s->la[level][i][w] * sum[w];
+      got += s->la[i][w] * sum[w];
     }
-    s->rho[i] = s->lr[level][i] - got;
+    s->rho[i] = s->lr[i] - got;
     if (LEVEL_UNIT[level])
     {
       nrm = sqrt(nrm);
@@ -301,9 +305,9 @@ void wbc_level_solve(wbc_stack_t *s, int level, int last)
       {
         v += s->ab[i][c] * s->ab[i][d];
       }
-      s->hh[c][d] = v;
+      s->kk[c][d] = v;
     }
-    big = (s->hh[c][c] > big) ? s->hh[c][c] : big;
+    big = (s->kk[c][c] > big) ? s->kk[c][c] : big;
     q[c] = 0.0;
     for (int i = 0; i < rows; i++)
     {
@@ -311,18 +315,23 @@ void wbc_level_solve(wbc_stack_t *s, int level, int last)
     }
   }
   big = (big > 1e-12) ? big : 1e-12;
+  /* The tie-break: the levels below, each row projected once and its curvature summed into
+     sfac (free till the active set) and its ask into qlow; weighed low once their largest
+     column is known. Kept as rows this was 270 KB of the state (2026-10-11). */
   {
-    double top = 0.0, low;
+    double top = 0.0, low, qlow[WBC_V];
 
     for (int c = 0; c < m; c++)
     {
-      s->lowcol[c] = 0.0;
+      s->lowcol[c] = qlow[c] = 0.0;
+      memset(s->sfac[c], 0, (size_t)m * sizeof(double));
     }
     for (int l = level + 1; l < WBC_LEVELS; l++)
     {
-      for (int i = 0; i < s->lrows[l]; i++)
+      s->relay(s->ctx, l);
+      for (int i = 0; i < s->lrows; i++)
       {
-        double got = 0.0;
+        double got = 0.0, row[WBC_V];
 
         for (int c = 0; c < m; c++)
         {
@@ -330,16 +339,27 @@ void wbc_level_solve(wbc_stack_t *s, int level, int last)
 
           for (int w = 0; w < WBC_V; w++)
           {
-            v += s->la[l][i][w] * s->zb[w][c];
+            v += s->la[i][w] * s->zb[w][c];
           }
-          s->lowab[l][i][c] = v;
+          row[c] = v;
           s->lowcol[c] += v * v;
         }
         for (int w = 0; w < WBC_V; w++)
         {
-          got += s->la[l][i][w] * sum[w];
+          got += s->la[i][w] * sum[w];
         }
-        s->lowrhs[l][i] = s->lr[l][i] - got;
+        got = s->lr[i] - got;
+        for (int c = 0; c < m; c++)
+        {
+          if (row[c] != 0.0)
+          {
+            for (int d = 0; d < m; d++)
+            {
+              s->sfac[c][d] += row[c] * row[d];
+            }
+            qlow[c] -= row[c] * got;
+          }
+        }
       }
     }
     for (int c = 0; c < m; c++)
@@ -347,28 +367,16 @@ void wbc_level_solve(wbc_stack_t *s, int level, int last)
       top = (s->lowcol[c] > top) ? s->lowcol[c] : top;
     }
     low = (level == 0) ? 0.0 : LOWER * ((big > 1.0) ? big : 1.0) / ((top > 1.0) ? top : 1.0);
-    for (int l = level + 1; l < WBC_LEVELS; l++)
+    for (int c = 0; c < m; c++)
     {
-      for (int i = 0; i < s->lrows[l]; i++)
+      for (int d = 0; d < m; d++)
       {
-        const double *row = s->lowab[l][i];
-
-        for (int c = 0; c < m; c++)
-        {
-          if (row[c] != 0.0)
-          {
-            for (int d = 0; d < m; d++)
-            {
-              s->hh[c][d] += low * row[c] * row[d];
-            }
-            q[c] -= low * row[c] * s->lowrhs[l][i];
-          }
-        }
+        s->kk[c][d] += low * s->sfac[c][d];
       }
+      q[c] += low * qlow[c];
     }
   }
   mu = ((level == 0) ? REG0 : REG) * big;
-  memcpy(s->kk, s->hh, sizeof(s->kk));
   for (int c = 0; c < m; c++)
   {
     s->kk[c][c] += mu;
@@ -645,11 +653,11 @@ void wbc_level_solve(wbc_stack_t *s, int level, int last)
         }
         for (int j = 0; j < found; j++)
         {
-          const double d = dot(col, s->zn[j], m);
+          const double d = dot(col, zn[j], m);
 
           for (int e = 0; e < m; e++)
           {
-            col[e] -= d * s->zn[j][e];
+            col[e] -= d * zn[j][e];
           }
         }
       }
@@ -658,7 +666,7 @@ void wbc_level_solve(wbc_stack_t *s, int level, int last)
       {
         for (int d = 0; d < m; d++)
         {
-          s->zn[found][d] = col[d] / nrm;
+          zn[found][d] = col[d] / nrm;
         }
         found++;
       }
@@ -669,7 +677,7 @@ void wbc_level_solve(wbc_stack_t *s, int level, int last)
 
       for (int j = 0; j < found; j++)
       {
-        row[j] = dot(s->zb[v], s->zn[j], m);
+        row[j] = dot(s->zb[v], zn[j], m);
       }
       for (int j = 0; j < found; j++)
       {

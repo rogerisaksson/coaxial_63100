@@ -48,16 +48,20 @@ static int svar(int k, int axis, int side)
 
 /* ---- rows over the variables ----------------------------------------------------------- */
 
-/** The next of `level`'s rows this tick: `a` over the variables, = rhs, weighted. */
+/** The next of `level`'s rows this tick: `a` over the variables, = rhs, weighted - kept only
+    while `level` is the one being laid. */
 static void lay(wbc_stack_t *s, int level, const double a[WBC_V], double rhs, double weight)
 {
-  const int i = s->lrows[level]++;
-
-  for (int v = 0; v < WBC_V; v++)
+  if (level == s->laying)
   {
-    s->la[level][i][v] = weight * a[v];
+    const int i = s->lrows++;
+
+    for (int v = 0; v < WBC_V; v++)
+    {
+      s->la[i][v] = weight * a[v];
+    }
+    s->lr[i] = weight * rhs;
   }
-  s->lr[level][i] = weight * rhs;
 }
 
 /** A row over the accelerations alone. */
@@ -314,14 +318,16 @@ static int prepare(wbc_body_t *b, wbc_stack_t *s, const wbc_ask_t *ask)
   return 1;
 }
 
-/** The levels' rows this tick, from the ask. */
-static void lay_levels(wbc_body_t *b, wbc_stack_t *s, const double u[WBC_N],
-                       const wbc_ask_t *ask)
+/** One level's rows this tick, from the ask, into s->la: a solve lays each level it needs.
+    Every level's rows kept at once were 266 KB of the state (2026-10-11). */
+static void lay_level(wbc_body_t *b, wbc_stack_t *s, const double u[WBC_N],
+                      const wbc_ask_t *ask, int level)
 {
   const double origin[3] = {0.0, 0.0, 0.0};
   double       a[WBC_V], coef[WBC_N], have[4], err[3];
 
-  memset(s->lrows, 0, sizeof(s->lrows));
+  s->laying = level;
+  s->lrows = 0;
 
   /* Level 0, exact: the dynamics' rows no drive holds; the held joints at rest; the standing
      soles still. */
@@ -393,133 +399,155 @@ static void lay_levels(wbc_body_t *b, wbc_stack_t *s, const double u[WBC_N],
   }
 
   /* Level 2: the pelvis's and the trunk's turns, a swinging sole and its knee's fold beside. */
-  for (int t = 0; t < 2; t++)
+  if (level == 2)
   {
-    const int link = t ? wbc_trunk : 0;
-    double    drift[6], wdot[3];
-
-    wbc_body_jacobian(b, link, origin, s->jac);
-    wbc_body_drift(b, link, origin, drift);
-    wbc_quat_of(b->t[link].r, have);
-    wbc_turn_error(ask->turn[t], have, err);
-    for (int i = 0; i < 3; i++)
+    for (int t = 0; t < 2; t++)
     {
-      double w = 0.0;
+      const int link = t ? wbc_trunk : 0;
+      double    drift[6], wdot[3];
 
-      for (int n = 0; n < WBC_N; n++)
-      {
-        w += s->jac[i][n] * u[n];
-      }
-      wdot[i] = TURN_KP * err[i] - TURN_KD * w;
-    }
-    for (int i = 0; i < 3; i++)
-    {
-      lay_udot(s, 2, s->jac[i], wdot[i] - drift[i], TURN_W);
-    }
-  }
-  for (int k = 0; k < 2; k++)
-  {
-    if (ask->swing[k])
-    {
-      double drift[6], twist[6], a6[6];
-
-      wbc_body_jacobian(b, wbc_sole[k], wbc_sole_at, s->jac);
-      wbc_body_drift(b, wbc_sole[k], wbc_sole_at, drift);
-      for (int i = 0; i < 6; i++)
-      {
-        twist[i] = 0.0;
-        for (int n = 0; n < WBC_N; n++)
-        {
-          twist[i] += s->jac[i][n] * u[n];
-        }
-      }
-      wbc_quat_of(b->t[wbc_sole[k]].r, have);
-      wbc_turn_error(ask->swing_quat[k], have, err);
+      wbc_body_jacobian(b, link, origin, s->jac);
+      wbc_body_drift(b, link, origin, drift);
+      wbc_quat_of(b->t[link].r, have);
+      wbc_turn_error(ask->turn[t], have, err);
       for (int i = 0; i < 3; i++)
       {
-        a6[i] = TURN_KP * err[i] - TURN_KD * twist[i];
-        a6[3 + i] = ask->swing_acc[k][i] + SWING_KP * (ask->swing_at[k][i] - s->sole_p[k][i])
-                    + SWING_KD * (ask->swing_speed[k][i] - twist[3 + i]);
+        double w = 0.0;
+
+        for (int n = 0; n < WBC_N; n++)
+        {
+          w += s->jac[i][n] * u[n];
+        }
+        wdot[i] = TURN_KP * err[i] - TURN_KD * w;
       }
-      for (int i = 0; i < 6; i++)
+      for (int i = 0; i < 3; i++)
       {
-        lay_udot(s, SWING_LEVEL, s->jac[i], a6[i] - drift[i], 1.0);
+        lay_udot(s, 2, s->jac[i], wdot[i] - drift[i], TURN_W);
       }
     }
-    if (ask->fold[k])
+    for (int k = 0; k < 2; k++)
     {
-      const int d = 5 + wbc_knee[k];
+      if (ask->swing[k])
+      {
+        double drift[6], twist[6], a6[6];
 
-      memset(coef, 0, sizeof(coef));
-      coef[d] = 1.0;
-      lay_udot(s, SWING_LEVEL, coef,
-               ask->fold_acc[k] + SWING_KP * (ask->fold_knee[k] - b->q[d - 6])
-               + SWING_KD * (ask->fold_rate[k] - u[d]), FOLD_W);
+        wbc_body_jacobian(b, wbc_sole[k], wbc_sole_at, s->jac);
+        wbc_body_drift(b, wbc_sole[k], wbc_sole_at, drift);
+        for (int i = 0; i < 6; i++)
+        {
+          twist[i] = 0.0;
+          for (int n = 0; n < WBC_N; n++)
+          {
+            twist[i] += s->jac[i][n] * u[n];
+          }
+        }
+        wbc_quat_of(b->t[wbc_sole[k]].r, have);
+        wbc_turn_error(ask->swing_quat[k], have, err);
+        for (int i = 0; i < 3; i++)
+        {
+          a6[i] = TURN_KP * err[i] - TURN_KD * twist[i];
+          a6[3 + i] = ask->swing_acc[k][i] + SWING_KP * (ask->swing_at[k][i] - s->sole_p[k][i])
+                      + SWING_KD * (ask->swing_speed[k][i] - twist[3 + i]);
+        }
+        for (int i = 0; i < 6; i++)
+        {
+          lay_udot(s, SWING_LEVEL, s->jac[i], a6[i] - drift[i], 1.0);
+        }
+      }
+      if (ask->fold[k])
+      {
+        const int d = 5 + wbc_knee[k];
+
+        memset(coef, 0, sizeof(coef));
+        coef[d] = 1.0;
+        lay_udot(s, SWING_LEVEL, coef,
+                 ask->fold_acc[k] + SWING_KP * (ask->fold_knee[k] - b->q[d - 6])
+                 + SWING_KD * (ask->fold_rate[k] - u[d]), FOLD_W);
+      }
     }
   }
 
   /* Level 4, her form: her height, the angular momentum, the posture, the torques, the forces. */
-  if (s->nst)
+  if (level == 4)
   {
-    double k3[3], kdot[3];
+    if (s->nst)
+    {
+      double k3[3], kdot[3];
 
-    memset(a, 0, sizeof(a));
-    for (int k = 0; k < 2; k++)
-    {
-      for (int c = 0; (s->standing[k] >= 0) && (c < 4); c++)
-      {
-        a[fvar(k, c, 1)] = s->fs / wbc_total_mass;
-      }
-    }
-    lay(s, 4, a, ask->com_acc[1] + WBC_G, HEIGHT_W);
-    wbc_body_momentum(b, s->com, k3);
-    for (int i = 0; i < 3; i++)
-    {
-      kdot[i] = ask->kdot_given ? ask->kdot[i] : -MOMENTUM_K * k3[i];
-    }
-    /* k-dot = the sum over the corners of (corner - com) x its force. */
-    for (int i = 0; i < 3; i++)
-    {
       memset(a, 0, sizeof(a));
       for (int k = 0; k < 2; k++)
       {
         for (int c = 0; (s->standing[k] >= 0) && (c < 4); c++)
         {
-          const double d[3] = {s->pcorner[k][c][0] - s->com[0], s->pcorner[k][c][1] - s->com[1],
-                               s->pcorner[k][c][2] - s->com[2]};
-
-          a[fvar(k, c, (i + 1) % 3)] = -s->fs * d[(i + 2) % 3];
-          a[fvar(k, c, (i + 2) % 3)] = s->fs * d[(i + 1) % 3];
+          a[fvar(k, c, 1)] = s->fs / wbc_total_mass;
         }
       }
-      lay(s, 4, a, kdot[i], MOMENTUM_W);
-    }
-  }
-  for (int j = 0; j < WBC_DRIVEN; j++)
-  {
-    const int d = 5 + wbc_driven[j];
-
-    memset(coef, 0, sizeof(coef));
-    coef[d] = 1.0;
-    lay_udot(s, 4, coef, POSTURE_KP * (ask->posture[j] - b->q[d - 6]) - POSTURE_KD * u[d],
-             POSTURE_W);
-  }
-  for (int j = 0; j < WBC_DRIVEN; j++)
-  {
-    lay(s, 4, s->tc[j], -s->toff[j], TORQUE_W / (CLAMP_SHARE * wbc_clamp[wbc_driven[j]]));
-  }
-  for (int k = 0; k < 2; k++)
-  {
-    for (int c = 0; (s->standing[k] >= 0) && (c < 4); c++)
-    {
-      for (int axis = 0; axis < 3; axis++)
+      lay(s, 4, a, ask->com_acc[1] + WBC_G, HEIGHT_W);
+      wbc_body_momentum(b, s->com, k3);
+      for (int i = 0; i < 3; i++)
+      {
+        kdot[i] = ask->kdot_given ? ask->kdot[i] : -MOMENTUM_K * k3[i];
+      }
+      /* k-dot = the sum over the corners of (corner - com) x its force. */
+      for (int i = 0; i < 3; i++)
       {
         memset(a, 0, sizeof(a));
-        a[fvar(k, c, axis)] = 1.0;
-        lay(s, 4, a, 0.0, FORCE_W);
+        for (int k = 0; k < 2; k++)
+        {
+          for (int c = 0; (s->standing[k] >= 0) && (c < 4); c++)
+          {
+            const double d[3] = {s->pcorner[k][c][0] - s->com[0], s->pcorner[k][c][1] - s->com[1],
+                                 s->pcorner[k][c][2] - s->com[2]};
+
+            a[fvar(k, c, (i + 1) % 3)] = -s->fs * d[(i + 2) % 3];
+            a[fvar(k, c, (i + 2) % 3)] = s->fs * d[(i + 1) % 3];
+          }
+        }
+        lay(s, 4, a, kdot[i], MOMENTUM_W);
+      }
+    }
+    for (int j = 0; j < WBC_DRIVEN; j++)
+    {
+      const int d = 5 + wbc_driven[j];
+
+      memset(coef, 0, sizeof(coef));
+      coef[d] = 1.0;
+      lay_udot(s, 4, coef, POSTURE_KP * (ask->posture[j] - b->q[d - 6]) - POSTURE_KD * u[d],
+               POSTURE_W);
+    }
+    for (int j = 0; j < WBC_DRIVEN; j++)
+    {
+      lay(s, 4, s->tc[j], -s->toff[j], TORQUE_W / (CLAMP_SHARE * wbc_clamp[wbc_driven[j]]));
+    }
+    for (int k = 0; k < 2; k++)
+    {
+      for (int c = 0; (s->standing[k] >= 0) && (c < 4); c++)
+      {
+        for (int axis = 0; axis < 3; axis++)
+        {
+          memset(a, 0, sizeof(a));
+          a[fvar(k, c, axis)] = 1.0;
+          lay(s, 4, a, 0.0, FORCE_W);
+        }
       }
     }
   }
+}
+
+/** What a level is laid from, for a solve's `relay`. */
+typedef struct
+{
+  wbc_body_t      *b;
+  wbc_stack_t     *s;
+  const double    *u;
+  const wbc_ask_t *ask;
+} lay_ctx_t;
+
+static void relay(void *ctx, int level)
+{
+  lay_ctx_t *c = ctx;
+
+  lay_level(c->b, c->s, c->u, c->ask, level);
 }
 
 /** The levels' contributions summed into s->total; the drives' torques and loads they give. */
@@ -572,7 +600,10 @@ void wbc_stack_step(wbc_body_t *b, wbc_stack_t *s, const wbc_frame_t *base,
       s->ceiling[j] = s->nominal[j];
     }
   }
-  lay_levels(b, s, u, ask);
+  lay_ctx_t ctx = {b, s, u, ask};
+
+  s->relay = relay;
+  s->ctx = &ctx;
   lay_bounds(b, s, u, ask);
   s->iterations = 0;
   s->stuck = 0;
@@ -623,16 +654,17 @@ void wbc_stack_step(wbc_body_t *b, wbc_stack_t *s, const wbc_frame_t *base,
   {
     double worst = 0.0;
 
-    for (int i = 0; i < s->lrows[level]; i++)
+    s->relay(s->ctx, level);
+    for (int i = 0; i < s->lrows; i++)
     {
       double got = 0.0, nrm = 0.0;
 
       for (int v = 0; v < WBC_V; v++)
       {
-        got += s->la[level][i][v] * s->total[v];
-        nrm += s->la[level][i][v] * s->la[level][i][v];
+        got += s->la[i][v] * s->total[v];
+        nrm += s->la[i][v] * s->la[i][v];
       }
-      got = fabs(got - s->lr[level][i]) / ((nrm > 1e-24) ? sqrt(nrm) : 1.0);
+      got = fabs(got - s->lr[i]) / ((nrm > 1e-24) ? sqrt(nrm) : 1.0);
       worst = (got > worst) ? got : worst;
     }
     out->alpha[level] = worst;

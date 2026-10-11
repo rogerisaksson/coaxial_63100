@@ -385,9 +385,30 @@ band hard as before:
 - At 120 N she falls 7 of 8 where the stack 5: open.
 - On the gearboxes with their play (drives.md, A printed box's play) the loop
   with its observer stands 8 of 8 at 100 N, the PD under it 2.
-- The loop's state is 1 174 KB in doubles (`wbc_stack_t`, 2026-10-11): the
+- The loop's state was 1 174 KB in doubles (`wbc_stack_t`, 2026-10-11): the
   levels' rows and their tie-breaks 266 KB each (5 x 96 x 71), the bounds
   and their reduced rows 89 KB each (160 x 71), ten 71 x 71 matrices 39 KB
   each. The H753 has 1 MB in all, 512 KB of it the AXI SRAM the big buffers
-  sit in: a diet - floats, a level's rows laid as it is solved, the Schur
-  matrix over the active set alone - comes before any cycle count on Renode.
+  sit in.
+
+### The loop's diet
+
+591 KB (2026-10-11), the tick 2.0-2.1 ms as before, the suite, the walk and
+the 100 N polar as before:
+
+| Gone | KB | How |
+| --- | --- | --- |
+| the tie-break's rows below, projected | 270 | each row projected once, its curvature summed into a scratch, weighed once the largest column is known |
+| four levels' rows | 213 | one level laid at a time into `la`, a solve laying each level it needs (`relay`) |
+| the curvature H | 39 | formed in K's own storage |
+| the next basis | 39 | built where the level's rows were, those in `qq` by then |
+| a Gram scratch | 18 | unused |
+
+- Tried and dropped: the rows in floats, the arithmetic in doubles (the
+  level's, the bounds', the bounds' reduced, 117 KB): standing exact, the
+  walk fell at its first step - a bound's violation on O(10-100) variables
+  carries 1e-5 from a float row where the active set judges at 1e-7.
+- Left for 512 KB: the bounds' reduced rows for the set and the pending bound
+  alone (49 KB, and the violations checked in full coordinates: the tick's
+  largest cost), the Schur matrices over WBC_SMALL (54 KB), `qq` over the
+  reduced dimension (14 KB); or the problem's own dimension.

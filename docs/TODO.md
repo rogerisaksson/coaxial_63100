@@ -173,9 +173,9 @@ the files under docs/FINDINGS.md. An item is deleted when its DOD is met.
     loop over them (`wbc/`), R^k the only thing upward, the model feeding R^k
     as data.
     + Loop: 120 N shoves (1 of 8 where the stack 3); the tick 2.1 ms here;
-      its state 1 174 KB in doubles where the H753 has 1 MB - a diet
-      (floats, a level's rows at a time, the Schur over the active set),
-      then its cycles on Renode (wbc.md).
+      its state 591 KB in doubles (1 174 before the diet) where the AXI SRAM
+      is 512 - the bounds' reduced rows for the set alone, the Schur over
+      WBC_SMALL -, then its cycles on Renode (wbc.md).
     + Bottom, each board: the ESO (`parts.Eso`, `CTRL_ESO`; on the gearboxes
       8 of 8 at 100 N where the PD 2, drives.md) onto the boards as built,
       reading the motor's encoder: the play's stick-slip there, its torque

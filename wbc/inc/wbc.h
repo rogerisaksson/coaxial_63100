@@ -140,21 +140,19 @@ typedef struct
   double fs;                      /**< her weight, N: a corner force variable is a share of it */
   double tc[WBC_DRIVEN][WBC_V];   /**< each drive's torque over the variables, and its offset */
   double toff[WBC_DRIVEN];
-  double la[WBC_LEVELS][WBC_ROWS][WBC_V]; /**< each level's rows over the variables this tick */
-  double lr[WBC_LEVELS][WBC_ROWS];
-  int    lrows[WBC_LEVELS];
+  double la[WBC_ROWS][WBC_V];     /**< the level being laid: its rows over the variables, laid again as a solve needs them */
+  double lr[WBC_ROWS];
+  int    lrows;
+  int    laying;                  /**< which level `la` holds */
+  void (*relay)(void *ctx, int level); /**< lays a level into `la` (`wbc_stack_step`) */
+  void  *ctx;
   double ab[WBC_ROWS][WBC_V];     /**< the level being solved: its rows in the reduced coordinates */
   double rho[WBC_ROWS];
   double zb[WBC_V][WBC_V];        /**< the null space so far, an orthonormal basis in its first zm columns */
   int    zm;
-  double zn[WBC_V][WBC_V];        /**< the next basis, in the reduced coordinates */
-  double g[WBC_SMALL][WBC_SMALL]; /**< a level's Gram matrix, then its factor */
   double qq[WBC_ROWS][WBC_V];     /**< a level's rows orthonormalised, their span */
-  double hh[WBC_V][WBC_V];        /**< a level's curvature, and with its damping, factored */
-  double lowab[WBC_LEVELS][WBC_ROWS][WBC_V]; /**< the levels below in a level's reduced coordinates: its tie-break */
-  double lowrhs[WBC_LEVELS][WBC_ROWS];
-  double lowcol[WBC_V];
-  double kk[WBC_V][WBC_V];
+  double lowcol[WBC_V];           /**< the tie-break's column norms, the levels below projected */
+  double kk[WBC_V][WBC_V];        /**< a level's curvature K = H + mu I, factored in place */
   double ga[WBC_INEQ][WBC_V];     /**< the bounds, ga v <= gh, unit rows; their kinds and ids */
   double gh[WBC_INEQ];
   int    gkind[WBC_INEQ];
