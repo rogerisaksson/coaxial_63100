@@ -237,11 +237,11 @@ static int schur_solve(wbc_stack_t *s, int k, const double *b, double *r)
     }
     s->sfac[i][i] += 1e-12 * (1.0 + s->sm[i][i]);
   }
-  if (!wbc_cholesky(k, WBC_V, &s->sfac[0][0]))
+  if (!wbc_cholesky(k, WBC_SMALL, &s->sfac[0][0]))
   {
     return 0;
   }
-  wbc_chol_solve(k, WBC_V, &s->sfac[0][0], b, r);
+  wbc_chol_solve(k, WBC_SMALL, &s->sfac[0][0], b, r);
   return 1;
 }
 
@@ -326,7 +326,7 @@ void wbc_level_solve(wbc_stack_t *s, int level, int last)
   }
   big = (big > 1e-12) ? big : 1e-12;
   /* The tie-break: the levels below, each row projected once and its curvature summed into
-     sfac (free till the active set) and its ask into qlow; weighed low once their largest
+     qq (free till the basis is cut) and its ask into qlow; weighed low once their largest
      column is known. Kept as rows this was 270 KB of the state (2026-10-11). */
   {
     double top = 0.0, low, qlow[WBC_V];
@@ -334,7 +334,7 @@ void wbc_level_solve(wbc_stack_t *s, int level, int last)
     for (int c = 0; c < m; c++)
     {
       s->lowcol[c] = qlow[c] = 0.0;
-      memset(s->sfac[c], 0, (size_t)m * sizeof(double));
+      memset(s->qq[c], 0, (size_t)m * sizeof(double));
     }
     for (int l = level + 1; l < WBC_LEVELS; l++)
     {
@@ -365,7 +365,7 @@ void wbc_level_solve(wbc_stack_t *s, int level, int last)
           {
             for (int d = 0; d < m; d++)
             {
-              s->sfac[c][d] += row[c] * row[d];
+              s->qq[c][d] += row[c] * row[d];
             }
             qlow[c] -= row[c] * got;
           }
@@ -381,7 +381,7 @@ void wbc_level_solve(wbc_stack_t *s, int level, int last)
     {
       for (int d = 0; d < m; d++)
       {
-        s->kk[c][d] += low * s->sfac[c][d];
+        s->kk[c][d] += low * s->qq[c][d];
       }
       q[c] += low * qlow[c];
     }
@@ -419,8 +419,11 @@ void wbc_level_solve(wbc_stack_t *s, int level, int last)
         s->gfixed[warm[j]] = 1;
         continue;
       }
-      wbc_chol_solve(m, WBC_V, &s->kk[0][0], s->gp, vp);
-      set_add(s, level, warm[j], m, vp, 0.0);
+      if (s->wn[level] < WBC_SMALL)
+      {
+        wbc_chol_solve(m, WBC_V, &s->kk[0][0], s->gp, vp);
+        set_add(s, level, warm[j], m, vp, 0.0);
+      }
     }
   }
   for (int it = 0; it < MAXIT; it++)
@@ -587,7 +590,7 @@ void wbc_level_solve(wbc_stack_t *s, int level, int last)
     s->upend += t;
     if (t2 <= t1)
     {
-      if (k < m)
+      if ((k < m) && (k < WBC_SMALL))
       {
         set_add(s, level, pending, m, vp, s->upend);
       }

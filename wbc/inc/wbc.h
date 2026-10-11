@@ -150,7 +150,7 @@ typedef struct
   double rho[WBC_ROWS];
   double zb[WBC_V][WBC_V];        /**< the null space so far, an orthonormal basis in its first zm columns */
   int    zm;
-  double qq[WBC_ROWS][WBC_V];     /**< a level's rows orthonormalised, their span */
+  double qq[WBC_V + 1][WBC_V];    /**< a level's rows orthonormalised, their span: at most the reduced dimension, one tried past it */
   double lowcol[WBC_V];           /**< the tie-break's column norms, the levels below projected */
   double kk[WBC_V][WBC_V];        /**< a level's curvature K = H + mu I, factored in place */
   double ga[WBC_INEQ][WBC_V];     /**< the bounds, ga v <= gh, unit rows; their kinds and ids */
@@ -165,14 +165,14 @@ typedef struct
   int    gfixed[WBC_INEQ];        /**< a bound the level being solved cannot move, found as it is tried */
   double ud[WBC_V];               /**< the held bounds' duals, and the pending bound's */
   double upend;
-  double sfac[WBC_V][WBC_V];      /**< S factored */
+  double sfac[WBC_SMALL][WBC_SMALL]; /**< S factored; a level holds WBC_SMALL bounds at most */
   int    wset[WBC_LEVELS][WBC_V]; /**< each level's bounds held, warm across ticks */
   int    wn[WBC_LEVELS];
   int    wsized[WBC_LEVELS];      /**< the bounds a level's set was made among */
   int    iterations;              /**< the set's changes this tick */
   int    stuck;                   /**< levels that ran out of changes */
-  double vw[WBC_V][WBC_V];        /**< K^-1 of the held bounds' rows */
-  double sm[WBC_V][WBC_V];        /**< their Schur complement S = N K^-1 N^T */
+  double vw[WBC_SMALL][WBC_V];    /**< K^-1 of the held bounds' rows */
+  double sm[WBC_SMALL][WBC_SMALL]; /**< their Schur complement S = N K^-1 N^T */
   double tau[WBC_LEVELS][WBC_V];  /**< each level's contribution */
   double total[WBC_V];            /**< their sum: the accelerations, then the corners' forces */
   double torque[WBC_X];           /**< the drives' torques they give; the held joints' 0 */

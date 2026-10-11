@@ -411,5 +411,8 @@ the 100 N polar as before:
 - The bounds reduced only as they enter the set, the violations checked in
   full coordinates (`reduced`, `gs`): 541 KB, the tick 1.6-1.7 ms (2.0-2.1),
   the polar and the walk as before.
-- Left for 512 KB: the Schur matrices over WBC_SMALL (54 KB), `qq` over the
-  reduced dimension (14 KB); or the problem's own dimension.
+- The active set capped at WBC_SMALL (48) a level - 42 seen at most under
+  100 N - and the orthonormalised rows at the reduced dimension: 473 KB,
+  under the AXI SRAM's 512. Next for the M7: the loop's state placed there
+  (`.buffers`), a device op ticking it on a standing state, the cycles on
+  Renode.
