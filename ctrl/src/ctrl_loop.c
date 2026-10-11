@@ -2,6 +2,7 @@
 #include "ctrl_loop.h"
 
 #include <math.h>
+#include <stddef.h>
 
 #define DIVIDER_MAX 65535.0f
 

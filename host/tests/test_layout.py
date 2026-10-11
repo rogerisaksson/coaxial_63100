@@ -19,6 +19,14 @@ HOST_CONDITION = re.compile(
     r'__x86_64__|__APPLE__)\b', re.M)
 
 
+#: The headers ISO C defines NULL in; a source's includes; what of it is no code - comments and
+#: strings, taken out before a name is looked for in it.
+NULL_HEADERS = ('stddef.h', 'stdio.h', 'stdlib.h', 'string.h', 'time.h', 'locale.h', 'wchar.h')
+QUOTED = re.compile(r'^\s*#\s*include\s+"([^"]+)"', re.M)
+ANGLED = re.compile(r'^\s*#\s*include\s+<([^>]+)>', re.M)
+NOT_CODE = re.compile(r'/\*.*?\*/|//[^\n]*|"(?:\\.|[^"\\])*"', re.S)
+
+
 #: Prose that quotes a suite size. Each drifts the moment a check is added,
 #: and each was wrong at once: CLAUDE.md said 1679 with structure at 300
 #: when it was 349, and three more files carried a third total.
@@ -143,6 +151,46 @@ def test_emulation_is_transparent(r):
             not asks, '; '.join(asks[:4]))
 
 
+def _reached(path, headers, seen):
+    """(std headers, quoted includes the tree does not hold) reached from `path`."""
+    text = io.open(path, encoding='utf-8', errors='replace').read()
+    std, lost = set(ANGLED.findall(text)), set()
+    for name in QUOTED.findall(text):
+        found = [p for p in headers.get(os.path.basename(name), ()) if p.endswith('/' + name)]
+        if not found:
+            lost.add(name)
+        for p in found:
+            if p not in seen:
+                seen.add(p)
+                more, gone = _reached(p, headers, seen)
+                std, lost = std | more, lost | gone
+    return std, lost
+
+
+def test_null_has_its_header(r):
+    """A target source naming NULL reaches a header ISO C defines it in. MinGW's and newlib's
+    <math.h> and <stdint.h> bring it and glibc's do not: ctrl_loop.c built here and for the
+    part, and on CI's host no core did - 29 suites crashed, the emulator's among them."""
+    from tools.dev import target_map
+    dirs = target_map.DIRS + ('wbc',)
+    headers = {}
+    for d in dirs:
+        for path in glob.glob(os.path.join(REPO, d, '**', '*.h'), recursive=True):
+            headers.setdefault(os.path.basename(path), []).append(path.replace(os.sep, '/'))
+    bare = []
+    for d in dirs:
+        for path in glob.glob(os.path.join(REPO, d, '**', '*.[ch]'), recursive=True):
+            path = path.replace(os.sep, '/')
+            text = io.open(path, encoding='utf-8', errors='replace').read()
+            if '/test/' in path or not re.search(r'\bNULL\b', NOT_CODE.sub('', text)):
+                continue
+            std, lost = _reached(path, headers, {path})
+            if not lost and not any(h in std for h in NULL_HEADERS):
+                bare.append(os.path.relpath(path, REPO).replace(os.sep, '/'))
+    r.check('a target source naming NULL includes a header that defines it', not bare,
+            '; '.join(bare[:4]))
+
+
 def test_counts_are_measured(r):
     """Every suite size written in prose matches `.counts.json`."""
     import glob
@@ -206,8 +254,8 @@ def test_notebooks_are_papers(r):
             ', '.join(names))
 
 
-ROSTER = (test_target_briefs, test_emulation_is_transparent, test_counts_are_measured,
-          test_notebooks_are_papers)
+ROSTER = (test_target_briefs, test_emulation_is_transparent, test_null_has_its_header,
+          test_counts_are_measured, test_notebooks_are_papers)
 
 def main(argv=None):
     """Every test, or those the command line's words name, or its --shard k/n (tools.dev.focus)."""
