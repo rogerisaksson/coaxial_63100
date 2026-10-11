@@ -241,13 +241,12 @@ SHARDED = (SENSORLESS, CONTROLLER, GYNOID, GYNOID_FAULTS, GYNOID_FALLS, GYNOID_S
            QUAD_PAGE)
 
 #: A sharded suite's seconds where none are recorded (tests/.counts.json, not committed): CI's
-#: checkout ran test_gynoid_falls.py whole, 532 s here, and its 300 s cut it; with
-#: its get-ups after a fall 540 + 2 x 38; their starts hot after a minute's walk
-#: 822 here, 886 on CI's runner in two shards of 443, each cut at 300.
+#: checkout ran test_gynoid_falls.py whole and its 300 s cut it. 984-1 023 s on CI's runner,
+#: six of its tests 131-160 s here: at 850 two of them shared a shard of five, cut at 340.
 #: The gait suite 209 s here whole, its three tests a robot each in shards; the
 #: going suite 427 s, a way asked over two or three timings; the quad's page 211 s, a flight
 #: a shard.
-FRESH_S = {GYNOID_FALLS: 850.0, GYNOID_GAIT: 450.0, GYNOID_GOING: 430.0, QUAD_PAGE: 250.0}
+FRESH_S = {GYNOID_FALLS: 1020.0, GYNOID_GAIT: 450.0, GYNOID_GOING: 430.0, QUAD_PAGE: 250.0}
 
 #: The emulator's groups and each one's time, s, a Renode each: the rig's took 150 of the
 #: suite's 211 one after another here, and CI's runner ran the Release image's past 240.
