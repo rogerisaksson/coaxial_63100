@@ -36,6 +36,10 @@ LEVELS = (-1.0, -0.3, -0.15, 0.0, 0.5, 0.7, 0.85, 1.0)
 #: keeping its own: a blend - leaning 0.5 and crouched 0.25, into a wind (the user, 2026-10-05).
 SWAY_STEP, MANNER_STEP = 0.25, 0.25
 
+#: The room's words by key (`machine.room.WORDS`): U sit on the chair, I lie on the bed, E out
+#: through the door, Y the lamp; sat or lain, U or I again is up.
+WORDS = {'u': 'sit', 'i': 'lie', 'e': 'out', 'y': 'lamp'}
+
 #: Space held charges a push from the view onto her: CHARGE_N_S a second held, CHARGE_MAX_N at
 #: most, landing once the key's repeats stop - RELEASE_S after the last, FIRST_S after a lone
 #: press (a terminal's first repeat comes 250-500 ms on) - along the view's line of sight.
@@ -180,6 +184,15 @@ def _befell(event):
     return befall
 
 
+def _worded(word):
+    """U I E Y: the word sent her - sat or lain, up again."""
+    def send(state):
+        now = state.get('doing')
+        state['body'].send(word='up' if now in ('sit', 'lie') and word in ('sit', 'lie')
+                           else word)
+    return send
+
+
 def _charged(state):
     """Space, each press and repeat: the push charging, from when it began."""
     now = time.monotonic()
@@ -250,7 +263,8 @@ def table(view, calling, shown):
                                                       % len(shown)])) for k in 'tT']
         + [(k, _skinned) for k in 'cC']
         + [(k, lambda state: state.update(data=not state['data'])) for k in 'dD']
-        + [(k, _lawed) for k in 'jJ'] + [(k, _picked) for k in 'mM'] + [(' ', _charged)])
+        + [(k, _lawed) for k in 'jJ'] + [(k, _picked) for k in 'mM'] + [(' ', _charged)]
+        + [(k, _worded(word)) for key, word in WORDS.items() for k in (key, key.upper())])
 
 
 def act_on(keys, typed, state, wheel=0.0):

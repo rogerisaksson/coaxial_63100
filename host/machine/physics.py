@@ -17,7 +17,7 @@ import math
 import os
 from typing import Any
 
-from machine import drives, heat, linkage
+from machine import drives, gearbox, heat, linkage, room
 from machine.drives import kind
 from machine.buses import QUIET, Block, Buses
 from machine.controller import Batch
@@ -72,13 +72,19 @@ READING = ('degrees', 'rate', 'celsius', 'spent', 'derate', 'status')
 #: -274.2 at 0, -271.9 at 0.25, off its form at 0.5 and 0.75, down at 1; her knee lands at 30.0
 #: deg at 0.65 strides/s at 0, 30.3 at 0.12, 29.7 at 0.25, the form's 30 (2026-10-05).
 REFLECTED, ROTOR_FF, CLAMPED, PLACED, BACKDRIVE, SKELETON = 1.0, 0.25, 1.0, 1.0, 1.0, 0.0
-#: How much of its gearbox's and its structure's wind-up (`drives.flex`) a board sees its joint
-#: moved by under its last torque - 1 its encoder on the motor, 0 on the joint. Measured on the
-#: members as sized (2026-10-03, the user's: the trunk's bob): at 1 her walk from the squat fell
-#: at 6.4 s, the structure's wind-up alone at 6.3, the gearboxes' alone at 6.6, the ankles'
-#: rigid 5.6, at 0.5 she walked 16 s - a loop on the motor takes no degree of series flex: the
-#: joint's own angle sensor, or the wind-up fed forward (`buses`).
-WOUND = 0.0
+#: Where a drive's loop reads its angle and speed: 1 the motor's encoder, the rotor's side of
+#: the gearbox; 0 the joint's own sensor, its link's. Before the gearbox was a body of its own
+#: the wind-up was an offset on the sensed angle, and at 1 her walk fell at 6.4 s (2026-10-03).
+WOUND = 1.0
+
+#: The gearboxes between the rotors and the links (`machine.gearbox`): 1, each rotor runs free
+#: across its play, winds the box and the structure up past it against the mesh's friction, and
+#: the link is turned by that wind-up alone; 0, rigid, the rotor's inertia on the link's joint.
+#: On the boxes the walk on setpoints drags its toes 7-19 mm at lift where 1 rigid and its form's
+#: 2, the loop on its torques walks them at 265-326 J/m: the loop's world, the walker's rigid
+#: till the page walks on the loop (docs/findings/drives.md, 2026-10-11).
+#: ROOM: the living room round her (`machine.room`), its door and its lamp; 0 the floor alone.
+BOXED, ROOM = 0.0, 0.0
 
 #: Whether a drive on a gimbal's stage (`drives.mount`: the hip's roll M, its pitch L) rides it,
 #: turning with the leg's yaw and roll, or the segment that stage hangs from - on them, 0.7 kg of
@@ -195,6 +201,14 @@ class World:
         #: (`drives.shock` what it takes).
         self.armature = m.dof_armature[self.vadr].copy()
         self.geared = np.zeros(len(JOINTS))
+        #: The gearboxes (BOXED, `machine.gearbox`), their rotors' inertia off the joints'
+        #: armature; the motors' torques this step.
+        self.boxes = gearbox.Boxes(np)
+        self.motor = np.zeros(len(JOINTS))
+        if BOXED:
+            m.dof_armature[self.vadr[self.driven]] = [SERVO[kind(j)][3] for j in JOINTS
+                                                      if not drives.passive(j)]
+            self.armature = m.dof_armature[self.vadr].copy()
         #: Each sole's load as last read (`pose`, LOAD_S), and when; None since the reset.
         self.borne, self.borne_at = [0.0, 0.0], None
         #: Where the world has stepped to, s: `advance` returns on it without touching MjData.
@@ -213,8 +227,6 @@ class World:
         self.block.drive[:] = self._np.array([drives.heat(j) for j in JOINTS]).ravel()
         self.block.rotor[:] = self._np.array([REFLECTED * ROTOR_FF * drives.armature(j)
                                               for j in JOINTS])
-        self.block.play[:] = self._np.full(len(JOINTS), math.radians(drives.BACKLASH_DEG) / 2.0)
-        self.block.flex[:] = self._np.array([WOUND * drives.flex(j) for j in JOINTS])
         self.block.scale[:] = self._np.ones(len(JOINTS))
         self.block.emf[:] = self._np.array([drives.emf(j) for j in JOINTS])
         self.block.ohm[:] = self._np.array([drives.of(j)[1].r for j in JOINTS])
@@ -259,6 +271,8 @@ class World:
         self.was[:], self.rate[:] = self.target, d.qvel[self.vadr]
         self.work = self.brake = self.heat = self.effort = 0.0
         self.geared[:] = 0.0
+        self.boxes.reset(d.qpos[self.qadr])
+        self.motor[:] = 0.0
         self.borne_at = None
         self.stamp, self.at, self.glitch_at, self.pending = d.time, d.time, None, {}
         self.push_until, self.laced = -1.0, False
@@ -306,20 +320,32 @@ class World:
                     b.rds[self.glitch_at], self.glitch_at = 1.0, None
                 b.time[0] = d.time
                 b.q[:], b.qd[:] = d.qpos[self.qadr], d.qvel[self.vadr]
+                b.delta[:] = WOUND * self.boxes.delta if BOXED else self.boxes.rigid(np, b.q)
+                b.delta_d[:] = WOUND * (self.boxes.w - b.qd) if BOXED else np.zeros(len(JOINTS))
+                b.ahead[:] = WOUND * self.boxes.ahead(np, self.motor) if BOXED else np.zeros(len(JOINTS))
                 self._stroked()
                 self.buses.step()
                 d.ctrl[:] = b.ctrl
             else:
                 ref = self.target + self.rate * (d.time - start)
-                tau = (self.gains[:, 0] * (ref - d.qpos[self.qadr])
-                       + self.gains[:, 1] * (self.rate - d.qvel[self.vadr]) + self.feed)
+                if BOXED:
+                    ref = ref + WOUND * self.boxes.ahead(np, self.motor)
+                seen = d.qpos[self.qadr] + WOUND * self.boxes.delta
+                seen_d = (d.qvel[self.vadr] + WOUND * (self.boxes.w - d.qvel[self.vadr]) if BOXED
+                          else d.qvel[self.vadr])
+                tau = (self.gains[:, 0] * (ref - seen) + self.gains[:, 1] * (self.rate - seen_d)
+                       + self.feed)
                 tau = np.where(self.shorted | self.cut, 0.0, tau)
                 d.ctrl[:] = paired(np, self.pairs, tau, self.limit, self.kt)
-            power = d.ctrl * d.qvel[self.vadr]
+            self.motor[:] = d.ctrl
+            if BOXED:
+                d.ctrl[:] = self.boxes.step(np, d.ctrl, d.qvel[self.vadr],
+                                            np.where(self.shorted, self.damping, 0.0), STEP_S)
+            power = self.motor * (self.boxes.w if BOXED else d.qvel[self.vadr])
             self.work += float(power[power > 0.0].sum()) * STEP_S
             self.brake -= float(power[power < 0.0].sum()) * STEP_S
-            self.heat += float(self.loss @ (d.ctrl * d.ctrl)) * STEP_S
-            self.effort += float(np.abs(d.ctrl).sum()) * STEP_S
+            self.heat += float(self.loss @ (self.motor * self.motor)) * STEP_S
+            self.effort += float(np.abs(self.motor).sum()) * STEP_S
             d.xfrc_applied[:, 0:3] = 0.0
             d.xfrc_applied[self.torso, 0:3] = self.push_n if d.time < self.push_until else 0.0
             self._mj.mj_step(self.model, d)
@@ -327,6 +353,8 @@ class World:
                        out=self.geared)
             if self.laced:
                 self._unlace()
+            if ROOM:
+                room.touched(self, STEP_S)
         self.at = d.time
         if self.buses is not None:
             self.buses.drain()
@@ -340,17 +368,18 @@ class World:
             s = drives.ratio(joint, math.degrees(self.data.qpos[self.qadr[i]])) / drives.ratio(joint)
             b.scale[i] = s
             seen = drives.armature(joint) * s * s
-            m.dof_armature[self.vadr[i]] = base + REFLECTED * (seen - base)
+            m.dof_armature[self.vadr[i]] = base if BOXED else base + REFLECTED * (seen - base)
+            self.boxes.j[i] = seen
             b.rotor[i] = REFLECTED * ROTOR_FF * seen
             m.dof_frictionloss[self.vadr[i]] = BACKDRIVE * drives.backdrive(joint) * s
             m.dof_damping[self.vadr[i]] = free + (self.damping[i] * s * s if self.shorted[i]
-                                                  else 0.0)
+                                                  and not BOXED else 0.0)
 
     def props(self):
         """What lies on the floor (`floor.props`), and a lace snagged: ('lace', from, to), shoe
         to shoe."""
         m, d = self.model, self.data
-        out = floor.props(self)
+        out = floor.props(self) + (room.props(self) if ROOM else [])
         if self.laced:
             out.append(('lace', tuple(d.site_xpos[m.site('lace_left').id]),
                         tuple(d.site_xpos[m.site('lace_right').id])))
@@ -406,7 +435,8 @@ class World:
         """A joint's board's phases shorted through the low sides: the host's gate write, with
         the next pass."""
         self.shorted[index], self.cut[index], self.testing[index] = True, False, 0.0
-        self.model.dof_damping[self.vadr[index]] = self.free[index] + self.damping[index]
+        self.model.dof_damping[self.vadr[index]] = self.free[index] + (
+            0.0 if BOXED else self.damping[index])
         if index in self.bus_of:
             self.bus_of[index].short(index)
 
@@ -426,9 +456,11 @@ class World:
         """What her drives draw now, W: the work they do - braking gives nothing back -, their
         copper's heat and their boards' own, housekeeping each, switching neither shorted nor
         cut but checking (`test`), and that check's copper."""
-        np, tau = self._np, self.data.ctrl
+        np = self._np
+        tau, speed = ((self.motor, self.boxes.w) if BOXED
+                      else (self.data.ctrl, self.data.qvel[self.vadr]))
         on = (self.driven & ~self.shorted & ~self.cut) | (self.testing > 0.0)
-        return (float(np.maximum(tau * self.data.qvel[self.vadr], 0.0).sum() + self.loss @ (tau * tau))
+        return (float(np.maximum(tau * speed, 0.0).sum() + self.loss @ (tau * tau))
                 + heat.HOUSEKEEPING_W * int(self.driven.sum()) + heat.SWITCHING_W * int(on.sum())
                 + float(self.ohm @ (self.testing * self.testing)))
 

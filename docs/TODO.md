@@ -185,14 +185,19 @@ the files under docs/FINDINGS.md. An item is deleted when its DOD is met.
 36. **The latent stack** (32, 34; wbc.md): her physics as static arrays, one C
     loop over them (`wbc/`), R^k the only thing upward, the model feeding R^k
     as data.
-    + Loop: 120 N shoves (1 of 8 where the stack 3); the tick 2.1 ms here,
-      its cycles on native and Renode (wbc.md).
-    + Bottom, each board: the ESO (`parts.Eso`, `CTRL_ESO`; on the loop's walk
-      0.32 m/s and 634 J/m where the PD 0.26 and 768) onto the boards as
-      built: a virtual spring's stick-slip there, its torque and acceleration
-      registers on the wire.
+    + Loop: 120 N shoves (1 of 8 where the stack 3); the tick 2.1 ms here;
+      its state 1 174 KB in doubles where the H753 has 1 MB - a diet
+      (floats, a level's rows at a time, the Schur over the active set),
+      then its cycles on Renode (wbc.md).
+    + Bottom, each board: the ESO (`parts.Eso`, `CTRL_ESO`; on the gearboxes
+      8 of 8 at 100 N where the PD 2, drives.md) onto the boards as built,
+      reading the motor's encoder: the play's stick-slip there, its torque
+      and acceleration registers on the wire.
     + Behaviour: impedance (K, D a task, inputs) and a CPG's phases in R^k
       in balance.py's and going.py's place; dynamic equations, no stages.
+      The page's walk onto the loop: on the gearboxes with their play
+      (`physics.BOXED`, drives.md) the walk on setpoints drags its toes 7-19
+      mm at lift where its form's 2, the loop walks them at 265-326 J/m.
     + Upward: the law's rows as asks - balance point, contacts, clearances,
       turns, hands - and the leg recipes gone; the get-up's words rows of
       asks; the model picks and fills rows (`decide`), never code.
@@ -201,23 +206,11 @@ the files under docs/FINDINGS.md. An item is deleted when its DOD is met.
     + DOD: the stand and the walk on the C loop with their measures kept
       (J/m, band, polar); a step < 1 ms on a 475 MHz M7.
 
-37. **Play and hysteresis in the joints**: a gap the rotor runs free across
-    before its torque reaches the link, the box's wind-up, its drag - the
-    numbers of a good printed gearbox - in `physics.World`; the walk, the
-    polar and the observer's worth measured on them.
-38. **Drives that want another box and motor**: by drive, the walk's and the
-    shoves' peak and RMS torque, speed, time at the clamp and copper against
-    its type's ratings; the few categories that would serve, never one a
-    joint (stacks.md).
-39. **A shove from the tty**: a key held charges a push along the viewport's
-    normal onto her, released it lands; a crosshair where it lands; she parries
-    or falls.
-40. **A living room**: glass walls that do not break, furniture, obstacles she
-    parries; the house's words - sit on the chair, lie in the bed, open the
-    door and go out, the lamp on and off - as rows of asks.
-41. **One law for the quad and her**: the quad's thrusts allocated by the same
-    hierarchy under bounds (`machine.qp`) over its own model and tasks, if it
-    can be; its laps against today's.
+37. **The law's turn, then the room's words** (room.md): the one law turns
+    0.05 rad/s walking and not on the spot - a 10 m curve, no target in the
+    6 x 5 m room reached; a turn row (the landing yawed, the pelvis after it)
+    measured on the form, then sit, lie, out and the lamp (`machine.errands`,
+    keys U I E Y) walked to and done, and tests of each.
 
 ## Bench
 

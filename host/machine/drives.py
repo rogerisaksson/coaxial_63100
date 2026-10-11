@@ -20,6 +20,8 @@ segment and driving it through a rod. The gearbox is a wave drive with rolling e
 wave generator pushing rollers in a cage against a lobed ring, rolling where a cycloid slides,
 many rollers sharing a blow - backdrivable at the ratios here.
 """
+import math
+
 from machine import linkage
 from machine.gait import HIP_DROP, HIP_HALF
 from motor.pmsm import TORQUE_FACTOR
@@ -80,8 +82,10 @@ FRAMES = {'U8': (0.0871, 0.0270, 0.253, 0.1375, 4.0, 1.87e-4),
 #: rotor spun up through it by the blow (docs/findings/stacks.md).
 BOXES = {'B': 0.064}
 #: Each box's torsional stiffness at its output, N m/rad (estimated: a harmonic drive of 70 mm
-#: gives 16-25 kN m/rad; a roller stage on a lobed ring, no flexspline, the same order), as D^3.
-BOX_K = {'B': 9.0e3}
+#: gives 16-25 kN m/rad; a roller stage on a lobed ring, no flexspline, the same order), and its
+#: wind-up's damping ratio. At a printed cycloid's 1.5 kN m/rad the stance ankle sagged 3-4 deg
+#: under its 60 N m and the walk on setpoints fell at its first steps (2026-10-11).
+BOX_K, BOX_ZETA = {'B': 9.0e3}, 0.3
 
 #: The inverter by its disc mm: (disc D m, amps, kg, its laminate's K/W to the air through the
 #: housing it is bolted to, its height m): the 63100 as built - 100 mm, 100 A, 0.2 kg, 3.6 K/W
@@ -126,9 +130,16 @@ BOARDS = {'knee': ('thigh', (0.035, -0.18, 0.01), 'x'),
           'neck': ('torso', (0.0, 0.245, -0.066), 'z'),
           'head': ('torso', (0.0, 0.245, -0.049), 'z')}
 
-#: Each gearbox's play at its output, deg (estimated: a rolling-element wave drive's few arcmin,
-#: worn a little).
-BACKLASH_DEG = 0.1
+#: Each gearbox's play at its output, deg, and its mesh's friction as a share of its drive's
+#: peak: a good printed box's (the user, 2026-10-11; estimated - PETG cycloid discs on steel pins
+#: print at 0.3-1 deg, 1-3 % of their rated torque lost in the mesh; `physics.BOXED`). Rigid
+#: (BOXED 0) the boards' encoders see the joint held within RIGID_PLAY_DEG, a wave drive's few
+#: arcmin, as her walk's band was measured.
+BACKLASH_DEG, BOX_FRICTION, RIGID_PLAY_DEG = 0.5, 0.02, 0.1
+#: The wind-up and the play a board asks its rotor ahead of its setpoint by (`gearbox.Boxes.ahead`):
+#: both, her toes dragged 16 mm at lift for 19, the walk 730 J/m for 607; the wind-up's alone
+#: 8-14 mm at 0.1-0.3 deg of play (2026-10-11).
+AHEAD_WIND, AHEAD_PLAY = 0.0, 0.0
 
 #: Each joint's structure between its gearbox and its limb wound up a N m, mrad, its members in
 #: series (`tools/sim/members.py`, 2026-10-03: the pitch's bracket at 12 mm gave the spine 3.3,
@@ -144,6 +155,24 @@ def flex(joint):
     """rad a N m its gearbox and the structure on to its limb wind up."""
     k = kind(joint)
     return 1.0 / BOX_K[STACKS[k][1]] + WIND[k] * 1e-3
+
+
+def play(joint):
+    """Half its gearbox's backlash at the joint, rad, through its transmission's lever; none
+    undriven."""
+    return 0.0 if passive(joint) else math.radians(BACKLASH_DEG) / 2.0 / linkage.lever(joint)
+
+
+def wind(joint):
+    """N m/rad the joint winds up by past its play: its gearbox's and its structure's (`flex`)
+    through its lever squared; none undriven."""
+    return 0.0 if passive(joint) else linkage.lever(joint) ** 2 / flex(joint)
+
+
+def mesh(joint):
+    """The friction in its gearbox's mesh at the joint, N m: the hysteresis loop's half width;
+    none undriven."""
+    return 0.0 if passive(joint) else BOX_FRICTION * peak(joint)
 
 #: Joints without a drive, a kind's way (WAYS): driven, 0; on a spring, 1 - PASSIVE's stiffness
 #: N m/rad and damping N m s/rad about its rest, deg, a kind not listed 40, 1 and 0 -; held at it,

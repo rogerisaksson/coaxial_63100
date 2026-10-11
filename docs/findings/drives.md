@@ -310,3 +310,61 @@ A parry, not the run (`drive_sizes --cached --run`, 2026-10-04):
   the head feel their rotors 6.8, 2.6 and 28.8 times their loads through box
   B's 1:30 (windows 3..11, 2..19, 0..6); B direct overheats the elbow, its
   rms 4 N m against 1.7 held.
+
+## A printed box's play
+
+The gearboxes as bodies of their own (`machine.gearbox`, `physics.BOXED`,
+2026-10-11, the user's: play and hysteresis as a good printed box has them):
+each rotor runs free across the play, winds the box and the structure up past
+it against the mesh's friction, and the link is turned by that wind-up
+alone; the rotor's inertia off the joint's armature; the rotors stepped five
+times a world step (at one the knee's 187 rad/s mode outgrew its damping).
+The numbers, estimated: 0.5 deg of play at the output (a wave drive's few
+arcmin before), the roller box's 9 kN m/rad as before (at a printed cycloid's
+1.5 the stance ankle sagged 3-4 deg under its 60 N m and the walk fell at its
+first steps), the mesh's friction 2 % of the drive's peak, the wind-up's
+damping ratio 0.3; at the knee 4.4 mrad, 6.2 kN m/rad, 2.2 N m on 0.177
+kg m^2. Fed 3 N m the waist's rotor crosses its play in 23 ms with the link
+still to 2e-9 rad, winds up 6.3 mrad (6.5 by the numbers), and reversed meets
+the other flank 85 ms later before the link turns back (test_gynoid.py).
+
+- A loop closed on the joint's angle through the box fell standing in 0.6 s
+  (800 N m/rad on a 1.4 kN m/rad spring with the rotor behind it). The servo
+  and the observer read the motor's encoder (`physics.WOUND` 1), as a board
+  does; the whole-body law the joint's. The observer on the joint took the
+  play for 84 N m of disturbance and she fell standing.
+- Her walk on setpoints from the squat (`look.py`, 14 s), the form's band
+  toes back at lift 2 mm at most:
+
+| World | Toes back at lift | Feet clear | Strike | J/m |
+| --- | --- | --- | --- | --- |
+| rigid | 0.6 mm | 29 mm | 358 N | 512 |
+| the rotor split, no play, no friction | 6.8 | 31 | 371 | 566 |
+| with the friction | 10.3 | 29 | 374 | 563 |
+| with 0.1 deg of play | 13.8 | 30 | 380 | 557 |
+| with 0.5 deg of play | 21.5 | 11 | 391 | 614 |
+| all | 19.3 | 13 | 382 | 607 |
+
+- The wind-up alone loses the ankle 2 x 60 / 6 200 = 1.2 deg at each torque
+  reversal, the play 0.5 more: the toes drag at lift. The rotor asked ahead
+  by the wind-up and the play its torque takes up (`gearbox.Boxes.ahead`)
+  dragged them 16 mm for 730 J/m; the wind-up's share alone 8-14 mm at
+  0.1-0.3 deg: dropped (`drives.AHEAD_WIND`, `AHEAD_PLAY` 0).
+- The loop on its torques walks the boxes: with its PD 2.52 m at 0.42 m/s
+  and 265 J/m, with its observer 2.17 m at 0.36 m/s and 326 J/m (rigid 2.31
+  and 265, 1.94 and 325), and the observer stands 8 of 8 at 100 N where the
+  PD 2 and the stack 7; the stack's own walk 1.89 m at 0.32 m/s and 1035 J/m
+  (792 rigid), all at the printed stiffness - the roller box's to be
+  measured again.
+- So the loop's world has the boxes (test_wbc_core.py, `tools/sim/wbc.py`,
+  `--rigid` off) and the walker's stays rigid till the page walks on the
+  loop (docs/TODO.md 36): a form held on setpoints through a gearbox's lost
+  motion is the torque loop's to hold.
+- The drives' speed, back-EMF and copper are the rotor's; the boards see the
+  rotor's angle past the joint's on the block (`delta`, `delta_d`, `ahead`).
+- Rigid, the boards keep the encoder deadband the walk's band was measured
+  on: held within 0.05 deg of the joint, started at the hold (`gearbox.Boxes`
+  `rigid`, `drives.RIGID_PLAY_DEG`). Without it the gait suite's knee at
+  landing read 30.3 of 30 and knee behind plumb 10.0 of 10; started 0.05 deg
+  off the hold instead, knee at landing 30.7 for the take's 29.5: the walk
+  is that sensitive, and the last commit's 99 of 99 came back only exact.

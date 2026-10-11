@@ -14,6 +14,10 @@ from tools.cores import wbc as core  # noqa: E402
 from tools.cores.build import build, find_cc  # noqa: E402
 from tools.dev.focus import chosen  # noqa: E402
 from gynoid_kit import Report  # noqa: E402
+from machine import physics  # noqa: E402
+
+#: The loop's world has the gearboxes with their play (`machine.gearbox`).
+physics.BOXED = 1.0
 
 #: Configurations compared, and how far the core may sit from MuJoCo (m, kg m^2, N m).
 POSES, APART = 40, 1e-9

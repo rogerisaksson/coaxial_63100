@@ -271,3 +271,36 @@ found with that torque has 1.6-2.6e-4.
   thermal_app_t's `joint` on the humanoid's worlds). The U8 holds 40 N m
   indefinitely where 74 in oil, the MN6007 19 where 35; the walk's smoke and
   the look suite identical to the digit as in oil.
+
+## Which drives want another box and motor
+
+`drive_sizes.py` on the rigid world, 2026-10-11 (the rise, 24 s of walk and the
+scenes, each number 1 at a part's limit at the margin 1.5, the parries' 1.2):
+
+| Kind | Peak / has, N m | RMS / holds | deg/s / has | A | P | T | J | S | V | Ratio window |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| hip | 108 / 108 | 39 / 40 | 886 / 960 | 1.50 | 1.33 | 2.10 | 0.18 | 1.27 | 0.92 | 43..70 |
+| knee | 108 / 108 | 39 / 40 | 1009 / 960 | 1.50 | 1.35 | 2.14 | 1.20 | 1.27 | 1.05 | 44..27 |
+| hip roll | 129 / 180 | 39 / 68 | 327 / 575 | 1.07 | 0.61 | 0.76 | 0.54 | 0.90 | 0.57 | 44..68 |
+| ankle | 147 / 197 | 43 / 74 | 1025 / 1055 | 1.12 | 1.01 | 0.76 | 74 | 0.94 | 0.97 | 24..3 |
+| ankle roll | 96 / 129 | 20 / 48 | 652 / 1611 | 1.12 | 0.37 | 0.38 | 93 | 0.94 | 0.40 | 11..2 |
+| spine | 108 / 108 | 6 / 40 | 554 / 960 | 1.50 | 0.76 | 0.05 | 0.18 | 1.27 | 0.58 | 7..71 |
+| hip yaw | 52 / 108 | 14 / 40 | 372 / 960 | 0.72 | 0.24 | 0.26 | 2.00 | 0.60 | 0.39 | 15..21 |
+| shoulder | 40 / 51 | 4 / 19 | 447 / 1536 | 1.17 | 0.18 | 0.10 | 0.64 | 0.47 | 0.29 | 9..37 |
+| elbow | 25 / 51 | 3 / 19 | 284 / 1536 | 0.73 | 0.12 | 0.04 | 6.95 | 0.29 | 0.18 | 6..11 |
+| neck | 15 / 51 | 1 / 19 | 730 / 1536 | 0.44 | 0.21 | 0.01 | 2.69 | 0.18 | 0.48 | 3..18 |
+| head | 0 / 51 | 0 / 19 | 1 / 1536 | 0.00 | 0.00 | 0.00 | 29 | 0.00 | 0.00 | 0..6 |
+
+- Two categories would serve, never one a joint (the user, 2026-10-11): the
+  four hips and knees, which ask their clamp (A 1.50) and twice their
+  copper (T 2.1) with the knee at the pack's volts (V 1.05) - a motor of
+  half again the torque at the one box, not a ratio: the knee's window
+  (44..27) has no ratio, more of it heats less and drags more; and the four
+  ankle drives, whose rotors stand 74-93 times the foot's inertia through
+  their rods (windows 24..3 and 11..2): a lower ratio, with the pair's two
+  motors carrying the 147 N m the parries ask. The spine's peak and amps
+  bind on the rise (A 1.50, T 0.05): a moment, not heat. The rest fits the
+  U8 and MN6007 at 1:30; the head's drive carries nothing (0 N m, 29x the
+  head's inertia).
+- The drives stay as bought (the user, 2026-10-05); this is where a second
+  box or motor would go first, hips and knees before ankles.

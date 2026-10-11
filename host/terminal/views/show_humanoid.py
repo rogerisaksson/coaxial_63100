@@ -207,6 +207,8 @@ GROUPS = (
               ('K , .', 'style knob, trim'))),
     ('FLOOR', (('1', 'hole'), ('2', 'rug'), ('3', 'sill'), ('4', 'slip'), ('5', 'lace'),
                ('6', 'stairs'))),
+    ('ROOM', (('U', 'sit on the chair, up'), ('I', 'lie on the bed, up'), ('E', 'out the door'),
+              ('Y', 'the lamp'))),
     ('GYM', (('7', 'two bricks: she stands'), ('8', 'bricks staggered'), ('9', 'board, stiff'),
              ('0', 'rocker, free'), ('SPACE', 'held: a push from the view, charging'),
              ('P N', 'push, nudge, in turn'),
@@ -269,7 +271,7 @@ STATUS = {'squat': 'CROUCH', 'look': 'CROUCH', 'push': 'RISE', 'rise': 'RISE', '
           'shift': 'STAND', 'lean': 'STAND', 'step': 'WALK', 'walk': 'WALK', 'catch': 'CATCH',
           'halt': 'STOP', 'settle': 'STOP', 'lower': 'CROUCH', 'rest': 'REST', 'falling': 'FALL',
           'fallen': 'DOWN', 'unfold': 'GET UP', 'roll': 'GET UP', 'prop': 'GET UP',
-          'sit': 'GET UP', 'lift': 'GET UP', 'crouch': 'GET UP'}
+          'sit': 'GET UP', 'lift': 'GET UP', 'crouch': 'GET UP', 'errand': 'ERRAND'}
 
 
 def _status(now):
@@ -345,7 +347,7 @@ def main(argv=None):
     args = parser.parse_args(argv)
 
     cadence = max(CADENCE[0], min(CADENCE[1], args.cadence))
-    body = Running(cadence, local=Chosen())
+    body = Running(cadence, local=Chosen(), room=True)
     say('ok', 'body', '%.1f kg, %d drives, MuJoCo at 1 kHz in its own process'
         % (figure.mass(), sum(len(s.actuators) for s in TYPES['gynoid'].body)))
     card = gpu.adapter()
@@ -377,6 +379,8 @@ def main(argv=None):
             state['landed'] = (time.monotonic(), pushed)
         if now is not None:
             viewpoint.orbited(state, now['t'])
+        if now is not None:
+            state['doing'] = now.get('doing')
         up = helped(state, state.pop('typed', ()), time.monotonic())
         width, height = size_of(board_view, args, up)
         if now is None:

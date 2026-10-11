@@ -24,10 +24,11 @@ The block (`Block`, FIELDS): the world writes time, q, qd and limit, bumps seq a
 to each process's stdin; a process takes each bus's new bytes (written - received), ticks its
 boards (frames landed, PD to ctrl, polls answered and sent counted) and writes done = seq;
 epoch and hold: a reset, every board holding `hold`, its heat at the room's; rotor: the inertia a
-board feeds forward on its setpoint's acceleration, its own rotor's; play: half its gearbox's
-backlash, rad - its encoder on the motor, a board sees its joint held within it; flex: rad a
-N m its gearbox and the structure between its output and the limb wind up, the board seeing
-its joint wound by its last torque (`drives.flex`, `physics.WOUND`); scale: its
+board feeds forward on its setpoint's acceleration, its own rotor's; delta, delta_d: rad and
+rad/s its rotor stands past its joint - across the gearbox's play and its wind-up
+(`machine.gearbox`) - as far as its encoder sees it (`physics.WOUND`: on the motor 1, on the
+joint 0); ahead: rad past its setpoint it asks its rotor, the wind-up and the play its last
+torque took up (`gearbox.Boxes.ahead`); scale: its
 ratio now over its rest's along its rod (`machine.linkage`), its clamp and its amps a N m by it;
 emf, ohm, volts: its back-EMF a rad/s, its phase's resistance, the supply over sqrt 3 - its
 q current no more than they leave at its speed; air, rds, warm:
@@ -72,8 +73,10 @@ FIELDS = (('time', 'd', 1), ('seq', 'q', 1), ('epoch', 'q', 1), ('done', 'q', 'B
           ('q', 'd', 'J'), ('qd', 'd', 'J'), ('limit', 'd', 'J'), ('ctrl', 'd', 'J'),
           ('hold', 'd', 'J'), ('gains', 'd', '2J'), ('air', 'd', 'J'), ('rds', 'd', 'J'),
           ('warm', 'd', 'J'), ('envelope', 'd', 1), ('drive', 'd', '6J'), ('rotor', 'd', 'J'),
-          ('play', 'd', 'J'), ('scale', 'd', 'J'), ('emf', 'd', 'J'), ('ohm', 'd', 'J'),
-          ('volts', 'd', 1), ('pair', 'd', 'J'), ('flex', 'd', 'J'), ('marked', 'q', 1),
+          ('delta', 'd', 'J'), ('delta_d', 'd', 'J'), ('ahead', 'd', 'J'), ('scale', 'd', 'J'),
+          ('emf', 'd', 'J'),
+          ('ohm', 'd', 'J'),
+          ('volts', 'd', 1), ('pair', 'd', 'J'), ('marked', 'q', 1),
           ('backed', 'q', 1), ('back_to', 'q', 1))
 
 #: A board's setpoint's acceleration, read between frames, filtered over ACCEL_S: mdeg frames a
@@ -180,8 +183,8 @@ class Segment:
         #: whether a frame set it - the rate is read between two frames, never from a hold.
         self.target, self.rate, self.set_at = [0.0] * n, [0.0] * n, [0.0] * n
         self.framed, self.accel = [False] * n, [0.0] * n
-        #: The joint as its board sees it through the play, rad (`play`).
-        self.play, self.seen = [block.play[i] for i in self.indices], [0.0] * n
+        #: The joint as its board's encoder sees it, rad (`delta`).
+        self.seen = [0.0] * n
         #: Frames landing: (at, {unit: mdeg}); requests to answer: (at, unit, a gate write's
         #: frame or None for a poll).
         self.inbox, self.mail = collections.deque(), collections.deque()
@@ -276,10 +279,8 @@ class Segment:
         ask: list[Any] = [None] * len(self.indices)
         emf = [0.0] * len(self.indices)
         for k, i in enumerate(self.indices):
-            # The joint as the motor's encoder sees it: wound up by the last torque (`flex`),
-            # then held within the play.
-            wound = b.q[i] + b.flex[i] * b.ctrl[i]
-            self.seen[k] = min(max(self.seen[k], wound - self.play[k]), wound + self.play[k])
+            self.seen[k] = b.q[i] + b.delta[i]
+            qd = b.qd[i] + b.delta_d[i]
             s = b.scale[i]
             if h.shorted[k]:
                 # Its braking the world's damping (`physics.World.short`); its windings heat.
@@ -287,11 +288,11 @@ class Segment:
                 top = b.limit[i]
                 h.load(k, max(-top, min(top, -self.damping[k] * s * b.qd[i])))
             else:
-                ref = self.target[k] + self.rate[k] * (now - self.set_at[k])
+                ref = self.target[k] + self.rate[k] * (now - self.set_at[k]) + b.ahead[i]
                 tau = (b.gains[2 * i] * (ref - self.seen[k])
-                       + b.gains[2 * i + 1] * (self.rate[k] - b.qd[i])
+                       + b.gains[2 * i + 1] * (self.rate[k] - qd)
                        + b.rotor[i] * self.accel[k])
-                ask[k], emf[k] = tau / (self.drives[k][0] * s), b.emf[i] * s * b.qd[i]
+                ask[k], emf[k] = tau / (self.drives[k][0] * s), b.emf[i] * s * qd
             if b.warm[i] > 0.0:
                 h.warm(k, b.warm[i])
                 b.warm[i] = 0.0

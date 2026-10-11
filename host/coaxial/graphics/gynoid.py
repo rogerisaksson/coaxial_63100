@@ -416,7 +416,10 @@ class Follow:
 #: What she trips on, its ink by kind (`World.props`).
 PROP_INK = {'hole': (255, 96, 128), 'sill': (255, 184, 80), 'slip': (96, 214, 255),
             'rug': (200, 160, 110), 'lace': (230, 90, 230), 'stairs': (220, 225, 235),
-            'brick': (205, 92, 70), 'board': (214, 178, 120)}
+            'brick': (205, 92, 70), 'board': (214, 178, 120),
+            'glass': (110, 160, 210), 'wood': (176, 120, 70), 'bed': (120, 140, 200),
+            'door': (205, 150, 90), 'lamp': (110, 100, 80), 'lit': (255, 220, 120),
+            'switch': (200, 200, 200)}
 
 
 #: A mark's cells about its centre: (column, row) off it, the character.

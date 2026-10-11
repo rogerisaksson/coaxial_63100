@@ -49,8 +49,11 @@ def _landed(director, world, rig):
 
 def _styled(director, command):
     """A command's style: a knob trimmed, the walk on `style.SWAY`'s axis, her manners - the
-    one law's on it (`gaits.MANNERS`), else the walk as built's (`style.MANNERS`)."""
-    from machine import style
+    one law's on it (`gaits.MANNERS`), else the walk as built's (`style.MANNERS`); its word in
+    the room (`machine.errands`)."""
+    from machine import errands, style
+    if 'word' in command:
+        errands.ask(director, command['word'])
     if 'style' in command:
         style.trim(*command['style'])
     if 'sway' in command:
@@ -62,11 +65,12 @@ def _styled(director, command):
             director.manner = tuple(command['manner'])
 
 
-def _run(commands, states, cadence, local, pace_asked):
-    """The worker: the machine, the director, the loop paced to the clock."""
+def _run(commands, states, cadence, local, pace_asked, room=False):
+    """The worker: the machine, the director, the loop paced to the clock; `room` round her."""
     import numpy as np
 
-    from machine import Machine, events, pace, style
+    from machine import Machine, events, pace, physics, style
+    physics.ROOM = 1.0 if room else 0.0
     from machine.director import Director
     from machine.figure import JOINTS
     from machine.heat import GATES_ON
@@ -175,7 +179,9 @@ def _run(commands, states, cadence, local, pace_asked):
                                   int(bus[n + 'status']) & GATES_ON)
                               for j, n in director.drives.items()},
                      'props': world.props(), 'armed': tuple(event) if event else None,
-                     'rig': floor['rig'],
+                     'rig': floor['rig'], 'doing': director.doing,
+                     'errand': repr(director.errand) if director.errand else None,
+                     'lamp': bool(getattr(world, 'lamp', False)),
                      'buses': ([(tuple(JOINTS[i] for i in b.indices), int(world.block.written[b.link]),
                                  int(world.block.sent[b.link]), b.bad) for b in world.buses.each]
                                if world.buses is not None else []),
@@ -196,11 +202,11 @@ class Running:
     """The gynoid's worker process: `send` it commands, read its `latest` state; `local` the
     model that plans her get-up (`machine.planner`), picklable."""
 
-    def __init__(self, cadence=0.85, local=None, pace=None):
+    def __init__(self, cadence=0.85, local=None, pace=None, room=False):
         context = multiprocessing.get_context('spawn')
         self._commands, self._states = context.Queue(), context.Queue(maxsize=8)
         self._process = context.Process(target=_run, daemon=True, args=(
-            self._commands, self._states, cadence, local, pace))
+            self._commands, self._states, cadence, local, pace, room))
         self._process.start()
         self._last = None
 

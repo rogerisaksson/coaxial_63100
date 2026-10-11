@@ -26,7 +26,7 @@ row for 9.6 m/s and its end for a pull of 100 m/s^2: the frame left the floor fo
 import math
 
 from machine.figure import mul, rx, rz, t
-from machine import quad
+from machine import quad, thrusts
 
 #: The altitude loop's gain on its rate, 1/s: both its poles at KD / 2, 5 rad/s. At 2 rad/s on
 #: the height alone the lift trailed its ramp 0.4 m and the hold crept 3 s down to its mark
@@ -113,6 +113,11 @@ FALL, BURN = 'fall', 'burn'
 
 #: What an emergency is taken from where the law puts its height first (`step`).
 FLOOR = 'floor'
+
+#: The thrusts shared 1 as her whole-body law's levels under bounds, 0 by hand
+#: (`machine.thrusts`): the stack 0.3 s a lap slower on the boards, a strike more in 12
+#: flights (docs/findings/quad.md, 2026-10-11).
+STACKED = 0.0
 
 #: The law's constants that have a unit, each by the powers of its metres and its seconds:
 #: at a frame of another size they go by its size and its clock (`sized`); its shares and its
@@ -372,15 +377,4 @@ class Flying:
                      and not any(self.turns)
                      and math.hypot(float(at[0]) - self.spot[0],
                                     float(at[2]) - self.spot[1]) <= HELD_SPOT_M)
-        return self.shared(torque)
-
-    def shared(self, torque):
-        """The collective and `torque`, N m about the frame's axes, shared over the rotors - an
-        X, its diagonals spun alike - none under nothing nor over its top: the tilt's torque
-        kept, the collective next, the heading's what they leave."""
-        reach, cap = 4.0 * quad.ARM_M * quad.ARM_M, self.top / 4.0
-        parts = [-torque[0] * z / reach + torque[2] * x / reach for x, z in quad.ROTOR_AT]
-        each = max(-min(parts), min(self.thrust / 4.0, cap - max(parts)))
-        room = max(0.0, min(min(each + part, cap - each - part) for part in parts))
-        yaw = max(-room, min(room, torque[1] * quad.K_THRUST / (4.0 * quad.K_DRAG)))
-        return [max(0.0, min(cap, each + part + yaw * s)) for part, s in zip(parts, quad.SPIN)]
+        return (thrusts.stacked if STACKED else thrusts.shared)(self.top, self.thrust, torque)

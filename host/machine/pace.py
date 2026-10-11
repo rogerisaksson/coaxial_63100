@@ -59,11 +59,15 @@ def take(director, bus, out):
 def step(director, dt):
     """{joint: degrees} of her going on the law this pass, eased in from the director's last."""
     d = director
-    k, on, d.manners = gaits.passed(*d.k, -1.0 if d.pace is None else d.pace, d.manners,
+    k, on, d.manners = gaits.passed(d.k[0], d.k[1], -1.0 if d.pace is None else d.pace, d.manners,
                                     d.manner, dt)
     d.k = (k, on)
     d.going.ask = gaits.mannered(gaits.between(k), d.manners)
-    out = d.going.step(dt)
+    return blended(d, d.going.step(dt), dt)
+
+
+def blended(d, out, dt):
+    """`out` eased over BLEND_S from the pose the director's blend began at, while one is on."""
     if d.blend is not None:
         d.age += dt
         k = gait.eased(d.age / BLEND_S)

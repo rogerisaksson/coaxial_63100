@@ -248,11 +248,15 @@ def _trace(now, phase, s, home, tilt, out, body, worst):
 
 def _torques(esos, world, body, out):
     """The drives' torques this pass: the stack's, less what each observer sees of its drive's
-    own disturbance; the inertia each observer scales by the loop's own, where it gives it."""
+    own disturbance; the inertia each observer scales by the loop's own, where it gives it. An
+    observer reads its board's encoder (`physics.WOUND`): on the joint it took the gearbox's
+    play for 84 N m of disturbance and she fell standing (2026-10-11)."""
     import numpy as np
+    from machine import physics
     if not esos:
         return out['tau']
-    seen, planned, jeff = world.data.qpos[body.qact], out['qacc'][body.act], out.get('jeff')
+    seen = world.data.qpos[body.qact] + physics.WOUND * world.boxes.delta[body.driven]
+    planned, jeff = out['qacc'][body.act], out.get('jeff')
     taken = []
     for k, e in enumerate(esos):
         if jeff is not None:
@@ -301,11 +305,14 @@ def main(argv=None):
     parser.add_argument('--no-wep', action='store_true', help='no war emergency power')
     parser.add_argument('--no-step', action='store_true', help='the capture point alone')
     parser.add_argument('--core', action='store_true', help='the loop in C, not the python stack')
+    parser.add_argument('--rigid', action='store_true', help='the gearboxes rigid (`physics.BOXED`)')
     parser.add_argument('--inner', default='pd', choices=('pd', 'eso', 'none'),
                         help="the drives' own loop")
     parser.add_argument('--eso-wo', type=float, default=ESO_WO, help="the observers' rad/s")
     args = parser.parse_args(argv)
     ESO_WO = args.eso_wo
+    from machine import physics
+    physics.BOXED = 0.0 if args.rigid else 1.0
     flags = {'wep': not args.no_wep, 'steps': not args.no_step, 'core': args.core,
              'inner': args.inner}
     if args.walk:

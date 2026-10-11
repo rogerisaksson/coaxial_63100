@@ -195,6 +195,8 @@ tests/              suites, .counts.json (measured sizes)
 | curves | an ease, Hermite, Catmull-Rom: pure |
 | figure | the gynoid's segments, masses, leg IK |
 | physics | DYNAMIC: the figure in MuJoCo, a drive a joint |
+| gearbox | each drive's gearbox: the rotor free across its play, the box wound up past it, the link turned |
+| room | a living room round her: glass walls, furniture, a door, a lamp, and its words |
 | floor | the slab, a sill, a patch, a rug, a stair |
 | rtu | Modbus RTU: CRC-16, a pass's frames |
 | buses | the boards on a bus a limb, a process each in lockstep with the world over a shared block, the host's frames bytes on a socket a bus |

@@ -4,7 +4,7 @@ The world steps it (`machine.physics`).
 """
 import math
 
-from machine import build, drives, figure, floor, linkage, skeleton
+from machine import build, drives, figure, floor, linkage, room, skeleton
 from machine.drives import kind
 from machine.figure import BODY, HAIR_AT, HEM_AT, JOINTS, MASS_KG, SEGMENTS, contacts as undersides
 
@@ -150,7 +150,7 @@ def _joint(joint, axis, sign):
 
 
 def _mjcf(bones):
-    from machine.physics import PLACED, SERVO, STEP_S
+    from machine.physics import PLACED, ROOM, SERVO, STEP_S
     shells = build.segments() if build.SHELLS else {}
     kids, riders = {}, build.riders() if PLACED and not shells else {}
     for seg in SEGMENTS:
@@ -264,6 +264,7 @@ def _mjcf(bones):
          ] + floor.ground(contacts, give, TORSION_M)
         + body(SEGMENTS[0])
         + floor.rug(give, FRICTION, TORSION_M)
+        + (room.furnish(contacts) if ROOM else [])
         + ['</worldbody>', '<contact/>', '<actuator>']
         + ['<motor joint="%s" ctrlrange="%g %g"/>' % (j, -max(SERVO[kind(j)][0], drives.peak(j)),
                                                       max(SERVO[kind(j)][0], drives.peak(j)))

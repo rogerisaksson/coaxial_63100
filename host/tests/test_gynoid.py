@@ -337,12 +337,66 @@ def test_her_kinematics_as_motors(report):
                  '%.1e m, or of a unit axis' % half)
 
 
+def test_a_gearbox_has_play(report):
+    """BOXED: fed a torque, a drive's rotor runs free across its gearbox's play before any of it
+    reaches the link, winds the box up tau / wind past it as the link turns, and reversed crosses
+    the play again before the link turns back (`machine.gearbox`):
+    the waist, its servo off, standing."""
+    from machine import gait, physics
+    from machine.figure import JOINTS
+    i = JOINTS.index('waist')
+    physics.BOXED = 1.0
+    try:
+        _gearbox_has_play(report, physics, gait, i)
+    finally:
+        physics.BOXED = 0.0
+
+
+def _gearbox_has_play(report, physics, gait, i):
+    world = physics.World()
+    world.reset(gait.stand())
+    world.gains[i] = 0.0
+    gap, wind, tau = float(world.boxes.gap[i]), float(world.boxes.k[i]), 3.0
+    q0, now = float(world.data.qpos[world.qadr[i]]), [0.0]
+    world.clock = lambda: now[0]
+
+    def run(seconds, feed):
+        world.feed[i] = feed
+        rows = []
+        for _ in range(int(round(seconds / 0.001))):
+            now[0] += 0.001
+            world.advance()
+            rows.append((now[0], float(world.boxes.delta[i]),
+                         float(world.data.qpos[world.qadr[i]]) - q0))
+        return rows
+    on = run(0.3, tau)
+    across = next((t for t, d, _q in on if d >= gap), None)
+    still = max(abs(q) for t, d, q in on if across is None or t <= across)
+    report.check('the link stands while the rotor crosses the play, 10-60 ms',
+                 across is not None and 0.01 <= across <= 0.06 and still < 1e-4,
+                 'across at %s s, the link moved %.2e rad meanwhile' % (across, still))
+    wound = gap + tau / wind
+    report.check('past the play the box winds up tau / wind and the link turns',
+                 abs(on[-1][1] - wound) < 0.3 * wound and on[-1][2] > 0.005,
+                 'rotor %.1f mrad past the link of %.1f, the link turned %.1f mrad in 0.3 s' % (
+                     1e3 * on[-1][1], 1e3 * wound, 1e3 * on[-1][2]))
+    back = run(0.3, -tau)
+    cross = next((t for t, d, _q in back if d <= -gap), None)
+    at = next((q for t, d, q in back if cross is not None and t >= cross), None)
+    report.check('reversed, the rotor crosses the play again before the link turns back',
+                 cross is not None and 0.01 <= cross - on[-1][0] <= 0.1 and at is not None
+                 and at >= on[-1][2] - 1e-6,
+                 'the other flank met %s s after the reversal, the link at %.1f mrad from %.1f' % (
+                     None if cross is None else round(cross - on[-1][0], 3),
+                     1e3 * (at if at is not None else 0.0), 1e3 * on[-1][2]))
+
+
 ROSTER = (test_a_virtual_body_walks, test_a_leg_by_its_foot, test_a_body_with_mass_walks,
           test_the_pendulum_between_her_ears, test_she_rises_and_walks, test_dressed_or_bare,
           test_her_views_draw, test_the_floor_outlasts_a_walk, test_a_style_eases_in,
           test_her_skeleton_collides,
           test_each_drive_turns_from_its_gearbox, test_each_drive_is_held,
-          test_her_kinematics_as_motors)
+          test_a_gearbox_has_play, test_her_kinematics_as_motors)
 
 
 def main(argv=None):

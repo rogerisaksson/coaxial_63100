@@ -383,3 +383,11 @@ band hard as before:
 - The slacks' own non-negativity (ids 5000+) sits at zero whenever a margin
   is slack-free: left out of the bounds counted at their edge.
 - At 120 N she falls 7 of 8 where the stack 5: open.
+- On the gearboxes with their play (drives.md, A printed box's play) the loop
+  with its observer stands 8 of 8 at 100 N, the PD under it 2.
+- The loop's state is 1 174 KB in doubles (`wbc_stack_t`, 2026-10-11): the
+  levels' rows and their tie-breaks 266 KB each (5 x 96 x 71), the bounds
+  and their reduced rows 89 KB each (160 x 71), ten 71 x 71 matrices 39 KB
+  each. The H753 has 1 MB in all, 512 KB of it the AXI SRAM the big buffers
+  sit in: a diet - floats, a level's rows laid as it is solved, the Schur
+  matrix over the active set alone - comes before any cycle count on Renode.

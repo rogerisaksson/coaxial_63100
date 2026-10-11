@@ -17,8 +17,8 @@ toward the fall; down and still, her drives cut and checked (`machine.down`), sh
 import math
 from concurrent.futures import ThreadPoolExecutor
 
-from machine import (arrival, down, drives, falls, figure, gait, getup, heat, observer, pace,
-                     planner, stance, stand, walker, walkplan)
+from machine import (arrival, down, drives, errands, falls, figure, gait, getup, heat, observer,
+                     pace, planner, stance, stand, walker, walkplan)
 
 #: Falling, past the walker's recovery: the trunk (`_trunk`) tipped past FALLING_DEG and tipping
 #: on faster than FALLING_DEG_S, or the pelvis under FALLING_M, walking. Fallen - under FALLEN_M
@@ -99,6 +99,7 @@ class Director:
         #: The row asked of her way on the one law (`machine.pace`), None the walker's; the row
         #: she goes on and her seconds on it; the law; her manners asked and as they are.
         self.pace: float | None = None
+        self.errand, self.doing = None, None     # in the room (`machine.errands`)
         self.k, self.going, self.manner, self.manners = (-1.0, 0.0), None, (), {}
         #: Since when she falls and her arms and neck from and to what (`falls.reach`); the tilt last
         #: pass, (deg, s), and its rate, deg/s; when an arm met the floor; since when she tucks and
@@ -260,7 +261,9 @@ class Director:
             return out
         if self.stage == 'go':
             out = self.walker.last = pace.step(self, dt)
-            return out
+            return errands.step(self, bus, dt, out)
+        if self.stage == 'errand':
+            return errands.held(self, bus, dt)
         if self.stage in arrival.STAGES:
             out = self.arrival.step(dt)
             if self.arrival.stage != self.stage and self.arrival.stage == 'rest':
@@ -274,13 +277,7 @@ class Director:
                     self.arrival.play(frames)
                     self.treads += 1
                     out, self.stage = self.arrival.step(0.0), self.arrival.stage
-            if self.blend is not None:
-                self.age += dt
-                k = gait.eased(self.age / BLEND_S)
-                out = {j: self.blend.get(j, v) + (v - self.blend.get(j, v)) * k
-                       for j, v in out.items()}
-                if self.age >= BLEND_S:
-                    self.blend = None
+            out = pace.blended(self, out, dt)
             if self.stage == 'ready':
                 self.walker.cadence = gait.CADENCE
                 self.walker.begin(out, scale=arrival.FIRST,

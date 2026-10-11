@@ -354,3 +354,23 @@ room, once 1 out.
   past its room, one flight in nine. In 20 ms steps, the rest owed, the
   observers read on the flight's clock: one flight whatever the wall, 14.24
   and 14.98 s, every tip 0.25 m inside.
+
+## Thrusts shared as her torques
+
+The collective and the torques shared over the rotors by her whole-body law's
+levels under bounds (`flying.Flying.stacked`, `machine.qp.stack`, 2026-10-11,
+the user's: one law for the quad and her): the tilt's torque, the collective,
+the heading's torque, the rotors alike, each rotor between nothing and its
+cap. Where nothing binds it shares as the hand does to the mN; a rotor at its
+cap, the tilt is kept whole and the collective gives way, as the hand's. The
+race, 12 flights each (`quad_race.py --suite all`):
+
+| Shared | Ideal laps, s | Boards laps, s | Struck |
+| --- | --- | --- | --- |
+| by hand (`shared`) | 13.7-14.1 | 14.0-14.3 | 2: air 5 gate 7, stuffy gate 1 |
+| by the stack (`stacked`) | 13.8-14.1 | 14.4-14.5 | 3: air 3 gate 13, air 5 gate 7, boards air 5 |
+
+- Possible, and 0.3 s a lap slower on the boards with a strike more: the
+  hand's kept (`flying.STACKED` 0), the stack there for the law's sake. A row
+  of K_DRAG / K_THRUST, 0.04, fell under the stack's tie-break and the
+  heading's torque came 15 % short: the rows are laid at unit scale.
