@@ -430,8 +430,9 @@ static void rotor_observer(drive_t *d, float alpha, float beta, bool injecting,
   d->theta_hat = drive_wrap(d->theta_hat + d->omega_hat * d->ts);
 }
 
-/** The PI with decoupling, and the vector limit with the integrators held
-    when it bites. */
+/** The PI with decoupling, and the vector limit: the d axis whole, q what the
+    circle leaves of it - the field's current stays its reference at the limit,
+    the torque's gives way. An axis cut integrates only what pulls it back in. */
 static void current_loop(drive_t *d, float id, float iq, float vmax,
                          float w_e, float *vd, float *vq)
 {
@@ -442,29 +443,22 @@ static void current_loop(drive_t *d, float id, float iq, float vmax,
   const float vd_u = d->p.kp * ed + d->xd - w_e * d->p.lq * iq;
   const float vq_u = d->p.kp * eq + d->xq + w_e * d->p.ld * id
                      + w_e * d->p.lambda;
-  const float mag = sqrtf(vd_u * vd_u + vq_u * vq_u);
+  const float vd_c = clampf(vd_u, -vmax, vmax);
+  const float room = sqrtf(vmax * vmax - vd_c * vd_c);
+  const float vq_c = clampf(vq_u, -room, room);
+  const bool d_cut = (vd_u > vmax) || (vd_u < -vmax);
+  const bool q_cut = (vq_u > room) || (vq_u < -room);
 
-  if (mag > vmax)
+  *vd = vd_c;
+  *vq = vq_c;
+  if (!d_cut || (ed * vd_u < 0.0f))
   {
-    const float scale = (mag > 0.0f) ? (vmax / mag) : 0.0f;
-
-    *vd = vd_u * scale;
-    *vq = vq_u * scale;
-    /* Saturated: integrate only what pulls the vector back in. */
-    if (ed * vd_u < 0.0f)
-    {
-      d->xd += d->p.ki * d->ts * ed;
-    }
-    if (eq * vq_u < 0.0f)
-    {
-      d->xq += d->p.ki * d->ts * eq;
-    }
-    return;
+    d->xd += d->p.ki * d->ts * ed;
   }
-  *vd = vd_u;
-  *vq = vq_u;
-  d->xd += d->p.ki * d->ts * ed;
-  d->xq += d->p.ki * d->ts * eq;
+  if (!q_cut || (eq * vq_u < 0.0f))
+  {
+    d->xq += d->p.ki * d->ts * eq;
+  }
 }
 
 /** Two pulses along theta_hat, +V then -V, a gap after each; then OFF. */

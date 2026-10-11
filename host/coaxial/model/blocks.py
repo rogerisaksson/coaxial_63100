@@ -113,9 +113,9 @@ class SpeedLoop(Block):
 class CurrentLoop(Block):
 
     """vd, vq from the current error: kp = L w0 and ki = R w0 per axis, the
-    speed cross-terms fed forward, the pair clamped to link/sqrt(3) as a
-    vector; while the clamp acts the integrators hold: drive.c's
-    conditional integration.
+    speed cross-terms fed forward, the pair kept within link/sqrt(3): the d
+    axis whole, q what the circle leaves, an axis cut integrating only what
+    pulls it back in - drive.c's limit.
     """
 
     def __init__(self, hz, motor, vdc):
@@ -129,14 +129,16 @@ class CurrentLoop(Block):
         ed, eq = s.id_ref - s.id, s.iq_ref - s.iq
         vd = self.kpd * ed + self.xd - s.w_e * self.m.lq * s.iq
         vq = self.kpq * eq + self.xq + s.w_e * (self.m.ld * s.id + self.m.lam)
-        norm = math.hypot(vd, vq)
-        s.v_sat = norm > self.vmax
-        if s.v_sat:
-            vd, vq = vd * self.vmax / norm, vq * self.vmax / norm
-        else:
+        d_cut = abs(vd) > self.vmax
+        if not d_cut or ed * vd < 0.0:
             self.xd += self.ki * ed * dt
+        vd = max(-self.vmax, min(self.vmax, vd))
+        room = math.sqrt(self.vmax * self.vmax - vd * vd)
+        q_cut = abs(vq) > room
+        if not q_cut or eq * vq < 0.0:
             self.xq += self.ki * eq * dt
-        s.vd, s.vq = vd, vq
+        s.v_sat = d_cut or q_cut
+        s.vd, s.vq = vd, max(-room, min(room, vq))
 
 
 class Plant(Block):

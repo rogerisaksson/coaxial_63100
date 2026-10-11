@@ -369,9 +369,48 @@ def test_if_spin(r, lib):
         d.close()
 
 
+def test_the_voltage_limit(r, lib):
+    """Asked more torque than its link has volts for, a rotor under a propeller's drag: the
+    d current stays its reference, the vector is the limit's, and the rotor turns as fast as
+    those volts carry its load's current with no d current beside it."""
+    d = Drive(lib)
+    # A motor whose d current costs it speed: Ld i over lambda a tenth at 7 A.
+    m = Motor(r=0.03, ld=33e-6, lq=41e-6, lam=0.00207, p=14, j=1e-4, b=2e-6, k_load=1.7e-5)
+    vdc, frac, asked = 12.0, 0.95, 60.0
+    try:
+        d.params(r=m.r, ld=m.ld0, lq=m.lq, pole_pairs=m.p, w_lo=300.0, w_hi=600.0,
+                 v_frac=frac, i_max=90.0, i_trip=200.0, **{'lambda': m.lam},
+                 **loop_gains(m.r, m.ld0, 1000.0), **pll_gains(50.0, TS))
+        d.setpoints(id_ref=15.0, omega_target=1200.0, accel=4000.0)
+        d.mode(HOLD)
+        run(d, m, 0.5, vdc=vdc)
+        d.setpoints(id_ref=0.0, iq_ref=asked)
+        d.mode(SENSORLESS)
+        run(d, m, 2.0, vdc=vdc)
+        s, vmax = d.state(), frac * vdc / math.sqrt(3.0)
+        kt = 1.5 * m.p * m.lam
+
+        def volts(w):
+            iq = (m.k_load * (w / m.p) ** 2 + m.b * w / m.p) / kt
+            return math.hypot(w * m.lq * iq, m.r * iq + w * m.lam)
+        low, high = 0.0, 1e5
+        while high - low > 0.1:
+            low, high = ((low + high) / 2.0, high) if volts((low + high) / 2.0) <= vmax else (
+                low, (low + high) / 2.0)
+        r.check('asked %.0f A it has not the volts for, the vector is the limit\'s' % asked,
+                abs(math.hypot(s['vd'], s['vq']) - vmax) < 0.01 * vmax and m.iq < 0.9 * asked,
+                '%.2f V of %.2f, %.2f A' % (math.hypot(s['vd'], s['vq']), vmax, m.iq))
+        r.check('the d current stays its reference there',
+                abs(m.id) < 0.05 * abs(m.iq), '%+.3f A beside %.2f A' % (m.id, m.iq))
+        r.check('the rotor as fast as those volts carry its load with no d current',
+                abs(m.omega - low) < 0.01 * low, '%.0f of %.0f rad/s' % (m.omega, low))
+    finally:
+        d.close()
+
+
 ROSTER = (test_math, test_mode_refusals, test_current_loop, test_trip_and_stage,
           test_off_lets_the_rotor_go, test_polarity, test_deadtime, test_moments,
-          test_model_agrees, test_montecarlo, test_if_spin)
+          test_model_agrees, test_montecarlo, test_if_spin, test_the_voltage_limit)
 
 
 def main(argv=None):

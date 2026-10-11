@@ -148,6 +148,12 @@ rotor's pages and their demos. The board's findings:
   never backwards (`motion.started`).
 - Armed sensorless onto a rotor left turning, the first pass read 10 A: a
   rotor node turns it down as a stepper before its stage goes down.
+- The voltage limit scaled d and q alike, and at it the field's current left
+  its reference: a 63100 under its propeller, asked 60 A, carried +7.3 A of
+  d current at 55 V and +13.9 at 48 - 650.5 and 582.6 rad/s where those volts
+  carry its load to 673.5 and 626.3 with none. The d axis whole, q what the
+  circle leaves: 673.5 and 626.3 rad/s, the d current 0.0 (`current_loop`,
+  test_drive_core's limit). A step of 90 A from the idle trips at 100.
 - Device 12's theta command stood still on the part: `board_ctrl.c` wrote
   the setpoint, which a held frame reads at its mode alone. Through
   `drive_set_theta_setpoint` now, the part's and a stand-in's one tick

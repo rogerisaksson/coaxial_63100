@@ -200,6 +200,26 @@ gets a line at the end of [DONE](DONE.md).
       trunk a little ahead, down on both again - a test; no branch on a
       side in the law (`test_structure`).
 
+## Quad
+
+- **A board's envelope in a climb**: one board of the four throttled or
+  tripped in a fast climb cuts its rotor alone and the frame tumbles. DOD:
+  the four's pull taken down together before any one's envelope cuts it,
+  the envelope a part of the action space; the fastest climbs in every air
+  with no rotor cut alone, no tumble.
+- **Warm in a hover**: the boards' heat at a hover's amps with their
+  propellers' wash over them. DOD: where the watts come from and what the
+  wash carries off, measured; the fault found, in the heat's model or in
+  how the air is given it.
+- **Flown to WEP, no rules**: the flight kinematically determined inside an
+  action space computed beforehand - what the four can pull at each
+  airspeed, tilt, pack voltage and envelope, WEP its outer shell, gusts
+  inside it -; no clause on which envelope it happens to be in
+  (`flight.envelope`, `emergency`, `FIT`, `GONE_S`, `Flying.short`: gone).
+  DOD: on the law's rotors (Host, one code), `quad_race.py`'s laps against
+  today's, the pull left unused and the WEP taken a flight quoted, gusts
+  flown; no strike more.
+
 ## Bench
 
 - **Bootloader**. DOD: a power cycle runs the store at unit 1, PWR_CR3

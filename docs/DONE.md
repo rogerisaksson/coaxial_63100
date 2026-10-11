@@ -46,3 +46,5 @@ it names. A closed item is cut from the list and gets its line here, last.
 21. A rotor node started as a stepper and stopped before its stage goes
     down: the machine types' routines 36 runs of 36
     ([drive](findings/drive.md), [host](findings/host.md)).
+22. The law's voltage limit keeps the d current its reference: a 63100's top
+    at 55 V 673.5 rad/s where 650.5 ([drive](findings/drive.md)).
