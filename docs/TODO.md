@@ -78,14 +78,25 @@ the files under docs/FINDINGS.md. An item is deleted when its DOD is met.
    + DOD: none > 1.0 in the scoreboard's falls.
 9. **Arms down while getting up**: hands on the knees, or more hip torque;
    decision open.
+   + Now (P's shove on the walk as built, 2026-10-11): the hands 0.86 m
+     from the torso at the farthest through the lift and the crouch, thrown
+     at 6.4-7.3 m/s.
    + DOD: the decision; 5 of 5 hot; hands within 620 mm of the chest
      through the lift.
 10. **Get-up end**: rocking before standing, feet split fore and aft.
+    + Now (2026-10-11): the feet 178 mm apart fore and aft as she first
+      stands, 168 as she walks again.
     + DOD: split rms 0.25; feet 40-80 mm apart.
 11. **No abrupt get-up moves**.
+    + Now (2026-10-11): 9 joints of 27 past 400 deg/s (the elbows 1 190,
+      the hips 640, the sprung toes 2 000), the feet 2.9 and 3.2 m/s;
+      walking again 22.9 s after the fall.
     + DOD: every joint < 400 deg/s, every foot < 2 m/s; fall to walking <
       15 s; the loop at 1.0.
 12. **Falls past saving**.
+    + Now (`gait_montecarlo --suite all`, 2026-10-11): the shove's three
+      falls land 4.4 kN, the head 0.00; of 16 crouch falls the head on the
+      floor in 2, at 0.7-0.9 m/s (balance.md, 2026-10-04).
     + DOD: a hand and a knee take the fall, called 0.3 s before the floor;
       the body drawn in; head < 2 kN.
 13. **Scoreboard events**.

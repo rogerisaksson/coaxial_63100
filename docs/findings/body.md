@@ -143,6 +143,12 @@ Build, buses, falls, get-up, drawing and clothes; the drives in
     none of 5, hot or cold (1.4 and 5.9 s): the throw lifts off the heels,
     not the hip. Kept with the throw; arms down needs another way up (TODO
     12).
+- P's shove on the walk as built from the squat, the get-up measured
+  (2026-10-11): walking again 22.9 s after the fall; 9 joints of 27 past 400
+  deg/s (the elbows 1 190, the hips 640, the sprung toes 2 000), the feet 2.9
+  and 3.2 m/s, the hands 6.4-7.3; the hands 0.86 m from the torso at the
+  farthest through the lift and the crouch; the feet 178 mm apart fore and
+  aft as she first stands, 168 as she walks again.
 
 ## Page
 
