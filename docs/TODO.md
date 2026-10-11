@@ -161,10 +161,9 @@ the files under docs/FINDINGS.md. An item is deleted when its DOD is met.
     physics as static arrays, one C
     loop over them (`wbc/`), R^k the only thing upward, the model feeding R^k
     as data.
-    + Loop: 120 N shoves (1 of 8 where the stack 3); the tick 1.7 ms here;
-      its state 473 KB in doubles (1 174 before the diet), the AXI SRAM's
-      512: the state placed there, a device op ticking it on a standing
-      state, its cycles on Renode (wbc.md).
+    + Loop: 120 N shoves (1 of 8 where the stack 3); the tick 1.7 ms here,
+      26.8 M instructions on the image (device 13, wbc.md): 56 ms on the
+      M7 against the DOD's 1 - the formulation's cost, not its memory.
     + Bottom, each board: the ESO (`parts.Eso`, `CTRL_ESO`; on the gearboxes
       8 of 8 at 100 N where the PD 2, drives.md) onto the boards as built,
       reading the motor's encoder: the play's stick-slip there, its torque

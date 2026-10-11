@@ -412,7 +412,18 @@ the 100 N polar as before:
   full coordinates (`reduced`, `gs`): 541 KB, the tick 1.6-1.7 ms (2.0-2.1),
   the polar and the walk as before.
 - The active set capped at WBC_SMALL (48) a level - 42 seen at most under
-  100 N - and the orthonormalised rows at the reduced dimension: 473 KB,
-  under the AXI SRAM's 512. Next for the M7: the loop's state placed there
-  (`.buffers`), a device op ticking it on a standing state, the cycles on
-  Renode.
+  100 N - and the orthonormalised rows at the reduced dimension: 473 KB
+  (471 on the M7), under the AXI SRAM's 512.
+
+### The loop on the image
+
+Device 13 op 0 ticks the loop on the model's stand (`cmd_wbc.c`,
+2026-10-11). The state lives in the acquisition ring while it ticks
+(`Board_DaqLend`: the ring 480 KB, lent idle and emptied; 471 + 448 KB
+never fit the AXI's 512), the body's 45 KB in DTCM. On Renode at its own
+100 MIPS - its DWT counts virtual time, 4.75 cycles an instruction - a tick
+is 127.4 M cycles cold and warm alike (4 passes, no bound held on the
+stand): 26.8 M instructions, 56 ms on the M7 at one a cycle against the
+1 ms of a 1 kHz loop. Its torques are the host loop's within 1e-3 N m. The
+gap is the formulation's cost, not its memory: five dense levels over 71
+variables, each relaying the levels below.

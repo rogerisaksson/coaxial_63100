@@ -37,6 +37,8 @@ extern const double wbc_sole_at[3];          /**< a sole's middle, in its foot's
 extern const double wbc_sole_corner[4][3];   /**< its corners */
 extern const double wbc_total_mass;          /**< kg */
 extern const double wbc_gravity[3];          /**< m/s^2, world frame */
+extern const double wbc_stand_base[12];     /**< her stand: the pelvis's frame, R by rows, then p */
+extern const double wbc_stand_q[WBC_N - 6]; /**< and the hinges' angles, rad */
 extern const char *const wbc_name[WBC_LINKS]; /**< the joint's name */
 
 #endif

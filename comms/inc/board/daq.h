@@ -99,6 +99,10 @@ void Board_DaqSetInterval(uint32_t interval_us);
 
 const char *Board_DaqStart(void);
 void Board_DaqStop(void);
+/** The ring lent while the acquisition is idle, emptied: the loop's state (cmd_wbc.c) has
+    no other 471 KB on this chip - the AXI SRAM's 512 cannot hold it and the ring both.
+    NULL while a task runs or for more than DAQ_BYTES. */
+uint8_t *Board_DaqLend(uint32_t bytes);
 void Board_DaqState(board_daq_state_t *out);
 
 /** Load the anti-alias chain the host designed, or clear it.

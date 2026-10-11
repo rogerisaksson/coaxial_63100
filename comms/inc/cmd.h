@@ -43,6 +43,10 @@ extern "C" {
 #define DEVICE_POWER     9U
 #define DEVICE_DRIVE    10U
 #define DEVICE_CTRL     12U
+#define DEVICE_WBC      13U
+
+/* The whole-body loop, device 13. */
+#define WBC_OP_TICK 0U
 
 /* The thermal observer, device 8. */
 #define THERMAL_OP_STATE        0U
@@ -168,7 +172,7 @@ extern "C" {
 /* 2.0, 2026-08-29: the thermal nodes went per leg, which REPURPOSED wire
    indices - device 8 node order and the cal record's ceilings both. */
 #define CMD_PROTO_MAJOR 2U
-#define CMD_PROTO_MINOR 30U        /* history: PROTOCOL.md, Versioning */
+#define CMD_PROTO_MINOR 31U        /* history: docs/PROTOCOL_VERSIONS.md */
 
 /** Request payload length of a command that takes a variable-length payload. */
 #define CMD_LEN_VARIABLE 0xFFU
@@ -214,6 +218,7 @@ cmd_status_t cmd_thermal_op(uint8_t op, rd_t *in, wr_t *out);
 cmd_status_t cmd_power_op(uint8_t op, rd_t *in, wr_t *out);
 cmd_status_t cmd_drive_op(uint8_t op, rd_t *in, wr_t *out);
 cmd_status_t cmd_ctrl_op(uint8_t op, rd_t *in, wr_t *out);
+cmd_status_t cmd_wbc_op(uint8_t op, rd_t *in, wr_t *out);
 cmd_status_t cmd_boot_op(uint8_t op, rd_t *in, wr_t *out);
 cmd_status_t cmd_time_op(uint8_t op, rd_t *in, wr_t *out);
 

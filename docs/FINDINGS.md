@@ -283,8 +283,8 @@ Six firmware defects, no hardware fault:
 ## DAQ and clocks
 
 - Reader thread: 84.4-134.6 rec/s with 4 ms of work a block.
-- A 16 K ring overflowed in 6 s of a stalled terminal; the ring is 448 KB AXI
-  SRAM.
+- A 16 K ring overflowed in 6 s of a stalled terminal; the ring is in the AXI
+  SRAM (HARDWARE.md).
 - `interval_us` 0 with `records` 0 took the link down: refused.
 - A block read after a CYCCNT wrap came back 9.02 s in the past: stamps are
   unwrapped across blocks. CYCCNT wraps every 9.04 s at 475 MHz.

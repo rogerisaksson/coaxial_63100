@@ -42,6 +42,7 @@ DEVICE_POWER = 9
 DEVICE_DRIVE = 10
 DEVICE_BOOT = 11
 DEVICE_CTRL = 12
+DEVICE_WBC = 13
 
 
 class ImuOp(IntEnum):
@@ -206,6 +207,11 @@ class CtrlOp(IntEnum):
     RUN = 5
 
 
+class WbcOp(IntEnum):
+    """Device 13, the whole-body loop on her stand - `coaxial.devices.wbc`."""
+    TICK = 0
+
+
 class MapKind(IntEnum):
     """What command 0x6D is asked for: the sections of the channel map, and the
     two lists that ride beside it.
@@ -270,6 +276,7 @@ DEVICE_REQUESTS = {
     (DEVICE_DAQ, DaqOp.STOP): 3,
     (DEVICE_DAQ, DaqOp.LAYOUT): 3,
     (DEVICE_DAQ, DaqOp.LIVE): 3,
+    (DEVICE_WBC, WbcOp.TICK): 4,                     # u8 ticks
     (DEVICE_TIME, TimeOp.LATCH): 3,
     (DEVICE_TIME, TimeOp.READ): 3,
     (DEVICE_THERMAL, ThermalOp.STATE): 3,

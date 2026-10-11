@@ -10,7 +10,7 @@ SYSCLK_HZ = 475000000
 TICKS_PER_US = SYSCLK_HZ // 1000000
 #: The board's record ring (board_limits.h) and the most sweeps a record
 #: may accumulate before its sum overflows (LIVE_MAX_ADDITIONS).
-RING_BYTES = 448 * 1024
+RING_BYTES = 480 * 1024
 ACCUMULATE_MAX = 32767
 #: A 32-bit counter's wrap.
 MASK32 = 0xFFFFFFFF

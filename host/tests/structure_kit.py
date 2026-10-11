@@ -88,7 +88,7 @@ OP_CLASSES = {'IMU': 'ImuOp', 'ANGLE': 'AngleOp', 'LINK': 'LinkOp',
               'CAL': 'CalOp', 'GATEDRIVERS': 'GateOp', 'LOG': 'LogOp',
               'DAQ': 'DaqOp', 'TIME': 'TimeOp', 'THERMAL': 'ThermalOp',
               'DRIVE': 'DriveOp', 'POWER': 'PowerOp', 'BOOT': 'BootOp',
-              'CTRL': 'CtrlOp'}
+              'CTRL': 'CtrlOp', 'WBC': 'WbcOp'}
 
 
 _C_TOKENS = re.compile(

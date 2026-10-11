@@ -23,8 +23,9 @@ _Static_assert((DAQ_TONE_SINE == BOARD_DAQ_TONE_SINE)
                && (DAQ_TONE_RAMP == BOARD_DAQ_TONE_RAMP),
                "daq.h's tone kinds and board.h's disagree");
 
-/* `.buffers` is the AXI SRAM section in STM32H753xx_FLASH.ld. */
-static uint8_t s_buf[DAQ_BYTES] __attribute__((section(".buffers")));
+/* `.buffers` is the AXI SRAM section in STM32H753xx_FLASH.ld; 8-aligned for the loop's
+   doubles. */
+static uint8_t s_buf[DAQ_BYTES] __attribute__((section(".buffers"), aligned(8)));
 
 /** The acquisition glue's state: the engine, whether it is built yet, the
     task as the wire gave it, and whether the rate was chosen or the
@@ -107,6 +108,19 @@ static uint32_t digital_now(void)
 uint32_t Board_DaqAvailable(void)
 {
   return daq_available(engine());
+}
+
+uint8_t *Board_DaqLend(uint32_t bytes)
+{
+  daq_t *d = engine();
+
+  if (d->running || (bytes > DAQ_BYTES))
+  {
+    return NULL;
+  }
+  d->head = 0U;
+  d->tail = 0U;
+  return s_buf;
 }
 
 /** True when the injected sequence converts every selected field: the three

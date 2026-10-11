@@ -142,9 +142,28 @@ def _table(name, width, rows, cells):
     return 'const double %s[WBC_LINKS][%d] = {\n%s\n};\n' % (name, width, body)
 
 
+def standing(b):
+    """(base, q) of her stand on the floor: the pelvis's frame (R by rows, then p) and the
+    hinges' rad, as test_wbc_core's standing state."""
+    from machine import gait, physics, wbc
+    world = physics.World()
+    world.reset(gait.stand())
+    s = wbc.sense(b, world.data.qpos, world.data.qvel)
+    low = min(float(f['pts'][:, 1].min()) for f in s['feet'])
+    world.reset(gait.stand(), where=(0.0, 1.0 - low, 0.0))
+    wbc.sense(b, world.data.qpos, world.data.qvel)
+    qpos = b.d.qpos
+    w, x, y, z = qpos[3:7]
+    r = [1 - 2 * (y * y + z * z), 2 * (x * y - w * z), 2 * (x * z + w * y),
+         2 * (x * y + w * z), 1 - 2 * (x * x + z * z), 2 * (y * z - w * x),
+         2 * (x * z - w * y), 2 * (y * z + w * x), 1 - 2 * (x * x + y * y)]
+    return r + list(qpos[:3]), list(qpos[7:7 + b.n - 6])
+
+
 def render(rows, b):
     """(header, source) for `rows`, her `wbc.Body`'s."""
     n = 5 + len(rows)
+    stand = standing(b)
     names = [r['name'] for r in rows]
     driven = [names.index(wbc_name) for wbc_name in _driven(b)]
     held = [k for k, r in enumerate(rows) if r['kind'] == HELD]
@@ -183,12 +202,16 @@ def render(rows, b):
         'extern const double wbc_sole_corner[4][3];   /**< its corners */',
         'extern const double wbc_total_mass;          /**< kg */',
         'extern const double wbc_gravity[3];          /**< m/s^2, world frame */',
+        'extern const double wbc_stand_base[12];     /**< her stand: the pelvis\'s frame, R by rows, then p */',
+        'extern const double wbc_stand_q[WBC_N - 6]; /**< and the hinges\' angles, rad */',
         'extern const char *const wbc_name[WBC_LINKS]; /**< the joint\'s name */', '',
         '#endif', ''])
     source = '\n'.join([
         '/** wbc_model.c - %s */' % NOTICE,
         '#include "wbc_model.h"', '',
         'const double wbc_gravity[3] = {%s};' % _nums(b.m.opt.gravity),
+        'const double wbc_stand_base[12] = {%s};' % _nums(stand[0]),
+        'const double wbc_stand_q[WBC_N - 6] = {\n  %s};' % _nums(stand[1]),
         'const double wbc_total_mass = %r;' % float(b.mass), '',
         _ints('wbc_parent[WBC_LINKS]', [r['parent'] for r in rows]),
         _ints('wbc_kind[WBC_LINKS]', [r['kind'] for r in rows]),

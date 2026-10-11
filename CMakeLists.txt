@@ -116,6 +116,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     comms/src/cmd_power.c
     comms/src/cmd_drive.c
     comms/src/cmd_ctrl.c
+    comms/src/cmd_wbc.c
     comms/src/cmd_boot.c
     comms/src/testrig.c
     comms/src/link.c
@@ -154,7 +155,7 @@ set(COAXIAL_SOURCES
     comms/src/cmd_cal.c comms/src/cmd_gate_drivers.c comms/src/cmd_log.c
     comms/src/cmd_daq.c comms/src/cmd_time.c
     comms/src/cmd_power.c
-    comms/src/cmd_drive.c comms/src/cmd_ctrl.c comms/src/cmd_boot.c
+    comms/src/cmd_drive.c comms/src/cmd_ctrl.c comms/src/cmd_wbc.c comms/src/cmd_boot.c
     comms/src/testrig.c comms/src/link.c comms/src/link_report.c
 )
 set_source_files_properties(${COAXIAL_SOURCES} PROPERTIES
@@ -181,7 +182,7 @@ set_source_files_properties(
     comms/src/cmd_gate_drivers.c
     comms/src/cmd_log.c comms/src/cmd_daq.c comms/src/cmd_time.c
     comms/src/cmd_power.c
-    comms/src/cmd_drive.c comms/src/cmd_ctrl.c comms/src/cmd_boot.c
+    comms/src/cmd_drive.c comms/src/cmd_ctrl.c comms/src/cmd_wbc.c comms/src/cmd_boot.c
     comms/src/link.c comms/src/link_report.c
     PROPERTIES COMPILE_OPTIONS "-Wextra;-Wshadow;-Wconversion")
 

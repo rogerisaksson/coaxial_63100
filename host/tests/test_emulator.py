@@ -67,6 +67,28 @@ def test_the_image_proves_itself(report, rig, emu):
                  '%d bytes, %04X of %s' % (length, got, ' or '.join('%04X' % c for c in want)))
 
 
+def test_the_loop_ticks_on_the_image(report, rig, emu):
+    """The whole-body loop on the image, ticked on the model's stand: its cycles a tick, cold
+    and warm, and its torques the host loop's on the same stand."""
+    from tools.cores import wbc as core
+    got = rig.board.wbc.tick(2)
+    report.check('the loop ticks on the image, its set settled', got['stuck'] == 0,
+                 '%.0f us cold, %.0f us warm at %.0f MHz; %d held, %d passes' % (
+                     got['us_first'], got['us_last'], got['sysclk_hz'] / 1e6, got['held'],
+                     got['passes']))
+    from machine import wbc
+    from test_wbc_core import _standing
+    b = wbc.Body()
+    _s, ask = _standing(b)
+    base, q, u, _t = core.state_of(b)
+    c = core.shared()
+    c.reset()
+    ours = c.stack(base, q, u, ask)['tau'][:3]
+    report.check('its torques are the host loop\'s on the same stand, within 1e-3 N m',
+                 max(abs(a - b) for a, b in zip(got['tau'], ours)) < 1e-3,
+                 '%s against %s' % (['%.3f' % t for t in got['tau']], ['%.3f' % t for t in ours]))
+
+
 def test_the_front_end_feeds_the_image(report, rig, emu):
     """The DC link fed through the front end, read back through the image's own scan: the
     reading follows what is fed. Recorded, not judged against a number."""
@@ -317,7 +339,8 @@ BOARD = (wire.test_every_read_decodes, wire.test_settings_are_taken, wire.test_t
          wire.test_the_record_survives_a_save, test_the_image_proves_itself,
          test_the_front_end_feeds_the_image,
          test_the_injected_triple_runs, test_the_angle_sensor_reads, test_the_imu_answers,
-         test_the_sto_chain_follows_the_pilot, wire.test_acquisition_answers_or_refuses)
+         test_the_sto_chain_follows_the_pilot, test_the_loop_ticks_on_the_image,
+         wire.test_acquisition_answers_or_refuses)
 
 
 def run(report, tests):

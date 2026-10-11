@@ -71,9 +71,9 @@
 #define ADC_REFERENCE_SETTLE_MS 100U
 
 /* The acquisition ring, in the AXI SRAM rather than DTCM. At one channel
-   that is 45 875 records, at all ten 9 972 (`DAQ_RECORD_BYTES`, no pins or
-   sensors). */
-#define DAQ_BYTES (448U * 1024U)
+   that is 49 152 records, at all ten 10 685 (`DAQ_RECORD_BYTES`, no pins or
+   sensors). Sized to hold the loop's state too (`Board_DaqLend`). */
+#define DAQ_BYTES (480U * 1024U)
 
 /** Most samples the running accumulator may take before it stops widening. */
 
