@@ -36,6 +36,11 @@ LEVELS = (-1.0, -0.3, -0.15, 0.0, 0.5, 0.7, 0.85, 1.0)
 #: keeping its own: a blend - leaning 0.5 and crouched 0.25, into a wind (the user, 2026-10-05).
 SWAY_STEP, MANNER_STEP = 0.25, 0.25
 
+#: Space held charges a push from the view onto her: CHARGE_N_S a second held, CHARGE_MAX_N at
+#: most, landing once the key's repeats stop - RELEASE_S after the last, FIRST_S after a lone
+#: press (a terminal's first repeat comes 250-500 ms on) - along the view's line of sight.
+CHARGE_N_S, CHARGE_MAX_N, RELEASE_S, FIRST_S = 120.0, 250.0, 0.25, 0.8
+
 #: The boards G and H glitch, in turn, and how long G's SOA lasts, s.
 GLITCHED, SOA_S = ('left_knee', 'right_knee', 'left_hip', 'right_hip'), 0.5
 
@@ -175,6 +180,36 @@ def _befell(event):
     return befall
 
 
+def _charged(state):
+    """Space, each press and repeat: the push charging, from when it began."""
+    now = time.monotonic()
+    charge = state.get('charge')
+    if not charge:
+        charge = state['charge'] = {'began': now, 'last': now, 'repeats': 0}
+    charge['last'] = now
+    charge['repeats'] += 1
+
+
+def charging(state, now):
+    """The push charged so far, N: CHARGE_N_S a second since space was first pressed, to
+    CHARGE_MAX_N; 0 with none charging."""
+    charge = state.get('charge')
+    return min(CHARGE_MAX_N, CHARGE_N_S * (now - charge['began'])) if charge else 0.0
+
+
+def released(state, now):
+    """The push let go, N, once space's repeats have stopped (RELEASE_S, FIRST_S); 0 while it
+    charges or none is."""
+    charge = state.get('charge')
+    if not charge:
+        return 0.0
+    if now - charge['last'] < (RELEASE_S if charge['repeats'] > 1 else FIRST_S):
+        return 0.0
+    n = min(CHARGE_MAX_N, CHARGE_N_S * (charge['last'] - charge['began'] + RELEASE_S / 2.0))
+    state['charge'] = None
+    return n
+
+
 def _rigged(key):
     """7-0: landed anew on the rig (RIGS), standing; the key again, the floor."""
     def rig(state):
@@ -215,7 +250,7 @@ def table(view, calling, shown):
                                                       % len(shown)])) for k in 'tT']
         + [(k, _skinned) for k in 'cC']
         + [(k, lambda state: state.update(data=not state['data'])) for k in 'dD']
-        + [(k, _lawed) for k in 'jJ'] + [(k, _picked) for k in 'mM'])
+        + [(k, _lawed) for k in 'jJ'] + [(k, _picked) for k in 'mM'] + [(' ', _charged)])
 
 
 def act_on(keys, typed, state, wheel=0.0):

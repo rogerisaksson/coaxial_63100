@@ -21,7 +21,7 @@ from coaxial.graphics.callouts import callouts, line, packed
 from coaxial.graphics.lit import (CORE, MESH, PAINTED, PLATE, SKIN, braille, grid, paint,
                                   project, splat)
 from coaxial.graphics import sneaker
-from coaxial.graphics.raster import DOTS_X
+from coaxial.graphics.raster import DOTS_X, DOTS_Y
 from coaxial.graphics.shapes import (ellipsoid, limb, loft, moved, sampled, smooth, turn_about,
                                      view)
 from machine import ansi, figure
@@ -419,6 +419,27 @@ PROP_INK = {'hole': (255, 96, 128), 'sill': (255, 184, 80), 'slip': (96, 214, 25
             'brick': (205, 92, 70), 'board': (214, 178, 120)}
 
 
+#: A mark's cells about its centre: (column, row) off it, the character.
+MARK = (((0, 0), '\u253c'), ((-1, 0), '\u2500'), ((-2, 0), '\u2500'), ((1, 0), '\u2500'),
+        ((2, 0), '\u2500'), ((0, -1), '\u2502'), ((0, 1), '\u2502'))
+
+
+def _marked(overlay, mark, m, cam, centre, travel, width, height):
+    """The overlay with a crosshair's cells on `mark` (world point, ink), over her."""
+    np = _np()
+    point, ink = mark
+    at = np.asarray(point, float) - (travel[0], 0.0, travel[1])
+    sx, sy, w = project(at[None, :], m, cam, centre)
+    if w[0] <= 0.0:
+        return overlay
+    out = dict(overlay or {})
+    col, row = int(sx[0] // DOTS_X), int(sy[0] // DOTS_Y)
+    for (dc, dr), char in MARK:
+        if 0 <= row + dr < height and 0 <= col + dc < width:
+            out[(row + dr, col + dc)] = (ord(char), packed(ink, None))
+    return out
+
+
 def _props(props, m, cam, centre, travel):
     """[(dots, ink)]: each prop's edges - a box's twelve, a lace's line - in the fine camera's
     dots, the floor `travel` (x, z) m on."""
@@ -447,6 +468,7 @@ def _props(props, m, cam, centre, travel):
 
 def render(angles, width, height, yaw=30.0, pitch=8.0, zoom=1.0, colour=True, travel=(0.0, 0.0),
            lit=None, root=None, labels=None, heat=None, props=None, legend=None, dressed=True,
+           mark=None,
            around=False, see=None, pan=(0.0, 0.0)):
     """Her, posed at {joint: degrees}, the pelvis at `root` (place, turn) if given, `width` x
     `height` cells: lines. `lit` a `gpu.LitRaster`, or None to splat her dots here; `labels`
@@ -512,5 +534,7 @@ def render(angles, width, height, yaw=30.0, pitch=8.0, zoom=1.0, colour=True, tr
         overlay = dict(overlay or {})
         for col, (char, fg, bg) in enumerate(legend[:width]):
             overlay[(height - 1, col)] = (ord(char), packed(fg, bg))
+    if mark is not None:
+        overlay = _marked(overlay, mark, m, fine, centre, travel, width, height)
     return braille(depth, rgb, grid(m, fine, centre, travel), width, height, colour, overlay,
                    leaders, _props(props or (), m, fine, centre, travel) + wired)

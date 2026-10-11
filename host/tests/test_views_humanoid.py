@@ -84,7 +84,40 @@ def test_the_humanoid_pages_pace(report):
                  and state['manner'] == second and not state['manners'], '%s' % sent)
 
 
-ROSTER = (test_the_humanoid_pages_mouse, test_the_humanoid_pages_pace)
+def test_a_held_space_charges_a_push(report):
+    """Space held charges a push CHARGE_N_S a second, landing RELEASE_S after its repeats stop
+    along the view's line of sight onto her torso, a mark there; a lone press FIRST_S on."""
+    import math
+    import time
+    from terminal.views import humanoid_keys, show_humanoid, viewpoint
+    keys = humanoid_keys.table(viewpoint.KEYS, ('strong',), ('torque',))
+    state: dict = {'charge': None, **viewpoint.HOME}
+    t0 = time.monotonic()
+    humanoid_keys.act_on(keys, [' '], state)
+    lone = (humanoid_keys.released(state, t0 + 0.5), humanoid_keys.released(state, t0 + 1.0))
+    report.check('a lone press lands FIRST_S on, a tap of a push', lone[0] == 0.0 and 0.0 < lone[1] < 20.0,
+                 '%s' % (lone,))
+    humanoid_keys.act_on(keys, [' '], state)
+    state['charge']['began'] -= 1.0
+    for _ in range(10):
+        humanoid_keys.act_on(keys, [' '], state)
+    held = humanoid_keys.charging(state, time.monotonic())
+    soon = humanoid_keys.released(state, time.monotonic() + 0.1)
+    landed = humanoid_keys.released(state, time.monotonic() + 0.3)
+    report.check('held a second it charges CHARGE_N_S, lands RELEASE_S after the last repeat',
+                 abs(held - humanoid_keys.CHARGE_N_S) < 5.0 and soon == 0.0
+                 and abs(landed - humanoid_keys.CHARGE_N_S) < 20.0 and state['charge'] is None,
+                 'charging %.0f N, at 0.1 s %.0f, at 0.3 s %.0f' % (held, soon, landed))
+    a = show_humanoid.along(dict(viewpoint.HOME, yaw=0.0, pitch=0.0))
+    b = show_humanoid.along(dict(viewpoint.HOME, yaw=90.0, pitch=0.0))
+    report.check('the push comes along the line of sight: from +z at yaw 0, from +x at 90',
+                 max(abs(x - y) for x, y in zip(a, (0.0, 0.0, -1.0))) < 1e-9
+                 and max(abs(x - y) for x, y in zip(b, (-1.0, 0.0, 0.0))) < 1e-9
+                 and abs(math.sqrt(sum(x * x for x in a)) - 1.0) < 1e-9, '%s %s' % (a, b))
+
+
+ROSTER = (test_the_humanoid_pages_mouse, test_the_humanoid_pages_pace,
+          test_a_held_space_charges_a_push)
 
 
 def main(argv=None):

@@ -20,8 +20,9 @@ from rich.text import Text
 
 from coaxial.comm.session import Origin
 from coaxial.graphics import gpu, gynoid
+from coaxial.graphics.shapes import view
 from coaxial_ollama.client import Chosen
-from machine import ansi, figure, gait, gaits, style
+from machine import ansi, events, figure, gait, gaits, style
 from machine.director import moment
 from machine.figure import JOINTS, quat
 from machine.routines import TYPES
@@ -31,7 +32,8 @@ from terminal.views.overlay import (BOX_GROUND, BRAKE_INK, CALLOUT_W, DARK_INK, 
                                     NUMBER_INK, SMALL, STAND, STANDING, TORQUE_INK, data_labels,
                                     data_legend, traffic)
 from terminal.views import viewpoint
-from terminal.views.humanoid_keys import CADENCE, act_on, row, table
+from terminal.views.humanoid_keys import (CADENCE, CHARGE_MAX_N, act_on, charging, released,
+                                          row, table)
 from terminal.views.playback import Playback
 from terminal.ui import screen as _screen
 from terminal.ui.screen import PORT, FPS_CAP, closing, run_view, say
@@ -74,8 +76,45 @@ def meter(value, marks):
     return out
 
 
+#: The charge meter's marks, N; a landed push's mark shown LANDED_S; the mark's inks, charging
+#: (dim to full) and landed.
+CHARGES = ((0.0, '0'), (CHARGE_MAX_N / 2.0, 'N'), (CHARGE_MAX_N, '%.0f' % CHARGE_MAX_N))
+LANDED_S = 0.5
+CHARGE_INK, LANDED_INK = (255, 96, 128), (236, 240, 244)
+
+
+def along(state):
+    """The view's line of sight, a unit vector from the viewer onto her, world."""
+    m = view(state['yaw'], state['pitch'])
+    return (-m[6], -m[7], -m[8])
+
+
+def torso(now):
+    """Where a push lands: her torso's centre, world."""
+    at, turn = figure.frames(now['angles'], now['where'], quat(*now['turn']))['torso']
+    return figure.add(at, figure.apply(turn, figure.shares()['torso'][1]))
+
+
+def marked(state, now, clock):
+    """The push's mark on her torso, (world point, ink): charging, in CHARGE_INK as bright as
+    the charge; LANDED_S after it lands, in LANDED_INK; else None."""
+    charge, landed = charging(state, clock), state.get('landed')
+    if charge:
+        k = 0.3 + 0.7 * charge / CHARGE_MAX_N
+        return torso(now), tuple(int(c * k) for c in CHARGE_INK)
+    if landed and clock - landed[0] < LANDED_S:
+        return torso(now), LANDED_INK
+    return None
+
+
 def gauges(state):
-    """The band's PACE and STYLE meters from what the page asked of her."""
+    """The band's PACE and STYLE meters from what the page asked of her; a push charging,
+    its newtons."""
+    charge = charging(state, time.monotonic())
+    if charge:
+        out = Text('PUSH ', style='bar.dim')
+        out.append_text(meter(charge, CHARGES))
+        return out
     out = Text('PACE ', style='bar.dim')
     k = state['pace']
     out.append_text(meter(state['cadence'] if not state['law'] else gait.CADENCE * (1.0 + k)
@@ -159,7 +198,7 @@ def labels(now, called, shown='torque'):
 #: The bar: the keys typed most; TAB slides the rest up in groups (`stage.helped`): her body,
 #: the floor ahead, the gym - the rigs she lands on (`events.STANDING`, RIGS) and what befalls
 #: her there -, the view, the page.
-BAR = (('TAB', 'KEYS'), ('S F', 'PACE'), ('P', 'PUSH'), ('1-6', 'FLOOR'), ('7-0', 'GYM'),
+BAR = (('TAB', 'KEYS'), ('S F', 'PACE'), ('SPC P', 'PUSH'), ('1-6', 'FLOOR'), ('7-0', 'GYM'),
        ('A', 'AGAIN'), ('R', 'RECORD'), ('Q', 'EXIT'), ('ESC', 'MENU'))
 GROUPS = (
     ('BODY', (('S F', 'pace'), ('A', 'again: lands anew'),
@@ -169,7 +208,8 @@ GROUPS = (
     ('FLOOR', (('1', 'hole'), ('2', 'rug'), ('3', 'sill'), ('4', 'slip'), ('5', 'lace'),
                ('6', 'stairs'))),
     ('GYM', (('7', 'two bricks: she stands'), ('8', 'bricks staggered'), ('9', 'board, stiff'),
-             ('0', 'rocker, free'), ('P N', 'push, nudge, in turn'),
+             ('0', 'rocker, free'), ('SPACE', 'held: a push from the view, charging'),
+             ('P N', 'push, nudge, in turn'),
              ('shift', 'along her way'), ('B', 'a brick gone'), ('G H', 'a knee in its SOA, hot'))),
     ('VIEW', (('<- ->', 'turn, or drag'), ('UP DOWN', 'move, or right drag'),
               ('WHEEL + -', 'zoom'), ('O', 'orbit'), ('V', 'home'),
@@ -331,6 +371,10 @@ def main(argv=None):
             state['recording'] += [row(s, state['yaw']) for s in said]
         state['playback'].push(said)
         now = state['playback'].at(time.perf_counter())
+        pushed = released(state, time.monotonic())
+        if pushed and now is not None:
+            body.send(push=tuple(pushed * a for a in along(state)), seconds=events.SHOVE_S)
+            state['landed'] = (time.monotonic(), pushed)
         if now is not None:
             viewpoint.orbited(state, now['t'])
         up = helped(state, state.pop('typed', ()), time.monotonic())
@@ -359,6 +403,7 @@ def main(argv=None):
                                           labels=labels(now, state['called'], state['shown']),
                                           heat={j: h[0] for j, h in now['heat'].items()},
                                           props=now.get('props'),
+                                          mark=marked(state, now, time.monotonic()),
                                           legend=(legend(state['shown'], width)
                                                   if state['called'] != 'none' else None),
                                           dressed=state['skin'] == 'dressed',
