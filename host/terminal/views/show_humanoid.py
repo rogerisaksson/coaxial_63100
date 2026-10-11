@@ -347,7 +347,8 @@ def main(argv=None):
     args = parser.parse_args(argv)
 
     cadence = max(CADENCE[0], min(CADENCE[1], args.cadence))
-    body = Running(cadence, local=Chosen(), room=True)
+    # standing in the room till a word is asked: on the walker she walked into the far wall
+    body = Running(cadence, local=Chosen(), room=True, pace=-1.0)
     say('ok', 'body', '%.1f kg, %d drives, MuJoCo at 1 kHz in its own process'
         % (figure.mass(), sum(len(s.actuators) for s in TYPES['gynoid'].body)))
     card = gpu.adapter()

@@ -1,6 +1,6 @@
 """Her eyes and what she makes of them. A stereo pair on her head rendered from the world, the
 disparity by block matching, depth from it, the points into a map of the room she keeps, its
-things told apart by shape and colour, and her way planned round them (docs/TODO.md 28).
+things told apart by shape and colour, and her way planned round them (docs/findings/sight.md).
 
     keep = Keep(world)                      # her eyes on a world and the map she keeps
     keep.look(world, now)                   # one look into the map, LOOK_S apart at most
@@ -15,24 +15,34 @@ import math
 import os
 
 #: Her eyes: BASELINE_M apart on the head, EYES (x, y, z) in the head's frame the left one's,
-#: looking along the head's z; FOVY_DEG high, W x H pixels.
-BASELINE_M, EYES, FOVY_DEG, W, H = 0.1, (0.05, 0.10, 0.09), 60.0, 320, 240
+#: looking along the head's z, DOWN_DEG under it - level, their view's lower edge 30 deg
+#: down, a table's top was out of it nearer than 1.4 m and a chair's seat nearer than 1.9;
+#: FOVY_DEG high, W x H pixels.
+BASELINE_M, EYES, FOVY_DEG, W, H, DOWN_DEG = 0.1, (0.05, 0.10, 0.09), 60.0, 320, 240, 15.0
 
 #: Block matching: DISPARITIES tried, a WINDOW square summed; a pixel is kept with texture
-#: (its window's spread over TEXTURE) and a match UNIQUE times better than the next best.
-DISPARITIES, WINDOW, TEXTURE, UNIQUE = 48, 9, 4.0, 1.15
+#: (its window's spread over TEXTURE) and a match UNIQUE times better than the next best. The
+#: table's top 1.6-2.3 m off, looked down on, spreads 2.2 at the median: at 4.0 a quarter of
+#: it was kept, at 1.5 0.70, 99 % of those within 1.5 px of the renderer's.
+DISPARITIES, WINDOW, TEXTURE, UNIQUE = 48, 9, 1.5, 1.15
 
-#: Her map: CELL_M squares over the room's floor (X_M, Z_M); a cell is a thing from HITS points
+#: Her map: CELL_M squares over the room's floor (X_M, Z_M); a cell is a thing from TOLD looks
+#: with HITS points in it - one look's mismatches are not a thing -
 #: between FLOOR_M and CEIL_M high, NEAR_M to FAR_M from the eye - further the depth is a
-#: tenth out -, and free from FREE looks through it; her own radius, inflating what she plans
-#: round. Unknown is not free. A look LOOK_S apart at most.
+#: tenth out, nearer is her own raised hand -, hit more often than seen through under its
+#: top; her own radius, inflating what she plans round. What she has not seen is open: her way is planned
+#: through it and again as she sees (`barred`) - held shut, a target unseen had no way and
+#: every first word a look round first, 14 s on 23 steps. A look LOOK_S apart.
 CELL_M, X_M, Z_M = 0.1, (-3.5, 3.5), (-2.0, 5.0)
-HITS, FREE, FLOOR_M, CEIL_M, NEAR_M, FAR_M, RADIUS_M, LOOK_S = 3, 2, 0.08, 2.3, 0.35, 3.5, 0.3, 0.5
+HITS, TOLD, FLOOR_M, CEIL_M, NEAR_M, FAR_M, RADIUS_M, LOOK_S = 3, 2, 0.08, 2.3, 0.7, 2.5, 0.3, 0.5
 
 #: What the room's things are made to look like, for her eyes (`mjcf`): a kind's colour,
-#: speckled with a darker shade - a checker repeats, and block matching matched a square to
-#: the next (2026-10-11). A lump's look is the kind nearest its cells' chromaticity
-#: (`_chroma`), whatever the light on it.
+#: speckled with a darker shade, the speckles a cube's on every face and one scale in space,
+#: the pattern SPECKLE_M long: a checker repeats, and so did speckles laid 12 a face - on the
+#: door 7 cm apart, 4.5 px at 3.4 m - and block matching matched one to the next: a thing
+#: 1.2 m high stood 1 m before her where nothing is. A lump's look is the kind nearest its
+#: cells' chromaticity (`_chroma`), whatever the light on it.
+SPECKLE_M = 4.0
 LOOKS = {'glass': ((0.55, 0.75, 1.0), (0.35, 0.5, 0.7)),
          'wood': ((0.6, 0.38, 0.2), (0.35, 0.2, 0.1)),
          'bed': ((0.3, 0.42, 0.85), (0.15, 0.22, 0.5)),
@@ -58,13 +68,14 @@ def _np():
 def assets():
     """The `<asset>` block, a speckled texture and a material a kind, and the model's extent
     set to the room: the cameras clip nearer than a hundredth of it, and the floor's parked
-    patches made it 10 km (2026-10-11)."""
+    patches made it 10 km."""
     out = ['<statistic extent="8" center="0 1 1"/>', '<asset>']
     for kind, (a, b) in LOOKS.items():
-        out.append('<texture name="%s" type="2d" builtin="flat" rgb1="%g %g %g" mark="random" '
+        out.append('<texture name="%s" type="cube" builtin="flat" rgb1="%g %g %g" mark="random" '
                    'markrgb="%g %g %g" random="0.35" width="128" height="128"/>' % ((kind,) + a + b))
-        out.append('<material name="%s" texture="%s" texrepeat="12 12" rgba="1 1 1 %g"/>'
-                   % (kind, kind, ALPHA.get(kind, 1.0)))
+        out.append('<material name="%s" texture="%s" texuniform="true" texrepeat="%g %g" '
+                   'rgba="1 1 1 %g"/>' % (kind, kind, 1.0 / SPECKLE_M, 1.0 / SPECKLE_M,
+                                         ALPHA.get(kind, 1.0)))
     return out + ['</asset>']
 
 
@@ -75,10 +86,13 @@ def lights():
 
 
 def cameras():
-    """Her eyes in the head's body: each looks along the head's z, x to her right."""
+    """Her eyes in the head's body: each looks along the head's z, DOWN_DEG under it, x to
+    her right."""
     x, y, z = EYES
-    return ['<camera name="eye_%s" pos="%g %g %g" xyaxes="-1 0 0 0 1 0" fovy="%g"/>'
-            % (side, sx, y, z, FOVY_DEG) for side, sx in (('left', x), ('right', x - BASELINE_M))]
+    up = (math.cos(math.radians(DOWN_DEG)), math.sin(math.radians(DOWN_DEG)))
+    return ['<camera name="eye_%s" pos="%g %g %g" xyaxes="-1 0 0 0 %g %g" fovy="%g"/>'
+            % ((side, sx, y, z) + up + (FOVY_DEG,))
+            for side, sx in (('left', x), ('right', x - BASELINE_M))]
 
 
 def focal():
@@ -160,11 +174,20 @@ def disparity(left, right):
     sub = np.zeros_like(c0)
     sub[curved] = 0.5 * (lo[curved] - hi[curved]) / denom[curved]
     disp = best + np.clip(sub, -0.5, 0.5)
-    second = np.partition(cost, 1, axis=0)[1]
+    # the next best away from the best's own neighbours: next to it the cost is its own
+    apart = np.abs(np.arange(DISPARITIES)[:, None, None] - best[None, :, :]) > 2
+    second = np.where(apart, cost, np.inf).min(axis=0)
     mean = _boxed(gl, r) / WINDOW ** 2
     spread = np.sqrt(np.maximum(_boxed(gl * gl, r) / WINDOW ** 2 - mean * mean, 0.0))
+    # the right eye's own best match from the same costs: a left pixel is kept where the
+    # right pixel it matched picks it back, within a pixel - what one eye alone sees, and a
+    # match to the wrong speckle, do not
+    back = np.full_like(cost, np.inf)
+    for d in range(DISPARITIES):
+        back[d, :, :W - d] = cost[d, :, d:]
+    agreed = np.abs(np.argmin(back, axis=0)[rows, np.clip(cols - best, 0, W - 1)] - best) <= 1
     kept = ((spread > TEXTURE) & (second > UNIQUE * np.maximum(c0, 1.0)) & (best > 0)
-            & (best < DISPARITIES - 1) & np.isfinite(c0))
+            & (best < DISPARITIES - 1) & np.isfinite(c0) & agreed)
     kept[:, :DISPARITIES] = False
     return disp, kept
 
@@ -207,10 +230,11 @@ class Map:
         self.nx = int(round((X_M[1] - X_M[0]) / CELL_M))
         self.nz = int(round((Z_M[1] - Z_M[0]) / CELL_M))
         self.hits = np.zeros((self.nx, self.nz), dtype=np.int32)
+        self.told = np.zeros((self.nx, self.nz), dtype=np.int32)
         self.free = np.zeros((self.nx, self.nz), dtype=np.int32)
         self.high = np.zeros((self.nx, self.nz), dtype=np.float32)
         self.colour = np.zeros((self.nx, self.nz, 3), dtype=np.float32)
-        self.looks = 0
+        self.looks, self._at, self._grown = 0, -1, None
 
     def cell(self, x, z):
         return (int(math.floor((x - X_M[0]) / CELL_M)), int(math.floor((z - Z_M[0]) / CELL_M)))
@@ -233,13 +257,16 @@ class Map:
         inside = (i >= 0) & (i < self.nx) & (j >= 0) & (j < self.nz)
         i, j, y, rgb = i[inside], j[inside], xyz[inside, 1], rgb[inside]
         np.add.at(self.hits, (i, j), 1)
+        self.told += np.bincount(i * self.nz + j, minlength=self.nx * self.nz).reshape(
+            self.nx, self.nz) >= HITS
         np.maximum.at(self.high, (i, j), y.astype(np.float32))
         np.add.at(self.colour, (i, j), rgb)
         self.looks += 1
         return Look(seen, rows[inside], cols[inside], np.stack([i, j], axis=1))
 
     def _seen_through(self, eye, xyz, step=0.08):
-        """The cells each ray crossed on the floor's plane, short of its point, counted free."""
+        """The cells each ray crossed short of its point, a cell under what stood highest in
+        it, counted free: a ray over a table to the wall behind says nothing of the table."""
         np = _np()
         d = xyz[:, [0, 2]] - eye[[0, 2]]
         far = np.linalg.norm(d, axis=1)
@@ -248,24 +275,27 @@ class Map:
             return
         t = (np.arange(n) * step)[None, :]
         on = t < (far[:, None] - CELL_M)
-        px = eye[0] + d[:, 0:1] / np.maximum(far[:, None], 1e-6) * t
-        pz = eye[2] + d[:, 1:2] / np.maximum(far[:, None], 1e-6) * t
-        i = np.floor((px[on] - X_M[0]) / CELL_M).astype(int)
-        j = np.floor((pz[on] - Z_M[0]) / CELL_M).astype(int)
+        k = t / np.maximum(far[:, None], 1e-6)
+        i = np.floor((eye[0] + d[:, 0:1] * k - X_M[0])[on] / CELL_M).astype(int)
+        j = np.floor((eye[2] + d[:, 1:2] * k - Z_M[0])[on] / CELL_M).astype(int)
+        y = (eye[1] + (xyz[:, 1:2] - eye[1]) * k)[on]
         inside = (i >= 0) & (i < self.nx) & (j >= 0) & (j < self.nz)
-        self.free.flat[np.unique(i[inside] * self.nz + j[inside])] += 1
+        i, j, y = i[inside], j[inside], y[inside]
+        under = y < self.high[i, j] - CELL_M
+        self.free.flat[np.unique(i[under] * self.nz + j[under])] += 1
 
     def occupied(self):
-        """The cells hit HITS times and more often than seen through."""
-        return (self.hits >= HITS) & (self.hits > self.free)
-
-    def known_free(self):
-        return (self.free >= FREE) & ~self.occupied()
+        """The cells TOLD looks have shown a thing in, more than have seen through them."""
+        return (self.told >= TOLD) & (self.told > self.free)
 
     def lumps(self):
-        """[cells] the occupied cells joined four ways."""
+        """[cells] the occupied cells of one look joined four ways: a door's leaf is a lump
+        apart from the wall it stands in."""
         np = _np()
         occ = self.occupied()
+        means = np.array([_chroma(np.array(a)) for a, _b in LOOKS.values()])
+        mean = _chroma(self.colour / np.maximum(self.hits, 1)[:, :, None])
+        look = np.argmin(((mean[:, :, None, :] - means[None, None, :, :]) ** 2).sum(axis=3), axis=2)
         seen = np.zeros_like(occ)
         out = []
         for i, j in zip(*np.nonzero(occ)):
@@ -278,7 +308,8 @@ class Map:
                 cells.append((a, b))
                 for da, db in ((1, 0), (-1, 0), (0, 1), (0, -1)):
                     p, q = a + da, b + db
-                    if 0 <= p < self.nx and 0 <= q < self.nz and occ[p, q] and not seen[p, q]:
+                    if (0 <= p < self.nx and 0 <= q < self.nz and occ[p, q] and not seen[p, q]
+                            and look[p, q] == look[i, j]):
                         seen[p, q] = True
                         todo.append((p, q))
             out.append(cells)
@@ -304,8 +335,10 @@ class Map:
         return out
 
     def blocked(self):
-        """The cells she may not stand in: the occupied ones but a door's, grown by her radius,
-        and what she has not seen."""
+        """The cells she may not stand in: the occupied ones but a door's, grown by her
+        radius; made once a look."""
+        if self._grown is not None and self._at == self.looks:
+            return self._grown
         r = int(math.ceil(RADIUS_M / CELL_M))
         occ = self.occupied().copy()
         lumps = self.lumps()
@@ -313,25 +346,36 @@ class Map:
             if thing[0] == 'door':
                 for i, j in cells:
                     occ[i, j] = False
-        grown = (~self.known_free() & ~self.occupied()) | occ
+        grown = occ.copy()
         for di in range(-r, r + 1):
             for dj in range(-r, r + 1):
                 if di * di + dj * dj > r * r or (di == 0 and dj == 0):
                     continue
                 src = occ[max(0, -di):self.nx - max(0, di), max(0, -dj):self.nz - max(0, dj)]
                 grown[max(0, di):self.nx - max(0, -di), max(0, dj):self.nz - max(0, -dj)] |= src
+        self._at, self._grown = self.looks, grown
         return grown
+
+    def barred(self, points):
+        """Whether the line through `points` [(x, z), ..] crosses what she knows, her radius
+        round it."""
+        blocked = self.blocked()
+        for a, b in zip(points, points[1:]):
+            n = max(1, int(math.dist(a, b) / (CELL_M / 2.0)))
+            for k in range(n + 1):
+                i, j = self.cell(a[0] + (b[0] - a[0]) * k / n, a[1] + (b[1] - a[1]) * k / n)
+                if 0 <= i < self.nx and 0 <= j < self.nz and blocked[i, j]:
+                    return True
+        return False
 
     def plan(self, at, to):
         """[(x, z)] from `at` to `to` round what she knows, the corners alone; `to` in a
-        thing's reach, the nearest cell she knows free; [] with no way, or `to` unseen."""
+        thing's reach, the nearest cell out of it; [] with no way or `to` off the map."""
         blocked = self.blocked()
         start, goal = self.cell(*at), self.cell(*to)
-        if not (0 <= goal[0] < self.nx and 0 <= goal[1] < self.nz):
+        if not all(0 <= c[0] < self.nx and 0 <= c[1] < self.nz for c in (start, goal)):
             return []
         if blocked[goal]:
-            if not self.occupied()[goal] and not self.known_free()[goal]:
-                return []
             goal = _nearest_free(blocked, goal)
         if blocked[start]:
             start = _nearest_free(blocked, start)
@@ -420,7 +464,8 @@ def _chroma(rgb):
 def classify(look, half, height):
     """A lump's kind from its footprint and its height first, its look where those do not
     tell: walls and doors stand over 1.8 m, a lamp is thin, a bed long and low, a table
-    waist-high and long, a chair waist-high and short."""
+    waist-high and long, a chair waist-high and short - a chair's lump 0.5 m, the table's top
+    as seen from the room's middle 0.8."""
     long = max(half) * 2.0
     if height >= 1.8:
         return 'door' if look == 'door' and long <= 1.2 else 'wall'
@@ -429,7 +474,7 @@ def classify(look, half, height):
     if long >= 1.6 and height <= 0.7:
         return 'bed'
     if 0.6 <= height <= 1.1:
-        return 'table' if long >= 0.9 else 'chair'
+        return 'table' if long >= 0.65 else 'chair'
     return look if look in ('bed', 'lamp') else 'thing'
 
 

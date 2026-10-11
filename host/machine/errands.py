@@ -1,62 +1,50 @@
-"""Her errands in the room: a word's target walked to on the one law, faced, and done there.
+"""Her errands: a word of her kinematic language (`machine.kin`) run on the one law.
 
-    errands.ask(director, 'sit')                      # a word of `room.WORDS`, from the page
-    out = errands.step(director, bus, dt, out)        # every pass on the law: steered, then done
+    errands.ask(director, 'out')                      # a word of `room.WORDS`, from the page
+    out = errands.step(director, bus, dt, out)        # every pass on the law
 
-An errand looks round first on a fresh map ('look': standing, turned once about, her eyes on the
-room, `machine.sight`), then goes 'go' - her way to the approach point planned round what she
-knows and planned again every PLAN_S as she walks; the law's heading turned toward the next waypoint at TURN_RAD_S at most,
-only TURNS_S into a steady row; faced within FACED_RAD of the way she walks, FACES_RAD or more
-off it she turns standing, stepping round (`hold.staying`); a waypoint passed within NEAR_M,
-the last LAST_M before the target on the word's own heading (`room.WORDS`), the slow row from
-there and the way kept from HOLD_M, the target come within HOME_M -; 'face' - standing,
-turned to face as the word says, within FACED_RAD -;
-'settle' - the stand's row, SETTLE_S; then the word's keyframes are played from her pose as
-read (`arrival.play`, the director's stage 'errand') and the last held: sat, lain; 'up' plays
-her back onto her feet, and the law takes her again. The lamp's switch is reached standing on
-the law, the right arm raised over its setpoints until the lamp toggles, held, let down
-('reach'): on the arrival's standing keyframes, her feet stepped round 93 deg, she sank into
-a squat in 1 s; raised to a set angle 6 cm into the wall, the push turned her 11 deg and she
-fell stepping (2026-10-11).
+A word's rows are met one after another: `go` lines one way (`machine.pursuit`) from where
+she is, round what her eyes have shown her (`machine.sight`, laid again where they bar it);
+`face` her heading turned standing; `stand`; `pace` the row asked and the word over; `hand` a
+hand raised before her while she is near its place; `reach` an arm raised till what it meets
+answers, held, let down; `play` the arrival's keyframes from her pose as read (the director's
+stage 'errand'), the last held. With no errand, on the law, the stand's row is asked where her
+eyes bar the GUARD_M before her. What a row asks of her balance is the law's: no leg is named
+here.
 """
 import math
 
-from machine import figure, hold, pace, physics, room, sight
+from machine import figure, kin, pace, physics, pursuit, room, sight
 from machine.figure import add, apply, ry
+from machine.pursuit import ROW_STAND
 
-#: The law's heading turned this fast at most, rad/s, (walking, standing): walking at 0.3 she
-#: turned 292 deg in 17 s and at 0.5 fell at 8 s; standing at 0.5 she stepped round 258 deg in
-#: 9 s, at 1.0 fell at 4.5 s; turned from the law's first pass, standing or walking, she fell
-#: at 4.5 s, so only TURNS_S (walking, standing) into a steady row (2026-10-11). Faced within FACED_RAD of the
-#: way she walks, FACES_RAD or more off it she turns standing; a waypoint passed within NEAR_M,
-#: the target come within HOME_M, the way kept walking within HOLD_M of it - aimed from there a
-#: step swings the bearing 40 deg -; the stand's row held SETTLE_S before the word is done;
-#: the slow row within LAST_M, where the approach is laid.
-TURN_RAD_S, TURNS_S, FACES_RAD, FACED_RAD = (0.3, 0.5), (0.5, 1.5), 0.5, 0.06
-NEAR_M, HOME_M, HOLD_M, SETTLE_S, LAST_M = 0.35, 0.3, 0.4, 1.0, 1.8
-#: With her eyes: a fresh map is one of under LOOKS looks, looked round first; her way planned
-#: again every PLAN_S walking.
-LOOKS, PLAN_S = 20, 2.0
-ROW_GO, ROW_SLOW, ROW_STAND = 0.0, -0.6, -1.0
+#: A way's first point is left out where she stands on its line to the next, within AXIS_M of
+#: it and JOIN_M or more before that; her way is laid again every PLAN_S at most; `stand` holds
+#: SETTLE_S.
+AXIS_M, JOIN_M, PLAN_S, SETTLE_S = 0.15, 1.0, 1.0, 1.0
+#: Walking on with no errand she stands where her map bars her way GUARD_M[0] to [1] m on.
+GUARD_M = (0.4, 1.1)
+#: A hand raised to its place, deg (shoulder, elbow), from HAND_M[0] before it to [1] past it
+#: along her heading, up and down in HAND_S: with none raised her toes met the door's leaf first
+#: and she stood in the doorway on its post; both raised, the hinge's side felled her.
+HAND_DEG, HAND_M, HAND_S = (55.0, 25.0), (1.3, 0.3), 0.5
+#: An arm reaching: raised REACH_DEG_S to REACH_DEG at most, its elbow to REACH_ELBOW, held
+#: HOLD_S at the touch.
+REACH_DEG_S, REACH_DEG, REACH_ELBOW, HOLD_S = 40.0, 80.0, 10.0, 0.5
 
-#: A word's doing, s a keyframe: down onto the seat, laid back onto the bed; the arm raised
-#: REACH_DEG_S to the switch, REACH_DEG at most, held HOLD_S at the touch; the pelvis back over
-#: the seat, m - the target 0.6 m before the seat's centre, her toes clear of the chair's legs
-#: as she steps round -, and down to it.
-SIT_S, LIE_S, UP_S, HOLD_S, REACH_DEG_S, REACH_DEG = 1.2, 1.5, 1.2, 0.5, 40.0, 80.0
+#: A played word, s a keyframe: down onto the seat, laid back onto the bed, up; the pelvis back
+#: over the seat, m, and down to it.
+SIT_S, LIE_S, UP_S = 1.2, 1.5, 1.2
 BACK_M, RISE_M = 0.45, 0.08
 #: Her pelvis standing, m.
 STAND_Y = 0.90
-
-#: Doing a word she is down this far under its keyframe's pelvis, or tipped this far past its
-#: tilt: sat her pelvis is 0.55 m up, lain she is tipped 88 deg.
+#: Played, she is down this far under its keyframe's pelvis, or tipped this far past its tilt:
+#: sat her pelvis is 0.55 m up, lain she is tipped 88 deg.
 FALLEN_M, FALLEN_DEG = 0.2, 35.0
-#: Her right hand reaches HAND_RIGHT_M to the right of her pelvis's centre (measured
-#: 2026-10-11): facing the switch, her heading is aimed so that line runs through it.
-HAND_RIGHT_M = 0.27
-#: The arms at rest, deg; the reaching elbow's.
+#: The arms at rest, deg.
 ARMS = {'left_shoulder': 10.0, 'right_shoulder': 10.0, 'left_elbow': 20.0, 'right_elbow': 20.0}
-REACH_ELBOW = 10.0
+
+PROGRAMS = kin.compiled(room.WORDS)
 
 
 def _moved(now, back, up, tilt, joints=None):
@@ -88,22 +76,25 @@ def frames_of(word, now):
 
 class Errand:
 
-    """One word under way: its waypoints [(x, z)] world - LAST_M before the target on the
-    word's heading, then the target -, the facing it ends in, rad about up from z; where it
-    stands in its going."""
+    """One word under way: its rows (`kin.bound`), the one it is at, and what that one keeps -
+    her way, a clock, a hand raised."""
 
     def __init__(self, word):
-        if word not in room.WORDS:
-            raise ValueError('no word %r in the room; they are %s' % (word, ', '.join(room.WORDS)))
-        self.word = word
-        target, self.facing, self.does, come = room.WORDS[word]
-        self.waypoints = ([(target[0] - LAST_M * math.sin(come), target[1] - LAST_M * math.cos(come)),
-                           target] if target else [])
-        self.phase, self.since, self.walks = 'go' if target else 'settle', 0.0, False
-        self.fixed, self.turned, self.planned_at = len(self.waypoints), 0.0, None
+        if word not in PROGRAMS:
+            raise ValueError('no word %r in the room; they are %s' % (word, ', '.join(PROGRAMS)))
+        self.word, self.rows, self.i = word, kin.bound(PROGRAMS[word], room.FRAMES), 0
+        self.way, self.upto, self.joins, self.planned_at = None, 0, 0.0, 0.0
+        self.since, self.ready, self.hand, self.raised = 0.0, False, None, 0.0
+        self.arm, self.touched, self.was = 0.0, None, None
 
     def __repr__(self):
         return '%s: %s' % (self.word, self.phase)
+
+    @property
+    def phase(self):
+        """The verb she is at, for the page."""
+        return next((name for name, verb in kin.VERBS.items()
+                     if self.i < len(self.rows) and verb == self.rows[self.i][0]), 'done')
 
 
 def ask(director, word):
@@ -115,22 +106,24 @@ def ask(director, word):
             now['back'] = director.back
             _play(director, 'up', now, director.walker.last or {})
         return
+    if word == 'out' and director.machine.loop.bus['pelvis.pose.z'] > room.TO:
+        word = 'in'             # asked through the door from outside it
     director.errand = Errand(word)
-    keep = kept(director)
-    if keep is not None and director.errand.waypoints and keep.map.looks < LOOKS:
-        director.errand.phase = 'look'
-    if director.pace is None or director.pace <= ROW_STAND:
-        director.pace = ROW_GO      # the law takes her from her stand at a row above it
+    if director.pace is None:
+        director.pace = ROW_STAND   # off the walker: the law takes her as she stands
 
 
 def kept(director):
     """Her eyes and her map (`sight.Keep`), made on the director's world at first use; None
-    without `physics.SIGHT`."""
+    without `physics.SIGHT`, or where no GL context can be made (a headless runner)."""
     if not physics.SIGHT:
         return None
     if getattr(director, 'keep', None) is None:
-        director.keep = sight.Keep(director.world)
-    return director.keep
+        try:
+            director.keep = sight.Keep(director.world)
+        except Exception:       # noqa: BLE001 - mujoco.FatalError, no GL: blind, the page whole
+            director.keep = False
+    return director.keep or None
 
 
 def looked(director, world, now):
@@ -146,29 +139,61 @@ def seen(director):
     return keep.view() if keep is not None else None
 
 
-def _planned(e, keep, at):
-    """The errand's way to its approach point planned anew round what she knows, its own
-    waypoints kept at the end; left as it is on the last stretch or with no way found -
-    planned toward the target beyond the door, unseen, she was sent to the nearest cell she
-    knew free and walked into the wall beside the door (2026-10-11)."""
-    if len(e.waypoints) < e.fixed or not e.fixed:
+def _way(e, keep, at, walking):
+    """Her way through the `go` rows from the one she is at: round what she knows to the
+    first, then the rest; `e.upto` the row after them, `e.joins` how far along the first is."""
+    e.upto = next((i for i in range(e.i, len(e.rows)) if e.rows[i][0] != kin.GO), len(e.rows))
+    points = [(row[1], row[2]) for row in e.rows[e.i:e.upto]]
+    if len(points) > 1:
+        (ax, az), (bx, bz) = points[0], points[1]
+        span = math.dist(points[0], points[1])
+        on = ((at[0] - ax) * (bx - ax) + (at[1] - az) * (bz - az)) / span
+        off = abs((at[0] - ax) * (bz - az) - (at[1] - az) * (bx - ax)) / span
+        if off <= AXIS_M and 0.0 <= on <= span - JOIN_M:
+            points = points[1:]
+    corners = keep.map.plan(at, points[0])[:-1] if keep is not None else []
+    after = e.rows[e.upto] if e.upto < len(e.rows) else None
+    ends = not (after is not None and after[0] == kin.PACE and after[4] > ROW_STAND)
+    way = pursuit.Way([at] + corners + points, ends=ends, walking=walking)
+    e.joins = way.arc[-1] - sum(math.dist(a, b) for a, b in zip(points, points[1:]))
+    return way
+
+
+def _handed(e, law, at, out, dt):
+    """`out` with her errand's hand raised before her while its place is HAND_M before her to
+    past her, walking: it meets a door's leaf first, and where the leaf is lightest."""
+    if e.hand is None:
         return
-    tail = e.waypoints[-e.fixed:]
-    corners = keep.map.plan(at, tail[0])
-    if corners:
-        e.waypoints = corners + tail
+    _verb, x, z, _yaw, _amount, side, _name = e.hand
+    before = (x - at[0]) * math.sin(law.heading) + (z - at[1]) * math.cos(law.heading)
+    walks = e.way is not None and e.way.state == 'walk'
+    want = 1.0 if walks and -HAND_M[1] < before < HAND_M[0] else 0.0
+    e.raised += max(-dt / HAND_S, min(dt / HAND_S, want - e.raised))
+    limb = 'left' if side > 0.0 else 'right'
+    for joint, deg in zip(('_shoulder', '_elbow'), HAND_DEG):
+        out[limb + joint] = out.get(limb + joint, 0.0) + e.raised * (deg - out.get(limb + joint, 0.0))
 
 
-def _aimed(at, to):
-    """The heading from `at` (x, z) that puts `to` before her right hand, HAND_RIGHT_M to her
-    right of the line she faces along."""
-    far = math.hypot(to[0] - at[0], to[1] - at[1])
-    return _bearing(at, to) + math.asin(min(1.0, HAND_RIGHT_M / max(far, HAND_RIGHT_M)))
-
-
-def _bearing(at, to):
-    """The law's heading from `at` (x, z) to `to`, rad about up from z, positive toward +x."""
-    return math.atan2(to[0] - at[0], to[1] - at[1])
+def _reached(e, director, out, dt):
+    """`out` with the arm of the row she is at raised till the lamp answers or REACH_DEG, held,
+    let down; whether it is down again."""
+    limb = 'left' if e.rows[e.i][5] > 0.0 else 'right'
+    lamp = bool(getattr(director.world, 'lamp', False))
+    if e.was is None:
+        e.was, e.arm, e.touched = lamp, 0.0, None
+    if e.touched is None and (lamp != e.was or e.arm >= REACH_DEG):
+        e.touched = 0.0
+    if e.touched is None:
+        e.arm += REACH_DEG_S * dt
+    else:
+        e.touched += dt
+        if e.touched >= HOLD_S:
+            e.arm -= REACH_DEG_S * dt
+    rest = out.get(limb + '_shoulder', 0.0)
+    k = max(0.0, min(1.0, e.arm / REACH_DEG))
+    out[limb + '_shoulder'] = max(rest, e.arm)
+    out[limb + '_elbow'] = out.get(limb + '_elbow', 0.0) + k * (REACH_ELBOW - out.get(limb + '_elbow', 0.0))
+    return e.touched is not None and e.arm <= rest
 
 
 def _play(director, word, now, out):
@@ -181,14 +206,14 @@ def _play(director, word, now, out):
 
 
 def fallen(director, bus):
-    """Whether she is down doing a word, against the keyframe held."""
+    """Whether she is down at a played word, against the keyframe held."""
     frame = director.arrival._at()[1]
     return (bus['pelvis.pose.y'] < frame['pelvis'][1] - FALLEN_M
             or director._tilt(bus) > abs(frame['tilt']) + FALLEN_DEG)
 
 
 def held(director, bus, dt):
-    """Her setpoints at a word's doing (the director's stage 'errand'): the keyframes played and
+    """Her setpoints at a played word (the director's stage 'errand'): the keyframes played and
     the last held; 'up' done, the law takes her again."""
     out = director.walker.last = pace.blended(director, director.arrival.step(dt), dt)
     if director.doing == 'up' and director.arrival.t >= sum(s for _n, s, _f in director.arrival.frames):
@@ -199,94 +224,64 @@ def held(director, bus, dt):
 
 
 def step(director, bus, dt, out):
-    """Her setpoints this pass with her errand steered on the law and, at its target, begun:
-    `out` the law's own, kept while she goes."""
+    """Her setpoints this pass with her errand's row met or held: `out` the law's own, kept
+    where a row asks nothing of them."""
     e, law = director.errand, director.going
-    if e is None or law is None:
+    if law is None:
         return out
     at = (bus['pelvis.pose.x'], bus['pelvis.pose.z'])
     keep = kept(director)
-    if e.phase == 'look':
-        e.since = e.since + dt if director.k[0] <= -0.99 else 0.0
-        if e.since >= TURNS_S[1]:
-            law.heading += TURN_RAD_S[1] * dt
-            e.turned += TURN_RAD_S[1] * dt
-        if e.turned >= math.tau:
-            _planned(e, keep, at)
-            e.phase, e.since, e.planned_at = 'go', 0.0, bus['t']
-        director.pace = ROW_STAND
-        return out
-    if e.phase == 'go':
-        if keep is not None and (e.planned_at is None or bus['t'] - e.planned_at >= PLAN_S):
-            _planned(e, keep, at)
-            e.planned_at = bus['t']
-        to = e.waypoints[0]
-        far = math.hypot(to[0] - at[0], to[1] - at[1])
-        if len(e.waypoints) > 1 and far <= NEAR_M:
-            e.waypoints.pop(0)
-            # the approach point: stood and aligned before the last stretch - walked on up to
-            # FACES_RAD off it, she passed the chair's target 0.3 m to the side (2026-10-11)
-            e.walks = e.walks and len(e.waypoints) > 1
-            to = e.waypoints[0]
-            far = math.hypot(to[0] - at[0], to[1] - at[1])
-        along = (to[0] - at[0]) * math.sin(law.heading) + (to[1] - at[1]) * math.cos(law.heading)
-        last = len(e.waypoints) == 1
-        turn = hold.wrapped(_bearing(at, to) - law.heading)
-        if last and (far <= HOME_M
-                     or (far < HOLD_M and along <= HOME_M and abs(turn) <= FACES_RAD)):
-            e.phase, e.since = 'face', 0.0
+    if e is None:
+        # walking on with no errand: the stand's row asked where her map bars the way before her
+        h = law.heading
+        if (keep is not None and director.pace is not None and director.pace > ROW_STAND
+                and keep.map.barred([(at[0] + m * math.sin(h), at[1] + m * math.cos(h))
+                                     for m in GUARD_M])):
             director.pace = ROW_STAND
+        return out
+    while e.i < len(e.rows) and e.rows[e.i][0] in (kin.HAND, kin.PACE):
+        row = e.rows[e.i]
+        if row[0] == kin.HAND:
+            e.hand = row
+        else:
+            director.pace = row[4]
+        e.i += 1
+    if e.i >= len(e.rows):
+        _handed(e, law, at, out, dt)
+        if e.raised <= 0.0:
+            director.errand = None
+        return out
+    verb, _x, _z, yaw, _amount, _side, name = e.rows[e.i]
+    if verb == kin.GO:
+        if e.way is None:
+            e.way, e.planned_at = _way(e, keep, at, director.k[0] > -0.99), bus['t']
+        elif keep is not None and bus['t'] - e.planned_at >= PLAN_S and e.way.s < e.joins:
+            # laid again where what she has seen since bars her way to its first point
+            e.planned_at = bus['t']
+            if keep.map.barred(e.way.rest(e.joins, GUARD_M[0])):
+                e.way = _way(e, keep, at, e.way.state == 'walk')
+        if pursuit.step(e.way, director, at, dt):
+            e.i, e.way, e.ready, e.since = e.upto, None, False, 0.0
+    elif verb == kin.FACE:
+        e.ready, faced = pursuit.turned(director, pursuit.hold.wrapped(yaw - law.heading), e.ready, dt)
+        if faced:
+            e.i, e.ready, e.since = e.i + 1, False, 0.0
+    elif verb == kin.STAND:
+        director.pace = ROW_STAND
+        e.since = e.since + dt if pursuit.settled(director) else 0.0
+        if e.since >= SETTLE_S:
+            e.i, e.since = e.i + 1, 0.0
+    elif verb == kin.REACH:
+        director.pace = ROW_STAND
+        if _reached(e, director, out, dt):
+            e.i, e.was = e.i + 1, None
+    elif verb == kin.PLAY:
+        director.pace = ROW_STAND
+        e.since = e.since + dt if pursuit.settled(director) else 0.0
+        if e.since >= SETTLE_S:
+            _play(director, name, director._now(bus, out), out)
             return out
-        # the last stretch walked through, its way corrected walking: stopped there to turn,
-        # 0.65 m from the bed's target and 29 deg off, the halt carried her into the bed
-        e.walks = (abs(turn) < FACED_RAD if not e.walks else
-                   abs(turn) <= FACES_RAD or (last and far < LAST_M))
-        if last and far < HOLD_M and e.walks:
-            turn = 0.0
-        steady = director.k[0] >= -0.01 if e.walks else director.k[0] <= -0.99
-        e.since = e.since + dt if steady else 0.0
-        if e.since >= TURNS_S[0 if e.walks else 1]:
-            rate = TURN_RAD_S[0] if e.walks else TURN_RAD_S[1]
-            law.heading += max(-rate * dt, min(rate * dt, turn))
-        # the slow row on the last stretch and before a waypoint: stopped from the walk's row she
-        # fell at the approach point and, dwelt on it, overran the switch's target 0.5 m
-        director.pace = (ROW_SLOW if last or far < LAST_M else ROW_GO) if e.walks else ROW_STAND
-        return out
-    if e.phase == 'face':
-        e.since = e.since + dt if director.k[0] <= -0.99 else 0.0
-        want = _aimed(at, room.SWITCH_XZ) if e.does == 'lamp' else e.facing
-        turn = hold.wrapped(want - law.heading)
-        if e.since >= TURNS_S[1]:
-            law.heading += max(-TURN_RAD_S[1] * dt, min(TURN_RAD_S[1] * dt, turn))
-            if abs(hold.wrapped(want - facing_of(bus))) < FACED_RAD:
-                e.phase, e.since = 'settle', 0.0
-        return out
-    if e.phase == 'reach':
-        lamp = bool(getattr(director.world, 'lamp', False))
-        if e.touched is None and (lamp != e.lamp_was or e.arm >= REACH_DEG):
-            e.touched = 0.0
-        if e.touched is None:
-            e.arm += REACH_DEG_S * dt
-        else:
-            e.touched += dt
-            if e.touched >= HOLD_S:
-                e.arm -= REACH_DEG_S * dt
-        rest = out.get('right_shoulder', 0.0)
-        k = max(0.0, min(1.0, e.arm / REACH_DEG))
-        out['right_shoulder'] = max(rest, e.arm)
-        out['right_elbow'] = out.get('right_elbow', 0.0) + k * (REACH_ELBOW - out.get('right_elbow', 0.0))
-        if e.touched is not None and e.arm <= rest:
-            director.errand = None
-        return out
-    e.since += dt
-    if e.since >= SETTLE_S and director.k[0] <= -0.99:
-        if e.does == 'out':
-            director.errand = None
-        elif e.does == 'lamp':
-            e.phase, e.arm, e.touched = 'reach', 0.0, None
-            e.lamp_was = bool(getattr(director.world, 'lamp', False))
-        else:
-            _play(director, e.does, director._now(bus, out), out)
+    _handed(e, law, at, out, dt)
     return out
 
 

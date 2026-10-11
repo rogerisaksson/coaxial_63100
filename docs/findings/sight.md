@@ -11,50 +11,60 @@ Nothing of hers reads the world's geometry.
 
 | | |
 | --- | --- |
-| cameras | two on the head, 0.1 m apart, 60 deg high, 320 x 240 |
+| cameras | two on the head, 0.1 m apart, 60 deg high, 320 x 240, looking 15 deg down |
 | a look | 95-120 ms: both renders 2 ms, block matching 48 disparities over 9 x 9 windows the rest |
-| kept | 8 % of the pixels (textured, unique); the room's things speckled for it |
-| depth | within 1.7 % of the renderer's at the median, 7.9 % at the ninth decile, 1.0 % at 1-2 m |
+| kept | 51 % of the pixels: textured (a window's spread over 1.5), unique (the next best 1.15 times the best, off its own neighbours) and picked back by the right eye within a pixel |
+| depth | within 1.3 % of the renderer's at the median, 2.9 % at the ninth decile |
 
 - A checker texture repeats: block matching matched a square to the next and
-  the map filled with phantoms (1 747 cells); speckles of a darker shade on a
-  flat colour match once.
+  the map filled with phantoms (1 747 cells); so did speckles laid 12 a
+  face, 4.5 px apart at 3.4 m. A cube's speckles on one scale in space
+  match once.
 - The model's `statistic extent` was 10 km from the floor's parked patches:
   the cameras clip nearer than a hundredth of it and saw nothing; set to 8 m.
 - The model has no light: four on the ceiling for her eyes.
+- Looking level, the view's lower edge 30 deg down, a table's top was out
+  of it nearer than 1.4 m and a chair's seat nearer than 1.9.
+- A table's top looked down on from 2 m spreads 2.2 grey levels a window:
+  at a spread of 4.0 a quarter of it was kept, at 1.5 0.70, 99 % of those
+  within 1.5 px of the renderer's.
 
 ## The map
 
-0.1 m cells; a cell is a thing from 3 points between 0.08 and 2.3 m high,
-within 3.5 m of the eye, hit more often than seen through; free from 2 looks
-through it; unknown is not free. After a look round standing (0.5 rad/s, a look
-every 0.5 s, 29 looks):
+0.1 m cells; a cell is a thing from 2 looks with 3 points in it between 0.08
+and 2.3 m high, 0.7 to 2.5 m from the eye - further a quarter pixel of
+disparity is over half a cell -, hit more often than seen through under its
+top. What she has not seen is open. After a look round standing (0.5 rad/s,
+a look every 0.5 s, 29 looks):
 
 | | |
 | --- | --- |
-| occupied cells | 299, 277 of them within 0.15 m of a wall or a thing, 3 beyond 0.4 m |
-| the chair | told within 0.16 m, 1.03 m high |
-| the table | told within 0.05 m, 0.82 m high |
-| the door | its leaf seen closed in the doorway, told by its colour; passable to the planner |
-| lumps | 25, 11 of them over 0.04 m2 |
+| occupied cells | 256, 254 of them within 0.15 m of a wall or a thing, 1 beyond 0.4 m |
+| the chair | told where it stands, 0.6 m square, 1.06 m high |
+| the table | told within 0.07 m, 1.3 x 0.7 m, 0.79 m high |
+| the lamp | within 0.21 m, 1.76 m high |
+| the bed | 0.51 m off: 2.6 m away, its near edge alone |
+| the walls | 11 % of their cells: 3 m off but the one behind her |
+| lumps | 19, 7 of them over 0.04 m2 |
 
+- A ray freed every cell it crossed: over the table to the wall behind it
+  each freed the table's, and the table was never told (87 cells in all). A
+  ray frees a cell only passing under what stood highest in it.
 - A lump's kind is its footprint and height first (a wall over 1.8 m, a lamp
-  thin, a bed long and low, a table waist-high and long, a chair short), its
-  colour where those do not tell; the colour is the nearest kind's
-  chromaticity, so the light on it does not matter.
-- Her way: A* over the cells grown by her 0.3 m radius, through known-free
-  cells alone, pruned to its corners; a goal unseen is no goal (planned toward
-  the target beyond the door she was sent to the nearest cell she knew free
-  and walked into the wall beside the door).
+  thin, a bed long and low, a table waist-high and over 0.65 m long, a chair
+  short), its colour where those do not tell; the colour is the nearest
+  kind's chromaticity, so the light on it does not matter. Lumps join
+  within one look: a door's leaf is apart from the wall it stands in.
+- Her way: A* over the cells grown by her 0.3 m radius, pruned to its
+  corners, through what she has not seen as through the open, laid again
+  every 2 s where what she has seen since bars it. Held to known-free
+  cells, a target unseen had no way and every first word began with a look
+  round, 14 s on 23 steps.
 
-## The errands on her eyes
+## Her ways on her eyes
 
-Asked a word on a fresh map she looks round first (12.6 s standing), plans to
-the approach point, and plans again every 2 s walking; the last stretch is
-straight. Out through the door: from her stand she crosses the
-door line 0.30 m from the nearer post; E pressed as she walks, 0.41 m (before
-her eyes, the walk's restart fell short of the door); aligned within 3.4 deg
-before the last stretch (6 deg crossed it 0.19 m from the post and she fell).
+The room's words and what they measure: [room](room.md). Walking on with no
+word she stands 0.9 m before a wall she has seen.
 
 ## The picture on the page
 

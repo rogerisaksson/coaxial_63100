@@ -23,8 +23,8 @@ from machine import (arrival, down, drives, errands, falls, figure, gait, getup,
 #: Falling, past the walker's recovery: the trunk (`_trunk`) tipped past FALLING_DEG and tipping
 #: on faster than FALLING_DEG_S, or the pelvis under FALLING_M, walking. Fallen - under FALLEN_M
 #: or tipped past FALLEN_DEG walking, under SQUAT_FALLEN_M in the arrival's moves, doing a word
-#: `errands.fallen` - is down. Read on the pelvis a parry's step called a fall (2026-10-01),
-#: on the head P's shove did; on the trunk in none of 16 (2026-10-02).
+#: `errands.fallen` - is down. Read on the pelvis a parry's step called a fall,
+#: on the head P's shove did; on the trunk in none of 16.
 FALLING_DEG, FALLING_DEG_S, FALLING_M = 12.0, 60.0, 0.65
 FALLEN_M, FALLEN_DEG, SQUAT_FALLEN_M = 0.55, 35.0, 0.3
 
@@ -32,14 +32,14 @@ FALLEN_M, FALLEN_DEG, SQUAT_FALLEN_M = 0.55, 35.0, 0.3
 GETUP_TRIES = 3
 
 #: Standing and stepping (`machine.stand`): watched for a fall as walking, a step's lunge
-#: past TREAD_DEG (the brick's step down read as a fall at 12.3 degrees, 2026-10-04); going on
+#: past TREAD_DEG (the brick's step down read as a fall at 12.3 degrees); going on
 #: the one law, GO_DEG past FALLING_DEG: its trunk leans 5-6 degrees and tipped to 12.7 in
-#: rounds she stood through (2026-10-05).
+#: rounds she stood through.
 STANDING, TREAD_DEG, GO_DEG = ('stand', 'tread'), 25.0, 6.0
 
 
 #: A stance foot bearing `stance.BEARS_N` slid past SLIP_M is held where it is: at 2 cm the
-#: plan re-anchored eight times in two seconds and she fell (2026-09-26).
+#: plan re-anchored eight times in two seconds and she fell.
 SLIP_M = 0.04
 
 #: From the walk into the settling the setpoints ease over BLEND_S from her pose, the pelvis
@@ -48,13 +48,13 @@ BLEND_S = 0.3
 
 #: Every walk begins at `gait.CADENCE` whatever is asked - risen, from standing, got up -;
 #: walking goes to the asked cadence at PACE_RATE strides/s a second. Begun at 1.02 strides/s
-#: she ran to 1.1 m/s where its plan has 0.85 and fell in 4 runs of 6 (2026-10-05).
+#: she ran to 1.1 m/s where its plan has 0.85 and fell in 4 runs of 6.
 PACE_RATE = 0.1
 
 #: The legs' drives' heat as their boards report it: `spent` of a drive's envelope, 1 at its
 #: ceiling, derating past `heat.THROTTLE_AT`. Walking, the most spent past EASE_AT eases the
 #: pace, to EASE_FLOOR strides/s at EASE_FULL: 60 s at 0.85 strides/s the hips' laminate spent
-#: 0.95 and derated to 0.5; at 0.75 and 0.65, 0.76 and 0.74; eased, 0.79 over 110 s (2026-09-28).
+#: 0.95 and derated to 0.5; at 0.75 and 0.65, 0.76 and 0.74; eased, 0.79 over 110 s.
 EASE_AT, EASE_FULL, EASE_FLOOR = 0.7, 0.88, 0.65
 
 #: A drive heard with its gates dropped is armed again REARM_S after, the wait doubled up to
@@ -285,7 +285,7 @@ class Director:
                 self.stage, self.since = 'walk', 0.0
             elif self.stage == 'rest' and self.rest_s is not None and self.since > self.rest_s:
                 self.rise()
-            if self.pace is not None and self.pace > -1.0 and pace.settled(self):
+            if self.pace is not None and self.pace >= -1.0 and pace.settled(self):
                 pace.take(self, bus, out)
             self.walker.last = out
             return out

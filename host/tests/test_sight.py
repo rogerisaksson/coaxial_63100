@@ -11,8 +11,9 @@ from tools.dev.focus import chosen
 from gynoid_kit import Report
 
 #: The law takes her at TAKES_AT s, her heading turns from TURNS_AT, round once at the
-#: standing rate; a look every LOOK_S.
-TAKES_AT, TURNS_AT = 1.5, 3.0
+#: standing rate; a look every LOOK_S. The stereo is held to the renderer out to STEREO_M,
+#: the room's depth: her map takes less (`sight.FAR_M`).
+TAKES_AT, TURNS_AT, STEREO_M = 1.5, 3.0, 4.0
 
 
 def _room():
@@ -75,7 +76,7 @@ def test_the_stereo_holds_to_the_depth(report):
         seen = eyes.see(world)
         disp, kept = sight.disparity(seen.left, seen.right)
         truth = eyes.truth(world)
-        ok = kept & (truth > 0.3) & (truth < sight.FAR_M)
+        ok = kept & (truth > 0.3) & (truth < STEREO_M)
         err = np.abs(sight.depth(disp)[ok] - truth[ok]) / truth[ok]
         report.check('a twentieth of the pixels or more are kept', ok.mean() >= 0.05,
                      '%.0f %%' % (100.0 * ok.mean()))
@@ -90,12 +91,12 @@ def test_her_map_is_the_room(report):
     """A look round standing: nine in ten occupied cells within 0.15 m of a wall or a thing
     of the room, the chair and the table told within 0.3 m of where they stand, a way to the
     chair found clear of what she knows; her view for the page hulls what she told."""
-    from machine import errands, room, sight
+    from machine import pursuit, room, sight
     body, world = _room()
     try:
         director, out = _standing(body)
         keep = sight.Keep(world)
-        up = _looked_round(body, world, keep, director, out, errands.TURN_RAD_S[1])
+        up = _looked_round(body, world, keep, director, out, pursuit.TURN_RAD_S[1])
         occ = keep.map.occupied()
         boxes = [((-room.WIDE, (room.FROM + room.TO) / 2.0), (room.THICK, (room.TO - room.FROM) / 2.0)),
                  ((room.WIDE, (room.FROM + room.TO) / 2.0), (room.THICK, (room.TO - room.FROM) / 2.0)),

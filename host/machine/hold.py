@@ -20,7 +20,7 @@ from machine.runner import eased
 #: standing, the page's (`arrival.COM_K`), what she still moves taken back LEAN_D of it -,
 #: LEAN_M at most; asked under GOES_M_S she stands the more. At 0.4 of it, stood again after a
 #: walk her centre of mass crept 6 cm back and 3 across in 1.6 s, a step fell due, and she was
-#: down 5 s on: up through her ways asked 27 of 38 where 37 (2026-10-05).
+#: down 5 s on: up through her ways asked 27 of 38 where 37.
 LEAN_K, HOLD_K, LEAN_D, LEAN_M, GOES_M_S = 0.5, 1.5, 0.014, 0.025, 0.34
 #: Standing, a foot CLOSE_M behind the other is brought up beside it.
 CLOSE_M = 0.12
@@ -36,10 +36,14 @@ FLY_LEAN = 0.4
 #: A step is wanted asked STIRS_M_S or over. The other foot leaves with her capture point no
 #: more than `track` and SHIFT_M in from the one that stays, or bearing under LIGHT_N. Waited for
 #: within SHIFT_M either way, a foot down 2.4 cm from it kept the other on the floor, and her
-#: capture point ran 3.7 cm out over the first: down at 1.4 s (2026-10-05).
+#: capture point ran 3.7 cm out over the first: down at 1.4 s.
 STIRS_M_S, SHIFT_M, LIGHT_N = 0.067, 0.02, 43.0
 #: Standing, a foot this far off her heading, rad, steps round onto it.
 TWIST_RAD = 0.35
+#: She passes over a foot her capture point is no more than FORE_M behind the point of:
+#: walks begun after a turn on the spot left a foot with it 0.02 behind at most and went,
+#: 0.05-0.11 behind and went backward, 3 of 12.
+FORE_M = 0.03
 
 
 def wrapped(a):
@@ -55,6 +59,16 @@ def stood(speed):
 def point(law, com):
     """(x, z) of her capture point, her centre of mass at `com`."""
     return com[0] + law.v[0] / law.omega, com[2] + law.v[2] / law.omega
+
+
+def within(law, a, lead):
+    """How far ahead of the standing foot's point, m, a foot may land and she still passes
+    over it, her capture point `lead` m ahead of that point as it lands: the pendulum's, its
+    centre of pressure going from the standing foot to the landing one over the time both
+    bear, her capture point FORE_M behind the landing foot's point at most as it bears
+    alone."""
+    wt = law.omega * (a['stand'] - a['step'])
+    return (lead + FORE_M * math.exp(-wt)) * wt / -math.expm1(-wt)
 
 
 def held(law, a, com):
@@ -86,7 +100,7 @@ def staying(law, a, loads):
     if a['speed'] < STIRS_M_S:
         # standing with one foot CLOSE_M or more ahead of the other: the rear one is brought
         # up beside it - left so after a walk's last step, her hold's line a diagonal, she
-        # crept back and stepped about till she fell (2026-10-06)
+        # crept back and stepped about till she fell
         left, right = law.legs['left']['flat'], law.legs['right']['flat']
         on = (left[0] - right[0]) * s + (left[2] - right[2]) * c
         if abs(on) > CLOSE_M and abs(law.v[0] * s + law.v[2] * c) < STIRS_M_S:
@@ -117,7 +131,7 @@ def leaves(law, side, a, loads, share):
     xi = point(law, law.com)
     far = sign * ((xi[0] - stay[0]) * c - (xi[1] - stay[2]) * s)
     # going, a foot leaves on its time: waited for, both feet down under hips going on at
-    # 0.8 m/s, she was carried past them on her rear toes and fell (2026-10-05)
+    # 0.8 m/s, she was carried past them on her rear toes and fell
     waits = 1.0 - eased((law.v[0] * s + law.v[2] * c - WAITS_M_S[0])
                         / (WAITS_M_S[1] - WAITS_M_S[0]))
     return far * share * waits < a['track'] + SHIFT_M or loads[side] < LIGHT_N
@@ -130,7 +144,7 @@ def lean(law, standing, a, com):
     5.1 s. Across with both feet down alone, a step wanted `track` in from the foot that stays:
     one holds her no wider than its sole, and held over it her capture point stayed there -
     the free foot came down 11 cm from it, hers then 11 cm in from that one and off across at
-    1.5 m/s (2026-10-05)."""
+    1.5 m/s."""
     c, s = math.cos(law.heading), math.sin(law.heading)
     still, share = stood(a['speed']), law.share()
     mid = [sum(law.legs[side]['flat'][i] for side in standing) / len(standing) for i in (0, 2)]

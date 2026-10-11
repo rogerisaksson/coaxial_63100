@@ -43,7 +43,7 @@ def _np():
 #: BAGGY_M, patched over the drums (`drums.PATCH_M`). The jeans' legs (`JEANS_LEG`) hang on
 #: their hems' hinges (`mjcf.HEMS`) straight to a hem HEM_R (half width, half depth, set back),
 #: HEM_UP up at its sides, leaning HEM_LEAN onto the sneaker's vamp: 88 mm across and level, the
-#: other foot passed 16 mm into it, the toe box 35 mm out of it (2026-09-28); deeper at the
+#: other foot passed 16 mm into it, the toe box 35 mm out of it; deeper at the
 #: calves, the ankle's rod 21 mm out.
 DENIM, TEE = (118, 150, 182), (230, 230, 226)
 LOOSE_M, FIT_M, BAGGY_M, HEM_R = 0.02, 0.008, 0.02, (0.074, 0.08, 0.004)
@@ -54,7 +54,7 @@ JEANS_LEG = ((0.01, 0.07, 0.076, -0.008), (-0.1, 0.072, 0.088, -0.016), (-0.2, 0
 
 #: The thighs' radii, m: at the hip, at their fullest and at the knee; their middle SCULPT_M out,
 #: the inside drawn in off the other's; their upper backs THIGH_BEHIND deeper, the seat's fold
-#: onto them 52 mm in 10 of height (2026-10-02). The hip's, the knee's and the elbow's ends
+#: onto them 52 mm in 10 of height. The hip's, the knee's and the elbow's ends
 #: PAD_FULL_M fuller over her pads (`figure.PADS`).
 PAD_FULL_M = 0.002
 THIGH_R, SCULPT_M, THIGH_AHEAD = (0.09 + PAD_FULL_M, 0.08, 0.058 + PAD_FULL_M), 0.018, 0.0
@@ -63,7 +63,7 @@ THIGH_BEHIND = 0.04
 #: The inner thigh's fullness high under the seat, 6 mm proud of the thigh (INNER_AT the left's,
 #: on its thigh; INNER_R), the jeans FIT_M over it; the seat's two cheeks low on it (CHEEK_AT the
 #: left's; CHEEK_R), 6 mm proud of the pelvis and inside the jeans' seat. At 2.6 cm, the jeans
-#: over them, they read too big (the user, 2026-09-30).
+#: over them, they read too big.
 INNER_AT, INNER_R = (-0.036, -0.11, -0.008), (0.022, 0.055, 0.032)
 CHEEK_AT, CHEEK_R = (0.056, -0.072, -0.078), (0.06, 0.056, 0.045)
 
@@ -143,7 +143,7 @@ HAIR_LOCK = ((0.12, 0.022, 0.043, 0.022), (0.09, 0.025, 0.048, 0.027), (0.06, 0.
 HAIR_LOCK_X = 0.084
 
 #: The bust's centre (the left's) on the torso and its radii, m: its apex 2 cm before the chest;
-#: 3.2 cm out and near round it read as spheres (the user, 2026-09-30).
+#: 3.2 cm out and near round it read as spheres.
 BUST_AT, BUST_R = (0.056, 0.208, 0.062), (0.062, 0.056, 0.052)
 
 
@@ -394,8 +394,8 @@ class Follow:
 
     """A camera's place over the floor, (x, z): on at her mean velocity, meaned over `seconds`,
     and toward her place four times slower - her surge shows, and a head carried evenly stands
-    still. Tied to her pelvis, the pelvis stood still and an even head swung (2026-09-26); along
-    the world's z alone, up from a fall facing aside she walked out past the lens (2026-09-30)."""
+    still. Tied to her pelvis, the pelvis stood still and an even head swung; along
+    the world's z alone, up from a fall facing aside she walked out past the lens."""
 
     def __init__(self, seconds=1.0):
         self.seconds, self.at = seconds, None

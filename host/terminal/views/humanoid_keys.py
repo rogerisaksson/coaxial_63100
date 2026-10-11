@@ -18,26 +18,27 @@ from terminal.views import viewpoint
 from tools import REPO
 
 #: The cadence's bounds and a key's step, strides a second: under 0.6 she fell from her first
-#: stride (2026-09-25). At 1.0 she walks 0.90 m/s, four minutes on with her hottest drive at
-#: 0.35 of its span; at 1.05 1.0-1.08 m/s, at 1.10 down in 2 s (2026-10-06) - 0.9 till then:
-#: the meter one cell up (the user).
+#: stride. At 1.0 she walks 0.90 m/s, four minutes on with her hottest drive at
+#: 0.35 of its span; at 1.05 1.0-1.08 m/s, at 1.10 down in 2 s - 0.9 till then:
+#: the meter one cell up.
 CADENCE, CADENCE_STEP = (0.6, 1.0), 0.05
 
 #: J: her going on the one law (`machine.pace`), S and F then a step of LEVELS on her way
 #: (`gaits.between`): her stand, two slow walks - 0.52 and 0.66 m/s, strolled; at the row -0.6,
 #: 0.32 m/s, a shuffle on stilts -, her walk, her jog, two faster, the run. On the
 #: walk as built they step its cadence, 0.6-0.9 strides/s: the page's meter two cells down and
-#: none up (the user, 2026-10-05). The law's walk is the page's own once it is a woman's
-#: (docs/TODO.md item 20).
+#: none up. The law's walk is the page's own once it is a woman's (docs/TODO.md, one going
+#: law).
 LEVELS = (-1.0, -0.3, -0.15, 0.0, 0.5, 0.7, 0.85, 1.0)
 
 #: Z and X move her style SWAY_STEP of `style.SWAY`'s axis. On the one law M picks the next of
 #: its manners (`gaits.MANNERS`) and Z and X move that one's amount MANNER_STEP, 0 to 1, each
-#: keeping its own: a blend - leaning 0.5 and crouched 0.25, into a wind (the user, 2026-10-05).
+#: keeping its own: a blend - leaning 0.5 and crouched 0.25, into a wind.
 SWAY_STEP, MANNER_STEP = 0.25, 0.25
 
 #: The room's words by key (`machine.room.WORDS`): U sit on the chair, I lie on the bed, E out
-#: through the door, Y the lamp; sat or lain, U or I again is up.
+#: through the door - in again from outside it (`errands.ask`) -, Y the lamp; sat or lain, U
+#: or I again is up. She stands in the room till one is asked.
 WORDS = {'u': 'sit', 'i': 'lie', 'e': 'out', 'y': 'lamp'}
 
 #: Space held charges a push from the view onto her: CHARGE_N_S a second held, CHARGE_MAX_N at
@@ -48,8 +49,7 @@ CHARGE_N_S, CHARGE_MAX_N, RELEASE_S, FIRST_S = 120.0, 250.0, 0.25, 0.8
 #: The boards G and H glitch, in turn, and how long G's SOA lasts, s.
 GLITCHED, SOA_S = ('left_knee', 'right_knee', 'left_hip', 'right_hip'), 0.5
 
-#: What she trips on, by the digit that lays it (Ctrl letters: Ctrl+S paused the terminal,
-#: 2026-09-28).
+#: What she trips on, by the digit that lays it (Ctrl letters: Ctrl+S paused the terminal).
 TRIPS = dict(zip('123456', ('hole', 'rug', 'sill', 'slip', 'lace', 'stairs')))
 
 #: The gym's rigs she lands on, by the digit that lands her (`events.STANDING`).
@@ -247,7 +247,7 @@ def table(view, calling, shown):
     return dict(
         list(view.items()) + [('[', _paced(-CADENCE_STEP)), (']', _paced(CADENCE_STEP))]
         + [(k, _paced(-CADENCE_STEP)) for k in 'sS'] + [(k, _paced(CADENCE_STEP)) for k in 'fF']
-        + [('p', _befell('shove')), ('P', _befell('shove_on')), ('n', _befell('nudge')),
+        + [('p', _befell('push')), ('P', _befell('push_on')), ('n', _befell('nudge')),
            ('N', _befell('nudge_on'))] + [(k, _befell('brick')) for k in 'bB']
         + [(k, _glitched('soa')) for k in 'gG'] + [(k, _glitched('hot')) for k in 'hH']
         + [(k, _tripped(event)) for k, event in TRIPS.items()]

@@ -120,6 +120,36 @@ pelvis turning 3.5 deg where 4. A gait is named from its words' amounts
 flying 0.25. test_gynoid_going.py holds eleven of its measures on the band,
 the walk within 0.6 of it, its words under 0.5.
 
+On the page indoors, where she stands and turns on the law, it reads as
+walking on stilts; risen from a fall she is on the walk as built again, the
+take. Both from the squat, 16 s:
+
+| Measure | The take | The law's walk | A woman's band |
+| --- | --- | --- | --- |
+| knee as its toes leave, deg | 36.5 | 27.9 | 30-60 |
+| heel as its toes leave, deg | 36.2 | 22.9 | 28-62 |
+| knee swinging, deg | 60.4 | 53.6 | 52-78 |
+| pelvis turning, deg | 13.4 | 3.5 | 4-22 |
+| pelvis rolling, deg | 11.6 | 7.5 | 5-15 |
+| vault over the standing foot, legs | 0.008 | 0.024 | 0-0.07 |
+| head bob, mm | 12 | 33 | |
+| feet apart, mm | 27 | 153 | 15-170 |
+| knee at landing, deg | 29.5 | 9.9 | 0-12 |
+| off the band | 2.01 | 0.24 | |
+
+The band has it a woman's walk and the eye has it stilts: `GAITS` names
+stilts from stiff 0.5, this walk is stiff 0.22. A row's term moved alone,
+J/m where 504:
+
+| Moved | Read back | J/m |
+| --- | --- | --- |
+| `turn` 10 | pelvis turning 22 deg | 503 |
+| `turn` 10, `list` 6 | turning 21, rolling 13.5, vault 0.007 | 549 |
+| `fold` 58 | knee 34.5 as its toes leave, 66.6 swinging | 601 |
+| `off` 20, 35 | knee 30.5, 28.8 as its toes leave; the heel as before | 509, 555 |
+| `lean` 2 | as before | 480 |
+| `track` 0.02 | down in her first strides | |
+
 ## Manners on the one law
 
 `gaits.MANNERS`, `go.py --manner`, the page's M, Z and X. A

@@ -19,16 +19,17 @@ from machine.runner import ARM, COAST_S, LEVEL, eased, pitched
 #: knee's own 340 unfolding -, a walk's eased up to it from where it left: at once, its toes'
 #: point counted under the floor as the heel is up, the knee was asked 23 deg more in a pass,
 #: the ankle 13, and a walk drew 571 J/m where 502; a run's eased so over any of its swing was
-#: down on her way back to a stand, 1-2 timings of 12 up where 11-12 (2026-10-06). A landing's
+#: down on her way back to a stand, 1-2 timings of 12 up where 11-12. A landing's
 #: ankle is CLEAR_M across from a standing one's still
 #: down then, and the free foot as far within PASS_M of it along her way: 6-7 cm apart it
 #: struck the standing foot, 180-475 N on both soles' sensors; held so in a run, her feet 7 cm
-#: apart, she was down in 3 s (2026-10-05).
+#: apart, she was down in 3 s.
 LIFT_M, LIFTS_U, LANDS_U, DOWN_U, CLEAR_M, PASS_M = 0.01, 0.2, 0.8, 0.1, 0.11, (0.15, 0.27)
 SOLE_TOE = (0.0, -gait.ANKLE_H, gait.BALL + gait.TOE_M)
 
-#: An elbow follows its shoulder's reach ahead ARM_S behind it.
-ARM_S = 0.1
+#: An elbow follows its shoulder's reach ahead ARM_S behind it. Standing, her shoulders are
+#: held SHOULDERS_BACK deg back: a straight back, ready.
+ARM_S, SHOULDERS_BACK = 0.1, 8.0
 
 #: The swinging thigh comes on LEAD of its knee's fold.
 LEAD = 0.32
@@ -119,13 +120,14 @@ def lifted(law, leg, sign, pel, now, joints):
 def upper(law, swing, roll=0.0, dt=0.0, yaw=0.0):
     """The upper body: the arms against the legs' swing {side: deg ahead}, an elbow bent the
     row's `elbow` and `play` deg more a deg its shoulder reaches ahead - on the runner's 80
-    deg, still, her walk's arms stood out before her (2026-10-05) -; the spine
+    deg, still, her walk's arms stood out before her -; the spine
     against the pelvis's `roll`, rad."""
     a = law.ask
     out = {'spine_roll': math.degrees(roll), 'spine': 0.0, 'waist': -math.degrees(yaw),
            'neck': -0.5 * a['lean'], 'head': 0.0}
+    back = SHOULDERS_BACK * hold.stood(a['speed'])
     for side in ('left', 'right'):
-        ahead = out[side + '_shoulder'] = -ARM * swing[side]
+        ahead = out[side + '_shoulder'] = -ARM * swing[side] - back
         was = law.arms.get(side, ahead)
         law.arms[side] = was + min(1.0, dt / ARM_S) * (ahead - was)
         out[side + '_elbow'] = max(0.0, a['elbow'] + a['play'] * law.arms[side])

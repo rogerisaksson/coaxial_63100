@@ -24,9 +24,10 @@ EVENTS = ('hole', 'sill', 'slip', 'rug', 'stairs', 'lace', 'soa', 'hot', 'nudge'
 FLOOR, NOW = ('hole', 'sill', 'slip', 'rug', 'stairs'), ('lace', 'soa', 'hot', 'nudge', 'shove')
 
 #: The shoves, newtons for SHOVE_S along her side: a nudge she parries - 0.13 m/s, 60 N's on her
-#: 55 kg as a woman, 38 on her 35 as built: at 60 she held 0 of 16, at 38 9 (2026-10-01); a shove
-#: past saving, the page's P (`terminal.views.show_humanoid`), held 0 of 48 (2026-10-01).
-SHOVES, SHOVE_S, SHOVE_AT = {'nudge': 38.0, 'shove': 120.0}, 0.12, 0.25
+#: 55 kg as a woman, 38 on her 35 as built: at 60 she held 0 of 16, at 38 9; a shove
+#: past saving, held 0 of 48; a push, the page's P, parried standing on the law
+#: at 80 N from either side where 120 fells her.
+SHOVES, SHOVE_S, SHOVE_AT = {'nudge': 38.0, 'push': 80.0, 'shove': 120.0}, 0.12, 0.25
 
 SILL_AHEAD_M, RUG_HEEL_M, STEP_M, LACE_AT = 0.15, 0.15, 0.03, 0.5
 GLITCH_AT, GLITCH_STEP, SOA_S = 0.25, 0.05, 0.5
@@ -69,7 +70,7 @@ def lay(event, director, world, k=0, strides=0):
         }[event], bus['pelvis.pose.x'], h)
 
 
-#: Standing (2026-10-04): a nudge or a shove from her side ('nudge', 'shove') or
+#: Standing: a nudge or a shove from her side ('nudge', 'shove') or
 #: along her way ('nudge_on', 'shove_on'); a brick taken from under a foot, the feet abreast
 #: ('brick') or the left BRICK_STAGGER_M ahead ('brick_on'); a nudge on a balance board, stiff
 #: ('board', rocking about her way; 'board_on', across it) or free ('rocker', 'rocker_on').
@@ -77,7 +78,7 @@ def lay(event, director, world, k=0, strides=0):
 #: for one, `rig` sets its floor under her landed, `befall` lays it. A push's way is an angle
 #: in her plane (`machine.dcm`'s: 0 toward her left, 90 ahead), PUSH_DEG on: a knob, the
 #: circle swept by it.
-STANDING = ('nudge', 'nudge_on', 'shove', 'shove_on', 'brick', 'brick_on', 'board', 'board_on',
+STANDING = ('nudge', 'nudge_on', 'push', 'push_on', 'shove', 'shove_on', 'brick', 'brick_on', 'board', 'board_on',
             'rocker', 'rocker_on')
 BRICK_STAGGER_M, PUSH_DEG = 0.1, 0.0
 
@@ -112,7 +113,7 @@ def befall(event, director, world, k=0):
     if event.startswith('brick'):
         floor.take(world, 'brick_right' if k % 2 else 'brick_left')
         return
-    n = SHOVES['shove' if event.startswith('shove') else 'nudge']
+    n = SHOVES[next((kind for kind in SHOVES if event.startswith(kind)), 'nudge')]
     a = math.radians(PUSH_DEG + (90.0 if event.endswith('_on') else 0.0) + 180.0 * (k % 2))
     left, ahead = n * math.cos(a), n * math.sin(a)
     world.push((left * math.cos(h) + ahead * math.sin(h), 0.0,

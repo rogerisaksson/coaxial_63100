@@ -42,7 +42,9 @@ def take(director, bus, out):
     """The law taking her as she stands on both feet, her setpoints `out` before it."""
     law = director.going = going.Going(director.machine, gaits.STAND)
     pel, now = director._pelvis(bus)
-    law.heading = director.walker.heading
+    # her heading as she stands: the walker's was 0, and taken facing 54 deg the law's legs
+    # pointed 54 off her feet and she fell in 3 s
+    law.heading = math.atan2(now[0][2], now[2][2])
     for side, sign in walkplan.SIDES:
         angles = tuple(math.radians(bus.get(side + k + '.deg', 0.0)) for k in figure.LEG)
         ankle, _foot = figure.foot_of(sign, pel, now, angles)

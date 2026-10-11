@@ -9,7 +9,7 @@ spine, head and arms - eased from one to the next, the legs by IK; her centre of
 each keyframe's own, the pelvis's target moved against its error. She rises over her feet, leans
 on, shifts onto the left and swings the right a short step ahead as her weight comes over it:
 `ready` for `machine.walker` at the landing. On a knee, four points on the floor fought the feedback and threw her; from a squat her
-feet carry her (2026-09-25).
+feet carry her.
 """
 import math
 from typing import Any
@@ -21,27 +21,27 @@ from machine.figure import LEG, add, mul, rx, ry, sub
 FEET_X = 0.08
 
 #: The centre of mass fed back through the pelvis's target: its error, 1, and its speed's, s -
-#: against the keyframes' own: against none, it braked her into the settling and she fell back
-#: (2026-09-26). The target within PULL_M of the pelvis, PULL_UP_M through the push, the rise and
+#: against the keyframes' own: against none, it braked her into the settling and she fell
+#: back. The target within PULL_M of the pelvis, PULL_UP_M through the push, the rise and
 #: the stand: 12.7 cm of error at a get-up's hand-over flung her to 1.04 m; at 0.05 the free
 #: rocker felled every rise (the stand suite 65.2 -> 74.7 %); let out into the first strides,
-#: the flat rises 91.8 -> 78.5 % (2026-10-04).
+#: the flat rises 91.8 -> 78.5 %.
 COM_K, COM_D, PULL_M, PULL_UP_M = 1.5, 0.15, 0.05, 0.15
 
-#: Standing, her calves take her sway (the user, 2026-10-05): both ankles asked CALF_DEG_M deg a
+#: Standing, her calves take her sway: both ankles asked CALF_DEG_M deg a
 #: m her capture point is ahead of where the keyframe has her centre of mass, CALF_DEG at most -
 #: an ankle's 26 N m/deg moves the pressure under her soles 17 cm a degree. Nudged 40 and 80 N
 #: for 0.1 s from behind it swung back 6 and 31 mm past its rest where 12 and 42 by the pelvis
 #: alone, still in 0.50 and 0.94 s where 0.54 and 1.36; the stand's scoreboard 89.0 % where 87.7,
 #: the staggered bricks 100 where 85.5. To 1 deg, 87.3 %; at 250 deg/m to 2.5 deg, 80 N from the
-#: front felled her (2026-10-05).
+#: front felled her.
 CALF_DEG_M, CALF_DEG = 96.0, 0.5
 
 #: Entered moving, the first keyframe is reached slowing from her speed, within ENTER_S s.
 ENTER_S = (0.4, 1.5)
 
 #: Stopping, her weight STOP_M ahead of the front ankle, m: over the sole's middle, the rear
-#: leg still pushing, she came on over the ball and tipped (2026-09-26).
+#: leg still pushing, she came on over the ball and tipped.
 STOP_M = 0.05
 
 #: The speed's filter, s.
@@ -52,14 +52,14 @@ FEET_Z = (gait.BALL - gait.HEEL) / 2.0
 
 #: Onto the left foot, her weight is brought SHIFT_IN inside its ankle, then LIFT_IN as the right
 #: lifts: 1.5 cm at once came on at 0.15 m/s to the left sole's outer edge and she fell off it at
-#: the first step (2026-09-26). At 3.5 cm the stance hip rolled -4.4 degrees, at 5.5 -2.5;
-#: perturbed starts held 15, 14 of 16, at 6.5 6 of 10, at 7.5 1 (2026-09-28). Hips 190 mm apart
-#: and heavier shanks: 5.5 and 1.5 held 3 of 9 drops into the squat, 4.5 and 2.5 8 (2026-10-02);
+#: the first step. At 3.5 cm the stance hip rolled -4.4 degrees, at 5.5 -2.5;
+#: perturbed starts held 15, 14 of 16, at 6.5 6 of 10, at 7.5 1. Hips 190 mm apart
+#: and heavier shanks: 5.5 and 1.5 held 3 of 9 drops into the squat, 4.5 and 2.5 8;
 #: retuned (`physics.STAGED`). The shift is her last move before the foot lifts, the lean before
 #: it: shifted first, through the lean her weight came back - 140 N a foot where 230 and 50 -
 #: and the foot lifted with the capture point 35 mm inside the standing ball, where 24-28; of
 #: 30 starts, standing and from the squat, 6 side gains 0.3 % apart, 3 fell and 6 parried,
-#: where none of either (2026-10-05).
+#: where none of either.
 SHIFT_IN, LIFT_IN = 0.0428292, 0.027228
 
 #: Risen, the knees soft as the stand's (`gait.STAND_KNEE`); the pelvis SINK_M lower as her weight
@@ -67,7 +67,7 @@ SHIFT_IN, LIFT_IN = 0.0428292, 0.027228
 #: torso leaning on as far as the shins do, the lean's (`gait.LEAN_DEG`). Sunk 4 mm with the torso
 #: plumb, the knees bent 4 -> 12 degrees, the hips 26 mm behind them and the torso 7.2 behind the
 #: shins: leaning back before the first step; at 1 and 1.5 mm the first steps fell, unsunk the
-#: stance knee locked at -2; the lean's 8 from here on read as unnatural (2026-09-28).
+#: stance knee locked at -2; the lean's 8 from here on read as unnatural.
 SINK_M = 0.002
 
 #: The standing knee's bend as her weight goes on over it into the first step, deg: the shift's.
@@ -76,26 +76,26 @@ SOFT_KNEE = 8.0
 #: Rising, the hips lift first, the torso leaning on with the shins, and then both straighten:
 #: at RISE_MID of the way up, RISE_MID_S in, the torso as far ahead of plumb as the shins. Risen
 #: at once the torso came up first, 18.6 degrees behind the shins at 64 degrees of knee; with the
-#: hips half way up at 30 degrees, 14.4 as the knees straightened (2026-09-28).
+#: hips half way up at 30 degrees, 14.4 as the knees straightened.
 RISE_MID, RISE_MID_S = 0.8, 0.85
 
 #: The squat held SQUAT_S, the look LOOK_S, pushed up PUSH_S, risen over RISE_S, stood STAND_S,
 #: At 1.5, 0.8, 1.0, 2.0, 1.0, 1.2 - 8.4 s to her first step - the holds read as pauses; a
 #: quarter of the holds and two thirds of the moves held every rise, a tenth and a half 23 %;
-#: at 0.25, 0.8, 0.6 the setpoints stood still 1.65 s before the step (2026-10-01).
+#: at 0.25, 0.8, 0.6 the setpoints stood still 1.65 s before the step.
 SQUAT_S, LOOK_S, PUSH_S, RISE_S, STAND_S, SHIFT_S = 0.4, 0.2, 0.65, 1.3, 0.05, 0.6
 
 #: Before the right foot lifts her weight is brought LEAN_M ahead of the ankles over LEAN_S s -
 #: she leans on both feet, shifts, then steps - and LIFT_ON_M on as the foot lifts LIFT_UP_M over
 #: LIFT_S: falling on over the left foot's ball as the walk takes her. Brought forward as the
 #: foot lifted, the pelvis tipped back 2 deg then 5 forward; handed on still 2 cm further she
-#: tipped backwards, landing 16 cm out, the next step 20 (2026-09-27). The torso straight till
+#: tipped backwards, landing 16 cm out, the next step 20. The torso straight till
 #: the step, the lean's tilt in it (`lifted`): 7 cm before
 #: the lift locked the standing knee; 3 cm, the rest as the foot lifts, the pelvis 5.8 mm down
-#: in the first step, not 13 (2026-09-28); retuned (`physics.STAGED`).
-#: LIFT_UP_M 0.06 -> 0.04 on the stacks (2026-10-03): their ankles' and hip rolls' rotors
+#: in the first step, not 13; retuned (`physics.STAGED`).
+#: LIFT_UP_M 0.06 -> 0.04 on the stacks: their ankles' and hip rolls' rotors
 #: reflect half the inertia the first step was tuned on, and she staggered into her walk -
-#: the pelvis 51 mm down and 15 up in its first second (the user); at 0.04 18 down, 4, every
+#: the pelvis 51 mm down and 15 up in its first second; at 0.04 18 down, 4, every
 #: rise of the Monte Carlo's 100 %; the first stride at 0.5 of the walk's lost rises.
 LEAN_M, LEAN_S, LIFT_ON_M, LIFT_UP_M, LIFT_S = 0.0295604, 0.45, 0.09, 0.04, 0.3
 
@@ -154,7 +154,7 @@ def over(frame, x, z, rounds=6) -> dict[str, Any]:
 def with_shins(frame, x, z) -> dict[str, Any]:
     """`frame` with its torso ahead of plumb as far as its shins - the pelvis a third, the spine
     the rest, the head pitched its neck's degrees - its centre of mass over (x, z): rising, plumb
-    over bent knees she leant back, the torso 18.6 degrees behind the shins (2026-09-28)."""
+    over bent knees she leant back, the torso 18.6 degrees behind the shins."""
     lean, neck = 0.0, frame['joints']['neck']
     for _ in range(4):
         frame = over(dict(frame, tilt=lean / 3.0, joints=dict(
@@ -166,7 +166,7 @@ def with_shins(frame, x, z) -> dict[str, Any]:
 def soft(frame, side, knee, x, z) -> dict[str, Any]:
     """`frame` with its pelvis as low as lets the `side` knee bend `knee` degrees, its centre of
     mass over (x, z). Moved on 5-9 cm at the shift's height the leg could not reach, its knee
-    straight in the keyframe and bent back 1.8 degrees under her (2026-09-28)."""
+    straight in the keyframe and bent back 1.8 degrees under her."""
     reach = math.sqrt(gait.THIGH ** 2 + gait.SHANK ** 2
                       + 2.0 * gait.THIGH * gait.SHANK * math.cos(math.radians(knee)))
     sign = 1.0 if side == 'left' else -1.0
@@ -210,8 +210,8 @@ def keyframes(cadence=gait.CADENCE, stand_s=0.0) -> list[tuple[str, float, dict[
     # ball; the walker takes her on from there, mid-swing, at the phase her lean says
     # (`Walker.begin`), and lands the foot as the walk lands it. Set down first in the walk's
     # landing pose, stopped, the front leg could not reach and she fell back; landed flat, the
-    # walk tipped both feet at once and she hopped (2026-09-25); set down from a lean, she hopped
-    # off the left leg (2026-09-27).
+    # walk tipped both feet at once and she hopped; set down from a lean, she hopped
+    # off the left leg.
     half = 0.5 * gait.STRIDE_M * FIRST * gait.pace(cadence) * gait.STANCE_AT
     lifted = soft(dict(shift, right=((-FEET_X, gait.ANKLE_H + LIFT_UP_M, half), 0.0), fall=1.0,
                        tilt=gait.LEAN_DEG,
@@ -293,17 +293,19 @@ class Arrival:
         self.t, self.stage, self.com_was, self.v = 0.0, frames[0][0], None, (0.0, speed)
         self.want_was, self.borne, self.pinned = None, {}, {}
 
-    def land(self, drop=0.002, up=0.0, stagger=0.0, stage='squat'):
+    def land(self, drop=0.002, up=0.0, stagger=0.0, stage='squat', at=(0.0, 0.0), yaw=0.0):
         """The body placed still at `stage`'s first keyframe - the squat, or 'stand' -, `drop` m
-        over a floor `up` m high, the left foot `stagger` m ahead."""
-        frames = [(s, t, moved(staggered(f, stagger), 0.0, 0.0, 0.0, up))
+        over a floor `up` m high, the left foot `stagger` m ahead, at `at` (x, z) facing `yaw`
+        degrees."""
+        frames = [(s, t, moved(staggered(f, stagger), at[0], at[1], yaw, up))
                   for s, t, f in keyframes(self.cadence, self.stand_s)]
         first = next(i for i, (s, _t, _f) in enumerate(frames) if s == stage)
         self.play([(stage, 0.0, frames[first][2])] + frames[first:])
         frame = self.frames[0][2]
-        h = math.radians(frame['tilt']) / 2.0
+        h, y = math.radians(frame['tilt']) / 2.0, math.radians(yaw) / 2.0
         self.world.reset(angles_of(frame), where=add(frame['pelvis'], (0.0, drop, 0.0)),
-                         turn=(math.cos(h), math.sin(h), 0.0, 0.0))
+                         turn=(math.cos(y) * math.cos(h), math.cos(y) * math.sin(h),
+                               math.sin(y) * math.cos(h), -math.sin(y) * math.sin(h)))
 
     def rise(self, dx, dz, yaw=0.0):
         """Up again from the squat `dx` sideways and `dz` on of where she landed, facing `yaw`
@@ -349,8 +351,8 @@ class Arrival:
         z = p[2] - COM_K * (com[1] - want[2]) - COM_D * (self.v[1] - v_want[1])
         # Falling on into the first step (a keyframe's `fall`, 0 to 1), the target is not pulled
         # back behind her along her way: pulled 13-46 mm back, the standing knee bent 5 -> 16
-        # degrees under her and she curtsied 18 mm down before the walk (2026-09-28); along the
-        # world's z, facing 90 degrees off it pushed her across her stance foot (2026-09-30).
+        # degrees under her and she curtsied 18 mm down before the walk; along the
+        # world's z, facing 90 degrees off it pushed her across her stance foot.
         yaw = math.radians(frame.get('yaw', 0.0))
         way = (math.sin(yaw), math.cos(yaw))
         on = frame.get('fall', 0.0) * max(0.0, (bus['pelvis.pose.x'] - x) * way[0]
@@ -374,7 +376,7 @@ class Arrival:
         out = angles_of(frame, turn)
         # The torso held in space as the walker holds it (`walker.PLUMB`): the spine takes back out
         # what the pelvis is tipped past the keyframe's tilt. Riding the pelvis, the torso swung
-        # 14 -> 7.5 degrees in 0.2 s as the walker took her (2026-09-28).
+        # 14 -> 7.5 degrees in 0.2 s as the walker took her.
         local = mul(ry(-math.radians(frame.get('yaw', 0.0))), now)
         out['spine'] += walker.PLUMB * (frame['tilt']
                                         - math.degrees(math.atan2(local[2][1], local[1][1])))

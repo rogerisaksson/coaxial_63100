@@ -20,19 +20,19 @@ import re
 #: a standing leg reaches on (`machine.strut`): 6, the form's all but straight; standing,
 #: weigh, how far toward her left foot her weight is, -1 her right to 1, and hang, deg the
 #: pelvis rolls up over that leg a unit of it.
-#: The run's is `machine.runner`'s: asked 1.5 m/s, 1.44-1.47 at 508-522 J/m drawn (2026-10-05).
+#: The run's is `machine.runner`'s: asked 1.5 m/s, 1.44-1.47 at 508-522 J/m drawn.
 RUN = {'speed': 1.5, 'step': 0.40, 'stand': 0.30, 'up': 0.0, 'rise': 0.49, 'bounce': 0.30,
        'land': 14.0, 'knee': 22.0, 'lean': 6.0, 'fold': 55.0, 'track': 0.035, 'off': 50.0,
        'list': 0.0, 'under': 0.117, 'folded': 1.0, 'reach': 0.36, 'elbow': 80.0, 'play': 0.0,
        'turn': 0.0, 'strut': 6.0, 'weigh': 0.0, 'hang': 0.0, 'swing': 0.0, 'tip': 0.0,
        'lift': 0.0}
-#: The walk's, a woman's as near as found (2026-10-06): searched from the walk as built's time
+#: The walk's, a woman's as near as found: searched from the walk as built's time
 #: on a walk's price and its widths off `tools.sim.normal.BAND`, 1 920 rows, then on its J/m,
 #: a stop and a passage to her jog and back too, 960. 0.85 m/s at 502 J/m, 0.20-0.26 off the
 #: band - the heel 22 deg up as its toes leave where 28 -, `looks.FORM` but her head 42 mm
 #: aside and bobbing 33; her ways 77 of 104, the page's presses 66 of 72. Her free foot's swing
 #: a screw (`machine.free`, `machine.motors`) waits, its tip and lift laid: on at 1 she fell
-#: coming to a stand at 12.7 s and landed her knee at 12.2 deg (test_gynoid_going, 2026-10-10).
+#: coming to a stand at 12.7 s and landed her knee at 12.2 deg (test_gynoid_going).
 WALK = {'speed': 0.87, 'step': 0.522, 'stand': 0.651, 'up': 0.104, 'rise': 0.0, 'bounce': 0.107,
         'land': -4.9, 'knee': 11.8, 'lean': 4.9, 'fold': 45.2, 'track': 0.044, 'off': 2.1,
         'list': 3.1, 'under': 0.036, 'folded': 0.63, 'reach': 0.333, 'elbow': 30.0, 'play': 0.9,
@@ -40,16 +40,16 @@ WALK = {'speed': 0.87, 'step': 0.522, 'stand': 0.651, 'up': 0.104, 'rise': 0.0, 
         'lift': 0.04}
 #: Her jog, the run's row at the walk's speed: her way from the walk to the run passes it. On
 #: its speed alone the run's row goes 0.54 m/s at 936 J/m asked 0.6, 0.74 at 704 asked 0.8,
-#: 0.99 at 602, 1.19 at 547 (2026-10-05). Before it a row found between, at 1.42 m/s, passed
+#: 0.99 at 602, 1.19 at 547. Before it a row found between, at 1.42 m/s, passed
 #: walk to run and back on 2 timings of 10.
 JOG = dict(RUN, speed=0.8)
 #: Between her walk and her jog, the walk's shape on the jog's time: a gait, where their mix
-#: is none. From her jog, each of the walk's shares taken alone and held (2026-10-05): its
+#: is none. From her jog, each of the walk's shares taken alone and held: its
 #: time, up; its bounce, its landing or its swing, down in 2 s - its bounce and its landing
 #: together, up, with its swing too, up; all of it at once, down.
 #: Her quick step, the walk's row as first found - 2 240 rows on a walk's price before her
 #: stand was in the law: a foot always down, 0.53 s a step, the knee folding 10 deg, 0.81 m/s
-#: at 392 J/m. On stilts as her walk (2026-10-05), 4.1 off a woman's band: her way
+#: at 392 J/m. On stilts as her walk, 4.1 off a woman's band: her way
 #: between her walk and EASE since - on the walk's own shape every passage to her jog was down
 #: in a step.
 QUICK = {'speed': 0.76, 'step': 0.528, 'stand': 0.581, 'up': 0.10, 'rise': 0.0, 'bounce': 0.253,
@@ -58,8 +58,9 @@ QUICK = {'speed': 0.76, 'step': 0.528, 'stand': 0.581, 'up': 0.10, 'rise': 0.0, 
          'turn': 0.0, 'strut': 6.0, 'weigh': 0.0, 'hang': 0.0, 'swing': 0.0, 'tip': 0.0,
          'lift': 0.0}
 EASE = dict(QUICK, stand=JOG['stand'], step=JOG['step'])
-#: Standing: the walk's row at no speed.
-STAND = dict(WALK, speed=0.0)
+#: Standing: the walk's row at no speed, upright - the walk's 4.9 deg of lean read as a
+#: stoop at rest.
+STAND = dict(WALK, speed=0.0, lean=0.0)
 
 #: Her way's rows that are gaits, by `between`'s k: her stand, the walk's, her quick step,
 #: EASE, her jog, the run's. Between her stand and the walk's, and between her jog and the
@@ -73,18 +74,18 @@ KNOTS = tuple(k for k, _row in WAY)
 #: 2 of 6 to her jog; her walk and her jog mixed straight over 0.6-3 s, back to her walk 12 of
 #: 20, and over 2-6 s through EASE with no stay, 12 of 24 back and 8 of 24 on. Her jog to the
 #: run over 3 s, her leaps grew, 0.43 to 0.54 s a step, and she was down; over 5 and over 10 s
-#: she ran 1.5 m/s (2026-10-05).
+#: she ran 1.5 m/s.
 RATES, DWELL_S = ((0.0, 1.0), (0.5, 0.5), (1.0, 0.1)), 2.0
 
 #: A walk's ways - a landing kept clear of the standing foot, a foot due by where she is, her
 #: manners - are a row's the more both feet bear a step, in full from BESIDE_S of it.
 BESIDE_S = 0.05
 
-#: Her manners (2026-10-05: a middle layer that blends, concepts as tuples): a
+#: Her manners (a middle layer that blends, concepts as tuples): a
 #: manner a row's setpoints moved, each this far at an amount of 1 - or other manners,
 #: ((manner, amount), ..). Asked as such tuples, their amounts 0 to 1 and summed, each coming
 #: on and going over MANNER_S. Alone on the walk's row, in `tools.sim.normal`'s words and at
-#: J/m (2026-10-06): leaning 0.50 at 559, her trunk 16 deg - at 12 deg more she fell from her
+#: J/m: leaning 0.50 at 559, her trunk 16 deg - at 12 deg more she fell from her
 #: stand, and with her knees bent 18 was up at 17 and at 20: bent legs carry a lean -;
 #: crouched 0.58, Groucho's, at 409; wide 0.68, her feet 0.36 legs apart, at 495; tripping
 #: 0.36, a step 0.42 s, at 666; catwalk swaying 0.40, the pelvis turning 29 deg and rolling
@@ -102,10 +103,10 @@ MANNER_S = 2.0
 #: keeps its ratio to its time: none under the row STROLLS[0] of her way, in full at [1], none
 #: at her walk's. At the row -0.3, 0.52 m/s: 0.73 off a woman's band where 1.53, on stilts and
 #: a shuffle by name before, her walk ratio 1.08 where 0.73; at -0.15, 0.66 m/s and 0.39. On
-#: a step of 0.72 s she fell, and at the row -0.6 on 0.60 s (2026-10-06).
+#: a step of 0.72 s she fell, and at the row -0.6 on 0.60 s.
 STROLLS = (-0.45, -0.3)
 #: Her stand's own setpoints: an accent that moves them is a pose's, let go before she goes
-#: on - walked off from her weight on one leg she was down in 1.2 s (2026-10-06).
+#: on - walked off from her weight on one leg she was down in 1.2 s.
 POSES = frozenset(('weigh', 'hang'))
 
 

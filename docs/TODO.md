@@ -100,10 +100,13 @@ gets a line at the end of [DONE](DONE.md).
     + DOD: the walk on emulated boards end to end.
 18. **Planner server** after LOCAL_TRIES local failures.
     + DOD: measured on a fall.
-19. **One going law, the page's own** (going.md): its walk on `looks.FORM`,
-    0.20 off `normal.BAND`; the page's default the walk as built until the
-    law's is approved by eye.
-    + DOD: the law the page's default; presses 72 of 72.
+19. **One going law, the page's own** (going.md, normal.md): 0.24 off
+    `normal.BAND` and on stilts to the eye, indoors, where she walks on
+    it: beside the take its pelvis turns 3.5 deg where 13.4, a foot leaves
+    with the knee 28 and the heel 23 deg where 36, her feet are 153 mm
+    apart where 27. Risen from a fall she is on the walk as built.
+    + DOD: the law the page's one walk, risen from a fall too; no stilts
+      by `normal.GAITS` at a gate the eye agrees with; presses 72 of 72.
 20. **Tubes, corners and flanges**: carbon tubes epoxied into printed
     corners; a gearbox on a flange; motor, box and board outermost; a
     grille or a heat sink on the FETs; a quick-release per limb.
@@ -141,46 +144,61 @@ gets a line at the end of [DONE](DONE.md).
       (J/m, band, polar); a step < 1 ms on a 475 MHz M7; `machine/` in
       subpackages, each file under 5 k tokens, `test_structure` on it.
 
-25. **The room's words** (room.md): the law turns (turns.md: walking
-    0.3 rad/s, standing 0.5 stepping round); out walks through the door;
-    test_room.py holds the three.
-    + Lamp: her hand placed at a point - the arm's two joints solved for the
-      switch from the pelvis as read, or the reach as she walks the last
-      0.4 m: the arc from a set angle crosses the switch's 8 cm only
-      0.39-0.44 m off it, the halt scatters her 0.1-0.3 m.
+25. **The room's words** (room.md): out from where the page stands her
+    passes the door (test_room.py); from within 0.3 m of there 6 of 12,
+    from anywhere in the room 1 of 12.
+    + Door: her other hand meets the leaf at its hinge and stops her in
+      the doorway; opened before she walks through it, or passed nearer
+      its latch.
+    + Stopped while a speed is asked she goes over backward on both feet:
+      a step back as her capture point leaves her hold behind, whatever
+      is asked.
+    + Corners: a way laid with none she cannot walk at 0.3 rad/s, or a
+      corner met standing without its metre past.
+    + Lamp: her hand placed at a point - the arm's two joints solved for
+      the switch from the pelvis as read, or the reach as she walks the
+      last 0.4 m.
     + Sit and lie: a step back to the seat, or the pelvis let down on the
-      law; stepping round wants 0.5 m clear, the keyframes reach 0.45 m
-      back; lain along the bed from its foot she tumbled.
-    + DOD: U, I, E, Y from the page, each done and up again, in
-      test_room.py.
+      law; lain along the bed from its foot she tumbled.
+    + DOD: U, I, E, Y from the page, each done and up again, 10 of 10
+      from anywhere in the room, in test_room.py.
 
-26. **Knowledge and models of her surroundings** (sight.md; she walked into
-    the door post on the page, 2026-10-11): classical image analysis and
-    stereo vision - a camera pair on her head rendered from the world,
-    disparity to depth, the depth classified into the room's things (walls,
-    door, furniture) as boxes on a map she keeps, and her errands' ways
-    planned round them; the world's own geometry read by nothing of hers. On
-    the page a picture in the viewport's corner: her eyes' view, each thing she
-    has told hulled and labelled in its kind's colour.
-    + Now: the stereo within 1.7 % of the renderer's depth at the median; 93 %
-      of the map's cells within 0.15 m of the room's things after a look
-      round, the chair told 0.16 m off, the table 0.05; out through the door
-      0.30-0.41 m from the post both ways the page asks it; the picture on
-      the page.
-    + DOD: the map's boxes against the room's within 0.1 m; out through the
-      door clearing its posts by 0.25 m, 10 of 10 from anywhere in the room;
-      a chair moved into her way walked round; on the page.
+26. **Knowledge and models of her surroundings** (sight.md): a stereo pair
+    on her head, the room's things on a map she keeps, her ways planned
+    round them, her view on the page. After a look round the chair is
+    told where it stands and the table 0.07 m off, 254 of 256 cells
+    within 0.15 m of a thing; she maps what is within 2.5 m.
+    + DOD: the map's boxes against the room's within 0.1 m, the bed's too
+      (0.51 m off: its near edge alone); a chair moved into her way
+      walked round.
 
-## Quad
-
-- **Flown to WEP, no rules**: the flight kinematically determined inside an
-  action space computed beforehand - what the four can pull at each
-  airspeed, tilt, pack voltage and envelope, WEP its outer shell, gusts
-  inside it -; no clause on which envelope it happens to be in
-  (`flight.envelope`, `emergency`, `FIT`, `GONE_S`, `Flying.short`: gone).
-  DOD: on the law's rotors (Host, one code), `quad_race.py`'s laps against
-  today's, the pull left unused and the WEP taken a flight quoted, gusts
-  flown; no strike more.
+27. **Her kinematic language** (room.md, The words): a movement is text,
+    compiled to rows one law reads; a capability is the law's to gain,
+    never a case beside it. As it is: lines of go, face, stand, pace,
+    hand, reach and play on the room's frames (`machine.kin`).
+    + Form: s-expressions - a behaviour its phases, a phase its
+      objectives, its constraints and what it waits on.
+    + Terms: orthopaedic. A movement by its plane - flexion, extension,
+      dorsiflexion, plantarflexion, abduction, adduction, lateral
+      flexion, inversion, eversion, medial and lateral rotation - on a
+      joint of a limb named by its role (stance, swing; no left or
+      right), its amount degrees or a share of its range; weight bearing
+      a limb's share of her; the gait cycle's events; the centre of
+      pressure's place under a sole and the margin of stability; rates
+      and temperatures as limits. A term on a joint she has not is
+      refused.
+    + Compiles to: a posture a manner on the row (knee flexion the
+      strut, trunk flexion the lean, weight bearing `weigh`); a gait the
+      row itself, `gaits.WALK` bit for bit; a free limb's joints and a
+      limb bearing nothing, new terms of the row.
+    + The law gains: a limb asked to bear nothing leaves as it is light
+      and is held as asked; on one foot she is held over it across too;
+      her capture point out of its hold, that foot lands again under it
+      - a hop, the same landing as any (`reach.land`).
+    + DOD: walked, stood, her weight onto one limb, the other lifted (hip
+      30 deg, knee 60), 10 s on it by micro-hops, her knees soft and her
+      trunk a little ahead, down on both again - a test; no branch on a
+      side in the law (`test_structure`).
 
 ## Bench
 
