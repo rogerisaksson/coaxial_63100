@@ -374,6 +374,7 @@ Six firmware defects, no hardware fault:
 | Standing: the rigs, the one law in the capture point's plane, the push polar | [findings/standing.md](findings/standing.md) |
 | Balance as one convex QP: the stack, its solver, the MPC, the step | [findings/wbc.md](findings/wbc.md) |
 | Flight on the stack: which soles stand from one pass, a hop stood | [findings/flight.md](findings/flight.md) |
+| Orthokinematics: her movement as text, a latent loop with no branch, her modes on her body, her walk on it, the page's gym | [findings/orthokinematics.md](findings/orthokinematics.md) |
 | Build, buses, falls, get-up, drawing, clothes | [findings/body.md](findings/body.md) |
 | Drives: motors, gearboxes, inverters, sizing | [findings/drives.md](findings/drives.md) |
 | One stack for every drive: demand, candidates, stacks as built | [findings/stacks.md](findings/stacks.md) |

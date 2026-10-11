@@ -137,8 +137,9 @@ gets a line at the end of [DONE](DONE.md).
     + Bottom, each board: the ESO (`parts.Eso`, `CTRL_ESO`) onto the boards
       as built on the motor's encoder; torque and acceleration registers on
       the wire.
-    + Behaviour: impedance (K, D a task) and a CPG's phases in R^k in
-      balance.py's and going.py's place; the page's walk onto the loop.
+    + Behaviour: impedance and a rhythm's phases in R^k are
+      orthokinematics (below); balance.py's and going.py's place taken
+      once its walk is hers.
     + Upward: the law's rows as asks - balance point, contacts, clearances,
       turns, hands; the model picks and fills rows (`decide`), never code.
     + Top: the model writes K and the phases, nothing else.
@@ -175,33 +176,35 @@ gets a line at the end of [DONE](DONE.md).
       (0.51 m off: its near edge alone); a chair moved into her way
       walked round.
 
-27. **Her kinematic language** (room.md, The words): a movement is text,
-    compiled to rows one law reads; a capability is the law's to gain,
-    never a case beside it. As it is: lines of go, face, stand, pace,
-    hand, reach and play on the room's frames (`machine.kin`).
-    + Form: s-expressions - a behaviour its phases, a phase its
-      objectives, its constraints and what it waits on.
-    + Terms: orthopaedic. A movement by its plane - flexion, extension,
-      dorsiflexion, plantarflexion, abduction, adduction, lateral
-      flexion, inversion, eversion, medial and lateral rotation - on a
-      joint of a limb named by its role (stance, swing; no left or
-      right), its amount degrees or a share of its range; weight bearing
-      a limb's share of her; the gait cycle's events; the centre of
-      pressure's place under a sole and the margin of stability; rates
-      and temperatures as limits. A term on a joint she has not is
-      refused.
-    + Compiles to: a posture a manner on the row (knee flexion the
-      strut, trunk flexion the lean, weight bearing `weigh`); a gait the
-      row itself, `gaits.WALK` bit for bit; a free limb's joints and a
-      limb bearing nothing, new terms of the row.
-    + The law gains: a limb asked to bear nothing leaves as it is light
-      and is held as asked; on one foot she is held over it across too;
-      her capture point out of its hold, that foot lands again under it
-      - a hop, the same landing as any (`reach.land`).
-    + DOD: walked, stood, her weight onto one limb, the other lifted (hip
-      30 deg, knee 60), 10 s on it by micro-hops, her knees soft and her
-      trunk a little ahead, down on both again - a test; no branch on a
-      side in the law (`test_structure`).
+27. **Orthokinematics** (orthokinematics.md): her movement is text of
+    balance, rhythm and elasticity, compiled to rows; her latent state
+    is stepped and rendered with no branch, the whole-body loop under
+    it. On the page's gym she stands, crouches, shifts, bows, stands on
+    one sole and walks 0.16 m/s.
+    + Her walk: a human's is 1.2 m/s; hers falls at a drive of 0.6. One
+      sine a mode holds one sole 45 % of the time, a swing 0.34 s, 2 cm
+      clear; her form (`looks.FORM`, J/m, the band) unmeasured on it.
+    + Shoves: 30 N across stops her stepping or leaves her walking, 40 N
+      fells her; no payload answers one yet.
+    + The hop: 4.1 kg m^2/s about her at lift-off, her soles at her
+      heels' edge through the throw; in the air her trunk takes it. Not
+      stood, as given or with flight.md's spring.
+    + Her way: no mode turns her; the gym has no room round her.
+    + The first texts as given: 102 asks a sway her soles' width
+      refuses at 1.1 Hz; 103 after it fells her.
+    + The loop in C: `latent.step` and `modal.ask` as cores beside
+      `wbc/`, `ortho_row_t` a header a test holds to `ortho.ROW`; the
+      stack 2.1 ms a pass on this host, the page solving every fourth.
+    + From the page: a line to type a text into; the model composing
+      rows.
+    + The old laws: `going`, `hold`, `strut`, `free`, `gaits`, `pace`,
+      `walker`, `kin` and the director's walk go once the page's own
+      walk, her rise and her get-up are on the loop; kept beside it
+      until then.
+    + DOD: from the page she rises, walks at 1.0 m/s in her form, turns,
+      stops, stands on one sole 10 s by micro-hops and hops, each a
+      text; 80 N shoves parried by a payload; the scoreboard held; the
+      old laws gone.
 
 ## Quad
 

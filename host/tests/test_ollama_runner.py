@@ -436,7 +436,7 @@ def test_smart_selection(report):
                table.CONTROLLER, table.GYNOID, table.GYNOID_FAULTS, table.GYNOID_FALLS,
                table.GYNOID_STAND, table.GYNOID_GAIT, table.GYNOID_RUN, table.GYNOID_GOING,
                table.ROOM, table.SIGHT, table.REACH, table.TERMS, table.WBC, table.WBC_CORE, table.FLIGHT,
-               table.CYCLIC, table.QUAD,
+               table.ORTHO, table.CYCLIC, table.QUAD,
                table.QUAD_COURSE, table.AERO_CORE, table.STREAMS,
                table.BOOT} | set(table.OLLAMA)
     for percent, expect in ((25, quarter),

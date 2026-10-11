@@ -4,7 +4,7 @@ from tools.dev.suites import (AERO_CORE, BENCH, BOARD_MEM, BOOT, BOOT_CLIENT, BO
                               CONTROLLER, CORE, CTRL_CORE, CYCLIC, DAQ_API, DAQ_CORE, DRIVE,
                               DRIVE_OBSERVER, EMULATOR, FILTER, FLIGHT, GYNOID, GYNOID_FALLS,
                               GYNOID_FAULTS, GYNOID_GAIT, GYNOID_GOING, GYNOID_RUN, GYNOID_STAND,
-                              HEATED, NATIVE, NATIVE_HEAT, OLLAMA, QUADS, REACH, RENDER, ROOM,
+                              HEATED, NATIVE, NATIVE_HEAT, OLLAMA, ORTHO, QUADS, REACH, RENDER, ROOM,
                               SENSORLESS, SHTP, SIGHT, STREAMS, STRUCTURE, TERMS, THERMAL,
                               THERMAL_APP, VIEWS, WBC, WBC_CORE, WIRE, WORLD_CORE)
 
@@ -64,7 +64,7 @@ TOUCHES = (
     ('host/machine/',                          (CONTROLLER, GYNOID, GYNOID_FAULTS, GYNOID_FALLS,
                                                 GYNOID_STAND, GYNOID_GAIT, GYNOID_RUN,
                                                 GYNOID_GOING, ROOM, SIGHT, REACH, TERMS, WBC, WBC_CORE,
-                                                FLIGHT, CYCLIC,
+                                                FLIGHT, ORTHO, CYCLIC,
                                                 'test_simulated.py', 'test_mcp.py',
                                                 'test_views_humanoid.py')),
     ('host/coaxial/graphics/gynoid.py',        (RENDER, *VIEWS, GYNOID)),
@@ -83,6 +83,7 @@ TOUCHES = (
     ('host/terminal/views/rotor/',             HEATED),
     ('host/terminal/views/show_thermal_observer.py', HEATED),
     ('host/terminal/views/thermal/',           HEATED),
+    ('host/terminal/views/gym.py',             (STRUCTURE, ORTHO, 'test_views_humanoid.py')),
     ('host/terminal/views/',                   (STRUCTURE, *VIEWS,
                                                 'test_simulated.py')),
     ('host/terminal/ui/',                      (STRUCTURE, *VIEWS,
@@ -98,6 +99,7 @@ TOUCHES = (
     ('host/tools/sim/streams.py',              (STRUCTURE, STREAMS)),
     ('host/tools/sim/wbc.py',                  (STRUCTURE, WBC, WBC_CORE, FLIGHT)),
     ('host/tools/sim/hop.py',                  (STRUCTURE, FLIGHT)),
+    ('host/tools/sim/ortho.py',                (STRUCTURE, ORTHO)),
     ('host/tools/cores/terms.py',              (STRUCTURE, TERMS)),
     ('host/tools/cores/',                      (WIRE, NATIVE, NATIVE_HEAT)),
     ('host/tools/dev/counts.py',               ('test_ollama_runner.py',)),

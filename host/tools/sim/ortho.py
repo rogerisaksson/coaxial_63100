@@ -1,0 +1,134 @@
+#!/usr/bin/env python3
+"""Orthokinematics (`machine.ortho`) run on her latent loop as the page's gym runs it, traced.
+
+    python tools/sim/ortho.py hop_asymmetric              # an entry of machine/moves.lisp
+    python tools/sim/ortho.py crouch -v                   # a row every 25 ms; -v 5, every 5
+    python tools/sim/ortho.py "#101" "#102@3" "#103@6" --to 8    # each at its second
+    python tools/sim/ortho.py --file my.lisp hop --every 4       # a file's; the loop every 4th pass
+
+She stands AT_S at rest on the loop (`machine.sprung`: sensed, `machine.latent`, `machine.modal`,
+`wbc.step`); each entry named - a payload '#' and its id, a behaviour by its name - is begun at
+its second, AT_S and then 2 s apart where none is given; she is followed `--to` s past the last.
+A row: what she is doing, each mode as asked and as she is, her centre of mass's height and
+speed up, each sole's load, which soles stand, her speed along. The last line: whether she
+stood; each mode as asked, at its furthest, as the last asked ended and at the run's end; her
+soles' loads then; her greatest speed up; her seconds off the floor; how far she went, how fast
+over her last GOING_S, and her soles' landings.
+"""
+import argparse
+import json
+import os
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
+#: She stands this long before anything is asked, s; followed TO_S past the last asked; her
+#: speed along is hers over her last GOING_S. Fallen past HELD_DEG of her pelvis's tilt, or
+#: with her centre of mass under LOW of where it stood.
+AT_S, TO_S, GOING_S, HELD_DEG, LOW = 1.0, 2.0, 3.0, 25.0, 0.5
+#: A sole bears nothing under this, N.
+AIR_N = 5.0
+
+
+def went(plan, to=TO_S, trace=0, every=None):
+    """{stood, t, tilt, modes {mode: (asked, furthest, as the last asked ended, at the end)},
+    loads then and at the end (N), up m/s, air s, went m, speed m/s, landings, us a pass,
+    rows}: `plan` [(s, label, wire, names)] (`sprung.entries`) - each begun at its second -
+    from a stand on the loop, followed `to` s past the last; `trace` a row every that many ms;
+    the loop solved every `every` passes, the page's (`sprung.STACK_EVERY`) with none."""
+    import time
+    import numpy as np
+    from machine import latent, modal, ortho, sprung
+    from machine.errors import MachineError
+    g = sprung.laid(every or sprung.STACK_EVERY)
+    for at, label, wire, names in sorted(plan, key=lambda item: item[0]):
+        sprung.said(g, label, wire, names, at)
+    rows = [(at, row) for at, _label, wire, _names in plan for row in ortho.rows(wire)]
+    last = max(at + 1e-3 * (row[1] + row[2]) for at, row in rows)
+    # a behaviour has ended as its row back to rest comes, a payload as it is blended in
+    ended = max(at + 1e-3 * (row[1] + row[2] * (1 - row[3] % 2)) for at, row in rows)
+    n, first, home = ortho.N, min(item[0] for item in plan), float(g['y'][modal.COM][1])
+    rec = {'far': np.zeros(n), 'asked': np.zeros(n), 'ended': np.zeros(n), 'z': np.zeros(n), 'up': 0.0,
+           'air': 0.0, 'rows': [], 'loads': (0.0, 0.0), 'track': [], 'landings': 0,
+           'stood': (True, True), 'tilt': 0.0, 'failed': None}
+    along, began = g['fr'][modal.ROT][:3], time.perf_counter()
+    while g['t'] < last + to and rec['tilt'] <= HELD_DEG and g['y'][modal.COM][1] > LOW * home:
+        now = g['t']
+        try:
+            s, loads, ask, out = sprung.passed(g)
+        except MachineError as error:
+            rec['failed'] = '%s at %.3f s' % (error, now)
+            break
+        z = modal.read(g['y'], g['fr'])[0]
+        rec['z'], rec['tilt'] = z, max(rec['tilt'], sprung.tilt(g))
+        if now <= ended:
+            rec['asked'], rec['ended'], rec['loads'] = g['st'][latent.TO][latent.Z].copy(), z, tuple(loads)
+        if now >= first:
+            rec['far'] = np.where(np.abs(z) > np.abs(rec['far']), z, rec['far'])
+        rec['up'] = max(rec['up'], float(s['vcom'][1]))
+        rec['air'] += 0.001 * (max(loads) < AIR_N)
+        rec['landings'] += sum(bool(stands) and not was for stands, was in zip(ask['stance'], rec['stood']))
+        rec['stood'] = ask['stance']
+        rec['track'].append(float(s['com'] @ along))
+        if trace and int(round(now * 1000)) % trace == 0:
+            rec['rows'].append('%6.3f %-10s asked %s | is %s | y %.3f vy %+5.2f | N %4.0f %4.0f %s | v %+.2f' % (
+                now, sprung.doing(g), ' '.join('%+.2f' % v for v in out[latent.REF]),
+                ' '.join('%+.2f' % v for v in z), s['com'][1], s['vcom'][1], loads[0], loads[1],
+                ''.join('S' if stands else '-' for stands in ask['stance']), float(s['vcom'] @ along)))
+    track, loads = rec['track'], g['loads']
+    tail = track[-int(GOING_S * 1000):]
+    return {'stood': rec['failed'] is None and g['t'] >= last + to - 1e-6, 'failed': rec['failed'],
+            't': round(g['t'], 3), 'tilt': round(rec['tilt'], 1),
+            'us': round(1e6 * (time.perf_counter() - began) / max(1, len(track))),
+            'modes': {m: tuple(round(float(v), 3) for v in row) for m, *row in zip(
+                ortho.MODES, rec['asked'], rec['far'], rec['ended'], rec['z'])},
+            'loads': tuple(round(v) for v in rec['loads']), 'rest': tuple(round(v) for v in loads),
+            'up': round(rec['up'], 3), 'air': round(rec['air'], 3),
+            'went': round(track[-1] - track[0], 3) if track else 0.0,
+            'speed': round((tail[-1] - tail[0]) / (len(tail) * 0.001), 3) if len(tail) > 1 else 0.0,
+            'landings': rec['landings'], 'rows': rec['rows']}
+
+
+def planned(asked, text=None):
+    """[(s, label, wire, names)] of `asked` ['label' or 'label@seconds', ..] among `text`'s
+    entries (machine/moves.lisp's): AT_S, then 2 s apart, where no second is given."""
+    from machine import sprung
+    gym = {entry[0]: entry for entry in sprung.entries(text)}
+    plan, at = [], AT_S
+    for word in asked:
+        label, _, when = word.partition('@')
+        if label not in gym:
+            raise KeyError('no entry %s: %s' % (label, ', '.join(gym)))
+        at = float(when) if when else at
+        plan.append((at,) + gym[label])
+        at += 2.0
+    return plan
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
+    parser.add_argument('what', nargs='+', help="entries: a behaviour's name or '#' and a payload's id, "
+                        'each alone or @ its second')
+    parser.add_argument('--file', help="a text's entries, not machine/moves.lisp's")
+    parser.add_argument('--to', type=float, default=TO_S, help='s followed past the last asked')
+    parser.add_argument('--every', type=int, help='the loop solved every that many passes; the page has its own')
+    parser.add_argument('-v', nargs='?', type=int, const=25, default=0, metavar='MS',
+                        help='a row every MS ms (25)')
+    args = parser.parse_args(argv)
+    text = None
+    if args.file:
+        with open(args.file, encoding='utf-8') as f:
+            text = f.read()
+    try:
+        plan = planned(args.what, text)
+    except KeyError as error:
+        parser.error(error.args[0])
+    got = went(plan, args.to, args.v, args.every)
+    for row in got.pop('rows'):
+        print(row)
+    print(json.dumps(got))
+    return 0 if got['stood'] else 1
+
+
+if __name__ == '__main__':
+    sys.exit(main())

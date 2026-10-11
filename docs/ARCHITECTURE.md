@@ -212,6 +212,10 @@ tests/              suites, .counts.json (measured sizes)
 | reach | a leg's reach over its foot from static arrays (reach_rows, laid by tools/cores/reach.py): margins, the flat place landed, two feet's gap; a limb an index |
 | terms | her movements by their orthopaedic names from static arrays (term_rows, laid by tools/cores/terms.py): a part and a movement, its joint kind, sign and stops |
 | flight | on the whole-body stack: which soles stand, told from one pass - each as it bears, an unloaded one beside one that bears or with her at rest; one that does not is asked to its landing (reach) |
+| ortho | orthokinematics: her movement as text - `(stream_inject ..)`, `(defbehavior ..)`: latent targets, a stiffness and a damping a mode, her rhythm, task constraints - compiled to rows of numbers (moves.lisp hers, examples.lisp the first texts) |
+| latent | her latent state stepped with no branch: a row laid by a mask, the state a lerp, her rhythm one angle; each mode's reference and impedance out |
+| modal | her modes on her body, no branch: her soles' places from her centre of mass as sums and differences, their springs the whole-body loop's ask - the ZMP clipped, which soles stand, a sole in the air |
+| sprung | the latent loop run: sensed, latent, modal, wbc, the drives' observers under it; the page's gym in a process of its own |
 | physics | DYNAMIC: the figure in MuJoCo, a drive a joint |
 | gearbox | each drive's gearbox: the rotor free across its play, the box wound up past it, the link turned |
 | room | a living room round her: glass walls, furniture, a door, a lamp, and its words |
@@ -270,6 +274,7 @@ tests/              suites, .counts.json (measured sizes)
 | `test_wbc.py` | the QP solver's KKT, two levels' priority, standing, shoves with and without a step |
 | `test_wbc_core.py` | her chain in C against MuJoCo: frames, M, bias, Jacobians at random configurations; a step's time |
 | `test_flight.py` | which soles stand, from one pass alone; a landing within her reach; the loop in C against the python stack with no sole standing; a hop stood on both, three in a row on the loop |
+| `test_ortho.py` | a text compiled to rows, what is none refused; no branch in the core or the renderer; her state blended and turned; crouched, shifted, bowed, on one sole; her walk on her own payloads; the first texts as given; the gym's worker and keys |
 
 - The quad's streams: `test_aero_core.py` holds aero/ to its form - no
   branch in its sources, no flag set from its data in this host's code -,

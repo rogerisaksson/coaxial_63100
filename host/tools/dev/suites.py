@@ -110,6 +110,8 @@ GYNOID_GOING, WBC, ROOM, SIGHT = 'test_gynoid_going.py', 'test_wbc.py', 'test_ro
 REACH, TERMS = 'test_reach.py', 'test_terms.py'
 #: The loop in C against MuJoCo and the python stack (wbc/); flight on both.
 WBC_CORE, FLIGHT = 'test_wbc_core.py', 'test_flight.py'
+#: Orthokinematics: a text compiled, her latent loop, her walk on it, the page's gym.
+ORTHO = 'test_ortho.py'
 THRUSTS = 'test_thrusts.py'
 #: The frame's core (aero/) in a vacuum: its form, its share, its impedance; a text's streams
 #: compiled and flown on it.
@@ -132,7 +134,7 @@ DEFAULT_SUITES = (STRUCTURES + (CORE, SHTP, DRIVE, DRIVE_OBSERVER, FILTER, THERM
                    SENSORLESS,
                    BROKER, DAQ_API, CONTROLLER, GYNOID, GYNOID_FAULTS, GYNOID_FALLS,
                    GYNOID_STAND, GYNOID_GAIT, GYNOID_RUN, GYNOID_GOING, ROOM, SIGHT, REACH, TERMS, WBC,
-                   WBC_CORE, FLIGHT, CYCLIC, QUAD,
+                   WBC_CORE, FLIGHT, ORTHO, CYCLIC, QUAD,
                    THRUSTS, AERO_CORE, STREAMS, QUAD_COURSE, BOOT)
                   + VIEWS
                   + (RENDER,) + OLLAMA
@@ -165,6 +167,7 @@ JOINS = (
     (12, TERMS),
     (12, WBC),
     (12, FLIGHT),
+    (12, ORTHO),
     (12, CYCLIC),
     (12, QUAD),
     (12, QUAD_COURSE),

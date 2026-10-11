@@ -67,3 +67,8 @@ it names. A closed item is cut from the list and gets its line here, last.
     sources or in the M7's code (`aero/`): the power loop's four streams
     flown on ideal rotors, caught 79 degrees off of 80 and stood again; a
     hover stood from upsets ([streams](findings/streams.md)).
+29. Orthokinematics: her movement as text compiled to rows
+    (`machine.ortho`), her latent state stepped and rendered with no branch
+    (`machine.latent`, `machine.modal`), on the page's gym (`<`): crouched,
+    her weight over one sole, bowed, on one sole, walking 0.16 m/s for a
+    minute ([orthokinematics](findings/orthokinematics.md)).

@@ -3,12 +3,14 @@
 
     python terminal/views/show_humanoid.py
     python terminal/views/show_humanoid.py --frames 30
+    python terminal/views/show_humanoid.py --ortho        # on her latent loop from the start
 
 Her figure in MuJoCo, each joint a drive (`machine.physics`), her director setting them every
 millisecond (`machine.director`) in a process paced to the wall clock (`machine.running`); drawn
 from her joints' read-back, lit on the GPU where a card answers (`coaxial.graphics.gynoid`), each
 drive called out at the viewport's edge. The keys by group on TAB (GROUPS): the floor's events
-ahead, the gym's rigs she lands on, a board glitched (`terminal.views.humanoid_keys`).
+ahead, the gym's rigs she lands on, a board glitched (`terminal.views.humanoid_keys`); her
+latent loop a key away, its moves said by digit (`terminal.views.gym`).
 """
 import argparse
 import math
@@ -31,7 +33,7 @@ from terminal.loader import TO_MENU
 from terminal.views.overlay import (BOX_GROUND, BRAKE_INK, CALLOUT_W, DARK_INK, DRIVE_INK, LIGHT_INK,
                                     NUMBER_INK, SMALL, STAND, STANDING, TORQUE_INK, data_labels,
                                     data_legend, traffic)
-from terminal.views import viewpoint
+from terminal.views import gym, viewpoint
 from terminal.views.humanoid_keys import (CADENCE, CHARGE_MAX_N, act_on, charging, released,
                                           row, table)
 from terminal.views.playback import Playback
@@ -209,6 +211,8 @@ GROUPS = (
                ('6', 'stairs'))),
     ('ROOM', (('U', 'sit on the chair, up'), ('I', 'lie on the bed, up'), ('E', 'out the door'),
               ('Y', 'the lamp'))),
+    ('LATENT', (('<', 'her latent loop, and back'), ('1-0', 'on it: a move said'),
+                ('>', 'on it: the other text'), ('P N A', 'on it: shoved, landed anew'))),
     ('GYM', (('7', 'two bricks: she stands'), ('8', 'bricks staggered'), ('9', 'board, stiff'),
              ('0', 'rocker, free'), ('SPACE', 'held: a push from the view, charging'),
              ('P N', 'push, nudge, in turn'),
@@ -279,6 +283,8 @@ def _status(now):
     her landing again."""
     if now is None:
         return 'STARTING'
+    if 'modes' in now:
+        return gym.status(now)
     word = STATUS.get(now['stage'], now['stage'].upper())
     if any(p[0] == 'lace' for p in now.get('props', ())):
         word = 'TRIP'
@@ -330,7 +336,7 @@ def _seen(state):
 
 
 #: What each key does to the view's state.
-KEYS = table(viewpoint.KEYS, CALLING, SHOWN)
+KEYS = gym.table(table(viewpoint.KEYS, CALLING, SHOWN))
 
 
 def main(argv=None):
@@ -344,11 +350,14 @@ def main(argv=None):
     parser.add_argument('--width', type=int, default=0, help='drawing width in cells, 0 fills')
     parser.add_argument('--height', type=int, default=0, help='drawing height in rows, 0 fills')
     parser.add_argument('--cadence', type=float, default=0.85, help='strides a second')
+    parser.add_argument('--ortho', action='store_true', help='on her latent loop from the start')
     args = parser.parse_args(argv)
 
     cadence = max(CADENCE[0], min(CADENCE[1], args.cadence))
     # standing in the room till a word is asked: on the walker she walked into the far wall
-    body = Running(cadence, local=Chosen(), room=True, pace=-1.0)
+    def director():
+        return Running(cadence, local=Chosen(), room=True, pace=-1.0)
+    body = gym.body({'ortho': args.ortho, 'director': director})
     say('ok', 'body', '%.1f kg, %d drives, MuJoCo at 1 kHz in its own process'
         % (figure.mass(), sum(len(s.actuators) for s in TYPES['gynoid'].body)))
     card = gpu.adapter()
@@ -360,7 +369,8 @@ def main(argv=None):
 
     board_view = stage()
     terminal = board_view.is_terminal
-    state = {'body': body, 'cadence': cadence, 'orbit': False, **viewpoint.HOME,
+    state = {'body': body, 'ortho': args.ortho, 'director': director, 'cadence': cadence,
+             'orbit': False, **viewpoint.HOME,
              'side': 1.0, 'last_t': None, 'called': 'strong', 'follow': gynoid.Follow(),
              'recording': None, 'recorded': None, 'glitches': 0, 'glitched': None,
              'tripped': None, 'playback': Playback(), 'shown': 'torque', 'skin': 'dressed',
@@ -369,7 +379,7 @@ def main(argv=None):
              'manners': {}}
 
     def draw():
-        said = []
+        said, body = [], state['body']
         body.latest(into=said)
         if state['recording'] is not None:
             state['recording'] += [row(s, state['yaw']) for s in said]
@@ -417,7 +427,8 @@ def main(argv=None):
                                                   if state['called'] != 'none' else None),
                                           dressed=state['skin'] == 'dressed',
                                           see=_seen(state)))
-        side = boxes(state, now, name) + ([traffic(state, now)] if state['data'] and now else [])
+        side = (gym.boxes(now) + boxes(state, now, name)
+                + ([traffic(state, now)] if state['data'] and now else []))
         return frame_of(board_view, ORIGIN, TITLE, art, side, BAR, gauges=gauges(state),
                         help=(GROUPS, up))
 
@@ -433,7 +444,7 @@ def main(argv=None):
                            args.frames, draw, on_input=lambda typed, wheel: act_on(KEYS, typed, state, wheel),
                            **viewpoint.mouse(state, lambda: size_of(board_view, args)))
     finally:
-        body.close()
+        state['body'].close()
         sys.stdout.write('\n')
         closing([('body', 'stopped, her process ended'),
                  ('boards', 'none - every drive was simulated')], terminal, 0)

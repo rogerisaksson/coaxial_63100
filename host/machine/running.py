@@ -2,6 +2,7 @@
 
     body = Running(cadence=0.85)         # a DYNAMIC gynoid landed in the squat, her director
     body = Running(pace=0.0)             # - her going the one law's, its walk (`machine.pace`)
+    body = Running(worker=sprung.run)    # - her latent loop's gym (`machine.sprung`)
     body.send(cadence=1.0); body.send(push=(0.0, 0.0, 120.0))
     body.send(glitch=('left_knee', 'soa', 0.5))   # a board glitched (`World.glitch`)
     body.send(event='sill')              # laid where her walk meets it (`machine.events`)
@@ -200,13 +201,14 @@ def _run(commands, states, cadence, local, pace_asked, room=False):
 class Running:
 
     """The gynoid's worker process: `send` it commands, read its `latest` state; `local` the
-    model that plans her get-up (`machine.planner`), picklable."""
+    model that plans her get-up (`machine.planner`), picklable; `worker` another's loop in
+    the director's place, (commands, states) its own to read and say."""
 
-    def __init__(self, cadence=0.85, local=None, pace=None, room=False):
+    def __init__(self, cadence=0.85, local=None, pace=None, room=False, worker=None):
         context = multiprocessing.get_context('spawn')
         self._commands, self._states = context.Queue(), context.Queue(maxsize=8)
-        self._process = context.Process(target=_run, daemon=True, args=(
-            self._commands, self._states, cadence, local, pace, room))
+        self._process = context.Process(target=worker or _run, daemon=True, args=(
+            (self._commands, self._states) + (() if worker else (cadence, local, pace, room))))
         self._process.start()
         self._last = None
 
