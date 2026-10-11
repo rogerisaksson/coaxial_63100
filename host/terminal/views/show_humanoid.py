@@ -19,7 +19,7 @@ import time
 from rich.text import Text
 
 from coaxial.comm.session import Origin
-from coaxial.graphics import gpu, gynoid
+from coaxial.graphics import gpu, gynoid, inset
 from coaxial.graphics.shapes import view
 from coaxial_ollama.client import Chosen
 from machine import ansi, events, figure, gait, gaits, style
@@ -408,6 +408,8 @@ def main(argv=None):
                                           heat={j: h[0] for j, h in now['heat'].items()},
                                           props=now.get('props'),
                                           mark=marked(state, now, time.monotonic()),
+                                          inset=(inset.cells(now['seen'], width)
+                                                 if now.get('seen') else None),
                                           legend=(legend(state['shown'], width)
                                                   if state['called'] != 'none' else None),
                                           dressed=state['skin'] == 'dressed',

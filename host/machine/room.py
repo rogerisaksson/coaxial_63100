@@ -53,9 +53,10 @@ def _box(name, at, half, contacts, extra=''):
         (name,) + tuple(at) + (name,) + tuple(half) + (contacts, extra))
 
 
-def furnish(contacts):
+def furnish(contacts, textured=False):
     """The room's bodies, after the floor: the walls, the furniture, the door on its hinge,
-    the lamp and its switch; `contacts` the floor's contact attributes."""
+    the lamp and its switch; `contacts` the floor's contact attributes; `textured`, each in
+    its kind's material for her eyes (`sight.LOOKS`)."""
     mid = (FROM + TO) / 2.0
     out = [
         _box('wall_left', (-WIDE, HIGH / 2.0, mid), (THICK, HIGH / 2.0, (TO - FROM) / 2.0), contacts),
@@ -89,6 +90,10 @@ def furnish(contacts):
             out.append(_box('table_leg_%d_%d' % (dx > 0, dz > 0),
                             (TABLE_AT[0] + dx * 0.55, TOP_H / 2.0, TABLE_AT[1] + dz * 0.3),
                             (0.02, TOP_H / 2.0, 0.02), contacts))
+    if textured:
+        out = [s.replace('type="box"', 'type="box" material="%s"' % next(
+            (k for head, k in KINDS.items() if s.split('name="')[1].startswith(head)), 'wood'))
+               for s in out]
     return out
 
 

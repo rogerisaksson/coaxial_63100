@@ -367,6 +367,7 @@ Six firmware defects, no hardware fault:
 | A woman's walk as the metric: the band, walks off it, the take | [findings/normal.md](findings/normal.md) |
 | Feet: passive toes, the sole's give, the push-off | [findings/feet.md](findings/feet.md) |
 | The living room: glass walls, furniture, a door, a lamp; the words and the law's turn | [findings/room.md](findings/room.md) |
+| Her eyes: the stereo, the map she keeps, its things, her ways round them; the page's picture | [findings/sight.md](findings/sight.md) |
 | Kinematics: the figure's recipes, dual quaternions, the jeans' seams | [findings/kinematics.md](findings/kinematics.md) |
 | Balance: the capture law, the side step, floor events, shoves, the scoreboard | [findings/balance.md](findings/balance.md) |
 | Standing: the rigs, the one law in the capture point's plane, the push polar | [findings/standing.md](findings/standing.md) |

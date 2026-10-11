@@ -105,7 +105,7 @@ CONTROLLER = 'test_controller.py'
 #: run's (`run.FORM`); her going on the one law, its rows (`go.FORM`).
 GYNOID, GYNOID_FAULTS, GYNOID_FALLS = 'test_gynoid.py', 'test_gynoid_faults.py', 'test_gynoid_falls.py'
 GYNOID_STAND, GYNOID_GAIT, GYNOID_RUN = 'test_gynoid_stand.py', 'test_gynoid_gait.py', 'test_gynoid_run.py'
-GYNOID_GOING, WBC, ROOM = 'test_gynoid_going.py', 'test_wbc.py', 'test_room.py'
+GYNOID_GOING, WBC, ROOM, SIGHT = 'test_gynoid_going.py', 'test_wbc.py', 'test_room.py', 'test_sight.py'
 THRUSTS = 'test_thrusts.py'
 
 #: The cyclic executive (machine.cyclic): its steps against machine.parts, a cycle on a toy rotor.
@@ -123,7 +123,7 @@ DEFAULT_SUITES = (STRUCTURES + (CORE, SHTP, DRIVE, DRIVE_OBSERVER, FILTER, THERM
                    CTRL_CORE, WORLD_CORE, WIRE, NATIVE, NATIVE_HEAT, EMULATOR,
                    SENSORLESS,
                    BROKER, DAQ_API, CONTROLLER, GYNOID, GYNOID_FAULTS, GYNOID_FALLS,
-                   GYNOID_STAND, GYNOID_GAIT, GYNOID_RUN, GYNOID_GOING, ROOM, WBC, CYCLIC, QUAD,
+                   GYNOID_STAND, GYNOID_GAIT, GYNOID_RUN, GYNOID_GOING, ROOM, SIGHT, WBC, CYCLIC, QUAD,
                    THRUSTS, QUAD_COURSE, BOOT)
                   + VIEWS
                   + (RENDER,) + OLLAMA
@@ -136,14 +136,9 @@ LIVE = 'test_live_model.py'
 
 ALL_SUITES = DEFAULT_SUITES + (CONFORMANCE, LIVE)
 
-#: Where each suite joins a tier. Cheapest per check first, so a tier buys
-#: the most checks for the least wall time. Measured, seconds per check:
-#: simulated 0.003, ollama 0.019, core 0.03, parity 0.13, mcp 0.14,
-#: conformance 0.29, bench 5.0, live 4.6.
-#:
-#: The ollama suites are not here: they are in from the first tier and narrow
-#: THEMSELVES through their own subject budget, which is where the fine
-#: resolution lives.
+#: Where each suite joins a tier, cheapest a check first (s a check: simulated 0.003,
+#: ollama 0.019, core 0.03, parity 0.13, mcp 0.14, conformance 0.29, bench 5.0, live
+#: 4.6). The ollama suites are in from the first tier, narrowed by their subject budget.
 JOINS = (
     (10, 'test_simulated.py'),
     (12, DAQ_API),
@@ -156,6 +151,7 @@ JOINS = (
     (12, GYNOID_RUN),
     (12, GYNOID_GOING),
     (12, ROOM),
+    (12, SIGHT),
     (12, WBC),
     (12, CYCLIC),
     (12, QUAD),
@@ -229,8 +225,9 @@ ALONE = (BENCH, CONFORMANCE, LIVE)
 
 #: Suites that hold a board to the wall's time, a page drawing beside it: alone where the host
 #: has four batons or fewer - CI's runner stood native's attitude page 4.7-8.3 s beside the
-#: others while it drew on (2026-09-28).
-REAL_TIME = (NATIVE, NATIVE_HEAT, QUAD_PAGE)
+#: others while it drew on (2026-09-28); the rotor demo's switches spent 16.3 % of their
+#: margin where 20 is asked, test_room beside it (CI, 2026-10-11).
+REAL_TIME = (NATIVE, NATIVE_HEAT, QUAD_PAGE, 'test_views_demo.py')
 
 #: Suites that may reach the board's port: one at a time, beside the rest.
 PORT = ('test_mcp.py', 'test_parity.py')
@@ -310,7 +307,7 @@ TOUCHES = (
     ('host/coaxial/graphics/scenery.py',       QUADS + (RENDER,)),
     ('host/machine/',                          (CONTROLLER, GYNOID, GYNOID_FAULTS, GYNOID_FALLS,
                                                 GYNOID_STAND, GYNOID_GAIT, GYNOID_RUN,
-                                                GYNOID_GOING, ROOM, WBC, CYCLIC,
+                                                GYNOID_GOING, ROOM, SIGHT, WBC, CYCLIC,
                                                 'test_simulated.py', 'test_mcp.py',
                                                 'test_views_humanoid.py')),
     ('host/coaxial/graphics/gynoid.py',        (RENDER, *VIEWS, GYNOID)),

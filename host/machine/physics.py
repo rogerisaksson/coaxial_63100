@@ -83,8 +83,8 @@ WOUND = 1.0
 #: On the boxes the walk on setpoints drags its toes 7-19 mm at lift where 1 rigid and its form's
 #: 2, the loop on its torques walks them at 265-326 J/m: the loop's world, the walker's rigid
 #: till the page walks on the loop (docs/findings/drives.md, 2026-10-11).
-#: ROOM: the living room round her (`machine.room`), its door and its lamp; 0 the floor alone.
-BOXED, ROOM = 0.0, 0.0
+#: ROOM: the living room round her (`machine.room`); SIGHT her eyes on it (`machine.sight`).
+BOXED, ROOM, SIGHT = 0.0, 0.0, 0.0
 
 #: Whether a drive on a gimbal's stage (`drives.mount`: the hip's roll M, its pitch L) rides it,
 #: turning with the leg's yaw and roll, or the segment that stage hangs from - on them, 0.7 kg of

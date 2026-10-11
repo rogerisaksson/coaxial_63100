@@ -150,7 +150,8 @@ def _joint(joint, axis, sign):
 
 
 def _mjcf(bones):
-    from machine.physics import PLACED, ROOM, SERVO, STEP_S
+    from machine import sight
+    from machine.physics import PLACED, ROOM, SERVO, SIGHT, STEP_S
     shells = build.segments() if build.SHELLS else {}
     kids, riders = {}, build.riders() if PLACED and not shells else {}
     for seg in SEGMENTS:
@@ -198,6 +199,8 @@ def _mjcf(bones):
             shells[name][1] + (shells[name][0],) + shells[name][2]) if shells else
                    '<inertial pos="%g %g %g" mass="%g" diaginertia="%g %g %g"/>' % (
             tuple(com) + (mass,) + tuple(mass * g * g for g in gyr)))
+        if name == 'head' and SIGHT:
+            out += sight.cameras()
         out += carried(name)
         grip = ' contype="%d" conaffinity="%d" condim="4" friction="%%g %g 0.001"' % (
             ME, MEETS, TORSION_M)
@@ -260,11 +263,12 @@ def _mjcf(bones):
          'impratio="%g"%s' % (STEP_S, CONE, IMPRATIO, '><flag filterparent="disable"/></option>'
                               if bones else '/>'),
          '<default><joint damping="0.3"/><geom contype="0" conaffinity="0"/></default>',
+         ] + (sight.assets() if SIGHT else []) + [
          '<worldbody>',
-         ] + floor.ground(contacts, give, TORSION_M)
+         ] + (sight.lights() if SIGHT else []) + floor.ground(contacts, give, TORSION_M)
         + body(SEGMENTS[0])
         + floor.rug(give, FRICTION, TORSION_M)
-        + (room.furnish(contacts) if ROOM else [])
+        + (room.furnish(contacts, textured=bool(SIGHT)) if ROOM else [])
         + ['</worldbody>', '<contact/>', '<actuator>']
         + ['<motor joint="%s" ctrlrange="%g %g"/>' % (j, -max(SERVO[kind(j)][0], drives.peak(j)),
                                                       max(SERVO[kind(j)][0], drives.peak(j)))

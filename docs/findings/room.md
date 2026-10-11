@@ -12,6 +12,8 @@ wireframes; the door where it swings; the lamp lit.
 
 ## The words
 
+Her eyes on the room and the ways they plan: [sight](sight.md).
+
 `room.WORDS`: sit on the chair, lie on the bed, out through the door, the lamp;
 each a target (x, z), a facing and the heading it is come at, walked to on the
 one law (turns.md) and done there (`machine.errands`, keys U I E Y, U or
@@ -24,7 +26,7 @@ her 0.15 m), turned standing to the facing, 1 s settled. Measured 2026-10-11
 | Word | Outcome |
 | --- | --- |
 | out | through the door - pushed open 102 deg by her toes and fingers -, standing beyond it 0.13 m from the target at 24 s |
-| out, E pressed on the page as she walks (z 2.1) | halted, turned 48 deg to the approach point 0.6 m off, walked it, halted, turned back 33 deg, and the walk's restart fell at 16 s - she never reached the door (the user saw her meet its post, 2026-10-11); from her stand she crosses the line 0.39 m from the nearer post, her toes on the door alone |
+| out, E pressed on the page as she walks (z 2.1) | halted, turned 48 deg to the approach point 0.6 m off, walked it, halted, turned back 33 deg, and the walk's restart fell at 16 s - she never reached the door (seen on the page, 2026-10-11); from her stand she crosses the line 0.39 m from the nearer post, her toes on the door alone |
 | lamp | at the switch 0.43 m off, faced on it within 6 deg (the heading aimed so her right hand's line, 0.27 m to her right, runs through it); the arm raised 40 deg/s meets the wall under the switch and the push fells her: the hand's arc crosses the switch's 8 cm only 0.39-0.44 m off it, the halt scatters her 0.1-0.3 |
 | sit | at 0.6 m before the seat, faced 180 deg; stepping round 0.45 m before it her toes met the chair's legs; sat from 0.45 m back the director read her 0.55 m pelvis as a fall - judged against the keyframe now; the plop from 0.6 m untried |
 | lie | at the bed's foot, faced; lain across it (0.9 m wide) she rolled off its far side; lain along it from its foot, 0.7 m back, she tumbled onto it |
@@ -32,7 +34,7 @@ her 0.15 m), turned standing to the facing, 1 s settled. Measured 2026-10-11
 - The lamp wants her hand placed at a point - the arm's two joints solved
   for the switch, or the reach as she walks the last 0.4 m -; a sit and a
   lie a step back to the seat, or the pelvis let down on the law
-  (docs/TODO.md 32).
+  (docs/TODO.md 27).
 - The waypoint loops (`room.WAYS`) went with the turn. An approach from the
   table's side ran under the table: the chair is come at along the gap
   between them. Stopped at the approach point from the walk's row she fell,

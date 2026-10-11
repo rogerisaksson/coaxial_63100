@@ -434,7 +434,7 @@ def test_smart_selection(report):
                table.BOOT_CLIENT, table.CTRL_CORE, table.WORLD_CORE, table.WIRE, table.SENSORLESS, table.DAQ_API,
                table.CONTROLLER, table.GYNOID, table.GYNOID_FAULTS, table.GYNOID_FALLS,
                table.GYNOID_STAND, table.GYNOID_GAIT, table.GYNOID_RUN, table.GYNOID_GOING,
-               table.ROOM, table.WBC, table.CYCLIC, table.QUAD, table.QUAD_COURSE,
+               table.ROOM, table.SIGHT, table.WBC, table.CYCLIC, table.QUAD, table.QUAD_COURSE,
                table.BOOT} | set(table.OLLAMA)
     for percent, expect in ((25, quarter),
                             (75, quarter | {'test_parity.py', 'test_mcp.py', table.EMULATOR,

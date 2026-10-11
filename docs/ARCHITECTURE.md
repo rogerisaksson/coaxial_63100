@@ -197,6 +197,7 @@ tests/              suites, .counts.json (measured sizes)
 | physics | DYNAMIC: the figure in MuJoCo, a drive a joint |
 | gearbox | each drive's gearbox: the rotor free across its play, the box wound up past it, the link turned |
 | room | a living room round her: glass walls, furniture, a door, a lamp, and its words |
+| sight | her eyes: a stereo pair on her head, the disparity by block matching, the map she keeps, its things, her way round them |
 | floor | the slab, a sill, a patch, a rug, a stair |
 | rtu | Modbus RTU: CRC-16, a pass's frames |
 | buses | the boards on a bus a limb, a process each in lockstep with the world over a shared block, the host's frames bytes on a socket a bus |
@@ -242,6 +243,7 @@ tests/              suites, .counts.json (measured sizes)
 | `test_gynoid_gait.py` | the walk's form, held to its take (tests/takes/walk.fbx) and to a woman's band (`tools/sim/normal.py`) |
 | `test_gynoid_going.py` | the one law's rows, the ways between them, its manners read back in the band's words |
 | `test_room.py` | the law's turns, walking and stepping round standing; out through the room's door |
+| `test_sight.py` | the stereo against the renderer's depth; her map against the room, the chair and the table told, a way planned clear; the page's picture |
 | `test_wbc.py` | the QP solver's KKT, two levels' priority, standing, shoves with and without a step |
 | `test_wbc_core.py` | her chain in C against MuJoCo: frames, M, bias, Jacobians at random configurations; a step's time |
 

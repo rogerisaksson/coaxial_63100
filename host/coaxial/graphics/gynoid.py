@@ -472,7 +472,7 @@ def _props(props, m, cam, centre, travel):
 def render(angles, width, height, yaw=30.0, pitch=8.0, zoom=1.0, colour=True, travel=(0.0, 0.0),
            lit=None, root=None, labels=None, heat=None, props=None, legend=None, dressed=True,
            mark=None,
-           around=False, see=None, pan=(0.0, 0.0)):
+           around=False, see=None, pan=(0.0, 0.0), inset=None):
     """Her, posed at {joint: degrees}, the pelvis at `root` (place, turn) if given, `width` x
     `height` cells: lines. `lit` a `gpu.LitRaster`, or None to splat her dots here; `labels`
     {joint: [row, ..]} called out at the edges (`callouts`); `heat` {joint: C} each drive's drum
@@ -480,7 +480,7 @@ def render(angles, width, height, yaw=30.0, pitch=8.0, zoom=1.0, colour=True, tr
     (`World.props`), drawn as edges `travel` (x, z) m back; `legend` a row [(char, fg, bg)] on the
     last line, the callouts kept above it; `dressed` False her shell; `around` the callouts docked
     round her; `see` 'mechanism' or 'actuators' (`mechanism`); `pan` (right, up) m the view
-    moved in its plane."""
+    moved in its plane; `inset` cells {(row, col): (codepoint, key)} laid over all."""
     np = _np()
     who = body(dressed, see)
     m = view(yaw, pitch)
@@ -539,5 +539,7 @@ def render(angles, width, height, yaw=30.0, pitch=8.0, zoom=1.0, colour=True, tr
             overlay[(height - 1, col)] = (ord(char), packed(fg, bg))
     if mark is not None:
         overlay = _marked(overlay, mark, m, fine, centre, travel, width, height)
+    if inset:
+        overlay = {**(overlay or {}), **inset}
     return braille(depth, rgb, grid(m, fine, centre, travel), width, height, colour, overlay,
                    leaders, _props(props or (), m, fine, centre, travel) + wired)

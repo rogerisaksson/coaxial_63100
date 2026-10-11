@@ -4,8 +4,8 @@ Stand, walk and run as the setpoints of one law (`machine/going.py` over
 `gaits.py`, `hold.py` and `strut.py`; `tools/sim/go.py`; 2026-10-05): the
 law, what a walk and a stand asked of it, what it walks and runs at. The walk
 as built: [walk](walk.md); the run: [run](run.md); the page's standing law:
-[standing](standing.md), its turns [turns](turns.md). On the page under J, S
-and F its rows;
+[standing](standing.md), [turns](turns.md). On the page under J, S and F its
+rows;
 `tools/sim/ways.py` is its spread of timings.
 
 ## The law

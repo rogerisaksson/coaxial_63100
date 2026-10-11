@@ -69,8 +69,8 @@ def _run(commands, states, cadence, local, pace_asked, room=False):
     """The worker: the machine, the director, the loop paced to the clock; `room` round her."""
     import numpy as np
 
-    from machine import Machine, events, pace, physics, style
-    physics.ROOM = 1.0 if room else 0.0
+    from machine import Machine, errands, events, pace, physics, style
+    physics.ROOM = physics.SIGHT = 1.0 if room else 0.0
     from machine.director import Director
     from machine.figure import JOINTS
     from machine.heat import GATES_ON
@@ -181,7 +181,7 @@ def _run(commands, states, cadence, local, pace_asked, room=False):
                      'props': world.props(), 'armed': tuple(event) if event else None,
                      'rig': floor['rig'], 'doing': director.doing,
                      'errand': repr(director.errand) if director.errand else None,
-                     'lamp': bool(getattr(world, 'lamp', False)),
+                     'lamp': bool(getattr(world, 'lamp', False)), 'seen': errands.seen(director),
                      'buses': ([(tuple(JOINTS[i] for i in b.indices), int(world.block.written[b.link]),
                                  int(world.block.sent[b.link]), b.bad) for b in world.buses.each]
                                if world.buses is not None else []),
