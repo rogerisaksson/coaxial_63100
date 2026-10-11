@@ -8,7 +8,7 @@ tests/takes/walk.fbx. The walk as built: [walk](walk.md); the one law's:
 ## The band
 
 23 measures from joints' places alone, so rows, a recording, a mocap take and
-an animation compare alike; a band each (2026-10-05):
+an animation compare alike; a band each:
 
 - Textbook gait: the knee all but straight at landing, 15-20 deg bent under
   load, 35-45 as its toes leave at 60 % of the stride, 60-70 swinging; the
@@ -22,7 +22,7 @@ an animation compare alike; a band each (2026-10-05):
 
 ## Walks off the band
 
-Distance off the band in the bands' widths (2026-10-05):
+Distance off the band in the bands' widths:
 
 | Walk | Off | Out of band |
 | --- | --- | --- |
@@ -35,7 +35,7 @@ Distance off the band in the bands' widths (2026-10-05):
 
 ## Reference take
 
-tests/takes/walk.fbx, `look.py --built --to 12 --fbx` (2026-10-05): 355
+tests/takes/walk.fbx, `look.py --built --to 12 --fbx`: 355
 frames, 6 s, 134 kB, binary FBX 7400, a LimbNode a segment by HumanIK's
 names; read back 0.000 mm off over 20 joints. Its stamp is fixed; its FileId
 and its footer's code derive from that stamp as in the FBX SDK's own files,
@@ -44,7 +44,7 @@ Opened in no other program yet.
 
 ## Tests
 
-- test_gynoid_gait.py (2026-10-05): the walk as the take, each measure within
+- test_gynoid_gait.py: the walk as the take, each measure within
   0.1 of its band's width (two windows of one walk 0.03 apart at most); on
   the band but for the five known out, none further.
 - test_gynoid_going.py: the law's arms on the band, its walk no further off
@@ -54,7 +54,7 @@ Opened in no other program yet.
 
 ## Words
 
-`normal.WORDS`, `GAITS` (2026-10-05). Each quality is read against its
+`normal.WORDS`, `GAITS`. Each quality is read against its
 opposite (stiff against soft). A word is how far its measures are out of
 their bands on its side, in the bands' widths, said from 0.1:
 
@@ -90,8 +90,8 @@ and not wide; a run flying. Read off 19 walks:
 
 ## Manners on the walk as built
 
-`style.MANNERS`, `look.py --manner`, the body's 'manner' command
-(2026-10-05): a middle layer that blends, concepts as tuples. A manner is a
+`style.MANNERS`, `look.py --manner`, the body's 'manner' command:
+a middle layer that blends, concepts as tuples. A manner is a
 line through the walk as built's constants from where they are tuned, asked
 ((manner, amount), ..) and summed.
 
@@ -110,7 +110,7 @@ one law's. A walk into the wind, four takes of one: crouched 1.0-1.9,
 landing bent 1.5-2.5, tripping 0.9-1.1, wide 0.5-0.8, leaning 0.4-1.2 (the
 trunk 8-22 deg ahead), slow.
 
-## The one law's walk since 2026-10-06
+## The one law's walk
 
 [going](going.md): 0.34 off the band where 4.10; stiff 0.31 and shuffling
 0.24 where stiff 2.38. With its free foot's raise eased 0.20, stiff 0.17:
@@ -122,7 +122,7 @@ the walk within 0.6 of it, its words under 0.5.
 
 ## Manners on the one law
 
-`gaits.MANNERS`, `go.py --manner`, the page's M, Z and X (2026-10-06). A
+`gaits.MANNERS`, `go.py --manner`, the page's M, Z and X. A
 manner moves a row's setpoints, or other manners; its amount 0 to 1 comes on
 and goes over 2 s while walking, less the less a walk's the row is:
 
@@ -145,7 +145,7 @@ and goes over 2 s while walking, less the less a walk's the row is:
 - test_gynoid_going.py holds each manner's words and the plain walk after
   them; M picks a manner on the page, Z and X its amount, each keeping its
   own.
-- Frame (2026-10-06): a base (a pose, a gait), its accents by amount, a
+- Frame: a base (a pose, a gait), its accents by amount, a
   transition between two. As built: standing is the gait's row at no speed,
   so one base and its accents within what bears the weight; a transition is a
   thing of its own where two bases' mix is no movement (walk to jog by the
@@ -154,7 +154,7 @@ and goes over 2 s while walking, less the less a walk's the row is:
 
 ## A pose and its way into a walk
 
-`gaits.POSES`, `passed` (2026-10-06): a pose a base with accents, a
+`gaits.POSES`, `passed`: a pose a base with accents, a
 transition from it to a gait. Two setpoints the stand alone reads: `weigh`,
 how far toward one foot the weight is, and `hang`, the pelvis rolled up over
 that leg.
@@ -172,8 +172,8 @@ that leg.
 
 ## Slow walks strolled
 
-`gaits.STROLLS`, the accent `strolling`, asked by a slow walk's row itself
-(2026-10-06). A woman's step keeps its ratio to its time at any pace; the
+`gaits.STROLLS`, the accent `strolling`, asked by a slow walk's row itself.
+A woman's step keeps its ratio to its time at any pace; the
 law's slow walks kept the walk's 0.52 s:
 
 | Row | Step | m/s | Walk ratio | Off the band | J/m |

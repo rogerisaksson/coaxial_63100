@@ -11,21 +11,21 @@ shoves, the scoreboard and its searches. The board's findings:
   head's travel and the copper: bend 11.7 -> 5.7 deg, peak 2.9 -> 2.2 body
   weights, head 8.5 -> 6.0 cm, heat 0.47 -> 0.29, work 0.60 -> 0.35 m g d.
   Cost of transport 0.64 (the cheapest, knees bent, 0.52; the old walk 1.07).
-  Straight legs cut the copper by 37 % (2026-09-26).
+  Straight legs cut the copper by 37 %.
 - Twelve trials a candidate (`tools/sim/gait_montecarlo.py`: three rises,
   three walks, six shoves of 14 N s), 19 s on 16 cores: held 85 % of the
   time; every side shove fells it. Shoved toward the standing foot the catch
   steps the other across it; held off, it falls 1 s later; the standing foot
   lifts on the clock while the other still reaches. The capture point's law on
   the plan's reference fells the walk: the plan's sway is not the pendulum's,
-  the DCM error in a steady walk 93 mm rms at liftoff (2026-09-26).
+  the DCM error in a steady walk 93 mm rms at liftoff.
 - The capture point from the pelvis's sideways speed, not the CoM's (the swing
   leg's speed is in that: a wide step put it 6 cm out past where it went); its
   course 0 -> 51 mm out over the swing at 0.65, 0.85 and 0.9 strides/s; the
   ankle holds what the course leaves of the sole (at 0.65, 25 mm off at 0.7 of
   the swing doubled); the foot 1.1 of what is off further out; at 1.3 the step
-  back grew 1.35 a step (`machine.capture`, 2026-09-26).
-- Landings (2026-09-26):
+  back grew 1.35 a step (`machine.capture`).
+- Landings:
 
 | Change | Fault it removed |
 | --- | --- |
@@ -46,8 +46,7 @@ shoves, the scoreboard and its searches. The board's findings:
 - No help: a toe-off gate on the capture point (the legs driven 3.5 cm across
   moved the pelvis 3 mm in 0.2 s; walking on, the frozen plan sank it 17 cm);
   the pelvis driven by the capture point's error (the foot slid 20 cm) or by
-  the course's deviation alone (down in 1.4 s). The plan's sway servo stays
-  (2026-09-26).
+  the course's deviation alone (down in 1.4 s). The plan's sway servo stays.
 - The director's slip re-anchoring at 4 cm (at 2 cm the feet's slides under
   the ankle's drive at 0.65 re-anchored eight times in 2 s and it fell); the
   side step's out foot set where the pelvis will be, kept there: twelve trials
@@ -56,9 +55,8 @@ shoves, the scoreboard and its searches. The board's findings:
   ends with the sagittal capture point 27 cm ahead and no foot there) and the
   shove at 0.9 as the swinging foot lands. Hurrying the phase on a catch
   latched the landing early and 9 cm short; a swinging foot held as landed
-  once it bore mid-swing reset the phase at every touch: both out again
-  (2026-09-27).
-- The side step's foot-to-foot strikes (2026-09-27):
+  once it bore mid-swing reset the phase at every touch: both out again.
+- The side step's foot-to-foot strikes:
 
 | Fault | Fix |
 | --- | --- |
@@ -85,12 +83,12 @@ shoves, the scoreboard and its searches. The board's findings:
   0.1 mm and noise; the damping stays off. At 0.30 the shove toward the
   swinging foot fells it as it is: the landing latched at 0.7 of the swing
   with the capture point 9 cm out, which ran to 23, and it toppled over the
-  foot (2026-09-27).
+  foot.
 
 ## Floor events
 
 `physics.World.terrain` in the shoves' place on the scoreboard, a shove
-hardly ever happening to a walker (2026-09-27):
+hardly ever happening to a walker:
 
 | Event | Setup | Result |
 | --- | --- | --- |
@@ -104,7 +102,7 @@ hardly ever happening to a walker (2026-09-27):
   moved 1 m): the slabs are compiled over their whole span and cut, the sill
   and the patch are mocap bodies. Held 93 %.
 - A drive's glitch (`physics.World.glitch`, the peak torque cut to a share for
-  a while) on the scoreboard (2026-09-27):
+  a while) on the scoreboard:
   + The left knee's gate dropped for 0.15 s at mid-stance ('cut'): 19 deg
     under 500 N, the pelvis 16 mm, then weight taken again, tipped 4.
   + The knee derated to a tenth for 2 s ('hot', 25 N m): folds 18 -> 64 deg in
@@ -124,12 +122,12 @@ hardly ever happening to a walker (2026-09-27):
 - A 6 cm sill caught the skimming toes and it fell. A swinging foot bearing
   80 N is lifted 8 cm more until its heel clears it, the other too
   (`landing.over`): the page's sill, 13 places 3 cm apart, walked on at 4
-  where 2; the stair, 3 steps where 4 (2026-09-28).
+  where 2; the stair, 3 steps where 4.
 - A 5-step stair of 8 cm, blind, the floor read where each foot bears and the
   step expected again: walks up all five, pitches over at a landing a step
-  lower (2026-09-28).
-- The lace a snag (`World.lace`): 6 of 9 went taut, 5 felled it (2026-10-01).
-- What trips it (`machine.events`, `tools/sim/look.py --event`, 2026-09-28):
+  lower.
+- The lace a snag (`World.lace`): 6 of 9 went taut, 5 felled it.
+- What trips it (`machine.events`, `tools/sim/look.py --event`):
   the 4 cm sill tips it 6 deg and it walks on; a lace pulling the lifting foot
   back 120 N for 0.15 s, 7; 250 N for 0.2 s and past, it falls, the
   director's fall declared 0.15 s after, before the foot is free, the standing
@@ -143,26 +141,26 @@ hardly ever happening to a walker (2026-09-27):
 ## Shoves and the scoreboard
 
 - P's 120 N felled it back to 279ba6f. Shoved 30, 60, 120 N 48 times: HEAD
-  held 33, 10, 1; the parry 38, 21, 0 (`landing.PARRY_HURRY`, 2026-10-01).
+  held 33, 10, 1; the parry 38, 21, 0 (`landing.PARRY_HURRY`).
 - The scoreboard's events each laid at three places (`gait_montecarlo` SPREAD:
   3 cm along the walk, a glitch 0.05 of the stride), a trial its spread's
   mean, 30 runs a candidate: the committed arms and the same moved 2 % cost
   7.63 and 7.10 where one run a trial gave 6.08 and 8.84; the arms from the
-  forearm 8.61; the slip at 0.9 strides/s held 55 % (2026-09-28).
+  forearm 8.61; the slip at 0.9 strides/s held 55 %.
 - P's shove to the left at phase 0.14 on the merged feet (the box sole, the
   ankles on frame A): the catch overshoots to the right, the pelvis sinks 0.89
   -> 0.62 m over 0.4 s before FALLING_M calls the fall, fallen 0.12 s on, the
   hands down 0.27 s in with the arms 65 % into their catch, the head at 1.74
   m/s (test_gynoid_falls' crouch, 1 of 16; green before the merge; the toes
   driven in this build). Called 0.14 s earlier on a sink past 0.6 m/s: two
-  falls struck, 1.68 and 3.41; the curl over 0.25 s: 3.22 (2026-10-04).
-- The scoreboard at the day's end (`--suite all`, 28 trials, 2026-10-04): 729
+  falls struck, 1.68 and 3.41; the curl over 0.25 s: 3.22.
+- The scoreboard at the day's end (`--suite all`, 28 trials): 729
   and 65.7 %. Rises 76, 100, 99; walks 71, 100, 31, 12 at 0.65-1.0; events:
   hole 77, sill 100, slip 76, rug 29, the sill at 0.65 19, the slip at 0.9
   18, SOA 77, hot 100, lace 26, nudge 54; shove 27; standing nudges and the
   stiff board 100, shoves 49, bricks 49 and 53, the rocker 62 and 85. The fast
   walks and the catches are the gap.
-- The catch's gain and hurry on the faults suite (2026-10-04, 33 runs a
+- The catch's gain and hurry on the faults suite (33 runs a
   cell):
 
 | Gain, hurry | Cost | Held % |
@@ -175,8 +173,7 @@ hardly ever happening to a walker (2026-09-27):
   A blind 6-knob search at 8 x 12 overbooked the relay and was stopped
   unlogged.
 
-- The grinder's first round (`tools/sim/gym.py`, gemma4:12b proposing,
-  2026-10-04): its own pick, capture.MARGIN 0.03-0.06 and GAIN 1.1-1.3 on the
+- The grinder's first round (`tools/sim/gym.py`, gemma4:12b proposing): its own pick, capture.MARGIN 0.03-0.06 and GAIN 1.1-1.3 on the
   faults suite, 1 x 10 in 698 s; best 296.9 and 53.2 % at 0.0319 and 1.10,
   the built 178 and 54.9 staying. Rounds 2 and 3: landing.PARRY_M 0.02 and
   PARRY_HURRY 0.234 on faults 317.3 and 58.5 %; stand.GAIN and STEP_MAX_M on
@@ -184,7 +181,7 @@ hardly ever happening to a walker (2026-09-27):
   run, Clef picking the suite: stand.DWELL_S 0.15-0.6 and HANG_S 0.05-0.3 on
   the stand suite, 1 x 10 in 273 s, best 178.2 and 76.0 % at 0.368 and 0.15
   against the built 215 and 74.7 (0.4 and 0.1); one round, not baked.
-- The day's build (2026-10-04: the toes sprung at `TOE_K` 10, the heel off at
+- The day's build (the toes sprung at `TOE_K` 10, the heel off at
   0.5 and 40 deg, the one law standing): scoreboard 641.7 and 78.6 % over 28
   trials against the morning's 729 and 65.7 on driven toes (sill and slips
   100 %, hot 93, rug and nudge 77, soa 54, hole 33, lace 26, the stand suite
@@ -192,12 +189,11 @@ hardly ever happening to a walker (2026-09-27):
   again at 33.2 s. The tests' single runs flip with the push-off: at 30 deg
   the falls suite 44 of 44 and the faults' walk-on down; at 40 the faults 9
   of 9 and the head on the floor twice, 4.31 m/s at most.
-- The grinder on the day's build (`gym.py`, its knobs by the schema,
-  2026-10-04): the stand suite 1 x 8 over `bearing.PRESS_M`, `SEEK_M_S`,
+- The grinder on the day's build (`gym.py`, its knobs by the schema): the stand suite 1 x 8 over `bearing.PRESS_M`, `SEEK_M_S`,
   `stand.HANG_S`, `HANG_SHARE`; best 146.8 and 80.9 % at 0.0078, 0.294, 0.130
   and 0.453, the built values' own neighbourhood (0.01, 0.3, 0.15, 0.45;
   built 77.5 %), a best of eight.
-- The arms aimed as it tips (`falls.aimed`, 2026-10-04). P's shove to the left
+- The arms aimed as it tips (`falls.aimed`). P's shove to the left
   at phase 0.14 had put the head on the floor at 4.31 m/s: the catch folded
   the knees, the fall was called at 0.65 m of pelvis with the trunk 3 deg off
   plumb, the way read behind it, the arms went back (the shoulders to -46
@@ -206,14 +202,14 @@ hardly ever happening to a walker (2026-09-27):
   falls the head never on the floor in 14, at 0.71 and 0.87 m/s in two; the
   peaks' medians 4.1 and 3.7 kN.
 
-- The scoreboard at 13220bb1 (`--suite all`, 84 runs, 2026-10-11): 88.5 %;
+- The scoreboard at 13220bb1 (`--suite all`, 84 runs): 88.5 %;
   rises and walks 100 (the 1.0 walk 10.6 deg behind plumb); hole 77, rug
   79, soa 76, lace 31, the rest 100; the 120 N shove walking 25, standing
   44-46; the stand's nudges, bricks, boards and rockers 100.
 
 ## Starts and the catch
 
-- The catch against its own walk (2026-10-05, `capture.CATCH`). At 4 cm, from
+- The catch against its own walk (`capture.CATCH`). At 4 cm, from
   the squat at 0.85 strides/s it parried a plain floor in 2 runs of 6 side
   gains 0.1 % apart, 16 and 10 times; at 1.0 in 5 of 6. The start's last
   strides run 44-74 mm off the course, and early in a fast swing the leg's own
@@ -222,7 +218,7 @@ hardly ever happening to a walker (2026-09-27):
   step, 60 in a parried one. At 7 cm none of 12 from the squat; the events held
   48 of 90 where 47 (hole 1 and 0, sill 6 and 7, rug 1 and 0, slip 15 and 16,
   soa 8 and 7, hot 9, lace 0, nudge 8); the five gynoid suites as before.
-- Begun standing (2026-10-05). The director starts every walk at 0.85
+- Begun standing. The director starts every walk at 0.85
   strides/s and glides to its pace; the scoreboard set the walker's pace over
   that and 2 walks of 12 fell, 52 parried (the head before the strut: none,
   222, 67-82 a walk at 0.65).
@@ -239,14 +235,14 @@ hardly ever happening to a walker (2026-09-27):
     its fourth lands 130 mm wide (119 from the squat); of 6 side gains 0.3 %
     apart 1 fell and 2 parried 3-19 times; over ramps of 2.5, 3.5, 4.5 and 6 s
     (`stance.RAMP_S`) by 3 gains 2 fell, 3.5 and 6 clean.
-- The speed is its own (2026-10-05). The phase follows the body
+- The speed is its own. The phase follows the body
   (`stance.advance`) and nothing holds it to the asked pace: at 1.0 strides/s
   0.96 m/s where the plan has 0.83, 581 W. A foot landed further ahead of a
   body going fast (`landing.FORE_K`) is no brake, it lengthens the stride:
   read against the asked pace instead of the phase's rate, 0.65 -> 0.68 m/s at
   0.85 strides/s, at a gain of 1.5 0.83 and 639 J/m. The foot under the hip
   later in its stance (`gait.STANCE_AT` 0.265): 0.78 m/s and 349 W at 1.0.
-- The roll's peak against the starts (2026-10-05, 6 side gains 0.3 % apart;
+- The roll's peak against the starts (6 side gains 0.3 % apart;
   `gait._roll`'s peak, of the stride):
 
 | Peak | From the squat | Standing |
@@ -261,20 +257,19 @@ hardly ever happening to a walker (2026-09-27):
   the toes back 4.2 mm where 0.6, the table's 15-38 mm off there landing the
   feet wider.
 
-- The first step is a fall toward the swinging foot (2026-10-05, begun
+- The first step is a fall toward the swinging foot (begun
   standing, the feet 161 mm apart). As the right foot lifts, the CoM stands 39
   mm inside the left ball (the keyframe's 27, `arrival.LIFT_IN`; the sole's
   edge at 45) and the capture point 35 mm inside and going on, past the edge
   0.1 s later; through the lean the weight has come back, 140 N a foot where
   230 and 50 after the shift. The foot lands 126 mm from the standing one where
   the walk's track has 60; the feet come in step by step on the capture law's
-  asking, the walk's plan narrow from the first (`Walker.begin`, no `wide`
-  since 2026-09-27). Shifted further by the keyframes (`SHIFT_IN` 0.03 where
+  asking, the walk's plan narrow from the first (`Walker.begin`, no `wide`).
+  Shifted further by the keyframes (`SHIFT_IN` 0.03 where
   0.043, `LIFT_IN` as built and 0.015): down in every start of 30, standing
   and from the squat; over 0.9 s (`SHIFT_S`) the standing ones hold, 0-10
-  parries, from the squat still down: a shift on a clock overshoots the sole,
-  as on 2026-09-26.
-- The lean before the shift (2026-10-05, `arrival.keyframes`): leant on both
+  parries, from the squat still down: a shift on a clock overshoots the sole.
+- The lean before the shift (`arrival.keyframes`): leant on both
   feet, then onto the left, the foot lifted as the weight comes over it, the
   capture point 24-28 mm inside the standing ball at the lift where 35. Of 30
   starts, standing and from the squat, 6 side gains 0.3 % apart: 29 with no
@@ -289,7 +284,7 @@ hardly ever happening to a walker (2026-09-27):
 
 ## Shoves on the one law
 
-- A shove by the stride (2026-10-06; `ways.py --polar`): walking, a shove at
+- A shove by the stride (`ways.py --polar`): walking, a shove at
   each of 8 moments of a stride from each of 8 ways, read by the foot that
   stood as it began (what follows a shove is the standing leg's; a trip the
   swinging foot's).
@@ -315,7 +310,7 @@ hardly ever happening to a walker (2026-09-27):
 
 ### A free foot not hurried
 
-`going._due` (2026-10-06). The capture point running across, the foot was due
+`going._due`. The capture point running across, the foot was due
 as that point reached where a step's swing takes it: hurried, it came down
 short (above). It is due no sooner than what is left of its swing at the
 swing's own pace, the row's `step` less the seconds both feet bear: 0.39 s
@@ -353,7 +348,7 @@ walking.
 
 ### Into a steady wind
 
-On the one law (2026-10-06): a force on the trunk against its way, up over 2
+On the one law: a force on the trunk against its way, up over 2
 s, held 16 s.
 
 | Wind | Plain | Accent `into the wind` |

@@ -22,16 +22,16 @@ from machine.gait import SHANK, THIGH
 #: frames, m (the right's x mirrored), their radii: the femur from under the hip's gearbox to over
 #: the knee's motor's middle, toward the thigh's front over its last 25 cm, clear of the calf's
 #: drives and rod folded at 163 deg - from the drums' centres the bones ran 40 mm through the hip's
-#: motor and gearbox (2026-10-02); the tibia from the knee's gearbox behind the ankle's
+#: motor and gearbox; the tibia from the knee's gearbox behind the ankle's
 #: drives to the ankle, between their rods - two tubes 46 mm apart round one rod were wider than
 #: her calf with two. Each drum they hang from or reach clamped by a collar
 #: (`coaxial.graphics.mechanism`): (joint, its gearbox or motor, y on the segment).
 #: The tibia ends in a clevis round the ankle's cross; the humerus from a flange on the shoulder
 #: to a collar on the elbow's motor, the forearm from a collar on its gearbox by a strut to its
-#: own axis and down to the wrist (the elbow on its axis, 2026-10-04); the foot a keel from the
+#: own axis and down to the wrist (the elbow on its axis); the foot a keel from the
 #: heel to the toes' axle, cheeks on the cross's roll pins, a bar for the rods' balls. Every tube one of seven stock sizes in one high-modulus carbon - 12x1, 20x1, 25x1,
 #: 30x2, 35x2, 40x2, 50x2 mm - the fewest passing every member (`tools/sim/members.py
-#: --family`, fewest variants, 2026-10-03): the femur's lower run 50 -> 40 in the
+#: --family`, fewest variants): the femur's lower run 50 -> 40 in the
 #: shanks' high-modulus grade (flex 0.25 deg), the boom 50 (0.30 at 40), the tibia's lower run
 #: 36 -> 35 (0.31; 40 met the ankle's rod by 6 mm in the crouch), the humerus and the forearm's
 #: upper run 24 and 22 -> 25, the forearm's lower runs 20 and 18 -> 20, the shank's yoke and
@@ -70,10 +70,10 @@ CRANK_R = 0.012
 #: rolled 25 deg, and no fork's crown fitted between; its middle 30 mm down under the trunk's
 #: roll M it ran through, the M on it - 40 mm back, the hips' roll M yawed 18 deg met it, 17 mm.
 #: 50 mm round for a hip's pitch twisting it (`docs/findings/body.md`), its arms steep to the yaw
-#: drives' tops: at 45 deg the hips' L met them, 8 mm (2026-10-03); 50x2 high-modulus (`HUNG`).
+#: drives' tops: at 45 deg the hips' L met them, 8 mm; 50x2 high-modulus (`HUNG`).
 BOOM = (0.025, ((0.066, 0.062, 0.0), (0.006, -0.03, 0.0), (-0.006, -0.03, 0.0), (-0.066, 0.062, 0.0)))
 
-#: Her trunk's frame, the wires through its drives gone (2026-10-03): per frame, tubes
+#: Her trunk's frame, the wires through its drives gone: per frame, tubes
 #: through these points, TRUNK_R round, and rings (centre, axis, radius, half), m in it - the
 #: pelvis's fork from the boom up to the roll's bearings 66 mm before and behind the spine's
 #: pivot, its front legs 55 mm out past the roll's 1:1 spur pair and in under the bearing - a
@@ -86,12 +86,12 @@ BOOM = (0.025, ((0.066, 0.062, 0.0), (0.006, -0.03, 0.0), (-0.006, -0.03, 0.0), 
 #: all its skin and the roll's spur pair leave, its back one 30; the trunnions steel pins; the
 #: column 40, the girdle 30; the neck's bracket 10, the head's 0.77 kg on it, inside her neck - 25
 #: stood 15 mm out of it; the pitch's bracket thin, to come.
-#: Sized by `tools/sim/members.py` (2026-10-03): the pitch's bracket 40 mm - at 12 it took 8.1 of
+#: Sized by `tools/sim/members.py`: the pitch's bracket 40 mm - at 12 it took 8.1 of
 #: its allowable and wound the spine up 27 deg at its 142 N m, the bob seen -, the fork's
 #: legs 34 and its back member 40 as cantilevers under the pitch's couple on the bearings, the
 #: neck's bracket 16; each run a carbon tube cut to length in printed PAHT-CF holders, each
 #: holder an extrusion along its print axis - its bores along it, a side hole a 45 deg roof, a
-#: ring split - no overhang in any print pose (2026-10-03). Stock sizes (`HUNG`): the
+#: ring split - no overhang in any print pose. Stock sizes (`HUNG`): the
 #: pitch's bracket 36 -> 40, the neck's 18 -> 20 (its flex 0.28 deg).
 TRUNK_R = {'pelvis': (0.015, 0.015, 0.020), 'spine_roll': (0.007, 0.007), 'spine': (0.020,),
            'torso': (0.02, 0.015), 'neck': (0.010,)}
@@ -112,18 +112,18 @@ TRUNK = {'pelvis': ((((0.055, 0.045, 0.0), (0.055, 0.045, 0.066), (0.0, 0.099, 0
 #: 55 mm before and behind the hip's centre; its cradle's band's radius and half length round the
 #: pitch's L. Crown to L 7 mm rolled 25 deg; the back leg 20 mm out, 8 mm off the roll's M; the
 #: front 20 mm in, the femur's collar 3 mm off its bearing at 90 deg of flexion. It rolls -35..+28
-#: deg: further the L meets the front leg, the femur's collar the crown's back leg (2026-10-03).
+#: deg: further the L meets the front leg, the femur's collar the crown's back leg.
 #: Its legs 22 mm tubes, for the yaw's torque on them; its crown a carbon plate CROWN_R thick in
 #: the 25 mm between the yaw's drum and the pitch's L - a tube there met the femur's collar, 4 mm.
 #: Its steerer STEERER_R round: the yaw's 77 N m in torsion stood 3.7 times a 10 mm tube's
-#: allowable; its bearing arms FORK_R, a 9 mm one 1.2 (`tools/sim/members.py`, 2026-10-03). Stock
+#: allowable; its bearing arms FORK_R, a 9 mm one 1.2 (`tools/sim/members.py`). Stock
 #: sizes (`HUNG`): the steerer and the arms 24 and 22 -> 25 (the arms 1.02 of their allowable at
 #: the hips' 203 N m peak).
 FORK_R, CROWN_R, BEARING, BAND = 0.015, 0.005, (0.009, 0.007, 0.060), (0.043, 0.008)
 STEERER_R, ARM_R = 0.0125, 0.0125
 
 #: Each drive held by what carries it - the hip's roll drum, the ankles', the toes' and the boards
-#: held by nothing (2026-10-03): its collars, COLLAR_M proud of its drum, each (m from
+#: held by nothing: its collars, COLLAR_M proud of its drum, each (m from
 #: its middle toward its output, half width); its struts, STRUT_R round - 20 for the rods' 3-4 kN -
 #: unless a third says (the ankle roll's 14: a 20 met the folded femur, 3 mm), (a, b) m in the
 #: frame its drum rides, her left's (the right's x mirrored), from a collar into the fork's back
@@ -149,7 +149,7 @@ CROSS = ('ankle', 0.007, 0.026)
 #: Her skeleton's contacts: her skins and itself (`mjcf.ME`, `MEETS`), its own friction - never
 #: the floor: inside her shell, outside her skins' capsules, the toes' belt's pulley met it as
 #: her sole sank walking and felled her at 6.05 s, a knee's drum landed past its gel, 935 N
-#: against 102 bare (2026-10-03).
+#: against 102 bare.
 CONTYPE, CONAFFINITY, FRICTION = 4, 4, 0.5
 
 AXES = {'x': (1.0, 0.0, 0.0), 'y': (0.0, 1.0, 0.0), 'z': (0.0, 0.0, 1.0)}

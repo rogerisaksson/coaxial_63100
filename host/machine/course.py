@@ -21,7 +21,7 @@ from machine import grounds, quad
 #: it stands: turned off the gate's heading, degrees; its tangent there, of TENSION's; where
 #: across and up its opening, m off its middle - its apex. It rises through a gate SLOPE of
 #: the way from the gate before it to the one after, the first level: level through each, a
-#: climb of 3.5 m in 12.5 was an S of 10 m/s^2 up and down at 10 m/s (2026-10-06).
+#: climb of 3.5 m in 12.5 was an S of 10 m/s^2 up and down at 10 m/s.
 TENSION, DS, LAPS, SLOPE = 1.098, 0.25, 2, 1.067
 WAYS = ((3.8, 0.988, -0.20, -0.20), (-20.5, 1.163, 0.14, -0.05), (-8.8, 1.036, -0.09, -0.23),
         (1.6, 1.042, 0.20, 0.12), (-10.3, 0.722, 0.11, -0.04), (-6.4, 0.709, -0.44, -0.09),
@@ -30,7 +30,7 @@ WAYS = ((3.8, 0.988, -0.20, -0.20), (-20.5, 1.163, 0.14, -0.05), (-8.8, 1.036, -
         (-4.3, 1.209, -0.36, -0.11), (1.3, 0.818, -0.36, 0.09), (12.3, 1.091, 0.20, 0.11),
         (3.1, 1.041, 0.29, -0.28))
 
-#: The plan (2026-10-10: raw - a dive pushed inverted, no level flight kept): a
+#: The plan (raw - a dive pushed inverted, no level flight kept): a
 #: sphere about gravity, PULL of what the boards' envelopes leave of the rotors' thrust, the
 #: thrust v^2 k + a t + g up wherever that points. A bend takes what its speed asks across; it
 #: is braked for BRAKE and sped out of GO of what is left along its way, the air through the
@@ -40,9 +40,9 @@ WAYS = ((3.8, 0.988, -0.20, -0.20), (-20.5, 1.163, 0.14, -0.05), (-8.8, 1.036, -
 #: SWING_S at the fastest; the sphere FLOOR of gravity at the least. On a circle of 0.249 of its
 #: pull along the floor, a crest no faster than 0.511 g let it fall and 0.30 of the pull along
 #: its way, the 16x14s lapped in 19.6 and 19.2 s, 15.2 m/s at the most, never sped down past
-#: -8.8 m/s^2 (2026-10-09/10). Searched raw over boards, winds, sizes and heat: 13.8 and 14.0,
+#: -8.8 m/s^2. Searched raw over boards, winds, sizes and heat: 13.8 and 14.0,
 #: on four boards 14.1 and 14.7; in two winds it never flew every flight whole, the boards'
-#: tips 0.06-0.09 m past their margin, SOA 0.84-1.00, WEP 0.6-2.4 s (2026-10-10). These, the
+#: tips 0.06-0.09 m past their margin, SOA 0.84-1.00, WEP 0.6-2.4 s. These, the
 #: law's gains, LEAD_S, LOOK_S, SOFT_S, SLACK, TENSION, SLOPE and the crossings are the tuner's.
 PULL, BRAKE, GO, EASE_S, STOP, FLOOR = 0.399, 0.727, 0.669, 2.0, 0.25, 1.1
 AHEAD_M, SWING_S = 40.0, 0.360
@@ -54,20 +54,20 @@ AHEAD_M, SWING_S = 40.0, 0.360
 #: its way at AIM_K, 1/s, no faster than TURN_RAD_S, and its lean turns with it; its nose is
 #: left free of it: a turn of the frame is the discs' drag's, 10 N of thrust apart a N m -
 #: held on its heading, the rotors were at their clamp 12 % of a lap, 5 % with the heading
-#: still - and then the lean's own turn trailed its bend and a gate was passed 0.65 m wide
-#: (2026-10-06). It stands STAND_M from its finish, this slow.
+#: still - and then the lean's own turn trailed its bend and a gate was passed 0.65 m wide.
+#: It stands STAND_M from its finish, this slow.
 #: Flown by the clock it fell 10 m behind its place and cut its bends 4 m inside their gates;
-#: its spot homed to the frame's own place, it kept the frame's speed, 2.5 m/s under the plan's
-#: (2026-10-05). The speed it asks comes to the plan's over SOFT_S, the plan looked up as much
+#: its spot homed to the frame's own place, it kept the frame's speed, 2.5 m/s under the plan's.
+#: The speed it asks comes to the plan's over SOFT_S, the plan looked up as much
 #: further on: it stepped from its way out of a bend to its brake for the next, 14 m/s^2 in a
-#: pass (2026-10-06).
+#: pass.
 REACH_M, SLACK_M, LEAD_S, LOOK_S, LOOK_M, SOFT_S = 3.0, 2.0, 0.089, 0.191, 3.0, 0.217
 AIM_K, TURN_RAD_S, STAND_M, STAND_M_S = 5.0, math.tau, 0.6, 0.5
 
 #: The lap's rows: the hover's, at any pace up and down, its nose free; the lean a row may take
 #: this much of the pull it is planned on. Its discs point down as far as its line asks - the
 #: drag's part in it - and SLACK of gravity past that: free, 0.4 m over a rise in a bend the
-#: frame turned over to 125 degrees, and fell 1.5 m into the floor righting itself (2026-10-10).
+#: frame turned over to 125 degrees, and fell 1.5 m into the floor righting itself.
 RACE, LEAN_OVER, SLACK = dict(HOVER, pace=100.0, nose=0.0), 1.5, 0.264
 #: On the grid: over its spot in the first gate.
 GRID = dict(HOVER, height=grounds.GATES[0][1])
@@ -173,7 +173,7 @@ def nearest(line_, point, low, high):
     sample onto the line as it lies between two, twice. By that sample's own tangent, half a
     step either way, a frame off its line in a bend jumped at every sample, and its asked
     speed's change with it: 4.3 m/s^2 rms rough a pass to the next where 3.0, a rotor's
-    spool on the boards 8.5 A rms where 7.6 (2026-10-06)."""
+    spool on the boards 8.5 A rms where 7.6."""
     n, step = len(line_['at']), line_['step']
     k = min(range(low, high + 1), key=lambda j: (
         (line_['at'][j % n][0] - point[0]) ** 2 + (line_['at'][j % n][2] - point[2]) ** 2))
@@ -244,7 +244,7 @@ def line(route, now):
     # least - spent, PULL of the law's least was under gravity -, come to slowly
     whole = max(FLOOR * quad.GRAVITY, PULL * seen.get('pull', 2.0 * quad.GRAVITY))
     # at a share of all of it a second: of what is left, a stuffy room's spent boards were
-    # asked twice what they had for 2 s and it flew into a house (2026-10-10)
+    # asked twice what they had for 2 s and it flew into a house
     ease = PULL * seen.get('full', 2.0 * quad.GRAVITY) * dt / EASE_S
     pull = lap['pull'] = whole if not lap['pull'] else max(lap['pull'] - ease, min(
         whole, lap['pull'] + 0.5 * ease))

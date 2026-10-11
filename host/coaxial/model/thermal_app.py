@@ -1,7 +1,7 @@
 """What a board is mounted in, over the still air's network: thermal_app.c's, mirrored.
 
 Its tables in its order, by its rule. Ballpark, every figure - thermal_app.c has each one's
-reason - until a test cycle runs in the application (2026-10-09).
+reason - until a test cycle runs in the application.
 """
 import copy
 import math

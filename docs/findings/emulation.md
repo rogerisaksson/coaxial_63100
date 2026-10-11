@@ -11,8 +11,8 @@ board's findings: [FINDINGS](../FINDINGS.md).
   at each interrupt 9 %, dispatch 7.5 %, softfloat 5 %, the plant 3 %; the
   models' pacing a fifth at most. The M7 runs translate-arm-experimental,
   1.17.0 the latest release: the tty defaults to native://, Renode stays the
-  proof (2026-09-28).
-- The image's MPU (2026-09-25): tlib keeps no TLB entry for a page inside an
+  proof.
+- The image's MPU: tlib keeps no TLB entry for a page inside an
   enabled region whose subregion is disabled and walks the MPU on every access
   there; CubeMX's 4 GB region (SRD 0x87) spans ITCM, DTCM and D2 SRAM. Its
   enable masked on the bus: idle 8.2 -> 1.4 wall s a virtual s at 100 MIPS,
@@ -31,18 +31,17 @@ board's findings: [FINDINGS](../FINDINGS.md).
   step 4.5 us of it; TIM1's compares written every period rescheduled its
   timer (64-76 before). A page reading in its draw waited a round trip a
   frame: on a Feed the attitude page draws 10 fps (5.6), the rotor observer
-  7.7 (0.3), capture 120 frames in 35 s (536) (2026-09-25).
+  7.7 (0.3), capture 120 frames in 35 s (536).
 - The A1335 by DMA, its read stepped from main() without a spin: the drive 20
   -> 17 wall s a virtual s (the angle loop 9 -> 6). main() in WFI with AFE_ON
   low and MOE clear: idle at 475 MIPS 5.2 -> 1.0, real time. Renode takes
   `WfiAsNop` only after `ClearTranslationCache` and restarts
   `ExecutedInstructions` on a reset; FastDWT anchors on the CPU's TimeHandle
   at the first read after a wake. Asleep, Renode's load reads 1: the host waits
-  by the awake scale, and a socket:// rig without it gave up on replies
-  (2026-09-25).
+  by the awake scale, and a socket:// rig without it gave up on replies.
 - The drive at 50 kHz costs a period 3 interrupts (Renode: 3.7 us an entry and
   exit, 4.8 with FPU state), ~30 register accesses (0.9 us each on board/emu's
-  models) and ~2 950 instructions at -O0 (2026-09-25):
+  models) and ~2 950 instructions at -O0:
   + Floor with the handlers whole: ~2 wall s a virtual s.
   + main() skipped to 0.5 us short of each timer event: 16.5 -> 6.
   + Board_PwmReady and ARR kept once read, ADC3's injected end without HAL's
@@ -55,8 +54,8 @@ board's findings: [FINDINGS](../FINDINGS.md).
   unskewed): no TIM1 update interrupt, 1 interrupt and ~18 register accesses a
   period. A/B alternating on one quiet laptop: 4.8-5.7 -> 3.0-3.5 wall s a
   virtual s; the same image read 2.5 hours earlier, so only alternated runs
-  compare (2026-09-25).
-- The cost is register accesses and interrupts, not models (2026-09-27): 1.24
+  compare.
+- The cost is register accesses and interrupts, not models: 1.24
   M accesses a virtual second idle at 0.9 us each, 17 a period under the drive
   at Renode's floor.
   + Cut a pass: HAL_RCC_GetSysClockFreq's 7 RCC reads (the IMU's poll),
@@ -81,112 +80,106 @@ board's findings: [FINDINGS](../FINDINGS.md).
   exception (4.5), the plant's step and the conversions (3.5) and the
   instructions (~10); the skip 0.6; no translation flushes (~1 000 blocks a
   virtual s). Real time under the drive is out of the emulator's reach as the
-  firmware stands: every access is the ISR's own (2026-09-27).
+  firmware stands: every access is the ISR's own.
 - A script killed by `timeout` left its Renode spinning 4 h, skewing every
-  measure since; each Renode now sits in a job that dies with its Python
-  (2026-09-25).
+  measure since; each Renode now sits in a job that dies with its Python.
 
 ## Peripheral models
 
 | Renode as shipped | Effect | board/emu's model |
 | --- | --- | --- |
-| STM32H7_ADC: 19 inputs (a conversion on 19, Vgate, throws inside Renode); ADC2's registers dropped at +0x100 | - | its own ADCs; conformance 110/110, 420 MB, 47 s (2026-09-25) |
+| STM32H7_ADC: 19 inputs (a conversion on 19, Vgate, throws inside Renode); ADC2's registers dropped at +0x100 | - | its own ADCs; conformance 110/110, 420 MB, 47 s |
 | the terminal hands a TCP chunk over at once | a 257 B ADU overran the 256 B ring | the console paced at its baud |
 | H7 RCC assumes an 8 MHz HSE (the board's 25) | SysTick at 0.32 of the clock set | - |
 | DWT counted a fixed 475 MHz | the bootloader's (160 MHz) t1.5 253 us; a chunk split across a 0.5 ms quantum lost, 47 % of the stream | the DWT counts the core's clock; the adapter keeps t3.5 + 0.25 ms between host frames: none lost |
 | ADC keeps no JEXTSEL or JEXTEN in JSQR | HAL's InjectedStart refused; seven papers stopped at "an injected group would not start" | the injected group converted on TRGO2 (MMS2 1000, OC5REF): 6 032 triples in 2 s, no overrun |
-| USARTs on a fixed 125 MHz | USART3's BRR 1031 at 121 241 baud against the part's 115 179 (PCLK1 118.75 MHz, coaxial_63100.ioc); an OVER8 BRR read raw: the bootloader's 0x10 at 14.8 Mbit against 10 (its PCLK1 80 MHz) | the rate from the RCC and BRR (UART_Rate.cs) (2026-09-28) |
+| USARTs on a fixed 125 MHz | USART3's BRR 1031 at 121 241 baud against the part's 115 179 (PCLK1 118.75 MHz, coaxial_63100.ioc); an OVER8 BRR read raw: the bootloader's 0x10 at 14.8 Mbit against 10 (its PCLK1 80 MHz) | the rate from the RCC and BRR (UART_Rate.cs) |
 | monitor tokenizer takes no exponent | `2e-05` in a world's line and Renode exited | - |
 | `%APPDATA%\renode\history` rewritten after every monitor command | a body's five processes, each asked its load every 0.5 s, collided; a limb exited on an IOException | each process has its own `--config` and history; the humanoid idle, 20 boards: 2.4-2.6 wall s a virtual s |
-| a peripheral's C# compile error printed on its console only | the emulator "did not answer", the rig fell back to the stand-in (2026-09-26) | - |
+| a peripheral's C# compile error printed on its console only | the emulator "did not answer", the rig fell back to the stand-in | - |
 
 - Wall s a virtual s at 475 MIPS: app 28, bootloader 10. At Renode's 100 MIPS
-  the drive's ISR outran its period; the emulator runs the part's 475
-  (2026-09-25).
+  the drive's ISR outran its period; the emulator runs the part's 475.
 - Conformance on `emulator://` on a Threadripper 1950X: 110/110 at 100 MIPS,
   109 at 200, 107 at 475. The three after the 257 B ADU go unanswered: the
-  master's waits are wall seconds, unscaled by the port's `time_scale`
-  (2026-09-25).
+  master's waits are wall seconds, unscaled by the port's `time_scale`.
 - The emulated A1335s answered bare twelve bits and Clevel/Cinj read 0: now
   the part's register identifiers (ANG 5, TSEN F, FIELD E, the stand-in's from
-  the bench) and the unmodified board's 0.06 / 0.77 V (2026-09-26).
+  the bench) and the unmodified board's 0.06 / 0.77 V.
 
 ## Link and CI
 
 - emulator:// loads build/Debug: a Debug image older than the host's last
-  firmware commit answered with checksum failures. Rebuild after pulling
-  (2026-09-28).
+  firmware commit answered with checksum failures. Rebuild after pulling.
 - CI's FC05 after the 257-byte ADU: the console's line queued the host's next
   frame behind the ADU's tail. After the burst Renode ran at 0.1 of real time
   (0.18 s wall, 18 ms virtual, the ADU 21 ms on the wire) and FC05 joined it:
   counters +2 messages, 1 error, no exception. The line starts a host frame
   t3.5 and 0.25 ms after the last byte, as the limb's adapter did (HostLine):
-  answered 1.4 ms virtual behind the ADU (2026-09-28).
+  answered 1.4 ms virtual behind the ADU.
 - The 10 Mbit bus echo ran the app's port at its record's 115 200 (the
   firmware refuses a `link_baud` past 921 600) behind a 10 Mbit adapter, and
   Renode passed every byte. The transceivers decode by rate now, 2.6 % at
   OVER8: that pairing opens nothing and logs `garbles`; the test runs the
-  record's rate (2026-09-28).
+  record's rate.
 - CI's lost echo, 1 of 50 with two framing errors past the open's, at either
   rate and never here: a write reached Renode in pieces 1.0 and 1.5 ms apart,
   two and three quanta, and the adapter began the second as a frame. No
   request comes that soon (each waits on its predecessor's reply), but the
   boot's broadcast chunks come 2 ms apart: no threshold between. The sockets
   take a write as a frame, its length ahead of it (`frames://`), put on the
-  line whole once all of it has come (2026-09-28).
+  line whole once all of it has come.
 - CI's runner ran the emulated board slower than the scale the host slept by:
   the STO test's 0.05 board s settle ended before the chain had let go, BIF
   stayed latched through the clear, and the Release image's board group ran
   past 240 s. An emulated board's sleep reads its virtual clock as it goes; a
-  group has 480 s (2026-09-27).
-- CI's firmware job red on and off since 2026-09-27, four times from 8112407:
+  group has 480 s.
+- CI's firmware job red on and off, four times from 8112407:
   conformance's Renode exited on a DllNotFoundException for its world library
   (build/hosttest/world_emu_<pid>.so). Each test group's process swept every
   world library not locked before building its own; Windows locks a loaded
   one, Linux none, and a group's sweep unlinked another's before its Renode
   loaded it. The sweep removes only libraries whose process has ended
   (`tools.emu.world.sweep`); the log's tail is on the commit as a comment,
-  readable without a login (2026-09-28).
+  readable without a login.
 - With `proven_dispatch` the host skipped t3.5 after any proven request: the
   addressed board closes a frame on its CRC, the rest of a limb on the
   silence, so a frame for another unit ran into the last and went unanswered.
   The gap is skipped for the same unit only. Rigs on one URL bus each hold a
   Transport, none owing another's gap: the native limb keeps t3.5 as the
-  bus's adapter (2026-09-26).
+  bus's adapter.
 - The thermal observer's borrow of AFE_ON (0.5 s every 30 s) took test_wire's
-  AFE-off scan once the idle board kept real time: the test holds sampling off
-  (2026-09-25).
+  AFE-off scan once the idle board kept real time: the test holds sampling off.
 - The A1335 and the BNO085 paused for that borrow with the host holding AFE_ON
   beside it: the host's angle and IMU dropped 0.5 s every 30 s
   (test_emulator's angle read, None). They pause when the observer holds the
-  rail alone, `Board_PowerAlone` (2026-09-26).
+  rail alone, `Board_PowerAlone`.
 
 ## Pages
 
 - The attitude page stood 5 s at a time: the front page's link watcher, alive
   in the same process, opened a session on native:// every 30 s mid-request.
-  Asked once now (2026-09-28).
+  Asked once now.
 - The attitude page froze on native://, 3 reads in 80 frames: a ctypes call a
   board millisecond, each waiting on the drawing for the interpreter, held the
-  board to 21 %; one call a burst (native_lockstep): 100 %, 72 (2026-09-28).
+  board to 21 %; one call a burst (native_lockstep): 100 %, 72.
 - Entering `coaxial` through `coaxial.comm.session`, `rig` took
   `EMULATOR_URL` off a half-built session: six pages threw on the emulator,
-  the suite green. `sessionmod.EMULATOR_URL` at call time (2026-09-28).
+  the suite green. `sessionmod.EMULATOR_URL` at call time.
 - A view drawing faster than the board answers repeats a reading: 24 of 60
   frames on the emulator, the freshness note flickering live/stale every other
-  frame. Staleness is elapsed stillness now, not one repeated frame
-  (2026-09-28).
+  frame. Staleness is elapsed stillness now, not one repeated frame.
 - The attitude's tumble turned 140 and 280 deg/s on the emulator and native
   (2.56 s); the stand-in stepped it a read, a turn in 1.28 s at 200 reads/s.
-  25.6 s on the clock: 31 deg/s (2026-09-26).
+  25.6 s on the clock: 31 deg/s.
 - native:// had no console: after 0x48 gave the line back a board went silent
   for every later session in the process, the tty's next page on the
-  stand-in. The fake board takes 'm' again (2026-09-26).
+  stand-in. The fake board takes 'm' again.
 
 ## native://
 
 - board_pwm.c, board_sync.c, board_adc.c and board_drive.c built for this host
-  over board/native's TIM1, ADCs and AFE (2026-09-26): the drive 1 virtual s in
+  over board/native's TIM1, ADCs and AFE: the drive 1 virtual s in
   0.048 wall s flat out; paced, 1.000, 50 000 updates a wall second, no
   overrun; conformance 96/96 over it. The pacer at Windows' 15.6 ms timer and
   5 ms a wake ran a third of real time: timeBeginPeriod(1), caught up whole
@@ -195,7 +188,7 @@ board's findings: [FINDINGS](../FINDINGS.md).
 - The whole board layer (power, STO, A1335 by DMA, BNO085 over SHTP, the
   drive): 1 virtual s in 0.055 wall s a board. The humanoid, 20 boards on 5
   buses, every drive holding: each limb 1.0000 virtual s a wall s, 50 000
-  triples a virtual s a board, no overrun, 2.05-2.28 of 16 cores (2026-09-26).
+  triples a virtual s a board, no overrun, 2.05-2.28 of 16 cores.
 
 ## Heat
 
@@ -204,9 +197,9 @@ board's findings: [FINDINGS](../FINDINGS.md).
   colder than modelled and the NTC's inversion (x12 at 30 s, x27 at 2 s) threw
   the V patch to 5 C. The plant runs thermal.c's network as truth
   (world_heat.c): the NTC within 0.25 K under the demo's 30 A, driver U 26-100
-  C (2026-09-26). The rotor page on native: STABLE at 311 s; TH OBS 95 % is
-  the laminate's capacity, sigma 0.125 of its 0.10 (2026-09-28).
-- One heat clock for every world but the bench (2026-09-26):
+  C. The rotor page on native: STABLE at 311 s; TH OBS 95 % is
+  the laminate's capacity, sigma 0.125 of its 0.10.
+- One heat clock for every world but the bench:
   `coaxial.model.thermal.HASTE` 10 on the stand-in, the plant and the emulated
   observer (thermal op 13), a step 0.1 thermal s at any clock. On a 100 ms wall
   poll the clamp lagged a leg's 1.4 s and the derate cycled 0.12-0.9. A plant
@@ -216,14 +209,14 @@ board's findings: [FINDINGS](../FINDINGS.md).
   24 off; the MCU's die reads in the off phase. `tools/dev/ab.py`, the page's
   reads over the same board seconds: 67 faults against the stand-in to 3 on
   native.
-- The airspeed is one input (2026-10-10): `thermal_load_t` carries it and the
+- The airspeed is one input: `thermal_load_t` carries it and the
   core folds it once into the wash (`thermal_air_rpm` on the cfg's), for the
   board's observer and the world's truth alike; native's and Renode's plants
   fly in the host's, the world's heat step taking the whole load.
 
 ## Papers on the stand-in against the emulator
 
-`make_notebooks.py --compare` (2026-09-27):
+`make_notebooks.py --compare`:
 
 - A software-clocked task gave no record while a drive held the converters:
   the meter reads the latched triple's phases, as it did the link and the NTC.

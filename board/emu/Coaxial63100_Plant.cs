@@ -6,7 +6,7 @@
 // an ADC waits on it: the drive's ISR needs the part's speed, the rest runs faster at Renode's.
 // With LoopSlice set, main() runs that long short of each timer event while one waits, the rest
 // skipped: the handlers whole, the polling loop throttled - 16.5 -> 2.5 wall s a virtual s under
-// the drive at 0.5 us, 50 000 updates a virtual second kept (2026-09-25).
+// the drive at 0.5 us, 50 000 updates a virtual second kept.
 // The period is the PWM's while the stage is driven or an ADC waits, 1 kHz while the world only
 // coasts. The board's heat is thermal.c's network in the world library (world_heat.c), the truth
 // its observer is judged by: the duties, MOE, the legs' mean squares, the link and the shaft ten
@@ -222,7 +222,7 @@ namespace Antmicro.Renode.Peripherals.Analog
 
         /// <summary>The period's timer, two events a period: while a world turns, or while TIM1
         /// counts and an ADC waits on TRGO2 - a 50 kHz event from boot made the idle image 2.9
-        /// times slower (2026-09-25).</summary>
+        /// times slower.</summary>
         private void Run()
         {
             var waits = false;
@@ -307,7 +307,7 @@ namespace Antmicro.Renode.Peripherals.Analog
         /// in the sample after next (drive.c's PIPELINE). One step a period, the compares read
         /// at its start, showed them a period early and the injection's fs/2 demodulator read
         /// their sign turned; sampled at the period's end they showed the injection's peaks,
-        /// which the part's samples at the top do not (2026-09-27).</summary>
+        /// which the part's samples at the top do not.</summary>
         private void Step()
         {
             if(attached)

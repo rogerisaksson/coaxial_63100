@@ -11,7 +11,7 @@ import math
 #: The thigh's reach ahead of upright at the landing past its reach behind at the lift by more
 #: than BALANCE_DEG, BALANCE_K a degree; the head fore and aft past SURGE_MM, SURGE_K a mm; the
 #: feet nearer than CLEAR_MM as they pass, CLEAR_K a mm. Her legs a little further back, straight,
-#: graceful - not the trudge, the feet far out in front and none behind (2026-09-28): the knee
+#: graceful - not the trudge, the feet far out in front and none behind: the knee
 #: landing bent past KNEE_DEG, the thigh swung out past where it lands by more than OVER_DEG,
 #: KNEE_K and OVER_K a degree.
 BALANCE_DEG, BALANCE_K = 0.0, 0.2
@@ -19,49 +19,49 @@ KNEE_DEG, KNEE_K, OVER_DEG, OVER_K = 10.0, 0.5, 3.0, 0.5
 
 #: The step taken out: the thigh short of REACH_DEG behind upright at the lift, REACH_K a degree,
 #: the heaviest of the look - weighed light, the searches came to tiptoeing, the legs always in
-#: front, the easiest balance (2026-09-28).
+#: front, the easiest balance.
 REACH_DEG, REACH_K = 10.0, 1.0
 SURGE_MM, SURGE_K = 30.0, 0.15
 
 #: The upper body's bob: the torso pitching past TORSO_DEG, TORSO_K a degree. The feet: the
 #: stance's toes out of TOE_OUT degrees or the swinging foot's turned in, TOE_K a degree; the
 #: ankle rolled past PRONATE_DEG under the shin, PRONATE_K a degree - pigeon-toed, the swinging
-#: foot in 6.5, and overpronated at 4.9, to the eye (2026-09-28).
+#: foot in 6.5, and overpronated at 4.9, to the eye.
 TORSO_DEG, TORSO_K = 2.0, 1.0
 TOE_OUT, TOE_K, PRONATE_DEG, PRONATE_K = (5.0, 15.0), 0.5, 3.0, 0.5
 CLEAR_MM, CLEAR_K = 5.0, 0.2
 
 #: The rear foot's toes back along the floor at their lift past SLIP_MM, SLIP_K a mm: the step
-#: ends with the foot lifted and moving forward at once (2026-10-04) - 92 mm with the
+#: ends with the foot lifted and moving forward at once - 92 mm with the
 #: heel rising by the phase alone (`stance.HEEL_UP_DEG`).
 SLIP_MM, SLIP_K = 2.0, 0.5
 
-#: The landing, heavy - a soft walk keeps the drives whole, copper lost before anything broken
-#: (2026-09-28): the sole's peak from its touch past IMPACT_N, IMPACT_K a newton; the ankle
+#: The landing, heavy - a soft walk keeps the drives whole, copper lost before anything broken:
+#: the sole's peak from its touch past IMPACT_N, IMPACT_K a newton; the ankle
 #: falling past TOUCH_MS as it touches, TOUCH_K a m/s.
 IMPACT_N, IMPACT_K = 700.0, 0.01
 TOUCH_MS, TOUCH_K = 0.15, 20.0
 
 #: The landing's loading rate, the clonk heard: the sole's steepest rise over a millisecond in
 #: the impact's window past RATE_KN_S kN/s, RATE_K a kN/s - she should be as quiet as a person,
-#: only her clothes heard against her (2026-09-28).
+#: only her clothes heard against her.
 RATE_KN_S, RATE_K = 20.0, 0.02
 
 #: The drives' load: the share of drive-ms at a drive's peak past LOAD_PCT %, LOAD_K a percent -
 #: at 0.85 strides/s 0.47 % of all, the ankles 1.78, the knees 1.40, the hips 0.95: at each
-#: landing and as each leg is snapped into its swing (2026-09-30).
+#: landing and as each leg is snapped into its swing.
 LOAD_PCT, LOAD_K = 0.0, 4.0
 
 #: Her power walking, W - the page's sum (`machine.running`): the work done, the copper's heat,
-#: the boards' own - ENERGY_K a watt past ENERGY_W; 482 W at 0.85 strides/s (2026-10-01).
+#: the boards' own - ENERGY_K a watt past ENERGY_W; 482 W at 0.85 strides/s.
 ENERGY_W, ENERGY_K = 300.0, 0.05
 
-#: Her walk's form on a flat, smooth floor (2026-10-05): a condition, never weighed
+#: Her walk's form on a flat, smooth floor: a condition, never weighed
 #: against a fall - (measure, least, most), `strides.measured`'s names. The stance leg a strut,
 #: its knee all but straight while her foot bears her alone behind the plumb line; the leg on
 #: behind the plumb line; the pelvis rolled up over the standing hip; the toes not back as they
-#: lift (2026-10-04); no parry asked of a plain floor; her head still and her feet quiet, as the
-#: walk approved 2026-10-03 had them (945a6a8: bob 20.5, fore and aft 34.1, aside 25.0 mm). The
+#: lift; no parry asked of a plain floor; her head still and her feet quiet, as the
+#: walk approved at 945a6a8 had them (bob 20.5, fore and aft 34.1, aside 25.0 mm). The
 #: landing knee stood 24 deg on that walk, 1-3 on a take of a woman's (`mocap.py`): its bound
 #: comes down as the landing does (docs/TODO.md).
 FORM = (('knee behind plumb', None, 10.0), ('knee at landing', None, 30.0),
@@ -77,7 +77,7 @@ ENERGY_J_M, FORM_K, FELL = 100.0, 20.0, 1000.0
 #: A pace is judged on a spread of walks, their measures meaned and their parries summed,
 #: PARRIES at most - one a walk of three: one walk scores chance. At 1.0 strides/s the sideways
 #: gain's fourth digit made one parry in three strides or none, 18 walks about it none, and
-#: CI's runner 2 in the spread where this host 1 (2026-10-05); a walk that parries, 3-5 each.
+#: CI's runner 2 in the spread where this host 1; a walk that parries, 3-5 each.
 PARRIES = 3
 
 

@@ -47,7 +47,7 @@ STEADY, TRIAL_S, ROWS_HZ = 3, 14.0, 60.0
 #: A candidate's starts, (way, pace, seconds of hers): standing and from the squat, begun at
 #: her own pace and glided to it as the director has her - each from a mark taken there, its
 #: parries counted. Steady alone, a search's best landed its knee at 9 degrees and fell in 2
-#: rises of 9 and 2 walks of 12 (2026-10-05).
+#: rises of 9 and 2 walks of 12.
 STARTS = (('stand', 0.65, 9.0), ('stand', 0.882, 9.0), ('stand', 1.02, 9.0),
           ('squat', 0.85, 13.0), ('squat', 1.0, 13.0))
 
@@ -145,7 +145,7 @@ class Robot:
         in, SETTLE strides on, over STRIDES whole ones - or, `way` 'stand' or 'squat', of her
         start under it (`_started`). The law's files changed, they are loaded and she walks in
         under them first: a mark is its own law's walk - kept, a walk braked another way stood
-        in for this one's and fell at every pace (2026-10-05)."""
+        in for this one's and fell at every pace."""
         run = ((lambda: self._tried(values, pace)) if way == 'steady'
                else (lambda: self._started(values, way, pace, seconds)))
         if _stamp() != self.law:
@@ -223,7 +223,7 @@ def price(results):
 
 def _write(path, what):
     """`what` as JSON at `path`, whole or not at all: written beside it and renamed - again
-    while the host holds the new file (its scanner did, a robot died of it, 2026-10-05)."""
+    while the host holds the new file (its scanner did, a robot died of it)."""
     with open(path + '.tmp', 'w') as f:
         json.dump(what, f)
     for k in range(100):
@@ -245,7 +245,7 @@ def serve(root, paces=PACES):
         took = None
         try:
             # A file the host or a reader holds is tried again next round: a sign of life
-            # written every pass, 8 robots of 12 died of it in a minute (2026-10-05).
+            # written every pass, 8 robots of 12 died of it in a minute.
             if time.time() - beat >= 1.0:
                 with open(os.path.join(alive, mine), 'w') as f:
                     f.write('%f' % time.time())

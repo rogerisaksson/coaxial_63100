@@ -15,7 +15,7 @@ blind. The same dwell in all four: tau is 6.8 min measured, and 25 minutes is
 3.7 tau = 97 % of the way to equilibrium.
 
 The A1335's TSEN is not used: it measures its own die, not the board, and its
-self-heating resets every time AFE_ON breaks (2026-08-28: it fell 1.88 K during
+self-heating resets every time AFE_ON breaks (it fell 1.88 K during
 a run that warmed the board). It quantises at 0.125 K. The NTC has 30 mK and a
 stable bias (it sits in the drivers' hot spot), so it is the reference; the
 camera is the truth.
@@ -50,7 +50,7 @@ POINTS = ('the middle half-bridge', 'buck + LDO', 'the MCU',
 #: perturbs the state: the gate is inverted, so the drivers lose supply for as
 #: long as it lasts.
 #:
-#: Measured 2026-08-28: a sample is 0.42 s, so every 60 s is 0.7 % of the time
+#: Measured: a sample is 0.42 s, so every 60 s is 0.7 % of the time
 #: in the wrong state - nothing against tau 6.8 min, and 25 samples a state
 #: instead of 5. Four samples 3 s apart spread 50 mK with no drift.
 PEEK_EVERY_S = 60.0

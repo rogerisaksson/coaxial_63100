@@ -2,7 +2,7 @@
 // anchor at the CPU's rate, exact within a translated block. Anchored afresh on the CPU's
 // TimeHandle - exact once synced - wherever time passed that executed nothing, or passed at
 // another rate: a WFI, a skip, a change of MIPS, a reset. FastDWT's CYCCNT and TIM1's count run on
-// it: counted off instructions alone, both stopped through a sleep or a skip (2026-09-25).
+// it: counted off instructions alone, both stopped through a sleep or a skip.
 
 using System.Collections.Generic;
 using System.Linq;

@@ -10,7 +10,7 @@ is the converter's own scale (invariant 10).
 
 AFE_ON is on for the run (invariant 9) and put back the way it was found on
 the way out. No demo motor: the drive's injected group locks the meter out of
-eight of the ten channels, and the sweep waited on phase U for ever (2026-09-26).
+eight of the ten channels, and the sweep waited on phase U for ever.
 """
 import argparse
 import collections

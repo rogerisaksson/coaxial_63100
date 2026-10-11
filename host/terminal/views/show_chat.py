@@ -143,7 +143,7 @@ def open_chat(a, script, strip=None):
     client, _session, chat = cli.build(args)
     # Through ensure_pulled, as dbg.py's start and the bench prompt's
     # preflight: the picker names the tag that fits this card, which
-    # `ollama list` can lack (2026-09-22: llama3.1:8b picked, gemma4:12b
+    # `ollama list` can lack (llama3.1:8b picked, gemma4:12b
     # pulled and too big); unpulled, the page died in a traceback.
     client.model = cli.ensure_pulled(client, sys.stderr,
                                      pull_with=pulled_on(strip))

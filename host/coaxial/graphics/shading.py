@@ -319,7 +319,7 @@ SLOPE = 1.30
 #: it, glinting in the lamp's pool. OUTLINE_BASE is the heat where the face
 #: gave none. Measured in luma over four attitudes: a lift of 2.5 put the
 #: line +51 over the face, barely noticeable; 4.5 put it +82. 3.0 with the
-#: line on the face's dots (2026-09-23): 4.5 glowed as a halo, 1.5 vanished.
+#: line on the face's dots: 4.5 glowed as a halo, 1.5 vanished.
 OUTLINE_LIFT = 3.0
 OUTLINE_BASE = 3.0
 

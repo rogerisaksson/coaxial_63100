@@ -81,7 +81,7 @@ def test_her_rows_go_on(report):
 
 #: A way is asked each of SHIFTS s later and she is up through LEAST of them: a host's floats
 #: decide a passage's steps - CI's runner down at 30.4 s on her way back from the run, this
-#: host up through it on 12 timings of 12 (2026-10-06; docs/TODO.md item 23).
+#: host up through it on 12 timings of 12 (docs/TODO.md item 23).
 SHIFTS, LEAST = (0.0, 0.13, 0.26), 2
 
 
@@ -151,7 +151,7 @@ def test_the_director_hands_her_to_the_law(report):
 
 #: The law's walk beside a woman's normal one (`tools.sim.normal.BAND`): what of it is on her
 #: band, how far off it the walk may be in all, the words it may be said to be. 0.20 off it,
-#: stiff 0.17 - the heel 22 deg up as its toes leave where 28 - since 2026-10-06; on
+#: stiff 0.17 - the heel 22 deg up as its toes leave where 28 -; on
 #: stilts before: 4.1 off, the swinging knee 26 deg, no heel's rise, the pelvis
 #: level, her feet 0.29 legs apart, her arms bent 80 deg and still.
 ON_BAND = ('elbow bent', 'elbow', 'arm', 'hand out', 'knee swinging', 'knee at landing',
@@ -184,7 +184,7 @@ def test_its_walk_beside_a_womans(report):
 #: it is to be read back in) - MANNER_FOR s each, read over its last READ_S, from FROM_S on,
 #: then plain again. Up through it on 12 timings of 12: leaning 0.50 at 559 J/m, crouched 0.58
 #: at 409, wide 0.68 at 495, tripping 0.36 at 666, catwalk swaying 0.40 at 570, into the wind
-#: leaning 0.48 and crouched 0.31 at 529, and plain again 0.21 off a woman's band (2026-10-06).
+#: leaning 0.48 and crouched 0.31 at 529, and plain again 0.21 off a woman's band.
 MANNERS = (('leaning', ('leaning',)), ('crouched', ('crouched',)), ('wide', ('wide',)),
            ('tripping', ('tripping',)), ('catwalk', ('swaying',)),
            ('into the wind', ('leaning', 'crouched')))
@@ -225,7 +225,7 @@ def test_her_manners_in_their_words(report):
 
 
 #: A pose's accent, her weight on her left leg: POSED of her on that sole at the least, her
-#: right knee FREE_DEG more bent than her left - 77-80 % and 18 deg (2026-10-06); asked on at
+#: right knee FREE_DEG more bent than her left - 77-80 % and 18 deg; asked on at
 #: ON_S and to a stand at OFF_S, judged a second before each and at the end.
 POSE, POSED, FREE_DEG, ON_S, OFF_S, POSE_S = (('hip left', 1.0),), 0.7, 10.0, 6.0, 14.0, 21.0
 
@@ -277,7 +277,7 @@ def test_a_pose_is_let_go_before_she_goes(report):
 
 
 #: The two long ones first: a shard takes every n-th (`focus.chosen`), and CI's three held
-#: them in one, 220 and 111 s here, cut at 300 s (f8c6b1b, 2026-10-06).
+#: them in one, 220 and 111 s here, cut at 300 s (f8c6b1b).
 ROSTER = [test_her_ways_on_setpoints_alone, test_her_manners_in_their_words,
           test_a_pose_is_let_go_before_she_goes, test_a_gait_is_a_row_of_the_same_names,
           test_her_rows_go_on, test_its_walk_beside_a_womans,

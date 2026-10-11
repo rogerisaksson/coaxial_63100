@@ -33,7 +33,7 @@ from tools.dev.suites import (ALL_SUITES, ALONE, CONFORMANCE, DEFAULT_SUITES,
 from tools.target import find_board
 
 #: Suites on the relay (tools.dev.focus), a baton a physical core, the longest first, as the
-#: free commit holds: their wall time is mostly the stand-ins' sleep (2026-09-21: sensorless 24 s
+#: free commit holds: their wall time is mostly the stand-ins' sleep (sensorless 24 s
 #: of CPU in 151 s, the DAQ front door 0.9 in 72, the broker 2.2 in 31); one after another was a
 #: 400 s gate.
 BATONS = physical_cores()
@@ -151,7 +151,7 @@ def _run(args, tags, live_sections):
                 continue
             tally, code, failing, elapsed, crash, groups = result
             # Some tests by their words time only those: kept as the suite's, they planned the
-            # falls suite whole into its 300 s cut (2026-10-02).
+            # falls suite whole into its 300 s cut.
             if name not in (getattr(args, 'words', None) or {}):
                 seconds[name] = round(elapsed, 1)
             if tally is None:

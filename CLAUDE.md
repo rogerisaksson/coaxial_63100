@@ -21,9 +21,9 @@ Fitted parts come from `0x6D` kind 4, never from a name. Host rules:
   follow the schematic: the pilot heard with AFE_ON up supplies them.
 - Measured: duty 1-100 % dry; three legs switching dry at 24-60.8 V, 25
   and 50 kHz, the thermal observer within 0.2 K of the thermistor after 120
-  s blind at 53.8 V (2026-10-05); 26 pulse runs into 8 ohm at 25/31 V,
+  s blind at 53.8 V; 26 pulse runs into 8 ohm at 25/31 V,
   3.1-3.75 A. Drive: 2 922 cycles/period, drivers off. Bootloader on the
-  bench board (2026-10-05, the ST-Link's port, COM3 on the laptop): the app
+  bench board (the ST-Link's port, COM3 on the laptop): the app
   runs from D2 SRAM, and `Coaxial63100.open()` loads the host's own build
   into a board running another or waiting blank (docs/BOOT.md); a power
   cycle and 10 Mbit unproven. Open work: docs/TODO.md.
@@ -81,7 +81,7 @@ Fitted parts come from `0x6D` kind 4, never from a name. Host rules:
 ## Rules
 
 - **Short and slick.** Comments, docstrings, docs: the fact, the number,
-  the date; one definition per thing; no narrative (git holds it). Prose
+  no date; one definition per thing; no narrative (git holds it). Prose
   at a minimum, technical and terse: no markers (capitals, labels, asides,
   remarks on progress) and no filler. A change is a cut, not a rewrite.
 - **Data-oriented**, target and host (docs/ARCHITECTURE.md): structs or
@@ -89,7 +89,7 @@ Fitted parts come from `0x6D` kind 4, never from a name. Host rules:
   memory laid once; tables of steps; the hardware at one edge.
 - **Local first.** Scripts, lint, suites on this host before agents or
   workflows, ultracode or not; agents only for what cannot run here. Two
-  swarms (2026-09-24) burned tokens and ran slower than local work.
+  swarms burned tokens and ran slower than local work.
 - **The relay maxes the host.** Suites only through the baton relay
   (`tools/dev/focus.py`: a baton a physical core, the longest first, the
   long ones as shards): `python tools/dev/run_tests.py --file test_a.py
@@ -114,17 +114,16 @@ Fitted parts come from `0x6D` kind 4, never from a name. Host rules:
   second measurement shows it gone. Measure against the body, not the
   plumb line: a torso plumb over bent knees leans back. A running page
   keeps the code it started with.
-- **Her walk is a human's; its form is a condition, never a price** (the
-  user, 2026-10-05). On a flat, smooth floor one walk passes: the least
-  energy a metre, the pelvis rolling over a stance leg whose knee is all
-  but straight from its landing till it is behind her. A crouch falls
-  less and so does crawling: a fall is met by a parry - where the foot
-  lands -, never by the gait's shape, stride or height; the scoreboard
-  rewards parries and rejects a walk off its form. A straight leg costing
-  more than a bent one is a fault in how it is driven: found, not tuned
-  round. What is solved stays: a fix that moves a solved measure is
-  undone. Mocap is a reference, not a search space. `looks.FORM` is the
-  form, test_gynoid_gait.py holds it; docs/TODO.md item 1.
+- **Her walk is a human's; its form is a condition, never a price.** On a flat,
+  smooth floor one walk passes: the least energy a metre, the pelvis rolling
+  over a stance leg whose knee is all but straight from its landing till it is
+  behind her. A crouch falls less and so does crawling: a fall is met by a
+  parry - where the foot lands -, never by the gait's shape, stride or height;
+  the scoreboard rewards parries and rejects a walk off its form. A straight
+  leg costing more than a bent one is a fault in how it is driven: found, not
+  tuned round. What is solved stays: a fix that moves a solved measure is
+  undone. Mocap is a reference, not a search space. `looks.FORM` is the form,
+  test_gynoid_gait.py holds it; docs/TODO.md item 1.
 - **Smoke her walk first**: after any change reaching it,
   `python tools/sim/armada.py` (12 s on the armada kept up, `--up`) - her
   form, J/m and parries at three paces - and
@@ -135,7 +134,7 @@ Fitted parts come from `0x6D` kind 4, never from a name. Host rules:
 - **Simulated before emulated.** *Emulated* is the image on Renode: SIL.
   *Simulated* is a pure software model claiming no hardware, real or
   emulated. Nothing goes on the emulator until a plausible simulated model
-  of it exists; the gynoid stays in the simulated world (2026-09-27).
+  of it exists; the gynoid stays in the simulated world.
 
 ## Routine, per item
 
@@ -145,10 +144,11 @@ Fitted parts come from `0x6D` kind 4, never from a name. Host rules:
    before pushing `coaxial/` changes. Lint (`host/tools/dev/lint.py`:
    markdownlint, pyright basic) runs as a hook after every edit and at stop.
 2. Braille output: judge a PNG (`tools/render/ansi2png.py`), then the bench.
-3. One dated line in its subject's findings if something was measured or settled;
+3. One line in its subject's findings if something was measured or settled;
    PROTOCOL for wire changes (MINOR per appended field).
-4. Commit, push, move on: do not wait for CI. Read it at the next push
-   (`curl -s https://api.github.com/repos/rogerisaksson/coaxial_63100/actions/runs?per_page=3`);
+4. Commit, push, move on: do not wait for CI. Read it at the next push (`curl
+   -s
+   https://api.github.com/repos/rogerisaksson/coaxial_63100/actions/runs?per_page=3`);
    a red run is fixed before anything else.
 
 A mid-turn message from the bench is the next item.
@@ -174,7 +174,7 @@ one question) and stop. Design questions are yours.
 5. No printf while the binary link is open.
 6. Every ADC read calls `HAL_ADC_ConfigChannel` and clears `PCSEL`.
 7. Scaling lives once, in the calibration record. Nothing is spanned: the
-   DC link's -32 418 ppm was its converter's offset (2026-10-05).
+   DC link's -32 418 ppm was its converter's offset.
 8. Python library: a result or a raise from `coaxial.errors` (`machine.errors`).
 9. AFE_ON off: mid-scale, NTC 25.00 C - labelled; cooked readings refuse.
 10. No limits or expected values in firmware or tests, except `self_test`

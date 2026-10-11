@@ -7,7 +7,7 @@ replace them. The going law's findings: [going](going.md).
 ## Dual quaternions in the recipes' place
 
 A higher algebra as the method, not a recipe a limb; prototype outside git,
-build/prototypes/motors.py (2026-10-06).
+build/prototypes/motors.py.
 
 - A pose is a motor (a unit dual quaternion, the even part of 3D projective
   geometric algebra); a joint a screw about a line of `figure.SEGMENTS`;
@@ -37,7 +37,7 @@ build/prototypes/motors.py (2026-10-06).
 ## Seams blended as motors
 
 Kavan's skinning with dual quaternions; prototype outside git,
-build/prototypes/skin.py (2026-10-06).
+build/prototypes/skin.py.
 
 - A corner within 7 cm of a knee's or a hip's pivot shares the frame across
   it by its height at rest alone, whatever part it belongs to (the shells
@@ -61,8 +61,6 @@ build/prototypes/skin.py (2026-10-06).
 
 ## Two papers read
 
-2026-10-06:
-
 - Villa-Uriol, Perez-Gracia, Kuester, Humanoid synthesis using Clifford
   algebra (ICRA 2006): a limb a serial chain, its kinematics the product of
   its joints' screws as unit dual quaternions off a reference pose (the
@@ -84,7 +82,7 @@ build/prototypes/skin.py (2026-10-06).
 
 ## Lumbar curve on the law
 
-2026-10-10: no lumbar curve, front-heavy (`look.py`'s new columns).
+No lumbar curve, front-heavy (`look.py`'s new columns).
 
 | Variant | Upper body ahead of the hips | Spine holds | J/m |
 | --- | --- | --- | --- |

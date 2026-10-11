@@ -3,8 +3,8 @@
 // regular sequence on ADSTART, the injected one on JADSTART by software or on TIM1's TRGO2 -
 // the plant fires it once a PWM period - its end raising the interrupt as IER enables it.
 // Renode 1.17.0's STM32H7_ADC gives nineteen inputs (a conversion on 19 throws), drops ADC2's
-// registers at +0x100 and keeps no JEXTSEL or JEXTEN in JSQR, so HAL's InjectedStart refused
-// (2026-09-25). A conversion takes no time. A differential input is its pin's volts as the
+// registers at +0x100 and keeps no JEXTSEL or JEXTEN in JSQR, so HAL's InjectedStart refused.
+// A conversion takes no time. A differential input is its pin's volts as the
 // front end gives them, 1.65 V + Vdiff/2: the same code the part makes of Vdiff.
 
 using System;

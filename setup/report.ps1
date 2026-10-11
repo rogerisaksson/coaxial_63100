@@ -178,7 +178,7 @@ function Invoke-Host {
     <#
   python in host/, stderr folded in: its last line comes back, $LASTEXITCODE is the python's.
         -m from host/ needs no `pip install -e host/`, and a traceback reaches the report as
-        its last line, not whole: two did on a machine without host/ installed (2026-09-29).
+        its last line, not whole: two did on a machine without host/ installed.
 #>
     param([string]$Python, [string[]]$Arguments)
     Push-Location $Host_
@@ -236,7 +236,7 @@ function Update-WingetPackage {
         outside sees it, because a process exit code is truncated to its low
         byte and 0x8A15002B ends in 0x2B.
         same whether it is called here or from a wrapper.
-        Two situations answer with it, measured 2026-09-03: a package that
+        Two situations answer with it, measured: a package that
         is
         already newest, and one winget did not install - VS Code on this
         bench

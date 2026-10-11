@@ -112,8 +112,7 @@ LANDED_S = 200.0
 BEHIND = 0.2
 
 #: The page's pack for its test, A h: a first flight whole, spent early in the second - the
-#: routine takes 0.109 on the 16x14s, its full tilt 0.027; 0.15 was spent in its hold
-#: (2026-10-09).
+#: routine takes 0.109 on the 16x14s, its full tilt 0.027; 0.15 was spent in its hold.
 TEST_PACK_AH = 0.17
 
 
@@ -218,7 +217,7 @@ def test_the_page_flies_four_boards(report):
                  'lowest %.3f m, held at last %.3f m' % (low, held[-1] if held else math.nan))
     sag = min((r['volts'] for r in tilt), default=math.nan)
     # Its start: the first two seconds' middle, the rotors' spool to their idle in it. Its
-    # kilowatt a step's: 0.15 s of full tilt's two, a frame's read 814 W on CI (2026-10-06).
+    # kilowatt a step's: 0.15 s of full tilt's two, a frame's read 814 W on CI.
     early = sorted(r['volts'] for r in rows if r['t'] - rows[0]['t'] <= 2.0)
     full = early[len(early) // 2]
     report.check('the bus droops a volt and more under full tilt\'s kilowatt, 63 V at its start',
@@ -280,8 +279,8 @@ def test_the_page_flies_its_course(report):
     report.check('the gate lit: each in its turn on its laps, the first again on its way down',
                  ahead == set(range(len(grounds.GATES))) and after == {1},
                  '%d of them on its laps, %s after' % (len(ahead), sorted(after)))
-    report.check('the boards to their ceiling at the most through its laps, raw ('
-                 '2026-10-10); none tripped',
+    report.check('the boards to their ceiling at the most through its laps, raw; '
+                 'none tripped',
                  bool(laps) and max(r['soa'] for r in laps) <= 1.0
                  and not any(r['tripped'] for r in rows),
                  'SOA %.2f at the most, %.0f %% of the pull at the least' % (

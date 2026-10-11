@@ -7,8 +7,7 @@ A mark holds MuJoCo's state, the model's arrays an event moves, every plain valu
 and the director's objects, and what the host last heard of each board. The boards are other
 processes: each keeps its own of every mark and goes back to the one asked at its next step
 (`buses.Segment.tick`; the block's `marked`, `backed` and `back_to`). Held at the mark's setpoints as at a reset instead, their
-rates read anew from two frames, the walk gone back to drew 382 W over 3 s where 333 walked on
-(2026-10-05).
+rates read anew from two frames, the walk gone back to drew 382 W over 3 s where 333 walked on.
 """
 import collections
 import copy

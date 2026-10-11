@@ -5,7 +5,7 @@
 
 Three clocks and one reference. The board is reached through this PC
 because that is the only clock it can talk to, and this PC is not a
-reference either: measured 2026-08-27, six minutes after W32Time had
+reference either: measured, six minutes after W32Time had
 synced, it sat 947 ms behind UTC and was losing a further 25 ppm - Windows
 had declined to step it, the offset being inside the 1 s
 MaxAllowedPhaseOffset, and slewing was not catching up.

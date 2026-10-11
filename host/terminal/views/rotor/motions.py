@@ -7,7 +7,7 @@ from motor.pmsm import RAD_S_PER_RPM
 
 #: The heavy start (B, and every BURST_EVERY_S on the stand-in): 80 A for 1 s, bounded by
 #: heat, not the clamp - on 24 V in still air 43 A took the switches to 0.82 of their span
-#: warm (2026-09-06).
+#: warm.
 BURST_A = 80.0
 
 BURST_S = 1.0
@@ -127,17 +127,17 @@ def load_loop(rig, view):
 
 
 #: The load stage's torque as the q amps it takes: 20 A, still air's continuous, left the
-#: dyno's switches at 0.57 of their span on its sink at 63 V (2026-10-09).
+#: dyno's switches at 0.57 of their span on its sink at 63 V.
 LOAD_A = 40.0
 
 #: A joint's load held on the vector, q amps - gravity at the end of a limb, the rotor a few
 #: degrees off its angle under HOLD_A - and a servo's as it moves, its mass and friction: some
-#: current through the phases for the thermal observer to follow (bench, 2026-09-28).
+#: current through the phases for the thermal observer to follow (bench).
 JOINT_LOAD_A = 8.0
 SERVO_LOAD_A = 8.0
 
 
-#: The demo in segments, the bench's words (2026-09-28): an application each, its stages
+#: The demo in segments, the bench's words: an application each, its stages
 #: driven by the speed loop, a held vector or one stepped. A stage: its segment, its name,
 #: seconds, the speed it ramps to - rpm, None: no current, the rotor on its drag - the load on
 #: the stand-in's shaft in q amps, and how: 'free' the unloaded rotor spooled at the clamp, no
@@ -146,8 +146,7 @@ SERVO_LOAD_A = 8.0
 #: flywheel (J 8e-3, b 5e-4) a coast of J/b = 16 s. The stages were 0.4 s at their shortest,
 #: QUAD's stabs, 49 changes a minute and the current 48 A apart between two frames there; a
 #: second and more now, 20 a minute at most. A spin's up 4 s: the board's envelope, its clock
-#: at haste, throttles a spool at the clamp, and at 3.5 one ended still drawing 13 A
-#: (2026-10-10).
+#: at haste, throttles a spool at the clamp, and at 3.5 one ended still drawing 13 A.
 CYCLE = (
     ('SPIN', 'align', 1.5, 0.0, 0.0, 'hold'),
     ('SPIN', 'up', 4.0, 3300.0, 0.0, 'free'),
@@ -187,8 +186,8 @@ START_AT = None
 #: A stepper's step, electrical degrees, the share of its interval the vector eases over and the
 #: current it is held on, A. 15 mechanical degrees - 105 electrical, past the 90 where the held
 #: vector's torque turns - lost the rotor: 180 asked, 580 turned, and the way back went on
-#: forward; the stand-in's rotor damps at 0.002 of critical, so a step set down whole rings on
-#: (2026-09-28). A servo's stop takes 858 rpm through the 10 A clamp at zero in 1.4 s: at 1.0 s
+#: forward; the stand-in's rotor damps at 0.002 of critical, so a step set down whole rings on.
+#: A servo's stop takes 858 rpm through the 10 A clamp at zero in 1.4 s: at 1.0 s
 #: the first ended at 167 rpm.
 STEP_E_DEG = 45.0
 STEP_EASE = 0.3
@@ -196,7 +195,7 @@ STEP_A = 12.0
 
 #: A propeller on the shaft through the loaded stages, torque k w|w|: this at the cycle's top,
 #: 3 300 rpm. At 2.0 the 10 A under SEND_FROM spooled DYNO's rotor to 97 rad/s and no further,
-#: its clamp never opened (2026-10-09); 0.8 left the scenarios light at 24 V (2026-09-28).
+#: its clamp never opened; 0.8 left the scenarios light at 24 V.
 PROP_KW = 1.2
 
 #: A ramp takes this share of its stage, and the speed holds for the rest.
@@ -206,7 +205,7 @@ RAMP_SHARE = 0.67
 #: faster and faster - held, and eased off over SPOOL_LAND onto its speed. At a constant rate
 #: the current stepped on at the first frame (488 rpm/s at 0.25 s), the lag held under the 10 A
 #: clamp through zero caught up at 1 379 rpm/s where it opened, and the top stopped dead: on
-#: and off (bench, 2026-09-28).
+#: and off (bench).
 SPOOL_RISE, SPOOL_LAND = 0.5, 0.15
 SPOOL_PEAK = 1.0 / (1.0 - 0.5 * (SPOOL_RISE + SPOOL_LAND))
 
@@ -345,10 +344,9 @@ def sweep(rig, view):
     elif rpm:
         # The stage's load grows with the rotor's speed to its stage's, a dynamometer's: laid on
         # whole at the stage's start, a rotor the up left under the clamp's step - 10 A through
-        # zero - lost to it and ran backwards, -635 rpm on a loaded host (2026-09-28). Eased by
+        # zero - lost to it and ran backwards, -635 rpm on a loaded host. Eased by
         # the envelope's derate, as an operator backs a brake off a throttled board: held whole,
-        # the clamp's dip slowed the rotor under SEND_FROM, its 10 A short of the load there
-        # (2026-10-10).
+        # the clamp's dip slowed the rotor under SEND_FROM, its 10 A short of the load there.
         view['stage_load'] = view.get('load_full', 0.0) * min(
             1.0, abs(w_hat) / (abs(rpm) * RAD_S_PER_RPM)) * float(
                 (view.get('budget') or {}).get('derate', 1.0))
@@ -384,7 +382,7 @@ def sweep(rig, view):
         # Let go: no torque, the bridge still switching - the rotor on its drag and the
         # propeller, the observer on the back-EMF. With the stage off the emulated board's
         # estimate fell from 3 308 to 238 rpm while the flywheel turned on, and stuck there
-        # through the brake (2026-09-28). The spool and the PI ride the estimate to the brake.
+        # through the brake. The spool and the PI ride the estimate to the brake.
         view['spool_from'] = pi.was = w_hat
         drive.write(id_ref=0.0, iq_ref=0.0)
         view['iq'] = 0.0
@@ -392,7 +390,7 @@ def sweep(rig, view):
         return
     # The spool's clock waits for the rotor: on while the reference leads the estimate by less
     # than the error that alone commands the loop's reach. On regardless, the lag held under the
-    # 10 A through zero came back at 2 110 rpm/s where the clamp opened (2026-09-28).
+    # 10 A through zero came back at 2 110 rpm/s where the clamp opened.
     w0, x = view.get('spool_from', w_hat), view.get('spool_x', 0.0)
     w1 = rpm * RAD_S_PER_RPM
     ramp = (FREE_RAMP_S if how == 'free' else

@@ -57,8 +57,8 @@ IMAGE_VTOR = 0x30000000
 #: The bootloader's RS485 rate (docs/BOOT.md).
 BOOT_BAUD = 10_000_000
 
-#: Renode's start, the ADC class compiled, the image booted: 5.6 s on the laptop
-#: (2026-09-25); the wait allows ten times that, and as long again a node.
+#: Renode's start, the ADC class compiled, the image booted: 5.6 s on the laptop;
+#: the wait allows ten times that, and as long again a node.
 READY_S = 60.0
 
 #: The monitor's prompt, `(machine)` after a line's end - Renode ends lines \n\r or \r\r\n.
@@ -71,28 +71,27 @@ UID_AT = 0x1FF1E800
 
 #: The core's instructions a virtual second, the default: the part's 475 M. At Renode's own 100 M a
 #: 240 B echo blast at 10 Mbit lost 12 of 200, and the drive's ISR (2 922 cycles) outran its
-#: 20 us period and starved the link (2026-09-25).
+#: 20 us period and starved the link.
 FAITHFUL_MIPS = 475
 
 #: The core's speed while no ADC waits on TRGO2 - no drive runs to the part's budget. The
 #: polls' register accesses, 17 a pass, cost the same at any rate: idle with the AFE on 2.0
-#: wall s a virtual s at 100, 1.2 at 50, 1.4 at 25, 475's 5.2 (2026-09-27).
+#: wall s a virtual s at 100, 1.2 at 50, 1.4 at 25, 475's 5.2.
 IDLE_MIPS = 50
 
 #: How far a limb's boards run apart before they wait for each other, s: 8 idle boards run
-#: 390 M instructions a wall second in all at 500 us, 387 M at 100 us, 367 M at 1 ms (MPU off,
-#: 2026-09-25). The bus's bytes cross at these boundaries, under RTU's t1.5 of 750 us: 1 ms
-#: broke every frame longer than a quantum's bytes (2026-09-27).
+#: 390 M instructions a wall second in all at 500 us, 387 M at 100 us, 367 M at 1 ms (MPU off). The bus's bytes cross at these boundaries, under RTU's t1.5 of 750 us: 1 ms
+#: broke every frame longer than a quantum's bytes.
 QUANTUM = '0.0005'
 
 #: main()'s time between the handlers while an ADC waits on TRGO2, us, the rest skipped
 #: (Coaxial63100_Plant.LoopSlice): under the drive 2.5 wall s a virtual s against 16.5 whole,
-#: 0.25 us 2.4, 1 us 5.3 (2026-09-25). Paced emulators only.
+#: 0.25 us 2.4, 1 us 5.3. Paced emulators only.
 LOOP_SLICE_US = 0.5
 
 #: MPU_CTRL.ENABLE masked on the bus, the image's MPU off: tlib walks the MPU on every access
 #: inside an enabled region's span whose subregion is disabled - CubeMX's 4 GB region, SRD 0x87,
-#: spans ITCM, DTCM and D2 SRAM. Idle at 100 MIPS 8.2 -> 1.4 wall s a virtual s (2026-09-25).
+#: spans ITCM, DTCM and D2 SRAM. Idle at 100 MIPS 8.2 -> 1.4 wall s a virtual s.
 #: The suites run it on (`mpu`).
 MPU_OFF = 'sysbus SetHookBeforePeripheralWrite sysbus.nvic "value = value & ~1" <0xD94, 0xD97>'
 
@@ -146,11 +145,11 @@ class Emulator:
         self._monitor_lock = threading.Lock()
         #: Wall seconds a virtual second, as last measured: the host's waits are stretched by
         #: it (coaxial.comm.transport). The image sets it - at 475 MIPS the app 5, 18-22
-        #: under the drive, its bootloader 9 (2026-09-25).
+        #: under the drive, its bootloader 9.
         self.time_scale = 1.0
         #: The same with the core kept awake, WFI a no-op: a request's pace, which an idle
         #: core's load understates - asleep it keeps real time, and replies came after the
-        #: host had given up (2026-09-25). The least the host waits by.
+        #: host had given up. The least the host waits by.
         self.awake_scale = 1.0
         self.url = 'frames://127.0.0.1:%d' % self.port
         self.consoles = [self.port]
@@ -206,14 +205,13 @@ class Emulator:
         with open(composed, 'w', encoding='utf-8') as f:
             f.write('\n'.join(self.script()) + '\n')
         # Its own config and monitor history: Renode rewrites the history after every command,
-        # and a body's limbs sharing %APPDATA%'s collided - an IOException, the limb gone
-        # (2026-09-25).
+        # and a body's limbs sharing %APPDATA%'s collided - an IOException, the limb gone.
         config = os.path.join(WORK, 'renode_%d.config' % self.port)
         with open(config, 'w', encoding='utf-8') as f:
             f.write('[general]\nhistory-path = %s\n'
                     % os.path.join(WORK, 'history_%d' % self.port))
         # Its log kept beside them: what Renode said before it went, where it goes (CI's
-        # Release runs, 2026-09-27).
+        # Release runs).
         self.log = self.log or os.path.join(WORK, 'renode_%d.log' % self.port)
         self._sink = open(self.log, 'w', encoding='utf-8')
         self.process = subprocess.Popen(
@@ -384,7 +382,7 @@ class Limb(Emulator):
 
     def script(self):
         """The board's script once a node, its name, port and console written in: Renode
-        does not see variables set between two includes of one script (2026-09-25)."""
+        does not see variables set between two includes of one script."""
         with open(os.path.join(REPO, SCRIPT), encoding='utf-8') as f:
             board = [line for line in f.read().splitlines() if not line.startswith(('$', ':'))]
         out = ['$elf=@%s' % self.elf.replace(os.sep, '/')]
@@ -437,7 +435,7 @@ class Limb(Emulator):
 class Body:
     """A machine's limbs, a Renode process each so they run on the host's cores side by side -
     one process's machines wait for each other every quantum, eight boards in one doing 5 a
-    board's work (2026-09-25). Each limb is its own RS485 segment, as on the machine:
+    board's work. Each limb is its own RS485 segment, as on the machine:
     `urls[name]` is its bus. `limbs` {name: boards}, `worlds` {name: a world's name}."""
 
     def __init__(self, limbs, elf=ELF, worlds=None, mips: int | None = FAITHFUL_MIPS,

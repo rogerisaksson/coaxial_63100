@@ -164,7 +164,7 @@ print('7. live             %d frames in 6 s = %.1f /s; %d records %.2f s deep; '
 ]
 
 BENCH = ('`stored` True once `calibration.save()` commits a record. The DC link spanned '
-         'against a DMM: -32 418 ppm (2026-08-30), on 49.9k/2.2k = 78.15 V full scale '
+         'against a DMM: -32 418 ppm, on 49.9k/2.2k = 78.15 V full scale '
          '(invariant 11).')
 
 REFERENCES = [

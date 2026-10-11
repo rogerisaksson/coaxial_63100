@@ -29,7 +29,7 @@ print('%d pole pairs, lambda %.5f Wb, Kt = 1.5 P lambda = %.4f N.m/A; J %.0e kg.
     section(
         'The stepper: a move and its ring',
         md('HOLD drags the rotor on the load-angle spring `amps Kt sin(delta)`: open loop. '
-           'Ring `sqrt(Kt I P / J)` ~30 Hz, read every 2 ms (20 ms aliased it, 2026-09-07).'),
+           'Ring `sqrt(Kt I P / J)` ~30 Hz, read every 2 ms (20 ms aliased it).'),
         code('''def trace(seconds, zero, every=0.002):
     """The shaft every `every` seconds, mechanical degrees from `zero`."""
     rows = []
@@ -291,7 +291,7 @@ print('               the model reached %.0f rpm at 37 V, iq peak %.1f A, v_sat 
 print('               lambda %.5f Wb from %d KV at %d pole pairs; Kt = 1.5 P lambda = %.4f N.m/A'
       % (motor.lam, RATINGS['kv'], motor.poles, 1.5 * motor.poles * motor.lam))'''),
     md('- The servo closes once per move, not per pass: a 25 Hz loop pumps the 30 Hz ring '
-       'until poles slip (FINDINGS 2026-09-24).\n- With the probe R, Ld, lambda are trusted, R 63 % high '
+       'until poles slip (FINDINGS).\n- With the probe R, Ld, lambda are trusted, R 63 % high '
        '(the discretisation); Lq not. Without it, lambda alone.\n- Out of voltage short of '
        '6717 rpm: Lq drops 11 of 21.4 V at 46 A.\n- 100 A inverter before 112.5 A motor.'),
 ]
@@ -308,6 +308,6 @@ REFERENCES = [
     ('host/coaxial/simulated/drive/', 'the stand-in\'s rotor, the spring under HOLD, and the PLL lag that stands in for the observer'),
     ('host/tests/test_sensorless.py', 'the verbs pinned on the stand-in, the dangerous paths included: a load past the holding torque, a trip mid-spin'),
     ('host/tools/sim/observer_run.py', 'the firmware\'s own observer, run on the host, and the crossover it computes'),
-    ('docs/FINDINGS.md', 'the stand-in\'s 2 A hold, 2026-09-24: zeta 0.0013, a 30 Hz ring a 25 Hz loop pumps'),
+    ('docs/FINDINGS.md', 'the stand-in\'s 2 A hold: zeta 0.0013, a 30 Hz ring a 25 Hz loop pumps'),
 ]
 

@@ -33,7 +33,7 @@ def _decimated(path, divisions):
 #: (0.032 against a 0.042 cell at grid 48) and the see-through came
 #: out smaller and shifted from the mesh's circle the art is drawn
 #: to, so the bench saw TWO holes at i -0.7063 j 0.2652 k -0.4117
-#: real 0.5110 (2026-09-23): the art's blank, ringed, up and right of
+#: real 0.5110: the art's blank, ringed, up and right of
 #: the decimate's slit. 86 corners at radius 0.100, 257 triangles
 #: touching them, against the 48 decimate's 5 645.
 BORE_KEEP = 0.115

@@ -9,7 +9,7 @@
 Turns the AFE off and clears the break's latch before arming: on this bench
 board AFE_ON high takes the supply off the gate drivers and holds PE15 low,
 so measuring and switching are mutually exclusive, and the latch that low
-left refuses MOE until cleared. The break stays in circuit (2026-10-05).
+left refuses MOE until cleared. The break stays in circuit.
 It reads no temperature and settles no baseline.
 
 `--stop` exists because killing a switching run from outside leaves the

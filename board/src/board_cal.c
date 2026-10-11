@@ -39,7 +39,7 @@ static board_cal_t s_cal;
 
 /* Each channel's offset and gain_ppm/1e6 in Q28, laid from the record wherever it changes - zero
    the identity, the row past them an unknown index's: a read an SMULL and a shift, where a 64-bit
-   divide ran __udivmoddi4's 40 branches a DAQ sample (2026-10-10). */
+   divide ran __udivmoddi4's 40 branches a DAQ sample. */
 #define CAL_SCALE_Q 28
 static struct
 {
@@ -59,7 +59,7 @@ static void lay(void)
   }
 }
 
-/* Compiled-in defaults: what the schematic says, traced 2026-08-26 from
+/* Compiled-in defaults: what the schematic says, traced from
    electronics/Coaxial 63100 Schematics.pdf. */
 static const board_cal_t CAL_DEFAULTS =
 {
@@ -107,7 +107,7 @@ static const board_cal_t CAL_DEFAULTS =
   .vg_r_top_ohm     = 57000UL,        /* R119 47k + R113 element 3 10k */
   .vg_r_bottom_ohm  = 10000UL,        /* R113 element 4, PA5 to GND */
 
-  /* DTG 15, 63.2 ns: 33.7 shot through dry, 42 did not (bench, 2026-10-05). */
+  /* DTG 15, 63.2 ns: 33.7 shot through dry, 42 did not (bench). */
   .deadtime_ns      = 60UL,
 
   /* No trim until something is measured. */
@@ -330,8 +330,7 @@ bool Board_CalSetParam(uint8_t id, uint32_t value)
   /* Every one of the thirteen scaling parameters is a divisor or a
      multiplicand somewhere, so zero is refused for those alike - and only
      those: the dead time's skew and the drive's numbers are legitimately
-     zero (no skew, injection off), and were refused at zero until
-     2026-08-31. */
+     zero (no skew, injection off), and were once refused at zero. */
   if ((value == 0U) && (id <= BOARD_CAL_VG_R_BOTTOM))
   {
     return false;

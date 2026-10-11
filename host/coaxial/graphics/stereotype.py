@@ -19,8 +19,7 @@ from coaxial.graphics.solids import _slab_bottom, _slab_top
 #: block (its footprint's least oriented box, lid and four legs), a drum
 #: (a lone lid on one radius: the circle, and per frame the two
 #: silhouette lines), or the sharp arch of an unpaired profile - and the
-#: overlay draws that, edges and corners fixed, over the render (bench,
-#: 2026-09-23). Loops of one side whose footprints overlap are one part;
+#: overlay draws that, edges and corners fixed, over the render (bench). Loops of one side whose footprints overlap are one part;
 #: two arches of one width and height, facing across, are one block.
 STEREO_CIRCLE = 0.03   # a lid's radii vary under this share: a drum
 STEREO_EVEN = 2.5      # ...with its corners' angular gaps within this
@@ -428,7 +427,7 @@ def _circle_fit(pts):
     """((cx, cy, r), dev): the least-squares circle's centre, the mean
     radius about it, and the radii's spread over the mean. Not the
     centroid: unevenly spaced points pull it off-centre - a DC bus
-    screw hole read dev 0.047 and was drawn as a box (2026-09-23)."""
+    screw hole read dev 0.047 and was drawn as a box."""
     n = len(pts)
     mx = sum(p[0] for p in pts) / n
     my = sum(p[1] for p in pts) / n

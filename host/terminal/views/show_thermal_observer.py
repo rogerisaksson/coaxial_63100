@@ -46,7 +46,7 @@ GAUGE_CELLS = 20
 
 
 #: The page's load cycle, thermal s: 2 min at 30 A a phase rms, 4 idle - 36 wall s at HASTE
-#: (bench 2026-09-06: "pulse a bit faster"): the stand-in's own `load_cycle`, an emulated
+#: (bench: "pulse a bit faster"): the stand-in's own `load_cycle`, an emulated
 #: board's demo motor.
 PAGE_CYCLE_ON_S, PAGE_CYCLE_OFF_S = 120.0, 240.0
 PAGE_CYCLE_AMPS = 30.0 * math.sqrt(2.0)
@@ -84,7 +84,7 @@ def evidence_rows(ident, colour=True):
     cls = evidence_class(level)
     bar = gauges.bar(level, GAUGE_CELLS, cls=cls, colour=colour)
     # The label in the leaders' grey, constant; only the bar changes colour
-    # (bench 2026-09-06).
+    # (bench).
     label = ('\x1b[38;5;%dmTH OBS\x1b[0m' % cross_section.LEADER_GREY) if colour \
         else 'TH OBS'
     return ['', '   %s %s' % (label, bar)]
@@ -97,9 +97,9 @@ def picture(state, console, reserve, aspect=CELL_ASPECT):
     if board_c is None:
         return ['  the board sent no board node - device 8 is out of step']
 
-    # Every node: `board` is the centre patch, and stripped of it - the bulk board's cut,
-    # 2026-08-28 - the map's middle was its neighbours' mean, 9.6 K off (2026-10-05). The
-    # leading blank moves the board one row down the frame - asked 2026-08-30, and counted
+    # Every node: `board` is the centre patch, and stripped of it - the bulk board's cut -
+    # the map's middle was its neighbours' mean, 9.6 K off. The
+    # leading blank moves the board one row down the frame - asked, and counted
     # in the caller's reserve.
     return [''] + render(nodes, board_c=board_c, colour=console,
                          margin=PANEL_W, reserve=reserve,
@@ -113,7 +113,7 @@ BREAK_SETTLE_S = 0.4
 def switch_on(rig, origin, load):
     """--switch: the stage armed, `load`'s duty on its legs. A real board's drivers have supply
     with AFE_ON off (R93 unmodified): off, PE15 up behind it, the latch cleared, armed with
-    the break in circuit (docs/HARDWARE.md, 2026-10-05) - refused, the board's words are the
+    the break in circuit (docs/HARDWARE.md) - refused, the board's words are the
     RigError's. A demo board's are the schematic's, off the STO chain whose pilot detector
     runs off AFE_ON, and no pilot is laid: on, the chain bypassed."""
     bench = not _screen.demo(origin)
@@ -165,7 +165,7 @@ def demo_load(rig, origin):
         # The stand-in: its own load, two model minutes at 30 A on all three legs and
         # four cooling - a turning motor's. The demo motor's held vector in its place
         # (569ae47) carried the current one leg at a time, 70 thermal s each at
-        # 0.14 Hz, and the heat walked U, V, W round the board (2026-09-28).
+        # 0.14 Hz, and the heat walked U, V, W round the board.
         rig.thermal.load_cycle(on_s=PAGE_CYCLE_ON_S, off_s=PAGE_CYCLE_OFF_S)
         say('ok', 'load', '30 A a phase for %.0f s, %.0f s off'
             % (PAGE_CYCLE_ON_S / thermal.HASTE, PAGE_CYCLE_OFF_S / thermal.HASTE))
@@ -174,7 +174,7 @@ def demo_load(rig, origin):
         rig.board.afe.on()
         say('ok', 'AFE_ON', 'on - the emulated board, its thermometers read')
         # A sample every 2 s of its time: at 30 the first came half a minute in, the
-        # observer open loop till then (2026-09-28).
+        # observer open loop till then.
         rig.board.thermal.configure(sample_every_s=2.0)
         # The load: the demo motor's current through the legs, the regions pulsing on the
         # map and the bar under the board with cooldowns to rise on.
@@ -209,7 +209,7 @@ def main():
         ready()
         origin = rig.origin
         # On a demo board, however reached: the stand-in or an emulated board's world. Keyed
-        # on the flag, the page ran without its load (bench 2026-09-06).
+        # on the flag, the page ran without its load (bench).
         if _screen.demo(origin):
             # The tour (temperate, cold, toasty, repeating), moved on once the identification
             # has earned the room.

@@ -9,7 +9,7 @@ The markers are Vicon's 41 (CMU's set, any 'Subject:' prefix off), z up, mm. A m
 FLOOR_MM over the lowest the take's feet reach is on the floor; a hand, knee or the seat on it
 is placed ahead (+) of the feet's middle along the pelvis's forward, mm.
 
-Found (2026-09-30), six get-up takes: face down, the push-up onto hands and knees on tucked toes
+Found, six get-up takes: face down, the push-up onto hands and knees on tucked toes
 (the knees 0.42 m ahead of the toes, the hands 1.1), a hand walked back to 0.7, the hips back
 over the feet at 0.45-0.48 m lifting the knees, a squat on the toes (the knees 126-144 deg), up
 with the heels coming down, 2.5 s from the push-up; on the back or the side, onto the back and

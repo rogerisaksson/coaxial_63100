@@ -26,7 +26,7 @@ from machine.stance import length
 #: fall, 1, her sole bore 360 N at 24 ms, 68 at 60 and 648 at 110. A stance of 0.22 s ran her
 #: 1.94 m/s at 253 J/m on a rotor 0.4 of the U8's; on the U8's it holds 1.4 m/s at 403-451 J/m
 #: and is down at 1.75 asked, where 0.30 s runs 1.66 at 266. At 0.32 she is down at 10.6 s; at
-#: 0.26, asked 2.0 from 1.5, she ran 30 s at 1.91 (2026-10-05).
+#: 0.26, asked 2.0 from 1.5, she ran 30 s at 1.91.
 CONTACT_S, FLIGHT_S, TAKE_M, START_G = 0.30, 0.10, 0.0, 1.0
 
 #: The knee as the foot lands, deg. The foot lands on its ball, the heel HEEL_DEG up; standing,
@@ -35,7 +35,7 @@ CONTACT_S, FLIGHT_S, TAKE_M, START_G = 0.30, 0.10, 0.0, 1.0
 #: clock, 10 deg over 44 ms, the ankle sank faster than she did and the leg stood stiff under
 #: her: 532 N in 20 ms, the hip, the knee and the ankle at their clamps, and off the floor
 #: again. Landed flat, the knee took all of her sink: 59 deg and 78 N m late in the stance, 59
-#: N m rms. Given to the floor, the heel met it 68 ms in: the ankle 136 N m (2026-10-05).
+#: N m rms. Given to the floor, the heel met it 68 ms in: the ankle 136 N m.
 KNEE_LAND, HEEL_DEG, ABSORB, HEEL_FROM_M, HEEL_TO_M, HEEL_OFF_DEG = 22.0, 14.0, 0.65, 0.0, 0.22, 50.0
 
 #: The foot further ahead a m/s she runs over the speed asked, s; the feet TRACK_M either side
@@ -50,7 +50,7 @@ SPEED_FILTER_S = 0.01
 
 #: What her speed is off the one asked, a landing after another, moves where the feet land:
 #: SPEED_I m a m/s a landing, BIAS_M at most. On SPEED_S alone she ran 1.57 m/s asked 2.0, 1.23
-#: with none of it, and at 0.15 past 2.4 and down (2026-10-05).
+#: with none of it, and at 0.15 past 2.4 and down.
 SPEED_I, BIAS_M = 0.008, 0.15
 
 #: Her trunk ahead of plumb, deg; the pelvis's attitude turned back past its error (the walker's).
@@ -62,25 +62,25 @@ LEAN_DEG, TURN_K = 6.0, 1.42
 #: straight under the other leg's dip: 496 N on its sole, its hip and knee at their clamps, and
 #: she was thrown up at 1.1 m/s. Folded along the line from hip to ankle, 20 cm shorter, the
 #: thigh went 39 deg on in 80 ms and her trunk pitched on at 220 deg/s a flight. A fold of no
-#: rate at its ends, the sine's square, had her down within 2 s (2026-10-05).
+#: rate at its ends, the sine's square, had her down within 2 s.
 FOLD_DEG = 55.0
 
 #: At its pose READY_S before it is due to land. At its pose as the other foot left the floor,
 #: the leg was straight under her 5 cm before she was up - 300 N on its sole, and she was
 #: thrown up at 1.1 m/s; four fifths there as the other left and the rest on a clock, her
 #: flights went short and long by turns, 31 and 149 ms, and she fell at 5.1 s; ready 40-100 ms
-#: before, swapped in under way, she was down 0.8-7.5 s on (2026-10-05).
+#: before, swapped in under way, she was down 0.8-7.5 s on.
 READY_S = 0.02
 
 #: The swinging foot is level LEVEL of its swing in, and its heel up for the landing from
 #: there on: left to hang it pointed 73 deg down, its ankle taking back 0.7 of the knee's fold
 #: 37, and its toes met the floor under the standing leg's dip - the hip and the knee at their
-#: clamps; level by 0.3, the ankle turned 975 deg/s as the knee folded (2026-10-05).
+#: clamps; level by 0.3, the ankle turned 975 deg/s as the knee folded.
 LEVEL = 0.5
 
 #: A leg changes hands over BLEND_S: what its setpoints jump by as it lands fades out, and the
 #: rate they left the floor at dies over COAST_S. At once, a landing asked the hip, the knee and
-#: the ankle their clamps for a pass or two and the knee 800 deg/s (2026-10-05).
+#: the ankle their clamps for a pass or two and the knee 800 deg/s.
 BLEND_S, COAST_S = 0.03, 0.02
 
 #: A test's start: this far over the take-off's height, m, the leg that left the floor
@@ -113,7 +113,7 @@ def heel(on, landed, sunk):
 def pitched(turn, heading=0.0):
     """A turn's pitch on along `heading`, rad: its up-axis's lean that way. Read along the
     world's z, a foot landed facing 90 deg read its roll as its pitch, and turning 0.3 rad/s
-    she fell at 11 s (2026-10-11)."""
+    she fell at 11 s."""
     return math.atan2(turn[0][1] * math.sin(heading) + turn[2][1] * math.cos(heading),
                       turn[1][1])
 
@@ -148,7 +148,7 @@ class Runner:
         # Brought down on the floor's own point instead - its ball 5 cm over it 80 ms before,
         # the floor's speed under it - her weight came on it at once, 377 N at 21 ms, and she
         # rose at 0.48 m/s of the 0.49 asked; her feet landed 0.10 m ahead of their place, the
-        # hip's servo 5 Hz with the leg on it, and her speed swung 1.0-2.6 m/s (2026-10-05).
+        # hip's servo 5 Hz with the leg on it, and her speed swung 1.0-2.6 m/s.
         c, s = math.cos(self.heading), math.sin(self.heading)
         on, across = v[0] * s + v[2] * c, v[0] * c - v[2] * s
         foot = mul(ry(self.heading), rx(math.radians(HEEL_DEG)))

@@ -110,7 +110,7 @@ def bar(share, cells, cls=SOA_OK, tip=MARK, colour=True):
 #: judges nothing by it (invariant 10) and the colours carry the real
 #: ceilings. From -35 so a winter bench starts on the tube rather than
 #: under it, to 130 so a node at the record's highest ceiling (125) is
-#: seen short of the top - the bench's numbers, 2026-09-05.
+#: seen short of the top - the bench's numbers.
 TEMP_FLOOR_C, TEMP_SCALE_C = -35.0, 130.0
 
 

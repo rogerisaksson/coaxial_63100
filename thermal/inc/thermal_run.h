@@ -9,7 +9,7 @@
 extern "C" {
 #endif
 
-/* One code for every executive (2026-10-10): the part runs it from board_thermal.c,
+/* One code for every executive: the part runs it from board_thermal.c,
    the stand-in from coaxial.simulated.thermal; each lays its own record and gathers its own
    load, samples and clock. */
 

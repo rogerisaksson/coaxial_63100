@@ -282,9 +282,9 @@ def flash(elf, path):
     # The application is linked for RAM: what flash takes is its sealed
     # copy at the store, which the bootloader verifies and copies at reset.
     target, sealed, slot = [str(elf)], None, []
-    # The store only behind this build's bootloader: written behind the application of 2026-09-16,
+    # The store only behind this build's bootloader: written behind an earlier application,
     # which ran from flash over sectors 0 and 1, it broke it - the board restarted in a loop, its
-    # 5 V and 15 V rails switching in turn (2026-10-02).
+    # 5 V and 15 V rails switching in turn.
     if elf.name == APP and _sector0(programmer, path) != _vectors(elf.with_name(BOOT)):
         print('FLASH  FAIL  sector 0 holds no bootloader of this build: the store would land on '
               'what runs from flash there - --boot flashes it first')
@@ -297,7 +297,7 @@ def flash(elf, path):
         store.write_bytes(store_of(image))
         target = [str(store), '0x%08X' % STORE_BASE]
         # A warm slot names the image RAM still holds, and the bootloader runs that one:
-        # flashed over a running Debug image, the board went on running it (2026-10-05).
+        # flashed over a running Debug image, the board went on running it.
         # Cleared, the start is a power-up's and the store runs.
         slot = ['-w32', '0x%08X' % HAND_AT, '0x00000000']
     # SWD, not JTAG: any connect on this probe that asserts NRST fails with

@@ -15,13 +15,13 @@ import sys
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(
     __file__)))))
 
-#: What a file may hold, tokens: past the host's 90th percentile (5.6 k, 2026-09-28), a file
+#: What a file may hold, tokens: past the host's 90th percentile (5.6 k), a file
 #: read whole takes a tenth of a window's working room.
 BUDGET = 6000
 
 #: The files still over BUDGET, each capped where it stood when the budget came in: a split
-#: takes one off, none may grow, and a new file over the budget fails test_structure
-#: (2026-09-28). Tokens.
+#: takes one off, none may grow, and a new file over the budget fails test_structure.
+#: Tokens.
 HEAVY = {
     'host/tests/test_simulated.py': 22300,
     'host/tests/test_ollama_tools.py': 18600,
@@ -94,7 +94,7 @@ def over(budget=BUDGET):
 def breaches(budget=BUDGET):
     """(path, tokens, what it may hold) of every file past the budget and its cap."""
     # Case apart: a Windows checkout keeps a directory's case through a rename upstream, Thermal/
-    # for git's thermal/ on the bench (2026-09-29).
+    # for git's thermal/ on the bench.
     caps = {path.lower(): cap for path, cap in HEAVY.items()}
     return [(p, t, caps.get(p.lower(), budget)) for t, p in over(budget)
             if t > caps.get(p.lower(), budget)]

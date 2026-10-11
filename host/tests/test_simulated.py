@@ -105,8 +105,7 @@ def test_analog_read(report):
     on_text = toolmod.analog_read(afe_on)
     # Frozen is every channel at the unpowered value - 32768.0 single-ended,
     # 0.0 differential - not the string 32768 anywhere: MCUdie's nominal sits
-    # near mid-scale and a live reading walked through it, measured once on CI
-    # (2026-09-13).
+    # near mid-scale and a live reading walked through it, measured once on CI.
     rows = [line.split() for line in on_text.splitlines()
             if line[:1].isdigit() and len(line.split()) > 3]
     frozen = [row for row in rows if row[3] in ('32768.0', '0.0')]
@@ -469,7 +468,7 @@ def test_orientation(report):
     report.check('the dial is the height it was asked for',
                  len(turned) == 23, '%d rows' % len(turned))
 
-    # A protractor since 2026-08-29: degree labels every 30 all the way round,
+    # A protractor: degree labels every 30 all the way round,
     # like the reference face.
     face = chr(10).join(turned)
     marks = [str(deg) for deg in range(0, 360, 30)]
@@ -567,7 +566,7 @@ def test_orientation(report):
                                               'loop': 'running', 'updates': 1,
                                               'errors': 0, 'field': 3}))
 
-    # The sensor box is in the view's HUD panel since 2026-08-29: on the face
+    # The sensor box is in the view's HUD panel: on the face
     # it made four voices (rim, sweep, sensor, pointer).
     report.check('the face carries no sensor box - the HUD names the part',
                  not any('A1335' in row for row in turned))
@@ -741,7 +740,7 @@ def test_desk(report):
     for row in quiet:
         row['span'] = (-207.4, 207.4) if row['differential'] else (0.0, 3.3)
     gate_drivers.update(quiet)
-    # The release (bench, 2026-09-06): a quarter of the distance to the bar's
+    # The release (bench): a quarter of the distance to the bar's
     # level an update, the fixed decay at the least - not the fixed decay
     # alone, which took eight seconds for the whole bar and was always seconds
     # behind a swinging phase.
@@ -1360,7 +1359,7 @@ def test_sto_probe(report):
                  and row.count(chr(10)) == 1, row[:80])
 
 
-#: The suite's time, s: 70 on the laptop (2026-09-27).
+#: The suite's time, s: 70 on the laptop.
 SUITE_S = 180
 
 
@@ -1444,7 +1443,7 @@ def test_thermal_identification(report):
                      'cooldown shows the thermometers',
                      tuple(got['online']) == thermal.IDENT_ONLINE, got['online'])
         # The margin is a number, continuous from the floor to one on the
-        # evidence (2026-09-06); the state is a word beside it.
+        # evidence; the state is a word beside it.
         report.check('the margin is at the floor on a fresh stand-in - the '
                      'record\'s 0.80, what the envelope multiplies its '
                      'spans by until the evidence comes in',
@@ -1481,7 +1480,7 @@ def test_thermal_identification(report):
     # Two cycles: with the room identified beside the scales, one cooldown
     # leaves the air scale known to 0.12 and CONVERGING - the room and the air
     # path share a cooldown's evidence - and the second takes it under a tenth,
-    # STABLE (measured 2026-09-06).
+    # STABLE (measured).
     run(6, load)
     run(14, idle)
     run(6, load)
@@ -1503,7 +1502,7 @@ def test_thermal_identification(report):
     # The margin rose with the evidence, off the floor from the first judged
     # samples (0.88 three minutes in, while UNCERTAIN) to the whole span by the
     # first cooldown's fourth minute, ahead of the word STABLE by two -
-    # measured 2026-09-06.
+    # measured.
     report.check('and the margin rose off its 0.80 floor to the whole span, '
                  'and nothing was saved',
                  got['margin'] > 0.95 and got['saves'] == 0
@@ -1533,13 +1532,13 @@ def test_thermal_identification(report):
     # The margin fell with the fan: to the floor in the first minute
     # (innovation 0.97 K against a 0.1 floor), held there thirteen minutes, and
     # rose again through the cooldown's eighth to fourteenth minute, 0.87 to
-    # 0.99 - measured 2026-09-06.
+    # 0.99 - measured.
     report.check('the margin fell back to the floor within the fan\'s first '
                  'minutes and is whole again two cycles later',
                  abs(fell - 0.8) < 0.01 and got['margin'] > 0.95,
                  'least %.3f, now %.3f' % (fell, got['margin']))
 
-    # Nothing is kept between runs, and the floor is the record's (2026-09-06): a new
+    # Nothing is kept between runs, and the floor is the record's: a new
     # stand-in starts at the floor whatever the last one found, and the floor
     # is a bench's to set - refused outside (0, 1].
     fresh = SimulatedThermal(situation='fan')
@@ -1599,7 +1598,7 @@ def test_thermal_identification(report):
     # The margin says so: the innovation is back at the floor after ten
     # idle minutes, which alone would have given the whole span to a model
     # whose air path is 1.27 for a truth of 0.8; the covariance term holds it
-    # at 0.945 until a cooldown tightens the air path (measured 2026-09-06).
+    # at 0.945 until a cooldown tightens the air path (measured).
     report.check('and the margin stays short of the whole span on idle '
                  'evidence alone',
                  0.8 <= got['margin'] < 0.99, 'margin %.3f' % got['margin'])
@@ -1647,7 +1646,7 @@ def test_thermal_identification(report):
                  % (got['updates'], got['state'], got['scales']['air'],
                     got['margin']))
 
-    # The load cycle a page in simulated mode lays on (bench, 2026-09-06: "show
+    # The load cycle a page in simulated mode lays on (bench: "show
     # the board's temperatures from a simulated load cycle, so one sees the
     # regions warm and cool"): six model minutes at 30 A and fourteen idle,
     # from the model's own clock, under the envelope; measured live in a box:
@@ -1687,7 +1686,7 @@ def test_thermal_identification(report):
                  and cyc.truth()['load_a'] is None
                  and _refused(lambda: cast(Any, Thermal).load_cycle(None)))
 
-    # The tour (bench, 2026-09-06): temperate, cold, toasty and round again,
+    # The tour (bench): temperate, cold, toasty and round again,
     # moved on when the identification has earned the room - STABLE held a
     # hundred model seconds, ten of wall time, five minutes after the move at
     # the least - or after fifty minutes regardless.
@@ -1743,7 +1742,7 @@ def test_thermal_identification(report):
                  'ntc %.1f, room %.1f' % (born['ntc'],
                                           warm.identification()['ambient']))
 
-    # The trip cap (bench, 2026-09-06: "it should trip the limits and push the
+    # The trip cap (bench: "it should trip the limits and push the
     # SOA limit down to maybe 70 %, or some other graceful degradation"): after
     # the envelope has dropped the stage the margin is held at 0.70, recovering
     # a percent a minute of model time, and the spend is measured from the room

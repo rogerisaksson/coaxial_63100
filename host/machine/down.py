@@ -15,19 +15,19 @@ from machine.figure import JOINTS
 #: its gates off, no torque, nothing switched (`World.off`); moving again, braked - its phases
 #: shorted - till still once more. Lying, the page drew 120 W: 1 s after her landing her tuck
 #: (`falls.TUCKED`) armed every drive and held her curled, 136-163 W; given up she stayed
-#: falling, holding it, 157 W (2026-10-02).
+#: falling, holding it, 157 W.
 STILL_S, STILL_M_S, STILL_DEG_S = 0.3, 0.05, 10.0
 
 #: Cut, she settles - her limbs come to rest as their drives let go -, braked again only past
 #: TUMBLE_M_S or TUMBLE_DEG_S: braked at stillness's own 0.05 m/s, on a lace she was cut and
-#: braked again 18 times in 7 s (2026-10-02).
+#: braked again 18 times in 7 s.
 TUMBLE_M_S, TUMBLE_DEG_S = 0.2, 45.0
 
 #: Cut, each bus's boards check themselves one after another, CHECK_S each, the buses at once: the
 #: winding and the angle sensor on a d-axis current of CHECK_SHARE of the board's amps - no torque,
 #: its switching and copper drawn (`World.test`). The world breaks nothing; by their peaks
 #: (`World.geared`) six falls of six put a gearbox past its momentary rating (`drives.shock`),
-#: a knee 3.4 times and an ankle 3.5 on a lace (2026-10-02).
+#: a knee 3.4 times and an ankle 3.5 on a lace.
 CHECK_S, CHECK_SHARE = 0.2, 0.2
 
 

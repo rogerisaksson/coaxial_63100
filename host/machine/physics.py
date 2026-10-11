@@ -29,8 +29,8 @@ from machine.figure import JOINTS
 #: A drive by its joint's kind: (peak N m, kp N m/rad, kd N m s/rad, armature kg m^2). The ankles
 #: stiffer than the body leaning on them (m g h, 490 N m/rad). The neck under a 3.3 kg head
 #: 0.18 m up (0.13 kg m^2), damped at half critical: at 60 N m/rad it nodded 6.1 degrees a step
-#: to her surge; 150, 300, 600: 3.0, 2.2, 1.7 (2026-09-28). The peaks her controller's own, at the
-#: drives' clamps of 2026-10-02: her stacks grew to 1.5x them (`drives.STACKS`, 2026-10-03).
+#: to her surge; 150, 300, 600: 3.0, 2.2, 1.7. The peaks her controller's own, at the
+#: drives' clamps before the stacks: her stacks grew to 1.5x them (`drives.STACKS`).
 SERVO = {'spine': (142.5, 800.0, 30.0, 0.05), 'spine_roll': (77.4, 800.0, 30.0, 0.05),
          'waist': (77.4, 400.0, 20.0, 0.02),
          'neck': (15.0, 300.0, 6.0, 0.02), 'head': (8.0, 30.0, 1.0, 0.02),
@@ -50,7 +50,7 @@ STEP_S = 0.001
 #: stance share with it (`stance.legs`), its setpoints 1.5-7 deg a pass to and fro. At 20 ms
 #: the feet stand on 159 and 160 N, sd 0.02; the walk's touchdown 769 -> 253 N, its power
 #: 683 -> 560 W; the scoreboard 229.0 and 86.4 % against 538.0 and 82.8, at 5 ms 408.6 and
-#: 85.2 (2026-10-04, docs/findings/standing.md, stacks.md).
+#: 85.2 (docs/findings/standing.md, stacks.md).
 LOAD_S = 0.02
 
 #: A drive's reading, in `World.reading`'s order.
@@ -65,16 +65,16 @@ READING = ('degrees', 'rate', 'celsius', 'spent', 'derate', 'status')
 #: its drums, boards, bones, rods and belts (`machine.skeleton`) - off: the ankle's one crank
 #: 50-60 mm inside her shins met the other's walking and she fell in 1-3 s; on the parallel pair
 #: the scoreboard 542 against 495 without, chance's 150, but shoved past saving into the crouch
-#: her head met the floor at 1.03-1.66 m/s in 3 of 64 falls, off at 0.66-0.81 in 2 (2026-10-03).
+#: her head met the floor at 1.03-1.66 m/s in 3 of 64 falls, off at 0.66-0.81 in 2.
 #: Fed forward whole on the U8's rotor, 0.177 kg m^2 at a hip where the frame before had 0.071,
 #: a standing start's setpoints asked the knees and hips their clamps in its first 50 ms and
 #: she fell back in 3 starts of 12; at none, no fall and no parry in 12. The look's suite:
 #: -274.2 at 0, -271.9 at 0.25, off its form at 0.5 and 0.75, down at 1; her knee lands at 30.0
-#: deg at 0.65 strides/s at 0, 30.3 at 0.12, 29.7 at 0.25, the form's 30 (2026-10-05).
+#: deg at 0.65 strides/s at 0, 30.3 at 0.12, 29.7 at 0.25, the form's 30.
 REFLECTED, ROTOR_FF, CLAMPED, PLACED, BACKDRIVE, SKELETON = 1.0, 0.25, 1.0, 1.0, 1.0, 0.0
 #: Where a drive's loop reads its angle and speed: 1 the motor's encoder, the rotor's side of
 #: the gearbox; 0 the joint's own sensor, its link's. Before the gearbox was a body of its own
-#: the wind-up was an offset on the sensed angle, and at 1 her walk fell at 6.4 s (2026-10-03).
+#: the wind-up was an offset on the sensed angle, and at 1 her walk fell at 6.4 s.
 WOUND = 1.0
 
 #: The gearboxes between the rotors and the links (`machine.gearbox`): 1, each rotor runs free
@@ -82,7 +82,7 @@ WOUND = 1.0
 #: the link is turned by that wind-up alone; 0, rigid, the rotor's inertia on the link's joint.
 #: On the boxes the walk on setpoints drags its toes 7-19 mm at lift where 1 rigid and its form's
 #: 2, the loop on its torques walks them at 265-326 J/m: the loop's world, the walker's rigid
-#: till the page walks on the loop (docs/findings/drives.md, 2026-10-11).
+#: till the page walks on the loop (docs/findings/drives.md).
 #: ROOM: the living room round her (`machine.room`); SIGHT her eyes on it (`machine.sight`).
 BOXED, ROOM, SIGHT = 0.0, 0.0, 0.0
 
@@ -92,7 +92,7 @@ BOXED, ROOM, SIGHT = 0.0, 0.0, 0.0
 #: Retuned with them and her trunk's roll first: arrival's SHIFT_IN, LIFT_IN, LEAN_M, capture's
 #: MARGIN, GAIN, walker's SIDE_K, SIDE_D, landing's PARRY_M, PARRY_HURRY, 5 generations of 8 -
 #: the scoreboard 299, held 76.8 %; its chance 263 to 420 for the same knobs to 17, 6 or 3 digits,
-#: the last generation's median 335 (2026-10-03).
+#: the last generation's median 335.
 STAGED = 1.0
 
 #: The boards' envelopes: 1 as built, derating and tripping them; 0 fantasy boards whose SOA
@@ -151,7 +151,7 @@ class World:
         #: joint's speed against it, N m s/rad: the joint's own damping while shorted, MuJoCo's,
         #: integrated implicitly - as a torque each step against the speed, 140 N m s/rad on an
         #: ankle's 0.05 kg m^2 flipped its speed each step, +-140 N m at 500 Hz, drawing 794 W
-        #: as she lay still (2026-10-01).
+        #: as she lay still.
         self.shorted = np.zeros(len(JOINTS), bool)
         #: The drives cut (`off`): gates off, no torque, nothing switched; a cut board's check
         #: current (`test`), A, and its winding's copper an amp squared (1.5 r), ohm.

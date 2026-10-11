@@ -9,7 +9,7 @@ The staged text is judged, not the working tree's: a file over tools/dev/token_b
 or one of its HEAVY grown past its cap, is named with the way to split it; setup.ps1 -Check
 runs as staged (STAGED checked out apart) on two new machines at once (machines()): its stderr,
 a traceback, a failed line, an exit past 1 or no summary is a fault. Only a new machine meets
-the paths without host/'s packages: two tracebacks stood there unseen (2026-09-29).
+the paths without host/'s packages: two tracebacks stood there unseen.
 """
 import os
 import re
@@ -82,7 +82,7 @@ def machines(scratch):
     No python on PATH and an empty LOCALAPPDATA; a bare venv alone on PATH - python, none of
     host/'s packages, refused where this python is not one CI runs. A machine set up runs
     setup's other paths whenever setup runs; this one's took 12.8 s, 9.1 of them the host
-    suite (2026-09-29).
+    suite.
     """
     bare = os.path.join(scratch, 'bare')
     subprocess.run([sys.executable, '-m', 'venv', '--without-pip', bare], check=True)

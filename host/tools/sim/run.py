@@ -19,7 +19,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 
 #: Her run's form on a flat floor, (measure, least, most), held by test_gynoid_run.py: her speed's
 #: share off the one asked, her shortest flight, s, her trunk's tip, deg, a sole's load, N. Half
-#: a minute at 0.75-1.75 m/s asked she ran 0.72-1.66, tipped 8.2 deg, a sole 636 N (2026-10-05).
+#: a minute at 0.75-1.75 m/s asked she ran 0.72-1.66, tipped 8.2 deg, a sole 636 N.
 FORM = (('off', None, 0.10), ('flight', 0.02, None), ('pitch', None, 12.0), ('load', None, 1000.0))
 
 #: Fallen: the pelvis under FELL_M or her trunk tipped past FELL_DEG.

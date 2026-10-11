@@ -29,7 +29,7 @@
 
 /** The bulk figures every laminate default is shared out of: the passive
     state's 1.2 W over 10 K and its 6.8 minute constant. A 300 s burst heats
-    21 J/K of it (2026-10-05). */
+    21 J/K of it. */
 #define BULK_TO_AMBIENT 8.33f
 #define BULK_CAPACITY   49.0f
 
@@ -113,7 +113,7 @@ void thermal_defaults(thermal_cfg_t *cfg)
   }
   memset(cfg, 0, sizeof(*cfg));
 
-  /* Calibrated against a thermal camera 2026-08-28, four states against a
+  /* Calibrated against a thermal camera, four states against a
      dead patch of soldermask (emissivity ~0.95, room 20 C). */
   cfg->board_to_ambient = BULK_TO_AMBIENT;
   cfg->board_cal_rise_k = 10.0f;   /* the passive state: 1.2 W, +10 K */
@@ -178,7 +178,7 @@ void thermal_defaults(thermal_cfg_t *cfg)
   cfg->node[THERMAL_HOTSWAP].capacity    = 0.50f;   /* two TDSON-8, an MSOP, a fuse */
 
   /* Junction over package per watt for the two reporting a die; the MCU's
-     reads its package (46.0 C at the camera's 47, 2026-10-05). */
+     reads its package (46.0 C at the camera's 47). */
   cfg->node[THERMAL_MCU].rth_die = 0.0f;
   cfg->node[THERMAL_AFE].rth_die = 3.8f;
 
@@ -574,7 +574,7 @@ void thermal_losses(thermal_loss_t *loss)
      IAUCN10S7N021, two in series: 3.6 mOhm at 25 C. */
   loss->r_hotswap = 3.6e-3f;
 
-  /* The C_oss dump, three legs at 24.6 V, in the legs (2026-08-28); with the
+  /* The C_oss dump, three legs at 24.6 V, in the legs; with the
      gate's, the bench's dry 2.4, 3.4, 4.1 W at 24, 34, 44 V. */
   loss->switching_watt = 1.20f;
   loss->switch_volts   = 24.6f;
@@ -584,17 +584,17 @@ void thermal_losses(thermal_loss_t *loss)
   loss->mcu_watt = 0.666f;
   loss->ldo_watt = 0.534f;
   loss->afe_watt = 0.13f;      /* from 2-1: the whole AFE chain and sensors */
-  /* Asleep the die sits 4.0 K lower through 22.5 K/W (2026-10-05). */
+  /* Asleep the die sits 4.0 K lower through 22.5 K/W. */
   loss->mcu_sleep_watt = 0.49f;
 
-  /* The switching loss as functions, 2026-09-05. */
+  /* The switching loss as functions. */
   loss->f_sw       = 50.0e3f;
   loss->coss_cjo   = 15.6e-9f;
   loss->coss_m     = 0.45f;
   loss->coss_vj    = 0.7f;
   loss->t_switch_s = 14.0e-9f;
   loss->v_sd       = 0.85f;
-  /* As driven: the FET's 81 nC, its damper, the loop's ring (2026-10-05). */
+  /* As driven: the FET's 81 nC, its damper, the loop's ring. */
   loss->q_g        = 267.0e-9f;
   loss->v_drive    = 15.0f;
   loss->buck_eff   = 0.85f;

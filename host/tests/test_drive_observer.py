@@ -127,7 +127,7 @@ def test_observer_standstill_wide(r, lib):
     2 V gives on native - no current asked, the drive knowing the motor's flux. The back-EMF
     feed-forward off an estimate at rest stepped the voltage each update, the demodulator read
     the current it drove as angle: on native the estimate ran to -8 000 rad/s with 16 A in the
-    windings inside 20 ms (2026-09-28)."""
+    windings inside 20 ms."""
     d = Drive(lib)
     v_inj = 2.0
     try:
@@ -157,7 +157,7 @@ def test_handover_weighs_the_back_emf(r, lib):
     """At rest with the crossover under the estimate's noise at 400 Hz (w_lo 20, w_hi 40 rad/s): the
     handover weighs the back-EMF the rotor makes, not the speed the estimate says, so the
     injection keeps the estimate on the rotor. Weighed by the estimate, noise past w_hi handed
-    over to a back-EMF of nothing, which read back the drive's own feed-forward (2026-09-28)."""
+    over to a back-EMF of nothing, which read back the drive's own feed-forward."""
     d = Drive(lib)
     v_inj = 2.0
     try:
@@ -187,7 +187,7 @@ def test_handover_under_d_current(r, lib):
     """The demo's align into up: HOLD at 12 A of d current, then SENSORLESS with it still on.
     The demodulator differences samples stationary: a difference of currents each rotated into
     its own frame read the frame's turn under the 12 A as angle, 4.4 of each correction fed
-    back - the estimate ran a pole off and the demo started backwards (2026-09-28)."""
+    back - the estimate ran a pole off and the demo started backwards."""
     d = Drive(lib)
     v_inj = 0.585
     try:
@@ -325,7 +325,7 @@ def test_hold_handover(r, lib):
 def test_turns_carry_the_estimate(r, lib):
     """theta_hat + 2 pi turns, the estimate unwrapped on the board (op 0, MINOR 24): a held
     frame turned nine times each way moves it a step's worth at a time, never a turn - the rotor
-    page counted them at 20 frames a second and its mark leapt 68.8 degrees (2026-09-28)."""
+    page counted them at 20 frames a second and its mark leapt 68.8 degrees."""
     d = Drive(lib)
     try:
         d.source(True)

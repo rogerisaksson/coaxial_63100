@@ -5,7 +5,7 @@ board's findings: [FINDINGS](../FINDINGS.md).
 
 ## Toes sprung, no motor
 
-`drives.WAYS` foot 1, `drives.TOE_K` (2026-10-04).
+`drives.WAYS` foot 1, `drives.TOE_K`.
 
 - As the walker was, at 40 N m/rad: scoreboard held 15 % against 73.7 driven
   (every walk down at its first push-off, 0.5-0.8 s; every rise at its first
@@ -46,7 +46,7 @@ board's findings: [FINDINGS](../FINDINGS.md).
 
 ## Spring stiffness
 
-`drives.TOE_K` (2026-10-04):
+`drives.TOE_K`:
 
 | N m/rad | Scoreboard | Walks at 0.65-1.0 | Rises | Note |
 | --- | --- | --- | --- | --- |
@@ -56,7 +56,7 @@ board's findings: [FINDINGS](../FINDINGS.md).
 
 ## Push-off on sprung toes
 
-`gait.HEEL_OFF`, `TOE_DEG`; a grid on the look suite (2026-10-04). As built
+`gait.HEEL_OFF`, `TOE_DEG`; a grid on the look suite. As built
 for the driven toes the heel lifts at 0.36 of the stride, the foot 50 deg
 down at toe-off.
 
@@ -73,7 +73,7 @@ down at toe-off.
 
 ## Walk height
 
-- Lower on sprung toes (2026-10-04): the heel off at 0.5 drops the heel's
+- Lower on sprung toes: the heel off at 0.5 drops the heel's
   rise as the other foot lands (`gait.RISE_AT` 0.5), the trailing foot stays
   flat; the landing knee 35-38 deg, 23 at mid-stance, the pelvis 0.84-0.87 m
   up, where on driven toes the walk ran at 0.88 with the standing knee
@@ -103,8 +103,7 @@ down at toe-off.
 ## Rear foot slip
 
 The rear foot slips back before its swing (`look.py`'s toes back at lift,
-from where the toes stood as the foot last bore the weight alone;
-2026-10-04).
+from where the toes stood as the foot last bore the weight alone).
 
 - 92 mm as baked, 90 with the load's band; at 1 kHz 64-127 mm over 90 ms,
   the toes 14-34 mm up, the foot bearing nothing from 20 ms after the other
@@ -123,7 +122,7 @@ from where the toes stood as the foot last bore the weight alone;
 
 ### Baked
 
-2026-10-04: the heel by reach (45 deg, 0.99); the stride 0.75 m
+The heel by reach (45 deg, 0.99); the stride 0.75 m
 (`gait.STRIDE_M`; at 0.85 the walk at 1.0 strides/s falls, at 0.8 it holds
 69 %); the foot released travelling with the pelvis from where it stood,
 easing into its swing over 0.1 of the stride (`stance.LET_Q`: at toe-off its
@@ -153,14 +152,14 @@ mm); the swing 45 mm up (`gait.LIFT_M`).
 
 ## Parry hurry
 
-0.29 -> 0.25 with the elbow's stack on its axis (2026-10-04): the test's 38 N
+0.29 -> 0.25 with the elbow's stack on its axis: the test's 38 N
 held, left and right of 8: 0.25 2 and 3, 0.27 1 and 3, 0.29 2 and 1, 0.32 2
 and 2; faults scoreboard 428 and 65.2 % at 0.25, 482 and 62.2 at 0.32.
 
 ## Stacks at the first step
 
-Into the walk from the squat the gynoid staggered on the stacks
-(2026-10-03): their ankles' and hip rolls' rotors reflect half the inertia
+Into the walk from the squat the gynoid staggered on the stacks:
+their ankles' and hip rolls' rotors reflect half the inertia
 the first step was tuned on (0.103 and 0.173 kg m^2 against 0.282 and
 0.367; the hips' and knees' 0.158 against 0.163); the pelvis went 51 mm down
 and 15 up in the walk's first second. `arrival.LIFT_UP_M` 0.06 -> 0.04: 18

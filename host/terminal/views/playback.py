@@ -10,8 +10,7 @@ import math
 #: process's ratio to real time and CATCH_UP of the lag's error a second, eased over PACE_S; a
 #: buffer of KEEP_S. Drawn as each state
 #: came, a frame at 15 a second showed the same state again 65 times in 235 and the rest 0.036 s
-#: of her time apart with 0.022 of spread: her process runs 0.7 of real time in slices of 0.05 s
-#: (2026-09-28).
+#: of her time apart with 0.022 of spread: her process runs 0.7 of real time in slices of 0.05 s.
 LAG_S, CATCH_UP, PACE_S, KEEP_S = 0.2, 1.0, 0.5, 1.0
 
 

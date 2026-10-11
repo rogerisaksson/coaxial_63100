@@ -12,7 +12,7 @@ def test_the_demo_actually_loads_the_motor(report):
     clockwise against a propeller to near a kilowatt, coast, brake, the same the other way, a
     load held at speed. Each stage does what its physics says - the coast on J dw/dt = -b w -
     k w|w| - the bead never turns back against the rotor and speeds and slows with it, and
-    the load warms the winding and spends the switches' margin (2026-09-28).
+    the load warms the winding and spends the switches' margin.
     """
     import collections
     import math
@@ -95,7 +95,7 @@ def test_the_demo_actually_loads_the_motor(report):
                      st[-1][2], max(abs(r[3]) for r in st), st[-1][3]) for st in ups))
     # Into the motor at its top on the clamp, 1.5 lambda w I (w electrical, the top it spooled to,
     # I the clamp it held): its 0.15 s peak, a frame at a time and the voltage +-30 % frame to
-    # frame, read 879 W at 20 frames/s, 775 at 10, 787 and 735 on CI's runner (2026-10-01).
+    # frame, read 879 W at 20 frames/s, 775 at 10, 787 and 735 on CI's runner.
     pairs = max(1.0, params.get('motor_pole_pairs') or 1.0)
     clamp = max((abs(r[3]) for r in ups[0]), default=0.0) if ups else 0.0
     spun = abs(ups[0][-1][2]) * math.tau / 60.0 if ups else 0.0
@@ -103,8 +103,7 @@ def test_the_demo_actually_loads_the_motor(report):
     report.check('and near a kilowatt into the motor as it spools', watts >= 750.0,
                  '%.0f W: %.0f A at %.0f rad/s' % (watts, clamp, spun))
     # A loaded spin-up spools, slow and then faster and faster: at a constant rate its first
-    # half second ran 552 rpm/s against a peak of 1 619, the current stepped on and off
-    # (2026-09-28).
+    # half second ran 552 rpm/s against a peak of 1 619, the current stepped on and off.
     spools = [st for name, st in stages if name == 'spool']
     if spools:
         up, t0 = spools[0], spools[0][0][0]
@@ -120,7 +119,7 @@ def test_the_demo_actually_loads_the_motor(report):
         frames past the stand-in plant's catch-up - and motions.sweep's step, clamped alike - is
         time the plant and the reference never turned, and past 5 % of the stage, the brake's
         own tolerance, the stage's physics is not the page's to judge. CI's runner braked
-        993 -> 221 rpm, another host 993 -> -69 beside a heavy suite (2026-09-28)."""
+        993 -> 221 rpm, another host 993 -> -69 beside a heavy suite."""
         times = [row[0] for row in stages[index][1]]
         if index + 1 < len(stages):
             times.append(stages[index + 1][1][0][0])
@@ -153,7 +152,7 @@ def test_the_demo_actually_loads_the_motor(report):
     # What is drawn, frame by frame: the magnets through a shutter - sharp at rest, streaks,
     # a band - never thinned to a ring nor flipping at a threshold (it flipped 7 times in a
     # ramp), and the windings lit by the current against the clamp, gone on a coast's none:
-    # against the vector's own size 0.02 A lit them as 50 did (2026-09-28).
+    # against the vector's own size 0.02 A lit them as 50 did.
     counted = [(name, row) for name, st in stages for row in st if row[9] is not None]
     magnets = [row[9][cross_section.NORTH] + row[9][cross_section.SOUTH] for _, row in counted]
     steps = [abs(b - a) / max(1, a) for a, b in zip(magnets, magnets[1:])]
@@ -182,7 +181,7 @@ def test_the_demo_actually_loads_the_motor(report):
         report.skip('the load\'s physics', 'the page stalled past the plant\'s catch-up')
     else:
         # Unless the envelope holds it back: the dyno runs the switches into their SOA, and a
-        # throttled clamp let 1 500 rpm sag to 1 299 on its 50 A (2026-09-28).
+        # throttled clamp let 1 500 rpm sag to 1 299 on its 50 A.
         held = next(stage[3] for stage in motions.CYCLE if stage[1] == 'load') or 0.0
         load = loads[-1][1] if loads else []
         throttled = any(r[12] for r in load)
@@ -197,7 +196,7 @@ def test_the_demo_actually_loads_the_motor(report):
     # their shutter - on a pace of its own it drifted off them - and at a crawl never 0.4 of a
     # pitch at once: the angle over the pole pairs skipped one each electrical turn, the
     # stand-in's injection flipped half of one at rest, a held rotor rang 12 degrees over a
-    # slow frame (2026-09-28).
+    # slow frame.
     pitch = 720.0 / drawn[0][4] if drawn else 360.0
     places = [((mark - can) % pitch, mark, sweep) for can, mark, sweep, *_ in drawn
               if mark is not None]

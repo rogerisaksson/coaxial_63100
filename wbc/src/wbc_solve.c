@@ -12,7 +12,7 @@ static const double REG = 1e-6, REG0 = 1e-10;
 static const double LOWER = 1e-3;
 /** A bound held with a dual over HOLD stays held below its level (machine.qp.stack's rule):
     at 1e-7 a 38 N shove from behind felled her, at 1e-1 the walk fell; 1e-3 and 1e-2 hold
-    both, 80 N too (2026-10-11). */
+    both, 80 N too. */
 static const double HOLD = 1e-2;
 /** The active set: at most MAXIT steps a level a tick; a bound over by more than TOL is broken,
     a dual under TOL is spent. */
@@ -301,7 +301,7 @@ void wbc_level_solve(wbc_stack_t *s, int level, int last)
     }
   }
   /* A bound is reduced as it is tried (`reduced`): every bound reduced up front was the tick's
-     largest cost and 89 KB of the state (2026-10-11). One this level cannot move is the
+     largest cost and 89 KB of the state. One this level cannot move is the
      levels' above, found then. */
   memset(s->gfixed, 0, (size_t)ineq * sizeof(int));
   /* H = ab^T ab, q = -ab^T rho; K = H + mu I, factored; y0 = -K^-1 q. */
@@ -327,7 +327,7 @@ void wbc_level_solve(wbc_stack_t *s, int level, int last)
   big = (big > 1e-12) ? big : 1e-12;
   /* The tie-break: the levels below, each row projected once and its curvature summed into
      qq (free till the basis is cut) and its ask into qlow; weighed low once their largest
-     column is known. Kept as rows this was 270 KB of the state (2026-10-11). */
+     column is known. Kept as rows this was 270 KB of the state. */
   {
     double top = 0.0, low, qlow[WBC_V];
 

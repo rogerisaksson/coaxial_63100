@@ -141,14 +141,14 @@ def gauge(fraction, width, hot=THROTTLE_AT):
 
 
 #: Frames a second, at most, on every view, and its feed's reads: smooth against a stand-in or an
-#: emulator, no dearer in CPU (2026-09-27). A feed at 5 ms held an emulated board's link.
+#: emulator, no dearer in CPU. A feed at 5 ms held an emulated board's link.
 FPS_CAP = 20.0
 
 #: The board a page draws when none is named: this host's build of the board layer and
 #: the firmware's cores (tools.cores.native), in real time. The image on Renode ran 3.8 to
 #: 4.5 wall s a board s under the drive - its translator's code, the .NET crossings and the
 #: FPU's state saved at each interrupt, ours a fifth of it - and stays the firmware's proof
-#: (emulator://). Renode 1.17.0, the latest (2026-09-28).
+#: (emulator://). Renode 1.17.0, the latest.
 PORT = 'native://'
 
 
@@ -197,7 +197,7 @@ class Feed:
             if self.period:
                 # Start to start: the read's own time is inside the period, not added to it
                 # - added, a 20 ms read at 50 ms fed a 20 fps view 14 readings a second, and
-                # a frame in four drew the last one again (2026-09-28). FEED_GAP_S even after
+                # a frame in four drew the last one again. FEED_GAP_S even after
                 # a read longer than the period, so the link is left to the keys.
                 time.sleep(max(FEED_GAP_S, self.period - (time.monotonic() - began)))
 
@@ -240,8 +240,7 @@ def open_rig(banner, **kwargs):
 
 #: The screen's own rate: between a page's draws - its data's rate, 2 Hz on the
 #: thermal page - the last frame is shown again UI_HZ times a second, so what moves
-#: with the clock (the CRT, the lock, the tags, the clocks) never waits on the data
-#: (2026-09-25).
+#: with the clock (the CRT, the lock, the tags, the clocks) never waits on the data.
 UI_HZ = 15.0
 
 
@@ -311,7 +310,7 @@ class Freshness:
     A draw faster than the board's readings repeats one, which is not a dead
     link: the reading is called stale only once it has stood still for
     STILL_S. The emulated board repeated 24 of 60 frames at 20 fps, and the
-    note flickered live/stale every other frame (2026-09-27).
+    note flickered live/stale every other frame.
     """
 
     #: How long the counter stands still before the reading is stale, s.

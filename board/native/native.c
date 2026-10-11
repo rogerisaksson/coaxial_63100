@@ -1047,7 +1047,7 @@ void native_run_to(uint64_t us)
 
 /** A limb's boards - each its own copy of this library, `run_to` their native_run_to - from
     `from` to `to` us together, `step` us at a time, in one call: a call a step held a board
-    to 21 % of real time (2026-09-28). */
+    to 21 % of real time. */
 void native_lockstep(void (*const *run_to)(uint64_t), int boards, uint64_t from, uint64_t to,
                      uint64_t step)
 {

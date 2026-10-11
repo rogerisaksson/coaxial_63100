@@ -17,7 +17,7 @@ PLAY_NM = 1.0
 
 #: The mesh's friction rounded over this speed, rad/s; the rotors stepped this many times within
 #: the world's step: at one on the knee's 6.2 kN m/rad and 0.177 kg m^2 (187 rad/s, 0.19 of a
-#: step) the rotor's mode grew faster than its damping took it and she fell rising (2026-10-11).
+#: step) the rotor's mode grew faster than its damping took it and she fell rising.
 MESH_RAD_S, SUBSTEPS = 0.02, 5
 
 
@@ -53,7 +53,7 @@ class Boxes:
     def ahead(self, np, torque):
         """How far past its setpoint a board on the motor's encoder asks its rotor, rad, so the
         link lands on it: the box wound up by `torque` and the play that torque has taken up.
-        On the play alone her toes dragged 20 mm at lift where 1 rigid (2026-10-11)."""
+        On the play alone her toes dragged 20 mm at lift where 1 rigid."""
         k = np.where(self.driven, self.k, 1.0)
         return np.where(self.driven, drives.AHEAD_WIND * torque / k
                         + drives.AHEAD_PLAY * self.gap * np.tanh(torque / PLAY_NM), 0.0)

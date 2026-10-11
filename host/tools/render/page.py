@@ -49,7 +49,7 @@ class _Still(keys_module.Keys):
         super().__init__(False, *args, **kwargs)
 
 
-class _Nowhere(io.TextIOBase):
+class _Nowhere(io.StringIO):
     """A console's file that keeps nothing: the page's frames drawn and dropped."""
 
     def write(self, text):
@@ -59,7 +59,7 @@ class _Nowhere(io.TextIOBase):
 def frame(name, width=150, height=44, frames=12, port=None):
     """The page's last frame as ANSI text: simulated, or on `port`. Only the last is kept: every
     frame and the console's whole output grew 0.5 MB a frame, and two six-minute pages ran this
-    laptop's commit out (2026-09-28)."""
+    laptop's commit out."""
     drawn = []
 
     def sized():

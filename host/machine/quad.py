@@ -24,7 +24,7 @@ MASS_KG, GRAVITY = 2.0, 9.81
 #: its pitch as APC's thin electric series go. On the pack's 63 V the 20x10 held the 63100 to
 #: 34 % of its no-load speed at its 30 A and to a pitch's speed of 12.5 m/s at the 2 960 rpm
 #: it was flown on, the frame level at 13 m/s; a 16x14 at 60 A turns 7 350 rpm, the link's
-#: ceiling, 13 times the frame's weight, 43 m/s its pitch's speed (2026-10-09).
+#: ceiling, 13 times the frame's weight, 43 m/s its pitch's speed.
 K_THRUST, K_DRAG = 1.0995e-4, 4.136e-6
 
 #: The air on the frame, m^2 of drag area - an assumption, a 2 kg frame and four 0.5 m discs
@@ -54,7 +54,7 @@ HOVER_M, FLOOR_M, IDLE_RAD_S = 1.5, 0.1, 86.0
 
 #: Its rotors come to a speed asked of them in about this long, s: the frame's clock. The
 #: law's loops (`flying`) and the lap's plan (`course`) are tuned by it and go by it at
-#: another size - the tilt's loop at twice its gain rang on these rotors (2026-10-06).
+#: another size - the tilt's loop at twice its gain rang on these rotors.
 SPIN_S = 0.08
 
 #: The world's step, s.
@@ -241,8 +241,8 @@ class Sky:
         """(what the frame would strike, the seconds to it) as it goes - its speed and what
         that changes by kept, its discs and hub with NEAR_M to spare - within `seconds`, or
         None: its ghost put where it will be, `looks` times on the way. What it is that near
-        already is not ahead: on the floor it lifts from and lands on, WEP was 5 s a flight
-        (2026-10-09)."""
+        already is not ahead: on the floor it lifts from and lands on, WEP was 5 s a flight.
+        """
         d, ghost = self.data, self._ghost
         ghost.qpos[:] = d.qpos
         self._mj.mj_fwdPosition(self._seen, ghost)

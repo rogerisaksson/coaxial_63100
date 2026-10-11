@@ -58,7 +58,7 @@ RUNG_SPACING = 1.65
 GROUND_SPEED = 0.2
 #: Ninety-six steps a spacing: at 24 a rung stood for 0.21 s and
 #: jumped, the near one 1.7 dot rows at a time - "static", the bench
-#: said of the floor (2026-09-23); at 96 it moves every 52 ms by under
+#: said of the floor; at 96 it moves every 52 ms by under
 #: half a dot row (0.105 rows measured at 108x44), on the sub-row the
 #: geometry says. A step is built once and kept; two window sizes'
 #: worth, then the cache starts over.
@@ -71,7 +71,7 @@ _RUNS = {}
 
 #: THE FAN MOVES WITH THE RUNGS. Its lines are dashed, DASH of each spacing lit from a
 #: rung outward, and the dashes scroll toward the camera with the rungs: the floor reads
-#: as travelled, not drawn (2026-09-24, "the vertical lines follow the horizontal ones").
+#: as travelled, not drawn ("the vertical lines follow the horizontal ones").
 #: Past DASHED spacings the fan runs solid into the haze - dashes there are under a dot
 #: row and shimmer. The fan's dots are cast once a window size; a step keeps its dashes.
 DASH = 0.5

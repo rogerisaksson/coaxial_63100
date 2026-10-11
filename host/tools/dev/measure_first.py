@@ -15,8 +15,7 @@ MOVES = ('lut', 'nig', 'knä', 'höft', 'svaj', 'bugar', 'vingl', 'catwalk', 'fe
          'curts')
 
 #: Words that are her movement only beside a word naming her: alone they are "varje gång", "går
-#: igenom", "det står", "nästa steg", "nodes", "arm the stage" - the hook fired on all of them
-#: (2026-09-28).
+#: igenom", "det står", "nästa steg", "nodes", "arm the stage" - the hook fired on all of them.
 PLAIN = ('bakåt', 'framåt', 'huvud', 'gång', 'går ', 'gick', 'steg', 'reser', 'rest ', 'står',
          'stå ', 'tå', 'sjunk', 'hopp', 'skarv', 'arm', 'fot', 'walk', 'step', 'head', 'bob',
          'nod', 'dip')

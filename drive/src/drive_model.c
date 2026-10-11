@@ -75,7 +75,7 @@ static float model_noise(drive_model_t *m, float sd)
 
 /* omega plus `d`, the low bits a float sum drops carried to the next: a
    sub-step at the flywheel's drag changes it by 2.6 of its ulp, and a plain
-   sum took 4.2 % more off a coast than J dw/dt = -b w (2026-09-28). */
+   sum took 4.2 % more off a coast than J dw/dt = -b w. */
 static void omega_add(drive_model_t *m, float d)
 {
   const float y = d - m->omega_lo;

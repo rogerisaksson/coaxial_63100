@@ -1,6 +1,6 @@
 // Coaxial63100_A1335.cs - The Allegro A1335 angle sensor on SPI4, its chip select PE4: 20-bit
 // packets as board_angle.c sends them, four 5-bit words, MSB first. A read is answered two
-// packets on, as the bench's part does (2026-10-05; the manual's read cycle has it one) - the
+// packets on, as the bench's part does (the manual's read cycle has it one) - the
 // register's 16 bits, then a 4-bit CRC (x^4 + x + 1, seed 0xF). ANG is the
 // shaft's mechanical angle in twelve bits: the plant's once a world turns it, `Degrees` once the
 // monitor sets it, else an invented turn every `TurnSeconds` of virtual time, as the stand-in's -

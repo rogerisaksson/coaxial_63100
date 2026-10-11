@@ -6,7 +6,7 @@ board/src's board layer built for this host over board/native's chip, the world'
 it, a thread holding the board's clock to the wall's. It stands as an emulated board, keeps
 real time, turns the demo motor on every period of the timer, its A1335 on the plant's shaft
 and its BNO085 reading what a SIL pipes. Named, the humanoid's twenty boards on five buses keep
-the wall with every drive running - the humanoid is the stand-in's for now (2026-09-27). The
+the wall with every drive running - the humanoid is the stand-in's for now. The
 firmware against its sensors and timers is test_emulator's, on Renode.
 
     python -X utf8 tests/test_native.py                 # the rig's tests
@@ -55,7 +55,7 @@ SQUARE_SHARE = 0.03
 
 #: How near the observer's legs keep to the world's, K: 0.3 alone, 1.2 under the offline
 #: gate's load; a garbage sample or a plant hasted before its observer put them 5-6 K apart
-#: (docs/findings/emulation.md, 2026-09-26).
+#: (docs/findings/emulation.md).
 LEG_K = 2.0
 
 #: The STO chain: its time to release or trip from any input and settle, board s (1.5 ms at
@@ -69,7 +69,7 @@ NODES = ('driver_u', 'driver_v', 'driver_w', 'phase_u', 'phase_v', 'phase_w', 'm
 
 
 #: Built for gcov (tools/dev/cover.py) the C runs unoptimised and counted: its pace is not the
-#: board's - 0.77 virtual s a wall s (2026-09-28) - so the checks on it stand aside.
+#: board's - 0.77 virtual s a wall s - so the checks on it stand aside.
 GCOV = bool(os.environ.get('COAXIAL_GCOV'))
 
 
@@ -251,7 +251,7 @@ def test_the_drive_lets_the_rotor_go(report, rig):
     """Sensorless up on commissioning's gains, the stage armed on the pilot, then the drive off
     with the stage still armed: the bridge open, no current in the world, the flywheel turning
     on. Let go on a zero triple the three low sides shorted it - 31 A rms, 865 rpm to rest in a
-    second, and from 1 979 rpm the short's first peak tripped the drive (2026-09-28)."""
+    second, and from 1 979 rpm the short's first peak tripped the drive."""
     b, limb = rig.board, native.limb_for(rig.port)
     b.afe.on()
     try:
@@ -290,7 +290,7 @@ def test_a_page_drawing_leaves_the_board_its_time(report, _rig):
     keeps the wall's time and the page's feed reads the BNO085 on. A ctypes call a millisecond
     of the board's time, each waiting on the drawing for the interpreter, held the board to
     21 % of real time: 3 reads in 80 frames, the attitude frozen; the probe's session and the
-    page's took each other's replies, and it stood 5 s at a time (2026-09-28)."""
+    page's took each other's replies, and it stood 5 s at a time."""
     import threading
     from terminal import menu
     from terminal.views import show_orientation as view
@@ -467,7 +467,7 @@ RIG = (test_it_stands_as_an_emulated_board, test_the_clock_keeps_the_wall,
        test_a_page_drawing_leaves_the_board_its_time,
        test_the_thermometers_read_the_world)
 
-#: The suite's time, s: the rig's tests ran 20 s (2026-09-27); the humanoid's fleet its own.
+#: The suite's time, s: the rig's tests ran 20 s; the humanoid's fleet its own.
 RIG_S, BODY_S = 120, 300
 
 

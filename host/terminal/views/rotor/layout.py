@@ -12,7 +12,7 @@ NOMINAL_HEIGHT = 24
 
 #: Caption rows above the drawing: the two margins first, then the gutter
 #: groups' names and hottest readings beside the NTC. One foot row: WINDING,
-#: the thermal observer's policy, POWER (bench 2026-09-05).
+#: the thermal observer's policy, POWER (bench).
 CAPTION_ROWS, FOOT_ROWS = 5, 1
 
 

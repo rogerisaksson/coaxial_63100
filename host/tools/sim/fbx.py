@@ -10,7 +10,7 @@ Translation, PreRotation, Lcl Rotation and PostRotation's inverse. Joints go by 
 (Hips, LeftUpLeg, LeftLeg, LeftFoot, LeftToeBase, Spine, Neck, Head, LeftArm, LeftForeArm,
 LeftHand), another rig's beside its own (RIGS). Written: binary 7400, a LimbNode a bone, keys
 linear; the stamp fixed, the FileId and the footer's code that stamp's - the FBX SDK's own
-files' follow theirs so, 48 takes of 48 (2026-10-05).
+files' follow theirs so, 48 takes of 48.
 """
 import os
 import re

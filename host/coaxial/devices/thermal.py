@@ -23,7 +23,7 @@ MARGIN_STEP = 0.001
 
 def at_trip_cap(margin, cap):
     """Whether the margin the envelope acts on is the trip's cap: within a step and a half of
-    it. Asked equal to 1e-6, a board said so one poll in sixty (2026-10-05)."""
+    it. Asked equal to 1e-6, a board said so one poll in sixty."""
     return cap is not None and cap < 1.0 and abs(margin - cap) < 1.5 * MARGIN_STEP
 
 #: `since_save_s` on the wire when the record was never written this boot
@@ -335,7 +335,7 @@ class Thermal(Device, ThermalControl, device=protocol.DEVICE_THERMAL):
     def _toured(self, room, stable):
         """`room`'s truth, the tour stepped on the observer's clock since the last read: the gap
         STABLE when both its reads were - the one before the first counted whole, the room moved
-        61 s after STABLE where it is earned at 100 (2026-09-28)."""
+        61 s after STABLE where it is earned at 100."""
         now = self.state()['seconds']
         if room['tour']:
             room['earned_s'], stop = rooms.step(

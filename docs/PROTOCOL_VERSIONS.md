@@ -37,6 +37,6 @@ appends; MAJOR breaks a codec.
 | 30 | thermal op 15 takes 7, a joint's holder |
 | 31 | device 13 WBC |
 
-MAJOR 2 (2026-08-29): thermal nodes went per leg, indices repurposed.
+MAJOR 2: thermal nodes went per leg, indices repurposed.
 A host ignores fields past what it knows. `test_conformance.py` holds a
 live board to this document.

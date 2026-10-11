@@ -5,7 +5,7 @@ The world laid in the tour's rooms (coaxial.model.rooms) at a raised haste, the 
 load on it: the identification STABLE in the first room, the tour on to the next, the board
 cooling or warming faster than the observer expects and the state lost, then STABLE again. And
 the rotor page's demo, its loads on the world: the switches into their SOA and the envelope
-throttling them there, no node past its ceiling - the bench's words, 2026-09-28. The tour's
+throttling them there, no node past its ceiling - the bench's words. The tour's
 deadlines are on the observer's own clock: a slow host stretches the wall's time, not the
 world's.
 
@@ -27,7 +27,7 @@ from views_kit import Report  # noqa: E402
 
 #: The world's and the observer's haste, three times the pages': at 100 STABLE in the first
 #: room at 2 726 observer s, the room moved 54 s on, UNCERTAIN 54 s after it and STABLE again
-#: 850 later, but the observer's steps starve the board's loop there (2026-09-28).
+#: 850 later, but the observer's steps starve the board's loop there.
 HASTE = 30
 
 #: The thermal page's load, observer s and A: 120 on, 240 off.
@@ -44,7 +44,7 @@ WALL_S, READ_S = 400, 0.5
 #: The rotor page's haste and its wall s, from DYNO, the first loaded segment - SPIN's rotor is
 #: unloaded: at 30 the envelope throttled 6.0 s into the first spin-up then, the worst node
 #: 0.93 of its span and 0.945 at most; at 100 the page drove nothing, the board holding real
-#: time at 1 002 observer steps a second (2026-09-28). Its own board on the page's dyno - 63 V,
+#: time at 1 002 observer steps a second. Its own board on the page's dyno - 63 V,
 #: a fan's sink: the tour's room and haste stay on theirs.
 SOA_HASTE, SOA_S, SOA_PORT, SOA_FROM = 30, 25.0, 'native://?world=dyno', 'DYNO'
 
@@ -126,7 +126,7 @@ def test_the_demo_takes_the_switches_into_their_soa(report):
     """The rotor page's demo on native, its loads on the world - the propeller its drag, the
     stages' torque: the envelope throttles the switches past 0.9 of their span in the first
     spin-up and holds every node under its ceiling. On the flywheel's current alone native's
-    demo stood at 0.85 and never throttled (2026-09-28)."""
+    demo stood at 0.85 and never throttled."""
     from coaxial.model import thermal
     from terminal.ui.screen import FPS_CAP
     from terminal.views import show_rotor_observer as view

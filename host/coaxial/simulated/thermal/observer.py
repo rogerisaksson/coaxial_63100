@@ -2,7 +2,7 @@
 
 thermal/src/thermal_run.c - the observer, its identification and its envelope as the board runs
 them - stepped on world/src/world_heat.c's truth, a slot of world/src/world_stand.c's
-(tools.cores.stand): one code with the part and the emulated worlds (2026-10-10).
+(tools.cores.stand): one code with the part and the emulated worlds.
 This class is the stand-in board's edge: the load gathered off its drive, the room and its tour
 laid, the clamp and the stage acted on, the views named as the board's device names them.
 """
@@ -92,7 +92,7 @@ class SimulatedThermal(ThermalControl):
     #: Wall seconds between switches when they are on: long enough for STABLE between them.
     SWITCH_EVERY_S = (180.0, 360.0)
 
-    #: The default load cycle, model s: 6 min at 30 A, 14 cooling (bench 2026-09-06).
+    #: The default load cycle, model s: 6 min at 30 A, 14 cooling (bench).
     CYCLE_AMPS, CYCLE_ON_S, CYCLE_OFF_S = 30.0, 360.0, 840.0
 
     #: The tour judged this often while it runs, model s: a minute's call once took it whole.

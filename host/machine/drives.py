@@ -55,17 +55,17 @@ class Size:
 #: Monte Carlo's trials, 62.3 at 1:36, 74.6 on those drives' masses, 70.5 on those drives; on
 #: these at 1:36 73.7, but felled by P she stayed down both ways - their rotors seen 1.4-1.5 times
 #: those drives', the old seen up at 22.5 s -, at 1:30 up at 22.9 and 23.7 s, at 1:33 one way
-#: (docs/findings/drives.md, 2026-10-03). On the 5230SL the knee at 1:22 shoved past saving her
+#: (docs/findings/drives.md). On the 5230SL the knee at 1:22 shoved past saving her
 #: head met the floor at 2.93 m/s once in 16, at 28 1.0 at most; the hips at 1:30 folded past
-#: -40 deg rising from the squat, her walk down at 5.6 s, at 36 she walked 16 s (2026-10-02).
+#: -40 deg rising from the squat, her walk down at 5.6 s, at 36 she walked 16 s.
 RATIO = 30.0
 GEAR_J = 0.05
 
 #: The motors as bought, a row a part: (the can's D m, its height m, kg, ohm line to line, N m
 #: at its peak, its rotor's kg m^2) - T-Motor's U8 II Lite and MN6007 II, complete with their
-#: bearings (2026-10-05: no frameless kit; motors cost, so two): 87.1 x 27 mm, 253 g
+#: bearings (no frameless kit; motors cost, so two): 87.1 x 27 mm, 253 g
 #: and 134-141 mohm at KV 100, USD 300; 67.2 x 26.1 mm, 159 g and 178 mohm at KV 160, USD 130
-#: (the maker's pages, 2026-10-05; the U8's can by its model, docs/HARDWARE.md). Neither page
+#: (the maker's pages; the U8's can by its model, docs/HARDWARE.md). Neither page
 #: gives a peak: the U8's 4 N m is CubeMars' for the same 36N42P stator in the R80 at 50 A, the
 #: MN6007's 1.9 that maker's RO60's 2.4 by its stack, 7 mm of 8.7; the rotors 0.45 of the kg at
 #: the can's radius less 3 mm (so reckoned, the RO60 and the RO80 10 and 14 % over their pages'
@@ -84,20 +84,20 @@ BOXES = {'B': 0.064}
 #: Each box's torsional stiffness at its output, N m/rad (estimated: a harmonic drive of 70 mm
 #: gives 16-25 kN m/rad; a roller stage on a lobed ring, no flexspline, the same order), and its
 #: wind-up's damping ratio. At a printed cycloid's 1.5 kN m/rad the stance ankle sagged 3-4 deg
-#: under its 60 N m and the walk on setpoints fell at its first steps (2026-10-11).
+#: under its 60 N m and the walk on setpoints fell at its first steps.
 BOX_K, BOX_ZETA = {'B': 9.0e3}, 0.3
 
 #: The inverter by its disc mm: (disc D m, amps, kg, its laminate's K/W to the air through the
 #: housing it is bolted to, its height m): the 63100 as built - 100 mm, 100 A, 0.2 kg, 3.6 K/W
 #: (parts' centres 92 x 93 mm, the housing's skin at 10 W/m^2 K still and the pad 0.3), 14.7 mm
-#: over all by its model (docs/HARDWARE.md) - on every drive (2026-10-05: boards and
+#: over all by its model (docs/HARDWARE.md) - on every drive (boards and
 #: gearboxes in variants are the pain, motors are bought): behind the U8's 87 mm, and 33 mm
 #: wider than the MN6007. A motor's peak is under its amps: the clamp is the motor's.
 INVERTERS = {100: (0.100, 100.0, 0.2, 3.6, 0.015)}
 
 #: The drives' cooling: each winding's and laminate's K/W to the air times this - 1 in air. Her
 #: joints air-cooled, a board's back on an aluminium holder over a third of it, on its motor or
-#: gearbox, its only cooling (2026-10-10; 0.3 in oil, 2026-10-04).
+#: gearbox, its only cooling (0.3 in oil).
 COOLING = 1.0
 
 #: Each kind's stack: (frame, box, inverter), its winding its frame's KV: 100 turns the knee
@@ -113,7 +113,7 @@ STACKS = {**dict.fromkeys(('spine', 'spine_roll', 'waist', 'hip_yaw', 'hip_roll'
                           ('MN6007', 'B', 100))}
 
 #: The inverters out of their stacks: (segment, offset m in its frame, the axis its disc faces),
-#: else in its stack. The knee's and the ankle's split (2026-10-02), two discs facing
+#: else in its stack. The knee's and the ankle's split, two discs facing
 #: out on the femur's outer side: round the tibia under the knee the folded femur met them,
 #: 10-16 mm, round the femur over it the folded tibia, 13-14; facing forward 15 cm over the knee
 #: they stood 12 mm out of her (`tools/sim/fit.py`). The spine's and the neck's flush in her
@@ -121,9 +121,8 @@ STACKS = {**dict.fromkeys(('spine', 'spine_roll', 'waist', 'hip_yaw', 'hip_roll'
 #: stands 17-20 mm out of her shell, at her shoulders' height 13-28 on the line itself; the
 #: head's under the neck's - in her skull, 0.2 kg more of head, a fall put her head on the
 #: floor at 1.49 m/s. The hip's in its stack - on the pelvis's or the torso's back it stood
-#: 14-35 mm out of her, lower on the thigh 16 mm into the shank folded (2026-10-03). In their
-#: stacks, standing, the elbow's is 20 mm past her shell, the shoulder's 15, the hip's yaw's 9
-#: (2026-10-05).
+#: 14-35 mm out of her, lower on the thigh 16 mm into the shank folded. In their
+#: stacks, standing, the elbow's is 20 mm past her shell, the shoulder's 15, the hip's yaw's 9.
 BOARDS = {'knee': ('thigh', (0.035, -0.18, 0.01), 'x'),
           'ankle': ('thigh', (0.051, -0.18, 0.01), 'x'),
           'spine': ('torso', (0.0, 0.14, -0.066), 'z'),
@@ -131,18 +130,18 @@ BOARDS = {'knee': ('thigh', (0.035, -0.18, 0.01), 'x'),
           'head': ('torso', (0.0, 0.245, -0.049), 'z')}
 
 #: Each gearbox's play at its output, deg, and its mesh's friction as a share of its drive's
-#: peak: a good printed box's (2026-10-11; estimated - PETG cycloid discs on steel pins
+#: peak: a good printed box's (estimated - PETG cycloid discs on steel pins
 #: print at 0.3-1 deg, 1-3 % of their rated torque lost in the mesh; `physics.BOXED`). Rigid
 #: (BOXED 0) the boards' encoders see the joint held within RIGID_PLAY_DEG, a wave drive's few
 #: arcmin, as her walk's band was measured.
 BACKLASH_DEG, BOX_FRICTION, RIGID_PLAY_DEG = 0.5, 0.02, 0.1
 #: The wind-up and the play a board asks its rotor ahead of its setpoint by (`gearbox.Boxes.ahead`):
 #: both, her toes dragged 16 mm at lift for 19, the walk 730 J/m for 607; the wind-up's alone
-#: 8-14 mm at 0.1-0.3 deg of play (2026-10-11).
+#: 8-14 mm at 0.1-0.3 deg of play.
 AHEAD_WIND, AHEAD_PLAY = 0.0, 0.0
 
 #: Each joint's structure between its gearbox and its limb wound up a N m, mrad, its members in
-#: series (`tools/sim/members.py`, 2026-10-03: the pitch's bracket at 12 mm gave the spine 3.3,
+#: series (`tools/sim/members.py`: the pitch's bracket at 12 mm gave the spine 3.3,
 #: 27 deg at its clamp; sized, 0.085). With the box's own (BOX_K) a board sees its joint wound by
 #: its last torque (`flex`, `physics.WOUND`).
 WIND = {'spine': 0.085, 'spine_roll': 0.148, 'waist': 0.035, 'neck': 0.239, 'head': 0.239,
@@ -176,22 +175,22 @@ def mesh(joint):
 
 #: Joints without a drive, a kind's way (WAYS): driven, 0; on a spring, 1 - PASSIVE's stiffness
 #: N m/rad and damping N m s/rad about its rest, deg, a kind not listed 40, 1 and 0 -; held at it,
-#: 2, between stops (`mjcf.HELD_DEG`). Any kind, for the fewest drives (2026-10-03);
-#: the toes and the fingers to begin with (2026-10-02): on the scoreboard, their four
+#: 2, between stops (`mjcf.HELD_DEG`). Any kind, for the fewest drives;
+#: the toes and the fingers to begin with: on the scoreboard, their four
 #: drives' 0.88 kg gone, the fingers held open at 20 deg 212 -> 349, held 79.5 -> 68.0 %, every
 #: rise down at 7.1 s; held a fist, 238 and 81.0 %; the toes sprung, 622 and 11.4 %, every walk
 #: down within 0.8 s - the walker's push-off asks them and its legs' reach counts on them. Each
-#: of the rest held in turn against 730 and 74.1 % (2026-10-03): the wrists 602 and 74.2, every
+#: of the rest held in turn against 730 and 74.1 %: the wrists 602 and 74.2, every
 #: rise and walk standing - held; the head's turn 699 and 69.4 (a walk fell), the neck 628 and
 #: 71.2 (a rise), the waist 727 and 71.6 (a rise), the spine's roll 1293 and 23.0, the hips' yaw
 #: 1337 and 12.1.
 WAYS = {'foot': 1.0, 'gripper': 2.0, 'wrist': 2.0}
 PASSIVE = {'gripper': (40.0, 1.0, 80.0)}
 #: The toes' spring about flat, N m/rad, and its damping, N m s/rad: a sneaker's forefoot, 0.2-0.5
-#: N m a degree (a plated one's past 200 stood her on her toe tips, 2026-10-04) - a thin
-#: carbon-fibre sandwich with a TPU core, or TPU printed round carbon rods glued in with silicone
-#: (2026-10-04): springy but damped, the TPU's loss factor TOE_LOSS at the push-off's
-#: TOE_RAD_S, c = loss k / omega (`passive`). The motors off them (2026-10-04).
+#: N m a degree (a plated one's past 200 stood her on her toe tips) - a thin
+#: carbon-fibre sandwich with a TPU core, or TPU printed round carbon rods glued in with silicone:
+#: springy but damped, the TPU's loss factor TOE_LOSS at the push-off's
+#: TOE_RAD_S, c = loss k / omega (`passive`). The motors off them.
 #: TOE_REST deg its rest, toes up under 0 - a sneaker's toe spring (docs/findings/feet.md).
 TOE_K, TOE_LOSS, TOE_RAD_S, TOE_REST = 10.0, 0.3, 20.0, 0.0
 
@@ -230,15 +229,15 @@ def size(kind):
 #: Where each joint's stack sits: None on the joint's own axis; else (segment,
 #: offset m in its frame[, its axis, '-x' its gearbox's end toward -x]) - its output turns what it
 #: drives about that axis from that end, nothing radial off an axial drive's 
-#: (2026-10-03: the ankle's L lay along the shin, its crank about the knee's axis). The hip a
+#: (the ankle's L lay along the shin, its crank about the knee's axis). The hip a
 #: gimbal (`skeleton.gimbal`), each drive on the stage before its joint's - a segment's segment
 #: named for that joint, its frame the hip's centre: the yaw's on the pelvis above, clear of the
 #: pitch's swing (69 mm), turning the fork; the roll's on the fork behind, up and in on a spur
 #: pair into the cradle, her seat's fullest - an 80 mm drum there stood 67 mm out of it; its
-#: crank-rocker (docs/findings/drives.md, 2026-10-03) wanted the pitch's stack 20 mm in, where
+#: crank-rocker (docs/findings/drives.md) wanted the pitch's stack 20 mm in, where
 #: its inverter stood 16 mm into the pelvis boom squatting -; the pitch's in the cradle on the
 #: hip's centre; the knee's on its axis inside it - a belt's give showed in her
-#: walk (2026-10-02), no four-bar kept its 163 degrees over a 12 degree transmission,
+#: walk, no four-bar kept its 163 degrees over a 12 degree transmission,
 #: coupling rods stood as wide as her knee; 100 mm round there the capture law flagged 260
 #: catches walking in 6 s, 80 none -; the elbow's under the arm's quick-release, a belt to the
 #: joint; the ankle's pair under the knee, one over the other on the shin's axis, each turning
@@ -249,12 +248,12 @@ def size(kind):
 #: roll's 60 mm drum stood 80 mm out of her back, 47 out of her shell; across the pitch a rod or a
 #: differential failed (docs/findings/body.md); the wrist's and the fingers' in the forearm, the
 #: toes' in the foot. Off the thigh, the hip's three took 3 kg out of its swing. An elbow pushing
-#: her up from the floor asked 20 N m rms over 2 s, the neck holding her head 6 (2026-10-01). The
+#: her up from the floor asked 20 N m rms over 2 s, the neck holding her head 6. The
 #: waist's on its axis 120 mm up the torso, its gearbox down to the spine's bracket - at the
 #: torso's foot sits the pitch's,
 #: and its bracket clears the roll's bearings to 85 deg; the shoulder's 15 mm in from its joint
-#: (`skeleton.TRUNK`, 2026-10-03). The elbow's on its own axis, its belt and bevel pair gone
-#: (2026-10-04, `linkage.BELTS`).
+#: (`skeleton.TRUNK`). The elbow's on its own axis, its belt and bevel pair gone
+#: (`linkage.BELTS`).
 JOINTS = {
     'spine': ('spine_roll', (0.0, 0.0, 0.0)), 'spine_roll': ('pelvis', (0.0, 0.02, 0.005)),
     'waist': ('torso', (0.0, 0.12, 0.0), '-y'),

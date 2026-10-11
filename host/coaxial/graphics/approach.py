@@ -6,7 +6,7 @@ the nose bobs. The ground (`coaxial.graphics.ground`) is cast flat and cached; e
 the corridor is laid on it and the whole is rolled by the bank and lifted by the bob.
 The craft that passes now and then is `coaxial.graphics.craft`. The HUD
 is conformal: its ladder is the horizon itself at the camera's own degrees a row, its arc
-the bank, its tape the heading the bend turns (2026-09-24, "Elite, Blade Runner,
+the bank, its tape the heading the bend turns ("Elite, Blade Runner,
 Nostromo: an orbital approach, from the pilot's eyes"). The board's attitude is the
 panel's beside it, never these.
 """
@@ -218,7 +218,7 @@ SHIMMER = 0.35
 STAR = (170, 182, 214)
 WARM = (214, 176, 160)
 
-#: Decoration, meaning nothing: a kana line under the tag (2026-09-24, "Ghost in the
+#: Decoration, meaning nothing: a kana line under the tag ("Ghost in the
 #: Shell, Nostromo").
 DATA = (60, 190, 140)
 TAG = '>> ﾁｬｸﾘｸﾁ ﾀﾝｻｸﾁｭｳ'

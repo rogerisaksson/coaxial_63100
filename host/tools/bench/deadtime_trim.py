@@ -13,7 +13,7 @@ the step that did it is the one the board could not hold.
 A trip shows as the observer's uptime going backwards, the only thing that
 survives the event. The DC link does not show it: the sample is taken with
 the stage down, and by then the supply has recovered - it read 24.86 V at
-the step that had just reset the board. Measured 2026-08-29 with the bench
+the step that had just reset the board. Measured with the bench
 OCP at 300 mA; the reset was visible only because the thermal nodes had
 gone to zero.
 

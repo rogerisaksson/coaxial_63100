@@ -1,7 +1,7 @@
 /** native_a1335.c - The Allegro A1335 on SPI4 natively: Coaxial63100_A1335.cs in C. */
 
 /* 20-bit packets as board_angle.c sends them, four 5-bit words, MSB first. A read is answered
-   two packets on, as the bench's part does (2026-10-05; the manual's read cycle has it one) -
+   two packets on, as the bench's part does (the manual's read cycle has it one) -
    the register's 16 bits, then a 4-bit CRC (x^4 + x + 1, seed 0xF). ANG
    is the shaft's mechanical angle in twelve bits (native.c's), TSEN its die's temperature in
    eighths of a kelvin, FIELD the stand-in's magnet; the high four bits each register's

@@ -16,7 +16,7 @@ from machine import getup
 
 #: The steps a plan is made of: what each does, how she must lie for it, how it leaves her - the
 #: words the model reads and the chain a plan is held to. Her knees-together route only: given a
-#: sit-up from her back, gemma4:12b planned it face down, a turtle's (2026-10-01).
+#: sit-up from her back, gemma4:12b planned it face down, a turtle's.
 STEPS = {'straighten out': ('arms and legs straightened, flat',
                             ('face down', 'on her back', 'on a side', 'sitting', 'kneeling'), None),
          'roll onto front': ('rolled over the lower side face down', ('on her back', 'on a side'),
@@ -46,7 +46,7 @@ SCHEMA = {'type': 'object', 'required': ['steps', 'why'],
                          'why': {'type': 'string'}}}
 
 #: Its failed plans before the server is asked. Thinking, gemma4:12b answered nothing in 120 s;
-#: not, a plan in 3.4 (2026-10-01).
+#: not, a plan in 3.4.
 LOCAL_TRIES = 2
 
 PROMPT = """You plan how a fallen humanoid robot gets up. She is a 55 kg woman's build with a
@@ -81,7 +81,7 @@ def chained(steps, lying):
 def fits(step, lying):
     """Whether `step` may begin as the observer says she lies - one wanting only the steps' own
     words (on her knees) left to the check of the step before. Straightened out face down she
-    lay on her back, and the plan's knees under rolled her on (2026-10-01)."""
+    lay on her back, and the plan's knees under rolled her on."""
     wants = STEPS[step][1]
     return ('on a side' if 'side' in lying else lying) in wants or not set(wants) & set(SEEN)
 

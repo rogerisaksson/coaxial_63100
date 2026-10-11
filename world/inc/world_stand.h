@@ -11,7 +11,7 @@ extern "C" {
 
 /* The stand-in (coaxial.simulated.thermal) runs the code the board runs (thermal_run) on the
    truth the emulated worlds run (world_heat): one array of slots, a step a call, the host's
-   Python its edge - the load, the room, the reads (the user, 2026-10-10). */
+   Python its edge - the load, the room, the reads. */
 
 /** The stand-ins a process holds. */
 #define WORLD_STANDS 64

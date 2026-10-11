@@ -16,7 +16,6 @@ is theirs). Not counted: ST's generated code - core/, startup_*.s, cmake/stm32cu
 """
 import argparse
 import ast
-import datetime
 import glob
 import json
 import os
@@ -93,8 +92,7 @@ def run():
     commit = subprocess.run(['git', 'rev-parse', '--short', 'HEAD'], cwd=REPO,
                             capture_output=True, text=True).stdout.strip()
     with open(RUN_JSON, 'w', encoding='utf-8') as f:
-        json.dump({'suites': suites, 'total': total, 'commit': commit,
-                   'date': datetime.date.today().isoformat()}, f)
+        json.dump({'suites': suites, 'total': total, 'commit': commit}, f)
     return code
 
 
@@ -301,11 +299,11 @@ def markdown():
     ran = _run()
     rows = parts()
     both = totals(rows)
-    out = textwrap.wrap('Generated %s at `%s` by `python host/tools/dev/cover.py --readme`: one '
+    out = textwrap.wrap('Generated at `%s` by `python host/tools/dev/cover.py --readme`: one '
                         'offline run (`host/tools/dev/run_tests.py --offline`), the Python under '
                         'coverage.py, the C under gcov. ST\'s generated code - CubeMX\'s core/, '
                         'startup and cmake/stm32cubemx/, the HAL - is not counted.'
-                        % (ran['date'], ran['commit']), 80)
+                        % ran['commit'], 80)
     out += ['', '| Code | Lines | Covered |', '| --- | ---: | ---: |',
             '| **Host**: host/\'s Python, the emulation\'s C | %d | **%.1f %%** |'
             % (both['host'][0], _share(*both['host'])),

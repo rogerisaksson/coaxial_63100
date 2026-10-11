@@ -250,7 +250,7 @@ def _torques(esos, world, body, out):
     """The drives' torques this pass: the stack's, less what each observer sees of its drive's
     own disturbance; the inertia each observer scales by the loop's own, where it gives it. An
     observer reads its board's encoder (`physics.WOUND`): on the joint it took the gearbox's
-    play for 84 N m of disturbance and she fell standing (2026-10-11)."""
+    play for 84 N m of disturbance and she fell standing."""
     import numpy as np
     from machine import physics
     if not esos:

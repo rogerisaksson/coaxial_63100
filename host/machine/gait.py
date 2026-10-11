@@ -30,8 +30,8 @@ JOINTS = ('pelvis', 'waist', 'neck', 'head',
 #: below the pelvis's centre, thigh and shank, the ankle over the sole, the ball ahead of it
 #: (the toes' joint) and the heel behind; the tracks the feet walk on, either side of the line.
 HIP_HALF, HIP_DROP, THIGH, SHANK = 0.095, 0.055, 0.39, 0.38
-#: A 24 cm sole with the toes (`figure.CONTACTS`), a sneaker in size 37-38 - 27 cm read as boats
-#: (2026-09-28); a 38's, 237 (2026-10-04).
+#: A 24 cm sole with the toes (`figure.CONTACTS`), a sneaker in size 37-38 - 27 cm read as boats;
+#: a 38's, 237.
 ANKLE_H, BALL, HEEL = 0.075, 0.117, 0.055
 #: The toes' joint over the sole, and the toes' length from it.
 TOE_RY, TOE_M = 0.014, 0.065
@@ -43,7 +43,7 @@ TRACK_M, WIDEN_M, STAND_M = 0.03, 0.01, HIP_HALF
 #: The walk: metres a stride (two steps) at `stride` 1 - 1.15 was more than her 0.77 m legs
 #: reach behind at toe-off, and the hips sank to let them. At 1.0 (the toe-off at 0.66) the
 #: pelvis dipped 49 mm under the stand, the head 56 mm fore and aft; at 0.85, 34 and 35, the
-#: scoreboard 7.74 -> 7.18, held 83.7 %, the stir 3.4 -> 2.3 mm (2026-09-28); 0.75 with the
+#: scoreboard 7.74 -> 7.18, held 83.7 %, the stir 3.4 -> 2.3 mm; 0.75 with the
 #: heel by reach (`stance.rolled`).
 STRIDE_M = 0.75
 
@@ -61,48 +61,46 @@ CADENCE, PACE_POWER, PACE_STEP = 0.85, 0.6, 0.05
 #: the knee 9-29 degrees through stance for 16-29, the stir 1.4 -> 1.2 mm, the shoves as before;
 #: at 10 alone the walk begun from the lean fell 2.7 s in. With the heel rising to 50 degrees at
 #: toe-off, 6: the walks and the floor's events as at 8; at 4 the walk at 0.9 strides/s fell in
-#: 0.6 s, its front foot short of its landing (2026-09-27).
+#: 0.6 s, its front foot short of its landing.
 KNEE_SOFT_DEG, KNEE_POWER = 6.0, 1.5
 
 #: Never straighter than KNEE_MIN_DEG, whatever the stride: at a short first stride the soft
-#: knee came to 1 degree, the IK out of reach, and the front foot hung over the floor (2026-09-26).
+#: knee came to 1 degree, the IK out of reach, and the front foot hung over the floor.
 KNEE_MIN_DEG = 4.0
 
 #: The foot lands on its heel, toes up LAND_DEG (`pitch_of`), and rolls about it flat by SETTLE;
 #: its heel rises from HEEL_OFF about the ball and leaves the floor at toe-off, TOE_OFF. Landed on
-#: the ball, heel up, the landing knee stood at 42 degrees and the step struck 3.3 body weights
-#: (2026-09-26). Toes up 15 for 9.3, the heel strike's peak 1.55 -> 1.1 kN, 20 alike
-#: (2026-09-27). Off at 0.62 the thigh still stood 1 degree ahead of upright as the toes left
+#: the ball, heel up, the landing knee stood at 42 degrees and the step struck 3.3 body weights.
+#: Toes up 15 for 9.3, the heel strike's peak 1.55 -> 1.1 kN, 20 alike.
+#: Off at 0.62 the thigh still stood 1 degree ahead of upright as the toes left
 #: the floor, 196 mm behind the hip - her feet in front (`STANCE_AT`); at 0.66, 8.5 behind, 235
-#: mm; 0.68, 11.7 and the head's bob 31 mm; 0.7, 22.9 and her head 140 mm fore and aft
-#: (2026-09-28).
+#: mm; 0.68, 11.7 and the head's bob 31 mm; 0.7, 22.9 and her head 140 mm fore and aft.
 SETTLE, HEEL_OFF, TOE_OFF, LAND_DEG, LAND_RATE = 0.13, 0.5, 0.66, 15.0, -75.0
 
 #: The foot's pitch at toe-off, degrees toes-up, and its rate and acceleration there, a stride
 #: and a stride squared: the heel rises fastest at toe-off and on into the air. Eased to a stop
-#: there, the whole foot stood still, the knee straightened -180 deg/s and then bent +409
-#: (2026-09-25).
+#: there, the whole foot stood still, the knee straightened -180 deg/s and then bent +409.
 TOE_DEG, TOE_RATE, TOE_ACC = -40.0, -300.0, 4000.0
 
 #: The heel up RISE_DEG toes-down as the other foot lands (RISE_AT), turning RISE_RATE a stride:
 #: up 4 there, the trailing leg held the hips at 822 mm where the landing leg needed 841 to land
 #: straight, its knee at 31 degrees; at 10, 13, the hips' rise and fall 15 -> 7 mm, held 100 %;
-#: at 15 she fell at 0.9 strides/s (2026-09-28).
+#: at 15 she fell at 0.9 strides/s.
 RISE_AT, RISE_DEG, RISE_RATE = 0.5, -10.0, -180.0
 
 #: The foot levels in the swing: SWING_DEG toes up at SWING_AT of the way from toe-off to the
 #: landing, turning SWING_RATE a stride, hanging toes-down from the ankle until it passes under
 #: the hip. Level at 0.4 over the skim (LIFT_M), the foot trailed flat and the knee bent twice,
-#: 45, 31, 46 degrees: she pedalled; at 0.6 once, to 55 (2026-09-28).
+#: 45, 31, 46 degrees: she pedalled; at 0.6 once, to 55.
 SWING_AT, SWING_DEG, SWING_RATE = 0.6, 0.0, 60.0
 
 #: The body's lean ahead of the plumb line before the first step, deg - the pelvis tipped in
 #: the lean's frame, the torso with it - and how long the walk takes to let it out, s: pushed
 #: on with the torso plumb she read as leaning back before she stepped; a lean kept through
-#: the walk, 2 to 4 deg, had her fall to the slip and the hot knee, held 76 % against 90
-#: (2026-09-27). At 4 the walker's plan stood the pelvis up as it took her, 7 degrees back in
+#: the walk, 2 to 4 deg, had her fall to the slip and the hot knee, held 76 % against 90.
+#: At 4 the walker's plan stood the pelvis up as it took her, 7 degrees back in
 #: 0.2 s, the stance heel rising: on her toes and leaning back; the plan tips it as the lean
-#: now. At 8 from the weight's shift on she leant on unnaturally (2026-09-28).
+#: now. At 8 from the weight's shift on she leant on unnaturally.
 LEAN_DEG, LEAN_OUT_S = 4.0, 2.0
 
 
@@ -110,7 +108,7 @@ def _knots(stride):
     """The foot's pitch toes-up at its knots: (phase, degrees, a stride, a stride squared), a
     quintic between; the landing's the toes already coming down. The heel rises as the stride:
     to the full 50 degrees on the walk's first short strides, the push-off hopped her off the
-    front foot and she zigzagged over (2026-09-27)."""
+    front foot and she zigzagged over."""
     swing = (((TOE_OFF + SWING_AT * (1.0 - TOE_OFF), SWING_DEG, SWING_RATE, 0.0),)
              if 0.0 < SWING_AT < 1.0 else ())
     rise = (((RISE_AT, RISE_DEG * stride, RISE_RATE * stride, 0.0),)
@@ -123,8 +121,7 @@ def _knots(stride):
 #: behind her; centred, the thigh never passed upright and her feet were always in front. At
 #: 0.24 with the toe-off at 0.66 the thigh leaves 12.2 degrees behind upright, the toes 297 mm
 #: behind the hip, the strike 1550 -> 1108 N, the head's bob 11 -> 28 mm and its surge 45 -> 54;
-#: held 83.8 -> 85.6 %, the stir 2.6 -> 3.6 mm; at 0.2 alone the surge doubled, 0.14 fell
-#: (2026-09-28).
+#: held 83.8 -> 85.6 %, the stir 2.6 -> 3.6 mm; at 0.2 alone the surge doubled, 0.14 fell.
 STANCE_AT = 0.24
 
 #: The pelvis alone moves: over the stance leg (metres; at 3 cm both legs leaned together, a
@@ -133,12 +130,12 @@ STANCE_AT = 0.24
 #: back (COUNTER 1), so the shoulders and the head go straight. Turned 12, the pelvis swung 39
 #: degrees, the hips wagging past the catwalk's sway; at 6, 24, and from in front and behind her
 #: hips no longer swayed under her shoulders (60 and 41 mm across): at 9 and dropped 6, 34 and
-#: 12.5, the hips 72 mm across under shoulders at 25 (`walker.SHOULDERS_BACK`) (2026-09-28).
+#: 12.5, the hips 72 mm across under shoulders at 25 (`walker.SHOULDERS_BACK`).
 #: The bench saw her bottom swing, not her hips sway: at 3 and dropped 7 the pelvis turns 16.7
 #: and rolls 14.5, the hips 72 mm across under shoulders at 23, held 74 % of the Monte Carlo
 #: where 77; dropped 8, from mid-stride at 0.918 she fell in her first step. A woman's catwalk
 #: take turns 27 and rolls 27 (`tools/sim/mocap.py`). Turned 4, dropped 6, the shoulders back
-#: 0.25: swing 19.2 where 16.0, hips wag 65.3 mm where 71.4, held 78.5 % where 74.0 (2026-09-30).
+#: 0.25: swing 19.2 where 16.0, hips wag 65.3 mm where 71.4, held 78.5 % where 74.0.
 SHIFT_M, ROLL_DEG, TURN_DEG, COUNTER = 0.010, 6.0, 4.0, 1.0
 
 #: How far each arm joint trails the one above it, radians of the stride.
@@ -231,7 +228,7 @@ def _limit(p, stride):
 #: 3 cm to clear them, the knees bent 30 degrees; eroded alone, the rise as the other foot left
 #: the floor was a step, a jerk 156 times the median. Eroded over 0.027 the plan dipped 17 mm
 #: where the body dipped 27, and the stance leg lifted her back to it in a rush: over 0.05 the
-#: stir 2.0 -> 1.7 mm, over 0.08 1.5, the held share sliding (2026-09-27).
+#: stir 2.0 -> 1.7 mm, over 0.08 1.5, the held share sliding.
 SAMPLES, ERODE, SOFT_MIN_M, BLUR = 240, 0.05, 0.002, 0.030
 
 
@@ -325,7 +322,7 @@ def _ik(x, y, hip, ahead):
 #: The swinging foot skims the floor: its heel's, ball's and toes' least height over it
 #: (`_least`, soft within LIFT_SOFT_M) LIFT_M, taken from the planted foot's pivot over
 #: LIFT_RISE of the swing and handed to the landing's over LIFT_FALL. Lifted by a bump over a
-#: path, the foot went 135 mm up and the knee to 75 degrees: she trod the air (2026-09-28).
+#: path, the foot went 135 mm up and the knee to 75 degrees: she trod the air.
 LIFT_M, LIFT_RISE, LIFT_FALL, LIFT_SOFT_M = 0.045, 0.25, 0.4, 0.003
 
 #: The step the swing's end conditions are differenced over, of a stride.
@@ -350,7 +347,7 @@ def swung(q, stride=1.0):
     planted foot's place, speed, acceleration and jerk at both ends; over the floor, the planted
     foot's pivot handed to the skim (LIFT_M) and back. Swung in the joints instead, the path knew
     no floor: the foot went under it and the knee, bent to lift it, snapped straight to land;
-    quintic, the jerk jumped 3 rms at toe-off (2026-09-25)."""
+    quintic, the jerk jumped 3 rms at toe-off."""
     length, span = STRIDE_M * stride, 1.0 - TOE_OFF
 
     def floor(p):
@@ -381,8 +378,8 @@ def toes_of(q, pitch):
     """The toes' bend, degrees, at the leg's phase `q` and the foot's `pitch`: flat on the floor
     while the heel is up over them; in the air they point with the foot, and flatten again to take
     the floor; lined up with it toes up. Curled up 20 degrees as the foot left the floor they
-    touched it still (the drive at 40 N m/rad follows nothing in 0.05 s) and a slip fell
-    (2026-09-27)."""
+    touched it still (the drive at 40 N m/rad follows nothing in 0.05 s) and a slip fell.
+    """
     u = max(0.0, (q % 1.0 - TOE_OFF) / (1.0 - TOE_OFF))
     return min(0.0, pitch) * (1.0 - 64.0 * u ** 3 * (1.0 - u) ** 3)
 
@@ -432,7 +429,7 @@ def sway(t, cadence=CADENCE, stride=None, phase=None):
 #: A swinging leg turns in at the hip, TWIST_DEG at mid-swing: its knee comes in toward the line,
 #: left and right mirrored - wax on, wax off. The turn is nothing at toe-off and at the landing,
 #: to its second derivative. Each foot's toes out TOE_OUT_DEG throughout: at 11 in and none out,
-#: pigeon-toed; at 6 and 8, 7.4 out in stance and 2.5 swinging (2026-09-28).
+#: pigeon-toed; at 6 and 8, 7.4 out in stance and 2.5 swinging.
 TWIST_DEG, TOE_OUT_DEG = 6.0, 8.0
 
 

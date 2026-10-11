@@ -86,7 +86,7 @@ def call(main, argv):
 
 def common(args):
     """The flags every view takes, off the loader's own: --port, --simulated,
-    --frames. No page sets --hz: every view draws at FPS_CAP (2026-09-28)."""
+    --frames. No page sets --hz: every view draws at FPS_CAP."""
     argv = ['--port', args.port]
     if args.simulated:
         argv.append('--simulated')

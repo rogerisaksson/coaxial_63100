@@ -23,7 +23,7 @@ for node in thermal.NODES:
     print('%-12s to_board %5.1f K/W  capacity %.3f J/K'
           % (node, thermal.CFG['to_board'][node], thermal.CFG['capacity'][node]))'''),
         md('Camera, four states, each adding one power term, 25 min each (3.7 constants), '
-           "dead soldermask as reference (2026-08-28). The NTC: 0.30 of the V leg's rise "
+           "dead soldermask as reference. The NTC: 0.30 of the V leg's rise "
            '(geometry).'),
         code('''print(thermal.MEASURED)
 for state in thermal.STATES:

@@ -22,7 +22,7 @@ from motor.pmsm import RAD_S_PER_RPM
 #: The stand-in's joint damping, N.m.s: a gearbox and a limb, zeta 0.4..0.7 on a 2 A hold of
 #: the bench motor (k 0.735 N.m/rad) over the stand-in's J 1.2e-5..3.2e-5. The bare rotor's
 #: 1e-5 (zeta 0.0013) rings at 30 Hz for seconds, and a 25 Hz loop pumps it until a pole
-#: slips (2026-09-24).
+#: slips.
 JOINT_B = 4e-3
 
 

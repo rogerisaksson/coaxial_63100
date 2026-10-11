@@ -7,7 +7,7 @@ Each covered part of her drawn shell (`coaxial.graphics.gynoid`, bare) against t
 it (COVERED, a side's its own): the worst reach of its corners past a cloth's rings
 (`fit._excess`), m - a seam catches where a cloth is tighter than the shell beneath; a corner no
 cloth covers does not count. The cheeks stood 19 mm out of the jeans between the seat and the
-thighs' legs (2026-10-04).
+thighs' legs.
 """
 import os
 import sys

@@ -9,7 +9,7 @@ SECTIONS = [
         'The dead time, read from the silicon',
         md('`check()` re-reads BDTR DTG every time; DTG 0 refuses (the 2EDL8034 has no '
            "interlock). 4.21 ns a count. `.ioc` DTG 19 = 79 ns; the record's DTG 15 = 63.2 "
-           "ns (8 counts still shot through dry, 10 did not, 2026-10-05)."),
+           "ns (8 counts still shot through dry, 10 did not)."),
         code('''stage = device.gates
 dead = stage.dead_time()
 check = stage.check()
@@ -20,7 +20,7 @@ DTS_NS = 1e3 / 237.5                       # one DTG count at 237.5 MHz
 print()
 print('  DTG      ns   which')
 for counts, which in ((check['deadtime_floor'], 'the firmware floor, 20 ns rounded up'),
-                      (7, 'tripped the supply OCP, 2026-08-29'),
+                      (7, 'tripped the supply OCP'),
                       (8, "the record's 30 ns, rounded up"),
                       (19, "the .ioc, until the record loads"),
                       (127, 'the ceiling of the register')):
@@ -34,8 +34,8 @@ print('the stage reads DTG %d = %d ns, %.1fx the record\\'s 63.2 ns'
         md('Three refusals before the FETs: MOE (`on()` sets it), the interlock (Cinj >= 3.0 V, '
            'Clevel >= 2.0 V through AFE_ON, `daq.enable()`), the break on PE15 '
            "(`bypass_sto=True`). `device.pilot(0.0)` silences an emulated or simulated master: "
-           'the STO chain trips. The bench board reads 0.77 and 0.06 V (R93 unmodified, '
-           '2026-08-27): `ignore_interlock=True`.'),
+           'the STO chain trips. The bench board reads 0.77 and 0.06 V (R93 unmodified): '
+           '`ignore_interlock=True`.'),
         code('''import textwrap
 
 from coaxial.comm.hostclock import clock_of
@@ -126,7 +126,7 @@ print('%d reads, CNT %d to %d of %d; high side on in %d of %d leg samples (%.1f 
     section(
         'A burst over the currents',
         md('A capture decimates nothing: every sweep a record until the ring is full; '
-           '`dropped` 0. Tared with three equal duties: no phase current (2026-08-27).'),
+           '`dropped` 0. Tared with three equal duties: no phase current.'),
         code('''from coaxial.model import inverter
 from coaxial.draw.figures import figure, show
 

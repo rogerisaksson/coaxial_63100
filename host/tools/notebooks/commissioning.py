@@ -31,7 +31,7 @@ print('ISR entry %.1f us after the trigger, cost %.1f us (%d cycles); '
          lat['to_effect_periods'], lat['to_effect_us']))'''),
         md('`sample_point_scan`: CCR5 across the period on the zero vector, the tick with '
            'the least phase variance -> `drv_trigger_ticks`. Gates off it picked 990 of '
-           '2376: noise (2026-08-31).'),
+           '2376: noise.'),
         code('''from coaxial.draw.figures import figure, show
 
 scan = c.sample_point_scan()

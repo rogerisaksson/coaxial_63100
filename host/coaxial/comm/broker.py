@@ -94,7 +94,7 @@ class BrokerTransport:
                 raw = self._file.readline()
         except ValueError as exc:
             # This client, closed: a rig whose session scanned, then released its stage, raised
-            # ValueError past every `suppress(RigError)` (2026-10-05).
+            # ValueError past every `suppress(RigError)`.
             raise errors.ConnectError("the session broker's connection for %s is closed: %s"
                                       % (self.port, exc)) from exc
 

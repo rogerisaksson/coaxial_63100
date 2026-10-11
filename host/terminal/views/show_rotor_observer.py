@@ -157,10 +157,10 @@ def compose(rig, origin, console, view):
     # A can turning past half a magnet pitch a frame strobes at FPS_CAP - stands, or runs
     # backwards, as a wheel on film (43 rpm at 14 poles) - so the magnets blur with the turn
     # through a shutter, as far as they go in it: sharp at rest, streaks, a band. No threshold
-    # to flip at - one flipped 7 times in a ramp - and no thin ring for magnets gone
-    # (2026-09-28). The mark is on the rotor: the magnets' travel since the tare, streaked
+    # to flip at - one flipped 7 times in a ramp - and no thin ring for magnets gone.
+    # The mark is on the rotor: the magnets' travel since the tare, streaked
     # through the same shutter - on a pace of its own it drifted off them, and at the angle
-    # over the pole pairs it skipped a pitch each electrical turn, 51.4 degrees (2026-09-28).
+    # over the pole pairs it skipped a pitch each electrical turn, 51.4 degrees.
     blur = s['omega_hat'] * SHUTTER_S / math.pi          # a pitch is pi electrical
     mark = s.get('travel', view['travel']) - view['tare']
     art = cross_section.render(turned, view['slots'], 2 * pole_pairs,
@@ -339,7 +339,7 @@ DEMO_STEP = 0.01
 #: legs took 0.4 W against 1.8 W of housekeeping; on the dyno's sink at 63 V, 50 A left the
 #: switches at 0.60 of their span at the most, never throttled. The observer's crossover goes
 #: with the clamp: at 90 A it handed over at 129 rad/s, over DYNO's spool on the 10 A under
-#: it, 118 (2026-10-09).
+#: it, 118.
 DEMO_I_MAX = 70.0
 
 DEMO_I_TRIP = 100.0
@@ -392,7 +392,7 @@ def _link(args):
     if not origin.real:
         # The stand-in on the dyno's sink as an emulated board's world has it, and touring its
         # rooms as the identification earns them: TH OBS walks UNCR, CONV, STABLE on the foot
-        # (bench 2026-09-06).
+        # (bench).
         rig.thermal.configure(application=worlds.mounted(worlds.load('dyno')))
         rig.thermal.situation('tour')
     if args.source is None:
@@ -496,10 +496,10 @@ def main(argv=None):
     leaving = None
     thermal_at, panels_at, ident_at = [0.0], [0.0], [0.0]
     # Thermal observer read period, s: the stand-in and native answer out of memory - read every
-    # 2 s native's looked slow beside the rotor, 0.47 a second (bench, 2026-09-28) - a link does
+    # 2 s native's looked slow beside the rotor, 0.47 a second (bench) - a link does
     # not. The three reads cost 18 ms of a 50 ms tick on the emulator, where the four every tick
     # already cost 23 ms - asked four times a second they blew the frame and the page froze and
-    # raced (2026-09-28).
+    # raced.
     quick = standing(origin) == 'simulated' or port_mode(args.port) == 'NAT'
     thermal_every = 0.25 if quick else 2.0
 
@@ -509,7 +509,7 @@ def main(argv=None):
         between the two paired the new estimate with the last model's error; the gate drivers
         and the observers' chain, panels, twice a second; the thermal observer at its period,
         its identification once a second. A read costs 9-18 ms of native's line: all of them a
-        pass, the loop stepped 8.8 times a second of its 20 (2026-09-28)."""
+        pass, the loop stepped 8.8 times a second of its 20."""
         with suppress(RigError):
             now = time.time()
             state = board.drive.state()

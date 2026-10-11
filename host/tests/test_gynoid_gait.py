@@ -1,10 +1,10 @@
 """The gynoid's walk on a flat, smooth floor, steady, as the page walks her: a human's 
-(2026-10-05) - the pelvis rolling over a stance leg whose knee is all but straight, the leg on
+ - the pelvis rolling over a stance leg whose knee is all but straight, the leg on
 behind the plumb line, her head still, her feet quiet, no parry asked. `tools.sim.looks.FORM` is
 the form, `tools.sim.armada.Robot` her walking: marked steady at each pace and gone back to
 (`tools.sim.replay`), a pace's measure 4 s of her time. Her walk as it was approved is a take,
 tests/takes/walk.fbx, and a woman's normal walk a band (`tools.sim.normal`): she is held to
-both (2026-10-05: a metric, an .fbx its reference, a test of what broke). Her rises,
+both (a metric, an .fbx its reference, a test of what broke). Her rises,
 falls and parries are the other gynoid suites'."""
 import os
 import sys
@@ -16,16 +16,15 @@ from gynoid_kit import Report
 PACES = (0.85, 0.65, 1.0)
 
 #: From the squat, as the page starts her, she is watched SQUAT_S and asked no parry: her start
-#: ending, a pre-swing of 22 deg parried twice at every pace where the steady walk did not
-#: (2026-10-05).
+#: ending, a pre-swing of 22 deg parried twice at every pace where the steady walk did not.
 SQUAT_S = 16.0
 
 #: A pace is judged on a spread of walks (`looks.spread`, `looks.PARRIES`): the sideways gain a
 #: thousandth either way.
 SPREAD = (1.0, 1.001, 0.999)
 
-#: Her walk as approved: `python tools/sim/look.py --built --to 12 --fbx tests/takes/walk.fbx`
-#: (2026-10-05), the same TAKE_S from the squat here. Written anew only with a walk approved.
+#: Her walk as approved: `python tools/sim/look.py --built --to 12 --fbx tests/takes/walk.fbx`,
+#: the same TAKE_S from the squat here. Written anew only with a walk approved.
 TAKE_S, TAKE = 12.0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'takes', 'walk.fbx')
 
 #: Her walk is its take's with each measure within WITHIN of its band's width: two windows of
@@ -33,7 +32,7 @@ TAKE_S, TAKE = 12.0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 't
 WITHIN = 0.1
 
 #: What of her walk as built is out of a woman's band (`normal.BAND`), each no further than
-#: this (2026-10-05: 1.04, 75.2 %, 29.5 and 32.1 deg, 0.015 legs): her step short for its
+#: this (1.04, 75.2 %, 29.5 and 32.1 deg, 0.015 legs): her step short for its
 #: time, both feet down a quarter of a stride a step, her knee landing bent (docs/TODO.md item
 #: 1), her pelvis rising and falling 12 mm.
 KNOWN = {'walk ratio': 0.98, 'stance': 77.0, 'knee at landing': 31.0,

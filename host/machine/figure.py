@@ -21,7 +21,7 @@ HEM_AT = 0.12
 HAIR_AT = (0.0, 0.075, -0.02)
 
 #: Her upper arm and forearm, shoulder to elbow and elbow to wrist, m: 0.27 and 0.24 until
-#: 2026-10-01, a little longer to push herself up by.
+#: A little longer to push herself up by.
 UPPER_ARM, FOREARM = 0.28, 0.25
 
 #: Her forearm's carrying angle, deg: out from the upper arm's line straight, none bent 90, a
@@ -77,14 +77,13 @@ SOLE_HALF = 0.045
 
 #: The soles and the toes, their undersides: (segment, shape, sizes, centre), its frame, a
 #: sneaker's 90 wide. Its heel's edge as two 12 mm spheres, to roll the strike, doubled it
-#: (1634 N against 1108) and the parry never caught: 797 and 49.8 % against 604 and 73.7
-#: (2026-10-04).
+#: (1634 N against 1108) and the parry never caught: 797 and 49.8 % against 604 and 73.7.
 CONTACTS = (('foot', 'box', (SOLE_HALF, 0.03, (BALL + HEEL) / 2.0),
              (0.0, -ANKLE_H + 0.03, (BALL - HEEL) / 2.0)),
             ('toes', 'box', (0.045, 0.015, TOE_M / 2.0), (0.0, 0.001, TOE_M / 2.0)))
 
 #: Her feet as point contacts, a sphere POINT_R under each sole's centre alone (`contacts`): the
-#: stilts her standing counts on (`machine.stand`, 2026-10-04), 1 to build her so.
+#: stilts her standing counts on (`machine.stand`), 1 to build her so.
 POINT_FEET, POINT_R = 0.0, 0.01
 
 
@@ -96,7 +95,7 @@ def contacts():
 
 #: The seat's two buttocks, capsules along her way SEAT_R round at SEAT_Y from SEAT_Z to SEAT_Z:
 #: sat on one 0.10 m sphere, the heels in and leaning 15 degrees on, she rolled onto her back;
-#: on these she sat (2026-09-30). The fist, FIST_R at FIST_AT, the knuckles to lean on.
+#: on these she sat. The fist, FIST_R at FIST_AT, the knuckles to lean on.
 SEAT_R, SEAT_X, SEAT_Y, SEAT_Z = 0.07, 0.068, -0.058, (-0.078, 0.0)
 FIST_R, FIST_AT = 0.03, (0.0, -0.07, 0.01)
 
@@ -104,8 +103,7 @@ FIST_R, FIST_AT = 0.03, (0.0, -0.07, 0.01)
 #: sphere where the ends meet - the drawn skin, the clothes not: the hips across, the waist, the
 #: ribs, the chest and the shoulders across, the bust, the neck, the skull and the jaw, every
 #: limb its length. A sphere or two a segment, lying her arms went 40-43 mm into the floor, her
-#: head 40, her shins 100 through each other and her hand 41 into its upper arm; on these, 2-9
-#: (2026-09-30).
+#: head 40, her shins 100 through each other and her hand 41 into its upper arm; on these, 2-9.
 BODY = (('pelvis', SEAT_R, (SEAT_X, SEAT_Y, SEAT_Z[0]), (SEAT_X, SEAT_Y, SEAT_Z[1])),
         ('pelvis', SEAT_R, (-SEAT_X, SEAT_Y, SEAT_Z[0]), (-SEAT_X, SEAT_Y, SEAT_Z[1])),
         ('pelvis', 0.095, (-0.07, -0.012, -0.02), (0.07, -0.012, -0.02)),
@@ -131,9 +129,9 @@ BODY = (('pelvis', SEAT_R, (SEAT_X, SEAT_Y, SEAT_Z[0]), (SEAT_X, SEAT_Y, SEAT_Z[
 #: (segment, the point of its capsule's axis under it, the capsule's radius, toward where the
 #: landings cluster, the pad's radius and half-width across), the left side's. Over 26 bare falls,
 #: each segment's first 0.2 s on the floor: the elbow's point 3068 N s, 7.2 kN at most; the hip's
-#: front and side 2800, 8.4; the knee 1300, 7.4; the rest of her under 240 N s (2026-10-01). The
+#: front and side 2800, 8.4; the knee 1300, 7.4; the rest of her under 240 N s. The
 #: knee's across its front: on a sphere there, and one at the thigh's end, knees under rolled her
-#: 22-84 degrees, 5 of 12 falls up (2026-10-01).
+#: 22-84 degrees, 5 of 12 falls up.
 PADS = (('upper_arm', (0.0, 0.02 - UPPER_ARM, 0.0), 0.034, (0.01, -UPPER_ARM, -0.01), 0.028, 0.0),
         ('forearm', (0.0, -0.02, 0.0), 0.025, (0.0, -0.01, -0.01), 0.02, 0.0),
         ('pelvis', (0.07, -0.012, -0.02), 0.095, (0.08, -0.022, 0.06), 0.09, 0.0),
@@ -228,7 +226,7 @@ def leg(sign, pelvis, turn, ankle, foot):
     rf = mul(t(turn), foot)
     r = apply(t(foot), sub(hip(sign, pelvis, turn), ankle))
     # Sat, the hip at or under the ankle: atan2's other root turned the leg 179 degrees about its
-    # yaw, the knee 0.24 m through the floor (2026-09-30).
+    # yaw, the knee 0.24 m through the floor.
     rho_a = math.atan2(r[0], r[1]) if r[1] > 0.0 else math.atan2(-r[0], -r[1])
     u_y = math.sin(rho_a) * r[0] + math.cos(rho_a) * r[1]
     length = min(math.hypot(u_y, r[2]), THIGH + SHANK)

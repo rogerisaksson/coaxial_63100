@@ -33,7 +33,7 @@ TOOL_CHOICE = (
     ('read every analog channel', 'analog_read', ('digital_read',)),
     ('vad läser NTC:n?', 'analog_read', ('digital_read',)),
     # Warmth is the thermal observer's, every node of it: asked as an NTC read
-    # it answered with one thermistor (docs/TODO.md, 2026-10-05).
+    # it answered with one thermistor (docs/TODO.md).
     ('hur varmt är kortet?', 'thermal', ('analog_read', 'digital_read')),
     ('how hot are the FETs?', 'thermal', ('analog_read', 'digital_read')),
     ('vad har motorn för temperatur?', 'thermal', ('analog_read', 'digital_read')),

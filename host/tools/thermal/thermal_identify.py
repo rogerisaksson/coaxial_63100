@@ -195,7 +195,7 @@ def report(runs):
                  '%.1f' % (got[0] / 60.0) if got else '-',
                  '%.2f' % got[1] if got else '-'))
 
-    print('\n%s\n%s' % ('against the camera, 2026-08-28', '-' * 60))
+    print('\n%s\n%s' % ('against the camera', '-' * 60))
     print('  the NTC sits in the drivers\' hot spot, so the board is the NTC')
     print('  less the compensation - %.2f K offset, and the driver coupling.'
           % NTC_OFFSET)
@@ -276,7 +276,7 @@ def against_camera(node_runs):
     """The thermal observer's predicted equilibrium against what the camera
     saw.
     """
-    print('\n%s\n%s' % ('the thermal observer against the camera, 2026-08-28',
+    print('\n%s\n%s' % ('the thermal observer against the camera',
                          '-' * 66))
     print('  %-9s %-11s %9s %9s %8s' % ('state', 'node', 'predicted',
                                         'camera', 'error'))

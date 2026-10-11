@@ -9,7 +9,7 @@ SECONDS_PER_MINUTE = 60.0
 #: is the iron's own air path - board_thermal.c's WINDING_INTO_IRON.
 WINDING_INTO_IRON = 0.25
 
-#: The room, assumed: 25 C on the bench's word, 2026-09-05.
+#: The room, assumed: 25 C on the bench's word.
 #: The board cannot read it itself; the stand-in starts every node here.
 AMBIENT = 25.0
 
@@ -19,7 +19,7 @@ AMBIENT = 25.0
 HASTE = 10.0
 
 #: The two camera states the NTC compensation is derived from, the thermistor's
-#: taken down the uncalibrated converter's 1000 codes: 1.9 and 2.6 K (2026-10-05).
+#: taken down the uncalibrated converter's 1000 codes: 1.9 and 2.6 K.
 MEASURED = {
     'passive': {'ntc': 34.1, 'board': 30.0},
     'switching': {'ntc': 53.0, 'board': 40.0},
@@ -109,7 +109,7 @@ DRIVER_RISE_SWITCHING = DRIVER_SWITCH_WATT * LEG_TO_BOARD
 
 #: Where the thermistor sits between the board and the V leg, 0 to 1: an
 #: element of the network (Silva 2022), never outside the interval. Two dry
-#: runs' cooldowns beside both dies fit 0.56 (2026-10-05); the pick-and-place
+#: runs' cooldowns beside both dies fit 0.56; the pick-and-place
 #: has the V gate driver 8.2 mm off, f = 0.50, the V FETs 15-18 mm, 0.28-0.33.
 NTC_SEES_DRIVERS = 0.56
 
@@ -118,7 +118,7 @@ BOARD_TO_AMBIENT = 8.33
 BOARD_CAPACITY = 49.0
 
 #: How slowly the modelled thermistor follows, s: it kept the laminate's pace
-#: through both cooldowns (2026-10-05).
+#: through both cooldowns.
 NTC_TAU_S = 0.5
 
 #: What the campaign's switching state misses by with the element: the
@@ -247,7 +247,7 @@ MOTOR_TO_AMBIENT = {'stator': 1.65, 'rotor': 4.0}
 FORCED = dict([(n, 0.3) for n in LAMINATE]
               + [('stator', 0.5), ('rotor', 1.0)])
 #: Junction over node per watt: R_th,JC for a leg's FETs, 0.5 K at 0.13 W for
-#: the A1335's die; the MCU's reads its package (bench, 2026-10-05).
+#: the A1335's die; the MCU's reads its package (bench).
 RTH_DIE = dict([(n, 0.69) for n in DRIVERS]
                + [('mcu', 0.0), ('afe', 3.8)])
 
@@ -507,8 +507,7 @@ def calibrate(camera, board_c, power=None):
 
 
 #: The online identification (`thermal_ident.h`): its scales in wire order,
-#: the two a cooldown moves (spread and NTC are unobservable from one,
-#: 2026-09-05), its states (words; the envelope acts on the continuous
+#: the two a cooldown moves (spread and NTC are unobservable from one), its states (words; the envelope acts on the continuous
 #: `thermal_ident_margin`) and the margin's floor - the record's
 #: `soa_margin_floor_ppm`, 80 % of the SOA by default when switching
 #: starts.

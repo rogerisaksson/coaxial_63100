@@ -242,7 +242,7 @@ static float bemf_weight(const drive_t *d, float speed)
 
 /** The rotor's speed as its back-EMF says it, the estimate's where lambda is unknown. Weighed
     by the estimate's own speed, noise at rest past w_hi handed over to a back-EMF of nothing,
-    which read back the drive's feed-forward and held the estimate there (2026-09-28). */
+    which read back the drive's feed-forward and held the estimate there. */
 static float rotor_speed(const drive_t *d)
 {
   return (d->p.lambda > 0.0f) ? d->bemf_speed : d->omega_hat;
@@ -297,8 +297,8 @@ static bool demodulate(drive_t *d, float alpha, float beta, uint16_t n)
      fundamental. Each is taken stationary and read along the axis its step was
      injected on: a difference of currents each rotated into its own frame read
      the frame's turn under the fundamental as angle - at the demo's handover 12 A
-     of d current fed 4.4 of each correction back, the estimate a pole off
-     (2026-09-28). */
+     of d current fed 4.4 of each correction back, the estimate a pole off.
+     */
   if (d->have_prev)
   {
     const float da = alpha - d->alpha_prev;
@@ -559,7 +559,7 @@ static void injection_idle(drive_t *d)
 /* The fundamental's dq voltage for the mode. Sensorless, the loop's speed is the estimate's
    back-EMF share `w`: at rest the injection's estimate steps each update, and fed forward as
    w lambda it moved the current the demodulator reads as angle - 2 306 rad/s from rest at a
-   400 Hz PLL, native's -8 000 with 16 A (2026-09-28). The PI carries the back-EMF below w_lo. */
+   400 Hz PLL, native's -8 000 with 16 A. The PI carries the back-EMF below w_lo. */
 static void fundamental(drive_t *d, float id, float iq, float id_raw, float vmax, float w,
                         float *vd, float *vq)
 {

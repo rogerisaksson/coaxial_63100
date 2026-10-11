@@ -19,8 +19,7 @@ from machine.flying import FALL, Flying
 from machine.parts import SpeedPI
 
 #: The page's flights, one after the other and again: the routine first - the boards warm and
-#: their observers out of UNCERTAIN before the course asks its lean of them 
-#: (2026-10-05).
+#: their observers out of UNCERTAIN before the course asks its lean of them.
 CARD = aerobatics.CARD + course.CARD
 
 #: Each rotor's machine, its clamp and trip for a flight, A - the clamp the boards' envelopes
@@ -32,7 +31,7 @@ ROTOR_J, ROTOR_B = 1.2e-4 + 3.3e-4, 8e-4
 
 #: The rotors' speed loop, Hz, and the top the flight is flown on, mechanical rad/s: the 16x14
 #: on the pack's 63 V at the clamp, measured on a stand-in - 703 at 60 A, 691 on a sagged 55 V;
-#: on the 24 V link the 20x10 stood at 310 (2026-10-09). The four's thrust there, N.
+#: on the 24 V link the 20x10 stood at 310. The four's thrust there, N.
 SPEED_HZ, TOP_RAD_S = 3.0, 700.0
 TOP_N = 4.0 * quad.K_THRUST * TOP_RAD_S * TOP_RAD_S
 #: WEP's: 739 at its 90 A, 66 A of it, the link's ceiling; and the four's thrust there.
@@ -41,7 +40,7 @@ TOP_WEP_N = 4.0 * quad.K_THRUST * TOP_WEP_RAD_S * TOP_WEP_RAD_S
 
 #: A rotor's speed is asked no faster than this, rad/s^2: half the clamp to turn the can and
 #: its propeller, 0.5 x 0.0435 N m/A x 60 A over ROTOR_J. Stepped, 14 rad/s more in a pass was
-#: the whole clamp, and the gate stage's envelope 0.2 the higher for a read (2026-10-05).
+#: the whole clamp, and the gate stage's envelope 0.2 the higher for a read.
 SPOOL_RAD_S2 = 2900.0
 
 #: The STO chain's charge on the master's pilot before the interlock passes, s, on the wall's
@@ -50,7 +49,7 @@ SPOOL_RAD_S2 = 2900.0
 STO_SETTLE_S = 0.05
 
 #: The observers' states out of UNCERTAIN, the margin off its floor: STABLE from 49-70 s of a
-#: flight, never in 900 s held at 16 A (2026-10-05, 2026-09-28).
+#: flight, never in 900 s held at 16 A.
 GO = ('CONVERGING', 'STABLE')
 
 #: The boards' envelopes in the flight's: the rotors are asked the share of their pull that
@@ -61,16 +60,16 @@ GO = ('CONVERGING', 'STABLE')
 #: trims its ceilings to 0.8 and its share's room with them; waited for at a room of 0.4, the
 #: hover's own share 0.42, the third flight never left its hover; its room counted to the
 #: throttle's own point, full tilt on a pack half spent stood at 0.90. Spent GONE_S, it comes
-#: down; at once, a burn's own spend took it off its burn (2026-10-05). At 0.08 under it the
+#: down; at once, a burn's own spend took it off its burn. At 0.08 under it the
 #: laps had 0.38 of the rotors' pull at the least, at 0.04 0.52 and a lap 1.5 s the shorter,
-#: the boards at 0.70-0.74 of their envelopes (2026-10-06). That spend was 27 K of a 100 K
-#: span; a leg's is its FETs' junction's 150 since (2026-10-09): 0.2.
+#: the boards at 0.70-0.74 of their envelopes. That spend was 27 K of a 100 K
+#: span; a leg's is its FETs' junction's 150 since: 0.2.
 SPEND, UNDER, TAKEN_S, RECOVER_S, GONE_S = 0.2, 0.04, 0.5, 2.0, 2.0
 
 #: A flight is begun on this share of the rotors' pull at the least. All of it is a board at
 #: 0.52 of its envelope or under, and an idle board is not cool: on the gate stage's dump at
 #: 63 V, no wash over it, its laminate comes to 79 C and it stands at 0.52-0.56 - waited for
-#: all of its pull, the page stood 120 s on the floor and would yet (2026-10-06).
+#: all of its pull, the page stood 120 s on the floor and would yet.
 FIT = 0.7
 
 #: A spent pack is changed on the floor in this long, s.
@@ -78,9 +77,9 @@ SWAP_S = 3.0
 
 #: The flight is stepped this long, s - the race's (tools/sim/quad_race.py) -, a pass's
 #: seconds short of a step owed to the next: stepped as the wall's passes came, a loaded page
-#: flew its air's eddies drawn on other steps and crossed gate 0 0.97 m low, one flight in nine
-#: (2026-10-10). Stepped 50 ms the frame rang on its rotors: 30 A through the corkscrew where
-#: 24 at 45 ms (2026-10-06).
+#: flew its air's eddies drawn on other steps and crossed gate 0 0.97 m low, one flight in nine.
+#: Stepped 50 ms the frame rang on its rotors: 30 A through the corkscrew where
+#: 24 at 45 ms.
 STEP_S = 0.02
 
 #: The boards' observers are read this often by the flight's clock, s.
@@ -88,8 +87,8 @@ THERMAL_S = 0.1
 
 #: War emergency power, on an observer's word: the law asking more than it has, the frame's
 #: ghost flown RISK_S on as it goes strikes a thing (`quad.Sky.ahead`) - on the ghost's word
-#: alone, every dive at a gate and every way down to land took it, 2.3 s a flight
-#: (2026-10-09). For WEP_HOLD_S the law has all of it - no
+#: alone, every dive at a gate and every way down to land took it, 2.3 s a flight.
+#: For WEP_HOLD_S the law has all of it - no
 #: envelope's share, the boards' thermal derate held off (`thermal.wep`, the trip standing),
 #: I_WEP and TOP_WEP_RAD_S, its lean whatever its row's or, the floor ahead, what is left of
 #: the pull after what it asks up - WEP_S of it a flight, given back on the floor.
@@ -105,7 +104,7 @@ STRUCK = {'tree': 'into a tree', 'house': 'into a house', 'car': 'into a car',
 
 #: What a board is mounted in: its rotor's wash, 2.5 K/W off the laminate in a hover against
 #: the bench's 8.33 (thermal_app.c). On 8.33 the pack's 63 V had the gate stage at 0.65-0.72
-#: of its envelope in a hover and every board throttling by the corkscrew (2026-10-05).
+#: of its envelope in a hover and every board throttling by the corkscrew.
 APPLICATION = 'airstream'
 
 
@@ -114,7 +113,7 @@ def arm(rig):
     63100's model under the propeller's inertia, a flight's clamp, sensorless."""
     board = rig.board
     # Its heat on the flight's clock from here: on the wall's until the first pass, four boards
-    # armed took a run's own seconds of it, and a flight run again was another (2026-10-10).
+    # armed took a run's own seconds of it, and a flight run again was another.
     board.thermal.fast_forward(0.0)
     # In its rotor's wash, and the stand-in's truth laid on that: the observer and the board it
     # watches in the same air from the first pass.
@@ -253,13 +252,13 @@ def step(rotors, sky, route, flying, flight, clock, dt):
                                            measured=rotor['w_hat'])['command']
         else:
             # Cut: run down on its propeller's drag. Asked to a stand through its loop, a
-            # sensorless rotor hunted about it at 17 A (2026-10-06).
+            # sensorless rotor hunted about it at 17 A.
             rotor['ask'] = rotor['iq'] = 0.0
         drive.write(iq_ref=rotor['iq'])
         drive.model.configure(load=quad.K_DRAG * rotor['w'] * abs(rotor['w']), vdc=cells['volts'])
         # Its heat on the flight's clock as well, the pass's seconds at the stand-in's haste: on
         # the wall's a starved pass's currents stood for all it waited, and a loaded host's
-        # boards read 0.94 of their envelopes where 0.82 (2026-10-06).
+        # boards read 0.94 of their envelopes where 0.82.
         heat = rotor['rig'].board.thermal
         heat.fast_forward(dt * heat.HASTE, live=True)
     quad.drawn(cells, watts, dt)
@@ -358,7 +357,7 @@ def warmth(rig):
 
 def observers(rotors):
     """The four observers in a row's words: who is stable, who converges, of how many where
-    one is UNCERTAIN yet. `4 of 4 converging` it said whatever they were (2026-10-05)."""
+    one is UNCERTAIN yet. `4 of 4 converging` it said whatever they were."""
     states = [(r['ident'] or {}).get('state') for r in rotors]
     known, stable = sum(s in GO for s in states), states.count('STABLE')
     if stable == len(states):

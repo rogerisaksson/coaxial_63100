@@ -65,7 +65,7 @@ def rocker(leg, off, on, sunk, need=0.0):
     its ball as she sinks `sunk` m, on its heel in FLAT_S -, and the heel's rise as her hip
     goes `on` m ahead of the ankle (`heel`) or as its leg's length asks, `need` - on its heel,
     as its toes come down: risen at once it was taken about its ball, the knee asked 8 and
-    21 deg within 20 ms of a landing (2026-10-06)."""
+    21 deg within 20 ms of a landing."""
     landed, up = leg['landed'], max(need, heel(off, on))
     if landed <= 0.0:
         k = eased(leg['t'] / FLAT_S)

@@ -233,7 +233,7 @@ static void load_of(world_stand_t *b, const float *in, float dt, bool stage, the
     const bool on = cycle_on(b, &index);
 
     /* Three legs' rms at half duty are no link's current: summed as a held vector's, 45 A
-       went through the hot swap, 7.3 W of it (2026-10-05). */
+       went through the hot swap, 7.3 W of it. */
     for (int k = 0; k < 3; k++)
     {
       amps[k] = on ? (b->cycle[0] * b->run.derate) : 0.0f;

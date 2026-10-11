@@ -34,7 +34,7 @@ STARTS = np.concatenate([[0.0], np.cumsum(DTS)])
 #: A sole's support about its middle: half its width and half its length less MARGIN_M - at 0.02
 #: she stepped where the stack alone stood on its ankles and hips, 60 N from 8 ways 22 of 24
 #: and 44 steps where 24 and none; the ZMP's 1 cm apart from the capture's 5 mm lost a shove of
-#: 80 N from behind (2026-10-10).
+#: 80 N from behind.
 MARGIN_M = 0.005
 HALF = (SOLE_HALF - MARGIN_M, (BALL + HEEL) / 2.0 - MARGIN_M)
 
@@ -50,12 +50,12 @@ GOING_W, PACE_W = 10.0, 10.0
 
 #: A step's reach from the standing sole's middle, its frame: across (out from it) and along;
 #: its landing priced off a stance WIDTH_M beside it - priced off where the foot was, after a
-#: 46 cm lunge her rear foot stepped 8 cm and 8 steps more followed her down (120 N, 2026-10-10).
+#: 46 cm lunge her rear foot stepped 8 cm and 8 steps more followed her down (120 N).
 ACROSS_M, ALONG_M, WIDTH_M = (0.12, 0.45), (-0.40, 0.50), 0.19
 
 #: A step's swing, s, from its call: its sole lifted at once, the ZMP on the standing one - held
 #: on its sole while it unloaded, its soft contact kept it pressed and she leaned onto it (80 N
-#: from behind, 2026-10-10).
+#: from behind).
 SWINGS = (0.20, 0.30)
 
 #: Standing is captured if its end's slack is under CAPTURED_M.

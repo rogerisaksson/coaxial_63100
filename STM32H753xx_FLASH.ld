@@ -68,7 +68,7 @@ SECTIONS
     *(.text.Board_DigitalMask)
     *(.text.Board_DigitalCount)
     /* And what the sample's interrupt calls outside them, each behind a long branch's veneer
-       from D2 SRAM until here (tools/target/hot.py, 2026-10-10). */
+       from D2 SRAM until here (tools/target/hot.py). */
     *(.text.ADC3_IRQHandler)
     *(.text.Board_AdcPhaseSlot)
     *(.text.Board_AdcDifferential)

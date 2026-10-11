@@ -19,7 +19,7 @@ function Get-ShellPython {
     <#
   The python a new shell finds first - the registry's PATH, the machine's then the user's, each
         directory tried by PATHEXT - its path, '' for none. env.ps1, .mcp.json and the hooks run
-        it. Found, never run: pymanager's alias, finding no runtime, downloaded one (2026-09-29).
+        it. Found, never run: pymanager's alias, finding no runtime, downloaded one.
 #>
     $dirs = ([Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' +
              [Environment]::GetEnvironmentVariable('Path', 'User')) -split ';' | Where-Object { $_ }
@@ -36,7 +36,7 @@ function Test-PythonRuns {
     <#
   Does this python.exe start, and is it a minor CI runs (Get-PythonGate) ?
         Answering to the name is not the same as being one, and this machine
-        had both ways of failing at once (measured 2026-09-03):
+        had both ways of failing at once (measured):
           the Store alias %LOCALAPPDATA%\Microsoft\WindowsApps\python.exe is
                             a zero-byte reparse point that prints "Python
                             was

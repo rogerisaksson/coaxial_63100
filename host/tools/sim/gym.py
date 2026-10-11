@@ -11,7 +11,7 @@ the suites and the log's last results - a decision model picking the suite when 
 knobs' spans to search, the suite, the search's size, held to RUNS runs at most (the relay's). The
 search runs as `gait_montecarlo --search` runs it; its best - cost, held, values - goes to LOG
 and into the next prompt. The model and the relay grind; the reasoning and the smoke tests stay
-mine (2026-10-04).
+mine.
 """
 import argparse
 import contextlib
@@ -75,7 +75,7 @@ SUITES = {'look': ('the rises at 3 paces and the walks at 4, the look of the wal
           'stand': ('standing: nudges, shoves, bricks taken away, the balance board', 30)}
 
 #: A search's runs at most: the relay's hour. A 6-knob search at 8 x 12 on the faults suite ran
-#: 34 jobs on 16 cores and logged nothing in 50 min (2026-10-04).
+#: 34 jobs on 16 cores and logged nothing in 50 min.
 RUNS = 400
 
 BRIEF = """You tune the balance of a walking humanoid robot simulated in MuJoCo: a 55 kg woman's
@@ -156,7 +156,7 @@ def schema(suite=None):
     """SCHEMA for a search on `suite`: its knobs those that reach it and no search on it has
     moved - every one that reaches it once all have been - the first of them required. Left to
     the brief, the model put a standing knob on the faults suite, which it does not reach, and
-    gave a hypothesis already in the record (2026-10-04)."""
+    gave a hypothesis already in the record."""
     if suite is None:
         return SCHEMA
     names = unmoved(suite) or [n for n in KNOBS if reaches(n, suite)]
@@ -171,7 +171,7 @@ def decided(suite=None):
     when pulled), else `suite`."""
     from coaxial_ollama import decide
     # Of the suites with a knob left to move: every knob of the stand suite moved, the same
-    # search ran three times over, 135.6 and 81.4 % each (2026-10-04).
+    # search ran three times over, 135.6 and 81.4 % each.
     left = {n: what for n, (what, _runs) in SUITES.items() if unmoved(n)}
     if suite or len(left) == 1 or not decide.available():
         return suite or (next(iter(left)) if len(left) == 1 else None)

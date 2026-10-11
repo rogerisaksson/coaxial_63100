@@ -61,7 +61,7 @@ def travel(view, s):
     sample the feed is about to publish, so a draw reads the angle and its travel together:
     the estimate and the whole electrical turns the drive counted to it (op 0, MINOR 24).
     Counted here at 20 frames a second, a turn was lost past 43 rpm, and the speed that told
-    them overshot at a hold's handover: the mark leapt 68.8 degrees at rest (2026-09-28)."""
+    them overshot at a hold's handover: the mark leapt 68.8 degrees at rest."""
     pairs = max(1.0, view['params'].get('motor_pole_pairs') or 1.0)
     at = math.degrees(s['theta_hat'] + math.tau * (s.get('turns') or 0)) / pairs
     view['travel'] = at - view.setdefault('travel_from', at)
@@ -77,7 +77,7 @@ def pointer_rate(view):
 
 def phase_amps(view):
     """The three phase currents, and full scale: the drive's clamp. The vector's own size drew a
-    coast's 0.02 A of noise as the clamp's 50 (2026-09-28)."""
+    coast's 0.02 A of noise as the clamp's 50."""
     s = view['state']
     theta = s['theta_hat']
     cos, sin = math.cos(theta), math.sin(theta)
@@ -148,8 +148,8 @@ def status_rows(view):
             ('back-EMF', regime(view)),
             ('loops', loops or 'none - the drive is on its own'),
             # As the can and the bead turn on the page: positive is counter-clockwise, SHAFT
-            # ANGLE's dial's way (2026-09-27). Its turns a row of their own: one row was 31
-            # cells of the box's 27 (2026-10-05).
+            # ANGLE's dial's way. Its turns a row of their own: one row was 31
+            # cells of the box's 27.
             ('travel', '%8.1f deg %s' % (gone, 'ccw' if speed >= 0.0 else 'cw')),
             ('', '%8.2f turns' % (gone / 360.0)),
             # The cell's shape, and where the number came from.

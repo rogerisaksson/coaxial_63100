@@ -6,7 +6,7 @@ board's findings: [FINDINGS](../FINDINGS.md).
 
 ## Hover and landing
 
-On four stand-ins (2026-10-05):
+On four stand-ins:
 
 | Fault | Fix |
 | --- | --- |
@@ -21,7 +21,7 @@ floor.
 
 ## Routine
 
-`machine.aerobatics`' card on `machine.flying`'s one law (2026-10-05): a
+`machine.aerobatics`' card on `machine.flying`'s one law: a
 pirouette, an orbit and a corkscrew to 8 m, a roll and a flip over a toss,
 the way back down, full tilt, the burn. 59.9 s on ideal rotors, 0.5 g at most
 outside its turns, the pole 2.7 m off; on four stand-ins no board throttling,
@@ -37,7 +37,7 @@ SOA 0.50 at most in its figures.
 
 ## Pack
 
-15 cells: 63 V full, 0.12 ohm, 0.22 A h, a demo's (2026-10-05).
+15 cells: 63 V full, 0.12 ohm, 0.22 A h, a demo's.
 
 - A flight takes a fifth of it; full tilt and the burn 1.5-1.85 kW, the bus to
   56.2-56.9 V. Spent at a fifth it comes down from anywhere at 2 m/s and is
@@ -62,8 +62,8 @@ SOA 0.50 at most in its figures.
 
 ## Course
 
-`machine.course`, flown after the routine has warmed the boards
-(2026-10-06): 14 gates of 3.4 m on a line of 141 m (an alley of trees, a
+`machine.course`, flown after the routine has warmed the boards:
+14 gates of 3.4 m on a line of 141 m (an alley of trees, a
 house's ridge, round a mast, between two cars, a slalom).
 
 - Ideal rotors: lap 21.6 s, 10.7 m/s and 69 deg at most, every gate within
@@ -103,11 +103,11 @@ house's ridge, round a mast, between two cars, a slalom).
   60 ms, the pack at 67 %), and CI read full tilt's kilowatt as 814 W off a
   frame. A pass is its steps, 25 ms at most (`flight.passed`): the same
   feed, the corkscrew 26.2 A on 0.75 of the pull and over, `home` 3.0 s;
-  full tilt's kilowatt is 0.15 s of its two, read a step (2026-10-06).
+  full tilt's kilowatt is 0.15 s of its two, read a step.
 
 ## Air
 
-`machine.quad`: `AIR`, `blown` (2026-10-06).
+`machine.quad`: `AIR`, `blown`.
 
 - One kind of weather at a time: calm, constant, gusty, changing, turbulent,
   20 s each or one kept (W). A wind of 0.5-4 m/s at 5 m, sheared along the
@@ -131,7 +131,7 @@ house's ridge, round a mast, between two cars, a slalom).
 
 ## Solids
 
-`course.solids` in `quad.mjcf` (2026-10-06): a tree its trunk and cone, a
+`course.solids` in `quad.mjcf`: a tree its trunk and cone, a
 house its walls and roof, a car, the mast, a gate's bars (128 things); the
 frame strikes with its discs and hub; a pass 0.12 ms dearer.
 
@@ -147,7 +147,7 @@ frame strikes with its discs and hub; a pass 0.12 ms dearer.
 
 ## Shorter laps and WEP
 
-2026-10-06, the page's four boards, still air and six winds:
+The page's four boards, still air and six winds:
 
 | Bend grip, lean | Swing | Throttle room | Laps s | Worst wind s | Gate off m | Envelopes |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -165,7 +165,7 @@ frame strikes with its discs and hub; a pass 0.12 ms dearer.
 
 ## Tuner
 
-`tools/sim/quad_race.py` scores a candidate flown, not planned (2026-10-06).
+`tools/sim/quad_race.py` scores a candidate flown, not planned.
 
 - A line searched for its planned lap (each gate crossed 0.25 m off its
   middle and turned 25 deg at most) was planned 20.2 -> 17.8 s and flown
@@ -178,7 +178,7 @@ frame strikes with its discs and hub; a pass 0.12 ms dearer.
 
 ## Size
 
-`quad.sized` (2026-10-06): shape and propeller tip speed kept; lengths by
+`quad.sized`: shape and propeller tip speed kept; lengths by
 size, mass by its cube, the rotors' pull by its square, their spool (the
 frame's clock) by the size: speeds unchanged, pulls 1/size. The law's gains,
 the routine's rows and the course (gates, plan) scale by size and clock from
@@ -200,7 +200,7 @@ second gate's top bar.
 
 ## Plan
 
-- Circle plan (2026-10-06, the first course; the sphere's since 2026-10-10):
+- Circle plan (the first course; the sphere's now):
   laps 20.8 and 19.5 s -> 14.9 and 14.4 on ideal rotors, 15.3 and 15.2 on
   four boards. What holds: the frame's place found between the line's
   samples (`course.nearest`); by a sample's own tangent the asked speed's
@@ -208,7 +208,7 @@ second gate's top bar.
   plan's over SOFT_S, the plan looked up as much further: stepped, 14 m/s^2
   in a pass, it stood past its finish. Braked for its finish as for a bend
   it stood 0.36 m past the first gate (`course.STOP`).
-- The line rises through its gates (`course.SLOPE`, 2026-10-06). Level
+- The line rises through its gates (`course.SLOPE`). Level
   through each, a climb is an S: second to third gate, 3.5 m in 12.5, 10
   m/s^2 up and down at 10 m/s, the frame 1.9 m under its line. Crossed at
   the slope from the gate before to the one after: 0.26 m; a lap 17.8 s
@@ -222,8 +222,8 @@ second gate's top bar.
 
 ### Jerk
 
-The flight looked jerky, as of line segments, not one fast and smooth move
-(2026-10-06). Ideal rotors, the pull smoothed over 0.1 s:
+The flight looked jerky, as of line segments, not one fast and smooth move.
+Ideal rotors, the pull smoothed over 0.1 s:
 
 | Plan | Jerk m/s^3 rms | Disc lean rate deg/s rms | Speed-up/slow-down turns a lap |
 | --- | --- | --- | --- |
@@ -237,7 +237,7 @@ where 0.5. The tuner's crossings lie 8.0 deg rms off the way from the gate
 before to the one after, 13.0 off the gates' own headings: it had turned the
 line toward a spline's. The plan jerks: a burst of speed and a brake a gate.
 
-- Monotone slopes through the gates (Fritsch-Carlson, 2026-10-06), plan and
+- Monotone slopes through the gates (Fritsch-Carlson), plan and
   crossings searched again on them, 45 generations of 20: 16.3 and 15.5 s
   where the secant's 16.1 and 15.3, a gate 0.38 m off where 0.45; 31.9 as the
   tuner counts it where 31.6; it had stretched them a quarter, toward the
@@ -246,7 +246,7 @@ line toward a spline's. The plan jerks: a burst of speed and a brake a gate.
 
 ### Pull turn rate
 
-From a hover (2026-10-06), asked a speed rising 20 m/s^2 along its nose
+From a hover, asked a speed rising 20 m/s^2 along its nose
 then falling as fast, every 0.9 s: the frame is 5-12 m/s under its ask when
 the next turn comes (half a second of its pull a turn) and 1-2 m off its
 height; the tilt's miss answered to 1.2 rad where 0.6: 2.4-7.5; its loop at
@@ -255,11 +255,11 @@ On the laps they give 37 % of their thrust, none ever at its top.
 
 ## Thermal limits
 
-- On the FETs' whole SOA (FINDINGS 2026-10-09): one course on four boards no
+- On the FETs' whole SOA (FINDINGS): one course on four boards no
   longer meets its envelopes - all of their pull, 14.8 and 14.3 s, stuffy
   alike. The flight's own cut keeps the kelvins it was measured in: SPEND
   0.3 of a 100 K span is 0.2 of the junction's 150.
-- WEP past the SOA (2026-10-09): where a wreck is certain, everything, on an
+- WEP past the SOA: where a wreck is certain, everything, on an
   observer's word alone.
   + Thermal op 14 holds a board's thermal derate at one, 2 s at most, the
     trip on its record's ceiling standing (MINOR 25).
@@ -277,7 +277,7 @@ On the laps they give 37 % of their thrust, none ever at its top.
   rotors 25 % quicker to speed struck there too: a knife's edge, not a
   spool. WEP came 0.33 s before the floor, the climb held to its pace's 12
   m/s^2. A search flies the boards as well.
-- The boards' observers in flight (2026-10-09, four boards, 4 min):
+- The boards' observers in flight (four boards, 4 min):
 
 | Network | Air scale | Room C (25) | State |
 | --- | --- | --- | --- |
@@ -287,8 +287,6 @@ On the laps they give 37 % of their thrust, none ever at its top.
 | 4-6 m/s gust, told the ground speed alone | 0.97-0.99, 0.09 K, margin 0.91 at least | - | kept |
 
 ## Propellers
-
-2026-10-09:
 
 - Flown on the 24 V link's 310 rad/s top on the 63 V pack: rotors at
   0.54-0.71 of it between the gates, the frame at 13.0-13.8 m/s on the
@@ -304,7 +302,7 @@ On the laps they give 37 % of their thrust, none ever at its top.
 
 ## Larger course
 
-`machine.grounds` (2026-10-09): 176 m, 16 gates of 2.6-3.4 m, two slaloms, a
+`machine.grounds`: 176 m, 16 gates of 2.6-3.4 m, two slaloms, a
 9.4 m climb, a 10 m dive, a hall's windows, a 3 m alley. Searched, crossings
 off their middles:
 
@@ -320,7 +318,7 @@ room, once 1 out.
 
 ## Raw
 
-2026-10-10: a dive pushed inverted, no level flight kept.
+A dive pushed inverted, no level flight kept.
 
 - The race paced at 12 m/s and 12 m/s^2, its discs against 0.5 g at least,
   a crest no faster than 0.511 g let it fall: never past -8.8 m/s^2 down.
@@ -358,7 +356,7 @@ room, once 1 out.
 ## Thrusts shared as her torques
 
 The collective and the torques shared over the rotors by her whole-body law's
-levels under bounds (`flying.Flying.stacked`, `machine.qp.stack`, 2026-10-11,
+levels under bounds (`flying.Flying.stacked`, `machine.qp.stack`,
 one law for the quad and her): the tilt's torque, the collective,
 the heading's torque, the rotors alike, each rotor between nothing and its
 cap. Where nothing binds it shares as the hand does to the mN; a rotor at its

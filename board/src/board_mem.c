@@ -1,7 +1,7 @@
 /** board_mem.c - memcpy and memset a word a turn, from ITCM. */
 
 /* newlib-nano's moved a byte a turn, a taken branch each, behind a veneer from D2 SRAM
-   (tools/target/hot.py, 2026-10-10). */
+   (tools/target/hot.py). */
 #include "board/mem.h"
 
 #include <stdint.h>

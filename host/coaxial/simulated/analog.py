@@ -52,7 +52,7 @@ class SimulatedAnalog(Input):
     """Invented readings, in the shape the real ones come in."""
 
     #: Its noise's seed: on the module's random a flight on four stand-ins was another flight
-    #: run again, its boards' SOA 0.83 then 0.91 (2026-10-10).
+    #: run again, its boards' SOA 0.83 then 0.91.
     NOISE_SEED = 2
 
     def __init__(self, afe):

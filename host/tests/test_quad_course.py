@@ -101,8 +101,8 @@ def lap_seconds(rows, lap):
 
 def test_its_gates_are_flown(report):
     """The course from the floor and back: both laps through every gate inside its opening, a
-    propeller's tip clear of its frame; clear of every tree, house, car and mast; raw 
-    (2026-10-10); landed where it rose."""
+    propeller's tip clear of its frame; clear of every tree, house, car and mast; raw;
+    landed where it rose."""
     from machine import course, grounds, quad
     rows = lapped()
     gates = passes(rows)

@@ -235,7 +235,7 @@ def _held(rs, k, bears):
 
 def _landings(rs):
     """The left foot's landings: it comes to bear with its ankle ahead of its hip - its toes'
-    load coming and going as the leg gives way behind her is no landing (2026-10-05)."""
+    load coming and going as the leg gives way behind her is no landing."""
     return [(a, b) for k, (a, b) in enumerate(zip(rs, rs[1:]), 1)
             if float(a['left_load']) <= BEARS_N < float(b['left_load']) and _held(rs, k, True)
             and _p(b, 'left_foot')[2] > _p(b, 'left_thigh')[2]]
@@ -257,7 +257,7 @@ def _lifts(rs):
 def _slips(rs):
     """How far back the left toes go, each stride, from where they stood as the foot last bore
     her alone before they go ahead of it, m: a foot let go still pushing slides back along the
-    floor (2026-10-04). From the row its load read under BEARS_N, a load read through
+    floor. From the row its load read under BEARS_N, a load read through
     20 ms came after the slide and the measure said 0 of 93 mm."""
     out, alone = [], {id(r) for r in _alone(rs)}
     for k, r in enumerate(rs[:-1]):

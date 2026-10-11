@@ -5,7 +5,7 @@ The law's heading turned, walking and standing (`machine/going.py`,
 
 ## Turned at a rate
 
-2026-10-11, the heading turned at a rate from 3 s into the walk's row or the
+The heading turned at a rate from 3 s into the walk's row or the
 stand (before: 0.1 rad/s walking fell at 11 s, no turn standing):
 
 | Turned | Outcome |

@@ -3,7 +3,7 @@
 Its length goes ahead of it in two bytes, big-endian, so the line (board/emu/UART_Line.cs) puts
 it on the wire whole. As bytes alone a write reached Renode in pieces one to three quanta apart
 on CI's runner, and the line broke the frame at the gap - an echo of 50 lost, two framing
-errors (2026-09-28). Reads are the board's bytes as they come.
+errors. Reads are the board's bytes as they come.
 
     serial.serial_for_url('frames://127.0.0.1:3456', 115200)    # tools.emu in the handlers
 """

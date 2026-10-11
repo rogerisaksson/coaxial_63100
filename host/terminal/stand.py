@@ -105,7 +105,7 @@ def grab(view, keys, moved, now):
 #: The stand shows the board BOARD_S, then her walking HER_S, in place as her plan has it
 #: (`machine.gait`), then the quad QUAD_S, in a hover and once over its nose, each torn into
 #: the next over TORN_S (`terminal.ui.glitch`) - where a card lights them: on the CPU a frame
-#: of her took 280 ms, on the card 6 (2026-09-28).
+#: of her took 280 ms, on the card 6.
 BOARD_S, HER_S, QUAD_S, TORN_S = 14.0, 9.0, 9.0, 0.5
 
 #: The quad on the stand: its lean, degrees, round once in LEAN_S; its roll, begun ROLL_AT s
@@ -188,7 +188,7 @@ def warm():
     """The stand's solids built, and her and the quad once on the card where one answers."""
     try:
         _draw({'pose': (0.0, 0.0, 0.0, 1.0), 'zoom': SWELL_FROM}, 8, 4)
-        # On the card where one answers: 64 ms a frame at 52x18 on the CPU (2026-09-25).
+        # On the card where one answers: 64 ms a frame at 52x18 on the CPU.
         from coaxial.graphics import gpu, shading
         _STAGE['crew'] = gpu.card_crew(art=shading._face())
         card = gpu.adapter()

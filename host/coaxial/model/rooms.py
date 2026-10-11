@@ -6,7 +6,7 @@ its own losses, as a board does.
 """
 
 #: The situations: the bench, a box, a fan, a heat sink laid over it; the bench's robot's rooms
-#: named for their temperature (2026-09-06).
+#: named for their temperature.
 SITUATIONS = {'bench': {'air': 1.0, 'capacity': 1.0, 'ambient': 25.0},
               'box': {'air': 2.0, 'capacity': 1.0, 'ambient': 25.0},
               'fan': {'air': 0.5, 'capacity': 1.0, 'ambient': 25.0},
@@ -20,7 +20,7 @@ SITUATIONS = {'bench': {'air': 1.0, 'capacity': 1.0, 'ambient': 25.0},
 #: The tour: temperate 20 C, cold -25, toasty 45, round again. It moves on when the room is
 #: earned - STABLE held TOUR_STABLE_S (10 wall s at HASTE), no sooner than TOUR_MIN_S - or at
 #: TOUR_MAX_S, model s. Measured under the stand-in page's cycle: STABLE at minute 10
-#: temperate, 23-25 cold, 38-48 toasty, so the cap is 50 min (CI, 2026-09-06).
+#: temperate, 23-25 cold, 38-48 toasty, so the cap is 50 min (CI).
 TOUR = ('temperate', 'cold', 'toasty')
 TOUR_STABLE_S = 100.0
 TOUR_MIN_S = 300.0

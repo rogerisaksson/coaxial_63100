@@ -142,7 +142,7 @@ print(elbow)'''),
     section(
         'A hold against a load step',
         md('30 deg at 3 A; 0.03 N.m steps on. Read every 2 ms relative to the hold (20 ms '
-           'aliased the ring, 2026-09-07).'),
+           'aliased the ring).'),
         code('''def watch_shaft(seconds, about, every=0.002):
     rows = []
     t0 = time.monotonic()
@@ -231,7 +231,7 @@ REFERENCES = [
     ('host/coaxial/control/motion.py', '`on_model`: a load on the stand-in\'s rotor'),
     ('host/coaxial/simulated/drive/', 'the stand-in\'s rotor the missions turned, a pendulum integrated at a fixed sub-step'),
     ('host/coaxial/devices/link.py', '`state(port)`: `bus_message`, `server_message`, and `for_others` between them'),
-    ('docs/FINDINGS.md', 'the stand-in\'s 2 A hold, 2026-09-24: zeta 0.0013, a 30 Hz ring a 25 Hz loop pumps'),
+    ('docs/FINDINGS.md', 'the stand-in\'s 2 A hold: zeta 0.0013, a 30 Hz ring a 25 Hz loop pumps'),
     ('host/tests/test_sensorless.py', '`test_motion`: the verbs against the stand-in, the dangerous paths included'),
 ]
 

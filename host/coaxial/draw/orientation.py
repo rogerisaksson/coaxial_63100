@@ -88,7 +88,7 @@ MOUNT = MOUNTS[0][1]
 
 
 #: Which raw quaternion components MIRROR before the mount is applied.
-#: NONE: the mount answers this without a dial. Bench court 2026-08-29,
+#: NONE: the mount answers this without a dial. Bench court,
 #: three observations against the tipped camera: board-X rotation drew as
 #: Y, board-Y drew as X, CCW yaw drew CCW - an axis SWAP with Z clean,
 #: which no mirror produces and only a 90-degree mount does. Three
@@ -347,7 +347,7 @@ def _load_model():
 
 
 #: The cartoon model comes from the CAD EXPORT when the tree carries one:
-#: the 2026-08-29 STL clustered to 5,326 triangles draws in 21 ms and is
+#: the STL clustered to 5,326 triangles draws in 21 ms and is
 #: the real board. The STL has no zones, so the tints come from HEIGHT -
 #: the slab is teal, low parts phosphor, mid parts amber, the connectors
 #: sodium - thresholds read off the export's own z histogram. A tree
@@ -484,8 +484,8 @@ def _fit(cols, rows, zoom=1.0, model=None):
 #: its height (cy = height * LIFT). It sat above the frame's middle so
 #: the model cleared the horizon line instead of sitting on it, and
 #: came down a row at a time on the bench's word: 0.36 was the fit,
-#: 0.39 (2026-08-30), 0.42 (2026-09-07, "a bit high up"), and dead
-#: centre on 2026-09-23 - "move it down so it sits centred in the box".
+#: 0.39, 0.42 ("a bit high up"), and dead
+#: centre - "move it down so it sits centred in the box".
 #: A constant, not a fit per frame: the sphere's centre stays put while
 #: the board tilts, so it never reads as translating.
 LIFT = 0.5

@@ -268,7 +268,7 @@ class Loop(Controller):
         """The pass as tables, laid again after any rewiring: each source with its name (None:
         a `Batch`, once however many names it has), each part with its inputs' channels and its
         outputs', each sink with its keys' channels. Looked up a pass, the 27 drives of a body
-        with mass cost 0.16 of its 1.37 ms (2026-10-01)."""
+        with mass cost 0.16 of its 1.37 ms."""
         reads, batches = [], set()
         for name, source in self.sources.items():
             if not isinstance(source, Batch):

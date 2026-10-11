@@ -19,7 +19,7 @@ import multiprocessing
 import queue
 import time
 
-#: The loop's rate, Hz: at 500 the walker's feedback came too late and she fell (2026-09-25).
+#: The loop's rate, Hz: at 500 the walker's feedback came too late and she fell.
 RATE_HZ = 1000.0
 
 #: The most simulated time one slice catches up, s; how often the state goes out, s.

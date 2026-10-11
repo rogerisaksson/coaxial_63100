@@ -1,6 +1,6 @@
 """Standing balance as one law in the capture point's complex plane, no cases.
 
-The user's (2026-10-04). Real is her left, imaginary ahead, from q, the support's point nearest
+Real is her left, imaginary ahead, from q, the support's point nearest
 the capture point. Inside the sole's hold - HOLD_M across and along, a box about q - the ankle
 can put the centre of pressure beyond the capture point and it comes back; outside, it cannot:
 a step is due. The foot bearing less steps; the other stands, and once it stands alone the
@@ -19,8 +19,7 @@ import math
 #: returned every step as the next, an overshoot b running back at least b; a step called
 #: while the capture point was still inside the hold, by the time it would take to leave,
 #: fired on 2 cm with the ankle already bringing it back; an ellipse called the next step with
-#: the capture point 3 cm inside and 5.3 ahead of the landed foot's point, on its sole
-#: (2026-10-04).
+#: the capture point 3 cm inside and 5.3 ahead of the landed foot's point, on its sole.
 HOLD_M = {'across': 0.04, 'along': 0.08}
 STANCE_M, STEP_S = 0.02, 0.22
 
@@ -28,7 +27,7 @@ STANCE_M, STEP_S = 0.02, 0.22
 #: sole's length and 1 cm along. The ray run from the centre of pressure between her feet put a
 #: foot on her midline on a push from behind, the stance 6.6 cm wide; the support carried past
 #: the capture point along the way it left alone, the feet kept apart, left the capture point
-#: outside the line between them on every push with a side to it (2026-10-04).
+#: outside the line between them on every push with a side to it.
 CLEAR_M = {'across': 0.11, 'along': 0.25}
 
 

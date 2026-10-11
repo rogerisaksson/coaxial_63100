@@ -42,7 +42,7 @@ REG_FIELD = 0x2A
 #: columns of full stops. Cut from 64 by 23 on the bench's word once the
 #: face was drawn round on its terminal (`aspect.aspect_of`, the rotor
 #: observer's probe): like the motor page, an instrument that fills its
-#: box - sized to the terminal every frame (2026-09-24); these where it does
+#: box - sized to the terminal every frame; these where it does
 #: not say, ART_LEAST the fewest rows it is drawn in.
 ART_WIDTH, ART_HEIGHT = 58, 21
 ART_LEAST = 12
@@ -52,7 +52,7 @@ ART_LEAST = 12
 #: the terminal leaves after the instrument column and the frames, and
 #: the face is drawn as wide as the room left after two scales and their
 #: air, down to FACE_MIN. A fixed 124-column gate showed SHAFT ANGLE
-#: without them on the bench's narrower terminal (2026-09-07). The
+#: without them on the bench's narrower terminal. The
 #: face is bounded by its height anyway: at 21 rows the rim is 33 dots
 #: however wide the box, and at FACE_MIN it is 29 - an eighth smaller,
 #: with the scales beside it. Under that the face stands alone;

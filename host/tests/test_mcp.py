@@ -147,7 +147,7 @@ def exercise(server, report):
                   server.tool('analog_read', {'ch': ['NTC'], 'ntc_beta': 3950}),
                   ['NTC'])
     # render.angle() shadowed the coaxial.devices.angle module it converts with, and
-    # both replies raised AttributeError until 2026-08-31; the words below are
+    # both replies once raised AttributeError; the words below are
     # the module's arithmetic showing through.
     report.result('angle read', server.tool('angle'),
                   ['angle:', 'counts of 4096'])
@@ -180,7 +180,7 @@ def exercise(server, report):
                  'echo ok' in server.tool('link', {'op': 'echo', 'text': 'alive'}),
                  'PB10/PB11 held while the rest of GPIOB went low')
     # The write's own readback: on a board the rail's users take AFE_ON up again within
-    # their lease, and an afe read behind the write said on=1 (the bench, 2026-10-05).
+    # their lease, and an afe read behind the write said on=1 (the bench).
     port_b = re.search(r'GPIOB=0x([0-9A-Fa-f]+)', wrote)
     report.check('unreserved PB2 really was cleared',
                  port_b is not None and not int(port_b.group(1), 16) & 0x0004,

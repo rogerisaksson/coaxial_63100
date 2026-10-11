@@ -34,7 +34,7 @@ class _Angle:
 class VirtualJoint(Actuator):
 
     """A joint at its command: the setpoint slewed at `deg_s`, within +/-`span` deg. 1500: a
-    brisk walk's knee swings at 800; at 360 the read-back lagged 19 deg (2026-09-25)."""
+    brisk walk's knee swings at 800; at 360 the read-back lagged 19 deg."""
 
     UNIT, READS, DRIVES, BACK = 'deg', 'angle', 'angle', 'deg'
 

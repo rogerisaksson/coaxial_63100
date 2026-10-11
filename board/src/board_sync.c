@@ -146,7 +146,7 @@ bool Board_SyncMeanSquare(float *out)
 
   /* The affine conversion undone once, not per sample; its slope over half the span, where
      the record's integer gain trim is whole - over one code it truncated to nothing and the
-     trim never reached the mean square (FINDINGS 2026-09-26). */
+     trim never reached the mean square (FINDINGS). */
   for (uint8_t leg = 0U; leg < 3U; leg++)
   {
     const float k = Board_PhaseAmps(leg, 0);

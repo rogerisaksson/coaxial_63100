@@ -35,7 +35,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 #: landing at 11-12 deg - 0.75-0.81 at 380-397, 18-20 deg, the row first found, her quick step
 #: now; asked the row -0.3 she strolls 0.52 m/s at 695; the run's ran 1.44 m/s at 522; her jog
 #: 0.69-0.76 at 739-801; standing she took no
-#: step, and stood again after a walk one or two (2026-10-06).
+#: step, and stood again after a walk one or two.
 FORM = {'walk': (('speed', 0.65, 0.95), ('drawn', None, 600.0), ('knee', None, 30.0),
                  ('both', 1.0, None)),
         'run': (('speed', 1.35, 1.6), ('drawn', None, 620.0), ('both', None, 0.0)),
@@ -51,7 +51,7 @@ FELL_M, FELL_DEG, ROWS_HZ, STAND_WIDE_M = 0.55, 55.0, 60.0, 0.17
 #: A search's spans, {name: (low, high)}: the walk's row and what of the law it leans on, a foot
 #: always down ('both': its stance over its step, s) and the strut the form's; the row between.
 #: With the stance free and the strut to 14 deg the search found a walk with no foot down a
-#: tenth of a second a step, its knee 14 deg behind plumb: 346 J/m, priced 50.5 (2026-10-05).
+#: tenth of a second a step, its knee 14 deg behind plumb: 346 J/m, priced 50.5.
 SPANS = {
     'walk': {'gaits.WALK.speed': (0.6, 1.0), 'gaits.WALK.step': (0.40, 0.70), 'both': (0.03, 0.25),
              'gaits.WALK.bounce': (0.08, 0.35), 'gaits.WALK.knee': (4.0, 26.0),
@@ -218,7 +218,7 @@ def went(track, to_s, values=None, form=None, shoves=(), asked=False, manner=())
     body.loop.step(0.0)
     bus, d, at = body.loop.bus, world.data, np.array(world.vadr)
     marks = sorted({p[0] for p in list(track[1:]) + list(manner) if 0.0 < p[0] < to_s}) + [to_s]
-    windows = [form] if form and not isinstance(form[0], tuple) else list(form or ())
+    windows: list = [form] if form and not isinstance(form[0], tuple) else list(form or ())
     amounts, manner = {}, sorted(manner)
     seg = {'from': 0.0, 'z': bus['pelvis.pose.z'], 'drawn': 0.0, 'work': 0.0, 'k': mixed(0.0),
            'load': 0.0}

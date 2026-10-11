@@ -236,7 +236,7 @@ print('7. loops      IMU %s: updates %d, cargoes %d, errors %d, last fault %s (i
     md("- Three refusals, all the board's: AFE_ON low, the poll loop running, a part still "
        'announcing (FINDINGS).\n- A1335 reads are two frames: the address in the first, the '
        "answer in the second.\n- TSEN is the part's die: NTC - TSEN -0.74 C idle, +10.94 C "
-       'switching (2026-08-28).'),
+       'switching.'),
 ]
 
 BENCH = ('Wait on `settled()` before any Set Feature. Read FIELD before ANG: ~2 G is no '

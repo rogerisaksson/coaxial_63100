@@ -7,19 +7,19 @@ at 0.1 s: the pelvis's height, its axes' world-y parts, the loads, what touches 
     python tools/sim/getup_lab.py prone flat 0.2 pushup
     python tools/sim/getup_lab.py side curled 0.3 toprone
 
-Found (2026-09-27): from the side, straightening out rolls her onto her back; from the back, a
+Found: from the side, straightening out rolls her onto her back; from the back, a
 leg crossed over (either way) or the right arm and leg swung up roll her onto her right side;
 from the front the push-up onto hands and knees and on into the dog (the pelvis 0.48 m up on
 hands and toes) work, but the squat's joints from there put the knees down and the torso on the
 floor, and a lunge with the right foot tips her onto her left side. Sequences in the joints alone
 do not stand her up: the moves with the feet down want the centre of mass placed over them, as
 the arrival's keyframes are (`arrival.over`), and the kneel to the squat a step with a hand's
-support. From the front (2026-09-28): the push-up leaves the head and the torso on the floor
+support. From the front: the push-up leaves the head and the torso on the floor
 (`heels`: onto the shins, the toes tucked, back on the heels, the soles never bearing; the pelvis
 0.40 m); in the dog the pelvis is 0.48 m up with the head and the forearms down, the feet walked
 in one at a time and the hips lowered over them bore 1-110 N (`bearwalk`) - the arms (40 and
-25 N m at the shoulder and the elbow) do not lift her torso off the floor. From the back
-(2026-09-28): the spine and the hips sit her up (`situp`, the pelvis upright), but folded over
+25 N m at the shoulder and the elbow) do not lift her torso off the floor. From the back:
+the spine and the hips sit her up (`situp`, the pelvis upright), but folded over
 drawn-in feet her centre of mass stays behind the heels, the pelvis rolled back 45 degrees; the
 heels drawn to the buttocks (`tuck`) or a rock back and a throw forward (`rock`), the light legs
 swing up and she rolls back over her shoulders. From the knees, the hips straightened with the

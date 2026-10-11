@@ -102,7 +102,7 @@ def _watch_link(port):
     pages open the emulator (coaxial.comm.session.emulator_here). A board on an emulated URL is
     this process's own and never goes: asked once. Asked on, its session shared the line with
     the page's - a hand-off into binary between a page's request and its reply - and the
-    attitude page stood still 5 s at a time (2026-09-28)."""
+    attitude page stood still 5 s at a time."""
     from coaxial.comm.session import board_answers, emulator_here, url_kind
     from coaxial.errors import LINK_FAULTS
 
@@ -198,7 +198,7 @@ def compose(port, picked, view, size=None, who=None, rate=''):
     # The stand never outgrows the menu: at most BOX columns, at most half the
     # terminal - on a small tty the board shrinks, the list does not.
     wide = min(BOX, max(26, (size.width if size else 100) // 2))
-    # The right column is two boxes since 2026-09-23: the model turning above,
+    # The right column is two boxes: the model turning above,
     # and under it the readout - what the board says it is, printed as a
     # console of the era printed it (terminal/readout.py).
     below = readout_rows(tall)

@@ -51,7 +51,7 @@ $Wanted = [ordered]@{
 $added = @()
 $missing = @()
 # Not $name: dot-sourced, it is the caller's, and coaxial_tty.ps1's -Name is
-# a ValidateSet - the first bundle name failed it (2026-09-23).
+# a ValidateSet - the first bundle name failed it.
 foreach ($bundle in $Wanted.Keys) {
     $bin = Get-NewestBundleBin $bundle
     if ($null -eq $bin) { $missing += $bundle; continue }

@@ -6,7 +6,7 @@
 Each line a part type and its count, from the drives as stacked (`drives.STACKS`, the held and
 sprung joints' left out), the tubes by stock size (`tools/sim/members.py`), the transmissions
 (`machine.linkage`) and the gimbals' and the ankles' pins and bearings (`machine.skeleton`).
-The last line counts the types: the fewest variants (2026-10-04).
+The last line counts the types: the fewest variants.
 """
 import collections
 import math

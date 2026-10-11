@@ -13,7 +13,7 @@ from machine import figure, gait, stance, walkplan
 from machine.figure import LEG, mul, rx, ry
 
 #: A stepping foot in the air reaches PRESS_M under its mark: solved from the pelvis as it is, it
-#: sat on the floor at 0 N (60 N shove, 2026-10-04).
+#: sat on the floor at 0 N (60 N shove).
 PRESS_M = 0.01
 
 #: Standing to stay, each foot bears its share (`shared`): let down at SHARE_M_S a share of her
@@ -23,18 +23,18 @@ PRESS_M = 0.01
 #: of 48 against 25 - 100 N 9 of 12 against 3 -, the bricks 96 and 63 % against 60 and 55, the
 #: rockers 100 and 93 against 63 and 90. Its forms on the polar: the share what the capture
 #: point asks, 24; a step run as before it, 18-20; the standing foot's let-down held through
-#: the step, 30 (2026-10-04, docs/findings/standing.md).
+#: the step, 30 (docs/findings/standing.md).
 SHARE_M_S, SHARE_LEAK, SHARE_M = 0.3, 0.5, (-0.04, 0.08)
 
 #: How far a leg is a stance leg, by what it bears, moves no faster than BEAR_S from none to all:
 #: at once, its load flickering about `stance.LANDED_N` as the foot lifted into the first step
-#: switched the leg between target and pelvis, the knee 2-8 deg a pass (2026-10-01).
+#: switched the leg between target and pelvis, the knee 2-8 deg a pass.
 BEAR_S = 0.05
 
 
 def foot(frame, pitch):
     """A keyframe's foot's turn: pitched toes-up `pitch` deg, facing its `yaw` - unturned, up
-    from a fall facing back, the legs were solved half a turn twisted (2026-09-30)."""
+    from a fall facing back, the legs were solved half a turn twisted."""
     return mul(ry(math.radians(frame.get('yaw', 0.0))), rx(math.radians(pitch)))
 
 
@@ -43,7 +43,7 @@ def height(borne, pinned, frame, turn, bus, y, held):
     down as they are - from where the hips are: over the front foot after a step, 0.90 m up,
     the rear leg hung straight 2.4 cm off the floor and she stood on one foot's toes (80 N
     from behind). The stepping foot's mark left out, or `y` held within 1 cm of the pelvis as
-    it is, the polar stood 11-13 of 36 against 14: chance, neither kept (2026-10-04)."""
+    it is, the polar stood 11-13 of 36 against 14: chance, neither kept."""
     if not held:
         return y
     for side, sign in walkplan.SIDES:
@@ -62,7 +62,7 @@ def shared(borne, pinned, frame, turn, now, bus, dt, out):
     reaches from the pelvis as it is, PRESS_M under its mark, until it lands - bearing
     `stance.LANDED_N` as it comes down (the keyframe's `land`; by load alone a foot hanging on
     a brick was landed at once, by its height one leaving on sprung toes that still pressed
-    60-157 N, 2 cm up and never stepping, 2026-10-04) - and is `pinned` there, its mark."""
+    60-157 N, 2 cm up and never stepping) - and is `pinned` there, its mark."""
     pel = (bus['pelvis.pose.x'], bus['pelvis.pose.y'], bus['pelvis.pose.z'])
     loads = {side: bus['pelvis.pose.%s_load' % side] for side, _sign in walkplan.SIDES}
     total = max(sum(loads.values()), 100.0)
@@ -104,7 +104,7 @@ def legs(borne, pinned, frame, turn, now, bus, dt, held, out):
     """`out`'s legs solved again by what each bears: standing to stay (`held`), `shared`. Else
     one bearing under `stance.LANDED_N` reaches from the pelvis as it is, as the walker's
     swinging leg: from the pelvis's target, moved by the feedback, the stepping foot landed 8
-    cm off (2026-09-26). A keyframe's `planted` feet are stance whatever they bear: crouched
+    cm off. A keyframe's `planted` feet are stance whatever they bear: crouched
     with her hands down, both read light and she was flung up."""
     if held:
         return shared(borne, pinned, frame, turn, now, bus, dt, out)

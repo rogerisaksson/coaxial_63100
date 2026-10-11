@@ -48,7 +48,7 @@ class HostClock:
     def sleep(self, seconds):
         """`seconds` of the board's: the PC's at the scale; an emulated board's read as it
         goes, its pace between two reads being a guess - CI's runner fell behind the scale
-        and a chain's settle was cut short (2026-09-27)."""
+        and a chain's settle was cut short."""
         virtual = self._virtual
         if virtual is None:
             time.sleep(seconds * self._scale())

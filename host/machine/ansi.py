@@ -118,7 +118,7 @@ BOARD_RAMP = (22, 22, 28, 34, 40, 46, 47, 83, 119, 155, 191, 227, 231)
 #: at 55-65, bright red hottest from 100; 5 K apart through 25-60, where this
 #: board works: coarser stops hid the hot swap. The ironbow before it (violet
 #: at the room, red at 50, white-hot at 100) read odd, and the rainbow before
-#: that mossy (2026-10-02, 2026-09-25).
+#: that mossy.
 THERMAL_STOPS = (
     (-20.0, (0, 0, 200)),
     (20.0, (20, 70, 255)),

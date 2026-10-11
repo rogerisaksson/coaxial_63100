@@ -17,12 +17,12 @@ terminal page runs her:
 SUITES (`--suite`): look, the rises and the walks on fantasy boards, SOA never binding
 (`physics.ENVELOPE` 0); walk; faults, the events and the falls on the boards as built; stand; all.
 `held`, the share of the trials' time she stood; `stir`, the pendulum's mean over the
-walks, mm. The cost (2026-10-05: a fall punished is met by a crouch): a walk off its
+walks, mm. The cost (a fall punished is met by a crouch): a walk off its
 form (`looks.FORM`, its spread's) is rejected; on it, its look and power (`looks.cost`, `stir`
 with it); an event, a rise and a stand each a reward, PARRY_K the share of its runs she ended
 on her feet - a fall earns nothing and costs nothing; a fall past saving on its landing's
 peak, body and head. A single run scores chance - the rise flips on 0.5 % of any knob
-(docs/findings/walk.md, 2026-09-26) - a spread of them scores it.
+(docs/findings/walk.md) - a spread of them scores it.
 
     python tools/sim/gait_montecarlo.py                      # as built
     python tools/sim/gait_montecarlo.py --search SURGE_DEG=0:4 SWAY_K=0:2 --generations 12
@@ -46,7 +46,7 @@ from tools.sim.looks import LOOKS, cost as look_of, shown
 #: glitch do), each laid as `machine.events` lays it the first time the left leg's phase
 #: crosses its `events.at` after EVENT_AT_S. Laid on the clock the event met whatever phase a
 #: candidate's pace had brought her to, and a 0.1 % change of any knob flipped a shove. The hip
-#: held to a quarter for a second changed nothing: a stance hip asks under 60 N m (2026-09-27).
+#: held to a quarter for a second changed nothing: a stance hip asks under 60 N m.
 TRIALS = (('rise', 0.6, None), ('rise', 0.75, None), ('rise', 0.9, None),
           ('walk', 0.65, None), ('walk', 0.85, None), ('walk', 0.9, None), ('walk', 1.0, None),
           ('event', 0.85, 'hole'), ('event', 0.85, 'sill'), ('event', 0.85, 'slip'),
@@ -56,12 +56,11 @@ TRIALS = (('rise', 0.6, None), ('rise', 0.75, None), ('rise', 0.9, None),
               ('stand', 0.85, e) for e in events.STANDING)
 
 #: Each event laid at SPREAD steps (`events.STEP_M`, `events.GLITCH_STEP`). Laid at one place,
-#: 2 % of an arm's swing flipped a slip or the hot knee and the held share ran 75-90 %
-#: (2026-09-28).
+#: 2 % of an arm's swing flipped a slip or the hot knee and the held share ran 75-90 %.
 SPREAD = (-1, 0, 1)
 
 #: Each walk run at SPREAD steps of WALK_SPREAD of its pace, its costs meaned: one run a candidate
-#: scored chance - 15.85 in a search, 38.97 run again rounded to four figures (2026-09-28).
+#: scored chance - 15.85 in a search, 38.97 run again rounded to four figures.
 WALK_SPREAD = 0.02
 
 #: The suites: which kinds of trial each runs.
@@ -73,7 +72,7 @@ JOBS = [(t, k) for t in TRIALS for k in SPREAD]
 
 #: Each rise landed in the squat from over its 2 mm, RISE_DROP_M more a SPREAD step and a third of
 #: it a rise: she starts at the walk's own cadence whatever is asked (`director.PACE_RATE`), and
-#: her three rises were one start - all three fell at 6.4 s (2026-10-02).
+#: her three rises were one start - all three fell at 6.4 s.
 RISE_DROP_M = 0.002
 
 #: A walk is looked at LOOK_HZ. A touch: the sole bearing TOUCH_N after QUIET_S of none, read
@@ -81,7 +80,7 @@ RISE_DROP_M = 0.002
 LOOK_HZ, IMPACT_S, TOUCH_N, QUIET_S = 50.0, 0.03, 30.0, 0.1
 
 #: An event parried - she on her feet to its end -, PARRY_K the share of its runs: one more of
-#: 30 is 10; until 2026-10-05 a fall's price, FALL_K, the same 300 - every cost since is 300 a
+#: 30 is 10; a fall's price, FALL_K, was the same 300 - every cost since is 300 a
 #: kind of trial run under those before. A
 #: fall past saving, its landing over LAND_S from the fall: LAND_K a kN of the peak her body bears
 #: on the floor, feet aside, HEAD_K a kN of her head's; GEAR_K a share past its rating of the
@@ -91,7 +90,7 @@ PARRY_K, LAND_S, LAND_K, HEAD_K, GEAR_K = 300.0, 1.5, 2.0, 10.0, 100.0
 #: A stand's cost: its stir, mm, from its event on, TREAD_K a step taken; stood, PARRY_K.
 TREAD_K = 1.0
 
-#: Every trial and job, `suite()` narrowing from them, not itself (2026-10-04).
+#: Every trial and job, `suite()` narrowing from them, not itself.
 ALL_TRIALS, ALL_JOBS = TRIALS, list(JOBS)
 
 
@@ -114,7 +113,7 @@ SETTLE_S, EVENT_AT_S = 4.0, 5.0
 
 #: A walk's run is judged on the strides it walked: its reach behind and its landing measured. A
 #: walk trial none of whose runs walked costs LOST_K, its share of the walks: unjudged, falling at
-#: 1.0 strides/s ranked better than walking it (2026-09-30).
+#: 1.0 strides/s ranked better than walking it.
 JUDGED = ('thigh behind at lift', 'impact')
 LOST_K = 30.0
 
@@ -142,8 +141,8 @@ def trial(job):
         events.rig(event, director, body.nodes['pelvis'].world)
     else:
         # Standing, through the arrival's lean, as the page starts her: started dead through
-        # the walker, the first stride fell at 0.85 on sprung toes (2026-10-04); begun at her
-        # pace, not glided to it (`director.PACE_RATE`), 2 walks of 12 fell (2026-10-05).
+        # the walker, the first stride fell at 0.85 on sprung toes; begun at her
+        # pace, not glided to it (`director.PACE_RATE`), 2 walks of 12 fell.
         director.begin(drop=0.002 + RISE_DROP_M * (k + 1), stage='stand')
         director.cadence = pace * (1.0 + WALK_SPREAD * k)
     body.loop.step(0.0)
@@ -157,8 +156,7 @@ def trial(job):
     np, m, d = world._np, world.model, world.data
     ours = {m.body(seg[0]).id: seg[0] for seg in figure.SEGMENTS}
     # Her skeleton's parts, welded bodies of their own where `physics.SKELETON` collides them:
-    # a drum, a board or a tube the floor meets is what a fall breaks (the armour,
-    # 2026-10-04).
+    # a drum, a board or a tube the floor meets is what a fall breaks (the armour).
     bare_parts = {i for i in skeleton.owners(m) if i not in ours}
     force, drawn, landing, head, bare = np.zeros(6), 0.0, 0.0, 0.0, 0.0
     while bus['t'] < seconds:
@@ -221,7 +219,7 @@ def trial(job):
             landing, head = max(landing, body_n / 1e3), max(head, head_n / 1e3)
             bare = max(bare, bare_n / 1e3)
     # A pool's worker lives on: its world's buses and block closed here, not at its exit - left,
-    # five bus processes a run piled up to 865 and the host ran out of memory (2026-09-28).
+    # five bus processes a run piled up to 865 and the host ran out of memory.
     body.close()
     what = '%.1f m' % bus['pelvis.pose.z'] + (', tipped %.0f deg' % tilt if laid else '')
     if fell is not None:
@@ -294,7 +292,7 @@ def score(results):
 
 def run(_pool, candidates):
     """[(cost, held, stir, results)] for `candidates`, every run of each a job on the relay
-    (`focus.relay`: a baton a physical core, never a pool of its own - 2026-10-03), its
+    (`focus.relay`: a baton a physical core, never a pool of its own), its
     result the JSON line it prints (`--one`); a run lost counts as fallen."""
     from tools.dev import focus
     jobs = [focus.Job('%d.%d' % (c, k), [sys.executable, '-X', 'utf8', os.path.abspath(__file__),

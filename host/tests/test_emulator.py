@@ -60,7 +60,7 @@ def test_the_image_proves_itself(report, rig, emu):
     report.check('the self test answers, none of it failed', bool(checks) and not failed,
                  ', '.join(failed) or '%d checks' % len(checks))
     # A gap between two segments is the store's 0xFF through the bootloader and the loader's 0
-    # here: one linker lays the vectors and the header in one segment, CI's in two (2026-10-05).
+    # here: one linker lays the vectors and the header in one segment, CI's in two.
     length, got = checks['image_len']['value'], checks['image_crc']['value']
     want = [crc16(boot.image_of(ELF, gap)[:length]) for gap in (0xFF, 0x00)]
     report.check("its code's CRC is the build's", got in want,
@@ -195,11 +195,11 @@ def test_echoes_on_the_bus(report):
     speed: every echo comes back byte for byte, and the node counts no framing error past the
     host's handover byte and drops nothing from its ring. The app refuses a `link_baud` past
     921 600; at 10 Mbit it had answered only because Renode's UARTs ignored the rates, which the
-    transceivers now decode by (2026-09-28)."""
+    transceivers now decode by."""
     with Limb(1, mips=FAITHFUL_MIPS, idle_mips=None, mpu=True) as limb:
         rig = Coaxial63100(port=limb.url, unit=1, own_image=False).open()
         # Its waits on the limb's pace, as emulator:// gives them: the node asleep keeps real
-        # time, awake it replied after a scale-1 wait had given up (2026-09-25).
+        # time, awake it replied after a scale-1 wait had given up.
         rig.board.transport.time_scale_source = limb.load
         try:
             link = rig.board.link
@@ -218,7 +218,7 @@ def test_echoes_on_the_bus(report):
             rig.close()
     # Which echo, what the host raised, and the framing errors the open counted beside the
     # echoes': a request split on its way into Renode lost one of 50 with two framing errors on
-    # CI's runner, never on this host (2026-09-28).
+    # CI's runner, never on this host.
     report.check('the bus at the record\'s rate: every echo back, nothing dropped, framing clean',
                  wrong == 0 and port['ring_dropped'] == 0 and port['bus_comm_error'] <= 1,
                  '%d of %d echoes wrong, %d framing errors (%d at the open), %d dropped, pace %.0f%s'
@@ -228,7 +228,7 @@ def test_echoes_on_the_bus(report):
 
 def test_a_bus_off_the_nodes_rate_carries_nothing(report):
     """The host's adapter at 10 Mbit, the app's port at its record's 115 200: nothing crosses, as
-    on the part; Renode's UARTs had passed every byte whatever the rates (2026-09-28)."""
+    on the part; Renode's UARTs had passed every byte whatever the rates."""
     with Limb(1, mips=FAITHFUL_MIPS, idle_mips=None, baud=10_000_000, mpu=True) as limb:
         try:
             Coaxial63100(port=limb.url, unit=1, own_image=False).open().close()
@@ -380,7 +380,7 @@ def blank(report, _names=()):
     run(report, [(test_a_blank_node_takes_the_host_build,)])
 
 
-#: Each a process and a Renode of its own on the relay, the longest first (2026-09-27: the rig
+#: Each a process and a Renode of its own on the relay, the longest first (the rig
 #: 84 s, the blank node 71, conformance 44, the bus 43).
 GROUPS = {'board': board, 'blank': blank, 'conformance': conformance, 'bus': bus,
           'fallback': fallback}

@@ -9,11 +9,11 @@ from machine.drives import kind
 from machine.figure import BODY, HAIR_AT, HEM_AT, JOINTS, MASS_KG, SEGMENTS, contacts as undersides
 
 #: The joints with a mechanical stop, (low, high) deg: the elbow straight at -5, as an arm's is -
-#: without it the forearm folded back under her weight, -82 to -161 pushing up (2026-09-30); the
+#: without it the forearm folded back under her weight, -82 to -161 pushing up; the
 #: back as a woman's bends, the get-up asking -8 to 60 of the spine and the falls 45 of the waist -
-#: without, tripped on a sill and down, her spine folded back 98-101 degrees (2026-10-01). The
+#: without, tripped on a sill and down, her spine folded back 98-101 degrees. The
 #: knee stopped at -5: its drive on its axis, swinging, it snapped to -24 in the air, the walk
-#: hopped and she fell (the page's recording, 2026-10-02).
+#: hopped and she fell (the page's recording).
 STOPS = {'elbow': (-5.0, 160.0), 'spine': (-30.0, 85.0), 'spine_roll': (-35.0, 35.0),
          'waist': (-50.0, 50.0), 'knee': (-5.0, 165.0)}
 
@@ -23,12 +23,12 @@ PASSIVE_J, HELD_DEG = 0.0005, 0.5
 
 #: The hips' yaw stopped HIP_YAW_DEG either side, 0 free: the gimbal's roll drum behind the hip
 #: swings with it toward the other's (`drives.JOINTS`). At 25 the scoreboard held 81.0 % as free and
-#: 3 get-ups of 3 (2026-10-02).
+#: 3 get-ups of 3.
 HIP_YAW_DEG = 25.0
 
 #: The contacts' friction cone: elliptic, the same grip every way, at IMPRATIO. On MuJoCo's
 #: pyramid she walked along the world's axes and fell 1.2 m on 45 degrees off them; elliptic at 1
-#: she fell every way at 1.18 m, at 3 and 10 walked 13 m every way (2026-09-30).
+#: she fell every way at 1.18 m, at 3 and 10 walked 13 m every way.
 CONE, IMPRATIO = 'elliptic', 10.0
 
 #: What her clothes cover and what the cloth grips with, sliding: jeans over the pelvis, the
@@ -42,7 +42,7 @@ CLOTH_GIVE_M = 0.004
 #: stopped within HEM_STOP_S where its cloth meets the leg or the sneaker: its end HEM_FORE_DEG
 #: forward (the heel), HEM_BACK_DEG back (the instep), HEM_SIDE_DEG aside (the ankle). It touches
 #: nothing else. Free to 46 degrees it swung the leg's end through the cloth; stopped at 14,
-#: softly, it swung to 19 and the shin stood 35 mm out of it aside, the sneaker 64 (2026-09-28).
+#: softly, it swung to 19 and the shin stood 35 mm out of it aside, the sneaker 64.
 HEM_M, HEM_KG, HEM_K, HEM_D = 0.2, 0.12, 0.6, 0.045
 HEM_FORE_DEG, HEM_BACK_DEG, HEM_SIDE_DEG, HEM_STOP_S = 5.0, 8.0, 3.0, 0.005
 HEMS = tuple('%s_hem_%s' % (side, axis) for side in ('left', 'right') for axis in 'xz')
@@ -60,12 +60,12 @@ LOOSE = HEMS + HAIRS
 
 #: Her geoms' contact bits: 2 meets the floor's 1, 4 her own - a part on a part, MuJoCo leaving
 #: out a segment and its parent. Floor alone, her feet passed 22 mm into each other as she
-#: walked (2026-09-28). Her thighs' spheres, cruder than her, pressed 2 kN apart at every passing
-#: in her catwalk (2026-09-28); drawn, they pass 20 mm apart.
+#: walked. Her thighs' spheres, cruder than her, pressed 2 kN apart at every passing
+#: in her catwalk; drawn, they pass 20 mm apart.
 ME, MEETS = 2 | 4, 1 | 4
 
 #: The soles' friction: sliding, and turning in place (m) - a point of contact turns freely, and
-#: on its ball's edge the stance foot spun under the swinging leg (2026-09-25).
+#: on its ball's edge the stance foot spun under the swinging leg.
 FRICTION, TORSION_M = 1.0, 0.08
 
 #: The soles' give, MuJoCo's solref and solimp: a contact settles over SOLE_S s at SOLE_DAMP of
@@ -74,21 +74,21 @@ FRICTION, TORSION_M = 1.0, 0.08
 #: kN, 3.5 times her weight; the give over 5 mm and the damping 1.5: 1.5 kN and the pendulum's
 #: stir 1.7 -> 1.4 mm. Softer felled her first stride from standing every way: settling over
 #: 0.035 s the body pitched on twice as fast (the sole a lag in the ankle's hold), damped 1.75
-#: the stance foot's load flickered to 70 N as the other swung (2026-09-27).
+#: the stance foot's load flickered to 70 N as the other swung.
 SOLE_S, SOLE_DAMP, SOLE_SOFT, SOLE_WIDTH_M = 0.02, 1.5, 0.9, 0.005
 
 #: The pads' gel (`figure.PADS`), MuJoCo's solref and solimp over `figure.PAD_M`: a touch's
 #: impedance PAD_SOFT, rising to 0.95 as the gel is spent; settling over PAD_S s at PAD_DAMP of
 #: critical. Over 12 falls against none, the padded parts' landing peak 5.99 -> 5.32 kN at the
 #: median, its spread 3.00 -> 2.53; the pads as stiff as her cloth, the worst 8.4 -> 11.3, at
-#: 0.005 s 61 (`tools/sim/landings.py`, 2026-10-01).
+#: 0.005 s 61 (`tools/sim/landings.py`).
 PAD_SOFT, PAD_S, PAD_DAMP = 0.5, 0.02, 1.5
 
 #: Her left shoe's lace snagged on the right shoe (`World.lace`): from LACE_AT on the one to LACE_AT
 #: on the other (their frames), LACE_M between - a tendon, its limit settling over LACE_S s - until
 #: LACE_HOLD_N pulls it off. Under the right sole, pinned as the left foot lifted, it went taut
 #: as that foot landed, its step as long, and she walked on; as a tug of 300 N for 0.2 s it
-#: felled her on nothing seen (2026-09-28, 2026-10-01).
+#: felled her on nothing seen.
 LACE_AT, LACE_M, LACE_S, LACE_HOLD_N = (0.0, -0.03, 0.07), 0.25, 0.03, 1000.0
 
 

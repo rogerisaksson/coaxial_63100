@@ -33,7 +33,7 @@ class _Limits(ctypes.Structure if os.name == 'nt' else object):
 
 def tied(process):
     """On Windows, a job that ends `process` when this one ends, killed or not - a script
-    killed mid-run left its Renode running for hours (2026-09-25). Its handle, kept."""
+    killed mid-run left its Renode running for hours. Its handle, kept."""
     if os.name != 'nt':
         return None
     kernel = ctypes.windll.kernel32
@@ -48,7 +48,7 @@ def tied(process):
 def own_temp(path):
     """`path` made an empty directory: a Renode's temp, TMP and TEMP for it. Compiling its first
     plugin Renode sweeps the temp's renode-<pid> of runs gone, asking whether each pid lives - one
-    since a protected process's refused it, and Renode died (2026-10-02)."""
+    since a protected process's refused it, and Renode died."""
     shutil.rmtree(path, ignore_errors=True)
     os.makedirs(path)
     return dict(os.environ, TMP=path, TEMP=path)

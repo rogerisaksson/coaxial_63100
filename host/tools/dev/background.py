@@ -1,7 +1,7 @@
 """A batch below the pages: this process and every process it starts at below-normal priority.
 
 A terminal page the user runs keeps the CPU it wants while suites and searches run on what is
-left (2026-09-28).
+left.
 
     from tools.dev import background; background.lower()
 """

@@ -114,7 +114,7 @@
    a HOLD_CHECK s window of Clevel agrees with the means to HOLD_CHECK_V (the pilot's 5 kHz
    ripple on Clevel is 40 mV, and the window holds a part of a period) and +15V7 to HOLD_GATE,
    the settling goes on with the gap left out; a gap that goes on is a loss. Taken as a change
-   of regime, the slices kept the emulated chain from ever holding (2026-09-27). */
+   of regime, the slices kept the emulated chain from ever holding. */
 #define HOLD_WINDOW 5e-3
 #define HOLD_V      5e-3
 #define HOLD_GATE   10e-3

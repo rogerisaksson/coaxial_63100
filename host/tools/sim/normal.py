@@ -28,7 +28,7 @@ G = 9.81
 #: 60 % of the stride, 60-70 swinging; the pelvis turning 6-10 deg - and what tells a woman's
 #: from a man's: her pelvis rolls more (8-10 deg where 6-7), her cadence is higher on a shorter
 #: step, her feet nearer her line. Held against takes' walks through this module, a mocap suit's
-#: or a studio's (2026-10-05): three of four a suit's on it, the fourth a foot's width off; a
+#: or a studio's: three of four a suit's on it, the fourth a foot's width off; a
 #: runway's catwalk 1.3 off - its arms 82 deg, its roll 23; her walk as built 2.0 - its knee
 #: lands at 30 deg, both feet bear 25 % of a stride a step, its step is short for its time; the
 #: one law's 4.0, on stilts: the swinging knee 26 deg, no heel's rise, the pelvis
@@ -64,7 +64,7 @@ BAND = (
     ('feet apart', 'leg', 0.02, 0.22),
 )
 
-#: A walk in words (2026-10-05: what is a stiff walk without a soft one to hold it
+#: A walk in words (what is a stiff walk without a soft one to hold it
 #: to): (word, ((measure, side), ..)) - how far those measures are out of their bands on that
 #: side, -1 under and 1 over, by the bands' widths; 0 on a woman's walk, said from SAID. Stiff:
 #: the leg goes by unbent, its foot lifted flat - stilts. Crouched: never on a straight leg,

@@ -26,7 +26,7 @@ OUT_DIR = os.path.join(
     'notebook_examples')
 
 #: A name only this kernelspec carries: two CPython 3.14.7s here, one without
-#: the packages, and the editor picked that one by version (2026-09-13).
+#: the packages, and the editor picked that one by version.
 KERNEL = 'coaxial_63100'
 KERNEL_DISPLAY = 'Python (coaxial_63100)'
 

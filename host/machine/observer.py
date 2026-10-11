@@ -18,20 +18,20 @@ from machine import figure
 SIDE_UP, UPRIGHT = 0.5, 0.5
 #: Upright, the pelvis's height over the floor, m, above which she stands or crouches - on her
 #: feet, FEET_SHARE of her weight on them and no knee down - or kneels. Sat back on her heels,
-#: her toes carried 0.65 of her weight (2026-10-01).
+#: her toes carried 0.65 of her weight.
 STANDS_M, CROUCHES_M, FEET_SHARE = 0.75, 0.25, 0.6
 #: Her weight, N.
 #: Back on her heels, her centre of mass within OVER_FEET_M of her toes, her head upright: 0.53 m
-#: ahead, her head on the floor, passed the pelvis-and-shin check this replaced (2026-10-01).
+#: ahead, her head on the floor, passed the pelvis-and-shin check this replaced.
 OVER_FEET_M = 0.15
 #: On her knees, the pelvis rolled under LEVEL_DEG: 37-40 degrees onto a side, sitting back
-#: rolled her over, 4 kneels of 22 (2026-10-01).
+#: rolled her over, 4 kneels of 22.
 LEVEL_DEG = 20.0
 #: Onto her feet, they are flat within FLAT_DEG when the arrival takes her: pitched 22 degrees,
-#: the ankles 39 mm over its squat's, its legs reached for the floor and threw her up (2026-10-01).
+#: the ankles 39 mm over its squat's, its legs reached for the floor and threw her up.
 FLAT_DEG = 10.0
 #: ... and still, the pelvis under STILL_M_S: arriving at 0.4 m/s back, she ran out over her heels
-#: and its feedback flung her 2.5 m (2026-10-01).
+#: and its feedback flung her 2.5 m.
 STILL_M_S = 0.1
 
 
@@ -66,7 +66,7 @@ def com_ahead(world):
     """Her centre of mass ahead of her toes along her heading (`_ahead`), m."""
     d, m = world.data, world.model
     ax, az = _ahead(world)
-    toes = sum(d.xpos[m.body(s + 'toes').id] for s in ('left_', 'right_')) / 2.0
+    toes = (d.xpos[m.body('left_toes').id] + d.xpos[m.body('right_toes').id]) / 2.0
     com = d.subtree_com[m.body('pelvis').id]
     return float((com[0] - toes[0]) * ax + (com[2] - toes[2]) * az)
 
@@ -138,8 +138,7 @@ def status(bus, world, director):
 
 
 #: The steps the observer ends the pass their outcome holds, not at their last keyframe: on
-#: her feet, her centre of mass over her toes, the step ran on and sat her down behind them
-#: (2026-10-01).
+#: her feet, her centre of mass over her toes, the step ran on and sat her down behind them.
 EARLY = ('knees under', 'sit back on heels', 'onto feet')
 
 #: Each step's outcome as the observer judges it at its end: (what it wants, of a status).

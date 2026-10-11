@@ -32,7 +32,7 @@ static const float PRIOR_SIGMA[THERMAL_IDENT_PARAMS] = { 0.5f, 0.2f, 0.5f,
     beside it one transient leaves the air path known to about 0.12 (the two
     share a cooldown's evidence) and a motor that holds a steady current
     after a change has exactly one transient to learn from; at a tenth the
-    rotor page never showed STABLE (bench, 2026-09-06). */
+    rotor page never showed STABLE (bench). */
 static const float SIGMA_CONVERGING[THERMAL_IDENT_PARAMS] = { 0.30f, 0.30f,
                                                              0.30f, 0.30f,
                                                              6.0f };

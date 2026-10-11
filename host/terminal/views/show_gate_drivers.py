@@ -59,7 +59,7 @@ LEGS = (('U', 'UH', 'UL'), ('V', 'VH', 'VL'), ('W', 'WH', 'WL'))
 
 
 #: What P pulses: U at this duty against V held low, through the load
-#: across them (2026-08-30: about 8 ohm, DC link read at 25 V, 3.1 A for
+#: across them (about 8 ohm, DC link read at 25 V, 3.1 A for
 #: the on-time, 60 mA mean). It lasts until the second compare write
 #: lands: 15.5 ms measured, ~780 cycles; the protocol has no cycle-counted
 #: burst.

@@ -167,7 +167,7 @@ class SimulatedDrive(DrivePlant, DriveObservers, DriveCapture, DriveControl):
     def _rpm(self):
         """The rotor, rpm mechanical, off the tracker as board_thermal.c's speed_now takes it
         off the observer, by the record's pole pairs; none while off. By the bench motor's 7
-        the QUAD page's 63100, 14, cooled its boards on 2 941 rpm at 1 471 (2026-10-05)."""
+        the QUAD page's 63100, 14, cooled its boards on 2 941 rpm at 1 471."""
         if self._mode == 'off':
             return 0.0
         omega = self._omega_hat if self._mode == 'sensorless' and self._source == 'model' \

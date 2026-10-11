@@ -9,7 +9,7 @@ findings: [FINDINGS](../FINDINGS.md); the law as built: [standing](standing.md).
 
 Goldfarb and Idnani's dual active set, one QR refactor a change: KKT 3.8e-12
 on 1000 random QPs; warm 0.3 ms, cold 5 ms. Failures on the stack, each
-handled in `qp.py` (2026-10-10):
+handled in `qp.py`:
 
 | Failure | Handling |
 | --- | --- |
@@ -21,7 +21,7 @@ handled in `qp.py` (2026-10-10):
 
 ## Levels
 
-Each level's content and the failure that placed it (2026-10-10):
+Each level's content and the failure that placed it:
 
 | Task | Placement | Failure elsewhere |
 | --- | --- | --- |
@@ -35,11 +35,11 @@ Each level's content and the failure that placed it (2026-10-10):
 Gearbox drag 1.2-2.2 N m (`physics.BACKDRIVE`) on pure torque: CoM creep 5
 mm/s, 24 mm of it an ankle's deadband at the law's gain. The drives' PD at
 half `physics.SERVO`'s kp round a reference integrated from the stack's
-accelerations: 0.3 mm in 2 s (2026-10-10).
+accelerations: 0.3 mm in 2 s.
 
 ## Shoves
 
-0.12 s on the trunk from 8 ways (2026-10-10), stood of 8; the law as built,
+0.12 s on the trunk from 8 ways, stood of 8; the law as built,
 stepping on boards as built, of 12:
 
 | N | stack, no step | stack, MPC's steps | law as built |
@@ -51,7 +51,7 @@ stepping on boards as built, of 12:
 | 120 | 0 | 3 | 0 |
 
 Spread polar, each way at three moments 35 ms apart, 24 shoves a force: 60 N
-24 of 24 with no step, 80 N 24, 100 N 20, 120 N 16 (2026-10-10).
+24 of 24 with no step, 80 N 24, 100 N 20, 120 N 16.
 
 | Variant | 60 / 80 / 100 / 120 N of 24 | Kept |
 | --- | --- | --- |
@@ -69,11 +69,9 @@ Spread polar, each way at three moments 35 ms apart, 24 shoves a force: 60 N
   (`wbc.RANGES`): unbounded, the head, neck, elbows and shoulders ran at
   their stacks' 51 N m, 6.4, 3.4, 2.1 and 1.3 times their clamps, swung as
   weights. Granted the legs and trunk alone: 100 N stood 7 of 8 where 8, 120
-  N 3 where 4 (2026-10-10).
+  N 3 where 4.
 
 ## Step
-
-2026-10-10:
 
 | Fault | Measured | Fix |
 | --- | --- | --- |
@@ -86,7 +84,7 @@ weighs four steps.
 
 ## Walk
 
-`tools/sim/wbc.py --walk`, 0.5 m/s at 0.5 s a step asked (2026-10-10).
+`tools/sim/wbc.py --walk`, 0.5 m/s at 0.5 s a step asked.
 
 - MPC: two landings ahead, each about the one before; its end the LIPM's
   periodic capture point, (w/2) tanh(wT/2) off the midline and l/(e^wT - 1)
@@ -119,7 +117,7 @@ weighs four steps.
 
 A cell under each heel and toe base, the floor's vertical load split by
 lever between z = -HEEL and BALL, the toes' to the toe base; a probe on
-`tools/sim/wbc.py --walk` (2026-10-10):
+`tools/sim/wbc.py --walk`:
 
 | t s | trailing sole, cells / plan N | landing sole, cells / plan N | landing sole m/s down |
 | --- | --- | --- | --- |
@@ -149,7 +147,7 @@ lever between z = -HEEL and BALL, the toes' to the toe base; a probe on
 `wbc/` on the arrays `tools/cores/model.py` writes from the compiled figure
 (34 links, a degree of freedom each, the pelvis floating: screws, spatial
 inertias with the rotors' armatures, stops), against MuJoCo at 40 random
-configurations (test_wbc_core.py, 2026-10-10):
+configurations (test_wbc_core.py):
 
 | Quantity | Worst apart |
 | --- | --- |
@@ -174,7 +172,7 @@ those above - a small level by its Gram matrix damped at 1e-6, the last by its
 normal equations; the polytope on the drives' loads, the lowest level scaled
 back first, then a hard clamp. The inequalities of the python stack are not in
 it: the friction pyramids, the sole's centre of pressure, the stops, the
-height's band and WEP's share are tasks or clips, or absent. 2026-10-10:
+height's band and WEP's share are tasks or clips, or absent.
 
 | Measure | Result |
 | --- | --- |
@@ -191,7 +189,7 @@ state observer on a joint's angle about the acceleration the loop planned for
 it, the drive's own residual taken off its torque, the inertia the loop's own
 (`jeff`, 1 / B_jj under the body and the contacts). `tools/sim/wbc.py --inner
 none|pd|eso [--eso-wo]`, standing 6 s on the loop, the centre of mass over the
-last 2 s (2026-10-10):
+last 2 s:
 
 | Inner loop | MPC's steps: creep mm/s, drift mm, tilt deg | capture point alone |
 | --- | --- | --- |
@@ -221,7 +219,7 @@ inequalities in every level, solved by a primal-dual active set (exact
 equality-constrained solves by Schur complement, the set warm across ticks, at
 most 20 changes a level); the four ways tried before it are in git (held rows
 scaled, batch saturation, level scaling, ADMM at 30 iterations: 1.07 N m off
-standing). 2026-10-10:
+standing).
 
 | Measure | Result |
 | --- | --- |
@@ -247,7 +245,7 @@ Each standing sole's four corner forces, as the python stack has them: the
 wrench's least-norm split among the corners plus six internal forces, variables
 beside the torques; the pyramids (four faces and pressing a corner) and the
 centre of pressure's margin bounds on them; the forces' regularisation on the
-twelve components. 2026-10-10:
+twelve components.
 
 | Measure | Result |
 | --- | --- |
@@ -275,7 +273,7 @@ twelve components. 2026-10-10:
 
 The active set's 20 changes a level ran out in every swing and left bounds
 broken by up to 1 600 (unit rows); at 80 changes a level the bounds hold
-(1e-9) and no level runs out. 2026-10-10:
+(1e-9) and no level runs out.
 
 | Measure | Result |
 | --- | --- |
@@ -301,7 +299,7 @@ solved by Goldfarb and Idnani's dual active set (a bound in the span of those
 held moves the duals alone), with the stack's two rules: the levels below
 weighed 1e-3 into a level's flat directions, and a bound held with a dual over
 1e-2 kept as an equality below (1e-7 felled her at 38 N, 1e-1 felled the
-walk). 2026-10-11:
+walk).
 
 | Measure | Loop | The python stack |
 | --- | --- | --- |
@@ -333,12 +331,12 @@ walk). 2026-10-11:
   the loop's memory: the loads WEP is granted on and the warm set. One shared
   core (`tools.cores.wbc.shared`): at 100 N WEP 18.9 s (the stack 21.3), 5 of
   8 stood (4; the stack 7), the walk 1.91 m at 0.32 m/s and 671 J/m as
-  before (2026-10-11).
+  before.
 
 ### The observer under the walking loop
 
 The loop's walk, 8 s at 0.5 m/s asked, with each inner loop under it
-(`--inner`), 2026-10-11:
+(`--inner`):
 
 | Inner loop | Walked | m/s | J/m | Tilt, deg |
 | --- | --- | --- | --- | --- |
@@ -364,7 +362,7 @@ unmet by 5-60 rad/s^2 - and she stays in double support on one sole's edge
 where the stack steps. The stack's centre-of-pressure margins are soft (a
 slack each on the turns' level, weighed 1e3); the loop's were hard, so with
 the centre of pressure at its margin only the head and the arms were left
-to turn her. The margins soft the same way (WBC_S slacks, 2026-10-11), the
+to turn her. The margins soft the same way (WBC_S slacks), the
 band hard as before:
 
 | | Hard margins | Soft margins | Stack |
@@ -385,7 +383,7 @@ band hard as before:
 - At 120 N she falls 7 of 8 where the stack 5: open.
 - On the gearboxes with their play (drives.md, A printed box's play) the loop
   with its observer stands 8 of 8 at 100 N, the PD under it 2.
-- The loop's state was 1 174 KB in doubles (`wbc_stack_t`, 2026-10-11): the
+- The loop's state was 1 174 KB in doubles (`wbc_stack_t`): the
   levels' rows and their tie-breaks 266 KB each (5 x 96 x 71), the bounds
   and their reduced rows 89 KB each (160 x 71), ten 71 x 71 matrices 39 KB
   each. The H753 has 1 MB in all, 512 KB of it the AXI SRAM the big buffers
@@ -393,7 +391,7 @@ band hard as before:
 
 ### The loop's diet
 
-591 KB (2026-10-11), the tick 2.0-2.1 ms as before, the suite, the walk and
+591 KB, the tick 2.0-2.1 ms as before, the suite, the walk and
 the 100 N polar as before:
 
 | Gone | KB | How |
@@ -417,13 +415,12 @@ the 100 N polar as before:
 
 ### The loop on the image
 
-Device 13 op 0 ticks the loop on the model's stand (`cmd_wbc.c`,
-2026-10-11). The state lives in the acquisition ring while it ticks
-(`Board_DaqLend`: the ring 480 KB, lent idle and emptied; 471 + 448 KB
-never fit the AXI's 512), the body's 45 KB in DTCM. On Renode at its own
-100 MIPS - its DWT counts virtual time, 4.75 cycles an instruction - a tick
-is 127.4 M cycles cold and warm alike (4 passes, no bound held on the
-stand): 26.8 M instructions, 56 ms on the M7 at one a cycle against the
-1 ms of a 1 kHz loop. Its torques are the host loop's within 1e-3 N m. The
-gap is the formulation's cost, not its memory: five dense levels over 71
-variables, each relaying the levels below.
+Device 13 op 0 ticks the loop on the model's stand (`cmd_wbc.c`). The state
+lives in the acquisition ring while it ticks (`Board_DaqLend`: the ring 480 KB,
+lent idle and emptied; 471 + 448 KB never fit the AXI's 512), the body's 45 KB
+in DTCM. On Renode at its own 100 MIPS - its DWT counts virtual time, 4.75
+cycles an instruction - a tick is 127.4 M cycles cold and warm alike (4 passes,
+no bound held on the stand): 26.8 M instructions, 56 ms on the M7 at one a
+cycle against the 1 ms of a 1 kHz loop. Its torques are the host loop's within
+1e-3 N m. The gap is the formulation's cost, not its memory: five dense levels
+over 71 variables, each relaying the levels below.

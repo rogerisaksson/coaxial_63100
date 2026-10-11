@@ -295,7 +295,7 @@ push; a red run leaves its log's tail as a comment on its commit.
 ## 10 Results
 
 <!-- coverage -->
-Generated 2026-09-28 at `647aea1` by `python host/tools/dev/cover.py --readme`:
+Generated at `647aea1` by `python host/tools/dev/cover.py --readme`:
 one offline run (`host/tools/dev/run_tests.py --offline`), the Python under
 coverage.py, the C under gcov. ST's generated code - CubeMX's core/, startup and
 cmake/stm32cubemx/, the HAL - is not counted.

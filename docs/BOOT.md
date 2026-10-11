@@ -4,8 +4,8 @@ The bootloader is the only firmware a node keeps for good. The application
 runs from RAM and comes from the master over Modbus RTU: every node of a
 type, by broadcast, at power-up. Flash keeps a sealed copy for a power-up
 with no master. A host always runs the image it was built with, so nothing
-on a node is versioned. On the bench board over the ST-Link's port since
-2026-10-05; 10 Mbit and a power cycle are open.
+on a node is versioned. On the bench board over the ST-Link's port;
+10 Mbit and a power cycle are open.
 
 ## Principle: the checksum is the gate
 
@@ -29,7 +29,7 @@ on a node is versioned. On the bench board over the ST-Link's port since
 | 0x081E0000 | 128 K | calibration record (bank 2 sector 7) |
 | 0x30000000 | 288 K | RUN: D2 SRAM1..3, where the application is linked and runs |
 
-- The application fits: 201 K Debug, 135 K Release (2026-09-23). The app
+- The application fits: 201 K Debug, 135 K Release. The app
   uses no D2 SRAM otherwise. The bootloader enables its clocks and leaves
   them on through the jump.
 - Image: `boot_header_t` at +0x400 ('CXAP', size = linker `_app_size`,
@@ -90,7 +90,7 @@ go        broadcast
 The bootloader works inside its receive path, so the master waits
 (`coaxial.devices.boot`: ERASE_S, CHUNK_S, VERIFY_S, SEAL_S, PERSIST_S).
 A chunk's frame is 232 B: 20.1 ms on the wire at 115 200, which the host
-waits out. Measured on the ST-Link's port (2026-10-05): 201 544 B, 900
+waits out. Measured on the ST-Link's port: 201 544 B, 900
 chunks, 20.6 s; verify 0.28 s; seal with persist 2.6 s; `go` to the
 application's answer 0.13 s. Estimate: ~2 s at 10 Mbit. The same image again
 costs round trips only.

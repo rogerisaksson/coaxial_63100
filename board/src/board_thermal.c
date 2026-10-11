@@ -255,7 +255,7 @@ static void sense_read(thermal_sense_t *out)
   int32_t raw = 0, centi = 0;
 
   /* The three need the AFE's reference: without it the thermistor reads mid-scale, 25.00 C,
-     and the MCU's die 545 C (FINDINGS 2026-09-26). */
+     and the MCU's die 545 C (FINDINGS). */
   if (!Board_AfeOn())
   {
     return;
@@ -414,7 +414,7 @@ void Board_ThermalPoll(void)
   const uint32_t since = now - s.last_ms;      /* unsigned: the wrap is free */
 
   /* A step of the observer's clock, not the wall's: the envelope acts as often on a hasted
-     world as on a bench, or the clamp lags a leg's constant (FINDINGS 2026-09-26). */
+     world as on a bench, or the clamp lags a leg's constant (FINDINGS). */
   if ((since * s.haste) < THERMAL_STEP_MS)
   {
     return;

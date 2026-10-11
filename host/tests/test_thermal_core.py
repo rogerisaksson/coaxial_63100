@@ -36,7 +36,7 @@ DRIVER_TO_PATCH = 12.0
 #: every number in it has the same name and value as in the C; this
 #: reads both and holds them to it, so the stand-in identifies the way
 #: the board will and a constant tuned on one cannot drift from the
-#: other. The bench, 2026-09-06: "check that the C on the target is a
+#: other. The bench: "check that the C on the target is a
 #: one-to-one mapping of what is in Python - without the ground truth,
 #: of course, which comes from real sensor values".
 C_TO_MIRROR = (
@@ -274,7 +274,7 @@ def test_the_room_is_identified(report, lib):
     trace = []
     truth.cycle(ident, quiet, 0.0, 2400.0, trace=trace)
     states = [t[0] for t in trace]
-    # The room is reset when the model stops predicting (2026-09-06): its sigma
+    # The room is reset when the model stops predicting: its sigma
     # back to the ten-kelvin prior at the first UNCERTAIN sample, the air
     # scale's untouched, so the step is charged to the room.
     at_reset = [t[5] for t in trace if t[0] == 'UNCERTAIN']
@@ -378,7 +378,7 @@ def test_the_scales_are_identified_against_a_ground_truth(report, lib):
                  all(abs(ident.scale(s) - 1.0) < 0.5
                      for s in ('capacity', 'spread', 'ntc')),
                  ['%.2f' % ident.scale(s) for s in SCALES])
-    # The margin is continuous (2026-09-06): the floor with the model doubted
+    # The margin is continuous: the floor with the model doubted
     # whole, one when not at all, the evidence between; the floor is the
     # caller's.
     boxed = ident.margin(0.8)
@@ -418,7 +418,7 @@ def test_the_scales_are_identified_against_a_ground_truth(report, lib):
     report.check('with the state back to CONVERGING or STABLE',
                  ident.state() in ('CONVERGING', 'STABLE'), ident.state())
 
-    # Nothing is resumed (2026-09-06, the bench's rule): a fresh identifier is
+    # Nothing is resumed (the bench's rule): a fresh identifier is
     # at the floor and doubted whole, whatever an earlier run found. A good
     # observer earns its span within a few samples; a resumed one runs on last
     # week's box.
@@ -854,7 +854,7 @@ GAMMA = 1.0 / 3.0
 
 def test_the_reading_keeps_its_pairs_pace(report, lib):
     """The element has no constant of its own worth the name: two dry runs'
-    cooldowns had it at the laminate's pace (bench, 2026-10-05)."""
+    cooldowns had it at the laminate's pace (bench)."""
     model = Model(lib)
     hot, cold = 120.0, 40.0
     target = cold + NTC_SEES_LEG * (hot - cold)

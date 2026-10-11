@@ -9,42 +9,42 @@ straight leg's cost: [straight](straight.md). The board's findings:
 - `machine.gait` at 0.85 strides/s: every joint's jerk under 4.2 times its
   rms, the knee's peak 375 deg/s, the head 3.5 mm up and down, 5 mm sideways,
   the pelvis 8 deg each way. Past 1.0 strides/s the legs reach full length
-  early in the swing and the knee snaps (2026-09-25).
+  early in the swing and the knee snaps.
 - Toe-off with the heel's rise eased to a stop there: the foot stood still,
   the knee went -180 -> +409 deg/s. Rising through it (420 deg/stride) into a
   smooth swing: the foot never under 0.93 m/s, the knee flexing throughout,
-  the toes 0-3 mm over the floor early in the swing, 23 at mid (2026-09-25).
+  the toes 0-3 mm over the floor early in the swing, 23 at mid.
 - Walking free in 3D: a swing leg reached from the pelvis's target put the
   foot 6 cm across the line. Reached from the measured pelvis, a stance foot
   held where it landed and taking its weight from 0 over 0.04 of a stride: 60
   s walked at 0.6-1.0 strides/s. The sideways speed raw in the feedback, 500
-  Hz, or a sole turning at 0.03 m of torsion: a fall in 2 s (2026-09-25).
+  Hz, or a sole turning at 0.03 m of torsion: a fall in 2 s.
 - The torso on the pelvis pitched 8 deg a stride, the head 9 cm fore and aft;
   the spine taking the pelvis's pitch back out: 2.4 and 3 cm. Walker, loop
-  and world 0.63 ms a pass: x1.6 real time in its own process (2026-09-25).
+  and world 0.63 ms a pass: x1.6 real time in its own process.
 - The stance knee at its straightest stood at 27-31 deg: the pelvis held level
   where the gait drops it on the swing side put the stance hip 2 cm low. The
   pelvis dropped as planned (5 deg), the spine's roll set to take it back out
   (fed back from the measured roll it fell): 5.5, 9.0, 12.7 deg at 0.6, 0.75,
-  0.9 strides/s, 30 s each standing (2026-09-25).
+  0.9 strides/s, 30 s each standing.
 - Landed on the ball, heel up: the landing knee at 42 deg, the step struck 3.3
   body weights, the stumble. On the heel, toes up 9 deg, rolled flat by 0.13
-  of a stride: 29 -> 10 deg in the plan (2026-09-26).
+  of a stride: 29 -> 10 deg in the plan.
 - Its sideways gains (STEP_D 0.01) held the walk and lost every start from
   standing: 0.057 back. Started as the right foot lands, from the standing
   stance gliding into the catwalk: walks on at 0.85 strides/s; at 0.7 and 0.9
   falls within 2.5 s. Stopping: a stride shortened at the pace kept threw the
   body off the floor; carried in phase and slowed, it settles onto the front
-  foot and runs on over its ball (2026-09-26).
+  foot and runs on over its ball.
 - The virtual pendulum between the ears (`machine.pendulum`: 1.13 m, the
   body's weight, a spring of no length of its own): stir 3.2, 4.3, 4.9 mm at
   0.65, 0.85, 0.9 strides/s, 78 % of it on (the head's surge), peaking at each
-  landing (2026-09-26).
+  landing.
 - 26 knobs +-20 %: all but four within 0.25 mm of 4.2. The torso countering
   the surge twice a stride, 2.5 deg at 0.125: 2.2 mm; with the head moved
   toward the bob (`SWAY_K` 1): 1.7; by its drift too: down in 2 s. The rise
   flips on 0.5 % of any knob, the committed gait's as much (10 of 24 held):
-  one run a candidate scores chance (2026-09-26).
+  one run a candidate scores chance.
 - The pendulum read by stride phase at 0.85 strides/s (fore, across and up
   alike, 0.8-0.9 mm each): nearly all of it goes in at touchdown. The pelvis
   fell into it at 0.15 m/s, 11 mm under the plan; the landing leg came down
@@ -54,12 +54,11 @@ straight leg's cost: [straight](straight.md). The board's findings:
   the sole's peak 1.4 kN. A stance knee 16 deg soft at its straightest leaves
   the leg room: 2.4 -> 2.0 mm; the plan's dip eroded over 0.05 of a stride (17
   -> 20 mm, nearer the body's): 1.7; the peaks 3.7 and 2.5 m/s^2. Left: 12 mm
-  of sag at touchdown and a sole peak of 1.9 kN; the soles are rigid
-  (2026-09-27).
+  of sag at touchdown and a sole peak of 1.9 kN; the soles are rigid.
 
 ## Soles
 
-Given a little, as light sneakers (`machine.physics` SOLE_*, 2026-09-27): the
+Given a little, as light sneakers (`machine.physics` SOLE_*): the
 contact's damping 1.5 of critical and its impedance easing in over 5 mm take
 a touchdown's peak 1.9 -> 1.5 kN, the stir 1.7 -> 1.4 mm, a shove's parry 1.5
 -> 1.1 kN. Every softer sole felled the first stride from standing, the walks
@@ -73,7 +72,7 @@ damping acting on every corner's motion.
 
 ## Start from a lean
 
-- `machine.arrival` (2026-09-27): shifted onto the left foot, the weight goes
+- `machine.arrival`: shifted onto the left foot, the weight goes
   7 cm ahead of the ankles over 0.6 s on both feet, then 5 cm further as the
   right foot lifts 6 cm over 0.3 s; the walker takes it mid-swing at the phase
   where the plan has the pelvis where it stands over the left ball
@@ -85,8 +84,8 @@ damping acting on every corner's motion.
   with it); landed on its standing stance, 16 cm out, the pelvis could not get
   over the foot and the next went 20 cm out to catch it; leant 10 cm in 0.5 s
   it was thrown off the left foot. The scoreboard as before, the rises held.
-- The lean before the first step is the body's, not the pelvis's
-  (2026-09-27): pushed 7 cm ahead with the torso plumb (`PLUMB` 1.0) the
+- The lean before the first step is the body's, not the pelvis's:
+  pushed 7 cm ahead with the torso plumb (`PLUMB` 1.0) the
   pelvis went out under a vertical trunk and the trunk pitched back half a
   degree at the push: read as leaning back before the step. Now the lean's
   frame tips the pelvis LEAN_DEG 4 forward and the torso with it, the neck
@@ -98,7 +97,7 @@ damping acting on every corner's motion.
   -> 0.8 deg a stride and the ears' fore-and-aft 58 -> 68 -> 63 mm, the
   pelvis's surge 24 -> 39 -> 33: the spine's give is the filter between the
   hips' pulses and the head.
-- The start as seen (2026-09-28): taking over from the lean, the walker's plan
+- The start as seen: taking over from the lean, the walker's plan
   stood the pelvis up, 7 deg back in 0.2 s, the stance heel rising: on the
   toes and leaning back. The plan tips it as the lean now, LEAN_DEG 4 -> 8, to
   read as one. Risen 1 cm under the stand, it stood on 20-deg knees with the
@@ -111,14 +110,14 @@ damping acting on every corner's motion.
   m/rad; 300 at half critical: 2.2, the pendulum's stir 3.55 -> 3.00 mm, held
   89.7 %.
 - The weight onto the left foot before the first step, partly as the right
-  lifts (`arrival.SHIFT_IN` 3.5 -> 5.5 cm inside the left ankle, 2026-09-28):
+  lifts (`arrival.SHIFT_IN` 3.5 -> 5.5 cm inside the left ankle):
   standing, the stance hip rolls -2.5 deg, not -4.4; the pelvis 33 mm across,
   not 61; the CoM 30 mm left at the lift, not 52; -7.8 through the step as
   before. Ten and sixteen perturbed starts (timings, gains, the lean's and the
   lift's reach): 3.5 held 10 and 15; 5.5 and 6 held 10 and 14; 6.5 held 6 of
   10; 7.5 one; the first steps falling at 9-11 s.
 - Leaning back before the first step, from the page's recordings (R),
-  2026-09-28: the pelvis sunk for the weight's shift bent the knees 4 -> 12
+  The pelvis sunk for the weight's shift bent the knees 4 -> 12
   deg under a plumb torso (the hips 26 mm behind the knees, the
   hips-to-shoulders line -0.5 deg, the torso 7.2 behind the shins); rising,
   the torso came up first, 18.6 behind them. Now the torso leans as far as the
@@ -132,7 +131,7 @@ damping acting on every corner's motion.
   back out of the spine (`walker.PLUMBED` not eased in): the torso 8.7-9.8
   through it, the largest swing back in 0.3 s -6.6 -> -3.0. Held 89.7 %, 15 of
   16 perturbed starts.
-- The seam's odd lean, from the page's recording (2026-09-28): the lean and
+- The seam's odd lean, from the page's recording: the lean and
   the step's keyframes moved the pelvis 5-9 cm on at the shift's height, so
   the standing knee was planned straight and bent back 1.8 deg for 0.35 s
   while the body tipped on over it like a plank (the ankle-shoulders line +5
@@ -147,7 +146,7 @@ damping acting on every corner's motion.
 - Between the rise and the walk, moment by moment (the page and
   tools/sim/look.py number them: 5 stand, 6 shift, 7 lean, 8 step, 9 walk;
   look.py prints each seam 0.3 s either side, the director's asks beside),
-  2026-09-28: the knees bent 4 -> 9 in 6 and the torso bowed 1 -> 5.7 in 7, a
+  The knees bent 4 -> 9 in 6 and the torso bowed 1 -> 5.7 in 7, a
   curtsy before the step; in 8 the pelvis's target lagged 13-46 mm behind the
   body and bent the standing knee 5 -> 16. Now it rises to the shift's height
   (knees 9.4 standing), 6 and 7 still (the torso 1.0, the pelvis -0.2 mm, the
@@ -158,7 +157,7 @@ damping acting on every corner's motion.
 
 ## Look at 0.85 strides/s
 
-- By the trace (2026-09-27): the stance knee 16-29 deg (the plan's own 16-24:
+- By the trace: the stance knee 16-29 deg (the plan's own 16-24:
   the pelvis rides 10 mm under the plan, latched there at each landing as the
   trailing leg sags 9 mm into it, its ankle drooping 2 deg under the
   push-off's torque, and raised at 0.1 m/s: a rush of 0.22 m/s to a dead
@@ -174,7 +173,7 @@ damping acting on every corner's motion.
   single support ran the body ahead of the plan and it sank 35 mm before a
   landing 0.1 stride late (the phase, pulled to the body at 5 a stride, lags
   it); the heel to 50-55 deg at toe-off felled the walks alike.
-- The calf (2026-09-27): the heel to 50 deg at toe-off (`gait.TOE_DEG`, rate
+- The calf: the heel to 50 deg at toe-off (`gait.TOE_DEG`, rate
   -300 a stride, turning back at 4000 a stride squared), the rise scaled by
   the stride. With the foot landed on the capture point along the walk it
   holds: the walks' stir 3.35 -> 2.80 mm, the ears' up-and-down 18 -> 12 mm a
@@ -184,7 +183,7 @@ damping acting on every corner's motion.
   a slower rise all lose trials. After toe-off the toes' tips skim the floor
   (the sole's peak 1.4-1.9 kN there): curled up 20 deg they touched it still,
   the toe drive too slow.
-- The head's fore-and-aft, 61 mm a stride at the ears (2026-09-27): the pelvis
+- The head's fore-and-aft, 61 mm a stride at the ears: the pelvis
   surges 30 (its speed 0.76-0.99 m/s over a 1 m stride, the vault's exchange
   plus the stance leg braking it 2 m/s^2 through half the stance and pushing
   3-5 before the landing), and the torso's pitch, 2.2 deg the spine's counter
@@ -201,10 +200,10 @@ damping acting on every corner's motion.
 | the height latch let go of its first 15 mm | the first landing hopped |
 | the bob's swing on the landing (`PEND_K` 1.5) | fell in a second |
 
-- The head in the walk (tools/sim/look.py's walk line, from 2 s in,
-  2026-09-28): 53 mm fore and aft a stride (the pelvis's surge 31-35 and the
-  torso rocking 3.3 deg at 0.6 m), 13 up and down. The ears' pendulum at 0.1:
-  48.5 mm, the strike 1613 -> 1115 N, held 87.9 % against 81.3.
+- The head in the walk (tools/sim/look.py's walk line, from 2 s in): 53 mm fore
+  and aft a stride (the pelvis's surge 31-35 and the torso rocking 3.3 deg at
+  0.6 m), 13 up and down. The ears' pendulum at 0.1: 48.5 mm, the strike 1613
+  -> 1115 N, held 87.9 % against 81.3.
 
 | No better | Result |
 | --- | --- |
@@ -214,7 +213,7 @@ damping acting on every corner's motion.
 | the phase pulled less (3; 1) | 57.6, 2 fell; 46.3, 1628 N |
 | the shoulders over the line (0.5) | 26.7 mm to the hips' 44.9; cost the walk at 0.65 |
 
-## Build changes, 2026-09-28
+## Build changes
 
 - The feet 27 -> 24.5 cm: held 81.8 -> 85.3 %, the strike 1.1 -> 1.4-1.6 kN.
 - After 100 s it sank 172 mm into a crouch: at 80 m it stepped off the floor's
@@ -265,8 +264,8 @@ damping acting on every corner's motion.
 
 ## Build as modules
 
-- The pelvis rocks about the hips' mid-point, a beam engine's beam
-  (2026-10-02): in single stance its still point -0.08 of the way to the
+- The pelvis rocks about the hips' mid-point, a beam engine's beam:
+  in single stance its still point -0.08 of the way to the
   stance hip, that hip 14.3 mm up and down a stance, the swing hip 17.2.
   Dropped HIP_HALF sin|roll| about the stance hip: +0.67, 10.3 and 17.3, but
   caught 5 times in the walk's first 3 s from the squat where not at all, the
@@ -275,13 +274,13 @@ damping acting on every corner's motion.
   and 2, but half way it fell from the squat at 12.1 s. Undone until the walk
   is retuned with it.
 - The parry on the build as modules (test_gynoid_falls' 16 shoves of 38 N,
-  held left and right of 8, 2026-10-02): `landing.PARRY_HURRY` 0.32 1 and 1,
+  held left and right of 8): `landing.PARRY_HURRY` 0.32 1 and 1,
   0.28 2 and 2, 0.25 3 and 3, 0.22 0 and 1, 0.4 1 and 1; split, a shove 0.25
   and a catch 0.32, 1 and 2; a catch 0.30, 2 and 1: no order, its floor HEAD's
   build's 2 of 8, the test's. A knee derated to nothing walked on at 0.32 and
   fell at 0.28 and 0.25. 0.32 kept, the parry to the walk's retune.
 - Retuned for the trunk's roll first and the gimbal's drives on their stages
-  (`physics.STAGED`, 2026-10-03): 9 knobs (the arrival's shift, lift and lean;
+  (`physics.STAGED`): 9 knobs (the arrival's shift, lift and lean;
   capture's margin and gain; the walker's side gains; the parry), 5
   generations of 8, the median 468 -> 335. The board 578 -> 299, held 76.8 %
   against main's 495; the same knobs to 17, 6 and 3 digits 263, 306 and 420:
@@ -289,12 +288,12 @@ damping acting on every corner's motion.
 
 ## Form
 
-- The walk went Groucho: legs out in front, sneaking (2026-10-05; `look.py`
+- The walk went Groucho: legs out in front, sneaking (`look.py`
   from the squat, the left leg through its stance, 8-9 strides):
 
 | Build | Knee at landing | As the leg passes plumb | Going back | Pelvis under its stand |
 | --- | --- | --- | --- | --- |
-| 2026-10-03 (945a6a8) | 24 deg | 6.8 | 2-8 | 9-29 mm |
+| 945a6a8 | 24 deg | 6.8 | 2-8 | 9-29 mm |
 | the motors off the feet (e957a3a) | fell at 9.2 s | - | - | - |
 | 5d2f296: the heel off at 0.5 where 0.36 | 34 | 20.6 | 16-17 | 22-53 mm; scoreboard 78.6 % held where 65.8 |
 | the slip's fix (eb03ee0), `stance.HEEL_REACH` 0.99, stride 0.75 m where 0.85 | - | 16.4 | - | - |
@@ -302,9 +301,9 @@ damping acting on every corner's motion.
 
 ### The stance leg a strut
 
-2026-10-05; `gait._limit`, `stance.rolled`, `stance.carrying`: the hips no
-longer planned down to the trailing leg's flat foot (held level before
-2026-09-25 the knees stood 33-40 deg, swept 16 at most, the hips up and down
+`gait._limit`, `stance.rolled`, `stance.carrying`: the hips no
+longer planned down to the trailing leg's flat foot (held level, the
+knees stood 33-40 deg, swept 16 at most, the hips up and down
 20 mm); the leg held at its soft knee's length, its heel solved to 30
 halvings; a leg carrying as its sole bears of what the two bear; the knee
 giving up to 24 deg through the double support. Steady
@@ -326,14 +325,14 @@ giving up to 24 deg through the double support. Steady
   6 398, 9 380, 12 371, 18 394; the heel solved to 12 halvings 545, 429, 394
   and 381 at 3, 6, 9 and 12, a knee at 3 deg asked 0.2 deg another way each
   pass and its board reading its rate between two frames.
-- Its own recordings of 2026-10-02 and -03 (build/recordings): the knee 2-5
+- Its own recordings (build/recordings): the knee 2-5
   deg where the foot bears alone behind the plumb line, to -3, landing at
   13-28. The gynoid suites: 28, the falls 44, the faults 9, the stand 6, the
   gait 41, none failed.
 
 ### The landing knee by measure
 
-2026-10-05, steady at 0.85 strides/s: 28 deg at touchdown, 6 at 0.19 of the
+Steady at 0.85 strides/s: 28 deg at touchdown, 6 at 0.19 of the
 stride; 23 mm of leg let out under load: 12 the pelvis's roll (its landing
 side 2.9 deg low at touchdown, `gait._roll`, its peak at 0.33), 8 the sag
 (6-8 mm under its target at 0.39-0.49 of the trailing foot's stance), the

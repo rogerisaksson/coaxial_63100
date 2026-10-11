@@ -315,7 +315,7 @@ class Transport:
         """Whether a byte comes within the port's quiet time - its own `quiet_time`, else
         QUIET_TIME, at the board's pace - spun on `in_waiting`: a read's timeout and a sleep
         are the OS's tick, 15.6 ms on Windows, and an unsized reply paid it every time, 28 ms
-        of an emulated board's 31 ms round trip (2026-09-27)."""
+        of an emulated board's 31 ms round trip."""
         quiet = getattr(self.serial, 'quiet_time', self.QUIET_TIME) * self._time_scale
         deadline = time.perf_counter() + quiet
         while time.perf_counter() < deadline:
@@ -340,7 +340,7 @@ class Transport:
     def broadcast(self, function, payload=b'', settle=0.05):
         """Acted on by every slave, answered by none. Nothing to return. `settle` counts from
         the frame's last bit: streamed 2 ms apart from the write, 232 B frames ran together on
-        the ST-Link's port and a bootloader took none of 634 (FINDINGS 2026-10-05)."""
+        the ST-Link's port and a bootloader took none of 634 (FINDINGS)."""
         self._rescale()
         self.transmit(BROADCAST, function, payload)
         self.sleep(self.on_wire(HEAD_BYTES + len(payload) + CRC_BYTES) + (settle or 0.0))

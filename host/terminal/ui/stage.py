@@ -207,7 +207,7 @@ def chip(origin):
 
 
 #: The execution modes the band names, the page's own in its chip's colours (the bench's
-#: word, 2026-09-28): the firmware's image on Renode, the stand-in, the board layer built for
+#: word): the firmware's image on Renode, the stand-in, the board layer built for
 #: this host.
 MODES = (('EMU', 'chip.emu'), ('SIM', 'chip.sim'), ('NAT', 'chip.nat'))
 
@@ -319,8 +319,7 @@ def footer(pairs, width=0):
 
 
 #: The key help: a page's keys by group on a panel that slides up from the bar on TAB or ? over
-#: SLIDE_S and down again HELP_S after the last key, by itself - the old taskbar 
-#: (2026-10-04).
+#: SLIDE_S and down again HELP_S after the last key, by itself - the old taskbar.
 HELP_KEYS, SLIDE_S, HELP_S = ('\t', '?'), 0.25, 8.0
 
 
@@ -378,8 +377,8 @@ def help_panel(groups, up, width=150):
 
 def hud(title, rows):
     """One instrument: labels recede, values glow, rounded frame. Lines of one Text, not a
-    grid: seven grids measured their columns every frame, a third of the rotor page's
-    (2026-09-27)."""
+    grid: seven grids measured their columns every frame, a third of the rotor page's.
+    """
     width = max((len(str(row[0])) for row in rows if isinstance(row, tuple)), default=0)
     body = Text(no_wrap=True, overflow='ellipsis')
     for i, row in enumerate(rows):
@@ -390,7 +389,7 @@ def hud(title, rows):
             value = row[1]
         else:
             # No labels, no column for them: a full row of 36 was 37 with its blank, and
-            # TUBES' last tube an ellipsis (2026-10-05).
+            # TUBES' last tube an ellipsis.
             body.append(' ' * (width + 1 if width else 0))
             value = row
         if not isinstance(value, Text):
@@ -458,7 +457,7 @@ def frame_of(console, origin, title, art, boxes, keys, art_title=None,
 
 #: Each console's layout, laid once and filled every frame: a rich Layout keys its render map by
 #: itself, so a tree laid a frame left every frame's drawing in a cycle - 117 066 objects over
-#: 40 frames of the thermal page, its peak up 34 kB a frame on 3.14's collector (2026-09-30).
+#: 40 frames of the thermal page, its peak up 34 kB a frame on 3.14's collector.
 _LAID: weakref.WeakKeyDictionary = weakref.WeakKeyDictionary()
 
 
@@ -491,7 +490,7 @@ def panels_of(console, origin, title, groups, keys):
         if len(row) > 1:
             strip.split_row(*[Layout(cell) for cell in row])
             # As tall as its tallest box where the screen has the rows: split evenly, SESSION's
-            # THERMAL showed 17 of its 20 nodes at 150 x 44 (2026-10-05).
+            # THERMAL showed 17 of its 20 nodes at 150 x 44.
             strip.minimum_size = max(_height_of(cell) for cell in row)
         else:
             strip.update(row[0])

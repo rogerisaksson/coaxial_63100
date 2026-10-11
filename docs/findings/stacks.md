@@ -6,7 +6,7 @@ docs/DIMENSIONS.md). The drives' own sizing: [drives](drives.md).
 
 ## Demand
 
-The demand the stacks were sized on is the controller's own (2026-10-04, the
+The demand the stacks were sized on is the controller's own (the
 walk from the squat, 20 s, each leg joint's torque by band):
 
 | Joint | rms N m | under 50 Hz | under 5 Hz | Peak = servo clamp N m | At the clamp, % of passes |
@@ -29,11 +29,10 @@ walk from the squat, 20 s, each leg joint's torque by band):
 
 ## Load band and governor
 
-The soles' load through a sensor's band (`physics.LOAD_S` 20 ms, the lab's,
-2026-10-04): the walk's touchdown 769 -> 253 N, its power 683 -> 560 W; the
-hip's, knee's and hip roll's rms 63, 60 and 48 -> 56, 49 and 36 N m, at their
-clamps 2.0, 3.6 and 1.3 % of the passes; 5 walks of 5 held (0.65-1.0 of the
-pace) against 4.
+The soles' load through a sensor's band (`physics.LOAD_S` 20 ms, the lab's):
+the walk's touchdown 769 -> 253 N, its power 683 -> 560 W; the hip's, knee's
+and hip roll's rms 63, 60 and 48 -> 56, 49 and 36 N m, at their clamps 2.0, 3.6
+and 1.3 % of the passes; 5 walks of 5 held (0.65-1.0 of the pace) against 4.
 
 A governor on the setpoints, each followed at 1000/s within 0.9 of its
 drive's unloaded speed and the acceleration its clamp gives its rotor and
@@ -44,7 +43,7 @@ at 3.9 s.
 
 ## Candidates
 
-One box and one inverter by smoke (2026-10-04): a candidate's stacks laid at
+One box and one inverter by smoke: a candidate's stacks laid at
 run time, the load's band, the rise and five walks as tuned at 0.65-1.0 of
 the pace. Each rose and walked 5 of 5:
 
@@ -63,14 +62,14 @@ the pace. Each rose and walked 5 of 5:
   1.45); the hip's and knee's rms 53 and 49 N m of the 69 the 50 A inverter's
   switches hold (T 1.36 and 1.13 at 1.5x, 0.60 and 0.50 at 1x; the short
   stack's winding holds 52); the knee's 1007 deg/s 1.17 of its volts.
-- The margin as the clamp (2026-10-04): a peak that is its servo's clamp
+- The margin as the clamp: a peak that is its servo's clamp
   times 1.5 is over its drive by construction. Every servo's clamp its
   drive's peak / 1.5 instead (the two lengths' hips and knees at 83 N m, as
   built 136): rose and walked as far (9.5 m); the two lengths' hip and knee
   rms 40 and 33 N m (T 0.76 and 0.52 at 1.5x of the 69 held), at the clamp
   6.7 % of the passes, the knee's 729 deg/s 0.84 of its volts, the box's S
   0.97 at 1.5x. Falls, parries and standing within it: the scoreboard.
-- Fit (`fit.py` on each, 2026-10-04): the two lengths stand 12 and 5 mm past
+- Fit (`fit.py` on each): the two lengths stand 12 and 5 mm past
   the skin at the ankle and the knee against 21 and 14 as built; none past
   the shell but the elbow's 5 mm as before; the ankle's two drives clear of
   each other (6-7 mm into each other as built). Every inverter in its own
@@ -83,8 +82,8 @@ the pace. Each rose and walked 5 of 5:
   the knee's 658 against 289; on the two lengths the knee's 763 against 128,
   the ankle's 1050 against 233. The rotor spun up through 1:30 by the blow,
   not the servo's torque.
-- Scoreboard (the load's band, the stepping foot by its landing, as tuned,
-  2026-10-04), every rise and walk 100 % on each:
+- Scoreboard (the load's band, the stepping foot by its landing, as tuned),
+  every rise and walk 100 % on each:
 
 | Candidate | Score | Held % | Within peaks / 1.5 |
 | --- | --- | --- | --- |
@@ -100,7 +99,7 @@ the pace. Each rose and walked 5 of 5:
   38 and 32. The governor on the setpoints at 1000/s: 911.4 and 61.0 %; at
   half its clamp's acceleration 960.2 and 56.5, the walks 35-72 %. Not taken.
 
-- On the walk with the slip gone ([feet](feet.md), 2026-10-04; smoke at 0.85
+- On the walk with the slip gone ([feet](feet.md); smoke at 0.85
   strides/s): as built the hip's, knee's and ankle's rms 39, 41 and 35 N m,
   332 W; the short stack on every drive 30, 25 and 26 (the hip roll's 42 of
   the 87 it holds), within its peaks / 1.5 28, 24 and 26. Sized on its own
@@ -112,7 +111,7 @@ the pace. Each rose and walked 5 of 5:
 
 ## Stacks as built
 
-`machine/drives.py`'s record of 2026-10-03 and -04: two frames.
+`machine/drives.py`'s record and -04: two frames.
 
 | Frame | Motor | Box | Inverter | Joints |
 | --- | --- | --- | --- | --- |
@@ -150,7 +149,7 @@ the pace. Each rose and walked 5 of 5:
 
 ## One stack on every drive
 
-Laid 2026-10-05: the most simplicity, the fewest gearbox and electronics
+Laid for the most simplicity, the fewest gearbox and electronics
 variants. 60 x 20 mm at KV 90, the 64 mm box at 1:30, the 70 mm 50 A inverter;
 21 of each, 20 part types against 23; 28.4 kg against 32.3, the drives 12.3
 of it against 16.2.
@@ -183,7 +182,7 @@ of it against 16.2.
   33.0 s, 2 tries.
 - Fit: 9 and 3 mm past the skin at the ankle and the knee against 21 and 14;
   6 mm past the shell at the elbow against 5; 2 at the hip roll.
-- On the walk of 2026-10-05 (the stance leg a strut, the catch at 7 cm, the
+- On the walk as it then was (the stance leg a strut, the catch at 7 cm, the
   lean before the shift; `drive_sizes`, 1.5x): T 0.87 at the hip, 0.67 at
   the knee, 0.32 at the hip's roll where 0.90, 0.79 and 0.45; the rms 41, 36
   and 41 N m where 42, 39 and 49; the knee's parry 1007 deg/s, 1.17 of its
@@ -192,7 +191,7 @@ of it against 16.2.
 
 ## Motors as bought
 
-2026-10-05: complete units off the shelf, no frameless kit; two motors
+Complete units off the shelf, no frameless kit; two motors
 (motors cost); one board and one gearbox (variants of those are the cost).
 The frame before, 60 x 20 mm at KV 90 by a law fitted on T-Motor's pages, is
 no part: at its 4.1 N m its rotor was 0.75e-4 kg m^2 where every outrunner
@@ -221,7 +220,7 @@ found with that torque has 1.6-2.6e-4.
 - On them (docs/DIMENSIONS.md): 108 N m and 0.177 kg m^2 at a hip where 124
   and 0.071, holding 74 N m where 66 (Km 0.26 against the law's 0.23); 51 N m
   at an arm's joint; 30.8 kg where 28.4, 14.7 of it drives.
-- The 63100 on every drive (2026-10-05): 100 mm behind the U8's 87, 33 wider
+- The 63100 on every drive: 100 mm behind the U8's 87, 33 wider
   than the MN6007. Past the clothes standing (`tools/sim/fit.py`): the
   elbow's stack 20 mm, the shoulder's 15, the hip yaw's 6, where the 70 mm
   stacks had the elbow's 6 and nothing else. The spine's, the neck's and the
@@ -229,7 +228,7 @@ found with that torque has 1.6-2.6e-4.
   100 mm disc is 17-20 mm out of the shell); the head's under the neck's: in
   the skull, 0.2 kg more of head; one fall of the suite put the head on the
   floor at 1.49 m/s.
-- Their rotors (2026-10-05): fed forward whole by the board
+- Their rotors: fed forward whole by the board
   (`physics.ROTOR_FF` 1), a standing start's first 50 ms had the knees and
   hips at their clamps; it fell back in 3 starts of 12; with the old rotor on
   the same body, none. At a quarter of it: no parry in 5 starts; form at three
@@ -240,7 +239,7 @@ found with that torque has 1.6-2.6e-4.
 
 ## Heat and power
 
-- In still air (2026-10-05; `drives.COOLING` 1.0 where the oil assumed is
+- In still air (`drives.COOLING` 1.0 where the oil assumed is
   0.3; the boards as built, 10 min of heat a run, the windings the hottest
   node):
 
@@ -257,7 +256,7 @@ found with that torque has 1.6-2.6e-4.
   the concern). The model means a switch's loss over an electrical turn:
   stalled, one carries all of it.
 
-- What the walk draws (2026-10-05, motors as bought), from 2 s into it; on the
+- What the walk draws (motors as bought), from 2 s into it; on the
   page it reads natural, momentary power fairly low, a smooth flow at the
   lower pace:
 
@@ -266,7 +265,7 @@ found with that torque has 1.6-2.6e-4.
 | 0.65 | 0.48 | 193 | 129 | 570 | 2.66 | 7 of 591 | 405 |
 | 0.85 | 0.65 | 276 | 177 | 894 | 4.1 | 22 | 427 |
 
-- Air-cooled (2026-10-10): a board's back on an aluminium holder over a third
+- Air-cooled: a board's back on an aluminium holder over a third
   of it, on its motor or gearbox, its only cooling (`drives.COOLING` 1,
   thermal_app_t's `joint` on the humanoid's worlds). The U8 holds 40 N m
   indefinitely where 74 in oil, the MN6007 19 where 35; the walk's smoke and
@@ -274,7 +273,7 @@ found with that torque has 1.6-2.6e-4.
 
 ## Which drives want another box and motor
 
-`drive_sizes.py` on the rigid world, 2026-10-11 (the rise, 24 s of walk and the
+`drive_sizes.py` on the rigid world (the rise, 24 s of walk and the
 scenes, each number 1 at a part's limit at the margin 1.5, the parries' 1.2):
 
 | Kind | Peak / has, N m | RMS / holds | deg/s / has | A | P | T | J | S | V | Ratio window |
@@ -291,7 +290,7 @@ scenes, each number 1 at a part's limit at the margin 1.5, the parries' 1.2):
 | neck | 15 / 51 | 1 / 19 | 730 / 1536 | 0.44 | 0.21 | 0.01 | 2.69 | 0.18 | 0.48 | 3..18 |
 | head | 0 / 51 | 0 / 19 | 1 / 1536 | 0.00 | 0.00 | 0.00 | 29 | 0.00 | 0.00 | 0..6 |
 
-- Two categories would serve, never one a joint (2026-10-11): the
+- Two categories would serve, never one a joint: the
   four hips and knees, which ask their clamp (A 1.50) and twice their
   copper (T 2.1) with the knee at the pack's volts (V 1.05) - a motor of
   half again the torque at the one box, not a ratio: the knee's window
@@ -302,5 +301,5 @@ scenes, each number 1 at a part's limit at the margin 1.5, the parries' 1.2):
   bind on the rise (A 1.50, T 0.05): a moment, not heat. The rest fits the
   U8 and MN6007 at 1:30; the head's drive carries nothing (0 N m, 29x the
   head's inertia).
-- The drives stay as bought (2026-10-05); this is where a second
+- The drives stay as bought; this is where a second
   box or motor would go first, hips and knees before ankles.

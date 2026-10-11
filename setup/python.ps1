@@ -62,7 +62,7 @@ except Exception:
     print('')
 '@
     # An editable install maps the packages pyproject listed when it ran: one
-    # added since (machine, motor, terminal, tools on 2026-09-24) needs it again.
+    # added since (machine, motor, terminal, tools) needs it again.
     $stale = Invoke-Python -Python $Python -Code @'
 import fnmatch, importlib.util as util, pathlib, re
 host = pathlib.Path(r'HOST_PATH').resolve()

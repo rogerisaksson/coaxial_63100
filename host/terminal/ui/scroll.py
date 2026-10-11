@@ -8,8 +8,8 @@ from rich.text import Text
 
 def _rows_of(panel):
     """Content lines in a hud, for sizing its Layout: its Text's. Counted as a grid's rows
-    - a hud was one until 2026-09-27 - every box was one line and the column never paged
-    (2026-10-05)."""
+    - a hud was one - every box was one line and the column never paged.
+    """
     inner = panel.renderable
     return inner.plain.count('\n') + 1 if isinstance(inner, Text) else 1
 
@@ -22,7 +22,7 @@ def _fills(console):
     return console.is_terminal
 
 
-#: The instrument column's width. 40 since 2026-08-30: the thermal LEVELS
+#: The instrument column's width. 40: the thermal LEVELS
 #: rows wanted air, and the column is the template's, so every view moves
 #: together.
 HUD_WIDTH = 40

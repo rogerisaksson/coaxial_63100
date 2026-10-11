@@ -14,13 +14,13 @@ namespace Antmicro.Renode.Peripherals.UART
     /// <summary>A host's writes onto an RTU line, a frame each (tools/emu/protocol_frames.py: its
     /// length ahead of it), one character time apart at the line's baud in virtual time. A frame
     /// goes on whole once all of it has come - Renode hands a write over in pieces, one to three
-    /// quanta apart on CI's runner, and a gap inside it broke the frame (2026-09-28) - and waits
+    /// quanta apart on CI's runner, and a gap inside it broke the frame - and waits
     /// for the line to have been quiet t3.5 and a master's 0.25 ms to act on the last, either
     /// way. The host keeps those gaps on its own clock; at a fraction of real time, and quantized,
     /// they are shorter on the line's: a node still purging its own echo lost the next request's
-    /// first bytes, broadcast chunks queued t3.5 apart were lost at 10 Mbit (2026-09-25), and
+    /// first bytes, broadcast chunks queued t3.5 apart were lost at 10 Mbit, and
     /// FC05 sent 0.18 s after a 257-byte ADU reached the console 18 ms virtual later, inside that
-    /// ADU's 21 ms, and joined it (2026-09-28).</summary>
+    /// ADU's 21 ms, and joined it.</summary>
     public sealed class HostLine
     {
         public HostLine(IMachine machine, IPeripheral owner, Func<uint> baud, Action<byte> deliver)

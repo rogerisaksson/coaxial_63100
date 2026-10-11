@@ -17,7 +17,7 @@ SCALE = 13
 #: eight tenths of a second - pushed out by the burst's extreme at once,
 #: back on the level within a few seconds - and it can never fall below
 #: the window's own extreme, which is the tick beside it. The bench,
-#: 2026-09-06: "the decay meter lags behind the value in the bar; it
+#: "the decay meter lags behind the value in the bar; it
 #: should be a typical peak hold that decays toward the current value -
 #: the value pushes the hold, which then falls back". Before, it fell a
 #: FIXED 1.5 % of full scale an update whatever the distance: eight

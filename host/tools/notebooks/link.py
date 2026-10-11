@@ -280,11 +280,11 @@ print('6. timers    %d keepalives in %.0f s of silence at %s s (3 s apart, under
       'answered %s in %.2f s'
       % (len(ticks), QUIET, ', '.join('%.2f' % s for s in ticks), down_at - left_at, LINGER,
          named, stale, stale_s))'''),
-    md('- `open()` through a live broker 0.05 s, starting one 5.85 s: it lingers 45 s (FINDINGS '
-       '2026-08-29).\n- One lock: 50 requests crossed whole, alternating, never '
+    md('- `open()` through a live broker 0.05 s, starting one 5.85 s: it lingers 45 s (FINDINGS).'
+       '\n- One lock: 50 requests crossed whole, alternating, never '
        'overlapped.\n- A refusal crosses as its own `coaxial.errors` class (invariant '
        "8).\n- The stage is the board's: three runs once ended when a second session asked "
-       '(FINDINGS 2026-08-29).'),
+       '(FINDINGS).'),
 ]
 
 BENCH = ('`python tools/target/session.py --status`: what serves the port, and whether it '

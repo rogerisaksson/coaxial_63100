@@ -6,8 +6,7 @@ and its demand on the drives. The walk: [walk](walk.md); the drives' sizing:
 
 ## Speeds
 
-The one stack as built, 48 V, from a flight at its speed, a minute each
-(2026-10-05):
+The one stack as built, 48 V, from a flight at its speed, a minute each:
 
 | Asked m/s | 1.25 | 1.5 | 1.75 | 2.0 |
 | --- | --- | --- | --- | --- |
@@ -24,7 +23,7 @@ The one stack as built, 48 V, from a flight at its speed, a minute each
 
 ## Demand at 2.0 m/s
 
-`drive_sizes --cached --run` folds it in (2026-10-05):
+`drive_sizes --cached --run` folds it in:
 
 | Joint | rms N m | Held by its winding | T at 1.5x |
 | --- | --- | --- | --- |
@@ -60,8 +59,6 @@ asked; the flights long and short by turns (0.07-0.13 s).
 
 ## Tried and left
 
-2026-10-05:
-
 | Change | Result |
 | --- | --- |
 | the setpoints through a second order | down at 0.6 and 1.8 s at 30 and 45 Hz; the clamps as before at 60 and 100 |
@@ -71,7 +68,7 @@ asked; the flights long and short by turns (0.07-0.13 s).
 
 ## On the motors as bought
 
-The U8's rotor 2.5 times the frame's the run was found on (2026-10-05):
+The U8's rotor 2.5 times the frame's the run was found on:
 
 | Stance s | Result |
 | --- | --- |
@@ -84,7 +81,7 @@ The stance should shorten with speed: about half a metre of floor a stance.
 
 ## Joined to the walk
 
-2026-10-05; in the lab, never on the page.
+In the lab, never on the page.
 
 - Into the run: from the walk's single support at 1.05 strides/s, the pelvis
   0.10 m past the standing ball, that leg pushes off in 0.15 s: on in 3

@@ -20,12 +20,12 @@ HANDS = {'left_wrist': 0.0, 'right_wrist': 0.0, 'left_gripper': 20.0, 'right_gri
 
 #: Handed over, the arms lifted clear of the floor over CLEAR_S before the arrival's squat, the
 #: legs its stance's whatever they bear: lifted at once, the hands behind pushed her up 60 mm
-#: in 0.2 s and over; swung by the arrival's light legs, her feet were flung 0.5 m (2026-09-30).
+#: in 0.2 s and over; swung by the arrival's light legs, her feet were flung 0.5 m.
 CLEAR_S = 0.7
 CLEAR = {'left_shoulder': 0.0, 'left_elbow': 110.0, 'right_shoulder': 0.0, 'right_elbow': 110.0}
 
 #: A step the observer ends on its outcome (`observer.EARLY`) once it has held REACHED_S: her
-#: thigh lifted off the floor a pass read as crouched, ended at its start (2026-10-01).
+#: thigh lifted off the floor a pass read as crouched, ended at its start.
 REACHED_S = 0.2
 
 
@@ -47,30 +47,30 @@ UNFOLD = (('ease', 'unfold', 1.0, _pose(0.0, 0.0, 0.0, 0.0, 20.0, 0.0, 90.0)),
 #: ended by the observer as she crouches still and flat-footed over her feet (`observer.EARLY`).
 #: From CMA-ESs over the states real falls left her in, scored by the observer through the
 #: arrival: back on her heels from 18 of 22 kneels, walking off from 12 of 12 on her pads, 11 of
-#: 12 bare (2026-10-01); lifted by the floor-up plan instead she stood in none of 224, the knees
+#: 12 bare; lifted by the floor-up plan instead she stood in none of 224, the knees
 #: never off the floor.
 #: Her hands put down under her shoulders, 100 deg, not reached out ahead at the search's 131 and
-#: 163: 16 falls of 16 up as before (2026-10-01).
+#: 163: 16 falls of 16 up as before.
 #: The crouch's hip -126.5: her thighs as modules (r 58 -> 72 mm) meet her torso at -126, -140
 #: before; asked -138.7 the hip drove 100 N m into it, on her hands 0.17 m ahead of her feet, and
-#: none of 5 falls walked again; re-searched over the onto feet's three, 5 of 5 (2026-10-03).
+#: none of 5 falls walked again; re-searched over the onto feet's three, 5 of 5.
 KNEES_UNDER = (('ease', 'prop', 1.19, _pose(3.0, 52.5, 24.6, -7.9, -20.0, 100.0, 84.9)),
                ('ease', 'prop', 1.46, _pose(-87.8, 96.8, 14.8, 22.9, -20.0, 100.0, 114.4)))
 #: Sat back over 0.6 s, not the search's 0.3: her neck whipped 866 -> 520 deg/s, a foot 3.9 -> 2.8
-#: m/s, 16 falls of 16 up as before (2026-10-01). The hip -130, where her torso stops her thigh,
+#: m/s, 16 falls of 16 up as before. The hip -130, where her torso stops her thigh,
 #: not the search's -163.2 - past -142 her femur goes through her hip's yaw drum: 5 falls of 5
-#: walking at 20.4-23.1 s (2026-10-03).
+#: walking at 20.4-23.1 s.
 SIT_BACK = (('ease', 'sit', 0.6, _pose(-130.0, 158.2, 12.2, 60.0, -20.0, 54.3, 12.0)),
             ('ease', 'sit', 3.08, dict(_pose(-21.9, 160.0, -46.8, 30.9, -20.0, 72.7, 65.2),
                                        left_foot=54.5, right_foot=54.5)))
 #: Re-searched hot - the falls after a minute's walk, her drives' heat carried, the look's cost
-#: on her hands out and her torso bowed (`getup_search`, 2026-10-04): as they were she walked
+#: on her hands out and her torso bowed (`getup_search`): as they were she walked
 #: again from 0 of 5, 3 tries each, hands out 18.8 s, bowed 9.3; these 5 of 5 at 22.8-23.4 s, 1
 #: try, 4.5 and 5.3 s - the arms thrown up to 151 deg for the lift's 0.5 s, as before (142).
 #: With the arms held low (the shoulders 30, the elbows straight; the aim is down) the
 #: best of 96 stood her up from none of 5, hot or cold (hands out 1.4 s, bowed 5.9): the throw
 #: is what lifts her off her heels.
-#: On the one stack (2026-10-05, her 28.4 kg) those left her down from 0 of 5, 3 tries each -
+#: On the one stack (her 28.4 kg) those left her down from 0 of 5, 3 tries each -
 #: into the crouch pitched 9 deg where 24, her centre of mass 52 mm ahead of the pelvis where
 #: 134, falling forward out of the squat. These, the best of 96 searched on it, 5 of 5 at
 #: 23.6-25.4 s, 1 try, hands out 5.3 s, bowed 5.5, the arms thrown up to 170 deg; 2 of the 96
@@ -97,15 +97,15 @@ def _mirrored(pose):
     return out
 
 
-#: From her back onto her front, the arms pushing, the legs near straight (2026-10-02):
+#: From her back onto her front, the arms pushing, the legs near straight:
 #: the bottom arm overhead, the top arm bent by her side; the top arm pressed down and straightened,
 #: its knee 60 -> 13 deg, the trunk turning; the recovery position, the top knee down in front;
 #: into what the knees under begins from - ended prone flat, she rolled back. CMA-ES over its 30
 #: knobs from flat and two logged falls: from all ten face down at -0.98 to -1.00 and knelt, a
 #: foot at 1.3 m/s, the hip and knee 133 deg/s. The leg-pushed roll before it, searched on the
 #: 35 kg build, lay on her back on the modules', its planted foot never down; thrown, a foot flew
-#: 4.9 m/s, the hip and knee 803 deg/s (2026-10-01, 2026-10-02). Its hip roll 27, not the
-#: search's 30: the gimbal turns -35..+28 (`skeleton.FORK_R`) (2026-10-03).
+#: 4.9 m/s, the hip and knee 803 deg/s. Its hip roll 27, not the
+#: search's 30: the gimbal turns -35..+28 (`skeleton.FORK_R`).
 _BASE = _pose(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 10.0)
 TO_FRONT = (('ease', 'roll', 0.79, dict(_BASE, left_hip=-47.0, left_knee=60.0, left_hip_roll=27.0,
                                        left_hip_yaw=17.8, left_shoulder=65.5, left_elbow=69.9,
@@ -141,8 +141,8 @@ def _curve(begun, stream):
     """([pose a keyframe, `begun` first], [deg/s a keyframe]): a curve through the keyframes,
     each one's rate its neighbours' (Fritsch-Carlson: none where a joint turns back, never
     more than 3 of either side's) - at rest only where the stream begins and ends. Eased to a
-    stop at each, her setpoints stood 1.67 s from the unfold to the crouch, through it 0.59
-    (2026-10-01)."""
+    stop at each, her setpoints stood 1.67 s from the unfold to the crouch, through it 0.59.
+    """
     knots = [dict(begun)]
     for _verb, _stage, _span, target in stream:
         knots.append({j: target.get(j, v) for j, v in knots[-1].items()})
@@ -203,7 +203,7 @@ class GetUp:
         self.begun = dict(self.last)
         if not self.done:
             # On from where the setpoints are, half the way's rate on: from the curve's own
-            # keyframe a hip jumped 15-21 deg a pass into the unfold and the sit (2026-10-01).
+            # keyframe a hip jumped 15-21 deg a pass into the unfold and the sit.
             span = max(1e-6, self.stream[self.i][2])
             self.knots[self.i] = dict(self.last)
             self.slopes[self.i] = {j: 0.5 * (self.knots[self.i + 1][j] - v) / span
@@ -243,7 +243,7 @@ class GetUp:
         turn = figure.quat(*(bus['pelvis.pose.q' + a] for a in 'wxyz'))
         yaw = math.degrees(math.atan2(turn[0][2], turn[2][2]))
         # the tilt in her own frame: read about the world's x, fallen facing back it came out
-        # backwards and the legs were solved straight, flinging her up to 1.1 m (2026-09-30)
+        # backwards and the legs were solved straight, flinging her up to 1.1 m
         local = figure.mul(figure.ry(-math.radians(yaw)), turn)
         first = {'pelvis': pel, 'tilt': math.degrees(math.atan2(local[2][1], local[1][1])),
                  'yaw': yaw, 'planted': True,

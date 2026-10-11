@@ -5,8 +5,8 @@
 
 A name is a constant's, in the first of MODULES holding it, or its module's and its own
 (walkplan.TRACK_M: gait has its own), or a table's entry's as module.TABLE.key. Unqualified, a
-name two modules hold sets the first: TURN_DEG meant for the fall turned the walk's pelvis
-(2026-10-01). The gait's fits and the plan's tables are cleared on every set.
+name two modules hold sets the first: TURN_DEG meant for the fall turned the walk's pelvis.
+The gait's fits and the plan's tables are cleared on every set.
 """
 import importlib
 

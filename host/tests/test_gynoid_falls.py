@@ -9,10 +9,10 @@ from gynoid_kit import Report
 #: Shoves of SHOVE_N for SHOVE_S along her side after SHOVE_AFTER_S of walking, at 8 phases of
 #: the left leg's stride, a test a side: each one caught within PARRY_SEEN_S or held without, the
 #: arms raised, the feet never further apart than APART_M where she holds - felled, the splay is
-#: the fall's: 0.90 m in one of 8 on CI, 0.58 here (2026-10-03) -; HELD_OF_8 held. Measured: as
+#: the fall's: 0.90 m in one of 8 on CI, 0.58 here -; HELD_OF_8 held. Measured: as
 #: a 55 kg woman at 60 N, held 3 to her left and 4 to her right, caught 0.07-0.25 s on; as built,
 #: 35 kg, at 38 N - the same 0.13 m/s - 5 and 4, the falls caught 0.09-0.10 s on, two held caught
-#: 0.41 s on, the feet 0.58 m apart at most (2026-10-01). A test a side: 16 took 185 s, past
+#: 0.41 s on, the feet 0.58 m apart at most. A test a side: 16 took 185 s, past
 #: CI's 300.
 SHOVE_N, SHOVE_S, SHOVE_AFTER_S, PARRY_SEEN_S, APART_M, HELD_OF_8 = 38.0, 0.12, 6.0, 0.25, 0.6, 2
 
@@ -22,20 +22,20 @@ SHOVE_N, SHOVE_S, SHOVE_AFTER_S, PARRY_SEEN_S, APART_M, HELD_OF_8 = 38.0, 0.12, 
 #: LANDING_S from the fall, feet aside, at the median under PEAK_KN; a limb or her seat on the
 #: floor first, never her trunk or her head. Measured over 16, as a 55 kg woman: limp 8.7 kN, a
 #: thigh first 8 times; crouched 6.2, a shank first 14. As built, 35 kg: 4.2 kN, a hand first 6
-#: times, a shank 10; her head down 3 times, two at rest, 0.09-0.12 m/s, one at 0.72 (2026-10-01).
+#: times, a shank 10; her head down 3 times, two at rest, 0.09-0.12 m/s, one at 0.72.
 LANDING_S, PEAK_KN, HEAD_MS = 1.5, 7.0, 1.0
 
 
 #: Felled by the page's P walking (`tools.sim.getup_search`'s falls), she is up and walking again
-#: UP_S after she lay down, a test a side (2026-10-03: she must get up after a fall).
+#: UP_S after she lay down, a test a side (she must get up after a fall).
 #: Before the drives went to modules 5 falls of 5 walked at 20.5 s, after them none of 5 - the
-#: gate had nothing that walked her up from the floor (2026-10-03). Felled hot after a minute's
-#: walk (`getup_search.SHOVE_S`), 3 s walking again counts: up at 22.8-23.4 s (2026-10-04).
+#: gate had nothing that walked her up from the floor. Felled hot after a minute's
+#: walk (`getup_search.SHOVE_S`), 3 s walking again counts: up at 22.8-23.4 s.
 UP_S = 40.0
 
 
 #: The roll onto her front from flat on her back: no foot past ROLL_FOOT_MS, no hip or knee past
-#: ROLL_LEG_DEG_S. Its leg thrown, a foot flew 4.9 m/s and the hip and knee 803 deg/s (2026-10-01).
+#: ROLL_LEG_DEG_S. Its leg thrown, a foot flew 4.9 m/s and the hip and knee 803 deg/s.
 ROLL_FOOT_MS, ROLL_LEG_DEG_S = 2.0, 300.0
 
 
@@ -162,7 +162,7 @@ def test_lying_still_she_holds_nothing(report):
     """Shoved past saving with no get-up left (`director.GETUP_TRIES`), she brakes her fall and
     lies cut: down, not still falling - the page lands her again (`running.RECOVER_S`) - every
     drive's gates off and its phases open, drawing its board's own (`World.drawn`). Lying, the
-    page drew 120 W: her tuck held her curled, and given up she stayed falling (2026-10-02)."""
+    page drew 120 W: her tuck held her curled, and given up she stayed falling."""
     from machine import Machine, events, heat
     from machine.director import GETUP_TRIES, Director
     from machine.modes import DYNAMIC
@@ -426,8 +426,7 @@ def test_the_planner(report):
 
 
 #: The long six first: a shard takes every n-th (`tools.dev.focus.chosen`), so n of 6 or more
-#: puts one in each - on CI two of 126 and 127 s and a get-up's 38 ran past the 300 s cut
-#: (2026-10-03).
+#: puts one in each - on CI two of 126 and 127 s and a get-up's 38 ran past the 300 s cut.
 ROSTER = (test_a_shove_to_her_left_parried, test_a_shove_to_her_right_parried,
           test_a_fall_to_her_left_crouches, test_a_fall_to_her_right_crouches,
           test_up_after_a_fall_to_her_left, test_up_after_a_fall_to_her_right,

@@ -397,7 +397,7 @@ def test_the_thermal_load_heats_the_legs_together(report):
     """THERMAL OBSERVER on the stand-in: the page's load is 30 A a phase on all three legs, as a
     turning motor's is - the legs rise and cool together. The demo motor's held vector put in
     its place (569ae47) carried the current a leg at a time, and the hottest leg changed 9
-    times in 16 s (2026-09-28).
+    times in 16 s.
     """
     from terminal.views import show_thermal_observer as view
     from tools.render import page

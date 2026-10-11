@@ -8,7 +8,7 @@ def search(pool, spans, generations, lam, log, runs, now, sigma=0.08, start=None
     """CMA-ES over `spans` {name: (low, high)}, each scaled to its span, from the constants as
     they are (`now(name)`, or `start`, {name: value}), `sigma` of a span its first step: a walk
     that looks right is refined, not searched away - begun from the spans' middles at a quarter,
-    the searches found tiptoeing (2026-09-28). `runs(pool, candidates)` scores them: [(cost,
+    the searches found tiptoeing. `runs(pool, candidates)` scores them: [(cost,
     held, stir, results)]; every candidate a line of `log`."""
     import numpy as np
     start = start or {}

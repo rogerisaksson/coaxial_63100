@@ -84,7 +84,7 @@ __attribute__((weak)) uint32_t Board_Cycles(void)
 
 /** console.c's one key without its printf, the host's stdout here: 'm' hands the console's
     line to the binary link again after the host gave it back (0x48) - without it a released
-    board went silent for every later session in the process (2026-09-26). */
+    board went silent for every later session in the process. */
 void fake_console_poll(void)
 {
   const dev_serial_t *dev = dev_uart(0);

@@ -26,8 +26,8 @@ static const double TURN_W = 3.0, MOMENTUM_W = 0.3, POSTURE_W = 1.0, TORQUE_W = 
 static const double FORCE_W = 1.0, HEIGHT_W = 1.0, FOLD_W = 0.3;
 static const double CLAMP_SHARE = 0.95, NEAR = 0.6;
 /** A margin's slack weighed SLACK_W (its square root a row) on the turns' level: hard, the
-    turns went unmet by 5-60 rad/s^2 under 100 N and the head took its peak in their stead
-    (2026-10-11). */
+    turns went unmet by 5-60 rad/s^2 under 100 N and the head took its peak in their stead.
+    */
 static const double SLACK_W = 1e3;
 static const double MU = 0.6, MARGIN_M = 0.015, LIMIT_S = 0.05, STOP_RAD = 0.01, HEIGHT_BAND = 3.0;
 /** A bound within ACTIVE of its edge is reported at it. */
@@ -319,7 +319,7 @@ static int prepare(wbc_body_t *b, wbc_stack_t *s, const wbc_ask_t *ask)
 }
 
 /** One level's rows this tick, from the ask, into s->la: a solve lays each level it needs.
-    Every level's rows kept at once were 266 KB of the state (2026-10-11). */
+    Every level's rows kept at once were 266 KB of the state. */
 static void lay_level(wbc_body_t *b, wbc_stack_t *s, const double u[WBC_N],
                       const wbc_ask_t *ask, int level)
 {

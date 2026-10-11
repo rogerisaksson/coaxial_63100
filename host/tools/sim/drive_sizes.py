@@ -34,17 +34,17 @@ from machine import events  # noqa: E402
 from tools import REPO  # noqa: E402
 
 #: Each number at this times what she asked: heavy lifts off the floor at half again, nothing
-#: tuned at its limit (2026-10-03).
+#: tuned at its limit.
 MARGIN = 1.5
 CACHE = os.path.join(REPO, 'build', 'drive_demand.json')
 #: The demand's scenes, each from the squat: the walk alone, then a slip, a nudge, a hole and
 #: the page's shove laid at SCENE_S - her parries and falls ask the peaks (one walk's knee asked
-#: 1231 deg/s with a catch in it, 561 without, 2026-10-03) - and the gym's, standing on each rig
-#: of `events.STANDING` after 'stand:' (2026-10-04).
+#: 1231 deg/s with a catch in it, 561 without) - and the gym's, standing on each rig
+#: of `events.STANDING` after 'stand:'.
 SCENES = (None, 'slip', 'nudge', 'hole', 'shove') + tuple('stand:' + e for e in events.STANDING)
 SCENE_S = 8.0
 #: A scene's margin where it is not MARGIN: the parries' and the falls' 1.2 (taken
-#: 2026-10-04: a catch's 171 N m and 1259 deg/s at the hip bound the hips and knees at
+#: A catch's 171 N m and 1259 deg/s at the hip bound the hips and knees at
 #: 1.5 - 1.26 of A's amps, 1.19 of its volts - where the walk, the gym and the run ask less).
 #: Each scene's peaks, speeds and watts go into the cache at its margin over MARGIN.
 MARGINS = {'slip': 1.2, 'nudge': 1.2, 'hole': 1.2, 'shove': 1.2}
@@ -52,7 +52,7 @@ MARGINS = {'slip': 1.2, 'nudge': 1.2, 'hole': 1.2, 'shove': 1.2}
 #: (`tools.sim.run`), her fastest held. The literature's a kg at 2 m/s (Novacheck 1998, Schache
 #: 2011, Dorn 2012: hip 1.6, knee 2.6, ankle 3.0 N m, the rms 0.4 of it; 330, 500, 650 deg/s)
 #: asked her hip, knee and ankle 18, 30 and 34 N m rms; her run on the frame before her motors
-#: asked 47, 40 and 51 at 1.94 m/s (2026-10-05).
+#: asked 47, 40 and 51 at 1.94 m/s.
 RUN_MPS, RUN_S = 1.75, 12.0
 
 
@@ -145,7 +145,7 @@ def asked(to_s, values, scene=None, cadence=0.85):
         peak, speed = np.maximum(peak, np.abs(tau)), np.maximum(speed, np.abs(w))
         watts = np.maximum(watts, tau * w)
         # The walk's rms alone: a stand of milliseconds before a fall made the rms the peak,
-        # T 3.75 (2026-10-04).
+        # T 3.75.
         if director.stage in ('walk', 'catch'):
             square += tau * tau
             count += 1

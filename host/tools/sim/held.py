@@ -2,7 +2,7 @@
 """What holds each of her drives, standing.
 
 A bone, a gimbal, the boom or the trunk's frame touching its drum, or its own collars and struts
-between (`machine.skeleton.HELD`); a drum held by nothing floats (2026-10-03: the hip's
+between (`machine.skeleton.HELD`); a drum held by nothing floats (the hip's
 roll drum, the ankles', the toes').
 
     python tools/sim/held.py

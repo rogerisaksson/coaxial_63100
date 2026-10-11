@@ -200,7 +200,7 @@ def fold(depth, top, sun, width, height):
 
 #: Beyond this radius a surface point takes no ink from the art: the
 #: art's own ink reaches 0.94 to 1.00 of the span by direction
-#: (measured 2026-09-23, 24 directions), so a covered cell at the
+#: (measured, 24 directions), so a covered cell at the
 #: mesh's rim can land on the art's blank outside and draw nothing,
 #: pulling the lit edge a cell inward - a second staircase inside the
 #: first, the band inside the edges torn at i -0.1350 j -0.7956

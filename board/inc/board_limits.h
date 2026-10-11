@@ -66,7 +66,7 @@
 /* ---- Acquisition ------------------------------------------------------- */
 
 /** The reference up behind AFE_ON before the converters calibrate on it: the
-    link's code is within its noise 25 ms after the rail (bench, 2026-10-05).
+    link's code is within its noise 25 ms after the rail (bench).
     Uncalibrated, a code sticks 70 under every 512. */
 #define ADC_REFERENCE_SETTLE_MS 100U
 

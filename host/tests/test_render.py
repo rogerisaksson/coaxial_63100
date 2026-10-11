@@ -1060,7 +1060,7 @@ def test_scroll(report):
                  != ground._backdrop(60, 20, 3.2, cam['view'], 0.25),
                  'the same')
     # A step is under half a dot row for every rung on screen: measured 0.105
-    # rows at 108x44 and 150x44, 0.048 at 60x20 (2026-09-23) - a rung slides
+    # rows at 108x44 and 150x44, 0.048 at 60x20 - a rung slides
     # rather than jumps.
     a = ground._rungs(static, 0.0)
     b = ground._rungs(static, 1.0 / ground.RUNG_STEPS)

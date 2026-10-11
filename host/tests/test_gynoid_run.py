@@ -8,7 +8,7 @@ from tools.dev.focus import chosen
 from gynoid_kit import Report
 
 #: The speeds asked, m/s: a jog and the fastest she holds from a flight on her motors' rotors
-#: (asked 2.0 she is down in 8-25 s; 1.94 m/s on a rotor 0.4 of theirs, 2026-10-05).
+#: (asked 2.0 she is down in 8-25 s; 1.94 m/s on a rotor 0.4 of theirs).
 SPEEDS = (1.25, 1.75)
 
 #: A speed is run RUN_S and judged from FROM_S on: she is at her speed 4 s in, her feet's bias

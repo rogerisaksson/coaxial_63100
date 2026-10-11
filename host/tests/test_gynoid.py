@@ -43,7 +43,7 @@ def test_dressed_or_bare(report):
 
 def test_her_views_draw(report):
     """The page's mechanism and actuators views draw: a held drive (`drives.WAYS`) has no drum,
-    so no spur or bevel pair on it - the wrists' bevels crashed the page (2026-10-04)."""
+    so no spur or bevel pair on it - the wrists' bevels crashed the page."""
     from coaxial.graphics import gynoid
     for see in ('mechanism', 'actuators'):
         seen = gynoid.body(see=see)
@@ -55,7 +55,7 @@ def test_her_views_draw(report):
 
 def test_the_floor_outlasts_a_walk(report):
     """The floor's slab ends past an hour's walk at her fastest pace: at 80 m she stepped off it
-    100 s in (2026-09-28)."""
+    100 s in."""
     from machine import floor, gait
     from terminal.views.humanoid_keys import CADENCE
     fastest = CADENCE[1] * gait.STRIDE_M * gait.pace(CADENCE[1])
@@ -150,7 +150,7 @@ def test_a_body_with_mass_walks(report):
             borne.append(sum(body.loop.bus['pelvis.pose.%s_load' % s] for s in ('left', 'right')))
     bus = body.loop.bus
     # 0.9 of what her strides make of 3 s: 2 m of the 0.85 m stride's 2.17 was past the 0.75 m
-    # stride's 1.91 (2026-10-04).
+    # stride's 1.91.
     far = 0.9 * 3.0 * 0.85 * gait.STRIDE_M
     report.check('3 s at 0.85 strides/s: on her feet, 0.9 of her strides on, within 0.2 m of the line',
                  lowest > 0.7 and bus['pelvis.pose.z'] > far and abs(bus['pelvis.pose.x']) < 0.2,
@@ -270,7 +270,7 @@ def test_her_skeleton_collides(report):
                          model.body(model.geom_bodyid[d.contact[i].geom2]).name)))
            for i in range(d.ncon)}
     # On the 68 mm stacks the ankle roll's drum met the knee's board first; on the one 60 mm
-    # stack, the femur, the board at 175 deg (2026-10-05).
+    # stack, the femur, the board at 175 deg.
     report.check("folded, the ankle's drives meet the femur, the skins not each other",
                  ('left_ankle_drum', 'left_thigh_bone') in met
                  and ('left_ankle_roll_drum', 'left_thigh_bone') in met
@@ -279,8 +279,8 @@ def test_her_skeleton_collides(report):
 
 def test_each_drive_turns_from_its_gearbox(report):
     """Every drive's output turns what it drives about its drum's own axis from its gearbox's
-    end (`tools.sim.fit.outputs`) - an axial drive with a radial output caught by eye 
-    (2026-10-03)."""
+    end (`tools.sim.fit.outputs`) - an axial drive with a radial output caught by eye.
+    """
     from tools.sim import fit
     wrong = [(j, w) for j, _what, w in fit.outputs() if w]
     report.check('every drive turns what it drives from its gearbox, on its axis', not wrong,
@@ -290,7 +290,7 @@ def test_each_drive_turns_from_its_gearbox(report):
 def test_each_drive_is_held(report):
     """Every drive held by a bone, a gimbal, the boom or the trunk's frame, touching it or
     through its own collars and struts (`tools.sim.held`) - the hip's roll drum, the
-    ankles' and the toes' held by nothing, caught by eye (2026-10-03)."""
+    ankles' and the toes' held by nothing, caught by eye."""
     from tools.sim import held
     loose = [j for j, by in held.held_by().items() if not by]
     report.check('every drive held', not loose, '%s held by nothing' % loose)

@@ -105,7 +105,7 @@ function Get-DaemonWords {
         sentence that matters - "llama-server binary not found (checked:
         ...)", "model requires more system memory".
         message is the status line, in the console's language ("(500)
-        Internt serverfel", measured here 2026-09-12), so the page read
+        Internt serverfel", measured here), so the page read
         that back for a runner that was not installed.
         message when there is no body or no `error` in it.
 #>

@@ -345,7 +345,7 @@ API void thm_budget_capped(const thermal_t *th, const float *watt,
 }
 
 /** The envelope with the trip on `limit_c` itself: every caller before
-    2026-09-08, and the shape the suites' Model calls by default. */
+    And the shape the suites' Model calls by default. */
 API void thm_budget(const thermal_t *th, const float *watt,
                     const float *limit_c, float throttle_at,
                     float lookahead_s, const float *undriven, float *out)

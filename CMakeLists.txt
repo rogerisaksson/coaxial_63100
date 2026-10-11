@@ -203,7 +203,7 @@ set_source_files_properties(
     board/src/board_drive.c board/src/board_ctrl.c board/src/board_sync.c board/src/board_daq.c
     PROPERTIES COMPILE_OPTIONS "-O2;-fno-math-errno;-Wextra;-Wshadow")
 # The thermal observer, in main() between the STO keepalive's edges: at -O0 a slice of its
-# identification held main() 236 us, past what the chain's pump carries (2026-09-27).
+# identification held main() 236 us, past what the chain's pump carries.
 set_source_files_properties(
     thermal/src/thermal.c thermal/src/thermal_ident.c thermal/src/thermal_app.c
     thermal/src/thermal_run.c

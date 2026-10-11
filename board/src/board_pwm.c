@@ -533,7 +533,7 @@ void Board_PwmDriveOwn(bool on)
   /* Let go with the bridge open, the compares at zero behind it: a zero
      triple alone is the three low sides on, a short across a turning rotor -
      31 A rms stopped the flywheel from 865 rpm in a second, and from 1 979
-     rpm tripped the drive (native, 2026-09-28). */
+     rpm tripped the drive (native). */
   TIM1->CCER &= ~CCER_OUTPUTS;
   s.open = true;
   TIM1->CCR1 = 0U;

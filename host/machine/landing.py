@@ -12,7 +12,7 @@ from machine import capture, figure, gait, stance, walkplan
 #: Where a swinging foot lands across is `machine.capture`'s: on the capture point as it will be
 #: at the landing. Put down from the pelvis instead, a shove toward the standing foot took the
 #: swinging one across it and she fell in 0.3 s; the capture point past the standing foot ran
-#: 109 -> 425 mm in 0.42 s once the other lifted (2026-09-26).
+#: 109 -> 425 mm in 0.42 s once the other lifted.
 
 #: A swap is a side step outside the plan's phase: the swinging foot is put down where it is,
 #: flat, lowered over DOWN_S, and once it bears BEARS_N for DWELL_S the standing one steps out to
@@ -20,27 +20,26 @@ from machine import capture, figure, gait, stance, walkplan
 #: ahead of where the pelvis will be, and there it stays - put 5 cm behind, the walk began again
 #: on it in its push-off and the heel's rise threw her 3 cm up; moved on with the pelvis once
 #: down, the leg could not reach it and lifted it, and the weight came over 0.3 s late
-#: (2026-09-26) - lifted SIDE_LIFT_M at the middle of SIDE_S seconds and set down as softly
-#: as lifted - an arc of sine struck at 0.9 m/s, 2100 N, and the leg threw her 18 cm up
-#: (2026-09-26); the phase SIDE_HURRY faster meanwhile. Left to the plan, the swapped foot landed
+#: - lifted SIDE_LIFT_M at the middle of SIDE_S seconds and set down as softly
+#: as lifted - an arc of sine struck at 0.9 m/s, 2100 N, and the leg threw her 18 cm up;
+#: the phase SIDE_HURRY faster meanwhile. Left to the plan, the swapped foot landed
 #: 0.24 s after the shove and the other lifted 0.12 s later still, the capture point 20 cm out by
 #: then; dropped at once it struck 1200 N and bounced; the other lifted on 60 N of one pass and
 #: she hung in the air; the step out sized once, with the ankle's help, was 11 cm of the 20
-#: needed (2026-09-26).
+#: needed.
 DOWN_S, DWELL_S, SIDE_AHEAD_M, SIDE_LIFT_M, SIDE_S, SIDE_HURRY = 0.1, 0.02, 0.1, 0.06, 0.2, 0.3
 
 
 #: The swapped foot is put down DOWN_AHEAD_M ahead of the pelvis, m: where it was, the body walked
-#: on past it, the leg could not reach back, and the foot left the floor (2026-09-26). One behind
+#: on past it, the leg could not reach back, and the foot left the floor. One behind
 #: the pelvis is put down where it is, DOWN_BEHIND_M behind at most: sent 15 cm ahead from 30
-#: behind, it never came down (2026-09-27).
+#: behind, it never came down.
 DOWN_AHEAD_M, DOWN_BEHIND_M = 0.15, 0.25
 
 
 #: No side step in the first SIDE_AGAIN_S of a walk begun again: none until its blend was done,
-#: one asked in it went the way the capture point had left (2026-09-27). No catch either, and from
-#: then on one: held off for the ramp's 2.5 s, a shove caught by one step fell at the next
-#: (2026-10-01).
+#: one asked in it went the way the capture point had left. No catch either, and from
+#: then on one: held off for the ramp's 2.5 s, a shove caught by one step fell at the next.
 SIDE_AGAIN_S = 0.15
 
 
@@ -48,13 +47,13 @@ SIDE_AGAIN_S = 0.15
 #: and more than the other; if the other still bears her SIDE_GIVE_S on, she has come back to
 #: it, and the walk begins again on that one. Ended as the stepped-out foot touched, the plan
 #: lifted the one that bore her; struck by the other leg 4 cm up, 2400 N ended the step with the
-#: foot in the air (2026-09-26). The stepped-out foot goes out first and on from SIDE_OUT_FIRST
-#: of the step: on at once, its shank struck the other leg's (2026-09-27).
+#: foot in the air. The stepped-out foot goes out first and on from SIDE_OUT_FIRST
+#: of the step: on at once, its shank struck the other leg's.
 SIDE_GIVE_S, DOWN_M, SIDE_OUT_FIRST = 0.4, 0.01, 0.25
 
 
 #: The swapped foot is put down SIDE_CLEAR_M across from the other's line at least: put down
-#: where it was, 3 cm across, the other's toes struck its heel going by, 1800 N (2026-09-27).
+#: where it was, 3 cm across, the other's toes struck its heel going by, 1800 N.
 SIDE_CLEAR_M = 0.12
 
 
@@ -63,8 +62,8 @@ SIDE_CLEAR_M = 0.12
 #: nearer: the capture point grows e^(omega tau), omega 3.3/s. Shoved 120 N for 0.12 s toward the
 #: standing foot, that foot lifted at its toe-off 0.15 s on with the capture point 9 cm past it,
 #: and the law sent its 0.4 s swing 44 cm out. Held of 48 shoves of 60 N: none 10, 0.15 10, 0.22 8,
-#: 0.3 16, 0.34 17, 0.45 2, 1.0 0; the catch held 0.1 or 0.2 s on past its last asking, 7 and 3
-#: (2026-10-01); retuned (`physics.STAGED`). With the elbow's stack on its axis (2026-10-04) the
+#: 0.3 16, 0.34 17, 0.45 2, 1.0 0; the catch held 0.1 or 0.2 s on past its last asking, 7 and 3;
+#: retuned (`physics.STAGED`). With the elbow's stack on its axis the
 #: test's 38 N held, left and right of 8: 0.25 2 and 3, 0.27 1 and 3, 0.29 2 and 1, 0.32 2 and
 #: 2; the faults scoreboard 428 and 65.2 % at 0.25, 482 and 62.2 at 0.32.
 PARRY_M, PARRY_HURRY = 0.0199259, 0.25
@@ -74,24 +73,24 @@ PARRY_M, PARRY_HURRY = 0.0199259, 0.25
 #: capture point and STOMP_PAST_M past it, flat, the pelvis lowered to reach, the walk begun
 #: again on it once it bears - as a swap's foot is put down.
 #: Left to the plan, the foot touched at its reach, lifted again, and chased the capture point
-#: to 66 cm out (2026-09-27).
+#: to 66 cm out.
 STOMP_PAST_M = 0.05
 
 
 #: The capture point is the centre of mass plus the pelvis's sideways speed over omega, not the
 #: centre of mass's own: the swinging leg's speed is in that, and a wide step's put the capture
-#: point 6 cm out past where it went - the foot chased itself (2026-09-26).
+#: point 6 cm out past where it went - the foot chased itself.
 
 #: No foot waits at toe-off for the capture point to come over the other: held there 0.3 s
 #: while the legs drove the pelvis toward the standing foot, the pelvis moved 3 mm; walking on,
 #: the plan froze while the body went 24 cm past the standing foot, the leg could not reach and
-#: she sank 17 cm (2026-09-26).
+#: she sank 17 cm.
 
 
 #: A swinging foot lands on the capture point along the walk as it does across it: FORE_K of the
 #: body's speed over the plan's, over omega, FORE_M at most, on from the plan's spot. Slowed to a
 #: stop by a knee folding under her, the next foot came down where the plan had it, ahead of a
-#: body going nowhere, and she fell backwards (2026-09-27).
+#: body going nowhere, and she fell backwards.
 FORE_K, FORE_M = 1.0, 0.25
 
 
@@ -108,7 +107,7 @@ def put_down(ball_z, pel_z):
 #: turn may pass nearer than the walk's path. Kept 90 mm off the other's ball, centre to centre,
 #: the foot skimming 25 mm over the floor met the other's heel, 24 mm nearer toed out 8 degrees:
 #: -8 mm, 340 N. Eased in over 30 mm, 10-15 ms at the swing's speed, the toes met the other's
-#: heel's corner: over 100 mm they pass 12 mm apart (2026-09-28).
+#: heel's corner: over 100 mm they pass 12 mm apart.
 GAP_M, OVERLAP_M = 0.01, 0.1
 
 
@@ -118,12 +117,12 @@ GAP_M, OVERLAP_M = 0.01, 0.1
 #: TRIP_S and until TRIP_UNTIL of its swing too, another over OVER_U of its swing - until its heel
 #: clears it, let down over TRIP_DOWN_M on: the elevating strategy. Met past TRIP_LATE, the foot is
 #: put down short where it is, the other to step over: the lowering strategy. Its toes caught on a
-#: 6 cm sill 15 cm ahead as it lifted, the pelvis pitched 10 degrees in 0.11 s and she fell
-#: (2026-09-28). Let down by its swing's phase alone, on a sill laid a stride on, 13 places 3 cm
+#: 6 cm sill 15 cm ahead as it lifted, the pelvis pitched 10 degrees in 0.11 s and she fell.
+#: Let down by its swing's phase alone, on a sill laid a stride on, 13 places 3 cm
 #: apart, she walked on at 2; held up until its heel cleared it, at 4. Met later she falls: put
 #: down short, the pelvis ran 17 cm past the foot before the other lifted; lifted, with its
 #: landing moved past, the phase held or slowed for it, or the other stepping out over it, it
-#: came down on the sill or the standing leg ran out (2026-09-28).
+#: came down on the sill or the standing leg ran out.
 TRIP_N, TRIP_FROM, TRIP_UNTIL, TRIP_LIFT_M, TRIP_S = 80.0, 0.1, 0.75, 0.08, 0.05
 TRIP_PAST_M, TRIP_DOWN_M, OVER_U, TRIP_LATE = 0.05, 0.08, 0.2, 0.55
 
@@ -168,7 +167,7 @@ def over(w, ankle_z, rise, u=1.0):
 
 
 #: A leg's plan led SWING_LEAD_S through its swing and its landing's roll: a drive lags a
-#: setpoint on the move; its hip 5 degrees behind caught up into the floor (2026-09-28).
+#: setpoint on the move; its hip 5 degrees behind caught up into the floor.
 SWING_LEAD_S = 0.02
 
 
@@ -252,7 +251,7 @@ def landings(w, dt, bus, qs, legs, balls, pel, turn_now, planned_z, spread, leng
         if step is not None and side == step['out'] and step['stage'] == 'out':
             # Foreseen once as it begins, with no ankle to help and no gain - on the capture
             # point, the body to come to rest over the foot. Followed as the capture point
-            # ran, the foot chased the swing of its own leg's mass, 16 cm past (2026-09-26).
+            # ran, the foot chased the swing of its own leg's mass, 16 cm past.
             if step['x_out'] is None:
                 xs, _swap, _catch, _off = capture.landing(capture.state(1, margin=0.0, gain=1.0), (
                     (1.0 - SIDE_S * w.rate,), (sign,), (xi,), (balls[step['down']][0],),
@@ -260,8 +259,7 @@ def landings(w, dt, bus, qs, legs, balls, pel, turn_now, planned_z, spread, leng
                 step['x_out'] = float(xs[0])
             u = min(1.0, step['since'] / SIDE_S)
             # Eased on from where it stood: sent SIDE_AHEAD_M ahead at once while it bore
-            # 1400 N, it dragged and threw her 1.5 cm up, the other foot off the floor
-            # (2026-09-26).
+            # 1400 N, it dragged and threw her 1.5 cm up, the other foot off the floor.
             on = gait.eased(max(0.0, (u - SIDE_OUT_FIRST) / (1.0 - SIDE_OUT_FIRST)))
             at = (step['x_from'] + (step['x_out'] - step['x_from']) * gait.eased(u),
                   gait.ANKLE_H + SIDE_LIFT_M * math.sin(math.pi * u) ** 2
@@ -288,7 +286,7 @@ def landings(w, dt, bus, qs, legs, balls, pel, turn_now, planned_z, spread, leng
               planned_z + ankle[2] + fore)
         if short:
             # Down on its heel, or its ball, as it is pitched: flat, the heel went 1 cm into the
-            # floor and the leg threw her up (2026-09-28).
+            # floor and the leg threw her up.
             pivot = gait.HEEL * math.sin(_pi) if _pi > 0.0 else -gait.BALL * math.sin(_pi)
             at = (ankles[side][0], w.floor.get(side, 0.0) + pivot + gait.ANKLE_H * math.cos(_pi),
                   ankles[side][2])
@@ -316,8 +314,8 @@ def landings(w, dt, bus, qs, legs, balls, pel, turn_now, planned_z, spread, leng
 def shoved(w, xi):
     """Whether the capture point `xi` is PARRY_M past a standing foot's outer edge, on that
     foot's own side, going on out: toward a swinging foot it runs out by the walk's own course
-    (`capture.XI_NOM`) - counted on both sides, a plain walk was shoved 1.2 s in 20
-    (2026-10-01)."""
+    (`capture.XI_NOM`) - counted on both sides, a plain walk was shoved 1.2 s in 20.
+    """
     edge = figure.SOLE_HALF + PARRY_M
     return any(side in w.anchor and sign * w.v_side > 0.0
                and sign * (xi - w.anchor[side][0]) > edge for side, sign in walkplan.SIDES)
@@ -326,7 +324,7 @@ def shoved(w, xi):
 #: A side step ends in the walk begun again (`restart`) at the stride her speed says, RESUME of
 #: the walk's at least, the setpoints blended from the step's over RESUME_BLEND_S: over the
 #: start's 0.3 s the trailing foot stayed down, bearing 250 N, and the centre of pressure between
-#: the feet drove the capture point on past the standing foot (2026-09-27).
+#: the feet drove the capture point on past the standing foot.
 RESUME, RESUME_BLEND_S = 0.3, 0.1
 
 
@@ -336,7 +334,7 @@ def restart(w, balls, pel):
     walk's own from the standing foot, the stride her speed's. Resumed in one pass, the
     plan's height 3 cm above a body sunk over the leaning leg, both legs threw her 6 cm into
     the air, and the other foot was yanked into mid-swing; begun wide, the midline between
-    the feet drew her off the standing one (2026-09-26)."""
+    the feet drew her off the standing one."""
     on = 'left' if w.resume == 'left' else 'right'
     ball = balls[on]
     sign = 1.0 if on == 'left' else -1.0
@@ -354,7 +352,7 @@ def sidestep(w, dt, swapping, loads, balls, legs, pel, ankles):
     (`step`), and none begun while that blends in. A stomp (`_landings`) is the `down`
     alone, the walk begun again on that foot. Resumed at the phase left, the
     plan lifted the foot she had just caught herself on; asked as the blend began, a second
-    side step put the foot down in the air (2026-09-26)."""
+    side step put the foot down in the air."""
     if w.side is None and (w.held is None or w.age >= SIDE_AGAIN_S):
         for i, ((side, sign), (ankle, _tw, _pi, _to)) in enumerate(zip(walkplan.SIDES, legs)):
             other = 'right' if side == 'left' else 'left'
@@ -371,7 +369,7 @@ def sidestep(w, dt, swapping, loads, balls, legs, pel, ankles):
         return
     if w.side['stage'] == 'down':
         # Borne only with the ankle near the floor: pitched from its swing, the foot's toes
-        # took 1000 N 9 cm up and the walk began again on them (2026-09-27).
+        # took 1000 N 9 cm up and the walk began again on them.
         down = w.side['down']
         took = (loads[down] > stance.BEARS_N
                 and ankles[down][1] < w.floor.get(down, 0.0) + gait.ANKLE_H + DOWN_M)
@@ -392,7 +390,7 @@ def sidestep(w, dt, swapping, loads, balls, legs, pel, ankles):
         w.side['borne'] = w.side['borne'] + dt if took else 0.0
         # The step stays this pass, the walk begun again at the next (`step`): let go at
         # once, the plan's stale phase swung the foot she stood on 0.8 m out for a pass, and
-        # the blend began from that (2026-09-26).
+        # the blend began from that.
         if w.side['since'] >= 0.5 * SIDE_S and w.side['borne'] >= DWELL_S:
             w.resume = out
         elif w.side['since'] >= SIDE_GIVE_S and loads[down] > max(stance.BEARS_N, loads[out]):

@@ -12,7 +12,7 @@ Each change of the active set refactors J0'N by one QR rather than Givens update
 the sets change by a row or two a step. In a stack, a row a level holds with a positive
 multiplier stays held below it - leaving it would cost that level its optimum - so it joins the
 equalities whose null space the lower levels search: kept an inequality, the feasible set below
-had no interior and both methods failed on it (a shove, 2026-10-10).
+had no interior and both methods failed on it (a shove).
 """
 import os
 
@@ -32,7 +32,7 @@ LOOSE = 1e-5
 #: every direction. At 1e-8 alone a level of 9 rows over 30 directions (condition 1.6e8) was
 #: found infeasible with z = 0 meeting every row, from 1e-6 it solves, its optimum unmoved; on
 #: the least norm alone the balance's level bore her on corners at their friction's edges, the
-#: rows frozen, and no sole could rise (shoves, 2026-10-10).
+#: rows frozen, and no sole could rise (shoves).
 EPS, LOWER = 1e-6, 1e-3
 
 #: A held row's multiplier under the task alone, of the task's gradient, from which the levels
@@ -118,7 +118,7 @@ def _dual(H, g, A, b, warm, most):
             t2 = -float(n @ x - d[p]) / zn if zn > TINY * max(1.0, float(dv @ dv)) else np.inf
             if t2 == np.inf and -float(n @ x - d[p]) < LOOSE:
                 # A row in the span of the held ones, over by noise: met. Stepped on in the
-                # dual, a 2.4e-6 miss drove the multipliers to 1e15 (a shove, 2026-10-10).
+                # dual, a 2.4e-6 miss drove the multipliers to 1e15 (a shove).
                 met.add(p)
                 act, J, R, x, u = _pair(J0, x0, N, d, act)
                 break
@@ -195,7 +195,7 @@ def interior(H, g, A, b, most=60):
 def _strong(A, act, grad):
     """The rows of `act` the level's own gradient `grad` presses on: multipliers of the task
     alone (G_act'u = -grad), not of the tie-break - its own held rows' multipliers, frozen, pinned
-    each sole's centre of pressure to an edge, the next step to the other (a shove, 2026-10-10)."""
+    each sole's centre of pressure to an edge, the next step to the other (a shove)."""
     if not act:
         return []
     Ga = A[list(act)]
@@ -248,7 +248,7 @@ def stack(E, e, G, h, levels, warm=(), eps=EPS):
         gz = np.concatenate([-(AZ.T @ r) - low * (LZ.T @ lr), np.zeros(ns)])
         Aq = [np.hstack([Gl[at] @ Z, np.zeros((len(at), ns))])]
         # Met by the level above to its tolerance: a row over by 1e-9 that the null space left
-        # cannot move made the third level infeasible (a shove, 2026-10-10).
+        # cannot move made the third level infeasible (a shove).
         room = hl[at] - Gl[at] @ x
         bq = [np.maximum(room, 0.0) if held else room]
         if ns:

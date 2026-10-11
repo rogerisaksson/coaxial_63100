@@ -11,7 +11,7 @@ The step that catches her is the walker's (`machine.landing`). The trunk rolled 
 #: shoulders raised ARMS_DEG and the elbows bent ELBOWS_DEG; in over IN_S, out over OUT_S. Named
 #: apart from gait's ROLL_DEG and falls' WAIST_DEG: a knob sets the first module holding it. Held
 #: of 48 shoves of 60 N: still 24; the arms 15 and 20 22, 30 and 30 11; rolled 12 either way 0,
-#: the waist 5 lost 3 of 16 (2026-10-01).
+#: the waist 5 lost 3 of 16.
 TRUNK_DEG, FACE_DEG, ARMS_DEG, ELBOWS_DEG, IN_S, OUT_S = 0.0, 0.0, 15.0, 20.0, 0.12, 0.5
 
 

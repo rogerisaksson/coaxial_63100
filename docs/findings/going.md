@@ -1,7 +1,7 @@
 # Findings: one going law
 
 Stand, walk and run as the setpoints of one law (`machine/going.py` over
-`gaits.py`, `hold.py` and `strut.py`; `tools/sim/go.py`; 2026-10-05): the
+`gaits.py`, `hold.py` and `strut.py`; `tools/sim/go.py`): the
 law, what a walk and a stand asked of it, what it walks and runs at. The walk
 as built: [walk](walk.md); the run: [run](run.md); the page's standing law:
 [standing](standing.md), [turns](turns.md). On the page under J, S and F its
@@ -9,8 +9,6 @@ rows;
 `tools/sim/ways.py` is its spread of timings.
 
 ## The law
-
-2026-10-05:
 
 - A limb bears or is free. What bears carries the pelvis: its height the
   bounce's (from where and how fast the body came down on the foot to a
@@ -40,7 +38,7 @@ rows;
 
 ## What a walk asked of the law
 
-Each from a trace (2026-10-05):
+Each from a trace:
 
 | Fault | Fix |
 | --- | --- |
@@ -55,7 +53,7 @@ Each from a trace (2026-10-05):
 
 ## Walk searches
 
-CMA-ES through the relay (2026-10-05):
+CMA-ES through the relay:
 
 | Search | Rows | Walked | Best |
 | --- | --- | --- | --- |
@@ -76,7 +74,7 @@ CMA-ES through the relay (2026-10-05):
 
 - The rows mixed in a straight line over 4 s: across both ways on the
   setpoints alone, and down 3.6 s into the run, 1.9 s into the walk; the row
-  half-way is no gait, down at 2.8 s begun on it (2026-10-05).
+  half-way is no gait, down at 2.8 s begun on it.
 - A row between found (cost: what of two passages it was not up for, walk to
   run in 3 s and back): 432 rows, 14 up through both. On the best: walks
   0.90 m/s, runs 1.45, walks 0.95 again, 22 s, the passages a second long,
@@ -89,7 +87,7 @@ CMA-ES through the relay (2026-10-05):
 
 ## In main
 
-2026-10-05, the boards as built:
+The boards as built:
 
 | Row | m/s | J/m | Mean W | Median W | 95 % kW | Max kW |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -101,7 +99,7 @@ the search.
 
 ## Stand on the law
 
-`hold.py` (2026-10-05):
+`hold.py`:
 
 - The standing legs lean the body toward where its capture point is asked:
   over the middle of the feet standing, ahead by the asked speed over the
@@ -139,8 +137,7 @@ the search.
 
 ## Shoves
 
-`go.py --shove`, the page's 38 and 120 N for 0.12 s from eight ways
-(2026-10-05):
+`go.py --shove`, the page's 38 and 120 N for 0.12 s from eight ways:
 
 | State | Nudged 38 N | Shoved 120 N |
 | --- | --- | --- |
@@ -155,7 +152,7 @@ its hold, and steps again. Not in the law.
 
 ## Steps and the jog
 
-- One rule for a walk's steps and a run's (2026-10-05): a foot leaves `both`
+- One rule for a walk's steps and a run's: a foot leaves `both`
   s after the other landed and, `both` under 0, by as much before that one
   is due; the run's stance of `stand` s is the same rule. The free foot is
   due the other's `step` on, and by where the body is the more both feet
@@ -187,7 +184,7 @@ its hold, and steps again. Not in the law.
 
 ## Between two gaits
 
-Their mix is no gait; a third row is (2026-10-05). From the jog, each of the
+Their mix is no gait; a third row is. From the jog, each of the
 walk's shares taken alone and held:
 
 | Taken | Result |
@@ -222,7 +219,7 @@ walk's shares taken alone and held:
 
 ## Ways over a spread
 
-`tools/sim/ways.py`, 92 trials (2026-10-05):
+`tools/sim/ways.py`, 92 trials:
 
 | Way | Up |
 | --- | --- |
@@ -242,14 +239,14 @@ walk's shares taken alone and held:
 
 ## Under the director
 
-`machine/pace.py` (2026-10-05): standing settled in the arrival's stand, a
+`machine/pace.py`: standing settled in the arrival's stand, a
 pace asked, the law takes the body where it is, its legs standing where the
 body's are, its setpoints eased from the director's over 0.3 s. From the
 squat: rose, stood, walked 0.82 m/s, jogged, ran 1.5 m/s from 36 to 44 s,
 back at the jog at 50. Down, the director's fall and get-up take over; risen,
 the body stands for the law again.
 
-- The walk's row had two walks (2026-10-05). Asked 0.76 m/s: 0.81, the knee
+- The walk's row had two walks. Asked 0.76 m/s: 0.81, the knee
   landing at 18 deg, a step 0.49 s, the feet placed at the row's reach 0.33
   m ahead; or 0.64 m/s, the knee landing at 28 deg, a step 0.54 s, the feet
   0.28 m ahead (slow, the law placed them nearer to speed up, and nearer
@@ -267,7 +264,7 @@ the body stands for the law again.
 
 ## On the page
 
-`terminal/views/humanoid_keys.py` (2026-10-05):
+`terminal/views/humanoid_keys.py`:
 
 - J hands the going to the law at its walk (landed anew, risen, standing,
   then on); S and F step the asked row: the stand, two slow walks, the walk,
@@ -277,8 +274,8 @@ the body stands for the law again.
   and not swinging at the sides. The walk as built's again until the law's
   is a woman's.
 - On the walk as built the keys moved its cadence 0.60-0.90 strides/s,
-  0.39-0.72 m/s (the meter two cells down and one up); to 1.0 since
-  2026-10-06: 0.90 m/s, four minutes on at it with the hottest drive at 0.35
+  0.39-0.72 m/s (the meter two cells down and one up); to 1.0 now:
+  0.90 m/s, four minutes on at it with the hottest drive at 0.35
   of its span; 1.0-1.08 m/s at 1.05; down in 2 s at 1.10.
 - On the law, driven as the keys drive it: walked 0.6-0.8 m/s, the jog, the
   run 1.3-1.7 m/s for 10 s, stood again at 60 s; walking 200 s the hips'
@@ -287,7 +284,7 @@ the body stands for the law again.
 
 ## Against a woman's walk
 
-[normal](normal.md), `tools/sim/normal.py` (2026-10-05): 4.1 off the band
+[normal](normal.md), `tools/sim/normal.py`: 4.1 off the band
 where the walk as built 2.0. Swinging knee 26 deg (52-78); 12 as its toes
 leave (30-60); the heel 1.5 deg up then (28-62); the pelvis rolling 1.9 and
 turning 0.9 deg (5-15, 4-22); the feet 0.29 legs apart (0.02-0.22); the step
@@ -312,7 +309,7 @@ pelvis's roll none at a landing, the spine against it.
 
 ## A woman's walk on the law
 
-`gaits.WALK`, `QUICK` (2026-10-06):
+`gaits.WALK`, `QUICK`:
 
 - On the walk as built's time (a step 0.59 s, both feet down 0.16-0.20 s of
   it, the free foot's reach 0.32 m): the standing heel rises 28-38 deg by its
@@ -342,7 +339,7 @@ pelvis's roll none at a landing, the spine against it.
 
 ## Falls on the way and their fixes
 
-Each by trace (2026-10-06):
+Each by trace:
 
 | Fault | Fix |
 | --- | --- |
@@ -363,8 +360,8 @@ on its list from the first).
 
 ## The strut a row's setpoint
 
-`strut`, deg: the standing knee the pelvis is never over, 6 the form's
-(2026-10-06); bent more, the row draws less, and where its drives pay:
+`strut`, deg: the standing knee the pelvis is never over, 6 the form's;
+bent more, the row draws less, and where its drives pay:
 [straight](straight.md). Asked 0.6 m/s on the walk's step time: 0.59 at
 848 J/m, a step 0.39 legs, the walk ratio 0.73 where 1.1-1.8, the heel 7 deg
 up as its toes leave; stiff 0.61, shuffling 0.67, tripping 0.53: a shuffle
@@ -373,7 +370,7 @@ slow walks keep the walk's time.
 
 ## What the walk draws, by joint and phase
 
-2026-10-06; the draw is the drives' work, braking returning nothing, plus
+The draw is the drives' work, braking returning nothing, plus
 their copper's heat and the boards' own 53 W. At 0.84 m/s, 570-582 J/m: 279
 of work, 229 copper, 63 the boards'; 196 braked (the knees 85 worked and 80
 braked, the ankles 108 and 74, the hips 69 and 32).

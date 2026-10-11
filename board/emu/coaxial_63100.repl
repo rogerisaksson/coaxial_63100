@@ -5,7 +5,7 @@ nvic:
     systickFrequency: 475000000
 
 // The board's 25 MHz crystal: the model assumes 8, and the core it works out from the PLL
-// then runs at 0.32 of what the firmware set (2026-09-25).
+// then runs at 0.32 of what the firmware set.
 rcc:
     hseFrequency: 25000000
 
@@ -14,7 +14,7 @@ dwt:
 
 // The USARTs' kernel clock, PCLK1 at 118.75 MHz (coaxial_63100.ioc): the model's 125 MHz ran
 // USART3's BRR 1031 at 121 241 baud against the part's 115 179. Its OVER8 reads BRR raw, the
-// RS485 ports 0.34 % fast still (2026-09-28).
+// RS485 ports 0.34 % fast still.
 usart2:
     frequency: 118750000
 

@@ -37,8 +37,8 @@
 /* A reply is the register asked up to three packets before it, not the one
    before as the manual's read cycle has it: on the bench a read's second
    packet answered the read before it, a few instructions behind its first,
-   1 us or 200 us - TSEN with ANG's twelve bits, a die at -241.77 C
-   (2026-10-05). A read asks four times; the poll drops its first two replies
+   1 us or 200 us - TSEN with ANG's twelve bits, a die at -241.77 C.
+   A read asks four times; the poll drops its first two replies
    behind another register's. */
 #define ANGLE_ASKS       4U
 #define ANGLE_STALE      2U

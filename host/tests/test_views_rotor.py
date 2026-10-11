@@ -227,7 +227,7 @@ def test_the_foot_carries_the_policy(report):
                           'vq': 1.0, 'vdc': 24.0},
                 'params': {}, 'winding_at': None, 'ident': ident}
 
-    # The margin is a number the board sends, continuous since 2026-09-06;
+    # The margin is a number the board sends, continuous;
     # these three are what the states meant while it was three steps.
     IDENT_MARGIN = {'UNCERTAIN': 0.80, 'CONVERGING': 0.90, 'STABLE': 1.0}
     stable = {'state': 'STABLE', 'margin': 1.0}
@@ -304,7 +304,7 @@ def test_the_foot_carries_the_policy(report):
 def test_the_foot_says_trip_while_the_cap_holds(report):
     """`TRIP 72%` in the trip's red while the trip cap holds the margin
     under the floor, whatever the model's state - the bench seeing STBL
-    at 70 % of SOA (2026-09-08), a number no state can give; the state's
+    at 70 % of SOA, a number no state can give; the state's
     own word with the percent in force once the cap is over the floor -
     the bench's point that it must let go of TRIP once over 80 %, its
     line being `WINDING 97.7 C TH OBS TRIP 89%` (the same day); and the

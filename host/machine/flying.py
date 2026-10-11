@@ -20,8 +20,7 @@ and the thrust is what of it all its discs give where they point; turned over, t
 weight. A figure is a row of `machine.aerobatics`; nothing here knows one from another.
 
 A row's height told from an eased one by what it moved a pass, a pass of 50 ms took the landed
-row for 9.6 m/s and its end for a pull of 100 m/s^2: the frame left the floor for 3 m
-(2026-10-05).
+row for 9.6 m/s and its end for a pull of 100 m/s^2: the frame left the floor for 3 m.
 """
 import math
 
@@ -29,56 +28,56 @@ from machine.figure import mul, rx, rz, t
 from machine import quad, thrusts
 
 #: The altitude loop's gain on its rate, 1/s: both its poles at KD / 2, 5 rad/s. At 2 rad/s on
-#: the height alone the lift trailed its ramp 0.4 m and the hold crept 3 s down to its mark
-#: (2026-10-05); the raw lap's search 12.8 (2026-10-10).
+#: the height alone the lift trailed its ramp 0.4 m and the hold crept 3 s down to its mark;
+#: the raw lap's search 12.8.
 KD = 12.8
 
 #: The attitude's, 1/s^2 and 1/s, on its tilt and its heading and their rates. A rotor 5 % weak
-#: held the frame 5 degrees over on the tilt's loop alone and walked it 8 m in a hover
-#: (2026-09-28). The heading's torque is the discs' drag, 0.5 N m in a hover: at 16 and 8 a
-#: pirouette of 180 deg/s swung the rotors 1 470-2 080 rpm at the clamp, both ways
-#: (2026-10-05). The tilt's at 60 and 12, its miss answered to 0.6 rad, brought a lean round
+#: held the frame 5 degrees over on the tilt's loop alone and walked it 8 m in a hover.
+#: The heading's torque is the discs' drag, 0.5 N m in a hover: at 16 and 8 a
+#: pirouette of 180 deg/s swung the rotors 1 470-2 080 rpm at the clamp, both ways.
+#: The tilt's at 60 and 12, its miss answered to 0.6 rad, brought a lean round
 #: at 3 rad/s: asked a speed rising and falling 20 m/s^2 every 0.9 s the frame was 5-12 m/s
 #: under it at each turn, and 5 m/s under its lap's plan out of a bend; at 140 and 20 and
 #: 1.2 rad 2-6, a lap 14.9 and 14.4 s where 15.5 and 15.2, a gate 0.48 m off where 0.67, the
-#: four boards' envelopes as before; at 200 and 24 it flew into the floor (2026-10-06), its
+#: four boards' envelopes as before; at 200 and 24 it flew into the floor, its
 #: rotors taken to lag 80 ms past their spool where the boards' lag one pass; the raw lap's
-#: search 201 and 17 (2026-10-10).
+#: search 201 and 17.
 TILT_KP, TILT_KD, YAW_KP, YAW_KD = 201.0, 17.0, 4.0, 4.0
 
 #: Along the floor: the spot's loop, 1/s^2 and 1/s - at 4 and 3.2 an orbit's bank rang 19-31
-#: degrees on 14 of margin (2026-10-05); at 1 and 1.6 a raw lap ran 2 m off its line, the
-#: search's 1.95 and 2.94 (2026-10-10); its spot goes to its place at this gain, 1/s, this
+#: degrees on 14 of margin; at 1 and 1.6 a raw lap ran 2 m off its line, the
+#: search's 1.95 and 2.94; its spot goes to its place at this gain, 1/s, this
 #: fast at most, m/s.
 SPOT_KP, SPOT_KD = 1.95, 2.94
 HOME_K, HOME_M_S = 1.5, 3.0
 
 #: The rotors' collective at most, of their top: at every rotor's cap the tilt's loop had
-#: nothing left to turn with, and a rotor 5 % weak flipped the frame (2026-09-28). And what
+#: nothing left to turn with, and a rotor 5 % weak flipped the frame. And what
 #: it is sped up on at least, of its weight, whatever the boards' envelopes leave: a
 #: landing's. The collective itself held to their share, a burn's stop lost it as the burn
-#: spent it and pressed the skids 2 cm into the floor (2026-10-05).
+#: spent it and pressed the skids 2 cm into the floor.
 HEADROOM, LEAST = 0.9, 1.5
 
 #: A height is flown to braked at this share of what the rotors' headroom gives - rising, of
 #: gravity: the rest is the rotors' spool's, begun KD's band ahead of the speed. Scheduled once
 #: at full thrust a burn stopped 0.86 m up; begun at 85 %, the rotors spooled from idle on a 50
 #: A clamp, the switches at 0.95 of the envelope throttled, and a flight burned into the floor
-#: at 9.7 m/s (2026-09-28). Asked the pull that stops it, the spool's allowance kept through
+#: at 9.7 m/s. Asked the pull that stops it, the spool's allowance kept through
 #: the burn, it stopped 0.44 m up and crept 3 s to its mark; the allowance as much of the spool
-#: as was yet to make, it braked at 0.9 g of its 1.5 and crept as long (2026-10-05).
+#: as was yet to make, it braked at 0.9 g of its 1.5 and crept as long.
 BRAKE_SHARE = 0.55
 
 #: A pace is come to and stopped from in this long, s, stopped sooner only as its height needs:
-#: at 3 m/s down on the rotors' share it braked 1.2 g in a pass, and came to 2 m/s up at 1.3 g
-#: (2026-10-05). The thrust itself slewed to that pull, 15 N/s in a hover, the altitude loop
-#: swung 0.4 m about its height and never held (2026-10-05).
+#: at 3 m/s down on the rotors' share it braked 1.2 g in a pass, and came to 2 m/s up at 1.3 g.
+#: The thrust itself slewed to that pull, 15 N/s in a hover, the altitude loop
+#: swung 0.4 m about its height and never held.
 PACE_S = 1.0
 
 #: A rotor's run down from its top on its propeller's drag alone, s: the can's and a 16x14's
 #: 4.5e-4 kg m^2 over K_DRAG at 700 rad/s. Asked less than their idle the rotors
 #: come to it no faster: stepped to it, the loops braked at the clamp and spent 0.16-0.25 of
-#: the envelope, on the floor and ahead of a burn (2026-10-05).
+#: the envelope, on the floor and ahead of a burn.
 RUNDOWN_S = 0.155
 
 #: A turn leaves the whole one and comes to it at this gain, 1/s, on how far from it it is: at
@@ -96,7 +95,7 @@ NONE = 0.5
 #: discs for. Answered whole, a lean turned back through a quarter turn asked more than they
 #: slew, the tilt swung wider each time - 75, 87, 121 degrees on the page's boards, 4 m of
 #: height gone; on rotors 0.12 s and 500 rad/s^2 to a speed three laps of six ended over, none
-#: at this (2026-10-06).
+#: at this.
 TILT_MISS = 1.2
 
 #: The air is learnt in this long, s, off the floor - OFF_M up, where the floor's own push is
@@ -105,7 +104,7 @@ TILT_MISS = 1.2
 #: of it is the air's lift. A wind is told to nothing here. Unlearnt, a wind of 3.9 m/s held a
 #: hover 0.68 m off its spot - the spot's loop is 1 /s^2 - and none of its waits was `held`;
 #: its push learnt and not the wind, a lap in that wind passed a gate 0.65 m off where 0.37
-#: in still air: the push turns with the frame's own speed through a bend (2026-10-06).
+#: in still air: the push turns with the frame's own speed through a bend.
 AIR_S, OFF_M = 0.12, 0.03
 
 #: What it is doing where it is asked a height far under it: let fall, burning.
@@ -116,7 +115,7 @@ FLOOR = 'floor'
 
 #: The thrusts shared 1 as her whole-body law's levels under bounds, 0 by hand
 #: (`machine.thrusts`): the stack 0.3 s a lap slower on the boards, a strike more in 12
-#: flights (docs/findings/quad.md, 2026-10-11).
+#: flights (docs/findings/quad.md).
 STACKED = 0.0
 
 #: The law's constants that have a unit, each by the powers of its metres and its seconds:
@@ -182,7 +181,7 @@ class Flying:
 
     def rate(self):
         """The climb asked, m/s, its pace at most: an eased row's own past it was 9.9 m/s down
-        where it went 2 (2026-10-10)."""
+        where it went 2."""
         a = self.ask
         return max(-a['pace'], min(a['pace'], a['climb']))
 
@@ -270,7 +269,7 @@ class Flying:
         drag - what it slows by over its rotors' thrust, as the air along the discs leaves it,
         0.5 rho CdA |u| u of its speed u through the air, solved for u on its own climb - and
         the air's lift, what it rises by over that drag's own part up. On the rotors' speeds'
-        thrust alone it learnt the inflow's loss for a wind, against it (2026-10-10)."""
+        thrust alone it learnt the inflow's loss for a wind, against it."""
         vel, k = [float(x) for x in frame['vel']], 0.5 * quad.RHO * quad.BODY_CDA / quad.MASS_KG
         lift = frame['lift'] * quad.inflow(self.along, quad.speed_for(frame['lift'] / 4.0))
         took = [lift / quad.MASS_KG * turn[axis][1] - (quad.GRAVITY if axis == 1 else 0.0)
@@ -319,7 +318,7 @@ class Flying:
         self.aired(frame, turn, dt)
         up_pull, self.doing = self.climb(frame['h'], frame['v'], reach - quad.GRAVITY)
         # the air's lift as learnt, its drag on the climb flown: a 10 m/s dive at 20 held it 9
-        # m/s^2, the frame 2.5 m over its line at the dive's foot (2026-10-10)
+        # m/s^2, the frame 2.5 m over its line at the dive's foot
         up_pull += self.air * self.rate() - self.lifted
         self.most = math.sqrt(reach * reach - quad.GRAVITY * quad.GRAVITY)
         cap, light = min(a['lean'], self.most), a['light'] * quad.GRAVITY
@@ -348,7 +347,7 @@ class Flying:
         want = mul(tuple(zip(across, up, ahead)), mul(rz(self.turns[0]), rx(self.turns[1])))
         # the tilt's loop on where the discs' axis is of where it is wanted, in the frame's own
         # axes - whatever its nose's miss: on the whole attitude's, a nose 66 degrees behind its
-        # heading turned the tilt's torque 33 degrees round and the frame went over (2026-10-05)
+        # heading turned the tilt's torque 33 degrees round and the frame went over
         miss = mul(t(want), turn)
         tilt = (-miss[1][2], 0.5 * (miss[0][2] - miss[2][0]), miss[1][0])
         less = min(1.0, TILT_MISS / max(1e-9, math.hypot(tilt[0], tilt[2])))

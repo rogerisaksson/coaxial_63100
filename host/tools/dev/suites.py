@@ -7,7 +7,7 @@ ROOT = Path(__file__).resolve().parents[2]           # host/
 STRUCTURE = 'test_structure.py'
 
 #: The structure family, first in every run: host/ holding together, the tree's shape, the
-#: firmware and the host agreeing - one 17 k-token file before (2026-09-28).
+#: firmware and the host agreeing - one 17 k-token file before.
 STRUCTURES = (STRUCTURE, 'test_layout.py', 'test_mirrors.py', 'test_wire_shapes.py',
               'test_wire_requests.py', 'test_protocol_doc.py')
 
@@ -25,7 +25,7 @@ THERMAL, THERMAL_APP = 'test_thermal_core.py', 'test_thermal_app.py'
 
 #: The acquisition engine as the C that will run on the board - the
 #: ring, the window, the ladder, the tone, the live accumulator -
-#: hardware-free since 2026-09-14 and, until then, tested only by the
+#: hardware-free; before, tested only by the
 #: bench after a flash.
 DAQ_CORE = 'test_daq_core.py'
 BOARD_MEM = 'test_board_mem.py'
@@ -90,7 +90,7 @@ DAQ_API = 'test_daq_api.py'
 BOOT = 'test_boot.py'
 
 #: Every live view against the stand-in, by subject: a file a subject, each under the token
-#: budget (tools/dev/token_budget.py); one 32 k-token file before (2026-09-28).
+#: budget (tools/dev/token_budget.py); one 32 k-token file before.
 VIEWS = ('test_views_terminal.py', 'test_views_front.py', 'test_views_rotor.py',
          'test_views_drawing.py', 'test_views_gauges.py', 'test_views_thermal.py',
          'test_views_demo.py', 'test_views_segments.py',
@@ -178,7 +178,7 @@ JOINS = (
     (20, WIRE),
     (20, SENSORLESS),
     (35, 'test_parity.py'),
-    # Renode and the image: 47 s, 420 MB (2026-09-25).
+    # Renode and the image: 47 s, 420 MB.
     (40, EMULATOR),
     # The SIL/HIL engine, not a validation: a compiler and two seconds of real time.
     (40, NATIVE),
@@ -225,8 +225,8 @@ ALONE = (BENCH, CONFORMANCE, LIVE)
 
 #: Suites that hold a board to the wall's time, a page drawing beside it: alone where the host
 #: has four batons or fewer - CI's runner stood native's attitude page 4.7-8.3 s beside the
-#: others while it drew on (2026-09-28); the rotor demo's switches spent 16.3 % of their
-#: margin where 20 is asked, test_room beside it (CI, 2026-10-11).
+#: others while it drew on; the rotor demo's switches spent 16.3 % of their
+#: margin where 20 is asked, test_room beside it (CI).
 REAL_TIME = (NATIVE, NATIVE_HEAT, QUAD_PAGE, 'test_views_demo.py')
 
 #: Suites that may reach the board's port: one at a time, beside the rest.
@@ -239,18 +239,18 @@ SHARDED = (SENSORLESS, CONTROLLER, GYNOID, GYNOID_FAULTS, GYNOID_FALLS, GYNOID_S
            QUAD_PAGE)
 
 #: A sharded suite's seconds where none are recorded (tests/.counts.json, not committed): CI's
-#: checkout ran test_gynoid_falls.py whole, 532 s here, and its 300 s cut it (2026-10-01); with
-#: its get-ups after a fall 540 + 2 x 38 (2026-10-03); their starts hot after a minute's walk
-#: 822 here, 886 on CI's runner in two shards of 443, each cut at 300 (2026-10-04).
-#: The gait suite 209 s here whole (2026-10-05), its three tests a robot each in shards; the
+#: checkout ran test_gynoid_falls.py whole, 532 s here, and its 300 s cut it; with
+#: its get-ups after a fall 540 + 2 x 38; their starts hot after a minute's walk
+#: 822 here, 886 on CI's runner in two shards of 443, each cut at 300.
+#: The gait suite 209 s here whole, its three tests a robot each in shards; the
 #: going suite 427 s, a way asked over two or three timings; the quad's page 211 s, a flight
 #: a shard.
 FRESH_S = {GYNOID_FALLS: 850.0, GYNOID_GAIT: 450.0, GYNOID_GOING: 430.0, QUAD_PAGE: 250.0}
 
 #: The emulator's groups and each one's time, s, a Renode each: the rig's took 150 of the
-#: suite's 211 one after another here, and CI's runner ran the Release image's past 240
-#: (2026-09-27). The blank node's, its image streamed at the emulator's pace, 157 to past 480
-#: on CI's runner against 133 here (2026-09-28).
+#: suite's 211 one after another here, and CI's runner ran the Release image's past 240.
+#: The blank node's, its image streamed at the emulator's pace, 157 to past 480
+#: on CI's runner against 133 here.
 EMULATOR_GROUPS = {'board': 480, 'blank': 900, 'conformance': 480, 'bus': 480,
                    'fallback': 480}
 

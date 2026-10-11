@@ -66,7 +66,7 @@ void drive_sincos(float theta, float *s, float *c)
 float drive_tanh(float x)
 {
   /* 13/6 odd over even past the clamp where a float's tanh is 1: libm's tanhf took expm1f
-     and its errno path from the plant twice a step (2026-10-10). */
+     and its errno path from the plant twice a step. */
   const float c = fminf(fmaxf(x, -7.90531110763549805f), 7.90531110763549805f);
   const float c2 = c * c;
   const float p = c * (4.89352455891786e-03f + c2 * (6.37261928875436e-04f
@@ -82,8 +82,8 @@ float drive_tanh(float x)
 float drive_atan2(float y, float x)
 {
   /* An eleventh-order odd polynomial on [0, 1] after folding into the octant,
-     1.7e-6 at the worst point: the library's was called four times a period
-     (2026-09-27). */
+     1.7e-6 at the worst point: the library's was called four times a period.
+     */
   const float ay = fabsf(y);
   const float ax = fabsf(x);
 

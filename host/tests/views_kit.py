@@ -53,7 +53,7 @@ VIEW_TIMEOUT = 120
 def run_view(name):
     """One view run against the stand-in for two frames; its whole process
     tree killed at the timeout - a view's crew workers held the captured
-    pipe otherwise, and the suite sat on it (2026-09-13)."""
+    pipe otherwise, and the suite sat on it."""
     from tools.dev.runner import run_captured
     where = 'terminal' if name == 'menu.py' else os.path.join('terminal', 'views')
     done = run_captured(

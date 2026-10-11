@@ -11,7 +11,7 @@ stance foot is held where it landed and the pelvis set from it; a swing foot is 
 capture point, a step's own offset out from it, and feet are swapped when that would cross them;
 the pelvis's attitude and its sideways error are turned back past the plan. Narrow on the line,
 the legs stand in a V and the body is an inverted pendulum on them: without the feedback she fell
-in two seconds (2026-09-25).
+in two seconds.
 """
 import math
 
@@ -24,28 +24,27 @@ from machine.figure import LEG, add, mul, rx, ry, rz, t
 #: the plan, 1. With the gait's shape, the finest of 576 walks at 0.65, 0.8 and 0.9 strides/s,
 #: judged by the stance knee's bend, the landing's peak, the pelvis's shake, the head's travel
 #: and the copper's heat: bend 11.7 -> 5.7 degrees past 5, peak 2.9 -> 2.2 body weights, head
-#: 8.5 -> 6.0 cm, heat 0.47 -> 0.29 and work 0.60 -> 0.35 m g d (2026-09-26). Driven by the
+#: 8.5 -> 6.0 cm, heat 0.47 -> 0.29 and work 0.60 -> 0.35 m g d. Driven by the
 #: capture point's error from the plan's place and speed instead, 1.2 of it, the standing foot
-#: slid 20 cm after a shove; by what it is off the walk's course alone, she fell in 1.4 s
-#: (2026-09-26). SIDE_K and SIDE_D retuned (`physics.STAGED`).
+#: slid 20 cm after a shove; by what it is off the walk's course alone, she fell in 1.4 s.
+#: SIDE_K and SIDE_D retuned (`physics.STAGED`).
 SIDE_K, SIDE_D, TURN_K = 0.218864, 0.0809803, 1.42
 
 
 #: The pelvis's forward target within LURCH_M of the pelvis, m, and moved from it no faster
 #: than LURCH_M_S: a foot put down short of the plan's spot had the phase race to catch up and
 #: the target run off at 2 m/s; landed 5 cm short after a shove, the target moved 5 cm back in
-#: 30 ms, the landed knee snapped straight and threw her 5 cm up (2026-09-26).
+#: 30 ms, the landed knee snapped straight and threw her 5 cm up.
 LURCH_M, LURCH_M_S = 0.15, 0.3
 
 
 #: In single support the pelvis goes CG_OVER of the way out over the standing foot: on the line
-#: it hung 5-43 mm to the swinging side (2026-09-28).
+#: it hung 5-43 mm to the swinging side.
 CG_OVER = 0.0
 
 
 #: In a side step the attitude is turned back past its error by no more than SIDE_TURN_RAD: the
-#: legs are solved for the turned pelvis, and 8 degrees of it dragged the planted foot 12 cm
-#: (2026-09-26).
+#: legs are solved for the turned pelvis, and 8 degrees of it dragged the planted foot 12 cm.
 SIDE_TURN_RAD = 0.035
 
 
@@ -59,24 +58,24 @@ SPEED_S = 0.005
 
 #: The pelvis is driven across no further than SOLE_M from where it is, m - what the ankle can do
 #: on the sole: asked 10 cm across after a side step, the ankle saturated, the foot tipped on its
-#: edge and threw her up (2026-09-26).
+#: edge and threw her up.
 SOLE_M = 0.035
 
 
 #: The ankle's sideways drive is let go as the capture point leaves the standing feet's soles by
 #: HOLD_M, m, the damping kept: driven over a wide foot the capture point was 13 cm inside of,
-#: the leg leaned her on over it (2026-09-26).
+#: the leg leaned her on over it.
 HOLD_M = 0.07
 
 
 #: How much of the pelvis's pitch the spine takes back out: riding the pelvis, the torso
-#: pitched 8 degrees a step and the head bobbed 9 cm (2026-09-25).
+#: pitched 8 degrees a step and the head bobbed 9 cm.
 PLUMB = 1.0
 
 
 #: The joints that law sets, not eased in from what she was held at: the arrival holds her torso
 #: by it too, and eased in, the spine froze at the hand-off while the pelvis tipped 3 degrees on
-#: and the torso swung 9.4 -> 12.1 -> 8.3 (2026-09-28).
+#: and the torso swung 9.4 -> 12.1 -> 8.3.
 PLUMBED = ('spine', 'neck')
 
 
@@ -84,12 +83,12 @@ PLUMBED = ('spine', 'neck')
 #: leg's stride and each half stride on, as far forward between, less on a shorter stride - her
 #: head carried on at an even speed, the pendulum between her ears still (`machine.pendulum`).
 #: At 2 degrees, SWAY_K 1: the pendulum's stir over 30 s at 0.85 and 0.9 strides/s 4.3, 4.9 ->
-#: 1.7, 1.9 mm, but rising and gliding to another pace she fell three times in four
-#: (2026-09-26). 3.9 from a search over the scoreboard's twelve trials: the walks' stir 4.4 ->
+#: 1.7, 1.9 mm, but rising and gliding to another pace she fell three times in four.
+#: 3.9 from a search over the scoreboard's twelve trials: the walks' stir 4.4 ->
 #: 2.4 mm, the rises and the shoves held as before, 3.5-4.5 alike. Off: at 3.9 the torso
 #: nodded 7.6 degrees a stride to hold the head's fore-aft to 24 mm where the pelvis surges 65
 #: (the collision at every touchdown, -0.25 m/s), a head out of step with the body to the eye;
-#: the pendulum, which cannot tell a nod from a smooth ride, 1.2 -> 3.5 mm (2026-09-27).
+#: the pendulum, which cannot tell a nod from a smooth ride, 1.2 -> 3.5 mm.
 SURGE_DEG, SURGE_AT = 0.0, 0.125
 
 
@@ -98,25 +97,25 @@ SURGE_DEG, SURGE_AT = 0.0, 0.125
 #: between them. Only the swinging foot spread, the plan put her pelvis over the spread stance
 #: foot, and she swayed off it; narrowed with the stride over 2.5 s, the third step lifted with
 #: the capture point 8 cm inside the standing foot, the legs driven 3.5 cm across had moved the
-#: pelvis 3 mm in 0.2 s, and she fell off it (2026-09-26).
+#: pelvis 3 mm in 0.2 s, and she fell off it.
 STAND_WIDE_M, WIDE_S = 0.06, 0.6
 
 
 #: The pendulum between her ears damped as a crane damps its load: her head moved toward the bob
 #: by SWAY_K of its offset, on and across, through the spine's pitch and roll
-#: (`machine.pendulum`). Moved by its drift too, the landings' jolts shook her down in 2 s
-#: (2026-09-26). With the torso's counter, 0.556 took the stir to 1.8 mm and 0.55 felled the walk
-#: at 0.9 in 4 s: off (2026-09-27). At 0.1 the head 53 -> 48.5 mm fore and aft a stride, the
-#: strike 1613 -> 1115 N, held 81.3 -> 87.9 %; 0.15 57 mm (2026-09-28).
+#: (`machine.pendulum`). Moved by its drift too, the landings' jolts shook her down in 2 s.
+#: With the torso's counter, 0.556 took the stir to 1.8 mm and 0.55 felled the walk
+#: at 0.9 in 4 s: off. At 0.1 the head 53 -> 48.5 mm fore and aft a stride, the
+#: strike 1613 -> 1115 N, held 81.3 -> 87.9 %; 0.15 57 mm.
 SWAY_K = 0.1
 
 
 #: Her shoulders kept over the walk's line while her hips sway: the spine rolls against the
 #: pelvis's offset from the feet's midline, SHOULDERS_BACK of it taken back at the shoulders,
 #: SHOULDERS_M up the torso. At 0.5 the shoulders 31.8 -> 26.7 mm across to the hips' 44.9, but
-#: held 79.5 %, with the pendulum 73.2 (the walk at 0.65 fell); 0.25 with it caught 13 times
-#: (2026-09-28). On the skimming swing 0.3 holds 100 %, the stir 2.11 -> 1.87 mm (2026-09-28).
-#: With the turn at 4 and dropped 6, 0.25 held 78.5 % where 0.3 66.0; 0.4 fell (2026-09-30).
+#: held 79.5 %, with the pendulum 73.2 (the walk at 0.65 fell); 0.25 with it caught 13 times.
+#: On the skimming swing 0.3 holds 100 %, the stir 2.11 -> 1.87 mm.
+#: With the turn at 4 and dropped 6, 0.25 held 78.5 % where 0.3 66.0; 0.4 fell.
 SHOULDERS_BACK, SHOULDERS_M = 0.25, 0.335
 
 
@@ -132,7 +131,7 @@ class Walker:
     def reset(self):
         """Every state of a walk as before the first, landed anew (`Director.begin`): kept from
         a fall, the pelvis lowered 12 cm and the speed read from 3.7 m back, the walk after a
-        restart ran 8-10 cm crouched and a sole bore 16 kN (2026-09-28)."""
+        restart ran 8-10 cm crouched and a sole bore 16 kN."""
         #: The walk's line, radians from the world's z about the vertical (`view`).
         self.heading = 0.0
         self.phase = 0.0
@@ -225,7 +224,7 @@ class Walker:
         self.scale = self.first
         if ball_ahead is not None:
             # No sooner than its heel strike: a catch landed further ahead came to -0.21, the
-            # phase wrapped into its swing and lifted the foot she was to stand on (2026-10-01).
+            # phase wrapped into its swing and lifted the foot she was to stand on.
             phase = max(0.0, min(gait.HEEL_OFF, gait.STANCE_AT
                                  + (gait.BALL - ball_ahead) / (gait.STRIDE_M * self.stride)))
             phase = phase if on == 'left' else (phase + 0.5) % 1.0
@@ -233,13 +232,13 @@ class Walker:
         self.lift, self.halting, self.length_was = None, None, None
         self.capture, self.side, self.resume, self.hurry = capture.state(), None, None, 0.0
         # Read a pass stale, a catch had the other foot, bearing where the new phase swung it,
-        # begin the walk again on itself (2026-10-01).
+        # begin the walk again on itself.
         self.catching, self.again = False, again
         self.rate, self.waited, self.lurch = self.cadence, 0.0, None
 
     def face(self, heading):
         """The walk's line turned to `heading`, radians, the pendulum read anew along it: read
-        on across the turn, the ears' track jumped by it and the first steps fell (2026-09-30)."""
+        on across the turn, the ears' track jumped by it and the first steps fell."""
         self.heading, self.pendulum = float(heading), Pendulum()
 
     def view(self, bus):
@@ -337,8 +336,8 @@ class Walker:
         # or last stood, TRACK_M in, weighed as the plan has it carry: between them on both, over
         # the standing one as the other lifts. About the midline alone, the wide first steps left
         # the capture point 3 cm inside the standing foot at toe-off and it ran off; about the
-        # swinging foot's landing, a wide landing drew the pelvis after it and itself wider
-        # (2026-09-26). Its error and its speed's, against the plan's own speed, turned back past.
+        # swinging foot's landing, a wide landing drew the pelvis after it and itself wider.
+        # Its error and its speed's, against the plan's own speed, turned back past.
         line = weight = 0.0
         for (side, sign), q in zip(walkplan.SIDES, qs):
             b = walkplan.carried(q)
@@ -351,8 +350,7 @@ class Walker:
         if self.side is not None and self.side['stage'] == 'out' and self.side['since'] == 0.0:
             # The foot put down takes the pelvis from where it is, as a landing does: from the
             # plan's height, 9 mm up, its leg hopped her off the floor; from a height still
-            # lowered for a catch, 3 cm down, its leg lifted it and she dropped onto it, 2100 N
-            # (2026-09-26).
+            # lowered for a catch, 3 cm down, its leg lifted it and she dropped onto it, 2100 N.
             self.lowered = min(stance.LOWER_M, height - pel[1])
         stands = [self.anchor[s][0] for s, _sign in walkplan.SIDES if s in self.anchor] or [pel[0]]
         out_by = max(0.0, min(stands) - HOLD_M - xi, xi - max(stands) - HOLD_M)

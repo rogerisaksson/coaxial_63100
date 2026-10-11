@@ -19,7 +19,7 @@ from tools.cores import fakeboard  # noqa: E402
 from tools.cores.build import find_cc  # noqa: E402
 
 CONFORMANCE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_conformance.py')
-#: 18 s measured on the laptop (2026-09-25), the harness's settle sleeps.
+#: 18 s measured on the laptop, the harness's settle sleeps.
 CONFORMANCE_S = 120
 
 
@@ -229,7 +229,7 @@ def test_the_acquisition_records_decode(report, rig):
     report.check('a software-clocked task\'s records decode to its layout, in time order',
                  len(records) >= 4 and all(names <= set(r) for r in records)
                  # the stamps are 32-bit cycles, round every 9.04 s at 475 MHz: a recording
-                 # across the wrap on CI (2026-10-11)
+                 # across the wrap on CI
                  and all(((y['at'] - x['at']) & 0xFFFFFFFF) < 2 ** 31
                          for x, y in zip(records, records[1:])),
                  '%d records, first %s' % (len(records), records[:1]))

@@ -7,7 +7,7 @@ Every innovation with its regressor, and the scales after each update.
 
 Builds `thermal/` with THERMAL_IDENT_TRACE, which puts a printf in
 `thermal_ident.c`'s update loop and nowhere else; the firmware build never
-defines it. FINDINGS' 2026-09-05 identification entry came from this trace,
+defines it. FINDINGS' identification entry came from this trace,
 not from the estimate, one line a sample:
 
     TRACE 1 e=+2.295 h=+4.889 +4.209 +2.705 +0.000  s=1.82 1.10 1.00 1.00

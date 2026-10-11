@@ -6,7 +6,7 @@ walking: [balance](balance.md); the board's findings:
 
 ## Rigs and the stand suite
 
-`machine.stand` (2026-10-04): the director holds the arrival's stand
+`machine.stand`: the director holds the arrival's stand
 `stand_s` (its keyframes lifted `up` onto two bricks, the left `stagger`
 ahead), the floor rigged under it (`machine.floor`: two bricks, a balance
 board hinged in the slab's gap, stiff at BOARD_K or free), and the events
@@ -43,8 +43,6 @@ staggered, a nudge on the board stiff and free).
 
 ## The standing step
 
-2026-10-04:
-
 - Out of the support (a point under each sole's centre; one once a foot has
   hung unloaded 0.1 s) the lighter foot is put down past the capture point
   as it will be at the landing, as the arrival's keyframes (0.1 s up, 0.12
@@ -74,8 +72,6 @@ staggered, a nudge on the board stiff and free).
 
 ## Bricks
 
-2026-10-04:
-
 - The brick's step down lands (the left to 0.18 m, 191 N, the pelvis 6 cm
   lower) and the body leans back off both feet 1 s on.
 
@@ -103,7 +99,7 @@ staggered, a nudge on the board stiff and free).
 
 ## One law for standing
 
-`machine.dcm` (2026-10-04): every special case a sign the problem needs a
+`machine.dcm`: every special case a sign the problem needs a
 more general form.
 
 - The capture point in the sole's hold: an ellipse 4 cm across and 8 along
@@ -129,7 +125,7 @@ more general form.
 
 `events.PUSH_DEG`, a push's way an angle in its plane; `gait_montecarlo
 --suite stand --grid events.PUSH_DEG=0,45
-events.SHOVES.shove=60,80,100,120`, 48 pushes over 8 ways (2026-10-04).
+events.SHOVES.shove=60,80,100,120`, 48 pushes over 8 ways.
 
 - The one law as first built: 20 of 48 stood (60 N 11 of 12; 80 N 9 of 12,
   none of 3 along its way; 100 and 120 N none of 24). It stood what the hold
@@ -232,7 +228,7 @@ events.SHOVES.shove=60,80,100,120`, 48 pushes over 8 ways (2026-10-04).
 
 ## Calves
 
-`arrival.CALF_DEG_M` (2026-10-05): nobody stands frozen; calves, thighs and
+`arrival.CALF_DEG_M`: nobody stands frozen; calves, thighs and
 toes balance in the small, the toes of little use in a shoe. Untouched, the
 capture point moved 0.0 mm a second. Nudged on the trunk for 0.1 s, its
 swing past its rest and back, and when it is still:

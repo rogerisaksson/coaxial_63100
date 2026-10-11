@@ -7,8 +7,8 @@
 The HIGH leg switches at the duty; the LOW leg and the third sit at
 zero, which with MOE set is the low-side FET on - so a load between
 the two sees the DC link for `duty` of every period. The pulse lasts
-as long as the second compare write takes to land: 15.5 ms measured
-2026-08-30, ~780 cycles at 50 kHz. It was 110 ms through rig.write(),
+as long as the second compare write takes to land: 15.5 ms measured,
+~780 cycles at 50 kHz. It was 110 ms through rig.write(),
 whose arm check and period lookup were three state reads at 31 ms
 each. From protocol 2.8 the board counts the pulse itself: --on
 rides as a period count with the duty write and the update ISR zeroes

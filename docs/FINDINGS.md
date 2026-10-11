@@ -1,7 +1,7 @@
 # Findings
 
-Measured on the bench and settled, one entry each, dated. The record to
-2026-09-23: `git show 430b91f:docs/FINDINGS.md`. Subjects off the board: the
+Measured on the bench and settled, one entry each. The record before
+430b91f: `git show 430b91f:docs/FINDINGS.md`. Subjects off the board: the
 table under [Subjects](#subjects).
 
 ## AFE and ADC
@@ -15,18 +15,17 @@ table under [Subjects](#subjects).
   this offset), a wide code 70 below every 512. Fix: the rail up 100 ms
   first (the link within its noise 25 ms after the rail): CALFACT 989-1068,
   one count boot to boot, no wide code. Phase zeros moved 448-539 codes, 3 A:
-  every board re-zeroed (2026-10-05).
+  every board re-zeroed.
 - Self test's image CRC over 0x08000000-`_etext`: bus fault at 0x08200000
   since the image runs from D2 SRAM; taken from the vector table now. Its
   PCSEL count included the injected group's rank 2; the group arms on a
-  cleared PCSEL and counts its three (2026-10-05).
+  cleared PCSEL and counts its three.
 - HAL only ORs PCSEL: ADC3 PCSEL read 0xC03, four channels live. Every read
   path clears it (invariant 6).
 - Phase noise floor, AFE on: 0.35-0.41 A rms per phase.
 - A suite borrowing the AFE rail flips another suite's AFE row, ~1 run in 3.
 - MCU die through `__LL_ADC_CALC_TEMPERATURE`: whole degrees, under an
-  identification with a 0.1 K floor. Factory points in float: 0.01 K
-  (2026-09-26).
+  identification with a 0.1 K floor. Factory points in float: 0.01 K.
 
 ## Link
 
@@ -44,14 +43,14 @@ table under [Subjects](#subjects).
   Rejected.
 - Windows refuses a second open of a held port; every probe then reads
   silent. Ask the session that holds it.
-- `close()` disarmed a running stage when a second session asked a question
-  (2026-08-29): the broker exists for this (open 0.05 s vs 5.85 s).
+- `close()` disarmed a running stage when a second session asked a question:
+  the broker exists for this (open 0.05 s vs 5.85 s).
 - RS485 was pumped only with the console in binary mode: main() polled the
-  link only then (the emulated limb, 2026-09-25).
+  link only then (the emulated limb).
 - A byte a microsecond on emulated RS485 (a 10 Mbit adapter onto the app's
-  115 200, passed by Renode until 2026-09-28) lost one byte a pass. The link
+  115 200, once passed by Renode) lost one byte a pass. The link
   drains up to LINK_TAKE_MAX a pass, closes a frame at its silence, reads the
-  clock once a pass: 200 echoes of 240 B, none lost (2026-09-25).
+  clock once a pass: 200 echoes of 240 B, none lost.
 
 ## Gate stage
 
@@ -62,21 +61,20 @@ table under [Subjects](#subjects).
   clear, OSSR holding each output inactive (bridge open); closed on the first
   triple: 607 -> 589 rpm on the drag's 589, 0 A. The model summed omega in
   float, 2.6 ulp a sub-step at the flywheel's drag, 4.2 % more off a coast;
-  compensated (2026-09-28).
-- 30 ns dead time truncated to 29.5 ns (7 DTG) tripped the supply's OCP
-  (2026-08-29). Rounding is up: 8 counts = 33.7 ns.
+  compensated.
+- 30 ns dead time truncated to 29.5 ns (7 DTG) tripped the supply's OCP.
+  Rounding is up: 8 counts = 33.7 ns.
 - Two gate stages 15 C hotter than the third: gate pins at CubeMX LOW speed;
   VERY_HIGH since. Found by a 600-sample pin count and a register dump.
 - Gate short probe: the neighbour follows within 76 ns; pull-down ~40 k.
-- Alternate (op 10) proven 2026-08-30: 12 mid-run reads, both triples,
+- Alternate (op 10) proven: 12 mid-run reads, both triples,
   scope. A zero triple every other period is not half frequency: the pulse
-  sits on the underflow, two quarter pulses a period, the same edges
-  (2026-10-05).
+  sits on the underflow, two quarter pulses a period, the same edges.
 - Dry, three legs at 50 %, 63 ns dead time, rested, 60 s: NTC rise, K, at 50
   / 25 kHz below; armed without an edge 0.6 K. A 25-50 kHz staircase at 33.8
   V, 60 s a step: 55.7 C, no knee. At 33.7 ns 11.5 K at 24.2 V for 63 ns's
   8.2: 0.66 W through both FETs; 42 ns as 63 ns at 24 and 34 V
-  (`tools/bench/dry_heat.py`, 2026-10-05).
+  (`tools/bench/dry_heat.py`).
 
 | Link V | 50 kHz | 25 kHz |
 | --- | --- | --- |
@@ -88,10 +86,10 @@ table under [Subjects](#subjects).
 
 - The unmodified board arms with the break in circuit: AFE_ON low, PE15 high
   at once, the latch's low cleared (op 5), MOE. 300 s and twenty 60 s runs,
-  no trip; `switch.py` does so (2026-10-05).
-- STO interlock: Cinj 0.77 V, Clevel 0.06 V against 3 V (2026-08-27). The
+  no trip; `switch.py` does so.
+- STO interlock: Cinj 0.77 V, Clevel 0.06 V against 3 V. The
   keepalive latch holds a few hundred microseconds.
-- STO chain modelled from `sto.asc` (`world_sto.c`), 2026-09-27:
+- STO chain modelled from `sto.asc` (`world_sto.c`):
   + Nominal pilot: Clevel settles at 2.86 V, under the interlock's 3.0 V; D10
     clamps the pump at RESET's 0.8 Cinj. It needs 2.0 V now, Q10A releasing
     at 1.55 V. Cinj's 3.70 V exceeds VDDA on PC1 and reads full scale.
@@ -104,10 +102,10 @@ table under [Subjects](#subjects).
   now at each conversion, settle and thermal step; the thermal core at -O2
   as the drive. The identification's shadow step still holds it 130 us every
   few hundred ms: a FAULTOUT glitch the break latches when armed with neither
-  bypass (2026-09-27).
+  bypass.
 - Renode's pacing (idle core at 100 MIPS, main() skipped under the drive)
   stretched the keepalive's gaps in virtual time. The emulated chain runs on
-  the part's time: 475 MIPS, sleeps whole (2026-09-27).
+  the part's time: 475 MIPS, sleeps whole.
 
 ## CPU and memory
 
@@ -118,7 +116,7 @@ table under [Subjects](#subjects).
 - D-cache off: the record is read back through a pointer; .data/.bss in DTCM.
   Sample path from ITCM (~30 K Debug, 27 K Release).
 - An edited linker script did not relink until `LINK_DEPENDS` was set.
-- ADC3's interrupt (`tools/target/hot.py`, Release, 2026-10-10): 93
+- ADC3's interrupt (`tools/target/hot.py`, Release): 93
   functions, 4 504 instructions, 436 conditional branches, 69 divides.
   + Outside ITCM, each behind a veneer: the handler, `Board_AdcPhaseSlot`,
     `Board_AdcDifferential`, `Board_AfeOn`, `Board_CalApply` and its 64-bit
@@ -164,13 +162,13 @@ Six firmware defects, no hardware fault:
   drops two replies behind another register's; a die's reply carries TSEN's
   identifier. Result: 10 of 10 replies their own; die 34.59 C beside an NTC
   of 34.41. The emulated parts answer two packets on; the old driver reads
-  -273.15 C there (2026-10-05).
+  -273.15 C there.
 - TSEN is the die, reset whenever AFE_ON breaks; 0.125 K steps. FIELD ~2 G
   with no magnet.
 
 ## Thermal
 
-- Dry at 50 kHz, converters calibrated, room ~22 C (2026-10-05):
+- Dry at 50 kHz, converters calibrated, room ~22 C:
   + 300 s at 33.8 V: NTC 33.1 -> 54.5 C, MCU die +14.3 K, A1335 +12.3.
     150 s at 43.8 V: NTC +21.4, the dies +12.9 and +11.0. The network had
     the NTC at +4.2 and +3.6.
@@ -185,27 +183,25 @@ Six firmware defects, no hardware fault:
 - The MCU die reads its package: 46.0 C awake where the camera has 47; 4.0 K
   lower asleep (0.49 W). With the uncalibrated converter's 40.5 K/W the
   observer held the laminate at 2 C, the legs at 91-104, the room at 7-33 C
-  on a board at 33; now the NTC 33.2 for 33.5, the room 21.6 (2026-10-05).
-- Refit on the board, record laminate 21 J/K, dry and blind (2026-10-05):
+  on a board at 33; now the NTC 33.2 for 33.5, the room 21.6.
+- Refit on the board, record laminate 21 J/K, dry and blind:
   120 s at 53.8 V observer NTC 57.85 C for the thermistor's 57.90 (rise 25.4
   K for 24.3); 300 s at 23.9 V 51.9 for 50.1 (19.1 for 17.4). Thirty seconds
   on it runs 4 K over, for the anchor to take. Its room: 35-43 C in a room of
   22 on that record, 21.6 on the default 49 J/K. Idle two hours, AFE_ON off
-  but for reads (2026-10-06): UNCERTAIN, the air's scale at its floor 0.25,
+  but for reads: UNCERTAIN, the air's scale at its floor 0.25,
   the capacity's 2.09 (44 J/K; the transient's 49), room 33.4 C, the board's
   own 33.
 - The stand-in's load is its balanced `load_cycle`: 569ae47's turning vector
-  walked the heat U, V, W, the hottest leg 9 times in 16 s (2026-09-28).
+  walked the heat U, V, W, the hottest leg 9 times in 16 s.
 - Tour on an emulated board's world (`coaxial.model.rooms`): thermal page on
-  native STABLE at 244 s, the room on at 254, UNCERTAIN 259, STABLE again 351
-  (2026-09-28).
+  native STABLE at 244 s, the room on at 254, UNCERTAIN 259, STABLE again 351.
 - Rotor demo on native: 0.85 of the span on the stand-in's model alone; on
-  the world (`emu_world_drag`) 0.93-0.94, the clamp at 0.61-0.75, no trip
-  (2026-09-28).
+  the world (`emu_world_drag`) 0.93-0.94, the clamp at 0.61-0.75, no trip.
 - Network against the camera states, stand-in truth: worst miss 9.0 K, 20.1
   K before the emulator (regulators +28 for +8, AFE on read as passive).
-  Open: regulators 3-9 K hot, bridge 4-6 K cool (2026-09-28).
-- Camera 2026-08-28, 20 C room, four states x 25 min (tau 6.8 min): board and
+  Open: regulators 3-9 K hot, bridge 4-6 K cool.
+- Camera, 20 C room, four states x 25 min (tau 6.8 min): board and
   rises (MCU / regulators / bridge / AFE) passive 30.0 / +15.0 / +8.0 / +1.0
   / +1.0. NTC - TSEN: -0.74 C idle, +10.94 C switching.
 - Measured: board 8.33 K/W to ambient (one passive point, 1.2 W), 49 J/K from
@@ -214,7 +210,7 @@ Six firmware defects, no hardware fault:
 - IAUCN10S7N021 datasheet: Rth JC 0.69 K/W (6.2 K at 100 A), Rth JA 25.9
   K/W, Rds(on) 1.8 typ / 2.1 max mOhm (the model books typ, -17 % worst
   case).
-- SOA to that sheet (Rev 1.2, 2026-10-09):
+- SOA to that sheet (Rev 1.2):
   + A leg is judged on its FETs' junction: its node plus each FET's half of
     its watts through R_th,JC, Z_th at 100 ms (the envelope's slice) 0.68,
     against 175 C. Its node against 125 C left 44 K unused.
@@ -228,7 +224,7 @@ Six firmware defects, no hardware fault:
     cut to 21-58 % became 0.48-0.58 and none cut; laps 14.8 and 14.3 s for
     15.3 and 15.2; in a stuffy room 17.9 and 17.0, where the laminate binds
     next. A board's stored record keeps its own ceilings.
-- Applications (2026-10-09): what a board is mounted in, thermal op 15 into
+- Applications: what a board is mounted in, thermal op 15 into
   the record (CAL_VERSION 16), laid over the still-air network by
   `thermal_app.c`, ballpark until a test cycle runs in each. At 3 W a leg,
   1.5 W its shunts, 20 W the winding, the legs settle at:
@@ -245,7 +241,7 @@ Six firmware defects, no hardware fault:
 
 - A record load or defaults lays the observer's network anew; it ran the old
   one until a boot.
-- A world mounts its board (2026-10-09): its JSON names its link and its
+- A world mounts its board: its JSON names its link and its
   application, laid on the plant's heat and told to the board as the rig
   opens it (board/emu/worlds/dyno.json, 63 V on a fan's sink). The rotor
   observer's demo there:
@@ -261,21 +257,21 @@ Six firmware defects, no hardware fault:
 - A rail another had just raised was read without a borrow's settle, and a
   reading without the reference is mid-scale: a 25.00 C thermistor and a 545
   C die, which the anchor took. Read after the settle now, never without the
-  reference (2026-09-26).
+  reference.
 - Squaring one synced sample per step aliased; `Board_SyncMeanSquare`
   accumulates per leg in counts. Its slope was taken over one code, where the
   record's integer gain trim truncates to nothing: the observer's I^2 never
-  saw a channel's gain. Over 32 768 codes now (2026-09-26).
+  saw a channel's gain. Over 32 768 codes now.
 - The stand-in's losses were `phase_power`'s (no duty, link, dead time,
   tempco); now `thermal_power_estimate`'s, mirrored in
   `coaxial.model.thermal` and held to the C. Its held vector turned the
-  current's size, not the phases: one leg heated (2026-09-26).
+  current's size, not the phases: one leg heated.
 - With the tempco a leg has no equilibrium past 28 K/W x P x 0.78 %/K = 1: 60
   A rms held ran one away before the winding warmed. The stand-in's setters
   wrote its live network and the identification's next update undid them;
-  they write the base, the scales re-applied (2026-09-26).
+  they write the base, the scales re-applied.
 - Steady state at 5.30 mOhm: continuous 19.1 A against a 105 C laminate, 22.0
-  A against a 125 C junction. Throttle at 90 % of span (2026-09-05).
+  A against a 125 C junction. Throttle at 90 % of span.
 - Identification (host, against a ground truth): air path box 2.0 -> 1.93,
   fan 0.5 -> 0.50 in three cycles, innovation 0.05 K. Spread and NTC share
   are unobservable from a cooldown and held.
@@ -286,7 +282,7 @@ Six firmware defects, no hardware fault:
 - A 16 K ring overflowed in 6 s of a stalled terminal; the ring is in the AXI
   SRAM (HARDWARE.md).
 - A record's stamp is 32 bits of cycles, round every 9.04 s at 475 MHz: a
-  recording across the wrap failed the time-order check on CI (2026-10-11);
+  recording across the wrap failed the time-order check on CI;
   order is the modular difference.
 - `interval_us` 0 with `records` 0 took the link down: refused.
 - A block read after a CYCCNT wrap came back 9.02 s in the past: stamps are
@@ -295,53 +291,51 @@ Six firmware defects, no hardware fault:
 
 ## Calibration
 
-- DC link spanned against a DMM 2026-08-30: 31.04 read, 30.05 true, -32 418
+- DC link spanned against a DMM: 31.04 read, 30.05 true, -32 418
   ppm ch 5.
-- Phase gain from the schematic (2026-08-26), not spanned.
+- Phase gain from the schematic, not spanned.
 - LTspice's AFE (amplifiers.asc 6bc736b, nominal, 33 samples to 106 A): 10.24
   mV/A, zero 8.7 mV at the ADC's differential input. The record's shunt x
   THS4551 gain is 15.9 mV/A, the schematic's own note 9.2 mV/A and 110 mV:
-  unspanned, a phase reads 0.64 of its current (2026-09-25).
+  unspanned, a phase reads 0.64 of its current.
 - Unspanned, an emulated drive put 1.55 times its command through the plant:
   the world's legs 170-300 C under an observer's 100; unzeroed, the 8.7 mV
   zero is 0.85 A. An emulated MCU is spanned on the repl's 10.238 mV/A and
-  zeroed at open: the world carries the regulated current within 0.2 %
-  (2026-09-26).
+  zeroed at open: the world carries the regulated current within 0.2 %.
 - An id added without moving `BOARD_CAL_PARAM_COUNT` is held but never
   reported.
 - Replies past 253 B page (ADC table, pins, parts).
 - `BOARD_CAL_PARAM_COUNT` stayed 46 after the winding's ids 46-48
-  (CAL_VERSION 12): settable, never reported by cal op 8. Now 49
-  (2026-09-23).
+  (CAL_VERSION 12): settable, never reported by cal op 8. Now 49.
 
 ## Bootloader
 
-- On the board, the ST-Link's port (2026-10-05): Debug 201 544 B, 900 chunks
+- On the board, the ST-Link's port: Debug 201 544 B, 900 chunks
   20.6 s, verify 0.28 s, seal with persist 2.6 s (2 sectors, 6 300 words),
   `go` to the application's answer 0.13 s; `open()` on another image 19.7 s.
   From D2 SRAM: conformance 110/110, 17 719 angle updates/s, 106 % of
   flash's.
 - Flashed over SWD, a warm board ran RAM's old image: the slot named it.
-  `build_and_flash.py` clears the slot (2026-10-05).
+  `build_and_flash.py` clears the slot.
 - The host streamed chunks 2 ms after each write; the probe's port shifts a
   232 B frame out in 20.1 ms: frames ran together, 0 of 634 held. A
   broadcast's settle counts from the frame's last bit (`Transport.on_wire`);
-  Renode's adapter spaced them itself (2026-10-05).
+  Renode's adapter spaced them itself.
 - After `go` the application wakes as a console on the ST-Link's port:
-  `from_bootloader` polled binary for 5 s. It hands over first (2026-10-05).
+  `from_bootloader` polled binary for 5 s. It hands over first.
 - Unassigned, the bootloader handed over unit 247, the blank nodes': the
   application answered there and `open()` took it for a bootloader; a warm
   reset renamed an assigned node. `boot_hand_over`: this run's assign, a warm
-  slot's own, else unit 0 and the application's own (2026-10-05).
+  slot's own, else unit 0 and the application's own.
 - VOS1 was set with PWR_CR3 unwritten (RM0433 6.8.4: once after power-on,
   before VOS or the clock). Written now, the LDO; unproven - the bench read
-  0x42, locked since power-on (2026-10-05).
+  0x42, locked since power-on.
 - On a bus the host looked for a blank node, and polled the application
   after `go`, at one rate: the bootloader listens at 10 Mbit, the
   application at its record's `link_baud`. Renode's rate-blind lines and a
   limb adapter apart from the host's port hid it. The port moves to 10 Mbit
   for the bootloader and back for the application; the emulated adapter
-  follows the port (2026-09-28).
+  follows the port.
 
 ## Local model
 

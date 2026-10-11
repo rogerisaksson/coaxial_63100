@@ -23,7 +23,7 @@ DEMO_S = 45.0
 #: A load's vector, electrical Hz of the board's time: a turning motor's, so each leg carries
 #: the current in turn many times over a thermal node's constant. At the watcher's 0.14 Hz the
 #: current sat in one leg 70 thermal s at a time and the heat walked U, V, W on native: the
-#: hottest leg changed 9 times in 20 s (2026-09-28).
+#: hottest leg changed 9 times in 20 s.
 LOAD_HZ = 50.0
 
 #: The demo's setpoint written at most this often, s.
@@ -75,7 +75,7 @@ def turn_motor(rig, origin, amps=None, hz=None):
 
 #: The shaft's sweep for a page that shows the angle: turns each way, the wall seconds a
 #: there-and-back takes, and the current the vector is held at. Measured on the stand-in's
-#: plant (2026-09-28): held at 5 A the shaft tracks the commanded angle to 0.6 degrees, and at
+#: plant: held at 5 A the shaft tracks the commanded angle to 0.6 degrees, and at
 #: 30 A it pulls out and runs away at every rate tried, 0.02 to 0.25 rev/s.
 SWEEP_TURNS, SWEEP_S, SWEEP_AMPS = 1.0, 63.0, 5.0
 
@@ -87,8 +87,8 @@ def sweep_motor(rig, origin, turns=SWEEP_TURNS, over=SWEEP_S):
     A raised cosine, so it stands still at both ends. The vector turns at a rate, each aimed at
     where the cosine will be a step ahead of the host's own sum of what it asked, so it neither
     drifts nor is set down a step at a time: set down, each step kicked the held rotor, which
-    rang +-0.9 degrees at 8 Hz and bobbed on the page - 832 turnings in 65 s (2026-09-28). Held
-    on a free-running vector it hunted 3 degrees at 1.2 Hz (2026-09-27). Paced for the watcher,
+    rang +-0.9 degrees at 8 Hz and bobbed on the page - 832 turnings in 65 s. Held
+    on a free-running vector it hunted 3 degrees at 1.2 Hz. Paced for the watcher,
     as `turn_motor`: the wall's clock, the rate times the link's time scale.
     """
     if not demo(origin):
@@ -130,7 +130,7 @@ def stop_motor(rig):
     for the closing list."""
     failed = []
     # Each on its own: one guard over the three, a drive that refused left the stage up and
-    # the converters held, and the closing list said nothing (2026-10-05).
+    # the converters held, and the closing list said nothing.
     for what, undo in (('the drive', rig.drive.off), ('the stage', rig.gates.off),
                        ('the converters',
                         lambda: rig.board.gate_drivers.configure(sync=False))):

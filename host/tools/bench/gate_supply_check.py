@@ -15,7 +15,7 @@ shows the charge as a decay before it settles.
 The measurement is indirect: it tells the two states apart and proves no
 voltage level.
 
-2026-08-28: the STO chain also gates DCDC_ENABLE, so AFE_ON low is
+The STO chain also gates DCDC_ENABLE, so AFE_ON low is
 necessary but not sufficient. A flat result means "no charge seen": the STO
 chain holding the supply down, or the AFE never off - check for a stale
 process holding the port.

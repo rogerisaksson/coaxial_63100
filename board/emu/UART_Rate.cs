@@ -1,7 +1,7 @@
 // UART_Rate.cs - The rate a USART runs at on the part: its kernel clock as the firmware set the
 // RCC, over BRR as the part reads it. Renode's USART keeps one fixed clock (the app's 118.75 MHz,
 // coaxial_63100.repl; the bootloader's is 80) and reads an OVER8 BRR raw: the bootloader's 0x10
-// at 14.8 Mbit against the part's 10 (2026-09-28).
+// at 14.8 Mbit against the part's 10.
 
 using System;
 using Antmicro.Renode.Core;

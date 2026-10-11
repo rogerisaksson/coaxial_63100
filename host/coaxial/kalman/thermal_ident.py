@@ -23,20 +23,20 @@ UNCERTAIN, CONVERGING, STABLE = STATES
 #: At three kelvin the room moved 0.6 K a gated sample and the air scale
 #: took the rest, 2.9 for a truth of 0.8; at ten the room is found within
 #: 5 K both ways and the air scale stays near the truth, at the price of
-#: some early state error landing in the room (measured 2026-09-05).
+#: some early state error landing in the room (measured).
 ONLINE = (True, True, False, False, True)
 PRIOR_SIGMA = (0.5, 0.2, 0.5, 0.3, 10.0)
 #: The sigma floor while UNCERTAIN, as a share of the prior: half for
 #: the air path and the room, which are what a situation changes, a
 #: quarter for the rest - or the capacity took a third of a fan's
-#: correction (measured on the stand-in, 2026-09-05: 0.65 for a truth
+#: correction (measured on the stand-in: 0.65 for a truth
 #: of 1.0) and its floor sat on the STABLE threshold.
 FLOOR_SHARE = (0.5, 0.25, 0.25, 0.25, 0.5)
 #: Below what sigma each is CONVERGING, and STABLE: three tenths of a
 #: scale, and a tenth - 0.15 for the air path, since with the room
 #: identified beside it one transient leaves it known to about 0.12 and a
 #: motor holding a steady current after a change has one transient to
-#: learn from (the rotor page never showed STABLE at a tenth, 2026-09-06);
+#: learn from (the rotor page never showed STABLE at a tenth);
 #: three and six kelvin of room - one cycle leaves it at 2.3 from the
 #: ten-kelvin prior, and three is as much as the envelope can use.
 SIGMA_CONVERGING = (0.30, 0.30, 0.30, 0.30, 6.0)
@@ -311,8 +311,7 @@ class Identifier:
 
     def margin(self, floor=MARGIN_FLOOR):
         """`thermal_ident_margin`: the floor while the model is doubted
-        whole, one when not at all, continuous in the doubt between
-        (2026-09-06).
+        whole, one when not at all, continuous in the doubt between.
         """
         f = _unit(floor)
         return f + (1.0 - f) * (1.0 - self.doubt())

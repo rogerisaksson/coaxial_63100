@@ -6,7 +6,7 @@ near-black inks, redrawn NOISE_HZ times a second; its refresh sweep, a beam goin
 over SWEEP_S seconds and decaying behind it over DECAY_ROWS as a phosphor does, in faint
 braille only: BAND_DENSITY of a row's cells a dot at the beam, thinning as the square of
 the decay, its ink stepping down BAND_INK to the snow's. No background: a glow a row at a
-time banded (2026-09-25).
+time banded.
 Over a page's drawing (`Chrome`): lock brackets round what the page draws, `ﾛｯｸ ｵﾝ` blinking on them; the page's clock bottom left; its status tag in red
 kana, blinking, over a teal subtag bottom right. Chrome only fills blanks: nothing the
 page draws is covered, and a piece with no room is left out whole. KANA names each page.
@@ -109,8 +109,8 @@ def _cells(line):
 
 
 def _segments(row):
-    # By identity: Style.__ne__ a cell was 1.4 s of 8 over 60 frames at 200x60
-    # (2026-09-25); a run's cells share their segment's style object.
+    # By identity: Style.__ne__ a cell was 1.4 s of 8 over 60 frames at 200x60;
+    # a run's cells share their segment's style object.
     run, style = [], None
     for ch, st in row:
         if st is not style and run:

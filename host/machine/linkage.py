@@ -20,7 +20,7 @@ import math
 #: Each rod by its drive's kind, from its crank at the front of the knee through the shin to the
 #: heel's back, crossed: (up, ahead, crank, crank's rest rad, ball, ball's rest rad) about its
 #: ball's joint, m, its stroke - the ankle's two M 80 and 150 mm under the knee. Searched inside her over
-#: -50..45 deg rolled +-15 (2026-10-02): the upper's lever 0.73-0.90, the lower's 0.76-0.92,
+#: -50..45 deg rolled +-15: the upper's lever 0.73-0.90, the lower's 0.76-0.92,
 #: their transmission 40.7 and 39.2 deg at worst, 1.4 and 1.7 mm clear of the drums and the tibia,
 #: 1.5 and 1.4 inside her shell standing; a 48 mm crank on a 48 mm horn stood 29 mm out of her
 #: ankle - in its 32-36 mm round any rod's line passes the axis within 25.
@@ -32,7 +32,7 @@ RODS = {'ankle': ((0.300, 0.015, 0.020, math.radians(90.0), 0.018, math.radians(
 #: Each rod's ball's joint, its crank's plane and its ball's: x of its left limb's frame, m (the
 #: right's mirrored) - each crank on its drum's outer end, each ball on the heel's horn beside
 #: the tibia's end. Straight inside the leg one rod stood 51 mm out of her shell and 15 out of
-#: her jeans, its crank 50-60 mm in met the other leg's walking (2026-10-02).
+#: her jeans, its crank 50-60 mm in met the other leg's walking.
 ROD_AT = {'ankle': ('ankle', 0.045, 0.012), 'ankle_roll': ('ankle', -0.047, -0.016)}
 
 #: A parallel pair: a joint and its roll, two drives turning both - the first through their rods'
@@ -51,17 +51,17 @@ BENDS = {'ankle': (0.045, 0.180, 0.0139), 'ankle_roll': (-0.047, 0.205, 0.0193)}
 
 #: Each belt, toothed steel cord: its drive's pulley's radius and its joint's, m - the ratio
 #: theirs, constant - and how far out to her side of the limb's axis it runs. None where its give
-#: under her weight would show in her walk - the knee's 141 N m was a 3.4 kN pull 
-#: (2026-10-02). The toes' from their own stack, 36 mm out, past its gearbox (`drives.STACKS`).
-#: The elbow's and the wrist's went (fewest parts, 2026-10-04): the elbow's stack on
+#: under her weight would show in her walk - the knee's 141 N m was a 3.4 kN pull.
+#: The toes' from their own stack, 36 mm out, past its gearbox (`drives.STACKS`).
+#: The elbow's and the wrist's went (fewest parts): the elbow's stack on
 #: its own axis, 68 mm across an elbow of 56 - a human's breadth -, the wrist held.
 BELTS = {'foot': (0.010, 0.010, 0.036)}
 
 #: Each spur pair after its drive's gearbox, its ratio: the gearbox takes its joint's torque over
 #: it. The hip roll's M at 1:100 on two stages put its 126 N m peak through a box rated 100, and
-#: walking 133-139 (`World.geared`, 2026-10-02): one stage at 1:60 and 1.67 here. Its copper
+#: walking 133-139 (`World.geared`): one stage at 1:60 and 1.67 here. Its copper
 #: 1.57 at 1.5x the walk: a crank-rocker there was measured on two strokes and kept neither
-#: (docs/findings/drives.md, 2026-10-03).
+#: (docs/findings/drives.md).
 GEARS = {'hip_roll': 1.67}
 
 #: Each four-bar turning about z in its drive's segment's x-y plane: its crank's centre and its
@@ -70,12 +70,12 @@ GEARS = {'hip_roll': 1.67}
 #: on a 24 mm horn crossed: over +-35 deg its lever 1.31-1.66, its transmission 53 deg at worst,
 #: 24 mm off the fork's legs - its 1:1 spur pair's 100 mm wheels stood in the pitch's bracket's
 #: sweep, and a stage at 1:40 wants 1.5 after it. Between the M's face and the roll's bearing, its
-#: M 7 mm back: over spine -30..85 and roll +-35 the closest 1 mm (2026-10-03). A crank-rocker
+#: M 7 mm back: over spine -30..85 and roll +-35 the closest 1 mm. A crank-rocker
 #: (the crank turns 360 deg, the limb reverses at the dead centres, never into a stop)
 #: was measured at the hip roll on two strokes and kept neither (docs/findings/drives.md): its
 #: dead centres are stops to a fall. The right's the left's mirrored in x (`four_bar`).
 #: A four-bar's crank and horn: steel plates 2 PLATE_R thick, drawn and collided as such (16 mm
-#: capsules before hid the hip roll's 10 mm pinch, 2026-10-03).
+#: capsules before hid the hip roll's 10 mm pinch).
 PLATE_R = 0.004
 PLANAR = {'spine_roll': ((0.0, 0.02), (0.0, 0.12), 0.018, math.radians(20.0), 0.024,
                          math.radians(200.0), 0.047, (-35.0, 35.0))}
@@ -83,13 +83,13 @@ PLANAR = {'spine_roll': ((0.0, 0.02), (0.0, 0.12), 0.018, math.radians(20.0), 0.
 #: Each bevel pair after its drive's gearbox, 1:1, its pitch radius, m: a right-angle stage, a
 #: motorcycle's shaft drive's, turning an output along its limb onto its joint's axis - across her
 #: arms the elbow's M and the wrist's S stood 3-26 mm out of her shell, their belts 8-27, along
-#: them 1 mm in (2026-10-03). Each BEVEL_T thick, BEVEL_EFF of the torque through it (estimated).
-#: None since 2026-10-04 (`BELTS`).
+#: them 1 mm in. Each BEVEL_T thick, BEVEL_EFF of the torque through it (estimated).
+#: None now (`BELTS`).
 BEVELS = {}
 BEVEL_T, BEVEL_EFF = 0.006, 0.97
 
 #: A rod's lever tabled every GRID deg over SPAN, interpolated: worked out each step the ankle's
-#: pair cost 34 us a leg against the world's 184 (2026-10-02).
+#: pair cost 34 us a leg against the world's 184.
 GRID, SPAN = 0.5, 90.0
 
 
@@ -249,7 +249,7 @@ def _table(kind):
 def _lever(kind, deg):
     if kind in PLANAR:
         # Past a dead centre the mechanism is locked: the lever there is the dead centre's own,
-        # not the far branch's (0.44 at the hip roll's -22, where a shove took it, 2026-10-03).
+        # not the far branch's (0.44 at the hip roll's -22, where a shove took it).
         lo, hi = PLANAR[kind][7]
         deg = min(max(deg, lo + 0.5), hi - 0.5)
         return abs(math.remainder(planar(kind, deg + 0.05)[2] - planar(kind, deg - 0.05)[2],

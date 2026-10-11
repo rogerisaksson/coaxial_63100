@@ -250,7 +250,7 @@ def test_every_page_scrolls_its_boxes(report):
 def test_the_page_tool_holds_one_frame(report):
     """tools.render.page.frame draws a page as long as asked in the memory of one frame: every
     frame and the console's whole output kept grew it 0.5 MB a frame, and two six-minute pages
-    ran this laptop's commit out (2026-09-28)."""
+    ran this laptop's commit out."""
     import tracemalloc
     from tools.render import page
 
@@ -383,7 +383,7 @@ def test_the_stand_shows_its_acts(report):
 def test_the_thermal_page_arms_with_the_break_in(report):
     """THERMAL OBSERVER's --switch (`switch_on`) on a rig that only notes what it is asked: a
     real board's stage armed with AFE_ON off, the latch cleared and the break in circuit -
-    tools/bench/switch.py's order (docs/HARDWARE.md, 2026-10-05) - a demo board's with AFE_ON
+    tools/bench/switch.py's order (docs/HARDWARE.md) - a demo board's with AFE_ON
     on and its chain bypassed; put back, the duty, the stage and AFE_ON as it was found."""
     from terminal.views import show_thermal_observer as page
 

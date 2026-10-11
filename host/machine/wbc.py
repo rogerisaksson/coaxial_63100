@@ -59,12 +59,12 @@ CLAMP_SHARE, NEAR = 0.95, 0.6
 
 #: Her neck's and head's ranges, deg, the stack's own - the model has none: granted WEP, the
 #: head and the neck ran at their stacks' 51 N m, 6.4 and 3.4 times their clamps, spun as
-#: weights (120 N, 2026-10-10).
+#: weights (120 N).
 RANGES = {'neck': (-45.0, 60.0), 'head': (-80.0, 80.0)}
 
 #: (kp 1/s^2, kd 1/s): the turns', the posture's and a swinging sole's (at 400 and 40 a 0.2 s
-#: step lagged its path 11 cm, 100 N, 2026-10-10); the angular momentum bled at MOMENTUM_K 1/s - at 10 on the level under the centre of mass it pinned both soles'
-#: centres of pressure to their edges, flipping each 50 ms (a 60 N shove, 2026-10-10).
+#: step lagged its path 11 cm, 100 N); the angular momentum bled at MOMENTUM_K 1/s - at 10 on the level under the centre of mass it pinned both soles'
+#: centres of pressure to their edges, flipping each 50 ms (a 60 N shove).
 TURN_KD, POSTURE_KD, SWING_KD, MOMENTUM_K = (100.0, 20.0), (100.0, 20.0), (1600.0, 80.0), 3.0
 
 #: The turns' weight against a swinging sole's m/s^2; her form's against the posture's
@@ -281,7 +281,7 @@ def _held(b, s, ask, stance):
     nominal = b.clamp * np.broadcast_to(np.asarray(ask.get('derate', 1.0), float), b.clamp.shape)
     granted = np.broadcast_to(np.asarray(ask.get('wep', False), bool), b.clamp.shape)
     # WEP's ceiling only for those whose soft rows are laid (`_levels`): unlaid, the head was
-    # asked 3.6 times its clamp from under NEAR in one step (80 N from behind, 2026-10-10).
+    # asked 3.6 times its clamp from under NEAR in one step (80 N from behind).
     b.near = np.flatnonzero(granted & (b.load > NEAR))
     ceiling = nominal.copy()
     ceiling[b.near] = b.wep[b.near]
@@ -318,8 +318,7 @@ def _levels(b, s, ask, stance, held):
                np.array([ay + HEIGHT_BAND, HEIGHT_BAND - ay])[:2 * len(up)], SLACK_W)]
     # The pelvis's and the trunk's turns, a swinging sole and its knee's fold: swung on the
     # level above the turns, the pelvis pitched to throw the foot, 4 to 25 deg in 0.1 s; the
-    # knee straight, its sole could not rise - asked up 17 m/s^2, given 1.5 (80 N from behind,
-    # 2026-10-10).
+    # knee straight, its sole could not rise - asked up 17 m/s^2, given 1.5 (80 N from behind).
     A2, b2 = [np.zeros((0, nx))], [np.zeros(0)]
     for t, want in zip(s['turns'], ask['turns']):
         wdot = TURN_KD[0] * turn_error(want, t['quat']) - TURN_KD[1] * t['w']
@@ -342,7 +341,7 @@ def _levels(b, s, ask, stance, held):
                                      + SWING_KD[1] * (rate - v[b.act[i]])]))
     # Each sole's centre of pressure inside its edge, softly, here: on the balance's level its
     # slack held corners of the standing sole at their friction's edge, frozen below it, and the
-    # swing could not lift its sole (80 N from behind, 2026-10-10).
+    # swing could not lift its sole (80 N from behind).
     S2 = np.zeros((4 * len(stance), nx))
     edges = ((0, -SOLE_HALF + MARGIN_M, 1.0), (0, SOLE_HALF - MARGIN_M, -1.0),
              (2, -HEEL + MARGIN_M, 1.0), (2, BALL - MARGIN_M, -1.0))
@@ -353,7 +352,7 @@ def _levels(b, s, ask, stance, held):
     levels.append((np.vstack(A2), np.concatenate(b2), S2, np.zeros(len(S2)), SLACK_W))
     # Her form, weighed: her height, the angular momentum, the posture, the torques, the
     # forces. Her height held over the centre of mass's way straightened her standing knees from
-    # 6 to 1 deg, and left no room for a sole to rise (2026-10-10).
+    # 6 to 1 deg, and left no room for a sole to rise.
     A3, b3 = [], []
     if nc:
         A3.append(HEIGHT_W * up)

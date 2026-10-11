@@ -365,8 +365,8 @@ static void own_pwm(void)
   s.owned = true;
 }
 
-/* Half away from zero: lrintf is a library call from ITCM, seven a period
-   (2026-09-27). */
+/* Half away from zero: lrintf is a library call from ITCM, seven a period.
+   */
 static inline int32_t rounded(float x)
 {
   return (int32_t)((x < 0.0f) ? (x - 0.5f) : (x + 0.5f));

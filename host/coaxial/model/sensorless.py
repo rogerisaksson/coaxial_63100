@@ -16,7 +16,7 @@ INJ_OVER_LOOP = 8.0
 
 #: The most noise one update's innovation carries, rad: six sigma inside the wrap at +-pi,
 #: where the estimator still averages it. Backed off to 20 dB after the filter, native's
-#: 0.057 V left 2.5 rad an update, noise wrapped flat with no angle in it (2026-09-28).
+#: 0.057 V left 2.5 rad an update, noise wrapped flat with no angle in it.
 UPDATE_SD_MAX = math.pi / 6.0
 
 

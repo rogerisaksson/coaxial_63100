@@ -19,9 +19,9 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 #: Materials: E GPa, G GPa, allowable MPa. Roll-wrapped carbon tube (its ultimate ~600 in
-#: bending) and the high-modulus one - every tube of hers since 2026-10-03, one grade: the
+#: bending) and the high-modulus one - every tube of hers, one grade: the
 #: femur 50 -> 40 mm in it -, pultruded carbon rod, printed PAHT-CF in its layers'
-#: plane (92 tensile, 44 across: parts loaded in-plane, printed flat, 2026-10-03),
+#: plane (92 tensile, 44 across: parts loaded in-plane, printed flat),
 #: steel plate. Printed parts hold and join: short and stout, every one an extrusion along its
 #: print axis (2.5D, no overhang in any print pose); the long members carbon tubes
 #: cut to length (TUBES).
@@ -36,7 +36,7 @@ WALL, FLEX_AT, FLEX_DEG, MARGIN = 0.1, 0.6, 0.25, 1.5
 PLATE_W, CROWN_W = 0.050, 0.040
 #: Stock roll-wrapped carbon tubes, (outer radius, wall) m: 1 mm walls to 25 mm round, 2 mm from
 #: 30 (the makers' lists); her tubes cut from as few of them as her members allow 
-#: (2026-10-03: minimal variants), each within ROOM of its radius now, carbon CF_KG_M3.
+#: (minimal variants), each within ROOM of its radius now, carbon CF_KG_M3.
 TUBES = tuple((d / 2e3, 0.001 if d < 30 else 0.002)
               for d in (8, 10, 12, 14, 16, 18, 20, 22, 25, 30, 35, 40, 50))
 ROOM, CF_KG_M3 = 0.0025, 1550.0

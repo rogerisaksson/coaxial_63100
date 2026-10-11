@@ -34,8 +34,7 @@ CAN_WEIGHT = 1.0
 #: and teeth are rings: filled areas read as texture at this resolution.
 F_LINE = 0.032
 #: The most a line's half-width grows to, in dots: uncapped it was 3.0 at
-#: a 200x60 terminal's can of 95, every ring a band; 0.8 broke into dots
-#: (2026-09-23).
+#: a 200x60 terminal's can of 95, every ring a band; 0.8 broke into dots.
 LINE_MAX = 1.0
 
 #: Rows between the frame and the top gauge, and the bottom one: none - the
@@ -46,7 +45,7 @@ FLOOR_INSET = 0
 
 #: A blank row between the tubes' foot and the floor gauges: without it the leader
 #: turning on the upper floor row sat right under a tube and read as its next segment
-#: (2026-09-24, a braille pixel too many in the WINDING pointer against POWER's).
+#: (a braille pixel too many in the WINDING pointer against POWER's).
 FLOOR_AIR = 1
 
 
@@ -98,7 +97,7 @@ PHASE_NAMES = ('U', 'V', 'W')
 
 #: The palette: the rotor warm, the three phases told apart by colour (a
 #: cell carries one), the mark loudest; phosphor, no muted mid-tones
-#: (2026-09-24, "mossy").
+#: ("mossy").
 INK: dict = {TRACK: 237, BORE: 240, CAN: 30, YOKE: 23,
              TOOTH_U: 45, TOOTH_V: 48, TOOTH_W: 135,
              SOUTH: 136, NORTH: ansi.AMBER, TRUTH: 255, POINTER: ansi.AMBER,
@@ -131,7 +130,7 @@ MARK = NTC_RAMP[-1] + 1
 INK[MARK] = ansi.AMBER
 
 #: The bead's wake, nearest first: the can wall behind it glowing, TRAIL_STEPS
-#: steps from the bead's amber to the can's teal (2026-09-24: trail dots coloured
+#: steps from the bead's amber to the can's teal (trail dots coloured
 #: whole ring cells orange here and there - a broken, jagged tail).
 TRAIL_STEPS = 6
 TRAIL = tuple(range(MARK + 1, MARK + 1 + TRAIL_STEPS))
@@ -154,7 +153,7 @@ LED_PITCH = 4
 BAR_GAP = 1
 
 #: A north magnet is drawn as its outline, a dot wide: filled, the eight of
-#: them were amber blocks over everything else (2026-09-24).
+#: them were amber blocks over everything else.
 HOLLOW = frozenset(((1, 0), (-1, 0), (0, 1), (0, -1)))
 
 #: A phase brightens with its current: one hue a phase, four steps, the
@@ -562,7 +561,7 @@ def _votes(s, r, rotor, slots, poles, drive, blur=0.0):
     phase = whole.astype(int) % 3
     got = np.array(PHASE_CLASS)[phase]
     if drive is not None and max(abs(d) for d in drive) < WINDINGS_OFF:
-        # The bridge cut, a coast: the windings gone whole, not left as tracks (2026-09-28).
+        # The bridge cut, a coast: the windings gone whole, not left as tracks.
         inside = inside & False
     cls[tooth] = np.where(inside, got, -1)
     share[tooth] = np.where(inside, 1.0, 0.0)
@@ -571,7 +570,7 @@ def _votes(s, r, rotor, slots, poles, drive, blur=0.0):
     radius, place = a[magnet], ((b[magnet] - rotor) % math.tau) / (math.tau / poles)
     # Each dot's threshold, the same for its samples: at no blur every share is 0 or 1, and the
     # magnets are as sharp as they stand. Past a pitch a frame they are one band, even - the
-    # south line's ring alone read as the magnets gone (2026-09-28).
+    # south line's ring alone read as the magnets gone.
     x = np.broadcast_to(np.asarray(s['x'], int)[:, None], kind.shape)[magnet]
     y = np.broadcast_to(np.asarray(s['y'], int)[:, None], kind.shape)[magnet]
     threshold = shutter.threshold(x, y)
@@ -586,7 +585,7 @@ def _votes(s, r, rotor, slots, poles, drive, blur=0.0):
 
 def _body(frame, seat, rotor_deg, slots, poles, drive, blur=0.0):
     """The motor itself, every dot at once: a dot at a time was 195 ms a frame at
-    200x60 (2026-09-25)."""
+    200x60."""
     from coaxial.model.blocks import numpy as np
     s = _seat_arrays(frame, seat)
     cls, share = _votes(s, seat.radii, math.radians(rotor_deg), slots, poles, drive, blur)

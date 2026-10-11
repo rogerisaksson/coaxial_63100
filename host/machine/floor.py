@@ -13,22 +13,22 @@ from machine.errors import MachineError
 #: high and SILL_LONG_M long; a patch SLIP_LONG_M long at SLIP_FRICTION; a loose rug RUG_LONG_M
 #: long, RUG_M thick and RUG_KG, gripping the sole as the floor does and sliding on the floor at
 #: RUG_FRICTION. Whole, the slab's halves meet at SEAM_M; it ends at SLAB_TO_M, past any walk -
-#: at 80 m a walk stepped off it 100 s in, 3 cm down, and fell or sank into a crouch
-#: (2026-09-28). The halves are
+#: at 80 m a walk stepped off it 100 s in, 3 cm down, and fell or sank into a crouch.
+#: The halves are
 #: compiled over the whole span and cut to size, the sill and the patch are mocap bodies: a
 #: geom moved or grown past its compiled bounds is missed by the broadphase (the rug fell
 #: through a slab grown 27 m, a box through a sill moved 1 m). At 0.15 the patch let the stance
 #: foot creep 3 mm (the walk asks 0.17), at 0.06 it slid 10 cm back under the push-off; the rug
-#: at 0.3 lay still under a landing and a push-off (the sole's shear 100 N, the rug's hold 165)
-#: (2026-09-27). The skimming toes brushed a 4 cm sill, 350 N for 20 ms, unseen; 6 cm caught
-#: them for 0.11 s and she fell, or stumbled over it lifted (`landing.tripped`) (2026-09-28).
+#: at 0.3 lay still under a landing and a push-off (the sole's shear 100 N, the rug's hold 165).
+#: The skimming toes brushed a 4 cm sill, 350 N for 20 ms, unseen; 6 cm caught
+#: them for 0.11 s and she fell, or stumbled over it lifted (`landing.tripped`).
 HOLE_M, HOLE_LONG_M, SILL_M, SILL_LONG_M = 0.03, 0.40, 0.06, 0.04
 SLIP_LONG_M, SLIP_FRICTION = 0.5, 0.06
 RUG_LONG_M, RUG_M, RUG_KG, RUG_FRICTION = 0.9, 0.01, 1.5, 0.1
 SLAB_FROM_M, SEAM_M, SLAB_TO_M, PARKED_M = -20.0, 30.0, 10000.0, -50.0
 #: The slab, the sill and the patch reach DEEP_M under the floor: the slab 3 cm deep, a landing
 #: arm passed its middle and was held inside, its underside pressing it onto the plane - 15 kN,
-#: 2 falls in 13 (2026-10-01). The patch stands SLIP_TOP_M proud.
+#: 2 falls in 13. The patch stands SLIP_TOP_M proud.
 DEEP_M, SLIP_TOP_M = 0.2, 0.001
 
 #: A stair of STEPS steps, each RISE_M up and RUN_M on - a stride's step, as she has no eyes to
@@ -40,7 +40,7 @@ STEPS, RISE_M, RUN_M, TOP_M = 5, 0.08, 0.425, 1.5
 #: board (`place` 'board'): a plank BOARD half sizes, BOARD_KG, hinged BOARD_HINGE_M over the
 #: plane in a gap of the slab, its top at the floor, rocking about her way - turned a quarter,
 #: across it - until an edge meets the plane; its hinge sprung BOARD_K N m/rad - stiff, it
-#: gives a little (2026-10-04); free at 0 - and damped BOARD_C N m s/rad (`board`).
+#: gives a little; free at 0 - and damped BOARD_C N m s/rad (`board`).
 BRICK, BOARD, BOARD_HINGE_M, BOARD_KG = (0.06, 0.031, 0.125), (0.25, 0.005, 0.20), 0.02, 1.2
 BOARD_K, BOARD_C = 3000.0, 20.0
 

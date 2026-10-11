@@ -37,7 +37,7 @@ HEAVY_GB = {'test_views_front.py': 2.0}
 #: cores, many on 32. One job a suite, the offline gate's three longest - 99 to 137 s - left it
 #: on 13 % of the cores for its last minute and a half, the suites kept alone one after another
 #: behind them: 544 s. Shards at the whole work over the batons, 246 s, the views whole the
-#: last two minutes of it (2026-09-28).
+#: last two minutes of it.
 SLICE_S = 10.0
 MAX_SHARDS = 16
 
@@ -147,7 +147,7 @@ def _jobs(name, args, tags, live_sections, took, share, words=()):
     expected = took.get(name, FRESH_S.get(name, 0.0))
     shards = min(MAX_SHARDS, math.ceil(expected / share)) if name in SHARDED else 1
     # A job's time twice its expected share at least: CI's two shards of the falls suite, 443 s
-    # each, were cut at 300 (2026-10-04).
+    # each, were cut at 300.
     timeout = max(timeout, 2.0 * expected / max(1, shards))
     if shards <= 1:
         return [Job(name, argv, gb, timeout, lock)]

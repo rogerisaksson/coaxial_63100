@@ -1,9 +1,9 @@
 // FastDWT.cs - The Cortex-M DWT's cycle counter off the machine's virtual clock (VirtualClock.cs),
 // so it runs with virtual time without syncing it: Renode's DWT syncs virtual time on every CYCCNT
-// read, and the firmware reads it three times a main-loop pass - the emulator's bottleneck
-// (2026-09-25). It counts at `clock`'s frequency, the core's as the RCC sets it - the
+// read, and the firmware reads it three times a main-loop pass - the emulator's bottleneck.
+// It counts at `clock`'s frequency, the core's as the RCC sets it - the
 // bootloader's 160 MHz, the app's 475 - taken up on the first read after a change: at a fixed 475
-// the bootloader's t1.5 was 253 us, and a frame split across a quantum was lost (2026-09-25).
+// the bootloader's t1.5 was 253 us, and a frame split across a quantum was lost.
 // CYCCNTENA and CYCCNT only; the rest reads zero.
 
 using System;

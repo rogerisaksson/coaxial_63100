@@ -17,7 +17,7 @@ HOST, TIMEOUT_S = 'http://localhost:11434', 120.0
 #: `FROM clef:27b-q4_k_m` and `PARAMETER num_ctx 4096` (docs/MODELS.md): at the model's 16384
 #: the runner's 5.4 GB compute buffer does not fit beside 11.7 GB of weights on a 16 GB card
 #: (`options` and OLLAMA_CONTEXT_LENGTH ignored); clef-flash refuses every request with
-#: "non-finite logit" on 0.35.1 (ollama issue 18769, 2026-10-04).
+#: "non-finite logit" on 0.35.1 (ollama issue 18769).
 MODELS = ('clef:4k', 'clef-flash:latest')
 
 

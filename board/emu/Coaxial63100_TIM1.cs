@@ -2,7 +2,7 @@
 // the instructions executed when read, at the kernel clock the firmware's tree gives it
 // (237.5 MHz: ARR 2375 is 50 kHz centre-aligned), and an event only while the update interrupt is
 // enabled. Renode's STM32_Timer ran an event every update, ~100 000 a virtual second, 3.5 wall
-// seconds of each at 100 MIPS, and at 250 MHz its period was 52.6 kHz (2026-09-25). Centre-aligned
+// seconds of each at 100 MIPS, and at 250 MHz its period was 52.6 kHz. Centre-aligned
 // or edge-aligned; the update every RCR+1 over- or underflows, the first at the overflow, as
 // RM0433 has it for an RCR written before the counter starts. The gate pins, PE8..PE13, read at
 // the instant GPIOE's IDR is read: OCxREF of PWM mode 1 or 2 against CNT, CCxE/CCxNE, the

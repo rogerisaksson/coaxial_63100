@@ -4,7 +4,7 @@ import math
 FSW = 50e3                    #: TIM1 centre-aligned, ARR 2375 (HARDWARE.md)
 TS = 1.0 / FSW
 
-T_DEAD = 63.2e-9              #: DTG 15: 33.7 ns shot through dry, 42 did not (2026-10-05)
+T_DEAD = 63.2e-9              #: DTG 15: 33.7 ns shot through dry, 42 did not
 T_DEAD_SIM = 65.4e-9          #: the simulation's worst corner
 T_MIN_PULSE = 105e-9          #: 25 ticks: TPW 40 ns + DTG 15 -> 0.53 % duty
 GATE_UVLO_V = 7.5             #: the 2EDL8034's (motor_inverters/half_bridge/2EDL8034F5.lib)
@@ -20,7 +20,7 @@ RDS_ON = 1.8e-3
 #: camera can see, and the junction sits this far over its case - at 100 A a
 #: FET's 9 W over a period, 6.2 K. The envelope judges a leg on it against
 #: T_J_MAX (`thermal.judged`): a 125 C ceiling on the copper left 44 K of the
-#: sheet unused (2026-10-09).
+#: sheet unused.
 RTH_JC = 0.69
 
 #: Junction to ambient, K/W, typical. Same sheet, and the conditions

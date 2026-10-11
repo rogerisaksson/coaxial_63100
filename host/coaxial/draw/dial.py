@@ -34,7 +34,7 @@ CROSS_PITCH = 3
 #: deep, SEG_FILL of their pitch lit and dark teal off; lit to the reading in the
 #: phosphor of the band it is in (BAND_INK: cool under, cyan in, red past), the leading one
 #: white-hot; a notch NOTCH long outside the arc at each band edge; the reading and its
-#: kana name (SUB_NAMES) at the centre (2026-09-24: hands and arcs read as a watch's).
+#: kana name (SUB_NAMES) at the centre (hands and arcs read as a watch's).
 SUB_RIM = 30.0
 SUB_R, SUB_OFF = 0.27, 0.44
 SUB_ARC = 270.0
@@ -53,7 +53,7 @@ MAJOR_WIDE = 1.2
 SWEEP_OUT, SWEEP_IN = 9.0, 11.0
 
 #: The sweep fades behind the needle - bright where it has just been, to black
-#: (2026-09-24: "tonas till svärta", not grey); at one weight it outshouted the
+#: ("tonas till svärta", not grey); at one weight it outshouted the
 #: needle. In SWEEP_STEPS steps. SWEEP_FADE is how far back a still shows it,
 #: having no history to decay.
 SWEEP_FADE = math.radians(70.0)
@@ -62,7 +62,7 @@ SWEEP_STEPS = 8
 #: The phosphor: where the needle has been, decaying wherever it is not. Bins
 #: round the dial, and the seconds brightness takes to halve. A tail drawn off
 #: the reading alone sat ahead of a needle running counter-clockwise and rode
-#: along with it (2026-09-28); this is lit by the needle passing and by nothing
+#: along with it; this is lit by the needle passing and by nothing
 #: else, so it decays behind it whichever way it turns.
 TRAIL_BINS = 720
 TRAIL_HALF_S = 0.55
@@ -73,7 +73,7 @@ NEEDLE_CLEAR = 3.0
 NEEDLE_ROOT, NEEDLE_TIP = 0.75, 0.35
 
 #: The hub, a ring HUB_R across and RING thick: hollow - a filled disc read as a
-#: watch's. No ball at the needle's tip (2026-09-24).
+#: watch's. No ball at the needle's tip.
 HUB_R, RING = 2.6, 0.7
 
 #: No magnet below this: the angle is noise (2 G with nothing mounted, the
@@ -112,8 +112,7 @@ LABEL_INK = ansi.ASH
 
 
 #: The scales: the die -40 to 150 C (A1335 datasheet), the field 0-1200 G.
-#: Each in three bands, blue under normal, green, red past (bench
-#: 2026-09-07): the die's normal is where this board works, 15-65 C (the
+#: Each in three bands, blue under normal, green, red past (bench): the die's normal is where this board works, 15-65 C (the
 #: thermal ramp read a room-temperature die as cold); the field's is the
 #: datasheet's recommended 300-1000 G - weak or absent under, too close past.
 DIE_RANGE = (-40.0, 150.0)
@@ -138,7 +137,7 @@ class _Geometry:
         # numbers need outside the rim.
         self.rim = (min(width * DOTS_X, height * DOTS_Y) / 2.0
                     - LABEL_GAP - DOTS_Y - 1.0)
-        # A dot at most: grown with the rim it made the rim a fuzzy band (2026-09-24).
+        # A dot at most: grown with the rim it made the rim a fuzzy band.
         self.line = max(0.8, min(1.0, self.rim * 0.020))
         self.label = self.rim + LABEL_GAP + DOTS_Y / 2.0
         self.needle = self.rim - MAJOR_TICK - NEEDLE_CLEAR
@@ -379,8 +378,7 @@ def _raster(degrees, width, height, weak, aspect, field=None, kelvin=None,
            for (_oy, _r, scale_span, band, _ticks), value in readings]
 
     stretch = aspect / DOTS_Y * DOTS_X
-    # Every sample at once: a sample at a time was 370 ms a frame at 200x60
-    # (2026-09-25).
+    # Every sample at once: a sample at a time was 370 ms a frame at 200x60.
     from coaxial.model.blocks import numpy as np
     a = _arrays(width, height, aspect)
     glow = None if trail is None else _glow(trail, span, time.monotonic())
@@ -468,7 +466,7 @@ def caption(degrees, field=None, gauss=True):
 #: its mark, two for the tube, one of air against the face.
 SCALE_W = 8
 #: The tube: two cells wide, solid - the reading's ink to the reading, ash
-#: glass above (one dotted column read as a stray line; bench 2026-09-07).
+#: glass above (one dotted column read as a stray line; bench).
 TUBE_W = 2
 
 

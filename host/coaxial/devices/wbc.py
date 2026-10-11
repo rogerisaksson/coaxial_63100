@@ -4,7 +4,7 @@ from coaxial.comm.protocol import WbcOp
 from coaxial.comm.wire import Reader, pack
 from coaxial.devices.subsystem import Device
 
-#: Reply budget a tick, s: 1.4 s wall on Renode at its own 100 MIPS (2026-10-11).
+#: Reply budget a tick, s: 1.4 s wall on Renode at its own 100 MIPS.
 TICK_S = 3.0
 
 

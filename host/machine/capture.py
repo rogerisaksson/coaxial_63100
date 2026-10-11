@@ -5,14 +5,14 @@
 
 The capture point xi - the centre of mass plus its speed over omega, sqrt(g/h) - is where a foot
 must stand to stop her. Walking, it runs out from the standing foot toward the swinging one along
-XI_NOM by the swing's progress (measured, 2026-09-26), and the foot lands `sep` out: the walk's
+XI_NOM by the swing's progress (measured), and the foot lands `sep` out: the walk's
 own. What the capture point is off that course, the ankle holds while it stays within `margin`
 of the foot's middle - out, the course has used most of that by mid-swing: at 0.65 strides/s
-25 mm off at 0.7 of the swing doubled and the foot landed short (2026-09-26) - and the rest
+25 mm off at 0.7 of the swing doubled and the foot landed short - and the rest
 grows to the landing by e^(omega tau), the inverted pendulum's; the foot
 lands `gain` of that further out - a little past the capture point, to bring her back: shoved
 120 N, the foot landed 24 mm short of its mark and the capture point 50 mm past it, more than
-the sole holds; at 1.3 the step back grew by |1 - gain| e^(omega T), 1.35 a step (2026-09-26). Asked across the standing foot it lands no nearer than `cross`; asked `swap`
+the sole holds; at 1.3 the step back grew by |1 - gain| e^(omega T), 1.35 a step. Asked across the standing foot it lands no nearer than `cross`; asked `swap`
 across, she swaps: this foot down at once, the other steps out (`machine.walker`, the side step).
 The lateral is latched from `latch_u` of the swing: moved to the last, the foot landed 25 mm off
 it.
@@ -27,7 +27,7 @@ from numpy.typing import NDArray  # noqa: E402
 from machine import gait  # noqa: E402
 
 #: The capture point's course out from the standing foot toward the swinging one, m, by the swing's
-#: progress: the walk on this law at 0.65, 0.85 and 0.9 strides/s, meaned (2026-09-26, spread
+#: progress: the walk on this law at 0.65, 0.85 and 0.9 strides/s, meaned (spread
 #: +-0.016). Scaled to the feet's separation, the wide first steps were expected to sway 8-14 cm
 #: and the feet were put down crossed.
 U_NOM = (0.0, 0.14, 0.28, 0.41, 0.54, 0.67, 0.80, 0.93, 1.0)
@@ -35,7 +35,7 @@ XI_NOM = (-0.016, -0.013, -0.011, 0.017, 0.033, 0.042, 0.047, 0.057, 0.063)
 
 #: The row: its parameters, then its memory - the lateral latched and whether - and whether a
 #: swap is asked this pass: latched, one asked as the capture point left was done 0.2 s later,
-#: the capture point back on the other side (2026-09-27).
+#: the capture point back on the other side.
 PARAMS = ('margin', 'gain', 'dead', 'cross', 'swap', 'from_u', 'latch_u', 'catch', 'wide')
 CAPTURE = np.dtype([(n, 'f8') for n in PARAMS + ('x', 'latched', 'swapping', 'need')])
 
@@ -43,17 +43,17 @@ CAPTURE = np.dtype([(n, 'f8') for n in PARAMS + ('x', 'latched', 'swapping', 'ne
 #: band, m; the nearest across, the crossing that swaps, the swing's progress a swap is asked
 #: within; the progress the lateral is latched from; a landing this far off the walk's is a
 #: catch - a swinging leg's: the standing leg's row, read against the swinging foot kept out
-#: round it, flagged one every stride (2026-09-28); the widest across, a step the leg takes -
+#: round it, flagged one every stride; the widest across, a step the leg takes -
 #: unbounded, a side step was sent 0.62 m out, flew 0.5 m in 0.1 s and split her legs 0.86 m
-#: apart (2026-10-01): `state`'s defaults, in PARAMS' order. `need` is the across asked before
+#: apart: `state`'s defaults, in PARAMS' order. `need` is the across asked before
 #: WIDE bounds it. Shoved toward the standing foot the swinging one crosses over in front of it,
 #: CROSS: kept 2 cm on its own side, a swap put it down there, away from her fall, it bore under
 #: 150 N and the other stepped out on nothing; held of 48 shoves of 60 N: 0 then, crossing 10,
-#: 15 or 20 cm 21, 22, 21, swapping past 15 or 25 cm 18 and 21 (2026-10-01). MARGIN and GAIN
+#: 15 or 20 cm 21, 22, 21, swapping past 15 or 25 cm 18 and 21. MARGIN and GAIN
 #: retuned (`physics.STAGED`). A catch at 4 cm met her own walk: her start's last strides run
 #: 44-74 mm off, her swinging leg's own reaction 34-60 early in a fast swing - from the squat
 #: she parried a plain floor in 7 of 12 runs a side gain 0.3 % apart; at 7 cm in none, the
-#: events held 48 of 90 where 47 (2026-10-05).
+#: events held 48 of 90 where 47.
 MARGIN, GAIN, DEAD, CROSS, SWAP, FROM_U, LATCH_U, CATCH, WIDE = (
     0.0351513, 1.10781, 0.01, -0.15, 0.25, 0.12, 0.7, 0.07, 0.3)
 

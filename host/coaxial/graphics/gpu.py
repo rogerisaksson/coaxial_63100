@@ -2,7 +2,7 @@
 
 `crew_for` is what a page asks for: a `GpuCrew` where a card answers, else `crew.Crew`'s
 processes. The GPU draws the dot raster - `engine.raster`'s contract, 100 ms -> 2.1 ms at
-392x224 on a GTX 1080 Ti (2026-09-25) - and this process folds and shades it
+392x224 on a GTX 1080 Ti - and this process folds and shades it
 (`crew.cells`). Against the CPU raster: 0-2 of 11 000 cells' dots differ, where coplanar
 faces tie and f32 rounds another way than f64. COAXIAL_GPU=0 keeps every frame on the CPU.
 """

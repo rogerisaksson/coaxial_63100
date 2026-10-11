@@ -27,13 +27,13 @@ _BY = {k[0]: k for k in KNOBS}
 #: the walk as tuned at 0, a swagger's torso counter-turning and shoulders loose at 1 - each knob
 #: on a line through its three. Both ends walk at 0.65 and 0.85 strides/s, their drives at their
 #: peaks 0.34-0.49 % of the time where the walk as tuned is 0.47; the catwalk's feet on a 15 mm
-#: track fell (2026-09-30).
+#: track fell.
 SWAY = {'turn': (8.0, 4.0, 5.0), 'drop': (7.0, 6.0, 4.0), 'shift': (0.014, 0.010, 0.008),
         'counter': (1.0, 1.0, 1.2), 'shoulders': (0.30, 0.25, 0.15)}
 #: Where on it she walks.
 AXIS = 0.0
 
-#: Her walk's manners (2026-10-05: a middle layer that blends, concepts as tuples): a
+#: Her walk's manners (a middle layer that blends, concepts as tuples): a
 #: manner a line through the walk's constants from where they are tuned - (module, constant,
 #: its value at an amount of 1) -, asked as ((manner, amount), ..) and their offsets summed.
 #: Read back in `tools.sim.normal`'s words: crouched 1, her standing knee 24 deg - crouched

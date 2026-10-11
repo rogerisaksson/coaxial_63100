@@ -180,7 +180,7 @@ typedef struct
   float mcu_watt;        /**< static, 475 MHz through the linear LDO */
   float ldo_watt;        /**< the drop, plus what else the reg zone makes */
   float afe_watt;        /**< the AFE chain when AFE_ON is high */
-  /* Since 2026-09-05: the switching loss as functions of what switches. */
+  /* The switching loss as functions of what switches. */
   float f_sw;            /**< the PWM, Hz - TIM1 at 50 kHz */
   float coss_cjo;        /**< C_oss at 0 V, F, and its law: C = CJO/(1+V/VJ)^M */
   float coss_m;

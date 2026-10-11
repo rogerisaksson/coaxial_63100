@@ -22,7 +22,7 @@ WALL_M, CF_KG_M3 = 0.002, 1600.0
 
 #: What a segment holds besides its shell and its drives, (kg, where in its frame, m) - estimated:
 #: in the torso two 15S2P packs of 21700 cells, 48-63 V, 540 Wh each with its BMS and case, one in
-#: each flank of her lower ribs (2026-10-02), and the computer and the harness; the
+#: each flank of her lower ribs, and the computer and the harness; the
 #: pelvis's power distribution; the head's cameras and IMU; the ankle's rod down the shin
 #: (`linkage`); her clothes and her sneakers.
 HOLDS = {'torso': ((2.4, (0.065, 0.17, -0.005)), (2.4, (-0.065, 0.17, -0.005)),
@@ -36,7 +36,7 @@ HOLDS = {'torso': ((2.4, (0.065, 0.17, -0.005)), (2.4, (-0.065, 0.17, -0.005)),
 
 #: Walking she drew 691 W at 0.76 m/s (work 197, copper 424, her boards 70) and 439 at 0.48 (96,
 #: 273, 70): 253 Wh a km either way - on the two packs' 972 Wh used (90 %) 3.8 km, on one 1.9;
-#: lying limp her 25 boards' 35 W, 28 h (2026-10-02, the build before the gimbal hip).
+#: lying limp her 25 boards' 35 W, 28 h (the build before the gimbal hip).
 
 #: Each limb's quick-release, by its segment: a printed-polymer collar with pogo pins for its power
 #: and its bus at its root, clear of the drive above it - the arm's under the shoulder's 70 mm, the

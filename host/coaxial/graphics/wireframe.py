@@ -155,7 +155,7 @@ def _adopt(path, bundle):
 #: steeply its face around the bore was gaps - the bore wall's and the
 #: collar's triangles collapse on 0.0625 cells against a bore 0.2
 #: across, and the ground showed through beside the ring the outline
-#: drew where the hole is (the bench's "ghost hole", 2026-09-23).
+#: drew where the hole is (the bench's "ghost hole").
 #: Grid 48 keeps 5 645 triangles against 32's 5 570 and closes them;
 #: measured in the attitude page's own loop, 31.4 -> 32.3 ms a frame.
 CREW_LEAST = 48

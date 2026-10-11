@@ -169,7 +169,7 @@ extern "C" {
 /* MINOR 2: u8 first -> u8 total, u8 first, u8 count, u32 x count. */
 #define CAL_OP_PARAMS      8U
 
-/* 2.0, 2026-08-29: the thermal nodes went per leg, which REPURPOSED wire
+/* 2.0: the thermal nodes went per leg, which REPURPOSED wire
    indices - device 8 node order and the cal record's ceilings both. */
 #define CMD_PROTO_MAJOR 2U
 #define CMD_PROTO_MINOR 31U        /* history: docs/PROTOCOL_VERSIONS.md */

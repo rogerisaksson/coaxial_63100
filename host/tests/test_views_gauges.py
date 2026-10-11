@@ -141,7 +141,7 @@ def test_the_sweep_decays_behind_the_needle(report):
     """The sweep is where the needle has been, not an arc hung off the reading:
     a phosphor lit by the needle passing and decaying everywhere else, so it
     trails whichever way the dial turns. Drawn off the reading alone it sat
-    ahead of a needle running counter-clockwise (2026-09-28).
+    ahead of a needle running counter-clockwise.
     """
     import math
     from coaxial.draw import dial
@@ -204,7 +204,7 @@ def test_the_sweep_decays_behind_the_needle(report):
 def test_the_face_wears_its_two_scales(report):
     """SHAFT ANGLE's die temperature and field stand either side of the face
     as tubes on their own ranges - the scales beside it the bench asked
-    for, die temperature and field strength in gauss, 2026-09-07.
+    for, die temperature and field strength in gauss.
     """
     from coaxial.draw import dial
     from machine import ansi

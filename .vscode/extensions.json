@@ -4,7 +4,7 @@
     // setup.ps1 READS THIS FILE and installs what it names - so adding an id
     // here is the whole change, and the editor and the setup script cannot
     // disagree about what the project needs. They had: this list said six and
-    // the script's own copy said three (2026-09-03).
+    // the script's own copy said three.
     //
     // ollama.ollama is the exception setup.ps1 makes: its ollama step installs
     // that one, so -SkipOllama leaves the daemon and its editor half out

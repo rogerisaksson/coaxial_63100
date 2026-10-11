@@ -3,14 +3,14 @@
 // pair), U16C's pulse train into Cinj, U4, the keepalive's pump into Clevel off PA10's edges at
 // their instants, Q10, U11 onto PE15 (nFAULT, TIM1's BKIN), U9's +15V7 for the gate drivers.
 // The edges are kept with their instants and the chain stepped over them at StepHz, or as they
-// fill the buffer: a step an edge cost 3.4 us, 50 000 a virtual second idle (2026-09-27). Cinj,
+// fill the buffer: a step an edge cost 3.4 us, 50 000 a virtual second idle. Cinj,
 // Clevel and +15V7 are written into the front end. The pilot is the master's: PilotVolts 1.5,
 // PilotHz 5000 (sto.asc's PAM8406), 0 V none. The chain runs on the part's time, so the
 // keepalive's edges come as the part spaces them: main()'s instructions at PartMips, stretched
 // by the interrupts' share of the part's budget, a sleep at its length. Renode's pacing, the
 // idle core at 100 MIPS and main() skipped under the drive, stretched the edges in virtual time
 // and starved the pump; the drive's ISR counted as the chain's time put them 46 us apart, the
-// part's 9, and the observer's slice 850 us, the part's 190 (2026-09-27). Unpaced, it is the
+// part's 9, and the observer's slice 850 us, the part's 190. Unpaced, it is the
 // virtual time.
 
 using System;

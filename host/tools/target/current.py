@@ -2,7 +2,7 @@
 
     python tools/target/current.py          # said, and built where behind
 
-The user, 2026-10-10: a pull on the other machine, a terminal opened, no old binaries run. Each
+After a pull on the other machine a terminal opened runs no old binary. Each
 tree's own ninja dry run says what it would build (0.04 s); Debug is the emulator's
 (tools/emu/emulator.py ELF), Release the bench's (`Coaxial63100.open()` loads the newest).
 """

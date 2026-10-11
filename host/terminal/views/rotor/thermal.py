@@ -37,7 +37,7 @@ POLICY_INK = {'STABLE': cross_section.SOA_OK, 'CONVERGING': cross_section.SOA_WA
 def _policy(view):
     """`(label, word, ink)` for the foot: TH OBS and the state with the
     margin the board acts on now - `UNCR 80%`, `CONV 93%`, `STBL 97%`,
-    `STABLE` once whole (continuous since 2026-09-06) - or a grey dash
+    `STABLE` once whole (continuous) - or a grey dash
     before op 10 answers.
     """
     ident = view.get('ident')
@@ -262,7 +262,7 @@ def thermal_rows(view):
                                            degrees.get(node, float('nan'))))
             rows.append((node, bar))
     # A row inside the box: `regulators`' ten cells leave a value 25, and five of these
-    # ran to 38 (2026-10-05). The worst node is `worst`'s row.
+    # ran to 38. The worst node is `worst`'s row.
     rows.append(('headroom', '%6.0f %% left' % (100.0 * headroom(view))))
     factor = (budget or {}).get('derate')
     if factor is not None:

@@ -16,7 +16,7 @@ from coaxial.model.thermal import (AMBIENT, CFG, DRIVER_RISE_SWITCHING, NODES, N
                                    NTC_SEES_DRIVERS, board_from_ntc, expected_ntc,
                                    settled_fraction, tau_minutes)
 
-#: The camera, 2026-08-28. Dead surface is the reference; ntc is the board's.
+#: The camera. Dead surface is the reference; ntc is the board's.
 CAMERA = {
     'passive': {'dead': 30.0, 'mcu': 45.0, 'regulators': 38.0, 'bridge': 31.0,
                 'afe': 31.0, 'hotswap': 31.0, 'ntc': 36.0},

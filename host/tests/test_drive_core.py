@@ -142,7 +142,7 @@ def test_trip_and_stage(r, lib):
 def test_off_lets_the_rotor_go(r, lib):
     """OFF at speed: the bridge open, no current, the rotor on its drag, J dw/dt = -b w. The
     zero triple the drive let go with shorted the windings: this model's flywheel from 2 171 to
-    255 rpm in 0.5 s, native's from 865 rpm to rest in a second (2026-09-28)."""
+    255 rpm in 0.5 s, native's from 865 rpm to rest in a second."""
     d = Drive(lib)
     v_inj, j, b = 0.585, 8e-3, 5e-4
     try:

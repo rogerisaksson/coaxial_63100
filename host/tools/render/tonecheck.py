@@ -41,7 +41,7 @@ from tools.render import facecheck
 PHOTOS = ('x0y45z0', 'x45y45z45')
 TURNS = ('x0y0z0', 'x0y15z0', 'x0y30z0', 'x0y60z0', 'x30y0z0')
 
-#: Per class off the screenshots 2026-08-30: (mean, sd, mean |luma
+#: Per class off the screenshots: (mean, sd, mean |luma
 #: step| to the right-hand neighbour of the same class). '.' 93-99 /
 #: 24 / 21 - texture, its neighbour correlation only 0.22; ':' 128-130
 #: / 18-23 / 8-10 - smooth blocks. Flat across the picture. The means

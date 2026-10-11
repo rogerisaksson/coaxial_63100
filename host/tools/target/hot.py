@@ -6,7 +6,7 @@
 Each function of the ELF's disassembly counted - its instructions, conditional branches (b<cc>,
 cbz, cbnz, it), calls (bl, blx), divides and roots, memory accesses - and each handler's reach
 followed through its calls: what an interrupt can run, statically, and of it what runs outside
-ITCM (fetched through the cache from D2 SRAM or flash, a miss a stall). The user, 2026-10-10:
+ITCM (fetched through the cache from D2 SRAM or flash, a miss a stall). Its aim:
 the hot paths' jumps, interrupts and stalls ranked, each cut or named unavoidable.
 """
 import argparse

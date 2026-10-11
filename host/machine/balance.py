@@ -33,13 +33,12 @@ LIFT_M, LAND_N, DESCEND_M_S = 0.05, 20.0, 0.2
 #: A standing sole the stack laid more than 2 LOST_N on that bears under LOST_N for LOST_S stands
 #: no more: it swings, put down where the MPC says - counted standing on 0 N for 0.6 s, her rear
 #: foot drifted 10 cm, the MPC saw her on both and she fell aside with no step called (100 N
-#: from behind, 2026-10-10); by its load alone, a sole the stack unloaded stepped, 126 steps in
+#: from behind); by its load alone, a sole the stack unloaded stepped, 126 steps in
 #: 24 shoves of 60 N where 2 in 8.
 LOST_N, LOST_S = 15.0, 0.05
 
 #: A swinging sole rises alone over LIFT_FIRST of its swing before it travels; it stands where it
-#: bears after LANDS_U of it - from 0.5 and 0.15, 0.2 s side steps came down 11 cm short (100 N,
-#: 2026-10-10).
+#: bears after LANDS_U of it - from 0.5 and 0.15, 0.2 s side steps came down 11 cm short (100 N).
 LIFT_FIRST, LANDS_U = 0.10, 0.75
 
 #: A swinging sole's travel along the floor done by TRAVEL_U of its swing, the rest straight
@@ -58,7 +57,7 @@ DS_S, START_S = 0.03, 0.4
 
 #: A swinging knee folds FOLD_DEG over its line from its lift to LANDS_DEG, at the swing's middle:
 #: straight, a knee lifts its sole only to second order - asked up 17 m/s^2 the stack gave it
-#: 1.5 (80 N from behind, 2026-10-10).
+#: 1.5 (80 N from behind).
 FOLD_DEG, LANDS_DEG = 45.0, 5.0
 
 SIDES = mpc.SIDES

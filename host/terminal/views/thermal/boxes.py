@@ -15,12 +15,12 @@ from terminal.ui.stage import hud
 #: The room hint above the board, on the estimated ambient (op 10): cold
 #: under 5 C, hot from 35, 'unsure' while the filtered innovation is 0.3 K or
 #: more (UNCERTAIN's ratio on this board's 0.1). Emoji on the bench's word
-#: (2026-09-06, after braille pictograms), two cells at the terminal's size:
+#: (after braille pictograms), two cells at the terminal's size:
 #: no escape scales a glyph (DECDHL is undone in Windows Terminal and
 #: xterm.js).
 ROOM_COLD_C, ROOM_HOT_C = 5.0, 35.0
 ROOM_UNSURE_K = 0.3
-#: Hysteresis, so a boundary room keeps its word (bench 2026-09-06): a held
+#: Hysteresis, so a boundary room keeps its word (bench): a held
 #: word stands until the room is this far past its threshold, and 'unsure'
 #: until the innovation is under ROOM_SURE_K.
 ROOM_HYSTERESIS_K = 2.0
@@ -28,7 +28,7 @@ ROOM_SURE_K = 0.2
 #: Each hint is two single-code-point emoji with a space between (bench):
 #: the snowflake and thermometer asked for are narrow characters with a
 #: variation selector, counted one cell and drawn two, and the SENSE frame
-#: shifted (2026-09-06).
+#: shifted.
 ROOM_HINTS = {'cold': '🧊 🥶', 'mild': '🍃 😌', 'hot': '🔥 🥵',
               'unsure': '🤒 🤔'}
 
@@ -95,7 +95,7 @@ def ident_rows(ident, hint=None):
                          '%.2f ±%.2f' % (scales[name], sigma[name])))
     # The room, identified beside the scales (MINOR 15): the board has no
     # ambient sensor, so its rise is measured against this. Its hint, the
-    # bench's emoji pair, sits here rather than over the board (2026-09-06).
+    # bench's emoji pair, sits here rather than over the board.
     if ident.get('ambient') is not None:
         kind = hint if hint is not None else room_hint(ident)
         rows.append(('room', Text('%.1f ±%.1f C   %s' % (
@@ -113,7 +113,7 @@ def ident_rows(ident, hint=None):
                  % (truth['air'], truth['capacity'],
                     truth.get('ambient', 25.0))))
     # What the cycle asks and what the envelope lets through of it: `0 A on` stood over a
-    # bridge switching, throttled to nothing (2026-10-05).
+    # bridge switching, throttled to nothing.
     if truth.get('load_a') is not None:
         asked = truth.get('asked_a')
         asked = truth['load_a'] if asked is None else asked
@@ -158,7 +158,7 @@ def envelope_rows(ident):
     return rows
 
 
-#: The map's marks in words, a box under SENSE (bench 2026-09-06).
+#: The map's marks in words, a box under SENSE (bench).
 MAP_WORDS = {'U': 'FETs, shunts', 'V': 'FETs, shunts', 'W': 'FETs, shunts',
              'REG': 'regulators', 'MCU': 'the STM32', 'HS': 'hot swap',
              'AFE': 'front end', 'NTC': 'thermistor, by the bore'}
@@ -183,7 +183,7 @@ def status_boxes(state, budget, aspect=None, ident=None, hint=None, afe=None):
 
     `afe` is whether AFE_ON stands, where the page has read it: with no
     reading yet the box said the AFE was off while it was on, the observer
-    simply not having reached its first sample 30 s in (2026-09-28).
+    simply not having reached its first sample 30 s in.
     """
 
     age = state.get('seen_s_ago')
@@ -206,9 +206,9 @@ def status_boxes(state, budget, aspect=None, ident=None, hint=None, afe=None):
                  Text('%.0f s old - open loop' % age, style='value')]
     else:
         # No `err` row: the model now against a reading a sample old read +9 K on a model
-        # 0.1 K out (2026-10-05); the miss as judged is HEADROOM's innovation.
+        # 0.1 K out; the miss as judged is HEADROOM's innovation.
         sense = [('NTC', '%.1f C' % state['ntc'])]
-    # One fact a row (bench 2026-09-06): `sample every 30 s - last 0 s ago`
+    # One fact a row (bench): `sample every 30 s - last 0 s ago`
     # as one row was cropped at the panel's edge. `run`: how long the observer has, with a
     # thermometer or without; `last` a dash until one has answered.
     answered = any(state.get(name) is not None for name in ('ntc', 'mcu', 'afe'))

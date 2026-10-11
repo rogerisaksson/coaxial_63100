@@ -62,7 +62,7 @@ namespace Antmicro.Renode.Peripherals.UART
         /// <summary>Whether a character crosses between the UART and the bus: its stop bit,
         /// sampled 9.5 bits past the start edge, inside half a bit less the majority vote's two
         /// samples - 2.6 % at OVER8, 3.9 % at OVER16. Renode's UARTs pass a byte whatever the
-        /// rates: the app's 115 200 answered a 10 Mbit adapter (2026-09-28).</summary>
+        /// rates: the app's 115 200 answered a 10 Mbit adapter.</summary>
         private bool Decodes()
         {
             var rate = rates.Rate;

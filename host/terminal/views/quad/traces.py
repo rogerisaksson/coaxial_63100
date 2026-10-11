@@ -23,7 +23,7 @@ POWER_W, POWER_STEP_W, BUS_V, TEMP_K, HEIGHT_ROWS, BUS_ROWS = 1000.0, 500.0, 6.0
 
 #: The inks, as the side column takes them: SGR over a string, not rich's styles. A plot's
 #: left curve and its scale, its right one's: the height's and the bus's, the power's and the
-#: temperature's (the bench, 2026-10-05; both plots alike, 2026-10-06).
+#: temperature's (the bench; both plots alike).
 RESET = '\x1b[0m'
 LEFT, RIGHT = '\x1b[38;5;51m', '\x1b[38;5;207m'
 

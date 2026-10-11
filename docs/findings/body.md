@@ -5,26 +5,26 @@ Build, buses, falls, get-up, drawing and clothes; the drives in
 
 ## Model
 
-- MuJoCo, 55 kg, 26 drives, 1 kHz (2026-09-25): on the line the legs stand
+- MuJoCo, 55 kg, 26 drives, 1 kHz: on the line the legs stand
   in a V, 8 cm out at the hip for 3 at the foot, needing 0.773 m of 0.770:
   the IK clamped, a foot hung 3 mm off the floor, the body tipped over it;
   the pelvis 12 mm lower. On one leg no stiffness held (x5 4.8 s, x20
   unstable); the CoM fed back through the pelvis's target did.
 - Hair on two hinges under the crown, 0.06 kg at 1.8 Hz: 17 deg fore and aft
-  and 6 aside, walking (2026-09-28).
+  and 6 aside, walking.
 - Jeans' legs softly stopped at 14 deg swung to 19, the shin 35 mm out
   through their sides, the sneaker 64. Stiffly stopped at 5, 8, 3
   (`physics.HEM_*`), a 74 mm hem on the vamp: the shin inside, the sneaker 5,
-  the other foot 12 in where 16 (2026-09-28).
+  the other foot 12 in where 16.
 - Jeans as MuJoCo cloth (`flexcomp`, 3.14.0), the 1 ms step 0.31 ms: two
   grids of 400 vertices over the shanks 19.2 ms, 100 vertices 1.06, 100
   touching the body alone 0.47, 48 so 0.31. A coarse reference runs live, the
-  denim not (2026-10-02).
+  denim not.
 - The whole body collides (`figure.BODY`).
 
 ## Buses
 
-- Boards on their buses, simulated (`machine.buses`, 2026-09-27):
+- Boards on their buses, simulated (`machine.buses`):
   + A bus a limb (the type's subsystems: the axis, each arm, each leg), a
     process each with its boards' PD loops, in lockstep with the world a
     step at a time over a shared block (q, qd, limit in; ctrl out; a byte on
@@ -50,7 +50,7 @@ Build, buses, falls, get-up, drawing and clothes; the drives in
     to 150 rad/s and every drive slammed to its peak.
   + A world with no buses runs the drives itself (`tools/sim/getup_lab.py`).
 - Five processes (the axis's 5 boards, each arm's 4, each leg's 7), 0 bad
-  frames, 2026-09-28:
+  frames:
   + With the heat in each reply (21 bytes) a leg's wire is busy 430 us of a
     1 ms pass. The loop runs 0.63-0.7 of real time here, mostly the
     director's Python, the lockstep 8 %.
@@ -70,7 +70,7 @@ Build, buses, falls, get-up, drawing and clothes; the drives in
 
 ## Falls
 
-- Fall detection (`machine.director`, 2026-09-27): the pelvis tipped past 12
+- Fall detection (`machine.director`): the pelvis tipped past 12
   deg and tipping faster than 60 deg/s, or below 0.65 m, is past the walker's
   recovery; then a curl into the squat's joints over 0.4 s, the arms toward
   the fall, the body lying as it lands. Contacts: seat, back, chest, skull,
@@ -83,7 +83,7 @@ Build, buses, falls, get-up, drawing and clothes; the drives in
   + Off the rug: sat down backwards onto the feet (1.5 kN each), rolled onto
     the back.
   + Walking stumbles tip 6-8 deg, under the trigger.
-- The lace fall's head (2026-09-28): the lace held the trailing foot; a dive
+- The lace fall's head: the lace held the trailing foot; a dive
   onto the hands, the legs straight behind, the arms gave; chin down 40 deg,
   the head met the floor at 0.85 m/s. Waist turned 0, 20, 35 deg: 2.02,
   1.41, 1.33 m/s; arms straight or on the forearms: the head down sooner.
@@ -91,13 +91,13 @@ Build, buses, falls, get-up, drawing and clothes; the drives in
   hips take the floor, the head never.
 - Reach pointed 45 deg off the tip (the hole); turned at the waist past 20
   off the front (`falls.turn`): 5. In 24 falls the head touched in 12, 688 N
-  at most; unturned 10, 1170 (2026-10-01).
+  at most; unturned 10, 1170.
 - Pads where falls land, 5 mm of gel (`figure.PADS`,
   `tools/sim/landings.py`): stiff, it bounced, median landing 19.6 kN, bare
-  6.0 (2026-10-01).
+  6.0.
 - Down after a sill the spine bent back 98-101 deg; stopped (`physics.STOPS`)
-  31-37 (2026-10-01).
-- Down (`machine.down`, 2026-10-02): the fall braked, the drives cut once
+  31-37.
+- Down (`machine.down`): the fall braked, the drives cut once
   still, a bus's boards checked one after another, 0.2 s each. Lying: 33.2
   W, 25 boards at 1.33 W, 105 W at the check's first five. Before: the page
   drew 136-163 W lying, the tuck holding the curl, and 157 W given up, stuck
@@ -106,31 +106,31 @@ Build, buses, falls, get-up, drawing and clothes; the drives in
 ## Get-up
 
 - In the joints alone (`tools/sim/getup_lab.py`): sat up from the back, it
-  rolled onto its side (2026-09-27).
+  rolled onto its side.
 - After a fall the walk began with the pelvis still lowered 12 cm, 8-10 cm
-  crouched: `Walker.reset` on landing (2026-09-28).
+  crouched: `Walker.reset` on landing.
 - Falling, the legs' and trunk's drives shorted (`falls.SHORT_FALLING`). Up
   on a woman's 40/25 N m arms, sat, folded over the knees, after the rug and
   the lace in 25 s. Risen facing where it lay, it fell 0.2-1 s into the walk:
   MuJoCo's pyramid cone grips along the world's axes; elliptic at impratio 10
-  it walks 13 m every way (2026-09-30).
+  it walks 13 m every way.
 - Folded over the knees, the trunk went 42-45 mm into them, 33-37 squatting;
   colliding, the fold failed 3 of 3 until the knees opened 30 deg: 7 mm. Up,
   the walk kept its catch and speed from before the fall and held 6 s 2
   times in 11; reset, 10 (`Walker.reset`). The head's IMU picks the side
   rolled over. Walking back, a joint came 2.38 m behind the lens
-  (`gynoid.Follow`) (2026-09-30).
+  (`gynoid.Follow`).
 - The get-up a plan the observer checks (`machine.planner`): on the heels
   from 18 of 22 kneels (`observer.OVER_FEET_M`), onto the feet ended
   crouched (`observer.EARLY`), the floor's boxes deep (`floor.DEEP_M`): 13 of
-  13 falls walk again 20-25 s after, 12 padded (2026-10-01).
+  13 falls walk again 20-25 s after, 12 padded.
 - From the modules (45cc518) none of 5 falls walked again, 5 of 5 before; no
   test walked up from the floor. The thighs as modules, r 58 -> 72 mm at the
   top, met the torso at hip -126 (-140 before): the crouch asked -138.7 and
   drove 100 N m into it, the hands 0.17 m ahead of the feet. Re-searched
   (`getup_search.py --table f`), the crouch's hip -126.5: 5 of 5 walking at
-  21.0-23.2 s, each first try (2026-10-03).
-- Re-searched hot (`getup_search`, 2026-10-04) against two faults: spasms and
+  21.0-23.2 s, each first try.
+- Re-searched hot (`getup_search`) against two faults: spasms and
   a fall restarting after a shove; the arms out on the way up. Starts: the
   five falls after a minute's walk with the drives' heat carried; success:
   walking again 3 s without a fall; the look's cost 10 a second with the
@@ -143,8 +143,8 @@ Build, buses, falls, get-up, drawing and clothes; the drives in
     none of 5, hot or cold (1.4 and 5.9 s): the throw lifts off the heels,
     not the hip. Kept with the throw; arms down needs another way up (TODO
     12).
-- P's shove on the walk as built from the squat, the get-up measured
-  (2026-10-11): walking again 22.9 s after the fall; 9 joints of 27 past 400
+- P's shove on the walk as built from the squat, the get-up measured:
+  walking again 22.9 s after the fall; 9 joints of 27 past 400
   deg/s (the elbows 1 190, the hips 640, the sprung toes 2 000), the feet 2.9
   and 3.2 m/s, the hands 6.4-7.3; the hands 0.86 m from the torso at the
   farthest through the lift and the crouch; the feet 178 mm apart fore and
@@ -154,16 +154,15 @@ Build, buses, falls, get-up, drawing and clothes; the drives in
 
 - The drives' callouts (HUMANOID page) dock at the viewport's edges, a leader
   to each pivot: beside the figure at 0.42 m they were three cells and
-  crossed the stride (2026-09-27).
+  crossed the stride.
 - The page threw at a zoom of 1.1^3: a callout placed at its joint's height
-  at rest, the joint past the drawing's edge, was written past the last row
-  (2026-09-28).
+  at rest, the joint past the drawing's edge, was written past the last row.
 - Callouts 34 cells a joint -> 20 in the tty's frame, the name on a patch in
-  its drive's heat colour (`ansi.thermal_rgb`) (2026-09-28).
+  its drive's heat colour (`ansi.thermal_rgb`).
 - An obstacle drawn in its own ink: laid under the lifting foot it showed 0.1
   s before contact; on the page it is laid a stride on at the same phase,
-  1.3 m ahead of the pelvis (2026-09-28).
-- Playback (2026-09-28): the frames drawn at 15 a second showed the same
+  1.3 m ahead of the pelvis.
+- Playback: the frames drawn at 15 a second showed the same
   state again 65 times in 235, the rest 0.036 s of simulated time apart on
   the mean with 0.022 of spread; the process runs 0.7 of real time in slices
   of 0.05 s. Played 0.2 s behind the newest state on a clock of its own, its
@@ -174,8 +173,8 @@ Build, buses, falls, get-up, drawing and clothes; the drives in
 
 ## Mechanics
 
-- The hip's drives kept on the pelvis's side, its pitch on its axis
-  (2026-10-02): on the thigh 0.12 m down with rods to the pelvis they would
+- The hip's drives kept on the pelvis's side, its pitch on its axis:
+  on the thigh 0.12 m down with rods to the pelvis they would
   add 0.038 kg m^2 to the leg's 1.685 about the hip, its ~140 deg past a
   crank's dead point (the ankle's rod spans 95, 39-41 deg at worst), and
   ball-joint play where hysteresis shows. The femur and tibia hang from their
@@ -189,8 +188,8 @@ Build, buses, falls, get-up, drawing and clothes; the drives in
   Rejected: arms at 33 and 34.5 mm with the hub kept (the walk from the
   squat fell at 13 s); the drive 15 mm ahead (two falls put the head down at
   1.6-1.9 m/s); the crank outside (the thigh's boards met it sat back, 15
-  mm) (2026-10-02).
-- The ankle a parallel pair (`linkage.PAIRS`, 2026-10-02/03):
+  mm).
+- The ankle a parallel pair (`linkage.PAIRS`):
   + Two M drives at 1:68, 80 and 150 mm under the knee, each a 12 mm carbon
     rod crossed from a crank on its drum's gearbox end at the knee's front,
     bent down past the drums to a horn on the heel's back 12 mm out or 16 in.
@@ -208,13 +207,13 @@ Build, buses, falls, get-up, drawing and clothes; the drives in
     1.03-1.66 m/s in 3 of 64 falls, without at 0.66-0.81 in 2; one with
     nothing of the skeleton touching: chance.
 - Every drive's output on its drum's axis from its gearbox's end
-  (`tools/sim/fit.py`'s outputs, 2026-10-03). Before: the ankle's L along
+  (`tools/sim/fit.py`'s outputs). Before: the ankle's L along
   the shin turning its crank about the knee's axis; the hip yaw's gearbox
   facing up, away from the hip; the elbow's and wrist's belts turning about x
   off drums along the arm (across it the drums stood 3-26 mm out of the
   shell, so a bevel pair at each gearbox's end, `linkage.BEVELS`); the spine
   roll's M 90 mm off its joint, nothing between.
-- The hip a gimbal of parts (`skeleton.gimbal`, 2026-10-02/03):
+- The hip a gimbal of parts (`skeleton.gimbal`):
   + The yaw's M on the pelvis turns a fork (a steerer; a crown over the
     pitch's L; legs before it 20 mm in, behind it 20 out) to the roll's
     bearings 55 mm either side of the hip's centre; the roll's M rides the
@@ -228,7 +227,7 @@ Build, buses, falls, get-up, drawing and clothes; the drives in
     the L, their inner corners 16 mm higher rolled 25 deg, no crown between.
     fit clean over its 45 poses once the femur left its collar 34 mm out,
     not 28.5 (knees under the body it met the fork's front bearing, 1 mm).
-- The trunk's roll drive (2026-10-03): the shell at the spine's pivot 70 mm
+- The trunk's roll drive: the shell at the spine's pivot 70 mm
   ahead and behind, 102 to the sides.
   + On its own axis a roll M stood 47 mm out of it, 10 past the clothes
     ahead, 27 behind.
@@ -245,7 +244,7 @@ Build, buses, falls, get-up, drawing and clothes; the drives in
     its M on the pelvis, 10 mm lower, a 1:1 spur pair into it; the pitch's L
     on its stage, 13 mm off the M; the hips' yaw drums rolled 35 deg; fit
     clean, the M 4 mm inside the skin; scoreboard 582, held 64.0 %.
-- Drives held (`fit.held_by`, `skeleton.HELD`, 2026-10-03). Before: the
+- Drives held (`fit.held_by`, `skeleton.HELD`). Before: the
   hip's roll M, the ankles' and the toes' held by nothing; the arms' and the
   trunk's only by wires through them. Now: the roll M on two collars and
   struts into the fork's back leg; the yaw M's collar on the boom; the
@@ -257,7 +256,7 @@ Build, buses, falls, get-up, drawing and clothes; the drives in
   hip reaches -130 at most, the torso stopping the thigh. Asked -130: 5 falls
   of 5 walking at 20.4-23.1 s. The gimbal rolls -35..+28; the roll onto the
   front asked 30, now 27: 5 of 5 at 20.4-23.3 s. The trunk's still wires.
-- The trunk framed (`skeleton.TRUNK`, 2026-10-03):
+- The trunk framed (`skeleton.TRUNK`):
   + The boom ran through the roll's M: its middle 28 mm down under it, the M
     on it; 40 mm back, a hip's roll M yawed 18 deg met it, 17 mm.
   + The pelvis's fork to the roll's bearings 66 mm before and behind the
@@ -269,8 +268,7 @@ Build, buses, falls, get-up, drawing and clothes; the drives in
     the pivot, inside the pitch's L).
   + Over spine -30..85, roll +-35, waist +-50 the closest 2 mm; every drive
     held (`fit.held_by`).
-- Sneaker, size 38, in shape and physics (`coaxial/graphics/sneaker.py`,
-  2026-10-04):
+- Sneaker, size 38, in shape and physics (`coaxial/graphics/sneaker.py`):
   + 237 mm long (the heel 55 behind the ankle, the ball 117 ahead, the toes
     65), 94 wide at the ball, 76 tall at the heel, 15 mm of toe spring; the
     gum sole 28 mm at the heel, 18 at the ball; 0.25 kg (`build.HOLDS`).
@@ -285,7 +283,7 @@ Build, buses, falls, get-up, drawing and clothes; the drives in
     ran 8 s with catches at 7.3-7.9 s, the walker unretuned (it fell at 7.0
     on the old shoe at 40 N m/rad).
 - The shell fitted to the skeleton as sized, the clothes over it
-  (`tools/sim/fit.py`, 2026-10-04). Standing, past the shell: the hips' yaw
+  (`tools/sim/fit.py`). Standing, past the shell: the hips' yaw
   inverters +6 -> -1 mm (the pelvis's rings at 0.07 and 0.11: 130 and 106 ->
   140 and 114 wide), the head's turn +4 -> -1 (the neck 5 mm fuller), the
   knee +1 -> -1 (the femur's and tibia's ends 2 mm fuller); left: the toes'
@@ -295,7 +293,7 @@ Build, buses, falls, get-up, drawing and clothes; the drives in
   rings 110 and 95 wide, 130 back: within 1 mm, the rest 3-27 inside. A held
   drive's bevel pair crashed the page's mechanism view (no drum on the
   wrist): skipped, in test_render.
-- Tubes cut from stock (`tools/sim/members.py --family`, 2026-10-03): of 13
+- Tubes cut from stock (`tools/sim/members.py --family`): of 13
   stock sizes (1 mm walls to 25 mm round, 2 from 30) the lightest family
   passing every member within 2.5 mm of its radius was six (12x1, 20x1,
   25x1, 30x2, 40x2, 50x2), 0.67 kg of tube against 0.68 in nine sizes; seven
@@ -306,7 +304,7 @@ Build, buses, falls, get-up, drawing and clothes; the drives in
   their allowable at the hips' 203 N m peak at KV 110 -> 0.78), the humerus
   24 -> 25, the forearm 22 and 18 -> 25 and 20. Marginal: the tibia's lower
   run 0.31, the femur's 0.25, the roll's horn 0.26.
-- Members sized for stiffness (2026-10-03): at 0.6 of their drives' peaks
+- Members sized for stiffness: at 0.6 of their drives' peaks
   at most 0.25 deg each; roll-wrapped carbon E 70 GPa, G 20.
 
 | Member | Stock tube | Room | Taken |
@@ -331,7 +329,7 @@ Build, buses, falls, get-up, drawing and clothes; the drives in
   sockets bore up, side holes a 45 deg roof; brackets plates printed flat,
   their loads in the layers' plane (PAHT-CF and PET-CF half as strong across
   them); seats 0.1 mm under, reamed.
-- Members under their drives (`tools/sim/members.py`, 2026-10-03): each tube,
+- Members under their drives (`tools/sim/members.py`): each tube,
   plate, rod and strut against its drive's deliverable peak or 1.5x its
   clamp, the less; stress against the material, flex at 0.6 of it against
   0.25 deg.
@@ -353,7 +351,7 @@ Build, buses, falls, get-up, drawing and clothes; the drives in
     socket one diameter deep at 15 MPa shear takes 500 N m on a 40 mm tube);
     each holder an extrusion along its print axis, no overhang in any print
     pose.
-- Flex in the world (`physics.WOUND`, `drives.flex`, 2026-10-03): a board's
+- Flex in the world (`physics.WOUND`, `drives.flex`): a board's
   encoder on the motor sees its joint wound up by its last torque over its
   gearbox's stiffness (`drives.BOX_K`, estimated 20/9/3 kN m/rad) and its
   structure's (`drives.WIND`). At the members as sized the walk from the
@@ -361,14 +359,14 @@ Build, buses, falls, get-up, drawing and clothes; the drives in
   alone 6.6, the ankles rigid 5.6; at half, 16 s walked. A loop on the motor
   takes no series flex: the joint's own angle sensor (WOUND 0, the default)
   or the wind-up fed forward on the board.
-- The trunk's roll on a four-bar (`linkage.PLANAR`, 2026-10-03): its 1:1 spur
+- The trunk's roll on a four-bar (`linkage.PLANAR`): its 1:1 spur
   pair's 100 mm wheels stood in the pitch bracket's sweep, and a stage at
   1:40 needs 1.5 after it. An 18 mm crank on the roll's M, a 24 mm horn on
   its stage, crossed, in the 12 mm between the M's face and the roll's
   bearing, the M 7 mm back: over +-35 deg its lever 1.33 at rest, 1.48-1.73
   toward the ends, its transmission 53 deg at worst, 2.9-3.7 kN in its rod;
   over spine -30..85 and roll +-35 the closest 1 mm.
-- 2026-10-11 (`bom.py`, `fit.py`, `members.py`): 21 part types, one bearing
+- By `bom.py`, `fit.py` and `members.py`: 21 part types, one bearing
   size, one rod end, tubes of 7 stock sizes; standing, the elbow 20, the
   shoulder 15 and the hip yaw 6 mm past the clothes; over 45 poses the
   closest pairs -13 to -19 mm (the pelvis's frame and the hip roll's drum

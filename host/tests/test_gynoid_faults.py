@@ -9,7 +9,7 @@ from gynoid_kit import Report
 
 #: A gate drive failed low for FAILED_S from FAILED_AT of the left leg's stride - the knee taking
 #: her weight as it lands - its switches FAILED_RDS times their on-resistance. At mid-stance, 0.25,
-#: the knee straight, it asked too little of them to trip in 0.1 s (2026-09-28).
+#: the knee straight, it asked too little of them to trip in 0.1 s.
 FAILED_RDS, FAILED_S, FAILED_AT = 500.0, 0.15, 0.05
 
 

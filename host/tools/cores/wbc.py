@@ -229,7 +229,7 @@ def state_of(b):
 @functools.lru_cache(maxsize=None)
 def shared():
     """The one `Core` a process shares: a `Core()` clears the loop's memory - the loads WEP is
-    granted on, the warm set - so a core a tick had neither (2026-10-11)."""
+    granted on, the warm set - so a core a tick had neither."""
     return Core()
 
 

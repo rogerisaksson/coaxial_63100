@@ -10,7 +10,7 @@ from coaxial.graphics.raster import BRAILLE, BRAILLE_BITS, NOISE, NOISE_N
 from machine import ansi
 
 #: Board dimensions, radii in millimetres: 100 mm across with a 10 mm bore,
-#: confirmed 2026-08-29. `electronics/` is the authority on the rest.
+#: confirmed. `electronics/` is the authority on the rest.
 OUTER_MM = 50.0
 BORE_MM = 5.0
 
@@ -190,7 +190,7 @@ DENSITY_COLD, DENSITY_HOT = 0.40, 1.0
 NOISE_LEVELS = NOISE_N * NOISE_N
 
 #: Rim, outlines and labels in the instrument's teal: off the palette's hues, so
-#: they hold over a hot leg (white shouted, 2026-09-25); the rail's numbers ash.
+#: they hold over a hot leg (white shouted); the rail's numbers ash.
 MARK_INK = (60, 175, 185)
 RAIL_INK = ansi.ASH
 
@@ -264,7 +264,7 @@ def _grid(nodes, board_c, cells, layout, aspect=CELL_ASPECT):
     per_row = 2.0 * OUTER_MM / down
 
     # The field over every cell at once: a cell at a time was 270 ms a frame
-    # at 200x60 (2026-09-25).
+    # at 200x60.
     x, y = np.meshgrid((np.arange(cells) - (cells - 1) / 2.0) * per_cell,
                        ((down - 1) / 2.0 - np.arange(down)) * per_row)
     r = np.hypot(x, y)

@@ -95,7 +95,7 @@ def library():
 def sweep():
     """The world libraries of processes that have ended, removed. Every one not locked was: Linux
     locks none, and a test group's sweep unlinked another's before its Renode loaded it - the
-    Renode exited on a DllNotFoundException (CI, 2026-09-27 and 28)."""
+    Renode exited on a DllNotFoundException (CI)."""
     for path in glob.glob(os.path.join(REPO, 'build', 'hosttest', 'world_emu_*')):
         pid = os.path.splitext(os.path.basename(path))[0].rsplit('_', 1)[-1]
         if pid.isdigit() and not _running(int(pid)):
@@ -132,7 +132,7 @@ _BUILT = []
 
 def _decimal(value):
     """A number as the monitor reads one: no exponent - `2e-05` overflowed its
-    integer tokenizer and Renode exited (2026-09-25)."""
+    integer tokenizer and Renode exited."""
     text = ('%.12f' % value).rstrip('0')
     return text + '0' if text.endswith('.') else text
 

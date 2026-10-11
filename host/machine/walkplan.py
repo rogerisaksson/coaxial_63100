@@ -19,7 +19,7 @@ ACCEPT, UNLOAD = 0.04, 0.06
 #: one; the pelvis turned TURN_GAIN of the walk's turn, the torso turning it back. At 0.02 and
 #: 0.023 the sneakers passed 22 mm into each other; colliding (`physics.ME`), they bumped and the
 #: thigh left the floor 1.6 degrees ahead of upright where it had 9.4 behind. At 0.03 and 0.035
-#: they pass 5.8 mm apart (2026-09-28).
+#: they pass 5.8 mm apart.
 TRACK_M, WIDEN_M, TURN_GAIN = 0.03, 0.035, 1.3
 
 
@@ -77,7 +77,7 @@ _TABLES = _Tables()
 #: A style changed (`retable`), the plan eases from the tables before it to the new over
 #: RETABLE_S of the walker's clock (`ease`): the tables before, and how far on, 0 to 1. The turn
 #: trimmed 4 degrees up mid-walk, the pelvis turned at most 88.6 deg/s eased, 162.3 at once,
-#: against the walk's own 110.3 (2026-09-30).
+#: against the walk's own 110.3.
 RETABLE_S = 0.5
 _BEFORE = {'tables': None, 'k': 1.0}
 

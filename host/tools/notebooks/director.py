@@ -215,7 +215,7 @@ print(now['stage'], 'at %.1f s' % now['t'])'''),
 RESULTS = [
     md('From the squat she rises, steps off and walks on at 0.85 strides/s; the walk is the '
        'finest of 576 judged by the straight stance knee, the landing, the head and the '
-       'copper (`docs/FINDINGS.md`, 2026-09-26). The start holds at that pace only and the '
+       'copper (`docs/FINDINGS.md`). The start holds at that pace only and the '
        'stop runs on over the front foot: the pendulum\'s capture point is the next step '
        '(`docs/TODO.md`).'),
 ]

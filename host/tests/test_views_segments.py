@@ -89,14 +89,14 @@ def test_stepper_steps_its_way(report):
              if s[0] == 'STEPPER' and s[1] in ('steps', 'back')]
     went = [st[-1][5] - st[0][5] for st in runs]
     # Within 0.7-1.3 of the command each way: a rotor that slipped past its vector went 1.8
-    # times the turn back and still passed a floor alone (2026-09-28).
+    # times the turn back and still passed a floor alone.
     report.check('the rotor steps each run\'s commanded turn to 30 %, its way',
                  len(went) == len(asked) == 2
                  and all(0.7 <= g / a <= 1.3 for g, a in zip(went, asked) if a),
                  'went %s of %s degrees' % (['%.0f' % g for g in went],
                                             ['%.0f' % a for a in asked]))
     # The mark after the vector, a step at a time: drawn off the angle over the pole pairs it
-    # skipped a pitch, 51 degrees, at each electrical turn, twice a run (2026-09-28).
+    # skipped a pitch, 51 degrees, at each electrical turn, twice a run.
     drawn = [[r[7] for r in st if r[7] is not None] for st in runs]
     leaps = [max((abs(b - a) for a, b in zip(m, m[1:])), default=0.0) for m in drawn]
     turns = [m[-1] - m[0] if m else 0.0 for m in drawn]
@@ -123,7 +123,7 @@ def test_fixed_wing_climbs_blips_and_glides(report):
     # Each blip from where it began: the envelope throttling the cruise, it sags under the
     # climb's top, and a blip judged against that top read as none (2 419 of 2 740).
     # A blip the envelope held - the clamp throttled to the cruise's own current - lifts
-    # nothing, and says so: judged, it is the throttle's to show (2026-09-28).
+    # nothing, and says so: judged, it is the throttle's to show.
     blips = by.get('blip', [])
     lifts = [max(abs(r[3]) for r in st) - abs(st[0][3]) for st in blips]
     held = [any(r[6] for r in st) for st in blips]
@@ -154,7 +154,7 @@ def test_quad_stabs_either_way(report):
     stabs = [st for name, st in stages if name == 'stab']
     moved = [st[-1][3] - st[0][3] for st in stabs]
     # A stab up under a clamp the envelope throttled lifts nothing, as FIXED WING's blip: CI's
-    # 3.12 runner, -22 rpm toward 2 400 (18c4f90, 2026-10-06).
+    # 3.12 runner, -22 rpm toward 2 400 (18c4f90).
     held = [any(r[6] for r in st) for st in stabs]
     report.check('each stab moves the speed toward its target, one up unless the envelope '
                  'holds the clamp',

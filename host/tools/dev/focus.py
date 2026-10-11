@@ -31,7 +31,7 @@ TALLY_RE = re.compile(r'^(\d+) passed, (\d+) failed(?:, ~?(\d+) skipped)?$')
 
 #: A job's commit where it names none, and what the host keeps free for the rest, GB: an
 #: emulator's Renode 0.6 and its Python 0.3 with OpenBLAS on one thread; eight at once left 1.3
-#: of 23.7 GB with no page file, the desktop holding 17.9 (2026-09-27).
+#: of 23.7 GB with no page file, the desktop holding 17.9.
 WORKER_GB, RESERVE_GB = 0.9, 2.5
 
 #: One job on the relay: its name, its command, its commit (GB), its time (s), and its lock -

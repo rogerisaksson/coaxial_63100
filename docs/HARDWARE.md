@@ -28,15 +28,15 @@ tabled here. Nothing is measured against an instrument unless it says so.
 ## Conversions
 
 - Phase: 2x 7 mOhm shunts = 3.5 mOhm, THS4551 gain 4.5455 -> 15.909 mV/A;
-  100 A = 48 % of span. Schematic arithmetic (2026-08-26), not spanned.
+  100 A = 48 % of span. Schematic arithmetic, not spanned.
   Noise floor 0.35-0.41 A rms. Group delay 60 ns (simulation).
 - DC link: 49.9 k / 2.2 k = 78.15 V FS (invariant 11). Not spanned: the
-  -32 418 ppm of 2026-08-30 was the converter's offset; 33.84 V at a supply's
-  34 (2026-10-05).
+  -32 418 ppm was the converter's offset; 33.84 V at a supply's
+  34.
 - NTC: Murata NCU18XH103D60RB, R25 10 k, B 3380 K, vs 10 k 0.1 %. 30 mK
   resolution. Beside the V gate driver: 0.56 of the V patch's rise over the
   centre, as fast as the laminate.
-- +5V sense 10 k / 10 k; Vgate 57 k / 10 k (ratio 6.70), traced 2026-08-27.
+- +5V sense 10 k / 10 k; Vgate 57 k / 10 k (ratio 6.70), traced.
 - Differential channels are offset binary, 32768 = 0 V.
 
 ## Reference and AFE_ON
@@ -61,7 +61,7 @@ observer starts on the thermistor.
   OSSI/OSSR on. Gate pins VERY_HIGH speed.
 - Dead time: record `deadtime_ns` 60 -> DTG 15 = 63.2 ns (floor 20 ns, DTG
   max 127 = 535 ns). `.ioc` DTG 19 holds until the record loads. DTG 8's
-  33.7 ns shot through dry, 42 ns did not (2026-10-05); the simulation's
+  33.7 ns shot through dry, 42 ns did not; the simulation's
   worst corner is 65.4 ns.
 - Op 1 alone sets MOE, at zero duty. Op 2 [+ period count], op 8 Q16.16
   dither, op 10 alternate, op 6 break bypass (reset restores). The thermal
@@ -82,14 +82,14 @@ up to a SysTick (1 ms), past the latch's hold. AFE_ON (the interlock's read) or
 MOE keeps it pumping; a gap over ~120 us drops Clevel with PA10 held low.
 Cinj (PC1) = recovered pilot, Clevel (PB1) = integrator, both straight to the
 pin: Cinj's 3.70 V is over VDDA and reads full scale.
-The model (`world/src/world_sto.c`, 2026-09-27): released 1.54 ms after the
+The model (`world/src/world_sto.c`): released 1.54 ms after the
 pilot, Cinj 3.70 V, Clevel 2.86 V (keepalive every 5 us; 2.49 V every 50 us),
 +15V7 14.9 V; the pilot lost trips it in 0.8 ms, +5 in 0.1, the keepalive in
 0.13, PGD at once. `rig.pilot(volts, hz)` sets an emulated or simulated
 master's. `GateStage.interlock()` wants Cinj >= 3.0 V, Clevel >= 2.0 V; the
-unmodified board reads 0.77 / 0.06 V (2026-08-27), so its sessions arm with
+unmodified board reads 0.77 / 0.06 V, so its sessions arm with
 `ignore_interlock=True`; the break stays in circuit once the latch its low
-PE15 left with the AFE on is cleared (`gates.clear()`, the AFE off, 2026-10-05).
+PE15 left with the AFE on is cleared (`gates.clear()`, the AFE off).
 `tools/bench/sto_probe.py` reads it.
 
 ## SPI sensors
@@ -121,7 +121,7 @@ layouts), taken up with later fields at defaults.
 ## Thermal
 
 `thermal/src/thermal.c`: 20 nodes, 30 edges, fitted to one camera campaign
-(2026-08-28, 20 C room, 25 min per state; board is a dead patch of soldermask):
+(20 C room, 25 min per state; board is a dead patch of soldermask):
 
 | State | board C | MCU | regulators | bridge | AFE |
 | --- | --- | --- | --- | --- | --- |
@@ -140,7 +140,7 @@ numbers to the C. Observer steps 100 ms, NTC sampled every 30 s.
 - `host/coaxial/model/inverter.py` carries the power-stage constants traced from
   the LTspice submodule `electronic_simulations` (Q_RING assumed 1.0).
 - `render/models/coaxial_63100.stl`: 100 mm disc, 10 mm bore.
-- `electronic_simulations/3d_models/Coaxial 63100.glb` (2026-10-05; Draco,
+- `electronic_simulations/3d_models/Coaxial 63100.glb` (Draco,
   2 630 parts, read by their bounds): the laminate 100 mm round, 1.59 mm;
   parts 10.8 mm over it (one of 10.4 x 13.7 mm at r 27 mm, a header 9.3)
   and 2.3 under, 14.7 mm in all. Five 11.5 mm terminals through it at r
@@ -148,6 +148,6 @@ numbers to the C. Observer steps 100 ms, NTC sampled every 30 s.
   quarter turn on; two 4.6 x 6.8 mm parts beside each phase's, r 34-45 mm.
   The power on the rim, the MCU inside 70 mm; the parts' boxes 4 338 mm^2
   on top, 860 under - a 70 mm disc is 3 848 a side.
-- `electronic_simulations/3d_models/U8IILite 85KV.glb` (2026-10-05; mm,
+- `electronic_simulations/3d_models/U8IILite 85KV.glb` (mm,
   16 parts): T-Motor's U8 II Lite, its can 87.1 x 26.95 mm, the stator
   80.5 x 9.6 mm, its windings 11.1 mm tall.

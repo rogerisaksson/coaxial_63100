@@ -449,7 +449,7 @@ def test_frames_rolls_a_window(report):
             deep = daq.history()
 
     # The stream is paced on the wall: beside the relay's whole gate a starved host fed 4 ms
-    # of its 1.2 s, and a window's rolling is not to be judged on less than one (2026-09-28).
+    # of its 1.2 s, and a window's rolling is not to be judged on less than one.
     depth = deep.index[-1] - deep.index[0] if len(deep.index) else 0.0
     if depth < 0.2:
         report.skip('frames() rolling its window', 'the stream ran %.3f s of 1.2' % depth)

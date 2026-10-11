@@ -1,6 +1,6 @@
 """Standing: a point under each sole the support, a quick step whenever the capture point leaves.
 
-As on stilts (2026-10-04), by one law in the capture point's plane (`machine.dcm`).
+As on stilts, by one law in the capture point's plane (`machine.dcm`).
 
     frames = stand.needed(director, bus, dt, out)   # a step's keyframes, or None
     director.arrival.play(frames)                    # the step, then standing again
@@ -25,17 +25,17 @@ from machine.figure import LEG, add, apply
 #: The landing within LUNGE of a leg's reach along the floor, the pelvis lowered to reach it. A
 #: foot bearing under `stance.LANDED_N` for HANG_S where the centre of mass asks HANG_SHARE of
 #: her weight of it hangs, no support: by its load alone, unloaded to 31 N by a shove's first
-#: 30 ms, the far foot was no support and she stepped inward for nothing (2026-10-04).
+#: 30 ms, the far foot was no support and she stepped inward for nothing.
 LUNGE, HANG_S, HANG_SHARE = 0.8, 0.15, 0.45
 
 #: A step in flight is aimed anew every pass until FREEZE_S before it comes down: called 30 ms
 #: into a 120 ms push it landed 5 cm short of the capture point, and the next was called as it
-#: touched (100 N from behind, 2026-10-04).
+#: touched (100 N from behind).
 FREEZE_S = 0.06
 
 #: A step: the foot lifted LIFT_M over LIFT_S, down over DOWN_S or at DOWN_M_S from higher;
 #: stood again over STOOD_S, the landed leg eased into stance over it. Stood 4 cm lower after
-#: a step the hop stayed, 0-1114 N a foot (2026-10-04).
+#: a step the hop stayed, 0-1114 N a foot.
 LIFT_M, LIFT_S, DOWN_S, DOWN_M_S, STOOD_S = 0.04, 0.1, 0.12, 0.6, 0.3
 
 #: The sole's centre, m ahead of the ankle: the point a foot stands on.
@@ -118,7 +118,7 @@ def needed(director, bus, dt, out_):
     # across the other and she took no step (80-100 N from her sides 0 of 6). Before each foot
     # bore its share (`bearing.shared`), lifted bearing the more the leg drew up under her and
     # she dropped, the pelvis rolling 27 deg in 0.2 s; the farther from the landing, it crossed
-    # the nearer (2026-10-04).
+    # the nearer.
     can = [(director.hang[side] < HANG_S, feet[side][2], side, sign, at)
            for side, sign in walkplan.SIDES
            for at in (dcm.landing(z, _plane(feet[walkplan._OTHER[side]][1], q, h), omega,
@@ -136,7 +136,7 @@ def needed(director, bus, dt, out_):
     base = dict(now, tilt=0.0)
     # Stood again, the pelvis down by what the stance foot stands above the floor: dropped as
     # the other reached down off the brick, the landing bounced 0-600 N and she went on over
-    # the landed foot (2026-10-04).
+    # the landed foot.
     drop = max(0.0, feet[walkplan._OTHER[side]][0][1] - gait.ANKLE_H)
     mid = ((was[0] + ankle[0]) / 2.0, max(was[1], ankle[1]) + LIFT_M, (was[2] + ankle[2]) / 2.0)
     v = director.arrival.v

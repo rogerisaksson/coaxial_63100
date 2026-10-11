@@ -57,8 +57,8 @@ EXTRA = ('-Wno-pointer-to-int-cast',)
 #: How often a limb's thread brings its boards' clocks up to the wall's, and the most it runs
 #: under one hold of the lock an exchange waits behind, s: one C call, the interpreter let go.
 #: A virtual second of one board runs in 48 ms with the drive on: the default 15.6 ms timer and
-#: one 5 ms run a wake held it to a third of real time (2026-09-25); a call a millisecond, each
-#: waiting on a page's drawing for the interpreter, to 21 % (2026-09-28).
+#: one 5 ms run a wake held it to a third of real time; a call a millisecond, each
+#: waiting on a page's drawing for the interpreter, to 21 %.
 PACE_S = 0.001
 BURST_S = 0.05
 
@@ -328,7 +328,7 @@ class Limb:
         adapter, no sooner than t3.5 after the line's last activity: every rig on a limb's URL
         has a transport of its own, none knowing the gap another owes, and the addressed board
         closes a frame at once, the others after t3.5 - a frame for unit 2 right behind unit
-        1's ran into it and went unanswered (2026-09-26)."""
+        1's ran into it and went unanswered."""
         with self.lock:
             start = max(int((time.monotonic() - self._start) * 1e6), self._line + T35_US)
             self._run_to(start)

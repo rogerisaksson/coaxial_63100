@@ -219,13 +219,11 @@ class Coaxial63100(Task, TaskStream, Acquisition):
         """An emulated MCU as its world has it: the heat on the world's clock, the stand-in's,
         and each phase spanned on the world's front end (coaxial_63100_afe.repl) as a bench
         spans it on its instrument, then zeroed with no current in it - unspanned, a phase reads
-        0.64 of its current; unzeroed, its 8.7 mV zero is 0.85 A (FINDINGS 2026-09-25,
-        2026-09-26)."""
+        0.64 of its current; unzeroed, its 8.7 mV zero is 0.85 A (FINDINGS)."""
         from tools.cores.native import afe_values     # the emulator's front end, where one runs
         board = self.board
         # The observer's clock and the plant's at once: a plant hasted from power-on ran the
-        # MCU's node a kelvin ahead of the observer by the open (findings/emulation.md,
-        # 2026-09-26).
+        # MCU's node a kelvin ahead of the observer by the open (findings/emulation.md).
         board.thermal.configure(clock=thermal.HASTE)
         serial = getattr(board.transport, 'serial', None)
         heat = getattr(serial, 'heat_clock', None)

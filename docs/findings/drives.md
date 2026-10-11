@@ -7,7 +7,7 @@ every drive, its demand and the candidates: [stacks](stacks.md).
 
 ## Assemblies
 
-Sized against the rise and 20 s of walk (2026-09-28): three assemblies, a
+Sized against the rise and 20 s of walk: three assemblies, a
 board behind an outrunner on a cycloid, coaxial.
 
 | Size | Build | Peak | Joints |
@@ -32,7 +32,7 @@ board behind an outrunner on a cycloid, coaxial.
 
 ## Cranks
 
-Running on cranks, not reversing (2026-10-02): each rotor's reflected inertia
+Running on cranks, not reversing: each rotor's reflected inertia
 given and taken twice a stride, 1/2 J w^2 at 1.4 strides/s, the hip +-40 deg,
 the knee 10-120, the ankle +-25 at J 0.163 kg m^2: 8.6, 16.2 and 3.4 W a
 leg, 56 W both, against 445 W of copper walking at 0.85. Not worth a crank's
@@ -40,7 +40,7 @@ mass and fixed range.
 
 ## Winding
 
-L wound 1.25 times its turns (2026-10-02): 137 -> 171 N m at 100 A, 1520 ->
+L wound 1.25 times its turns: 137 -> 171 N m at 100 A, 1520 ->
 1216 deg/s. From the squat 30 s walked; on the catalogue's winding it fell
 at 9.45 s (the page's 9.47). The hips at the clamp 3.4-3.6 % of walking
 either way, the knees 7.2-7.5 -> 6.1-6.8 %, copper 524 -> 606 W. The hip yaw
@@ -49,12 +49,12 @@ at 1:60 beside it, 77 N m: fell at 5.82 s.
 ## Reducers
 
 - A wobbling-plate (nutation) ball reducer against the planar ball stage on
-  L's 61 mm ball circle (2026-10-02): held by a Cardan or a Rzeppa, one
+  L's 61 mm ball circle: held by a Cardan or a Rzeppa, one
   stage gets the same balls a ratio (1:12 11 of 12.9 mm, 1:36 4.1 mm);
   compounded, its two faces 6 and 6, 1:36 on six 20 mm balls but 42-59 %
   efficient through the difference, near locking backdriven. Kept: the
   planetary into the ball stage, 0.95 x 0.97.
-- Ball stages for the wave reducer tools (2026-10-02): one eccentric, ring
+- Ball stages for the wave reducer tools: one eccentric, ring
   fixed, cage out at lobes:1; the eccentric's race a stock bearing's outside;
   its eccentricity 80 % of the largest whose ball path stays a ball round
   plus 0.15 mm; pressure angle mean 13-15, at most 21-22 deg.
@@ -68,12 +68,12 @@ at 1:60 beside it, 77 N m: fell at 5.82 s.
 - M on 9 mm balls left its ring 1.75 mm of wall in 60; S on 8 mm 0.4 in 42.
 - A ball on the 6005's cylindrical outside at L's 171 N m carries 4.66 kN,
   p0 7.46 GPa against ISO 76's static 4.2; at 40 N m 4.6: a grooved race or
-  rollers in line contact (2026-10-03).
+  rollers in line contact.
 
 ## One gearbox
 
 Each outrunner and KV picked per joint for 1.5x on the walk's torque at its
-speed and on its rms copper (2026-10-03, 48 V):
+speed and on its rms copper (48 V):
 
 - The hip and knee set the box: 257 N m momentary, 81 mm; their 51 N m rms at
   a fifth of it, 92 mm. At 96 mm round 12 drives stood out of the skin
@@ -89,7 +89,7 @@ speed and on its rms copper (2026-10-03, 48 V):
 
 ## Dimensionless sizing
 
-2026-10-03, at the box's output, 1.5x:
+At the box's output, 1.5x:
 
 - Power number 1.5 max(tau w) / (eta sqrt3/2 V I) picks the inverter: a KV
   exists under 1, its window 1/P wide. The knee 0.80 on 100 A, the hip 0.37,
@@ -101,7 +101,7 @@ speed and on its rms copper (2026-10-03, 48 V):
 
 ## Coaxial stacks
 
-`drives.STACKS` (2026-10-03): frames 68 x 30 and 60 x 16 mm, boxes 84, 64
+`drives.STACKS`: frames 68 x 30 and 60 x 16 mm, boxes 84, 64
 and 44 mm, inverters 100 mm 100 A and 70 mm 50 A, 1:30. Gait Monte Carlo:
 
 | Build | Held % | After P's shove |
@@ -119,7 +119,7 @@ and faults suites passed.
 
 ## Six numbers
 
-`tools/sim/drive_sizes.py` (2026-10-03; the demand cached, an iteration 0.4
+`tools/sim/drive_sizes.py` (the demand cached, an iteration 0.4
 s): each 1 at a part's limit at 1.5x the walk's demand. P the inverter; T
 the copper at the ratio; J the rotor felt through it; Q = T J the frame alone
 (the ratio cancels); S the box; V the volts. The ratio's window sqrt(T) N ..
@@ -144,7 +144,7 @@ N / sqrt(J).
 
 ## Hip roll on a crank-rocker
 
-`linkage.PLANAR` (2026-10-03): the drive on the fork behind, 48 mm from the
+`linkage.PLANAR`: the drive on the fork behind, 48 mm from the
 roll axis; a 14 mm crank turning 360 deg, a 45 mm rod, a 25 mm horn; dead
 centres at -28 and +40 deg; lever 1.8 at 0, 2.2 at -14, 2.1 at +27, 3.8 at
 -24; transmission 49 deg; the rod 7.7 kN at 1.5x. On the walk its heat 1.57
@@ -167,8 +167,7 @@ centres a fall and a capture step never reach.
 
 ## Demand over five scenes
 
-The walk, a slip, a nudge, a hole, P's shove at 1.5x (`drive_sizes.SCENES`,
-2026-10-03). One walk's knee asked 1231 deg/s with a catch in it, 561
+The walk, a slip, a nudge, a hole, P's shove at 1.5x (`drive_sizes.SCENES`). One walk's knee asked 1231 deg/s with a catch in it, 561
 without. With the parries, on the spur build:
 
 | Joint | T | P | V | Other |
@@ -188,7 +187,7 @@ at the hip roll's -22, the demand 4.6x): clamped to the stroke.
 ## Drives held rigid
 
 Each drive held rigid in turn on the scoreboard (`drives.WAYS`, fewest
-drives, 2026-10-03), against 730 and 74.1 % driven:
+drives), against 730 and 74.1 % driven:
 
 | Held | Score | Held % | Outcome |
 | --- | --- | --- | --- |
@@ -210,7 +209,7 @@ drives, 2026-10-03), against 730 and 74.1 % driven:
 
 ## Run demand
 
-`drive_sizes --run` (2026-10-04): the literature's peaks a kg at 3-3.5 m/s
+`drive_sizes --run`: the literature's peaks a kg at 3-3.5 m/s
 (hip 2.7, knee 3.0, ankle 3.6 N m; the rms 0.4 of them; 7-12 W a kg).
 
 - The hips' and knees' numbers unchanged: the walk's parries ask more than a
@@ -223,7 +222,7 @@ drives, 2026-10-03), against 730 and 74.1 % driven:
 
 ## Frames, boxes, inverters
 
-- Two of each (2026-10-04): frame C and box C gone after a day; the elbow,
+- Two of each: frame C and box C gone after a day; the elbow,
   the neck and the head on B direct (the elbow's drum 72 mm across the elbow
   with its collars, the shell there 80, +5 mm past it standing). The ankles
   on A with its box and inverter (on B 1.32 of its amps and 1.27 of its box
@@ -241,7 +240,7 @@ drives, 2026-10-03), against 730 and 74.1 % driven:
     amps 1.05: the margin's rule. Drives 17.3 kg of 55; parts 25 types
     (`bom.py`).
 - A third frame, C, 40 mm round and 12 deep at KV 200, for the elbow, the
-  neck, the head and the toes (fewest parts, 2026-10-04):
+  neck, the head and the toes (fewest parts):
   + On B the elbow's rotor reflected 4.2 times its load's inertia
     (`drive_sizes` J), the neck's 2.7, the toes' 775; on C 0.76 and 0.48; the
     elbow's amps at stall 0.91 (1.09 at a 10 mm stack); 0.7 kg off the
@@ -253,7 +252,7 @@ drives, 2026-10-03), against 730 and 74.1 % driven:
     elbow's motor; the forearm hangs from one on its gearbox by a strut to
     its axis (`skeleton.HUNG`). Parts: 28 -> 27 types (`tools/sim/bom.py`).
 - One frame, one box, one inverter for every drive (the DFM extreme,
-  `drive_sizes --cached`, `fit.py`, 2026-10-04):
+  `drive_sizes --cached`, `fit.py`):
   + All on A: 27.6 kg of drives against 17.3 (+10.3 of 55); every joint
     under 1 but the hips and knees at A's own 1.26; stacks past the shell
     (the toes' 32 mm, the elbow's 19, the head's 14, the shoulder's and the
@@ -265,7 +264,7 @@ drives, 2026-10-03), against 730 and 74.1 % driven:
 ## Restart after a fall
 
 Restarting after a fall the body spasms and falls (recordings
-humanoid_20261003_231619, 232719; 2026-10-03):
+humanoid_20261003_231619, 232719):
 
 - Headless from the squat with P's shove at 60 s (`look.py --push 60 --to
   100`): collapses in the get-up's crouch at 76-80 s and again at 93-97 s,
@@ -284,7 +283,7 @@ humanoid_20261003_231619, 232719; 2026-10-03):
 
 ## Gym scenes in the sizing
 
-`drive_sizes.SCENES` 'stand:' (2026-10-04): each rig of `events.STANDING`,
+`drive_sizes.SCENES` 'stand:': each rig of `events.STANDING`,
 standing on it, the event at 8 s; the rms the walk's alone (a stand of
 milliseconds before a fall made it the peak, T 3.75).
 
@@ -297,7 +296,7 @@ milliseconds before a fall made it the peak, T 3.75).
 
 ## What binds the hips and knees
 
-A parry, not the run (`drive_sizes --cached --run`, 2026-10-04):
+A parry, not the run (`drive_sizes --cached --run`):
 
 - Their 171 N m and 1259 deg/s peaks are the scenes' (a catch's): 1.26 of
   A's amps, 1.21 of its power, 1.19 of its volts at the pack's lowest 48 V
@@ -314,7 +313,7 @@ A parry, not the run (`drive_sizes --cached --run`, 2026-10-04):
 ## A printed box's play
 
 The gearboxes as bodies of their own (`machine.gearbox`, `physics.BOXED`,
-2026-10-11: play and hysteresis as a good printed box has them):
+Play and hysteresis as a good printed box has them):
 each rotor runs free across the play, winds the box and the structure up past
 it against the mesh's friction, and the link is turned by that wind-up
 alone; the rotor's inertia off the joint's armature; the rotors stepped five

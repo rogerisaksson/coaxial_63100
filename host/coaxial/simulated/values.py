@@ -174,7 +174,7 @@ PITCH_TURNS = 2.0
 
 #: The tumble's period, s, the emulator's and native's too: at 2.56 s the attitude page
 #: turned 140 and 280 deg/s, and stepped a read the stand-in turned once in 1.28 s at the
-#: page's 200 reads a second (2026-09-26).
+#: page's 200 reads a second.
 TUMBLE_S = 25.6
 
 

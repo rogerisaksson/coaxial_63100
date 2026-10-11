@@ -96,7 +96,7 @@ class DrivePlant:
         """(theta, omega) of HOLD's command at `t`, drive.c's command_frame in closed form: omega
         ramped at `accel` toward `omega_target`, standing still at none, and theta its integral.
         As theta_setpoint + omega_target x t the vector jumped when the target moved - 1 rad
-        from 1 to 2 rad/s a second in (2026-09-28)."""
+        from 1 to 2 rad/s a second in."""
         theta, omega, at = self._cmd
         dt = max(0.0, t - at)
         target, accel = self._sp['omega_target'], abs(self._sp['accel'])
@@ -157,7 +157,7 @@ class DrivePlant:
         # none once the back-EMF alone is the link's - the world core's drive_model is driven
         # by volts. A torque faded linearly with speed gave half of kt I at half the no-load
         # speed; iq moved to meet the limit either way ran a fixed wing to -29 000 rpm on
-        # braking current (2026-09-28).
+        # braking current.
         vmax = self._model['vdc'] / math.sqrt(3.0)
         a0 = a * a + c * c - vmax * vmax
         a2 = iq * iq * ((omega * self._lq) ** 2 + self._r ** 2)
@@ -212,7 +212,7 @@ class DrivePlant:
         """SENSORLESS pulls theta_hat onto the rotor or pi off it, the nearer - the injection's
         two answers - while the back-EMF has no weight: the model's rotor, the ADC source's
         standing at 0. Pulled to 0 or pi alone, a turning model's estimate flipped half a pitch
-        at rest (2026-09-28)."""
+        at rest."""
         if self._mode != 'sensorless' or not self._p('drv_inj_volts', 0.0):
             return
         dt = time.time() - self._theta_hat_at
@@ -283,7 +283,7 @@ class DrivePlant:
         from then on - a world stepped on its own clock tells each pass's; None, the wall's
         clock again. On the wall's a pass 0.25 s late turned the rotor those seconds under a
         setpoint meant for 50 ms: QUAD's frame, stepped its 50, passed a gate 2.7 m off under
-        the gate's load (2026-10-06)."""
+        the gate's load."""
         self._pace = None if dt is None else (self._pace or 0.0) + float(dt)
 
     def _advance_model(self):
@@ -298,7 +298,7 @@ class DrivePlant:
         if dt <= 0.0:
             return motor
         # Off too: the bridge open, no current, the rotor on its drag and load - world.c's
-        # coast(). Skipped, the shaft stood at 2 451 rpm for 18 s with the stage off (2026-09-28).
+        # coast(). Skipped, the shaft stood at 2 451 rpm for 18 s with the stage off.
         mech = self._mech
         self._spin(motor, dt, now)
         # The tracker: its PLL's lag in closed form, not integrated.
@@ -310,7 +310,7 @@ class DrivePlant:
         if self._mode == 'hold' and abs(w_cmd) <= self._p('drv_w_lo', 0.0):
             # drive.c's command frame below the back-EMF's speed: the frame the rotor is held in
             # is the estimate, not the rotor ringing in it - a stepper's mark shivered 11 degrees
-            # a frame on the tracker (2026-09-28).
+            # a frame on the tracker.
             self._estimate(cmd)
         return motor
 

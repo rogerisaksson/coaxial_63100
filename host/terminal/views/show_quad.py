@@ -10,7 +10,7 @@ and a flip over a toss, full tilt into the sky, the fall burned to a stop 10 cm 
 its boards and their thermal observers warmed on it; then the course (machine.course): two laps
 through sixteen gates - two slaloms, a climb, a dive, a hall's windows, an alley - raw, as fast
 as its thrust takes it, a dive pushed down inverted, the boards' envelopes spent and war
-emergency power where it pays (2026-10-10). What stands is solid: struck, the flight
+emergency power where it pays. What stands is solid: struck, the flight
 is over, the wreck lies where it falls and the flight is begun again. The rotors are asked
 what those envelopes leave of their pull; a pack or the envelopes spent, it comes down for a
 charged one, or to cool. It is flown in the air's weather (machine.quad): a wind, gusts over it and eddies in it,
@@ -53,7 +53,7 @@ ROTORS = ('FL', 'FR', 'RR', 'RL')
 #: The feed's period, s - the stand-in's boards answer out of memory -, and the longest a pass
 #: takes the flight on, in its steps (`flight.steps`). The flight's clock is its steps' sum: a
 #: pass in twenty ran 50 ms, the routine's rows asked by the wall's clock moved further than
-#: their pass and the rotors' loops went to their clamp on what that looked like (2026-10-05).
+#: their pass and the rotors' loops went to their clamp on what that looked like.
 PHYSICS_S, PASS_S = 0.01, 0.05
 
 #: The camera: the reach framed about the quad on the floor before a flight and in the air, m,
