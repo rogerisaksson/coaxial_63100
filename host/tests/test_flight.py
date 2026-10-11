@@ -119,15 +119,16 @@ def test_she_hops_and_stands(report):
 
 
 def test_she_hops_on_the_loop(report):
-    """The same on the loop in C, her throw asked 10 m/s^2: flown and stood."""
+    """The same on the loop in C, and three in a row: each flown, each landed, stood."""
     from tools.sim import hop
-    out = hop.hop(push=10.0, core=True)
-    seen = out['stances'].split()
-    report.check('on the loop in C she flies, lands and stands',
-                 out['stood'] and out['flights'] == 1 and out['flight_s'] >= 0.1 and out['clear_mm'] >= 15.0
-                 and seen[:2] == ['SS', '--'] and seen[-1] == 'SS',
-                 '%.3f s, %.1f mm under her soles, landed %d N, tilt %.1f deg, %s'
-                 % (out['flight_s'], out['clear_mm'], out['landed_n'], out['tilt'], out['stances']))
+    for hops in (1, 3):
+        out = hop.hop(hops=hops, core=True)
+        seen = out['stances'].split()
+        report.check('on the loop in C she flies %d, lands and stands' % hops,
+                     out['stood'] and out['flights'] == hops and out['flight_s'] >= 0.1 * hops
+                     and out['clear_mm'] >= 15.0 and seen[:2] == ['SS', '--'] and seen[-1] == 'SS',
+                     '%.3f s, %.1f mm under her soles, landed %d N, tilt %.1f deg, %s'
+                     % (out['flight_s'], out['clear_mm'], out['landed_n'], out['tilt'], out['stances']))
 
 
 ROSTER = [test_her_soles_stand_as_they_bear, test_a_landing_is_under_her_within_reach,

@@ -7,13 +7,14 @@
     python tools/sim/hop.py --hops 3         # that many, one after another
     ... --load 0.12 0.6 --push-s 0.2         # the load's depth m and time s, the throw's s
     ... --held                               # her soles never released: the stack as it was
+    ... --timed                              # her throw asked to its time's end, no spring
     ... --upright                            # her trunk asked upright through the throw
 
 The ask is the stack's own (`wbc.step`): her stand's law (`tools.sim.wbc.law`) about her soles'
 middle; her height let down LOAD_M over LOAD_S, her posture crouched with it and leant until
-her centre of mass is over her soles (`crouched`); then her centre of mass asked up `--push`
-m/s^2 for PUSH_S, her posture back the way it came, her trunk's turn unasked; then her stand's
-law again. Nothing of it names the flight: her soles leave the floor bearing nothing,
+her centre of mass is over her soles (`crouched`); then thrown PUSH_S - her centre of mass on
+a spring to RELEASE_M under her standing height, no stronger than `--push` m/s^2 -, her
+posture back the way it came, her trunk's turn unasked; then her stand's law again. Nothing of it names the flight: her soles leave the floor bearing nothing,
 `flight.step` asks each to its landing and stands it again as it bears. She flies while
 neither bears `flight.TOUCH_N`.
 `tools.sim.wbc.stand`'s world, no buses.
@@ -29,6 +30,11 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 #: The hop's phases: stood AT_S, her height let down LOAD_M over LOAD_S, thrown PUSH_S, and
 #: SETTLE_S to land and stand before the next; her throw asked PUSH m/s^2 up.
 AT_S, LOAD_M, LOAD_S, PUSH_S, SETTLE_S, PUSH = 0.5, 0.10, 0.5, 0.15, 1.5, 14.0
+
+#: Her throw is a spring to RELEASE_M under her standing height, RELEASE_K 1/s^2: her legs
+#: follow her to knees of 22-31 deg (9-12 rad/s there). Asked to its time's end she left with
+#: 4.3-5.0 kg m^2/s about her - the loop in C 13.6 deg over, down at 56 mm; the spring 4.6.
+RELEASE_M, RELEASE_K = 0.0175, 700.0
 
 #: A flight is one that lasts FLOWN passes: her soles' loads cross `flight.TOUCH_N` twice
 #: in the 3 ms they leave the floor in.
@@ -77,11 +83,12 @@ def crouched(posture, names, deg):
     return bent(lean)
 
 
-def hop(push=PUSH, hops=1, core=False, trace=False, fly=True, inner='pd', free=True, stack=False):
+def hop(push=PUSH, hops=1, core=False, trace=False, fly=True, inner='pd', free=True, stack=False,
+        spring=True):
     """{stood, flights, flight_s, apex_mm, clear_mm, landed_n, tilt, stances, ..}: `hops` hops
     standing, her throw `push` m/s^2. `fly` False, her soles are never released - the stack as
-    it was; `free` False, her trunk is asked upright through the throw; `trace` a row every
-    10 ms, `stack` the stand's own rows."""
+    it was; `free` False, her trunk is asked upright through the throw; `spring` False, her throw
+    is asked to its time's end; `trace` a row every 10 ms, `stack` the stand's own rows."""
     from machine import balance, flight
     from machine.gait import SHANK, THIGH
     from tools.sim import wbc as sim
@@ -108,7 +115,8 @@ def hop(push=PUSH, hops=1, core=False, trace=False, fly=True, inner='pd', free=T
             # her posture back up the way it came down; her trunk's turn unasked: asked upright
             # the stack put her weight on her heels' edges to turn her legs under it, and she
             # left the floor with 4.7 kg m^2/s about her, 14 deg over as she landed
-            acc[1] = push
+            let = RELEASE_K * (st['height'] - RELEASE_M - s['com'][1])
+            acc[1] = max(-flight.G, min(push, let)) if spring else push
             ask['posture'] = crouched(st['posture'], sim.NAMES,
                                       knee * (1.0 - _eased((t - LOAD_S) / PUSH_S)))
             if free:
@@ -164,6 +172,7 @@ def main(argv=None):
     parser.add_argument('--push-s', type=float, metavar='S')
     parser.add_argument('--core', action='store_true', help='the loop in C')
     parser.add_argument('--held', action='store_true', help='her soles never released: the stack as it was')
+    parser.add_argument('--timed', action='store_true', help="her throw asked to its time's end")
     parser.add_argument('--upright', action='store_true',
                         help='her trunk asked upright through the throw, as the stand has it')
     parser.add_argument('--inner', default='pd', choices=('pd', 'eso', 'none'),
@@ -176,7 +185,7 @@ def main(argv=None):
     if args.push_s:
         PUSH_S = args.push_s
     print(json.dumps(hop(args.push, args.hops, args.core, args.verbose, not args.held, args.inner,
-                         not args.upright, args.stack)))
+                         not args.upright, args.stack, not args.timed)))
 
 
 if __name__ == '__main__':

@@ -46,19 +46,33 @@ stand, the others asked to their landing.
   stack put her weight on her heels' edges - 16 mm past the soles' margin -
   to turn her legs under it: 4.7 kg m^2/s about her at lift-off, 14.9 deg
   over at the landing; her trunk unasked, 5.4 deg.
+- Her legs follow her up to knees of 22-31 deg: 9-12 rad/s at the knee, of
+  its drive's 16.8 with no load. She leaves there whatever is asked: 11 mm
+  under her standing height at 0.7 m/s, 21 at 1.05; a push of 22 m/s^2
+  flies 2 mm higher than 18. Asked to its time's end, 1.8-2.6 of the
+  4.3-5.0 kg m^2/s about her at lift-off came in the last 20 ms, her
+  soles' loads falling from 730 N to none. Her throw is a spring instead,
+  to 17.5 mm under her standing height, 700 1/s^2, no stronger than the
+  push: 0.4-0.7 in those 20 ms, 2.7-3.1 as she leaves. Twelve springs
+  (12.5-20 mm, 500-900) over the four hardest rows: 46 of 48 stood; at 10
+  mm the loop was 14-15 deg over as before.
 
-| Let down, thrown, for | On | Flown | Under her soles | Struck | Tilt | Stood |
+| Let down, thrown, for | On | Flown | Under her soles | Struck | Tilt | To its time's end |
 | --- | --- | --- | --- | --- | --- | --- |
-| 0.10 m, 10 m/s^2, 0.15 s | the python stack | 0.149 s | 21.5 mm | 1 945 N | 7.1 deg | yes |
-| 0.10 m, 14, 0.15 | python | 0.165 | 26.8 | 2 101 | 5.4 | yes |
-| 0.12 m, 18, 0.2 | python | 0.217 | 46.3 | 2 639 | 8.0 | yes |
-| 0.10 m, 14, 0.15, three in a row | python | 0.508 in all | 28.2 | 2 223 | 11.5 | yes |
-| 0.10 m, 14, 0.15, her soles never released | python | 0.102 | 8.7 | 515 | 4.5 | yes |
-| 0.10 m, 10, 0.15 | the loop in C | 0.156 | 23.4 | 1 961 | 10.3 | yes |
-| 0.10 m, 14, 0.15 | C | 0.175 | 30.8 | 2 018 | 13.6 | yes |
-| 0.10 m, 10, 0.15, three in a row | C | 0.474 in all | 24.5 | 2 012 | 10.3 | yes |
-| 0.12 m, 18, 0.2 | C | 0.236 | 56.2 | 2 603 | 25 | no, at the landing |
-| 0.10 m, 14, 0.15, three in a row | C | - | 37.7 | 2 038 | 25 | no, the second |
+| 0.10 m, 10 m/s^2, 0.15 s | the python stack | 0.129 s | 16.3 mm | 1 848 N | 6.1 deg | 21.5 mm, 7.1 deg |
+| 0.10 m, 14, 0.15 | python | 0.145 | 21.5 | 1 966 | 4.9 | 26.8, 5.4 |
+| 0.12 m, 18, 0.2 | python | 0.215 | 46.4 | 2 553 | 6.1 | 46.3, 8.0 |
+| 0.10 m, 14, 0.15, three in a row | python | 0.447 in all | 23.1 | 2 031 | 5.7 | 28.2, 11.5 |
+| 0.10 m, 14, 0.15, her soles never released | python | 0.103 | 9.4 | 745 | 4.9 | 8.7, 4.5 |
+| 0.10 m, 10, 0.15 | the loop in C | 0.128 | 16.3 | 1 766 | 5.5 | 23.4, 10.3 |
+| 0.10 m, 14, 0.15 | C | 0.145 | 21.5 | 1 933 | 4.6 | 30.8, 13.6 |
+| 0.10 m, 10, 0.15, three in a row | C | 0.397 in all | 17.8 | 1 910 | 7.0 | 24.5, 10.3 |
+| 0.12 m, 18, 0.2 | C | 0.220 | 47.7 | 2 576 | 15.2 | 56.2, down at the landing |
+| 0.10 m, 14, 0.15, three in a row | C | 0.446 in all | 23.1 | 2 022 | 6.6 | 37.7, down at the second |
+| 0.12 m, 22, 0.2 | python | 0.216 | 48.4 | 2 664 | 7.2 | - |
+| 0.12 m, 22, 0.2 | C | 0.221 | 49.2 | 2 795 | 16.5 | - |
+
+She stood every row as thrown now.
 
 - The loop in C, two changes. A turn of all zeros is unasked. The soles'
   margins are laid for standing soles only: laid for a sole in the air too,
@@ -68,15 +82,14 @@ stand, the others asked to their landing.
   (8 s at 0.5 m/s: 2.47 m, 0.41 m/s, 259 J/m, 15 steps, tilt 1.8) and four
   shoves (38 N from her left, 60 from ahead and behind, 80 from her right)
   are as before to the digit.
-- Open. The strike, 1.9-2.6 kN at 0.8 m/s: not her height's law's (at a
+- Open. The strike, 1.8-2.8 kN at 0.8 m/s: not her height's law's (at a
   quarter of it 1 735 N; the torque as asked under it 1 414), nor the sole's
   speed onto the floor (eased onto the floor it left over the last 30 mm,
   2 244 N). Standing on one sole the loop meets 15 of 115 m/s^2 of a sole
   asked back where the python stack meets 97: her form's weight on the
   turns' level, which her walk's 259 J/m is ([wbc](wbc.md), The margins
   soft).
-  A hop on one sole is untried. Her throw is asked as an acceleration for a
-  time: it is asked 30 ms yet with her soles off the floor; a spring to her
-  legs' length ends there by itself.
+  A hop on one sole is untried. The large throw leaves 21 mm under her
+  standing height, under the spring's zero: the loop 15-17 deg over there.
 - tests/test_wbc_core.py stood in no suite list: the loop's suite ran in no
   gate. It is in the default set now, 21 of 21.

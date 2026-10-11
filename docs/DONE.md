@@ -59,3 +59,6 @@ it names. A closed item is cut from the list and gets its line here, last.
     83 ([envelope](findings/envelope.md)).
 26. A hover's heat: its legs' dry switching, 6.45 W of 9.4; the wash takes
     the laminate from 91 to 60 C ([envelope](findings/envelope.md)).
+27. Her hops on the loop in C: which soles stand told from one pass, her
+    throw a spring that lets go under her standing height; 48 mm and
+    three in a row stood ([flight](findings/flight.md)).
