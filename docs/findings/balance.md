@@ -206,6 +206,11 @@ hardly ever happening to a walker (2026-09-27):
   falls the head never on the floor in 14, at 0.71 and 0.87 m/s in two; the
   peaks' medians 4.1 and 3.7 kN.
 
+- The scoreboard at 13220bb1 (`--suite all`, 84 runs, 2026-10-11): 88.5 %;
+  rises and walks 100 (the 1.0 walk 10.6 deg behind plumb); hole 77, rug
+  79, soa 76, lace 31, the rest 100; the 120 N shove walking 25, standing
+  44-46; the stand's nudges, bricks, boards and rockers 100.
+
 ## Starts and the catch
 
 - The catch against its own walk (2026-10-05, `capture.CATCH`). At 4 cm, from

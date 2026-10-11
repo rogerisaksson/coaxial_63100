@@ -23,9 +23,8 @@ from machine import (arrival, down, drives, errands, falls, figure, gait, getup,
 #: Falling, past the walker's recovery: the trunk (`_trunk`) tipped past FALLING_DEG and tipping
 #: on faster than FALLING_DEG_S, or the pelvis under FALLING_M, walking. Fallen - under FALLEN_M
 #: or tipped past FALLEN_DEG walking, under SQUAT_FALLEN_M in the arrival's moves, doing a word
-#: `errands.fallen` - is down. Read on the pelvis, a parry's step pitched it 9 deg at 141 deg/s
-#: and the call shorted her legs (2026-10-01); on the head, 0.77 kg whipped 5.4 m/s under P's
-#: shove called her down 0.08 s in; on the trunk in none of 16 (2026-10-02).
+#: `errands.fallen` - is down. Read on the pelvis a parry's step called a fall (2026-10-01),
+#: on the head P's shove did; on the trunk in none of 16 (2026-10-02).
 FALLING_DEG, FALLING_DEG_S, FALLING_M = 12.0, 60.0, 0.65
 FALLEN_M, FALLEN_DEG, SQUAT_FALLEN_M = 0.55, 35.0, 0.3
 
@@ -95,11 +94,12 @@ class Director:
         self.walk_s, self.rest_s = walk_s, rest_s
         self.stage, self.fallen_at, self.slips = 'squat', None, 0
         self.since, self.blend, self.age = 0.0, None, 0.0
-        #: The row asked of her way on the one law (`machine.pace`), None the walker's; the row
+        #: The row asked of her way (`machine.pace`), None the walker's; the row
         #: she goes on and her seconds on it; the law; her manners asked and as they are.
         self.pace: float | None = None
         self.errand, self.doing = None, None     # in the room (`machine.errands`)
-        self.k, self.going, self.manner, self.manners = (-1.0, 0.0), None, (), {}
+        self.k, self.going, self.manners = (-1.0, 0.0), None, {}
+        self.manner: tuple[tuple[str, float], ...] = ()
         #: Since when she falls and her arms and neck from and to what (`falls.reach`); the tilt last
         #: pass, (deg, s), and its rate, deg/s; when an arm met the floor; since when she tucks and
         #: from where, (s, {joint: deg}); her drives down.
@@ -199,6 +199,7 @@ class Director:
     def step(self, dt):
         """{joint: degrees}: what whichever move has her sets now."""
         bus = self.machine.loop.bus
+        errands.looked(self, self.world, bus['t'])
         if self.down is None:
             self._arm(bus)
         if (self.stage in arrival.STAGES or self.stage in getup.STAGES
@@ -392,9 +393,8 @@ class Director:
             return bus['pelvis.pose.y'] < SQUAT_FALLEN_M
         if self.stage in getup.STAGES:
             return False
-        if self.stage == 'errand':
-            return errands.fallen(self, bus)
-        return bus['pelvis.pose.y'] < FALLEN_M or self._tilt(bus) > FALLEN_DEG
+        return (errands.fallen(self, bus) if self.stage == 'errand' else
+                bus['pelvis.pose.y'] < FALLEN_M or self._tilt(bus) > FALLEN_DEG)
 
     def _foot(self, bus, side, sign):
         """(ankle, the foot's pitch toes-up deg) of a leg as the loop read it, world."""

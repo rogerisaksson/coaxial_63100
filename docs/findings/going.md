@@ -4,7 +4,7 @@ Stand, walk and run as the setpoints of one law (`machine/going.py` over
 `gaits.py`, `hold.py` and `strut.py`; `tools/sim/go.py`; 2026-10-05): the
 law, what a walk and a stand asked of it, what it walks and runs at. The walk
 as built: [walk](walk.md); the run: [run](run.md); the page's standing law:
-[standing](standing.md); its turns: [turns](turns.md). On the page under J, S
+[standing](standing.md), its turns [turns](turns.md). On the page under J, S
 and F its rows;
 `tools/sim/ways.py` is its spread of timings.
 
@@ -377,6 +377,11 @@ walk ratio 0.73 where 1.1-1.8, the heel 7 deg up as its toes leave; stiff
 0.61, shuffling 0.67, tripping 0.53: a shuffle on stilts. A woman's step
 keeps its ratio to its time at any pace; the law's slow walks keep the walk's
 time.
+
+- 2026-10-11, from the squat, strut 6 at 485 J/m against the crouched
+  manner at 390, by drive and twentieth of the stride: the knees 290 against
+  189 of work and copper; the excess in the first tenth after each landing
+  (+65) and at the swing's end (+43), the stance alike.
 
 ## What the walk draws, by joint and phase
 

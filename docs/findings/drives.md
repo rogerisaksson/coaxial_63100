@@ -314,7 +314,7 @@ A parry, not the run (`drive_sizes --cached --run`, 2026-10-04):
 ## A printed box's play
 
 The gearboxes as bodies of their own (`machine.gearbox`, `physics.BOXED`,
-2026-10-11, the user's: play and hysteresis as a good printed box has them):
+2026-10-11: play and hysteresis as a good printed box has them):
 each rotor runs free across the play, winds the box and the structure up past
 it against the mesh's friction, and the link is turned by that wind-up
 alone; the rotor's inertia off the joint's armature; the rotors stepped five
@@ -358,7 +358,7 @@ the other flank 85 ms later before the link turns back (test_gynoid.py).
   measured again.
 - So the loop's world has the boxes (test_wbc_core.py, `tools/sim/wbc.py`,
   `--rigid` off) and the walker's stays rigid till the page walks on the
-  loop (docs/TODO.md 36): a form held on setpoints through a gearbox's lost
+  loop (docs/TODO.md 26): a form held on setpoints through a gearbox's lost
   motion is the torque loop's to hold.
 - The drives' speed, back-EMF and copper are the rotor's; the boards see the
   rotor's angle past the joint's on the block (`delta`, `delta_d`, `ahead`).

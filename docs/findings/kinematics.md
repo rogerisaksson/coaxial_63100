@@ -94,4 +94,4 @@ build/prototypes/skin.py (2026-10-06).
 | plus the trunk's seat 15 mm back on the pelvis | -3.8 mm | 0.6 N m | 439 |
 
 The last walked its walk row backward at 0.26 m/s; 4 more checks of
-test_gynoid_going fell, the falls suite 3 (TODO 29).
+test_gynoid_going fell, the falls suite 3 (TODO 24).

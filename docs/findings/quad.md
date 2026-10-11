@@ -359,7 +359,7 @@ room, once 1 out.
 
 The collective and the torques shared over the rotors by her whole-body law's
 levels under bounds (`flying.Flying.stacked`, `machine.qp.stack`, 2026-10-11,
-the user's: one law for the quad and her): the tilt's torque, the collective,
+one law for the quad and her): the tilt's torque, the collective,
 the heading's torque, the rotors alike, each rotor between nothing and its
 cap. Where nothing binds it shares as the hand does to the mN; a rotor at its
 cap, the tilt is kept whole and the collective gives way, as the hand's. The

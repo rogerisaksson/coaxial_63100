@@ -96,4 +96,4 @@ The stance should shorten with speed: about half a metre of floor a stance.
   where its phase has it, 0.84 -> 2.39 m/s in 70 ms, a hip asked from -31 to
   +6 deg in 80.
 - Two generators, a state each: no hand-over between them holds
-  (docs/TODO.md item 28).
+  (docs/TODO.md item 23).

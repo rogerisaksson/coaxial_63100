@@ -140,7 +140,8 @@ def passed(k, held, want, now, asked, dt):
                   going=want > -1.0 or k > -1.0)
     if k <= -1.0 and posed(now) or want <= -1.0 < k < 0.0 and now.get('strolling', 0.0) > 0.0:
         want = k
-    return toward(k, held, want, dt) + (now,)
+    k, held = toward(k, held, want, dt)
+    return k, held, now
 
 
 def plain(asked, k=1.0, into=None):

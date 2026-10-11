@@ -291,7 +291,7 @@ scenes, each number 1 at a part's limit at the margin 1.5, the parries' 1.2):
 | neck | 15 / 51 | 1 / 19 | 730 / 1536 | 0.44 | 0.21 | 0.01 | 2.69 | 0.18 | 0.48 | 3..18 |
 | head | 0 / 51 | 0 / 19 | 1 / 1536 | 0.00 | 0.00 | 0.00 | 29 | 0.00 | 0.00 | 0..6 |
 
-- Two categories would serve, never one a joint (the user, 2026-10-11): the
+- Two categories would serve, never one a joint (2026-10-11): the
   four hips and knees, which ask their clamp (A 1.50) and twice their
   copper (T 2.1) with the knee at the pack's volts (V 1.05) - a motor of
   half again the torque at the one box, not a ratio: the knee's window
@@ -302,5 +302,5 @@ scenes, each number 1 at a part's limit at the margin 1.5, the parries' 1.2):
   bind on the rise (A 1.50, T 0.05): a moment, not heat. The rest fits the
   U8 and MN6007 at 1:30; the head's drive carries nothing (0 N m, 29x the
   head's inertia).
-- The drives stay as bought (the user, 2026-10-05); this is where a second
+- The drives stay as bought (2026-10-05); this is where a second
   box or motor would go first, hips and knees before ankles.
