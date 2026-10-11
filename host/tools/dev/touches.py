@@ -4,8 +4,8 @@ from tools.dev.suites import (BENCH, BOARD_MEM, BOOT, BOOT_CLIENT, BOOT_CORE, BR
                               DRIVE_OBSERVER, EMULATOR, FILTER, GYNOID, GYNOID_FALLS,
                               GYNOID_FAULTS, GYNOID_GAIT, GYNOID_GOING, GYNOID_RUN, GYNOID_STAND,
                               HEATED, NATIVE, NATIVE_HEAT, OLLAMA, QUADS, REACH, RENDER, ROOM,
-                              SENSORLESS, SHTP, SIGHT, STRUCTURE, THERMAL, THERMAL_APP, VIEWS,
-                              WBC, WIRE, WORLD_CORE)
+                              SENSORLESS, SHTP, SIGHT, STRUCTURE, TERMS, THERMAL, THERMAL_APP,
+                              VIEWS, WBC, WIRE, WORLD_CORE)
 
 # What a change to each part of the tree can plausibly have broken.
 TOUCHES = (
@@ -60,7 +60,7 @@ TOUCHES = (
     ('host/coaxial/graphics/inset.py',         QUADS + (SIGHT, 'test_views_humanoid.py')),
     ('host/machine/',                          (CONTROLLER, GYNOID, GYNOID_FAULTS, GYNOID_FALLS,
                                                 GYNOID_STAND, GYNOID_GAIT, GYNOID_RUN,
-                                                GYNOID_GOING, ROOM, SIGHT, REACH, WBC, CYCLIC,
+                                                GYNOID_GOING, ROOM, SIGHT, REACH, TERMS, WBC, CYCLIC,
                                                 'test_simulated.py', 'test_mcp.py',
                                                 'test_views_humanoid.py')),
     ('host/coaxial/graphics/gynoid.py',        (RENDER, *VIEWS, GYNOID)),
@@ -89,6 +89,7 @@ TOUCHES = (
     ('host/tools/cores/drive.py',              (STRUCTURE, DRIVE, DRIVE_OBSERVER, SENSORLESS)),
     ('host/tools/cores/thermal.py',            (THERMAL, THERMAL_APP)),
     ('host/tools/cores/reach.py',              (STRUCTURE, REACH)),
+    ('host/tools/cores/terms.py',              (STRUCTURE, TERMS)),
     ('host/tools/cores/',                      (WIRE, NATIVE, NATIVE_HEAT)),
     ('host/tools/dev/counts.py',               ('test_ollama_runner.py',)),
     ('host/tests/takes/',                      (GYNOID_GAIT,)),

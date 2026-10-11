@@ -26,6 +26,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 from machine import figure, linkage  # noqa: E402
 from machine.gait import BALL, HEEL, HIP_DROP, HIP_HALF, SHANK, THIGH, TOE_M  # noqa: E402
 from tools import REPO  # noqa: E402
+from tools.cores import written  # noqa: E402
 
 PATH = os.path.join(REPO, 'host', 'machine', 'reach_rows.py')
 NOTICE = "Her leg's reach over its foot as static arrays: written by host/tools/cores/reach.py, not by hand."
@@ -34,7 +35,6 @@ NOTICE = "Her leg's reach over its foot as static arrays: written by host/tools/
 #: run's ends bisected.
 U0, DU, SCAN_M = 0.10, 0.005, 0.001
 LENGTH = THIGH + SHANK
-IDENT = ((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0))
 
 
 def stops():
@@ -63,7 +63,8 @@ def stops():
 
 def bend(r):
     """(knee, ankle, ankle_roll) rad of her left leg, its hip at `r` in its foot's frame."""
-    return figure.leg(1.0, (r[0] - HIP_HALF, r[1] + HIP_DROP, r[2]), IDENT, (0.0, 0.0, 0.0), IDENT)[3:]
+    return figure.leg(1.0, (r[0] - HIP_HALF, r[1] + HIP_DROP, r[2]), figure.IDENT, (0.0, 0.0, 0.0),
+                      figure.IDENT)[3:]
 
 
 def held(r, limits):
@@ -179,16 +180,10 @@ def render(laid):
         'FOOT = %s' % pairs(laid['FOOT'])]) + '\n'
 
 
-def write():
-    laid = rows()
-    with open(PATH, 'w', encoding='utf-8', newline='\n') as f:
-        f.write(render(laid))
-    return laid
-
-
 if __name__ == '__main__':
     if '--write' not in sys.argv[1:]:
         sys.exit(__doc__)
-    done = write()
+    done = rows()
+    written(PATH, render(done))
     print('%d rows written, the hip %.2f to %.2f m up' % (
         len(done['FORE']), done['U0'], done['U0'] + done['DU'] * (len(done['FORE']) - 1)))

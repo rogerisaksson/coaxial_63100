@@ -131,3 +131,33 @@ by `machine/reach.py`, a limb an index; tests/test_reach.py holds them.
   stopped joint inside its stop; her right is her left mirrored to 0.
 - Not in it: her legs above their soles clear of each other (`clear` is the
   soles'), a hip's roll and pitch (no stop), a landing pitched.
+
+## Her movements' orthopaedic terms
+
+Static rows (`machine/term_rows.py`, laid by `tools/cores/terms.py`) read by
+`machine/terms.py`; tests/test_terms.py holds them.
+
+- Anatomy says what a movement does - hip flexion brings the knee forward,
+  abduction takes it from the midline, dorsiflexion raises the toes; which
+  joint makes it, and with which sign, is found by turning each joint of
+  the segment in her figure and keeping the one nine tenths of whose motion
+  goes that way. A limb's terms are found on both limbs and agree: a limb
+  is an index, its joints' names data.
+
+| Part | Movement, the joint's angle times its sign | Stops, deg |
+| --- | --- | --- |
+| hip | flexion -hip, abduction +hip_roll, lateral rotation +hip_yaw | rotation 25 either way; flexion and abduction none |
+| knee | flexion +knee | 165, extension 5 |
+| ankle | dorsiflexion -ankle | 50, plantarflexion 45 |
+| foot | eversion +ankle_roll | 15 either way |
+| trunk | flexion +spine; toward limb 0's side: lateral flexion -spine_roll, rotation +waist | 85, extension 30; 35; 50 |
+| neck, head | flexion +neck; rotation toward limb 0's side +head | 60, extension 45; 80 (the whole-body stack's own) |
+| shoulder, elbow | flexion +shoulder, +elbow | none; 160, extension 5 |
+
+- 23 movements; 21 that anatomy names are absent, no driven joint of hers
+  making them: her shoulder's abduction and rotation, her forearm's
+  pronation, her wrist's (held), her fingers' (held), her toes' (sprung),
+  her neck's lateral flexion.
+- Held to MuJoCo: 46 asks of 10 deg, either limb, each term and its
+  opposite - 0.995 of the motion goes the term's way at the least. The
+  leg's own IK (`figure.leg`) bends each joint its term's way, 12 of 12.

@@ -48,3 +48,5 @@ it names. A closed item is cut from the list and gets its line here, last.
     ([drive](findings/drive.md), [host](findings/host.md)).
 22. The law's voltage limit keeps the d current its reference: a 63100's top
     at 55 V 673.5 rad/s where 650.5 ([drive](findings/drive.md)).
+23. Her movements' orthopaedic terms as laid rows, a joint and its sign found
+    in her figure ([kinematics](findings/kinematics.md)).

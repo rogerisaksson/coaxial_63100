@@ -153,7 +153,8 @@ tools/cores/        build: the portable cores' gcc build;
                     drive, thermal, wbc: their ctypes harnesses; stand: the
                     stand-in's slots (world_stand.c, world_drive.c); model:
                     her figure as static arrays (wbc/); reach: a leg's reach
-                    over its foot as static arrays (machine/);
+                    over its foot as static arrays (machine/); terms: her
+                    movements' orthopaedic terms as static arrays;
                     fakeboard: comms/, the record and the observer over
                     board/fake as
                     fakeboard://; native: the same with the board layer on
@@ -202,6 +203,7 @@ tests/              suites, .counts.json (measured sizes)
 | curves | an ease, Hermite, Catmull-Rom: pure |
 | figure | the gynoid's segments, masses, leg IK |
 | reach | a leg's reach over its foot from static arrays (reach_rows, laid by tools/cores/reach.py): margins, the flat place landed, two feet's gap; a limb an index |
+| terms | her movements by their orthopaedic names from static arrays (term_rows, laid by tools/cores/terms.py): a part and a movement, its joint kind, sign and stops |
 | physics | DYNAMIC: the figure in MuJoCo, a drive a joint |
 | gearbox | each drive's gearbox: the rotor free across its play, the box wound up past it, the link turned |
 | room | a living room round her: glass walls, furniture, a door, a lamp, and its words |
@@ -254,6 +256,7 @@ tests/              suites, .counts.json (measured sizes)
 | `test_room.py` | the law's turns, walking and stepping round standing; out through the room's door |
 | `test_sight.py` | the stereo against the renderer's depth; her map against the room, the chair and the table told, a way planned clear; the page's picture |
 | `test_reach.py` | her leg's reach: its rows her figure's, what they hold within her stops, a place landed in MuJoCo by either limb, rising and walking inside them |
+| `test_terms.py` | her movements' terms: its rows her figure's, a term moving her in MuJoCo as its name says by either limb, its stops, what she has not |
 | `test_wbc.py` | the QP solver's KKT, two levels' priority, standing, shoves with and without a step |
 | `test_wbc_core.py` | her chain in C against MuJoCo: frames, M, bias, Jacobians at random configurations; a step's time |
 

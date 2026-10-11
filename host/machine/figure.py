@@ -164,6 +164,9 @@ LEG = ('_hip_yaw', '_hip_roll', '_hip', '_knee', '_ankle', '_ankle_roll')
 #: The ball's and the heel's points on the sole, the foot's frame.
 SOLE_BALL, SOLE_HEEL = (0.0, -ANKLE_H, BALL), (0.0, -ANKLE_H, -HEEL)
 
+#: No turn.
+IDENT = ((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0))
+
 
 def quat(w, x, y, z):
     """The turn of a unit quaternion (w, x, y, z), a 3x3 of rows."""
