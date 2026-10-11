@@ -341,14 +341,14 @@ class World:
             if BOXED:
                 d.ctrl[:] = self.boxes.step(np, d.ctrl, d.qvel[self.vadr],
                                             np.where(self.shorted, self.damping, 0.0), STEP_S)
-            power = self.motor * (self.boxes.w if BOXED else d.qvel[self.vadr])
-            self.work += float(power[power > 0.0].sum()) * STEP_S
-            self.brake -= float(power[power < 0.0].sum()) * STEP_S
             self.heat += float(self.loss @ (self.motor * self.motor)) * STEP_S
             self.effort += float(np.abs(self.motor).sum()) * STEP_S
             d.xfrc_applied[:, 0:3] = 0.0
             d.xfrc_applied[self.torso, 0:3] = self.push_n if d.time < self.push_until else 0.0
             self._mj.mj_step(self.model, d)
+            power = self.motor * (self.boxes.w if BOXED else d.qvel[self.vadr])
+            self.work += float(power[power > 0.0].sum()) * STEP_S
+            self.brake -= float(power[power < 0.0].sum()) * STEP_S
             np.maximum(self.geared, np.abs(d.ctrl - self.armature * d.qacc[self.vadr]),
                        out=self.geared)
             if self.laced:
