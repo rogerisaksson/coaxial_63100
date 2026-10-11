@@ -302,6 +302,19 @@ def on_model(load, drive, log=None):
     return watch
 
 
+def started(drive, wait, amps, to, seconds):
+    """A rotor at rest started as a stepper is, sensorless from there: `amps` of d current on
+    a vector turned from standing up to `to` rad/s electrical in three quarters of `seconds`,
+    `wait(s)` the board's seconds. Past its crossover the law's estimate is the back-EMF's,
+    whichever way the rotor stood (drive.md)."""
+    drive.write(id_ref=amps, iq_ref=0.0, theta=0.0, omega_target=to,
+                accel=to / (0.75 * seconds))
+    drive.hold()
+    wait(seconds)
+    drive.write(id_ref=0.0)
+    drive.on('sensorless')
+
+
 class Motion:
 
     """The factory `device.motion` answers with."""

@@ -229,11 +229,10 @@ gets a line at the end of [DONE](DONE.md).
   contiguous array, steps branch-free passes over it. DOD: the hot paths
   ranked by them, each cut or named unavoidable; a model's change one
   change in every executive.
-- **A rotor node's start** (`coaxial.node.Rotor`): armed sensorless from
-  rest the law's estimate stands half a turn off at 7 rest angles of 9, and
-  onto a rotor left turning it reads 10 A; test_controller's machine types
-  trip 2 runs of 3. DOD: started as the page's rotors are, a stepper to
-  its idle; stopped before its stage goes down; the types 20 runs of 20.
+- **`Velocity`'s start** (`coaxial.control.motion`): sensorless at rest, as
+  a rotor node's was - right while the estimate lies within a quarter turn
+  of the rotor. DOD: `motion.started`, its ramp from where that leaves the
+  rotor; test_sensorless's from any rest angle.
 - **L map at no bias** reads L / 2.3 on the cores (drive.md): the
   dead-time table and the model's error on the sampled current's sign under
   an fs/2 ripple. DOD: Ld and Lq within 5 % at no bias.

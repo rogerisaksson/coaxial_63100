@@ -11,6 +11,7 @@ import math
 
 from coaxial.comm.hostclock import clock_of
 from coaxial.control.commission import Commissioning
+from coaxial.control.motion import started
 from coaxial.comm.session import standing
 from coaxial.errors import RigError
 from machine.controller import Feedback
@@ -25,6 +26,11 @@ from motor.pmsm import RAD_S_PER_RPM
 #: 1e-5 (zeta 0.0013) rings at 30 Hz for seconds, and a 25 Hz loop pumps it until a pole
 #: slips.
 JOINT_B = 4e-3
+
+#: A rotor's start: its vector turned up to START times the record's crossover in START_S s -
+#: at 1.3 and 2 times it the bare rotor's swing about the vector had it under the crossover
+#: at the hand-over, one start in four. Its stop: STOP_S more than its ramp down takes.
+START, START_S, STOP_S = 3.0, 0.4, 0.1
 
 
 def _arming(rig, arming):
@@ -175,8 +181,19 @@ class Rotor(_OnDrive):
             # board's law loses a rotor from rest and trips.
             Commissioning(rig).gains()
         self._gates(arming)
-        drive.write(id_ref=0.0, iq_ref=0.0)
-        drive.on('sensorless')
+        started(drive, self.rest, self.amps, START * drive.params()['drv_w_hi'], START_S)
+
+    def disarm(self):
+        """Turned down to rest as a stepper before its stage goes down - the vector off the
+        rotor's own, at `rpm_s`: left turning, the next to arm it read 10 A."""
+        drive = self.node.rig.drive
+        state = drive.state()
+        if state['mode'] == 'sensorless' and state['stage_enabled'] and not state['fault']:
+            rate = self.rpm_s * RAD_S_PER_RPM * self.poles
+            drive.write(id_ref=self.amps, iq_ref=0.0, omega_target=0.0, accel=rate)
+            drive.hold()
+            self.rest(abs(state['omega_hat']) / rate + STOP_S)
+        super().disarm()
 
 
 class Torque(Rotor):

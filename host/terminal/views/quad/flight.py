@@ -12,6 +12,7 @@ import math
 import time
 
 from coaxial.control.commission import Commissioning
+from coaxial.control.motion import started
 from coaxial.devices.thermal import THROTTLE_AT
 from coaxial.model.thermal import MOTOR
 from coaxial.simulated.sto import PILOT_VOLTS
@@ -169,13 +170,8 @@ def spun(rotor):
     board, idle = rotor['rig'].board, quad.IDLE_RAD_S * rotor['pairs']
     drive, loop = board.drive, board.ctrl
     loop.off()
-    drive.write(id_ref=START_A, iq_ref=0.0, theta=0.0, omega_target=idle,
-                accel=idle / (0.75 * START_S))
-    drive.hold()
-    drive.paced(START_S)
-    drive.state()
-    drive.write(id_ref=0.0)
-    drive.on('sensorless')
+    started(drive, lambda seconds: (drive.paced(seconds), drive.state()), START_A, idle,
+            START_S)
     loop.write(quad.IDLE_RAD_S)
     loop.on()
     rotor.update(ask=quad.IDLE_RAD_S, cut=False)

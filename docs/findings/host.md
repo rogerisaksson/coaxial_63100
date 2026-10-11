@@ -92,6 +92,11 @@ kilowatts spent on repetitions.
   (on the placeholders a 63100 trips at its first torque), the estimate
   locked before it, MOE for a mode on the converters, a trip that drops the
   stage, a shaft that turns when it is overpowered.
+- A rotor node (`coaxial.node.Rotor`) armed sensorless at rest: the machine
+  types' routines tripped 2 runs of 3, a rotor backwards past its limit or
+  10 A at an arm. Started as a stepper and stopped before its stage goes
+  down ([drive](drive.md)): 36 runs of 36, 32 of them four processes side
+  by side.
 - The loop on the C: device 12 is `ctrl_loop.c`, the part's (`board_ctrl.c`
   its angle and its guard) and a stand-in's, ticked in the slot's own
   sample; the stand-in's thread and its 200 Hz gone. QUAD's rotors on it

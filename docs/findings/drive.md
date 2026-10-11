@@ -137,6 +137,17 @@ rotor's pages and their demos. The board's findings:
   estimate to 1 026 rad/s in 5 ms and tripped. Started as a stepper, the
   vector turned to 86 rad/s on 15 A in 0.4 s: 0.003 rad off at the
   hand-over.
+- A bare rotor (b 1e-5) armed sensorless at rest: the estimate half a turn
+  off at 7 rest angles of 9, as it and the rotor happened to lie. Aligned on
+  a standing vector first, a quarter turn off and then on it, the rotor swung
+  0.9-1.06 rad about it and 2 starts of 12 were half a turn off still. Its
+  vector turned up as a stepper's, sensorless past the crossover: at 1.3 and
+  2 times w_hi the swing had the rotor under the crossover at the hand-over,
+  4 and 3 starts of 12 half a turn off there; at 3 times, none of 12. Braked
+  to rest on its estimate, to 3 000 rpm and back: within 0.04 rad at rest,
+  never backwards (`motion.started`).
+- Armed sensorless onto a rotor left turning, the first pass read 10 A: a
+  rotor node turns it down as a stepper before its stage goes down.
 - Device 12's theta command stood still on the part: `board_ctrl.c` wrote
   the setpoint, which a held frame reads at its mode alone. Through
   `drive_set_theta_setpoint` now, the part's and a stand-in's one tick

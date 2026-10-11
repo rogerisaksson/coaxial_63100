@@ -43,3 +43,6 @@ it names. A closed item is cut from the list and gets its line here, last.
 20. The picture in the viewport's corner in the instruments' frame, a key
     that takes it away; the quad's carried camera on a stabilised gimbal
     ([quad](findings/quad.md), [sight](findings/sight.md)).
+21. A rotor node started as a stepper and stopped before its stage goes
+    down: the machine types' routines 36 runs of 36
+    ([drive](findings/drive.md), [host](findings/host.md)).
