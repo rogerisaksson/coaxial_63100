@@ -24,17 +24,19 @@ the files under docs/FINDINGS.md. An item is deleted when its DOD is met.
 1. **Walk form, held by test.** Requirement: a low-loss walk rolls over the
    hip, the stance leg extended past plumb. `looks.FORM` in
    test_gynoid_gait.py; smoked on the armada (walk.md, balance.md).
-   + Now (2026-10-11, look.py from the squat, the armada): the walk as
+   + Now (look.py from the squat, the armada): the walk as
      built lands at 26-30 deg, 0 parries over its starts; the law's at
      12.2, 485 J/m, 0.20 off the band, stride 0.89 m. The crouched manner
-     (strut 18) measures 390 for three faults in the driving, a leg a
-     stride (straight.md): the knee landed at 15 deg and driven to 5 under
-     load (+37 J/m), the trailing knee held stiff through the other foot's
-     landing with no push-off before it (+25), the swing's knee braked by
-     its servo into its landing (+26); the standing twentieths alike.
-   + Next: the knee landed straight and yielding under load, the trailing
-     ankle's push-off before the other foot lands, the swing let go to its
-     pendulum; each measured on the same table.
+     (strut 18) measures 390: the work less its braking alike, 39 and 41
+     J/m; straight 56 more of copper and 40 of work braked away, at the
+     landings (+37, +25) and the swing's end (+26) (straight.md).
+   + Next: the pelvis's target continuous over the law's events. At a
+     landing its height steps 3.7 mm to the pelvis as read and the landing
+     leg is retracted under her, its knee asked 717 deg/s; at a leaving
+     the height steps 4.2 mm and the lean 10 mm across: 3-9 deg of a
+     straight knee a step, 1-3 of a bent one, the knees at their clamps
+     21 % of a landing's passes where 6. Softer knees, the row's knobs and
+     four setpoint shapes tried and out.
    + DOD: parries per spread <= 1 on any host; clean starts, standing and
      from the squat, over a spread of side gains, roll peak 0.27; speed
      within 5 % of plan at 1.0 strides/s; `looks.FORM` landing knee 15 deg;
@@ -52,13 +54,13 @@ the files under docs/FINDINGS.md. An item is deleted when its DOD is met.
      quoted before and after.
 4. **Shell as armour**: printed plates over gel pads (`figure.PADS`) where a
    fall lands.
-   + Now (`gait_montecarlo`, 2026-10-11): the shove's three falls 0.00 kN
+   + Now (`gait_montecarlo`): the shove's three falls 0.00 kN
      on a drum, a board or a tube, the hands' landing 4.4.
    + DOD: floor force on a drum, a board or a tube 0 in the falls suite;
      the plates under the clothes read as shape only, judged on a PNG.
 5. **Fewest parts** (`tools/sim/bom.py`): every holder and lever a 2.5D
    print.
-   + Now (`bom.py`, 2026-10-11): 21 part types; one bearing size, one rod
+   + Now (`bom.py`): 21 part types; one bearing size, one rod
      end, tubes of 7 stock sizes; the spur pair and the bent rods in.
    + DOD: one bearing size, one rod end; the hip roll's spur pair and the
      ankles' bent rods kept only where removing them costs the scoreboard;
@@ -67,7 +69,7 @@ the files under docs/FINDINGS.md. An item is deleted when its DOD is met.
    whole-body law on the joint's sensor (`physics.WOUND` 1, drives.md); on
    the gearboxes as bodies the walk on setpoints stands but drags its toes,
    the loop on its torques walks. 2 of 61 members flex past 0.25 deg at
-   0.6 of the peak (`members.py`, 2026-10-11): the shank's first run 0.29,
+   0.6 of the peak (`members.py`): the shank's first run 0.29,
    the spine roll's horn 0.26.
    + DOD: `drives.BOX_K` and the toes' `TOE_K`, `TOE_LOSS` measured on
      prototypes; the page's walk on the loop at `physics.BOXED` 1 on its
@@ -81,53 +83,56 @@ the files under docs/FINDINGS.md. An item is deleted when its DOD is met.
       end; a prototype's torque and backlash measured.
 8. **Gearboxes past their momentary ratings in falls**: each drive's
    compliance a motor-side degree of freedom, else torque limiters.
-   + Now (P's shove on the walk as built, 2026-10-11): 3 of 21 past it
+   + Now (P's shove on the walk as built): 3 of 21 past it
      over the walk, the fall and the get-up: the left hip 1.53, the right
      1.41, the left hip yaw 1.20; the spine 0.99, a knee 0.97.
    + DOD: none > 1.0 in the scoreboard's falls.
 9. **Arms down while getting up**: hands on the knees, or more hip torque;
    decision open.
-   + Now (P's shove on the walk as built, 2026-10-11): the hands 0.86 m
+   + Now (P's shove on the walk as built): the hands 0.86 m
      from the torso at the farthest through the lift and the crouch, thrown
      at 6.4-7.3 m/s.
    + DOD: the decision; 5 of 5 hot; hands within 620 mm of the chest
      through the lift.
 10. **Get-up end**: rocking before standing, feet split fore and aft.
-    + Now (2026-10-11): the feet 178 mm apart fore and aft as she first
+    + Now: the feet 178 mm apart fore and aft as she first
       stands, 168 as she walks again.
     + DOD: split rms 0.25; feet 40-80 mm apart.
 11. **No abrupt get-up moves**.
-    + Now (2026-10-11): 9 joints of 27 past 400 deg/s (the elbows 1 190,
+    + Now: 9 joints of 27 past 400 deg/s (the elbows 1 190,
       the hips 640, the sprung toes 2 000), the feet 2.9 and 3.2 m/s;
       walking again 22.9 s after the fall.
     + DOD: every joint < 400 deg/s, every foot < 2 m/s; fall to walking <
       15 s; the loop at 1.0.
 12. **Falls past saving**.
-    + Now (`gait_montecarlo --suite all`, 2026-10-11): the shove's three
+    + Now (`gait_montecarlo --suite all`): the shove's three
       falls land 4.4 kN, the head 0.00; of 16 crouch falls the head on the
-      floor in 2, at 0.7-0.9 m/s (balance.md, 2026-10-04).
+      floor in 2, at 0.7-0.9 m/s (balance.md).
     + DOD: a hand and a knee take the fall, called 0.3 s before the floor;
       the body drawn in; head < 2 kN.
 13. **Scoreboard events**.
-    + Now (`gait_montecarlo --suite all`, 2026-10-11): 88.5 % held; rises
+    + Now (`gait_montecarlo --suite all`): 88.5 % held; rises
       and walks 100 % (1.00 off its form, knee behind plumb 10.6); sill,
       slip, hot, nudge 100 %, rug 79, hole 77, soa 76, lace 31 (26 on
-      2026-10-04, balance.md); the 120 N shoves 25 % walking, 44-46
+      Balance.md); the 120 N shoves 25 % walking, 44-46
       standing; the stand's nudges, bricks, boards and rockers 100; stairs
       not in it.
     + DOD: each > 75 %, the 120 N shoves and the lace among them, a slope
       and a tilt among the events; the 1.0 walk standing; the sill's
       spread the page's; stairs climbed; 8 halts of 8.
 14. **Skeleton collisions** (`physics.SKELETON`).
-    + Now (2026-10-11): at 1 she falls in the rise from the squat and gets
-      up into it again, never walking; at 0, P's shove's fall puts the head
-      0.08 m over the floor, on it.
+    + Now: at 1 she is down as she stands from the squat, 2.55
+      s, and never walks: rising, each thigh's bone meets its hip's yaw
+      gimbal 4.1 mm deep, 2.0-2.1 kN, and its roll gimbal, 1.0-1.2 kN, each
+      ankle's cross its rod, 0.6 kN - pairs apart standing and in the squat
+      (`mjcf._APART`'s two poses), not between. At 0, P's shove's fall puts
+      the head 0.08 m over the floor, on it.
     + DOD: head on the floor in 0 of 64 falls.
 15. **Obstacle contacts**: toes into the sill, fingers into the floor at
     MuJoCo's 0.02 s; overlap or force, decision open.
     + DOD: the decision; the set measured on it.
 16. **Carbon shells and clothes** over the structure as built.
-    + Now (`fit.py`, 2026-10-11): standing, the elbow 20, the shoulder 15
+    + Now (`fit.py`): standing, the elbow 20, the shoulder 15
       and the hip yaw 6 mm past the clothes; over 45 poses 8 pairs overlap
       13-19 mm - the pelvis's frame and the hip roll's drum rolling onto
       her front, the arm bones and the ankles' rods sitting back.
@@ -169,7 +174,7 @@ the files under docs/FINDINGS.md. An item is deleted when its DOD is met.
       walk row backward at 0.26 m/s and fell in 4 more checks; 3 falls
       checks failed (head down at 2.7-3.5 m/s, a get-up late).
     + DOD: both walks' spine and hip torques < 0.5 N m on their stride
-      means; going and falls suites as on 2026-10-10 (54 of 56, 44 of 44).
+      means; going and falls suites at 54 of 56 and 44 of 44.
 25. **Docs as technical documents**: no attributions, no narrative; tables
     and numbers. Now: docs/, the READMEs and the code comments done but 7
     in arrival.py, graphics/gynoid.py and humanoid_keys.py (`grep "the
@@ -271,7 +276,7 @@ the files under docs/FINDINGS.md. An item is deleted when its DOD is met.
 ## Host
 
 - **One code, several executives**: the stand-in on the C cores and the
-  world (its heat and observer since 2026-10-10, the drive next); native's
+  world (its heat and observer, the drive next); native's
   AFE, A1335 and BNO085 board/emu's own; the mirrors removed; every hot
   path's jumps, interrupts and stalls cut but the unavoidable; state one
   contiguous array, steps branch-free passes over it. DOD: the hot paths
