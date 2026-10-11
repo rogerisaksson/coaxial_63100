@@ -71,8 +71,10 @@ stand, the others asked to their landing.
 - Open. The strike, 1.9-2.6 kN at 0.8 m/s: not her height's law's (at a
   quarter of it 1 735 N; the torque as asked under it 1 414), nor the sole's
   speed onto the floor (eased onto the floor it left over the last 30 mm,
-  2 244 N). Standing on one sole the loop meets a third of a swinging sole's
-  ask where the python stack meets most (115 m/s^2 asked: 13 against 109).
+  2 244 N). Standing on one sole the loop meets 15 of 115 m/s^2 of a sole
+  asked back where the python stack meets 97: her form's weight on the
+  turns' level, which her walk's 259 J/m is ([wbc](wbc.md), The margins
+  soft).
   A hop on one sole is untried. Her throw is asked as an acceleration for a
   time: it is asked 30 ms yet with her soles off the floor; a spring to her
   legs' length ends there by itself.

@@ -381,6 +381,22 @@ band hard as before:
 - The slacks' own non-negativity (ids 5000+) sits at zero whenever a margin
   is slack-free: left out of the bounds counted at their edge.
 - At 120 N she falls 7 of 8 where the stack 5: open.
+- The slacks' rows weigh sqrt(1e3) and set the level's scale, so her form
+  below enters the turns' level at a swinging sole's own weight where the
+  stack has it at 1e-3. Standing on one sole the loop meets 15 of 115
+  m/s^2 of a sole asked back, the stack 97. The slack scaled to a unit row
+  instead - the same problem, the stack's tie-break - it meets 93, and:
+
+| On the loop, PD under it | Slack rows at sqrt(1e3) | The slack scaled |
+| --- | --- | --- |
+| Walk, 8 s at 0.5 m/s asked | 2.47 m, 0.41 m/s, 259 J/m | 1.64 m, 0.27 m/s, 798 J/m |
+| Stood of 8 at 38 / 60 / 80 / 100 / 120 N | 8 / 8 / 7 / 2 / 0 | 8 / 7 / 6 / 6 / 0 |
+| WEP over the 100 N polar | 1.4 s | 21.1 s |
+| Three hops at 10 m/s^2 | 10.3 deg | 17.7 deg |
+
+- Her walk's economy on the loop is her form's weight on the turns' level,
+  not the margins' softness: the stack's own walk is 792 J/m. Not kept; the
+  hops at 14 and 18 m/s^2 fall either way.
 - On the gearboxes with their play (drives.md, A printed box's play) the loop
   with its observer stands 8 of 8 at 100 N, the PD under it 2.
 - The loop's state was 1 174 KB in doubles (`wbc_stack_t`): the
