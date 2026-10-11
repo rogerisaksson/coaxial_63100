@@ -65,3 +65,22 @@ from its landing, the right foot landing at 0.50, 8 strides:
   work coming at the leaving, after the collision, where a push-off comes
   before it; the swing's knee driven to a setpoint and braked into its
   landing, where a swing is a pendulum's. The standing twentieths cost alike.
+
+## Tried on the law
+
+2026-10-11, the walk's row from the squat, measured on the table above
+(`look.py --pace 0`, the leg's twentieths); work / braking / copper J/m:
+
+| Change | Result |
+| --- | --- |
+| the landing knee asked 6 deg (the row's 11.8) | lands at 4.7-4.9; 566 J/m where 485; the landing's twentieth 25 / 25 / 42 where 20 / 17 / 32, the swing's last two 30 / 35 / 32 where 12 / 17 / 18: a straight landing with no push-off before it is a harder collision |
+| the landing pose reaching the floor, the row's knee its least bend | lands at 4.7-5.5; 599 J/m, 0.26 off the band; the landing 26 / 29 / 50 |
+| a push-off: the standing heel up 5, 10 or 20 deg over the last 0.12 s before the free foot lands, kept while it gives its load - on the strut's cap; with the floor-reaching pose; lifting the pelvis's target by the ankle's rise | down in 4.0-6.1 s each: at a fixed landing length the sole hung 9-13 mm up for 0.15 s; on the cap the heel rose under an unmoved target and the knee bent 10 -> 13; with the target lifted she lost her way from the first step, 0.08 m/s at 3.3 s, and fell back |
+| the fold's second half a raised cosine, no slope at its end | 532 J/m where 485, 0.22 off; the swing's last fifth 74 where 83, the knee's unfolding moved to 0.80-0.85 and braked there, 31 |
+
+- A shape of the setpoints takes none of the three faults out: each moves
+  the cost to the next twentieth. The knee's PD holds the row through the
+  collision and the swing and pays in copper and braking whatever the shape.
+  The push-off is a phase of the law - the trailing leg carrying the pelvis
+  through the double support -, not a heel angle; the yield at landing and a
+  free swing are the drives' impedance (docs/TODO.md 26), not a row's.
