@@ -241,7 +241,11 @@ its landing further on by that of (v - cruise) / omega):
   is asked 72 of its clamp, her spine 46: the step knows no floor but
   under her soles. That slack costs no shove she stood: on the loop,
   standing, 8, 7, 4 and 2 of 8 ways at 38, 60, 80 and 100 N with it and
-  without.
+  without. Yielding from 0.12 s after the shove she is 0.48 m past her
+  toes 0.54 s after it, pressed on at 1.0 m/s and down at 0.8, 0.14 m
+  lower, and her soles bear nothing from 0.6 s: standing, her legs have
+  half a second and no step - a fall is not theirs to damp where she
+  stands.
 - Shoved walking, 0.12 s at 15 s - 20, 30 and 40 N across either way, 10
   and 20 N along either way -: 6 of 10 stood on either step, the four
   down each across; her speed after one 0.75 to 0.77 m/s where 0.70 to

@@ -91,10 +91,13 @@ gets a line at the end of [DONE](DONE.md).
      to 3.7 with 2.0 to 3.3 kN; once a part but a sole is on the floor
      the step asks a drive 99 of its clamp. On the page she is laid
      anew. To be, with no branch on a shove's
-     size: a slack where her soles' cone cannot hold what is asked -
-     her capture point past her soles, a landing past her reach -, her
-     posture's stiffness falling as it grows and its damping rising,
-     her centre of mass let down; her hands aimed, softly and always,
+     size: a slack where her soles' cone cannot hold what is asked.
+     Her capture point past her soles, it is a step's: her stride set
+     going by it, standing - 0.5 m past her toes in half a second, her
+     legs damp nothing where she stands. A landing past her reach,
+     it is a fall's: her posture's stiffness falling as it grows and
+     its damping rising, her centre of mass let down, on her knees
+     first; her hands aimed, softly and always,
      where her centre of mass is going (a mode: its velocity scaled);
      a hand on the floor rows of the cone as a sole's are; a hand
      through the floor's plane a damper sized to her kinetic energy,
