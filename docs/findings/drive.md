@@ -201,10 +201,23 @@ rotor's pages and their demos. The board's findings:
   0.25 limit on a busy CI runner (red 834519a). Now the command's and the
   shaft's travels, sampled together, after the first quarter: 21.00 with six
   cores busy.
-- Fitment by ring test, stand-in: a 2 A hold stepped 20 deg
-  electrical rings at 23.8 Hz (hip, J 3.2e-5) to 38.9 Hz (head, 1.2e-5);
-  repeats within 1 %, J back within 3 %. The crossing count failed mid-suite (a
-  read gap hid a pair: waist and neck swapped); the median half-period holds.
+- Fitment by ring test, stand-in: a 2 A hold stepped 20 deg electrical onto a
+  phase's axis rings at 21.2 Hz (hip, J 3.2e-5) to 30.9 Hz (head, 1.2e-5), a
+  limb's neighbours 6.7 % apart or more, a board's reads within 0.5 %; J
+  reads 30-63 % over the model's. The crossing count failed mid-suite (a
+  read gap hid a pair: waist and neck swapped): a median.
+  + Between two phases, 30 deg off an axis, a leg's current crosses zero:
+    the same shaft rang 7 % higher (31.5 Hz where 29.4) and kept 0.70 of
+    its swing a period where 0.93. Held where the estimate stood, a
+    shoulder read over its elbow one arm in six.
+  + By its half periods' median a decaying ring read 3 % either way: cut
+    at its window's mean, off its centre, its halves alternate (19.8 and
+    13.2 ms where 16.9). Whole periods' median now.
+  + On the wall's clock, six processes on two logical cores: reads 131 ms
+    apart, one board's two 100-134 % apart, none refused; CI's runner read
+    no crossing in 0.25 s. The stand-in's law is told its seconds for the
+    ring (`paced`): starved, the same 0.5 %, and test_controller 57 s
+    where 73. 210 runs of it, 32 at a time: the ring test failed none.
 - Device 12, the board's loop (MINOR 20): a joint's feedback
   loaded as slots, rows of 0.8 s at 20 and -20 deg, 100 Hz on the stand-in:
   within 0.05 deg, the last held. Four legs with `node_hz=100`: the squat's

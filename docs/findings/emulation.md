@@ -189,6 +189,10 @@ board's findings: [FINDINGS](../FINDINGS.md).
   drive): 1 virtual s in 0.055 wall s a board. The humanoid, 20 boards on 5
   buses, every drive holding: each limb 1.0000 virtual s a wall s, 50 000
   triples a virtual s a board, no overrun, 2.05-2.28 of 16 cores.
+- test_native looked at the world's thermometers twice after the board's
+  sample: its die rising 0.5-1.5 K a board second (ten thermal), a read fell
+  0.046 K inside its 0.2 K in 20 runs here and 0.014 outside on CI's runner.
+  The looks round the sample, two thermal seconds apart: 0.139 K inside.
 
 ## Heat
 

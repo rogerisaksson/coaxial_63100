@@ -118,3 +118,8 @@ it names. A closed item is cut from the list and gets its line here, last.
     by masks, the lap's plan a table a sphere computed beforehand and read
     where the frame is - 64 us a pass where 357, two laps' rows the same
     to the bit, the race flight for flight ([streams](findings/streams.md)).
+40. The ring test on a phase's axis, by whole periods, a stand-in's on its
+    law's own seconds: a board's reads within 0.5 % where 6, no shoulder
+    over its elbow, none failed in 210 runs under load; test_native's
+    thermometers looked at round their sample
+    ([drive](findings/drive.md), [emulation](findings/emulation.md)).

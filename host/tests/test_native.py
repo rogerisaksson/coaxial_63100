@@ -27,6 +27,7 @@ from coaxial.comm.session import standing  # noqa: E402
 from coaxial.devices.imu import ACCELEROMETER  # noqa: E402
 from coaxial.node import discover  # noqa: E402
 from coaxial.model.inverter import GATE_UVLO_V  # noqa: E402
+from coaxial.model.thermal import HASTE  # noqa: E402
 from coaxial.simulated.sto import PILOT_VOLTS  # noqa: E402
 from terminal.ui.demo import stop_motor, turn_motor  # noqa: E402
 from terminal.ui.screen import FPS_CAP  # noqa: E402
@@ -178,7 +179,7 @@ def test_the_parts_answer(report, rig):
 
 def test_the_thermometers_read_the_world(report, rig):
     """The NTC, the MCU's die and the A1335's, a sample a thermal second with the rail held,
-    each between two looks at the world's and within what it resolves."""
+    each between two looks at the world's two thermal seconds apart, within what it resolves."""
     b, limb = rig.board, native.limb_for(rig.port)
     b.afe.on()
     b.thermal.configure(sample_every_s=1.0)
@@ -186,8 +187,8 @@ def test_the_thermometers_read_the_world(report, rig):
         b.transport.sleep(3.0)
         with limb.lock:
             before = limb.boards[0].temperatures()
+        b.transport.sleep(2.0 / HASTE)
         got = b.thermal.state()
-        b.transport.sleep(0.2)
         with limb.lock:
             after = limb.boards[0].temperatures()
     finally:

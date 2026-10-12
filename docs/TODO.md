@@ -278,16 +278,17 @@ gets a line at the end of [DONE](DONE.md).
   `afe.state`, a board's info in its place), `test_wbc_core` (a tick of
   the loop 4 202 us), `test_mcp` (the program card). DOD: each looped 20
   times on a loaded host, its cause found.
-- **test_controller's timed checks**: a velocity loop on the stand-in
-  faulted overcurrent once on the runner (15 of 15 passed here); the ring
-  test read a shoulder over its elbow one arm in six here, this tree and
-  the one before alike - the shoulder 23.4 Hz, the elbow 23.2-24.4 by its
-  half periods' median and 22.9 by all its crossings' least squares: no
-  one frequency. DOD: neither in 50 runs.
 - **`Velocity`'s start** (`coaxial.control.motion`): sensorless at rest, as
   a rotor node's was - right while the estimate lies within a quarter turn
-  of the rotor. DOD: `motion.started`, its ramp from where that leaves the
-  rotor; test_sensorless's from any rest angle.
+  of the rotor. test_controller's velocity loop on the stand-in faulted
+  overcurrent in 8 starts of 384, 32 at a time, and once on CI's runner:
+  within three passes, the estimate at -9 000 to -12 800 rad/s as the ramp
+  crosses the hand-over; a pass 0.1-1.0 s late faulted none of 15. DOD:
+  `motion.started`, its ramp from where that leaves the rotor;
+  test_sensorless's from any rest angle; none in 400 starts.
+- **The ring test's J** reads 30-63 % over the stand-in's (drive.md): the
+  hold's stiffness taken as 1.5 pp^2 lambda I, the board's current loop
+  softer at the ring's rate. DOD: within 5 %.
 - **L map at no bias** reads L / 2.3 on the cores (drive.md): the
   dead-time table and the model's error on the sampled current's sign under
   an fs/2 ripple. DOD: Ld and Lq within 5 % at no bias.

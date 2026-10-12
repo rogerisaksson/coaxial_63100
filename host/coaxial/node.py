@@ -32,6 +32,32 @@ JOINT_B = 4e-3
 #: at the hand-over, one start in four. Its stop: STOP_S more than its ramp down takes.
 START, START_S, STOP_S = 3.0, 0.4, 0.1
 
+#: A phase's axis every sixth of an electrical turn, rad. A ring is held on one: between two a
+#: leg's current crosses zero, and the same shaft rang 7 % higher (31.5 Hz where 29.4) and kept
+#: 0.70 of its swing a period where 0.93 - a shoulder read over its elbow one arm in six.
+AXIS = math.pi / 3.0
+
+
+class _Told:
+
+    """A stand-in's seconds for a ring: its law run by what it is told (`paced`) and by no
+    wall, a read of the clock `STEP` s on. On the wall's, six processes on two logical cores,
+    a 23 Hz ring was read 131 ms apart and one board's two reads came 100-134 % apart."""
+
+    STEP = 0.0002
+
+    def __init__(self, paced):
+        self._paced, self._at = paced, 0.0
+        paced(0.0)
+
+    def sleep(self, seconds):
+        self._paced(seconds)
+        self._at += seconds
+
+    def perf(self):
+        self.sleep(self.STEP)
+        return self._at
+
 
 def _arming(rig, arming):
     """What gates.on() takes: `arming`, or on the stand-in past the STO chain and interlock."""
@@ -252,22 +278,25 @@ class Coaxial(Node):
     def identify(self, arming=None, again=False, amps=2.0, step_deg=20.0, settle=0.1,
                  window=0.25):
         """What the shaft carries, by a ring test: held on `amps` of d current, the hold stepped
-        `step_deg` electrical, the ring's frequency from the angle sensor's zero crossings.
+        `step_deg` electrical onto a phase's axis, the ring's frequency from the angle sensor's
+        zero crossings.
         {'hz': .., 'j': kg.m2 from the record's lambda}; the heavier, the lower. Measured
         once, then kept (`again` measures anew). Moves the shaft a few degrees."""
         if self._carried is not None and not again:
             return self._carried
         rig, drive, angle = self.rig, self.rig.drive, self.rig.board.angle
-        clock = clock_of(rig)                   # the ring's own seconds, the board's
+        paced = getattr(rig.board.drive, 'paced', None)
         if rig.simulated:
             drive.configure(source='model')
         rig.gates.on(**_arming(rig, arming))
         try:
-            theta0 = drive.state()['theta_hat']
-            drive.write(id_ref=amps, iq_ref=0.0, theta=theta0, omega_target=0.0)
+            clock = _Told(paced) if paced else clock_of(rig)    # the ring's own seconds
+            axis = AXIS * round(drive.state()['theta_hat'] / AXIS)
+            drive.write(id_ref=amps, iq_ref=0.0, theta=axis - math.radians(step_deg),
+                        omega_target=0.0)
             drive.hold()
             clock.sleep(settle)
-            drive.write(theta=theta0 + math.radians(step_deg))
+            drive.write(theta=axis)
             start, t0, rows = angle.state()['degrees'], clock.perf(), []
             while clock.perf() - t0 < window:
                 asked = clock.perf()
@@ -281,14 +310,18 @@ class Coaxial(Node):
             rig.gates.off()
             if rig.simulated:
                 drive.configure(source='adc')
+            if paced:
+                paced(None)
         mean = sum(d for _, d in rows) / len(rows)
         cross = [ta + (tb - ta) * (mean - da) / (db - da)
                  for (ta, da), (tb, db) in zip(rows, rows[1:]) if (da - mean) * (db - mean) < 0]
         if len(cross) < 3:
             raise RigError('%s did not ring: %d crossings in %.2f s - held, or not free'
                            % (self.name, len(cross), window))
-        halves = sorted(b - a for a, b in zip(cross, cross[1:]))
-        hz = 0.5 / halves[len(halves) // 2]             # the median: a gap in the reads moves none
+        # Whole periods, a crossing to the next the same way: a decaying ring's mean is off its
+        # centre and its half periods alternate, 19.8 and 13.2 ms where 16.9.
+        wholes = sorted(b - a for a, b in zip(cross, cross[2:]))
+        hz = 1.0 / wholes[len(wholes) // 2]             # the median: a gap in the reads moves none
         p = drive.params()
         pp = p.get('motor_pole_pairs') or 7
         k = 1.5 * pp * pp * p.get('motor_lambda', 0.005) * amps
