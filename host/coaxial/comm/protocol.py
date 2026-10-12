@@ -43,6 +43,7 @@ DEVICE_DRIVE = 10
 DEVICE_BOOT = 11
 DEVICE_CTRL = 12
 DEVICE_WBC = 13
+DEVICE_AERO = 14
 
 
 class ImuOp(IntEnum):
@@ -213,6 +214,12 @@ class WbcOp(IntEnum):
     STEP = 1
 
 
+class AeroOp(IntEnum):
+    """Device 14, the frame's core - `coaxial.devices.aero`."""
+    LAY = 0
+    STEP = 1
+
+
 class MapKind(IntEnum):
     """What command 0x6D is asked for: the sections of the channel map, and the
     two lists that ride beside it.
@@ -279,6 +286,8 @@ DEVICE_REQUESTS = {
     (DEVICE_DAQ, DaqOp.LIVE): 3,
     (DEVICE_WBC, WbcOp.TICK): 4,                     # u8 ticks
     (DEVICE_WBC, WbcOp.STEP): 4,                     # u8 ticks
+    (DEVICE_AERO, AeroOp.LAY): 107,                  # a frame's params
+    (DEVICE_AERO, AeroOp.STEP): 243,                 # a reading, a payload
     (DEVICE_TIME, TimeOp.LATCH): 3,
     (DEVICE_TIME, TimeOp.READ): 3,
     (DEVICE_THERMAL, ThermalOp.STATE): 3,

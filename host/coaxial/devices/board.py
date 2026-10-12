@@ -11,6 +11,7 @@ from coaxial.acquire.clock import Clock
 from coaxial.acquire.daq import Daq
 from coaxial.devices.ctrl import Ctrl
 from coaxial.devices.wbc import Wbc
+from coaxial.devices.aero import Aero
 from coaxial.devices.drive import Drive
 from coaxial.kalman.observer import Observer
 from coaxial.devices.calibration import Calibration
@@ -51,6 +52,7 @@ class Board:
     drive: Drive
     ctrl: Ctrl
     wbc: Wbc
+    aero: Aero
     observer: Observer
 
     #: The rig that opened this board, set by `Coaxial63100.open()` -

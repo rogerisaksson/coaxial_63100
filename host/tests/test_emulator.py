@@ -108,6 +108,40 @@ def test_the_step_ticks_on_the_image(report, rig, emu):
                      ['%.3f' % t for t in got['tau']], ['%.1f' % f for f in got['bears']], apart))
 
 
+def test_the_core_ticks_on_the_image(report, rig, emu):
+    """The frame's core (aero/) on the image, the quad's frame laid: the power loop's payloads
+    a pass each over five readings (`aero_kit.asks`), an ask stepped again where an interrupt
+    fell in its pass: a pass's cycles the same whatever it is asked - within two, the count's
+    own grain -, its thrusts the host core's on the reading as the board had it."""
+    import aero_kit
+    from tools.cores import aero
+    payloads, readings = aero_kit.asks()
+    host = aero_kit.beside(rig.board.aero.lay(aero_kit.params()))
+    asks = [(payload, reading) for payload in payloads for reading in readings]
+    took, passes, apart, hz = {}, [], 0.0, 0
+    for again in range(16):
+        least = min(took.values(), default=0)
+        for k, (payload, reading) in enumerate(asks):
+            if again and took[k] <= least + 2:
+                continue
+            got = rig.board.aero.step(payload.pack(), reading)
+            ours = host.step(aero.payload(payload), aero_kit.read(got['read']))
+            took[k], hz = min(took.get(k, got['cycles']), got['cycles']), got['sysclk_hz']
+            passes.append(got['cycles'])
+            apart = max([apart, float(got['bound'] != ours.bound)]
+                        + [abs(a - b) for a, b in zip(got['thrust'], ours.thrust)])
+    least = min(passes)
+    over = [c - least for c in passes if c > least + 2]
+    report.check('a pass of the core on the image costs the same whatever it is asked; its '
+                 'thrusts and its rotors at an end the host core\'s within 1e-4 N',
+                 max(took.values()) <= least + 2 and max(over, default=0) < 0.01 * least
+                 and apart < 1e-4,
+                 '%d to %d cycles, %.0f us at %.0f MHz, in each of %d asks; %d of %d passes '
+                 'an interrupt longer, %d cycles at the most; %.1e N apart' % (
+                     least, max(took.values()), 1e6 * least / hz, hz / 1e6, len(asks),
+                     len(over), len(passes), max(over, default=0), apart))
+
+
 def test_the_front_end_feeds_the_image(report, rig, emu):
     """The DC link fed through the front end, read back through the image's own scan: the
     reading follows what is fed. Recorded, not judged against a number."""
@@ -359,7 +393,7 @@ BOARD = (wire.test_every_read_decodes, wire.test_settings_are_taken, wire.test_t
          test_the_front_end_feeds_the_image,
          test_the_injected_triple_runs, test_the_angle_sensor_reads, test_the_imu_answers,
          test_the_sto_chain_follows_the_pilot, test_the_loop_ticks_on_the_image,
-         test_the_step_ticks_on_the_image,
+         test_the_step_ticks_on_the_image, test_the_core_ticks_on_the_image,
          wire.test_acquisition_answers_or_refuses)
 
 

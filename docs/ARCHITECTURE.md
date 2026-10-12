@@ -67,8 +67,8 @@ aero/     a frame flown from a compiled intent (machine.aerolisp's payload):
           its blend, oscillator and observers, the lift inside its constraints
           (aero.c), where the rotors' axis is asked and the torque there
           (aero_turn.c), the thrusts shared by an active set (aero_share.c);
-          a choice a mask (aero_bits.h), no branch; host-tested, not yet in
-          the image
+          a choice a mask (aero_bits.h), no branch; host-tested; on the image
+          behind device 14 (cmd_aero.c)
 daq/      acquisition engine (ring, window, ladder, tone, live)
 shtp/     BNO08X transport
 boot/     bootloader: boot_core.c (portable) + boot_main.c (registers),

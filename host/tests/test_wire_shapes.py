@@ -35,6 +35,7 @@ WIRE_SHAPES = (
     ('comms/src/cmd_thermal.c', 'h_thermal_edges',
      'coaxial.devices.thermal', 'Thermal', 'network'),
     ('comms/src/cmd_time.c', 'h_time_read', 'coaxial.acquire.clock', 'Clock', 'read'),
+    ('comms/src/cmd_aero.c', 'answered', 'coaxial.devices.aero', 'Aero', 'step'),
 )
 
 

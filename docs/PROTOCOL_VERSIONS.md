@@ -38,6 +38,7 @@ appends; MAJOR breaks a codec.
 | 31 | device 13 WBC |
 | 32 | thermal op 4 appends `i32 hold_milliamps`: the clamp held to what the envelope leaves |
 | 33 | device 13 op 1: the step without an active set ticked on her stand |
+| 34 | device 14 AERO: a frame's core laid and stepped a pass |
 
 MAJOR 2: thermal nodes went per leg, indices repurposed.
 A host ignores fields past what it knows. `test_conformance.py` holds a

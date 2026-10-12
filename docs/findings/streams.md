@@ -52,6 +52,13 @@ lift inside its constraints, the share.
 - The share: 400 wrenches and reaches at random, never past the best of the
   81 sets of rotors held at an end (1.4e-8 of the cost, the weights single
   precision), in 8 passes.
+- On the image (device 14, MINOR 34), a frame laid and a pass a request:
+  149 288 cycles under Renode, 0.31 ms on the M7 at one a cycle, the same
+  within two in each of 25 asks - the power loop's payloads over a frame
+  level at rest, tilted and turning, on its back, its rotors' reach shut,
+  nothing given. An interrupt's 90 fall in half the passes. Its thrusts are
+  the host core's within 1.7e-5 N on the reading as the board had it; 8.9
+  KB of flash, its device 1.1, 821 B of state.
 
 ## The axis asked
 

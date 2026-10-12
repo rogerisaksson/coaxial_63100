@@ -104,7 +104,7 @@ TOUCHES = (
     ('host/tools/cores/',                      (WIRE, NATIVE, NATIVE_HEAT)),
     ('host/tools/dev/counts.py',               ('test_ollama_runner.py',)),
     ('host/tests/takes/',                      (ORTHO,)),
-    ('host/tests/aero_kit.py',                 (AERO_CORE,)),
+    ('host/tests/aero_kit.py',                 (AERO_CORE, WIRE, EMULATOR)),
     ('host/tests/',                            ()),          # decided by name below
     # Firmware and protocol: the byte-level master is the point of it - but the
     # portable core is also compiled and run on this host, which is the only
@@ -117,7 +117,7 @@ TOUCHES = (
     # on the host beside it.
     ('filter/',                                (FILTER,)),
     ('ctrl/',                                  (CTRL_CORE,)),
-    ('aero/',                                  QUADS + (AERO_CORE, STREAMS)),
+    ('aero/',                                  QUADS + (AERO_CORE, STREAMS, WIRE, NATIVE, EMULATOR)),
     ('wbc/',                                   (WBC_CORE, FLIGHT, EMULATOR)),
     ('world/',                                 (WORLD_CORE, NATIVE, NATIVE_HEAT, EMULATOR)),
     ('host/coaxial/acquire/bessel.py',         (FILTER, STRUCTURE)),

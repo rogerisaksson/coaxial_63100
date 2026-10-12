@@ -102,6 +102,13 @@ static uint16_t device_length(const uint8_t *pdu, uint16_t have)
         default:            return 0U;
       }
 
+    case DEVICE_AERO:
+      if (op == AERO_OP_LAY)             /* a frame's params */
+      {
+        return DEVICE_HEAD + AERO_LAY_BYTES;
+      }
+      return (op == AERO_OP_STEP) ? (DEVICE_HEAD + AERO_STEP_BYTES) : 0U;   /* a reading, a payload */
+
     default:
       return 0U;
   }

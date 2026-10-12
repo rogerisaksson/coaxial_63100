@@ -188,7 +188,7 @@ Kinds 1, 2, 4 page from `first`. Part `state`: 0 unknown, 1 ready,
 
 ### 0x6E DEVICE
 
-Request: `u8 device, u8 op, parameters`. Devices 0 .. 11; unknown is 03.
+Request: `u8 device, u8 op, parameters`. Devices 0 .. 14; unknown is 03.
 
 ## Devices
 
@@ -520,6 +520,16 @@ A1335's angle, deg; 1 omega_hat, rad/s; 2 iq, A. Command: 0 theta, rad;
 | --- | --- | --- |
 | 0 tick | `u8 ticks` (1..16) | `u32 cycles_first, u32 cycles_last, u32 sysclk_hz, u8 held, u8 passes, u8 stuck, i32 x3 tau` (milli N m): the loop (`wbc/`) on the model's stand, the first tick cold; refused while the acquisition runs (its state lives in the ring) |
 | 1 step | `u8 ticks` (1..16) | `u32 cycles_first, u32 cycles_last, u32 sysclk_hz, i32 x3 tau, i32 x2 bears` (milli N m, milli N): the step without an active set (`wbc_wrench.c`) on the same stand; refused while the acquisition runs |
+
+### 14 AERO, `cmd_aero.c`
+
+The frame's core (`aero/`). Fields in millionths of their unit but where
+said.
+
+| op | Request | Reply |
+| --- | --- | --- |
+| 0 lay | `i32 mass, i32 gravity, i32 x3 inertia, i32 x4 at_x, i32 x4 at_z, i8 x4 spin, i32 kappa, i32 x4 weigh, i32 wo_turn, i32 wo_pull, i32 rise, i32 lean, i32 drag, i32 inflow, i32 wo_wind` | `u8 took`; aero_params_t - kg, m/s^2, kg m^2 in billionths, m; the weights and the three rates in thousandths; the core's memory as before a first pass |
+| 1 step | `i32 x9 r, i32 x3 spin, i32 x3 vel, i32 height, i32 x4 given, i32 x4 lo, i32 x4 hi, u32 dt, bytes` | `u8 took, u32 cycles, u32 sysclk_hz, i32 x4 thrust, u32 bound, i32 x4 asked, i32 x4 gave, i32 x3 axis, i32 x3 miss, i32 x3 turned, i32 x3 pushed, i32 x2 head, i32 x3 wind`: a pass on the reading (aero_in_t, `dt` microseconds) and the payload, its author's 124 bytes (`machine.aerolisp`); the cycles it took; aero_out_t. Refused before a frame is laid |
 
 ### Drive op 14
 

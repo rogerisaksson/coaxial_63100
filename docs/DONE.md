@@ -123,3 +123,7 @@ it names. A closed item is cut from the list and gets its line here, last.
     over its elbow, none failed in 210 runs under load; test_native's
     thermometers looked at round their sample
     ([drive](findings/drive.md), [emulation](findings/emulation.md)).
+41. The frame's core on the image (device 14, MINOR 34): 149 288 cycles a
+    pass under Renode, the same whatever it is asked, 0.31 ms on the M7 at
+    one a cycle; its thrusts the host core's within 1.7e-5 N
+    ([streams](findings/streams.md)).

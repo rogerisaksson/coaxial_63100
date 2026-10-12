@@ -24,7 +24,7 @@ from tools.cores.build import build, find_cc
 #: portable cores under it; board/fake and the record for the board.
 SOURCES = sorted(p for p in glob.glob(os.path.join(REPO, 'comms', 'src', '*.c'))
                  if os.path.basename(p) not in ('console.c', 'testrig.c', 'dev_uart.c')) + [
-    p for core in ('modbus', 'drive', 'thermal', 'daq', 'ctrl', 'filter', 'shtp', 'wbc')
+    p for core in ('modbus', 'drive', 'thermal', 'daq', 'ctrl', 'filter', 'shtp', 'wbc', 'aero')
     for p in sorted(glob.glob(os.path.join(REPO, core, 'src', '*.c')))] + sorted(
     glob.glob(os.path.join(REPO, 'board', 'fake', '*.c'))) + [
     os.path.join(REPO, 'board', 'src', name) for name in ('board_cal.c', 'board_thermal.c', 'board_daq.c')]
@@ -32,7 +32,8 @@ SOURCES = sorted(p for p in glob.glob(os.path.join(REPO, 'comms', 'src', '*.c'))
 #: The cores' headers first: comms/inc/board has same-named ones for the board's API,
 #: which comms/ includes as "board/<x>.h"; board/fake before board/inc, for its board_hw.h.
 INCLUDES = [os.path.join(REPO, part) for part in (
-    'ctrl/inc', 'drive/inc', 'thermal/inc', 'daq/inc', 'filter/inc', 'shtp/inc', 'wbc/inc', 'boot/inc',
+    'ctrl/inc', 'drive/inc', 'thermal/inc', 'daq/inc', 'filter/inc', 'shtp/inc', 'wbc/inc',
+    'aero/inc', 'boot/inc',
     'modbus/inc', 'comms/inc', 'comms/inc/board', 'board/fake', 'board/inc')]
 
 #: The longest answer an exchange takes back.

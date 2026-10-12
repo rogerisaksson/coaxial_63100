@@ -209,8 +209,9 @@ gets a line at the end of [DONE](DONE.md).
     dive and the floor is struck. DOD: what the boards hold a flight long
     in their room, known before it lifts (thermal op, a horizon), `fit` on
     it.
-  + The core on the image: a tick's cycles, the same whatever it is asked
-    (device, PROTOCOL MINOR).
+  + A flight on a board's core: device 14 takes its reading off the wire,
+    246 bytes a pass. DOD: the reading the board's own - its IMU's, its
+    rotors' off the bus -, a pass in its sample, the page's flight on it.
   + DOD: the pull left unused and the WEP taken a flight quoted; the race
     whole on it.
 

@@ -88,7 +88,7 @@ OP_CLASSES = {'IMU': 'ImuOp', 'ANGLE': 'AngleOp', 'LINK': 'LinkOp',
               'CAL': 'CalOp', 'GATEDRIVERS': 'GateOp', 'LOG': 'LogOp',
               'DAQ': 'DaqOp', 'TIME': 'TimeOp', 'THERMAL': 'ThermalOp',
               'DRIVE': 'DriveOp', 'POWER': 'PowerOp', 'BOOT': 'BootOp',
-              'CTRL': 'CtrlOp', 'WBC': 'WbcOp'}
+              'CTRL': 'CtrlOp', 'WBC': 'WbcOp', 'AERO': 'AeroOp'}
 
 
 _C_TOKENS = re.compile(
@@ -115,7 +115,7 @@ def _command_files():
 
 
 _HEADERS = ('comms/inc', 'board/inc', 'drive/inc', 'thermal/inc', 'daq/inc', 'boot/inc',
-            'filter/inc', 'shtp/inc', 'modbus/inc', 'ctrl/inc')
+            'filter/inc', 'shtp/inc', 'modbus/inc', 'ctrl/inc', 'aero/inc')
 
 
 def _c_defines(extra_text=''):

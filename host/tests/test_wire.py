@@ -289,6 +289,33 @@ def test_the_record_survives_a_save(report, rig):
                  str(got['channels'][0]))
 
 
+def test_the_frames_core_answers(report, rig):
+    """The frame's core behind device 14 (cmd_aero.c): a pass refused before a frame is laid;
+    laid, its passes' thrusts the host core's on the readings as the board had them, the
+    power loop's payloads each over five readings (`aero_kit.asks`)."""
+    import aero_kit
+    from coaxial.errors import RigError
+    from tools.cores import aero
+    payloads, readings = aero_kit.asks()
+    refused = ''
+    try:
+        rig.board.aero.step(payloads[0].pack(), readings[0])
+    except RigError as exc:
+        refused = str(exc)
+    host = aero_kit.beside(rig.board.aero.lay(aero_kit.params()))
+    apart, passes = 0.0, 0
+    for payload in payloads:
+        for reading in readings:
+            got = rig.board.aero.step(payload.pack(), reading)
+            ours = host.step(aero.payload(payload), aero_kit.read(got['read']))
+            passes += 1
+            apart = max([apart, float(got['bound'] != ours.bound)]
+                        + [abs(a - b) for a, b in zip(got['thrust'], ours.thrust)])
+    report.check('a pass refused before a frame is laid; laid, its thrusts the host core\'s',
+                 'no frame laid' in refused and apart < 1e-4,
+                 '%r; %d passes, %.1e N apart' % (refused, passes, apart))
+
+
 def test_the_bench_conformance_holds(report, rig):
     """Every check the bench's conformance suite makes of a board, in a process of its own:
     one fake board a process."""
@@ -314,7 +341,7 @@ def main():
                      test_every_verb_answers_or_refuses,
                      test_acquisition_answers_or_refuses,
                      test_the_acquisition_records_decode, test_the_application_is_laid,
-                     test_the_record_survives_a_save,
+                     test_the_record_survives_a_save, test_the_frames_core_answers,
                      test_the_bench_conformance_holds):
             print('\n-- %s --' % test.__name__[5:].replace('_', ' '))
             test(report, rig)

@@ -63,8 +63,8 @@ Fitted parts come from `0x6D` kind 4, never from a name. Host rules:
 - Layers: `core/` (CubeMX) -> `board/` (hardware; API in
   `comms/inc/board/<x>.h`, one per `board_<x>.c`) -> `comms/` (cmd tables,
   handlers `h_<device>_<op>`, `rd_t` in, `wr_t` out, `wr_took` refusals)
-  -> portable C11 cores (`modbus drive thermal filter daq shtp boot ctrl`,
-  host-tested through gcc).
+  -> portable C11 cores (`modbus drive thermal filter daq shtp boot ctrl wbc
+  aero`, host-tested through gcc).
 - New 0x6E op: define in `cmd.h`, handler in `cmd_<dev>.c`, row in
   PROTOCOL.md, `IntEnum` in `protocol.py`; `test_structure` holds all four
   together. New hardware: a row in `board_io.c` (`s_parts`, `s_digital`).
@@ -128,9 +128,9 @@ Fitted parts come from `0x6D` kind 4, never from a name. Host rules:
   behind her. A crouch falls less and so does crawling: a fall is met by a
   parry - where the foot lands -, never by the gait's shape, stride or height.
   A straight leg costing more than a bent one is a fault in how it is driven:
-  found, not tuned round. What is solved stays: a fix that moves a solved measure is
-  undone. Mocap is a reference, not a search space. `looks.FORM` is the form,
-  test_ortho.py holds it; docs/TODO.md, orthokinematics.
+  found, not tuned round. What is solved stays: a fix that moves a solved
+  measure is undone. Mocap is a reference, not a search space. `looks.FORM` is
+  the form, test_ortho.py holds it; docs/TODO.md, orthokinematics.
 - **Smoke her walk first**: after any change reaching it,
   `python tools/sim/ortho.py --walk --to 40 --look` (60 s: her speed, J/m,
   the band, her form), quoted before anything else.
