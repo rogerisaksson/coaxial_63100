@@ -217,7 +217,7 @@ its landing further on by that of (v - cruise) / omega):
   mass down at 1 to 2.7 m/s^2 from her hip's passing the standing sole's
   ball, 0.22 s before the next lands, till 0.1 s after - her soles' sum
   0.72 of her weight by the plan as it lands; the sole behind goes from
-  328 N to 59 in 45 ms, her ZMP's polygon the landed sole's alone from
+  320 N to 59 in 45 ms, her ZMP's polygon the landed sole's alone from
   that pass.
 - Shoved walking, 0.12 s at 15 s - 20, 30 and 40 N across either way, 10
   and 20 N along either way -: 6 of 10 stood on either step, the four

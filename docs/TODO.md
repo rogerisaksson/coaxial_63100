@@ -41,7 +41,7 @@ gets a line at the end of [DONE](DONE.md).
      passing the standing sole's ball till 0.1 s past the landing, her
      soles' sum 0.72 of her weight as the next lands; and her ZMP's
      polygon is the landed sole's alone from that pass, the one behind
-     328 N to 59 in 45 ms. Her speed 0.69 m/s
+     320 N to 59 in 45 ms. Her speed 0.69 m/s
      where her drive's is 0.62: a landing led by half her speed's error
      leaves the rest; summed, 0.62 with her head at 8 deg and her trunk
      at 7. The striding step is python's alone: `_taken` and `strides`
