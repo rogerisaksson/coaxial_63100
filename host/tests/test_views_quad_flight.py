@@ -161,7 +161,7 @@ def test_a_board_holds_its_clamp(report):
     held, and trips nothing."""
     from coaxial import Coaxial63100
     from coaxial.devices.thermal import THROTTLE_AT
-    from machine import quad
+    from machine import pull, quad
     from machine.modes import SIMULATED
     from terminal.views.quad import flight as view
     rig = Coaxial63100(execution_mode=SIMULATED).open()
@@ -170,7 +170,7 @@ def test_a_board_holds_its_clamp(report):
         drive, loop, heat = rig.board.drive, rig.board.ctrl, rig.board.thermal
         rows, t = [], 0.0
         while t < 13.5:
-            loop.write(211.0 if t < 12.0 else view.TOP_RAD_S)
+            loop.write(211.0 if t < 12.0 else pull.held(pull.I_MAX))
             drive.paced(view.STEP_S)
             w = drive.model.read()['omega'] / rotor['pairs']
             drive.model.configure(load=quad.K_DRAG * w * abs(w))
@@ -187,9 +187,9 @@ def test_a_board_holds_its_clamp(report):
     # against the clamp it was given, the step before
     over = max(iq - was['hold_amps'] for (iq, _b), (_iq, was) in zip(rows[1:], rows))
     report.check('from a hover it may carry its clamp; at its top what its legs balance on',
-                 first >= view.I_MAX > last > 0.5 * view.I_MAX,
+                 first >= pull.I_MAX > last > 0.5 * pull.I_MAX,
                  '%.1f A at the hover, %.1f A 1.5 s into its top' % (first, last))
-    report.check('it carries what it may and no more', over < 0.05 * view.I_MAX,
+    report.check('it carries what it may and no more', over < 0.05 * pull.I_MAX,
                  '%.1f A over at the most, %.1f A at its end' % (over, rows[-1][0]))
     worst = max(b['worst'] for _iq, b in rows)
     report.check('its legs come to their throttle\'s point and none past it; its clamp held, '
@@ -214,7 +214,7 @@ def test_full_tilt_cuts_no_rotor_alone(report):
     what leans the frame into the wind up there -, the frame on its axis."""
     from coaxial import Coaxial63100
     from coaxial.devices.thermal import THROTTLE_AT
-    from machine import aerobatics, aerokin, quad
+    from machine import aerobatics, aerokin, pull, quad
     from machine.modes import SIMULATED
     from terminal.views.quad import flight as view
     rotors = [view.arm(Coaxial63100(execution_mode=SIMULATED).open()) for _ in range(4)]
@@ -243,7 +243,7 @@ def test_full_tilt_cuts_no_rotor_alone(report):
     apart = max(max(a) - min(a) for t, a, _b, _tilt, _h in rows if t >= began)
     most = max(max(a) for _t, a, _b, _tilt, _h in rows)
     report.check('the four on the same current, 0.15 of their clamp apart at the most',
-                 apart < 0.15 * view.I_MAX and most > 0.6 * view.I_MAX,
+                 apart < 0.15 * pull.I_MAX and most > 0.6 * pull.I_MAX,
                  '%.1f A apart at the most, %.1f A the most' % (apart, most))
     tilt = max(tilt for _t, _a, _b, tilt, _h in rows)
     report.check('the frame on its axis up it', tilt < 20.0,
@@ -306,7 +306,7 @@ def test_war_emergency_power(report):
             law, dict(aerobatics.HOVER, x=30.0, lean=2.0),
             {'turn': level, 'spin': (0.0, 0.0, 0.0), 'vel': (0.0, 0.0, 0.0),
              'at': (0.0, quad.HOVER_M, 0.0), 'h': quad.HOVER_M, 'v': 0.0},
-            0.01, 0.4 * aerokin.HEADROOM * view.TOP_N / quad.MASS_KG, None, emergency)
+            0.01, 0.4 * aerokin.HEADROOM * view.fresh()['top'], None, emergency)
         leans.append((math.degrees(math.hypot(payload.latent_targets[aerokin.PITCH],
                                               payload.latent_targets[aerokin.ROLL])),
                       law['short']))

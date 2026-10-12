@@ -24,12 +24,14 @@ from typing import Any
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from machine import aerobatics, aerokin, aerolisp, course, grounds, intents, quad  # noqa: E402
+from machine import (aerobatics, aerokin, aerolisp, course, grounds, intents,  # noqa: E402
+                     pull, quad)
 from tools.cores import aero  # noqa: E402
 
-#: The ideal rotors: their top and idle, rad/s, what their speed changes by at the most,
-#: rad/s^2, and their lag to a speed inside that, s - the race's (`tools/sim/quad_race.py`).
-TOP_RAD_S, SPOOL_RAD_S2, LAG_S = 700.0, 2900.0, 0.02
+#: The ideal rotors: their top, rad/s, and what their speed changes by at the most, rad/s^2 -
+#: the flight's clamp's and its loops' slew (`machine.pull`), no link theirs to run short -,
+#: and their lag to a speed inside that, s - the race's (`tools/sim/quad_race.py`).
+TOP_RAD_S, SPOOL_RAD_S2, LAG_S = pull.held(pull.I_MAX), pull.slew(pull.I_MAX), 0.02
 
 #: A hover asked at a height, m: the upsets'.
 HOVER = """(stream_inject (sequence_id 1) (blend_duration 0ms)
@@ -54,8 +56,9 @@ CARDS = {'routine': (lambda: aerobatics.CARD, lambda: ()),
 
 
 def symbols():
-    """The frame's symbols a text may name: all its rotors give at their top, m/s^2."""
-    return {'MAX_SYS_THRUST': 4.0 * quad.K_THRUST * TOP_RAD_S ** 2 / quad.MASS_KG}
+    """The frame's symbols a text may name: all its rotors give at their top on a full pack,
+    m/s^2."""
+    return {'MAX_SYS_THRUST': pull.thrust(pull.top(1.0, pull.I_MAX)) / quad.MASS_KG}
 
 
 def tilt(turn):

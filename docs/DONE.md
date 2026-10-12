@@ -100,3 +100,8 @@ it names. A closed item is cut from the list and gets its line here, last.
     falls, the get-up, the MPC), 14 tools, 7 suites, 8 findings; the page
     her loop alone, walking from rest; they stay at tag
     `laws-before-the-loop`.
+36. The rotors' tops, their reach and their stage's watts from the action
+    space (`machine.pull`), the law's on a stand-in within 0.1 %; the pack
+    drawn what its stages take, 2.4 times the law's own v . i: 34 flights
+    of 34 whole in fourteen winds, laps 14.3 and 14.5-14.6 s
+    ([envelope](findings/envelope.md)).

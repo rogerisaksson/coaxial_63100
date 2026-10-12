@@ -37,7 +37,7 @@ from coaxial import Coaxial63100
 from coaxial.errors import RigError
 from coaxial.draw.gauges import policy_word
 from coaxial.graphics import gpu, inset, onboard, quadcopter
-from machine import aerobatics, aerokin, gimbal, grounds, quad
+from machine import aerobatics, aerokin, gimbal, grounds, pull, quad
 from machine.modes import SIMULATED
 from terminal.loader import TO_MENU
 from terminal.ui.screen import FPS_CAP, Feed, closing, run_view, say
@@ -120,8 +120,8 @@ def compose(console, origin, rotors, frame, flight, trace, now, art, yaw=0.0):
     lines = []
     for label, rotor in zip(ROTORS, rotors):
         budget = rotor['budget'] or {}
-        held = budget.get('hold_amps', flown.I_MAX) < flown.I_MAX
-        hot = rotor['amps'] >= 0.9 * flown.I_MAX or held or budget.get('tripped')
+        held = budget.get('hold_amps', pull.I_MAX) < pull.I_MAX
+        hot = rotor['amps'] >= 0.9 * pull.I_MAX or held or budget.get('tripped')
         lines.append((label, Text('%4.0f rpm %4.1f A SOA %3.0f%% %s' % (
             rotor['w'] * 60.0 / math.tau, rotor['amps'], 100.0 * (budget.get('worst') or 0.0),
             'THR' if held else policy_word(rotor['ident'])[0]),

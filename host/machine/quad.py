@@ -425,11 +425,17 @@ def pack():
     return {'left': 1.0, 'volts': open_volts(1.0), 'amps': 0.0, 'watts': 0.0}
 
 
+def sagged(volts, watts):
+    """The pack's bus with `watts` taken at it, V: its open `volts` less PACK_OHM a link amp."""
+    return 0.5 * (volts + math.sqrt(max(0.0, volts * volts - 4.0 * PACK_OHM * watts)))
+
+
 def drawn(cells, watts, dt):
     """The pack `cells` `dt` s on with `watts` taken at its bus - given, braked into: the bus's
-    volts, its open volts less PACK_OHM a link amp, its charge less what those amps took."""
+    volts (`sagged`), its charge less what its link's amps took."""
     volts = open_volts(cells['left'])
-    amps = (volts - math.sqrt(max(0.0, volts * volts - 4.0 * PACK_OHM * watts))) / (2.0 * PACK_OHM)
+    bus = sagged(volts, watts)
+    amps = (volts - bus) / PACK_OHM
     cells.update(left=max(0.0, min(1.0, cells['left'] - amps * dt / (3600.0 * PACK_AH))),
-                 volts=volts - PACK_OHM * amps, amps=amps, watts=watts)
-    return cells['volts']
+                 volts=bus, amps=amps, watts=watts)
+    return bus

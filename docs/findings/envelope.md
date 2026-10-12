@@ -1,8 +1,9 @@
 # Findings: the envelope in flight
 
 The quad's boards' thermal envelopes under its flights: a climb, a hover, what
-a board may carry (`thermal_run.c`, `terminal.views.quad.flight`). The quad's
-own: [quad](quad.md); the board's: [FINDINGS](../FINDINGS.md).
+a board may carry (`thermal_run.c`, `terminal.views.quad.flight`); what its
+rotors pull (`machine.pull`). The quad's own: [quad](quad.md); the board's:
+[FINDINGS](../FINDINGS.md).
 
 ## A climb
 
@@ -58,3 +59,43 @@ ten times the flight's:
   its middle from 52 to 36; the legs stand 30 K over their patches in
   either, 87-90 C: 0.44 of their envelope before any pull is asked.
 - At 25 kHz the bench's dry rise halves (17.7 and 9.2 K at 60.8 V): TODO.
+
+## What the rotors pull
+
+`machine.pull`: a rotor's top from its motor, its propeller and its link,
+against the law on a stand-in (`test_quad_pull.py`):
+
+| Link, clamp | The law, rad/s on A | The space, rad/s |
+| --- | --- | --- |
+| 63 V, 60 A | 703.3 on 60.0 | 703.3, the clamp's end |
+| 63 V, 90 A | 721.2 on 62.8 | 721.2, the link's |
+| 57.3 V, 60 A | 687.8 on 57.7 | 687.8 |
+| 48 V, 90 A | 626.3 on 48.8 | 626.3 |
+
+- The four on one pack end on its link: 690.6 rad/s full, 58.1 A each, 131 A
+  from the pack, its bus at 57.7 V; 644.3 at its reserve. Four boards came
+  to 682.7 where the space has 682.5, 0.939 of the charge left. WEP's clamp
+  adds no top there: its 90 A are reach, 5 507 rad/s^2 at 500 rad/s where
+  2 609.
+- A rotor's speed gains what its current leaves over its propeller: 3 596
+  rad/s^2 at 401 rad/s where the space has 3 607; on a 44 V link, 57 A of
+  the clamp left, 2 070 where 2 106, the estimate's frame a degree behind.
+- Stepped to 90 A from its idle a drive trips on overcurrent; asked up over
+  0.5 s it does not.
+- The law's own v . i is under its stage's watts - the copper's and the
+  shaft's: 1 % at a hover, 9.5 at 500 rad/s, 21 at 680. Its duties wait a
+  period and its vector meets the rotor that much turned, 10.8 degrees at
+  9 400 rad/s electrical. Over two laps 17.9 kJ where the currents took
+  43.8 and the propellers alone 33.9: the pack was drawn 0.41 of what its
+  stages took. Counted from the currents (`pull.watts`) a course's flight
+  takes 20 % of its charge where 8, 67 A at the most, the bus to 57.5 V;
+  the routine 12 %, full tilt 129 A and 56.3 V.
+- A lap turns its rotors 517 rad/s at the most, their currents at the clamp
+  in their spools: it is flown on their reach, not their top. Its plan's
+  pull is the clamp's, 703.3 rad/s on any charge, and a row's reach the
+  link's. Planned on the pack's top it slowed as the pack emptied: 14.6 and
+  15.1 s, 15.2 and 15.5 from 60 %.
+- The race on it, 12 flights: 28.94 where 29.09, a gate's frame 0.05-0.18 m
+  inside its margin. In fourteen winds 34 of 34 whole, the boards' laps
+  14.3 and 14.5-14.6 s where 14.5-14.8, their pull 80-85 % at the least
+  where 73-84.

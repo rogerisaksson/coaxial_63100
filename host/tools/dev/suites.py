@@ -115,10 +115,12 @@ AERO_CORE, STREAMS = 'test_aero_core.py', 'test_quad_streams.py'
 #: The cyclic executive (machine.cyclic): its steps against machine.parts, a cycle on a toy rotor.
 CYCLIC = 'test_cyclic.py'
 
-#: The quad's suites; what a change reaches.
+#: The quad's suites; what a change reaches. Its action space (machine.pull) against the
+#: board's law on the stand-in.
 QUAD, QUAD_COURSE, QUAD_PAGE = 'test_quad.py', 'test_quad_course.py', 'test_views_quad.py'
-QUADS = (QUAD, QUAD_COURSE, QUAD_PAGE, 'test_views_quad_flight.py', 'test_views_inset.py',
-         STRUCTURE)
+QUAD_PULL = 'test_quad_pull.py'
+QUADS = (QUAD, QUAD_COURSE, QUAD_PAGE, QUAD_PULL, 'test_views_quad_flight.py',
+         'test_views_inset.py', STRUCTURE)
 
 RENDER = 'test_render.py'
 
@@ -128,7 +130,7 @@ DEFAULT_SUITES = (STRUCTURES + (CORE, SHTP, DRIVE, DRIVE_OBSERVER, FILTER, THERM
                    CTRL_CORE, WORLD_CORE, WIRE, NATIVE, NATIVE_HEAT, EMULATOR,
                    SENSORLESS,
                    BROKER, DAQ_API, CONTROLLER, GYNOID, SIGHT, REACH, TERMS, WBC,
-                   WBC_CORE, FLIGHT, WRENCH, ORTHO, CYCLIC, QUAD,
+                   WBC_CORE, FLIGHT, WRENCH, ORTHO, CYCLIC, QUAD, QUAD_PULL,
                    AERO_CORE, STREAMS, QUAD_COURSE, BOOT)
                   + VIEWS
                   + (RENDER,) + OLLAMA
@@ -159,6 +161,7 @@ JOINS = (
     (12, CYCLIC),
     (12, QUAD),
     (12, QUAD_COURSE),
+    (12, QUAD_PULL),
     (12, STREAMS),
     (12, BOOT),
     (15, CORE),

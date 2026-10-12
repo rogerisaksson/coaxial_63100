@@ -52,6 +52,7 @@ TOUCHES = (
     ('host/machine/aerolisp.py',               (AERO_CORE, STREAMS)),
     ('host/machine/intents.py',                (STREAMS,)),
     ('host/machine/aerokin.py',                QUADS + (STREAMS,)),
+    ('host/machine/pull.py',                   QUADS + (STREAMS,)),
     ('host/machine/aerobatics.py',             QUADS + (STREAMS,)),
     ('host/machine/course.py',                 QUADS + (STREAMS,)),
     ('host/machine/grounds.py',                QUADS + (RENDER, STREAMS)),

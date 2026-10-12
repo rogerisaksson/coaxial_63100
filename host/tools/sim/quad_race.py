@@ -38,7 +38,7 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from machine import aerobatics, aerokin, course, grounds, quad  # noqa: E402
+from machine import aerobatics, aerokin, course, grounds, pull, quad  # noqa: E402
 from tools import REPO  # noqa: E402
 from tools.cores import aero  # noqa: E402
 from tools.dev import background  # noqa: E402
@@ -196,8 +196,9 @@ def ideal(air, _room=BENCH, _left=1.0):
     view = owner('flight.CARD')[0]
     dice = random.Random(1)
     size, clock = quad.scales()
-    top, spool = view.TOP_RAD_S / size, view.SPOOL_RAD_S2 / (size * clock)
-    wep_top, wep_spool = view.TOP_WEP_RAD_S / size, spool * view.I_WEP / view.I_MAX
+    top, spool = pull.held(pull.I_MAX) / size, view.SPOOL_RAD_S2 / (size * clock)
+    wep_top = pull.ceiling(quad.open_volts(1.0), pull.I_WEP) / size
+    wep_spool = spool * pull.I_WEP / pull.I_MAX
     rotors = streams.Flight(air, things=grounds.solids())
     rotors.lag = LAG_S * clock
     sky, route, law = rotors.sky, aerobatics.routine(course.CARD), aerokin.fresh()
@@ -238,6 +239,7 @@ def boards(air, room=BENCH, left=1.0):
     law, flight = aerokin.fresh(), view.fresh()
     flight['cells'].update(left=left, volts=quad.open_volts(left))
     flight['air'], t, laps, soa, least = air, 0.0, {}, 0.0, 1.0
+    whole = pull.thrust(pull.held(pull.I_MAX))
     try:
         while t < 150.0 and flight['stage'] != 'land' and not sky.hit:
             for t, frame in view.passed(rotors, sky, route, law, flight, t, 0.02):
@@ -246,7 +248,7 @@ def boards(air, room=BENCH, left=1.0):
                         (t, float(frame['at'][0]), frame['h'], float(frame['at'][2]),
                          math.sqrt(sum(float(c) ** 2 for c in frame['vel'])),
                          *(float(c) for c in frame['acc']),
-                         sum(quad.K_THRUST * r['w'] ** 2 for r in rotors) / view.TOP_N))
+                         sum(quad.K_THRUST * r['w'] ** 2 for r in rotors) / whole))
                     soa = max([soa] + [(r['budget'] or {}).get('worst') or 0.0 for r in rotors])
                     least = min(least, flight['share'])
     finally:

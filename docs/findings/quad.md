@@ -38,11 +38,12 @@ SOA 0.50 at most in its figures.
 
 ## Pack
 
-15 cells: 63 V full, 0.12 ohm, 0.22 A h, a demo's.
+15 cells: 63 V full, 0.04 ohm, 1.0 A h, a racer's.
 
-- A flight takes a fifth of it; full tilt and the burn 1.5-1.85 kW, the bus to
-  56.2-56.9 V. Spent at a fifth it comes down from anywhere at 2 m/s and is
-  changed on the floor in 3 s, the observers kept.
+- The routine takes 12 % of it, a course's flight 20; full tilt 129 A, the
+  bus to 56.3 V ([envelope](envelope.md), what the rotors pull). Spent at a
+  fifth it comes down from anywhere at 2 m/s and is changed on the floor in
+  3 s, the observers kept.
 - At 63 V the gate stage's dump is the envelope. On the bench's still air,
   8.33 K/W: a hover at 0.65-0.72, every board throttled by the corkscrew. The
   record says a propeller's wash, 2.5 K/W (an assumption), the stand-in's

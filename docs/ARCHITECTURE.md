@@ -228,6 +228,7 @@ tests/              suites, .counts.json (measured sizes)
 | aerolisp | flight intent as text - `(stream_inject ..)`: latent targets, a stiffness and a damping a mode, an oscillator, task constraints - compiled to aero/'s payloads, a stream laid over the one before |
 | intents | the quad's flights as that text, and each stream's seconds |
 | aerokin | the quad's kinematics in a vacuum, no branch: a row of `aerobatics`' setpoints and the frame as it flies to aero/'s payload - a collective, its rotors' axis's tilt in the heading the core holds, the rates its own heading's turn gives it |
+| pull | the quad's action space, no branch: a rotor's top on its clamp and on its link's volts, the four's on their pack's charge, its reach, its stage's watts - from motor, propeller and pack, its tables laid once |
 | floor | the slab, a sill, a patch, a rug, a stair |
 | rtu | Modbus RTU: CRC-16, a pass's frames |
 | buses | the boards on a bus a limb, a process each in lockstep with the world over a shared block, the host's frames bytes on a socket a bus |
@@ -269,7 +270,10 @@ tests/              suites, .counts.json (measured sizes)
   impedance to the closed form in a vacuum, a wind told from a push
   (`aero_kit.py` its rig); `test_quad_streams.py` the
   text's payloads and the power loop flown, a hover in the tour's air and
-  from upsets, the page's routine and the course from their cards' rows.
+  from upsets, the page's routine and the course from their cards' rows;
+  `test_quad_pull.py` holds the action space (`machine.pull`) to the
+  board's law on the stand-in: a rotor's top, its reach, its stage's
+  watts, the four on their pack.
 - The stand-in is the emulated world's reference: `tools/dev/ab.py` runs a
   page on both, a process a page, and marks a read missing, a range apart
   over the board seconds both cover, or a number the physics rules out;

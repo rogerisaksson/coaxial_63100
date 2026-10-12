@@ -17,7 +17,7 @@ from coaxial.control.commission import Commissioning
 from coaxial.control.motion import started
 from coaxial.model.thermal import MOTOR
 from coaxial.simulated.sto import PILOT_VOLTS
-from machine import aerobatics, aerokin, course, quad
+from machine import aerobatics, aerokin, course, pull, quad
 from machine.controller import Feedback
 from machine.parts import Gain, Slew, SpeedPI
 from tools.cores import aero
@@ -26,30 +26,22 @@ from tools.cores import aero
 #: their observers out of UNCERTAIN before the course asks its lean of them.
 CARD = aerobatics.CARD + course.CARD
 
-#: Each rotor's machine, its clamp and trip for a flight, A - the clamp the boards' envelopes
-#: bind under, WEP's past them, the trip the board's rating -, and the can and a 16x14 turning,
-#: kg m^2 and N m s. The drive's own clamp is WEP's, I_WEP: the speed loop holds the flight to
-#: I_MAX - on I_WEP the boards stood at 1.00 of their envelopes in full tilt.
-PROFILE, I_MAX, I_TRIP, I_WEP = 'outrunner_63100_14p', 60.0, 100.0, 90.0
-ROTOR_J, ROTOR_B = 1.2e-4 + 3.3e-4, 8e-4
+#: Each rotor's machine and its trip for a flight, A, the board's rating. Its clamps, its
+#: tops and its reach are the action space's (`machine.pull`): the drive's own clamp WEP's,
+#: the speed loop's the flight's - on WEP's the boards stood at 1.00 of their envelopes in
+#: full tilt.
+PROFILE, I_TRIP = 'outrunner_63100_14p', 100.0
 
-#: The rotors' speed loop, Hz, and the top the flight is flown on, mechanical rad/s: the 16x14
-#: on the pack's 63 V at the clamp, measured on a stand-in - 703 at 60 A, 691 on a sagged 55 V;
-#: on the 24 V link the 20x10 stood at 310. The four's thrust there, N. The loop is each
-#: board's own (device 12), ticked LOOP_HZ a second in its drive's sample: stepped here a pass
-#: of 20 ms at a time, 38 A of braking held a pass took a rotor from 197 rad/s through its
-#: crossover to 37, the estimate lost it on the torque's turn and two boards tripped in a burn.
-SPEED_HZ, TOP_RAD_S, LOOP_HZ = 3.0, 700.0, 1000
-TOP_N = 4.0 * quad.K_THRUST * TOP_RAD_S * TOP_RAD_S
-#: WEP's: 739 at its 90 A, 66 A of it, the link's ceiling; and the four's thrust there.
-TOP_WEP_RAD_S = 735.0
-TOP_WEP_N = 4.0 * quad.K_THRUST * TOP_WEP_RAD_S * TOP_WEP_RAD_S
+#: The rotors' speed loop, Hz: each board's own (device 12), ticked LOOP_HZ a second in its
+#: drive's sample: stepped here a pass of 20 ms at a time, 38 A of braking held a pass took a
+#: rotor from 197 rad/s through its crossover to 37, the estimate lost it on the torque's turn
+#: and two boards tripped in a burn.
+SPEED_HZ, LOOP_HZ = 3.0, 1000
 
-#: A rotor's speed is come to no faster than this, rad/s^2 - its loop's own slew: half the
-#: clamp to turn the can and its propeller, 0.5 x 0.0435 N m/A x 60 A over ROTOR_J. Stepped, 14
+#: A rotor's speed is come to no faster than this, rad/s^2 - its loop's own slew. Stepped, 14
 #: rad/s more in a pass was the whole clamp, and the gate stage's envelope 0.2 the higher for a
 #: read.
-SPOOL_RAD_S2 = 2900.0
+SPOOL_RAD_S2 = pull.slew(pull.I_MAX)
 
 #: A rotor is asked no slower than this while it flies, rad/s: its idle. Slower, the law's
 #: estimate has no back-EMF to stand on - asked none in a fall, a rotor went to -5 rad/s and its
@@ -106,7 +98,7 @@ TICK_S = quad.STEP_S
 #: alone, every dive at a gate and every way down to land took it, 2.3 s a flight.
 #: For WEP_HOLD_S the law has all of it - no
 #: envelope's share, the boards' thermal derate held off (`thermal.wep`, the trip standing),
-#: I_WEP and TOP_WEP_RAD_S, its lean whatever its row's or, the floor ahead, what is left of
+#: WEP's clamp, its lean whatever its row's or, the floor ahead, what is left of
 #: the pull after what it asks up - WEP_S of it a flight, given back on the floor.
 RISK_S, WEP_HOLD_S, WEP_S = 0.5, 0.6, 5.0
 
@@ -145,17 +137,18 @@ def arm(rig):
     rig.gates.on()
     drive = board.drive
     drive.configure(profile=PROFILE)
-    drive.configure(drv_i_max=I_WEP, drv_i_trip=I_TRIP)
-    drive.model.configure(j=ROTOR_J, b=ROTOR_B, load=0.0, vdc=quad.open_volts(1.0))
+    drive.configure(drv_i_max=pull.I_WEP, drv_i_trip=I_TRIP)
+    drive.model.configure(j=pull.ROTOR.j, b=pull.ROTOR.b, load=0.0, vdc=quad.open_volts(1.0))
     drive.configure(source='model')
     Commissioning(rig).gains()
     params = drive.params()
     pairs = max(1.0, params.get('motor_pole_pairs') or 1.0)
     kt = 1.5 * pairs * (params.get('motor_lambda') or 0.002)
-    board.ctrl.load(Feedback(SpeedPI(SPEED_HZ, I_MAX, kt, ROTOR_J, ROTOR_B, quad.K_DRAG),
+    board.ctrl.load(Feedback(SpeedPI(SPEED_HZ, pull.I_MAX, kt, pull.ROTOR.j, pull.ROTOR.b,
+                                     quad.K_DRAG),
                              prefilter=Slew(SPOOL_RAD_S2), measure=Gain(1.0 / pairs)))
     board.ctrl.wire('omega_hat', 'iq_ref', LOOP_HZ)
-    rotor = {'rig': rig, 'pairs': pairs, 'kt': kt, 'w': 0.0, 'w_hat': 0.0, 'iq': 0.0,
+    rotor = {'rig': rig, 'pairs': pairs, 'w': 0.0, 'w_hat': 0.0, 'iq': 0.0,
              'amps': 0.0, 'angle': 0.0, 'ask': 0.0, 'cut': False, 'fault': None,
              'budget': {}, 'ident': {}, 'board_c': None}
     spun(rotor)
@@ -185,7 +178,7 @@ def fresh():
     the seconds a pass owes its next step, the clock its observers were read at; the frame's
     core, the rotors' top a kg and the pull its row is planned on, m/s^2, the row flown."""
     cells = quad.pack()
-    top = TOP_N / quad.MASS_KG
+    top = pull.thrust(pull.held(pull.I_MAX)) / quad.MASS_KG
     return {'stage': CARD[0][0], 'apex': 0.0, 'share': 1.0, 'gone': 0.0, 'lap': None,
             'owed': 0.0, 'read': 0.0, 'core': aero.Core(), 'top': top,
             'pull': aerokin.HEADROOM * top, 'row': dict(aerobatics.DOWN),
@@ -255,13 +248,14 @@ def step(rotors, sky, route, law, flight, clock, dt):
             ('held', law['held']), ('spent', spent), ('fit', not flat and share >= FIT))
             if holds])
         share, wep = emergency(flight, sky, law, route, share, dt)
-        top = flight['top'] = (TOP_WEP_N if wep else TOP_N) / quad.MASS_KG
-        flight.update(pull=share * aerokin.HEADROOM * top, row=row)
+        flight.update(pull=share * aerokin.HEADROOM * flight['top'], row=row)
+        shell = aerokin.HEADROOM * pull.thrust(pull.top(
+            cells['left'], pull.I_WEP if wep else pull.I_MAX)) / quad.MASS_KG
         if flight['wep'].pop('fresh', False):
             for rotor in rotors:
                 rotor['rig'].board.thermal.wep(WEP_HOLD_S)
         flown(rotors, sky, core, aero.payload(aerokin.step(
-            law, row, frame, dt, flight['pull'], tuple(core.out.head), wep,
+            law, row, frame, dt, min(flight['pull'], shell), tuple(core.out.head), wep,
             route['seen']['pitch'])), flight, dt, wep is not None)
     else:
         name = CRASHED
@@ -303,8 +297,8 @@ def fallen(rotors, sky, flight, dt, cut=True):
             rotor['rig'].board.ctrl.off()
             drive.write(iq_ref=0.0)
             rotor.update(ask=0.0, cut=True)
-        drive.model.configure(b=ROTOR_B, load=quad.K_DRAG * rotor['w'] * abs(rotor['w']),
-                              vdc=cells['volts'])
+        drive.model.configure(b=pull.ROTOR.b, vdc=cells['volts'],
+                              load=quad.K_DRAG * rotor['w'] * abs(rotor['w']))
     quad.drawn(cells, watts, dt)
     told, through = airspeeds(sky.state(), air)
     for rotor in rotors:
@@ -329,34 +323,38 @@ def turned(rotor, dt):
 
 def stated(rotor):
     """What a rotor's board says of itself, a step's: its fault, its currents; the watts its
-    stage takes."""
+    stage takes (`pull.watts`)."""
     now = rotor['rig'].board.drive.state()
     rotor['fault'] = now.get('fault')
     rotor['iq'] = now.get('iq') or 0.0
     rotor['amps'] = math.hypot(now.get('id') or 0.0, rotor['iq'])
-    return 1.5 * ((now.get('vd') or 0.0) * (now.get('id') or 0.0)
-                  + (now.get('vq') or 0.0) * (now.get('iq') or 0.0))
+    return pull.watts(rotor['w'], rotor['iq'], rotor['amps'])
 
 
 def flown(rotors, sky, core, payload, flight, dt, wep=False):
     """The flight `dt` s on on `payload` (aero/), the core's passes of TICK_S: each board's
     rotor read; its reach from the speed its loop is asked - the loop's slew either way, up no
-    faster than its board's current gives (`reached`) -; the core's thrusts asked of the
-    loops; the frame on the rotors' speeds in the flight's air. Then the step's own: the
-    pack's bus, the boards' heat and their airspeed. The core's last answer. A propeller's
-    torque is laid a step, K w |w| as its slope about the speed it turns at: laid a pass, a
-    tenth of a flight's cost."""
+    faster than the current its board may carry and its link's volts leave it gives
+    (`pull.reach`: none of it on a tripped drive), under its link's ceiling -; the core's
+    thrusts asked of the loops; the frame on the rotors' speeds in the flight's air. Then the
+    step's own: the pack's bus, the boards' heat and their airspeed. The core's last answer.
+    A propeller's torque is laid a step, K w |w| as its slope about the speed it turns at:
+    laid a pass, a tenth of a flight's cost. A rotor's cap counted from its speed and its
+    loop's slew, one behind what it was asked had its next ask cut to that, and the laps were
+    0.3 s the longer."""
     cells, air = flight['cells'], flight.get('air')
-    clamp, top = (I_WEP, TOP_WEP_RAD_S) if wep else (I_MAX, TOP_RAD_S)
-    count, out = max(1, int(round(dt / TICK_S))), None
+    volts, clamp = cells['volts'], pull.I_WEP if wep else pull.I_MAX
+    holds = [0.0 if r['fault'] else min(clamp, (r['budget'] or {}).get('hold_amps', clamp))
+             for r in rotors]
+    top, count, out = pull.ceiling(volts, clamp), max(1, int(round(dt / TICK_S))), None
     for rotor in rotors:
         rotor['rig'].board.drive.model.configure(
-            b=ROTOR_B + 2.0 * quad.K_DRAG * abs(rotor['w']),
-            load=-quad.K_DRAG * rotor['w'] * abs(rotor['w']), vdc=cells['volts'])
+            b=pull.ROTOR.b + 2.0 * quad.K_DRAG * abs(rotor['w']),
+            load=-quad.K_DRAG * rotor['w'] * abs(rotor['w']), vdc=volts)
     for _ in range(count):
         for rotor in rotors:
             turned(rotor, TICK_S)
-        most = [(reached(r, clamp, TICK_S) - r['w_hat']) / TICK_S for r in rotors]
+        most = [pull.reach(r['w_hat'], volts, hold) for r, hold in zip(rotors, holds)]
         out = core.step(payload, aero.reading(sky.state(), *aero.reach(
             [r['ask'] for r in rotors], [r['w_hat'] for r in rotors], TICK_S, SPOOL_RAD_S2,
             LEAST_RAD_S, top, most), TICK_S))
@@ -409,19 +407,8 @@ def emergency(flight, sky, law, route, share, dt):
 def envelope(rotors):
     """What the boards' envelopes leave of the rotors' pull, 0..1: the least any of them may
     carry (`hold_amps`), of the flight's clamp."""
-    return max(0.0, min([1.0] + [(r['budget'] or {}).get('hold_amps', I_MAX) / I_MAX
+    return max(0.0, min([1.0] + [(r['budget'] or {}).get('hold_amps', pull.I_MAX) / pull.I_MAX
                                  for r in rotors]))
-
-
-def reached(rotor, clamp, dt):
-    """The speed a rotor reaches `dt` s on at the most, rad/s: from the one its board says it
-    has, on what the current that board may carry - `clamp` A at the most - leaves over its
-    propeller's drag and its own; none of it on a tripped drive. Its cap in the thrusts'
-    share: counted from its speed and its loop's slew, a rotor behind what it was asked had
-    its next ask cut to that, and the laps were 0.3 s the longer."""
-    w = rotor['w_hat']
-    amps = 0.0 if rotor['fault'] else min(clamp, (rotor['budget'] or {}).get('hold_amps', clamp))
-    return w + (rotor['kt'] * amps - quad.K_DRAG * w * abs(w) - ROTOR_B * w) / ROTOR_J * dt
 
 
 def kept(flight, stood, stage, off, frame, dt):

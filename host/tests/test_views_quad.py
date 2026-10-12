@@ -13,6 +13,7 @@ from test_quad_course import CLEAR_M, passes, reach, worst
 def test_the_page_words_its_boards(report):
     """The TH OBS row - who is stable, who converges - and the envelopes' share: what the
     board with the least in it may carry, of the flight's clamp."""
+    from machine import pull
     from terminal.views.quad import flight as view
 
     def rotors(*states):
@@ -27,7 +28,7 @@ def test_the_page_words_its_boards(report):
 
     def boards(*amps):
         return [{'budget': {} if a is None else {'hold_amps': a}} for a in amps]
-    whole, wep = view.I_MAX, view.I_WEP
+    whole, wep = pull.I_MAX, pull.I_WEP
     held = [view.envelope(boards(*amps)) for amps in (
         (wep, whole, wep, wep), (wep, 0.5 * whole, wep, whole), (wep, wep, 0.0, wep),
         (None, None, None, None))]
@@ -101,8 +102,8 @@ LANDED_S = 200.0
 BEHIND = 0.2
 
 #: The page's pack for its test, A h: a first flight whole, spent early in the second - the
-#: routine takes 0.109 on the 16x14s, its full tilt 0.027; 0.15 was spent in its hold.
-TEST_PACK_AH = 0.17
+#: routine takes 0.124 on the 16x14s, its full tilt 0.051; 0.17 was spent in its descend.
+TEST_PACK_AH = 0.19
 
 
 def paged(card, done, pack_ah=None):
