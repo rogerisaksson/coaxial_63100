@@ -96,6 +96,39 @@ def test_a_rotor_turns_by_its_pass(report):
                  '%.3f and %.3f rad/s electrical' % tuple(came))
 
 
+def test_an_ask_is_rows_a_tick_of_its_loop(report):
+    """A rotor on its board asked down 300 rad/s^2, an ask a pass of the core: the current its
+    loop asks, a tick to the next - as the flight asks it (`flight.asked`), and written whole,
+    where each ask is a spool to the loop's feed-forward and the tick after its end."""
+    from coaxial import Coaxial63100
+    from machine import pull, quad
+    from machine.modes import SIMULATED
+    from terminal.views.quad import flight as view
+    apart = {}
+    for rows in (True, False):
+        rig = Coaxial63100(execution_mode=SIMULATED).open()
+        try:
+            rotor = view.arm(rig)
+            drive, loop, asks = rig.board.drive, rig.board.ctrl, []
+            for k in range(700):
+                drive.model.configure(b=pull.ROTOR.b + 2.0 * quad.K_DRAG * abs(rotor['w']),
+                                      load=-quad.K_DRAG * rotor['w'] * abs(rotor['w']))
+                ask = 450.0 - 300.0 * max(0.0, k * view.TICK_S - 1.2)
+                view.asked(rotor, ask) if rows else loop.write(ask)
+                for _ in range(view.ROWS):
+                    view.turned(rotor, 1.0 / view.LOOP_HZ)
+                    asks.append(loop.state()['out'])
+            apart[rows] = max(abs(b - a) for a, b in zip(asks[-100:], asks[-99:]))
+        finally:
+            rig.board.drive.off()
+            rig.gates.off()
+            rig.close()
+    report.check('an ask as rows a tick of its loop long: the current asked a tick to the next '
+                 'a tenth of what an ask written whole leaves it',
+                 view.ROWS > 1 and apart[True] < 0.1 * apart[False],
+                 '%.2f A apart at the most, %.2f written whole' % (apart[True], apart[False]))
+
+
 def test_a_late_pass_is_its_steps(report):
     """Every pass the page's longest (flight.passed): taken in steps of STEP_S, the rest owed,
     its corkscrew is flown on most of the rotors' pull and `home` held in its seconds. Stepped
@@ -322,6 +355,7 @@ def test_wep_past_the_soa(report):
 
 
 ROSTER = (test_the_boards_air_is_the_rotors, test_a_rotor_turns_by_its_pass,
+          test_an_ask_is_rows_a_tick_of_its_loop,
           test_a_board_holds_its_clamp, test_full_tilt_cuts_no_rotor_alone,
           test_a_late_pass_is_its_steps, test_struck_it_is_begun_again,
           test_its_rows_are_inside_the_shell, test_wep_past_the_soa)

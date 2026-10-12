@@ -152,3 +152,8 @@ it names. A closed item is cut from the list and gets its line here, last.
     on one sole; her walk on it 0.69 m/s, 301 J/m, 2.46 off; device 13 op 2
     ticks the step with a sole swung - its rounds, striding, setting out,
     0.44 M instructions the longest ([wrench](findings/wrench.md)).
+47. A rotor's ask goes to its board as rows a tick of its loop long: no
+    ripple between two asks where 6.3 A at 500 Hz on 300 rad/s^2 and 12 %
+    of the copper's heat round the course; the least a board held 54.8 A
+    where 52.0, full tilt's four 2.2-3.7 A apart where 4.4-5.9
+    ([streams](findings/streams.md)).

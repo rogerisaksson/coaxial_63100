@@ -259,6 +259,16 @@ the current it holds gives; its rotor's thrust as given is its estimate's.
 
 - No drive tripped, no node past its throttle's point: asked all the rotors
   give, each board holds its own clamp and its reach says so.
+- A rotor's copper round the course, a tick of its loop at a time: 27.5 A
+  rms where 19.8 holds its speeds - of its heat 12 % a ripple between two
+  asks, 23 % the core's passes within a row, 13 % the rows'. An ask written
+  whole a pass, two ticks of the loop, is a spool to the loop's
+  feed-forward and the tick after its end: 6.3 A apart at 500 Hz on 300
+  rad/s^2, 29 on 1 400. As rows a tick long along its line
+  (`flight.asked`): no ripple, 26.6 A rms, the least a board held 54.8 A
+  where 52.0; full tilt's four 2.2-3.7 A apart at the most where 4.4-5.9;
+  the race 28.24, whole. The loop ticked once a pass did the same, and a
+  wreck's restart ran two rotors of four backwards.
 - Four boards a pass of 2 ms: 0.20 s of this host a flight's second (0.28
   with a board's whole state read and its propeller's torque laid a pass;
   the law before, a pass of 20 ms, 0.12).

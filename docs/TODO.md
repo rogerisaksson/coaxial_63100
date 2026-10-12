@@ -346,7 +346,10 @@ gets a line at the end of [DONE](DONE.md).
   within three passes, the estimate at -9 000 to -12 800 rad/s as the ramp
   crosses the hand-over; a pass 0.1-1.0 s late faulted none of 15. DOD:
   `motion.started`, its ramp from where that leaves the rotor;
-  test_sensorless's from any rest angle; none in 400 starts.
+  test_sensorless's from any rest angle; none in 400 starts. QUAD's
+  restart after a wreck (`flight.spun`) is one: a rotor of four out of
+  `started` at -53 rad/s, back in 80 ms on 49 A; its loop at 500 Hz, two
+  ran to -596 and the frame lifted on them.
 - **The ring test's J** reads 30-63 % over the stand-in's (drive.md): the
   hold's stiffness taken as 1.5 pp^2 lambda I, the board's current loop
   softer at the ring's rate. DOD: within 5 %.

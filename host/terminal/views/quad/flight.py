@@ -80,6 +80,12 @@ THERMAL_S = 0.1
 #: The core's pass (aero/), s: the world's step, STEP_S / TICK_S of them a step of the flight.
 TICK_S = quad.STEP_S
 
+#: An ask goes to its board as this many rows, a tick of its loop each, along the line from
+#: the last (`asked`): written whole a pass of the core, the loop's feed-forward took each
+#: for a spool and the tick after for its end - 6.3 A apart at 500 Hz on 300 rad/s^2, 12 %
+#: of the copper's heat round the course.
+ROWS = int(round(TICK_S * LOOP_HZ))
+
 #: Struck, a flight is over: its stage this, its rotors stopped and the wreck left where it
 #: falls for so long, s; then the frame is on its spot again and the flight begun over.
 CRASHED, CRASH_S = 'crashed', 4.0
@@ -142,9 +148,18 @@ def spun(rotor):
     loop.off()
     started(drive, lambda seconds: (drive.paced(seconds), drive.state()), START_A, idle,
             START_S)
-    loop.write(quad.IDLE_RAD_S)
+    loop.rows([(0.0, quad.IDLE_RAD_S)])
     loop.on()
     rotor.update(ask=quad.IDLE_RAD_S, cut=False)
+
+
+def asked(rotor, speed):
+    """A rotor's loop asked `speed`, rad/s, by the core's next pass: ROWS rows along the line
+    from its last ask, none for the same again."""
+    was, rotor['ask'] = rotor['ask'], speed
+    if speed != was:
+        rotor['rig'].board.ctrl.rows([(1.0 / LOOP_HZ, was + (speed - was) * (k + 1.0) / ROWS)
+                                      for k in range(ROWS)])
 
 
 def fresh():
@@ -344,8 +359,7 @@ def flown(rotors, sky, core, payload, flight, dt):
             [r['ask'] for r in rotors], [r['w_hat'] for r in rotors], TICK_S, SPOOL_RAD_S2,
             LEAST_RAD_S, top, most), TICK_S))
         for rotor, speed in zip(rotors, aero.speeds(out.thrust)):
-            rotor['ask'] = speed
-            rotor['rig'].board.ctrl.write(speed)
+            asked(rotor, speed)
         if air is not None:
             quad.blown(air, TICK_S)
         sky.step([r['w'] for r in rotors], TICK_S, air)
