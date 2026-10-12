@@ -57,12 +57,12 @@ filter/   anti-alias biquad chain
 ctrl/     machine.parts and a feedback in C, rows played; ctrl_loop.c that
           loop on a drive, device 12, ticked in the drive's sample - the part's
           (board_ctrl.c) and a stand-in's; host-tested
-wbc/      her chain on its static model (wbc_model.c, written by
+wbc/      humanoid robot chain on its static model (wbc_model.c, written by
           tools/cores/model.py): poses, Jacobians, M, bias; the loop over it
           (wbc_stack.c the levels and bounds, wbc_solve.c the dual active set),
           asks of R^k into torques by priority within the bounds; the step
           without an active set (wbc_wrench.c, machine.wrench's rows; a
-          sole's cone and her stride through it, wbc_cone.c); host-tested
+          sole's cone and humanoid robot stride through it, wbc_cone.c); host-tested
 aero/     a frame flown from a compiled intent (machine.aerolisp's payload):
           its blend, oscillator and observers, the lift inside its constraints
           (aero.c), where the rotors' axis is asked and the torque there
@@ -123,7 +123,7 @@ coaxial/graphics/   board renderer (wireframe pipeline + one module per concern)
                     braille), callouts (framed rows, leaders), quadcopter and
                     scenery (the quad of machine.quad and its course, drawn),
                     inset (a picture in the viewport's corner, the
-                    instruments' frame: her eyes' view; the quad's carried
+                    instruments' frame: humanoid robot eyes' view; the quad's carried
                     camera's, onboard)
 coaxial/kalman/     estimators: thermal_ident (mirrors thermal_ident.c),
                     observer
@@ -151,10 +151,10 @@ tools/render/       renderer checks against the exporter; ansi2png; attitude (th
                     view at a pose and a moment, to a PNG - no window); page (any
                     page's last frame, simulated, to a PNG)
 tools/sim/          the drive core on this host: montecarlo, observer_run;
-                    ortho (her latent loop as the page runs it, traced; --walk
-                    --look her walk's look); look (a HUMANOID recording a stage
+                    ortho (humanoid robot latent loop as the page runs it, traced; --walk
+                    --look humanoid robot walk's look); look (a HUMANOID recording a stage
                     a row); strides, normal, looks (a walk's measures, a
-                    woman's band, her form); wbc (the whole-body stack
+                    woman's band, humanoid robot form); wbc (the whole-body stack
                     standing, shoved); hop (a hop on it: thrown, flown, landed);
                     quad_race (the quad's laps through fixed flights, a search
                     over its plan and its line); streams (a text's streams
@@ -162,8 +162,8 @@ tools/sim/          the drive core on this host: montecarlo, observer_run;
 tools/cores/        build: the portable cores' gcc build;
                     drive, thermal, wbc, aero: their ctypes harnesses; stand: the
                     stand-in's slots (world_stand.c, world_drive.c); model:
-                    her figure as static arrays (wbc/); reach: a leg's reach
-                    over its foot as static arrays (machine/); terms: her
+                    humanoid robot figure as static arrays (wbc/); reach: a leg's reach
+                    over its foot as static arrays (machine/); terms: humanoid robot
                     movements' orthopaedic terms as static arrays;
                     fakeboard: comms/, the record and the observer over
                     board/fake as
@@ -210,22 +210,22 @@ tests/              suites, .counts.json (measured sizes)
 | live | fed a line at a time, a buffer, woken with a line, a failsafe |
 | simulated | pack, camera |
 | virtual | VIRTUAL: a type's joints where told, no board |
-| figure | the gynoid's segments, masses and legs' dimensions, her stand and her squat, leg IK |
-| motors | her kinematics as dual quaternions: a pose a motor, a joint a screw, a chain their product |
+| figure | the gynoid's segments, masses and legs' dimensions, humanoid robot stand and humanoid robot squat, leg IK |
+| motors | humanoid robot kinematics as dual quaternions: a pose a motor, a joint a screw, a chain their product |
 | reach | a leg's reach over its foot from static arrays (reach_rows, laid by tools/cores/reach.py): margins, the flat place landed, two feet's gap; a limb an index |
-| terms | her movements by their orthopaedic names from static arrays (term_rows, laid by tools/cores/terms.py): a part and a movement, its joint kind, sign and stops |
-| flight | on the whole-body stack: which soles stand, told from one pass - each as it bears, an unloaded one beside one that bears or with her at rest; one that does not is asked to its landing (reach) |
-| ortho | orthokinematics: her movement as text - `(stream_inject ..)`, `(defbehavior ..)`: latent targets, a stiffness and a damping a mode, her rhythm, task constraints - compiled to rows of numbers (moves.lisp hers, examples.lisp the first texts) |
-| latent | her latent state stepped with no branch: a row laid by a mask, the state a lerp, her rhythm one angle; each mode's reference and impedance out |
-| modal | her modes on her body, no branch: her soles' places from her centre of mass as sums and differences, her standing legs' compression, her turns; what is sensed, her statics and the loop's ask laid flat |
-| impedance | her modes' springs rendered, no branch: her centre of mass's acceleration, a sole in the air, her turns, her arms and her knees - the whole-body loop's ask |
-| poise | her ZMP into her soles' polygon, her capture point kept in it; which soles stand |
-| stride | her stride from her drive's phase: when a limb swings, where its sole lands (her capture point), its clearance, its rock heel to toe, a standing sole's heel rising |
-| sprung | the latent loop run: sensed, latent, impedance, wrench (or wbc), the drives' observers under it; her process, paced to the clock: the one thing that moves her |
+| terms | humanoid robot movements by their orthopaedic names from static arrays (term_rows, laid by tools/cores/terms.py): a part and a movement, its joint kind, sign and stops |
+| flight | on the whole-body stack: which soles stand, told from one pass - each as it bears, an unloaded one beside one that bears or with humanoid robot at rest; one that does not is asked to its landing (reach) |
+| ortho | orthokinematics: humanoid robot movement as text - `(stream_inject ..)`, `(defbehavior ..)`: latent targets, a stiffness and a damping a mode, humanoid robot rhythm, task constraints - compiled to rows of numbers (moves.lisp hers, examples.lisp the first texts) |
+| latent | humanoid robot latent state stepped with no branch: a row laid by a mask, the state a lerp, humanoid robot rhythm one angle; each mode's reference and impedance out |
+| modal | humanoid robot modes on humanoid robot body, no branch: humanoid robot soles' places from humanoid robot centre of mass as sums and differences, humanoid robot standing legs' compression, humanoid robot turns; what is sensed, humanoid robot statics and the loop's ask laid flat |
+| impedance | humanoid robot modes' springs rendered, no branch: humanoid robot centre of mass's acceleration, a sole in the air, humanoid robot turns, humanoid robot arms and humanoid robot knees - the whole-body loop's ask |
+| poise | humanoid robot ZMP into humanoid robot soles' polygon, humanoid robot capture point kept in it; which soles stand |
+| stride | humanoid robot stride from humanoid robot drive's phase: when a limb swings, where its sole lands (humanoid robot capture point), its clearance, its rock heel to toe, a standing sole's heel rising |
+| sprung | the latent loop run: sensed, latent, impedance, wrench (or wbc), the drives' observers under it; humanoid robot process, paced to the clock: the one thing that moves humanoid robot |
 | physics | DYNAMIC: the figure in MuJoCo, a drive a joint |
 | gearbox | each drive's gearbox: the rotor free across its play, the box wound up past it, the link turned |
-| room | a living room round her: glass walls, furniture, a door, a lamp |
-| sight | her eyes: a stereo pair on her head, the disparity by block matching, the map she keeps, its things, her way round them |
+| room | a living room round humanoid robot: glass walls, furniture, a door, a lamp |
+| sight | humanoid robot eyes: a stereo pair on humanoid robot head, the disparity by block matching, the map she keeps, its things, humanoid robot way round them |
 | gimbal | a camera on a stabilised gimbal: its sight level, after the way its frame goes |
 | aerolisp | flight intent as text - `(stream_inject ..)`: latent targets, a stiffness and a damping a mode, an oscillator, task constraints - compiled to aero/'s payloads, a stream laid over the one before |
 | intents | the quad's flights as that text, and each stream's seconds |
@@ -238,7 +238,7 @@ tests/              suites, .counts.json (measured sizes)
 | drives | two motors as bought, one box, one board; each joint's drive and where it sits |
 | qp | dense convex QP: dual active set, an interior-point fallback, a strict hierarchy by null space |
 | wbc | the whole-body stack: accelerations and corner forces a step, torques after |
-| wrench | the stack's step without an active set: each sole's wrench or acceleration and her upper body's accelerations by one least squares, four times, clipped |
+| wrench | the stack's step without an active set: each sole's wrench or acceleration and humanoid robot upper body's accelerations by one least squares, four times, clipped |
 
 ## Tests
 
@@ -256,15 +256,15 @@ tests/              suites, .counts.json (measured sizes)
 
 | Suite | Holds |
 | --- | --- |
-| `test_gynoid.py` | her body on fantasy boards (`physics.ENVELOPE` 0, their SOA never binding): her clothes, her look, a leg by its foot, a virtual and a dynamic machine of her, her skeleton, her drives' mounts and gearboxes, her kinematics as motors |
-| `test_sight.py` | the stereo against the renderer's depth; a look round, posed standing, into her map against the room, the chair and the table told, a way planned clear; the page's picture |
-| `test_reach.py` | her leg's reach: its rows her figure's, what they hold within her stops, a place landed in MuJoCo by either limb |
-| `test_terms.py` | her movements' terms: its rows her figure's, a term moving her in MuJoCo as its name says by either limb, its stops, what she has not |
+| `test_gynoid.py` | humanoid robot body on fantasy boards (`physics.ENVELOPE` 0, their SOA never binding): humanoid robot clothes, humanoid robot look, a leg by its foot, a virtual and a dynamic machine of humanoid robot, humanoid robot skeleton, humanoid robot drives' mounts and gearboxes, humanoid robot kinematics as motors |
+| `test_sight.py` | the stereo against the renderer's depth; a look round, posed standing, into humanoid robot map against the room, the chair and the table told, a way planned clear; the page's picture |
+| `test_reach.py` | humanoid robot leg's reach: its rows humanoid robot figure's, what they hold within humanoid robot stops, a place landed in MuJoCo by either limb |
+| `test_terms.py` | humanoid robot movements' terms: its rows humanoid robot figure's, a term moving humanoid robot in MuJoCo as its name says by either limb, its stops, what she has not |
 | `test_wbc.py` | the QP solver's KKT, two levels' priority, standing, a nudge held |
-| `test_wbc_core.py` | her chain in C against MuJoCo: frames, M, bias, Jacobians at random configurations; a step's time |
-| `test_wrench.py` | the step without an active set: a step standing beside the stack's, her stand, nudges held, a hop |
-| `test_flight.py` | which soles stand, from one pass alone; a landing within her reach; the loop in C against the python stack with no sole standing; a hop stood on both, three in a row on the loop |
-| `test_ortho.py` | a text compiled to rows, what is none refused; no branch in the core or the renderer; her state blended and turned; crouched, shifted, bowed, on one sole, hopped; her walk on her own payloads; the first texts as given; the gym's worker and keys |
+| `test_wbc_core.py` | humanoid robot chain in C against MuJoCo: frames, M, bias, Jacobians at random configurations; a step's time |
+| `test_wrench.py` | the step without an active set: a step standing beside the stack's, humanoid robot stand, nudges held, a hop |
+| `test_flight.py` | which soles stand, from one pass alone; a landing within humanoid robot reach; the loop in C against the python stack with no sole standing; a hop stood on both, three in a row on the loop |
+| `test_ortho.py` | a text compiled to rows, what is none refused; no branch in the core or the renderer; humanoid robot state blended and turned; crouched, shifted, bowed, on one sole, hopped; humanoid robot walk on humanoid robot own payloads; the first texts as given; the gym's worker and keys |
 
 - The quad's streams: `test_aero_core.py` holds aero/ to its form - no
   branch in its sources, no flag set from its data in this host's code -,

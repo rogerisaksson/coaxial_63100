@@ -362,12 +362,12 @@ Six firmware defects, no hardware fault:
 | --- | --- |
 | A woman's walk as the metric: the band, walks off it, the take | [findings/normal.md](findings/normal.md) |
 | Feet: passive toes, the sole's give, the push-off | [findings/feet.md](findings/feet.md) |
-| Her eyes: the stereo, the map she keeps, its things, her ways round them; the page's picture | [findings/sight.md](findings/sight.md) |
+| Humanoid robot eyes: the stereo, the map she keeps, its things, Humanoid robot ways round them; the page's picture | [findings/sight.md](findings/sight.md) |
 | Kinematics: the figure's recipes, dual quaternions, the jeans' seams | [findings/kinematics.md](findings/kinematics.md) |
 | The whole-body stack: its solver, standing, shoves, the loop in C | [findings/wbc.md](findings/wbc.md) |
 | Flight on the stack: which soles stand from one pass, a hop stood | [findings/flight.md](findings/flight.md) |
-| Orthokinematics, the one way she moves: her movement as text, a latent loop with no branch, her modes on her body, her stride, her walk on it | [findings/orthokinematics.md](findings/orthokinematics.md) |
-| Her whole body's step without an active set: 21 unknowns, four solves | [findings/wrench.md](findings/wrench.md) |
+| Orthokinematics, the one way she moves: Humanoid robot movement as text, a latent loop with no branch, Humanoid robot modes on Humanoid robot body, Humanoid robot stride, Humanoid robot walk on it | [findings/orthokinematics.md](findings/orthokinematics.md) |
+| Humanoid robot whole body's step without an active set: 21 unknowns, four solves | [findings/wrench.md](findings/wrench.md) |
 | Build, buses, falls, drawing, clothes | [findings/body.md](findings/body.md) |
 | Drives: motors, gearboxes, inverters, sizing | [findings/drives.md](findings/drives.md) |
 | One stack for every drive: demand, candidates, stacks as built | [findings/stacks.md](findings/stacks.md) |

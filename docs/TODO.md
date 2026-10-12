@@ -13,11 +13,11 @@ gets a line at the end of [DONE](DONE.md).
 - Drives sized in the gym's scenes for simplicity, DFM and printing: few
   variants of toleranced parts (gearboxes, electronics); stock lengths,
   linkages and ball bearings.
-- End to end: the LLM writes text of balance, rhythm and elasticity, the humanoid robot
+- End to end: the LLM writes text of balance, rhythm and elasticity, the gynoid humanoid robot
   latent loop runs it, its torques go over the bus to the boards' firmware
   and drives, emulated or on the bench.
 - Under the text no rule a case and no branch: flat static arrays, a mode a
-  spring, a landing read from the humanoid robot capture point.
+  spring, a landing read from the gynoid humanoid robot capture point.
 - A special case means the problem needs a more general form.
 
 ## Gynoid, in order

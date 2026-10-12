@@ -522,7 +522,7 @@ iq_ref: its clamp, the derate in it, and what its link's volts leave.
 | --- | --- | --- |
 | 0 tick | `u8 ticks` (1..16) | `u32 cycles_first, u32 cycles_last, u32 sysclk_hz, u8 held, u8 passes, u8 stuck, i32 x3 tau` (milli N m): the loop (`wbc/`) on the model's stand, the first tick cold; refused while the acquisition runs (its state lives in the ring) |
 | 1 step | `u8 ticks` (1..16) | `u32 cycles_first, u32 cycles_last, u32 sysclk_hz, i32 x3 tau, i32 x2 bears` (milli N m, milli N): the step without an active set (`wbc_wrench.c`) on the same stand; refused while the acquisition runs |
-| 2 swung | `u8 ticks` (1..16), `u8 strides` (0..100, hundredths) | `u32 cycles_first, u32 cycles_last, u32 sysclk_hz, i32 x3 tau, i32 x2 bears`, as op 1: the step with her right sole swung where it is, its knee asked folded to 0.6 rad, the left's moment past its room - its four rounds; striding, what the floor cannot give her inertia's (`wbc_cone.c`), the rounds beside it between 0 and 100 (MINOR 35) |
+| 2 swung | `u8 ticks` (1..16), `u8 strides` (0..100, hundredths) | `u32 cycles_first, u32 cycles_last, u32 sysclk_hz, i32 x3 tau, i32 x2 bears`, as op 1: the step with humanoid robot right sole swung where it is, its knee asked folded to 0.6 rad, the left's moment past its room - its four rounds; striding, what the floor cannot give humanoid robot inertia's (`wbc_cone.c`), the rounds beside it between 0 and 100 (MINOR 35) |
 
 ### 14 AERO, `cmd_aero.c`
 
