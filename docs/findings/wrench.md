@@ -55,10 +55,15 @@ their play; the step in C stands the python step's 8 / 6 / 4 / 2 / 0.
 - A clipped moment is pinned in all three of its world parts, one of them
   moved about the sole's own axes: on its ball a sole's room across goes
   with its room along.
-- Faces in the clips' place - a part its share of the sole's push, about
-  the sole's own axes, met exactly, no part pinned as a value -, the rows
-  traded again as now: shoved, 7, 5, 3, 2 and 0 of 8 where 8, 6, 4, 2 and
-  0; her walk under it in [orthokinematics](orthokinematics.md).
+- Striding (`ask['strides']`), what the floor cannot give is not traded
+  again: the rows' answer with the floor unbounded is brought to the faces
+  her soles are past - a part its share of the sole's push, about the
+  sole's own axes, no part pinned as a value - by the least change of
+  `full' M full`, a swinging sole's ask held (`_taken`); her height's
+  band before the faces. Her walk under it in
+  [orthokinematics](orthokinematics.md). Python's alone yet.
+- Those faces with the rows traded, standing: shoved, 7, 5, 3, 2 and 0 of
+  8 where 8, 6, 4, 2 and 0; the rounds stand as they were.
 - Her height follows her standing knees' posture inside the band, as on
   the stack: asked alone her knees went straight in 0.35 s, 6 to 0 deg, and
   the leg's inverse with them.

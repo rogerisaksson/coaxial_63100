@@ -72,7 +72,9 @@ ROLLED, HEADED, TIPPED, SWUNG, FOLDS = slice(23, 25), slice(25, 27), slice(27, 2
 #: over its ball; how far each stands on an edge, 1 its ball and -1 its heel; and, kept, the
 #: heel's rise asked of each the pass before.
 SETTLE, EDGE, HEELED = slice(32, 44), slice(44, 46), slice(46, 48)
-ASK = 48
+#: And how far she strides, 0 to 1; each standing knee's fold before its swing, rad.
+STRIDES, PREFOLD = 48, slice(49, 51)
+ASK = 51
 
 #: A unit of each mode on her: her centre of mass down, m - to her ankles' stroke, her trunk
 #: upright over her soles: asked 0.15 m she came down 0.117 and stood there; her trunk's
@@ -258,10 +260,11 @@ def given(a, y, fr, posture, bend, arms, knees):
     folded = np.flatnonzero((a[STANCE] < 0.5) & (a[FOLDS] > 0.5))
     soles, speeds, accs = (v.reshape(2, 3) for v in (y[SOLE], y[VSOLE], a[SOLE_ACC]))
     pose = posture + bend * a[BEND] + arms * a[SWUNG]
+    pose[list(knees)] += a[STANCE] * a[PREFOLD]
     turns = _turned(fr[HEADING] + a[HEADED], a[WANT], a[ROLLED])
     tips = _turned(fr[HEADING] + 0.0 * a[TIPPED], a[TIPPED], 0.0 * a[TIPPED])
     return {'stance': tuple(a[STANCE] > 0.5), 'com_acc': a[COM_ACC].copy(),
             'turns': tuple(turns[:2 * int(a[TURNED])]), 'posture': pose, 'kdot': a[KDOT].copy(),
-            'settle': a[SETTLE].reshape(2, 6).copy(), 'edge': tuple(a[EDGE]),
+            'settle': a[SETTLE].reshape(2, 6).copy(), 'edge': tuple(a[EDGE]), 'strides': float(a[STRIDES]),
             'swing': {int(i): (soles[i].copy(), speeds[i].copy(), accs[i].copy(), tips[i]) for i in free},
             'fold': {int(i): (pose[knees[i]] + a[FOLD][i], a[FOLD_RATE][i], 0.0) for i in folded}}

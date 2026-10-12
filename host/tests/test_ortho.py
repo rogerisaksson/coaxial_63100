@@ -229,7 +229,9 @@ def test_her_walk_is_none_of_the_gaits_it_is_not_to_be(report):
     (`normal.BAND`) under 3.2 - 7.7 on a level centre of mass and flat soles, on stilts,
     Groucho's and a shuffle by name -, none of those names; her heel up as her toes leave, her
     toes up as she lands, her pelvis listing and turning, her arms swinging, her soles a
-    woman's width apart. Her knee lands bent yet and her step is short (docs/TODO.md)."""
+    woman's width apart, her head still. Her knee lands bent yet and her step is short
+    (docs/TODO.md)."""
+    from tools.sim import looks
     from tools.sim import ortho as run
     got = run.looked(run.planned(['#201@0.5', '#202@2', '#203@5', '#204@9']), 20.0)
     band = got.get('band', {})
@@ -249,6 +251,8 @@ def test_her_walk_is_none_of_the_gaits_it_is_not_to_be(report):
                  'roll %.1f, turn %.1f, arm %.1f deg, %.2f legs' % (
                      band.get('pelvis roll', 0.0), band.get('pelvis turn', 0.0), band.get('arm', 0.0),
                      band.get('feet apart', 0.0)))
+    nod = got.get('measures', {}).get('head nod', 99.0)
+    report.check('her head nods %g deg and under a stride' % looks.NODS_DEG, nod <= looks.NODS_DEG, '%.1f deg' % nod)
 
 
 def test_the_first_texts_as_given(report):

@@ -7,8 +7,9 @@ acceleration where it does not - and her upper body's nine accelerations. Every 
 from them: a leg through its sole (still where it stands), the pelvis by the six base rows of her
 dynamics. One weighted least squares finds them - her centre of mass's ask, the turns, a swinging
 sole's ask, the posture, her standing knees, her height, her angular momentum - ROUNDS times,
-each wrench clipped into its sole's bounds and what was clipped pinned for the next. The drives'
-clamps clip the torques after it. `wbc.Body` and `wbc.sense` as the stack has them;
+each wrench clipped into its sole's bounds and what was clipped pinned for the next. Striding,
+what the floor cannot give is not traded among the rows again: her inertia takes it (`_taken`).
+The drives' clamps clip the torques after it. `wbc.Body` and `wbc.sense` as the stack has them;
 wbc/src/wbc_wrench.c is it in C, row for row (docs/findings/wrench.md).
 """
 import os
@@ -72,6 +73,54 @@ def bounded(u, frames, stance, edge=(0.0, 0.0)):
     return out, (np.abs(out - u) > 1e-9).astype(float)
 
 
+def faced(u, frames, stance, edge=(0.0, 0.0)):
+    """`u` with each standing sole's wrench in its cone, as `bounded`; the faces it was past -
+    six a sole, its moment about its own axes (pitch, yaw, roll), then its force - and each
+    face's share of the sole's push: no part has a bound of its own."""
+    out, past, share = u.copy(), np.zeros(12), np.zeros(12)
+    for k, R in enumerate(frames):
+        was = np.concatenate([R.T @ u[6 * k:6 * k + 3], u[6 * k + 3:6 * k + 6]])
+        fy = max(was[4], 0.0)
+        low = -np.array([ROOM[1] * (1.0 - 2.0 * max(-edge[k], 0.0)), MU * YAW_M, ROOM[0], MU, 0.0, MU])
+        high = np.array([ROOM[1] * (1.0 - 2.0 * max(edge[k], 0.0)), MU * YAW_M, ROOM[0], MU, 1.0, MU])
+        inside = np.clip(was, low * fy, high * fy)
+        past[6 * k:6 * k + 6] = stance[k] * (np.abs(inside - was) > 1e-9)
+        share[6 * k:6 * k + 6] = np.where(was < low * fy, low, high)
+        out[6 * k:6 * k + 6] += stance[k] * (np.concatenate([R @ inside[:3], inside[3:]]) - u[6 * k:6 * k + 6])
+    return out, past, share
+
+
+def _taken(u0, metric, up, frames, stance, edge, band, grounded):
+    """Striding, what the floor cannot give her inertia takes: `u0`, the rows' answer with the
+    floor unbounded, brought to the faces her soles' wrenches are past by the least change in
+    `metric` - her kinetic energy's, a swinging sole's ask held. Traded among the rows, a row
+    a joint, her head was the cheapest moment about her and nodded 46 deg a stride; her
+    centre of mass held as well, her trunk pitched 9 to 10 deg, or she was down at 12 s. A
+    face is a part of a sole's wrench its share of the sole's push, about the sole's own
+    axes; her height's `band` is decided before the faces - after them a throw's soles,
+    asked to pull by her knees' rows, pressed nothing - and gives where a cone and it cannot
+    both be met."""
+    Gi = np.linalg.inv(metric)
+    F, N = np.zeros((13, NU)), np.zeros((13, NU))
+    for k, R in enumerate(frames):
+        F[6 * k:6 * k + 3, 6 * k:6 * k + 3], F[6 * k + 3:6 * k + 6, 6 * k + 3:6 * k + 6] = R.T, np.eye(3)
+        N[6 * k:6 * k + 6, 6 * k + 4] = 1.0
+    F[12] = up
+    met, share, level, gives = np.zeros(13), np.zeros(13), np.zeros(13), 1e-9 * (np.arange(13) == 12)
+    u = at = u0
+    for _ in range(ROUNDS):
+        ay = float(up @ u) - G
+        past = float(np.clip(ay, band[0], band[1])) + G
+        level[12] += (1.0 - met[12]) * (past - level[12])
+        met[12] = max(met[12], grounded * float(abs(past - G - ay) > 1e-9))
+        C = met[:, None] * (F - share[:, None] * N)
+        u = u0 - Gi @ C.T @ np.linalg.solve(C @ Gi @ C.T + np.diag(1.0 - met + gives), C @ u0 - met * level)
+        at, out, to = faced(u, frames, stance, edge)
+        share[:12] += out * (to - share[:12])
+        met[:12] = np.maximum(met[:12], out)
+    return at
+
+
 def _maps(b, s, ask, want):
     """(T, E, t0, a6, asked): every acceleration of the pelvis's six and the unknowns, qdd = T base
     + E u + t0; each swinging sole's asked acceleration and whether it is asked. A standing
@@ -112,7 +161,8 @@ def _maps(b, s, ask, want):
 
 
 def step(b, s, ask):
-    """{tau, qacc, bears, cop, over, slack, held}: `ask` as `wbc.step` takes it."""
+    """{tau, qacc, bears, cop, over, slack, held}: `ask` as `wbc.step` takes it, and `strides`,
+    how far she strides (0 with none): her balance her soles' landings' then, not her rows'."""
     n, M, h, v, feet, act, mass = b.n, s['M'], s['h'], s['v'], s['feet'], b.act, b.mass
     stance = np.array([float(bool(k)) for k in ask['stance']])
     each = np.repeat(stance, 6)
@@ -147,7 +197,8 @@ def step(b, s, ask):
         lay(t['Jr'] @ full, TURN_KD[0] * turn_error(turn, t['quat']) - TURN_KD[1] * t['w'] - t['dJr']
             - t['Jr'] @ full0, W_TURN * turned)
     lay(np.eye(NU)[12:], want[UPPER], W_POSTURE)
-    lay(np.diag(np.concatenate([np.repeat(asked, 6), np.zeros(NU - 12)])), a6, W_SWING)
+    swung = np.concatenate([np.repeat(asked, 6), np.zeros(NU - 12)])
+    lay(np.diag(swung), a6, W_SWING)
     knees = act[KNEES]
     lay(stance @ full[knees], float(stance @ want[KNEES]) - float(stance @ full0[knees]), W_KNEE * grounded)
     for k, (knee, rate, acc) in ask.get('fold', {}).items():
@@ -161,9 +212,9 @@ def step(b, s, ask):
     lay(about, -MOMENTUM_K * s['k'] if kdot is None else np.asarray(kdot), W_MOMENT * grounded)
     part = np.zeros(NU)
     part[:12] = np.tile(np.concatenate([np.full(3, 1.0 / (mass * G * ROOM[0])), np.full(3, 1.0 / (mass * G))]), 2)
-    sole = np.concatenate([each, np.zeros(NU - 12)])
-    lay(np.diag(W_PART * sole * part + W_AIR * np.concatenate([1.0 - each, np.zeros(NU - 12)])),
-        np.zeros(NU), 1.0)
+    spare = W_PART * np.concatenate([each, np.zeros(NU - 12)]) * part + W_AIR * np.concatenate(
+        [1.0 - each, np.zeros(NU - 12)])
+    lay(np.diag(spare), np.zeros(NU), 1.0)
     R0, c0 = np.vstack(rows), np.concatenate(rhs)
     H0, g0, up = R0.T @ R0 + 1e-12 * np.eye(NU), R0.T @ c0, sumf[1] / mass
     frames = [f['R'] for f in feet]
@@ -185,7 +236,11 @@ def step(b, s, ask):
         band, edge = max(band, grounded * float(abs(past - G - ay) > 1e-9)), edge + (1.0 - band) * (past - edge)
         at, moved = bounded(u, frames, stance, ask.get('edge', (0.0, 0.0)))
         pinned = np.maximum(pinned, moved)
-    u = at
+    u, strides = at, float(ask.get('strides', 0.0))
+    if strides > 0.0:
+        kinetic = full.T @ M @ full + np.diag((W_SWING * swung + spare) ** 2)
+        u = u + strides * (_taken(np.linalg.solve(H0, g0), kinetic, up, frames, stance,
+                                  ask.get('edge', (0.0, 0.0)), (lo, hi), grounded) - u)
     qdd = full @ u + full0
     tau = (M @ qdd + h)[act]
     bears, cop = [0.0, 0.0], []

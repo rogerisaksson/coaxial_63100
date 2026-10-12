@@ -78,11 +78,12 @@ Each a mass on a spring and a damper to its reference.
 | --- | --- |
 | swing | 0.4 of a turn, about where its drive carries the limb on fastest; her sway 108 deg ahead of her drive is forward, behind it back |
 | letting go | from where the other's swing ends a sole stands over its ball, its heel rising, her ZMP in the other sole; it leaves as its own swing begins and the other has landed |
-| landing | where it meets her capture point: a step's offset short of it along, `cruise T / (e^(omega T) - 1)`, its own side of it by `wide / (e^(omega T) + 1)`; 0.35 m from her at most, 0.1 m its own side of the other |
+| landing | where it meets her capture point: a step's offset short of it along, `cruise T / (e^(omega T) - 1)`, its own side of it by `wide / (e^(omega T) + 1)`; further on by 0.5 of her speed past her cruise over omega; 0.35 m from her at most, 0.1 m its own side of the other |
 | getting there | a spring stiffening as it nears, 6 over the time left squared, damped 4 over it; over its landing 0.9 through its swing |
 | clearance | up over the first 0.2 of its swing, down over the last 0.25, held between; what its pitch brings its heel or its toes down by added; past its swing and not down, on down at 0.3 m/s |
 | rock | in the air its pitch is her rock's; standing, its heel rises as far as its leg, at its length, needs for her hip 6 mm under where it stood, 0.6 rad at most at 6 rad/s |
-| the edge | the whole-body step turns a standing sole about its ball (`settle`) with its centre of pressure there (`edge`), her ZMP's box the ball; striding only |
+| the fold | a standing sole its stride has off folds its knee as its load leaves it, 0.26 rad with none on it: its leg that much shorter for its heel's rise, her knees' row told |
+| the edge | the whole-body step turns a standing sole about its ball (`settle`) with its centre of pressure there (`edge`), her ZMP's box the ball; striding only, and what the floor cannot give there her inertia takes (`wrench._taken`) |
 | her knees | a soft stop in the drives' loop, 20 N m at straight fading over 0.1 rad, the observer told of it: the step alone left a straight standing knee locked at -5 deg |
 
 ## Measured
@@ -102,7 +103,7 @@ third pass, 1.06 ms a pass walking, the page 0.9 of real time.
 
 201 to 204 of `moves.lisp`: stand, sway at 0.9 Hz and 0.31, step at a drive
 of 0.2, walk on at 0.6 with her rock 0.6, her list and turn 0.4, her arms
-0.8, her pitch 0.06. 60 s: 32.30 m, 0.61 m/s, 102 landings, tilt 3.8 deg.
+0.8, her pitch 0.06. 60 s: 42.35 m, 0.68 m/s, 118 landings, tilt 5.3 deg.
 
 Through the eye's measures (`python tools/sim/ortho.py --walk --to 40 --look`),
 against a woman's band (`normal.BAND`, 25 measures):
@@ -112,7 +113,8 @@ against a woman's band (`normal.BAND`, 25 measures):
 | the walk as built, before the loop | 0.65 | 2.07 | landing bent 1.49, shuffling 0.38 |
 | the one law's, before the loop | 0.82 | 0.26 | shuffling 0.25, stiff 0.21 |
 | the loop, her height level and her soles flat | 0.28 | 7.71 | on stilts, Groucho's, a shuffle |
-| the loop, striding | 0.61 | 2.59 | none: landing bent 1.61, tripping 0.47, stiff 0.37, shuffling 0.11 |
+| the loop, striding, the rows traded on a sole's edge | 0.61 | 2.60 | none: landing bent 1.62, tripping 0.48, stiff 0.37, shuffling 0.11 |
+| the loop, striding | 0.69 | 2.46 | none: landing bent 1.70, tripping 0.35, stiff 0.32 |
 | two takes of women | 1.11, 1.14 | 0.00 | - |
 
 A stagger, the band's blind spot: her pelvis's fall into a landing and her
@@ -126,32 +128,36 @@ soles' loads then, of her 306 N.
 | the loop, striding | 17 | 485 | 183 |
 
 By the eye's own measures (`strides.WALK`: landing load, unloading, dip,
-head nod; bounded in `looks.FORM`), striding: her soles bear 1.37 of her
-weight about a landing (1.25) and 0.70 after (0.75), her pelvis falls 12
-mm into it, her head nods 46 deg (6).
+head nod; bounded in `looks.FORM`), striding: her soles bear 1.40 of her
+weight about a landing (1.25) and 0.65 after (0.75), her pelvis falls 16
+mm into it, her head nods 2.5 deg (6) - 1.37, 0.70, 12 mm and 46 deg with
+the rows traded.
 
-Striding, 329 J/m, 20 of the 25 in:
+Striding, 300 J/m, 19 of the 25 in:
 
 | Measure | Is | A woman's |
 | --- | --- | --- |
-| knee at landing, deg | 31.4 | 12 and under |
-| step, legs | 0.388 | 0.45 and over |
-| walk ratio | 0.77 | 1.1 and over |
-| knee swinging, deg | 45.3 | 52 and over |
-| heel at lift, deg | 24.3 | 28 and over |
-| stance, % | 64.3 | in |
-| knee straightest, at lift, deg | 2.0, 31.5 | in |
-| toes up at landing, deg | 9.2 | in |
-| arm, elbow, deg | 33.7, 5.7 | in |
-| trunk lean, pelvis roll, turn, deg | 3.7, 6.5, 8.3 | in |
-| pelvis bob, vault, hips wag, feet apart, legs | 0.023, 0.020, 0.052, 0.136 | in |
+| knee at landing, deg | 32.3 | 12 and under |
+| step, legs | 0.432 | 0.45 and over |
+| walk ratio | 0.86 | 1.1 and over |
+| knee swinging, deg | 49.2 | 52 and over |
+| knee at lift, deg | 23.7 | 30 and over |
+| elbow, deg | 2.8 | 5 and over |
+| heel at lift, deg | 30.9 | in |
+| stance, % | 66.1 | in |
+| knee straightest, deg | 5.1 | in |
+| toes up at landing, deg | 8.7 | in |
+| arm, deg | 27.9 | in |
+| trunk lean, pelvis roll, turn, deg | 3.4, 5.3, 7.6 | in |
+| pelvis bob, vault, hips wag, feet apart, legs | 0.027, 0.020, 0.052, 0.139 | in |
 
-- Of `looks.FORM`'s 12, 6 broken: knee behind plumb 13.6 deg (10), hip over
-  stance 2.3 (3), head fore-aft 60 mm (45), landing load, unloading, head
-  nod. Strike 440 N, head bob 23 mm.
-- Her neck nods -26 to +21 deg a stride, her spine 0.1 to 0.7, her waist and
-  her trunk's roll 3.6 and 3.0 either way: the step spends her head.
-- What it spends it for. A swinging leg takes 3.6 N m s of her about her
+- Of `looks.FORM`'s 12, 4 broken: knee behind plumb 11.9 deg (10), hip over
+  stance 2.2 (3), landing load, unloading. Strike 433 N, head bob 24 mm.
+- Her trunk turns 5.9 deg with her pelvis and her shoulders wag 36 mm, 1.1
+  and 23 with the rows traded: her arms swing 27.6 deg, as asked, where
+  33.5 as the step's wheel about her.
+- With the rows traded on a sole's edge her head nodded 46 deg, her neck -26
+  to +21. A swinging leg takes 3.6 N m s of her about her
   left as it leaves and gives 3.4 back before the floor, 0.75 at it: 16 to
   27 N m either way. On its ball a standing sole's centre of pressure is
   that line (0.083 of 0.083 m) and the step's rows are one too many:
@@ -164,15 +170,13 @@ Striding, 329 J/m, 20 of the 25 in:
   standing sole's ball till the next lands, less the landing's brake till
   she is over its heel - in v^2, `omega^2 (vT - l - r)(vT - 2v/omega + 2b -
   l + r)`, l 0.086, r 0.068, b 0.063 m. Asked 0.11 to 0.17 m/s a step,
-  she gains none: the landing's blow takes it. Her speed is its
-  balance, held by nothing: every step that lands softer runs away.
+  she gained none: the landing's blow took it. Her speed was its
+  balance, held by nothing: every step that landed softer ran away till
+  a landing was led by her speed's error.
 - Her knee lands bent because her hip is 1 to 2.5 cm under where a straight
   leg needs it: a sole lands 4 to 10 cm ahead of its hip, the other 15 to 30
   behind. 1.2 cm of hip is 15 deg of knee.
 - Over a straight leg 16 cm ahead she rises 17 mm: 0.58 m/s to do it.
-- Shoved for 0.12 s at 15 s - 20, 30 and 40 N across either way, 10 and 20
-  N along either way -, she stood 3 of 10: 30 and 40 N across one way, 10
-  N back. In the rest she was down 3 to 10 s after.
 - 205 after 203: back 0.45 m in 12 s, -0.17 m/s.
 
 The step under her walk, 40 s each (`wrench.step`'s rounds; a sole's lead
@@ -180,31 +184,39 @@ its landing further on by that of (v - cruise) / omega):
 
 | Step | Stood | m/s | Head nod, deg | Trunk pitch | Landing load | Strike, N | Knee as her toes leave |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| as it is: the rows traded again round what was clipped | 51 s | 0.61 | 46 | 1.0 | 1.37 | 440 | 24 |
+| the rows traded again round what was clipped | 51 s | 0.61 | 46 | 1.0 | 1.37 | 440 | 31 |
 | what the floor cannot give taken by her inertia - the least change of her kinetic energy to the faces her soles are past | down at 16.5 s | 0.82 | - | - | - | - | - |
 | the same, her centre of mass and the swinging sole held | down at 12.1 s | - | - | - | - | - | - |
 | the same, her centre of mass let go on a sole's ball alone | down at 38.7 s | 0.98 | - | - | - | - | - |
-| as it is, the swing's reaction in her centre of mass's ask | down at 14.2 s | - | - | - | - | - | - |
-| her inertia, the swinging sole held, a lead of 0.5 | 51 s | 0.69 | 2.0 | 1.8 | 1.33 | 389 | 9 to 11 |
+| the rows traded, the swing's reaction in her centre of mass's ask | down at 14.2 s | - | - | - | - | - | - |
+| her inertia, the swinging sole held, a lead of 0.5 | 51 s | 0.69 | 2.0 | 1.8 | 1.33 | 389 | 18 |
+| the same, a knee folding 0.26 rad before its swing | 51 s | 0.69 | 2.5 | 1.9 | 1.40 | 433 | 24 |
 | the same, a lead of 1.0 | 51 s | 0.66 | 3.4 | 3.7 | 1.41 | 433 | - |
 | the same, a lead of 0.25; none | down at 36 s; at 19 s | 0.76 | - | - | - | - | - |
-| a lead of 0.5 and her speed's error summed, 0.05 to 0.2 /s | 71 s | 0.62 | 7.5 to 9.0 | 6.4 to 7.9 | 1.40 | 457 to 484 | 9.5 |
-| as it is, a lead of 0.5 | down at 16.5 s | - | - | - | - | - | - |
-| as it is, her upper body's rows at 3, 10, 30 | down within 18 s | - | - | - | - | - | - |
+| a lead of 0.5 and her speed's error summed, 0.05 to 0.2 /s | 71 s | 0.62 | 7.5 to 9.0 | 6.4 to 7.9 | 1.40 | 457 to 484 | - |
+| the rows traded, a lead of 0.5 | down at 16.5 s | - | - | - | - | - | - |
+| the rows traded, her upper body's rows at 3, 10, 30 | down within 18 s | - | - | - | - | - | - |
 
 - By the step's own map a lead of 0.5 leaves 0.42 of a step's speed error
   to the next, 1.0 turns it -0.09, none 0.93.
-- Not kept. On the step as it is her trailing knee folds 24 deg before
-  her toes leave because its heel lags what is asked, 5.5 deg of 8.8 as
-  the other lands; on a step that follows the ask the leg stays at its
-  length, 9 to 11 deg where a woman's is 30 and over: stiff 0.62, on
-  stilts by name. That fold is asked by nothing. Asked of her heel alone,
-  0.2 to 0.5 rad past her rock's from its stride's phase or as its load
-  leaves it, she was down at 11 to 32 s; her rock at 0.9 and 1.2, at 19
-  s and before.
-- Standing on that step: 7, 5, 3, 2 and 0 of 8 at 38 to 120 N where 8, 6,
-  4, 2 and 0; a hop's tilt 9.6 deg where 2.4. A throw's soles pressed
+- The fold. With the rows traded her trailing knee folded before her toes
+  left because its heel lagged what was asked, 5.5 deg of 8.8 as the other
+  landed; on a step that follows the ask the leg stays at its length, 18
+  deg where a woman's is 30 and over: stiff 0.62, on stilts by name.
+  Asked of one piece as its load leaves it - the knee, its leg that much
+  shorter for its heel's rise, her knees' row -: 0.17 rad stiff 0.41;
+  0.26, 0.32 and 2.46 off; 0.35, her head 7 deg and strike 489 N; 0.44,
+  13 deg; 0.52, down at 14 s. Asked of her heel alone, 0.2 to 0.5 rad
+  past her rock's, down at 11 to 32 s; her rock at 0.9 and 1.2, at 19 s
+  and before.
+- Standing, the rows are traded as they were, bit for bit. By faces and
+  the rows' own metric: 7, 5, 3, 2 and 0 of 8 at 38 to 120 N where 8, 6,
+  4, 2 and 0, a hop's tilt 9.6 deg where 2.4; a throw's soles pressed
   nothing till her height's band was decided before their faces.
+- Shoved walking, 0.12 s at 15 s - 20, 30 and 40 N across either way, 10
+  and 20 N along either way -: 6 of 10 stood on either step, the four
+  down each across; her speed after one 0.75 to 0.77 m/s where 0.70 to
+  0.93.
 
 What was tried on it, each 30 or 40 s:
 

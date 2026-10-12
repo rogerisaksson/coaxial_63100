@@ -136,3 +136,10 @@ it names. A closed item is cut from the list and gets its line here, last.
     89 ms and 0.36 s were searched: the boards' laps 13.9 and 14.1-14.3 s
     where 14.3 and 14.5-14.6, 34 flights of 34 whole in fourteen winds
     ([streams](findings/streams.md)).
+44. Her head still as she walks: striding, what the floor cannot give
+    is taken by her inertia, a swinging sole's ask held, its landing led
+    by half her speed's error, a knee folding before its swing as its
+    load leaves it - her head 2.5 deg where 46, 300 J/m where 330, 2.46
+    off the band where 2.60, stiff 0.32 where 0.37, 4 of her form's 12
+    broken where 6; standing as she stood, bit for bit
+    ([orthokinematics](findings/orthokinematics.md), [wrench](findings/wrench.md)).

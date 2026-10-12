@@ -4,7 +4,8 @@
     cruise = stride.cruises(way, drive, turns, going)       # the speed her drive makes of its steps
     meet = stride.meets(xi, c, flat, cruise, om, turns, wide)       # where each sole lands (2, 2)
     tip, tipping, tipped = stride.rocks(rock, rate, acc)    # each sole's pitch as her rock has it
-    rocked, flatten, pin, round = stride.heels(sole, hips, floor, long, off, tip, stance, stepping, was, dt)
+    fold, short = stride.folds(off, loads, bent)            # a knee's fold before its swing, rad and m
+    rocked, flatten, pin, round = stride.heels(sole, hips, floor, long, short, off, tip, stance, stepping, was, dt)
     clear = stride.clears(u, flying, swung, high, tip, tipping, tilt, late)     # (3, 2), over the floor
     acc = stride.goes(meet, flat, shod, v, u, turns, kp, kd)        # a striding sole's, along and across
 
@@ -21,7 +22,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np  # noqa: E402
 
-from machine.figure import ANKLE_H, BALL, TOE_M  # noqa: E402
+from machine.figure import ANKLE_H, BALL, SHANK, THIGH, TOE_M  # noqa: E402
 from machine.poise import BIG, HALF_M, TINY, clip  # noqa: E402
 from machine.wbc import CONTACT_K  # noqa: E402
 
@@ -47,6 +48,12 @@ AHEAD_M_S = 0.15
 #: landing ARRIVE_U through it.
 REACH_M, APART_M, SOON_S = 0.35, 0.1, 0.02
 RISE_U, FALL_U, ARRIVE_U = 0.2, 0.25, 0.9
+#: And further on by LEADS of her speed past her cruise, over omega. A step's push - her
+#: centre of mass past the standing sole's ball till the next lands - is 0.14 m/s more than
+#: its landing's brake at any speed, and the landing's blow took that: on a step that lands
+#: softer she was down at 19 s with no lead, at 36 s with 0.25. With 0.5 a step leaves 0.42
+#: of its speed's error to the next, with 1 it turns it -0.09.
+LEADS = 0.5
 #: Past its swing a sole not down reaches on down at REACH_M_S, for REACH_S at most.
 REACH_M_S, REACH_S = 0.3, 0.2
 #: A standing sole is turned about the edge it stands on, 1/s^2: flat, or over its ball as
@@ -61,6 +68,12 @@ FLAT_K = 400.0
 #: toes up, and held on their heels for that she went over them 0.7 s after a hop's
 #: landing; let 1.1 deg before an edge counts, her walk was down in 17 s.
 HEEL_RAD, HEEL_RAD_S, DIP_M, EDGE_RAD = 0.6, 6.0, 0.006, 0.03
+#: A standing sole its stride has off folds its knee as its load leaves it, FOLD_RAD with
+#: none on it - its leg that much shorter for its heel's rise, her knees' row told. Asked by
+#: nothing, the leg stayed at its length till its toes left, 18 deg where a woman's is 30:
+#: on stilts by name. At 0.17 stiff 0.41; at 0.35 her head nods 7 deg and she strikes 489 N;
+#: at 0.52 down at 14 s. Its heel alone asked up, down within 32 s.
+FOLD_RAD = 0.26
 #: A swinging sole's pitch is its rock's: its heel HEEL_UP further up behind her, its toes
 #: as much less up ahead.
 HEEL_UP = 0.5
@@ -102,7 +115,9 @@ def meets(xi, c, flat, cruise, om, turns, wide):
     centre of mass `c`, and APART_M its own side of the other sole (`flat` their middles)."""
     step_s = np.pi / np.maximum(turns, TINY)
     grown = np.exp(om * step_s)
-    meet = xi - np.stack([cruise * step_s / (grown - 1.0) + 0.0 * LIMBS, -LIMBS * wide / (grown + 1.0)], axis=1)
+    led = LEADS * ((xi[ALONG] - c[ALONG]) - cruise / om)
+    meet = xi - np.stack([cruise * step_s / (grown - 1.0) - led + 0.0 * LIMBS,
+                          -LIMBS * wide / (grown + 1.0)], axis=1)
     return np.stack([c[ALONG] + clip(meet[:, ALONG] - c[ALONG], -REACH_M, REACH_M),
                      flat[::-1, LEFT] + LIMBS * np.maximum(LIMBS * (meet[:, LEFT] - flat[::-1, LEFT]), APART_M)],
                     axis=1)
@@ -115,13 +130,22 @@ def rocks(rock, rate, acc):
     return heel * LIMBS * rock, heel * LIMBS * rate, heel * LIMBS * acc
 
 
-def heels(sole, hips, floor, long, off, tip, stance, stepping, was, dt):
+def folds(off, loads, bent):
+    """A knee's fold before its swing, rad, and what it shortens its leg by, m (2 each): its
+    stride has the sole off and its load leaves it - none of her soles' loads on it, all of
+    FOLD_RAD. `bent` her knees' bend standing, rad."""
+    fold = FOLD_RAD * off * (1.0 - loads / np.maximum(loads.sum(), TINY))
+    return fold, (THIGH + SHANK) * (np.cos(0.5 * bent) - np.cos(0.5 * (bent + fold)))
+
+
+def heels(sole, hips, floor, long, short, off, tip, stance, stepping, was, dt):
     """A standing sole's turn about the edge it stands on, striding: (the heel's rise asked,
     rad; its turn's acceleration, rad/s^2; how far it stands on an edge, 1 its ball and -1 its
     heel; its middle's acceleration round that edge, her way's frame (2, 3)). Flat; or, its
     stride `off` it, over its ball as far as her rock has its heel up (`tip`); or as far as
     its leg's length asks, her hip ahead of its ball - the heel's rise that lets the leg,
-    `long` m, reach her hip DIP_M under where it stood over a sole. Flat till it left, a sole
+    `long` m less what its knee's fold shortens it (`short`), reach her hip DIP_M under
+    where it stood over a sole. Flat till it left, a sole
     25 cm behind her had her hips 4 cm down as the other landed, on a knee at 36 deg. `sole`
     each sole's (place in her way's frame (2, 3), pitch, its rate); `hips` each hip's place
     along; `was` the rise asked the pass before, `dt` s ago."""
@@ -133,7 +157,8 @@ def heels(sole, hips, floor, long, off, tip, stance, stepping, was, dt):
     high = floor + ANKLE_H + long - DIP_M - ball[:, 1]
     lever = np.hypot(hip * BALL - high * ANKLE_H, hip * ANKLE_H + high * BALL)
     need = clip(np.arctan2(-(hip * ANKLE_H + high * BALL), hip * BALL - high * ANKLE_H) + np.arccos(clip(
-        (long * long - hip * hip - high * high - BALL * BALL - ANKLE_H * ANKLE_H) / (2.0 * lever), -1.0, 1.0)),
+        ((long - short) ** 2 - hip * hip - high * high - BALL * BALL - ANKLE_H * ANKLE_H) / (2.0 * lever),
+        -1.0, 1.0)),
         0.0, HEEL_RAD) * clip(hip / BALL, 0.0, 1.0)
     rocked = np.maximum(off * np.maximum(tip, 0.0), need)
     flatten = stepping * stance * (FLAT_K * (rocked - tilt)

@@ -25,26 +25,24 @@ gets a line at the end of [DONE](DONE.md).
 1. **Orthokinematics, the one way she moves** (orthokinematics.md): her
    movement is text of balance, rhythm and elasticity, compiled to rows;
    her latent state is stepped and rendered with no branch, the whole-body
-   step under it. On the page she walks from rest at 0.61 m/s, 2.6 off a
+   step under it. On the page she walks from rest at 0.69 m/s, 2.5 off a
    woman's band, and crouches, shifts, bows, stands on one sole and hops
    by digit. What is not below is not hers yet, and nothing else does it.
-   + Her walk's form: her knee lands at 31 deg (12) - her hip 1 to 2.5
-     cm under where a straight leg needs it -, a step 0.39 legs
-     (0.45), her knee swinging 45 deg (52), her heel 24 up as her toes
-     leave (28); 6 of `looks.FORM`'s 12 broken. Two takes of women:
+   + Her walk's form: her knee lands at 32 deg (12) - her hip 1 to 2.5
+     cm under where a straight leg needs it -, a step 0.43 legs
+     (0.45), her knee swinging 49 deg (52) and 24 as her toes leave
+     (30), her elbow 2.8 (5); 4 of `looks.FORM`'s 12 broken. Two takes
+     of women:
      1.1 m/s, a step 0.8 legs, the knee landing at 2-11 deg, 50-57 as
      the toes leave, 68-73 swinging, the heel 38-57 up.
-   + A stagger: her soles 1.37 of her weight about a landing (1.25) and
-     0.70 after (0.75), a fall of 12 mm into it, her head nodding 46 deg
-     (6). On its ball a sole gives no moment and the step's rows, traded,
-     spend her head; a step's plan gains 0.14 m/s the landing's blow
-     takes. A step that takes it by her inertia, the landing led by her
-     speed's error, nods 2 deg and strikes 389 N for 440 - and leaves her
-     trailing knee at 9 deg as her toes leave, on stilts by name: its
-     fold there, 24 deg, is the step's error now, asked by nothing. DOD:
-     that fold asked - her knee 30 deg, her heel 50, as her toes leave,
-     the leg's length, its heel and her knees' row of one piece -, then
-     that step under her walk, standing as it stands now, in C too.
+   + A stagger: her soles 1.40 of her weight about a landing (1.25) and
+     0.65 after (0.75), a fall of 16 mm into it. Her speed 0.69 m/s
+     where her drive's is 0.62: a landing led by half her speed's error
+     leaves the rest; summed, 0.62 with her head at 8 deg and her trunk
+     at 7. The striding step is python's alone: `_taken` and `strides`
+     in `wbc_wrench.c`. Standing the rows are still traded, a moment
+     pinned in the world's frame. DOD: 1.25 and under about a landing,
+     0.75 and over after, at her drive's speed.
    + The floor as a contact's wrench cone: a sole's moments and its
      friction coupled faces of its push, never a part clipped alone,
      never a centre of pressure by division. Its room a continuous
@@ -55,8 +53,8 @@ gets a line at the end of [DONE](DONE.md).
      alone and pinned in the world's frame, the room across gone with
      the room along.
    + A landing sole's push rising no faster than its foam takes, the
-     pendulum's slow fall the time for it: strike 440 N (450), landing
-     load 1.37 (1.25), 0.70 after (0.75), no rate bounded.
+     pendulum's slow fall the time for it: strike 433 N (450), landing
+     load 1.40 (1.25), 0.65 after (0.75), no rate bounded.
    + A narrow track: her feet 108 mm apart, her thighs 24 mm, in jeans
      16 mm through each other. The lateral ZMP a corridor toward her
      midline, narrow and never a line; her pelvis's turn locked to her
@@ -64,7 +62,8 @@ gets a line at the end of [DONE](DONE.md).
      for her knees; the lateral shift's stiffness dropped through the
      swing, her centre of mass falling to the landing; her thorax
      turned against her pelvis, her shoulders and her head's frame
-     still (torso turn 1.05 deg, shoulders 23 mm, head 22 mm aside).
+     still (torso turn 5.9 deg, shoulders 36 mm, head 32 mm aside; 1.1,
+     23 and 22 while her arms were the step's wheel about her).
    + A straight leg under a lateral sway: her height's target a soft
      spring under the lateral ZMP and the floor's faces, the knee
      giving what the pelvis's list and turn take.
@@ -75,8 +74,9 @@ gets a line at the end of [DONE](DONE.md).
    + Her walk's speed: a drive past 0.6 surges and falls at 17 to 26
      s; 1.0 m/s only with her arms at 130 deg and her head bobbing
      0.19 m. Her run: none.
-   + Shoves: 10 to 40 N for 0.12 s fell her walk in 7 of 10, 3 to 10 s
-     after; no payload answers one yet; `ortho.py --look` shoves none.
+   + Shoves: 20 to 40 N across for 0.12 s fell her walk in 4 of 6, 2 to
+     6 s after, 10 and 20 N along in none of 4; no payload answers one
+     yet; `ortho.py --look` shoves none.
    + The hop as given: full extension asked off the floor and no
      landing; her own text stands. On one sole, by micro-hops: untried.
    + Her way: no mode turns her; no room round her, none of its words

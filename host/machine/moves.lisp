@@ -41,7 +41,7 @@
   (cpg_config (amplitude mode_sagittal_drive 0.2) (amplitude mode_limb_lift 1.0))
   (task_constraints (maintain_zmp (polygon dynamic_footprint))))
 
-;; walk on: 0.61 m/s. Her soles rock heel to toe, her pelvis lists and turns, her arms swing
+;; walk on: 0.69 m/s. Her soles rock heel to toe, her pelvis lists and turns, her arms swing
 (stream_inject
   (sequence_id 204)
   (blend_duration 2000ms)
