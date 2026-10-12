@@ -89,6 +89,25 @@ def test_the_loop_ticks_on_the_image(report, rig, emu):
                  '%s against %s' % (['%.3f' % t for t in got['tau']], ['%.3f' % t for t in ours]))
 
 
+def test_the_step_ticks_on_the_image(report, rig, emu):
+    """The step without an active set (wbc_wrench.c) on the image, ticked on the same stand: its
+    cycles a tick, and its torques and her soles' loads the host's on that stand."""
+    from machine import wbc
+    from test_wbc_core import _standing
+    from tools.cores import wbc as core
+    got = rig.board.wbc.step(2)
+    b = wbc.Body()
+    _s, ask = _standing(b)
+    base, q, u, _t = core.state_of(b)
+    ours = core.shared().wrench(base, q, u, ask)
+    apart = max([abs(a - c) for a, c in zip(got['tau'], ours['tau'][:3])]
+                + [abs(a - c) for a, c in zip(got['bears'], ours['bears'])])
+    report.check('the step ticks on the image, its torques and loads the host step has, within 2e-3',
+                 apart < 2e-3, '%.0f us cold, %.0f us warm at %.0f MHz; %s N m, %s N; %.1e apart' % (
+                     got['us_first'], got['us_last'], got['sysclk_hz'] / 1e6,
+                     ['%.3f' % t for t in got['tau']], ['%.1f' % f for f in got['bears']], apart))
+
+
 def test_the_front_end_feeds_the_image(report, rig, emu):
     """The DC link fed through the front end, read back through the image's own scan: the
     reading follows what is fed. Recorded, not judged against a number."""
@@ -340,6 +359,7 @@ BOARD = (wire.test_every_read_decodes, wire.test_settings_are_taken, wire.test_t
          test_the_front_end_feeds_the_image,
          test_the_injected_triple_runs, test_the_angle_sensor_reads, test_the_imu_answers,
          test_the_sto_chain_follows_the_pilot, test_the_loop_ticks_on_the_image,
+         test_the_step_ticks_on_the_image,
          wire.test_acquisition_answers_or_refuses)
 
 

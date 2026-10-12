@@ -210,6 +210,7 @@ class CtrlOp(IntEnum):
 class WbcOp(IntEnum):
     """Device 13, the whole-body loop on her stand - `coaxial.devices.wbc`."""
     TICK = 0
+    STEP = 1
 
 
 class MapKind(IntEnum):
@@ -277,6 +278,7 @@ DEVICE_REQUESTS = {
     (DEVICE_DAQ, DaqOp.LAYOUT): 3,
     (DEVICE_DAQ, DaqOp.LIVE): 3,
     (DEVICE_WBC, WbcOp.TICK): 4,                     # u8 ticks
+    (DEVICE_WBC, WbcOp.STEP): 4,                     # u8 ticks
     (DEVICE_TIME, TimeOp.LATCH): 3,
     (DEVICE_TIME, TimeOp.READ): 3,
     (DEVICE_THERMAL, ThermalOp.STATE): 3,

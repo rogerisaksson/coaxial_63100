@@ -68,14 +68,17 @@ tests/test_wbc_core.py holds it to the step.
 | --- | --- | --- |
 | A tick on this host, -O2 | 46 us | 1 600 us |
 | Her body's terms of it | 14 us | 14 us |
+| A tick on the image (Renode), device 13 op 1 and op 0 | 0.93 M instructions, 1.97 ms on the M7 | 26.83 M, 56.5 ms |
 | Its state | 32 KB | 471 KB |
 | Its stack on the M7 | 2.9 KB | 8.4 KB |
 | Beside the python step, 120 states | 9e-5 N m with two soles standing, 1e-10 with one or none | - |
 | Her walk on it, 40 s | 0.61 m/s, 330 J/m, 2.60 off: the python step's | - |
 | A hop on it | 17.9 mm, 2.4 deg: the python step's | - |
 
-- By the loop's 26.8 M instructions a tick on the image, some 0.8 M: 1.6 ms
-  on the M7. Unmeasured there.
+- On the image its torques and her soles' loads are the host's within 2e-3
+  (test_emulator.py); 7.7 KB of flash. The DOD's 1 ms is half its tick: of
+  the host's 46 us her body's terms are 14, the four rounds some 6, the
+  maps and their Jacobians 6.
 - A pass of her latent loop on this host with it: 1.0 ms where 1.3, solved
   every third pass; 2.1 where 2.9 every pass. Her sensing, her modes and her
   world are the rest. Her stand's loop, a pass: 0.41 ms where 1.1.

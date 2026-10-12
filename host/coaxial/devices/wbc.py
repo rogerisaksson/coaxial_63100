@@ -1,4 +1,4 @@
-"""The whole-body loop behind `0x6E` device 13: ticked on her stand on the board, its cycles."""
+"""The loop and the step without an active set behind `0x6E` device 13: ticked on her stand."""
 from coaxial.comm import protocol
 from coaxial.comm.protocol import WbcOp
 from coaxial.comm.wire import Reader, pack
@@ -22,3 +22,14 @@ class Wbc(Device, device=protocol.DEVICE_WBC):
                 'us_first': 1e6 * first / hz, 'us_last': 1e6 * last / hz,
                 'held': r.u8(), 'passes': r.u8(), 'stuck': r.u8(),
                 'tau': [r.i32() / 1000.0 for _ in range(3)]}
+
+    def step(self, ticks=3):
+        """{cycles_first, cycles_last, sysclk_hz, us_first, us_last, tau, bears}: `ticks` ticks of
+        the step without an active set (wbc_wrench.c) on the same stand; tau the first three
+        drives' torques, N m, bears each sole's load, N."""
+        r = Reader(self._op(WbcOp.STEP, pack(('u8', ticks)), timeout=TICK_S * ticks))
+        first, last, hz = r.u32(), r.u32(), r.u32()
+        return {'cycles_first': first, 'cycles_last': last, 'sysclk_hz': hz,
+                'us_first': 1e6 * first / hz, 'us_last': 1e6 * last / hz,
+                'tau': [r.i32() / 1000.0 for _ in range(3)],
+                'bears': [r.i32() / 1000.0 for _ in range(2)]}

@@ -519,6 +519,7 @@ A1335's angle, deg; 1 omega_hat, rad/s; 2 iq, A. Command: 0 theta, rad;
 | op | Request | Reply |
 | --- | --- | --- |
 | 0 tick | `u8 ticks` (1..16) | `u32 cycles_first, u32 cycles_last, u32 sysclk_hz, u8 held, u8 passes, u8 stuck, i32 x3 tau` (milli N m): the loop (`wbc/`) on the model's stand, the first tick cold; refused while the acquisition runs (its state lives in the ring) |
+| 1 step | `u8 ticks` (1..16) | `u32 cycles_first, u32 cycles_last, u32 sysclk_hz, i32 x3 tau, i32 x2 bears` (milli N m, milli N): the step without an active set (`wbc_wrench.c`) on the same stand; refused while the acquisition runs |
 
 ### Drive op 14
 

@@ -143,8 +143,7 @@ gets a line at the end of [DONE](DONE.md).
       legs above their soles clear of each other.
     + Loop: a tick 26.8 M instructions on the image, 56 ms on the M7 where
       the DOD's 1. The step without an active set in C (`wbc_wrench.c`,
-      wrench.md) ticks in 46 us on this host where the loop 1 600: its
-      tick on the M7.
+      wrench.md): 0.93 M instructions, 1.97 ms.
     + Bottom, each board: the ESO (`parts.Eso`, `CTRL_ESO`) onto the boards
       as built on the motor's encoder; torque and acceleration registers on
       the wire.

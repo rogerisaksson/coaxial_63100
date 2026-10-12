@@ -47,6 +47,7 @@ extern "C" {
 
 /* The whole-body loop, device 13. */
 #define WBC_OP_TICK 0U
+#define WBC_OP_STEP 1U             /* MINOR 33 */
 
 /* The thermal observer, device 8. */
 #define THERMAL_OP_STATE        0U
@@ -172,7 +173,7 @@ extern "C" {
 /* 2.0: the thermal nodes went per leg, which REPURPOSED wire
    indices - device 8 node order and the cal record's ceilings both. */
 #define CMD_PROTO_MAJOR 2U
-#define CMD_PROTO_MINOR 32U        /* history: docs/PROTOCOL_VERSIONS.md */
+#define CMD_PROTO_MINOR 33U        /* history: docs/PROTOCOL_VERSIONS.md */
 
 /** Request payload length of a command that takes a variable-length payload. */
 #define CMD_LEN_VARIABLE 0xFFU
