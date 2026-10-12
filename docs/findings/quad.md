@@ -388,14 +388,18 @@ race, 12 flights (`quad_race.py --suite all`):
 
 A camera under the frame on a stabilised gimbal (`machine.gimbal`), its
 picture in the page's corner (`coaxial.graphics.onboard`, C): the page's own
-world from the lens, dots over a level sky and ground.
+world from the lens, dots over its sky and ground.
 
 - The sight follows the way the frame goes, not its nose: over two laps the
   nose stood over 45 degrees off the way 64 % of the time, 74 at the median,
   up to 180. At rest the nose's, as far as the frame stands upright.
-- Over two laps on ideal rotors: the frame tilted to 155 degrees, a quarter
-  of the time over 76, the horizon's two ends 0.000 dot rows apart; the gate
-  flown to next in the picture 85 % of the time.
+- Level and along its way, a rail's: over two laps the sight trailed its
+  bends 12.5 degrees outside the way at the mean, inside it a tenth of
+  their time, the gate flown to next in the picture 87 % of the time.
+- Given 1.1 of the frame's lean across its way to look into the turn and
+  0.35 of it to roll with, 40 degrees at the most, none at rest: 7.7
+  degrees inside the way, 86 % of the bends; rolled 9.5 degrees rms in them
+  and 17.5 at the most, 4.8 rms on the straights; the gate 91 %.
 - A grid's lines end where they would stand under two dots apart: drawn to
   the scenery's far limit they closed to a band three rows thick under the
   horizon.

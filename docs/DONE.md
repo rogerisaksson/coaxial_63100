@@ -91,3 +91,7 @@ it names. A closed item is cut from the list and gets its line here, last.
     them gone; the core's air a wind, its rotors' loss made up along their
     own axis: 34 flights of 34 whole in fourteen winds, laps 14.3 and
     14.5-14.8 s ([streams](findings/streams.md)).
+34. The carried camera into its turns: its sight a share of the frame's
+    lean across its way, 7.7 degrees inside a lap's bends where 12.5
+    outside, rolled 9.5 degrees rms in them; level at rest
+    ([quad](findings/quad.md)).

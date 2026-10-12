@@ -215,10 +215,6 @@ gets a line at the end of [DONE](DONE.md).
 
 ## Quad
 
-- **The carried camera into its turns**: its sight level and along its
-  way, as flat as a rail's. DOD: it looks a little into a turn and rolls a
-  share of the frame's bank with it, a turn read in the picture; a hover's
-  horizon level.
 - **The page's flight a fifth of this host**: four stand-in boards a pass
   of 2 ms are 0.20 s a flight's second where 0.12 at 20 ms, 0.51 beside
   the drawing's thread - three calls a rotor a pass, each a board's whole

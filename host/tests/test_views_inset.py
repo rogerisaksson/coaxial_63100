@@ -56,10 +56,11 @@ def test_her_eyes_picture_is_framed(report):
 
 def test_its_camera_rides_a_gimbal(report):
     """The carried camera (`machine.gimbal`, `coaxial.graphics.onboard`): its sight comes
-    round to the way the frame goes and keeps level whatever the frame does - rolled on its
-    side the level frame's, on its back at rest its own -, its tilt within its axis' ends; in
-    the picture the horizon one row from edge to edge, the gate flown to next in its ink on the
-    course and not off it; C takes the picture away and gives it back."""
+    round to the way the frame goes; leant under way it looks into the lean and rolls a share
+    of it, MOST at the most - at rest neither, on its back its own -, its tilt within its
+    axis' ends; in the picture the horizon one row from edge to edge at rest and leant as the
+    sight is rolled under way, the gate flown to next in its ink on the course and not off
+    it; C takes the picture away and gives it back."""
     from coaxial.graphics import onboard, scenery, shapes
     from coaxial.graphics.lit import project
     from coaxial.graphics.raster import DOTS_Y
@@ -75,10 +76,23 @@ def test_its_camera_rides_a_gimbal(report):
         return aim
     along, across = (0.0, 0.0, 12.0), (12.0, 0.0, 0.0)
     flat, side = flown(level, along), flown(rolled, along)
-    report.check('rolled 80 degrees on its way the sight is the level frame\'s',
-                 math.dist(flat, side) < 1e-3,
-                 'pan %+.2f and %+.2f deg, tilt %+.2f and %+.2f' % tuple(
-                     math.degrees(a) for a in (flat[0], side[0], flat[1], side[1])))
+    banked = [flown(shapes.turn_about('z', deg).tolist(), along) for deg in (30.0, -30.0)]
+    lean = math.radians(30.0) * 12.0 / (12.0 + gimbal.LEAN_M_S)
+    report.check('level on its way the sight is its way\'s, unrolled; leant 30 degrees it looks '
+                 'into the lean and rolls a share of it, either way alike',
+                 abs(flat[0]) < 1e-6 and flat[2] == 0.0
+                 and abs(abs(banked[0][2]) - gimbal.LEAN * lean) < 1e-3
+                 and banked[0][0] * banked[0][2] > 0.0 and abs(banked[0][0]) > math.radians(15.0)
+                 and math.dist(banked[0], (-banked[1][0], banked[1][1], -banked[1][2])) < 1e-6,
+                 'pan %+.1f and roll %+.1f deg, %+.1f and %+.1f the other way' % tuple(
+                     math.degrees(a) for a in (banked[0][0], banked[0][2], banked[1][0],
+                                               banked[1][2])))
+    still = flown(rolled, (0.0, 0.0, 0.0))
+    report.check('rolled 80 degrees: under way no further than its most, at rest not at all',
+                 abs(abs(side[2]) - gimbal.LEAN * math.radians(80.0) * 0.8) < 1e-3
+                 and abs(side[0]) <= gimbal.MOST + 1e-9 and still[2] == 0.0,
+                 'pan %+.1f and roll %+.1f deg under way, roll %+.1f at rest' % tuple(
+                     math.degrees(a) for a in (side[0], side[2], still[2])))
     turned = flown(level, across, flat)
     report.check('its way turned 90 degrees, the sight comes round to it',
                  abs(math.degrees(turned[0]) - 90.0) < 1.0, '%+.1f deg' % math.degrees(turned[0]))
@@ -90,15 +104,28 @@ def test_its_camera_rides_a_gimbal(report):
                  abs(up[1] - gimbal.TILTS[1]) < 1e-3 and abs(down[1] - gimbal.TILTS[0]) < 1e-3,
                  '%+.0f and %+.0f deg' % (math.degrees(up[1]), math.degrees(down[1])))
     eye = gimbal.lens((0.0, 6.0, 0.0), rolled)
-    m, centre = onboard.sight(eye, side)
     far = [(600.0 * math.sin(a), 0.0, 600.0 * math.cos(a)) for a in (-0.6, 0.0, 0.6)]
-    _sx, sy, _w = project(far, m, onboard.lens(), centre)
-    blue = [tone[2] for tone in onboard.air(side[1]).tolist()]
+    _sx, sy, _w = project(far, *onboard.sight(eye, still)[:1], onboard.lens(),
+                          onboard.sight(eye, still)[1])
+    blue = [tone[2] for tone in onboard.air(still[1])[:, onboard.WIDE // 2].tolist()]
     sky = max(range(1, len(blue)), key=lambda k: blue[k - 1] - blue[k])
-    report.check('the horizon one row of the picture from edge to edge, the sky over it',
+    report.check('at rest the horizon one row of the picture from edge to edge, the sky over it',
                  max(sy) - min(sy) < 0.5 and abs(sky - sum(sy) / len(sy) / DOTS_Y) <= 1.0,
                  'far ground at dot rows %s, the air turns to ground at row %d' % (
                      ' '.join('%.1f' % y for y in sy), sky))
+    ahead = (0.0, still[1], side[2])
+    lx, ly, _w = project(far, onboard.sight(eye, ahead)[0], onboard.lens(),
+                         onboard.sight(eye, ahead)[1])
+    slope = (ly[2] - ly[0]) / (lx[2] - lx[0])
+    air = onboard.air(ahead[1], ahead[2])
+    seen = [max(range(1, onboard.HIGH), key=lambda k: air[k - 1, c, 2] - air[k, c, 2])
+            for c in (2, onboard.WIDE - 3)]
+    report.check('rolled, the horizon leans as much across the picture, and its air with it',
+                 abs(abs(slope) - math.tan(abs(side[2]))) < 0.02
+                 and (seen[1] - seen[0]) * slope > 0.0,
+                 'the far ground %.2f dot rows a column for a roll of %.1f deg; the air turns '
+                 'to ground at rows %d and %d, left and right' % (
+                     slope, math.degrees(side[2]), seen[0], seen[1]))
     gate = 1
     x, y, z = grounds.GATES[gate][:3]
 
