@@ -245,6 +245,6 @@ def step(law, row, frame, dt, pull, head=(0.0, 0.0), pitch=math.inf):
         * float(turn[1][1] >= math.cos(HELD_RAD)) * (1.0 - turning))
     law['sequence'] += 1
     return CompiledAeroPayload(
-        sequence_id=law['sequence'], blend_duration_ms=0,
+        sequence_id=law['sequence'], blend_duration_ms=int(round(1e3 * dt)),
         latent_targets=targets, stiffness=stiffness, damping=damping, cpg_enabled=0,
         cpg_frequency=0.0, cpg_amplitudes=[0.0] * K_MODES, task_constraints_mask=0)

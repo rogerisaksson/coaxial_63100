@@ -157,3 +157,8 @@ it names. A closed item is cut from the list and gets its line here, last.
     of the copper's heat round the course; the least a board held 54.8 A
     where 52.0, full tilt's four 2.2-3.7 A apart where 4.4-5.9
     ([streams](findings/streams.md)).
+48. A row is come to over its pass, the core's own blend, where it was
+    stepped in whole each 20 ms: a rotor's copper round the course 22.8 A
+    rms where 26.6, the least a board held 65.6 A where 54.8; the boards'
+    rows 90-92 % of the clamp's pull at the least in fourteen winds where
+    72-85, 34 flights of 34 whole ([streams](findings/streams.md)).

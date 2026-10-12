@@ -14,7 +14,7 @@ CLEAR_M = 0.25
 
 
 def reach():
-    """The frame from its middle to a propeller's tip, m."""
+    """Its middle to a propeller's tip, m."""
     from machine import quad
     return quad.reach()
 
@@ -320,7 +320,7 @@ def test_a_frame_of_another_size(report):
 def test_its_tilt_is_its_discs_own(report):
     """The tilt asked of the core, the frame's nose a quarter turn off the law's heading and a
     lean asked: the rotors' thrusts turn its discs the way of the lean, none across it; its
-    nose is turned back to its heading where the row holds it there, left where it is free."""
+    nose is turned back where the row holds it on its heading, left where it is free."""
     from machine import aerobatics, aerokin, quad
     from machine.figure import ry
     from tools.cores import aero
@@ -328,15 +328,15 @@ def test_its_tilt_is_its_discs_own(report):
     def moments(yawed, **row):
         """(the thrusts' moment along the lean, across it, about the upright) for a level
         frame turned `yawed` degrees about its upright, a slide along +x asked of it - a
-        lean its rotors turn it to with none at an end."""
+        lean no rotor ends on -, the row come to over a pass."""
         core, law, turn = aero.Core(), aerokin.fresh(), ry(math.radians(yawed))
         frame = {'turn': turn, 'spin': (0.0, 0.0, 0.0), 'vel': (0.0, 0.0, 0.0),
                  'at': (0.0, quad.HOVER_M, 0.0), 'h': quad.HOVER_M, 'v': 0.0}
         hover = [quad.MASS_KG * quad.GRAVITY / 4.0] * 4
         payload = aero.payload(aerokin.step(
             law, dict(aerobatics.HOVER, slide=0.02, **row), frame, 0.01, 60.0))
-        thrusts = list(core.step(payload, aero.reading(
-            frame, hover, [0.0] * 4, [50.0] * 4, quad.STEP_S)).thrust)
+        read = aero.reading(frame, hover, [0.0] * 4, [50.0] * 4, quad.STEP_S)
+        thrusts = [list(core.step(payload, read).thrust) for _ in range(5)][-1]
         arms = [(turn[0][0] * x + turn[0][2] * z, turn[2][0] * x + turn[2][2] * z)
                 for x, z in quad.ROTOR_AT]
         return (sum(n * x for n, (x, _z) in zip(thrusts, arms)),

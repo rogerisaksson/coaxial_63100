@@ -212,9 +212,10 @@ numbers beside:
   in three flights.
 - A bend's pull, up and down as across, is asked ahead by what the frame
   trails one (`course.trailed`): its tilt's damping over its stiffness, 57
-  ms, its rotors' lag, 20, and half the pass its row stands. Searched it
-  was 89 ms, 28.88 with a gate's frame 0.05 m inside its margin: derived,
-  28.87 and 0.11, fourteen winds whole and 0.07 inside at the least.
+  ms, its rotors' lag, 20, and the pass its row is come to over - half of
+  it while a row was stepped in whole. Searched then it was 89 ms, 28.88
+  with a gate's frame 0.05 m inside its margin: derived, 28.87 and 0.11,
+  fourteen winds whole and 0.07 inside at the least.
 - A bend's pull goes from one side to the other in half a turn of the
   tilt's own loop at the fastest (`course.swing`), 0.208 s: where its step
   stands at the far side. Searched it was 0.36 s. Gridded, 28.09 at 0.18
@@ -269,6 +270,17 @@ the current it holds gives; its rotor's thrust as given is its estimate's.
   where 52.0; full tilt's four 2.2-3.7 A apart at the most where 4.4-5.9;
   the race 28.24, whole. The loop ticked once a pass did the same, and a
   wreck's restart ran two rotors of four backwards.
+- A row stepped in whole each 20 ms is a staircase to the core, its rotors
+  at their slew after each step: 23 % of the copper's heat. Come to over
+  its pass (`aerokin.step`'s `blend_duration_ms`, the core's own blend):
+  22.8 A rms a rotor where 26.6, 5 % of its heat the passes' within a row
+  and 20 the rows', the least a board held 65.6 A where 54.8, the pack at
+  82 % after two laps where 80. The race 28.24, 28.23 in fourteen winds,
+  34 flights of 34 whole, a gate's frame 0.01 m inside its margin at the
+  least where 0.03, the crossings 0.02 m rms off their marks; the boards'
+  rows 90-92 % of the clamp's pull at the least in every wind where 72-85
+  (the law before 89-91), 78 in the stuffy room where 63, SOA 0.70-0.83
+  where 0.80-0.88, laps 13.9 and 14.1-14.3 s.
 - Four boards a pass of 2 ms: 0.20 s of this host a flight's second (0.28
   with a board's whole state read and its propeller's torque laid a pass;
   the law before, a pass of 20 ms, 0.12).

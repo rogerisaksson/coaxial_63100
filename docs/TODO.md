@@ -260,9 +260,6 @@ gets a line at the end of [DONE](DONE.md).
     forward struck every flight (streams.md). DOD: a row's force one the
     frame turns with - its turn and that turn's change inside the reach -,
     its rate in the payload; the axis's miss on a lap quoted.
-  + On four boards in a wind the rows have 76-82 % of the clamp's pull at
-    the least on a second lap, the law before 89-91 %: what the core's
-    passes of 2 ms spend.
   + WEP's reach: the loops' slew is the flight's clamp's; on WEP's a rotor
     near its idle is lost, braked or risen (envelope.md). DOD: the
     estimate's reach by speed on the stand-in, the loops' slew that.

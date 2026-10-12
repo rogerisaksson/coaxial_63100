@@ -171,11 +171,12 @@ def track():
 
 
 def trailed(dt):
-    """What the frame trails a pull asked of it by, s, a row standing `dt`: its tilt's
-    damping over its stiffness, its rotors' lag - a quarter of their spin - and half the row's
-    stand. Searched, 0.089 s where this is 0.087: a gate's frame 0.05 m inside its margin
-    where 0.11."""
-    return aerokin.TILT_D / aerokin.TILT_K + 0.25 * quad.SPIN_S + 0.5 * dt
+    """What the frame trails a pull asked of it by, s, a row of `dt`: its tilt's damping over
+    its stiffness, its rotors' lag - a quarter of their spin - and the pass its row is come to
+    over (`aerokin.step`'s blend), whole from the core's first pass of it. Searched on rows
+    stepped, 0.089 s where this was 0.087: a gate's frame 0.05 m inside its margin where
+    0.11."""
+    return aerokin.TILT_D / aerokin.TILT_K + 0.25 * quad.SPIN_S + dt - quad.STEP_S
 
 
 def swing():
