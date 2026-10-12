@@ -1,8 +1,8 @@
 """The quad's course: gates in the air among trees, houses and cars, a lap a line flown as rows.
 
     route = aerobatics.routine(course.CARD)                  # on the floor, its laps ahead
-    route['seen'] = flying.seen(sky.state(), dt)             # what the line's rows go by
-    name, flying.ask = aerobatics.fly(route, now, holds)     # the card's row, or the line's for now
+    route['seen'] = aerokin.seen(law, sky.state(), dt, pull, top)    # what the line's rows go by
+    name, row = aerobatics.fly(route, now, holds)            # the card's row, or the line's for now
 
 The line is a closed curve through every gate along its heading, a Hermite span a gate. The frame
 is flown along it as fast as its thrust lets it, pointed wherever it must - down, where a dive is
@@ -21,14 +21,16 @@ from machine import grounds, quad
 #: it stands: turned off the gate's heading, degrees; its tangent there, of TENSION's; where
 #: across and up its opening, m off its middle - its apex. It rises through a gate SLOPE of
 #: the way from the gate before it to the one after, the first level: level through each, a
-#: climb of 3.5 m in 12.5 was an S of 10 m/s^2 up and down at 10 m/s.
+#: climb of 3.5 m in 12.5 was an S of 10 m/s^2 up and down at 10 m/s. The places across and
+#: up are laid by flight: each moved by what the frame crossed its gate off the searched
+#: line's own crossing, till it was 0.01 m rms.
 TENSION, DS, LAPS, SLOPE = 1.098, 0.25, 2, 1.067
-WAYS = ((3.8, 0.988, -0.20, -0.20), (-20.5, 1.163, 0.14, -0.05), (-8.8, 1.036, -0.09, -0.23),
-        (1.6, 1.042, 0.20, 0.12), (-10.3, 0.722, 0.11, -0.04), (-6.4, 0.709, -0.44, -0.09),
-        (2.9, 1.348, 0.14, 0.02), (2.0, 0.741, -0.52, -0.09), (3.1, 0.767, -0.09, -0.22),
-        (-2.9, 0.780, -0.14, 0.05), (-6.3, 0.735, -0.21, -0.06), (-13.6, 0.936, 0.15, 0.03),
-        (-4.3, 1.209, -0.36, -0.11), (1.3, 0.818, -0.36, 0.09), (12.3, 1.091, 0.20, 0.11),
-        (3.1, 1.041, 0.29, -0.28))
+WAYS = ((3.8, 0.988, -0.14, 0.12), (-20.5, 1.163, 0.29, 0.01), (-8.8, 1.036, -0.01, -0.21),
+        (1.6, 1.042, 0.28, 0.15), (-10.3, 0.722, 0.12, -0.14), (-6.4, 0.709, -0.45, -0.04),
+        (2.9, 1.348, 0.18, 0.36), (2.0, 0.741, -0.42, -0.16), (3.1, 0.767, -0.06, -0.11),
+        (-2.9, 0.780, -0.09, 0.07), (-6.3, 0.735, -0.15, -0.02), (-13.6, 0.936, 0.16, 0.00),
+        (-4.3, 1.209, -0.29, -0.05), (1.3, 0.818, -0.50, 0.17), (12.3, 1.091, 0.12, 0.07),
+        (3.1, 1.041, 0.21, 0.05))
 
 #: The plan (raw - a dive pushed inverted, no level flight kept): a
 #: sphere about gravity, PULL of what the boards' envelopes leave of the rotors' thrust, the
@@ -227,11 +229,11 @@ def _along(speed, across, sphere, pitch):
 
 def line(route, now):
     """The lap's row for now (`aerobatics.fly`'s giver), by what `route['seen']` says
-    (`Flying.seen`) - where the frame is and goes, the law's spot and heading, the share of
+    (`aerokin.seen`) - where the frame is and goes, the law's spot and heading, the share of
     their pull the envelopes leave, the pass's seconds, whether it is `spent`: its speed the
-    one the bends ahead allow on that share of its lean and what the wind as learnt leaves of
-    it (`bend_speed`), along the line's way and back onto it, its bend's pull asked LEAD_S
-    ahead, its spot kept on the line. Its laps flown - spent, the one it is on - it stands in
+    one the bends ahead allow on that share of its lean, along the line's way and back onto
+    it, its bend's pull asked LEAD_S ahead, its spot kept on the line - the air none of its
+    own. Its laps flown - spent, the one it is on - it stands in
     the first gate, `lapped`. Where the line's turn swings, no faster than the bend's pull
     goes from one side to the other in SWING_S: v^3 a metre of swing is the pull's change a
     second."""
@@ -243,14 +245,13 @@ def line(route, now):
     n, step = len(line_['at']), line_['step']
     dt, heading = seen.get('dt', 0.0), seen.get('heading', 0.0)
     at, vel = seen.get('at', line_['at'][0]), seen.get('vel', (0.0, 0.0, 0.0))
-    wind = math.hypot(*seen.get('wind', (0.0, 0.0)))
     # the sphere it is planned on: PULL of what the envelopes leave, FLOOR of gravity at the
     # least - spent, PULL of the law's least was under gravity -, come to slowly
     whole = max(FLOOR * quad.GRAVITY, PULL * seen.get('pull', 2.0 * quad.GRAVITY))
     # at a share of all of it a second: of what is left, a stuffy room's spent boards were
     # asked twice what they had for 2 s and it flew into a house
     ease = PULL * seen.get('full', 2.0 * quad.GRAVITY) * dt / EASE_S
-    pull = lap['pull'] = whole if not lap['pull'] else max(lap['pull'] - ease, min(
+    sphere = lap['pull'] = whole if not lap['pull'] else max(lap['pull'] - ease, min(
         whole, lap['pull'] + 0.5 * ease))
     # where the frame is on the line, from where it was on
     s = nearest(line_, at, lap['k'], lap['k'] + int(REACH_M / step))
@@ -264,15 +265,14 @@ def line(route, now):
     # what the law takes the change of spans the pass to come: asked for where that ends
     on = min(end, s + along * dt / step)
     lead = min(end, on + LEAD_S * lap['v'] / step)
-    # as fast as the bends ahead allow in its sphere - the wind's drag across taking its share
-    # first - a bend at the speed all of it turns it, braked for on what the bend there leaves
+    # as fast as the bends ahead allow in its sphere: a bend at the speed all of it turns it,
+    # braked for on what the bend there leaves
     # along its way, the slope's and the drag's in it, run back from the far end of what is
     # looked at to where it is as much further on as its asked speed trails; to a stand at its
     # finish; sped up on what is left where it is, through the air along its discs
     soon = min(end, lead + SOFT_S * lap['v'] / step)
     base, far = int(soon), min(int(AHEAD_M / step), int(end - soon))
     drag = 0.5 * quad.RHO * quad.BODY_CDA / quad.MASS_KG
-    sphere = max(0.5 * pull, pull - drag * wind * (wind + lap['v']))
     swung, square = 2.0 * sphere / SWING_S, math.inf
     for j in range(far, -1, -1):
         rise, curve = line_['way'][(base + j) % n][1], line_['curve'][(base + j) % n]
@@ -316,7 +316,7 @@ def line(route, now):
     place = _on(line_['at'], max(s - slack, min(s + slack, end, nearest(
         line_, (spot[0], 0.0, spot[1]), k - int(slack), k + int(slack) + 1))))
     c, sn = math.cos(nose), math.sin(nose)
-    push = along * along * _on(line_['bends'], s)[1] + gained * way[1]
+    push = along * along * _on(line_['bends'], lead)[1] + gained * way[1]
     held = push + drag * along * along * way[1]
     return dict(RACE, height=here[1], climb=along * way[1], lean=LEAN_OVER * sphere, push=push,
                 light=min(RACE['light'], 1.0 + held / quad.GRAVITY - SLACK), x=place[0],

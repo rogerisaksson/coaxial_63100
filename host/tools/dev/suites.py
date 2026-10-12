@@ -112,7 +112,6 @@ REACH, TERMS = 'test_reach.py', 'test_terms.py'
 WBC_CORE, FLIGHT, WRENCH = 'test_wbc_core.py', 'test_flight.py', 'test_wrench.py'
 #: Orthokinematics: a text compiled, her latent loop, her walk on it, the page's gym.
 ORTHO = 'test_ortho.py'
-THRUSTS = 'test_thrusts.py'
 #: The frame's core (aero/) in a vacuum: its form, its share, its impedance; a text's streams
 #: compiled and flown on it.
 AERO_CORE, STREAMS = 'test_aero_core.py', 'test_quad_streams.py'
@@ -135,7 +134,7 @@ DEFAULT_SUITES = (STRUCTURES + (CORE, SHTP, DRIVE, DRIVE_OBSERVER, FILTER, THERM
                    BROKER, DAQ_API, CONTROLLER, GYNOID, GYNOID_FAULTS, GYNOID_FALLS,
                    GYNOID_STAND, GYNOID_GAIT, GYNOID_RUN, GYNOID_GOING, ROOM, SIGHT, REACH, TERMS, WBC,
                    WBC_CORE, FLIGHT, WRENCH, ORTHO, CYCLIC, QUAD,
-                   THRUSTS, AERO_CORE, STREAMS, QUAD_COURSE, BOOT)
+                   AERO_CORE, STREAMS, QUAD_COURSE, BOOT)
                   + VIEWS
                   + (RENDER,) + OLLAMA
                   + ('test_mcp.py', 'test_simulated.py', 'test_parity.py',

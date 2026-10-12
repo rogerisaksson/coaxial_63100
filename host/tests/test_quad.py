@@ -1,4 +1,5 @@
-"""The quad's flight: its routine (machine.aerobatics on machine.flying) on ideal rotors, its pack, its air."""
+"""The quad's flight: its routine (machine.aerobatics' rows, machine.aerokin's payloads on aero/)
+on ideal rotors, its pack, its air."""
 import functools
 import math
 import sys
@@ -16,21 +17,19 @@ FLOOR_S = 2.0
 
 @functools.lru_cache(maxsize=None)
 def flown(share=1.0, base=False, spent_at=None):
-    """The routine once round, a row a pass: machine.quad's frame in MuJoCo on rotors lagging
-    0.05 s to their speed, capped at the page's top, on `share` of their pull - only its
-    BASE rows, `base`; its pack spent from `spent_at` s until it has stood FLOOR_S on the floor,
-    and the flight ended as it lifts again."""
-    from machine import aerobatics, quad
-    from machine.flying import Flying
-    from terminal.views.quad.flight import TOP_RAD_S as top_rad_s
+    """The routine once round, a row a pass of 10 ms (`streams.asked`, `streams.flew`):
+    machine.quad's frame in MuJoCo on the core and its ideal rotors, on `share` of their pull
+    - only its BASE rows, `base`; its pack spent from `spent_at` s until it has stood FLOOR_S
+    on the floor, and the flight ended as it lifts again."""
+    from machine import aerobatics, aerokin, quad
+    from tools.sim import streams
     card = tuple(row for row in aerobatics.CARD if row[0] in BASE) if base else aerobatics.CARD
-    sky, route = quad.Sky(), aerobatics.routine(card)
-    flying = Flying(4.0 * quad.K_THRUST * top_rad_s ** 2, aerobatics.DOWN)
-    w, t, rows, flat, stood = [0.0] * 4, 0.0, [], False, 0.0
+    flight, route, law = streams.Flight(), aerobatics.routine(card), aerokin.fresh()
+    t, rows, flat, stood, heading = 0.0, [], False, 0.0, 0.0
     while t < 120.0:
         flat = flat or (spent_at is not None and t >= spent_at and stood < FLOOR_S)
-        holds = (['held'] if flying.held else []) + ['spent' if flat else 'fit']
-        name, flying.ask = aerobatics.fly(route, t, holds)
+        name, row = streams.asked(flight, route, law, t, 0.01, ('spent' if flat else 'fit',),
+                                  share)
         if flat and name == card[0][0]:
             stood += 0.01
             flat = stood < FLOOR_S
@@ -38,15 +37,14 @@ def flown(share=1.0, base=False, spent_at=None):
             break
         if rows and rows[-1]['name'] == card[-1][0] and name == card[0][0] and spent_at is None:
             break
-        for k, thrust in enumerate(flying.step(sky.state(), 0.01, share)):
-            w[k] += ((min(top_rad_s, quad.speed_for(thrust, flying.along)) - w[k])
-                     * min(1.0, 0.01 / 0.05))
-        sky.step(w, 0.01)
-        state = sky.state()
+        streams.flew(flight, route, law, row, 0.01, share)
+        state = flight.sky.state()
+        heading += row['turn'] * 0.01
         rows.append({'t': t, 'name': name, 'h': state['h'], 'v': state['v'], 'a': state['a'],
                      'x': float(state['at'][0]), 'z': float(state['at'][2]),
                      'tilt': math.degrees(math.acos(max(-1.0, min(1.0, float(state['turn'][1][1]))))),
-                     'heading': math.degrees(flying.heading), 'thrust': flying.thrust,
+                     'heading': heading,
+                     'thrust': sum(quad.K_THRUST * w * w for w in flight.w),
                      'spin': tuple(abs(float(s)) for s in state['spin']), 'flat': flat})
         t += 0.01
     return tuple(rows)
@@ -295,46 +293,44 @@ def test_its_air(report):
 
 
 def test_it_holds_in_wind(report):
-    """The law in the air, a hover at 5 m on the boards' rotors (quad_race.LAG_S past the
-    page's spool): in a constant wind it is held on its spot, the wind as it has learnt it the
-    wind on it - unlearnt, ten times as far off and never held; in gusts within half a metre."""
-    from machine import aerobatics, flying as law, quad
-    from terminal.views.quad.flight import SPOOL_RAD_S2, TOP_RAD_S
-    from tools.sim.quad_race import LAG_S
+    """A hover's row at 5 m in the air, the wind told to nothing: in a constant wind it is held
+    on its spot, the wind the core's observer holds the wind on it - with no observer of its
+    speed, ten times as far off and never held; in gusts within half a metre."""
+    from machine import aerobatics, aerokin, quad
+    from tools.cores import aero
+    from tools.sim import streams
 
-    def hover(kind, learn=True):
-        """(the furthest off its spot, m, the share of the passes held, how far the law's wind
-        was off the wind on it, m/s rms) over 20 s of the air, 12 s into it."""
-        was = law.AIR_S
-        law.AIR_S = was if learn else math.inf
+    def hover(kind, observed=True):
+        """(the furthest off its spot, m, the share of the passes held, how far the wind the
+        core holds was off the wind on the frame, m/s rms) over 20 s of the air, 12 s into
+        it."""
+        kept, aero.WO_PULL = aero.WO_PULL, aero.WO_PULL if observed else 0.0
         try:
-            sky, air = quad.Sky(), quad.air(3, kind)
-            flying = law.Flying(4.0 * quad.K_THRUST * TOP_RAD_S ** 2, dict(aerobatics.HOVER, height=5.0))
-            w, t, rows = [0.0] * 4, 0.0, []
-            while t < 40.0:
-                for k, thrust in enumerate(flying.step(sky.state(), 0.02, 1.0)):
-                    more = ((min(TOP_RAD_S, quad.speed_for(thrust, flying.along)) - w[k])
-                            * min(1.0, 0.02 / LAG_S))
-                    w[k] += max(-SPOOL_RAD_S2 * 0.02, min(SPOOL_RAD_S2 * 0.02, more))
-                wind = quad.blown(air, 0.02) if t >= 8.0 else (0.0, 0.0, 0.0)
-                sky.step(w, 0.02, air if t >= 8.0 else None)
-                t += 0.02
-                if t >= 20.0:
-                    s = sky.state()
-                    here = quad.wind_at(wind, s['h'])
-                    rows.append((math.hypot(float(s['at'][0]) - flying.spot[0],
-                                            float(s['at'][2]) - flying.spot[1]), flying.held,
-                                 math.hypot(flying.wind[0] - here[0], flying.wind[1] - here[2])))
+            flight = streams.Flight()
         finally:
-            law.AIR_S = was
+            aero.WO_PULL = kept
+        air = quad.air(3, kind)
+        route = aerobatics.routine((('hover', dict(aerobatics.HOVER, height=5.0), 1e9, 0.0, ''),))
+        law, t, rows = aerokin.fresh(), 0.0, []
+        while t < 40.0:
+            flight.air = air if t >= 8.0 else None
+            _name, row = streams.asked(flight, route, law, t)
+            streams.flew(flight, route, law, row)
+            t += streams.PASS_S
+            if t >= 20.0:
+                s = flight.sky.state()
+                wind, held = quad.wind_at(air['wind'], s['h']), flight.core.out.wind
+                rows.append((math.hypot(float(s['at'][0]) - law['spot'][0],
+                                        float(s['at'][2]) - law['spot'][1]), law['held'],
+                             math.hypot(held[0] - wind[0], held[2] - wind[2])))
         return (max(r[0] for r in rows), sum(r[1] for r in rows) / len(rows),
                 math.sqrt(sum(r[2] ** 2 for r in rows) / len(rows)))
     steady, blind, gusty = hover('constant'), hover('constant', False), hover('gusty')
     report.check('a wind of 4 m/s: on its spot within 0.2 m and held nine passes of ten, the '
-                 'wind learnt within 0.3 m/s of it; unlearnt, ten times as far off and never held',
+                 'wind held within 0.3 m/s of it; unobserved, ten times as far off and never held',
                  steady[0] <= 0.2 and steady[1] >= 0.9 and steady[2] <= 0.3
                  and blind[0] >= 10.0 * steady[0] and blind[1] <= 0.1,
-                 '%.2f m off, held %.0f %%, its wind %.2f m/s off; unlearnt %.2f m off, held '
+                 '%.2f m off, held %.0f %%, its wind %.2f m/s off; unobserved %.2f m off, held '
                  '%.0f %%' % (steady[0], 100.0 * steady[1], steady[2], blind[0], 100.0 * blind[1]))
     report.check('in gusts to 7 m/s within half a metre of its spot',
                  gusty[0] <= 0.5, '%.2f m off at the most, held %.0f %% of it' % (

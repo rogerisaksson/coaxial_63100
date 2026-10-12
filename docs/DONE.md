@@ -87,3 +87,7 @@ it names. A closed item is cut from the list and gets its line here, last.
     rising first: 0.61 m/s at 329 J/m, 2.59 off a woman's band for 7.71,
     none of the gaits it was by name; the first texts as given walk
     ([orthokinematics](findings/orthokinematics.md)).
+33. The page's flight and the race on their cards' rows, the law before
+    them gone; the core's air a wind, its rotors' loss made up along their
+    own axis: 34 flights of 34 whole in fourteen winds, laps 14.3 and
+    14.5-14.8 s ([streams](findings/streams.md)).

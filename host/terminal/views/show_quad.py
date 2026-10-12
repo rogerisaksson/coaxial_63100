@@ -5,7 +5,7 @@ drive sensorless on the 63100 outrunner's model under a 16x14 propeller, its spe
 on the drive's own estimate; the four on one pack, 63 V full, its bus drooping under what they
 take; the frame in MuJoCo on the rotors' thrust and drag, gravity and the air
 (terminal.views.quad.flight). It flies flight after flight: first its routine
-(machine.aerobatics on machine.flying's law) - a pirouette, an orbit and a corkscrew up, a roll
+(machine.aerobatics' rows, machine.aerokin's payloads on aero/) - a pirouette, an orbit and a corkscrew up, a roll
 and a flip over a toss, full tilt into the sky, the fall burned to a stop 10 cm over the floor -
 its boards and their thermal observers warmed on it; then the course (machine.course): two laps
 through sixteen gates - two slaloms, a climb, a dive, a hall's windows, an alley - raw, as fast
@@ -37,8 +37,7 @@ from coaxial import Coaxial63100
 from coaxial.errors import RigError
 from coaxial.draw.gauges import policy_word
 from coaxial.graphics import gpu, inset, onboard, quadcopter
-from machine import aerobatics, gimbal, grounds, quad
-from machine.flying import Flying
+from machine import aerobatics, aerokin, gimbal, grounds, quad
 from machine.modes import SIMULATED
 from terminal.loader import TO_MENU
 from terminal.ui.screen import FPS_CAP, Feed, closing, run_view, say
@@ -57,6 +56,12 @@ ROTORS = ('FL', 'FR', 'RR', 'RL')
 #: pass in twenty ran 50 ms, the routine's rows asked by the wall's clock moved further than
 #: their pass and the rotors' loops went to their clamp on what that looked like.
 PHYSICS_S, PASS_S = 0.01, 0.05
+
+#: The interpreter's threads change hands this often while the page flies, s: the flight's
+#: thread asks its boards and its core 40 000 times a second and gives way at each. At
+#: Python's own 5 ms it waited on the drawing's, a flight's second took 1.02 of the wall's
+#: and its clock ran 21 % behind; here 0.52, none behind, 15.6 frames a second where 16.3.
+SWITCH_S = 2e-4
 
 #: The camera: the reach framed about the quad on the floor before a flight and in the air, m,
 #: the pull from one to the other, s, its look down, degrees, its turn about the quad, degrees a
@@ -154,11 +159,12 @@ def hands(held, zoomed):
                 + [(k, lambda: held.update(carried=not held['carried'])) for k in 'cC'])
 
 
-def look(camera, flying, frame, chased, dt):
-    """The camera `dt` s on, (reach, centre): close on the floor, pulled back in the air,
-    turning slowly about the quad and trailing its climb; `chased` - on the course - wider,
-    come round behind its heading and framing ahead of it."""
-    aloft = flying.ask['height'] > 0.0
+def look(camera, law, row, frame, chased, dt):
+    """The camera `dt` s on, (reach, centre): close on the floor, pulled back in the air -
+    the `row` flown asks a height -, turning slowly about the quad and trailing its climb;
+    `chased` - on the course - wider, come round behind the law's heading and framing ahead
+    of it."""
+    aloft = row['height'] > 0.0
     want = NEAR_M if not aloft else CHASE_M if chased else FAR_M
     camera['reach'] += (want - camera['reach']) * min(1.0, dt / PULL_S)
     reach, (x, y, z) = camera['reach'] / camera['zoom'], (float(c) for c in frame['at'])
@@ -166,7 +172,8 @@ def look(camera, flying, frame, chased, dt):
     if not chased:
         camera['yaw'] += ORBIT_DEG_S * dt
         return reach, (x, y - trail, z)
-    behind = (math.degrees(flying.heading) + 180.0 - camera['yaw'] + 180.0) % 360.0 - 180.0
+    heading = math.degrees(math.atan2(law['heading'][1], law['heading'][0]))
+    behind = (heading + 180.0 - camera['yaw'] + 180.0) % 360.0 - 180.0
     camera['yaw'] += behind * min(1.0, CHASE_K * dt)
     ahead = [CHASE_S * float(frame['vel'][axis]) for axis in (0, 2)]
     far = max(1.0, math.hypot(ahead[0], ahead[1]) / (TRAIL_SHARE * reach))
@@ -212,7 +219,7 @@ def main(argv=None):
     sky, route, trace = quad.Sky(grounds.solids()), aerobatics.routine(flown.CARD), []
     began = time.monotonic()
     held = {'at': 0.0, 'clock': 0.0, 'frame': sky.state(), 'reset': False,
-            'wind': False, 'flying': Flying(flown.TOP_N, aerobatics.DOWN),
+            'wind': False, 'law': aerokin.fresh(),
             'flight': flown.fresh(), 'arrows': True, 'line': True, 'carried': True,
             'aim': gimbal.REST}
     camera = {'reach': NEAR_M, 'yaw': YAW, 't': None, 'zoom': 1.0}
@@ -243,13 +250,13 @@ def main(argv=None):
                 sky.reset()
                 route.pop('lap', None)
                 route.update(aerobatics.routine(flown.CARD), at=held['clock'])
-                held['flying'] = Flying(flown.TOP_N, aerobatics.DOWN)
+                flown.begun(held['law'], flight)
                 flown.reset(rotors)
                 trace.clear()
                 cells.update(quad.pack())
                 flight.update(apex=0.0, share=1.0, gone=0.0, stood=0.0, wreck=None)
                 camera['reach'] = NEAR_M
-            for clock, frame in flown.passed(rotors, sky, route, held['flying'], flight,
+            for clock, frame in flown.passed(rotors, sky, route, held['law'], flight,
                                              held['clock'], dt):
                 held['aim'] = gimbal.step(held['aim'], frame['turn'], frame['vel'],
                                           clock - held['clock'])
@@ -260,6 +267,8 @@ def main(argv=None):
             while trace and held['clock'] - trace[0][0] > traces.TRACE_S:
                 trace.pop(0)
 
+    switched = sys.getswitchinterval()
+    sys.setswitchinterval(SWITCH_S)
     feed = Feed(sample, period=PHYSICS_S).start()
     board_view = stage()
     terminal = board_view.is_terminal
@@ -271,7 +280,7 @@ def main(argv=None):
         dt = 0.0 if camera['t'] is None else now - camera['t']
         camera['t'] = now
         chased = flown.lined(route)
-        reach, centre = look(camera, held['flying'], frame, chased, dt)
+        reach, centre = look(camera, held['law'], held['flight']['row'], frame, chased, dt)
         width, height = size_of(board_view)
         gate = (held['flight']['lap'] or {}).get('gate', 1) if chased else None
         art = '\n'.join(quadcopter.render(
@@ -290,6 +299,7 @@ def main(argv=None):
                            on_input=lambda typed, _moved: [keys[k]() for k in typed if k in keys])
     finally:
         feed.stop()
+        sys.setswitchinterval(switched)
         done = []
         for rotor in rotors:
             with suppress(RigError):

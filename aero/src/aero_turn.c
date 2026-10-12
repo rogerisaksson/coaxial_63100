@@ -71,12 +71,12 @@ static void least_turn(const float from[AERO_AXES], const float to[AERO_AXES],
     first stood, its tilt taken out, turned on by the yaw rate asked. In the world that is a
     point on the sphere: the tilt's exponential (its series, no angle taken), come to along
     the sphere from where the axis was asked as the payload came. The thrust that makes the
-    collective along it in this air is that less the air's push - across it as far as `lean`
-    lets, the rotors' loss along it made up -: where that points the axis goes, its size the
-    lift. The miss is the tilt that takes the axis there, its sine, a unit past a quarter
-    turn: no turn about the axis in it, whatever the nose does, and none it cannot make on
-    its edge or its back. A dropped mode leaves its axis of the frame free: the other's miss
-    is what its own turn closes of the axis's offset across it. */
+    collective along it in this air is that less the air's push, across it as far as `lean`
+    lets: where that points the axis goes, its size the lift. The miss is the tilt that
+    takes the axis there, its sine, a unit past a quarter turn: no turn about the axis in
+    it, whatever the nose does, and none it cannot make on its edge or its back. A dropped
+    mode leaves its axis of the frame free: the other's miss is what its own turn closes of
+    the axis's offset across it. */
 void aero_refer(aero_t *s, const aero_payload_t *p, const aero_in_t *in, aero_out_t *out)
 {
   const float *w = s->now[AERO_WEIGHT];
@@ -89,7 +89,7 @@ void aero_refer(aero_t *s, const aero_payload_t *p, const aero_in_t *in, aero_ou
   const float  seen[AERO_AXES] = {in->r[3], in->r[4], in->r[5]};
   float        c = 0.0f, sc = 0.0f, level[AERO_AXES], want[AERO_AXES], turn[AERO_AXES];
   float        f[AERO_AXES], n[AERO_AXES], g[AERO_AXES], e[AERO_AXES], across[AERO_AXES];
-  float        hc, hs, norm, along, pushed, goes, size, lean, unit, trim;
+  float        hc, hs, norm, along, pushed, size, lean, unit, trim;
 
   (void)p;
   (void)out;
@@ -150,11 +150,10 @@ void aero_refer(aero_t *s, const aero_payload_t *p, const aero_in_t *in, aero_ou
   {
     s->stood[j] = in->r[3 * j] * e[0] + in->r[3 * j + 1] * e[1] + in->r[3 * j + 2] * e[2];
   }
-  /* the thrust for the collective along it in this air: the air's push taken out - across
-     the axis as far as `lean` lets -, the rotors' loss along it made up */
+  /* the thrust for the collective along it in this air: the air's push taken out, across
+     the axis as far as `lean` lets */
   pushed = s->air[0] * s->stood[0] + s->air[1] * s->stood[1] + s->air[2] * s->stood[2];
-  goes = in->vel[0] * s->stood[0] + in->vel[1] * s->stood[1] + in->vel[2] * s->stood[2];
-  along = most(wc * s->ask[AERO_THRUST] - pushed + s->lost * goes, TINY);
+  along = most(wc * s->ask[AERO_THRUST] - pushed, TINY);
   for (int j = 0; j < (int)AERO_AXES; j++)
   {
     across[j] = pushed * s->stood[j] - s->air[j];

@@ -3,7 +3,8 @@
 
 No branch in its sources; the active set against every set of rotors held at an end; the
 payload's stiffness and damping as the frame answers them where nothing else acts; a mode
-dropped, a blend, the oscillator, the observers, a height's constraints, the rotors' reach."""
+dropped, a blend, the oscillator, the observers, a wind, a height's constraints, the rotors'
+reach."""
 import glob
 import io
 import itertools
@@ -18,6 +19,7 @@ import subprocess
 import sys
 
 from tools.dev.focus import chosen
+from aero_kit import Vacuum, hover
 from gynoid_kit import Report
 
 #: What a pass may not hold: a jump the data decides.
@@ -31,87 +33,6 @@ FLAGGED = {
     'arm': r'\s(vcmpe?\.\w+|fcmpe?|fccmpe?|fcsel|csel|cset[m]?|csinc|csinv|csneg)\s',
 }
 JUMPS = {'x86': r'\s(j(?!mp)[a-z]+)\s', 'arm': r'\s(b\.?(?:eq|ne|cs|cc|mi|pl|vs|vc|hi|ls|ge|lt|gt|le|hs|lo)|cbn?z|tbn?z)\s'}
-
-#: A vacuum's pass, s: fine enough that the pass itself is no part of what is measured.
-FINE = 0.0002
-
-
-def _hover(k=5000.0, d=80.0, extra='', blend=0, sequence=1, pitch='0deg', roll='0deg',
-           thrust='9.81'):
-    """A payload: level - or `pitch`, `roll` - on the collective `thrust`, `k` and `d` on the
-    tilt's modes, `extra` blocks after."""
-    from machine import aerolisp
-    from tools.cores import aero
-    return aero.payload(aerolisp.compiled(
-        '(stream_inject (sequence_id %d) (blend_duration %dms) (latent_targets '
-        '(mode_collective_thrust %s) (mode_attitude_pitch %s) (mode_attitude_roll %s) '
-        '(mode_yaw_rate 0rad_s)) (impedance (stiffness mode_attitude_pitch %g) '
-        '(stiffness mode_attitude_roll %g) (damping global %g)) %s)'
-        % (sequence, blend, thrust, pitch, roll, k, k, d, extra))[0])
-
-
-class Vacuum:
-
-    """The frame as a rigid body with nothing on it but its rotors' thrusts and gravity -
-    and a push, m/s^2 in the world, and a twist, N m about its axes, where a test lays one.
-    The thrusts asked are given a pass on; `slew`: no faster than a rotor's speed changes,
-    rad/s^2."""
-
-    def __init__(self, dt=FINE, slew=None, height=5.0):
-        import numpy as np
-        from machine import quad
-        from tools.cores import aero
-        self.np, self.quad, self.aero = np, quad, aero
-        self.core, self.dt, self.slew = aero.Core(), dt, slew
-        self.turn, self.spin, self.vel = np.eye(3), np.zeros(3), np.zeros(3)
-        self.height, self.clock = height, 0.0
-        self.given = [quad.MASS_KG * quad.GRAVITY / 4.0] * 4
-        self.push, self.twist = np.zeros(3), np.zeros(3)
-
-    def tilted(self, about, rad):
-        """The frame turned `rad` about its own axis `about` (0 its wing, 2 its nose)."""
-        self.turn = self.turn @ self._turned(about, rad)
-
-    def _turned(self, about, rad):
-        np = self.np
-        c, s = math.cos(rad), math.sin(rad)
-        a, b = (about + 1) % 3, (about + 2) % 3
-        out = np.eye(3)
-        out[a, a], out[a, b], out[b, a], out[b, b] = c, -s, s, c
-        return out
-
-    def state(self):
-        return {'turn': self.turn, 'spin': self.spin, 'vel': self.vel, 'h': self.height}
-
-    def step(self, payload):
-        """One pass on `payload`: the core's answer."""
-        np, quad, dt = self.np, self.quad, self.dt
-        if self.slew is None:
-            lo, hi = [0.0] * 4, [200.0] * 4
-        else:
-            w = [math.sqrt(f / quad.K_THRUST) for f in self.given]
-            lo = [quad.K_THRUST * max(0.0, x - self.slew * dt) ** 2 for x in w]
-            hi = [quad.K_THRUST * (x + self.slew * dt) ** 2 for x in w]
-        out = self.core.step(payload, self.aero.reading(self.state(), self.given, lo, hi, dt))
-        self.given = [float(f) for f in out.thrust]
-        lift = sum(self.given)
-        torque = np.array([
-            -sum(f * z for f, (_x, z) in zip(self.given, quad.ROTOR_AT)),
-            sum(f * s for f, s in zip(self.given, quad.SPIN)) * quad.K_DRAG / quad.K_THRUST,
-            sum(f * x for f, (x, _z) in zip(self.given, quad.ROTOR_AT))]) + self.twist
-        inertia = np.array(quad.INERTIA)
-        self.spin = self.spin + dt * (torque - np.cross(self.spin, inertia * self.spin)) / inertia
-        for about in range(3):
-            self.turn = self.turn @ self._turned(about, self.spin[about] * dt)
-        acc = lift / quad.MASS_KG * self.turn[:, 1] - np.array([0.0, quad.GRAVITY, 0.0]) + self.push
-        self.vel = self.vel + dt * acc
-        self.height += dt * self.vel[1]
-        self.clock += dt
-        return out
-
-    def nose(self):
-        """The nose's rise, rad."""
-        return math.asin(max(-1.0, min(1.0, self.turn[1][2])))
 
 
 def test_a_pass_has_no_branch(report):
@@ -227,7 +148,7 @@ def test_the_payloads_impedance_in_a_vacuum(report):
     back as its payload's stiffness and damping say - theta'' = -k theta - d theta', its
     period and its overshoot's the closed form's."""
     for k, d in ((5000.0, 80.0), (1500.0, 25.0), (400.0, 30.0), (8000.0, 180.0)):
-        frame, payload = Vacuum(), _hover(k, d)
+        frame, payload = Vacuum(), hover(k, d)
         off = math.radians(0.5)
         frame.tilted(0, -off)                       # nose up
         zeta, wn = d / (2.0 * math.sqrt(k)), math.sqrt(k)
@@ -275,7 +196,7 @@ def test_a_dropped_mode_is_masked(report):
     report.check('the mode beside it answered the closing way from every such attitude',
                  all(row[0][3] < -0.1 for row in asked),
                  '%s N m about the nose' % ' '.join('%.3f' % row[0][3] for row in asked))
-    frame, away = Vacuum(), _hover(extra='', sequence=2)
+    frame, away = Vacuum(), hover(extra='', sequence=2)
     frame.tilted(0, 0.3)
     report.check('tracked, the same miss is answered',
                  abs(frame.step(away).asked[1]) > 0.1)
@@ -289,10 +210,10 @@ def test_a_payload_is_blended_in_and_swung(report):
     from machine import aerolisp
     from tools.cores import aero
     frame = Vacuum(dt=0.002)
-    first = _hover(1000.0, 60.0)
+    first = hover(1000.0, 60.0)
     for _ in range(5):
         frame.step(first)
-    second = _hover(3000.0, 20.0, blend=200, sequence=2, pitch='-20deg', thrust='12')
+    second = hover(3000.0, 20.0, blend=200, sequence=2, pitch='-20deg', thrust='12')
     seen = []
     for n in range(150):
         out = frame.step(second)
@@ -312,7 +233,7 @@ def test_a_payload_is_blended_in_and_swung(report):
         '(mode_collective_thrust 9.81) (mode_attitude_pitch ignore)))')[0])
     for _ in range(100):
         frame.step(dropped)
-    back = _hover(1000.0, 60.0, blend=100, sequence=4, pitch='30deg')
+    back = hover(1000.0, 60.0, blend=100, sequence=4, pitch='30deg')
     frame.step(back)
     targets, _w = frame.core.row(aero.TARGET)
     weights, _w = frame.core.row(aero.WEIGHT)
@@ -343,7 +264,7 @@ def test_the_observers_take_what_pushes(report):
     gathered while they learnt it - the push over half the observer's bandwidth -, its height's
     own with it, and the twist leaves its attitude where it was asked."""
     from tools.cores import aero
-    frame, payload = Vacuum(dt=0.002), _hover()
+    frame, payload = Vacuum(dt=0.002), hover()
     frame.push[0], frame.twist[0] = 1.5, 0.4
     for _ in range(int(3.0 / frame.dt)):
         out = frame.step(payload)
@@ -359,6 +280,27 @@ def test_the_observers_take_what_pushes(report):
                  '%.2f deg of %.2f, %.3f m/s' % (lean, math.degrees(math.atan2(1.5, 9.81)), speed))
     report.check('its height kept under the lean', abs(frame.vel[1]) < 0.01,
                  '%.4f m/s up' % frame.vel[1])
+    report.check('in no air, no wind held', max(abs(x) for x in out.wind) == 0.0,
+                 '%s m/s' % ' '.join('%.3f' % x for x in out.wind))
+
+
+def test_a_wind_is_told_from_a_push(report):
+    """In a wind the speed's observer comes to hold that wind, the frame leans against it and
+    keeps the speed its learning cost; the wind come round a quarter turn, it is held again."""
+    wind = (4.0, 0.0, -3.0)
+    frame, payload = Vacuum(dt=0.002, wind=wind), hover()
+    for _ in range(int(6.0 / frame.dt)):
+        out = frame.step(payload)
+    off = max(abs(a - b) for a, b in zip(out.wind, wind))
+    speed = math.sqrt(sum(x * x for x in frame.vel))
+    report.check('a wind of 5 m/s: held within 0.05 m/s, the frame still within 0.5 m/s',
+                 off < 0.05 and speed < 0.5, '%.3f m/s off it, the frame at %.2f m/s' % (off, speed))
+    frame.wind = frame.np.array((3.0, 0.0, 4.0))
+    for _ in range(int(3.0 / frame.dt)):
+        out = frame.step(payload)
+    off = max(abs(a - b) for a, b in zip(out.wind, frame.wind))
+    report.check('come round a quarter turn: held again within 0.05 m/s', off < 0.05,
+                 '%.3f m/s off it' % off)
 
 
 def test_a_height_is_held_and_capped(report):
@@ -367,7 +309,7 @@ def test_a_height_is_held_and_capped(report):
     payload came and no further."""
     for began in (0.5, 4.0):
         frame = Vacuum(dt=0.002, height=began)
-        payload = _hover(extra='(task_constraints (maintain_altitude 2.0m))')
+        payload = hover(extra='(task_constraints (maintain_altitude 2.0m))')
         heights = []
         for _ in range(int(4.0 / frame.dt)):
             frame.step(payload)
@@ -378,7 +320,7 @@ def test_a_height_is_held_and_capped(report):
                      '%.3f m, %.4f m/s, %.2f..%.2f m on the way' % (
                          frame.height, frame.vel[1], min(heights), max(heights)))
     frame = Vacuum(dt=0.002, height=3.0)
-    payload = _hover(thrust='19.62', extra='(task_constraints (limit_vertical_ascent 2.5m))')
+    payload = hover(thrust='19.62', extra='(task_constraints (limit_vertical_ascent 2.5m))')
     most = 0.0
     for _ in range(int(5.0 / frame.dt)):
         frame.step(payload)
@@ -396,10 +338,10 @@ def test_a_miss_past_the_reach_is_closed_as_fast_as_it_stops(report):
     from machine import quad
     step = math.radians(45.0)
     frame = Vacuum(dt=0.002, slew=2900.0)
-    hover = _hover(5000.0, 80.0)
+    level = hover(5000.0, 80.0)
     for _ in range(50):
-        frame.step(hover)
-    asked = _hover(5000.0, 80.0, sequence=2, pitch='45deg')
+        frame.step(level)
+    asked = hover(5000.0, 80.0, sequence=2, pitch='45deg')
     arrived, most = None, 0.0
     for _ in range(int(1.5 / frame.dt)):
         frame.step(asked)
@@ -421,7 +363,7 @@ def test_a_miss_past_the_reach_is_closed_as_fast_as_it_stops(report):
 ROSTER = (test_a_pass_has_no_branch, test_the_share_is_the_best_of_every_set,
           test_the_payloads_impedance_in_a_vacuum, test_a_dropped_mode_is_masked,
           test_a_payload_is_blended_in_and_swung, test_the_observers_take_what_pushes,
-          test_a_height_is_held_and_capped,
+          test_a_wind_is_told_from_a_push, test_a_height_is_held_and_capped,
           test_a_miss_past_the_reach_is_closed_as_fast_as_it_stops)
 
 

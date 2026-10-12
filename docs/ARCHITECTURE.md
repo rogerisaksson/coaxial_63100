@@ -286,7 +286,8 @@ tests/              suites, .counts.json (measured sizes)
 - The quad's streams: `test_aero_core.py` holds aero/ to its form - no
   branch in its sources, no flag set from its data in this host's code -,
   its share to the best of every set of rotors held at an end, its
-  impedance to the closed form in a vacuum; `test_quad_streams.py` the
+  impedance to the closed form in a vacuum, a wind told from a push
+  (`aero_kit.py` its rig); `test_quad_streams.py` the
   text's payloads and the power loop flown, a hover in the tour's air and
   from upsets, the page's routine and the course from their cards' rows.
 - The stand-in is the emulated world's reference: `tools/dev/ab.py` runs a

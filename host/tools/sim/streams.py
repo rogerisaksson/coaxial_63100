@@ -67,11 +67,13 @@ def tilt(turn):
 class Flight:
 
     """The frame on the floor - or `at` (x, m up, z), hovering -, its core and its four ideal
-    rotors; `air` the flight's (`quad.air`), or still."""
+    rotors; `air` the flight's (`quad.air`), or still. The rotors' top, their spool and their
+    lag are its own (`top`, `spool`, `lag`): TOP_RAD_S, SPOOL_RAD_S2 and LAG_S as built."""
 
     def __init__(self, air=None, at=None, things=()):
         self.sky, self.core, self.air = quad.Sky(things), aero.Core(), air
-        self.w, self.clock, self.dt = [0.0] * 4, 0.0, quad.STEP_S
+        self.w, self.clock, self.dt, self.owed = [0.0] * 4, 0.0, quad.STEP_S, 0.0
+        self.top, self.spool, self.lag = TOP_RAD_S, SPOOL_RAD_S2, LAG_S
         if at is not None:
             self.sky.data.qpos[0:3] = (at[0], at[1] + quad.SKID_M + quad.FOOT_M, at[2])
             self.w = [quad.speed_for(quad.MASS_KG * quad.GRAVITY / 4.0)] * 4
@@ -85,11 +87,11 @@ class Flight:
         """One pass on `payload`: (the frame as read, the core's answer)."""
         dt, state = self.dt, self.sky.state()
         out = self.core.step(payload, aero.reading(state, *aero.reach(
-            self.w, self.w, dt, SPOOL_RAD_S2, quad.IDLE_RAD_S, TOP_RAD_S), dt))
-        gain = min(1.0, dt / LAG_S)
+            self.w, self.w, dt, self.spool, quad.IDLE_RAD_S, self.top), dt))
+        gain = min(1.0, dt / self.lag)
         for k, want in enumerate(aero.speeds(out.thrust)):
-            more = (min(TOP_RAD_S, self.w[k] + (want - self.w[k]) / gain) - self.w[k]) * gain
-            self.w[k] += max(-SPOOL_RAD_S2 * dt, min(SPOOL_RAD_S2 * dt, more))
+            more = (min(self.top, self.w[k] + (want - self.w[k]) / gain) - self.w[k]) * gain
+            self.w[k] += max(-self.spool * dt, min(self.spool * dt, more))
         if self.air:
             quad.blown(self.air, dt)
         self.sky.step(self.w, dt, self.air)
@@ -106,10 +108,10 @@ class Boards:
         from coaxial import Coaxial63100
         from machine.modes import SIMULATED
         from terminal.views.quad import flight as view
-        self.view, self.sky, self.core = view, quad.Sky(things), aero.Core()
+        self.view, self.sky, self.core, self.top = view, quad.Sky(things), aero.Core(), TOP_RAD_S
         self.rotors = [view.arm(Coaxial63100(execution_mode=SIMULATED).open()) for _ in range(4)]
         self.flight: dict[str, Any] = dict(view.fresh(), air=air)
-        self.clock, self.dt, self.peak = 0.0, view.STEP_S, {}
+        self.clock, self.dt, self.peak, self.owed = 0.0, view.STEP_S, {}, 0.0
 
     def step(self, payload):
         """One step of the flight on `payload`: (the frame as read, the core's last answer)."""
@@ -180,27 +182,49 @@ def flown(flight, payloads, seconds, near=None):
     return rows
 
 
+def top(flight):
+    """All a flight's rotors give a kg at their top, m/s^2."""
+    return 4.0 * quad.K_THRUST * flight.top ** 2 / quad.MASS_KG
+
+
+def asked(flight, route, law, clock, dt=PASS_S, words=('fit',), share=1.0):
+    """A card's row for `clock`, (its figure's name, the row): what the row's giver may know
+    laid in the route (`aerokin.seen`, `spent` among `words` its word), the card moved on
+    where its row is up and what it waits for is among `words` or the law's own `held`
+    (`aerobatics.fly`). The pass to come `dt` s, planned on `share` of the rotors' pull."""
+    full = top(flight)
+    route['seen'] = dict(aerokin.seen(law, flight.sky.state(), dt, share * aerokin.HEADROOM * full,
+                                      full), spent='spent' in words)
+    return aerobatics.fly(route, clock, (['held'] if law['held'] else []) + list(words))
+
+
+def flew(flight, route, law, row, dt=PASS_S, share=1.0, emergency=None):
+    """`row` flown a pass of `dt` s: the payload it is of the frame as it flies
+    (`aerokin.step`, in the heading the core holds, its reach as the air along its rotors'
+    axis leaves it), the flight's own passes on that - as many as the seconds owed hold, the
+    rest owed the next pass: a pass of 7.5 ms flown as four of 2 was 7 % of a second gained
+    a second."""
+    payload = aero.payload(aerokin.step(
+        law, row, flight.sky.state(), dt, share * aerokin.HEADROOM * top(flight),
+        tuple(flight.core.out.head), emergency, route['seen']['pitch']))
+    count = int((flight.owed + dt) / flight.dt + 1e-9)
+    flight.owed += dt - count * flight.dt
+    for _ in range(count):
+        flight.step(payload)
+
+
 def routine(flight, card, seconds=150.0, share=1.0):
     """A card flown once through from its rows, nothing above them: a pass of PASS_S the
-    card's row for now (`aerobatics.fly`), the payload that row is of the frame as it flies
-    (`aerokin.step`, in the heading the core holds), the flight's passes on it - planned on
-    `share` of the rotors' pull - till the card comes round, a thing is struck or `seconds`
-    are up. A row a figure as it came: {'name', 'passes': [(clock, the frame, the lap it is on
-    or None)]}."""
-    top = symbols()['MAX_SYS_THRUST']
-    pull = share * aerokin.HEADROOM * top
+    card's row for now (`asked`), that row flown (`flew`) - planned on `share` of the
+    rotors' pull - till the card comes round, a thing is struck or `seconds` are up. A row a
+    figure as it came: {'name', 'passes': [(clock, the frame, the lap it is on or None)]}."""
     route, law, rows, clock, left = aerobatics.routine(card), aerokin.fresh(), [], 0.0, False
     while clock < seconds:
-        frame = flight.sky.state()
-        route['seen'] = dict(aerokin.seen(law, frame, PASS_S, pull, top), spent=False)
-        name, row = aerobatics.fly(route, clock, (['held'] if law['held'] else []) + ['fit'])
-        if frame['hit'] or (left and route['row'] == 0):
+        name, row = asked(flight, route, law, clock, PASS_S, ('fit',), share)
+        if flight.sky.state()['hit'] or (left and route['row'] == 0):
             break
         left = left or route['row'] != 0
-        payload = aero.payload(aerokin.step(law, row, frame, PASS_S, pull,
-                                            tuple(flight.core.out.head)))
-        for _ in range(max(1, int(round(PASS_S / flight.dt)))):
-            flight.step(payload)
+        flew(flight, route, law, row, PASS_S, share)
         clock += PASS_S
         if not rows or rows[-1]['name'] != name:
             rows.append({'name': name, 'passes': []})

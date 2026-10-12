@@ -15,12 +15,15 @@
 #define SHORT   1e-3f
 /** The lift's weight in the share at the least, of its own: a row of none has no curvature. */
 #define FAINT   0.01f
-/** A drag's size is learnt from 2 m/s on, the rotors' loss from 1 m/s of air through them at
-    a hover's thrusts: their terms' squares under these, the push's. */
-#define SLOW    16.0f
-#define LOST    20.0f
+/** A wind is told from a push where the air's forces turn with it by this much of the
+    push's bandwidth, 1/s a rad/s: under it, as much less of it. */
+#define CALM    0.013f
+/** The observers learn from this far over the floor, m. */
+#define ALOFT   0.03f
 
 static const float UP[AERO_AXES] = {0.0f, 1.0f, 0.0f};
+/** The axis after an axis, and the one after that. */
+static const uint8_t NEXT[AERO_AXES] = {1U, 2U, 0U}, AFTER[AERO_AXES] = {2U, 0U, 1U};
 
 /** The attitude's modes: their targets are one point, blended where it is made. */
 static const float ANGLE[AERO_MODES] = {0.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f};
@@ -94,21 +97,29 @@ static void swing(aero_t *s, const aero_payload_t *p, const aero_in_t *in, aero_
 /** The observers a pass on: the frame's rates and its speed against what the rotors' thrusts
     as given, its own inertia (spin x J spin) and gravity account for; what is left is theirs
     - the air, the rotors' precession, a weak rotor, the floor. The speed's holds the air as
-    what it is made of: a drag on the frame's own speed squared, what the rotors lose to the
-    air along their axis - a thrust's root times that air's speed - and a push beside them.
-    The first two are sizes, learnt: a drag turns with the speed through a bend and the loss
-    with the axis through a tilt, where a push alone trailed both. What the speed is off by
-    is shared between the three by least squares, a size given none where its own term is
-    next to none. Begun on the first reading. */
+    a wind: the frame's drag on its speed through it, squared, and what the rotors lose to
+    it along their axis - a thrust's root times that speed -, both the frame's own sizes;
+    and a push beside them, the quick one. What the push holds is laid to the wind at
+    `wo_wind`, as far as those two turn with a wind - their slope by it M = a (I + u u^T) +
+    g n n^T, the wind (M M + r I)^-1 M push: damped least squares, none where no air is -
+    and the push gives up what that wind makes: through a bend the drag turns with the
+    frame's speed, where a push alone trailed it. Begun on the first reading, and anew each
+    pass on the floor: what holds the frame there is the floor's, and a push, a wind or a
+    twist held from the air goes with it. */
 static void observe(aero_t *s, const aero_payload_t *p, const aero_in_t *in, aero_out_t *out)
 {
   const float dt = in->dt, wt = s->p.wo_turn, wp = s->p.wo_pull;
   const float *n = s->p.inertia;
-  const float fast = sqrtf(in->vel[0] * in->vel[0] + in->vel[1] * in->vel[1]
-                           + in->vel[2] * in->vel[2]);
-  const float through = in->vel[0] * in->r[1] + in->vel[1] * in->r[4] + in->vel[2] * in->r[7];
-  float       lift = 0.0f, roots = 0.0f, drag[AERO_AXES], loss[AERO_AXES], off[AERO_AXES];
-  float       dd = SLOW, ll = LOST, dl = 0.0f, de = 0.0f, le = 0.0f, det, more, less;
+  const float axis[AERO_AXES] = {in->r[1], in->r[4], in->r[7]};
+  const float u[AERO_AXES] = {in->vel[0] - s->wind[0], in->vel[1] - s->wind[1],
+                              in->vel[2] - s->wind[2]};
+  const float fast = sqrtf(u[0] * u[0] + u[1] * u[1] + u[2] * u[2]);
+  const float unit = 1.0f / most(fast, TINY);
+  const float through = u[0] * axis[0] + u[1] * axis[1] + u[2] * axis[2];
+  const uint32_t live = s->begun & lt(ALOFT, in->height);
+  const float floored = 1.0f - one(lt(ALOFT, in->height));
+  float       lift = 0.0f, roots = 0.0f, alpha, gamma, det;
+  float       m[AERO_AXES][AERO_AXES], sq[AERO_AXES][AERO_AXES], y[AERO_AXES], dw[AERO_AXES];
   float       about[AERO_AXES] = {-(n[2] - n[1]) * in->spin[1] * in->spin[2],
                                   -(n[0] - n[2]) * in->spin[2] * in->spin[0],
                                   -(n[1] - n[0]) * in->spin[0] * in->spin[1]};
@@ -123,45 +134,74 @@ static void observe(aero_t *s, const aero_payload_t *p, const aero_in_t *in, aer
     about[1] += in->given[i] * s->p.spin[i] * s->p.kappa;
     about[2] += in->given[i] * s->p.at_x[i];
   }
-  roots /= s->p.mass;
+  alpha = s->p.drag * fast;
+  gamma = s->p.inflow * roots / s->p.mass;
   for (int a = 0; a < (int)AERO_AXES; a++)
   {
-    const float spin = pick(s->begun, in->spin[a], s->spin_hat[a]);
-    const float vel = pick(s->begun, in->vel[a], s->vel_hat[a]);
-    const float e = in->spin[a] - spin;
+    const float spin = pick(live, in->spin[a], s->spin_hat[a]);
+    const float vel = pick(live, in->vel[a], s->vel_hat[a]);
+    const float e = in->spin[a] - spin, off = in->vel[a] - vel;
 
-    drag[a] = -fast * in->vel[a];
-    loss[a] = -through * roots * in->r[3 * a + 1];
-    off[a] = in->vel[a] - vel;
     s->spin_hat[a] = spin + dt * (about[a] / n[a] + s->turn_hat[a] + 2.0f * wt * e);
-    s->turn_hat[a] += dt * wt * wt * e;
-    s->vel_hat[a] = vel + dt * (lift / s->p.mass * in->r[3 * a + 1] - UP[a] * s->p.gravity
-                                + s->push_hat[a] + s->drag_hat * drag[a]
-                                + s->loss_hat * loss[a] + 2.0f * wp * off[a]);
-    dd += drag[a] * drag[a];
-    ll += loss[a] * loss[a];
-    dl += drag[a] * loss[a];
-    de += drag[a] * off[a];
-    le += loss[a] * off[a];
+    s->turn_hat[a] += dt * wt * (wt * e - floored * s->turn_hat[a]);
+    s->vel_hat[a] = vel + dt * (lift / s->p.mass * axis[a] - UP[a] * s->p.gravity
+                                + s->push_hat[a] - alpha * u[a] - gamma * through * axis[a]
+                                + 2.0f * wp * off);
+    s->push_hat[a] += dt * wp * (wp * off - floored * s->push_hat[a]);
+    s->air[a] = s->push_hat[a] - alpha * u[a];
+    s->flow[a] = u[a];
   }
-  det = dd * ll - dl * dl;
-  more = (ll * de - dl * le) / det;
-  less = (dd * le - dl * de) / det;
-  s->drag_hat = most(0.0f, s->drag_hat + dt * wp * wp * more);
-  s->loss_hat = most(0.0f, s->loss_hat + dt * wp * wp * less);
-  s->lost = s->loss_hat * roots;
+  /* the wind that makes the push: M, M push, M M + r I and that by its cofactors */
   for (int a = 0; a < (int)AERO_AXES; a++)
   {
-    s->push_hat[a] += dt * wp * wp * (off[a] - more * drag[a] - less * loss[a]);
-    s->air[a] = s->push_hat[a] + s->drag_hat * drag[a];
+    y[a] = 0.0f;
+    for (int b = 0; b < (int)AERO_AXES; b++)
+    {
+      m[a][b] = alpha * u[a] * unit * u[b] * unit + gamma * axis[a] * axis[b];
+    }
+    m[a][a] += alpha;
   }
+  for (int a = 0; a < (int)AERO_AXES; a++)
+  {
+    for (int b = 0; b < (int)AERO_AXES; b++)
+    {
+      y[a] += m[a][b] * s->push_hat[b];
+      sq[a][b] = m[a][0] * m[0][b] + m[a][1] * m[1][b] + m[a][2] * m[2][b];
+    }
+    sq[a][a] += CALM * CALM * wp * wp;
+  }
+  for (int a = 0; a < (int)AERO_AXES; a++)
+  {
+    dw[a] = 0.0f;
+    for (int b = 0; b < (int)AERO_AXES; b++)
+    {
+      const float co = sq[NEXT[b]][NEXT[a]] * sq[AFTER[b]][AFTER[a]]
+                       - sq[NEXT[b]][AFTER[a]] * sq[AFTER[b]][NEXT[a]];
+
+      dw[a] += co * y[b];
+    }
+  }
+  det = sq[0][0] * (sq[1][1] * sq[2][2] - sq[1][2] * sq[2][1])
+        - sq[0][1] * (sq[1][0] * sq[2][2] - sq[1][2] * sq[2][0])
+        + sq[0][2] * (sq[1][0] * sq[2][1] - sq[1][1] * sq[2][0]);
+  for (int a = 0; a < (int)AERO_AXES; a++)
+  {
+    dw[a] *= (1.0f - floored) * dt * s->p.wo_wind / most(det, TINY);
+  }
+  for (int a = 0; a < (int)AERO_AXES; a++)
+  {
+    s->push_hat[a] -= m[a][0] * dw[0] + m[a][1] * dw[1] + m[a][2] * dw[2];
+    s->wind[a] += dw[a] - dt * wp * floored * s->wind[a];
+  }
+  s->lost = gamma;
   s->begun = ~0U;
 }
 
 /** The lift inside its task constraints: a height held is come to at `rise` from either
     side, a height risen from the payload's coming is a ceiling; neither while the rotors'
     axis lies flat or under. Then as much of it as the axis points where it is asked: none
-    while it points away. */
+    while it points away; and what the rotors lose to the air along their axis, whatever
+    they are asked. */
 static void pull(aero_t *s, const aero_payload_t *p, const aero_in_t *in, aero_out_t *out)
 {
   const uint32_t can = lt(UPRIGHT, in->r[4]);
@@ -170,9 +210,8 @@ static void pull(aero_t *s, const aero_payload_t *p, const aero_in_t *in, aero_o
   const uint32_t caps = can & set((p->constraints >> AERO_ASCENT) & 1U)
                         & known(p->constraint[AERO_ASCENT]);
   const float    rise = s->p.rise, each = s->p.mass / most(in->r[4], UPRIGHT);
-  const float    through = in->vel[0] * in->r[1] + in->vel[1] * in->r[4] + in->vel[2] * in->r[7];
-  const float    free = s->p.gravity - s->air[1] + s->lost * through * in->r[4]
-                        - 2.0f * rise * in->vel[1];
+  const float    through = s->flow[0] * in->r[1] + s->flow[1] * in->r[4] + s->flow[2] * in->r[7];
+  const float    free = s->p.gravity - s->air[1] - 2.0f * rise * in->vel[1];
   const float    held = each * (free - rise * rise
                                 * (in->height - clean(p->constraint[AERO_MAINTAIN])));
   const float    capped = each * (free - rise * rise
@@ -180,7 +219,8 @@ static void pull(aero_t *s, const aero_payload_t *p, const aero_in_t *in, aero_o
 
   (void)out;
   s->lift = most(s->lift, pick(holds, 0.0f, held));
-  s->lift = s->aim * least(s->lift, least(pick(holds, FREE, held), pick(caps, FREE, capped)));
+  s->lift = s->aim * least(s->lift, least(pick(holds, FREE, held), pick(caps, FREE, capped)))
+            + s->now[AERO_WEIGHT][AERO_THRUST] * s->p.mass * s->lost * through;
 }
 
 /** The thrusts for the lift and the torques inside each rotor's reach (`aero_share`), each
@@ -197,7 +237,7 @@ static void share(aero_t *s, const aero_payload_t *p, const aero_in_t *in, aero_
   float       low[AERO_WRENCH] = {0.0f, 0.0f, 0.0f, 0.0f};
   float       high[AERO_WRENCH] = {0.0f, 0.0f, 0.0f, 0.0f};
   double      want[AERO_WRENCH], f[AERO_ROTORS];
-  const float through = in->vel[0] * in->r[1] + in->vel[1] * in->r[4] + in->vel[2] * in->r[7];
+  const float through = s->flow[0] * in->r[1] + s->flow[1] * in->r[4] + s->flow[2] * in->r[7];
 
   (void)p;
   for (int i = 0; i < (int)AERO_ROTORS; i++)
@@ -238,6 +278,7 @@ static void share(aero_t *s, const aero_payload_t *p, const aero_in_t *in, aero_
     out->miss[a] = s->miss[a];
     out->turned[a] = s->turn_hat[a];
     out->pushed[a] = s->air[a] - s->lost * through * in->r[3 * a + 1];
+    out->wind[a] = s->wind[a];
   }
 }
 

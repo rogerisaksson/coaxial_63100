@@ -12,11 +12,6 @@ from views_kit import Report
 #: What the frame keeps clear between a propeller's tip and a gate's frame or a thing standing, m.
 CLEAR_M = 0.25
 
-#: The rotors the course is flown on here: the page's flight's top, rad/s, and fastest spool,
-#: rad/s^2; the tuner's lag to a speed, s.
-from terminal.views.quad.flight import SPOOL_RAD_S2, TOP_RAD_S  # noqa: E402
-from tools.sim.quad_race import LAG_S  # noqa: E402
-
 
 def reach():
     """The frame from its middle to a propeller's tip, m."""
@@ -26,32 +21,24 @@ def reach():
 
 @functools.lru_cache(maxsize=None)
 def lapped(share=1.0, spent_at=None, air=False):
-    """The course's card once through, a row a pass: machine.quad's frame in MuJoCo on rotors
-    lagging to their speed, on `share` of their pull, its passes a page's - 10 to 30 ms, one
-    in twenty 50; `spent` from `spent_at` s on; in still air, or - `air` - the air's tour;
-    among what stands, solid (`grounds.solids`)."""
-    from machine import aerobatics, course, grounds, quad
-    from machine.flying import Flying
+    """The course's card once through, a row a pass (`streams.asked`, `streams.flew`):
+    machine.quad's frame in MuJoCo on the core and its ideal rotors, on `share` of their pull,
+    its passes a page's - 10 to 30 ms, one in twenty 50; `spent` from `spent_at` s on; in
+    still air, or - `air` - the air's tour; among what stands, solid (`grounds.solids`)."""
+    from machine import aerobatics, aerokin, course, grounds, quad
+    from tools.sim import streams
     dice = random.Random(1)
-    sky, route = quad.Sky(grounds.solids()), aerobatics.routine(course.CARD)
-    flying = Flying(4.0 * quad.K_THRUST * TOP_RAD_S ** 2, aerobatics.DOWN)
-    blown = quad.air() if air else None
-    w, t, rows = [0.0] * 4, 0.0, []
+    flight = streams.Flight(quad.air() if air else None, things=grounds.solids())
+    sky, route, law = flight.sky, aerobatics.routine(course.CARD), aerokin.fresh()
+    t, rows = 0.0, []
     while t < 240.0:
         dt = 0.05 if dice.random() < 0.05 else dice.choice((0.01, 0.014, 0.02, 0.03))
-        state, spent = sky.state(), spent_at is not None and t >= spent_at
-        route['seen'] = dict(flying.seen(state, dt), spent=spent)
-        name, flying.ask = aerobatics.fly(route, t, (['held'] if flying.held else [])
-                                          + ['spent' if spent else 'fit'])
+        spent = spent_at is not None and t >= spent_at
+        name, row = streams.asked(flight, route, law, t, dt, ('spent' if spent else 'fit',),
+                                  share)
         if rows and rows[-1]['name'] == course.CARD[-1][0] and name == course.CARD[0][0]:
             break
-        for k, thrust in enumerate(flying.step(state, dt, share)):
-            more = ((min(TOP_RAD_S, quad.speed_for(thrust, flying.along)) - w[k])
-                    * min(1.0, dt / LAG_S))
-            w[k] += max(-SPOOL_RAD_S2 * dt, min(SPOOL_RAD_S2 * dt, more))
-        if blown:
-            quad.blown(blown, dt)
-        sky.step(w, dt, blown)
+        streams.flew(flight, route, law, row, dt, share)
         state, lap = sky.state(), route.get('lap') or {}
         rows.append({'t': t, 'name': name, 'x': float(state['at'][0]), 'y': state['h'],
                      'z': float(state['at'][2]), 'ay': float(state['acc'][1]),
@@ -324,21 +311,25 @@ def test_a_frame_of_another_size(report):
 
 
 def test_its_tilt_is_its_discs_own(report):
-    """machine.flying's tilt loop, the frame's nose a quarter turn off its heading and a lean
-    asked: the rotors' thrusts turn its discs the way of the lean, none across it; its nose is
-    turned back to its heading where the row holds it there, left where it is free."""
-    from machine import aerobatics, quad
+    """The tilt asked of the core, the frame's nose a quarter turn off the law's heading and a
+    lean asked: the rotors' thrusts turn its discs the way of the lean, none across it; its
+    nose is turned back to its heading where the row holds it there, left where it is free."""
+    from machine import aerobatics, aerokin, quad
     from machine.figure import ry
-    from machine.flying import Flying
+    from tools.cores import aero
 
     def moments(yawed, **row):
         """(the thrusts' moment along the lean, across it, about the upright) for a level
-        frame turned `yawed` degrees about its upright, a slide along +x asked of it."""
-        flying = Flying(4.0 * quad.K_THRUST * TOP_RAD_S ** 2, dict(aerobatics.HOVER, slide=1.0, **row))
-        turn = ry(math.radians(yawed))
-        thrusts = flying.step({'turn': turn, 'spin': (0.0, 0.0, 0.0), 'vel': (0.0, 0.0, 0.0),
-                               'at': (0.0, quad.HOVER_M, 0.0), 'h': quad.HOVER_M, 'v': 0.0,
-                               'acc': (0.0, 0.0, 0.0), 'lift': quad.MASS_KG * quad.GRAVITY}, 0.01)
+        frame turned `yawed` degrees about its upright, a slide along +x asked of it - a
+        lean its rotors turn it to with none at an end."""
+        core, law, turn = aero.Core(), aerokin.fresh(), ry(math.radians(yawed))
+        frame = {'turn': turn, 'spin': (0.0, 0.0, 0.0), 'vel': (0.0, 0.0, 0.0),
+                 'at': (0.0, quad.HOVER_M, 0.0), 'h': quad.HOVER_M, 'v': 0.0}
+        hover = [quad.MASS_KG * quad.GRAVITY / 4.0] * 4
+        payload = aero.payload(aerokin.step(
+            law, dict(aerobatics.HOVER, slide=0.02, **row), frame, 0.01, 60.0))
+        thrusts = list(core.step(payload, aero.reading(
+            frame, hover, [0.0] * 4, [50.0] * 4, quad.STEP_S)).thrust)
         arms = [(turn[0][0] * x + turn[0][2] * z, turn[2][0] * x + turn[2][2] * z)
                 for x, z in quad.ROTOR_AT]
         return (sum(n * x for n, (x, _z) in zip(thrusts, arms)),

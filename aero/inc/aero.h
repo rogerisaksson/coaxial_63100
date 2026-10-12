@@ -60,7 +60,9 @@ typedef struct
     each rotor's place, m, and the way it turns; its drag's torque a thrust, m; the wrench's
     rows' weights in the share; the observers' bandwidths on its rates and its speed, rad/s;
     the rate a height's constraint is come to at, 1/s; the most the air may lean its axis off
-    the ask, a tangent. */
+    the ask, a tangent; the frame's drag a kg on its speed through the air squared, 1/m; what
+    a rotor's thrust loses a m/s of air along its axis, of that thrust's root, sqrt(N) s/m;
+    the rate a push is laid to the wind at, rad/s. */
 typedef struct
 {
   float mass;
@@ -75,6 +77,9 @@ typedef struct
   float wo_pull;
   float rise;
   float lean;
+  float drag;
+  float inflow;
+  float wo_wind;
 } aero_params_t;
 
 /** A pass's reading: the frame's axes in the world by rows (world = r frame, y up); its rates
@@ -97,7 +102,7 @@ typedef struct
     the rotors at their least (bits 0..3) and their most (4..7); where the rotors' axis is
     asked to point in the frame and the tilt that takes it there, about the frame's axes; what
     the observers hold: the rates' disturbance, rad/s^2, and the speed's, m/s^2 in the world;
-    the heading held, cos and sin, from z toward x. */
+    the heading held, cos and sin, from z toward x; the wind held, m/s in the world. */
 typedef struct
 {
   float    thrust[AERO_ROTORS];
@@ -109,6 +114,7 @@ typedef struct
   float    turned[AERO_AXES];
   float    pushed[AERO_AXES];
   float    head[2];
+  float    wind[AERO_AXES];
 } aero_out_t;
 
 /** The core's memory, laid once (`aero_init`). */
@@ -144,11 +150,11 @@ typedef struct
   float    spin_hat[AERO_AXES];           /**< the rates' observer: its rates, its disturbance */
   float    turn_hat[AERO_AXES];
   float    vel_hat[AERO_AXES];            /**< the speed's observer: its speed, the push it */
-  float    push_hat[AERO_AXES];           /**< holds, m/s^2 in the world, the drag it has */
-  float    drag_hat;                      /**< learnt, 1/m on the speed's square, the rotors' */
-  float    loss_hat;                      /**< loss on the air along their axis and their */
-  float    air[AERO_AXES];                /**< thrusts' roots; the push and the drag together, */
-  float    lost;                          /**< m/s^2, and the loss a m/s along the axis, 1/s */
+  float    push_hat[AERO_AXES];           /**< holds, m/s^2, and the wind, m/s, in the world; */
+  float    wind[AERO_AXES];               /**< the frame's speed through that wind, m/s; the */
+  float    flow[AERO_AXES];               /**< push and the frame's drag together, m/s^2, and */
+  float    air[AERO_AXES];                /**< what the rotors lose a m/s of air along their */
+  float    lost;                          /**< axis, 1/s */
 } aero_t;
 
 /** The memory for a frame, at rest, no payload flown. */

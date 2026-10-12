@@ -1,7 +1,7 @@
-"""The quad's aerobatics: a figure a row of `machine.flying`'s setpoints, a routine a card of them.
+"""The quad's aerobatics: a figure a row of setpoints (`machine.aerokin`'s), a routine a card of them.
 
-    flying.ask = aerobatics.HOVER                    # any pass: the setpoints, nothing else
     name, row = aerobatics.fly(route, now, holds)    # the card's row for now, eased in
+    payload = aerokin.step(law, row, frame, dt, pull)    # that row flown: aero/'s payload
 
 Spent - its pack, its boards' envelopes - the routine comes down from wherever it is and waits
 on the floor until it is fit.
@@ -30,9 +30,12 @@ HOVER = {'height': HOVER_M, 'pace': 1.5, 'climb': 0.0, 'push': 0.0, 'speed': 0.0
          'lean': 8.0, 'roll': 0.0, 'flip': 0.0, 'light': 0.5}
 #: Full tilt: a height out of reach, at any pace.
 SKY = dict(HOVER, height=1000.0, pace=100.0)
-#: The stop over the floor, from wherever it is: let fall, burned, held. And on the floor: let
-#: fall half a metre under it, the skids down and the rotors at their idle.
-STOP = dict(HOVER, height=FLOOR_M, pace=100.0)
+#: The stop over the floor, from wherever it is: let fall, burned, held. It falls no faster
+#: than its rotors keep hold of it at, half its weight on them: at any pace they stood at
+#: their idle, a wind took the frame 15 m off its spot, and its burn found it on its side -
+#: on the floor at 11 m/s, seven winds of seven. And on the floor: let fall half a metre
+#: under it, the skids down and the rotors at their idle.
+STOP = dict(HOVER, height=FLOOR_M, pace=10.0)
 DOWN = dict(STOP, height=-0.5)
 #: A turn on its spot, as the discs' drag turns it.
 PIROUETTE = dict(HOVER, turn=120.0)

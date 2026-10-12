@@ -96,8 +96,8 @@ def test_its_wind_is_pointed(report):
 #: The page's flights drawn this long at most, s.
 LANDED_S = 200.0
 
-#: The course's laps are judged where the flight's clock - its passes' sum, a pass 50 ms at the
-#: most - kept within this of the wall's: a page starved past it has not landed in LANDED_S.
+#: A flight is judged where its clock - its passes' sum, a pass 50 ms at the most - kept
+#: within this of the wall's: a page starved past it has not landed in LANDED_S.
 BEHIND = 0.2
 
 #: The page's pack for its test, A h: a first flight whole, spent early in the second - the
@@ -120,8 +120,8 @@ def paged(card, done, pack_ah=None):
     class Done(Exception):
         """What it was flown for is flown."""
 
-    def stepped(rotors, sky, route, flying, flight, clock, dt):
-        name = was[1](rotors, sky, route, flying, flight, clock, dt)
+    def stepped(rotors, sky, route, law, flight, clock, dt):
+        name = was[1](rotors, sky, route, law, flight, clock, dt)
         frame, lap, cells = sky.state(), route.get('lap') or {}, flight['cells']
         flew.add(name)
         steps.append({'name': name, 't': time.monotonic(), 'dt': dt, 'x': float(frame['at'][0]),
@@ -170,8 +170,11 @@ def test_the_page_flies_four_boards(report):
     # The routine alone, flight after flight, into the one after the pack's change.
     rows, frames, rate = paged(aerobatics.CARD, lambda flew, now: now == first and 'swap' in flew,
                                TEST_PACK_AH)
-    if rate < 4.0:
-        report.skip('the flight', 'the page drew %.1f frames a second' % rate)
+    behind = (1.0 - sum(r['dt'] for r in rows[1:]) / max(1e-9, rows[-1]['t'] - rows[0]['t'])
+              if len(rows) > 1 else 0.0)
+    if rate < 4.0 or behind > BEHIND:
+        report.skip('the flight', "the page drew %.1f frames a second, its flight's clock "
+                    "%.0f %% behind the wall's" % (rate, 100.0 * behind))
         return
     report.check('the quad drawn in the viewport, every frame',
                  min(f['cells'] for f in frames) >= 150, '%d braille cells at the least'

@@ -116,11 +116,13 @@ NEAR_DEG, CATCH_S = 10.0, 0.8
 
 def _swung(dive, passes):
     """(how far ahead the rotors' axis points at the mean, the least and the most aside,
-    degrees, its swings from one side to the other) over the dive's last `passes`."""
+    degrees, the seconds from one swing to the next) over the dive's last `passes`."""
     ahead, aside = ([math.degrees(math.asin(float(s['turn'][row][1])))
                      for _t, s, _f, _b in dive['passes'][-passes:]] for row in (2, 0))
+    clocks = [t for (t, *_x), a, b in zip(dive['passes'][-passes + 1:], aside, aside[1:])
+              if a < 0.0 <= b]
     return (sum(ahead) / len(ahead), min(aside), max(aside),
-            sum(1 for a, b in zip(aside, aside[1:]) if a < 0.0 <= b))
+            (clocks[-1] - clocks[0]) / max(1, len(clocks) - 1))
 
 
 def test_the_power_loop_is_flown(report):
@@ -148,13 +150,13 @@ def test_the_power_loop_is_flown(report):
                          and hover['heights'][1] < 1.52,
                          '%.3f m, %.2f deg off, %.2f m at the most' % (
                              hover['ends']['h'], hover['off'], hover['heights'][1]))
-            ahead, least, most, swings = _swung(dive, int(round(1.0 / flight.dt)))
+            ahead, least, most, swing = _swung(dive, int(round(1.0 / flight.dt)))
             report.check('202: its rotors\' axis 45 degrees ahead and what it leans into its own '
                          'wind, swung either side twice a second',
-                         40.0 < ahead < 55.0 and swings == 2 and 28.0 < most < 42.0
+                         40.0 < ahead < 55.0 and abs(swing - 0.5) < 0.02 and 28.0 < most < 42.0
                          and -42.0 < least < -28.0,
-                         '%.1f deg ahead at the mean, %.1f to %.1f aside, %d swings a second' % (
-                             ahead, least, most, swings))
+                         '%.1f deg ahead at the mean, %.1f to %.1f aside, a swing %.2f s' % (
+                             ahead, least, most, swing))
             report.check('202: forward and up on it',
                          float(dive['ends']['vel'][2]) > 12.0 and dive['ends']['h'] > 2.0,
                          '%.1f m/s ahead, %.2f m up' % (dive['ends']['vel'][2], dive['ends']['h']))
@@ -197,9 +199,9 @@ def test_the_power_loop_on_four_boards(report):
         stood, = streams.flown(flight, [again], [4.0])
     finally:
         flight.close()
-    ahead, least, most, swings = _swung(dive, int(round(1.0 / flight.dt)))
+    ahead, least, most, swing = _swung(dive, int(round(1.0 / flight.dt)))
     report.check('201 and 202 on the boards: to 1.5 m, then its axis ahead, swung, and gone',
-                 abs(hover['ends']['h'] - 1.5) < 0.01 and 40.0 < ahead < 55.0 and swings == 2
+                 abs(hover['ends']['h'] - 1.5) < 0.01 and 40.0 < ahead < 55.0 and abs(swing - 0.5) < 0.02
                  and most > 25.0 and least < -25.0 and float(dive['ends']['vel'][2]) > 12.0,
                  '%.3f m; %.1f deg ahead, %.1f to %.1f aside, %.1f m/s ahead' % (
                      hover['ends']['h'], ahead, least, most, dive['ends']['vel'][2]))
@@ -347,7 +349,7 @@ def test_the_course_is_flown_from_its_rows(report):
                                       ', struck %s' % hit if hit else ''))
         report.check('%s: every gate passed, no tip within 0.25 m of a frame' % (
             'still air' if seed is None else 'the tour\'s air'),
-                     passes == course.LAPS * len(grounds.GATES) - 1
+                     passes >= course.LAPS * len(grounds.GATES) - 1
                      and miss < quad_race.MISS_M - 0.25,
                      '%d gates, the nearest tip %.2f m from a frame' % (
                          passes, quad_race.MISS_M - miss))

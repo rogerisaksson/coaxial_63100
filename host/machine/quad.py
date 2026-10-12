@@ -9,7 +9,8 @@ A 2 kg frame on four direct-drive 63100 rotors under 16x14 propellers (board/emu
 quad.json) on skids: gravity, the air on it and the floor; its boards on one pack of 15 cells,
 63 V full. The air is a kind of weather at a time (`AIR`): a wind, its way swinging, gusts over
 it and eddies in it - what the frame is flown through, none of it told to its law. Its flying
-is `machine.flying`'s law on `machine.aerobatics`' rows; the rotors are the caller's.
+is `machine.aerobatics`' rows made payloads (`machine.aerokin`) for its core (aero/); the
+rotors are the caller's.
 """
 import importlib
 import math
@@ -53,7 +54,7 @@ NEAR_M = 0.15
 HOVER_M, FLOOR_M, IDLE_RAD_S = 1.5, 0.1, 86.0
 
 #: Its rotors come to a speed asked of them in about this long, s: the frame's clock. The
-#: law's loops (`flying`) and the lap's plan (`course`) are tuned by it and go by it at
+#: law's loops (`aerokin`) and the lap's plan (`course`) are tuned by it and go by it at
 #: another size - the tilt's loop at twice its gain rang on these rotors.
 SPIN_S = 0.08
 
@@ -287,19 +288,25 @@ class Sky:
             along = float(np.dot(d.qvel[0:3], turn[:, 1]))
             thrusts = [t * inflow(along, w) for t, w in zip(thrusts, speeds)]
         else:
+            # A disc's arithmetic in floats: as arrays of three 51 us of a call's 86, 19.
             h = float(d.qpos[1]) - (SKID_M + FOOT_M)
-            wind = np.array(wind_at(air['wind'], h))
-            still = d.qvel[0:3] - wind
-            drag = np.linalg.norm(still) * still
+            blows, rows = wind_at(air['wind'], h), turn.tolist()
+            still = [float(v) - u for v, u in zip(d.qvel[0:3], blows)]
+            fast = math.sqrt(still[0] * still[0] + still[1] * still[1] + still[2] * still[2])
+            axis, shove, turned = (rows[0][1], rows[1][1], rows[2][1]), [0.0] * 3, [0.0] * 3
             for k, ((x, z), eddy) in enumerate(zip(ROTOR_AT, air['eddies'])):
-                own = np.array(wind_at(eddy, h))
-                thrusts[k] *= inflow(float(np.dot(still - own, turn[:, 1])), speeds[k])
-                more = -0.125 * RHO * BODY_CDA * (np.linalg.norm(still - own) * (still - own)
-                                                  - drag)
-                arm = turn @ (x, 0.0, z)
-                push += more
-                twist += (arm[1] * more[2] - arm[2] * more[1], arm[2] * more[0] - arm[0] * more[2],
-                          arm[0] * more[1] - arm[1] * more[0])
+                own = [s - e for s, e in zip(still, wind_at(eddy, h))]
+                thrusts[k] *= inflow(own[0] * axis[0] + own[1] * axis[1] + own[2] * axis[2],
+                                     speeds[k])
+                size = math.sqrt(own[0] * own[0] + own[1] * own[1] + own[2] * own[2])
+                more = [-0.125 * RHO * BODY_CDA * (size * o - fast * s)
+                        for o, s in zip(own, still)]
+                arm = [row[0] * x + row[2] * z for row in rows]
+                shove = [a + b for a, b in zip(shove, more)]
+                turned = [turned[0] + arm[1] * more[2] - arm[2] * more[1],
+                          turned[1] + arm[2] * more[0] - arm[0] * more[2],
+                          turned[2] + arm[0] * more[1] - arm[1] * more[0]]
+            wind, push, twist = np.array(blows), np.array(shove), np.array(turned)
         lift = sum(thrusts)
         about = np.array([-sum(t * z for t, (_x, z) in zip(thrusts, ROTOR_AT)),
                           sum(spin * K_DRAG * w * w for spin, w in zip(SPIN, speeds)),

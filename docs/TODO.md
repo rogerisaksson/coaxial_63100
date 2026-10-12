@@ -219,14 +219,20 @@ gets a line at the end of [DONE](DONE.md).
   way, as flat as a rail's. DOD: it looks a little into a turn and rolls a
   share of the frame's bank with it, a turn read in the picture; a hover's
   horizon level.
+- **The page's flight a fifth of this host**: four stand-in boards a pass
+  of 2 ms are 0.20 s a flight's second where 0.12 at 20 ms, 0.51 beside
+  the drawing's thread - three calls a rotor a pass, each a board's whole
+  state read; 16 frames a second where 17.8, and under 50 suites its clock
+  half the wall's. DOD: a board's pass one call; 20 frames a second.
 - **The heat's clock in flight**: ten thermal seconds a flight's
   (`HASTE`): full tilt's 2 s are 20 of heat, the legs at their throttle's
   point 0.2 s in (envelope.md). DOD: flown on the flight's own seconds,
   the observers out of UNCERTAIN before a first flight; the race on it.
 - **The plan on boards that hold their pull**: `course.PULL` gridded alone
   to 0.37 (envelope.md); BRAKE, GO and the crossings are the search's on
-  boards that had 34-60 % of it. DOD: `quad_race.py --search` over them,
-  the laps against 14.2-15.2 s, every flight whole.
+  boards that had 34-60 % of it and a law since gone, the crossings laid
+  again by flight (streams.md). DOD: `quad_race.py --search` over them on
+  the core, the laps against 14.3-14.8 s, every flight whole.
 - **Flown from compiled streams, no rules**: a flight's intent is text
   (`stream_inject`: latent targets on six modes, a stiffness and a damping
   a mode, an oscillator, task constraints; a mode dropped is NaN) compiled
@@ -235,16 +241,20 @@ gets a line at the end of [DONE](DONE.md).
   observer for the air, the precession and a weak rotor, an active set over
   the rotors' thrusts inside what each board holds. Above the core no
   mixing, no Euler angle, no air; in it no `if`.
-  + The page's flight and the race on their cards' rows (`machine.aerokin`,
-    on ideal rotors in streams.md): `machine.flying`'s clauses, `thrusts`,
-    `flight.envelope`, `emergency`, `FIT`, `GONE_S`, `Flying.short` gone;
-    the action space computed beforehand (`machine/pull.py`) what the
-    compiler plans in, WEP its outer shell.
+  + The action space computed beforehand (`machine/pull.py`) what the
+    compiler plans in, WEP its outer shell: `flight.envelope`,
+    `emergency`, `FIT`, `GONE_S` and the law's `short` gone; the lap's
+    plan (`course.line`) and the card's waits (`aerobatics.fly`) without a
+    branch.
+  + The axis asked brings its own rate: a row's pull turns 5.9 rad/s rms
+    on a lap and the tilt trails it its damping over its stiffness, 57 ms.
+  + On four boards in a wind the envelopes leave 73-84 % of the pull on a
+    second lap, the law before 89-91 %: what the core's passes of 2 ms
+    spend.
   + The core on the image: a tick's cycles, the same whatever it is asked
     (device, PROTOCOL MINOR).
-  + DOD: `quad_race.py`'s laps against today's on the law's rotors, every
-    flight whole, gusts flown; the pull left unused and the WEP taken a
-    flight quoted.
+  + DOD: the pull left unused and the WEP taken a flight quoted; the race
+    whole on it.
 
 ## Bench
 
@@ -297,10 +307,17 @@ gets a line at the end of [DONE](DONE.md).
   contiguous array, steps branch-free passes over it. DOD: the hot paths
   ranked by them, each cut or named unavoidable; a model's change one
   change in every executive.
+- **CI's flakes**: a run each failed and the next passed - `test_native_heat`
+  (STABLE held 100 s within 600: 394), `test_sensorless` (the loop under a
+  concurrent reader), the emulator's reads (a CRC on `afe.state`, a
+  board's info in its place). DOD: each looped 20 times on a loaded host,
+  its cause found.
 - **test_controller's timed checks**: a velocity loop on the stand-in
   faulted overcurrent once on the runner (15 of 15 passed here); the ring
-  test read her right shoulder and elbow alike, 23.6-23.7 Hz, in 2 runs of
-  12 here. DOD: neither in 50 runs.
+  test read a shoulder over its elbow one arm in six here, this tree and
+  the one before alike - the shoulder 23.4 Hz, the elbow 23.2-24.4 by its
+  half periods' median and 22.9 by all its crossings' least squares: no
+  one frequency. DOD: neither in 50 runs.
 - **`Velocity`'s start** (`coaxial.control.motion`): sensorless at rest, as
   a rotor node's was - right while the estimate lies within a quarter turn
   of the rotor. DOD: `motion.started`, its ramp from where that leaves the

@@ -22,7 +22,9 @@ from machine.figure import cross
 #: The frame's impedance as a payload asks it: the tilt's stiffness, 1/s^2, and damping, 1/s;
 #: a turn's about its nose or its wing, on its rate's miss summed and on its miss; the
 #: heading's rate's damping, and how fast a nose off its heading comes round to it, 1/s.
-TILT_K, TILT_D, TURN_K, TURN_D, YAW_D, NOSE_K = 201.0, 17.0, 201.0, 17.0, 4.0, 1.0
+#: The tilt at 201, the lap's seam - 2.4 m down in 6 - was crossed 0.51 m high, at 0.75 of
+#: the frame's size 0.76: at 300, 0.06 low and 0.04 high.
+TILT_K, TILT_D, TURN_K, TURN_D, YAW_D, NOSE_K = 300.0, 17.0, 201.0, 17.0, 4.0, 1.0
 
 #: The height's loop, 1/s on its rate, both its poles at half of it; a height is flown to
 #: braked at this share of what the rotors' pull leaves - rising, of gravity -, a pace come to
@@ -38,14 +40,13 @@ SPOT_KP, SPOT_KD, HOME_K, HOME_M_S = 1.95, 2.94, 1.5, 3.0
 LEAST, HEADROOM = 1.5, 0.9
 
 #: Held: within this of its height, m, and of its spot, m, this slow, m/s, its axis this
-#: near up, rad.
-HELD_M, HELD_SPOT_M, HELD_M_S, HELD_RAD = 0.03, 0.15, 0.15, 0.05
+#: near up, rad - what it may lean into a wind.
+HELD_M, HELD_SPOT_M, HELD_M_S, HELD_RAD = 0.03, 0.15, 0.15, 0.5
 
-#: What it is doing where it is asked a height far under it, by how light its lift is.
-DOING = (None, 'burn', 'fall')
-
-#: A pull no bound is put on, m/s^2.
-ANY = 1e4
+#: What it is doing where it is asked a height far under it, by how light its lift is:
+#: burning, let fall. And what an emergency is taken from where its height comes first.
+BURN, FALL, FLOOR = 'burn', 'fall', 'floor'
+DOING = (None, BURN, FALL)
 
 #: The rotors' axis is asked no further from where it points than this, as its (cos, sin) -
 #: a sixth of a turn; the axis it turns about keeps this much of the last pass's.
@@ -78,47 +79,47 @@ def fresh():
     """The law's own before its first pass: its spot, world (x, z), m, and the speed that went
     at last, m/s; its heading as (cos, sin) about up from z toward x; the collective asked
     last, m/s^2; the axis its rotors' axis turned about last, world; the payloads made;
-    whether it is held, what it is doing."""
+    whether it is held, what it is doing, whether it asked more pull last than it had."""
     return {'spot': [0.0, 0.0], 'speed': (0.0, 0.0), 'heading': (1.0, 0.0), 'lift': idle(),
-            'about': [1.0, 0.0, 0.0], 'sequence': 0, 'held': False, 'doing': None}
+            'about': [1.0, 0.0, 0.0], 'sequence': 0, 'held': False, 'doing': None,
+            'short': False}
 
 
 def allowed(over, brake):
-    """(the speed the frame flies `over` m from its height, m/s, what that changes by a metre,
-    1/s): the loop's own approach near it, `brake`'s pull past where the two meet in speed
-    and slope."""
+    """The speed the frame flies `over` m from its height, m/s: the loop's own approach near
+    it, `brake`'s pull past where the two meet in speed and pull."""
     pole = 0.5 * KD
     near = brake / (pole * pole)
     far = float(over > near)
-    curve = math.sqrt(2.0 * brake * max(over - 0.5 * near, 0.0))
-    return ((1.0 - far) * pole * over + far * curve,
-            (1.0 - far) * pole + far * brake / max(curve, 1e-9))
+    return (1.0 - far) * pole * over + far * math.sqrt(2.0 * brake * max(over - 0.5 * near, 0.0))
 
 
 def climb(row, h, v, room):
     """(the pull asked up, m/s^2, what it is doing) for the frame at `h` climbing `v`, `room`
-    the pull up its rotors leave it: the speed its distance allows on its height's own rate,
-    its pace at the most; that speed come to no faster than its pace is, a fall or a climb
-    the wrong way stopped on whatever it takes - what the rotors have of it is their share's
-    to say, and a pull under none of theirs is the air's to give."""
+    the pull up its rotors leave it: braked as its pace asks or as its height needs, their
+    share - rising, gravity's - at the most; the speed its distance allows on its height's
+    own rate, its pace at the most, and that speed's own fall, begun where its pace's stop
+    turns; sped toward its height as gently - up, on its room at the most -, the height's
+    own pull in it, and stopped outright going from it."""
     pace = row['pace']
-    gentle = pace / PACE_S
+    gentle, pole = pace / PACE_S, 0.5 * KD
     rate = max(-pace, min(pace, row['climb']))
+    push = float(rate == row['climb']) * max(-gentle, min(gentle, row['push']))
     over = row['height'] - h
     way = math.copysign(1.0, over)
-    down = float(over < 0.0)
-    brake = BRAKE_SHARE * (down * room + (1.0 - down) * quad.GRAVITY)
-    most, slope = allowed(abs(over), brake)
+    up = float(way > 0.0)
+    left, toward, going = abs(over), way * (v - rate), way * v
+    hard = BRAKE_SHARE * (up * quad.GRAVITY + (1.0 - up) * room)
+    soft = min(gentle, hard)
+    need = float(toward > 0.0) * pole * pole * (
+        left - math.sqrt(max(0.0, left * left - (toward / pole) ** 2)))
+    brake = min(hard, max(soft, need))
     cruise = pace - way * rate
-    speed = rate + way * min(most, cruise)
-    falling, rising = float(v < 0.0), float(v > 0.0)
-    up = falling * ANY + (1.0 - falling) * min(gentle, room)
-    under = rising * ANY + (1.0 - rising) * gentle
-    push = float(rate == row['climb']) * max(-gentle, min(gentle, row['push']))
-    # the speed allowed falls as the height nears: that fall is asked with it
-    slows = float(most < cruise) * slope * (rate - v)
-    pull = max(-under, min(up, KD * (speed - v) + slows + push))
-    far = down * float(abs(over) > brake / (0.25 * KD * KD))
+    speed = min(allowed(left, brake), cruise)
+    slows = min(brake, pole * pole * left, KD * max(0.0, cruise - allowed(left, soft)))
+    pull = way * (min(KD * (way * rate + speed - max(going, 0.0)) - slows + way * push,
+                      up * min(gentle, room) + (1.0 - up) * gentle) - KD * min(going, 0.0))
+    far = (1.0 - up) * float(left > brake / (pole * pole))
     return pull, DOING[int(far * (1.0 + float(quad.GRAVITY + pull <= idle())))]
 
 
@@ -137,6 +138,7 @@ def lean(law, row, at, vel, dt, most):
            + SPOT_KP * (law['spot'][k] - float(at[axis])) for k, axis in enumerate((0, 2))]
     law['speed'] = speed
     scale = min(1.0, most / max(math.hypot(out[0], out[1]), 1e-9))
+    law['short'] = scale < 1.0
     return out[0] * scale, out[1] * scale
 
 
@@ -144,7 +146,7 @@ def seen(law, frame, dt, pull, top):
     """What a row's giver may know of the flight before the pass of `dt` s (`course.line`):
     where the frame is and goes, the law's spot and heading, the pull it is given and what all
     of it would be - HEADROOM of `top`, the rotors' at theirs -, m/s^2, the air along the
-    discs their thrust is none at, m/s. No wind: the air is the core's."""
+    discs their thrust is none at, m/s. The air is the core's: none of it is here."""
     c, s = law['heading']
     full = HEADROOM * top
     return {'dt': dt, 'share': pull / full, 'heading': math.atan2(s, c), 'full': full,
@@ -152,14 +154,16 @@ def seen(law, frame, dt, pull, top):
             'pitch': quad.INFLOW_J0 * quad.PITCH_M * quad.speed_for(
                 top * quad.MASS_KG / 4.0) / math.tau,
             'spot': tuple(law['spot']), 'at': [float(x) for x in frame['at']],
-            'vel': [float(x) for x in frame['vel']], 'wind': (0.0, 0.0)}
+            'vel': [float(x) for x in frame['vel']]}
 
 
-def step(law, row, frame, dt, pull, head=None):
+def step(law, row, frame, dt, pull, head=None, emergency=None, pitch=math.inf):
     """The payload for a pass of `dt` s: the row `row` asked of the frame as `frame`
     (`quad.Sky.state`) has it, `pull` the most its rotors give a kg, m/s^2, `head` the heading
     the core holds, (cos, sin) from z toward x (its answer's) - none held yet, the frame's
-    nose along the floor: the core's own from a level stand. The law's heading turned on;
+    nose along the floor: the core's own from a level stand. In an `emergency` - what it is
+    taken from - its lean is all that pull gives, whatever its row's; the FLOOR ahead, what
+    is left of it after what it asks up. The law's heading turned on;
     the pull up and along the floor (`climb`, `lean`); the force that is, as a collective
     along its direction and that direction's tilt in the core's level frame; the turn its
     heading gives the axis, as the rates about its wing and its nose; its nose brought round
@@ -176,11 +180,18 @@ def step(law, row, frame, dt, pull, head=None):
     c, s = (((1.0 - half * half) * c - 2.0 * half * s) / (1.0 + half * half),
             (2.0 * half * c + (1.0 - half * half) * s) / (1.0 + half * half))
     law['heading'] = (c, s)
-    reach = max(LEAST * quad.GRAVITY, pull)
+    axis = (turn[0][1], turn[1][1], turn[2][1])
+    through = sum(float(v) * a for v, a in zip(frame['vel'], axis))
+    reach = max(LEAST * quad.GRAVITY, pull * min(1.0, max(0.0, 1.0 - through / pitch)))
     up_pull, law['doing'] = climb(row, frame['h'], frame['v'], reach - quad.GRAVITY)
-    most = min(row['lean'], math.sqrt(max(reach * reach - quad.GRAVITY ** 2, 0.0)))
-    along = lean(law, row, frame['at'], frame['vel'], dt, most)
     light = row['light'] * quad.GRAVITY
+    urgent, floor = float(emergency is not None), float(emergency == FLOOR)
+    beside = math.sqrt(max(reach * reach - quad.GRAVITY ** 2, 0.0))
+    left = math.sqrt(max(reach * reach - max(quad.GRAVITY + up_pull, light) ** 2, 0.0))
+    along = lean(law, row, frame['at'], frame['vel'], dt,
+                 (1.0 - urgent) * min(row['lean'], beside)
+                 + urgent * (floor * left + (1.0 - floor) * beside))
+    law['short'] = bool(law['short'] or abs(quad.GRAVITY + up_pull) > reach)
     # where the rotors' axis points for it in the world, against `light` of gravity at the
     # least; asked no further from where it points than AHEAD, round the axis it turns about
     # - the last pass's, where that is next to none: opposite, any way round is as short, and
@@ -188,7 +199,6 @@ def step(law, row, frame, dt, pull, head=None):
     aim = (along[0], max(quad.GRAVITY + up_pull, light), along[1])
     size = math.sqrt(aim[0] * aim[0] + aim[1] * aim[1] + aim[2] * aim[2])
     want = (aim[0] / size, aim[1] / size, aim[2] / size)
-    axis = (turn[0][1], turn[1][1], turn[2][1])
     dot = axis[0] * want[0] + axis[1] * want[1] + axis[2] * want[2]
     last = sum(a * k for a, k in zip(axis, law['about']))
     about = cross(axis, want)

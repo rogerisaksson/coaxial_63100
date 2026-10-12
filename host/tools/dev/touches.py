@@ -52,8 +52,7 @@ TOUCHES = (
     ('host/machine/quad.py',                   QUADS + (AERO_CORE, STREAMS)),
     ('host/machine/aerolisp.py',               (AERO_CORE, STREAMS)),
     ('host/machine/intents.py',                (STREAMS,)),
-    ('host/machine/aerokin.py',                (STREAMS,)),
-    ('host/machine/flying.py',                 QUADS),
+    ('host/machine/aerokin.py',                QUADS + (STREAMS,)),
     ('host/machine/aerobatics.py',             QUADS + (STREAMS,)),
     ('host/machine/course.py',                 QUADS + (STREAMS,)),
     ('host/machine/grounds.py',                QUADS + (RENDER, STREAMS)),
@@ -96,8 +95,8 @@ TOUCHES = (
     ('host/tools/cores/thermal.py',            (THERMAL, THERMAL_APP)),
     ('host/tools/cores/reach.py',              (STRUCTURE, REACH)),
     ('host/tools/cores/wbc.py',                (STRUCTURE, WBC_CORE, FLIGHT)),
-    ('host/tools/cores/aero.py',               (STRUCTURE, AERO_CORE, STREAMS)),
-    ('host/tools/sim/streams.py',              (STRUCTURE, STREAMS)),
+    ('host/tools/cores/aero.py',               QUADS + (AERO_CORE, STREAMS)),
+    ('host/tools/sim/streams.py',              QUADS + (STREAMS,)),
     ('host/tools/sim/wbc.py',                  (STRUCTURE, WBC, WBC_CORE, FLIGHT, WRENCH)),
     ('host/tools/sim/hop.py',                  (STRUCTURE, FLIGHT, WRENCH)),
     ('host/tools/sim/ortho.py',                (STRUCTURE, ORTHO)),
@@ -105,6 +104,7 @@ TOUCHES = (
     ('host/tools/cores/',                      (WIRE, NATIVE, NATIVE_HEAT)),
     ('host/tools/dev/counts.py',               ('test_ollama_runner.py',)),
     ('host/tests/takes/',                      (GYNOID_GAIT,)),
+    ('host/tests/aero_kit.py',                 (AERO_CORE,)),
     ('host/tests/',                            ()),          # decided by name below
     # Firmware and protocol: the byte-level master is the point of it - but the
     # portable core is also compiled and run on this host, which is the only
@@ -117,7 +117,7 @@ TOUCHES = (
     # on the host beside it.
     ('filter/',                                (FILTER,)),
     ('ctrl/',                                  (CTRL_CORE,)),
-    ('aero/',                                  (AERO_CORE, STREAMS)),
+    ('aero/',                                  QUADS + (AERO_CORE, STREAMS)),
     ('wbc/',                                   (WBC_CORE, FLIGHT, EMULATOR)),
     ('world/',                                 (WORLD_CORE, NATIVE, NATIVE_HEAT, EMULATOR)),
     ('host/coaxial/acquire/bessel.py',         (FILTER, STRUCTURE)),

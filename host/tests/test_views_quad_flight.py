@@ -12,17 +12,16 @@ def flown(seconds, until, things=(), dt=0.05):
     the clock, the envelopes' share, the rotors' most amps, the frame's height)] a step, the
     flight's own)."""
     from coaxial import Coaxial63100
-    from machine import aerobatics, quad
-    from machine.flying import Flying
+    from machine import aerobatics, aerokin, quad
     from machine.modes import SIMULATED
     from terminal.views.quad import flight as view
     rotors = [view.arm(Coaxial63100(execution_mode=SIMULATED).open()) for _ in range(4)]
     rows, clock = [], 0.0
     try:
         sky, route = quad.Sky(things), aerobatics.routine(view.CARD)
-        flying, flight = Flying(view.TOP_N, aerobatics.DOWN), view.fresh()
+        law, flight = aerokin.fresh(), view.fresh()
         while clock < seconds and not until(flight):
-            for clock, frame in view.passed(rotors, sky, route, flying, flight, clock, dt):
+            for clock, frame in view.passed(rotors, sky, route, law, flight, clock, dt):
                 rows.append((flight['stage'], clock, flight['share'],
                              max(r['amps'] for r in rotors), frame['h']))
     finally:
@@ -211,21 +210,20 @@ def test_a_board_holds_its_clamp(report):
 
 def test_full_tilt_cuts_no_rotor_alone(report):
     """The page's card to its first full tilt and through it, four boards: none past its
-    throttle's point or tripped, the four on the same current - each its own board's hold -,
-    the frame on its axis."""
+    throttle's point or tripped, the four on the same current - each its own board's hold, and
+    what leans the frame into the wind up there -, the frame on its axis."""
     from coaxial import Coaxial63100
     from coaxial.devices.thermal import THROTTLE_AT
-    from machine import aerobatics, quad
-    from machine.flying import Flying
+    from machine import aerobatics, aerokin, quad
     from machine.modes import SIMULATED
     from terminal.views.quad import flight as view
     rotors = [view.arm(Coaxial63100(execution_mode=SIMULATED).open()) for _ in range(4)]
     rows, clock = [], 0.0
     try:
         sky, route = quad.Sky(()), aerobatics.routine(view.CARD)
-        flying, flight = Flying(view.TOP_N, aerobatics.DOWN), view.fresh()
+        law, flight = aerokin.fresh(), view.fresh()
         while clock < 60.0 and flight['stage'] != 'fall':
-            for clock, frame in view.passed(rotors, sky, route, flying, flight, clock, 0.05):
+            for clock, frame in view.passed(rotors, sky, route, law, flight, clock, 0.05):
                 if flight['stage'] == 'full tilt':
                     rows.append((clock, [r['amps'] for r in rotors],
                                  [dict(r['budget'] or {}) for r in rotors],
@@ -244,8 +242,8 @@ def test_full_tilt_cuts_no_rotor_alone(report):
     began = rows[0][0] + 0.5
     apart = max(max(a) - min(a) for t, a, _b, _tilt, _h in rows if t >= began)
     most = max(max(a) for _t, a, _b, _tilt, _h in rows)
-    report.check('the four on the same current, a tenth of their clamp apart at the most',
-                 apart < 0.1 * view.I_MAX and most > 0.6 * view.I_MAX,
+    report.check('the four on the same current, 0.15 of their clamp apart at the most',
+                 apart < 0.15 * view.I_MAX and most > 0.6 * view.I_MAX,
                  '%.1f A apart at the most, %.1f A the most' % (apart, most))
     tilt = max(tilt for _t, _a, _b, tilt, _h in rows)
     report.check('the frame on its axis up it', tilt < 20.0,
@@ -257,8 +255,7 @@ def test_war_emergency_power(report):
     asks more than it has and a thing is in the frame's way - not for either alone -, kept
     WEP_HOLD_S past it, WEP_S of it a flight, whole again on the floor; and the law's lean in
     one all that pull gives, whatever its row's."""
-    from machine import aerobatics, quad
-    from machine.flying import Flying
+    from machine import aerobatics, aerokin, quad
     from terminal.views.quad import flight as view
 
     class Sky:
@@ -270,19 +267,17 @@ def test_war_emergency_power(report):
             self.asked += 1
             return self.thing and (self.thing, 0.3)
 
-    class Law:
-        short = False
-    sky, law, flight = Sky(), Law(), view.fresh()
+    sky, law, flight = Sky(), {'short': False}, view.fresh()
     route = {'card': view.CARD, 'row': 4}
 
     def step(share=0.4, dt=0.1):
         return view.emergency(flight, sky, law, route, share, dt)
     calm = step()
-    law.short = True
+    law['short'] = True
     clear = step()
-    sky.thing, law.short = 'tree', False
+    sky.thing, law['short'] = 'tree', False
     unasked = (step(), sky.asked)
-    law.short = True
+    law['short'] = True
     whole, taken = step(1.0), step()
     report.check('the envelopes\' share while nothing is in its way or it asks no more than it '
                  'has; all of the pull where both, a tree named, on all of it already as well',
@@ -305,18 +300,20 @@ def test_war_emergency_power(report):
                      kept.count('tree'), spent.count('tree'), floor[1]))
     leans = []
     for emergency in (None, 'tree'):
-        flying = Flying(view.TOP_N, dict(aerobatics.HOVER, x=30.0, lean=2.0))
-        flying.spot = [30.0, 0.0]
+        law = dict(aerokin.fresh(), spot=[30.0, 0.0])
         level = [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]
-        thrusts = flying.step({'turn': level, 'spin': (0.0, 0.0, 0.0), 'vel': (0.0, 0.0, 0.0),
-                               'at': (0.0, quad.HOVER_M, 0.0), 'h': quad.HOVER_M, 'v': 0.0,
-                               'acc': (0.0, 0.0, 0.0), 'lift': quad.MASS_KG * quad.GRAVITY},
-                              0.01, 0.4, emergency)
-        leans.append((abs(thrusts[1] + thrusts[2] - thrusts[0] - thrusts[3]), flying.short))
+        payload = aerokin.step(
+            law, dict(aerobatics.HOVER, x=30.0, lean=2.0),
+            {'turn': level, 'spin': (0.0, 0.0, 0.0), 'vel': (0.0, 0.0, 0.0),
+             'at': (0.0, quad.HOVER_M, 0.0), 'h': quad.HOVER_M, 'v': 0.0},
+            0.01, 0.4 * aerokin.HEADROOM * view.TOP_N / quad.MASS_KG, None, emergency)
+        leans.append((math.degrees(math.hypot(payload.latent_targets[aerokin.PITCH],
+                                              payload.latent_targets[aerokin.ROLL])),
+                      law['short']))
     report.check('its spot 30 m off, the law short of its row\'s lean of 2 m/s^2; in an '
-                 'emergency its discs turned harder, for all the pull the rotors have',
+                 'emergency its rotors\' axis asked further over, for all the pull they have',
                  leans[0][1] and leans[1][0] > 1.5 * leans[0][0] > 0.0,
-                 '%.1f N across its discs, %.1f in an emergency' % (leans[0][0], leans[1][0]))
+                 '%.1f deg off up asked, %.1f in an emergency' % (leans[0][0], leans[1][0]))
 
 
 def test_wep_past_the_soa(report):

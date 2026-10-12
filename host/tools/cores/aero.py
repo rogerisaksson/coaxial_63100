@@ -32,9 +32,9 @@ PACK = 'I I %df %df %df I f %df I %df' % (MODES, MODES, MODES, MODES, TASKS)
 #: heading's - at a rotor's end the tilt is kept and the collective gives way, the heading
 #: first; the observers' bandwidths on the frame's rates and its speed, rad/s; the rate a
 #: height's constraint is come to at, 1/s; the most the air may lean the rotors' axis off its
-#: ask, a tangent.
+#: ask, a tangent; the rate a push is laid to the wind at, rad/s.
 WEIGH_TILT, WEIGH_LIFT, WEIGH_HEADING = 30.0, 3.0, 1.0
-WO_TURN, WO_PULL, RISE, LEAN = 40.0, 10.0, 5.0, 0.6
+WO_TURN, WO_PULL, RISE, LEAN, WO_WIND = 40.0, 10.0, 5.0, 0.6, 5.0
 
 _f, _u = ctypes.c_float, ctypes.c_uint32
 
@@ -56,7 +56,7 @@ class Params(ctypes.Structure):
     _fields_ = [('mass', _f), ('gravity', _f), ('inertia', _f * AXES), ('at_x', _f * ROTORS),
                 ('at_z', _f * ROTORS), ('spin', _f * ROTORS), ('kappa', _f),
                 ('weigh', _f * WRENCH), ('wo_turn', _f), ('wo_pull', _f), ('rise', _f),
-                ('lean', _f)]
+                ('lean', _f), ('drag', _f), ('inflow', _f), ('wo_wind', _f)]
 
 
 class In(ctypes.Structure):
@@ -73,7 +73,7 @@ class Out(ctypes.Structure):
 
     _fields_ = [('thrust', _f * ROTORS), ('asked', _f * WRENCH), ('gave', _f * WRENCH),
                 ('bound', _u), ('axis', _f * AXES), ('miss', _f * AXES), ('turned', _f * AXES),
-                ('pushed', _f * AXES), ('head', _f * 2)]
+                ('pushed', _f * AXES), ('head', _f * 2), ('wind', _f * AXES)]
 
 
 @functools.lru_cache(maxsize=None)
@@ -100,9 +100,11 @@ def library():
 
 
 def frame():
-    """`machine.quad`'s frame as the core's: its mass and inertia, its rotors' places and
-    turns, its propellers' drag a thrust; the share's weights at unit rows."""
-    arm = quad.ARM_M
+    """`machine.quad`'s frame as the core's, as it is sized: its mass and inertia, its rotors'
+    places and turns, its propellers' drag a thrust; the share's weights at unit rows; the
+    observers' bandwidths and the height's rate by its clock; its drag a kg and its rotors'
+    loss to the air along their axis (`quad.inflow`)."""
+    arm, clock = quad.ARM_M, quad.scales()[1]
     kappa = quad.K_DRAG / quad.K_THRUST
     return Params(
         mass=quad.MASS_KG, gravity=quad.GRAVITY, inertia=(_f * AXES)(*quad.INERTIA),
@@ -110,7 +112,10 @@ def frame():
         at_z=(_f * ROTORS)(*[z for _x, z in quad.ROTOR_AT]), spin=(_f * ROTORS)(*quad.SPIN),
         kappa=kappa, weigh=(_f * WRENCH)(WEIGH_LIFT, WEIGH_TILT / arm, WEIGH_HEADING / kappa,
                                         WEIGH_TILT / arm),
-        wo_turn=WO_TURN, wo_pull=WO_PULL, rise=RISE, lean=LEAN)
+        wo_turn=WO_TURN / clock, wo_pull=WO_PULL / clock, rise=RISE / clock, lean=LEAN,
+        drag=0.5 * quad.RHO * quad.BODY_CDA / quad.MASS_KG,
+        inflow=math.tau * math.sqrt(quad.K_THRUST) / (quad.INFLOW_J0 * quad.PITCH_M),
+        wo_wind=WO_WIND / clock)
 
 
 def payload(compiled):

@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Monte Carlo over the quad's laps: each candidate through the same flights, a process a core.
 
-A candidate is a few constants of its lap - `machine.course`'s, `machine.flying`'s, the page's
-`flight`'s, each by `module.NAME` - and of its line through the gates: `turnN`, `tenseN`,
+A candidate is a few constants of its lap - `machine.course`'s, `machine.aerokin`'s, the
+core's (`aero`: `tools.cores.aero`'s), the page's `flight`'s, each by `module.NAME` - and of
+its line through the gates: `turnN`, `tenseN`,
 `acrossN` and `upN`, gate N's row of `course.WAYS`. Its trials, the same for every candidate, each the course's
 card flown once through among what stands, solid:
 
@@ -37,10 +38,11 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from machine import aerobatics, course, flying, grounds, quad  # noqa: E402
+from machine import aerobatics, aerokin, course, grounds, quad  # noqa: E402
 from tools import REPO  # noqa: E402
+from tools.cores import aero  # noqa: E402
 from tools.dev import background  # noqa: E402
-from tools.sim import cmaes  # noqa: E402
+from tools.sim import cmaes, streams  # noqa: E402
 
 #: The air's seeds a candidate is flown in, beside still air (`--seeds`: a run's own); the
 #: frames' sizes beside the one built; the boards' rooms beside the bench (`coaxial.model.
@@ -86,7 +88,7 @@ WAY_ROW = ('turn', 'tense', 'across', 'up')
 WAY = r'(%s)(\d+)' % '|'.join(WAY_ROW)
 
 #: Where a constant lives, by its name's module.
-MODULES = {'course': course, 'flying': flying, 'quad': quad}
+MODULES = {'course': course, 'aerokin': aerokin, 'aero': aero, 'quad': quad}
 
 LOG = os.path.join(REPO, 'build', 'quad_race.jsonl')
 
@@ -117,7 +119,7 @@ def put(values):
 def sized(size):
     """The frame, its law, its routine, its grounds and its course `size` times as built."""
     quad.sized(size)
-    flying.sized()
+    aerokin.sized()
     aerobatics.sized()
     grounds.sized()
     course.sized()
@@ -187,42 +189,37 @@ def flowed(laps):
 
 
 def ideal(air, _room=BENCH, _left=1.0):
-    """The card on ideal rotors in `air`, the frame as it is sized - its rotors as fast at
-    their tips, its passes by its clock, war emergency power as the page's flight takes it:
-    (the laps' rows by lap, what it struck, 0, 1, its seconds on WEP)."""
+    """The card on ideal rotors in `air` (`streams.Flight`), the frame as it is sized - its
+    rotors as fast at their tips, its passes by its clock, the core's inside them, war
+    emergency power as the page's flight takes it: (the laps' rows by lap, what it struck, 0,
+    1, its seconds on WEP)."""
     view = owner('flight.CARD')[0]
     dice = random.Random(1)
     size, clock = quad.scales()
-    top, lag, spool = view.TOP_RAD_S / size, LAG_S * clock, view.SPOOL_RAD_S2 / (size * clock)
+    top, spool = view.TOP_RAD_S / size, view.SPOOL_RAD_S2 / (size * clock)
     wep_top, wep_spool = view.TOP_WEP_RAD_S / size, spool * view.I_WEP / view.I_MAX
-    sky, route = quad.Sky(grounds.solids()), aerobatics.routine(course.CARD)
-    law = flying.Flying(4.0 * quad.K_THRUST * top ** 2, aerobatics.DOWN)
-    normal, given = law.top, 4.0 * quad.K_THRUST * wep_top ** 2
+    rotors = streams.Flight(air, things=grounds.solids())
+    rotors.lag = LAG_S * clock
+    sky, route, law = rotors.sky, aerobatics.routine(course.CARD), aerokin.fresh()
+    rotors.top, rotors.spool = top, spool
     flight = {'wep': {'left': view.WEP_S * clock, 'on': 0.0, 'from': None, 'taken': 0}}
-    w, t, laps = [0.0] * 4, 0.0, {}
+    t, laps = 0.0, {}
     while t < 150.0 * clock:
         dt = clock * (0.05 if dice.random() < 0.05 else dice.choice((0.01, 0.014, 0.02, 0.03)))
-        state = sky.state()
-        route['seen'] = dict(law.seen(state, dt), spent=False)
-        name, law.ask = aerobatics.fly(route, t, (['held'] if law.held else []) + ['fit'])
-        if name == 'land' or state['hit']:
+        name, row = streams.asked(rotors, route, law, t, dt)
+        if name == 'land' or sky.state()['hit']:
             break
         _share, wep = view.emergency(flight, sky, law, route, 1.0, dt / clock)
-        law.top = given if wep else normal
-        fast, spun = (wep_top, wep_spool) if wep else (top, spool)
-        for k, thrust in enumerate(law.step(state, dt, 1.0, wep)):
-            more = (min(fast, quad.speed_for(thrust, law.along)) - w[k]) * min(1.0, dt / lag)
-            w[k] += max(-spun * dt, min(spun * dt, more))
-        if air:
-            quad.blown(air, dt)
-        sky.step(w, dt, air)
+        rotors.top, rotors.spool = (wep_top, wep_spool) if wep else (top, spool)
+        streams.flew(rotors, route, law, row, dt, 1.0, wep)
         t += dt
         if name == 'lap':
             frame = sky.state()
             laps.setdefault((route.get('lap') or {}).get('laps', 0), []).append(
                 (t, float(frame['at'][0]), frame['h'], float(frame['at'][2]),
                  math.sqrt(sum(float(c) ** 2 for c in frame['vel'])),
-                 *(float(c) for c in frame['acc']), sum(x * x for x in w) / (4.0 * top * top)))
+                 *(float(c) for c in frame['acc']),
+                 sum(x * x for x in rotors.w) / (4.0 * top * top)))
     return laps, sky.hit, 0.0, 1.0, (view.WEP_S - flight['wep']['left']) / clock
 
 
@@ -238,7 +235,7 @@ def boards(air, room=BENCH, left=1.0):
     for rotor in rotors:
         rotor['rig'].board.thermal.situation(room)
     sky, route = quad.Sky(grounds.solids()), aerobatics.routine(course.CARD)
-    law, flight = flying.Flying(view.TOP_N, aerobatics.DOWN), view.fresh()
+    law, flight = aerokin.fresh(), view.fresh()
     flight['cells'].update(left=left, volts=quad.open_volts(left))
     flight['air'], t, laps, soa, least = air, 0.0, {}, 0.0, 1.0
     try:

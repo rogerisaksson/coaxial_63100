@@ -1,7 +1,8 @@
 # Findings: QUAD
 
-The quad on four boards: frame and air (`machine.quad`), its one law
-(`machine.flying`), routine and course, the page's flight, the tuner. The
+The quad on four boards: frame and air (`machine.quad`), routine and
+course, the page's flight, the tuner. Flown since from its cards' rows on a
+core in C ([streams](streams.md)): "the law" here is the one before it. The
 board's findings: [FINDINGS](../FINDINGS.md).
 
 ## Hover and landing
@@ -21,7 +22,7 @@ floor.
 
 ## Routine
 
-`machine.aerobatics`' card on `machine.flying`'s one law: a
+`machine.aerobatics`' card: a
 pirouette, an orbit and a corkscrew to 8 m, a roll and a flip over a toss,
 the way back down, full tilt, the burn. 59.9 s on ideal rotors, 0.5 g at most
 outside its turns, the pole 2.7 m off; on four stand-ins no board throttling,
@@ -114,15 +115,14 @@ house's ridge, round a mast, between two cars, a slalom).
   floor; 1 - cos gusts of 2.4-4 m/s over it; eddies of 0.1-1.2 m/s rms, the
   frame's and each disc's. The frame's drag is against it; a disc's thrust
   rises with air rising.
-- The law is told none of it and learns the wind from its drag in 0.12 s
-  (`Flying.aired`): a hover at 5 m in 3.9 m/s stood 0.68 m off its spot
-  unlearnt, never `held`; 0.03 m learnt; in gusts to 6.8 m/s 0.23 m at most.
+- The law is told none of it and learns the wind from its drag in 0.12 s:
+  a hover at 5 m in 3.9 m/s stood 0.68 m off its spot unlearnt, never
+  `held`; 0.03 m learnt; in gusts to 6.8 m/s 0.23 m at most.
 - Its push learnt and not the wind: a lap in a constant wind passed a gate
   0.65 m off where 0.37 in still air (the push turns with the frame's own
   speed through a bend); the wind itself: 0.36-0.44.
-- A bend is planned on what the wind leaves of its grip
-  (`course.bend_speed`): gusty 0.78 -> 0.50 m, turbulent 0.94 -> 0.58, a
-  lap 1 s slower.
+- A bend planned on what the wind leaves of its grip: gusty 0.78 -> 0.50
+  m, turbulent 0.94 -> 0.58, a lap 1 s slower.
 - On the page's four boards the routine's fall went 3.5 m downwind and was
   back on its spot by its stop; laps 29.0 and 25.7 s, a gate 0.23 m off at
   most, boards to 0.76 of their envelopes, none throttling.
@@ -355,23 +355,12 @@ A dive pushed inverted, no level flight kept.
 
 ## Thrusts shared as her torques
 
-The collective and the torques shared over the rotors by her whole-body law's
-levels under bounds (`flying.Flying.stacked`, `machine.qp.stack`,
-one law for the quad and her): the tilt's torque, the collective,
-the heading's torque, the rotors alike, each rotor between nothing and its
-cap. Where nothing binds it shares as the hand does to the mN; a rotor at its
-cap, the tilt is kept whole and the collective gives way, as the hand's. The
-race, 12 flights each (`quad_race.py --suite all`):
-
-| Shared | Ideal laps, s | Boards laps, s | Struck |
-| --- | --- | --- | --- |
-| by hand (`shared`) | 13.7-14.1 | 14.0-14.3 | 2: air 5 gate 7, stuffy gate 1 |
-| by the stack (`stacked`) | 13.8-14.1 | 14.4-14.5 | 3: air 3 gate 13, air 5 gate 7, boards air 5 |
-
-- Possible, and 0.3 s a lap slower on the boards with a strike more: the
-  hand's kept (`flying.STACKED` 0), the stack there for the law's sake. A row
-  of K_DRAG / K_THRUST, 0.04, fell under the stack's tie-break and the
-  heading's torque came 15 % short: the rows are laid at unit scale.
+The collective and the torques shared over the rotors by her whole-body
+law's levels under bounds (`machine.qp.stack`) flew the race 0.3 s a lap
+slower on the boards than shared by hand, a strike more in 12 flights. A row
+of K_DRAG / K_THRUST, 0.04, fell under the stack's tie-break and the
+heading's torque came 15 % short: rows are laid at unit scale. The share is
+the core's active set now (aero_share.c).
 
 ## On the board's law
 
@@ -390,8 +379,8 @@ race, 12 flights (`quad_race.py --suite all`):
 - A rotor asked under its crossover (66 rad/s) is lost: asked none in a fall
   one went to -5 rad/s and tripped; flown with no least, 6 flights of 6
   struck. Asked its idle at the least and the allocation not told, a gate's
-  frame +0.36 m past its margin and the floor struck in a wind; told
-  (`thrusts.shared`'s `least`), the row above.
+  frame +0.36 m past its margin and the floor struck in a wind; told, the
+  row above.
 - On I_WEP in their loops the boards stood at 1.00 of their envelopes in
   full tilt: I_MAX kept.
 
