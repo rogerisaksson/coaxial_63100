@@ -1,5 +1,6 @@
 """The quad's aerobatics: a figure a row of setpoints (`machine.aerokin`'s), a routine a card of them.
 
+    route = aerobatics.routine(card)                 # a card's table, at its first row
     name, row = aerobatics.fly(route, now, holds)    # the card's row for now, eased in
     payload = aerokin.step(law, row, frame, dt, pull)    # that row flown: aero/'s payload
 
@@ -145,16 +146,11 @@ def ease(x):
 def eased(was, row, into, seconds):
     """The row `into` s of the way from `was` to `row`, eased over `seconds` - none, it is
     there -, its height's own rate and pull on it."""
-    if not 0.0 <= into < seconds:
-        return dict(row)
-    x, span = into / seconds, row['height'] - was['height']
-    return dict(mix(was, row, ease(x)), climb=span * 30.0 * x * x * (1.0 - x) ** 2 / seconds,
-                push=span * 60.0 * x * (1.0 - x) * (1.0 - 2.0 * x) / (seconds * seconds))
-
-
-def routine(card=CARD):
-    """A routine at its first row: the row it is on, when that began and the row it left."""
-    return {'row': 0, 'at': 0.0, 'was': dict(card[0][1]), 'card': card}
+    over = max(seconds, 1e-12)
+    x, span = max(float(seconds <= 0.0), min(1.0, into / over)), row['height'] - was['height']
+    there = dict(mix(was, row, ease(x)), climb=span * 30.0 * x * x * (1.0 - x) ** 2 / over,
+                 push=span * 60.0 * x * (1.0 - x) * (1.0 - 2.0 * x) / (over * over))
+    return (there, dict(row))[int(x >= 1.0)]
 
 
 def _way_down(card, row):
@@ -169,21 +165,43 @@ def _way_down(card, row):
     return None
 
 
+def laid(card):
+    """A card as its table, a column a thing a pass asks of a row: its name; what gives its
+    setpoints for now - a figure eased in from the row left, a line's own giver -; its
+    seconds; what it waits for; the row a spent flight goes to from it, or none (-1): from a
+    figure that does not wait to be fit."""
+    figures = [isinstance(row, dict) for _name, row, *_rest in card]
+    ways = [_way_down(card, k) for k in range(len(card))]
+    return {'name': [name for name, *_rest in card],
+            'give': [(row, lambda route, now, row=row, over=over: eased(
+                route['was'], row, now - route['at'], over))[int(figure)]
+                for (_name, row, _seconds, over, _waits), figure in zip(card, figures)],
+            'seconds': [seconds for _name, _row, seconds, *_rest in card],
+            'waits': [frozenset(waits.split()) for *_rest, waits in card],
+            'down': [(-1, way)[int(figure and way is not None and 'fit' not in waits.split())]
+                     for way, figure, (*_rest, waits) in zip(ways, figures, card)]}
+
+
+def routine(card=CARD):
+    """A routine at its first row: the row it is on, when that began, the row it left and the
+    row flown last; its card and that card's table (`laid`)."""
+    return {'row': 0, 'at': 0.0, 'was': dict(card[0][1]), 'flown': dict(card[0][1]),
+            'card': card, 'plan': laid(card)}
+
+
 def fly(route, now, holds=('held', 'fit')) -> tuple[str, dict[str, Any]]:
     """(the figure's name, its row for `now`): `route` moved on where its row's seconds are up
-    and all it waits for is among `holds` - or to its flight's SPENT_TO's row, `spent` among
-    them - the row eased in from the one left over its own seconds."""
-    card = route['card']
-    name, row, seconds, over, waits = card[route['row']]
-    into = now - route['at']
-    here = eased(route['was'], row, into, over) if isinstance(row, dict) else row(route, now)
-    down = _way_down(card, route['row'])
-    if ('spent' in holds and down is not None and isinstance(row, dict)
-            and 'fit' not in waits.split()):
-        route.update(row=down, at=now, was=here, holds=())
-    elif into >= seconds and set(waits.split()) <= set(holds) | set(route.get('holds', ())):
-        route.update(row=(route['row'] + 1) % len(card), at=now, was=here, holds=())
-    else:
-        return name, here
-    name, row, _seconds, over, _waits = card[route['row']]
-    return name, eased(route['was'], row, 0.0, over) if isinstance(row, dict) else row(route, now)
+    and all it waits for is among `holds` or what its row held last pass - or to its flight's
+    SPENT_TO's row, `spent` among `holds` -, then its row's setpoints for now, a figure's
+    eased in from the row flown last over its own seconds. A move is a number of 0 or 1: no
+    clause a kind of row."""
+    plan, row = route['plan'], route['row']
+    down = int('spent' in holds) * int(plan['down'][row] >= 0)
+    on = (1 - down) * int(now - route['at'] >= plan['seconds'][row]) * int(
+        plan['waits'][row] <= set(holds) | set(route.get('holds', ())))
+    moved = down + on
+    row = down * plan['down'][row] + on * ((row + 1) % len(plan['name'])) + (1 - moved) * row
+    route.update(row=row, at=(route['at'], now)[moved], was=(route['was'], route['flown'])[moved],
+                 holds=(route.get('holds', ()), ())[moved])
+    route['flown'] = here = plan['give'][row](route, now)
+    return plan['name'][row], here

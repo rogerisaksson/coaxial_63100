@@ -153,6 +153,37 @@ def test_it_flies_on_its_envelopes(report):
                      last['name'], last['y'], math.hypot(last['x'], last['z'])))
 
 
+def test_its_plan_is_computed_beforehand(report):
+    """course.braked, what the bends ahead allow, a table a sphere: a sample's the least of
+    its bend's and the next's braked for; a bend past AHEAD_M asks nothing; a lap's passes
+    read one table."""
+    from machine import course, quad
+    from tools.sim import quad_race as race
+    line_, sphere = course.track(), course.PULL * 10.0 * quad.GRAVITY
+    local, allowed, gains = course.braked(line_['laid'], sphere, course.BRAKE, course.SWING_S)
+    n = len(allowed)
+    chain = max(abs(allowed[k] - min(local[k], allowed[(k + 1) % n] + gains[(k + 1) % n]))
+                for k in range(n))
+    was = course.AHEAD_M
+    try:
+        race.put({'course.AHEAD_M': 2.0 * was})
+        further = course.braked(course.track()['laid'], sphere, course.BRAKE, course.SWING_S)[1]
+    finally:
+        race.put({'course.AHEAD_M': was})
+    report.check('each sample the least of its bend\'s and the next\'s braked for; looked '
+                 'twice as far ahead the same table',
+                 chain == 0.0 and further == allowed and min(gains) > 0.0
+                 and 2.0 < math.sqrt(min(allowed)) < math.sqrt(max(allowed)) < 60.0,
+                 '%.1f to %.1f m/s' % (math.sqrt(min(allowed)), math.sqrt(max(allowed))))
+    course.braked.cache_clear()
+    route = {'at': 0.0, 'seen': {'dt': 0.02, 'full': 10.0 * quad.GRAVITY}}
+    speeds = [course.line(route, 0.02 * k)['speed'] for k in range(50)]
+    laid = course.braked.cache_info()
+    report.check('fifty passes of the lap read one table, laid once',
+                 (laid.misses, laid.hits) == (1, 49) and speeds[-1] > speeds[0],
+                 '%d laid, %d read' % (laid.misses, laid.hits))
+
+
 def test_its_gates_in_wind(report):
     """The course in the air's tour - a constant wind, gusts, a changing one and eddies in its
     two laps, none of it told to the law: every gate passed inside its opening, the frame
@@ -365,7 +396,8 @@ def test_its_world_is_drawn(report):
                                                floor.max()))
 
 
-ROSTER = (test_its_gates_are_flown, test_it_flies_on_its_envelopes, test_its_gates_in_wind,
+ROSTER = (test_its_gates_are_flown, test_it_flies_on_its_envelopes,
+          test_its_plan_is_computed_beforehand, test_its_gates_in_wind,
           test_what_stands_is_solid, test_its_tuner_scores,
           test_a_frame_of_another_size, test_its_tilt_is_its_discs_own, test_its_world_is_drawn)
 

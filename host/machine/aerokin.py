@@ -155,21 +155,22 @@ def seen(law, frame, dt, pull, top):
             'vel': [float(x) for x in frame['vel']]}
 
 
-def step(law, row, frame, dt, pull, head=None, pitch=math.inf):
+def step(law, row, frame, dt, pull, head=(0.0, 0.0), pitch=math.inf):
     """The payload for a pass of `dt` s: the row `row` asked of the frame as `frame`
     (`quad.Sky.state`) has it, `pull` the most its rotors give a kg, m/s^2, `head` the heading
-    the core holds, (cos, sin) from z toward x (its answer's) - none held yet, the frame's
-    nose along the floor: the core's own from a level stand. The law's heading turned on;
+    the core holds, (cos, sin) from z toward x (its answer's) - none held yet, both none, the
+    frame's nose along the floor: the core's own from a level stand. The law's heading turned
+    on;
     the pull up and along the floor (`climb`, `lean`); the force that is, as a collective
     along its direction and that direction's tilt in the core's level frame; the turn its
     heading gives the axis, as the rates about its wing and its nose; its nose brought round
     to the law's heading as firmly as asked; a turn about its nose or its wing as a rate, that
     attitude dropped and the collective its weight."""
     turn = [[float(frame['turn'][r][k]) for k in range(3)] for r in range(3)]
-    held = float(head is not None and any(head))
+    held = float(head[0] * head[0] + head[1] * head[1] > 0.0)
     ahead = max(math.hypot(turn[2][2], turn[0][2]), 1e-9)
     head = tuple(held * h + (1.0 - held) * own / ahead
-                 for h, own in zip(head or (0.0, 0.0), (turn[2][2], turn[0][2])))
+                 for h, own in zip(head, (turn[2][2], turn[0][2])))
     rate = math.radians(row['turn'])
     half = 0.5 * rate * dt
     c, s = law['heading']

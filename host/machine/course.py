@@ -11,6 +11,7 @@ Rotors that have less than its sphere asks, it is flown on what they have. Its g
 stands about it are `machine.grounds`'.
 """
 import functools
+import itertools
 import math
 
 from machine.aerobatics import DOWN, HOVER, OVER, PRESSED, resized
@@ -87,7 +88,7 @@ _UNITS = {'DS': (1, 0), 'AHEAD_M': (1, 0),
           'REACH_M': (1, 0), 'SLACK_M': (1, 0), 'LOOK_M': (1, 0), 'STAND_M': (1, 0),
           'EASE_S': (0, 1), 'SWING_S': (0, 1), 'LEAD_S': (0, 1), 'SOFT_S': (0, 1),
           'LOOK_S': (0, 1), 'AIM_K': (0, -1), 'TURN_RAD_S': (0, -1), 'STAND_M_S': (1, -1)}
-_BUILT, _SET, _ROWS = {}, {}, []
+_BUILT, _SET, _ROWS, _LAID = {}, {}, [], itertools.count()
 
 
 def sized():
@@ -122,7 +123,8 @@ def track():
     """The line, a sample every DS m round the lap: {'at': its points, 'way': its unit
     tangents, 'bends': its (curvature, 1/m, its slope's own, 1/m, its bearing's turn, rad/m),
     'curve': its way's turn, a vector, 1/m, 'swings': what that changes by a metre, 1/m^2,
-    'gates': where each gate is along it, m, 'length', 'step'}."""
+    'gates': where each gate is along it, m, 'next': the gate flown to from each sample,
+    'length', 'step', 'laid': which laying of it this is}."""
     fine, marks, gates = [], [], grounds.GATES
     count = len(gates)
     rises = [SLOPE * (gates[(i + 1) % count][1] - gates[i - 1][1]) / (
@@ -162,8 +164,11 @@ def track():
     curve = [tuple((b - a) / (4.0 * step) for a, b in zip(way[j - 2], way[(j + 2) % n]))
              for j in range(n)]
     swings = [math.dist(curve[(j + 2) % n], curve[j - 2]) / (4.0 * step) for j in range(n)]
+    where = [run[m] for m in marks]
     return {'at': at, 'way': way, 'bends': bends, 'curve': curve, 'swings': swings,
-            'length': length, 'step': step, 'gates': [run[m] for m in marks]}
+            'length': length, 'step': step, 'gates': where, 'laid': next(_LAID),
+            'next': [next((g for g, mark in enumerate(where) if mark > j * step), 0)
+                     for j in range(n)]}
 
 
 def _on(row, s):
@@ -202,47 +207,68 @@ def _across(square, curve, rise):
 
 def _fastest(curve, rise, sphere):
     """v^2 at which a bend `curve`'s pull across fills the `sphere`, m/s^2 (`_across`): over a
-    crest gravity bends it the first g, under it the frame's thrust down the rest."""
+    crest gravity bends it the first g, under it the frame's thrust down the rest; any, where
+    the line does not bend."""
     turn = sum(c * c for c in curve)
-    if turn < 1e-12:
-        return math.inf
     lift = quad.GRAVITY * curve[1]
     free = quad.GRAVITY ** 2 * (1.0 - rise * rise) - sphere * sphere
-    return (math.sqrt(max(0.0, lift * lift - turn * free)) - lift) / turn
+    return ((math.sqrt(max(0.0, lift * lift - turn * free)) - lift) / max(turn, 1e-300),
+            math.inf)[int(turn < 1e-12)]
+
+
+@functools.lru_cache(maxsize=8)
+def braked(laid, sphere, brake, swing_s):
+    """The line's speeds in a `sphere`, a row a sample, computed once a sphere for the line as
+    `laid`: (v^2 its bend and its swing allow there; v^2 allowed there, what is ahead braked
+    for on `brake` of what its bend leaves along its way, the slope's and the drag's in it;
+    what that braking gains of v^2 a sample back). Run back from AHEAD_M past a lap's end:
+    from twice as far the table is the same."""
+    line_ = track()
+    n, step = len(line_['at']), line_['step']
+    drag, swung = 0.5 * quad.RHO * quad.BODY_CDA / quad.MASS_KG, 2.0 * sphere / swing_s
+    local = [min(_fastest(curve, way[1], sphere),
+                 ((swung / max(swing, 1e-300)) ** (2.0 / 3.0), math.inf)[int(swing <= 0.0)])
+             for curve, way, swing in zip(line_['curve'], line_['way'], line_['swings'])]
+    allowed, gains, square = [0.0] * n, [0.0] * n, math.inf
+    for j in range(n + int(AHEAD_M / step), -1, -1):
+        k = j % n
+        rise, square = line_['way'][k][1], min(square, local[k])
+        across = _across(square, line_['curve'][k], rise)
+        allowed[k], gains[k] = square, 2.0 * brake * max(0.0, math.sqrt(max(
+            0.0, sphere * sphere - across * across)) + quad.GRAVITY * rise + drag * square) * step
+        square += gains[k]
+    return local, allowed, gains
 
 
 def _along(speed, across, sphere, pitch):
     """The pull along its way the `sphere` leaves beside `across`, m/s^2, at `speed`, m/s: the
     air through the discs takes their thrust - none at `pitch`, m/s, along their axis - as much
     as the thrust points along the way, and the pull is most where it points half way there."""
-    if across >= sphere:
-        return 0.0
     low, high = 0.0, 1.0
     for _ in range(16):
         share = 0.5 * (low + high)
-        if sphere * (1.0 - speed * share / pitch) * math.sqrt(1.0 - share * share) >= across:
-            low = share
-        else:
-            high = share
-    share = min(low, 0.5 * pitch / speed if speed > 0.0 else 1.0)
-    return sphere * (1.0 - speed * share / pitch) * share
+        fits = int(sphere * (1.0 - speed * share / pitch) * math.sqrt(1.0 - share * share)
+                   >= across)
+        low, high = (low, share)[fits], (share, high)[fits]
+    share = min(low, (1.0, 0.5 * pitch / max(speed, 1e-300))[int(speed > 0.0)])
+    return float(across < sphere) * sphere * (1.0 - speed * share / pitch) * share
 
 
 def line(route, now):
     """The lap's row for now (`aerobatics.fly`'s giver), by what `route['seen']` says
     (`aerokin.seen`) - where the frame is and goes, the law's spot and heading, the pull its
     rotors have, the pass's seconds, whether it is `spent`: its speed the
-    one the bends ahead allow in its sphere, along the line's way and back onto
-    it, its bend's pull asked LEAD_S ahead, its spot kept on the line - the air none of its
-    own. Its laps flown - spent, the one it is on - it stands in
+    one the bends ahead allow in its sphere (`braked`, read where it is), along the line's way
+    and back onto it, its bend's pull asked LEAD_S ahead, its spot kept on the line - the air
+    none of its own. Its laps flown - spent, the one it is on - it stands in
     the first gate, `lapped`. Where the line's turn swings, no faster than the bend's pull
     goes from one side to the other in SWING_S: v^3 a metre of swing is the pull's change a
-    second."""
-    lap = route.get('lap')
-    if lap is None or lap['began'] != route['at']:
-        lap = route['lap'] = {'began': route['at'], 'k': 0, 'v': 0.0, 'asks': 0.0, 'laps': 0,
-                              'gate': 1, 'of': LAPS, 'pull': 0.0}
-    seen, line_ = route.get('seen') or {}, track()
+    second. No clause: a choice is a number of 0 or 1, a bound a least or a most."""
+    fresh = {'began': route['at'], 'k': 0, 'v': 0.0, 'asks': 0.0, 'laps': 0, 'gate': 1,
+             'of': LAPS, 'pull': 0.0}
+    lap = route.get('lap', fresh)
+    lap = route['lap'] = (lap, fresh)[int(lap['began'] != route['at'])]
+    seen, line_ = route.get('seen', {}), track()
     n, step = len(line_['at']), line_['step']
     dt, heading = seen.get('dt', 0.0), seen.get('heading', 0.0)
     at, vel = seen.get('at', line_['at'][0]), seen.get('vel', (0.0, 0.0, 0.0))
@@ -253,12 +279,11 @@ def line(route, now):
     # at a share of all of it a second: of what is left, a stuffy room's spent boards were
     # asked twice what they had for 2 s and it flew into a house
     ease = PULL * seen.get('full', 2.0 * quad.GRAVITY) * dt / EASE_S
-    sphere = lap['pull'] = whole if not lap['pull'] else max(lap['pull'] - ease, min(
-        whole, lap['pull'] + 0.5 * ease))
+    sphere = lap['pull'] = (max(lap['pull'] - ease, min(whole, lap['pull'] + 0.5 * ease)),
+                            whole)[int(not lap['pull'])]
     # where the frame is on the line, from where it was on
     s = nearest(line_, at, lap['k'], lap['k'] + int(REACH_M / step))
-    if seen.get('spent'):
-        lap['of'] = min(lap['of'], int(s) // n + 1)
+    lap['of'] = min(lap['of'], (lap['of'], int(s) // n + 1)[int(bool(seen.get('spent')))])
     end = float(lap['of'] * n)
     s = min(end, s)
     k = lap['k'] = int(s)
@@ -267,36 +292,26 @@ def line(route, now):
     # what the law takes the change of spans the pass to come: asked for where that ends
     on = min(end, s + along * dt / step)
     lead = min(end, on + LEAD_S * lap['v'] / step)
-    # as fast as the bends ahead allow in its sphere: a bend at the speed all of it turns it,
-    # braked for on what the bend there leaves
-    # along its way, the slope's and the drag's in it, run back from the far end of what is
-    # looked at to where it is as much further on as its asked speed trails; to a stand at its
-    # finish; sped up on what is left where it is, through the air along its discs
+    # as fast as the bends ahead allow in its sphere, read as much further on as its asked
+    # speed trails: a bend at the speed all of the sphere turns it, braked for on what the
+    # bend there leaves along its way; to a stand at its finish; sped up on what is left
+    # where it is, through the air along its discs
     soon = min(end, lead + SOFT_S * lap['v'] / step)
-    base, far = int(soon), min(int(AHEAD_M / step), int(end - soon))
-    drag = 0.5 * quad.RHO * quad.BODY_CDA / quad.MASS_KG
-    swung, square = 2.0 * sphere / SWING_S, math.inf
-    for j in range(far, -1, -1):
-        rise, curve = line_['way'][(base + j) % n][1], line_['curve'][(base + j) % n]
-        square = min(square, _fastest(curve, rise, sphere))
-        swing = line_['swings'][(base + j) % n]
-        if swing > 0.0:
-            square = min(square, (swung / swing) ** (2.0 / 3.0))
-        if j:
-            across = _across(square, curve, rise)
-            brake = (math.sqrt(max(0.0, sphere * sphere - across * across))
-                     + quad.GRAVITY * rise + drag * square)
-            square += 2.0 * BRAKE * max(0.0, brake) * step * (1.0 if j > 1 else 1.0 - soon % 1.0)
-    allowed = math.sqrt(max(0.0, min(square, 2.0 * STOP * sphere * (end - soon) * step)))
+    local, allowed, gains = braked(line_['laid'], sphere, BRAKE, SWING_S)
+    base, drag = int(soon), 0.5 * quad.RHO * quad.BODY_CDA / quad.MASS_KG
+    square = (local[base % n], min(local[base % n], allowed[(base + 1) % n]
+                                   + gains[(base + 1) % n] * (1.0 - soon % 1.0)))[
+        int(min(int(AHEAD_M / step), int(end - soon)) >= 1)]
+    most = math.sqrt(max(0.0, min(square, 2.0 * STOP * sphere * (end - soon) * step)))
     was, curve = lap['v'], _on(line_['curve'], s)
     sped = (GO * _along(was, _across(was * was, curve, way[1]), sphere,
                         seen.get('pitch', math.inf)) - quad.GRAVITY * way[1] - drag * was * was)
-    speed = lap['v'] = max(0.0, min(allowed, was + sped * dt))
-    gained = max(-sphere, min(sphere, (speed - was) / dt)) if dt > 0.0 else 0.0
-    lap.update(laps=min(lap['of'] - 1, k // n),
-               gate=next((g for g, mark in enumerate(line_['gates']) if mark > (k % n) * step), 0))
-    if (end - s) * step <= STAND_M and math.sqrt(sum(float(v) ** 2 for v in vel)) <= STAND_M_S:
-        route['holds'] = ('lapped',)
+    speed = lap['v'] = max(0.0, min(most, was + sped * dt))
+    gained = float(dt > 0.0) * max(-sphere, min(sphere, (speed - was) / max(dt, 1e-12)))
+    lap.update(laps=min(lap['of'] - 1, k // n), gate=line_['next'][k % n])
+    stood = int((end - s) * step <= STAND_M) * int(
+        math.sqrt(sum(float(v) ** 2 for v in vel)) <= STAND_M_S)
+    route['holds'] = (route.get('holds', ()), ('lapped',))[stood]
     # its way: the line's, the frame's miss of the line taken back over its look
     to, veer = _on(line_['way'], on), _on(line_['bends'], on)[2]
     look = max(LOOK_M, LOOK_S * speed)

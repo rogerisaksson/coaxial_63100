@@ -190,12 +190,15 @@ gets a line at the end of [DONE](DONE.md).
   the rotors' thrusts inside what each board holds. Above the core no
   mixing, no Euler angle, no air; in it no `if`.
   + The flight is inside the action space's shell (`machine/pull.py`,
-    `flight.shell`, envelope.md). Left: the lap's sphere from its rotors'
-    reach, where a share of the clamp's pull was searched; the lap's plan
-    (`course.line`) and the card's waits (`aerobatics.fly`) without a
-    branch.
-  + The axis asked brings its own rate: a row's pull turns 5.9 rad/s rms
-    on a lap and the tilt trails it its damping over its stiffness, 57 ms.
+    `flight.shell`, envelope.md), its plan a table computed beforehand, no
+    clause in a pass above the core (streams.md). Left: the lap's sphere,
+    its brake's and its swing's shares from its rotors' reach, where they
+    were searched.
+  + The axis asked brings its own rate: the force asked turns 7.2 rad/s
+    rms on a lap, the frame 4.6, its axis 29 degrees rms off; that turn fed
+    forward struck every flight (streams.md). DOD: a row's force one the
+    frame turns with - its turn and that turn's change inside the reach -,
+    its rate in the payload; the axis's miss on a lap quoted.
   + On four boards in a wind the rows have 76-82 % of the clamp's pull at
     the least on a second lap, the law before 89-91 %: what the core's
     passes of 2 ms spend.

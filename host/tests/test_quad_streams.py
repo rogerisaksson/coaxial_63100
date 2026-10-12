@@ -4,7 +4,8 @@
 The power loop's four streams as payloads; a stream laid over the one before it; what is no
 stream refused; the four flown on ideal rotors in MuJoCo (`tools/sim/streams.py`) and on four
 stand-in boards; a hover's stream in the tour's air; a hover asked from upsets; the page's
-routine and the course flown from their cards' rows (`machine.aerokin`)."""
+routine and the course flown from their cards' rows (`machine.aerokin`), no clause in a pass
+of them."""
 import math
 import struct
 import sys
@@ -355,11 +356,34 @@ def test_the_course_is_flown_from_its_rows(report):
                          passes, quad_race.MISS_M - miss))
 
 
+def test_a_pass_above_the_core_has_no_clause(report):
+    """What makes a pass's payload above the core - a card's step and its figures' easing
+    (machine.aerobatics), the lap's plan (machine.course), a row's kinematics (machine.aerokin),
+    the action space (machine.pull) - holds no `if`, no conditional expression, no `while`,
+    `match` or `try`, no `and` or `or`, no filter in a comprehension: a choice is a number of
+    0 or 1. What lays a table once - a card's, the line's, a frame's size - is no pass."""
+    import ast
+    import inspect
+    from machine import aerobatics, aerokin, course, pull
+    once, clauses = ('sized', 'laid', '_way_down', 'track'), (
+        ast.If, ast.IfExp, ast.While, ast.Match, ast.Try, ast.BoolOp)
+    found, counted = [], 0
+    for module in (aerobatics, aerokin, course, pull):
+        for node in ast.parse(inspect.getsource(module)).body:
+            if isinstance(node, (ast.FunctionDef, ast.ClassDef)) and node.name not in once:
+                counted += 1
+                found += ['%s.%s' % (module.__name__.split('.')[-1], node.name)
+                          for sub in ast.walk(node) if isinstance(sub, clauses)
+                          or isinstance(sub, ast.comprehension) and sub.ifs]
+    report.check('no clause in the %d functions of a pass above the core' % counted,
+                 counted >= 30 and not found, ', '.join(found[:6]) or 'none')
+
+
 ROSTER = (test_the_power_loop_compiles, test_a_stream_alone_is_its_authors_bytes,
           test_what_is_no_stream_is_refused, test_the_power_loop_is_flown,
           test_the_power_loop_on_four_boards, test_a_hover_keeps_still_in_the_air,
           test_a_hover_is_stood_from_an_upset, test_the_routine_is_flown_from_its_rows,
-          test_the_course_is_flown_from_its_rows)
+          test_the_course_is_flown_from_its_rows, test_a_pass_above_the_core_has_no_clause)
 
 
 def main(argv=None):

@@ -114,3 +114,7 @@ it names. A closed item is cut from the list and gets its line here, last.
     0.2 s of it a flight. 34 flights of 34 whole in fourteen winds, a
     stuffy room's laps 14.3 and 14.5 s where 14.5 and 15.1
     ([envelope](findings/envelope.md)).
+39. No clause in a pass above the core: a card's step a table and a move
+    by masks, the lap's plan a table a sphere computed beforehand and read
+    where the frame is - 64 us a pass where 357, two laps' rows the same
+    to the bit, the race flight for flight ([streams](findings/streams.md)).

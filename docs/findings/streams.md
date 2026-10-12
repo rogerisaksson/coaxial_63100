@@ -74,6 +74,11 @@ passes: its tilt's torques against that law's 1.5 N m rms.
   its back.
 - The lift over the heading in the share: the heading over it, the hover
   after the catch stood 0.3-1.7 m off its height in 4 turns of 12.
+- On a lap the force asked, the loops' own on it, turns 7.2 rad/s rms and
+  55.7 at the most; the frame 4.6, its axis 29 degrees rms off that force.
+  That turn as the rates' target, no faster than the tilt's own loop turns:
+  six flights of six struck; 0.15 of it, a gate's frame 0.15 m past its
+  margin, 33.03 where 28.93.
 
 ## The rotors' reach
 
@@ -199,6 +204,14 @@ numbers beside:
   crossed its gate off that law's own crossing - they stood 0.01 m rms off
   in three flights.
 - A bend's pull up and down is asked LEAD_S ahead as its pull across is.
+- No clause in a pass above the core: a card's step is a table laid once
+  and a move by masks (`aerobatics.laid`, `fly`), the lap's plan a table a
+  sphere computed beforehand and read where the frame is
+  (`course.braked`), 33 functions held to it (`test_quad_streams.py`). Run
+  back 40 m a pass it was 357 us of this host; read, 64, the 1 441 rows of
+  two laps the same to the bit and the race flight for flight. A row left
+  is the one flown last: a lap's end is told a pass later, 0.02 s on the
+  race's count.
 - The plan is told no wind and the frame's drag is not fed forward: the air
   is the core's alone.
 - The routine's fall is paced, 10 m/s (`aerobatics.STOP`): let fall at any
