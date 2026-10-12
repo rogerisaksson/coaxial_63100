@@ -148,3 +148,7 @@ it names. A closed item is cut from the list and gets its line here, last.
     its clamp a rotor slows as asked where 0.18 s late, full tilt's four
     4.4-5.9 A apart and 8.3-12.4 deg off at the most where 5.2-10.5 and
     9.4-15.2 ([envelope](findings/envelope.md)).
+46. Her stride in C (`wbc_cone.c`): the python step's on her walk, 7e-10 N m
+    on one sole; her walk on it 0.69 m/s, 301 J/m, 2.46 off; device 13 op 2
+    ticks the step with a sole swung - its rounds, striding, setting out,
+    0.44 M instructions the longest ([wrench](findings/wrench.md)).

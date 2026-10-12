@@ -61,8 +61,8 @@ wbc/      her chain on its static model (wbc_model.c, written by
           tools/cores/model.py): poses, Jacobians, M, bias; the loop over it
           (wbc_stack.c the levels and bounds, wbc_solve.c the dual active set),
           asks of R^k into torques by priority within the bounds; the step
-          without an active set (wbc_wrench.c, machine.wrench's rows);
-          host-tested
+          without an active set (wbc_wrench.c, machine.wrench's rows; a
+          sole's cone and her stride through it, wbc_cone.c); host-tested
 aero/     a frame flown from a compiled intent (machine.aerolisp's payload):
           its blend, oscillator and observers, the lift inside its constraints
           (aero.c), where the rotors' axis is asked and the torque there

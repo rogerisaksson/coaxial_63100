@@ -49,6 +49,7 @@ extern "C" {
 /* The whole-body loop, device 13. */
 #define WBC_OP_TICK 0U
 #define WBC_OP_STEP 1U             /* MINOR 33 */
+#define WBC_OP_SWUNG 2U            /* MINOR 35 */
 
 /* The frame's core, device 14 (MINOR 34): its requests' bytes past the head. */
 #define AERO_OP_LAY  0U
@@ -180,7 +181,7 @@ extern "C" {
 /* 2.0: the thermal nodes went per leg, which REPURPOSED wire
    indices - device 8 node order and the cal record's ceilings both. */
 #define CMD_PROTO_MAJOR 2U
-#define CMD_PROTO_MINOR 34U        /* history: docs/PROTOCOL_VERSIONS.md */
+#define CMD_PROTO_MINOR 35U        /* history: docs/PROTOCOL_VERSIONS.md */
 
 /** Request payload length of a command that takes a variable-length payload. */
 #define CMD_LEN_VARIABLE 0xFFU

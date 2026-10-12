@@ -44,10 +44,9 @@ gets a line at the end of [DONE](DONE.md).
      320 N to 59 in 45 ms. Her speed 0.69 m/s
      where her drive's is 0.62: a landing led by half her speed's error
      leaves the rest; summed, 0.62 with her head at 8 deg and her trunk
-     at 7. The striding step is python's alone: `_taken` and `strides`
-     in `wbc_wrench.c`. Standing the rows are still traded, a moment
-     pinned in the world's frame. DOD: 1.25 and under about a landing,
-     0.75 and over after, at her drive's speed.
+     at 7. Standing the rows are still traded, a moment pinned in the
+     world's frame. DOD: 1.25 and under about a landing, 0.75 and over
+     after, at her drive's speed.
    + The floor as a contact's wrench cone: a sole's moments and its
      friction coupled faces of its push, never a part clipped alone,
      never a centre of pressure by division. Its room a continuous
@@ -109,8 +108,9 @@ gets a line at the end of [DONE](DONE.md).
      and a board's (its SOA, its heat): laid by nothing.
    + The loop in C: `latent.step` and `impedance.ask` as cores beside
      `wbc/`, `ortho_row_t` a header a test holds to `ortho.ROW`; the page
-     on `wbc_wrench.c`. In python the page solves every third pass;
-     solved every pass her walk falls within 6 s, on either step.
+     on `wbc_wrench.c`. Solved every pass, every second, third (the
+     page's), fourth and sixth she walks 51 s alike: 0.68-0.69 m/s, 295-329
+     J/m, 2.43-2.56 off the band.
    + From the page: a line to type a text into; the model composing
      rows.
    + On the front page's stand she stands: her walk there from a take of
@@ -198,9 +198,10 @@ gets a line at the end of [DONE](DONE.md).
       legs above their soles clear of each other.
     + Loop: a tick 24.9 M instructions on the Release image, 52 ms on the
       M7 where the DOD's 1. The step without an active set in C
-      (`wbc_wrench.c`, wrench.md): 0.25 M instructions standing, 0.53 ms;
-      0.35 M a sole swung and a moment clipped, 0.73 ms, its four rounds
-      0.11 M; on a board, by its own cycles: unmeasured.
+      (`wbc_wrench.c`, `wbc_cone.c`, wrench.md): 0.25 M instructions
+      standing, 0.52 ms; a sole swung 0.34 M, striding 0.35; setting
+      out, the rounds beside the stride, 0.44 M, 0.93 ms (device 13 op
+      2); on a board, by its own cycles: unmeasured.
     + Bottom, each board: the ESO (`parts.Eso`, `CTRL_ESO`) onto the boards
       as built on the motor's encoder; torque and acceleration registers on
       the wire.

@@ -4,9 +4,10 @@
     about its middle), its own acceleration where it does not - and her upper body's drives'
     accelerations. Every acceleration follows from them and the pelvis's six, udot = T base +
     E x + t0: a leg through its sole's damped inverse, the pelvis by the six base rows of her
-    dynamics. One weighted least squares on the normal equations finds x, ROUNDS times, each
-    wrench clipped into its sole's bounds and what was clipped pinned for the next; the drives'
-    clamps clip the torques after it. No iteration but those rounds
+    dynamics. One weighted least squares on the normal equations finds x, WBC_ROUNDS times, each
+    wrench clipped into its sole's bounds and what was clipped pinned for the next. Striding,
+    what the floor cannot give is not traded among the rows again: her inertia takes it
+    (wbc_cone.c). The drives' clamps clip the torques after it. No iteration but those rounds
     (docs/findings/wrench.md). */
 #include "wbc.h"
 #include "wbc_solve.h"
@@ -16,15 +17,14 @@
 
 #define NU WBC_U
 #define UPPER (WBC_DRIVEN - 12)
-#define ROUNDS 4
 
 static const double G = 9.81;
-static const double HELD_K = 50.0, CONTACT_K = 20.0, MOMENTUM_K = 3.0, MU = 0.6, HEIGHT_BAND = 3.0;
+static const double HELD_K = 50.0, CONTACT_K = 20.0, MOMENTUM_K = 3.0, HEIGHT_BAND = 3.0;
 static const double TURN_KP = 100.0, TURN_KD = 20.0, POSTURE_KP = 100.0, POSTURE_KD = 20.0;
 static const double SWING_KP = 1600.0, SWING_KD = 80.0;
-/** machine/wrench.py's: a sole's edge and its yaw's arm, m; a leg's solve's damping; a knee
-    nearer straight than KNEE_MIN rad is sprung back; the rows' weights. */
-static const double EDGE_M = 0.003, YAW_M = 0.04, DAMP = 0.02, KNEE_MIN = 0.07;
+/** machine/wrench.py's: a sole's edge, m; a leg's solve's damping; a knee nearer straight
+    than KNEE_MIN rad is sprung back; the rows' weights. */
+static const double EDGE_M = 0.003, DAMP = 0.02, KNEE_MIN = 0.07;
 static const double W_COM = 1000.0, W_TURN = 30.0, W_SWING = 30.0, W_KNEE = 3.0, W_POSTURE = 1.0;
 static const double W_HEIGHT = 1.0, W_MOMENT = 0.3, W_FOLD = 3.0, W_STOP = 30.0, W_PART = 0.1;
 static const double W_AIR = 1e-3, W_PIN = 1e5;
@@ -175,12 +175,11 @@ void wbc_wrench_init(wbc_wrench_t *w)
       w->passive[w->npassive++] = 5 + link;
     }
   }
-  /* a leg's dof reaches its sole's six unknowns, an upper drive its own, a passive joint all */
+  /* a leg's dof reaches its sole's six unknowns as it swings (maps), an upper drive its own,
+     a passive joint what its row comes to (passive_of) */
   for (int i = 0; i < 12; i++)
   {
     w->led[i] = 5 + wbc_driven[w->leg[i / 6][i % 6]];
-    w->reach[w->led[i]][0] = 6 * (i / 6);
-    w->reach[w->led[i]][1] = 6 * (i / 6) + 6;
   }
   for (int i = 0; i < UPPER; i++)
   {
@@ -270,6 +269,17 @@ static void passive_of(const wbc_body_t *b, wbc_wrench_t *w)
       rest += a * rhs[j][COLS - 1];
     }
     w->t0[w->passive[i]] = rest;
+    /* what its row reaches: its first filled unknown to its last */
+    w->reach[w->passive[i]][0] = NU;
+    w->reach[w->passive[i]][1] = 0;
+    for (int c = NU - 1; c >= 0; c--)
+    {
+      w->reach[w->passive[i]][0] = (e[c] != 0.0) ? c : w->reach[w->passive[i]][0];
+    }
+    for (int c = 0; c < NU; c++)
+    {
+      w->reach[w->passive[i]][1] = (e[c] != 0.0) ? c + 1 : w->reach[w->passive[i]][1];
+    }
   }
 }
 
@@ -306,6 +316,8 @@ static void maps(wbc_body_t *b, wbc_wrench_t *w, const double u[WBC_N], const wb
     for (int i = 0; i < 6; i++)
     {
       dof[i] = w->led[6 * k + i];
+      w->reach[dof[i]][0] = 6 * k;
+      w->reach[dof[i]][1] = 6 * k + ((ask->swing[k] && !ask->stance[k]) ? 6 : 0);
     }
     /* its twist: the pelvis's six and its leg's move it, none else */
     for (int i = 0; i < 6; i++)
@@ -403,47 +415,6 @@ static void maps(wbc_body_t *b, wbc_wrench_t *w, const double u[WBC_N], const wb
   passive_of(b, w);
 }
 
-/** x with each standing sole's wrench inside its bounds - pressing, in its friction's pyramid,
-    its centre of pressure in its room, toward its ball or heel as `edge` has it - into at;
-    which parts moved into moved. */
-static void bounded(const wbc_body_t *b, const wbc_wrench_t *w, const wbc_ask_t *ask,
-                    const double stance[2], const double x[NU], double at[NU], double moved[NU])
-{
-  memcpy(at, x, NU * sizeof(double));
-  for (int k = 0; k < 2; k++)
-  {
-    const double *r = b->t[wbc_sole[k]].r, *m = x + 6 * k, *f = x + 6 * k + 3;
-    const double  fy = (f[1] > 0.0) ? f[1] : 0.0, e = ask->edge[k];
-    const double  cap[3] = {w->room[1] * fy, MU * YAW_M * fy, w->room[0] * fy};
-    const double  lo0 = -cap[0] * (1.0 - 2.0 * ((e < 0.0) ? -e : 0.0));
-    const double  hi0 = cap[0] * (1.0 - 2.0 * ((e > 0.0) ? e : 0.0));
-    double        ml[3], in[6];
-
-    for (int i = 0; i < 3; i++)
-    {
-      ml[i] = r[i] * m[0] + r[3 + i] * m[1] + r[6 + i] * m[2];
-    }
-    ml[0] = clip(ml[0], lo0, hi0);
-    ml[1] = clip(ml[1], -cap[1], cap[1]);
-    ml[2] = clip(ml[2], -cap[2], cap[2]);
-    for (int i = 0; i < 3; i++)
-    {
-      in[i] = r[3 * i] * ml[0] + r[3 * i + 1] * ml[1] + r[3 * i + 2] * ml[2];
-    }
-    in[3] = clip(f[0], -MU * fy, MU * fy);
-    in[4] = fy;
-    in[5] = clip(f[2], -MU * fy, MU * fy);
-    for (int i = 0; i < 6; i++)
-    {
-      at[6 * k + i] += stance[k] * (in[i] - x[6 * k + i]);
-    }
-  }
-  for (int c = 0; c < NU; c++)
-  {
-    moved[c] = (fabs(at[c] - x[c]) > 1e-9) ? 1.0 : 0.0;
-  }
-}
-
 void wbc_wrench_step(wbc_body_t *b, wbc_wrench_t *w, const wbc_frame_t *base,
                      const double q[WBC_N - 6], const double u[WBC_N], const wbc_ask_t *ask,
                      wbc_out_t *out)
@@ -454,7 +425,8 @@ void wbc_wrench_step(wbc_body_t *b, wbc_wrench_t *w, const wbc_frame_t *base,
   const double mass = wbc_total_mass, lo = ask->com_acc[1] - HEIGHT_BAND, hi = ask->com_acc[1] + HEIGHT_BAND;
   double       want[WBC_DRIVEN], a6[12], asked[2], com[3], k3[3], row[NU], part[NU];
   double       a[6][6], ai[6][6], d[6], x[NU], at[NU], pinned[NU], moved[NU], hard[NU], way[NU];
-  double       band = 0.0, edge = 0.0;
+  double       mbt[6][6], own[NU], u0[NU];
+  double       band = 0.0, edge = 0.0, bent = 0.0;
 
   memset(out, 0, sizeof(*out));
   wbc_body_pose(b, base, q);
@@ -503,6 +475,7 @@ void wbc_wrench_step(wbc_body_t *b, wbc_wrench_t *w, const wbc_frame_t *base,
       }
     }
   }
+  memcpy(mbt, a, sizeof(mbt));
   if (!invert6(a, ai))
   {
     return;
@@ -623,13 +596,14 @@ void wbc_wrench_step(wbc_body_t *b, wbc_wrench_t *w, const wbc_frame_t *base,
 
     part[c] = (c >= 12) ? 0.0 : ((c % 6 < 3) ? 1.0 / (mass * G * w->room[0]) : 1.0 / (mass * G));
     weight = W_PART * sole * part[c] + W_AIR * air;
+    own[c] = W_SWING * ((c < 12) ? asked[c / 6] : 0.0) + weight;
     w->h[c][c] += weight * weight + 1e-12;
   }
 
-  /* ROUNDS solves: the clipped parts pinned, her height held to its band's edge once past it */
+  /* WBC_ROUNDS solves: the clipped parts pinned, her height held to its band's edge once past */
   memset(pinned, 0, sizeof(pinned));
   memset(at, 0, sizeof(at));
-  for (int round = 0; round < ROUNDS; round++)
+  for (int round = 0; round < WBC_ROUNDS; round++)
   {
     double ay, past, held = 0.0, clipped = 0.0;
 
@@ -675,6 +649,10 @@ void wbc_wrench_step(wbc_body_t *b, wbc_wrench_t *w, const wbc_frame_t *base,
       return;
     }
     wbc_chol_solve(NU, NU, &w->k[0][0], w->gk, x);
+    if (round == 0)
+    {
+      memcpy(u0, x, sizeof(u0));  /* the rows' answer, the floor unbounded */
+    }
     if (band > 0.0)
     {
       double step;
@@ -694,15 +672,33 @@ void wbc_wrench_step(wbc_body_t *b, wbc_wrench_t *w, const wbc_frame_t *base,
     past = clip(ay, lo, hi) + G;
     edge += (1.0 - band) * (past - edge);
     band = ((grounded > 0.0) && (fabs(past - G - ay) > 1e-9)) ? 1.0 : band;
-    bounded(b, w, ask, stance, x, at, moved);
+    wbc_cone_bounded(b, w, ask, stance, x, at, moved);
     for (int c = 0; c < NU; c++)
     {
       pinned[c] = (moved[c] > pinned[c]) ? moved[c] : pinned[c];
       clipped += pinned[c];
     }
-    if ((clipped == 0.0) && (band == 0.0))
+    bent = clipped + band;
+    if ((bent == 0.0) || (ask->strides >= 1.0))
     {
-      break;                      /* nothing clipped: the rounds to come would solve the same */
+      break;                      /* nothing clipped: the rounds to come would solve the same;
+                                     striding whole, their answer is not hers */
+    }
+  }
+  if ((ask->strides > 0.0) && (bent > 0.0))
+  {
+    /* striding: what the floor cannot give her inertia takes, as far as she strides */
+    for (int i = 0; i < 6; i++)
+    {
+      mbt[i][i] -= 1e-9;
+    }
+    if (!wbc_cone_taken(b, w, ask, stance, lo, hi, mbt, own, u0, way))
+    {
+      return;
+    }
+    for (int c = 0; c < NU; c++)
+    {
+      at[c] += ask->strides * (way[c] - at[c]);
     }
   }
 

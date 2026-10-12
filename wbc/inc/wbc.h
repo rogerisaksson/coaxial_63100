@@ -104,6 +104,7 @@ typedef struct
   double kdot[3];
   double settle[2][6];            /**< a standing sole's own acceleration (w, v), world: 0 still */
   double edge[2];                 /**< its centre of pressure toward its ball (1) or heel (-1) */
+  double strides;                 /**< how far she strides, 0 to 1: the floor's shortfall her inertia's */
 } wbc_ask_t;
 
 /** What the loop answers: the drives' torques; every acceleration (u's order); each sole's
@@ -206,6 +207,8 @@ void wbc_stack_step(wbc_body_t *b, wbc_stack_t *s, const wbc_frame_t *base,
     it stands, its acceleration where it does not, then her upper body's drives' accelerations
     - and the joints no drive and no stop holds. */
 #define WBC_U (12 + WBC_DRIVEN - 12)
+/** Its rounds of clipping, and of faces striding. */
+#define WBC_ROUNDS 4
 #define WBC_PASSIVE (WBC_N - 6 - WBC_DRIVEN - WBC_HELD)
 
 /** Its memory, laid once. */
@@ -216,7 +219,7 @@ typedef struct
   int    passive[WBC_PASSIVE];    /**< the dofs no drive and no stop holds, and how many */
   int    npassive;
   int    led[12 + WBC_PASSIVE];   /**< the dofs the pelvis's six move: her legs', the passive */
-  int    reach[WBC_N][2];         /**< the unknowns a dof's row of e reaches: from, before */
+  int    reach[WBC_N][2];         /**< the unknowns a dof's row of e reaches this tick: from, before */
   double room[2];                 /**< a sole's centre of pressure within, across and along, m */
   double jsole[2][6][WBC_N];      /**< each sole's Jacobian at its middle, world (w, v) */
   double sole_p[2][3];            /**< and where it is */
@@ -232,6 +235,14 @@ typedef struct
   double g[WBC_U];
   double k[WBC_U][WBC_U];
   double gk[WBC_U];
+  double mt[WBC_N][6];            /**< striding: M t and M e, t^T M e, (t^T M t) p + t^T M e */
+  double me[WBC_N][WBC_U];
+  double tme[6][WBC_U];
+  double xk[6][WBC_U];
+  double gi[12][WBC_U];           /**< the metric's inverse's columns a sole's unknowns have */
+  double cf[13][12];              /**< the faces met, over the soles' unknowns; the 13th her height's band */
+  double z[13][WBC_U];            /**< the metric's inverse on each */
+  double s[13][13];
 } wbc_wrench_t;
 
 void wbc_wrench_init(wbc_wrench_t *w);
@@ -241,5 +252,20 @@ void wbc_wrench_init(wbc_wrench_t *w);
 void wbc_wrench_step(wbc_body_t *b, wbc_wrench_t *w, const wbc_frame_t *base,
                      const double q[WBC_N - 6], const double u[WBC_N], const wbc_ask_t *ask,
                      wbc_out_t *out);
+
+/** A standing sole's wrench in its cone (wbc_cone.c): x with each inside its bounds a part at
+    a time - pressing, in its friction's pyramid, its centre of pressure in its room -, into
+    at, and which parts moved. */
+void wbc_cone_bounded(const wbc_body_t *b, const wbc_wrench_t *w, const wbc_ask_t *ask,
+                      const double stance[2], const double x[WBC_U], double at[WBC_U],
+                      double moved[WBC_U]);
+
+/** Striding: u0, the rows' answer with the floor unbounded, brought to the faces her soles'
+    wrenches are past by the least change in her kinetic energy's metric, into at; her
+    height inside lo to hi; mbt the pelvis's rows of M t, own each unknown's own weight. 0
+    where the metric has no factor. */
+int wbc_cone_taken(const wbc_body_t *b, wbc_wrench_t *w, const wbc_ask_t *ask, const double stance[2],
+                   double lo, double hi, const double mbt[6][6], const double own[WBC_U],
+                   const double u0[WBC_U], double at[WBC_U]);
 
 #endif

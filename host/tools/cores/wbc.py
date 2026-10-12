@@ -18,6 +18,7 @@ SOURCES = [os.path.join(REPO, 'wbc', 'test', 'harness.c'),
            os.path.join(REPO, 'wbc', 'src', 'wbc_stack.c'),
            os.path.join(REPO, 'wbc', 'src', 'wbc_solve.c'),
            os.path.join(REPO, 'wbc', 'src', 'wbc_wrench.c'),
+           os.path.join(REPO, 'wbc', 'src', 'wbc_cone.c'),
            os.path.join(REPO, 'wbc', 'src', 'wbc_model.c')]
 INCLUDES = [os.path.join(REPO, 'wbc', 'inc')]
 #: The firmware compiles the chain at -O2 (CMakeLists.txt).
@@ -46,7 +47,8 @@ class Ask(ctypes.Structure):
                 ('swing_acc', (_d * 3) * 2), ('swing_quat', (_d * 4) * 2), ('fold', _i * 2),
                 ('fold_knee', _d * 2), ('fold_rate', _d * 2), ('fold_acc', _d * 2),
                 ('posture', _d * DRIVEN), ('derate', _d * DRIVEN), ('wep', _i),
-                ('kdot_given', _i), ('kdot', _d * 3), ('settle', (_d * 6) * 2), ('edge', _d * 2)]
+                ('kdot_given', _i), ('kdot', _d * 3), ('settle', (_d * 6) * 2), ('edge', _d * 2),
+                ('strides', _d)]
 
 
 class Out(ctypes.Structure):
@@ -62,7 +64,7 @@ class Out(ctypes.Structure):
 
 def ask_of(ask):
     """An `Ask` from `machine.wbc.step`'s dict: stance, com_acc, turns - none asked, all zeros
-    -, swing, fold, posture, derate, wep, kdot; `machine.wrench.step`'s settle and edge."""
+    -, swing, fold, posture, derate, wep, kdot; `machine.wrench.step`'s settle, edge and strides."""
     a = Ask()
     for k in (0, 1):
         a.stance[k] = int(bool(ask['stance'][k]))
@@ -86,6 +88,7 @@ def ask_of(ask):
     for k, settle in enumerate(ask.get('settle', ())):
         a.settle[k][:] = [float(x) for x in settle]
     a.edge[:] = [float(x) for x in ask.get('edge', (0.0, 0.0))]
+    a.strides = float(ask.get('strides', 0.0))
     return a
 
 

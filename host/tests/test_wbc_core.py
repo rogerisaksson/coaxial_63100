@@ -26,6 +26,8 @@ POSES, APART = 40, 1e-9
 #: loads (N) may sit from `machine.wrench`'s: both solve the same normal equations, two soles
 #: standing leave what they share between them to 1e-7 of the largest curvature.
 STEPS, STEP_APART = 12, 5e-3
+#: Her walk from rest for the striding step, s: she sets out at 5 and strides from there.
+WALK_S = 9.0
 
 #: Links whose Jacobians are compared, at the soles' corners, their middles and the origins.
 POINTED = ('left_ankle_roll', 'right_ankle_roll', 'left_wrist', 'right_wrist', 'head', 'root')
@@ -235,6 +237,37 @@ def test_the_step_in_c_is_the_steps(report, c, b, rows):
     report.check('a tick of it on this host', us < 1000.0, '%.1f us' % us)
 
 
+def test_the_step_in_c_strides_as_the_steps(report, c, b, rows):
+    """wbc_wrench.c beside `machine.wrench.step` at every solve of her walk from rest, WALK_S s
+    on the python step: striding, by her standing soles - one, the rows' own answer; two, as
+    far apart as what the two share between them is free."""
+    import numpy as np
+    from machine import sprung
+    from tools.cores.wbc import wrench_step
+    g = sprung.laid(sprung.STACK_EVERY)
+    sprung.walked(g)
+    python, worst, count = g['solve'], {1: 0.0, 2: 0.0}, {1: 0, 2: 0}
+
+    def both(body, s, ask):
+        ours, theirs = python(body, s, ask), wrench_step(body, s, ask, c)
+        soles = sum(bool(k) for k in ask['stance']) * (float(ask.get('strides', 0.0)) > 0.0)
+        if soles:
+            count[soles] += 1
+            worst[soles] = max(worst[soles], float(np.abs(ours['tau'] - theirs['tau']).max()),
+                               max(abs(x - y) for x, y in zip(ours['bears'], theirs['bears'])))
+        return ours
+
+    g['solve'] = both
+    while g['t'] < WALK_S:
+        sprung.passed(g)
+    report.check("striding on one sole the step in C is machine.wrench's",
+                 count[1] > 500 and worst[1] < 1e-6,
+                 '%.1e N m or N apart at most over %d solves' % (worst[1], count[1]))
+    report.check('and on two, within what they share',
+                 count[2] > 100 and worst[2] < STEP_APART,
+                 '%.1e N m or N apart at most over %d solves' % (worst[2], count[2]))
+
+
 def test_the_loop_stands_as_the_python_stack(report, c, b, rows):
     """Standing still, asked to stay: the loop's torques against `machine.wbc.step`'s, whose
     inequalities all sleep there; its clip untouched; a tick's time."""
@@ -272,6 +305,7 @@ ROSTER = (test_the_arrays_are_the_figures, test_the_frames_are_mujocos,
           test_the_mass_matrix_is_mujocos, test_the_bias_is_mujocos,
           test_the_jacobians_are_mujocos, test_the_centre_of_mass_is_mujocos,
           test_a_step_on_this_host, test_the_step_in_c_is_the_steps,
+          test_the_step_in_c_strides_as_the_steps,
           test_the_loop_stands_as_the_python_stack,
           test_she_stands_on_the_loop)
 

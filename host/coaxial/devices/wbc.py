@@ -27,7 +27,18 @@ class Wbc(Device, device=protocol.DEVICE_WBC):
         """{cycles_first, cycles_last, sysclk_hz, us_first, us_last, tau, bears}: `ticks` ticks of
         the step without an active set (wbc_wrench.c) on the same stand; tau the first three
         drives' torques, N m, bears each sole's load, N."""
-        r = Reader(self._op(WbcOp.STEP, pack(('u8', ticks)), timeout=TICK_S * ticks))
+        return self._stepped(self._op(WbcOp.STEP, pack(('u8', ticks)), timeout=TICK_S * ticks))
+
+    def swung(self, ticks=3, strides=0.0):
+        """As `step`, her right sole swung where it is with its knee asked folded and the
+        left's moment past its room: the step's four rounds; striding `strides` (0 to 1) what
+        the floor cannot give is her inertia's (wbc_cone.c) - the step's longest ticks."""
+        return self._stepped(self._op(WbcOp.SWUNG, pack(('u8', ticks), ('u8', int(round(100.0 * strides)))),
+                                      timeout=TICK_S * ticks))
+
+    @staticmethod
+    def _stepped(reply):
+        r = Reader(reply)
         first, last, hz = r.u32(), r.u32(), r.u32()
         return {'cycles_first': first, 'cycles_last': last, 'sysclk_hz': hz,
                 'us_first': 1e6 * first / hz, 'us_last': 1e6 * last / hz,

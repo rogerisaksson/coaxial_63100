@@ -73,20 +73,21 @@ their play; the step in C stands the python step's 8 / 6 / 4 / 2 / 0.
 
 ## In C
 
-`wbc/src/wbc_wrench.c`, the same rows on her chain in C;
+`wbc/src/wbc_wrench.c` and `wbc_cone.c`, the same rows on her chain in C;
 `tools.cores.wbc.wrench_step`, `tools/sim/wbc.py --core --wrench`;
 tests/test_wbc_core.py holds it to the step.
 
 | | wbc_wrench.c | The loop in C (wbc_stack.c) |
 | --- | --- | --- |
-| A tick on this host, -O2 | 16 us standing, 23 a sole swung | 1 570 us |
+| A tick on this host, -O2 | 16 us standing, 23 a sole swung, 24 striding | 1 570 us |
 | Her body's terms of it | 7 us | 7 us |
-| A tick on the Release image (Renode), device 13 op 1 and op 0 | 0.25 M instructions, 0.53 ms on the M7 | 24.85 M, 52.3 ms |
-| On the Debug image | 0.32 M | 26.29 M |
-| Its state | 25 KB | 471 KB |
+| A tick on the Release image (Renode), device 13 ops 1, 2 and 0 | 0.25 M instructions, 0.52 ms on the M7; a sole swung 0.34 M, striding 0.35, setting out 0.44 M, 0.93 ms | 24.85 M, 52.3 ms |
+| On the Debug image | 0.31 M; 0.43, 0.43, 0.54 M | 26.29 M |
+| Its state | 43 KB | 471 KB |
 | Its stack on the M7 | 2.9 KB | 8.4 KB |
 | Beside the python step, 120 states | 9e-5 N m with two soles standing, 1e-10 with one or none | - |
-| Her walk on it, 40 s | 0.61 m/s, 330 J/m, 2.60 off: the python step's | - |
+| Beside it striding, her walk's 4 951 solves | 7e-10 N m on one sole, 6e-4 on two | - |
+| Her walk on it, 40 s | 0.69 m/s, 301 J/m, 2.46 off, her head nodding 2 deg: the python step's 300 and 3 | - |
 | A hop on it | 17.9 mm, 2.4 deg: the python step's | - |
 
 - On the image its torques and her soles' loads are the host's within 2e-3
@@ -96,9 +97,16 @@ tests/test_wbc_core.py holds it to the step.
   the base's rows 16, out 11, the base's solve 11, her centre 6 (marks in
   a scratch image).
 - Nothing clipped, the rounds end at their first solve. A sole swung and
-  the other's moment clipped, all four run: 109 k, the tick 0.35 M, 0.73
-  ms - the DOD's 1 ms is that tick's, not her stand's, and a board's own
-  cycles, not an instruction a cycle: unmeasured.
+  the other's moment clipped, all four run: 109 k, the tick 0.34 M, 0.72
+  ms - the DOD's 1 ms is the longest tick's, not her stand's, and a
+  board's own cycles, not an instruction a cycle: unmeasured.
+- Striding (`wbc_cone.c`) the rounds end at their first solve too. Where
+  it clipped, her kinetic energy's metric is formed - M T and M E over
+  what T and E reach, her accelerations' full map never -, factored, and
+  the faces met through its inverse's columns a met face has, each solved
+  once: 65 k instructions the metric, 10 its factor, 22 the faces, the
+  tick 0.35 M, 0.73 ms. Setting out, 0.15 s, the four rounds run beside
+  it: 0.44 M, 0.93 ms, the step's longest tick (device 13 op 2).
 - The Debug image ticks 0.32 and 0.43 M: `board_mem.c`'s memset and memcpy
   are -O0 there, 1.5 instructions a byte, and a tick zeroes and copies
   some 40 KB.

@@ -90,22 +90,30 @@ def test_the_loop_ticks_on_the_image(report, rig, emu):
 
 
 def test_the_step_ticks_on_the_image(report, rig, emu):
-    """The step without an active set (wbc_wrench.c) on the image, ticked on the same stand: its
-    cycles a tick, and its torques and her soles' loads the host's on that stand."""
+    """The step without an active set (wbc_wrench.c) on the image at her stand's pose, its
+    torques and her soles' loads the host's: on her stand, then her right sole swung (op 2) -
+    its four rounds, striding, setting out."""
+    import numpy as np
     from machine import wbc
     from test_wbc_core import _standing
     from tools.cores import wbc as core
-    got = rig.board.wbc.step(2)
     b = wbc.Body()
-    _s, ask = _standing(b)
+    s, ask = _standing(b)
     base, q, u, _t = core.state_of(b)
-    ours = core.shared().wrench(base, q, u, ask)
-    apart = max([abs(a - c) for a, c in zip(got['tau'], ours['tau'][:3])]
-                + [abs(a - c) for a, c in zip(got['bears'], ours['bears'])])
-    report.check('the step ticks on the image, its torques and loads the host step has, within 2e-3',
-                 apart < 2e-3, '%.0f us cold, %.0f us warm at %.0f MHz; %s N m, %s N; %.1e apart' % (
-                     got['us_first'], got['us_last'], got['sysclk_hz'] / 1e6,
-                     ['%.3f' % t for t in got['tau']], ['%.1f' % f for f in got['bears']], apart))
+    sole, step = s['feet'][1], rig.board.wbc
+    swung = dict(ask, stance=(True, False), fold={1: (0.6, 0.0, 0.0)},
+                 swing={1: (sole['sole'], np.zeros(3), np.zeros(3), sole['quat'])})
+    for label, got, asked in (('the step ticks on the image', step.step(2), ask),
+                              ('a sole swung, its four rounds', step.swung(2), swung),
+                              ('striding', step.swung(2, 1.0), dict(swung, strides=1.0)),
+                              ('setting out', step.swung(2, 0.5), dict(swung, strides=0.5))):
+        ours = core.shared().wrench(base, q, u, asked)
+        apart = max([abs(a - c) for a, c in zip(got['tau'], ours['tau'][:3])]
+                    + [abs(a - c) for a, c in zip(got['bears'], ours['bears'])])
+        report.check(label + ': its torques and loads the host step has, within 2e-3', apart < 2e-3,
+                     '%.0f us warm at %.0f MHz; %s N m, %s N; %.1e apart' % (
+                         got['us_last'], got['sysclk_hz'] / 1e6, ['%.3f' % x for x in got['tau']],
+                         ['%.1f' % f for f in got['bears']], apart))
 
 
 def test_the_core_ticks_on_the_image(report, rig, emu):

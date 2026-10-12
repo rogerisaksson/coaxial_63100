@@ -212,6 +212,7 @@ class WbcOp(IntEnum):
     """Device 13, the whole-body loop on her stand - `coaxial.devices.wbc`."""
     TICK = 0
     STEP = 1
+    SWUNG = 2
 
 
 class AeroOp(IntEnum):
@@ -286,6 +287,7 @@ DEVICE_REQUESTS = {
     (DEVICE_DAQ, DaqOp.LIVE): 3,
     (DEVICE_WBC, WbcOp.TICK): 4,                     # u8 ticks
     (DEVICE_WBC, WbcOp.STEP): 4,                     # u8 ticks
+    (DEVICE_WBC, WbcOp.SWUNG): 5,                    # u8 ticks, u8 strides
     (DEVICE_AERO, AeroOp.LAY): 107,                  # a frame's params
     (DEVICE_AERO, AeroOp.STEP): 243,                 # a reading, a payload
     (DEVICE_TIME, TimeOp.LATCH): 3,
