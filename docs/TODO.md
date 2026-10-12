@@ -174,10 +174,11 @@ gets a line at the end of [DONE](DONE.md).
     + Reach (`machine/reach.py`, kinematics.md): her stride reading it, a
       limb an index; a landing pitched and a heel risen in `land`; her
       legs above their soles clear of each other.
-    + Loop: a tick 26.8 M instructions on the image, 56 ms on the M7 where
+    + Loop: a tick 26.3 M instructions on the image, 55 ms on the M7 where
       the DOD's 1. The step without an active set in C (`wbc_wrench.c`,
-      wrench.md): 0.70 M instructions standing, 0.81 M a sole swung and
-      a moment clipped, 1.71 ms; her mass matrix 0.25 M of it.
+      wrench.md): 0.39 M instructions standing, 0.82 ms; 0.50 M a sole
+      swung and a moment clipped, 1.06 ms, its four rounds 0.13 M; on a
+      board, by its own cycles: unmeasured.
     + Bottom, each board: the ESO (`parts.Eso`, `CTRL_ESO`) onto the boards
       as built on the motor's encoder; torque and acceleration registers on
       the wire.

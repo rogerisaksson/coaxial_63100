@@ -4,9 +4,9 @@
     rows = model.links()                    # what the C holds, a dict a link
 
 Link 0 is her pelvis, floating; each hinge after it a link in MuJoCo's order: its parent link,
-its frame at rest in the parent's (R, p), its screw in its own frame (w, v), the spatial inertia
-of what it carries (nothing for the first joint of a body with two), its mass and centre, the
-rotor's armature, its stops, its spring and damper, whether a drive turns it, a stop holds it
+its frame at rest in the parent's (R, p), its screw in its own frame (w, v), the mass it
+carries (nothing for the first joint of a body with two), its centre and its inertia about it,
+the rotor's armature, its stops, its spring and damper, whether a drive turns it, a stop holds it
 or nothing does, the drive's clamp, peak and kt, the drive it shares its rods with. The soles'
 points, the knees, the trunk and her mass go with them. Her chain is the body form of the
 product of exponentials, T = T_parent X exp([S] q); the firmware runs it (`wbc/`), MuJoCo stays
@@ -38,26 +38,14 @@ def rotation(quat):
                      [2 * (x * z - w * y), 2 * (y * z + w * x), 1 - 2 * (x * x + y * y)]])
 
 
-def skew(a):
-    return np.array([[0.0, -a[2], a[1]], [a[2], 0.0, -a[0]], [-a[1], a[0], 0.0]])
-
-
 def inertia(m, body):
-    """A body's spatial inertia in its own frame, 6x6 over (w, v): its mass, its centre, its
-    inertia about the centre."""
-    mass = float(m.body_mass[body])
-    c = skew(np.array(m.body_ipos[body], float))
+    """A body's inertia about its centre in its own frame's axes: xx, xy, xz, yy, yz, zz."""
     r = rotation(m.body_iquat[body])
-    g = np.zeros((6, 6))
-    g[:3, :3] = r @ np.diag(np.array(m.body_inertia[body], float)) @ r.T - mass * c @ c
-    g[:3, 3:] = mass * c
-    g[3:, :3] = -mass * c
-    g[3:, 3:] = mass * np.eye(3)
-    return g
+    return (r @ np.diag(np.array(m.body_inertia[body], float)) @ r.T)[np.triu_indices(3)]
 
 
 def links(b=None):
-    """The links, link 0 the pelvis: {name, parent, R, p, S, G, mass, com, armature, stop,
+    """The links, link 0 the pelvis: {name, parent, R, p, S, about, mass, com, armature, stop,
     passive (k, d, rest), kind, clamp, peak, kt, pair, body, frame} - `frame` where the link's
     frame is its MuJoCo body's (its last joint); `pair` the link it shares its rods with plus
     one, negative on the second of the two, 0 alone."""
@@ -85,7 +73,7 @@ def links(b=None):
                    'stop': _stop(m, j),
                    'passive': (float(m.jnt_stiffness[j]), float(m.dof_damping[dof]),
                                float(m.qpos_spring[m.jnt_qposadr[j]])),
-                   'G': inertia(m, body) if final else np.zeros((6, 6)),
+                   'about': inertia(m, body) if final else np.zeros(6),
                    'mass': float(m.body_mass[body]) if final else 0.0,
                    'com': np.array(m.body_ipos[body], float) if final else np.zeros(3),
                    'kind': DRIVEN if dof in act else HELD if dof in held else FREE,
@@ -182,9 +170,9 @@ def render(rows, b):
         'extern const int    wbc_parent[WBC_LINKS];   /**< a link\'s parent; -1, the world, under the pelvis */',
         'extern const double wbc_x[WBC_LINKS][12];    /**< its frame at rest in the parent\'s: R by rows, then p */',
         'extern const double wbc_s[WBC_LINKS][6];     /**< its screw in its own frame, (w, v) */',
-        'extern const double wbc_g[WBC_LINKS][36];    /**< the spatial inertia it carries, by rows, over (w, v) */',
         'extern const double wbc_mass[WBC_LINKS];     /**< the mass it carries, kg */',
         'extern const double wbc_com[WBC_LINKS][3];   /**< its centre, in its frame */',
+        'extern const double wbc_about[WBC_LINKS][6]; /**< its inertia about it, its frame\'s axes: xx, xy, xz, yy, yz, zz */',
         'extern const double wbc_armature[WBC_LINKS]; /**< the rotor\'s through the box, kg m^2 */',
         'extern const double wbc_stop[WBC_LINKS][2];  /**< its stops, rad; lo > hi: none */',
         'extern const double wbc_passive[WBC_LINKS][3]; /**< its spring N m/rad, damper N m s/rad, rest rad */',
@@ -238,7 +226,7 @@ def render(rows, b):
         % (',\n  '.join('{%s}' % _nums(r['com']) for r in rows)), '',
         _table('wbc_x', 12, rows, lambda r: list(r['R'].ravel()) + list(r['p'])),
         _table('wbc_s', 6, rows, lambda r: r['S']),
-        _table('wbc_g', 36, rows, lambda r: r['G'].ravel())])
+        _table('wbc_about', 6, rows, lambda r: r['about'])])
     return header, source
 
 

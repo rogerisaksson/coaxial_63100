@@ -18,14 +18,15 @@ typedef struct
 {
   wbc_frame_t t[WBC_LINKS];        /**< each link's frame in the world */
   wbc_frame_t l[WBC_LINKS];        /**< each link's frame in its parent's */
-  double      a[WBC_LINKS][36];    /**< each link's adjoint from its parent's frame to its own */
   double      q[WBC_N - 6];        /**< the hinges' angles */
   double      axis[WBC_LINKS][3];  /**< each hinge's axis in the world */
   double      anchor[WBC_LINKS][3];/**< a point on it */
   double      v[WBC_LINKS][6];     /**< each link's twist in its own frame */
   double      vd[WBC_LINKS][6];    /**< its acceleration, gravity's included */
   double      f[WBC_LINKS][6];     /**< the wrench it passes to its parent */
-  double      gc[WBC_LINKS][36];   /**< the inertia of all it carries, composite */
+  double      gc[WBC_LINKS][10];   /**< all it carries about the pelvis's origin, the world's axes:
+                                        mass, that times its centre, inertia (xx xy xz yy yz zz) */
+  double      s[WBC_LINKS][6];     /**< its hinge's screw there, (w, v) */
   double      sub_m[WBC_LINKS];    /**< the mass it and its descendants carry */
   double      sub_mc[WBC_LINKS][3];/**< that mass times its centre, world */
   double      m[WBC_N][WBC_N];     /**< the mass matrix */
