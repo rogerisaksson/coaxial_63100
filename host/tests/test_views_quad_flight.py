@@ -1,4 +1,4 @@
-"""The QUAD page's flight on four stand-in boards, no page: its late passes, a wreck, its WEP."""
+"""The QUAD page's flight on four stand-in boards, no page: its late passes, a wreck, its shell."""
 import math
 import sys
 
@@ -9,8 +9,8 @@ from views_kit import Report
 def flown(seconds, until, things=(), dt=0.05):
     """The page's card on four stand-in boards among `things`, a pass of `dt` s at a time
     (flight.passed), `seconds` at the most or until `until(the flight's own)`: ([(the stage,
-    the clock, the envelopes' share, the rotors' most amps, the frame's height)] a step, the
-    flight's own)."""
+    the clock, the share of the clamp's pull its rows have, the rotors' most amps, the frame's
+    height)] a step, the flight's own)."""
     from coaxial import Coaxial63100
     from machine import aerobatics, aerokin, quad
     from machine.modes import SIMULATED
@@ -250,70 +250,39 @@ def test_full_tilt_cuts_no_rotor_alone(report):
                  '%.1f deg at the most, %.1f m up at its end' % (tilt, rows[-1][4]))
 
 
-def test_war_emergency_power(report):
-    """flight.emergency: all of the rotors' pull, whatever the envelopes leave, where the law
-    asks more than it has and a thing is in the frame's way - not for either alone -, kept
-    WEP_HOLD_S past it, WEP_S of it a flight, whole again on the floor; and the law's lean in
-    one all that pull gives, whatever its row's."""
-    from machine import aerobatics, aerokin, quad
+def test_its_rows_are_inside_the_shell(report):
+    """flight.shell, the action space as the flight is in it: a row's pull the rotors' on the
+    clamp the board with the least in it holds, the flight's at the most, and on the pack's
+    charge; spent where that is under what the frame is sped up on or the pack at its
+    reserve; fit with a charged pack and every board holding the flight's clamp."""
+    from machine import aerokin, pull, quad
     from terminal.views.quad import flight as view
 
-    class Sky:
-        """What is ahead, as told."""
-        thing: str | None = None
-        asked = 0
+    def shell(left, *amps):
+        flight = {'cells': {'left': left}}
+        return view.shell(flight, [{'budget': {} if a is None else {'hold_amps': a}}
+                                   for a in amps])
 
-        def ahead(self, _seconds):
-            self.asked += 1
-            return self.thing and (self.thing, 0.3)
-
-    sky, law, flight = Sky(), {'short': False}, view.fresh()
-    route = {'card': view.CARD, 'row': 4}
-
-    def step(share=0.4, dt=0.1):
-        return view.emergency(flight, sky, law, route, share, dt)
-    calm = step()
-    law['short'] = True
-    clear = step()
-    sky.thing, law['short'] = 'tree', False
-    unasked = (step(), sky.asked)
-    law['short'] = True
-    whole, taken = step(1.0), step()
-    report.check('the envelopes\' share while nothing is in its way or it asks no more than it '
-                 'has; all of the pull where both, a tree named, on all of it already as well',
-                 calm == clear == unasked[0] == (0.4, None) and unasked[1] == 1
-                 and whole == taken == (1.0, 'tree')
-                 and flight['wep']['from'] == 'tree' and flight['wep']['taken'] == 1,
-                 '%s, %s, %s; %s; %s from a %s' % (calm, clear, unasked[0], whole, taken,
-                                                   flight['wep']['from']))
-    sky.thing = None
-    kept = [step()[1] for _ in range(8)]
-    sky.thing = 'tree'
-    spent = [step()[1] for _ in range(80)]
-    route['row'] = 0
-    floor = (step(), flight['wep']['left'])
-    report.check('kept %.1f s past it; %.0f s of it a flight and no more; whole again where the '
-                 'card waits to be fit' % (view.WEP_HOLD_S, view.WEP_S),
-                 kept == ['tree'] * 5 + [None] * 3 and spent.count('tree') == 43
-                 and not spent[-1] and floor == ((0.4, None), view.WEP_S),
-                 '%d steps past it, %d more of 80 on it, %.1f s left on the floor' % (
-                     kept.count('tree'), spent.count('tree'), floor[1]))
-    leans = []
-    for emergency in (None, 'tree'):
-        law = dict(aerokin.fresh(), spot=[30.0, 0.0])
-        level = [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]
-        payload = aerokin.step(
-            law, dict(aerobatics.HOVER, x=30.0, lean=2.0),
-            {'turn': level, 'spin': (0.0, 0.0, 0.0), 'vel': (0.0, 0.0, 0.0),
-             'at': (0.0, quad.HOVER_M, 0.0), 'h': quad.HOVER_M, 'v': 0.0},
-            0.01, 0.4 * aerokin.HEADROOM * view.fresh()['top'], None, emergency)
-        leans.append((math.degrees(math.hypot(payload.latent_targets[aerokin.PITCH],
-                                              payload.latent_targets[aerokin.ROLL])),
-                      law['short']))
-    report.check('its spot 30 m off, the law short of its row\'s lean of 2 m/s^2; in an '
-                 'emergency its rotors\' axis asked further over, for all the pull they have',
-                 leans[0][1] and leans[1][0] > 1.5 * leans[0][0] > 0.0,
-                 '%.1f deg off up asked, %.1f in an emergency' % (leans[0][0], leans[1][0]))
+    def have(left, amps):
+        return aerokin.HEADROOM * pull.thrust(pull.top(left, amps)) / quad.MASS_KG
+    whole, wep = pull.I_MAX, pull.I_WEP
+    full, unsaid, warm = shell(1.0, wep, whole, wep, wep), shell(1.0, *[None] * 4), shell(
+        1.0, wep, 0.5 * whole, wep, whole)
+    report.check('every board holding the flight\'s clamp or more, or none having said: the '
+                 'four\'s top on the pack, fit; one holding half of it: the pull that leaves, '
+                 'not spent, not fit',
+                 full == unsaid == (have(1.0, whole), False, True)
+                 and warm == (have(1.0, 0.5 * whole), False, False) and warm[0] < full[0],
+                 '%.1f m/s^2 a kg on all of it, %.1f on half' % (full[0], warm[0]))
+    low, shut = shell(0.5, wep, wep, wep, wep), shell(1.0, wep, wep, 8.0, wep)
+    flat = shell(quad.RESERVE, wep, wep, wep, wep)
+    report.check('on half its charge less; a board holding 8 A: under what the frame is sped '
+                 'up on, spent; its pack at its reserve: spent with all its pull, not fit',
+                 low[0] < full[0] and low[1:] == (False, True)
+                 and shut[0] < aerokin.LEAST * quad.GRAVITY and shut[1:] == (True, False)
+                 and flat[0] > aerokin.LEAST * quad.GRAVITY and flat[1:] == (True, False),
+                 '%.1f on half its charge; %.1f on 8 A, %.1f the least; %.1f at its reserve' % (
+                     low[0], shut[0], aerokin.LEAST * quad.GRAVITY, flat[0]))
 
 
 def test_wep_past_the_soa(report):
@@ -355,7 +324,7 @@ def test_wep_past_the_soa(report):
 ROSTER = (test_the_boards_air_is_the_rotors, test_a_rotor_turns_by_its_pass,
           test_a_board_holds_its_clamp, test_full_tilt_cuts_no_rotor_alone,
           test_a_late_pass_is_its_steps, test_struck_it_is_begun_again,
-          test_war_emergency_power, test_wep_past_the_soa)
+          test_its_rows_are_inside_the_shell, test_wep_past_the_soa)
 
 
 def main(argv=None):

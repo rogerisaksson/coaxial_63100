@@ -44,8 +44,8 @@ LEAST, HEADROOM = 1.5, 0.9
 HELD_M, HELD_SPOT_M, HELD_M_S, HELD_RAD = 0.03, 0.15, 0.15, 0.5
 
 #: What it is doing where it is asked a height far under it, by how light its lift is:
-#: burning, let fall. And what an emergency is taken from where its height comes first.
-BURN, FALL, FLOOR = 'burn', 'fall', 'floor'
+#: burning, let fall.
+BURN, FALL = 'burn', 'fall'
 DOING = (None, BURN, FALL)
 
 #: The rotors' axis is asked no further from where it points than this, as its (cos, sin) -
@@ -79,10 +79,9 @@ def fresh():
     """The law's own before its first pass: its spot, world (x, z), m, and the speed that went
     at last, m/s; its heading as (cos, sin) about up from z toward x; the collective asked
     last, m/s^2; the axis its rotors' axis turned about last, world; the payloads made;
-    whether it is held, what it is doing, whether it asked more pull last than it had."""
+    whether it is held, what it is doing."""
     return {'spot': [0.0, 0.0], 'speed': (0.0, 0.0), 'heading': (1.0, 0.0), 'lift': idle(),
-            'about': [1.0, 0.0, 0.0], 'sequence': 0, 'held': False, 'doing': None,
-            'short': False}
+            'about': [1.0, 0.0, 0.0], 'sequence': 0, 'held': False, 'doing': None}
 
 
 def allowed(over, brake):
@@ -138,7 +137,6 @@ def lean(law, row, at, vel, dt, most):
            + SPOT_KP * (law['spot'][k] - float(at[axis])) for k, axis in enumerate((0, 2))]
     law['speed'] = speed
     scale = min(1.0, most / max(math.hypot(out[0], out[1]), 1e-9))
-    law['short'] = scale < 1.0
     return out[0] * scale, out[1] * scale
 
 
@@ -157,13 +155,11 @@ def seen(law, frame, dt, pull, top):
             'vel': [float(x) for x in frame['vel']]}
 
 
-def step(law, row, frame, dt, pull, head=None, emergency=None, pitch=math.inf):
+def step(law, row, frame, dt, pull, head=None, pitch=math.inf):
     """The payload for a pass of `dt` s: the row `row` asked of the frame as `frame`
     (`quad.Sky.state`) has it, `pull` the most its rotors give a kg, m/s^2, `head` the heading
     the core holds, (cos, sin) from z toward x (its answer's) - none held yet, the frame's
-    nose along the floor: the core's own from a level stand. In an `emergency` - what it is
-    taken from - its lean is all that pull gives, whatever its row's; the FLOOR ahead, what
-    is left of it after what it asks up. The law's heading turned on;
+    nose along the floor: the core's own from a level stand. The law's heading turned on;
     the pull up and along the floor (`climb`, `lean`); the force that is, as a collective
     along its direction and that direction's tilt in the core's level frame; the turn its
     heading gives the axis, as the rates about its wing and its nose; its nose brought round
@@ -185,13 +181,8 @@ def step(law, row, frame, dt, pull, head=None, emergency=None, pitch=math.inf):
     reach = max(LEAST * quad.GRAVITY, pull * min(1.0, max(0.0, 1.0 - through / pitch)))
     up_pull, law['doing'] = climb(row, frame['h'], frame['v'], reach - quad.GRAVITY)
     light = row['light'] * quad.GRAVITY
-    urgent, floor = float(emergency is not None), float(emergency == FLOOR)
     beside = math.sqrt(max(reach * reach - quad.GRAVITY ** 2, 0.0))
-    left = math.sqrt(max(reach * reach - max(quad.GRAVITY + up_pull, light) ** 2, 0.0))
-    along = lean(law, row, frame['at'], frame['vel'], dt,
-                 (1.0 - urgent) * min(row['lean'], beside)
-                 + urgent * (floor * left + (1.0 - floor) * beside))
-    law['short'] = bool(law['short'] or abs(quad.GRAVITY + up_pull) > reach)
+    along = lean(law, row, frame['at'], frame['vel'], dt, min(row['lean'], beside))
     # where the rotors' axis points for it in the world, against `light` of gravity at the
     # least; asked no further from where it points than AHEAD, round the axis it turns about
     # - the last pass's, where that is next to none: opposite, any way round is as short, and

@@ -11,9 +11,7 @@ from test_quad_course import CLEAR_M, passes, reach, worst
 
 
 def test_the_page_words_its_boards(report):
-    """The TH OBS row - who is stable, who converges - and the envelopes' share: what the
-    board with the least in it may carry, of the flight's clamp."""
-    from machine import pull
+    """The TH OBS row: who is stable, who converges."""
     from terminal.views.quad import flight as view
 
     def rotors(*states):
@@ -25,16 +23,6 @@ def test_the_page_words_its_boards(report):
     got = [view.observers(rotors(*states)) for states, _want in cases]
     report.check('four stable say so, a mix its counts',
                  got == [want for _s, want in cases], str(got))
-
-    def boards(*amps):
-        return [{'budget': {} if a is None else {'hold_amps': a}} for a in amps]
-    whole, wep = pull.I_MAX, pull.I_WEP
-    held = [view.envelope(boards(*amps)) for amps in (
-        (wep, whole, wep, wep), (wep, 0.5 * whole, wep, whole), (wep, wep, 0.0, wep),
-        (None, None, None, None))]
-    report.check('all of their pull where every board holds the clamp, the least board\'s '
-                 'share where one holds less, none where one holds none; all before any has '
-                 'said', held == [1.0, 0.5, 0.0, 1.0], str(held))
 
 
 def test_its_traces_are_drawn(report):

@@ -217,10 +217,10 @@ the current it holds gives; its rotor's thrust as given is its estimate's.
 | Stream | Ends | Boards |
 | --- | --- | --- |
 | 201 | 1.500 m | 52 A at the most as it lifts, SOA 0.35 |
-| 202 | 15.4 m/s ahead, 3.33 m | 58 A, SOA 0.65 |
-| 203 | every rotor at an end | 60 A, SOA 0.80 |
-| 204 | over to 164 degrees, caught in 0.46 s, 79.9 off | 61 A, SOA 0.86, 48 A held at the least, the pack to 60.2 V |
-| 201 again | 1.500 m | SOA 0.88, 46 A held |
+| 202 | 15.4 m/s ahead, 3.33 m | 58 A, SOA 0.64 |
+| 203 | every rotor at an end | 70 A, SOA 0.82 |
+| 204 | over to 171 degrees, caught in 0.50 s, 79.8 off | 67 A, SOA 0.84, 53 A held at the least, the pack to 58.6 V |
+| 201 again | 1.500 m | SOA 0.84, 51 A held |
 
 - No drive tripped, no node past its throttle's point: asked all the rotors
   give, each board holds its own clamp and its reach says so.

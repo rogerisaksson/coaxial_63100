@@ -46,9 +46,6 @@ SPIN = (1.0, -1.0, 1.0, -1.0)
 DISC_M, SKID_M, FOOT_M = 0.06, 0.12, 0.015
 DISC_R, DISC_HALF_M, HUB_M = 0.2032, 0.008, (0.06, 0.03, 0.06)
 
-#: Looked ahead (`Sky.ahead`), a thing this near the frame's discs or hub is in its way, m.
-NEAR_M = 0.15
-
 #: The hover's height, the stop over the floor, m, and the rotors' idle, rad/s: a sixth of
 #: the frame's weight, the quad sitting on the floor.
 HOVER_M, FLOOR_M, IDLE_RAD_S = 1.5, 0.1, 86.0
@@ -103,7 +100,7 @@ INERTIA = (_CORNER, 2.0 * _CORNER, _CORNER)
 #: drag's area, its rotors' idle - a sixth of its weight at any size.
 _POWERS = {'MASS_KG': 3.0, 'ARM_M': 1.0, 'K_THRUST': 4.0, 'K_DRAG': 5.0, 'BODY_CDA': 2.0,
            'DISC_M': 1.0, 'SKID_M': 1.0, 'FOOT_M': 1.0, 'DISC_R': 1.0, 'DISC_HALF_M': 1.0,
-           'PITCH_M': 1.0, 'NEAR_M': 1.0, 'IDLE_RAD_S': -0.5, 'HOVER_M': 1.0, 'FLOOR_M': 1.0,
+           'PITCH_M': 1.0, 'IDLE_RAD_S': -0.5, 'HOVER_M': 1.0, 'FLOOR_M': 1.0,
            'SPIN_S': 1.0}
 _BUILT = dict({name: globals()[name] for name in _POWERS}, HUB_M=HUB_M)
 
@@ -146,20 +143,18 @@ def rescaled(scope, units, built):
         scope[name] = built[name] * size ** metres * clock ** seconds
 
 
-def mjcf(things=(), near=0.0):
+def mjcf(things=()):
     """The quad as MuJoCo's XML, y up: the frame free over the floor, its mass a plate's with a
-    rotor at each corner, on four skid feet, its discs and its hub what it strikes with -
-    their contacts found `near` m off, for a frame that is only looked at; `things` what
-    stands about it (`grounds.solids`), each ('box', its name, its middle, its half sizes, its
-    heading, degrees), ('rod', name, an end, the other, its radius) or ('hull', name, the
-    points it is the hull of), m."""
-    near = 'margin="%g"' % near
+    rotor at each corner, on four skid feet, its discs and its hub what it strikes with;
+    `things` what stands about it (`grounds.solids`), each ('box', its name, its middle, its
+    half sizes, its heading, degrees), ('rod', name, an end, the other, its radius) or
+    ('hull', name, the points it is the hull of), m."""
     mine = ''.join('<geom name="skid%d" type="sphere" size="%g" pos="%g %g %g"/>'
                    '<geom name="disc%d" type="cylinder" size="%g %g" pos="%g %g %g" '
-                   'euler="90 0 0" %s/>' % (k, FOOT_M, 0.7 * x, -SKID_M, 0.7 * z, k, DISC_R,
-                                            DISC_HALF_M, x, DISC_M, z, near)
+                   'euler="90 0 0"/>' % (k, FOOT_M, 0.7 * x, -SKID_M, 0.7 * z, k, DISC_R,
+                                         DISC_HALF_M, x, DISC_M, z)
                    for k, (x, z) in enumerate(ROTOR_AT))
-    mine += '<geom name="hub" type="box" size="%g %g %g" %s/>' % (HUB_M + (near,))
+    mine += '<geom name="hub" type="box" size="%g %g %g"/>' % HUB_M
     hulls, stood = '', ''
     for n, (shape, name, *size) in enumerate(things):
         if shape == 'box':
@@ -206,11 +201,6 @@ class Sky:
                       for g, name in enumerate(names) if name.startswith('skid')}
         self._gates = [g for g, name in enumerate(names) if name.startswith('gate')]
         self.gated = True
-        #: The frame's ghost: where it will be, looked at for what is in its way (`ahead`),
-        #: in a world of its own - a margin on the flown one's discs and hub bore the frame
-        #: 4.5 cm off the floor.
-        self._seen = self._mj.MjModel.from_xml_string(mjcf(things, NEAR_M))
-        self._ghost = self._mj.MjData(self._seen)
         self._mj.mj_forward(self.model, self.data)
 
     def reset(self):
@@ -224,38 +214,17 @@ class Sky:
         stand for the course's flights alone, as they are drawn."""
         if gates != self.gated:
             self.gated = gates
-            for model in (self.model, self._seen):
-                for g in self._gates:
-                    model.geom_contype[g] = model.geom_conaffinity[g] = int(gates)
+            for g in self._gates:
+                self.model.geom_contype[g] = self.model.geom_conaffinity[g] = int(gates)
 
-    def _struck(self, data, near=0.0):
-        """What the frame of `data` touches - or has within `near` m - with more than a skid
-        on the floor: its name, or None."""
+    def _struck(self, data):
+        """What the frame of `data` touches with more than a skid on the floor: its name, or
+        None."""
         pairs, gaps = data.contact.geom[:data.ncon].tolist(), data.contact.dist[:data.ncon]
         for (a, b), gap in zip(pairs, gaps.tolist()):
-            if gap <= near and (min(a, b), max(a, b)) not in self._feet \
+            if gap <= 0.0 and (min(a, b), max(a, b)) not in self._feet \
                     and (a in self._mine or b in self._mine):
                 return self._names[b if a in self._mine else a]
-        return None
-
-    def ahead(self, seconds, looks=3):
-        """(what the frame would strike, the seconds to it) as it goes - its speed and what
-        that changes by kept, its discs and hub with NEAR_M to spare - within `seconds`, or
-        None: its ghost put where it will be, `looks` times on the way. What it is that near
-        already is not ahead: on the floor it lifts from and lands on, WEP was 5 s a flight.
-        """
-        d, ghost = self.data, self._ghost
-        ghost.qpos[:] = d.qpos
-        self._mj.mj_fwdPosition(self._seen, ghost)
-        near = self._struck(ghost, NEAR_M)
-        for k in range(1, looks + 1):
-            t = seconds * k / looks
-            ghost.qpos[:] = d.qpos
-            ghost.qpos[0:3] += d.qvel[0:3] * t + 0.5 * d.qacc[0:3] * t * t
-            self._mj.mj_fwdPosition(self._seen, ghost)
-            thing = self._struck(ghost, NEAR_M)
-            if thing and thing != near:
-                return thing, t
         return None
 
     def state(self):

@@ -190,18 +190,23 @@ gets a line at the end of [DONE](DONE.md).
   observer for the air, the precession and a weak rotor, an active set over
   the rotors' thrusts inside what each board holds. Above the core no
   mixing, no Euler angle, no air; in it no `if`.
-  + The rotors' tops, reach and watts are the action space's
-    (`machine/pull.py`, envelope.md). Left: WEP its outer shell - the
-    loops' clamp WEP's, what each board holds the reach's bound -,
-    `flight.envelope`, `emergency`, `FIT`, `GONE_S` and the law's `short`
-    gone; the lap's sphere from its rotors' reach, where a share of the
-    clamp's pull was searched; the lap's plan (`course.line`) and the
-    card's waits (`aerobatics.fly`) without a branch.
+  + The flight is inside the action space's shell (`machine/pull.py`,
+    `flight.shell`, envelope.md). Left: the lap's sphere from its rotors'
+    reach, where a share of the clamp's pull was searched; the lap's plan
+    (`course.line`) and the card's waits (`aerobatics.fly`) without a
+    branch.
   + The axis asked brings its own rate: a row's pull turns 5.9 rad/s rms
     on a lap and the tilt trails it its damping over its stiffness, 57 ms.
-  + On four boards in a wind the envelopes leave 73-84 % of the pull on a
-    second lap, the law before 89-91 %: what the core's passes of 2 ms
-    spend.
+  + On four boards in a wind the rows have 76-82 % of the clamp's pull at
+    the least on a second lap, the law before 89-91 %: what the core's
+    passes of 2 ms spend.
+  + WEP's reach: the loops' slew is the flight's clamp's; on WEP's a rotor
+    near its idle is lost, braked or risen (envelope.md). DOD: the
+    estimate's reach by speed on the stand-in, the loops' slew that.
+  + A room too hot for a lap (toasty, 45 C): a board holds none in the
+    dive and the floor is struck. DOD: what the boards hold a flight long
+    in their room, known before it lifts (thermal op, a horizon), `fit` on
+    it.
   + The core on the image: a tick's cycles, the same whatever it is asked
     (device, PROTOCOL MINOR).
   + DOD: the pull left unused and the WEP taken a flight quoted; the race
@@ -267,9 +272,10 @@ gets a line at the end of [DONE](DONE.md).
   stand-in.
 - **CI's flakes**: a run each failed and the next passed - `test_native_heat`
   (STABLE held 100 s within 600: 394), `test_sensorless` (the loop under a
-  concurrent reader), the emulator's reads (a CRC on `afe.state`, a
-  board's info in its place). DOD: each looped 20 times on a loaded host,
-  its cause found.
+  concurrent reader; the shunt's sign), the emulator's reads (a CRC on
+  `afe.state`, a board's info in its place), `test_wbc_core` (a tick of
+  the loop 4 202 us), `test_mcp` (the program card). DOD: each looped 20
+  times on a loaded host, its cause found.
 - **test_controller's timed checks**: a velocity loop on the stand-in
   faulted overcurrent once on the runner (15 of 15 passed here); the ring
   test read a shoulder over its elbow one arm in six here, this tree and

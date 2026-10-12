@@ -5,10 +5,10 @@
     name, row = aerobatics.fly(route, now, holds)            # the card's row, or the line's for now
 
 The line is a closed curve through every gate along its heading, a Hermite span a gate. The frame
-is flown along it as fast as its thrust lets it, pointed wherever it must - down, where a dive is
-faster than a fall: each bend at the speed its sphere turns it, braked for ahead of it. So a lap
-is as fast as the FETs' envelopes are cool: asked more than they leave it for long, it flies on
-them. Its gates and what stands about it are `machine.grounds`'.
+is flown along it as fast as its plan's sphere lets it, pointed wherever it must - down, where a
+dive is faster than a fall: each bend at the speed its sphere turns it, braked for ahead of it.
+Rotors that have less than its sphere asks, it is flown on what they have. Its gates and what
+stands about it are `machine.grounds`'.
 """
 import functools
 import math
@@ -33,11 +33,12 @@ WAYS = ((3.8, 0.988, -0.14, 0.12), (-20.5, 1.163, 0.29, 0.01), (-8.8, 1.036, -0.
         (3.1, 1.041, 0.21, 0.05))
 
 #: The plan (raw - a dive pushed inverted, no level flight kept): a
-#: sphere about gravity, PULL of what the boards' envelopes leave of the rotors' thrust, the
+#: sphere about gravity, PULL of what the rotors pull on the flight's clamp - no more than
+#: they have (`aerokin.seen`) -, the
 #: thrust v^2 k + a t + g up wherever that points. A bend takes what its speed asks across; it
 #: is braked for BRAKE and sped out of GO of what is left along its way, the air through the
 #: discs taking their thrust (`quad.inflow`), the slope and the drag theirs; braked to its
-#: finish on STOP of it; the pull comes down to the envelopes' in EASE_S and back in twice
+#: finish on STOP of it; the sphere comes down to what they have in EASE_S and back in twice
 #: that; bends braked for AHEAD_M ahead; a bend's pull swings from one side to the other in
 #: SWING_S at the fastest; the sphere FLOOR of gravity at the least. On a circle of 0.249 of its
 #: pull along the floor, a crest no faster than 0.511 g let it fall and 0.30 of the pull along
@@ -229,9 +230,9 @@ def _along(speed, across, sphere, pitch):
 
 def line(route, now):
     """The lap's row for now (`aerobatics.fly`'s giver), by what `route['seen']` says
-    (`aerokin.seen`) - where the frame is and goes, the law's spot and heading, the share of
-    their pull the envelopes leave, the pass's seconds, whether it is `spent`: its speed the
-    one the bends ahead allow on that share of its lean, along the line's way and back onto
+    (`aerokin.seen`) - where the frame is and goes, the law's spot and heading, the pull its
+    rotors have, the pass's seconds, whether it is `spent`: its speed the
+    one the bends ahead allow in its sphere, along the line's way and back onto
     it, its bend's pull asked LEAD_S ahead, its spot kept on the line - the air none of its
     own. Its laps flown - spent, the one it is on - it stands in
     the first gate, `lapped`. Where the line's turn swings, no faster than the bend's pull
@@ -245,9 +246,10 @@ def line(route, now):
     n, step = len(line_['at']), line_['step']
     dt, heading = seen.get('dt', 0.0), seen.get('heading', 0.0)
     at, vel = seen.get('at', line_['at'][0]), seen.get('vel', (0.0, 0.0, 0.0))
-    # the sphere it is planned on: PULL of what the envelopes leave, FLOOR of gravity at the
-    # least - spent, PULL of the law's least was under gravity -, come to slowly
-    whole = max(FLOOR * quad.GRAVITY, PULL * seen.get('pull', 2.0 * quad.GRAVITY))
+    # the sphere it is planned on: PULL of the clamp's pull, what the rotors have at the
+    # most, FLOOR of gravity at the least, come to slowly
+    whole = max(FLOOR * quad.GRAVITY, min(PULL * seen.get('full', 2.0 * quad.GRAVITY),
+                                          seen.get('pull', math.inf)))
     # at a share of all of it a second: of what is left, a stuffy room's spent boards were
     # asked twice what they had for 2 s and it flew into a house
     ease = PULL * seen.get('full', 2.0 * quad.GRAVITY) * dt / EASE_S

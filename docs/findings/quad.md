@@ -48,14 +48,9 @@ SOA 0.50 at most in its figures.
   8.33 K/W: a hover at 0.65-0.72, every board throttled by the corkscrew. The
   record says a propeller's wash, 2.5 K/W (an assumption), the stand-in's
   truth laid on it: 0.52-0.60 in the figures, the hottest node 77-116 C.
-- The rotors are asked the share of their pull the envelopes leave (the least
-  room 0.08 under a throttle's point, of 0.3): what the frame is sped up on
-  and a fall's stop is planned on, never what a stop may take. 0.71-0.81 at
-  most over three flights, none throttling, flown from the first hover with
-  the observers UNCERTAIN, apex 36-39 m.
-- Held to the collective itself, a burn spent its own stop and pressed the
-  skids 2 cm into the floor; brought down the moment the share was none, it
-  left its burn 3.5 m up.
+- A row's pull is the action space's for what its boards hold and its pack
+  has ([envelope](envelope.md), the shell): what the frame is sped up on
+  and a fall's stop is planned on.
 - A row's height told from an eased one by what it moved a pass: a 50 ms
   pass took the landed row for 9.6 m/s and launched the frame 3 m. A row
   brings its height's rate and pull.
@@ -158,11 +153,10 @@ The page's four boards, still air and six winds:
 - The bound is how fast a lean turns, the rotors' spool: the tilt loop at
   twice its gain rang; the spot's at four times struck a gate; a lean of 26
   without the swing's limit struck the slalom's gate four flights of four.
-- War emergency power (`flight.emergency`): the frame's ghost flown 0.5 s on
-  as it goes (`quad.Sky.ahead`, 36 us a look, in a world of its own; a
-  margin on the flown frame's discs bore the frame 4.5 cm off the floor). A
-  thing in its way and the law short of pull: all the rotors give for 0.6 s,
-  5 s of it a flight.
+- War emergency power was a rule: a thing in the way of the frame's ghost,
+  flown 0.5 s on, and the law short of pull - all the rotors gave for 0.6 s,
+  5 s of it a flight. It is the space's outer shell
+  ([envelope](envelope.md)).
 
 ## Tuner
 
@@ -260,17 +254,9 @@ On the laps they give 37 % of their thrust, none ever at its top.
   longer meets its envelopes - all of their pull, 14.8 and 14.3 s, stuffy
   alike. The flight's own cut keeps the kelvins it was measured in: SPEND
   0.3 of a 100 K span is 0.2 of the junction's 150.
-- WEP past the SOA: where a wreck is certain, everything, on an
-  observer's word alone.
-  + Thermal op 14 holds a board's thermal derate at one, 2 s at most, the
-    trip on its record's ceiling standing (MINOR 25).
-  + On WEP the rotors' clamp is 40 A where 30, their top (the pack's 63 V at
-    the clamp) 432 rad/s where 310; the law's lean what that gives, or with
-    the floor ahead what is left after what it asks up.
-  + The observer: the law short of its ask, up counted, and its ghost
-    striking within 0.5 s. On the ghost alone every dive at a gate and every
-    way down to land took it, 2.3 s a flight; on both, the plan as adopted
-    none.
+- WEP past the SOA: thermal op 14 holds a board's thermal derate at one, 2 s
+  at most, the trip on its record's ceiling standing (MINOR 25). No flight
+  takes it: each board's hold is its bound.
 - A search with the floor in its cost, eight winds and two sizes on ideal
   rotors: 12.5 and 11.9 s in four winds it never flew, and on four boards
   into the floor every flight, 0.2 s into the second lap (the V into the

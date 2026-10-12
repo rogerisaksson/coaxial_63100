@@ -190,29 +190,22 @@ def flowed(laps):
 
 def ideal(air, _room=BENCH, _left=1.0):
     """The card on ideal rotors in `air` (`streams.Flight`), the frame as it is sized - its
-    rotors as fast at their tips, its passes by its clock, the core's inside them, war
-    emergency power as the page's flight takes it: (the laps' rows by lap, what it struck, 0,
-    1, its seconds on WEP)."""
-    view = owner('flight.CARD')[0]
+    rotors as fast at their tips, its passes by its clock, the core's inside them: (the laps'
+    rows by lap, what it struck, 0, 1, 0)."""
     dice = random.Random(1)
     size, clock = quad.scales()
-    top, spool = pull.held(pull.I_MAX) / size, view.SPOOL_RAD_S2 / (size * clock)
-    wep_top = pull.ceiling(quad.open_volts(1.0), pull.I_WEP) / size
-    wep_spool = spool * pull.I_WEP / pull.I_MAX
+    top = pull.held(pull.I_MAX) / size
     rotors = streams.Flight(air, things=grounds.solids())
     rotors.lag = LAG_S * clock
     sky, route, law = rotors.sky, aerobatics.routine(course.CARD), aerokin.fresh()
-    rotors.top, rotors.spool = top, spool
-    flight = {'wep': {'left': view.WEP_S * clock, 'on': 0.0, 'from': None, 'taken': 0}}
+    rotors.top, rotors.spool = top, pull.slew(pull.I_MAX) / (size * clock)
     t, laps = 0.0, {}
     while t < 150.0 * clock:
         dt = clock * (0.05 if dice.random() < 0.05 else dice.choice((0.01, 0.014, 0.02, 0.03)))
         name, row = streams.asked(rotors, route, law, t, dt)
         if name == 'land' or sky.state()['hit']:
             break
-        _share, wep = view.emergency(flight, sky, law, route, 1.0, dt / clock)
-        rotors.top, rotors.spool = (wep_top, wep_spool) if wep else (top, spool)
-        streams.flew(rotors, route, law, row, dt, 1.0, wep)
+        streams.flew(rotors, route, law, row, dt)
         t += dt
         if name == 'lap':
             frame = sky.state()
@@ -221,14 +214,14 @@ def ideal(air, _room=BENCH, _left=1.0):
                  math.sqrt(sum(float(c) ** 2 for c in frame['vel'])),
                  *(float(c) for c in frame['acc']),
                  sum(x * x for x in rotors.w) / (4.0 * top * top)))
-    return laps, sky.hit, 0.0, 1.0, (view.WEP_S - flight['wep']['left']) / clock
+    return laps, sky.hit, 0.0, 1.0, 0.0
 
 
 def boards(air, room=BENCH, left=1.0):
     """The card on four stand-in boards in `air` (the page's flight), laid in `room` - told
     to no observer - on a pack with `left` of its charge: (the laps' rows by lap, what it
-    struck, the boards' worst envelope, the least share of their pull, its seconds on emergency
-    power)."""
+    struck, the boards' worst envelope, the least share of the clamp's pull its rows had, the
+    seconds a rotor was over the flight's clamp, on WEP's)."""
     from coaxial import Coaxial63100
     from machine.modes import SIMULATED
     view = owner('flight.CARD')[0]
@@ -256,7 +249,7 @@ def boards(air, room=BENCH, left=1.0):
             rotor['rig'].board.drive.off()
             rotor['rig'].gates.off()
             rotor['rig'].close()
-    return laps, sky.hit, soa, least, view.WEP_S - flight['wep']['left']
+    return laps, sky.hit, soa, least, flight['over']
 
 
 def trial(values, job):

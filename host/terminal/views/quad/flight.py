@@ -1,4 +1,4 @@
-"""The QUAD page's flight: four stand-in boards armed, a pass of it, their envelopes' share.
+"""The QUAD page's flight: four stand-in boards armed, a pass of it, what they hold of its pull.
 
     rotor = arm(Coaxial63100(execution_mode=SIMULATED).open())     # a board for flight, four times
     flight, law = fresh(), aerokin.fresh()                         # the flights' own, on the floor
@@ -27,9 +27,9 @@ from tools.cores import aero
 CARD = aerobatics.CARD + course.CARD
 
 #: Each rotor's machine and its trip for a flight, A, the board's rating. Its clamps, its
-#: tops and its reach are the action space's (`machine.pull`): the drive's own clamp WEP's,
-#: the speed loop's the flight's - on WEP's the boards stood at 1.00 of their envelopes in
-#: full tilt.
+#: tops and its reach are the action space's (`machine.pull`): the drive's clamp and its
+#: speed loop's WEP's, each board holding its own to what its envelope leaves; the plan's
+#: the flight's.
 PROFILE, I_TRIP = 'outrunner_63100_14p', 100.0
 
 #: The rotors' speed loop, Hz: each board's own (device 12), ticked LOOP_HZ a second in its
@@ -38,9 +38,11 @@ PROFILE, I_TRIP = 'outrunner_63100_14p', 100.0
 #: and two boards tripped in a burn.
 SPEED_HZ, LOOP_HZ = 3.0, 1000
 
-#: A rotor's speed is come to no faster than this, rad/s^2 - its loop's own slew. Stepped, 14
-#: rad/s more in a pass was the whole clamp, and the gate stage's envelope 0.2 the higher for a
-#: read.
+#: A rotor's speed is come to no faster than this, rad/s^2 - its loop's own slew, the
+#: flight's clamp's. Stepped, 14 rad/s more in a pass was the whole clamp, and the gate
+#: stage's envelope 0.2 the higher for a read. On WEP's slew, 4 347, a rotor braked to its
+#: idle in a lap went to 15 rad/s and was lost; risen alone on it, the burn's spool from the
+#: idle lost one.
 SPOOL_RAD_S2 = pull.slew(pull.I_MAX)
 
 #: A rotor is asked no slower than this while it flies, rad/s: its idle. Slower, the law's
@@ -62,21 +64,6 @@ STO_SETTLE_S = 0.05
 #: flight, never in 900 s held at 16 A.
 GO = ('CONVERGING', 'STABLE')
 
-#: The boards' envelopes in the flight's: its row is planned on the share of the rotors' pull
-#: that the board with the least in it may carry (`thermal.budget`'s `hold_amps`, of I_MAX) -
-#: each board holds its own clamp to that, and no node of it comes to its throttle. Asked by a
-#: rule on the envelopes' room, read ten times a second, full tilt had the four at 57 A for
-#: 0.1 s, then each board throttled on its own - 33, 8, 32 and 18 A - and the frame went
-#: over to 83 degrees. The share none for GONE_S, it comes down: at once, a burn's own spend
-#: took it off its burn.
-GONE_S = 2.0
-
-#: A flight is begun on this share of the rotors' pull at the least. All of it is a board at
-#: 0.52 of its envelope or under, and an idle board is not cool: on the gate stage's dump at
-#: 63 V, no wash over it, its laminate comes to 79 C and it stands at 0.52-0.56 - waited for
-#: all of its pull, the page stood 120 s on the floor and would yet.
-FIT = 0.7
-
 #: A spent pack is changed on the floor in this long, s.
 SWAP_S = 3.0
 
@@ -92,15 +79,6 @@ THERMAL_S = 0.1
 
 #: The core's pass (aero/), s: the world's step, STEP_S / TICK_S of them a step of the flight.
 TICK_S = quad.STEP_S
-
-#: War emergency power, on an observer's word: the law asking more than it has, the frame's
-#: ghost flown RISK_S on as it goes strikes a thing (`quad.Sky.ahead`) - on the ghost's word
-#: alone, every dive at a gate and every way down to land took it, 2.3 s a flight.
-#: For WEP_HOLD_S the law has all of it - no
-#: envelope's share, the boards' thermal derate held off (`thermal.wep`, the trip standing),
-#: WEP's clamp, its lean whatever its row's or, the floor ahead, what is left of
-#: the pull after what it asks up - WEP_S of it a flight, given back on the floor.
-RISK_S, WEP_HOLD_S, WEP_S = 0.5, 0.6, 5.0
 
 #: Struck, a flight is over: its stage this, its rotors stopped and the wreck left where it
 #: falls for so long, s; then the frame is on its spot again and the flight begun over.
@@ -144,7 +122,7 @@ def arm(rig):
     params = drive.params()
     pairs = max(1.0, params.get('motor_pole_pairs') or 1.0)
     kt = 1.5 * pairs * (params.get('motor_lambda') or 0.002)
-    board.ctrl.load(Feedback(SpeedPI(SPEED_HZ, pull.I_MAX, kt, pull.ROTOR.j, pull.ROTOR.b,
+    board.ctrl.load(Feedback(SpeedPI(SPEED_HZ, pull.I_WEP, kt, pull.ROTOR.j, pull.ROTOR.b,
                                      quad.K_DRAG),
                              prefilter=Slew(SPOOL_RAD_S2), measure=Gain(1.0 / pairs)))
     board.ctrl.wire('omega_hat', 'iq_ref', LOOP_HZ)
@@ -170,21 +148,37 @@ def spun(rotor):
 
 
 def fresh():
-    """The flights' own before the first: the stage, the apex, the share of their pull the
-    envelopes leave and how long it has been none, the lap, how long a spent pack has stood,
-    the pack's cells and a flight's peaks of them, the air they are flown in (`quad.air`),
-    the wreck of one struck - what it struck, how long ago - and how many were; its emergency
-    power: the seconds left of it, how long it is on yet, what it was taken from, how often;
-    the seconds a pass owes its next step, the clock its observers were read at; the frame's
-    core, the rotors' top a kg and the pull its row is planned on, m/s^2, the row flown."""
+    """The flights' own before the first: the stage, the apex, the share of the clamp's pull
+    its rows have, the lap, how long a spent pack has stood, the pack's cells and a flight's
+    peaks of them, the air they are flown in (`quad.air`), the wreck of one struck - what it
+    struck, how long ago - and how many were; the seconds a rotor was over the flight's
+    clamp, on WEP's; the seconds a pass owes its next step, the clock its observers were
+    read at; the frame's core, what the flight's clamp pulls a kg and the pull its row has
+    (`shell`), m/s^2, the row flown."""
     cells = quad.pack()
     top = pull.thrust(pull.held(pull.I_MAX)) / quad.MASS_KG
-    return {'stage': CARD[0][0], 'apex': 0.0, 'share': 1.0, 'gone': 0.0, 'lap': None,
+    return {'stage': CARD[0][0], 'apex': 0.0, 'share': 1.0, 'over': 0.0, 'lap': None,
             'owed': 0.0, 'read': 0.0, 'core': aero.Core(), 'top': top,
             'pull': aerokin.HEADROOM * top, 'row': dict(aerobatics.DOWN),
             'stood': 0.0, 'cells': cells, 'peak': {'watts': 0.0, 'low': cells['volts']},
-            'air': quad.air(), 'wreck': None, 'crashes': 0,
-            'wep': {'left': WEP_S, 'on': 0.0, 'from': None, 'taken': 0}}
+            'air': quad.air(), 'wreck': None, 'crashes': 0}
+
+
+def shell(flight, rotors):
+    """(the pull a row has, m/s^2 a kg; whether the flight is spent; whether it is fit) as
+    the action space has it now: the rotors' top on the clamp the board with the least in it
+    holds (`thermal.budget`'s `hold_amps`) - the flight's at the most - and on the pack's
+    charge, HEADROOM of it; spent with its pack at its reserve or that pull under what the
+    frame is sped up on at the least, fit with a pack over its reserve and every board
+    holding the flight's clamp. Each board holds its own clamp to what it may carry, and no
+    node of it comes to its throttle: asked by a rule on the envelopes' room, read ten times
+    a second, full tilt had the four at 57 A for 0.1 s, then each throttled on its own - 33,
+    8, 32 and 18 A - and the frame went over to 83 degrees."""
+    left = flight['cells']['left']
+    hold = min([pull.I_WEP] + [(r['budget'] or {}).get('hold_amps', pull.I_WEP) for r in rotors])
+    have = aerokin.HEADROOM * pull.thrust(pull.top(left, min(pull.I_MAX, hold))) / quad.MASS_KG
+    flat = left <= quad.RESERVE
+    return have, flat or have < aerokin.LEAST * quad.GRAVITY, not flat and hold >= pull.I_MAX
 
 
 def struck(flight):
@@ -201,17 +195,15 @@ def steps(owed):
 
 def passed(rotors, sky, route, law, flight, clock, dt):
     """The flight a pass of `dt` s on from `clock` - what it owed before -, (its clock, the
-    frame) after each of its steps: the envelopes' share and how long it has been none, the
-    card's row flown, its lap where the row is a line's, a spent pack changed where it has stood
-    to be; the boards' observers read every THERMAL_S."""
+    frame) after each of its steps: what its boards hold, the card's row flown, its lap where
+    the row is a line's, a spent pack changed where it has stood to be; the boards' observers
+    read every THERMAL_S."""
     count, flight['owed'] = steps(flight['owed'] + dt)
     for part in [STEP_S] * count:
         clock += part
         row = route['row']
         for rotor in rotors:
             rotor['budget'] = rotor['rig'].board.thermal.budget()
-        flight['share'] = envelope(rotors)
-        flight['gone'] = flight['gone'] + part if flight['share'] <= 0.0 else 0.0
         name = flight['stage'] = step(rotors, sky, route, law, flight, clock, part)
         flight['lap'] = route.get('lap') if callable(route['card'][route['row']][1]) else None
         frame = sky.state()
@@ -225,17 +217,16 @@ def passed(rotors, sky, route, law, flight, clock, dt):
 
 
 def step(rotors, sky, route, law, flight, clock, dt):
-    """The flight `dt` s on, its stage: the card's row for now - taken down, its pack or the
-    boards' envelopes spent - made a payload of the frame as it flies (`aerokin.step`),
-    planned on the share of their pull the envelopes leave, and flown (`flown`): the core's
-    passes on it, each rotor's loop after the thrust it is given within what its board
-    holds, the frame in MuJoCo in the flight's air among what stands - the course's gates
-    for its flights alone. The burn's row falls first; where the card waits to be fit a spent
-    pack is changed and the boards cool. Struck (`quad.Sky.hit`), it is CRASHED: its rotors
-    stopped (`fallen`), and CRASH_S on the frame on its spot and its flight begun again."""
-    cells, share, core = flight['cells'], flight['share'], flight['core']
-    flat = cells['left'] <= quad.RESERVE
-    spent, frame = flat or flight['gone'] >= GONE_S, sky.state()
+    """The flight `dt` s on, its stage: the card's row for now - taken down, spent - made a
+    payload of the frame as it flies (`aerokin.step`) on the pull the action space has for
+    it (`shell`), and flown (`flown`): the core's passes on it, each rotor's loop after the
+    thrust it is given within what its board holds, the frame in MuJoCo in the flight's air
+    among what stands - the course's gates for its flights alone. The burn's row falls
+    first; where the card waits to be fit a spent pack is changed and the boards cool.
+    Struck (`quad.Sky.hit`), it is CRASHED: its rotors stopped (`fallen`), and CRASH_S on the
+    frame on its spot and its flight begun again."""
+    cells, core, frame = flight['cells'], flight['core'], sky.state()
+    have, spent, fit = shell(flight, rotors)
     sky.stand(lined(route))
     wreck = flight.get('wreck')
     if wreck is None and frame['hit']:
@@ -245,18 +236,11 @@ def step(rotors, sky, route, law, flight, clock, dt):
         route['seen'] = dict(aerokin.seen(law, frame, dt, flight['pull'], flight['top']),
                              spent=spent)
         name, row = aerobatics.fly(route, clock, [word for word, holds in (
-            ('held', law['held']), ('spent', spent), ('fit', not flat and share >= FIT))
-            if holds])
-        share, wep = emergency(flight, sky, law, route, share, dt)
-        flight.update(pull=share * aerokin.HEADROOM * flight['top'], row=row)
-        shell = aerokin.HEADROOM * pull.thrust(pull.top(
-            cells['left'], pull.I_WEP if wep else pull.I_MAX)) / quad.MASS_KG
-        if flight['wep'].pop('fresh', False):
-            for rotor in rotors:
-                rotor['rig'].board.thermal.wep(WEP_HOLD_S)
+            ('held', law['held']), ('spent', spent), ('fit', fit)) if holds])
+        flight.update(pull=have, share=have / (aerokin.HEADROOM * flight['top']), row=row)
         flown(rotors, sky, core, aero.payload(aerokin.step(
-            law, row, frame, dt, min(flight['pull'], shell), tuple(core.out.head), wep,
-            route['seen']['pitch'])), flight, dt, wep is not None)
+            law, row, frame, dt, have, tuple(core.out.head), route['seen']['pitch'])),
+            flight, dt)
     else:
         name = CRASHED
         wreck['for'] += dt
@@ -272,8 +256,8 @@ def step(rotors, sky, route, law, flight, clock, dt):
         fallen(rotors, sky, flight, dt, not again)
     if name == CRASHED:
         return name
-    if 'fit' in route['card'][route['row']][4].split() and (flat or share < FIT):
-        return 'swap' if flat else 'cool'
+    if 'fit' in route['card'][route['row']][4].split() and not fit:
+        return 'swap' if cells['left'] <= quad.RESERVE else 'cool'
     return aerokin.FALL if name == 'burn' and law['doing'] == aerokin.FALL else name
 
 
@@ -331,19 +315,20 @@ def stated(rotor):
     return pull.watts(rotor['w'], rotor['iq'], rotor['amps'])
 
 
-def flown(rotors, sky, core, payload, flight, dt, wep=False):
+def flown(rotors, sky, core, payload, flight, dt):
     """The flight `dt` s on on `payload` (aero/), the core's passes of TICK_S: each board's
     rotor read; its reach from the speed its loop is asked - the loop's slew either way, up no
-    faster than the current its board may carry and its link's volts leave it gives
-    (`pull.reach`: none of it on a tripped drive), under its link's ceiling -; the core's
-    thrusts asked of the loops; the frame on the rotors' speeds in the flight's air. Then the
-    step's own: the pack's bus, the boards' heat and their airspeed. The core's last answer.
+    faster than the current its board holds - WEP's clamp at the most - and its link's volts
+    leave it gives (`pull.reach`: none of it on a tripped drive), under its link's ceiling -;
+    the core's thrusts asked of the loops; the frame on the rotors' speeds in the flight's
+    air. Then the step's own: the pack's bus, the seconds a rotor was over the flight's
+    clamp, the boards' heat and their airspeed. The core's last answer.
     A propeller's torque is laid a step, K w |w| as its slope about the speed it turns at:
     laid a pass, a tenth of a flight's cost. A rotor's cap counted from its speed and its
     loop's slew, one behind what it was asked had its next ask cut to that, and the laps were
     0.3 s the longer."""
     cells, air = flight['cells'], flight.get('air')
-    volts, clamp = cells['volts'], pull.I_WEP if wep else pull.I_MAX
+    volts, clamp = cells['volts'], pull.I_WEP
     holds = [0.0 if r['fault'] else min(clamp, (r['budget'] or {}).get('hold_amps', clamp))
              for r in rotors]
     top, count, out = pull.ceiling(volts, clamp), max(1, int(round(dt / TICK_S))), None
@@ -365,6 +350,7 @@ def flown(rotors, sky, core, payload, flight, dt, wep=False):
             quad.blown(air, TICK_S)
         sky.step([r['w'] for r in rotors], TICK_S, air)
     quad.drawn(cells, sum(stated(rotor) for rotor in rotors), dt)
+    flight['over'] += dt * float(max(rotor['amps'] for rotor in rotors) > pull.I_MAX)
     told, through = airspeeds(sky.state(), air)
     for rotor in rotors:
         heat = rotor['rig'].board.thermal
@@ -381,46 +367,17 @@ def airspeeds(frame, air):
             math.sqrt(sum((float(v) - u) ** 2 for v, u in zip(frame['vel'], wind))))
 
 
-def emergency(flight, sky, law, route, share, dt):
-    """(the share of the rotors' pull the law has this step, what war emergency power is
-    taken from or None): the envelopes' - or, on it, all of the pull. Taken where the law
-    asks more than it has (its `short`) and the frame's ghost strikes a thing within RISK_S
-    (the observer); kept WEP_HOLD_S past that,
-    the boards told afresh (`fresh`); WEP_S of it a flight, whole again where the card waits
-    to be fit."""
-    wep = flight.get('wep')
-    if wep is None:
-        return share, None
-    if 'fit' in route['card'][route['row']][4].split():
-        wep.update(left=WEP_S, on=0.0)
-        return share, None
-    risk = sky.ahead(RISK_S) if law['short'] and wep['left'] > 0.0 else None
-    if risk:
-        wep['taken'] += wep['on'] < 1e-9
-        wep.update(on=WEP_HOLD_S, fresh=True, **{'from': risk[0]})
-    if wep['on'] < 1e-9 or wep['left'] < 1e-9:
-        return share, None
-    wep.update(on=wep['on'] - dt, left=wep['left'] - dt)
-    return 1.0, wep['from']
-
-
-def envelope(rotors):
-    """What the boards' envelopes leave of the rotors' pull, 0..1: the least any of them may
-    carry (`hold_amps`), of the flight's clamp."""
-    return max(0.0, min([1.0] + [(r['budget'] or {}).get('hold_amps', pull.I_MAX) / pull.I_MAX
-                                 for r in rotors]))
-
-
 def kept(flight, stood, stage, off, frame, dt):
     """The flight's own after a pass at `stage`, seen `frame`: a spent pack changed where it
-    has `stood` SWAP_S to be - those seconds back -, a flight's peaks from where it is `off`
-    that floor, its apex."""
+    has `stood` SWAP_S to be - those seconds back -, a flight's peaks and its seconds over
+    its clamp from where it is `off` that floor, its apex."""
     cells, peak = flight['cells'], flight['peak']
     stood = stood + dt if stage == 'swap' else 0.0
     if stood >= SWAP_S:
         cells.update(quad.pack())
     if off:
         peak.update(watts=0.0, low=cells['volts'])
+        flight['over'] = 0.0
     peak.update(watts=max(peak['watts'], cells['watts']), low=min(peak['low'], cells['volts']))
     flight['apex'] = frame['h'] if stage == 'full tilt' else max(flight['apex'], frame['h'])
     return stood

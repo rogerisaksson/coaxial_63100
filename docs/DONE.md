@@ -108,3 +108,9 @@ it names. A closed item is cut from the list and gets its line here, last.
 37. The step without an active set in C (`wbc/src/wbc_wrench.c`): the
     python step's answer, her walk and her hop on it, 46 us a tick on
     this host where the loop's 1 600 ([wrench](findings/wrench.md)).
+38. The flight inside the action space's shell: a row's pull the rotors'
+    on what its boards hold and its pack has; the share's rule, its
+    timers, the emergency and its ghost gone; the loops' clamp WEP's, 0.0-
+    0.2 s of it a flight. 34 flights of 34 whole in fourteen winds, a
+    stuffy room's laps 14.3 and 14.5 s where 14.5 and 15.1
+    ([envelope](findings/envelope.md)).

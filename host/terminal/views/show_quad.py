@@ -9,11 +9,11 @@ take; the frame in MuJoCo on the rotors' thrust and drag, gravity and the air
 and a flip over a toss, full tilt into the sky, the fall burned to a stop 10 cm over the floor -
 its boards and their thermal observers warmed on it; then the course (machine.course): two laps
 through sixteen gates - two slaloms, a climb, a dive, a hall's windows, an alley - raw, as fast
-as its thrust takes it, a dive pushed down inverted, the boards' envelopes spent and war
-emergency power where it pays. What stands is solid: struck, the flight
-is over, the wreck lies where it falls and the flight is begun again. The rotors are asked
-what those envelopes leave of their pull; a pack or the envelopes spent, it comes down for a
-charged one, or to cool. It is flown in the air's weather (machine.quad): a wind, gusts over it and eddies in it,
+as its plan's sphere takes it, a dive pushed down inverted. What stands is solid: struck, the
+flight is over, the wreck lies where it falls and the flight is begun again. Its rows have the
+pull the action space has for them (machine.pull): the rotors' on what each board holds of
+its clamp - WEP's at the most - and on the pack's charge; spent, it comes down for a charged
+pack, or to cool. It is flown in the air's weather (machine.quad): a wind, gusts over it and eddies in it,
 a kind at a time or one kept (W), none of it told to the law - its way and size a pointer at
 the side (terminal.views.quad.wind). The camera sits close on the floor before a flight, pulls
 back as it lifts and follows it, looking down on it - on the course from behind it, round as it
@@ -86,16 +86,17 @@ def thrusts(frame, rotors):
 
 def compose(console, origin, rotors, frame, flight, trace, now, art, yaw=0.0):
     """One frame: the quad in the viewport; at the side the `flight` - its stage, its apex or
-    its `lap`, its pack `cells`, their `peak`, the `share` of their pull its rotors are asked
-    and how long it has been `gone` - its `air`'s wind as the view, `yaw` degrees round, has
-    it, the rotors, and `trace` drawn: the height and the power, the bus and the hottest
-    board."""
+    its `lap`, its pack `cells`, their `peak`, the `share` of the clamp's pull its rows have
+    or, a rotor past the flight's clamp, the seconds `over` it - its `air`'s wind as the
+    view, `yaw` degrees round, has it, the rotors, and `trace` drawn: the height and the
+    power, the bus and the hottest board."""
     name, cells, peak, share = flight['stage'], flight['cells'], flight['peak'], flight['share']
     weight = quad.MASS_KG * quad.GRAVITY
     lift = sum(quad.K_THRUST * r['w'] * r['w'] for r in rotors)
     tilt = math.degrees(math.acos(max(-1.0, min(1.0, float(frame['turn'][1][1])))))
     worst = max(((r['budget'] or {}).get('worst') or 0.0) for r in rotors)
-    lap, wep = flight.get('lap'), flight['wep']
+    lap, over = flight.get('lap'), max(r['amps'] for r in rotors) > pull.I_MAX
+    tight = min((r['budget'] or {}).get('hold_amps', pull.I_MAX) for r in rotors) < pull.I_MAX
     flying = hud('FLIGHT', [
         ('stage', Text(('%s %s' % (name, flown.struck(flight))).upper().strip(), style='alarm'
                        if name in ('full tilt', 'burn', 'swap', 'cool', flown.CRASHED)
@@ -109,10 +110,9 @@ def compose(console, origin, rotors, frame, flight, trace, now, art, yaw=0.0):
             math.hypot(float(frame['vel'][0]), float(frame['vel'][2]))))
         if lap else ('apex', '%8.1f m' % flight['apex']),
         ('TH OBS', flown.observers(rotors)),
-        ('SOA', Text('%8.0f %% worst, %s' % (100.0 * worst, 'WEP %.1f s' % wep['left']
-                                             if wep['on'] > 0.0 else 'pull %.0f %%' % (
-                                                 100.0 * share)),
-                     style='alarm' if share < 1.0 or wep['on'] > 0.0 else 'value')),
+        ('SOA', Text('%8.0f %% worst, %s' % (100.0 * worst, 'WEP %.1f s' % flight['over']
+                                             if over else 'pull %.0f %%' % (100.0 * share)),
+                     style='alarm' if tight or over else 'value')),
         ('bus', '%8.1f V, low %.1f' % (cells['volts'], peak['low'])),
         ('pack', Text('%8.0f %% left, %.1f A' % (100.0 * cells['left'], cells['amps']),
                       style='alarm' if cells['left'] <= quad.RESERVE else 'value')),

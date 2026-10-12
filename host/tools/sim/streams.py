@@ -201,7 +201,7 @@ def asked(flight, route, law, clock, dt=PASS_S, words=('fit',), share=1.0):
     return aerobatics.fly(route, clock, (['held'] if law['held'] else []) + list(words))
 
 
-def flew(flight, route, law, row, dt=PASS_S, share=1.0, emergency=None):
+def flew(flight, route, law, row, dt=PASS_S, share=1.0):
     """`row` flown a pass of `dt` s: the payload it is of the frame as it flies
     (`aerokin.step`, in the heading the core holds, its reach as the air along its rotors'
     axis leaves it), the flight's own passes on that - as many as the seconds owed hold, the
@@ -209,7 +209,7 @@ def flew(flight, route, law, row, dt=PASS_S, share=1.0, emergency=None):
     a second."""
     payload = aero.payload(aerokin.step(
         law, row, flight.sky.state(), dt, share * aerokin.HEADROOM * top(flight),
-        tuple(flight.core.out.head), emergency, route['seen']['pitch']))
+        tuple(flight.core.out.head), route['seen']['pitch']))
     count = int((flight.owed + dt) / flight.dt + 1e-9)
     flight.owed += dt - count * flight.dt
     for _ in range(count):

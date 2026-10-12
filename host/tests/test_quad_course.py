@@ -124,15 +124,15 @@ def test_its_gates_are_flown(report):
 
 
 def test_it_flies_on_its_envelopes(report):
-    """On half of the rotors' pull - the boards' envelopes half spent - the same line slower and
+    """On a quarter of the rotors' pull - under its plan's sphere - the same line slower and
     leant less, every gate still inside its opening; spent in its first lap, that lap is its
     last and it lands where it rose."""
     from machine import course
-    whole, half = lapped(), lapped(share=0.5)
+    whole, half = lapped(), lapped(share=0.25)
     gates = passes(half)
     lean = [statistics.fmean(r['tilt'] for r in rows if r['name'] == 'lap') for rows in (whole, half)]
     times = [lap_seconds(rows, 1) for rows in (whole, half)]
-    report.check('on half their pull a lap a tenth longer and less leant, its gates '
+    report.check('on a quarter of their pull a lap a tenth longer and less leant, its gates '
                  'as before',
                  times[1] >= 1.1 * times[0] and lean[1] < lean[0]
                  and all(len(hits) >= course.LAPS - 1 for hits in gates.values())
@@ -221,30 +221,6 @@ def test_what_stands_is_solid(report):
                  struck == ['tree', 'house', 'car', 'mast', 'gate1', None, 'house'] and free is None
                  and rest == [None, 'floor'],
                  '%s; the gates down %s; on the floor %s' % (struck, free, rest))
-
-
-def test_what_is_ahead_is_seen(report):
-    """quad.Sky.ahead, the frame's ghost flown half a second on as it goes: at the mast at
-    8 m/s from 5 m it is in its way, away from it or slowly at it nothing is; through a gate
-    on its middle nothing, 1.2 m off its middle the gate's own bar."""
-    from machine import grounds, quad
-    sky = quad.Sky(grounds.solids())
-    mast, gate = grounds.MASTS[0], grounds.GATES[1]
-
-    def ahead(at, vel):
-        sky.reset()
-        sky.data.qpos[0:3], sky.data.qvel[0:3] = at, vel
-        sky._mj.mj_forward(sky.model, sky.data)
-        return (sky.ahead(0.5) or (None,))[0]
-    off = (mast[0] + 3.5, 9.0, mast[1] + 3.5)
-    seen = [ahead(off, (-5.66, 0.0, -5.66)), ahead(off, (5.66, 0.0, 5.66)),
-            ahead(off, (-1.41, 0.0, -1.41))]
-    through = [ahead((gate[0] + x, gate[1] + quad.SKID_M + quad.FOOT_M, gate[2] - 3.0), (0.0, 0.0, 8.0))
-               for x in (0.0, 1.2)]
-    report.check('the mast in its way at 8 m/s from 5 m, not going from it nor at 2 m/s; a '
-                 'gate\'s bar 1.2 m off its middle, nothing on it',
-                 seen == ['mast', None, None] and through == [None, 'gate1'],
-                 '%s; %s' % (seen, through))
 
 
 def test_its_tuner_scores(report):
@@ -390,7 +366,7 @@ def test_its_world_is_drawn(report):
 
 
 ROSTER = (test_its_gates_are_flown, test_it_flies_on_its_envelopes, test_its_gates_in_wind,
-          test_what_stands_is_solid, test_what_is_ahead_is_seen, test_its_tuner_scores,
+          test_what_stands_is_solid, test_its_tuner_scores,
           test_a_frame_of_another_size, test_its_tilt_is_its_discs_own, test_its_world_is_drawn)
 
 

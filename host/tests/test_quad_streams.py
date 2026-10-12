@@ -182,7 +182,7 @@ def test_the_power_loop_on_four_boards(report):
     """The four streams and the hover again on four stand-in boards, the core's pass each of
     the world's steps inside the flight's: stood, turned over, caught and stood again as on
     the ideal rotors; no drive tripped, no node of a board past its throttle's point - asked
-    all the rotors give, each board holds its own clamp."""
+    all the rotors give, each board holds its own clamp, past the flight's on WEP's."""
     from coaxial.devices.thermal import THROTTLE_AT
     from machine import aerolisp, intents, pull
     from tools.cores import aero
@@ -216,10 +216,11 @@ def test_the_power_loop_on_four_boards(report):
                  '%.3f m, rates %.2f rad/s' % (
                      stood['ends']['h'], max(abs(float(x)) for x in stood['ends']['spin'])))
     boards = [row['boards'] for row in (hover, dive, _over, catch, stood)]
-    report.check('no drive tripped, no node past its throttle\'s point, the clamp kept',
+    report.check('no drive tripped, no node past its throttle\'s point, WEP\'s clamp kept '
+                 'and a board\'s hold under the flight\'s in the catch',
                  sum(b['tripped'] for b in boards) == 0
                  and max(b['soa'] for b in boards) <= THROTTLE_AT + 1.0 / 255.0
-                 and max(b['amps'] for b in boards) < pull.I_MAX + 3.0
+                 and max(b['amps'] for b in boards) < pull.I_WEP + 3.0
                  and catch['boards']['hold'] < pull.I_MAX,
                  'SOA %.2f and %.0f A at the most, %.0f A held at the least in the catch' % (
                      max(b['soa'] for b in boards), max(b['amps'] for b in boards),
