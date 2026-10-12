@@ -12,7 +12,7 @@
     s, loads, ask, out = sprung.passed(g)  # a pass, her world a millisecond on
 
 A pass: she is sensed (`wbc.sense`), her latent state is stepped (`machine.latent`) and rendered
-on her (`machine.modal`), her whole body's step solved (`wrench.step`, SOLVER) - every `every`
+on her (`machine.impedance`), her whole body's step solved (`wrench.step`, SOLVER) - every `every`
 passes, its answer held between -, its torques fed forward with each drive's disturbance
 observed and taken off (INNER), and her world advanced. The worker paces that to the wall clock and
 says her state as `machine.running`'s does, her modes with it. Down, she is laid anew. A text
@@ -42,6 +42,11 @@ INNER, ESO_WO = 'eso', 100.0
 #: and leaves with 0.8.
 SOLVER = 'wrench'
 LEG_KINDS = ('hip_yaw', 'hip_roll', 'hip', 'knee', 'ankle', 'ankle_roll')
+#: A knee straighter than KNEE_SOFT rad is sprung back by its own drive, KNEE_NM at straight:
+#: the step slaves a standing leg's joints to her pelvis through its sole, and at a straight
+#: knee nothing it solves for bends it - stepping, both knees went to their stops at -5 deg
+#: in 2 s and stayed there, her soles 5 mm off the floor where 20 were asked.
+KNEE_SOFT, KNEE_NM = 0.1, 20.0
 #: On the page the loop is solved every STACK_EVERY passes: on the stack a pass solved every
 #: one costs 3.1 ms, a third of real time; on the step every second 1.15 ms, every third 0.85,
 #: her walk the same to the centimetre over a minute.
@@ -79,6 +84,14 @@ def _loads(world, force):
     return out
 
 
+def _seen(body, world, limbs):
+    """`wbc.sense`'s of her as she is, her hips' joints and her shoulders' reach beside it."""
+    from machine import wbc
+    s = wbc.sense(body, world.data.qpos, world.data.qvel)
+    s['hips'], s['arms'] = body.d.xpos[limbs['hips']].copy(), s['q'][limbs['shoulders']]
+    return s
+
+
 def laid(every=1, inner=None, solver=None):
     """She stands on the floor on the loop, at rest: one dict of what a run holds - her world
     and body, the drives' loop under the stack (`inner`, INNER with none), her statics, her
@@ -96,17 +109,21 @@ def laid(every=1, inner=None, solver=None):
     inner = inner or INNER
     world.gains[:] *= np.array(SERVO_SHARE) * (inner == 'pd')
     world.gains[~body.driven] = 0.0
-    s = wbc.sense(body, world.data.qpos, world.data.qvel)
-    y = modal.sensed(s, (0.0, 0.0), np.zeros(modal.SENSED))
     m = body.m
+    names = [j for j, d in zip(JOINTS, body.driven) if d]
+    limbs = {'hips': [m.body(side + 'thigh').id for side in ('left_', 'right_')],
+             'shoulders': [names.index(side + 'shoulder') for side in ('left_', 'right_')]}
+    s = _seen(body, world, limbs)
+    y = modal.sensed(s, (0.0, 0.0), np.zeros(modal.SENSED))
     fr = modal.frame(y, body.mass, float(m.body_subtreemass[m.body('left_hip_yaw').id]),
-                     float(m.body_subtreemass[body.torso]), float(np.mean(s['q'][list(body.knees)])),
-                     0.001 * every)
+                     float(m.body_subtreemass[body.torso]),
+                     float(m.body_subtreemass[m.body('left_upper_arm').id]),
+                     float(np.mean(s['q'][list(body.knees)])), 0.001 * every)
     rest = modal.rest(fr)
     g = {'world': world, 'body': body, 'y': y, 'fr': fr, 'rest': rest, 'st': latent.state(rest),
          'out': np.zeros(latent.OUT), 'a': np.zeros(modal.ASK), 'tab': np.zeros((0, latent.TABLE)),
-         'labels': [], 'posture': s['q'].copy(),
-         'bend': modal.crouch([j for j, d in zip(JOINTS, body.driven) if d]),
+         'labels': [], 'posture': s['q'].copy(), 'limbs': limbs,
+         'bend': modal.crouch(names), 'arms': modal.swing(names),
          'legs': [[i for i, j in enumerate(JOINTS) if j.startswith(side) and kind(j) in LEG_KINDS]
                   for side in ('left_', 'right_')],
          'free_kp': world.gains[:, 0].copy(), 'clamp': world.limit.copy(),
@@ -142,25 +159,30 @@ def passed(g, dt=0.001):
     """A pass: (sensed, her soles' loads, the loop's ask, the latent out) - and her world a
     `dt` on. The loop is solved on every `g['every']`th, its answer held between."""
     import numpy as np
-    from machine import latent, modal, physics, wbc
+    from machine import impedance, latent, modal, physics, wbc
     world, body = g['world'], g['body']
     if g['n'] % g['every'] == 0:
-        s = g['s'] = wbc.sense(body, world.data.qpos, world.data.qvel)
+        s = g['s'] = _seen(body, world, g['limbs'])
         loads = g['loads'] = _loads(world, g['force'])
         y = modal.sensed(s, loads, g['y'])
         out = latent.step(g['st'], g['tab'], g['t'], dt * g['every'], g['out'])
-        ask = g['ask'] = modal.given(modal.ask(out, y, g['fr'], g['a']), y, g['fr'], g['posture'],
-                                     g['bend'], body.knees)
+        ask = g['ask'] = modal.given(impedance.ask(out, y, g['fr'], g['a']), y, g['fr'], g['posture'],
+                                     g['bend'], g['arms'], body.knees)
         g['got'] = g['solve'](body, s, dict(ask, wep=g['left'] > 0.0))
         g['jeff'] = np.diag(s['M'])[body.act]
         for k, leg in enumerate(g['legs']):
             world.gains[leg, 0] = g['free_kp'][leg] * (1.0 + (STANDING_KP - 1.0) * float(ask['stance'][k]))
     got, held, eso, wo = g['got'], float(g['hold'].any()), g['eso'], g['wo']
+    # a knee's soft stop, and what it adds to the acceleration planned for it
+    sprung_back = np.zeros(len(body.act))
+    sprung_back[list(body.knees)] = KNEE_NM * np.clip(
+        1.0 - world.data.qpos[body.qact][list(body.knees)] / KNEE_SOFT, 0.0, 2.0)
     # each drive's disturbance, observed about the acceleration the loop planned for it
     e = world.data.qpos[body.qact] + physics.WOUND * world.boxes.delta[body.driven] - eso[0]
-    eso += dt * np.array([eso[1] + 3.0 * wo * e, got['qacc'][body.act] + eso[2] + 3.0 * wo * wo * e,
+    eso += dt * np.array([eso[1] + 3.0 * wo * e,
+                          got['qacc'][body.act] + sprung_back / g['jeff'] + eso[2] + 3.0 * wo * wo * e,
                           wo ** 3 * e])
-    world.feed[body.driven] = got['tau'] - g['jeff'] * eso[2]
+    world.feed[body.driven] = got['tau'] + sprung_back - g['jeff'] * eso[2]
     g['hold'] = np.where(got['over'], WEP_HOLD_S, np.maximum(0.0, g['hold'] - dt))
     g['left'] = min(WEP_S, g['left'] + dt * (WEP_FILL * (1.0 - held) - held))
     world.limit[g['joints']] = np.where(g['hold'] > 0.0, body.wep, g['clamp'][g['joints']])
@@ -187,7 +209,7 @@ def state(g, torque, power, watts, ratio, fallen_at, says=(), refused=None):
     from machine.figure import JOINTS
     world, out = g['world'], g['out']
     d = world.data
-    z = modal.read(g['y'], g['fr'])[0]
+    z = modal.read(g['y'], g['fr'], g['a'][modal.STANCE])[0]
     angles = {j: math.degrees(float(d.qpos[world.qadr[i]])) for i, j in enumerate(JOINTS)}
     return {'t': g['t'], 'angles': dict(angles, **world.loose()), 'set': angles,
             'torque': dict(zip(JOINTS, torque.tolist())), 'power': dict(zip(JOINTS, power.tolist())),

@@ -53,15 +53,19 @@ def _inv(A):
     return np.linalg.solve(A.T @ A + DAMP ** 2 * np.eye(A.shape[1]), A.T)
 
 
-def bounded(u, frames, stance):
+def bounded(u, frames, stance, edge=(0.0, 0.0)):
     """`u` with each standing sole's wrench (moment, force; world) inside its bounds - pressing,
-    in its friction's pyramid, its centre of pressure in its room -, and which parts moved."""
+    in its friction's pyramid, its centre of pressure in its room -, and which parts moved. A
+    sole on an `edge` - 1 its ball, -1 its heel, a share between - has its centre of pressure
+    that far to it."""
     out = u.copy()
     for k, R in enumerate(frames):
         m, f = R.T @ u[6 * k:6 * k + 3], u[6 * k + 3:6 * k + 6]
         fy = max(f[1], 0.0)
         cap = np.array([ROOM[1] * fy, MU * YAW_M * fy, ROOM[0] * fy])
-        inside = np.concatenate([R @ np.clip(m, -cap, cap),
+        low = -cap * np.array([1.0 - 2.0 * max(-edge[k], 0.0), 1.0, 1.0])
+        cap = cap * np.array([1.0 - 2.0 * max(edge[k], 0.0), 1.0, 1.0])
+        inside = np.concatenate([R @ np.clip(m, low, cap),
                                  [np.clip(f[0], -MU * fy, MU * fy), fy, np.clip(f[2], -MU * fy, MU * fy)]])
         out[6 * k:6 * k + 6] += stance[k] * (inside - u[6 * k:6 * k + 6])
     return out, (np.abs(out - u) > 1e-9).astype(float)
@@ -69,7 +73,9 @@ def bounded(u, frames, stance):
 
 def _maps(b, s, ask, want):
     """(T, E, t0, a6, asked): every acceleration of the pelvis's six and the unknowns, qdd = T base
-    + E u + t0; each swinging sole's asked acceleration and whether it is asked."""
+    + E u + t0; each swinging sole's asked acceleration and whether it is asked. A standing
+    sole is still, or goes as `ask['settle']` has it (a sole's turn and its middle's
+    acceleration, world: flat again from its heel, over its ball)."""
     n, M, h, v, act = b.n, s['M'], s['h'], s['v'], b.act
     T, E, t0 = np.zeros((n, 6)), np.zeros((n, NU)), np.zeros(n)
     T[:6] = np.eye(6)
@@ -78,6 +84,7 @@ def _maps(b, s, ask, want):
     passive = [int(i) for i in b.free if i >= 6]
     t0[passive] = -np.linalg.solve(M[np.ix_(passive, passive)], h[passive])
     a6, asked, swing = np.zeros(NU), np.zeros(2), ask.get('swing', {})
+    settle = ask.get('settle', np.zeros((2, 6)))
     for k, leg in enumerate(LEGS):
         f, cols = s['feet'][k], act[leg]
         twist = f['J6'] @ v
@@ -87,7 +94,7 @@ def _maps(b, s, ask, want):
         inv = _inv(f['J6'][:, cols])
         T[cols] = -inv @ f['J6'][:, :6]
         if ask['stance'][k]:
-            t0[cols] = inv @ (-f['dJv'] - CONTACT_K * twist)
+            t0[cols] = inv @ (settle[k] - f['dJv'] - CONTACT_K * twist)
             continue
         at, speed, acc, quat = swing[k]
         a6[6 * k:6 * k + 6] = np.concatenate([
@@ -165,7 +172,7 @@ def step(b, s, ask):
         ay = float(sumf[1] @ u) / mass - G
         past = float(np.clip(ay, lo, hi)) + G
         band, edge = max(band, grounded * float(abs(past - G - ay) > 1e-9)), edge + (1.0 - band) * (past - edge)
-        at, moved = bounded(u, frames, stance)
+        at, moved = bounded(u, frames, stance, ask.get('edge', (0.0, 0.0)))
         pinned = np.maximum(pinned, moved)
     u = at
     qdd = full @ u + full0

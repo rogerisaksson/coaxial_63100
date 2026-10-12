@@ -81,3 +81,9 @@ it names. A closed item is cut from the list and gets its line here, last.
     (`machine.aerokin`), a pass a payload and the air the core's: 59.1 s;
     laps 14.9 and 14.8 s, whole in the tour's air
     ([streams](findings/streams.md)).
+32. Her stride on the loop: eleven modes - her standing legs' compression,
+    her pelvis's list and turn, her arms' swing, her soles' rock -, a sole
+    let go on her drive's phase, landed on her capture point, its heel
+    rising first: 0.61 m/s at 329 J/m, 2.59 off a woman's band for 7.71,
+    none of the gaits it was by name; the first texts as given walk
+    ([orthokinematics](findings/orthokinematics.md)).

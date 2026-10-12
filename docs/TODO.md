@@ -183,18 +183,22 @@ gets a line at the end of [DONE](DONE.md).
     balance, rhythm and elasticity, compiled to rows; her latent state
     is stepped and rendered with no branch, the whole-body loop under
     it. On the page's gym she stands, crouches, shifts, bows, stands on
-    one sole, hops and walks 0.27 m/s.
-    + Her walk: a human's is 1.2 m/s; hers falls at a drive of 1.0. One
-      sine a mode holds one sole 44 % of the time, a swing 0.34 s, 2 cm
-      clear; her form (`looks.FORM`, J/m, the band) unmeasured on it.
-    + Shoves: 30 N across fells her one way, 40 N either; no payload
-      answers one yet.
+    one sole, hops and walks 0.61 m/s, 2.6 off a woman's band.
+    + Her walk's form: her knee lands at 31 deg (12) - her hip 1 to 2.5
+      cm under where a straight leg needs it -, a step 0.39 legs
+      (0.45), her knee swinging 45 deg (52), her heel 24 up as her toes
+      leave (28); 3 of `looks.FORM`'s 10 broken. Two takes of women:
+      1.1 m/s, a step 0.8 legs, the knee landing at 2-11 deg, 50-57 as
+      the toes leave, 68-73 swinging, the heel 38-57 up.
+    + Her walk's speed: a drive past 0.6 surges and falls at 17 to 26
+      s; 1.0 m/s only with her arms at 130 deg and her head bobbing
+      0.19 m.
+    + Shoves: 10 to 40 N for 0.12 s fell her walk in 7 of 10, 3 to 10 s
+      after; no payload answers one yet.
     + The hop as given: full extension asked off the floor and no
       landing; her own text stands. On one sole, by micro-hops: untried.
     + Her way: no mode turns her; the gym has no room round her.
-    + The first texts as given: 102 asks a sway her soles' width
-      refuses at 1.1 Hz; 103 after it fells her.
-    + The loop in C: `latent.step`, `modal.ask` and `wrench.step` as
+    + The loop in C: `latent.step`, `impedance.ask` and `wrench.step` as
       cores beside `wbc/`, `ortho_row_t` a header a test holds to
       `ortho.ROW`; in python the page solves every third pass.
     + From the page: a line to type a text into; the model composing
@@ -203,7 +207,8 @@ gets a line at the end of [DONE](DONE.md).
       `walker`, `kin` and the director's walk go once the page's own
       walk, her rise and her get-up are on the loop; kept beside it
       until then.
-    + DOD: from the page she rises, walks at 1.0 m/s in her form, turns,
+    + DOD: from the page she rises, walks at 1.0 m/s in her form - on
+      the band, none of its names, beside a take of a woman's -, turns,
       stops, stands on one sole 10 s by micro-hops and hops, each a
       text; 80 N shoves parried by a payload; the scoreboard held; the
       old laws gone.

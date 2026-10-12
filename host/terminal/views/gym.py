@@ -24,7 +24,7 @@ DIGITS = '1234567890'
 #: behind and ahead in turn.
 PUSHES = {'p': ('push', False), 'n': ('nudge', False), 'P': ('push', True), 'N': ('nudge', True)}
 #: Each mode's name in the box.
-SHORT = ('axial', 'lateral', 'drive', 'pitch', 'sagittal', 'lift', 'width')
+SHORT = ('axial', 'lateral', 'drive', 'pitch', 'sagittal', 'lift', 'width', 'list', 'turn', 'arms', 'rock')
 
 
 def body(state):

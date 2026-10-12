@@ -215,8 +215,11 @@ tests/              suites, .counts.json (measured sizes)
 | flight | on the whole-body stack: which soles stand, told from one pass - each as it bears, an unloaded one beside one that bears or with her at rest; one that does not is asked to its landing (reach) |
 | ortho | orthokinematics: her movement as text - `(stream_inject ..)`, `(defbehavior ..)`: latent targets, a stiffness and a damping a mode, her rhythm, task constraints - compiled to rows of numbers (moves.lisp hers, examples.lisp the first texts) |
 | latent | her latent state stepped with no branch: a row laid by a mask, the state a lerp, her rhythm one angle; each mode's reference and impedance out |
-| modal | her modes on her body, no branch: her soles' places from her centre of mass as sums and differences, their springs the whole-body loop's ask - the ZMP clipped, which soles stand, a sole in the air |
-| sprung | the latent loop run: sensed, latent, modal, wrench (or wbc), the drives' observers under it; the page's gym in a process of its own |
+| modal | her modes on her body, no branch: her soles' places from her centre of mass as sums and differences, her standing legs' compression, her turns; what is sensed, her statics and the loop's ask laid flat |
+| impedance | her modes' springs rendered, no branch: her centre of mass's acceleration, a sole in the air, her turns, her arms and her knees - the whole-body loop's ask |
+| poise | her ZMP into her soles' polygon, her capture point kept in it; which soles stand |
+| stride | her stride from her drive's phase: when a limb swings, where its sole lands (her capture point), its clearance, its rock heel to toe, a standing sole's heel rising |
+| sprung | the latent loop run: sensed, latent, impedance, wrench (or wbc), the drives' observers under it; the page's gym in a process of its own |
 | physics | DYNAMIC: the figure in MuJoCo, a drive a joint |
 | gearbox | each drive's gearbox: the rotor free across its play, the box wound up past it, the link turned |
 | room | a living room round her: glass walls, furniture, a door, a lamp, and its words |

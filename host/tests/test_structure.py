@@ -258,7 +258,7 @@ def test_no_unused_imports(r):
 def test_numpy_enters_behind_the_thread_cap(r):
     """numpy is imported at module level by the modules that step arrays - blocks.py,
     machine/capture.py, machine/cyclic.py and the whole-body law's qp, wbc, wrench, mpc, balance,
-    latent, modal - each capping OpenBLAS's thread pool before importing it.
+    latent, modal, impedance, poise, stride - each capping OpenBLAS's thread pool before importing it.
     """
     importers, uncapped = [], []
     for path, _text, tree in sources(beside=False):
@@ -275,7 +275,7 @@ def test_numpy_enters_behind_the_thread_cap(r):
             sorted(importers) == sorted([os.path.join('coaxial', 'model', 'blocks.py')]
                                         + [os.path.join('machine', m + '.py') for m in (
                                             'capture', 'cyclic', 'qp', 'wbc', 'wrench', 'mpc', 'balance',
-                                            'latent', 'modal')]),
+                                            'latent', 'modal', 'impedance', 'poise', 'stride')]),
             ', '.join(importers) or 'nowhere')
     r.check('each sets OPENBLAS_NUM_THREADS before importing it', not uncapped,
             ', '.join(uncapped))

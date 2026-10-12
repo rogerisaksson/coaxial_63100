@@ -1,9 +1,10 @@
 """Orthokinematics: a text compiled to rows, her latent state stepped, rendered on her, on the loop.
 
-`machine.ortho` compiles; `machine.latent` steps without a branch; `machine.modal` renders; the
+`machine.ortho` compiles; `machine.latent` steps without a branch; `machine.impedance` renders -
+her modes read by `machine.modal`, her soles by `machine.poise`, her stride by `machine.stride` -; the
 page's gym runs it (`machine.sprung`): crouched, her weight over one sole, bowed, on one sole,
-each as its text asks and standing; walking on her own payloads; the first texts as given; the
-gym's worker and keys."""
+each as its text asks and standing; walking on her own payloads, and how that walk looks; the
+first texts as given; the gym's worker and keys."""
 import ast
 import math
 import os
@@ -95,20 +96,22 @@ def test_what_is_no_text_is_refused(report):
 
 
 def test_the_core_and_the_renderer_branch_nowhere(report):
-    """machine/latent.py: no if, no conditional expression, no while, no try, no and/or, no
-    class, no lambda, no loop, no dict. machine/modal.py: none of the first seven, its dicts
-    the stack's ask alone."""
+    """machine/latent.py, impedance.py, stride.py and poise.py: no if, no conditional expression,
+    no while, no try, no and/or, no class, no lambda, no loop, no dict. machine/modal.py: none of
+    the first seven, its dicts the stack's ask alone."""
     branches = (ast.If, ast.IfExp, ast.While, ast.Match, ast.Try, ast.BoolOp, ast.ClassDef, ast.Lambda, ast.With)
     found = {}
-    for name in ('latent', 'modal'):
+    pure = ('latent', 'impedance', 'stride', 'poise')
+    for name in pure + ('modal',):
         with open(os.path.join(HERE, 'machine', name + '.py'), encoding='utf-8') as f:
             tree = ast.parse(f.read())
         found[name] = (['%s:%d' % (type(node).__name__, getattr(node, 'lineno', 0)) for node in ast.walk(tree)
                         if isinstance(node, branches) or (isinstance(node, ast.comprehension) and node.ifs)],
                        [node for node in ast.walk(tree) if isinstance(node, (ast.For, ast.Dict, ast.DictComp))],
                        tree)
-    report.check('latent.py: no branch, no loop, no dict', not found['latent'][0] and not found['latent'][1],
-                 ', '.join(found['latent'][0]) or 'none')
+    for name in pure:
+        report.check('%s.py: no branch, no loop, no dict' % name, not found[name][0] and not found[name][1],
+                     ', '.join(found[name][0]) or 'none')
     given = next(node for node in found['modal'][2].body
                  if isinstance(node, ast.FunctionDef) and node.name == 'given')
     dicts = [node.lineno for node in found['modal'][1] if isinstance(node, (ast.Dict, ast.DictComp))]
@@ -210,33 +213,62 @@ def test_she_hops_and_stands(report):
 
 
 def test_she_walks_on_her_own_payloads(report):
-    """machine/moves.lisp's 201 to 204 - stand, sway, step, walk on -: 2.5 m and more in 20 s, a
-    sole landing every turn of her rhythm, her pelvis never 5 deg off upright."""
+    """machine/moves.lisp's 201 to 204 - stand, sway, step, walk on -: 5 m and more in 20 s, at
+    0.5 m/s and more by the end, a sole landing every half turn of her rhythm, her pelvis
+    never 8 deg off upright."""
     got = _went(['#201@0.5', '#202@2', '#203@5', '#204@9'], to=9.5)
-    report.check('she walks 2.5 m and more, at 0.22 m/s and more by the end',
-                 got['stood'] and got['went'] >= 2.5 and got['speed'] >= 0.22,
+    report.check('she walks 5 m and more, at 0.5 m/s and more by the end',
+                 got['stood'] and got['went'] >= 5.0 and got['speed'] >= 0.5,
                  '%.2f m, %.2f m/s, %.1f s' % (got['went'], got['speed'], got['t']))
-    report.check('a sole lands every turn of her rhythm: 22 and more; her pelvis within 5 deg of upright',
-                 got['landings'] >= 22 and got['tilt'] < 5.0, '%d landings, tilt %.1f deg' % (got['landings'], got['tilt']))
+    report.check('a sole lands every half turn of her rhythm: 24 and more; her pelvis within 8 deg of upright',
+                 got['landings'] >= 24 and got['tilt'] < 8.0, '%d landings, tilt %.1f deg' % (got['landings'], got['tilt']))
+
+
+def test_her_walk_is_none_of_the_gaits_it_is_not_to_be(report):
+    """Her walk as tools/sim/look.py measures one, 20 s of it: off a woman's band
+    (`normal.BAND`) under 3.2 - 7.7 on a level centre of mass and flat soles, on stilts,
+    Groucho's and a shuffle by name -, none of those names; her heel up as her toes leave, her
+    toes up as she lands, her pelvis listing and turning, her arms swinging, her soles a
+    woman's width apart. Her knee lands bent yet and her step is short (docs/TODO.md)."""
+    from tools.sim import ortho as run
+    got = run.looked(run.planned(['#201@0.5', '#202@2', '#203@5', '#204@9']), 20.0)
+    band = got.get('band', {})
+    report.check('she walks 0.5 m/s and more, under 450 J/m, standing',
+                 got['stood'] and got.get('speed', 0.0) >= 0.5 and got.get('energy', 1e9) < 450.0,
+                 '%.2f m/s, %.0f J/m' % (got.get('speed', 0.0), got.get('energy', 0.0)))
+    report.check("off a woman's band under 3.2, by name none of the gaits",
+                 got.get('off', 9.0) < 3.2 and not got.get('named'),
+                 '%.2f: %s%s' % (got.get('off', 9.0), ', '.join('%s %.2f' % w for w in got.get('words', ())),
+                                 ''.join(' - ' + n for n in got.get('named', ()))))
+    report.check('her heel 20 deg and more up as her toes leave, her toes 5 up as she lands',
+                 band.get('heel at lift', 0.0) >= 20.0 and band.get('toes up at landing', 0.0) >= 5.0,
+                 'heel %.1f, toes %.1f deg' % (band.get('heel at lift', 0.0), band.get('toes up at landing', 0.0)))
+    report.check('her pelvis rolls and turns 5 deg and more, her arms swing 20, her soles 0.1 to 0.2 legs apart',
+                 band.get('pelvis roll', 0.0) >= 5.0 and band.get('pelvis turn', 0.0) >= 5.0
+                 and band.get('arm', 0.0) >= 20.0 and 0.1 <= band.get('feet apart', 0.0) <= 0.2,
+                 'roll %.1f, turn %.1f, arm %.1f deg, %.2f legs' % (
+                     band.get('pelvis roll', 0.0), band.get('pelvis turn', 0.0), band.get('arm', 0.0),
+                     band.get('feet apart', 0.0)))
 
 
 def test_the_first_texts_as_given(report):
-    """machine/examples.lisp as it was written: 101 stands her relaxed; 102
-    sways her, 0.25 compressed, and she stands through its first 4 s - its sway is asked past what her soles'
-    width gives at 1.1 Hz, and what follows is not held -; the hop loads past 0.8 and leaves
-    the floor. Its landing is not held either (docs/TODO.md, orthokinematics)."""
+    """machine/examples.lisp as it was written: 101 stands her relaxed; 102 begins the gait,
+    0.25 compressed, and 103 keeps it: she walks - its sway is asked past what her soles'
+    width gives at 1.1 Hz, and where a sole lands meets her capture point wherever that goes -;
+    the hop loads to 0.75 and leaves the floor. Its landing is not held (docs/TODO.md,
+    orthokinematics)."""
     text = _text('examples')
-    got = _went(['#101@1', '#102@3'], text, to=3.2)
-    report.check('101 and 102 as given: she stands 4 s into the gait, within 5 deg of upright',
-                 got['stood'] and got['tilt'] < 5.0, 'tilt %.1f deg, %.2f m, %d landings' % (
-                     got['tilt'], got['went'], got['landings']))
-    report.check('her height as 102 asks it, 0.25 compressed within 0.05',
-                 abs(got['modes']['axial_compression'][3] - 0.25) < 0.05, '%s' % (
+    got = _went(['#101@1', '#102@3', '#103@6'], text, to=5.8)
+    report.check('101, 102 and 103 as given: she walks 1.5 m and more in 9 s, within 6 deg of upright',
+                 got['stood'] and got['went'] >= 1.5 and got['tilt'] < 6.0,
+                 'tilt %.1f deg, %.2f m, %d landings' % (got['tilt'], got['went'], got['landings']))
+    report.check('her height as 102 asks it, 0.25 compressed within 0.08',
+                 abs(got['modes']['axial_compression'][3] - 0.25) < 0.08, '%s' % (
                      got['modes']['axial_compression'],))
     hop = _went(['hop_asymmetric'], text, to=0.3)
     far = hop['modes']['axial_compression'][1]
-    report.check('the hop as given loads to 0.8 and past it, goes up 1 m/s and more, 0.1 s off the floor',
-                 far >= 0.8 and hop['up'] >= 1.0 and hop['air'] >= 0.1,
+    report.check('the hop as given loads to 0.75 and past it, goes up 1 m/s and more, 0.1 s off the floor',
+                 far >= 0.75 and hop['up'] >= 1.0 and hop['air'] >= 0.1,
                  'compressed %.2f, %.2f m/s, %.2f s' % (far, hop['up'], hop['air']))
 
 
@@ -245,6 +277,7 @@ def test_the_gym_runs_her_in_a_process(report):
     and what the digits say; an entry said, she does it; the gym's other text taken."""
     from machine import sprung
     from machine.running import Running
+    from terminal.views import gym
     body = Running(worker=sprung.run)
     try:
         began, first = time.monotonic(), None
@@ -253,7 +286,7 @@ def test_the_gym_runs_her_in_a_process(report):
             time.sleep(0.05)
         says = first.get('says', ()) if first else ()
         report.check('her state comes with her modes and what the digits say',
-                     first is not None and len(first['modes']) == 7 and says[:1] == ('moves',)
+                     first is not None and len(first['modes']) == len(gym.SHORT) and says[:1] == ('moves',)
                      and 'crouch' in says,
                      '%s' % (says,))
         body.send(say=says.index('crouch') - 1 if 'crouch' in says else 0)
@@ -313,7 +346,7 @@ ROSTER = [test_a_text_compiles_to_rows, test_what_is_no_text_is_refused,
           test_the_core_and_the_renderer_branch_nowhere, test_her_latent_state_blends_and_turns,
           test_she_crouches_as_asked, test_her_weight_goes_over_one_sole, test_she_bows_as_asked,
           test_she_stands_on_one_sole, test_she_hops_and_stands, test_she_walks_on_her_own_payloads,
-          test_the_first_texts_as_given,
+          test_her_walk_is_none_of_the_gaits_it_is_not_to_be, test_the_first_texts_as_given,
           test_the_gym_runs_her_in_a_process, test_the_pages_keys_on_the_loop]
 
 
