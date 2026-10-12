@@ -1,9 +1,11 @@
-# Findings: balance as one convex QP
+# Findings: the whole-body stack
 
-The whole-body stack (`machine/wbc.py`) on its solver (`machine/qp.py`), the
-MPC a second ahead (`machine/mpc.py`), the step (`machine/balance.py`),
+The whole-body stack (`machine/wbc.py`) on its solver (`machine/qp.py`),
 measured by `tools/sim/wbc.py` in a world without buses. The board's
-findings: [FINDINGS](../FINDINGS.md); the law as built: [standing](standing.md).
+findings: [FINDINGS](../FINDINGS.md). The MPC's steps and its walk told
+here were `mpc.py`'s and `balance.py`'s, gone from the tree with the laws
+before her latent loop (tag `laws-before-the-loop`): her steps are the
+loop's ([orthokinematics](orthokinematics.md)).
 
 ## Solver
 

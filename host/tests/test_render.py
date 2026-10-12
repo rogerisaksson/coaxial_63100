@@ -1380,18 +1380,19 @@ def test_the_gynoid(report):
     """The gynoid stands on the floor at her height, a stride shows, and her dots are the same
     cells on the GPU as splatted here - where a card answers."""
     from coaxial.graphics import gpu, gynoid
-    from machine import gait
+    from machine import figure
     body = gynoid.body()
-    still, _normals = body.pose(gait.stand())
+    stride = dict(figure.stand(), left_hip=-22.0, right_hip=16.0)   # her left leg ahead
+    still, _normals = body.pose(figure.stand())
     report.check('gynoid: her soles on the floor, 1.60 to 1.75 m tall',
                  abs(still[:, 1].min()) < 1e-9 and 1.60 < still[:, 1].max() < 1.75,
                  '%.3f m' % still[:, 1].max())
     feet = [i for i, part in enumerate(body.parts) if part[0] in ('left_foot', 'right_foot')]
-    walking, _normals = body.pose(gait.walk(0.0))
+    walking, _normals = body.pose(stride)
     reach = [walking[slice(*body.spans[i]), 2].mean() for i in feet]
     report.check('gynoid: as a foot lands the feet are a step apart, the left ahead',
-                 reach[0] - reach[1] > 0.9 * gait.STRIDE_M / 2.0, '%.2f m' % (reach[0] - reach[1]))
-    here = gynoid.render(gait.walk(0.3), 48, 22, colour=False)
+                 reach[0] - reach[1] > 0.3, '%.2f m' % (reach[0] - reach[1]))
+    here = gynoid.render(stride, 48, 22, colour=False)
     report.check('gynoid: drawn here, 22 lines of 48 cells, her dots in them',
                  len(here) == 22 and all(len(line) == 48 for line in here)
                  and sum(ch not in ' ' for line in here for ch in line) > 100,
@@ -1400,7 +1401,7 @@ def test_the_gynoid(report):
     if card is None:
         report.check('gynoid: no card here - drawn by this process alone', True)
         return
-    there = gynoid.render(gait.walk(0.3), 48, 22, colour=False, lit=gpu.LitRaster(found=card))
+    there = gynoid.render(stride, 48, 22, colour=False, lit=gpu.LitRaster(found=card))
     a = {(r, c) for r, line in enumerate(here) for c, ch in enumerate(line) if ch != ' '}
     b = {(r, c) for r, line in enumerate(there) for c, ch in enumerate(line) if ch != ' '}
     report.check('gynoid: the card lights the cells the splat does (Jaccard over 0.8)',

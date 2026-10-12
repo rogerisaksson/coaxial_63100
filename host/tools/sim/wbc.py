@@ -4,13 +4,12 @@
     python tools/sim/wbc.py                      # 10 s still: drift, pressure, effort, its cost
     python tools/sim/wbc.py --polar 60 80 100    # a shove from each of 8 ways a force, the relay
     python tools/sim/wbc.py --one 80 90 -v       # one: N and way (0 her left, 90 ahead), traced
-    ... --no-step                                # the capture point's law alone, no MPC, no step
     ... --no-wep                                 # no war emergency power
     ... --core | --wrench                        # the loop in C | the step without an active set
 
-A shove is `events.SHOVE_S` on the trunk at AT_S; she has stood if to the end her pelvis keeps
-within `test_gynoid_stand.HELD_DEG` of upright and nothing but her soles touches the floor.
-Stepping, the MPC plans (`machine.balance`, `machine.mpc`).
+A shove is `sprung.SHOVE_S` on the trunk at AT_S; she has stood if to the end her pelvis keeps
+within HELD_DEG of upright and nothing but her soles touches the floor. Her ask is the capture
+point's law (`law`) or a caller's; her steps are her latent loop's (`machine.sprung`).
 """
 import argparse
 import json
@@ -25,7 +24,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 #: spread of shoves SPREAD_S apart.
 AT_S, TO_S, HELD_DEG, SPREAD_S = 1.0, 3.0, 25.0, 0.035
 
-#: The stand's law without steps: the ZMP asked XI_K/omega past the capture point, away from
+#: The stand's law: the ZMP asked XI_K/omega past the capture point, away from
 #: the soles' middle.
 XI_K = 2.0
 
@@ -34,9 +33,6 @@ ESO_WO = 100.0
 
 #: The centre of mass's creep along the floor, mm/s, over a stand's last CREEP_S.
 CREEP_S = 2.0
-
-#: A walk measured from TIMED_FROM_S after it is asked, s.
-TIMED_FROM_S = 2.0
 
 #: The ways a polar shoves from, deg: 0 her left, 90 ahead.
 WAYS = tuple(range(0, 360, 45))
@@ -48,17 +44,23 @@ NAMES = ()
 
 
 def law(s, st, mid):
-    """The stack's ask standing without steps: the capture point brought to `mid` (x, z)."""
+    """The stack's ask standing: the capture point brought to `mid` (x, z)."""
     import numpy as np
-    from machine import balance
+    from machine import wbc
     c, v = s['com'], s['vcom']
     omega = math.sqrt(9.81 / max(0.3, c[1]))
     xi = c[[0, 2]] + v[[0, 2]] / omega
     p = xi + XI_K / omega * (xi - mid)
     acc = omega ** 2 * (c[[0, 2]] - p)
     return {'stance': (True, True), 'posture': st['posture'], 'turns': st['turns'],
-            'com_acc': np.array([acc[0], balance.HEIGHT_KD[0] * (st['height'] - c[1])
-                                 - balance.HEIGHT_KD[1] * v[1], acc[1]])}
+            'com_acc': np.array([acc[0], wbc.HEIGHT_KD[0] * (st['height'] - c[1])
+                                 - wbc.HEIGHT_KD[1] * v[1], acc[1]])}
+
+
+def state(s):
+    """Standing where she stands: her height, her posture and her turns kept."""
+    return {'height': float(s['com'][1]), 'posture': s['q'].copy(),
+            'turns': tuple(t['quat'].copy() for t in s['turns'])}
 
 
 def loads(world, force):
@@ -93,19 +95,18 @@ def _under(m, body, root):
     return False
 
 
-def stand(push=0.0, way=0.0, seconds=None, trace=False, wep=True, steps=True, at=AT_S, walk=None,
+def stand(push=0.0, way=0.0, seconds=None, trace=False, wep=True, at=AT_S,
           core=False, inner='pd', asked=None, wrench=False):
-    """{stood, tilt deg, drift m, top share, us a step, wep s, steps, ..} standing `seconds` (TO_S
+    """{stood, tilt deg, drift m, top share, us a step, wep s, ..} standing `seconds` (TO_S
     past the shove), shoved `push` N from `way` deg at `at`; `wep` war emergency power granted;
-    `steps` the MPC's law, else the capture point's alone; `walk` (m/s, s a step) asked from
-    `at` on, her walk's metres, m/s and J/m measured from TIMED_FROM_S into it; `core` the
+    `core` the
     loop in C, `wrench` the step without an active set (`machine.wrench`), in the python
     stack's place; `inner` the drives' own loop: 'pd' round a reference integrated from the
     stack's accelerations, 'eso' each drive's disturbance observed (`parts.Eso` at ESO_WO) and
     taken off its torque, 'none' the torque as asked; `asked` a law of the caller's in the
-    MPC's place: (st, s, loads, now, bears, body) -> the stack's ask."""
+    capture point's place: (st, s, loads, now, bears, body) -> the stack's ask."""
     import numpy as np
-    from machine import balance, gait, parts, physics, wbc, wrench as bare
+    from machine import figure, parts, physics, wbc, wrench as bare
     from machine.errors import MachineError
     from machine.drives import kind
     from machine.figure import JOINTS, SEGMENTS
@@ -116,7 +117,7 @@ def stand(push=0.0, way=0.0, seconds=None, trace=False, wep=True, steps=True, at
         shared().reset()
     world, body = physics.World(), wbc.Body()
     NAMES = [j for j, d in zip(JOINTS, body.driven) if d]
-    pose = gait.stand()
+    pose = figure.stand()
     world.reset(pose)
     s = wbc.sense(body, world.data.qpos, world.data.qvel)
     low = min(float(f['pts'][:, 1].min()) for f in s['feet'])
@@ -139,20 +140,17 @@ def stand(push=0.0, way=0.0, seconds=None, trace=False, wep=True, steps=True, at
     home = s['com'].copy()
     esos = [parts.Eso(float(s['M'][d, d]), ESO_WO) for d in body.act] if inner == 'eso' else []
     mid = (s['feet'][0]['sole'][[0, 2]] + s['feet'][1]['sole'][[0, 2]]) / 2.0
-    st = balance.state(s, body.knees)
+    st = state(s)
     pushed, tilt, drift, top, cost, passes, worst = False, 0.0, 0.0, 0.0, 0.0, 0, 0.0
-    failed, down, force, was, bears = None, None, np.zeros(6), 'stand', (0.0, 0.0)
+    failed, down, force, bears = None, None, np.zeros(6), (0.0, 0.0)
     a = math.radians(way)
     seconds = at + TO_S if seconds is None else seconds
-    walked, drawn, z0 = None, 0.0, None
     settled = None
     guarded = [0, 0, 0, 0, 0]
     while now[0] < seconds:
         t0 = time.perf_counter()
         s = wbc.sense(body, world.data.qpos, world.data.qvel)
-        ask = (asked(st, s, loads(world, force), now[0], bears, body) if asked
-               else balance.step(st, s, loads(world, force), now[0], bears=bears) if steps
-               else law(s, st, mid))
+        ask = asked(st, s, loads(world, force), now[0], bears, body) if asked else law(s, st, mid)
         try:
             out = (bare.step if wrench else stack_step if core else wbc.step)(body, s, dict(ask, wep=left > 0.0))
         except MachineError as exc:
@@ -174,13 +172,6 @@ def stand(push=0.0, way=0.0, seconds=None, trace=False, wep=True, steps=True, at
         world.target[body.driven] = ref_q
         top = max(top, float(np.abs(out['tau'] / body.top).max()))
         worst = max([worst] + [float(sl.max()) for sl in out['slack'] if len(sl)])
-        if walk and now[0] >= at:
-            st['walk'] = walk
-            if now[0] >= at + TIMED_FROM_S:
-                if z0 is None:
-                    z0, t0w = float(s['com'][2]), now[0]
-                drawn += world.drawn() * 0.001
-                walked = (float(s['com'][2]) - z0, now[0] - t0w)
         if push and not pushed and now[0] >= at:
             world.push((push * math.cos(a), 0.0, push * math.sin(a)), 0.12)
             pushed = True
@@ -193,26 +184,10 @@ def stand(push=0.0, way=0.0, seconds=None, trace=False, wep=True, steps=True, at
         if settled is None and now[0] >= seconds - CREEP_S:
             settled = s['com'][[0, 2]].copy()
         down = down or touched(world, ours, hers)
-        if trace and steps and st['phase'] != was:
-            omega = math.sqrt(9.81 / s['com'][1])
-            xi = s['com'][[0, 2]] + s['vcom'][[0, 2]] / omega
-            print('      %5.3f %s -> %s %s  xi (%+.3f %+.3f)  soles %s  land %s  captured %s' % (
-                now[0], was, st['phase'], st['side'], xi[0], xi[1],
-                ' '.join('(%+.3f %+.3f)' % tuple(f['sole'][[0, 2]]) for f in s['feet']),
-                '(%+.3f %+.3f)' % tuple(st['land']) if st.get('land') is not None else '-',
-                st.get('captured')))
-        was = st['phase']
         if trace and passes % 25 == 0:
-            _trace(now[0], st['phase'] if steps else '-', s, home, tilt, out, body, worst)
+            _trace(now[0], '-', s, home, tilt, out, body, worst)
         if tilt > HELD_DEG or s['com'][1] < 0.5 * home[1] or down:
             break
-    if walked:
-        metres, secs = walked
-        return {'walked_m': round(metres, 2), 'm_s': round(metres / max(secs, 1e-6), 2),
-                'j_m': round(drawn / max(metres, 1e-6)), 'stood': not failed and not down
-                and tilt <= HELD_DEG, 'steps': st['steps'], 'tilt': round(tilt, 1),
-                'us': round(1e6 * cost / max(1, passes)), 'failed': failed, 'down': down,
-                't': round(now[0], 3)}
     creep = (float(np.linalg.norm(s['com'][[0, 2]] - settled)) / CREEP_S if settled is not None
              else None)
     return {'push': push, 'way': way, 'stood': not failed and not down and tilt <= HELD_DEG,
@@ -221,8 +196,7 @@ def stand(push=0.0, way=0.0, seconds=None, trace=False, wep=True, steps=True, at
             'disturbance_nm': round(float(np.mean([abs(e.j * e.d) for e in esos])), 2) if esos
             else None, 'guarded': guarded,
             'top': round(top, 2), 'us': round(1e6 * cost / max(1, passes)), 'slack': worst,
-            't': round(now[0], 3), 'wep_s': round(WEP_S - left, 3) if wep else 0.0,
-            'steps': st['steps'] if steps else 0, 'down': down}
+            't': round(now[0], 3), 'wep_s': round(WEP_S - left, 3) if wep else 0.0, 'down': down}
 
 
 def _trace(now, phase, s, home, tilt, out, body, worst):
@@ -260,11 +234,11 @@ def _torques(esos, world, body, out):
     return out['tau'] - np.array(taken)
 
 
-def polar(forces, wep=True, steps=True, spread=1, core=False, inner='pd', wrench=False):
+def polar(forces, wep=True, spread=1, core=False, inner='pd', wrench=False):
     """A shove from each of WAYS at each of `forces`, `spread` moments apart, a relay job each:
     {N: [stood way ..]}."""
     from tools.dev import focus
-    flags = (([] if wep else ['--no-wep']) + ([] if steps else ['--no-step'])
+    flags = (([] if wep else ['--no-wep'])
              + (['--core'] if core else []) + (['--wrench'] if wrench else []) + ['--inner', inner])
     jobs = [focus.Job('%g@%d.%d' % (n, w, i), [sys.executable, '-X', 'utf8',
                                                os.path.abspath(__file__), '--one', str(n), str(w),
@@ -278,9 +252,8 @@ def polar(forces, wep=True, steps=True, spread=1, core=False, inner='pd', wrench
             rows.append(json.loads(line))
     for n in forces:
         mine = sorted((r for r in rows if r['push'] == n), key=lambda r: r['way'])
-        print('%4g N  %d of %d stood, WEP %.1f s, %d steps   %s' % (
-            n, sum(r['stood'] for r in mine), len(mine), sum(r['wep_s'] for r in mine),
-            sum(r['steps'] for r in mine), '  '.join(
+        print('%4g N  %d of %d stood, WEP %.1f s   %s' % (
+            n, sum(r['stood'] for r in mine), len(mine), sum(r['wep_s'] for r in mine), '  '.join(
                 '%d:%s' % (w, ''.join('u' if r['stood'] else 'F' if r['failed'] else '.'
                                       for r in mine if r['way'] == w)) for w in WAYS)))
     return rows
@@ -294,11 +267,8 @@ def main(argv=None):
     parser.add_argument('--still', type=float, default=10.0, metavar='S')
     parser.add_argument('--at', type=float, default=AT_S, metavar='S', help='when the shove comes')
     parser.add_argument('--spread', type=int, default=1, help="a polar's shoves at each way")
-    parser.add_argument('--walk', nargs=3, type=float, metavar=('M_S', 'STEP_S', 'SECONDS'),
-                        help='walk at M_S, a step STEP_S, for SECONDS')
     parser.add_argument('-v', action='store_true', help='a row every 25 ms')
     parser.add_argument('--no-wep', action='store_true', help='no war emergency power')
-    parser.add_argument('--no-step', action='store_true', help='the capture point alone')
     parser.add_argument('--core', action='store_true', help='the loop in C, not the python stack')
     parser.add_argument('--wrench', action='store_true',
                         help='the step without an active set (machine.wrench), not the stack')
@@ -310,12 +280,8 @@ def main(argv=None):
     ESO_WO = args.eso_wo
     from machine import physics
     physics.BOXED = 0.0 if args.rigid else 1.0
-    flags = {'wep': not args.no_wep, 'steps': not args.no_step, 'core': args.core,
-             'inner': args.inner, 'wrench': args.wrench}
-    if args.walk:
-        speed, step_s, secs = args.walk
-        print(json.dumps(stand(seconds=AT_S + secs, trace=args.v, walk=(speed, step_s), **flags)))
-    elif args.polar:
+    flags = {'wep': not args.no_wep, 'core': args.core, 'inner': args.inner, 'wrench': args.wrench}
+    if args.polar:
         polar(args.polar, spread=args.spread, **flags)
     elif args.one:
         print(json.dumps(stand(args.one[0], args.one[1], trace=args.v, at=args.at, **flags)))

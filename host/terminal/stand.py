@@ -1,4 +1,4 @@
-"""The front page's stand: the board, her walking, the quad hovering, torn one into the next.
+"""The front page's stand: the board, her standing, the quad hovering, torn one into the next.
 
     view = stand.fresh(now)                       # the turntable's state
     stand.idle(view, now, dt)                     # a frame of its own motion
@@ -102,8 +102,8 @@ def grab(view, keys, moved, now):
     carry(view, dx, dy)
 
 
-#: The stand shows the board BOARD_S, then her walking HER_S, in place as her plan has it
-#: (`machine.gait`), then the quad QUAD_S, in a hover and once over its nose, each torn into
+#: The stand shows the board BOARD_S, then her standing HER_S (`figure.stand`), then the
+#: quad QUAD_S, in a hover and once over its nose, each torn into
 #: the next over TORN_S (`terminal.ui.glitch`) - where a card lights them: on the CPU a frame
 #: of her took 280 ms, on the card 6.
 BOARD_S, HER_S, QUAD_S, TORN_S = 14.0, 9.0, 9.0, 0.5
@@ -118,7 +118,7 @@ LOOK_DEG, REACH_M, CAN_C, BOARD_C = 32.0, 0.62, 55.0, 45.0
 
 def turntable(view, width=52, height=18):
     """The board on the stand, at the pose and zoom the view holds - lit as the render demo
-    lights it: camera straight down the axis, no horizon - and in turn her, walking, and the
+    lights it: camera straight down the axis, no horizon - and in turn her, standing, and the
     quad, hovering.
     """
     if not _STAGE['ready']:
@@ -141,15 +141,12 @@ def turntable(view, width=52, height=18):
 
 
 def _her(view, width, height):
-    """Her walking on the stand, in place, turning as the board turns."""
+    """Her standing on the stand, turning as the board turns."""
     from coaxial.graphics import gynoid
-    from machine import gait
-    from machine.figure import rz
-    t = time.monotonic() - view['opened']
-    lateral, roll, rise, _level = gait.sway(t)
-    return '\n'.join(gynoid.render(gait.walk(t, glance=False), width, height,
+    from machine import figure
+    return '\n'.join(gynoid.render(figure.stand(), width, height,
                                     yaw=(view['spun'] * TURN_DPS) % 360.0, lit=_STAGE['lit'],
-                                    root=((lateral, rise, 0.0), rz(math.radians(roll)))))
+                                    root=((0.0, figure.standing(), 0.0), figure.IDENT)))
 
 
 def _quad(view, width, height):

@@ -61,9 +61,8 @@ def _sits(kind):
 
 def text():
     """The page."""
-    from machine import drives, physics
+    from machine import drives, heat, physics
     from machine.figure import JOINTS
-    from tools.sim import drive_sizes
     rows = types()
     driven = [j for j in JOINTS if not drives.passive(j)]
     out = ['# Dimensions', '',
@@ -91,7 +90,7 @@ def text():
                        drives.RATIO, inverter, size.rated,
                        max(size.diameter, 2e3 * size.board[1] / 1e3) * 1e3, long * 1e3,
                        size.mass + size.board[0], drives.peak(_joint(plain)) / lever,
-                       drive_sizes.held(_joint(plain))[0] / lever,
+                       heat.held(_joint(plain))[0] / lever,
                        size.kv * drives.PACK_V * 6.0 / drives.RATIO,
                        (1.0 + drives.GEAR_J) * size.rotor * drives.RATIO ** 2))
     out += ['',

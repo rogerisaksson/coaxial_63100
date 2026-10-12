@@ -15,8 +15,7 @@ from coaxial.graphics.lit import paint
 from coaxial.graphics.shapes import drum, ellipsoid, limb, loft
 from machine import build, drives, figure, linkage
 from machine.skeleton import BOOM, HUNG, collars, gimbal, held, runs, trunk
-from machine.figure import FOREARM, UPPER_ARM
-from machine.gait import ANKLE_H, BALL, HEEL, SHANK, THIGH
+from machine.figure import ANKLE_H, BALL, FOREARM, HEEL, SHANK, THIGH, UPPER_ARM
 
 #: The colours: the carbon's, the rods' and their ball joints' steel, the quick-releases' printed
 #: polymer - violet, off the heat's ramp: orange read as a warm hip - and

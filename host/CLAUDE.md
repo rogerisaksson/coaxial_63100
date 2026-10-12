@@ -17,8 +17,8 @@
   `emulator://`, `socket://`) is this process's own: no broker. `Machine.discover(type,
   execution_mode=VIRTUAL)`: no board, each joint where it is told
   (`machine.virtual`); `DYNAMIC`: the gynoid's figure in MuJoCo, each
-  joint a drive (`machine.physics`), set every ms by `machine.walker`; the
-  HUMANOID page runs her in her own process (`machine.running`).
+  joint a drive (`machine.physics`); the HUMANOID page runs her on her latent
+  loop in her own process (`machine.sprung`), the one thing that moves her.
 - A loop data-oriented: `machine.cyclic` - `frame` (a structured array, a row
   a board), the parts as steps over rows (`STEPS`, held to `machine.parts` by
   test_cyclic), `edge`/`poll`/`push` the only board access, `run` the cycle.

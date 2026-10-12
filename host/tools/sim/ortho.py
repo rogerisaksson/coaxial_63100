@@ -4,7 +4,7 @@
     python tools/sim/ortho.py hop_asymmetric              # an entry of machine/moves.lisp
     python tools/sim/ortho.py crouch -v                   # a row every 25 ms; -v 5, every 5
     python tools/sim/ortho.py "#101" "#102@3" "#103@6" --to 8    # each at its second
-    python tools/sim/ortho.py "#201@0.5" "#202@2" "#203@5" "#204@9" --to 30 --look    # her walk's look
+    python tools/sim/ortho.py --walk --to 40 --look              # her walk from rest (`sprung.WALK`): its look
     python tools/sim/ortho.py --file my.lisp hop --every 4       # a file's; the loop every 4th pass
 
 She stands AT_S at rest on the loop (`machine.sprung`: sensed, `machine.latent`, `machine.impedance`,
@@ -164,8 +164,9 @@ def planned(asked, text=None):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
-    parser.add_argument('what', nargs='+', help="entries: a behaviour's name or '#' and a payload's id, "
+    parser.add_argument('what', nargs='*', help="entries: a behaviour's name or '#' and a payload's id, "
                         'each alone or @ its second')
+    parser.add_argument('--walk', action='store_true', help='her walk from rest (`sprung.WALK`)')
     parser.add_argument('--file', help="a text's entries, not machine/moves.lisp's")
     parser.add_argument('--to', type=float, default=TO_S, help='s followed past the last asked')
     parser.add_argument('--every', type=int, help='the loop solved every that many passes; the page has its own')
@@ -178,8 +179,12 @@ def main(argv=None):
     if args.file:
         with open(args.file, encoding='utf-8') as f:
             text = f.read()
+    from machine import sprung
+    asked = ['%s@%g' % entry for entry in sprung.WALK] * args.walk + args.what
+    if not asked:
+        parser.error('an entry, or --walk')
     try:
-        plan = planned(args.what, text)
+        plan = planned(asked, text)
     except KeyError as error:
         parser.error(error.args[0])
     if args.look:

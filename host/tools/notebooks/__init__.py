@@ -1,11 +1,11 @@
 """The example notebooks: one module per functional area, each a short paper."""
-from . import (acquisition, applications, commissioning, controller, cycle, director, drive,
+from . import (acquisition, applications, commissioning, controller, cycle, drive,
                link, machines, motion, power_stage, sensors, sequencer, thermal)
 from .parts import EMULATED, paper
 
 
 #: Papers over discovered nodes: no single device opened.
-NODES = ('controller', 'cycle', 'machines', 'sequencer', 'director')
+NODES = ('controller', 'cycle', 'machines', 'sequencer')
 
 #: Papers on the stand-in's rotor: their J and load are set through `drive.model`, which an
 #: emulated drive keeps to itself - the world's flywheel never feels them (docs/TODO.md).
@@ -18,7 +18,7 @@ STAND_IN = ('SIMULATED', 'the stand-in: J and the load are set on its rotor thro
 MODULES = {'acquisition': acquisition, 'link': link, 'sensors': sensors,
            'power_stage': power_stage, 'thermal': thermal, 'drive': drive,
            'controller': controller, 'cycle': cycle, 'sequencer': sequencer,
-           'machines': machines, 'director': director, 'motion': motion,
+           'machines': machines, 'motion': motion,
            'applications': applications, 'commissioning': commissioning}
 
 

@@ -1,5 +1,5 @@
 """Her eyes (`machine.sight`): the stereo's depth held to the renderer's own on one look into the
-room; a look round standing into her map, its occupied cells against the room's walls and
+room; a look round, posed standing, into her map, its occupied cells against the room's walls and
 things, the chair and the table told where they stand; a way to the chair planned round what
 she knows, clear of it all; the page's picture of her view (`coaxial.graphics.inset`)."""
 import math
@@ -10,10 +10,9 @@ import numpy as np
 from tools.dev.focus import chosen
 from gynoid_kit import Report
 
-#: The law takes her at TAKES_AT s, her heading turns from TURNS_AT, round once at the
-#: standing rate; a look every LOOK_S. The stereo is held to the renderer out to STEREO_M,
-#: the room's depth: her map takes less (`sight.FAR_M`).
-TAKES_AT, TURNS_AT, STEREO_M = 1.5, 3.0, 4.0
+#: A look round is LOOKS looks, her heading posed a turn about; the stereo is held to the
+#: renderer out to STEREO_M, the room's depth: her map takes less (`sight.FAR_M`).
+LOOKS, STEREO_M = 25, 4.0
 
 
 def _room():
@@ -27,37 +26,19 @@ def _room():
     return body, world
 
 
-def _standing(body):
-    from machine.director import Director
-    director = Director(body, stand_s=1e9)
-    director.pace = -1.0
-    director.begin(drop=0.004, stage='stand')
-    body.loop.step(0.0)
-    bus = body.loop.bus
-    out = {}
-    while bus['t'] < TAKES_AT:
-        out = director.step(0.001)
-        body.loop.write(**out)
-        body.loop.step(0.001)
-    return director, out
+def _stood(world, heading=0.0):
+    """Her posed standing in the room's middle, headed `heading` rad: nothing walks her."""
+    from machine import figure
+    world.reset(figure.stand(), where=(0.0, figure.standing(), 0.0),
+                turn=(math.cos(heading / 2.0), 0.0, math.sin(heading / 2.0), 0.0))
 
 
-def _looked_round(body, world, keep, director, out, rate):
-    """Her heading turned once about at `rate` on the law, looking; whether she stands."""
-    from machine import errands, pace
-    bus = body.loop.bus
-    pace.take(director, bus, out)
-    turned = 0.0
-    while turned < math.tau and director.stage != 'fallen':
-        g = director.going
-        if g is not None and bus['t'] >= TURNS_AT:
-            g.heading += rate * 0.001
-            turned += rate * 0.001
-        out = director.step(0.001)
-        body.loop.write(**out)
-        body.loop.step(0.001)
-        keep.look(world, bus['t'])
-    return director.stage != 'fallen'
+def _looked_round(world, keep):
+    """Her heading posed once about, a look each of LOOKS."""
+    from machine import sight
+    for k in range(LOOKS):
+        _stood(world, math.tau * k / LOOKS)
+        keep.look(world, k * sight.LOOK_S)
 
 
 def _nearest(things, kinds, at):
@@ -71,7 +52,7 @@ def test_the_stereo_holds_to_the_depth(report):
     from machine import sight
     body, world = _room()
     try:
-        _standing(body)
+        _stood(world)
         eyes = sight.Eyes(world)
         seen = eyes.see(world)
         disp, kept = sight.disparity(seen.left, seen.right)
@@ -88,15 +69,14 @@ def test_the_stereo_holds_to_the_depth(report):
 
 
 def test_her_map_is_the_room(report):
-    """A look round standing: nine in ten occupied cells within 0.15 m of a wall or a thing
+    """A look round, posed standing: nine in ten occupied cells within 0.15 m of a wall or a thing
     of the room, the chair and the table told within 0.3 m of where they stand, a way to the
     chair found clear of what she knows; her view for the page hulls what she told."""
-    from machine import pursuit, room, sight
+    from machine import room, sight
     body, world = _room()
     try:
-        director, out = _standing(body)
         keep = sight.Keep(world)
-        up = _looked_round(body, world, keep, director, out, pursuit.TURN_RAD_S[1])
+        _looked_round(world, keep)
         occ = keep.map.occupied()
         boxes = [((-room.WIDE, (room.FROM + room.TO) / 2.0), (room.THICK, (room.TO - room.FROM) / 2.0)),
                  ((room.WIDE, (room.FROM + room.TO) / 2.0), (room.THICK, (room.TO - room.FROM) / 2.0)),
@@ -110,8 +90,8 @@ def test_her_map_is_the_room(report):
 
         far = [away(*keep.map.centre(i, j)) for i, j in zip(*np.nonzero(occ))]
         near = sum(d <= 0.15 for d in far)
-        report.check('looked round standing she stands, with a map', up and len(far) >= 100,
-                     '%s, %d cells from %d looks' % ('stands' if up else 'fell', len(far), keep.map.looks))
+        report.check('looked round she has a map', len(far) >= 100,
+                     '%d cells from %d looks' % (len(far), keep.map.looks))
         report.check('nine in ten occupied cells lie within 0.15 m of a wall or a thing',
                      near >= 0.9 * len(far), '%d of %d' % (near, len(far)))
         things = keep.map.things()
@@ -120,8 +100,7 @@ def test_her_map_is_the_room(report):
             report.check('the %s is told within 0.3 m of where it stands' % name,
                          found is not None and found[0] < 0.3,
                          '%.2f m off, high %.2f' % (found[0], found[4]) if found else 'not told')
-        bus = body.loop.bus
-        at = (bus['pelvis.pose.x'], bus['pelvis.pose.z'])
+        at = (0.0, 0.0)
         to = (room.CHAIR_AT[0], room.CHAIR_AT[1] - 0.6)
         way = keep.map.plan(at, to)
         clear = all(away(*p) >= sight.RADIUS_M - sight.CELL_M for p in way)

@@ -2,7 +2,9 @@
 
 One motor, one gearbox and one inverter: the demand the stacks were sized
 on, the candidates, what the one stack leaves open (`machine/drives.py`,
-docs/DIMENSIONS.md). The drives' own sizing: [drives](drives.md).
+docs/DIMENSIONS.md). The drives' own sizing: [drives](drives.md). The
+demand was read off the laws before her latent loop, gone from the tree
+(tag `laws-before-the-loop`); on the loop it is unmeasured (docs/TODO.md).
 
 ## Demand
 
@@ -235,7 +237,7 @@ found with that torque has 1.6-2.6e-4.
   paces: the knee 7.1, 6.9 and 9.6 deg behind the plumb line, landing at
   28.6, 29.7 and 26.4; 428, 388 and 623 J/m where the frame before had 393,
   384 and 604. At none, the landing knee 30.0 at 0.65 strides/s, the form's
-  30. The run on them: [run](run.md).
+  30.
 
 ## Heat and power
 

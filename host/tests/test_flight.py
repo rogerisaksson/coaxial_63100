@@ -40,7 +40,7 @@ def test_a_landing_is_under_her_within_reach(report):
     asked flat, falling as she falls, its ankle within her leg's reach (`reach.margins`); still,
     under her centre of mass by its own way off it."""
     from machine import figure, flight, reach
-    from machine.gait import ANKLE_H
+    from machine.figure import ANKLE_H
     pelvis, worst, off_by, asks = (0.0, 0.92, 0.0), math.inf, 0.0, 0
     for limb, mirror in enumerate(reach.LIMBS):
         hip = figure.hip(mirror, pelvis, figure.IDENT)
@@ -65,14 +65,14 @@ def _flying():
     """(body, s, ask, names): her crouch lifted off the floor, rising 0.7 m/s, her knees going
     out 4.7 rad/s as at a take-off, no sole standing, each asked to its landing, no turn."""
     import numpy as np
-    from machine import balance, flight, gait, physics, wbc
+    from machine import figure, flight, physics, wbc
     from machine.figure import JOINTS
     from tools.sim.hop import crouched
     world, body = physics.World(), wbc.Body()
     names = [j for j, d in zip(JOINTS, body.driven) if d]
-    world.reset(gait.stand())
+    world.reset(figure.stand())
     s = wbc.sense(body, world.data.qpos, world.data.qvel)
-    st = balance.state(s, body.knees)
+    st = {'posture': s['q'].copy()}
     qpos, qvel = world.data.qpos.copy(), np.zeros(len(world.data.qvel))
     qpos[body.qact] = crouched(st['posture'], names, 20.0)
     qpos[1] += 0.05

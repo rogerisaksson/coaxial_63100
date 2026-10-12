@@ -23,7 +23,7 @@ many rollers sharing a blow - backdrivable at the ratios here.
 import math
 
 from machine import linkage
-from machine.gait import HIP_DROP, HIP_HALF
+from machine.figure import HIP_DROP, HIP_HALF
 from motor.pmsm import TORQUE_FACTOR
 
 #: The supply's lowest, V: 48-63, the boards' top 63.

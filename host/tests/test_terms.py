@@ -107,7 +107,7 @@ def test_the_legs_ik_bends_the_terms_way(report):
     a foot drawn up, knee flexion; out to its side, abduction; turned out, lateral rotation;
     its toes up, dorsiflexion - each joint's angle times its term's sign."""
     from machine import figure, reach_rows, terms
-    from machine.gait import ANKLE_H
+    from machine.figure import ANKLE_H
     pelvis, wrong = (0.0, 0.9, 0.0), []
     for limb, mirror in enumerate(reach_rows.LIMBS):
         hip = figure.hip(mirror, pelvis, IDENT)

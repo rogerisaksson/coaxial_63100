@@ -18,8 +18,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 import numpy as np  # noqa: E402
 
 from machine import drives  # noqa: E402
-from machine.figure import JOINTS, SOLE_HALF  # noqa: E402
-from machine.gait import BALL, HEEL  # noqa: E402
+from machine.figure import BALL, HEEL, JOINTS, SOLE_HALF  # noqa: E402
 from machine.wbc import (CONTACT_K, HEIGHT_BAND, HELD_K, MOMENTUM_K, MU, POSTURE_KD, SWING_KD,  # noqa: E402
                          TURN_KD, G, turn_error)
 

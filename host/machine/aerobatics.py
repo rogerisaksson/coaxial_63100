@@ -10,7 +10,6 @@ import math
 from typing import Any
 
 from machine import quad
-from machine.gaits import mix
 from machine.quad import FLOOR_M, HOVER_M
 
 #: A figure a row of setpoints: height, m over the floor, and the pace it may go there at, m/s,
@@ -106,6 +105,11 @@ KEYS = {'height': (1, 0), 'pace': (1, -1), 'climb': (1, -1), 'push': (1, -2), 's
 _UNITS = {'ORBIT_M': (1, 0), 'ORBIT_M_S': (1, -1), 'LAP_S': (0, 1), 'TOP_M': (1, 0),
           'FLOOR_M': (1, 0), 'HOVER_M': (1, 0)}
 _BUILT, _ROWS, _CARD = {}, [], []
+
+
+def mix(a, b, k):
+    """The row `k` of the way from `a` to `b`."""
+    return {name: a[name] + (b[name] - a[name]) * k for name in a}
 
 
 def resized(card, rows):

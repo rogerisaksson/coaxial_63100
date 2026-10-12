@@ -360,23 +360,15 @@ Six firmware defects, no hardware fault:
 
 | Subject | File |
 | --- | --- |
-| Walk: plan, shape, look, start from the squat | [findings/walk.md](findings/walk.md) |
-| Run: a bounce a foot, its demand on the drives, landings | [findings/run.md](findings/run.md) |
-| One going law: stand, walk and run as setpoints; its rows | [findings/going.md](findings/going.md) |
-| The straight leg: its cost as built and on the law, where its drives pay | [findings/straight.md](findings/straight.md) |
-| Turns on the law: walking 0.3 rad/s, stepping round standing 0.5; a walk begun after one; the two frame bugs | [findings/turns.md](findings/turns.md) |
 | A woman's walk as the metric: the band, walks off it, the take | [findings/normal.md](findings/normal.md) |
 | Feet: passive toes, the sole's give, the push-off | [findings/feet.md](findings/feet.md) |
-| The living room: glass walls, furniture, a door, a lamp; the words and the law's turn | [findings/room.md](findings/room.md) |
 | Her eyes: the stereo, the map she keeps, its things, her ways round them; the page's picture | [findings/sight.md](findings/sight.md) |
 | Kinematics: the figure's recipes, dual quaternions, the jeans' seams | [findings/kinematics.md](findings/kinematics.md) |
-| Balance: the capture law, the side step, floor events, shoves, the scoreboard | [findings/balance.md](findings/balance.md) |
-| Standing: the rigs, the one law in the capture point's plane, the push polar | [findings/standing.md](findings/standing.md) |
-| Balance as one convex QP: the stack, its solver, the MPC, the step | [findings/wbc.md](findings/wbc.md) |
+| The whole-body stack: its solver, standing, shoves, the loop in C | [findings/wbc.md](findings/wbc.md) |
 | Flight on the stack: which soles stand from one pass, a hop stood | [findings/flight.md](findings/flight.md) |
-| Orthokinematics: her movement as text, a latent loop with no branch, her modes on her body, her walk on it, the page's gym | [findings/orthokinematics.md](findings/orthokinematics.md) |
+| Orthokinematics, the one way she moves: her movement as text, a latent loop with no branch, her modes on her body, her stride, her walk on it | [findings/orthokinematics.md](findings/orthokinematics.md) |
 | Her whole body's step without an active set: 21 unknowns, four solves | [findings/wrench.md](findings/wrench.md) |
-| Build, buses, falls, get-up, drawing, clothes | [findings/body.md](findings/body.md) |
+| Build, buses, falls, drawing, clothes | [findings/body.md](findings/body.md) |
 | Drives: motors, gearboxes, inverters, sizing | [findings/drives.md](findings/drives.md) |
 | One stack for every drive: demand, candidates, stacks as built | [findings/stacks.md](findings/stacks.md) |
 | The drive and its observers: stand-in, emulator, native://, rotor pages | [findings/drive.md](findings/drive.md) |

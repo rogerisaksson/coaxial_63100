@@ -34,7 +34,7 @@ pull (daemon stream drawn as a bar); every entry point pulls a missing tag.
 Ollama's `/v1/systemone` (0.35.1): a state and typed questions in, one
 forward pass, a probability an option out; no text, no tools.
 `decide(state, {key: choice() | noul() | score()})`; the first of `MODELS`
-pulled answers. The grinder (`tools/sim/gym.py`) asks it the suite.
+pulled answers.
 
 | Tag | GB | Measured |
 | --- | --- | --- |

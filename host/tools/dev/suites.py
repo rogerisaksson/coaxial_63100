@@ -100,13 +100,9 @@ VIEWS = ('test_views_terminal.py', 'test_views_front.py', 'test_views_rotor.py',
 #: The composed controller and its parts, against a toy rotor and the stand-in.
 CONTROLLER = 'test_controller.py'
 
-#: The gynoid on fantasy boards, their SOA never binding: her walk, her clothes, her look; on her
-#: boards as built: the envelope derating and tripping them, glitches; shoved, tripped and down;
-#: standing on the floor's rigs, nudged; her walk's form on the flat floor (`looks.FORM`), her
-#: run's (`run.FORM`); her going on the one law, its rows (`go.FORM`).
-GYNOID, GYNOID_FAULTS, GYNOID_FALLS = 'test_gynoid.py', 'test_gynoid_faults.py', 'test_gynoid_falls.py'
-GYNOID_STAND, GYNOID_GAIT, GYNOID_RUN = 'test_gynoid_stand.py', 'test_gynoid_gait.py', 'test_gynoid_run.py'
-GYNOID_GOING, WBC, ROOM, SIGHT = 'test_gynoid_going.py', 'test_wbc.py', 'test_room.py', 'test_sight.py'
+#: The gynoid's body on fantasy boards, their SOA never binding: her clothes, her look, her
+#: skeleton, her drives' mounts and gearboxes; the whole-body stack; her eyes.
+GYNOID, WBC, SIGHT = 'test_gynoid.py', 'test_wbc.py', 'test_sight.py'
 REACH, TERMS = 'test_reach.py', 'test_terms.py'
 #: The loop in C against MuJoCo and the python stack (wbc/); flight on both; `machine.wrench`.
 WBC_CORE, FLIGHT, WRENCH = 'test_wbc_core.py', 'test_flight.py', 'test_wrench.py'
@@ -131,8 +127,7 @@ DEFAULT_SUITES = (STRUCTURES + (CORE, SHTP, DRIVE, DRIVE_OBSERVER, FILTER, THERM
                                 BOOT_CORE, BOOT_CLIENT,
                    CTRL_CORE, WORLD_CORE, WIRE, NATIVE, NATIVE_HEAT, EMULATOR,
                    SENSORLESS,
-                   BROKER, DAQ_API, CONTROLLER, GYNOID, GYNOID_FAULTS, GYNOID_FALLS,
-                   GYNOID_STAND, GYNOID_GAIT, GYNOID_RUN, GYNOID_GOING, ROOM, SIGHT, REACH, TERMS, WBC,
+                   BROKER, DAQ_API, CONTROLLER, GYNOID, SIGHT, REACH, TERMS, WBC,
                    WBC_CORE, FLIGHT, WRENCH, ORTHO, CYCLIC, QUAD,
                    AERO_CORE, STREAMS, QUAD_COURSE, BOOT)
                   + VIEWS
@@ -154,13 +149,6 @@ JOINS = (
     (12, DAQ_API),
     (12, CONTROLLER),
     (12, GYNOID),
-    (12, GYNOID_FAULTS),
-    (12, GYNOID_FALLS),
-    (12, GYNOID_STAND),
-    (12, GYNOID_GAIT),
-    (12, GYNOID_RUN),
-    (12, GYNOID_GOING),
-    (12, ROOM),
     (12, SIGHT),
     (12, REACH),
     (12, TERMS),
@@ -244,7 +232,7 @@ ALONE = (BENCH, CONFORMANCE, LIVE)
 #: Suites that hold a board to the wall's time, a page drawing beside it: alone where the host
 #: has four batons or fewer - CI's runner stood native's attitude page 4.7-8.3 s beside the
 #: others while it drew on; the rotor demo's switches spent 16.3 % of their
-#: margin where 20 is asked, test_room beside it (CI).
+#: margin where 20 is asked, a walking suite beside it (CI).
 REAL_TIME = (NATIVE, NATIVE_HEAT, QUAD_PAGE, 'test_views_demo.py')
 
 #: Suites that may reach the board's port: one at a time, beside the rest.
@@ -252,17 +240,13 @@ PORT = ('test_mcp.py', 'test_parity.py')
 
 #: Suites that run their tests through tools.dev.focus.chosen: past a slice of the run they go
 #: on as shards side by side.
-SHARDED = (SENSORLESS, CONTROLLER, GYNOID, GYNOID_FAULTS, GYNOID_FALLS, GYNOID_STAND,
-           GYNOID_GAIT, GYNOID_GOING, ROOM, 'test_simulated.py', 'test_views_segments.py', DAQ_API,
+SHARDED = (SENSORLESS, CONTROLLER, GYNOID, ORTHO, 'test_simulated.py', 'test_views_segments.py', DAQ_API,
            QUAD_PAGE)
 
-#: A sharded suite's seconds where none are recorded (tests/.counts.json, not committed): CI's
-#: checkout ran test_gynoid_falls.py whole and its 300 s cut it. 984-1 023 s on CI's runner,
-#: six of its tests 131-160 s here: at 850 two of them shared a shard of five, cut at 340.
-#: The gait suite 209 s here whole, its three tests a robot each in shards; the
-#: going suite 427 s, a way asked over two or three timings; the quad's page 211 s, a flight
-#: a shard.
-FRESH_S = {GYNOID_FALLS: 1020.0, GYNOID_GAIT: 450.0, GYNOID_GOING: 430.0, QUAD_PAGE: 250.0}
+#: A sharded suite's seconds where none are recorded (tests/.counts.json, not committed):
+#: the loop's suite 120 s here whole, a walk a shard; the quad's page 211 s, a flight a
+#: shard.
+FRESH_S = {ORTHO: 300.0, QUAD_PAGE: 250.0}
 
 #: The emulator's groups and each one's time, s, a Renode each: the rig's took 150 of the
 #: suite's 211 one after another here, and CI's runner ran the Release image's past 240.

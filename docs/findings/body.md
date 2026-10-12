@@ -1,7 +1,10 @@
 # Findings: body
 
-Build, buses, falls, get-up, drawing and clothes; the drives in
+Build, buses, falls, drawing and clothes; the drives in
 [drives](drives.md), the board's findings in [FINDINGS](../FINDINGS.md).
+Its walking, standing and falling figures were measured on the laws before her latent
+loop, gone from the tree (tag `laws-before-the-loop`); on the loop:
+[orthokinematics](orthokinematics.md).
 
 ## Model
 
@@ -48,7 +51,7 @@ Build, buses, falls, get-up, drawing and clothes; the drives in
   + The setpoint rate a board carries on at is read between two frames, never
     from a hold: from the reset's hold to the first frame 37 us later it came
     to 150 rad/s and every drive slammed to its peak.
-  + A world with no buses runs the drives itself (`tools/sim/getup_lab.py`).
+  + A world with no buses runs the drives itself (`machine.sprung`).
 - Five processes (the axis's 5 boards, each arm's 4, each leg's 7), 0 bad
   frames:
   + With the heat in each reply (21 bytes) a leg's wire is busy 430 us of a
@@ -103,58 +106,6 @@ Build, buses, falls, get-up, drawing and clothes; the drives in
   drew 136-163 W lying, the tuck holding the curl, and 157 W given up, stuck
   falling with the drives armed.
 
-## Get-up
-
-- In the joints alone (`tools/sim/getup_lab.py`): sat up from the back, it
-  rolled onto its side.
-- After a fall the walk began with the pelvis still lowered 12 cm, 8-10 cm
-  crouched: `Walker.reset` on landing.
-- Falling, the legs' and trunk's drives shorted (`falls.SHORT_FALLING`). Up
-  on a woman's 40/25 N m arms, sat, folded over the knees, after the rug and
-  the lace in 25 s. Risen facing where it lay, it fell 0.2-1 s into the walk:
-  MuJoCo's pyramid cone grips along the world's axes; elliptic at impratio 10
-  it walks 13 m every way.
-- Folded over the knees, the trunk went 42-45 mm into them, 33-37 squatting;
-  colliding, the fold failed 3 of 3 until the knees opened 30 deg: 7 mm. Up,
-  the walk kept its catch and speed from before the fall and held 6 s 2
-  times in 11; reset, 10 (`Walker.reset`). The head's IMU picks the side
-  rolled over. Walking back, a joint came 2.38 m behind the lens
-  (`gynoid.Follow`).
-- The get-up a plan the observer checks (`machine.planner`): on the heels
-  from 18 of 22 kneels (`observer.OVER_FEET_M`), onto the feet ended
-  crouched (`observer.EARLY`), the floor's boxes deep (`floor.DEEP_M`): 13 of
-  13 falls walk again 20-25 s after, 12 padded.
-- From the modules (45cc518) none of 5 falls walked again, 5 of 5 before; no
-  test walked up from the floor. The thighs as modules, r 58 -> 72 mm at the
-  top, met the torso at hip -126 (-140 before): the crouch asked -138.7 and
-  drove 100 N m into it, the hands 0.17 m ahead of the feet. Re-searched
-  (`getup_search.py --table f`), the crouch's hip -126.5: 5 of 5 walking at
-  21.0-23.2 s, each first try.
-- Re-searched hot (`getup_search`) against two faults: spasms and
-  a fall restarting after a shove; the arms out on the way up. Starts: the
-  five falls after a minute's walk with the drives' heat carried; success:
-  walking again 3 s without a fall; the look's cost 10 a second with the
-  hands past 620 mm from the chest or the torso past 70 deg from the sit on.
-  + As it was: 0 of 5 (3 tries, hands out 18.8 s, bowed 9.3).
-  + The onto-feet keyframes' best of 96 (8 x 12): 5 of 5 at 22.8-23.4 s, 1
-    try, 4.5 and 5.3 s; the arms thrown up to 151 deg for the lift's 0.5 s,
-    as before (142).
-  + Arms held low (shoulders 30, elbows straight): the best of 96 stood up
-    none of 5, hot or cold (1.4 and 5.9 s): the throw lifts off the heels,
-    not the hip. Kept with the throw; arms down needs another way up (TODO
-    12).
-- P's shove on the walk as built from the squat, the get-up measured:
-  walking again 22.9 s after the fall; 9 joints of 27 past 400
-  deg/s (the elbows 1 190, the hips 640, the sprung toes 2 000), the feet 2.9
-  and 3.2 m/s, the hands 6.4-7.3; the hands 0.86 m from the torso at the
-  farthest through the lift and the crouch; the feet 178 mm apart fore and
-  aft as she first stands, 168 as she walks again. Through it 3 gearboxes
-  of 21 pass their momentary rating: the hips 1.41-1.53, a hip's yaw 1.20.
-- The skeleton's collisions on (`physics.SKELETON` 1): rising, each thigh's
-  bone meets its hip's yaw gimbal 4.1 mm deep at 2.0-2.1 kN and its roll
-  gimbal at 1.0-1.2, each ankle's cross its rod at 0.6 - pairs apart
-  standing and in the squat, `mjcf._APART`'s two poses; down at 2.55 s.
-
 ## Page
 
 - The drives' callouts (HUMANOID page) dock at the viewport's edges, a leader
@@ -164,9 +115,6 @@ Build, buses, falls, get-up, drawing and clothes; the drives in
   at rest, the joint past the drawing's edge, was written past the last row.
 - Callouts 34 cells a joint -> 20 in the tty's frame, the name on a patch in
   its drive's heat colour (`ansi.thermal_rgb`).
-- An obstacle drawn in its own ink: laid under the lifting foot it showed 0.1
-  s before contact; on the page it is laid a stride on at the same phase,
-  1.3 m ahead of the pelvis.
 - Playback: the frames drawn at 15 a second showed the same
   state again 65 times in 235, the rest 0.036 s of simulated time apart on
   the mean with 0.022 of spread; the process runs 0.7 of real time in slices

@@ -23,11 +23,10 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 import numpy as np  # noqa: E402
 
 from machine import flight, latent, ortho, terms  # noqa: E402
-from machine.balance import HEIGHT_KD  # noqa: E402
-from machine.gait import ANKLE_H, SHANK, THIGH  # noqa: E402
+from machine.figure import ANKLE_H, SHANK, THIGH  # noqa: E402
 from machine.poise import HALF_M, TINY, clip  # noqa: E402
 from machine.stride import ALONG, LEFT, LIMBS, ROCK_RAD, STRIDE_M, UP  # noqa: E402
-from machine.wbc import POSTURE_KD, TURN_KD  # noqa: E402
+from machine.wbc import HEIGHT_KD, POSTURE_KD, TURN_KD  # noqa: E402
 
 G = 9.81
 N = ortho.N

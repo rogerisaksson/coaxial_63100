@@ -273,12 +273,12 @@ def test_the_first_texts_as_given(report):
 
 
 def test_the_gym_runs_her_in_a_process(report):
-    """`Running(worker=sprung.run)`, the page's body on the loop: her state said with her modes
-    and what the digits say; an entry said, she does it; the gym's other text taken."""
+    """`sprung.Running`, the page's body: her state said with her modes and what the digits
+    say; an entry said, she does it; the gym's other text taken; a text the compiler refuses
+    and a command the loop does not know said with her state."""
     from machine import sprung
-    from machine.running import Running
     from terminal.views import gym
-    body = Running(worker=sprung.run)
+    body = sprung.Running(walks=False)
     try:
         began, first = time.monotonic(), None
         while first is None and time.monotonic() - began < 30.0:
@@ -312,31 +312,35 @@ def test_the_gym_runs_her_in_a_process(report):
             time.sleep(0.05)
         report.check('a text the compiler refuses is said with her state, and she stands on',
                      bool(refused) and 'mode_wing_flap' in refused, '%s' % (refused or '')[:60])
+        body.send(pace=0.5)
+        began, refused = time.monotonic(), None
+        while not (refused and 'pace' in refused) and time.monotonic() - began < 10.0:
+            state = body.latest()
+            refused = state.get('refused') if state else None
+            time.sleep(0.05)
+        report.check('a command the loop does not know is refused by name: nothing else runs her',
+                     bool(refused) and 'pace' in refused, '%s' % (refused or '')[:70])
     finally:
         body.close()
 
 
 def test_the_pages_keys_on_the_loop(report):
-    """`terminal.views.gym`: on the loop a digit says its entry, P shoves her, > takes the other
-    text; off it the page's own keys act; LATENT and SAY are her state's."""
+    """`terminal.views.gym`: a digit says its entry, W walks her from rest, P shoves her, > takes
+    the other text; LATENT and SAY are her state's."""
     import types
     from terminal.views import gym
-    sent, own = [], []
+    sent = []
     body = types.SimpleNamespace(send=lambda **command: sent.append(command), close=lambda: None)
-    keys = gym.table({k: (lambda state, k=k: own.append(k)) for k in gym.DIGITS + 'pnPN'})
-    state: dict = {'body': body, 'ortho': True, 'side': 1.0}
-    for key in '13p>':
+    keys = gym.table({})
+    state: dict = {'body': body, 'side': 1.0}
+    for key in '13p>w':
         keys[key](state)
-    report.check('on the loop: 1 and 3 say the first and third, P a shove across, > the other text',
+    report.check('1 and 3 say the first and third, P a shove across, > the other text, W her walk',
                  sent[:2] == [{'say': 0}, {'say': 2}] and sent[2]['push'][0] != 0.0 and sent[2]['push'][2] == 0.0
-                 and sent[3] == {'gym': 'examples'} and not own, '%s' % sent)
-    state['ortho'] = False
-    for key in '1p':
-        keys[key](state)
-    report.check("off it the page's own keys act", own == ['1', 'p'] and len(sent) == 4, '%s' % own)
+                 and sent[3] == {'gym': 'examples'} and sent[4] == {'walk': True}, '%s' % sent)
     modes = [(name, 0.1, 0.2, 3000.0, 60.0) for name in gym.SHORT]
     boxes = gym.boxes({'modes': modes, 'says': ('moves', '#201', 'crouch')})
-    report.check('LATENT and SAY of her state; none off the loop', len(boxes) == 2 and gym.boxes({}) == []
+    report.check('LATENT and SAY of her state; none before it', len(boxes) == 2 and gym.boxes(None) == []
                  and gym.status({'fallen': False, 'doing': 'crouch'}) == 'LATENT  crouch')
     report.check('a text refused is said in her status',
                  gym.status({'fallen': False, 'doing': 'rest', 'refused': 'a ( never closed'}).startswith('REFUSED'))

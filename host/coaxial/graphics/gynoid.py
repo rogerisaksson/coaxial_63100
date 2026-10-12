@@ -25,8 +25,7 @@ from coaxial.graphics.raster import DOTS_X, DOTS_Y
 from coaxial.graphics.shapes import (ellipsoid, limb, loft, moved, sampled, smooth, turn_about,
                                      view)
 from machine import ansi, figure
-from machine.figure import FOREARM, HAIR_AT, HEM_AT, UPPER_ARM
-from machine.gait import ANKLE_H, SHANK, THIGH
+from machine.figure import ANKLE_H, FOREARM, HAIR_AT, HEM_AT, SHANK, THIGH, UPPER_ARM
 
 #: The camera: its distance in the engine's units, the point it turns about (her middle, metres
 #: over the floor), and how far out she reaches from it.

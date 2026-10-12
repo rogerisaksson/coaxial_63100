@@ -46,7 +46,6 @@ HEAVY = {
     'host/terminal/views/show_rotor_observer.py': 7000,
     'host/coaxial/draw/dial.py': 6900,
     'setup/toolchain.ps1': 6600,
-    'host/machine/gait.py': 6500,
     'host/coaxial/simulated/acquire/daq.py': 6400,
     'host/coaxial/control/commission.py': 6400,
     'thermal/src/thermal_ident.c': 6400,

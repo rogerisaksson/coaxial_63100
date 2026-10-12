@@ -21,7 +21,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np  # noqa: E402
 
-from machine.gait import ANKLE_H, BALL, TOE_M  # noqa: E402
+from machine.figure import ANKLE_H, BALL, TOE_M  # noqa: E402
 from machine.poise import BIG, HALF_M, TINY, clip  # noqa: E402
 from machine.wbc import CONTACT_K  # noqa: E402
 

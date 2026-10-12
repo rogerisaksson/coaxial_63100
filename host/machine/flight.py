@@ -15,7 +15,7 @@ next.
 import math
 
 from machine import reach
-from machine.gait import ANKLE_H, BALL, HEEL
+from machine.figure import ANKLE_H, BALL, HEEL
 
 G = 9.81
 

@@ -183,12 +183,12 @@ def _standing(b):
     """Her stand's state in `b` and the ask that keeps it: both soles, no acceleration, the
     turns and the posture as they are."""
     import numpy as np
-    from machine import gait, physics, wbc
+    from machine import figure, physics, wbc
     world = physics.World()
-    world.reset(gait.stand())
+    world.reset(figure.stand())
     s = wbc.sense(b, world.data.qpos, world.data.qvel)
     low = min(float(f['pts'][:, 1].min()) for f in s['feet'])
-    world.reset(gait.stand(), where=(0.0, 1.0 - low, 0.0))
+    world.reset(figure.stand(), where=(0.0, 1.0 - low, 0.0))
     s = wbc.sense(b, world.data.qpos, world.data.qvel)
     ask = {'stance': (True, True), 'com_acc': np.zeros(3),
            'turns': (s['turns'][0]['quat'], s['turns'][1]['quat']), 'posture': s['q'].copy(),
@@ -219,20 +219,14 @@ def test_the_loop_stands_as_the_python_stack(report, c, b, rows):
 
 
 def test_she_stands_on_the_loop(report, c, b, rows):
-    """In MuJoCo on the loop's torques: standing 3 s, shoved 38 N from behind, and the walk
-    asked 0.5 m/s for 8 s."""
+    """In MuJoCo on the loop's torques: standing 3 s, shoved 38 N from behind."""
     from tools.sim import wbc as sim
     out = sim.stand(seconds=3.0, core=True)
     report.check('stands 3 s on the loop', out['stood'],
                  'tilt %.1f deg, drift %.0f mm, %d us a pass' % (out['tilt'], out['drift_mm'],
                                                                  out['us']))
     out = sim.stand(38.0, 90.0, core=True)
-    report.check('shoved 38 N from behind she stands', out['stood'],
-                 'tilt %.1f deg, %d steps' % (out['tilt'], out['steps']))
-    out = sim.stand(seconds=sim.AT_S + 8.0, walk=(0.5, 0.5), core=True)
-    report.check('walks 8 s on the loop', out['stood'] and out['steps'] >= 12,
-                 '%s m at %s m/s, %s J/m, %d steps, tilt %.1f deg' % (
-                     out.get('walked_m'), out.get('m_s'), out.get('j_m'), out['steps'], out['tilt']))
+    report.check('shoved 38 N from behind she stands', out['stood'], 'tilt %.1f deg' % out['tilt'])
 
 
 ROSTER = (test_the_arrays_are_the_figures, test_the_frames_are_mujocos,

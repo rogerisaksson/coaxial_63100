@@ -21,8 +21,8 @@ def held_by(touch=0.001):
     each - a bone, a gimbal, the boom, the trunk's frame, a bone's collar - touching it or through
     its own collars and struts, within `touch`; never a rod, a drum, a board, nor a wire through a
     segment's middle (a straight bone where `skeleton.HUNG` has none)."""
-    from machine import gait, skeleton
-    parts_, _rides = fit.parts(gait.stand())
+    from machine import figure, skeleton
+    parts_, _rides = fit.parts(figure.stand())
 
     def structure(name):
         root = name[len('bone_'):].rstrip('+').split('>')[0]

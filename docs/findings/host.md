@@ -44,24 +44,6 @@ Pages, tooling, suites and the local model's runner. The board's findings:
   quarter at most, and pays once her law and her boards step as arrays
   beside it (docs/TODO.md, the latent stack).
 
-## Armada
-
-`tools/sim/armada.py`, `tools/sim/replay.py`: a known law
-walking, the unknown swapped in, back to a known state at a fall, no
-kilowatts spent on repetitions.
-
-- The world, the boards' processes, the loop and the director marked between
-  passes and restored: the walk restored identical to the last digit of the
-  pose and 332.9 W over 3 s. The boards held at the mark's setpoints as at a
-  reset instead: 382 W.
-- A candidate at three paces 12 s on robots kept up; 30 trials 28 s on 12
-  robots; a robot up and marked at three paces in 10 s. From the squat a run
-  was 60-90 s.
-- The law's modules reloaded under a walking robot: a constant changed in
-  stance.py and back, the walk's numbers there and back to the digit.
-- A file the host's scanner held killed a robot at a rename, and 8 of 12 in a
-  minute at their signs of life: each retried now.
-
 ## Stand-in on the board's C
 
 - Profile (cProfile, the QUAD course on four boards): 19.4 s, 52 M

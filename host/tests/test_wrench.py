@@ -1,5 +1,5 @@
 """Her step without an active set (`machine.wrench`) in the stack's place (`tools/sim/wbc.py
---wrench`): one step standing beside the stack's, her stand, a nudge held, her walk, a hop."""
+--wrench`): one step standing beside the stack's, her stand, a nudge held, a hop."""
 import os
 import sys
 
@@ -16,15 +16,15 @@ def test_a_step_standing_is_the_stacks(report):
     """Her stand's first pass, the capture point's law: the torques and the soles' loads of
     `wrench.step` beside `wbc.step`'s."""
     import numpy as np
-    from machine import balance, gait, physics, wbc, wrench
+    from machine import figure, physics, wbc, wrench
     from tools.sim import wbc as sim
     world, body = physics.World(), wbc.Body()
-    world.reset(gait.stand())
+    world.reset(figure.stand())
     s = wbc.sense(body, world.data.qpos, world.data.qvel)
-    world.reset(gait.stand(), where=(0.0, 1.0 - min(float(f['pts'][:, 1].min()) for f in s['feet']), 0.0))
+    world.reset(figure.stand(), where=(0.0, 1.0 - min(float(f['pts'][:, 1].min()) for f in s['feet']), 0.0))
     s = wbc.sense(body, world.data.qpos, world.data.qvel)
     mid = (s['feet'][0]['sole'][[0, 2]] + s['feet'][1]['sole'][[0, 2]]) / 2.0
-    ask = sim.law(s, balance.state(s, body.knees), mid)
+    ask = sim.law(s, sim.state(s), mid)
     ours, theirs = wrench.step(body, s, ask), wbc.step(body, s, ask)
     torque = float(np.abs(ours['tau'] - theirs['tau']).max())
     load = max(abs(a - b) for a, b in zip(ours['bears'], theirs['bears']))
@@ -33,32 +33,22 @@ def test_a_step_standing_is_the_stacks(report):
 
 
 def test_she_stands_still(report):
-    """Three seconds standing: up, every drive inside its clamp, no step."""
+    """Three seconds standing: up, every drive inside its clamp."""
     from tools.sim import wbc
     out = wbc.stand(seconds=3.0, wrench=True)
     report.check('standing 3 s she stays up, every drive within its clamp',
-                 out['stood'] and out['top'] <= 1.0 and not out['steps'] and out['tilt'] < 2.0,
+                 out['stood'] and out['top'] <= 1.0 and out['tilt'] < 2.0,
                  'tilt %.1f deg, drift %.1f mm, the most a clamp %.2f, %d us a step'
                  % (out['tilt'], out['drift_mm'], out['top'], out['us']))
 
 
-def test_nudged_she_holds_without_a_step(report):
-    """60 N for 0.12 s from her right and from her left, 38 N from behind: up, no step taken."""
+def test_nudged_she_holds(report):
+    """60 N for 0.12 s from her right and from her left, 38 N from behind: up."""
     from tools.sim import wbc
     for push, way, name in ((60.0, 0.0, 'toward her left'), (60.0, 180.0, 'toward her right'),
                             (38.0, 90.0, 'from behind')):
         out = wbc.stand(push, way, wrench=True)
-        report.check('nudged %.0f N %s she holds, no step' % (push, name),
-                     out['stood'] and not out['steps'], 'tilt %.1f deg, %d steps' % (out['tilt'], out['steps']))
-
-
-def test_she_walks(report):
-    """The MPC's walk, 8 s at 0.5 m/s asked: up at its end, every step taken, over 1.5 m."""
-    from tools.sim import wbc
-    out = wbc.stand(seconds=wbc.AT_S + 8.0, walk=(0.5, 0.5), wrench=True)
-    report.check('she walks 8 s and stands', out['stood'] and out['steps'] >= 14 and out['walked_m'] >= 1.5,
-                 '%d steps, %.2f m, %.2f m/s, %d J/m, tilt %.1f deg'
-                 % (out['steps'], out['walked_m'], out['m_s'], out['j_m'], out['tilt']))
+        report.check('nudged %.0f N %s she holds' % (push, name), out['stood'], 'tilt %.1f deg' % out['tilt'])
 
 
 def test_she_hops(report):
@@ -71,8 +61,7 @@ def test_she_hops(report):
                  % (out['flight_s'], out['clear_mm'], out['landed_n'], out['tilt'], out['stances']))
 
 
-ROSTER = (test_a_step_standing_is_the_stacks, test_she_stands_still, test_nudged_she_holds_without_a_step,
-          test_she_walks, test_she_hops)
+ROSTER = (test_a_step_standing_is_the_stacks, test_she_stands_still, test_nudged_she_holds, test_she_hops)
 
 
 def main(argv=None):

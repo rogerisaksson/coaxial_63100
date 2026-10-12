@@ -2,8 +2,9 @@
 """UserPromptSubmit hook: a message about how the gynoid moves gets Claude told to measure first.
 
 Reads the hook's JSON on stdin; when the prompt names her movement, prints the context that
-sends Claude to tools/sim/look.py - simulated, and on the user's newest recording (R) - with
-the numbers quoted before any explanation. Silent otherwise.
+sends Claude to her walk on the loop (tools/sim/ortho.py --walk --look) and to the user's
+newest recording (tools/sim/look.py --last) - with the numbers quoted before any explanation.
+Silent otherwise.
 """
 import json
 import re
@@ -25,9 +26,9 @@ HER = ('hon', 'henne', 'hennes', 'gynoid', 'humanoid', 'she', 'her', 'kroppen', 
 
 CONTEXT = (
     "The user describes how the gynoid moves. What they see is so (CLAUDE.md). Before any "
-    "explanation, measure: `cd host; python -X utf8 tools/sim/look.py` (from the squat, as the "
-    "page runs her) and `python -X utf8 tools/sim/look.py --last` (their newest HUMANOID "
-    "recording, R). Quote the stage row and the column that shows what they describe; if none "
+    "explanation, measure: `cd host; python -X utf8 tools/sim/ortho.py --walk --look` (her walk "
+    "on her latent loop, as the page runs her) and `python -X utf8 tools/sim/look.py --last` "
+    "(their newest HUMANOID recording, R). Quote the row and the measure that shows what they describe; if none "
     "shows it, add the measure that would, not an argument. Fix, run it again, quote both. No "
     "reasoning in place of a number.")
 

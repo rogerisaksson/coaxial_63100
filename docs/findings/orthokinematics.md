@@ -5,8 +5,8 @@ with no branch, rendered on her body by her modes, solved by the whole-body
 step without an active set ([wrench](wrench.md)). `machine/ortho.py`
 compiles, `machine/latent.py` steps, `machine/impedance.py` renders - her
 modes read by `machine/modal.py`, her soles' polygon by `machine/poise.py`,
-her stride by `machine/stride.py` -, `machine/sprung.py` runs it: the page's
-gym (`<` on HUMANOID, or `--ortho`) and `tools/sim/ortho.py`.
+her stride by `machine/stride.py` -, `machine/sprung.py` runs it: the
+HUMANOID page, where nothing else moves her, and `tools/sim/ortho.py`.
 tests/test_ortho.py holds it, 43 of 43. Her moves are `machine/moves.lisp`;
 the language's first texts, as given, `machine/examples.lisp` (`>` on the
 page).
@@ -104,16 +104,26 @@ third pass, 1.06 ms a pass walking, the page 0.9 of real time.
 of 0.2, walk on at 0.6 with her rock 0.6, her list and turn 0.4, her arms
 0.8, her pitch 0.06. 60 s: 32.30 m, 0.61 m/s, 102 landings, tilt 3.8 deg.
 
-Through `tools/sim/look.py`'s eye (`tools/sim/ortho.py .. --look`), against a
-woman's band (`normal.BAND`, 25 measures):
+Through the eye's measures (`python tools/sim/ortho.py --walk --to 40 --look`),
+against a woman's band (`normal.BAND`, 25 measures):
 
 | Walk | m/s | Off the band | By name |
 | --- | --- | --- | --- |
-| the law on the page, her drives as built | 0.65 | 2.07 | landing bent 1.49, shuffling 0.38 |
-| the law in the room | 0.82 | 0.26 | shuffling 0.25, stiff 0.21 |
+| the walk as built, before the loop | 0.65 | 2.07 | landing bent 1.49, shuffling 0.38 |
+| the one law's, before the loop | 0.82 | 0.26 | shuffling 0.25, stiff 0.21 |
 | the loop, her height level and her soles flat | 0.28 | 7.71 | on stilts, Groucho's, a shuffle |
 | the loop, striding | 0.61 | 2.59 | none: landing bent 1.61, tripping 0.47, stiff 0.37, shuffling 0.11 |
 | two takes of women | 1.11, 1.14 | 0.00 | - |
+
+A stagger, the band's blind spot: her pelvis's fall into a landing and her
+soles' loads then, of her 306 N.
+
+| Walk | Falls into a landing, mm | Loads' sum then, N | After, at least |
+| --- | --- | --- | --- |
+| the one law's: its foot flat till the other landed, thrown back up in 0.11 s | 32 | 604 | 150 |
+| the same on the page, recorded | 23 to 33 | 481 to 505 | 152 to 202 |
+| the walk as built | 10 | 421 | 269 |
+| the loop, striding | 17 | 485 | 183 |
 
 Striding, 329 J/m, 20 of the 25 in:
 
@@ -131,8 +141,10 @@ Striding, 329 J/m, 20 of the 25 in:
 | trunk lean, pelvis roll, turn, deg | 3.7, 6.5, 8.3 | in |
 | pelvis bob, vault, hips wag, feet apart, legs | 0.023, 0.020, 0.052, 0.136 | in |
 
-- Of `looks.FORM`'s 10, 3 broken: knee behind plumb 13.5 deg (10), hip over
+- Of `looks.FORM`'s 9, 3 broken: knee behind plumb 13.5 deg (10), hip over
   stance 2.3 (3), head fore-aft 62 mm (45). Strike 428 N, head bob 23 mm.
+- Her neck nods -26 to +21 deg a stride, her spine 0.1 to 0.7, her waist and
+  her trunk's roll 3.6 and 3.0 either way: the step spends her head.
 - Her knee lands bent because her hip is 1 to 2.5 cm under where a straight
   leg needs it: a sole lands 4 to 10 cm ahead of its hip, the other 15 to 30
   behind. 1.2 cm of hip is 15 deg of knee.
@@ -193,7 +205,7 @@ What was tried on it, each 30 or 40 s:
 | each drive's disturbance observed at 100 rad/s and taken off | 0.271, 5 ms behind |
 | the torque as asked | 0.255, 10 ms behind |
 
-- Under the PD 40 to 60 % of a small acceleration asked was done; the gym
+- Under the PD 40 to 60 % of a small acceleration asked was done; the loop
   runs on the observers.
 - A pass on the stack costs 3.2 ms solved every pass - the stack 2.1, the
   renderer 0.32, `wbc.sense` 0.16, `latent.step` 0.07 -, a third of real

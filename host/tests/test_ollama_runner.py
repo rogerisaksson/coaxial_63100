@@ -433,9 +433,8 @@ def test_smart_selection(report):
                table.DRIVE_OBSERVER, table.FILTER, table.THERMAL, table.THERMAL_APP,
                table.BOOT_CORE,
                table.BOOT_CLIENT, table.CTRL_CORE, table.WORLD_CORE, table.WIRE, table.SENSORLESS, table.DAQ_API,
-               table.CONTROLLER, table.GYNOID, table.GYNOID_FAULTS, table.GYNOID_FALLS,
-               table.GYNOID_STAND, table.GYNOID_GAIT, table.GYNOID_RUN, table.GYNOID_GOING,
-               table.ROOM, table.SIGHT, table.REACH, table.TERMS, table.WBC, table.WBC_CORE, table.FLIGHT,
+               table.CONTROLLER, table.GYNOID,
+               table.SIGHT, table.REACH, table.TERMS, table.WBC, table.WBC_CORE, table.FLIGHT,
                table.ORTHO, table.WRENCH, table.CYCLIC, table.QUAD,
                table.QUAD_COURSE, table.AERO_CORE, table.STREAMS,
                table.BOOT} | set(table.OLLAMA)

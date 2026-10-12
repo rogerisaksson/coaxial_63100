@@ -145,12 +145,12 @@ def _table(name, width, rows, cells):
 def standing(b):
     """(base, q) of her stand on the floor: the pelvis's frame (R by rows, then p) and the
     hinges' rad, as test_wbc_core's standing state."""
-    from machine import gait, physics, wbc
+    from machine import figure, physics, wbc
     world = physics.World()
-    world.reset(gait.stand())
+    world.reset(figure.stand())
     s = wbc.sense(b, world.data.qpos, world.data.qvel)
     low = min(float(f['pts'][:, 1].min()) for f in s['feet'])
-    world.reset(gait.stand(), where=(0.0, 1.0 - low, 0.0))
+    world.reset(figure.stand(), where=(0.0, 1.0 - low, 0.0))
     wbc.sense(b, world.data.qpos, world.data.qvel)
     qpos = b.d.qpos
     w, x, y, z = qpos[3:7]

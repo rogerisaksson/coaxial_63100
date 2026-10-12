@@ -149,11 +149,11 @@ tools/render/       renderer checks against the exporter; ansi2png; attitude (th
                     view at a pose and a moment, to a PNG - no window); page (any
                     page's last frame, simulated, to a PNG)
 tools/sim/          the drive core on this host: montecarlo, observer_run;
-                    gait_montecarlo (the gynoid through fixed trials); look
-                    (the start a stage a row, simulated or a recording); run
-                    (the run a landing a row, the drives against it); wbc
-                    (the whole-body stack standing, shoved, walking);
-                    hop (a hop on it: thrown, flown, landed);
+                    ortho (her latent loop as the page runs it, traced; --walk
+                    --look her walk's look); look (a HUMANOID recording a stage
+                    a row); strides, normal, looks (a walk's measures, a
+                    woman's band, her form); wbc (the whole-body stack
+                    standing, shoved); hop (a hop on it: thrown, flown, landed);
                     quad_race (the quad's laps through fixed flights, a search
                     over its plan and its line); streams (a text's streams
                     flown on aero/, ideal rotors; a hover asked from upsets)
@@ -208,8 +208,8 @@ tests/              suites, .counts.json (measured sizes)
 | live | fed a line at a time, a buffer, woken with a line, a failsafe |
 | simulated | pack, camera |
 | virtual | VIRTUAL: a type's joints where told, no board |
-| curves | an ease, Hermite, Catmull-Rom: pure |
-| figure | the gynoid's segments, masses, leg IK |
+| figure | the gynoid's segments, masses and legs' dimensions, her stand and her squat, leg IK |
+| motors | her kinematics as dual quaternions: a pose a motor, a joint a screw, a chain their product |
 | reach | a leg's reach over its foot from static arrays (reach_rows, laid by tools/cores/reach.py): margins, the flat place landed, two feet's gap; a limb an index |
 | terms | her movements by their orthopaedic names from static arrays (term_rows, laid by tools/cores/terms.py): a part and a movement, its joint kind, sign and stops |
 | flight | on the whole-body stack: which soles stand, told from one pass - each as it bears, an unloaded one beside one that bears or with her at rest; one that does not is asked to its landing (reach) |
@@ -219,10 +219,10 @@ tests/              suites, .counts.json (measured sizes)
 | impedance | her modes' springs rendered, no branch: her centre of mass's acceleration, a sole in the air, her turns, her arms and her knees - the whole-body loop's ask |
 | poise | her ZMP into her soles' polygon, her capture point kept in it; which soles stand |
 | stride | her stride from her drive's phase: when a limb swings, where its sole lands (her capture point), its clearance, its rock heel to toe, a standing sole's heel rising |
-| sprung | the latent loop run: sensed, latent, impedance, wrench (or wbc), the drives' observers under it; the page's gym in a process of its own |
+| sprung | the latent loop run: sensed, latent, impedance, wrench (or wbc), the drives' observers under it; her process, paced to the clock: the one thing that moves her |
 | physics | DYNAMIC: the figure in MuJoCo, a drive a joint |
 | gearbox | each drive's gearbox: the rotor free across its play, the box wound up past it, the link turned |
-| room | a living room round her: glass walls, furniture, a door, a lamp, and its words |
+| room | a living room round her: glass walls, furniture, a door, a lamp |
 | sight | her eyes: a stereo pair on her head, the disparity by block matching, the map she keeps, its things, her way round them |
 | gimbal | a camera on a stabilised gimbal: its sight level, after the way its frame goes |
 | aerolisp | flight intent as text - `(stream_inject ..)`: latent targets, a stiffness and a damping a mode, an oscillator, task constraints - compiled to aero/'s payloads, a stream laid over the one before |
@@ -231,27 +231,11 @@ tests/              suites, .counts.json (measured sizes)
 | floor | the slab, a sill, a patch, a rug, a stair |
 | rtu | Modbus RTU: CRC-16, a pass's frames |
 | buses | the boards on a bus a limb, a process each in lockstep with the world over a shared block, the host's frames bytes on a socket a bus |
-| heat | a drive's board's heat: three nodes, the envelope's derate and trip, reported in its reply |
+| heat | a drive's board's heat: three nodes, the envelope's derate and trip, reported in its reply; what a drive holds for ever |
 | drives | two motors as bought, one box, one board; each joint's drive and where it sits |
-| events | obstacles, laid where the walk meets them |
-| gait, walkplan | a walk's angles; the plan's tables by phase |
-| walker | the setpoints each ms: the pass, balance |
-| landing | where a swinging foot goes: the plan's, a catch, a side step |
-| stance | the standing feet, their legs' joints, the phase's pace |
-| capture | where a swinging foot lands across: on the capture point, or a side step |
-| runner | the run from a flight: a bounce a foot |
-| going, gaits, hold, strut | stand, walk and run as one law; a gait a row of its setpoints; a manner those moved |
-| pace | the director's hand-off to that law, the page's J |
-| arrival | keyframes, the CoM fed back: the squat, the rise, the first step, the settling |
-| stand | standing: the soles' points the support, a step toward the capture point out of it |
-| director | which move is active; catches, falls |
-| pendulum | virtual, between the ears: the gait's smoothness as one number |
-| running | its own process, paced to the clock |
 | qp | dense convex QP: dual active set, an interior-point fallback, a strict hierarchy by null space |
 | wbc | the whole-body stack: accelerations and corner forces a step, torques after |
 | wrench | the stack's step without an active set: each sole's wrench or acceleration and her upper body's accelerations by one least squares, four times, clipped |
-| mpc | the DCM over a 1 s horizon: ZMPs and landings |
-| balance | the stack's ask a step: the MPC's plan, a step's swing and fold |
 
 ## Tests
 
@@ -269,17 +253,13 @@ tests/              suites, .counts.json (measured sizes)
 
 | Suite | Holds |
 | --- | --- |
-| `test_gynoid.py` | on fantasy boards (`physics.ENVELOPE` 0, their SOA never binding): the walk, the clothes, the look |
-| `test_gynoid_faults.py` | on the boards as built: the envelope derating and tripping them, glitches, a caught lace |
-| `test_gynoid_gait.py` | the walk's form, held to its take (tests/takes/walk.fbx) and to a woman's band (`tools/sim/normal.py`) |
-| `test_gynoid_going.py` | the one law's rows, the ways between them, its manners read back in the band's words |
-| `test_room.py` | the law's turns, walking and stepping round standing; out through the room's door |
-| `test_sight.py` | the stereo against the renderer's depth; her map against the room, the chair and the table told, a way planned clear; the page's picture |
-| `test_reach.py` | her leg's reach: its rows her figure's, what they hold within her stops, a place landed in MuJoCo by either limb, rising and walking inside them |
+| `test_gynoid.py` | her body on fantasy boards (`physics.ENVELOPE` 0, their SOA never binding): her clothes, her look, a leg by its foot, a virtual and a dynamic machine of her, her skeleton, her drives' mounts and gearboxes, her kinematics as motors |
+| `test_sight.py` | the stereo against the renderer's depth; a look round, posed standing, into her map against the room, the chair and the table told, a way planned clear; the page's picture |
+| `test_reach.py` | her leg's reach: its rows her figure's, what they hold within her stops, a place landed in MuJoCo by either limb |
 | `test_terms.py` | her movements' terms: its rows her figure's, a term moving her in MuJoCo as its name says by either limb, its stops, what she has not |
-| `test_wbc.py` | the QP solver's KKT, two levels' priority, standing, shoves with and without a step |
+| `test_wbc.py` | the QP solver's KKT, two levels' priority, standing, a nudge held |
 | `test_wbc_core.py` | her chain in C against MuJoCo: frames, M, bias, Jacobians at random configurations; a step's time |
-| `test_wrench.py` | the step without an active set: a step standing beside the stack's, her stand, nudges held, the MPC's walk, a hop |
+| `test_wrench.py` | the step without an active set: a step standing beside the stack's, her stand, nudges held, a hop |
 | `test_flight.py` | which soles stand, from one pass alone; a landing within her reach; the loop in C against the python stack with no sole standing; a hop stood on both, three in a row on the loop |
 | `test_ortho.py` | a text compiled to rows, what is none refused; no branch in the core or the renderer; her state blended and turned; crouched, shifted, bowed, on one sole, hopped; her walk on her own payloads; the first texts as given; the gym's worker and keys |
 

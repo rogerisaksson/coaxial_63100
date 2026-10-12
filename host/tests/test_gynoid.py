@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-"""The gynoid on fantasy boards (`physics.ENVELOPE` 0, their SOA never binding): her walk, her
-clothes and her look. Her faults on the boards as built are test_gynoid_faults.py's."""
+"""The gynoid's body on fantasy boards (`physics.ENVELOPE` 0, their SOA never binding): her
+clothes and her look, her leg by its foot, a virtual and a dynamic machine of her, her skeleton,
+her drives' mounts and gearboxes, her kinematics as motors."""
 import sys
 
 from tools.dev.focus import chosen
@@ -53,20 +54,10 @@ def test_her_views_draw(report):
                          for p in seen.parts), '%d parts' % len(seen.parts))
 
 
-def test_the_floor_outlasts_a_walk(report):
-    """The floor's slab ends past an hour's walk at her fastest pace: at 80 m she stepped off it
-    100 s in."""
-    from machine import floor, gait
-    from terminal.views.humanoid_keys import CADENCE
-    fastest = CADENCE[1] * gait.STRIDE_M * gait.pace(CADENCE[1])
-    report.check('the slab past an hour at %.2f m/s' % fastest,
-                 floor.SLAB_TO_M > 3600.0 * fastest, "%.0f m" % floor.SLAB_TO_M)
-
-
-def test_a_virtual_body_walks(report):
-    """VIRTUAL: no board, the humanoid's twenty joints each where it is told, slewed; the walk
-    (`machine.gait`) writes them all, each reads its command back, the type's routines run."""
-    from machine import Machine, gait
+def test_a_virtual_body_is_told(report):
+    """VIRTUAL: no board, the humanoid's twenty joints each where it is told, slewed; a pose
+    written, each reads its command back, the type's routines run."""
+    from machine import Machine
     from machine.modes import VIRTUAL
     from machine.virtual import VirtualJoint
     body = Machine.discover('humanoid', execution_mode=VIRTUAL)
@@ -77,12 +68,12 @@ def test_a_virtual_body_walks(report):
                  and body.actuators['right_foot'].node.name == 'V5_4',
                  {n: a.node.name for n, a in list(body.actuators.items())[:5]})
     body.arm()
-    told = gait.walk(0.4)
+    told = {j: 4.0 * (k % 5 - 2) for k, j in enumerate(body.actuators)}
     body.loop.write(**told)
     for _ in range(12):
         got = body.loop.step(0.04)
     worst = max(abs(got[j + '.deg'] - told[j]) for j in body.actuators)
-    report.check('the walk written, every joint reads back where it was told', worst < 1e-9,
+    report.check('a pose written, every joint reads back where it was told', worst < 1e-9,
                  '%.3g deg' % worst)
     body.loop.write(left_knee=told['left_knee'] + 120.0)
     got = body.loop.step(0.05)
@@ -92,11 +83,6 @@ def test_a_virtual_body_walks(report):
                  abs(moved - 75.0) < 1e-6, '%.3f deg' % moved)
     out = body.run('0 run=walk times=1')
     report.check('the type\'s walk routine runs on them', out.status == 'done', out.status)
-    phases = [gait.walk(k / 50.0) for k in range(50)]
-    report.check('the gait names every joint the body has, each within its span',
-                 all(set(p) == set(body.actuators) for p in phases)
-                 and all(abs(v) <= body.ranges[j][1] for p in phases for j, v in p.items()),
-                 max(abs(v) for p in phases for v in p.values()))
     body.disarm()
 
 
@@ -123,13 +109,12 @@ def test_a_leg_by_its_foot(report):
         sum(seg[5] for seg in figure.SEGMENTS))
 
 
-def test_a_body_with_mass_walks(report):
-    """DYNAMIC: the gynoid's 27 joints each a drive on a body with mass; the walker sets them
-    every millisecond from what the loop reads, and she walks on the line without falling."""
-    from machine import Machine, gait
+def test_a_body_with_mass_is_fitted(report):
+    """DYNAMIC: the gynoid's 27 joints each a drive on a body with mass, her pose read beside
+    them."""
+    from machine import Machine
     from machine.modes import DYNAMIC
     from machine.dynamic import DriveJoint
-    from machine.walker import Walker
     body = Machine.discover('gynoid', execution_mode=DYNAMIC)
     report.check('27 drives fitted bus by bus, and her pose read beside them',
                  len(body.actuators) == 27
@@ -137,105 +122,7 @@ def test_a_body_with_mass_walks(report):
                  and body.actuators['spine'].node.name == 'D1_1'
                  and [n.name for n in body.others] == ['pelvis'],
                  {n: a.node.name for n, a in list(body.actuators.items())[:4]})
-    body.arm()
-    walker = Walker(body, 0.85)
-    walker.start()
-    body.loop.step(0.0)
-    lowest, borne = 9.0, []
-    while body.loop.bus['t'] < 3.0:
-        body.loop.write(**walker.step(0.001))
-        body.loop.step(0.001)
-        lowest = min(lowest, body.loop.bus['pelvis.pose.y'])
-        if body.loop.bus['t'] >= 2.0:
-            borne.append(sum(body.loop.bus['pelvis.pose.%s_load' % s] for s in ('left', 'right')))
-    bus = body.loop.bus
-    # 0.9 of what her strides make of 3 s: 2 m of the 0.85 m stride's 2.17 was past the 0.75 m
-    # stride's 1.91.
-    far = 0.9 * 3.0 * 0.85 * gait.STRIDE_M
-    report.check('3 s at 0.85 strides/s: on her feet, 0.9 of her strides on, within 0.2 m of the line',
-                 lowest > 0.7 and bus['pelvis.pose.z'] > far and abs(bus['pelvis.pose.x']) < 0.2,
-                 'lowest %.2f m, %.2f m on of %.2f, %+.2f m off' % (
-                     lowest, bus['pelvis.pose.z'], far, bus['pelvis.pose.x']))
-    mean = sum(borne) / len(borne)
-    report.check('her weight is on her soles: 539 N between them, meaned over her last second',
-                 abs(mean - 539.0) < 270.0, '%.0f N' % mean)
-    body.disarm()
-
-
-def test_the_pendulum_between_her_ears(report):
-    """The virtual pendulum hears the head alike every way: still at an even speed, stirred only
-    along the way the head is shaken."""
-    import math
-    from machine.pendulum import Pendulum
-
-    def shaken(axis, amount):
-        pendulum = Pendulum()
-        for k in range(6000):
-            t = k / 1000.0
-            at = [0.0, 1.5, 0.9 * t]
-            if t > 3.0:
-                at[axis] += amount * math.sin(2.0 * math.pi * 1.7 * t)
-            pendulum.step(tuple(at), 0.001)
-        return pendulum
-    even = shaken(0, 0.0)
-    report.check('at an even 0.9 m/s it hangs still, pulling her weight',
-                 even.stir < 1e-9 and abs(even.felt - 1.0) < 1e-9,
-                 '%.2g mm, felt %.9f' % (even.stir, even.felt))
-    for name, axis, part in (('surged', 2, 0), ('swayed', 0, 1), ('bobbed', 1, 2)):
-        stirs = shaken(axis, 0.01).stirs
-        report.check('%s 1 cm at 1.7 Hz, it stirs that way alone' % name,
-                     stirs[part] > 0.0 and all(stirs[k] < 1e-9 * stirs[part]
-                                              for k in range(3) if k != part),
-                     'on %.3g across %.3g up %.3g mm' % stirs)
-
-
-def test_she_rises_and_walks(report):
-    """The director: landed in the squat, she rises, steps off on her standing stance and walks
-    on into the catwalk, the moves handing one to the next."""
-    from machine import Machine
-    from machine.director import Director
-    from machine.modes import DYNAMIC
-    body = Machine.discover('gynoid', execution_mode=DYNAMIC)
-    body.arm()
-    director = Director(body, 0.85)
-    director.begin()
-    body.loop.step(0.0)
-    stages = []
-    while body.loop.bus['t'] < 13.0:
-        body.loop.write(**director.step(0.001))
-        body.loop.step(0.001)
-        if director.stage != 'catch' and (not stages or stages[-1] != director.stage):
-            stages.append(director.stage)   # a catch is the walker's own, a step within the walk
-    bus = body.loop.bus
-    report.check('the squat to the walk, move by move, and walking at 13 s',
-                 stages == ['squat', 'look', 'push', 'rise', 'stand', 'lean', 'shift', 'step',
-                            'walk'],
-                 ' '.join(stages))
-    report.check('walked on over 2.5 m', bus['pelvis.pose.z'] > 2.5, '%.2f m' % bus['pelvis.pose.z'])
-    body.disarm()
-
-
-def test_a_style_eases_in(report):
-    """A style knob trimmed (`machine.style`): the walk's plan eases from the old tables to the
-    new over `walkplan.RETABLE_S`, never a jump; the knob within its bounds."""
-    from machine import style, walkplan
-    was = style.value('turn')
-    try:
-        old = walkplan.plan(0.3, 1.0)
-        style.trim('turn', 4)
-        at_once = walkplan.plan(0.3, 1.0)
-        walkplan.ease(walkplan.RETABLE_S / 2.0)
-        half = walkplan.plan(0.3, 1.0)
-        walkplan.ease(walkplan.RETABLE_S)
-        new = walkplan.plan(0.3, 1.0)
-        report.check('trimmed, the plan the old one at first, between halfway, the new at the end',
-                     at_once[2] == old[2] and min(old[2], new[2]) < half[2] < max(old[2], new[2])
-                     and new[2] != old[2], 'yaw %.4f %.4f %.4f rad' % (old[2], half[2], new[2]))
-        report.check('a knob kept within its bounds', style.set('turn', 99.0) == 12.0,
-                     '%.1f deg' % style.value('turn'))
-    finally:
-        style.set('turn', was)
-        walkplan.ease(walkplan.RETABLE_S)
+    body.close()
 
 
 def test_her_skeleton_collides(report):
@@ -258,10 +145,10 @@ def test_her_skeleton_collides(report):
                  model.ngeom > bare.ngeom
                  and abs(sum(model.body_mass) - sum(bare.body_mass)) < 1e-3,
                  '%.4f kg apart' % abs(sum(model.body_mass) - sum(bare.body_mass)))
-    from machine import arrival, gait
+    from machine import figure
     report.check('standing and in the squat it touches nothing',
-                 not skeleton.overlapping(model, gait.stand())
-                 and not skeleton.overlapping(model, arrival.angles_of(arrival._squat())))
+                 not skeleton.overlapping(model, figure.stand())
+                 and not skeleton.overlapping(model, figure.SQUAT))
     d = mujoco.MjData(model)
     d.qpos[1] = 2.0
     d.qpos[model.joint('left_knee').qposadr[0]] = math.radians(170.0)
@@ -342,19 +229,19 @@ def test_a_gearbox_has_play(report):
     reaches the link, winds the box up tau / wind past it as the link turns, and reversed crosses
     the play again before the link turns back (`machine.gearbox`):
     the waist, its servo off, standing."""
-    from machine import gait, physics
+    from machine import figure, physics
     from machine.figure import JOINTS
     i = JOINTS.index('waist')
     physics.BOXED = 1.0
     try:
-        _gearbox_has_play(report, physics, gait, i)
+        _gearbox_has_play(report, physics, figure, i)
     finally:
         physics.BOXED = 0.0
 
 
-def _gearbox_has_play(report, physics, gait, i):
+def _gearbox_has_play(report, physics, figure, i):
     world = physics.World()
-    world.reset(gait.stand())
+    world.reset(figure.stand())
     world.gains[i] = 0.0
     gap, wind, tau = float(world.boxes.gap[i]), float(world.boxes.k[i]), 3.0
     q0, now = float(world.data.qpos[world.qadr[i]]), [0.0]
@@ -391,10 +278,8 @@ def _gearbox_has_play(report, physics, gait, i):
                      1e3 * (at if at is not None else 0.0), 1e3 * on[-1][2]))
 
 
-ROSTER = (test_a_virtual_body_walks, test_a_leg_by_its_foot, test_a_body_with_mass_walks,
-          test_the_pendulum_between_her_ears, test_she_rises_and_walks, test_dressed_or_bare,
-          test_her_views_draw, test_the_floor_outlasts_a_walk, test_a_style_eases_in,
-          test_her_skeleton_collides,
+ROSTER = (test_a_virtual_body_is_told, test_a_leg_by_its_foot, test_a_body_with_mass_is_fitted,
+          test_dressed_or_bare, test_her_views_draw, test_her_skeleton_collides,
           test_each_drive_turns_from_its_gearbox, test_each_drive_is_held,
           test_a_gearbox_has_play, test_her_kinematics_as_motors)
 

@@ -15,8 +15,7 @@ import math
 from typing import Any
 
 from machine import drives, linkage
-from machine.figure import SEGMENTS, UPPER_ARM
-from machine.gait import SHANK, THIGH
+from machine.figure import SEGMENTS, SHANK, THIGH, UPPER_ARM
 
 #: The femur and the tibia, her left's, their tubes through these points of their segments'
 #: frames, m (the right's x mirrored), their radii: the femur from under the hip's gearbox to over

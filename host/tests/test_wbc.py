@@ -1,6 +1,6 @@
-"""Her balance as one convex QP a step (`machine.wbc`, `machine.mpc`, `machine.balance`): the
-solver against its optimality, her stand still on the stack, a nudge held, a shove stepped out of
-- in a world without buses (`tools/sim/wbc.py`)."""
+"""Her whole body as one stack of QPs a step (`machine.wbc`): the solver against its
+optimality, her stand still on the stack, a nudge held - in a world without buses
+(`tools/sim/wbc.py`)."""
 import os
 import sys
 
@@ -70,34 +70,22 @@ def test_she_stands_still_on_the_stack(report):
     from tools.sim import wbc
     out = wbc.stand(seconds=2.0)
     report.check('standing 2 s on the stack she stays up, every drive within its clamp',
-                 out['stood'] and out['top'] <= 1.0 / 0.95 + 1e-6 and not out['steps'],
+                 out['stood'] and out['top'] <= 1.0 / 0.95 + 1e-6,
                  'tilt %.1f deg, drift %.1f mm, the most a clamp %.2f, %d us a step'
                  % (out['tilt'], out['drift_mm'], out['top'], out['us']))
 
 
-def test_nudged_aside_she_holds_without_a_step(report):
-    """60 N for 0.12 s from her right and from her left: up, no step taken."""
+def test_nudged_aside_she_holds(report):
+    """60 N for 0.12 s from her right and from her left: up."""
     from tools.sim import wbc
     for way in (0.0, 180.0):
         out = wbc.stand(60.0, way)
-        report.check('nudged 60 N toward %s she holds, no step' % ('her left' if way == 0 else
-                                                                  'her right'),
-                     out['stood'] and not out['steps'],
-                     'tilt %.1f deg, %d steps' % (out['tilt'], out['steps']))
-
-
-def test_shoved_from_behind_she_steps_out_of_it(report):
-    """80 N for 0.12 s from behind - her capture point past her toes: she steps and stands."""
-    from tools.sim import wbc
-    out = wbc.stand(80.0, 90.0)
-    report.check('shoved 80 N from behind she steps and stands',
-                 out['stood'] and out['steps'] >= 1,
-                 'tilt %.1f deg, %d steps, WEP %.2f s' % (out['tilt'], out['steps'], out['wep_s']))
+        report.check('nudged 60 N toward %s she holds' % ('her left' if way == 0 else 'her right'),
+                     out['stood'], 'tilt %.1f deg' % out['tilt'])
 
 
 ROSTER = (test_the_solver_meets_its_optimality, test_a_level_keeps_what_those_above_it_won,
-          test_she_stands_still_on_the_stack, test_nudged_aside_she_holds_without_a_step,
-          test_shoved_from_behind_she_steps_out_of_it)
+          test_she_stands_still_on_the_stack, test_nudged_aside_she_holds)
 
 
 def main(argv=None):

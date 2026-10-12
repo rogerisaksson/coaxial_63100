@@ -2,8 +2,8 @@
 
 A stereo pair on her head (`machine/sight.py`, `physics.SIGHT`), rendered from
 the world by MuJoCo, the disparity by block matching in numpy, the depth from
-it, the points into a map she keeps of the room ([room](room.md)), its things
-told by shape and colour, her errands' ways planned round them, and the page's
+it, the points into a map she keeps of the room (`machine/room.py`), its things
+told by shape and colour, a way planned round them, and the page's
 picture of her view (`coaxial/graphics/inset.py`); test_sight.py holds it.
 Nothing of hers reads the world's geometry.
 
@@ -60,11 +60,6 @@ a look every 0.5 s, 29 looks):
   every 2 s where what she has seen since bars it. Held to known-free
   cells, a target unseen had no way and every first word began with a look
   round, 14 s on 23 steps.
-
-## Her ways on her eyes
-
-The room's words and what they measure: [room](room.md). Walking on with no
-word she stands 0.9 m before a wall she has seen.
 
 ## The picture on the page
 

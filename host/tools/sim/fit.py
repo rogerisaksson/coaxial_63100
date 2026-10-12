@@ -2,8 +2,8 @@
 """Her mechanism checked by geometry, nothing drawn.
 
 Each rod's transmission over its stroke, each drive's reach past her skin standing, and the least
-clearance between her drums, her boards, her ankles' rods and her bones over the poses she is put in - the walk's cycle, the squat, the get-up's keyframes,
-the fall's catch, crouch and tuck.
+clearance between her drums, her boards, her ankles' rods and her bones standing and in the
+squat - or over a recording's poses.
 
     python tools/sim/fit.py
     python tools/sim/fit.py --worst 20       # that many of the closest pairs
@@ -34,26 +34,15 @@ GIRDLE_Y = 0.325
 
 
 def poses(csv=None, every=10):
-    """[(name, {joint: deg})]: where she is put - standing, the walk's cycle, the squat, the
-    get-up's keyframes, the fall's catch, crouch and tuck - or where a recording (`csv`, R's or
-    `look.py`'s rows) had her, every `every`th row: a keyframe is asked, not reached."""
-    from machine import arrival, falls, figure, gait, getup
+    """[(name, {joint: deg})]: where she is put - standing, the squat - or where a recording
+    (`csv`, R's rows) had her, every `every`th row."""
+    from machine import figure
     if csv:
         from tools.sim.look import recorded
         rows = recorded(csv)[::every]
         return [('%s %.2f s' % (r['stage'], float(r['t'])), {j: float(r[j]) for j in figure.JOINTS})
                 for r in rows]
-    out = [('stand', gait.stand())]
-    out += [('walk %.2f' % p, gait.walk(0.0, phase=p)) for p in np.arange(0.0, 1.0, 0.05)]
-    out.append(('squat', arrival.angles_of(arrival._squat())))
-    for table in ('UNFOLD', 'TO_FRONT', 'KNEES_UNDER', 'SIT_BACK', 'ONTO_FEET'):
-        out += [('%s %s' % (table.lower(), step[1]), step[3]) for step in getattr(getup, table)
-                if len(step) > 3 and isinstance(step[3], dict)]
-    stand = gait.stand()
-    out += [('catch ' + k, dict(stand, **v)) for k, v in falls.CATCH.items()]
-    out += [('crouch %+.0f' % tip, dict(stand, **falls.crouch(tip))) for tip in (-90.0, 0.0, 90.0)]
-    out.append(('tuck', dict(stand, **falls.TUCK)))
-    return out
+    return [('stand', figure.stand()), ('squat', dict(figure.SQUAT))]
 
 
 def rods():
@@ -404,8 +393,8 @@ def drawn(dressed):
     """{joint: m}: each drum's, board's and rod's worst reach past her drawn shell (`dressed`
     False) or past her clothes and her skin where they leave it bare, standing."""
     from coaxial.graphics import gynoid
-    from machine import gait
-    stand = gait.stand()
+    from machine import figure
+    stand = figure.stand()
     body = gynoid.body(dressed=dressed)
     frames = body._frames(stand)
     worn = [(rings, turn, spot) for part, frame in zip(body.parts, frames) if frame is not None
@@ -440,7 +429,7 @@ def main(argv=None):
     for kind, (lo, hi), mi, mo, l0, l1 in rods():
         print('  %-10s %+4.0f..%+3.0f deg  %4.1f / %4.1f deg  %.2f-%.2f' % (kind, lo, hi, mi, mo,
                                                                          l0, l1))
-    stand = {j: v for j, v in __import__('machine.gait', fromlist=['stand']).stand().items()}
+    stand = __import__('machine.figure', fromlist=['stand']).stand()
     row = dict({j: stand.get(j, 0.0) for j in figure.JOINTS},
                **{'%s_%s' % (s[0], a): 0.0 for s in figure.SEGMENTS for a in 'xyz'})
     reach = sorted(((_out(row, [j]), drives.kind(j), drives.of(j)[0]) for j in figure.JOINTS

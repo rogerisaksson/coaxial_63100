@@ -145,3 +145,25 @@ class Heat:
         return (self.t[k][self.worst[k]], self.spent[k], self.derate[k],
                 (GATES_ON if self.gates[k] else 0) | (SHORTED if self.shorted[k] else 0)
                 | self.worst[k] << WORST_SHIFT)
+
+
+def held(joint):
+    """(N m, node) a joint's drive holds for ever at its envelope's THROTTLE_AT: its nodes'
+    steady state (no hold left to count) bisected on the torque, the node that binds there
+    (NODES)."""
+    from machine import drives
+    kt, r, scale, _wj, winding_k_w, laminate_k_w = drives.heat(joint)
+
+    def spent(torque):
+        amps = torque / kt
+        board = (amps * scale) ** 2
+        switch = 1.5 * board * RDS_OHM + SWITCHING_W
+        laminate = AMBIENT_C + (switch + 1.5 * board * SHUNT_OHM + HOUSEKEEPING_W) * laminate_k_w
+        nodes = (laminate + switch * INTO_K_W, laminate, AMBIENT_C + r * amps * amps * winding_k_w)
+        return max(((t - AMBIENT_C) / (top - AMBIENT_C), name)
+                   for t, top, name in zip(nodes, CEILING_C, NODES))
+    lo, hi = 0.0, drives.peak(joint) * 4.0
+    for _ in range(50):
+        mid = 0.5 * (lo + hi)
+        lo, hi = (mid, hi) if spent(mid)[0] < THROTTLE_AT else (lo, mid)
+    return lo, spent(hi)[1]

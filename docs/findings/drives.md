@@ -1,7 +1,10 @@
 # Findings: drives
 
 Motors, gearboxes, inverters and the numbers that size them
-(`machine.drives`, `tools/sim/drive_sizes.py`). The body's findings:
+(`machine.drives`). The demand they were sized on was read by
+`drive_sizes.py` off the laws before her latent loop, both gone from the
+tree (tag `laws-before-the-loop`); on the loop it is unmeasured
+(docs/TODO.md). The body's findings:
 [body](body.md); the board's: [FINDINGS](../FINDINGS.md); one stack for
 every drive, its demand and the candidates: [stacks](stacks.md).
 

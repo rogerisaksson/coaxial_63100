@@ -95,3 +95,8 @@ it names. A closed item is cut from the list and gets its line here, last.
     lean across its way, 7.7 degrees inside a lap's bends where 12.5
     outside, rolled 9.5 degrees rms in them; level at rest
     ([quad](findings/quad.md)).
+35. One way she moves: the laws before her latent loop out of the tree - 34
+    modules (the director, the walk as built, the one law, the stand, the
+    falls, the get-up, the MPC), 14 tools, 7 suites, 8 findings; the page
+    her loop alone, walking from rest; they stay at tag
+    `laws-before-the-loop`.

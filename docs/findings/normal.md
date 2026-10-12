@@ -2,8 +2,11 @@
 
 A normal feminine walk as a band of measures, a reference take (.fbx), a test
 of what broke: `tools/sim/normal.py`, `fbx.py`, `mocap.py`,
-tests/takes/walk.fbx. The walk as built: [walk](walk.md); the one law's:
-[going](going.md). Mocap packs stay outside git, reference and test only.
+tests/takes/walk.fbx. Mocap packs stay outside git, reference and test only.
+The walks it tells of beside the takes - as built, the one law's - were the
+laws' before her latent loop, gone from the tree (tag
+`laws-before-the-loop`); her walk on the loop:
+[orthokinematics](orthokinematics.md).
 
 ## The band
 
@@ -112,7 +115,7 @@ trunk 8-22 deg ahead), slow.
 
 ## The one law's walk
 
-[going](going.md): 0.34 off the band where 4.10; stiff 0.31 and shuffling
+0.34 off the band where 4.10; stiff 0.31 and shuffling
 0.24 where stiff 2.38. With its free foot's raise eased 0.20, stiff 0.17:
 the heel 22 deg up as its toes leave where 28, the knee 29.7 where 30, the
 pelvis turning 3.5 deg where 4. A gait is named from its words' amounts

@@ -10,11 +10,10 @@ def test_her_eyes_picture_is_framed(report):
     """The picture in the viewport's corner (`coaxial.graphics.inset`): the instruments'
     frame whole round it - four corners, its title in the top edge, its note in the bottom one
     -, each hull's kind a label on it, none over another; nothing where the viewport has no
-    room; W takes it away and gives it back."""
+    room."""
     import numpy as np
     from coaxial.graphics import callouts, inset
     from machine import sight
-    from terminal.views import humanoid_keys, viewpoint
     wide, rows = sight.VIEW
     thumb = np.full((rows, wide, 3), 90, np.uint8)
     box = [(40, 60), (200, 60), (200, 200), (40, 200)]
@@ -46,12 +45,6 @@ def test_her_eyes_picture_is_framed(report):
     report.check('nothing where the viewport has no room for it',
                  not inset.eyes((thumb, hulls), wide + 1, 40)
                  and not inset.eyes((thumb, hulls), 120, rows // 2 + 1))
-    state = {'eyes': True}
-    keys = humanoid_keys.table(viewpoint.KEYS, ('strong',), ('torque',))
-    keys['w'](state)
-    off = state['eyes']
-    keys['W'](state)
-    report.check('W takes the picture away and gives it back', off is False and state['eyes'])
 
 
 def test_its_camera_rides_a_gimbal(report):

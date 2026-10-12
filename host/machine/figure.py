@@ -5,11 +5,31 @@
     at = ball(1.0, pelvis, turn, angles)           # where its ball stands, world
 
 Frames: x her left, y up, z ahead; a turn a 3x3 of rows. A joint turns its segment by sign x
-angle about its axis; the legs' lengths are `machine.gait`'s.
+angle about its axis.
 """
 import math
 
-from machine.gait import ANKLE_H, BALL, HEEL, HIP_DROP, HIP_HALF, SHANK, THIGH, TOE_M, TOE_RY
+#: Her legs, metres (`coaxial.graphics.gynoid` is built on them): the hips apart (half) and
+#: below the pelvis's centre, thigh and shank, the ankle over the sole, the ball ahead of it
+#: (the toes' joint) and the heel behind.
+HIP_HALF, HIP_DROP, THIGH, SHANK = 0.095, 0.055, 0.39, 0.38
+#: A 24 cm sole with the toes (CONTACTS), a sneaker in size 37-38 - 27 cm read as boats; a
+#: 38's, 237.
+ANKLE_H, BALL, HEEL = 0.075, 0.117, 0.055
+#: The toes' joint over the sole, and the toes' length from it.
+TOE_RY, TOE_M = 0.014, 0.065
+#: A stand's soft knee, degrees; the hip and the ankle take half of it each way, the shin upright.
+STAND_KNEE = 6.0
+#: Her deep squat, deg: what of her touches in it is kept apart as what touches standing
+#: (`machine.mjcf`).
+SQUAT = {
+    'spine_roll': 0.0, 'spine': 45.0, 'waist': 0.0, 'neck': 35.0, 'head': 0.0,
+    'left_shoulder': 35.0, 'left_elbow': 70.0, 'left_wrist': 10.0, 'left_gripper': 30.0,
+    'left_hip_yaw': -1.107, 'left_hip_roll': -2.372, 'left_hip': -115.939, 'left_knee': 123.069,
+    'left_ankle': -32.153, 'left_ankle_roll': 2.617, 'left_foot': 0.0, 'right_shoulder': 60.0,
+    'right_elbow': 30.0, 'right_wrist': 0.0, 'right_gripper': 80.0, 'right_hip_yaw': -1.198,
+    'right_hip_roll': -2.567, 'right_hip': -115.935, 'right_knee': 123.061, 'right_ankle': -32.153,
+    'right_ankle_roll': 2.832, 'right_foot': 0.0}
 
 #: Her weight, kg; each segment's share of it is de Leva's (1996) for a woman.
 MASS_KG = 55.0
@@ -311,6 +331,25 @@ def shares():
     built = build.segments()
     total = sum(kg for kg, _c, _i in built.values())
     return {name: (kg / total, centre) for name, (kg, centre, _i) in built.items()}
+
+
+def stand():
+    """Every joint at rest, deg: the knees soft, arms down and soft at the elbow, the fingers
+    curled."""
+    out = {name: 0.0 for name in JOINTS}
+    out.update({'left_elbow': 10.0, 'right_elbow': 10.0, 'left_wrist': 5.0, 'right_wrist': 5.0,
+                'left_gripper': 18.0, 'right_gripper': 18.0})
+    for side in ('left', 'right'):
+        out.update({side + '_hip': -STAND_KNEE / 2.0, side + '_knee': STAND_KNEE,
+                    side + '_ankle': -STAND_KNEE / 2.0})
+    return out
+
+
+def standing():
+    """Her pelvis's height at a stand, m: both feet flat under her hips, the knees as `stand`
+    bends them."""
+    knee = math.radians(STAND_KNEE)
+    return ANKLE_H + math.sqrt(THIGH ** 2 + SHANK ** 2 + 2.0 * THIGH * SHANK * math.cos(knee)) + HIP_DROP
 
 
 def mass():

@@ -28,8 +28,7 @@ import numpy as np  # noqa: E402
 from machine import drives, linkage, qp  # noqa: E402
 from machine.drives import kind  # noqa: E402
 from machine.errors import MachineError  # noqa: E402
-from machine.figure import JOINTS, SOLE_HALF  # noqa: E402
-from machine.gait import ANKLE_H, BALL, HEEL  # noqa: E402
+from machine.figure import ANKLE_H, BALL, HEEL, JOINTS, SOLE_HALF  # noqa: E402
 
 G = 9.81
 
@@ -66,6 +65,8 @@ RANGES = {'neck': (-45.0, 60.0), 'head': (-80.0, 80.0)}
 #: step lagged its path 11 cm, 100 N); the angular momentum bled at MOMENTUM_K 1/s - at 10 on the level under the centre of mass it pinned both soles'
 #: centres of pressure to their edges, flipping each 50 ms (a 60 N shove).
 TURN_KD, POSTURE_KD, SWING_KD, MOMENTUM_K = (100.0, 20.0), (100.0, 20.0), (1600.0, 80.0), 3.0
+#: Her centre of mass's height held by (kp 1/s^2, kd 1/s).
+HEIGHT_KD = (100.0, 20.0)
 
 #: The turns' weight against a swinging sole's m/s^2; her form's against the posture's
 #: rad/s^2: the angular momentum's N m, the torques' (a clamp's share), the corners' forces

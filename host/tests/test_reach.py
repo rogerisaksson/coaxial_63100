@@ -1,6 +1,5 @@
 """Her leg's reach (`machine.reach`): its rows her figure's laid anew; what they hold, her stops
-allow; a place landed stands in MuJoCo, either limb the one code; two feet's gap; rising and
-walking she is within them."""
+allow; a place landed stands in MuJoCo, either limb the one code; two feet's gap."""
 import importlib
 import math
 import random
@@ -11,9 +10,6 @@ from gynoid_kit import Report
 
 #: The model's names of the limbs' indices.
 SIDES = ('left', 'right')
-IDENT = ((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0))
-#: Her walk asked, m/s, and how long she is followed from the squat, s.
-PACE, FOLLOWED_S = 0.85, 9.0
 
 
 def test_the_rows_are_her_figure(report):
@@ -78,7 +74,7 @@ def test_a_place_landed_stands_in_mujoco(report):
     (`figure.leg`) and set in the compiled figure, has the foot there, flat and turned as told,
     every stopped joint within its stop; its margins not negative, its knee the leg's."""
     from machine import figure, reach
-    from machine.gait import ANKLE_H
+    from machine.figure import ANKLE_H
     from tools.cores import reach as laid
     mujoco, model, data = _figure()
     limits, rng = laid.stops(), random.Random(11)
@@ -169,51 +165,9 @@ def test_two_feet_clear_of_each_other(report):
                  '%.4f m off at most, %d of 150 crossing' % (worst, crossed))
 
 
-def test_rising_and_walking_she_is_within_them(report):
-    """From the squat up and into her walk on the law: every pass, each leg as measured - its
-    hip in its foot's frame (`figure.foot_of`) - is inside the rows, its hip's yaw inside its
-    stops."""
-    from machine import Machine, figure, gaits, reach, style
-    from machine.director import Director
-    from machine.modes import DYNAMIC
-    gaits.derive()
-    style.manner(())
-    body = Machine.discover('gynoid', execution_mode=DYNAMIC)
-    least = {'straight': (math.inf, 0.0, ''), 'stop': (math.inf, 0.0, ''), 'yaw': (math.inf, 0.0, '')}
-    try:
-        body.arm()
-        director = Director(body, PACE, stand_s=math.inf)
-        director.pace, director.manner = 0.0, ()
-        director.begin()
-        body.loop.step(0.0)
-        bus = body.loop.bus
-        while bus['t'] < FOLLOWED_S and director.stage != 'fallen':
-            body.loop.write(**director.step(0.001))
-            body.loop.step(0.001)
-            for limb, side in enumerate(SIDES):
-                sign = reach.LIMBS[limb]
-                q = [math.radians(bus[side + name + '.deg']) for name in figure.LEG]
-                ankle, turn = figure.foot_of(sign, (0.0, 0.0, 0.0), IDENT, q)
-                straight, stop = reach.margins(reach.over(limb, figure.hip(sign, (0.0, 0.0, 0.0), IDENT),
-                                                          ankle, turn))
-                for name, m in (('straight', straight), ('stop', stop),
-                                ('yaw', min(q[0] + reach.YAW[0], reach.YAW[1] - q[0]))):
-                    least[name] = min(least[name], (m, bus['t'], side))
-        fell, at = director.stage == 'fallen', bus['t']
-    finally:
-        body.disarm()
-        body.close()
-    report.check('she rose and walked', not fell and at >= FOLLOWED_S, 'to %.1f s' % at)
-    report.check('each leg inside its length, its stops and its yaw every pass',
-                 all(m >= -1e-4 for m, _t, _side in least.values()),
-                 ', '.join('%s %.1f mm (%s, %.2f s)' % (k, m * 1e3, side, t) if k != 'yaw' else
-                           'yaw %.1f deg (%s, %.2f s)' % (math.degrees(m), side, t)
-                           for k, (m, t, side) in least.items()))
-
-
 ROSTER = [test_the_rows_are_her_figure, test_what_the_rows_hold_her_stops_allow,
           test_a_place_landed_stands_in_mujoco, test_her_right_is_her_left_mirrored,
-          test_two_feet_clear_of_each_other, test_rising_and_walking_she_is_within_them]
+          test_two_feet_clear_of_each_other]
 
 
 def main(argv=None):

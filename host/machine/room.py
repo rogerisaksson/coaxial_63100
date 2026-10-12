@@ -1,9 +1,8 @@
-"""A living room round her: glass walls that do not break, furniture, a door, a lamp, and its words.
+"""A living room round her: glass walls that do not break, furniture, a door, a lamp.
 
     room.furnish(contacts)                 # the room's bodies for the figure's MJCF (`physics.ROOM`)
     room.props(world)                      # its boxes for the page, the door where it swings, the lamp lit
     room.touched(world, dt)                # the lamp's switch under her hand: toggled, debounced
-    room.WORDS, room.FRAMES                # its words in her language (`machine.kin`), its places
 
 Y up, z her walk's line from the squat, x to her left. The walls are static boxes with the floor's
 contacts and glass's look (`coaxial.graphics.gynoid.PROP_INK`): nothing breaks. The door hangs on a
@@ -30,51 +29,6 @@ LAMP_AT, POST_H, SHADE = (-2.5, -1.0), 0.75, (0.15, 0.12, 0.15)
 SWITCH_AT, SWITCH = (1.05, -0.5), (0.03, 0.04, 0.02)
 #: A touch of the switch toggles the lamp, and not again for this long, s.
 SWITCH_S = 0.6
-
-#: Where its things are used from, {name: (x, z, the heading held there, the latch's side)}:
-#: the door where she passes its line going out - toward the hinge of its middle, the opening
-#: leaf turns her 0.1 m toward the latch's post and her raised hand must clear it; its latch on
-#: her left, where the leaf is lightest (10 kg at its middle, 5 at 0.6 m from the hinge) - and
-#: clear of its leaf beyond it: her hand's shove leaves the leaf at 68 deg, its end 0.63 m out
-#: on her line, and straight on her foot met it; coming in, where it opens toward her and must
-#: stand open; the chair 0.6 m before its seat,
-#: her back to it (0.45 m before it her toes met its legs stepping round); the bed 0.45 m off
-#: its foot, her back to it (lain across it she rolled off its far side); the switch 0.28 m
-#: off its wall, her right hand's 0.27 m before it.
-FRAMES = {'door': (0.70, TO, 0.0, 1.0), 'door.clear': (0.98, TO + 0.95, 0.0, 0.0),
-          'door.in': (0.78, TO, math.pi, 0.0),
-          'chair': (CHAIR_AT[0], CHAIR_AT[1] - 0.6, math.pi, 0.0),
-          'bed': (BED_AT[0], BED_AT[1] - BED[2] - 0.45, math.pi, 0.0),
-          'switch': (-WIDE + THICK + 0.28, SWITCH_AT[1] + 0.27, -math.pi / 2.0, 0.0)}
-
-#: Her words here, in her kinematic language (`machine.kin`).
-WORDS = """
-out:                        # through the door, and on
-    hand latch at door
-    go door-1.8
-    go door+0.2
-    go door.clear
-    pace walk
-in:                         # back through it, as it stands open
-    go door.in-1.8
-    go door.in
-    go door.in+1.2
-    stand
-lamp:
-    go switch
-    face switch
-    reach right
-sit:
-    go chair
-    face chair
-    play sit
-lie:
-    go bed
-    face bed
-    play lie
-up:
-    play up
-"""
 
 
 def _box(name, at, half, contacts, extra=''):

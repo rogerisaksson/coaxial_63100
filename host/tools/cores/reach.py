@@ -24,7 +24,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from machine import figure, linkage  # noqa: E402
-from machine.gait import BALL, HEEL, HIP_DROP, HIP_HALF, SHANK, THIGH, TOE_M  # noqa: E402
+from machine.figure import BALL, HEEL, HIP_DROP, HIP_HALF, SHANK, THIGH, TOE_M  # noqa: E402
 from tools import REPO  # noqa: E402
 from tools.cores import written  # noqa: E402
 

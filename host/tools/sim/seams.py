@@ -32,8 +32,8 @@ def _sided(name):
 def seams():
     """{shell part: m}: each covered part's worst reach past the clothes over it, standing."""
     from coaxial.graphics import gynoid
-    from machine import gait
-    stand = gait.stand()
+    from machine import figure
+    stand = figure.stand()
     bare, dressed = gynoid.body(dressed=False), gynoid.body(dressed=True)
     worn = [(_sided(part[0][len('cloth_'):]), rings, turn, spot)
             for part, frame in zip(dressed.parts, dressed._frames(stand))

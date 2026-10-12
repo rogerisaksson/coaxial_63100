@@ -2,7 +2,7 @@
 
 The lowest level's geometry: the figure's recipes (`machine/figure.py`: a
 leg's joints from its ankle back to its hip, a strut's reach) and what might
-replace them. The going law's findings: [going](going.md).
+replace them.
 
 ## Dual quaternions in the recipes' place
 

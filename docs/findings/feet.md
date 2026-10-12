@@ -1,7 +1,10 @@
 # Findings: feet
 
-Passive toes, the sole's give, the push-off. The walk: [walk](walk.md); the
-board's findings: [FINDINGS](../FINDINGS.md).
+Passive toes, the sole's give, the push-off. The board's findings:
+[FINDINGS](../FINDINGS.md).
+Its walking, standing and falling figures were measured on the laws before her latent
+loop, gone from the tree (tag `laws-before-the-loop`); on the loop:
+[orthokinematics](orthokinematics.md).
 
 ## Toes sprung, no motor
 

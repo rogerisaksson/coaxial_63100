@@ -94,7 +94,7 @@ Fitted parts come from `0x6D` kind 4, never from a name. Host rules:
   (`tools/dev/focus.py`: a baton a physical core, the longest first, the
   long ones as shards): `python tools/dev/run_tests.py --file test_a.py
   --file test_b.py:word` (`--smart` what the diff reaches, `--offline` the
-  gate); Monte Carlos through `tools/sim/gait_montecarlo.py`. Never a
+  gate); probes side by side through `focus.relay`'s batons. Never a
   suite run straight nor a pool of one's own (`relay_first.py` denies the
   first).
 - **Narrowest test first** while a bug is live. **Green before the next
@@ -109,29 +109,31 @@ Fitted parts come from `0x6D` kind 4, never from a name. Host rules:
 - A measurement taken while something else drives the bench is not one.
 - **What the user sees is so.** They point it out, you measure, the
   numbers say what to change, you change it and measure again:
-  `host/tools/sim/look.py` (from the squat; `--last` their newest HUMANOID
-  recording, R), quoted before any explanation - a hook says so on every
-  such message (`tools/dev/measure_first.py`). Nothing is fixed until the
+  `host/tools/sim/ortho.py --walk --look` (her walk on her loop) and
+  `tools/sim/look.py --last` (their newest HUMANOID recording, R), quoted
+  before any explanation - a hook says so on every such message
+  (`tools/dev/measure_first.py`). Nothing is fixed until the
   second measurement shows it gone. Measure against the body, not the
   plumb line: a torso plumb over bent knees leans back. A running page
   keeps the code it started with.
+- **One way she moves.** Her latent loop: text to rows (`machine.ortho`),
+  `latent.step`, `impedance.ask`, the whole-body step (`wrench.step`), her
+  drives. No branch in it, flat static arrays, K, D and phases only; what it
+  cannot do yet raises (`MachineError`) or is refused by name - no second law
+  beside it, no rule a case, no constant fished for: a fault is derived,
+  measured, then fixed. The laws before it: tag `laws-before-the-loop`.
 - **Her walk is a human's; its form is a condition, never a price.** On a flat,
   smooth floor one walk passes: the least energy a metre, the pelvis rolling
   over a stance leg whose knee is all but straight from its landing till it is
   behind her. A crouch falls less and so does crawling: a fall is met by a
-  parry - where the foot lands -, never by the gait's shape, stride or height;
-  the scoreboard rewards parries and rejects a walk off its form. A straight
-  leg costing more than a bent one is a fault in how it is driven: found, not
-  tuned round. What is solved stays: a fix that moves a solved measure is
+  parry - where the foot lands -, never by the gait's shape, stride or height.
+  A straight leg costing more than a bent one is a fault in how it is driven:
+  found, not tuned round. What is solved stays: a fix that moves a solved measure is
   undone. Mocap is a reference, not a search space. `looks.FORM` is the form,
-  test_gynoid_gait.py holds it; docs/TODO.md, walk form.
+  test_ortho.py holds it; docs/TODO.md, orthokinematics.
 - **Smoke her walk first**: after any change reaching it,
-  `python tools/sim/armada.py` (12 s on the armada kept up, `--up`) - her
-  form, J/m and parries at three paces - and
-  `python tools/sim/gait_montecarlo.py --suite look` (36 s: her rises, her
-  walks begun standing at four paces), quoted before anything else. A
-  candidate is tried from a walking robot's mark (`--grid`, `--search`),
-  never from the squat.
+  `python tools/sim/ortho.py --walk --to 40 --look` (60 s: her speed, J/m,
+  the band, her form), quoted before anything else.
 - **Simulated before emulated.** *Emulated* is the image on Renode: SIL.
   *Simulated* is a pure software model claiming no hardware, real or
   emulated. Nothing goes on the emulator until a plausible simulated model

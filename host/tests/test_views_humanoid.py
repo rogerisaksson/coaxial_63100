@@ -1,4 +1,4 @@
-"""The HUMANOID page's hands: its mouse on the view, its keys on her pace, the one law, her manners."""
+"""The HUMANOID page's hands: its mouse on the view, its keys on her loop and on the view."""
 import sys
 
 from tools.dev.focus import chosen
@@ -6,7 +6,7 @@ from views_kit import Report
 
 
 def test_the_humanoid_pages_mouse(report):
-    """The HUMANOID page holds the mouse, F its pace: a right drag moves the view by its cells
+    """The HUMANOID page holds the mouse, a key typed kept: a right drag moves the view by its cells
     and zooms nothing, a left drag turns and tips it, the arrows lift it (`viewpoint`)."""
     from terminal.ui import console
     from terminal.views import viewpoint
@@ -37,51 +37,27 @@ def test_the_humanoid_pages_mouse(report):
                  state['yaw'] < viewpoint.YAW, '%s' % state)
 
 
-def test_the_humanoid_pages_pace(report):
-    """S and F step the row asked of her way on the one law (`machine.pace`), from her stand to
-    the run and no further; J hands her to the walk as built, S and F then its cadence; a floor
-    event hands her to it too, a rig stands her on the law; there M picks one of its manners
-    (`gaits.MANNERS`) and Z and X move that one's amount."""
+def test_the_humanoid_pages_keys(report):
+    """The page's keys are her loop's and the view's: A lands her anew, the digits say her moves,
+    W walks her, L, T, C and O step the view; no other letter is a key - nothing else runs her."""
     import types
-    from machine import gaits
-    from terminal.views import humanoid_keys, viewpoint
+    from terminal.views import show_humanoid
     sent = []
     body = types.SimpleNamespace(send=lambda **command: sent.append(command))
-    keys = humanoid_keys.table(viewpoint.KEYS, ('strong',), ('torque',))
-    state: dict = {'body': body, 'cadence': 0.85, 'law': True, 'pace': 0.0, 'rig': None}
-    humanoid_keys.act_on(keys, list('fffffsssssssss'), state)
-    asked = [command.get('pace') for command in sent]
-    levels = humanoid_keys.LEVELS
-    report.check('F her rows up to the run and no further, S down to her stand and no further',
-                 asked == list(levels[4:]) + [levels[-1]] + list(levels[-2::-1]) + [levels[0]] * 2,
-                 '%s' % asked)
-    del sent[:]
-    humanoid_keys.act_on(keys, list('jf'), state)
-    report.check('J the walk as built, F then a step of its cadence',
-                 sent == [{'pace': None}, {'cadence': 0.9}] and not state['law'], '%s' % sent)
-    del sent[:]
-    humanoid_keys.act_on(keys, list('j27'), state)
-    report.check('J back on the law at its walk; a floor event hands her to the walk as built',
-                 sent[:3] == [{'pace': 0.0}, {'pace': None}, {'event': 'rug'}], '%s' % sent[:3])
-    del sent[:]
-    humanoid_keys.act_on(keys, list('j8'), state)
-    report.check('on the law a rig stands her till F',
-                 sent[-1] == {'pace': -1.0, 'rig': 'brick_on'} and state['pace'] == -1.0,
-                 '%s' % sent)
-    del sent[:]
-    humanoid_keys.act_on(keys, list('xxmxz'), state)
-    first, second = list(gaits.MANNERS)[:2]
-    report.check('on the law X is a step more of the manner picked, M picks the next, each '
-                 'keeps its own, and Z takes one out',
-                 [c['manner'] for c in sent] == [((first, 0.25),), ((first, 0.5),),
-                                                 ((first, 0.5), (second, 0.25)), ((first, 0.5),)],
-                 '%s' % sent)
-    del sent[:]
-    humanoid_keys.act_on(keys, list('jm'), state)
-    report.check('J lets her manners go before the walk as built has her; M there hands her '
-                 'to the law, its pick kept',
-                 sent == [{'manner': ()}, {'pace': None}, {'pace': 0.0}] and state['law']
-                 and state['manner'] == second and not state['manners'], '%s' % sent)
+    state: dict = {'body': body, 'side': 1.0, 'orbit': False, 'called': 'strong', 'shown': 'torque',
+                   'skin': 'dressed'}
+    for key in 'a4w':
+        show_humanoid.KEYS[key](state)
+    report.check('A lands her anew, 4 says the fourth entry, W her walk from rest',
+                 sent == [{'restart': True}, {'say': 3}, {'walk': True}], '%s' % sent)
+    for key in 'ltco':
+        show_humanoid.KEYS[key](state)
+    report.check('L the next callouts, T the power, C her shell, O the orbit',
+                 state['called'] == 'all' and state['shown'] == 'power' and state['skin'] == 'shell'
+                 and state['orbit'] is True, '%s' % {k: state[k] for k in ('called', 'shown', 'skin', 'orbit')})
+    letters = sorted(k for k in show_humanoid.KEYS if len(k) == 1 and k.isalpha() and k.islower())
+    report.check('its letters are a c l n o p r t v w and no other', letters == list('aclnoprtvw'),
+                 ' '.join(letters))
 
 
 def test_a_held_space_charges_a_push(report):
@@ -145,7 +121,7 @@ def test_r_records_and_saves(report):
         humanoid_keys.RECORDINGS = was
 
 
-ROSTER = (test_the_humanoid_pages_mouse, test_the_humanoid_pages_pace,
+ROSTER = (test_the_humanoid_pages_mouse, test_the_humanoid_pages_keys,
           test_a_held_space_charges_a_push, test_r_records_and_saves)
 
 

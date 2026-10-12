@@ -14,8 +14,7 @@ sole is printed in TPU with air pockets and the shoe goes over it, so nothing br
 """
 from coaxial.graphics.lit import paint
 from coaxial.graphics.shapes import loft
-from machine.figure import TOE_M, TOE_RY
-from machine.gait import ANKLE_H, BALL, HEEL
+from machine.figure import ANKLE_H, BALL, HEEL, TOE_M, TOE_RY
 
 SNEAKER, GUM = (236, 236, 232), (196, 150, 100)
 SHOE = ((-0.05, 0.033, 0.038), (-0.028, 0.036, 0.036), (0.0, 0.040, 0.033),

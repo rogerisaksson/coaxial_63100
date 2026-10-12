@@ -1,10 +1,12 @@
 """The gynoid on her latent loop, in a process of her own: the page's gym for orthokinematics.
 
-    body = Running(worker=sprung.run)      # `machine.running`: this module's worker, her process
+    body = sprung.Running()                # her process: on the loop she walks from rest (WALK)
     body.send(say=2)                       # the gym's third entry: a payload injected, a behaviour begun
     body.send(text='(stream_inject ..)')   # a text's payloads and behaviours, begun now
     body.send(push=(0.0, 0.0, 80.0), seconds=0.12); body.send(restart=True)
     body.send(gym='examples')              # the gym's other text (GYMS), read anew each time
+    now = body.latest()                    # her state as last said, None before the first
+    body.close()
     sprung.entries()                       # [(label, wire, names)]: machine/moves.lisp's
 
     g = sprung.laid()                      # the same loop without the process: one dict a run holds
@@ -14,16 +16,28 @@
 A pass: she is sensed (`wbc.sense`), her latent state is stepped (`machine.latent`) and rendered
 on her (`machine.impedance`), her whole body's step solved (`wrench.step`, SOLVER) - every `every`
 passes, its answer held between -, its torques fed forward with each drive's disturbance
-observed and taken off (INNER), and her world advanced. The worker paces that to the wall clock and
-says her state as `machine.running`'s does, her modes with it. Down, she is laid anew. A text
-the compiler refuses is said with her state (`refused`), her gym as it was.
+observed and taken off (INNER), and her world advanced. The worker runs that at RATE_HZ on
+simulated time: each wall-clock slice it catches up to real time, SLICE_S of it at most, and says
+her state SAY_S apart - her modes, and how much faster than real time it runs (`ratio`). Down,
+she is laid anew RECOVER_S on. A text the compiler refuses and a command the loop does not know
+are said with her state (`refused`), her gym as it was.
 """
 import math
+import multiprocessing
 import os
 import queue
 import time
 
-from machine.running import AVERAGE_S, RATE_HZ, RECOVER_S, SAY_S, SLICE_S
+#: The loop's rate, Hz. The most simulated time one slice catches up, s; how often her state
+#: goes out, s. Each drive's torque and power as said, meaned over AVERAGE_S. Down, she is
+#: laid anew RECOVER_S on.
+RATE_HZ, SLICE_S, SAY_S, AVERAGE_S, RECOVER_S = 1000.0, 0.05, 1.0 / 60.0, 0.05, 3.0
+#: The shoves, newtons for SHOVE_S: a nudge 0.13 m/s on her, a push, a shove.
+SHOVES, SHOVE_S = {'nudge': 38.0, 'push': 80.0, 'shove': 120.0}, 0.12
+#: What the worker hears (`Running.send`).
+HEARD = ('say', 'walk', 'entries', 'gym', 'text', 'push', 'seconds', 'restart')
+#: Her walk from rest: her moves' payloads (GYMS[0]) and the second each is said at.
+WALK = (('#201', 0.5), ('#202', 2.0), ('#203', 5.0), ('#204', 9.0))
 
 #: The drives' PD under the loop (`physics.SERVO`'s gains times SERVO_SHARE: kp, kd) round a
 #: reference integrated from the loop's accelerations, leaking to the joints' angles over
@@ -98,11 +112,11 @@ def laid(every=1, inner=None, solver=None):
     latent state, an empty table; the loop solved every `every` passes by `solver` (SOLVER
     with none)."""
     import numpy as np
-    from machine import gait, latent, modal, physics, wbc, wrench
+    from machine import figure, latent, modal, physics, wbc, wrench
     from machine.drives import kind
     from machine.figure import JOINTS
     world, body = physics.World(), wbc.Body()
-    pose = gait.stand()
+    pose = figure.stand()
     world.reset(pose)
     s = wbc.sense(body, world.data.qpos, world.data.qvel)
     world.reset(pose, where=(0.0, 1.0 - min(float(f['pts'][:, 1].min()) for f in s['feet']), 0.0))
@@ -147,6 +161,20 @@ def said(g, label, wire, names=(), at=None):
     g['tab'] = np.concatenate([g['tab'][g['tab'][:, latent.AT] > g['t']], new])
     g['labels'] = g['labels'][-16:] + [(float(when), names[i] if i < len(names) else label)
                                        for i, when in enumerate(new[:, latent.AT])]
+
+
+def walked(g):
+    """Her walk from rest (WALK) said from now, in place of what was to come."""
+    by = {entry[0]: entry for entry in entries()}
+    _dropped(g)
+    for label, at in WALK:
+        said(g, *by[label], at=g['t'] + at)
+
+
+def _dropped(g):
+    """Her table's rows still to come dropped, and what they were to be called."""
+    g['tab'] = g['tab'][:0]
+    g['labels'] = [(when, name) for when, name in g['labels'] if when <= g['t']]
 
 
 def doing(g):
@@ -203,9 +231,10 @@ def tilt(g):
 
 
 def state(g, torque, power, watts, ratio, fallen_at, says=(), refused=None):
-    """Her state as the page hears it (`machine.running`'s keys), and her modes: each (name,
-    asked, as she is, N/m, N s/m); `says` the gym's labels, `refused` why its last text was."""
-    from machine import latent, modal, ortho
+    """Her state as the page hears it - her stage 'walk' while she strides, 'stand' or 'fallen'
+    - and her modes: each (name, asked, as she is, N/m, N s/m); `says` the gym's labels,
+    `refused` why its last text or command was."""
+    from machine import latent, modal, ortho, stride
     from machine.figure import JOINTS
     world, out = g['world'], g['out']
     d = world.data
@@ -217,11 +246,10 @@ def state(g, torque, power, watts, ratio, fallen_at, says=(), refused=None):
             'where': tuple(d.qpos[0:3].tolist()), 'turn': tuple(d.qpos[3:7].tolist()),
             'speed': float(d.qvel[2]), 'velocity': (float(d.qvel[0]), float(d.qvel[2])),
             'phase': float(g['st'][latent.THETA]) / math.tau, 'cadence': float(out[latent.TURNS]) / math.tau,
-            'stage': 'fallen' if fallen_at is not None else doing(g), 'fallen': fallen_at is not None,
-            'slips': 0, 'stir': 0.0, 'stirs': (0.0, 0.0, 0.0), 'swing': 0.0,
-            'loads': tuple(g['loads']), 'heat': {j: (25.0, 0.0, 1.0, 1) for j in JOINTS},
-            'props': world.props(), 'armed': None, 'rig': None, 'doing': doing(g), 'errand': None,
-            'lamp': False, 'seen': None, 'buses': [], 'style': {}, 'sway': 0.0,
+            'stage': ('fallen' if fallen_at is not None
+                      else 'walk' if abs(float(out[latent.SWAY][modal.DRIVE])) > stride.STIRS else 'stand'),
+            'fallen': fallen_at is not None,
+            'loads': tuple(g['loads']), 'props': world.props(), 'doing': doing(g),
             'recover': None if fallen_at is None else RECOVER_S - (g['t'] - fallen_at),
             'ratio': min(ratio, 99.0), 'says': tuple(says), 'refused': refused,
             'modes': [(name, float(out[latent.REF][i]), float(z[i]), float(out[latent.KS][i]),
@@ -229,22 +257,37 @@ def state(g, torque, power, watts, ratio, fallen_at, says=(), refused=None):
 
 
 def _heard(g, gym, command):
-    """A command on her: an entry said, a text's entries begun, a push."""
+    """A command on her: an entry said in place of what was to come, her walk from rest, a
+    text's entries begun, a push. One the loop does not know is refused: nothing else runs
+    her."""
+    from machine.errors import MachineError
+    unknown = sorted(set(command) - set(HEARD))
+    if unknown:
+        raise MachineError('the loop hears %s: not %s' % (', '.join(HEARD), ', '.join(unknown)))
     if 'say' in command and 0 <= int(command['say']) < len(gym):
+        _dropped(g)
         said(g, *gym[int(command['say'])])
+    if command.get('walk'):
+        walked(g)
     for entry in command.get('entries', ()):
         said(g, *entry)
     if 'push' in command:
         g['world'].push(command['push'], command.get('seconds', 0.1))
 
 
-def run(commands, states, every=STACK_EVERY):
-    """The worker: she stands on the loop, paced to the clock; commands heard, her state said."""
+def run(commands, states, every=STACK_EVERY, walks=True):
+    """The worker: she stands on the loop, paced to the clock; commands heard, her state said.
+    Laid, she walks from rest where `walks`."""
     import numpy as np
     from machine import physics
     from machine.errors import MachineError
     physics.ROOM = physics.SIGHT = 0.0
-    gym, g = entries(), laid(every)
+    def anew():
+        g = laid(every)
+        if walks:
+            walked(g)
+        return g
+    gym, g = entries(), anew()
     says, refused = [GYMS[0]] + [entry[0] for entry in gym], None
     dt = 1.0 / RATE_HZ
     k = dt / AVERAGE_S
@@ -259,7 +302,7 @@ def run(commands, states, every=STACK_EVERY):
                 if command is None:
                     return
                 if command.get('restart'):
-                    g, fallen_at, told = laid(every), None, 0.0
+                    g, fallen_at, told = anew(), None, 0.0
                     wall0, sim0 = time.perf_counter(), g['t']
                 try:
                     if command.get('gym') in GYMS:
@@ -267,9 +310,9 @@ def run(commands, states, every=STACK_EVERY):
                         says, refused = [command['gym']] + [entry[0] for entry in gym], None
                     if 'text' in command:
                         command, refused = dict(command, entries=entries(command['text'])), None
-                except SyntaxError as error:
+                    _heard(g, gym, command)
+                except (SyntaxError, MachineError) as error:
                     refused = str(error)
-                _heard(g, gym, command)
         except queue.Empty:
             pass
         began = time.perf_counter()
@@ -278,7 +321,7 @@ def run(commands, states, every=STACK_EVERY):
             due = g['t'] + SLICE_S
             wall0, sim0 = began, due
         if fallen_at is not None and g['t'] - fallen_at >= RECOVER_S:
-            g, fallen_at, told = laid(every), None, 0.0
+            g, fallen_at, told = anew(), None, 0.0
             wall0, sim0, due = time.perf_counter(), g['t'], g['t']
         from_t, world = g['t'], g['world']
         while g['t'] < due - 1e-9:
@@ -310,3 +353,42 @@ def run(commands, states, every=STACK_EVERY):
         rest = SAY_S / 4.0 - (time.perf_counter() - began)
         if rest > 0.0:
             time.sleep(rest)
+
+
+class Running:
+
+    """Her worker process on the loop (`run`): `send` it commands, read its `latest` state;
+    laid, she walks from rest where `walks`."""
+
+    def __init__(self, every=STACK_EVERY, walks=True):
+        context = multiprocessing.get_context('spawn')
+        self._commands, self._states = context.Queue(), context.Queue(maxsize=8)
+        self._process = context.Process(target=run, daemon=True,
+                                        args=(self._commands, self._states, every, walks))
+        self._process.start()
+        self._last = None
+
+    def send(self, **command):
+        """{'say': the gym's entry by its place, in place of what was to come} | {'walk': True}:
+        her walk from rest | {'entries': [(label, wire, names)]} | {'gym': one of GYMS} |
+        {'text': orthokinematics, begun now} | {'push': (x, y, z) N, 'seconds': s} |
+        {'restart': True}: laid anew. Any other key is refused, said with her state."""
+        self._commands.put(command)
+
+    def latest(self, into=None):
+        """The newest state the worker has said, or the last one if nothing new; every one said
+        since appended to `into` if given."""
+        try:
+            while True:
+                self._last = self._states.get_nowait()
+                if into is not None:
+                    into.append(self._last)
+        except queue.Empty:
+            pass
+        return self._last
+
+    def close(self):
+        self._commands.put(None)
+        self._process.join(timeout=2.0)
+        if self._process.is_alive():
+            self._process.terminate()

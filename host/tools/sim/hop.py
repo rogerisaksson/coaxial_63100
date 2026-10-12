@@ -91,8 +91,8 @@ def hop(push=PUSH, hops=1, core=False, trace=False, fly=True, inner='pd', free=T
     it was; `free` False, her trunk is asked upright through the throw; `spring` False, her throw
     is asked to its time's end; `wrench`, on `machine.wrench`'s step; `trace` a row every 10 ms,
     `stack` the stand's own rows."""
-    from machine import balance, flight
-    from machine.gait import SHANK, THIGH
+    from machine import flight, wbc
+    from machine.figure import SHANK, THIGH
     from tools.sim import wbc as sim
     period = LOAD_S + PUSH_S + SETTLE_S
     rec = {'air': 0, 'apex': 0.0, 'clear': 0.0, 'landed': 0.0, 'flights': 0, 'run': 0,
@@ -110,8 +110,8 @@ def hop(push=PUSH, hops=1, core=False, trace=False, fly=True, inner='pd', free=T
         acc = ask['com_acc'].copy()
         if 0.0 <= t < LOAD_S:
             u = _eased(t / LOAD_S)
-            acc[1] = (balance.HEIGHT_KD[0] * (st['height'] - LOAD_M * u - s['com'][1])
-                      - balance.HEIGHT_KD[1] * s['vcom'][1])
+            acc[1] = (wbc.HEIGHT_KD[0] * (st['height'] - LOAD_M * u - s['com'][1])
+                      - wbc.HEIGHT_KD[1] * s['vcom'][1])
             ask['posture'] = crouched(st['posture'], sim.NAMES, knee * u)
         elif LOAD_S <= t < LOAD_S + PUSH_S:
             # her posture back up the way it came down; her trunk's turn unasked: asked upright
@@ -153,7 +153,7 @@ def hop(push=PUSH, hops=1, core=False, trace=False, fly=True, inner='pd', free=T
                     math.degrees(float(s['q'][body.knees[1]])), float(s['k'][0])))
         return ask
 
-    out = sim.stand(seconds=AT_S + hops * period, steps=False, core=core, asked=asked, inner=inner,
+    out = sim.stand(seconds=AT_S + hops * period, core=core, asked=asked, inner=inner,
                     trace=stack, wrench=wrench)
     for row in rec['rows']:
         print(row)

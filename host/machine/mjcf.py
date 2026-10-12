@@ -111,10 +111,9 @@ def mjcf():
     kin += [(part, other) for part, rides, _g in skeleton.bodies() for other in near[rides] if other]
     if xml not in _APART:
         import importlib
-        from machine import arrival, gait
         model = importlib.import_module('mujoco').MjModel.from_xml_string(_apart(xml, kin))
-        _APART[xml] = sorted(set(skeleton.overlapping(model, gait.stand()))
-                             | set(skeleton.overlapping(model, arrival.angles_of(arrival._squat()))))
+        _APART[xml] = sorted(set(skeleton.overlapping(model, figure.stand()))
+                             | set(skeleton.overlapping(model, figure.SQUAT)))
     return _apart(xml, kin + _APART[xml])
 
 

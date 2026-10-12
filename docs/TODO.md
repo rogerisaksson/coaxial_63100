@@ -13,205 +13,156 @@ gets a line at the end of [DONE](DONE.md).
 - Drives sized in the gym's scenes for simplicity, DFM and printing: few
   variants of toleranced parts (gearboxes, electronics); stock lengths,
   linkages and ball bearings.
-- End to end: the LLM picks a prose pattern, the director drives it over
-  the bus to the boards' firmware and drives, emulated or on the bench.
-- Under the patterns: classical IK (the arrival's keyframes, capture-point
-  foot placement) and a learned residual on its setpoints, a table the
-  director reads.
+- End to end: the LLM writes text of balance, rhythm and elasticity, her
+  latent loop runs it, its torques go over the bus to the boards' firmware
+  and drives, emulated or on the bench.
+- Under the text no rule a case and no branch: flat static arrays, a mode a
+  spring, a landing read from her capture point.
 - A special case means the problem needs a more general form.
 
 ## Gynoid, in order
 
-1. **Walk form, held by test.** A low-loss walk rolls over the hip, the
-   stance leg extended past plumb: `looks.FORM` in test_gynoid_gait.py,
-   smoked on the armada. The law's straight walk draws 495 J/m where its
-   crouched manner 393, at the landings and the swing's end (straight.md).
-   + Next: a standing leg solved from the leg as it landed, the height's
-     target begun where it was; the knee's damping by its leg's lever in
-     stance; each over a spread of starts.
-   + DOD: parries per spread <= 1 on any host; clean starts, standing and
-     from the squat, over a spread of side gains, roll peak 0.27; speed
-     within 5 % of plan at 1.0 strides/s; `looks.FORM` landing knee 15 deg;
-     test_gynoid_gait.py asserts fewer J/m than the same walk crouched to
-     12, 18, 24 and 30 deg at each pace; stance knee 4.5 deg or on its stop;
-     stride >= 1.0 m.
-2. **Running** (`machine/runner.py`, run.md): 0.72-1.65 m/s held; 2.0 m/s,
-   the foot sliding at landing and turns open.
-   + DOD: 2 m/s standing on the scoreboard; no strike > 2 kN; the biped
-     suite's parries, falls and get-ups as walking.
-3. **A real sneaker**: a TPU sole with air pockets under a shoe.
+1. **Orthokinematics, the one way she moves** (orthokinematics.md): her
+   movement is text of balance, rhythm and elasticity, compiled to rows;
+   her latent state is stepped and rendered with no branch, the whole-body
+   step under it. On the page she walks from rest at 0.61 m/s, 2.6 off a
+   woman's band, and crouches, shifts, bows, stands on one sole and hops
+   by digit. What is not below is not hers yet, and nothing else does it.
+   + Her walk's form: her knee lands at 31 deg (12) - her hip 1 to 2.5
+     cm under where a straight leg needs it -, a step 0.39 legs
+     (0.45), her knee swinging 45 deg (52), her heel 24 up as her toes
+     leave (28); her neck nodding -26 to +21 deg a stride; 3 of
+     `looks.FORM`'s 9 broken. Two takes of women:
+     1.1 m/s, a step 0.8 legs, the knee landing at 2-11 deg, 50-57 as
+     the toes leave, 68-73 swinging, the heel 38-57 up.
+   + A stagger: she falls 17 mm into each landing, her soles 485 N then
+     of her 306 and 183 after; the walk as built before the loop 10 mm,
+     421 and 269. No measure of it in `strides.WALK`, no bound in
+     `looks.FORM`.
+   + Her walk's speed: a drive past 0.6 surges and falls at 17 to 26
+     s; 1.0 m/s only with her arms at 130 deg and her head bobbing
+     0.19 m. Her run: none.
+   + Shoves: 10 to 40 N for 0.12 s fell her walk in 7 of 10, 3 to 10 s
+     after; no payload answers one yet; `ortho.py --look` shoves none.
+   + The hop as given: full extension asked off the floor and no
+     landing; her own text stands. On one sole, by micro-hops: untried.
+   + Her way: no mode turns her; no room round her, none of its words
+     (out, the lamp, sit, lie).
+   + Her rise from the squat, her stop from a walk: no text. Down, she
+     is laid anew: no fall taken, no get-up.
+   + The floor's events (a hole, a sill, a slip, a rug, stairs, a lace)
+     and a board's (its SOA, its heat): laid by nothing.
+   + The loop in C: `latent.step`, `impedance.ask` and `wrench.step` as
+     cores beside `wbc/`, `ortho_row_t` a header a test holds to
+     `ortho.ROW`; in python the page solves every third pass.
+   + From the page: a line to type a text into; the model composing
+     rows.
+   + On the front page's stand she stands: her walk there from a take of
+     the loop's.
+   + Her legs inside their reach's rows (`machine.reach`) walking:
+     unmeasured.
+   + DOD: from the page she rises, walks at 1.0 m/s in her form - on
+     the band, none of its names, beside a take of a woman's, on fewer
+     J/m than the same walk crouched -, turns, stops, runs 2 m/s, stands
+     on one sole 10 s by micro-hops, hops and gets up from a fall, each
+     a text; 80 N shoves parried by a payload; each of the floor's
+     events held 3 times in 4.
+2. **A real sneaker**: a TPU sole with air pockets under a shoe.
    + DOD: a size 37-38's length, width, springs, give, bend, grip, roll and
-     mass from a shoe's data; scoreboard held; strike N and touchdown m/s
+     mass from a shoe's data; her walk held; strike N and touchdown m/s
      quoted before and after.
-4. **Shell as armour** (body.md): printed plates over gel pads
+3. **Shell as armour** (body.md): printed plates over gel pads
    (`figure.PADS`) where a fall lands.
-   + DOD: floor force on a drum, a board or a tube 0 in the falls suite;
-     the plates under the clothes read as shape only, judged on a PNG.
-5. **Fewest parts** (`tools/sim/bom.py`, body.md): every holder and lever a
+   + DOD: floor force on a drum, a board or a tube 0 over a spread of
+     falls; the plates under the clothes read as shape only, judged on a
+     PNG.
+4. **Fewest parts** (`tools/sim/bom.py`, body.md): every holder and lever a
    2.5D print.
    + DOD: one bearing size, one rod end; the hip roll's spur pair and the
-     ankles' bent rods kept only where removing them costs the scoreboard;
+     ankles' bent rods kept only where removing them costs her walk;
      no flex > 0.25 deg; every bought part a vehicle maker's stock part.
-6. **Structural flex** (drives.md, body.md): the drive's loop on the motor's
-   encoder, the whole-body law on the joint's sensor (`physics.WOUND` 1); on
-   the gearboxes as bodies the walk on setpoints stands but drags its toes,
-   the loop on its torques walks.
+5. **Structural flex** (drives.md, body.md): the drive's loop on the motor's
+   encoder, the whole-body step on the joint's sensor (`physics.WOUND` 1).
    + DOD: `drives.BOX_K` and the toes' `TOE_K`, `TOE_LOSS` measured on
-     prototypes; the page's walk on the loop at `physics.BOXED` 1 on its
-     form; every member < 0.25 deg.
-7. **Gearboxes: one stage, hollow, printable**: a roller wave round the
+     prototypes; her walk on the loop at `physics.BOXED` 1 in its form;
+     every member < 0.25 deg.
+6. **Gearboxes: one stage, hollow, printable**: a roller wave round the
    motor's bore, stock rollers, consumer-printer tolerances, backdrivable
    (<https://mevirtuoso.com/wave-reducer-simulator/>,
    <https://smorygo.com/wave_reducer>).
-   + DOD: worst roller under 7075's yield at each size's peak; scoreboard
+   + DOD: worst roller under 7075's yield at each size's peak; her walk
      held at the stages' caps; joint breakaway < 10 N at its segment's
      end; a prototype's torque and backlash measured.
-8. **Gearboxes past their momentary ratings in falls** (body.md): each
+7. **Gearboxes past their momentary ratings in falls** (body.md): each
    drive's compliance a motor-side degree of freedom, else torque limiters.
-   + DOD: none > 1.0 in the scoreboard's falls.
-9. **Arms down while getting up** (body.md): hands on the knees, or more hip
-   torque; decision open.
-   + DOD: the decision; 5 of 5 hot; hands within 620 mm of the chest
-     through the lift.
-10. **Get-up end** (body.md): rocking before standing, feet split fore and
-    aft.
-    + DOD: split rms 0.25; feet 40-80 mm apart.
-11. **No abrupt get-up moves** (body.md).
-    + DOD: every joint < 400 deg/s, every foot < 2 m/s; fall to walking <
-      15 s; the loop at 1.0.
-12. **Falls past saving** (balance.md).
-    + DOD: a hand and a knee take the fall, called 0.3 s before the floor;
-      the body drawn in; head < 2 kN.
-13. **Scoreboard events** (balance.md): 88.5 % held; the lace 31 %, the
-    120 N shoves 25-46; stairs not in it.
-    + DOD: each > 75 %, the 120 N shoves and the lace among them, a slope
-      and a tilt among the events; the 1.0 walk standing; the sill's
-      spread the page's; stairs climbed; 8 halts of 8.
-14. **Skeleton collisions** (`physics.SKELETON`, body.md): on, each thigh's
-    bone meets its hip's gimbals as she rises, and she never walks.
-    + DOD: head on the floor in 0 of 64 falls.
-15. **Obstacle contacts**: toes into the sill, fingers into the floor at
+   + DOD: none > 1.0 over a spread of falls.
+8. **Her drives against what the loop asks**: the stacks were sized on the
+   laws before the loop (drives.md, stacks.md); DIMENSIONS.md's holds are
+   thermal alone.
+   + DOD: each drive's peak, rms, speed and heat on her walk, her hop and
+     a shove on the loop, none past 2/3 of a part's limit.
+9. **Skeleton collisions** (`physics.SKELETON`, body.md): her walk on the
+   loop with it on is untried.
+   + DOD: she walks with it on; head on the floor in 0 of 64 falls.
+10. **Obstacle contacts**: toes into the sill, fingers into the floor at
     MuJoCo's 0.02 s; overlap or force, decision open.
     + DOD: the decision; the set measured on it.
-16. **Carbon shells and clothes** over the structure as built (body.md).
-    + DOD: `fit.py` 0 mm past them in every pose; seat soft; jeans a coarse
-      cloth < 0.5 ms a step; no seam on a PNG.
-17. **Boards on their buses** (`machine.buses`).
-    + DOD: the walk on emulated boards end to end.
-18. **Planner server** after LOCAL_TRIES local failures.
-    + DOD: measured on a fall.
-19. **One going law, the page's own** (going.md, normal.md): 0.24 off
-    `normal.BAND` and on stilts to the eye, indoors, where she walks on
-    it: beside the take its pelvis turns 3.5 deg where 13.4, a foot leaves
-    with the knee 28 and the heel 23 deg where 36, her feet are 153 mm
-    apart where 27. Risen from a fall she is on the walk as built.
-    + DOD: the law the page's one walk, risen from a fall too; no stilts
-      by `normal.GAITS` at a gate the eye agrees with; presses 72 of 72.
-20. **Tubes, corners and flanges**: carbon tubes epoxied into printed
+11. **Carbon shells and clothes** over the structure as built (body.md).
+    + DOD: `fit.py` 0 mm past them standing, in the squat and over a
+      recorded walk; seat soft; jeans a coarse cloth < 0.5 ms a step; no
+      seam on a PNG.
+12. **Boards on their buses** (`machine.buses`): the loop writes its
+    torques into the world, no board hears them.
+    + DOD: her walk on the loop on emulated boards end to end, a
+      feedforward torque register on the wire (PROTOCOL MINOR), each
+      board's heat in her state.
+13. **Tubes, corners and flanges**: carbon tubes epoxied into printed
     corners; a gearbox on a flange; motor, box and board outermost; a
     grille or a heat sink on the FETs; a quick-release per limb.
     + DOD: no pair closer than before; each tube in its holder; each board
       on its flange; each quick-release's give modelled; a shoulder stop.
-21. **A dance from the move set**: on the toes and tripping, down, a turn
-    with the skirt swinging, seated legs crossed, up again.
+14. **A dance as a text**: on the toes and tripping, down, a turn with the
+    skirt swinging, seated legs crossed, up again.
     + DOD: twice through on the page, no fall.
-22. **Movement language** (`normal.WORDS`, `gaits.MANNERS`).
+15. **Movement language** (`normal.WORDS`): a word of the eye an accent of
+    a text.
     + DOD: tripping without a shuffle; 100 % of a take's measure; a walk
       into 20 N of wind with the asked accent; sitting, rising.
-23. **Lumbar curve, no holding torque for the pose** (kinematics.md).
-    + DOD: both walks' spine and hip torques < 0.5 N m on their stride
-      means; going and falls suites at 54 of 56 and 44 of 44.
-24. **The latent stack** (wbc.md): her physics as static arrays, one C loop
+16. **Lumbar curve, no holding torque for the pose** (kinematics.md).
+    + DOD: her walk's spine and hip torques < 0.5 N m on their stride
+      means.
+17. **The latent stack** (wbc.md): her physics as static arrays, one C loop
     over them (`wbc/`), R^k the only thing upward, the model feeding R^k as
-    data. No rule a case and no branch on the leg she stands on: what a
-    limb reaches is laid in advance and a landing read from it.
+    data.
     + Flight (`machine/flight.py`, flight.md): the strike at a landing,
       1.8-2.8 kN at 0.8 m/s; the loop in C 15-17 deg over a hop of 48 mm;
       a hop on one sole.
-    + Reach (`machine/reach.py`, kinematics.md): the law reading it, a
-      limb an index and the standing one landing again a hop; a landing
-      pitched and a heel risen in `land`; her legs above their soles
-      clear of each other.
+    + Reach (`machine/reach.py`, kinematics.md): her stride reading it, a
+      limb an index; a landing pitched and a heel risen in `land`; her
+      legs above their soles clear of each other.
     + Loop: a tick 26.8 M instructions on the image, 56 ms on the M7 where
-      the DOD's 1; 120 N shoves 0 of 8 where the stack 6. A step without an
-      active set (`machine/wrench.py`, wrench.md) stands, walks and hops in
-      python: 80 N 4 of 8 where the stack 7, its walk 1 400 J/m where 259;
-      in C, its tick on the M7.
+      the DOD's 1. The step without an active set (`machine/wrench.py`,
+      wrench.md) in C, its tick on the M7.
     + Bottom, each board: the ESO (`parts.Eso`, `CTRL_ESO`) onto the boards
       as built on the motor's encoder; torque and acceleration registers on
       the wire.
-    + Behaviour: impedance and a rhythm's phases in R^k are
-      orthokinematics (below); balance.py's and going.py's place taken
-      once its walk is hers.
-    + Upward: the law's rows as asks - balance point, contacts, clearances,
-      turns, hands; the model picks and fills rows (`decide`), never code.
     + Top: the model writes K and the phases, nothing else.
-    + Wire: a feedforward torque register (PROTOCOL MINOR).
-    + DOD: the stand and the walk on the C loop with their measures kept
-      (J/m, band, polar); a step < 1 ms on a 475 MHz M7; `machine/` in
+    + DOD: her stand and her walk on the C loop with their measures kept
+      (J/m, band, shoves); a step < 1 ms on a 475 MHz M7; `machine/` in
       subpackages, each file under 5 k tokens, `test_structure` on it.
-
-25. **The room's words** (room.md): out from where the page stands her
-    passes the door (test_room.py); from within 0.3 m of there 6 of 12,
-    from anywhere in the room 1 of 12.
-    + Door: her other hand meets the leaf at its hinge and stops her in
-      the doorway; opened before she walks through it, or passed nearer
-      its latch.
-    + Stopped while a speed is asked she goes over backward on both feet:
-      a step back as her capture point leaves her hold behind, whatever
-      is asked.
-    + Corners: a way laid with none she cannot walk at 0.3 rad/s, or a
-      corner met standing without its metre past.
-    + Lamp: her hand placed at a point - the arm's two joints solved for
-      the switch from the pelvis as read, or the reach as she walks the
-      last 0.4 m.
-    + Sit and lie: a step back to the seat, or the pelvis let down on the
-      law; lain along the bed from its foot she tumbled.
-    + DOD: U, I, E, Y from the page, each done and up again, 10 of 10
-      from anywhere in the room, in test_room.py.
-
-26. **Knowledge and models of her surroundings** (sight.md): a stereo pair
-    on her head, the room's things on a map she keeps, her ways planned
-    round them, her view on the page. After a look round the chair is
-    told where it stands and the table 0.07 m off, 254 of 256 cells
-    within 0.15 m of a thing; she maps what is within 2.5 m.
+18. **Knowledge and models of her surroundings** (sight.md): a stereo pair
+    on her head, the room's things on a map she keeps, a way planned
+    round them. After a look round the chair is told where it stands and
+    the table 0.07 m off, 254 of 256 cells within 0.15 m of a thing; she
+    maps what is within 2.5 m.
     + DOD: the map's boxes against the room's within 0.1 m, the bed's too
       (0.51 m off: its near edge alone); a chair moved into her way
-      walked round.
-
-27. **Orthokinematics** (orthokinematics.md): her movement is text of
-    balance, rhythm and elasticity, compiled to rows; her latent state
-    is stepped and rendered with no branch, the whole-body loop under
-    it. On the page's gym she stands, crouches, shifts, bows, stands on
-    one sole, hops and walks 0.61 m/s, 2.6 off a woman's band.
-    + Her walk's form: her knee lands at 31 deg (12) - her hip 1 to 2.5
-      cm under where a straight leg needs it -, a step 0.39 legs
-      (0.45), her knee swinging 45 deg (52), her heel 24 up as her toes
-      leave (28); 3 of `looks.FORM`'s 10 broken. Two takes of women:
-      1.1 m/s, a step 0.8 legs, the knee landing at 2-11 deg, 50-57 as
-      the toes leave, 68-73 swinging, the heel 38-57 up.
-    + Her walk's speed: a drive past 0.6 surges and falls at 17 to 26
-      s; 1.0 m/s only with her arms at 130 deg and her head bobbing
-      0.19 m.
-    + Shoves: 10 to 40 N for 0.12 s fell her walk in 7 of 10, 3 to 10 s
-      after; no payload answers one yet.
-    + The hop as given: full extension asked off the floor and no
-      landing; her own text stands. On one sole, by micro-hops: untried.
-    + Her way: no mode turns her; the gym has no room round her.
-    + The loop in C: `latent.step`, `impedance.ask` and `wrench.step` as
-      cores beside `wbc/`, `ortho_row_t` a header a test holds to
-      `ortho.ROW`; in python the page solves every third pass.
-    + From the page: a line to type a text into; the model composing
-      rows.
-    + The old laws: `going`, `hold`, `strut`, `free`, `gaits`, `pace`,
-      `walker`, `kin` and the director's walk go once the page's own
-      walk, her rise and her get-up are on the loop; kept beside it
-      until then.
-    + DOD: from the page she rises, walks at 1.0 m/s in her form - on
-      the band, none of its names, beside a take of a woman's -, turns,
-      stops, stands on one sole 10 s by micro-hops and hops, each a
-      text; 80 N shoves parried by a payload; the scoreboard held; the
-      old laws gone.
+      walked round on the loop; her view on the page.
+19. **Findings that tell of the laws before the loop**: body, feet, drives,
+    stacks, normal and wbc keep their figures under a note.
+    + DOD: each cut to what holds for her body and the loop; a check in
+      `test_layout`: no document names a module, a tool or a suite not
+      in the tree.
 
 ## Quad
 

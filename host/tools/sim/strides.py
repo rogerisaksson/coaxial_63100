@@ -15,25 +15,6 @@ def _faces(r, seg):
     return math.degrees(math.asin(max(-1.0, min(1.0, placed[seg][1][1][2]))))
 
 
-def _reach_off(r):
-    """Falling until an arm lands (a recording: falling), how far her reach - the hands from the
-    shoulders, across the floor - points off the way she tips, deg; else nan."""
-    landed = r.get('landed')
-    if (r['stage'] != 'falling' if landed is None
-            else r['stage'] not in ('falling', 'fallen') or landed):
-        return math.nan
-    from machine import figure
-    turn = figure.quat(*(float(r['q' + k]) for k in 'wxyz'))
-    tip = (turn[0][1], turn[2][1])
-    hands = _mid(_p(r, 'left_hand'), _p(r, 'right_hand'))
-    shoulders = _mid(_p(r, 'left_upper_arm'), _p(r, 'right_upper_arm'))
-    reach = (hands[0] - shoulders[0], hands[2] - shoulders[2])
-    if math.hypot(*tip) < 0.1 or math.hypot(*reach) < 0.05:
-        return math.nan
-    a = math.atan2(reach[0], reach[1]) - math.atan2(tip[0], tip[1])
-    return abs(math.degrees(math.atan2(math.sin(a), math.cos(a))))
-
-
 def _mid(a, b):
     return tuple((u + v) / 2.0 for u, v in zip(a, b))
 
@@ -117,7 +98,7 @@ def _thigh(dressed):
     m, crotch to knee: the crotch the pelvis's lowest point, or the jeans' seat's
     (`coaxial.graphics.gynoid`)."""
     from coaxial.graphics import gynoid
-    from machine.gait import HIP_DROP, THIGH
+    from machine.figure import HIP_DROP, THIGH
     meshes, parts = gynoid._meshes()
     worn = {part[0]: part[-1] for part in parts}
     thigh, seat = ((worn['cloth_left_thigh'], worn['cloth_seat']) if dressed
@@ -291,10 +272,10 @@ def _foot(r):
 
 def _heel(r):
     """The left heel's rise, deg: the ankle's line to the toes' joint off where the sole is flat."""
-    from machine import gait
+    from machine import figure
     ankle, toes = _p(r, 'left_foot'), _p(r, 'left_toes')
     return math.degrees(math.asin(max(-1.0, min(1.0, (ankle[1] - toes[1]) / math.dist(ankle, toes))))
-                        - math.atan2(gait.ANKLE_H - gait.TOE_RY, gait.BALL))
+                        - math.atan2(figure.ANKLE_H - figure.TOE_RY, figure.BALL))
 
 
 def _touchdown(rs):
@@ -372,10 +353,9 @@ def _turn(r):
 
 
 def measured(rows):
-    """{measure: value}: WALK over a walk's `rows`, and what no row says alone - the parries she
-    needed (`catches`) and, where the rows carry her power, the energy a metre (J/m)."""
+    """{measure: value}: WALK over a walk's `rows` and, where the rows carry her power, the
+    energy a metre (J/m)."""
     out = {name: f(rows) for name, _unit, f in WALK}
-    out['catches'] = sum(1 for a, b in zip(rows, rows[1:]) if b['stage'] == 'catch' != a['stage'])
     watts = [float(r['watts']) for r in rows if r.get('watts') not in (None, '')]
     on = float(rows[-1]['z']) - float(rows[0]['z'])
     if watts and on > 0.1:
@@ -385,7 +365,7 @@ def measured(rows):
 
 def steady(rows):
     """The steady walk's rows: from WALK_FROM_S after the walk begins."""
-    walk = [r for r in rows if r['stage'] in ('walk', 'catch')]
+    walk = [r for r in rows if r['stage'] == 'walk']
     return [r for r in walk if float(r['t']) >= float(walk[0]['t']) + WALK_FROM_S]
 
 
@@ -398,9 +378,9 @@ def walked(rows, take=None):
     if len(walk) < 2:
         return
     got = measured(walk)
-    print('\n9 walk from %.2f s to %.2f s' % (float(walk[0]['t']), float(walk[-1]['t'])))
+    print('\nwalk from %.2f s to %.2f s' % (float(walk[0]['t']), float(walk[-1]['t'])))
     print('  ' + ' | '.join('%s %.1f %s' % (name, got[name], unit) for name, unit, _f in WALK)
-          + ' | catches %d | energy %.0f J/m' % (got['catches'], got.get('energy', math.nan)))
+          + ' | energy %.0f J/m' % got.get('energy', math.nan))
     by_place = normal.measured(*fbx.joints(walk))
     far, out = normal.off(by_place)
     print("  off a woman's walk %.2f%s" % (far, ''.join(
