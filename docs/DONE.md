@@ -162,3 +162,7 @@ it names. A closed item is cut from the list and gets its line here, last.
     rms where 26.6, the least a board held 65.6 A where 54.8; the boards'
     rows 90-92 % of the clamp's pull at the least in fourteen winds where
     72-85, 34 flights of 34 whole ([streams](findings/streams.md)).
+49. The frame's core on the image computes as its host twin, to the wire's
+    millionth of a newton: built with no multiply fused into an add, where
+    its thrusts stood 3.6e-4 N off on CI's host and 1.7e-5 here; 150 442
+    cycles a pass where 149 288 ([streams](findings/streams.md)).

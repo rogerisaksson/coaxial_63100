@@ -19,7 +19,8 @@ SOURCES = [os.path.join(REPO, 'aero', name)
            for name in ('test/harness.c', 'src/aero.c', 'src/aero_turn.c', 'src/aero_share.c')]
 INCLUDES = [os.path.join(REPO, 'aero', 'inc'), os.path.join(REPO, 'aero', 'src')]
 #: Built as the firmware builds it (CMakeLists.txt), every symbol kept for ctypes.
-BUILT = ('-O2', '-fno-math-errno') + (('-Wl,--export-all-symbols',) if os.name == 'nt' else ())
+BUILT = ('-O2', '-fno-math-errno', '-ffp-contract=off') + (
+    ('-Wl,--export-all-symbols',) if os.name == 'nt' else ())
 
 #: aero.h's sizes.
 MODES, ROWS, TASKS, ROTORS, AXES, WRENCH = 6, 5, 2, 4, 3, 4

@@ -120,7 +120,8 @@ def test_the_core_ticks_on_the_image(report, rig, emu):
     """The frame's core (aero/) on the image, the quad's frame laid: the power loop's payloads
     a pass each over five readings (`aero_kit.asks`), an ask stepped again where an interrupt
     fell in its pass: a pass's cycles the same whatever it is asked - within two, the count's
-    own grain -, its thrusts the host core's on the reading as the board had it."""
+    own grain -, its thrusts the host core's on the reading as the board had it, to the
+    wire's millionth: fused multiplies on the image were 3.6e-4 N of them."""
     import aero_kit
     from tools.cores import aero
     payloads, readings = aero_kit.asks()
@@ -141,9 +142,9 @@ def test_the_core_ticks_on_the_image(report, rig, emu):
     least = min(passes)
     over = [c - least for c in passes if c > least + 2]
     report.check('a pass of the core on the image costs the same whatever it is asked; its '
-                 'thrusts and its rotors at an end the host core\'s within 1e-4 N',
+                 'thrusts and its rotors at an end the host core\'s to the wire\'s millionth',
                  max(took.values()) <= least + 2 and max(over, default=0) < 0.01 * least
-                 and apart < 1e-4,
+                 and apart <= 1e-6,
                  '%d to %d cycles, %.0f us at %.0f MHz, in each of %d asks; %d of %d passes '
                  'an interrupt longer, %d cycles at the most; %.1e N apart' % (
                      least, max(took.values()), 1e6 * least / hz, hz / 1e6, len(asks),
