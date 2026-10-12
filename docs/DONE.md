@@ -169,4 +169,8 @@ it names. A closed item is cut from the list and gets its line here, last.
 50. A stand-in board's pass in flight one C call (`world_drive_pass`):
     three calls a rotor a pass and their dictionary allocations unified;
     the page's flight over 20 frames a second ([quad](findings/quad.md)).
+51. The heat's clock in flight: flown on the flight's own seconds (clock=1),
+    observers warmed at idle on the floor out of UNCERTAIN before a first flight;
+    full tilt boards hold 58.7 A where 43.2, race laps 13.9 and 14.2 s, SOA 0.55-0.62
+    ([envelope](findings/envelope.md), [quad](findings/quad.md)).
 

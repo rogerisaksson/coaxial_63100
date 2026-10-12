@@ -104,19 +104,22 @@ STRUCK = {'tree': 'into a tree', 'house': 'into a house', 'car': 'into a car',
 APPLICATION = 'airstream'
 
 
-def arm(rig):
+def arm(rig, clock=1, warm_s=100.0):
     """A stand-in board's stage and drive for flight: its gates on the master's pilot, the
     63100's model under the propeller's inertia, a flight's clamp, its record's gains
     commissioning's arithmetic on that motor - on the record's placeholders the board's law
     trips at the first torque -, its own loop on the rotor's speed laid - a slew, the pole
-    pairs, the speed's PI -, the rotor at its idle (`spun`)."""
+    pairs, the speed's PI -, the rotor at its idle (`spun`).
+    The thermal observer runs on `clock` thermal seconds a second (1 for the flight's own
+    seconds), warmed `warm_s` s at idle on the floor so the observers are out of UNCERTAIN
+    before a first flight."""
     board = rig.board
     # Its heat on the flight's clock from here: on the wall's until the first pass, four boards
     # armed took a run's own seconds of it, and a flight run again was another.
     board.thermal.fast_forward(0.0)
     # In its rotor's wash, and the stand-in's truth laid on that: the observer and the board it
     # watches in the same air from the first pass.
-    board.thermal.configure(application=APPLICATION)
+    board.thermal.configure(application=APPLICATION, clock=clock)
     board.thermal.situation('bench')
     board.afe.on()
     rig.pilot(PILOT_VOLTS)
@@ -141,6 +144,8 @@ def arm(rig):
              'budget': {}, 'ident': {}, 'board_c': None,
              'slot': drive._slot, 'buf': (ctypes.c_double * 5)()}
     spun(rotor)
+    if warm_s:
+        board.thermal.fast_forward(warm_s, live=True)
     return rotor
 
 

@@ -374,6 +374,11 @@ race, 12 flights (`quad_race.py --suite all`):
   interpolation, drive execution and state readout unified into a single
   call per rotor pass, removing Python dictionary allocations; the flight
   page runs >20 frames a second.
+- The heat's clock in flight (`configure(clock=1)`): flown on the flight's own
+  thermal seconds instead of accelerated HASTE=10; boards warmed at rotor idle
+  on the floor (100 s) reach CONVERGING before the first flight (hold_amps 68.6 A),
+  avoiding the UNCERTAIN margin floor. Full tilt holds 58.7 A at least where 43.2,
+  legs at 0.81 of envelope where 0.90; race laps 13.9 and 14.2 s with SOA 0.55-0.62.
 
 ## The carried camera
 
