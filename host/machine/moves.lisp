@@ -45,7 +45,7 @@
 (stream_inject
   (sequence_id 204)
   (blend_duration 2000ms)
-  (latent_targets (mode_pitch_attitude 0.06))
+  (latent_targets (mode_pitch_attitude 0.0))
   (cpg_config
     (amplitude mode_sagittal_drive 0.6)
     (amplitude mode_foot_rock 0.6)
@@ -121,3 +121,33 @@
     (impedance (stiffness mode_lateral_shift 3000) (damping mode_lateral_shift 600))
     (cpg_override (halt_oscillators))
     (task_constraints (maintain_zmp (polygon support_polygon)))))
+
+;; ballistic walk from rest: crisp APA unweighting directly into stride
+(defbehavior ballistic_walk
+  (phase apa
+    (duration 300ms)
+    (blend_duration 200ms)
+    (latent_targets (mode_axial_compression 0.0) (mode_pitch_attitude 0.0))
+    (impedance
+      (stiffness mode_axial_compression 3000) (damping mode_axial_compression 600)
+      (stiffness mode_lateral_shift 3000) (damping mode_lateral_shift 300)
+      (stiffness mode_sagittal_shift 0) (damping mode_sagittal_shift 150)
+      (stiffness mode_foot_rock 2400) (damping mode_foot_rock 240))
+    (cpg_config
+      (enable true)
+      (frequency 0.9Hz)
+      (amplitude mode_lateral_shift 0.31)
+      (amplitude mode_sagittal_drive 0.2)
+      (phase_offset mode_lateral_shift mode_sagittal_drive 108deg))
+    (task_constraints (maintain_zmp (polygon dynamic_footprint))))
+  (phase stride
+    (duration 20s)
+    (blend_duration 400ms)
+    (latent_targets (mode_pitch_attitude 0.0))
+    (cpg_config
+      (amplitude mode_sagittal_drive 0.6)
+      (amplitude mode_limb_lift 1.0)
+      (amplitude mode_foot_rock 0.6)
+      (amplitude mode_pelvis_list 0.4)
+      (amplitude mode_pelvis_turn 0.4)
+      (amplitude mode_arm_swing 0.8))))

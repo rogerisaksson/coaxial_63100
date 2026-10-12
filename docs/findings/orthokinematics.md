@@ -98,6 +98,7 @@ third pass, 1.06 ms a pass walking, the page 0.9 of real time.
 | `bow`, pitch 0.5 | 0.502 | yes |
 | `one_sole`, lateral 1.0 and lift -1.0 in one row | 1.00, lift -0.98, the other sole 0 N | yes, 4 s on one |
 | `hop`: loaded 0.85, thrown by a spring that lets go at 0.15, her trunk free, landed at 0.25 | 1.10 m/s up, 0.21 s off the floor | yes, tilt 6.3 deg |
+| `ballistic_start`: APA pre-load -0.2 rock, 0.6 drive launch | 0.22 m forward, 13 landings | yes, tilt 5.5 deg |
 
 ### Her walk
 

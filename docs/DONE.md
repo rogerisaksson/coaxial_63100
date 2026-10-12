@@ -162,3 +162,22 @@ it names. A closed item is cut from the list and gets its line here, last.
     rms where 26.6, the least a board held 65.6 A where 54.8; the boards'
     rows 90-92 % of the clamp's pull at the least in fourteen winds where
     72-85, 34 flights of 34 whole ([streams](findings/streams.md)).
+49. Harmonized gait initiation & forward swing dynamics: stands still ~1.5 s
+    on both soles before stepping directly (#201 to #203); core pre-engaged
+    (pitch attitude 0.06, stiffness 3500 N m/rad) and sagittal shift damped
+    (200 N s/m) to eliminate overshoot; landing target `meet` along her travel
+    direction constrained to never step backward relative to foot lift-off position,
+    eliminating the backward foot jerk ('hästspark'); swing clearance and foot rock
+    harmonized in #203 (limb lift 0.8, foot rock 0.25, unpegged rock impedance) for
+    natural forward pendulum swing without trailing heel flick; her walk 0.71 m/s,
+    278 J/m, 2.13 off (stiff 0.16 where 0.32), head nod 1 deg
+    ([orthokinematics](findings/orthokinematics.md)).
+50. Invariant kinematic evaluation engine & CI guillotine (`tools/sim/gvs.py`, `tests/test_gvs.py`):
+    - Strips physical dimensions by Hof's scaling axiom (time tau, forces Mg, torques MgL0).
+    - Rigid Capture Point progression phase parameterization (no clock time or DTW).
+    - Geodesic SO(3) Lie group logarithmic map difference metric (joint GVS, aggregated GPS).
+    - Binary CI guillotine exit gate (`sys.exit(1) if gps > MAX_TOLERANCE`).
+    - Threadripper 32-core / 64-thread parallelization: MAX_SHARDS=32 in runner.py, documented in CLAUDE.md.
+    - Terminal stance knee hyperextension eliminated in wrench.step and sprung.py ref_q.
+
+

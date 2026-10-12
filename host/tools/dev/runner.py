@@ -39,7 +39,7 @@ HEAVY_GB = {'test_views_front.py': 2.0}
 #: behind them: 544 s. Shards at the whole work over the batons, 246 s, the views whole the
 #: last two minutes of it.
 SLICE_S = 10.0
-MAX_SHARDS = 16
+MAX_SHARDS = 32
 
 
 def run_captured(argv, timeout, cwd=None):

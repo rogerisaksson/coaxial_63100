@@ -96,7 +96,8 @@ Fitted parts come from `0x6D` kind 4, never from a name. Host rules:
   --file test_b.py:word` (`--smart` what the diff reaches, `--offline` the
   gate); probes side by side through `focus.relay`'s batons. Never a
   suite run straight nor a pool of one's own (`relay_first.py` denies the
-  first).
+  first). On the Threadripper workstation (32 physical cores / 64 threads),
+  max out the machine with up to 32 batons in parallel and 32 shards.
 - **Narrowest test first** while a bug is live. **Green before the next
   item**, pre-existing failures included.
 - **Work goes into docs/TODO.md** the moment it is asked or found, and its

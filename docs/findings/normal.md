@@ -54,6 +54,40 @@ Opened in no other program yet.
   than 4.5.
 - `mocap.py A.fbx B.fbx ..`: a column a take, off the band and from the
   first.
+- `tools/sim/gvs.py`: Hof-scaled geodesic Lie-algebraic SO(3) diff engine
+  against biological ground truth, enforcing the CI guillotine gate (GPS).
+
+## Doctrine: Mocap as Descriptive Truth, Not Prescriptive Law
+
+1. **Descriptive Truth, Never Prescriptive Control:**
+   Mocap data defines the normative destination, never runtime instructions.
+   The robot never tracks a mocap trajectory; the controller remains
+   completely unaware of biological gait data. Mocap serves strictly as an
+   external answer key to verify whether the physical modeling is complete.
+
+2. **Absolute Prohibition of Phenomenological Tuning:**
+   When the solver settles into an unnatural minimum (e.g. crouching,
+   wide-base waddling, or frantic tripping), adding ad-hoc damping filters,
+   deadbands, or heuristic anti-wobble weights is strictly prohibited. An
+   aberration proves that the cost function or constraint set in Lisp lacks
+   a thermodynamic, frictional, or structural constraint present in nature.
+
+3. **Deviation-Driven Development (GPS/GVS CI Guillotine):**
+   Pure physics (KKT, dynamic Contact Wrench Cones, mass-inertia) is
+   formulated in Lisp, compiled to deterministic DoD C code executed from
+   STM32 DTCMRAM, and benchmarked against mocap via Hof-scaled Lie-algebraic
+   SO(3) GVS (`tools/sim/gvs.py`). If the GPS metric exceeds tolerance, the
+   build terminates. Corrections must occur exclusively in the high-level
+   physical formulation, never via runtime parameter fudging.
+
+4. **Discovery of Hidden Constraints:**
+   Mocap demonstrates *what* biology executes; development systematically
+   deduces *why* (the underlying mechanical or energetic cost). Constraints
+   are identified and priced until the solver's most economical, least-effort
+   solution is naturally isomorphic to normative biological motion. Once
+   compiled and deployed to the MCU, mocap is completely erased from the
+   equation—leaving only the first-principles physics it demanded.
+
 
 ## Words
 

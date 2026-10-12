@@ -19,6 +19,11 @@
   (`machine.virtual`); `DYNAMIC`: the gynoid's figure in MuJoCo, each
   joint a drive (`machine.physics`); the HUMANOID page runs her on her latent
   loop in her own process (`machine.sprung`), the one thing that moves her.
+- Locomotion doctrine: Mocap is descriptive ground truth (an external answer key / CI benchmark),
+  never prescriptive runtime trajectory tracking. Phenomenological tuning (damping filters,
+  deadbands, anti-wobble weights) is strictly prohibited; solver deviations prove missing
+  thermodynamic, frictional, or structural constraints in Lisp. Hof-scaled Lie-algebraic
+  SO(3) GPS/GVS (`tools/sim/gvs.py`) gates CI. Mocap is completely erased from MCU runtime.
 - A loop data-oriented: `machine.cyclic` - `frame` (a structured array, a row
   a board), the parts as steps over rows (`STEPS`, held to `machine.parts` by
   test_cyclic), `edge`/`poll`/`push` the only board access, `run` the cycle.
@@ -36,8 +41,9 @@
   `test_simulated`, `test_native` (`body` the humanoid's) take words of
   test names; `test_emulator`'s groups, the gate's suites, `ab.py`'s pages
   and `make_notebooks.py --execute|--compare` run on the relay
-  (`tools/dev/focus.py`): a baton a physical core, a queue longest first, a
-  job ending hands its baton on, as the free commit holds.
+  (`tools/dev/focus.py`): a baton a physical core (32 cores / 64 threads on this
+  Threadripper workstation), a queue longest first, a job ending hands its baton on,
+  as the free commit holds; MAX_SHARDS=32 to saturate all cores.
 - A missing cable is not a failing suite (`open_session()` falls back to the
   stand-in). `tests/test_emulator.py` runs the image on Renode (skips without
   it; `setup.ps1` installs it); `tools/emu/emulator.py --nodes N` a limb.

@@ -80,7 +80,8 @@ def stands(zmp, xi, low, high, om, held, up, swaying, beat, bears, stood):
     within = ((zmp >= low - GATE_M) & (zmp <= high + GATE_M)).all(axis=1)
     landed = np.array(flight.standing(off < 0.5, loads, over, rising))
     early = (sweep > EARLY) & ((loads >= flight.TOUCH_N) | (stood > 0.5))
-    gone = (flying > 0.5) & (landed[::-1] | (over > flight.TOUCH_M)) & ~early
+    unweighted = (loads < flight.TOUCH_N) & landed[::-1] & (off > 0.0)
+    gone = ((flying > 0.5) | unweighted) & (landed[::-1] | (over > flight.TOUCH_M)) & ~early
     lifting = ((up > LIFT_EPS) & ((within[::-1] & swaying) | (over > flight.TOUCH_M))) | gone
     stance = np.array(flight.standing(~lifting, loads, over, rising), float)
     # and into the soles that are to stand - her capture point kept in them too while both
