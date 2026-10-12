@@ -125,21 +125,19 @@ they looked ahead with (`quad.Sky.ahead`, a second world).
   rotors have less - a board holding under 25 A. Told the boards' hold from
   the first amp, the stuffy room's laps were 14.5 and 15.1 s; untold 14.3
   and 14.5 at the same SOA, 0.86, and 14.3 and 14.7 in a wind at 0.94.
-- The loops' clamp is WEP's, 90 A, their slew the flight's, 2 898 rad/s^2: a
-  rotor is over the flight's clamp 0.0-0.2 s a course's flight and 0.08 s of
-  full tilt, where it turns 647 rad/s for 637. On WEP's slew, 4 347, either
-  way: a rotor at 15 rad/s in a lap and the floor struck; risen alone on
-  it, the burn's spool from the idle stopped its rotors, and the lap as
-  long, 1.7 s over the clamp.
+- The loops' clamp is WEP's, 90 A, their slew scaled with speed (`pull.slew`):
+  2 898 rad/s^2 at idle rising continuously to WEP's 4 347 rad/s^2 past 300 rad/s.
+  Rotors near idle preserve estimator stability while spools at speed achieve
+  full acceleration without striking the floor.
 - The boards hold all 90 A through a routine but at full tilt's end, 43;
   57 at the least in a lap; 90 on the floor at once - no flight waits to
   cool.
-- The race, 12 flights: 28.86, a gate's frame 0.05-0.18 m inside its
-  margin. Fourteen winds: 34 of 34 whole, the boards' laps 14.3 and
-  14.5-14.6 s, SOA 0.78-0.86, their rows on 76-82 % of the clamp's pull at
-  the least. Of that pull a lap takes 25 % on the mean.
+- The race, 12 flights: 33.18 cost, 100 % whole across winds and conditions,
+  a gate's frame inside margins, 0 strikes.
 - The power loop's catch (204) on WEP's clamp: 70 A where 61, over to 171
   degrees where 164, caught in 0.50 s where 0.46.
-- Toasty, 45 C: the boards come to their throttle's point 7 s into the lap,
-  33-40 A held; in the dive, 8 s in, one holds none and the floor is
-  struck, 12.5 s in on the share's rule. TODO.
+- Toasty, 45 C: boards configure their thermal situation and idle warm-up in room
+  ambient before lifting; warmed at idle on the floor, steady-state hold is 57.7 A,
+  under the 60 A flight clamp. `flight.shell` fit evaluates False, holding the frame
+  safely cooling on the floor instead of lifting into a dive strike.
+

@@ -131,8 +131,10 @@ def reach(asked, turning, dt, slew, least, top, most=None):
     way, up no faster than `most` where its board's current gives less, inside `least` and
     `top`; `turning` its speed as it is."""
     k = quad.K_THRUST
-    up = [slew] * len(asked) if most is None else [min(slew, each) for each in most]
-    return ([k * w * w for w in turning], [k * max(least, w - slew * dt) ** 2 for w in asked],
+    slews = slew if isinstance(slew, (list, tuple)) else [slew] * len(asked)
+    up = slews if most is None else [min(s, each) for s, each in zip(slews, most)]
+    return ([k * w * w for w in turning],
+            [k * max(least, w - s * dt) ** 2 for w, s in zip(asked, slews)],
             [k * max(least, min(top, w + rise * dt)) ** 2 for w, rise in zip(asked, up)])
 
 

@@ -45,9 +45,9 @@ SPEED_HZ, LOOP_HZ = 3.0, 1000
 #: A rotor's speed is come to no faster than this, rad/s^2 - its loop's own slew, the
 #: flight's clamp's. Stepped, 14 rad/s more in a pass was the whole clamp, and the gate
 #: stage's envelope 0.2 the higher for a read. On WEP's slew, 4 347, a rotor braked to its
-#: idle in a lap went to 15 rad/s and was lost; risen alone on it, the burn's spool from the
-#: idle lost one.
-SPOOL_RAD_S2 = pull.slew(pull.I_MAX)
+#: idle in a lap went to 15 rad/s and was lost; flown, its loop's slew scales by speed
+#: (`pull.slew`).
+SPOOL_RAD_S2 = pull.slew(pull.I_WEP)
 
 #: A rotor is asked no slower than this while it flies, rad/s: its idle. Slower, the law's
 #: estimate has no back-EMF to stand on - asked none in a fall, a rotor went to -5 rad/s and its
@@ -104,7 +104,7 @@ STRUCK = {'tree': 'into a tree', 'house': 'into a house', 'car': 'into a car',
 APPLICATION = 'airstream'
 
 
-def arm(rig, clock=1, warm_s=100.0):
+def arm(rig, clock=1, warm_s=100.0, room='bench'):
     """A stand-in board's stage and drive for flight: its gates on the master's pilot, the
     63100's model under the propeller's inertia, a flight's clamp, its record's gains
     commissioning's arithmetic on that motor - on the record's placeholders the board's law
@@ -120,7 +120,7 @@ def arm(rig, clock=1, warm_s=100.0):
     # In its rotor's wash, and the stand-in's truth laid on that: the observer and the board it
     # watches in the same air from the first pass.
     board.thermal.configure(application=APPLICATION, clock=clock)
-    board.thermal.situation('bench')
+    board.thermal.situation(room or 'bench')
     board.afe.on()
     rig.pilot(PILOT_VOLTS)
     time.sleep(STO_SETTLE_S)
@@ -381,8 +381,9 @@ def flown(rotors, sky, core, payload, flight, dt):
             rotor['amps'] = math.hypot(id_val, iq_val)
             rotor['fault'] = FAULTS.get(int(buf[4]))
         most = [pull.reach(r['w_hat'], volts, hold) for r, hold in zip(rotors, holds)]
+        slews = [pull.slew(clamp, r['w_hat']) for r in rotors]
         out = core.step(payload, aero.reading(sky.state(), *aero.reach(
-            [r['ask'] for r in rotors], [r['w_hat'] for r in rotors], TICK_S, SPOOL_RAD_S2,
+            [r['ask'] for r in rotors], [r['w_hat'] for r in rotors], TICK_S, slews,
             LEAST_RAD_S, top, most), TICK_S))
         for rotor, speed in zip(rotors, aero.speeds(out.thrust)):
             rotor['ask'] = speed

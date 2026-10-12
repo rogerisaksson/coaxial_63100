@@ -225,9 +225,7 @@ def boards(air, room=BENCH, left=1.0):
     from coaxial import Coaxial63100
     from machine.modes import SIMULATED
     view = owner('flight.CARD')[0]
-    rotors = [view.arm(Coaxial63100(execution_mode=SIMULATED).open()) for _ in range(4)]
-    for rotor in rotors:
-        rotor['rig'].board.thermal.situation(room)
+    rotors = [view.arm(Coaxial63100(execution_mode=SIMULATED).open(), room=room) for _ in range(4)]
     sky, route = quad.Sky(grounds.solids()), aerobatics.routine(course.CARD)
     law, flight = aerokin.fresh(), view.fresh()
     flight['cells'].update(left=left, volts=quad.open_volts(left))

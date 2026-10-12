@@ -245,13 +245,6 @@ gets a line at the end of [DONE](DONE.md).
     clause in a pass above the core, its lead and its swing the tilt's own
     (streams.md). Left: the lap's sphere - 0.37 of the clamp's pull flies,
     0.40 does not - and its brake's, go's and stop's shares, searched.
-  + WEP's reach: the loops' slew is the flight's clamp's; on WEP's a rotor
-    near its idle is lost, braked or risen (envelope.md). DOD: the
-    estimate's reach by speed on the stand-in, the loops' slew that.
-  + A room too hot for a lap (toasty, 45 C): a board holds none in the
-    dive and the floor is struck. DOD: what the boards hold a flight long
-    in their room, known before it lifts (thermal op, a horizon), `fit` on
-    it.
   + A flight on a board's core: device 14 takes its reading off the wire,
     246 bytes a pass. DOD: the reading the board's own - its IMU's, its
     rotors' off the bus -, a pass in its sample, the page's flight on it.

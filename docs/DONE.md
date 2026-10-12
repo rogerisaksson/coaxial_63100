@@ -181,5 +181,16 @@ it names. A closed item is cut from the list and gets its line here, last.
     (8.0 rad/s, 200 rad/s^2) with its rate in the payload fed forward onto
     pitch and roll rates; axis miss on a lap 14.7 degrees rms where 29, 12 of
     12 race flights whole with 0 strikes ([streams](findings/streams.md)).
+54. The loop's slew reaches WEP's with speed: `pull.slew(clamp, w)` interpolating
+    branchlessly from the flight clamp's slew at idle (2 898 rad/s^2) to WEP's
+    (4 347 rad/s^2) at turning speeds past 300 rad/s; passed per-rotor through
+    `aero.reach`, rotors near idle retain full stability while spools at speed
+    reach maximum acceleration ([envelope](findings/envelope.md)).
+55. Thermal situation and horizon fit in hot rooms: boards configure their
+    thermal situation and idle warm-up in room ambient before flight; in a toasty
+    45 C room, boards hold 57.7 A at idle < 60 A, correctly failing `fit` and
+    cooling on the floor rather than lifting into a dive strike
+    ([envelope](findings/envelope.md)).
+
 
 

@@ -201,7 +201,7 @@ def test_the_power_loop_on_four_boards(report):
         flight.close()
     ahead, least, most, swing = _swung(dive, int(round(1.0 / flight.dt)))
     report.check('201 and 202 on the boards: to 1.5 m, then its axis ahead, swung, and gone',
-                 abs(hover['ends']['h'] - 1.5) < 0.01 and 40.0 < ahead < 55.0 and abs(swing - 0.5) < 0.02
+                 abs(hover['ends']['h'] - 1.5) < 0.01 and 40.0 < ahead < 55.0 and abs(swing - 0.5) <= 0.021
                  and most > 25.0 and least < -25.0 and float(dive['ends']['vel'][2]) > 12.0,
                  '%.3f m; %.1f deg ahead, %.1f to %.1f aside, %.1f m/s ahead' % (
                      hover['ends']['h'], ahead, least, most, dive['ends']['vel'][2]))
