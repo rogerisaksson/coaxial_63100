@@ -52,10 +52,11 @@ TOUCHES = (
     ('host/machine/quad.py',                   QUADS + (AERO_CORE, STREAMS)),
     ('host/machine/aerolisp.py',               (AERO_CORE, STREAMS)),
     ('host/machine/intents.py',                (STREAMS,)),
+    ('host/machine/aerokin.py',                (STREAMS,)),
     ('host/machine/flying.py',                 QUADS),
-    ('host/machine/aerobatics.py',             QUADS),
-    ('host/machine/course.py',                 QUADS),
-    ('host/machine/grounds.py',                QUADS + (RENDER,)),
+    ('host/machine/aerobatics.py',             QUADS + (STREAMS,)),
+    ('host/machine/course.py',                 QUADS + (STREAMS,)),
+    ('host/machine/grounds.py',                QUADS + (RENDER, STREAMS)),
     ('host/coaxial/graphics/quadcopter.py',    QUADS + (RENDER,)),
     ('host/coaxial/graphics/scenery.py',       QUADS + (RENDER,)),
     ('host/coaxial/graphics/onboard.py',       QUADS),
@@ -145,7 +146,7 @@ TOUCHES = (
     ('host/tools/sim/go.py',                   (STRUCTURE, GYNOID_GOING)),
     ('host/tools/sim/normal.py',               (STRUCTURE, GYNOID_GAIT, GYNOID_GOING)),
     ('host/tools/sim/fbx.py',                  (STRUCTURE, GYNOID_GAIT, GYNOID_GOING)),
-    ('host/tools/sim/quad_race.py',            QUADS),
+    ('host/tools/sim/quad_race.py',            QUADS + (STREAMS,)),
     # BENCH: firmware in the main loop is what slows the board (the thermal
     # observer's per-poll ADC and SPI reads; a poll that lost a Modbus byte).
     ('comms/',                                 (WIRE, NATIVE, EMULATOR, CONFORMANCE, 'test_mcp.py',

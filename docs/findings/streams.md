@@ -160,6 +160,24 @@ rate under 3 rad/s, for 50 ms -, the hover asked again:
 - A stream says nothing of when: 204 comes at its injector's time, and a
   turn asked at 314 rad/s is over in 20 ms in a vacuum.
 
+## A card's rows
+
+A card flown a pass a row (`machine.aerokin`, `streams.routine`): the row's
+pull in a vacuum as a collective and its rotors' axis's tilt in the heading
+the core holds, the turn the law's heading gives that axis as the rates
+about the wing and the nose, the tilt's damping on what the frame turns
+short of them. Ideal rotors, a pass 20 ms, the core's ten in it; beside it
+the law the page flies (`machine.flying`).
+
+| Card | Its rows' payloads | The law |
+| --- | --- | --- |
+| the routine | 59.1 s; a roll and a flip to 179 degrees, each caught 0.4 off, 0.08 m from its spot, the axis 21 and 14 off at the most on the way; the burn stopped at 0.12 m | 59.8 s; its catches to 176 |
+| the course | laps 14.9 and 14.8 s, 15.5 m/s at the most, the nearest tip 0.33 m from a gate's frame | 14.2 and 14.4 s, 16.5 m/s |
+| the course, the tour's air of three seeds | 14.8-14.9 and 15.1-15.5 s, tips 0.26-0.33 m | - |
+
+- The law's drag is fed forward at the speed asked; here the air is the
+  observers' alone, the frame flown as in none.
+
 ## On four boards
 
 The page's four stand-in boards (`terminal.views.quad.flight.flown`), the

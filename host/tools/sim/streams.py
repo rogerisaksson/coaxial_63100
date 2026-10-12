@@ -6,12 +6,15 @@
     python tools/sim/streams.py --upsets                         # a hover asked from upsets
 
     python tools/sim/streams.py --boards                         # on four stand-in boards
+    python tools/sim/streams.py --card course                    # a card flown from its rows
 
 A row a stream: where it ends - height, speed, the nose's and the wing's rise, the rotors' axis
 off up, the rates -, and over it the axis's tilt, the most any rate was, the heights, the share
 of its passes a rotor stood at an end of its reach, what was struck. The ideal rotors come to a
 thrust asked inside their reach a pass on (`aero.reach`), a rotor's own lag taken out of the
-ask; the boards' are their own loops', a pass of the core each of the world's steps.
+ask; the boards' are their own loops', a pass of the core each of the world's steps. A card
+(`machine.aerobatics`', `machine.course`'s) is a row a pass, each a payload (`machine.aerokin`):
+a row a figure.
 """
 import argparse
 import math
@@ -21,7 +24,7 @@ from typing import Any
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from machine import aerolisp, intents, quad  # noqa: E402
+from machine import aerobatics, aerokin, aerolisp, course, grounds, intents, quad  # noqa: E402
 from tools.cores import aero  # noqa: E402
 
 #: The ideal rotors: their top and idle, rad/s, what their speed changes by at the most,
@@ -42,6 +45,12 @@ HOVER = """(stream_inject (sequence_id 1) (blend_duration 0ms)
 #: every rate under CAUGHT_RAD_S, for CAUGHT_S.
 TILTS, TURNS, UPSET_M, STOOD_DEG, STOOD_RAD_S = (30.0, 90.0, 150.0), (0.0, 6.0, 9.0), 5.0, 3.0, 0.5
 CAUGHT_RAD_S, CAUGHT_S = 3.0, 0.05
+
+#: A card's pass, s: a row a pass, the flight's own passes inside it. The cards by name, each
+#: with what stands about it.
+PASS_S = 0.02
+CARDS = {'routine': (lambda: aerobatics.CARD, lambda: ()),
+         'course': (lambda: course.CARD, grounds.solids)}
 
 
 def symbols():
@@ -171,6 +180,45 @@ def flown(flight, payloads, seconds, near=None):
     return rows
 
 
+def routine(flight, card, seconds=150.0, share=1.0):
+    """A card flown once through from its rows, nothing above them: a pass of PASS_S the
+    card's row for now (`aerobatics.fly`), the payload that row is of the frame as it flies
+    (`aerokin.step`, in the heading the core holds), the flight's passes on it - planned on
+    `share` of the rotors' pull - till the card comes round, a thing is struck or `seconds`
+    are up. A row a figure as it came: {'name', 'passes': [(clock, the frame, the lap it is on
+    or None)]}."""
+    top = symbols()['MAX_SYS_THRUST']
+    pull = share * aerokin.HEADROOM * top
+    route, law, rows, clock, left = aerobatics.routine(card), aerokin.fresh(), [], 0.0, False
+    while clock < seconds:
+        frame = flight.sky.state()
+        route['seen'] = dict(aerokin.seen(law, frame, PASS_S, pull, top), spent=False)
+        name, row = aerobatics.fly(route, clock, (['held'] if law['held'] else []) + ['fit'])
+        if frame['hit'] or (left and route['row'] == 0):
+            break
+        left = left or route['row'] != 0
+        payload = aero.payload(aerokin.step(law, row, frame, PASS_S, pull,
+                                            tuple(flight.core.out.head)))
+        for _ in range(max(1, int(round(PASS_S / flight.dt)))):
+            flight.step(payload)
+        clock += PASS_S
+        if not rows or rows[-1]['name'] != name:
+            rows.append({'name': name, 'passes': []})
+        rows[-1]['passes'].append((clock, flight.sky.state(),
+                                   (route.get('lap') or {}).get('laps') if name == 'lap' else None))
+    return rows
+
+
+def laps(rows):
+    """Each lap's seconds, of a card's rows (`routine`)."""
+    marks = {}
+    for row in rows:
+        for clock, _frame, lap in row['passes']:
+            if lap is not None:
+                marks.setdefault(lap, []).append(clock)
+    return [marks[lap][-1] - marks[lap][0] for lap in sorted(marks)]
+
+
 def upset(off_deg, turning, seconds=4.0):
     """A hover asked of the frame UPSET_M up with its axis `off_deg` off up - nose down - and
     turning `turning` rad/s about it: (the seconds it stood from or None, its axis off up at
@@ -203,6 +251,19 @@ def _show(row):
                                 '  STRUCK %s' % ends['hit'] if ends['hit'] else '')))
 
 
+def _figure(row):
+    passes = row['passes']
+    ends, heights = passes[-1][1], [s['h'] for _t, s, _l in passes]
+    offs = [tilt(s['turn'])[2] for _t, s, _l in passes]
+    print('%-10s %5.1f..%5.1f s  h %6.2f..%6.2f ends %6.2f m at %6.2f %6.2f  off to %5.1f ends '
+          '%5.1f deg  a rate to %4.1f rad/s  %4.1f m/s at the most%s' % (
+              row['name'], passes[0][0], passes[-1][0], min(heights), max(heights), ends['h'],
+              float(ends['at'][0]), float(ends['at'][2]), max(offs), offs[-1],
+              max(abs(float(x)) for _t, s, _l in passes for x in s['spin']),
+              max(math.hypot(float(s['vel'][0]), float(s['vel'][2])) for _t, s, _l in passes),
+              '  STRUCK %s' % ends['hit'] if ends['hit'] else ''))
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
     parser.add_argument('text', nargs='?', help="a file of streams; none: the power loop's")
@@ -213,7 +274,16 @@ def main(argv=None):
     parser.add_argument('--upsets', action='store_true', help='a hover asked from upsets')
     parser.add_argument('--boards', action='store_true',
                         help='on four stand-in boards, their envelopes binding')
+    parser.add_argument('--card', choices=sorted(CARDS), help='a card flown from its rows')
     args = parser.parse_args(argv)
+    if args.card:
+        card, things = CARDS[args.card]
+        rows = routine(Flight(None if args.air is None else quad.air(args.air),
+                              things=things()), card())
+        for row in rows:
+            _figure(row)
+        print('laps %s' % (' '.join('%.1f' % lap for lap in laps(rows)) or 'none'))
+        return 0
     if args.upsets:
         for off in TILTS:
             for turning in TURNS:

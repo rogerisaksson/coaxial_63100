@@ -209,6 +209,11 @@ def apply(a, v):
             a[2][0] * x + a[2][1] * y + a[2][2] * z)
 
 
+def cross(a, b):
+    """a x b."""
+    return (a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0])
+
+
 def add(*vs):
     return (sum(v[0] for v in vs), sum(v[1] for v in vs), sum(v[2] for v in vs))
 

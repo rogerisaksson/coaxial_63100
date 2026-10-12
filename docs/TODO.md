@@ -231,10 +231,11 @@ gets a line at the end of [DONE](DONE.md).
   observer for the air, the precession and a weak rotor, an active set over
   the rotors' thrusts inside what each board holds. Above the core no
   mixing, no Euler angle, no air; in it no `if`.
-  + The page's card and the course as streams: `machine.flying`'s clauses,
-    `thrusts`, `flight.envelope`, `emergency`, `FIT`, `GONE_S`,
-    `Flying.short` gone; the action space computed beforehand
-    (`machine/pull.py`) what the compiler plans in, WEP its outer shell.
+  + The page's flight and the race on their cards' rows (`machine.aerokin`,
+    on ideal rotors in streams.md): `machine.flying`'s clauses, `thrusts`,
+    `flight.envelope`, `emergency`, `FIT`, `GONE_S`, `Flying.short` gone;
+    the action space computed beforehand (`machine/pull.py`) what the
+    compiler plans in, WEP its outer shell.
   + The core on the image: a tick's cycles, the same whatever it is asked
     (device, PROTOCOL MINOR).
   + DOD: `quad_race.py`'s laps against today's on the law's rotors, every

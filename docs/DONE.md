@@ -77,3 +77,7 @@ it names. A closed item is cut from the list and gets its line here, last.
     push: the catch from turns of 0.03 to 0.12 s in 0.32-0.62 s, a hover
     stood from 12 rad/s about its axis a quarter turn off
     ([streams](findings/streams.md)).
+31. The page's routine and the course flown from their cards' rows
+    (`machine.aerokin`), a pass a payload and the air the core's: 59.1 s;
+    laps 14.9 and 14.8 s, whole in the tour's air
+    ([streams](findings/streams.md)).

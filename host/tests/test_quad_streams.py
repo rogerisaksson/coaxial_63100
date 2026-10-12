@@ -3,7 +3,8 @@
 
 The power loop's four streams as payloads; a stream laid over the one before it; what is no
 stream refused; the four flown on ideal rotors in MuJoCo (`tools/sim/streams.py`) and on four
-stand-in boards; a hover's stream in the tour's air; a hover asked from upsets."""
+stand-in boards; a hover's stream in the tour's air; a hover asked from upsets; the page's
+routine and the course flown from their cards' rows (`machine.aerokin`)."""
 import math
 import struct
 import sys
@@ -267,10 +268,96 @@ def test_a_hover_is_stood_from_an_upset(report):
                                for w, stood, _rest, _low, _hit in rows))
 
 
+def _figures(rows):
+    """{a figure's name: [its rows' (heights, the axis off up, the rates, the speeds along the
+    floor, the last frame)]} of a card's rows (`streams.routine`), a figure flown twice twice."""
+    from tools.sim import streams
+    out = {}
+    for row in rows:
+        frames = [s for _t, s, _l in row['passes']]
+        out.setdefault(row['name'], []).append((
+            [s['h'] for s in frames], [streams.tilt(s['turn'])[2] for s in frames],
+            [max(abs(float(x)) for x in s['spin']) for s in frames],
+            [math.hypot(float(s['vel'][0]), float(s['vel'][2])) for s in frames], frames[-1]))
+    return out
+
+
+def test_the_routine_is_flown_from_its_rows(report):
+    """`aerobatics.CARD` on ideal rotors, a pass a row's payload and nothing above it: every
+    figure to its landing, nothing struck - held over its spot, turned on it, slid round its
+    orbit and climbed it; over its back about its nose and about its wing, each caught level
+    where it was tossed from; full tilt, and the burn stopped over the floor."""
+    from machine import aerobatics, quad
+    from tools.sim import streams
+    flight = streams.Flight()
+    rows = streams.routine(flight, aerobatics.CARD)
+    names, got = [row['name'] for row in rows], _figures(rows)
+    report.check('every figure of the card, in its order, to the floor: nothing struck',
+                 names == [figure[0] for figure in aerobatics.CARD]
+                 and flight.sky.state()['hit'] is None and rows[-1]['passes'][-1][0] < 62.0,
+                 '%d of %d figures in %.1f s%s' % (
+                     len(names), len(aerobatics.CARD), rows[-1]['passes'][-1][0],
+                     ', struck %s' % flight.sky.state()['hit'] if flight.sky.state()['hit'] else ''))
+    hover, turned, orbit, screw = (got[name][0] for name in (
+        'hover', 'pirouette', 'orbit', 'corkscrew'))
+    report.check('held at 1.5 m, turned on its spot, slid round its orbit banked, climbed it',
+                 abs(hover[4]['h'] - aerobatics.HOVER_M) < 0.02 and 1.8 < max(turned[2]) < 2.6
+                 and max(turned[3]) < 0.1 and 20.0 < max(orbit[1]) < 35.0
+                 and 2.5 < max(orbit[3]) < 3.6 and abs(screw[4]['h'] - aerobatics.TOP_M) < 0.05,
+                 '%.3f m; %.1f rad/s on %.2f m/s; %.0f deg at %.1f m/s; %.2f m' % (
+                     hover[4]['h'], max(turned[2]), max(turned[3]), max(orbit[1]),
+                     max(orbit[3]), screw[4]['h']))
+    for name, catch in zip(('roll', 'flip'), got['catch']):
+        over = got[name][0]
+        report.check('the %s: over its back, caught level over its spot at its height' % name,
+                     max(over[1]) > 170.0 and catch[1][-1] < 2.0
+                     and abs(catch[4]['h'] - aerobatics.TOP_M) < 0.05
+                     and math.hypot(float(catch[4]['at'][0]), float(catch[4]['at'][2])) < 0.3,
+                     '%.0f deg off at the most; %.1f off, %.2f m up, %.2f m from its spot' % (
+                         max(over[1]), catch[1][-1], catch[4]['h'],
+                         math.hypot(float(catch[4]['at'][0]), float(catch[4]['at'][2]))))
+    tilt, burn = got['full tilt'][0], got['burn'][0]
+    report.check('full tilt, and its burn stopped over the floor, level',
+                 max(tilt[0]) > 35.0 and min(burn[0]) > 0.5 * quad.FLOOR_M
+                 and abs(burn[4]['h'] - quad.FLOOR_M) < 0.05 and burn[1][-1] < 1.0,
+                 '%.1f m up; %.2f m at the lowest, %.2f at its end, %.1f deg off' % (
+                     max(tilt[0]), min(burn[0]), burn[4]['h'], burn[1][-1]))
+
+
+def test_the_course_is_flown_from_its_rows(report):
+    """`course.CARD` among what stands, solid, a pass a row's payload: from the floor onto
+    its grid, its laps and down - nothing struck, no propeller's tip nearer a gate's frame
+    than a quarter of a metre; and in the tour's air."""
+    from machine import course, grounds, quad
+    from tools.sim import quad_race, streams
+    for seed in (None, 3):
+        flight = streams.Flight(None if seed is None else quad.air(seed),
+                                things=grounds.solids())
+        rows = streams.routine(flight, course.CARD)
+        laps, hit = streams.laps(rows), flight.sky.state()['hit']
+        flown = [(float(s['at'][0]), s['h'], float(s['at'][2]),
+                  math.sqrt(sum(float(c) ** 2 for c in s['vel'])))
+                 for row in rows if row['name'] == 'lap' for _t, s, _l in row['passes']]
+        miss, passes = quad_race.missed(flown) if flown else (math.inf, 0)
+        report.check('%s: its laps flown and landed, nothing struck' % (
+            'still air' if seed is None else 'the tour\'s air'),
+                     hit is None and rows[-1]['name'] == course.CARD[-1][0]
+                     and len(laps) == course.LAPS and max(laps) < 16.5,
+                     'laps %s s%s' % (' '.join('%.1f' % lap for lap in laps),
+                                      ', struck %s' % hit if hit else ''))
+        report.check('%s: every gate passed, no tip within 0.25 m of a frame' % (
+            'still air' if seed is None else 'the tour\'s air'),
+                     passes == course.LAPS * len(grounds.GATES) - 1
+                     and miss < quad_race.MISS_M - 0.25,
+                     '%d gates, the nearest tip %.2f m from a frame' % (
+                         passes, quad_race.MISS_M - miss))
+
+
 ROSTER = (test_the_power_loop_compiles, test_a_stream_alone_is_its_authors_bytes,
           test_what_is_no_stream_is_refused, test_the_power_loop_is_flown,
           test_the_power_loop_on_four_boards, test_a_hover_keeps_still_in_the_air,
-          test_a_hover_is_stood_from_an_upset)
+          test_a_hover_is_stood_from_an_upset, test_the_routine_is_flown_from_its_rows,
+          test_the_course_is_flown_from_its_rows)
 
 
 def main(argv=None):

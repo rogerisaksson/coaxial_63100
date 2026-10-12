@@ -24,7 +24,7 @@ row for 9.6 m/s and its end for a pull of 100 m/s^2: the frame left the floor fo
 """
 import math
 
-from machine.figure import mul, rx, rz, t
+from machine.figure import cross, mul, rx, rz, t
 from machine import quad, thrusts
 
 #: The altitude loop's gain on its rate, 1/s: both its poles at KD / 2, 5 rad/s. At 2 rad/s on
@@ -146,10 +146,6 @@ def descent(over, brake):
 def _unit(v):
     n = math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2])
     return (v[0] / n, v[1] / n, v[2] / n)
-
-
-def _cross(a, b):
-    return (a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0])
 
 
 class Flying:
@@ -348,7 +344,7 @@ class Flying:
             nose = (turn[0][2], turn[1][2], turn[2][2])
             dot = sum(n * u for n, u in zip(nose, up))
         ahead = _unit([n - dot * u for n, u in zip(nose, up)])
-        across = _cross(up, ahead)
+        across = cross(up, ahead)
         rates = self.turned(dt)
         want = mul(tuple(zip(across, up, ahead)), mul(rz(self.turns[0]), rx(self.turns[1])))
         # the tilt's loop on where the discs' axis is of where it is wanted, in the frame's own

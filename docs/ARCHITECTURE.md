@@ -224,6 +224,7 @@ tests/              suites, .counts.json (measured sizes)
 | gimbal | a camera on a stabilised gimbal: its sight level, after the way its frame goes |
 | aerolisp | flight intent as text - `(stream_inject ..)`: latent targets, a stiffness and a damping a mode, an oscillator, task constraints - compiled to aero/'s payloads, a stream laid over the one before |
 | intents | the quad's flights as that text, and each stream's seconds |
+| aerokin | the quad's kinematics in a vacuum, no branch: a row of `aerobatics`' setpoints and the frame as it flies to aero/'s payload - a collective, its rotors' axis's tilt in the heading the core holds, the rates its own heading's turn gives it |
 | floor | the slab, a sill, a patch, a rug, a stair |
 | rtu | Modbus RTU: CRC-16, a pass's frames |
 | buses | the boards on a bus a limb, a process each in lockstep with the world over a shared block, the host's frames bytes on a socket a bus |
@@ -284,7 +285,7 @@ tests/              suites, .counts.json (measured sizes)
   its share to the best of every set of rotors held at an end, its
   impedance to the closed form in a vacuum; `test_quad_streams.py` the
   text's payloads and the power loop flown, a hover in the tour's air and
-  from upsets.
+  from upsets, the page's routine and the course from their cards' rows.
 - The stand-in is the emulated world's reference: `tools/dev/ab.py` runs a
   page on both, a process a page, and marks a read missing, a range apart
   over the board seconds both cover, or a number the physics rules out;
