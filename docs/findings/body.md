@@ -158,7 +158,9 @@ loop, gone from the tree (tag `laws-before-the-loop`); on the loop:
     felled the body; a knee's drum landed past its gel, 935 N against 102 bare.
     Colliding, shoved past saving into the crouch, the head met the floor at
     1.03-1.66 m/s in 3 of 64 falls, without at 0.66-0.81 in 2; one with
-    nothing of the skeleton touching: chance.
+    nothing of the skeleton touching: chance. On her loop, colliding,
+    she walks as without: 51 s, 0.69 m/s, 299 J/m, 2.45 off the band
+    where 300 and 2.46; a pass 1 651 us where 1 610.
 - Every drive's output on its drum's axis from its gearbox's end
   (`tools/sim/fit.py`'s outputs). Before: the ankle's L along
   the shin turning its crank about the knee's axis; the hip yaw's gearbox

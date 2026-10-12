@@ -164,9 +164,9 @@ gets a line at the end of [DONE](DONE.md).
    for 15 ms, the knee 80. The step's clamps clip after its solve.
    + DOD: each drive's peak, rms, speed and heat on her walk, her hop and
      a shove on the loop, none past 2/3 of a part's limit.
-9. **Skeleton collisions** (`physics.SKELETON`, body.md): her walk on the
-   loop with it on is untried.
-   + DOD: she walks with it on; head on the floor in 0 of 64 falls.
+9. **Skeleton collisions** (`physics.SKELETON`, body.md): on the loop she
+   walks with it on as without; her falls there are not taken yet.
+   + DOD: head on the floor in 0 of 64 falls.
 10. **Obstacle contacts**: toes into the sill, fingers into the floor at
     MuJoCo's 0.02 s; overlap or force, decision open.
     + DOD: the decision; the set measured on it.
