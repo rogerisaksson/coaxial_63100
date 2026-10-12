@@ -512,7 +512,9 @@ Slots: 0 prefilter, 1 measure, 2 estimator, 3 regulator. Kinds: 0 none,
 8 Direct, 9 SpeedPI, each with its `PARAMS` in order. Measured: 0 the
 A1335's angle, deg; 1 omega_hat, rad/s; 2 iq, A. Command: 0 theta, rad;
 1 iq_ref, A. `hz` kept: the PWM rate over the nearest whole divider.
-`blind`: ticks with no reading; the command stood.
+`blind`: ticks with no reading; the command stood. A SpeedPI's sum and
+the drag it feeds forward stay within what the drive carries of an
+iq_ref: its clamp, the derate in it, and what its link's volts leave.
 
 ### 13 WBC, `cmd_wbc.c`
 

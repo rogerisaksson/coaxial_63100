@@ -19,7 +19,7 @@ from test_modbus_core import Report  # noqa: E402
 PORTS = {'Gain': ('x',), 'Slew': ('x',), 'Wrap': ('x',), 'LowPass': ('x',),
          'SpeedKalman': ('measured', 'command'), 'PI': ('setpoint', 'measured'),
          'AngleHold': ('setpoint', 'measured'), 'Direct': ('setpoint',),
-         'SpeedPI': ('setpoint', 'measured', 'accel', 'held')}
+         'SpeedPI': ('setpoint', 'measured', 'accel', 'held', 'most')}
 
 #: Parameters drawn a row, each kind's plausible span.
 SPANS = {'k': (-3, 3), 'rate': (0.5, 50), 'zero': (-180, 180), 'tau': (0.01, 1), 'kt': (0.02, 0.2),
@@ -46,6 +46,7 @@ def test_steps_are_the_parts(report):
             u[0] = DT
             for i, port in enumerate(ports, 1):
                 u[i] = [rng.choice((0.0, 1.0)) if port == 'held'
+                        else rng.choice((math.inf, 0.4)) if port == 'most'
                         else math.nan if port == 'accel' and rng.random() < 0.5
                         else rng.uniform(-100, 100) for _ in range(ROWS)]
             y = step(s, u)

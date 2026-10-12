@@ -5,6 +5,7 @@ import ctypes
 import math
 import sys
 
+from machine import pull
 from motor.pmsm import Motor
 from tools.cores.drive import (HOLD, OFF, POLARITY, SENSORLESS, TS, TWO_PI, Drive, eps_gain,
                                loop_gains, pll_gains, run, wrap_pi)
@@ -404,6 +405,12 @@ def test_the_voltage_limit(r, lib):
                 abs(m.id) < 0.05 * abs(m.iq), '%+.3f A beside %.2f A' % (m.id, m.iq))
         r.check('the rotor as fast as those volts carry its load with no d current',
                 abs(m.omega - low) < 0.01 * low, '%.0f of %.0f rad/s' % (m.omega, low))
+        space = pull.room(s['omega_hat'] / m.p, vdc, pull.Rotor(m.r, m.lq, m.lam, m.p, 0.0, 0.0,
+                                                                0.0))
+        r.check('the room it reckons there is machine.pull\'s, the current it carries within '
+                '5 %', abs(d.room() - space) < 1e-3 * space
+                and abs(d.room() - m.iq) < 0.05 * m.iq,
+                '%.2f A, %.2f by machine.pull, %.2f carried' % (d.room(), space, m.iq))
     finally:
         d.close()
 

@@ -112,7 +112,7 @@ static float eso(ctrl_part_t *part, float dt, float measured, float command)
 }
 
 static float pi(ctrl_part_t *part, float dt, float setpoint, float measured, float accel,
-                bool held)
+                bool held, float most)
 {
   const float *p = part->p;     /* kp ki limit */
   const float e = setpoint - measured;
@@ -121,6 +121,7 @@ static float pi(ctrl_part_t *part, float dt, float setpoint, float measured, flo
 
   (void)accel;
   (void)held;
+  (void)most;
   if (u == raw)
   {
     part->x += p[1] * e * dt;
@@ -129,32 +130,35 @@ static float pi(ctrl_part_t *part, float dt, float setpoint, float measured, flo
 }
 
 static float angle_hold(ctrl_part_t *part, float dt, float setpoint, float measured, float accel,
-                        bool held)
+                        bool held, float most)
 {
   const float *p = part->p;     /* poles theta0 ki trim most */
 
   (void)accel;
   (void)held;
+  (void)most;
   part->x = clamp(part->x + p[2] * (setpoint - measured) * dt, p[3]);
   part->at += clamp(setpoint + part->x - part->at, p[4]);
   return p[1] + part->at * CTRL_RAD_DEG * p[0];
 }
 
 static float direct(ctrl_part_t *part, float dt, float setpoint, float measured, float accel,
-                    bool held)
+                    bool held, float most)
 {
   (void)dt;
   (void)measured;
   (void)accel;
   (void)held;
+  (void)most;
   return clamp(setpoint, part->p[0]);
 }
 
 static float speed_pi(ctrl_part_t *part, float dt, float setpoint, float measured, float accel,
-                      bool held)
+                      bool held, float most)
 {
   const float *p = part->p;     /* hz limit kt j b load_k scale */
-  float w0, err, damp, ff, raw, u;
+  const float room = fminf(p[1], most);
+  float w0, err, damp, rest, ff, raw, u;
 
   setpoint *= p[6];
   measured *= p[6];
@@ -170,6 +174,11 @@ static float speed_pi(ctrl_part_t *part, float dt, float setpoint, float measure
   w0 = CTRL_TAU * p[0];
   err = setpoint - measured;
   damp = p[4] + 2.0f * p[5] * fabsf(setpoint);
+  /* The sum and the current that turns the rotor as asked, within what the sink carries:
+     wound past a drive's clamp - 61 A asked of one holding 45 - a rotor's ask fell 39 rad/s
+     in 0.18 s before its current did. */
+  rest = (p[4] * setpoint + p[5] * setpoint * fabsf(setpoint)) / p[2];
+  part->x = fminf(fmaxf(part->x, -room - rest), room - rest);
   ff = (p[3] * accel + p[4] * setpoint + p[5] * setpoint * fabsf(setpoint)) / p[2];
   raw = w0 * p[3] / p[2] * err + part->x + ff;
   u = clamp(raw, p[1]);
@@ -185,7 +194,7 @@ static float speed_pi(ctrl_part_t *part, float dt, float setpoint, float measure
 typedef float (*ctrl_filter_fn)(ctrl_part_t *part, float dt, float x);
 typedef float (*ctrl_estimate_fn)(ctrl_part_t *part, float dt, float measured, float command);
 typedef float (*ctrl_regulate_fn)(ctrl_part_t *part, float dt, float setpoint, float measured,
-                                  float accel, bool held);
+                                  float accel, bool held, float most);
 
 static const ctrl_filter_fn FILTERS[CTRL_KINDS] = {
   [CTRL_GAIN] = gain, [CTRL_SLEW] = slew, [CTRL_WRAP] = wrap, [CTRL_LOW_PASS] = low_pass
@@ -216,12 +225,12 @@ float ctrl_estimate(ctrl_part_t *part, float dt, float measured, float command)
 }
 
 float ctrl_regulate(ctrl_part_t *part, float dt, float setpoint, float measured, float accel,
-                    bool held)
+                    bool held, float most)
 {
   const ctrl_regulate_fn step = (part->kind < (uint8_t)CTRL_KINDS) ? REGULATORS[part->kind]
                                                                   : NULL;
 
-  return (step != NULL) ? step(part, dt, setpoint, measured, accel, held) : setpoint;
+  return (step != NULL) ? step(part, dt, setpoint, measured, accel, held, most) : setpoint;
 }
 
 void ctrl_feedback_reset(ctrl_feedback_t *f)
@@ -233,12 +242,13 @@ void ctrl_feedback_reset(ctrl_feedback_t *f)
   f->ref = f->value = f->estimate = f->command = 0.0f;
 }
 
-float ctrl_feedback_step(ctrl_feedback_t *f, float dt, float setpoint, float measured)
+float ctrl_feedback_step(ctrl_feedback_t *f, float dt, float setpoint, float measured,
+                         float most)
 {
   f->ref = ctrl_filter(&f->prefilter, dt, setpoint);
   f->value = ctrl_filter(&f->measure, dt, measured);
   f->estimate = ctrl_estimate(&f->estimator, dt, f->value, f->command);
-  f->command = ctrl_regulate(&f->regulator, dt, f->ref, f->estimate, NAN, false);
+  f->command = ctrl_regulate(&f->regulator, dt, f->ref, f->estimate, NAN, false, most);
   return f->command;
 }
 
@@ -281,7 +291,7 @@ void ctrl_rows_clear(ctrl_runner_t *r)
   r->playing = false;
 }
 
-float ctrl_runner_step(ctrl_runner_t *r, float dt, float measured)
+float ctrl_runner_step(ctrl_runner_t *r, float dt, float measured, float most)
 {
   if (r->left_s <= 0.0f)
   {
@@ -312,5 +322,5 @@ float ctrl_runner_step(ctrl_runner_t *r, float dt, float measured)
   {
     r->idle++;
   }
-  return ctrl_feedback_step(&r->f, dt, r->setpoint, measured);
+  return ctrl_feedback_step(&r->f, dt, r->setpoint, measured, most);
 }

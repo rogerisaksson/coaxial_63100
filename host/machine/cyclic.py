@@ -117,9 +117,11 @@ def direct(s: NDArray, u: NDArray) -> NDArray:
 
 
 def speed_pi(s: NDArray, u: NDArray) -> NDArray:
-    """u: dt, setpoint, measured, accel (NaN: the setpoint's own slope), held. iq from w, the
-    mechanical pole cancelled, drag fed forward, the integrator held while clamped or held."""
+    """u: dt, setpoint, measured, accel (NaN: the setpoint's own slope), held, most (inf: all
+    its sink carries). iq from w, the mechanical pole cancelled, drag fed forward, the
+    integrator held while clamped or held, it and the drag's current within most."""
     dt, held = u[0], u[4]
+    room = np.minimum(s['limit'], u[5])
     sp, pv = u[1] * s['scale'], u[2] * s['scale']
     slope = np.divide(sp - s['was'], dt, out=np.zeros_like(sp), where=dt != 0.0)
     accel = np.where(np.isnan(u[3]), slope, u[3] * s['scale'])
@@ -127,6 +129,8 @@ def speed_pi(s: NDArray, u: NDArray) -> NDArray:
     w0 = math.tau * s['hz']
     err = sp - pv
     damp = s['b'] + 2.0 * s['load_k'] * np.abs(sp)
+    rest = (s['b'] * sp + s['load_k'] * sp * np.abs(sp)) / s['kt']
+    s['x'] = np.minimum(np.maximum(s['x'], -room - rest), room - rest)
     ff = (s['j'] * accel + s['b'] * sp + s['load_k'] * sp * np.abs(sp)) / s['kt']
     raw = w0 * s['j'] / s['kt'] * err + s['x'] + ff
     y = np.clip(raw, -s['limit'], s['limit'])

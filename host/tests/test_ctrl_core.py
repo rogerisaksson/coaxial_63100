@@ -49,8 +49,9 @@ class C:
                                 ('ctl_free', None, [p]),
                                 ('ctl_filter', f, [p, f, f]),
                                 ('ctl_estimate', f, [p, f, f, f]),
-                                ('ctl_regulate', f, [p, f, f, f, f, ctypes.c_int, ctypes.c_int]),
-                                ('ctl_step', f, [p, f, f, f]),
+                                ('ctl_regulate', f, [p, f, f, f, f, ctypes.c_int, ctypes.c_int,
+                                                     f]),
+                                ('ctl_step', f, [p, f, f, f, f]),
                                 ('ctl_runner', p, []),
                                 ('ctl_runner_feedback', p, [p]),
                                 ('ctl_push', ctypes.c_int, [p, ctypes.c_uint16, f]),
@@ -87,6 +88,8 @@ def drive(case, rng, n=400):
             rows.append((args, py.step(DT, **args)['estimate']))
         else:
             args = {'setpoint': 40.0 * math.sin(i * 0.02), 'measured': rng.gauss(0.0, 10.0)}
+            if 'most' in py.INPUTS:
+                args['most'] = (math.inf, 0.6 * getattr(py, 'limit'))[i // 100 % 2]
             rows.append((args, py.step(DT, **args)['command']))
     return rows
 
@@ -118,7 +121,7 @@ def test_each_part_steps_as_the_host(report, c):
                 got = c.lib.ctl_estimate(part, DT, args['measured'], args['command'])
             else:
                 got = c.lib.ctl_regulate(part, DT, args['setpoint'], args['measured'],
-                                         0.0, 0, 0)
+                                         0.0, 0, 0, args.get('most', math.inf))
             worst = max(worst, abs(got - want))
             if first is None and not near(got, want, scale):
                 first = (i, got, want)
@@ -146,7 +149,7 @@ def test_a_feedback_composes_as_the_loop(report, c):
         now['sp'] = 200.0 if i > 50 else 0.0
         now['m'] = 7.0 * 150.0 * (1.0 - math.exp(-i / 200.0)) + rng.gauss(0.0, 20.0)
         want = loop.step(DT)['speed/command']
-        got = c.lib.ctl_step(f, DT, now['sp'], now['m'])
+        got = c.lib.ctl_step(f, DT, now['sp'], now['m'], math.inf)
         worst = max(worst, abs(got - want))
         if off is None and not near(got, want, 2.0):
             off = (i, got, want)
@@ -163,11 +166,39 @@ def test_the_c_holds_a_speed(report, c):
             c.lib.ctl_slot(f, i, c.kind(kind), (ctypes.c_float * len(values))(*values))
     w = 0.0
     for _ in range(int(3.0 / DT)):
-        iq = c.lib.ctl_step(f, DT, 200.0, w)
+        iq = c.lib.ctl_step(f, DT, 200.0, w, math.inf)
         w += DT * (KT * iq - B * w) / J
     c.lib.ctl_free(f)
     report.check('the C loop holds 200 rad/s on the toy rotor within 2 %',
                  abs(w - 200.0) < 4.0, '%.1f rad/s' % w)
+
+
+def test_a_clamped_rotor_slows_as_asked(report, c):
+    """The toy rotor under a propeller's drag, its sink carrying half the regulator's limit:
+    asked past what that turns, then down at the slew. Told its sink's clamp, the command is
+    under it while the ask is over the rotor's speed yet; untold it stands over it, wound,
+    till the ask is well under."""
+    drag, clamp, slew, under = 1e-6, 1.0, 400.0, {}
+    for told in (True, False):
+        f = c.lib.ctl_feedback()
+        for i, (kind, values) in enumerate((('Slew', [slew]), (None, []), (None, []),
+                                            ('SpeedPI', [3.0, 2.0, KT, J, B, drag, 1.0]))):
+            if kind:
+                c.lib.ctl_slot(f, i, c.kind(kind), (ctypes.c_float * len(values))(*values))
+        w = 0.0
+        for k in range(int(4.0 / DT)):
+            down = max(0.0, k * DT - 2.5)
+            iq = c.lib.ctl_step(f, DT, 300.0 if down == 0.0 else 100.0, w,
+                                clamp if told else math.inf)
+            if down and iq < clamp:
+                under.setdefault(told, w - (300.0 - slew * down))
+            w += DT * (KT * max(-clamp, min(clamp, iq)) - B * w - drag * w * abs(w)) / J
+        c.lib.ctl_free(f)
+    report.check('a rotor at the clamp its sink carries: told it, its current falls while the '
+                 'ask is over its speed yet; untold, with the ask well under',
+                 under[True] < 0.0 < under[False],
+                 'the ask %.0f rad/s under its speed told, %.0f untold' % (
+                     under[True], under[False]))
 
 
 def test_rows_play_in_order(report, c):
@@ -219,7 +250,7 @@ def test_rows_drive_a_joint(report, c):
 
 ROSTER = (test_every_part_has_its_twin, test_each_part_steps_as_the_host,
           test_a_feedback_composes_as_the_loop, test_the_c_holds_a_speed,
-          test_rows_play_in_order, test_rows_drive_a_joint)
+          test_a_clamped_rotor_slows_as_asked, test_rows_play_in_order, test_rows_drive_a_joint)
 
 
 def main():

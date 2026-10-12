@@ -371,3 +371,8 @@ API float drv_dt_volts(const drive_t *d, float amps)
 {
   return drive_dt_volts(&d->p, amps);
 }
+
+API float drv_room(const drive_t *d)
+{
+  return drive_room(d);
+}

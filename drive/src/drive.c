@@ -248,6 +248,16 @@ static float rotor_speed(const drive_t *d)
   return (d->p.lambda > 0.0f) ? d->bemf_speed : d->omega_hat;
 }
 
+float drive_room(const drive_t *d)
+{
+  const float w = fabsf(d->omega_hat), vmax = d->p.v_frac * d->vdc * INV_SQRT3;
+  const float a = w * w * d->p.lq * d->p.lq + d->p.r * d->p.r;
+  const float b = d->p.r * w * d->p.lambda;
+  const float under = b * b - a * (w * w * d->p.lambda * d->p.lambda - vmax * vmax);
+
+  return (a > 0.0f) ? fmaxf(sqrtf(fmaxf(under, 0.0f)) - b, 0.0f) / a : INFINITY;
+}
+
 /** The feedback the loop acts on: the raw dq, or their mean over one
     injection cycle so the HF ripple does not reach the PI and come back out
     as an fs/2 voltage the demodulator would read as inductance. */

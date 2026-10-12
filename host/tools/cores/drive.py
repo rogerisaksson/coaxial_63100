@@ -59,6 +59,7 @@ class Drive:
         lib.drv_svm.restype = ctypes.c_float
         lib.drv_wrap.restype = ctypes.c_float
         lib.drv_dt_volts.restype = ctypes.c_float
+        lib.drv_room.restype = ctypes.c_float
         self.own = at is None
         self.h = ctypes.c_void_p(lib.drv_new(ctypes.c_float(ts)) if self.own else at)
         self.n_params = lib.drv_param_count()
@@ -209,6 +210,10 @@ class Drive:
 
     def dt_volts(self, amps):
         return self.lib.drv_dt_volts(self.h, ctypes.c_float(amps))
+
+    def room(self):
+        """The torque's current its link's volts leave as it turns, A (drive_room)."""
+        return self.lib.drv_room(self.h)
 
 
 def run(drive, motor, seconds, vdc=24.0, noise=0.0, enabled=True, seed=1,

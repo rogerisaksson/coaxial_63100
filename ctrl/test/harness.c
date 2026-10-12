@@ -72,9 +72,9 @@ API float ctl_estimate(ctrl_part_t *part, float dt, float measured, float comman
 
 /** `has_accel` 0: the setpoint's own slope. */
 API float ctl_regulate(ctrl_part_t *part, float dt, float setpoint, float measured,
-                       float accel, int has_accel, int held)
+                       float accel, int has_accel, int held, float most)
 {
-  return ctrl_regulate(part, dt, setpoint, measured, has_accel ? accel : NAN, held != 0);
+  return ctrl_regulate(part, dt, setpoint, measured, has_accel ? accel : NAN, held != 0, most);
 }
 
 API void ctl_reset(ctrl_part_t *part)
@@ -82,9 +82,9 @@ API void ctl_reset(ctrl_part_t *part)
   ctrl_part_reset(part);
 }
 
-API float ctl_step(ctrl_feedback_t *f, float dt, float setpoint, float measured)
+API float ctl_step(ctrl_feedback_t *f, float dt, float setpoint, float measured, float most)
 {
-  return ctrl_feedback_step(f, dt, setpoint, measured);
+  return ctrl_feedback_step(f, dt, setpoint, measured, most);
 }
 
 API void ctl_feedback_reset(ctrl_feedback_t *f)
@@ -125,7 +125,7 @@ API void ctl_clear(ctrl_runner_t *r)
 
 API float ctl_tick(ctrl_runner_t *r, float dt, float measured)
 {
-  return ctrl_runner_step(r, dt, measured);
+  return ctrl_runner_step(r, dt, measured, INFINITY);
 }
 
 /** played, idle */

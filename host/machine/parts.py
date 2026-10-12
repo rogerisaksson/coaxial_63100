@@ -193,10 +193,12 @@ class SpeedPI(Regulator):
 
     """iq from w: a PI whose zero cancels the mechanical pole, acceleration and drag
     (b w + load_k w|w|) fed forward, the integrator held while clamped or `held` (the
-    inner loop saturated). `accel` unwired: the setpoint's own slope. `scale`: rad/s per
+    inner loop saturated). `accel` unwired: the setpoint's own slope. `most`: what its sink
+    carries of the command at the most; the integrator and the drag fed forward - the
+    current that turns the rotor as asked - stay within it and `limit`. `scale`: rad/s per
     unit of setpoint and measurement (RAD_S_PER_RPM for rpm)."""
 
-    INPUTS = ('setpoint', 'measured', 'accel', 'held')
+    INPUTS = ('setpoint', 'measured', 'accel', 'held', 'most')
     PARAMS = ('hz', 'limit', 'kt', 'j', 'b', 'load_k', 'scale')
 
     def __init__(self, hz=3.0, limit=1.0, kt=0.05, j=2e-5, b=1e-5, load_k=0.0, scale=1.0):
@@ -210,7 +212,7 @@ class SpeedPI(Regulator):
         return cls(hz, limit, 1.5 * motor.poles * motor.lam, motor.j, motor.b,
                    load.k if load else 0.0)
 
-    def step(self, dt, setpoint=0.0, measured=0.0, accel=None, held=0.0):
+    def step(self, dt, setpoint=0.0, measured=0.0, accel=None, held=0.0, most=math.inf):
         setpoint, measured = setpoint * self.scale, measured * self.scale
         if accel is None:
             accel = (setpoint - self.was) / dt if dt else 0.0
@@ -220,6 +222,9 @@ class SpeedPI(Regulator):
         w0 = math.tau * self.hz
         err = setpoint - measured
         damp = self.b + 2.0 * self.load_k * abs(setpoint)
+        room = min(self.limit, most)
+        rest = (self.b * setpoint + self.load_k * setpoint * abs(setpoint)) / self.kt
+        self.x = min(max(self.x, -room - rest), room - rest)
         ff = (self.j * accel + self.b * setpoint + self.load_k * setpoint * abs(setpoint)) / self.kt
         raw = w0 * self.j / self.kt * err + self.x + ff
         u = max(-self.limit, min(self.limit, raw))

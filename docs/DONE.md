@@ -143,3 +143,8 @@ it names. A closed item is cut from the list and gets its line here, last.
     off the band where 2.60, stiff 0.32 where 0.37, 4 of her form's 12
     broken where 6; standing as she stood, bit for bit
     ([orthokinematics](findings/orthokinematics.md), [wrench](findings/wrench.md)).
+45. A board's speed loop winds no further than its drive carries - its
+    clamp with the derate, what its link's volts leave (`drive_room`): at
+    its clamp a rotor slows as asked where 0.18 s late, full tilt's four
+    4.4-5.9 A apart and 8.3-12.4 deg off at the most where 5.2-10.5 and
+    9.4-15.2 ([envelope](findings/envelope.md)).

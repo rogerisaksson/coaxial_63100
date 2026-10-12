@@ -354,6 +354,9 @@ gets a line at the end of [DONE](DONE.md).
   an fs/2 ripple. DOD: Ld and Lq within 5 % at no bias.
 - **The chain beside the loop** (`obs`) loses a rotor spooled at 81 000
   rad/s^2. DOD: it follows a QUAD's spool, or is cut.
+- **A `PI` on a current** winds past its drive's clamp as `SpeedPI` did
+  (envelope.md); no loop loads one. DOD: its sum within what its sink
+  carries, host and C.
 - **A date refused**: `test_layout` holds the tree's text free of dates.
   DOD: the last 15 files stripped, the check in `--structure`.
 - **native://**: a limb's world on a fixed mount as board/emu's; one

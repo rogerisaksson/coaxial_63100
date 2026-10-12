@@ -37,6 +37,17 @@ ten times the flight's:
 - A rotor's speed for a current without its own friction (0.49 N m of 2.04
   at 612 rad/s): asked 659 where it held 612, the tilt had no rotor to
   answer with and stood 19 deg off late in the climb.
+- A board's loop winds no further than its drive carries of the current it
+  asks: the clamp with its derate, and what the link's volts leave
+  (`drive_room`, `machine.pull.room`'s); `SpeedPI`'s sum and its drag's
+  current stay inside that (`ctrl_loop_step`). Wound, full tilt's loops
+  asked 58-62 A of boards holding 45-49: a rotor's ask fell 39 rad/s in
+  0.18 s before its current did, the four 5.2-10.5 A apart and the frame
+  9.4-15.2 deg off at the most in six airs; told, 4.4-5.9 A and 8.3-12.4
+  deg in eight. On 44 V, asked 60 rad/s past its link's top, a rotor's
+  current fell 0.42 s after its ask began to, the ask 66 rad/s under its
+  speed; told, 0.12 s, the ask 20 over it yet. The laps wind none: their
+  race is the same to its last digit.
 
 ## The race on it
 

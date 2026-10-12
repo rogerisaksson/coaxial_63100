@@ -94,15 +94,18 @@ float ctrl_filter(ctrl_part_t *part, float dt, float x);
 float ctrl_estimate(ctrl_part_t *part, float dt, float measured, float command);
 
 /** A regulator's step. `accel` NAN: the setpoint's own slope; `held`: the inner loop is
-    saturated, the integrator holds. Any other kind passes the setpoint through. */
+    saturated, the integrator holds; `most`: what its sink carries of the command at the
+    most, INFINITY all of it - what the command holds at rest stays within it. Any other
+    kind passes the setpoint through. */
 float ctrl_regulate(ctrl_part_t *part, float dt, float setpoint, float measured, float accel,
-                    bool held);
+                    bool held, float most);
 
 /** Every slot back to where it was set, the channels to zero. */
 void ctrl_feedback_reset(ctrl_feedback_t *f);
 
-/** One pass, in slot order; the command. */
-float ctrl_feedback_step(ctrl_feedback_t *f, float dt, float setpoint, float measured);
+/** One pass, in slot order; the command, its sink carrying `most` of it. */
+float ctrl_feedback_step(ctrl_feedback_t *f, float dt, float setpoint, float measured,
+                         float most);
 
 /** Rows that still fit. */
 uint16_t ctrl_rows_free(const ctrl_runner_t *r);
@@ -117,6 +120,6 @@ float ctrl_rows_seconds(const ctrl_runner_t *r);
 void ctrl_rows_clear(ctrl_runner_t *r);
 
 /** One tick: the next row when the last ran out, then the feedback; the command. */
-float ctrl_runner_step(ctrl_runner_t *r, float dt, float measured);
+float ctrl_runner_step(ctrl_runner_t *r, float dt, float measured, float most);
 
 #endif /* CTRL_H */

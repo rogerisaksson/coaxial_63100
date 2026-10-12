@@ -37,9 +37,13 @@ void ctrl_loop_step(ctrl_loop_t *l, drive_t *d, float angle_deg)
     return;
   }
 
-  const float u = ctrl_runner_step(&l->r, l->dt, x);
+  const bool amps = l->command == CTRL_LOOP_IQ_REF;
+  /* A current asked is carried as far as the drive's clamp, its derate in it, and its
+     link's volts. */
+  const float u = ctrl_runner_step(&l->r, l->dt, x,
+                                   amps ? fminf(d->p.i_max, drive_room(d)) : INFINITY);
 
-  if (l->command == CTRL_LOOP_IQ_REF)
+  if (amps)
   {
     d->sp.iq_ref = u;
   }

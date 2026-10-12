@@ -62,8 +62,8 @@ typedef struct
 bool ctrl_loop_due(ctrl_loop_t *l);
 
 /** The tick that is due: the measure off `d`, or the shaft's `angle_deg` (NAN: no reading,
-    the command stands); the runner stepped; its command into `d`'s setpoints - a theta as
-    the host's is taken, the held frame moved by its change. */
+    the command stands); the runner stepped; its command into `d`'s setpoints - a current
+    within `d`'s clamp, a theta as the host's is taken, the held frame moved by its change. */
 void ctrl_loop_step(ctrl_loop_t *l, drive_t *d, float angle_deg);
 
 void ctrl_loop_state(const ctrl_loop_t *l, ctrl_loop_state_t *out);
