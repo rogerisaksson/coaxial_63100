@@ -107,12 +107,13 @@ class Boards:
     """The frame on the floor on four stand-in boards armed as the page's flight arms them
     (`terminal.views.quad.flight`), no page: a step the flight's, the core's passes in it."""
 
-    def __init__(self, air=None, things=()):
+    def __init__(self, air=None, things=(), clock=10, warm_s=0.0):
         from coaxial import Coaxial63100
         from machine.modes import SIMULATED
         from terminal.views.quad import flight as view
         self.view, self.sky, self.core, self.top = view, quad.Sky(things), aero.Core(), TOP_RAD_S
-        self.rotors = [view.arm(Coaxial63100(execution_mode=SIMULATED).open()) for _ in range(4)]
+        self.rotors = [view.arm(Coaxial63100(execution_mode=SIMULATED).open(),
+                                clock=clock, warm_s=warm_s) for _ in range(4)]
         self.flight: dict[str, Any] = dict(view.fresh(), air=air)
         self.clock, self.dt, self.peak, self.owed = 0.0, view.STEP_S, {}, 0.0
 

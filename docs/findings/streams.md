@@ -292,3 +292,8 @@ the current it holds gives; its rotor's thrust as given is its estimate's.
   second: at Python's 5 ms a turn it waited on the drawing's, a flight's
   second took 1.02 of the wall's, its clock 21 % behind. At 0.2 ms: 0.51,
   none behind, 16 frames a second where the law before drew 17.8.
+- `course.BRAKE` and `course.GO` searched on the core (`quad_race.py --search`):
+  0.735 and 0.708 (cost 28.06 where 28.24), every flight whole (100 %),
+  a gate's frame -0.03 m past its margin; boards' laps 13.8 and 14.1 s
+  (verified on unseen seeds 6, 7, 8: 28.05, laps 13.8 and 14.0-14.1 s),
+  against 14.3-14.8 s.

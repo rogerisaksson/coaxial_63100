@@ -173,4 +173,8 @@ it names. A closed item is cut from the list and gets its line here, last.
     observers warmed at idle on the floor out of UNCERTAIN before a first flight;
     full tilt boards hold 58.7 A where 43.2, race laps 13.9 and 14.2 s, SOA 0.55-0.62
     ([envelope](findings/envelope.md), [quad](findings/quad.md)).
+52. The plan on boards that hold their pull: `quad_race.py --search` over
+    `course.BRAKE` (0.735) and `course.GO` (0.708) on the core; laps 13.8 and
+    14.0-14.1 s against 14.3-14.8 s, cost 28.06 where 28.24, 100 % whole across
+    winds and unseen seeds ([envelope](findings/envelope.md), [streams](findings/streams.md)).
 

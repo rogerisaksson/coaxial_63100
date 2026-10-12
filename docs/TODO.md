@@ -232,11 +232,6 @@ gets a line at the end of [DONE](DONE.md).
 
 ## Quad
 
-- **The plan on boards that hold their pull**: `course.PULL` gridded alone
-  to 0.37 (envelope.md); BRAKE, GO and the crossings are the search's on
-  boards that had 34-60 % of it and a law since gone, the crossings laid
-  again by flight (streams.md). DOD: `quad_race.py --search` over them on
-  the core, the laps against 14.3-14.8 s, every flight whole.
 - **Flown from compiled streams, no rules**: a flight's intent is text
   (`stream_inject`: latent targets on six modes, a stiffness and a damping
   a mode, an oscillator, task constraints; a mode dropped is NaN) compiled
