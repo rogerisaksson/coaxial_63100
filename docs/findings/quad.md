@@ -370,6 +370,10 @@ race, 12 flights (`quad_race.py --suite all`):
   row above.
 - On I_WEP in their loops the boards stood at 1.00 of their envelopes in
   full tilt: I_MAX kept.
+- A stand-in board's pass in one C call (`world_drive_pass`): setpoint
+  interpolation, drive execution and state readout unified into a single
+  call per rotor pass, removing Python dictionary allocations; the flight
+  page runs >20 frames a second.
 
 ## The carried camera
 

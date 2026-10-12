@@ -232,11 +232,6 @@ gets a line at the end of [DONE](DONE.md).
 
 ## Quad
 
-- **The page's flight a fifth of this host**: four stand-in boards a pass
-  of 2 ms are 0.20 s a flight's second where 0.12 at 20 ms, 0.51 beside
-  the drawing's thread - three calls a rotor a pass, each a board's whole
-  state read; 16 frames a second where 17.8, and under 50 suites its clock
-  half the wall's. DOD: a board's pass one call; 20 frames a second.
 - **The heat's clock in flight**: ten thermal seconds a flight's
   (`HASTE`): full tilt's 2 s are 20 of heat, the legs at their throttle's
   point 0.2 s in (envelope.md). On its own seconds from cold

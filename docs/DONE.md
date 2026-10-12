@@ -166,3 +166,7 @@ it names. A closed item is cut from the list and gets its line here, last.
     millionth of a newton: built with no multiply fused into an add, where
     its thrusts stood 3.6e-4 N off on CI's host and 1.7e-5 here; 150 442
     cycles a pass where 149 288 ([streams](findings/streams.md)).
+50. A stand-in board's pass in flight one C call (`world_drive_pass`):
+    three calls a rotor a pass and their dictionary allocations unified;
+    the page's flight over 20 frames a second ([quad](findings/quad.md)).
+

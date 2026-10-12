@@ -10,6 +10,7 @@ and their observers warmed on it, then the course (machine.course). A step is it
 made a payload (machine.aerokin) and the core's passes on it (aero/), each rotor's loop after
 the thrust it is given.
 """
+import ctypes
 import math
 import time
 
@@ -20,7 +21,10 @@ from coaxial.simulated.sto import PILOT_VOLTS
 from machine import aerobatics, aerokin, course, pull, quad
 from machine.controller import Feedback
 from machine.parts import Gain, Slew, SpeedPI
-from tools.cores import aero
+from tools.cores import aero, stand
+
+_LIB = stand.library()
+FAULTS = {0: None, 1: 'overcurrent', 2: 'stage', 3: 'supply'}
 
 #: The page's flights, one after the other and again: the routine first - the boards warm and
 #: their observers out of UNCERTAIN before the course asks its lean of them.
@@ -134,7 +138,8 @@ def arm(rig):
     board.ctrl.wire('omega_hat', 'iq_ref', LOOP_HZ)
     rotor = {'rig': rig, 'pairs': pairs, 'w': 0.0, 'w_hat': 0.0, 'iq': 0.0,
              'amps': 0.0, 'angle': 0.0, 'ask': 0.0, 'cut': False, 'fault': None,
-             'budget': {}, 'ident': {}, 'board_c': None}
+             'budget': {}, 'ident': {}, 'board_c': None,
+             'slot': drive._slot, 'buf': (ctypes.c_double * 5)()}
     spun(rotor)
     return rotor
 
@@ -351,19 +356,36 @@ def flown(rotors, sky, core, payload, flight, dt):
         rotor['rig'].board.drive.model.configure(
             b=pull.ROTOR.b + 2.0 * quad.K_DRAG * abs(rotor['w']),
             load=-quad.K_DRAG * rotor['w'] * abs(rotor['w']), vdc=volts)
+    lib = _LIB
+    periods = int(round(TICK_S * 50000))
+    tau = math.tau
     for _ in range(count):
         for rotor in rotors:
-            turned(rotor, TICK_S)
+            buf = rotor['buf']
+            tripped = lib.world_drive_pass(rotor['slot'], periods, True, True,
+                                           ctypes.c_float(rotor['ask']), buf)
+            if tripped:
+                rotor['rig'].gates.off()
+            w = buf[0] / rotor['pairs']
+            rotor['w'] = w
+            rotor['w_hat'] = buf[1] / rotor['pairs']
+            rotor['angle'] = (rotor['angle'] + w * TICK_S) % tau
+            id_val = buf[2]
+            iq_val = buf[3]
+            rotor['iq'] = iq_val
+            rotor['amps'] = math.hypot(id_val, iq_val)
+            rotor['fault'] = FAULTS.get(int(buf[4]))
         most = [pull.reach(r['w_hat'], volts, hold) for r, hold in zip(rotors, holds)]
         out = core.step(payload, aero.reading(sky.state(), *aero.reach(
             [r['ask'] for r in rotors], [r['w_hat'] for r in rotors], TICK_S, SPOOL_RAD_S2,
             LEAST_RAD_S, top, most), TICK_S))
         for rotor, speed in zip(rotors, aero.speeds(out.thrust)):
-            asked(rotor, speed)
+            rotor['ask'] = speed
         if air is not None:
             quad.blown(air, TICK_S)
         sky.step([r['w'] for r in rotors], TICK_S, air)
-    quad.drawn(cells, sum(stated(rotor) for rotor in rotors), dt)
+    watts = sum(pull.watts(r['w'], r['iq'], r['amps']) for r in rotors)
+    quad.drawn(cells, watts, dt)
     flight['over'] += dt * float(max(rotor['amps'] for rotor in rotors) > pull.I_MAX)
     told, through = airspeeds(sky.state(), air)
     for rotor in rotors:
