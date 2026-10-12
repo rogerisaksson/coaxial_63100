@@ -34,17 +34,18 @@ static double clip(double x, double lo, double hi)
   return (x < lo) ? lo : ((x > hi) ? hi : x);
 }
 
-/** A row over the unknowns, = c, weighed, onto the normal equations. */
+/** A row over the unknowns, = c, weighed, onto the normal equations: their lower half, which
+    is all a Cholesky reads. */
 static void lay(wbc_wrench_t *w, const double r[NU], double c, double weight)
 {
   const double ww = weight * weight;
 
-  for (int i = 0; i < NU; i++)
+  for (int i = 0; (ww != 0.0) && (i < NU); i++)
   {
     const double ri = ww * r[i];
 
     w->g[i] += ri * c;
-    for (int j = 0; (ri != 0.0) && (j < NU); j++)
+    for (int j = 0; (ri != 0.0) && (j <= i); j++)
     {
       w->h[i][j] += ri * r[j];
     }
@@ -156,50 +157,68 @@ void wbc_wrench_init(wbc_wrench_t *w)
     their rows of t, e and t0 from the others'. */
 static void passive_of(const wbc_body_t *b, wbc_wrench_t *w)
 {
-  double mpp[WBC_PASSIVE][WBC_PASSIVE], rhs[WBC_PASSIVE], got[WBC_PASSIVE];
+  enum { COLS = 6 + NU + 1 };
+  double mpp[WBC_PASSIVE][WBC_PASSIVE], inv[WBC_PASSIVE][WBC_PASSIVE], rhs[WBC_PASSIVE][COLS];
+  double unit[WBC_PASSIVE], x[WBC_PASSIVE];
 
   for (int i = 0; i < w->npassive; i++)
   {
+    const double *m = b->m[w->passive[i]];
+
+    /* less what her other accelerations put on its row: only the dofs its row of M reaches */
+    memset(rhs[i], 0, sizeof(rhs[i]));
+    rhs[i][COLS - 1] = -b->h[w->passive[i]];
+    for (int n = 0; n < WBC_N; n++)
+    {
+      if (m[n] != 0.0)
+      {
+        for (int c = 0; c < 6; c++)
+        {
+          rhs[i][c] -= m[n] * w->t[n][c];
+        }
+        for (int c = 0; c < NU; c++)
+        {
+          rhs[i][6 + c] -= m[n] * w->e[n][c];
+        }
+        rhs[i][COLS - 1] -= m[n] * w->t0[n];
+      }
+    }
     for (int j = 0; j < w->npassive; j++)
     {
-      mpp[i][j] = b->m[w->passive[i]][w->passive[j]];
+      mpp[i][j] = m[w->passive[j]];
     }
   }
   if (!wbc_cholesky(w->npassive, WBC_PASSIVE, &mpp[0][0]))
   {
     return;
   }
-  for (int c = 0; c < 6 + NU + 1; c++)
+  for (int j = 0; j < w->npassive; j++)
   {
+    memset(unit, 0, sizeof(unit));
+    unit[j] = 1.0;
+    wbc_chol_solve(w->npassive, WBC_PASSIVE, &mpp[0][0], unit, x);
     for (int i = 0; i < w->npassive; i++)
     {
-      const double *m = b->m[w->passive[i]];
+      inv[i][j] = x[i];
+    }
+  }
+  for (int i = 0; i < w->npassive; i++)
+  {
+    double *t = w->t[w->passive[i]], *e = w->e[w->passive[i]], rest = 0.0;
 
-      rhs[i] = (c == 6 + NU) ? -b->h[w->passive[i]] : 0.0;
-      for (int n = 0; n < WBC_N; n++)
-      {
-        if (m[n] != 0.0)
-        {
-          rhs[i] -= m[n] * ((c < 6) ? w->t[n][c] : ((c < 6 + NU) ? w->e[n][c - 6] : w->t0[n]));
-        }
-      }
-    }
-    wbc_chol_solve(w->npassive, WBC_PASSIVE, &mpp[0][0], rhs, got);
-    for (int i = 0; i < w->npassive; i++)
+    for (int j = 0; j < w->npassive; j++)
     {
-      if (c < 6)
+      for (int c = 0; c < 6; c++)
       {
-        w->t[w->passive[i]][c] = got[i];
+        t[c] += inv[i][j] * rhs[j][c];
       }
-      else if (c < 6 + NU)
+      for (int c = 0; c < NU; c++)
       {
-        w->e[w->passive[i]][c - 6] = got[i];
+        e[c] += inv[i][j] * rhs[j][6 + c];
       }
-      else
-      {
-        w->t0[w->passive[i]] = got[i];
-      }
+      rest += inv[i][j] * rhs[j][COLS - 1];
     }
+    w->t0[w->passive[i]] = rest;
   }
 }
 
@@ -414,13 +433,19 @@ void wbc_wrench_step(wbc_body_t *b, wbc_wrench_t *w, const wbc_frame_t *base,
     }
     for (int c = 0; c < NU; c++)
     {
-      double v = (c < 12) ? stance[c / 6] * w->jsole[c / 6][c % 6][i] : 0.0;
+      w->bm[i][c] = (c < 12) ? stance[c / 6] * w->jsole[c / 6][c % 6][i] : 0.0;
+    }
+  }
+  for (int n = 0; n < WBC_N; n++)
+  {
+    for (int c = 0; c < NU; c++)
+    {
+      const double e = w->e[n][c];
 
-      for (int n = 0; n < WBC_N; n++)
+      for (int i = 0; (e != 0.0) && (i < 6); i++)
       {
-        v -= b->m[i][n] * w->e[n][c];
+        w->bm[i][c] -= b->m[i][n] * e;
       }
-      w->bm[i][c] = v;
     }
   }
   if (!invert6(a, ai))
@@ -571,7 +596,7 @@ void wbc_wrench_step(wbc_body_t *b, wbc_wrench_t *w, const wbc_frame_t *base,
   memset(at, 0, sizeof(at));
   for (int round = 0; round < ROUNDS; round++)
   {
-    double ay, past, step;
+    double ay, past, held = 0.0, clipped = 0.0;
 
     memcpy(w->k, w->h, sizeof(w->k));
     memcpy(w->gk, w->g, sizeof(w->gk));
@@ -582,10 +607,18 @@ void wbc_wrench_step(wbc_body_t *b, wbc_wrench_t *w, const wbc_frame_t *base,
       const double pw = W_PIN * pinned[c] * part[c] * (((c < 12) && (c % 6 < 3)) ? 0.0 : 1.0);
 
       hard[c] = pinned[c] * (((c < 12) && (c % 6 < 3)) ? 1.0 : 0.0);
+      held += hard[c];
       w->k[c][c] += pw * pw;
       w->gk[c] += pw * pw * at[c];
     }
-    for (int i = 0; i < NU; i++)
+    for (int i = 0; (held > 0.0) && (i < NU); i++)
+    {
+      for (int j = i + 1; j < NU; j++)
+      {
+        w->k[i][j] = w->k[j][i];
+      }
+    }
+    for (int i = 0; (held > 0.0) && (i < NU); i++)
     {
       double moved_to = 0.0;
 
@@ -595,7 +628,7 @@ void wbc_wrench_step(wbc_body_t *b, wbc_wrench_t *w, const wbc_frame_t *base,
       }
       w->gk[i] = (1.0 - hard[i]) * (w->gk[i] - moved_to) + hard[i] * at[i];
     }
-    for (int i = 0; i < NU; i++)
+    for (int i = 0; (held > 0.0) && (i < NU); i++)
     {
       for (int j = 0; j < NU; j++)
       {
@@ -607,16 +640,20 @@ void wbc_wrench_step(wbc_body_t *b, wbc_wrench_t *w, const wbc_frame_t *base,
       return;
     }
     wbc_chol_solve(NU, NU, &w->k[0][0], w->gk, x);
-    /* her height at its band's edge met: x along K^-1 of its row, as far as that takes */
-    memset(row, 0, sizeof(row));
-    row[4] = stance[0] / mass;
-    row[10] = stance[1] / mass;
-    wbc_chol_solve(NU, NU, &w->k[0][0], row, way);
-    step = band * (edge - row[4] * x[4] - row[10] * x[10])
-           / (row[4] * way[4] + row[10] * way[10] + 1.0 - band);
-    for (int c = 0; c < NU; c++)
+    if (band > 0.0)
     {
-      x[c] += step * way[c];
+      double step;
+
+      /* her height at its band's edge met: x along K^-1 of its row, as far as that takes */
+      memset(row, 0, sizeof(row));
+      row[4] = stance[0] / mass;
+      row[10] = stance[1] / mass;
+      wbc_chol_solve(NU, NU, &w->k[0][0], row, way);
+      step = (edge - row[4] * x[4] - row[10] * x[10]) / (row[4] * way[4] + row[10] * way[10]);
+      for (int c = 0; c < NU; c++)
+      {
+        x[c] += step * way[c];
+      }
     }
     ay = (stance[0] * x[4] + stance[1] * x[10]) / mass - G;
     past = clip(ay, lo, hi) + G;
@@ -626,6 +663,11 @@ void wbc_wrench_step(wbc_body_t *b, wbc_wrench_t *w, const wbc_frame_t *base,
     for (int c = 0; c < NU; c++)
     {
       pinned[c] = (moved[c] > pinned[c]) ? moved[c] : pinned[c];
+      clipped += pinned[c];
+    }
+    if ((clipped == 0.0) && (band == 0.0))
+    {
+      break;                      /* nothing clipped: the rounds to come would solve the same */
     }
   }
 

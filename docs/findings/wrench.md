@@ -66,9 +66,9 @@ tests/test_wbc_core.py holds it to the step.
 
 | | wbc_wrench.c | The loop in C (wbc_stack.c) |
 | --- | --- | --- |
-| A tick on this host, -O2 | 46 us | 1 600 us |
+| A tick on this host, -O2 | 28 us standing, 35 a sole swung | 1 600 us |
 | Her body's terms of it | 14 us | 14 us |
-| A tick on the image (Renode), device 13 op 1 and op 0 | 0.93 M instructions, 1.97 ms on the M7 | 26.83 M, 56.5 ms |
+| A tick on the image (Renode), device 13 op 1 and op 0 | 0.70 M instructions, 1.47 ms on the M7 | 26.83 M, 56.5 ms |
 | Its state | 32 KB | 471 KB |
 | Its stack on the M7 | 2.9 KB | 8.4 KB |
 | Beside the python step, 120 states | 9e-5 N m with two soles standing, 1e-10 with one or none | - |
@@ -76,9 +76,13 @@ tests/test_wbc_core.py holds it to the step.
 | A hop on it | 17.9 mm, 2.4 deg: the python step's | - |
 
 - On the image its torques and her soles' loads are the host's within 2e-3
-  (test_emulator.py); 7.7 KB of flash. The DOD's 1 ms is half its tick: of
-  the host's 46 us her body's terms are 14, the four rounds some 6, the
-  maps and their Jacobians 6.
+  (test_emulator.py); 7.7 KB of flash. Of her stand's 698 k instructions
+  her mass matrix is 248, the maps 105, her frames 91, the rows 82, her
+  bias 55, the base's solve and the full map 53, the rounds 24, the
+  base's rows 20, out 12, her centre 7 (marks in a scratch image).
+- Nothing clipped, the rounds end at their first solve. A sole swung and
+  the other's moment clipped, all four run: 131 k, the tick 0.81 M, 1.71
+  ms - the DOD's 1 ms is that tick's, not her stand's.
 - A pass of her latent loop on this host with it: 1.0 ms where 1.3, solved
   every third pass; 2.1 where 2.9 every pass. Her sensing, her modes and her
   world are the rest. Her stand's loop, a pass: 0.41 ms where 1.1.
