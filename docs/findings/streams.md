@@ -20,8 +20,8 @@ rad/s^2 at the most and 20 ms behind its ask. The quad's own:
 | Mode | Its target | Its stiffness acts on | Its damping on |
 | --- | --- | --- | --- |
 | collective | m/s^2 along the rotors' axis | nothing | nothing |
-| attitude pitch, roll | the nose's and the wing's rise: where up stands in the frame | the turn that takes up there | the rate the target itself has not |
-| yaw, pitch, roll rate | rad/s about the frame's axis | its miss summed, where no attitude is tracked about that axis | its miss |
+| attitude pitch, roll | the rotors' axis's tilt from up - the nose up, the axis back; the right wing down, the axis right - in the level frame of the heading the core holds | the tilt that takes the axis there | the rate the axis asked itself has not |
+| yaw, pitch, roll rate | rad/s about the frame's axis; the yaw's turns the heading held | its miss summed, where no attitude is tracked about that axis | its miss |
 
 204's pitch is damped 100 of its own and 80 of its rate mode's: 1.01 of
 critical at 8 000.
@@ -29,13 +29,13 @@ critical at 8 000.
 ## The core
 
 A pass is seven steps in a table: the payload's coming and its blend, the
-oscillator, the observers, where up is asked, the torque, the lift inside its
-constraints, the share.
+oscillator, the observers, where the rotors' axis is asked, the torque, the
+lift inside its constraints, the share.
 
 - No `if`, `else`, `switch`, `while`, `?`, `&&` or `||` in its sources. Its
   comparisons cast to numbers, the M7's compiler made 40 forward conditional
-  branches of them; as masks from a sign bit, none: 7 268 B, no float
-  compare, 42 conditional branches each a loop's end, three negations on a
+  branches of them; as masks from a sign bit, none: 8 708 B, no float
+  compare, 48 conditional branches each a loop's end, three negations on a
   condition (`copysignf`).
 - No sine is taken: the tilt's exponential is its series in the tilt's
   square, the oscillator a point turned by Cayley's map, a cube root three of
@@ -53,6 +53,28 @@ constraints, the share.
 - The share: 400 wrenches and reaches at random, never past the best of the
   81 sets of rotors held at an end (1.4e-8 of the cost, the weights single
   precision), in 8 passes.
+
+## The axis asked
+
+The course's own flight on the law (`machine.flying`), the core asked the
+same passes: its tilt's torques against the law's 1.5 N m rms.
+
+| The attitude as | Apart, N m rms | The catch, a nose 80 degrees up |
+| --- | --- | --- |
+| where up stands in the frame, closed by the least turn's tilt | 0.62: what of that turn is about the rotors' axis no tilt gives - banked 60 degrees a quarter of a miss along the horizon was answered, on its edge none | a wing off stays off |
+| the one tilt that takes up there | 0.14 | a wing 3 degrees off asked a roll of 20 about a nose 83 down, of 87 as it came round; a turn of 0.12 s ended 119 degrees off, in the floor |
+| the least turn, its part about the rotors' axis taken out as far as up stands off their plane | 0.16 | held, its nose swung 50 degrees either way every 0.35 s, a wing 30 off |
+| the rotors' axis in the world, in the level frame of a heading held | 0.14 | caught from every turn tried |
+
+- The heading held is the frame's own as it first stood, its tilt taken
+  out, turned on by the yaw rate asked: the axis asked is a place in the
+  world whatever the nose does, and a hover is stood from 12 rad/s about the
+  rotors' axis a quarter turn off.
+- A dropped mode leaves its axis of the frame free: the other's miss is what
+  its own turn closes of the offset across it, its sign the axis's own on
+  its back.
+- The lift over the heading in the share: the heading over it, the hover
+  after the catch stood 0.3-1.7 m off its height in 4 turns of 12.
 
 ## The rotors' reach
 
@@ -84,9 +106,9 @@ it; when it stands, s:
 
 | Off, degrees | 0 rad/s | 6 | 9 | 12 |
 | --- | --- | --- | --- | --- |
-| 30 | 0.22 | 1.10 | 1.66 | 2.63 |
-| 90 | 0.31 | 1.39 | 2.50 | never: 15.8 rad/s about its axis after 4 s, its height kept |
-| 150 | 0.38 | 1.21 | 1.83 | 2.68, 4.2 m at the lowest |
+| 30 | 0.22 | 1.10 | 1.66 | 2.64 |
+| 90 | 0.31 | 1.35 | 2.24 | 3.53 |
+| 150 | 0.37 | 1.12 | 1.79 | 2.76, 4.2 m at the lowest |
 
 The heading's torque is the propellers' drag's, 0.6 N m in a hover: under a
 tilt's asks it is what they leave.
@@ -98,37 +120,43 @@ place asked:
 
 | The lean the air may ask | Speed along the floor at the most, m/s | Tilt at the most | Height off |
 | --- | --- | --- | --- |
-| 0.6 of the lift | 0.30 | 7.8 degrees | 12 mm |
-| none | 3.26 | 0.03 degrees | - |
+| 0.6 of the lift | 0.35 | 7.7 degrees | 12 mm |
+| none | 3.26 | 0.03 degrees | 9 mm |
 
-- The speed's observer at 10 rad/s; at 3 the speeds were 0.51-0.83 m/s a
-  kind, at 30 0.24-0.59. The rates' at 20, 40 or 80: the same.
 - A push of 1.5 m/s^2 across, untold: leant 8.69 degrees of 8.69, 0.32 m/s
-  gathered while it was learnt, the height's rate 1.5 mm/s. The push taken
-  in the frame as it stands, not as it is asked: 8.42 degrees and 0.6 m/s
-  up after 3 s.
-- It keeps a vacuum: no place is held (30 m gone in 100 s), and a speed is
-  kept against the drag as far as the lean reaches - 11 m/s after the power
-  loop, leant 31 degrees.
+  gathered while it was learnt, the height's rate 1.5 mm/s.
+- The air held as a push alone trails a bend and a tilt: the drag turns
+  with the speed, what the rotors lose with their axis. Held as what it is
+  made of - a drag's size on the speed squared, the rotors' loss on the air
+  along their axis and their thrusts' roots, a push beside them, what the
+  speed is off by shared between the three by least squares -, 202's dive
+  ends 15.5 m/s ahead of a vacuum's 17.0; with no observer of the speed 9.7.
+- It keeps a vacuum: no place is held (7.7 m gone in 100 s; 177 with no
+  lean), and a speed is kept against the drag as far as the lean reaches -
+  7.0 m/s after the power loop, leant 13 degrees.
 
 ## The power loop
 
-`intents.POWER_LOOP` from the floor, each stream its seconds, the hover
-asked again:
+`intents.POWER_LOOP` from the floor, each stream its seconds - the catch
+till the rotors' axis has stood within 10 degrees of the one asked, every
+rate under 3 rad/s, for 50 ms -, the hover asked again:
 
 | Stream | Seconds | Ends |
 | --- | --- | --- |
 | 201 hover | 3.0 | 1.500 m, level, still; 1.50 m at the most on the way |
-| 202 dive, weave | 1.5 | nose 44 degrees down, wings 32 either way twice a second, 10.3 m/s ahead, 2.67 m up |
-| 203 turn over the nose | 0.08 | every rotor at an end of its reach; 46 N given of 4 asked: the torque first, no rotor under its idle |
-| 204 catch | 0.45 | over to 164 degrees, caught 79.4 off of 80, rates to 25 rad/s |
-| 201 again | 4.0 | 1.501 m, still; 1.49 m at the lowest |
+| 202 dive, weave | 1.5 | its axis 45 degrees ahead and 6 more into its own wind, 37 either side twice a second, 15.5 m/s ahead, 4.30 m up |
+| 203 turn over the nose | 0.08 | every rotor at an end of its reach; 90 N given of 4 asked: the torque first, no rotor under its idle |
+| 204 catch | 0.51 | over to 172 degrees, rates to 42 rad/s; its axis 80.4 degrees off up, 16 m/s along the floor stopped to 1.8 |
+| 201 again | 4.0 | 1.500 m, still; 1.50 m at the lowest |
 
-- A turn of 0.05 s: caught 78.6 off, 1.09 m at the lowest; 0.12 s: 79.3,
-  rates to 41 rad/s, 0.60 m.
-- The tilt asked is a point on a sphere and the heading is free: the catch
-  stands on it with its wing 21 degrees down, closed about the rotors' axis
-  by the drag's torque alone.
+- A turn of 0.03 s is caught in 0.38 s, of 0.05 in 0.32, of 0.12 - rates to
+  81 rad/s - in 0.58; twelve from 0.03 to 0.12 s in 0.32-0.62, each stood
+  at 1.500 m after.
+- Flown its injector's 0.45 s whatever the frame did, the catch ended on its
+  tilt or 40-150 degrees off by where the turn had it: 80 rad/s is stopped
+  and brought round in 0.6 s.
+- The axis asked is a place on a sphere and the frame is free about it: the
+  catch stands with its nose 41 and its wing 47 degrees up.
 - A stream says nothing of when: 204 comes at its injector's time, and a
   turn asked at 314 rad/s is over in 20 ms in a vacuum.
 
@@ -142,10 +170,10 @@ the current it holds gives; its rotor's thrust as given is its estimate's.
 | Stream | Ends | Boards |
 | --- | --- | --- |
 | 201 | 1.500 m | 52 A at the most as it lifts, SOA 0.35 |
-| 202 | nose 47 degrees down, 10.4 m/s ahead, 2.70 m | 54 A, SOA 0.57 |
-| 203 | every rotor at an end | 60 A, SOA 0.67 |
-| 204 | over to 161 degrees, caught 78.5 off | 61 A, SOA 0.89, 46 A held at the least, the pack to 59.8 V |
-| 201 again | 1.500 m, still | SOA 0.89, 45 A held |
+| 202 | its axis 51 degrees ahead, 15.2 m/s ahead, 3.98 m | 57 A, SOA 0.65 |
+| 203 | every rotor at an end | 60 A, SOA 0.80 |
+| 204 | over to 170 degrees, caught in 0.48 s, 79.9 off | 61 A, SOA 0.88, 47 A held at the least, the pack to 60.3 V |
+| 201 again | 1.501 m, still | SOA 0.89, 45 A held |
 
 - No drive tripped, no node past its throttle's point: asked all the rotors
   give, each board holds its own clamp and its reach says so.

@@ -7,9 +7,11 @@
 
 #include <stdint.h>
 
-/** The latent modes, the payload's order: the collective, m/s^2 along the frame's axis; the
-    nose's attitude, rad, up, and the wings', its right one down; the rates of the nose to its
-    right, up, and of the right wing down, rad/s. */
+/** The latent modes, the payload's order: the collective, m/s^2 along the rotors' axis; that
+    axis's tilt from up, rad, as an attitude's - the nose up, the axis back; the right wing
+    down, the axis right - in the level frame of the heading the core holds, the frame's own
+    as it first stood turned on by the yaw rate asked; the rates of the nose to its right,
+    up, and of the right wing down, rad/s, about the frame's own axes. */
 #define AERO_THRUST     0U
 #define AERO_PITCH      1U
 #define AERO_ROLL       2U
@@ -19,7 +21,8 @@
 #define AERO_MODES      6U
 
 /** A mode's rows as blended: where it is asked, how much of it is tracked (1, a NaN's 0), its
-    stiffness, 1/s^2, its damping, 1/s, its oscillator's amplitude. */
+    stiffness, 1/s^2, its damping, 1/s, its oscillator's amplitude. The attitude's two targets
+    are blended as the point they are, on the sphere (aero_turn.c): their row is the payload's. */
 #define AERO_TARGET 0U
 #define AERO_WEIGHT 1U
 #define AERO_STIFF  2U
@@ -91,19 +94,21 @@ typedef struct
 } aero_in_t;
 
 /** A pass's answer: each rotor's thrust, N; the wrench asked and the one those thrusts give;
-    the rotors at their least (bits 0..3) and their most (4..7); where up is asked to stand in
-    the frame and the turn that takes it there, about the frame's axes; what the observers
-    hold: the rates' disturbance, rad/s^2, and the speed's, m/s^2 in the world. */
+    the rotors at their least (bits 0..3) and their most (4..7); where the rotors' axis is
+    asked to point in the frame and the tilt that takes it there, about the frame's axes; what
+    the observers hold: the rates' disturbance, rad/s^2, and the speed's, m/s^2 in the world;
+    the heading held, cos and sin, from z toward x. */
 typedef struct
 {
   float    thrust[AERO_ROTORS];
   float    asked[AERO_WRENCH];
   float    gave[AERO_WRENCH];
   uint32_t bound;
-  float    up[AERO_AXES];
+  float    axis[AERO_AXES];
   float    miss[AERO_AXES];
   float    turned[AERO_AXES];
   float    pushed[AERO_AXES];
+  float    head[2];
 } aero_out_t;
 
 /** The core's memory, laid once (`aero_init`). */
@@ -114,17 +119,22 @@ typedef struct
   uint32_t swinging;                      /**< all ones while its oscillator is on */
   uint32_t begun;                         /**< all ones from the first reading on */
   uint32_t kick;                          /**< all ones the pass an oscillator began */
+  uint32_t came;                          /**< all ones the pass a payload came */
   float    since;                         /**< s into the blend */
-  float    share;                         /**< the blend made, 0..1, and what it moved a pass */
-  float    moved;
+  float    share;                         /**< the blend made, 0..1 */
   float    base;                          /**< the height the payload came at, m */
   float    from[AERO_ROWS][AERO_MODES + 1U];  /**< the rows as the payload found them */
   float    to[AERO_ROWS][AERO_MODES + 1U];    /**< as it asks them */
   float    now[AERO_ROWS][AERO_MODES + 1U];   /**< as blended; the last column none */
-  float    rate[AERO_MODES + 1U];         /**< each target's own rate */
   float    ask[AERO_MODES + 1U];          /**< each target with its oscillator on it */
   float    wave[2];                       /**< the oscillator: cos, sin */
-  float    up[AERO_AXES];                 /**< where up is asked to stand in the frame */
+  uint32_t headed;                        /**< all ones once a heading is held */
+  float    head[2];                       /**< the heading held: cos, sin, from z toward x */
+  float    began[AERO_AXES];              /**< where the axis was asked as the payload came, */
+  float    stood[AERO_AXES];              /**< and last pass, in the world; the payload's */
+  float    point[AERO_AXES];              /**< own point as blended, and the rate it turns */
+  float    turns[AERO_AXES];              /**< at about the frame's axes */
+  float    axis[AERO_AXES];               /**< where the axis is asked to point, in the frame */
   float    miss[AERO_AXES];
   float    wound[AERO_AXES];              /**< a rate mode's miss summed, rad */
   float    held[AERO_AXES];               /**< 1 where the thrusts gave its torque short */
@@ -133,8 +143,12 @@ typedef struct
   float    aim;                           /**< how far the axis points where asked, 0..1 */
   float    spin_hat[AERO_AXES];           /**< the rates' observer: its rates, its disturbance */
   float    turn_hat[AERO_AXES];
-  float    vel_hat[AERO_AXES];            /**< the speed's observer */
-  float    push_hat[AERO_AXES];
+  float    vel_hat[AERO_AXES];            /**< the speed's observer: its speed, the push it */
+  float    push_hat[AERO_AXES];           /**< holds, m/s^2 in the world, the drag it has */
+  float    drag_hat;                      /**< learnt, 1/m on the speed's square, the rotors' */
+  float    loss_hat;                      /**< loss on the air along their axis and their */
+  float    air[AERO_AXES];                /**< thrusts' roots; the push and the drag together, */
+  float    lost;                          /**< m/s^2, and the loss a m/s along the axis, 1/s */
 } aero_t;
 
 /** The memory for a frame, at rest, no payload flown. */

@@ -282,7 +282,8 @@ def test_a_dropped_mode_is_masked(report):
 
 
 def test_a_payload_is_blended_in_and_swung(report):
-    """A payload's rows come to its values over its blend, a line; a mode tracked from a
+    """A payload's rows come to its values over its blend, a line - its attitude along the
+    sphere, the axis asked half way between the two half its blend in; a mode tracked from a
     dropped one takes its target whole; the oscillator swings a target its amplitude either
     way at its frequency, a sine from nothing where it began."""
     from machine import aerolisp
@@ -294,16 +295,17 @@ def test_a_payload_is_blended_in_and_swung(report):
     second = _hover(3000.0, 20.0, blend=200, sequence=2, pitch='-20deg', thrust='12')
     seen = []
     for n in range(150):
-        frame.step(second)
+        out = frame.step(second)
         targets, _wound = frame.core.row(aero.TARGET)
         stiff, _w = frame.core.row(aero.STIFF)
-        seen.append((targets[1], stiff[1], targets[0]))
+        axis = frame.turn @ list(out.axis)
+        seen.append((math.atan2(-axis[2], axis[1]), stiff[1], targets[0]))
     half, full = seen[49], seen[-1]
-    report.check('half its blend in, its rows half way: the pitch, its stiffness, the thrust',
-                 abs(half[0] - math.radians(-10.0)) < 1e-3 and abs(half[1] - 2000.0) < 1.0
+    report.check('half its blend in, half way: the axis asked, its stiffness, the thrust',
+                 abs(half[0] - math.radians(-10.0)) < 5e-3 and abs(half[1] - 2000.0) < 1.0
                  and abs(half[2] - 10.905) < 1e-2, '%.2f deg, %.0f, %.2f' % (
                      math.degrees(half[0]), half[1], half[2]))
-    report.check('its blend over, its own', abs(full[0] - math.radians(-20.0)) < 1e-6
+    report.check('its blend over, its own', abs(full[0] - math.radians(-20.0)) < 2e-3
                  and full[1] == 3000.0, '%.2f deg, %.0f' % (math.degrees(full[0]), full[1]))
     dropped = aero.payload(aerolisp.compiled(
         '(stream_inject (sequence_id 3) (blend_duration 100ms) (latent_targets '

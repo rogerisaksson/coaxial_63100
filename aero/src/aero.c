@@ -15,12 +15,19 @@
 #define SHORT   1e-3f
 /** The lift's weight in the share at the least, of its own: a row of none has no curvature. */
 #define FAINT   0.01f
+/** A drag's size is learnt from 2 m/s on, the rotors' loss from 1 m/s of air through them at
+    a hover's thrusts: their terms' squares under these, the push's. */
+#define SLOW    16.0f
+#define LOST    20.0f
 
 static const float UP[AERO_AXES] = {0.0f, 1.0f, 0.0f};
 
+/** The attitude's modes: their targets are one point, blended where it is made. */
+static const float ANGLE[AERO_MODES] = {0.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f};
+
 /** The payload's coming: the rows as they stand are what it blends from; its rows blended as
     far as its time has run, a target between two tracked ones, taken whole from a dropped
-    one's side; each target's own rate. */
+    one's side. */
 static void inject(aero_t *s, const aero_payload_t *p, const aero_in_t *in, aero_out_t *out)
 {
   const uint32_t came = set(p->sequence_id ^ s->sequence), swings = set(p->cpg_enabled);
@@ -32,7 +39,6 @@ static void inject(aero_t *s, const aero_payload_t *p, const aero_in_t *in, aero
   (void)out;
   s->since = (1.0f - fresh) * s->since + dt;
   share = least(1.0f, s->since / most(span, dt));
-  s->moved = share - (1.0f - fresh) * s->share;
   s->share = share;
   for (int i = 0; i < (int)AERO_MODES; i++)
   {
@@ -56,17 +62,17 @@ static void inject(aero_t *s, const aero_payload_t *p, const aero_in_t *in, aero
     wt = s->to[AERO_WEIGHT][i] * share;
     s->now[AERO_TARGET][i] = (wf * s->from[AERO_TARGET][i] + wt * s->to[AERO_TARGET][i])
                              / most(wf + wt, TINY);
-    s->rate[i] = s->from[AERO_WEIGHT][i] * s->to[AERO_WEIGHT][i]
-                 * (s->to[AERO_TARGET][i] - s->from[AERO_TARGET][i]) * s->moved / dt;
+    s->now[AERO_TARGET][i] += ANGLE[i] * (s->to[AERO_TARGET][i] - s->now[AERO_TARGET][i]);
   }
   s->base += fresh * (in->height - s->base);
+  s->came = came;
   s->kick = came & swings & ~s->swinging;
   s->sequence = p->sequence_id;
   s->swinging = swings;
 }
 
 /** The oscillator a pass on, a point on the circle turned by Cayley's map - no sine taken -
-    from (1, 0) where it began; each target with its amplitude of it, and its rate. */
+    from (1, 0) where it began; each target with its amplitude of it. */
 static void swing(aero_t *s, const aero_payload_t *p, const aero_in_t *in, aero_out_t *out)
 {
   const float dt = most(in->dt, TINY);
@@ -82,18 +88,27 @@ static void swing(aero_t *s, const aero_payload_t *p, const aero_in_t *in, aero_
   for (int i = 0; i < (int)AERO_MODES; i++)
   {
     s->ask[i] = s->now[AERO_TARGET][i] + s->now[AERO_SWING][i] * s->wave[1];
-    s->rate[i] += s->now[AERO_SWING][i] * (2.0f * half / dt) * s->wave[0];
   }
 }
 
 /** The observers a pass on: the frame's rates and its speed against what the rotors' thrusts
     as given, its own inertia (spin x J spin) and gravity account for; what is left is theirs
-    - the air, the rotors' precession, a weak rotor, the floor. Begun on the first reading. */
+    - the air, the rotors' precession, a weak rotor, the floor. The speed's holds the air as
+    what it is made of: a drag on the frame's own speed squared, what the rotors lose to the
+    air along their axis - a thrust's root times that air's speed - and a push beside them.
+    The first two are sizes, learnt: a drag turns with the speed through a bend and the loss
+    with the axis through a tilt, where a push alone trailed both. What the speed is off by
+    is shared between the three by least squares, a size given none where its own term is
+    next to none. Begun on the first reading. */
 static void observe(aero_t *s, const aero_payload_t *p, const aero_in_t *in, aero_out_t *out)
 {
   const float dt = in->dt, wt = s->p.wo_turn, wp = s->p.wo_pull;
   const float *n = s->p.inertia;
-  float       lift = 0.0f;
+  const float fast = sqrtf(in->vel[0] * in->vel[0] + in->vel[1] * in->vel[1]
+                           + in->vel[2] * in->vel[2]);
+  const float through = in->vel[0] * in->r[1] + in->vel[1] * in->r[4] + in->vel[2] * in->r[7];
+  float       lift = 0.0f, roots = 0.0f, drag[AERO_AXES], loss[AERO_AXES], off[AERO_AXES];
+  float       dd = SLOW, ll = LOST, dl = 0.0f, de = 0.0f, le = 0.0f, det, more, less;
   float       about[AERO_AXES] = {-(n[2] - n[1]) * in->spin[1] * in->spin[2],
                                   -(n[0] - n[2]) * in->spin[2] * in->spin[0],
                                   -(n[1] - n[0]) * in->spin[0] * in->spin[1]};
@@ -103,21 +118,42 @@ static void observe(aero_t *s, const aero_payload_t *p, const aero_in_t *in, aer
   for (int i = 0; i < (int)AERO_ROTORS; i++)
   {
     lift += in->given[i];
+    roots += sqrtf(most(in->given[i], 0.0f));
     about[0] -= in->given[i] * s->p.at_z[i];
     about[1] += in->given[i] * s->p.spin[i] * s->p.kappa;
     about[2] += in->given[i] * s->p.at_x[i];
   }
+  roots /= s->p.mass;
   for (int a = 0; a < (int)AERO_AXES; a++)
   {
     const float spin = pick(s->begun, in->spin[a], s->spin_hat[a]);
     const float vel = pick(s->begun, in->vel[a], s->vel_hat[a]);
-    const float e = in->spin[a] - spin, v = in->vel[a] - vel;
+    const float e = in->spin[a] - spin;
 
+    drag[a] = -fast * in->vel[a];
+    loss[a] = -through * roots * in->r[3 * a + 1];
+    off[a] = in->vel[a] - vel;
     s->spin_hat[a] = spin + dt * (about[a] / n[a] + s->turn_hat[a] + 2.0f * wt * e);
     s->turn_hat[a] += dt * wt * wt * e;
     s->vel_hat[a] = vel + dt * (lift / s->p.mass * in->r[3 * a + 1] - UP[a] * s->p.gravity
-                                + s->push_hat[a] + 2.0f * wp * v);
-    s->push_hat[a] += dt * wp * wp * v;
+                                + s->push_hat[a] + s->drag_hat * drag[a]
+                                + s->loss_hat * loss[a] + 2.0f * wp * off[a]);
+    dd += drag[a] * drag[a];
+    ll += loss[a] * loss[a];
+    dl += drag[a] * loss[a];
+    de += drag[a] * off[a];
+    le += loss[a] * off[a];
+  }
+  det = dd * ll - dl * dl;
+  more = (ll * de - dl * le) / det;
+  less = (dd * le - dl * de) / det;
+  s->drag_hat = most(0.0f, s->drag_hat + dt * wp * wp * more);
+  s->loss_hat = most(0.0f, s->loss_hat + dt * wp * wp * less);
+  s->lost = s->loss_hat * roots;
+  for (int a = 0; a < (int)AERO_AXES; a++)
+  {
+    s->push_hat[a] += dt * wp * wp * (off[a] - more * drag[a] - less * loss[a]);
+    s->air[a] = s->push_hat[a] + s->drag_hat * drag[a];
   }
   s->begun = ~0U;
 }
@@ -134,7 +170,9 @@ static void pull(aero_t *s, const aero_payload_t *p, const aero_in_t *in, aero_o
   const uint32_t caps = can & set((p->constraints >> AERO_ASCENT) & 1U)
                         & known(p->constraint[AERO_ASCENT]);
   const float    rise = s->p.rise, each = s->p.mass / most(in->r[4], UPRIGHT);
-  const float    free = s->p.gravity - s->push_hat[1] - 2.0f * rise * in->vel[1];
+  const float    through = in->vel[0] * in->r[1] + in->vel[1] * in->r[4] + in->vel[2] * in->r[7];
+  const float    free = s->p.gravity - s->air[1] + s->lost * through * in->r[4]
+                        - 2.0f * rise * in->vel[1];
   const float    held = each * (free - rise * rise
                                 * (in->height - clean(p->constraint[AERO_MAINTAIN])));
   const float    capped = each * (free - rise * rise
@@ -159,6 +197,7 @@ static void share(aero_t *s, const aero_payload_t *p, const aero_in_t *in, aero_
   float       low[AERO_WRENCH] = {0.0f, 0.0f, 0.0f, 0.0f};
   float       high[AERO_WRENCH] = {0.0f, 0.0f, 0.0f, 0.0f};
   double      want[AERO_WRENCH], f[AERO_ROTORS];
+  const float through = in->vel[0] * in->r[1] + in->vel[1] * in->r[4] + in->vel[2] * in->r[7];
 
   (void)p;
   for (int i = 0; i < (int)AERO_ROTORS; i++)
@@ -181,6 +220,8 @@ static void share(aero_t *s, const aero_payload_t *p, const aero_in_t *in, aero_
     out->gave[k] = 0.0f;
   }
   aero_share(s, weigh, want, in->lo, in->hi, f, &out->bound);
+  out->head[0] = s->head[0];
+  out->head[1] = s->head[1];
   for (int i = 0; i < (int)AERO_ROTORS; i++)
   {
     out->thrust[i] = (float)f[i];
@@ -193,10 +234,10 @@ static void share(aero_t *s, const aero_payload_t *p, const aero_in_t *in, aero_
   {
     s->held[a] = one(lt(SHORT * (fabsf(asked[a + 1]) + 1.0f),
                         fabsf(out->gave[a + 1] - asked[a + 1])));
-    out->up[a] = s->up[a];
+    out->axis[a] = s->axis[a];
     out->miss[a] = s->miss[a];
     out->turned[a] = s->turn_hat[a];
-    out->pushed[a] = s->push_hat[a];
+    out->pushed[a] = s->air[a] - s->lost * through * in->r[3 * a + 1];
   }
 }
 

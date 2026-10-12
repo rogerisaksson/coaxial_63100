@@ -1,5 +1,5 @@
-/** aero_turn.c - the frame's attitude: where up is asked to stand in it, and the torque that
-    takes it there as far as the rotors render the payload's impedance. No branch. */
+/** aero_turn.c - the frame's attitude: where its rotors' axis is asked to point, and the
+    torque that takes it there as far as the rotors render the payload's impedance. No branch. */
 #include "aero_bits.h"
 
 #include <math.h>
@@ -18,6 +18,7 @@ static const uint8_t ATTITUDE[AERO_AXES] = {AERO_PITCH, NONE, AERO_ROLL};
 static const uint8_t RATE[AERO_AXES] = {AERO_PITCH_RATE, AERO_YAW_RATE, AERO_ROLL_RATE};
 static const float   WAY[AERO_AXES] = {-1.0f, 1.0f, -1.0f};
 static const float   UP[AERO_AXES] = {0.0f, 1.0f, 0.0f};
+static const float   AHEAD[AERO_AXES] = {0.0f, 0.0f, 1.0f};
 
 /** cos sqrt q and sin sqrt q / sqrt q, their series' terms in q. */
 static const float COS[TERMS] = {
@@ -64,21 +65,31 @@ static void least_turn(const float from[AERO_AXES], const float to[AERO_AXES],
   out[2] = v[2] + u[2] + (w[0] * u[1] - w[1] * u[0]) * deep;
 }
 
-/** Where up is asked to stand in the frame, a point on the sphere: the tilt's exponential
-    (its series, no angle taken), leant against what the air pushes across the rotors' axis;
-    along a dropped mode it stands where the frame has it. The turn from where it stands to
-    there is the miss; the lift is the collective and the air's part along the axis. */
+/** Where the rotors' axis is asked to point, and the tilt that takes it there. The payload's
+    attitude is the axis's own tilt from up - the nose up, the axis back; the right wing down,
+    the axis right - in the level frame of the heading the core holds: the frame's own as it
+    first stood, its tilt taken out, turned on by the yaw rate asked. In the world that is a
+    point on the sphere: the tilt's exponential (its series, no angle taken), come to along
+    the sphere from where the axis was asked as the payload came. The thrust that makes the
+    collective along it in this air is that less the air's push - across it as far as `lean`
+    lets, the rotors' loss along it made up -: where that points the axis goes, its size the
+    lift. The miss is the tilt that takes the axis there, its sine, a unit past a quarter
+    turn: no turn about the axis in it, whatever the nose does, and none it cannot make on
+    its edge or its back. A dropped mode leaves its axis of the frame free: the other's miss
+    is what its own turn closes of the axis's offset across it. */
 void aero_refer(aero_t *s, const aero_payload_t *p, const aero_in_t *in, aero_out_t *out)
 {
   const float *w = s->now[AERO_WEIGHT];
   const float  wp = w[AERO_PITCH], wr = w[AERO_ROLL], wc = w[AERO_THRUST];
+  const float  both = wp * wr, dt = most(in->dt, TINY);
   const float  tx = -least(PI, most(-PI, s->ask[AERO_PITCH]));
   const float  tz = -least(PI, most(-PI, s->ask[AERO_ROLL]));
   const float  q = tx * tx + tz * tz;
+  const float  half = 0.5f * w[AERO_YAW_RATE] * s->ask[AERO_YAW_RATE] * dt;
   const float  seen[AERO_AXES] = {in->r[3], in->r[4], in->r[5]};
-  float        c = 0.0f, sc = 0.0f, mine[AERO_AXES], d[AERO_AXES], want[AERO_AXES];
-  float        f[AERO_AXES], n[AERO_AXES], leant[AERO_AXES];
-  float        along, size, lean, norm, a, b, y, dot;
+  float        c = 0.0f, sc = 0.0f, level[AERO_AXES], want[AERO_AXES], turn[AERO_AXES];
+  float        f[AERO_AXES], n[AERO_AXES], g[AERO_AXES], e[AERO_AXES], across[AERO_AXES];
+  float        hc, hs, norm, along, pushed, goes, size, lean, unit, trim;
 
   (void)p;
   (void)out;
@@ -87,65 +98,106 @@ void aero_refer(aero_t *s, const aero_payload_t *p, const aero_in_t *in, aero_ou
     c = COS[k] + q * c;
     sc = SINC[k] + q * sc;
   }
-  want[0] = tz * sc;
+  /* the heading held: the nose's as the frame stands level - at the first reading -, turned
+     on by Cayley's map */
+  least_turn(UP, seen, AHEAD, level);
+  hs = in->r[0] * level[0] + in->r[1] * level[1] + in->r[2] * level[2];
+  hc = in->r[6] * level[0] + in->r[7] * level[1] + in->r[8] * level[2];
+  norm = most(sqrtf(hc * hc + hs * hs), TINY);
+  hc = pick(s->headed, hc / norm, s->head[0]);
+  hs = pick(s->headed, hs / norm, s->head[1]);
+  s->head[0] = ((1.0f - half * half) * hc - 2.0f * half * hs) / (1.0f + half * half);
+  s->head[1] = (2.0f * half * hc + (1.0f - half * half) * hs) / (1.0f + half * half);
+  trim = 1.5f - 0.5f * (s->head[0] * s->head[0] + s->head[1] * s->head[1]);
+  s->head[0] *= trim;
+  s->head[1] *= trim;
+  s->headed = ~0U;
+  /* the axis asked: in that heading's level frame (tz sc, c, -tx sc) mirrored, then the
+     world's; come to along the sphere */
+  want[0] = -tz * sc * s->head[0] + tx * sc * s->head[1];
   want[1] = c;
-  want[2] = -tx * sc;
-  /* the air's push in the frame as asked - the frame's own, turned the least turn that takes
-     up as it stands to up as asked -, and the thrust that answers it with the collective */
+  want[2] = tz * sc * s->head[1] + tx * sc * s->head[0];
   for (int j = 0; j < (int)AERO_AXES; j++)
   {
-    mine[j] = in->r[j] * s->push_hat[0] + in->r[3 + j] * s->push_hat[1]
-              + in->r[6 + j] * s->push_hat[2];
+    s->began[j] = pick(s->came, s->began[j], s->stood[j]);
+    want[j] = s->began[j] + s->share * (want[j] - s->began[j]);
   }
-  least_turn(seen, want, mine, d);
-  along = most(wc * s->ask[AERO_THRUST] - d[1], TINY);
-  size = sqrtf(d[0] * d[0] + d[2] * d[2]);
-  lean = wp * wr * wc * least(1.0f, s->p.lean * along / most(size, TINY));
-  f[0] = -lean * d[0];
-  f[1] = along;
-  f[2] = -lean * d[2];
-  norm = sqrtf(f[0] * f[0] + f[1] * f[1] + f[2] * f[2]);
+  norm = most(sqrtf(want[0] * want[0] + want[1] * want[1] + want[2] * want[2]), TINY);
   for (int j = 0; j < (int)AERO_AXES; j++)
   {
-    n[j] = f[j] / norm;
+    want[j] /= norm;
   }
-  s->lift = s->p.mass * wc * norm;
-  /* up as asked, turned as the rotors' axis is from n: the least turn, n onto the axis */
-  least_turn(n, UP, want, leant);
-  /* a dropped mode's part of it is the frame's own: the wing's rise is the roll's, the
-     nose's the pitch's */
-  a = wr * leant[0] + (1.0f - wr) * seen[0];
-  b = wp * leant[2] + (1.0f - wp) * seen[2];
-  y = copysignf(sqrtf(most(1.0f - a * a - b * b, 0.0f)),
-                wp * wr * leant[1] + (1.0f - wp * wr) * seen[1]);
-  norm = most(sqrtf(a * a + y * y + b * b), TINY);
-  s->up[0] = a / norm;
-  s->up[1] = y / norm;
-  s->up[2] = b / norm;
-  s->miss[0] = s->up[1] * seen[2] - s->up[2] * seen[1];
-  s->miss[1] = s->up[2] * seen[0] - s->up[0] * seen[2];
-  s->miss[2] = s->up[0] * seen[1] - s->up[1] * seen[0];
-  /* past a quarter turn its sine falls: a unit there */
-  dot = s->up[0] * seen[0] + s->up[1] * seen[1] + s->up[2] * seen[2];
-  s->aim = most(dot, 0.0f);
-  norm = sqrtf(s->miss[0] * s->miss[0] + s->miss[1] * s->miss[1] + s->miss[2] * s->miss[2]);
-  norm = pick(neg(dot), 1.0f, 1.0f / most(norm, TINY));
+  /* the point's own rate about the frame's axes: what turned it from the last pass's, its
+     blend and its oscillator; a step at a payload's coming is none, nor has a mode one that
+     was dropped either side */
+  turn[0] = (s->point[1] * want[2] - s->point[2] * want[1]) / dt;
+  turn[1] = (s->point[2] * want[0] - s->point[0] * want[2]) / dt;
+  turn[2] = (s->point[0] * want[1] - s->point[1] * want[0]) / dt;
   for (int j = 0; j < (int)AERO_AXES; j++)
   {
-    s->miss[j] *= norm;
+    const uint8_t att = ATTITUDE[j];
+
+    s->turns[j] = (1.0f - one(s->came)) * s->from[AERO_WEIGHT][att] * s->to[AERO_WEIGHT][att]
+                  * (in->r[j] * turn[0] + in->r[3 + j] * turn[1] + in->r[6 + j] * turn[2]);
+    s->point[j] = want[j];
+    g[j] = in->r[j] * want[0] + in->r[3 + j] * want[1] + in->r[6 + j] * want[2];
+  }
+  /* where the lift acts: the axis asked, a dropped mode's part of it the frame's own */
+  e[0] = wr * g[0];
+  e[2] = wp * g[2];
+  e[1] = copysignf(sqrtf(most(1.0f - e[0] * e[0] - e[2] * e[2], 0.0f)), both * g[1] + 1.0f - both);
+  for (int j = 0; j < (int)AERO_AXES; j++)
+  {
+    s->stood[j] = in->r[3 * j] * e[0] + in->r[3 * j + 1] * e[1] + in->r[3 * j + 2] * e[2];
+  }
+  /* the thrust for the collective along it in this air: the air's push taken out - across
+     the axis as far as `lean` lets -, the rotors' loss along it made up */
+  pushed = s->air[0] * s->stood[0] + s->air[1] * s->stood[1] + s->air[2] * s->stood[2];
+  goes = in->vel[0] * s->stood[0] + in->vel[1] * s->stood[1] + in->vel[2] * s->stood[2];
+  along = most(wc * s->ask[AERO_THRUST] - pushed + s->lost * goes, TINY);
+  for (int j = 0; j < (int)AERO_AXES; j++)
+  {
+    across[j] = pushed * s->stood[j] - s->air[j];
+  }
+  size = sqrtf(across[0] * across[0] + across[1] * across[1] + across[2] * across[2]);
+  lean = both * wc * least(1.0f, s->p.lean * along / most(size, TINY));
+  for (int j = 0; j < (int)AERO_AXES; j++)
+  {
+    f[j] = along * s->stood[j] + lean * across[j];
+    /* the axis leant as for a lift of the frame's weight at the least: with next to none
+       asked a lean answers nothing, and the axis stood a tangent's angle off on any push */
+    n[j] = most(along, s->p.gravity) * want[j] + lean * across[j];
+  }
+  s->lift = s->p.mass * wc * sqrtf(f[0] * f[0] + f[1] * f[1] + f[2] * f[2]);
+  norm = most(sqrtf(n[0] * n[0] + n[1] * n[1] + n[2] * n[2]), TINY);
+  for (int j = 0; j < (int)AERO_AXES; j++)
+  {
+    g[j] = (in->r[j] * n[0] + in->r[3 + j] * n[1] + in->r[6 + j] * n[2]) / norm;
+  }
+  /* the tilt that takes the axis there */
+  unit = pick(neg(g[1]), 1.0f, 1.0f / most(sqrtf(g[0] * g[0] + g[2] * g[2]), TINY));
+  s->miss[0] = wp * g[2] * (wr * unit + (1.0f - wr) * g[1]);
+  s->miss[1] = 0.0f;
+  s->miss[2] = -wr * g[0] * (wp * unit + (1.0f - wp) * g[1]);
+  s->aim = both * most(g[1], 0.0f)
+           + (1.0f - both) * sqrtf(most(1.0f - wr * g[0] * g[0] - wp * g[2] * g[2], 0.0f));
+  for (int j = 0; j < (int)AERO_AXES; j++)
+  {
+    s->axis[j] = g[j];
   }
 }
 
 /** The torque asked about each axis, the payload's impedance as far as the rotors render it.
-    Its attitude mode's stiffness on the miss and damping on the rate the target itself has
-    not; its rate mode's damping on its rate's miss and stiffness on that miss summed, where
-    no attitude is tracked there: one rate asked, d of its miss the acceleration. Past what
-    the rotors' reach this pass turns - a jerk, j - the miss is closed at the fastest rate
-    they stop from, (j e^2)^(1/3), and that rate come to at sqrt(2 j x): each curve met where
-    its slope is the payload's. A tilt's torque the frame's turn about the rotors' axis
-    carries round is asked no larger than the reach follows it round, j over that turn's
-    rate, and its miss closed no faster than that stops. A rate's miss is summed inside the
-    payload's own slopes and the rotors' reach alone. Less what the observer holds. */
+    Its attitude mode's stiffness on the miss and damping on the rate the axis asked itself
+    has not (`turns`); its rate mode's damping on its rate's miss and stiffness on that miss
+    summed, where no attitude is tracked there: one rate asked, d of its miss the
+    acceleration. Past what the rotors' reach this pass turns - a jerk, j - the miss is
+    closed at the fastest rate they stop from, (j e^2)^(1/3), and that rate come to at
+    sqrt(2 j x): each curve met where its slope is the payload's. A tilt's torque the frame's
+    turn about the rotors' axis carries round is asked no larger than the reach follows it
+    round, j over that turn's rate, and its miss closed no faster than that stops. A rate's
+    miss is summed inside the payload's own slopes and the rotors' reach alone. Less what the
+    observer holds. */
 void aero_turn(aero_t *s, const aero_payload_t *p, const aero_in_t *in, aero_out_t *out)
 {
   const float dt = most(in->dt, TINY);
@@ -185,7 +237,7 @@ void aero_turn(aero_t *s, const aero_payload_t *p, const aero_in_t *in, aero_out
     const float   near = least(pick(lt(4.0f / 9.0f * knee, e), slope * e,
                                     root3(j) * bend * bend), sqrtf(2.0f * cap * e));
     const float   x = copysignf(near, s->miss[a]) - in->spin[a]
-                      + (wa * s->now[AERO_DAMP][att] * WAY[a] * s->rate[att]
+                      + (wa * s->now[AERO_DAMP][att] * s->turns[a]
                          + wr * s->now[AERO_DAMP][rat] * WAY[a] * s->ask[rat]
                          + kr * s->wound[a]) / most(d, TINY);
     const float   far = sqrtf(2.0f * j * most(fabsf(x) - 0.5f * linear, 0.0f));

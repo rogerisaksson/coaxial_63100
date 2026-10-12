@@ -63,9 +63,10 @@ wbc/      her chain on its static model (wbc_model.c, written by
           asks of R^k into torques by priority within the bounds; host-tested
 aero/     a frame flown from a compiled intent (machine.aerolisp's payload):
           its blend, oscillator and observers, the lift inside its constraints
-          (aero.c), where up is asked and the torque there (aero_turn.c), the
-          thrusts shared by an active set (aero_share.c); a choice a mask
-          (aero_bits.h), no branch; host-tested, not yet in the image
+          (aero.c), where the rotors' axis is asked and the torque there
+          (aero_turn.c), the thrusts shared by an active set (aero_share.c);
+          a choice a mask (aero_bits.h), no branch; host-tested, not yet in
+          the image
 daq/      acquisition engine (ring, window, ladder, tone, live)
 shtp/     BNO08X transport
 boot/     bootloader: boot_core.c (portable) + boot_main.c (registers),

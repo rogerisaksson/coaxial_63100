@@ -108,45 +108,64 @@ def test_what_is_no_stream_is_refused(report):
                  and payload.latent_targets[2] == 0.5)
 
 
+#: The catch is flown till the rotors' axis has stood this near the one asked, degrees, and
+#: no longer than this, s: a frame turning 80 rad/s is stopped and brought round in 0.62.
+NEAR_DEG, CATCH_S = 10.0, 0.8
+
+
+def _swung(dive, passes):
+    """(how far ahead the rotors' axis points at the mean, the least and the most aside,
+    degrees, its swings from one side to the other) over the dive's last `passes`."""
+    ahead, aside = ([math.degrees(math.asin(float(s['turn'][row][1])))
+                     for _t, s, _f, _b in dive['passes'][-passes:]] for row in (2, 0))
+    return (sum(ahead) / len(ahead), min(aside), max(aside),
+            sum(1 for a, b in zip(aside, aside[1:]) if a < 0.0 <= b))
+
+
 def test_the_power_loop_is_flown(report):
-    """The four streams on ideal rotors from the floor, each its seconds, and the hover asked
-    again: it stands at its height; dives on its nose weaving; turns over past its back; is
-    caught on the tilt asked; stands at its height again - nothing struck, whatever the turn's
-    length of those tried."""
+    """The four streams on ideal rotors from the floor, each its seconds - the catch till the
+    frame is caught -, and the hover asked again: it stands at its height; dives ahead, its
+    rotors' axis swung either side; turns over past its back; is caught, that axis the 80
+    degrees off up that were asked; stands at its height again - nothing struck, whatever the
+    turn's length of those tried."""
     from machine import aerolisp, intents, quad
     from tools.cores import aero
     from tools.sim import streams
     compiled = aerolisp.compiled(intents.POWER_LOOP, streams.symbols())
-    for turn in (intents.POWER_LOOP_S[2], 0.05, 0.12):
+    for turn in (intents.POWER_LOOP_S[2], 0.03, 0.05, 0.12):
         payloads = [aero.payload(p) for p in compiled]
         again = aero.payload(compiled[0])
         again.sequence_id = 205
-        seconds = list(intents.POWER_LOOP_S[:2]) + [turn, intents.POWER_LOOP_S[3], 4.0]
-        hover, dive, over, catch, stood = streams.flown(streams.Flight(), payloads + [again],
-                                                         seconds)
+        flight = streams.Flight()
+        hover, dive, over = streams.flown(flight, payloads[:3],
+                                          list(intents.POWER_LOOP_S[:2]) + [turn])
+        catch, = streams.flown(flight, payloads[3:], [CATCH_S], near=NEAR_DEG)
+        stood, = streams.flown(flight, [again], [4.0])
         if turn == intents.POWER_LOOP_S[2]:
             report.check('201: from the floor to 1.5 m, level and still',
                          abs(hover['ends']['h'] - 1.5) < 0.01 and hover['off'] < 0.1
                          and hover['heights'][1] < 1.52,
                          '%.3f m, %.2f deg off, %.2f m at the most' % (
                              hover['ends']['h'], hover['off'], hover['heights'][1]))
-            rolls = [streams.tilt(s['turn'])[1] for _t, s, _f, _b in dive['passes'][-500:]]
-            noses = [streams.tilt(s['turn'])[0] for _t, s, _f, _b in dive['passes'][-500:]]
-            swings = sum(1 for a, b in zip(rolls, rolls[1:]) if a < 0.0 <= b)
-            report.check('202: on its nose 45 degrees, weaving twice a second',
-                         abs(sum(noses) / len(noses) + 45.0) < 5.0 and swings == 2
-                         and 25.0 < max(rolls) < 40.0 and -40.0 < min(rolls) < -25.0,
-                         'nose %.1f deg at the mean, wings %.1f to %.1f, %d swings a second' % (
-                             sum(noses) / len(noses), min(rolls), max(rolls), swings))
+            ahead, least, most, swings = _swung(dive, int(round(1.0 / flight.dt)))
+            report.check('202: its rotors\' axis 45 degrees ahead and what it leans into its own '
+                         'wind, swung either side twice a second',
+                         40.0 < ahead < 55.0 and swings == 2 and 28.0 < most < 42.0
+                         and -42.0 < least < -28.0,
+                         '%.1f deg ahead at the mean, %.1f to %.1f aside, %d swings a second' % (
+                             ahead, least, most, swings))
             report.check('202: forward and up on it',
-                         float(dive['ends']['vel'][2]) > 8.0 and dive['ends']['h'] > 2.0,
+                         float(dive['ends']['vel'][2]) > 12.0 and dive['ends']['h'] > 2.0,
                          '%.1f m/s ahead, %.2f m up' % (dive['ends']['vel'][2], dive['ends']['h']))
-        report.check('a turn of %.2f s: over past its back, every rotor at an end of its reach'
-                     % turn, catch['offs'][1] > 150.0 and over['bound'] == 1.0,
+        report.check('a turn of %.2f s: every rotor at an end of its reach, over past its back '
+                     'where it was long enough' % turn,
+                     over['bound'] == 1.0 and (catch['offs'][1] > 150.0 or turn < 0.05),
                      '%.0f deg off at the most' % catch['offs'][1])
-        report.check('a turn of %.2f s: caught on the tilt asked' % turn,
-                     abs(catch['off'] - 80.0) < 25.0,
-                     '%.1f deg off, rates to %.1f rad/s' % (catch['off'], catch['spin']))
+        report.check('a turn of %.2f s: caught, its axis the 80 degrees asked off up' % turn,
+                     catch['caught'] is not None and abs(catch['off'] - 80.0) < NEAR_DEG,
+                     'in %s s, %.1f deg off, rates to %.1f rad/s' % (
+                         '%.2f' % catch['caught'] if catch['caught'] else 'over %.1f' % CATCH_S,
+                         catch['off'], catch['spin']))
         report.check('a turn of %.2f s: standing at its height again, nothing struck' % turn,
                      abs(stood['ends']['h'] - 1.5) < 0.02 and stood['ends']['hit'] is None
                      and max(abs(float(x)) for x in stood['ends']['spin']) < 0.1
@@ -172,19 +191,23 @@ def test_the_power_loop_on_four_boards(report):
     again.sequence_id = 205
     flight = streams.Boards()
     try:
-        hover, dive, _over, catch, stood = streams.flown(
-            flight, payloads + [again], list(intents.POWER_LOOP_S) + [4.0])
+        hover, dive, _over = streams.flown(flight, payloads[:3], list(intents.POWER_LOOP_S[:3]))
+        catch, = streams.flown(flight, payloads[3:], [CATCH_S], near=NEAR_DEG)
+        stood, = streams.flown(flight, [again], [4.0])
     finally:
         flight.close()
-    report.check('201 and 202 on the boards: to 1.5 m, then on its nose and ahead',
-                 abs(hover['ends']['h'] - 1.5) < 0.01 and abs(dive['nose'] + 45.0) < 8.0
-                 and float(dive['ends']['vel'][2]) > 8.0,
-                 '%.3f m; nose %.1f deg, %.1f m/s ahead' % (
-                     hover['ends']['h'], dive['nose'], dive['ends']['vel'][2]))
-    report.check('203 and 204: over past its back, caught on the tilt asked',
-                 catch['offs'][1] > 150.0 and abs(catch['off'] - 80.0) < 25.0,
-                 '%.0f deg off at the most, %.1f at the catch\'s end' % (
-                     catch['offs'][1], catch['off']))
+    ahead, least, most, swings = _swung(dive, int(round(1.0 / flight.dt)))
+    report.check('201 and 202 on the boards: to 1.5 m, then its axis ahead, swung, and gone',
+                 abs(hover['ends']['h'] - 1.5) < 0.01 and 40.0 < ahead < 55.0 and swings == 2
+                 and most > 25.0 and least < -25.0 and float(dive['ends']['vel'][2]) > 12.0,
+                 '%.3f m; %.1f deg ahead, %.1f to %.1f aside, %.1f m/s ahead' % (
+                     hover['ends']['h'], ahead, least, most, dive['ends']['vel'][2]))
+    report.check('203 and 204: over past its back, caught, its axis the 80 degrees asked off up',
+                 catch['offs'][1] > 150.0 and catch['caught'] is not None
+                 and abs(catch['off'] - 80.0) < NEAR_DEG,
+                 '%.0f deg off at the most, caught in %s s, %.1f off' % (
+                     catch['offs'][1], '%.2f' % catch['caught'] if catch['caught'] else '-',
+                     catch['off']))
     report.check('standing at its height again, nothing struck',
                  abs(stood['ends']['h'] - 1.5) < 0.02 and stood['ends']['hit'] is None
                  and max(abs(float(x)) for x in stood['ends']['spin']) < 0.1,

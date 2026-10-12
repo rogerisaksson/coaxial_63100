@@ -237,8 +237,6 @@ gets a line at the end of [DONE](DONE.md).
     (`machine/pull.py`) what the compiler plans in, WEP its outer shell.
   + The core on the image: a tick's cycles, the same whatever it is asked
     (device, PROTOCOL MINOR).
-  + A hover stood from 12 rad/s about the rotors' axis a quarter turn off:
-    the heading's torque is what the tilt's asks leave (streams.md).
   + DOD: `quad_race.py`'s laps against today's on the law's rotors, every
     flight whole, gusts flown; the pull left unused and the WEP taken a
     flight quoted.

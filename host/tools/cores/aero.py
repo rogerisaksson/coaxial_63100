@@ -72,8 +72,8 @@ class Out(ctypes.Structure):
     """aero_out_t."""
 
     _fields_ = [('thrust', _f * ROTORS), ('asked', _f * WRENCH), ('gave', _f * WRENCH),
-                ('bound', _u), ('up', _f * AXES), ('miss', _f * AXES), ('turned', _f * AXES),
-                ('pushed', _f * AXES)]
+                ('bound', _u), ('axis', _f * AXES), ('miss', _f * AXES), ('turned', _f * AXES),
+                ('pushed', _f * AXES), ('head', _f * 2)]
 
 
 @functools.lru_cache(maxsize=None)

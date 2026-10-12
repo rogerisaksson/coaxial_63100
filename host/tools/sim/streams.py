@@ -38,8 +38,10 @@ HOVER = """(stream_inject (sequence_id 1) (blend_duration 0ms)
 
 #: The upsets: the rotors' axis this far off up, degrees, the frame turning about it this fast,
 #: rad/s. It stands with its axis within STOOD_DEG of where it settles and every rate under
-#: STOOD_RAD_S.
+#: STOOD_RAD_S. A payload is caught (`flown`) where its axis has stood near the one asked,
+#: every rate under CAUGHT_RAD_S, for CAUGHT_S.
 TILTS, TURNS, UPSET_M, STOOD_DEG, STOOD_RAD_S = (30.0, 90.0, 150.0), (0.0, 6.0, 9.0), 5.0, 3.0, 0.5
+CAUGHT_RAD_S, CAUGHT_S = 3.0, 0.05
 
 
 def symbols():
@@ -132,20 +134,29 @@ class Boards:
             rotor['rig'].close()
 
 
-def flown(flight, payloads, seconds):
+def flown(flight, payloads, seconds, near=None):
     """The payloads flown one after the other, each its seconds: a row each - {'id', 'ends':
     the frame after it, 'nose', 'wing', 'off': its tilt then, 'offs', 'heights': the least and
     the most over it, 'spin': the most any rate was, 'bound': the share of its passes a rotor
     stood at an end, 'passes': [(clock, frame, thrusts, bound)], 'boards': their own over it
-    (`Boards.peaks`) or None}."""
+    (`Boards.peaks`) or None, 'caught': None}. With `near`, degrees, a payload is flown no
+    longer than till its rotors' axis has stood that near the one asked, every rate under
+    CAUGHT_RAD_S, for CAUGHT_S: 'caught' the seconds that took, None where its seconds ran
+    out first."""
     rows = []
     for payload, span in zip(payloads, seconds):
         if hasattr(flight, 'peaks'):
             flight.peaks()
-        passes = []
+        passes, began, held, caught = [], flight.clock, 0.0, None
         for _ in range(int(round(span / flight.dt))):
             state, out = flight.step(payload)
             passes.append((flight.clock, state, list(out.thrust), out.bound))
+            still = (near is not None and out.axis[1] > math.cos(math.radians(near))
+                     and max(abs(float(x)) for x in state['spin']) < CAUGHT_RAD_S)
+            held = held + flight.dt if still else 0.0
+            if held >= CAUGHT_S:
+                caught = flight.clock - began
+                break
         ends = flight.sky.state()
         nose, wing, off = tilt(ends['turn'])
         offs = [tilt(state['turn'])[2] for _t, state, _f, _b in passes]
@@ -155,7 +166,8 @@ def flown(flight, payloads, seconds):
                                  max(s['h'] for _t, s, _f, _b in passes)),
                      'spin': max(abs(float(x)) for _t, s, _f, _b in passes for x in s['spin']),
                      'bound': sum(1 for *_x, b in passes if b) / len(passes), 'passes': passes,
-                     'boards': flight.peaks() if hasattr(flight, 'peaks') else None})
+                     'boards': flight.peaks() if hasattr(flight, 'peaks') else None,
+                     'caught': caught})
     return rows
 
 
