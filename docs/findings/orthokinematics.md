@@ -219,6 +219,15 @@ its landing further on by that of (v - cruise) / omega):
   0.72 of her weight by the plan as it lands; the sole behind goes from
   320 N to 59 in 45 ms, her ZMP's polygon the landed sole's alone from
   that pass.
+- Her legs weighed by what they bear in her height's reading, not one
+  each standing: 0.68 after a landing where 0.65, a fall of 15 mm where
+  16, 294 J/m, 2.42 off - and the first texts' walk 1.50 m in 9 s where
+  1.5 and over are held: not kept. Each leg's rate its own, its hip from
+  its ankle against the pass before, where her centre of mass's against
+  its sole's reads a leg 9 cm/s longer as its heel rises: her height's
+  ask -0.6 m/s^2 through late stance where -2.1, and her head 8 deg, her
+  trunk 7, strike 530 N. The misread rate is part of her height's
+  damping.
 - Shoved walking, 0.12 s at 15 s - 20, 30 and 40 N across either way, 10
   and 20 N along either way -: 6 of 10 stood on either step, the four
   down each across; her speed after one 0.75 to 0.77 m/s where 0.70 to

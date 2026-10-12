@@ -86,8 +86,24 @@ gets a line at the end of [DONE](DONE.md).
      landing; her own text stands. On one sole, by micro-hops: untried.
    + Her way: no mode turns her; no room round her, none of its words
      (out, the lamp, sit, lie).
-   + Her rise from the squat, her stop from a walk: no text. Down, she
-     is laid anew: no fall taken, no get-up.
+   + A fall, no state for it. Shoved 120 N standing she is down in 1.0
+     s: the step whirls her arms one to two turns, her hands meet the
+     floor at 5 to 16 m/s, her trunk at 3.1 (2.6 kN), her head at 2.4
+     to 3.7 with 2.0 to 3.3 kN, her drives asked 6.4 of their clamps;
+     on the page she is laid anew. To be, with no branch on a shove's
+     size: a slack where her soles' cone cannot hold what is asked -
+     her capture point past her soles, a landing past her reach -, her
+     posture's stiffness falling as it grows and its damping rising,
+     her centre of mass let down; her hands aimed, softly and always,
+     where her centre of mass is going (a mode: its velocity scaled);
+     a hand on the floor rows of the cone as a sole's are; a hand
+     through the floor's plane a damper sized to her kinetic energy,
+     no spring, its drives braking into their bridges' heat. Her arms
+     turn about one axis a shoulder: a fall across is not theirs. DOD:
+     shoved past standing from 8 ways, her head off the floor, the
+     floor on no part over 1 kN, no drive asked past its clamp; ahead
+     and back her hands down before her trunk.
+   + Her rise from the squat, her stop from a walk: no text; no get-up.
    + The floor's events (a hole, a sill, a slip, a rug, stairs, a lace)
      and a board's (its SOA, its heat): laid by nothing.
    + The loop in C: `latent.step` and `impedance.ask` as cores beside
