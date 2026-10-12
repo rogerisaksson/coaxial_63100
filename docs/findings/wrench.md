@@ -51,6 +51,13 @@ Shoves with the MPC's steps, the PD under each, the gearboxes with their play.
     knee had been asked 17 000 rad/s^2.
   + A leg's inverse damped 0.02: 60 N 6 of 8 where 4 at 1e-3; at 0.05 a
     hop left the floor 8 mm, at 0.1 not at all.
+- A clipped moment is pinned in all three of its world parts, one of them
+  moved about the sole's own axes: on its ball a sole's room across goes
+  with its room along.
+- Faces in the clips' place - a part its share of the sole's push, about
+  the sole's own axes, met exactly, no part pinned as a value -, the rows
+  traded again as now: shoved, 7, 5, 3, 2 and 0 of 8 where 8, 6, 4, 2 and
+  0; her walk under it in [orthokinematics](orthokinematics.md).
 - Her height follows her standing knees' posture inside the band, as on
   the stack: asked alone her knees went straight in 0.35 s, 6 to 0 deg, and
   the leg's inverse with them.

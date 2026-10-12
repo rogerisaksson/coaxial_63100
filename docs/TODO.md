@@ -31,14 +31,47 @@ gets a line at the end of [DONE](DONE.md).
    + Her walk's form: her knee lands at 31 deg (12) - her hip 1 to 2.5
      cm under where a straight leg needs it -, a step 0.39 legs
      (0.45), her knee swinging 45 deg (52), her heel 24 up as her toes
-     leave (28); her neck nodding -26 to +21 deg a stride; 3 of
-     `looks.FORM`'s 9 broken. Two takes of women:
+     leave (28); 6 of `looks.FORM`'s 12 broken. Two takes of women:
      1.1 m/s, a step 0.8 legs, the knee landing at 2-11 deg, 50-57 as
      the toes leave, 68-73 swinging, the heel 38-57 up.
-   + A stagger: she falls 17 mm into each landing, her soles 485 N then
-     of her 306 and 183 after; the walk as built before the loop 10 mm,
-     421 and 269. No measure of it in `strides.WALK`, no bound in
-     `looks.FORM`.
+   + A stagger: her soles 1.37 of her weight about a landing (1.25) and
+     0.70 after (0.75), a fall of 12 mm into it, her head nodding 46 deg
+     (6). On its ball a sole gives no moment and the step's rows, traded,
+     spend her head; a step's plan gains 0.14 m/s the landing's blow
+     takes. A step that takes it by her inertia, the landing led by her
+     speed's error, nods 2 deg and strikes 389 N for 440 - and leaves her
+     trailing knee at 9 deg as her toes leave, on stilts by name: its
+     fold there, 24 deg, is the step's error now, asked by nothing. DOD:
+     that fold asked - her knee 30 deg, her heel 50, as her toes leave,
+     the leg's length, its heel and her knees' row of one piece -, then
+     that step under her walk, standing as it stands now, in C too.
+   + The floor as a contact's wrench cone: a sole's moments and its
+     friction coupled faces of its push, never a part clipped alone,
+     never a centre of pressure by division. Its room a continuous
+     function of the sole's pitch - a soft sole rolls -, narrowing
+     along and across as the contact shrinks to an off-centre point
+     and never to a line; no change of state coded. As it is: on an
+     edge from 1.7 deg of pitch, the room a line there; a part clipped
+     alone and pinned in the world's frame, the room across gone with
+     the room along.
+   + A landing sole's push rising no faster than its foam takes, the
+     pendulum's slow fall the time for it: strike 440 N (450), landing
+     load 1.37 (1.25), 0.70 after (0.75), no rate bounded.
+   + A narrow track: her feet 108 mm apart, her thighs 24 mm, in jeans
+     16 mm through each other. The lateral ZMP a corridor toward her
+     midline, narrow and never a line; her pelvis's turn locked to her
+     drive carrying the swinging leg round the standing one, no branch
+     for her knees; the lateral shift's stiffness dropped through the
+     swing, her centre of mass falling to the landing; her thorax
+     turned against her pelvis, her shoulders and her head's frame
+     still (torso turn 1.05 deg, shoulders 23 mm, head 22 mm aside).
+   + A straight leg under a lateral sway: her height's target a soft
+     spring under the lateral ZMP and the floor's faces, the knee
+     giving what the pelvis's list and turn take.
+   + At toe-off, the room a point: her thorax and her arms taking the
+     residual. Measured as the whole payer: 9 to 10 deg of trunk
+     pitch, or down at 12 s; her head and arms held to her trunk on
+     the step as it is, down within 18 s.
    + Her walk's speed: a drive past 0.6 surges and falls at 17 to 26
      s; 1.0 m/s only with her arms at 130 deg and her head bobbing
      0.19 m. Her run: none.

@@ -195,7 +195,10 @@ def main(argv=None):
             print("  off a woman's walk %.2f%s" % (got['off'], ''.join(' | %s %.3g (%g)' % o for o in got['out'])))
             print('  in words: %s%s' % (', '.join('%s %.2f' % w for w in got['words']) or 'none',
                                         ''.join(' - ' + n for n in got['named'])))
-            print('  her form: %s' % (', '.join('%s %.1f (%g)' % b for b in got['broken']) or 'held'))
+            print('  her form: %s' % (', '.join('%s %.3g (%g)' % b for b in got['broken']) or 'held'))
+            m = got['measures']
+            print('  a landing: %.2f of her weight, %.2f after, a fall of %.0f mm; her head nods %.0f deg' % (
+                m['landing load'], m['unloading'], m['dip'], m['head nod']))
         return 0 if got['stood'] else 1
     got = went(plan, args.to, args.v, args.every)
     for row in got.pop('rows'):

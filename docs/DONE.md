@@ -127,3 +127,8 @@ it names. A closed item is cut from the list and gets its line here, last.
     pass under Renode, the same whatever it is asked, 0.31 ms on the M7 at
     one a cycle; its thrusts the host core's within 1.7e-5 N
     ([streams](findings/streams.md)).
+42. Her walk's stagger measured: landing load, unloading, dip and head
+    nod in `strides.WALK`, bounded in `looks.FORM` (1.25, 0.75, 6 deg) and
+    told by `ortho.py --look`; what her head nods for and what holds her
+    speed, with eleven steps tried under her walk
+    ([orthokinematics](findings/orthokinematics.md)).

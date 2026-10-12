@@ -159,6 +159,9 @@ WALK = (
     ('elbow', 'deg', lambda rs: _ptp(float(r['left_elbow']) for r in rs)),
     ('elbow bent', 'deg', lambda rs: _mean(float(r['left_elbow']) for r in rs)),
     ('strike', 'N', lambda rs: max(max(float(r['left_load']), float(r['right_load'])) for r in rs)),
+    ('landing load', 'x', lambda rs: _borne(rs)[0]),
+    ('unloading', 'x', lambda rs: _borne(rs)[1]),
+    ('dip', 'mm', lambda rs: _borne(rs)[2]),
     ('feet apart', 'mm', lambda rs: _mean(abs(_p(r, 'left_foot')[0] - _p(r, 'right_foot')[0])
                                           for r in rs if float(r['left_load']) > 60.0
                                           and float(r['right_load']) > 60.0) * 1e3),
@@ -212,6 +215,32 @@ def _held(rs, k, bears):
     t = float(rs[k]['t'])
     return all((float(r['left_load']) > BEARS_N) == bears for r in rs[k:]
                if float(r['t']) - t < HELD_S)
+
+
+#: A landing's windows, s: her pelvis's top over DIP_S before it; her soles' loads from
+#: LOADED_S[0] before it to LOADED_S[1] after, their least from EASED_S after.
+DIP_S, LOADED_S, EASED_S = 0.45, (0.05, 0.25), 0.03
+
+
+def _borne(rs):
+    """A stagger's measures, meaned over either sole's landings: (her soles' loads' sum at its
+    most about a landing, at its least after it - both over her weight, that sum's mean -,
+    her pelvis's fall into it from its top before, mm)."""
+    ts = [float(r['t']) for r in rs]
+    sums = [float(r['left_load']) + float(r['right_load']) for r in rs]
+    ys = [float(r['y']) for r in rs]
+    weight, out = _mean(sums), []
+    for side in ('left_load', 'right_load'):
+        for k in range(1, len(rs)):
+            t = ts[k]
+            if (float(rs[k - 1][side]) <= BEARS_N < float(rs[k][side])
+                    and ts[0] <= t - DIP_S and t + LOADED_S[1] <= ts[-1]):
+                about = [i for i, s in enumerate(ts) if t - LOADED_S[0] <= s <= t + LOADED_S[1]]
+                top = max(y for s, y in zip(ts, ys) if t - DIP_S <= s <= t)
+                out.append((max(sums[i] for i in about) / weight,
+                            min(sums[i] for i in about if ts[i] >= t + EASED_S) / weight,
+                            1e3 * (top - min(ys[i] for i in about))))
+    return tuple(_mean(o[k] for o in out) for k in range(3)) if out else (math.nan,) * 3
 
 
 def _landings(rs):

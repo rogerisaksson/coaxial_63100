@@ -5,16 +5,22 @@
 """
 import math
 
+#: No stagger: her soles bear no more than LANDS of her weight about a landing and no less
+#: than EASES after it - a woman's 1.1 to 1.2 and 0.7 to 0.8 -; her head nods NODS_DEG at
+#: most.
+LANDS, EASES, NODS_DEG = 1.25, 0.75, 6.0
+
 #: Her walk's form on a flat, smooth floor: a condition, never weighed against a fall -
 #: (measure, least, most), `strides.measured`'s names. The stance leg a strut, its knee all but
 #: straight while her foot bears her alone behind the plumb line; the leg on behind the plumb
 #: line; the pelvis rolled up over the standing hip; the toes not back as they lift; her head
-#: still and her feet quiet. The landing knee stands 1-3 deg on a take of a woman's
+#: still, her feet quiet, no stagger. The landing knee stands 1-3 deg on a take of a woman's
 #: (`mocap.py`): its bound comes down as the landing does (docs/TODO.md).
 FORM = (('knee behind plumb', None, 10.0), ('knee at landing', None, 30.0),
         ('leg behind plumb', 12.0, None), ('hip over stance', 3.0, None),
         ('toes back at lift', None, 2.0), ('head bob', None, 30.0),
-        ('head fore-aft', None, 45.0), ('head aside', None, 35.0), ('strike', None, 450.0))
+        ('head fore-aft', None, 45.0), ('head aside', None, 35.0), ('strike', None, 450.0),
+        ('landing load', None, LANDS), ('unloading', EASES, None), ('head nod', None, NODS_DEG))
 
 #: A walk's price (`priced`): its energy a metre, J/m over ENERGY_J_M, and FORM_K a measure's
 #: share past its bound - a walk off its form costs more than any energy saves; fallen, FELL.
