@@ -160,14 +160,14 @@ def test_its_plan_is_computed_beforehand(report):
     from machine import course, quad
     from tools.sim import quad_race as race
     line_, sphere = course.track(), course.PULL * 10.0 * quad.GRAVITY
-    local, allowed, gains = course.braked(line_['laid'], sphere, course.BRAKE, course.SWING_S)
+    local, allowed, gains = course.braked(line_['laid'], sphere, course.BRAKE, course.swing())
     n = len(allowed)
     chain = max(abs(allowed[k] - min(local[k], allowed[(k + 1) % n] + gains[(k + 1) % n]))
                 for k in range(n))
     was = course.AHEAD_M
     try:
         race.put({'course.AHEAD_M': 2.0 * was})
-        further = course.braked(course.track()['laid'], sphere, course.BRAKE, course.SWING_S)[1]
+        further = course.braked(course.track()['laid'], sphere, course.BRAKE, course.swing())[1]
     finally:
         race.put({'course.AHEAD_M': was})
     report.check('each sample the least of its bend\'s and the next\'s braked for; looked '
@@ -294,7 +294,7 @@ def test_a_frame_of_another_size(report):
     long by their own clocks, a gate as near in their own reaches. And built again."""
     from machine import course, grounds, quad
     from tools.sim import quad_race as race
-    was = (quad.MASS_KG, grounds.GATES, course.SWING_S)
+    was = (quad.MASS_KG, grounds.GATES, course.SOFT_S)
     try:
         flown = {size: race.trial({}, ('ideal', None, size, race.BENCH, 1.0))
                  for size in (1.0,) + race.SIZES}
@@ -313,7 +313,7 @@ def test_a_frame_of_another_size(report):
                      ', struck %s' % f['struck'] if f['struck'] else '')
                      for size, f in flown.items()))
     report.check('and built again: its mass, its gates, its plan\'s times',
-                 (quad.MASS_KG, grounds.GATES, course.SWING_S) == was,
+                 (quad.MASS_KG, grounds.GATES, course.SOFT_S) == was,
                  '%.1f kg' % quad.MASS_KG)
 
 

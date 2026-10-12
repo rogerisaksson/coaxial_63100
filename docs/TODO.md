@@ -226,9 +226,9 @@ gets a line at the end of [DONE](DONE.md).
   mixing, no Euler angle, no air; in it no `if`.
   + The flight is inside the action space's shell (`machine/pull.py`,
     `flight.shell`, envelope.md), its plan a table computed beforehand, no
-    clause in a pass above the core (streams.md). Left: the lap's sphere,
-    its brake's and its swing's shares from its rotors' reach, where they
-    were searched.
+    clause in a pass above the core, its lead and its swing the tilt's own
+    (streams.md). Left: the lap's sphere - 0.37 of the clamp's pull flies,
+    0.40 does not - and its brake's, go's and stop's shares, searched.
   + The axis asked brings its own rate: the force asked turns 7.2 rad/s
     rms on a lap, the frame 4.6, its axis 29 degrees rms off; that turn fed
     forward struck every flight (streams.md). DOD: a row's force one the

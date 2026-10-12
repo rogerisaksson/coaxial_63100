@@ -132,3 +132,7 @@ it names. A closed item is cut from the list and gets its line here, last.
     told by `ortho.py --look`; what her head nods for and what holds her
     speed, with eleven steps tried under her walk
     ([orthokinematics](findings/orthokinematics.md)).
+43. The lap's lead and its swing derived from its tilt's own loop where
+    89 ms and 0.36 s were searched: the boards' laps 13.9 and 14.1-14.3 s
+    where 14.3 and 14.5-14.6, 34 flights of 34 whole in fourteen winds
+    ([streams](findings/streams.md)).

@@ -210,7 +210,22 @@ numbers beside:
   m at three gates. Laid again by flight - each moved by what the frame
   crossed its gate off that law's own crossing - they stood 0.01 m rms off
   in three flights.
-- A bend's pull up and down is asked LEAD_S ahead as its pull across is.
+- A bend's pull, up and down as across, is asked ahead by what the frame
+  trails one (`course.trailed`): its tilt's damping over its stiffness, 57
+  ms, its rotors' lag, 20, and half the pass its row stands. Searched it
+  was 89 ms, 28.88 with a gate's frame 0.05 m inside its margin: derived,
+  28.87 and 0.11, fourteen winds whole and 0.07 inside at the least.
+- A bend's pull goes from one side to the other in half a turn of the
+  tilt's own loop at the fastest (`course.swing`), 0.208 s: where its step
+  stands at the far side. Searched it was 0.36 s. Gridded, 28.09 at 0.18
+  with every flight whole, and at 0.15 a gate's frame 0.17 m past its
+  margin, 33.07. On 0.208 with the crossings laid again by flight (0.01 m
+  rms off their marks): 28.25, a gate's frame 0.08-0.17 m inside; fourteen
+  winds whole, 0.03 inside at the least, the boards' laps 13.9 and
+  14.1-14.3 s where 14.3 and 14.5-14.6.
+- The sphere stays searched: on 0.40 of the clamp's pull a gate's frame is
+  0.07 m past its margin, on 0.45 0.31, and on 0.55 three flights of twelve
+  are not whole.
 - No clause in a pass above the core: a card's step is a table laid once
   and a move by masks (`aerobatics.laid`, `fly`), the lap's plan a table a
   sphere computed beforehand and read where the frame is

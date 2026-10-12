@@ -148,7 +148,7 @@ The page's four boards, still air and six winds:
 | Bend grip, lean | Swing | Throttle room | Laps s | Worst wind s | Gate off m | Envelopes |
 | --- | --- | --- | --- | --- | --- | --- |
 | 0.4, 20 m/s^2 | - | 0.08 | 26.4, 25.4 | 28.2 | - | - |
-| 0.7, 23 m/s^2 | 0.6 s fastest (`course.SWING_S`) | 0.04 | 21.8, 20.6 | 22.3 | 0.53 | 0.71-0.74 |
+| 0.7, 23 m/s^2 | 0.6 s fastest | 0.04 | 21.8, 20.6 | 22.3 | 0.53 | 0.71-0.74 |
 
 - The bound is how fast a lean turns, the rotors' spool: the tilt loop at
   twice its gain rang; the spot's at four times struck a gate; a lean of 26
