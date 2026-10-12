@@ -36,7 +36,12 @@ gets a line at the end of [DONE](DONE.md).
      1.1 m/s, a step 0.8 legs, the knee landing at 2-11 deg, 50-57 as
      the toes leave, 68-73 swinging, the heel 38-57 up.
    + A stagger: her soles 1.40 of her weight about a landing (1.25) and
-     0.65 after (0.75), a fall of 16 mm into it. Her speed 0.69 m/s
+     0.65 after (0.75), a fall of 16 mm into it - asked: her height's
+     law has her centre of mass down at 1 to 2.7 m/s^2 from her hip's
+     passing the standing sole's ball till 0.1 s past the landing, her
+     soles' sum 0.72 of her weight as the next lands; and her ZMP's
+     polygon is the landed sole's alone from that pass, the one behind
+     328 N to 59 in 45 ms. Her speed 0.69 m/s
      where her drive's is 0.62: a landing led by half her speed's error
      leaves the rest; summed, 0.62 with her head at 8 deg and her trunk
      at 7. The striding step is python's alone: `_taken` and `strides`

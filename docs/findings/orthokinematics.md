@@ -213,6 +213,12 @@ its landing further on by that of (v - cruise) / omega):
   the rows' own metric: 7, 5, 3, 2 and 0 of 8 at 38 to 120 N where 8, 6,
   4, 2 and 0, a hop's tilt 9.6 deg where 2.4; a throw's soles pressed
   nothing till her height's band was decided before their faces.
+- Her fall into a landing is asked: her height's law has her centre of
+  mass down at 1 to 2.7 m/s^2 from her hip's passing the standing sole's
+  ball, 0.22 s before the next lands, till 0.1 s after - her soles' sum
+  0.72 of her weight by the plan as it lands; the sole behind goes from
+  328 N to 59 in 45 ms, her ZMP's polygon the landed sole's alone from
+  that pass.
 - Shoved walking, 0.12 s at 15 s - 20, 30 and 40 N across either way, 10
   and 20 N along either way -: 6 of 10 stood on either step, the four
   down each across; her speed after one 0.75 to 0.77 m/s where 0.70 to
