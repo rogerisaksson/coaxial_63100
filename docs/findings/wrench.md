@@ -57,3 +57,42 @@ Shoves with the MPC's steps, the PD under each, the gearboxes with their play.
 - Open. 80 N and over: 4, 3 and 1 of 8 where the stack 7, 8 and 6. Her
   walk's 1 400 J/m: the clamps clip after the solve. The step in C and its
   tick on the M7. Stops but the knees'.
+
+## In C
+
+`wbc/src/wbc_wrench.c`, the same rows on her chain in C;
+`tools.cores.wbc.wrench_step`, `tools/sim/wbc.py --core --wrench`;
+tests/test_wbc_core.py holds it to the step.
+
+| | wbc_wrench.c | The loop in C (wbc_stack.c) |
+| --- | --- | --- |
+| A tick on this host, -O2 | 46 us | 1 600 us |
+| Her body's terms of it | 14 us | 14 us |
+| Its state | 32 KB | 471 KB |
+| Its stack on the M7 | 2.9 KB | 8.4 KB |
+| Beside the python step, 120 states | 9e-5 N m with two soles standing, 1e-10 with one or none | - |
+| Her walk on it, 40 s | 0.61 m/s, 330 J/m, 2.60 off: the python step's | - |
+| A hop on it | 17.9 mm, 2.4 deg: the python step's | - |
+
+- By the loop's 26.8 M instructions a tick on the image, some 0.8 M: 1.6 ms
+  on the M7. Unmeasured there.
+- A pass of her latent loop on this host with it: 1.0 ms where 1.3, solved
+  every third pass; 2.1 where 2.9 every pass. Her sensing, her modes and her
+  world are the rest. Her stand's loop, a pass: 0.41 ms where 1.1.
+- For the two to give one answer the python step changed, her measures
+  kept (her walk 330 J/m and 2.60 off where 329 and 2.59, her hops to 0.1
+  deg):
+  + The joints no drive holds - her toes, her hair, her hems - by their own
+    rows of her dynamics under all the rest. From their bias alone the
+    answer depended on the pelvis's coordinates: 0.03 N m and 2 rad/s^2
+    apart between MuJoCo's and the chain's.
+  + A clipped moment is its value and her height's band's edge is met, the
+    rest solved round them. As rows of 1e5 they put 1e7 on the normal
+    matrix's diagonal, and what two standing soles share between them came
+    0.1 N m apart at a pass in twenty, 0.6 at most, from one solver to
+    another (LU, Cholesky, QR). Now 4e-4.
+  + A clipped force stays a row of 1e5 of its weight's share, 327 a
+    newton. Pinned as its value her soles pressed nothing through a throw
+    (clipped at nought on the first solve, before the band): 1.6 mm. The
+    band decided first, her hops went 11.6 deg over where 2.5, 2.2 kg
+    m^2/s about her at lift-off where 0.3, and her walk struck 459 N.

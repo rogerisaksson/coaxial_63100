@@ -6,6 +6,7 @@
     python tools/sim/wbc.py --one 80 90 -v       # one: N and way (0 her left, 90 ahead), traced
     ... --no-wep                                 # no war emergency power
     ... --core | --wrench                        # the loop in C | the step without an active set
+    ... --core --wrench                          # that step in C (wbc_wrench.c)
 
 A shove is `sprung.SHOVE_S` on the trunk at AT_S; she has stood if to the end her pelvis keeps
 within HELD_DEG of upright and nothing but her soles touches the floor. Her ask is the capture
@@ -110,7 +111,7 @@ def stand(push=0.0, way=0.0, seconds=None, trace=False, wep=True, at=AT_S,
     from machine.errors import MachineError
     from machine.drives import kind
     from machine.figure import JOINTS, SEGMENTS
-    from tools.cores.wbc import shared, stack_step
+    from tools.cores.wbc import shared, stack_step, wrench_step
     from tools.sim.look import LEG_KINDS
     global NAMES
     if core:
@@ -152,7 +153,8 @@ def stand(push=0.0, way=0.0, seconds=None, trace=False, wep=True, at=AT_S,
         s = wbc.sense(body, world.data.qpos, world.data.qvel)
         ask = asked(st, s, loads(world, force), now[0], bears, body) if asked else law(s, st, mid)
         try:
-            out = (bare.step if wrench else stack_step if core else wbc.step)(body, s, dict(ask, wep=left > 0.0))
+            out = ((wrench_step if core else bare.step) if wrench else stack_step if core else wbc.step)(
+                body, s, dict(ask, wep=left > 0.0))
         except MachineError as exc:
             failed = '%s at %.3f s' % (exc, now[0])
             break

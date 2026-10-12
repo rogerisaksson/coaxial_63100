@@ -8,8 +8,8 @@ from them: a leg through its sole (still where it stands), the pelvis by the six
 dynamics. One weighted least squares finds them - her centre of mass's ask, the turns, a swinging
 sole's ask, the posture, her standing knees, her height, her angular momentum - ROUNDS times,
 each wrench clipped into its sole's bounds and what was clipped pinned for the next. The drives'
-clamps clip the torques after it. `wbc.Body` and `wbc.sense` as the stack has them
-(docs/findings/wbc.md, A step without an active set).
+clamps clip the torques after it. `wbc.Body` and `wbc.sense` as the stack has them;
+wbc/src/wbc_wrench.c is it in C, row for row (docs/findings/wrench.md).
 """
 import os
 
@@ -29,6 +29,8 @@ LEGS = [[_DRIVEN.index(side + k) for k in ('hip_yaw', 'hip_roll', 'hip', 'knee',
 KNEES = [leg[3] for leg in LEGS]
 UPPER = [i for i in range(len(_DRIVEN)) if i not in LEGS[0] + LEGS[1]]
 NU = 12 + len(UPPER)
+#: Which of the unknowns are a sole's moment's parts.
+MOMENT = np.array([1.0, 1.0, 1.0, 0.0, 0.0, 0.0] * 2 + [0.0] * len(UPPER))
 
 #: The centre of pressure's room in a sole, across and along, m: its edges less EDGE_M; a
 #: sole's yaw moment's arm, m.
@@ -80,8 +82,6 @@ def _maps(b, s, ask, want):
     T[:6] = np.eye(6)
     t0[b.held] = -HELD_K * v[b.held]
     E[act[UPPER], 12 + np.arange(len(UPPER))] = 1.0
-    passive = [int(i) for i in b.free if i >= 6]
-    t0[passive] = -np.linalg.solve(M[np.ix_(passive, passive)], h[passive])
     a6, asked, swing = np.zeros(NU), np.zeros(2), ask.get('swing', {})
     settle = ask.get('settle', np.zeros((2, 6)))
     for k, leg in enumerate(LEGS):
@@ -103,6 +103,11 @@ def _maps(b, s, ask, want):
         asked[k] = 1.0
         t0[cols] = -inv @ f['dJv']
         E[cols, 6 * k:6 * k + 6] = inv
+    # the joints no drive holds, by their own rows of her dynamics under all the rest
+    passive = np.array([i >= 6 and i in b.free for i in range(n)])
+    pull = -np.linalg.solve(M[np.ix_(passive, passive)], M[np.ix_(passive, ~passive)])
+    T[passive], E[passive] = pull @ T[~passive], pull @ E[~passive]
+    t0[passive] = pull @ t0[~passive] - np.linalg.solve(M[np.ix_(passive, passive)], h[passive])
     return T, E, t0, a6, asked
 
 
@@ -160,13 +165,20 @@ def step(b, s, ask):
     lay(np.diag(W_PART * sole * part + W_AIR * np.concatenate([1.0 - each, np.zeros(NU - 12)])),
         np.zeros(NU), 1.0)
     R0, c0 = np.vstack(rows), np.concatenate(rhs)
+    H0, g0, up = R0.T @ R0 + 1e-12 * np.eye(NU), R0.T @ c0, sumf[1] / mass
     frames = [f['R'] for f in feet]
     pinned, at, band, edge = np.zeros(NU), np.zeros(NU), 0.0, 0.0
     lo, hi = a[1] - HEIGHT_BAND, a[1] + HEIGHT_BAND
     for _ in range(ROUNDS):
-        Rw = np.vstack([R0, W_PIN * np.diag(pinned * part), W_PIN * band * sumf[1:2] / mass])
-        cw = np.concatenate([c0, W_PIN * pinned * part * at, [W_PIN * band * edge]])
-        u = np.linalg.solve(Rw.T @ Rw + 1e-12 * np.eye(NU), Rw.T @ cw)
+        # a clipped force is held by a row, W_PIN its weight's share; a clipped moment is its
+        # value and her height at its band's edge is met, the rest solved round them: as rows
+        # of W_PIN they were 1e7 on the diagonal, and what her soles share came 0.6 N m apart
+        # from one solve to another
+        hard, soft = pinned * MOMENT, (W_PIN * pinned * (1.0 - MOMENT) * part) ** 2
+        H, free = H0 + np.diag(soft), 1.0 - hard
+        K = H * np.outer(free, free) + np.diag(hard)
+        u, way = np.linalg.solve(K, np.array([free * (g0 + soft * at - H @ (hard * at)) + hard * at, up]).T).T
+        u = u + band * (edge - up @ u) / (up @ way + 1.0 - band) * way
         # her height's band: past an edge, held to it
         ay = float(sumf[1] @ u) / mass - G
         past = float(np.clip(ay, lo, hi)) + G

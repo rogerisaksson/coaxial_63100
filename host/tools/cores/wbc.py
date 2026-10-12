@@ -17,6 +17,7 @@ SOURCES = [os.path.join(REPO, 'wbc', 'test', 'harness.c'),
            os.path.join(REPO, 'wbc', 'src', 'wbc_body.c'),
            os.path.join(REPO, 'wbc', 'src', 'wbc_stack.c'),
            os.path.join(REPO, 'wbc', 'src', 'wbc_solve.c'),
+           os.path.join(REPO, 'wbc', 'src', 'wbc_wrench.c'),
            os.path.join(REPO, 'wbc', 'src', 'wbc_model.c')]
 INCLUDES = [os.path.join(REPO, 'wbc', 'inc')]
 #: The firmware compiles the chain at -O2 (CMakeLists.txt).
@@ -45,7 +46,7 @@ class Ask(ctypes.Structure):
                 ('swing_acc', (_d * 3) * 2), ('swing_quat', (_d * 4) * 2), ('fold', _i * 2),
                 ('fold_knee', _d * 2), ('fold_rate', _d * 2), ('fold_acc', _d * 2),
                 ('posture', _d * DRIVEN), ('derate', _d * DRIVEN), ('wep', _i),
-                ('kdot_given', _i), ('kdot', _d * 3)]
+                ('kdot_given', _i), ('kdot', _d * 3), ('settle', (_d * 6) * 2), ('edge', _d * 2)]
 
 
 class Out(ctypes.Structure):
@@ -61,7 +62,7 @@ class Out(ctypes.Structure):
 
 def ask_of(ask):
     """An `Ask` from `machine.wbc.step`'s dict: stance, com_acc, turns - none asked, all zeros
-    -, swing, fold, posture, derate, wep, kdot."""
+    -, swing, fold, posture, derate, wep, kdot; `machine.wrench.step`'s settle and edge."""
     a = Ask()
     for k in (0, 1):
         a.stance[k] = int(bool(ask['stance'][k]))
@@ -82,6 +83,9 @@ def ask_of(ask):
     if ask.get('kdot') is not None:
         a.kdot_given = 1
         a.kdot[:] = [float(x) for x in ask['kdot']]
+    for k, settle in enumerate(ask.get('settle', ())):
+        a.settle[k][:] = [float(x) for x in settle]
+    a.edge[:] = [float(x) for x in ask.get('edge', (0.0, 0.0))]
     return a
 
 
@@ -109,6 +113,10 @@ def typed(lib):
     lib.wbh_stack.argtypes = [dp, dp, dp, ctypes.POINTER(Ask), ctypes.POINTER(Out)]
     lib.wbh_stack_seconds.restype = d
     lib.wbh_stack_seconds.argtypes = [dp, dp, dp, ctypes.POINTER(Ask), i]
+    lib.wbh_wrench_init.argtypes = []
+    lib.wbh_wrench.argtypes = [dp, dp, dp, ctypes.POINTER(Ask), ctypes.POINTER(Out)]
+    lib.wbh_wrench_seconds.restype = d
+    lib.wbh_wrench_seconds.argtypes = [dp, dp, dp, ctypes.POINTER(Ask), i]
     return lib
 
 
@@ -133,6 +141,7 @@ class Core:
     def __init__(self, lib=None):
         self.lib = lib or library()
         self.lib.wbh_stack_init()
+        self.lib.wbh_wrench_init()
         self.links, self.n = int(self.lib.wbh_links()), int(self.lib.wbh_n())
         self.names = [self.lib.wbh_name(k).decode() for k in range(self.links)]
         self.parent = [int(self.lib.wbh_parent(k)) for k in range(self.links)]
@@ -210,6 +219,21 @@ class Core:
                 'force': np.array([list(f) for f in out.force]).reshape(2, 4, 3),
                 'stuck': int(out.stuck), 'clipped': list(out.clipped)}
 
+    def wrench(self, base, q, u, ask):
+        """One tick of the step without an active set (wbc_wrench.c) for `ask`
+        (`machine.wrench.step`'s dict): {tau, udot, wrench, bears, over, load}."""
+        base, q, u, out = _arr(base), _arr(q), _arr(u), Out()
+        self.lib.wbh_wrench(_ptr(base), _ptr(q), _ptr(u), ctypes.byref(ask_of(ask)), ctypes.byref(out))
+        return {'tau': np.array(out.tau), 'udot': np.array(out.udot),
+                'wrench': np.array([list(w) for w in out.wrench]), 'bears': list(out.bears),
+                'over': np.array(out.over, bool), 'load': np.array(out.load)}
+
+    def wrench_seconds(self, base, q, u, ask, reps=2000):
+        """Seconds a tick of it on this host."""
+        base, q, u = _arr(base), _arr(q), _arr(u)
+        return float(self.lib.wbh_wrench_seconds(_ptr(base), _ptr(q), _ptr(u),
+                                                 ctypes.byref(ask_of(ask)), reps))
+
     def stack_seconds(self, base, q, u, ask, reps=200):
         """Seconds a tick of the loop on this host."""
         base, q, u = _arr(base), _arr(q), _arr(u)
@@ -254,3 +278,20 @@ def stack_step(b, s, ask, core=None):
             'alpha': out['alpha'], 'force': out['force'], 'stuck': out['stuck'],
             'clipped': out['clipped'],
             'wrench': out['wrench'], 'load': out['load']}
+
+
+def wrench_step(b, s, ask, core=None):
+    """`machine.wrench.step`'s answer from wbc_wrench.c, on her `wbc.Body` as `sense` left it:
+    {tau, qacc (MuJoCo's qvel order), bears, cop, over, slack, held}."""
+    core = core or shared()
+    base, q, u, T = state_of(b)
+    out = core.wrench(base, q, u, ask)
+    dT_u = np.zeros(b.n)
+    dT_u[:3] = T[:3, 3:6] @ np.cross(u[:3], u[3:6])
+    cop = []
+    for k in (0, 1):
+        if ask['stance'][k]:
+            ml, fy = s['feet'][k]['R'].T @ out['wrench'][k][:3], out['wrench'][k][4]
+            cop.append(np.array([ml[2], -ml[0]]) / fy if fy > 1e-6 else None)
+    return {'tau': out['tau'], 'qacc': T @ out['udot'] + dT_u, 'bears': out['bears'], 'cop': cop,
+            'over': out['over'], 'slack': [], 'held': ()}

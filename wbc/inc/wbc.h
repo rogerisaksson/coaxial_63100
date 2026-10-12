@@ -100,6 +100,8 @@ typedef struct
   int    wep;
   int    kdot_given;
   double kdot[3];
+  double settle[2][6];            /**< a standing sole's own acceleration (w, v), world: 0 still */
+  double edge[2];                 /**< its centre of pressure toward its ball (1) or heel (-1) */
 } wbc_ask_t;
 
 /** What the loop answers: the drives' torques; every acceleration (u's order); each sole's
@@ -197,5 +199,45 @@ void wbc_stack_init(wbc_stack_t *s);
 void wbc_stack_step(wbc_body_t *b, wbc_stack_t *s, const wbc_frame_t *base,
                     const double q[WBC_N - 6], const double u[WBC_N], const wbc_ask_t *ask,
                     wbc_out_t *out);
+
+/** The step without an active set (wbc_wrench.c): its unknowns - six a sole, its wrench where
+    it stands, its acceleration where it does not, then her upper body's drives' accelerations
+    - and the joints no drive and no stop holds. */
+#define WBC_U (12 + WBC_DRIVEN - 12)
+#define WBC_PASSIVE (WBC_N - 6 - WBC_DRIVEN - WBC_HELD)
+
+/** Its memory, laid once. */
+typedef struct
+{
+  int    leg[2][6];               /**< each leg's drives, hip to sole, among the drives */
+  int    upper[WBC_DRIVEN - 12];  /**< the rest of them */
+  int    passive[WBC_PASSIVE];    /**< the dofs no drive and no stop holds, and how many */
+  int    npassive;
+  double room[2];                 /**< a sole's centre of pressure within, across and along, m */
+  double jsole[2][6][WBC_N];      /**< each sole's Jacobian at its middle, world (w, v) */
+  double sole_p[2][3];            /**< and where it is */
+  double jac[6][WBC_N];
+  double jcom[3][WBC_N];
+  double t[WBC_N][6];             /**< udot = t base + e x + t0 */
+  double e[WBC_N][WBC_U];
+  double t0[WBC_N];
+  double bm[6][WBC_U];            /**< the base's rows: A base = bm x - d */
+  double p[6][WBC_U];             /**< base = p x + p0 */
+  double p0[6];
+  double full[WBC_N][WBC_U];      /**< udot = full x + full0 */
+  double full0[WBC_N];
+  double h[WBC_U][WBC_U];         /**< the rows' normal equations, and a round's, factored */
+  double g[WBC_U];
+  double k[WBC_U][WBC_U];
+  double gk[WBC_U];
+} wbc_wrench_t;
+
+void wbc_wrench_init(wbc_wrench_t *w);
+
+/** One tick: as wbc_stack_step; of `out` the torques, the accelerations, the soles' wrenches
+    and loads, the drives past their clamps and each one's load. */
+void wbc_wrench_step(wbc_body_t *b, wbc_wrench_t *w, const wbc_frame_t *base,
+                     const double q[WBC_N - 6], const double u[WBC_N], const wbc_ask_t *ask,
+                     wbc_out_t *out);
 
 #endif

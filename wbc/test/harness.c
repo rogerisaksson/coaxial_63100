@@ -145,3 +145,37 @@ API double wbh_stack_seconds(const double *base, const double *q, const double *
   }
   return (double)(clock() - t0) / (double)CLOCKS_PER_SEC / (double)reps;
 }
+
+static wbc_wrench_t wrench;
+
+API void wbh_wrench_init(void)
+{
+  wbc_wrench_init(&wrench);
+}
+
+/** One tick of the step without an active set, as wbh_stack. */
+API void wbh_wrench(const double *base, const double *q, const double *u, const wbc_ask_t *ask,
+                    wbc_out_t *out)
+{
+  wbc_frame_t f;
+
+  frame_of(base, &f);
+  wbc_wrench_step(&body, &wrench, &f, q, u, ask, out);
+}
+
+/** Seconds a tick of it, over reps. */
+API double wbh_wrench_seconds(const double *base, const double *q, const double *u,
+                              const wbc_ask_t *ask, int reps)
+{
+  static wbc_out_t out;
+  wbc_frame_t      f;
+  clock_t          t0;
+
+  frame_of(base, &f);
+  t0 = clock();
+  for (int k = 0; k < reps; k++)
+  {
+    wbc_wrench_step(&body, &wrench, &f, q, u, ask, &out);
+  }
+  return (double)(clock() - t0) / (double)CLOCKS_PER_SEC / (double)reps;
+}

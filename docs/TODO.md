@@ -52,9 +52,10 @@ gets a line at the end of [DONE](DONE.md).
      is laid anew: no fall taken, no get-up.
    + The floor's events (a hole, a sill, a slip, a rug, stairs, a lace)
      and a board's (its SOA, its heat): laid by nothing.
-   + The loop in C: `latent.step`, `impedance.ask` and `wrench.step` as
-     cores beside `wbc/`, `ortho_row_t` a header a test holds to
-     `ortho.ROW`; in python the page solves every third pass.
+   + The loop in C: `latent.step` and `impedance.ask` as cores beside
+     `wbc/`, `ortho_row_t` a header a test holds to `ortho.ROW`; the page
+     on `wbc_wrench.c`. In python the page solves every third pass;
+     solved every pass her walk falls within 6 s, on either step.
    + From the page: a line to type a text into; the model composing
      rows.
    + On the front page's stand she stands: her walk there from a take of
@@ -141,8 +142,9 @@ gets a line at the end of [DONE](DONE.md).
       limb an index; a landing pitched and a heel risen in `land`; her
       legs above their soles clear of each other.
     + Loop: a tick 26.8 M instructions on the image, 56 ms on the M7 where
-      the DOD's 1. The step without an active set (`machine/wrench.py`,
-      wrench.md) in C, its tick on the M7.
+      the DOD's 1. The step without an active set in C (`wbc_wrench.c`,
+      wrench.md) ticks in 46 us on this host where the loop 1 600: its
+      tick on the M7.
     + Bottom, each board: the ESO (`parts.Eso`, `CTRL_ESO`) onto the boards
       as built on the motor's encoder; torque and acceleration registers on
       the wire.

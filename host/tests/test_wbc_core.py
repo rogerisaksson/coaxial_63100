@@ -22,6 +22,11 @@ physics.BOXED = 1.0
 #: Configurations compared, and how far the core may sit from MuJoCo (m, kg m^2, N m).
 POSES, APART = 40, 1e-9
 
+#: States the step in C is compared on, three asks each, and how far its torques (N m) and
+#: loads (N) may sit from `machine.wrench`'s: both solve the same normal equations, two soles
+#: standing leave what they share between them to 1e-7 of the largest curvature.
+STEPS, STEP_APART = 12, 5e-3
+
 #: Links whose Jacobians are compared, at the soles' corners, their middles and the origins.
 POINTED = ('left_ankle_roll', 'right_ankle_roll', 'left_wrist', 'right_wrist', 'head', 'root')
 
@@ -196,6 +201,39 @@ def _standing(b):
     return s, ask
 
 
+def test_the_step_in_c_is_the_steps(report, c, b, rows):
+    """wbc_wrench.c beside `machine.wrench.step` on her stand's pose under random velocities:
+    both soles standing, one with the other swung and its knee folded, neither - the torques,
+    every acceleration and the soles' loads; a tick's microseconds here."""
+    import numpy as np
+    from machine import figure, physics, wbc, wrench
+    from tools.cores.wbc import state_of, wrench_step
+    world, rng, worst = physics.World(), np.random.default_rng(5), np.zeros(3)
+    world.reset(figure.stand())
+    for _ in range(STEPS):
+        qvel = np.zeros(len(world.data.qvel))
+        qvel[:b.n] = 0.3 * rng.normal(size=b.n)
+        s = wbc.sense(b, world.data.qpos, qvel)
+        feet = s['feet']
+        swung = {k: (feet[k]['sole'] + (0.0, 0.02, 0.03), np.zeros(3), np.zeros(3), feet[k]['quat'])
+                 for k in (0, 1)}
+        turns = (s['turns'][0]['quat'], s['turns'][1]['quat'])
+        for stance, swing, fold in (((True, True), {}, {}), ((True, False), {1: swung[1]}, {1: (0.6, 0.0, 0.0)}),
+                                    ((False, False), swung, {})):
+            ask = {'stance': stance, 'com_acc': rng.normal(size=3), 'posture': s['q'] + 0.05 * rng.normal(size=len(s['q'])),
+                   'turns': turns[:2 * any(stance)], 'swing': swing, 'fold': fold, 'wep': False}
+            ours, theirs = wrench.step(b, s, ask), wrench_step(b, s, ask, c)
+            worst = np.maximum(worst, [np.abs(ours['tau'] - theirs['tau']).max(),
+                                       np.abs(ours['qacc'] - theirs['qacc']).max(),
+                                       max(abs(x - y) for x, y in zip(ours['bears'], theirs['bears']))])
+    report.check("the step in C is machine.wrench's over %d states" % (3 * STEPS),
+                 worst[0] < STEP_APART and worst[1] < 1e3 * STEP_APART and worst[2] < STEP_APART,
+                 '%.1e N m, %.1e rad/s^2, %.1e N apart at most' % tuple(worst))
+    base, q, u, _T = state_of(b)
+    us = 1e6 * c.wrench_seconds(base, q, u, ask)
+    report.check('a tick of it on this host', us < 1000.0, '%.1f us' % us)
+
+
 def test_the_loop_stands_as_the_python_stack(report, c, b, rows):
     """Standing still, asked to stay: the loop's torques against `machine.wbc.step`'s, whose
     inequalities all sleep there; its clip untouched; a tick's time."""
@@ -232,7 +270,8 @@ def test_she_stands_on_the_loop(report, c, b, rows):
 ROSTER = (test_the_arrays_are_the_figures, test_the_frames_are_mujocos,
           test_the_mass_matrix_is_mujocos, test_the_bias_is_mujocos,
           test_the_jacobians_are_mujocos, test_the_centre_of_mass_is_mujocos,
-          test_a_step_on_this_host, test_the_loop_stands_as_the_python_stack,
+          test_a_step_on_this_host, test_the_step_in_c_is_the_steps,
+          test_the_loop_stands_as_the_python_stack,
           test_she_stands_on_the_loop)
 
 
