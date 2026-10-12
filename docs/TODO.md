@@ -89,8 +89,9 @@ gets a line at the end of [DONE](DONE.md).
    + A fall, no state for it. Shoved 120 N standing she is down in 1.0
      s: the step whirls her arms one to two turns, her hands meet the
      floor at 5 to 16 m/s, her trunk at 3.1 (2.6 kN), her head at 2.4
-     to 3.7 with 2.0 to 3.3 kN, her drives asked 6.4 of their clamps;
-     on the page she is laid anew. To be, with no branch on a shove's
+     to 3.7 with 2.0 to 3.3 kN; once a part but a sole is on the floor
+     the step asks a drive 99 of its clamp. On the page she is laid
+     anew. To be, with no branch on a shove's
      size: a slack where her soles' cone cannot hold what is asked -
      her capture point past her soles, a landing past her reach -, her
      posture's stiffness falling as it grows and its damping rising,
