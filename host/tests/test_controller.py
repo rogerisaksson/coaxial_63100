@@ -750,7 +750,7 @@ def test_a_model_streams_and_is_woken(report):
         report.check('wait: one line when the buffer runs low, and what moved',
                      woke.startswith('low') and 'now t=' in woke and '\n' not in woke, woke)
         before = live.buffered()
-        live.feed('0.3 label=bend left_knee=20\n0.3 left_knee=0 goto=bend times=1\n')
+        live.feed('0.4 label=bend left_knee=10\n0.4 left_knee=0 goto=bend times=1\n')
         tied = live.buffered()
         live.feed('\n')
         report.check('lines tied by a jump wait for their blank line, then go whole',

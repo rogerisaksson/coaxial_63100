@@ -155,9 +155,13 @@ gets a line at the end of [DONE](DONE.md).
 7. **Gearboxes past their momentary ratings in falls** (body.md): each
    drive's compliance a motor-side degree of freedom, else torque limiters.
    + DOD: none > 1.0 over a spread of falls.
-8. **Her drives against what the loop asks**: the stacks were sized on the
-   laws before the loop (drives.md, stacks.md); DIMENSIONS.md's holds are
-   thermal alone.
+8. **Her drives against what the loop asks** (`tools/sim/demand.py`,
+   drives.md): her rms, speeds and heat inside 2/3 of every part's; her
+   peaks not - walking and hopping her hips, knees and spine at their
+   clamps (48.4 A, their gearboxes at 0.84 of their momentary), a hip
+   2.7 % of the passes. Walking it is her leg's lift: its sole asked 33
+   m/s^2 the pass it stops standing, bearing 50 N still, the hip -108 N m
+   for 15 ms, the knee 80. The step's clamps clip after its solve.
    + DOD: each drive's peak, rms, speed and heat on her walk, her hop and
      a shove on the loop, none past 2/3 of a part's limit.
 9. **Skeleton collisions** (`physics.SKELETON`, body.md): her walk on the
@@ -335,10 +339,8 @@ gets a line at the end of [DONE](DONE.md).
   (STABLE held 100 s within 600: 394), `test_sensorless` (the loop under a
   concurrent reader; the shunt's sign), the emulator's reads (a CRC on
   `afe.state`, a board's info in its place), `test_wbc_core` (a tick of
-  the loop 4 202 us), `test_mcp` (the program card), `test_controller`
-  (the failsafe's row: a bend at 17.4 of 20 deg as its 0.3 s ran out; none
-  in 210 runs here, 32 at a time). DOD: each looped 20 times on a loaded
-  host, its cause found.
+  the loop 4 202 us), `test_mcp` (the program card). DOD: each looped 20
+  times on a loaded host, its cause found.
 - **`Velocity`'s start** (`coaxial.control.motion`): sensorless at rest, as
   a rotor node's was - right while the estimate lies within a quarter turn
   of the rotor. test_controller's velocity loop on the stand-in faulted

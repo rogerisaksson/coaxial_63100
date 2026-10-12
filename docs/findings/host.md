@@ -10,6 +10,11 @@ Pages, tooling, suites and the local model's runner. The board's findings:
   by test_structure and the pre-commit hook.
 - Offline gate: 544 s at 17 % busy, a job a suite; one relay with shards past
   half its work over the batons: 224 s at 31 %.
+- test_controller's tied rows gave a knee 0.3 s to 20 deg: on the stand-in
+  it takes 0.26 s (0.175 to 10 deg), and CI's runner had it at 17.4 of 20
+  and 1.8 of 0 as the row ended, twice in five runs - the row's alarm in
+  the failsafe's place. 10 deg in 0.4 s now, 0.225 s to spare as the
+  test's other rows.
 - The offline gate was 400 s of sleeping on the stand-in's clock; suites run
   four at a time: 142 s.
 - A FAIL behind a page's footer or screen clear went unnamed: the runner takes

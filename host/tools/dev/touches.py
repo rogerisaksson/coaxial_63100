@@ -99,6 +99,7 @@ TOUCHES = (
     ('host/tools/sim/streams.py',              QUADS + (STREAMS,)),
     ('host/tools/sim/wbc.py',                  (STRUCTURE, WBC, WBC_CORE, FLIGHT, WRENCH)),
     ('host/tools/sim/hop.py',                  (STRUCTURE, FLIGHT, WRENCH)),
+    ('host/tools/sim/demand.py',               (STRUCTURE,)),
     ('host/tools/sim/ortho.py',                (STRUCTURE, ORTHO)),
     ('host/tools/cores/terms.py',              (STRUCTURE, TERMS)),
     ('host/tools/cores/',                      (WIRE, NATIVE, NATIVE_HEAT)),

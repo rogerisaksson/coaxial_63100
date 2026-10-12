@@ -371,3 +371,35 @@ the other flank 85 ms later before the link turns back (test_gynoid.py).
   landing read 30.3 of 30 and knee behind plumb 10.0 of 10; started 0.05 deg
   off the hold instead, knee at landing 30.7 for the take's 29.5: the walk
   is that sensitive, and the last commit's 99 of 99 came back only exact.
+
+## Demand on her loop
+
+`tools/sim/demand.py`: each drive's amps, speed and heat on her loop as the
+page runs it, a share of its parts' limits - its board's amps (48.4 A a U8,
+its winding's top), what it holds for ever, its gearbox's momentary torque,
+its no-load speed at 48 V, a node's span to its ceiling. Worst of the sides.
+
+| Scene | Drive | Peak, of its amps | Passes past 2/3, % | rms, of what it holds | Gearbox | Speed | Heat |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Walk, 51 s | hip | 1.00 | 2.66 | 0.59 | 0.84 | 0.36 | 0.32 |
+| | knee | 1.00 | 0.53 | 0.40 | 0.84 | 0.56 | 0.19 |
+| | spine | 1.00 | 0.05 | 0.14 | 0.84 | 0.08 | 0.15 |
+| | spine roll | 0.77 | 0.02 | 0.07 | 0.65 | 0.12 | 0.14 |
+| | hip roll | 0.72 | 0.01 | 0.28 | 0.61 | 0.09 | 0.16 |
+| | ankle pair | 0.70 | 0.01 | 0.39 | 0.59 | 0.40 | 0.18 |
+| Hop | spine | 1.00 | 0.98 | 0.29 | 0.84 | 0.18 | 0.14 |
+| | hip | 1.00 | 0.77 | 0.27 | 0.84 | 0.53 | 0.14 |
+| | knee | 0.99 | 0.70 | 0.35 | 0.84 | 0.59 | 0.14 |
+| | shoulder | 0.89 | 0.10 | 0.12 | 0.36 | 0.09 | 0.11 |
+| | neck | 0.74 | 0.05 | 0.11 | 0.30 | 0.13 | 0.11 |
+| 38 N, 8 ways, stood 8 | knee | 0.12 | 0 | 0.08 | 0.10 | 0.01 | 0.11 |
+| 80 N, 8 ways, stood 5 | ankle pair | 0.22 | 0 | 0.14 | 0.18 | 0.02 | 0.11 |
+
+- Her rms, her speeds and her heat are inside 2/3 everywhere; her peaks are
+  not: walking and hopping her hips, knees and spine are at their clamps.
+- The peaks are the loop's own torques: past 2/3, its feed alone is past it
+  in every pass, the PD under it never half the torque.
+- Walking, a hip's are its leg's lift: the pass its sole goes from standing
+  to swinging the sole is asked 33 m/s^2 at once, bearing 50 N still; the
+  hip gives -108 N m for 15 ms, the knee 80, then 10 to 20 as before.
+  16 ms a step, each step.
