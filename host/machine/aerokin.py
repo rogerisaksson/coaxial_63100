@@ -56,12 +56,19 @@ PITCH, ROLL = LATENT_SYMBOL_MAP['mode_attitude_pitch'], LATENT_SYMBOL_MAP['mode_
 YAW_RATE, PITCH_RATE, ROLL_RATE = (LATENT_SYMBOL_MAP[name] for name in (
     'mode_yaw_rate', 'mode_pitch_rate', 'mode_roll_rate'))
 
+#: The force vector's slew: max turn rate, rad/s, and acceleration, rad/s^2, within reach;
+#: tracking loop frequency, rad/s, and damping ratio.
+FORCE_W, FORCE_A = 8.0, 200.0
+FORCE_WN, FORCE_ZETA = 20.0, 0.707
+FORCE_K, FORCE_D = FORCE_WN ** 2, 2.0 * FORCE_ZETA * FORCE_WN
+
 #: The law's constants that have a unit, by the powers of their metres and seconds
 #: (`quad.rescaled`).
 _UNITS = {'TILT_K': (0, -2), 'TILT_D': (0, -1), 'TURN_K': (0, -2), 'TURN_D': (0, -1),
           'YAW_D': (0, -1), 'NOSE_K': (0, -1), 'KD': (0, -1), 'PACE_S': (0, 1),
           'SPOT_KP': (0, -2), 'SPOT_KD': (0, -1), 'HOME_K': (0, -1), 'HOME_M_S': (1, -1),
-          'HELD_M': (1, 0), 'HELD_SPOT_M': (1, 0), 'HELD_M_S': (1, -1)}
+          'HELD_M': (1, 0), 'HELD_SPOT_M': (1, 0), 'HELD_M_S': (1, -1),
+          'FORCE_W': (0, -1), 'FORCE_A': (0, -2), 'FORCE_K': (0, -2), 'FORCE_D': (0, -1)}
 _BUILT = {}
 
 
@@ -79,9 +86,10 @@ def fresh():
     """The law's own before its first pass: its spot, world (x, z), m, and the speed that went
     at last, m/s; its heading as (cos, sin) about up from z toward x; the collective asked
     last, m/s^2; the axis its rotors' axis turned about last, world; the payloads made;
-    whether it is held, what it is doing."""
+    whether it is held, what it is doing; the force axis and its turn rate in the world."""
     return {'spot': [0.0, 0.0], 'speed': (0.0, 0.0), 'heading': (1.0, 0.0), 'lift': idle(),
-            'about': [1.0, 0.0, 0.0], 'sequence': 0, 'held': False, 'doing': None}
+            'about': [1.0, 0.0, 0.0], 'force': [0.0, 1.0, 0.0], 'rate': [0.0, 0.0, 0.0],
+            'sequence': 0, 'held': False, 'doing': None}
 
 
 def allowed(over, brake):
@@ -190,7 +198,24 @@ def step(law, row, frame, dt, pull, head=(0.0, 0.0), pitch=math.inf):
     # a way chosen anew a pass is no way
     aim = (along[0], max(quad.GRAVITY + up_pull, light), along[1])
     size = math.sqrt(aim[0] * aim[0] + aim[1] * aim[1] + aim[2] * aim[2])
-    want = (aim[0] / size, aim[1] / size, aim[2] / size)
+    raw_want = (aim[0] / size, aim[1] / size, aim[2] / size)
+    # the force vector slewed inside reach: turn rate FORCE_W and acceleration FORCE_A
+    w_cur = law.setdefault('force', [0.0, 1.0, 0.0])
+    w_rate = law.setdefault('rate', [0.0, 0.0, 0.0])
+    e = cross(w_cur, raw_want)
+    acc = [FORCE_K * e[k] - FORCE_D * w_rate[k] for k in range(3)]
+    acc_norm = math.sqrt(sum(a * a for a in acc))
+    sc_a = min(1.0, FORCE_A / max(acc_norm, 1e-9))
+    acc = [a * sc_a for a in acc]
+    w_rate = [w_rate[k] + acc[k] * dt for k in range(3)]
+    rate_norm = math.sqrt(sum(r * r for r in w_rate))
+    sc_w = min(1.0, FORCE_W / max(rate_norm, 1e-9))
+    law['rate'] = w_rate = [r * sc_w for r in w_rate]
+    d_rot = cross(w_rate, w_cur)
+    w_next = [w_cur[k] + d_rot[k] * dt for k in range(3)]
+    w_norm = math.sqrt(sum(x * x for x in w_next))
+    want = [x / w_norm for x in w_next]
+    law['force'] = want
     dot = axis[0] * want[0] + axis[1] * want[1] + axis[2] * want[2]
     last = sum(a * k for a, k in zip(axis, law['about']))
     about = cross(axis, want)
@@ -227,10 +252,13 @@ def step(law, row, frame, dt, pull, head=(0.0, 0.0), pitch=math.inf):
     targets[PITCH] = (-there[2] * arc, math.nan)[int(flips)]
     targets[ROLL] = (there[0] * arc, math.nan)[int(rolls)]
     targets[YAW_RATE] = row['nose'] * (rate * turn[1][1] + NOSE_K * miss)
-    # the axis turns with the law's heading: about the frame's wing and nose that is the
-    # heading's rate along each - the tilt's damping is on what the frame turns short of it
-    targets[PITCH_RATE] = -rate * turn[1][0] - math.tau * row['flip']
-    targets[ROLL_RATE] = -rate * turn[1][2] - math.tau * row['roll']
+    # the axis turns with the law's heading and with the force vector itself:
+    # about the frame's wing and nose that is the heading's and force's rate along each -
+    # the tilt's damping is on what the frame turns short of it
+    w_wing = sum(r * w for r, w in zip(w_rate, (turn[0][0], turn[1][0], turn[2][0])))
+    w_nose = sum(r * n for r, n in zip(w_rate, (turn[0][2], turn[1][2], turn[2][2])))
+    targets[PITCH_RATE] = -rate * turn[1][0] - math.tau * row['flip'] - (1.0 - turning) * w_wing
+    targets[ROLL_RATE] = -rate * turn[1][2] - math.tau * row['roll'] - (1.0 - turning) * w_nose
     stiffness, damping = [0.0] * K_MODES, [0.0] * K_MODES
     stiffness[PITCH] = stiffness[ROLL] = TILT_K
     stiffness[PITCH_RATE], stiffness[ROLL_RATE] = flips * TURN_K, rolls * TURN_K

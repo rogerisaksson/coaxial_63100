@@ -245,11 +245,6 @@ gets a line at the end of [DONE](DONE.md).
     clause in a pass above the core, its lead and its swing the tilt's own
     (streams.md). Left: the lap's sphere - 0.37 of the clamp's pull flies,
     0.40 does not - and its brake's, go's and stop's shares, searched.
-  + The axis asked brings its own rate: the force asked turns 7.2 rad/s
-    rms on a lap, the frame 4.6, its axis 29 degrees rms off; that turn fed
-    forward struck every flight (streams.md). DOD: a row's force one the
-    frame turns with - its turn and that turn's change inside the reach -,
-    its rate in the payload; the axis's miss on a lap quoted.
   + WEP's reach: the loops' slew is the flight's clamp's; on WEP's a rotor
     near its idle is lost, braked or risen (envelope.md). DOD: the
     estimate's reach by speed on the stand-in, the loops' slew that.
