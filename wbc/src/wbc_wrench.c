@@ -52,6 +52,38 @@ static void lay(wbc_wrench_t *w, const double r[NU], double c, double weight)
   }
 }
 
+/** A row over her accelerations, r, as a row over the unknowns, and what is left of it:
+    udot = T (P x + p0) + E x + t0. */
+static double over(const wbc_wrench_t *w, const double r[WBC_N], double row[NU])
+{
+  double rt[6] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0}, rest = 0.0;
+
+  memset(row, 0, NU * sizeof(double));
+  for (int n = 0; n < WBC_N; n++)
+  {
+    const double rn = r[n];
+
+    rest += rn * w->t0[n];
+    for (int i = 0; (rn != 0.0) && (i < 6); i++)
+    {
+      rt[i] += rn * w->t[n][i];
+    }
+    for (int c = w->reach[n][0]; (rn != 0.0) && (c < w->reach[n][1]); c++)
+    {
+      row[c] += rn * w->e[n][c];
+    }
+  }
+  for (int i = 0; i < 6; i++)
+  {
+    rest += rt[i] * w->p0[i];
+    for (int c = 0; (rt[i] != 0.0) && (c < NU); c++)
+    {
+      row[c] += rt[i] * w->p[i][c];
+    }
+  }
+  return rest;
+}
+
 /** a's inverse by Gauss and Jordan, the largest pivot a column; 0 where it has none. */
 static int invert6(double a[6][6], double inv[6][6])
 {
@@ -143,6 +175,23 @@ void wbc_wrench_init(wbc_wrench_t *w)
       w->passive[w->npassive++] = 5 + link;
     }
   }
+  /* a leg's dof reaches its sole's six unknowns, an upper drive its own, a passive joint all */
+  for (int i = 0; i < 12; i++)
+  {
+    w->led[i] = 5 + wbc_driven[w->leg[i / 6][i % 6]];
+    w->reach[w->led[i]][0] = 6 * (i / 6);
+    w->reach[w->led[i]][1] = 6 * (i / 6) + 6;
+  }
+  for (int i = 0; i < UPPER; i++)
+  {
+    w->reach[5 + wbc_driven[w->upper[i]]][0] = 12 + i;
+    w->reach[5 + wbc_driven[w->upper[i]]][1] = 13 + i;
+  }
+  for (int i = 0; i < w->npassive; i++)
+  {
+    w->led[12 + i] = w->passive[i];
+    w->reach[w->passive[i]][1] = NU;
+  }
   for (int c = 0; c < 4; c++)
   {
     const double x = fabs(wbc_sole_corner[c][0] - wbc_sole_at[0]);
@@ -176,7 +225,7 @@ static void passive_of(const wbc_body_t *b, wbc_wrench_t *w)
         {
           rhs[i][c] -= m[n] * w->t[n][c];
         }
-        for (int c = 0; c < NU; c++)
+        for (int c = w->reach[n][0]; c < w->reach[n][1]; c++)
         {
           rhs[i][6 + c] -= m[n] * w->e[n][c];
         }
@@ -208,15 +257,17 @@ static void passive_of(const wbc_body_t *b, wbc_wrench_t *w)
 
     for (int j = 0; j < w->npassive; j++)
     {
-      for (int c = 0; c < 6; c++)
+      const double a = inv[i][j];           /* 0 off its own chain's block */
+
+      for (int c = 0; (a != 0.0) && (c < 6); c++)
       {
-        t[c] += inv[i][j] * rhs[j][c];
+        t[c] += a * rhs[j][c];
       }
-      for (int c = 0; c < NU; c++)
+      for (int c = 0; (a != 0.0) && (c < NU); c++)
       {
-        e[c] += inv[i][j] * rhs[j][6 + c];
+        e[c] += a * rhs[j][6 + c];
       }
-      rest += inv[i][j] * rhs[j][COLS - 1];
+      rest += a * rhs[j][COLS - 1];
     }
     w->t0[w->passive[i]] = rest;
   }
@@ -254,11 +305,15 @@ static void maps(wbc_body_t *b, wbc_wrench_t *w, const double u[WBC_N], const wb
     wbc_body_point(b, wbc_sole[k], wbc_sole_at, w->sole_p[k]);
     for (int i = 0; i < 6; i++)
     {
-      dof[i] = 5 + wbc_driven[w->leg[k][i]];
+      dof[i] = w->led[6 * k + i];
+    }
+    /* its twist: the pelvis's six and its leg's move it, none else */
+    for (int i = 0; i < 6; i++)
+    {
       twist[i] = 0.0;
-      for (int n = 0; n < WBC_N; n++)
+      for (int c = 0; c < 6; c++)
       {
-        twist[i] += w->jsole[k][i][n] * u[n];
+        twist[i] += w->jsole[k][i][c] * u[c] + w->jsole[k][i][dof[c]] * u[dof[c]];
       }
     }
     if (!ask->stance[k] && !ask->swing[k])
@@ -400,7 +455,6 @@ void wbc_wrench_step(wbc_body_t *b, wbc_wrench_t *w, const wbc_frame_t *base,
   double       want[WBC_DRIVEN], a6[12], asked[2], com[3], k3[3], row[NU], part[NU];
   double       a[6][6], ai[6][6], d[6], x[NU], at[NU], pinned[NU], moved[NU], hard[NU], way[NU];
   double       band = 0.0, edge = 0.0;
-  int          knee[2];
 
   memset(out, 0, sizeof(*out));
   wbc_body_pose(b, base, q);
@@ -425,10 +479,11 @@ void wbc_wrench_step(wbc_body_t *b, wbc_wrench_t *w, const wbc_frame_t *base,
     }
     for (int c = 0; c < 6; c++)
     {
-      a[i][c] = (i == c) ? 1e-9 : 0.0;
-      for (int n = 0; n < WBC_N; n++)
+      /* the pelvis's own block, and what its six lead */
+      a[i][c] = b->m[i][c] + ((i == c) ? 1e-9 : 0.0);
+      for (int n = 0; n < 12 + w->npassive; n++)
       {
-        a[i][c] += b->m[i][n] * w->t[n][c];
+        a[i][c] += b->m[i][w->led[n]] * w->t[w->led[n]][c];
       }
     }
     for (int c = 0; c < NU; c++)
@@ -438,7 +493,7 @@ void wbc_wrench_step(wbc_body_t *b, wbc_wrench_t *w, const wbc_frame_t *base,
   }
   for (int n = 0; n < WBC_N; n++)
   {
-    for (int c = 0; c < NU; c++)
+    for (int c = w->reach[n][0]; c < w->reach[n][1]; c++)
     {
       const double e = w->e[n][c];
 
@@ -470,24 +525,6 @@ void wbc_wrench_step(wbc_body_t *b, wbc_wrench_t *w, const wbc_frame_t *base,
       w->p[i][c] = v;
     }
   }
-  for (int n = 0; n < WBC_N; n++)
-  {
-    w->full0[n] = w->t0[n];
-    for (int i = 0; i < 6; i++)
-    {
-      w->full0[n] += w->t[n][i] * w->p0[i];
-    }
-    for (int c = 0; c < NU; c++)
-    {
-      double v = w->e[n][c];
-
-      for (int i = 0; i < 6; i++)
-      {
-        v += w->t[n][i] * w->p[i][c];
-      }
-      w->full[n][c] = v;
-    }
-  }
 
   /* the rows, onto the normal equations */
   memset(w->h, 0, sizeof(w->h));
@@ -512,59 +549,57 @@ void wbc_wrench_step(wbc_body_t *b, wbc_wrench_t *w, const wbc_frame_t *base,
     wbc_turn_error(ask->turn[t], have, err);
     for (int i = 0; i < 3; i++)
     {
-      double spin = 0.0, rest = 0.0;
+      const double rest = over(w, w->jac[i], row);
+      double       spin = 0.0;
 
       for (int n = 0; n < WBC_N; n++)
       {
         spin += w->jac[i][n] * u[n];
-        rest += w->jac[i][n] * w->full0[n];
-      }
-      memset(row, 0, sizeof(row));
-      for (int n = 0; n < WBC_N; n++)
-      {
-        for (int c = 0; (w->jac[i][n] != 0.0) && (c < NU); c++)
-        {
-          row[c] += w->jac[i][n] * w->full[n][c];
-        }
       }
       lay(w, row, TURN_KP * err[i] - TURN_KD * spin - drift[i] - rest, W_TURN * grounded * asks);
     }
   }
+  /* an unknown asked alone: its own weight on the diagonal */
   for (int i = 0; i < UPPER; i++)
   {
-    memset(row, 0, sizeof(row));
-    row[12 + i] = 1.0;
-    lay(w, row, want[w->upper[i]], W_POSTURE);
+    w->h[12 + i][12 + i] += W_POSTURE * W_POSTURE;
+    w->g[12 + i] += W_POSTURE * W_POSTURE * want[w->upper[i]];
   }
   for (int c = 0; c < 12; c++)
   {
-    memset(row, 0, sizeof(row));
-    row[c] = 1.0;
-    lay(w, row, a6[c], W_SWING * asked[c / 6]);
+    const double ww = W_SWING * W_SWING * asked[c / 6];
+
+    w->h[c][c] += ww;
+    w->g[c] += ww * a6[c];
   }
   {
-    double rhs = 0.0;
+    /* each knee's acceleration over the unknowns: her standing knees' posture, a swinging
+       knee's fold, a knee sprung back from straight */
+    double pick[WBC_N], bends[2][NU], left[2], rhs = 0.0;
 
     memset(row, 0, sizeof(row));
     for (int k = 0; k < 2; k++)
     {
-      knee[k] = 5 + wbc_knee[k];
-      rhs += stance[k] * (want[w->leg[k][3]] - w->full0[knee[k]]);
+      memset(pick, 0, sizeof(pick));
+      pick[5 + wbc_knee[k]] = 1.0;
+      left[k] = over(w, pick, bends[k]);
+      rhs += stance[k] * (want[w->leg[k][3]] - left[k]);
       for (int c = 0; c < NU; c++)
       {
-        row[c] += stance[k] * w->full[knee[k]][c];
+        row[c] += stance[k] * bends[k][c];
       }
     }
     lay(w, row, rhs, W_KNEE * grounded);
-  }
-  for (int k = 0; k < 2; k++)
-  {
-    const double bend = b->q[knee[k] - 6], shrt = KNEE_MIN - bend;
+    for (int k = 0; k < 2; k++)
+    {
+      const int    knee = 5 + wbc_knee[k];
+      const double bend = b->q[knee - 6], shrt = KNEE_MIN - bend;
 
-    lay(w, w->full[knee[k]], ask->fold_acc[k] + SWING_KP * (ask->fold_knee[k] - bend)
-        + SWING_KD * (ask->fold_rate[k] - u[knee[k]]) - w->full0[knee[k]], ask->fold[k] ? W_FOLD : 0.0);
-    lay(w, w->full[knee[k]], POSTURE_KP * shrt - POSTURE_KD * u[knee[k]] - w->full0[knee[k]],
-        W_STOP * clip(shrt / KNEE_MIN, 0.0, 1.0));
+      lay(w, bends[k], ask->fold_acc[k] + SWING_KP * (ask->fold_knee[k] - bend)
+          + SWING_KD * (ask->fold_rate[k] - u[knee]) - left[k], ask->fold[k] ? W_FOLD : 0.0);
+      lay(w, bends[k], POSTURE_KP * shrt - POSTURE_KD * u[knee] - left[k],
+          W_STOP * clip(shrt / KNEE_MIN, 0.0, 1.0));
+    }
   }
   wbc_body_momentum(b, com, k3);
   for (int i = 0; i < 3; i++)
@@ -672,13 +707,27 @@ void wbc_wrench_step(wbc_body_t *b, wbc_wrench_t *w, const wbc_frame_t *base,
   }
 
   /* out: the accelerations, the drives' torques inside their clamps, the soles' wrenches */
-  for (int n = 0; n < WBC_N; n++)
+  for (int i = 0; i < 6; i++)
   {
-    out->udot[n] = w->full0[n];
+    d[i] = w->p0[i];                    /* the pelvis's, d's rows done with */
     for (int c = 0; c < NU; c++)
     {
-      out->udot[n] += w->full[n][c] * at[c];
+      d[i] += w->p[i][c] * at[c];
     }
+  }
+  for (int n = 0; n < WBC_N; n++)
+  {
+    double v = w->t0[n];
+
+    for (int i = 0; i < 6; i++)
+    {
+      v += w->t[n][i] * d[i];
+    }
+    for (int c = w->reach[n][0]; c < w->reach[n][1]; c++)
+    {
+      v += w->e[n][c] * at[c];
+    }
+    out->udot[n] = v;
   }
   for (int k = 0; k < 2; k++)
   {

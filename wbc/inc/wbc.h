@@ -21,6 +21,7 @@ typedef struct
   double      q[WBC_N - 6];        /**< the hinges' angles */
   double      axis[WBC_LINKS][3];  /**< each hinge's axis in the world */
   double      anchor[WBC_LINKS][3];/**< a point on it */
+  double      u[WBC_N];            /**< her velocities, as the bias had them */
   double      v[WBC_LINKS][6];     /**< each link's twist in its own frame */
   double      vd[WBC_LINKS][6];    /**< its acceleration, gravity's included */
   double      f[WBC_LINKS][6];     /**< the wrench it passes to its parent */
@@ -55,7 +56,7 @@ void wbc_body_com(wbc_body_t *b, double com[3], double j[3][WBC_N]);
 /** The point's J-dot u in the world, rows w then v: its acceleration were u held (after the bias). */
 void wbc_body_drift(const wbc_body_t *b, int link, const double r[3], double out[6]);
 
-/** Her angular momentum about `com`, world (after the bias). */
+/** Her angular momentum about `com`, world (after the mass matrix and the bias). */
 void wbc_body_momentum(const wbc_body_t *b, const double com[3], double k[3]);
 
 /** The commanded torques: the drives', then the held joints'. */
@@ -214,6 +215,8 @@ typedef struct
   int    upper[WBC_DRIVEN - 12];  /**< the rest of them */
   int    passive[WBC_PASSIVE];    /**< the dofs no drive and no stop holds, and how many */
   int    npassive;
+  int    led[12 + WBC_PASSIVE];   /**< the dofs the pelvis's six move: her legs', the passive */
+  int    reach[WBC_N][2];         /**< the unknowns a dof's row of e reaches: from, before */
   double room[2];                 /**< a sole's centre of pressure within, across and along, m */
   double jsole[2][6][WBC_N];      /**< each sole's Jacobian at its middle, world (w, v) */
   double sole_p[2][3];            /**< and where it is */
@@ -225,8 +228,6 @@ typedef struct
   double bm[6][WBC_U];            /**< the base's rows: A base = bm x - d */
   double p[6][WBC_U];             /**< base = p x + p0 */
   double p0[6];
-  double full[WBC_N][WBC_U];      /**< udot = full x + full0 */
-  double full0[WBC_N];
   double h[WBC_U][WBC_U];         /**< the rows' normal equations, and a round's, factored */
   double g[WBC_U];
   double k[WBC_U][WBC_U];

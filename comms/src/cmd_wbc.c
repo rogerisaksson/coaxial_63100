@@ -14,7 +14,7 @@
 #define WBC_TICKS_MAX 16U
 
 /* The loop's state, 471 KB, lives in the acquisition ring while it ticks (`Board_DaqLend`),
-   the step's 32 KB there too; the body, 31 KB, and the out in DTCM. */
+   the step's 25 KB there too; the body, 31 KB, and the out in DTCM. */
 _Static_assert(sizeof(wbc_stack_t) <= DAQ_BYTES, "the loop's state outgrew the ring");
 _Static_assert(sizeof(wbc_wrench_t) <= DAQ_BYTES, "the step's state outgrew the ring");
 static wbc_body_t s_body;

@@ -174,11 +174,11 @@ gets a line at the end of [DONE](DONE.md).
     + Reach (`machine/reach.py`, kinematics.md): her stride reading it, a
       limb an index; a landing pitched and a heel risen in `land`; her
       legs above their soles clear of each other.
-    + Loop: a tick 26.3 M instructions on the image, 55 ms on the M7 where
-      the DOD's 1. The step without an active set in C (`wbc_wrench.c`,
-      wrench.md): 0.39 M instructions standing, 0.82 ms; 0.50 M a sole
-      swung and a moment clipped, 1.06 ms, its four rounds 0.13 M; on a
-      board, by its own cycles: unmeasured.
+    + Loop: a tick 24.9 M instructions on the Release image, 52 ms on the
+      M7 where the DOD's 1. The step without an active set in C
+      (`wbc_wrench.c`, wrench.md): 0.25 M instructions standing, 0.53 ms;
+      0.35 M a sole swung and a moment clipped, 0.73 ms, its four rounds
+      0.11 M; on a board, by its own cycles: unmeasured.
     + Bottom, each board: the ESO (`parts.Eso`, `CTRL_ESO`) onto the boards
       as built on the motor's encoder; torque and acceleration registers on
       the wire.
@@ -312,8 +312,10 @@ gets a line at the end of [DONE](DONE.md).
   (STABLE held 100 s within 600: 394), `test_sensorless` (the loop under a
   concurrent reader; the shunt's sign), the emulator's reads (a CRC on
   `afe.state`, a board's info in its place), `test_wbc_core` (a tick of
-  the loop 4 202 us), `test_mcp` (the program card). DOD: each looped 20
-  times on a loaded host, its cause found.
+  the loop 4 202 us), `test_mcp` (the program card), `test_controller`
+  (the failsafe's row: a bend at 17.4 of 20 deg as its 0.3 s ran out; none
+  in 210 runs here, 32 at a time). DOD: each looped 20 times on a loaded
+  host, its cause found.
 - **`Velocity`'s start** (`coaxial.control.motion`): sensorless at rest, as
   a rotor node's was - right while the estimate lies within a quarter turn
   of the rotor. test_controller's velocity loop on the stand-in faulted
@@ -337,7 +339,9 @@ gets a line at the end of [DONE](DONE.md).
   SIL; the fallback where nothing answers.
 - **The MCU's die under the drive**: 9 us of sampling in a 20 us period.
   DOD: read.
-- **Debug `-O0`**. DOD: `-Og` measured (LOOP, keepalive gap).
+- **Debug `-O0`**, `board_mem.c`'s memset and memcpy with it: the step's
+  tick 0.32 M instructions there where the Release image's 0.25. DOD:
+  `-Og` measured (LOOP, keepalive gap).
 - **`heat.py`'s dry loss** 1.2 W, the bench's fit 2.4-4.4 at 24-44 V. DOD:
   it.
 - **`coaxial_63020`** has no pin table in `boot_main.c`. DOD: one.

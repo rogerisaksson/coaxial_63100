@@ -297,6 +297,7 @@ void wbc_body_bias(wbc_body_t *b, const double u[WBC_N])
 {
   double g[3], br[6], gv[6], gvd[6], c[6], up[6];
 
+  memcpy(b->u, u, sizeof(b->u));
   memcpy(b->v[0], u, 6U * sizeof(double));
   unrotate(b->t[0].r, wbc_gravity, g);
   for (int k = 0; k < 3; k++)
@@ -478,22 +479,26 @@ void wbc_body_drift(const wbc_body_t *b, int link, const double r[3], double out
 
 void wbc_body_momentum(const wbc_body_t *b, const double com[3], double k[3])
 {
-  double pm[6], ang[3], lin[3], d[3], c[3];
+  double pm[6], lin[3], d[3], c[3];
 
-  k[0] = k[1] = k[2] = 0.0;
-  for (int i = 0; i < WBC_LINKS; i++)
+  /* all she is, moving: the pelvis's rows of M u, its axes about its origin */
+  for (int i = 0; i < 6; i++)
   {
-    carried(i, b->v[i], pm);
-    rotate(b->t[i].r, pm, ang);
-    rotate(b->t[i].r, pm + 3, lin);
-    for (int n = 0; n < 3; n++)
+    pm[i] = 0.0;
+    for (int n = 0; n < WBC_N; n++)
     {
-      d[n] = b->t[i].p[n] - com[n];
+      pm[i] += b->m[i][n] * b->u[n];
     }
-    cross(d, lin, c);
-    for (int n = 0; n < 3; n++)
-    {
-      k[n] += ang[n] + c[n];
-    }
+  }
+  rotate(b->t[0].r, pm, k);
+  rotate(b->t[0].r, pm + 3, lin);
+  for (int n = 0; n < 3; n++)
+  {
+    d[n] = b->t[0].p[n] - com[n];
+  }
+  cross(d, lin, c);
+  for (int n = 0; n < 3; n++)
+  {
+    k[n] += c[n];
   }
 }

@@ -194,7 +194,7 @@ class Core:
         return out
 
     def momentum(self, com):
-        """Her angular momentum about `com`, world, (3,); after `bias`."""
+        """Her angular momentum about `com`, world, (3,); after `mass` and `bias`."""
         com, out = _arr(com), np.zeros(3)
         self.lib.wbh_momentum(_ptr(com), _ptr(out))
         return out

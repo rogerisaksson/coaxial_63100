@@ -128,6 +128,7 @@ def test_the_centre_of_mass_is_mujocos(report, c, b, rows):
     for q, v in _configurations(b, rows, rng):
         at = _mujoco(b, q, v)
         c.pose(at['base'], q[7:7 + c.n - 6])
+        c.mass()
         c.bias(at['u'])
         com, j = c.com()
         b.mj.mj_jacSubtreeCom(b.m, b.d, jp, b.pelvis)

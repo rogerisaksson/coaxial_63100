@@ -437,8 +437,9 @@ Device 13 op 0 ticks the loop on the model's stand (`cmd_wbc.c`). The state
 lives in the acquisition ring while it ticks (`Board_DaqLend`: the ring 480 KB,
 lent idle and emptied; 471 + 448 KB never fit the AXI's 512), the body's 31 KB
 in DTCM. On Renode at its own 100 MIPS - its DWT counts virtual time, 4.75
-cycles an instruction - a tick is 125.1 M cycles cold and warm alike (4 passes,
+cycles an instruction - a tick is 124.9 M cycles cold and warm alike (4 passes,
 no bound held on the stand): 26.3 M instructions, 55 ms on the M7 at one a
-cycle against the 1 ms of a 1 kHz loop. Its torques are the host loop's within
-1e-3 N m. The gap is the formulation's cost, not its memory: five dense levels
-over 71 variables, each relaying the levels below.
+cycle against the 1 ms of a 1 kHz loop; the Release image 24.9 M, 52 ms. Its
+torques are the host loop's within 1e-3 N m. The gap is the formulation's cost,
+not its memory: five dense levels over 71 variables, each relaying the levels
+below.
