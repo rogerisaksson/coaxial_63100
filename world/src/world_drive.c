@@ -25,6 +25,7 @@ void world_drive_init(int i, float ts)
     return;
   }
   memset(b, 0, sizeof(*b));
+  b->speed_ask = -1.0f;
   drive_init(&b->law, ts);
   b->law.vdc = b->law.model.p.vdc;
 }
@@ -201,3 +202,34 @@ int world_drive_loop_read(int i, double *out)
   out[n++] = (double)st.out;
   return n;
 }
+
+uint32_t world_drive_pass(int i, uint32_t periods, bool moe, bool supplied, float speed, double *out)
+{
+  world_drive_t *b = at(i);
+
+  if (b == NULL)
+  {
+    return 0U;
+  }
+  if ((speed >= 0.0f) && (speed != b->speed_ask))
+  {
+    const float was = (b->speed_ask >= 0.0f) ? b->speed_ask : speed;
+    const float sp[2] = { was + 0.5f * (speed - was), speed };
+    const uint16_t ms[2] = { 1U, 1U };
+
+    (void)ctrl_loop_rows(&b->loop, ms, sp, 2U);
+    b->speed_ask = speed;
+  }
+  const uint32_t tripped = world_drive_run(i, periods, moe, supplied);
+
+  if (out != NULL)
+  {
+    out[0] = (double)b->law.model.omega;
+    out[1] = (double)b->law.omega_hat;
+    out[2] = (double)b->law.model.id;
+    out[3] = (double)b->law.model.iq;
+    out[4] = (double)b->law.fault;
+  }
+  return tripped;
+}
+

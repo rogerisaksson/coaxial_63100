@@ -232,25 +232,6 @@ gets a line at the end of [DONE](DONE.md).
 
 ## Quad
 
-- **The page's flight a fifth of this host**: four stand-in boards a pass
-  of 2 ms are 0.20 s a flight's second where 0.12 at 20 ms, 0.51 beside
-  the drawing's thread - three calls a rotor a pass, each a board's whole
-  state read; 16 frames a second where 17.8, and under 50 suites its clock
-  half the wall's. DOD: a board's pass one call; 20 frames a second.
-- **The heat's clock in flight**: ten thermal seconds a flight's
-  (`HASTE`): full tilt's 2 s are 20 of heat, the legs at their throttle's
-  point 0.2 s in (envelope.md). On its own seconds from cold
-  (`configure(clock=1)`): full tilt's boards hold 58.7 A at the least
-  where 43.2, the legs at 0.81 of their envelope where 0.90, a lap's 81.7
-  A where 62.9 - and the observers UNCERTAIN to 68 s, their margin at its
-  floor. A board at its rotor's idle on the floor is CONVERGING 100 s on,
-  STABLE 280, at 89 C and 0.47. DOD: flown on the flight's own seconds,
-  the observers out of UNCERTAIN before a first flight; the race on it.
-- **The plan on boards that hold their pull**: `course.PULL` gridded alone
-  to 0.37 (envelope.md); BRAKE, GO and the crossings are the search's on
-  boards that had 34-60 % of it and a law since gone, the crossings laid
-  again by flight (streams.md). DOD: `quad_race.py --search` over them on
-  the core, the laps against 14.3-14.8 s, every flight whole.
 - **Flown from compiled streams, no rules**: a flight's intent is text
   (`stream_inject`: latent targets on six modes, a stiffness and a damping
   a mode, an oscillator, task constraints; a mode dropped is NaN) compiled
@@ -264,18 +245,6 @@ gets a line at the end of [DONE](DONE.md).
     clause in a pass above the core, its lead and its swing the tilt's own
     (streams.md). Left: the lap's sphere - 0.37 of the clamp's pull flies,
     0.40 does not - and its brake's, go's and stop's shares, searched.
-  + The axis asked brings its own rate: the force asked turns 7.2 rad/s
-    rms on a lap, the frame 4.6, its axis 29 degrees rms off; that turn fed
-    forward struck every flight (streams.md). DOD: a row's force one the
-    frame turns with - its turn and that turn's change inside the reach -,
-    its rate in the payload; the axis's miss on a lap quoted.
-  + WEP's reach: the loops' slew is the flight's clamp's; on WEP's a rotor
-    near its idle is lost, braked or risen (envelope.md). DOD: the
-    estimate's reach by speed on the stand-in, the loops' slew that.
-  + A room too hot for a lap (toasty, 45 C): a board holds none in the
-    dive and the floor is struck. DOD: what the boards hold a flight long
-    in their room, known before it lifts (thermal op, a horizon), `fit` on
-    it.
   + A flight on a board's core: device 14 takes its reading off the wire,
     246 bytes a pass. DOD: the reading the board's own - its IMU's, its
     rotors' off the bus -, a pass in its sample, the page's flight on it.

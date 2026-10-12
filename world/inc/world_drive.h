@@ -41,6 +41,7 @@ typedef struct
   double squares[DRIVE_PHASES]; /**< the phases' squares summed a switched period, A^2 */
   double linked;            /**< and the link's amps, each duty its phase's share */
   uint32_t counted;         /**< over this many periods since the window was taken */
+  float speed_ask;          /**< last speed asked in flight */
 } world_drive_t;
 
 /** Slot `i` fresh at a period of `ts` s: the law at its defaults, the rotor at rest. */
@@ -70,6 +71,10 @@ int world_drive_window(int i, double *out);
 
 /** Slot `i`'s loop as it stands into `out` (WORLD_DRIVE_LOOP_ROW); how many. */
 int world_drive_loop_read(int i, double *out);
+
+/** One flight pass of slot `i` for `periods`: updates speed setpoint if `speed >= 0.0f`,
+    runs the law and loop, and writes [omega, omega_hat, id, iq, fault] into `out`. */
+uint32_t world_drive_pass(int i, uint32_t periods, bool moe, bool supplied, float speed, double *out);
 
 #ifdef __cplusplus
 }

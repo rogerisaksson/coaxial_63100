@@ -212,8 +212,12 @@ set_source_files_properties(
     ctrl/src/ctrl.c ctrl/src/ctrl_loop.c
     wbc/src/wbc_body.c wbc/src/wbc_stack.c wbc/src/wbc_solve.c wbc/src/wbc_wrench.c
     wbc/src/wbc_cone.c
-    aero/src/aero.c aero/src/aero_turn.c aero/src/aero_share.c
     PROPERTIES COMPILE_OPTIONS "-O2;-fno-math-errno;-Wextra;-Wshadow;-Wconversion")
+# The frame's core as its host twin computes it, to the bit: no multiply fused into an add.
+set_source_files_properties(
+    aero/src/aero.c aero/src/aero_turn.c aero/src/aero_share.c
+    PROPERTIES COMPILE_OPTIONS
+    "-O2;-fno-math-errno;-ffp-contract=off;-Wextra;-Wshadow;-Wconversion")
 set_source_files_properties(
     board/src/board_drive.c board/src/board_ctrl.c board/src/board_sync.c board/src/board_daq.c
     PROPERTIES COMPILE_OPTIONS "-O2;-fno-math-errno;-Wextra;-Wshadow")

@@ -199,7 +199,7 @@ def test_a_board_holds_its_clamp(report):
     from terminal.views.quad import flight as view
     rig = Coaxial63100(execution_mode=SIMULATED).open()
     try:
-        rotor = view.arm(rig)
+        rotor = view.arm(rig, clock=10, warm_s=0.0)
         drive, loop, heat = rig.board.drive, rig.board.ctrl, rig.board.thermal
         rows, t = [], 0.0
         while t < 13.5:

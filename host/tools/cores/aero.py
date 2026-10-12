@@ -19,7 +19,8 @@ SOURCES = [os.path.join(REPO, 'aero', name)
            for name in ('test/harness.c', 'src/aero.c', 'src/aero_turn.c', 'src/aero_share.c')]
 INCLUDES = [os.path.join(REPO, 'aero', 'inc'), os.path.join(REPO, 'aero', 'src')]
 #: Built as the firmware builds it (CMakeLists.txt), every symbol kept for ctypes.
-BUILT = ('-O2', '-fno-math-errno') + (('-Wl,--export-all-symbols',) if os.name == 'nt' else ())
+BUILT = ('-O2', '-fno-math-errno', '-ffp-contract=off') + (
+    ('-Wl,--export-all-symbols',) if os.name == 'nt' else ())
 
 #: aero.h's sizes.
 MODES, ROWS, TASKS, ROTORS, AXES, WRENCH = 6, 5, 2, 4, 3, 4
@@ -130,8 +131,10 @@ def reach(asked, turning, dt, slew, least, top, most=None):
     way, up no faster than `most` where its board's current gives less, inside `least` and
     `top`; `turning` its speed as it is."""
     k = quad.K_THRUST
-    up = [slew] * len(asked) if most is None else [min(slew, each) for each in most]
-    return ([k * w * w for w in turning], [k * max(least, w - slew * dt) ** 2 for w in asked],
+    slews = slew if isinstance(slew, (list, tuple)) else [slew] * len(asked)
+    up = slews if most is None else [min(s, each) for s, each in zip(slews, most)]
+    return ([k * w * w for w in turning],
+            [k * max(least, w - s * dt) ** 2 for w, s in zip(asked, slews)],
             [k * max(least, min(top, w + rise * dt)) ** 2 for w, rise in zip(asked, up)])
 
 

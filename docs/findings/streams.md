@@ -53,12 +53,16 @@ lift inside its constraints, the share.
   81 sets of rotors held at an end (1.4e-8 of the cost, the weights single
   precision), in 8 passes.
 - On the image (device 14, MINOR 34), a frame laid and a pass a request:
-  149 288 cycles under Renode, 0.31 ms on the M7 at one a cycle, the same
+  150 442 cycles under Renode, 0.32 ms on the M7 at one a cycle, the same
   within two in each of 25 asks - the power loop's payloads over a frame
   level at rest, tilted and turning, on its back, its rotors' reach shut,
   nothing given. An interrupt's 90 fall in half the passes. Its thrusts are
-  the host core's within 1.7e-5 N on the reading as the board had it; 8.9
-  KB of flash, its device 1.1, 821 B of state.
+  the host core's on the reading as the board had it, to the wire's
+  millionth of a newton, eight runs of eight: its sources built with no
+  multiply fused into an add (`-ffp-contract=off`). Fused - the M7's VFMA,
+  none on the host - they stood 1.7e-5 N apart here and 3.6e-4 on CI's
+  host, by which passes an interrupt had fallen in; 149 288 cycles then.
+  9.3 KB of flash, its device 1.1, 821 B of state.
 
 ## The axis asked
 
@@ -81,11 +85,15 @@ passes: its tilt's torques against that law's 1.5 N m rms.
   its back.
 - The lift over the heading in the share: the heading over it, the hover
   after the catch stood 0.3-1.7 m off its height in 4 turns of 12.
-- On a lap the force asked, the loops' own on it, turns 7.2 rad/s rms and
-  55.7 at the most; the frame 4.6, its axis 29 degrees rms off that force.
-  That turn as the rates' target, no faster than the tilt's own loop turns:
-  six flights of six struck; 0.15 of it, a gate's frame 0.15 m past its
-  margin, 33.03 where 28.93.
+- On a lap the raw force asked, the loops' own on it, turns 7.2-9.5 rad/s
+  rms and 55-72 rad/s at the most; the frame 4.6-6.0 rad/s, its axis 29
+  degrees rms off that force. A raw turn fed forward struck every flight.
+  Slewed inside the reach (8.0 rad/s, 200 rad/s^2) with its turn rate in the
+  payload fed forward onto pitch and roll rates: the slewed force turns 4.7
+  rad/s rms (peak 8.0 rad/s bounded within reach), the frame 6.0 rad/s, and
+  the axis miss on a lap drops to 14.7 degrees rms (42.4 peak where 65);
+  12 flights of 12 whole in the race suite.
+
 
 ## The rotors' reach
 
@@ -288,3 +296,8 @@ the current it holds gives; its rotor's thrust as given is its estimate's.
   second: at Python's 5 ms a turn it waited on the drawing's, a flight's
   second took 1.02 of the wall's, its clock 21 % behind. At 0.2 ms: 0.51,
   none behind, 16 frames a second where the law before drew 17.8.
+- `course.BRAKE` and `course.GO` searched on the core (`quad_race.py --search`):
+  0.735 and 0.708 (cost 28.06 where 28.24), every flight whole (100 %),
+  a gate's frame -0.03 m past its margin; boards' laps 13.8 and 14.1 s
+  (verified on unseen seeds 6, 7, 8: 28.05, laps 13.8 and 14.0-14.1 s),
+  against 14.3-14.8 s.

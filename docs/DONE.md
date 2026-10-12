@@ -179,5 +179,35 @@ it names. A closed item is cut from the list and gets its line here, last.
     - Binary CI guillotine exit gate (`sys.exit(1) if gps > MAX_TOLERANCE`).
     - Threadripper 32-core / 64-thread parallelization: MAX_SHARDS=32 in runner.py, documented in CLAUDE.md.
     - Terminal stance knee hyperextension eliminated in wrench.step and sprung.py ref_q.
+49. The frame's core on the image computes as its host twin, to the wire's
+    millionth of a newton: built with no multiply fused into an add, where
+    its thrusts stood 3.6e-4 N off on CI's host and 1.7e-5 here; 150 442
+    cycles a pass where 149 288 ([streams](findings/streams.md)).
+50. A stand-in board's pass in flight one C call (`world_drive_pass`):
+    three calls a rotor a pass and their dictionary allocations unified;
+    the page's flight over 20 frames a second ([quad](findings/quad.md)).
+51. The heat's clock in flight: flown on the flight's own seconds (clock=1),
+    observers warmed at idle on the floor out of UNCERTAIN before a first flight;
+    full tilt boards hold 58.7 A where 43.2, race laps 13.9 and 14.2 s, SOA 0.55-0.62
+    ([envelope](findings/envelope.md), [quad](findings/quad.md)).
+52. The plan on boards that hold their pull: `quad_race.py --search` over
+    `course.BRAKE` (0.735) and `course.GO` (0.708) on the core; laps 13.8 and
+    14.0-14.1 s against 14.3-14.8 s, cost 28.06 where 28.24, 100 % whole across
+    winds and unseen seeds ([envelope](findings/envelope.md), [streams](findings/streams.md)).
+53. The axis asked brings its own rate: a row's force slewed within reach
+    (8.0 rad/s, 200 rad/s^2) with its rate in the payload fed forward onto
+    pitch and roll rates; axis miss on a lap 14.7 degrees rms where 29, 12 of
+    12 race flights whole with 0 strikes ([streams](findings/streams.md)).
+54. The loop's slew reaches WEP's with speed: `pull.slew(clamp, w)` interpolating
+    branchlessly from the flight clamp's slew at idle (2 898 rad/s^2) to WEP's
+    (4 347 rad/s^2) at turning speeds past 300 rad/s; passed per-rotor through
+    `aero.reach`, rotors near idle retain full stability while spools at speed
+    reach maximum acceleration ([envelope](findings/envelope.md)).
+55. Thermal situation and horizon fit in hot rooms: boards configure their
+    thermal situation and idle warm-up in room ambient before flight; in a toasty
+    45 C room, boards hold 57.7 A at idle < 60 A, correctly failing `fit` and
+    cooling on the floor rather than lifting into a dive strike
+    ([envelope](findings/envelope.md)).
+
 
 

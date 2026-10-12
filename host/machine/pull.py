@@ -127,10 +127,19 @@ def reach(w, volts, amps, rotor=ROTOR):
     return (rotor.kt * min(amps, room(w, volts, rotor)) - torque(w, rotor)) / rotor.j
 
 
-def slew(amps, rotor=ROTOR):
+#: The speed, rad/s, above which the loop's slew reaches WEP's; at idle it is the flight's clamp's.
+W_SLEW_RAD_S = 300.0
+
+
+def slew(amps=I_WEP, w=math.inf, rotor=ROTOR):
     """A rotor's loop's own slew on a clamp of `amps`, rad/s^2: half of them to turn the can
-    and its propeller."""
-    return 0.5 * rotor.kt * amps / rotor.j
+    and its propeller; at `w`, bounded by the estimate's reach on the stand-in from the
+    flight's clamp at idle to WEP's at speed."""
+    base = 0.5 * rotor.kt * amps / rotor.j
+    least = 0.5 * rotor.kt * min(amps, I_MAX) / rotor.j
+    span = max(1e-6, W_SLEW_RAD_S - quad.IDLE_RAD_S)
+    frac = min(1.0, max(0.0, (w - quad.IDLE_RAD_S) / span))
+    return least + frac * (base - least)
 
 
 def thrust(w, along=0.0):

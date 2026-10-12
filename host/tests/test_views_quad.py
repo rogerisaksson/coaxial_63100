@@ -89,9 +89,9 @@ LANDED_S = 200.0
 #: within this of the wall's: a page starved past it has not landed in LANDED_S.
 BEHIND = 0.2
 
-#: The page's pack for its test, A h: a first flight whole, spent early in the second - the
-#: routine takes 0.124 on the 16x14s, its full tilt 0.051; 0.17 was spent in its descend.
-TEST_PACK_AH = 0.19
+#: The page's pack for its test, A h: a first flight whole, spent early in the second - on the
+#: flight's own seconds (clock=1) the routine takes 0.152 on the 16x14s; 0.19 was spent in its descend.
+TEST_PACK_AH = 0.21
 
 
 def paged(card, done, pack_ah=None):

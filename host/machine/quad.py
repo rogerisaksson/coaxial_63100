@@ -220,11 +220,14 @@ class Sky:
     def _struck(self, data):
         """What the frame of `data` touches with more than a skid on the floor: its name, or
         None."""
-        pairs, gaps = data.contact.geom[:data.ncon].tolist(), data.contact.dist[:data.ncon]
-        for (a, b), gap in zip(pairs, gaps.tolist()):
-            if gap <= 0.0 and (min(a, b), max(a, b)) not in self._feet \
-                    and (a in self._mine or b in self._mine):
-                return self._names[b if a in self._mine else a]
+        geom, dist, ncon = data.contact.geom, data.contact.dist, data.ncon
+        feet, mine, names = self._feet, self._mine, self._names
+        for k in range(ncon):
+            if dist[k] <= 0.0:
+                a, b = int(geom[k, 0]), int(geom[k, 1])
+                pair = (a, b) if a < b else (b, a)
+                if pair not in feet and (a in mine or b in mine):
+                    return names[b if a in mine else a]
         return None
 
     def state(self):
@@ -280,12 +283,30 @@ class Sky:
         about = np.array([-sum(t * z for t, (_x, z) in zip(thrusts, ROTOR_AT)),
                           sum(spin * K_DRAG * w * w for spin, w in zip(SPIN, speeds)),
                           sum(t * x for t, (x, _z) in zip(thrusts, ROTOR_AT))])
+        drag_const = 0.5 * RHO * BODY_CDA
+        wx, wy, wz = float(wind[0]), float(wind[1]), float(wind[2])
+        px, py, pz = float(push[0]), float(push[1]), float(push[2])
+        tx, ty, tz = float(twist[0]), float(twist[1]), float(twist[2])
+        ab0, ab1, ab2 = float(about[0]), float(about[1]), float(about[2])
+        frame = self.frame
+        qvel = d.qvel
+        xfrc = d.xfrc_applied
         for _ in range(max(1, int(round(dt / STEP_S)))):
-            turn = d.xmat[self.frame].reshape(3, 3)
-            v = d.qvel[0:3] - wind
-            d.xfrc_applied[self.frame, 0:3] = (
-                lift * turn[:, 1] - 0.5 * RHO * BODY_CDA * np.linalg.norm(v) * v + push)
-            d.xfrc_applied[self.frame, 3:6] = turn @ about + twist
+            turn = d.xmat[frame].reshape(3, 3)
+            vx = float(qvel[0]) - wx
+            vy = float(qvel[1]) - wy
+            vz = float(qvel[2]) - wz
+            speed = math.sqrt(vx * vx + vy * vy + vz * vz)
+            drag = drag_const * speed
+            t00, t01, t02 = float(turn[0, 0]), float(turn[0, 1]), float(turn[0, 2])
+            t10, t11, t12 = float(turn[1, 0]), float(turn[1, 1]), float(turn[1, 2])
+            t20, t21, t22 = float(turn[2, 0]), float(turn[2, 1]), float(turn[2, 2])
+            xfrc[frame, 0] = lift * t01 - drag * vx + px
+            xfrc[frame, 1] = lift * t11 - drag * vy + py
+            xfrc[frame, 2] = lift * t21 - drag * vz + pz
+            xfrc[frame, 3] = t00 * ab0 + t01 * ab1 + t02 * ab2 + tx
+            xfrc[frame, 4] = t10 * ab0 + t11 * ab1 + t12 * ab2 + ty
+            xfrc[frame, 5] = t20 * ab0 + t21 * ab1 + t22 * ab2 + tz
             self._mj.mj_step(self.model, d)
             if d.ncon and self.hit is None:
                 self.hit = self._struck(d)

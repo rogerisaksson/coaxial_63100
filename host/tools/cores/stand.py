@@ -77,6 +77,9 @@ def library():
     lib.world_drive_rest.argtypes = [i]
     lib.world_drive_run.argtypes = [i, u, ctypes.c_bool, ctypes.c_bool]
     lib.world_drive_run.restype = u
+    lib.world_drive_pass.argtypes = [i, u, ctypes.c_bool, ctypes.c_bool, f,
+                                    ctypes.POINTER(ctypes.c_double)]
+    lib.world_drive_pass.restype = u
     lib.world_drive_read.argtypes = [i, ctypes.POINTER(ctypes.c_double)]
     lib.world_drive_read.restype = i
     lib.world_drive_window.argtypes = [i, ctypes.POINTER(ctypes.c_double)]
