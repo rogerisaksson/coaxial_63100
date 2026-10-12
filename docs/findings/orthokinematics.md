@@ -228,6 +228,16 @@ its landing further on by that of (v - cruise) / omega):
   ask -0.6 m/s^2 through late stance where -2.1, and her head 8 deg, her
   trunk 7, strike 530 N. The misread rate is part of her height's
   damping.
+- A fall, standing, 120 N ahead for 0.12 s: down in 1.04 s; her arms a
+  turn to two round her shoulders, her hands on the floor at 5 to 16 m/s,
+  her trunk at 3.1 with 2.6 kN, her head at 2.4 with 3.3 kN; 80 N: her
+  pelvis first, 2.4 m/s and 5.4 kN; 120 N across: her head in 1.45 s at
+  3.7 m/s. Her drives asked 6.4 of their clamps. With a slack - her
+  capture point past her soles, 3 cm halving it - taking every mode's
+  stiffness and her weight's support off, tried beside the tree: her
+  head at 1.6 m/s with 1.3 kN, her arms still till the floor, and her
+  thighs on it in 0.8 s at 1.4 m/s with 6.8 kN, the drives at 6.4 of
+  their clamps still: asked past them, her height's damper gives none.
 - Shoved walking, 0.12 s at 15 s - 20, 30 and 40 N across either way, 10
   and 20 N along either way -: 6 of 10 stood on either step, the four
   down each across; her speed after one 0.75 to 0.77 m/s where 0.70 to
