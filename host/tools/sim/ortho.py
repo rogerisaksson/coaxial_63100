@@ -7,7 +7,7 @@
     python tools/sim/ortho.py --file my.lisp hop --every 4       # a file's; the loop every 4th pass
 
 She stands AT_S at rest on the loop (`machine.sprung`: sensed, `machine.latent`, `machine.modal`,
-`wbc.step`); each entry named - a payload '#' and its id, a behaviour by its name - is begun at
+`wrench.step`); each entry named - a payload '#' and its id, a behaviour by its name - is begun at
 its second, AT_S and then 2 s apart where none is given; she is followed `--to` s past the last.
 A row: what she is doing, each mode as asked and as she is, her centre of mass's height and
 speed up, each sole's load, which soles stand, her speed along. The last line: whether she

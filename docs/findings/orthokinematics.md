@@ -2,11 +2,12 @@
 
 Her movement as text: compiled to rows of numbers, stepped in a latent space
 with no branch, rendered on her body by her modes, solved by the whole-body
-loop ([wbc](wbc.md)). `machine/ortho.py` compiles, `machine/latent.py` steps,
-`machine/modal.py` renders, `machine/sprung.py` runs it: the page's gym (`<`
-on HUMANOID, or `--ortho`) and `tools/sim/ortho.py`. tests/test_ortho.py
-holds it, 32 of 32. Her moves are `machine/moves.lisp`; the language's first
-texts, as given, `machine/examples.lisp` (`>` on the page).
+step without an active set ([wrench](wrench.md)). `machine/ortho.py`
+compiles, `machine/latent.py` steps, `machine/modal.py` renders,
+`machine/sprung.py` runs it: the page's gym (`<` on HUMANOID, or `--ortho`)
+and `tools/sim/ortho.py`. tests/test_ortho.py holds it, 36 of 36. Her moves
+are `machine/moves.lisp`; the language's first texts, as given,
+`machine/examples.lisp` (`>` on the page).
 
 ## The text
 
@@ -65,34 +66,37 @@ each a mass on a spring and a damper to its reference.
 
 ## Measured
 
-`python tools/sim/ortho.py NAME`, the loop solved every fourth pass as the
-page runs it.
+`python tools/sim/ortho.py NAME`, as the page runs it: the step solved every
+third pass, 0.90 ms a pass.
 
 | Asked | Is | Stood |
 | --- | --- | --- |
-| `crouch`, axial 0.6 at 20 kN/m | 0.605 | yes, tilt 1.0 deg |
-| `weight_shift`, lateral 1.0 | 0.994, the other sole 34 N of 305 | yes |
-| `bow`, pitch 0.5 | 0.498 | yes |
-| `one_sole`, lateral 1.0 and lift -1.0 in one row | 1.00, lift -0.97, the other sole 0 N | yes, 4 s on one |
+| `crouch`, axial 0.6 at 20 kN/m | 0.604 | yes, tilt 1.0 deg |
+| `weight_shift`, lateral 1.0 | 0.999, the other sole 18 N of 305 | yes |
+| `bow`, pitch 0.5 | 0.502 | yes |
+| `one_sole`, lateral 1.0 and lift -1.0 in one row | 1.00, lift -0.98, the other sole 0 N | yes, 4 s on one |
+| `hop`: loaded 0.85, thrown by a spring that lets go at 0.15, her trunk free, landed at 0.25 | 1.13 m/s up, 0.22 s off the floor | yes, tilt 3.9 deg |
 
 Her walk, 201 to 204 of `moves.lisp` (stand, sway at 0.8 Hz and 0.37, step
-at a drive of 0.2, walk on at 0.5), 60 s:
+at a drive of 0.2, walk on at 0.8), 60 s:
 
 | Run | Went | m/s at the end | Landings | Tilt, deg |
 | --- | --- | --- | --- | --- |
-| as written | 8.43 m | 0.162 | 88, one a turn | 1.1 |
-| drive 0.35 | 6.79 | 0.130 | 88 | 0.9 |
-| her support polygon kept | 6.71 | 0.127 | 88 | 1.0 |
-| axial 0.3 | 8.35 | 0.160 | 88 | 1.1 |
-| lateral 1 500 N/m | 8.38 | 0.161 | 88 | 1.1 |
-| 0.75 Hz, sway 0.39 | 7.78 | 0.150 | 83 | 1.1 |
-| 0.85 Hz, sway 0.34 | 8.76 | 0.168 | 93 | 1.1 |
-| shoved 20 N across at 12 s, either way | 7.72, 8.43 | 0.148, 0.162 | 88 | 1.2 |
-| shoved 30 N across | 8.43 one way; the other she stops stepping and stands | - | 16 | 1.8 |
-| drive 0.6 | down at 14.6 s | - | 17 | - |
-| 205 after 203: the drive a quarter turn the other way | back 0.63 m in 13 s | -0.071 | 28 | 1.3 |
+| as written | 13.93 m | 0.268 | 90, one a turn | 1.3 |
+| drive 0.5 | 8.29 | 0.159 | 88 | 1.1 |
+| drive 0.35 | 6.62 | 0.126 | 88 | 0.9 |
+| drive 1.0 | down at 11.5 s | - | 13 | - |
+| her support polygon kept | 10.30 | 0.198 | 88 | 1.2 |
+| axial 0.3 | 14.02 | 0.268 | 90 | 1.2 |
+| lateral 1 500 N/m | 13.84 | 0.268 | 90 | 1.2 |
+| 0.75 Hz, sway 0.39 | 12.03 | 0.234 | 85 | 1.3 |
+| 0.9 Hz, sway 0.31 | 14.29 | 0.277 | 99 | 1.4 |
+| shoved 20 N across at 12 s, either way | 13.97, 13.90 | 0.268 | 91 | 1.4 |
+| shoved 30 N across | 13.92 one way; down at 14.4 s the other | - | - | 1.8 |
+| shoved 40 N across | down at 13.4 and 13.7 s | - | - | - |
+| 205 after 203: the drive a quarter turn the other way | back 0.62 m in 13 s | -0.071 | 28 | 1.9 |
 
-- One sole stands 45 % of the time; a swing is 0.34 s.
+- One sole stands 44 % of the time; a swing is 0.34 s.
 - The sway's amplitude is bounded by her soles: at 0.8 Hz a sway of 0.37 is
   her ZMP 1.25 of the way to a sole, whose box ends at 1.28.
 
@@ -101,16 +105,20 @@ The first texts as given (`examples.lisp`):
 | Text | On her |
 | --- | --- |
 | 101, stand relaxed | stands, 0.15 compressed |
-| 102, the gait: sway 0.35 at 1.1 Hz, 1 200 N/m, 15 N s/m | her ZMP asked 1.91 of the way to a sole: she sways 0.1 to 0.25, steps 16 times in 17 s |
-| 103 after it: the dynamic footprint | down at 20.4 s |
-| `hop_asymmetric` | loaded to 1.26, 1.4 m/s up, 0.27 s off the floor; not stood |
+| 102, the gait: sway 0.35 at 1.1 Hz, 1 200 N/m, 15 N s/m | her ZMP asked 1.91 of the way to a sole: her sway off its beat, to 0.42; 8 steps in 6 s |
+| 103 after it: the dynamic footprint | down 2 s on |
+| `hop_asymmetric` | loaded to 0.97, 1.17 m/s up, 0.25 s off the floor; not stood |
 
-- The hop: her throw is asked no harder than 14 m/s^2; through it her soles
-  press at her heels' edge and she leaves with 4.1 kg m^2/s about her
-  ([flight](flight.md): 2.7 to 3.1 with a spring that lets go). In the air
-  her trunk takes it.
+- The hop as given asks full extension at `MAX_SYS_K` and has no landing:
+  off the floor her legs straighten at once, her pelvis goes back 10 deg,
+  her trunk 24 forward, and she lands with her soles 0.15 m ahead of her.
 
-## The loop under it
+## The steps under it
+
+| Whole-body step | Her walk at a drive of 0.5, 60 s | At 0.8 | About her at a hop's lift-off |
+| --- | --- | --- | --- |
+| the stack of QPs (`wbc.step`), every fourth pass | 8.43 m; down at a drive of 0.6 | - | 4.1 kg m^2/s, not stood |
+| without an active set (`wrench.step`), every third | 8.29 m | 13.93 m | 0.8, stood |
 
 | Drives' own loop | Sway asked 0.274 at 0.9 Hz, both soles down |
 | --- | --- |
@@ -120,7 +128,7 @@ The first texts as given (`examples.lisp`):
 
 - Under the PD 40 to 60 % of a small acceleration asked was done; the gym
   runs on the observers.
-- A pass costs 3.2 ms solved every pass - the stack 2.1, `modal.ask` 0.32,
-  `wbc.sense` 0.16, `latent.step` 0.07 -, a third of real time; solved every
-  fourth, 1.0 ms, her crouch and her weight's shift the same to the third
-  digit.
+- A pass on the stack costs 3.2 ms solved every pass - the stack 2.1,
+  `modal.ask` 0.32, `wbc.sense` 0.16, `latent.step` 0.07 -, a third of real
+  time. On the step without an active set, solved every second pass 1.15 ms,
+  every third 0.85: her walk the same to 5 cm over a minute.

@@ -6,7 +6,8 @@
 
 On the loop (`machine.sprung`) she stands at rest; a digit says an entry of the gym's text
 (`sprung.entries`) - a payload injected, a behaviour begun -, > takes the gym's other text
-(`sprung.GYMS`), P and N shove her, A lands her anew. LATENT shows each mode as it is asked
+(`sprung.GYMS`), read anew each time - an edit to machine/moves.lisp is two presses away -, P
+and N shove her, A lands her anew. LATENT shows each mode as it is asked
 and as she is, and its spring.
 """
 from machine import sprung
@@ -69,9 +70,12 @@ def table(keys):
 
 
 def status(now):
-    """Her status on the loop: what she is doing; down, counting to her landing again."""
+    """Her status on the loop: what she is doing; down, counting to her landing again; her
+    gym's text refused, why."""
     if now['fallen']:
         return 'DOWN in %.0f s' % max(0.0, now['recover'])
+    if now.get('refused'):
+        return 'REFUSED  %s' % now['refused']
     return 'LATENT  %s' % now['doing']
 
 

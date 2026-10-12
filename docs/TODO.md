@@ -183,21 +183,20 @@ gets a line at the end of [DONE](DONE.md).
     balance, rhythm and elasticity, compiled to rows; her latent state
     is stepped and rendered with no branch, the whole-body loop under
     it. On the page's gym she stands, crouches, shifts, bows, stands on
-    one sole and walks 0.16 m/s.
-    + Her walk: a human's is 1.2 m/s; hers falls at a drive of 0.6. One
-      sine a mode holds one sole 45 % of the time, a swing 0.34 s, 2 cm
+    one sole, hops and walks 0.27 m/s.
+    + Her walk: a human's is 1.2 m/s; hers falls at a drive of 1.0. One
+      sine a mode holds one sole 44 % of the time, a swing 0.34 s, 2 cm
       clear; her form (`looks.FORM`, J/m, the band) unmeasured on it.
-    + Shoves: 30 N across stops her stepping or leaves her walking, 40 N
-      fells her; no payload answers one yet.
-    + The hop: 4.1 kg m^2/s about her at lift-off, her soles at her
-      heels' edge through the throw; in the air her trunk takes it. Not
-      stood, as given or with flight.md's spring.
+    + Shoves: 30 N across fells her one way, 40 N either; no payload
+      answers one yet.
+    + The hop as given: full extension asked off the floor and no
+      landing; her own text stands. On one sole, by micro-hops: untried.
     + Her way: no mode turns her; the gym has no room round her.
     + The first texts as given: 102 asks a sway her soles' width
       refuses at 1.1 Hz; 103 after it fells her.
-    + The loop in C: `latent.step` and `modal.ask` as cores beside
-      `wbc/`, `ortho_row_t` a header a test holds to `ortho.ROW`; the
-      stack 2.1 ms a pass on this host, the page solving every fourth.
+    + The loop in C: `latent.step`, `modal.ask` and `wrench.step` as
+      cores beside `wbc/`, `ortho_row_t` a header a test holds to
+      `ortho.ROW`; in python the page solves every third pass.
     + From the page: a line to type a text into; the model composing
       rows.
     + The old laws: `going`, `hold`, `strut`, `free`, `gaits`, `pace`,

@@ -24,17 +24,17 @@
     (amplitude mode_sagittal_drive 0.0)
     (phase_offset mode_lateral_shift mode_sagittal_drive 90deg)))
 
-;; step: 0.13 m/s
+;; step: 0.10 m/s
 (stream_inject
   (sequence_id 203)
   (blend_duration 1500ms)
   (cpg_config (amplitude mode_sagittal_drive 0.2)))
 
-;; walk on: 0.22 m/s
+;; walk on: 0.27 m/s
 (stream_inject
   (sequence_id 204)
   (blend_duration 1500ms)
-  (cpg_config (amplitude mode_sagittal_drive 0.5))
+  (cpg_config (amplitude mode_sagittal_drive 0.8))
   (task_constraints (maintain_zmp (polygon dynamic_footprint))))
 
 ;; back: the same rhythm, her drive a quarter turn the other way
@@ -68,6 +68,28 @@
     (latent_targets (mode_pitch_attitude 0.5))
     (cpg_override (halt_oscillators))
     (task_constraints (maintain_zmp (polygon support_polygon)))))
+
+;; a hop: loaded, thrown by a spring that lets go 17 mm under her standing height, her
+;; trunk free through the throw, landed on soft knees
+(defbehavior hop
+  (phase load
+    (duration 600ms)
+    (blend_duration 450ms)
+    (latent_targets (mode_axial_compression 0.85))
+    (impedance (stiffness mode_axial_compression 6000) (damping mode_axial_compression 900))
+    (cpg_override (halt_oscillators)))
+  (phase throw
+    (duration 150ms)
+    (latent_targets (mode_axial_compression 0.15))
+    (impedance
+      (stiffness mode_axial_compression 21800) (damping mode_axial_compression 0)
+      (stiffness mode_pitch_attitude 0) (damping mode_pitch_attitude 0)))
+  (phase land
+    (duration 700ms)
+    (latent_targets (mode_axial_compression 0.25))
+    (impedance
+      (stiffness mode_axial_compression 3000) (damping mode_axial_compression 600)
+      (stiffness mode_pitch_attitude 1458) (damping mode_pitch_attitude 292))))
 
 ;; on one sole, the other off the floor: it leaves once her weight is over
 (defbehavior one_sole

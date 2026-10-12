@@ -70,8 +70,8 @@ it names. A closed item is cut from the list and gets its line here, last.
 29. Orthokinematics: her movement as text compiled to rows
     (`machine.ortho`), her latent state stepped and rendered with no branch
     (`machine.latent`, `machine.modal`), on the page's gym (`<`): crouched,
-    her weight over one sole, bowed, on one sole, walking 0.16 m/s for a
-    minute ([orthokinematics](findings/orthokinematics.md)).
+    her weight over one sole, bowed, on one sole, a hop stood, walking
+    0.27 m/s for a minute ([orthokinematics](findings/orthokinematics.md)).
 30. The core's attitude as its rotors' axis in the world, in the level frame
     of a heading it holds; the air as a drag's size, the rotors' loss and a
     push: the catch from turns of 0.03 to 0.12 s in 0.32-0.62 s, a hover

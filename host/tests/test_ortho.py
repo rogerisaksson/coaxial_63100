@@ -59,7 +59,8 @@ def test_a_text_compiles_to_rows(report):
                  and go[4 + ortho.ZMP] == 1.0, 'stiffness %g' % go[4 + ortho.K])
     hers, named = ortho.compiled(_text('moves'))
     report.check('machine/moves.lisp compiles: her walk and her behaviours',
-                 len(hers['']) == 5 * ortho.ROW.size and set(named) >= {'crouch', 'weight_shift', 'bow', 'one_sole'},
+                 len(hers['']) == 5 * ortho.ROW.size
+                 and set(named) >= {'crouch', 'weight_shift', 'bow', 'hop', 'one_sole'},
                  ', '.join(named))
 
 
@@ -197,12 +198,23 @@ def test_she_stands_on_one_sole(report):
                  'tilt %.1f deg, at rest %s N' % (got['tilt'], got['rest']))
 
 
+def test_she_hops_and_stands(report):
+    """`hop`: loaded, thrown by a spring that lets go under her standing height with her trunk
+    free, landed on soft knees: 0.15 s and more off the floor, never 15 deg over, standing."""
+    got = _went(['hop'], to=2.5)
+    report.check('she leaves the floor 0.15 s and more, 0.9 m/s up and more',
+                 got['air'] >= 0.15 and got['up'] >= 0.9, '%.2f s, %.2f m/s' % (got['air'], got['up']))
+    report.check('and stands after, never 15 deg over, both soles bearing',
+                 got['stood'] and got['tilt'] < 15.0 and min(got['rest']) > 20.0,
+                 'tilt %.1f deg, %s N' % (got['tilt'], got['rest']))
+
+
 def test_she_walks_on_her_own_payloads(report):
-    """machine/moves.lisp's 201 to 204 - stand, sway, step, walk on -: 1.5 m and more in 20 s, a
+    """machine/moves.lisp's 201 to 204 - stand, sway, step, walk on -: 2.5 m and more in 20 s, a
     sole landing every turn of her rhythm, her pelvis never 5 deg off upright."""
     got = _went(['#201@0.5', '#202@2', '#203@5', '#204@9'], to=9.5)
-    report.check('she walks 1.5 m and more, at 0.12 m/s and more by the end',
-                 got['stood'] and got['went'] >= 1.5 and got['speed'] >= 0.12,
+    report.check('she walks 2.5 m and more, at 0.22 m/s and more by the end',
+                 got['stood'] and got['went'] >= 2.5 and got['speed'] >= 0.22,
                  '%.2f m, %.2f m/s, %.1f s' % (got['went'], got['speed'], got['t']))
     report.check('a sole lands every turn of her rhythm: 22 and more; her pelvis within 5 deg of upright',
                  got['landings'] >= 22 and got['tilt'] < 5.0, '%d landings, tilt %.1f deg' % (got['landings'], got['tilt']))
@@ -259,6 +271,14 @@ def test_the_gym_runs_her_in_a_process(report):
             other = state.get('says', ()) if state else ()
             time.sleep(0.05)
         report.check("the gym's other text taken: the first texts", other[:2] == ('examples', '#101'), '%s' % (other,))
+        body.send(text='(stream_inject (latent_targets (mode_wing_flap 1)))')
+        began, refused = time.monotonic(), None
+        while not refused and time.monotonic() - began < 10.0:
+            state = body.latest()
+            refused = state.get('refused') if state else None
+            time.sleep(0.05)
+        report.check('a text the compiler refuses is said with her state, and she stands on',
+                     bool(refused) and 'mode_wing_flap' in refused, '%s' % (refused or '')[:60])
     finally:
         body.close()
 
@@ -285,12 +305,15 @@ def test_the_pages_keys_on_the_loop(report):
     boxes = gym.boxes({'modes': modes, 'says': ('moves', '#201', 'crouch')})
     report.check('LATENT and SAY of her state; none off the loop', len(boxes) == 2 and gym.boxes({}) == []
                  and gym.status({'fallen': False, 'doing': 'crouch'}) == 'LATENT  crouch')
+    report.check('a text refused is said in her status',
+                 gym.status({'fallen': False, 'doing': 'rest', 'refused': 'a ( never closed'}).startswith('REFUSED'))
 
 
 ROSTER = [test_a_text_compiles_to_rows, test_what_is_no_text_is_refused,
           test_the_core_and_the_renderer_branch_nowhere, test_her_latent_state_blends_and_turns,
           test_she_crouches_as_asked, test_her_weight_goes_over_one_sole, test_she_bows_as_asked,
-          test_she_stands_on_one_sole, test_she_walks_on_her_own_payloads, test_the_first_texts_as_given,
+          test_she_stands_on_one_sole, test_she_hops_and_stands, test_she_walks_on_her_own_payloads,
+          test_the_first_texts_as_given,
           test_the_gym_runs_her_in_a_process, test_the_pages_keys_on_the_loop]
 
 
