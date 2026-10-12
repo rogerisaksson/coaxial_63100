@@ -239,7 +239,12 @@ gets a line at the end of [DONE](DONE.md).
   half the wall's. DOD: a board's pass one call; 20 frames a second.
 - **The heat's clock in flight**: ten thermal seconds a flight's
   (`HASTE`): full tilt's 2 s are 20 of heat, the legs at their throttle's
-  point 0.2 s in (envelope.md). DOD: flown on the flight's own seconds,
+  point 0.2 s in (envelope.md). On its own seconds from cold
+  (`configure(clock=1)`): full tilt's boards hold 58.7 A at the least
+  where 43.2, the legs at 0.81 of their envelope where 0.90, a lap's 81.7
+  A where 62.9 - and the observers UNCERTAIN to 68 s, their margin at its
+  floor. A board at its rotor's idle on the floor is CONVERGING 100 s on,
+  STABLE 280, at 89 C and 0.47. DOD: flown on the flight's own seconds,
   the observers out of UNCERTAIN before a first flight; the race on it.
 - **The plan on boards that hold their pull**: `course.PULL` gridded alone
   to 0.37 (envelope.md); BRAKE, GO and the crossings are the search's on
