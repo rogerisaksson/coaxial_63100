@@ -346,6 +346,7 @@ def state(g, torque, power, watts, ratio, fallen_at, says=(), refused=None):
 def _start_mode(g, by, entry, at):
     from machine import ortho
     name, z = entry[0], float(g['world'].data.qpos[2])
+    g['active_entry'] = name
     iw = by['init_walk'][1][:ortho.ROW.size] if 'init_walk' in by else None
     if name == 'ballistic_walk':
         said(g, *entry, at=at, reset=True)
@@ -377,12 +378,12 @@ def _start_mode(g, by, entry, at):
 def _heard_say(g, gym, entry):
     from machine import latent, modal, ortho, stride
     by = {e[0]: e for e in gym}
+    if entry[0] == g.get('active_entry'):
+        return
     drive = float(g['out'][latent.SWAY][modal.DRIVE])
     lateral = float(g['out'][latent.SWAY][modal.LATERAL])
-    cpg_active = g['st'][latent.NOW][latent.GAIN] > 0.5
+    cpg_active = g['st'][latent.NOW][latent.GAIN] > 0.02
     striding = abs(drive) > stride.STIRS or abs(lateral) > 0.08 or cpg_active
-    if entry[0] == g.get('active_entry') and striding:
-        return
     back_now = float(g['st'][latent.NOW][latent.PHASE][modal.LATERAL]) < -0.1
     spd = math.hypot(float(g['world'].data.qvel[0]), float(g['world'].data.qvel[2]))
     unbalanced = abs(float(g['loads'][0]) - float(g['loads'][1])) > 90.0

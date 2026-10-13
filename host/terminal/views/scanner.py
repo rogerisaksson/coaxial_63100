@@ -189,7 +189,7 @@ def _build_plate_rows(detected, wasd_mode, max_rows=7):
             for key, desc, _cmd in affs[:2]:
                 lines.append(('  [%s] %s' % (key, desc), packed(PLATE_KEY_INK, PLATE_BG)))
     if wasd_mode:
-        lines.append(('~/§: exit WASD -> auto-go', packed((0, 255, 180), PLATE_BG)))
+        lines.append(('~/§: exit TPW -> auto-go', packed((0, 255, 180), PLATE_BG)))
     return lines[:max_rows]
 
 

@@ -12,6 +12,7 @@ import os
 import time
 
 from machine.figure import JOINTS, SEGMENTS, frames, quat
+from terminal import keybindings
 from terminal.views import viewpoint
 from tools import REPO
 
@@ -128,77 +129,7 @@ def log_key(key, action=''):
 
 
 def _action_of(key, wasd_mode=False):
-    if key in ('~', '`', '§', '½'):
-        return 'toggle WASD / Quake mode'
-    if wasd_mode:
-        if key in ('w', 'W'):
-            return 'WASD: walk forward (#204)'
-        if key in ('s', 'S'):
-            return 'WASD: step backward / brake (#205)'
-        if key in ('a', 'A'):
-            return 'WASD: strafe left'
-        if key in ('d', 'D'):
-            return 'WASD: strafe right'
-        if key in ('wa', 'WA'):
-            return 'WASD: turn left (WA, vänstersväng)'
-        if key in ('wd', 'WD'):
-            return 'WASD: turn right (WD, högersväng)'
-        if key in ('sa', 'SA'):
-            return 'WASD: turn back left (SA, bakåt-vänstersväng)'
-        if key in ('sd', 'SD'):
-            return 'WASD: turn back right (SD, SD-högersväng)'
-    if key == 'up':
-        return 'arrow up: walk forward (#204)'
-    if key == 'down':
-        return 'arrow down: step backward / brake (#205)'
-    if key == 'left':
-        return 'arrow left: sway / strafe left'
-    if key == 'right':
-        return 'arrow right: sway / strafe right'
-    if key in ('\r', '\n'):
-        return 'enter: run scenario action'
-    if key == '4':
-        return 'say: 3 (#204 walk) [gentle walk]'
-    if key in '123567890':
-        return 'say: digit %s' % key
-    if key in ('w', 'W'):
-        return 'walk from rest'
-    if key in ('<', ','):
-        return 'cycle scenario'
-    if key in ('f1', 'F1', 'f2', 'F2', '~', '`', '§', '½'):
-        return 'toggle GTA TPS mode (F1 / § / ~)'
-    if key in ('f', 'F'):
-        if wasd_mode:
-            return 'GTA: interact (sit / lie / rise)'
-        return 'stunt: lie_floor'
-    if key in ('shift', 'Shift', 'sprint'):
-        return 'GTA: sprint / jog'
-    if key in ('a', 'A'):
-        if wasd_mode:
-            return 'GTA: strafe left'
-        return 'a: inactive (mode switch - restart disabled)'
-    if key in ('d', 'D'):
-        if wasd_mode:
-            return 'GTA: strafe right'
-        return 'stunt: hop_down_chair'
-    if key in ('w', 'W'):
-        if wasd_mode:
-            return 'GTA: advance forward'
-        return 'walk from rest'
-    if key in ('s', 'S'):
-        if wasd_mode:
-            return 'GTA: backpedal / retreat'
-        return 'stunt: sit_chair'
-    if key == ' ':
-        return 'charge push'
-    try:
-        from terminal.views import gym
-        for name, k in gym.STUNTS.items():
-            if k == key or (k.isalpha() and k.upper() == key):
-                return 'stunt: %s' % name
-    except Exception:
-        pass
-    return ''
+    return keybindings.describe_action(key, wasd_mode=wasd_mode)
 
 
 CHORDS = {
@@ -249,7 +180,15 @@ def act_on(keys, typed, state, wheel=0.0):
         viewpoint.zoomed(state, max(0.5, 1.0 + wheel))
     state.setdefault('typed', []).extend(typed)
     typed = _check_wasd_chords(typed, state)
+    t_now = time.monotonic()
+    filtered = []
     for key in typed:
+        last_k, last_t = state.get('_last_action_key', (None, 0.0))
+        if key == last_k and key != ' ' and (t_now - last_t) < 0.12:
+            continue
+        state['_last_action_key'] = (key, t_now)
+        filtered.append(key)
+    for key in filtered:
         log_key(key, _action_of(key, wasd_mode=state.get('wasd_mode', False)))
         if key in keys:
             keys[key](state)

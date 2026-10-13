@@ -164,9 +164,21 @@ class Keys:
     #: What a view binds against, so no view has to know the escape codes.
     ARROWS = {'A': 'up', 'B': 'down', 'C': 'right', 'D': 'left'}
 
-    #: A mouse or arrow sequence's prefix still in flight: split across two
+    #: Function and navigation keys that start with ESC (\033OP..\033OS or \033[11~..).
+    FUNCTION_RE = re.compile(r'\033(?:O([P-S])|\[\[([A-E])|\[(\d+)~)')
+
+    FUNCTION_KEYS = {
+        'P': 'f1', 'Q': 'f2', 'R': 'f3', 'S': 'f4',
+        'A': 'f1', 'B': 'f2', 'C': 'f3', 'D': 'f4', 'E': 'f5',
+        '11': 'f1', '12': 'f2', '13': 'f3', '14': 'f4',
+        '15': 'f5', '17': 'f6', '18': 'f7', '19': 'f8',
+        '20': 'f9', '21': 'f10', '23': 'f11', '24': 'f12',
+        '1': 'home', '4': 'end', '5': 'pageup', '6': 'pagedown',
+    }
+
+    #: A mouse, arrow or function sequence's prefix still in flight: split across two
     #: drains, a report was eaten as typed keys.
-    PARTIAL_RE = re.compile(r'\033(\[(<[\d;]*)?)?$')
+    PARTIAL_RE = re.compile(r'\033(?:\[(?:<[\d;]*|\d*)?|O[P-S]?)?$')
 
     def __init__(self, console, mouse=False, quits=QUIT_KEYS, select=SELECT_KEYS, pan=False):
         # `quits` is which letters leave; `select` which lend the mouse, none: the view holds it
@@ -192,6 +204,7 @@ class Keys:
         self._typed = []
         self._grabbed = False
         self._held_at = 0.0
+        self._keys_down = set()
 
     def __enter__(self):
         if not self.console:
@@ -245,13 +258,23 @@ class Keys:
             self._buffer = (self._buffer[:found.start()]
                             + self._buffer[found.end():])
 
-        # Arrows before the lone-ESC test, or every one of them leaves the
+        # Arrows and function keys before the lone-ESC test, or every one of them leaves the
         # view.
         while True:
             found = self.ARROW_RE.search(self._buffer)
             if not found:
                 break
             self._typed.append(self.ARROWS[found.group(1)])
+            self._buffer = (self._buffer[:found.start()]
+                            + self._buffer[found.end():])
+
+        while True:
+            found = self.FUNCTION_RE.search(self._buffer)
+            if not found:
+                break
+            code = found.group(1) or found.group(2) or found.group(3)
+            named = self.FUNCTION_KEYS.get(code, 'f1')
+            self._typed.append(named)
             self._buffer = (self._buffer[:found.start()]
                             + self._buffer[found.end():])
 
@@ -328,19 +351,25 @@ class Keys:
             return -WHEEL_STEP
 
         # 2 is the right button; 32 is the drag bit the terminal sets while it
-        # is held.
+        # is held (34 = 2 + 32).
+        if (button == 2 or button == 34) and kind == 'm':
+            self._dragging = False
+            return 0.0
+        if (button == 0 or button == 32) and kind == 'm':
+            self._holding = False
+            return 0.0
+
         if button == 2 and kind == 'M':
             self._dragging, self._last_row, self._pan_at = True, row, (col, row)
             return 0.0
-        if button == 2 and kind == 'm':
-            self._dragging = False
-            return 0.0
-        if button == 34 and self._dragging and self._pan:
-            dx, dy = self._panned
-            self._panned = (dx + col - self._pan_at[0], dy + row - self._pan_at[1])
-            self._pan_at = (col, row)
-            return 0.0
-        if button == 34 and self._dragging:
+        if button == 34 and kind == 'M':
+            if not self._dragging or self._pan_at is None:
+                self._dragging, self._last_row, self._pan_at = True, row, (col, row)
+            if self._pan:
+                dx, dy = self._panned
+                self._panned = (dx + col - self._pan_at[0], dy + row - self._pan_at[1])
+                self._pan_at = (col, row)
+                return 0.0
             moved = row - (self._last_row if self._last_row is not None
                            else row)
             self._last_row = row
@@ -354,14 +383,18 @@ class Keys:
             # the cell, not the delta.
             self._clicked.append((col, row))
             return 0.0
-        if button == 0 and kind == 'm':
-            self._holding = False
-            return 0.0
-        if button == 32 and self._holding:
-            last = self._grip if self._grip is not None else (col, row)
+        if button == 32 and kind == 'M':
+            if not self._holding or self._grip is None:
+                self._holding, self._grip = True, (col, row)
+            last = self._grip
             dx, dy = self._spun
             self._spun = (dx + (col - last[0]), dy + (row - last[1]))
             self._grip = (col, row)
+            return 0.0
+        if kind == 'm':
+            self._holding = False
+            self._dragging = False
+            return 0.0
         return 0.0
 
     def dragged(self):
@@ -392,7 +425,7 @@ class Keys:
     def _key_of(key):
         """A key-down record as the characters a terminal would send."""
         if key.ch and key.ch != '\x00':
-            return key.ch * max(1, key.repeat)
+            return key.ch
         return {37: '\x1b[D', 38: '\x1b[A', 39: '\x1b[C', 40: '\x1b[B',
                 112: 'f1', 113: 'f2', 114: 'f3', 115: 'f4', 116: 'f5',
                 117: 'f6', 118: 'f7', 119: 'f8', 120: 'f9', 121: 'f10',
@@ -440,8 +473,19 @@ class Keys:
         keys = []
         for i in range(read.value):
             record = buf[i]
-            if record.type == 1 and record.event.key.down:
-                keys.append(self._key_of(record.event.key))
+            if record.type == 1:
+                key = record.event.key
+                vk = key.vk
+                if key.down:
+                    is_repeat = vk in self._keys_down or key.repeat > 1
+                    self._keys_down.add(vk)
+                    k = self._key_of(key)
+                    if k:
+                        # Space repeats for continuous push charging; discard autorepeat for all other action keys
+                        if not is_repeat or k == ' ':
+                            keys.append(k)
+                else:
+                    self._keys_down.discard(vk)
             elif record.type == 2:
                 keys.extend(self._mouse_of(record.event.mouse))
         return keys

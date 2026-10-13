@@ -98,7 +98,7 @@ def run(commands, states, every=sprung.STACK_EVERY, walks=False):
                     if cur_tilt > 75.0 or cur_y < 0.06:
                         is_fallen = True
                 elif cur_doing not in sprung.STUNT_PHASES:
-                    if cur_tilt > sprung.DOWN_DEG or cur_y < sprung.DOWN_M:
+                    if cur_y < sprung.DOWN_M or (cur_tilt > sprung.DOWN_DEG and cur_y < 0.65) or cur_tilt > 80.0:
                         is_fallen = True
                 if is_fallen:
                     fallen_at = g['t']

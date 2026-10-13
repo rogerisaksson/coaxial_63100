@@ -11,6 +11,7 @@ to machine/moves.lisp is two presses away -, W walks her from rest again, P and 
 lands her anew. LATENT shows each mode as it is asked and as she is, and its spring.
 """
 from machine import sprung
+from terminal import keybindings
 from terminal.ui.stage import hud
 
 #: The gym's next text; her walk from rest.
@@ -36,26 +37,7 @@ NAMED = {
     'turn_back_left': 'turn back left (SA)', 'turn_back_right': 'turn back right (SD)',
 }
 #: Named keys to trigger stunts directly from the terminal.
-STUNTS = {
-    'weight_shift': 'h',
-    'bow': ';',
-    'ballistic_walk': 'b',
-    'sit_chair': 's',
-    'rise_chair': 'u',
-    'lie_bed': 'e',
-    'rise_bed': 'g',
-    'lie_floor': 'f',
-    'rise_floor': 'k',
-    'hop_down_chair': 'd',
-    'hop_up_chair': 'j',
-    'stairs_walk': 'x',
-    'stairs_down': 'n',
-    'ice_walk': 'i',
-    'slope_walk': 'm',
-    'parry_shove': 'y',
-    'controlled_fall': 'z',
-    'circle_walk': 'q',
-}
+STUNTS = keybindings.STUNT_KEYS
 
 
 SCENARIO_MOVES = {
@@ -196,7 +178,7 @@ def table(keys):
             state['body'].send(scenario='glass_room')
             state['tour'] = HouseTour(loop=True)
 
-    for k in ('f1', 'F1', 'f2', 'F2', '\x1bOP', '\x1bOQ', '\x1b[11~', '\x1b[12~', '\t', '~', '`', '§', '½'):
+    for k in keybindings.TOGGLE_TPW_KEYS:
         out[k] = (lambda state, key=k: _toggle_wasd(state, key))
     for k in 'wW':
         out[k] = _key_w
@@ -238,10 +220,10 @@ def boxes(now, wasd=False):
     scen_mv = SCENARIO_MOVES.get(scen, '')
     scen_label = 'scen: %s [%s]' % (scen, NAMED.get(scen_mv, scen_mv)) if scen_mv else 'scen: ' + scen
     wasd_on = wasd or now.get('wasd_mode', False)
-    mode_badge = '>>> GTA TPS ACTIVE <<<' if wasd_on else '[OFF: VISION / STUNTS]'
+    mode_badge = '>>> TPW ACTIVE <<<' if wasd_on else '[OFF: VISION / STUNTS]'
     say_rows = [
         ('CONTROL', mode_badge),
-        ('TOGGLE', 'F1 (eller § / ~)'),
+        ('TOGGLE', '§ / ~ (eller F2)'),
         ('<', scen_label),
     ]
     if wasd_on:
@@ -253,7 +235,7 @@ def boxes(now, wasd=False):
         say_rows.append(('MOUSE', '3D mouselook & steer'))
     else:
         say_rows.append(('^ / v', 'fwd / back'))
-        say_rows.append(('A key', 'off (switch with F1)'))
+        say_rows.append(('A key', 'off (switch with § / ~)'))
     seen = set()
     for i, s in enumerate(entries):
         if s.startswith('#'):

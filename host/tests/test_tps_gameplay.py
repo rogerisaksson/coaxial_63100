@@ -166,11 +166,12 @@ def test_kinetic_strike_and_tps_reticle(report):
     sight = show_humanoid.along(state)
     report.check('sight vector is unit length', abs(math.hypot(sight[0], sight[1], sight[2]) - 1.0) < 1e-6)
 
-    # 3. Mode badge displays GTA TPS active
+    # 3. Mode badge displays Third Person Control active
     g_text = show_humanoid.gauges(state)
-    report.check('gauges render prominent GTA TPS mode banner', 'GTA TPS' in g_text.plain)
+    report.check('gauges render discreet Third Person Control banner',
+                 'Third Person Control' in g_text.plain or 'TPW' in g_text.plain)
 
-    # 4. Bar displays GTA TPS action shortcuts
+    # 4. Bar displays TPW action shortcuts
     bar = show_humanoid.bar_for(state)
     actions = [a for _, a in bar]
     report.check('bar includes SPRINT, INTERACT, MOVE, STRIKE',

@@ -1,6 +1,17 @@
-;; Her moves, in orthokinematics (machine/ortho.py): balance, rhythm and elasticity.
-;; A mode is -1 to 1 (machine/modal.py); a stiffness N/m, a damping N s/m. The page's gym
-;; (machine/sprung.py) says them by digit, in this order: the payloads, then the behaviours.
+;; ============================================================================
+;; ORTHOKINEMATIC MOVES MANIFEST (machine/ortho.py)
+;; Balance, rhythm and elasticity for the gynoid locomotion and stunt repertoire.
+;;
+;; CATEGORIES:
+;;   [1] CORE GAITS & STRIDE PROGRESSIONS  (#201-#205, trip, jog, ballistic_walk, init_walk)
+;;   [2] ATHLETIC & CALISTHENIC GYM        (crouch, hop, one_sole, weight_shift, bow)
+;;   [3] DAILY STUNTS & TERRAIN TRAVERSAL  (chair, bed, floor, stairs, ice, slope, parry/fall)
+;;   [4] THIRD-PERSON WALKER (TPW) LOCOMOTION (strafe, turn, circle, tactical retreat)
+;; ============================================================================
+
+;; ----------------------------------------------------------------------------
+;; CATEGORY 1: CORE GAITS & STRIDE PROGRESSIONS
+;; ----------------------------------------------------------------------------
 
 ;; stand
 (stream_inject
@@ -172,6 +183,10 @@
       (amplitude mode_arm_swing 0.1))
     (task_constraints (maintain_zmp (polygon dynamic_footprint)))))
 
+;; ----------------------------------------------------------------------------
+;; CATEGORY 2: ATHLETIC & CALISTHENIC GYM
+;; ----------------------------------------------------------------------------
+
 ;; 8: crouch
 (defbehavior crouch
   (phase down
@@ -313,6 +328,10 @@
       (phase_offset mode_lateral_shift mode_sagittal_drive 108deg)
       (phase_offset mode_pelvis_list mode_sagittal_drive 108deg))
     (task_constraints (maintain_zmp (polygon dynamic_footprint)))))
+
+;; ----------------------------------------------------------------------------
+;; CATEGORY 3: DAILY STUNTS & TERRAIN TRAVERSALS
+;; ----------------------------------------------------------------------------
 
 ;; sit down on a chair
 (defbehavior sit_chair
@@ -684,15 +703,18 @@
     (cpg_override (halt_oscillators))
     (task_constraints (maintain_zmp (polygon support_polygon)))))
 
-;; strafe left: lateral stepping and CoM shift to the left (Quake / GTA A)
+;; ----------------------------------------------------------------------------
+;; CATEGORY 4: THIRD-PERSON WALKER (TPW) LOCOMOTION
+;; ----------------------------------------------------------------------------
+
+;; strafe left: lateral stepping and CoM shift to the left (TPW A)
 (defbehavior strafe_left
   (phase shift
     (duration 60s)
     (blend_duration 800ms)
     (latent_targets
       (mode_axial_compression 0.05)
-      (mode_pitch_attitude 0.0)
-      (mode_stance_width 0.08))
+      (mode_pitch_attitude 0.0))
     (cpg_config
       (enable true)
       (frequency 0.90Hz)
@@ -701,21 +723,19 @@
       (amplitude mode_foot_rock 0.35)
       (amplitude mode_pelvis_list 0.18)
       (amplitude mode_arm_swing 0.45)
-      (amplitude mode_stance_width 0.05)
       (amplitude mode_sagittal_drive 0.04)
       (phase_offset mode_lateral_shift mode_sagittal_drive 108deg)
       (phase_offset mode_pelvis_list mode_sagittal_drive 108deg))
     (task_constraints (maintain_zmp (polygon dynamic_footprint)))))
 
-;; strafe right: lateral stepping and CoM shift to the right (Quake / GTA D)
+;; strafe right: lateral stepping and CoM shift to the right (TPW D)
 (defbehavior strafe_right
   (phase shift
     (duration 60s)
     (blend_duration 800ms)
     (latent_targets
       (mode_axial_compression 0.05)
-      (mode_pitch_attitude 0.0)
-      (mode_stance_width 0.08))
+      (mode_pitch_attitude 0.0))
     (cpg_config
       (enable true)
       (frequency 0.90Hz)
@@ -724,13 +744,12 @@
       (amplitude mode_foot_rock 0.35)
       (amplitude mode_pelvis_list -0.18)
       (amplitude mode_arm_swing 0.45)
-      (amplitude mode_stance_width 0.05)
       (amplitude mode_sagittal_drive 0.04)
       (phase_offset mode_lateral_shift mode_sagittal_drive -108deg)
       (phase_offset mode_pelvis_list mode_sagittal_drive -108deg))
     (task_constraints (maintain_zmp (polygon dynamic_footprint)))))
 
-;; turn left (Quake WA, vänstersväng): forward cruise with left yaw turn
+;; turn left (TPW WA, vänstersväng): forward cruise with left yaw turn
 (defbehavior turn_left
   (phase turn
     (duration 60s)
@@ -757,7 +776,7 @@
       (phase_offset mode_foot_rock mode_sagittal_drive 0deg))
     (task_constraints (maintain_zmp (polygon dynamic_footprint)))))
 
-;; turn right (Quake WD, högersväng): forward cruise with right yaw turn
+;; turn right (TPW WD, högersväng): forward cruise with right yaw turn
 (defbehavior turn_right
   (phase turn
     (duration 60s)
@@ -811,7 +830,7 @@
       (phase_offset mode_foot_rock mode_sagittal_drive 0deg))
     (task_constraints (maintain_zmp (polygon dynamic_footprint)))))
 
-;; turn back left (Quake SA, bakåt-vänstersväng)
+;; turn back left (TPW SA, bakåt-vänstersväng)
 (defbehavior turn_back_left
   (phase turn
     (duration 60s)
@@ -831,7 +850,7 @@
       (phase_offset mode_lateral_shift mode_sagittal_drive -108deg))
     (task_constraints (maintain_zmp (polygon dynamic_footprint)))))
 
-;; turn back right (Quake SD, SD-högersväng)
+;; turn back right (TPW SD, SD-högersväng)
 (defbehavior turn_back_right
   (phase turn
     (duration 60s)

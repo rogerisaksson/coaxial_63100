@@ -24,6 +24,7 @@ from coaxial.graphics.shapes import view
 from machine import figure, sprung
 from machine.figure import JOINTS, quat
 from machine.routines import TYPES
+from terminal import keybindings
 from terminal.loader import TO_MENU
 from terminal.views import gym, viewpoint
 from terminal.views.humanoid_keys import CHARGE_MAX_N, act_on, charging, released, row, table
@@ -93,7 +94,7 @@ def torso(now):
 
 
 def marked(state, now, clock):
-    """The mark: a push's, charging or landed; or GTA crosshair in shooter mode."""
+    """The mark: a push's, charging or landed; or TPW crosshair reticle in walker mode."""
     charge, landed = charging(state, clock), state.get('landed')
     if charge:
         k = 0.3 + 0.7 * charge / CHARGE_MAX_N
@@ -108,18 +109,32 @@ def marked(state, now, clock):
     return None
 
 
+def tpw_badge(wasd_mode, width, height):
+    """Cells for the discreet Third Person Control indicator in the top-left of the 3D viewport."""
+    if width < 30 or height < 6:
+        return {}
+    out = {}
+    from coaxial.graphics.callouts import packed
+    text = " [Third Person Control ON] " if wasd_mode else " [Third Person Control OFF] "
+    ink = packed((120, 220, 255), (10, 22, 35)) if wasd_mode else packed((110, 130, 150), (10, 22, 35))
+    r, c = 0, 1
+    for i, ch in enumerate(text):
+        out[(r, c + i)] = (ord(ch), ink)
+    return out
+
+
 def gauges(state):
-    """The band's meter: prominent high-contrast GTA TPS mode badge, plus push meter when charging."""
+    """The band's meter: discreet mode status, plus push meter when charging."""
     wasd = state.get('wasd_mode', False)
     if wasd:
         out = Text.assemble(
-            (' [GTA TPS ACTIVE] ', 'bold black on cyan'),
-            (' F1 toggle | MOUSE aim | WASD move ', 'bar.dim')
+            (' [Third Person Control ON] ', 'bold cyan'),
+            (' § / ~ toggle ', 'bar.dim')
         )
     else:
         out = Text.assemble(
-            (' [NORMAL MODE] ', 'bold white on color(24)'),
-            (' F1 for GTA TPS mode ', 'bar.dim')
+            (' [Third Person Control OFF] ', 'bar.dim'),
+            (' § / ~ toggle ', 'bar.dim')
         )
     charge = charging(state, time.monotonic())
     if charge:
@@ -186,57 +201,15 @@ def labels(now, called, shown='torque'):
 
 #: The bar: the keys typed most; TAB slides the rest up in groups (`stage.helped`): her loop,
 #: the view, the page.
-BAR = (('F1', 'WASD'), ('TAB', 'KEYS'), ('ARROWS', 'WALK'), ('< ENT', 'SCENARIO'),
-       ('STUNTS', 's e x m..'), ('SPC', 'PUSH'), ('A', 'RESET: OFF'), ('Q', 'EXIT'))
+BAR = keybindings.BAR_NORMAL
 
 
 def bar_for(state):
-    """The bottom bar: adapts when GTA / TPS WASD mode is active."""
-    if state.get('wasd_mode'):
-        return (('F1', 'NORMAL'), ('TAB', 'KEYS'), ('WASD', 'MOVE'), ('SHIFT', 'SPRINT'),
-                ('F', 'INTERACT'), ('MOUSE', 'AIM/LOOK'), ('SPC', 'STRIKE'), ('Q', 'EXIT'))
-    return BAR
+    """The bottom bar: adapts when Third Person Control (TPW) is active."""
+    return keybindings.bar_for(state.get('wasd_mode', False))
 
 
-GROUPS = (
-    ('GTA / TPS SHOOTER', (('F1 / § / ~', 'toggle GTA TPS / NORMAL mode'),
-                           ('W', 'advance forward along aim crosshair'),
-                           ('S', 'tactical backpedal / retreat'),
-                           ('A / D', 'tactical strafe left / right'),
-                           ('WA / WD', 'compound forward turns'),
-                           ('SHIFT', 'sprint / jog'),
-                           ('F', 'universal interact (sit / lie / rise)'),
-                           ('SPACE', 'hold to charge kinetic push / strike'),
-                           ('MOUSE L-DRAG', '3D mouselook & dynamic steering'),
-                           ('MOUSE WHEEL', 'zoom in (aim) / zoom out'))),
-    ('MOVE (ARROWS)', (('UP', 'walk forward (#204 gentle cruise)'),
-                       ('DOWN', 'step backward / brake (#205)'),
-                       ('LEFT RIGHT', 'sway / strafe left / right'),
-                       ('1-5', '#201 stand, #202 sway, #203 step, #204 walk, #205 back'),
-                       ('A', 'disabled in normal mode (switch with F1)'))),
-    ('SCENARIO', (('< ,', 'cycle scenario + auto-move'),
-                  ('ENTER', 'run / replay active scenario'),
-                  ('H', 'toggle automated house tour / autopilot'),
-                  ('scenarios', 'flat, chair, bed, slope, stairs, ice, snow, obstacle, sill, hole, rug, glass_room'))),
-    ('STUNTS', (('s / u', 'sit chair / rise chair (in normal mode)'),
-                ('j / d', 'hop up chair / hop down chair'),
-                ('e / g', 'lie bed / rise bed'),
-                ('f / k', 'lie floor / rise floor'),
-                ('x / n', 'stairs walk up / stairs down'),
-                ('m / i', 'slope walk / ice walk (slick)'),
-                ('y / z', 'parry shove / controlled breakfall'),
-                ('b', 'ballistic walk'))),
-    ('PUSH / STRIKE', (('SPACE', 'hold to charge push along view vector'),
-                       ('P N', 'lateral push / nudge'),
-                       ('shift', 'sprint in WASD or longitudinal push'))),
-    ('VIEW (MOUSE)', (('L-DRAG', 'rotate / orbit camera (mouselook)'),
-                      ('R-DRAG', 'pan viewport'),
-                      ('WHEEL', 'zoom in / out'),
-                      ('V', 'home camera view'),
-                      ('O', 'toggle auto-orbit'),
-                      ('C', 'cycle skin: dressed, shell, mechanism, actuators'),
-                      ('L / T', 'joint callouts / torque & power'))),
-    ('PAGE', (('R', 'record / save CSV'), ('TAB ?', 'these keys'), ('Q / ESC', 'exit'))))
+GROUPS = keybindings.groups()
 
 
 def size_of(console, args, up=0.0):
@@ -254,7 +227,7 @@ def boxes(state, now, name):
     angles = now['angles'] if now else {}
     wasd = state.get('wasd_mode', False)
     out = gym.boxes(now, wasd=wasd) + [hud('BODY', [
-        ('control', 'QUAKE (WASD)' if wasd else 'NORMAL'),
+        ('control', 'TPW (WASD)' if wasd else 'NORMAL'),
         ('status', gym.status(now)),
         ('rhythm', '%.2f strides/s' % (now['cadence'] if now else 0.0)),
         ('speed', '%.2f m/s' % (now['speed'] if now else 0.0)),
@@ -358,6 +331,7 @@ def main(argv=None):
             camera = state['follow']((x, z), now['velocity'], now['t'])
             inset_cells = docked_vision(state['scanner'], now, width, height,
                                         wasd_mode=state.get('wasd_mode', False))
+            inset_cells.update(tpw_badge(state.get('wasd_mode', False), width, height))
             art = '\n'.join(gynoid.render(now['angles'], width, height, yaw=state['yaw'],
                                           pitch=state['pitch'], pan=state['pan'],
                                           zoom=state['zoom'], colour=terminal, travel=camera,

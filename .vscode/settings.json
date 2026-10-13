@@ -27,6 +27,11 @@
     // cells at ONE brightness: the surface texture and the whole dark half
     // of the ramp gone, measured. 1 shows the colours as sent.
     "terminal.integrated.minimumContrastRatio": 1,
+    // Prevent VS Code from intercepting F1 (Command Palette) when the terminal
+    // has focus so function keys can reach the terminal simulator directly.
+    "terminal.integrated.commandsToSkipShell": [
+        "-workbench.action.showCommands"
+    ],
     "cmake.cmakePath": "cube-cmake",
     "cmake.configureArgs": [
         "-DCMAKE_COMMAND=cube-cmake"
