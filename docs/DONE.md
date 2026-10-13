@@ -261,8 +261,8 @@ it names. A closed item is cut from the list and gets its line here, last.
     to `-Og -g3`, and `board/src/board_mem.c` added to `-O2` compiled source
     list in `CMakeLists.txt`. Debug image flash dropped from 267 872 B
     (90.83 %) to 220 464 B (74.76 %) and ITCMRAM from 35 928 B to 33 112 B;
-    loop ticks on the image measure 247 831 us cold and warm at 475 MHz
-    with 0 held passes.
+    hot-path `memset` emits 64-bit `strd` loops and `memcpy` emits 32-bit
+    `ldr.w`/`str.w` word loops rather than byte-by-byte loops.
 
 
 

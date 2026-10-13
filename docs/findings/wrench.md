@@ -106,11 +106,13 @@ tests/test_wbc_core.py holds it to the step.
   the faces met through its inverse's columns a met face has, each solved
   once: 65 k instructions the metric, 10 its factor, 22 the faces, the
   tick 0.35 M, 0.73 ms. Setting out, 0.15 s, the four rounds run beside
+  it: 0.44 M, 0.93 ms, the step's longest tick (device 13 op 2).
 - The Debug image formerly ticked 0.32 and 0.43 M: `board_mem.c`'s memset and memcpy
   were -O0 there, 1.5 instructions a byte, and a tick zeroes and copies
   some 40 KB. With `-Og` debug flags and `board_mem.c` compiled under `-O2`,
   the debug flash footprint dropped from 268 KB (91 %) to 220 KB (75 %) and
-  ITCMRAM from 36 KB to 33 KB; loop ticks on the image measure 248 ms settled with 0 held passes.
+  ITCMRAM from 36 KB to 33 KB.
+- Her body's terms formed 6x6s: a congruence a link for the composite
   inertias, an adjoint a link, a Jacobian by adjoints up the chain and
   every column turned into the world. A link as its mass, its centre and
   its inertia about it, composite about the pelvis's origin in the
