@@ -217,6 +217,11 @@ it names. A closed item is cut from the list and gets its line here, last.
     host and C (`machine/parts.py`, `ctrl/src/ctrl.c`): told its sink's clamp,
     its current falls at the first pass past its speed (0.2 rad/s under) where
     30 rad/s under untold ([envelope](findings/envelope.md)).
+57. The law's vector laid on the angle it is applied at (`drive/src/drive.c`
+    after `rotor_observer` and `command_frame` advance the frame), where it
+    was laid on the angle it sampled at and met the rotor a period turned:
+    its own v . i is 77 W of 77 at 211 rad/s, 766 of 766 at 500, and 1 814 of
+    1 814 at 680 where 21 % under ([envelope](findings/envelope.md)).
 
 
 

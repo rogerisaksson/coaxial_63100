@@ -697,6 +697,12 @@ bool drive_step(drive_t *d, const drive_sample_t *in, bool stage_enabled,
   }
   command_frame(d);
 
+  /* The duties wait a period and meet the rotor at the angle the step just
+     advanced to. */
+  const float th_out = cmd_frame ? d->theta_cmd : d->theta_hat;
+
+  drive_sincos(th_out, &s, &c);
+
   /* the fundamental */
   const float vmax = clampf(d->p.v_frac * in->vdc * INV_SQRT3 - amp,
                             0.0f, 1e9f);
@@ -730,7 +736,7 @@ bool drive_step(drive_t *d, const drive_sample_t *in, bool stage_enabled,
   va += ca;
   vb += cb;
 
-  inject(d, injecting, amp, n, th, c, s, &va, &vb);
+  inject(d, injecting, amp, n, th_out, c, s, &va, &vb);
 
   if (stage_enabled && (d->mode != DRIVE_OFF))
   {

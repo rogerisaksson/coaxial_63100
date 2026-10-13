@@ -93,12 +93,13 @@ against the law on a stand-in (`test_quad_pull.py`):
   the clamp left, 2 070 where 2 106, the estimate's frame a degree behind.
 - Stepped to 90 A from its idle a drive trips on overcurrent; asked up over
   0.5 s it does not.
-- The law's own v . i is under its stage's watts - the copper's and the
-  shaft's: 1 % at a hover, 9.5 at 500 rad/s, 21 at 680. Its duties wait a
-  period and its vector meets the rotor that much turned, 10.8 degrees at
-  9 400 rad/s electrical. Over two laps 17.9 kJ where the currents took
-  43.8 and the propellers alone 33.9: the pack was drawn 0.41 of what its
-  stages took. Counted from the currents (`pull.watts`) a course's flight
+- Laid on the angle it sampled at, the law's duties waited a period and met
+  the rotor that much turned (10.8 degrees at 9 400 rad/s electrical), its
+  own v . i 1 % under its stage's watts at a hover, 9.5 at 500 rad/s, 21 at
+  680. Laid on the angle it is applied at (`drive_step` after `rotor_observer`
+  and `command_frame` advance the frame): 77 W of 77 at 211 rad/s, 766 of 766
+  at 500, 1 814 of 1 814 at 680 - the copper's and the shaft's within 0.1 %.
+  Counted from the currents (`pull.watts`) a course's flight
   takes 20 % of its charge where 8, 67 A at the most, the bus to 57.5 V;
   the routine 12 %, full tilt 129 A and 56.3 V.
 - A lap turns its rotors 517 rad/s at the most, their currents at the clamp

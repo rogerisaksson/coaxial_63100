@@ -108,8 +108,7 @@ def test_a_rotors_top_is_the_laws(report):
 def test_a_rotors_reach_and_watts(report):
     """A stand-in rotor stepped from a hover's current to its clamp: its speed gains what the
     space says, on a full link and where a spent one leaves less than the clamp; steady under
-    its loop its stage takes its shaft's and its copper's watts, the law's own v . i under
-    them."""
+    its loop its stage and the law's own v . i take its shaft's and its copper's watts."""
     from machine import pull
     from terminal.views.quad import flight as view
     rig, rotor = armed()
@@ -133,7 +132,7 @@ def test_a_rotors_reach_and_watts(report):
             turned(rig, rotor, 0.01)
         loop.write(211.0)
         loop.on()
-        for ask in (211.0, 500.0):
+        for ask in (211.0, 500.0, 680.0):
             loop.write(ask)
             w = 0.0
             for _ in range(250):
@@ -150,11 +149,10 @@ def test_a_rotors_reach_and_watts(report):
                  and gains[0][4] > pull.I_MAX > gains[1][4],
                  '; '.join('%.0f V at %.0f rad/s: %.0f rad/s^2, the space %.0f, the link '
                            'leaving %.0f A' % row for row in gains))
-    report.check('steady, its stage takes its shaft\'s and its copper\'s watts within 0.5 %; '
-                 'the law\'s own v . i is under them, the more the faster',
-                 all(abs(watts - true) < 0.005 * true for _w, watts, true, _law in taken)
-                 and taken[1][3] < 0.95 * taken[1][2]
-                 and taken[1][3] / taken[1][2] < taken[0][3] / taken[0][2] < 1.0,
+    report.check('steady, its stage and the law\'s own v . i take its shaft\'s and its copper\'s '
+                 'watts within 1 %',
+                 all(abs(watts - true) < 0.005 * true and abs(vi - true) < 0.01 * true
+                     for _w, watts, true, vi in taken),
                  '; '.join('%.0f rad/s: %.0f W of %.0f, v . i %.0f' % row for row in taken))
 
 

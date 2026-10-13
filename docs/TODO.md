@@ -288,13 +288,6 @@ gets a line at the end of [DONE](DONE.md).
   contiguous array, steps branch-free passes over it. DOD: the hot paths
   ranked by them, each cut or named unavoidable; a model's change one
   change in every executive.
-- **The law's vector a period late**: laid on the angle it sampled at, its
-  duties wait a period and meet the rotor that much turned; its integrators
-  take it up and its v . i is 21 % under the stage's watts at 680 rad/s
-  (envelope.md). The rotor page's power (`views/rotor/thermal.watts`) and
-  `notebooks/motion` count it. DOD: the vector laid on the angle it is
-  applied at; v . i the copper's and the shaft's within 1 % there on the
-  stand-in.
 - **CI's flakes**: a run each failed and the next passed - `test_native_heat`
   (STABLE held 100 s within 600: 394), `test_sensorless` (the loop under a
   concurrent reader; the shunt's sign), the emulator's reads (a CRC on
