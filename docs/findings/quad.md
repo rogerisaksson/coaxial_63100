@@ -379,6 +379,10 @@ race, 12 flights (`quad_race.py --suite all`):
   on the floor (100 s) reach CONVERGING before the first flight (hold_amps 68.6 A),
   avoiding the UNCERTAIN margin floor. Full tilt holds 58.7 A at least where 43.2,
   legs at 0.81 of envelope where 0.90; race laps 13.9 and 14.2 s with SOA 0.55-0.62.
+- Struck frame crash recovery (`reset`): rotor plant models reinitialized via
+  `rotor['rig'].board.drive.model.reset()` before re-spinning to idle; rotor
+  restores 0 rad/s without residual negative back-EMF, avoiding secondary floor
+  strikes upon restarting the card from rest (`test_struck_it_is_begun_again`).
 
 ## The carried camera
 

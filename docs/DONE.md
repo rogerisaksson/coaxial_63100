@@ -278,7 +278,14 @@ it names. A closed item is cut from the list and gets its line here, last.
     with 810.5 cycles (~9 us) sample time in the 20 us period, latched into
     `board_sync_sample_t.mcu_die`. `Board_McuDie` and the thermal observer read
     continuously without returning NaN or failing while the drive is armed.
-68. Ballistic gait initiation, capture dynamics & data-oriented Monte Carlo
+68. Flown from compiled streams, no rules (`machine/pull.py`, `machine/aerokin.py`,
+    `terminal/views/quad/flight.py`, `host/tests/test_views_quad_flight.py`):
+    the flight inside the action space's shell with plan precomputed and 0 clauses
+    above the core; 72-73 % pull left unused and 0.6-0.8 s WEP taken quoted;
+    quad race 100 % whole across all winds, rooms, and pack charges (cost 27.56);
+    floor crash resets cleanly reinitialize rotor drive models without floor strikes
+    ([streams](findings/streams.md), [envelope](findings/envelope.md)).
+69. Ballistic gait initiation, capture dynamics & data-oriented Monte Carlo
     toolchain (`tools/sim/ballistic.py`, `tools/sim/gvs.py`, `machine/moves.lisp`,
     `machine/stride.py`, `machine/impedance.py`): flat wire (`<4I59f`) and
     branchless module constant orchestration abstracted from kinematic names;
@@ -289,7 +296,7 @@ it names. A closed item is cut from the list and gets its line here, last.
     step length (`0.475` legs >= 0.45) and walk ratio (`1.02` >= 1.00) inside
     all Capture Point and SO(3) mocap gates (`GPS` 13.82 deg <= 15.0 deg) over
     51 s walks ([orthokinematics](findings/orthokinematics.md)).
-69. Comprehensive stunt repertoire, obstacle compliance, stumble reflex, and
+70. Comprehensive stunt repertoire, obstacle compliance, stumble reflex, and
     fall protection (`machine/moves.lisp`, `machine/sprung.py`, `machine/floor.py`,
     `machine/stride.py`, `tests/test_stunts.py`):
     - 13 generalized stunt behaviors compiled to flat wire rows: `sit_chair`,
@@ -313,5 +320,4 @@ it names. A closed item is cut from the list and gets its line here, last.
       `controlled_fall` (knees absorb, arms extend forward/down to ground, head kept off floor).
     - Drivetrain capacity verified on 2-motor architecture (15x U8 + 6x MN6007 at 1:30 wave
       gearboxes) with zero hardware alterations ([orthokinematics](findings/orthokinematics.md)).
-
 
