@@ -438,6 +438,7 @@ def lined(route):
 def reset(rotors):
     """Every rotor from rest again (`spun`): the frame back on the floor, at their idle."""
     for rotor in rotors:
+        rotor['rig'].board.drive.model.reset()
         spun(rotor)
 
 

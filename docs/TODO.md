@@ -218,25 +218,6 @@ gets a line at the end of [DONE](DONE.md).
       `test_layout`: no document names a module, a tool or a suite not
       in the tree.
 
-## Quad
-
-- **Flown from compiled streams, no rules**: a flight's intent is text
-  (`stream_inject`: latent targets on six modes, a stiffness and a damping
-  a mode, an oscillator, task constraints; a mode dropped is NaN) compiled
-  to flat payloads, and a core in C under them with no branch (`aero/`):
-  the regulator on SO(3) from the payload's impedances, an extended state
-  observer for the air, the precession and a weak rotor, an active set over
-  the rotors' thrusts inside what each board holds. Above the core no
-  mixing, no Euler angle, no air; in it no `if`.
-  + The flight is inside the action space's shell (`machine/pull.py`,
-    `flight.shell`, envelope.md), its plan a table computed beforehand, no
-    clause in a pass above the core, its lead and its swing the tilt's own,
-    its sphere and its brake's, go's and stop's shares searched, the pull left
-    unused and the WEP taken a flight quoted (streams.md, envelope.md).
-  + A flight on a board's core: device 14 takes its reading off the wire,
-    246 bytes a pass. DOD: the reading the board's own - its IMU's, its
-    rotors' off the bus -, a pass in its sample, the page's flight on it.
-
 ## Bench
 
 - **25 kHz under a 63 V drive**: a hover's heat is its legs' dry switching,

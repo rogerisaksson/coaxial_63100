@@ -278,10 +278,10 @@ it names. A closed item is cut from the list and gets its line here, last.
     with 810.5 cycles (~9 us) sample time in the 20 us period, latched into
     `board_sync_sample_t.mcu_die`. `Board_McuDie` and the thermal observer read
     continuously without returning NaN or failing while the drive is armed.
-
-
-
-
-
-
-
+68. Flown from compiled streams, no rules (`machine/pull.py`, `machine/aerokin.py`,
+    `terminal/views/quad/flight.py`, `host/tests/test_views_quad_flight.py`):
+    the flight inside the action space's shell with plan precomputed and 0 clauses
+    above the core; 72-73 % pull left unused and 0.6-0.8 s WEP taken quoted;
+    quad race 100 % whole across all winds, rooms, and pack charges (cost 27.56);
+    floor crash resets cleanly reinitialize rotor drive models without floor strikes
+    ([streams](findings/streams.md), [envelope](findings/envelope.md)).
