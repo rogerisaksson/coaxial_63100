@@ -254,9 +254,9 @@
       (stiffness mode_foot_rock 2400) (damping mode_foot_rock 240))
     (cpg_config
       (enable true)
-      (frequency 0.83Hz)
+      (frequency 0.9Hz)
       (amplitude mode_lateral_shift 0.31)
-      (amplitude mode_sagittal_drive 0.62)
+      (amplitude mode_sagittal_drive 0.60)
       (amplitude mode_limb_lift 1.0)
       (amplitude mode_pelvis_list 0.4)
       (amplitude mode_pelvis_turn 0.4)
@@ -272,12 +272,19 @@
     (blend_duration 1000ms)
     (latent_targets (mode_axial_compression 0.07) (mode_pitch_attitude 0.0))
     (cpg_config
-      (amplitude mode_sagittal_drive 0.65)
+      (frequency 0.9Hz)
+      (amplitude mode_lateral_shift 0.31)
+      (amplitude mode_sagittal_drive 0.60)
       (amplitude mode_limb_lift 1.0)
       (amplitude mode_foot_rock 0.6)
       (amplitude mode_pelvis_list 0.4)
       (amplitude mode_pelvis_turn 0.4)
-      (amplitude mode_arm_swing 0.8))))
+      (amplitude mode_arm_swing 0.8)
+      (phase_offset mode_lateral_shift mode_sagittal_drive 108deg)
+      (phase_offset mode_pelvis_list mode_sagittal_drive 108deg)
+      (phase_offset mode_pelvis_turn mode_sagittal_drive 0deg)
+      (phase_offset mode_arm_swing mode_sagittal_drive 0deg)
+      (phase_offset mode_foot_rock mode_sagittal_drive 0deg))))
 
 ;; sit down on a chair
 (defbehavior sit_chair

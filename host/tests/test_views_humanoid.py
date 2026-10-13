@@ -55,8 +55,10 @@ def test_the_humanoid_pages_keys(report):
     report.check('L the next callouts, T the power, C her shell, O the orbit',
                  state['called'] == 'all' and state['shown'] == 'power' and state['skin'] == 'shell'
                  and state['orbit'] is True, '%s' % {k: state[k] for k in ('called', 'shown', 'skin', 'orbit')})
+    from terminal.views import gym
     letters = sorted(k for k in show_humanoid.KEYS if len(k) == 1 and k.isalpha() and k.islower())
-    report.check('its letters are a c l n o p r t v w and no other', letters == list('aclnoprtvw'),
+    expected = sorted(set(list('aclnoprtvw') + [v for v in gym.STUNTS.values() if v.isalpha()]))
+    report.check('its letters are the stunts, view and loop controls', letters == expected,
                  ' '.join(letters))
 
 

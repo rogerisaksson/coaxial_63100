@@ -22,7 +22,33 @@ DIGITS = '1234567890'
 PUSHES = {'p': ('push', False), 'n': ('nudge', False), 'P': ('push', True), 'N': ('nudge', True)}
 #: Each mode's name in the box; what each stream payload is called on the page.
 SHORT = ('axial', 'lateral', 'drive', 'pitch', 'sagittal', 'lift', 'width', 'list', 'turn', 'arms', 'rock')
-NAMED = {'#201': '#201 stand', '#202': '#202 sway', '#203': '#203 step', '#204': '#204 walk', '#205': '#205 back'}
+NAMED = {
+    '#201': '#201 stand', '#202': '#202 sway', '#203': '#203 step', '#204': '#204 walk', '#205': '#205 back',
+    'weight_shift': 'weight shift', 'bow': 'bow', 'ballistic_walk': 'ballistic walk',
+    'sit_chair': 'sit chair', 'rise_chair': 'rise chair', 'lie_bed': 'lie bed', 'rise_bed': 'rise bed',
+    'lie_floor': 'lie floor', 'rise_floor': 'rise floor', 'hop_down_chair': 'hop down chair',
+    'hop_up_chair': 'hop up chair', 'stairs_walk': 'stairs walk', 'ice_walk': 'ice walk',
+    'slope_walk': 'slope walk', 'parry_shove': 'parry shove', 'controlled_fall': 'controlled fall',
+}
+#: Named keys to trigger stunts directly from the terminal.
+STUNTS = {
+    'weight_shift': 'h',
+    'bow': ';',
+    'ballistic_walk': 'b',
+    'sit_chair': 's',
+    'rise_chair': 'u',
+    'lie_bed': 'e',
+    'rise_bed': 'g',
+    'lie_floor': 'f',
+    'rise_floor': 'k',
+    'hop_down_chair': 'd',
+    'hop_up_chair': 'j',
+    'stairs_walk': 'x',
+    'ice_walk': 'i',
+    'slope_walk': 'm',
+    'parry_shove': 'y',
+    'controlled_fall': 'z',
+}
 
 
 def _next(state):
@@ -45,6 +71,11 @@ def table(keys):
     out.update((k, lambda state, i=i: state['body'].send(say=i)) for i, k in enumerate(DIGITS))
     out.update((k, lambda state: state['body'].send(walk=True)) for k in WALKS)
     out.update((k, _shoved(*how)) for k, how in PUSHES.items())
+    for name, key in STUNTS.items():
+        handler = (lambda state, n=name: state['body'].send(say=n))
+        out[key] = handler
+        if key.isalpha():
+            out[key.upper()] = handler
     return out
 
 
@@ -62,10 +93,21 @@ def status(now):
 
 def boxes(now):
     """The side column's boxes: each mode asked and as she is, its spring's N/m and N s/m; what
-    each digit says."""
+    each digit and stunt key says."""
     if not now:
         return []
+    says = now['says']
+    gym_name = says[0]
+    entries = says[1:]
+    say_rows = []
+    for i, s in enumerate(entries):
+        if i < len(DIGITS):
+            key = DIGITS[i]
+        elif s in STUNTS:
+            key = STUNTS[s]
+        else:
+            continue
+        say_rows.append((key, NAMED.get(s, s)))
     return [hud('LATENT', [(name, '%+.2f is %+.2f %6.0f %5.0f' % row[1:])
                            for name, row in zip(SHORT, now['modes'])]),
-            hud('SAY  ' + now['says'][0].upper(),
-                [(d, NAMED.get(s, s)) for d, s in zip(DIGITS, now['says'][1:])])]
+            hud('SAY  ' + gym_name.upper(), say_rows)]
