@@ -81,7 +81,9 @@ def test_the_tour_loses_and_finds_the_room(report):
                 elif now > FIRST_S:
                     break
             elif 'moved' not in marks:
-                if room != first:
+                if not stable:
+                    marks.pop('stable', None)
+                elif room != first:
                     marks['moved'], marks['room'] = now, room
                 elif now > marks['stable'] + MOVE_S:
                     break

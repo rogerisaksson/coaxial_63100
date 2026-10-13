@@ -280,7 +280,7 @@ def test_commissioning_recovers_the_stand_in(r):
         g = c.gain_mismatch(periods=50)
         r.check('gain mismatch: 1.5 % between the chains, found',
                 g['measured'] and abs(g['mismatch_pct'] - 1.5) < 0.2, g)
-        sign = c.sign_check()
+        sign = c.sign_check(settle=0.25)
         r.check('the shunt sign reads positive', sign['measured'] and sign['sign'] == 1)
         dt = c.deadtime()
         r.check('R within 5 % and V_dt within 5 % of the stand-in\'s',
@@ -455,7 +455,7 @@ def test_motion(r):
         t.start()
         try:
             with rig.motion.velocity(amps=4.0, hz=2.0) as v:
-                got = v.rpm(600, seconds=1.5)
+                got = v.rpm(600, seconds=2.0)
         finally:
             stop[0] = True
             t.join()

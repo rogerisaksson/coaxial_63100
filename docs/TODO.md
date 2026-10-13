@@ -252,12 +252,6 @@ gets a line at the end of [DONE](DONE.md).
   contiguous array, steps branch-free passes over it. DOD: the hot paths
   ranked by them, each cut or named unavoidable; a model's change one
   change in every executive.
-- **CI's flakes**: a run each failed and the next passed - `test_native_heat`
-  (STABLE held 100 s within 600: 394), `test_sensorless` (the loop under a
-  concurrent reader; the shunt's sign), the emulator's reads (a CRC on
-  `afe.state`, a board's info in its place), `test_wbc_core` (a tick of
-  the loop 4 202 us), `test_mcp` (the program card). DOD: each looped 20
-  times on a loaded host, its cause found.
 - **native://**: a limb's world on a fixed mount as board/emu's; one
   Transport a rig on a URL bus. DOD: the body's balance and gait from the
   SIL; the fallback where nothing answers.

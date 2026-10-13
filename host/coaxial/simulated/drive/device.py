@@ -144,8 +144,9 @@ class SimulatedDrive(DrivePlant, DriveCapture, DriveControl):
 
     def _now(self):
         """(the law's state, its slot's row) at this moment."""
-        self._advance()
-        return self._law.state(), stand.row(self._slot)
+        with self._lock:
+            self._advance()
+            return self._law.state(), stand.row(self._slot)
 
     # -- the record -------------------------------------------------------
 

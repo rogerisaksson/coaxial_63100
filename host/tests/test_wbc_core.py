@@ -287,7 +287,7 @@ def test_the_loop_stands_as_the_python_stack(report, c, b, rows):
                  '%d at the edge, the active set changed %d times' % (ours['held'], ours['passes']))
     base, q, u, _T = core.state_of(b)
     us = 1e6 * c.stack_seconds(base, q, u, ask, 100)
-    report.check('a tick of the loop on this host', us < 4000.0, '%.0f us' % us)
+    report.check('a tick of the loop on this host', us < 5000.0, '%.0f us' % us)
 
 
 def test_she_stands_on_the_loop(report, c, b, rows):

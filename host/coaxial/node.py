@@ -276,7 +276,7 @@ class Coaxial(Node):
         self._carried = None
 
     def identify(self, arming=None, again=False, amps=2.0, step_deg=20.0, settle=0.1,
-                 window=0.25):
+                 window=0.35):
         """What the shaft carries, by a ring test: held on `amps` of d current, the hold stepped
         `step_deg` electrical onto a phase's axis, the ring's frequency from the angle sensor's
         zero crossings.

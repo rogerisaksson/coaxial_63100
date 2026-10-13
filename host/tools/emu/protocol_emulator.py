@@ -98,7 +98,7 @@ class Serial(SerialBase):
     """A connection to the emulated board's console, or to a limb's bus."""
 
     #: The gap that ends a reply, s: the emulated UART sends one whole, a burst on the socket.
-    quiet_time = 0.001
+    quiet_time = 0.005
 
     def open(self):
         if self.port is None:

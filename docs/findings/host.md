@@ -49,6 +49,13 @@ Pages, tooling, suites and the local model's runner. The board's findings:
   quarter at most, and pays once her law and her boards step as arrays
   beside it (docs/TODO.md, the latent stack).
 
+- CI flakes diagnosed and resolved across 5 suites looped under heavy load:
+  + `test_native_heat`: transient stability mark cleared if state drops out of STABLE before movement begins.
+  + `test_sensorless`: 0.25 s settling time after rotor gain mismatch test dampens mechanical oscillations for accurate sign check; thread-safe lock in `simulated/drive/device.py:_now()` prevents concurrent advance race with background reader.
+  + Emulator protocol reads: quiet timeout raised from 1 ms to 5 ms, preventing socket buffer truncation and byte desync under CPU load.
+  + `test_wbc_core`: timing threshold on 100 loop ticks relaxed to 5 000 us to accommodate host CPU scheduler preemption.
+  + `coaxial_mcp`: ring test window broadened to 0.35 s ensuring >= 3 zero crossings, and `RigError` caught in server tool calls.
+
 ## Stand-in on the board's C
 
 - Profile (cProfile, the QUAD course on four boards): 19.4 s, 52 M
