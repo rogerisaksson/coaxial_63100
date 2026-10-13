@@ -57,7 +57,7 @@ INNER, ESO_WO = 'eso', 100.0
 SOLVER = 'wrench'
 LEG_KINDS = ('hip_yaw', 'hip_roll', 'hip', 'knee', 'ankle', 'ankle_roll')
 #: A knee straighter than KNEE_SOFT rad is sprung back by its own drive, KNEE_NM at straight.
-KNEE_SOFT, KNEE_NM = 0.1, 20.0
+KNEE_SOFT, KNEE_NM = 0.1, 40.0
 #: On the page the loop is solved every STACK_EVERY passes.
 STACK_EVERY = 3
 #: She is down with her pelvis tilted past DOWN_DEG or under DOWN_M.
@@ -279,8 +279,11 @@ def passed(g, dt=0.001):
     got, held, eso, wo = g['got'], float(g['hold'].any()), g['eso'], g['wo']
     # a knee's soft stop, and what it adds to the acceleration planned for it
     sprung_back = np.zeros(len(body.act))
-    sprung_back[list(body.knees)] = KNEE_NM * np.clip(
-        1.0 - world.data.qpos[body.qact][list(body.knees)] / KNEE_SOFT, 0.0, 2.0)
+    qk = world.data.qpos[body.qact][list(body.knees)]
+    sprung_back[list(body.knees)] = (
+        KNEE_NM * np.clip(1.0 - qk / KNEE_SOFT, 0.0, 3.0)
+        + 2400.0 * np.maximum(0.0, -qk)
+    )
     # each drive's disturbance, observed about the acceleration the loop planned for it
     e = world.data.qpos[body.qact] + physics.WOUND * world.boxes.delta[body.driven] - eso[0]
     eso += dt * np.array([eso[1] + 3.0 * wo * e,
@@ -403,6 +406,9 @@ def _heard_say(g, gym, entry):
             _start_mode(g, by, entry, at=t0 + 2.40)
         return
     if striding and same_gait:
+        if g.get('active_entry') == entry[0]:
+            return
+        g['active_entry'] = entry[0]
         said(g, *entry, at=t0)
         return
     if in_apa and entry[0] in (('#203',) + fwd_gaits):
