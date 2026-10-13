@@ -150,11 +150,189 @@ def test_ci_guillotine_binary_gate(report):
                  code_fail == 1, 'code = %d' % code_fail)
 
 
+def test_rig_invariant_anatomical_frames_and_capture_gates(report):
+    """Rig-invariant anatomical SO(3) frames and dimensionless Capture Point invariant gates."""
+    ref_path = os.path.join(os.path.dirname(__file__), 'takes', 'walk.fbx')
+    ref_times, ref_joints, ref_rots = gvs.extract_take_rotations(ref_path)
+    com_along, v_along, anat_rots, leg = gvs.anatomical_frames(ref_times, ref_joints)
+
+    # Every anatomical frame is a proper orthogonal rotation matrix in SO(3)
+    all_so3 = all(
+        np.allclose( np.matmul(r.transpose(0, 2, 1), r), np.eye(3), atol=1e-5)
+        and np.allclose(np.linalg.det(r), 1.0, atol=1e-5)
+        for r in anat_rots.values()
+    )
+    report.check('anatomical_frames constructs proper SO(3) matrices (R^T R = I, det R = +1)',
+                 all_so3 and leg > 0.4 and len(v_along) == len(ref_times),
+                 'leg = %.3f m, joints = %d' % (leg, len(anat_rots)))
+
+    metrics, violations = gvs.capture_gates(ref_times, com_along, ref_joints, leg=leg, gps_rad=0.05)
+    report.check('reference mocap walk passes all dimensionless Capture Point gates',
+                 not violations and metrics['step_star'] >= 0.45 and metrics['walk_ratio'] >= 1.0,
+                 'step* = %.3f, wr = %.2f, violations = %s' % (
+                     metrics['step_star'], metrics['walk_ratio'], violations))
+
+
+def test_data_oriented_ballistic_wire_and_module_addressing(report):
+    """Data-oriented addressing in `tools.sim.ballistic` across flat `<4I59f` wire rows,
+    behaviour phases, and branchless module constants."""
+    from machine import impedance, ortho, sprung, stride
+    from tools.sim import ballistic
+    from tools.sim import ortho as sim_ortho
+
+    plan = sim_ortho.planned(['%s@%g' % entry for entry in sprung.WALK] + ['ballistic_walk@30'])
+    # `#204` is entry 3, row 0; `amp.2` (sagittal_drive) is column 4 + ortho.AMP + 2
+    col_drive = 4 + ortho.AMP + 2
+    sym_val = ballistic.now(plan, '#204.amp.2')
+    raw_val = ballistic.now(plan, 'wire[3,0,%d]' % col_drive)
+    report.check('flat wire[e,r,c] and symbolic #204.amp.2 address the exact same float cell',
+                 abs(sym_val - raw_val) < 1e-6 and abs(sym_val - 0.65) < 1e-6,
+                 'sym = %.3f, raw = %.3f' % (sym_val, raw_val))
+
+    snap = ballistic._snapshot()
+    try:
+        mutated = ballistic.put(plan, {
+            'wire[3,0,%d]' % col_drive: 0.72,
+            '#203.blend': 0.55,
+            'ballistic_walk.apa.amp.2': 0.25,
+            'stride.AHEAD_M_S': 0.31,
+            'impedance.GOING_S': 0.52,
+            'stride.SWING': 0.38,
+        })
+        report.check('put() mutates wire rows, behaviour phases, and synced module constants',
+                     abs(ballistic.now(mutated, '#204.amp.2') - 0.72) < 1e-6
+                     and abs(ballistic.now(mutated, '#203.blend') - 0.55) < 1e-6
+                     and abs(ballistic.now(mutated, 'ballistic_walk.apa.amp.2') - 0.25) < 1e-6
+                     and abs(stride.AHEAD_M_S - 0.31) < 1e-9
+                     and abs(impedance.GOING_S - 0.52) < 1e-9
+                     and abs(stride.PHI_W - math.pi * 0.38) < 1e-9,
+                     'PHI_W = %.4f' % stride.PHI_W)
+    finally:
+        ballistic._restore(snap)
+
+    report.check('_restore() cleanly restores all module constants',
+                 abs(stride.AHEAD_M_S - 0.36) < 1e-9 and abs(impedance.GOING_S - 0.28) < 1e-9,
+                 'AHEAD_M_S = %.2f, GOING_S = %.2f' % (stride.AHEAD_M_S, impedance.GOING_S))
+
+    cands = ballistic.lhs_candidates({'a': (0.0, 1.0), 'b': (10.0, 20.0)}, 8, seed=11)
+    bins_a = sorted(int(c['a'] * 8) for c in cands)
+    bins_b = sorted(int((c['b'] - 10.0) / 10.0 * 8) for c in cands)
+    report.check('Latin Hypercube sample stratifies every parameter axis into N equal bins',
+                 bins_a == list(range(8)) and bins_b == list(range(8)),
+                 'bins_a = %s' % bins_a)
+
+
+def test_initiation_gates_reject_swaying_baby_steps_and_stiff_arms(report):
+    """Invariant gates must fail when gait initiation hesitates/sways in place, takes
+    tripping baby steps, or holds arms and feet stiff instead of stepping ballistically."""
+    ref_path = os.path.join(os.path.dirname(__file__), 'takes', 'walk.fbx')
+    ref_times, ref_joints, _ = gvs.extract_take_rotations(ref_path)
+    _, _, _, leg = gvs.anatomical_frames(ref_times, ref_joints)
+
+    # Construct a hesitant trajectory that stands & sways for 5s, then takes tiny steps with stiff arms
+    n_stand = 150
+    t_stand = np.linspace(0.0, 5.0, n_stand, endpoint=False)
+    t_walk = 5.0 + ref_times
+    times = np.concatenate([t_stand, t_walk])
+    bad_joints = {}
+    h0 = ref_joints['Hips'][:1]
+    hips_moved = ref_joints['Hips'].copy()
+    hips_moved[:, [0, 2]] = h0[:, [0, 2]] + 0.20 * (ref_joints['Hips'][:, [0, 2]] - h0[:, [0, 2]])
+    for k, pts in ref_joints.items():
+        if not isinstance(pts, np.ndarray) or pts.ndim < 2:
+            bad_joints[k] = pts
+            continue
+        first_row = np.repeat(pts[:1], n_stand, axis=0)
+        moved = pts.copy()
+        # Compress horizontal displacement to baby steps (20% of normal)
+        moved[:, [0, 2]] = h0[:, [0, 2]] + 0.20 * (pts[:, [0, 2]] - h0[:, [0, 2]])
+        if k in ('LeftArm', 'RightArm', 'LeftForeArm', 'RightForeArm'):
+            # Pin arms stiffly relative to hips
+            moved = hips_moved + (pts[:1] - h0)
+        if k in ('LeftToeBase', 'RightToeBase'):
+            ankle = 'LeftFoot' if k.startswith('Left') else 'RightFoot'
+            ankle_moved = ref_joints[ankle].copy()
+            ankle_moved[:, [0, 2]] = h0[:, [0, 2]] + 0.20 * (ref_joints[ankle][:, [0, 2]] - h0[:, [0, 2]])
+            moved = ankle_moved + (pts[:1] - ref_joints[ankle][:1])
+        bad_joints[k] = np.concatenate([first_row, moved], axis=0)
+
+    com_bad = bad_joints['Hips'][:, 2]
+    metrics, violations = gvs.capture_gates(times, com_bad, bad_joints, leg=leg, gps_rad=math.radians(18.0))
+    broken_names = {name for name, _v, _b in violations}
+    report.check('swaying 5s before stepping fails init_tau gate (> 6.5)',
+                 'init_tau' in broken_names and metrics['init_tau'] > 6.5,
+                 'init_tau = %.2f' % metrics['init_tau'])
+    report.check('baby steps fail first_step_star and step_star gates',
+                 'first_step_star' in broken_names and 'step_star' in broken_names,
+                 'first_step* = %.3f, step* = %.3f' % (metrics['first_step_star'], metrics['step_star']))
+    report.check('stiff arms and flat feet fail arm_deg and heel_deg gates',
+                 'arm_deg' in broken_names and 'heel_deg' in broken_names,
+                 'arm = %.1f deg, heel = %.1f deg' % (metrics['arm_deg'], metrics['heel_deg']))
+
+    pass_gvs = {'Hips': math.radians(5.0)}
+    code = gvs.report_and_gate(pass_gvs, math.radians(5.0), tolerance=math.radians(15.0),
+                               metrics=metrics, violations=violations)
+    report.check('report_and_gate trips CI guillotine (returns 1) on invariant gate violations even if GPS <= 15 deg',
+                 code == 1, 'code = %d' % code)
+
+
+def test_limping_and_transition_artifacts_rejected(report):
+    """Invariant gates must detect and reject transition artifacts: aborted first step in place,
+    knee hyperextension (< -0.5 deg), and limping gait (bilateral foot lift asymmetry > 0.12)."""
+    ref_path = os.path.join(os.path.dirname(__file__), 'takes', 'walk.fbx')
+    ref_times, ref_joints, _ = gvs.extract_take_rotations(ref_path)
+    _, _, _, leg = gvs.anatomical_frames(ref_times, ref_joints)
+
+    # Construct a trajectory with:
+    # 1) an aborted first step in place (left foot lifts 6 cm and lands at the exact same spot)
+    # 2) asymmetric foot clearance (right foot barely lifts -> limping gait)
+    # 3) knee hyperextension on the stance leg (left knee pushed backward behind hip-ankle line)
+    n_abort = 30
+    t_abort = np.linspace(0.0, 0.5, n_abort, endpoint=False)
+    times = np.concatenate([t_abort, 0.5 + ref_times])
+    limp_joints = {}
+    for k, pts in ref_joints.items():
+        if not isinstance(pts, np.ndarray) or pts.ndim < 2:
+            limp_joints[k] = pts
+            continue
+        abort_seg = np.repeat(pts[:1], n_abort, axis=0)
+        if k in ('LeftFoot', 'LeftToeBase'):
+            # Lift 6 cm in place and land back down at the same horizontal position
+            lift_arc = 0.06 * np.sin(np.linspace(0.0, math.pi, n_abort))
+            abort_seg[:, 1] += lift_arc
+        walk_seg = pts.copy()
+        if k in ('RightFoot', 'RightToeBase'):
+            # Suppress right foot vertical clearance to 25% of normal (limping asymmetry)
+            y_min = np.min(walk_seg[:, 1])
+            walk_seg[:, 1] = y_min + 0.25 * (walk_seg[:, 1] - y_min)
+        if k == 'LeftLeg':
+            # Push left knee 6 cm backward (-Z) behind hip-ankle line to induce hyperextension (< -0.5 deg)
+            walk_seg[:25, 2] -= 0.06
+        limp_joints[k] = np.concatenate([abort_seg, walk_seg], axis=0)
+
+    com_limp = limp_joints['Hips'][:, 2]
+    metrics, violations = gvs.capture_gates(times, com_limp, limp_joints, leg=leg, gps_rad=math.radians(8.0))
+    broken_names = {name for name, _v, _b in violations}
+    report.check('aborted first step in place fails first_step_star gate (< 0.25)',
+                 'first_step_star' in broken_names and metrics['first_step_star'] < 0.08,
+                 'first_step* = %.3f' % metrics['first_step_star'])
+    report.check('knee hyperextension fails knee_min_deg gate (< -0.5 deg)',
+                 'knee_min_deg' in broken_names and metrics['knee_min_deg'] < -0.5,
+                 'knee_min = %.2f deg' % metrics['knee_min_deg'])
+    report.check('limping foot clearance asymmetry fails lift_asym gate (> 0.12)',
+                 'lift_asym' in broken_names and metrics['lift_asym'] > 0.12,
+                 'lift_asym = %.3f' % metrics['lift_asym'])
+
+
 ROSTER = [test_hof_scaling_axiom_strips_dimensions,
           test_temporal_rigidity_capture_point_phase,
           test_so3_geodesic_distance_lie_log_map,
           test_gvs_and_gps_aggregation,
-          test_ci_guillotine_binary_gate]
+          test_ci_guillotine_binary_gate,
+          test_rig_invariant_anatomical_frames_and_capture_gates,
+          test_data_oriented_ballistic_wire_and_module_addressing,
+          test_initiation_gates_reject_swaying_baby_steps_and_stiff_arms,
+          test_limping_and_transition_artifacts_rejected]
 
 
 def main():

@@ -238,15 +238,15 @@ def main(argv=None):
     parser.add_argument('--height', type=int, default=0, help='drawing height in rows, 0 fills')
     args = parser.parse_args(argv)
 
-    body = sprung.Running()
-    say('ok', 'body', '%.1f kg, %d drives, MuJoCo at 1 kHz in its own process'
-        % (figure.mass(), sum(len(s.actuators) for s in TYPES['gynoid'].body)))
     card = gpu.adapter()
     lit = gpu.LitRaster(found=card) if card is not None else None
     name = lit.name if lit is not None else 'this process, dots'
     say('ok', 'drawing', name)
     gynoid.body(), gynoid.body(dressed=False)
     gynoid.body(see='mechanism'), gynoid.body(see='actuators')
+    body = sprung.Running()
+    say('ok', 'body', '%.1f kg, %d drives, MuJoCo at 1 kHz in its own process'
+        % (figure.mass(), sum(len(s.actuators) for s in TYPES['gynoid'].body)))
 
     board_view = stage()
     terminal = board_view.is_terminal
@@ -291,12 +291,13 @@ def main(argv=None):
 
     leaving = None
     try:
-        if args.frames:
-            # The view suite asks for a few frames: wait for her first state, a second at most.
-            for _ in range(100):
-                if body.latest() is not None:
-                    break
-                time.sleep(0.01)
+        # Wait for her first state so the first frame drawn has her standing on the floor and HUD boxes populated.
+        for _ in range(100):
+            first = body.latest()
+            if first is not None:
+                state['playback'].push([first])
+                break
+            time.sleep(0.01)
         leaving = run_view(board_view, terminal, 1.0 / max(1.0, args.hz),
                            args.frames, draw, on_input=lambda typed, wheel: act_on(KEYS, typed, state, wheel),
                            **viewpoint.mouse(state, lambda: size_of(board_view, args)))

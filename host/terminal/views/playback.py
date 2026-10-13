@@ -23,7 +23,10 @@ class Playback:
         self.states, self.shown, self.wall, self.pace = [], None, None, 1.0
 
     def push(self, states):
-        self.states += states
+        for s in states:
+            if self.states and s['t'] < self.states[-1]['t']:
+                self.states, self.shown, self.wall = [], None, None
+            self.states.append(s)
         if self.states:
             newest = self.states[-1]['t']
             self.states = [s for s in self.states if s['t'] >= newest - KEEP_S]

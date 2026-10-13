@@ -53,6 +53,9 @@ HEAVY = {
     'host/coaxial/kalman/thermal_ident.py': 6200,
     'board/src/board_pwm.c': 6100,
     'host/coaxial/model/thermal.py': 6100,
+    'host/tools/sim/gvs.py': 7500,
+    'host/machine/sprung.py': 7800,
+    'docs/findings/orthokinematics.md': 6500,
 }
 
 #: What is read, by extension.

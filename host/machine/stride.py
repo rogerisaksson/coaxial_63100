@@ -41,7 +41,7 @@ PHI_W = np.pi * SWING
 BACK = 0.5
 #: Her going: her centre of mass asked no more than AHEAD_M_S faster or slower than her
 #: soles have made of late.
-AHEAD_M_S = 0.15
+AHEAD_M_S = 0.36
 #: A striding sole lands no further than REACH_M from her along her way, APART_M and more
 #: its own side of the other; its spring stiffens till SOON_S before it is there. It is up
 #: over the first RISE_U of its swing, comes down over the last FALL_U and is over its
@@ -55,7 +55,7 @@ RISE_U, FALL_U, ARRIVE_U = 0.2, 0.25, 0.9
 #: of its speed's error to the next, with 1 it turns it -0.09.
 LEADS = 0.5
 #: Past its swing a sole not down reaches on down at REACH_M_S, for REACH_S at most.
-REACH_M_S, REACH_S = 0.3, 0.2
+REACH_M_S, REACH_S = 0.45, 0.25
 #: A standing sole is turned about the edge it stands on, 1/s^2: flat, or over its ball as
 #: its stride has it. The loop's own hold on a standing sole damps its turn at 20 /s: stood
 #: on with its heel 4 deg up, it stayed on its ball for 3 s. At 100 /s^2 and her ZMP let
@@ -115,7 +115,7 @@ def meets(xi, c, flat, cruise, om, turns, wide):
     centre of mass `c`, and APART_M its own side of the other sole (`flat` their middles)."""
     step_s = np.pi / np.maximum(turns, TINY)
     grown = np.exp(om * step_s)
-    led = LEADS * ((xi[ALONG] - c[ALONG]) - cruise / om)
+    led = LEADS * np.maximum((xi[ALONG] - c[ALONG]) - cruise / om, -0.02)
     meet = xi - np.stack([cruise * step_s / (grown - 1.0) - led + 0.0 * LIMBS,
                           -LIMBS * wide / (grown + 1.0)], axis=1)
     return np.stack([c[ALONG] + clip(meet[:, ALONG] - c[ALONG], -REACH_M, REACH_M),

@@ -20,8 +20,9 @@ DIGITS = '1234567890'
 #: P and N shove her (`sprung.SHOVES`), from each side in turn; shifted, from behind and ahead
 #: in turn.
 PUSHES = {'p': ('push', False), 'n': ('nudge', False), 'P': ('push', True), 'N': ('nudge', True)}
-#: Each mode's name in the box.
+#: Each mode's name in the box; what each stream payload is called on the page.
 SHORT = ('axial', 'lateral', 'drive', 'pitch', 'sagittal', 'lift', 'width', 'list', 'turn', 'arms', 'rock')
+NAMED = {'#201': '#201 stand', '#202': '#202 sway', '#203': '#203 step', '#204': '#204 walk', '#205': '#205 back'}
 
 
 def _next(state):
@@ -56,7 +57,7 @@ def status(now):
         return 'DOWN in %.0f s' % max(0.0, now['recover'])
     if now.get('refused'):
         return 'REFUSED  %s' % now['refused']
-    return 'LATENT  %s' % now['doing']
+    return 'LATENT  %s' % NAMED.get(now['doing'], now['doing'])
 
 
 def boxes(now):
@@ -66,4 +67,5 @@ def boxes(now):
         return []
     return [hud('LATENT', [(name, '%+.2f is %+.2f %6.0f %5.0f' % row[1:])
                            for name, row in zip(SHORT, now['modes'])]),
-            hud('SAY  ' + now['says'][0].upper(), list(zip(DIGITS, now['says'][1:])))]
+            hud('SAY  ' + now['says'][0].upper(),
+                [(d, NAMED.get(s, s)) for d, s in zip(DIGITS, now['says'][1:])])]

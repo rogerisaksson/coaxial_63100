@@ -22,7 +22,7 @@ from machine.errors import MachineError
 #: at 0.3 lay still under a landing and a push-off (the sole's shear 100 N, the rug's hold 165).
 #: The skimming toes brushed a 4 cm sill, 350 N for 20 ms, unseen; 6 cm caught
 #: them for 0.11 s and she fell, or stumbled over it lifted (`landing.tripped`).
-HOLE_M, HOLE_LONG_M, SILL_M, SILL_LONG_M = 0.03, 0.40, 0.06, 0.04
+HOLE_M, HOLE_LONG_M, SILL_M, SILL_LONG_M = 0.10, 0.40, 0.06, 0.04
 SLIP_LONG_M, SLIP_FRICTION = 0.5, 0.06
 RUG_LONG_M, RUG_M, RUG_KG, RUG_FRICTION = 0.9, 0.01, 1.5, 0.1
 SLAB_FROM_M, SEAM_M, SLAB_TO_M, PARKED_M = -20.0, 30.0, 10000.0, -50.0
@@ -81,7 +81,11 @@ def ground(contacts, give, torsion):
         '<body name="%s" mocap="true" pos="0 -2 0"><geom type="box" size="%g %g %g"%s/></body>'
         % ((name,) + half + (contacts,)) for name, half, _at in _steps()] + [
         '<body name="brick_%s" mocap="true" pos="0 -1 0"><geom type="box" size="%g %g %g"%s/>'
-        '</body>' % ((side,) + BRICK + (contacts,)) for side in ('left', 'right')]
+        '</body>' % ((side,) + BRICK + (contacts,)) for side in ('left', 'right')] + [
+        '<body name="wall" mocap="true" pos="0 -5 0"><geom type="box" size="2.0 1.2 0.05"%s/></body>'
+        % (contacts,),
+        '<body name="tree" mocap="true" pos="0 -5 0"><geom type="cylinder" size="0.15 1.5"%s/></body>'
+        % (contacts,)]
 
 
 def rug(give, friction, torsion):
@@ -117,8 +121,8 @@ def park(world):
     """The floor whole, its events out of the way: the sill and the patch under the plane,
     the rug on the floor PARKED_M back."""
     slab(world, SEAM_M, SEAM_M)
-    for name in ('sill', 'slip', 'brick_left', 'brick_right', 'board_base'):
-        mocap(world, name, (0.0, -1.0, 0.0))
+    for name in ('sill', 'slip', 'brick_left', 'brick_right', 'board_base', 'wall', 'tree'):
+        mocap(world, name, (0.0, -5.0, 0.0))
     for name, _half, _at in _steps():
         mocap(world, name, (0.0, -2.0, 0.0))
     lay_rug(world, (0.0, PARKED_M))
@@ -162,22 +166,33 @@ def place(world, kind, z, x=0.0, heading=0.0):
     if kind == 'hole':
         slab(world, at[1] - HOLE_LONG_M / 2.0, at[1] + HOLE_LONG_M / 2.0)
         world.hole_x = at[0]
-    elif kind == 'sill':
+        return
+    if kind == 'sill':
         mocap(world, 'sill', (at[0], 0.0, at[1]), heading)
-    elif kind == 'slip':
+        return
+    if kind == 'slip':
         mocap(world, 'slip', (at[0], 0.0, at[1]), heading)
-    elif kind == 'rug':
+        return
+    if kind == 'rug':
         lay_rug(world, at, heading)
-    elif kind == 'stairs':
+        return
+    if kind == 'stairs':
         for name, _half, (dx, y, dz) in _steps():
             mocap(world, name, _on(at, heading, dx, y, dz), heading)
-    elif kind == 'board':
+        return
+    if kind == 'board':
         gap = max(BOARD[0], BOARD[2]) + 0.02
         slab(world, at[1] - gap, at[1] + gap)
         world.hole_x = at[0]
         mocap(world, 'board_base', (at[0], -HOLE_M, at[1]), heading)
-    else:
-        raise MachineError('no floor event %r: hole, sill, slip, rug, stairs or board' % kind)
+        return
+    if kind == 'wall':
+        mocap(world, 'wall', (at[0], 1.2, at[1]), heading)
+        return
+    if kind == 'tree':
+        mocap(world, 'tree', (at[0], 1.5, at[1]), heading)
+        return
+    raise MachineError('no floor event %r: hole, sill, slip, rug, stairs, board, wall or tree' % kind)
 
 
 def bricks(world, soles, heading=0.0):
@@ -199,8 +214,8 @@ def board(world, k, c):
 
 def props(world):
     """What lies on the floor: [(kind, centre, half sizes, turn 3x3)] world, a box each - the
-    hole's gap, a sill, a slip patch, a brick, the board, a stair's steps, the rug - what of it
-    stands above the floor."""
+    hole's gap, a sill, a slip patch, a brick, the board, a stair's steps, the rug, a wall, a tree
+    - what of it stands above the floor."""
     m, d = world.model, world.data
     out = []
     a = m.geom('slab_a').id
@@ -209,14 +224,14 @@ def props(world):
     if gap[1] - gap[0] > 1e-6:
         out.append(('hole', (getattr(world, 'hole_x', 0.0), -HOLE_M / 2.0, sum(gap) / 2.0),
                     (0.5, HOLE_M / 2.0, (gap[1] - gap[0]) / 2.0), ((1, 0, 0), (0, 1, 0), (0, 0, 1))))
-    for name in ('sill', 'slip', 'brick_left', 'brick_right', 'board') + tuple(
+    for name in ('sill', 'slip', 'brick_left', 'brick_right', 'board', 'wall', 'tree') + tuple(
             n for n, _h, _a in _steps()):
         body = m.body(name).id
         at = d.xpos[body]
         if at[1] > -0.5:
             g = m.body_geomadr[body]
             c, half = d.geom_xpos[g], m.geom_size[g]
-            top, low = c[1] + half[1], c[1] - half[1] if name == 'board' else max(
+            top, low = c[1] + half[1], c[1] - half[1] if name in ('board', 'wall', 'tree') else max(
                 0.0, c[1] - half[1])
             out.append(('stairs' if name.startswith('step') else name.split('_')[0],
                         (c[0], (top + low) / 2.0, c[2]), (half[0], (top - low) / 2.0, half[2]),

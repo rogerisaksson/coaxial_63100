@@ -37,7 +37,7 @@ FREE_BY = np.array([DRIVE, WIDTH, LIFT])
 #: its side in 3 s.
 ON = (0.1, 1.0)
 #: Her going: her soles' speed along her way, meaned over GOING_S.
-GOING_S = 1.0
+GOING_S = 0.28
 #: Her posture's knees are bent no more than this ahead of her height, of the axial unit.
 AHEAD = 0.15
 #: Her yaw momentum past its limit is bled this fast, 1/s.

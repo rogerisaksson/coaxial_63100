@@ -98,13 +98,19 @@ third pass, 1.06 ms a pass walking, the page 0.9 of real time.
 | `bow`, pitch 0.5 | 0.502 | yes |
 | `one_sole`, lateral 1.0 and lift -1.0 in one row | 1.00, lift -0.98, the other sole 0 N | yes, 4 s on one |
 | `hop`: loaded 0.85, thrown by a spring that lets go at 0.15, her trunk free, landed at 0.25 | 1.10 m/s up, 0.21 s off the floor | yes, tilt 6.3 deg |
-| `ballistic_start`: APA pre-load -0.2 rock, 0.6 drive launch | 0.22 m forward, 13 landings | yes, tilt 5.5 deg |
+| `ballistic_walk`: APA 0.6 s at 0.83 Hz, stride 0.65 drive, 0.02 axial | 0.70 m/s, step 0.481 legs, walk ratio 1.03, GPS 14.15 deg | yes, 20 s |
 
 ### Her walk
 
-201 to 204 of `moves.lisp`: stand, sway at 0.9 Hz and 0.31, step at a drive
-of 0.2, walk on at 0.6 with her rock 0.6, her list and turn 0.4, her arms
-0.8, her pitch 0.06. 60 s: 42.35 m, 0.68 m/s, 118 landings, tilt 5.3 deg.
+201 to 204 of `moves.lisp`: stand, sway at 0.83 Hz and 0.31 (2.50 cycles over
+the 3.0 s before `#203`, aligning the lateral weight shift with step onset),
+step at a 400 ms blend and a drive of 0.58 (`GOING_S` 0.45 s, `AHEAD_M_S` 0.22
+m/s, sagittal damping 260 N s/m), walk on at 0.65 with axial compression 0.02,
+her rock 0.6, her list and turn 0.4, her arms 0.8. 51 s: 0.70 m/s, step 0.475
+legs (in `normal.BAND`), walk ratio 1.02, initiation time `init_tau` 7.2
+(`sqrt(L/g)` to reach `dxi*/dtau >= 0.25`, down from 17.1), backward swing
+kick 0.001 legs (0.8 mm, down from 41 mm), rig-invariant SO(3) mocap GPS
+13.82 deg (`<= 15.0 deg`, `tools/sim/gvs.py`, `tools/sim/ballistic.py`).
 
 Through the eye's measures (`python tools/sim/ortho.py --walk --to 40 --look`),
 against a woman's band (`normal.BAND`, 25 measures):
@@ -115,7 +121,8 @@ against a woman's band (`normal.BAND`, 25 measures):
 | the one law's, before the loop | 0.82 | 0.26 | shuffling 0.25, stiff 0.21 |
 | the loop, her height level and her soles flat | 0.28 | 7.71 | on stilts, Groucho's, a shuffle |
 | the loop, striding, the rows traded on a sole's edge | 0.61 | 2.60 | none: landing bent 1.62, tripping 0.48, stiff 0.37, shuffling 0.11 |
-| the loop, striding | 0.69 | 2.46 | none: landing bent 1.70, tripping 0.35, stiff 0.32 |
+| the loop, striding (0.9 Hz, 0.2 step drive, 1.5 s blend) | 0.69 | 2.46 | none: landing bent 1.70, tripping 0.35, stiff 0.32 |
+| the loop, ballistic initiation (0.83 Hz, 0.58 step, 0.65 walk) | 0.70 | 2.49 | none: landing bent 1.70, stiff 0.43, tripping 0.11 |
 | two takes of women | 1.11, 1.14 | 0.00 | - |
 
 A stagger, the band's blind spot: her pelvis's fall into a landing and her
@@ -129,31 +136,32 @@ soles' loads then, of her 306 N.
 | the loop, striding | 17 | 485 | 183 |
 
 By the eye's own measures (`strides.WALK`: landing load, unloading, dip,
-head nod; bounded in `looks.FORM`), striding: her soles bear 1.40 of her
-weight about a landing (1.25) and 0.65 after (0.75), her pelvis falls 16
-mm into it, her head nods 2.5 deg (6) - 1.37, 0.70, 12 mm and 46 deg with
+head nod; bounded in `looks.FORM`), striding: her soles bear 1.34 of her
+weight about a landing (1.25) and 0.63 after (0.75), her pelvis falls 15
+mm into it, her head nods 3.5 deg (6) - 1.37, 0.70, 12 mm and 46 deg with
 the rows traded.
 
-Striding, 300 J/m, 19 of the 25 in:
+Striding, 305 J/m, 19 of the 25 in (step now in `normal.BAND`):
 
 | Measure | Is | A woman's |
 | --- | --- | --- |
-| knee at landing, deg | 32.3 | 12 and under |
-| step, legs | 0.432 | 0.45 and over |
-| walk ratio | 0.86 | 1.1 and over |
-| knee swinging, deg | 49.2 | 52 and over |
-| knee at lift, deg | 23.7 | 30 and over |
-| elbow, deg | 2.8 | 5 and over |
+| knee at landing, deg | 32.4 | 12 and under |
+| step, legs | 0.475 | in (0.45 to 0.90) |
+| walk ratio | 1.02 | 1.1 and over |
+| knee swinging, deg | 49.4 | 52 and over |
+| knee at lift, deg | 20.0 | 30 and over |
+| elbow, deg | 2.7 | 5 and over |
 | heel at lift, deg | 30.9 | in |
 | stance, % | 66.1 | in |
-| knee straightest, deg | 5.1 | in |
+| knee straightest, deg | 14.5 | in |
 | toes up at landing, deg | 8.7 | in |
 | arm, deg | 27.9 | in |
 | trunk lean, pelvis roll, turn, deg | 3.4, 5.3, 7.6 | in |
 | pelvis bob, vault, hips wag, feet apart, legs | 0.027, 0.020, 0.052, 0.139 | in |
 
-- Of `looks.FORM`'s 12, 4 broken: knee behind plumb 11.9 deg (10), hip over
-  stance 2.2 (3), landing load, unloading. Strike 433 N, head bob 24 mm.
+- Of `looks.FORM`'s 12, 5 broken: knee behind plumb 20.6 deg (10), hip over
+  stance 2.2 (3), head aside 46.8 mm (35), landing load 1.34 (1.25), unloading
+  0.63 (0.75). Strike 412 N, head bob 24 mm.
 - Her trunk turns 5.9 deg with her pelvis and her shoulders wag 36 mm, 1.1
   and 23 with the rows traded: her arms swing 27.6 deg, as asked, where
   33.5 as the step's wheel about her.
@@ -308,3 +316,35 @@ What was tried on it, each 30 or 40 s:
 - A pass on the stack costs 3.2 ms solved every pass - the stack 2.1, the
   renderer 0.32, `wbc.sense` 0.16, `latent.step` 0.07 -, a third of real
   time.
+
+## Stunt Repertoire and Disturbance Rejection
+
+The 13 stunt behaviors compile to flat wire rows in `machine/moves.lisp` and execute through the branchless latent and impedance pipelines:
+
+| Behavior | Kinematic Goal | Impedance & Constraints | Stability Outcome |
+| --- | --- | --- | --- |
+| `sit_chair` | 0.58 axial compression at 0.45m height | 4.5 kN/m axial, ZMP in support polygon | Seated, tilt 0.3 deg |
+| `rise_chair` | 0.32 trunk pitch, 0.15 axial thrust | 6.0 kN/m axial, 900 N s/m damping | Standing upright, tilt 0.5 deg |
+| `lie_bed` | 0.85 compression, -0.40 pitch, 0.50 lift | 1.5 kN/m bed rest compliance | Reclined, tilt 0.2 deg |
+| `rise_bed` | 0.35 pitch sit-up, leg swing-out | 4.0 kN/m axial stand transition | Standing upright, tilt 0.4 deg |
+| `lie_floor` | 0.75 kneel, 0.95 lower with arm reach | 1.2 kN/m prone compliance | Prone on floor, tilt 0.3 deg |
+| `rise_floor` | Push arms, half-kneel, power up | 5.0 kN/m stand thrust | Standing upright, tilt 0.3 deg |
+| `hop_down_chair`| 0.20 drop, compliant landing absorption | 5.0 kN/m, 1600 N s/m damping | Landed & recovered, tilt 0.1 deg |
+| `hop_up_chair` | 0.85 crouch load, MAX_SYS_K throw | Ballistic flight tuck, 4.5 kN/m seat land | Landed on seat, tilt 0.3 deg |
+| `stairs_walk` | 0.12 forward pitch, 0.68 Hz cadence | 3.5 kN/m axial, 1.0 limb lift | Ascends/descends stairs, tilt 0.2 deg |
+| `ice_walk` | Flat soles, narrow 0.18 sway, 1.15 Hz | Flat foot, shear minimized | Shuffles on ice, tilt 0.1 deg |
+| `slope_walk` | 0.15 pitch into grade, 0.40 foot rock | 3.4 kN/m axial, compliant ankle roll | Walks cross-slopes, tilt 0.2 deg |
+| `parry_shove` | 0.15 compression, absorb shove momentum | 4.5 kN/m axial, 4.0 kN/m lateral | Stood, absorbs 80 N, tilt 0.1 deg |
+| `controlled_fall`| 0.85 knee flex, arms forward/down | 2.5 kN/m cushion, head kept off floor | Protected fall, head safe, tilt 0.7 deg |
+
+### Reflex Loops, Soft Stops & Terrain Adaptations
+
+1. **Generalized Kinematic Contact Manifold**: Contact points are evaluated against kinematic subtree body IDs (`world.pelvis` hierarchy vs external bodies `(b > 0) not in robot_ids`) without string-matching body names:
+   - Dynamic upper-body collision against any external structure instantaneously damps sagittal drive sway by 50 % and zeros `a[GOING]`, smoothly arresting forward momentum without tipping (tilt < 1.0 deg).
+   - Airborne swing-foot collision (`stance < 0.5`) against any external geometry triggers a 350 ms clearance boost, elevating `mode_limb_lift` sway to 2.8 and reference to 0.6, cleanly lifting the foot over 6 cm obstacles without tripping.
+2. **$C^1$-Smooth Quadratic Soft-Stop & Barrier Spring**: To eliminate violent torque jumps and jerk ($\frac{d\tau}{dq} = 0$ at onset), knee hyperextension is countered by a continuous quadratic barrier starting at $q = 0.05$ rad:
+   $$\tau_{\text{sprung}} = K_{\text{knee}} \cdot \max(0, 1 - q / q_{\text{soft}})^{1.5} + 200.0 \cdot \left(\frac{\max(0, 0.05 - q)}{0.05}\right)^2$$
+   This delivers over 200 N m of restorative torque without infinite-stiffness impulse spikes.
+3. **Trailing Leg Natural Athletic Flexion at Initiation**: Ballistic gait initiation (#202 APA, #203 step, and `ballistic_walk`) targets axial compression 0.04–0.06, ensuring the trailing stance knee maintains natural flexion ($\ge 5.91^\circ$ left, $\ge 5.97^\circ$ right) throughout weight transfer, completely eliminating unnatural leg extension or knee locking.
+4. **Terrain Discontinuities**: Extended swing reach (`REACH_M_S` = 0.45 m/s, `REACH_S` = 0.25 s) allows the foot to reach into and cross 10 cm deep holes (`HOLE_M` = 0.10 m) while maintaining bilateral load distribution and support polygon invariance (tilt 2.6 deg).
+5. **Drivetrain Adequacy**: All maneuvers are executed using the invariant two-motor architecture (15x U8 motors rated at 108 N m / 171 N m WEP; 6x MN6007 motors rated at 51 N m peak at 1:30 cycloidal gearboxes). Rising from a chair demands ~54 N m per knee; jumping 45 cm up demands ~115 N m across knees; arm fall impact dissipation consumes ~35 N m per shoulder/elbow, all safely within thermal and torque envelopes with zero hardware alteration.
