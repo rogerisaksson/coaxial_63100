@@ -29,6 +29,9 @@ NAMED = {
     'lie_floor': 'lie floor', 'rise_floor': 'rise floor', 'hop_down_chair': 'hop down chair',
     'hop_up_chair': 'hop up chair', 'stairs_walk': 'stairs walk', 'ice_walk': 'ice walk',
     'slope_walk': 'slope walk', 'parry_shove': 'parry shove', 'controlled_fall': 'controlled fall',
+    'strafe_left': 'strafe left (A)', 'strafe_right': 'strafe right (D)',
+    'turn_left': 'turn left (WA)', 'turn_right': 'turn right (WD)',
+    'turn_back_left': 'turn back left (SA)', 'turn_back_right': 'turn back right (SD)',
 }
 #: Named keys to trigger stunts directly from the terminal.
 STUNTS = {
@@ -90,7 +93,7 @@ def _shoved(event, along):
 
 
 def table(keys):
-    """`keys` (the page's own) with the gym's laid over them: arrows walk and back, digits say moves."""
+    """`keys` (the page's own) with the gym's laid over them: arrows and WASD walk, back and strafe, digits say moves."""
     out = dict(keys)
     out[NEXT] = _next
     out['<'] = _next_scenario
@@ -99,16 +102,54 @@ def table(keys):
     out['\n'] = lambda state: _run_scenario(state)
     out['up'] = lambda state: state['body'].send(say=3)      # #204 gentle walk forward
     out['down'] = lambda state: state['body'].send(say=4)    # #205 step backward / brake
-    out['left'] = lambda state: state['body'].send(say=1)    # #202 sway left
-    out['right'] = lambda state: state['body'].send(say=1)   # #202 sway right
+    out['left'] = lambda state: state['body'].send(say='strafe_left' if state.get('wasd_mode') else 1)
+    out['right'] = lambda state: state['body'].send(say='strafe_right' if state.get('wasd_mode') else 1)
     out.update((k, lambda state, i=i: state['body'].send(say=i)) for i, k in enumerate(DIGITS))
-    out.update((k, lambda state: state['body'].send(walk=True)) for k in WALKS)
     out.update((k, _shoved(*how)) for k, how in PUSHES.items())
     for name, key in STUNTS.items():
         handler = (lambda state, n=name: state['body'].send(say=n))
         out[key] = handler
         if key.isalpha():
             out[key.upper()] = handler
+
+    # Quake WASD & toggle handlers
+    def _toggle_wasd(state):
+        state['wasd_mode'] = not state.get('wasd_mode', False)
+
+    def _key_w(state):
+        if state.get('wasd_mode'):
+            state['body'].send(say=3)
+        else:
+            state['body'].send(walk=True)
+
+    def _key_s(state):
+        if state.get('wasd_mode'):
+            state['body'].send(say=4)
+        else:
+            state['body'].send(say='sit_chair')
+
+    def _key_a(state):
+        if state.get('wasd_mode'):
+            state['body'].send(say='strafe_left')
+        else:
+            state['body'].send(restart=True)
+
+    def _key_d(state):
+        if state.get('wasd_mode'):
+            state['body'].send(say='strafe_right')
+        else:
+            state['body'].send(say='hop_down_chair')
+
+    for k in ('~', '`', '§', '½'):
+        out[k] = _toggle_wasd
+    for k in 'wW':
+        out[k] = _key_w
+    for k in 'sS':
+        out[k] = _key_s
+    for k in 'aA':
+        out[k] = _key_a
+    for k in 'dD':
+        out[k] = _key_d
     return out
 
 
@@ -124,7 +165,7 @@ def status(now):
     return 'LATENT  %s' % NAMED.get(now['doing'], now['doing'])
 
 
-def boxes(now):
+def boxes(now, wasd=False):
     """The side column's boxes: each mode asked and as she is, its spring's N/m and N s/m; what
     each digit and stunt key says."""
     if not now:
@@ -135,7 +176,13 @@ def boxes(now):
     scen = now.get('scenario', 'flat')
     scen_mv = SCENARIO_MOVES.get(scen, '')
     scen_label = 'scen: %s [%s]' % (scen, NAMED.get(scen_mv, scen_mv)) if scen_mv else 'scen: ' + scen
-    say_rows = [('<', scen_label), ('^/v', 'fwd / back')]
+    wasd_on = wasd or now.get('wasd_mode', False)
+    say_rows = [('~ / §', 'WASD: %s' % ('ON' if wasd_on else 'OFF')), ('<', scen_label)]
+    if wasd_on:
+        say_rows.append(('WASD', 'fwd/back/strafe'))
+        say_rows.append(('WA/SD', 'curves/turns'))
+    else:
+        say_rows.append(('^/v', 'fwd / back'))
     seen = set()
     for i, s in enumerate(entries):
         if s.startswith('#'):

@@ -127,15 +127,34 @@ def log_key(key, action=''):
         pass
 
 
-def _action_of(key):
+def _action_of(key, wasd_mode=False):
+    if key in ('~', '`', '§', '½'):
+        return 'toggle WASD / Quake mode'
+    if wasd_mode:
+        if key in ('w', 'W'):
+            return 'WASD: walk forward (#204)'
+        if key in ('s', 'S'):
+            return 'WASD: step backward / brake (#205)'
+        if key in ('a', 'A'):
+            return 'WASD: strafe left'
+        if key in ('d', 'D'):
+            return 'WASD: strafe right'
+        if key in ('wa', 'WA'):
+            return 'WASD: turn left (WA, vänstersväng)'
+        if key in ('wd', 'WD'):
+            return 'WASD: turn right (WD, högersväng)'
+        if key in ('sa', 'SA'):
+            return 'WASD: turn back left (SA, bakåt-vänstersväng)'
+        if key in ('sd', 'SD'):
+            return 'WASD: turn back right (SD, SD-högersväng)'
     if key == 'up':
         return 'arrow up: walk forward (#204)'
     if key == 'down':
         return 'arrow down: step backward / brake (#205)'
     if key == 'left':
-        return 'arrow left: sway left (#202)'
+        return 'arrow left: sway / strafe left'
     if key == 'right':
-        return 'arrow right: sway right (#202)'
+        return 'arrow right: sway / strafe right'
     if key in ('\r', '\n'):
         return 'enter: run scenario action'
     if key == '4':
@@ -160,12 +179,55 @@ def _action_of(key):
     return ''
 
 
+CHORDS = {
+    frozenset(('w', 'a')): ('wa', 'turn_left'),
+    frozenset(('w', 'd')): ('wd', 'turn_right'),
+    frozenset(('s', 'd')): ('sd', 'turn_back_right'),
+    frozenset(('s', 'a')): ('sa', 'turn_back_left'),
+}
+
+
+def _match_chord(keys_set):
+    for pair, target in CHORDS.items():
+        if pair.issubset(keys_set):
+            return target[0], target[1], tuple(pair)
+    return None
+
+
+def _check_wasd_chords(typed, state):
+    if not (state.get('wasd_mode') and typed):
+        return typed
+    lowered = [k.lower() if isinstance(k, str) else k for k in typed]
+    t_now = time.monotonic()
+    last_k, last_t = state.get('_last_wasd', (None, 0.0))
+
+    found = _match_chord(set(lowered))
+    if not found and last_k and (t_now - last_t) < 0.35:
+        pair = frozenset((last_k, lowered[0]))
+        if pair in CHORDS:
+            tag, mv = CHORDS[pair]
+            found = (tag, mv, (lowered[0],))
+
+    if found:
+        tag, mv, consumed = found
+        state['body'].send(say=mv)
+        log_key(tag, _action_of(tag, wasd_mode=True))
+        state['_last_wasd'] = (None, 0.0)
+        return [k for k in typed if (k.lower() if isinstance(k, str) else k) not in consumed]
+
+    for k in lowered:
+        if k in ('w', 'a', 's', 'd'):
+            state['_last_wasd'] = (k, t_now)
+    return typed
+
+
 def act_on(keys, typed, state, wheel=0.0):
     """`typed` and the wheel on the view's `state`, by `keys` (`table`)."""
     if wheel:
         viewpoint.zoomed(state, max(0.5, 1.0 + wheel))
     state.setdefault('typed', []).extend(typed)
+    typed = _check_wasd_chords(typed, state)
     for key in typed:
-        log_key(key, _action_of(key))
+        log_key(key, _action_of(key, wasd_mode=state.get('wasd_mode', False)))
         if key in keys:
             keys[key](state)

@@ -171,19 +171,38 @@ def labels(now, called, shown='torque'):
 
 #: The bar: the keys typed most; TAB slides the rest up in groups (`stage.helped`): her loop,
 #: the view, the page.
-BAR = (('TAB', 'KEYS'), ('ARROWS', 'WALK'), ('< ENT', 'SCENARIO'), ('STUNTS', 's e x m..'),
-       ('SPC', 'PUSH'), ('A', 'RESET'), ('R', 'RECORD'), ('Q', 'EXIT'))
+BAR = (('TAB', 'KEYS'), ('~ / §', 'WASD'), ('ARROWS', 'WALK'), ('< ENT', 'SCENARIO'),
+       ('STUNTS', 's e x m..'), ('SPC', 'PUSH'), ('A', 'RESET'), ('Q', 'EXIT'))
+
+
+def bar_for(state):
+    """The bottom bar: adapts when Quake WASD mode is active."""
+    if state.get('wasd_mode'):
+        return (('TAB', 'KEYS'), ('~ / §', 'NORMAL'), ('WASD', 'MOVE'), ('WA/SD', 'CURVES'),
+                ('MOUSE', 'LOOK'), ('< ENT', 'SCENARIO'), ('SPC', 'PUSH'), ('Q', 'EXIT'))
+    return BAR
+
+
 GROUPS = (
-    ('MOVE', (('UP', 'walk forward (#204 gentle cruise)'),
-              ('DOWN', 'step backward / brake (#205)'),
-              ('LEFT RIGHT', 'sway / lateral step (#202)'),
-              ('W', 'walk from rest'),
-              ('1-5', '#201 stand, #202 sway, #203 step, #204 walk, #205 back'),
-              ('A', 'again: reset & stand anew'))),
+    ('QUAKE (WASD)', (('~ / §', 'toggle QUAKE / NORMAL mode'),
+                      ('W', 'walk forward (#204 gentle cruise)'),
+                      ('S', 'step backward / brake (#205)'),
+                      ('A', 'strafe left'),
+                      ('D', 'strafe right'),
+                      ('WA', 'vänstersväng (forward-left turn)'),
+                      ('WD', 'högersväng (forward-right turn)'),
+                      ('SA', 'bakåt-vänstersväng'),
+                      ('SD', 'bakåt-högersväng (SD-högersväng)'),
+                      ('MOUSE L-DRAG', 'look around in 3D (mouselook)'))),
+    ('MOVE (ARROWS)', (('UP', 'walk forward (#204 gentle cruise)'),
+                       ('DOWN', 'step backward / brake (#205)'),
+                       ('LEFT RIGHT', 'sway / strafe left / right'),
+                       ('1-5', '#201 stand, #202 sway, #203 step, #204 walk, #205 back'),
+                       ('A', 'again: reset & stand anew (when not in WASD)'))),
     ('SCENARIO', (('< ,', 'cycle scenario + auto-move'),
                   ('ENTER', 'run / replay active scenario'),
                   ('scenarios', 'flat, chair, bed, slope, stairs, ice, snow, obstacle, sill, hole, rug'))),
-    ('STUNTS', (('s / u', 'sit chair / rise chair'),
+    ('STUNTS', (('s / u', 'sit chair / rise chair (in normal mode)'),
                 ('j / d', 'hop up chair / hop down chair'),
                 ('e / g', 'lie bed / rise bed'),
                 ('f / k', 'lie floor / rise floor'),
@@ -194,7 +213,7 @@ GROUPS = (
     ('PUSH', (('SPACE', 'hold to charge push along view vector'),
               ('P N', 'lateral push / nudge'),
               ('shift', 'longitudinal along walk'))),
-    ('VIEW (MOUSE)', (('L-DRAG', 'rotate / orbit camera'),
+    ('VIEW (MOUSE)', (('L-DRAG', 'rotate / orbit camera (mouselook)'),
                       ('R-DRAG', 'pan viewport'),
                       ('WHEEL', 'zoom in / out'),
                       ('V', 'home camera view'),
@@ -217,7 +236,9 @@ def boxes(state, now, name):
     """The side column: her modes and her moves, the body, then each limb's joints as they
     read back."""
     angles = now['angles'] if now else {}
-    out = gym.boxes(now) + [hud('BODY', [
+    wasd = state.get('wasd_mode', False)
+    out = gym.boxes(now, wasd=wasd) + [hud('BODY', [
+        ('control', 'QUAKE (WASD)' if wasd else 'NORMAL'),
         ('status', gym.status(now)),
         ('rhythm', '%.2f strides/s' % (now['cadence'] if now else 0.0)),
         ('speed', '%.2f m/s' % (now['speed'] if now else 0.0)),
@@ -305,7 +326,7 @@ def main(argv=None):
                                                   if state['called'] != 'none' else None),
                                           dressed=state['skin'] == 'dressed',
                                           see=_seen(state)))
-        return frame_of(board_view, ORIGIN, TITLE, art, boxes(state, now, name), BAR,
+        return frame_of(board_view, ORIGIN, TITLE, art, boxes(state, now, name), bar_for(state),
                         gauges=gauges(state), help=(GROUPS, up))
 
     leaving = None

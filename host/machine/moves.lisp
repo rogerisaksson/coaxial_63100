@@ -651,3 +651,120 @@
       (stiffness mode_pitch_attitude 1500) (damping mode_pitch_attitude 300))
     (cpg_override (halt_oscillators))
     (task_constraints (maintain_zmp (polygon support_polygon)))))
+
+;; strafe left: lateral stepping and CoM shift to the left (Quake A)
+(defbehavior strafe_left
+  (phase shift
+    (duration 60s)
+    (blend_duration 800ms)
+    (latent_targets
+      (mode_lateral_shift 0.40)
+      (mode_pitch_attitude 0.0)
+      (mode_sagittal_shift 0.0))
+    (cpg_config
+      (enable true)
+      (frequency 1.0Hz)
+      (amplitude mode_lateral_shift 0.45)
+      (amplitude mode_limb_lift 0.6)
+      (amplitude mode_stance_width 0.25)
+      (amplitude mode_sagittal_drive 0.05)
+      (phase_offset mode_lateral_shift mode_sagittal_drive 108deg))
+    (task_constraints (maintain_zmp (polygon dynamic_footprint)))))
+
+;; strafe right: lateral stepping and CoM shift to the right (Quake D)
+(defbehavior strafe_right
+  (phase shift
+    (duration 60s)
+    (blend_duration 800ms)
+    (latent_targets
+      (mode_lateral_shift -0.40)
+      (mode_pitch_attitude 0.0)
+      (mode_sagittal_shift 0.0))
+    (cpg_config
+      (enable true)
+      (frequency 1.0Hz)
+      (amplitude mode_lateral_shift 0.45)
+      (amplitude mode_limb_lift 0.6)
+      (amplitude mode_stance_width 0.25)
+      (amplitude mode_sagittal_drive 0.05)
+      (phase_offset mode_lateral_shift mode_sagittal_drive -108deg))
+    (task_constraints (maintain_zmp (polygon dynamic_footprint)))))
+
+;; turn left (Quake WA, vänstersväng): forward cruise with left yaw turn
+(defbehavior turn_left
+  (phase turn
+    (duration 60s)
+    (blend_duration 1000ms)
+    (latent_targets
+      (mode_pelvis_turn 0.45)
+      (mode_lateral_shift 0.15)
+      (mode_pitch_attitude 0.0))
+    (cpg_config
+      (enable true)
+      (frequency 1.05Hz)
+      (amplitude mode_sagittal_drive 0.50)
+      (amplitude mode_foot_rock 0.50)
+      (amplitude mode_pelvis_turn 0.50)
+      (amplitude mode_pelvis_list 0.35)
+      (amplitude mode_arm_swing 0.70))
+    (task_constraints (maintain_zmp (polygon dynamic_footprint)))))
+
+;; turn right (Quake WD, högersväng): forward cruise with right yaw turn
+(defbehavior turn_right
+  (phase turn
+    (duration 60s)
+    (blend_duration 1000ms)
+    (latent_targets
+      (mode_pelvis_turn -0.45)
+      (mode_lateral_shift -0.15)
+      (mode_pitch_attitude 0.0))
+    (cpg_config
+      (enable true)
+      (frequency 1.05Hz)
+      (amplitude mode_sagittal_drive 0.50)
+      (amplitude mode_foot_rock 0.50)
+      (amplitude mode_pelvis_turn 0.50)
+      (amplitude mode_pelvis_list 0.35)
+      (amplitude mode_arm_swing 0.70))
+    (task_constraints (maintain_zmp (polygon dynamic_footprint)))))
+
+;; turn back left (Quake SA, bakåt-vänstersväng)
+(defbehavior turn_back_left
+  (phase turn
+    (duration 60s)
+    (blend_duration 1500ms)
+    (latent_targets
+      (mode_pelvis_turn 0.20)
+      (mode_lateral_shift 0.10)
+      (mode_pitch_attitude 0.0))
+    (cpg_config
+      (enable true)
+      (frequency 0.90Hz)
+      (amplitude mode_sagittal_drive 0.20)
+      (amplitude mode_foot_rock 0.0)
+      (amplitude mode_pelvis_turn 0.15)
+      (amplitude mode_pelvis_list 0.0)
+      (amplitude mode_arm_swing 0.0)
+      (phase_offset mode_lateral_shift mode_sagittal_drive -108deg))
+    (task_constraints (maintain_zmp (polygon dynamic_footprint)))))
+
+;; turn back right (Quake SD, SD-högersväng)
+(defbehavior turn_back_right
+  (phase turn
+    (duration 60s)
+    (blend_duration 1500ms)
+    (latent_targets
+      (mode_pelvis_turn -0.20)
+      (mode_lateral_shift -0.10)
+      (mode_pitch_attitude 0.0))
+    (cpg_config
+      (enable true)
+      (frequency 0.90Hz)
+      (amplitude mode_sagittal_drive 0.20)
+      (amplitude mode_foot_rock 0.0)
+      (amplitude mode_pelvis_turn 0.15)
+      (amplitude mode_pelvis_list 0.0)
+      (amplitude mode_arm_swing 0.0)
+      (phase_offset mode_lateral_shift mode_sagittal_drive -108deg))
+    (task_constraints (maintain_zmp (polygon dynamic_footprint)))))
+

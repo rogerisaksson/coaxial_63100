@@ -336,6 +336,45 @@ def test_gentle_walk_mode_4_ballistic_initiation_and_keylogger(report):
                  'final speed: %.2f m/s' % final_speed)
 
 
+def test_quake_wasd_locomotion_and_curves(report):
+    """Test Quake WASD behaviors: strafe left/right, and compound turns WA (vänstersväng) and SD (högersväng)."""
+    from machine import sprung
+    g = sprung.laid()
+    gym = sprung.entries(name='moves')
+    by = {e[0]: e for e in gym}
+
+    # Strafe left (A)
+    report.check('strafe_left behavior exists in gym', 'strafe_left' in by)
+    sprung.said(g, *by['strafe_left'], at=g['t'])
+    for _ in range(1500):
+        sprung.passed(g, 0.001)
+    tilt_strafe = sprung.tilt(g)
+    report.check('strafe left executes with stable upright posture (< 10 deg)', tilt_strafe < 10.0,
+                 'tilt: %.1f deg' % tilt_strafe)
+    report.check('strafe left shifts position across towards +x', g['world'].data.qpos[0] > 0.1,
+                 'x: %.3f m' % g['world'].data.qpos[0])
+
+    # Turn left (WA, vänstersväng)
+    g_wa = sprung.laid()
+    report.check('turn_left behavior exists in gym', 'turn_left' in by)
+    sprung.said(g_wa, *by['turn_left'], at=g_wa['t'])
+    for _ in range(1500):
+        sprung.passed(g_wa, 0.001)
+    tilt_wa = sprung.tilt(g_wa)
+    report.check('WA turn left executes cleanly without falling', tilt_wa < 10.0,
+                 'tilt: %.1f deg' % tilt_wa)
+
+    # Turn back right (SD, SD-högersväng)
+    g_sd = sprung.laid()
+    report.check('turn_back_right behavior exists in gym', 'turn_back_right' in by)
+    sprung.said(g_sd, *by['turn_back_right'], at=g_sd['t'])
+    for _ in range(1500):
+        sprung.passed(g_sd, 0.001)
+    tilt_sd = sprung.tilt(g_sd)
+    report.check('SD turn back right executes cleanly without falling', tilt_sd < 10.0,
+                 'tilt: %.1f deg' % tilt_sd)
+
+
 ROSTER = [
     test_stunts_compile_and_execute,
     test_all_scenarios_instantiation_and_props,
@@ -348,6 +387,7 @@ ROSTER = [
     test_moderate_and_severe_shove_reflexes,
     test_ballistic_start_trailing_leg_flexion_and_smooth_transitions,
     test_random_mode_transitions_without_crashes,
+    test_quake_wasd_locomotion_and_curves,
 ]
 
 

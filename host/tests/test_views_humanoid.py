@@ -66,6 +66,25 @@ def test_the_humanoid_pages_keys(report):
     report.check('arrows drive forward and back, < cycles scenario and move, enter runs scenario',
                  sent[0] == {'say': 3} and sent[1] == {'say': 4}
                  and 'scenario' in sent[2] and 'say' in sent[3], '%s' % sent)
+    from terminal.views import humanoid_keys
+    sent.clear()
+    show_humanoid.KEYS['~'](state)
+    report.check('tilde / § toggles WASD mode on', state.get('wasd_mode') is True)
+    for k in 'wsad':
+        show_humanoid.KEYS[k](state)
+    report.check('WASD in Quake mode drives forward, back, strafe left and right',
+                 sent == [{'say': 3}, {'say': 4}, {'say': 'strafe_left'}, {'say': 'strafe_right'}],
+                 '%s' % sent)
+    sent.clear()
+    humanoid_keys.act_on(show_humanoid.KEYS, ['w', 'a'], state)
+    report.check('WA chord executes left turn (vänstersväng)',
+                 sent == [{'say': 'turn_left'}], '%s' % sent)
+    sent.clear()
+    humanoid_keys.act_on(show_humanoid.KEYS, ['s', 'd'], state)
+    report.check('SD chord executes right backward turn (SD-högersväng)',
+                 sent == [{'say': 'turn_back_right'}], '%s' % sent)
+    show_humanoid.KEYS['§'](state)
+    report.check('§ toggles WASD mode off again', state.get('wasd_mode') is False)
 
 
 def test_a_held_space_charges_a_push(report):
