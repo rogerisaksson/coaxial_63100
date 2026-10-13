@@ -35,7 +35,7 @@ RATE_HZ, SLICE_S, SAY_S, AVERAGE_S, RECOVER_S = 1000.0, 0.05, 1.0 / 60.0, 0.05, 
 #: The shoves, newtons for SHOVE_S: a nudge 0.13 m/s on her, a push, a shove.
 SHOVES, SHOVE_S = {'nudge': 38.0, 'push': 80.0, 'shove': 120.0}, 0.12
 #: What the worker hears (`Running.send`).
-HEARD = ('say', 'walk', 'entries', 'gym', 'text', 'push', 'seconds', 'restart')
+HEARD = ('say', 'walk', 'entries', 'gym', 'text', 'push', 'seconds', 'restart', 'scenario')
 #: Her walk from rest: her moves' payloads (GYMS[0]) and the second each is said at.
 WALK = (('#201', 0.5), ('#202', 2.0), ('#203', 5.0), ('#204', 9.0))
 #: Her braking stride when asked to stop or switch from a walk: capture-point stepping kept
@@ -201,6 +201,7 @@ def laid(every=1, inner=None, solver=None):
          'soles_l': np.flatnonzero(world.soles[:, 0]),
          'soles_r': np.flatnonzero(world.soles[:, 1]),
          'stumble_until': 0.0,
+         'scenario': 'flat',
          'solve': {'stack': wbc.step, 'wrench': wrench.step}[solver or SOLVER]}
     world.clock = lambda: g['t']
     return g
@@ -338,6 +339,7 @@ def state(g, torque, power, watts, ratio, fallen_at, says=(), refused=None):
             'loads': tuple(g['loads']), 'props': world.props(), 'doing': doing(g),
             'recover': None if fallen_at is None else RECOVER_S - (g['t'] - fallen_at),
             'ratio': min(ratio, 99.0), 'says': tuple(says), 'refused': refused,
+            'scenario': g.get('scenario', 'flat'),
             'modes': [(name, float(out[latent.REF][i]), float(z[i]), float(out[latent.KS][i]),
                        float(out[latent.DS][i])) for i, name in enumerate(ortho.MODES)]}
 
@@ -458,6 +460,10 @@ def _heard(g, gym, command):
         walked(g)
     for entry in command.get('entries', ()):
         said(g, *entry)
+    if 'scenario' in command:
+        scen = command['scenario']
+        g['scenario'] = scen
+        g['world'].scenario(scen)
     if 'push' in command:
         force = command['push']
         secs = command.get('seconds', SHOVE_S)

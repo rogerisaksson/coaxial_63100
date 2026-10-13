@@ -213,8 +213,78 @@ def test_random_mode_transitions_without_crashes(report):
                      fell is None and sprung.tilt(g) < 25.0, 'modes=%s fell=%s, tilt=%.1f deg' % (modes, fell, sprung.tilt(g)))
 
 
+def test_all_scenarios_instantiation_and_props(report):
+    """Every floor scenario instantiates in MuJoCo, returns 3D bounding props, and matches graphics inks."""
+    from coaxial.graphics import gynoid
+    from machine import floor, physics
+    world = physics.World()
+    scenarios = floor.SCENARIOS
+    report.check('all 11 scenarios present in floor.SCENARIOS', len(scenarios) == 11, str(scenarios))
+
+    for name in scenarios:
+        world.scenario(name)
+        pr = world.props()
+        if name in ('flat', 'clear', 'none'):
+            report.check('%s scenario has 0 props' % name, len(pr) == 0, '%s' % pr)
+        else:
+            report.check('%s scenario has props' % name, len(pr) > 0, '%s: %d props' % (name, len(pr)))
+            for kind, pos, half, rot in pr:
+                report.check('%s prop %s has registered graphic ink' % (name, kind),
+                             kind in gynoid.PROP_INK, 'kind=%s pos=%s' % (kind, pos))
+                report.check('%s prop has valid 3D dims and rot matrix' % name,
+                             len(pos) == 3 and len(half) == 3 and len(rot) == 3 and len(rot[0]) == 3)
+
+
+def test_stunts_executed_on_specialized_scenarios(report):
+    """Stunts execute smoothly on their corresponding environmental scenarios."""
+    from machine import floor, ortho, sprung
+    gym = sprung.entries()
+
+    # 1. Chair scenario: sit_chair and rise_chair
+    g_chair = sprung.laid()
+    sprung._heard(g_chair, gym, {'scenario': 'chair'})
+    report.check('scenario set to chair', g_chair.get('scenario') == 'chair')
+    sprung._heard(g_chair, gym, {'say': 'sit_chair'})
+    for _ in range(300):
+        sprung.passed(g_chair, 0.001)
+    report.check('sit_chair on chair scenario completes without fall', sprung.tilt(g_chair) < 25.0,
+                 'tilt: %.1f deg' % sprung.tilt(g_chair))
+
+    # 2. Ice scenario: ice_walk
+    g_ice = sprung.laid()
+    sprung._heard(g_ice, gym, {'scenario': 'ice'})
+    report.check('scenario set to ice', g_ice.get('scenario') == 'ice')
+    sprung._heard(g_ice, gym, {'say': 'ice_walk'})
+    for _ in range(500):
+        sprung.passed(g_ice, 0.001)
+    report.check('ice_walk on ice scenario negotiates slick surface', sprung.tilt(g_ice) < 25.0,
+                 'tilt: %.1f deg' % sprung.tilt(g_ice))
+
+    # 3. Slope scenario: slope_walk
+    g_slope = sprung.laid()
+    sprung._heard(g_slope, gym, {'scenario': 'slope'})
+    report.check('scenario set to slope', g_slope.get('scenario') == 'slope')
+    sprung._heard(g_slope, gym, {'say': 'slope_walk'})
+    for _ in range(500):
+        sprung.passed(g_slope, 0.001)
+    report.check('slope_walk on slope scenario traverses ramp without fall', sprung.tilt(g_slope) < 25.0,
+                 'tilt: %.1f deg' % sprung.tilt(g_slope))
+
+    # 4. Bed scenario: lie_bed
+    g_bed = sprung.laid()
+    sprung._heard(g_bed, gym, {'scenario': 'bed'})
+    report.check('scenario set to bed', g_bed.get('scenario') == 'bed')
+    sprung._heard(g_bed, gym, {'say': 'lie_bed'})
+    for _ in range(300):
+        sprung.passed(g_bed, 0.001)
+    report.check('lie_bed on compliant bed scenario completes without error', sprung.tilt(g_bed) < 30.0,
+                 'tilt: %.1f deg' % sprung.tilt(g_bed))
+
+
 ROSTER = [
     test_stunts_compile_and_execute,
+    test_all_scenarios_instantiation_and_props,
+    test_stunts_executed_on_specialized_scenarios,
     test_wall_obstacle_collision_and_compliance,
     test_tree_obstacle_collision_and_compliance,
     test_stumble_reflex_boosts_limb_lift,

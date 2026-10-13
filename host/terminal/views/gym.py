@@ -56,6 +56,15 @@ def _next(state):
     state['body'].send(gym=state['gym'])
 
 
+def _next_scenario(state):
+    from machine import floor
+    scens = floor.SCENARIOS
+    cur = state.get('scenario', 'flat')
+    nxt = scens[(scens.index(cur) + 1) % len(scens)] if cur in scens else scens[0]
+    state['scenario'] = nxt
+    state['body'].send(scenario=nxt)
+
+
 def _shoved(event, along):
     def shove(state):
         state['side'] = -state['side']
@@ -68,6 +77,8 @@ def table(keys):
     """`keys` (the page's own) with the gym's laid over them."""
     out = dict(keys)
     out[NEXT] = _next
+    out['<'] = _next_scenario
+    out[','] = _next_scenario
     out.update((k, lambda state, i=i: state['body'].send(say=i)) for i, k in enumerate(DIGITS))
     out.update((k, lambda state: state['body'].send(walk=True)) for k in WALKS)
     out.update((k, _shoved(*how)) for k, how in PUSHES.items())
@@ -99,7 +110,8 @@ def boxes(now):
     says = now['says']
     gym_name = says[0]
     entries = says[1:]
-    say_rows = []
+    scen = now.get('scenario', 'flat')
+    say_rows = [('<', 'scen: ' + scen)]
     for i, s in enumerate(entries):
         if i < len(DIGITS):
             key = DIGITS[i]

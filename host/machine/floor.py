@@ -44,6 +44,21 @@ STEPS, RISE_M, RUN_M, TOP_M = 5, 0.08, 0.425, 1.5
 BRICK, BOARD, BOARD_HINGE_M, BOARD_KG = (0.06, 0.031, 0.125), (0.25, 0.005, 0.20), 0.02, 1.2
 BOARD_K, BOARD_C = 3000.0, 20.0
 
+#: A chair for sitting and hopping: seat at SEAT_H, size (width, thickness, depth).
+CHAIR_SEAT, CHAIR_SEAT_H, CHAIR_BACK = (0.22, 0.02, 0.22), 0.45, (0.22, 0.20, 0.02)
+#: A soft bed: mattress half size (width, half-thickness, half-length), frame.
+BED_MATTRESS, BED_MATTRESS_H, BED_FRAME = (0.50, 0.12, 1.0), 0.45, (0.52, 0.08, 1.02)
+#: A slope ramp: 10 degree incline, half length, half width, half thickness.
+SLOPE_ANGLE_DEG, SLOPE_HALF = 10.0, (0.60, 0.05, 1.44)
+SLOPE_TOP_HALF, SLOPE_TOP_H = (0.60, 0.25, 0.60), 0.50
+#: An ice sheet: low friction (0.02), width 1.2m, length 2.5m.
+ICE_HALF, ICE_FRICTION = (0.60, 0.02, 1.25), 0.02
+#: A snow patch: compliant and high rolling drag, width 1.2m, length 2.5m.
+SNOW_HALF, SNOW_FRICTION = (0.60, 0.03, 1.25), 0.35
+
+#: The environment scenarios that can be placed on the floor:
+SCENARIOS = ('flat', 'chair', 'bed', 'slope', 'stairs', 'ice', 'snow', 'obstacle', 'sill', 'hole', 'rug')
+
 
 def _rock():
     """How far the board rocks either way, degrees: an edge on the plane."""
@@ -85,7 +100,43 @@ def ground(contacts, give, torsion):
         '<body name="wall" mocap="true" pos="0 -5 0"><geom type="box" size="2.0 1.2 0.05"%s/></body>'
         % (contacts,),
         '<body name="tree" mocap="true" pos="0 -5 0"><geom type="cylinder" size="0.15 1.5"%s/></body>'
-        % (contacts,)]
+        % (contacts,),
+        '<body name="chair" mocap="true" pos="0 -5 0">'
+        '<geom name="chair_seat" type="box" size="%g %g %g" pos="0 %g 0"%s/>'
+        '<geom name="chair_back" type="box" size="%g %g %g" pos="0 %g %g"%s/>'
+        '<geom name="chair_leg_fl" type="box" size="0.02 %g 0.02" pos="-0.19 %g -0.19"%s/>'
+        '<geom name="chair_leg_fr" type="box" size="0.02 %g 0.02" pos="0.19 %g -0.19"%s/>'
+        '<geom name="chair_leg_bl" type="box" size="0.02 %g 0.02" pos="-0.19 %g 0.19"%s/>'
+        '<geom name="chair_leg_br" type="box" size="0.02 %g 0.02" pos="0.19 %g 0.19"%s/>'
+        '</body>' % (
+            CHAIR_SEAT + (CHAIR_SEAT_H - CHAIR_SEAT[1], contacts)
+            + CHAIR_BACK + (CHAIR_SEAT_H + CHAIR_BACK[1], CHAIR_SEAT[2], contacts)
+            + ((CHAIR_SEAT_H - 2 * CHAIR_SEAT[1]) / 2.0, (CHAIR_SEAT_H - 2 * CHAIR_SEAT[1]) / 2.0, contacts)
+            + ((CHAIR_SEAT_H - 2 * CHAIR_SEAT[1]) / 2.0, (CHAIR_SEAT_H - 2 * CHAIR_SEAT[1]) / 2.0, contacts)
+            + ((CHAIR_SEAT_H - 2 * CHAIR_SEAT[1]) / 2.0, (CHAIR_SEAT_H - 2 * CHAIR_SEAT[1]) / 2.0, contacts)
+            + ((CHAIR_SEAT_H - 2 * CHAIR_SEAT[1]) / 2.0, (CHAIR_SEAT_H - 2 * CHAIR_SEAT[1]) / 2.0, contacts)),
+        '<body name="bed" mocap="true" pos="0 -5 0">'
+        '<geom name="bed_mattress" type="box" size="%g %g %g" pos="0 %g 0" priority="2" condim="4"'
+        ' solref="0.04 1" solimp="0.8 0.95 0.05"%s/>'
+        '<geom name="bed_frame" type="box" size="%g %g %g" pos="0 %g 0"%s/>'
+        '<geom name="bed_headboard" type="box" size="%g 0.25 0.03" pos="0 %g %g"%s/>'
+        '</body>' % (
+            BED_MATTRESS + (BED_MATTRESS_H - BED_MATTRESS[1], contacts)
+            + BED_FRAME + (BED_FRAME[1], contacts)
+            + (BED_FRAME[0], BED_MATTRESS_H + 0.25, BED_MATTRESS[2] + 0.03, contacts)),
+        '<body name="slope_ramp" mocap="true" pos="0 -5 0">'
+        '<geom name="slope_ramp" type="box" size="%g %g %g"%s/></body>' % (
+            SLOPE_HALF + (contacts,)),
+        '<body name="slope_top" mocap="true" pos="0 -5 0">'
+        '<geom name="slope_top" type="box" size="%g %g %g"%s/></body>' % (
+            SLOPE_TOP_HALF + (contacts,)),
+        '<body name="ice" mocap="true" pos="0 -5 0">'
+        '<geom name="ice" type="box" size="%g %g %g" priority="2" condim="4" friction="%g %g 0.001"%s%s/></body>' % (
+            ICE_HALF + (ICE_FRICTION, torsion, give, contacts)),
+        '<body name="snow" mocap="true" pos="0 -5 0">'
+        '<geom name="snow" type="box" size="%g %g %g" priority="2" condim="4" friction="%g %g 0.001"'
+        ' solref="0.04 0.8" solimp="0.8 0.95 0.05"%s/></body>' % (
+            SNOW_HALF + (SNOW_FRICTION, torsion, contacts))]
 
 
 def rug(give, friction, torsion):
@@ -121,7 +172,8 @@ def park(world):
     """The floor whole, its events out of the way: the sill and the patch under the plane,
     the rug on the floor PARKED_M back."""
     slab(world, SEAM_M, SEAM_M)
-    for name in ('sill', 'slip', 'brick_left', 'brick_right', 'board_base', 'wall', 'tree'):
+    for name in ('sill', 'slip', 'brick_left', 'brick_right', 'board_base', 'wall', 'tree',
+                 'chair', 'bed', 'slope_ramp', 'slope_top', 'ice', 'snow'):
         mocap(world, name, (0.0, -5.0, 0.0))
     for name, _half, _at in _steps():
         mocap(world, name, (0.0, -2.0, 0.0))
@@ -192,7 +244,59 @@ def place(world, kind, z, x=0.0, heading=0.0):
     if kind == 'tree':
         mocap(world, 'tree', (at[0], 1.5, at[1]), heading)
         return
-    raise MachineError('no floor event %r: hole, sill, slip, rug, stairs, board, wall or tree' % kind)
+    if kind == 'chair':
+        mocap(world, 'chair', (at[0], 0.0, at[1]), heading)
+        return
+    if kind == 'bed':
+        mocap(world, 'bed', (at[0], 0.0, at[1]), heading)
+        return
+    if kind == 'slope':
+        rad = math.radians(SLOPE_ANGLE_DEG)
+        cos_r, sin_r = math.cos(rad / 2.0), math.sin(rad / 2.0)
+        ch, sh = math.cos(heading / 2.0), math.sin(heading / 2.0)
+        q = (ch * cos_r, ch * sin_r, sh * sin_r, sh * cos_r)
+        hz = SLOPE_HALF[2] * math.cos(rad)
+        hy = SLOPE_HALF[2] * math.sin(rad)
+        ramp_at = _on(at, heading, 0.0, hy, hz)
+        m = world.model
+        k_ramp = m.body_mocapid[m.body('slope_ramp').id]
+        world.data.mocap_pos[k_ramp], world.data.mocap_quat[k_ramp] = ramp_at, q
+        top_at = _on(at, heading, 0.0, 2.0 * hy - SLOPE_TOP_HALF[1], 2.0 * hz + SLOPE_TOP_HALF[2])
+        mocap(world, 'slope_top', top_at, heading)
+        return
+    if kind == 'ice':
+        mocap(world, 'ice', (at[0], ICE_HALF[1], at[1] + ICE_HALF[2]), heading)
+        return
+    if kind == 'snow':
+        mocap(world, 'snow', (at[0], SNOW_HALF[1], at[1] + SNOW_HALF[2]), heading)
+        return
+    raise MachineError('no floor event %r: hole, sill, slip, rug, stairs, board, wall, tree, chair, bed, slope, ice or snow' % kind)
+
+
+def scenario(world, name, z=1.2, x=0.0):
+    """Place a complete scenario on the floor: 'flat', 'chair', 'bed', 'slope', 'stairs',
+    'ice', 'snow', 'obstacle', 'sill', 'hole', or 'rug'."""
+    park(world)
+    if name in ('flat', 'clear', 'none'):
+        return
+    cases = {
+        'chair': lambda: place(world, 'chair', z=z, x=x),
+        'bed': lambda: place(world, 'bed', z=0.5, x=-0.85),
+        'slope': lambda: place(world, 'slope', z=1.0, x=x),
+        'stairs': lambda: place(world, 'stairs', z=1.0, x=x),
+        'ice': lambda: place(world, 'ice', z=0.8, x=x),
+        'snow': lambda: place(world, 'snow', z=0.8, x=x),
+        'obstacle': lambda: (place(world, 'wall', z=2.5, x=x), place(world, 'tree', z=1.8, x=x + 0.35)),
+        'obstacles': lambda: (place(world, 'wall', z=2.5, x=x), place(world, 'tree', z=1.8, x=x + 0.35)),
+        'urban': lambda: (place(world, 'wall', z=2.5, x=x), place(world, 'tree', z=1.8, x=x + 0.35)),
+        'sill': lambda: place(world, 'sill', z=z, x=x),
+        'hole': lambda: place(world, 'hole', z=z, x=x),
+        'rug': lambda: place(world, 'rug', z=z, x=x),
+    }
+    if name in cases:
+        cases[name]()
+        return
+    raise MachineError('unknown scenario %r: one of %s' % (name, ', '.join(SCENARIOS)))
 
 
 def bricks(world, soles, heading=0.0):
@@ -214,8 +318,8 @@ def board(world, k, c):
 
 def props(world):
     """What lies on the floor: [(kind, centre, half sizes, turn 3x3)] world, a box each - the
-    hole's gap, a sill, a slip patch, a brick, the board, a stair's steps, the rug, a wall, a tree
-    - what of it stands above the floor."""
+    hole's gap, a sill, a slip patch, a brick, the board, a stair's steps, the rug, a wall, a tree,
+    a chair, a bed, a slope, an ice sheet, a snow patch - what of it stands above the floor."""
     m, d = world.model, world.data
     out = []
     a = m.geom('slab_a').id
@@ -224,8 +328,8 @@ def props(world):
     if gap[1] - gap[0] > 1e-6:
         out.append(('hole', (getattr(world, 'hole_x', 0.0), -HOLE_M / 2.0, sum(gap) / 2.0),
                     (0.5, HOLE_M / 2.0, (gap[1] - gap[0]) / 2.0), ((1, 0, 0), (0, 1, 0), (0, 0, 1))))
-    for name in ('sill', 'slip', 'brick_left', 'brick_right', 'board', 'wall', 'tree') + tuple(
-            n for n, _h, _a in _steps()):
+    for name in ('sill', 'slip', 'brick_left', 'brick_right', 'board', 'wall', 'tree',
+                 'ice', 'snow') + tuple(n for n, _h, _a in _steps()):
         body = m.body(name).id
         at = d.xpos[body]
         if at[1] > -0.5:
@@ -240,4 +344,25 @@ def props(world):
     if d.xpos[rug][2] > PARKED_M + 1.0:
         out.append(('rug', tuple(d.xpos[rug]), (0.3, RUG_M / 2.0, RUG_LONG_M / 2.0),
                     tuple(map(tuple, d.xmat[rug].reshape(3, 3)))))
+    chair_id = m.body('chair').id
+    if d.xpos[chair_id][1] > -0.5:
+        c_mat = tuple(map(tuple, d.xmat[chair_id].reshape(3, 3)))
+        g_seat, g_back = m.geom('chair_seat').id, m.geom('chair_back').id
+        out.append(('chair', tuple(d.geom_xpos[g_seat]), tuple(m.geom_size[g_seat]), c_mat))
+        out.append(('chair', tuple(d.geom_xpos[g_back]), tuple(m.geom_size[g_back]), c_mat))
+    bed_id = m.body('bed').id
+    if d.xpos[bed_id][1] > -0.5:
+        b_mat = tuple(map(tuple, d.xmat[bed_id].reshape(3, 3)))
+        g_mat, g_hb = m.geom('bed_mattress').id, m.geom('bed_headboard').id
+        out.append(('bed', tuple(d.geom_xpos[g_mat]), tuple(m.geom_size[g_mat]), b_mat))
+        out.append(('bed', tuple(d.geom_xpos[g_hb]), tuple(m.geom_size[g_hb]), b_mat))
+    ramp_id = m.body('slope_ramp').id
+    if d.xpos[ramp_id][1] > -0.5:
+        r_mat = tuple(map(tuple, d.xmat[ramp_id].reshape(3, 3)))
+        g_ramp = m.geom('slope_ramp').id
+        out.append(('slope', tuple(d.geom_xpos[g_ramp]), tuple(m.geom_size[g_ramp]), r_mat))
+        top_id = m.body('slope_top').id
+        t_mat = tuple(map(tuple, d.xmat[top_id].reshape(3, 3)))
+        g_top = m.geom('slope_top').id
+        out.append(('slope', tuple(d.geom_xpos[g_top]), tuple(m.geom_size[g_top]), t_mat))
     return out

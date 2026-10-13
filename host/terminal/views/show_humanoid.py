@@ -171,11 +171,12 @@ def labels(now, called, shown='torque'):
 
 #: The bar: the keys typed most; TAB slides the rest up in groups (`stage.helped`): her loop,
 #: the view, the page.
-BAR = (('TAB', 'KEYS'), ('1-0', 'SAY'), ('W', 'WALK'), ('SPC P N', 'PUSH'), ('A', 'AGAIN'),
-       ('R', 'RECORD'), ('Q', 'EXIT'), ('ESC', 'MENU'))
+BAR = (('TAB', 'KEYS'), ('1-0', 'SAY'), ('<', 'SCENARIO'), ('W', 'WALK'), ('SPC P N', 'PUSH'),
+       ('A', 'AGAIN'), ('R', 'RECORD'), ('Q', 'EXIT'), ('ESC', 'MENU'))
 GROUPS = (
     ('LATENT', (('1-0', 'a move said, in place of what was to come'),
                 ('b s u e g f k d j x i m y z', 'stunts: ballistic, chair, bed, floor, hops, stairs, ice, slope, parry, fall'),
+                ('< ,', 'cycle scenario: flat, chair, bed, slope, stairs, ice, snow, obstacle, sill, hole, rug'),
                 ('W', 'her walk from rest'),
                 ('>', 'the other text'), ('A', 'again: laid anew'))),
     ('PUSH', (('SPACE', 'held: a push from the view, charging'), ('P N', 'push, nudge, in turn'),
