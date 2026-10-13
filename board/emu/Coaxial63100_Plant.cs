@@ -306,14 +306,13 @@ namespace Antmicro.Renode.Peripherals.Analog
         }
 
         /// <summary>Half a period of the stage and the world, at the underflow and at the top: as
-        /// the part has it, the compares written since the last update land at the underflow
-        /// (OCxPE) for the period to come, and the injected sequences sample at the top, TRGO2
-        /// 15 ticks under it (board_sync.c), where the low switches are on and the shunts read.
-        /// A duty asked in the handler at the top lands at the next underflow and shows whole
-        /// in the sample after next (drive.c's PIPELINE). One step a period, the compares read
-        /// at its start, showed them a period early and the injection's fs/2 demodulator read
-        /// their sign turned; sampled at the period's end they showed the injection's peaks,
-        /// which the part's samples at the top do not.</summary>
+        /// the part has it (board_pwm.c's direct mode, RCR 1), the compares written after the
+        /// trigger at the top transfer at the next overflow and hold across both slopes, while
+        /// the injected sequences sample at the top, TRGO2 15 ticks past it (board_sync.c),
+        /// where the low switches are on and the shunts read the injection's peaks. One step a
+        /// period read the compares a period early and turned the fs/2 demodulator's sign; two
+        /// half-steps latch the compares between triggers and sample the full period at the
+        /// top (drive.c's PIPELINE).</summary>
         private void Step()
         {
             if(attached)
