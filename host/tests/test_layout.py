@@ -254,8 +254,33 @@ def test_notebooks_are_papers(r):
             ', '.join(names))
 
 
+DATE = re.compile(
+    r'\b202\d-[01]\d-[0-3]\d\b'
+    r'|\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2},?\s+202\d\b'
+    r'|\b\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+202\d\b')
+_TEXT_EXT = ('.py', '.c', '.h', '.md', '.ps1', '.yaml')
+_SKIP_DIRS = {'.git', 'build', 'drivers', 'middlewares', '.venv', '__pycache__', '.pytest_cache'}
+
+
+def test_no_dates_in_the_tree(r):
+    """Comments, docstrings, docs and test labels hold the fact and the number, no date."""
+    dated = []
+    for here, dirs, names in os.walk(REPO):
+        dirs[:] = sorted(d for d in dirs if d not in _SKIP_DIRS and not d.startswith('.'))
+        for name in sorted(names):
+            if not name.endswith(_TEXT_EXT):
+                continue
+            path = os.path.join(here, name)
+            rel = os.path.relpath(path, REPO).replace(os.sep, '/')
+            text = io.open(path, encoding='utf-8', errors='replace').read()
+            hits = [m for m in DATE.findall(text) if m != '2024-11-05']
+            if hits:
+                dated.append('%s (%s)' % (rel, hits[0]))
+    r.check('the tree\'s text holds no dates', not dated, '; '.join(dated[:4]))
+
+
 ROSTER = (test_target_briefs, test_emulation_is_transparent, test_null_has_its_header,
-          test_counts_are_measured, test_notebooks_are_papers)
+          test_counts_are_measured, test_notebooks_are_papers, test_no_dates_in_the_tree)
 
 def main(argv=None):
     """Every test, or those the command line's words name, or its --shard k/n (tools.dev.focus)."""

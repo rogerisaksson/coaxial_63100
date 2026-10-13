@@ -222,6 +222,9 @@ it names. A closed item is cut from the list and gets its line here, last.
     was laid on the angle it sampled at and met the rotor a period turned:
     its own v . i is 77 W of 77 at 211 rad/s, 766 of 766 at 500, and 1 814 of
     1 814 at 680 where 21 % under ([envelope](findings/envelope.md)).
+58. A date refused: the remaining files stripped of dates and
+    `test_no_dates_in_the_tree` in `test_layout.py` (`--structure`) holding
+    the tree's text free of them.
 
 
 
