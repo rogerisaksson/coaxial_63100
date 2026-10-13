@@ -286,6 +286,33 @@
       (phase_offset mode_arm_swing mode_sagittal_drive 0deg)
       (phase_offset mode_foot_rock mode_sagittal_drive 0deg))))
 
+;; ballistic initiation into gentle walk: crisp small steps without tripping
+(defbehavior init_walk
+  (phase init
+    (duration 700ms)
+    (blend_duration 350ms)
+    (latent_targets
+      (mode_axial_compression 0.065)
+      (mode_pitch_attitude 0.02))
+    (impedance
+      (stiffness mode_axial_compression 3200) (damping mode_axial_compression 600)
+      (stiffness mode_lateral_shift 3000) (damping mode_lateral_shift 300)
+      (stiffness mode_sagittal_shift 0) (damping mode_sagittal_shift 260)
+      (stiffness mode_foot_rock 2400) (damping mode_foot_rock 240))
+    (cpg_config
+      (enable true)
+      (frequency 0.92Hz)
+      (amplitude mode_lateral_shift 0.31)
+      (amplitude mode_sagittal_drive 0.35)
+      (amplitude mode_limb_lift 0.95)
+      (amplitude mode_foot_rock 0.0)
+      (amplitude mode_pelvis_list 0.35)
+      (amplitude mode_pelvis_turn 0.35)
+      (amplitude mode_arm_swing 0.70)
+      (phase_offset mode_lateral_shift mode_sagittal_drive 108deg)
+      (phase_offset mode_pelvis_list mode_sagittal_drive 108deg))
+    (task_constraints (maintain_zmp (polygon dynamic_footprint)))))
+
 ;; sit down on a chair
 (defbehavior sit_chair
   (phase approach

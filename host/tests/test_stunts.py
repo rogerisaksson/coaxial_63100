@@ -281,10 +281,54 @@ def test_stunts_executed_on_specialized_scenarios(report):
                  'tilt: %.1f deg' % sprung.tilt(g_bed))
 
 
+def test_gentle_walk_mode_4_ballistic_initiation_and_keylogger(report):
+    """Pressing '4' (say: 3, #204 gentle walk) initiates with small ballistic steps without tripping, and tty keys log to file."""
+    import math
+    from machine import sprung
+    from terminal.views import humanoid_keys
+
+    # 1. Verify TTY Keylogger logs key '4' with descriptive action
+    humanoid_keys.log_key('4', humanoid_keys._action_of('4'))
+    with open(humanoid_keys.KEYLOG, 'r', encoding='utf-8') as f:
+        log_content = f.read()
+    report.check('keylog.txt records tty key 4 and gentle walk action',
+                 "TTY: '4' -> say: 3 (#204 walk) [gentle walk]" in log_content)
+
+    # 2. Verify gentle walk initiates from rest cleanly with small ballistic steps
+    gym = sprung.entries()
+    g = sprung.laid()
+    sprung._heard(g, gym, {'say': 3})  # Digit 4 sends index 3: #204
+    knees = list(g['body'].knees)
+    min_l, min_r = 999.0, 999.0
+    tilts, speeds = [], []
+    for _ in range(2500):  # 2.5 seconds
+        sprung.passed(g, 0.001)
+        ql = float(g['world'].data.qpos[g['body'].qact][knees[0]])
+        qr = float(g['world'].data.qpos[g['body'].qact][knees[1]])
+        min_l = min(min_l, ql)
+        min_r = min(min_r, qr)
+        tilts.append(sprung.tilt(g))
+        speeds.append(float(g['world'].data.qvel[2]))
+
+    min_l_deg, min_r_deg = math.degrees(min_l), math.degrees(min_r)
+    max_tilt = max(tilts)
+    final_speed = speeds[-1]
+
+    report.check('gentle walk left knee maintains natural flexion (>= 4.0 deg)', min_l_deg >= 4.0,
+                 'min left: %.2f deg' % min_l_deg)
+    report.check('gentle walk right knee maintains natural flexion (>= 4.0 deg)', min_r_deg >= 4.0,
+                 'min right: %.2f deg' % min_r_deg)
+    report.check('gentle walk upright posture maintained (tilt < 10 deg)', max_tilt < 10.0,
+                 'max tilt: %.2f deg' % max_tilt)
+    report.check('gentle walk cruises cleanly without tripping (speed >= 0.5 m/s)', final_speed >= 0.5,
+                 'final speed: %.2f m/s' % final_speed)
+
+
 ROSTER = [
     test_stunts_compile_and_execute,
     test_all_scenarios_instantiation_and_props,
     test_stunts_executed_on_specialized_scenarios,
+    test_gentle_walk_mode_4_ballistic_initiation_and_keylogger,
     test_wall_obstacle_collision_and_compliance,
     test_tree_obstacle_collision_and_compliance,
     test_stumble_reflex_boosts_limb_lift,

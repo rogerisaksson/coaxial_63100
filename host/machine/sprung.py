@@ -345,6 +345,7 @@ def state(g, torque, power, watts, ratio, fallen_at, says=(), refused=None):
 
 
 def _start_mode(g, by, entry, at):
+    from machine import ortho
     name = entry[0]
     if name == 'ballistic_walk':
         said(g, *entry, at=at, reset=True)
@@ -353,10 +354,14 @@ def _start_mode(g, by, entry, at):
     elif name == '#203' and '#202' in by:
         said(g, *by['#202'], at=at)
         said(g, *by['#203'], at=at + 0.80)
-    elif name in ('#204', 'trip', 'jog', 'stairs_walk', 'ice_walk', 'slope_walk') and '#202' in by and '#203' in by:
-        said(g, *by['#202'], at=at)
-        said(g, *by['#203'], at=at + 0.80)
-        said(g, *by[name], at=at + 1.65)
+    elif name in ('#204', 'trip', 'jog', 'stairs_walk', 'ice_walk', 'slope_walk'):
+        if 'init_walk' in by:
+            from machine import ortho
+            init_wire = by['init_walk'][1][:ortho.ROW.size]
+            said(g, 'init_walk', init_wire, ('init_walk',), at=at, reset=True)
+            said(g, *by[name], at=at + 0.65)
+        else:
+            said(g, *by[name], at=at)
     elif name == '#201':
         said(g, *entry, at=at, reset=True)
     else:
@@ -457,7 +462,11 @@ def _heard(g, gym, command):
         if entry is not None:
             _heard_say(g, gym, entry)
     if command.get('walk'):
-        walked(g)
+        by = {e[0]: e for e in gym}
+        if '#204' in by:
+            _start_mode(g, by, by['#204'], at=g['t'] + 0.001)
+        else:
+            walked(g)
     for entry in command.get('entries', ()):
         said(g, *entry)
     if 'scenario' in command:

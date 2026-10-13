@@ -109,11 +109,53 @@ def table(view, calling, shown):
         + [(k, _skinned) for k in 'cC'] + [(' ', _charged)])
 
 
+KEYLOG = os.path.join(REPO, 'build', 'keylog.txt')
+
+
+def log_key(key, action=''):
+    """Append a key typed on the tty to build/keylog.txt."""
+    try:
+        os.makedirs(os.path.dirname(KEYLOG), exist_ok=True)
+        now = time.time()
+        ts = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(now)) + ('.%03d' % int((now % 1) * 1000))
+        msg = '%s | TTY: %r' % (ts, key)
+        if action:
+            msg += ' -> %s' % action
+        with open(KEYLOG, 'a', encoding='utf-8') as f:
+            f.write(msg + '\n')
+    except Exception:
+        pass
+
+
+def _action_of(key):
+    if key == '4':
+        return 'say: 3 (#204 walk) [gentle walk]'
+    if key in '123567890':
+        return 'say: digit %s' % key
+    if key in ('w', 'W'):
+        return 'walk from rest'
+    if key in ('<', ','):
+        return 'cycle scenario'
+    if key in ('a', 'A'):
+        return 'again: restart / land anew'
+    if key == ' ':
+        return 'charge push'
+    try:
+        from terminal.views import gym
+        for name, k in gym.STUNTS.items():
+            if k == key or (k.isalpha() and k.upper() == key):
+                return 'stunt: %s' % name
+    except Exception:
+        pass
+    return ''
+
+
 def act_on(keys, typed, state, wheel=0.0):
     """`typed` and the wheel on the view's `state`, by `keys` (`table`)."""
     if wheel:
         viewpoint.zoomed(state, max(0.5, 1.0 + wheel))
     state.setdefault('typed', []).extend(typed)
     for key in typed:
+        log_key(key, _action_of(key))
         if key in keys:
             keys[key](state)
