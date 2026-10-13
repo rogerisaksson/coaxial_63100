@@ -194,10 +194,11 @@ it names. A closed item is cut from the list and gets its line here, last.
     `course.BRAKE` (0.735) and `course.GO` (0.708) on the core; laps 13.8 and
     14.0-14.1 s against 14.3-14.8 s, cost 28.06 where 28.24, 100 % whole across
     winds and unseen seeds ([envelope](findings/envelope.md), [streams](findings/streams.md)).
-53. The axis asked brings its own rate: a row's force slewed within reach
-    (8.0 rad/s, 200 rad/s^2) with its rate in the payload fed forward onto
-    pitch and roll rates; axis miss on a lap 14.7 degrees rms where 29, 12 of
-    12 race flights whole with 0 strikes ([streams](findings/streams.md)).
+53. The axis asked brings its own rate: a row's force slewed on its braking
+    curve within reach (8.0 rad/s, 200 rad/s^2, slope 10 1/s) with its rate in
+    the payload fed forward onto pitch and roll rates; axis miss on a lap 10.2
+    degrees rms where 29 (frame 4.5 rad/s rms), 12 of 12 race flights whole
+    with 0 strikes ([streams](findings/streams.md)).
 54. The loop's slew reaches WEP's with speed: `pull.slew(clamp, w)` interpolating
     branchlessly from the flight clamp's slew at idle (2 898 rad/s^2) to WEP's
     (4 347 rad/s^2) at turning speeds past 300 rad/s; passed per-rotor through

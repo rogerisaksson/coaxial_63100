@@ -275,7 +275,7 @@ bool ctrl_rows_push(ctrl_runner_t *r, uint16_t ms, float setpoint)
 
 float ctrl_rows_seconds(const ctrl_runner_t *r)
 {
-  float s = (r->playing && (r->left_s > 0.0f)) ? r->left_s : 0.0f;
+  float s = (r->playing && (r->left_s > 1e-6f)) ? r->left_s : 0.0f;
 
   for (uint16_t i = r->tail; i != r->head; i = (uint16_t)((i + 1U) % CTRL_ROWS))
   {
@@ -293,7 +293,7 @@ void ctrl_rows_clear(ctrl_runner_t *r)
 
 float ctrl_runner_step(ctrl_runner_t *r, float dt, float measured, float most)
 {
-  if (r->left_s <= 0.0f)
+  if (r->left_s <= 1e-6f)
   {
     if (r->playing)
     {
@@ -305,7 +305,7 @@ float ctrl_runner_step(ctrl_runner_t *r, float dt, float measured, float most)
       const ctrl_row_t *row = &r->row[r->tail];
 
       r->setpoint = row->setpoint;
-      r->left_s += (float)row->ms * 0.001f;
+      r->left_s = ((r->left_s < -1e-6f) ? r->left_s : 0.0f) + ((float)row->ms * 0.001f);
       r->playing = true;
       r->tail = (uint16_t)((r->tail + 1U) % CTRL_ROWS);
     }

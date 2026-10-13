@@ -86,13 +86,14 @@ passes: its tilt's torques against that law's 1.5 N m rms.
 - The lift over the heading in the share: the heading over it, the hover
   after the catch stood 0.3-1.7 m off its height in 4 turns of 12.
 - On a lap the raw force asked, the loops' own on it, turns 7.2-9.5 rad/s
-  rms and 55-72 rad/s at the most; the frame 4.6-6.0 rad/s, its axis 29
+  rms and 55-72 rad/s at the most; the frame 4.6 rad/s, its axis 29
   degrees rms off that force. A raw turn fed forward struck every flight.
-  Slewed inside the reach (8.0 rad/s, 200 rad/s^2) with its turn rate in the
-  payload fed forward onto pitch and roll rates: the slewed force turns 4.7
-  rad/s rms (peak 8.0 rad/s bounded within reach), the frame 6.0 rad/s, and
-  the axis miss on a lap drops to 14.7 degrees rms (42.4 peak where 65);
-  12 flights of 12 whole in the race suite.
+  Slewed on its braking curve inside the reach (8.0 rad/s, 200 rad/s^2,
+  slope 10 1/s) with its turn rate in the payload fed forward onto pitch and
+  roll rates: the slewed force turns 4.0 rad/s rms (peak 7.9 rad/s bounded
+  within reach), the frame 4.5 rad/s, and the axis miss on a lap drops to
+  10.2 degrees rms (34.3 peak where 65); 12 flights of 12 whole in the race
+  suite.
 
 
 ## The rotors' reach
