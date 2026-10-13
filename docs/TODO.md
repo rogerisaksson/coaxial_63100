@@ -230,14 +230,12 @@ gets a line at the end of [DONE](DONE.md).
   mixing, no Euler angle, no air; in it no `if`.
   + The flight is inside the action space's shell (`machine/pull.py`,
     `flight.shell`, envelope.md), its plan a table computed beforehand, no
-    clause in a pass above the core, its lead and its swing the tilt's own
-    (streams.md). Left: the lap's sphere - 0.37 of the clamp's pull flies,
-    0.40 does not - and its brake's, go's and stop's shares, searched.
+    clause in a pass above the core, its lead and its swing the tilt's own,
+    its sphere and its brake's, go's and stop's shares searched, the pull left
+    unused and the WEP taken a flight quoted (streams.md, envelope.md).
   + A flight on a board's core: device 14 takes its reading off the wire,
     246 bytes a pass. DOD: the reading the board's own - its IMU's, its
     rotors' off the bus -, a pass in its sample, the page's flight on it.
-  + DOD: the pull left unused and the WEP taken a flight quoted; the race
-    whole on it.
 
 ## Bench
 
@@ -322,9 +320,6 @@ gets a line at the end of [DONE](DONE.md).
   an fs/2 ripple. DOD: Ld and Lq within 5 % at no bias.
 - **The chain beside the loop** (`obs`) loses a rotor spooled at 81 000
   rad/s^2. DOD: it follows a QUAD's spool, or is cut.
-- **A `PI` on a current** winds past its drive's clamp as `SpeedPI` did
-  (envelope.md); no loop loads one. DOD: its sum within what its sink
-  carries, host and C.
 - **A date refused**: `test_layout` holds the tree's text free of dates.
   DOD: the last 15 files stripped, the check in `--structure`.
 - **native://**: a limb's world on a fixed mount as board/emu's; one

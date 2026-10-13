@@ -40,7 +40,7 @@ ten times the flight's:
 - A board's loop winds no further than its drive carries of the current it
   asks: the clamp with its derate, and what the link's volts leave
   (`drive_room`, `machine.pull.room`'s); `SpeedPI`'s sum and its drag's
-  current stay inside that (`ctrl_loop_step`). Wound, full tilt's loops
+  current, and `PI`'s sum, stay inside that (`ctrl_loop_step`). Wound, full tilt's loops
   asked 58-62 A of boards holding 45-49: a rotor's ask fell 39 rad/s in
   0.18 s before its current did, the four 5.2-10.5 A apart and the frame
   9.4-15.2 deg off at the most in six airs; told, 4.4-5.9 A and 8.3-12.4
@@ -132,8 +132,12 @@ they looked ahead with (`quad.Sky.ahead`, a second world).
 - The boards hold all 90 A through a routine but at full tilt's end, 43;
   57 at the least in a lap; 90 on the floor at once - no flight waits to
   cool.
-- The race, 12 flights: 33.18 cost, 100 % whole across winds and conditions,
-  a gate's frame inside margins, 0 strikes.
+- The race, 12 flights (and 12 unseen on seeds 6..8): 27.69 cost, 24 of 24
+  whole across winds, rooms and pack charges, a gate's frame 0.08-0.14 m inside
+  its margin, 0 strikes; boards' laps 13.8 and 13.8 s in all eight board trials,
+  rows keeping 92 % of the clamp's pull at the least on a full pack (87 % from
+  60 %), mean rotor thrust 27-28 % of top (72-73 % left unused), WEP taken
+  0.6-0.8 s a flight, SOA 0.60-0.68.
 - The power loop's catch (204) on WEP's clamp: 70 A where 61, over to 171
   degrees where 164, caught in 0.50 s where 0.46.
 - Toasty, 45 C: boards configure their thermal situation and idle warm-up in room

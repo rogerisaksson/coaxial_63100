@@ -115,16 +115,18 @@ static float pi(ctrl_part_t *part, float dt, float setpoint, float measured, flo
                 bool held, float most)
 {
   const float *p = part->p;     /* kp ki limit */
+  const float room = fminf(p[2], most);
   const float e = setpoint - measured;
-  const float raw = p[0] * e + part->x;
-  const float u = clamp(raw, p[2]);
+  float raw, u;
 
   (void)accel;
   (void)held;
-  (void)most;
+  part->x = fminf(fmaxf(part->x, -room), room);
+  raw = p[0] * e + part->x;
+  u = clamp(raw, p[2]);
   if (u == raw)
   {
-    part->x += p[1] * e * dt;
+    part->x = fminf(fmaxf(part->x + p[1] * e * dt, -room), room);
   }
   return u;
 }

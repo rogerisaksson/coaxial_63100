@@ -191,9 +191,13 @@ it names. A closed item is cut from the list and gets its line here, last.
     full tilt boards hold 58.7 A where 43.2, race laps 13.9 and 14.2 s, SOA 0.55-0.62
     ([envelope](findings/envelope.md), [quad](findings/quad.md)).
 52. The plan on boards that hold their pull: `quad_race.py --search` over
-    `course.BRAKE` (0.735) and `course.GO` (0.708) on the core; laps 13.8 and
-    14.0-14.1 s against 14.3-14.8 s, cost 28.06 where 28.24, 100 % whole across
-    winds and unseen seeds ([envelope](findings/envelope.md), [streams](findings/streams.md)).
+    `course.PULL` (0.37), `course.BRAKE` (0.735), `course.GO` (0.708) and
+    `course.STOP` (0.45) on the core; laps 13.8 and 13.8 s across all eight
+    board trials where 14.3-14.8 s, cost 27.69 where 28.24, 24 of 24 flights
+    whole across seeds 3..8, 72-73 % of top thrust left unused on the mean
+    (rows keeping >= 92 % of the clamp's pull on a full pack, 87 % from 60 %),
+    WEP 0.6-0.8 s a flight ([envelope](findings/envelope.md),
+    [streams](findings/streams.md)).
 53. The axis asked brings its own rate: a row's force slewed on its braking
     curve within reach (8.0 rad/s, 200 rad/s^2, slope 10 1/s) with its rate in
     the payload fed forward onto pitch and roll rates; axis miss on a lap 10.2
@@ -209,6 +213,11 @@ it names. A closed item is cut from the list and gets its line here, last.
     45 C room, boards hold 57.7 A at idle < 60 A, correctly failing `fit` and
     cooling on the floor rather than lifting into a dive strike
     ([envelope](findings/envelope.md)).
+56. A `PI` on a current keeps its sum within what its sink carries (`most`),
+    host and C (`machine/parts.py`, `ctrl/src/ctrl.c`): told its sink's clamp,
+    its current falls at the first pass past its speed (0.2 rad/s under) where
+    30 rad/s under untold ([envelope](findings/envelope.md)).
+
 
 
 
