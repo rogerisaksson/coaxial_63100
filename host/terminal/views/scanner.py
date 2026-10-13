@@ -63,6 +63,10 @@ AFFORDANCES = {
     'hole': [
         ('w', 'cross 10cm hole', 'ballistic_walk'),
     ],
+    'door': [
+        ('w', 'push open door', 'ballistic_walk'),
+        ('q', 'circle walk', 'circle_walk'),
+    ],
 }
 
 #: Primary auto-action when leaving WASD mode facing a detected object
@@ -80,6 +84,7 @@ PRIMARY_ACTION = {
     'sill': 'ballistic_walk',
     'rug': 'ballistic_walk',
     'hole': 'ballistic_walk',
+    'door': 'ballistic_walk',
 }
 
 #: Inks for affordance plates

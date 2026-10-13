@@ -57,7 +57,7 @@ ICE_HALF, ICE_FRICTION = (0.60, 0.02, 1.25), 0.02
 SNOW_HALF, SNOW_FRICTION = (0.60, 0.03, 1.25), 0.35
 
 #: The environment scenarios that can be placed on the floor:
-SCENARIOS = ('flat', 'chair', 'bed', 'slope', 'stairs', 'ice', 'snow', 'obstacle', 'sill', 'hole', 'rug')
+SCENARIOS = ('flat', 'glass_room', 'chair', 'bed', 'slope', 'stairs', 'ice', 'snow', 'obstacle', 'sill', 'hole', 'rug')
 
 
 def _rock():
@@ -280,6 +280,16 @@ def scenario(world, name, z=1.2, x=0.0):
     if name in ('flat', 'clear', 'none'):
         return
     cases = {
+        'glass_room': lambda: (
+            place(world, 'tree', z=6.0, x=0.88),
+            place(world, 'sill', z=4.5, x=0.75),
+            place(world, 'rug', z=1.5, x=0.0),
+            place(world, 'stairs', z=2.0, x=1.8),
+            place(world, 'slope', z=5.5, x=2.5),
+            place(world, 'ice', z=5.5, x=-2.0),
+            place(world, 'chair', z=0.8, x=1.5),
+            place(world, 'bed', z=1.8, x=-1.8),
+        ),
         'chair': lambda: place(world, 'chair', z=z, x=x),
         'bed': lambda: place(world, 'bed', z=1.8, x=x),
         'slope': lambda: place(world, 'slope', z=1.0, x=x),

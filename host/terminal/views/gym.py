@@ -32,6 +32,7 @@ NAMED = {
     'slope_walk': 'slope walk', 'parry_shove': 'parry shove', 'controlled_fall': 'controlled fall',
     'strafe_left': 'strafe left (A)', 'strafe_right': 'strafe right (D)',
     'turn_left': 'turn left (WA)', 'turn_right': 'turn right (WD)',
+    'circle_walk': 'circle walk (Q)',
     'turn_back_left': 'turn back left (SA)', 'turn_back_right': 'turn back right (SD)',
 }
 #: Named keys to trigger stunts directly from the terminal.
@@ -53,13 +54,14 @@ STUNTS = {
     'slope_walk': 'm',
     'parry_shove': 'y',
     'controlled_fall': 'z',
+    'circle_walk': 'q',
 }
 
 
 SCENARIO_MOVES = {
     'flat': '#201', 'chair': 'sit_chair', 'bed': 'lie_bed', 'slope': 'slope_walk',
     'stairs': 'stairs_walk', 'ice': 'ice_walk', 'snow': '#204', 'obstacle': '#204',
-    'sill': '#204', 'hole': '#204', 'rug': '#204',
+    'sill': '#204', 'hole': '#204', 'rug': '#204', 'glass_room': 'circle_walk',
 }
 
 

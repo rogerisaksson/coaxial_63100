@@ -725,38 +725,81 @@
 (defbehavior turn_left
   (phase turn
     (duration 60s)
-    (blend_duration 1000ms)
+    (blend_duration 800ms)
     (latent_targets
-      (mode_pelvis_turn 0.45)
-      (mode_lateral_shift 0.15)
-      (mode_pitch_attitude 0.0))
+      (mode_pitch_attitude 0.0)
+      (mode_pelvis_turn 0.25)
+      (mode_stance_width 0.15))
     (cpg_config
       (enable true)
-      (frequency 1.05Hz)
-      (amplitude mode_sagittal_drive 0.50)
-      (amplitude mode_foot_rock 0.50)
-      (amplitude mode_pelvis_turn 0.50)
-      (amplitude mode_pelvis_list 0.35)
-      (amplitude mode_arm_swing 0.70))
+      (frequency 0.90Hz)
+      (amplitude mode_lateral_shift 0.26)
+      (amplitude mode_sagittal_drive 0.46)
+      (amplitude mode_limb_lift 0.95)
+      (amplitude mode_foot_rock 0.45)
+      (amplitude mode_pelvis_list 0.28)
+      (amplitude mode_pelvis_turn 0.35)
+      (amplitude mode_arm_swing 0.65)
+      (amplitude mode_stance_width 0.10)
+      (phase_offset mode_lateral_shift mode_sagittal_drive 108deg)
+      (phase_offset mode_pelvis_list mode_sagittal_drive 108deg)
+      (phase_offset mode_pelvis_turn mode_sagittal_drive 0deg)
+      (phase_offset mode_arm_swing mode_sagittal_drive 0deg)
+      (phase_offset mode_foot_rock mode_sagittal_drive 0deg))
     (task_constraints (maintain_zmp (polygon dynamic_footprint)))))
 
 ;; turn right (Quake WD, högersväng): forward cruise with right yaw turn
 (defbehavior turn_right
   (phase turn
     (duration 60s)
-    (blend_duration 1000ms)
+    (blend_duration 800ms)
     (latent_targets
-      (mode_pelvis_turn -0.45)
-      (mode_lateral_shift -0.15)
-      (mode_pitch_attitude 0.0))
+      (mode_pitch_attitude 0.0)
+      (mode_pelvis_turn -0.25)
+      (mode_stance_width 0.15))
     (cpg_config
       (enable true)
-      (frequency 1.05Hz)
-      (amplitude mode_sagittal_drive 0.50)
-      (amplitude mode_foot_rock 0.50)
-      (amplitude mode_pelvis_turn 0.50)
-      (amplitude mode_pelvis_list 0.35)
-      (amplitude mode_arm_swing 0.70))
+      (frequency 0.90Hz)
+      (amplitude mode_lateral_shift 0.26)
+      (amplitude mode_sagittal_drive 0.46)
+      (amplitude mode_limb_lift 0.95)
+      (amplitude mode_foot_rock 0.45)
+      (amplitude mode_pelvis_list -0.28)
+      (amplitude mode_pelvis_turn -0.35)
+      (amplitude mode_arm_swing 0.65)
+      (amplitude mode_stance_width 0.10)
+      (phase_offset mode_lateral_shift mode_sagittal_drive -108deg)
+      (phase_offset mode_pelvis_list mode_sagittal_drive -108deg)
+      (phase_offset mode_pelvis_turn mode_sagittal_drive 0deg)
+      (phase_offset mode_arm_swing mode_sagittal_drive 0deg)
+      (phase_offset mode_foot_rock mode_sagittal_drive 0deg))
+    (task_constraints (maintain_zmp (polygon dynamic_footprint)))))
+
+;; circle walk: continuous circular locomotion / circle strafe
+(defbehavior circle_walk
+  (phase turn
+    (duration 60s)
+    (blend_duration 800ms)
+    (latent_targets
+      (mode_pitch_attitude 0.0)
+      (mode_pelvis_turn 0.28)
+      (mode_stance_width 0.15))
+    (cpg_config
+      (enable true)
+      (frequency 0.90Hz)
+      (amplitude mode_lateral_shift 0.26)
+      (amplitude mode_sagittal_drive 0.46)
+      (amplitude mode_limb_lift 0.95)
+      (amplitude mode_foot_rock 0.45)
+      (amplitude mode_pelvis_list 0.28)
+      (amplitude mode_pelvis_turn 0.35)
+      (amplitude mode_arm_swing 0.65)
+      (amplitude mode_stance_width 0.10)
+      (phase_offset mode_lateral_shift mode_sagittal_drive 108deg)
+      (phase_offset mode_pelvis_list mode_sagittal_drive 108deg)
+      (phase_offset mode_pelvis_turn mode_sagittal_drive 0deg)
+      (phase_offset mode_arm_swing mode_sagittal_drive 0deg)
+      (phase_offset mode_foot_rock mode_sagittal_drive 0deg))
     (task_constraints (maintain_zmp (polygon dynamic_footprint)))))
 
 ;; turn back left (Quake SA, bakåt-vänstersväng)
@@ -798,4 +841,5 @@
       (amplitude mode_arm_swing 0.0)
       (phase_offset mode_lateral_shift mode_sagittal_drive -108deg))
     (task_constraints (maintain_zmp (polygon dynamic_footprint)))))
+
 

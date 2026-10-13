@@ -13,14 +13,9 @@
     sprung.said(g, label, wire, names)     # rows begun now
     s, loads, ask, out = sprung.passed(g)  # a pass, her world a millisecond on
 
-A pass: she is sensed (`wbc.sense`), her latent state is stepped (`machine.latent`) and rendered
-on her (`machine.impedance`), her whole body's step solved (`wrench.step`, SOLVER) - every `every`
-passes, its answer held between -, its torques fed forward with each drive's disturbance
-observed and taken off (INNER), and her world advanced. The worker runs that at RATE_HZ on
-simulated time: each wall-clock slice it catches up to real time, SLICE_S of it at most, and says
-her state SAY_S apart - her modes, and how much faster than real time it runs (`ratio`). Down,
-she is laid anew RECOVER_S on. A text the compiler refuses and a command the loop does not know
-are said with her state (`refused`), her gym as it was.
+A pass: sensed (`wbc.sense`), latent state stepped (`machine.latent`), whole body solved
+(`wrench.step`), torques fed forward with ESO disturbance, and world advanced. The worker
+runs at RATE_HZ, catches up to SLICE_S, and publishes state every SAY_S. Down, she recovers.
 """
 import math
 import multiprocessing
@@ -35,7 +30,7 @@ RATE_HZ, SLICE_S, SAY_S, AVERAGE_S, RECOVER_S = 1000.0, 0.05, 1.0 / 60.0, 0.05, 
 #: The shoves, newtons for SHOVE_S: a nudge 0.13 m/s on her, a push, a shove.
 SHOVES, SHOVE_S = {'nudge': 38.0, 'push': 80.0, 'shove': 120.0}, 0.12
 #: What the worker hears (`Running.send`).
-HEARD = ('say', 'walk', 'entries', 'gym', 'text', 'push', 'seconds', 'restart', 'scenario')
+HEARD = ('say', 'walk', 'entries', 'gym', 'text', 'push', 'seconds', 'restart', 'scenario', 'heading')
 #: Her walk from rest: her moves' payloads (GYMS[0]) and the second each is said at.
 WALK = (('#201', 0.5), ('#202', 2.0), ('#203', 5.0), ('#204', 9.0))
 #: Her braking stride when asked to stop or switch from a walk: capture-point stepping kept
@@ -164,6 +159,9 @@ def laid(every=1, inner=None, solver=None):
             p = m.body_parentid[p]
     sole_bids = set(world.soles.nonzero()[0])
     upper_bids = np.array(sorted(robot_bids - sole_bids), dtype=int)
+    door_b = m.body('door').id if 'door' in [m.body(i).name for i in range(m.nbody)] else None
+    if door_b is not None:
+        robot_bids.add(door_b)
     robot_ids = np.array(sorted(robot_bids), dtype=int)
     g = {'world': world, 'body': body, 'y': y, 'fr': fr, 'rest': rest, 'st': st,
          'out': out, 'a': a, 'tab': tab,
@@ -183,6 +181,7 @@ def laid(every=1, inner=None, solver=None):
          'soles_l': np.flatnonzero(world.soles[:, 0]),
          'soles_r': np.flatnonzero(world.soles[:, 1]),
          'stumble_until': 0.0,
+         'heading': float(fr[modal.HEADING]),
          'scenario': 'flat',
          'solve': {'stack': wbc.step, 'wrench': wrench.step}[solver or SOLVER]}
     world.clock = lambda: g['t']
@@ -239,6 +238,13 @@ def passed(g, dt=0.001):
         s = g['s'] = _seen(body, world, g['limbs'])
         loads = g['loads'] = _loads(world, g['force'])
         y = modal.sensed(s, loads, g['y'])
+        q = world.data.qpos[3:7]
+        pelvis_yaw = 2.0 * math.atan2(float(q[2]), float(q[0]))
+        d_yaw = math.atan2(math.sin(pelvis_yaw - g['heading']), math.cos(pelvis_yaw - g['heading']))
+        g['heading'] += 0.005 * g['every'] * d_yaw
+        s_hd, c_hd = math.sin(g['heading']), math.cos(g['heading'])
+        g['fr'][modal.HEADING] = g['heading']
+        g['fr'][modal.ROT] = np.array([[s_hd, 0.0, c_hd], [c_hd, 0.0, -s_hd], [0.0, 1.0, 0.0]]).ravel()
         if g['st'][latent.NOW][latent.GAIN] < 1e-6:
             g['st'][latent.THETA] = 0.0
         out = latent.step(g['st'], g['tab'], g['t'], dt * g['every'], g['out'])
@@ -374,7 +380,9 @@ def _heard_say(g, gym, entry):
         or spd > 0.04
         or unbalanced
     )
-    fwd_gaits = ('#204', 'trip', 'jog', 'ballistic_walk', 'stairs_walk', 'stairs_down', 'ice_walk', 'slope_walk')
+    fwd_gaits = ('#204', 'trip', 'jog', 'ballistic_walk', 'stairs_walk', 'stairs_down',
+                 'ice_walk', 'slope_walk', 'strafe_left', 'strafe_right', 'turn_left',
+                 'turn_right', 'circle_walk', 'turn_back_left', 'turn_back_right')
     t0 = g['t'] + 0.001
     if doing(g) in ('down', 'hold', 'load', 'throw', 'land') and len(g['tab']):
         g['tab'] = g['tab'][g['tab'][:, latent.AT] <= g['t'] + 1.5]
@@ -463,6 +471,8 @@ def _heard(g, gym, command):
         scen = command['scenario']
         g['scenario'] = scen
         g['world'].scenario(scen)
+    if 'heading' in command:
+        g['heading'] = float(command['heading'])
     if 'push' in command:
         force = command['push']
         secs = command.get('seconds', SHOVE_S)
@@ -484,7 +494,7 @@ def run(commands, states, every=STACK_EVERY, walks=False):
     import numpy as np
     from machine import physics
     from machine.errors import MachineError
-    physics.ROOM = physics.SIGHT = 0.0
+    physics.ROOM, physics.SIGHT = 1.0, 0.0
     def anew():
         g = laid(every)
         if walks:

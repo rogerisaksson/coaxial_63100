@@ -225,7 +225,7 @@ def test_all_scenarios_instantiation_and_props(report):
     from machine import floor, physics
     world = physics.World()
     scenarios = floor.SCENARIOS
-    report.check('all 11 scenarios present in floor.SCENARIOS', len(scenarios) == 11, str(scenarios))
+    report.check('all 12 scenarios present in floor.SCENARIOS', len(scenarios) == 12, str(scenarios))
 
     for name in scenarios:
         world.scenario(name)
@@ -420,6 +420,72 @@ def test_drivetrain_capacity_and_stunt_torque_envelope(report):
         report.check('%s flex compliance is well-conditioned (> 0 and < 0.001 rad/Nm)' % j, 0.0 < flx < 1e-3, 'flex: %g' % flx)
 
 
+def test_shooter_circle_walk_and_continuous_turning(report):
+    """Continuous circular locomotion / circle turn executes without falling or foot scuffing."""
+    from machine import sprung
+    by = {e[0]: e for e in sprung.entries(name='moves')}
+
+    report.check('circle_walk behavior exists in compiled moves', 'circle_walk' in by)
+    g = sprung.laid()
+    sprung.said(g, *by['ballistic_walk'], at=0.01, reset=True)
+    for _ in range(1000):
+        sprung.passed(g, 0.001)
+
+    sprung.said(g, *by['circle_walk'], at=g['t'] + 0.01, reset=False)
+    initial_yaw = float(g['heading'])
+    max_tilt = 0.0
+    for _ in range(6000):
+        s, loads, ask, out = sprung.passed(g, 0.001)
+        t_tilt = sprung.tilt(g)
+        if t_tilt > max_tilt:
+            max_tilt = t_tilt
+
+    d_yaw_deg = math.degrees(g['heading'] - initial_yaw)
+    report.check('circle walk swept >= 30 deg in 6s', abs(d_yaw_deg) >= 30.0,
+                 'swept: %.1f deg' % d_yaw_deg)
+    report.check('circle walk tilt maintained under 8.0 deg', max_tilt < 8.0,
+                 'max tilt: %.1f deg' % max_tilt)
+    report.check('circle walk completes with zero falls', not (g['world'].data.qpos[2] < 0.3))
+
+
+def test_glass_room_environment_and_door_push_through(report):
+    """Glass room scenario contains unbreakable walls and swinging door; gynoid pushes door open."""
+    from machine import floor, physics, sprung
+    physics.ROOM = 1.0
+    by = {e[0]: e for e in sprung.entries(name='moves')}
+
+    report.check('glass_room in SCENARIOS', 'glass_room' in floor.SCENARIOS)
+    g = sprung.laid()
+    floor.scenario(g['world'], 'glass_room')
+
+    m = g['world'].model
+    body_names = [m.body(i).name for i in range(m.nbody)]
+    report.check('glass walls in model', 'wall_left' in body_names and 'wall_right' in body_names)
+    report.check('swinging door in model', 'door' in body_names)
+    import mujoco
+    g['world'].data.qpos[0] = 0.75
+    g['world'].data.qpos[2] = 2.0
+    mujoco.mj_forward(g['world'].model, g['world'].data)
+    sprung.said(g, *by['ballistic_walk'], at=0.01, reset=True)
+
+    max_door_angle = 0.0
+    door_jnt = m.joint('door').qposadr[0]
+    for _ in range(4000):
+        s, loads, ask, out = sprung.passed(g, 0.001)
+        angle = abs(float(g['world'].data.qpos[door_jnt]))
+        if angle > max_door_angle:
+            max_door_angle = angle
+
+    final_z = float(g['world'].data.qpos[2])
+    tilt = sprung.tilt(g)
+    report.check('door pushed open by gynoid (angle >= 20 deg)',
+                 math.degrees(max_door_angle) >= 20.0,
+                 'max door angle: %.1f deg' % math.degrees(max_door_angle))
+    report.check('gynoid exited glass room through doorway (z >= 4.0m)',
+                 final_z >= 4.0, 'final z: %.2f m' % final_z)
+    report.check('gynoid traversed doorway without falling', tilt < 10.0, 'tilt: %.1f deg' % tilt)
+
+
 ROSTER = [
     test_stunts_compile_and_execute,
     test_all_scenarios_instantiation_and_props,
@@ -433,6 +499,8 @@ ROSTER = [
     test_ballistic_start_trailing_leg_flexion_and_smooth_transitions,
     test_random_mode_transitions_without_crashes,
     test_quake_wasd_locomotion_and_curves,
+    test_shooter_circle_walk_and_continuous_turning,
+    test_glass_room_environment_and_door_push_through,
     test_drivetrain_capacity_and_stunt_torque_envelope,
 ]
 
