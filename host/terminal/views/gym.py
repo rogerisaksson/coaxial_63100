@@ -51,6 +51,23 @@ STUNTS = {
 }
 
 
+SCENARIO_MOVES = {
+    'flat': '#201', 'chair': 'sit_chair', 'bed': 'lie_bed', 'slope': 'slope_walk',
+    'stairs': 'stairs_walk', 'ice': 'ice_walk', 'snow': '#204', 'obstacle': '#204',
+    'sill': '#204', 'hole': '#204', 'rug': '#204',
+}
+
+
+def _run_scenario(state, scen=None):
+    if scen is None:
+        scen = state.get('scenario', 'flat')
+    state['scenario'] = scen
+    state['body'].send(scenario=scen)
+    mv = SCENARIO_MOVES.get(scen)
+    if mv:
+        state['body'].send(say=mv)
+
+
 def _next(state):
     state['gym'] = sprung.GYMS[(sprung.GYMS.index(state.get('gym', sprung.GYMS[0])) + 1) % len(sprung.GYMS)]
     state['body'].send(gym=state['gym'])
@@ -61,8 +78,7 @@ def _next_scenario(state):
     scens = floor.SCENARIOS
     cur = state.get('scenario', 'flat')
     nxt = scens[(scens.index(cur) + 1) % len(scens)] if cur in scens else scens[0]
-    state['scenario'] = nxt
-    state['body'].send(scenario=nxt)
+    _run_scenario(state, nxt)
 
 
 def _shoved(event, along):
@@ -74,11 +90,17 @@ def _shoved(event, along):
 
 
 def table(keys):
-    """`keys` (the page's own) with the gym's laid over them."""
+    """`keys` (the page's own) with the gym's laid over them: arrows walk and back, digits say moves."""
     out = dict(keys)
     out[NEXT] = _next
     out['<'] = _next_scenario
     out[','] = _next_scenario
+    out['\r'] = lambda state: _run_scenario(state)
+    out['\n'] = lambda state: _run_scenario(state)
+    out['up'] = lambda state: state['body'].send(say=3)      # #204 gentle walk forward
+    out['down'] = lambda state: state['body'].send(say=4)    # #205 step backward / brake
+    out['left'] = lambda state: state['body'].send(say=1)    # #202 sway left
+    out['right'] = lambda state: state['body'].send(say=1)   # #202 sway right
     out.update((k, lambda state, i=i: state['body'].send(say=i)) for i, k in enumerate(DIGITS))
     out.update((k, lambda state: state['body'].send(walk=True)) for k in WALKS)
     out.update((k, _shoved(*how)) for k, how in PUSHES.items())
@@ -111,7 +133,9 @@ def boxes(now):
     gym_name = says[0]
     entries = says[1:]
     scen = now.get('scenario', 'flat')
-    say_rows = [('<', 'scen: ' + scen)]
+    scen_mv = SCENARIO_MOVES.get(scen, '')
+    scen_label = 'scen: %s [%s]' % (scen, NAMED.get(scen_mv, scen_mv)) if scen_mv else 'scen: ' + scen
+    say_rows = [('<', scen_label), ('^/v', 'fwd / back')]
     seen = set()
     for i, s in enumerate(entries):
         if s.startswith('#'):

@@ -171,21 +171,37 @@ def labels(now, called, shown='torque'):
 
 #: The bar: the keys typed most; TAB slides the rest up in groups (`stage.helped`): her loop,
 #: the view, the page.
-BAR = (('TAB', 'KEYS'), ('1-0', 'SAY'), ('<', 'SCENARIO'), ('W', 'WALK'), ('SPC P N', 'PUSH'),
-       ('A', 'AGAIN'), ('R', 'RECORD'), ('Q', 'EXIT'), ('ESC', 'MENU'))
+BAR = (('TAB', 'KEYS'), ('ARROWS', 'WALK'), ('< ENT', 'SCENARIO'), ('STUNTS', 's e x m..'),
+       ('SPC', 'PUSH'), ('A', 'RESET'), ('R', 'RECORD'), ('Q', 'EXIT'))
 GROUPS = (
-    ('LATENT', (('1-0', 'a move said, in place of what was to come'),
-                ('b s u e g f k d j x i m y z', 'stunts: ballistic, chair, bed, floor, hops, stairs, ice, slope, parry, fall'),
-                ('< ,', 'cycle scenario: flat, chair, bed, slope, stairs, ice, snow, obstacle, sill, hole, rug'),
-                ('W', 'her walk from rest'),
-                ('>', 'the other text'), ('A', 'again: laid anew'))),
-    ('PUSH', (('SPACE', 'held: a push from the view, charging'), ('P N', 'push, nudge, in turn'),
-              ('shift', 'along her way'))),
-    ('VIEW', (('<- ->', 'turn, or drag'), ('UP DOWN', 'move, or right drag'),
-              ('WHEEL + -', 'zoom'), ('O', 'orbit'), ('V', 'home'),
-              ('C', 'clothes .. stick'), ('L', 'labels'), ('T', 'torque, power'))),
-    ('PAGE', (('R', 'record, then save'), ('TAB ?', 'these keys'), ('Q', 'exit'),
-              ('ESC', 'menu'))))
+    ('MOVE', (('UP', 'walk forward (#204 gentle cruise)'),
+              ('DOWN', 'step backward / brake (#205)'),
+              ('LEFT RIGHT', 'sway / lateral step (#202)'),
+              ('W', 'walk from rest'),
+              ('1-5', '#201 stand, #202 sway, #203 step, #204 walk, #205 back'),
+              ('A', 'again: reset & stand anew'))),
+    ('SCENARIO', (('< ,', 'cycle scenario + auto-move'),
+                  ('ENTER', 'run / replay active scenario'),
+                  ('scenarios', 'flat, chair, bed, slope, stairs, ice, snow, obstacle, sill, hole, rug'))),
+    ('STUNTS', (('s / u', 'sit chair / rise chair'),
+                ('j / d', 'hop up chair / hop down chair'),
+                ('e / g', 'lie bed / rise bed'),
+                ('f / k', 'lie floor / rise floor'),
+                ('x / m', 'stairs walk / slope walk'),
+                ('i', 'ice walk (flat-foot slick shuffle)'),
+                ('y / z', 'parry shove / controlled breakfall'),
+                ('b', 'ballistic walk'))),
+    ('PUSH', (('SPACE', 'hold to charge push along view vector'),
+              ('P N', 'lateral push / nudge'),
+              ('shift', 'longitudinal along walk'))),
+    ('VIEW (MOUSE)', (('L-DRAG', 'rotate / orbit camera'),
+                      ('R-DRAG', 'pan viewport'),
+                      ('WHEEL', 'zoom in / out'),
+                      ('V', 'home camera view'),
+                      ('O', 'toggle auto-orbit'),
+                      ('C', 'cycle skin: dressed, shell, mechanism, actuators'),
+                      ('L / T', 'joint callouts / torque & power'))),
+    ('PAGE', (('R', 'record / save CSV'), ('TAB ?', 'these keys'), ('Q / ESC', 'exit'))))
 
 
 def size_of(console, args, up=0.0):

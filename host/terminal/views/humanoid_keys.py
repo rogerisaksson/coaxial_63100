@@ -128,6 +128,16 @@ def log_key(key, action=''):
 
 
 def _action_of(key):
+    if key == 'up':
+        return 'arrow up: walk forward (#204)'
+    if key == 'down':
+        return 'arrow down: step backward / brake (#205)'
+    if key == 'left':
+        return 'arrow left: sway left (#202)'
+    if key == 'right':
+        return 'arrow right: sway right (#202)'
+    if key in ('\r', '\n'):
+        return 'enter: run scenario action'
     if key == '4':
         return 'say: 3 (#204 walk) [gentle walk]'
     if key in '123567890':

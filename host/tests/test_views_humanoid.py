@@ -60,6 +60,12 @@ def test_the_humanoid_pages_keys(report):
     expected = sorted(set(list('aclnoprtvw') + [v for v in gym.STUNTS.values() if v.isalpha()]))
     report.check('its letters are the stunts, view and loop controls', letters == expected,
                  ' '.join(letters))
+    sent.clear()
+    for key in ('up', 'down', '<', '\r'):
+        show_humanoid.KEYS[key](state)
+    report.check('arrows drive forward and back, < cycles scenario and move, enter runs scenario',
+                 sent[0] == {'say': 3} and sent[1] == {'say': 4}
+                 and 'scenario' in sent[2] and 'say' in sent[3], '%s' % sent)
 
 
 def test_a_held_space_charges_a_push(report):
