@@ -239,7 +239,6 @@ gets a line at the end of [DONE](DONE.md).
   supply's amps dry. DOD: the ceilings measured; the room found on the
   laminate's two nodes; `thermal_app.c`'s tables fitted in each.
 - **Spans**: phase gain, the DC link. DOD: by a DMM.
-- **A1335 CRC** (MINOR 28) the stand-ins' polynomial. DOD: `crc_errors` 0.
 - **`CMD_LINK_SHARE_PCT`** 75. DOD: measured on a populated RS485 segment.
 - **The test line's limits** (`testline/plans/coaxial_63100_fct.yaml`).
   DOD: measured.

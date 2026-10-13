@@ -320,4 +320,7 @@ it names. A closed item is cut from the list and gets its line here, last.
       `controlled_fall` (knees absorb, arms extend forward/down to ground, head kept off floor).
     - Drivetrain capacity verified on 2-motor architecture (15x U8 + 6x MN6007 at 1:30 wave
       gearboxes) with zero hardware alterations ([orthokinematics](findings/orthokinematics.md)).
-
+71. A1335 CRC (MINOR 28) on the stand-ins (`board_angle.c`, `Coaxial63100_A1335.cs`,
+    `native_a1335.c`, `host/tests/test_emulator.py`, `host/tests/test_native.py`):
+    replies end in CRC-4 (x^4 + x + 1, seed 0xF) verified on native:// and Renode
+    emulator with 0 CRC errors over >6 500 polled reads ([PROTOCOL](PROTOCOL.md)).

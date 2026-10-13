@@ -222,9 +222,12 @@ def test_the_angle_sensor_reads(report, rig, emu):
             got.append((degrees, b.angle.state().get('degrees')))
     finally:
         b.afe.off()
-    report.check('the angle sensor reads the shaft, to a count',
-                 all(read is not None and abs(read - want) <= 360.0 / 4096 for want, read in got),
-                 ', '.join('%g -> %s' % pair for pair in got))
+    st = b.angle.state()
+    report.check('the angle sensor reads the shaft to a count, and CRC (MINOR 28) has 0 errors',
+                 all(read is not None and abs(read - want) <= 360.0 / 4096 for want, read in got)
+                 and st.get('crc_errors') == 0,
+                 'errors=%s, %s' % (st.get('crc_errors'), ', '.join('%g -> %s' % p for p in got)))
+
 
 
 def test_the_imu_answers(report, rig, emu):
