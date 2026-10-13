@@ -18,10 +18,7 @@ A pass: sensed (`wbc.sense`), latent state stepped (`machine.latent`), whole bod
 runs at RATE_HZ, catches up to SLICE_S, and publishes state every SAY_S. Down, she recovers.
 """
 import math
-import multiprocessing
 import os
-import queue
-import time
 
 #: The loop's rate, Hz. The most simulated time one slice catches up, s; how often her state
 #: goes out, s. Each drive's torque and power as said, meaned over AVERAGE_S. Down, she is

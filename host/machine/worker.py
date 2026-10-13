@@ -2,14 +2,32 @@
 import multiprocessing
 import queue
 import time
-import numpy as np
 from machine import physics, sprung
 from machine.errors import MachineError
+
+
+def _is_fallen(g, world):
+    """Whether the gynoid has lost balance or fallen."""
+    cur_doing = sprung.doing(g)
+    cur_tilt = sprung.tilt(g)
+    cur_y = float(world.data.qpos[1])
+    if cur_tilt > 75.0 or cur_y < 0.08:
+        return True
+    if cur_doing in ('seated', 'approach', 'lower', 'lean', 'thrust'):
+        return cur_tilt > 45.0 or cur_y < 0.28
+    if cur_doing in ('bed_rest', 'recline', 'sit_edge', 'sit_up'):
+        return cur_tilt > 45.0 or cur_y < 0.25
+    if cur_doing in ('floor_rest', 'kneel', 'cushion', 'land'):
+        return cur_tilt > 75.0 or cur_y < 0.06
+    if cur_doing not in sprung.STUNT_PHASES:
+        return cur_tilt > sprung.DOWN_DEG or cur_y < sprung.DOWN_M
+    return False
 
 
 def run(commands, states, every=sprung.STACK_EVERY, walks=False):
     """The worker: she stands on the loop, paced to the clock; commands heard, her state said.
     Laid, she stands at rest unless `walks`."""
+    import numpy as np
     physics.ROOM, physics.SIGHT = 1.0, 0.0
 
     def anew():
@@ -81,27 +99,8 @@ def run(commands, states, every=sprung.STACK_EVERY, walks=False):
                     world.advance()
             except MachineError:
                 fallen_at = g['t']
-            if fallen_at is None:
-                cur_doing = sprung.doing(g)
-                cur_tilt = sprung.tilt(g)
-                cur_y = float(world.data.qpos[1])
-                is_fallen = False
-                if cur_tilt > 75.0 or cur_y < 0.08:
-                    is_fallen = True
-                elif cur_doing in ('seated', 'approach', 'lower', 'lean', 'thrust'):
-                    if cur_tilt > 45.0 or cur_y < 0.28:
-                        is_fallen = True
-                elif cur_doing in ('bed_rest', 'recline', 'sit_edge', 'sit_up'):
-                    if cur_tilt > 45.0 or cur_y < 0.25:
-                        is_fallen = True
-                elif cur_doing in ('floor_rest', 'kneel', 'cushion', 'land'):
-                    if cur_tilt > 75.0 or cur_y < 0.06:
-                        is_fallen = True
-                elif cur_doing not in sprung.STUNT_PHASES:
-                    if cur_tilt > sprung.DOWN_DEG or cur_y < sprung.DOWN_M:
-                        is_fallen = True
-                if is_fallen:
-                    fallen_at = g['t']
+            if fallen_at is None and _is_fallen(g, world):
+                fallen_at = g['t']
             tau = world.data.ctrl
             torque += k * (tau - torque)
             power += k * (tau * world.data.qvel[world.vadr] - power)
