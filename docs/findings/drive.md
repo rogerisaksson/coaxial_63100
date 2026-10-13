@@ -131,7 +131,7 @@ rotor's pages and their demos. The board's findings:
     RAM (`s.drive.theta_hat`) against `sysbus.gpioPortE.plant Shaft` stays
     within `0.138 rad` at worst (`0.039 rad` mean, `|eps| <= 0.293 rad`); on
     `native://?world=bench` within `0.117 rad` (`|eps| <= 0.251 rad`); on the
-    drive core (`test_sensorless_rock_below_w_lo`) within `0.091 rad`.
+    drive core (`test_handover_under_d_current`) within `0.100 rad`.
 
 ## The law under the stand-in
 

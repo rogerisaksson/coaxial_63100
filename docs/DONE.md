@@ -313,5 +313,5 @@ it names. A closed item is cut from the list and gets its line here, last.
     `-0.03394 A` Renode at `+0.3 rad` against `-0.03302 A`, `+0.00009 A` locked
     at `0.0 rad`); paused on Renode through the 5 s `+-200 rpm` rock, `theta_hat`
     against `plant Shaft` stays within `0.138 rad` (`0.039 rad` mean, `0.117 rad`
-    on `native://`, `0.091 rad` on the drive core) ([drive](findings/drive.md)).
+    on `native://`, `0.100 rad` on the drive core) ([drive](findings/drive.md)).
 
