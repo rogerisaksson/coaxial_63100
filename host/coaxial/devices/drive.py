@@ -384,8 +384,14 @@ class Drive(Device, DriveControl, device=protocol.DEVICE_DRIVE):
         kg.m2, b N.m.s, load N.m, v_dt V, i_knee A, vdc V, noise A rms,
         theta0 rad, sub steps.
         """
-        return self._by_name(DriveOp.MODEL_PARAM, MODEL_PARAMS, MODEL_IDS,
+        out = self._by_name(DriveOp.MODEL_PARAM, MODEL_PARAMS, MODEL_IDS,
                              'model parameter', values)
+        serial = getattr(getattr(self.board, 'transport', None), 'serial', None)
+        model = getattr(serial, 'model', None)
+        if model is not None:
+            model(j=values.get('j'), b=values.get('b'), load=values.get('load'),
+                  unit=getattr(self.board, 'unit', 1))
+        return out
 
     def _read_model(self):
         """The model's truth: source, the rotor's angle and speed (electrical),
@@ -421,7 +427,12 @@ class Drive(Device, DriveControl, device=protocol.DEVICE_DRIVE):
 
     def _reset_model(self):
         """The rotor back to theta0, at rest."""
-        return self._ack(DriveOp.MODEL_RESET)
+        out = self._ack(DriveOp.MODEL_RESET)
+        serial = getattr(getattr(self.board, 'transport', None), 'serial', None)
+        reset = getattr(serial, 'model_reset', None)
+        if reset is not None:
+            reset(unit=getattr(self.board, 'unit', 1))
+        return out
 
     # -- the record ------------------------------------------------------
 

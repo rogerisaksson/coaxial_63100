@@ -139,9 +139,11 @@ class World:
         self.spec = worlds.load(name)
         lib = self.lib = _copy(_libraries()[1])
         for call in ('emu_world_body', 'emu_world_load', 'emu_plant_attach', 'emu_world_motor',
-                     'emu_world_drag'):
+                     'emu_world_drag', 'emu_world_model', 'emu_plant_reset'):
             getattr(lib, call).restype = None
         lib.emu_world_drag.argtypes = [ctypes.c_int, ctypes.c_float, ctypes.c_float]
+        lib.emu_world_model.argtypes = [ctypes.c_int, ctypes.c_float, ctypes.c_float, ctypes.c_float]
+        lib.emu_plant_reset.argtypes = [ctypes.c_int]
         nodes = self.spec['nodes']
         body = self.spec.get('body', {})
         lib.emu_world_reset(len(nodes))
@@ -291,6 +293,22 @@ class Limb:
             with self.lock:
                 self.world.lib.emu_world_drag(unit - 1, k_drag, torque)
 
+    def model(self, j=None, b=None, load=None, unit=1):
+        """The unit's motor model parameters laid live: J, b, and load torque."""
+        if self.world is not None:
+            with self.lock:
+                self.world.lib.emu_world_model(
+                    unit - 1,
+                    ctypes.c_float(float('nan') if j is None else float(j)),
+                    ctypes.c_float(float('nan') if b is None else float(b)),
+                    ctypes.c_float(float('nan') if load is None else float(load)))
+
+    def model_reset(self, unit=1):
+        """The unit's rotor back to rest at theta0."""
+        if self.world is not None:
+            with self.lock:
+                self.world.lib.emu_plant_reset(unit - 1)
+
     def pilot(self, volts, hz=PILOT_HZ, noise=0.0):
         """The master's common-mode pilot on the bus, every board's STO chain on it: its
         amplifier's amplitude, V (0 none), and Hz; the far end's 100 kHz common mode, V."""
@@ -401,6 +419,8 @@ class Serial(SerialBase):
         self.room = self._limb.room
         self.mount, self.mounted = self._limb.mount, self._limb.mounted()
         self.drag = self._limb.drag
+        self.model = self._limb.model
+        self.model_reset = self._limb.model_reset
         self.pilot = self._limb.pilot
         #: The units a scan probes, and whether the port is a board's console.
         self.units = self._limb.units

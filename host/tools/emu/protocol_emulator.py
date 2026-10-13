@@ -19,7 +19,8 @@ import urllib.parse
 import serial
 from serial.serialutil import SerialBase
 
-from tools.emu.emulator import FAITHFUL_MIPS, IDLE_MIPS, Body, Emulator, Limb
+from tools.emu.body import Body
+from tools.emu.emulator import FAITHFUL_MIPS, IDLE_MIPS, Emulator, Limb
 
 _RUNNING = {}
 
@@ -114,6 +115,8 @@ class Serial(SerialBase):
         self.room = emu.room
         self.mount, self.mounted = emu.mount, emu.mounted()
         self.drag = emu.drag
+        self.model = emu.model
+        self.model_reset = getattr(emu, 'model_reset', None)
         self.pilot = emu.pilot
         self.units = emu.units
         self.console = not isinstance(emu, Limb)

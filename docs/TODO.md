@@ -258,8 +258,6 @@ gets a line at the end of [DONE](DONE.md).
   the injection (`drv_inj_periods` >= 2, `demod_gain`, `drv_sigma_i`, the
   demod's offset) or an I/f start. DOD: on Renode, paused, `theta_hat`
   against `plant Shaft` through the demo's rock under 0.3 rad.
-- **Motion papers on the emulator**: `motion` and `applications` set J and
-  load through `drive.model`. DOD: both run on the emulator.
 - **Thermal observer at short periods**: the NTC anchor inverts a standing
   miss x1.8. DOD: `tools/bench/power_check.py` at 1-5 s keeps its patches.
 - **STO chain** (`tools/bench/sto_probe.py`): R93 to 3V3D, a master's pilot

@@ -235,3 +235,8 @@ board's findings: [FINDINGS](../FINDINGS.md).
   against 0.00546 V.s).
 - The stand-in's link gave t1.5/t3.5 as 1750/4083, not the part's cycles, and
   the console's frames on all three ports.
+- `motion` and `applications` set J, damping, and load through `drive.model`:
+  forwarded to the emulated world plant via `emu_world_model` and `emu_plant_reset`
+  so the rotor runs bare or under commanded inertia/load instead of the demo flywheel.
+  Both papers execute cleanly on `EMULATED`.
+

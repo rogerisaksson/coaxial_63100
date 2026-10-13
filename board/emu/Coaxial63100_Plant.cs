@@ -107,6 +107,8 @@ namespace Antmicro.Renode.Peripherals.Analog
             heatRoom = Export<HeatRoom>("emu_heat_room");
             heatApplication = Export<HeatApplication>("emu_heat_application");
             worldDrag = Export<WorldDrag>("emu_world_drag");
+            worldModel = Export<WorldModel>("emu_world_model");
+            plantReset = Export<PlantReset>("emu_plant_reset");
         }
 
         public void World(string library, int motors)
@@ -178,6 +180,10 @@ namespace Antmicro.Renode.Peripherals.Analog
         public double Drag { get => drag; set { drag = value; LayDrag(); } }
 
         public double LoadTorque { get => loadTorque; set { loadTorque = value; LayDrag(); } }
+
+        public double Inertia { get => inertia; set { inertia = value; if(native != IntPtr.Zero) worldModel(Node, (float)inertia, float.NaN, float.NaN); } }
+        public double Damping { get => damping; set { damping = value; if(native != IntPtr.Zero) worldModel(Node, float.NaN, (float)damping, float.NaN); } }
+        public void ModelReset() { if(native != IntPtr.Zero) plantReset(Node); }
 
         /// <summary>The heat's clock, thermal s per virtual s: 1 until the rig sets the world's
         /// (coaxial.model.thermal.HASTE) with the board's observer's (thermal op 13). A step is
@@ -442,6 +448,10 @@ namespace Antmicro.Renode.Peripherals.Analog
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         private delegate void WorldDrag(int i, float kDrag, float torque);
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        private delegate void WorldModel(int i, float j, float b, float load);
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        private delegate void PlantReset(int i);
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         private delegate void HeatApplication(int i, int app);
 
         private static IntPtr native;
@@ -457,6 +467,8 @@ namespace Antmicro.Renode.Peripherals.Analog
         private static HeatRoom heatRoom;
         private static HeatApplication heatApplication;
         private static WorldDrag worldDrag;
+        private static WorldModel worldModel;
+        private static PlantReset plantReset;
 
         private readonly IMachine machine;
         private readonly Coaxial63100_AFE afe;
@@ -476,6 +488,8 @@ namespace Antmicro.Renode.Peripherals.Analog
         private bool roomLaid = true;
         private double drag;
         private double loadTorque;
+        private double inertia;
+        private double damping;
 
         private const uint HeatHz = 10;
         /// <summary>The 2EDL8034's UVLO, V (motor_inverters/half_bridge/2EDL8034F5.lib).</summary>

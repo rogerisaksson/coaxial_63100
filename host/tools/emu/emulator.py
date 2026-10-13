@@ -284,6 +284,28 @@ class Emulator:
         """Every plant's load laid live (native.Limb.drag): drag, N m per (rad/s)^2, torque."""
         self._set(worlds.PLANT, Drag=k_drag, LoadTorque=torque)
 
+    def model(self, j=None, b=None, load=None, unit=1):
+        """The unit's motor model parameters laid live on the plant."""
+        cmds = {}
+        if j is not None:
+            cmds['Inertia'] = j
+        if b is not None:
+            cmds['Damping'] = b
+        if load is not None:
+            cmds['LoadTorque'] = load
+        if cmds:
+            text = '; '.join('%s %s %s' % (worlds.PLANT, name, worlds._decimal(value))
+                             for name, value in cmds.items())
+            self._on_unit(unit, text)
+
+    def model_reset(self, unit=1):
+        """The unit's rotor back to rest at theta0."""
+        self._on_unit(unit, '%s ModelReset' % worlds.PLANT)
+
+    def _on_unit(self, unit, text):
+        for part in text.split('; '):
+            self.command(part)
+
     def pilot(self, volts, hz=PILOT_HZ, noise=0.0):
         """The master's common-mode pilot on the bus, every board's STO chain on it: its
         amplifier's amplitude, V (0 none), and Hz; the far end's 100 kHz common mode, V."""
@@ -431,48 +453,17 @@ class Limb(Emulator):
                 self.command(part)
         self.command('mach set "node1"')
 
+    def _on_unit(self, unit, text):
+        """A monitor command on a specific unit's plant."""
+        if self.nodes > 1 and 1 <= unit <= self.nodes:
+            self.command('mach set "node%d"' % unit)
+            for part in text.split('; '):
+                self.command(part)
+            self.command('mach set "node1"')
+        elif unit <= self.nodes:
+            for part in text.split('; '):
+                self.command(part)
 
-class Body:
-    """A machine's limbs, a Renode process each so they run on the host's cores side by side -
-    one process's machines wait for each other every quantum, eight boards in one doing 5 a
-    board's work. Each limb is its own RS485 segment, as on the machine:
-    `urls[name]` is its bus. `limbs` {name: boards}, `worlds` {name: a world's name}."""
-
-    def __init__(self, limbs, elf=ELF, worlds=None, mips: int | None = FAITHFUL_MIPS,
-                 mpu=False):
-        worlds = worlds or {}
-        self.limbs = {name: Limb(n, elf, world=worlds.get(name), mips=mips, mpu=mpu)
-                      for name, n in limbs.items()}
-        self.urls = {name: limb.url for name, limb in self.limbs.items()}
-
-    def start(self):
-        failed = []
-
-        def up(limb):
-            try:
-                limb.start()
-            except RuntimeError as exc:
-                failed.append(str(exc))
-
-        threads = [threading.Thread(target=up, args=(limb,)) for limb in self.limbs.values()]
-        for thread in threads:
-            thread.start()
-        for thread in threads:
-            thread.join()
-        if failed:
-            self.stop()
-            raise RuntimeError('; '.join(failed))
-        return self
-
-    def stop(self):
-        for limb in self.limbs.values():
-            limb.stop()
-
-    def __enter__(self):
-        return self.start()
-
-    def __exit__(self, *exc):
-        self.stop()
 
 
 def check(emu):

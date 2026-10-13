@@ -263,6 +263,15 @@ it names. A closed item is cut from the list and gets its line here, last.
     (90.83 %) to 220 464 B (74.76 %) and ITCMRAM from 35 928 B to 33 112 B;
     hot-path `memset` emits 64-bit `strd` loops and `memcpy` emits 32-bit
     `ldr.w`/`str.w` word loops rather than byte-by-byte loops.
+66. Motion papers on the emulator (`world/src/world_emu.c`,
+    `board/emu/Coaxial63100_Plant.cs`, `host/tools/emu/emulator.py`,
+    `host/tools/cores/native.py`, `host/coaxial/devices/drive.py`,
+    `host/tools/notebooks/__init__.py`):
+    `motion` and `applications` set J, damping, and load through `drive.model`
+    forwarded to the emulated world plant (`emu_world_model` and `emu_plant_reset`).
+    Both `motion.ipynb` and `applications.ipynb` execute and verify cleanly on
+    execution mode `EMULATED`.
+
 
 
 
