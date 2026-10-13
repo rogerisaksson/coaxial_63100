@@ -254,6 +254,15 @@ it names. A closed item is cut from the list and gets its line here, last.
 64. `coaxial_63020` pin table in `boot_main.c` (`boot/src/boot_main.c`):
     `PINS_63020` and `BOARD_63020` defined and handled by `board_of`
     for `BOOT_TYPE_COAXIAL_63020`.
+65. Debug `-Og` configuration and `board_mem.c` hot-path optimization
+    (`cmake/gcc-arm-none-eabi.cmake`, `CMakeLists.txt`,
+    `docs/findings/wrench.md`):
+    `CMAKE_C_FLAGS_DEBUG` and `CMAKE_CXX_FLAGS_DEBUG` changed from `-O0 -g3`
+    to `-Og -g3`, and `board/src/board_mem.c` added to `-O2` compiled source
+    list in `CMakeLists.txt`. Debug image flash dropped from 267 872 B
+    (90.83 %) to 220 464 B (74.76 %) and ITCMRAM from 35 928 B to 33 112 B;
+    loop ticks on the image measure 247 831 us cold and warm at 475 MHz
+    with 0 held passes.
 
 
 

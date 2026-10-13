@@ -299,7 +299,4 @@ gets a line at the end of [DONE](DONE.md).
   SIL; the fallback where nothing answers.
 - **The MCU's die under the drive**: 9 us of sampling in a 20 us period.
   DOD: read.
-- **Debug `-O0`**, `board_mem.c`'s memset and memcpy with it: the step's
-  tick 0.32 M instructions there where the Release image's 0.25. DOD:
-  `-Og` measured (LOOP, keepalive gap).
 
