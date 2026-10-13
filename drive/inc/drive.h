@@ -165,6 +165,7 @@ typedef struct
   float omega;         /**< electrical */
   float omega_lo;      /**< the low bits omega's sum drops */
   float id, iq;        /**< in the rotor's own frame */
+  float id_prev, iq_prev;
   float duty_prev[DRIVE_PHASES]; /**< the pipeline: last step's duties */
   bool driven_prev;              /**< and whether its bridge switched */
   float c, s;                    /**< cos/sin of theta at the sample */

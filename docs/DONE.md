@@ -225,6 +225,13 @@ it names. A closed item is cut from the list and gets its line here, last.
 58. A date refused: the remaining files stripped of dates and
     `test_no_dates_in_the_tree` in `test_layout.py` (`--structure`) holding
     the tree's text free of them.
+59. L map at no bias recovered within 2.5 % of truth on the cores (`drive.c`,
+    `drive_model.c`, `pmsm.py`, `test_sensorless.py`): dead-time voltage
+    compensation evaluated on the fundamental current reconstructed from (id, iq)
+    at th_out rather than raw sampled currents turned by an fs/2 ripple, and the
+    model's dead-time drop on the two-period average current; Ld and Lq at no bias
+    measure 19.5 and 29.3 uH against 20 and 30 uH (< 2.5 % error, DOD < 5 %),
+    saliency 0.20 recovered ([drive](findings/drive.md)).
 
 
 

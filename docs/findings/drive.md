@@ -118,9 +118,12 @@ rotor's pages and their demos. The board's findings:
 - Commissioning's steps on the law and its model, 51 checks. The sign check
   read 0.14 +- 0.08 A on a rotor the gain step left turning at -129 rad/s,
   0.1912 +- 0.0000 after 0.15 s on the vector's own damping (`sign_check`'s
-  settle). The L map at no bias reads L / 2.3: the law's dead-time table and
-  the model's error both follow the sampled current's sign, which an fs/2
-  ripple turns each period; within 2 % at 2 and 3 A of bias.
+  settle). The L map at no bias read L / 2.3: the law's dead-time table and
+  the model's error both followed the sampled current's sign, which an fs/2
+  ripple turns each period. Evaluated on the fundamental phase currents
+  (drive.c) and the two-period average (drive_model.c, pmsm.py), Ld and Lq
+  recover within 2.5 % of truth at no bias (19.5 and 29.3 uH of 20 and 30),
+  saliency 0.20, and smoothly bend under d-axis bias current.
 - The chain beside the loop (`obs`, a PLL of 200 and 8 000) does not acquire
   a rotor spooled at 81 000 rad/s^2: 0-4 rad/s at a hover's 2 957.
   `board_thermal.c` took the air's rotor speed off it: off the loop's

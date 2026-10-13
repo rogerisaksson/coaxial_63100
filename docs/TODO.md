@@ -308,9 +308,6 @@ gets a line at the end of [DONE](DONE.md).
 - **The ring test's J** reads 30-63 % over the stand-in's (drive.md): the
   hold's stiffness taken as 1.5 pp^2 lambda I, the board's current loop
   softer at the ring's rate. DOD: within 5 %.
-- **L map at no bias** reads L / 2.3 on the cores (drive.md): the
-  dead-time table and the model's error on the sampled current's sign under
-  an fs/2 ripple. DOD: Ld and Lq within 5 % at no bias.
 - **The chain beside the loop** (`obs`) loses a rotor spooled at 81 000
   rad/s^2. DOD: it follows a QUAD's spool, or is cut.
 - **native://**: a limb's world on a fixed mount as board/emu's; one
