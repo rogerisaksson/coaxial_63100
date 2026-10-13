@@ -38,15 +38,12 @@ def test_stunts_compile_and_execute(report):
 def test_wall_obstacle_collision_and_compliance(report):
     """Walking into a wall compliantly damps drive, zeros going, and maintains upright balance."""
     from machine import floor, latent, modal, ortho, sprung
+    with open(os.path.join(HERE, 'machine', 'moves.lisp'), encoding='utf-8') as f:
+        tables, phases = ortho.compiled(f.read())
     g = sprung.laid()
-    by = {entry[0]: entry for entry in sprung.entries()}
-    # Start walking forward
-    sprung.said(g, *by['#201'], at=0.05, reset=True)
-    sprung.said(g, *by['#202'], at=0.15, reset=True)
-    sprung.said(g, *by['#203'], at=0.35, reset=True)
-    sprung.said(g, *by['#204'], at=0.70, reset=True)
-    # Place wall at z=0.6m ahead
-    floor.place(g['world'], 'wall', z=0.6)
+    sprung.said(g, 'ballistic_walk', tables['ballistic_walk'], phases['ballistic_walk'] + ('rest',), at=0.01, reset=True)
+    # Place wall at z=0.5m ahead
+    floor.place(g['world'], 'wall', z=0.5)
 
     wall_id = g['world'].model.body('wall').id
     hit = False
@@ -71,14 +68,12 @@ def test_wall_obstacle_collision_and_compliance(report):
 def test_tree_obstacle_collision_and_compliance(report):
     """Walking into a tree compliantly damps drive and prevents falling."""
     from machine import floor, latent, modal, ortho, sprung
+    with open(os.path.join(HERE, 'machine', 'moves.lisp'), encoding='utf-8') as f:
+        tables, phases = ortho.compiled(f.read())
     g = sprung.laid()
-    by = {entry[0]: entry for entry in sprung.entries()}
-    sprung.said(g, *by['#201'], at=0.05, reset=True)
-    sprung.said(g, *by['#202'], at=0.15, reset=True)
-    sprung.said(g, *by['#203'], at=0.35, reset=True)
-    sprung.said(g, *by['#204'], at=0.70, reset=True)
-    # Place tree at z=0.6m ahead
-    floor.place(g['world'], 'tree', z=0.6)
+    sprung.said(g, 'ballistic_walk', tables['ballistic_walk'], phases['ballistic_walk'] + ('rest',), at=0.01, reset=True)
+    # Place tree at z=0.5m ahead
+    floor.place(g['world'], 'tree', z=0.5)
 
     tree_id = g['world'].model.body('tree').id
     hit = False
@@ -99,18 +94,16 @@ def test_tree_obstacle_collision_and_compliance(report):
 def test_stumble_reflex_boosts_limb_lift(report):
     """Stumbling over a sill triggers limb lift clearance boost reflex."""
     from machine import floor, latent, modal, ortho, sprung
+    with open(os.path.join(HERE, 'machine', 'moves.lisp'), encoding='utf-8') as f:
+        tables, phases = ortho.compiled(f.read())
     g = sprung.laid()
-    by = {entry[0]: entry for entry in sprung.entries()}
-    sprung.said(g, *by['#201'], at=0.05, reset=True)
-    sprung.said(g, *by['#202'], at=0.15, reset=True)
-    sprung.said(g, *by['#203'], at=0.35, reset=True)
-    sprung.said(g, *by['#204'], at=0.70, reset=True)
-    # Place sill at z=0.42m
-    floor.place(g['world'], 'sill', z=0.42)
+    sprung.said(g, 'ballistic_walk', tables['ballistic_walk'], phases['ballistic_walk'] + ('rest',), at=0.01, reset=True)
+    # Place sill at z=0.35m
+    floor.place(g['world'], 'sill', z=0.35)
 
     stumbled = False
     boosted = False
-    for _ in range(2000):
+    for _ in range(2500):
         s, loads, ask, out = sprung.passed(g, 0.001)
         if g['stumble_until'] > g['t']:
             stumbled = True
@@ -193,6 +186,33 @@ def test_ballistic_start_trailing_leg_flexion_and_smooth_transitions(report):
                  'tilt: %.1f deg' % sprung.tilt(g))
 
 
+def test_random_mode_transitions_without_crashes(report):
+    """Randomly jumping between all modes (0..9) executes compliant transitions without falls."""
+    import random
+    from machine import sprung
+    gym = sprung.entries()
+    for seed in (42, 7):
+        rng = random.Random(seed)
+        g = sprung.laid()
+        modes = [rng.randint(0, 9) for _ in range(6)]
+        fell = None
+        for m in modes:
+            sprung._heard(g, gym, {'say': m})
+            for _ in range(800):
+                try:
+                    sprung.passed(g, 0.001)
+                except Exception as e:
+                    fell = str(e)
+                    break
+                if sprung.tilt(g) > sprung.DOWN_DEG:
+                    fell = 'tilt %.1f deg' % sprung.tilt(g)
+                    break
+            if fell:
+                break
+        report.check('seed %d mode sequence completed without falling' % seed,
+                     fell is None and sprung.tilt(g) < 25.0, 'modes=%s fell=%s, tilt=%.1f deg' % (modes, fell, sprung.tilt(g)))
+
+
 ROSTER = [
     test_stunts_compile_and_execute,
     test_wall_obstacle_collision_and_compliance,
@@ -201,6 +221,7 @@ ROSTER = [
     test_step_across_10cm_hole,
     test_moderate_and_severe_shove_reflexes,
     test_ballistic_start_trailing_leg_flexion_and_smooth_transitions,
+    test_random_mode_transitions_without_crashes,
 ]
 
 

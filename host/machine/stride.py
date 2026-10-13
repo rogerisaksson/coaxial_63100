@@ -115,7 +115,7 @@ def meets(xi, c, flat, cruise, om, turns, wide):
     centre of mass `c`, and APART_M its own side of the other sole (`flat` their middles)."""
     step_s = np.pi / np.maximum(turns, TINY)
     grown = np.exp(om * step_s)
-    led = LEADS * np.maximum((xi[ALONG] - c[ALONG]) - cruise / om, -0.02)
+    led = LEADS * np.maximum((xi[ALONG] - c[ALONG]) - cruise / om, -0.04)
     meet = xi - np.stack([cruise * step_s / (grown - 1.0) - led + 0.0 * LIMBS,
                           -LIMBS * wide / (grown + 1.0)], axis=1)
     return np.stack([c[ALONG] + clip(meet[:, ALONG] - c[ALONG], -REACH_M, REACH_M),

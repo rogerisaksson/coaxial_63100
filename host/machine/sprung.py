@@ -37,7 +37,7 @@ SHOVES, SHOVE_S = {'nudge': 38.0, 'push': 80.0, 'shove': 120.0}, 0.12
 #: What the worker hears (`Running.send`).
 HEARD = ('say', 'walk', 'entries', 'gym', 'text', 'push', 'seconds', 'restart')
 #: Her walk from rest: her moves' payloads (GYMS[0]) and the second each is said at.
-WALK = (('#201', 0.1), ('#202', 0.3), ('#203', 1.2), ('#204', 2.0))
+WALK = (('#201', 0.5), ('#202', 2.0), ('#203', 5.0), ('#204', 9.0))
 #: Her braking stride when asked to stop or switch from a walk: capture-point stepping kept
 #: live (drive > STIRS) while lateral and sagittal momentum damp before #201 locks her soles.
 BRAKE = ('(stream_inject (sequence_id 200) (blend_duration 450ms)'

@@ -2,140 +2,69 @@
 ;; A mode is -1 to 1 (machine/modal.py); a stiffness N/m, a damping N s/m. The page's gym
 ;; (machine/sprung.py) says them by digit, in this order: the payloads, then the behaviours.
 
-;; 1: stand at rest
+;; stand
 (stream_inject
   (sequence_id 201)
   (blend_duration 500ms)
-  (latent_targets
-    (mode_axial_compression 0.0)
-    (mode_pitch_attitude 0.0)
-    (mode_sagittal_shift 0.0)
-    (mode_lateral_shift 0.0))
+  (latent_targets (mode_axial_compression 0.0) (mode_pitch_attitude 0.0))
   (impedance
-    (stiffness mode_axial_compression 8000) (damping mode_axial_compression 1000)
-    (stiffness mode_lateral_shift 4500) (damping mode_lateral_shift 500)
-    (stiffness mode_sagittal_shift 1500) (damping mode_sagittal_shift 350))
-  (cpg_config (enable false))
-  (task_constraints (maintain_zmp (polygon support_polygon))))
+    (stiffness mode_axial_compression 3000) (damping mode_axial_compression 600)
+    (stiffness mode_lateral_shift 3000) (damping mode_lateral_shift 300)
+    (stiffness mode_sagittal_shift 300) (damping mode_sagittal_shift 150))
+  (cpg_config (enable false)))
 
-;; 2: APA & forward lean: break sagittal equilibrium into the first lateral shift. Her stride's
-;; other modes are set to her drive here: her sway and her pelvis's list three tenths of a turn
+;; sway from sole to sole, no steps: her ZMP into each sole in turn. Her stride's other
+;; modes are set to her drive here: her sway and her pelvis's list three tenths of a turn
 ;; ahead of it, its turn, her arms and her soles' rock with it
 (stream_inject
   (sequence_id 202)
-  (blend_duration 500ms)
-  (latent_targets (mode_axial_compression 0.02) (mode_sagittal_shift 0.5))
-  (impedance
-    (stiffness mode_axial_compression 8000) (damping mode_axial_compression 1000)
-    (stiffness mode_lateral_shift 4500) (damping mode_lateral_shift 500)
-    (stiffness mode_sagittal_shift 1200) (damping mode_sagittal_shift 300))
+  (blend_duration 1500ms)
   (cpg_config
     (enable true)
-    (frequency 0.83Hz)
+    (frequency 0.9Hz)
     (amplitude mode_lateral_shift 0.31)
     (amplitude mode_sagittal_drive 0.0)
-    (amplitude mode_limb_lift 0.0)
+    (phase_offset mode_lateral_shift mode_sagittal_drive 108deg)
+    (phase_offset mode_pelvis_list mode_sagittal_drive 108deg)
+    (phase_offset mode_pelvis_turn mode_sagittal_drive 0deg)
+    (phase_offset mode_arm_swing mode_sagittal_drive 0deg)
+    (phase_offset mode_foot_rock mode_sagittal_drive 0deg)))
+
+;; step: 0.12 m/s. Along her way she is damped to her cruise, held to no place; a sole in
+;; the air 4 cm clear and stiff in its pitch
+(stream_inject
+  (sequence_id 203)
+  (blend_duration 1500ms)
+  (impedance
+    (stiffness mode_sagittal_shift 0) (damping mode_sagittal_shift 150)
+    (stiffness mode_foot_rock 2400) (damping mode_foot_rock 240))
+  (cpg_config (amplitude mode_sagittal_drive 0.2) (amplitude mode_limb_lift 1.0))
+  (task_constraints (maintain_zmp (polygon dynamic_footprint))))
+
+;; walk on: 0.69 m/s. Her soles rock heel to toe, her pelvis lists and turns, her arms swing
+(stream_inject
+  (sequence_id 204)
+  (blend_duration 2000ms)
+  (latent_targets (mode_pitch_attitude 0.0))
+  (cpg_config
+    (amplitude mode_sagittal_drive 0.6)
+    (amplitude mode_foot_rock 0.6)
+    (amplitude mode_pelvis_list 0.4)
+    (amplitude mode_pelvis_turn 0.4)
+    (amplitude mode_arm_swing 0.8)))
+
+;; back: the same rhythm, her sway and her list the other side of her drive
+(stream_inject
+  (sequence_id 205)
+  (blend_duration 1500ms)
+  (latent_targets (mode_pitch_attitude 0.0))
+  (cpg_config
+    (amplitude mode_sagittal_drive 0.2)
     (amplitude mode_foot_rock 0.0)
     (amplitude mode_pelvis_list 0.0)
     (amplitude mode_pelvis_turn 0.0)
     (amplitude mode_arm_swing 0.0)
-    (phase_offset mode_lateral_shift mode_sagittal_drive 108deg)
-    (phase_offset mode_pelvis_list mode_sagittal_drive 108deg)
-    (phase_offset mode_pelvis_turn mode_sagittal_drive 0deg)
-    (phase_offset mode_arm_swing mode_sagittal_drive 0deg)
-    (phase_offset mode_foot_rock mode_sagittal_drive 0deg))
-  (task_constraints (maintain_zmp (polygon support_polygon))))
-
-;; 3: step: ballistic gait initiation. Along her way she commits to her cruise with full arm swing,
-;; pelvis list and turn; a sole in the air 4 cm clear and stiff in its pitch
-(stream_inject
-  (sequence_id 203)
-  (blend_duration 400ms)
-  (latent_targets
-    (mode_axial_compression 0.04)
-    (mode_pitch_attitude 0.0)
-    (mode_sagittal_shift 0.0))
-  (impedance
-    (stiffness mode_axial_compression 3000) (damping mode_axial_compression 600)
-    (stiffness mode_lateral_shift 3000) (damping mode_lateral_shift 300)
-    (stiffness mode_sagittal_shift 0) (damping mode_sagittal_shift 260)
-    (stiffness mode_foot_rock 2400) (damping mode_foot_rock 240))
-  (cpg_config
-    (enable true)
-    (frequency 0.83Hz)
-    (amplitude mode_lateral_shift 0.31)
-    (amplitude mode_sagittal_drive 0.62)
-    (amplitude mode_limb_lift 1.0)
-    (amplitude mode_foot_rock 0.0)
-    (amplitude mode_pelvis_list 0.4)
-    (amplitude mode_pelvis_turn 0.4)
-    (amplitude mode_arm_swing 0.8)
-    (phase_offset mode_lateral_shift mode_sagittal_drive 108deg)
-    (phase_offset mode_pelvis_list mode_sagittal_drive 108deg)
-    (phase_offset mode_pelvis_turn mode_sagittal_drive 0deg)
-    (phase_offset mode_arm_swing mode_sagittal_drive 0deg)
-    (phase_offset mode_foot_rock mode_sagittal_drive 0deg))
-  (task_constraints (maintain_zmp (polygon dynamic_footprint))))
-
-;; 4: walk on: 0.70 m/s. Her soles rock heel to toe, her pelvis lists and turns, her arms swing
-(stream_inject
-  (sequence_id 204)
-  (blend_duration 1000ms)
-  (latent_targets
-    (mode_axial_compression 0.02)
-    (mode_pitch_attitude 0.0)
-    (mode_sagittal_shift 0.0))
-  (impedance
-    (stiffness mode_axial_compression 3000) (damping mode_axial_compression 600)
-    (stiffness mode_lateral_shift 3000) (damping mode_lateral_shift 300)
-    (stiffness mode_sagittal_shift 0) (damping mode_sagittal_shift 260)
-    (stiffness mode_foot_rock 2400) (damping mode_foot_rock 240))
-  (cpg_config
-    (enable true)
-    (frequency 0.83Hz)
-    (amplitude mode_lateral_shift 0.31)
-    (amplitude mode_sagittal_drive 0.65)
-    (amplitude mode_limb_lift 1.0)
-    (amplitude mode_foot_rock 0.6)
-    (amplitude mode_pelvis_list 0.4)
-    (amplitude mode_pelvis_turn 0.4)
-    (amplitude mode_arm_swing 0.8)
-    (phase_offset mode_lateral_shift mode_sagittal_drive 108deg)
-    (phase_offset mode_pelvis_list mode_sagittal_drive 108deg)
-    (phase_offset mode_pelvis_turn mode_sagittal_drive 0deg)
-    (phase_offset mode_arm_swing mode_sagittal_drive 0deg)
-    (phase_offset mode_foot_rock mode_sagittal_drive 0deg))
-  (task_constraints (maintain_zmp (polygon dynamic_footprint))))
-
-;; 5: back: the same rhythm, her sway and her list the other side of her drive
-(stream_inject
-  (sequence_id 205)
-  (blend_duration 1000ms)
-  (latent_targets
-    (mode_axial_compression 0.02)
-    (mode_pitch_attitude 0.0)
-    (mode_sagittal_shift 0.0))
-  (impedance
-    (stiffness mode_axial_compression 3000) (damping mode_axial_compression 600)
-    (stiffness mode_lateral_shift 3000) (damping mode_lateral_shift 300)
-    (stiffness mode_sagittal_shift 0) (damping mode_sagittal_shift 260)
-    (stiffness mode_foot_rock 2400) (damping mode_foot_rock 240))
-  (cpg_config
-    (enable true)
-    (frequency 0.83Hz)
-    (amplitude mode_lateral_shift 0.31)
-    (amplitude mode_sagittal_drive 0.25)
-    (amplitude mode_limb_lift 1.0)
-    (amplitude mode_foot_rock 0.0)
-    (amplitude mode_pelvis_list 0.0)
-    (amplitude mode_pelvis_turn 0.0)
-    (amplitude mode_arm_swing 0.2)
-    (phase_offset mode_lateral_shift mode_sagittal_drive -72deg)
-    (phase_offset mode_pelvis_list mode_sagittal_drive -72deg)
-    (phase_offset mode_pelvis_turn mode_sagittal_drive 0deg)
-    (phase_offset mode_arm_swing mode_sagittal_drive 0deg)
-    (phase_offset mode_foot_rock mode_sagittal_drive 0deg))
-  (task_constraints (maintain_zmp (polygon dynamic_footprint))))
+    (phase_offset mode_lateral_shift mode_sagittal_drive -108deg)))
 
 ;; 6: trip: quick tripping small steps with stiff arms and flat soles
 (defbehavior trip

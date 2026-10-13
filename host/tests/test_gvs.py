@@ -186,7 +186,7 @@ def test_data_oriented_ballistic_wire_and_module_addressing(report):
     sym_val = ballistic.now(plan, '#204.amp.2')
     raw_val = ballistic.now(plan, 'wire[3,0,%d]' % col_drive)
     report.check('flat wire[e,r,c] and symbolic #204.amp.2 address the exact same float cell',
-                 abs(sym_val - raw_val) < 1e-6 and abs(sym_val - 0.65) < 1e-6,
+                 abs(sym_val - raw_val) < 1e-6 and abs(sym_val - 0.6) < 1e-6,
                  'sym = %.3f, raw = %.3f' % (sym_val, raw_val))
 
     snap = ballistic._snapshot()
