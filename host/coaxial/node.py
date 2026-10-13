@@ -323,9 +323,27 @@ class Coaxial(Node):
         wholes = sorted(b - a for a, b in zip(cross, cross[2:]))
         hz = 1.0 / wholes[len(wholes) // 2]             # the median: a gap in the reads moves none
         p = drive.params()
-        pp = p.get('motor_pole_pairs') or 7
-        k = 1.5 * pp * pp * p.get('motor_lambda', 0.005) * amps
-        self._carried = {'hz': hz, 'j': k / (2.0 * math.pi * hz) ** 2}
+        pp = float(p.get('motor_pole_pairs') or 7)
+        lam = float(p.get('motor_lambda') or 0.005)
+        r = float(p.get('motor_r') or 0.05)
+        ld = float(p.get('motor_ld') or 20e-6)
+        lq = float(p.get('motor_lq') or 25e-6)
+        kp = float(p.get('drv_kp') or 0.1)
+        ki = float(p.get('drv_ki') or 250.0)
+        w = 2.0 * math.pi * hz
+        tau = 30e-6
+        gr = kp - ki * tau
+        gi = - (ki / w + kp * w * tau)
+        num_r = (gr + r) * amps
+        num_i = gi * amps + w * (lam + ld * amps)
+        den_r = r + gr
+        den_i = w * lq + gi
+        ratio = (num_r * den_r + num_i * den_i) / (den_r * den_r + den_i * den_i)
+        kt_eff = 1.5 * pp * (lam + (ld - lq) * amps)
+        # The hold's compliance: current loop softness at the ring frequency,
+        # with finite-amplitude swing correction (20 deg electrical).
+        k = 0.96 * kt_eff * pp * ratio
+        self._carried = {'hz': hz, 'j': k / (w * w)}
         return self._carried
 
     def close(self):

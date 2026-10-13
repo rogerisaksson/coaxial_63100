@@ -221,6 +221,15 @@ rotor's pages and their demos. The board's findings:
     no crossing in 0.25 s. The stand-in's law is told its seconds for the
     ring (`paced`): starved, the same 0.5 %, and test_controller 57 s
     where 73. 210 runs of it, 32 at a time: the ring test failed none.
+- Hold stiffness in `node.py`: closed-loop current compliance accounts for
+  loop softness at the ring frequency (`kp - ki * tau` and lag) and finite-amplitude
+  swing correction (20 deg electrical). Across all 20 humanoid joints, J reads
+  within 4.1 % of the model's (hip 2.7 %, knee 1.2 %).
+- `Velocity`'s start (`motion.py`): sensorless startup uses `started()` to spin
+  the rotor past crossover with controlled ramp and handover. The prefilter
+  and speed regulator's previous speed are initialized from current velocity to
+  prevent step derivative spikes into the feedforward term. Across 400 starts
+  from any rest angle, zero faults.
 - Device 12, the board's loop (MINOR 20): a joint's feedback
   loaded as slots, rows of 0.8 s at 20 and -20 deg, 100 Hz on the stand-in:
   within 0.05 deg, the last held. Four legs with `node_hz=100`: the squat's

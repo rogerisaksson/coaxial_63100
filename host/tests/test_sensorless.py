@@ -426,7 +426,7 @@ def test_motion(r):
         try:
             with rig.motion.velocity(amps=4.0, hz=2.0) as v:
                 def trip(_):
-                    rig.drive.configure(drv_i_trip=0.5)      # under what the spin carries
+                    rig.drive.configure(drv_i_trip=0.005)     # under what the spin carries
                 v.rpm(600, seconds=2.0, watch=trip)
             r.check('a trip mid-spin ends the loop with the reason', False)
         except RigError as exc:
@@ -464,6 +464,22 @@ def test_motion(r):
         r.check('and every concurrent shaft read stays a real angle',
                 seen and all(-1.0 <= d <= 361.0 for d in seen),
                 (len(seen), max(seen, default=0)))
+
+        # Started from any rest angle across 400 starts: none fault.
+        from coaxial.control.motion import started
+        w_hi = float(rig.drive.params().get('drv_w_hi') or 120.0)
+        faults = []
+        for k in range(400):
+            rig.drive.model.configure(theta0=k * (math.tau / 400.0))
+            rig.drive.model.reset()
+            started(rig.drive, lambda s: (rig.drive.paced(s), rig.drive.state()),
+                    2.0, 3.0 * w_hi, 0.4)
+            st = rig.drive.state()
+            if st['fault']:
+                faults.append((k, st['fault']))
+            rig.drive.off()
+        r.check('started brings the rotor past crossover from any rest angle (0 of 400 faults)',
+                len(faults) == 0, faults)
     finally:
         rig.close()
 

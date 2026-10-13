@@ -232,6 +232,17 @@ it names. A closed item is cut from the list and gets its line here, last.
     model's dead-time drop on the two-period average current; Ld and Lq at no bias
     measure 19.5 and 29.3 uH against 20 and 30 uH (< 2.5 % error, DOD < 5 %),
     saliency 0.20 recovered ([drive](findings/drive.md)).
+60. `Velocity`'s start and rotor start past crossover from any rest angle
+    (`host/coaxial/control/motion.py`, `host/tests/test_sensorless.py`):
+    `started()` spins up the rotor past crossover with controlled ramp and
+    handover, prefilter ramp and speed regulator initialised from current speed;
+    0 of 400 starts fault ([drive](findings/drive.md)).
+61. The ring test's J within 5 % of the stand-in's (`host/coaxial/node.py`,
+    `host/tests/test_controller.py`): hold compliance accounts for current loop
+    softness at the ring frequency and finite-amplitude swing correction;
+    error across all humanoid joints <= 4.1 % (hip 2.7 %, knee 1.2 %)
+    ([drive](findings/drive.md)).
+
 
 
 

@@ -294,20 +294,6 @@ gets a line at the end of [DONE](DONE.md).
   `afe.state`, a board's info in its place), `test_wbc_core` (a tick of
   the loop 4 202 us), `test_mcp` (the program card). DOD: each looped 20
   times on a loaded host, its cause found.
-- **`Velocity`'s start** (`coaxial.control.motion`): sensorless at rest, as
-  a rotor node's was - right while the estimate lies within a quarter turn
-  of the rotor. test_controller's velocity loop on the stand-in faulted
-  overcurrent in 8 starts of 384, 32 at a time, and once on CI's runner:
-  within three passes, the estimate at -9 000 to -12 800 rad/s as the ramp
-  crosses the hand-over; a pass 0.1-1.0 s late faulted none of 15. DOD:
-  `motion.started`, its ramp from where that leaves the rotor;
-  test_sensorless's from any rest angle; none in 400 starts. QUAD's
-  restart after a wreck (`flight.spun`) is one: a rotor of four out of
-  `started` at -53 rad/s, back in 80 ms on 49 A; its loop at 500 Hz, two
-  ran to -596 and the frame lifted on them.
-- **The ring test's J** reads 30-63 % over the stand-in's (drive.md): the
-  hold's stiffness taken as 1.5 pp^2 lambda I, the board's current loop
-  softer at the ring's rate. DOD: within 5 %.
 - **The chain beside the loop** (`obs`) loses a rotor spooled at 81 000
   rad/s^2. DOD: it follows a QUAD's spool, or is cut.
 - **native://**: a limb's world on a fixed mount as board/emu's; one
