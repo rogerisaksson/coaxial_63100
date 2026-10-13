@@ -7,6 +7,7 @@
 #include "world_heat.h"
 #include "world_sto.h"
 
+#include <math.h>
 #include <string.h>
 
 static struct
@@ -77,6 +78,44 @@ void emu_world_drag(int i, float k_drag, float torque)
   }
   s.world.load[i].k_drag = k_drag;
   s.world.load[i].torque = torque;
+}
+
+/** Board `i`'s model parameters laid live: J, b, and load torque. */
+void emu_world_model(int i, float j, float b, float load)
+{
+  if ((i < 0) || (i >= (int)WORLD_MOTORS))
+  {
+    return;
+  }
+  if (!isnan(j) && (j > 0.0f))
+  {
+    s.plant[i].j_motor = j;
+    s.plant[i].motor.p.j = j;
+    s.world.load[i].inertia = 0.0f;
+  }
+  if (!isnan(b) && (b >= 0.0f))
+  {
+    s.plant[i].motor.p.b = b;
+    s.world.load[i].damping = 0.0f;
+  }
+  if (!isnan(load))
+  {
+    s.world.load[i].torque = load;
+    s.plant[i].motor.p.load = load;
+  }
+}
+
+/** Board `i`'s rotor back to rest at theta0. */
+void emu_plant_reset(int i)
+{
+  if ((i < 0) || (i >= (int)WORLD_MOTORS) || !s.attached[i])
+  {
+    return;
+  }
+  drive_model_init(&s.plant[i].motor);
+  s.plant[i].theta_was = s.plant[i].motor.theta;
+  s.plant[i].shaft = s.plant[i].motor.theta / s.plant[i].motor.p.pole_pairs;
+  world_motor(&s.world, (uint8_t)i, s.plant[i].shaft, 0.0f);
 }
 
 /** Board `i`'s motor, in drive_model's terms: its PMSM, the link it runs from. */

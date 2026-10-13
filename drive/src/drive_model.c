@@ -47,6 +47,8 @@ void drive_model_init(drive_model_t *m)
   m->omega_lo = 0.0f;
   m->id = 0.0f;
   m->iq = 0.0f;
+  m->id_prev = 0.0f;
+  m->iq_prev = 0.0f;
   m->rng = MODEL_SEED;
   memset(m->duty_prev, 0, sizeof(m->duty_prev));
   m->driven_prev = false;
@@ -121,18 +123,33 @@ void drive_model_advance(drive_model_t *m, const float *duty, float ts)
   {
     v[k] = m->p.vdc * (duty[k] - mean);
   }
+  const float c = m->c;
+  const float s = m->s;
+  const float id_f = 0.5f * (m->id + m->id_prev);
+  const float iq_f = 0.5f * (m->iq + m->iq_prev);
+
+  m->id_prev = m->id;
+  m->iq_prev = m->iq;
   if (m->p.v_dt > 0.0f)
   {
+    /* The fundamental over two periods: at a DC hold it is the sample's, and
+       an fs/2 ripple sits at opposite peaks at the two tops and cancels. */
+    const float ia_f = id_f * c - iq_f * s;
+    const float ib_f = id_f * s + iq_f * c;
+    const float i_f[DRIVE_PHASES] = {
+      ia_f,
+      -0.5f * ia_f + HALF_SQRT3 * ib_f,
+      -0.5f * ia_f - HALF_SQRT3 * ib_f,
+    };
+
     for (uint8_t k = 0U; k < DRIVE_PHASES; k++)
     {
-      v[k] -= m->p.v_dt * drive_tanh(m->i_abc[k] / m->p.i_knee);
+      v[k] -= m->p.v_dt * drive_tanh(i_f[k] / m->p.i_knee);
     }
   }
 
   const float va = (2.0f * v[0] - v[1] - v[2]) / 3.0f;
   const float vb = (v[1] - v[2]) * INV_SQRT3;
-  const float c = m->c;
-  const float s = m->s;
   const float vd = va * c + vb * s;
   const float vq = vb * c - va * s;
   const uint8_t sub = (m->p.sub == 0U) ? 1U : m->p.sub;
@@ -165,7 +182,7 @@ void drive_model_coast(drive_model_t *m, float ts)
   const uint8_t sub = (m->p.sub == 0U) ? 1U : m->p.sub;
   const float dt = ts / (float)sub;
 
-  m->id = m->iq = 0.0f;
+  m->id = m->iq = m->id_prev = m->iq_prev = 0.0f;
   for (uint8_t k = 0U; k < sub; k++)
   {
     const float wm = m->omega / m->p.pole_pairs;

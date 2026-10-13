@@ -21,9 +21,18 @@ gate drive sagging runs the FETs in their SOA). Heat runs HASTE times the clock.
 """
 
 #: The switches' on-resistance and the shunts', ohm (IAUCN10S7N021, two WSHM2818 in parallel);
-#: the switching's watts with the gates on, unshorted, and the housekeeping's always (MCU,
-#: regulators, AFE): thermal.c's loss table; idle, a board draws about 1.4 W.
-RDS_OHM, SHUNT_OHM, SWITCHING_W, HOUSEKEEPING_W = 1.8e-3, 3.5e-3, 1.2, 1.33
+#: the housekeeping's always (MCU, regulators, AFE): thermal.c's loss table; idle, a board draws
+#: about 1.4 W.
+RDS_OHM, SHUNT_OHM, HOUSEKEEPING_W = 1.8e-3, 3.5e-3, 1.33
+
+
+def dry_loss(volts=48.0):
+    """The three legs' dry switching loss, W: 2.4 W at 24 V to 4.4 W at 44 V (0.1 W/V)."""
+    return 2.4 + 0.1 * (float(volts) - 24.0)
+
+
+#: Switching watts with gates on, unshorted, at nominal 48 V bus (bench fit: 2.4 W at 24 V to 4.4 W at 44 V).
+SWITCHING_W = dry_loss(48.0)
 
 #: The nodes: the switches, the laminate under them, the winding. The switches' and the
 #: laminate's heat capacity, J/K, and the switches' path into the laminate, K/W: lumped from the
@@ -57,8 +66,10 @@ class Heat:
 
     """Drives' heat and envelopes, a list a quantity, a drive an index."""
 
-    def __init__(self, drives):
+    def __init__(self, drives, volts=48.0):
         n = len(drives)
+        self.volts = float(volts)
+        self.switching_w = dry_loss(volts)
         #: Each drive's torque an amp, winding ohm, board scale, winding J/K and K/W, laminate
         #: K/W (`drives.heat`); the nodes' capacities.
         self.kt, self.r, self.scale, self.winding_j_k, self.winding_k_w, self.laminate_k_w = (
@@ -106,7 +117,7 @@ class Heat:
             self.sq[k], self.ticks[k] = 0.0, 0
             board = sq * self.scale[k] ** 2
             fet = 0.5 * board * RDS_OHM * rds[k]
-            power = (3.0 * fet + (SWITCHING_W if self.gates[k] and not self.shorted[k] else 0.0),
+            power = (3.0 * fet + (self.switching_w if self.gates[k] and not self.shorted[k] else 0.0),
                      1.5 * board * SHUNT_OHM + HOUSEKEEPING_W, self.r[k] * sq)
             into = (t[0] - t[1]) / INTO_K_W
             net = (power[0] - into,
@@ -147,17 +158,18 @@ class Heat:
                 | self.worst[k] << WORST_SHIFT)
 
 
-def held(joint):
+def held(joint, volts=48.0):
     """(N m, node) a joint's drive holds for ever at its envelope's THROTTLE_AT: its nodes'
     steady state (no hold left to count) bisected on the torque, the node that binds there
     (NODES)."""
     from machine import drives
     kt, r, scale, _wj, winding_k_w, laminate_k_w = drives.heat(joint)
+    sw_w = dry_loss(volts)
 
     def spent(torque):
         amps = torque / kt
         board = (amps * scale) ** 2
-        switch = 1.5 * board * RDS_OHM + SWITCHING_W
+        switch = 1.5 * board * RDS_OHM + sw_w
         laminate = AMBIENT_C + (switch + 1.5 * board * SHUNT_OHM + HOUSEKEEPING_W) * laminate_k_w
         nodes = (laminate + switch * INTO_K_W, laminate, AMBIENT_C + r * amps * amps * winding_k_w)
         return max(((t - AMBIENT_C) / (top - AMBIENT_C), name)

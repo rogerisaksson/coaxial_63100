@@ -291,21 +291,16 @@ def test_commissioning_recovers_the_stand_in(r):
         def bent(amps):
             return S.LD * (1.0 - S.SAT * math.tanh(amps / S.I_SAT))
 
-        # Read where the ripple stays off zero: at none the law's dead-time table and the
-        # model's error both follow the sampled current's sign, which an fs/2 ripple turns
-        # every period - L / 2.3 (docs/findings/drive.md). On a rotor that rings on its
-        # vector, 1-6 % short.
-        at = lm['rows'][2.0]
-        r.check('Ld and Lq within 10 % at 2 A of bias',
-                lm['measured'] and abs(at['ld'] - bent(2.0)) < 0.1 * bent(2.0)
-                and abs(at['lq'] - S.LQ) < 0.1 * S.LQ, (at['ld'], at['lq']))
-        saliency = (S.LQ - bent(2.0)) / (S.LQ + bent(2.0))
+        r.check('Ld and Lq within 5 % at no bias',
+                lm['measured'] and abs(lm['ld'] - S.LD) < 0.05 * S.LD
+                and abs(lm['lq'] - S.LQ) < 0.05 * S.LQ, (lm['ld'], lm['lq']))
+        saliency = (S.LQ - S.LD) / (S.LQ + S.LD)
         r.check('dL/L is the saliency there',
-                abs(at['dl_over_l'] - saliency) < 0.03, (at['dl_over_l'], saliency))
+                abs(lm['dl_over_l'] - saliency) < 0.03, (lm['dl_over_l'], saliency))
         r.check('a bias current bends Ld',
                 abs(lm['rows'][3.0]['ld'] - bent(3.0)) < 0.1 * bent(3.0)
-                and lm['rows'][3.0]['ld'] < at['ld'],
-                (lm['rows'][3.0]['ld'], at['ld']))
+                and lm['rows'][3.0]['ld'] < lm['rows'][2.0]['ld'] < lm['ld'],
+                (lm['rows'][3.0]['ld'], lm['rows'][2.0]['ld'], lm['ld']))
         fl = c.flux()
         r.check('lambda within 10 %',
                 fl['measured'] and abs(fl['lambda'] - S.LAMBDA) < 0.1 * S.LAMBDA,
@@ -431,7 +426,7 @@ def test_motion(r):
         try:
             with rig.motion.velocity(amps=4.0, hz=2.0) as v:
                 def trip(_):
-                    rig.drive.configure(drv_i_trip=0.5)      # under what the spin carries
+                    rig.drive.configure(drv_i_trip=0.005)     # under what the spin carries
                 v.rpm(600, seconds=2.0, watch=trip)
             r.check('a trip mid-spin ends the loop with the reason', False)
         except RigError as exc:
@@ -469,6 +464,22 @@ def test_motion(r):
         r.check('and every concurrent shaft read stays a real angle',
                 seen and all(-1.0 <= d <= 361.0 for d in seen),
                 (len(seen), max(seen, default=0)))
+
+        # Started from any rest angle across 400 starts: none fault.
+        from coaxial.control.motion import started
+        w_hi = float(rig.drive.params().get('drv_w_hi') or 120.0)
+        faults = []
+        for k in range(400):
+            rig.drive.model.configure(theta0=k * (math.tau / 400.0))
+            rig.drive.model.reset()
+            started(rig.drive, lambda s: (rig.drive.paced(s), rig.drive.state()),
+                    2.0, 3.0 * w_hi, 0.4)
+            st = rig.drive.state()
+            if st['fault']:
+                faults.append((k, st['fault']))
+            rig.drive.off()
+        r.check('started brings the rotor past crossover from any rest angle (0 of 400 faults)',
+                len(faults) == 0, faults)
     finally:
         rig.close()
 

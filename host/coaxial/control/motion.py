@@ -240,6 +240,7 @@ class Velocity(_Mode):
     def __init__(self, device, amps, hz=3.0, j=2e-5, b=1e-5, load_k=0.0,
                  rate_hz=25.0, regulator=None, estimator=None):
         super().__init__(device)
+        self.amps = float(amps)
         p = self._params
         motor = Parameters(
             name='the record', r=p['motor_r'], ld=p['motor_ld'],
@@ -256,9 +257,14 @@ class Velocity(_Mode):
             estimate='w_hat'))
 
     def _start(self):
-        self.drive.write(id_ref=0.0, iq_ref=0.0)
-        self.drive.on('sensorless')
-        self._clock.sleep(0.2)                  # the injection lock
+        w_hi = float(self._params.get('drv_w_hi') or 120.0)
+        started(self.drive, self._clock.sleep, self.amps, 3.0 * w_hi, 0.4)
+        ramp = self.loop.parts.get('speed/prefilter')
+        if ramp is not None:
+            ramp.y = self.rpm_now * RAD_S_PER_RPM
+            reg = self.loop.parts.get('speed/regulator')
+            if reg is not None and hasattr(reg, 'was'):
+                reg.was = ramp.y
 
     @property
     def rpm_now(self):

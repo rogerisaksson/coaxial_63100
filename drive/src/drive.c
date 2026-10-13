@@ -7,9 +7,10 @@
 /** Periods from the step that asks for a duty to the sample that shows it. */
 #define PIPELINE 2U
 
-#define PI_F      3.1415927f
-#define TWO_PI_F  6.2831853f
-#define INV_SQRT3 0.57735027f
+#define PI_F       3.1415927f
+#define TWO_PI_F   6.2831853f
+#define HALF_SQRT3 0.8660254f
+#define INV_SQRT3  0.57735027f
 
 /** The back-EMF's speed filter, s: thirty of the current loop's 64 us, so a torque step's
     L di/dt, which the magnitude does not subtract, passes as a thirtieth of itself. */
@@ -697,6 +698,12 @@ bool drive_step(drive_t *d, const drive_sample_t *in, bool stage_enabled,
   }
   command_frame(d);
 
+  /* The duties wait a period and meet the rotor at the angle the step just
+     advanced to. */
+  const float th_out = cmd_frame ? d->theta_cmd : d->theta_hat;
+
+  drive_sincos(th_out, &s, &c);
+
   /* the fundamental */
   const float vmax = clampf(d->p.v_frac * in->vdc * INV_SQRT3 - amp,
                             0.0f, 1e9f);
@@ -718,19 +725,25 @@ bool drive_step(drive_t *d, const drive_sample_t *in, bool stage_enabled,
      both in the stationary frame. */
   drive_observer_step(&d->obs, &d->p, va, vb, alpha, beta, d->ts);
 
-  /* the inverter's error, cancelled before it happens */
-  float comp[DRIVE_PHASES];
+  /* the inverter's error on the fundamental, cancelled before it happens:
+     the raw sample carries an fs/2 injection ripple whose sign turns every
+     period. */
+  float ia_f, ib_f, i_f[DRIVE_PHASES], comp[DRIVE_PHASES];
   float ca, cb;
 
+  drive_inv_park_cs(id, iq, c, s, &ia_f, &ib_f);
+  i_f[0] = ia_f;
+  i_f[1] = -0.5f * ia_f + HALF_SQRT3 * ib_f;
+  i_f[2] = -0.5f * ia_f - HALF_SQRT3 * ib_f;
   for (uint8_t k = 0U; k < DRIVE_PHASES; k++)
   {
-    comp[k] = drive_dt_volts(&d->p, i[k]);
+    comp[k] = drive_dt_volts(&d->p, i_f[k]);
   }
   drive_clarke(comp, &ca, &cb);
   va += ca;
   vb += cb;
 
-  inject(d, injecting, amp, n, th, c, s, &va, &vb);
+  inject(d, injecting, amp, n, th_out, c, s, &va, &vb);
 
   if (stage_enabled && (d->mode != DRIVE_OFF))
   {

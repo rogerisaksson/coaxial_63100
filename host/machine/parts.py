@@ -133,20 +133,24 @@ class Eso(Estimator):
 
 class PI(Regulator):
 
-    """command = kp e + ki integral(e), clamped to +/-limit, the integrator held while clamped."""
+    """command = kp e + ki integral(e), clamped to +/-limit, the integrator held while clamped
+    and within `most` (what its sink carries of the command at the most)."""
 
+    INPUTS = ('setpoint', 'measured', 'most')
     PARAMS = ('kp', 'ki', 'limit')
 
     def __init__(self, kp=1e-3, ki=0.0, limit=1.0):
         self.kp, self.ki, self.limit = float(kp), float(ki), float(limit)
         self.reset()
 
-    def step(self, dt, setpoint=0.0, measured=0.0):
+    def step(self, dt, setpoint=0.0, measured=0.0, most=math.inf):
         e = setpoint - measured
+        room = min(self.limit, most)
+        self.x = min(max(self.x, -room), room)
         raw = self.kp * e + self.x
         u = max(-self.limit, min(self.limit, raw))
         if u == raw:
-            self.x += self.ki * e * dt
+            self.x = min(max(self.x + self.ki * e * dt, -room), room)
         return {'command': u}
 
     def reset(self):

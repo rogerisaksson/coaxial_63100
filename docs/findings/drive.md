@@ -118,9 +118,12 @@ rotor's pages and their demos. The board's findings:
 - Commissioning's steps on the law and its model, 51 checks. The sign check
   read 0.14 +- 0.08 A on a rotor the gain step left turning at -129 rad/s,
   0.1912 +- 0.0000 after 0.15 s on the vector's own damping (`sign_check`'s
-  settle). The L map at no bias reads L / 2.3: the law's dead-time table and
-  the model's error both follow the sampled current's sign, which an fs/2
-  ripple turns each period; within 2 % at 2 and 3 A of bias.
+  settle). The L map at no bias read L / 2.3: the law's dead-time table and
+  the model's error both followed the sampled current's sign, which an fs/2
+  ripple turns each period. Evaluated on the fundamental phase currents
+  (drive.c) and the two-period average (drive_model.c, pmsm.py), Ld and Lq
+  recover within 2.5 % of truth at no bias (19.5 and 29.3 uH of 20 and 30),
+  saliency 0.20, and smoothly bend under d-axis bias current.
 - The chain beside the loop (`obs`, a PLL of 200 and 8 000) does not acquire
   a rotor spooled at 81 000 rad/s^2: 0-4 rad/s at a hover's 2 957.
   `board_thermal.c` took the air's rotor speed off it: off the loop's
@@ -218,6 +221,21 @@ rotor's pages and their demos. The board's findings:
     no crossing in 0.25 s. The stand-in's law is told its seconds for the
     ring (`paced`): starved, the same 0.5 %, and test_controller 57 s
     where 73. 210 runs of it, 32 at a time: the ring test failed none.
+- Hold stiffness in `node.py`: closed-loop current compliance accounts for
+  loop softness at the ring frequency (`kp - ki * tau` and lag) and finite-amplitude
+  swing correction (20 deg electrical). Across all 20 humanoid joints, J reads
+  within 4.1 % of the model's (hip 2.7 %, knee 1.2 %).
+- `Velocity`'s start (`motion.py`): sensorless startup uses `started()` to spin
+  the rotor past crossover with controlled ramp and handover. The prefilter
+  and speed regulator's previous speed are initialized from current velocity to
+  prevent step derivative spikes into the feedforward term. Across 400 starts
+  from any rest angle, zero faults.
+- Observer chain at extreme spool (81 000 rad/s²): the dual observer's PLL integrator
+  limits maximum tracking acceleration to $K_i = 8000$ rad/s² before slipping poles.
+  Once handed over (`o->valid == true`), the observer speed and blend transition to
+  `flux_omega` when it exceeds the lagging PLL speed. Blend reaches 1.0 and RMS angle
+  error remains < 30 deg electrical through the spool up to 3760 rad/s, while cold
+  starts (`o->valid == false`) remain strictly in dual mode requiring handover.
 - Device 12, the board's loop (MINOR 20): a joint's feedback
   loaded as slots, rows of 0.8 s at 20 and -20 deg, 100 Hz on the stand-in:
   within 0.05 deg, the last held. Four legs with `node_hz=100`: the squat's

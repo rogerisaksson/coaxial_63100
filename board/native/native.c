@@ -55,7 +55,7 @@ void fake_console_poll(void);
 #define NATIVE_RAD_TO_DEG  57.29577951308232
 #define NATIVE_PI          3.141592653589793
 #define NATIVE_ADCS        3U
-#define NATIVE_RANKS       2U
+#define NATIVE_RANKS       4U
 #define NATIVE_FULL_CODE   65535.0
 
 /* The heat, Coaxial63100_Plant.cs's: thermal.c's network as the truth (world_heat.c), a step
@@ -496,11 +496,8 @@ static void native_convert(void)
   {
     if (n.adc[k].injected)
     {
-      handles[k]->Instance->JDR1 = afe_code(k, n.adc[k].rank[0]);
-      if (n.adc[k].ranks > 1U)
-      {
-        handles[k]->Instance->JDR2 = afe_code(k, n.adc[k].rank[1]);
-      }
+      volatile uint32_t *const jdr = &handles[k]->Instance->JDR1;
+      for (uint32_t r = 0U; r < n.adc[k].ranks; r++) { jdr[r] = afe_code(k, n.adc[k].rank[r]); }
     }
   }
   if (n.adc[2].injected && n.adc[2].it)

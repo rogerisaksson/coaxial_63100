@@ -176,29 +176,32 @@ def test_the_c_holds_a_speed(report, c):
 def test_a_clamped_rotor_slows_as_asked(report, c):
     """The toy rotor under a propeller's drag, its sink carrying half the regulator's limit:
     asked past what that turns, then down at the slew. Told its sink's clamp, the command is
-    under it while the ask is over the rotor's speed yet; untold it stands over it, wound,
-    till the ask is well under."""
-    drag, clamp, slew, under = 1e-6, 1.0, 400.0, {}
-    for told in (True, False):
-        f = c.lib.ctl_feedback()
-        for i, (kind, values) in enumerate((('Slew', [slew]), (None, []), (None, []),
-                                            ('SpeedPI', [3.0, 2.0, KT, J, B, drag, 1.0]))):
-            if kind:
-                c.lib.ctl_slot(f, i, c.kind(kind), (ctypes.c_float * len(values))(*values))
-        w = 0.0
-        for k in range(int(4.0 / DT)):
-            down = max(0.0, k * DT - 2.5)
-            iq = c.lib.ctl_step(f, DT, 300.0 if down == 0.0 else 100.0, w,
-                                clamp if told else math.inf)
-            if down and iq < clamp:
-                under.setdefault(told, w - (300.0 - slew * down))
-            w += DT * (KT * max(-clamp, min(clamp, iq)) - B * w - drag * w * abs(w)) / J
-        c.lib.ctl_free(f)
-    report.check('a rotor at the clamp its sink carries: told it, its current falls while the '
-                 'ask is over its speed yet; untold, with the ask well under',
-                 under[True] < 0.0 < under[False],
-                 'the ask %.0f rad/s under its speed told, %.0f untold' % (
-                     under[True], under[False]))
+    under it while the ask is over the rotor's speed yet (or at the first pass past it for a bare
+    PI); untold it stands over it, wound, till the ask is well under."""
+    drag, clamp, slew = 1e-6, 1.0, 400.0
+    for reg, params, bound in (('SpeedPI', [3.0, 2.0, KT, J, B, drag, 1.0], 0.0),
+                               ('PI', [4e-3, 0.8, 2.0], 1.0)):
+        under = {}
+        for told in (True, False):
+            f = c.lib.ctl_feedback()
+            for i, (kind, values) in enumerate((('Slew', [slew]), (None, []), (None, []),
+                                                (reg, params))):
+                if kind:
+                    c.lib.ctl_slot(f, i, c.kind(kind), (ctypes.c_float * len(values))(*values))
+            w = 0.0
+            for k in range(int(4.0 / DT)):
+                down = max(0.0, k * DT - 2.5)
+                iq = c.lib.ctl_step(f, DT, 300.0 if down == 0.0 else 100.0, w,
+                                    clamp if told else math.inf)
+                if down and iq < clamp:
+                    under.setdefault(told, w - (300.0 - slew * down))
+                w += DT * (KT * max(-clamp, min(clamp, iq)) - B * w - drag * w * abs(w)) / J
+            c.lib.ctl_free(f)
+        report.check('%s at the clamp its sink carries: told it, its current falls at once; '
+                     'untold, with the ask well under' % reg,
+                     under[True] < bound < under[False],
+                     'the ask %.1f rad/s under its speed told, %.0f untold' % (
+                         under[True], under[False]))
 
 
 def test_rows_play_in_order(report, c):

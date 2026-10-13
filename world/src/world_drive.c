@@ -211,6 +211,10 @@ uint32_t world_drive_pass(int i, uint32_t periods, bool moe, bool supplied, floa
   {
     return 0U;
   }
+  if (!b->loop.r.playing && (b->loop.r.tail != b->loop.r.head))
+  {
+    b->speed_ask = b->loop.r.row[(b->loop.r.head + CTRL_ROWS - 1U) % CTRL_ROWS].setpoint;
+  }
   if ((speed >= 0.0f) && (speed != b->speed_ask))
   {
     const float was = (b->speed_ask >= 0.0f) ? b->speed_ask : speed;

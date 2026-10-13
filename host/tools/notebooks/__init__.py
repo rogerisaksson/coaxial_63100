@@ -7,9 +7,9 @@ from .parts import EMULATED, paper
 #: Papers over discovered nodes: no single device opened.
 NODES = ('controller', 'cycle', 'machines', 'sequencer')
 
-#: Papers on the stand-in's rotor: their J and load are set through `drive.model`, which an
-#: emulated drive keeps to itself - the world's flywheel never feels them (docs/TODO.md).
-ROTOR = ('motion', 'applications')
+#: Papers on the stand-in's rotor: J and the load were once kept from the world's flywheel.
+#: Now laid live through drive.model onto the emulator's plant (docs/TODO.md).
+ROTOR = ()
 STAND_IN = ('SIMULATED', 'the stand-in: J and the load are set on its rotor through '
             '`drive.model`, which an emulated drive keeps to itself')
 

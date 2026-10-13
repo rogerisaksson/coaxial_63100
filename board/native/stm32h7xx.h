@@ -81,6 +81,8 @@ typedef struct
   volatile uint32_t DR;
   volatile uint32_t JDR1;
   volatile uint32_t JDR2;
+  volatile uint32_t JDR3;
+  volatile uint32_t JDR4;
 } ADC_TypeDef;
 
 extern TIM_TypeDef  native_tim1;
@@ -323,6 +325,8 @@ HAL_StatusTypeDef HAL_SPI_TransmitReceive(SPI_HandleTypeDef *hspi, const uint8_t
 #define ADC_REGULAR_RANK_1      1U
 #define ADC_INJECTED_RANK_1     1U
 #define ADC_INJECTED_RANK_2     2U
+#define ADC_INJECTED_RANK_3     3U
+#define ADC_INJECTED_RANK_4     4U
 #define ADC_OFFSET_NONE         0U
 #define ADC_EXTERNALTRIGINJEC_T1_TRGO2          1U
 #define ADC_EXTERNALTRIGINJECCONV_EDGE_RISING   1U

@@ -545,16 +545,17 @@ def test_fitment_by_measurement(report):
         report.check('down a leg each board rings higher: less carried outward',
                      hz == sorted(hz), ['%.1f' % h for h in hz])
         hip, knee = nodes['LL_1'], nodes['LL_2']
+        jh, jk = hip.identify()['j'], knee.identify()['j']
+        report.check('J reads within 5 % of the stand-in\'s',
+                     abs(jh - 3.2e-5) < 1.6e-6 and abs(jk - 2.6e-5) < 1.3e-6, (jh, jk))
         hip.rig.drive.model.configure(j=2.6e-5)
         knee.rig.drive.model.configure(j=3.2e-5)
         hip.identify(again=True)
         knee.identify(again=True)
         swapped = Machine(nodes, type='humanoid')
+        ah, ak = swapped.actuators['left_hip'].node, swapped.actuators['left_knee'].node
         report.check('two loads swapped: the names follow the measurement',
-                     swapped.actuators['left_hip'].node is knee
-                     and swapped.actuators['left_knee'].node is hip,
-                     (swapped.actuators['left_hip'].node.name,
-                      swapped.actuators['left_knee'].node.name))
+                     ah is knee and ak is hip, (ah.name, ak.name))
     finally:
         nodes.close()
 
@@ -797,12 +798,12 @@ def test_the_board_loops_a_joint(report):
     from coaxial.devices.ctrl import dec
     from coaxial.errors import RigError
     from coaxial.node import Coaxial
+    v = (0.735, -2e-5, 90.0, 314.159265, 0.0)
     back = [int.from_bytes(b[:4], 'big', signed=True) * 10.0 ** int.from_bytes(b[4:], 'big',
                                                                                signed=True)
-            for b in (dec(v) for v in (0.735, -2e-5, 90.0, 314.159265, 0.0))]
+            for b in (dec(x) for x in v)]
     report.check('a dec carries a parameter to float32 digits',
-                 all(abs(b - v) <= 1e-7 * abs(v) for b, v in
-                     zip(back, (0.735, -2e-5, 90.0, 314.159265, 0.0))), back)
+                 all(abs(b - x) <= 1e-7 * abs(x) for b, x in zip(back, v)), back)
     rig = Coaxial63100(execution_mode=SIMULATED).open()
     try:
         joint = Coaxial(rig, name='knee').actuator('joint')
@@ -836,10 +837,10 @@ def test_the_board_loops_a_joint(report):
                      and abs(held['value'] + 20.0) < 1.0, held)
         try:
             ctrl.rows([(0.1, 0.0)] * 64)
-            report.check('rows past the ring are refused, all of them', False)
+            ok = False
         except RigError as exc:
-            report.check('rows past the ring are refused, all of them',
-                         'room' in str(exc) and ctrl.state()['rows'] == 0, exc)
+            ok = 'room' in str(exc) and ctrl.state()['rows'] == 0
+        report.check('rows past the ring are refused, all of them', ok)
         ctrl.off()
         report.check('off stops the ticks', not ctrl.is_on())
     finally:

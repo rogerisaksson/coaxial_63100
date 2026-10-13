@@ -134,8 +134,20 @@ def test_the_stand_in_is_mounted(report, lib):
         rig.close()
 
 
+def test_the_heat_dry_loss_scales_with_bus_voltage(report, _lib):
+    """Dry switching loss in heat.py fits bench measurements: 2.4 W at 24 V to 4.4 W at 44 V."""
+    from machine import heat
+    report.check('dry loss is 2.4 W at 24 V', abs(heat.dry_loss(24.0) - 2.4) < 1e-6)
+    report.check('dry loss is 4.4 W at 44 V', abs(heat.dry_loss(44.0) - 4.4) < 1e-6)
+    report.check('dry loss at nominal 48 V is 4.8 W', abs(heat.dry_loss(48.0) - 4.8) < 1e-6)
+    report.check('SWITCHING_W matches nominal 48 V dry loss', abs(heat.SWITCHING_W - 4.8) < 1e-6)
+    h24 = heat.Heat([], volts=24.0)
+    report.check('Heat instance with 24 V sets switching_w to 2.4 W', abs(h24.switching_w - 2.4) < 1e-6)
+
+
 ROSTER = (test_the_mirror_lays_what_the_c_lays, test_the_air_is_the_cs,
-          test_each_application_sheds_as_its_reasons_say, test_the_stand_in_is_mounted)
+          test_each_application_sheds_as_its_reasons_say, test_the_stand_in_is_mounted,
+          test_the_heat_dry_loss_scales_with_bus_voltage)
 
 
 def main():

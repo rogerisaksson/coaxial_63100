@@ -91,6 +91,7 @@ class Motor:
         self.theta = theta        # electrical
         self.omega = 0.0          # electrical
         self.id = self.iq = 0.0
+        self.id_prev = self.iq_prev = 0.0
         self.locked = locked
         self.sub = sub
 
@@ -116,8 +117,15 @@ class Motor:
         """One PWM period at these duties - the average-voltage model."""
         mean = sum(duty) / 3.0
         v = [vdc * (d - mean) for d in duty]
+        id_f = 0.5 * (self.id + self.id_prev)
+        iq_f = 0.5 * (self.iq + self.iq_prev)
+        self.id_prev, self.iq_prev = self.id, self.iq
         if self.v_dt:
-            for k, i in enumerate(self.currents()):
+            c0, s0 = math.cos(self.theta), math.sin(self.theta)
+            ia_f = id_f * c0 - iq_f * s0
+            ib_f = id_f * s0 + iq_f * c0
+            i_f = (ia_f, -0.5 * ia_f + HALF_SQRT3 * ib_f, -0.5 * ia_f - HALF_SQRT3 * ib_f)
+            for k, i in enumerate(i_f):
                 v[k] -= self.v_dt * math.tanh(i / self.i_knee)
         va = (2.0 * v[0] - v[1] - v[2]) / 3.0
         vb = (v[1] - v[2]) / math.sqrt(3.0)

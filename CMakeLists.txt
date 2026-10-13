@@ -220,6 +220,7 @@ set_source_files_properties(
     "-O2;-fno-math-errno;-ffp-contract=off;-Wextra;-Wshadow;-Wconversion")
 set_source_files_properties(
     board/src/board_drive.c board/src/board_ctrl.c board/src/board_sync.c board/src/board_daq.c
+    board/src/board_mem.c
     PROPERTIES COMPILE_OPTIONS "-O2;-fno-math-errno;-Wextra;-Wshadow")
 # The thermal observer, in main() between the STO keepalive's edges: at -O0 a slice of its
 # identification held main() 236 us, past what the chain's pump carries.

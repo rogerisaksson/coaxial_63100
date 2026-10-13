@@ -52,7 +52,7 @@ WAYS = ((3.8, 0.988, -0.24, 0.16), (-20.5, 1.163, 0.27, 0.00), (-8.8, 1.036, 0.0
 #: lap; on boards that hold 88 % of it at the least it came into gate 7 1.1 m high off the
 #: dive in two winds of three, as the ideal rotors did in one. Gridded there: 0.37, 34 flights
 #: of 34 whole in eleven winds, 14.2-14.3 and 14.5-15.2 s; 0.38 struck one.
-PULL, BRAKE, GO, EASE_S, STOP, FLOOR, AHEAD_M = 0.37, 0.735, 0.708, 2.0, 0.25, 1.1, 40.0
+PULL, BRAKE, GO, EASE_S, STOP, FLOOR, AHEAD_M = 0.37, 0.735, 0.708, 2.0, 0.45, 1.1, 40.0
 
 #: The frame's place on the line is looked for REACH_M on from the last; the law's spot is kept
 #: on the line, SLACK_M from that place along it at most; a bend's pull is asked ahead of it

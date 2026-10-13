@@ -216,14 +216,12 @@ gets a line at the end of [DONE](DONE.md).
   mixing, no Euler angle, no air; in it no `if`.
   + The flight is inside the action space's shell (`machine/pull.py`,
     `flight.shell`, envelope.md), its plan a table computed beforehand, no
-    clause in a pass above the core, its lead and its swing the tilt's own
-    (streams.md). Left: the lap's sphere - 0.37 of the clamp's pull flies,
-    0.40 does not - and its brake's, go's and stop's shares, searched.
+    clause in a pass above the core, its lead and its swing the tilt's own,
+    its sphere and its brake's, go's and stop's shares searched, the pull left
+    unused and the WEP taken a flight quoted (streams.md, envelope.md).
   + A flight on a board's core: device 14 takes its reading off the wire,
     246 bytes a pass. DOD: the reading the board's own - its IMU's, its
     rotors' off the bus -, a pass in its sample, the page's flight on it.
-  + DOD: the pull left unused and the WEP taken a flight quoted; the race
-    whole on it.
 
 ## Bench
 
@@ -246,8 +244,6 @@ gets a line at the end of [DONE](DONE.md).
   the injection (`drv_inj_periods` >= 2, `demod_gain`, `drv_sigma_i`, the
   demod's offset) or an I/f start. DOD: on Renode, paused, `theta_hat`
   against `plant Shaft` through the demo's rock under 0.3 rad.
-- **Motion papers on the emulator**: `motion` and `applications` set J and
-  load through `drive.model`. DOD: both run on the emulator.
 - **Thermal observer at short periods**: the NTC anchor inverts a standing
   miss x1.8. DOD: `tools/bench/power_check.py` at 1-5 s keeps its patches.
 - **STO chain** (`tools/bench/sto_probe.py`): R93 to 3V3D, a master's pilot
@@ -276,51 +272,13 @@ gets a line at the end of [DONE](DONE.md).
   contiguous array, steps branch-free passes over it. DOD: the hot paths
   ranked by them, each cut or named unavoidable; a model's change one
   change in every executive.
-- **The law's vector a period late**: laid on the angle it sampled at, its
-  duties wait a period and meet the rotor that much turned; its integrators
-  take it up and its v . i is 21 % under the stage's watts at 680 rad/s
-  (envelope.md). The rotor page's power (`views/rotor/thermal.watts`) and
-  `notebooks/motion` count it. DOD: the vector laid on the angle it is
-  applied at; v . i the copper's and the shaft's within 1 % there on the
-  stand-in.
 - **CI's flakes**: a run each failed and the next passed - `test_native_heat`
   (STABLE held 100 s within 600: 394), `test_sensorless` (the loop under a
   concurrent reader; the shunt's sign), the emulator's reads (a CRC on
   `afe.state`, a board's info in its place), `test_wbc_core` (a tick of
   the loop 4 202 us), `test_mcp` (the program card). DOD: each looped 20
   times on a loaded host, its cause found.
-- **`Velocity`'s start** (`coaxial.control.motion`): sensorless at rest, as
-  a rotor node's was - right while the estimate lies within a quarter turn
-  of the rotor. test_controller's velocity loop on the stand-in faulted
-  overcurrent in 8 starts of 384, 32 at a time, and once on CI's runner:
-  within three passes, the estimate at -9 000 to -12 800 rad/s as the ramp
-  crosses the hand-over; a pass 0.1-1.0 s late faulted none of 15. DOD:
-  `motion.started`, its ramp from where that leaves the rotor;
-  test_sensorless's from any rest angle; none in 400 starts. QUAD's
-  restart after a wreck (`flight.spun`) is one: a rotor of four out of
-  `started` at -53 rad/s, back in 80 ms on 49 A; its loop at 500 Hz, two
-  ran to -596 and the frame lifted on them.
-- **The ring test's J** reads 30-63 % over the stand-in's (drive.md): the
-  hold's stiffness taken as 1.5 pp^2 lambda I, the board's current loop
-  softer at the ring's rate. DOD: within 5 %.
-- **L map at no bias** reads L / 2.3 on the cores (drive.md): the
-  dead-time table and the model's error on the sampled current's sign under
-  an fs/2 ripple. DOD: Ld and Lq within 5 % at no bias.
-- **The chain beside the loop** (`obs`) loses a rotor spooled at 81 000
-  rad/s^2. DOD: it follows a QUAD's spool, or is cut.
-- **A `PI` on a current** winds past its drive's clamp as `SpeedPI` did
-  (envelope.md); no loop loads one. DOD: its sum within what its sink
-  carries, host and C.
-- **A date refused**: `test_layout` holds the tree's text free of dates.
-  DOD: the last 15 files stripped, the check in `--structure`.
 - **native://**: a limb's world on a fixed mount as board/emu's; one
   Transport a rig on a URL bus. DOD: the body's balance and gait from the
   SIL; the fallback where nothing answers.
-- **The MCU's die under the drive**: 9 us of sampling in a 20 us period.
-  DOD: read.
-- **Debug `-O0`**, `board_mem.c`'s memset and memcpy with it: the step's
-  tick 0.32 M instructions there where the Release image's 0.25. DOD:
-  `-Og` measured (LOOP, keepalive gap).
-- **`heat.py`'s dry loss** 1.2 W, the bench's fit 2.4-4.4 at 24-44 V. DOD:
-  it.
-- **`coaxial_63020`** has no pin table in `boot_main.c`. DOD: one.
+

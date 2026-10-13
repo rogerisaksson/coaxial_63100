@@ -106,18 +106,48 @@ static const board_t BOARD_63100 =
   { USART2, UART5 }, USART3, GPIOE, 14U,
 };
 
+/** coaxial_63020: the 20 A inverter board - identical pin assignments as
+    coaxial_63100 for the STM32H753 gates, peripherals and RS485 buses. */
+static const pin_t PINS_63020[] =
+{
+  { GPIOE,  8U, PIN_OUT_LOW, 0U },
+  { GPIOE,  9U, PIN_OUT_LOW, 0U },
+  { GPIOE, 10U, PIN_OUT_LOW, 0U },
+  { GPIOE, 11U, PIN_OUT_LOW, 0U },
+  { GPIOE, 12U, PIN_OUT_LOW, 0U },
+  { GPIOE, 13U, PIN_OUT_LOW, 0U },
+  { GPIOA, 10U, PIN_OUT_LOW, 0U },
+  { GPIOB,  2U, PIN_OUT_LOW, 0U },
+  { GPIOE, 14U, PIN_OUT_LOW, 0U },
+  { GPIOA,  1U, PIN_AF,      7U },
+  { GPIOA,  2U, PIN_AF,      7U },
+  { GPIOA,  3U, PIN_AF,      7U },
+  { GPIOC,  8U, PIN_AF,      8U },
+  { GPIOC, 12U, PIN_AF,      8U },
+  { GPIOD,  2U, PIN_AF,      8U },
+  { GPIOB, 10U, PIN_AF,      7U },
+  { GPIOB, 11U, PIN_AF,      7U },
+};
+
+static const board_t BOARD_63020 =
+{
+  PINS_63020, sizeof(PINS_63020) / sizeof(PINS_63020[0]),
+  { USART2, UART5 }, USART3, GPIOE, 14U,
+};
+
 /** The type switch. */
 static const board_t *board_of(uint32_t type)
 {
   switch (type)
   {
     case BOOT_TYPE_COAXIAL_63100: return &BOARD_63100;
+    case BOOT_TYPE_COAXIAL_63020: return &BOARD_63020;
     default:                      return NULL;
   }
 }
 
-_Static_assert(BOOT_BOARD == BOOT_TYPE_COAXIAL_63100,
-               "boot_main.c has a pin table for coaxial_63100 only");
+_Static_assert((BOOT_BOARD == BOOT_TYPE_COAXIAL_63100) || (BOOT_BOARD == BOOT_TYPE_COAXIAL_63020),
+               "boot_main.c has pin tables for coaxial_63100 and coaxial_63020 only");
 
 /* -- the state ------------------------------------------------------------- */
 

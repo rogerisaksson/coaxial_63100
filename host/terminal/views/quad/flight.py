@@ -156,6 +156,7 @@ def spun(rotor):
     board, idle = rotor['rig'].board, quad.IDLE_RAD_S * rotor['pairs']
     drive, loop = board.drive, board.ctrl
     loop.off()
+    loop.drop()
     started(drive, lambda seconds: (drive.paced(seconds), drive.state()), START_A, idle,
             START_S)
     loop.rows([(0.0, quad.IDLE_RAD_S)])

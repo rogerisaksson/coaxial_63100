@@ -115,16 +115,18 @@ static float pi(ctrl_part_t *part, float dt, float setpoint, float measured, flo
                 bool held, float most)
 {
   const float *p = part->p;     /* kp ki limit */
+  const float room = fminf(p[2], most);
   const float e = setpoint - measured;
-  const float raw = p[0] * e + part->x;
-  const float u = clamp(raw, p[2]);
+  float raw, u;
 
   (void)accel;
   (void)held;
-  (void)most;
+  part->x = fminf(fmaxf(part->x, -room), room);
+  raw = p[0] * e + part->x;
+  u = clamp(raw, p[2]);
   if (u == raw)
   {
-    part->x += p[1] * e * dt;
+    part->x = fminf(fmaxf(part->x + p[1] * e * dt, -room), room);
   }
   return u;
 }
@@ -275,7 +277,7 @@ bool ctrl_rows_push(ctrl_runner_t *r, uint16_t ms, float setpoint)
 
 float ctrl_rows_seconds(const ctrl_runner_t *r)
 {
-  float s = (r->playing && (r->left_s > 0.0f)) ? r->left_s : 0.0f;
+  float s = (r->playing && (r->left_s > 1e-6f)) ? r->left_s : 0.0f;
 
   for (uint16_t i = r->tail; i != r->head; i = (uint16_t)((i + 1U) % CTRL_ROWS))
   {
@@ -293,7 +295,7 @@ void ctrl_rows_clear(ctrl_runner_t *r)
 
 float ctrl_runner_step(ctrl_runner_t *r, float dt, float measured, float most)
 {
-  if (r->left_s <= 0.0f)
+  if (r->left_s <= 1e-6f)
   {
     if (r->playing)
     {
@@ -305,7 +307,7 @@ float ctrl_runner_step(ctrl_runner_t *r, float dt, float measured, float most)
       const ctrl_row_t *row = &r->row[r->tail];
 
       r->setpoint = row->setpoint;
-      r->left_s += (float)row->ms * 0.001f;
+      r->left_s = ((r->left_s < -1e-6f) ? r->left_s : 0.0f) + ((float)row->ms * 0.001f);
       r->playing = true;
       r->tail = (uint16_t)((r->tail + 1U) % CTRL_ROWS);
     }

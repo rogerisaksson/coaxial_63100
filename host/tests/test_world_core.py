@@ -43,6 +43,8 @@ def library():
     lib.emu_sto_reset.argtypes = [i]
     lib.emu_sto_step.argtypes = [i, f, ctypes.POINTER(f), i, ctypes.POINTER(f),
                                  ctypes.POINTER(f)]
+    lib.emu_world_model.argtypes = [i, f, f, f]
+    lib.emu_plant_reset.argtypes = [i]
     return lib
 
 
@@ -273,6 +275,30 @@ def test_the_sto_chain_holds_settled(report, lib):
                  '%.1f ms, FAULTOUT %.2f V' % (idle * 1e3, chain.pins[3]))
 
 
+def test_the_model_parameters_laid_live(report, lib):
+    """emu_world_model updates J, b and load live: a load torque decelerates the coasting rotor,
+    and J sets the effective inertia without the bench's flywheel."""
+    lib.emu_world_reset(1)
+    lib.emu_world_body(GROUND, 0.0, G, 0, 0, 0, 0, 0, 0, 0)
+    lib.emu_world_load(0, ROTOR, 1.0, 8e-3, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+    lib.emu_plant_attach(0, *MOTOR)
+    lib.emu_world_model(0, ctypes.c_float(2e-5), ctypes.c_float(1e-5), ctypes.c_float(0.02))
+    out, state = (ctypes.c_float * 4)(), (ctypes.c_float * 3)()
+    lib.emu_plant_step(0, 0.5, 0.5, 0.5, 0, TS, out)
+    lib.emu_plant_state(0, state)
+    w0 = state[1]
+    for _ in range(500):
+        lib.emu_plant_step(0, 0.5, 0.5, 0.5, 0, TS, out)
+    lib.emu_plant_state(0, state)
+    w1 = state[1]
+    dw = w1 - w0
+    report.check('model parameters J and load decelerate bare rotor at expected rate',
+                 abs(dw - (-10.0)) < 0.5, 'dw = %.2f rad/s (expected -10.0)' % dw)
+    lib.emu_plant_reset(0)
+    lib.emu_plant_state(0, state)
+    report.check('plant reset returns rotor to rest', abs(state[1]) < 1e-4, state[1])
+
+
 def test_a_library_outlives_only_its_process(report, _lib):
     """The emulator's sweep (tools.emu.world): another process's world library stays while that
     process runs, an ended one's goes."""
@@ -306,6 +332,7 @@ def main():
                  test_a_lift_climbs_on_its_thrust, test_the_heat_reads_as_its_observer_models_it,
                  test_the_frame_flies_in_its_air, test_the_pilot_releases_the_sto_chain, test_each_loss_trips_the_sto_chain,
                  test_the_pilot_window, test_the_sto_chain_holds_settled,
+                 test_the_model_parameters_laid_live,
                  test_a_library_outlives_only_its_process):
         print('\n-- %s --' % test.__name__[5:].replace('_', ' '))
         test(report, lib)

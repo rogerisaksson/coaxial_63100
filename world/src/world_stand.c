@@ -262,10 +262,8 @@ static void load_of(world_stand_t *b, const float *in, float dt, bool stage, the
   load->t_dead_s = in[11];
 }
 
-/** The truth a slice on, and its thermometers sampled where one is due: noisy, the MCU's die
-    not read while the drive holds the meter. */
-static thermal_sense_t truth_slice(world_stand_t *b, const thermal_load_t *load, float dt,
-                                   bool locked)
+/** The truth a slice on, and its thermometers sampled where one is due: noisy. */
+static thermal_sense_t truth_slice(world_stand_t *b, const thermal_load_t *load, float dt)
 {
   thermal_load_t flown = *load;
   thermal_sense_t sample = { NAN, NAN, NAN };
@@ -278,7 +276,6 @@ static thermal_sense_t truth_slice(world_stand_t *b, const thermal_load_t *load,
     sample.ntc_c = noisy(b, b->now.ntc_c);
     sample.mcu_c = noisy(b, b->now.mcu_c);
     sample.afe_c = noisy(b, b->now.afe_c);
-    sample.mcu_c = locked ? NAN : sample.mcu_c;
     b->seen = sample;
     b->sampled = true;
   }
@@ -311,7 +308,7 @@ void world_stand_run(int i, const float *in, float seconds, float *out)
     load_of(b, in, dt, stage, &step.load);
     b->speed_rpm = step.load.speed_rpm;
     b->clock_ms += slice;
-    step.seen = truth_slice(b, &step.load, dt, in[12] != 0.0f);
+    step.seen = truth_slice(b, &step.load, dt);
     step.load.airspeed_m_s = ((int32_t)(b->told_until_ms - b->clock_ms) > 0)
                              ? b->told_airspeed : 0.0f;
     step.slice_ms = slice;

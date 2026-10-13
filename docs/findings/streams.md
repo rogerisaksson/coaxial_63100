@@ -86,13 +86,14 @@ passes: its tilt's torques against that law's 1.5 N m rms.
 - The lift over the heading in the share: the heading over it, the hover
   after the catch stood 0.3-1.7 m off its height in 4 turns of 12.
 - On a lap the raw force asked, the loops' own on it, turns 7.2-9.5 rad/s
-  rms and 55-72 rad/s at the most; the frame 4.6-6.0 rad/s, its axis 29
+  rms and 55-72 rad/s at the most; the frame 4.6 rad/s, its axis 29
   degrees rms off that force. A raw turn fed forward struck every flight.
-  Slewed inside the reach (8.0 rad/s, 200 rad/s^2) with its turn rate in the
-  payload fed forward onto pitch and roll rates: the slewed force turns 4.7
-  rad/s rms (peak 8.0 rad/s bounded within reach), the frame 6.0 rad/s, and
-  the axis miss on a lap drops to 14.7 degrees rms (42.4 peak where 65);
-  12 flights of 12 whole in the race suite.
+  Slewed on its braking curve inside the reach (8.0 rad/s, 200 rad/s^2,
+  slope 10 1/s) with its turn rate in the payload fed forward onto pitch and
+  roll rates: the slewed force turns 4.0 rad/s rms (peak 7.9 rad/s bounded
+  within reach), the frame 4.5 rad/s, and the axis miss on a lap drops to
+  10.2 degrees rms (34.3 peak where 65); 12 flights of 12 whole in the race
+  suite.
 
 
 ## The rotors' reach
@@ -296,8 +297,12 @@ the current it holds gives; its rotor's thrust as given is its estimate's.
   second: at Python's 5 ms a turn it waited on the drawing's, a flight's
   second took 1.02 of the wall's, its clock 21 % behind. At 0.2 ms: 0.51,
   none behind, 16 frames a second where the law before drew 17.8.
-- `course.BRAKE` and `course.GO` searched on the core (`quad_race.py --search`):
-  0.735 and 0.708 (cost 28.06 where 28.24), every flight whole (100 %),
-  a gate's frame -0.03 m past its margin; boards' laps 13.8 and 14.1 s
-  (verified on unseen seeds 6, 7, 8: 28.05, laps 13.8 and 14.0-14.1 s),
-  against 14.3-14.8 s.
+- `course.PULL`, `course.BRAKE`, `course.GO` and `course.STOP` searched on the
+  core (`quad_race.py --search`): 0.37, 0.735, 0.708 and 0.45 (cost 27.69 where
+  28.24; on 0.38 of the clamp's pull the 0.75x frame crosses a gate's frame
+  0.17 m past its margin), every flight whole (24 of 24 across seeds 3..8), a
+  gate's frame 0.08-0.14 m inside its margin; boards' laps 13.8 and 13.8 s in
+  every wind, room and pack state where 13.8 and 14.0-14.1, rows keeping 92 %
+  of the clamp's pull at the least on a full pack (87 % from 60 %), mean rotor
+  thrust 27-28 % of top (72-73 % left unused), WEP 0.6-0.8 s a flight.
+
