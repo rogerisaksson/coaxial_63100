@@ -158,6 +158,12 @@ def test_moderate_and_severe_shove_reflexes(report):
                  'doing: %s' % sprung.doing(g2))
     report.check('140 N shove absorbed compliantly', sprung.tilt(g2) < 25.0,
                  'tilt: %.1f deg' % sprung.tilt(g2))
+    m = g2['world'].model
+    d = g2['world'].data
+    q_ls = float(d.qpos[m.jnt_qposadr[m.joint('left_shoulder').id]])
+    q_rs = float(d.qpos[m.jnt_qposadr[m.joint('right_shoulder').id]])
+    report.check('arms remain symmetric without air-guitar flailing', abs(q_ls - q_rs) < 0.20,
+                 'arm diff: %.4f rad' % abs(q_ls - q_rs))
 
 
 def test_ballistic_start_trailing_leg_flexion_and_smooth_transitions(report):
@@ -236,18 +242,21 @@ def test_all_scenarios_instantiation_and_props(report):
 
 
 def test_stunts_executed_on_specialized_scenarios(report):
-    """Stunts execute smoothly on their corresponding environmental scenarios."""
+    """Stunts approach props along forward line of walk and execute smoothly on their scenarios."""
     from machine import floor, ortho, sprung
     gym = sprung.entries()
 
-    # 1. Chair scenario: sit_chair and rise_chair
+    # 1. Chair scenario: approaches chair and sits down
     g_chair = sprung.laid()
     sprung._heard(g_chair, gym, {'scenario': 'chair'})
     report.check('scenario set to chair', g_chair.get('scenario') == 'chair')
     sprung._heard(g_chair, gym, {'say': 'sit_chair'})
-    for _ in range(300):
+    for _ in range(2500):
         sprung.passed(g_chair, 0.001)
-    report.check('sit_chair on chair scenario completes without fall', sprung.tilt(g_chair) < 25.0,
+    chair_z = float(g_chair['world'].data.qpos[2])
+    report.check('gynoid walks forward to chair before sitting', chair_z >= 0.70,
+                 'final z: %.2f m' % chair_z)
+    report.check('sit_chair on chair scenario completes without fall', sprung.tilt(g_chair) < 20.0,
                  'tilt: %.1f deg' % sprung.tilt(g_chair))
 
     # 2. Ice scenario: ice_walk
@@ -255,7 +264,7 @@ def test_stunts_executed_on_specialized_scenarios(report):
     sprung._heard(g_ice, gym, {'scenario': 'ice'})
     report.check('scenario set to ice', g_ice.get('scenario') == 'ice')
     sprung._heard(g_ice, gym, {'say': 'ice_walk'})
-    for _ in range(500):
+    for _ in range(1200):
         sprung.passed(g_ice, 0.001)
     report.check('ice_walk on ice scenario negotiates slick surface', sprung.tilt(g_ice) < 25.0,
                  'tilt: %.1f deg' % sprung.tilt(g_ice))
@@ -265,7 +274,7 @@ def test_stunts_executed_on_specialized_scenarios(report):
     sprung._heard(g_slope, gym, {'scenario': 'slope'})
     report.check('scenario set to slope', g_slope.get('scenario') == 'slope')
     sprung._heard(g_slope, gym, {'say': 'slope_walk'})
-    for _ in range(500):
+    for _ in range(1200):
         sprung.passed(g_slope, 0.001)
     report.check('slope_walk on slope scenario traverses ramp without fall', sprung.tilt(g_slope) < 25.0,
                  'tilt: %.1f deg' % sprung.tilt(g_slope))
@@ -275,8 +284,11 @@ def test_stunts_executed_on_specialized_scenarios(report):
     sprung._heard(g_bed, gym, {'scenario': 'bed'})
     report.check('scenario set to bed', g_bed.get('scenario') == 'bed')
     sprung._heard(g_bed, gym, {'say': 'lie_bed'})
-    for _ in range(300):
+    for _ in range(1800):
         sprung.passed(g_bed, 0.001)
+    bed_z = float(g_bed['world'].data.qpos[2])
+    report.check('gynoid walks forward to bed before reclining', bed_z >= 0.50,
+                 'final z: %.2f m' % bed_z)
     report.check('lie_bed on compliant bed scenario completes without error', sprung.tilt(g_bed) < 30.0,
                  'tilt: %.1f deg' % sprung.tilt(g_bed))
 

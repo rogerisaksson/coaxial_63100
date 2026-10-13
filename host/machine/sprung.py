@@ -53,48 +53,29 @@ BRAKE = ('(stream_inject (sequence_id 200) (blend_duration 450ms)'
          ' (phase_offset mode_pelvis_list mode_sagittal_drive 108deg))'
          ' (task_constraints (maintain_zmp (polygon dynamic_footprint))))')
 
-#: The drives' PD under the loop (`physics.SERVO`'s gains times SERVO_SHARE: kp, kd) round a
-#: reference integrated from the loop's accelerations, leaking to the joints' angles over
-#: LEAK_S; a standing leg's at STANDING_KP of kp. War emergency power: a drive the loop asks
-#: past its clamp has its clamp at its stack's peak WEP_HOLD_S past its last need, WEP_S of it
-#: at once, filled again WEP_FILL as fast as it is spent. As tools/sim/wbc.py measured them.
+#: The drives' PD under the loop (SERVO gains * SERVO_SHARE: kp, kd); WEP temporary boost.
 SERVO_SHARE, LEAK_S, STANDING_KP = (0.5, 1.0), 0.2, 0.1
 WEP_HOLD_S, WEP_S, WEP_FILL = 0.6, 5.0, 0.5
-#: The drives' own loop under the stack: 'pd' that PD; 'eso' each drive's disturbance observed
-#: at ESO_WO rad/s (Han's observer, `parts.Eso`'s law on arrays) and taken off its torque, no
-#: PD; 'none' the torque as asked.
+#: The drives' own loop under the stack: 'pd' that PD; 'eso' each drive's disturbance observed.
 INNER, ESO_WO = 'eso', 100.0
-#: The whole-body step under her modes: 'stack' the QPs by priority (`wbc.step`), 'wrench'
-#: the step without an active set (`wrench.step`). On the stack her walk fell at a drive of
-#: 0.6 and her hop left the floor with 4.1 kg m^2/s about her; on the step she walks at 0.8
-#: and leaves with 0.8.
+#: The whole-body step under her modes: 'wrench' the step without an active set (wrench.step).
 SOLVER = 'wrench'
 LEG_KINDS = ('hip_yaw', 'hip_roll', 'hip', 'knee', 'ankle', 'ankle_roll')
-#: A knee straighter than KNEE_SOFT rad is sprung back by its own drive, KNEE_NM at straight:
-#: the step slaves a standing leg's joints to her pelvis through its sole, and at a straight
-#: knee nothing it solves for bends it - stepping, both knees went to their stops at -5 deg
-#: in 2 s and stayed there, her soles 5 mm off the floor where 20 were asked.
+#: A knee straighter than KNEE_SOFT rad is sprung back by its own drive, KNEE_NM at straight.
 KNEE_SOFT, KNEE_NM = 0.1, 20.0
-#: On the page the loop is solved every STACK_EVERY passes: on the stack a pass solved every
-#: one costs 3.1 ms, a third of real time; on the step every second 1.15 ms, every third 0.85,
-#: her walk the same to the centimetre over a minute.
+#: On the page the loop is solved every STACK_EVERY passes.
 STACK_EVERY = 3
 #: She is down with her pelvis tilted past DOWN_DEG or under DOWN_M.
 DOWN_DEG, DOWN_M = 50.0, 0.45
 #: The gym's texts, machine/NAME.lisp: her moves; the language's first texts as given.
 GYMS = ('moves', 'examples')
 #: Modes and phases for stunts (sitting, lying, hopping, controlled fall) - not treated as accidental falls.
-STUNT_MODES = {
-    'sit_chair', 'rise_chair', 'lie_bed', 'rise_bed', 'lie_floor',
-    'rise_floor', 'hop_down_chair', 'hop_up_chair', 'parry_shove', 'controlled_fall',
-}
-STUNT_PHASES = {
-    'approach', 'lower', 'seated', 'lean_forward', 'thrust',
-    'sit_edge', 'recline', 'bed_rest', 'sit_up', 'swing_out',
-    'kneel', 'floor_rest', 'push_arms', 'half_kneel',
-    'cushion', 'land', 'step_off', 'drop', 'absorb',
-    'crouch_load', 'propulsion', 'flight_tuck', 'seat_land',
-}
+STUNT_MODES = {'sit_chair', 'rise_chair', 'lie_bed', 'rise_bed', 'lie_floor',
+               'rise_floor', 'hop_down_chair', 'hop_up_chair', 'parry_shove', 'controlled_fall'}
+STUNT_PHASES = {'approach', 'lower', 'seated', 'lean_forward', 'thrust', 'sit_edge', 'recline',
+                'bed_rest', 'sit_up', 'swing_out', 'kneel', 'floor_rest', 'push_arms',
+                'half_kneel', 'cushion', 'land', 'step_off', 'drop', 'absorb', 'crouch_load',
+                'propulsion', 'flight_tuck', 'seat_land'}
 
 
 def entries(text=None, name=GYMS[0]):
@@ -267,7 +248,8 @@ def passed(g, dt=0.001):
             upper_hit = ((np.isin(b0, g['upper_ids']) & (b1 > 0) & ~np.isin(b1, g['robot_ids'])) |
                          (np.isin(b1, g['upper_ids']) & (b0 > 0) & ~np.isin(b0, g['robot_ids'])))
             if upper_hit.any():
-                out[latent.SWAY][modal.DRIVE] *= 0.5
+                out[latent.SWAY][modal.DRIVE] = 0.0
+                out[latent.REF][modal.DRIVE] = 0.0
                 g['a'][modal.GOING] = 0.0
             aloft = g['a'][modal.STANCE] < 0.5
             hit_l = aloft[0] and (
@@ -346,7 +328,8 @@ def state(g, torque, power, watts, ratio, fallen_at, says=(), refused=None):
 
 def _start_mode(g, by, entry, at):
     from machine import ortho
-    name = entry[0]
+    name, z = entry[0], float(g['world'].data.qpos[2])
+    iw = by['init_walk'][1][:ortho.ROW.size] if 'init_walk' in by else None
     if name == 'ballistic_walk':
         said(g, *entry, at=at, reset=True)
     elif name == '#202':
@@ -355,13 +338,19 @@ def _start_mode(g, by, entry, at):
         said(g, *by['#202'], at=at)
         said(g, *by['#203'], at=at + 0.80)
     elif name in ('#204', 'trip', 'jog', 'stairs_walk', 'ice_walk', 'slope_walk'):
-        if 'init_walk' in by:
-            from machine import ortho
-            init_wire = by['init_walk'][1][:ortho.ROW.size]
-            said(g, 'init_walk', init_wire, ('init_walk',), at=at, reset=True)
+        if iw is not None:
+            said(g, 'init_walk', iw, ('init_walk',), at=at, reset=True)
             said(g, *by[name], at=at + 0.65)
         else:
             said(g, *by[name], at=at)
+    elif name in ('sit_chair', 'hop_up_chair') and z < 0.80 and iw is not None and '#204' in by:
+        said(g, 'init_walk', iw, ('init_walk',), at=at, reset=True)
+        said(g, *by['#204'], at=at + 0.65)
+        said(g, *by[name], at=at + 1.80)
+    elif name == 'lie_bed' and z < 0.65 and iw is not None and '#204' in by:
+        said(g, 'init_walk', iw, ('init_walk',), at=at, reset=True)
+        said(g, *by['#204'], at=at + 0.65)
+        said(g, *by[name], at=at + 1.50)
     elif name == '#201':
         said(g, *entry, at=at, reset=True)
     else:

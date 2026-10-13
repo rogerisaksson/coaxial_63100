@@ -281,7 +281,7 @@ def scenario(world, name, z=1.2, x=0.0):
         return
     cases = {
         'chair': lambda: place(world, 'chair', z=z, x=x),
-        'bed': lambda: place(world, 'bed', z=0.5, x=-0.85),
+        'bed': lambda: place(world, 'bed', z=1.8, x=x),
         'slope': lambda: place(world, 'slope', z=1.0, x=x),
         'stairs': lambda: place(world, 'stairs', z=1.0, x=x),
         'ice': lambda: place(world, 'ice', z=0.8, x=x),

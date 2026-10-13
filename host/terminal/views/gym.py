@@ -112,14 +112,19 @@ def boxes(now):
     entries = says[1:]
     scen = now.get('scenario', 'flat')
     say_rows = [('<', 'scen: ' + scen)]
+    seen = set()
     for i, s in enumerate(entries):
-        if i < len(DIGITS):
-            key = DIGITS[i]
+        if s.startswith('#'):
+            key = DIGITS[i] if i < len(DIGITS) else str(i)
         elif s in STUNTS:
             key = STUNTS[s]
+        elif i < len(DIGITS) and s != 'init_walk':
+            key = DIGITS[i]
         else:
             continue
-        say_rows.append((key, NAMED.get(s, s)))
+        if s not in seen:
+            seen.add(s)
+            say_rows.append((key, NAMED.get(s, s)))
     return [hud('LATENT', [(name, '%+.2f is %+.2f %6.0f %5.0f' % row[1:])
                            for name, row in zip(SHORT, now['modes'])]),
             hud('SAY  ' + gym_name.upper(), say_rows)]

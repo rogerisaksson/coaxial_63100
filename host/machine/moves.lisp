@@ -377,7 +377,7 @@
   (phase bed_rest
     (duration 60s)
     (blend_duration 800ms)
-    (latent_targets (mode_axial_compression 0.90) (mode_pitch_attitude -0.45) (mode_pelvis_turn 0.0) (mode_arm_swing -0.2))
+    (latent_targets (mode_axial_compression 0.90) (mode_pitch_attitude -0.45) (mode_pelvis_turn 0.0) (mode_arm_swing 0.0))
     (impedance (stiffness mode_axial_compression 1500) (damping mode_axial_compression 400))
     (cpg_override (halt_oscillators))))
 
@@ -414,7 +414,7 @@
   (phase lower
     (duration 1200ms)
     (blend_duration 600ms)
-    (latent_targets (mode_axial_compression 0.95) (mode_pitch_attitude 0.32) (mode_arm_swing 0.65))
+    (latent_targets (mode_axial_compression 0.95) (mode_pitch_attitude 0.32) (mode_arm_swing 0.0))
     (impedance (stiffness mode_axial_compression 2500) (damping mode_axial_compression 600))
     (cpg_override (halt_oscillators)))
   (phase floor_rest
@@ -429,7 +429,7 @@
   (phase push_arms
     (duration 1200ms)
     (blend_duration 600ms)
-    (latent_targets (mode_axial_compression 0.80) (mode_pitch_attitude 0.28) (mode_arm_swing 0.50))
+    (latent_targets (mode_axial_compression 0.80) (mode_pitch_attitude 0.28) (mode_arm_swing 0.0))
     (impedance (stiffness mode_axial_compression 4500) (damping mode_axial_compression 800))
     (cpg_override (halt_oscillators)))
   (phase half_kneel
@@ -619,26 +619,35 @@
     (cpg_override (halt_oscillators))
     (task_constraints (maintain_zmp (polygon support_polygon)))))
 
-;; controlled compliant fall: knees absorb, arms extend forward/down to ground, head protected
+;; controlled compliant fall: ukemi breakfall, knees absorb descent, arms symmetrically poised, head protected
 (defbehavior controlled_fall
   (phase cushion
     (duration 800ms)
     (blend_duration 250ms)
     (latent_targets
-      (mode_axial_compression 0.85)
-      (mode_pitch_attitude 0.25)
-      (mode_arm_swing 0.70))
+      (mode_axial_compression 0.38)
+      (mode_pitch_attitude 0.12)
+      (mode_sagittal_shift 0.0)
+      (mode_arm_swing 0.0))
     (impedance
-      (stiffness mode_axial_compression 2500) (damping mode_axial_compression 800)
-      (stiffness mode_pitch_attitude 1200) (damping mode_pitch_attitude 300))
-    (cpg_override (halt_oscillators)))
+      (stiffness mode_axial_compression 5000) (damping mode_axial_compression 1200)
+      (stiffness mode_lateral_shift 3500) (damping mode_lateral_shift 500)
+      (stiffness mode_sagittal_shift 2000) (damping mode_sagittal_shift 500)
+      (stiffness mode_pitch_attitude 2000) (damping mode_pitch_attitude 400))
+    (cpg_override (halt_oscillators))
+    (task_constraints (maintain_zmp (polygon dynamic_footprint))))
   (phase land
     (duration 60s)
     (blend_duration 500ms)
     (latent_targets
-      (mode_axial_compression 0.95)
-      (mode_pitch_attitude 0.10)
-      (mode_arm_swing 0.50))
+      (mode_axial_compression 0.55)
+      (mode_pitch_attitude 0.08)
+      (mode_sagittal_shift 0.0)
+      (mode_arm_swing 0.0))
     (impedance
-      (stiffness mode_axial_compression 1200) (damping mode_axial_compression 500))
-    (cpg_override (halt_oscillators))))
+      (stiffness mode_axial_compression 4500) (damping mode_axial_compression 900)
+      (stiffness mode_lateral_shift 3000) (damping mode_lateral_shift 400)
+      (stiffness mode_sagittal_shift 1500) (damping mode_sagittal_shift 400)
+      (stiffness mode_pitch_attitude 1500) (damping mode_pitch_attitude 300))
+    (cpg_override (halt_oscillators))
+    (task_constraints (maintain_zmp (polygon support_polygon)))))
