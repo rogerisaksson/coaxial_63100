@@ -294,8 +294,6 @@ gets a line at the end of [DONE](DONE.md).
   `afe.state`, a board's info in its place), `test_wbc_core` (a tick of
   the loop 4 202 us), `test_mcp` (the program card). DOD: each looped 20
   times on a loaded host, its cause found.
-- **The chain beside the loop** (`obs`) loses a rotor spooled at 81 000
-  rad/s^2. DOD: it follows a QUAD's spool, or is cut.
 - **native://**: a limb's world on a fixed mount as board/emu's; one
   Transport a rig on a URL bus. DOD: the body's balance and gait from the
   SIL; the fallback where nothing answers.
@@ -304,6 +302,4 @@ gets a line at the end of [DONE](DONE.md).
 - **Debug `-O0`**, `board_mem.c`'s memset and memcpy with it: the step's
   tick 0.32 M instructions there where the Release image's 0.25. DOD:
   `-Og` measured (LOOP, keepalive gap).
-- **`heat.py`'s dry loss** 1.2 W, the bench's fit 2.4-4.4 at 24-44 V. DOD:
-  it.
-- **`coaxial_63020`** has no pin table in `boot_main.c`. DOD: one.
+

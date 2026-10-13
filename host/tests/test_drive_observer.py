@@ -482,11 +482,50 @@ def test_observer_needs_a_handover(r, lib):
             % (got['cold'], got['handed over']))
 
 
+def test_spool_follows_rotor(r, lib):
+    """The observer chain follows a QUAD's spool at 81 000 rad/s^2."""
+    from coaxial.model.blocks import CurrentLoop, Plant, Signals
+    from coaxial.model import sensorless
+    from motor.catalog import BENCH_MOTOR
+
+    motor = BENCH_MOTOR
+    d = Drive(lib)
+    try:
+        d.params(r=motor.r, ld=motor.ld, lq=motor.lq, **{'lambda': motor.lam})
+        w0 = 100.0
+        d.obs_sync(0.0, w0)
+        loop = CurrentLoop(hz=800.0, motor=motor, vdc=24.0)
+        plant = Plant(motor, vdc=24.0, noise=0.0, sub=4, locked=True)
+        plant.motor.omega = w0
+        s = Signals()
+        s.iq_ref = 2.0
+        w, th, accel = w0, 0.0, 81000.0
+        errs = []
+        for k in range(int(0.05 / TS)):
+            w += accel * TS
+            th += w * TS
+            plant.motor.omega, plant.motor.theta = w, th
+            s.t = k * TS
+            loop(s, TS)
+            plant(s, TS)
+            cs, sn = math.cos(th), math.sin(th)
+            d.obs_step(s.vd * cs - s.vq * sn, s.vd * sn + s.vq * cs,
+                       s.id * cs - s.iq * sn, s.id * sn + s.iq * cs)
+            errs.append(sensorless._wrap(d.obs()['theta'] - th))
+        obs = d.obs()
+        rms = math.degrees(math.sqrt(sum(e * e for e in errs[-100:]) / 100))
+        r.check('spooled at 81 000 rad/s^2: blend reaches 1.0', obs['blend'] == 1.0, obs['blend'])
+        r.check('and the chain follows the spool within 30 deg', rms < 30.0,
+                '%.1f deg rms, w=%.0f' % (rms, obs['omega']))
+    finally:
+        d.close()
+
+
 ROSTER = (test_injection_map, test_saturation_map, test_observer_standstill,
           test_observer_standstill_wide, test_handover_weighs_the_back_emf,
           test_handover_under_d_current, test_sensorless_run, test_virtual_sensorless,
           test_hold_handover, test_turns_carry_the_estimate, test_down_through_if,
-          test_observer_chain, test_observer_needs_a_handover)
+          test_observer_chain, test_observer_needs_a_handover, test_spool_follows_rotor)
 
 
 def main(argv=None):

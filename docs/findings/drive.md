@@ -230,6 +230,12 @@ rotor's pages and their demos. The board's findings:
   and speed regulator's previous speed are initialized from current velocity to
   prevent step derivative spikes into the feedforward term. Across 400 starts
   from any rest angle, zero faults.
+- Observer chain at extreme spool (81 000 rad/s²): the dual observer's PLL integrator
+  limits maximum tracking acceleration to $K_i = 8000$ rad/s² before slipping poles.
+  Once handed over (`o->valid == true`), the observer speed and blend transition to
+  `flux_omega` when it exceeds the lagging PLL speed. Blend reaches 1.0 and RMS angle
+  error remains < 30 deg electrical through the spool up to 3760 rad/s, while cold
+  starts (`o->valid == false`) remain strictly in dual mode requiring handover.
 - Device 12, the board's loop (MINOR 20): a joint's feedback
   loaded as slots, rows of 0.8 s at 20 and -20 deg, 100 Hz on the stand-in:
   within 0.05 deg, the last held. Four legs with `node_hz=100`: the squat's

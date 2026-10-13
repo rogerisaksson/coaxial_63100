@@ -81,6 +81,7 @@ void drive_observer_sync(drive_obs_t *o, const drive_params_t *p,
     o->psi_b = lam * sn;
     o->lambda_hat = lam;
   }
+  o->valid = (fabsf(omega) > o->wc);
 }
 
 /** The dual model: the voltage integrator, pulled toward the current model
@@ -122,8 +123,10 @@ static void step_flux(drive_obs_t *o, const drive_params_t *p,
   o->leak_a += ts * (va - p->r * ia - o->wc * o->leak_a);
   o->leak_b += ts * (vb - p->r * ib - o->wc * o->leak_b);
 
-  /* The speed comes from the PLL, not from this model's own angle. */
-  const float speed = o->pll_omega;
+  /* The speed comes from the PLL, or the flux model's own filtered speed
+     when already valid, whichever is higher in magnitude, so a fast spool
+     after handover transitions to the flux model. */
+  const float speed = (o->valid && (fabsf(o->flux_omega) > fabsf(o->pll_omega))) ? o->flux_omega : o->pll_omega;
   const float w = fabsf(speed);
   float gain = 1.0f;
   float lead = 0.0f;
@@ -172,9 +175,10 @@ void drive_observer_step(drive_obs_t *o, const drive_params_t *p,
   step_dual(o, p, va, vb, ia, ib, ts);
   step_flux(o, p, va, vb, ia, ib, ts);
 
-  /* The blend, on the dual's own speed: it is the one that is right where
-     the hand-over starts, so it is the one that says when to leave. */
-  const float w = fabsf(o->pll_omega);
+  /* The blend, on the dual's own speed, or the higher flux speed when
+     already valid: the dual is right where the handover starts, but on a
+     fast spool the flux model takes over when the PLL slips behind. */
+  const float w = o->valid ? fmaxf(fabsf(o->pll_omega), fabsf(o->flux_omega)) : fabsf(o->pll_omega);
   const float span = o->blend_hi - o->blend_lo;
   float g = (span > 0.0f) ? ((w - o->blend_lo) / span) : 1.0f;
 

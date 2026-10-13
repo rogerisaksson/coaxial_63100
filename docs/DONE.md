@@ -242,6 +242,19 @@ it names. A closed item is cut from the list and gets its line here, last.
     softness at the ring frequency and finite-amplitude swing correction;
     error across all humanoid joints <= 4.1 % (hip 2.7 %, knee 1.2 %)
     ([drive](findings/drive.md)).
+62. The chain beside the loop (`obs`) follows a QUAD's spool at 81 000 rad/s²
+    (`drive/src/drive_observer.c`, `host/tests/test_drive_observer.py`):
+    valid observer seamlessly tracks flux velocity when acceleration outruns
+    the PLL; blend reaches 1.0 and RMS error < 30 deg at 81 000 rad/s²
+    ([drive](findings/drive.md)).
+63. `heat.py`'s dry loss fitted to bench measurements
+    (`host/machine/heat.py`, `host/tests/test_thermal_app.py`):
+    `dry_loss(volts)` models 2.4 W at 24 V to 4.4 W at 44 V (0.1 W/V);
+    nominal 48 V bus yields 4.8 W dry switching loss.
+64. `coaxial_63020` pin table in `boot_main.c` (`boot/src/boot_main.c`):
+    `PINS_63020` and `BOARD_63020` defined and handled by `board_of`
+    for `BOOT_TYPE_COAXIAL_63020`.
+
 
 
 
