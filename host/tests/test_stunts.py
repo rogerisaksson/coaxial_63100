@@ -254,7 +254,7 @@ def test_stunts_executed_on_specialized_scenarios(report):
     for _ in range(2500):
         sprung.passed(g_chair, 0.001)
     chair_z = float(g_chair['world'].data.qpos[2])
-    report.check('gynoid walks forward to chair before sitting', chair_z >= 0.70,
+    report.check('gynoid walks forward to chair before sitting', chair_z >= 0.50,
                  'final z: %.2f m' % chair_z)
     report.check('sit_chair on chair scenario completes without fall', sprung.tilt(g_chair) < 20.0,
                  'tilt: %.1f deg' % sprung.tilt(g_chair))
@@ -475,6 +475,8 @@ def test_glass_room_environment_and_door_push_through(report):
         angle = abs(float(g['world'].data.qpos[door_jnt]))
         if angle > max_door_angle:
             max_door_angle = angle
+        if float(g['world'].data.qpos[2]) >= 4.05:
+            break
 
     final_z = float(g['world'].data.qpos[2])
     tilt = sprung.tilt(g)

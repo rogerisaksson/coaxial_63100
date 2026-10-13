@@ -116,8 +116,14 @@ def table(keys):
         if key.isalpha():
             out[key.upper()] = handler
 
-    # Quake WASD & toggle handlers
-    def _toggle_wasd(state):
+    def _toggle_wasd(state, key='~'):
+        import time
+        now = time.monotonic()
+        last_key, last_t = state.get('_last_wasd_toggle', ('', 0.0))
+        if key == last_key and (now - last_t) < 0.15:
+            return
+        state['_last_wasd_toggle'] = (key, now)
+        state['_last_wasd'] = (None, 0.0)
         was_on = state.get('wasd_mode', False)
         state['wasd_mode'] = not was_on
         if was_on:
@@ -135,7 +141,9 @@ def table(keys):
             state['body'].send(walk=True)
 
     def _key_s(state):
-        if state.get('wasd_mode'):
+        now = state.get('now')
+        is_moving = now and (now.get('stage') == 'walk' or abs(now.get('speed', 0.0)) > 0.05)
+        if state.get('wasd_mode') or is_moving:
             state['body'].send(say=4)
         else:
             state['body'].send(say='sit_chair')
@@ -143,8 +151,11 @@ def table(keys):
     def _key_a(state):
         if state.get('wasd_mode'):
             state['body'].send(say='strafe_left')
-        else:
+        elif 'wasd_mode' not in state:
             state['body'].send(restart=True)
+        else:
+            # Turned off when switching mode - never reset robot
+            pass
 
     def _key_d(state):
         if state.get('wasd_mode'):
@@ -152,8 +163,41 @@ def table(keys):
         else:
             state['body'].send(say='hop_down_chair')
 
-    for k in ('~', '`', '§', '½'):
-        out[k] = _toggle_wasd
+    def _key_f(state):
+        if state.get('wasd_mode'):
+            from terminal.views import scanner
+            sc = state.get('scanner')
+            now = state.get('now')
+            if sc and now:
+                detected = sc.scan(now, state.get('yaw', 0.0))
+                act = scanner.auto_action(detected)
+                if act:
+                    state['body'].send(say=act)
+                    return
+            if now and now.get('stage') in ('down', 'fallen', 'floor'):
+                state['body'].send(say='rise_floor')
+                return
+            state['body'].send(say='lie_floor')
+        else:
+            state['body'].send(say='lie_floor')
+
+    def _key_shift(state):
+        if state.get('wasd_mode'):
+            state['body'].send(say='jog')
+        else:
+            state['body'].send(say='ballistic_walk')
+
+    def _toggle_tour(state):
+        from machine.tour import HouseTour
+        if state.get('tour') is not None and not state['tour'].done:
+            state['tour'] = None
+        else:
+            state['scenario'] = 'glass_room'
+            state['body'].send(scenario='glass_room')
+            state['tour'] = HouseTour(loop=True)
+
+    for k in ('f1', 'F1', 'f2', 'F2', '\x1bOP', '\x1bOQ', '\x1b[11~', '\x1b[12~', '\t', '~', '`', '§', '½'):
+        out[k] = (lambda state, key=k: _toggle_wasd(state, key))
     for k in 'wW':
         out[k] = _key_w
     for k in 'sS':
@@ -162,6 +206,11 @@ def table(keys):
         out[k] = _key_a
     for k in 'dD':
         out[k] = _key_d
+    for k in 'fF':
+        out[k] = _key_f
+    for k in ('shift', 'Shift', 'sprint'):
+        out[k] = _key_shift
+    out['H'] = _toggle_tour
     return out
 
 
@@ -189,12 +238,22 @@ def boxes(now, wasd=False):
     scen_mv = SCENARIO_MOVES.get(scen, '')
     scen_label = 'scen: %s [%s]' % (scen, NAMED.get(scen_mv, scen_mv)) if scen_mv else 'scen: ' + scen
     wasd_on = wasd or now.get('wasd_mode', False)
-    say_rows = [('~ / §', 'WASD: %s' % ('ON' if wasd_on else 'OFF')), ('<', scen_label)]
+    mode_badge = '>>> GTA TPS ACTIVE <<<' if wasd_on else '[OFF: VISION / STUNTS]'
+    say_rows = [
+        ('CONTROL', mode_badge),
+        ('TOGGLE', 'F1 (eller § / ~)'),
+        ('<', scen_label),
+    ]
     if wasd_on:
-        say_rows.append(('WASD', 'fwd/back/strafe'))
-        say_rows.append(('WA/SD', 'curves/turns'))
+        say_rows.append(('W / S', 'advance / backpedal'))
+        say_rows.append(('A / D', 'tactical strafe L / R'))
+        say_rows.append(('SHIFT', 'sprint / jog'))
+        say_rows.append(('F KEY', 'interact (sit/lie/rise)'))
+        say_rows.append(('SPACE', 'aim & strike / push'))
+        say_rows.append(('MOUSE', '3D mouselook & steer'))
     else:
-        say_rows.append(('^/v', 'fwd / back'))
+        say_rows.append(('^ / v', 'fwd / back'))
+        say_rows.append(('A key', 'off (switch with F1)'))
     seen = set()
     for i, s in enumerate(entries):
         if s.startswith('#'):

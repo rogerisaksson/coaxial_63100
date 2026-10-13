@@ -165,8 +165,30 @@ def _action_of(key, wasd_mode=False):
         return 'walk from rest'
     if key in ('<', ','):
         return 'cycle scenario'
+    if key in ('f1', 'F1', 'f2', 'F2', '~', '`', '§', '½'):
+        return 'toggle GTA TPS mode (F1 / § / ~)'
+    if key in ('f', 'F'):
+        if wasd_mode:
+            return 'GTA: interact (sit / lie / rise)'
+        return 'stunt: lie_floor'
+    if key in ('shift', 'Shift', 'sprint'):
+        return 'GTA: sprint / jog'
     if key in ('a', 'A'):
-        return 'again: restart / land anew'
+        if wasd_mode:
+            return 'GTA: strafe left'
+        return 'a: inactive (mode switch - restart disabled)'
+    if key in ('d', 'D'):
+        if wasd_mode:
+            return 'GTA: strafe right'
+        return 'stunt: hop_down_chair'
+    if key in ('w', 'W'):
+        if wasd_mode:
+            return 'GTA: advance forward'
+        return 'walk from rest'
+    if key in ('s', 'S'):
+        if wasd_mode:
+            return 'GTA: backpedal / retreat'
+        return 'stunt: sit_chair'
     if key == ' ':
         return 'charge push'
     try:

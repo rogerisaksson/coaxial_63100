@@ -184,9 +184,53 @@ def test_vision_scanner_docked_pip_and_affordances(report):
     report.check('leaving WASD mode commands auto-action sit_chair', sent == [{'say': 'sit_chair'}], str(sent))
 
 
+def test_gta_third_person_shooter_controls(report):
+    """F1 toggles GTA TPS mode, Shift sprints, F interacts, crosshair renders in viewport, and A never resets robot."""
+    import types
+    from terminal.views import gym, humanoid_keys, show_humanoid
+    sent = []
+    body = types.SimpleNamespace(send=lambda **command: sent.append(command))
+    state = {'body': body, 'wasd_mode': False, 'yaw': 180.0, 'pitch': 8.0, 'now': {
+        'angles': {}, 'where': (0.0, 0.9, 0.0), 'turn': (1.0, 0.0, 0.0, 0.0), 'stage': 'stand'
+    }}
+
+    # 1. 'a' in normal mode does not reset robot
+    show_humanoid.KEYS['a'](state)
+    report.check('a in normal mode is disabled and does not reset robot', len(sent) == 0, str(sent))
+    report.check('a description explains mode switch / restart disabled',
+                 'restart disabled' in humanoid_keys._action_of('a', wasd_mode=False))
+
+    # 2. F1 toggles GTA TPS mode on
+    show_humanoid.KEYS['f1'](state)
+    report.check('F1 toggles GTA TPS mode on', state.get('wasd_mode') is True)
+    bar = show_humanoid.bar_for(state)
+    report.check('bar_for displays GTA TPS controls', any(k == 'SHIFT' for k, _ in bar) and any(k == 'F' for k, _ in bar))
+
+    # 3. Shift key sends sprint / jog
+    sent.clear()
+    show_humanoid.KEYS['shift'](state)
+    report.check('shift sends jog (sprint)', sent == [{'say': 'jog'}], str(sent))
+
+    # 4. F key interacts
+    sent.clear()
+    show_humanoid.KEYS['f'](state)
+    report.check('f key executes interact action', len(sent) == 1 and 'say' in sent[0], str(sent))
+
+    # 5. Crosshair reticle rendered along aim vector
+    mark = show_humanoid.marked(state, state['now'], 1.0)
+    report.check('crosshair reticle is rendered along line of sight', mark is not None and mark[1] == (96, 220, 255), str(mark))
+
+    # 6. F1 toggles mode off cleanly
+    show_humanoid.KEYS['F1'](state)
+    report.check('F1 toggles mode back to normal', state.get('wasd_mode') is False)
+    mark_off = show_humanoid.marked(state, state['now'], 1.0)
+    report.check('crosshair hidden in normal mode', mark_off is None)
+
+
 ROSTER = (test_the_humanoid_pages_mouse, test_the_humanoid_pages_keys,
           test_a_held_space_charges_a_push, test_r_records_and_saves,
-          test_vision_scanner_docked_pip_and_affordances)
+          test_vision_scanner_docked_pip_and_affordances,
+          test_gta_third_person_shooter_controls)
 
 
 def main(argv=None):

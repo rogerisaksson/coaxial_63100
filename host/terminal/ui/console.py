@@ -393,8 +393,10 @@ class Keys:
         """A key-down record as the characters a terminal would send."""
         if key.ch and key.ch != '\x00':
             return key.ch * max(1, key.repeat)
-        return {37: '\x1b[D', 38: '\x1b[A', 39: '\x1b[C',
-                40: '\x1b[B'}.get(key.vk, '')
+        return {37: '\x1b[D', 38: '\x1b[A', 39: '\x1b[C', 40: '\x1b[B',
+                112: 'f1', 113: 'f2', 114: 'f3', 115: 'f4', 116: 'f5',
+                117: 'f6', 118: 'f7', 119: 'f8', 120: 'f9', 121: 'f10',
+                122: 'f11', 123: 'f12'}.get(key.vk, '')
 
     def _mouse_of(self, mouse):
         """A mouse record as SGR reports: presses, releases, and drags with
@@ -454,7 +456,10 @@ class Keys:
             if got in ('\x00', '\xe0'):
                 code = msvcrt.getwch()
                 keys.append({'H': '\x1b[A', 'P': '\x1b[B',
-                             'M': '\x1b[C', 'K': '\x1b[D'}.get(code, ''))
+                             'M': '\x1b[C', 'K': '\x1b[D',
+                             ';': 'f1', '<': 'f2', '=': 'f3', '>': 'f4',
+                             '?': 'f5', '@': 'f6', 'A': 'f7', 'B': 'f8',
+                             'C': 'f9', 'D': 'f10'}.get(code, ''))
                 continue
             keys.append(got)
         return keys

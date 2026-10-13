@@ -93,24 +93,38 @@ def torso(now):
 
 
 def marked(state, now, clock):
-    """The push's mark on her torso, (world point, ink): charging, in CHARGE_INK as bright as
-    the charge; LANDED_S after it lands, in LANDED_INK; else None."""
+    """The mark: a push's, charging or landed; or GTA crosshair in shooter mode."""
     charge, landed = charging(state, clock), state.get('landed')
     if charge:
         k = 0.3 + 0.7 * charge / CHARGE_MAX_N
         return torso(now), tuple(int(c * k) for c in CHARGE_INK)
     if landed and clock - landed[0] < LANDED_S:
         return torso(now), LANDED_INK
+    if state.get('wasd_mode') and now is not None:
+        vx, vy, vz = along(state)
+        wx, wy, wz = torso(now)
+        aim_pt = (wx + 1.8 * vx, wy + 1.8 * vy, wz + 1.8 * vz)
+        return aim_pt, (96, 220, 255)
     return None
 
 
 def gauges(state):
-    """The band's meter: a push charging, its newtons; else none."""
+    """The band's meter: prominent high-contrast GTA TPS mode badge, plus push meter when charging."""
+    wasd = state.get('wasd_mode', False)
+    if wasd:
+        out = Text.assemble(
+            (' [GTA TPS ACTIVE] ', 'bold black on cyan'),
+            (' F1 toggle | MOUSE aim | WASD move ', 'bar.dim')
+        )
+    else:
+        out = Text.assemble(
+            (' [NORMAL MODE] ', 'bold white on color(24)'),
+            (' F1 for GTA TPS mode ', 'bar.dim')
+        )
     charge = charging(state, time.monotonic())
-    if not charge:
-        return None
-    out = Text('PUSH ', style='bar.dim')
-    out.append_text(meter(charge, CHARGES))
+    if charge:
+        out.append('   PUSH ', style='bar.dim')
+        out.append_text(meter(charge, CHARGES))
     return out
 
 
@@ -172,37 +186,38 @@ def labels(now, called, shown='torque'):
 
 #: The bar: the keys typed most; TAB slides the rest up in groups (`stage.helped`): her loop,
 #: the view, the page.
-BAR = (('TAB', 'KEYS'), ('~ / §', 'WASD'), ('ARROWS', 'WALK'), ('< ENT', 'SCENARIO'),
-       ('STUNTS', 's e x m..'), ('SPC', 'PUSH'), ('A', 'RESET'), ('Q', 'EXIT'))
+BAR = (('F1', 'WASD'), ('TAB', 'KEYS'), ('ARROWS', 'WALK'), ('< ENT', 'SCENARIO'),
+       ('STUNTS', 's e x m..'), ('SPC', 'PUSH'), ('A', 'RESET: OFF'), ('Q', 'EXIT'))
 
 
 def bar_for(state):
-    """The bottom bar: adapts when Quake WASD mode is active."""
+    """The bottom bar: adapts when GTA / TPS WASD mode is active."""
     if state.get('wasd_mode'):
-        return (('TAB', 'KEYS'), ('~ / §', 'NORMAL'), ('WASD', 'MOVE'), ('WA/SD', 'CURVES'),
-                ('MOUSE', 'LOOK'), ('< ENT', 'SCENARIO'), ('SPC', 'PUSH'), ('Q', 'EXIT'))
+        return (('F1', 'NORMAL'), ('TAB', 'KEYS'), ('WASD', 'MOVE'), ('SHIFT', 'SPRINT'),
+                ('F', 'INTERACT'), ('MOUSE', 'AIM/LOOK'), ('SPC', 'STRIKE'), ('Q', 'EXIT'))
     return BAR
 
 
 GROUPS = (
-    ('QUAKE (WASD)', (('~ / §', 'toggle QUAKE / NORMAL mode'),
-                      ('W', 'walk forward (#204 gentle cruise)'),
-                      ('S', 'step backward / brake (#205)'),
-                      ('A', 'strafe left'),
-                      ('D', 'strafe right'),
-                      ('WA', 'vänstersväng (forward-left turn)'),
-                      ('WD', 'högersväng (forward-right turn)'),
-                      ('SA', 'bakåt-vänstersväng'),
-                      ('SD', 'bakåt-högersväng (SD-högersväng)'),
-                      ('MOUSE L-DRAG', 'look around in 3D (mouselook)'))),
+    ('GTA / TPS SHOOTER', (('F1 / § / ~', 'toggle GTA TPS / NORMAL mode'),
+                           ('W', 'advance forward along aim crosshair'),
+                           ('S', 'tactical backpedal / retreat'),
+                           ('A / D', 'tactical strafe left / right'),
+                           ('WA / WD', 'compound forward turns'),
+                           ('SHIFT', 'sprint / jog'),
+                           ('F', 'universal interact (sit / lie / rise)'),
+                           ('SPACE', 'hold to charge kinetic push / strike'),
+                           ('MOUSE L-DRAG', '3D mouselook & dynamic steering'),
+                           ('MOUSE WHEEL', 'zoom in (aim) / zoom out'))),
     ('MOVE (ARROWS)', (('UP', 'walk forward (#204 gentle cruise)'),
                        ('DOWN', 'step backward / brake (#205)'),
                        ('LEFT RIGHT', 'sway / strafe left / right'),
                        ('1-5', '#201 stand, #202 sway, #203 step, #204 walk, #205 back'),
-                       ('A', 'again: reset & stand anew (when not in WASD)'))),
+                       ('A', 'disabled in normal mode (switch with F1)'))),
     ('SCENARIO', (('< ,', 'cycle scenario + auto-move'),
                   ('ENTER', 'run / replay active scenario'),
-                  ('scenarios', 'flat, chair, bed, slope, stairs, ice, snow, obstacle, sill, hole, rug'))),
+                  ('H', 'toggle automated house tour / autopilot'),
+                  ('scenarios', 'flat, chair, bed, slope, stairs, ice, snow, obstacle, sill, hole, rug, glass_room'))),
     ('STUNTS', (('s / u', 'sit chair / rise chair (in normal mode)'),
                 ('j / d', 'hop up chair / hop down chair'),
                 ('e / g', 'lie bed / rise bed'),
@@ -211,9 +226,9 @@ GROUPS = (
                 ('m / i', 'slope walk / ice walk (slick)'),
                 ('y / z', 'parry shove / controlled breakfall'),
                 ('b', 'ballistic walk'))),
-    ('PUSH', (('SPACE', 'hold to charge push along view vector'),
-              ('P N', 'lateral push / nudge'),
-              ('shift', 'longitudinal along walk'))),
+    ('PUSH / STRIKE', (('SPACE', 'hold to charge push along view vector'),
+                       ('P N', 'lateral push / nudge'),
+                       ('shift', 'sprint in WASD or longitudinal push'))),
     ('VIEW (MOUSE)', (('L-DRAG', 'rotate / orbit camera (mouselook)'),
                       ('R-DRAG', 'pan viewport'),
                       ('WHEEL', 'zoom in / out'),
@@ -247,6 +262,7 @@ def boxes(state, now, name):
         ('soles', '%3.0f %3.0f N' % (now['loads'] if now else (0.0, 0.0))),
         ('physics', 'x%.1f real time' % now['ratio'] if now else '-'),
         ('drawing', '%.0f W' % now['watts'] if now else '-'),
+        ('autopilot', state['tour'].current_label() if state.get('tour') and not state['tour'].done else 'manual'),
         ('record', 'R starts' if state['recording'] is None and not state['recorded']
          else 'on, %.1f s - R saves' % (len(state['recording']) / 60.0)
          if state['recording'] is not None else os.path.basename(state['recorded'])),
@@ -303,9 +319,14 @@ def main(argv=None):
     state = {'body': body, 'orbit': False, **viewpoint.HOME, 'side': 1.0, 'last_t': None,
              'called': 'strong', 'follow': gynoid.Follow(), 'recording': None, 'recorded': None,
              'playback': Playback(), 'shown': 'torque', 'skin': 'dressed',
-             'scanner': VisionScanner(), 'now': None}
+             'scanner': VisionScanner(), 'now': None, 'wasd_mode': True, 'tour': None}
+    state['keys'] = KEYS
 
     def draw():
+        tour = state.get('tour')
+        if tour is not None and not tour.done:
+            dt = 1.0 / max(1.0, args.hz)
+            tour.step(state, dt)
         said = []
         body.latest(into=said)
         if state['recording'] is not None:
@@ -319,6 +340,15 @@ def main(argv=None):
             state['landed'] = (time.monotonic(), pushed)
         if now is not None:
             viewpoint.orbited(state, now['t'])
+        is_moving = now and (now.get('stage') == 'walk' or abs(now.get('speed', 0.0)) > 0.05)
+        if state.get('wasd_mode') and is_moving:
+            target_hd = math.radians(state.get('yaw', 180.0) - 180.0)
+            if abs(state.get('_last_sent_heading', 999.0) - target_hd) > 0.02:
+                state['_last_sent_heading'] = target_hd
+                body.send(heading=target_hd)
+        elif not state.get('wasd_mode') and state.get('_last_sent_heading') is not None:
+            state['_last_sent_heading'] = None
+            body.send(heading=None)
         up = helped(state, state.pop('typed', ()), time.monotonic())
         width, height = size_of(board_view, args, up)
         if now is None:

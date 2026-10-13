@@ -240,8 +240,15 @@ def passed(g, dt=0.001):
         y = modal.sensed(s, loads, g['y'])
         q = world.data.qpos[3:7]
         pelvis_yaw = 2.0 * math.atan2(float(q[2]), float(q[0]))
-        d_yaw = math.atan2(math.sin(pelvis_yaw - g['heading']), math.cos(pelvis_yaw - g['heading']))
-        g['heading'] += 0.005 * g['every'] * d_yaw
+        target_hd = g.get('target_heading')
+        if target_hd is not None:
+            d_target = math.atan2(math.sin(target_hd - g['heading']), math.cos(target_hd - g['heading']))
+            rate = 1.2
+            step_turn = max(-rate * dt * g['every'], min(rate * dt * g['every'], d_target))
+            g['heading'] += step_turn
+        else:
+            d_yaw = math.atan2(math.sin(pelvis_yaw - g['heading']), math.cos(pelvis_yaw - g['heading']))
+            g['heading'] += 0.005 * g['every'] * d_yaw
         s_hd, c_hd = math.sin(g['heading']), math.cos(g['heading'])
         g['fr'][modal.HEADING] = g['heading']
         g['fr'][modal.ROT] = np.array([[s_hd, 0.0, c_hd], [c_hd, 0.0, -s_hd], [0.0, 1.0, 0.0]]).ravel()
@@ -353,11 +360,11 @@ def _start_mode(g, by, entry, at):
             said(g, *by[name], at=at + 0.65)
         else:
             said(g, *by[name], at=at)
-    elif name in ('sit_chair', 'hop_up_chair') and z < 0.80 and iw is not None and '#204' in by:
+    elif name == 'sit_chair' and z < 0.25 and iw is not None and '#204' in by:
         said(g, 'init_walk', iw, ('init_walk',), at=at, reset=True)
         said(g, *by['#204'], at=at + 0.65)
         said(g, *by[name], at=at + 1.80)
-    elif name in ('lie_bed', 'lie_floor') and z < 0.65 and iw is not None and '#204' in by:
+    elif name == 'lie_bed' and z < 0.25 and iw is not None and '#204' in by:
         said(g, 'init_walk', iw, ('init_walk',), at=at, reset=True)
         said(g, *by['#204'], at=at + 0.65)
         said(g, *by[name], at=at + 1.50)
@@ -371,7 +378,11 @@ def _heard_say(g, gym, entry):
     from machine import latent, modal, ortho, stride
     by = {e[0]: e for e in gym}
     drive = float(g['out'][latent.SWAY][modal.DRIVE])
-    striding = abs(drive) > stride.STIRS
+    lateral = float(g['out'][latent.SWAY][modal.LATERAL])
+    cpg_active = g['st'][latent.NOW][latent.GAIN] > 0.5
+    striding = abs(drive) > stride.STIRS or abs(lateral) > 0.08 or cpg_active
+    if entry[0] == g.get('active_entry') and striding:
+        return
     back_now = float(g['st'][latent.NOW][latent.PHASE][modal.LATERAL]) < -0.1
     spd = math.hypot(float(g['world'].data.qvel[0]), float(g['world'].data.qvel[2]))
     unbalanced = abs(float(g['loads'][0]) - float(g['loads'][1])) > 90.0
@@ -466,11 +477,16 @@ def _heard(g, gym, command):
         if entry is not None:
             _heard_say(g, gym, entry)
     if command.get('walk'):
-        by = {e[0]: e for e in gym}
-        if '#204' in by:
-            _start_mode(g, by, by['#204'], at=g['t'] + 0.001)
-        else:
-            walked(g)
+        drive = float(g['out'][latent.SWAY][modal.DRIVE])
+        lateral = float(g['out'][latent.SWAY][modal.LATERAL])
+        cpg_active = g['st'][latent.NOW][latent.GAIN] > 0.05
+        striding = abs(drive) > stride.STIRS or abs(lateral) > 0.08 or cpg_active
+        if not striding:
+            by = {e[0]: e for e in gym}
+            if '#204' in by:
+                _start_mode(g, by, by['#204'], at=g['t'] + 0.001)
+            else:
+                walked(g)
     for entry in command.get('entries', ()):
         said(g, *entry)
     if 'scenario' in command:
@@ -478,7 +494,11 @@ def _heard(g, gym, command):
         g['scenario'] = scen
         g['world'].scenario(scen)
     if 'heading' in command:
-        g['heading'] = float(command['heading'])
+        cmd_hd = command['heading']
+        if cmd_hd is None:
+            g['target_heading'] = None
+        else:
+            g['target_heading'] = float(cmd_hd)
     if 'push' in command:
         force = command['push']
         secs = command.get('seconds', SHOVE_S)
@@ -494,97 +514,9 @@ def _heard(g, gym, command):
             said(g, *by['parry_shove'], at=t0, reset=True)
 
 
-def run(commands, states, every=STACK_EVERY, walks=False):
-    """The worker: she stands on the loop, paced to the clock; commands heard, her state said.
-    Laid, she stands at rest unless `walks`."""
-    import numpy as np
-    from machine import physics
-    from machine.errors import MachineError
-    physics.ROOM, physics.SIGHT = 1.0, 0.0
-    def anew():
-        g = laid(every)
-        if walks:
-            walked(g)
-        return g
-    def _put(item):
-        while states.full():
-            try:
-                states.get_nowait()
-            except queue.Empty:
-                break
-        try:
-            states.put_nowait(item)
-        except queue.Full:
-            pass
-
-    gym, g = entries(), anew()
-    says, refused = [GYMS[0]] + [entry[0] for entry in gym], None
-    dt = 1.0 / RATE_HZ
-    k = dt / AVERAGE_S
-    torque, power = np.zeros(len(g['world'].peak)), np.zeros(len(g['world'].peak))
-    watts, fallen_at = 0.0, None
-    wall0, sim0 = time.perf_counter(), g['t']
-    told, ratio, spent, ran = 0.0, 1.0, 0.0, 0.0
-    _put(state(g, torque, power, watts, ratio, fallen_at, says, refused))
-    while True:
-        try:
-            while True:
-                command = commands.get_nowait()
-                if command is None:
-                    return
-                if command.get('restart'):
-                    g, fallen_at, told = anew(), None, 0.0
-                    torque[:], power[:], watts, refused = 0.0, 0.0, 0.0, None
-                    wall0, sim0 = time.perf_counter(), g['t']
-                    _put(state(g, torque, power, watts, ratio, fallen_at, says, refused))
-                try:
-                    if command.get('gym') in GYMS:
-                        gym = entries(name=command['gym'])
-                        says, refused = [command['gym']] + [entry[0] for entry in gym], None
-                    if 'text' in command:
-                        command, refused = dict(command, entries=entries(command['text'])), None
-                    _heard(g, gym, command)
-                except (SyntaxError, MachineError) as error:
-                    refused = str(error)
-        except queue.Empty:
-            pass
-        began = time.perf_counter()
-        due = sim0 + (began - wall0)
-        if due - g['t'] > SLICE_S:
-            due = g['t'] + SLICE_S
-            wall0, sim0 = began, due
-        if fallen_at is not None and g['t'] - fallen_at >= RECOVER_S:
-            g, fallen_at, told = anew(), None, 0.0
-            torque[:], power[:], watts = 0.0, 0.0, 0.0
-            wall0, sim0, due = time.perf_counter(), g['t'], g['t']
-            _put(state(g, torque, power, watts, ratio, fallen_at, says, refused))
-        from_t, world = g['t'], g['world']
-        while g['t'] < due - 1e-9:
-            try:
-                if fallen_at is None:
-                    passed(g, dt)
-                else:
-                    world.feed[:] = 0.0
-                    g['t'] += dt
-                    world.advance()
-            except MachineError:
-                fallen_at = g['t']
-            if fallen_at is None and doing(g) not in STUNT_PHASES and (tilt(g) > DOWN_DEG or world.data.qpos[1] < DOWN_M):
-                fallen_at = g['t']
-            tau = world.data.ctrl
-            torque += k * (tau - torque)
-            power += k * (tau * world.data.qvel[world.vadr] - power)
-            watts += k * (world.drawn() - watts)
-        spent += time.perf_counter() - began
-        ran += g['t'] - from_t
-        if g['t'] - told >= SAY_S:
-            ratio = ran / spent if spent > 1e-6 else ratio
-            spent = ran = 0.0
-            told = g['t']
-            _put(state(g, torque, power, watts, ratio, fallen_at, says, refused))
-        rest = SAY_S / 4.0 - (time.perf_counter() - began)
-        if rest > 0.0:
-            time.sleep(rest)
+def run(*args, **kwargs):
+    from machine.worker import run as _run
+    return _run(*args, **kwargs)
 
 
 class Running:
@@ -592,35 +524,7 @@ class Running:
     """Her worker process on the loop (`run`): `send` it commands, read its `latest` state;
     laid, she stands at rest unless `walks`."""
 
-    def __init__(self, every=STACK_EVERY, walks=False):
-        context = multiprocessing.get_context('spawn')
-        self._commands, self._states = context.Queue(), context.Queue(maxsize=8)
-        self._process = context.Process(target=run, daemon=True,
-                                        args=(self._commands, self._states, every, walks))
-        self._process.start()
-        self._last = None
+    def __new__(cls, *args, **kwargs):
+        from machine.worker import Running as _Running
+        return _Running(*args, **kwargs)
 
-    def send(self, **command):
-        """{'say': the gym's entry by its place, in place of what was to come} | {'walk': True}:
-        her walk from rest | {'entries': [(label, wire, names)]} | {'gym': one of GYMS} |
-        {'text': orthokinematics, begun now} | {'push': (x, y, z) N, 'seconds': s} |
-        {'restart': True}: laid anew. Any other key is refused, said with her state."""
-        self._commands.put(command)
-
-    def latest(self, into=None):
-        """The newest state the worker has said, or the last one if nothing new; every one said
-        since appended to `into` if given."""
-        try:
-            while True:
-                self._last = self._states.get_nowait()
-                if into is not None:
-                    into.append(self._last)
-        except queue.Empty:
-            pass
-        return self._last
-
-    def close(self):
-        self._commands.put(None)
-        self._process.join(timeout=2.0)
-        if self._process.is_alive():
-            self._process.terminate()

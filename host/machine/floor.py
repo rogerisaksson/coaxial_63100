@@ -291,6 +291,7 @@ def scenario(world, name, z=1.2, x=0.0):
             place(world, 'bed', z=1.8, x=-1.8),
         ),
         'chair': lambda: place(world, 'chair', z=z, x=x),
+        'chair': lambda: place(world, 'chair', z=0.88, x=x),
         'bed': lambda: place(world, 'bed', z=1.8, x=x),
         'slope': lambda: place(world, 'slope', z=1.0, x=x),
         'stairs': lambda: place(world, 'stairs', z=1.0, x=x),
