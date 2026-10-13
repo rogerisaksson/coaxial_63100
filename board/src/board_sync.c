@@ -26,6 +26,9 @@ extern ADC_HandleTypeDef hadc3;
     long as the drive runs. */
 #define SYNC_NTC_CHANNEL ADC_CHANNEL_9    /* ADC1 IN9,  PB0 */
 
+/** The internal temperature sensor, rank 3 on ADC3 behind the DC bus. */
+#define SYNC_DIE_CHANNEL ADC_CHANNEL_TEMPSENSOR
+
 /** How far below the top OC5REF falls. */
 #define SYNC_TRIGGER_LEAD 15U
 
@@ -86,7 +89,8 @@ static bool SYNC_ConfigPhase(ADC_HandleTypeDef *hadc, uint32_t channel,
 
   in.InjectedChannel = channel;
   in.InjectedRank = rank;
-  in.InjectedSamplingTime = ADC_SAMPLETIME_1CYCLE_5;
+  in.InjectedSamplingTime = (channel == SYNC_DIE_CHANNEL)
+                            ? ADC_SAMPLETIME_810CYCLES_5 : ADC_SAMPLETIME_1CYCLE_5;
   in.InjectedSingleDiff = single_diff;
   in.InjectedOffsetNumber = ADC_OFFSET_NONE;
   in.InjectedNbrOfConversion = nbr;
@@ -206,6 +210,7 @@ void Board_SyncOnInjected(const void *hadc)
     s.squares++;
     s.latest.at = (uint16_t)TIM1->CNT;
     s.latest.dcbus = hadc3.Instance->JDR2;
+    s.latest.mcu_die = hadc3.Instance->JDR3;
     s.latest.ntc = hadc1.Instance->JDR2;
     s.updates++;
 
@@ -269,9 +274,11 @@ const char *Board_SyncArm(void)
   hadc2.Instance->PCSEL = 0U;
   hadc3.Instance->PCSEL = 0U;
 
-  if (!SYNC_ConfigPhase(&hadc3, SYNC_U_CHANNEL, ADC_INJECTED_RANK_1, 2U,
+  if (!SYNC_ConfigPhase(&hadc3, SYNC_U_CHANNEL, ADC_INJECTED_RANK_1, 3U,
                         ADC_DIFFERENTIAL_ENDED)
-      || !SYNC_ConfigPhase(&hadc3, SYNC_DCBUS_CHANNEL, ADC_INJECTED_RANK_2, 2U,
+      || !SYNC_ConfigPhase(&hadc3, SYNC_DCBUS_CHANNEL, ADC_INJECTED_RANK_2, 3U,
+                           ADC_SINGLE_ENDED)
+      || !SYNC_ConfigPhase(&hadc3, SYNC_DIE_CHANNEL, ADC_INJECTED_RANK_3, 3U,
                            ADC_SINGLE_ENDED)
       || !SYNC_ConfigPhase(&hadc1, SYNC_V_CHANNEL, ADC_INJECTED_RANK_1, 2U,
                            ADC_DIFFERENTIAL_ENDED)

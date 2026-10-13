@@ -271,6 +271,13 @@ it names. A closed item is cut from the list and gets its line here, last.
     forwarded to the emulated world plant (`emu_world_model` and `emu_plant_reset`).
     Both `motion.ipynb` and `applications.ipynb` execute and verify cleanly on
     execution mode `EMULATED`.
+67. The MCU's die under the drive (`comms/inc/board/sync.h`,
+    `board/src/board_sync.c`, `board/src/board_adc.c`, `board/native/stm32h7xx.h`,
+    `board/native/native.c`, `world/src/world_stand.c`):
+    Internal temperature sensor sampled as rank 3 on ADC3 injected sequence
+    with 810.5 cycles (~9 us) sample time in the 20 us period, latched into
+    `board_sync_sample_t.mcu_die`. `Board_McuDie` and the thermal observer read
+    continuously without returning NaN or failing while the drive is armed.
 
 
 

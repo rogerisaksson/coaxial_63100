@@ -189,7 +189,9 @@ Six firmware defects, no hardware fault:
 - The MCU die reads its package: 46.0 C awake where the camera has 47; 4.0 K
   lower asleep (0.49 W). With the uncalibrated converter's 40.5 K/W the
   observer held the laminate at 2 C, the legs at 91-104, the room at 7-33 C
-  on a board at 33; now the NTC 33.2 for 33.5, the room 21.6.
+  on a board at 33; now the NTC 33.2 for 33.5, the room 21.6. Under the drive,
+  sampled as rank 3 on ADC3 with 810.5 cycles (~9 us) sample time in the 20 us
+  period, latched into `board_sync_sample_t.mcu_die`.
 - Refit on the board, record laminate 21 J/K, dry and blind:
   120 s at 53.8 V observer NTC 57.85 C for the thermistor's 57.90 (rise 25.4
   K for 24.3); 300 s at 23.9 V 51.9 for 50.1 (19.1 for 17.4). Thirty seconds

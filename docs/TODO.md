@@ -295,6 +295,4 @@ gets a line at the end of [DONE](DONE.md).
 - **native://**: a limb's world on a fixed mount as board/emu's; one
   Transport a rig on a URL bus. DOD: the body's balance and gait from the
   SIL; the fallback where nothing answers.
-- **The MCU's die under the drive**: 9 us of sampling in a 20 us period.
-  DOD: read.
 

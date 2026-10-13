@@ -275,11 +275,9 @@ int32_t Board_AdcPhaseSlot(uint8_t index, const int16_t *phase)
 
 bool Board_AdcInjected(uint8_t index)
 {
-  /* What the sequence converts, which is more than the triple: rank
-     2 carries the DC link on ADC3 and the NTC on ADC1, and both are latched
-     at the same instant as the phases. */
+  /* Injected sequence: phases, DC link and MCU die on ADC3, NTC on ADC1. */
   return Board_AdcIsPhase(index) || (index == CH_DCBUS) ||
-         (index == CH_NTC);
+         (index == CH_NTC) || (index == CH_MCU_DIE);
 }
 
 int32_t Board_AdcInjectedSlot(uint8_t index,
@@ -289,8 +287,9 @@ int32_t Board_AdcInjectedSlot(uint8_t index,
   {
     return 0;
   }
-  if (index == CH_DCBUS) { return (int32_t)sample->dcbus; }
-  if (index == CH_NTC)   { return (int32_t)sample->ntc; }
+  if (index == CH_DCBUS)   { return (int32_t)sample->dcbus; }
+  if (index == CH_NTC)     { return (int32_t)sample->ntc; }
+  if (index == CH_MCU_DIE) { return (int32_t)sample->mcu_die; }
   return Board_AdcPhaseSlot(index, sample->phase);
 }
 

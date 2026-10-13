@@ -18,6 +18,7 @@ typedef struct
   uint32_t dcbus;                    /**< DC link, raw single-ended: rank 2 on ADC3 of the same sequence */
   uint32_t ntc;                      /**< the thermistor, rank 2 on ADC1: the thermal observer's thermometer
       while the drive holds the converters */
+  uint32_t mcu_die;                  /**< internal sensor, rank 3 on ADC3 of the same sequence */
 } board_sync_sample_t;
 
 /** What the synced path is doing, for the command layer to report. */
