@@ -148,8 +148,45 @@ def test_r_records_and_saves(report):
         humanoid_keys.RECORDINGS = was
 
 
+def test_vision_scanner_docked_pip_and_affordances(report):
+    """The stereo vision scanner detects props, renders PiP with affordances, and leaving WASD triggers auto-action."""
+    from terminal.views import scanner, show_humanoid
+    sc = scanner.VisionScanner()
+    report.check('model identification resolves or reports local stereo',
+                 'clef' in sc.model_name() or 'stereo' in sc.model_name(), sc.model_name())
+
+    # Simulated gynoid state facing a chair
+    now = {
+        'where': (0.0, 0.0, 0.0),
+        'turn': (1.0, 0.0, 0.0, 0.0),
+        'angles': {},
+        'props': [('chair', (0.0, 0.45, 1.2), (0.22, 0.02, 0.22), ((1, 0, 0), (0, 1, 0), (0, 0, 1)))],
+    }
+    detected = sc.scan(now, yaw=0.0)
+    report.check('chair detected in forward sight cone', len(detected) == 1 and detected[0]['kind'] == 'chair',
+                 str(detected))
+    report.check('chair has sit and hop affordances', any(a[0] == 's' for a in detected[0]['affordances']))
+    report.check('auto_action selects sit_chair for detected chair', scanner.auto_action(detected) == 'sit_chair')
+
+    # Docked vision PiP rendering
+    cells = scanner.docked_vision(sc, now, 100, 40, wasd_mode=True)
+    report.check('docked vision returns cells overlay', len(cells) > 0)
+    chars = ''.join(chr(c) for c, _k in cells.values())
+    report.check('docked vision contains chair label and actions', 'chair' in chars and 'sit' in chars)
+
+    # Leaving WASD mode triggers auto-action
+    sent = []
+    class DummyBody:
+        def send(self, **kw):
+            sent.append(kw)
+    state = {'body': DummyBody(), 'wasd_mode': True, 'scanner': sc, 'now': now, 'yaw': 0.0}
+    show_humanoid.KEYS['~'](state)
+    report.check('leaving WASD mode commands auto-action sit_chair', sent == [{'say': 'sit_chair'}], str(sent))
+
+
 ROSTER = (test_the_humanoid_pages_mouse, test_the_humanoid_pages_keys,
-          test_a_held_space_charges_a_push, test_r_records_and_saves)
+          test_a_held_space_charges_a_push, test_r_records_and_saves,
+          test_vision_scanner_docked_pip_and_affordances)
 
 
 def main(argv=None):

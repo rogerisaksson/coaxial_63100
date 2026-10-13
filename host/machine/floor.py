@@ -115,7 +115,7 @@ def ground(contacts, give, torsion):
             + ((CHAIR_SEAT_H - 2 * CHAIR_SEAT[1]) / 2.0, (CHAIR_SEAT_H - 2 * CHAIR_SEAT[1]) / 2.0, contacts)
             + ((CHAIR_SEAT_H - 2 * CHAIR_SEAT[1]) / 2.0, (CHAIR_SEAT_H - 2 * CHAIR_SEAT[1]) / 2.0, contacts)
             + ((CHAIR_SEAT_H - 2 * CHAIR_SEAT[1]) / 2.0, (CHAIR_SEAT_H - 2 * CHAIR_SEAT[1]) / 2.0, contacts)),
-        '<body name="bed" mocap="true" pos="0 -5 0">'
+        '<body name="prop_bed" mocap="true" pos="0 -5 0">'
         '<geom name="bed_mattress" type="box" size="%g %g %g" pos="0 %g 0" priority="2" condim="4"'
         ' solref="0.04 1" solimp="0.8 0.95 0.05"%s/>'
         '<geom name="bed_frame" type="box" size="%g %g %g" pos="0 %g 0"%s/>'
@@ -173,7 +173,7 @@ def park(world):
     the rug on the floor PARKED_M back."""
     slab(world, SEAM_M, SEAM_M)
     for name in ('sill', 'slip', 'brick_left', 'brick_right', 'board_base', 'wall', 'tree',
-                 'chair', 'bed', 'slope_ramp', 'slope_top', 'ice', 'snow'):
+                 'chair', 'prop_bed', 'slope_ramp', 'slope_top', 'ice', 'snow'):
         mocap(world, name, (0.0, -5.0, 0.0))
     for name, _half, _at in _steps():
         mocap(world, name, (0.0, -2.0, 0.0))
@@ -247,8 +247,8 @@ def place(world, kind, z, x=0.0, heading=0.0):
     if kind == 'chair':
         mocap(world, 'chair', (at[0], 0.0, at[1]), heading)
         return
-    if kind == 'bed':
-        mocap(world, 'bed', (at[0], 0.0, at[1]), heading)
+    if kind in ('bed', 'prop_bed'):
+        mocap(world, 'prop_bed', (at[0], 0.0, at[1]), heading)
         return
     if kind == 'slope':
         rad = math.radians(SLOPE_ANGLE_DEG)
@@ -350,7 +350,7 @@ def props(world):
         g_seat, g_back = m.geom('chair_seat').id, m.geom('chair_back').id
         out.append(('chair', tuple(d.geom_xpos[g_seat]), tuple(m.geom_size[g_seat]), c_mat))
         out.append(('chair', tuple(d.geom_xpos[g_back]), tuple(m.geom_size[g_back]), c_mat))
-    bed_id = m.body('bed').id
+    bed_id = m.body('prop_bed').id
     if d.xpos[bed_id][1] > -0.5:
         b_mat = tuple(map(tuple, d.xmat[bed_id].reshape(3, 3)))
         g_mat, g_hb = m.geom('bed_mattress').id, m.geom('bed_headboard').id

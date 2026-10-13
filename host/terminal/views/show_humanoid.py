@@ -28,6 +28,7 @@ from terminal.loader import TO_MENU
 from terminal.views import gym, viewpoint
 from terminal.views.humanoid_keys import CHARGE_MAX_N, act_on, charging, released, row, table
 from terminal.views.playback import Playback
+from terminal.views.scanner import VisionScanner, docked_vision
 from terminal.ui import screen as _screen
 from terminal.ui.screen import PORT, FPS_CAP, closing, run_view, say
 from terminal.ui.scroll import HUD_WIDTH
@@ -206,8 +207,8 @@ GROUPS = (
                 ('j / d', 'hop up chair / hop down chair'),
                 ('e / g', 'lie bed / rise bed'),
                 ('f / k', 'lie floor / rise floor'),
-                ('x / m', 'stairs walk / slope walk'),
-                ('i', 'ice walk (flat-foot slick shuffle)'),
+                ('x / n', 'stairs walk up / stairs down'),
+                ('m / i', 'slope walk / ice walk (slick)'),
                 ('y / z', 'parry shove / controlled breakfall'),
                 ('b', 'ballistic walk'))),
     ('PUSH', (('SPACE', 'hold to charge push along view vector'),
@@ -254,6 +255,15 @@ def boxes(state, now, name):
         out.append(hud(subsystem.name.replace('_', ' ').upper(), [
             (joint.split('_', 1)[-1] if subsystem.name != 'axis' else joint,
              '%7.1f deg' % angles.get(joint, 0.0)) for joint in subsystem.actuators]))
+    scanner = state.get('scanner')
+    if scanner is not None and now is not None:
+        detected = scanner.scan(now, state.get('yaw', 0.0))
+        target_str = detected[0]['label'] if detected else 'none'
+        action_str = detected[0]['affordances'][0][1] if (detected and detected[0]['affordances']) else '-'
+        out.append(hud('VISION (EYES)', [
+            ('model', scanner.model_name()),
+            ('detected', target_str),
+            ('action', action_str)]))
     return out
 
 
@@ -292,7 +302,8 @@ def main(argv=None):
     terminal = board_view.is_terminal
     state = {'body': body, 'orbit': False, **viewpoint.HOME, 'side': 1.0, 'last_t': None,
              'called': 'strong', 'follow': gynoid.Follow(), 'recording': None, 'recorded': None,
-             'playback': Playback(), 'shown': 'torque', 'skin': 'dressed'}
+             'playback': Playback(), 'shown': 'torque', 'skin': 'dressed',
+             'scanner': VisionScanner(), 'now': None}
 
     def draw():
         said = []
@@ -301,6 +312,7 @@ def main(argv=None):
             state['recording'] += [row(s, state['yaw']) for s in said]
         state['playback'].push(said)
         now = state['playback'].at(time.perf_counter())
+        state['now'] = now
         pushed = released(state, time.monotonic())
         if pushed and now is not None:
             body.send(push=tuple(pushed * a for a in along(state)), seconds=sprung.SHOVE_S)
@@ -314,6 +326,8 @@ def main(argv=None):
         else:
             x, y, z = now['where']
             camera = state['follow']((x, z), now['velocity'], now['t'])
+            inset_cells = docked_vision(state['scanner'], now, width, height,
+                                        wasd_mode=state.get('wasd_mode', False))
             art = '\n'.join(gynoid.render(now['angles'], width, height, yaw=state['yaw'],
                                           pitch=state['pitch'], pan=state['pan'],
                                           zoom=state['zoom'], colour=terminal, travel=camera,
@@ -325,7 +339,8 @@ def main(argv=None):
                                           legend=(legend(state['shown'], width)
                                                   if state['called'] != 'none' else None),
                                           dressed=state['skin'] == 'dressed',
-                                          see=_seen(state)))
+                                          see=_seen(state),
+                                          inset=inset_cells))
         return frame_of(board_view, ORIGIN, TITLE, art, boxes(state, now, name), bar_for(state),
                         gauges=gauges(state), help=(GROUPS, up))
 

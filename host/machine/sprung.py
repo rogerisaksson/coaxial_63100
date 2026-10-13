@@ -71,11 +71,12 @@ DOWN_DEG, DOWN_M = 50.0, 0.45
 GYMS = ('moves', 'examples')
 #: Modes and phases for stunts (sitting, lying, hopping, controlled fall) - not treated as accidental falls.
 STUNT_MODES = {'sit_chair', 'rise_chair', 'lie_bed', 'rise_bed', 'lie_floor',
-               'rise_floor', 'hop_down_chair', 'hop_up_chair', 'parry_shove', 'controlled_fall'}
+               'rise_floor', 'hop_down_chair', 'hop_up_chair', 'stairs_down',
+               'parry_shove', 'controlled_fall'}
 STUNT_PHASES = {'approach', 'lower', 'seated', 'lean_forward', 'thrust', 'sit_edge', 'recline',
                 'bed_rest', 'sit_up', 'swing_out', 'kneel', 'floor_rest', 'push_arms',
                 'half_kneel', 'cushion', 'land', 'step_off', 'drop', 'absorb', 'crouch_load',
-                'propulsion', 'flight_tuck', 'seat_land'}
+                'propulsion', 'flight_tuck', 'seat_land', 'descent'}
 
 
 def entries(text=None, name=GYMS[0]):
@@ -337,7 +338,7 @@ def _start_mode(g, by, entry, at):
     elif name == '#203' and '#202' in by:
         said(g, *by['#202'], at=at)
         said(g, *by['#203'], at=at + 0.80)
-    elif name in ('#204', 'trip', 'jog', 'stairs_walk', 'ice_walk', 'slope_walk'):
+    elif name in ('#204', 'trip', 'jog', 'stairs_walk', 'stairs_down', 'ice_walk', 'slope_walk'):
         if iw is not None:
             said(g, 'init_walk', iw, ('init_walk',), at=at, reset=True)
             said(g, *by[name], at=at + 0.65)
@@ -347,7 +348,7 @@ def _start_mode(g, by, entry, at):
         said(g, 'init_walk', iw, ('init_walk',), at=at, reset=True)
         said(g, *by['#204'], at=at + 0.65)
         said(g, *by[name], at=at + 1.80)
-    elif name == 'lie_bed' and z < 0.65 and iw is not None and '#204' in by:
+    elif name in ('lie_bed', 'lie_floor') and z < 0.65 and iw is not None and '#204' in by:
         said(g, 'init_walk', iw, ('init_walk',), at=at, reset=True)
         said(g, *by['#204'], at=at + 0.65)
         said(g, *by[name], at=at + 1.50)
@@ -373,7 +374,7 @@ def _heard_say(g, gym, entry):
         or spd > 0.04
         or unbalanced
     )
-    fwd_gaits = ('#204', 'trip', 'jog', 'ballistic_walk', 'stairs_walk', 'ice_walk', 'slope_walk')
+    fwd_gaits = ('#204', 'trip', 'jog', 'ballistic_walk', 'stairs_walk', 'stairs_down', 'ice_walk', 'slope_walk')
     t0 = g['t'] + 0.001
     if doing(g) in ('down', 'hold', 'load', 'throw', 'land') and len(g['tab']):
         g['tab'] = g['tab'][g['tab'][:, latent.AT] <= g['t'] + 1.5]

@@ -27,7 +27,8 @@ NAMED = {
     'weight_shift': 'weight shift', 'bow': 'bow', 'ballistic_walk': 'ballistic walk',
     'sit_chair': 'sit chair', 'rise_chair': 'rise chair', 'lie_bed': 'lie bed', 'rise_bed': 'rise bed',
     'lie_floor': 'lie floor', 'rise_floor': 'rise floor', 'hop_down_chair': 'hop down chair',
-    'hop_up_chair': 'hop up chair', 'stairs_walk': 'stairs walk', 'ice_walk': 'ice walk',
+    'hop_up_chair': 'hop up chair', 'stairs_walk': 'stairs walk', 'stairs_down': 'stairs down (N)',
+    'ice_walk': 'ice walk',
     'slope_walk': 'slope walk', 'parry_shove': 'parry shove', 'controlled_fall': 'controlled fall',
     'strafe_left': 'strafe left (A)', 'strafe_right': 'strafe right (D)',
     'turn_left': 'turn left (WA)', 'turn_right': 'turn right (WD)',
@@ -47,6 +48,7 @@ STUNTS = {
     'hop_down_chair': 'd',
     'hop_up_chair': 'j',
     'stairs_walk': 'x',
+    'stairs_down': 'n',
     'ice_walk': 'i',
     'slope_walk': 'm',
     'parry_shove': 'y',
@@ -114,7 +116,15 @@ def table(keys):
 
     # Quake WASD & toggle handlers
     def _toggle_wasd(state):
-        state['wasd_mode'] = not state.get('wasd_mode', False)
+        was_on = state.get('wasd_mode', False)
+        state['wasd_mode'] = not was_on
+        if was_on:
+            from terminal.views import scanner
+            sc = state.get('scanner') or scanner.VisionScanner()
+            detected = sc.scan(state.get('now'), state.get('yaw', 0.0))
+            action = scanner.auto_action(detected)
+            if action:
+                state['body'].send(say=action)
 
     def _key_w(state):
         if state.get('wasd_mode'):

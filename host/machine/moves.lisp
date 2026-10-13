@@ -528,6 +528,37 @@
       (phase_offset mode_foot_rock mode_sagittal_drive 0deg))
     (task_constraints (maintain_zmp (polygon dynamic_footprint)))))
 
+;; stairs descent: controlled step down, upright attitude, compliant landing
+(defbehavior stairs_down
+  (phase descent
+    (duration 60s)
+    (blend_duration 600ms)
+    (latent_targets
+      (mode_axial_compression 0.08)
+      (mode_pitch_attitude -0.04)
+      (mode_sagittal_shift -0.02))
+    (impedance
+      (stiffness mode_axial_compression 3800) (damping mode_axial_compression 850)
+      (stiffness mode_lateral_shift 3200) (damping mode_lateral_shift 350)
+      (stiffness mode_sagittal_shift 0) (damping mode_sagittal_shift 280)
+      (stiffness mode_foot_rock 2200) (damping mode_foot_rock 250))
+    (cpg_config
+      (enable true)
+      (frequency 0.65Hz)
+      (amplitude mode_lateral_shift 0.28)
+      (amplitude mode_sagittal_drive 0.35)
+      (amplitude mode_limb_lift 0.95)
+      (amplitude mode_foot_rock 0.25)
+      (amplitude mode_pelvis_list 0.30)
+      (amplitude mode_pelvis_turn 0.30)
+      (amplitude mode_arm_swing 0.65)
+      (phase_offset mode_lateral_shift mode_sagittal_drive 108deg)
+      (phase_offset mode_pelvis_list mode_sagittal_drive 108deg)
+      (phase_offset mode_pelvis_turn mode_sagittal_drive 0deg)
+      (phase_offset mode_arm_swing mode_sagittal_drive 0deg)
+      (phase_offset mode_foot_rock mode_sagittal_drive 0deg))
+    (task_constraints (maintain_zmp (polygon dynamic_footprint)))))
+
 ;; walking on ice / low friction: narrow stance, minimal shear, flat feet
 (defbehavior ice_walk
   (phase shuffle

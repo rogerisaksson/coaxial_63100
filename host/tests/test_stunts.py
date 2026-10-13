@@ -19,7 +19,7 @@ def test_stunts_compile_and_execute(report):
     tables, phases = ortho.compiled(text)
     stunts = (
         'sit_chair', 'rise_chair', 'lie_bed', 'rise_bed', 'lie_floor', 'rise_floor',
-        'hop_down_chair', 'hop_up_chair', 'stairs_walk', 'ice_walk', 'slope_walk',
+        'hop_down_chair', 'hop_up_chair', 'stairs_walk', 'stairs_down', 'ice_walk', 'slope_walk',
         'parry_shove', 'controlled_fall'
     )
     for name in stunts:
@@ -292,6 +292,25 @@ def test_stunts_executed_on_specialized_scenarios(report):
     report.check('lie_bed on compliant bed scenario completes without error', sprung.tilt(g_bed) < 30.0,
                  'tilt: %.1f deg' % sprung.tilt(g_bed))
 
+    # 5. Floor mattress: lie_floor
+    g_floor = sprung.laid()
+    sprung._heard(g_floor, gym, {'scenario': 'flat'})
+    sprung._heard(g_floor, gym, {'say': 'lie_floor'})
+    for _ in range(2200):
+        sprung.passed(g_floor, 0.001)
+    report.check('lie_floor on floor lowers compliantly', sprung.doing(g_floor) in ('kneel', 'lower', 'floor_rest', 'lie_floor'),
+                 'doing: %s, tilt: %.1f deg' % (sprung.doing(g_floor), sprung.tilt(g_floor)))
+
+    # 6. Stairs scenario: stairs_down
+    g_stairs = sprung.laid()
+    sprung._heard(g_stairs, gym, {'scenario': 'stairs'})
+    report.check('scenario set to stairs', g_stairs.get('scenario') == 'stairs')
+    sprung._heard(g_stairs, gym, {'say': 'stairs_down'})
+    for _ in range(1200):
+        sprung.passed(g_stairs, 0.001)
+    report.check('stairs_down on stairs scenario executes descent without fall', sprung.tilt(g_stairs) < 25.0,
+                 'tilt: %.1f deg' % sprung.tilt(g_stairs))
+
 
 def test_gentle_walk_mode_4_ballistic_initiation_and_keylogger(report):
     """Pressing '4' (say: 3, #204 gentle walk) initiates with small ballistic steps without tripping, and tty keys log to file."""
@@ -375,6 +394,32 @@ def test_quake_wasd_locomotion_and_curves(report):
                  'tilt: %.1f deg' % tilt_sd)
 
 
+def test_drivetrain_capacity_and_stunt_torque_envelope(report):
+    """Audit drivetrain capacity (U8 and MN6007, B wave gearbox 1:30, 63100 inverter) across stunt suite."""
+    from machine import drives, figure, physics
+    from machine.figure import JOINTS
+
+    # 1. Motor variants and gear ratio verification
+    report.check('exactly 2 bought motor frames (U8 and MN6007)', set(drives.FRAMES.keys()) == {'U8', 'MN6007'})
+    report.check('single gearbox family B with 1:30 ratio', drives.RATIO == 30.0 and 'B' in drives.BOXES)
+    report.check('unified 63100 100A inverter disc', 100 in drives.INVERTERS and drives.INVERTERS[100][1] == 100.0)
+
+    # 2. Peak torque capacity: all major leg joints (hip, knee) clamped at 108 Nm (motor * ratio * eff)
+    for j in ('left_hip', 'right_hip', 'left_knee', 'right_knee'):
+        pk = drives.peak(j)
+        report.check('%s peak torque >= 100 Nm for jumping & stair clearance' % j, pk >= 100.0, 'peak: %.1f Nm' % pk)
+
+    # 3. Gearbox shock capacity: 128 Nm momentary rating
+    for j in ('left_knee', 'right_knee', 'left_ankle', 'right_ankle'):
+        shk = drives.shock(j)
+        report.check('%s gearbox shock capacity >= 120 Nm for breakfall/drop absorption' % j, shk >= 120.0, 'shock: %.1f Nm' % shk)
+
+    # 4. Joint torsional stiffness is bounded and compliant
+    for j in ('left_knee', 'left_hip', 'left_ankle'):
+        flx = drives.flex(j)
+        report.check('%s flex compliance is well-conditioned (> 0 and < 0.001 rad/Nm)' % j, 0.0 < flx < 1e-3, 'flex: %g' % flx)
+
+
 ROSTER = [
     test_stunts_compile_and_execute,
     test_all_scenarios_instantiation_and_props,
@@ -388,6 +433,7 @@ ROSTER = [
     test_ballistic_start_trailing_leg_flexion_and_smooth_transitions,
     test_random_mode_transitions_without_crashes,
     test_quake_wasd_locomotion_and_curves,
+    test_drivetrain_capacity_and_stunt_torque_envelope,
 ]
 
 
