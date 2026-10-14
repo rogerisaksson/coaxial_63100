@@ -21,7 +21,7 @@ from rich.text import Text
 from coaxial.comm.session import Origin
 from coaxial.graphics import gpu, gynoid
 from coaxial.graphics.shapes import view
-from machine import figure, sprung
+from machine import figure, se2, sprung
 from machine.figure import JOINTS, quat
 from machine.routines import TYPES
 from terminal import keybindings
@@ -226,9 +226,17 @@ def boxes(state, now, name):
     read back."""
     angles = now['angles'] if now else {}
     wasd = state.get('wasd_mode', False)
+    se2_st = state.get('se2')
+    if se2_st is not None:
+        tw = (se2_st.get('v_x', 0.0), se2_st.get('v_y', 0.0), se2_st.get('omega_z', 0.0))
+    elif now is not None and 'twist' in now:
+        tw = now['twist']
+    else:
+        tw = (0.0, 0.0, 0.0)
     out = gym.boxes(now, wasd=wasd) + [hud('BODY', [
         ('control', 'TPW (WASD)' if wasd else 'NORMAL'),
         ('status', gym.status(now)),
+        ('twist', 'vx %.2f vy %.2f wz %.2f' % tw),
         ('rhythm', '%.2f strides/s' % (now['cadence'] if now else 0.0)),
         ('speed', '%.2f m/s' % (now['speed'] if now else 0.0)),
         ('phase', '%.2f of a stride' % (now['phase'] if now else 0.0)),
@@ -292,14 +300,24 @@ def main(argv=None):
     state = {'body': body, 'orbit': False, **viewpoint.HOME, 'side': 1.0, 'last_t': None,
              'called': 'strong', 'follow': gynoid.Follow(), 'recording': None, 'recorded': None,
              'playback': Playback(), 'shown': 'torque', 'skin': 'dressed',
-             'scanner': VisionScanner(), 'now': None, 'wasd_mode': True, 'tour': None}
+             'scanner': VisionScanner(), 'now': None, 'wasd_mode': True, 'tour': None,
+             'se2': se2.state()}
     state['keys'] = KEYS
 
     def draw():
+        dt = 1.0 / max(1.0, args.hz)
         tour = state.get('tour')
         if tour is not None and not tour.done:
-            dt = 1.0 / max(1.0, args.hz)
             tour.step(state, dt)
+        t_mono = time.monotonic()
+        se2_st = state.get('se2')
+        if se2_st is not None and state.get('wasd_mode'):
+            if t_mono - state.get('_se2_last_t', 0.0) > 0.02:
+                se2.step_controller(se2_st, (), dt, now=t_mono)
+            tw = (round(se2_st['v_x'], 2), round(se2_st['v_y'], 2), round(se2_st['omega_z'], 2))
+            if state.get('_last_sent_twist') != tw:
+                state['_last_sent_twist'] = tw
+                body.send(twist=tw)
         said = []
         body.latest(into=said)
         if state['recording'] is not None:
@@ -307,22 +325,13 @@ def main(argv=None):
         state['playback'].push(said)
         now = state['playback'].at(time.perf_counter())
         state['now'] = now
-        pushed = released(state, time.monotonic())
+        pushed = released(state, t_mono)
         if pushed and now is not None:
             body.send(push=tuple(pushed * a for a in along(state)), seconds=sprung.SHOVE_S)
-            state['landed'] = (time.monotonic(), pushed)
+            state['landed'] = (t_mono, pushed)
         if now is not None:
             viewpoint.orbited(state, now['t'])
-        is_moving = now and (now.get('stage') == 'walk' or abs(now.get('speed', 0.0)) > 0.05)
-        if state.get('wasd_mode') and is_moving:
-            target_hd = math.radians(state.get('yaw', 180.0) - 180.0)
-            if abs(state.get('_last_sent_heading', 999.0) - target_hd) > 0.02:
-                state['_last_sent_heading'] = target_hd
-                body.send(heading=target_hd)
-        elif not state.get('wasd_mode') and state.get('_last_sent_heading') is not None:
-            state['_last_sent_heading'] = None
-            body.send(heading=None)
-        up = helped(state, state.pop('typed', ()), time.monotonic())
+        up = helped(state, state.pop('typed', ()), t_mono)
         width, height = size_of(board_view, args, up)
         if now is None:
             art = '\n'.join(' ' * width for _ in range(height))

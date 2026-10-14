@@ -35,6 +35,20 @@ def test_the_humanoid_pages_mouse(report):
     viewpoint.mouse(state, lambda: (120, 50))['on_drag'](5, 0)
     report.check('a left drag to the right turns her the way the left arrow does',
                  state['yaw'] < viewpoint.YAW, '%s' % state)
+    import types
+    sgr_records = [
+        ('\x1b', 27, 1), ('[', 219, 1), ('<', 226, 1), ('0', 48, 1), (';', 188, 1),
+        ('5', 53, 2), (';', 188, 1), ('2', 50, 2), ('M', 77, 1),
+        ('\x1b', 27, 1), ('[', 219, 1), ('<', 226, 1), ('0', 48, 1), (';', 188, 1),
+        ('5', 53, 2), (';', 188, 1), ('2', 50, 2), ('m', 77, 1),
+    ]
+    emitted = [keys._key_of(types.SimpleNamespace(ch=ch, vk=vk, repeat=rep, down=1))
+               for ch, vk, rep in sgr_records]
+    keys._buffer = ''.join(emitted)
+    leave_click, _ = keys.poll()
+    report.check('left click via Win32 VT KEY_EVENT_RECORDs (col=55, row=22) registers click without exiting',
+                 leave_click is None and keys.clicked() == [(55, 22)] and keys.taken() == [],
+                 'leave=%s clicked=%s emitted=%r' % (leave_click, keys._clicked, ''.join(emitted)))
 
 
 def test_the_humanoid_pages_keys(report):

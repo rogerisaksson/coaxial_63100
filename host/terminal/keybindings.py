@@ -76,25 +76,25 @@ def describe_action(key, wasd_mode=False):
         return 'toggle Third Person Control (§ / ~ / F2)'
     if wasd_mode:
         if key in ('w', 'W'):
-            return 'TPW: advance forward along aim crosshair'
+            return 'TPW: advance forward in body frame (hold to ramp walk -> run)'
         if key in ('s', 'S'):
-            return 'TPW: tactical backpedal / retreat'
+            return 'TPW: reverse walk in body frame (clamped backpedal)'
         if key in ('a', 'A'):
-            return 'TPW: strafe left'
+            return 'TPW: pure lateral strafe left (vy > 0, wz = 0)'
         if key in ('d', 'D'):
-            return 'TPW: strafe right'
+            return 'TPW: pure lateral strafe right (vy < 0, wz = 0)'
         if key in ('f', 'F'):
             return 'TPW: interact (sit / lie / rise)'
         if key in ('shift', 'Shift', 'sprint'):
             return 'TPW: sprint / jog'
         if key in ('wa', 'WA'):
-            return 'TPW: turn left (WA, vänstersväng)'
+            return 'TPW: curvilinear arc left (WA, vx > 0, wz > 0, vy = 0)'
         if key in ('wd', 'WD'):
-            return 'TPW: turn right (WD, högersväng)'
+            return 'TPW: curvilinear arc right (WD, vx > 0, wz < 0, vy = 0)'
         if key in ('sa', 'SA'):
-            return 'TPW: turn back left (SA, bakåt-vänstersväng)'
+            return 'TPW: reverse curvilinear arc left (SA, vx < 0, wz > 0, vy = 0)'
         if key in ('sd', 'SD'):
-            return 'TPW: turn back right (SD, SD-högersväng)'
+            return 'TPW: reverse curvilinear arc right (SD, vx < 0, wz < 0, vy = 0)'
     if key in ('a', 'A'):
         return 'a: inactive (mode switch - restart disabled; use § / ~)'
     if key == 'up':
@@ -132,17 +132,17 @@ def describe_action(key, wasd_mode=False):
 def groups():
     """Grouped key help definitions for the TAB overlay."""
     return (
-        ('THIRD PERSON CONTROL (TPW)', (
+        ('THIRD PERSON CONTROL (SE(2) BODY FRAME)', (
             ('§ / ~ / F2', 'toggle Third Person Control ON / OFF'),
-            ('W', 'advance forward along aim crosshair'),
-            ('S', 'tactical backpedal / retreat'),
-            ('A / D', 'tactical strafe left / right'),
-            ('WA / WD', 'compound forward turns'),
-            ('SHIFT', 'sprint / jog'),
+            ('W (HOLD)', 'body-frame forward walk -> continuous run ramp (vx)'),
+            ('S', 'body-frame reverse walk (clamped -vx)'),
+            ('A / D (ALONE)', 'pure lateral strafe left / right (vy != 0, wz = 0)'),
+            ('WA / WD / SA / SD', 'curvilinear arc turn (vy = 0, wz != 0)'),
+            ('SHIFT', 'instant sprint / jog'),
             ('F', 'universal interact (sit / lie / rise)'),
             ('SPACE', 'hold to charge kinetic push / strike'),
-            ('MOUSE L-DRAG', '3D mouselook & dynamic steering'),
-            ('MOUSE WHEEL', 'zoom in (aim) / zoom out'),
+            ('MOUSE L-DRAG', 'free-orbiting camera (decoupled from body heading)'),
+            ('MOUSE WHEEL', 'zoom in / zoom out'),
         )),
         ('MOVE (ARROWS)', (
             ('UP', 'walk forward (#204 gentle cruise)'),

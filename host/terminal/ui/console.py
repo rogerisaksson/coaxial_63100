@@ -180,6 +180,10 @@ class Keys:
     #: drains, a report was eaten as typed keys.
     PARTIAL_RE = re.compile(r'\033(?:\[(?:<[\d;]*|\d*)?|O[P-S]?)?$')
 
+    #: Any other complete CSI sequence (\033[ ... @-~), stripped so an unhandled
+    #: terminal or mouse report never leaks its leading ESC as MENU_KEYS.
+    CSI_RE = re.compile(r'\033\[[\x30-\x3f]*[\x20-\x2f]*[\x40-\x7e]')
+
     def __init__(self, console, mouse=False, quits=QUIT_KEYS, select=SELECT_KEYS, pan=False):
         # `quits` is which letters leave; `select` which lend the mouse, none: the view holds it
         # throughout; `pan` a right drag moves (`panned`) instead of zooming.
@@ -278,14 +282,20 @@ class Keys:
             self._buffer = (self._buffer[:found.start()]
                             + self._buffer[found.end():])
 
-        # A trailing partial sequence waits one poll for its other half; the
-        # same partial twice in a row is a real lone keypress (ESC) and goes
-        # through 20 ms late instead of never.
+        self._buffer = self.CSI_RE.sub('', self._buffer)
+
         held = ''
         head, esc, rest = self._buffer.rpartition('\033')
         tail = esc + rest
-        if self.PARTIAL_RE.match(tail) and tail != self._pending:
-            held, self._buffer = tail, head
+        now = time.monotonic()
+        if self.PARTIAL_RE.match(tail):
+            if tail != self._pending:
+                held, self._buffer, self._pending_at = tail, head, now
+            elif len(tail) > 1:
+                if now - getattr(self, '_pending_at', 0.0) < 0.05:
+                    held, self._buffer = tail, head
+                else:
+                    self._buffer = head
         self._pending = held
 
         leave, keys = None, self._buffer
@@ -425,7 +435,7 @@ class Keys:
     def _key_of(key):
         """A key-down record as the characters a terminal would send."""
         if key.ch and key.ch != '\x00':
-            return key.ch
+            return key.ch * max(1, key.repeat)
         return {37: '\x1b[D', 38: '\x1b[A', 39: '\x1b[C', 40: '\x1b[B',
                 112: 'f1', 113: 'f2', 114: 'f3', 115: 'f4', 116: 'f5',
                 117: 'f6', 118: 'f7', 119: 'f8', 120: 'f9', 121: 'f10',
@@ -435,7 +445,7 @@ class Keys:
         """A mouse record as SGR reports: presses, releases, and drags with
         a button held.
         """
-        x, y = mouse.pos.X + 1, mouse.pos.Y + 1
+        x, y = max(1, mouse.pos.X + 1), max(1, mouse.pos.Y + 1)
         if mouse.flags & MOUSE_MOVED:
             return ['\x1b[<%d;%d;%dM' % (code, x, y)
                     for bit, code in DRAG_REPORTS if self._buttons & bit][:1]
@@ -475,17 +485,15 @@ class Keys:
             record = buf[i]
             if record.type == 1:
                 key = record.event.key
-                vk = key.vk
                 if key.down:
-                    is_repeat = vk in self._keys_down or key.repeat > 1
-                    self._keys_down.add(vk)
+                    self._keys_down.add(key.vk)
                     k = self._key_of(key)
-                    if k:
-                        # Space repeats for continuous push charging; discard autorepeat for all other action keys
-                        if not is_repeat or k == ' ':
-                            keys.append(k)
+                    keys.append(k)
+                    if k in ('w', 'W', 'a', 'A', 's', 'S', 'd', 'D'):
+                        keys.extend(c for v, c in ((87, 'w'), (65, 'a'), (83, 's'), (68, 'd'))
+                                    if v != key.vk and v in self._keys_down)
                 else:
-                    self._keys_down.discard(vk)
+                    self._keys_down.discard(key.vk)
             elif record.type == 2:
                 keys.extend(self._mouse_of(record.event.mouse))
         return keys

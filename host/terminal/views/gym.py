@@ -10,7 +10,7 @@ behaviour begun -, > takes the gym's other text (`sprung.GYMS`), read anew each 
 to machine/moves.lisp is two presses away -, W walks her from rest again, P and N shove her, A
 lands her anew. LATENT shows each mode as it is asked and as she is, and its spring.
 """
-from machine import sprung
+from machine import se2, sprung
 from terminal import keybindings
 from terminal.ui.stage import hud
 
@@ -118,7 +118,11 @@ def table(keys):
 
     def _key_w(state):
         if state.get('wasd_mode'):
-            state['body'].send(say=3)
+            se2_st = state.setdefault('se2', se2.state())
+            if se2_st.get('v_x', 0.0) >= 1.25:
+                state['body'].send(say='jog')
+            else:
+                state['body'].send(say=3)
         else:
             state['body'].send(walk=True)
 
@@ -227,12 +231,13 @@ def boxes(now, wasd=False):
         ('<', scen_label),
     ]
     if wasd_on:
-        say_rows.append(('W / S', 'advance / backpedal'))
-        say_rows.append(('A / D', 'tactical strafe L / R'))
+        say_rows.append(('W / S', 'body fwd ramp / back'))
+        say_rows.append(('A / D', 'pure strafe L / R'))
+        say_rows.append(('WA / WD', 'arc turn L / R'))
         say_rows.append(('SHIFT', 'sprint / jog'))
         say_rows.append(('F KEY', 'interact (sit/lie/rise)'))
         say_rows.append(('SPACE', 'aim & strike / push'))
-        say_rows.append(('MOUSE', '3D mouselook & steer'))
+        say_rows.append(('MOUSE', 'free-orbit camera'))
     else:
         say_rows.append(('^ / v', 'fwd / back'))
         say_rows.append(('A key', 'off (switch with § / ~)'))

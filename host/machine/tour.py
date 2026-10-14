@@ -14,8 +14,6 @@ to navigate the glass room, visit props, and perform all operations from the stu
  10. Ascending and descending stairs
  11. Absorbing moderate shove with parry and severe shove with controlled breakfall
 """
-import math
-import time
 
 #: Step definitions for the automated house tour: (label, duration_s, commands)
 #: commands is a list of tuples: (rel_time_s, 'key'|'mouse'|'push'|'scenario', value)
@@ -200,41 +198,41 @@ class HouseTour:
                     self.done = True
 
     def _dispatch(self, kind, val, state):
-        from terminal.views import humanoid_keys
         body = state.get('body')
         if kind == 'key':
-            humanoid_keys.log_key(val, f'TOUR: {val}')
-            keys_table = state.get('keys') or {}
-            # If chord or lowercase key is present
-            if val in keys_table:
-                keys_table[val](state)
-            elif body is not None:
-                # Direct fallback to body.send
-                if val in ('w', 'W'):
-                    body.send(say=3)
-                elif val in ('s', 'S'):
-                    body.send(say=4)
-                elif val in ('a', 'A'):
-                    body.send(say='strafe_left')
-                elif val in ('d', 'D'):
-                    body.send(say='strafe_right')
-                elif val in ('wa', 'WA'):
-                    body.send(say='turn_left')
-                elif val in ('wd', 'WD'):
-                    body.send(say='turn_right')
-                elif val == '~':
-                    was_on = state.get('wasd_mode', False)
-                    state['wasd_mode'] = not was_on
-                else:
-                    body.send(say=val)
+            _dispatch_key(val, state, body)
         elif kind == 'mouse':
-            yaw, pitch = val
-            state['yaw'] = yaw
-            state['pitch'] = pitch
+            state['yaw'], state['pitch'] = val
         elif kind == 'scenario':
             state['scenario'] = val
             if body is not None:
                 body.send(scenario=val)
-        elif kind == 'push':
-            if body is not None:
-                body.send(push=val, seconds=0.15)
+        elif kind == 'push' and body is not None:
+            body.send(push=val, seconds=0.15)
+
+
+_KEY_SAYS = {
+    'w': 3, 'W': 3,
+    's': 4, 'S': 4,
+    'a': 'strafe_left', 'A': 'strafe_left',
+    'd': 'strafe_right', 'D': 'strafe_right',
+    'wa': 'turn_left', 'WA': 'turn_left',
+    'wd': 'turn_right', 'WD': 'turn_right',
+}
+
+
+def _dispatch_key(val, state, body):
+    from terminal.views import humanoid_keys
+    humanoid_keys.log_key(val, f'TOUR: {val}')
+    keys_table = state.get('keys') or {}
+    if val in keys_table:
+        keys_table[val](state)
+        return
+    if body is None:
+        return
+    if val == '~':
+        state['wasd_mode'] = not state.get('wasd_mode', False)
+    elif val in _KEY_SAYS:
+        body.send(say=_KEY_SAYS[val])
+    else:
+        body.send(say=val)

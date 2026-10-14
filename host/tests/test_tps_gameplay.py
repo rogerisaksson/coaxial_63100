@@ -178,8 +178,207 @@ def test_kinetic_strike_and_tps_reticle(report):
                  'SPRINT' in actions and 'INTERACT' in actions and 'MOVE' in actions and 'STRIKE' in actions)
 
 
+def test_se2_camera_decoupling_and_body_frame_projection(report):
+    """SE(2) body-frame twist and world velocity depend strictly on robot yaw, with zero camera influence."""
+    from machine import se2
+    from terminal.views import humanoid_keys, show_humanoid, viewpoint
+
+    # 1. Camera yaw/pitch changes have zero effect on SE(2) twist or world velocity
+    results = []
+    for cam_yaw, cam_pitch in ((0.0, 0.0), (60.0, 12.0), (135.0, -20.0), (-90.0, 35.0), (270.0, 0.0)):
+        st = se2.state(yaw=0.4)
+        view_state = {**viewpoint.HOME, 'wasd_mode': True, 'yaw': cam_yaw, 'pitch': cam_pitch, 'se2': st}
+        keys = se2.poll_input(['w'], st=st)
+        twist = se2.step_twist(st, keys, 0.1)
+        pose = se2.step_kinematics(st, 0.1)
+        results.append((twist, pose, st['v_wx'], st['v_wy'], view_state['yaw']))
+
+    first_twist, first_pose, first_vwx, first_vwy, _ = results[0]
+    report.check('camera orientation has zero effect on body twist [v_x, v_y, omega_z]',
+                 all(r[0] == first_twist for r in results), str([r[0] for r in results]))
+    report.check('camera orientation has zero effect on world velocity and pose',
+                 all(r[1] == first_pose and r[2] == first_vwx and r[3] == first_vwy for r in results))
+
+    # 2. Body-to-world transformation rotates strictly by robot yaw
+    wx0, wy0 = se2.body_to_world(1.0, 0.0, 0.0)
+    wx90, wy90 = se2.body_to_world(1.0, 0.0, math.pi / 2.0)
+    report.check('body +X at yaw=0 maps to world (+1, 0) and at yaw=pi/2 maps to (0, +1)',
+                 abs(wx0 - 1.0) < 1e-6 and abs(wy0) < 1e-6 and abs(wx90) < 1e-6 and abs(wy90 - 1.0) < 1e-6)
+
+    # 3. Pressing W in terminal view does not inject camera yaw into body heading
+    sent = []
+    class DummyBody:
+        def send(self, **kw):
+            sent.append(kw)
+    st_view = {**viewpoint.HOME, 'body': DummyBody(), 'wasd_mode': True, 'yaw': 60.0, 'pitch': 12.0,
+               'se2': se2.state()}
+    humanoid_keys.act_on(show_humanoid.KEYS, ['w'], st_view)
+    report.check('pressing W with camera at 60 deg sends forward gait without camera heading override',
+                 any(c.get('say') == 3 for c in sent) and not any('heading' in c for c in sent), str(sent))
+
+
+def test_se2_longitudinal_ramp_decay_and_reverse_clamp(report):
+    """Holding W ramps v_x from walk speed to clamped run speed and decays to 0 on release; S clamps reverse speed."""
+    from machine import se2
+
+    st = se2.state()
+    # Initial W press starts at walk speed
+    se2.step_controller(st, 'w', 0.0)
+    v_initial = st['v_x']
+    report.check('W starts at walk speed (0.69 m/s) with zero strafe and zero yaw rate',
+                 abs(v_initial - se2.WALK_SPEED) < 1e-6 and st['v_y'] == 0.0 and st['omega_z'] == 0.0,
+                 'v_x=%.3f' % v_initial)
+
+    # Continuous hold accelerates monotonically
+    se2.step_controller(st, 'w', 0.4)
+    v_mid = st['v_x']
+    se2.step_controller(st, 'w', 0.4)
+    v_late = st['v_x']
+    report.check('holding W continuously accelerates v_x over time',
+                 v_initial < v_mid < v_late <= se2.RUN_SPEED,
+                 '%.3f < %.3f < %.3f' % (v_initial, v_mid, v_late))
+
+    # Clamps at RUN_SPEED even when held for a long time
+    for _ in range(50):
+        se2.step_controller(st, 'w', 0.1)
+    report.check('holding W clamps v_x at maximum run speed (1.40 m/s)',
+                 abs(st['v_x'] - se2.RUN_SPEED) < 1e-6, 'v_x=%.3f' % st['v_x'])
+
+    # Releasing W smoothly decays v_x -> 0
+    se2.step_controller(st, (), 0.2)
+    v_decaying = st['v_x']
+    for _ in range(20):
+        se2.step_controller(st, (), 0.1)
+    report.check('releasing W smoothly decays v_x through intermediate values to 0.0',
+                 0.0 < v_decaying < se2.RUN_SPEED and st['v_x'] == 0.0,
+                 'decaying=%.3f, final=%.3f' % (v_decaying, st['v_x']))
+
+    # Holding S drives v_x negatively, clamped to lower reverse speed
+    for _ in range(10):
+        se2.step_controller(st, 's', 0.1)
+    report.check('S drives v_x negatively and clamps at lower reverse walk speed (-0.35 m/s)',
+                 abs(st['v_x'] + se2.BACK_SPEED) < 1e-6 and se2.BACK_SPEED < se2.WALK_SPEED,
+                 'v_x=%.3f' % st['v_x'])
+
+    # Opposing W+S cancels longitudinal input and decays to 0
+    for _ in range(10):
+        se2.step_controller(st, ['w', 's'], 0.1)
+    report.check('simultaneous W+S cancels longitudinal input and decays v_x to 0',
+                 st['v_x'] == 0.0, 'v_x=%.3f' % st['v_x'])
+
+
+def test_se2_isolated_strafe_vs_composite_curvilinear_arcs(report):
+    """Isolated A/D produces pure lateral strafe (omega_z=0); composite WA/WD/SA/SD suppresses v_y and turns on an arc."""
+    from machine import se2
+
+    # 1. Isolated A and D -> pure lateral velocity, strictly zero yaw rotation
+    st_a = se2.state(yaw=0.25)
+    for _ in range(10):
+        se2.step_controller(st_a, 'a', 0.1)
+    report.check('isolated A generates pure left strafe (v_y > 0, v_x == 0, omega_z == 0) and preserves heading',
+                 st_a['v_y'] == se2.STRAFE_SPEED and st_a['v_x'] == 0.0 and st_a['omega_z'] == 0.0
+                 and abs(st_a['yaw'] - 0.25) < 1e-9,
+                 'twist=(%.2f, %.2f, %.2f), yaw=%.3f' % (st_a['v_x'], st_a['v_y'], st_a['omega_z'], st_a['yaw']))
+
+    st_d = se2.state(yaw=-0.40)
+    for _ in range(10):
+        se2.step_controller(st_d, 'd', 0.1)
+    report.check('isolated D generates pure right strafe (v_y < 0, v_x == 0, omega_z == 0) and preserves heading',
+                 st_d['v_y'] == -se2.STRAFE_SPEED and st_d['v_x'] == 0.0 and st_d['omega_z'] == 0.0
+                 and abs(st_d['yaw'] + 0.40) < 1e-9,
+                 'twist=(%.2f, %.2f, %.2f), yaw=%.3f' % (st_d['v_x'], st_d['v_y'], st_d['omega_z'], st_d['yaw']))
+
+    # 2. Transitioning from isolated A to composite WA immediately suppresses v_y -> 0 and enables omega_z > 0
+    se2.step_controller(st_a, ['w', 'a'], 0.1)
+    report.check('composite WA suppresses lateral strafe (v_y == 0) and maps A to +omega_z',
+                 st_a['v_x'] > 0.0 and st_a['v_y'] == 0.0 and st_a['omega_z'] == se2.YAW_RATE
+                 and st_a['gait'] == 'turn_left',
+                 'twist=(%.2f, %.2f, %.2f), gait=%s' % (st_a['v_x'], st_a['v_y'], st_a['omega_z'], st_a['gait']))
+
+    # 3. Composite WD, SA, SD twist invariants and circular arc trajectory
+    st_wd = se2.state(yaw=0.0)
+    for _ in range(10):
+        se2.step_controller(st_wd, ['w', 'd'], 0.05)
+    report.check('composite WD generates forward right arc (v_x > 0, v_y == 0, omega_z < 0, yaw < 0)',
+                 st_wd['v_x'] > 0.0 and st_wd['v_y'] == 0.0 and st_wd['omega_z'] == -se2.YAW_RATE
+                 and st_wd['yaw'] < -0.20 and st_wd['gait'] == 'turn_right')
+
+    st_sa = se2.state(yaw=0.0)
+    se2.step_controller(st_sa, ['s', 'a'], 0.1)
+    st_sd = se2.state(yaw=0.0)
+    se2.step_controller(st_sd, ['s', 'd'], 0.1)
+    report.check('composite SA and SD suppress v_y and map A/D to +/-omega_z with reverse v_x < 0',
+                 st_sa['v_x'] == -se2.BACK_SPEED and st_sa['v_y'] == 0.0 and st_sa['omega_z'] == se2.YAW_RATE
+                 and st_sd['v_x'] == -se2.BACK_SPEED and st_sd['v_y'] == 0.0 and st_sd['omega_z'] == -se2.YAW_RATE)
+
+    # 4. Sustained chord key-repeats in humanoid_keys never drop out of turn_left into strafe_left
+    from terminal.views import humanoid_keys, show_humanoid, viewpoint
+    sent = []
+    class DummyBody:
+        def send(self, **kw):
+            sent.append(kw)
+    view_st = {**viewpoint.HOME, 'body': DummyBody(), 'wasd_mode': True, 'se2': se2.state()}
+    for k in ('w', 'a', 'w', 'a', 'a'):
+        humanoid_keys.act_on(show_humanoid.KEYS, [k], view_st)
+    says = [c['say'] for c in sent if 'say' in c]
+    report.check('sustained W+A key repeats maintain turn_left without dropping to strafe_left',
+                 'turn_left' in says and 'strafe_left' not in says, 'says=%s' % says)
+
+
+def test_se2_mujoco_full_steering_repertoire_without_ragdoll(report):
+    """Full MuJoCo closed-loop steering sequence (W -> WA -> WD -> SA -> SD -> W -> A -> D -> release) stays upright."""
+    from machine import se2, sprung
+
+    gym = sprung.entries(name='moves')
+    g = sprung.laid(every=3)
+    st = se2.state()
+
+    sequence = (
+        ('w', 2.5),
+        ('wa', 2.5),
+        ('wd', 2.5),
+        ('sa', 2.0),
+        ('sd', 1.5),
+        ('w', 2.0),
+        ('a', 1.5),
+        ('d', 1.5),
+        ('', 2.5),
+    )
+    max_tilt = 0.0
+    min_y = 2.0
+    headings = {}
+    for key, duration in sequence:
+        for _ in range(int(duration * 1000)):
+            se2.step_controller(st, key, 0.001)
+            gait = st['gait']
+            cmd = {'twist': (st['v_x'], st['v_y'], st['omega_z'])}
+            if gait:
+                cmd['say'] = gait
+            sprung._heard(g, gym, cmd)
+            sprung.passed(g, 0.001)
+            max_tilt = max(max_tilt, sprung.tilt(g))
+            min_y = min(min_y, float(g['world'].data.qpos[1]))
+        headings[key] = math.degrees(g['heading'])
+
+    final_spd = math.hypot(float(g['world'].data.qvel[0]), float(g['world'].data.qvel[2]))
+    report.check('multi-gait SE(2) steering sequence (incl. SA/SD) maintains upright posture (max tilt < 8 deg)',
+                 max_tilt < 8.0, 'max_tilt=%.1f deg' % max_tilt)
+    report.check('multi-gait SE(2) steering sequence never ragdolls or drops pelvis (min_y > 0.82 m)',
+                 min_y > 0.82, 'min_y=%.3f m' % min_y)
+    report.check('WA turns heading left (> 10 deg) and WD turns heading back right',
+                 headings['wa'] > 10.0 and headings['wd'] < headings['wa'] - 8.0,
+                 'headings=%s' % headings)
+    report.check('releasing WASD keys decays twist and brakes gynoid to rest (speed < 0.15 m/s)',
+                 final_spd < 0.15 and sprung.doing(g) == '#201',
+                 'final_spd=%.3f m/s, doing=%s' % (final_spd, sprung.doing(g)))
+
+
 ROSTER = (test_tactical_strafe_peek_and_fire, test_sprint_dash_and_tactical_backpedal,
-          test_mouselook_target_tracking_and_flanking, test_kinetic_strike_and_tps_reticle)
+          test_mouselook_target_tracking_and_flanking, test_kinetic_strike_and_tps_reticle,
+          test_se2_camera_decoupling_and_body_frame_projection,
+          test_se2_longitudinal_ramp_decay_and_reverse_clamp,
+          test_se2_isolated_strafe_vs_composite_curvilinear_arcs,
+          test_se2_mujoco_full_steering_repertoire_without_ragdoll)
 
 
 def main(argv=None):
@@ -193,3 +392,4 @@ def main(argv=None):
 
 if __name__ == '__main__':
     sys.exit(main())
+

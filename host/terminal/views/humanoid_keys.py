@@ -11,6 +11,7 @@ import csv
 import os
 import time
 
+from machine import se2
 from machine.figure import JOINTS, SEGMENTS, frames, quat
 from terminal import keybindings
 from terminal.views import viewpoint
@@ -152,20 +153,19 @@ def _check_wasd_chords(typed, state):
         return typed
     lowered = [k.lower() if isinstance(k, str) else k for k in typed]
     t_now = time.monotonic()
-    last_k, last_t = state.get('_last_wasd', (None, 0.0))
+    se2_st = state.setdefault('se2', se2.state())
+    last_dt = min(0.1, max(0.01, t_now - state.get('_se2_last_t', t_now - 0.05)))
+    state['_se2_last_t'] = t_now
+    se2.step_controller(se2_st, lowered, last_dt, now=t_now, hold_window=0.35)
 
-    found = _match_chord(set(lowered))
-    if not found and last_k and (t_now - last_t) < 0.35:
-        pair = frozenset((last_k, lowered[0]))
-        if pair in CHORDS:
-            tag, mv = CHORDS[pair]
-            found = (tag, mv, (lowered[0],))
-
+    active = set(lowered) | {k for k in ('w', 's', 'a', 'd') if se2_st['keys'].get(k)}
+    found = _match_chord(active)
     if found:
         tag, mv, consumed = found
+        se2.step_controller(se2_st, tag, 0.0, now=t_now, hold_window=0.35)
         state['body'].send(say=mv)
         log_key(tag, _action_of(tag, wasd_mode=True))
-        state['_last_wasd'] = (None, 0.0)
+        state['_last_wasd'] = (tag, t_now)
         return [k for k in typed if (k.lower() if isinstance(k, str) else k) not in consumed]
 
     for k in lowered:
@@ -185,6 +185,8 @@ def act_on(keys, typed, state, wheel=0.0):
     for key in typed:
         last_k, last_t = state.get('_last_action_key', (None, 0.0))
         if key == last_k and key != ' ' and (t_now - last_t) < 0.12:
+            if state.get('wasd_mode') and key in ('w', 'W') and state.get('se2', {}).get('v_x', 0.0) >= 1.25:
+                state['body'].send(say='jog')
             continue
         state['_last_action_key'] = (key, t_now)
         filtered.append(key)
@@ -192,3 +194,4 @@ def act_on(keys, typed, state, wheel=0.0):
         log_key(key, _action_of(key, wasd_mode=state.get('wasd_mode', False)))
         if key in keys:
             keys[key](state)
+
