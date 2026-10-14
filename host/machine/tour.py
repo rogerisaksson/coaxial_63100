@@ -38,7 +38,7 @@ STEPS = [
     ),
     (
         'Rise from chair to standing',
-        2.5,
+        3.0,
         [
             (0.1, 'key', 'rise_chair'),    # Rise from chair to standing
         ]
@@ -47,14 +47,14 @@ STEPS = [
         'Hop up onto chair',
         3.0,
         [
-            (0.1, 'key', 'hop_up_chair'),  # Hop up onto chair (jämfota)
+            (0.1, 'key', 'hop_up_chair'),  # Two-footed hop up onto chair
         ]
     ),
     (
         'Hop down from chair',
         2.5,
         [
-            (0.1, 'key', 'hop_down_chair'),# Hop down from chair (kontrollerat)
+            (0.1, 'key', 'hop_down_chair'),# Controlled hop down from chair
         ]
     ),
     (
@@ -70,9 +70,8 @@ STEPS = [
         'Maneuver to floor mattress and lie down',
         3.5,
         [
-            (0.0, 'scenario', 'flat'),
-            (0.1, 'key', 'a'),            # WASD strafe left
-            (0.8, 'key', 'lie_floor'),    # Lie on floor mattress
+            (0.0, 'scenario', 'mattress'),
+            (0.1, 'key', 'lie_floor'),    # Lie on floor mattress
             (2.4, 'key', 'rise_floor'),   # Rise from floor
         ]
     ),
@@ -117,7 +116,7 @@ STEPS = [
     ),
     (
         'Cross 10cm deep hole without falling',
-        2.5,
+        3.8,
         [
             (0.0, 'scenario', 'hole'),
             (0.1, 'key', 'w'),            # Step across 10cm hole
@@ -129,7 +128,8 @@ STEPS = [
         [
             (0.0, 'scenario', 'stairs'),
             (0.1, 'key', 'stairs_walk'),  # Stairs walk up
-            (1.8, 'key', 'stairs_down'),  # Stairs descend
+            (1.8, 'scenario', 'stairs_down'),
+            (1.9, 'key', 'stairs_down'),  # Stairs descend
         ]
     ),
     (

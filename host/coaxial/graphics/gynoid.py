@@ -32,9 +32,15 @@ from machine.figure import ANKLE_H, FOREARM, HAIR_AT, HEM_AT, SHANK, THIGH, UPPE
 DISTANCE, CENTRE, REACH = 3.2, (0.0, 0.84, 0.0), 0.92
 
 
+_NP = None
+
+
 def _np():
-    from coaxial.model.blocks import numpy as np      # behind the OpenBLAS cap
-    return np
+    global _NP
+    if _NP is None:
+        from coaxial.model.blocks import numpy as np
+        _NP = np
+    return _NP
 
 
 #: Her clothes' colours, and how far out of her they hang, m: high-waisted jeans,
@@ -313,6 +319,7 @@ class Body:
         #: The same patches among the dots drawn without a card: {joint: {part: mask}}.
         self.dense_near = drums.near(self.patches, self.parts, self.drums, self.dense,
                                      self.dense_spans)
+        self._rest_pivots = self.pivots({})
 
     def _frames(self, angles, root=None):
         """Each part's (turn, spot) in the world for {joint: degrees}; `root` the pelvis's (place,
@@ -335,44 +342,42 @@ class Body:
             else:
                 spot, here = np.asarray(where, float), np.asarray(turn, float)
             for joint, axis, sign in joints:
-                here = here @ turn_about(axis, sign * float(angles.get(joint, 0.0)))
+                deg = sign * float(angles.get(joint, 0.0))
+                if deg:
+                    here = here @ turn_about(axis, deg)
             placed[name] = (here, spot)
             out.append(placed[name])
         if self.see:
             mechanism.posed(self.parts, placed, angles, out)
         return out
 
-    def pivots(self, angles, root=None):
+    def _floor(self, frames):
+        return min((float((self.corners[slice(*self.spans[i])] @ frames[i][0][1]).min() + frames[i][1][1])
+                    for i in self.soles if self.spans[i][1] > self.spans[i][0]), default=0.0)
+
+    def pivots(self, angles, root=None, _frames=None):
         """{joint: its pivot, world}; `root` as `pose` takes it."""
-        np = _np()
-        frames = self._frames(angles, root)
-        floor = np.zeros(3)
-        if root is None:
-            positions, _normals = moved(self.corners, self.normals, self.spans, frames)
-            floor[1] = min((positions[slice(*self.spans[i]), 1].min() for i in self.soles
-                            if self.spans[i][1] > self.spans[i][0]), default=0.0)
+        frames = _frames if _frames is not None else self._frames(angles, root)
+        floor = _np().array([0.0, self._floor(frames) if root is None else 0.0, 0.0])
         return {joint: spot - floor for (_name, _parent, joints, *_rest), (_turn, spot)
                 in zip(self.parts, frames) for joint, _axis, _sign in joints}
 
-    def pose(self, angles, dense=False, root=None):
+    def pose(self, angles, dense=False, root=None, _frames=None):
         """(positions, normals) in metres, the floor at y 0, for {joint: degrees}; `root` the
-        pelvis's (place, turn), else the feet found and stood on the floor; `dense` the sampled
-        points' instead of the corners'."""
-        frames = self._frames(angles, root)
-        positions, normals = moved(self.corners, self.normals, self.spans, frames)
-        floor = 0.0 if root is not None else min(
-            (positions[slice(*self.spans[i]), 1].min() for i in self.soles
-             if self.spans[i][1] > self.spans[i][0]), default=0.0)
-        if dense:
-            positions, normals = moved(self.dense[0], self.dense[1], self.dense_spans, frames)
-        positions[:, 1] -= floor
+        pelvis's (place, turn), else the feet stood on the floor; `dense` the sampled points."""
+        frames = _frames if _frames is not None else self._frames(angles, root)
+        floor = 0.0 if root is not None else self._floor(frames)
+        src = (self.dense[0], self.dense[1], self.dense_spans) if dense else (
+            self.corners, self.normals, self.spans)
+        positions, normals = moved(*src, frames)
+        if floor:
+            positions[:, 1] -= floor
         return positions, normals
 
 
 def _band(depth, width):
     """(left, right) cells: where her drawing begins and ends across, a cell off her."""
-    np = _np()
-    across = np.nonzero((depth > 0.0).any(axis=0))[0]
+    across = _np().nonzero((depth > 0.0).any(axis=0))[0]
     if not len(across):
         return None
     return max(0, int(across[0]) // DOTS_X - 1), min(width, int(across[-1]) // DOTS_X + 2)
@@ -444,30 +449,39 @@ def _marked(overlay, mark, m, cam, centre, travel, width, height):
     return out
 
 
+_BOX_SIGNS = tuple((float(i), float(j), float(k))
+                   for i in (-1, 1) for j in (-1, 1) for k in (-1, 1))
+_BOX_EDGES = tuple((a, b) for a in range(8) for b in range(a + 1, 8)
+                   if bin(a ^ b).count('1') == 1)
+
+
 def _props(props, m, cam, centre, travel):
     """[(dots, ink)]: each prop's edges - a box's twelve, a lace's line - in the fine camera's
     dots, the floor `travel` (x, z) m on."""
+    if not props:
+        return []
     np = _np()
-    out = []
+    signs, by_ink = np.asarray(_BOX_SIGNS), {}
+    shift = (travel[0], 0.0, travel[1])
     for kind, *shape in props:
         if kind == 'lace':
-            corners = np.asarray(shape, float)
-            edges = ((0, 1),)
+            corners, edges = np.array(shape, float) - shift, ((0, 1),)
         else:
-            (cx, cy, cz), half, turn = shape
-            signs = np.array([(i, j, k) for i in (-1, 1) for j in (-1, 1) for k in (-1, 1)], float)
-            corners = (signs * np.asarray(half)) @ np.asarray(turn, float).T + (cx, cy, cz)
-            edges = [(a, b) for a in range(8) for b in range(a + 1, 8)
-                     if bin(a ^ b).count('1') == 1]
-        corners[:, 0] -= travel[0]
-        corners[:, 2] -= travel[1]
+            pos, half, turn = shape
+            corners = (signs * np.asarray(half)) @ np.asarray(turn, float).T + (
+                pos[0] - travel[0], pos[1], pos[2] - travel[1])
+            edges = _BOX_EDGES
         sx, sy, w = project(corners, m, cam, centre)
-        dots = np.zeros((cam['height'], cam['width']), bool)
+        if (w <= 0.0).all():
+            continue
+        ink = PROP_INK.get(kind, (200, 200, 200))
+        dots = by_ink.get(ink)
+        if dots is None:
+            dots = by_ink[ink] = np.zeros((cam['height'], cam['width']), bool)
         for a, b in edges:
             if w[a] > 0.0 and w[b] > 0.0:
                 line(dots, (sx[a], sy[a]), (sx[b], sy[b]))
-        out.append((dots, PROP_INK.get(kind, (200, 200, 200))))
-    return out
+    return [(dots, ink) for ink, dots in by_ink.items()]
 
 
 def render(angles, width, height, yaw=30.0, pitch=8.0, zoom=1.0, colour=True, travel=(0.0, 0.0),
@@ -500,11 +514,12 @@ def render(angles, width, height, yaw=30.0, pitch=8.0, zoom=1.0, colour=True, tr
                     materials[who.spans[part][0] + corners] = worn
                     lo, hi = who.dense_spans[part]
                     dense[lo:hi][who.dense_near[joint][part]] = worn
+    frames = who._frames(angles, root)
     wired = []
     if see == 'actuators':
         depth = np.zeros((int(fine['height']), int(fine['width'])))
         rgb = np.zeros(depth.shape + (3,))
-        layers = mechanism.wires(who.parts, who._frames(angles, root))
+        layers = mechanism.wires(who.parts, frames)
         low = 0.0 if root is not None else min(min(a[:, 1].min(), b[:, 1].min())
                                                 for a, b, _ink in layers)
         for a, b, ink in layers:
@@ -516,15 +531,15 @@ def render(angles, width, height, yaw=30.0, pitch=8.0, zoom=1.0, colour=True, tr
                 line(dots, (ax[k], ay[k]), (bx[k], by[k]))
             wired.append((dots, ink))
     elif lit is not None:
-        positions, normals = who.pose(angles, root=root)
+        positions, normals = who.pose(angles, root=root, _frames=frames)
         depth, rgb = lit.raster(positions, normals, who.uv, materials, who.index, m, fine,
                                 centre, REACH * 1.4)
     else:
-        positions, normals = who.pose(angles, dense=True, root=root)
+        positions, normals = who.pose(angles, dense=True, root=root, _frames=frames)
         depth, rgb = splat((positions, normals, dense, who.dense[2]), m, fine, centre)
     overlay = leaders = None
     if labels:
-        pivots, rest = who.pivots(angles, root=root), who.pivots({})
+        pivots, rest = who.pivots(angles, root=root, _frames=frames), who._rest_pivots
         names = [j for j in labels if j in pivots]
 
         def dots_of(points):

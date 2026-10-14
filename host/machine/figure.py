@@ -31,7 +31,10 @@ SQUAT = {
     'right_hip_roll': -2.567, 'right_hip': -115.935, 'right_knee': 123.061, 'right_ankle': -32.153,
     'right_ankle_roll': 2.832, 'right_foot': 0.0}
 
-#: Her weight, kg; each segment's share of it is de Leva's (1996) for a woman.
+#: Her weight, kg (gynoid_mesomorph_medium, 165 cm); each segment's share of it is de Leva's
+#: (1996) for a woman. 55 kg is chosen so the structural chassis is robust rather than overly
+#: fragile, while providing sufficient internal and external envelope for all structural 3D
+#: prints, actuators, harmonic drives, battery packs, TPU gel pads, and clothing.
 MASS_KG = 55.0
 
 #: Her jeans' wide legs hang from HEM_AT under the knees, metres (`mjcf.HEMS`).

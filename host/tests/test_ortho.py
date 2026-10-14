@@ -1,10 +1,4 @@
-"""Orthokinematics: a text compiled to rows, her latent state stepped, rendered on her, on the loop.
-
-`machine.ortho` compiles; `machine.latent` steps without a branch; `machine.impedance` renders -
-her modes read by `machine.modal`, her soles by `machine.poise`, her stride by `machine.stride` -; the
-page's gym runs it (`machine.sprung`): crouched, her weight over one sole, bowed, on one sole,
-each as its text asks and standing; walking on her own payloads, and how that walk looks; the
-first texts as given; the gym's worker and keys."""
+"""Orthokinematics: a text compiled to rows, her latent state stepped, rendered on her, on the loop."""
 import ast
 import math
 import os
@@ -28,9 +22,7 @@ def _same(got, want):
 
 
 def test_a_text_compiles_to_rows(report):
-    """The first texts as given: a payload a row of ROW.size bytes - its id, its blend, its
-    parameters, NaN where it says nothing -, a behaviour its phases' rows each at its ms and a
-    last row back to her rest; MAX_SYS_K a number."""
+    """The first texts as given: a payload a row of ROW.size bytes, a behaviour its phases' rows."""
     from machine import ortho
     nan, n = math.nan, ortho.N
     tables, phases = ortho.compiled(_text('examples'))
@@ -40,8 +32,7 @@ def test_a_text_compiles_to_rows(report):
                  '%d bytes, ids %s' % (len(tables['']), [r[0] for r in stream]))
     p = stream[1][4:]
     k, d, amp, phase = (p[at:at + n] for at in (ortho.K, ortho.D, ortho.AMP, ortho.PHASE))
-    report.check('102: blended 800 ms; axial 0.25; lateral 1 200 N/m and 15 N s/m; her rhythm on at 1.1 Hz, '
-                 'the drive 0.4, the sway 0.35 a quarter turn ahead; the rest unsaid',
+    report.check('102: blended 800 ms; axial 0.25; lateral 1 200 N/m and 15 N s/m; her rhythm on at 1.1 Hz',
                  stream[1][1:4] == (0, 800, 0) and _same(p[:n], (0.25,) + (nan,) * (n - 1))
                  and _same(k, (nan, 1200.0) + (nan,) * (n - 2)) and _same(d, (nan, 15.0) + (nan,) * (n - 2))
                  and _same(amp, (nan, 0.35, 0.4) + (nan,) * (n - 3))
@@ -58,17 +49,45 @@ def test_a_text_compiles_to_rows(report):
     report.check('propulsion: extended -1.0 at MAX_SYS_K undamped, her ZMP in her support polygon',
                  go[4] == -1.0 and go[4 + ortho.K] == ortho.SYMBOLS['MAX_SYS_K'] and go[4 + ortho.D] == 0.0
                  and go[4 + ortho.ZMP] == 1.0, 'stiffness %g' % go[4 + ortho.K])
-    hers, named = ortho.compiled(_text('moves'))
-    report.check('machine/moves.lisp compiles: her walk and her behaviours',
-                 len(hers['']) == 5 * ortho.ROW.size
-                 and set(named) >= {'crouch', 'weight_shift', 'bow', 'hop', 'one_sole'},
+    hers, named = ortho.compiled(_text('gynoid_mesomorph_medium'))
+    base_t, base_p = ortho.compiled(_text('gait_base'))
+    post_t, post_p = ortho.compiled(_text('postures_base'))
+    stunt_t, stunt_p = ortho.compiled(_text('stunts_base'))
+    report.check('machine/gynoid_mesomorph_medium.lisp compiles: her walk and her behaviours',
+                 len(hers['']) == 5 * ortho.ROW.size and ortho.compiled() == (hers, named)
+                 and base_t[''] == hers[''] and set(base_p) < set(post_p) < set(stunt_p) < set(named)
+                 and ortho.rows(post_t['hop'])[1][4 + ortho.K] == 20000.0
+                 and ortho.rows(hers['hop'])[1][4 + ortho.K] == 21800.0
+                 and set(named) >= {'crouch', 'weight_shift', 'bow', 'hop', 'one_sole',
+                                    'strafe_right', 'turn_right', 'circle_walk', 'hop_up_chair'},
                  ', '.join(named))
+    sl, sr = ortho.rows(hers['strafe_left'])[0], ortho.rows(hers['strafe_right'])[0]
+    oo_t, oo_p = ortho.compiled(
+        '(deftrait t1 (latent_targets (mode_axial_compression 0.2) (mode_lateral_shift 0.5))'
+        ' (cpg_override (halt_oscillators)))'
+        '(deftrait t_clear (extends t1) (latent_targets (mode_lateral_shift none)))'
+        '(defbehavior b1 (extends t1) (phase p1 (duration 300ms) (latent_targets (mode_axial_compression 0.6)))'
+        ' (phase p2 (use p1) (duration 500ms) (latent_targets (mode_axial_compression 0.3))))'
+        '(defbehavior b2 (extends b1) (phase p2 (latent_targets (mode_axial_compression 0.4) (mode_lateral_shift unsaid))))'
+        '(defbehavior b_reord (extends b1) (phase p2 (duration 200ms)) (phase p1 (duration 400ms)))'
+        '(defbehavior b_mro (extends t_clear b1))')
+    b2_r0, b2_r1, _b2_rest = ortho.rows(oo_t['b2'])
+    br_r0, br_r1, _br_rest = ortho.rows(oo_t['b_reord'])
+    bm_r0, _bm_r1, _bm_rest = ortho.rows(oo_t['b_mro'])
+    report.check('inheritance: derive, (deftrait ..), (use ..), MRO, phase reordering and none/unsaid clearing',
+                 sl[:4] == sr[:4] and abs(sl[4 + 1] - 0.08) < 1e-6 and abs(sr[4 + 1] + 0.08) < 1e-6
+                 and _same(sl[4 + 2:], sr[4 + 2:]) and oo_p['b2'] == ('p1', 'p2')
+                 and (b2_r0[1], b2_r1[1]) == (0, 300)
+                 and abs(b2_r0[4] - 0.6) < 1e-6 and abs(b2_r1[4] - 0.4) < 1e-6
+                 and abs(b2_r0[5] - 0.5) < 1e-6 and math.isnan(b2_r1[5])
+                 and b2_r0[4 + ortho.GAIN] == 0.0 and b2_r1[4 + ortho.GAIN] == 0.0
+                 and oo_p['b_reord'] == ('p2', 'p1') and (br_r0[1], br_r1[1]) == (0, 200)
+                 and abs(br_r0[4] - 0.3) < 1e-6 and abs(br_r1[4] - 0.6) < 1e-6
+                 and abs(bm_r0[4] - 0.6) < 1e-6)
 
 
 def test_what_is_no_text_is_refused(report):
-    """A mode she has not, a target past 1, a stiffness under 0, a phase with no duration, a
-    time with no unit, a clause unknown, a behaviour said twice, a form left open or of no
-    kind: each refused in words."""
+    """Invalid modes, targets, stiffnesses, missing durations/units, and malformed OO/module forms are refused."""
     from machine import ortho
     phase = '(defbehavior b (phase p (duration 1s) %s))'
     texts = (phase % '(latent_targets (mode_wing_flap 0.5))',
@@ -82,6 +101,17 @@ def test_what_is_no_text_is_refused(report):
              phase % '(task_constraints (maintain_altitude 3))',
              '(stream_inject (duration 1s))',
              phase % '' + phase % '',
+             '(derive b2 unknown_base (phase p (duration 1s)))',
+             '(defbehavior b (extends unknown_base) (phase p (duration 1s)))',
+             '(defbehavior b (extends) (phase p (duration 1s)))',
+             phase % '(use unknown_trait)',
+             '(deftrait t (duration 1s))(deftrait t (duration 1s))',
+             '(deftrait t (duration 1s))(stream_inject (use t))',
+             '(defbehavior b1 (phase p1 (duration 1s)) (phase p2 (duration 1s)))'
+             '(defbehavior b2 (extends b1) (phase typo (duration 1s)))',
+             '(defbehavior b (phase p (duration 1s)) (phase p (duration 1s)))',
+             '(include "no_such_module.lisp")',
+             '(include)',
              '(defbehavior b (phase p (duration 1s))',
              '(behavior b)')
     refused = []
@@ -96,9 +126,7 @@ def test_what_is_no_text_is_refused(report):
 
 
 def test_the_core_and_the_renderer_branch_nowhere(report):
-    """machine/latent.py, impedance.py, stride.py and poise.py: no if, no conditional expression,
-    no while, no try, no and/or, no class, no lambda, no loop, no dict. machine/modal.py: none of
-    the first seven, its dicts the stack's ask alone."""
+    """latent.py, impedance.py, stride.py, poise.py and modal.py: branchless AST verification."""
     branches = (ast.If, ast.IfExp, ast.While, ast.Match, ast.Try, ast.BoolOp, ast.ClassDef, ast.Lambda, ast.With)
     found = {}
     pure = ('latent', 'impedance', 'stride', 'poise')
@@ -121,9 +149,7 @@ def test_the_core_and_the_renderer_branch_nowhere(report):
 
 
 def test_her_latent_state_blends_and_turns(report):
-    """A row laid over her rest: what it says goes there in a straight line over its blend,
-    what it leaves stays; her rhythm's reference is its amplitude's sine at her angle and the
-    mode's phase; a row flagged REST is her rest again."""
+    """A row laid over her rest blends linearly, steps CPG sine references, and returns to rest on REST."""
     import numpy as np
     from machine import latent, ortho
     rest = np.zeros(ortho.P)
@@ -159,8 +185,7 @@ def _went(said, text=None, to=2.0):
 
 
 def test_she_crouches_as_asked(report):
-    """`crouch`: her axial compression asked 0.6: there within 0.05 as it ends, standing, and at
-    rest within 0.05 of where she stood."""
+    """`crouch`: axial compression asked 0.6 within 0.05, standing, and back to rest."""
     got = _went(['crouch'])
     asked, _far, ended, rest = got['modes']['axial_compression']
     report.check('crouched 0.6 she is within 0.05 of it, and stands', got['stood'] and abs(ended - 0.6) < 0.05,
@@ -169,8 +194,7 @@ def test_she_crouches_as_asked(report):
 
 
 def test_her_weight_goes_over_one_sole(report):
-    """`weight_shift`: her lateral shift asked 1.0: over that sole within 0.1, never 0.2 past
-    it, the other bearing under a fifth of her, standing."""
+    """`weight_shift`: lateral shift asked 1.0 within 0.1, the other sole bearing under a fifth."""
     got = _went(['weight_shift'])
     _asked, far, ended, _rest = got['modes']['lateral_shift']
     light, heavy = sorted(got['loads'])
@@ -182,7 +206,7 @@ def test_her_weight_goes_over_one_sole(report):
 
 
 def test_she_bows_as_asked(report):
-    """`bow`: her pitch attitude asked 0.5: there within 0.05, standing, upright again at rest."""
+    """`bow`: pitch attitude asked 0.5 within 0.05, standing, upright again at rest."""
     got = _went(['bow'])
     _asked, _far, ended, rest = got['modes']['pitch_attitude']
     report.check('bowed 0.5 she is within 0.05 of it, and stands', got['stood'] and abs(ended - 0.5) < 0.05,
@@ -191,8 +215,7 @@ def test_she_bows_as_asked(report):
 
 
 def test_she_stands_on_one_sole(report):
-    """`one_sole`: her weight asked over one sole and the other off the floor, in one row: the
-    other leaves once her ZMP is in the first's, bears nothing, and she stands."""
+    """`one_sole`: weight over one sole and the other lifted off the floor."""
     got = _went(['one_sole'])
     _asked, _far, lifted, _rest = got['modes']['limb_lift']
     report.check('her other sole is off the floor, 0.8 of the clearance and more, bearing nothing',
@@ -202,8 +225,7 @@ def test_she_stands_on_one_sole(report):
 
 
 def test_she_hops_and_stands(report):
-    """`hop`: loaded, thrown by a spring that lets go under her standing height with her trunk
-    free, landed on soft knees: 0.15 s and more off the floor, never 15 deg over, standing."""
+    """`hop`: loaded, thrown, landed on soft knees: >= 0.15 s off the floor, standing."""
     got = _went(['hop'], to=2.5)
     report.check('she leaves the floor 0.15 s and more, 0.9 m/s up and more',
                  got['air'] >= 0.15 and got['up'] >= 0.9, '%.2f s, %.2f m/s' % (got['air'], got['up']))
@@ -213,9 +235,7 @@ def test_she_hops_and_stands(report):
 
 
 def test_she_walks_on_her_own_payloads(report):
-    """machine/moves.lisp's 201 to 204 - stand, sway, step, walk on -: 5 m and more in 20 s, at
-    0.5 m/s and more by the end, a sole landing every half turn of her rhythm, her pelvis
-    never 8 deg off upright."""
+    """Payloads 201 to 204: 5 m and more in 20 s, >= 0.5 m/s by the end, upright."""
     got = _went(['#201@0.5', '#202@2', '#203@5', '#204@9'], to=9.5)
     report.check('she walks 5 m and more, at 0.5 m/s and more by the end',
                  got['stood'] and got['went'] >= 5.0 and got['speed'] >= 0.5,
@@ -225,12 +245,7 @@ def test_she_walks_on_her_own_payloads(report):
 
 
 def test_her_walk_is_none_of_the_gaits_it_is_not_to_be(report):
-    """Her walk as tools/sim/look.py measures one, 20 s of it: off a woman's band
-    (`normal.BAND`) under 3.2 - 7.7 on a level centre of mass and flat soles, on stilts,
-    Groucho's and a shuffle by name -, none of those names; her heel up as her toes leave, her
-    toes up as she lands, her pelvis listing and turning, her arms swinging, her soles a
-    woman's width apart, her head still. Her knee lands bent yet and her step is short
-    (docs/TODO.md)."""
+    """Her walk over 20 s against normal.BAND and looks.FORM."""
     from tools.sim import looks
     from tools.sim import ortho as run
     got = run.looked(run.planned(['#201@0.5', '#202@2', '#203@5', '#204@9']), 20.0)
@@ -256,11 +271,7 @@ def test_her_walk_is_none_of_the_gaits_it_is_not_to_be(report):
 
 
 def test_the_first_texts_as_given(report):
-    """machine/examples.lisp as it was written: 101 stands her relaxed; 102 begins the gait,
-    0.25 compressed, and 103 keeps it: she walks - its sway is asked past what her soles'
-    width gives at 1.1 Hz, and where a sole lands meets her capture point wherever that goes -;
-    the hop loads to 0.75 and leaves the floor. Its landing is not held (docs/TODO.md,
-    orthokinematics)."""
+    """machine/examples.lisp: 101, 102 and 103 walk her; hop_asymmetric leaves the floor."""
     text = _text('examples')
     got = _went(['#101@1', '#102@3', '#103@6'], text, to=5.8)
     report.check('101, 102 and 103 as given: she walks 1.5 m and more in 9 s, within 6 deg of upright',
@@ -290,7 +301,7 @@ def test_the_gym_runs_her_in_a_process(report):
             time.sleep(0.05)
         says = first.get('says', ()) if first else ()
         report.check('her state comes with her modes and what the digits say',
-                     first is not None and len(first['modes']) == len(gym.SHORT) and says[:1] == ('moves',)
+                     first is not None and len(first['modes']) == len(gym.SHORT) and says[:1] == ('gynoid_mesomorph_medium',)
                      and 'crouch' in says,
                      '%s' % (says,))
         body.send(say=says.index('crouch') - 1 if 'crouch' in says else 0)
@@ -343,7 +354,7 @@ def test_the_pages_keys_on_the_loop(report):
                  sent[:2] == [{'say': 0}, {'say': 2}] and sent[2]['push'][0] != 0.0 and sent[2]['push'][2] == 0.0
                  and sent[3] == {'gym': 'examples'} and sent[4] == {'walk': True}, '%s' % sent)
     modes = [(name, 0.1, 0.2, 3000.0, 60.0) for name in gym.SHORT]
-    boxes = gym.boxes({'modes': modes, 'says': ('moves', '#201', 'crouch')})
+    boxes = gym.boxes({'modes': modes, 'says': ('gynoid_mesomorph_medium', '#201', 'crouch')})
     report.check('LATENT and SAY of her state; none before it', len(boxes) == 2 and gym.boxes(None) == []
                  and gym.status({'fallen': False, 'doing': 'crouch'}) == 'LATENT  crouch')
     report.check('a text refused is said in her status',

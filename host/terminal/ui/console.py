@@ -255,6 +255,8 @@ class Keys:
         if not self.console:
             return None, 0.0
         if self._grabbed and time.monotonic() - self._held_at >= HOLD_S:
+            self._holding = self._dragging = False
+            self._buttons = 0
             self._hold()
 
         self._buffer = self.PASTE_RE.sub('', self._buffer + ''.join(self._drain()))
@@ -267,6 +269,7 @@ class Keys:
             found = self.MOUSE_RE.search(self._buffer)
             if not found:
                 break
+            self._held_at = time.monotonic()
             zoom += self._mouse(int(found.group(1)), int(found.group(2)),
                                 int(found.group(3)), found.group(4))
             self._buffer = (self._buffer[:found.start()]
@@ -452,7 +455,7 @@ class Keys:
             return True
 
     def held(self):
-        """Currently held movement keys (w, a, s, d, shift) that entered this terminal."""
+        """Currently held movement keys (w, a, s, d, q, e, shift) that entered this terminal."""
         now = time.monotonic()
         if not self._is_console_focused():
             self._latched_wasd = False
@@ -464,10 +467,10 @@ class Keys:
                 user32 = ctypes.windll.user32
                 self._async_keys = True
                 if self._latched_wasd or self._keys_down:
-                    hw = {c for vk, c in ((87, 'w'), (65, 'a'), (83, 's'), (68, 'd'),
+                    hw = {c for vk, c in ((87, 'w'), (65, 'a'), (83, 's'), (68, 'd'), (81, 'q'), (69, 'e'),
                                           (16, 'shift'), (160, 'shift'), (161, 'shift'))
                           if user32.GetAsyncKeyState(vk) & 0x8000}
-                    if hw & {'w', 'a', 's', 'd'}:
+                    if hw & {'w', 'a', 's', 'd', 'q', 'e'}:
                         self._hw_seen = True
                         self._latched_wasd = True
                         self._keys_down = set(hw)
@@ -509,12 +512,10 @@ class Keys:
         """A mouse record as SGR reports: presses, releases, and drags with
         a button held.
         """
-        x, y = max(1, mouse.pos.X + 1), max(1, mouse.pos.Y + 1)
-        if mouse.flags & MOUSE_MOVED:
-            return ['\x1b[<%d;%d;%dM' % (code, x, y)
-                    for bit, code in DRAG_REPORTS if self._buttons & bit][:1]
-        if mouse.flags != 0:                        # wheel, double click
+        self._held_at = time.monotonic()
+        if mouse.flags & 0x0C:                      # wheel, horizontal wheel
             return []
+        x, y = max(1, mouse.pos.X + 1), max(1, mouse.pos.Y + 1)
         keys = []
         for bit, name in BUTTON_REPORTS:
             had, has = self._buttons & bit, mouse.buttons & bit
@@ -523,6 +524,9 @@ class Keys:
             elif had and not has:
                 keys.append('\x1b[<%d;%d;%dm' % (name, x, y))
         self._buttons = mouse.buttons
+        if (mouse.flags & MOUSE_MOVED) and not keys:
+            keys.extend(['\x1b[<%d;%d;%dM' % (code, x, y)
+                         for bit, code in DRAG_REPORTS if self._buttons & bit][:1])
         return keys
 
     def _drain_records(self):
@@ -553,7 +557,7 @@ class Keys:
             self._keys_down.clear()
             return []
 
-        vk_map = {87: 'w', 65: 'a', 83: 's', 68: 'd', 16: 'shift', 160: 'shift', 161: 'shift'}
+        vk_map = {87: 'w', 65: 'a', 83: 's', 68: 'd', 81: 'q', 69: 'e', 16: 'shift', 160: 'shift', 161: 'shift'}
         keys = []
         now = time.monotonic()
         for i in range(read.value):
@@ -561,13 +565,13 @@ class Keys:
             if record.type == 1:
                 key = record.event.key
                 ch_low = (key.ch or '').lower()
-                tok = vk_map.get(key.vk) or (ch_low if ch_low in ('w', 'a', 's', 'd') else None)
+                tok = vk_map.get(key.vk) or (ch_low if ch_low in ('w', 'a', 's', 'd', 'q', 'e') else None)
                 if key.down:
                     self._last_key_at = now
                     if tok:
                         self._latched_wasd = True
                         self._keys_down.add(tok)
-                    if key.ch in ('W', 'A', 'S', 'D') or (key.state & 0x0010):
+                    if key.ch in ('W', 'A', 'S', 'D', 'Q', 'E') or (key.state & 0x0010):
                         self._latched_wasd = True
                         self._keys_down.add('shift')
                     keys.append(self._key_of(key))
@@ -592,11 +596,11 @@ class Keys:
                              '?': 'f5', '@': 'f6', 'A': 'f7', 'B': 'f8',
                              'C': 'f9', 'D': 'f10'}.get(code, ''))
                 continue
-            if got.lower() in ('w', 'a', 's', 'd'):
+            if got.lower() in ('w', 'a', 's', 'd', 'q', 'e'):
                 self._last_key_at = now
                 self._latched_wasd = True
                 self._keys_down.add(got.lower())
-                if got in ('W', 'A', 'S', 'D'):
+                if got in ('W', 'A', 'S', 'D', 'Q', 'E'):
                     self._keys_down.add('shift')
             keys.append(got)
         return keys

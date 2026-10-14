@@ -76,7 +76,7 @@ gets a line at the end of [DONE](DONE.md).
      landing; the humanoid robot own text stands. Two-footed hop up onto chair (`hop_up_chair`)
      and controlled hop down (`hop_down_chair`) implemented.
    + Humanoid robot words and stunts: `sit_chair`, `rise_chair`, `lie_bed`, `rise_bed`,
-     `lie_floor`, `rise_floor`, `stairs_walk`, `ice_walk`, `slope_walk` compiled in `machine/moves.lisp`.
+     `lie_floor`, `rise_floor`, `stairs_walk`, `ice_walk`, `slope_walk` compiled in `machine/gynoid_mesomorph_medium.lisp`.
    + The floor's events: 10cm hole (`HOLE_M = 0.10`), 6cm sill (`SILL_M = 0.06`), slip patch,
      loose rug, stairs, wall, and tree (`machine/floor.py`); swing-foot collision triggers stumble
      clearance boost reflex (`mode_limb_lift >= 2.8`); wall/tree collisions compliantly damp drive.

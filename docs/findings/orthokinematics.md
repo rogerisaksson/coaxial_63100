@@ -7,7 +7,7 @@ compiles, `machine/latent.py` steps, `machine/impedance.py` renders - her
 modes read by `machine/modal.py`, her soles' polygon by `machine/poise.py`,
 her stride by `machine/stride.py` -, `machine/sprung.py` runs it: the
 HUMANOID page, where nothing else moves her, and `tools/sim/ortho.py`.
-tests/test_ortho.py holds it, 43 of 43. Her moves are `machine/moves.lisp`;
+tests/test_ortho.py holds it, 43 of 43. Her moves are `machine/gynoid_mesomorph_medium.lisp`;
 the language's first texts, as given, `machine/examples.lisp` (`>` on the
 page).
 
@@ -102,7 +102,7 @@ third pass, 1.06 ms a pass walking, the page 0.9 of real time.
 
 ### Her walk
 
-201 to 204 of `moves.lisp`: stand, sway at 0.83 Hz and 0.31 (2.50 cycles over
+201 to 204 of `gynoid_mesomorph_medium.lisp`: stand, sway at 0.83 Hz and 0.31 (2.50 cycles over
 the 3.0 s before `#203`, aligning the lateral weight shift with step onset),
 step at a 400 ms blend and a drive of 0.58 (`GOING_S` 0.45 s, `AHEAD_M_S` 0.22
 m/s, sagittal damping 260 N s/m), walk on at 0.65 with axial compression 0.02,
@@ -319,7 +319,7 @@ What was tried on it, each 30 or 40 s:
 
 ## Stunt Repertoire and Disturbance Rejection
 
-The 13 stunt behaviors compile to flat wire rows in `machine/moves.lisp` and execute through the branchless latent and impedance pipelines:
+The 13 stunt behaviors compile to flat wire rows in `machine/gynoid_mesomorph_medium.lisp` and execute through the branchless latent and impedance pipelines:
 
 | Behavior | Kinematic Goal | Impedance & Constraints | Stability Outcome |
 | --- | --- | --- | --- |

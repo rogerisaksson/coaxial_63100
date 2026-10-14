@@ -27,20 +27,34 @@ def paint(rgb):
 PALETTE = ((0.58, 0.64, 0.72), (0.96, 0.79, 0.69), (0.80, 0.83, 0.88), (0.35, 0.85, 1.0))
 KEY, FILL = (-0.45, 0.62, 0.64), (0.7, 0.1, 0.7)
 
+_CACHED = {}
+
+
+def _const():
+    got = _CACHED.get('c')
+    if got is None:
+        from coaxial.model.blocks import numpy as np      # behind the OpenBLAS cap
+        key = np.asarray(KEY) / np.linalg.norm(KEY)
+        fill = np.asarray(FILL) / np.linalg.norm(FILL)
+        half = (key + (0.0, 0.0, 1.0)) / np.linalg.norm(key + (0.0, 0.0, 1.0))
+        pal = np.asarray(PALETTE)
+        bits = np.array([[BRAILLE_BITS[lane][y] for lane in range(DOTS_X)]
+                         for y in range(DOTS_Y)])[None, :, None, :]
+        got = _CACHED['c'] = (np, key, fill, half, pal, bits,
+                              np.asarray(FLOOR_INK), np.asarray(LEADER_INK, float))
+    return got
+
 
 def _light(normals, materials, uv):
     """`gpu.LIT_WGSL`'s light on corners in view space: (n, 3) RGB 0..255."""
-    from coaxial.model.blocks import numpy as np      # behind the OpenBLAS cap
-    key = np.asarray(KEY) / np.linalg.norm(KEY)
-    fill = np.asarray(FILL) / np.linalg.norm(FILL)
+    np, key, fill, half, pal, *_ = _const()
     n = normals / np.maximum(np.linalg.norm(normals, axis=1, keepdims=True), 1e-9)
     n = np.where(n[:, 2:3] < 0.0, -n, n)
     lam = np.clip(n @ key, 0.0, None)
     fil = 0.35 * np.clip(n @ fill, 0.0, None)
     rim = (1.0 - np.clip(n[:, 2], 0.0, 1.0)) ** 3
-    half = (key + (0.0, 0.0, 1.0)) / np.linalg.norm(key + (0.0, 0.0, 1.0))
     spec = np.clip(n @ half, 0.0, None) ** 40
-    base = np.asarray(PALETTE)[np.minimum(materials, 3)]
+    base = pal[np.minimum(materials, 3)]
     worn = np.stack([(materials >> 16) & 255, (materials >> 8) & 255, materials & 255], 1)
     base = np.where((materials >= PAINTED)[:, None], worn / 255.0, base)
     g = np.abs(np.modf(uv * (22.0, 30.0))[0] - 0.5).max(axis=1)
@@ -54,31 +68,50 @@ def _light(normals, materials, uv):
 
 def project(points, m, cam, centre):
     """(sx, sy, w) of world points: engine.project, every point at once."""
-    from coaxial.model.blocks import numpy as np
-    q = (np.asarray(points) - centre) @ np.asarray(m).reshape(3, 3).T
-    w = 1.0 / (cam['distance'] - q[:, 2])
-    return (cam['cx'] + cam['scale'] * w * q[:, 0],
-            cam['cy'] - cam['scale'] * cam.get('aspect', 0.5) * w * q[:, 1], w)
+    np = _const()[0]
+    rot = np.asarray(m, float).reshape(3, 3).T
+    pts = np.asarray(points, float)
+    if len(pts) > 64:
+        q = pts @ rot
+        q -= np.asarray(centre, float) @ rot
+    else:
+        q = (pts - centre) @ rot
+    dz = cam['distance'] - q[:, 2]
+    w = np.divide(1.0, dz, out=np.zeros_like(dz), where=dz != 0.0)
+    sw = cam['scale'] * w
+    return (cam['cx'] + sw * q[:, 0],
+            cam['cy'] - sw * cam.get('aspect', 0.5) * q[:, 1], w)
 
 
 def splat(arrays, m, cam, centre):
     """(depth, colour) without a card: every corner of (positions, normals, materials, uv) a
     2x2 dot splat, the nearest winning."""
-    from coaxial.model.blocks import numpy as np
+    np = _const()[0]
     positions, normals, materials, uv = arrays
-    height, width = cam['height'], cam['width']
+    height, width = int(cam['height']), int(cam['width'])
     sx, sy, w = project(positions, m, cam, centre)
-    colour = _light(normals @ np.asarray(m).reshape(3, 3).T, materials, uv)
-    depth = np.zeros((height, width), np.float32)
-    rgb = np.zeros((height, width, 3), np.uint8)
+    ix = np.rint(np.clip(sx, -2.0, width)).astype(np.int32)
+    iy = np.rint(np.clip(sy, -2.0, height)).astype(np.int32)
+    stride = width + 1
+    cell = (iy + 1) * stride + (ix + 1) + 1
+    cell[(w <= 0.0) | (ix < -1) | (ix >= width) | (iy < -1) | (iy >= height)] = 0
     order = np.argsort(w)
-    ix, iy = np.rint(sx[order]).astype(int), np.rint(sy[order]).astype(int)
-    ahead = w[order] > 0.0
+    cells = np.full((height + 1) * stride + 1, -1, np.int32)
+    cells[cell[order]] = order
+    top = cells[1:][cells[1:] >= 0]
+    ix_t, iy_t, w_t = ix[top], iy[top], w[top]
+    depth = np.zeros((height, width))
+    win = np.full((height, width), -1, np.int32)
     for dx, dy in ((0, 0), (1, 0), (0, 1), (1, 1)):
-        x, y = ix + dx, iy + dy
-        keep = ahead & (x >= 0) & (x < width) & (y >= 0) & (y < height)
-        depth[y[keep], x[keep]] = w[order][keep]
-        rgb[y[keep], x[keep]] = colour[order][keep]
+        x, y = ix_t + dx, iy_t + dy
+        keep = (x >= 0) & (x < width) & (y >= 0) & (y < height)
+        depth[y[keep], x[keep]] = w_t[keep]
+        win[y[keep], x[keep]] = top[keep]
+    rgb = np.zeros((height, width, 3), np.uint8)
+    hit = win >= 0
+    if hit.any():
+        pts = win[hit]
+        rgb[hit] = _light(normals[pts] @ np.asarray(m).reshape(3, 3).T, materials[pts], uv[pts])
     return depth, rgb
 
 
@@ -92,7 +125,7 @@ FLOOR_INK = (40, 130, 140)
 def grid(m, cam, centre, travel=(0.0, 0.0), pitch=FLOOR_PITCH, half=FLOOR_HALF):
     """The floor's grid points, `pitch` apart to `half` out and scrolled `travel` (x, z) m on, as
     a (height, width) brightness: 0 none, far dimmer."""
-    from coaxial.model.blocks import numpy as np
+    np = _const()[0]
     ticks = np.arange(-half, half + 1e-9, pitch)
     gx, gz = np.meshgrid(ticks - (travel[0] % pitch), ticks - (travel[1] % pitch))
     points = np.stack([gx.ravel(), np.zeros(gx.size), gz.ravel()], 1)
@@ -106,10 +139,13 @@ def grid(m, cam, centre, travel=(0.0, 0.0), pitch=FLOOR_PITCH, half=FLOOR_HALF):
 
 
 def _mask(height, width):
-    from coaxial.model.blocks import numpy as np
-    noise = np.asarray(NOISE, float) / 4096.0
-    reps = (height // len(noise) + 1, width // len(noise[0]) + 1)
-    return np.tile(noise, reps)[:height, :width]
+    got = _CACHED.get((height, width))
+    if got is None:
+        np = _const()[0]
+        noise = np.asarray(NOISE, float) / 4096.0
+        reps = (height // len(noise) + 1, width // len(noise[0]) + 1)
+        got = _CACHED[(height, width)] = np.tile(noise, reps)[:height, :width]
+    return got
 
 
 def braille(depth, rgb, floor, width, height, colour=True, overlay=None, leaders=None,
@@ -119,20 +155,18 @@ def braille(depth, rgb, floor, width, height, colour=True, overlay=None, leaders
     the `props`' [(dots, ink)] in their inks - an ink, or one a cell, (height, width, 3); the
     `overlay`'s cells {(row, col): (codepoint, key)} over all (`callouts`). Lines, ANSI where
     `colour`."""
-    from coaxial.model.blocks import numpy as np
+    np, _k, _f, _h, _p, bits, floor_ink, leader_ink = _const()
     covered = depth > 0.0
     for dots, _ink in props:
         leaders = dots if leaders is None else (leaders | dots)
-    lum = rgb.astype(float) @ (0.2126, 0.7152, 0.0722) / 255.0
+    lum = rgb @ (0.2126 / 255.0, 0.7152 / 255.0, 0.0722 / 255.0)
     pad = np.pad(depth, 1)
     steps = [pad[1:-1, :-2], pad[1:-1, 2:], pad[:-2, 1:-1], pad[2:, 1:-1]]
     edge = covered & np.any([(s == 0.0) | (np.abs(s - depth) > 0.04 * depth) for s in steps], 0)
     lit = (covered & (0.04 + 0.96 * np.clip(lum, 0.0, 1.0) ** 1.5 > _mask(*depth.shape))) | edge
     ground = (floor > 0.0) & ~covered
     lead = leaders & ~covered if leaders is not None else np.zeros_like(covered)
-    bits = np.array([[BRAILLE_BITS[lane][y] for lane in range(DOTS_X)] for y in range(DOTS_Y)])
-    cells = ((lit | ground | lead).reshape(height, DOTS_Y, width, DOTS_X)
-             * bits[None, :, None, :]).sum(axis=(1, 3))
+    cells = ((lit | ground | lead).reshape(height, DOTS_Y, width, DOTS_X) * bits).sum(axis=(1, 3))
     hits = covered.reshape(height, DOTS_Y, width, DOTS_X).sum(axis=(1, 3))
     body = ((rgb * covered[..., None]).reshape(height, DOTS_Y, width, DOTS_X, 3).sum(axis=(1, 3))
             / np.maximum(hits, 1)[..., None])
@@ -146,12 +180,13 @@ def braille(depth, rgb, floor, width, height, colour=True, overlay=None, leaders
     # A cell's ink in steps of INK_STEP a channel, so runs of it share one escape; a blank cell
     # takes its left neighbour's, so a gap does not break a run. Cell by cell: 11.7 ms a frame at
     # 180 x 56, and rich parsed an escape a cell after it.
-    ink = np.where((hits > 0)[..., None], body, np.asarray(FLOOR_INK) * shine[..., None])
-    led = lead.reshape(height, DOTS_Y, width, DOTS_X).any(axis=(1, 3)) & (hits == 0)
-    ink = np.where(led[..., None], np.asarray(LEADER_INK, float), ink)
+    no_hit = hits == 0
+    ink = np.where((hits > 0)[..., None], body, floor_ink * shine[..., None])
+    led = lead.reshape(height, DOTS_Y, width, DOTS_X).any(axis=(1, 3)) & no_hit
+    ink = np.where(led[..., None], leader_ink, ink)
     for dots, prop_ink in props:
-        on = (dots & ~covered).reshape(height, DOTS_Y, width, DOTS_X).any(axis=(1, 3))
-        ink = np.where((on & (hits == 0))[..., None], np.asarray(prop_ink, float), ink)
+        on = dots.reshape(height, DOTS_Y, width, DOTS_X).any(axis=(1, 3)) & no_hit
+        ink = np.where(on[..., None], np.asarray(prop_ink, float), ink)
     ink = (ink.astype(int) // INK_STEP) * INK_STEP
     key = np.where(cells > 0, (ink[..., 0] << 16) | (ink[..., 1] << 8) | ink[..., 2], -1)
     for (row, col), (_char, packed) in (overlay or {}).items():

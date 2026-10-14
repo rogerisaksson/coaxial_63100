@@ -7,7 +7,7 @@
     body.send(gym='examples')              # the gym's other text (GYMS), read anew each time
     now = body.latest()                    # her state as last said, None before the first
     body.close()
-    sprung.entries()                       # [(label, wire, names)]: machine/moves.lisp's
+    sprung.entries()                       # [(label, wire, names)]: machine/gynoid_mesomorph_medium.lisp's
 
     g = sprung.laid()                      # the same loop without the process: one dict a run holds
     sprung.said(g, label, wire, names)     # rows begun now
@@ -20,28 +20,23 @@ runs at RATE_HZ, catches up to SLICE_S, and publishes state every SAY_S. Down, s
 import math
 import os
 
-#: The loop's rate, Hz. The most simulated time one slice catches up, s; how often her state
-#: goes out, s. Each drive's torque and power as said, meaned over AVERAGE_S. Down, she is
-#: laid anew RECOVER_S on.
+#: Loop rate (Hz), max slice catch-up (s), publish period (s), torque/power mean window (s), recovery delay (s).
 RATE_HZ, SLICE_S, SAY_S, AVERAGE_S, RECOVER_S = 1000.0, 0.05, 1.0 / 60.0, 0.05, 3.0
-#: The shoves, newtons for SHOVE_S: a nudge 0.13 m/s on her, a push, a shove.
 SHOVES, SHOVE_S = {'nudge': 38.0, 'push': 80.0, 'shove': 120.0}, 0.12
-#: What the worker hears (`Running.send`).
 HEARD = ('say', 'walk', 'entries', 'gym', 'text', 'push', 'seconds', 'restart', 'scenario', 'heading', 'twist')
-#: Her walk from rest: her moves' payloads (GYMS[0]) and the second each is said at.
 WALK = (('#201', 0.5), ('#202', 2.0), ('#203', 5.0), ('#204', 9.0))
 #: Her braking stride when asked to stop or switch from a walk: capture-point stepping kept
 #: live (drive > STIRS) while lateral and sagittal momentum damp before #201 locks her soles.
-BRAKE = ('(stream_inject (sequence_id 200) (blend_duration 450ms)'
-         ' (latent_targets (mode_axial_compression 0.03) (mode_pitch_attitude 0.0) (mode_sagittal_shift 0.0)'
-         ' (mode_pelvis_turn 0.0) (mode_stance_width 0.0))'
-         ' (impedance (stiffness mode_axial_compression 3500) (damping mode_axial_compression 700)'
-         ' (stiffness mode_lateral_shift 3000) (damping mode_lateral_shift 600)'
+BRAKE = ('(stream_inject (sequence_id 200) (blend_duration 500ms)'
+         ' (latent_targets (mode_axial_compression 0.04) (mode_pitch_attitude 0.0) (mode_sagittal_shift 0.0)'
+         ' (mode_lateral_shift 0.0) (mode_pelvis_turn 0.0) (mode_stance_width 0.0))'
+         ' (impedance (stiffness mode_axial_compression 3000) (damping mode_axial_compression 600)'
+         ' (stiffness mode_lateral_shift 3000) (damping mode_lateral_shift 300)'
          ' (stiffness mode_sagittal_shift 0) (damping mode_sagittal_shift 260)'
          ' (stiffness mode_foot_rock 2400) (damping mode_foot_rock 240))'
-         ' (cpg_config (enable true) (frequency 0.83Hz) (amplitude mode_lateral_shift 0.28)'
-         ' (amplitude mode_sagittal_drive 0.04) (amplitude mode_limb_lift 0.8) (amplitude mode_foot_rock 0.0)'
-         ' (amplitude mode_pelvis_list 0.15) (amplitude mode_pelvis_turn 0.1) (amplitude mode_arm_swing 0.1)'
+         ' (cpg_config (enable true) (frequency 0.85Hz) (amplitude mode_lateral_shift 0.28)'
+         ' (amplitude mode_sagittal_drive 0.04) (amplitude mode_limb_lift 0.7) (amplitude mode_foot_rock 0.0)'
+         ' (amplitude mode_pelvis_list 0.0) (amplitude mode_pelvis_turn 0.0) (amplitude mode_arm_swing 0.0)'
          ' (amplitude mode_stance_width 0.0)'
          ' (phase_offset mode_lateral_shift mode_sagittal_drive 108deg)'
          ' (phase_offset mode_pelvis_list mode_sagittal_drive 108deg))'
@@ -63,7 +58,7 @@ STACK_EVERY = 3
 #: She is down with her pelvis tilted past DOWN_DEG or under DOWN_M.
 DOWN_DEG, DOWN_M = 50.0, 0.45
 #: The gym's texts, machine/NAME.lisp: her moves; the language's first texts as given.
-GYMS = ('moves', 'examples')
+GYMS = ('gynoid_mesomorph_medium', 'examples')
 #: Modes and phases for stunts (sitting, lying, hopping, controlled fall) - not treated as accidental falls.
 STUNT_MODES = {'sit_chair', 'rise_chair', 'lie_bed', 'rise_bed', 'lie_floor',
                'rise_floor', 'hop_down_chair', 'hop_up_chair', 'stairs_down',
@@ -122,7 +117,8 @@ def laid(every=1, inner=None, solver=None):
     pose = figure.stand()
     world.reset(pose)
     s = wbc.sense(body, world.data.qpos, world.data.qvel)
-    world.reset(pose, where=(0.0, 1.0 - min(float(f['pts'][:, 1].min()) for f in s['feet']), 0.0))
+    rest_y = 1.0 - min(float(f['pts'][:, 1].min()) for f in s['feet'])
+    world.reset(pose, where=(0.0, rest_y, 0.0))
     inner = inner or INNER
     world.gains[:] *= np.array(SERVO_SHARE) * (inner == 'pd')
     world.gains[~body.driven] = 0.0
@@ -156,7 +152,7 @@ def laid(every=1, inner=None, solver=None):
     if 'door' in [m.body(i).name for i in range(m.nbody)]:
         robot_bids.add(m.body('door').id)
     robot_ids = np.array(sorted(robot_bids), dtype=int)
-    g = {'world': world, 'body': body, 'y': y, 'fr': fr, 'rest': rest, 'st': st,
+    g = {'world': world, 'body': body, 'y': y, 'fr': fr, 'rest': rest, 'rest_y': rest_y, 'st': st,
          'out': out, 'a': a, 'tab': tab, 'labels': [], 'posture': s['q'].copy(), 'limbs': limbs,
          'bend': modal.crouch(names), 'arms': modal.swing(names),
          'legs': [[i for i, j in enumerate(JOINTS) if j.startswith(side) and kind(j) in LEG_KINDS]
@@ -169,12 +165,13 @@ def laid(every=1, inner=None, solver=None):
          'eso': np.array([world.data.qpos[body.qact], np.zeros(len(body.qact)), np.zeros(len(body.qact))]),
          'jeff': np.diag(s['M'])[body.act].copy(), 'robot_ids': robot_ids, 'upper_ids': upper_bids,
          'obstacle_ids': np.array([m.body(n).id for n in ('wall', 'tree')], dtype=int),
-         'sill_ids': np.array([m.body('sill').id], dtype=int),
+         'sill_ids': np.array([m.body(n).id for n in ('sill', 'rug')], dtype=int),
          '_brake_wire': __import__('machine.ortho', fromlist=['compiled']).compiled(BRAKE)[0][''],
          '_stand_entry': next((e for e in entries() if e[0] == '#201'), None),
          'soles_l': np.flatnonzero(world.soles[:, 0]), 'soles_r': np.flatnonzero(world.soles[:, 1]),
          'stumble_until': 0.0, 'heading': float(fr[modal.HEADING]), 'twist': (0.0, 0.0, 0.0),
-         'scenario': 'flat', 'solve': {'stack': wbc.step, 'wrench': wrench.step}[solver or SOLVER]}
+         'temp': np.full(len(JOINTS), 25.0), 'scenario': 'flat',
+         'solve': {'stack': wbc.step, 'wrench': wrench.step}[solver or SOLVER]}
     world.clock = lambda: g['t']
     return g
 
@@ -231,7 +228,7 @@ def passed(g, dt=0.001):
         thd = g.get('target_heading')
         if thd is not None:
             dt_hd = math.atan2(math.sin(thd - g['heading']), math.cos(thd - g['heading']))
-            g['heading'] += max(-1.2 * dt * g['every'], min(1.2 * dt * g['every'], dt_hd))
+            g['heading'] += max(-1.6 * dt * g['every'], min(1.6 * dt * g['every'], dt_hd))
         else:
             g['heading'] += 0.005 * g['every'] * math.atan2(math.sin(pelvis_yaw - g['heading']), math.cos(pelvis_yaw - g['heading']))
         s_hd, c_hd = math.sin(g['heading']), math.cos(g['heading'])
@@ -283,10 +280,10 @@ def passed(g, dt=0.001):
             if hit_l or hit_r:
                 g['stumble_until'] = g['t'] + 0.35
                 d.qvel[0] *= 0.85
+                d.qvel[2] = min(float(d.qvel[2]), 0.35)
                 d.qvel[3:6] *= 0.85
         if g['t'] < g['stumble_until']:
-            out[latent.SWAY][modal.LIFT] = max(float(out[latent.SWAY][modal.LIFT]), 2.8)
-            out[latent.REF][modal.LIFT] = max(float(out[latent.REF][modal.LIFT]), 0.4)
+            se2.boost_stumble(g, out)
         if world.push_until > 0.0 and d.time < world.push_until + 0.6 and cur_doing not in ('lower', 'seated'):
             d.qvel[0] *= 0.94
             d.qvel[2] *= 0.94
@@ -298,26 +295,38 @@ def passed(g, dt=0.001):
         for k, leg in enumerate(g['legs']):
             world.gains[leg, 0] = g['free_kp'][leg] * (1.0 + (STANDING_KP - 1.0) * float(ask['stance'][k]))
     got, held, eso, wo = g['got'], float(g['hold'].any()), g['eso'], g['wo']
+    cur_tilt = tilt(g)
+    ys = max(0.0, min(1.0, (85.0 - cur_tilt) / 20.0)) if cur_tilt > 65.0 else 1.0
     sprung_back = np.zeros(len(body.act))
     qk = world.data.qpos[body.qact][list(body.knees)]
     sprung_back[list(body.knees)] = (
         KNEE_NM * np.clip(1.0 - qk / KNEE_SOFT, 0.0, 3.0) + 2400.0 * np.maximum(0.0, -qk)
-    )
+    ) * ys
+    qacc_act = got['qacc'][body.act] * ys
     e = world.data.qpos[body.qact] + physics.WOUND * world.boxes.delta[body.driven] - eso[0]
     eso += dt * np.array([eso[1] + 3.0 * wo * e,
-                          got['qacc'][body.act] + sprung_back / g['jeff'] + eso[2] + 3.0 * wo * wo * e,
+                          qacc_act + sprung_back / g['jeff'] + eso[2] + 3.0 * wo * wo * e,
                           wo ** 3 * e])
-    world.feed[body.driven] = got['tau'] + sprung_back - g['jeff'] * eso[2]
+    if ys < 1.0:
+        eso[1:] *= ys
+    world.feed[body.driven] = got['tau'] * ys + sprung_back - g['jeff'] * eso[2]
     g['hold'] = np.where(got['over'], WEP_HOLD_S, np.maximum(0.0, g['hold'] - dt))
     g['left'] = min(WEP_S, max(0.0, g['left'] + dt * (WEP_FILL * (1.0 - held) - held)))
     world.limit[g['joints']] = np.where(g['hold'] > 0.0, body.wep, g['clamp'][g['joints']])
     leak = dt / LEAK_S
-    g['ref_v'] += got['qacc'][body.act] * dt + leak * (world.data.qvel[body.act] - g['ref_v'])
-    g['ref_q'] += g['ref_v'] * dt + leak * (world.data.qpos[body.qact] - g['ref_q'])
+    qpos_act = world.data.qpos[body.qact]
+    g['ref_v'] += qacc_act * dt + leak * (world.data.qvel[body.act] - g['ref_v'])
+    g['ref_q'] += g['ref_v'] * dt + leak * (qpos_act - g['ref_q'])
+    g['ref_q'][list(body.knees)] = np.maximum(0.0, g['ref_q'][list(body.knees)])
+    if ys < 1.0:
+        g['ref_v'] *= ys
+        g['ref_q'] = qpos_act + (g['ref_q'] - qpos_act) * ys
     world.target[body.driven] = g['ref_q']
     g['t'] += dt
     g['n'] += 1
     world.advance()
+    tau, qv = world.data.ctrl, world.data.qvel[world.vadr]
+    g['temp'] = np.clip(g['temp'] + dt * (45.0 * (tau / np.maximum(1.0, g['clamp'])) ** 2 + 0.08 * np.abs(tau * qv) - 0.35 * (g['temp'] - 25.0)), 25.0, 125.0)
     return g['s'], g['loads'], g['ask'], g['out']
 
 
@@ -328,22 +337,21 @@ def tilt(g):
 
 
 def state(g, torque, power, watts, ratio, fallen_at, says=(), refused=None):
-    """Her state as the page hears it - her stage 'walk' while she strides, 'stand' or 'fallen'
-    - and her modes: each (name, asked, as she is, N/m, N s/m); `says` the gym's labels,
-    `refused` why its last text or command was."""
+    """Her state as the page hears it: stage, modes, joint torque/power/temp, and physical velocity."""
     from machine import latent, modal, ortho, stride
     from machine.figure import JOINTS
     world, out = g['world'], g['out']
-    d = world.data
+    d, hd = world.data, float(g['heading'])
     z = modal.read(g['y'], g['fr'], g['a'][modal.STANCE])[0]
     angles = {j: math.degrees(float(d.qpos[world.qadr[i]])) for i, j in enumerate(JOINTS)}
     vel_xz = (float(d.qvel[0]), float(d.qvel[2]))
-    spd_val = float(d.qvel[2])
+    spd_val = vel_xz[0] * math.sin(hd) + vel_xz[1] * math.cos(hd)
     return {'t': g['t'], 'angles': dict(angles, **world.loose()), 'set': angles,
             'torque': dict(zip(JOINTS, torque.tolist())), 'power': dict(zip(JOINTS, power.tolist())),
+            'temp': dict(zip(JOINTS, g['temp'].tolist())),
             'peak': dict(zip(JOINTS, world.peak.tolist())), 'watts': float(watts),
             'where': tuple(d.qpos[0:3].tolist()), 'turn': tuple(d.qpos[3:7].tolist()),
-            'heading': float(g['heading']), 'twist': tuple(g.get('twist', (0.0, 0.0, 0.0))),
+            'heading': hd, 'twist': tuple(g.get('twist', (0.0, 0.0, 0.0))),
             'twist_actual': tuple(g.get('twist_actual', (0.0, 0.0, 0.0))),
             'speed': float(spd_val), 'velocity': vel_xz,
             'phase': float(g['st'][latent.THETA]) / math.tau, 'cadence': float(out[latent.TURNS]) / math.tau,
@@ -359,32 +367,30 @@ def state(g, torque, power, watts, ratio, fallen_at, says=(), refused=None):
 
 
 def _start_mode(g, by, entry, at):
-    from machine import ortho
+    from machine import ortho, se2
     name, z = entry[0], float(g['world'].data.qpos[2])
     g['active_entry'] = name
+    se2.align_chair_hop(g, name)
     iw = by['init_walk'][1][:ortho.ROW.size] if 'init_walk' in by else None
-    if name == 'ballistic_walk':
+    if name in ('ballistic_walk', 'jog'):
         said(g, *entry, at=at, reset=True)
     elif name == '#202':
         said(g, *by['#202'], at=at)
     elif name == '#203' and '#202' in by:
         said(g, *by['#202'], at=at)
         said(g, *by['#203'], at=at + 0.80)
-    elif name in ('#204', 'trip', 'jog', 'stairs_walk', 'stairs_down', 'ice_walk', 'slope_walk',
-                  'turn_left', 'turn_right', 'circle_walk'):
-        if iw is not None:
-            said(g, 'init_walk', iw, ('init_walk',), at=at, reset=True)
-            said(g, *by[name], at=at + 0.65)
-        else:
-            said(g, *by[name], at=at)
-    elif name == 'sit_chair' and z < 0.25 and iw is not None and '#204' in by:
+    elif name == '#204' and iw is not None:
+        fast = g.get('twist', (0.0, 0.0, 0.0))[0] > se2.WALK_SPEED + 1e-4
+        said(g, 'init_walk', ortho.compiled(se2.SPRINT_APA)[0][''] if fast else iw, ('init_walk',), at=at, reset=True)
+        said(g, '#204', ortho.compiled(se2.WALK_ON)[0][''], ('#204',), at=at + (0.42 if fast else 0.62))
+    elif name in ('trip', 'stairs_walk', 'stairs_down', 'ice_walk', 'slope_walk',
+                  'turn_left', 'turn_right', 'circle_walk') and iw is not None:
         said(g, 'init_walk', iw, ('init_walk',), at=at, reset=True)
-        said(g, *by['#204'], at=at + 0.65)
-        said(g, *by[name], at=at + 1.80)
-    elif name == 'lie_bed' and z < 0.25 and iw is not None and '#204' in by:
+        said(g, *by[name], at=at + 0.42)
+    elif name in ('sit_chair', 'lie_bed') and z < 0.25 and iw is not None and '#204' in by:
         said(g, 'init_walk', iw, ('init_walk',), at=at, reset=True)
-        said(g, *by['#204'], at=at + 0.65)
-        said(g, *by[name], at=at + 1.50)
+        said(g, *by['#204'], at=at + 0.55)
+        said(g, *by[name], at=at + (1.80 if name == 'sit_chair' else 1.50))
     elif name == '#201':
         said(g, *entry, at=at, reset=True)
     else:
@@ -497,6 +503,8 @@ def _heard(g, gym, command):
     unknown = sorted(set(command) - set(HEARD))
     if unknown:
         raise MachineError('the loop hears %s: not %s' % (', '.join(HEARD), ', '.join(unknown)))
+    if 'scenario' in command:
+        se2.reset_for_scenario(g, command['scenario'], _seen, _dropped, tilt, doing, WEP_S)
     if ('say' in command or command.get('walk') or command.get('entries')) and g['st'][latent.NOW][latent.GAIN] < 1e-6:
         g['st'][latent.THETA] = 0.0
     if 'twist' in command:
@@ -517,12 +525,10 @@ def _heard(g, gym, command):
         _start_mode(g, by, by['#204'], at=g['t'] + 0.001) if '#204' in by else walked(g)
     for entry in command.get('entries', ()):
         said(g, *entry)
-    if 'scenario' in command:
-        g['scenario'] = command['scenario']
-        g['world'].scenario(g['scenario'])
     if 'heading' in command:
         g['target_heading'] = None if command['heading'] is None else float(command['heading'])
     if 'push' in command:
+        from machine import ortho
         force = command['push']
         g['world'].push(force, command.get('seconds', SHOVE_S))
         mag = math.hypot(*force) if hasattr(force, '__iter__') else float(force)
@@ -530,8 +536,13 @@ def _heard(g, gym, command):
         mode, ph = ('controlled_fall', 'cushion') if mag > 120.0 else (('parry_shove', 'catch') if mag >= 35.0 else (None, None))
         if mode and mode in by and doing(g) not in ('lower', 'seated', 'bed_rest', 'floor_rest'):
             _dropped(g)
+            g['_twist_active'], g['twist'], g['target_heading'] = False, (0.0, 0.0, 0.0), None
             if g['st'][latent.NOW][latent.GAIN] > 0.02:
-                said(g, ph, g['_brake_wire'], (ph,), at=t0, reset=True)
+                lat_ph = float(g['st'][latent.NOW][latent.PHASE][modal.LATERAL])
+                lat_amp = float(g['st'][latent.NOW][latent.AMP][modal.LATERAL])
+                back_now = (math.sin(lat_ph) * (1.0 if lat_amp >= 0.0 else -1.0)) < -0.2
+                bw = ortho.compiled(BRAKE.replace('108deg', '-108deg'))[0][''] if back_now else g['_brake_wire']
+                said(g, ph, bw, (ph,), at=t0, reset=True)
                 t0 += 1.10
             said(g, *by[mode], at=t0, reset=True)
             g['active_entry'] = mode

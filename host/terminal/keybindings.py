@@ -40,23 +40,66 @@ STUNT_KEYS = {
 CHORDS = {
     ('w', 'a'): 'turn_left',
     ('a', 'w'): 'turn_left',
+    ('w', 'q'): 'turn_left',
+    ('q', 'w'): 'turn_left',
     ('w', 'd'): 'turn_right',
     ('d', 'w'): 'turn_right',
+    ('w', 'e'): 'turn_right',
+    ('e', 'w'): 'turn_right',
     ('s', 'a'): 'turn_back_left',
     ('a', 's'): 'turn_back_left',
+    ('s', 'q'): 'turn_back_left',
+    ('q', 's'): 'turn_back_left',
     ('s', 'd'): 'turn_back_right',
     ('d', 's'): 'turn_back_right',
+    ('s', 'e'): 'turn_back_right',
+    ('e', 's'): 'turn_back_right',
+    ('a', 'e'): 'strafe_left',
+    ('e', 'a'): 'strafe_left',
+    ('a', 'q'): 'strafe_left',
+    ('q', 'a'): 'strafe_left',
+    ('d', 'q'): 'strafe_right',
+    ('q', 'd'): 'strafe_right',
+    ('d', 'e'): 'strafe_right',
+    ('e', 'd'): 'strafe_right',
 }
+
+#: Scenario deck metadata: {scenario_name: (default_move, tactical_objective)}
+SCENARIO_INFO = {
+    'flat': ('#201', 'level ground // nominal stance'),
+    'glass_room': ('circle_walk', 'proving ground // multi-prop course'),
+    'chair': ('sit_chair', 'chair // sit [s], rise [u], hop [j/d]'),
+    'bed': ('lie_bed', 'soft bed // recline [e] & rise [g]'),
+    'mattress': ('lie_floor', 'floor mattress // lie [f] & rise [k]'),
+    'slope': ('slope_walk', 'inclined ramp // uphill pitch adaptation'),
+    'slope_down': ('slope_walk', 'declined ramp // downhill grade braking'),
+    'cross_slope': ('slope_walk', 'camber ramp // ankle roll compensation'),
+    'stairs': ('stairs_walk', '5-step riser // stair ascent [x]'),
+    'stairs_down': ('stairs_down', '5-step descent // controlled step-down [n]'),
+    'ice': ('ice_walk', 'low-mu ice // flat-foot slick shuffle [i]'),
+    'snow': ('#204', 'yielding snow // high-clearance tread'),
+    'asphalt': ('#204', 'rough asphalt // firm outdoor stride'),
+    'slip': ('ice_walk', 'slick patch // low-friction recovery [i]'),
+    'obstacle': ('#204', 'urban obstacles // wall & tree clearance'),
+    'wall': ('#204', 'masonry wall // compliant contact arrest'),
+    'tree': ('#204', 'tree trunk // compliant contact arrest'),
+    'sill': ('#204', '35mm door sill // trip & stumble reflex'),
+    'hole': ('#204', '10cm floor hole // drop & step recovery'),
+    'rug': ('#204', 'sliding rug // shear slip & balance'),
+}
+
+SCENARIO_MOVES = {k: v[0] for k, v in SCENARIO_INFO.items()}
+SCENARIO_DESC = {k: v[1] for k, v in SCENARIO_INFO.items()}
 
 #: Standard footer bars for the terminal stage.
 BAR_NORMAL = (
     ('§/~', 'TPW'), ('TAB', 'KEYS'), ('ARROWS', 'WALK'), ('< ENT', 'SCENARIO'),
-    ('STUNTS', 's e x m..'), ('SPC', 'PUSH'), ('A', 'RESET: OFF'), ('Q', 'EXIT')
+    ('STUNTS', 's e x m..'), ('SPC', 'PUSH'), ('Q', 'CIRCLE'), ('ESC', 'MENU')
 )
 
 BAR_TPW = (
-    ('§/~', 'NORMAL'), ('TAB', 'KEYS'), ('WASD', 'MOVE'), ('SHIFT', 'SPRINT'),
-    ('SPC', 'JUMP'), ('F', 'INTERACT'), ('MOUSE', 'AIM/LOOK'), ('Q', 'EXIT')
+    ('§/~', 'NORMAL'), ('TAB', 'KEYS'), ('WASD+QE', 'MOVE'), ('Q/E', 'YAW'), ('SHIFT', 'SPRINT'),
+    ('SPC', 'JUMP'), ('F', 'INTERACT'), ('MOUSE', 'AIM/LOOK'), ('ESC', 'MENU')
 )
 
 
@@ -70,61 +113,84 @@ def is_toggle_tpw(key):
     return key in TOGGLE_TPW_KEYS
 
 
+_TPW_DESCRIPTIONS = {
+    'w': 'TPW: advance forward in body frame (Shift+W to sprint)',
+    'W': 'TPW: advance forward in body frame (Shift+W to sprint)',
+    's': 'TPW: reverse walk in body frame (Shift+S fast backpedal)',
+    'S': 'TPW: reverse walk in body frame (Shift+S fast backpedal)',
+    'a': 'TPW: pure lateral strafe left (Shift+A sprint strafe)',
+    'A': 'TPW: pure lateral strafe left (Shift+A sprint strafe)',
+    'd': 'TPW: pure lateral strafe right (Shift+D sprint strafe)',
+    'D': 'TPW: pure lateral strafe right (Shift+D sprint strafe)',
+    'q': 'TPW: pure angular velocity left (+wz: spin in place, W+Q arc, D+Q circle-strafe)',
+    'Q': 'TPW: pure angular velocity left (+wz: spin in place, W+Q arc, D+Q circle-strafe)',
+    'e': 'TPW: pure angular velocity right (-wz: spin in place, W+E arc, A+E circle-strafe)',
+    'E': 'TPW: pure angular velocity right (-wz: spin in place, W+E arc, A+E circle-strafe)',
+    ' ': 'TPW: jump in stride / hop',
+    'f': 'TPW: interact (sit / lie / rise)',
+    'F': 'TPW: interact (sit / lie / rise)',
+    'shift': 'TPW: sprint / jog',
+    'Shift': 'TPW: sprint / jog',
+    'sprint': 'TPW: sprint / jog',
+    'wa': 'TPW: curvilinear arc left (WA, vx > 0, wz > 0, vy = 0)',
+    'WA': 'TPW: curvilinear arc left (WA, vx > 0, wz > 0, vy = 0)',
+    'wq': 'TPW: curvilinear arc left (WQ, vx > 0, wz > 0, vy = 0)',
+    'WQ': 'TPW: curvilinear arc left (WQ, vx > 0, wz > 0, vy = 0)',
+    'wd': 'TPW: curvilinear arc right (WD, vx > 0, wz < 0, vy = 0)',
+    'WD': 'TPW: curvilinear arc right (WD, vx > 0, wz < 0, vy = 0)',
+    'we': 'TPW: curvilinear arc right (WE, vx > 0, wz < 0, vy = 0)',
+    'WE': 'TPW: curvilinear arc right (WE, vx > 0, wz < 0, vy = 0)',
+    'sa': 'TPW: reverse curvilinear arc left (SA, vx < 0, wz > 0, vy = 0)',
+    'SA': 'TPW: reverse curvilinear arc left (SA, vx < 0, wz > 0, vy = 0)',
+    'sq': 'TPW: reverse curvilinear arc left (SQ, vx < 0, wz > 0, vy = 0)',
+    'SQ': 'TPW: reverse curvilinear arc left (SQ, vx < 0, wz > 0, vy = 0)',
+    'sd': 'TPW: reverse curvilinear arc right (SD, vx < 0, wz < 0, vy = 0)',
+    'SD': 'TPW: reverse curvilinear arc right (SD, vx < 0, wz < 0, vy = 0)',
+    'se': 'TPW: reverse curvilinear arc right (SE, vx < 0, wz < 0, vy = 0)',
+    'SE': 'TPW: reverse curvilinear arc right (SE, vx < 0, wz < 0, vy = 0)',
+    'ae': 'TPW: circle-strafe left (A+E, vy > 0, wz < 0)',
+    'AE': 'TPW: circle-strafe left (A+E, vy > 0, wz < 0)',
+    'aq': 'TPW: circle-strafe left (A+Q, vy > 0, wz > 0)',
+    'AQ': 'TPW: circle-strafe left (A+Q, vy > 0, wz > 0)',
+    'dq': 'TPW: circle-strafe right (D+Q, vy < 0, wz > 0)',
+    'DQ': 'TPW: circle-strafe right (D+Q, vy < 0, wz > 0)',
+    'de': 'TPW: circle-strafe right (D+E, vy < 0, wz < 0)',
+    'DE': 'TPW: circle-strafe right (D+E, vy < 0, wz < 0)',
+}
+
+_COMMON_DESCRIPTIONS = {
+    'up': 'arrow up: walk forward (#204)',
+    'down': 'arrow down: step backward / brake (#205)',
+    'left': 'arrow left: sway / strafe left',
+    'right': 'arrow right: sway / strafe right',
+    '\r': 'enter: run scenario action',
+    '\n': 'enter: run scenario action',
+    '4': 'say: 3 (#204 walk) [gentle walk]',
+    '<': 'cycle scenario',
+    ',': 'cycle scenario',
+    ']': 'cycle scenario',
+    '[': 'previous scenario',
+    '>': 'switch gym deck (gynoid_mesomorph_medium / examples)',
+    'H': 'toggle automated house tour / autopilot',
+    'N': 'severe shove (parry / controlled breakfall)',
+    ' ': 'charge push',
+}
+
+
 def describe_action(key, wasd_mode=False):
     """Human-readable explanation of what `key` performs in the active mode."""
     if is_toggle_tpw(key):
         return 'toggle Third Person Control (§ / ~ / F2)'
-    if wasd_mode:
-        if key in ('w', 'W'):
-            return 'TPW: advance forward in body frame (Shift+W to sprint)'
-        if key in ('s', 'S'):
-            return 'TPW: reverse walk in body frame (Shift+S fast backpedal)'
-        if key in ('a', 'A'):
-            return 'TPW: pure lateral strafe left (Shift+A sprint strafe)'
-        if key in ('d', 'D'):
-            return 'TPW: pure lateral strafe right (Shift+D sprint strafe)'
-        if key == ' ':
-            return 'TPW: jump in stride / hop'
-        if key in ('f', 'F'):
-            return 'TPW: interact (sit / lie / rise)'
-        if key in ('shift', 'Shift', 'sprint'):
-            return 'TPW: sprint / jog'
-        if key in ('wa', 'WA'):
-            return 'TPW: curvilinear arc left (WA, vx > 0, wz > 0, vy = 0)'
-        if key in ('wd', 'WD'):
-            return 'TPW: curvilinear arc right (WD, vx > 0, wz < 0, vy = 0)'
-        if key in ('sa', 'SA'):
-            return 'TPW: reverse curvilinear arc left (SA, vx < 0, wz > 0, vy = 0)'
-        if key in ('sd', 'SD'):
-            return 'TPW: reverse curvilinear arc right (SD, vx < 0, wz < 0, vy = 0)'
+    if wasd_mode and key in _TPW_DESCRIPTIONS:
+        return _TPW_DESCRIPTIONS[key]
     if key in ('a', 'A'):
         return 'a: inactive (mode switch - restart disabled; use § / ~)'
-    if key == 'up':
-        return 'arrow up: walk forward (#204)'
-    if key == 'down':
-        return 'arrow down: step backward / brake (#205)'
-    if key == 'left':
-        return 'arrow left: sway / strafe left'
-    if key == 'right':
-        return 'arrow right: sway / strafe right'
-    if key in ('\r', '\n'):
-        return 'enter: run scenario action'
-    if key == '4':
-        return 'say: 3 (#204 walk) [gentle walk]'
-    if key in '123567890':
+    if key in _COMMON_DESCRIPTIONS:
+        return _COMMON_DESCRIPTIONS[key]
+    if len(key) == 1 and key in '123567890':
         return 'say: digit %s' % key
     if key in ('w', 'W'):
         return 'walk from rest'
-    if key in ('<', ','):
-        return 'cycle scenario'
-    if key in ('f', 'F'):
-        return 'stunt: lie_floor'
-    if key in ('d', 'D'):
-        return 'stunt: hop_down_chair'
-    if key in ('s', 'S'):
-        return 'stunt: sit_chair'
-    if key == ' ':
-        return 'charge push'
     rev_stunts = {v: k for k, v in STUNT_KEYS.items()}
     if key.lower() in rev_stunts:
         return 'stunt: %s' % rev_stunts[key.lower()]
@@ -136,13 +202,14 @@ def groups():
     return (
         ('THIRD PERSON CONTROL (SE(2) BODY FRAME)', (
             ('§ / ~ / F2', 'toggle Third Person Control ON / OFF'),
-            ('WASD', 'walk forward (W), back (S), strafe left/right (A/D)'),
-            ('WA / WD / SA / SD', 'curvilinear arc turn while walking or backing'),
-            ('SHIFT + WASD', 'run / sprint in any direction'),
+            ('WASD+QE', 'walk (W/S), strafe (A/D), pure yaw spin in place (Q/E)'),
+            ('WA/WD / WQ/WE / SA/SD / SQ/SE', 'curvilinear arc turn forward or backward'),
+            ('A+E / D+Q', 'circle-strafe around a point ahead (lateral + yaw)'),
+            ('SHIFT + WASD+QE', 'run / sprint in any direction or yaw rate'),
             ('SPACE', 'jump in stride / hop (or hop down from chair)'),
             ('F', 'universal interact (sit / lie / rise)'),
-            ('X / Z', 'crouch toggle / controlled breakfall'),
-            ('P / N', 'push / nudge perturbation'),
+            ('X / N', 'stairs ascent / stairs descent'),
+            ('P / SHIFT+N', 'moderate shove (parry) / severe shove (breakfall)'),
             ('MOUSE L-DRAG', 'free-orbiting camera (decoupled from body heading)'),
             ('MOUSE WHEEL', 'zoom in / zoom out'),
         )),
@@ -153,11 +220,11 @@ def groups():
             ('1-5', '#201 stand, #202 sway, #203 step, #204 walk, #205 back'),
             ('A', 'disabled in normal mode (switch with § / ~)'),
         )),
-        ('SCENARIO', (
-            ('< ,', 'cycle scenario + auto-move'),
-            ('ENTER', 'run / replay active scenario'),
-            ('H', 'toggle automated house tour / autopilot'),
-            ('scenarios', 'flat, chair, bed, slope, stairs, ice, snow, obstacle, sill, hole, rug, glass_room'),
+        ('SCENARIO DECK', (
+            ('< , ] / [', 'next / previous scenario + auto-stage'),
+            ('ENTER', 'execute scenario (or toggle rise on chair/bed/mattress)'),
+            ('H / >', 'toggle house tour autopilot / switch gym deck'),
+            ('20 scenarios', 'flat, glass_room, chair, bed, mattress, slope/down/cross, stairs/down, ice, snow, asphalt, slip, obstacle, wall, tree, sill, hole, rug'),
         )),
         ('STUNTS', (
             ('s / u', 'sit chair / rise chair (in normal mode)'),
@@ -167,25 +234,25 @@ def groups():
             ('x / n', 'stairs walk up / stairs down'),
             ('m / i', 'slope walk / ice walk (slick)'),
             ('y / z', 'parry shove / controlled breakfall'),
-            ('b', 'ballistic walk'),
+            ('b / q', 'ballistic walk / circle walk'),
         )),
         ('PUSH / STRIKE', (
             ('SPACE', 'hold to charge push along view vector'),
-            ('P N', 'lateral push / nudge'),
-            ('shift', 'sprint in TPW or longitudinal push'),
+            ('p / P', 'moderate shove lateral / fore-aft (parry)'),
+            ('SHIFT+N', 'severe shove (attempt parry / breakfall)'),
         )),
-        ('VIEW (MOUSE)', (
+        ('OPTIC & VIEW', (
             ('L-DRAG', 'rotate / orbit camera (mouselook)'),
             ('R-DRAG', 'pan viewport'),
             ('WHEEL', 'zoom in / out'),
-            ('V', 'home camera view'),
-            ('O', 'toggle auto-orbit'),
-            ('C', 'cycle skin: dressed, shell, mechanism, actuators'),
-            ('L / T', 'joint callouts / torque & power'),
+            ('V / O', 'home camera view / toggle auto-orbit'),
+            ('C', 'cycle shell: dressed, shell, mechanism, actuators'),
+            ('L / T', 'joint callouts / torque, power & temp'),
         )),
-        ('PAGE', (
-            ('R', 'record / save CSV'),
-            ('TAB ?', 'these keys'),
-            ('Q / ESC', 'exit'),
+        ('CONSOLE', (
+            ('R', 'record / save telemetry CSV'),
+            ('TAB ?', 'toggle key matrix overlay'),
+            ('Q / ESC', 'exit / return to menu'),
         )),
     )
+

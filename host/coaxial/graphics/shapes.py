@@ -102,13 +102,29 @@ def smooth(corners, index):
     return out / np.where(length > 0.0, length, 1.0)
 
 
+_SHAPES_NP = None
+_EYE3 = None
+
+
+def _np():
+    global _SHAPES_NP, _EYE3
+    if _SHAPES_NP is None:
+        from coaxial.model.blocks import numpy as np      # behind the OpenBLAS cap
+        _SHAPES_NP, _EYE3 = np, np.eye(3)
+        _EYE3.flags.writeable = False
+    return _SHAPES_NP
+
+
 def moved(points, normals, spans, frames):
     """Points and normals each moved into the body's frame by its part's (turn, spot)."""
-    from coaxial.model.blocks import numpy as np
+    np = _SHAPES_NP or _np()
     out_p, out_n = np.empty_like(points), np.empty_like(normals)
     for (lo, hi), (turn, spot) in zip(spans, frames):
-        out_p[lo:hi] = points[lo:hi] @ turn.T + spot
-        out_n[lo:hi] = normals[lo:hi] @ turn.T
+        if hi > lo:
+            t = turn.T
+            np.matmul(points[lo:hi], t, out=out_p[lo:hi])
+            out_p[lo:hi] += spot
+            np.matmul(normals[lo:hi], t, out=out_n[lo:hi])
     return out_p, out_n
 
 
@@ -121,7 +137,7 @@ def sampled(body, part_of):
     """Every triangle of `body` - its corners, normals, uv, materials, index and parts laid end to
     end - sampled on a barycentric grid DENSE_M apart, grouped by part, `part_of` each
     triangle's: ((points, normals, uv, materials), [(lo, hi)] a part)."""
-    from coaxial.model.blocks import numpy as np
+    np = _SHAPES_NP or _np()
     index = body.index.astype(int)
     a, b, c = (body.corners[index[:, k]] for k in range(3))
     edge = np.max([np.linalg.norm(b - a, axis=1), np.linalg.norm(c - b, axis=1),
@@ -151,13 +167,16 @@ def sampled(body, part_of):
 
 def turn_about(axis, degrees):
     """The 3x3 that turns `degrees` about `axis`, 'x', 'y' or 'z'."""
-    from coaxial.model.blocks import numpy as np
-    c, s = math.cos(math.radians(degrees)), math.sin(math.radians(degrees))
+    np = _SHAPES_NP or _np()
+    if not degrees:
+        return _EYE3
+    rad = math.radians(degrees)
+    c, s = math.cos(rad), math.sin(rad)
     if axis == 'x':
-        return np.array([[1.0, 0.0, 0.0], [0.0, c, -s], [0.0, s, c]])
+        return np.array(((1.0, 0.0, 0.0), (0.0, c, -s), (0.0, s, c)))
     if axis == 'y':
-        return np.array([[c, 0.0, s], [0.0, 1.0, 0.0], [-s, 0.0, c]])
-    return np.array([[c, -s, 0.0], [s, c, 0.0], [0.0, 0.0, 1.0]])
+        return np.array(((c, 0.0, s), (0.0, 1.0, 0.0), (-s, 0.0, c)))
+    return np.array(((c, -s, 0.0), (s, c, 0.0), (0.0, 0.0, 1.0)))
 
 
 def view(yaw, pitch):

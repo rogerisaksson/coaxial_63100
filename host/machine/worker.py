@@ -74,6 +74,8 @@ def run(commands, states, every=sprung.STACK_EVERY, walks=False):
                     if 'text' in command:
                         command, refused = dict(command, entries=sprung.entries(command['text'])), None
                     sprung._heard(g, gym, command)
+                    if 'scenario' in command:
+                        fallen_at = None
                 except (SyntaxError, MachineError) as error:
                     refused = str(error)
         except queue.Empty:
@@ -95,6 +97,8 @@ def run(commands, states, every=sprung.STACK_EVERY, walks=False):
                     sprung.passed(g, dt)
                 else:
                     world.feed[:] = 0.0
+                    world.rate[:] = 0.0
+                    world.target[:] += 0.05 * (world.data.qpos[world.qadr] - world.target)
                     g['t'] += dt
                     world.advance()
             except MachineError:

@@ -15,7 +15,7 @@ from coaxial.draw import cross_section, gauges
 from coaxial.errors import DeviceStateError, NoReplyError, RigError
 from machine.modes import HARDWARE, SIMULATED
 from machine import ansi
-from terminal.ui.console import SELECT_KEYS, Keys, _ignore
+from terminal.ui.console import QUIT_KEYS, SELECT_KEYS, Keys, _ignore
 from terminal.ui.rate import rate_of
 from terminal.ui.scroll import scroll_by, scroll_click, scroll_drag
 from terminal.ui import sto
@@ -113,6 +113,12 @@ def panel_width():
         return 100
 
 
+def _mouse_pending(keys):
+    return (getattr(keys, '_spun', (0.0, 0.0)) != (0.0, 0.0)
+            or getattr(keys, '_panned', (0.0, 0.0)) != (0.0, 0.0)
+            or bool(getattr(keys, '_clicked', None)))
+
+
 def paced(keys, period, step=0.02):
     """Sleep `period` while polling the keys every `step`."""
 
@@ -122,7 +128,7 @@ def paced(keys, period, step=0.02):
         got, moved = keys.poll()
         zoom += moved
         typed.extend(keys.taken())
-        if got:
+        if got or zoom or typed or _mouse_pending(keys):
             return got, zoom, typed
         now = time.monotonic()
         if now >= deadline:
@@ -246,7 +252,7 @@ UI_HZ = 15.0
 
 def run_view(board_view, console, period, frames, draw, on_input=None,
              tick=None, mouse=False, on_click=None, on_drag=None,
-             scroll_keys=True, on_pan=None, select=SELECT_KEYS):
+             scroll_keys=True, on_pan=None, select=SELECT_KEYS, quits=QUIT_KEYS):
     """The loop every view runs: draw, pace - `period`, FPS_CAP's at the least - take keys,
     until Q, ESC, Ctrl+C or `frames` frames. Between draws the frame is shown again at UI_HZ;
     a key cuts the wait and draws at once. `on_pan` takes a right drag's cells, `select` the
@@ -256,9 +262,10 @@ def run_view(board_view, console, period, frames, draw, on_input=None,
     period = max(period, 1.0 / FPS_CAP)
     click, drag = on_click or _ignore, on_drag or _ignore
     count = 0
+    q_kw = {'quits': quits} if quits != QUIT_KEYS else {}
     try:
         with curtain(board_view) as page, Keys(console, mouse=mouse, select=select,
-                                               pan=on_pan is not None) as keys:
+                                               pan=on_pan is not None, **q_kw) as keys:
             while True:
                 count += 1
                 # The period is frame to frame, measured from this draw's
@@ -277,7 +284,7 @@ def run_view(board_view, console, period, frames, draw, on_input=None,
                     leaving, more, got = paced(keys, max(0.0, min(left, 1.0 / UI_HZ)))
                     moved += more
                     typed.extend(got)
-                    if leaving or typed or moved or left <= 1.0 / UI_HZ:
+                    if leaving or typed or moved or _mouse_pending(keys) or left <= 1.0 / UI_HZ:
                         break
                     page.update(shown, refresh=True)
                 if leaving:

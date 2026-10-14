@@ -20,7 +20,7 @@ from views_kit import Report
 def test_tactical_strafe_peek_and_fire(report):
     """Gamer executes tactical peeking: advance forward, strafe left (A), snap strafe right (D), and resume forward."""
     from machine import figure, sprung
-    g, gym = sprung.laid(), sprung.entries(name='moves')
+    g, gym = sprung.laid(), sprung.entries()
     sprung.walked(g)
     for _ in range(3000):
         sprung.passed(g, 0.001)
@@ -57,7 +57,7 @@ def test_tactical_strafe_peek_and_fire(report):
 def test_sprint_dash_and_tactical_backpedal(report):
     """Gamer executes sprint dash (Shift+W) faster than walk, jumps in stride (Space), and backpedals (S)."""
     from machine import se2, sprung
-    gym = sprung.entries(name='moves')
+    gym = sprung.entries()
     g_walk, st_walk = sprung.laid(every=3), se2.state()
     for _ in range(3000):
         se2.step_controller(st_walk, ['w'], 0.001)
@@ -105,7 +105,7 @@ def test_mouselook_target_tracking_and_flanking(report):
     from machine import sprung
 
     g = sprung.laid()
-    gym = sprung.entries(name='moves')
+    gym = sprung.entries()
 
     sprung.walked(g)
     for _ in range(3500):
@@ -329,7 +329,7 @@ def test_se2_mujoco_full_steering_repertoire_without_ragdoll(report):
     import numpy as np
     from machine import figure, modal, se2, sprung
 
-    gym = sprung.entries(name='moves')
+    gym = sprung.entries()
 
     # 1. Verify Windows 560ms typematic delay and hardware held-key polling never drop WASD state
     st_win = se2.state()

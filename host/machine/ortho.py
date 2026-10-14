@@ -36,8 +36,32 @@ a table, each a phase at its time; its last row, flagged REST, is her rest again
 on her body and what her drives give are downstream's (`machine.modal`, `machine.wbc`).
 """
 import math
+import os
 import re
 import struct
+
+#: Classification schema following the gynoid_<morphology>_<scale> convention:
+#: - gynoid_ectomorph_petite: Small-framed and fine-boned (waif/gamine, < 165 cm); yields an
+#:   extremely low limb moment of inertia, but minimal joint volume forces tendon-driven
+#:   architectures or low-torque actuators (the Ava archetype).
+#: - gynoid_ectomorph_tall: Slender, statuesque column form (> 175 cm); long lever arms provide
+#:   extended reach but demand high structural flexural rigidity and strictly minimized distal
+#:   mass at the knees and ankles.
+#: - gynoid_mesomorph_medium: Anthropometric standard (160-168 cm); a pragmatic compromise
+#:   between statistical human proportions and sufficient internal/external envelope so the
+#:   structural chassis is robust rather than overly fragile ("inte allt för skraltigt"),
+#:   accommodating all structural 3D prints, actuators, harmonic drives, battery packs, TPU
+#:   gel pads, and clothing (165 cm, 55.0 kg, 24 cm sole in machine.figure).
+#: - gynoid_hourglass_full: Hyper-gynoid geometry (WHR <= 0.70); introduces a severe structural
+#:   bottleneck for power buses and spinal actuators at the waist, while offering generous
+#:   packaging volume for cells and high-torque hip actuators in the pelvis and thorax.
+#: - gynoid_athletic_heavy: High-dynamic, muscular profile; expanded thigh, gluteal, and shoulder
+#:   envelopes dictated by high-torque-density QDD actuators, structural stiffness under impact
+#:   loads, and thermal dissipation requirements.
+#: - gynoid_skeletal_ultralight: Hollowed truss or exoskeleton chassis stripped of synthetic soft
+#:   tissue; reduces feminine cues strictly to pelvic geometry, Q-angle, and lumbar lordosis to
+#:   minimize total system mass.
+_FILE = os.path.join(os.path.dirname(__file__), 'gynoid_mesomorph_medium.lisp')
 
 #: Her latent coordinates, a row's vectors in this order. Of her centre of mass over her soles'
 #: middle: its height, 1 fully compressed; its place across, 1 over her first limb's sole;
@@ -60,8 +84,10 @@ P = 5 * N + 4
 ROW = struct.Struct('<4I%df' % P)
 #: A row's flag: every parameter back to her rest. A behaviour's last row, blended REST_MS.
 REST, REST_MS = 1, 200
-#: A name that is a number.
-SYMBOLS = {'MAX_SYS_K': 8.0e4, 'true': 1.0, 'false': 0.0, 'support_polygon': 1.0, 'dynamic_footprint': 2.0}
+_CLEAR = float('nan')
+#: A name that is a number (or `none` / `unsaid` to clear an inherited parameter back to NaN).
+SYMBOLS = {'MAX_SYS_K': 8.0e4, 'true': 1.0, 'false': 0.0, 'support_polygon': 1.0, 'dynamic_footprint': 2.0,
+           'none': _CLEAR, 'unsaid': _CLEAR, 'nan': _CLEAR}
 
 _UNIT = re.compile(r'(-?\d+(?:\.\d+)?)(ms|s|Hz|deg)')
 _SCALE = {'ms': ('s', 1e-3), 's': ('s', 1.0), 'Hz': ('Hz', 1.0), 'deg': ('rad', math.pi / 180.0)}
@@ -81,7 +107,7 @@ def read(text):
     """`text` as nested lists: a name a str, a number or a SYMBOLS name a float, `400ms`
     ('s', 0.4), `1.1Hz` ('Hz', 1.1), `90deg` ('rad', 1.57..); ';' to a line's end a remark."""
     stack = [[]]
-    for token in re.findall(r'[()]|[^\s()]+', re.sub(r';[^\n]*', '', text)):
+    for token in re.findall(r'[()]|"[^"]*"|[^\s()]+', re.sub(r';[^\n]*', '', text)):
         if token == '(':
             stack.append([])
         elif token != ')':
@@ -97,6 +123,8 @@ def read(text):
 
 
 def _atom(token):
+    if len(token) >= 2 and token[0] == '"' and token[-1] == '"':
+        return token[1:-1]
     unit = _UNIT.fullmatch(token)
     if unit:
         kind, scale = _SCALE[unit.group(2)]
@@ -119,12 +147,16 @@ def said(form):
 
 
 def _number(v, low=-math.inf, high=math.inf):
+    if v is _CLEAR:
+        return _CLEAR
     if not isinstance(v, float) or not low <= v <= high or not math.isfinite(v):
         raise ValueError('%s is no number from %g to %g' % (said(v), low, high))
     return v
 
 
 def _in(v, unit):
+    if v is _CLEAR:
+        return _CLEAR
     if not isinstance(v, tuple) or v[0] != unit:
         raise ValueError('%s wants %s' % (said(v), _WANTS[unit]))
     return v[1]
@@ -132,7 +164,8 @@ def _in(v, unit):
 
 def _head(at, unit=None):
     def lay(r, v):
-        r[at] = int(round(1e3 * _in(v, unit) if unit else _number(v, 0.0)))
+        val = _in(v, unit) if unit else _number(v, 0.0)
+        r[at] = 0 if val is _CLEAR else int(round((1e3 if unit else 1.0) * val))
     return lay
 
 
@@ -155,7 +188,8 @@ def _halt(r):
 
 def _offset(r, mode, of, v):
     lead = r[_HEAD + PHASE + _MODE[of][0]]
-    r[_HEAD + PHASE + _MODE[mode][0]] = (0.0 if math.isnan(lead) else lead) + _in(v, 'rad')
+    rad = _in(v, 'rad')
+    r[_HEAD + PHASE + _MODE[mode][0]] = _CLEAR if rad is _CLEAR else (0.0 if math.isnan(lead) else lead) + rad
 
 
 #: What a clause says, by the names down to it: how it is laid in the row. A latent target's
@@ -188,10 +222,41 @@ def _sayings(form, path=()):
             yield from _sayings(item, path)
 
 
-def _row(clauses, rules):
+def _merge(r, src, rules):
+    """Lay non-empty fields of prototype row `src` onto row `r`."""
+    if src[_LASTS] and ('duration',) not in rules:
+        raise SyntaxError('(duration %dms): a stream_inject has no duration' % src[_LASTS])
+    if src[_BLEND]:
+        r[_BLEND] = src[_BLEND]
+    if src[_LASTS]:
+        r[_LASTS] = src[_LASTS]
+    for k in range(_HEAD, _HEAD + P):
+        if src[k] is not math.nan:
+            r[k] = src[k]
+
+
+def _use(r, clause, rules, traits):
+    """Apply `(use TRAIT ..)` or `(extends TRAIT ..)` onto `r`."""
+    if len(clause) < 2 or not all(isinstance(x, str) for x in clause[1:]):
+        raise SyntaxError('%s: (%s TRAIT ..) wants a trait name' % (said(clause), clause[0]))
+    for name in clause[1:]:
+        if not traits or name not in traits:
+            raise SyntaxError('%s: unknown trait %s' % (said(clause), name))
+        _merge(r, traits[name], rules)
+
+
+def _row(clauses, rules, base=None, traits=None, row_traits=()):
     """A row of a payload's or a phase's `clauses`, by `rules`."""
-    r = [0, 0, 0] + [math.nan] * P
+    r = list(base) if base else [0, 0, 0] + [math.nan] * P
+    for tr in row_traits:
+        _merge(r, tr, rules)
     for clause in clauses:
+        if not isinstance(clause, list) or not clause:
+            raise SyntaxError('%s: it has %s; a mode is %s' % (
+                said(clause), _HAS, ', '.join(_MODE)))
+        if clause[0] in ('use', 'extends'):
+            _use(r, clause, rules, traits)
+            continue
         try:
             for path, leaves in _sayings(clause):
                 if path in rules:
@@ -210,36 +275,137 @@ def _packed(r, at, flags=0):
     return ROW.pack(r[_ID], at, r[_BLEND], flags, *r[_HEAD:])
 
 
+def _parents(name, spec, raw, traits):
+    """(base_phases, row_traits) resolved left-to-right from `(extends BASE ..)` on a behaviour."""
+    if len(spec) < 2 or not all(isinstance(x, str) for x in spec[1:]):
+        raise SyntaxError('(defbehavior %s %s ..): wants a base or trait name' % (name, said(spec)))
+    base, pre_traits, post_traits = [], [], []
+    for p in spec[1:]:
+        if p in raw:
+            b_list = []
+            for i, (b_name, b_row) in enumerate(raw[p]):
+                r = [0, 0, 0] + [math.nan] * P
+                for tr in pre_traits:
+                    _merge(r, tr, _PHASE)
+                if i < len(base):
+                    _merge(r, base[i][1], _PHASE)
+                for tr in post_traits:
+                    _merge(r, tr, _PHASE)
+                _merge(r, b_row, _PHASE)
+                b_list.append((b_name, r))
+            base, pre_traits, post_traits = b_list, pre_traits + post_traits, []
+        elif p in traits:
+            if base:
+                for _b_name, b_row in base:
+                    _merge(b_row, traits[p], _PHASE)
+                post_traits.append(traits[p])
+            else:
+                pre_traits.append(traits[p])
+        else:
+            raise SyntaxError('(defbehavior %s (extends %s) ..): unknown base %s' % (name, p, p))
+    return tuple(base), tuple(pre_traits + post_traits)
+
+
+def _behavior(body, base=(), traits=None, row_traits=()):
+    """(wire, names, raw) of a behaviour's `body` phases, optionally derived from `base` [(name, r)]."""
+    if not body and not base:
+        raise SyntaxError('a behaviour needs at least one (phase NAME ..)')
+    for phase in body:
+        if not isinstance(phase, list) or len(phase) < 2 or phase[0] != 'phase' or not isinstance(phase[1], str):
+            raise SyntaxError('%s: a behaviour is phases, (phase NAME (duration 400ms) ..)' % said(phase)[:60])
+    body_names = [p[1] for p in body]
+    if len(set(body_names)) != len(body_names):
+        raise SyntaxError('(phase %s ..): said twice' % body_names[0])
+    base_map = dict(base)
+    overlap = set(body_names) & set(base_map)
+    if not body:
+        plan = [(b_name, (), b_row) for b_name, b_row in base]
+    elif overlap and set(body_names) >= set(base_map):
+        plan = [(p[1], p[2:], base_map.get(p[1])) for p in body]
+    elif overlap:
+        by_name = {p[1]: p[2:] for p in body}
+        plan = ([(b_name, by_name.get(b_name, ()), b_row) for b_name, b_row in base]
+                + [(p[1], p[2:], None) for p in body if p[1] not in base_map])
+    elif base and len(body) < len(base):
+        raise SyntaxError('(phase %s ..): unknown phase of base (has %s)' % (body_names[0], ', '.join(base_map)))
+    else:
+        plan = [(p[1], p[2:], base[i][1] if i < len(base) else None) for i, p in enumerate(body)]
+    wire, at, names, raw = b'', 0, [], []
+    scope = {**(traits or {}), **base_map}
+    for p_name, clauses, b_row in plan:
+        r = _row(clauses, _PHASE, b_row, scope, () if b_row is not None else row_traits)
+        if r[_LASTS] <= 0:
+            raise SyntaxError('(phase %s ..): a phase lasts its (duration 400ms)' % p_name)
+        wire, at, names = wire + _packed(r, at), at + r[_LASTS], names + [p_name]
+        raw.append((p_name, r))
+        scope[p_name] = r
+    return wire + ROW.pack(0, at, REST_MS, REST, *[math.nan] * P), tuple(names), raw
+
+
+def _forms(text, here, seen=(), done=None):
+    """Top-level forms of `text`, expanding `(include FILE ..)` and `(extends FILE ..)` once."""
+    if done is None:
+        done = set(seen)
+    for form in read(text):
+        head = form[0] if isinstance(form, list) and form else None
+        if head in ('include', 'extends'):
+            if len(form) < 2 or not all(isinstance(x, str) and x for x in form[1:]):
+                raise SyntaxError('%s: (%s FILE ..) wants a .lisp file name' % (said(form)[:60], head))
+            for name in form[1:]:
+                rel = name if name.endswith('.lisp') else name + '.lisp'
+                path = os.path.normcase(os.path.abspath(os.path.join(here, rel)))
+                if path in seen:
+                    raise SyntaxError('(%s %s): circular include' % (head, name))
+                if path in done:
+                    continue
+                if not os.path.isfile(path):
+                    raise SyntaxError('(%s %s): no file %s' % (head, name, rel))
+                done.add(path)
+                with open(path, encoding='utf-8') as f:
+                    yield from _forms(f.read(), os.path.dirname(path), seen + (path,), done)
+        else:
+            yield form
+
+
 def rows(wire):
     """The rows of `wire`: [(id, at ms, blend ms, flags, the P parameters ..)]."""
     return list(ROW.iter_unpack(wire))
 
 
-def compiled(text):
-    """(tables, phases) of `text`: tables[''] its (stream_inject ..) payloads' rows in the
-    order said, tables[NAME] each (defbehavior NAME (phase NAME ..) ..)'s, as bytes;
-    phases[NAME] its phases' names."""
-    tables, phases = {'': b''}, {}
-    for form in read(text):
+def compiled(text=None, here=None):
+    """(tables, phases) of `text` (or `_FILE` if None): tables[''] its (stream_inject ..) payloads'
+    rows in the order said, tables[NAME] each (defbehavior NAME ..)'s or (derive NAME BASE ..)'s,
+    as bytes; phases[NAME] its phases' names."""
+    here = here or os.path.dirname(_FILE)
+    seen = ()
+    if text is None:
+        with open(_FILE, encoding='utf-8') as f:
+            text = f.read()
+        seen = (os.path.normcase(os.path.abspath(_FILE)),)
+    tables, phases, raw, traits = {'': b''}, {}, {}, {}
+    for form in _forms(text, here, seen):
         head = form[0] if isinstance(form, list) and form else None
         if head == 'stream_inject':
-            tables[''] += _packed(_row(form[1:], _PAYLOAD), 0)
+            tables[''] += _packed(_row(form[1:], _PAYLOAD, traits=traits), 0)
+        elif head == 'deftrait' and len(form) >= 3 and isinstance(form[1], str):
+            ext = isinstance(form[2], list) and form[2] and form[2][0] in ('extends', 'use')
+            if form[1] in traits and not (ext and form[1] in form[2][1:]):
+                raise SyntaxError('(deftrait %s ..): said twice' % form[1])
+            traits[form[1]] = _row(form[2:], _PHASE, traits=traits)
+        elif head == 'derive' and len(form) >= 3 and isinstance(form[1], str) and isinstance(form[2], str):
+            if form[1] in tables and form[1] != form[2]:
+                raise SyntaxError('(derive %s ..): said twice' % form[1])
+            base, t_rows = _parents(form[1], ['extends', form[2]], raw, traits)
+            tables[form[1]], phases[form[1]], raw[form[1]] = _behavior(form[3:], base, traits, t_rows)
         elif head != 'defbehavior' or len(form) < 3 or not isinstance(form[1], str):
-            raise SyntaxError('%s: a form is (stream_inject ..) or (defbehavior NAME (phase NAME ..) ..)'
-                              % said(form)[:60])
-        elif form[1] in tables:
-            raise SyntaxError('(defbehavior %s ..): said twice' % form[1])
+            raise SyntaxError('%s: a form is (include FILE ..), (deftrait NAME ..), (stream_inject ..), '
+                              '(defbehavior NAME ..) or (derive NAME BASE ..)' % said(form)[:60])
         else:
-            wire, at, names = b'', 0, []
-            for phase in form[2:]:
-                if not isinstance(phase, list) or len(phase) < 2 or phase[0] != 'phase' or not isinstance(
-                        phase[1], str):
-                    raise SyntaxError('%s: a behaviour is phases, (phase NAME (duration 400ms) ..)'
-                                      % said(phase)[:60])
-                r = _row(phase[2:], _PHASE)
-                if r[_LASTS] <= 0:
-                    raise SyntaxError('(phase %s ..): a phase lasts its (duration 400ms)' % phase[1])
-                wire, at, names = wire + _packed(r, at), at + r[_LASTS], names + [phase[1]]
-            tables[form[1]] = wire + ROW.pack(0, at, REST_MS, REST, *[math.nan] * P)
-            phases[form[1]] = tuple(names)
+            ext = isinstance(form[2], list) and form[2] and form[2][0] in ('extends', 'use')
+            if form[1] in tables and not (ext and form[1] in form[2][1:]):
+                raise SyntaxError('(defbehavior %s ..): said twice' % form[1])
+            base, t_rows = _parents(form[1], form[2], raw, traits) if ext else ((), ())
+            tables[form[1]], phases[form[1]], raw[form[1]] = _behavior(
+                form[3:] if ext else form[2:], base, traits, t_rows)
     return tables, phases
+

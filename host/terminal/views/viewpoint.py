@@ -8,9 +8,9 @@
 """
 from coaxial.graphics import engine, gynoid
 
-#: Where it starts - three quarters round so a stride shows, tipped down a little -, degrees a
+#: Where it starts - straight behind her (`yaw` 180°), tipped down a little -, degrees a
 #: key turns it, the orbit's degrees a second, the zoom's bounds: at 8 a knee's linkage fills it.
-YAW, PITCH, TURN_DEG, ORBIT_DEG_S, ZOOM = 60.0, 8.0, 10.0, 12.0, (0.6, 8.0)
+YAW, PITCH, TURN_DEG, ORBIT_DEG_S, ZOOM = 180.0, 8.0, 10.0, 12.0, (0.6, 8.0)
 HOME = {'yaw': YAW, 'pitch': PITCH, 'zoom': 1.0, 'pan': (0.0, 0.0)}
 
 #: A left drag's degrees a cell across and a row down; the tip's bounds, deg; an arrow's step at

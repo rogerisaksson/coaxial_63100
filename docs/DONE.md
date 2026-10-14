@@ -167,7 +167,7 @@ it names. A closed item is cut from the list and gets its line here, last.
     (pitch attitude 0.06, stiffness 3500 N m/rad) and sagittal shift damped
     (200 N s/m) to eliminate overshoot; landing target `meet` along Humanoid robot travel
     direction constrained to never step backward relative to foot lift-off position,
-    eliminating the backward foot jerk ('hästspark'); swing clearance and foot rock
+    eliminating the backward foot jerk ('horse kick'); swing clearance and foot rock
     harmonized in #203 (limb lift 0.8, foot rock 0.25, unpegged rock impedance) for
     natural forward pendulum swing without trailing heel flick; Humanoid robot walk 0.71 m/s,
     278 J/m, 2.13 off (stiff 0.16 where 0.32), head nod 1 deg
@@ -276,7 +276,7 @@ it names. A closed item is cut from the list and gets its line here, last.
     across winds, rooms, and pack charges (cost 27.56)
     ([streams](findings/streams.md), [envelope](findings/envelope.md)).
 69. Ballistic gait initiation, capture dynamics & data-oriented Monte Carlo
-    toolchain (`tools/sim/ballistic.py`, `tools/sim/gvs.py`, `machine/moves.lisp`,
+    toolchain (`tools/sim/ballistic.py`, `tools/sim/gvs.py`, `machine/gynoid_mesomorph_medium.lisp`,
     `machine/stride.py`, `machine/impedance.py`): flat wire (`<4I59f`), APA
     phase alignment (`0.83 Hz`, 2.50 cycles) and cruise bootstrap (`GOING_S`
     0.45 s, `AHEAD_M_S` 0.22 m/s, `#203` blend 400 ms, drive 0.58) bring
@@ -284,7 +284,7 @@ it names. A closed item is cut from the list and gets its line here, last.
     SO(3) mocap `GPS` `13.82 deg <= 15.0 deg` over 51 s walks
     ([orthokinematics](findings/orthokinematics.md)).
 70. Stunt repertoire, obstacle compliance, stumble reflex, and fall protection
-    (`machine/moves.lisp`, `machine/sprung.py`, `machine/floor.py`,
+    (`machine/gynoid_mesomorph_medium.lisp`, `machine/sprung.py`, `machine/floor.py`,
     `machine/stride.py`, `tests/test_stunts.py`): 13 stunt behaviors compiled
     to flat wire rows (`sit_chair`..`controlled_fall`), C^1 quadratic knee
     barrier (`q_barrier` 0.05 rad, `knee_min_deg >= -0.5 deg`), generalized

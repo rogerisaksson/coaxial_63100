@@ -28,6 +28,10 @@ AFFORDANCES = {
         ('e', 'lie bed', 'lie_bed'),
         ('g', 'rise bed', 'rise_bed'),
     ],
+    'mattress': [
+        ('f', 'lie mattress', 'lie_floor'),
+        ('k', 'rise mattress', 'rise_floor'),
+    ],
     'floor': [
         ('f', 'lie floor', 'lie_floor'),
         ('k', 'rise floor', 'rise_floor'),
@@ -36,14 +40,30 @@ AFFORDANCES = {
         ('x', 'stairs up', 'stairs_walk'),
         ('n', 'stairs down', 'stairs_down'),
     ],
+    'stairs_down': [
+        ('n', 'stairs down', 'stairs_down'),
+        ('x', 'stairs up', 'stairs_walk'),
+    ],
     'slope': [
         ('m', 'traverse slope', 'slope_walk'),
+    ],
+    'slope_down': [
+        ('m', 'descend slope', 'slope_walk'),
+    ],
+    'cross_slope': [
+        ('m', 'camber traverse', 'slope_walk'),
     ],
     'ice': [
         ('i', 'ice walk (slick)', 'ice_walk'),
     ],
+    'slip': [
+        ('i', 'ice walk (slick)', 'ice_walk'),
+    ],
     'snow': [
         ('w', 'snow tread', 'slope_walk'),
+    ],
+    'asphalt': [
+        ('w', 'asphalt stride', '#204'),
     ],
     'wall': [
         ('w', 'lean compliant', 'ballistic_walk'),
@@ -63,6 +83,12 @@ AFFORDANCES = {
     'hole': [
         ('w', 'cross 10cm hole', 'ballistic_walk'),
     ],
+    'board': [
+        ('w', 'balance board', '#204'),
+    ],
+    'brick': [
+        ('w', 'brick step', '#204'),
+    ],
     'door': [
         ('w', 'push open door', 'ballistic_walk'),
         ('q', 'circle walk', 'circle_walk'),
@@ -73,17 +99,25 @@ AFFORDANCES = {
 PRIMARY_ACTION = {
     'chair': 'sit_chair',
     'bed': 'lie_bed',
+    'mattress': 'lie_floor',
     'floor': 'lie_floor',
     'stairs': 'stairs_walk',
+    'stairs_down': 'stairs_down',
     'slope': 'slope_walk',
+    'slope_down': 'slope_walk',
+    'cross_slope': 'slope_walk',
     'ice': 'ice_walk',
+    'slip': 'ice_walk',
     'snow': 'slope_walk',
+    'asphalt': '#204',
     'wall': 'ballistic_walk',
     'tree': 'ballistic_walk',
     'obstacle': 'ballistic_walk',
     'sill': 'ballistic_walk',
     'rug': 'ballistic_walk',
     'hole': 'ballistic_walk',
+    'board': '#204',
+    'brick': '#204',
     'door': 'ballistic_walk',
 }
 
@@ -133,8 +167,11 @@ class VisionScanner:
             return []
         props = now.get('props') or ()
         where = now.get('where', (0.0, 0.0, 0.0))
+        scen = str(now.get('scenario', ''))
         gx, gz = where[0], where[2]
-        yaw_rad = math.radians(yaw)
+        cones = [math.radians(yaw)]
+        if 'heading' in now and now['heading'] is not None:
+            cones.append(float(now['heading']))
 
         found = []
         for prop in props:
@@ -145,13 +182,26 @@ class VisionScanner:
             if len(pos) < 3:
                 continue
             px, py, pz = float(pos[0]), float(pos[1]), float(pos[2])
+            if kind == 'bed' and (py < 0.15 or scen == 'mattress'):
+                kind = 'mattress'
+            elif kind == 'stairs' and (py < 0.0 or scen == 'stairs_down'):
+                kind = 'stairs_down'
+            elif kind == 'slope' and scen in ('slope_down', 'cross_slope', 'asphalt'):
+                kind = scen
+            elif kind == 'slope' and py < -0.05:
+                kind = 'slope_down'
             dx, dz = px - gx, pz - gz
             dist = math.hypot(dx, dz)
             if dist > 8.0 or dist < 0.05:
                 continue
-            angle = math.atan2(dx, dz) - yaw_rad
-            angle = (angle + math.pi) % (2.0 * math.pi) - math.pi
-            if abs(angle) < math.radians(75.0) and dz > -0.4:
+            in_cone = False
+            for a_rad in cones:
+                angle = (math.atan2(dx, dz) - a_rad + math.pi) % (2.0 * math.pi) - math.pi
+                fwd = dx * math.sin(a_rad) + dz * math.cos(a_rad)
+                if abs(angle) < math.radians(75.0) and fwd > -0.4:
+                    in_cone = True
+                    break
+            if in_cone:
                 found.append({
                     'kind': kind,
                     'dist': dist,

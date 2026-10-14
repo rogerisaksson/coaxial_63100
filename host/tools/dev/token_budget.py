@@ -58,7 +58,7 @@ HEAVY = {
 }
 
 #: What is read, by extension.
-EXTENSIONS = ('.py', '.c', '.h', '.cs', '.md', '.ps1')
+EXTENSIONS = ('.py', '.c', '.h', '.cs', '.md', '.ps1', '.lisp')
 
 #: A file whose first line carries this is written by a tool, never read.
 GENERATED = 'not by hand'

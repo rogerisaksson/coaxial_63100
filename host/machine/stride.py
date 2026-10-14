@@ -116,7 +116,8 @@ def meets(xi, c, flat, cruise, om, turns, wide, across=0.0):
     step_s = np.pi / np.maximum(turns, TINY)
     grown = np.exp(om * step_s)
     led = LEADS * np.maximum((xi[ALONG] - c[ALONG]) - cruise / om, -0.04)
-    led_lat = (np.abs(across) > TINY) * clip((xi[LEFT] - c[LEFT]) - across / om, -0.045, 0.045)
+    s_ac = np.sign(across)
+    led_lat = s_ac * clip(s_ac * (xi[LEFT] - c[LEFT]) - 1.35 * np.abs(across) / om, -0.052, 0.042)
     meet = xi - np.stack([cruise * step_s / (grown - 1.0) - led + 0.0 * LIMBS,
                           -led_lat - LIMBS * wide / (grown + 1.0)], axis=1)
     return np.stack([c[ALONG] + clip(meet[:, ALONG] - c[ALONG], -REACH_M, REACH_M),
