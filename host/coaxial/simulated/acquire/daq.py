@@ -7,13 +7,14 @@ import time
 from typing import Any
 
 from coaxial.acquire.acquisition import Acquisition
-from coaxial.acquire.daq import REPLY_ROOM
+from coaxial.acquire.daq import REPLY_ROOM, Daq
 from coaxial.devices import angle, imu
 from coaxial.errors import RigError
 from coaxial.simulated.system import UNITS
 from coaxial.simulated.values import (ACCUMULATE_MAX, AMPS_PER_CODE, CHANNELS, DCBUS_V, MASK32,
                                       PHASE_LEG, RING_BYTES, TICKS_PER_US, PHASE_STEP,
                                       phase_codes, quiet_code)
+from tools.cores.stand import DaqCore
 
 #: What the injected group converts, by channel: the triple, the NTC, the DC link
 #: (Board_AdcInjected's CH_*). Under the drive's sync a software-clocked field outside it is
@@ -40,52 +41,29 @@ def _source_mask(sources):
 
 
 class SimulatedDaq(Acquisition):
-    """One acquisition task, without a converter."""
+    """One acquisition task, backed by DaqCore (`daq.c` and `filter.c`)."""
 
-    #: Records still owed after the last `acquire()` - the stand-in's
-    #: answer to the board's backlog field. A free-running task owes
-    #: nothing, because it invents each record as it is asked for.
     backlog = None
-
-    #: The line emulated, from the session's baud (10 Mbit/s an RS485 segment,
-    #: 115200 the probe's VCP); without it every reply is instant.
     baud = 115200
-
-    #: Bytes a reply carries beyond its records, plus the request: the board's
-    #: own frame arithmetic.
     FRAME_BYTES = 2 + 1 + 4 + 2 + 8
-
-    #: A transaction's fixed cost: t3.5 and the board's turnaround, measured
-    #: 1.75 and 2.70 ms on the port - what is left at 10 Mbit/s.
     TURNAROUND = 0.0
-
-    #: Channel index -> (signal, unit, differential), built from CHANNELS: a
-    #: written-out copy refused two supply senses the analog side reported.
-    TABLE = {c['index']: (c['signal'], UNITS.get(c['signal']),
-                          c['differential'])
+    TABLE = {c['index']: (c['signal'], UNITS.get(c['signal']), c['differential'])
              for c in CHANNELS}
     PHASES = tuple(c['index'] for c in CHANNELS if c['differential'])
 
     def __init__(self):
+        self._core = DaqCore(RING_BYTES)
         self._cfg = None
-        #: What the board wires after construction: its clock, so the
-        #: stamps share the sync's timebase; the drive the phases and
-        #: the gates follow; the sensors the snapshot fields read.
         self.clock: Any = None
         self.drive: Any = None
-        #: The thermal stand-in and the STO chain the quiet channels read (`quiet_code`), and
-        #: the calibration record a polled record goes through.
         self.thermal: Any = None
         self.sto: Any = None
         self.calibration: Any = None
         self.angle: Any = None
         self.imu: Any = None
-        #: The noise pool, drawn on first use, and where in it we are;
-        #: the ladder's rungs once a chain is configured; the wall clock
-        #: of the last software-clocked record.
         self._noise_pool: Any = None
         self._noise_at = 0
-        self._ladder = 0
+        self._shape = (0, 1)
         self._wall: Any = None
         self._order = []
         self._running = False
@@ -93,35 +71,18 @@ class SimulatedDaq(Acquisition):
         self._produced = 0
         self._at = 0
 
-    #: Line time owed, not yet slept: Windows cannot sleep under a millisecond
-    #: (at 10 Mbit/s, 292 us replies slept 2.878 s of a 4 s run), so it is banked
-    #: and paid when worth a sleep - the average rate is right.
     _owed = 0.0
-
-    #: Bank this much before sleeping it off.
     SLEEP_FLOOR = 0.002
-
-    #: Noise drawn once and cycled: per-record draws (401 200 gauss, 361 080
-    #: randint in 4 s at 10 Mbit/s) topped the profile.
     _POOL = 1021
 
     def _noise(self):
         """One unit-variance noise term, O(1) and no RNG call."""
         if self._noise_pool is None:
-            self._noise_pool = [random.gauss(0.0, 1.0)
-                                for _ in range(self._POOL)]
+            self._noise_pool = [random.gauss(0.0, 1.0) for _ in range(self._POOL)]
         self._noise_at = (self._noise_at + 1) % self._POOL
         return self._noise_pool[self._noise_at]
 
-    #: Each pin's duty over the window: a steady output reads steady (noise
-    #: printed `AFE 0.43` for a pin that is on); KEEPALIVE toggles at ~100 kHz,
-    #: near half; the gates stay down until armed.
-    STEADY = {'AFE_ON': 1.0, 'nFAULT/TIM1_BKIN': 1.0,
-              'KEEPALIVE': 0.5}
-
-    #: Where the electrical angle is, and when it was there. Advanced by
-    #: the drive's own omega, so a record's currents and the gate duties in
-    #: the same record are one rotation seen twice.
+    STEADY = {'AFE_ON': 1.0, 'nFAULT/TIM1_BKIN': 1.0, 'KEEPALIVE': 0.5}
     _theta = 0.0
     _theta_at = None
 
@@ -130,55 +91,32 @@ class SimulatedDaq(Acquisition):
         drive = self.drive
         if drive is None:
             return 0.0, 0.0, 0.0, 0.0
-
-        omega = drive._omega()                 # electrical rad/s
+        omega = drive._omega()
         self._theta = (self._theta + omega * seconds) % (2.0 * math.pi)
-
-        # The drive's own solution: what current it settled at and what voltage
-        # it needed, not the references it was handed.
         iid, iq, vd, vq = drive._dq()
         amps = math.hypot(iid, iq)
         volts = math.hypot(vd, vq)
-        # The link this stand-in reports, through its own scaling: the
-        # modulation index is what fraction of half the link the vector asks
-        # for, and it cannot exceed one.
         vdc = DCBUS_V
         index = min(1.0, (2.0 * volts / vdc) if vdc else 0.0)
         return self._theta, amps, index, math.atan2(vq, vd)
 
-
-    #: The phases' geometry and scale, `values` - one table for one board,
-    #: shared with the analog reads.
     PHASE_STEP = PHASE_STEP
     PHASE_LEG = PHASE_LEG
     AMPS_PER_CODE = AMPS_PER_CODE
-
-    #: The last (theta, amps, index, delta), so the pins in a record
-    #: use the angle its currents were taken at.
     _last_spin = (0.0, 0.0, 0.0, 0.0)
 
-    #: Which leg each gate belongs to, and whether it is the high side.
-    #: The board's own spelling, so this table and `PINS` agree by being
-    #: the same strings rather than by anyone keeping them in step.
     GATES = {'TIM1_CH1/PWMUH': (0, True), 'TIM1_CH1N/PWMUL': (0, False),
              'TIM1_CH2/PWMVH': (1, True), 'TIM1_CH2N/PWMVL': (1, False),
              'TIM1_CH3/PWMWH': (2, True), 'TIM1_CH3N/PWMWL': (2, False)}
 
-    #: The sensor fields' bits in the record's second mask (MINOR 7), in
-    #: `coaxial.rig.SENSOR_FIELDS` order: the quaternion, three vectors
-    #: with their IMU report ids, and the shaft.
     QUATERNION_BIT = 0
     VECTOR_BITS = {1: ('acceleration', imu.ACCELEROMETER),
                    2: ('rotation rate', imu.GYROSCOPE),
                    3: ('magnetic field', imu.MAGNETIC_FIELD)}
     SHAFT_BIT = 4
-    #: What an absent part answers: zeros, with have 0.
     NO_WORDS = (0, 0, 0, 0)
 
     def _sensor_words(self, bit):
-        """Four raw words, the board's own encodings - the shaft off the
-        same rotor the drive torques, the IMU off the poll record.
-        """
         if bit == self.SHAFT_BIT:
             return self._shaft_words()
         return self._imu_words(bit)
@@ -205,74 +143,62 @@ class SimulatedDaq(Acquisition):
                 int(v.get('z', 0.0) * scale), 3)
 
     def _pin_duty(self, signal):
-        """One pin's duty for one record."""
         gate = self.GATES.get(signal)
         if gate is not None:
             return self._gate_duty(*gate)
         level = self.STEADY.get(signal, 0.0)
         if level in (0.0, 1.0):
             return level
-        # Only what toggles gets jitter, and only a little.
         return min(1.0, max(0.0, level + self._noise() * 0.02))
 
     def _gate_duty(self, leg, high):
-        """One gate's duty at the angle the record's currents were taken."""
         theta, _amps, index, delta = self._last_spin
         if index <= 0.0:
-            return 0.0                # the stage is down; both gates idle
-        duty = 0.5 + (index / 2.0) * math.cos(
-            theta + delta - leg * self.PHASE_STEP)
+            return 0.0
+        duty = 0.5 + (index / 2.0) * math.cos(theta + delta - leg * self.PHASE_STEP)
         duty = min(1.0, max(0.0, duty))
         return duty if high else 1.0 - duty
 
     def _wire_time(self, records):
-        """What a reply of `records` costs on the emulated line."""
         if not self.baud:
             return 0.0
         octets = self.FRAME_BYTES + records * self._stride()
         return (octets * 10.0 / float(self.baud)) + self.TURNAROUND
 
     def _charge_line(self, records):
-        """Bank this reply's line time, and pay when it is worth it."""
         self._owed += self._wire_time(records)
         if self._owed < self.SLEEP_FLOOR:
             return
         began = time.time()
         time.sleep(self._owed)
-        # The sleep's overshoot comes off the next bill, capped at one floor
-        # so a stall is not repaid as a burst.
         self._owed = max(self._owed - (time.time() - began), -self.SLEEP_FLOOR)
 
     def _period_us(self):
         base = 20.0 if (self._cfg or {}).get('clock') == 'tim1' else 47.0
         cfg = self._cfg or {}
-        # A clock-closed record has no accumulate: multiplying by it gives a
-        # period of zero, every record the same timestamp and `dt` 0.0, so a
-        # host cannot tell how long a window covered.
         if not cfg.get('accumulate'):
             return float(cfg.get('interval_us') or base)
-        return base * cfg['decimate'] * cfg['accumulate']
+        return base * max(1, self._core.triggers_per_record())
 
     def state(self):
-        cfg = self._cfg or {'channels': 0, 'clock': 'software', 'sample_time': 0,
-                            'decimate': 0, 'accumulate': 0, 'records': 0}
-        held = self._buffered()
-        # DAQ_BYTES, and the board's number: 16384 was the ring before it moved
-        # into the AXI SRAM, and a stand-in quoting the old one reports a
-        # capacity no host would ever see.
-        capacity = RING_BYTES // max(1, self._stride())
+        cfg = dict(self._cfg or {'channels': 0, 'clock': 'software', 'sample_time': 0,
+                                 'decimate': 0, 'accumulate': 0, 'records': 0})
+        cs = self._core.state()
+        if self._cfg is not None:
+            cfg['accumulate'] = cs['accumulate']
+        held = cs['available'] + self._buffered()
+        stride = cs['stride'] or self._stride()
+        capacity = cs['capacity'] or (RING_BYTES // max(1, stride))
         return {'running': self._running, 'done': self._done,
                 'lost_power': False,
-                'stride': self._stride(), 'fields': len(self._order),
-                'available': held, 'produced': self._produced,
-                'dropped': 0, 'capacity': capacity,
-                'worst': min(capacity, held),
-                'rung': 0, 'rungs': self._ladder,
-                'rung_changes': 0,
-                # `cmd_link_records_per_second`, the board's own formula,
-                # against this stand-in's line.
+                'stride': stride, 'fields': len(self._order),
+                'available': held, 'produced': cs['produced'],
+                'dropped': cs['dropped'], 'capacity': capacity,
+                'worst': max(cs['worst'], min(capacity, held)),
+                'rung': cs['rung'], 'rungs': cs['rungs'],
+                'rung_changes': cs['rung_changes'],
                 'max_rate_hz': int(((self.baud // 10) * LINE_SHARE_PERCENT // 100)
-                                   // max(1, self._stride())),
+                                   // max(1, stride)),
                 'sensors_available': (1 << len(self.SENSORS)) - 1,
                 'sensors_supported': True,
                 **cfg}
@@ -307,8 +233,6 @@ class SimulatedDaq(Acquisition):
         one sum per field, the digital word when the task has one, and
         the sample count that closes every record.
         """
-        # One byte a pin, not one word: the pins go through the same window as
-        # everything else and come out as a duty.
         digital = len(self.PINS) if (self._cfg or {}).get('digital') else 0
         mask = (self._cfg or {}).get('sensors') or 0
         return (4 + 4 * len(self._order) + digital
@@ -366,6 +290,9 @@ class SimulatedDaq(Acquisition):
         if interval_us is None:
             interval_us = (0 if sample_rate is None
                            else int(1e6 / float(sample_rate)))
+        pins = len(self.PINS) if digital else 0
+        self._core.begin(order, accumulate, decimate, int(interval_us * TICKS_PER_US),
+                         pins, int(sensors), int(records), bool(adapt))
         self._cfg = {'channels': sum(1 << i for i in order), 'clock': clock,
                      'sample_time': sample_time, 'decimate': decimate,
                      'accumulate': accumulate, 'records': records,
@@ -376,23 +303,34 @@ class SimulatedDaq(Acquisition):
         return self.layout()
 
     def ladder(self, chains):
-        """Remembered, not climbed: what a ladder answers is what a real ring
-        does under a real link, and the stand-in has neither.
-        """
-        self._ladder = len(chains)
+        """Load the ladder of chains into the C acquisition core (`daq_set_rung`)."""
+        if not chains:
+            why = self._core.set_rung(0, 0, (), 1)
+            if why:
+                raise RigError('%s (simulated)' % why)
+            return True
+        for n, chain in enumerate(chains):
+            why = self._core.set_rung(n, chain['boxcar'], chain['sections'], chain['decimate'])
+            if why:
+                raise RigError('%s (simulated)' % why)
+        if self._cfg is not None:
+            self._cfg['accumulate'] = self._core.state()['accumulate']
         return True
 
     def shape(self, sections=(), decimate=1):
-        """Accepted and remembered; the stand-in invents values rather than
-        filtering them, and says so by changing nothing.
-        """
+        """Load the anti-alias chain into the C acquisition core (`daq_set_filter`)."""
+        why = self._core.set_filter(sections, decimate)
+        if why:
+            raise RigError('%s (simulated)' % why)
         self._shape = (len(sections), int(decimate))
         return True
 
     def tone(self, hz=0, rate_hz=0, amplitude=10000, offset=32768, kind=0):
-        """Remembered, not generated: proving a transfer needs the real ring
-        and the real link, which is what the tone is for.
-        """
+        """Configure the C acquisition core's tone generator (`daq_set_tone`)."""
+        why = self._core.set_tone(int(hz), int(rate_hz), int(amplitude), int(offset), int(kind),
+                                  int(TICKS_PER_US * 1e6), self._at)
+        if why:
+            raise RigError('%s (simulated)' % why)
         self._tone = (int(hz), int(rate_hz))
         return True
 
@@ -400,16 +338,12 @@ class SimulatedDaq(Acquisition):
         if self._cfg is None:
             raise RigError('the board refused to start - configure it first '
                            '(simulated)')
-        self._running = True
-        self._done = False
-        # Anchored where the clock is now, then advanced by the period: a
-        # record's stamp has to be on the same timebase the sync was made
-        # against, and monotone within a burst.
         if self.clock is not None:
             self._at = self.clock.read()['now']
+        self._core.start(self._at)
+        self._running = True
+        self._done = False
         self._produced = 0
-        # The clock's own cadence: what a read may answer is what the interval
-        # has produced since the last, `acquire`.
         self._wall = time.time()
         self._owed_records = 0.0
         return True
@@ -425,6 +359,7 @@ class SimulatedDaq(Acquisition):
         return max(0, self._cfg['records'] - self._produced)
 
     def stop(self):
+        self._core.stop()
         self._running = False
         return True
 
@@ -444,8 +379,9 @@ class SimulatedDaq(Acquisition):
         fit in the window when the clock closes it.
         """
         cfg = self._configured()
-        if cfg['accumulate']:
-            return cfg['accumulate']
+        acc = self._core.state()['accumulate'] or cfg['accumulate']
+        if acc:
+            return acc
         window_s = (cfg['interval_us'] or 0) / 1e6
         sweeps = self.LOOP_HZ / max(1, fields) * window_s
         return max(1, min(ACCUMULATE_MAX, int(sweeps)))
@@ -475,7 +411,8 @@ class SimulatedDaq(Acquisition):
     def acquire(self, want=0, layout=None):
         if not self._running and not self._buffered():
             return []
-        fields = (layout or self.layout())['fields']
+        lay = layout or self.layout()
+        fields = lay['fields']
         stride = 4 + 4 * len(fields)
         room = max(1, REPLY_ROOM // stride)
         n = min(int(want) or room, room)
@@ -486,43 +423,39 @@ class SimulatedDaq(Acquisition):
             return []
         left = cfg['records'] - self._produced if cfg['records'] else n
         n = max(0, min(n, left))
-        # The stamps track the wall clock.
         n, step_us = self._pace(n, self._period_us())
-        out = []
+        has_pins = bool(lay.get('pins'))
+        mask = cfg.get('sensors') or 0
+        tone_on = self._core.tone_on()
         for _ in range(n):
+            if tone_on:
+                triggers = max(1, self._core.triggers_per_record())
+                self._at = (self._at + triggers * max(1, self._core.tone_cycles())) & MASK32
+                self._core.tone_poll(self._at, triggers + 1)
+                continue
             self._at = (self._at + int(step_us * TICKS_PER_US)) & MASK32
             took = self._samples_per_record(len(fields))
-            rec = {'at': self._at, 'samples': took}
-            # The sum's noise, not one sample's.
             spread = math.sqrt(took * 1210.0)
-            # One rotation for the currents and the pins.
             self._last_spin = self._spin(step_us * 1e-6)
             theta, amps, _index, _delta = self._last_spin
-            for f in fields:
-                # Balanced three-phase on the phases, in codes: the dq solution the drive
-                # settled at, put back into the stator frame through the stand-in's own
-                # amps-per-code; the quiet channels the analog's own.
-                level = self._trimmed(f['channel'], quiet_code(f['channel'], self.thermal,
+            sums = [int(self._trimmed(f['channel'], quiet_code(f['channel'], self.thermal,
                                                                self.sto)
-                                      + phase_codes(f['signal'], amps, theta))
-                rec[f['signal']] = int(level * took) + int(spread * self._noise())
-            if (layout or self.layout()).get('pins'):
-                # A duty like the board's, not a level: 0.0 to 1.0 of the
-                # window the record covers.
-                rec['digital'] = {p['signal']: self._pin_duty(p['signal'])
-                                  for p in self.PINS}
-            mask = (self._cfg or {}).get('sensors') or 0
-            if mask:
-                rec['sensors'] = {name: self._sensor_words(b)
-                                  for b, name in enumerate(self.SENSORS)
-                                  if mask & (1 << b)}
-            out.append(rec)
-        self._produced += n
-        if cfg['records'] and self._produced >= cfg['records']:
+                                      + phase_codes(f['signal'], amps, theta)) * took)
+                    + int(spread * self._noise())
+                    for f in fields]
+            duties = ([int(round(self._pin_duty(p['signal']) * 255.0)) for p in self.PINS]
+                      if has_pins else None)
+            sensors = ({b: self._sensor_words(b) for b in range(len(self.SENSORS))
+                        if mask & (1 << b)} if mask else None)
+            self._core.push_window(sums, took, self._at, duties, sensors)
+        blob = self._core.take(n, lay['stride'])
+        out = self.decode(blob, lay) if blob else []
+        cs = self._core.state()
+        self._produced = cs['produced']
+        if cs['done']:
             self._running = False
             self._done = True
         self.backlog = self._buffered()
-        # The line's time, charged.
         self._charge_line(len(out))
         return out
 
@@ -532,11 +465,14 @@ class SimulatedDaq(Acquisition):
         record = self.calibration
         return code if record is None else record.apply(index, code)
 
+    _record = staticmethod(Daq._record)
+
     def decode(self, blob, layout=None):
-        """Records out of raw record bytes, as the board's decoder does."""
-        layout = layout or self.layout()
-        stride = layout['stride'] or 1
-        return self.acquire(want=len(blob) // stride, layout=layout)
+        """Records out of raw record bytes, decoded by the board's own wire format (`Daq.decode`)."""
+        lay = layout or self.layout()
+        if not blob:
+            return []
+        return Daq.decode(self, blob, lay)
 
     def latest(self, layout=None, block=True, timeout=2.0, poll=0.002):
         if not self._running and not block:
@@ -547,23 +483,30 @@ class SimulatedDaq(Acquisition):
         layout = layout or self.layout()
         base = random.randint(8, 40)
         self._at = (self._at + base * 9500) & MASK32
-        out = {'first': self._at, 'last': self._at, 'sum': {}, 'count': {},
-               'lowest': {}, 'highest': {}}
         drive = self.drive
         amps, theta = drive._carrying() if drive is not None else (0.0, 0.0)
-        for f in layout['fields']:
-            # A channel or two behind the rest, the way the real poll leaves
-            # them: it reads one per turn and a take lands mid-sweep.
+        digital = random.getrandbits(len(self.PINS))
+        for idx, f in enumerate(layout['fields']):
             n = base - random.randint(0, 1)
             centre = self._trimmed(f['channel'], quiet_code(f['channel'], self.thermal, self.sto)
                                    + phase_codes(f['signal'], amps, theta))
-            out['sum'][f['signal']] = sum(centre + random.randint(-60, 60) for _ in range(n))
-            out['count'][f['signal']] = n
-            out['lowest'][f['signal']] = centre - 60
-            out['highest'][f['signal']] = centre + 60
+            self._core.live_insert(idx, centre - 60, self._at, digital)
+            self._core.live_insert(idx, centre + 60, self._at, digital)
+            for _ in range(max(0, n - 2)):
+                self._core.live_insert(idx, centre + random.randint(-60, 60), self._at, digital)
+        _fresh, first, last, dig, slots = self._core.take_live()
+        out = {'first': first, 'last': last, 'sum': {}, 'count': {},
+               'lowest': {}, 'highest': {}}
+        for idx, f in enumerate(layout['fields']):
+            s_sum, s_cnt, s_lo, s_hi = slots[idx]
+            sig = f['signal']
+            out['sum'][sig] = s_sum
+            out['count'][sig] = s_cnt
+            out['lowest'][sig] = s_lo
+            out['highest'][sig] = s_hi
         out['mean'] = {k: (v / out['count'][k] if out['count'][k] else None)
                        for k, v in out['sum'].items()}
         if layout.get('pins'):
-            out['digital'] = {p['signal']: bool(random.getrandbits(1))
-                              for p in self.PINS}
+            out['digital'] = {p['signal']: bool((dig >> i) & 1)
+                              for i, p in enumerate(self.PINS)}
         return out

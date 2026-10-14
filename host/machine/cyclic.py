@@ -96,11 +96,14 @@ def speed_kalman(s: NDArray, u: NDArray) -> NDArray:
 
 
 def pi(s: NDArray, u: NDArray) -> NDArray:
-    """u: dt, setpoint, measured. Clamped to +/-limit, the integrator held while clamped."""
+    """u: dt, setpoint, measured[, most]. Clamped to +/-limit, the integrator held while clamped
+    and within most."""
     e = u[1] - u[2]
+    room = np.minimum(s['limit'], u[3]) if len(u) > 3 else s['limit']
+    s['x'] = np.clip(s['x'], -room, room)
     raw = s['kp'] * e + s['x']
     y = np.clip(raw, -s['limit'], s['limit'])
-    s['x'] += np.where(y == raw, s['ki'] * e * u[0], 0.0)
+    s['x'] = np.where(y == raw, np.clip(s['x'] + s['ki'] * e * u[0], -room, room), s['x'])
     return y
 
 

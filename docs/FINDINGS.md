@@ -134,8 +134,26 @@ table under [Subjects](#subjects).
     functions, 358 branches, 53 divides; on Renode the virtual plant's ISR 1
     728 -> 1 682 instructions, its advance 320 -> 274.
   + newlib-nano's `memset`/`memcpy` a byte a turn; the board's own a word a
-    turn in ITCM (`board_mem.c`). Left outside ITCM: a mode change's two NVIC
-    calls.
+    turn in ITCM (`board_mem.c`).
+  + Second pass: `TIM1_UP_IRQn` enabled once in `Board_PwmInit` with `UIE`
+    clear on `TIM1->DIER` so `update_irq` toggles `DIER` alone; `ADC3_IRQHandler`
+    returns on `Board_SyncIrq` without `HAL_ADC_IRQHandler` and its 8 callbacks;
+    `Board_DaqOnInjected` reads `&s.daq` directly; `drive_sincos` and
+    `drive_wrap` fold on `vrintm`/`vminnm`/`vmaxnm`/`vabs` (0 branches, 0
+    divides); `step_flux` multiplies by `1 + j wc / speed` without `sqrtf`,
+    `drive_atan2` or `drive_sincos`; `Board_DriveOnSample` caches `s.arr` and
+    rounds on `vrintr`. Result: `ADC3_IRQHandler` 76 -> 60 functions, 4 204 ->
+    3 654 instructions, 396 -> 306 branches, 54 -> 47 divides, outside ITCM 0;
+    `TIM1_UP_IRQHandler` 8 -> 4 functions, 201 -> 171 instructions, 23 -> 21
+    branches, 0 divides, outside ITCM 0.
+  + Ranked remaining in `ADC3_IRQHandler` (unavoidable): `drive_step` (884 ins,
+    61 br, 9 div: mode dispatch, trip checks, `drive_atan2` octant folds, SVM
+    overmodulation scale), `push_record`/`daq_feed` (249/95 ins, 33/16 br, 8/0
+    div: ring/ladder watermarks and pin duty division at window close),
+    `Board_DriveOnSample` (163 ins, 13 br, 0 div: source select, trip vs commit,
+    log guard), `drive_observer_step` (209 ins, 10 br, 6 div: flux norms and
+    `drive_atan2`), `current_loop` (107 ins, 10 br, 1 div: `vsqrt` circle room
+    and anti-windup).
 
 ## IMU (BNO085)
 

@@ -345,19 +345,22 @@ void Board_SyncState(board_sync_state_t *out)
 
 bool Board_SyncIrq(void)
 {
-  /* Once a PWM period: HAL_ADC_IRQHandler reads CFGR, JSQR and the common CCR
-     to decide a hardware-triggered group keeps its interrupts, which it does;
-     an overrun, a watchdog or the regular group still goes to HAL. */
+  /* Once a PWM period: the injected group's end of sequence and its queue
+     overflow are the only two flags HAL_ADCEx_InjectedStart_IT enables on
+     ADC3. */
   const uint32_t isr = ADC3->ISR;
 
-  if (((isr & ADC_FLAG_JEOS) == 0U)
-      || ((isr & (ADC_FLAG_JQOVF | ADC_FLAG_OVR | ADC_FLAG_AWD1 | ADC_FLAG_AWD2
-                  | ADC_FLAG_AWD3)) != 0U))
+  if ((isr & ADC_FLAG_JQOVF) != 0U)
+  {
+    s.overruns++;
+    ADC3->ISR = ADC_FLAG_JQOVF;
+  }
+  if ((isr & ADC_FLAG_JEOS) == 0U)
   {
     return false;
   }
   SET_BIT(hadc3.State, HAL_ADC_STATE_INJ_EOC);
-  HAL_ADCEx_InjectedConvCpltCallback(&hadc3);
+  Board_SyncOnInjected(&hadc3);
   ADC3->ISR = ADC_FLAG_JEOC | ADC_FLAG_JEOS;
   return true;
 }

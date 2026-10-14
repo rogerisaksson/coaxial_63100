@@ -7,10 +7,11 @@
 /** Periods from the step that asks for a duty to the sample that shows it. */
 #define PIPELINE 2U
 
-#define PI_F       3.1415927f
-#define TWO_PI_F   6.2831853f
-#define HALF_SQRT3 0.8660254f
-#define INV_SQRT3  0.57735027f
+#define PI_F         3.1415927f
+#define TWO_PI_F     6.2831853f
+#define INV_TWO_PI_F 0.15915494f
+#define HALF_SQRT3   0.8660254f
+#define INV_SQRT3    0.57735027f
 
 /** The back-EMF's speed filter, s: thirty of the current loop's 64 us, so a torque step's
     L di/dt, which the magnitude does not subtract, passes as a thirtieth of itself. */
@@ -226,7 +227,7 @@ void drive_moments_feed(drive_t *d, const int32_t *codes)
 
 static float clampf(float x, float lo, float hi)
 {
-  return (x < lo) ? lo : ((x > hi) ? hi : x);
+  return fminf(fmaxf(x, lo), hi);
 }
 
 /** How much of the angle error comes from the back-EMF, 0..1 by speed. */
@@ -424,7 +425,7 @@ static void rotor_observer(drive_t *d, float alpha, float beta, bool injecting,
 
   if (have)
   {
-    e = e - TWO_PI_F * floorf((e + PI_F) / TWO_PI_F);   /* to (-pi, pi] */
+    e = e - TWO_PI_F * floorf((e + PI_F) * INV_TWO_PI_F);   /* to (-pi, pi] */
     d->theta_hat += d->p.l1 * e;
     d->omega_hat += d->p.l2 * e;
     d->eps = e;
@@ -483,7 +484,7 @@ static float polarity(drive_t *d, float id)
   if (at < p)
   {
     v = d->sp.pol_volts;
-    d->pol_pos = (fabsf(id) > d->pol_pos) ? fabsf(id) : d->pol_pos;
+    d->pol_pos = fmaxf(fabsf(id), d->pol_pos);
   }
   else if (at < (p + g))
   {
@@ -492,7 +493,7 @@ static float polarity(drive_t *d, float id)
   else if (at < (2U * p + g))
   {
     v = -d->sp.pol_volts;
-    d->pol_neg = (fabsf(id) > d->pol_neg) ? fabsf(id) : d->pol_neg;
+    d->pol_neg = fmaxf(fabsf(id), d->pol_neg);
   }
   else if (at >= (2U * p + 2U * g))
   {
@@ -626,7 +627,7 @@ static void window_add(drive_t *d, float id, float iq, float vd, float vq,
   acc_add(&d->win.acc[DRIVE_ACC_VQ], vq);
   acc_add(&d->win.acc[DRIVE_ACC_VDC], vdc);
   d->win.n++;
-  d->win.i_peak = (peak > d->win.i_peak) ? peak : d->win.i_peak;
+  d->win.i_peak = fmaxf(peak, d->win.i_peak);
 }
 
 bool drive_step(drive_t *d, const drive_sample_t *in, bool stage_enabled,

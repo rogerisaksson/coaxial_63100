@@ -273,21 +273,24 @@ static void push_record(daq_t *d)
   /* The sensor snapshots, after the pins and before the count: an appended
      field, seen only by a host that asked for it, read once so the fields
      are one instant. */
-  int16_t words[DAQ_MAX_SENSORS][DAQ_SENSOR_WORDS] = {{0}};
+  if (d->task.sensors != 0U)
+  {
+    int16_t words[DAQ_MAX_SENSORS][DAQ_SENSOR_WORDS] = {{0}};
 
-  if ((d->task.sensors != 0U) && (d->snapshot != NULL))
-  {
-    d->snapshot(d->ctx, d->task.sensors, words);
-  }
-  for (uint8_t b = 0U; b < DAQ_MAX_SENSORS; b++)
-  {
-    if ((d->task.sensors & (1U << b)) == 0U)
+    if (d->snapshot != NULL)
     {
-      continue;
+      d->snapshot(d->ctx, d->task.sensors, words);
     }
-    for (uint8_t w = 0U; w < DAQ_SENSOR_WORDS; w++)
+    for (uint8_t b = 0U; b < DAQ_MAX_SENSORS; b++)
     {
-      at = put_be16(rec, at, (uint16_t)words[b][w]);
+      if ((d->task.sensors & (1U << b)) == 0U)
+      {
+        continue;
+      }
+      for (uint8_t w = 0U; w < DAQ_SENSOR_WORDS; w++)
+      {
+        at = put_be16(rec, at, (uint16_t)words[b][w]);
+      }
     }
   }
 
@@ -414,6 +417,36 @@ void daq_feed(daq_t *d, const int32_t *values, uint32_t at, uint32_t digital)
 
   /* Swallowed by the decimation: the window is over, so the accumulator
      starts the next one. */
+  clear_window(d);
+}
+
+void daq_window(daq_t *d, const int32_t *sums, uint16_t count, uint32_t at,
+                const uint8_t *duties)
+{
+  if (!d->running || (count == 0U))
+  {
+    return;
+  }
+  d->first_at = at;
+  d->acc_n = count;
+  d->triggers += (uint32_t)count * (uint32_t)d->task.decimate;
+  for (uint8_t f = 0U; f < d->task.fields; f++)
+  {
+    d->acc[f] = sums[f];
+    d->pending[f] = sums[f] / (int32_t)count;
+  }
+  if (duties != NULL)
+  {
+    for (uint8_t p = 0U; (p < d->task.pins) && (p < DAQ_MAX_PINS); p++)
+    {
+      d->dacc[p] = (uint16_t)(((uint32_t)duties[p] * count + (DUTY_FULL / 2U)) / DUTY_FULL);
+    }
+  }
+  if ((d->task.accumulate == 0U) || !d->filtering || shaped_ready(d))
+  {
+    push_record(d);
+    return;
+  }
   clear_window(d);
 }
 

@@ -126,6 +126,38 @@ enum { WORLD_STAND_STATE, WORLD_STAND_BUDGET, WORLD_STAND_IDENT, WORLD_STAND_NET
 /** View `what` of slot `i` into `out`; how many floats. */
 int world_stand_read(int i, int what, float *out);
 
+/* ---- the STO chain and acquisition engine (coaxial.simulated) -------------- */
+
+uint32_t stand_sto_bytes(void);
+void stand_sto_init(void *mem);
+void stand_sto_step(void *mem, float dt, const float *in, int pumping, float *out);
+
+uint32_t stand_daq_bytes(void);
+void stand_daq_init(void *mem, uint8_t *ring, uint32_t bytes);
+void stand_daq_begin(void *mem, const uint8_t *order, uint8_t fields, uint16_t accumulate,
+                     uint16_t decimate, uint32_t interval_cycles, uint8_t pins,
+                     uint16_t sensors, uint32_t records, int adapt);
+int stand_daq_start(void *mem, uint32_t now);
+void stand_daq_stop(void *mem);
+const char *stand_daq_set_filter(void *mem, const float *coeffs, uint8_t count,
+                                 uint16_t decimate);
+const char *stand_daq_set_rung(void *mem, uint8_t rung, uint16_t boxcar, const float *coeffs,
+                               uint8_t count, uint16_t decimate);
+const char *stand_daq_set_tone(void *mem, uint32_t hz, uint32_t rate_hz, int32_t amplitude,
+                               int32_t offset, uint8_t kind, uint32_t cycles_per_second,
+                               uint32_t now);
+int stand_daq_tone_on(const void *mem);
+uint32_t stand_daq_tone_cycles(const void *mem);
+void stand_daq_tone_poll(void *mem, uint32_t now, uint32_t burst);
+uint32_t stand_daq_triggers_per_record(const void *mem);
+void stand_daq_window(void *mem, const int32_t *sums, uint16_t count, uint32_t at,
+                      const uint8_t *duties, const int16_t *sensors);
+uint16_t stand_daq_take(void *mem, uint8_t *out, uint16_t max_records);
+void stand_daq_live_insert(void *mem, uint8_t field, int32_t value, uint32_t at,
+                           uint32_t digital);
+int stand_daq_take_live(void *mem, uint32_t *meta, int32_t *slots);
+void stand_daq_state(const void *mem, uint32_t *out);
+
 #ifdef __cplusplus
 }
 #endif

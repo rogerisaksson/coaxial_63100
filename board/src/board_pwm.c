@@ -75,19 +75,16 @@ static void leave_direct(void)
   s.to_direct = false;
 }
 
-/* The update interrupt, which the dither, the dead-time skew and the drive's
-   landing all need. */
+/* TIM1_UP_IRQn stays enabled in the NVIC from Board_PwmInit. */
 static void update_irq(bool wanted)
 {
   if (wanted)
   {
     TIM1->DIER |= TIM_DIER_UIE;
-    HAL_NVIC_EnableIRQ(TIM1_UP_IRQn);
   }
   else
   {
     TIM1->DIER &= ~TIM_DIER_UIE;
-    HAL_NVIC_DisableIRQ(TIM1_UP_IRQn);
   }
 }
 
@@ -666,9 +663,10 @@ bool Board_PwmInit(void)
     return false;
   }
 
-  /* The dither's update interrupt is not enabled here: one that does
-     nothing should not run at 50 kHz. */
+  /* Enabled in the NVIC with UIE clear on DIER: one that does nothing does
+     not run at 50 kHz, and turning UIE on and off in ISR stays in ITCM. */
   HAL_NVIC_SetPriority(TIM1_UP_IRQn, 2, 0);
+  HAL_NVIC_EnableIRQ(TIM1_UP_IRQn);
 
   /* The six gate signals, at a speed CubeMX does not set. */
   {

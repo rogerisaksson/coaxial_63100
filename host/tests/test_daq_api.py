@@ -167,6 +167,14 @@ def test_configure_takes_a_designed_chain(report):
         report.check('and loads its sections and decimation',
                      device.board.daq._shape == (len(chain['sections']), chain['decimate']),
                      device.board.daq._shape)
+        spans = []
+        for hz in (20, 5000):
+            device.board.daq.tone(hz=hz, rate_hz=20000, amplitude=10000, offset=32768)
+            vals = [r.value('NTC') for r in device.daq.collect(40, timeout=5.0).records[10:]]
+            spans.append(max(vals) - min(vals))
+        device.board.daq.tone(hz=0)
+        report.check('the C filter core passes 20 Hz and attenuates 5 kHz',
+                     spans[0] > 15000 and spans[1] < 200, spans)
 
 
 def test_read_of_a_finite_run(report):

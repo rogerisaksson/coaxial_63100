@@ -44,7 +44,8 @@ SOURCES = fakeboard.SOURCES + [
                  'board_log.c')] + [
     os.path.join(REPO, 'board', 'native', name)
     for name in ('native.c', 'native_io.c', 'native_a1335.c', 'native_bno085.c')] + [
-    os.path.join(REPO, 'world', 'src', name) for name in ('world_heat.c', 'world_sto.c')]
+    os.path.join(REPO, 'world', 'src', name)
+    for name in ('world_heat.c', 'world_sto.c', 'world_parts.c', 'world_bno085.c')]
 
 #: board/native first - its stm32h7xx.h, main.h and board_irq.h stand in for the part's - then
 #: board/inc, whose board_hw.h the board layer takes over board/fake's.

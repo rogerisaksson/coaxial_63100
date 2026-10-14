@@ -30,6 +30,7 @@ static struct
   float i_k[BOARD_PWM_PHASES];
   int32_t v_off;
   float v_k;
+  float arr;
 } s = {
   .derate = 1.0f, .i_max_cal = 0.0f
 };
@@ -131,11 +132,14 @@ void Board_DriveInit(void)
 {
   /* Centre-aligned, so a period is twice ARR ticks of the timer clock, which
      is half SYSCLK. */
-  const uint32_t ticks = 2U * (Board_PwmPeriod() - 1U);
+  const uint32_t period = Board_PwmPeriod();
+  const uint32_t arr = (period > 0U) ? (period - 1U) : 0U;
+  const uint32_t ticks = 2U * arr;
   const uint32_t hz = Board_SysClkHz() / 2U;
   const float ts = ((ticks != 0U) && (hz != 0U))
                    ? ((float)ticks / (float)hz) : 20e-6f;
 
+  s.arr = (float)arr;
   drive_init(&s.drive, ts);
   s.drive.cycles = Board_Cycles;
   Board_DriveParamsFromCal();
@@ -370,11 +374,11 @@ static void own_pwm(void)
   s.owned = true;
 }
 
-/* Half away from zero: lrintf is a library call from ITCM, seven a period.
-   */
+/* vrintr.f32 on Cortex-M7: one instruction, no branch; lrintf is a library
+   call from ITCM. */
 static inline int32_t rounded(float x)
 {
-  return (int32_t)((x < 0.0f) ? (x - 0.5f) : (x + 0.5f));
+  return (int32_t)nearbyintf(x);
 }
 
 /** What the law's duties do to the compares this period: nothing while the
@@ -386,7 +390,7 @@ static void commit_duties(const drive_out_t *out, bool enabled)
   if (enabled && out->driven)
   {
     uint16_t ticks[BOARD_PWM_PHASES];
-    const float arr = (float)(Board_PwmPeriod() - 1U);
+    const float arr = s.arr;
 
     for (uint8_t k = 0U; k < BOARD_PWM_PHASES; k++)
     {
@@ -455,7 +459,7 @@ void Board_DriveOnSample(const int16_t *phase, uint32_t dcbus_raw)
     const int16_t logged[4] = {
       (int16_t)rounded(s.drive.id * CENTI_PER_UNIT),
       (int16_t)rounded(s.drive.iq * CENTI_PER_UNIT),
-      (int16_t)(uint16_t)rounded(s.drive.theta_hat / TWO_PI_F * CODES_PER_TURN),
+      (int16_t)(uint16_t)rounded(s.drive.theta_hat * (CODES_PER_TURN / TWO_PI_F)),
       (int16_t)rounded(s.drive.eps * LOG_EPS_SCALE),
     };
 

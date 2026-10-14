@@ -483,7 +483,7 @@ void Board_DaqPoll(void)
 
 void Board_DaqOnInjected(const board_sync_sample_t *sample)
 {
-  daq_t *d = engine();
+  daq_t *d = &s.daq;
   int32_t values[DAQ_MAX_CHANNELS];
 
   if (!d->running || (s.cfg.clock != BOARD_DAQ_CLOCK_TIM1) ||

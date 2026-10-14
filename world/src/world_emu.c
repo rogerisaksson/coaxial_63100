@@ -5,6 +5,7 @@
    in, scalars out: nothing for P/Invoke to marshal but floats. */
 #include "world.h"
 #include "world_heat.h"
+#include "world_parts.h"
 #include "world_sto.h"
 
 #include <math.h>
@@ -12,18 +13,24 @@
 
 static struct
 {
-  world_t       world;
-  world_plant_t plant[WORLD_MOTORS];
-  double        t[WORLD_MOTORS];     /* each plant's own time, s */
-  bool          attached[WORLD_MOTORS];
-  world_heat_t  heat[WORLD_MOTORS];
-  world_sto_t   sto[WORLD_MOTORS];
+  world_t        world;
+  world_plant_t  plant[WORLD_MOTORS];
+  double         t[WORLD_MOTORS];     /* each plant's own time, s */
+  bool           attached[WORLD_MOTORS];
+  world_heat_t   heat[WORLD_MOTORS];
+  world_sto_t    sto[WORLD_MOTORS];
+  world_afe_t    afe[WORLD_MOTORS];
+  world_a1335_t  a1335[WORLD_MOTORS];
+  world_bno085_t bno085[WORLD_MOTORS];
 } s;
 
 /** A fresh world of `motors` loads, all free, on the ground. */
 void emu_world_reset(int motors)
 {
-  memset(&s, 0, sizeof(s));
+  memset(&s.world, 0, sizeof(s.world));
+  memset(s.plant, 0, sizeof(s.plant));
+  memset(s.t, 0, sizeof(s.t));
+  memset(s.attached, 0, sizeof(s.attached));
   s.world.motors = (uint8_t)((motors > (int)WORLD_MOTORS) ? WORLD_MOTORS : (unsigned)motors);
   s.world.body.gravity = 9.81f;
   world_init(&s.world);
@@ -305,3 +312,220 @@ void emu_sto_step(int i, float dt, const float *in, int edges, const float *at, 
   out[3] = pins.faultout;
   out[4] = pins.vgate;
 }
+
+/** Board `i`'s analog front end: init, reset, seed draw, field write and pin read. */
+void emu_afe_init(int i)
+{
+  if ((i >= 0) && (i < (int)WORLD_MOTORS))
+  {
+    world_afe_init(&s.afe[i]);
+  }
+}
+
+void emu_afe_reset(int i)
+{
+  if ((i >= 0) && (i < (int)WORLD_MOTORS))
+  {
+    world_afe_reset(&s.afe[i]);
+  }
+}
+
+void emu_afe_draw(int i, uint32_t seed)
+{
+  if ((i >= 0) && (i < (int)WORLD_MOTORS))
+  {
+    world_afe_draw(&s.afe[i], seed);
+  }
+}
+
+void emu_afe_set(int i, int field, double value)
+{
+  if ((i < 0) || (i >= (int)WORLD_MOTORS))
+  {
+    return;
+  }
+  world_afe_t *a = &s.afe[i];
+
+  switch (field)
+  {
+    case 0:  a->powered = (value != 0.0); break;
+    case 1:  a->amps[0] = value; break;
+    case 2:  a->amps[1] = value; break;
+    case 3:  a->amps[2] = value; break;
+    case 4:  a->dc = value; break;
+    case 5:  a->ntc_c = value; break;
+    case 6:  a->die_c = value; break;
+    case 7:  a->rail5 = value; break;
+    case 8:  a->gate = value; break;
+    case 9:  a->clevel = value; break;
+    case 10: a->cinj = value; break;
+    case 11: a->ref = value; break;
+    case 12: a->v_per_a = value; break;
+    case 13: a->zero_v = value; break;
+    case 14: a->gain_sigma = value; world_afe_draw(a, a->seed); break;
+    case 15: a->zero_sigma = value; world_afe_draw(a, a->seed); break;
+    case 16: a->bus_sigma = value; world_afe_draw(a, a->seed); break;
+    case 17: a->bus_top = value; break;
+    case 18: a->bus_bottom = value; break;
+    case 19: a->ntc_r25 = value; break;
+    case 20: a->ntc_beta = value; break;
+    case 21: a->ntc_fixed = value; break;
+    case 22: a->r5_top = value; break;
+    case 23: a->r5_bottom = value; break;
+    case 24: a->gate_top = value; break;
+    case 25: a->gate_bottom = value; break;
+    case 26: a->die_at30 = value; break;
+    case 27: a->die_per_k = value; break;
+    case 28: a->noise = value; break;
+    default: break;
+  }
+}
+
+double emu_afe_volts(int i, int pin)
+{
+  if ((i < 0) || (i >= (int)WORLD_MOTORS))
+  {
+    return 0.0;
+  }
+  return world_afe_volts(&s.afe[i], (world_pin_t)pin);
+}
+
+double emu_afe_die_volts(int i, double celsius)
+{
+  if ((i < 0) || (i >= (int)WORLD_MOTORS))
+  {
+    return 0.0;
+  }
+  return world_afe_die_volts(&s.afe[i], celsius);
+}
+
+/** Board `i`'s A1335 on SPI4. */
+void emu_a1335_open(int i)
+{
+  if ((i >= 0) && (i < (int)WORLD_MOTORS))
+  {
+    world_a1335_open(&s.a1335[i]);
+  }
+}
+
+void emu_a1335_reset(int i)
+{
+  if ((i >= 0) && (i < (int)WORLD_MOTORS))
+  {
+    world_a1335_reset(&s.a1335[i]);
+  }
+}
+
+void emu_a1335_select(int i, int level, int powered, double degrees, double celsius)
+{
+  if ((i >= 0) && (i < (int)WORLD_MOTORS))
+  {
+    world_a1335_select(&s.a1335[i], level != 0, powered != 0, degrees, celsius);
+  }
+}
+
+uint8_t emu_a1335_transmit(int i, uint8_t word, int powered)
+{
+  if ((i < 0) || (i >= (int)WORLD_MOTORS))
+  {
+    return 0U;
+  }
+  return world_a1335_transmit(&s.a1335[i], word, powered != 0);
+}
+
+void emu_a1335_gauss(int i, double gauss)
+{
+  if ((i >= 0) && (i < (int)WORLD_MOTORS))
+  {
+    s.a1335[i].gauss = gauss;
+  }
+}
+
+/** Board `i`'s BNO085 on SPI2. */
+void emu_bno085_open(int i)
+{
+  if ((i >= 0) && (i < (int)WORLD_MOTORS))
+  {
+    world_bno085_open(&s.bno085[i]);
+  }
+}
+
+void emu_bno085_reset(int i)
+{
+  if ((i >= 0) && (i < (int)WORLD_MOTORS))
+  {
+    world_bno085_reset(&s.bno085[i]);
+  }
+}
+
+void emu_bno085_pin(int i, int which, int level, int powered)
+{
+  if ((i >= 0) && (i < (int)WORLD_MOTORS))
+  {
+    world_bno085_pin(&s.bno085[i], (uint8_t)which, level != 0, powered != 0);
+  }
+}
+
+uint8_t emu_bno085_transmit(int i, uint8_t byte)
+{
+  if ((i < 0) || (i >= (int)WORLD_MOTORS))
+  {
+    return 0U;
+  }
+  return world_bno085_transmit(&s.bno085[i], byte);
+}
+
+int emu_bno085_interrupt(int i, int powered)
+{
+  if ((i < 0) || (i >= (int)WORLD_MOTORS))
+  {
+    return 1;
+  }
+  return world_bno085_interrupt(&s.bno085[i], powered != 0) ? 1 : 0;
+}
+
+int emu_bno085_active(int i)
+{
+  if ((i < 0) || (i >= (int)WORLD_MOTORS))
+  {
+    return 0;
+  }
+  return world_bno085_active(&s.bno085[i]) ? 1 : 0;
+}
+
+void emu_bno085_tick(int i, int powered)
+{
+  if ((i >= 0) && (i < (int)WORLD_MOTORS))
+  {
+    world_bno085_tick(&s.bno085[i], powered != 0);
+  }
+}
+
+double emu_bno085_read(int i, int index)
+{
+  if ((i < 0) || (i >= (int)WORLD_MOTORS))
+  {
+    return 0.0;
+  }
+  return world_bno085_read(&s.bno085[i], index);
+}
+
+void emu_bno085_pipe(int i, int index, double value)
+{
+  if ((i >= 0) && (i < (int)WORLD_MOTORS))
+  {
+    world_bno085_pipe(&s.bno085[i], index, value);
+  }
+}
+
+void emu_bno085_rates(int i, double roll, double pitch, double yaw, int piped)
+{
+  if ((i >= 0) && (i < (int)WORLD_MOTORS))
+  {
+    s.bno085[i].roll_rate = roll;
+    s.bno085[i].pitch_rate = pitch;
+    s.bno085[i].yaw_rate = yaw;
+    s.bno085[i].piped = (piped != 0);
+  }
+}
+

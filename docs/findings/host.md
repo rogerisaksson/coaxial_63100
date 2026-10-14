@@ -98,6 +98,11 @@ Pages, tooling, suites and the local model's runner. The board's findings:
   its angle and its guard) and a stand-in's, ticked in the slot's own
   sample; the stand-in's thread and its 200 Hz gone. QUAD's rotors on it
   ([quad](quad.md)).
+- Acquisition, STO and peripheral models on the C (`world_stand.c`,
+  `world_parts.c`, `world_bno085.c`, `world_emu.c`): `SimulatedDaq` runs on
+  `daq.c` and `filter.c` (`daq_window`), `SimulatedSto` on `world_sto.c`, and
+  `board/native` and `board/emu` share `world_afe_t`, `world_a1335_t` and
+  `world_bno085_t`; a model change is one change in every executive.
 
 ## Pages
 

@@ -314,4 +314,15 @@ it names. A closed item is cut from the list and gets its line here, last.
     at `0.0 rad`); paused on Renode through the 5 s `+-200 rpm` rock, `theta_hat`
     against `plant Shaft` stays within `0.138 rad` (`0.039 rad` mean, `0.117 rad`
     on `native://`, `0.100 rad` on the drive core) ([drive](findings/drive.md)).
+74. One code, several executives (`world/src/world_stand.c`,
+    `world/src/world_parts.c`, `world/src/world_bno085.c`,
+    `world/src/world_emu.c`, `daq/src/daq.c`, `drive/src/drive_math.c`,
+    `drive/src/drive_observer.c`, `board/src/board_pwm.c`,
+    `board/src/board_sync.c`): `SimulatedDaq` on `daq.c` and `filter.c`,
+    `SimulatedSto` on `world_sto.c`, and `world_afe_t`, `world_a1335_t` and
+    `world_bno085_t` shared between `board/native` and `board/emu`; hot paths
+    cut to 0 functions outside ITCM (`ADC3_IRQHandler` 76 -> 60 functions,
+    396 -> 306 branches, 54 -> 47 divides; `TIM1_UP_IRQHandler` 8 -> 4
+    functions, 0 divides) and the remaining ranked ([FINDINGS](FINDINGS.md),
+    [host](findings/host.md)).
 

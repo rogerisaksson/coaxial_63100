@@ -4,14 +4,16 @@
 #include <math.h>
 
 #define TWO_PI      6.2831853f
+#define INV_TWO_PI  0.15915494f
 #define PI          3.1415927f
 #define HALF_PI     1.5707963f
+#define ONE_THIRD   0.33333334f
 #define INV_SQRT3   0.57735027f
 #define HALF_SQRT3  0.8660254f
 
 void drive_clarke(const float *iabc, float *alpha, float *beta)
 {
-  *alpha = (2.0f * iabc[0] - iabc[1] - iabc[2]) / 3.0f;
+  *alpha = (2.0f * iabc[0] - iabc[1] - iabc[2]) * ONE_THIRD;
   *beta  = (iabc[1] - iabc[2]) * INV_SQRT3;
 }
 
@@ -31,29 +33,12 @@ void drive_inv_park_cs(float d, float q, float c, float s, float *alpha,
 
 void drive_sincos(float theta, float *s, float *c)
 {
-  /* A ninth-order odd polynomial on [-pi/2, pi/2] after folding, 3e-6 at the
-     worst point - a control law needs milliradians. */
-  float x = theta - TWO_PI * floorf((theta + PI) / TWO_PI);   /* (-pi, pi] */
-  float xs = x;
-  float xc = HALF_PI - x;                       /* cos x = sin(pi/2 - x) */
-
-  if (xs > HALF_PI)
-  {
-    xs = PI - xs;
-  }
-  else if (xs < -HALF_PI)
-  {
-    xs = -PI - xs;
-  }
-  if (xc > HALF_PI)
-  {
-    xc = PI - xc;
-  }
-  else if (xc < -HALF_PI)
-  {
-    xc = -PI - xc;
-  }
-
+  /* A ninth-order odd polynomial on [-pi/2, pi/2] after folding with
+     vrintm/vminnm/vmaxnm/vabs (no branches, no divide), 3e-6 at the worst
+     point - a control law needs milliradians. */
+  const float x = theta - TWO_PI * floorf((theta + PI) * INV_TWO_PI);
+  const float xs = fminf(fmaxf(x, -HALF_PI), HALF_PI) * 2.0f - x;
+  const float xc = HALF_PI - fabsf(x);
   const float s2 = xs * xs;
   const float c2 = xc * xc;
 
@@ -134,10 +119,9 @@ float drive_svm(float valpha, float vbeta, float vdc, float *duty)
 
   if (vdc <= 0.0f)
   {
-    for (uint8_t k = 0U; k < DRIVE_PHASES; k++)
-    {
-      duty[k] = 0.0f;
-    }
+    duty[0] = 0.0f;
+    duty[1] = 0.0f;
+    duty[2] = 0.0f;
     return 0.0f;
   }
 
@@ -145,57 +129,36 @@ float drive_svm(float valpha, float vbeta, float vdc, float *duty)
   v[1] = -0.5f * valpha + HALF_SQRT3 * vbeta;
   v[2] = -0.5f * valpha - HALF_SQRT3 * vbeta;
 
-  float lo = v[0];
-  float hi = v[0];
-
-  for (uint8_t k = 1U; k < DRIVE_PHASES; k++)
-  {
-    lo = (v[k] < lo) ? v[k] : lo;
-    hi = (v[k] > hi) ? v[k] : hi;
-  }
+  float lo = fminf(fminf(v[0], v[1]), v[2]);
+  float hi = fmaxf(fmaxf(v[0], v[1]), v[2]);
 
   if ((hi - lo) > vdc)
   {
     scale = vdc / (hi - lo);
-    for (uint8_t k = 0U; k < DRIVE_PHASES; k++)
-    {
-      v[k] *= scale;
-    }
+    v[0] *= scale;
+    v[1] *= scale;
+    v[2] *= scale;
     lo *= scale;
     hi *= scale;
   }
 
   const float zero = -0.5f * (hi + lo);
+  const float inv_vdc = 1.0f / vdc;
 
   for (uint8_t k = 0U; k < DRIVE_PHASES; k++)
   {
-    float d = 0.5f + (v[k] + zero) / vdc;
+    const float d = 0.5f + (v[k] + zero) * inv_vdc;
 
-    d = (d < 0.0f) ? 0.0f : d;
-    d = (d > 1.0f) ? 1.0f : d;
-    duty[k] = d;
+    duty[k] = fminf(fmaxf(d, 0.0f), 1.0f);
   }
   return scale;
 }
 
 float drive_wrap(float theta)
 {
-  /* The two compares first: a step moves an angle by a fraction of a turn,
-     and floorf is a library call. */
-  if (theta >= 0.0f && theta < TWO_PI)
-  {
-    return theta;
-  }
-  if (theta >= TWO_PI && theta < 2.0f * TWO_PI)
-  {
-    return theta - TWO_PI;
-  }
-  if (theta < 0.0f && theta >= -TWO_PI)
-  {
-    return (theta + TWO_PI >= TWO_PI) ? 0.0f : theta + TWO_PI;
-  }
-  theta -= TWO_PI * floorf(theta / TWO_PI);
-  return (theta >= TWO_PI) ? 0.0f : theta;
+  /* vrintm.f32 on Cortex-M7: one instruction, no branches for the fold. */
+  theta -= TWO_PI * floorf(theta * INV_TWO_PI);
+  return ((theta < 0.0f) || (theta >= TWO_PI)) ? 0.0f : theta;
 }
 
 float drive_dt_volts(const drive_params_t *p, float amps)

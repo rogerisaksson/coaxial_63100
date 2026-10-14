@@ -95,11 +95,23 @@ namespace Antmicro.Renode.Peripherals.Analog
                 stoReset = Export<StoReset>("emu_sto_reset");
                 stoStep = Export<StoStep>("emu_sto_step");
             }
+            afe.Bind(native, node);
             started = false;
         }
 
         /// <summary>This board's chain in the library: its index among a process's boards.</summary>
-        public int Node { get; set; }
+        public int Node
+        {
+            get => node;
+            set
+            {
+                node = value;
+                if(native != IntPtr.Zero)
+                {
+                    afe.Bind(native, node);
+                }
+            }
+        }
 
         /// <summary>The part's instructions a second, millions: its time's rate.</summary>
         public uint PartMips { get; set; } = 475;
@@ -275,6 +287,7 @@ namespace Antmicro.Renode.Peripherals.Analog
         private readonly float[] pins = new float[Outputs];
         // The edges since the last step, s from it.
         private readonly float[] at = new float[Edges];
+        private int node;
         private int edges;
         private TranslationCPU cpu;
         private double origin;

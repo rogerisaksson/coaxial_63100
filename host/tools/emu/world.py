@@ -33,7 +33,8 @@ AFE = 'sysbus.gpioPortB.afe'
 LINK_VOLTS = DCBUS_V
 
 SOURCES = [os.path.join(REPO, 'world', 'src', name)
-           for name in ('world.c', 'world_emu.c', 'world_heat.c', 'world_sto.c')] + [
+           for name in ('world.c', 'world_emu.c', 'world_heat.c', 'world_sto.c', 'world_parts.c',
+                        'world_bno085.c')] + [
     os.path.join(REPO, 'drive', 'src', name)
     for name in ('drive.c', 'drive_math.c', 'drive_model.c', 'drive_observer.c')] + [
     os.path.join(REPO, 'thermal', 'src', name)

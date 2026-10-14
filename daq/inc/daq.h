@@ -214,6 +214,10 @@ uint32_t daq_triggers_per_record(const daq_t *d);
 /** One trigger's worth of samples, already read. Accumulates and may push. */
 void daq_feed(daq_t *d, const int32_t *values, uint32_t at, uint32_t digital);
 
+/** One window's sums and pin duties (0..255), shaped and pushed when ready. */
+void daq_window(daq_t *d, const int32_t *sums, uint16_t count, uint32_t at,
+                const uint8_t *duties);
+
 /** Closed by a count: the interval gates the triggers. */
 bool daq_trigger_due(daq_t *d, uint32_t now);
 

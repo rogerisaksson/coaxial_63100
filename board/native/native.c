@@ -21,6 +21,7 @@
 #include "modbus_map.h"
 #include "native.h"
 #include "world_heat.h"
+#include "world_parts.h"
 #include "world_sto.h"
 
 #include <math.h>
@@ -147,124 +148,32 @@ static struct
   double   degrees;
 } w;
 
-/* The front end: board/emu/Coaxial63100_AFE.cs's networks, inputs and errors. */
-static struct
-{
-  double ref;
-  double bus_top, bus_bottom;
-  double ntc_r25, ntc_beta, ntc_fixed;
-  double r5_top, r5_bottom;
-  double gate_top, gate_bottom;
-  double v_per_a, zero_v;         /* LTspice's (coaxial_63100_afe.repl) */
-  double gain_sigma, zero_sigma, bus_sigma;
-  double die_at30, die_per_k;
-  double clevel, cinj;            /* the STO chain's integrator and recovered pilot */
-  double noise;
-
-  double amps[BOARD_PWM_PHASES], dc, ntc_c, die_c, rail5, gate;
-  double gain_err[BOARD_PWM_PHASES], zero_err[BOARD_PWM_PHASES], bus_err;
-  uint64_t rng;
-} afe =
-{
-  .ref = 3.3,
-  .bus_top = 49900.0, .bus_bottom = 2200.0,
-  .ntc_r25 = 10000.0, .ntc_beta = 3380.0, .ntc_fixed = 10000.0,
-  .r5_top = 10000.0, .r5_bottom = 10000.0,
-  .gate_top = 57000.0, .gate_bottom = 10000.0,
-  .die_at30 = 0.62, .die_per_k = 0.002,
-  .rail5 = 5.0,
-  .noise = 0.0001,
-  .rng = 0x63100001U,
-};
-
-/* ---- the front end ------------------------------------------------------------------ */
-
-typedef enum
-{
-  PIN_NONE, PIN_U, PIN_V, PIN_W, PIN_DCBUS, PIN_NTC, PIN_RAIL5, PIN_VGATE, PIN_DIE,
-  PIN_CLEVEL, PIN_CINJ
-} native_pin_t;
+static world_afe_t afe;
 
 /* The wiring, ADC1 = 0: board_adc.c's table as the schematic has it. */
 static const struct
 {
-  uint8_t adc;
-  uint32_t channel;
-  native_pin_t pin;
+  uint8_t     adc;
+  uint32_t    channel;
+  world_pin_t pin;
 } WIRED[] =
 {
-  { 2U, ADC_CHANNEL_1,  PIN_U },     { 0U, ADC_CHANNEL_3,  PIN_V },
-  { 1U, ADC_CHANNEL_4,  PIN_W },     { 2U, ADC_CHANNEL_10, PIN_DCBUS },
-  { 0U, ADC_CHANNEL_9,  PIN_NTC },   { 0U, ADC_CHANNEL_18, PIN_RAIL5 },
-  { 0U, ADC_CHANNEL_19, PIN_VGATE }, { 2U, ADC_CHANNEL_TEMPSENSOR, PIN_DIE },
-  { 1U, ADC_CHANNEL_5,  PIN_CLEVEL }, { 2U, ADC_CHANNEL_11, PIN_CINJ },
+  { 2U, ADC_CHANNEL_1,          WORLD_PIN_U },
+  { 0U, ADC_CHANNEL_3,          WORLD_PIN_V },
+  { 1U, ADC_CHANNEL_4,          WORLD_PIN_W },
+  { 2U, ADC_CHANNEL_10,         WORLD_PIN_DCBUS },
+  { 0U, ADC_CHANNEL_9,          WORLD_PIN_NTC },
+  { 0U, ADC_CHANNEL_18,         WORLD_PIN_RAIL5 },
+  { 0U, ADC_CHANNEL_19,         WORLD_PIN_VGATE },
+  { 2U, ADC_CHANNEL_TEMPSENSOR, WORLD_PIN_DIE },
+  { 1U, ADC_CHANNEL_5,          WORLD_PIN_CLEVEL },
+  { 2U, ADC_CHANNEL_11,         WORLD_PIN_CINJ },
 };
-
-/* xorshift64*, uniform on (0, 1]. */
-static double afe_uniform(void)
-{
-  afe.rng ^= afe.rng >> 12;
-  afe.rng ^= afe.rng << 25;
-  afe.rng ^= afe.rng >> 27;
-  return ((double)((afe.rng * 0x2545F4914F6CDD1DULL) >> 11) + 1.0) / 9007199254740992.0;
-}
-
-static double afe_gauss(void)
-{
-  const double u1 = afe_uniform();
-  const double u2 = afe_uniform();
-
-  return sqrt(-2.0 * log(u1)) * cos(6.283185307179586 * u2);
-}
-
-static double afe_mid(void)
-{
-  return afe.ref * 32768.0 / NATIVE_FULL_CODE;
-}
-
-/* One leg at the ADC, as the volts of its code: mid-scale plus half the difference. */
-static double afe_phase(uint8_t leg)
-{
-  const double gain = afe.v_per_a * (1.0 + afe.gain_err[leg]);
-  const double zero = afe.zero_v + afe.zero_err[leg];
-
-  return afe_mid() + (zero + gain * afe.amps[leg]) / 2.0;
-}
-
-static double afe_die(double celsius)
-{
-  return afe.die_at30 + (celsius - 30.0) * afe.die_per_k;
-}
-
-static double afe_nominal(native_pin_t pin)
-{
-  switch (pin)
-  {
-    case PIN_U:     return afe_phase(0U);
-    case PIN_V:     return afe_phase(1U);
-    case PIN_W:     return afe_phase(2U);
-    case PIN_DCBUS: return afe.dc * (1.0 + afe.bus_err) * afe.bus_bottom
-                           / (afe.bus_top + afe.bus_bottom);
-    case PIN_NTC:
-    {
-      const double ohms = afe.ntc_r25 * exp(afe.ntc_beta * (1.0 / (afe.ntc_c + 273.15)
-                                                            - 1.0 / (25.0 + 273.15)));
-      return afe.ref * afe.ntc_fixed / (ohms + afe.ntc_fixed);
-    }
-    case PIN_RAIL5: return afe.rail5 * afe.r5_bottom / (afe.r5_top + afe.r5_bottom);
-    case PIN_VGATE: return afe.gate * afe.gate_bottom / (afe.gate_top + afe.gate_bottom);
-    case PIN_DIE:   return afe_die(afe.die_c);
-    case PIN_CLEVEL: return afe.clevel;
-    case PIN_CINJ:  return afe.cinj;
-    default:        return 0.0;
-  }
-}
 
 /* The code `adc` converts on `channel`: AFE_ON off, the reference unpowered, mid-scale. */
 static uint32_t afe_code(uint8_t adc, uint32_t channel)
 {
-  native_pin_t pin = PIN_NONE;
-  double volts = afe_mid();
+  world_pin_t pin = WORLD_PIN_NONE;
 
   for (uint32_t k = 0U; k < (sizeof WIRED / sizeof WIRED[0]); k++)
   {
@@ -273,14 +182,8 @@ static uint32_t afe_code(uint8_t adc, uint32_t channel)
       pin = WIRED[k].pin;
     }
   }
-  if (Board_AfeOn())
-  {
-    volts = afe_nominal(pin) + afe_gauss() * afe.noise;
-    volts = (volts < 0.0) ? 0.0 : (volts > afe.ref) ? afe.ref : volts;
-  }
-  const double code = floor(volts / afe.ref * 65536.0 + 0.5);
-
-  return (code > NATIVE_FULL_CODE) ? (uint32_t)NATIVE_FULL_CODE : (uint32_t)code;
+  afe.powered = Board_AfeOn();
+  return world_afe_code(&afe, pin);
 }
 
 /* ---- the clock and the plant -------------------------------------------------------- */
@@ -830,18 +733,7 @@ void fake_advance(uint32_t us)
 void native_afe(double volts_per_amp, double zero_volts, double gain_sigma, double zero_sigma,
                 double bus_sigma, uint32_t seed)
 {
-  afe.v_per_a = volts_per_amp;
-  afe.zero_v = zero_volts;
-  afe.gain_sigma = gain_sigma;
-  afe.zero_sigma = zero_sigma;
-  afe.bus_sigma = bus_sigma;
-  afe.rng = (seed != 0U) ? seed : 1U;
-  for (uint8_t leg = 0U; leg < BOARD_PWM_PHASES; leg++)
-  {
-    afe.gain_err[leg] = afe_gauss() * gain_sigma;
-    afe.zero_err[leg] = afe_gauss() * zero_sigma;
-  }
-  afe.bus_err = afe_gauss() * bus_sigma;
+  world_afe_configure(&afe, volts_per_amp, zero_volts, gain_sigma, zero_sigma, bus_sigma, seed);
 }
 
 /** This board a node of a world (world/src/world_emu.c's step and shaft), its motor's pole
@@ -989,9 +881,7 @@ void native_open(void)
   memset(&native_adc2, 0, sizeof native_adc2);
   memset(&native_adc3, 0, sizeof native_adc3);
   native_primask = 0U;
-  memset(afe.amps, 0, sizeof afe.amps);
-  afe.dc = 0.0;
-  afe.cinj = afe.clevel = afe.gate = 0.0;
+  world_afe_init(&afe);
   world_heat_init(&n.heat, HEAT_AMBIENT_C);
   world_sto_init(&n.sto);
   n.pilot[0] = PILOT_V;
@@ -999,8 +889,9 @@ void native_open(void)
   n.haste = 1.0f;
   n.seen.ntc_c = n.seen.mcu_c = n.seen.afe_c = HEAT_AMBIENT_C;
   afe.ntc_c = afe.die_c = HEAT_AMBIENT_C;
-  native_ts_cal[0] = (uint16_t)lround(afe_die(30.0) / afe.ref * NATIVE_FULL_CODE);
-  native_ts_cal[1] = (uint16_t)lround(afe_die(110.0) / afe.ref * NATIVE_FULL_CODE);
+  native_ts_cal[0] = (uint16_t)lround(world_afe_die_volts(&afe, 30.0) / afe.ref * NATIVE_FULL_CODE);
+  native_ts_cal[1] = (uint16_t)lround(world_afe_die_volts(&afe, 110.0) / afe.ref
+                                      * NATIVE_FULL_CODE);
   n.tick_at = native_cycles_per_ms();
   native_io_open();
   a1335_open();

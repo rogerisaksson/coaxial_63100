@@ -7,17 +7,7 @@
 /** Wrap to (-pi, pi]. */
 static float wrap(float a)
 {
-  const float two_pi = 6.2831853f;
-
-  while (a > 3.1415927f)
-  {
-    a -= two_pi;
-  }
-  while (a <= -3.1415927f)
-  {
-    a += two_pi;
-  }
-  return a;
+  return a - 6.2831853f * floorf((a + 3.1415927f) * 0.15915494f);
 }
 
 void drive_observer_init(drive_obs_t *o, const drive_params_t *p, float ts)
@@ -125,25 +115,13 @@ static void step_flux(drive_obs_t *o, const drive_params_t *p,
 
   /* The speed comes from the PLL, or the flux model's own filtered speed
      when already valid, whichever is higher in magnitude, so a fast spool
-     after handover transitions to the flux model. */
+     after handover transitions to the flux model. Multiplying by
+     (1 + j wc / speed) undoes both the leak's attenuation and its phase lag
+     without a square root, an arctangent or a sine. */
   const float speed = (o->valid && (fabsf(o->flux_omega) > fabsf(o->pll_omega))) ? o->flux_omega : o->pll_omega;
-  const float w = fabsf(speed);
-  float gain = 1.0f;
-  float lead = 0.0f;
-
-  if (w > 0.0f)
-  {
-    const float ratio = o->wc / w;
-
-    gain = sqrtf(1.0f + ratio * ratio);
-    lead = drive_atan2(o->wc, w) * ((speed >= 0.0f) ? 1.0f : -1.0f);
-  }
-
-  float sl, cl;
-
-  drive_sincos(lead, &sl, &cl);
-  const float psi_a = gain * (o->leak_a * cl - o->leak_b * sl);
-  const float psi_b = gain * (o->leak_a * sl + o->leak_b * cl);
+  const float k = (speed != 0.0f) ? (o->wc / speed) : 0.0f;
+  const float psi_a = o->leak_a - k * o->leak_b;
+  const float psi_b = o->leak_b + k * o->leak_a;
   const float rotor_a = psi_a - p->ld * ia;
   const float rotor_b = psi_b - p->ld * ib;
   const float was = o->flux_theta;
@@ -160,7 +138,7 @@ static void step_flux(drive_obs_t *o, const drive_params_t *p,
     const float raw = wrap(o->flux_theta - was) / ts;
     const float a = DRIVE_OBS_SPEED_FILTER * ts;
 
-    o->flux_omega += ((a < 1.0f) ? a : 1.0f) * (raw - o->flux_omega);
+    o->flux_omega += fminf(a, 1.0f) * (raw - o->flux_omega);
   }
 }
 
@@ -182,7 +160,7 @@ void drive_observer_step(drive_obs_t *o, const drive_params_t *p,
   const float span = o->blend_hi - o->blend_lo;
   float g = (span > 0.0f) ? ((w - o->blend_lo) / span) : 1.0f;
 
-  g = (g < 0.0f) ? 0.0f : ((g > 1.0f) ? 1.0f : g);
+  g = fminf(fmaxf(g, 0.0f), 1.0f);
   o->blend = g;
 
   float sd, cd, sf, cf;

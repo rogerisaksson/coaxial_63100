@@ -1,6 +1,9 @@
 /** world_stand.c - A stand-in board's heat: the board's own observer beside its world's truth. */
 #include "world_stand.h"
 
+#include "daq.h"
+#include "world_sto.h"
+
 #include <math.h>
 #include <string.h>
 
@@ -525,3 +528,242 @@ int world_stand_read(int i, int what, float *out)
     default:                  return 0;
   }
 }
+
+/* ---- the STO chain and acquisition engine (coaxial.simulated) -------------- */
+
+uint32_t stand_sto_bytes(void)
+{
+  return (uint32_t)sizeof(world_sto_t);
+}
+
+void stand_sto_init(void *mem)
+{
+  world_sto_init((world_sto_t *)mem);
+}
+
+void stand_sto_step(void *mem, float dt, const float *in, int pumping, float *out)
+{
+  world_sto_t *s = (world_sto_t *)mem;
+  world_sto_out_t pins;
+  float left = (dt > 0.0f) ? dt : 0.0f;
+  bool ran = false;
+
+  while ((left > 0.0f) || !ran)
+  {
+    const float step = (left > 100e-6f) ? 100e-6f : ((left > 0.0f) ? left : 1e-6f);
+    const uint32_t edges = (pumping != 0) ? (uint32_t)(step * 200000.0f) : 0U;
+    const world_sto_in_t chain =
+    {
+      in[0], in[1], in[2], in[3], in[4] != 0.0f,
+      (pumping != 0) ? !s->pin : s->pin,
+      edges, NULL
+    };
+
+    ran = true;
+    world_sto_step(s, &chain, step, &pins);
+    left -= step;
+    if (s->held)
+    {
+      break;
+    }
+  }
+  out[0] = pins.cinj;
+  out[1] = pins.clevel;
+  out[2] = (pins.faultout > 1.6f) ? 1.0f : 0.0f;
+  out[3] = pins.vgate;
+}
+
+typedef struct
+{
+  daq_t daq;
+  int16_t sensors[DAQ_MAX_SENSORS][DAQ_SENSOR_WORDS];
+} stand_daq_t;
+
+static void stand_daq_snapshot(void *ctx, uint16_t mask,
+                               int16_t words[DAQ_MAX_SENSORS][DAQ_SENSOR_WORDS])
+{
+  const stand_daq_t *s = (const stand_daq_t *)ctx;
+
+  (void)mask;
+  memcpy(words, s->sensors, sizeof(s->sensors));
+}
+
+uint32_t stand_daq_bytes(void)
+{
+  return (uint32_t)sizeof(stand_daq_t);
+}
+
+void stand_daq_init(void *mem, uint8_t *ring, uint32_t bytes)
+{
+  stand_daq_t *s = (stand_daq_t *)mem;
+  const daq_ladder_t ladder = { 3U, 1U, 8U, 128U, 4U };
+
+  memset(s, 0, sizeof(*s));
+  daq_init(&s->daq, ring, bytes, NULL, stand_daq_snapshot, s);
+  daq_set_ladder(&s->daq, &ladder);
+}
+
+void stand_daq_begin(void *mem, const uint8_t *order, uint8_t fields, uint16_t accumulate,
+                     uint16_t decimate, uint32_t interval_cycles, uint8_t pins,
+                     uint16_t sensors, uint32_t records, int adapt)
+{
+  stand_daq_t *s = (stand_daq_t *)mem;
+  daq_task_t task;
+
+  memset(&task, 0, sizeof(task));
+  task.fields = fields;
+  if ((order != NULL) && (fields > 0U))
+  {
+    memcpy(task.order, order, fields);
+  }
+  task.accumulate = accumulate;
+  task.decimate = decimate;
+  task.interval_cycles = interval_cycles;
+  task.pins = pins;
+  task.sensors = sensors;
+  task.records = records;
+  task.adapt = adapt != 0;
+  daq_begin(&s->daq, &task);
+}
+
+int stand_daq_start(void *mem, uint32_t now)
+{
+  return daq_start(&((stand_daq_t *)mem)->daq, now) ? 1 : 0;
+}
+
+void stand_daq_stop(void *mem)
+{
+  daq_stop(&((stand_daq_t *)mem)->daq);
+}
+
+const char *stand_daq_set_filter(void *mem, const float *coeffs, uint8_t count,
+                                 uint16_t decimate)
+{
+  return daq_set_filter(&((stand_daq_t *)mem)->daq, (const filter_biquad_t *)coeffs,
+                        count, decimate);
+}
+
+const char *stand_daq_set_rung(void *mem, uint8_t rung, uint16_t boxcar, const float *coeffs,
+                               uint8_t count, uint16_t decimate)
+{
+  daq_t *d = &((stand_daq_t *)mem)->daq;
+
+  if ((rung == 0U) && (boxcar == 0U))
+  {
+    d->rungs_held = 0U;
+    return NULL;
+  }
+  return daq_set_rung(d, rung, boxcar, (const filter_biquad_t *)coeffs, count, decimate);
+}
+
+const char *stand_daq_set_tone(void *mem, uint32_t hz, uint32_t rate_hz, int32_t amplitude,
+                               int32_t offset, uint8_t kind, uint32_t cycles_per_second,
+                               uint32_t now)
+{
+  return daq_set_tone(&((stand_daq_t *)mem)->daq, hz, rate_hz, amplitude, offset, kind,
+                      cycles_per_second, now);
+}
+
+int stand_daq_tone_on(const void *mem)
+{
+  return ((const stand_daq_t *)mem)->daq.tone.on ? 1 : 0;
+}
+
+uint32_t stand_daq_tone_cycles(const void *mem)
+{
+  return ((const stand_daq_t *)mem)->daq.tone.cycles;
+}
+
+void stand_daq_tone_poll(void *mem, uint32_t now, uint32_t burst)
+{
+  daq_tone_poll(&((stand_daq_t *)mem)->daq, now, burst);
+}
+
+uint32_t stand_daq_triggers_per_record(const void *mem)
+{
+  return daq_triggers_per_record(&((const stand_daq_t *)mem)->daq);
+}
+
+void stand_daq_window(void *mem, const int32_t *sums, uint16_t count, uint32_t at,
+                      const uint8_t *duties, const int16_t *sensors)
+{
+  stand_daq_t *s = (stand_daq_t *)mem;
+  daq_t *d = &s->daq;
+  const bool was_running = d->running;
+  const uint16_t steps = (d->filtering && (d->task.accumulate != 0U)
+                          && (d->chain.decimate > 0U))
+                         ? d->chain.decimate : 1U;
+
+  if ((count > 0U) && (d->triggers == 0U) && d->filtering)
+  {
+    for (uint8_t f = 0U; f < d->task.fields; f++)
+    {
+      filter_prime(&d->chain, &d->filter[f], (float)sums[f] / (float)count);
+    }
+  }
+  if (sensors != NULL)
+  {
+    memcpy(s->sensors, sensors, sizeof(s->sensors));
+  }
+  d->running = true;
+  for (uint16_t k = 0U; k < steps; k++)
+  {
+    daq_window(d, sums, count, at, duties);
+  }
+  if (!was_running)
+  {
+    d->running = false;
+  }
+}
+
+uint16_t stand_daq_take(void *mem, uint8_t *out, uint16_t max_records)
+{
+  return daq_take(&((stand_daq_t *)mem)->daq, out, max_records);
+}
+
+void stand_daq_live_insert(void *mem, uint8_t field, int32_t value, uint32_t at,
+                           uint32_t digital)
+{
+  daq_live_insert(&((stand_daq_t *)mem)->daq, field, value, at, digital);
+}
+
+int stand_daq_take_live(void *mem, uint32_t *meta, int32_t *slots)
+{
+  stand_daq_t *s = (stand_daq_t *)mem;
+  daq_live_t live;
+
+  daq_take_live(&s->daq, &live);
+  meta[0] = live.first;
+  meta[1] = live.last;
+  meta[2] = live.digital;
+  for (uint32_t f = 0U; f < DAQ_MAX_CHANNELS; f++)
+  {
+    slots[(f * 4U) + 0U] = live.slot[f].sum;
+    slots[(f * 4U) + 1U] = (int32_t)live.slot[f].additions;
+    slots[(f * 4U) + 2U] = live.slot[f].lowest;
+    slots[(f * 4U) + 3U] = live.slot[f].highest;
+  }
+  return live.fresh ? 1 : 0;
+}
+
+void stand_daq_state(const void *mem, uint32_t *out)
+{
+  const daq_t *d = &((const stand_daq_t *)mem)->daq;
+
+  out[0] = d->running ? 1U : 0U;
+  out[1] = d->done ? 1U : 0U;
+  out[2] = d->stride;
+  out[3] = d->task.fields;
+  out[4] = daq_available(d);
+  out[5] = d->produced;
+  out[6] = d->dropped;
+  out[7] = daq_capacity(d);
+  out[8] = d->worst;
+  out[9] = d->rung;
+  out[10] = d->rungs_held;
+  out[11] = d->rung_changes;
+  out[12] = d->task.accumulate;
+  out[13] = d->chain.sections;
+  out[14] = (d->chain.decimate != 0U) ? d->chain.decimate : 1U;
+}
+

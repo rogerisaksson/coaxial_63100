@@ -190,17 +190,9 @@ float world_output(const world_t *w, uint8_t i)
 /* A turn's difference folded into (-pi, pi]: how far the rotor went in one period. */
 static float moved(float now, float was)
 {
-  float d = now - was;
+  const float d = now - was;
 
-  while (d > PI_F)
-  {
-    d -= TWO_PI_F;
-  }
-  while (d <= -PI_F)
-  {
-    d += TWO_PI_F;
-  }
-  return d;
+  return d - TWO_PI_F * nearbyintf(d * (1.0f / TWO_PI_F));
 }
 
 void world_plant_init(world_plant_t *p, world_t *w, uint8_t index,

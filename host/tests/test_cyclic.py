@@ -17,7 +17,7 @@ from test_modbus_core import Report  # noqa: E402
 
 #: Each kind: its part's inputs by name, as the step's u rows after dt.
 PORTS = {'Gain': ('x',), 'Slew': ('x',), 'Wrap': ('x',), 'LowPass': ('x',),
-         'SpeedKalman': ('measured', 'command'), 'PI': ('setpoint', 'measured'),
+         'SpeedKalman': ('measured', 'command'), 'PI': ('setpoint', 'measured', 'most'),
          'AngleHold': ('setpoint', 'measured'), 'Direct': ('setpoint',),
          'SpeedPI': ('setpoint', 'measured', 'accel', 'held', 'most')}
 
