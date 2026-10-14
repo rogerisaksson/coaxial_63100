@@ -304,8 +304,68 @@ def _vertical_arrow(origin, height_set, fill, direction=1.0, fwd_offset=0.0, hea
     return frame_segs, fill_segs
 
 
+def _describe_special(doing, now, origin, normal, heading, props, tw_ord):
+    """Handle jump, fall/parry/sit/lie, stop/brake, and postural arrow specifications."""
+    vx_ord, vy_ord, wz_ord = tw_ord
+    sh, ch = math.sin(heading), math.cos(heading)
+    where = now.get('where', (0.0, 0.90, 0.0))
+    vel_xz = now.get('velocity', (0.0, 0.0))
+    if doing in JUMP_DOING:
+        fwd = 0.45 if doing in ('hop_up_chair', 'crouch_load', 'propulsion', 'flight_tuck', 'seat_land') else (
+            0.38 if doing in ('hop_down_chair', 'step_off', 'drop', 'absorb') else 0.0)
+        vy_jump = 2.2 if doing in ('throw', 'propulsion', 'flight_tuck', 'hop_up_chair') else 1.5
+        fill = max(0.35, min(1.0, vy_jump / 2.2))
+        f_segs, fl_segs = _vertical_arrow(origin, 0.85, fill, 1.0, fwd, heading, props)
+        land_pt = (origin[0] + fwd * sh, origin[1], origin[2] + fwd * ch)
+        t_segs = []
+        if abs(fwd) > 0.05:
+            ly, _ = surface_at(land_pt[0], land_pt[2], props, include_furniture=True)
+            land_pt = (land_pt[0], ly, land_pt[2])
+            t_segs = _ring_segments(land_pt[0], land_pt[2], 0.16, props, include_furniture=True)
+        return {'kind': 'jump', 'origin': origin, 'normal': normal, 'setpoint': (fwd, 0.85, 0.0),
+                'actual': (vx_ord, vy_jump, wz_ord), 'fill': fill, 'landing': land_pt,
+                'frame_segments': f_segs, 'fill_segments': fl_segs, 'target_segments': t_segs}
+    if doing in FALL_DOING or now.get('fallen'):
+        seat_bed = ('sit_chair', 'approach', 'seated', 'lie_bed', 'sit_edge', 'recline', 'bed_rest')
+        flr = ('lie_floor', 'kneel', 'lower', 'floor_rest')
+        target_y = 0.45 if doing in seat_bed else (0.22 if (doing in flr or now.get('fallen')) else 0.58)
+        t_fall = math.sqrt(2.0 * max(0.04, float(where[1]) - target_y) / 9.81)
+        pitch_off = -0.18 if doing in seat_bed else (0.22 if doing in flr else 0.25)
+        lx = float(where[0]) + float(vel_xz[0]) * t_fall + pitch_off * sh
+        lz = float(where[2]) + float(vel_xz[1]) * t_fall + pitch_off * ch
+        ly, l_norm = surface_at(lx, lz, props, include_furniture=True)
+        land_pt = (lx, ly, lz)
+        t_segs = (_ring_segments(lx, lz, 0.20, props, 8, True, True)
+                  + _ring_segments(lx, lz, 0.10, props, 8, True, False))
+        fill = max(0.25, min(1.0, (0.90 - float(where[1])) / max(0.12, 0.90 - target_y)))
+        dx_b, dy_b = (lx - origin[0]) * sh + (lz - origin[2]) * ch, (lx - origin[0]) * ch - (lz - origin[2]) * sh
+        f_segs, fl_segs = _surface_path_arrow(origin, heading, dx_b, dy_b, 0.0, fill, props)
+        f_segs.append(((float(where[0]), float(where[1]), float(where[2])), land_pt))
+        return {'kind': 'fall', 'origin': origin, 'normal': l_norm, 'setpoint': land_pt,
+                'actual': tw_ord, 'fill': fill, 'landing': land_pt,
+                'frame_segments': f_segs, 'fill_segments': fl_segs, 'target_segments': t_segs}
+    if doing in ('crouch', 'down') or doing in RISE_DOING:
+        is_rise = doing in RISE_DOING
+        vy_p = 0.65 if is_rise else -0.65
+        f_segs, fl_segs = _vertical_arrow(origin, 0.65, 1.0, 1.0 if is_rise else -1.0, 0.0, heading, props)
+        return {'kind': 'posture', 'origin': origin, 'normal': normal, 'setpoint': (0.0, vy_p, 0.0),
+                'actual': (0.0, vy_p, 0.0), 'fill': 1.0, 'landing': origin,
+                'frame_segments': f_segs, 'fill_segments': fl_segs, 'target_segments': []}
+    if doing in ('one_sole', 'weight_shift', 'over', 'bow', 'forward'):
+        vec = (0.0, 0.45, 0.0) if doing in ('one_sole', 'weight_shift', 'over') else (0.45, 0.0, 0.0)
+        f_segs, fl_segs = _surface_path_arrow(origin, heading, vec[0], vec[1], 0.0, 1.0, props)
+        return {'kind': 'posture', 'origin': origin, 'normal': normal, 'setpoint': vec,
+                'actual': vec, 'fill': 1.0, 'landing': origin,
+                'frame_segments': f_segs, 'fill_segments': fl_segs, 'target_segments': []}
+    return None
+
+
 def describe(now, se2_st=None):
-    """Compute 3D movement pattern indicator specification for `now` and `se2_st`."""
+    """Compute 3D movement pattern indicator specification for `now` and `se2_st`.
+
+    Setpoint frame (börvärdespil) shows target velocity for the active command (WASD walk vs
+    Shift+WASD sprint); interior fill (ärvärde) is the ordered velocity at the robot.
+    """
     if not now:
         return {'kind': 'idle', 'fill': 0.0, 'frame_segments': [], 'fill_segments': [], 'target_segments': []}
     props = now.get('props') or ()
@@ -313,147 +373,61 @@ def describe(now, se2_st=None):
     _, normal = surface_at(origin[0], origin[2], props)
     heading = float(now.get('heading', 0.0))
     doing = str(now.get('doing', 'rest'))
-    where = now.get('where', (0.0, 0.90, 0.0))
     vel_xz = now.get('velocity', (0.0, 0.0))
     sh, ch = math.sin(heading), math.cos(heading)
-    # Body-frame actual velocities (+X forward along heading, +Y left)
-    vx_act = float(vel_xz[0]) * sh + float(vel_xz[1]) * ch
-    vy_act = float(vel_xz[0]) * ch - float(vel_xz[1]) * sh
-    spd_act = math.hypot(vx_act, vy_act)
-    modes = {m[0]: (m[1], m[2]) for m in (now.get('modes') or ())}
-
-    # 1. Jump (upward or onto/off chair)
-    if doing in JUMP_DOING:
-        fwd = 0.45 if doing in ('hop_up_chair', 'crouch_load', 'propulsion', 'flight_tuck', 'seat_land') else (
-            0.38 if doing in ('hop_down_chair', 'step_off', 'drop', 'absorb') else 0.0)
-        h_set = 0.85
-        ax_ref, ax_act = modes.get('mode_axial_compression', (0.0, 0.0))
-        height_gain = max(0.0, float(where[1]) - (origin[1] + 0.86))
-        fill = min(1.0, max(height_gain / 0.18, 0.35 + 0.65 * (1.0 - max(0.0, ax_act))))
-        f_segs, fl_segs = _vertical_arrow(origin, h_set, fill, direction=1.0, fwd_offset=fwd,
-                                          heading=heading, props=props)
-        t_segs = []
-        land_pt = (origin[0] + fwd * sh, origin[1], origin[2] + fwd * ch)
-        if abs(fwd) > 0.05:
-            ly, _ = surface_at(land_pt[0], land_pt[2], props, include_furniture=True)
-            land_pt = (land_pt[0], ly, land_pt[2])
-            t_segs = _ring_segments(land_pt[0], land_pt[2], 0.16, props, include_furniture=True)
-        return {'kind': 'jump', 'origin': origin, 'normal': normal,
-                'setpoint': (fwd, h_set, 0.0), 'actual': (vx_act, float(where[1]) - origin[1], 0.0),
-                'fill': fill, 'landing': land_pt,
-                'frame_segments': f_segs, 'fill_segments': fl_segs, 'target_segments': t_segs}
-
-    # 2. Fall / Shove Parry / Lie Down / Sit Down (estimated position when reaching floor/surface)
-    if doing in FALL_DOING or now.get('fallen'):
-        target_y = 0.45 if doing in ('sit_chair', 'approach', 'seated', 'lie_bed', 'sit_edge', 'recline', 'bed_rest') else (
-            0.22 if (doing in ('lie_floor', 'kneel', 'lower', 'floor_rest') or now.get('fallen')) else 0.58)
-        dy = max(0.04, float(where[1]) - target_y)
-        t_fall = math.sqrt(2.0 * dy / 9.81)
-        pitch_off = -0.18 if doing in ('sit_chair', 'approach', 'seated', 'lie_bed', 'sit_edge', 'recline', 'bed_rest') else (
-            0.22 if doing in ('lie_floor', 'kneel', 'lower', 'floor_rest') else 0.25)
-        lx = float(where[0]) + float(vel_xz[0]) * t_fall + pitch_off * sh
-        lz = float(where[2]) + float(vel_xz[1]) * t_fall + pitch_off * ch
-        ly, l_norm = surface_at(lx, lz, props, include_furniture=True)
-        land_pt = (lx, ly, lz)
-        t_segs = _ring_segments(lx, lz, 0.20, props, n=8, include_furniture=True, cross=True)
-        t_segs += _ring_segments(lx, lz, 0.10, props, n=8, include_furniture=True, cross=False)
-        _, ax_act = modes.get('mode_axial_compression', (0.0, 0.0))
-        fill = max(0.15, min(1.0, max(ax_act / 0.65, (0.90 - float(where[1])) / max(0.12, 0.90 - target_y))))
-        dx_b = (lx - origin[0]) * sh + (lz - origin[2]) * ch
-        dy_b = (lx - origin[0]) * ch - (lz - origin[2]) * sh
-        f_segs, fl_segs = _surface_path_arrow(origin, heading, dx_b, dy_b, 0.0, fill, props)
-        # Add 3D descent guide line from current CoM down to estimated landing point
-        f_segs.append(((float(where[0]), float(where[1]), float(where[2])), land_pt))
-        return {'kind': 'fall', 'origin': origin, 'normal': l_norm,
-                'setpoint': land_pt, 'actual': tuple(where),
-                'fill': fill, 'landing': land_pt,
-                'frame_segments': f_segs, 'fill_segments': fl_segs, 'target_segments': t_segs}
-
-    # 3. Commanded Stop / Brake
     keys = (se2_st or {}).get('keys') or {}
     any_key = any(keys.get(k, False) for k in ('w', 's', 'a', 'd'))
-    tw_now = (se2_st.get('v_x', 0.0), se2_st.get('v_y', 0.0), se2_st.get('omega_z', 0.0)) if se2_st else now.get('twist', (0.0, 0.0, 0.0))
-    tw_mag = math.hypot(tw_now[0], tw_now[1])
-    if doing in STOP_DOING or (not any_key and doing in ('#201', 'rest') and (spd_act > 0.05 or tw_mag > 0.04)):
-        vx_dir = vx_act if abs(vx_act) > 0.03 else (tw_now[0] if abs(tw_now[0]) > 0.02 else 0.35)
-        vy_dir = vy_act if abs(vy_act) > 0.03 else tw_now[1]
-        stop_dist = max(0.32, min(0.75, 0.32 + 0.45 * max(spd_act, tw_mag)))
-        fill = max(0.15, min(1.0, 1.0 - max(spd_act, tw_mag) / 0.85))
-        f_segs, fl_segs = _surface_path_arrow(origin, heading, vx_dir, vy_dir, 0.0, fill, props, length_scale=0.75)
+    if se2_st is not None:
+        tw_ord = (float(se2_st.get('v_x', 0.0)), float(se2_st.get('v_y', 0.0)), float(se2_st.get('omega_z', 0.0)))
+    else:
+        tw_raw = now.get('twist') or (0.0, 0.0, 0.0)
+        tw_ord = (float(tw_raw[0]), float(tw_raw[1]), float(tw_raw[2]))
+    if math.hypot(tw_ord[0], tw_ord[1]) <= 0.01 and abs(tw_ord[2]) <= 0.01 and doing in GAIT_TWIST and not any_key:
+        tw_ord = GAIT_TWIST[doing]
+    vx_ord, vy_ord, wz_ord = tw_ord
+    ord_mag = math.hypot(vx_ord, vy_ord)
+
+    special = _describe_special(doing, now, origin, normal, heading, props, tw_ord)
+    if special is not None:
+        return special
+
+    spd_phys = math.hypot(float(vel_xz[0]), float(vel_xz[1]))
+    if doing in STOP_DOING or (not any_key and doing in ('#201', 'rest') and (ord_mag > 0.04 or spd_phys > 0.08)):
+        vx_dir = vx_ord if abs(vx_ord) > 0.02 else 0.35
+        stop_dist = max(0.32, min(0.75, 0.32 + 0.45 * max(ord_mag, spd_phys)))
+        fill = max(0.15, min(1.0, 1.0 - ord_mag / se2.WALK_SPEED))
+        f_segs, fl_segs = _surface_path_arrow(origin, heading, vx_dir, vy_ord, 0.0, fill, props, length_scale=0.75)
         sx = origin[0] + stop_dist * sh * (1.0 if vx_dir >= 0 else -1.0)
         sz = origin[2] + stop_dist * ch * (1.0 if vx_dir >= 0 else -1.0)
         sy, _ = surface_at(sx, sz, props)
         lx_v, lz_v = ch * 0.22, -sh * 0.22
-        t_segs = [
-            ((sx - lx_v, sy, sz - lz_v), (sx + lx_v, sy, sz + lz_v)),
-            ((sx - lx_v, sy + 0.02, sz - lz_v), (sx + lx_v, sy + 0.02, sz + lz_v)),
-        ] + _ring_segments(sx, sz, 0.12, props, n=8, cross=False)
-        return {'kind': 'stop', 'origin': origin, 'normal': normal,
-                'setpoint': (0.0, 0.0, 0.0), 'actual': (vx_act, vy_act, 0.0),
-                'fill': fill, 'landing': (sx, sy, sz),
+        t_segs = [((sx - lx_v, sy, sz - lz_v), (sx + lx_v, sy, sz + lz_v)),
+                  ((sx - lx_v, sy + 0.02, sz - lz_v), (sx + lx_v, sy + 0.02, sz + lz_v))]
+        t_segs += _ring_segments(sx, sz, 0.12, props, n=8, cross=False)
+        return {'kind': 'stop', 'origin': origin, 'normal': normal, 'setpoint': (0.0, 0.0, 0.0),
+                'actual': tw_ord, 'fill': fill, 'landing': (sx, sy, sz),
                 'frame_segments': f_segs, 'fill_segments': fl_segs, 'target_segments': t_segs}
 
-    # 4. Postural Stunts (Crouch, Rise, Weight Shift, One Sole, Bow)
-    if doing in ('crouch', 'down') or doing in RISE_DOING:
-        is_rise = doing in RISE_DOING
-        ax_ref, ax_act = modes.get('mode_axial_compression', (0.6 if not is_rise else 0.0, 0.0))
-        fill = max(0.1, min(1.0, (1.0 - ax_act / 0.65) if is_rise else (ax_act / max(0.1, ax_ref))))
-        f_segs, fl_segs = _vertical_arrow(origin, 0.65, fill, direction=1.0 if is_rise else -1.0,
-                                          heading=heading, props=props)
-        return {'kind': 'posture', 'origin': origin, 'normal': normal,
-                'setpoint': (0.0, ax_ref, 0.0), 'actual': (0.0, ax_act, 0.0),
-                'fill': fill, 'landing': origin,
-                'frame_segments': f_segs, 'fill_segments': fl_segs, 'target_segments': []}
-    if doing in ('one_sole', 'weight_shift', 'over'):
-        lat_ref, lat_act = modes.get('mode_lateral_shift', (0.95, 0.0))
-        fill = max(0.1, min(1.0, abs(lat_act) / max(0.1, abs(lat_ref))))
-        f_segs, fl_segs = _surface_path_arrow(origin, heading, 0.0, 0.45 * math.copysign(1.0, lat_ref), 0.0, fill, props)
-        return {'kind': 'posture', 'origin': origin, 'normal': normal,
-                'setpoint': (0.0, lat_ref, 0.0), 'actual': (0.0, lat_act, 0.0),
-                'fill': fill, 'landing': origin,
-                'frame_segments': f_segs, 'fill_segments': fl_segs, 'target_segments': []}
-    if doing in ('bow', 'forward'):
-        p_ref, p_act = modes.get('mode_pitch_attitude', (0.5, 0.0))
-        fill = max(0.1, min(1.0, abs(p_act) / max(0.1, abs(p_ref))))
-        f_segs, fl_segs = _surface_path_arrow(origin, heading, 0.45, 0.0, 0.0, fill, props)
-        return {'kind': 'posture', 'origin': origin, 'normal': normal,
-                'setpoint': (p_ref, 0.0, 0.0), 'actual': (p_act, 0.0, 0.0),
-                'fill': fill, 'landing': origin,
-                'frame_segments': f_segs, 'fill_segments': fl_segs, 'target_segments': []}
-
-    # 5. Locomotion (WASD or active gait)
     vx_set, vy_set, wz_set = 0.0, 0.0, 0.0
     if any_key:
-        w_k, s_k, a_k, d_k = keys.get('w', False), keys.get('s', False), keys.get('a', False), keys.get('d', False)
-        long_in = (1 if w_k else 0) - (1 if s_k else 0)
-        lat_in = (1 if a_k else 0) - (1 if d_k else 0)
-        if long_in > 0:
-            vx_set = se2.RUN_SPEED if (keys.get('shift', False) or abs(tw_now[0]) > se2.WALK_SPEED + 0.03) else se2.WALK_SPEED
-        elif long_in < 0:
-            vx_set = -se2.BACK_SPEED
-        if long_in != 0 and lat_in != 0:
-            wz_set = lat_in * se2.YAW_RATE
-        elif lat_in != 0:
-            vy_set = lat_in * se2.STRAFE_SPEED
-    elif tw_mag > 0.02 or abs(tw_now[2]) > 0.03:
-        vx_set, vy_set, wz_set = tw_now
+        vx_set, vy_set, wz_set = (se2_st.get('setpoint') if se2_st and 'setpoint' in se2_st
+                                  else se2.setpoint_for_keys(keys))
+    elif ord_mag > 0.02 or abs(wz_ord) > 0.03:
+        vx_set, vy_set, wz_set = vx_ord, vy_ord, wz_ord
     elif doing in GAIT_TWIST:
         vx_set, vy_set, wz_set = GAIT_TWIST[doing]
 
     set_mag = math.hypot(vx_set, vy_set)
     if set_mag > 0.02 or abs(wz_set) > 0.03:
-        act_mag = max(spd_act, tw_mag)
-        ref_denom = se2.RUN_SPEED if (keys.get('w', False) and set_mag >= se2.WALK_SPEED) else max(0.15, set_mag)
-        fill = max(0.08, min(1.0, act_mag / ref_denom))
+        fill = (max(0.08, min(1.0, ord_mag / set_mag)) if set_mag > 0.02
+                else max(0.08, min(1.0, abs(wz_ord) / max(0.05, abs(wz_set)))))
         f_segs, fl_segs = _surface_path_arrow(origin, heading, vx_set, vy_set, wz_set, fill, props)
         return {'kind': 'locomotion', 'origin': origin, 'normal': normal,
-                'setpoint': (vx_set, vy_set, wz_set), 'actual': (vx_act, vy_act, tw_now[2]),
-                'fill': fill, 'landing': None,
+                'setpoint': (vx_set, vy_set, wz_set), 'actual': tw_ord, 'fill': fill, 'landing': None,
                 'frame_segments': f_segs, 'fill_segments': fl_segs, 'target_segments': []}
 
-    return {'kind': 'idle', 'origin': origin, 'normal': normal,
-            'setpoint': (0.0, 0.0, 0.0), 'actual': (0.0, 0.0, 0.0),
-            'fill': 0.0, 'landing': None,
+    return {'kind': 'idle', 'origin': origin, 'normal': normal, 'setpoint': (0.0, 0.0, 0.0),
+            'actual': (0.0, 0.0, 0.0), 'fill': 0.0, 'landing': None,
             'frame_segments': [], 'fill_segments': [], 'target_segments': []}
 
 

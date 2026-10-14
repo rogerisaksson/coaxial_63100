@@ -429,22 +429,43 @@ class Keys:
         out, self._clicked = self._clicked, []
         return out
 
+    @staticmethod
+    def _is_console_focused():
+        """True when the console window is focused (or running inside a pseudo-console)."""
+        if sys.platform != 'win32':
+            return True
+        try:
+            kernel = ctypes.windll.kernel32
+            user32 = ctypes.windll.user32
+            fg = user32.GetForegroundWindow()
+            if not fg:
+                return False
+            cw = kernel.GetConsoleWindow()
+            if cw and user32.IsWindowVisible(cw):
+                return fg == cw
+            return True
+        except AttributeError:
+            return True
+
     def held(self):
-        """Currently held movement keys (w, a, s, d, shift) when hardware state is active."""
+        """Currently held movement keys (w, a, s, d, shift) that entered this terminal."""
         now = time.monotonic()
-        if sys.platform == 'win32' and self.console and (
-                self._keys_down or self._async_keys or (now - self._last_key_at < 2.0)):
+        if not self._is_console_focused() or (now - self._last_key_at > 0.65):
+            self._keys_down.clear()
+        if sys.platform == 'win32' and self.console and (self._keys_down or self._async_keys):
             try:
                 user32 = ctypes.windll.user32
-                hw = {c for vk, c in ((87, 'w'), (65, 'a'), (83, 's'), (68, 'd'),
-                                      (16, 'shift'), (160, 'shift'), (161, 'shift'))
-                      if user32.GetAsyncKeyState(vk) & 0x8000}
-                if hw:
-                    self._async_keys = True
-                    self._last_key_at = now
-                if self._async_keys and (self._keys_down or (now - self._last_key_at < 2.0)):
-                    self._keys_down = hw
-                    return set(hw)
+                self._async_keys = True
+                if self._keys_down:
+                    hw = {c for vk, c in ((87, 'w'), (65, 'a'), (83, 's'), (68, 'd'),
+                                          (16, 'shift'), (160, 'shift'), (161, 'shift'))
+                          if user32.GetAsyncKeyState(vk) & 0x8000}
+                    wasd_down = (self._keys_down & {'w', 'a', 's', 'd'}) & hw
+                    if wasd_down:
+                        self._keys_down = wasd_down | ({'shift'} if 'shift' in hw else set())
+                    else:
+                        self._keys_down.clear()
+                return set(self._keys_down)
             except AttributeError:
                 pass
         return set(self._keys_down) if self._async_keys else None
@@ -499,6 +520,7 @@ class Keys:
         if not kernel.GetNumberOfConsoleInputEvents(
                 handle, ctypes.byref(count)):
             return None                  # a pipe, not a console
+        self._async_keys = True
         if not count.value or _RECORD is None:
             return []
         buf = (_RECORD * count.value)()
@@ -506,6 +528,9 @@ class Keys:
         if not kernel.ReadConsoleInputW(handle, buf, count.value,
                                         ctypes.byref(read)):
             return None
+        if not self._is_console_focused():
+            self._keys_down.clear()
+            return []
 
         vk_map = {87: 'w', 65: 'a', 83: 's', 68: 'd', 16: 'shift', 160: 'shift', 161: 'shift'}
         keys = []

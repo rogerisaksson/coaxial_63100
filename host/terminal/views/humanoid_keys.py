@@ -158,9 +158,11 @@ def _check_wasd_chords(typed, state):
     last_dt = min(0.1, max(0.01, t_now - state.get('_se2_last_t', t_now - 0.05)))
     state['_se2_last_t'] = t_now
     held_now = _console.held()
-    se2.step_controller(se2_st, lowered, last_dt, now=t_now, hold_window=se2.HOLD_WINDOW_S, held=held_now)
+    se2.step_controller(se2_st, typed, last_dt, now=t_now, hold_window=se2.HOLD_WINDOW_S, held=held_now)
 
     active = {k for k in ('w', 's', 'a', 'd') if se2_st['keys'].get(k)}
+    if active:
+        state['_wasd_active'] = True
     found = _match_chord(active)
     if found:
         tag, mv, consumed = found
@@ -186,7 +188,8 @@ def act_on(keys, typed, state, wheel=0.0):
     for key in typed:
         last_k, last_t = state.get('_last_action_key', (None, 0.0))
         if key == last_k and key != ' ' and (t_now - last_t) < 0.12:
-            if state.get('wasd_mode') and key in ('w', 'W') and state.get('se2', {}).get('v_x', 0.0) >= 1.25:
+            if state.get('wasd_mode') and key in ('w', 'W') and (
+                    key == 'W' or state.get('se2', {}).get('keys', {}).get('shift')):
                 state['body'].send(say='jog')
             continue
         state['_last_action_key'] = (key, t_now)

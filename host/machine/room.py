@@ -15,7 +15,7 @@ WIDE, FROM, TO, HIGH, THICK = 3.0, -1.5, 3.5, 2.4, 0.05
 
 #: The doorway in the far wall (+z): x from .. to; the door's half sizes, kg, its hinge's damping,
 #: N m s/rad, and how far it swings, deg.
-DOOR_X, DOOR, DOOR_KG, DOOR_C, DOOR_DEG = (0.3, 1.2), (0.44, 1.0, 0.02), 8.0, 3.0, 110.0
+DOOR_X, DOOR, DOOR_KG, DOOR_C, DOOR_DEG = (0.3, 1.2), (0.44, 1.0, 0.02), 2.5, 0.8, 110.0
 
 #: The chair: its middle (x, z), facing -z; the seat's half sizes and height, the back's.
 CHAIR_AT, SEAT, SEAT_H, BACK = (1.5, 0.8), (0.22, 0.02, 0.22), 0.45, (0.22, 0.25, 0.02)

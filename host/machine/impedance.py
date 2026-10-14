@@ -82,7 +82,9 @@ def ask(out, y, fr, a):
     both = np.einsum('nia,n->ia', hands, zdd).mean(axis=0)
     flat, xi = (soles @ rot.T)[:, :2], c[:2] + v[:2] / om
     low, high = poise.boxes(flat, a[EDGE], tilt)
-    swaying = (np.abs(ref[LATERAL] - z[LATERAL]) < ON[0]) & (np.abs(rate[LATERAL] - zd[LATERAL]) < ON[1])
+    lat_dc = stepping * (ref[LATERAL] - out[latent.SWAY][LATERAL] * np.sin(out[latent.PSI][LATERAL]))
+    across = 2.5 * lat_dc
+    swaying = (np.abs(ref[LATERAL] - lat_dc - z[LATERAL]) < ON[0]) & (np.abs(rate[LATERAL] - zd[LATERAL]) < ON[1])
     up = LIMBS * ref[LIFT]
     stance, zmp = poise.stands(c[:2] + both[:2] / om ** 2, xi, low, high, om, out[latent.HELD], up, swaying,
                                (sweep, off, flying), (y[LOAD], y[LOWEST] - fr[FLOOR], y[VCOM][1]), stood)
@@ -90,7 +92,7 @@ def ask(out, y, fr, a):
     bears = (stance + TINY) / (stance.sum() + 2.0 * TINY)
     along = om ** 2 * (c[:2] - zmp)
     # striding: where a sole lands, how it is pitched, how a standing one is turned
-    meet = stride.meets(xi, c, flat, cruise, om, turns, 2.0 * fr[W0] * (1.0 + ref[WIDTH]))
+    meet = stride.meets(xi, c, flat, cruise, om, turns, 2.0 * fr[W0] * (1.0 + ref[WIDTH]), across)
     tip, tipping, tipped = stride.rocks(ref[ROCK], rate[ROCK], acc[ROCK])
     long = fr[REACH0] - AXIAL_M * fr[HIPS_BY] * np.maximum(ref[AXIAL], 0.0)
     a[PREFOLD], short = stride.folds(off, y[LOAD], fr[KNEE] + a[BEND])

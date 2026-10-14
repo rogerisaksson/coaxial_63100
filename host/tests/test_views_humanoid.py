@@ -272,19 +272,20 @@ def test_surface_arrows_setpoint_actual_and_landing_zones(report):
     yh, _ = arrows.surface_at(0.0, 1.2, w.props())
     report.check('arrow surface_at dips into 10cm hole', yh < -0.08, 'yh=%.3f' % yh)
 
-    # 2. WASD locomotion: setpoint frame between feet, filled by actual velocity
+    # 2. WASD locomotion: setpoint frame between feet, filled by ordered velocity at the robot
     st = se2.state()
     se2.step_controller(st, 'w', 0.02, now=1.0)
     now_w = dict(base_now, twist=(st['v_x'], 0.0, 0.0), velocity=(0.0, st['v_x']), speed=st['v_x'], doing='#204')
     spec_w0 = arrows.describe(now_w, st)
     for _ in range(40):
-        se2.step_controller(st, 'w', 0.05, now=1.0 + _ * 0.05)
+        se2.step_controller(st, 'W', 0.05, now=1.0 + _ * 0.05)
     now_w_fast = dict(base_now, twist=(st['v_x'], 0.0, 0.0), velocity=(0.0, st['v_x']), speed=st['v_x'], doing='jog')
     spec_w1 = arrows.describe(now_w_fast, st)
-    report.check('W arrow originates between feet and fills as actual velocity ramps to run speed',
+    report.check('W / Shift+W arrow originates between feet and fills from ordered robot velocity',
                  spec_w0['kind'] == 'locomotion' and abs(spec_w0['origin'][0]) < 0.05
-                 and 0.3 < spec_w0['fill'] < spec_w1['fill'] and spec_w1['fill'] > 0.95
-                 and len(spec_w0['frame_segments']) > 10 and len(spec_w1['fill_segments']) > len(spec_w0['fill_segments']),
+                 and spec_w0['fill'] > 0.95 and spec_w1['fill'] > 0.95
+                 and spec_w1['setpoint'][0] > spec_w0['setpoint'][0]
+                 and len(spec_w0['frame_segments']) > 10 and len(spec_w1['fill_segments']) > 5,
                  'fill0=%.2f, fill1=%.2f' % (spec_w0['fill'], spec_w1['fill']))
 
     # 3. Composite WA turn curves arrow tip toward +X (left)

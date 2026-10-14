@@ -174,11 +174,91 @@ def test_house_tour_maneuver_execution(report):
     report.check('min height during chair sit reflects seated pose', 0.55 <= min_y <= 0.85, f'min_y={min_y:.2f}m')
 
 
+def test_house_exit_and_full_keyboard_mouse_maneuvers(report):
+    """Exit the glass house through the hinged door and execute walking, turning, sidestepping, backing, sprinting, jumping, and anti-glitch key handling."""
+    from machine import room, se2
+    from terminal.views import show_humanoid, viewpoint
+
+    prev_room = physics.ROOM
+    try:
+        physics.ROOM = 1.0
+        g = sprung.laid(every=3)
+        g_gym = sprung.entries(name='moves')
+        st = se2.state()
+        dt = 0.001
+
+        g['target_heading'] = math.radians(11.5)
+        max_tilt_exit = 0.0
+        for _ in range(6800):
+            se2.step_controller(st, ['w'], dt)
+            sprung._heard(g, g_gym, {'twist': (st['v_x'], st['v_y'], st['omega_z'])})
+            sprung.passed(g, dt)
+            max_tilt_exit = max(max_tilt_exit, sprung.tilt(g))
+        g['target_heading'] = None
+        d = g['world'].data
+        z_out, door_deg = float(d.qpos[2]), room.door_open(g['world'])
+        report.check('gynoid walks out of the house through the doorway (z > 3.6m) and pushes door open (> 50 deg)',
+                     z_out > 3.6 and door_deg > 50.0 and max_tilt_exit < 6.0,
+                     'z=%.2f m, door=%.1f deg, max_tilt=%.1f deg' % (z_out, door_deg, max_tilt_exit))
+
+        maneuvers = (('wa', 2.0), ('wd', 2.0), ('W', 1.8), ('a', 1.8), ('d', 1.8), ('s', 1.8), ('', 1.8))
+        max_tilt_out, min_y_out = 0.0, 2.0
+        hd_after, pos_after = {}, {}
+        for key, dur in maneuvers:
+            for _ in range(int(dur / dt)):
+                se2.step_controller(st, [key] if key else [], dt)
+                sprung._heard(g, g_gym, {'twist': (st['v_x'], st['v_y'], st['omega_z'])})
+                sprung.passed(g, dt)
+                max_tilt_out = max(max_tilt_out, sprung.tilt(g))
+                min_y_out = min(min_y_out, float(d.qpos[1]))
+            hd_after[key] = math.degrees(g['heading'])
+            pos_after[key] = (float(d.qpos[0]), float(d.qpos[1]), float(d.qpos[2]))
+
+        report.check('outside maneuvers (WA, WD, Shift+W sprint, A, D, S, stop) stay upright (tilt < 8 deg, y > 0.82m)',
+                     max_tilt_out < 8.0 and min_y_out > 0.82 and sprung.doing(g) == '#201',
+                     'max_tilt=%.1f deg, min_y=%.3f m, doing=%s' % (max_tilt_out, min_y_out, sprung.doing(g)))
+        report.check('outside WA turns left and WD turns back right while advancing past z > 5.5m',
+                     hd_after['wa'] > 20.0 and hd_after['wd'] < hd_after['wa'] - 10.0 and pos_after['W'][2] > 5.5,
+                     'hd_wa=%.1f, hd_wd=%.1f, z_sprint=%.2f' % (hd_after['wa'], hd_after['wd'], pos_after['W'][2]))
+
+        sprung._heard(g, g_gym, {'say': 'hop'})
+        max_y_hop, max_tilt_hop = 0.0, 0.0
+        for _ in range(2200):
+            sprung.passed(g, dt)
+            max_y_hop = max(max_y_hop, float(d.qpos[1]))
+            max_tilt_hop = max(max_tilt_hop, sprung.tilt(g))
+        z_before_resume = float(d.qpos[2])
+        for _ in range(2200):
+            se2.step_controller(st, ['w'], dt)
+            sprung._heard(g, g_gym, {'twist': (st['v_x'], st['v_y'], st['omega_z'])})
+            sprung.passed(g, dt)
+        z_after_resume = float(d.qpos[2])
+        report.check('jump (hop) outside and immediate resume W walking execute cleanly without key glitching',
+                     max_y_hop > 0.91 and max_tilt_hop < 8.0 and z_after_resume > z_before_resume + 0.25,
+                     'max_y_hop=%.3f, tilt=%.1f, dz=%.2f' % (max_y_hop, max_tilt_hop, z_after_resume - z_before_resume))
+
+        sent = []
+        class DummyBody:
+            def send(self, **kw):
+                sent.append(kw)
+        view_st = {**viewpoint.HOME, 'body': DummyBody(), 'wasd_mode': True, 'se2': se2.state()}
+        humanoid_keys.act_on(show_humanoid.KEYS, ['W'], view_st)
+        humanoid_keys.act_on(show_humanoid.KEYS, ['9'], view_st)
+        humanoid_keys.act_on(show_humanoid.KEYS, ['w'], view_st)
+        says = [c.get('say') for c in sent if 'say' in c]
+        report.check('Shift+W triggers jog, digit 9 triggers hop and clears stale WASD state, and W resumes walk',
+                     'jog' in says and 8 in says and 3 in says and (not view_st.get('_wasd_active', False) or says[-1] == 3),
+                     'says=%s' % says)
+    finally:
+        physics.ROOM = prev_room
+
+
 ROSTER = [
     test_house_tour_script_validity,
     test_stunt_fall_detection_prevents_spasming_when_knocked_down,
     test_wasd_strafe_and_turn_without_stance_widening,
     test_house_tour_maneuver_execution,
+    test_house_exit_and_full_keyboard_mouse_maneuvers,
 ]
 
 

@@ -316,10 +316,21 @@ def main(argv=None):
             if t_mono - state.get('_se2_last_t', 0.0) > 0.015:
                 state['_se2_last_t'] = t_mono
                 se2.step_controller(se2_st, (), dt_real, now=t_mono, held=_console.held())
-            tw = (round(se2_st['v_x'], 2), round(se2_st['v_y'], 2), round(se2_st['omega_z'], 2))
-            if state.get('_last_sent_twist') != tw:
-                state['_last_sent_twist'] = tw
-                body.send(twist=tw)
+            any_wasd = any(se2_st['keys'].get(k) for k in ('w', 's', 'a', 'd'))
+            if state.get('_wasd_active') and not any_wasd:
+                se2_st['v_x'] = se2_st['v_y'] = se2_st['omega_z'] = 0.0
+                se2_st['setpoint'] = (0.0, 0.0, 0.0)
+                se2_st['gait'] = None
+                state['_wasd_active'] = False
+                state['_last_sent_twist'] = (0.0, 0.0, 0.0)
+                body.send(twist=(0.0, 0.0, 0.0))
+            else:
+                if any_wasd:
+                    state['_wasd_active'] = True
+                tw = (round(se2_st['v_x'], 2), round(se2_st['v_y'], 2), round(se2_st['omega_z'], 2))
+                if state.get('_last_sent_twist') != tw:
+                    state['_last_sent_twist'] = tw
+                    body.send(twist=tw)
         said = []
         body.latest(into=said)
         if state['recording'] is not None:

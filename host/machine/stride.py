@@ -103,7 +103,7 @@ def cruises(way, drive, turns, going):
     return clip(cruise, going - AHEAD_M_S, going + AHEAD_M_S)
 
 
-def meets(xi, c, flat, cruise, om, turns, wide):
+def meets(xi, c, flat, cruise, om, turns, wide, across=0.0):
     """Where each sole lands (2, 2: along, across): it meets her capture point `xi`, carried
     along with her - a step's offset short of it along her going, what her `cruise` makes of
     a step, and the sole's own side of it by her width's (`wide` m between her soles). On its
@@ -116,8 +116,9 @@ def meets(xi, c, flat, cruise, om, turns, wide):
     step_s = np.pi / np.maximum(turns, TINY)
     grown = np.exp(om * step_s)
     led = LEADS * np.maximum((xi[ALONG] - c[ALONG]) - cruise / om, -0.04)
+    led_lat = (np.abs(across) > TINY) * clip((xi[LEFT] - c[LEFT]) - across / om, -0.045, 0.045)
     meet = xi - np.stack([cruise * step_s / (grown - 1.0) - led + 0.0 * LIMBS,
-                          -LIMBS * wide / (grown + 1.0)], axis=1)
+                          -led_lat - LIMBS * wide / (grown + 1.0)], axis=1)
     return np.stack([c[ALONG] + clip(meet[:, ALONG] - c[ALONG], -REACH_M, REACH_M),
                      flat[::-1, LEFT] + LIMBS * np.maximum(LIMBS * (meet[:, LEFT] - flat[::-1, LEFT]), APART_M)],
                     axis=1)

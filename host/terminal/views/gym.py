@@ -78,6 +78,38 @@ def _shoved(event, along):
     return shove
 
 
+def _say_non_wasd(state, target):
+    state['_wasd_active'] = False
+    se2_st = state.get('se2')
+    if se2_st is not None:
+        se2_st['v_x'] = se2_st['v_y'] = se2_st['omega_z'] = 0.0
+        se2_st['setpoint'] = (0.0, 0.0, 0.0)
+        se2_st['gait'] = None
+        se2_st['keys'] = {'w': False, 's': False, 'a': False, 'd': False, 'shift': False}
+        se2_st['last_seen'].clear()
+    state['_last_sent_twist'] = (0.0, 0.0, 0.0)
+    state['body'].send(say=target)
+
+
+def _toggle_wasd(state, key='~'):
+    import time
+    now = time.monotonic()
+    last_key, last_t = state.get('_last_wasd_toggle', ('', 0.0))
+    if key == last_key and (now - last_t) < 0.15:
+        return
+    state['_last_wasd_toggle'] = (key, now)
+    state['_last_wasd'] = (None, 0.0)
+    was_on = state.get('wasd_mode', False)
+    state['wasd_mode'] = not was_on
+    if was_on:
+        from terminal.views import scanner
+        sc = state.get('scanner') or scanner.VisionScanner()
+        detected = sc.scan(state.get('now'), state.get('yaw', 0.0))
+        action = scanner.auto_action(detected)
+        if action:
+            state['body'].send(say=action)
+
+
 def table(keys):
     """`keys` (the page's own) with the gym's laid over them: arrows and WASD walk, back and strafe, digits say moves."""
     out = dict(keys)
@@ -90,36 +122,18 @@ def table(keys):
     out['down'] = lambda state: state['body'].send(say=4)    # #205 step backward / brake
     out['left'] = lambda state: state['body'].send(say='strafe_left' if state.get('wasd_mode') else 1)
     out['right'] = lambda state: state['body'].send(say='strafe_right' if state.get('wasd_mode') else 1)
-    out.update((k, lambda state, i=i: state['body'].send(say=i)) for i, k in enumerate(DIGITS))
+    out.update((k, lambda state, i=i: _say_non_wasd(state, i)) for i, k in enumerate(DIGITS))
     out.update((k, _shoved(*how)) for k, how in PUSHES.items())
     for name, key in STUNTS.items():
-        handler = (lambda state, n=name: state['body'].send(say=n))
+        handler = (lambda state, n=name: _say_non_wasd(state, n))
         out[key] = handler
         if key.isalpha():
             out[key.upper()] = handler
 
-    def _toggle_wasd(state, key='~'):
-        import time
-        now = time.monotonic()
-        last_key, last_t = state.get('_last_wasd_toggle', ('', 0.0))
-        if key == last_key and (now - last_t) < 0.15:
-            return
-        state['_last_wasd_toggle'] = (key, now)
-        state['_last_wasd'] = (None, 0.0)
-        was_on = state.get('wasd_mode', False)
-        state['wasd_mode'] = not was_on
-        if was_on:
-            from terminal.views import scanner
-            sc = state.get('scanner') or scanner.VisionScanner()
-            detected = sc.scan(state.get('now'), state.get('yaw', 0.0))
-            action = scanner.auto_action(detected)
-            if action:
-                state['body'].send(say=action)
-
-    def _key_w(state):
+    def _key_w(state, shifted=False):
         if state.get('wasd_mode'):
             se2_st = state.setdefault('se2', se2.state())
-            if se2_st.get('v_x', 0.0) >= 1.25:
+            if shifted or se2_st.get('keys', {}).get('shift') or se2_st.get('v_x', 0.0) > se2.WALK_SPEED + 0.05:
                 state['body'].send(say='jog')
             else:
                 state['body'].send(say=3)
@@ -184,8 +198,8 @@ def table(keys):
 
     for k in keybindings.TOGGLE_TPW_KEYS:
         out[k] = (lambda state, key=k: _toggle_wasd(state, key))
-    for k in 'wW':
-        out[k] = _key_w
+    out['w'] = lambda state: _key_w(state, False)
+    out['W'] = lambda state: _key_w(state, True)
     for k in 'sS':
         out[k] = _key_s
     for k in 'aA':
