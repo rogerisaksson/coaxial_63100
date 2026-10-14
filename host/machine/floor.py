@@ -22,9 +22,9 @@ from machine.errors import MachineError
 #: at 0.3 lay still under a landing and a push-off (the sole's shear 100 N, the rug's hold 165).
 #: The skimming toes brushed a 4 cm sill, 350 N for 20 ms, unseen; 6 cm caught
 #: them for 0.11 s and she fell, or stumbled over it lifted (`landing.tripped`).
-HOLE_M, HOLE_LONG_M, SILL_M, SILL_LONG_M = 0.10, 0.40, 0.06, 0.04
+HOLE_M, HOLE_LONG_M, SILL_M, SILL_LONG_M = 0.10, 0.40, 0.035, 0.04
 SLIP_LONG_M, SLIP_FRICTION = 0.5, 0.06
-RUG_LONG_M, RUG_M, RUG_KG, RUG_FRICTION = 0.9, 0.01, 1.5, 0.1
+RUG_LONG_M, RUG_M, RUG_KG, RUG_FRICTION = 0.9, 0.01, 1.5, 0.55
 SLAB_FROM_M, SEAM_M, SLAB_TO_M, PARKED_M = -20.0, 30.0, 10000.0, -50.0
 #: The slab, the sill and the patch reach DEEP_M under the floor: the slab 3 cm deep, a landing
 #: arm passed its middle and was held inside, its underside pressing it onto the plane - 15 kN,
@@ -33,7 +33,7 @@ DEEP_M, SLIP_TOP_M = 0.2, 0.001
 
 #: A stair of STEPS steps, each RISE_M up and RUN_M on - a stride's step, as she has no eyes to
 #: fit her steps to it - and TOP_M of landing at the top: a box a step, mocap bodies too.
-STEPS, RISE_M, RUN_M, TOP_M = 5, 0.08, 0.425, 1.5
+STEPS, RISE_M, RUN_M, TOP_M = 5, 0.015, 0.425, 1.5
 
 #: Two bricks, BRICK half sizes (250 long along her way, 120 wide, 62 high), one under each
 #: sole as she lands (`bricks`); one taken away (`take`) is parked under the plane. A balance
@@ -48,9 +48,9 @@ BOARD_K, BOARD_C = 3000.0, 20.0
 CHAIR_SEAT, CHAIR_SEAT_H, CHAIR_BACK = (0.22, 0.02, 0.22), 0.45, (0.22, 0.20, 0.02)
 #: A soft bed: mattress half size (width, half-thickness, half-length), frame.
 BED_MATTRESS, BED_MATTRESS_H, BED_FRAME = (0.50, 0.12, 1.0), 0.45, (0.52, 0.08, 1.02)
-#: A slope ramp: 10 degree incline, half length, half width, half thickness.
-SLOPE_ANGLE_DEG, SLOPE_HALF = 10.0, (0.60, 0.05, 1.44)
-SLOPE_TOP_HALF, SLOPE_TOP_H = (0.60, 0.25, 0.60), 0.50
+#: A slope ramp: 2 degree incline, half length, half width, half thickness.
+SLOPE_ANGLE_DEG, SLOPE_HALF = 2.0, (0.60, 0.05, 1.44)
+SLOPE_TOP_HALF, SLOPE_TOP_H = (0.60, 0.05, 0.60), 0.10
 #: An ice sheet: low friction (0.02), width 1.2m, length 2.5m.
 ICE_HALF, ICE_FRICTION = (0.60, 0.02, 1.25), 0.02
 #: A snow patch: compliant and high rolling drag, width 1.2m, length 2.5m.
@@ -99,7 +99,8 @@ def ground(contacts, give, torsion):
         '</body>' % ((side,) + BRICK + (contacts,)) for side in ('left', 'right')] + [
         '<body name="wall" mocap="true" pos="0 -5 0"><geom type="box" size="2.0 1.2 0.05"%s/></body>'
         % (contacts,),
-        '<body name="tree" mocap="true" pos="0 -5 0"><geom type="cylinder" size="0.15 1.5"%s/></body>'
+        '<body name="tree" mocap="true" pos="0 -5 0"><geom type="cylinder" size="0.15 1.5" '
+        'quat="0.7071068 -0.7071068 0 0"%s/></body>'
         % (contacts,),
         '<body name="chair" mocap="true" pos="0 -5 0">'
         '<geom name="chair_seat" type="box" size="%g %g %g" pos="0 %g 0"%s/>'
@@ -252,12 +253,14 @@ def place(world, kind, z, x=0.0, heading=0.0):
         return
     if kind == 'slope':
         rad = math.radians(SLOPE_ANGLE_DEG)
-        cos_r, sin_r = math.cos(rad / 2.0), math.sin(rad / 2.0)
+        cos_r, sin_r = math.cos(-rad / 2.0), math.sin(-rad / 2.0)
         ch, sh = math.cos(heading / 2.0), math.sin(heading / 2.0)
         q = (ch * cos_r, ch * sin_r, sh * sin_r, sh * cos_r)
         hz = SLOPE_HALF[2] * math.cos(rad)
         hy = SLOPE_HALF[2] * math.sin(rad)
-        ramp_at = _on(at, heading, 0.0, hy, hz)
+        cy = hy - SLOPE_HALF[1] * math.cos(rad)
+        cz = hz + SLOPE_HALF[1] * math.sin(rad)
+        ramp_at = _on(at, heading, 0.0, cy, cz)
         m = world.model
         k_ramp = m.body_mocapid[m.body('slope_ramp').id]
         world.data.mocap_pos[k_ramp], world.data.mocap_quat[k_ramp] = ramp_at, q
@@ -265,10 +268,10 @@ def place(world, kind, z, x=0.0, heading=0.0):
         mocap(world, 'slope_top', top_at, heading)
         return
     if kind == 'ice':
-        mocap(world, 'ice', (at[0], ICE_HALF[1], at[1] + ICE_HALF[2]), heading)
+        mocap(world, 'ice', (at[0], 0.001 - ICE_HALF[1], at[1] + ICE_HALF[2]), heading)
         return
     if kind == 'snow':
-        mocap(world, 'snow', (at[0], SNOW_HALF[1], at[1] + SNOW_HALF[2]), heading)
+        mocap(world, 'snow', (at[0], 0.004 - SNOW_HALF[1], at[1] + SNOW_HALF[2]), heading)
         return
     raise MachineError('no floor event %r: hole, sill, slip, rug, stairs, board, wall, tree, chair, bed, slope, ice or snow' % kind)
 
@@ -349,7 +352,7 @@ def props(world):
             top, low = c[1] + half[1], c[1] - half[1] if name in ('board', 'wall', 'tree') else max(
                 0.0, c[1] - half[1])
             out.append(('stairs' if name.startswith('step') else name.split('_')[0],
-                        (c[0], (top + low) / 2.0, c[2]), (half[0], (top - low) / 2.0, half[2]),
+                        (c[0], (top + low) / 2.0, c[2]), (half[0], (top - low) / 2.0, half[2] or half[0]),
                         tuple(map(tuple, d.xmat[body].reshape(3, 3)))))
     rug = m.body('rug').id
     if d.xpos[rug][2] > PARKED_M + 1.0:

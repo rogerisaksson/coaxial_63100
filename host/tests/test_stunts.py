@@ -243,181 +243,81 @@ def test_all_scenarios_instantiation_and_props(report):
 
 def test_stunts_executed_on_specialized_scenarios(report):
     """Stunts approach props along forward line of walk and execute smoothly on their scenarios."""
-    from machine import floor, ortho, sprung
+    from machine import sprung
     gym = sprung.entries()
-
-    # 1. Chair scenario: approaches chair and sits down
-    g_chair = sprung.laid()
-    sprung._heard(g_chair, gym, {'scenario': 'chair'})
-    report.check('scenario set to chair', g_chair.get('scenario') == 'chair')
-    sprung._heard(g_chair, gym, {'say': 'sit_chair'})
-    for _ in range(2500):
-        sprung.passed(g_chair, 0.001)
-    chair_z = float(g_chair['world'].data.qpos[2])
-    report.check('gynoid walks forward to chair before sitting', chair_z >= 0.50,
-                 'final z: %.2f m' % chair_z)
-    report.check('sit_chair on chair scenario completes without fall', sprung.tilt(g_chair) < 20.0,
-                 'tilt: %.1f deg' % sprung.tilt(g_chair))
-
-    # 2. Ice scenario: ice_walk
-    g_ice = sprung.laid()
-    sprung._heard(g_ice, gym, {'scenario': 'ice'})
-    report.check('scenario set to ice', g_ice.get('scenario') == 'ice')
-    sprung._heard(g_ice, gym, {'say': 'ice_walk'})
-    for _ in range(1200):
-        sprung.passed(g_ice, 0.001)
-    report.check('ice_walk on ice scenario negotiates slick surface', sprung.tilt(g_ice) < 25.0,
-                 'tilt: %.1f deg' % sprung.tilt(g_ice))
-
-    # 3. Slope scenario: slope_walk
-    g_slope = sprung.laid()
-    sprung._heard(g_slope, gym, {'scenario': 'slope'})
-    report.check('scenario set to slope', g_slope.get('scenario') == 'slope')
-    sprung._heard(g_slope, gym, {'say': 'slope_walk'})
-    for _ in range(1200):
-        sprung.passed(g_slope, 0.001)
-    report.check('slope_walk on slope scenario traverses ramp without fall', sprung.tilt(g_slope) < 25.0,
-                 'tilt: %.1f deg' % sprung.tilt(g_slope))
-
-    # 4. Bed scenario: lie_bed
-    g_bed = sprung.laid()
-    sprung._heard(g_bed, gym, {'scenario': 'bed'})
-    report.check('scenario set to bed', g_bed.get('scenario') == 'bed')
-    sprung._heard(g_bed, gym, {'say': 'lie_bed'})
-    for _ in range(1800):
-        sprung.passed(g_bed, 0.001)
-    bed_z = float(g_bed['world'].data.qpos[2])
-    report.check('gynoid walks forward to bed before reclining', bed_z >= 0.50,
-                 'final z: %.2f m' % bed_z)
-    report.check('lie_bed on compliant bed scenario completes without error', sprung.tilt(g_bed) < 30.0,
-                 'tilt: %.1f deg' % sprung.tilt(g_bed))
-
-    # 5. Floor mattress: lie_floor
+    for scen, say, n, max_t, min_z in (
+        ('chair', 'sit_chair', 2500, 20.0, 0.50),
+        ('ice', 'ice_walk', 1200, 25.0, None),
+        ('slope', 'slope_walk', 1200, 25.0, None),
+        ('bed', 'lie_bed', 1800, 30.0, 0.50),
+        ('stairs', 'stairs_down', 1200, 25.0, None),
+    ):
+        g = sprung.laid()
+        sprung._heard(g, gym, {'scenario': scen})
+        report.check('scenario set to %s' % scen, g.get('scenario') == scen)
+        sprung._heard(g, gym, {'say': say})
+        for _ in range(n):
+            sprung.passed(g, 0.001)
+        if min_z is not None:
+            z = float(g['world'].data.qpos[2])
+            report.check('gynoid walks forward to %s' % scen, z >= min_z, 'final z: %.2f m' % z)
+        report.check('%s on %s completes without fall' % (say, scen), sprung.tilt(g) < max_t, 'tilt: %.1f deg' % sprung.tilt(g))
     g_floor = sprung.laid()
-    sprung._heard(g_floor, gym, {'scenario': 'flat'})
-    sprung._heard(g_floor, gym, {'say': 'lie_floor'})
+    sprung._heard(g_floor, gym, {'scenario': 'flat', 'say': 'lie_floor'})
     for _ in range(2200):
         sprung.passed(g_floor, 0.001)
-    report.check('lie_floor on floor lowers compliantly', sprung.doing(g_floor) in ('kneel', 'lower', 'floor_rest', 'lie_floor'),
-                 'doing: %s, tilt: %.1f deg' % (sprung.doing(g_floor), sprung.tilt(g_floor)))
-
-    # 6. Stairs scenario: stairs_down
-    g_stairs = sprung.laid()
-    sprung._heard(g_stairs, gym, {'scenario': 'stairs'})
-    report.check('scenario set to stairs', g_stairs.get('scenario') == 'stairs')
-    sprung._heard(g_stairs, gym, {'say': 'stairs_down'})
-    for _ in range(1200):
-        sprung.passed(g_stairs, 0.001)
-    report.check('stairs_down on stairs scenario executes descent without fall', sprung.tilt(g_stairs) < 25.0,
-                 'tilt: %.1f deg' % sprung.tilt(g_stairs))
+    report.check('lie_floor on floor lowers compliantly', sprung.doing(g_floor) in ('kneel', 'lower', 'floor_rest', 'lie_floor'))
 
 
 def test_gentle_walk_mode_4_ballistic_initiation_and_keylogger(report):
     """Pressing '4' (say: 3, #204 gentle walk) initiates with small ballistic steps without tripping, and tty keys log to file."""
-    import math
     from machine import sprung
     from terminal.views import humanoid_keys
-
-    # 1. Verify TTY Keylogger logs key '4' with descriptive action
     humanoid_keys.log_key('4', humanoid_keys._action_of('4'))
     with open(humanoid_keys.KEYLOG, 'r', encoding='utf-8') as f:
-        log_content = f.read()
-    report.check('keylog.txt records tty key 4 and gentle walk action',
-                 "TTY: '4' -> say: 3 (#204 walk) [gentle walk]" in log_content)
-
-    # 2. Verify gentle walk initiates from rest cleanly with small ballistic steps
-    gym = sprung.entries()
-    g = sprung.laid()
-    sprung._heard(g, gym, {'say': 3})  # Digit 4 sends index 3: #204
+        report.check('keylog.txt records tty key 4 and gentle walk action',
+                     "TTY: '4' -> say: 3 (#204 walk) [gentle walk]" in f.read())
+    gym, g = sprung.entries(), sprung.laid()
+    sprung._heard(g, gym, {'say': 3})
     knees = list(g['body'].knees)
-    min_l, min_r = 999.0, 999.0
-    tilts, speeds = [], []
-    for _ in range(2500):  # 2.5 seconds
+    min_l, min_r, max_tilt = 999.0, 999.0, 0.0
+    for _ in range(2500):
         sprung.passed(g, 0.001)
-        ql = float(g['world'].data.qpos[g['body'].qact][knees[0]])
-        qr = float(g['world'].data.qpos[g['body'].qact][knees[1]])
-        min_l = min(min_l, ql)
-        min_r = min(min_r, qr)
-        tilts.append(sprung.tilt(g))
-        speeds.append(float(g['world'].data.qvel[2]))
-
-    min_l_deg, min_r_deg = math.degrees(min_l), math.degrees(min_r)
-    max_tilt = max(tilts)
-    final_speed = speeds[-1]
-
-    report.check('gentle walk left knee maintains natural flexion (>= 4.0 deg)', min_l_deg >= 4.0,
-                 'min left: %.2f deg' % min_l_deg)
-    report.check('gentle walk right knee maintains natural flexion (>= 4.0 deg)', min_r_deg >= 4.0,
-                 'min right: %.2f deg' % min_r_deg)
-    report.check('gentle walk upright posture maintained (tilt < 10 deg)', max_tilt < 10.0,
-                 'max tilt: %.2f deg' % max_tilt)
-    report.check('gentle walk cruises cleanly without tripping (speed >= 0.5 m/s)', final_speed >= 0.5,
-                 'final speed: %.2f m/s' % final_speed)
+        ql, qr = (float(g['world'].data.qpos[g['body'].qact][k]) for k in knees)
+        min_l, min_r, max_tilt = min(min_l, ql), min(min_r, qr), max(max_tilt, sprung.tilt(g))
+    report.check('gentle walk left knee flexion (>= 4.0 deg)', math.degrees(min_l) >= 4.0)
+    report.check('gentle walk right knee flexion (>= 4.0 deg)', math.degrees(min_r) >= 4.0)
+    report.check('gentle walk upright posture (< 10 deg)', max_tilt < 10.0)
+    report.check('gentle walk cruises cleanly (>= 0.5 m/s)', float(g['world'].data.qvel[2]) >= 0.5)
 
 
 def test_quake_wasd_locomotion_and_curves(report):
-    """Test Quake WASD behaviors: strafe left/right, and compound turns WA (vänstersväng) and SD (högersväng)."""
+    """Test Quake WASD behaviors: strafe left/right, and compound turns WA and SD."""
     from machine import sprung
-    g = sprung.laid()
-    gym = sprung.entries(name='moves')
-    by = {e[0]: e for e in gym}
-
-    # Strafe left (A)
-    report.check('strafe_left behavior exists in gym', 'strafe_left' in by)
-    sprung.said(g, *by['strafe_left'], at=g['t'])
-    for _ in range(1500):
-        sprung.passed(g, 0.001)
-    tilt_strafe = sprung.tilt(g)
-    report.check('strafe left executes with stable upright posture (< 10 deg)', tilt_strafe < 10.0,
-                 'tilt: %.1f deg' % tilt_strafe)
-    report.check('strafe left shifts position across towards +x', g['world'].data.qpos[0] > 0.1,
-                 'x: %.3f m' % g['world'].data.qpos[0])
-
-    # Turn left (WA, vänstersväng)
-    g_wa = sprung.laid()
-    report.check('turn_left behavior exists in gym', 'turn_left' in by)
-    sprung.said(g_wa, *by['turn_left'], at=g_wa['t'])
-    for _ in range(1500):
-        sprung.passed(g_wa, 0.001)
-    tilt_wa = sprung.tilt(g_wa)
-    report.check('WA turn left executes cleanly without falling', tilt_wa < 10.0,
-                 'tilt: %.1f deg' % tilt_wa)
-
-    # Turn back right (SD, SD-högersväng)
-    g_sd = sprung.laid()
-    report.check('turn_back_right behavior exists in gym', 'turn_back_right' in by)
-    sprung.said(g_sd, *by['turn_back_right'], at=g_sd['t'])
-    for _ in range(1500):
-        sprung.passed(g_sd, 0.001)
-    tilt_sd = sprung.tilt(g_sd)
-    report.check('SD turn back right executes cleanly without falling', tilt_sd < 10.0,
-                 'tilt: %.1f deg' % tilt_sd)
+    by = {e[0]: e for e in sprung.entries(name='moves')}
+    for name in ('strafe_left', 'turn_left', 'turn_back_right'):
+        report.check('%s behavior exists in gym' % name, name in by)
+        g = sprung.laid()
+        sprung.said(g, *by[name], at=g['t'])
+        for _ in range(1500):
+            sprung.passed(g, 0.001)
+        report.check('%s executes cleanly (< 10 deg)' % name, sprung.tilt(g) < 10.0, 'tilt: %.1f deg' % sprung.tilt(g))
+        if name == 'strafe_left':
+            report.check('strafe left shifts position across towards +x', g['world'].data.qpos[0] > 0.1)
 
 
 def test_drivetrain_capacity_and_stunt_torque_envelope(report):
     """Audit drivetrain capacity (U8 and MN6007, B wave gearbox 1:30, 63100 inverter) across stunt suite."""
-    from machine import drives, figure, physics
-    from machine.figure import JOINTS
-
-    # 1. Motor variants and gear ratio verification
-    report.check('exactly 2 bought motor frames (U8 and MN6007)', set(drives.FRAMES.keys()) == {'U8', 'MN6007'})
+    from machine import drives
+    report.check('2 bought motor frames (U8 and MN6007)', set(drives.FRAMES.keys()) == {'U8', 'MN6007'})
     report.check('single gearbox family B with 1:30 ratio', drives.RATIO == 30.0 and 'B' in drives.BOXES)
     report.check('unified 63100 100A inverter disc', 100 in drives.INVERTERS and drives.INVERTERS[100][1] == 100.0)
-
-    # 2. Peak torque capacity: all major leg joints (hip, knee) clamped at 108 Nm (motor * ratio * eff)
     for j in ('left_hip', 'right_hip', 'left_knee', 'right_knee'):
-        pk = drives.peak(j)
-        report.check('%s peak torque >= 100 Nm for jumping & stair clearance' % j, pk >= 100.0, 'peak: %.1f Nm' % pk)
-
-    # 3. Gearbox shock capacity: 128 Nm momentary rating
+        report.check('%s peak torque >= 100 Nm' % j, drives.peak(j) >= 100.0)
     for j in ('left_knee', 'right_knee', 'left_ankle', 'right_ankle'):
-        shk = drives.shock(j)
-        report.check('%s gearbox shock capacity >= 120 Nm for breakfall/drop absorption' % j, shk >= 120.0, 'shock: %.1f Nm' % shk)
-
-    # 4. Joint torsional stiffness is bounded and compliant
+        report.check('%s gearbox shock >= 120 Nm' % j, drives.shock(j) >= 120.0)
     for j in ('left_knee', 'left_hip', 'left_ankle'):
-        flx = drives.flex(j)
-        report.check('%s flex compliance is well-conditioned (> 0 and < 0.001 rad/Nm)' % j, 0.0 < flx < 1e-3, 'flex: %g' % flx)
+        report.check('%s flex compliance bounded' % j, 0.0 < drives.flex(j) < 1e-3)
 
 
 def test_shooter_circle_walk_and_continuous_turning(report):
@@ -488,6 +388,40 @@ def test_glass_room_environment_and_door_push_through(report):
     report.check('gynoid traversed doorway without falling', tilt < 10.0, 'tilt: %.1f deg' % tilt)
 
 
+def test_full_duration_stunt_and_shove_trajectories(report):
+    """Full 4-8s closed-loop trajectories for sit/rise, lie/rise, hop down/up, stairs up/down, and mid-walk shoves."""
+    from machine import sprung
+    gym = sprung.entries()
+    cases = (
+        ('chair_sit_rise', 'chair', ((0.01, {'say': 'sit_chair'}), (4.0, {'say': 'rise_chair'})), 7.0),
+        ('bed_lie_rise', 'bed', ((0.01, {'say': 'lie_bed'}), (4.5, {'say': 'rise_bed'})), 8.0),
+        ('floor_lie_rise', 'flat', ((0.01, {'say': 'lie_floor'}), (4.0, {'say': 'rise_floor'})), 7.0),
+        ('chair_hop_down', 'chair', ((0.01, {'say': 'hop_down_chair'}),), 4.0),
+        ('chair_hop_up', 'chair', ((0.01, {'say': 'hop_up_chair'}),), 4.0),
+        ('stairs_up', 'stairs', ((0.01, {'say': 'stairs_walk'}),), 6.0),
+        ('stairs_down', 'stairs', ((0.01, {'say': 'stairs_down'}),), 6.0),
+        ('shove_walk_lat', 'flat', ((0.01, {'say': '#204'}), (2.0, {'push': (80.0, 0.0, 0.0), 'seconds': 0.12})), 5.0),
+        ('shove_hard', 'flat', ((0.01, {'say': '#204'}), (2.0, {'push': (140.0, 0.0, 0.0), 'seconds': 0.12})), 5.0),
+    )
+    for name, scen, actions, total_s in cases:
+        g = sprung.laid(every=3)
+        sprung._heard(g, gym, {'scenario': scen})
+        idx = 0
+        max_tilt = 0.0
+        for step in range(int(total_s * 1000)):
+            t = step * 0.001
+            while idx < len(actions) and t >= actions[idx][0]:
+                sprung._heard(g, gym, actions[idx][1])
+                idx += 1
+            sprung.passed(g, 0.001)
+            max_tilt = max(max_tilt, sprung.tilt(g))
+        ftilt = sprung.tilt(g)
+        y = float(g['world'].data.qpos[1])
+        report.check('%s full %.1fs trajectory completes upright' % (name, total_s),
+                     ftilt < 15.0 and y > 0.70 and max_tilt < 35.0,
+                     'max_tilt=%.1f deg, final_tilt=%.1f deg, y=%.2fm' % (max_tilt, ftilt, y))
+
+
 ROSTER = [
     test_stunts_compile_and_execute,
     test_all_scenarios_instantiation_and_props,
@@ -504,6 +438,7 @@ ROSTER = [
     test_shooter_circle_walk_and_continuous_turning,
     test_glass_room_environment_and_door_push_through,
     test_drivetrain_capacity_and_stunt_torque_envelope,
+    test_full_duration_stunt_and_shove_trajectories,
 ]
 
 

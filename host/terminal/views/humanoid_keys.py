@@ -160,11 +160,10 @@ def _check_wasd_chords(typed, state):
     held_now = _console.held()
     se2.step_controller(se2_st, lowered, last_dt, now=t_now, hold_window=se2.HOLD_WINDOW_S, held=held_now)
 
-    active = set(lowered) | {k for k in ('w', 's', 'a', 'd') if se2_st['keys'].get(k)}
+    active = {k for k in ('w', 's', 'a', 'd') if se2_st['keys'].get(k)}
     found = _match_chord(active)
     if found:
         tag, mv, consumed = found
-        se2.step_controller(se2_st, tag, 0.0, now=t_now, hold_window=se2.HOLD_WINDOW_S, held=held_now)
         state['body'].send(say=mv)
         log_key(tag, _action_of(tag, wasd_mode=True))
         state['_last_wasd'] = (tag, t_now)

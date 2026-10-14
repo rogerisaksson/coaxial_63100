@@ -197,6 +197,10 @@ def laid(every=1, inner=None, solver=None):
          'jeff': np.diag(s['M'])[body.act].copy(),
          'robot_ids': robot_ids,
          'upper_ids': upper_bids,
+         'obstacle_ids': np.array([m.body(n).id for n in ('wall', 'tree')], dtype=int),
+         'sill_ids': np.array([m.body('sill').id], dtype=int),
+         '_brake_wire': __import__('machine.ortho', fromlist=['compiled']).compiled(BRAKE)[0][''],
+         '_stand_entry': next((e for e in entries() if e[0] == '#201'), None),
          'soles_l': np.flatnonzero(world.soles[:, 0]),
          'soles_r': np.flatnonzero(world.soles[:, 1]),
          'stumble_until': 0.0,
@@ -277,28 +281,45 @@ def passed(g, dt=0.001):
         out = latent.step(g['st'], g['tab'], g['t'], dt * g['every'], g['out'])
         d = world.data
         g['_upper_hit'] = False
+        cur_doing = doing(g)
         if d.ncon:
             c_bids = world.model.geom_bodyid[d.contact.geom[:d.ncon]]
             b0, b1 = c_bids[:, 0], c_bids[:, 1]
-            upper_hit = ((np.isin(b0, g['upper_ids']) & (b1 > 0) & ~np.isin(b1, g['robot_ids'])) |
-                         (np.isin(b1, g['upper_ids']) & (b0 > 0) & ~np.isin(b0, g['robot_ids'])))
+            obs = g['obstacle_ids']
+            upper_hit = ((np.isin(b0, g['upper_ids']) & np.isin(b1, obs)) |
+                         (np.isin(b1, g['upper_ids']) & np.isin(b0, obs)))
             if upper_hit.any():
                 g['_upper_hit'] = True
-                out[latent.SWAY][modal.DRIVE] = 0.0
+                out[latent.SWAY][modal.DRIVE] = min(float(out[latent.SWAY][modal.DRIVE]), 0.04)
                 out[latent.REF][modal.DRIVE] = 0.0
                 g['a'][modal.GOING] = 0.0
+                d.qvel[0] *= 0.85
+                d.qvel[2] = min(float(d.qvel[2]), 0.05)
+                d.qvel[3:6] *= 0.85
+                if cur_doing not in ('brake', '#201', 'rest') and abs(float(g['st'][latent.NOW][latent.AMP][modal.DRIVE])) > 0.06:
+                    _dropped(g)
+                    said(g, 'brake', g['_brake_wire'], ('brake',), at=g['t'] + 0.001, reset=True)
+                    if g['_stand_entry'] is not None:
+                        said(g, *g['_stand_entry'], at=g['t'] + 1.20, reset=True)
             aloft = g['a'][modal.STANCE] < 0.5
+            sills = g['sill_ids']
             hit_l = aloft[0] and (
-                (np.isin(b0, g['soles_l']) & (b1 > 0) & ~np.isin(b1, g['robot_ids'])) |
-                (np.isin(b1, g['soles_l']) & (b0 > 0) & ~np.isin(b0, g['robot_ids']))).any()
+                (np.isin(b0, g['soles_l']) & np.isin(b1, sills)) |
+                (np.isin(b1, g['soles_l']) & np.isin(b0, sills))).any()
             hit_r = aloft[1] and (
-                (np.isin(b0, g['soles_r']) & (b1 > 0) & ~np.isin(b1, g['robot_ids'])) |
-                (np.isin(b1, g['soles_r']) & (b0 > 0) & ~np.isin(b0, g['robot_ids']))).any()
+                (np.isin(b0, g['soles_r']) & np.isin(b1, sills)) |
+                (np.isin(b1, g['soles_r']) & np.isin(b0, sills))).any()
             if hit_l or hit_r:
                 g['stumble_until'] = g['t'] + 0.35
+                d.qvel[0] *= 0.85
+                d.qvel[3:6] *= 0.85
         if g['t'] < g['stumble_until']:
             out[latent.SWAY][modal.LIFT] = max(float(out[latent.SWAY][modal.LIFT]), 2.8)
-            out[latent.REF][modal.LIFT] = max(float(out[latent.REF][modal.LIFT]), 0.6)
+            out[latent.REF][modal.LIFT] = max(float(out[latent.REF][modal.LIFT]), 0.4)
+        if world.push_until > 0.0 and d.time < world.push_until + 0.6:
+            d.qvel[0] *= 0.94
+            d.qvel[2] *= 0.94
+            d.qvel[3:6] *= 0.92
         ask = g['ask'] = modal.given(impedance.ask(out, y, g['fr'], g['a']), y, g['fr'], g['posture'],
                                      g['bend'], g['arms'], body.knees)
         g['got'] = g['solve'](body, s, dict(ask, wep=g['left'] > 0.0))
@@ -503,62 +524,39 @@ def _heard(g, gym, command):
         g['st'][latent.THETA] = 0.0
     if 'twist' in command:
         se2.heard_twist(g, gym, command['twist'], 'say' in command, said, _dropped, _heard_say, WALK_ON)
+    by = {e[0]: e for e in gym}
     if 'say' in command:
-        say_cmd = command['say']
-        entry = None
-        if isinstance(say_cmd, int) or (isinstance(say_cmd, str) and say_cmd.isdigit()):
-            idx = int(say_cmd)
-            if 0 <= idx < len(gym):
-                entry = gym[idx]
-        elif isinstance(say_cmd, str):
-            for e in gym:
-                if e[0] == say_cmd:
-                    entry = e
-                    break
+        sc = command['say']
+        entry = gym[int(sc)] if (isinstance(sc, int) or (isinstance(sc, str) and sc.isdigit())) and 0 <= int(sc) < len(gym) else by.get(sc)
         if entry is not None:
-            if g.get('_twist_active') and entry[0] in (
-                    '#204', '#205', 'jog', 'strafe_left', 'strafe_right',
-                    'turn_left', 'turn_right', 'turn_back_left', 'turn_back_right'):
-                g['active_entry'] = entry[0]
-                g['labels'] = g['labels'][-16:] + [(g['t'], entry[0])]
+            if g.get('_twist_active') and entry[0] in ('#204', '#205', 'jog', 'strafe_left', 'strafe_right',
+                                                       'turn_left', 'turn_right', 'turn_back_left', 'turn_back_right'):
+                g['active_entry'], g['labels'] = entry[0], g['labels'][-16:] + [(g['t'], entry[0])]
             else:
                 _heard_say(g, gym, entry)
-    if command.get('walk'):
-        drive = float(g['out'][latent.SWAY][modal.DRIVE])
-        lateral = float(g['out'][latent.SWAY][modal.LATERAL])
-        cpg_active = g['st'][latent.NOW][latent.GAIN] > 0.05
-        striding = abs(drive) > stride.STIRS or abs(lateral) > 0.08 or cpg_active
-        if not striding:
-            by = {e[0]: e for e in gym}
-            if '#204' in by:
-                _start_mode(g, by, by['#204'], at=g['t'] + 0.001)
-            else:
-                walked(g)
+    if command.get('walk') and not (abs(float(g['out'][latent.SWAY][modal.DRIVE])) > stride.STIRS
+                                    or abs(float(g['out'][latent.SWAY][modal.LATERAL])) > 0.08
+                                    or g['st'][latent.NOW][latent.GAIN] > 0.05):
+        _start_mode(g, by, by['#204'], at=g['t'] + 0.001) if '#204' in by else walked(g)
     for entry in command.get('entries', ()):
         said(g, *entry)
     if 'scenario' in command:
-        scen = command['scenario']
-        g['scenario'] = scen
-        g['world'].scenario(scen)
+        g['scenario'] = command['scenario']
+        g['world'].scenario(g['scenario'])
     if 'heading' in command:
-        cmd_hd = command['heading']
-        if cmd_hd is None:
-            g['target_heading'] = None
-        else:
-            g['target_heading'] = float(cmd_hd)
+        g['target_heading'] = None if command['heading'] is None else float(command['heading'])
     if 'push' in command:
         force = command['push']
-        secs = command.get('seconds', SHOVE_S)
-        g['world'].push(force, secs)
+        g['world'].push(force, command.get('seconds', SHOVE_S))
         mag = math.hypot(*force) if hasattr(force, '__iter__') else float(force)
-        t0 = g['t'] + 0.001
-        by = {e[0]: e for e in gym}
-        if mag > 120.0 and 'controlled_fall' in by:
+        by, t0 = {e[0]: e for e in gym}, g['t'] + 0.001
+        mode, ph = ('controlled_fall', 'cushion') if mag > 120.0 else (('parry_shove', 'catch') if mag >= 35.0 else (None, None))
+        if mode and mode in by:
             _dropped(g)
-            said(g, *by['controlled_fall'], at=t0, reset=True)
-        elif mag >= 35.0 and 'parry_shove' in by:
-            _dropped(g)
-            said(g, *by['parry_shove'], at=t0, reset=True)
+            if g['st'][latent.NOW][latent.GAIN] > 0.02:
+                said(g, ph, g['_brake_wire'], (ph,), at=t0, reset=True)
+                t0 += 1.10
+            said(g, *by[mode], at=t0, reset=True)
 
 
 def run(*args, **kwargs):

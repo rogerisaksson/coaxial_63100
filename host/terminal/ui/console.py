@@ -431,14 +431,18 @@ class Keys:
 
     def held(self):
         """Currently held movement keys (w, a, s, d, shift) when hardware state is active."""
-        if sys.platform == 'win32' and self.console and (self._keys_down or self._async_keys):
+        now = time.monotonic()
+        if sys.platform == 'win32' and self.console and (
+                self._keys_down or self._async_keys or (now - self._last_key_at < 2.0)):
             try:
                 user32 = ctypes.windll.user32
-                hw = {c for vk, c in ((87, 'w'), (65, 'a'), (83, 's'), (68, 'd'), (16, 'shift'))
+                hw = {c for vk, c in ((87, 'w'), (65, 'a'), (83, 's'), (68, 'd'),
+                                      (16, 'shift'), (160, 'shift'), (161, 'shift'))
                       if user32.GetAsyncKeyState(vk) & 0x8000}
                 if hw:
                     self._async_keys = True
-                if self._async_keys and (self._keys_down or time.monotonic() - self._last_key_at < 2.0):
+                    self._last_key_at = now
+                if self._async_keys and (self._keys_down or (now - self._last_key_at < 2.0)):
                     self._keys_down = hw
                     return set(hw)
             except AttributeError:

@@ -96,11 +96,7 @@ def poll_input(raw, st=None, now=None, hold_window=HOLD_WINDOW_S, held=None):
     if held is not None:
         active = _extract_tokens(held) | tokens
         if st is not None:
-            if active and now is not None:
-                for tok in active:
-                    st['last_seen'][tok] = float(now)
-            else:
-                st['last_seen'].clear()
+            st['last_seen'] = {tok: float(now) for tok in active} if (active and now is not None) else {}
     elif st is not None and now is not None:
         last_seen = st['last_seen']
         if 'w' in tokens and 's' not in tokens:
@@ -244,6 +240,8 @@ def gait_for_twist(st):
     vx = st.get('v_x', 0.0)
     vy = st.get('v_y', 0.0)
     wz = st.get('omega_z', 0.0)
+    if abs(vy) > 0.05:
+        return 'strafe_left' if vy > 0 else 'strafe_right'
     if vx > 0.05 and abs(wz) > 0.05:
         return 'turn_left' if wz > 0 else 'turn_right'
     if vx < -0.05 and abs(wz) > 0.05:
@@ -254,10 +252,6 @@ def gait_for_twist(st):
         return '#204'
     if vx < -0.05:
         return '#205'
-    if vy > 0.05:
-        return 'strafe_left'
-    if vy < -0.05:
-        return 'strafe_right'
     return None
 
 
@@ -311,6 +305,7 @@ def heard_twist(g, gym, tw, has_say, said_fn, dropped_fn, heard_say_fn, walk_on)
     vx, vy, wz = g['twist']
     by = {e[0]: e for e in gym}
     if abs(vx) > 0.01 or abs(vy) > 0.01 or abs(wz) > 0.01:
+        label = gait_for_twist({'v_x': vx, 'v_y': vy, 'omega_z': wz, 'keys': {}}) or '#204'
         if not g.get('_twist_active'):
             g['_twist_active'] = True
             dropped_fn(g)
@@ -320,7 +315,6 @@ def heard_twist(g, gym, tw, has_say, said_fn, dropped_fn, heard_say_fn, walk_on)
                 said_fn(g, *by['#204'], at=t0 + 0.65)
             else:
                 said_fn(g, '#204', ortho.compiled(walk_on)[0][''], ('#204',), at=t0)
-        label = gait_for_twist({'v_x': vx, 'v_y': vy, 'omega_z': wz, 'keys': {}}) or '#204'
         g['active_entry'] = label
         g['labels'] = g['labels'][-16:] + [(g['t'], label)]
     elif g.get('_twist_active'):
