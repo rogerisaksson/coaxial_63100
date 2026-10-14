@@ -173,12 +173,31 @@ def test_configure_takes_a_designed_chain(report):
             vals = [r.value('NTC') for r in device.daq.collect(40, timeout=5.0).records[10:]]
             spans.append(max(vals) - min(vals))
         device.board.daq.tone(hz=0)
+        phase_ok = True
+        if device.simulated:
+            phase_chain = bessel.design(50000.0, 500.0)
+            device.afe.on()
+            device.gates.on()
+            phase_spans = []
+            try:
+                for hz in (20.0, 1050.0):
+                    device.drive.write(id_ref=0.0, iq_ref=5.0,
+                                       omega_target=2.0 * 3.141592653589793 * hz, accel=1e7)
+                    device.drive.on('hold')
+                    device.daq.configure('Phase U', clock='tim1', chain=phase_chain)
+                    vals = [r.value('Phase U')
+                            for r in device.daq.collect(40, timeout=5.0).records[10:]]
+                    phase_spans.append(max(vals) - min(vals))
+                    device.drive.off()
+            finally:
+                device.gates.off()
+                device.afe.off()
+            phase_ok = phase_spans[0] > 1400 and phase_spans[1] < 100
         report.check('the C filter core passes 20 Hz and attenuates 5 kHz',
-                     spans[0] > 15000 and spans[1] < 200, spans)
+                     spans[0] > 15000 and spans[1] < 200 and phase_ok, spans)
 
 
 def test_read_of_a_finite_run(report):
-    """read(n) of a 5-record run: min(n, 5) records, 5 for -1, never a hang."""
     for ask, expect in ((50, 5), (5, 5), (3, 3), (-1, 5)):
         with opened() as device:
             daq = device.daq
@@ -186,7 +205,6 @@ def test_read_of_a_finite_run(report):
             daq.start()
             got, spent = _read_within(daq, ask)
             if ask < 0:
-                # read(-1) gives what there is: gathered to 5, or 3 s.
                 while got is not None and len(got) < expect and spent < 3.0:
                     more, took = _read_within(daq, ask)
                     got, spent = got + (more or []), spent + took
@@ -212,7 +230,6 @@ def test_read_of_a_running_task(report):
 
 
 def test_capture_is_a_single_shot(report):
-    """A burst at the loop's rate, ended by the record count."""
     with opened() as device:
         daq = device.daq
         for ask in (400, 1500):
@@ -230,9 +247,6 @@ def test_capture_is_a_single_shot(report):
                      burst[0].count == 1, burst[0].count)
         report.check('and the task is stopped afterwards',
                      not daq.state()['running'])
-
-        # A capture with no count fills the ring, which is what the board says
-        # it holds at this stride rather than a number chosen here.
         daq.configure('phaseU', accumulate=1, interval_us=0)
         capacity = daq.state()['capacity']
         report.check('the ring size comes from the board',
@@ -409,8 +423,6 @@ def test_compensate_and_tare(report):
 
 
 def test_scaled_columns_use_the_record(report):
-    """The board trims a record at the source: its codes are through the record as it stood
-    when it was taken - an offset moved moves the records after it, not the ones before."""
     with opened() as device:
         daq = device.daq
         cal = device.board.calibration
@@ -456,8 +468,6 @@ def test_frames_rolls_a_window(report):
                 return
             deep = daq.history()
 
-    # The stream is paced on the wall: beside the relay's whole gate a starved host fed 4 ms
-    # of its 1.2 s, and a window's rolling is not to be judged on less than one.
     depth = deep.index[-1] - deep.index[0] if len(deep.index) else 0.0
     if depth < 0.2:
         report.skip('frames() rolling its window', 'the stream ran %.3f s of 1.2' % depth)
@@ -473,7 +483,6 @@ def test_frames_rolls_a_window(report):
 
 
 def test_open_is_idempotent(report):
-    """open() twice is one session."""
     device = Coaxial63100(execution_mode=SIMULATED).open()
     try:
         board = device.board
@@ -485,7 +494,6 @@ def test_open_is_idempotent(report):
 
 
 def test_records_track_the_wall(report):
-    """A free-running task's stamps span the wall time it covered."""
     with opened() as device:
         daq = device.daq
         daq.configure('NTC')
@@ -502,8 +510,6 @@ def test_records_track_the_wall(report):
 
 
 def test_sensor_fields_ride_the_record(report):
-    """MINOR 7: snapshots beside the sums - the shaft angle in the same
-    record as the current that moved it, off the same virtual rotor."""
     with opened(power_afe=False) as device:
         device.drive.configure(source='model')
         device.gates.on(bypass_sto=True, ignore_interlock=True)

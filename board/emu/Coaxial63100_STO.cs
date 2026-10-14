@@ -95,6 +95,7 @@ namespace Antmicro.Renode.Peripherals.Analog
                 stoReset = Export<StoReset>("emu_sto_reset");
                 stoStep = Export<StoStep>("emu_sto_step");
             }
+            bound = true;
             afe.Bind(native, node);
             started = false;
         }
@@ -106,7 +107,7 @@ namespace Antmicro.Renode.Peripherals.Analog
             set
             {
                 node = value;
-                if(native != IntPtr.Zero)
+                if(bound)
                 {
                     afe.Bind(native, node);
                 }
@@ -302,6 +303,7 @@ namespace Antmicro.Renode.Peripherals.Analog
         private double slept;
         private double sleptFrom;
         private bool asleep;
+        private bool bound;
         private bool started;
         private double steppedAt;
         private double edgeAt;

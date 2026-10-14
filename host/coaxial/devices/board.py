@@ -199,11 +199,28 @@ def scan(units=range(1, 17), port='COM4', baud=115200):
     return found
 
 
+#: One Transport per (URL, baud) while any Board holds it: rigs on one URL bus share its wire,
+#: its lock and its interframe gap.
+_URL_TRANSPORTS: dict[tuple[str, int], Transport] = {}
+_HOLDERS: dict[Transport, set[Board]] = {}
+
+
+def _drop_url_transport(transport):
+    for key, held in list(_URL_TRANSPORTS.items()):
+        if held is transport:
+            _URL_TRANSPORTS.pop(key, None)
+
+
 def _reach(port, baud):
     """The broker for this port, started if there is not one yet; a URL - fakeboard://,
-    emulator:// - is this process's own, opened here."""
+    emulator://, native:// - is this process's own, shared across boards on it."""
     if '://' in str(port):
-        return Transport(port, baud)
+        key = (str(port), int(baud))
+        held = _URL_TRANSPORTS.get(key)
+        if held is None or not held.is_open:
+            held = Transport(port, baud)
+            _URL_TRANSPORTS[key] = held
+        return held
     reached = _attach(port)
     if reached is None and broker.spawn(port, baud):
         reached = _attach(port)
@@ -223,56 +240,77 @@ def _open_one(spec, transports, verify):
     """One entry's Board, on a transport shared by port and bitrate."""
     unit, unit_baud, unit_port = spec
     key = (unit_port, unit_baud)
-    fresh = key not in transports
-    if fresh:
+    url_key = (str(unit_port), int(unit_baud))
+    fresh = key not in transports and (
+        '://' not in str(unit_port)
+        or url_key not in _URL_TRANSPORTS
+        or not _URL_TRANSPORTS[url_key].is_open)
+    if key not in transports:
         transports[key] = _reach(unit_port, unit_baud)
-    board = Board(transports[key], unit)
+    transport = transports[key]
+    board = Board(transport, unit)
     # The console hands over; a bus - an emulated limb's says so - is binary already.
-    console = getattr(getattr(transports[key], 'serial', None), 'console', True)
-    if fresh and not transports[key].address and console:
+    console = getattr(getattr(transport, 'serial', None), 'console', True)
+    if fresh and not transport.address and console:
         board.open_binary()
-    if not verify:
-        return board
-    try:
-        return _build(board)
-    except UnsupportedProtocolError:
-        raise
-    except RigError as exc:
-        raise ConnectError('unit %d on %s@%d did not answer: %s'
-                           % (unit, unit_port, unit_baud, exc)) from exc
+    if verify:
+        try:
+            board = _build(board)
+        except UnsupportedProtocolError:
+            raise
+        except RigError as exc:
+            raise ConnectError('unit %d on %s@%d did not answer: %s'
+                               % (unit, unit_port, unit_baud, exc)) from exc
+    _HOLDERS.setdefault(transport, set()).add(board)
+    return board
 
 
 def connect(units, port='COM4', baud=115200, verify=True):
     """Open the links and return one Board per entry, in the order given."""
     specs = [_normalise(entry, port, baud) for entry in units]
     transports = {}
+    opened = []
 
     try:
-        return [_open_one(spec, transports, verify) for spec in specs]
+        for spec in specs:
+            opened.append(_open_one(spec, transports, verify))
+        return opened
     except Exception:
-        # No partial success: every transport opened here gets closed, even if
-        # one of them refuses, and the original failure is what propagates.
+        # No partial success: every board opened here is released, and any
+        # transport with no holder left gets closed.
+        disconnect(opened)
         for transport in transports.values():
-            with suppress(RigError):
-                transport.close()
+            if not _HOLDERS.get(transport):
+                _HOLDERS.pop(transport, None)
+                _drop_url_transport(transport)
+                with suppress(RigError):
+                    transport.close()
         raise
 
 
 def _hand_back(board):
     """Return one board's UART to its console and close its port."""
+    console = getattr(getattr(board.transport, 'serial', None), 'console', True)
     with suppress(RigError):
         try:
-            if board.transport.is_open:
+            if board.transport.is_open and console:
                 board.close_binary()
         finally:
             board.transport.close()
 
 
 def disconnect(boards):
-    """Return every UART to its console and close the ports. Idempotent."""
+    """Return every UART to its console and close the ports once no board holds them."""
+    for board in boards:
+        holders = _HOLDERS.get(board.transport)
+        if holders is not None:
+            holders.discard(board)
     seen = set()
     for board in boards:
-        if id(board.transport) in seen:
+        transport = board.transport
+        if id(transport) in seen or _HOLDERS.get(transport):
             continue
-        seen.add(id(board.transport))
+        seen.add(id(transport))
+        _HOLDERS.pop(transport, None)
+        _drop_url_transport(transport)
         _hand_back(board)

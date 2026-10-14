@@ -1,14 +1,6 @@
 #!/usr/bin/env python3
 """The board layer's drive path on this host, in real time: `native://`.
 
-A rig on `native://` (tools.cores.native), the real-time engine for SIL and HIL: comms/ and
-board/src's board layer built for this host over board/native's chip, the world's plant under
-it, a thread holding the board's clock to the wall's. It stands as an emulated board, keeps
-real time, turns the demo motor on every period of the timer, its A1335 on the plant's shaft
-and its BNO085 reading what a SIL pipes. Named, the humanoid's twenty boards on five buses keep
-the wall with every drive running - the humanoid is the stand-in's for now. The
-firmware against its sensors and timers is test_emulator's, on Renode.
-
     python -X utf8 tests/test_native.py                 # the rig's tests
     python -X utf8 tests/test_native.py sto current     # those
     python -X utf8 tests/test_native.py body            # the humanoid's fleet
@@ -35,42 +27,18 @@ from tools.cores import native  # noqa: E402
 from tools.cores.build import find_cc  # noqa: E402
 from tools.dev.focus import pick, watchdog  # noqa: E402
 
-#: The wall seconds each window runs.
 WINDOW_S = 1.0
-
-#: One count of the A1335's twelve bits, degrees; one of the accelerometer's Q8, m/s^2.
 ANGLE_COUNT = 360.0 / 4096
 ACCEL_COUNT = 1.0 / 256
-
-#: The humanoid's fleet on native://, a limb a bus.
 BODY = 'native://?body=humanoid'
-
-#: What each thermometer resolves, K: the NTC's 30 mK and the converter's noise, the MCU's die
-#: through its factory points, the A1335's eighths.
 THERMOMETER_K = {'ntc': 0.1, 'mcu': 0.2, 'afe': 0.2}
-
-#: The demo's held vector for the current's check, A, and how near the world's mean square
-#: over a second comes to the regulated current's: the ripple, ten reads of the regulated.
 HELD_A = 10.0
 SQUARE_SHARE = 0.03
-
-#: How near the observer's legs keep to the world's, K: 0.3 alone, 1.2 under the offline
-#: gate's load; a garbage sample or a plant hasted before its observer put them 5-6 K apart
-#: (docs/findings/emulation.md).
 LEG_K = 2.0
-
-#: The STO chain: its time to release or trip from any input and settle, board s (1.5 ms at
-#: the circuit's, world_sto.c).
 STO_SETTLE_S = 0.05
-
-#: thermal.h's node order, as the world gives them (Board.nodes).
 NODES = ('driver_u', 'driver_v', 'driver_w', 'phase_u', 'phase_v', 'phase_w', 'mcu',
          'regulators', 'afe', 'board', 'hotswap', 'patch_u', 'patch_v', 'patch_w',
          'patch_left', 'patch_bottom', 'patch_right', 'winding', 'stator', 'rotor')
-
-
-#: Built for gcov (tools/dev/cover.py) the C runs unoptimised and counted: its pace is not the
-#: board's - 0.77 virtual s a wall s - so the checks on it stand aside.
 GCOV = bool(os.environ.get('COAXIAL_GCOV'))
 
 
@@ -92,9 +60,31 @@ class Report:
 
 
 def test_it_stands_as_an_emulated_board(report, rig):
+    from coaxial.comm import broker, ports, session as sessionmod
+
     info = rig.board.version_info
+    was_fb, was_disc, was_serv = sessionmod.FALLBACK, ports.discover, broker.serving
+    try:
+        sessionmod.FALLBACK = 'emulated'
+        ports.discover = lambda *a, **kw: (None, None)
+        broker.serving = lambda: None
+        sess, origin = sessionmod.open_session('COM99')
+        sess.close()
+    finally:
+        sessionmod.FALLBACK, ports.discover, broker.serving = was_fb, was_disc, was_serv
+    bus = 'native://?nodes=2&world=none'
+    r1, r2 = Coaxial63100(port=bus, unit=1).open(), Coaxial63100(port=bus, unit=2).open()
+    try:
+        t = r1.board.transport
+        shared = t is r2.board.transport
+        r1.close()
+        still_up = t.is_open and r2.board.system.version()['device'] == 'coaxial_63100'
+    finally:
+        r2.close()
     report.check('native:// stands as an emulated board, the firmware answering',
-                 standing(rig.origin) == 'emulated' and info['device'] == 'coaxial_63100',
+                 standing(rig.origin) == 'emulated' and info['device'] == 'coaxial_63100'
+                 and origin.port == sessionmod.NATIVE_URL and standing(origin) == 'emulated'
+                 and shared and still_up and not t.is_open,
                  '%s, %s' % (rig.origin.label, info['firmware']))
 
 

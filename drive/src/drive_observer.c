@@ -4,9 +4,10 @@
 #include <math.h>
 #include <stddef.h>
 
-/** Wrap to (-pi, pi]. */
+/** Wrap to [-pi, pi]. */
 static float wrap(float a)
 {
+  a -= 6.2831853f * floorf((a + 3.1415927f) * 0.15915494f);
   return a - 6.2831853f * floorf((a + 3.1415927f) * 0.15915494f);
 }
 

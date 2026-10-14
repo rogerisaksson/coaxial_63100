@@ -145,9 +145,9 @@ board's findings: [FINDINGS](../FINDINGS.md).
 - With `proven_dispatch` the host skipped t3.5 after any proven request: the
   addressed board closes a frame on its CRC, the rest of a limb on the
   silence, so a frame for another unit ran into the last and went unanswered.
-  The gap is skipped for the same unit only. Rigs on one URL bus each hold a
-  Transport, none owing another's gap: the native limb keeps t3.5 as the
-  bus's adapter.
+  The gap is skipped for the same unit only. Rigs on one URL bus share one
+  Transport until the last closes, keeping t3.5 and the bus lock across
+  the bus's rigs.
 - The thermal observer's borrow of AFE_ON (0.5 s every 30 s) took test_wire's
   AFE-off scan once the idle board kept real time: the test holds sampling off.
 - The A1335 and the BNO085 paused for that borrow with the host holding AFE_ON
@@ -193,6 +193,10 @@ board's findings: [FINDINGS](../FINDINGS.md).
   sample: its die rising 0.5-1.5 K a board second (ten thermal), a read fell
   0.046 K inside its 0.2 K in 20 runs here and 0.014 outside on CI's runner.
   The looks round the sample, two thermal seconds apart: 0.139 K inside.
+- Where nothing answers on a serial port and a host C compiler is on PATH,
+  `open_session` falls back to `native://` (`fallback_url()`), and rigs opened
+  on the same URL bus share one refcounted `Transport` until the last rig
+  disconnects.
 
 ## Heat
 

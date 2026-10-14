@@ -143,7 +143,7 @@ table under [Subjects](#subjects).
     divides); `step_flux` multiplies by `1 + j wc / speed` without `sqrtf`,
     `drive_atan2` or `drive_sincos`; `Board_DriveOnSample` caches `s.arr` and
     rounds on `vrintr`. Result: `ADC3_IRQHandler` 76 -> 60 functions, 4 204 ->
-    3 654 instructions, 396 -> 306 branches, 54 -> 47 divides, outside ITCM 0;
+    3 655 instructions, 396 -> 305 branches, 54 -> 47 divides, outside ITCM 0;
     `TIM1_UP_IRQHandler` 8 -> 4 functions, 201 -> 171 instructions, 23 -> 21
     branches, 0 divides, outside ITCM 0.
   + Ranked remaining in `ADC3_IRQHandler` (unavoidable): `drive_step` (884 ins,

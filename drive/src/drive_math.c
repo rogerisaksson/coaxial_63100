@@ -156,9 +156,9 @@ float drive_svm(float valpha, float vbeta, float vdc, float *duty)
 
 float drive_wrap(float theta)
 {
-  /* vrintm.f32 on Cortex-M7: one instruction, no branches for the fold. */
+  /* vrintm.f32 on Cortex-M7: no branches for the fold. */
   theta -= TWO_PI * floorf(theta * INV_TWO_PI);
-  return ((theta < 0.0f) || (theta >= TWO_PI)) ? 0.0f : theta;
+  return theta - TWO_PI * floorf(theta * 0.15915495f);
 }
 
 float drive_dt_volts(const drive_params_t *p, float amps)

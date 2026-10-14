@@ -322,7 +322,13 @@ it names. A closed item is cut from the list and gets its line here, last.
     `SimulatedSto` on `world_sto.c`, and `world_afe_t`, `world_a1335_t` and
     `world_bno085_t` shared between `board/native` and `board/emu`; hot paths
     cut to 0 functions outside ITCM (`ADC3_IRQHandler` 76 -> 60 functions,
-    396 -> 306 branches, 54 -> 47 divides; `TIM1_UP_IRQHandler` 8 -> 4
+    396 -> 305 branches, 54 -> 47 divides; `TIM1_UP_IRQHandler` 8 -> 4
     functions, 0 divides) and the remaining ranked ([FINDINGS](FINDINGS.md),
     [host](findings/host.md)).
+75. `native://` fallback and shared URL bus `Transport`
+    (`host/coaxial/comm/session.py`, `host/coaxial/devices/board.py`,
+    `host/tools/cores/native.py`, `host/tests/test_native.py`):
+    `open_session` falls back to `native://` when nothing answers on a port,
+    and rigs on one URL bus share one refcounted `Transport` until the last
+    closes ([emulation](findings/emulation.md)).
 

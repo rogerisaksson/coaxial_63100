@@ -187,8 +187,8 @@ class Emulator:
         """The board at `node`'s STO chain on the world library, and its world's commands if it
         has a world."""
         library = worlds.library()
-        chain = ['%s Library "%s"' % (worlds.STO, library.replace(os.sep, '/')),
-                 '%s Node %d' % (worlds.STO, node)]
+        chain = ['%s Node %d' % (worlds.STO, node),
+                 '%s Library "%s"' % (worlds.STO, library.replace(os.sep, '/'))]
         if self.world is None:
             return chain + ['%s DcBusVolts %s' % (worlds.AFE, worlds._decimal(worlds.LINK_VOLTS))]
         return chain + worlds.commands(self.world, node, library, first=node == 0)

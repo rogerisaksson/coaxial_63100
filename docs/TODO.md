@@ -241,7 +241,6 @@ gets a line at the end of [DONE](DONE.md).
 
 ## Host
 
-- **native://**: a limb's world on a fixed mount as board/emu's; one
-  Transport a rig on a URL bus. DOD: the body's balance and gait from the
-  SIL; the fallback where nothing answers.
+- **native://**: a limb's world on a fixed mount as board/emu's. DOD: the
+  body's balance and gait from the SIL.
 

@@ -22,23 +22,39 @@ INTERFACE = {'probe': 'debug probe', 'serial': 'RS485', 'url': 'url', 'emulator'
 EMULATED = ('emulator', 'native')
 
 #: One board, this host's image on Renode (tools.emu): where EMULATED runs when no emulator URL
-#: is named, and where nothing answers a board's port.
+#: is named.
 EMULATOR_URL = 'emulator://'
 
-#: What stands in where nothing answers: `emulated` - the emulator where it runs here, else the
-#: stand-in - or `simulated`, the stand-in at once (the offline gate's).
+#: One board, the firmware's board layer in C on this host (tools.cores.native): where a
+#: session falls back when nothing answers a board's port.
+NATIVE_URL = 'native://'
+
+#: What stands in where nothing answers: `emulated` - native:// where a C compiler builds it,
+#: else Renode where it runs here, else the stand-in - or `simulated`, the stand-in at once
+#: (the offline gate's).
 FALLBACK = os.environ.get('COAXIAL_FALLBACK', 'emulated')
 
 
-def emulator_here():
-    """Whether this host runs its image emulated: Renode and the build (tools.emu)."""
+def fallback_url():
+    """The emulated board URL when nothing answers on a port, or None."""
     if FALLBACK != 'emulated':
-        return False
+        return None
+    try:
+        from tools.cores.build import find_cc
+        if find_cc() is not None:
+            return NATIVE_URL
+    except ImportError:
+        pass
     try:
         from tools.emu.emulator import ELF, find_renode
     except ImportError:
-        return False
-    return find_renode() is not None and os.path.exists(ELF)
+        return None
+    return EMULATOR_URL if find_renode() is not None and os.path.exists(ELF) else None
+
+
+def emulator_here():
+    """Whether this host runs its firmware emulated when nothing answers."""
+    return fallback_url() is not None
 
 Origin = collections.namedtuple(
     'Origin', 'real port baud kind label interface unit')
@@ -154,10 +170,11 @@ def open_session(port=None, baud=115200, unit=1, simulated=None, only=None):
         found, kind = ports.discover(port, baud, unit, only=only)
         simulated = found is None
         fell_back = simulated
-        # Nothing answered: this host's image on the emulator, where one runs here.
+        # Nothing answered: this host's firmware on native:// (or Renode), where one runs here.
         if fell_back and emulator_here():
-            return (Session(EMULATOR_URL, baud, unit),
-                    Origin(True, EMULATOR_URL, baud, 'emulator',
+            url = fallback_url()
+            return (Session(url, baud, unit),
+                    Origin(True, url, baud, 'emulator',
                            'Emulated MCU - nothing answered on %s' % port,
                            INTERFACE['emulator'], unit))
         port = port if found is None else found

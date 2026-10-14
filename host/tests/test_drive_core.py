@@ -49,9 +49,12 @@ def test_math(r, lib):
                     for x in range(-1024, 1025))
         r.check('tanh: within a float\'s few ulps of the library\'s over +-16', worst < 1e-6,
                 '%.2e at the worst' % worst)
-        r.check('wrap keeps [0, 2 pi)',
+        r.check('wrap keeps [0, 2 pi), including boundaries past +-10 turns',
                 abs(d.wrap(-0.5) - (TWO_PI - 0.5)) < 1e-5
-                and d.wrap(TWO_PI) == 0.0 and abs(d.wrap(7.0) - (7.0 - TWO_PI)) < 1e-5)
+                and d.wrap(TWO_PI) == 0.0 and abs(d.wrap(7.0) - (7.0 - TWO_PI)) < 1e-5
+                and d.wrap(-10.0 * TWO_PI - 2e-6) > TWO_PI - 1e-4
+                and 0.0 <= d.wrap(10.0 * TWO_PI + 2e-6) < 1e-4
+                and d.inv_park(1.0, 0.0, -10.0 * TWO_PI + math.pi - 2e-6)[0] < -0.9999)
         d.params(dt_step=1.0, **{'dt%d' % k: [0.0, 0.4, 0.6, 0.7, 0.75, 0.78,
                                                0.8, 0.8][k] for k in range(8)})
         r.check('dead-time table: interpolated, odd, held past the end',

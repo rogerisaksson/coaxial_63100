@@ -344,10 +344,8 @@ class Limb:
     def send(self, data):
         """`data` onto the limb's port at the line's pace, every board hearing it, the wall
         waited for the line's time. The frame starts at the wall's time and, as the bus's one
-        adapter, no sooner than t3.5 after the line's last activity: every rig on a limb's URL
-        has a transport of its own, none knowing the gap another owes, and the addressed board
-        closes a frame at once, the others after t3.5 - a frame for unit 2 right behind unit
-        1's ran into it and went unanswered."""
+        adapter, no sooner than t3.5 in board time after the line's last activity: the
+        addressed board closes a frame at once, the others after t3.5."""
         with self.lock:
             start = max(int((time.monotonic() - self._start) * 1e6), self._line + T35_US)
             self._run_to(start)

@@ -690,9 +690,6 @@ void stand_daq_window(void *mem, const int32_t *sums, uint16_t count, uint32_t a
   stand_daq_t *s = (stand_daq_t *)mem;
   daq_t *d = &s->daq;
   const bool was_running = d->running;
-  const uint16_t steps = (d->filtering && (d->task.accumulate != 0U)
-                          && (d->chain.decimate > 0U))
-                         ? d->chain.decimate : 1U;
 
   if ((count > 0U) && (d->triggers == 0U) && d->filtering)
   {
@@ -706,10 +703,7 @@ void stand_daq_window(void *mem, const int32_t *sums, uint16_t count, uint32_t a
     memcpy(s->sensors, sensors, sizeof(s->sensors));
   }
   d->running = true;
-  for (uint16_t k = 0U; k < steps; k++)
-  {
-    daq_window(d, sums, count, at, duties);
-  }
+  daq_window(d, sums, count, at, duties);
   if (!was_running)
   {
     d->running = false;

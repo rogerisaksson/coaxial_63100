@@ -433,21 +433,35 @@ class SimulatedDaq(Acquisition):
                 self._at = (self._at + triggers * max(1, self._core.tone_cycles())) & MASK32
                 self._core.tone_poll(self._at, triggers + 1)
                 continue
-            self._at = (self._at + int(step_us * TICKS_PER_US)) & MASK32
+            cs = self._core.state()
             took = self._samples_per_record(len(fields))
+            windows = (cs['chain_decimate']
+                       if (cs['accumulate'] and (cs['sections'] or cs['chain_decimate'] > 1))
+                       else 1)
+            win_us = step_us / windows
+            sample_s = (win_us * 1e-6) / max(1, took)
+            dtheta = (drive._omega() if drive is not None else 0.0) * sample_s
+            half = 0.5 * dtheta
+            sh = math.sin(half)
+            boxcar = (math.sin(took * half) / (took * sh)
+                      if (took > 1 and abs(sh) > 1e-7) else 1.0)
             spread = math.sqrt(took * 1210.0)
-            self._last_spin = self._spin(step_us * 1e-6)
-            theta, amps, _index, _delta = self._last_spin
-            sums = [int(self._trimmed(f['channel'], quiet_code(f['channel'], self.thermal,
-                                                               self.sto)
-                                      + phase_codes(f['signal'], amps, theta)) * took)
-                    + int(spread * self._noise())
-                    for f in fields]
-            duties = ([int(round(self._pin_duty(p['signal']) * 255.0)) for p in self.PINS]
-                      if has_pins else None)
-            sensors = ({b: self._sensor_words(b) for b in range(len(self.SENSORS))
-                        if mask & (1 << b)} if mask else None)
-            self._core.push_window(sums, took, self._at, duties, sensors)
+            for _ in range(windows):
+                self._at = (self._at + max(1, int(win_us * TICKS_PER_US))) & MASK32
+                self._last_spin = self._spin(win_us * 1e-6)
+                theta, amps, _index, _delta = self._last_spin
+                theta_mid = theta - 0.5 * (took - 1) * dtheta
+                sums = [int(self._trimmed(f['channel'], quiet_code(f['channel'], self.thermal,
+                                                                   self.sto)
+                                          + phase_codes(f['signal'], amps * boxcar,
+                                                        theta_mid)) * took)
+                        + int(spread * self._noise())
+                        for f in fields]
+                duties = ([int(round(self._pin_duty(p['signal']) * 255.0)) for p in self.PINS]
+                          if has_pins else None)
+                sensors = ({b: self._sensor_words(b) for b in range(len(self.SENSORS))
+                            if mask & (1 << b)} if mask else None)
+                self._core.push_window(sums, took, self._at, duties, sensors)
         blob = self._core.take(n, lay['stride'])
         out = self.decode(blob, lay) if blob else []
         cs = self._core.state()
