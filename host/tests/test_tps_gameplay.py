@@ -326,13 +326,75 @@ def test_se2_isolated_strafe_vs_composite_curvilinear_arcs(report):
 
 
 def test_se2_mujoco_full_steering_repertoire_without_ragdoll(report):
-    """Full MuJoCo closed-loop steering sequence (W -> WA -> WD -> SA -> SD -> W -> A -> D -> release) stays upright."""
+    """Full MuJoCo closed-loop steering repertoire verifies physical world trajectories and upright stability."""
     from machine import se2, sprung
 
     gym = sprung.entries(name='moves')
+
+    # 1. Verify Windows 560ms typematic delay and hardware held-key polling never drop WASD state
+    st_win = se2.state()
+    se2.step_controller(st_win, ['w'], 0.02, now=1.00)
+    se2.step_controller(st_win, [], 0.55, now=1.55)
+    report.check('550ms Windows typematic delay keeps W active without dropping to rest',
+                 st_win['keys']['w'] is True and st_win['v_x'] > se2.WALK_SPEED,
+                 'v_x=%.3f, keys=%s' % (st_win['v_x'], st_win['keys']))
+    se2.step_controller(st_win, [], 0.10, now=2.50, held={'w', 'a'})
+    report.check('hardware held={"w", "a"} maintains composite WA arc regardless of repeat stream',
+                 st_win['keys']['w'] and st_win['keys']['a'] and st_win['v_y'] == 0.0
+                 and st_win['omega_z'] == se2.YAW_RATE)
+    se2.step_controller(st_win, [], 0.02, now=2.52, held=set())
+    report.check('hardware key release (held=set()) immediately clears active keys on the next frame',
+                 not any(st_win['keys'].values()))
+
+    # 2. Verify isolated A/D pure strafe, S reverse, WA/WD/SA/SD circular arcs, and rotated heading in MuJoCo
+    def run_mode(key, secs=2.5, init_heading=0.0):
+        g_m = sprung.laid(every=3)
+        g_m['heading'] = init_heading
+        st_m = se2.state(yaw=init_heading)
+        mt = 0.0
+        for _ in range(int(secs * 1000)):
+            se2.step_controller(st_m, key, 0.001)
+            cmd = {'twist': (st_m['v_x'], st_m['v_y'], st_m['omega_z'])}
+            if st_m['gait']:
+                cmd['say'] = st_m['gait']
+            sprung._heard(g_m, gym, cmd)
+            sprung.passed(g_m, 0.001)
+            mt = max(mt, sprung.tilt(g_m))
+        d = g_m['world'].data
+        return float(d.qpos[0]), float(d.qpos[1]), float(d.qpos[2]), math.degrees(g_m['heading']), mt
+
+    xa, ya, za, hda, mta = run_mode('a', 2.5)
+    xd, yd, zd, hdd, mtd = run_mode('d', 2.5)
+    report.check('MuJoCo isolated A/D produces pure lateral displacement (|dx| > 1.1m, |dz| < 0.05m, |dh| < 1 deg)',
+                 xa > 1.1 and abs(za) < 0.05 and abs(hda) < 1.0
+                 and xd < -1.1 and abs(zd) < 0.05 and abs(hdd) < 1.0 and max(mta, mtd) < 5.0,
+                 'A=(%.2f, %.2f, %.1f deg), D=(%.2f, %.2f, %.1f deg)' % (xa, za, hda, xd, zd, hdd))
+
+    xs, ys, zs, hds, mts = run_mode('s', 2.5)
+    report.check('MuJoCo isolated S drives reverse displacement (dz < -0.8m, |dx| < 0.05m, tilt < 5 deg)',
+                 zs < -0.8 and abs(xs) < 0.05 and mts < 5.0, 'S=(%.2f, %.2f, tilt=%.1f)' % (xs, zs, mts))
+
+    xwa, _, zwa, hdwa, mtwa = run_mode('wa', 2.5)
+    xwd, _, zwd, hdwd, mtwd = run_mode('wd', 2.5)
+    xsa, _, zsa, hdsa, mtsa = run_mode('sa', 2.5)
+    xsd, _, zsd, hdsd, mtsd = run_mode('sd', 2.5)
+    report.check('MuJoCo composite WA/WD/SA/SD carve smooth circular arcs with continuous yaw rotation (> 70 deg)',
+                 xwa > 1.0 and zwa > 1.0 and hdwa > 70.0
+                 and xwd < -1.0 and zwd > 1.0 and hdwd < -70.0
+                 and xsa < -0.3 and zsa < -0.3 and hdsa > 70.0
+                 and xsd > 0.3 and zsd < -0.3 and hdsd < -70.0
+                 and max(mtwa, mtwd, mtsa, mtsd) < 5.0,
+                 'WA=(%.2f,%.2f,%.1f) WD=(%.2f,%.2f,%.1f) SA=(%.2f,%.2f,%.1f) SD=(%.2f,%.2f,%.1f)'
+                 % (xwa, zwa, hdwa, xwd, zwd, hdwd, xsa, zsa, hdsa, xsd, zsd, hdsd))
+
+    xw90, _, zw90, hdw90, mtw90 = run_mode('w', 2.5, init_heading=math.pi / 2.0)
+    report.check('MuJoCo W at heading=90 deg moves strictly along body +X (world +X > 2.0m, |world Z| < 0.08m)',
+                 xw90 > 2.0 and abs(zw90) < 0.08 and mtw90 < 5.0,
+                 'pos=(%.2f, %.2f), tilt=%.2f' % (xw90, zw90, mtw90))
+
+    # 3. Continuous multi-mode sequence on a single body
     g = sprung.laid(every=3)
     st = se2.state()
-
     sequence = (
         ('w', 2.5),
         ('wa', 2.5),
@@ -365,8 +427,8 @@ def test_se2_mujoco_full_steering_repertoire_without_ragdoll(report):
                  max_tilt < 8.0, 'max_tilt=%.1f deg' % max_tilt)
     report.check('multi-gait SE(2) steering sequence never ragdolls or drops pelvis (min_y > 0.82 m)',
                  min_y > 0.82, 'min_y=%.3f m' % min_y)
-    report.check('WA turns heading left (> 10 deg) and WD turns heading back right',
-                 headings['wa'] > 10.0 and headings['wd'] < headings['wa'] - 8.0,
+    report.check('WA turns heading left (> 60 deg) and WD turns heading back right',
+                 headings['wa'] > 60.0 and headings['wd'] < headings['wa'] - 60.0,
                  'headings=%s' % headings)
     report.check('releasing WASD keys decays twist and brakes gynoid to rest (speed < 0.15 m/s)',
                  final_spd < 0.15 and sprung.doing(g) == '#201',
@@ -392,4 +454,5 @@ def main(argv=None):
 
 if __name__ == '__main__':
     sys.exit(main())
+
 

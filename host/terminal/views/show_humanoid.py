@@ -30,7 +30,7 @@ from terminal.views import gym, viewpoint
 from terminal.views.humanoid_keys import CHARGE_MAX_N, act_on, charging, released, row, table
 from terminal.views.playback import Playback
 from terminal.views.scanner import VisionScanner, docked_vision
-from terminal.ui import screen as _screen
+from terminal.ui import console as _console, screen as _screen
 from terminal.ui.screen import PORT, FPS_CAP, closing, run_view, say
 from terminal.ui.scroll import HUD_WIDTH
 from terminal.ui.stage import footer, frame_of, help_rows, helped, hud, stage
@@ -312,8 +312,10 @@ def main(argv=None):
         t_mono = time.monotonic()
         se2_st = state.get('se2')
         if se2_st is not None and state.get('wasd_mode'):
-            if t_mono - state.get('_se2_last_t', 0.0) > 0.02:
-                se2.step_controller(se2_st, (), dt, now=t_mono)
+            dt_real = min(0.1, max(0.01, t_mono - state.get('_se2_last_t', t_mono - dt)))
+            if t_mono - state.get('_se2_last_t', 0.0) > 0.015:
+                state['_se2_last_t'] = t_mono
+                se2.step_controller(se2_st, (), dt_real, now=t_mono, held=_console.held())
             tw = (round(se2_st['v_x'], 2), round(se2_st['v_y'], 2), round(se2_st['omega_z'], 2))
             if state.get('_last_sent_twist') != tw:
                 state['_last_sent_twist'] = tw

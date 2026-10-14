@@ -252,7 +252,7 @@ def passed(g, dt=0.001):
     """A pass: (sensed, her soles' loads, the loop's ask, the latent out) - and her world a
     `dt` on. The loop is solved on every `g['every']`th, its answer held between."""
     import numpy as np
-    from machine import impedance, latent, modal, physics, wbc
+    from machine import impedance, latent, modal, physics, se2, wbc
     world, body = g['world'], g['body']
     if g['n'] % g['every'] == 0:
         s = g['s'] = _seen(body, world, g['limbs'])
@@ -266,7 +266,7 @@ def passed(g, dt=0.001):
             rate = 1.2
             step_turn = max(-rate * dt * g['every'], min(rate * dt * g['every'], d_target))
             g['heading'] += step_turn
-        elif not (g.get('_twist_active') and abs(g['twist'][1]) > 0.02 and abs(g['twist'][2]) < 1e-4):
+        elif not g.get('_twist_active'):
             d_yaw = math.atan2(math.sin(pelvis_yaw - g['heading']), math.cos(pelvis_yaw - g['heading']))
             g['heading'] += 0.005 * g['every'] * d_yaw
         s_hd, c_hd = math.sin(g['heading']), math.cos(g['heading'])
@@ -276,12 +276,14 @@ def passed(g, dt=0.001):
             g['st'][latent.THETA] = 0.0
         out = latent.step(g['st'], g['tab'], g['t'], dt * g['every'], g['out'])
         d = world.data
+        g['_upper_hit'] = False
         if d.ncon:
             c_bids = world.model.geom_bodyid[d.contact.geom[:d.ncon]]
             b0, b1 = c_bids[:, 0], c_bids[:, 1]
             upper_hit = ((np.isin(b0, g['upper_ids']) & (b1 > 0) & ~np.isin(b1, g['robot_ids'])) |
                          (np.isin(b1, g['upper_ids']) & (b0 > 0) & ~np.isin(b0, g['robot_ids'])))
             if upper_hit.any():
+                g['_upper_hit'] = True
                 out[latent.SWAY][modal.DRIVE] = 0.0
                 out[latent.REF][modal.DRIVE] = 0.0
                 g['a'][modal.GOING] = 0.0
@@ -304,14 +306,11 @@ def passed(g, dt=0.001):
         for k, leg in enumerate(g['legs']):
             world.gains[leg, 0] = g['free_kp'][leg] * (1.0 + (STANDING_KP - 1.0) * float(ask['stance'][k]))
     got, held, eso, wo = g['got'], float(g['hold'].any()), g['eso'], g['wo']
-    # a knee's soft stop, and what it adds to the acceleration planned for it
     sprung_back = np.zeros(len(body.act))
     qk = world.data.qpos[body.qact][list(body.knees)]
     sprung_back[list(body.knees)] = (
-        KNEE_NM * np.clip(1.0 - qk / KNEE_SOFT, 0.0, 3.0)
-        + 2400.0 * np.maximum(0.0, -qk)
+        KNEE_NM * np.clip(1.0 - qk / KNEE_SOFT, 0.0, 3.0) + 2400.0 * np.maximum(0.0, -qk)
     )
-    # each drive's disturbance, observed about the acceleration the loop planned for it
     e = world.data.qpos[body.qact] + physics.WOUND * world.boxes.delta[body.driven] - eso[0]
     eso += dt * np.array([eso[1] + 3.0 * wo * e,
                           got['qacc'][body.act] + sprung_back / g['jeff'] + eso[2] + 3.0 * wo * wo * e,
@@ -324,6 +323,7 @@ def passed(g, dt=0.001):
     g['ref_v'] += got['qacc'][body.act] * dt + leak * (world.data.qvel[body.act] - g['ref_v'])
     g['ref_q'] += g['ref_v'] * dt + leak * (world.data.qpos[body.qact] - g['ref_q'])
     world.target[body.driven] = g['ref_q']
+    se2.apply_mujoco_twist(g, dt)
     g['t'] += dt
     g['n'] += 1
     world.advance()
@@ -340,18 +340,25 @@ def state(g, torque, power, watts, ratio, fallen_at, says=(), refused=None):
     """Her state as the page hears it - her stage 'walk' while she strides, 'stand' or 'fallen'
     - and her modes: each (name, asked, as she is, N/m, N s/m); `says` the gym's labels,
     `refused` why its last text or command was."""
-    from machine import latent, modal, ortho, stride
+    from machine import latent, modal, ortho, se2, stride
     from machine.figure import JOINTS
     world, out = g['world'], g['out']
     d = world.data
     z = modal.read(g['y'], g['fr'], g['a'][modal.STANCE])[0]
     angles = {j: math.degrees(float(d.qpos[world.qadr[i]])) for i, j in enumerate(JOINTS)}
+    if g.get('_twist_active'):
+        vx_b, vy_b, _ = g.get('twist', (0.0, 0.0, 0.0))
+        vel_xz = se2.body_to_mujoco(vx_b, vy_b, g['heading'])
+        spd_val = vx_b if abs(vx_b) >= abs(vy_b) else math.hypot(vx_b, vy_b)
+    else:
+        vel_xz = (float(d.qvel[0]), float(d.qvel[2]))
+        spd_val = float(d.qvel[2])
     return {'t': g['t'], 'angles': dict(angles, **world.loose()), 'set': angles,
             'torque': dict(zip(JOINTS, torque.tolist())), 'power': dict(zip(JOINTS, power.tolist())),
             'peak': dict(zip(JOINTS, world.peak.tolist())), 'watts': float(watts),
             'where': tuple(d.qpos[0:3].tolist()), 'turn': tuple(d.qpos[3:7].tolist()),
             'heading': float(g['heading']), 'twist': tuple(g.get('twist', (0.0, 0.0, 0.0))),
-            'speed': float(d.qvel[2]), 'velocity': (float(d.qvel[0]), float(d.qvel[2])),
+            'speed': float(spd_val), 'velocity': vel_xz,
             'phase': float(g['st'][latent.THETA]) / math.tau, 'cadence': float(out[latent.TURNS]) / math.tau,
             'stage': ('fallen' if fallen_at is not None
                       else 'walk' if abs(float(out[latent.SWAY][modal.DRIVE])) > stride.STIRS else 'stand'),
@@ -487,7 +494,7 @@ def _heard(g, gym, command):
     """A command on her: an entry said in place of what was to come, her walk from rest, a
     text's entries begun, a push. One the loop does not know is refused: nothing else runs
     her."""
-    from machine import latent, modal, ortho, stride
+    from machine import latent, modal, se2, stride
     from machine.errors import MachineError
     unknown = sorted(set(command) - set(HEARD))
     if unknown:
@@ -495,21 +502,7 @@ def _heard(g, gym, command):
     if ('say' in command or command.get('walk') or command.get('entries')) and g['st'][latent.NOW][latent.GAIN] < 1e-6:
         g['st'][latent.THETA] = 0.0
     if 'twist' in command:
-        tw = command['twist']
-        if tw is None:
-            g['twist'] = (0.0, 0.0, 0.0)
-        else:
-            g['twist'] = (float(tw[0]), float(tw[1]), float(tw[2]))
-        vx, vy, wz = g['twist']
-        if abs(vx) > 0.02 or abs(vy) > 0.02 or abs(wz) > 0.02:
-            g['_twist_active'] = True
-        elif g.get('_twist_active'):
-            g['_twist_active'] = False
-            if 'say' not in command and g.get('active_entry') not in (None, '#201'):
-                for e in gym:
-                    if e[0] == '#201':
-                        _heard_say(g, gym, e)
-                        break
+        se2.heard_twist(g, gym, command['twist'], 'say' in command, said, _dropped, _heard_say, WALK_ON)
     if 'say' in command:
         say_cmd = command['say']
         entry = None
@@ -523,7 +516,13 @@ def _heard(g, gym, command):
                     entry = e
                     break
         if entry is not None:
-            _heard_say(g, gym, entry)
+            if g.get('_twist_active') and entry[0] in (
+                    '#204', '#205', 'jog', 'strafe_left', 'strafe_right',
+                    'turn_left', 'turn_right', 'turn_back_left', 'turn_back_right'):
+                g['active_entry'] = entry[0]
+                g['labels'] = g['labels'][-16:] + [(g['t'], entry[0])]
+            else:
+                _heard_say(g, gym, entry)
     if command.get('walk'):
         drive = float(g['out'][latent.SWAY][modal.DRIVE])
         lateral = float(g['out'][latent.SWAY][modal.LATERAL])

@@ -151,18 +151,20 @@ def _match_chord(keys_set):
 def _check_wasd_chords(typed, state):
     if not (state.get('wasd_mode') and typed):
         return typed
+    from terminal.ui import console as _console
     lowered = [k.lower() if isinstance(k, str) else k for k in typed]
     t_now = time.monotonic()
     se2_st = state.setdefault('se2', se2.state())
     last_dt = min(0.1, max(0.01, t_now - state.get('_se2_last_t', t_now - 0.05)))
     state['_se2_last_t'] = t_now
-    se2.step_controller(se2_st, lowered, last_dt, now=t_now, hold_window=0.35)
+    held_now = _console.held()
+    se2.step_controller(se2_st, lowered, last_dt, now=t_now, hold_window=se2.HOLD_WINDOW_S, held=held_now)
 
     active = set(lowered) | {k for k in ('w', 's', 'a', 'd') if se2_st['keys'].get(k)}
     found = _match_chord(active)
     if found:
         tag, mv, consumed = found
-        se2.step_controller(se2_st, tag, 0.0, now=t_now, hold_window=0.35)
+        se2.step_controller(se2_st, tag, 0.0, now=t_now, hold_window=se2.HOLD_WINDOW_S, held=held_now)
         state['body'].send(say=mv)
         log_key(tag, _action_of(tag, wasd_mode=True))
         state['_last_wasd'] = (tag, t_now)
@@ -194,4 +196,5 @@ def act_on(keys, typed, state, wheel=0.0):
         log_key(key, _action_of(key, wasd_mode=state.get('wasd_mode', False)))
         if key in keys:
             keys[key](state)
+
 

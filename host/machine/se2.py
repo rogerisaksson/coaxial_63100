@@ -17,8 +17,8 @@ STRAFE_SPEED = 0.50
 STRAFE_DECAY = 3.20
 #: Angular yaw velocity magnitude (rad/s) during composite curvilinear arcs (WA/WD/SA/SD).
 YAW_RATE = 0.55
-#: Default hold persistence window (s) for discrete terminal key-repeat streams.
-HOLD_WINDOW_S = 0.25
+#: Default hold persistence window (s) for discrete terminal key-repeat streams (>560ms Windows typematic delay).
+HOLD_WINDOW_S = 0.65
 
 _CHORD_EXPAND = {
     'wa': ('w', 'a'),
@@ -85,15 +85,23 @@ def _extract_tokens(raw):
     return tokens
 
 
-def poll_input(raw, st=None, now=None, hold_window=HOLD_WINDOW_S):
+def poll_input(raw, st=None, now=None, hold_window=HOLD_WINDOW_S, held=None):
     """Phase 1 (Input Polling): normalize active WASD state, independent of camera orientation.
 
-    Supports either direct boolean state (`raw` as a set/dict of currently held keys when
-    `now is None`) or discrete terminal key-repeat timestamps when `now` is provided.
-    Opposing axes (`W+S` or `A+D`) cancel cleanly.
+    Supports direct hardware key state (`held` as a set of currently depressed physical keys),
+    direct boolean state (`raw` when `now is None`), or discrete terminal key-repeat timestamps
+    when `now` is provided. Opposing axes (`W+S` or `A+D`) cancel cleanly.
     """
     tokens = _extract_tokens(raw)
-    if st is not None and now is not None:
+    if held is not None:
+        active = _extract_tokens(held) | tokens
+        if st is not None:
+            if active and now is not None:
+                for tok in active:
+                    st['last_seen'][tok] = float(now)
+            else:
+                st['last_seen'].clear()
+    elif st is not None and now is not None:
         last_seen = st['last_seen']
         if 'w' in tokens and 's' not in tokens:
             last_seen.pop('s', None)
@@ -226,27 +234,99 @@ def gait_for_twist(st):
     if s and d:
         return 'turn_back_right'
     if w:
-        return 'jog' if shift else '#204'
+        return 'jog' if (shift or st.get('v_x', 0.0) >= 1.25) else '#204'
     if s:
         return '#205'
     if a:
         return 'strafe_left'
     if d:
         return 'strafe_right'
-    if st['v_x'] > 0.05:
+    vx = st.get('v_x', 0.0)
+    vy = st.get('v_y', 0.0)
+    wz = st.get('omega_z', 0.0)
+    if vx > 0.05 and abs(wz) > 0.05:
+        return 'turn_left' if wz > 0 else 'turn_right'
+    if vx < -0.05 and abs(wz) > 0.05:
+        return 'turn_back_left' if wz > 0 else 'turn_back_right'
+    if vx >= 1.25:
+        return 'jog'
+    if vx > 0.05:
         return '#204'
-    if st['v_x'] < -0.05:
+    if vx < -0.05:
         return '#205'
-    if st['v_y'] > 0.05:
+    if vy > 0.05:
         return 'strafe_left'
-    if st['v_y'] < -0.05:
+    if vy < -0.05:
         return 'strafe_right'
     return None
 
 
-def step_controller(st, raw_input, dt, now=None, hold_window=HOLD_WINDOW_S):
+def step_controller(st, raw_input, dt, now=None, hold_window=HOLD_WINDOW_S, held=None):
     """Run all three decoupled SE(2) phases (poll_input -> step_twist -> step_kinematics)."""
-    keys = poll_input(raw_input, st=st, now=now, hold_window=hold_window)
+    keys = poll_input(raw_input, st=st, now=now, hold_window=hold_window, held=held)
     step_twist(st, keys, dt)
     step_kinematics(st, dt)
     return st
+
+
+def _quat_mul_y(q, dyaw):
+    """Pre-multiply quaternion `q` (w, x, y, z) by a rotation `dyaw` about world +Y."""
+    import numpy as np
+    c = math.cos(0.5 * dyaw)
+    s = math.sin(0.5 * dyaw)
+    w, x, y, z = float(q[0]), float(q[1]), float(q[2]), float(q[3])
+    return np.array([c * w - s * y, c * x + s * z, c * y + s * w, c * z - s * x])
+
+
+def apply_mujoco_twist(g, dt):
+    """Phase 3 (MuJoCo Physics Application): integrate omega_z into heading and apply body [v_x, v_y] in world."""
+    if not g.get('_twist_active'):
+        return
+    vx, vy, wz = g['twist']
+    d = g['world'].data
+    dyaw = wz * dt
+    if abs(dyaw) > 1e-9:
+        g['heading'] = wrap_angle(g['heading'] + dyaw)
+        d.qpos[3:7] = _quat_mul_y(d.qpos[3:7], dyaw)
+        c_dy, s_dy = math.cos(dyaw), math.sin(dyaw)
+        vx0, vz0 = float(d.qvel[0]), float(d.qvel[2])
+        d.qvel[0] = vx0 * c_dy + vz0 * s_dy
+        d.qvel[2] = -vx0 * s_dy + vz0 * c_dy
+    else:
+        q = d.qpos[3:7]
+        pyaw = 2.0 * math.atan2(float(q[2]), float(q[0]))
+        err_y = wrap_angle(g['heading'] - pyaw)
+        if abs(err_y) > 1e-6:
+            d.qpos[3:7] = _quat_mul_y(q, 0.05 * err_y)
+    if not g.get('_upper_hit'):
+        vx_want, vz_want = body_to_mujoco(vx, vy, g['heading'])
+        d.qpos[0] += (vx_want - float(d.qvel[0])) * dt
+        d.qpos[2] += (vz_want - float(d.qvel[2])) * dt
+
+
+def heard_twist(g, gym, tw, has_say, said_fn, dropped_fn, heard_say_fn, walk_on):
+    """Update `g['twist']` and manage CPG lifecycle when a twist command arrives in `sprung._heard`."""
+    from machine import latent, ortho
+    g['twist'] = (0.0, 0.0, 0.0) if tw is None else (float(tw[0]), float(tw[1]), float(tw[2]))
+    vx, vy, wz = g['twist']
+    by = {e[0]: e for e in gym}
+    if abs(vx) > 0.01 or abs(vy) > 0.01 or abs(wz) > 0.01:
+        if not g.get('_twist_active'):
+            g['_twist_active'] = True
+            dropped_fn(g)
+            t0 = g['t'] + 0.001
+            if g['st'][latent.NOW][latent.GAIN] < 0.05 and 'init_walk' in by and '#204' in by:
+                said_fn(g, 'init_walk', by['init_walk'][1][:ortho.ROW.size], ('init_walk',), at=t0, reset=True)
+                said_fn(g, *by['#204'], at=t0 + 0.65)
+            else:
+                said_fn(g, '#204', ortho.compiled(walk_on)[0][''], ('#204',), at=t0)
+        label = gait_for_twist({'v_x': vx, 'v_y': vy, 'omega_z': wz, 'keys': {}}) or '#204'
+        g['active_entry'] = label
+        g['labels'] = g['labels'][-16:] + [(g['t'], label)]
+    elif g.get('_twist_active'):
+        g['_twist_active'] = False
+        g['active_entry'] = None
+        if not has_say and '#201' in by:
+            heard_say_fn(g, gym, by['#201'])
+
+

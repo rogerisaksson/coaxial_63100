@@ -42,6 +42,11 @@ def holding():
     return Keys.holder is not None and Keys.holder.holding()
 
 
+def held():
+    """Currently held movement keys from hardware state when available, else None."""
+    return Keys.holder.held() if Keys.holder is not None else None
+
+
 #: Windows console input flags: VIRTUAL_TERMINAL_INPUT sends the mouse as
 #: xterm's SGR sequences (one parser); QUICK_EDIT keeps the mouse for text and
 #: must go, EXTENDED_FLAGS makes that stick. Without them the wheel is dead.
@@ -209,6 +214,8 @@ class Keys:
         self._grabbed = False
         self._held_at = 0.0
         self._keys_down = set()
+        self._async_keys = False
+        self._last_key_at = 0.0
 
     def __enter__(self):
         if not self.console:
@@ -422,6 +429,22 @@ class Keys:
         out, self._clicked = self._clicked, []
         return out
 
+    def held(self):
+        """Currently held movement keys (w, a, s, d, shift) when hardware state is active."""
+        if sys.platform == 'win32' and self.console and (self._keys_down or self._async_keys):
+            try:
+                user32 = ctypes.windll.user32
+                hw = {c for vk, c in ((87, 'w'), (65, 'a'), (83, 's'), (68, 'd'), (16, 'shift'))
+                      if user32.GetAsyncKeyState(vk) & 0x8000}
+                if hw:
+                    self._async_keys = True
+                if self._async_keys and (self._keys_down or time.monotonic() - self._last_key_at < 2.0):
+                    self._keys_down = hw
+                    return set(hw)
+            except AttributeError:
+                pass
+        return set(self._keys_down) if self._async_keys else None
+
     def _drain(self):
         """Every key waiting right now, and none of the ones that are not."""
         if sys.platform != 'win32':                         # no msvcrt
@@ -480,20 +503,25 @@ class Keys:
                                         ctypes.byref(read)):
             return None
 
+        vk_map = {87: 'w', 65: 'a', 83: 's', 68: 'd', 16: 'shift', 160: 'shift', 161: 'shift'}
         keys = []
+        now = time.monotonic()
         for i in range(read.value):
             record = buf[i]
             if record.type == 1:
                 key = record.event.key
+                ch_low = (key.ch or '').lower()
+                tok = vk_map.get(key.vk) or (ch_low if ch_low in ('w', 'a', 's', 'd') else None)
                 if key.down:
-                    self._keys_down.add(key.vk)
-                    k = self._key_of(key)
-                    keys.append(k)
-                    if k in ('w', 'W', 'a', 'A', 's', 'S', 'd', 'D'):
-                        keys.extend(c for v, c in ((87, 'w'), (65, 'a'), (83, 's'), (68, 'd'))
-                                    if v != key.vk and v in self._keys_down)
+                    self._last_key_at = now
+                    if tok:
+                        self._keys_down.add(tok)
+                    if key.ch in ('W', 'A', 'S', 'D') or (key.state & 0x0010):
+                        self._keys_down.add('shift')
+                    keys.append(self._key_of(key))
                 else:
-                    self._keys_down.discard(key.vk)
+                    if tok:
+                        self._keys_down.discard(tok)
             elif record.type == 2:
                 keys.extend(self._mouse_of(record.event.mouse))
         return keys
