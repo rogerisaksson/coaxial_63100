@@ -27,13 +27,16 @@ from terminal.ui import stage as stage_module
 
 PAGES = {
     'menu': 'terminal.menu',
+    'aerobat': 'terminal.views.show_aerobat',
     'angle': 'terminal.views.show_angle',
     'capture': 'terminal.views.show_capture',
     'chat': 'terminal.views.show_chat',
     'desk': 'terminal.views.show_desk',
     'gate_drivers': 'terminal.views.show_gate_drivers',
+    'helicopter': 'terminal.views.show_helicopter',
     'humanoid': 'terminal.views.show_humanoid',
     'orientation': 'terminal.views.show_orientation',
+    'ornithopter': 'terminal.views.show_ornithopter',
     'quad': 'terminal.views.show_quad',
     'render': 'terminal.views.show_render',
     'rotor_observer': 'terminal.views.show_rotor_observer',

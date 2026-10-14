@@ -18,7 +18,7 @@ from coaxial.control.commission import Commissioning
 from coaxial.control.motion import started
 from coaxial.model.thermal import MOTOR
 from coaxial.simulated.sto import PILOT_VOLTS
-from machine import aerobatics, aerokin, course, pull, quad
+from machine import aerobatics, aerokin, course, heat as mheat, pull, quad
 from machine.controller import Feedback
 from machine.parts import Gain, Slew, SpeedPI
 from tools.cores import aero, stand
@@ -142,6 +142,7 @@ def arm(rig, clock=1, warm_s=100.0, room='bench'):
     rotor = {'rig': rig, 'pairs': pairs, 'w': 0.0, 'w_hat': 0.0, 'iq': 0.0,
              'amps': 0.0, 'angle': 0.0, 'ask': 0.0, 'cut': False, 'fault': None,
              'budget': {}, 'ident': {}, 'board_c': None,
+             'cooling': mheat.cooling_state(cooling=quad.COOLING),
              'slot': drive._slot, 'buf': (ctypes.c_double * 5)()}
     spun(rotor)
     if warm_s:
@@ -315,6 +316,10 @@ def fallen(rotors, sky, flight, dt, cut=True):
         heat = rotor['rig'].board.thermal
         heat.fast_forward(dt * heat.HASTE, live=True)
         heat.airspeed(told, truth=through)
+        if 'cooling' in rotor:
+            mheat.step_board_cooling(
+                rotor['cooling'], rotor.get('amps') or 0.0, cells['volts'], dt * heat.HASTE,
+                through, quad.COOLING, switching=not rotor.get('cut'))
     if air is not None:
         quad.blown(air, dt)
     sky.step([r['w'] for r in rotors], dt, air)
@@ -399,6 +404,10 @@ def flown(rotors, sky, core, payload, flight, dt):
         heat = rotor['rig'].board.thermal
         heat.fast_forward(dt * heat.HASTE, live=True)
         heat.airspeed(told, truth=through)
+        if 'cooling' in rotor:
+            mheat.step_board_cooling(
+                rotor['cooling'], rotor.get('amps') or 0.0, volts, dt * heat.HASTE, through,
+                quad.COOLING)
     return out
 
 
@@ -439,6 +448,8 @@ def reset(rotors):
     """Every rotor from rest again (`spun`): the frame back on the floor, at their idle."""
     for rotor in rotors:
         rotor['rig'].board.drive.model.reset()
+        if 'cooling' in rotor:
+            rotor['cooling'] = mheat.cooling_state(cooling=quad.COOLING)
         spun(rotor)
 
 

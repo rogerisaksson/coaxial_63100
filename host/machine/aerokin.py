@@ -19,29 +19,36 @@ from machine import quad
 from machine.aerolisp import CompiledAeroPayload, K_MODES, LATENT_SYMBOL_MAP
 from machine.figure import cross
 
+_IMP, _KIN = quad.DYNAMICS['impedance'], quad.KINEMATICS
+_ENV, _VERT, _HORIZ, _HOLD = (
+    _KIN['envelope'], _KIN['vertical'], _KIN['horizontal'], _KIN['hold'])
+
 #: The frame's impedance as a payload asks it: the tilt's stiffness, 1/s^2, and damping, 1/s;
 #: a turn's about its nose or its wing, on its rate's miss summed and on its miss; the
 #: heading's rate's damping, and how fast a nose off its heading comes round to it, 1/s.
 #: The tilt at 201, the lap's seam - 2.4 m down in 6 - was crossed 0.51 m high, at 0.75 of
 #: the frame's size 0.76: at 300, 0.06 low and 0.04 high.
-TILT_K, TILT_D, TURN_K, TURN_D, YAW_D, NOSE_K = 300.0, 17.0, 201.0, 17.0, 4.0, 1.0
+TILT_K, TILT_D = _IMP['stiffness']['attitude_pitch'], _IMP['damping']['attitude_pitch']
+TURN_K, TURN_D = _IMP['stiffness']['pitch_rate'], _IMP['damping']['pitch_rate']
+YAW_D, NOSE_K = _IMP['damping']['attitude_yaw'], 1.0
 
 #: The height's loop, 1/s on its rate, both its poles at half of it; a height is flown to
 #: braked at this share of what the rotors' pull leaves - rising, of gravity -, a pace come to
 #: and stopped from in PACE_S.
-KD, BRAKE_SHARE, PACE_S = 12.8, 0.55, 1.0
+KD, BRAKE_SHARE, PACE_S = _VERT['settle_kd'], _VERT['brake_gain'], 1.0
 
 #: Along the floor: the spot's loop, 1/s^2 and 1/s; its spot goes to its place at HOME_K, 1/s,
 #: HOME_M_S at the most.
-SPOT_KP, SPOT_KD, HOME_K, HOME_M_S = 1.95, 2.94, 1.5, 3.0
+SPOT_KP, SPOT_KD, HOME_K, HOME_M_S = _HORIZ['spot_kp'], _HORIZ['spot_kd'], 1.5, _HORIZ['orbit_speed']
 
 #: What the frame is sped up on at the least, of its weight, whatever pull it is given; and
 #: what of its rotors' top a card is planned on: the rest the tilt's and the observers'.
-LEAST, HEADROOM = 1.5, 0.9
+LEAST, HEADROOM = _ENV['least_pull'], 0.9
 
 #: Held: within this of its height, m, and of its spot, m, this slow, m/s, its axis this
 #: near up, rad - what it may lean into a wind.
-HELD_M, HELD_SPOT_M, HELD_M_S, HELD_RAD = 0.03, 0.15, 0.15, 0.5
+HELD_M, HELD_SPOT_M = _HOLD['height_tol'], _HOLD['spot_tol']
+HELD_M_S, HELD_RAD = _HOLD['speed_tol'], _HOLD['tilt_tol']
 
 #: What it is doing where it is asked a height far under it, by how light its lift is:
 #: burning, let fall.

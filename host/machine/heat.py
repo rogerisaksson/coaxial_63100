@@ -179,3 +179,105 @@ def held(joint, volts=48.0):
         mid = 0.5 * (lo + hi)
         lo, hi = (mid, hi) if spent(mid)[0] < THROTTLE_AT else (lo, mid)
     return lo, spent(hi)[1]
+
+
+#: Default finned aluminium heatsink block (conducting heat from power switches and shunts) and
+#: temperature-controlled cooling fan parameters (`finned_aluminium_fan_sink` in `dynamics.lisp`).
+DEFAULT_COOLING = {
+    'sink_mass': 0.085, 'sink_capacity': 180.0,
+    'r_switches_to_sink': 3.0, 'r_shunts_to_sink': 1.5,
+    'r_sink_to_air_natural': 2.5, 'r_sink_to_air_forced': 0.25,
+    'fan_temp_on': 45.0, 'fan_temp_full': 80.0,
+    'fan_idle_duty': 0.0, 'fan_max_airflow': 14.0, 'fan_max_rpm': 8000.0,
+}
+
+
+def fan_duty(temp_c, cooling=None):
+    """The temperature-controlled cooling fan's duty `[fan_idle_duty, 1.0]` at `temp_c` C."""
+    c = cooling or DEFAULT_COOLING
+    on_c, full_c, idle = float(c['fan_temp_on']), float(c['fan_temp_full']), float(c['fan_idle_duty'])
+    if temp_c <= on_c:
+        return idle
+    if temp_c >= full_c:
+        return 1.0
+    return idle + (1.0 - idle) * (float(temp_c) - on_c) / max(1e-6, full_c - on_c)
+
+
+def fan_airflow(temp_c, cooling=None):
+    """Forced airflow speed (m/s) blown across the aluminium cooling fins by the fan at `temp_c`."""
+    c = cooling or DEFAULT_COOLING
+    return fan_duty(temp_c, c) * float(c['fan_max_airflow'])
+
+
+def sink_r_to_air(temp_c, airspeed_m_s=0.0, cooling=None):
+    """Effective thermal resistance (K/W) from the aluminium cooling fins to ambient air."""
+    c = cooling or DEFAULT_COOLING
+    g_nat = 1.0 / max(1e-6, float(c['r_sink_to_air_natural']))
+    g_for = 1.0 / max(1e-6, float(c['r_sink_to_air_forced']))
+    max_flow = max(1e-6, float(c['fan_max_airflow']))
+    share = min(1.0, (fan_airflow(temp_c, c) + 0.35 * max(0.0, float(airspeed_m_s))) / max_flow)
+    return 1.0 / (g_nat + share * (g_for - g_nat))
+
+
+def cooling_state(ambient_c=AMBIENT_C, cooling=None):
+    """Fresh thermal state for the power switches, shunts, finned aluminium block, and fan."""
+    c = cooling or DEFAULT_COOLING
+    amb = float(ambient_c)
+    duty = fan_duty(amb, c)
+    return {
+        'ambient_c': amb, 'switches_c': amb, 'shunts_c': amb, 'sink_c': amb,
+        'fan_duty': duty, 'fan_rpm': duty * float(c['fan_max_rpm']),
+        'fan_airflow_m_s': fan_airflow(amb, c),
+        'r_sink_air_k_w': sink_r_to_air(amb, 0.0, c),
+        'q_switches_to_sink_w': 0.0, 'q_shunts_to_sink_w': 0.0, 'q_sink_to_air_w': 0.0,
+    }
+
+
+def step_cooling(state, switch_watts, shunt_watts, dt, airspeed_m_s=0.0, cooling=None):
+    """Step heat conduction from power switches and shunts into the finned aluminium block and
+    convection to air under the temperature-controlled cooling fan across `dt` s."""
+    c = cooling or DEFAULT_COOLING
+    r_sw = max(1e-6, float(c['r_switches_to_sink']))
+    r_sh = max(1e-6, float(c['r_shunts_to_sink']))
+    c_sink = max(1.0, float(c['sink_capacity']))
+    c_sw, c_sh = 4.5, 3.6
+    amb = float(state.get('ambient_c', AMBIENT_C))
+    t_sw = float(state.get('switches_c', amb))
+    t_sh = float(state.get('shunts_c', amb))
+    t_sink = float(state.get('sink_c', amb))
+    p_sw, p_sh = max(0.0, float(switch_watts)), max(0.0, float(shunt_watts))
+    sub_n = max(1, int((float(dt) + 0.049999) / 0.05))
+    sub_dt = max(1e-9, float(dt) / sub_n)
+    a_sw, a_sh = sub_dt / (c_sw * r_sw), sub_dt / (c_sh * r_sh)
+    g_sw, g_sh = 1.0 / (r_sw * (1.0 + a_sw)), 1.0 / (r_sh * (1.0 + a_sh))
+    g_cap = c_sink / sub_dt
+    q_sw = q_sh = q_air = 0.0
+    for _ in range(sub_n):
+        ctrl_t = max(t_sink, 0.5 * (t_sw + t_sink), 0.5 * (t_sh + t_sink))
+        r_air = sink_r_to_air(ctrl_t, airspeed_m_s, c)
+        g_air = 1.0 / r_air
+        b_sw, b_sh = t_sw + sub_dt * p_sw / c_sw, t_sh + sub_dt * p_sh / c_sh
+        t_sink = (g_cap * t_sink + g_sw * b_sw + g_sh * b_sh + g_air * amb) / (
+            g_cap + g_sw + g_sh + g_air)
+        t_sw = (b_sw + a_sw * t_sink) / (1.0 + a_sw)
+        t_sh = (b_sh + a_sh * t_sink) / (1.0 + a_sh)
+        q_sw, q_sh, q_air = (t_sw - t_sink) / r_sw, (t_sh - t_sink) / r_sh, (t_sink - amb) / r_air
+    ctrl_t = max(t_sink, 0.5 * (t_sw + t_sink), 0.5 * (t_sh + t_sink))
+    duty = fan_duty(ctrl_t, c)
+    state.update(
+        switches_c=t_sw, shunts_c=t_sh, sink_c=t_sink,
+        fan_duty=duty, fan_rpm=duty * float(c['fan_max_rpm']),
+        fan_airflow_m_s=fan_airflow(ctrl_t, c),
+        r_sink_air_k_w=sink_r_to_air(ctrl_t, airspeed_m_s, c),
+        q_switches_to_sink_w=q_sw, q_shunts_to_sink_w=q_sh, q_sink_to_air_w=q_air)
+    return state
+
+
+def step_board_cooling(state, amps, volts=48.0, dt=0.02, airspeed_m_s=0.0, cooling=None,
+                       switching=True):
+    """Step a 63100 board's finned aluminium heatsink and fan at `amps` A and `volts` V."""
+    sq = float(amps) ** 2
+    sw_w = 1.5 * sq * RDS_OHM + (dry_loss(volts) if switching else 0.0)
+    sh_w = 1.5 * sq * SHUNT_OHM + HOUSEKEEPING_W
+    return step_cooling(state, sw_w, sh_w, dt, airspeed_m_s, cooling)
+

@@ -4,11 +4,11 @@
     lines = render(pose, rotors, 96, 40)                        # its dots splatted here
 
 `pose` is `machine.quad.Sky.state()`'s, its 'turn' and 'at'; `rotors` each rotor's (angle rad,
-speed rad/s, can C, board C), the can and its board painted their heat (`ansi.thermal_rgb`). A
-propeller slower than BLADES_RAD_S shows its blades; faster, the disc they sweep, its rim dotted
-where the frame does not cover it. The ground's grid to the horizon's edge, a pole marked each
-metre up and what stands about the course are its world (`coaxial.graphics.scenery`); the camera
-frames `reach` m about `centre`, SIGHT reaches off.
+speed rad/s, can C, board C[, sink C]), the can, its board and its heatsink painted their heat
+(`ansi.thermal_rgb`). A propeller slower than BLADES_RAD_S shows its blades; faster, the disc they
+sweep, its rim dotted where the frame does not cover it. The ground's grid to the horizon's edge,
+a pole marked each metre up and what stands about the course are its world
+(`coaxial.graphics.scenery`); the camera frames `reach` m about `centre`, SIGHT reaches off.
 """
 import math
 
@@ -22,9 +22,10 @@ from machine import ansi, quad
 SIGHT, REACH = 3.75, 0.8
 
 #: The frame's parts, m: the centre plate and the dome on it, an arm's tube, a can (the 63100,
-#: 63 mm by 100 mm) and its board under it, a skid's leg, a propeller's blade, a hub.
+#: 63 mm by 100 mm), its board and finned heatsink under it, a skid's leg, a propeller's blade, a hub.
 PLATE_R, PLATE_H = 0.1, 0.03
 ARM_R, CAN_R, CAN_L, BOARD_R, BOARD_H = 0.012, 0.0315, 0.1, 0.034, 0.005
+SINK_R, SINK_H = 0.032, 0.006
 LEG_R, BLADE_W, HUB_R = 0.008, 0.022, 0.014
 
 #: Their colours: carbon, the boards' solder mask, the propellers.
@@ -72,6 +73,8 @@ def parts():
                                   (x, top - CAN_L / 2.0, z))),
                 ('board%d' % k, _at(shapes.drum(BOARD_R, BOARD_H, 'y', paint(MASK)), None,
                                     (x, top - CAN_L - BOARD_H / 2.0, z))),
+                ('sink%d' % k, _at(shapes.drum(SINK_R, SINK_H, 'y', carbon), None,
+                                   (x, top - CAN_L - BOARD_H - SINK_H / 2.0, z))),
                 ('hub%d' % k, shapes.ellipsoid((x, top + 0.004, z), (HUB_R, 0.01, HUB_R),
                                                PLATE, rows=6)),
                 ('leg%d' % k, _at(shapes.drum(LEG_R, quad.SKID_M, 'y', carbon), None,
@@ -130,11 +133,14 @@ def mesh(which):
 
 
 def _painted(frame, rotors, dense):
-    """The frame's materials, or its dots', each can and board its heat's colour."""
+    """The frame's materials, or its dots', each can, board and heatsink its heat's colour."""
     materials = (frame.dense[3] if dense else frame.materials).copy()
-    for k, (_angle, _w, can_c, board_c) in enumerate(rotors):
-        for name, celsius in (('can%d' % k, can_c), ('board%d' % k, board_c)):
-            if celsius is not None:
+    for k, rotor in enumerate(rotors):
+        can_c, board_c = rotor[2], rotor[3]
+        sink_c = rotor[4] if len(rotor) > 4 else None
+        for name, celsius in (('can%d' % k, can_c), ('board%d' % k, board_c),
+                              ('sink%d' % k, sink_c)):
+            if celsius is not None and name in frame.parts:
                 materials[slice(*frame.span(name, dense))] = paint(ansi.thermal_rgb(celsius))
     return materials
 
@@ -150,7 +156,7 @@ def _posed(pose, rotors, dense):
     points, normals, uv, _materials = pick(frame)
     out = [[points @ turn.T + at], [normals @ turn.T], [uv], [_painted(frame, rotors, dense)]]
     index, base = [frame.index], len(points)
-    for (x, z), spin, (angle, w, _can, _board) in zip(quad.ROTOR_AT, quad.SPIN, rotors):
+    for (x, z), spin, (angle, w, *_heat) in zip(quad.ROTOR_AT, quad.SPIN, rotors):
         if abs(w) >= BLADES_RAD_S:
             continue
         here = turn @ shapes.turn_about('y', math.degrees(spin * angle))
@@ -171,7 +177,7 @@ def _discs(pose, rotors, m, cam, centre):
     rim = np.zeros((cam['height'], cam['width']), bool)
     k = np.arange(96) * (2.0 * math.pi / 96)
     ring = np.stack([np.cos(k), np.zeros_like(k), np.sin(k)], 1) * quad.DISC_R
-    for (x, z), (_angle, w, _can, _board) in zip(quad.ROTOR_AT, rotors):
+    for (x, z), (_angle, w, *_heat) in zip(quad.ROTOR_AT, rotors):
         if abs(w) < BLADES_RAD_S:
             continue
         hub = at + turn @ np.array([x, quad.DISC_M + 0.006, z])

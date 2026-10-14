@@ -9,7 +9,7 @@
 .PARAMETER Name
     Skip the front page and go straight to a page or an item by name:
     session, imu, angle, adc, gate_drivers, rotor_observer,
-    thermal_observer, humanoid, chat, claude.
+    thermal_observer, humanoid, quad, helicopter, ornithopter, aerobat, chat, claude.
 .PARAMETER Port
     The board: native://, the firmware's cores built for this host, in real time; emulator://
     the image on Renode (host/tools/emu), a VCP the bench's - COM4.
@@ -24,7 +24,8 @@
 #>
 param(
     [ValidateSet('session', 'imu', 'angle', 'adc', 'gate_drivers',
-                 'rotor_observer', 'thermal_observer', 'humanoid', 'chat', 'claude')]
+                 'rotor_observer', 'thermal_observer', 'humanoid', 'quad', 'helicopter',
+                 'ornithopter', 'aerobat', 'chat', 'claude')]
     [string]$Name,
     [string]$Port = 'native://',
     [switch]$Simulated,

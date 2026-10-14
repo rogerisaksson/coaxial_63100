@@ -16,8 +16,9 @@ its clamp - WEP's at the most - and on the pack's charge; spent, it comes down f
 pack, or to cool. It is flown in the air's weather (machine.quad): a wind, gusts over it and eddies in it,
 a kind at a time or one kept (W), none of it told to the law - its way and size a pointer at
 the side (terminal.views.quad.wind). The camera sits close on the floor before a flight, pulls
-back as it lifts and follows it, looking down on it - on the course from behind it, round as it
-turns (coaxial.graphics.quadcopter, scenery); the height and the power, the bus and the hottest
+back into a side RC-pilot perspective as it lifts - zooming a little to follow it while keeping
+contact with the horizon, and on the course coming round behind it as it turns
+(coaxial.graphics.quadcopter, scenery); the height and the power, the bus and the hottest
 board over the last half minute are boxes at the side (terminal.views.quad.traces). In the
 viewport's corner the picture of the camera it carries on a stabilised gimbal (machine.gimbal,
 coaxial.graphics.onboard), there or not (C).
@@ -63,11 +64,13 @@ PHYSICS_S, PASS_S = 0.01, 0.05
 #: and its clock ran 21 % behind; here 0.52, none behind, 15.6 frames a second where 16.3.
 SWITCH_S = 2e-4
 
-#: The camera: the reach framed about the quad on the floor before a flight and in the air, m,
-#: the pull from one to the other, s, its look down, degrees, its turn about the quad, degrees a
-#: second, and how far it trails the climb, s of it, at most a share of the reach.
-NEAR_M, FAR_M, PULL_S, PITCH, ORBIT_DEG_S = 0.8, 2.4, 1.5, 18.0, 3.0
-YAW, TRAIL_S, TRAIL_SHARE = 30.0, 0.12, 0.4
+#: The camera: sit close on the floor before a flight, pull back in the air and zoom a little
+#: to follow altitude and box excursion while keeping contact with the horizon from a side
+#: RC-pilot perspective (`YAW`, `PILOT_M` off the line).
+NEAR_M, FAR_M, ZOOM_M, ZOOM_K, PULL_S = 0.8, 2.2, 0.9, 0.04, 1.5
+YAW, SIDE_PITCH, PITCH, PILOT_M = 30.0, 18.0, 18.0, 14.0
+HORIZON_M, HORIZON_DIP, HORIZON_LIFT = 150.0, 9.0, 0.25
+TRAIL_S, TRAIL_SHARE = 0.12, 0.4
 
 #: On the course: the reach framed, m; the camera comes round behind the frame's heading at
 #: this gain, 1/s, and frames a point this far ahead of it, s of its speed.
@@ -101,8 +104,8 @@ def compose(console, origin, rotors, frame, flight, trace, now, art, yaw=0.0):
         ('stage', Text(('%s %s' % (name, flown.struck(flight))).upper().strip(), style='alarm'
                        if name in ('full tilt', 'burn', 'swap', 'cool', flown.CRASHED)
                        else 'value')),
-        ('height', '%8.2f m' % frame['h']),
-        ('climb', '%+8.1f m/s, %+.1f g' % (frame['v'], frame['a'] / quad.GRAVITY)),
+        ('height', '%5.2f m, %+.1f m/s, %+.1f g' % (frame['h'], frame['v'],
+                                                    frame['a'] / quad.GRAVITY)),
         ('thrust', '%8.1f of %.1f N' % (lift, weight)),
         ('tilt', '%8.1f deg, %.2f m off' % (tilt, math.hypot(frame['at'][0], frame['at'][2]))),
         ('lap', '%8s gate %d, %.1f m/s' % (
@@ -126,6 +129,12 @@ def compose(console, origin, rotors, frame, flight, trace, now, art, yaw=0.0):
             rotor['w'] * 60.0 / math.tau, rotor['amps'], 100.0 * (budget.get('worst') or 0.0),
             'THR' if held else policy_word(rotor['ident'])[0]),
             style='alarm' if hot else 'value')))
+    sinks = [r.get('cooling') or {} for r in rotors]
+    sink_c = max((float(s.get('sink_c', 25.0)) for s in sinks), default=25.0)
+    fan_pct = 100.0 * max((float(s.get('fan_duty', 0.0)) for s in sinks), default=0.0)
+    fan_rpm = max((float(s.get('fan_rpm', 0.0)) for s in sinks), default=0.0)
+    lines.append(('SINK', Text('%4.1f C  fan %3.0f%%  %4.0f rpm' % (sink_c, fan_pct, fan_rpm),
+                               style='alarm' if fan_pct >= 80.0 else 'value')))
     return frame_of(console, origin, TITLE, art,
                     [flying, hud('WIND  the way it blows, in the view',
                                  wind.pointer(flight['air'], frame['h'], yaw)),
@@ -159,25 +168,43 @@ def hands(held, zoomed):
                 + [(k, lambda: held.update(carried=not held['carried'])) for k in 'cC'])
 
 
-def look(camera, law, row, frame, chased, dt):
-    """The camera `dt` s on, (reach, centre): close on the floor, pulled back in the air -
-    the `row` flown asks a height -, turning slowly about the quad and trailing its climb;
-    `chased` - on the course - wider, come round behind the law's heading and framing ahead
-    of it."""
+def look(camera, law, row, frame, chased, dt, near_m=NEAR_M, far_m=FAR_M, zoom_m=ZOOM_M,
+         zoom_k=ZOOM_K, chase_m=CHASE_M, base_yaw=YAW, chase_pitch=PITCH):
+    """The camera `dt` s on, `(reach, centre)`: during aerobatics (`not chased`), a side RC-pilot
+    perspective (`base_yaw`) that pans gently across the flight box, zooms a little to follow
+    altitude and horizontal excursion, and keeps visual contact with the horizon; on the course
+    (`chased`), wider (`chase_m`), come round behind the law's heading and framing ahead of it."""
     aloft = row['height'] > 0.0
-    want = NEAR_M if not aloft else CHASE_M if chased else FAR_M
+    x, y, z = (float(c) for c in frame['at'])
+    dist = math.hypot(max(0.0, y), 0.5 * math.hypot(x, z))
+    want = near_m if not aloft else chase_m if chased else far_m + min(zoom_m, zoom_k * dist)
     camera['reach'] += (want - camera['reach']) * min(1.0, dt / PULL_S)
-    reach, (x, y, z) = camera['reach'] / camera['zoom'], (float(c) for c in frame['at'])
+    reach = camera['reach'] / camera['zoom']
     trail = max(-TRAIL_SHARE * reach, min(TRAIL_SHARE * reach, TRAIL_S * frame['v']))
+    pitch = camera.get('pitch', SIDE_PITCH)
     if not chased:
-        camera['yaw'] += ORBIT_DEG_S * dt
-        return reach, (x, y - trail, z)
+        lift = min(0.5 * max(0.0, y - 0.16), HORIZON_LIFT * min(reach, camera['reach']))
+        shift = max(-TRAIL_SHARE * reach, min(TRAIL_SHARE * reach, lift + TRAIL_S * frame['v']))
+        cy_w = max(0.16, y - shift)
+        rad = math.radians(base_yaw)
+        across = z * math.sin(rad) - x * math.cos(rad)
+        along = x * math.sin(rad) + z * math.cos(rad)
+        want_yaw = base_yaw + math.degrees(math.atan2(across, max(4.0, PILOT_M - along)))
+        turn = (want_yaw - camera['yaw'] + 180.0) % 360.0 - 180.0
+        camera['yaw'] += turn * min(1.0, CHASE_K * dt)
+        horizon_deg = math.degrees(math.atan2(cy_w, HORIZON_M))
+        want_pitch = horizon_deg + SIDE_PITCH - HORIZON_DIP * min(1.0, max(0.0, cy_w - 2.0) / 16.0)
+        camera['pitch'] = pitch + (want_pitch - pitch) * (1.0 if dt <= 0.0 else min(1.0, 8.0 * dt))
+        hx = max(-0.2 * reach, min(0.2 * reach, TRAIL_S * float(frame['vel'][0])))
+        hz = max(-0.2 * reach, min(0.2 * reach, TRAIL_S * float(frame['vel'][2])))
+        return reach, (x - hx, cy_w, z - hz)
     heading = math.degrees(math.atan2(law['heading'][1], law['heading'][0]))
     behind = (heading + 180.0 - camera['yaw'] + 180.0) % 360.0 - 180.0
     camera['yaw'] += behind * min(1.0, CHASE_K * dt)
+    camera['pitch'] = pitch + (chase_pitch - pitch) * (1.0 if dt <= 0.0 else min(1.0, CHASE_K * dt))
     ahead = [CHASE_S * float(frame['vel'][axis]) for axis in (0, 2)]
     far = max(1.0, math.hypot(ahead[0], ahead[1]) / (TRAIL_SHARE * reach))
-    return reach, (x + ahead[0] / far, y - trail, z + ahead[1] / far)
+    return reach, (x + ahead[0] / far, max(0.16, y - trail), z + ahead[1] / far)
 
 
 def size_of(console):
@@ -222,7 +249,7 @@ def main(argv=None):
             'wind': False, 'law': aerokin.fresh(),
             'flight': flown.fresh(), 'arrows': True, 'line': True, 'carried': True,
             'aim': gimbal.REST}
-    camera = {'reach': NEAR_M, 'yaw': YAW, 't': None, 'zoom': 1.0}
+    camera = {'reach': NEAR_M, 'yaw': YAW, 'pitch': SIDE_PITCH, 't': None, 'zoom': 1.0}
 
     def zoomed(k):
         camera['zoom'] = max(ZOOM[0], min(ZOOM[1], camera['zoom'] * k))
@@ -255,7 +282,7 @@ def main(argv=None):
                 trace.clear()
                 cells.update(quad.pack())
                 flight.update(apex=0.0, share=1.0, gone=0.0, stood=0.0, wreck=None)
-                camera['reach'] = NEAR_M
+                camera.update(reach=NEAR_M, yaw=YAW, pitch=SIDE_PITCH)
             for clock, frame in flown.passed(rotors, sky, route, held['law'], flight,
                                              held['clock'], dt):
                 held['aim'] = gimbal.step(held['aim'], frame['turn'], frame['vel'],
@@ -284,8 +311,9 @@ def main(argv=None):
         width, height = size_of(board_view)
         gate = (held['flight']['lap'] or {}).get('gate', 1) if chased else None
         art = '\n'.join(quadcopter.render(
-            frame, [(r['angle'], r['w'], (r['budget'] or {}).get('winding_c'), r['board_c'])
-                    for r in rotors], width, height, yaw=camera['yaw'], pitch=PITCH,
+            frame, [(r['angle'], r['w'], (r['budget'] or {}).get('winding_c'), r['board_c'],
+                     (r.get('cooling') or {}).get('sink_c'))
+                    for r in rotors], width, height, yaw=camera['yaw'], pitch=camera['pitch'],
             reach=reach, centre=centre, colour=terminal, lit=lit, gate=gate,
             thrusts=thrusts(frame, rotors) if held['arrows'] else None,
             line_=chased and held['line'],

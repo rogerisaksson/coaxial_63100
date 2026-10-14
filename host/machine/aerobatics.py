@@ -25,72 +25,47 @@ from machine.quad import FLOOR_M, HOVER_M
 #: against, under none pointed down - half in a figure: leant against all of it while asked to
 #: fall, the thrust cut for the fall took the pull along the floor with it, over a crest at 0.3
 #: of its weight a bend had 0.6 of its pull and the frame ran 1.2 m wide.
-HOVER = {'height': HOVER_M, 'pace': 1.5, 'climb': 0.0, 'push': 0.0, 'speed': 0.0, 'slide': 0.0,
-         'surge': 0.0, 'sway': 0.0, 'turn': 0.0, 'nose': 1.0, 'x': 0.0, 'z': 0.0, 'home': 1.0,
-         'lean': 8.0, 'roll': 0.0, 'flip': 0.0, 'light': 0.5}
+_ST, _KIN, _ENV_M = quad.STUNTS, quad.KINEMATICS, (FLOOR_M, HOVER_M)
+HOVER = _ST['hover']
 #: Full tilt: a height out of reach, at any pace.
-SKY = dict(HOVER, height=1000.0, pace=100.0)
+SKY = _ST['sky']
 #: The stop over the floor, from wherever it is: let fall, burned, held. It falls no faster
 #: than its rotors keep hold of it at, half its weight on them: at any pace they stood at
 #: their idle, a wind took the frame 15 m off its spot, and its burn found it on its side -
 #: on the floor at 11 m/s, seven winds of seven. And on the floor: let fall half a metre
 #: under it, the skids down and the rotors at their idle.
-STOP = dict(HOVER, height=FLOOR_M, pace=10.0)
-DOWN = dict(STOP, height=-0.5)
+STOP = _ST['stop']
+DOWN = _ST['down']
 #: A turn on its spot, as the discs' drag turns it.
-PIROUETTE = dict(HOVER, turn=120.0)
+PIROUETTE = _ST['pirouette']
 #: An orbit: slid ORBIT_M_S round the point ORBIT_M ahead of its nose, its nose on it, banked 25
 #: degrees, a lap LAP_S. Mixed with a hover it keeps its circle - both its slide and its turn
 #: are as much of theirs - and eased in and out alike it is as many laps as its seconds.
-ORBIT_M, ORBIT_M_S = 2.0, 3.0
-ORBIT = dict(HOVER, height=2.0, slide=ORBIT_M_S, turn=-math.degrees(ORBIT_M_S / ORBIT_M),
-             home=0.0)
+ORBIT_M, ORBIT_M_S = _KIN['horizontal']['orbit_radius'], _KIN['horizontal']['orbit_speed']
+ORBIT = _ST['orbit']
 LAP_S = math.tau * ORBIT_M / ORBIT_M_S
 #: The orbit climbed: a corkscrew to TOP_M; and its way back, down again.
-TOP_M = 8.0
-CORKSCREW = dict(ORBIT, height=TOP_M, pace=2.0)
-UNWIND = dict(ORBIT, height=HOVER_M, pace=2.5, slide=-ORBIT_M_S, turn=-ORBIT['turn'])
+TOP_M = _KIN['envelope']['top_height']
+CORKSCREW = _ST['corkscrew']
+UNWIND = _ST['unwind']
 #: Over its spot at the top. A toss: the sky's row at a pace; at that pace it turns over, about
 #: its nose or about its wing, and is caught where it was tossed from.
-HIGH = dict(HOVER, height=TOP_M, pace=4.0)
-TOSS = dict(SKY, pace=5.0)
-ROLL = dict(HIGH, roll=1.25)
-FLIP = dict(HIGH, flip=-1.25)
+HIGH = _ST['high']
+TOSS = _ST['toss']
+ROLL = _ST['roll']
+FLIP = _ST['flip']
 #: Pressed on the floor, its height asked this far under it, m: the skids down, the rotors
 #: bearing all but a twentieth of it - where a landing ends and a lift begins.
-PRESSED = dict(HOVER, height=-0.02)
+PRESSED = _ST['pressed']
 #: Down to the stop's mark over its spot from wherever it is, at a pace.
-OVER = dict(HOVER, height=FLOOR_M, pace=2.0)
+OVER = _ST['over']
 
 #: The routine: (name, row, seconds on it at least, seconds eased into it, what it waits for
 #: before it leaves). `held`: the frame at its height and its spot, still, its turns whole;
 #: `fit`: a pack with more than its reserve in it, the boards' envelopes with their room. A
 #: row may be what gives one - `row(route, now)` - where its setpoints are not a figure's but
 #: a line's (`machine.course`); what it holds itself it leaves in the route's `holds`.
-CARD = (
-    ('idle', DOWN, 2.0, 0.0, 'fit'),
-    ('spool', PRESSED, 2.5, 2.5, ''),
-    ('lift', HOVER, 3.0, 3.0, ''),
-    ('hover', HOVER, 3.0, 0.0, ''),
-    ('pirouette', PIROUETTE, 3.0, 2.0, ''),
-    ('poise', HOVER, 2.0, 2.0, ''),
-    ('orbit', ORBIT, LAP_S, 1.5, ''),
-    ('corkscrew', CORKSCREW, LAP_S, 1.5, ''),
-    ('home', HIGH, 2.0, 1.5, 'held'),
-    ('toss', TOSS, 1.0, 0.0, ''),
-    ('roll', ROLL, 0.8, 0.0, ''),
-    ('catch', HIGH, 3.0, 0.0, ''),
-    ('toss', TOSS, 1.0, 0.0, ''),
-    ('flip', FLIP, 0.8, 0.0, ''),
-    ('catch', HIGH, 3.0, 0.0, ''),
-    ('unwind', UNWIND, LAP_S, 1.5, ''),
-    ('level', HOVER, 2.0, 1.5, 'held'),
-    ('full tilt', SKY, 2.0, 0.0, ''),
-    ('burn', STOP, 0.0, 0.0, 'held'),
-    ('hold', STOP, 1.5, 0.0, ''),
-    ('descend', OVER, 1.5, 1.5, 'held'),
-    ('land', PRESSED, 3.0, 3.0, ''),
-)
+CARD = quad.MANIFEST['routines']['quadcopter']
 #: `spent` among what holds takes the routine to its flight's row of this name, the next before
 #: one that waits to be fit - but from one that waits to be fit, on the floor already, and from
 #: one that gives its own row: a line ends itself (`machine.course`: where it is on it, things

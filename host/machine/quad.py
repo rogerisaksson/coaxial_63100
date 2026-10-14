@@ -17,8 +17,23 @@ import math
 import os
 import random
 
+from machine import aerolisp
+
+QUAD_LISP_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'quadcopter.lisp')
+with open(QUAD_LISP_PATH, encoding='utf-8') as _qf:
+    MANIFEST = aerolisp.compile_manifest(_qf.read())
+AERO = MANIFEST['aerodynamics']
+DYNAMICS = MANIFEST['dynamics']
+KINEMATICS = MANIFEST['kinematics']
+STREAMS = MANIFEST['streams']
+STUNTS = MANIFEST['stunts']
+BEHAVIORS = MANIFEST['behaviors']
+_ROT, _AF = AERO['rotors'], AERO['airframe']
+_RB, _GOV = DYNAMICS['rigid_body'], DYNAMICS['governor']
+_ENV = KINEMATICS['envelope']
+
 #: The frame, kg, and gravity, m/s^2.
-MASS_KG, GRAVITY = 2.0, 9.81
+MASS_KG, GRAVITY = float(_RB['mass']), float(_RB['gravity'])
 
 #: A rotor's thrust and drag against its speed squared, mechanical rad/s: a 16x14's, CT 0.133
 #: and CP 0.077 - the APC20x10E's (quad.json's CT 0.10, motor.loads' fit, CP 0.032) scaled to
@@ -26,37 +41,38 @@ MASS_KG, GRAVITY = 2.0, 9.81
 #: 34 % of its no-load speed at its 30 A and to a pitch's speed of 12.5 m/s at the 2 960 rpm
 #: it was flown on, the frame level at 13 m/s; a 16x14 at 60 A turns 7 350 rpm, the link's
 #: ceiling, 13 times the frame's weight, 43 m/s its pitch's speed.
-K_THRUST, K_DRAG = 1.0995e-4, 4.136e-6
+K_THRUST, K_DRAG = _ROT['k_thrust'], _ROT['k_drag']
 
 #: The air on the frame, m^2 of drag area - an assumption, a 2 kg frame and four 0.5 m discs
 #: edge on - and its density, kg/m^3.
-BODY_CDA, RHO = 0.15, 1.2
+BODY_CDA, RHO = _AF['parasite_cda'], _AF['air_density']
 
 #: Where the rotors stand round the frame's middle, m, x right and z ahead in its own frame,
 #: the discs 0.6 m apart for 0.406 m props, and the way each turns seen from above: the
 #: diagonals alike, so their drags' torques cancel. Front left, front right, rear right, rear
 #: left.
-ARM_M = 0.3
+ARM_M = _ROT['arm_length']
 ROTOR_AT = ((-ARM_M, ARM_M), (ARM_M, ARM_M), (ARM_M, -ARM_M), (-ARM_M, -ARM_M))
 SPIN = (1.0, -1.0, 1.0, -1.0)
 
 #: The discs' height over the frame's middle, the skids' under it and a skid's foot's radius,
 #: m; what of the frame strikes a thing: a disc, a 16 in propeller's radius and half its
 #: depth, and the hub's half sizes, m.
-DISC_M, SKID_M, FOOT_M = 0.06, 0.12, 0.015
-DISC_R, DISC_HALF_M, HUB_M = 0.2032, 0.008, (0.06, 0.03, 0.06)
+DISC_M, SKID_M, FOOT_M = _ROT['disc_height'], _RB['skid_height'], _RB['foot_radius']
+DISC_R, DISC_HALF_M, HUB_M = (
+    _ROT['disc_radius'], _ROT['disc_half_height'], (_RB['hub_x'], _RB['hub_y'], _RB['hub_z']))
 
 #: The hover's height, the stop over the floor, m, and the rotors' idle, rad/s: a sixth of
 #: the frame's weight, the quad sitting on the floor.
-HOVER_M, FLOOR_M, IDLE_RAD_S = 1.5, 0.1, 86.0
+HOVER_M, FLOOR_M, IDLE_RAD_S = _ENV['hover_height'], _ENV['floor_height'], _GOV['idle_speed']
 
 #: Its rotors come to a speed asked of them in about this long, s: the frame's clock. The
 #: law's loops (`aerokin`) and the lap's plan (`course`) are tuned by it and go by it at
 #: another size - the tilt's loop at twice its gain rang on these rotors.
-SPIN_S = 0.08
+SPIN_S = _GOV['spin_time']
 
 #: The world's step, s.
-STEP_S = 0.002
+STEP_S = _GOV['step_time']
 
 #: The air's kinds, a row each - a day's weather over a field at REF_M, assumptions: the wind's
 #: mean, m/s; how far its way swings either side, degrees, and a swing's seconds; its gusts'
@@ -89,7 +105,7 @@ REF_M, SHEAR, SHEAR_M, SHEAR_MOST, RISE_M = 5.0, 0.2, 0.1, 1.5, 3.0
 #: A disc's thrust falls with the air through it along its axis - the frame's own way, the
 #: wind's and its eddy's against it -, to none at INFLOW_J0 of its pitch's speed, a 16x14's
 #: 0.356 m a turn: APC's zero thrust stands a little past the geometric pitch.
-INFLOW_J0, PITCH_M = 1.05, 0.3556
+INFLOW_J0, PITCH_M = _ROT['inflow_j0'], _ROT['blade_pitch']
 
 #: The frame's inertia, kg m^2 about its axes: a rotor's share of its mass at each corner.
 _CORNER = MASS_KG / 8.0 * 2.0 * ARM_M * ARM_M
@@ -398,6 +414,7 @@ def speed_for(thrust, along=0.0):
 #: at RESERVE of its charge. At 0.12 ohm the four's 8 kW at their clamps took the bus to half.
 PACK_CELLS, PACK_AH, PACK_OHM, RESERVE = 15, 1.0, 0.04, 0.2
 CELL_V = ((0.0, 3.30), (0.05, 3.50), (0.2, 3.70), (0.5, 3.85), (0.9, 4.05), (1.0, 4.20))
+COOLING = DYNAMICS['cooling']
 
 
 def open_volts(left):
