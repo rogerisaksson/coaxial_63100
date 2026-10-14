@@ -16,7 +16,7 @@ under the cloth shows as a patch sewn on at its ends.
 import math
 from typing import Any
 
-from coaxial.graphics import drums, engine, mechanism, panels
+from coaxial.graphics import arrows as _arrows, drums, engine, mechanism, panels
 from coaxial.graphics.callouts import callouts, line, packed
 from coaxial.graphics.lit import (CORE, MESH, PAINTED, PLATE, SKIN, braille, grid, paint,
                                   project, splat)
@@ -473,7 +473,7 @@ def _props(props, m, cam, centre, travel):
 def render(angles, width, height, yaw=30.0, pitch=8.0, zoom=1.0, colour=True, travel=(0.0, 0.0),
            lit=None, root=None, labels=None, heat=None, props=None, legend=None, dressed=True,
            mark=None,
-           around=False, see=None, pan=(0.0, 0.0), inset=None):
+           around=False, see=None, pan=(0.0, 0.0), inset=None, arrows=None):
     """Her, posed at {joint: degrees}, the pelvis at `root` (place, turn) if given, `width` x
     `height` cells: lines. `lit` a `gpu.LitRaster`, or None to splat her dots here; `labels`
     {joint: [row, ..]} called out at the edges (`callouts`); `heat` {joint: C} each drive's drum
@@ -543,4 +543,5 @@ def render(angles, width, height, yaw=30.0, pitch=8.0, zoom=1.0, colour=True, tr
     if inset:
         overlay = {**(overlay or {}), **inset}
     return braille(depth, rgb, grid(m, fine, centre, travel), width, height, colour, overlay,
-                   leaders, _props(props or (), m, fine, centre, travel) + wired)
+                   leaders, _props(props or (), m, fine, centre, travel)
+                   + _arrows.layers(arrows, m, fine, centre, travel) + wired)

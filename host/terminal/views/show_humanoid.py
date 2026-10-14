@@ -355,7 +355,8 @@ def main(argv=None):
                                                   if state['called'] != 'none' else None),
                                           dressed=state['skin'] == 'dressed',
                                           see=_seen(state),
-                                          inset=inset_cells))
+                                          inset=inset_cells,
+                                          arrows=(now, state.get('se2'))))
         return frame_of(board_view, ORIGIN, TITLE, art, boxes(state, now, name), bar_for(state),
                         gauges=gauges(state), help=(GROUPS, up))
 

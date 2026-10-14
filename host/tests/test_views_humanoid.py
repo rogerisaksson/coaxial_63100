@@ -250,10 +250,81 @@ def test_tpw_controls(report):
     report.check('crosshair hidden in normal mode', mark_off is None)
 
 
+def test_surface_arrows_setpoint_actual_and_landing_zones(report):
+    """Surface-conforming 3D setpoint arrow frames, actual fill, jump arrows, stop bars, and fall landing zones."""
+    import numpy as np
+    from coaxial.graphics import arrows, gynoid
+    from machine import physics, se2, sprung
+
+    g = sprung.laid(every=3)
+    z3 = np.zeros(27)
+    base_now = sprung.state(g, z3, z3, 0.0, 1.0, None)
+
+    # 1. Surface conformance across slope, snow, ice, stairs, and hole
+    w = physics.World()
+    w.scenario('slope')
+    slope_props = w.props()
+    y0, n0 = arrows.surface_at(0.0, 1.2, slope_props)
+    y1, n1 = arrows.surface_at(0.0, 2.8, slope_props)
+    report.check('arrow surface_at conforms to inclined slope ramp (y rises with z, normal tilted)',
+                 y1 > y0 + 0.03 and n1[2] < -0.01, 'y0=%.3f, y1=%.3f, n1=%s' % (y0, y1, n1))
+    w.scenario('hole')
+    yh, _ = arrows.surface_at(0.0, 1.2, w.props())
+    report.check('arrow surface_at dips into 10cm hole', yh < -0.08, 'yh=%.3f' % yh)
+
+    # 2. WASD locomotion: setpoint frame between feet, filled by actual velocity
+    st = se2.state()
+    se2.step_controller(st, 'w', 0.02, now=1.0)
+    now_w = dict(base_now, twist=(st['v_x'], 0.0, 0.0), velocity=(0.0, st['v_x']), speed=st['v_x'], doing='#204')
+    spec_w0 = arrows.describe(now_w, st)
+    for _ in range(40):
+        se2.step_controller(st, 'w', 0.05, now=1.0 + _ * 0.05)
+    now_w_fast = dict(base_now, twist=(st['v_x'], 0.0, 0.0), velocity=(0.0, st['v_x']), speed=st['v_x'], doing='jog')
+    spec_w1 = arrows.describe(now_w_fast, st)
+    report.check('W arrow originates between feet and fills as actual velocity ramps to run speed',
+                 spec_w0['kind'] == 'locomotion' and abs(spec_w0['origin'][0]) < 0.05
+                 and 0.3 < spec_w0['fill'] < spec_w1['fill'] and spec_w1['fill'] > 0.95
+                 and len(spec_w0['frame_segments']) > 10 and len(spec_w1['fill_segments']) > len(spec_w0['fill_segments']),
+                 'fill0=%.2f, fill1=%.2f' % (spec_w0['fill'], spec_w1['fill']))
+
+    # 3. Composite WA turn curves arrow tip toward +X (left)
+    st_wa = se2.state()
+    se2.step_controller(st_wa, 'wa', 0.05, now=2.0)
+    spec_wa = arrows.describe(dict(base_now, doing='turn_left'), st_wa)
+    tip_x = max(p[0] for seg in spec_wa['frame_segments'] for p in seg)
+    report.check('WA curved arrow frame bends toward left (+X > 0.15m)',
+                 spec_wa['kind'] == 'locomotion' and tip_x > 0.15, 'tip_x=%.3f' % tip_x)
+
+    # 4. Jump draws upward 3D arrow with actual fill
+    spec_hop = arrows.describe(dict(base_now, doing='throw', where=(0.0, 1.02, 0.0)))
+    max_y = max(p[1] for seg in spec_hop['frame_segments'] for p in seg)
+    report.check('jump (hop) draws upward 3D arrow frame and fill',
+                 spec_hop['kind'] == 'jump' and max_y > 0.75 and len(spec_hop['fill_segments']) > 5,
+                 'max_y=%.2f, fill=%.2f' % (max_y, spec_hop['fill']))
+
+    # 5. Commanded stop draws braking arrow and transverse stop bar
+    spec_stop = arrows.describe(dict(base_now, doing='brake', velocity=(0.0, 0.45), speed=0.45))
+    report.check('commanded stop (brake) draws stop bar target and braking arrow',
+                 spec_stop['kind'] == 'stop' and len(spec_stop['target_segments']) >= 8
+                 and spec_stop['landing'][2] > 0.25)
+
+    # 6. Commanded fall / shove draws estimated landing position on floor
+    spec_fall = arrows.describe(dict(base_now, doing='controlled_fall', velocity=(0.35, 0.50), where=(0.0, 0.82, 0.0)))
+    report.check('commanded fall estimates floor touch-down position and draws target ring + trajectory',
+                 spec_fall['kind'] == 'fall' and spec_fall['landing'] is not None
+                 and spec_fall['landing'][2] > 0.20 and len(spec_fall['target_segments']) >= 16)
+
+    # 7. Braille render includes arrow layers cleanly
+    art_plain = gynoid.render(base_now['angles'], 64, 28, colour=False)
+    art_arrow = gynoid.render(base_now['angles'], 64, 28, colour=False, arrows=(now_w_fast, st))
+    report.check('gynoid.render draws movement arrows into braille viewport', art_plain != art_arrow)
+
+
 ROSTER = (test_the_humanoid_pages_mouse, test_the_humanoid_pages_keys,
           test_a_held_space_charges_a_push, test_r_records_and_saves,
           test_vision_scanner_docked_pip_and_affordances,
-          test_tpw_controls)
+          test_tpw_controls,
+          test_surface_arrows_setpoint_actual_and_landing_zones)
 
 
 def main(argv=None):
