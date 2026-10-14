@@ -239,9 +239,14 @@ def test_tpw_controls(report):
     show_humanoid.KEYS['f'](state)
     report.check('f key executes interact action', len(sent) == 1 and 'say' in sent[0], str(sent))
 
-    # 6. Crosshair reticle rendered along aim vector
+    # 6. Crosshair reticle rendered along aim vector and Space triggers Jump (not push) in TPW mode
     mark = show_humanoid.marked(state, state['now'], 1.0)
     report.check('crosshair reticle is rendered along line of sight', mark is not None and mark[1] == (96, 220, 255), str(mark))
+    sent.clear()
+    humanoid_keys.act_on(show_humanoid.KEYS, [' '], state)
+    report.check('Space in TPW mode triggers jump (hop) and does not charge push',
+                 sent == [{'say': 'hop'}] and state.get('charge') is None
+                 and humanoid_keys.charging(state, 2.0) == 0.0, str(sent))
 
     # 7. F1 toggles mode off cleanly
     show_humanoid.KEYS['F1'](state)
@@ -251,7 +256,7 @@ def test_tpw_controls(report):
 
 
 def test_surface_arrows_setpoint_actual_and_landing_zones(report):
-    """Surface-conforming 3D setpoint arrow frames, actual fill, jump arrows, stop bars, and fall landing zones."""
+    """Surface-conforming 3D setpoint arrow frames, progressive actual fill, jump arrows, stop bars, and fall landing zones."""
     import numpy as np
     from coaxial.graphics import arrows, gynoid
     from machine import physics, se2, sprung
@@ -272,29 +277,37 @@ def test_surface_arrows_setpoint_actual_and_landing_zones(report):
     yh, _ = arrows.surface_at(0.0, 1.2, w.props())
     report.check('arrow surface_at dips into 10cm hole', yh < -0.08, 'yh=%.3f' % yh)
 
-    # 2. WASD locomotion: setpoint frame between feet, filled by ordered velocity at the robot
+    # 2. WASD locomotion: setpoint frame immediately shows target, interior fill ramps progressively from 0 -> 1
     st = se2.state()
     se2.step_controller(st, 'w', 0.02, now=1.0)
-    now_w = dict(base_now, twist=(st['v_x'], 0.0, 0.0), velocity=(0.0, st['v_x']), speed=st['v_x'], doing='#204')
-    spec_w0 = arrows.describe(now_w, st)
-    for _ in range(40):
-        se2.step_controller(st, 'W', 0.05, now=1.0 + _ * 0.05)
+    now_w0 = dict(base_now, twist=(st['v_x'], 0.0, 0.0), velocity=(0.0, 0.02), speed=0.02, doing='#204')
+    spec_w0 = arrows.describe(now_w0, st)
+    for k in range(7):
+        se2.step_controller(st, 'w', 0.05, now=1.02 + (k + 1) * 0.05)
+    spec_w_mid = arrows.describe(now_w0, st)
+    for k in range(40):
+        se2.step_controller(st, 'W', 0.05, now=1.40 + (k + 1) * 0.05)
     now_w_fast = dict(base_now, twist=(st['v_x'], 0.0, 0.0), velocity=(0.0, st['v_x']), speed=st['v_x'], doing='jog')
     spec_w1 = arrows.describe(now_w_fast, st)
-    report.check('W / Shift+W arrow originates between feet and fills from ordered robot velocity',
+    report.check('W / Shift+W arrow starts hollow and fills progressively as actual velocity reaches setpoint',
                  spec_w0['kind'] == 'locomotion' and abs(spec_w0['origin'][0]) < 0.05
-                 and spec_w0['fill'] > 0.95 and spec_w1['fill'] > 0.95
+                 and 0.0 < spec_w0['fill'] < 0.20 < spec_w_mid['fill'] < 0.85 < spec_w1['fill'] <= 1.0
                  and spec_w1['setpoint'][0] > spec_w0['setpoint'][0]
-                 and len(spec_w0['frame_segments']) > 10 and len(spec_w1['fill_segments']) > 5,
-                 'fill0=%.2f, fill1=%.2f' % (spec_w0['fill'], spec_w1['fill']))
+                 and len(spec_w0['frame_segments']) > 10 and len(spec_w1['fill_segments']) > len(spec_w0['fill_segments']),
+                 'fill0=%.2f, fill_mid=%.2f, fill1=%.2f' % (spec_w0['fill'], spec_w_mid['fill'], spec_w1['fill']))
 
-    # 3. Composite WA turn curves arrow tip toward +X (left)
+    # 3. Composite WA turn curves arrow tip toward +X (left) and never flickers to pure side arrow on single-key repeats
     st_wa = se2.state()
-    se2.step_controller(st_wa, 'wa', 0.05, now=2.0)
-    spec_wa = arrows.describe(dict(base_now, doing='turn_left'), st_wa)
+    t_wa = 2.0
+    for tok in ('wa', 'a', 'a', 'w', 'a', 'a'):
+        t_wa += 0.05
+        se2.step_controller(st_wa, tok, 0.05, now=t_wa)
+        spec_wa = arrows.describe(dict(base_now, doing='turn_left'), st_wa)
+        assert spec_wa['setpoint'][0] > 0.5 and spec_wa['setpoint'][1] == 0.0 and spec_wa['setpoint'][2] > 0.4
     tip_x = max(p[0] for seg in spec_wa['frame_segments'] for p in seg)
-    report.check('WA curved arrow frame bends toward left (+X > 0.15m)',
-                 spec_wa['kind'] == 'locomotion' and tip_x > 0.15, 'tip_x=%.3f' % tip_x)
+    report.check('WA curved arrow frame bends toward left (+X > 0.15m) without flickering to pure side arrow',
+                 spec_wa['kind'] == 'locomotion' and tip_x > 0.15 and spec_wa['setpoint'][1] == 0.0,
+                 'tip_x=%.3f, setpoint=%s' % (tip_x, spec_wa['setpoint']))
 
     # 4. Jump draws upward 3D arrow with actual fill
     spec_hop = arrows.describe(dict(base_now, doing='throw', where=(0.0, 1.02, 0.0)))

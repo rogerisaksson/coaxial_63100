@@ -320,6 +320,7 @@ def main(argv=None):
             if state.get('_wasd_active') and not any_wasd:
                 se2_st['v_x'] = se2_st['v_y'] = se2_st['omega_z'] = 0.0
                 se2_st['setpoint'] = (0.0, 0.0, 0.0)
+                se2_st['actual'] = (0.0, 0.0, 0.0)
                 se2_st['gait'] = None
                 state['_wasd_active'] = False
                 state['_last_sent_twist'] = (0.0, 0.0, 0.0)

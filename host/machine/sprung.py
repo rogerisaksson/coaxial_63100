@@ -46,26 +46,7 @@ BRAKE = ('(stream_inject (sequence_id 200) (blend_duration 450ms)'
          ' (phase_offset mode_lateral_shift mode_sagittal_drive 108deg)'
          ' (phase_offset mode_pelvis_list mode_sagittal_drive 108deg))'
          ' (task_constraints (maintain_zmp (polygon dynamic_footprint))))')
-#: Full forward-walk injection used when transitioning back into #204 from a turn or strafe.
-WALK_ON = ('(stream_inject (sequence_id 204) (blend_duration 800ms)'
-           ' (latent_targets (mode_axial_compression 0.04) (mode_pitch_attitude 0.0)'
-           ' (mode_sagittal_shift 0.0) (mode_lateral_shift 0.0)'
-           ' (mode_pelvis_turn 0.0) (mode_stance_width 0.0))'
-           ' (impedance (stiffness mode_axial_compression 3000) (damping mode_axial_compression 600)'
-           ' (stiffness mode_lateral_shift 3000) (damping mode_lateral_shift 300)'
-           ' (stiffness mode_sagittal_shift 0) (damping mode_sagittal_shift 260)'
-           ' (stiffness mode_foot_rock 2400) (damping mode_foot_rock 240))'
-           ' (cpg_config (enable true) (frequency 0.85Hz)'
-           ' (amplitude mode_lateral_shift 0.28) (amplitude mode_sagittal_drive 0.6)'
-           ' (amplitude mode_limb_lift 0.95) (amplitude mode_foot_rock 0.6)'
-           ' (amplitude mode_pelvis_list 0.4) (amplitude mode_pelvis_turn 0.4)'
-           ' (amplitude mode_arm_swing 0.8) (amplitude mode_stance_width 0.0)'
-           ' (phase_offset mode_lateral_shift mode_sagittal_drive 108deg)'
-           ' (phase_offset mode_pelvis_list mode_sagittal_drive 108deg)'
-           ' (phase_offset mode_pelvis_turn mode_sagittal_drive 0deg)'
-           ' (phase_offset mode_arm_swing mode_sagittal_drive 0deg)'
-           ' (phase_offset mode_foot_rock mode_sagittal_drive 0deg))'
-           ' (task_constraints (maintain_zmp (polygon dynamic_footprint))))')
+from machine.se2 import WALK_ON
 
 #: The drives' PD under the loop (SERVO gains * SERVO_SHARE: kp, kd); WEP temporary boost.
 SERVO_SHARE, LEAK_S, STANDING_KP = (0.5, 1.0), 0.2, 0.1
@@ -267,6 +248,7 @@ def passed(g, dt=0.001):
                 g['st'][latent.NOW][latent.PHASE] = np.where(ph, fut[0, latent.VALS][latent.PHASE],
                                                              g['st'][latent.NOW][latent.PHASE])
         out = latent.step(g['st'], g['tab'], g['t'], dt * g['every'], g['out'])
+        se2.step_physical_twist(g, dt * g['every'], out)
         d = world.data
         g['_upper_hit'] = False
         cur_doing = doing(g)
@@ -333,7 +315,6 @@ def passed(g, dt=0.001):
     g['ref_v'] += got['qacc'][body.act] * dt + leak * (world.data.qvel[body.act] - g['ref_v'])
     g['ref_q'] += g['ref_v'] * dt + leak * (world.data.qpos[body.qact] - g['ref_q'])
     world.target[body.driven] = g['ref_q']
-    se2.step_physical_twist(g, dt)
     g['t'] += dt
     g['n'] += 1
     world.advance()
@@ -363,6 +344,7 @@ def state(g, torque, power, watts, ratio, fallen_at, says=(), refused=None):
             'peak': dict(zip(JOINTS, world.peak.tolist())), 'watts': float(watts),
             'where': tuple(d.qpos[0:3].tolist()), 'turn': tuple(d.qpos[3:7].tolist()),
             'heading': float(g['heading']), 'twist': tuple(g.get('twist', (0.0, 0.0, 0.0))),
+            'twist_actual': tuple(g.get('twist_actual', (0.0, 0.0, 0.0))),
             'speed': float(spd_val), 'velocity': vel_xz,
             'phase': float(g['st'][latent.THETA]) / math.tau, 'cadence': float(out[latent.TURNS]) / math.tau,
             'stage': ('fallen' if fallen_at is not None
@@ -410,7 +392,7 @@ def _start_mode(g, by, entry, at):
 
 
 def _heard_say(g, gym, entry):
-    from machine import latent, modal, ortho, stride
+    from machine import latent, modal, ortho, se2, stride
     by = {e[0]: e for e in gym}
     has_future = bool(len(g['tab']) and (g['tab'][:, latent.AT] >= g['t']).any())
     if entry[0] == g.get('active_entry') and (entry[0] == '#201' or doing(g) not in ('rest', '#201') or has_future):
@@ -434,8 +416,9 @@ def _heard_say(g, gym, entry):
                  'ice_walk', 'slope_walk', 'strafe_left', 'strafe_right', 'turn_left',
                  'turn_right', 'circle_walk')
     t0 = g['t'] + 0.001
-    if doing(g) in ('down', 'hold', 'load', 'throw', 'land', 'step_off', 'drop', 'absorb',
-                    'crouch_load', 'propulsion', 'flight_tuck', 'seat_land') and len(g['tab']):
+    cur_d = doing(g)
+    if cur_d in ('hold', 'load', 'throw', 'land', 'step_off', 'drop', 'absorb',
+                 'crouch_load', 'propulsion', 'flight_tuck', 'seat_land') and len(g['tab']):
         g['tab'] = g['tab'][g['tab'][:, latent.AT] <= g['t'] + 1.5]
         t0 = (float(g['tab'][-1, latent.AT]) if len(g['tab']) else g['t']) + 0.05
         off_center = True
@@ -444,6 +427,9 @@ def _heard_say(g, gym, entry):
     same_gait = (entry[0] in fwd_gaits and not back_now) or (entry[0] in back_gaits and back_now)
     if entry[0] in ('parry_shove', 'controlled_fall'):
         said(g, *entry, at=t0, reset=True)
+        return
+    if striding and entry[0] == 'hop' and '#201' in by:
+        se2.stride_hop(g, by, t0, spd, back_now, fwd_gaits, back_gaits, said)
         return
     if striding and '#201' in by and not same_gait:
         brk = BRAKE.replace('108deg', '-108deg') if back_now else BRAKE
@@ -461,12 +447,12 @@ def _heard_say(g, gym, entry):
         g['active_entry'] = entry[0]
         said(g, '#204', ortho.compiled(WALK_ON)[0][''], ('#204',), at=t0) if entry[0] == '#204' else said(g, *entry, at=t0)
         return
-    if doing(g) == '#202' and entry[0] in (('#203',) + fwd_gaits):
+    if cur_d == '#202' and entry[0] in (('#203',) + fwd_gaits):
         said(g, *by['#203'], at=t0, reset=True)
         if entry[0] != '#203' and entry[0] in by:
             said(g, *by[entry[0]], at=t0 + 0.90)
         return
-    if doing(g) in ('over', 'touch') and entry[0] != 'one_sole':
+    if cur_d in ('over', 'touch') and entry[0] != 'one_sole':
         touch = ('(stream_inject (sequence_id 200) (blend_duration 500ms)'
                  ' (latent_targets (mode_axial_compression 0.0) (mode_lateral_shift 0.0) (mode_limb_lift 0.0) (mode_pelvis_list 0.0))'
                  ' (impedance (stiffness mode_axial_compression 6000) (damping mode_axial_compression 800)'
@@ -479,10 +465,19 @@ def _heard_say(g, gym, entry):
             g['_sync_cpg_at'] = t0 + 2.00
             _start_mode(g, by, entry, at=t0 + 2.00)
         return
-    if off_center and '#201' in by and entry[0] not in (('#201',) + tuple(STUNT_MODES)):
+    rise_map = {'seated': ('rise_chair', 2.20), 'bed_rest': ('rise_bed', 3.60), 'floor_rest': ('rise_floor', 3.30)}
+    if cur_d in rise_map and entry[0] in (fwd_gaits + back_gaits):
+        rm, dt_r = rise_map[cur_d]
+        if rm in by:
+            said(g, *by[rm], at=t0, reset=True)
+            g['_sync_cpg_at'] = t0 + dt_r
+            _start_mode(g, by, entry, at=t0 + dt_r)
+            return
+    if off_center and '#201' in by and entry[0] not in (('#201', 'hop') + tuple(STUNT_MODES)):
+        dt_s = 0.55 if cur_d == 'down' else 1.35
         said(g, *by['#201'], at=t0, reset=True)
-        g['_sync_cpg_at'] = t0 + 1.35
-        _start_mode(g, by, entry, at=t0 + 1.35)
+        g['_sync_cpg_at'] = t0 + dt_s
+        _start_mode(g, by, entry, at=t0 + dt_s)
         return
     if not striding:
         if entry[0] != '#201':
@@ -511,7 +506,7 @@ def _heard(g, gym, command):
         sc = command['say']
         entry = gym[int(sc)] if (isinstance(sc, int) or (isinstance(sc, str) and sc.isdigit())) and 0 <= int(sc) < len(gym) else by.get(sc)
         if entry is not None:
-            if 'twist' not in command and entry[0] not in se2.WASD_GAITS:
+            if 'twist' not in command and entry[0] != 'hop':
                 g['_twist_active'], g['twist'] = False, (0.0, 0.0, 0.0)
             if 'heading' not in command and entry[0] in ('turn_left', 'turn_right', 'turn_back_left', 'turn_back_right'):
                 g['target_heading'] = None

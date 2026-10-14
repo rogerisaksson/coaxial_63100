@@ -205,8 +205,8 @@ def _surface_path_arrow(origin, heading, vx_set, vy_set, wz_set, fill, props, le
     # Actual value interior fill (ärvärde) up to u = fill
     fill_segs = []
     u_fill = max(0.0, min(1.0, float(fill)))
-    if u_fill > 0.02:
-        n_fill = max(3, int(round(u_fill * n_samples)))
+    if u_fill > 0.03:
+        n_fill = max(1, int(math.ceil(u_fill * n_samples)))
         # Longitudinal interior ribs + transverse crossbars
         for frac in (-0.72, -0.36, 0.0, 0.36, 0.72):
             pts = []
@@ -290,7 +290,7 @@ def _vertical_arrow(origin, height_set, fill, direction=1.0, fwd_offset=0.0, hea
     fill_segs = []
     u_fill = max(0.0, min(1.0, float(fill)))
     if u_fill > 0.02:
-        n_f = max(3, int(round(u_fill * n_pts)))
+        n_f = max(2, int(math.ceil(u_fill * n_pts)))
         for k in range(n_f):
             u_a, u_b = u_fill * k / n_f, u_fill * (k + 1) / n_f
             ca, cb = center_at(u_a), center_at(u_b)
@@ -310,11 +310,15 @@ def _describe_special(doing, now, origin, normal, heading, props, tw_ord):
     sh, ch = math.sin(heading), math.cos(heading)
     where = now.get('where', (0.0, 0.90, 0.0))
     vel_xz = now.get('velocity', (0.0, 0.0))
+    spd_phys = math.hypot(float(vel_xz[0]), float(vel_xz[1]))
     if doing in JUMP_DOING:
+        spd_f = max(vx_ord, spd_phys)
         fwd = 0.45 if doing in ('hop_up_chair', 'crouch_load', 'propulsion', 'flight_tuck', 'seat_land') else (
-            0.38 if doing in ('hop_down_chair', 'step_off', 'drop', 'absorb') else 0.0)
-        vy_jump = 2.2 if doing in ('throw', 'propulsion', 'flight_tuck', 'hop_up_chair') else 1.5
-        fill = max(0.35, min(1.0, vy_jump / 2.2))
+            0.38 if doing in ('hop_down_chair', 'step_off', 'drop', 'absorb')
+            else (min(0.55, spd_f * 0.55) if spd_f > 0.08 else 0.0))
+        vy_jump = 2.2 if doing in ('throw', 'propulsion', 'flight_tuck', 'hop_up_chair') else (
+            1.2 if doing in ('load', 'crouch_load') else 1.6)
+        fill = max(0.25, min(1.0, vy_jump / 2.2))
         f_segs, fl_segs = _vertical_arrow(origin, 0.85, fill, 1.0, fwd, heading, props)
         land_pt = (origin[0] + fwd * sh, origin[1], origin[2] + fwd * ch)
         t_segs = []
@@ -364,7 +368,7 @@ def describe(now, se2_st=None):
     """Compute 3D movement pattern indicator specification for `now` and `se2_st`.
 
     Setpoint frame (börvärdespil) shows target velocity for the active command (WASD walk vs
-    Shift+WASD sprint); interior fill (ärvärde) is the ordered velocity at the robot.
+    Shift+WASD sprint); interior fill (ärvärde) ramps up as the robot's velocity reaches setpoint.
     """
     if not now:
         return {'kind': 'idle', 'fill': 0.0, 'frame_segments': [], 'fill_segments': [], 'target_segments': []}
@@ -377,26 +381,30 @@ def describe(now, se2_st=None):
     sh, ch = math.sin(heading), math.cos(heading)
     keys = (se2_st or {}).get('keys') or {}
     any_key = any(keys.get(k, False) for k in ('w', 's', 'a', 'd'))
-    if se2_st is not None:
-        tw_ord = (float(se2_st.get('v_x', 0.0)), float(se2_st.get('v_y', 0.0)), float(se2_st.get('omega_z', 0.0)))
+    if se2_st is not None and 'actual' in se2_st:
+        tw_act = tuple(float(v) for v in se2_st['actual'])
+    elif se2_st is not None:
+        tw_act = (float(se2_st.get('v_x', 0.0)), float(se2_st.get('v_y', 0.0)), float(se2_st.get('omega_z', 0.0)))
+    elif 'twist_actual' in now:
+        tw_act = tuple(float(v) for v in (now.get('twist_actual') or (0.0, 0.0, 0.0)))
     else:
         tw_raw = now.get('twist') or (0.0, 0.0, 0.0)
-        tw_ord = (float(tw_raw[0]), float(tw_raw[1]), float(tw_raw[2]))
-    if math.hypot(tw_ord[0], tw_ord[1]) <= 0.01 and abs(tw_ord[2]) <= 0.01 and doing in GAIT_TWIST and not any_key:
-        tw_ord = GAIT_TWIST[doing]
-    vx_ord, vy_ord, wz_ord = tw_ord
-    ord_mag = math.hypot(vx_ord, vy_ord)
+        tw_act = (float(tw_raw[0]), float(tw_raw[1]), float(tw_raw[2]))
+    if math.hypot(tw_act[0], tw_act[1]) <= 0.01 and abs(tw_act[2]) <= 0.01 and doing in GAIT_TWIST and not any_key and 'twist_actual' not in now:
+        tw_act = GAIT_TWIST[doing]
+    vx_act, vy_act, wz_act = tw_act
+    act_mag = math.hypot(vx_act, vy_act)
 
-    special = _describe_special(doing, now, origin, normal, heading, props, tw_ord)
+    special = _describe_special(doing, now, origin, normal, heading, props, tw_act)
     if special is not None:
         return special
 
     spd_phys = math.hypot(float(vel_xz[0]), float(vel_xz[1]))
-    if doing in STOP_DOING or (not any_key and doing in ('#201', 'rest') and (ord_mag > 0.04 or spd_phys > 0.08)):
-        vx_dir = vx_ord if abs(vx_ord) > 0.02 else 0.35
-        stop_dist = max(0.32, min(0.75, 0.32 + 0.45 * max(ord_mag, spd_phys)))
-        fill = max(0.15, min(1.0, 1.0 - ord_mag / se2.WALK_SPEED))
-        f_segs, fl_segs = _surface_path_arrow(origin, heading, vx_dir, vy_ord, 0.0, fill, props, length_scale=0.75)
+    if doing in STOP_DOING or (not any_key and doing in ('#201', 'rest') and (act_mag > 0.04 or spd_phys > 0.08)):
+        vx_dir = vx_act if abs(vx_act) > 0.02 else 0.35
+        stop_dist = max(0.32, min(0.75, 0.32 + 0.45 * max(act_mag, spd_phys)))
+        fill = max(0.15, min(1.0, 1.0 - act_mag / se2.WALK_SPEED))
+        f_segs, fl_segs = _surface_path_arrow(origin, heading, vx_dir, vy_act, 0.0, fill, props, length_scale=0.75)
         sx = origin[0] + stop_dist * sh * (1.0 if vx_dir >= 0 else -1.0)
         sz = origin[2] + stop_dist * ch * (1.0 if vx_dir >= 0 else -1.0)
         sy, _ = surface_at(sx, sz, props)
@@ -405,25 +413,30 @@ def describe(now, se2_st=None):
                   ((sx - lx_v, sy + 0.02, sz - lz_v), (sx + lx_v, sy + 0.02, sz + lz_v))]
         t_segs += _ring_segments(sx, sz, 0.12, props, n=8, cross=False)
         return {'kind': 'stop', 'origin': origin, 'normal': normal, 'setpoint': (0.0, 0.0, 0.0),
-                'actual': tw_ord, 'fill': fill, 'landing': (sx, sy, sz),
+                'actual': tw_act, 'fill': fill, 'landing': (sx, sy, sz),
                 'frame_segments': f_segs, 'fill_segments': fl_segs, 'target_segments': t_segs}
 
     vx_set, vy_set, wz_set = 0.0, 0.0, 0.0
     if any_key:
         vx_set, vy_set, wz_set = (se2_st.get('setpoint') if se2_st and 'setpoint' in se2_st
                                   else se2.setpoint_for_keys(keys))
-    elif ord_mag > 0.02 or abs(wz_ord) > 0.03:
-        vx_set, vy_set, wz_set = vx_ord, vy_ord, wz_ord
     elif doing in GAIT_TWIST:
         vx_set, vy_set, wz_set = GAIT_TWIST[doing]
+    elif act_mag > 0.02 or abs(wz_act) > 0.03:
+        vx_set, vy_set, wz_set = vx_act, vy_act, wz_act
 
     set_mag = math.hypot(vx_set, vy_set)
     if set_mag > 0.02 or abs(wz_set) > 0.03:
-        fill = (max(0.08, min(1.0, ord_mag / set_mag)) if set_mag > 0.02
-                else max(0.08, min(1.0, abs(wz_ord) / max(0.05, abs(wz_set)))))
+        if set_mag > 0.02 and abs(wz_set) > 0.03:
+            fill = min(1.0, 0.5 * (act_mag / set_mag + abs(wz_act) / abs(wz_set)))
+        elif set_mag > 0.02:
+            fill = min(1.0, act_mag / set_mag)
+        else:
+            fill = min(1.0, abs(wz_act) / max(0.05, abs(wz_set)))
+        fill = max(0.0, fill)
         f_segs, fl_segs = _surface_path_arrow(origin, heading, vx_set, vy_set, wz_set, fill, props)
         return {'kind': 'locomotion', 'origin': origin, 'normal': normal,
-                'setpoint': (vx_set, vy_set, wz_set), 'actual': tw_ord, 'fill': fill, 'landing': None,
+                'setpoint': (vx_set, vy_set, wz_set), 'actual': tw_act, 'fill': fill, 'landing': None,
                 'frame_segments': f_segs, 'fill_segments': fl_segs, 'target_segments': []}
 
     return {'kind': 'idle', 'origin': origin, 'normal': normal, 'setpoint': (0.0, 0.0, 0.0),

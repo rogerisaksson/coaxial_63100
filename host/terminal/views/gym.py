@@ -84,6 +84,7 @@ def _say_non_wasd(state, target):
     if se2_st is not None:
         se2_st['v_x'] = se2_st['v_y'] = se2_st['omega_z'] = 0.0
         se2_st['setpoint'] = (0.0, 0.0, 0.0)
+        se2_st['actual'] = (0.0, 0.0, 0.0)
         se2_st['gait'] = None
         se2_st['keys'] = {'w': False, 's': False, 'a': False, 'd': False, 'shift': False}
         se2_st['last_seen'].clear()
@@ -110,6 +111,109 @@ def _toggle_wasd(state, key='~'):
             state['body'].send(say=action)
 
 
+def _key_w(state, shifted=False):
+    if state.get('wasd_mode'):
+        se2_st = state.setdefault('se2', se2.state())
+        keys_st = se2_st.get('keys', {})
+        if keys_st.get('a'):
+            state['body'].send(say='turn_left')
+        elif keys_st.get('d'):
+            state['body'].send(say='turn_right')
+        elif shifted or keys_st.get('shift') or se2_st.get('v_x', 0.0) > se2.WALK_SPEED + 0.01:
+            state['body'].send(say='jog')
+        else:
+            state['body'].send(say=3)
+    else:
+        state['body'].send(walk=True)
+
+
+def _key_s(state):
+    now = state.get('now')
+    is_moving = now and (now.get('stage') == 'walk' or abs(now.get('speed', 0.0)) > 0.05)
+    if state.get('wasd_mode') or is_moving:
+        keys_st = (state.get('se2') or {}).get('keys', {}) if state.get('wasd_mode') else {}
+        if keys_st.get('a'):
+            state['body'].send(say='turn_back_left')
+        elif keys_st.get('d'):
+            state['body'].send(say='turn_back_right')
+        else:
+            state['body'].send(say=4)
+    else:
+        state['body'].send(say='sit_chair')
+
+
+def _key_a(state):
+    if state.get('wasd_mode'):
+        keys_st = (state.get('se2') or {}).get('keys', {})
+        if keys_st.get('w'):
+            state['body'].send(say='turn_left')
+        elif keys_st.get('s'):
+            state['body'].send(say='turn_back_left')
+        else:
+            state['body'].send(say='strafe_left')
+    elif 'wasd_mode' not in state:
+        state['body'].send(restart=True)
+
+
+def _key_d(state):
+    if state.get('wasd_mode'):
+        keys_st = (state.get('se2') or {}).get('keys', {})
+        if keys_st.get('w'):
+            state['body'].send(say='turn_right')
+        elif keys_st.get('s'):
+            state['body'].send(say='turn_back_right')
+        else:
+            state['body'].send(say='strafe_right')
+    else:
+        state['body'].send(say='hop_down_chair')
+
+
+def _key_f(state):
+    if state.get('wasd_mode'):
+        from terminal.views import scanner
+        sc = state.get('scanner')
+        now = state.get('now')
+        doing = (now or {}).get('doing', '')
+        if doing in ('seated', 'sit_chair'):
+            state['body'].send(say='rise_chair')
+            return
+        if doing in ('bed_rest', 'lie_bed'):
+            state['body'].send(say='rise_bed')
+            return
+        if doing in ('floor_rest', 'lie_floor') or (now and now.get('stage') in ('down', 'fallen', 'floor')):
+            state['body'].send(say='rise_floor')
+            return
+        if doing == 'down':
+            state['body'].send(say='#201')
+            return
+        if sc and now:
+            detected = sc.scan(now, state.get('yaw', 0.0))
+            act = scanner.auto_action(detected)
+            if act:
+                state['body'].send(say=act)
+                return
+    state['body'].send(say='lie_floor')
+
+
+def _key_shift(state):
+    if state.get('wasd_mode'):
+        se2_st = state.get('se2') or {}
+        gait = se2_st.get('gait')
+        state['body'].send(say=gait if gait in se2.WASD_GAITS else 'jog')
+    else:
+        state['body'].send(say='ballistic_walk')
+
+
+def _toggle_tour(state):
+    from machine.tour import HouseTour
+    if state.get('tour') is not None and not state['tour'].done:
+        state['tour'] = None
+    else:
+        state['scenario'] = 'glass_room'
+        state['body'].send(scenario='glass_room')
+        state['tour'] = HouseTour(loop=True)
+
+
 def table(keys):
     """`keys` (the page's own) with the gym's laid over them: arrows and WASD walk, back and strafe, digits say moves."""
     out = dict(keys)
@@ -129,73 +233,6 @@ def table(keys):
         out[key] = handler
         if key.isalpha():
             out[key.upper()] = handler
-
-    def _key_w(state, shifted=False):
-        if state.get('wasd_mode'):
-            se2_st = state.setdefault('se2', se2.state())
-            if shifted or se2_st.get('keys', {}).get('shift') or se2_st.get('v_x', 0.0) > se2.WALK_SPEED + 0.05:
-                state['body'].send(say='jog')
-            else:
-                state['body'].send(say=3)
-        else:
-            state['body'].send(walk=True)
-
-    def _key_s(state):
-        now = state.get('now')
-        is_moving = now and (now.get('stage') == 'walk' or abs(now.get('speed', 0.0)) > 0.05)
-        if state.get('wasd_mode') or is_moving:
-            state['body'].send(say=4)
-        else:
-            state['body'].send(say='sit_chair')
-
-    def _key_a(state):
-        if state.get('wasd_mode'):
-            state['body'].send(say='strafe_left')
-        elif 'wasd_mode' not in state:
-            state['body'].send(restart=True)
-        else:
-            # Turned off when switching mode - never reset robot
-            pass
-
-    def _key_d(state):
-        if state.get('wasd_mode'):
-            state['body'].send(say='strafe_right')
-        else:
-            state['body'].send(say='hop_down_chair')
-
-    def _key_f(state):
-        if state.get('wasd_mode'):
-            from terminal.views import scanner
-            sc = state.get('scanner')
-            now = state.get('now')
-            if sc and now:
-                detected = sc.scan(now, state.get('yaw', 0.0))
-                act = scanner.auto_action(detected)
-                if act:
-                    state['body'].send(say=act)
-                    return
-            if now and now.get('stage') in ('down', 'fallen', 'floor'):
-                state['body'].send(say='rise_floor')
-                return
-            state['body'].send(say='lie_floor')
-        else:
-            state['body'].send(say='lie_floor')
-
-    def _key_shift(state):
-        if state.get('wasd_mode'):
-            state['body'].send(say='jog')
-        else:
-            state['body'].send(say='ballistic_walk')
-
-    def _toggle_tour(state):
-        from machine.tour import HouseTour
-        if state.get('tour') is not None and not state['tour'].done:
-            state['tour'] = None
-        else:
-            state['scenario'] = 'glass_room'
-            state['body'].send(scenario='glass_room')
-            state['tour'] = HouseTour(loop=True)
-
     for k in keybindings.TOGGLE_TPW_KEYS:
         out[k] = (lambda state, key=k: _toggle_wasd(state, key))
     out['w'] = lambda state: _key_w(state, False)
@@ -250,7 +287,7 @@ def boxes(now, wasd=False):
         say_rows.append(('WA / WD', 'arc turn L / R'))
         say_rows.append(('SHIFT', 'sprint / jog'))
         say_rows.append(('F KEY', 'interact (sit/lie/rise)'))
-        say_rows.append(('SPACE', 'aim & strike / push'))
+        say_rows.append(('SPACE', 'jump in stride / hop'))
         say_rows.append(('MOUSE', 'free-orbit camera'))
     else:
         say_rows.append(('^ / v', 'fwd / back'))

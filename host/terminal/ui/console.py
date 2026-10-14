@@ -216,6 +216,9 @@ class Keys:
         self._keys_down = set()
         self._async_keys = False
         self._last_key_at = 0.0
+        self._term_hwnd = None
+        self._latched_wasd = False
+        self._hw_seen = False
 
     def __enter__(self):
         if not self.console:
@@ -429,9 +432,8 @@ class Keys:
         out, self._clicked = self._clicked, []
         return out
 
-    @staticmethod
-    def _is_console_focused():
-        """True when the console window is focused (or running inside a pseudo-console)."""
+    def _is_console_focused(self):
+        """True when the console/terminal window is focused."""
         if sys.platform != 'win32':
             return True
         try:
@@ -440,6 +442,8 @@ class Keys:
             fg = user32.GetForegroundWindow()
             if not fg:
                 return False
+            if self._term_hwnd is not None:
+                return fg == self._term_hwnd
             cw = kernel.GetConsoleWindow()
             if cw and user32.IsWindowVisible(cw):
                 return fg == cw
@@ -450,25 +454,37 @@ class Keys:
     def held(self):
         """Currently held movement keys (w, a, s, d, shift) that entered this terminal."""
         now = time.monotonic()
-        if not self._is_console_focused() or (now - self._last_key_at > 0.65):
+        if not self._is_console_focused():
+            self._latched_wasd = False
+            self._hw_seen = False
             self._keys_down.clear()
-        if sys.platform == 'win32' and self.console and (self._keys_down or self._async_keys):
+            return set() if self._async_keys else None
+        if sys.platform == 'win32' and self.console and (self._latched_wasd or self._keys_down or self._async_keys):
             try:
                 user32 = ctypes.windll.user32
                 self._async_keys = True
-                if self._keys_down:
+                if self._latched_wasd or self._keys_down:
                     hw = {c for vk, c in ((87, 'w'), (65, 'a'), (83, 's'), (68, 'd'),
                                           (16, 'shift'), (160, 'shift'), (161, 'shift'))
                           if user32.GetAsyncKeyState(vk) & 0x8000}
-                    wasd_down = (self._keys_down & {'w', 'a', 's', 'd'}) & hw
-                    if wasd_down:
-                        self._keys_down = wasd_down | ({'shift'} if 'shift' in hw else set())
-                    else:
+                    if hw & {'w', 'a', 's', 'd'}:
+                        self._hw_seen = True
+                        self._latched_wasd = True
+                        self._keys_down = set(hw)
+                        self._last_key_at = now
+                        return set(hw)
+                    if self._hw_seen:
+                        self._hw_seen = False
+                        self._latched_wasd = False
                         self._keys_down.clear()
-                return set(self._keys_down)
+                        return set()
+                    if now - self._last_key_at > 0.65:
+                        self._latched_wasd = False
+                        self._keys_down.clear()
+                return None
             except AttributeError:
                 pass
-        return set(self._keys_down) if self._async_keys else None
+        return None
 
     def _drain(self):
         """Every key waiting right now, and none of the ones that are not."""
@@ -513,6 +529,7 @@ class Keys:
 
         try:
             kernel = ctypes.windll.kernel32
+            user32 = getattr(ctypes.windll, 'user32', None)
         except AttributeError:
             return None
         handle = kernel.GetStdHandle(-10)
@@ -528,7 +545,11 @@ class Keys:
         if not kernel.ReadConsoleInputW(handle, buf, count.value,
                                         ctypes.byref(read)):
             return None
+        fg = user32.GetForegroundWindow() if user32 is not None else 0
+        if fg:
+            self._term_hwnd = fg
         if not self._is_console_focused():
+            self._latched_wasd = False
             self._keys_down.clear()
             return []
 
@@ -544,13 +565,14 @@ class Keys:
                 if key.down:
                     self._last_key_at = now
                     if tok:
+                        self._latched_wasd = True
                         self._keys_down.add(tok)
                     if key.ch in ('W', 'A', 'S', 'D') or (key.state & 0x0010):
+                        self._latched_wasd = True
                         self._keys_down.add('shift')
                     keys.append(self._key_of(key))
-                else:
-                    if tok:
-                        self._keys_down.discard(tok)
+                elif tok and (user32 is None or not (user32.GetAsyncKeyState(key.vk) & 0x8000)):
+                    self._keys_down.discard(tok)
             elif record.type == 2:
                 keys.extend(self._mouse_of(record.event.mouse))
         return keys
@@ -559,9 +581,9 @@ class Keys:
         import msvcrt
 
         keys = []
+        now = time.monotonic()
         while msvcrt.kbhit():
             got = msvcrt.getwch()
-            # A function or arrow key arrives as a prefix and then a code.
             if got in ('\x00', '\xe0'):
                 code = msvcrt.getwch()
                 keys.append({'H': '\x1b[A', 'P': '\x1b[B',
@@ -570,6 +592,12 @@ class Keys:
                              '?': 'f5', '@': 'f6', 'A': 'f7', 'B': 'f8',
                              'C': 'f9', 'D': 'f10'}.get(code, ''))
                 continue
+            if got.lower() in ('w', 'a', 's', 'd'):
+                self._last_key_at = now
+                self._latched_wasd = True
+                self._keys_down.add(got.lower())
+                if got in ('W', 'A', 'S', 'D'):
+                    self._keys_down.add('shift')
             keys.append(got)
         return keys
 

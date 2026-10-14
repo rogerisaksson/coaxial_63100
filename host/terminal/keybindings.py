@@ -56,7 +56,7 @@ BAR_NORMAL = (
 
 BAR_TPW = (
     ('§/~', 'NORMAL'), ('TAB', 'KEYS'), ('WASD', 'MOVE'), ('SHIFT', 'SPRINT'),
-    ('F', 'INTERACT'), ('MOUSE', 'AIM/LOOK'), ('SPC', 'STRIKE'), ('Q', 'EXIT')
+    ('SPC', 'JUMP'), ('F', 'INTERACT'), ('MOUSE', 'AIM/LOOK'), ('Q', 'EXIT')
 )
 
 
@@ -76,13 +76,15 @@ def describe_action(key, wasd_mode=False):
         return 'toggle Third Person Control (§ / ~ / F2)'
     if wasd_mode:
         if key in ('w', 'W'):
-            return 'TPW: advance forward in body frame (hold to ramp walk -> run)'
+            return 'TPW: advance forward in body frame (Shift+W to sprint)'
         if key in ('s', 'S'):
-            return 'TPW: reverse walk in body frame (clamped backpedal)'
+            return 'TPW: reverse walk in body frame (Shift+S fast backpedal)'
         if key in ('a', 'A'):
-            return 'TPW: pure lateral strafe left (vy > 0, wz = 0)'
+            return 'TPW: pure lateral strafe left (Shift+A sprint strafe)'
         if key in ('d', 'D'):
-            return 'TPW: pure lateral strafe right (vy < 0, wz = 0)'
+            return 'TPW: pure lateral strafe right (Shift+D sprint strafe)'
+        if key == ' ':
+            return 'TPW: jump in stride / hop'
         if key in ('f', 'F'):
             return 'TPW: interact (sit / lie / rise)'
         if key in ('shift', 'Shift', 'sprint'):
@@ -134,13 +136,13 @@ def groups():
     return (
         ('THIRD PERSON CONTROL (SE(2) BODY FRAME)', (
             ('§ / ~ / F2', 'toggle Third Person Control ON / OFF'),
-            ('W (HOLD)', 'body-frame forward walk -> continuous run ramp (vx)'),
-            ('S', 'body-frame reverse walk (clamped -vx)'),
-            ('A / D (ALONE)', 'pure lateral strafe left / right (vy != 0, wz = 0)'),
-            ('WA / WD / SA / SD', 'curvilinear arc turn (vy = 0, wz != 0)'),
-            ('SHIFT', 'instant sprint / jog'),
+            ('WASD', 'walk forward (W), back (S), strafe left/right (A/D)'),
+            ('WA / WD / SA / SD', 'curvilinear arc turn while walking or backing'),
+            ('SHIFT + WASD', 'run / sprint in any direction'),
+            ('SPACE', 'jump in stride / hop (or hop down from chair)'),
             ('F', 'universal interact (sit / lie / rise)'),
-            ('SPACE', 'hold to charge kinetic push / strike'),
+            ('X / Z', 'crouch toggle / controlled breakfall'),
+            ('P / N', 'push / nudge perturbation'),
             ('MOUSE L-DRAG', 'free-orbiting camera (decoupled from body heading)'),
             ('MOUSE WHEEL', 'zoom in / zoom out'),
         )),

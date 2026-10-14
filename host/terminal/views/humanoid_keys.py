@@ -62,7 +62,25 @@ def _recorded(state):
 
 
 def _charged(state):
-    """Space, each press and repeat: the push charging, from when it began."""
+    """Space, each press and repeat: jump in TPW mode; otherwise the push charging."""
+    if state.get('wasd_mode'):
+        state['charge'] = None
+        now_st = state.get('now') or {}
+        doing = now_st.get('doing', '')
+        where = now_st.get('where') or (0.0, 0.90, 0.0)
+        if where[1] > 1.12:
+            state['body'].send(say='hop_down_chair')
+        elif doing in ('seated', 'sit_chair'):
+            state['body'].send(say='rise_chair')
+        elif doing in ('bed_rest', 'lie_bed'):
+            state['body'].send(say='rise_bed')
+        elif doing in ('floor_rest', 'lie_floor'):
+            state['body'].send(say='rise_floor')
+        elif doing == 'down':
+            state['body'].send(say='#201')
+        else:
+            state['body'].send(say='hop')
+        return
     now = time.monotonic()
     charge = state.get('charge')
     if not charge:
@@ -73,7 +91,9 @@ def _charged(state):
 
 def charging(state, now):
     """The push charged so far, N: CHARGE_N_S a second since space was first pressed, to
-    CHARGE_MAX_N; 0 with none charging."""
+    CHARGE_MAX_N; 0 with none charging or in TPW mode."""
+    if state.get('wasd_mode'):
+        return 0.0
     charge = state.get('charge')
     return min(CHARGE_MAX_N, CHARGE_N_S * (now - charge['began'])) if charge else 0.0
 
@@ -81,6 +101,9 @@ def charging(state, now):
 def released(state, now):
     """The push let go, N, once space's repeats have stopped (RELEASE_S, FIRST_S); 0 while it
     charges or none is."""
+    if state.get('wasd_mode'):
+        state['charge'] = None
+        return 0.0
     charge = state.get('charge')
     if not charge:
         return 0.0
@@ -184,18 +207,21 @@ def act_on(keys, typed, state, wheel=0.0):
     state.setdefault('typed', []).extend(typed)
     typed = _check_wasd_chords(typed, state)
     t_now = time.monotonic()
+    wasd_on = bool(state.get('wasd_mode'))
     filtered = []
     for key in typed:
         last_k, last_t = state.get('_last_action_key', (None, 0.0))
+        if wasd_on and key == ' ' and last_k == ' ' and (t_now - last_t) < 0.35:
+            continue
         if key == last_k and key != ' ' and (t_now - last_t) < 0.12:
-            if state.get('wasd_mode') and key in ('w', 'W') and (
+            if wasd_on and key in ('w', 'W') and (
                     key == 'W' or state.get('se2', {}).get('keys', {}).get('shift')):
                 state['body'].send(say='jog')
             continue
         state['_last_action_key'] = (key, t_now)
         filtered.append(key)
     for key in filtered:
-        log_key(key, _action_of(key, wasd_mode=state.get('wasd_mode', False)))
+        log_key(key, _action_of(key, wasd_mode=wasd_on))
         if key in keys:
             keys[key](state)
 

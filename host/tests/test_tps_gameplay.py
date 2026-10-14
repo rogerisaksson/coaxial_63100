@@ -20,93 +20,84 @@ from views_kit import Report
 def test_tactical_strafe_peek_and_fire(report):
     """Gamer executes tactical peeking: advance forward, strafe left (A), snap strafe right (D), and resume forward."""
     from machine import figure, sprung
-
-    g = sprung.laid()
-    gym = sprung.entries(name='moves')
-
-    # 1. Normal forward advance
+    g, gym = sprung.laid(), sprung.entries(name='moves')
     sprung.walked(g)
     for _ in range(3000):
         sprung.passed(g, 0.001)
-
     initial_x = float(g['world'].data.qpos[0])
     report.check('forward advance established without tilt (< 5 deg)', sprung.tilt(g) < 5.0)
 
-    # 2. Strafe left (A key peek) for 2.0s
-    for step in range(100):
+    for _ in range(100):
         sprung._heard(g, gym, {'say': 'strafe_left'})
         for _ in range(20):
             sprung.passed(g, 0.001)
-
-    x_left = float(g['world'].data.qpos[0])
-    tilt_left = sprung.tilt(g)
-    y_left = float(g['world'].data.qpos[1])
+    x_left, tilt_left, y_left = float(g['world'].data.qpos[0]), sprung.tilt(g), float(g['world'].data.qpos[1])
     hr_l = abs(math.degrees(float(g['world'].data.qpos[g['world'].qadr[figure.JOINTS.index('left_hip_roll')]])))
     hr_r = abs(math.degrees(float(g['world'].data.qpos[g['world'].qadr[figure.JOINTS.index('right_hip_roll')]])))
+    report.check('strafe left executes with natural hip roll (< 16 deg)', max(hr_l, hr_r) < 16.0)
+    report.check('strafe left maintains standing height (> 0.85m)', y_left > 0.85)
+    report.check('strafe left remains upright (tilt < 6 deg)', tilt_left < 6.0)
 
-    report.check('strafe left executes with natural hip roll (< 16 deg)', max(hr_l, hr_r) < 16.0,
-                 'max hip roll: %.1f deg' % max(hr_l, hr_r))
-    report.check('strafe left maintains standing height (> 0.85m)', y_left > 0.85, 'y: %.3f m' % y_left)
-    report.check('strafe left remains upright (tilt < 6 deg)', tilt_left < 6.0, 'tilt: %.1f deg' % tilt_left)
-
-    # 3. Snap counter-strafe right (D key) for 2.0s
-    for step in range(100):
+    for _ in range(100):
         sprung._heard(g, gym, {'say': 'strafe_right'})
         for _ in range(20):
             sprung.passed(g, 0.001)
-
-    x_right = float(g['world'].data.qpos[0])
-    tilt_right = sprung.tilt(g)
-    y_right = float(g['world'].data.qpos[1])
-
+    x_right, tilt_right, y_right = float(g['world'].data.qpos[0]), sprung.tilt(g), float(g['world'].data.qpos[1])
     report.check('snap counter-strafe right shifts position across',
-                 x_left > initial_x + 0.08 and x_right < x_left - 0.08,
-                 'left x: %.3f, right x: %.3f' % (x_left, x_right))
-    report.check('counter-strafe maintains standing height (> 0.85m)', y_right > 0.85, 'y: %.3f m' % y_right)
-    report.check('counter-strafe remains upright (tilt < 6 deg)', tilt_right < 6.0, 'tilt: %.1f deg' % tilt_right)
+                 x_left > initial_x + 0.08 and x_right < x_left - 0.08)
+    report.check('counter-strafe maintains standing height (> 0.85m)', y_right > 0.85)
+    report.check('counter-strafe remains upright (tilt < 6 deg)', tilt_right < 6.0)
 
-    # 4. Resume forward cruise (#204)
     sprung._heard(g, gym, {'say': 3})
     for _ in range(1500):
         sprung.passed(g, 0.001)
-
     report.check('smooth return to forward advance without falling', sprung.tilt(g) < 6.0)
 
 
 def test_sprint_dash_and_tactical_backpedal(report):
-    """Gamer executes sprint dash to cover (Shift+W) and tactical backpedal retreat (S)."""
-    from machine import sprung
-
-    g = sprung.laid()
+    """Gamer executes sprint dash (Shift+W) faster than walk, jumps in stride (Space), and backpedals (S)."""
+    from machine import se2, sprung
     gym = sprung.entries(name='moves')
-
-    sprung.walked(g)
+    g_walk, st_walk = sprung.laid(every=3), se2.state()
     for _ in range(3000):
-        sprung.passed(g, 0.001)
+        se2.step_controller(st_walk, ['w'], 0.001)
+        sprung._heard(g_walk, gym, {'twist': (st_walk['v_x'], st_walk['v_y'], st_walk['omega_z'])})
+        sprung.passed(g_walk, 0.001)
+    z_walk = float(g_walk['world'].data.qpos[2])
 
-    # 1. Shift key sprint dash (jog) for 2.5s
-    sprung._heard(g, gym, {'say': 'jog'})
-    max_tilt_sprint = 0.0
-    for _ in range(2500):
+    g, st, max_tilt_sprint = sprung.laid(every=3), se2.state(), 0.0
+    for _ in range(3000):
+        se2.step_controller(st, ['w', 'shift'], 0.001)
+        sprung._heard(g, gym, {'twist': (st['v_x'], st['v_y'], st['omega_z'])})
         sprung.passed(g, 0.001)
         max_tilt_sprint = max(max_tilt_sprint, sprung.tilt(g))
+    z_sprint = float(g['world'].data.qpos[2])
+    sprint_spd, sprint_y = float(g['world'].data.qvel[2]), float(g['world'].data.qpos[1])
+    report.check('Shift+W sprint covers significantly more ground than normal W walk (+0.25m)',
+                 z_sprint > z_walk + 0.25 and sprint_spd >= 0.55)
+    report.check('sprint dash maintains upright posture (tilt < 8 deg)', max_tilt_sprint < 8.0)
+    report.check('sprint dash maintains standing height (> 0.86m)', sprint_y > 0.86)
 
-    sprint_spd = float(g['world'].data.qvel[2])
-    sprint_y = float(g['world'].data.qpos[1])
-    report.check('sprint dash achieves forward velocity (>= 0.5 m/s)', sprint_spd >= 0.5, 'speed: %.2f m/s' % sprint_spd)
-    report.check('sprint dash maintains upright posture (tilt < 8 deg)', max_tilt_sprint < 8.0, 'max tilt: %.1f deg' % max_tilt_sprint)
-    report.check('sprint dash maintains standing height (> 0.86m)', sprint_y > 0.86, 'y: %.3f m' % sprint_y)
+    z_pre_jump = float(g_walk['world'].data.qpos[2])
+    sprung._heard(g_walk, gym, {'say': 'hop'})
+    max_y_jump, max_tilt_jump = 0.0, 0.0
+    for _ in range(2200):
+        se2.step_controller(st_walk, ['w'], 0.001)
+        sprung._heard(g_walk, gym, {'twist': (st_walk['v_x'], st_walk['v_y'], st_walk['omega_z'])})
+        sprung.passed(g_walk, 0.001)
+        max_y_jump = max(max_y_jump, float(g_walk['world'].data.qpos[1]))
+        max_tilt_jump = max(max_tilt_jump, sprung.tilt(g_walk))
+    z_post_jump = float(g_walk['world'].data.qpos[2])
+    report.check('in-stride jump executes during locomotion (max_y > 0.89m) and continues walking forward',
+                 max_y_jump > 0.89 and z_post_jump > z_pre_jump + 0.45 and max_tilt_jump < 8.0)
 
-    # 2. S key tactical backpedal retreat
-    sprung._heard(g, gym, {'say': 4})
+    sprung._heard(g_walk, gym, {'say': 4})
     max_tilt_retreat = 0.0
     for _ in range(2000):
-        sprung.passed(g, 0.001)
-        max_tilt_retreat = max(max_tilt_retreat, sprung.tilt(g))
-
-    report.check('tactical backpedal retreat brakes and steps back stably (tilt < 8 deg)', max_tilt_retreat < 8.0,
-                 'max tilt: %.1f deg' % max_tilt_retreat)
-    report.check('retreat completes with zero falls', sprung.doing(g) != 'fallen')
+        sprung.passed(g_walk, 0.001)
+        max_tilt_retreat = max(max_tilt_retreat, sprung.tilt(g_walk))
+    report.check('tactical backpedal retreat brakes and steps back stably (tilt < 8 deg)', max_tilt_retreat < 8.0)
+    report.check('retreat completes with zero falls', sprung.doing(g_walk) != 'fallen')
 
 
 def test_mouselook_target_tracking_and_flanking(report):
@@ -145,10 +136,14 @@ def test_mouselook_target_tracking_and_flanking(report):
 
 
 def test_kinetic_strike_and_tps_reticle(report):
-    """Spacebar charges kinetic push/strike along crosshair line of sight, aiming reticle displays on HUD."""
-    from terminal.views import show_humanoid, viewpoint
+    """Spacebar jumps in TPW mode (and never pushes), aiming reticle displays on HUD."""
+    from terminal.views import humanoid_keys, show_humanoid, viewpoint
 
-    state = {**viewpoint.HOME, 'wasd_mode': True, 'yaw': 180.0, 'pitch': 8.0}
+    sent = []
+    class DummyBody:
+        def send(self, **kw):
+            sent.append(kw)
+    state = {**viewpoint.HOME, 'body': DummyBody(), 'wasd_mode': True, 'yaw': 180.0, 'pitch': 8.0}
     now = {
         'angles': {},
         'where': (0.0, 0.9, 0.0),
@@ -156,6 +151,7 @@ def test_kinetic_strike_and_tps_reticle(report):
         'stage': 'walk',
         'speed': 0.6,
     }
+    state['now'] = now
 
     # 1. TPS crosshair reticle rendered
     mark = show_humanoid.marked(state, now, 0.0)
@@ -172,11 +168,13 @@ def test_kinetic_strike_and_tps_reticle(report):
     report.check('gauges render discreet Third Person Control banner',
                  'Third Person Control' in g_text.plain or 'TPW' in g_text.plain)
 
-    # 4. Bar displays TPW action shortcuts
+    # 4. Bar displays TPW action shortcuts (JUMP instead of push) and Space triggers hop
     bar = show_humanoid.bar_for(state)
     actions = [a for _, a in bar]
-    report.check('bar includes SPRINT, INTERACT, MOVE, STRIKE',
-                 'SPRINT' in actions and 'INTERACT' in actions and 'MOVE' in actions and 'STRIKE' in actions)
+    humanoid_keys.act_on(show_humanoid.KEYS, [' '], state)
+    report.check('bar includes SPRINT, INTERACT, MOVE, JUMP and Space triggers hop without charging push',
+                 'SPRINT' in actions and 'INTERACT' in actions and 'MOVE' in actions and 'JUMP' in actions
+                 and sent == [{'say': 'hop'}] and state.get('charge') is None)
 
 
 def test_se2_camera_decoupling_and_body_frame_projection(report):
