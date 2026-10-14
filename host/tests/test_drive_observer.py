@@ -123,15 +123,11 @@ def test_observer_standstill(r, lib):
 
 
 def test_observer_standstill_wide(r, lib):
-    """SENSORLESS at zero speed on the loop a good injection earns - 400 Hz, the Kalman gains
-    2 V gives on native - no current asked, the drive knowing the motor's flux. The back-EMF
-    feed-forward off an estimate at rest stepped the voltage each update, the demodulator read
-    the current it drove as angle: on native the estimate ran to -8 000 rad/s with 16 A in the
-    windings inside 20 ms."""
+    """SENSORLESS at zero speed on a 400 Hz loop: the back-EMF feed-forward off an estimate at
+    rest stepped the voltage each update and ran the estimate to -8 000 rad/s in 20 ms."""
     d = Drive(lib)
     v_inj = 2.0
     try:
-        # Native's world: the core's own model, the demo's flywheel, the world's noise.
         d.model_params(theta0=1.0, j=8e-3, b=5e-4, noise=0.02)
         d.source(True)
         d.params(inj_volts=v_inj, inj_periods=1, w_lo=150.0, w_hi=300.0,
@@ -154,10 +150,8 @@ def test_observer_standstill_wide(r, lib):
 
 
 def test_handover_weighs_the_back_emf(r, lib):
-    """At rest with the crossover under the estimate's noise at 400 Hz (w_lo 20, w_hi 40 rad/s): the
-    handover weighs the back-EMF the rotor makes, not the speed the estimate says, so the
-    injection keeps the estimate on the rotor. Weighed by the estimate, noise past w_hi handed
-    over to a back-EMF of nothing, which read back the drive's own feed-forward."""
+    """At rest with the crossover under the estimate's noise at 400 Hz (w_lo 20, w_hi 40 rad/s):
+    the handover weighs the back-EMF the rotor makes, not the speed the estimate says."""
     d = Drive(lib)
     v_inj = 2.0
     try:
@@ -184,19 +178,18 @@ def test_handover_weighs_the_back_emf(r, lib):
 
 
 def test_handover_under_d_current(r, lib):
-    """The demo's align into up: HOLD at 12 A of d current, then SENSORLESS with it still on.
-    The demodulator differences samples stationary: a difference of currents each rotated into
-    its own frame read the frame's turn under the 12 A as angle, 4.4 of each correction fed
-    back - the estimate ran a pole off and the demo started backwards."""
+    """The demo's align into up and rock under w_lo: HOLD at 12 A of d current, SENSORLESS with
+    it still on, then a 5 s +-200 rpm sinusoidal rock (146.6 rad/s < w_lo 240) across zero."""
     d = Drive(lib)
-    v_inj = 0.585
+    v_inj, j, b, pp, lam = 0.585, 8e-3, 5e-4, 7.0, 0.005
+    kt, w_max, w_osc = 1.5 * pp * lam, 200.0 * TWO_PI / 60.0, TWO_PI / 5.0
     try:
-        d.model_params(theta0=0.0, j=8e-3, b=5e-4, noise=0.02)
+        d.model_params(theta0=0.0, j=j, b=b, noise=0.02)
         d.source(True)
-        d.params(inj_volts=v_inj, inj_periods=1, w_lo=180.0, w_hi=360.0, i_max=40.0,
+        d.params(inj_volts=v_inj, inj_periods=1, w_lo=240.0, w_hi=480.0, i_max=40.0,
                  i_trip=70.0, eps_gain=eps_gain(v_inj, 20e-6, 25e-6), r=0.05, ld=20e-6,
-                 lq=25e-6, **{'lambda': 0.005}, **loop_gains(0.05, 20e-6, 0.05 / TS),
-                 l1=0.043, l2=23.6)
+                 lq=25e-6, pole_pairs=pp, **{'lambda': lam},
+                 **loop_gains(0.05, 20e-6, 0.05 / TS), l1=0.043, l2=23.6)
         d.setpoints(id_ref=12.0, iq_ref=0.0, theta=0.0, omega_target=0.0)
         d.mode(HOLD, enabled=False, powered=False)
         for _ in range(int(0.2 / TS)):
@@ -206,9 +199,18 @@ def test_handover_under_d_current(r, lib):
         for _ in range(int(0.1 / TS)):
             d.step_virtual()
             worst = max(worst, abs(wrap_pi(d.state()['theta_hat'] - d.model_state()['theta'])))
-        r.check('with 12 A of d current on, the estimate stays on its pole: within 0.3 rad, '
-                "the torque 96 % of the current's",
-                worst < 0.3, '%.3f rad at worst' % worst)
+        d.setpoints(id_ref=0.0)
+        rock = 0.0
+        for k in range(100):
+            t = k * 0.05
+            w_m, dw_m = w_max * math.sin(w_osc * t), w_max * w_osc * math.cos(w_osc * t)
+            iq = (j * dw_m + b * w_m + 0.08 * (w_m - d.state()['omega_hat'] / pp)) / kt
+            d.setpoints(iq_ref=max(-40.0, min(40.0, iq)))
+            for _ in range(int(0.05 / TS)):
+                d.step_virtual()
+            rock = max(rock, abs(wrap_pi(d.state()['theta_hat'] - d.model_state()['theta'])))
+        r.check('with 12 A of d current on and through the +-200 rpm rock, within 0.3 rad',
+                worst < 0.3 and rock < 0.3, '%.3f and %.3f rad at worst' % (worst, rock))
     finally:
         d.close()
 
@@ -217,9 +219,6 @@ def test_sensorless_run(r, lib):
     """Torque from standstill under injection, through the crossover, onto
     the back-EMF - the rotor observer keeps the rotor the whole way."""
     d = Drive(lib)
-    # Friction sets the speed 0.6 A of torque reaches: 0.063 N.m over 5e-4 is
-    # 126 rad/s mechanical, 882 electrical - past the crossover and under the
-    # voltage limit, so the loop can hold its reference.
     m = Motor(j=2e-5, b=5e-4, theta=2.0)
     v_inj = 2.0
     worst = [0.0]

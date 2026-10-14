@@ -221,10 +221,6 @@ gets a line at the end of [DONE](DONE.md).
 - **SOA path**. DOD: dry `budget()` over the wire, a gate proof with a
   lowered ceiling and a load run on target; `Board_SyncMeanSquare`'s ISR
   cost measured.
-- **Sensorless below w_lo**: the front end's response at 12.5 and 25 kHz,
-  the injection (`drv_inj_periods` >= 2, `demod_gain`, `drv_sigma_i`, the
-  demod's offset) or an I/f start. DOD: on Renode, paused, `theta_hat`
-  against `plant Shaft` through the demo's rock under 0.3 rad.
 - **Thermal observer at short periods**: the NTC anchor inverts a standing
   miss x1.8. DOD: `tools/bench/power_check.py` at 1-5 s keeps its patches.
 - **STO chain** (`tools/bench/sto_probe.py`): R93 to 3V3D, a master's pilot

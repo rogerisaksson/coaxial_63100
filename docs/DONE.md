@@ -256,81 +256,62 @@ it names. A closed item is cut from the list and gets its line here, last.
     for `BOOT_TYPE_COAXIAL_63020`.
 65. Debug `-Og` configuration and `board_mem.c` hot-path optimization
     (`cmake/gcc-arm-none-eabi.cmake`, `CMakeLists.txt`,
-    `docs/findings/wrench.md`):
-    `CMAKE_C_FLAGS_DEBUG` and `CMAKE_CXX_FLAGS_DEBUG` changed from `-O0 -g3`
-    to `-Og -g3`, and `board/src/board_mem.c` added to `-O2` compiled source
-    list in `CMakeLists.txt`. Debug image flash dropped from 267 872 B
-    (90.83 %) to 220 464 B (74.76 %) and ITCMRAM from 35 928 B to 33 112 B;
-    hot-path `memset` emits 64-bit `strd` loops and `memcpy` emits 32-bit
-    `ldr.w`/`str.w` word loops rather than byte-by-byte loops.
+    `docs/findings/wrench.md`): `-Og -g3` and `board/src/board_mem.c` at `-O2`
+    drop Debug flash 267 872 -> 220 464 B (74.76 %) and ITCMRAM 35 928 -> 33 112 B,
+    emitting 64-bit `strd` and 32-bit `ldr.w`/`str.w` loops.
 66. Motion papers on the emulator (`world/src/world_emu.c`,
     `board/emu/Coaxial63100_Plant.cs`, `host/tools/emu/emulator.py`,
-    `host/tools/cores/native.py`, `host/coaxial/devices/drive.py`,
-    `host/tools/notebooks/__init__.py`):
-    `motion` and `applications` set J, damping, and load through `drive.model`
-    forwarded to the emulated world plant (`emu_world_model` and `emu_plant_reset`).
-    Both `motion.ipynb` and `applications.ipynb` execute and verify cleanly on
-    execution mode `EMULATED`.
-67. The MCU's die under the drive (`comms/inc/board/sync.h`,
-    `board/src/board_sync.c`, `board/src/board_adc.c`, `board/native/stm32h7xx.h`,
-    `board/native/native.c`, `world/src/world_stand.c`):
-    Internal temperature sensor sampled as rank 3 on ADC3 injected sequence
-    with 810.5 cycles (~9 us) sample time in the 20 us period, latched into
-    `board_sync_sample_t.mcu_die`. `Board_McuDie` and the thermal observer read
-    continuously without returning NaN or failing while the drive is armed.
+    `host/tools/cores/native.py`, `host/coaxial/devices/drive.py`):
+    `drive.model` sets J, damping, and load on the emulated world plant
+    (`emu_world_model`, `emu_plant_reset`); `motion.ipynb` and
+    `applications.ipynb` execute cleanly on `EMULATED`.
+67. The MCU's die under the drive (`board/src/board_sync.c`,
+    `board/src/board_adc.c`, `board/native/native.c`, `world/src/world_stand.c`):
+    ADC3 rank 3 injected channel samples the die temperature sensor (810.5
+    cycles) into `board_sync_sample_t.mcu_die` while the drive is armed.
 68. Flown from compiled streams, no rules (`machine/pull.py`, `machine/aerokin.py`,
     `terminal/views/quad/flight.py`, `host/tests/test_views_quad_flight.py`):
-    the flight inside the action space's shell with plan precomputed and 0 clauses
-    above the core; 72-73 % pull left unused and 0.6-0.8 s WEP taken quoted;
-    quad race 100 % whole across all winds, rooms, and pack charges (cost 27.56);
-    floor crash resets cleanly reinitialize rotor drive models without floor strikes
+    flight inside the action space's shell with plan precomputed and 0 clauses
+    above the core; 72-73 % pull left unused, 0.6-0.8 s WEP taken, 100 % whole
+    across winds, rooms, and pack charges (cost 27.56)
     ([streams](findings/streams.md), [envelope](findings/envelope.md)).
 69. Ballistic gait initiation, capture dynamics & data-oriented Monte Carlo
     toolchain (`tools/sim/ballistic.py`, `tools/sim/gvs.py`, `machine/moves.lisp`,
-    `machine/stride.py`, `machine/impedance.py`): flat wire (`<4I59f`) and
-    branchless module constant orchestration abstracted from kinematic names;
-    APA phase alignment (`0.83 Hz`, 2.50 cycles at step onset) and responsive
-    forward-integral cruise bootstrap (`GOING_S` 0.45 s, `AHEAD_M_S` 0.22 m/s,
-    `#203` blend 400 ms, drive 0.58) eliminate initiation hesitation (`init_tau`
-    7.2 where 17.1, backward foot kick `0.001` legs where `0.053`), bringing
-    step length (`0.475` legs >= 0.45) and walk ratio (`1.02` >= 1.00) inside
-    all Capture Point and SO(3) mocap gates (`GPS` 13.82 deg <= 15.0 deg) over
-    51 s walks ([orthokinematics](findings/orthokinematics.md)).
-70. Comprehensive stunt repertoire, obstacle compliance, stumble reflex, and
-    fall protection (`machine/moves.lisp`, `machine/sprung.py`, `machine/floor.py`,
-    `machine/stride.py`, `tests/test_stunts.py`):
-    - 13 generalized stunt behaviors compiled to flat wire rows: `sit_chair`,
-      `rise_chair`, `lie_bed`, `rise_bed`, `lie_floor`, `rise_floor`,
-      `hop_down_chair`, `hop_up_chair`, `stairs_walk`, `ice_walk`, `slope_walk`,
-      `parry_shove`, and `controlled_fall`.
-    - Smooth knee hyperextension prevention via C^1-continuous quadratic barrier
-      spring (q_barrier = 0.05 rad, zero torque jump, zero jerk, 200+ N m restoring torque)
-      gating knee_min_deg >= -0.5 deg and eliminating joint jerks.
-    - Ballistic walk trailing leg natural athletic flexion: axial compression targets
-      0.04-0.06 in APA and step initiation (#202, #203, ballistic_walk) ensuring trailing
-      stance knee maintains >= 5.9 deg flexion without locking or hyperextension.
-    - Generalized kinematic tree contact manifold (no string matching of body names):
-      upper body contacts against external environment compliantly damp drive sway by 50 %
-      and zero going momentum; airborne swing foot collision against external obstacles
-      triggers 350 ms clearance boost (mode_limb_lift >= 2.8, ref 0.6) recovering upright (tilt < 2.0 deg).
-    - Terrain traversal: 10 cm deep hole traversal supported by extended swing reach
-      (0.45 m/s, 0.25 s) and contact manifold load detection without tipping (tilt 2.6 deg).
-    - Shove handling: 80 N moderate shoves interrupt gait into immediate `parry_shove`
-      absorption within dynamic footprint; > 120 N severe shoves engage compliant
-      `controlled_fall` (knees absorb, arms extend forward/down to ground, head kept off floor).
-    - Drivetrain capacity verified on 2-motor architecture (15x U8 + 6x MN6007 at 1:30 wave
-      gearboxes) with zero hardware alterations ([orthokinematics](findings/orthokinematics.md)).
-71. A1335 CRC (MINOR 28) on the stand-ins (`board_angle.c`, `Coaxial63100_A1335.cs`,
-    `native_a1335.c`, `host/tests/test_emulator.py`, `host/tests/test_native.py`):
-    replies end in CRC-4 (x^4 + x + 1, seed 0xF) verified on native:// and Renode
-    emulator with 0 CRC errors over >6 500 polled reads ([PROTOCOL](PROTOCOL.md)).
-72. CI's flakes resolved across five suites (`test_native_heat.py`, `test_sensorless.py`,
-    `protocol_emulator.py`, `test_wbc_core.py`, `coaxial/node.py`, `coaxial_mcp/server.py`):
-    - `test_native_heat`: transient stability mark cleared when dropping out of STABLE before movement.
-    - `test_sensorless`: 0.25 s settling time after rotor gain mismatch test dampens mechanical oscillations
-      for accurate sign check; thread-safe lock in `simulated/drive/device.py:_now()` prevents concurrent
-      advance race with background reader.
-    - `protocol_emulator.py`: quiet timeout raised to 5 ms preventing socket buffer fragmentation of multi-byte replies.
-    - `test_wbc_core.py`: 100-tick loop benchmark threshold relaxed to 5 000 us for host CPU scheduler contention.
-    - `coaxial/node.py` & `coaxial_mcp/server.py`: ring test window broadened to 0.35 s ensuring >= 3 zero crossings;
-      `RigError` handled in MCP server tool calls ([host](findings/host.md)).
+    `machine/stride.py`, `machine/impedance.py`): flat wire (`<4I59f`), APA
+    phase alignment (`0.83 Hz`, 2.50 cycles) and cruise bootstrap (`GOING_S`
+    0.45 s, `AHEAD_M_S` 0.22 m/s, `#203` blend 400 ms, drive 0.58) bring
+    `init_tau` 17.1 -> 7.2, step length `0.475` legs, walk ratio `1.02`, and
+    SO(3) mocap `GPS` `13.82 deg <= 15.0 deg` over 51 s walks
+    ([orthokinematics](findings/orthokinematics.md)).
+70. Stunt repertoire, obstacle compliance, stumble reflex, and fall protection
+    (`machine/moves.lisp`, `machine/sprung.py`, `machine/floor.py`,
+    `machine/stride.py`, `tests/test_stunts.py`): 13 stunt behaviors compiled
+    to flat wire rows (`sit_chair`..`controlled_fall`), C^1 quadratic knee
+    barrier (`q_barrier` 0.05 rad, `knee_min_deg >= -0.5 deg`), generalized
+    contact manifold damping upper-body contacts and boosting swing clearance
+    on foot obstacles (recovering `tilt < 2.0 deg`), 10 cm hole traversal
+    (`tilt 2.6 deg`), 80 N `parry_shove` and >120 N `controlled_fall` on the
+    2-motor architecture ([orthokinematics](findings/orthokinematics.md)).
+71. A1335 CRC (MINOR 28) on the stand-ins (`board_angle.c`,
+    `Coaxial63100_A1335.cs`, `native_a1335.c`, `test_emulator.py`,
+    `test_native.py`): replies end in CRC-4 (`x^4 + x + 1`, seed `0xF`) with 0
+    CRC errors over >6 500 polled reads ([PROTOCOL](PROTOCOL.md)).
+72. CI's flakes resolved across five suites (`test_native_heat.py`,
+    `test_sensorless.py`, `protocol_emulator.py`, `test_wbc_core.py`,
+    `coaxial/node.py`, `coaxial_mcp/server.py`): stability mark cleared leaving
+    STABLE, 0.25 s sign-check settle and `_now()` lock, 5 ms socket quiet wait,
+    5 000 us WBC tick ceiling, 0.35 s ring test window and MCP `RigError`
+    handling ([host](findings/host.md)).
+73. Sensorless below `w_lo` (`electronic_simulations/afe/amplifiers.asc`,
+    `board/emu/Coaxial63100_Plant.cs`, `host/tests/test_drive_observer.py`):
+    phase AFE AC response `10.312 mV/A`, `-0.34 deg` at `12.5 kHz` and
+    `10.309 mV/A` (`-0.003 dB`), `-0.68 deg` at `25 kHz` (`-3 dB` at `4.5 MHz`,
+    `2.5 nH` shunt zero pole-zero cancelled by `100 Ohm` / `6.8 nF`); with
+    `RCR = 1` loaded at an underflow (`board_pwm.c:enter_direct`), compares
+    transfer at each overflow and `CCR5 = ARR - 15` samples the `fs/2` peaks
+    (`0.995` of `demod_gain`: `-0.03338 A` core, `-0.03264 A` `native://`,
+    `-0.03394 A` Renode at `+0.3 rad` against `-0.03302 A`, `+0.00009 A` locked
+    at `0.0 rad`); paused on Renode through the 5 s `+-200 rpm` rock, `theta_hat`
+    against `plant Shaft` stays within `0.138 rad` (`0.039 rad` mean, `0.117 rad`
+    on `native://`, `0.100 rad` on the drive core) ([drive](findings/drive.md)).
+

@@ -91,27 +91,47 @@ rotor's pages and their demos. The board's findings:
   innovation near zero 1.08 -> 0.25 rad, its first up forward.
 - A/B against the stand-in over the demo (tools/dev/ab.py, then the drive's
   state every 50 board ms through a cycle on all three): the can's
-  wobble is the low-speed estimate.
-  + The innovation abs(eps) over the rock is 0.72 on native, 0.78 on Renode,
-    0.05 on the stand-in's closed form then (the law since), and 0.2 on all
-    three at speed, where the back-EMF observer holds.
-  + The part samples at the counter's top (CCR5 = ARR - 15, the low switches
-    on for the shunts); an fs/2 injection sampled there sits on its triangle's
-    midpoints, and the demodulator's gain is (n - 1) / n of the model's: none
-    at `drv_inj_periods` 1, which choose_injection picks (n >= 2 fails its
-    f_inj >= 8 x the 2 500 Hz current loop).
-  + The rotor held on the d-axis and the injection frame turned +0.3 rad:
-    eps_amps -0.003 on native at n 1, -0.012 at n 2, -0.013 on Renode, a frame
-    ahead negative as the physics has it with Ld < Lq; the stand-in's form
-    says +0.009; both emulators carry an offset of 0.005 A at zero error
-    (0.15-0.4 rad).
-  + Noise: the bench's phases 0.35-0.41 A rms, the world's 0.02 A, the
-    commissioning's assumed `drv_sigma_i` 0.05. n 2 with the loop at 1.5 kHz
-    alone did not bring the rock's abs(eps) down on native (1.07).
-  + The Renode plant read the compares at its one step a period and showed
-    them a period early, the demodulator's sign turned: it now steps half a
-    period, the compares landing at the underflow and TRGO2 at the top, as
-    board/native has it.
+  wobble was the low-speed estimate before the three fixes above and the
+  pi/6 linearity floor (`88e4d69`).
+  + The front end's AC response (`electronic_simulations/afe/amplifiers.asc`,
+    `V(v_diff) / I(RSHUNT)` over `.ac dec 100 10 10Meg`): `10.3124 mV/A` and
+    `0.00 deg` at DC, `10.3117 mV/A` (`-0.001 dB`, `0.99993x`) and `-0.34 deg`
+    (`76 ns`) at `12.5 kHz`, `10.3091 mV/A` (`-0.003 dB`, `0.99968x`) and
+    `-0.68 deg` (`76 ns`) at `25 kHz`, `-3 dB` at `4.5 MHz`. The shunt's
+    `2.5 nH` (`LSHUNT1 + LSHUNT2` on `3.5 mOhm`, zero at `222.8 kHz`) is
+    pole-zero cancelled by the input differential filter (`R10 + R11 = 100 Ohm`
+    with `C9 = 6.8 nF`, pole at `214.8 kHz`), so the static transfer in
+    `coaxial_63100_afe.repl` is within `0.03 %` and `0.68 deg` at both
+    injection frequencies.
+  + In `board_pwm.c` (`enter_direct`), `RCR = 1` is loaded at an underflow so
+    the compares transfer at each overflow alone, centring each pulse on the
+    underflow and holding one compare triple from overflow to overflow.
+    Sampling at the top (`CCR5 = ARR - 15`) therefore samples at the period
+    boundary - the peaks of an `fs/2` (`drv_inj_periods = 1`) triangle wave,
+    not the midpoints - and gives `0.995` of `demod_gain` at `n = 1` (`0.1170
+    A/rad` at `v_inj = 0.585 V`). Both `board/native/native.c` (`EDGE_OVERFLOW`
+    followed `15 ticks` later by `EDGE_TRIGGER`) and
+    `board/emu/Coaxial63100_Plant.cs` (two `20 us` half-steps a period,
+    `world_plant_step` sampling before advancing) integrate the full `40 us`
+    period between top samples.
+  + With the rotor locked on the d-axis (`theta = 0`, `j = 1e6`) at
+    `v_inj = 0.585 V` (`n = 1`), `eps_amps` at `inj_phase = 0.0` is
+    `+0.00000 A` on the drive core and `+0.00009 A` on `native://?world=bench`,
+    and at `inj_phase = +0.3 rad` is `-0.03338 A` on the drive core, `-0.03264 A`
+    on `native://`, and `-0.03394 A` on Renode against the model's
+    `-0.5 * 0.1170 * sin(0.6) = -0.03302 A`. On a free flywheel (`j = 8e-3`)
+    held at `id_ref = 12 A, iq_ref = 0 A` without an AFE zero tare, the untared
+    zero offset (`PhaseZeroSigmaVolts = 1.807 mV`, `~0.17 A` DC) drives a small
+    real q current that settles the rotor at `+0.038 rad` (`+2.2 deg`), where
+    `eps_amps` faithfully reports `-0.0044 A` (`-0.038 * 0.1170`).
+  + Through the demo's 5 s `+-200 rpm` sinusoidal rock (`146.6 rad/s < w_lo =
+    240 rad/s`, crossing zero speed in `DRIVE_SENSORLESS`) with the emulation
+    paused at each sample (`unpaused`, two Modbus round trips take `~12 ms` and
+    add `1.76 rad` of shaft travel at `200 rpm`): on Renode, `theta_hat` out of
+    RAM (`s.drive.theta_hat`) against `sysbus.gpioPortE.plant Shaft` stays
+    within `0.138 rad` at worst (`0.039 rad` mean, `|eps| <= 0.293 rad`); on
+    `native://?world=bench` within `0.117 rad` (`|eps| <= 0.251 rad`); on the
+    drive core (`test_handover_under_d_current`) within `0.100 rad`.
 
 ## The law under the stand-in
 
