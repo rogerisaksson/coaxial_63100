@@ -22,8 +22,8 @@ gate drive sagging runs the FETs in their SOA). Heat runs HASTE times the clock.
 
 #: The switches' on-resistance and the shunts', ohm (IAUCN10S7N021, two WSHM2818 in parallel);
 #: the housekeeping's always (MCU, regulators, AFE): thermal.c's loss table; idle, a board draws
-#: about 1.4 W.
-RDS_OHM, SHUNT_OHM, HOUSEKEEPING_W = 1.8e-3, 3.5e-3, 1.33
+#: about 1.4 W. 2nd-order silicon temperature coefficients of RDS_OHM (thermal.c).
+RDS_OHM, RDS_ALPHA, RDS_BETA, SHUNT_OHM, HOUSEKEEPING_W = 1.8e-3, 4.6e-3, 1.2e-5, 3.5e-3, 1.33
 
 
 def dry_loss(volts=48.0):
@@ -34,17 +34,15 @@ def dry_loss(volts=48.0):
 #: Switching watts with gates on, unshorted, at nominal 48 V bus (bench fit: 2.4 W at 24 V to 4.4 W at 44 V).
 SWITCHING_W = dry_loss(48.0)
 
-#: The nodes: the switches, the laminate under them, the winding. The switches' and the
-#: laminate's heat capacity, J/K, and the switches' path into the laminate, K/W: lumped from the
-#: board's network (a leg's driver 0.117 J/K on 12 K/W into its patch; the three patches 16 J/K);
-#: bare in still air the laminate stands 35 K over the room at 1 W a leg, 11.7 K/W. The winding's
-#: and the laminate's path on to the air are the drive's (`drives.heat`).
-NODES = ('switch', 'laminate', 'winding')
+#: The nodes: the switches, the laminate under them, the coaxial aluminium stator-housing, the winding.
+#: The switches', laminate's, and default coaxial stator-housing's heat capacity, J/K, and paths, K/W.
+NODES = ('switch', 'laminate', 'stator', 'winding')
 SWITCH_J_K, LAMINATE_J_K, INTO_K_W = 0.35, 16.0, 4.0
+STATOR_J_K_DEFAULT, MOUNT_K_W_DEFAULT, CLOTH_AIR_DEFAULT = 240.0, 0.60, 1.35
 
-#: Each node's ceiling, C (the record's: the drivers' copper, the laminate, the winding), and
-#: the FETs' junction limit over the switches by RTH_JC K/W a FET's watts (the sheet's).
-CEILING_C, TJ_MAX_C, RTH_JC = (125.0, 105.0, 120.0), 175.0, 0.69
+#: Each node's ceiling, C (the record's: the drivers' copper, the laminate, the stator, the winding),
+#: and the FETs' junction limit over the switches by RTH_JC K/W a FET's watts (the sheet's).
+CEILING_C, TJ_MAX_C, RTH_JC = (125.0, 105.0, 120.0, 120.0), 175.0, 0.69
 
 #: The room, C; heat's seconds a second of the clock (the stand-in's: a 7 min board constant
 #: shows in 40 s).
@@ -71,12 +69,18 @@ class Heat:
         self.volts = float(volts)
         self.switching_w = dry_loss(volts)
         #: Each drive's torque an amp, winding ohm, board scale, winding J/K and K/W, laminate
-        #: K/W (`drives.heat`); the nodes' capacities.
+        #: K/W (`drives.heat`), plus coaxial stator J/K, mount K/W, and clothing insulation.
         self.kt, self.r, self.scale, self.winding_j_k, self.winding_k_w, self.laminate_k_w = (
             [float(d[i]) for d in drives] for i in range(6))
-        self.capacity = [(SWITCH_J_K, LAMINATE_J_K, c) for c in self.winding_j_k]
+        self.stator_j_k = [float(d[6]) if len(d) > 6 else STATOR_J_K_DEFAULT for d in drives]
+        self.mount_k_w = [float(d[7]) if len(d) > 7 else MOUNT_K_W_DEFAULT for d in drives]
+        self.cloth_air = [float(d[8]) if len(d) > 8 else CLOTH_AIR_DEFAULT for d in drives]
+        self.ratio = [float(d[9]) if len(d) > 9 else 80.0 for d in drives]
+        self.capacity = [(SWITCH_J_K, LAMINATE_J_K, s_c, w_c)
+                         for s_c, w_c in zip(self.stator_j_k, self.winding_j_k)]
         self.t = [[AMBIENT_C] * len(NODES) for _ in range(n)]
         self.sq, self.ticks = [0.0] * n, [0] * n
+        self.krpm, self.limb_rad_s = [0.0] * n, [0.0] * n
         self.derate, self.gates, self.trips = [1.0] * n, [True] * n, [0] * n
         self.shorted = [False] * n
         self.spent, self.worst, self.die = [0.0] * n, [0] * n, [AMBIENT_C] * n
@@ -85,10 +89,31 @@ class Heat:
         #: Whether the envelope derates and trips the drives, or only counts what they spend.
         self.envelope = True
 
-    def load(self, k, torque):
+    @classmethod
+    def for_joints(cls, joints=None, volts=48.0):
+        """Construct a coaxial 4-node `Heat` observer for all joints in `figure.JOINTS`."""
+        from machine import drives
+        from machine.figure import JOINTS
+        names = JOINTS if joints is None else joints
+        specs = []
+        for j in names:
+            if drives.passive(j):
+                specs.append((1.0, 0.0, 0.0, 100.0, 10.0, 10.0, STATOR_J_K_DEFAULT, MOUNT_K_W_DEFAULT, 1.0, 1.0))
+            else:
+                specs.append(drives.heat(j) + drives.stator(j) + (drives.ratio(j),))
+        inst = cls(specs, volts=volts)
+        for k, j in enumerate(names):
+            if drives.passive(j):
+                inst.off(k)
+        return inst
+
+    def load(self, k, torque, joint_rad_s=0.0):
         amps = torque / self.kt[k]
         self.sq[k] += amps * amps
         self.ticks[k] += 1
+        w = abs(float(joint_rad_s))
+        self.limb_rad_s[k] = w
+        self.krpm[k] = w * self.ratio[k] * (60.0 / (2.0 * 3.141592653589793 * 1000.0))
 
     def arm(self, k):
         """The gates on again: the host's ask; the envelope trips them again if still hot."""
@@ -107,26 +132,56 @@ class Heat:
         """Drive k's nodes at `celsius` at least: run hard before."""
         self.t[k] = [max(t, celsius) for t in self.t[k]]
 
-    def step(self, dt, air, rds):
+    def step(self, dt, air=None, rds=None):
         """`dt` s of the clock on: each drive's losses on its mean square since the last step,
-        its nodes integrated, its envelope's derate and trip."""
+        its coaxial 4-node network integrated, its envelope's derate and trip."""
         h = dt * HASTE
         self.at += h
+        sub_n = max(1, int(h / 0.025) + 1)
+        sub_h = h / sub_n
         for k, t in enumerate(self.t):
             sq = self.sq[k] / self.ticks[k] if self.ticks[k] else 0.0
             self.sq[k], self.ticks[k] = 0.0, 0
             board = sq * self.scale[k] ** 2
-            fet = 0.5 * board * RDS_OHM * rds[k]
-            power = (3.0 * fet + (self.switching_w if self.gates[k] and not self.shorted[k] else 0.0),
-                     1.5 * board * SHUNT_OHM + HOUSEKEEPING_W, self.r[k] * sq)
-            into = (t[0] - t[1]) / INTO_K_W
-            net = (power[0] - into,
-                   power[1] + into - (t[1] - AMBIENT_C) * air[k] / self.laminate_k_w[k],
-                   power[2] - (t[2] - AMBIENT_C) * air[k] / self.winding_k_w[k])
-            for i, c in enumerate(self.capacity[k]):
-                t[i] += h * net[i] / c
+            dt_sw = max(0.0, t[0] - AMBIENT_C)
+            rds_k = float(rds[k]) if rds is not None else (1.0 + RDS_ALPHA * dt_sw + RDS_BETA * dt_sw * dt_sw)
+            air_k = (float(air[k]) if air is not None
+                     else (1.0 + 0.35 * min(4.0, self.limb_rad_s[k])) / self.cloth_air[k])
+            rot_for = 1.0 + 0.55 * (self.krpm[k] ** 0.5)
+            fet = 0.5 * board * RDS_OHM * rds_k
+            sw_on = self.gates[k] and not self.shorted[k]
+            p_sw = 3.0 * fet + (self.switching_w if sw_on else 0.0)
+            p_lam = 1.5 * board * SHUNT_OHM + (HOUSEKEEPING_W if self.scale[k] > 0.0 else 0.0)
+            p_win = self.r[k] * sq * (1.0 + 0.00393 * max(0.0, t[3] - AMBIENT_C))
+            g_ls = 1.0 / self.mount_k_w[k]
+            g_ws = 1.0 / max(0.15, 0.35 * self.winding_k_w[k])
+            g_la = 0.35 * air_k / self.laminate_k_w[k]
+            g_sa = 0.65 * air_k * (1.0 + 0.25 * (rot_for - 1.0)) / self.laminate_k_w[k]
+            g_wa = air_k * rot_for / self.winding_k_w[k]
+            c0, c1, c2, c3 = self.capacity[k]
+            net = (0.0, 0.0, 0.0, 0.0)
+            for _ in range(sub_n):
+                into = (t[0] - t[1]) / INTO_K_W
+                q_ls = (t[1] - t[2]) * g_ls
+                q_ws = (t[3] - t[2]) * g_ws
+                net = (p_sw - into,
+                       p_lam + into - q_ls - (t[1] - AMBIENT_C) * g_la,
+                       q_ls + q_ws - (t[2] - AMBIENT_C) * g_sa,
+                       p_win - q_ws - (t[3] - AMBIENT_C) * g_wa)
+                t[0] += sub_h * net[0] / c0
+                t[1] += sub_h * net[1] / c1
+                t[2] += sub_h * net[2] / c2
+                t[3] += sub_h * net[3] / c3
             self.die[k] = t[0] + fet * RTH_JC
             self._envelope(k, t, net, h)
+
+    def step_joints(self, torques, qd, dt):
+        """Load and step all joints over `dt` s (real-time clock, `HASTE=1`) and return peak C per joint."""
+        for k in range(len(self.t)):
+            if self.scale[k] > 0.0:
+                self.load(k, float(torques[k]), float(qd[k]))
+        self.step(float(dt) / HASTE)
+        return [max(self.die[k], max(self.t[k])) for k in range(len(self.t))]
 
     def _envelope(self, k, t, net, h):
         cap = min(1.0, self.cap[k] + (self.at - self.cap_at[k]) * TRIP_RECOVER_PER_S)
@@ -164,14 +219,27 @@ def held(joint, volts=48.0):
     (NODES)."""
     from machine import drives
     kt, r, scale, _wj, winding_k_w, laminate_k_w = drives.heat(joint)
+    _sj, mount_k_w, _ca = drives.stator(joint)
     sw_w = dry_loss(volts)
+    g_ls = 1.0 / mount_k_w
+    g_ws = 1.0 / max(0.15, 0.35 * winding_k_w)
+    g_la, g_sa, g_wa = 0.35 / laminate_k_w, 0.65 / laminate_k_w, 1.0 / winding_k_w
 
     def spent(torque):
         amps = torque / kt
         board = (amps * scale) ** 2
         switch = 1.5 * board * RDS_OHM + sw_w
-        laminate = AMBIENT_C + (switch + 1.5 * board * SHUNT_OHM + HOUSEKEEPING_W) * laminate_k_w
-        nodes = (laminate + switch * INTO_K_W, laminate, AMBIENT_C + r * amps * amps * winding_k_w)
+        p_b = switch + 1.5 * board * SHUNT_OHM + HOUSEKEEPING_W
+        p_w = r * amps * amps
+        a11, a12 = g_la + g_ls, -g_ls
+        a22 = g_sa + g_ls + g_ws - g_ws * g_ws / (g_wa + g_ws)
+        rhs2 = p_w * g_ws / (g_wa + g_ws)
+        det = a11 * a22 - a12 * a12
+        dt_l = (a22 * p_b - a12 * rhs2) / det
+        dt_s = (-a12 * p_b + a11 * rhs2) / det
+        dt_w = (p_w + g_ws * dt_s) / (g_wa + g_ws)
+        laminate, stator, winding = AMBIENT_C + dt_l, AMBIENT_C + dt_s, AMBIENT_C + dt_w
+        nodes = (laminate + switch * INTO_K_W, laminate, stator, winding)
         return max(((t - AMBIENT_C) / (top - AMBIENT_C), name)
                    for t, top, name in zip(nodes, CEILING_C, NODES))
     lo, hi = 0.0, drives.peak(joint) * 4.0

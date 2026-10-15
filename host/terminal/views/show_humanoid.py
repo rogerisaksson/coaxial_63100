@@ -10,7 +10,7 @@ from rich.text import Text
 
 from coaxial.comm.session import Origin
 from coaxial.draw import cross_section, gauges as _gauges
-from coaxial.graphics import gpu, gynoid
+from coaxial.graphics import arrows, gpu, gynoid
 from coaxial.graphics.callouts import packed
 from coaxial.graphics.shapes import view
 from machine import figure, se2, sprung
@@ -211,15 +211,8 @@ def size_of(console, args, up=0.0):
 def _sync_actual(now, se2_st):
     if not now:
         return (0.0, 0.0, 0.0)
-    hd, vel, twa = float(now.get('heading', 0.0)), now.get('velocity', (0.0, 0.0)), now.get('twist_actual')
-    sh, ch = math.sin(hd), math.cos(hd)
-    vx_v, vy_v = float(vel[0]) * sh + float(vel[1]) * ch, float(vel[0]) * ch - float(vel[1]) * sh
-    vx_a = float(twa[0]) if (twa and abs(twa[0]) > 1e-4 and abs(vx_v) < 1e-4 and 'speed' not in now) else float(now.get('speed', vx_v))
-    wz_a = float(twa[2]) if (twa and abs(twa[2]) > 1e-4) else float((se2_st or {}).get('actual', (0.0, 0.0, 0.0))[2])
-    act = (vx_a, float(twa[1]) if (twa and abs(twa[1]) > 1e-4) else vy_v, wz_a)
-    if se2_st is not None:
-        se2_st['actual'] = act
-    return act
+    hd = arrows.pelvis_yaw(now)
+    return arrows._actual_twist(now, se2_st, math.sin(hd), math.cos(hd), str(now.get('doing', 'rest')), True)
 
 
 _ANSI = {}

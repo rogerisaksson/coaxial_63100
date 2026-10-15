@@ -322,6 +322,54 @@ def test_chair_hops_stairs_down_mattress_and_sequential_scenarios(report):
         sprung.passed(g_os, 0.001)
     report.check('lateral shove during one_sole parried without falling', sprung.tilt(g_os) < 15.0)
 
+    from machine import modal, se2, worker
+    g_hp = sprung.laid(every=3)
+    sprung._heard(g_hp, g_gym, {'say': 'hop'})
+    d_hp, k_idx = g_hp['world'].data, g_hp['world'].qadr[physics.JOINTS.index('left_knee')]
+    min_y_hp, max_y_hp, max_sole_hp, max_knee_hp, max_w_hp, air_hp = 2.0, 0.0, 0.0, 0.0, 0.0, 0
+    for _ in range(2200):
+        _, lds, _, _ = sprung.passed(g_hp, 0.001)
+        min_y_hp, max_y_hp = min(min_y_hp, float(d_hp.qpos[1])), max(max_y_hp, float(d_hp.qpos[1]))
+        max_sole_hp = max(max_sole_hp, min(float(g_hp['y'][modal.LOWEST][0]), float(g_hp['y'][modal.LOWEST][1])))
+        max_knee_hp = max(max_knee_hp, math.degrees(abs(float(d_hp.qpos[k_idx]))))
+        max_w_hp = max(max_w_hp, g_hp['world'].drawn())
+        air_hp += int(lds[0] == 0.0 and lds[1] == 0.0)
+    report.check('standing hop crouches >= 20cm (knee >= 72 deg), draws >= 8kW, clears >= 20cm, and lands < 5 deg',
+                 min_y_hp <= 0.70 and max_knee_hp >= 72.0 and max_w_hp >= 8000.0 and max_sole_hp >= 0.20
+                 and max_y_hp >= 1.04 and air_hp >= 300 and sprung.tilt(g_hp) < 5.0 and not worker._is_fallen(g_hp, g_hp['world']),
+                 'min_y=%.3f, max_y=%.3f, sole=%.3f, knee=%.1f, W=%.0f, air=%d, tilt=%.1f' % (
+                     min_y_hp, max_y_hp, max_sole_hp, max_knee_hp, max_w_hp, air_hp, sprung.tilt(g_hp)))
+
+    g_mh, st_mh = sprung.laid(every=3), se2.state()
+    d_mh = g_mh['world'].data
+    for _ in range(1800):
+        se2.step_controller(st_mh, ['W'], 0.001)
+        sprung._heard(g_mh, g_gym, {'twist': (st_mh['v_x'], st_mh['v_y'], st_mh['omega_z'])})
+        sprung.passed(g_mh, 0.001)
+    sprung._heard(g_mh, g_gym, {'say': 'hop'})
+    min_y_mh, max_sole_mh, max_tilt_mh, air_mh, fell_mh = 2.0, 0.0, 0.0, 0, False
+    for ms_mh in range(2200):
+        se2.step_controller(st_mh, ['W'], 0.001)
+        cmd_mh = {'twist': (st_mh['v_x'], st_mh['v_y'], st_mh['omega_z']), **({'say': 'jog'} if ms_mh % 33 == 0 else {})}
+        sprung._heard(g_mh, g_gym, cmd_mh)
+        _, lds, _, _ = sprung.passed(g_mh, 0.001)
+        min_y_mh = min(min_y_mh, float(d_mh.qpos[1]))
+        max_sole_mh = max(max_sole_mh, min(float(g_mh['y'][modal.LOWEST][0]), float(g_mh['y'][modal.LOWEST][1])))
+        max_tilt_mh = max(max_tilt_mh, sprung.tilt(g_mh))
+        air_mh += int(lds[0] == 0.0 and lds[1] == 0.0)
+        fell_mh = fell_mh or worker._is_fallen(g_mh, g_mh['world'])
+    for k_rev, dur_r in (('s', 1.4), ('W', 1.4), ('a', 1.4), ('d', 1.4), ('q', 1.4), ('e', 1.4), ('', 1.2)):
+        for _ in range(int(dur_r * 1000)):
+            se2.step_controller(st_mh, [k_rev] if k_rev else [], 0.001)
+            sprung._heard(g_mh, g_gym, {'twist': (st_mh['v_x'], st_mh['v_y'], st_mh['omega_z'])})
+            sprung.passed(g_mh, 0.001)
+            max_tilt_mh = max(max_tilt_mh, sprung.tilt(g_mh))
+            fell_mh = fell_mh or worker._is_fallen(g_mh, g_mh['world'])
+    report.check('moving sprint hop and rapid WASD/QE reversals clear >= 18cm without falling (max_tilt < 12 deg)',
+                 min_y_mh <= 0.72 and max_sole_mh >= 0.18 and air_mh >= 220 and not fell_mh and max_tilt_mh < 12.0 and sprung.tilt(g_mh) < 8.0,
+                 'min_y=%.3f, sole=%.3f, air=%d, fell=%s, max_tilt=%.1f, tilt=%.1f' % (
+                     min_y_mh, max_sole_mh, air_mh, fell_mh, max_tilt_mh, sprung.tilt(g_mh)))
+
 
 ROSTER = [
     test_house_tour_script_validity,

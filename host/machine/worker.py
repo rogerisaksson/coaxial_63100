@@ -28,12 +28,13 @@ def _start_mode(g, by, entry, at):
     from machine import se2
     name, z = entry[0], float(g['world'].data.qpos[2])
     g['active_entry'] = name
+    if name == 'hop':
+        g['_jump_until'], g['_leap'] = at + 1.45, False
     se2.align_chair_hop(g, name)
     iw = by['init_walk'][1][:ortho.ROW.size] if 'init_walk' in by else None
-    tw = g.get('twist', (0.0, 0.0, 0.0))
     if name in ('ballistic_walk', 'jog', '#201'):
         return sprung.said(g, *entry, at=at, reset=True)
-    if (name in ('turn_left', 'turn_right') and abs(tw[0]) < 0.05 and abs(tw[2]) > 0.05) or name == '#202':
+    if (name in ('turn_left', 'turn_right') and g.get('_twist_active')) or name == '#202':
         return sprung.said(g, *entry, at=at)
     if name == '#203' and '#202' in by:
         sprung.said(g, *by['#202'], at=at)
@@ -41,7 +42,8 @@ def _start_mode(g, by, entry, at):
     if name in ('#204', 'trip', 'stairs_walk', 'stairs_down', 'ice_walk', 'slope_walk',
                 'turn_left', 'turn_right', 'circle_walk') and iw is not None:
         sprung.said(g, 'init_walk', iw, ('init_walk',), at=at, reset=True)
-        return sprung.said(g, *by[name], at=at + (0.42 if name in ('turn_left', 'turn_right', 'circle_walk') else 0.65))
+        dt_iw = 0.12 if name in ('turn_left', 'turn_right', 'circle_walk') else (0.28 if g.get('_twist_active') else 0.65)
+        return sprung.said(g, *by[name], at=at + dt_iw)
     if name in ('sit_chair', 'lie_bed') and z < 0.25 and iw is not None and '#204' in by:
         sprung.said(g, 'init_walk', iw, ('init_walk',), at=at, reset=True)
         sprung.said(g, *by['#204'], at=at + 0.65)
@@ -52,6 +54,18 @@ def _start_mode(g, by, entry, at):
 def heard_say(g, gym, entry):
     from machine import latent, modal, se2, stride
     by, name = {e[0]: e for e in gym}, entry[0]
+    if g.get('_jump_until', 0.0) > g['t'] and name != 'hop':
+        if name == g.get('active_entry') and any(w > g['_jump_until'] for w, _ in g['labels']):
+            return
+        t_res = g['_jump_until'] + 0.02
+        g['tab'] = g['tab'][g['tab'][:, latent.AT] <= g['_jump_until'] + 0.01]
+        g['labels'] = [(w, n) for w, n in g['labels'] if w <= g['_jump_until'] + 0.01]
+        g['active_entry'] = name
+        if name in ('#204', 'jog'):
+            sprung.said(g, name, se2._WALK_ON_WIRE, (name,), at=t_res)
+        elif name in by:
+            sprung.said(g, *by[name], at=t_res, reset=(name == '#201'))
+        return
     if name == g.get('active_entry') and (name == '#201' or sprung.doing(g) not in ('rest', '#201')
                                           or bool(len(g['tab']) and (g['tab'][:, latent.AT] >= g['t']).any())):
         return
@@ -63,21 +77,44 @@ def heard_say(g, gym, entry):
     off_c = not striding and (max(abs(float(ref[modal.LIFT])), abs(float(ref[modal.SAGITTAL])), abs(float(ref[modal.LATERAL]))) > 0.15
                               or abs(float(ref[modal.AXIAL])) > 0.25 or spd > 0.04 or abs(float(g['loads'][0]) - float(g['loads'][1])) > 90.0)
     t0, cur_d = g['t'] + 0.001, sprung.doing(g)
+    if cur_d in ('brake', '#201', 'init_walk') and g.get('active_entry') in sprung._FWD_GAITS and name in sprung._FWD_GAITS and len(g['tab']) and float(g['tab'][-1, latent.AT]) > g['t']:
+        t_end = float(g['tab'][-1, latent.AT])
+        t_last = min(t_end, g['t'] + 0.18) if (cur_d == 'init_walk' and name in ('jog', 'turn_left', 'turn_right')) else t_end
+        g['tab'], g['labels'] = g['tab'][g['tab'][:, latent.AT] < t_end - 1e-4], [(w, n) for w, n in g['labels'] if w < t_end - 1e-4]
+        g['active_entry'] = name
+        return sprung.said(g, '#204', se2._WALK_ON_WIRE, ('#204',), at=t_last) if name == '#204' else sprung.said(g, *entry, at=t_last)
     if cur_d in ('hold', 'load', 'throw', 'land', 'step_off', 'drop', 'absorb', 'crouch_load', 'propulsion', 'flight_tuck', 'seat_land') and len(g['tab']):
         g['tab'] = g['tab'][g['tab'][:, latent.AT] <= g['t'] + 1.5]
         t0, off_c = (float(g['tab'][-1, latent.AT]) if len(g['tab']) else g['t']) + 0.05, True
     else:
         sprung._dropped(g)
-    same = (name in sprung._FWD_GAITS and not back_now) or (name in sprung._BACK_GAITS and back_now)
+    ae = g.get('active_entry')
+    strafe_opp = ({name, ae} == {'strafe_left', 'strafe_right'}
+                  or (((name in ('strafe_left', 'strafe_right')) != (ae in ('strafe_left', 'strafe_right'))) and spd > 0.28))
+    same = cur_d not in ('brake', '#201') and not strafe_opp and ((name in sprung._FWD_GAITS and not back_now) or (name in sprung._BACK_GAITS and back_now))
     if name in ('parry_shove', 'controlled_fall'):
+        g['active_entry'] = name
         return sprung.said(g, *entry, at=t0, reset=True)
-    if striding and name == 'hop' and '#201' in by:
+    if (striding or g.get('_twist_active')) and name == 'hop' and '#201' in by:
         return se2.stride_hop(g, by, t0, spd, back_now, sprung._FWD_GAITS, sprung._BACK_GAITS, sprung.said)
     if striding and '#201' in by and not same:
-        ts, tg = (1.20, 2.40) if spd > 0.45 else (0.55, 1.10)
+        import numpy as np
         sprung.said(g, 'brake', sprung._BRAKE_BACK_WIRE if back_now else sprung._BRAKE_WIRE, ('brake',), at=t0, reset=True)
-        sprung.said(g, *by['#201'], at=t0 + ts, reset=True)
         g['active_entry'] = name
+        if name != '#201' and name in (sprung._FWD_GAITS + sprung._BACK_GAITS):
+            if name in sprung._BACK_GAITS:
+                dt_b = 0.38 if spd <= 0.55 else 0.52
+                rb = np.frombuffer(entry[1], latent.WIRE)
+                if len(rb) > 1:
+                    rb = rb[1:].copy()
+                    rb['at'] -= rb['at'][0]
+                    return sprung.said(g, name, rb.tobytes(), entry[2][1:], at=t0 + dt_b, reset=True)
+                return sprung.said(g, *entry, at=t0 + dt_b, reset=True)
+            dt_b = 0.45 if spd <= 0.55 else 0.70
+            return (sprung.said(g, '#204', se2._WALK_ON_WIRE, ('#204',), at=t0 + dt_b, reset=True) if name == '#204'
+                    else sprung.said(g, *entry, at=t0 + dt_b, reset=True))
+        ts, tg = (1.20, 2.40) if spd > 0.45 else (0.55, 1.10)
+        sprung.said(g, *by['#201'], at=t0 + ts, reset=True)
         if name != '#201':
             g['_sync_cpg_at'] = t0 + tg
             _start_mode(g, by, entry, at=t0 + tg)
@@ -85,7 +122,8 @@ def heard_say(g, gym, entry):
     if striding and same:
         if g.get('active_entry') != name:
             g['active_entry'] = name
-            sprung.said(g, '#204', se2._WALK_ON_WIRE, ('#204',), at=t0) if name == '#204' else sprung.said(g, *entry, at=t0)
+            rst = name in ('jog', '#204') and ae in ('strafe_left', 'strafe_right', 'turn_left', 'turn_right')
+            sprung.said(g, '#204', se2._WALK_ON_WIRE, ('#204',), at=t0, reset=rst) if name == '#204' else sprung.said(g, *entry, at=t0, reset=rst)
         return
     if cur_d == '#202' and name in (('#203',) + sprung._FWD_GAITS):
         sprung.said(g, *by['#203'], at=t0, reset=True)
@@ -116,14 +154,49 @@ def heard_say(g, gym, entry):
     sprung.said(g, *entry, at=t0)
 
 
+def check_parry(g, out, cur_doing, cur_entry, sh, ch):
+    import numpy as np
+    from machine import latent, modal
+    if (max(g['loads']) <= 10.0 or cur_doing in (sprung.STUNT_PHASES | {'over', 'touch', '#202', '#203', 'crouch', 'up', 'down'})
+            or cur_entry in ('#202', '#203', 'lean', 'one_sole', 'crouch', 'hop')
+            or (g.get('_land_touch_t') is not None and g['t'] - g['_land_touch_t'] < 0.45)):
+        return
+    y = g['y']
+    com, vcom, soles = y[modal.COM], y[modal.VCOM], y[modal.SOLE].reshape(2, 3)
+    om = math.sqrt(9.81 / max(0.35, float(com[1]) - float(g['fr'][modal.FLOOR])))
+    c_al, c_lt = float(com[0]) * sh + float(com[2]) * ch, float(com[0]) * ch - float(com[2]) * sh
+    vc_al, vc_lt = float(vcom[0]) * sh + float(vcom[2]) * ch, float(vcom[0]) * ch - float(vcom[2]) * sh
+    xi_al, xi_lt = c_al + vc_al / om, c_lt + vc_lt / om
+    s0_al, s1_al = float(soles[0, 0]) * sh + float(soles[0, 2]) * ch, float(soles[1, 0]) * sh + float(soles[1, 2]) * ch
+    s0_lt, s1_lt = float(soles[0, 0]) * ch - float(soles[0, 2]) * sh, float(soles[1, 0]) * ch - float(soles[1, 2]) * sh
+    ex_al = max(0.0, min(s0_al, s1_al) - xi_al, xi_al - max(s0_al, s1_al))
+    ex_lt = max(0.0, min(s0_lt, s1_lt) - xi_lt, xi_lt - max(s0_lt, s1_lt))
+    ct, vh = sprung.tilt(g), math.hypot(vc_al, vc_lt)
+    striding = abs(float(out[latent.SWAY][modal.DRIVE])) >= 0.06 or abs(float(out[latent.SWAY][modal.LATERAL])) >= 0.15
+    if cur_doing == 'brake' and (vh > 0.22 or ex_al > 0.08 or ex_lt > 0.048 or ct > 6.5) and len(g['tab']):
+        m = (g['tab'][:, latent.AT] > g['t']) & (g['tab'][:, latent.SAID][:, latent.GAIN] > 0.5) & (g['tab'][:, latent.VALS][:, latent.GAIN] < 0.05)
+        if m.any():
+            g['tab'][m, latent.AT] = np.maximum(g['tab'][m, latent.AT], g['t'] + 0.35)
+    if not striding and (ex_al > 0.115 or ex_lt > 0.062 or (ct > 10.5 and vh > 0.22)):
+        if g['t'] >= g.get('parry_until', 0.0):
+            k_sw = 0 if (xi_lt - c_lt > 0.035 or (abs(xi_lt - c_lt) <= 0.035 and abs(xi_al - s0_al) > abs(xi_al - s1_al))) else 1
+            if vc_al < -0.10:
+                g['st'][latent.NOW][latent.PHASE][modal.LATERAL] = g['st'][latent.TO][latent.PHASE][modal.LATERAL] = -1.885
+                g['st'][latent.NOW][latent.PHASE][modal.LIST] = g['st'][latent.TO][latent.PHASE][modal.LIST] = -1.885
+                g['st'][latent.THETA] = ((-0.25 if k_sw == 0 else math.pi - 0.25) - float(g['st'][latent.NOW][latent.PHASE][modal.DRIVE])) % math.tau
+            else:
+                g['st'][latent.THETA] = ((0.25 if k_sw == 0 else math.pi + 0.25) - float(g['st'][latent.NOW][latent.PHASE][modal.DRIVE])) % math.tau
+        g['parry_until'] = max(g.get('parry_until', 0.0), g['t'] + 0.45)
+
+
 def heard(g, gym, command):
     from machine import latent, modal, se2, stride
     unknown = sorted(set(command) - set(sprung.HEARD))
     if unknown:
         raise MachineError('the loop hears %s: not %s' % (', '.join(sprung.HEARD), ', '.join(unknown)))
     if 'scenario' in command:
-        se2.reset_for_scenario(g, command['scenario'], sprung._seen, sprung._dropped, sprung.tilt, sprung.doing, sprung.WEP_S)
-    if ('say' in command or command.get('walk') or command.get('entries')) and g['st'][latent.NOW][latent.GAIN] < 1e-6:
+        sprung.reset_for_scenario(g, command['scenario'])
+    if ('say' in command or command.get('walk') or command.get('entries')) and g['st'][latent.NOW][latent.GAIN] < 1e-6 and g.get('_jump_until', -9.0) + 0.03 <= g['t']:
         g['st'][latent.THETA] = 0.0
     if 'twist' in command:
         se2.heard_twist(g, gym, command['twist'], 'say' in command, sprung.said, sprung._dropped, heard_say, WALK_ON)
@@ -133,8 +206,8 @@ def heard(g, gym, command):
         entry = (gym[int(sc)] if (isinstance(sc, int) or (isinstance(sc, str) and sc.isdigit()))
                  and 0 <= int(sc) < len(gym) else by.get(sc))
         if entry is not None:
-            if 'twist' not in command and entry[0] != 'hop':
-                g['_twist_active'], g['twist'] = False, (0.0, 0.0, 0.0)
+            if 'twist' not in command and entry[0] != 'hop' and not (g.get('_twist_active') and entry[0] in se2.WASD_GAITS):
+                g['_twist_active'], g['_twist_stop_until'], g['twist'] = False, 0.0, (0.0, 0.0, 0.0)
             if 'heading' not in command and entry[0] in ('turn_left', 'turn_right', 'turn_back_left', 'turn_back_right'):
                 g['target_heading'] = None
             heard_say(g, gym, entry)
@@ -152,7 +225,7 @@ def heard(g, gym, command):
         mag, t0 = (math.hypot(*force) if hasattr(force, '__iter__') else float(force)), g['t'] + 0.001
         mode, ph = (('controlled_fall', 'cushion') if mag > 120.0
                     else (('parry_shove', 'catch') if mag >= 35.0 else (None, None)))
-        if mode and mode in by and sprung.doing(g) not in ('lower', 'seated', 'bed_rest', 'floor_rest'):
+        if mode and mode in by and sprung.doing(g) not in ('lower', 'seated', 'bed_rest', 'floor_rest', 'over'):
             sprung._dropped(g)
             g['_twist_active'], g['twist'], g['target_heading'] = False, (0.0, 0.0, 0.0), None
             if g['st'][latent.NOW][latent.GAIN] > 0.02:

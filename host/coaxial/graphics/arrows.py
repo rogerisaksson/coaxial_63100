@@ -16,7 +16,7 @@ _TWISTS = (
     (1.25, 0.0, 'jog', 'run'), (0.69, 0.55, 'turn_left', 'circle_walk'), (0.69, -0.55, 'turn_right'),
     (-0.35, 0.55, 'turn_back_left'), (-0.35, -0.55, 'turn_back_right'),
 )
-GAIT_TWIST = {**se2.NOMINAL_TWIST, **{k: (vx, 0.0, wz) for vx, wz, *ks in _TWISTS for k in ks}}
+GAIT_TWIST = {**{k: (vx, 0.0, wz) for vx, wz, *ks in _TWISTS for k in ks}, **se2.NOMINAL_TWIST}
 
 _JUMP_UP = {'hop_up_chair', 'crouch_load', 'propulsion', 'flight_tuck', 'seat_land'}
 _JUMP_DN = {'hop_down_chair', 'step_off', 'drop', 'absorb'}
@@ -64,14 +64,28 @@ def feet_origin(now, props=()):
     return (mx, surface_at(mx, mz, props)[0], mz)
 
 
+def pelvis_yaw(now, fallback=0.0):
+    """Physical horizontal pelvis yaw (rad) from `now` dict or `(qw, qx, qy, qz)` quaternion."""
+    hd = float(now.get('heading', fallback)) if isinstance(now, dict) else float(fallback)
+    turn = now.get('turn') if isinstance(now, dict) else now
+    if turn is not None and len(turn) >= 4:
+        qw, qx, qy, qz = float(turn[0]), float(turn[1]), float(turn[2]), float(turn[3])
+        n2 = qw * qw + qx * qx + qy * qy + qz * qz
+        if n2 > 1e-12:
+            s = 2.0 / n2
+            return math.atan2(s * (qx * qz + qw * qy), 1.0 - s * (qx * qx + qy * qy))
+    return hd
+
+
 def _path_sampler(origin, heading, vx_set, vy_set, wz_set, props, length_scale=1.0):
     ox, _oy, oz = origin
     spd = math.hypot(vx_set, vy_set)
-    spin = spd <= 1e-4 and abs(wz_set) > 0.03
-    length = 0.45 if spin else max(0.38, min(1.35, (0.35 + 0.72 * spd) * length_scale))
-    ang0 = heading + (math.atan2(vy_set, vx_set) if spd > 1e-4 else 0.0)
+    spin = spd <= 1e-3 and abs(wz_set) > 0.03
+    length = 0.432 * length_scale if spin else max(0.38, min(1.35, (0.35 + 0.72 * spd) * length_scale))
+    ang0 = heading + (math.atan2(vy_set, vx_set) if spd > 1e-3 else 0.0)
+    turn_gain = 0.95 + 0.25 * min(1.0, spd / 0.70)
     turn = ((1.35 if wz_set > 0 else -1.35) if spin
-            else (max(-1.1, min(1.1, wz_set * (-1.0 if vx_set < -0.02 else 1.0) * 1.15)) if abs(wz_set) > 0.03 else 0.0))
+            else (max(-1.1, min(1.1, wz_set * (-1.0 if vx_set < -0.02 else 1.0) * turn_gain)) if abs(wz_set) > 0.03 else 0.0))
 
     def sample(u):
         s, ang = u * length, ang0 + u * turn
@@ -143,9 +157,10 @@ def _vertical_arrow(origin, h_set, fill, direction=1.0, fwd=0.0, heading=0.0, pr
 
 
 def _spec(kind, origin=None, normal=None, setpoint=(0.0, 0.0, 0.0), actual=(0.0, 0.0, 0.0),
-          fill=0.0, landing=None, frame=(), fill_segs=(), target=()):
+          fill=0.0, landing=None, frame=(), fill_segs=(), target=(), heading=0.0, pelvis_yaw=0.0):
     return {'kind': kind, 'origin': origin, 'normal': normal, 'setpoint': setpoint, 'actual': actual, 'fill': fill,
-            'landing': landing, 'frame_segments': list(frame), 'fill_segments': list(fill_segs), 'target_segments': list(target)}
+            'heading': heading, 'pelvis_yaw': pelvis_yaw, 'landing': landing,
+            'frame_segments': list(frame), 'fill_segments': list(fill_segs), 'target_segments': list(target)}
 
 
 def _describe_special(doing, now, origin, normal, heading, sh, ch, spd_phys, props, tw_ord):
@@ -160,7 +175,7 @@ def _describe_special(doing, now, origin, normal, heading, sh, ch, spd_phys, pro
             l_pt = (l_pt[0], surface_at(l_pt[0], l_pt[2], props, True)[0], l_pt[2])
             t_segs = _ring_segments(l_pt[0], l_pt[2], 0.16, props, 8, True)
         return _spec('jump', origin, normal, (fwd, 0.85, 0.0), (tw_ord[0], vy_j, tw_ord[2]), fill, l_pt,
-                     *_vertical_arrow(origin, 0.85, fill, 1.0, fwd, heading, props), t_segs)
+                     *_vertical_arrow(origin, 0.85, fill, 1.0, fwd, heading, props), t_segs, heading=heading, pelvis_yaw=heading)
     if doing in FALL_DOING or now.get('fallen'):
         ty = 0.45 if doing in _SEAT_BED else (0.22 if (doing in _FLOOR or now.get('fallen')) else 0.58)
         tf, po = math.sqrt(2.0 * max(0.04, float(where[1]) - ty) / 9.81), (-0.18 if doing in _SEAT_BED else (0.22 if doing in _FLOOR else 0.25))
@@ -170,29 +185,34 @@ def _describe_special(doing, now, origin, normal, heading, sh, ch, spd_phys, pro
         f_segs, fl_segs = _surface_path_arrow(
             origin, heading, (lx - origin[0]) * sh + (lz - origin[2]) * ch, (lx - origin[0]) * ch - (lz - origin[2]) * sh, 0.0, fill, props)
         return _spec('fall', origin, l_norm, l_pt, tw_ord, fill, l_pt, [*f_segs, (tuple(map(float, where)), l_pt)], fl_segs,
-                     _ring_segments(lx, lz, 0.20, props, 8, True, True) + _ring_segments(lx, lz, 0.10, props, 8, True, False))
+                     _ring_segments(lx, lz, 0.20, props, 8, True, True) + _ring_segments(lx, lz, 0.10, props, 8, True, False),
+                     heading=heading, pelvis_yaw=heading)
     if doing in ('crouch', 'down') or doing in RISE_DOING:
         vy_p = 0.65 if doing in RISE_DOING else -0.65
         return _spec('posture', origin, normal, (0.0, vy_p, 0.0), (0.0, vy_p, 0.0), 1.0, origin,
-                     *_vertical_arrow(origin, 0.65, 1.0, 1.0 if vy_p > 0 else -1.0, 0.0, heading, props))
+                     *_vertical_arrow(origin, 0.65, 1.0, 1.0 if vy_p > 0 else -1.0, 0.0, heading, props),
+                     heading=heading, pelvis_yaw=heading)
     if doing in ('one_sole', 'weight_shift', 'over', 'bow', 'forward'):
         vec = (0.0, 0.45, 0.0) if doing in ('one_sole', 'weight_shift', 'over') else (0.45, 0.0, 0.0)
-        return _spec('posture', origin, normal, vec, vec, 1.0, origin, *_surface_path_arrow(origin, heading, vec[0], vec[1], 0.0, 1.0, props))
+        return _spec('posture', origin, normal, vec, vec, 1.0, origin, *_surface_path_arrow(origin, heading, vec[0], vec[1], 0.0, 1.0, props),
+                     heading=heading, pelvis_yaw=heading)
     return None
 
 
 def _actual_twist(now, se2_st, sh, ch, doing, any_key):
     """Resolve body-frame actual twist `(vx, vy, wz)` from physics telemetry or SE(2) state."""
-    vel_xz, tw_now = now.get('velocity', (0.0, 0.0)), now.get('twist_actual')
+    vel_xz, tw_now, spd_now = now.get('velocity', (0.0, 0.0)), now.get('twist_actual'), float(now.get('speed', 0.0))
     has_vel = 'velocity' in now or 'speed' in now
-    vx_v, vy_v = float(vel_xz[0]) * sh + float(vel_xz[1]) * ch, float(vel_xz[0]) * ch - float(vel_xz[1]) * sh
-    if 'speed' in now and abs(float(now['speed']) - vx_v) > 1e-4 and abs(vx_v) < 1e-4:
-        vx_v = float(now['speed'])
-    if tw_now is not None and abs(float(now.get('speed', tw_now[0])) - float(tw_now[0])) <= 1e-4 and any(abs(v) > 1e-4 for v in tw_now):
-        tw_act = tuple(map(float, tw_now[:3]))
-    elif has_vel:
-        wz_fb = float(tw_now[2]) if (tw_now is not None and abs(tw_now[2]) > 1e-4) else float((se2_st or {}).get('actual', (0.0, 0.0, 0.0))[2])
+    v_mag = math.hypot(float(vel_xz[0]), float(vel_xz[1]))
+    vx_v = float(vel_xz[0]) * sh + float(vel_xz[1]) * ch if v_mag > 1e-4 else spd_now
+    vy_v = float(vel_xz[0]) * ch - float(vel_xz[1]) * sh if v_mag > 1e-4 else 0.0
+    wz_fb = float(tw_now[2]) if (tw_now is not None and abs(tw_now[2]) > 1e-4) else float((se2_st or {}).get('actual', (0.0, 0.0, 0.0))[2])
+    if v_mag > 1e-4 or abs(spd_now) > 1e-4:
         tw_act = (vx_v, vy_v, wz_fb)
+    elif tw_now is not None and any(abs(v) > 1e-4 for v in tw_now[:3]):
+        tw_act = (float(tw_now[0]), float(tw_now[1]), float(tw_now[2]))
+    elif has_vel:
+        tw_act = (0.0, 0.0, wz_fb)
     elif se2_st is not None:
         tw_act = (tuple(map(float, se2_st['actual'])) if 'actual' in se2_st
                   else (float(se2_st.get('v_x', 0.0)), float(se2_st.get('v_y', 0.0)), float(se2_st.get('omega_z', 0.0))))
@@ -212,14 +232,16 @@ def describe(now, se2_st=None):
     props = now.get('props') or ()
     origin = feet_origin(now, props)
     _, normal = surface_at(origin[0], origin[2], props)
-    heading, doing, vel_xz = float(now.get('heading', 0.0)), str(now.get('doing', 'rest')), now.get('velocity', (0.0, 0.0))
-    sh, ch, spd_phys = math.sin(heading), math.cos(heading), math.hypot(float(vel_xz[0]), float(vel_xz[1]))
+    raw_hd, doing, vel_xz = float(now.get('heading', 0.0)), str(now.get('doing', 'rest')), now.get('velocity', (0.0, 0.0))
+    pyaw = pelvis_yaw(now, raw_hd)
+    set_hd = se2.wrap_angle(pyaw + 0.35 * se2.wrap_angle(raw_hd - pyaw))
+    sh, ch, spd_phys = math.sin(pyaw), math.cos(pyaw), math.hypot(float(vel_xz[0]), float(vel_xz[1]))
     keys = (se2_st or {}).get('keys') or {}
     any_key = any(keys.get(k, False) for k in ('w', 's', 'a', 'd', 'q', 'e'))
     tw_act = _actual_twist(now, se2_st, sh, ch, doing, any_key)
     vx_act, vy_act, wz_act = tw_act
     act_mag = math.hypot(vx_act, vy_act)
-    special = _describe_special(doing, now, origin, normal, heading, sh, ch, spd_phys, props, tw_act)
+    special = _describe_special(doing, now, origin, normal, pyaw, sh, ch, spd_phys, props, tw_act)
     if special is not None:
         return special
     if doing in STOP_DOING or (not any_key and doing in ('#201', 'rest') and (act_mag > 0.04 or spd_phys > 0.08)):
@@ -229,11 +251,15 @@ def describe(now, se2_st=None):
         sy, lx_v, lz_v = surface_at(sx, sz, props)[0], ch * 0.22, -sh * 0.22
         t_segs = [((sx - lx_v, sy + dy, sz - lz_v), (sx + lx_v, sy + dy, sz + lz_v)) for dy in (0.0, 0.02)] + _ring_segments(sx, sz, 0.12, props, 8, False, False)
         return _spec('stop', origin, normal, (0.0, 0.0, 0.0), tw_act, fill, (sx, sy, sz),
-                     *_surface_path_arrow(origin, heading, vx_dir, vy_act, 0.0, fill, props, 0.75), t_segs)
+                     *_surface_path_arrow(origin, pyaw, vx_dir, vy_act, 0.0, fill, props, 0.75), t_segs,
+                     heading=pyaw, pelvis_yaw=pyaw)
+    tw_cmd = now.get('twist')
     if any_key:
         vx_set, vy_set, wz_set = se2_st['setpoint'] if se2_st and 'setpoint' in se2_st else se2.setpoint_for_keys(keys)
         if wz_set == 0.0 and bool(keys.get('q')) != bool(keys.get('e')):
             wz_set = (se2.YAW_SPRINT_RATE if keys.get('shift') else se2.YAW_RATE) * (1.0 if keys.get('q') else -1.0)
+    elif tw_cmd is not None and (math.hypot(float(tw_cmd[0]), float(tw_cmd[1])) > 0.02 or abs(float(tw_cmd[2])) > 0.03):
+        vx_set, vy_set, wz_set = float(tw_cmd[0]), float(tw_cmd[1]), float(tw_cmd[2])
     elif doing in GAIT_TWIST:
         vx_set, vy_set, wz_set = GAIT_TWIST[doing]
     else:
@@ -244,8 +270,9 @@ def describe(now, se2_st=None):
         yaw_s = max(0.0, (wz_act * wz_set) / (wz_set * wz_set)) if abs(wz_set) > 0.03 else 0.0
         fill = min(1.0, 0.5 * (lin_s + yaw_s) if (set_mag > 0.02 and abs(wz_set) > 0.03) else (lin_s if set_mag > 0.02 else yaw_s))
         return _spec('locomotion', origin, normal, (vx_set, vy_set, wz_set), tw_act, fill, None,
-                     *_surface_path_arrow(origin, heading, vx_set, vy_set, wz_set, fill, props))
-    return _spec('idle', origin, normal)
+                     *_surface_path_arrow(origin, set_hd, vx_set, vy_set, wz_set, fill, props),
+                     heading=set_hd, pelvis_yaw=pyaw)
+    return _spec('idle', origin, normal, heading=pyaw, pelvis_yaw=pyaw)
 
 
 def _rasterize(segments, m, cam, centre, travel):

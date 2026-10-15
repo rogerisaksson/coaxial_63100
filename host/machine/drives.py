@@ -48,31 +48,15 @@ class Size:
         self.drag, self.shock, self.board, self.parts = drag, shock, board, parts
 
 
-#: Every gearbox's ratio; its input side - the wave generator, the rollers - seen at the motor as
-#: GEAR_J of the rotor's inertia (estimated). Copper watts go as 1/ratio^2, the inertia a drive
-#: puts on its joint as ratio^2. At 1:30 on 72 x 28 mm and 60 x 12 frames, their ankles' and
-#: wrists' and toes' stacks 0.4-0.5 kg over the drives as they stood, she held 61.3 % of the gait
-#: Monte Carlo's trials, 62.3 at 1:36, 74.6 on those drives' masses, 70.5 on those drives; on
-#: these at 1:36 73.7, but felled by P she stayed down both ways - their rotors seen 1.4-1.5 times
-#: those drives', the old seen up at 22.5 s -, at 1:30 up at 22.9 and 23.7 s, at 1:33 one way
-#: (docs/findings/drives.md). On the 5230SL the knee at 1:22 shoved past saving her
-#: head met the floor at 2.93 m/s once in 16, at 28 1.0 at most; the hips at 1:30 folded past
-#: -40 deg rising from the squat, her walk down at 5.6 s, at 36 she walked 16 s.
+#: Every gearbox's ratio; its input side seen at the motor as GEAR_J of the rotor's inertia.
+#: Copper watts go as 1/ratio^2, reflected inertia as ratio^2 (docs/findings/drives.md).
 RATIO = 30.0
 GEAR_J = 0.05
 
-#: The motors as bought, a row a part: (the can's D m, its height m, kg, ohm line to line, N m
-#: at its peak, its rotor's kg m^2) - T-Motor's U8 II Lite and MN6007 II, complete with their
-#: bearings (no frameless kit; motors cost, so two): 87.1 x 27 mm, 253 g
-#: and 134-141 mohm at KV 100, USD 300; 67.2 x 26.1 mm, 159 g and 178 mohm at KV 160, USD 130
-#: (the maker's pages; the U8's can by its model, docs/HARDWARE.md). Neither page
-#: gives a peak: the U8's 4 N m is CubeMars' for the same 36N42P stator in the R80 at 50 A, the
-#: MN6007's 1.9 that maker's RO60's 2.4 by its stack, 7 mm of 8.7; the rotors 0.45 of the kg at
-#: the can's radius less 3 mm (so reckoned, the RO60 and the RO80 10 and 14 % over their pages'
-#: 1.16e-4 and 2.61e-4). The frame
-#: before them, 60 x 20 mm at KV 90 by a law fitted on T-Motor's pages, is no part, its rotor
-#: 0.4 of the U8's (docs/findings/stacks.md). The winding 310 J/K a kg and to the air the
-#: 5230SL's 2.2 K/W over 60 x 45 mm as 1/(D H).
+#: The motors as bought: (can D m, height m, kg, line-to-line ohm, peak N m, rotor kg m^2) -
+#: T-Motor U8 II Lite (87.1 x 27 mm, 253 g, 137.5 mohm, KV 100) and MN6007 II (67.2 x 26.1 mm,
+#: 159 g, 178 mohm, KV 160; docs/HARDWARE.md, docs/findings/stacks.md). Winding 310 J/K per kg
+#: and 5230SL's 2.2 K/W over 60 x 45 mm scaled as 1/(D H).
 FRAMES = {'U8': (0.0871, 0.0270, 0.253, 0.1375, 4.0, 1.87e-4),
           'MN6007': (0.0672, 0.0261, 0.159, 0.178, 1.9, 0.67e-4)}
 
@@ -452,9 +436,32 @@ def speed(joint):
     return of(joint)[1].kv * PACK_V * 6.0 / ratio(joint)
 
 
+#: Clothing thermal insulation factor over bare-air convection (ISO 9920): 1.0 bare, 1.20 under
+#: a cotton T-shirt (0.15 clo, torso/arms), 1.45 under denim jeans (0.38 clo, pelvis/legs).
+CLOTH_AIR = {'hip_yaw': 1.45, 'hip_roll': 1.45, 'hip': 1.45, 'knee': 1.45, 'ankle': 1.45,
+             'ankle_roll': 1.45, 'spine': 1.20, 'spine_roll': 1.20, 'waist': 1.20,
+             'shoulder': 1.20, 'elbow': 1.20, 'neck': 1.0, 'head': 1.0, 'wrist': 1.0,
+             'gripper': 1.0, 'foot': 1.0}
+#: Coaxial aluminium stator-housing and cycloid ring-gear thermal mass (J/K) and board-to-stator
+#: mounting thermal resistance (K/W: 0.60 coaxial, 2.20 split off-axis on limb shell).
+STATOR_J_K, MOUNT_K_W, OFF_MOUNT_K_W = {'U8': 280.0, 'MN6007': 180.0}, 0.60, 2.20
+
+
+def cloth_air(joint=None):
+    """Clothing thermal insulation multiplier (`>= 1.0`) for `joint` (or mean dressed factor)."""
+    return 1.35 if joint is None else CLOTH_AIR.get(kind(joint), 1.20)
+
+
+def stator(joint):
+    """(stator_j_k J/K, mount_k_w K/W, cloth_air) of `joint`'s coaxial stator-housing assembly."""
+    k = kind(joint)
+    return STATOR_J_K[STACKS[k][0]], (OFF_MOUNT_K_W if k in BOARDS else MOUNT_K_W), cloth_air(joint)
+
+
 def heat(joint):
     """(kt N m/A, winding ohm, the board's amps against the 100 A board's, the winding's J/K and
     K/W, the laminate's K/W to the air): what `machine.heat` keeps a joint's drive by."""
     s = of(joint)[1]
     return (kt(joint), r_ohm(joint), 100.0 / s.rated, s.winding[0], s.winding[1] * COOLING,
             s.housing_k_w * COOLING)
+

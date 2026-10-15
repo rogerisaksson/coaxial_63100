@@ -53,6 +53,7 @@ def test_the_humanoid_pages_mouse(report):
 
 def test_the_humanoid_pages_keys(report):
     """The page's keys are her loop's and the view's: A lands her, digits say moves, W walks her."""
+    from machine import se2
     from terminal.views import gym, humanoid_keys, show_humanoid
     sent = []
     st: dict = {'body': SN(send=lambda **cmd: sent.append(cmd)), 'side': 1.0,
@@ -96,9 +97,10 @@ def test_the_humanoid_pages_keys(report):
     humanoid_keys.act_on(show_humanoid.KEYS, ['a', 'e'], st)
     st['_se2_last_t'] -= 0.05
     show_humanoid._step_frame(st, st['body'], 0.05)
+    tw_ae = (0.0, round(se2.STRAFE_SPEED, 2), -round(se2.YAW_RATE, 2))
     report.check('SD/SE turn back right, AE/DQ circle-strafe, Q+E cancels, and _step_frame streams twist',
                  sent == [{'say': 'turn_back_right'}, {'say': 'turn_back_right'}, {'say': 'strafe_left'},
-                          {'say': 'strafe_right'}, {'say': 'strafe_left'}, {'twist': (0.0, 0.5, -0.7)}])
+                          {'say': 'strafe_right'}, {'say': 'strafe_left'}, {'twist': tw_ae}])
     show_humanoid.KEYS['§'](st)
     sent.clear()
     show_humanoid.KEYS['q'](st)
@@ -227,15 +229,13 @@ def test_surface_arrows_setpoint_actual_and_landing_zones(report):
     from machine import physics, se2, sprung
     from terminal.views import humanoid_keys
     z3 = np.zeros(27)
-    b0 = sprung.state(sprung.laid(every=3), z3, z3, 0.0, 1.0, None)
-    w = physics.World()
+    b0, w = sprung.state(sprung.laid(every=3), z3, z3, 0.0, 1.0, None), physics.World()
     w.scenario('slope')
     y0, _ = arrows.surface_at(0.0, 1.2, w.props())
     y1, n1 = arrows.surface_at(0.0, 2.8, w.props())
     report.check('arrow surface_at conforms to inclined slope ramp', y1 > y0 + 0.03 and n1[2] < -0.01)
     w.scenario('hole')
-    yh, _ = arrows.surface_at(0.0, 0.55, w.props())
-    report.check('arrow surface_at dips into 10cm hole', yh < -0.08)
+    report.check('arrow surface_at dips into 10cm hole', arrows.surface_at(0.0, 0.55, w.props())[0] < -0.08)
 
     st = se2.state()
     se2.step_controller(st, 'w', 0.02, now=1.0)
@@ -251,32 +251,29 @@ def test_surface_arrows_setpoint_actual_and_landing_zones(report):
     nw_fast = dict(b0, twist=(st['v_x'], 0.0, 0.0), velocity=(0.0, st['v_x']), speed=st['v_x'], doing='jog')
     sw1 = arrows.describe(nw_fast, st)
     report.check('W / Shift+W arrow starts hollow, stays empty if blocked, and fills from velocity',
-                 sw0['kind'] == 'locomotion' and abs(sw0['origin'][0]) < 0.05
-                 and sw_blk['fill'] == 0.0 and sw_rev['fill'] == 0.0
-                 and 0.0 < sw0['fill'] < 0.20 < sw_mid['fill'] < 0.85 < sw1['fill'] <= 1.0
-                 and sw1['setpoint'][0] > sw0['setpoint'][0]
+                 sw0['kind'] == 'locomotion' and abs(sw0['origin'][0]) < 0.05 and sw_blk['fill'] == 0.0 and sw_rev['fill'] == 0.0
+                 and 0.0 < sw0['fill'] < 0.20 < sw_mid['fill'] < 0.85 < sw1['fill'] <= 1.0 and sw1['setpoint'][0] > sw0['setpoint'][0]
                  and len(sw0['frame_segments']) > 10 and len(sw1['fill_segments']) > len(sw0['fill_segments']))
 
     st_wa, t_wa = se2.state(), 2.0
     for tok in ('wa', 'a', 'a', 'w', 'a', 'a'):
         t_wa += 0.05
         se2.step_controller(st_wa, tok, 0.05, now=t_wa)
-        swa = arrows.describe(dict(b0, doing='turn_left'), st_wa)
-    tip_x = max(p[0] for seg in swa['frame_segments'] for p in seg)
-    sae = arrows.describe(dict(b0, doing='strafe_left', twist_actual=(0.0, 0.45, -0.60)),
-                          humanoid_keys.step_se2(se2.state(), 'ae', 0.8, now=3.0))
-    sq = arrows.describe(dict(b0, doing='turn_left'), humanoid_keys.step_se2(se2.state(), 'q', 0.8, now=3.0))
-    ae_x = max(p[0] for seg in sae['frame_segments'] for p in seg)
-    ae_z = max(p[2] for seg in sae['frame_segments'] for p in seg)
+    swa = arrows.describe(dict(b0, doing='turn_left', heading=0.35, velocity=(0.0, 0.69), twist_actual=(0.69, 0.0, 0.70)), st_wa)
+    sae = arrows.describe(dict(b0, doing='strafe_left', twist_actual=(0.0, 0.45, -0.60)), humanoid_keys.step_se2(se2.state(), 'ae', 0.8, 3.0))
+    sq = arrows.describe(dict(b0, doing='turn_left'), humanoid_keys.step_se2(se2.state(), 'q', 0.8, 3.0))
+    mx = lambda sp, i: max(p[i] for s in sp['frame_segments'] for p in s)
     report.check('WA curved arrow, AE circle-strafe arc, and Q spin-in-place floor arc render cleanly',
-                 swa['kind'] == 'locomotion' and tip_x > 0.15 and swa['setpoint'][1] == 0.0
-                 and sae['kind'] == 'locomotion' and ae_x > 0.25 and ae_z > 0.08
+                 swa['kind'] == 'locomotion' and mx(swa, 0) > 0.15 and swa['setpoint'][1] == 0.0
+                 and abs(swa['pelvis_yaw']) < 1e-6 and 0.10 < swa['heading'] < 0.15
+                 and swa['fill_segments'][-1][0] == swa['frame_segments'][-1][1]
+                 and arrows.pelvis_yaw({'turn': (1, 0, 0, 0), 'heading': 0.8}) == 0.0
+                 and sae['kind'] == 'locomotion' and mx(sae, 0) > 0.25 and mx(sae, 2) > 0.08
                  and sq['kind'] == 'locomotion' and len(sq['frame_segments']) > 10 and sq['fill'] > 0.5)
 
     shop = arrows.describe(dict(b0, doing='throw', where=(0.0, 1.02, 0.0)))
-    max_y = max(p[1] for seg in shop['frame_segments'] for p in seg)
     report.check('jump (hop) draws upward 3D arrow frame and fill',
-                 shop['kind'] == 'jump' and max_y > 0.75 and len(shop['fill_segments']) > 5)
+                 shop['kind'] == 'jump' and mx(shop, 1) > 0.75 and len(shop['fill_segments']) > 5)
 
     sstop = arrows.describe(dict(b0, doing='brake', velocity=(0.0, 0.45), speed=0.45))
     report.check('commanded stop (brake) draws stop bar target and braking arrow',
@@ -284,12 +281,10 @@ def test_surface_arrows_setpoint_actual_and_landing_zones(report):
 
     sfall = arrows.describe(dict(b0, doing='controlled_fall', velocity=(0.35, 0.50), where=(0.0, 0.82, 0.0)))
     report.check('commanded fall estimates floor touch-down position and draws target ring',
-                 sfall['kind'] == 'fall' and sfall['landing'] is not None
-                 and sfall['landing'][2] > 0.20 and len(sfall['target_segments']) >= 16)
+                 sfall['kind'] == 'fall' and sfall['landing'] is not None and sfall['landing'][2] > 0.20 and len(sfall['target_segments']) >= 16)
 
-    a0 = gynoid.render(b0['angles'], 64, 28, colour=False)
-    a1 = gynoid.render(b0['angles'], 64, 28, colour=False, arrows=(nw_fast, st))
-    report.check('gynoid.render draws movement arrows into braille viewport', a0 != a1)
+    report.check('gynoid.render draws movement arrows into braille viewport',
+                 gynoid.render(b0['angles'], 64, 28, colour=False) != gynoid.render(b0['angles'], 64, 28, colour=False, arrows=(nw_fast, st)))
 
 
 def test_scenario_deck_tour_handoff_and_cybernetic_hud(report):
@@ -305,8 +300,8 @@ def test_scenario_deck_tour_handoff_and_cybernetic_hud(report):
     sent, se2_st = [], se2.state()
     st = {'body': SN(send=lambda **cmd: sent.append(cmd)), 'wasd_mode': True,
           'scenario': 'chair', 'se2': se2_st, 'keys': show_humanoid.KEYS, 'now': {'doing': 'rest', 'where': (0.0, 0.9, 0.0)}}
-    show_humanoid.KEYS['n'](st)
-    show_humanoid.KEYS['N'](st)
+    for k in ('n', 'N'):
+        show_humanoid.KEYS[k](st)
     report.check('all 20 floor scenarios have moves/descriptions, n triggers stairs_down, Shift+N shoves',
                  not miss and len(floor.SCENARIOS) == 20 and sent[0] == {'say': 'stairs_down'} and sent[1]['push'][0] == -140.0)
 
@@ -323,8 +318,7 @@ def test_scenario_deck_tour_handoff_and_cybernetic_hud(report):
     show_humanoid.KEYS['\r'](st)
     st['now'], st['scenario'] = {'doing': 'kneel'}, 'mattress'
     show_humanoid.KEYS['f'](st)
-    report.check('Enter/F while on bed or mattress triggers rise_bed and rise_floor',
-                 sent == [{'say': 'rise_bed'}, {'say': 'rise_floor'}])
+    report.check('Enter/F while on bed or mattress triggers rise_bed and rise_floor', sent == [{'say': 'rise_bed'}, {'say': 'rise_floor'}])
     sent.clear()
     st['scenario'] = 'bed'
     show_humanoid.KEYS['['](st)
@@ -358,15 +352,12 @@ def test_scenario_deck_tour_handoff_and_cybernetic_hud(report):
                  bal > 0.9 and thm > 0.85 and stb > 0.9 and tag == 'NOMINAL' and (eb, es, et) == (0.95, 0.95, 'NOMINAL'))
     cb, _, cs, ct = show_humanoid.telemetry_core(dict(nom, fallen=True))
     _, _, _, ft = show_humanoid.telemetry_core(dict(nom, doing='controlled_fall'))
-    report.check('fallen state reports CRITICAL tag while controlled_fall reports ALERT tag',
-                 (cb, cs, ct, ft) == (0.0, 0.0, 'CRITICAL', 'ALERT'))
+    report.check('fallen state reports CRITICAL tag while controlled_fall reports ALERT tag', (cb, cs, ct, ft) == (0.0, 0.0, 'CRITICAL', 'ALERT'))
     st.update(now=nom, recording=None, recorded=None, shown='torque', scanner=sc, tour=None)
-    g_txt = show_humanoid.gauges(st).plain
     report.check('header gauges include BAL, THM, and STB bars alongside mode badge',
-                 all(w in g_txt for w in ('Third Person Control', 'BAL', 'THM', 'STB')))
+                 all(w in show_humanoid.gauges(st).plain for w in ('Third Person Control', 'BAL', 'THM', 'STB')))
     vpb = show_humanoid.tpw_badge(True, 80, 24, state=st)
     r1 = ''.join(chr(c) for (r, _), (c, _) in sorted(vpb.items()) if r == 1)
-    t_bx = gym.boxes(nom, wasd=True, tour=SN(done=False))
     jr = show_humanoid._joint_row({'temp': {'spine': 42.0}}, 'spine', 'spine', 'temp')[1].plain
     buf = io.StringIO()
     c40 = Console(file=buf, width=40, theme=stage.THEME, legacy_windows=False)
@@ -375,8 +366,8 @@ def test_scenario_deck_tour_handoff_and_cybernetic_hud(report):
     b_txt = buf.getvalue()
     report.check('viewport badge renders telemetry strip, gym.boxes shows tour, and HUD boxes fit',
                  all(w in r1 for w in ('BAL', 'THM', 'STB', 'NOMINAL')) and callable(show_humanoid.boot)
-                 and len(t_bx) == 2 and '42°C' in jr and len(jr) == 25
-                 and '\u2026' not in b_txt and '+0.69' in b_txt and len(show_humanoid.legend('temp', 60)) > 20)
+                 and len(gym.boxes(nom, wasd=True, tour=SN(done=False))) == 2 and '42°C' in jr and len(jr) == 25
+                 and '\u2026' not in b_txt and ('%+5.2f' % se2.WALK_SPEED) in b_txt and len(show_humanoid.legend('temp', 60)) > 20)
 
 
 ROSTER = (test_the_humanoid_pages_mouse, test_the_humanoid_pages_keys, test_a_held_space_charges_a_push,

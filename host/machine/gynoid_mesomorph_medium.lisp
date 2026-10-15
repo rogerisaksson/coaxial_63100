@@ -78,37 +78,42 @@
 ;; turn left: forward cruise with left yaw turn
 (defbehavior turn_left
   (phase turn (use forward_gait)
-    (duration 60s) (blend_duration 550ms)
+    (duration 60s) (blend_duration 360ms)
     (latent_targets (mode_axial_compression 0.045) (mode_pitch_attitude 0.01)
-      (mode_lateral_shift 0.02) (mode_pelvis_turn 0.38) (mode_stance_width 0.14))
+      (mode_lateral_shift 0.02) (mode_pelvis_turn 0.45) (mode_stance_width 0.14))
     (cpg_config
-      (frequency 0.90Hz)
-      (amplitude mode_lateral_shift 0.27) (amplitude mode_sagittal_drive 0.48)
-      (amplitude mode_limb_lift 1.00) (amplitude mode_foot_rock 0.56)
-      (amplitude mode_pelvis_list 0.34) (amplitude mode_pelvis_turn 0.38)
-      (amplitude mode_arm_swing 0.80) (amplitude mode_stance_width 0.10))))
+      (frequency 0.96Hz)
+      (amplitude mode_lateral_shift 0.27) (amplitude mode_sagittal_drive 0.56)
+      (amplitude mode_limb_lift 1.02) (amplitude mode_foot_rock 0.58)
+      (amplitude mode_pelvis_list 0.34) (amplitude mode_pelvis_turn 0.44)
+      (amplitude mode_arm_swing 0.84) (amplitude mode_stance_width 0.10))))
 
 ;; turn right: forward cruise with right yaw turn
 (derive turn_right turn_left
   (phase turn
-    (latent_targets (mode_lateral_shift -0.02) (mode_pelvis_turn -0.38))))
+    (latent_targets (mode_lateral_shift -0.02) (mode_pelvis_turn -0.45))))
 
 ;; circle walk: continuous circular locomotion
 (derive circle_walk turn_left
   (phase turn
-    (latent_targets (mode_lateral_shift 0.025) (mode_pelvis_turn 0.40))))
+    (blend_duration 550ms)
+    (latent_targets (mode_lateral_shift 0.025) (mode_pelvis_turn 0.40))
+    (cpg_config
+      (frequency 0.90Hz)
+      (amplitude mode_sagittal_drive 0.48) (amplitude mode_pelvis_turn 0.38))))
 
 ;; turn back left: reverse cruise with left yaw turn
 (defbehavior turn_back_left
   (phase turn (use reverse_gait)
-    (duration 60s) (blend_duration 600ms)
-    (latent_targets (mode_pelvis_turn 0.30) (mode_lateral_shift 0.0))
+    (duration 60s) (blend_duration 380ms)
+    (latent_targets (mode_pelvis_turn 0.38) (mode_lateral_shift 0.0))
     (cpg_config
-      (frequency 0.90Hz)
-      (amplitude mode_sagittal_drive 0.25) (amplitude mode_pelvis_turn 0.18))))
+      (frequency 0.92Hz)
+      (amplitude mode_sagittal_drive 0.25) (amplitude mode_pelvis_turn 0.22))))
 
 ;; turn back right: reverse cruise with right yaw turn
 (derive turn_back_right turn_back_left
   (phase turn
-    (latent_targets (mode_pelvis_turn -0.30))))
+    (latent_targets (mode_pelvis_turn -0.38))))
+
 

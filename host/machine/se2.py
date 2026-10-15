@@ -3,10 +3,10 @@ import math
 
 from machine import ortho
 
-WALK_SPEED, RUN_SPEED, RAMP_ACCEL, DECAY_RATE = 0.69, 1.40, 1.80, 2.00
+WALK_SPEED, RUN_SPEED, RAMP_ACCEL, DECAY_RATE = 0.69, 1.40, 1.95, 3.20
 BACK_SPEED, BACK_SPRINT_SPEED = 0.35, 0.60
 STRAFE_SPEED, STRAFE_SPRINT_SPEED, STRAFE_DECAY = 0.50, 0.80, 3.20
-YAW_RATE, YAW_SPRINT_RATE, HOLD_WINDOW_S = 0.70, 0.95, 0.65
+YAW_RATE, YAW_SPRINT_RATE, HOLD_WINDOW_S = 0.70, 1.15, 0.65
 
 WASD_GAITS = ('#204', '#205', 'jog', 'strafe_left', 'strafe_right',
               'turn_left', 'turn_right', 'turn_back_left', 'turn_back_right', 'init_walk')
@@ -132,8 +132,8 @@ def step_twist(st, keys, dt):
     wz_act = 0.0 if wz_set * wz_act < 0.0 else wz_act
     st['actual'] = (
         _approach(vx_act, vx_set, RAMP_ACCEL if abs(vx_set) >= abs(vx_act) else DECAY_RATE, dt),
-        _approach(vy_act, vy_set, 0.70 if abs(vy_set) >= abs(vy_act) else STRAFE_DECAY, dt),
-        _approach(wz_act, wz_set, 0.75 if abs(wz_set) >= abs(wz_act) else STRAFE_DECAY, dt),
+        _approach(vy_act, vy_set, 2.40 if abs(vy_set) >= abs(vy_act) else STRAFE_DECAY, dt),
+        _approach(wz_act, wz_set, 2.50 if abs(wz_set) >= abs(wz_act) else STRAFE_DECAY, dt),
     )
     if w and not s:
         st['w_held'], st['s_held'] = st['w_held'] + dt, 0.0
@@ -221,25 +221,27 @@ def step_controller(st, raw_input, dt, now=None, hold_window=HOLD_WINDOW_S, held
 
 def _modulate_cpg(g, vx, vy, wz, out, vxp=0.0):
     from machine import latent, modal
-    if g['st'][latent.NOW][latent.GAIN] <= 0.45:
+    if g['st'][latent.NOW][latent.GAIN] < 0.05:
         if vx > WALK_SPEED + 0.01 and abs(wz) < 0.05 and abs(vy) < 0.01:
             g['st'][latent.TO][latent.AMP][modal.DRIVE] = max(float(g['st'][latent.TO][latent.AMP][modal.DRIVE]), 0.60)
         return
     spin = abs(vx) < 0.05 and abs(vy) < 0.05 and abs(wz) > 0.05
-    if out is not None and (spin or (abs(vy) > 0.05 and abs(wz) > 0.05)):
+    ts_raw = (0.28 if abs(vy) > 0.05 else 0.40) * max(-1.0, min(1.0, wz / YAW_RATE)) if abs(wz) > 0.03 else 0.0
+    ts = g['_turn_dc'] = g.get('_turn_dc', 0.0) + 0.18 * (ts_raw - g.get('_turn_dc', 0.0))
+    if out is not None and (abs(wz) > 0.03 or abs(ts) > 0.01):
         if spin:
-            out[latent.SWAY][modal.DRIVE] = out[latent.REF][modal.DRIVE] = 0.0
-            out[latent.RATE][modal.DRIVE] = out[latent.ACC][modal.DRIVE] = 0.0
-            out[latent.SWAY][modal.LIFT] = min(float(out[latent.SWAY][modal.LIFT]), 0.65)
-        ts = math.copysign(0.32 if spin else 0.24, wz)
-        bt = float(g['st'][latent.THETA] + g['st'][latent.NOW][latent.PHASE][modal.TURN])
-        w = float(out[latent.TURNS])
-        out[latent.SWAY][modal.TURN], out[latent.REF][modal.TURN] = abs(ts), ts * (1.0 + math.sin(bt))
-        out[latent.RATE][modal.TURN], out[latent.ACC][modal.TURN] = ts * w * math.cos(bt), -ts * w * w * math.sin(bt)
-    if (abs(vx) > WALK_SPEED + 0.01 or abs(vy) > STRAFE_SPEED + 0.01
-            or vx < -(BACK_SPEED + 0.01) or abs(wz) > YAW_RATE + 0.01):
-        g['st'][latent.TO][latent.HZ] = max(float(g['st'][latent.TO][latent.HZ]), 0.95)
-        g['st'][latent.NOW][latent.HZ] = max(float(g['st'][latent.NOW][latent.HZ]), 0.95)
+            bt_d, w_d = float(g['st'][latent.THETA] + g['st'][latent.NOW][latent.PHASE][modal.DRIVE]), float(out[latent.TURNS])
+            drv = 0.035 if abs(vxp) < 0.22 else max(0.035, float(out[latent.SWAY][modal.DRIVE]) * min(1.0, abs(vxp) / 0.50))
+            out[latent.SWAY][modal.DRIVE], out[latent.REF][modal.DRIVE] = drv, drv * math.sin(bt_d)
+            out[latent.RATE][modal.DRIVE], out[latent.ACC][modal.DRIVE] = drv * w_d * math.cos(bt_d), -drv * w_d * w_d * math.sin(bt_d)
+            out[latent.SWAY][modal.LIFT] = max(float(out[latent.SWAY][modal.LIFT]), 0.95)
+        amp_t, bt, w = (abs(ts) if abs(vy) > 0.05 else 0.14), float(g['st'][latent.THETA] + g['st'][latent.NOW][latent.PHASE][modal.TURN]), float(out[latent.TURNS])
+        out[latent.SWAY][modal.TURN], out[latent.REF][modal.TURN] = amp_t, ts + amp_t * math.sin(bt)
+        out[latent.RATE][modal.TURN], out[latent.ACC][modal.TURN] = amp_t * w * math.cos(bt), -amp_t * w * w * math.sin(bt)
+    if abs(vx) > WALK_SPEED + 0.01 or abs(vy) > STRAFE_SPEED + 0.01 or vx < -(BACK_SPEED + 0.01) or abs(wz) > 0.05:
+        hz_m = 0.98 if (spin or abs(wz) > YAW_RATE + 0.01 or abs(vx) > WALK_SPEED + 0.01) else 0.95
+        g['st'][latent.TO][latent.HZ] = max(float(g['st'][latent.TO][latent.HZ]), hz_m)
+        g['st'][latent.NOW][latent.HZ] = max(float(g['st'][latent.NOW][latent.HZ]), hz_m)
         if out is not None:
             out[latent.TURNS] = math.tau * float(g['st'][latent.NOW][latent.HZ])
             if vx > WALK_SPEED + 0.01 and abs(wz) < 0.05 and abs(vy) < 0.01:
@@ -252,9 +254,10 @@ def _modulate_cpg(g, vx, vy, wz, out, vxp=0.0):
 
 
 def step_physical_twist(g, dt, out=None):
-    from machine import floor, modal
+    from machine import floor, latent, modal, sprung
     y, f0, cur_entry = g['y'], g.setdefault('floor0', float(g['fr'][modal.FLOOR])), g.get('active_entry')
     d, hd = g['world'].data, float(g['heading'])
+    sh, ch = math.sin(hd), math.cos(hd)
     if cur_entry in ('hop_up_chair', 'hop_down_chair') and min(float(y[modal.LOWEST][0]), float(y[modal.LOWEST][1])) > 0.025:
         pos = (float(d.qpos[0]), float(d.qpos[2]))
         if cur_entry == 'hop_up_chair' and not g.get('_chair_elevated'):
@@ -265,15 +268,24 @@ def step_physical_twist(g, dt, out=None):
             floor.mocap(g['world'], 'chair', floor._on(pos, hd, 0.0, 0.002 - floor.CHAIR_SEAT_H, -0.45), hd + math.pi)
     sy = min(float(y[modal.SOLE][1]), float(y[modal.SOLE][4]))
     g['fr'][modal.FLOOR] += 15.0 * dt * ((min(f0, sy) if sy < f0 - 0.006 else f0) - float(g['fr'][modal.FLOOR]))
+    cur_doing = sprung.doing(g)
+    twist_mode = bool(g.get('_twist_active') or g.get('_twist_stop_until', 0.0) > g['t'] or cur_entry in WASD_GAITS or cur_doing == 'brake')
+    is_hop = cur_doing in ('load', 'throw', 'land') and cur_entry not in ('controlled_fall', 'hop_up_chair', 'hop_down_chair')
     vx, vy, wz = g.get('twist', (0.0, 0.0, 0.0))
     tx, ty, tz = (vx, vy, wz) if g.get('_twist_active') else NOMINAL_TWIST.get(cur_entry, (0.0, 0.0, 0.0))
-    d, hd = g['world'].data, float(g['heading'])
-    sh, ch = math.sin(hd), math.cos(hd)
     vxp, vyp, wzp = float(d.qvel[0]) * sh + float(d.qvel[2]) * ch, float(d.qvel[0]) * ch - float(d.qvel[2]) * sh, float(d.qvel[4])
-    if abs(tx) < 0.05 and abs(ty) > 0.05 and vxp > 0.25:
-        d.qvel[0], d.qvel[2] = float(d.qvel[0]) - 0.05 * vxp * sh, float(d.qvel[2]) - 0.05 * vxp * ch
+    dt_ld = (g['t'] - g['_land_touch_t']) if g.get('_land_touch_t') is not None else -1.0
+    if out is not None and is_hop and not (g.get('_leap') and dt_ld > 0.06):
+        out[latent.SWAY][:] = 0.0
+        for m in (modal.DRIVE, modal.LIFT, modal.LATERAL, modal.TURN, modal.LIST):
+            out[latent.REF][m] = out[latent.RATE][m] = out[latent.ACC][m] = 0.0
+        out[latent.REF][modal.WIDTH] = min(float(out[latent.REF][modal.WIDTH]), 0.04)
+        out[latent.RATE][modal.WIDTH] = out[latent.ACC][modal.WIDTH] = 0.0
+        if max(g['loads']) <= 10.0 and cur_doing in ('throw', 'land'):
+            out[latent.REF][modal.AXIAL] = min(1.10, max(0.20, 0.70 + 0.40 * float(d.qvel[1])))
+            out[latent.KS][modal.LIFT], out[latent.DS][modal.LIFT] = 680.0, 60.0
     ax, ay, az = g.get('twist_actual', (0.0, 0.0, 0.0))
-    kv, ky, kz = min(1.0, dt / 0.12), min(1.0, dt / (0.15 if abs(ty) > 0.01 else 0.45)), min(1.0, dt / (0.15 if abs(tz) > 0.01 else 0.45))
+    kv, ky, kz = min(1.0, dt / 0.06), min(1.0, dt / (0.07 if abs(ty) > 0.01 else 0.10)), min(1.0, dt / (0.07 if abs(tz) > 0.01 else 0.10))
     g['twist_actual'] = (
         ax + kv * (vxp - ax),
         ay + ky * ((vyp if abs(ty) > 0.01 or g['world'].push_until > g['t'] else 0.0) - ay),
@@ -281,30 +293,64 @@ def step_physical_twist(g, dt, out=None):
     )
     if g.get('_jump_until', 0.0) > g['t']:
         return
+    q = g['world'].data.qpos[3:7]
+    pelvis_yaw = 2.0 * math.atan2(float(q[2]), float(q[0]))
     if abs(tz) > 1e-6 and g.get('target_heading') is None:
-        q = g['world'].data.qpos[3:7]
-        pelvis_yaw = 2.0 * math.atan2(float(q[2]), float(q[0]))
+        l0, l1 = float(g['loads'][0]), float(g['loads'][1])
+        out_st = 0.45 if ((tz > 0.0 and l0 > l1 + 60.0) or (tz < 0.0 and l1 > l0 + 60.0)) else 1.05
         d_yaw = wrap_angle(pelvis_yaw - g['heading'])
-        lead = 0.42 if (abs(tx) < 0.05 and abs(ty) < 0.05) else (0.30 if abs(ty) > 0.05 else 0.22)
-        if d_yaw * tz >= -0.02 and abs(d_yaw) < 0.14:
-            g['heading'] = wrap_angle(g['heading'] + lead * tz * dt)
+        if d_yaw * math.copysign(1.0, tz) >= -0.10:
+            g['heading'] = wrap_angle(g['heading'] + out_st * tz * dt)
         if d_yaw * tz > 0.0:
-            gain = 5.5 if abs(tz) > YAW_RATE + 0.01 else 4.5
-            g['heading'] = wrap_angle(g['heading'] + gain * d_yaw * dt)
+            g['heading'] = wrap_angle(g['heading'] + 10.0 * d_yaw * dt)
+    if twist_mode and g.get('target_heading') is None and cur_doing not in sprung.STUNT_PHASES:
+        if tx >= 0.05 and abs(ty) < 0.05 and math.hypot(float(y[modal.VCOM][0]), float(y[modal.VCOM][2])) > 0.32 and vxp > 0.15:
+            err_v = wrap_angle(math.atan2(float(y[modal.VCOM][0]), float(y[modal.VCOM][2])) - g['heading'])
+            if abs(err_v) > 0.32:
+                g['heading'] = wrap_angle(g['heading'] + 12.0 * (err_v - math.copysign(0.32, err_v)) * dt)
+        err_yaw = wrap_angle(pelvis_yaw - g['heading'])
+        if abs(err_yaw) > 0.10:
+            g['heading'] = wrap_angle(pelvis_yaw - math.copysign(0.10, err_yaw))
+    sh_n, ch_n = math.sin(g['heading']), math.cos(g['heading'])
+    g['fr'][modal.HEADING] = g['heading']
+    g['fr'][modal.ROT][:] = (sh_n, 0.0, ch_n, ch_n, 0.0, -sh_n, 0.0, 1.0, 0.0)
     if g.get('_twist_active'):
         _modulate_cpg(g, vx, vy, wz, out, vxp)
+    if out is not None and not is_hop:
+        from machine import worker
+        worker.check_parry(g, out, cur_doing, cur_entry, sh_n, ch_n)
 
 
 def boost_stumble(g, out):
     from machine import latent, modal
-    sw0 = float(out[latent.SWAY][modal.LIFT])
-    if sw0 < 2.6:
-        d_sw, bt, w = 2.6 - sw0, float(g['st'][latent.THETA] + g['st'][latent.NOW][latent.PHASE][modal.LIFT]), float(out[latent.TURNS])
-        out[latent.SWAY][modal.LIFT] = 2.6
-        out[latent.REF][modal.LIFT] += d_sw * math.sin(bt)
-        out[latent.RATE][modal.LIFT] += d_sw * w * math.cos(bt)
-        out[latent.ACC][modal.LIFT] -= d_sw * w * w * math.sin(bt)
-    out[latent.SWAY][modal.DRIVE] = min(float(out[latent.SWAY][modal.DRIVE]), 0.50)
+    trip = g['t'] < g.get('stumble_until', 0.0)
+    hz0, gain0 = float(g['st'][latent.NOW][latent.HZ]), float(g['st'][latent.NOW][latent.GAIN])
+    if (trip and hz0 < 1.15) or (not trip and (hz0 < 0.85 or gain0 < 0.1)):
+        g['st'][latent.THETA] = (float(g['st'][latent.THETA]) + math.tau * ((1.15 if trip else 1.0) - hz0 * gain0) * 0.001 * g['every']) % math.tau
+    w = max(float(out[latent.TURNS]), math.tau * (1.15 if trip else 1.0))
+    out[latent.TURNS], out[latent.HELD] = w, 2.0
+    lat_ph = -1.885 if (g.get('active_entry') in ('#205', 'turn_back_left', 'turn_back_right') or g.get('twist', (0.0,))[0] < -0.05) else 1.885
+    if trip or abs(float(g['st'][latent.NOW][latent.PHASE][modal.LATERAL])) < 0.1:
+        for part in (latent.NOW, latent.TO):
+            if abs(float(g['st'][part][latent.PHASE][modal.LATERAL])) < 0.1:
+                g['st'][part][latent.PHASE][modal.LATERAL] = g['st'][part][latent.PHASE][modal.LIST] = lat_ph
+    psi_d = float(g['st'][latent.THETA] + g['st'][latent.NOW][latent.PHASE][modal.DRIVE])
+    psi_l = float(g['st'][latent.THETA] + g['st'][latent.NOW][latent.PHASE][modal.LIFT])
+    psi_lat = float(g['st'][latent.THETA] + g['st'][latent.NOW][latent.PHASE][modal.LATERAL])
+    out[latent.PSI][modal.DRIVE], out[latent.PSI][modal.LIFT], out[latent.PSI][modal.LATERAL] = psi_d, psi_l, psi_lat
+    drv = min(0.50 if trip else 0.70, max(0.32, float(out[latent.SWAY][modal.DRIVE])))
+    out[latent.SWAY][modal.DRIVE], out[latent.REF][modal.DRIVE] = drv, drv * math.sin(psi_d)
+    out[latent.RATE][modal.DRIVE], out[latent.ACC][modal.DRIVE] = drv * w * math.cos(psi_d), -drv * w * w * math.sin(psi_d)
+    out[latent.SWAY][modal.LATERAL] = max(0.28, float(out[latent.SWAY][modal.LATERAL]))
+    sw0, l_tgt = float(out[latent.SWAY][modal.LIFT]), (2.6 if trip else 1.15)
+    if sw0 < l_tgt:
+        d_sw = l_tgt - sw0
+        out[latent.SWAY][modal.LIFT] = l_tgt
+        out[latent.REF][modal.LIFT] += d_sw * math.sin(psi_l)
+        out[latent.RATE][modal.LIFT] += d_sw * w * math.cos(psi_l)
+        out[latent.ACC][modal.LIFT] -= d_sw * w * w * math.sin(psi_l)
+    if g.get('_twist_active') or g.get('_twist_stop_until', 0.0) > g['t']:
+        out[latent.REF][modal.WIDTH] = max(float(out[latent.REF][modal.WIDTH]), 0.16)
 
 
 def align_chair_hop(g, name):
@@ -318,25 +364,30 @@ def align_chair_hop(g, name):
 
 def heard_twist(g, gym, tw, has_say, said_fn, dropped_fn, heard_say_fn, walk_on):
     from machine import latent
-    prev_vx, prev_vy, _ = g.get('twist', (0.0, 0.0, 0.0))
+    pvx, pvy, _ = g.get('twist', (0.0, 0.0, 0.0))
     g['twist'] = (0.0, 0.0, 0.0) if tw is None else (float(tw[0]), float(tw[1]), float(tw[2]))
     vx, vy, wz = g['twist']
-    by = {e[0]: e for e in gym}
-    jumping = g.get('_jump_until', 0.0) > g['t']
-    decaying_to_zero = (not has_say and math.hypot(vx, vy) < math.hypot(prev_vx, prev_vy) - 1e-4
-                        and abs(vx) < WALK_SPEED - 0.01 and abs(vy) < STRAFE_SPEED - 0.01 and abs(wz) < 0.01)
-    if (abs(vx) > 0.01 or abs(vy) > 0.01 or abs(wz) > 0.01) and not decaying_to_zero:
-        label = gait_for_twist({'v_x': vx, 'v_y': vy, 'omega_z': wz, 'setpoint': ()}) or '#204'
-        g['_twist_active'] = True
+    by, jumping = {e[0]: e for e in gym}, g.get('_jump_until', 0.0) > g['t']
+    decay = (not has_say and math.hypot(vx, vy) < math.hypot(pvx, pvy) - 1e-4
+             and abs(vx) < WALK_SPEED - 0.01 and abs(vy) < STRAFE_SPEED - 0.01 and abs(wz) < 0.01)
+    if (abs(vx) > 0.01 or abs(vy) > 0.01 or abs(wz) > 0.01) and not decay:
+        label = gait_for_twist({'v_x': vx, 'v_y': vy, 'omega_z': wz, 'setpoint': ()}) or ('#205' if vx < -0.01 else '#204')
+        g['_twist_active'], g['_twist_stop_until'] = True, g['t'] + 2.5
         if jumping:
-            g['active_entry'] = label
+            if not has_say and label in by and g.get('active_entry') != label:
+                heard_say_fn(g, gym, by[label])
             return
-        idle_rest = float(g['st'][55]) < 1e-6 and not bool(len(g['tab']) and (g['tab'][:, -2] >= g['t']).any())
-        if not has_say and label in by and (g.get('active_entry') != label or idle_rest):
+        idle = float(g['st'][55]) < 1e-6 and not bool(len(g['tab']) and (g['tab'][:, -2] >= g['t']).any())
+        if abs(vx) < 0.05 and abs(vy) < 0.05 and abs(wz) > 0.05 and any(n == 'init_walk' for _, n in g.get('labels', ())):
+            dropped_fn(g)
+            if label in by:
+                said_fn(g, *by[label], at=g['t'] + 0.001)
+            g['active_entry'] = label
+        elif not has_say and label in by and (g.get('active_entry') != label or idle):
             heard_say_fn(g, gym, by[label])
             g['active_entry'] = label
     elif g.get('_twist_active') or g.get('active_entry') in WASD_GAITS:
-        g['_twist_active'] = False
+        g['_twist_active'], g['_twist_stop_until'] = False, g['t'] + 2.5
         if jumping:
             g['tab'] = g['tab'][g['tab'][:, latent.AT] <= g['_jump_until'] + 0.01]
             g['labels'] = [(w, n) for w, n in g['labels'] if w <= g['_jump_until'] + 0.01]
@@ -348,87 +399,21 @@ def heard_twist(g, gym, tw, has_say, said_fn, dropped_fn, heard_say_fn, walk_on)
             heard_say_fn(g, gym, by['#201'])
 
 
-WALK_ON = ('(stream_inject (sequence_id 204) (blend_duration 650ms)'
-           ' (latent_targets (mode_axial_compression 0.065) (mode_pitch_attitude 0.01)'
-           ' (mode_sagittal_shift 0.0) (mode_lateral_shift 0.0) (mode_pelvis_turn 0.0) (mode_stance_width 0.0))'
-           ' (impedance (stiffness mode_axial_compression 3000) (damping mode_axial_compression 600)'
-           ' (stiffness mode_lateral_shift 3000) (damping mode_lateral_shift 300)'
-           ' (stiffness mode_sagittal_shift 0) (damping mode_sagittal_shift 260)'
-           ' (stiffness mode_foot_rock 2400) (damping mode_foot_rock 240))'
-           ' (cpg_config (enable true) (frequency 0.94Hz)'
-           ' (amplitude mode_lateral_shift 0.28) (amplitude mode_sagittal_drive 0.605)'
-           ' (amplitude mode_limb_lift 1.05) (amplitude mode_foot_rock 0.62)'
-           ' (amplitude mode_pelvis_list 0.35) (amplitude mode_pelvis_turn 0.40)'
-           ' (amplitude mode_arm_swing 0.88) (amplitude mode_stance_width 0.0)'
-           ' (phase_offset mode_lateral_shift mode_sagittal_drive 108deg)'
-           ' (phase_offset mode_pelvis_list mode_sagittal_drive 108deg)'
-           ' (phase_offset mode_pelvis_turn mode_sagittal_drive 0deg)'
-           ' (phase_offset mode_arm_swing mode_sagittal_drive 0deg)'
-           ' (phase_offset mode_foot_rock mode_sagittal_drive 0deg))'
+WALK_ON = ('(stream_inject (sequence_id 204) (blend_duration 650ms) (latent_targets (mode_axial_compression 0.065)'
+           ' (mode_pitch_attitude 0.01) (mode_sagittal_shift 0.0) (mode_lateral_shift 0.0) (mode_pelvis_turn 0.0)'
+           ' (mode_stance_width 0.0)) (impedance (stiffness mode_axial_compression 3000) (damping mode_axial_compression 600)'
+           ' (stiffness mode_lateral_shift 3000) (damping mode_lateral_shift 300) (stiffness mode_sagittal_shift 0)'
+           ' (damping mode_sagittal_shift 260) (stiffness mode_foot_rock 2400) (damping mode_foot_rock 240))'
+           ' (cpg_config (enable true) (frequency 0.94Hz) (amplitude mode_lateral_shift 0.28)'
+           ' (amplitude mode_sagittal_drive 0.605) (amplitude mode_limb_lift 1.05) (amplitude mode_foot_rock 0.62)'
+           ' (amplitude mode_pelvis_list 0.35) (amplitude mode_pelvis_turn 0.40) (amplitude mode_arm_swing 0.88)'
+           ' (amplitude mode_stance_width 0.0) (phase_offset mode_lateral_shift mode_sagittal_drive 108deg)'
+           ' (phase_offset mode_pelvis_list mode_sagittal_drive 108deg) (phase_offset mode_pelvis_turn mode_sagittal_drive 0deg)'
+           ' (phase_offset mode_arm_swing mode_sagittal_drive 0deg) (phase_offset mode_foot_rock mode_sagittal_drive 0deg))'
            ' (task_constraints (maintain_zmp (polygon dynamic_footprint))))')
-SPRINT_APA = WALK_ON.replace('(blend_duration 650ms)', '(blend_duration 280ms)').replace('0.94Hz', '0.96Hz')
-_HOP_S = ('(stream_inject (sequence_id %d) (blend_duration %dms)'
-          ' (latent_targets (mode_axial_compression %s) (mode_pitch_attitude 0.0))'
-          ' (impedance (stiffness mode_axial_compression %d) (damping mode_axial_compression %d))'
-          ' (cpg_config (amplitude mode_sagittal_drive %s) (amplitude mode_limb_lift %s)))')
-_LOAD_FAST, _LOAD_SLOW, _THROW_FAST, _THROW_SLOW, _LAND_WIRE = (
-    ortho.compiled(_HOP_S % p)[0][''] for p in (
-        (291, 180, '0.14', 3800, 650, '0.32', '0.50'),
-        (291, 180, '0.14', 3800, 650, '0.32', '0.45'),
-        (292, 140, '-0.06', 3800, 150, '0.36', '0.40'),
-        (292, 140, '-0.08', 4100, 150, '0.36', '0.35'),
-        (293, 250, '0.04', 3000, 600, '0.50', '0.95')))
 _WALK_ON_WIRE = ortho.compiled(WALK_ON)[0]['']
-_SPRINT_APA_WIRE = ortho.compiled(SPRINT_APA)[0]['']
 
 
 def stride_hop(g, by, t0, spd, back_now, fwd_gaits, back_gaits, said_fn):
-    prev = (g.get('active_entry') if g.get('active_entry') in (fwd_gaits + back_gaits)
-            else ('#205' if back_now else '#204'))
-    fast = prev == 'jog' or spd > 0.65
-    for lbl, dt_at, wire in (
-        ('load', 0.0, _LOAD_FAST if fast else _LOAD_SLOW),
-        ('throw', 0.20, _THROW_FAST if fast else _THROW_SLOW),
-        ('land', 0.38, _LAND_WIRE),
-    ):
-        said_fn(g, lbl, wire, (lbl,), at=t0 + dt_at)
-    t_res = t0 + 0.70
-    g['_jump_until'], g['active_entry'] = t_res, prev
-    if prev in ('#204', 'jog'):
-        said_fn(g, prev, _WALK_ON_WIRE, (prev,), at=t_res)
-    else:
-        said_fn(g, *by[prev], at=t_res)
-
-
-def reset_for_scenario(g, scen, seen_fn, dropped_fn, tilt_fn, doing_fn, wep_s):
-    import numpy as np
-    from machine import figure, latent, modal
-    world, body = g['world'], g['body']
-    d = world.data
-    if (math.hypot(float(d.qpos[0]), float(d.qpos[2])) > 0.08 or abs(float(d.qpos[1]) - g['rest_y']) > 0.02
-            or tilt_fn(g) > 2.0 or doing_fn(g) != 'rest' or len(g['tab']) > 0):
-        world.reset(figure.stand(), where=(0.0, g['rest_y'], 0.0))
-        s = g['s'] = seen_fn(body, world, g['limbs'])
-        hw = 0.5 * float(g['fr'][modal.WEIGHT])
-        g['loads'], g['heading'], g['target_heading'] = [hw, hw], 0.0, None
-        modal.sensed(s, g['loads'], g['y'])
-        g['fr'][modal.HEADING], g['fr'][modal.FLOOR] = 0.0, g.get('floor0', 0.0)
-        g['fr'][modal.ROT] = np.array([[0.0, 0.0, 1.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]]).ravel()
-        g['st'] = latent.state(g['rest'])
-        g['out'] = latent.step(g['st'].copy(), g['tab'][:0], g['t'], 0.001 * g['every'], np.zeros(latent.OUT))
-        g['a'][:], g['a'][modal.STANCE], g['ref_q'][:] = 0.0, 1.0, d.qpos[body.qact]
-        g['ref_v'][:], g['hold'][:], g['left'], g['stumble_until'] = 0.0, 0.0, wep_s, 0.0
-        g['eso'][:] = [d.qpos[body.qact], np.zeros(len(body.qact)), np.zeros(len(body.qact))]
-        g['_twist_active'], g['twist'], g['twist_actual'], g['active_entry'], g['n'] = False, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0), None, 0
-        g['_chair_elevated'], g['_chair_cleared'], g['_look_yaw'] = False, False, 0.0
-        if g.get('waist_idx') is not None:
-            g['posture'][g['waist_idx']] = 0.0
-        if g.get('head_idx') is not None:
-            g['posture'][g['head_idx']] = 0.0
-        dropped_fn(g)
-    g['scenario'] = scen
-    world.scenario(scen)
-
-
-
-
+    from machine import flight
+    return flight.stride_hop(g, by, t0, spd, back_now, fwd_gaits, back_gaits, said_fn, _WALK_ON_WIRE)

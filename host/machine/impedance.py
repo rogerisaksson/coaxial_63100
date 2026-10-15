@@ -74,7 +74,10 @@ def ask(out, y, fr, a):
     # along her way her centre of mass is damped to her cruise, not to her soles' middle:
     # damped to that she stopped between steps and each sole waited for her
     cruise = stride.cruises(way, out[latent.SWAY][DRIVE], turns, a[GOING])
-    zd = zd + HOT[SAGITTAL] * ((v[ALONG] - cruise) / HALF_M - zd[SAGITTAL])
+    lat_dc = stepping * (ref[LATERAL] - out[latent.SWAY][LATERAL] * np.sin(out[latent.PSI][LATERAL]))
+    across = 2.5 * lat_dc
+    zd = (zd + HOT[SAGITTAL] * ((v[ALONG] - cruise) / HALF_M - zd[SAGITTAL])
+          + stepping * HOT[LATERAL] * ((v[LEFT] - across) / fr[W0] - zd[LATERAL]))
     zdd = acc + kp * (ref - z) + kd * (rate - zd)
     # her limbs' places as her modes ask them; their sum's acceleration is her centre of
     # mass's, the other way; its ZMP into her soles, and which of them stand
@@ -82,8 +85,6 @@ def ask(out, y, fr, a):
     both = np.einsum('nia,n->ia', hands, zdd).mean(axis=0)
     flat, xi = (soles @ rot.T)[:, :2], c[:2] + v[:2] / om
     low, high = poise.boxes(flat, a[EDGE], tilt)
-    lat_dc = stepping * (ref[LATERAL] - out[latent.SWAY][LATERAL] * np.sin(out[latent.PSI][LATERAL]))
-    across = 2.5 * lat_dc
     swaying = (np.abs(ref[LATERAL] - lat_dc - z[LATERAL]) < ON[0]) & (np.abs(rate[LATERAL] - zd[LATERAL]) < ON[1])
     up = LIMBS * ref[LIFT]
     stance, zmp = poise.stands(c[:2] + both[:2] / om ** 2, xi, low, high, om, out[latent.HELD], up, swaying,
@@ -178,8 +179,9 @@ def _poses(out, y, fr, a, said, turned, up, folds):
     how far each sole is asked up, `folds` which soles' knees are asked a fold."""
     z, ref, rate, acc, kp, kd = said
     turn, spun = turned
+    turn_dc = ref[TURN] - out[latent.SWAY][TURN] * np.sin(out[latent.PSI][TURN])
     aim = np.stack([fr[PITCH0] + PITCH_RAD * ref[PITCH], PELVIS * LIST_RAD * ref[LIST],
-                    PELVIS * TURN_RAD * ref[TURN]])
+                    TURN_RAD * (PELVIS * ref[TURN] + (1.0 - PELVIS) * 1.10 * turn_dc)])
     aim_rate = np.stack([PITCH_RAD * rate[PITCH] + 0.0 * PELVIS, PELVIS * LIST_RAD * rate[LIST],
                          PELVIS * TURN_RAD * rate[TURN]])
     aim_acc = np.stack([PITCH_RAD * acc[PITCH] + 0.0 * PELVIS, PELVIS * LIST_RAD * acc[LIST],

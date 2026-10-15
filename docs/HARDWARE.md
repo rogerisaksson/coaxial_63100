@@ -130,10 +130,58 @@ layouts), taken up with later fields at defaults.
 | traffic | 31.4 | +13.6 | +7.6 | - | +5.9 |
 | switching | 40.0 | +17.3 | +20.0 | +10.1 | 0.0 |
 
-Measured: board-to-air 8.33 K/W, 49 J/K (tau 6.8 min). Everything else in
-`thermal_defaults` (patch areas, per-leg paths, part capacities, motor
-nodes, losses) is derived or estimated; `test_thermal_core` holds the
-numbers to the C. Observer steps 100 ms, NTC sampled every 30 s.
+- **Network (`thermal_defaults`)**: 7 copper-laminate patches (`board`,
+  `patch_u/v/w`, `patch_left/bottom/right`) share the measured bulk `8.33 K/W`
+  (at `10 K` rise, `35 %` radiation, laminar quarter-power convection) and
+  `49 J/K` (`tau 6.8 min`) by face area, joined by 12 in-plane sheet edges
+  (`10..21`, `32-263 K/W` across `2x 70 um` outer + `4x 35 um` inner Cu and
+  FR-4). Ten component nodes (`driver_u/v/w`, `phase_u/v/w`, `mcu`,
+  `regulators`, `afe`, `hotswap`) feed their patches through edges `0..9`
+  (`12 K/W` per driver leg, `8 K/W` per shunt pair, `22.5` MCU, `15.0`
+  regulators, `41.5` AFE, `12.0` hotswap). Three motor nodes (`winding`,
+  `stator`, `rotor`) sit on edges `22..23` (`thermal_run_winding` splits
+  winding `K/W` into `25 %` copper-to-iron on edge `22` and `75 %`
+  stator-to-air; `2.0 K/W` stator-to-rotor on edge `23`), coupled to the rim
+  patches by 6 mounting edges (`24..29`) and face radiation
+  (`rad_board_stator`).
+- **Die ceilings & SOA (`thermal_budget`)**: nodes with `rth_die > 0` are
+  judged on their die (`t + watt * rth_die`): `0.69 K/W` per `IAUCN10S7N021`
+  FET (half a leg's watts each) against `175 C` (`TJ_MAX_C`), `3.8 K/W` AFE
+  against `125 C`, `0.0 K/W` MCU (`125 C`), `105 C` laminate, `120 C` winding.
+  Derating ramps linearly from `1.0` at `throttle_at` (`0.85`-`0.90` of span or
+  `lookahead_s` hold left) to `0.0` at the trimmed ceiling; a hard trip at the
+  untrimmed `trip_c` drops the gates and pulls the cap to `0.70`
+  (`THERMAL_TRIP_MARGIN`, `30 min` recovery). Housekeeping nodes (`undriven`)
+  trip but do not throttle.
+- **Loss model (`thermal_losses`, `thermal_power_estimate`)**: conduction uses
+  DMA mean-square phase currents (`phase_sq`, `Board_SyncMeanSquare`) through
+  `3.5 mOhm` (`WSHM2818` pair) on `phase_u/v/w` and `1.8 mOhm` (`25 C` typ) on
+  `driver_u/v/w` with 2nd-order junction tempco
+  `1 + 5.55e-3 (Tj - 25) + 1.78e-5 (Tj - 25)^2` (`3.6 mOhm` at `175 C`).
+  Switching (`50 kHz`) sums closed-form nonlinear `C_oss` energy
+  (`thermal_coss_energy`, `C_jo = 3.92 nF`, `V_j = 0.6 V`, `m = 0.49`), `14 ns`
+  V-I overlap (`5.6 ns` rise + `8.4 ns` fall), body-diode dead-time conduction
+  (`V_sd = 0.8 V`), and gate charge (`267 nC` at `15 V`, `85 %` buck).
+- **Online identification (`thermal_ident.c`)**: a 5-parameter Kalman filter on
+  the 3 thermometers (`NTC1` beside `patch_v` with `ntc_sees = 0.56`,
+  `tau = 0.5 s` sampled every `30 s`, plus AFE and MCU dies; anchor `0.05 Hz`)
+  fits 4 log-scales (`air`, `capacity`, `spread`, `ntc`) and `ambient` (`C`),
+  stepping `UNCERTAIN` -> `CONVERGING` -> `STABLE` and scaling `margin`
+  (`0.80`..`1.00`) by `doubt`.
+- **Executive, `hold_amps`, WEP & mounting (`thermal_run.c`, `thermal_app.c`,
+  `machine/heat.py`)**: the `100 ms` slice (`board_thermal.c`, sub-stepped to
+  `<= 0.25 s`) binary-searches (`10` halvings) the balanced 3-phase current
+  `hold_amps` that keeps `THERMAL_HOLD_S = 0.5 s` to throttle, applies WEP
+  override (op `14`) and airspeed (op `16`), and configures mounting boundaries
+  (`thermal_application`: `still`, `airstream`, `enclosure`, `fan_sink`,
+  `cold_plate`, `immersion_pao`, `immersion_oil`, `joint`). In
+  `THERMAL_APP_JOINT` and `machine/heat.py`, the inverter disc mounts coaxially
+  on the aluminium stator housing (`~250 J/K` body sink, `2.0 K/W` leg gap
+  pads, `20 K/W` rim standoffs, `4.0 K/W` leg vias, rotor forced gain `0.3` and
+  `0.5 / sqrt(krpm)`), while local clothing insulation (`mjcf.CLOTH`: denim
+  jeans on pelvis/thighs/shanks, cotton t-shirt on torso/upper arms, ventilated
+  by limb speed) scales the ambient air path seen by the thermal/WEP observer.
+  `test_thermal_core` and `test_thermal_app` hold the Python mirrors to the C.
 
 ## Other
 
