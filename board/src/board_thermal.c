@@ -451,6 +451,10 @@ void Board_ThermalPoll(void)
     s.last_seen = seen;
     s.seen_ms = s.millis;
     s.seen = true;
+    if (!isnan(seen.ntc_c))
+    {
+      Board_DriveSetPcbTemp(seen.ntc_c);
+    }
   }
 
   /* In slices, the envelope on every one and the STO chain's pump fed between them. */
@@ -705,6 +709,7 @@ bool Board_ThermalWep(uint32_t ms)
   }
   s.wep = (ms > 0U);
   s.wep_until = HAL_GetTick() + ms;
+  Board_DriveSetWep(s.wep ? 1.0f : 0.0f);
   if (s.wep)
   {
     Board_DriveDerate(1.0f);

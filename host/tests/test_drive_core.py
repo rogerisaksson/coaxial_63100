@@ -418,9 +418,89 @@ def test_the_voltage_limit(r, lib):
         d.close()
 
 
+def test_thermal_observer_and_ceiling(r, lib):
+    """Real-time Cauer junction observer, positive-tempco R_DS(on), T_NTC anchor, and I_max(dt)."""
+    d, m = Drive(lib), Motor(locked=True, theta=0.0)
+    try:
+        d.thermal_params(r_ds0=0.015, alpha_r=0.005, t_ref=25.0, e_sw=1e-7, r_th0=1.5, r_th1=2.0,
+                         r_th2=4.0, c_th0=0.002, c_th1=0.010, c_th2=0.050, tj_nom=90.0,
+                         tj_max=150.0, horizon_s=0.005)
+        d.thermal_init(30.0)
+        d.params(i_max=40.0, i_trip=100.0, **loop_gains(m.r, m.ld0, 1000.0))
+        d.setpoints(id_ref=30.0, iq_ref=0.0, theta=0.0)
+        d.mode(HOLD)
+        th0 = d.thermal_state()
+        r0 = 0.015 * (1.0 + 0.005 * (30.0 - 25.0))
+        r.check('thermal init anchors Cauer nodes to T_NTC and computes R_DS(on)(T_0)',
+                abs(th0['tj_hat'] - 30.0) < 1e-4 and abs(th0['r_dson'] - r0) < 1e-6, th0)
+        trip = run(d, m, 0.08, vdc=24.0)
+        th1, s1 = d.thermal_state(), d.state()
+        r.check('heavy load heats junction to T_{j,limit} without binary I2T_FAULT trip',
+                not trip and s1['fault'] == 0 and s1['mode'] == HOLD
+                and 75.0 < th1['tj_hat'] <= th1['tj_limit'] + 0.5, (th1['tj_hat'], s1['fault']))
+        r.check('positive tempco raises R_DS(on)(\\hat{T}_j) with junction temperature',
+                th1['r_dson'] > 1.2 * th0['r_dson'], (th0['r_dson'], th1['r_dson']))
+        r.check('inverse ceiling I_max(Delta_t) throttles current smoothly to hold T_{j,limit}',
+                0.0 < th1['i_max_dyn'] < 30.0 and abs(s1['id'] - th1['i_max_dyn']) < 1.5,
+                (th1['i_max_dyn'], s1['id']))
+        d.set_pcb_temp(65.0)
+        run(d, m, 0.05, vdc=24.0)
+        th2 = d.thermal_state()
+        r.check('anchoring slowest node to higher T_NTC lowers available I_max(Delta_t)',
+                th2['t_pcb'] == 65.0 and th2['i_max_dyn'] < th1['i_max_dyn'], th2['i_max_dyn'])
+    finally:
+        d.close()
+
+
+def test_wep_pwm_and_overmodulation(r, lib):
+    """Continuous WEP override gamma_WEP in [0, 1]: T_{j,limit}, dynamic f_sw, and hex clamp."""
+    d = Drive(lib)
+    try:
+        d.thermal_params(tj_nom=125.0, tj_max=175.0, f_sw_nom=50000.0, f_sw_min=15000.0,
+                         omega_sw_knee=100.0)
+        d.thermal_init(25.0)
+        d.params(i_max=20.0, i_trip=80.0, v_frac=1.0)
+        lims = []
+        for g in (0.0, 0.5, 1.0):
+            d.set_wep(g)
+            lims.append(d.thermal_state()['tj_limit'])
+        r.check('T_{j,limit} interpolates linearly from T_{j,nom} to T_{j,max} with gamma_WEP',
+                lims == [125.0, 150.0, 175.0], lims)
+        d.setpoints(id_ref=20.0, omega_target=0.0)
+        d.mode(HOLD)
+        d.step((20.0, -10.0, -10.0), 24.0)
+        th_s = d.thermal_state()
+        r.check('at stall (omega_e=0) and high current with WEP=1, f_sw scales to f_{sw,min}',
+                abs(th_s['f_sw'] - 15000.0) < 1.0 and abs(th_s['ts_active'] - 1 / 15000.0) < 1e-7,
+                th_s['f_sw'])
+        d.setpoints(id_ref=20.0, omega_target=900.0, accel=1e7)
+        d.step((20.0, -10.0, -10.0), 24.0)
+        d.step((20.0, -10.0, -10.0), 24.0)
+        r.check('at high electrical speed |omega_e|, f_sw returns toward f_{sw,nom}',
+                d.thermal_state()['f_sw'] > 40000.0, d.thermal_state()['f_sw'])
+        sc, ab = d.hex_clamp(16.0, 0.0, 24.0, 1.0)
+        r.check('hexagon corner (2/3 Vdc) fits inside SVM hexagon above inscribed circle',
+                abs(sc - 1.0) < 1e-5 and abs(ab[0] - 16.0) < 1e-4 and ab[0] > 24.0 / math.sqrt(3),
+                (sc, ab))
+        d.params(kp=2.0, i_max=20.0, i_trip=80.0, v_frac=1.0)
+        d.setpoints(id_ref=20.0, iq_ref=0.0, theta=0.0, omega_target=0.0)
+        d.mode(HOLD)
+        d.set_wep(0.0)
+        d.step((0.0, 0.0, 0.0), 24.0)
+        v0 = math.hypot(d.state()['vd'], d.state()['vq'])
+        d.set_wep(1.0)
+        d.step((0.0, 0.0, 0.0), 24.0)
+        v1 = math.hypot(d.state()['vd'], d.state()['vq'])
+        r.check('WEP overmodulation expands voltage vector from Vdc/sqrt3 to 2/3 Vdc hex corner',
+                abs(v0 - 24.0 / math.sqrt(3.0)) < 0.05 and abs(v1 - 16.0) < 0.05, (v0, v1))
+    finally:
+        d.close()
+
+
 ROSTER = (test_math, test_mode_refusals, test_current_loop, test_trip_and_stage,
           test_off_lets_the_rotor_go, test_polarity, test_deadtime, test_moments,
-          test_model_agrees, test_montecarlo, test_if_spin, test_the_voltage_limit)
+          test_model_agrees, test_montecarlo, test_if_spin, test_the_voltage_limit,
+          test_thermal_observer_and_ceiling, test_wep_pwm_and_overmodulation)
 
 
 def main(argv=None):

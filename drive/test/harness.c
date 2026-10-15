@@ -376,3 +376,129 @@ API float drv_room(const drive_t *d)
 {
   return drive_room(d);
 }
+
+API float drv_hex_clamp(float *ab, float vdc, float v_frac)
+{
+  return drive_hex_clamp(&ab[0], &ab[1], vdc, v_frac);
+}
+
+/* ---- real-time junction observer, WEP envelope, and dynamic PWM ------ */
+
+/* THERMAL_PARAM_ORDER: r_ds0, alpha_r, t_ref, e_sw, r_th[0..2], c_th[0..2],
+   tj_nom, tj_max, horizon_s, f_sw_nom, f_sw_min, omega_sw_knee */
+#define THERMAL_PARAMS 16
+
+/* THERMAL_STATE_ORDER: t_node[0..2], t_pcb, gamma_wep, tj_hat, tj_limit,
+   p_loss, r_dson, f_sw, ts_active, v_mod_scale, i_max_dyn */
+#define THERMAL_STATES 13
+
+API int drv_thermal_param_count(void)
+{
+  return THERMAL_PARAMS;
+}
+
+API void drv_thermal_params_get(const drive_t *d, float *v, int n)
+{
+  const drive_thermal_params_t *tp = &d->tp;
+
+  if (n != THERMAL_PARAMS)
+  {
+    return;
+  }
+  v[0] = tp->r_ds0;
+  v[1] = tp->alpha_r;
+  v[2] = tp->t_ref;
+  v[3] = tp->e_sw;
+  v[4] = tp->r_th[0];
+  v[5] = tp->r_th[1];
+  v[6] = tp->r_th[2];
+  v[7] = tp->c_th[0];
+  v[8] = tp->c_th[1];
+  v[9] = tp->c_th[2];
+  v[10] = tp->tj_nom;
+  v[11] = tp->tj_max;
+  v[12] = tp->horizon_s;
+  v[13] = tp->f_sw_nom;
+  v[14] = tp->f_sw_min;
+  v[15] = tp->omega_sw_knee;
+}
+
+API void drv_thermal_params_set(drive_t *d, const float *v, int n)
+{
+  drive_thermal_params_t *tp = &d->tp;
+
+  if (n != THERMAL_PARAMS)
+  {
+    return;
+  }
+  tp->r_ds0 = v[0];
+  tp->alpha_r = v[1];
+  tp->t_ref = v[2];
+  tp->e_sw = v[3];
+  tp->r_th[0] = v[4];
+  tp->r_th[1] = v[5];
+  tp->r_th[2] = v[6];
+  tp->c_th[0] = v[7];
+  tp->c_th[1] = v[8];
+  tp->c_th[2] = v[9];
+  tp->tj_nom = v[10];
+  tp->tj_max = v[11];
+  tp->horizon_s = v[12];
+  tp->f_sw_nom = v[13];
+  tp->f_sw_min = v[14];
+  tp->omega_sw_knee = v[15];
+  d->th.tj_limit = tp->tj_nom + d->th.gamma_wep * (tp->tj_max - tp->tj_nom);
+  d->th.r_dson = tp->r_ds0
+                 * (1.0f + tp->alpha_r * (d->th.t_node[0] - tp->t_ref));
+  d->th.f_sw = tp->f_sw_nom;
+  d->th.ts_active = (tp->f_sw_nom > 0.0f) ? (1.0f / tp->f_sw_nom) : d->ts;
+}
+
+API void drv_thermal_init(drive_t *d, float t_pcb)
+{
+  drive_thermal_init(d, t_pcb);
+}
+
+API void drv_set_pcb_temp(drive_t *d, float t_ntc)
+{
+  drive_set_pcb_temp(d, t_ntc);
+}
+
+API void drv_set_wep(drive_t *d, float gamma_wep)
+{
+  drive_set_wep(d, gamma_wep);
+}
+
+API int drv_thermal_state_count(void)
+{
+  return THERMAL_STATES;
+}
+
+API void drv_thermal_state(const drive_t *d, float *v, int n)
+{
+  const drive_thermal_state_t *th = &d->th;
+
+  if (n != THERMAL_STATES)
+  {
+    return;
+  }
+  v[0] = th->t_node[0];
+  v[1] = th->t_node[1];
+  v[2] = th->t_node[2];
+  v[3] = th->t_pcb;
+  v[4] = th->gamma_wep;
+  v[5] = th->tj_hat;
+  v[6] = th->tj_limit;
+  v[7] = th->p_loss;
+  v[8] = th->r_dson;
+  v[9] = th->f_sw;
+  v[10] = th->ts_active;
+  v[11] = th->v_mod_scale;
+  v[12] = th->i_max_dyn;
+}
+
+API float drv_current_limit(const drive_t *d)
+{
+  return drive_current_limit(d);
+}
+

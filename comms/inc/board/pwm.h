@@ -45,6 +45,9 @@ bool Board_PwmReady(void);
 /** ARR + 1, or 0 when the timer is not configured. */
 uint32_t Board_PwmPeriod(void);
 
+/** Dynamically scale TIM1's ARR (and keep CCR1..3 clamped) for variable f_sw. */
+bool Board_PwmSetPeriod(uint16_t arr);
+
 /** Arm the outputs, at zero duty. False if not ready or a break is latched. */
 bool Board_PwmEnable(void);
 

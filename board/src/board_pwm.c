@@ -59,10 +59,7 @@ static struct
   volatile bool open;
   volatile bool landed;
 
-  /** The drive's triples straight into the compares: RCR 1, the update at
-      each overflow alone and its interrupt off - a write after one transfers
-      whole at the next. Entered by the update at an underflow (to_direct),
-      which loads RCR at the overflow; left with the skew or the drive. */
+  /** RCR 1: update at overflow alone, UIE off; entered at underflow. */
   volatile bool direct;
   volatile bool to_direct;
 } s;
@@ -115,6 +112,13 @@ bool Board_PwmReady(void)
 uint32_t Board_PwmPeriod(void)
 {
   return Board_PwmReady() ? (s.arr + 1U) : 0U;
+}
+
+bool Board_PwmSetPeriod(uint16_t arr)
+{
+  if (!Board_PwmReady() || (arr < 64U)) { return false; }
+  TIM1->ARR = s.arr = (uint32_t)arr;
+  return true;
 }
 
 bool Board_PwmFault(void)

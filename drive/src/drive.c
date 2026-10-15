@@ -73,6 +73,8 @@ void drive_init(drive_t *d, float ts)
   memset(d, 0, sizeof(*d));
   d->ts = ts;
   drive_defaults(&d->p);
+  drive_thermal_defaults(&d->tp, ts);
+  drive_thermal_init(d, 25.0f);
   drive_model_defaults(&d->model.p);
   drive_model_init(&d->model);
   d->source = DRIVE_SOURCE_ADC;
@@ -252,12 +254,14 @@ static float rotor_speed(const drive_t *d)
 
 float drive_room(const drive_t *d)
 {
-  const float w = fabsf(d->omega_hat), vmax = d->p.v_frac * d->vdc * INV_SQRT3;
+  const float scale = fmaxf(d->th.v_mod_scale, 1.0f);
+  const float w = fabsf(d->omega_hat), vmax = d->p.v_frac * scale * d->vdc * INV_SQRT3;
   const float a = w * w * d->p.lq * d->p.lq + d->p.r * d->p.r;
   const float b = d->p.r * w * d->p.lambda;
   const float under = b * b - a * (w * w * d->p.lambda * d->p.lambda - vmax * vmax);
+  const float i_volt = (a > 0.0f) ? fmaxf(sqrtf(fmaxf(under, 0.0f)) - b, 0.0f) / a : INFINITY;
 
-  return (a > 0.0f) ? fmaxf(sqrtf(fmaxf(under, 0.0f)) - b, 0.0f) / a : INFINITY;
+  return fminf(i_volt, d->th.i_max_dyn);
 }
 
 /** The feedback the loop acts on: the raw dq, or their mean over one
@@ -448,8 +452,9 @@ static void rotor_observer(drive_t *d, float alpha, float beta, bool injecting,
 static void current_loop(drive_t *d, float id, float iq, float vmax,
                          float w_e, float *vd, float *vq)
 {
-  const float id_ref = clampf(d->sp.id_ref, -d->p.i_max, d->p.i_max);
-  const float iq_ref = clampf(d->sp.iq_ref, -d->p.i_max, d->p.i_max);
+  const float i_lim = fminf(d->p.i_max, d->th.i_max_dyn);
+  const float id_ref = clampf(d->sp.id_ref, -i_lim, i_lim);
+  const float iq_ref = clampf(d->sp.iq_ref, -i_lim, i_lim);
   const float ed = id_ref - id;
   const float eq = iq_ref - iq;
   const float vd_u = d->p.kp * ed + d->xd - w_e * d->p.lq * iq;
@@ -650,9 +655,15 @@ bool drive_step(drive_t *d, const drive_sample_t *in, bool stage_enabled,
     return true;
   }
 
+  const bool cmd_frame = (d->mode == DRIVE_HOLD) || (d->mode == DRIVE_VOLT);
+  const float omega_active = cmd_frame ? d->omega_cmd : d->omega_hat;
+
+  /* Step the real-time junction thermal observer, dynamic PWM period T_sw = 1/f_sw,
+     and inverse ceiling predictor I_max(Delta_t) before the observers and PI loop. */
+  (void)drive_thermal_step(d, i, in->vdc, omega_active);
+
   drive_clarke(i, &alpha, &beta);
 
-  const bool cmd_frame = (d->mode == DRIVE_HOLD) || (d->mode == DRIVE_VOLT);
   const float th = cmd_frame ? d->theta_cmd : d->theta_hat;
   const float w = bemf_weight(d, cmd_frame ? d->omega_cmd : rotor_speed(d));
   uint16_t n = d->p.inj_periods;
@@ -705,19 +716,28 @@ bool drive_step(drive_t *d, const drive_sample_t *in, bool stage_enabled,
 
   drive_sincos(th_out, &s, &c);
 
-  /* the fundamental */
-  const float vmax = clampf(d->p.v_frac * in->vdc * INV_SQRT3 - amp,
+  /* the fundamental: WEP overmodulation expands the circular limit from Vdc/sqrt3
+     toward 2*Vdc/sqrt3, while drive_hex_clamp projects onto the hexagon boundary. */
+  const float v_mod = fmaxf(d->th.v_mod_scale, 1.0f);
+  const float vmax = clampf(d->p.v_frac * v_mod * in->vdc * INV_SQRT3 - amp,
                             0.0f, 1e9f);
   float vd = 0.0f;
   float vq = 0.0f;
 
   fundamental(d, id, iq, id_raw, vmax, w, &vd, &vq);
-  d->vd = vd;
-  d->vq = vq;
 
   float va, vb;
 
   drive_inv_park_cs(vd, vq, c, s, &va, &vb);
+  if (d->th.gamma_wep > 0.0f)
+  {
+    const float hex_scale = drive_hex_clamp(&va, &vb, in->vdc, d->p.v_frac);
+
+    vd *= hex_scale;
+    vq *= hex_scale;
+  }
+  d->vd = vd;
+  d->vq = vq;
   d->va_out = va;
   d->vb_out = vb;
 

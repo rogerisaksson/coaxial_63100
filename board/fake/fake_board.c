@@ -1049,6 +1049,27 @@ FAKE_WEAK float Board_DriveClamp(void)
   return 0.0f;
 }
 
+FAKE_WEAK void Board_DriveSetWep(float gamma_wep)
+{
+  (void)gamma_wep;
+}
+
+FAKE_WEAK float Board_DriveWep(void)
+{
+  return 0.0f;
+}
+
+FAKE_WEAK void Board_DriveSetPcbTemp(float t_pcb_c)
+{
+  (void)t_pcb_c;
+}
+
+FAKE_WEAK bool Board_PwmSetPeriod(uint16_t arr)
+{
+  (void)arr;
+  return true;
+}
+
 /* What board_daq.c reads besides: no timer, so no injected sequence; the H7's eight
    sampling times; no drivable pin. */
 FAKE_WEAK bool Board_AdcInjected(uint8_t index)

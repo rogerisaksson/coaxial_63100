@@ -109,6 +109,27 @@ void drive_inv_park(float d, float q, float theta, float *alpha, float *beta)
   drive_inv_park_cs(d, q, c, s, alpha, beta);
 }
 
+float drive_hex_clamp(float *valpha, float *vbeta, float vdc, float v_frac)
+{
+  /* Exact geometric projection onto the Space Vector Hexagon in abc span:
+     line-to-line span hi - lo <= v_frac * vdc, completely branch-free via
+     fminf/fmaxf saturation arithmetic. */
+  const float va = *valpha;
+  const float vb = *vbeta;
+  const float v0 = va;
+  const float v1 = -0.5f * va + HALF_SQRT3 * vb;
+  const float v2 = -0.5f * va - HALF_SQRT3 * vb;
+  const float lo = fminf(fminf(v0, v1), v2);
+  const float hi = fmaxf(fmaxf(v0, v1), v2);
+  const float span = fmaxf(hi - lo, 1e-9f);
+  const float v_lim = fmaxf(v_frac * vdc, 0.0f);
+  const float scale = fminf(1.0f, v_lim / span);
+
+  *valpha = va * scale;
+  *vbeta  = vb * scale;
+  return scale;
+}
+
 float drive_svm(float valpha, float vbeta, float vdc, float *duty)
 {
   /* Min-max: the zero sequence that centres the three phase voltages in the
@@ -157,8 +178,12 @@ float drive_svm(float valpha, float vbeta, float vdc, float *duty)
 float drive_wrap(float theta)
 {
   /* vrintm.f32 on Cortex-M7: no branches for the fold. */
-  theta -= TWO_PI * floorf(theta * INV_TWO_PI);
-  return theta - TWO_PI * floorf(theta * 0.15915495f);
+  const float k1 = floorf(theta * INV_TWO_PI);
+
+  theta = (theta - k1 * 6.2831850f) - k1 * 4.7683716e-7f;
+  const float k2 = floorf(theta * 0.15915495f);
+
+  return fmaxf((theta - k2 * 6.2831850f) - k2 * 4.7683716e-7f, 0.0f);
 }
 
 float drive_dt_volts(const drive_params_t *p, float amps)

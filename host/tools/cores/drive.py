@@ -11,7 +11,8 @@ SOURCES = [os.path.join(DRIVE, 'test', 'harness.c'),
            os.path.join(DRIVE, 'src', 'drive.c'),
            os.path.join(DRIVE, 'src', 'drive_math.c'),
            os.path.join(DRIVE, 'src', 'drive_model.c'),
-           os.path.join(DRIVE, 'src', 'drive_observer.c')]
+           os.path.join(DRIVE, 'src', 'drive_observer.c'),
+           os.path.join(DRIVE, 'src', 'drive_thermal.c')]
 
 TS = 20e-6
 TWO_PI = 2.0 * math.pi
@@ -47,6 +48,12 @@ def wrap_pi(x):
 OBS = ('theta', 'omega', 'blend', 'dual_theta', 'dual_omega', 'flux_theta', 'flux_omega',
        'lambda_hat', 'valid', 'blend_lo', 'blend_hi', 'wc')
 
+THERMAL_PARAMS = ('r_ds0', 'alpha_r', 't_ref', 'e_sw', 'r_th0', 'r_th1', 'r_th2',
+                  'c_th0', 'c_th1', 'c_th2', 'tj_nom', 'tj_max', 'horizon_s',
+                  'f_sw_nom', 'f_sw_min', 'omega_sw_knee')
+THERMAL_STATES = ('t0', 't1', 't2', 't_pcb', 'gamma_wep', 'tj_hat', 'tj_limit',
+                  'p_loss', 'r_dson', 'f_sw', 'ts_active', 'v_mod_scale', 'i_max_dyn')
+
 
 class Drive:
     """One controller behind the harness, with named access: its own, or the one `at` a
@@ -54,20 +61,27 @@ class Drive:
 
     def __init__(self, lib, ts=TS, at=None):
         self.lib = lib
-        lib.drv_new.restype = ctypes.c_void_p
+        f, vp, fp = ctypes.c_float, ctypes.c_void_p, ctypes.POINTER(ctypes.c_float)
+        lib.drv_new.restype, lib.drv_new.argtypes = vp, [f]
         lib.drv_set_mode.restype = ctypes.c_char_p
-        lib.drv_svm.restype = ctypes.c_float
-        lib.drv_wrap.restype = ctypes.c_float
-        lib.drv_dt_volts.restype = ctypes.c_float
-        lib.drv_room.restype = ctypes.c_float
+        lib.drv_svm.restype, lib.drv_svm.argtypes = f, [f, f, f, fp]
+        lib.drv_hex_clamp.restype, lib.drv_hex_clamp.argtypes = f, [fp, f, f]
+        lib.drv_wrap.restype, lib.drv_wrap.argtypes = f, [f]
+        lib.drv_dt_volts.restype, lib.drv_dt_volts.argtypes = f, [vp, f]
+        lib.drv_room.restype, lib.drv_room.argtypes = f, [vp]
+        lib.drv_current_limit.restype, lib.drv_current_limit.argtypes = f, [vp]
         self.own = at is None
         self.h = ctypes.c_void_p(lib.drv_new(ctypes.c_float(ts)) if self.own else at)
         self.n_params = lib.drv_param_count()
         self.n_states = lib.drv_state_count()
         self.n_window = lib.drv_window_count()
         self.n_moments = lib.drv_moments_count()
+        self.n_th_params = lib.drv_thermal_param_count()
+        self.n_th_states = lib.drv_thermal_state_count()
         assert self.n_params == len(PARAMS), self.n_params
         assert self.n_states == len(STATES), self.n_states
+        assert self.n_th_params == len(THERMAL_PARAMS), self.n_th_params
+        assert self.n_th_states == len(THERMAL_STATES), self.n_th_states
 
     def obs_sync(self, theta, omega):
         """Hand the chain an estimate, the way the drive does on a mode."""
@@ -181,6 +195,45 @@ class Drive:
         trip = self.lib.drv_step_virtual(self.h, duty)
         return bool(trip), tuple(duty)
 
+    # -- real-time junction observer, WEP envelope, and dynamic PWM --------
+    def thermal_params(self, **kw):
+        """Get or update Cauer thermal RC and WEP parameters."""
+        arr = (ctypes.c_float * self.n_th_params)()
+        self.lib.drv_thermal_params_get(self.h, arr, self.n_th_params)
+        got = dict(zip(THERMAL_PARAMS, arr))
+        got.update(kw)
+        arr = (ctypes.c_float * self.n_th_params)(*[got[k] for k in THERMAL_PARAMS])
+        self.lib.drv_thermal_params_set(self.h, arr, self.n_th_params)
+        return got
+
+    def thermal_init(self, t_pcb=25.0):
+        """Initialize Cauer nodes anchored to `t_pcb` (deg C)."""
+        self.lib.drv_thermal_init(self.h, ctypes.c_float(t_pcb))
+
+    def set_pcb_temp(self, t_ntc):
+        """Anchor the slowest Cauer node to sampled NTC board temperature (deg C)."""
+        self.lib.drv_set_pcb_temp(self.h, ctypes.c_float(t_ntc))
+
+    def set_wep(self, gamma_wep):
+        """Set continuous War Emergency Power override in [0, 1]."""
+        self.lib.drv_set_wep(self.h, ctypes.c_float(gamma_wep))
+
+    def thermal_state(self):
+        """Read the real-time junction observer and WEP envelope state."""
+        arr = (ctypes.c_float * self.n_th_states)()
+        self.lib.drv_thermal_state(self.h, arr, self.n_th_states)
+        return dict(zip(THERMAL_STATES, arr))
+
+    def current_limit(self):
+        """Continuous box-constraint limit min(i_max, i_max_dyn), A."""
+        return self.lib.drv_current_limit(self.h)
+
+    def hex_clamp(self, va, vb, vdc, v_frac=1.0):
+        """Project (va, vb) onto the Space Vector Hexagon boundary."""
+        ab = (ctypes.c_float * 2)(va, vb)
+        scale = self.lib.drv_hex_clamp(ab, ctypes.c_float(vdc), ctypes.c_float(v_frac))
+        return scale, (ab[0], ab[1])
+
     # -- the arithmetic on its own ---------------------------------------
     def svm(self, va, vb, vdc):
         duty = (ctypes.c_float * 3)()
@@ -229,7 +282,8 @@ def run(drive, motor, seconds, vdc=24.0, noise=0.0, enabled=True, seed=1,
         if noise:
             i = tuple(x + rng.gauss(0.0, noise) for x in i)
         trip, duty = drive.step(i, vdc, enabled)
-        motor.advance(prev, vdc, TS)
+        ts_step = drive.thermal_state()['ts_active']
+        motor.advance(prev, vdc, ts_step if ts_step > 0.0 else TS)
         prev = duty
         if watch:
             watch(k, drive, motor)
@@ -253,3 +307,4 @@ def pll_gains(f_hz, t_update, zeta=0.7):
 def eps_gain(v_inj, ld, lq):
     """Demodulated amps per radian: 2 V T |L_delta| / (Ld Lq)."""
     return 2.0 * v_inj * TS * abs(ld - lq) / 2.0 / (ld * lq)
+

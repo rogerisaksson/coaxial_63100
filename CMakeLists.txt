@@ -64,6 +64,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     drive/src/drive_math.c
     drive/src/drive_model.c
     drive/src/drive_observer.c
+    drive/src/drive_thermal.c
     # Filter: the decimating anti-alias chain.
     filter/src/filter.c
     # Ctrl: machine.parts and a feedback, the board's loop.
@@ -144,7 +145,7 @@ set(COAXIAL_SOURCES
     thermal/src/thermal_run.c
     daq/src/daq.c
     drive/src/drive.c drive/src/drive_math.c drive/src/drive_model.c
-    drive/src/drive_observer.c
+    drive/src/drive_observer.c drive/src/drive_thermal.c
     filter/src/filter.c ctrl/src/ctrl.c ctrl/src/ctrl_loop.c
     wbc/src/wbc_body.c wbc/src/wbc_stack.c wbc/src/wbc_solve.c wbc/src/wbc_wrench.c
     wbc/src/wbc_cone.c wbc/src/wbc_model.c
@@ -185,7 +186,7 @@ set_source_files_properties(
     thermal/src/thermal_run.c
     daq/src/daq.c
     drive/src/drive.c drive/src/drive_math.c drive/src/drive_model.c
-    drive/src/drive_observer.c
+    drive/src/drive_observer.c drive/src/drive_thermal.c
     filter/src/filter.c
     wbc/src/wbc_body.c wbc/src/wbc_stack.c wbc/src/wbc_solve.c wbc/src/wbc_wrench.c
     wbc/src/wbc_cone.c wbc/src/wbc_model.c
@@ -202,7 +203,7 @@ set_source_files_properties(
 # The interrupt path the drive runs on, optimised whatever the preset.
 set_source_files_properties(
     drive/src/drive.c drive/src/drive_math.c drive/src/drive_model.c
-    drive/src/drive_observer.c
+    drive/src/drive_observer.c drive/src/drive_thermal.c
     # filter.c runs ONCE PER CONVERTER SAMPLE, which is the fastest thing on
     # this board - the boxcar's single add is the whole point of the first
     # stage, and at -O0 it is not a single add.

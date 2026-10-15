@@ -213,6 +213,43 @@ void drive_observer_sync(drive_obs_t *o, const drive_params_t *p,
 void drive_observer_step(drive_obs_t *o, const drive_params_t *p,
                          float va, float vb, float ia, float ib, float ts);
 
+/** Real-time 3-node Cauer thermal RC network parameters (Junction -> Case/Solder -> PCB)
+    and coupled semiconductor loss model, evaluated every PWM period. */
+#define DRIVE_TJ_NODES 3U
+
+typedef struct
+{
+  float r_ds0;         /**< MOSFET R_DS(on) at reference temperature t_ref, ohm */
+  float alpha_r;       /**< positive temperature coefficient of R_DS(on), 1/K */
+  float t_ref;         /**< reference temperature T_0 for R_DS(on), deg C */
+  float e_sw;          /**< switching energy coefficient: P_sw = e_sw * Vdc * |I| * f_sw, W/(V*A*Hz) */
+  float r_th[DRIVE_TJ_NODES]; /**< Cauer thermal resistances [R_jc, R_cs, R_sb] to NTC, K/W */
+  float c_th[DRIVE_TJ_NODES]; /**< Cauer thermal capacitances [C_j, C_c, C_s], J/K */
+  float tj_nom;        /**< nominal continuous junction temperature limit T_{j,nom}, deg C */
+  float tj_max;        /**< absolute silicon maximum temperature limit T_{j,max}, deg C */
+  float horizon_s;     /**< prediction horizon Delta_t for inverse ceiling I_max(Delta_t), s */
+  float f_sw_nom;      /**< nominal PWM switching frequency f_{sw,nom}, Hz */
+  float f_sw_min;      /**< minimum PWM switching frequency f_{sw,min}, Hz */
+  float omega_sw_knee; /**< electrical speed knee for quasi-static f_sw downscaling, rad/s */
+} drive_thermal_params_t;
+
+/** Flat, statically allocated state of the real-time junction observer, WEP envelope,
+    and dynamic PWM / overmodulation projection. */
+typedef struct
+{
+  float t_node[DRIVE_TJ_NODES]; /**< Cauer node temperatures [T_j_hat, T_c_hat, T_s_hat], deg C */
+  float t_pcb;                  /**< sampled PCB / NTC boundary temperature T_NTC, deg C */
+  float gamma_wep;              /**< continuous War Emergency Power override in [0, 1] */
+  float tj_hat;                 /**< worst-case estimated junction temperature \hat{T}_j, deg C */
+  float tj_limit;               /**< active interpolated junction ceiling T_{j,limit}(gamma_WEP), deg C */
+  float p_loss;                 /**< instantaneous coupled loss P_loss in worst-loaded phase, W */
+  float r_dson;                 /**< temperature-dependent R_DS(on)(\hat{T}_j), ohm */
+  float f_sw;                   /**< active dynamic switching frequency f_sw, Hz */
+  float ts_active;              /**< active PWM period T_sw = 1 / f_sw, s */
+  float v_mod_scale;            /**< active voltage circle-to-hexagon modulation factor in [1, 2] */
+  float i_max_dyn;              /**< continuous inverse-predicted current bound I_max(Delta_t), A */
+} drive_thermal_state_t;
+
 /** The whole controller. Owned by the caller; drive_init fills it. */
 typedef struct
 {
@@ -283,10 +320,33 @@ typedef struct
   uint32_t periods;                  /**< steps since init */
   drive_window_t win;
   drive_moments_t mom;
+
+  /* Real-time junction observer, WEP envelope, and dynamic PWM */
+  drive_thermal_params_t tp;
+  drive_thermal_state_t  th;
 } drive_t;
 
 /** Defaults: placeholders the commissioning replaces, and said so. */
 void drive_defaults(drive_params_t *p);
+
+/** Default silicon/package Cauer parameters and WEP envelope bounds. */
+void drive_thermal_defaults(drive_thermal_params_t *tp, float ts);
+
+/** Initialize the junction thermal observer anchored to `t_pcb` (deg C). */
+void drive_thermal_init(drive_t *d, float t_pcb);
+
+/** Anchor the slowest Cauer node boundary to sampled PCB temperature `t_ntc` (deg C). */
+void drive_set_pcb_temp(drive_t *d, float t_ntc);
+
+/** Set the continuous War Emergency Power escalation parameter `gamma_wep` in [0, 1]. */
+void drive_set_wep(drive_t *d, float gamma_wep);
+
+/** Step the real-time Cauer thermal observer, inverse ceiling predictor I_max(Delta_t),
+    and dynamic switching frequency f_sw. Returns I_max(Delta_t) in A. */
+float drive_thermal_step(drive_t *d, const float *i_abc, float vdc, float omega_e);
+
+/** Continuous box-constraint limit min(p.i_max, th.i_max_dyn) exposed to upper loops. */
+float drive_current_limit(const drive_t *d);
 
 void drive_init(drive_t *d, float ts);
 
@@ -354,6 +414,10 @@ void drive_inv_park_cs(float d, float q, float c, float s, float *alpha,
 
 /** Min-max SVM: alpha/beta volts and the link to three duties, 0..1. */
 float drive_svm(float valpha, float vbeta, float vdc, float *duty);
+
+/** Branch-free geometric projection onto the Space Vector Hexagon boundary in alpha/beta,
+    returning the scale factor in (0, 1] applied to (*valpha, *vbeta). */
+float drive_hex_clamp(float *valpha, float *vbeta, float vdc, float v_frac);
 
 /** Wrap to [0, 2 pi). */
 float drive_wrap(float theta);

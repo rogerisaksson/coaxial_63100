@@ -381,6 +381,21 @@ static inline int32_t rounded(float x)
   return (int32_t)nearbyintf(x);
 }
 
+void Board_DriveSetWep(float gamma_wep)
+{
+  drive_set_wep(&s.drive, gamma_wep);
+}
+
+float Board_DriveWep(void)
+{
+  return s.drive.th.gamma_wep;
+}
+
+void Board_DriveSetPcbTemp(float t_ntc)
+{
+  drive_set_pcb_temp(&s.drive, t_ntc);
+}
+
 /** What the law's duties do to the compares this period: nothing while the
     stage is down, the next triple while the law drives an armed stage, and
     the bridge let go, open, once it stops - polarity finishing, a stage
@@ -390,7 +405,19 @@ static void commit_duties(const drive_out_t *out, bool enabled)
   if (enabled && out->driven)
   {
     uint16_t ticks[BOARD_PWM_PHASES];
-    const float arr = s.arr;
+    const float f_nom = fmaxf(s.drive.tp.f_sw_nom, 1000.0f);
+    const float f_act = fminf(fmaxf(s.drive.th.f_sw, 500.0f), f_nom);
+    const uint16_t arr_dyn = (uint16_t)rounded(s.arr * (f_nom / f_act));
+
+    if ((arr_dyn >= 64U) && Board_PwmSetPeriod(arr_dyn))
+    {
+      const uint16_t lead = 15U;
+      const uint16_t trig = (arr_dyn > lead) ? (uint16_t)(arr_dyn - lead) : 1U;
+
+      (void)Board_SyncSetTrigger(trig);
+    }
+
+    const float arr = (float)((arr_dyn >= 64U) ? arr_dyn : (uint16_t)s.arr);
 
     for (uint8_t k = 0U; k < BOARD_PWM_PHASES; k++)
     {
@@ -402,6 +429,16 @@ static void commit_duties(const drive_out_t *out, bool enabled)
   }
   if (s.owned)
   {
+    if (s.arr >= 64.0f)
+    {
+      const uint16_t arr_nom = (uint16_t)s.arr;
+
+      (void)Board_PwmSetPeriod(arr_nom);
+      if (arr_nom > 15U)
+      {
+        (void)Board_SyncSetTrigger((uint16_t)(arr_nom - 15U));
+      }
+    }
     Board_PwmDriveOwn(false);
     s.owned = false;
   }

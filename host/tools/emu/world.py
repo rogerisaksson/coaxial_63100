@@ -36,7 +36,8 @@ SOURCES = [os.path.join(REPO, 'world', 'src', name)
            for name in ('world.c', 'world_emu.c', 'world_heat.c', 'world_sto.c', 'world_parts.c',
                         'world_bno085.c')] + [
     os.path.join(REPO, 'drive', 'src', name)
-    for name in ('drive.c', 'drive_math.c', 'drive_model.c', 'drive_observer.c')] + [
+    for name in ('drive.c', 'drive_math.c', 'drive_model.c', 'drive_observer.c',
+                 'drive_thermal.c')] + [
     os.path.join(REPO, 'thermal', 'src', name)
     for name in ('thermal.c', 'thermal_ident.c', 'thermal_app.c')]
 INCLUDES = [os.path.join(REPO, part) for part in ('world/inc', 'drive/inc', 'thermal/inc')]

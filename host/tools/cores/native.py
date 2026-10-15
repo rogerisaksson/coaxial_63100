@@ -105,8 +105,9 @@ def _libraries():
             except OSError:
                 pass                 # a live process holds it
         pid = os.getpid()
-        _BUILT['board'] = build(cc, SOURCES, INCLUDES, 'native_%d' % pid, EXTRA)[0]
-        _BUILT['world'] = build(cc, worlds.SOURCES, worlds.INCLUDES, 'native_world_%d' % pid)[0]
+        board = build(cc, SOURCES, INCLUDES, 'native_%d' % pid, EXTRA)[0]
+        world = build(cc, worlds.SOURCES, worlds.INCLUDES, 'native_world_%d' % pid)[0]
+        _BUILT['board'], _BUILT['world'] = board, world
     return _BUILT['board'], _BUILT['world']
 
 

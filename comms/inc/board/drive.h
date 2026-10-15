@@ -18,6 +18,13 @@ float Board_DriveDerating(void);
 /** The clamp as the record has it, A, the factor aside. */
 float Board_DriveClamp(void);
 
+/** Continuous War Emergency Power escalation parameter gamma_WEP in [0, 1]. */
+void Board_DriveSetWep(float gamma_wep);
+float Board_DriveWep(void);
+
+/** Anchor the drive's real-time junction observer to the PCB NTC temperature (deg C). */
+void Board_DriveSetPcbTemp(float t_ntc);
+
 #ifdef __cplusplus
 }
 #endif
