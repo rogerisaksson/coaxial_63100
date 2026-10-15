@@ -64,14 +64,14 @@
 ;; ballistic walk from rest: crisp APA unweighting directly into stride
 (defbehavior ballistic_walk
   (phase apa (use forward_gait)
-    (duration 580ms) (blend_duration 300ms)
-    (latent_targets (mode_axial_compression 0.065) (mode_pitch_attitude 0.025))
+    (duration 600ms) (blend_duration 300ms)
+    (latent_targets (mode_axial_compression 0.065) (mode_pitch_attitude 0.03))
     (cpg_config
-      (frequency 0.94Hz)
-      (amplitude mode_lateral_shift 0.30) (amplitude mode_sagittal_drive 0.46)
-      (amplitude mode_limb_lift 1.02) (amplitude mode_foot_rock 0.0)
+      (frequency 0.96Hz)
+      (amplitude mode_lateral_shift 0.30) (amplitude mode_sagittal_drive 0.42)
+      (amplitude mode_limb_lift 1.00) (amplitude mode_foot_rock 0.0)
       (amplitude mode_pelvis_list 0.40) (amplitude mode_pelvis_turn 0.40)
-      (amplitude mode_arm_swing 0.85)))
+      (amplitude mode_arm_swing 0.80)))
   (phase stride (use forward_rhythm)
     (duration 60s) (blend_duration 550ms)
     (latent_targets (mode_axial_compression 0.065) (mode_pitch_attitude 0.03))
@@ -85,16 +85,33 @@
 ;; smooth initiation into terrain gaits: single APA step before full stride
 (defbehavior init_walk
   (phase init (use stride_spring)
-    (duration 600ms) (blend_duration 300ms)
-    (latent_targets (mode_axial_compression 0.065) (mode_pitch_attitude 0.015))
+    (duration 700ms) (blend_duration 350ms)
+    (latent_targets (mode_axial_compression 0.065) (mode_pitch_attitude 0.02))
     (impedance (stiffness mode_axial_compression 3200))
     (cpg_config
-      (enable true) (frequency 0.90Hz)
-      (amplitude mode_lateral_shift 0.30) (amplitude mode_sagittal_drive 0.44)
-      (amplitude mode_limb_lift 1.02) (amplitude mode_foot_rock 0.0)
-      (amplitude mode_pelvis_list 0.36) (amplitude mode_pelvis_turn 0.38)
-      (amplitude mode_arm_swing 0.82)
+      (enable true) (frequency 0.92Hz)
+      (amplitude mode_lateral_shift 0.31) (amplitude mode_sagittal_drive 0.35)
+      (amplitude mode_limb_lift 0.95) (amplitude mode_foot_rock 0.0)
+      (amplitude mode_pelvis_list 0.35) (amplitude mode_pelvis_turn 0.35)
+      (amplitude mode_arm_swing 0.70)
       (phase_offset mode_lateral_shift mode_sagittal_drive 108deg)
       (phase_offset mode_pelvis_list mode_sagittal_drive 108deg))))
 
+;; sprint / jog specialization for deeper axial compliance and stable high-cadence stride
+(defbehavior jog (extends jog)
+  (phase apa
+    (latent_targets (mode_axial_compression 0.075) (mode_pitch_attitude 0.01))
+    (cpg_config
+      (frequency 0.96Hz)
+      (amplitude mode_lateral_shift 0.28) (amplitude mode_sagittal_drive 0.60)
+      (amplitude mode_limb_lift 1.04) (amplitude mode_foot_rock 0.60)
+      (amplitude mode_pelvis_list 0.35) (amplitude mode_pelvis_turn 0.38)
+      (amplitude mode_arm_swing 0.90)))
+  (phase run
+    (latent_targets (mode_axial_compression 0.075) (mode_pitch_attitude 0.01))
+    (cpg_config
+      (frequency 0.98Hz)
+      (amplitude mode_sagittal_drive 0.68) (amplitude mode_limb_lift 1.06)
+      (amplitude mode_foot_rock 0.64) (amplitude mode_pelvis_list 0.36)
+      (amplitude mode_pelvis_turn 0.40) (amplitude mode_arm_swing 0.95))))
 

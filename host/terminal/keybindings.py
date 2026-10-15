@@ -36,33 +36,16 @@ STUNT_KEYS = {
     'circle_walk': 'q',
 }
 
-#: Directional compound chords for TPW combat steering.
-CHORDS = {
-    ('w', 'a'): 'turn_left',
-    ('a', 'w'): 'turn_left',
-    ('w', 'q'): 'turn_left',
-    ('q', 'w'): 'turn_left',
-    ('w', 'd'): 'turn_right',
-    ('d', 'w'): 'turn_right',
-    ('w', 'e'): 'turn_right',
-    ('e', 'w'): 'turn_right',
-    ('s', 'a'): 'turn_back_left',
-    ('a', 's'): 'turn_back_left',
-    ('s', 'q'): 'turn_back_left',
-    ('q', 's'): 'turn_back_left',
-    ('s', 'd'): 'turn_back_right',
-    ('d', 's'): 'turn_back_right',
-    ('s', 'e'): 'turn_back_right',
-    ('e', 's'): 'turn_back_right',
-    ('a', 'e'): 'strafe_left',
-    ('e', 'a'): 'strafe_left',
-    ('a', 'q'): 'strafe_left',
-    ('q', 'a'): 'strafe_left',
-    ('d', 'q'): 'strafe_right',
-    ('q', 'd'): 'strafe_right',
-    ('d', 'e'): 'strafe_right',
-    ('e', 'd'): 'strafe_right',
-}
+#: Canonical directional compound chords for TPW combat steering.
+CHORD_PAIRS = (
+    ('wa', 'turn_left'), ('wd', 'turn_right'),
+    ('sd', 'turn_back_right'), ('sa', 'turn_back_left'),
+    ('wq', 'turn_left'), ('we', 'turn_right'),
+    ('se', 'turn_back_right'), ('sq', 'turn_back_left'),
+    ('ae', 'strafe_left'), ('aq', 'strafe_left'),
+    ('dq', 'strafe_right'), ('de', 'strafe_right'),
+)
+CHORDS = {pair: mv for tag, mv in CHORD_PAIRS for pair in ((tag[0], tag[1]), (tag[1], tag[0]))}
 
 #: Scenario deck metadata: {scenario_name: (default_move, tactical_objective)}
 SCENARIO_INFO = {
@@ -113,50 +96,31 @@ def is_toggle_tpw(key):
     return key in TOGGLE_TPW_KEYS
 
 
-_TPW_DESCRIPTIONS = {
+_TPW_BASE = {
     'w': 'TPW: advance forward in body frame (Shift+W to sprint)',
-    'W': 'TPW: advance forward in body frame (Shift+W to sprint)',
     's': 'TPW: reverse walk in body frame (Shift+S fast backpedal)',
-    'S': 'TPW: reverse walk in body frame (Shift+S fast backpedal)',
     'a': 'TPW: pure lateral strafe left (Shift+A sprint strafe)',
-    'A': 'TPW: pure lateral strafe left (Shift+A sprint strafe)',
     'd': 'TPW: pure lateral strafe right (Shift+D sprint strafe)',
-    'D': 'TPW: pure lateral strafe right (Shift+D sprint strafe)',
     'q': 'TPW: pure angular velocity left (+wz: spin in place, W+Q arc, D+Q circle-strafe)',
-    'Q': 'TPW: pure angular velocity left (+wz: spin in place, W+Q arc, D+Q circle-strafe)',
     'e': 'TPW: pure angular velocity right (-wz: spin in place, W+E arc, A+E circle-strafe)',
-    'E': 'TPW: pure angular velocity right (-wz: spin in place, W+E arc, A+E circle-strafe)',
     ' ': 'TPW: jump in stride / hop',
     'f': 'TPW: interact (sit / lie / rise)',
-    'F': 'TPW: interact (sit / lie / rise)',
     'shift': 'TPW: sprint / jog',
-    'Shift': 'TPW: sprint / jog',
     'sprint': 'TPW: sprint / jog',
     'wa': 'TPW: curvilinear arc left (WA, vx > 0, wz > 0, vy = 0)',
-    'WA': 'TPW: curvilinear arc left (WA, vx > 0, wz > 0, vy = 0)',
     'wq': 'TPW: curvilinear arc left (WQ, vx > 0, wz > 0, vy = 0)',
-    'WQ': 'TPW: curvilinear arc left (WQ, vx > 0, wz > 0, vy = 0)',
     'wd': 'TPW: curvilinear arc right (WD, vx > 0, wz < 0, vy = 0)',
-    'WD': 'TPW: curvilinear arc right (WD, vx > 0, wz < 0, vy = 0)',
     'we': 'TPW: curvilinear arc right (WE, vx > 0, wz < 0, vy = 0)',
-    'WE': 'TPW: curvilinear arc right (WE, vx > 0, wz < 0, vy = 0)',
     'sa': 'TPW: reverse curvilinear arc left (SA, vx < 0, wz > 0, vy = 0)',
-    'SA': 'TPW: reverse curvilinear arc left (SA, vx < 0, wz > 0, vy = 0)',
     'sq': 'TPW: reverse curvilinear arc left (SQ, vx < 0, wz > 0, vy = 0)',
-    'SQ': 'TPW: reverse curvilinear arc left (SQ, vx < 0, wz > 0, vy = 0)',
     'sd': 'TPW: reverse curvilinear arc right (SD, vx < 0, wz < 0, vy = 0)',
-    'SD': 'TPW: reverse curvilinear arc right (SD, vx < 0, wz < 0, vy = 0)',
     'se': 'TPW: reverse curvilinear arc right (SE, vx < 0, wz < 0, vy = 0)',
-    'SE': 'TPW: reverse curvilinear arc right (SE, vx < 0, wz < 0, vy = 0)',
     'ae': 'TPW: circle-strafe left (A+E, vy > 0, wz < 0)',
-    'AE': 'TPW: circle-strafe left (A+E, vy > 0, wz < 0)',
     'aq': 'TPW: circle-strafe left (A+Q, vy > 0, wz > 0)',
-    'AQ': 'TPW: circle-strafe left (A+Q, vy > 0, wz > 0)',
     'dq': 'TPW: circle-strafe right (D+Q, vy < 0, wz > 0)',
-    'DQ': 'TPW: circle-strafe right (D+Q, vy < 0, wz > 0)',
     'de': 'TPW: circle-strafe right (D+E, vy < 0, wz < 0)',
-    'DE': 'TPW: circle-strafe right (D+E, vy < 0, wz < 0)',
 }
+_TPW_DESCRIPTIONS = {v_k: desc for k, desc in _TPW_BASE.items() for v_k in (k, k.upper(), k.capitalize())}
 
 _COMMON_DESCRIPTIONS = {
     'up': 'arrow up: walk forward (#204)',

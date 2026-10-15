@@ -387,25 +387,27 @@ def compiled(text=None, here=None):
         head = form[0] if isinstance(form, list) and form else None
         if head == 'stream_inject':
             tables[''] += _packed(_row(form[1:], _PAYLOAD, traits=traits), 0)
-        elif head == 'deftrait' and len(form) >= 3 and isinstance(form[1], str):
+            continue
+        if head == 'deftrait' and len(form) >= 3 and isinstance(form[1], str):
             ext = isinstance(form[2], list) and form[2] and form[2][0] in ('extends', 'use')
             if form[1] in traits and not (ext and form[1] in form[2][1:]):
                 raise SyntaxError('(deftrait %s ..): said twice' % form[1])
             traits[form[1]] = _row(form[2:], _PHASE, traits=traits)
-        elif head == 'derive' and len(form) >= 3 and isinstance(form[1], str) and isinstance(form[2], str):
+            continue
+        if head == 'derive' and len(form) >= 3 and isinstance(form[1], str) and isinstance(form[2], str):
             if form[1] in tables and form[1] != form[2]:
                 raise SyntaxError('(derive %s ..): said twice' % form[1])
             base, t_rows = _parents(form[1], ['extends', form[2]], raw, traits)
             tables[form[1]], phases[form[1]], raw[form[1]] = _behavior(form[3:], base, traits, t_rows)
-        elif head != 'defbehavior' or len(form) < 3 or not isinstance(form[1], str):
+            continue
+        if head != 'defbehavior' or len(form) < 3 or not isinstance(form[1], str):
             raise SyntaxError('%s: a form is (include FILE ..), (deftrait NAME ..), (stream_inject ..), '
                               '(defbehavior NAME ..) or (derive NAME BASE ..)' % said(form)[:60])
-        else:
-            ext = isinstance(form[2], list) and form[2] and form[2][0] in ('extends', 'use')
-            if form[1] in tables and not (ext and form[1] in form[2][1:]):
-                raise SyntaxError('(defbehavior %s ..): said twice' % form[1])
-            base, t_rows = _parents(form[1], form[2], raw, traits) if ext else ((), ())
-            tables[form[1]], phases[form[1]], raw[form[1]] = _behavior(
-                form[3:] if ext else form[2:], base, traits, t_rows)
+        ext = isinstance(form[2], list) and form[2] and form[2][0] in ('extends', 'use')
+        if form[1] in tables and not (ext and form[1] in form[2][1:]):
+            raise SyntaxError('(defbehavior %s ..): said twice' % form[1])
+        base, t_rows = _parents(form[1], form[2], raw, traits) if ext else ((), ())
+        tables[form[1]], phases[form[1]], raw[form[1]] = _behavior(
+            form[3:] if ext else form[2:], base, traits, t_rows)
     return tables, phases
 

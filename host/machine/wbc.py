@@ -186,14 +186,10 @@ def sense(b, qpos, qvel):
     feet = []
     for foot in b.feet:
         R, o = d.xmat[foot].reshape(3, 3).copy(), d.xpos[foot].copy()
-        pts = o + b.corners @ R.T
-        Jc = np.empty((4, 3, n))
-        for i in range(4):
-            mj.mj_jac(m, d, jp, None, pts[i], foot)
-            Jc[i] = jp[:, :n]
-        sole = o + R @ b.sole
+        pts, sole = o + b.corners @ R.T, o + R @ b.sole
         mj.mj_jac(m, d, jp, jr, sole, foot)
         J6 = np.vstack([jr[:, :n], jp[:, :n]])
+        Jc = J6[3:][None] - np.cross((pts - sole)[:, None], J6[:3], axisb=0).transpose(0, 2, 1)
         mj.mj_jacDot(m, d, jp, jr, sole, foot)
         feet.append({'R': R, 'quat': d.xquat[foot].copy(), 'pts': pts, 'Jc': Jc, 'J6': J6,
                      'dJv': np.vstack([jr[:, :n], jp[:, :n]]) @ v, 'sole': sole})
@@ -302,14 +298,43 @@ def _held(b, s, ask, stance):
             nominal)
 
 
+def _form_level(b, s, ask, stance, held, up, ay):
+    """Level 3: her height, angular momentum, posture, torques, forces, and WEP clamp share."""
+    T, t0, Th, th, nominal = held[4:]
+    n, v, nc, fs = b.n, s['v'], 4 * len(stance), b.mass * G
+    nx = n + 3 * nc
+    A3, b3 = [], []
+    if nc:
+        A3.append(HEIGHT_W * up)
+        b3.append(HEIGHT_W * np.array([ay]))
+        pts = np.concatenate([s['feet'][k]['pts'] for k in stance])
+        Ak = np.zeros((3, nx))
+        for i in range(nc):
+            Ak[:, n + 3 * i:n + 3 * i + 3] = _skew(pts[i] - s['com']) * fs
+        kdot = ask.get('kdot')
+        A3.append(MOMENTUM_W * Ak)
+        b3.append(MOMENTUM_W * (-MOMENTUM_K * s['k'] if kdot is None else np.asarray(kdot)))
+    pose = np.zeros((len(b.act), nx))
+    pose[np.arange(len(b.act)), b.act] = POSTURE_W
+    A3 += [pose, TORQUE_W * T / b.top[:, None]]
+    b3 += [POSTURE_W * (POSTURE_KD[0] * (np.asarray(ask['posture']) - s['q'])
+                        - POSTURE_KD[1] * v[b.act]), -TORQUE_W * t0 / b.top]
+    if nc:
+        A3.append(np.hstack([np.zeros((3 * nc, n)), FORCE_W * np.eye(3 * nc)]))
+        b3.append(np.zeros(3 * nc))
+    near = b.near
+    cap = nominal[near]
+    return (np.vstack(A3), np.concatenate(b3),
+            np.vstack([Th[near] / cap[:, None], -Th[near] / cap[:, None]]),
+            np.concatenate([CLAMP_SHARE - th[near] / cap, CLAMP_SHARE + th[near] / cap]),
+            SLACK_W)
+
+
 def _levels(b, s, ask, stance, held):
     """The stack's levels (`qp.stack`) for `ask`, on the rows `_held` laid."""
-    T, t0, Th, th, nominal = held[4:]
     n, mass, v = b.n, b.mass, s['v']
     nc, fs = 4 * len(stance), mass * G
     nx = n + 3 * nc
-    # The centre of mass along the floor, by Newton on the corners' forces; her weight borne,
-    # her vertical acceleration within HEIGHT_BAND of her height's ask.
     A1, up = np.zeros((2 if nc else 0, nx)), np.zeros((1 if nc else 0, nx))
     for i in range(nc):
         A1[:, n + 3 * i:n + 3 * i + 3] = np.eye(3)[[0, 2]] * fs / mass
@@ -317,9 +342,6 @@ def _levels(b, s, ask, stance, held):
     ay = float(ask['com_acc'][1]) + G
     levels = [(A1, np.asarray(ask['com_acc'])[[0, 2]][:len(A1)], np.vstack([up, -up]),
                np.array([ay + HEIGHT_BAND, HEIGHT_BAND - ay])[:2 * len(up)], SLACK_W)]
-    # The pelvis's and the trunk's turns, a swinging sole and its knee's fold: swung on the
-    # level above the turns, the pelvis pitched to throw the foot, 4 to 25 deg in 0.1 s; the
-    # knee straight, its sole could not rise - asked up 17 m/s^2, given 1.5 (80 N from behind).
     A2, b2 = [np.zeros((0, nx))], [np.zeros(0)]
     for t, want in zip(s['turns'], ask['turns']):
         wdot = TURN_KD[0] * turn_error(want, t['quat']) - TURN_KD[1] * t['w']
@@ -340,9 +362,6 @@ def _levels(b, s, ask, stance, held):
         A2.append(row)
         b2.append(FOLD_W * np.array([acc + SWING_KD[0] * (knee - s['q'][i])
                                      + SWING_KD[1] * (rate - v[b.act[i]])]))
-    # Each sole's centre of pressure inside its edge, softly, here: on the balance's level its
-    # slack held corners of the standing sole at their friction's edge, frozen below it, and the
-    # swing could not lift its sole (80 N from behind).
     S2 = np.zeros((4 * len(stance), nx))
     edges = ((0, -SOLE_HALF + MARGIN_M, 1.0), (0, SOLE_HALF - MARGIN_M, -1.0),
              (2, -HEEL + MARGIN_M, 1.0), (2, BALL - MARGIN_M, -1.0))
@@ -351,34 +370,6 @@ def _levels(b, s, ask, stance, held):
             for i in range(4):
                 S2[4 * j + r, n + 3 * (4 * j + i) + 1] = -sign * (b.corners[i][axis] - edge)
     levels.append((np.vstack(A2), np.concatenate(b2), S2, np.zeros(len(S2)), SLACK_W))
-    # Her form, weighed: her height, the angular momentum, the posture, the torques, the
-    # forces. Her height held over the centre of mass's way straightened her standing knees from
-    # 6 to 1 deg, and left no room for a sole to rise.
-    A3, b3 = [], []
-    if nc:
-        A3.append(HEIGHT_W * up)
-        b3.append(HEIGHT_W * np.array([ay]))
-        pts = np.concatenate([s['feet'][k]['pts'] for k in stance])
-        Ak = np.zeros((3, nx))
-        for i in range(nc):
-            Ak[:, n + 3 * i:n + 3 * i + 3] = _skew(pts[i] - s['com']) * fs
-        kdot = ask.get('kdot')
-        A3.append(MOMENTUM_W * Ak)
-        b3.append(MOMENTUM_W * (-MOMENTUM_K * s['k'] if kdot is None else np.asarray(kdot)))
-    pose = np.zeros((len(b.act), nx))
-    pose[np.arange(len(b.act)), b.act] = POSTURE_W
-    A3 += [pose, TORQUE_W * T / b.top[:, None]]
-    b3 += [POSTURE_W * (POSTURE_KD[0] * (np.asarray(ask['posture']) - s['q'])
-                        - POSTURE_KD[1] * v[b.act]), -TORQUE_W * t0 / b.top]
-    if nc:
-        A3.append(np.hstack([np.zeros((3 * nc, n)), FORCE_W * np.eye(3 * nc)]))
-        b3.append(np.zeros(3 * nc))
-    # The drives granted WEP within CLAMP_SHARE of their clamps, softly, here: on the balance's
-    # level the neck's slack bent it - bearing less weight eased the neck.
-    near = b.near
-    cap = nominal[near]
-    levels.append((np.vstack(A3), np.concatenate(b3),
-                   np.vstack([Th[near] / cap[:, None], -Th[near] / cap[:, None]]),
-                   np.concatenate([CLAMP_SHARE - th[near] / cap, CLAMP_SHARE + th[near] / cap]),
-                   SLACK_W))
+    levels.append(_form_level(b, s, ask, stance, held, up, ay))
     return levels
+

@@ -6,15 +6,12 @@ import sys
 import time
 
 
-#: Q closes, ESC goes back to the menu - picking the wrong view is the common
-#: mistake. Ctrl+C lands in the same `finally`.
+#: Q closes, ESC goes back to the menu; Ctrl+C lands in the same `finally`.
 QUIT_KEYS = frozenset({'q', 'Q'})
 
 MENU_KEYS = frozenset({chr(27)})
 
-#: The console's mouse record: the flag that says the pointer moved,
-#: the button bits, the SGR codes a held button reports a drag as -
-#: left before right, one report a record - and the press codes.
+#: Console mouse record flags and SGR drag/press button codes.
 MOUSE_MOVED = 0x1
 
 LEFT_BUTTON, RIGHT_BUTTON = 0x1, 0x2
@@ -28,15 +25,10 @@ def _ignore(*_):
     """The callback a view did not pass."""
 
 
-#: The key that lends the mouse to the view and gives it back. The mouse is
-#: the terminal's by default: a view reporting it (SGR, QUICK_EDIT cleared)
-#: cannot be selected from. Here, not per view, so every page takes the same
-#: key - F, since C is the attitude view's frame and a menu entry.
+#: Key lending the mouse to the view and giving it back (F, shared across views).
 SELECT_KEYS = frozenset({'f', 'F'})
 
 
-#: Whether a `Keys` holds the mouse: module state, as the mouse is one; set
-#: on entry, cleared on exit.
 def holding():
     """Whether a view has the mouse right now, for a key legend."""
     return Keys.holder is not None and Keys.holder.holding()
@@ -47,72 +39,33 @@ def held():
     return Keys.holder.held() if Keys.holder is not None else None
 
 
-#: Windows console input flags: VIRTUAL_TERMINAL_INPUT sends the mouse as
-#: xterm's SGR sequences (one parser); QUICK_EDIT keeps the mouse for text and
-#: must go, EXTENDED_FLAGS makes that stick. Without them the wheel is dead.
-VT_INPUT = 0x0200
-
-MOUSE_INPUT = 0x0010
-
-EXTENDED_FLAGS = 0x0080
-
-QUICK_EDIT = 0x0040
-
-LINE_INPUT = 0x0002
-
-ECHO_INPUT = 0x0004
+#: Windows console input flags: VT_INPUT sends SGR mouse; QUICK_EDIT must be cleared with EXTENDED_FLAGS.
+VT_INPUT, MOUSE_INPUT, EXTENDED_FLAGS = 0x0200, 0x0010, 0x0080
+QUICK_EDIT, LINE_INPUT, ECHO_INPUT = 0x0040, 0x0002, 0x0004
 
 
-def console_mode(was):
+def console_mode(was, mouse=True):
     """The input mode to run a mouse-driven view in, from the current one."""
-    return ((was | VT_INPUT | MOUSE_INPUT | EXTENDED_FLAGS)
+    return ((was | VT_INPUT | (MOUSE_INPUT if mouse else 0) | EXTENDED_FLAGS)
             & ~QUICK_EDIT & ~LINE_INPUT & ~ECHO_INPUT)
 
 
-#: xterm SGR mouse reporting. 1002 is button-and-drag; 1006 survives a
-#: terminal wider than 223 columns, where the older encoding stops.
-MOUSE_ON = '\033[?1002h\033[?1006h'
-
-MOUSE_OFF = '\033[?1006l\033[?1002l'
-
-#: Bracketed paste while a view holds the mouse, a paste dropped whole: VS Code's right click
-#: pastes with nothing selected (rightClickBehavior copyPaste, Windows' default), its A restarting
-#: the HUMANOID page's walk.
+#: xterm SGR mouse reporting (1002 button-drag, 1006 wide terminals) and bracketed paste.
+MOUSE_ON, MOUSE_OFF = '\033[?1002h\033[?1006h', '\033[?1006l\033[?1002l'
 PASTE_ON, PASTE_OFF = '\033[?2004h', '\033[?2004l'
-
-#: Holding the mouse, a view says so again every HOLD_S: reporting went off under a running page -
-#: the terminal's or a process on the same console - and drag and pan died together.
-HOLD_S = 1.0
-
-#: A wheel notch, as a fraction of the distance to the model. 12 % a notch is
-#: about eight notches between filling the window and half of it, which is
-#: roughly what one flick of a hand expects to do.
-WHEEL_STEP = 0.12
-
-#: A right-drag, per row of movement. Smaller than a notch: a drag is one
-#: continuous gesture and lands twenty reports where a wheel lands one.
-DRAG_STEP = 0.02
+HOLD_S, WHEEL_STEP, DRAG_STEP = 1.0, 0.12, 0.02
 
 
-def _set_console_mode(restore=None):
+def _set_console_mode(restore=None, mouse=True):
     """Put the console into mouse-reporting mode, or back as it was."""
-    try:
-        import ctypes
-    except ImportError:
-        return None
-
     try:
         kernel = ctypes.windll.kernel32
     except AttributeError:
-        return None                     # not Windows
-
-    handle = kernel.GetStdHandle(-10)
-    was = ctypes.c_uint()
+        return None
+    handle, was = kernel.GetStdHandle(-10), ctypes.c_uint()
     if not kernel.GetConsoleMode(handle, ctypes.byref(was)):
-        return None                     # a pipe, not a console
-
-    wanted = restore if restore is not None else console_mode(was.value)
-    kernel.SetConsoleMode(handle, wanted)
+        return None
+    kernel.SetConsoleMode(handle, restore if restore is not None else console_mode(was.value, mouse))
     return was.value
 
 
@@ -150,80 +103,39 @@ class Keys:
 
     """Non-blocking key reads, for a view redrawing at 8 to 20 Hz."""
 
-    #: The Keys holding the mouse right now, if any: set on entry and
-    #: cleared on exit, so a view outside a run reads False rather than
-    #: a stale True.
     holder: 'Keys | None' = None
 
-    #: One SGR mouse report: ESC [ < button ; column ; row (M press, m release)
     MOUSE_RE = re.compile(r'\033\[<(\d+);(\d+);(\d+)([Mm])')
-
-    #: A paste, bracketed (PASTE_ON): dropped once its end has come, held till then.
     PASTE_START = '\033[200~'
     PASTE_RE = re.compile(r'\033\[200~.*?\033\[201~', re.S)
-
-    #: Arrows start with ESC, and a lone ESC leaves the view - so pressing
-    #: one closed whatever was being adjusted. Taken out before that test.
     ARROW_RE = re.compile(r'\033\[([ABCD])')
-
-    #: What a view binds against, so no view has to know the escape codes.
     ARROWS = {'A': 'up', 'B': 'down', 'C': 'right', 'D': 'left'}
-
-    #: Function and navigation keys that start with ESC (\033OP..\033OS or \033[11~..).
     FUNCTION_RE = re.compile(r'\033(?:O([P-S])|\[\[([A-E])|\[(\d+)~)')
 
     FUNCTION_KEYS = {
-        'P': 'f1', 'Q': 'f2', 'R': 'f3', 'S': 'f4',
-        'A': 'f1', 'B': 'f2', 'C': 'f3', 'D': 'f4', 'E': 'f5',
-        '11': 'f1', '12': 'f2', '13': 'f3', '14': 'f4',
-        '15': 'f5', '17': 'f6', '18': 'f7', '19': 'f8',
-        '20': 'f9', '21': 'f10', '23': 'f11', '24': 'f12',
+        **{c: 'f%d' % (i + 1) for seq in ('PQRS', 'ABCDE') for i, c in enumerate(seq)},
+        **{str(k): 'f%d' % (i + 1) for i, k in enumerate((11, 12, 13, 14, 15, 17, 18, 19, 20, 21, 23, 24))},
         '1': 'home', '4': 'end', '5': 'pageup', '6': 'pagedown',
     }
 
-    #: A mouse, arrow or function sequence's prefix still in flight: split across two
-    #: drains, a report was eaten as typed keys.
     PARTIAL_RE = re.compile(r'\033(?:\[(?:<[\d;]*|\d*)?|O[P-S]?)?$')
-
-    #: Any other complete CSI sequence (\033[ ... @-~), stripped so an unhandled
-    #: terminal or mouse report never leaks its leading ESC as MENU_KEYS.
     CSI_RE = re.compile(r'\033\[[\x30-\x3f]*[\x20-\x2f]*[\x40-\x7e]')
+    VK_MAP = {87: 'w', 65: 'a', 83: 's', 68: 'd', 81: 'q', 69: 'e',
+              16: 'shift', 160: 'shift', 161: 'shift'}
 
     def __init__(self, console, mouse=False, quits=QUIT_KEYS, select=SELECT_KEYS, pan=False):
-        # `quits` is which letters leave; `select` which lend the mouse, none: the view holds it
-        # throughout; `pan` a right drag moves (`panned`) instead of zooming.
         self._quits, self._select, self._pan = frozenset(quits), frozenset(select), pan
-        self.console = console
-        self.mouse = mouse and console
-        self.reports = 0            # SGR mouse reports parsed, for a view's HUD
-        self._clicked = []
-        self._saved = None
-        self._was_mode = None
-        self._posix = None
-        self._buffer = ''
-        self._dragging = False
-        self._last_row = None
-        self._pan_at = (0, 0)
-        self._panned = (0.0, 0.0)
-        self._holding = False
-        self._grip = None
-        self._spun = (0.0, 0.0)
-        self._pending = ''
-        self._buttons = 0
-        self._typed = []
-        self._grabbed = False
-        self._held_at = 0.0
-        self._keys_down = set()
-        self._async_keys = False
-        self._last_key_at = 0.0
-        self._term_hwnd = None
-        self._latched_wasd = False
-        self._hw_seen = False
+        self.console, self.mouse, self.reports = console, mouse and console, 0
+        self._clicked, self._typed, self._keys_down = [], [], set()
+        self._saved = self._was_mode = self._posix = self._last_row = self._grip = self._term_hwnd = None
+        self._dragging = self._holding = self._grabbed = self._async_keys = self._latched_wasd = self._hw_seen = False
+        self._buffer = self._pending = ''
+        self._pan_at, self._panned, self._spun = (0, 0), (0.0, 0.0), (0.0, 0.0)
+        self._buttons, self._held_at, self._last_key_at, self._paste_at = 0, 0.0, 0.0, 0.0
 
     def __enter__(self):
         if not self.console:
             return self
-
         if sys.platform != 'win32':
             import termios
             import tty
@@ -232,9 +144,9 @@ class Keys:
                 self._saved = termios.tcgetattr(sys.stdin)
                 tty.setcbreak(sys.stdin.fileno())
             except (termios.error, OSError, ValueError, TypeError):
-                # stdin not a tty, without a descriptor, or None
                 self._saved = None
-        # The terminal keeps the mouse until a view is asked to take it.
+        else:
+            self._was_mode = _set_console_mode(mouse=False)
         if self.mouse:
             Keys.holder = self
             if not self._select:
@@ -243,88 +155,72 @@ class Keys:
 
     def __exit__(self, *exc_info):
         self.grab(False)
+        if self._was_mode is not None:
+            _set_console_mode(self._was_mode)
         if Keys.holder is self:
             Keys.holder = None
         if self._saved is not None and self._posix is not None:
-            self._posix.tcsetattr(sys.stdin, self._posix.TCSADRAIN,
-                                  self._saved)
+            self._posix.tcsetattr(sys.stdin, self._posix.TCSADRAIN, self._saved)
         return False
+
+    def _strip_sequences(self):
+        """Drain raw input and strip paste, mouse, arrow, function, and CSI sequences."""
+        now = time.monotonic()
+        self._buffer = self.PASTE_RE.sub('', self._buffer + ''.join(self._drain()))
+        start = self._buffer.find(self.PASTE_START)
+        if start >= 0 and not self._paste_at:
+            self._paste_at = now
+        elif start < 0:
+            self._paste_at = 0.0
+        pasting = self._buffer[start:] if start >= 0 and now - self._paste_at <= 0.2 else ''
+        self._buffer = self._buffer[:start] if start >= 0 else self._buffer
+        zoom = 0.0
+        for found in self.MOUSE_RE.finditer(self._buffer):
+            self._held_at = now
+            zoom += self._mouse(int(found.group(1)), int(found.group(2)),
+                                int(found.group(3)), found.group(4))
+        self._buffer = self.MOUSE_RE.sub('', self._buffer)
+        seq = [(m.start(), self.ARROWS[m.group(1)]) for m in self.ARROW_RE.finditer(self._buffer)]
+        seq += [(m.start(), self.FUNCTION_KEYS.get(m.group(1) or m.group(2) or m.group(3), 'f1'))
+                for m in self.FUNCTION_RE.finditer(self._buffer)]
+        self._typed.extend(k for _, k in sorted(seq))
+        self._buffer = self.CSI_RE.sub('', self.FUNCTION_RE.sub('', self.ARROW_RE.sub('', self._buffer)))
+
+        held = ''
+        head, esc, rest = self._buffer.rpartition('\033')
+        tail = esc + rest
+        if self.PARTIAL_RE.match(tail) and not (self._async_keys and len(tail) == 1):
+            if tail != self._pending:
+                held, self._buffer, self._pending_at = tail, head, now
+            elif len(tail) > 1 and now - getattr(self, '_pending_at', 0.0) < 0.05:
+                held, self._buffer = tail, head
+            elif len(tail) > 1:
+                self._buffer = head
+        self._pending = held
+        keys, self._buffer = self._buffer, held + pasting
+        return keys, zoom
 
     def poll(self):
         """(leave, zoom) for everything that arrived since the last frame."""
         if not self.console:
             return None, 0.0
         if self._grabbed and time.monotonic() - self._held_at >= HOLD_S:
-            self._holding = self._dragging = False
-            self._buttons = 0
-            self._hold()
-
-        self._buffer = self.PASTE_RE.sub('', self._buffer + ''.join(self._drain()))
-        start = self._buffer.find(self.PASTE_START)
-        pasting = self._buffer[start:] if start >= 0 else ''
-        self._buffer = self._buffer[:start] if start >= 0 else self._buffer
-        zoom = 0.0
-
-        while True:
-            found = self.MOUSE_RE.search(self._buffer)
-            if not found:
-                break
-            self._held_at = time.monotonic()
-            zoom += self._mouse(int(found.group(1)), int(found.group(2)),
-                                int(found.group(3)), found.group(4))
-            self._buffer = (self._buffer[:found.start()]
-                            + self._buffer[found.end():])
-
-        # Arrows and function keys before the lone-ESC test, or every one of them leaves the
-        # view.
-        while True:
-            found = self.ARROW_RE.search(self._buffer)
-            if not found:
-                break
-            self._typed.append(self.ARROWS[found.group(1)])
-            self._buffer = (self._buffer[:found.start()]
-                            + self._buffer[found.end():])
-
-        while True:
-            found = self.FUNCTION_RE.search(self._buffer)
-            if not found:
-                break
-            code = found.group(1) or found.group(2) or found.group(3)
-            named = self.FUNCTION_KEYS.get(code, 'f1')
-            self._typed.append(named)
-            self._buffer = (self._buffer[:found.start()]
-                            + self._buffer[found.end():])
-
-        self._buffer = self.CSI_RE.sub('', self._buffer)
-
-        held = ''
-        head, esc, rest = self._buffer.rpartition('\033')
-        tail = esc + rest
-        now = time.monotonic()
-        if self.PARTIAL_RE.match(tail):
-            if tail != self._pending:
-                held, self._buffer, self._pending_at = tail, head, now
-            elif len(tail) > 1:
-                if now - getattr(self, '_pending_at', 0.0) < 0.05:
-                    held, self._buffer = tail, head
-                else:
-                    self._buffer = head
-        self._pending = held
-
-        leave, keys = None, self._buffer
-        self._buffer = held + pasting
-
+            if self._async_keys and self._hw_buttons():
+                self._held_at = time.monotonic()
+            else:
+                self._holding = self._dragging = False
+                self._buttons = 0
+                self._hold()
+        keys, zoom = self._strip_sequences()
+        leave = None
         for key in keys:
             if leave is None and key in self._quits:
                 leave = 'quit'
             elif leave is None and key in MENU_KEYS:
                 leave = 'menu'
             elif self.mouse and key in self._select:
-                # Swallowed, not passed on: no view binds it, and one that did
-                # would fight the terminal for the same gesture.
                 self.grab(not self._grabbed)
             else:
-                # Kept for a view that binds keys of its own.
                 self._typed.append(key)
         return leave, zoom
 
@@ -338,19 +234,21 @@ class Keys:
             return self._grabbed
         out = sys.__stdout__ or sys.stdout
         if on:
-            self._was_mode = _set_console_mode()
+            was = _set_console_mode(mouse=True)
+            if self._was_mode is None:
+                self._was_mode = was
             out.write(MOUSE_ON + PASTE_ON)
             self._held_at = time.monotonic()
         else:
             out.write(MOUSE_OFF + PASTE_OFF)
-            _set_console_mode(self._was_mode)
+            _set_console_mode(mouse=False)
         out.flush()
         sys.stdout.flush()
         self._grabbed = on
         return self._grabbed
 
     def _hold(self):
-        """The mouse's mode and reporting set again, the console's mode to restore kept."""
+        """Re-assert mouse reporting and console mode."""
         _set_console_mode()
         out = sys.__stdout__ or sys.stdout
         out.write(MOUSE_ON + PASTE_ON)
@@ -364,24 +262,16 @@ class Keys:
 
     def _mouse(self, button, col, row, kind):
         """What one mouse report is worth, as a zoom fraction."""
-        # Shift, meta and ctrl ride as +4/+8/+16 on the button code; the
-        # gesture is the same gesture.
         self.reports += 1
         button &= ~28
-        if button == 64:
-            return WHEEL_STEP
-        if button == 65:
-            return -WHEEL_STEP
-
-        # 2 is the right button; 32 is the drag bit the terminal sets while it
-        # is held (34 = 2 + 32).
-        if (button == 2 or button == 34) and kind == 'm':
+        if button in (64, 65):
+            return WHEEL_STEP if button == 64 else -WHEEL_STEP
+        if button in (2, 34) and kind == 'm':
             self._dragging = False
             return 0.0
-        if (button == 0 or button == 32) and kind == 'm':
+        if button in (0, 32) and kind == 'm':
             self._holding = False
             return 0.0
-
         if button == 2 and kind == 'M':
             self._dragging, self._last_row, self._pan_at = True, row, (col, row)
             return 0.0
@@ -393,17 +283,11 @@ class Keys:
                 self._panned = (dx + col - self._pan_at[0], dy + row - self._pan_at[1])
                 self._pan_at = (col, row)
                 return 0.0
-            moved = row - (self._last_row if self._last_row is not None
-                           else row)
+            moved = row - (self._last_row if self._last_row is not None else row)
             self._last_row = row
             return -moved * DRAG_STEP
-
-        # 0 is the left button, 32 its drag bit.
         if button == 0 and kind == 'M':
             self._holding, self._grip = True, (col, row)
-            # The press is kept as well as the grip: a drag starts the same way
-            # a click does, and a view that draws something to click on needs
-            # the cell, not the delta.
             self._clicked.append((col, row))
             return 0.0
         if button == 32 and kind == 'M':
@@ -415,9 +299,7 @@ class Keys:
             self._grip = (col, row)
             return 0.0
         if kind == 'm':
-            self._holding = False
-            self._dragging = False
-            return 0.0
+            self._holding = self._dragging = False
         return 0.0
 
     def dragged(self):
@@ -435,22 +317,26 @@ class Keys:
         out, self._clicked = self._clicked, []
         return out
 
+    def _hw_buttons(self):
+        try:
+            u = ctypes.windll.user32
+            return bool(sys.platform == 'win32' and (u.GetAsyncKeyState(1) & 0x8000 or u.GetAsyncKeyState(2) & 0x8000))
+        except AttributeError:
+            return False
+
     def _is_console_focused(self):
         """True when the console/terminal window is focused."""
         if sys.platform != 'win32':
             return True
         try:
-            kernel = ctypes.windll.kernel32
-            user32 = ctypes.windll.user32
+            kernel, user32 = ctypes.windll.kernel32, ctypes.windll.user32
             fg = user32.GetForegroundWindow()
             if not fg:
                 return False
             if self._term_hwnd is not None:
                 return fg == self._term_hwnd
             cw = kernel.GetConsoleWindow()
-            if cw and user32.IsWindowVisible(cw):
-                return fg == cw
-            return True
+            return fg == cw if cw and user32.IsWindowVisible(cw) else True
         except AttributeError:
             return True
 
@@ -458,8 +344,7 @@ class Keys:
         """Currently held movement keys (w, a, s, d, q, e, shift) that entered this terminal."""
         now = time.monotonic()
         if not self._is_console_focused():
-            self._latched_wasd = False
-            self._hw_seen = False
+            self._latched_wasd = self._hw_seen = False
             self._keys_down.clear()
             return set() if self._async_keys else None
         if sys.platform == 'win32' and self.console and (self._latched_wasd or self._keys_down or self._async_keys):
@@ -467,18 +352,13 @@ class Keys:
                 user32 = ctypes.windll.user32
                 self._async_keys = True
                 if self._latched_wasd or self._keys_down:
-                    hw = {c for vk, c in ((87, 'w'), (65, 'a'), (83, 's'), (68, 'd'), (81, 'q'), (69, 'e'),
-                                          (16, 'shift'), (160, 'shift'), (161, 'shift'))
-                          if user32.GetAsyncKeyState(vk) & 0x8000}
+                    hw = {c for vk, c in self.VK_MAP.items() if user32.GetAsyncKeyState(vk) & 0x8000}
                     if hw & {'w', 'a', 's', 'd', 'q', 'e'}:
-                        self._hw_seen = True
-                        self._latched_wasd = True
-                        self._keys_down = set(hw)
-                        self._last_key_at = now
+                        self._hw_seen = self._latched_wasd = True
+                        self._keys_down, self._last_key_at = set(hw), now
                         return set(hw)
                     if self._hw_seen:
-                        self._hw_seen = False
-                        self._latched_wasd = False
+                        self._hw_seen = self._latched_wasd = False
                         self._keys_down.clear()
                         return set()
                     if now - self._last_key_at > 0.65:
@@ -491,29 +371,24 @@ class Keys:
 
     def _drain(self):
         """Every key waiting right now, and none of the ones that are not."""
-        if sys.platform != 'win32':                         # no msvcrt
+        if sys.platform != 'win32':
             return self._drain_posix()
         got = self._drain_records()
-        if got is not None:
-            return got
-        return self._drain_msvcrt()
+        return got if got is not None else self._drain_msvcrt()
 
     @staticmethod
     def _key_of(key):
         """A key-down record as the characters a terminal would send."""
         if key.ch and key.ch != '\x00':
             return key.ch * max(1, key.repeat)
-        return {37: '\x1b[D', 38: '\x1b[A', 39: '\x1b[C', 40: '\x1b[B',
-                112: 'f1', 113: 'f2', 114: 'f3', 115: 'f4', 116: 'f5',
-                117: 'f6', 118: 'f7', 119: 'f8', 120: 'f9', 121: 'f10',
-                122: 'f11', 123: 'f12'}.get(key.vk, '')
+        if 112 <= key.vk <= 123:
+            return 'f%d' % (key.vk - 111)
+        return {37: '\x1b[D', 38: '\x1b[A', 39: '\x1b[C', 40: '\x1b[B'}.get(key.vk, '')
 
     def _mouse_of(self, mouse):
-        """A mouse record as SGR reports: presses, releases, and drags with
-        a button held.
-        """
+        """A mouse record as SGR reports: presses, releases, and drags."""
         self._held_at = time.monotonic()
-        if mouse.flags & 0x0C:                      # wheel, horizontal wheel
+        if mouse.flags & 0x0C:
             return []
         x, y = max(1, mouse.pos.X + 1), max(1, mouse.pos.Y + 1)
         keys = []
@@ -530,43 +405,31 @@ class Keys:
         return keys
 
     def _drain_records(self):
-
         try:
             kernel = ctypes.windll.kernel32
             user32 = getattr(ctypes.windll, 'user32', None)
         except AttributeError:
             return None
-        handle = kernel.GetStdHandle(-10)
-        count = ctypes.c_uint()
-        if not kernel.GetNumberOfConsoleInputEvents(
-                handle, ctypes.byref(count)):
-            return None                  # a pipe, not a console
+        handle, count = kernel.GetStdHandle(-10), ctypes.c_uint()
+        if not kernel.GetNumberOfConsoleInputEvents(handle, ctypes.byref(count)):
+            return None
         self._async_keys = True
         if not count.value or _RECORD is None:
             return []
-        buf = (_RECORD * count.value)()
-        read = ctypes.c_uint()
-        if not kernel.ReadConsoleInputW(handle, buf, count.value,
-                                        ctypes.byref(read)):
+        buf, read = (_RECORD * count.value)(), ctypes.c_uint()
+        if not kernel.ReadConsoleInputW(handle, buf, count.value, ctypes.byref(read)):
             return None
         fg = user32.GetForegroundWindow() if user32 is not None else 0
-        if fg:
-            self._term_hwnd = fg
-        if not self._is_console_focused():
-            self._latched_wasd = False
-            self._keys_down.clear()
-            return []
-
-        vk_map = {87: 'w', 65: 'a', 83: 's', 68: 'd', 81: 'q', 69: 'e', 16: 'shift', 160: 'shift', 161: 'shift'}
-        keys = []
-        now = time.monotonic()
+        keys, now = [], time.monotonic()
         for i in range(read.value):
             record = buf[i]
             if record.type == 1:
                 key = record.event.key
                 ch_low = (key.ch or '').lower()
-                tok = vk_map.get(key.vk) or (ch_low if ch_low in ('w', 'a', 's', 'd', 'q', 'e') else None)
+                tok = self.VK_MAP.get(key.vk) or (ch_low if ch_low in ('w', 'a', 's', 'd', 'q', 'e') else None)
                 if key.down:
+                    if fg:
+                        self._term_hwnd = fg
                     self._last_key_at = now
                     if tok:
                         self._latched_wasd = True
@@ -584,21 +447,16 @@ class Keys:
     def _drain_msvcrt(self):
         import msvcrt
 
-        keys = []
-        now = time.monotonic()
+        keys, now = [], time.monotonic()
         while msvcrt.kbhit():
             got = msvcrt.getwch()
             if got in ('\x00', '\xe0'):
                 code = msvcrt.getwch()
-                keys.append({'H': '\x1b[A', 'P': '\x1b[B',
-                             'M': '\x1b[C', 'K': '\x1b[D',
-                             ';': 'f1', '<': 'f2', '=': 'f3', '>': 'f4',
-                             '?': 'f5', '@': 'f6', 'A': 'f7', 'B': 'f8',
-                             'C': 'f9', 'D': 'f10'}.get(code, ''))
+                keys.append(('f%d' % (ord(code) - 58)) if ';' <= code <= 'D' else
+                            {'H': '\x1b[A', 'P': '\x1b[B', 'M': '\x1b[C', 'K': '\x1b[D'}.get(code, ''))
                 continue
             if got.lower() in ('w', 'a', 's', 'd', 'q', 'e'):
-                self._last_key_at = now
-                self._latched_wasd = True
+                self._last_key_at, self._latched_wasd = now, True
                 self._keys_down.add(got.lower())
                 if got in ('W', 'A', 'S', 'D', 'Q', 'E'):
                     self._keys_down.add('shift')

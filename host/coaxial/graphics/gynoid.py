@@ -1,37 +1,23 @@
 """The gynoid: a slender body on `machine.figure`'s joints, posed, lit, drawn in braille.
 
-    lines = render(angles, 96, 40, yaw=30, lit=gpu.LitRaster())   # the GPU's lit raster
-    lines = render(angles, 96, 40, root=(where, turn))             # the pelvis placed, world
-    lines = render(angles, 96, 40, labels={'left_knee': cells})   # called out at the edge
-    lines = render(angles, 96, 40, see='mechanism')                # her mechanism, no shell
-    lines = render(angles, 96, 40, see='actuators')                # her drivetrain, in wires
-
-A part is a closed loft or ellipsoid in its own frame, hung off its parent at the figure's offset
-and turned by its joints - the figure's names and signs. Without `root`, the lowest point of the
-feet stands on the floor. 1.69 m tall; the lattice, the glowing core and the plates are the
-materials `gpu.LIT_WGSL` lights. Each drive's assembly (`machine.drives`) is a drum on its joint's
-axis, or where it is mounted (`drums`). She wears a tee, jeans and sneakers (`_wear`); a drum
-under the cloth shows as a patch sewn on at its ends.
+1.69 m tall; each part is a closed loft or ellipsoid hung off its parent at `machine.figure`'s
+offset. Without `root`, the lowest foot stands on y = 0.
 """
 import math
 from typing import Any
 
-from coaxial.graphics import arrows as _arrows, drums, engine, mechanism, panels
+from coaxial.graphics import arrows as _arrows, drums, engine, mechanism, panels, sneaker
 from coaxial.graphics.callouts import callouts, line, packed
 from coaxial.graphics.lit import (CORE, MESH, PAINTED, PLATE, SKIN, braille, grid, paint,
                                   project, splat)
-from coaxial.graphics import sneaker
 from coaxial.graphics.raster import DOTS_X, DOTS_Y
 from coaxial.graphics.shapes import (ellipsoid, limb, loft, moved, sampled, smooth, turn_about,
                                      view)
 from machine import ansi, figure
 from machine.figure import ANKLE_H, FOREARM, HAIR_AT, HEM_AT, SHANK, THIGH, UPPER_ARM
 
-#: The camera: its distance in the engine's units, the point it turns about (her middle, metres
-#: over the floor), and how far out she reaches from it.
 DISTANCE, CENTRE, REACH = 3.2, (0.0, 0.84, 0.0), 0.92
-
-
+_SIDES = (('left', 1.0), ('right', -1.0))
 _NP = None
 
 
@@ -43,79 +29,50 @@ def _np():
     return _NP
 
 
-#: Her clothes' colours, and how far out of her they hang, m: high-waisted jeans,
-#: a white tee, white sneakers; the jeans LOOSE_M out over the seat, FIT_M the thighs, the tee
-#: BAGGY_M, patched over the drums (`drums.PATCH_M`). The jeans' legs (`JEANS_LEG`) hang on
-#: their hems' hinges (`mjcf.HEMS`) straight to a hem HEM_R (half width, half depth, set back),
-#: HEM_UP up at its sides, leaning HEM_LEAN onto the sneaker's vamp: 88 mm across and level, the
-#: other foot passed 16 mm into it, the toe box 35 mm out of it; deeper at the
-#: calves, the ankle's rod 21 mm out.
 DENIM, TEE = (118, 150, 182), (230, 230, 226)
 LOOSE_M, FIT_M, BAGGY_M, HEM_R = 0.02, 0.008, 0.02, (0.074, 0.08, 0.004)
 HEM_UP, HEM_LEAN = 0.029, 0.26
 JEANS_LEG = ((0.01, 0.07, 0.076, -0.008), (-0.1, 0.072, 0.088, -0.016), (-0.2, 0.074, 0.092, -0.018),
              (HEM_UP - SHANK - ANKLE_H + HEM_AT, HEM_R[0], HEM_R[1], -HEM_R[2], HEM_LEAN))
 
-
-#: The thighs' radii, m: at the hip, at their fullest and at the knee; their middle SCULPT_M out,
-#: the inside drawn in off the other's; their upper backs THIGH_BEHIND deeper, the seat's fold
-#: onto them 52 mm in 10 of height. The hip's, the knee's and the elbow's ends
-#: PAD_FULL_M fuller over her pads (`figure.PADS`).
 PAD_FULL_M = 0.002
 THIGH_R, SCULPT_M, THIGH_AHEAD = (0.09 + PAD_FULL_M, 0.08, 0.058 + PAD_FULL_M), 0.018, 0.0
 THIGH_BEHIND = 0.04
-
-#: The inner thigh's fullness high under the seat, 6 mm proud of the thigh (INNER_AT the left's,
-#: on its thigh; INNER_R), the jeans FIT_M over it; the seat's two cheeks low on it (CHEEK_AT the
-#: left's; CHEEK_R), 6 mm proud of the pelvis and inside the jeans' seat. At 2.6 cm, the jeans
-#: over them, they read too big.
 INNER_AT, INNER_R = (-0.036, -0.11, -0.008), (0.022, 0.055, 0.032)
 CHEEK_AT, CHEEK_R = (0.056, -0.072, -0.078), (0.06, 0.056, 0.045)
 
 
 def _wear():
-    """[(name, parent, offset, mesh)] or with joints: the tee, full over the bust, its sleeves
-    to mid upper arm; the jeans over the seat, the thighs, the shins to HEM_AT under the knee,
-    each leg on its hem's hinges on down - shells LOOSE_M out of her."""
-    tee, denim = paint(TEE), paint(DENIM)
-    b = BAGGY_M - 0.012
-    out = [('cloth_tee', 'torso', (0.0, 0.0, 0.0), loft(
+    """Tee, sleeves, and jeans shells."""
+    tee, denim, z0, b = paint(TEE), paint(DENIM), (0.0, 0.0, 0.0), BAGGY_M - 0.012
+    out = [('cloth_tee', 'torso', z0, loft(
         [_hung(y, rx + b, front, back + b) for y, rx, front, back in _TANK]
         + [(0.307, 0.150 + b, 0.082 + b), (0.344, 0.152 + b, 0.074 + b), (0.366, 0.112, 0.064)],
         tee, poles=(-0.036, 0.378))),
-           ('cloth_seat', 'pelvis', (0.0, 0.0, 0.0), loft(
+           ('cloth_seat', 'pelvis', z0, loft(
                [_hung(-0.12, 0.095, 0.05, 0.13), _hung(-0.10, 0.11, 0.06, 0.13)]
-               + [_hung(*ring) for ring in _SEAT] + [(0.11, 0.118, 0.084)], denim,
-               poles=(-0.135, 0.118)))]
-    for side, x in (('left', 1.0), ('right', -1.0)):
-        out += [('cloth_%s_bust' % side, 'torso', (BUST_AT[0] * x, BUST_AT[1], BUST_AT[2] + b),
-                 ellipsoid((0.0, 0.0, 0.0), tuple(r + LOOSE_M / 2.0 for r in BUST_R), tee,
-                            rows=8)),
-                ('cloth_%s_inner' % side, side + '_thigh',
-                 (INNER_AT[0] * x, INNER_AT[1], INNER_AT[2]),
-                 ellipsoid((0.0, 0.0, 0.0), tuple(r + FIT_M for r in INNER_R), denim, rows=8))]
-    for side, x in (('left', 1.0), ('right', -1.0)):
-        out += [('cloth_%s_sleeve' % side, side + '_upper_arm', (0.0, 0.0, 0.0), loft(
-            [(0.04, 0.056, 0.056), (0.0, 0.069, 0.065), (-0.07, 0.066, 0.062),
-             (-0.13, 0.06, 0.056)], tee, poles=(0.05, -0.133))),
-                ('cloth_%s_thigh' % side, side + '_thigh', (0.0, 0.0, 0.0),
+               + [_hung(*r) for r in _SEAT] + [(0.11, 0.118, 0.084)], denim, poles=(-0.135, 0.118)))]
+    for side, x in _SIDES:
+        out += [(f'cloth_{side}_bust', 'torso', (BUST_AT[0] * x, BUST_AT[1], BUST_AT[2] + b),
+                 ellipsoid(z0, tuple(r + LOOSE_M / 2.0 for r in BUST_R), tee, rows=8)),
+                (f'cloth_{side}_inner', f'{side}_thigh', (INNER_AT[0] * x, INNER_AT[1], INNER_AT[2]),
+                 ellipsoid(z0, tuple(r + FIT_M for r in INNER_R), denim, rows=8))]
+    for side, x in _SIDES:
+        out += [(f'cloth_{side}_sleeve', f'{side}_upper_arm', z0, loft(
+                    [(0.04, 0.056, 0.056), (0.0, 0.069, 0.065), (-0.07, 0.066, 0.062),
+                     (-0.13, 0.06, 0.056)], tee, poles=(0.05, -0.133))),
+                (f'cloth_{side}_thigh', f'{side}_thigh', z0,
                  limb(THIGH, THIGH_R[0] + FIT_M, THIGH_R[1] + FIT_M, THIGH_R[2] + LOOSE_M,
-                      denim, bulge_at=0.22, out=x * SCULPT_M, ahead=THIGH_AHEAD,
-                      behind=THIGH_BEHIND)),
-                ('cloth_%s_shin' % side, side + '_shank', (0.0, 0.0, 0.0), loft(
+                      denim, bulge_at=0.22, out=x * SCULPT_M, ahead=THIGH_AHEAD, behind=THIGH_BEHIND)),
+                (f'cloth_{side}_shin', f'{side}_shank', z0, loft(
                     [(0.03, 0.068 + PAD_FULL_M, 0.068 + PAD_FULL_M),
                      (0.0, 0.077 + PAD_FULL_M, 0.077 + PAD_FULL_M), (-0.06, 0.078, 0.076),
                      (-HEM_AT, 0.078, 0.076)], denim, poles=(0.045, -HEM_AT - 0.01))),
-                ('cloth_%s_leg' % side, side + '_shank', ((side + '_hem_x', 'x', 1),
-                                                          (side + '_hem_z', 'z', 1)),
-                 (0.0, -HEM_AT, 0.0), loft(JEANS_LEG, denim,
-                                           poles=(0.02, JEANS_LEG[-1][0] - 0.02)))]
+                (f'cloth_{side}_leg', f'{side}_shank', ((f'{side}_hem_x', 'x', 1), (f'{side}_hem_z', 'z', 1)),
+                 (0.0, -HEM_AT, 0.0), loft(JEANS_LEG, denim, poles=(0.02, JEANS_LEG[-1][0] - 0.02)))]
     return out
 
 
-#: The tee's rings under its shoulders, (y, half width, front, back) m: its front hangs from
-#: the bust's apex (`BUST_AT`, `BUST_R`) nearly plumb to the hem. The jeans' seat's: flat over
-#: the belly, full over the seat.
 _TANK = ((-0.03, 0.108, 0.106, 0.081), (0.047, 0.114, 0.112, 0.086), (0.093, 0.124, 0.116, 0.092),
          (0.149, 0.134, 0.116, 0.093), (0.205, 0.138, 0.116, 0.094), (0.26, 0.142, 0.104, 0.090))
 _SEAT = ((-0.07, 0.148, 0.084, 0.134), (-0.03, 0.18, 0.096, 0.157), (0.02, 0.178, 0.096, 0.159),
@@ -123,20 +80,10 @@ _SEAT = ((-0.07, 0.148, 0.084, 0.134), (-0.03, 0.18, 0.096, 0.157), (0.02, 0.178
 
 
 def _hung(y, rx, front, back):
-    """A loft's ring at `y`: its half width, its `front` and `back` reach, m."""
     return (y, rx, (front + back) / 2.0, (front - back) / 2.0)
 
 
-#: The head's centre over the head joint, metres.
 HEAD_Y = 0.095
-
-
-#: Her hair, lips and eyes: a full wavy lob to just above her shoulders, parted aside PART_M,
-#: dark at the roots (HAIR) and caramel toward the ends (HAIR_ENDS). Rings (y, half width, half
-#: depth, its centre's z) in her head's frame, hung from `figure.HAIR_AT` on the hair's hinges:
-#: the fall round the back of her head and neck, its front inside them, and a lock HAIR_LOCK_X
-#: either side framing her face, clear of her jaw and her neck; each wider and narrower down its
-#: length, a wave.
 HAIR, HAIR_ENDS, LIPS, EYES = (118, 80, 52), (222, 168, 100), (192, 112, 112), (46, 46, 58)
 PART_M, BALAYAGE = 0.004, 1.2
 HAIR_FALL = ((0.10, 0.104, 0.08, -0.053), (0.06, 0.106, 0.079, -0.056),
@@ -146,41 +93,26 @@ HAIR_LOCK = ((0.12, 0.022, 0.043, 0.022), (0.09, 0.025, 0.048, 0.027), (0.06, 0.
              (0.03, 0.027, 0.049, 0.024), (0.0, 0.024, 0.048, 0.02), (-0.02, 0.028, 0.046, 0.016),
              (-0.045, 0.026, 0.042, 0.012))
 HAIR_LOCK_X = 0.084
-
-#: The bust's centre (the left's) on the torso and its radii, m: its apex 2 cm before the chest;
-#: 3.2 cm out and near round it read as spheres.
 BUST_AT, BUST_R = (0.056, 0.208, 0.062), (0.062, 0.056, 0.052)
-
-
-def _features():
-    """[(name, parent, offset, mesh)] or with joints, on her head: the nose, the ears, the eyes
-    and the lips, and her hair - a cap over the skull behind the face, parted aside, and a fall
-    and two locks to her shoulders on the hair's hinges."""
-    out = [('nose', 'head', (0.0, 0.0, 0.0),
-            ellipsoid((0.0, HEAD_Y - 0.004, 0.1), (0.011, 0.022, 0.016), SKIN, rows=6)),
-           ('lips', 'head', (0.0, 0.0, 0.0),
-            ellipsoid((0.0, HEAD_Y - 0.048, 0.094), (0.02, 0.007, 0.01), paint(LIPS), rows=6)),
-           ('hair', 'head', (0.0, 0.0, 0.0),
-            ellipsoid((-PART_M, HEAD_Y + 0.036, -0.018), (0.094, 0.11, 0.11), paint(HAIR))),
-           ('hair_fall', 'head', HUNG, HAIR_AT, _hair(HAIR_FALL, 0.0, 0.03))]
-    for side, x in (('left', 1.0), ('right', -1.0)):
-        out += [('%s_lock' % side, 'head', HUNG, HAIR_AT, _hair(HAIR_LOCK, HAIR_LOCK_X * x, 0.01))]
-        out += [('%s_ear' % side, 'head', (0.0, 0.0, 0.0),
-                 ellipsoid((0.071 * x, HEAD_Y - 0.004, 0.006), (0.009, 0.028, 0.018), SKIN,
-                            rows=6)),
-                ('%s_eye' % side, 'head', (0.0, 0.0, 0.0),
-                 ellipsoid((0.029 * x, HEAD_Y + 0.016, 0.092), (0.013, 0.006, 0.006),
-                            paint(EYES), rows=6))]
-    return out
-
-
-#: The hair's hinges (`mjcf.HAIRS`), as a part rides them.
 HUNG = (('hair_x', 'x', 1), ('hair_z', 'z', 1))
 
 
+def _features():
+    z0 = (0.0, 0.0, 0.0)
+    out = [('nose', 'head', z0, ellipsoid((0.0, HEAD_Y - 0.004, 0.1), (0.011, 0.022, 0.016), SKIN, rows=6)),
+           ('lips', 'head', z0, ellipsoid((0.0, HEAD_Y - 0.048, 0.094), (0.02, 0.007, 0.01), paint(LIPS), rows=6)),
+           ('hair', 'head', z0, ellipsoid((-PART_M, HEAD_Y + 0.036, -0.018), (0.094, 0.11, 0.11), paint(HAIR))),
+           ('hair_fall', 'head', HUNG, HAIR_AT, _hair(HAIR_FALL, 0.0, 0.03))]
+    for side, x in _SIDES:
+        out += [(f'{side}_lock', 'head', HUNG, HAIR_AT, _hair(HAIR_LOCK, HAIR_LOCK_X * x, 0.01)),
+                (f'{side}_ear', 'head', z0,
+                 ellipsoid((0.071 * x, HEAD_Y - 0.004, 0.006), (0.009, 0.028, 0.018), SKIN, rows=6)),
+                (f'{side}_eye', 'head', z0,
+                 ellipsoid((0.029 * x, HEAD_Y + 0.016, 0.092), (0.013, 0.006, 0.006), paint(EYES), rows=6))]
+    return out
+
+
 def _hair(rings, x, crown):
-    """A body of hair through `rings` (y, half width, half depth, centre's z; her head's frame)
-    moved `x` aside, capped `crown` over its top ring, in the frame of its hinges at HAIR_AT."""
     ax, ay, az = HAIR_AT
     top, end = rings[0][0] - ay, rings[-1][0] - ay
     corners, triangles, uv, materials = loft(
@@ -191,8 +123,6 @@ def _hair(rings, x, crown):
 
 
 def _balayage(corners, top, end):
-    """The hair's paint by corner: HAIR at `top`, HAIR_ENDS at `end` and below, lighter down
-    its length as the way to BALAYAGE."""
     np = _np()
     u = np.clip((top - corners[:, 1]) / (top - end), 0.0, 1.0)[:, None] ** BALAYAGE
     rgb = (np.asarray(HAIR) * (1.0 - u) + np.asarray(HAIR_ENDS) * u).astype(int)
@@ -200,69 +130,56 @@ def _balayage(corners, top, end):
 
 
 def _face(corners):
-    """The head's corners: skin on the face, the hood's mesh round the rest."""
     np = _np()
     y, z = corners[:, 1] - HEAD_Y, corners[:, 2] - 0.012
     return np.where((z > 0.028) & (y < 0.07) & (y > -0.12), SKIN, MESH)
 
 
 def _core(corners):
-    """The torso's corners: a band of the core's glow in front of the midriff."""
     np = _np()
     return np.where((corners[:, 1] > 0.03) & (corners[:, 1] < 0.10) & (corners[:, 2] > 0.035),
                     CORE, MESH)
 
 
 def _meshes():
-    """{segment: mesh} for the figure's segments, and the parts it has no joint for:
-    [(name, parent, offset, mesh)]."""
+    """({segment: mesh}, [(name, parent, offset, mesh), ...]) for the figure and extra parts."""
+    z0 = (0.0, 0.0, 0.0)
     pelvis = loft([(-0.10, 0.06, 0.05), (-0.07, 0.135, 0.097, -0.0215),
-                    (-0.03, 0.168, 0.115, -0.0275), (0.02, 0.166, 0.117, -0.0295), (0.07, 0.14, 0.092, -0.012),
-                    (0.11, 0.114, 0.074), (0.13, 0.098, 0.068)], PLATE, poles=(-0.115, 0.14))
-    # From 4.5 cm inside the pelvis, so the waist does not open as the spine bends.
+                   (-0.03, 0.168, 0.115, -0.0275), (0.02, 0.166, 0.117, -0.0295), (0.07, 0.14, 0.092, -0.012),
+                   (0.11, 0.114, 0.074), (0.13, 0.098, 0.068)], PLATE, poles=(-0.115, 0.14))
     torso = loft([(-0.045, 0.094, 0.066), (0.0, 0.098, 0.069), (0.047, 0.102, 0.072),
-                   (0.093, 0.112, 0.079),
-                   (0.149, 0.122, 0.082), (0.205, 0.126, 0.083), (0.26, 0.13, 0.078),
-                   (0.307, 0.138, 0.07), (0.344, 0.14, 0.062), (0.372, 0.1, 0.055),
-                   (0.39, 0.05, 0.045)], _core, poles=(-0.055, 0.40))
+                  (0.093, 0.112, 0.079), (0.149, 0.122, 0.082), (0.205, 0.126, 0.083), (0.26, 0.13, 0.078),
+                  (0.307, 0.138, 0.07), (0.344, 0.14, 0.062), (0.372, 0.1, 0.055),
+                  (0.39, 0.05, 0.045)], _core, poles=(-0.055, 0.40))
     meshes = {'pelvis': pelvis, 'torso': torso,
               'neck': loft([(0.0, 0.055, 0.052), (0.035, 0.05, 0.048), (0.07, 0.05, 0.048)],
-                            SKIN, poles=(-0.01, 0.075)),
+                           SKIN, poles=(-0.01, 0.075)),
               'head': ellipsoid((0.0, HEAD_Y, 0.012), (0.07, 0.104, 0.09), _face, rows=12)}
-    extra = [('jaw', 'head', (0.0, 0.0, 0.0),
-              ellipsoid((0.0, 0.042, 0.03), (0.047, 0.048, 0.056), SKIN))] + _features()
-    for side, x in (('left', 1.0), ('right', -1.0)):
-        extra += [('%s_bust' % side, 'torso', (BUST_AT[0] * x, BUST_AT[1], BUST_AT[2]),
-                   ellipsoid((0.0, 0.0, 0.0), BUST_R, PLATE, rows=8)),
-                  ('%s_cheek' % side, 'pelvis', (CHEEK_AT[0] * x, CHEEK_AT[1], CHEEK_AT[2]),
-                   ellipsoid((0.0, 0.0, 0.0), CHEEK_R, PLATE, rows=8)),
-                  ('%s_inner' % side, side + '_thigh', (INNER_AT[0] * x, INNER_AT[1], INNER_AT[2]),
-                   ellipsoid((0.0, 0.0, 0.0), INNER_R, MESH, rows=8)),
-                  ('%s_cap' % side, 'torso', (0.135 * x, 0.335, -0.004),
-                   ellipsoid((0.0, 0.0, 0.0), (0.05, 0.042, 0.046), PLATE, rows=8))]
+    extra = [('jaw', 'head', z0, ellipsoid((0.0, 0.042, 0.03), (0.047, 0.048, 0.056), SKIN))] + _features()
+    for side, x in _SIDES:
+        for tag, par, (ax, ay, az), rad, mat in (
+                ('bust', 'torso', BUST_AT, BUST_R, PLATE), ('cheek', 'pelvis', CHEEK_AT, CHEEK_R, PLATE),
+                ('inner', f'{side}_thigh', INNER_AT, INNER_R, MESH),
+                ('cap', 'torso', (0.135, 0.335, -0.004), (0.05, 0.042, 0.046), PLATE)):
+            extra.append((f'{side}_{tag}', par, (ax * x, ay, az), ellipsoid(z0, rad, mat, rows=8)))
         meshes.update({
-            side + '_upper_arm': limb(UPPER_ARM, 0.04, 0.038, 0.040 + PAD_FULL_M, MESH, flat=0.95),
-            side + '_forearm': limb(FOREARM, 0.040 + PAD_FULL_M, 0.028, 0.02, MESH, flat=0.9),
-            side + '_hand': ellipsoid((0.0, -0.043, 0.004), (0.014, 0.047, 0.032), PLATE, rows=8),
-            side + '_fingers': ellipsoid((0.0, -0.035, 0.0), (0.011, 0.042, 0.028), PLATE, rows=8),
-            side + '_thigh': limb(THIGH, THIGH_R[0], THIGH_R[1], THIGH_R[2], MESH, bulge_at=0.22,
+            f'{side}_upper_arm': limb(UPPER_ARM, 0.04, 0.038, 0.040 + PAD_FULL_M, MESH, flat=0.95),
+            f'{side}_forearm': limb(FOREARM, 0.040 + PAD_FULL_M, 0.028, 0.02, MESH, flat=0.9),
+            f'{side}_hand': ellipsoid((0.0, -0.043, 0.004), (0.014, 0.047, 0.032), PLATE, rows=8),
+            f'{side}_fingers': ellipsoid((0.0, -0.035, 0.0), (0.011, 0.042, 0.028), PLATE, rows=8),
+            f'{side}_thigh': limb(THIGH, THIGH_R[0], THIGH_R[1], THIGH_R[2], MESH, bulge_at=0.22,
                                   out=x * SCULPT_M, ahead=THIGH_AHEAD, behind=THIGH_BEHIND),
-            side + '_shank': limb(SHANK, 0.06 + PAD_FULL_M, 0.062, 0.034, PLATE, bulge_at=0.3,
-                                  ahead=0.008),
+            f'{side}_shank': limb(SHANK, 0.06 + PAD_FULL_M, 0.062, 0.034, PLATE, bulge_at=0.3, ahead=0.008),
             **sneaker.feet(side)})
         extra += sneaker.soles(side)
     return meshes, extra + drums.stages() + drums.drums() + _wear()
 
 
 def _worn(name):
-    """Whether a part is worn: her clothes, hair and sneakers' soles."""
     return name.startswith(('cloth_', 'hair')) or name.endswith(('_lock', '_sole'))
 
 
 def _parts(dressed=True):
-    """(name, parent, joints ((joint, axis, sign), ..), offset, rest turn about z (deg), mesh):
-    the figure's segments, then the parts it carries - on joints of their own, the jeans' legs on
-    their hems' - parents first. Undressed, her shell: nothing worn, the feet plated."""
     meshes, extra = _meshes()
     meshes = panels.over(meshes)
     if not dressed:
@@ -276,10 +193,7 @@ def _parts(dressed=True):
 
 
 def _split(rest) -> tuple[Any, Any, Any]:
-    """(joints, offset, mesh) of an extra part's (offset, mesh) or (joints, offset, mesh)."""
-    if len(rest) == 3:
-        return rest[0], rest[1], rest[2]
-    return (), rest[0], rest[1]
+    return (rest[0], rest[1], rest[2]) if len(rest) == 3 else ((), rest[0], rest[1])
 
 
 class Body:
@@ -288,43 +202,30 @@ class Body:
 
     def __init__(self, dressed=True, see=None):
         np = _np()
-        self.parts = mechanism.parts(see == 'actuators') if see else _parts(dressed)
+        self.parts: list[Any] = mechanism.parts(see == 'actuators') if see else _parts(dressed)
         self.see = see
-        corners, triangles, uv, materials, spans, faces = [], [], [], [], [], []
-        base = 0
-        for i, (*_head, mesh) in enumerate(self.parts):
-            c, t, u, m = mesh
-            corners.append(c)
-            triangles.append(t + base)
-            uv.append(u)
-            materials.append(m)
+        cs, ts, us, ms, spans, faces, base = [], [], [], [], [], [], 0
+        for i, (*_head, (c, t, u, m)) in enumerate(self.parts):
+            cs.append(c)
+            ts.append(t + base)
+            us.append(u)
+            ms.append(m)
             spans.append((base, base + len(c)))
             faces.append(np.full(len(t), i))
             base += len(c)
-        self.corners = np.vstack(corners)
-        self.index = np.vstack(triangles).astype(np.uint32)
-        self.uv, self.materials = np.vstack(uv), np.concatenate(materials).astype(np.uint32)
+        self.corners = np.vstack(cs)
+        self.index = np.vstack(ts).astype(np.uint32)
+        self.uv, self.materials = np.vstack(us), np.concatenate(ms).astype(np.uint32)
         self.spans = spans
         self.normals = smooth(self.corners, self.index)
-        #: The parts whose lowest corner is the sole; each drive's drum's, by its joint.
-        self.soles = [i for i, part in enumerate(self.parts)
-                      if part[0].endswith(('_foot', '_toes'))]
-        self.drums = {part[0][len('drive_'):]: i for i, part in enumerate(self.parts)
-                      if part[0].startswith('drive_')}
-        #: Each drum's patches on the cloth over it: [(part, its corners')] by joint.
+        self.soles = [i for i, p in enumerate(self.parts) if p[0].endswith(('_foot', '_toes'))]
+        self.drums = {p[0][len('drive_'):]: i for i, p in enumerate(self.parts) if p[0].startswith('drive_')}
         self.patches = drums.patches(self.parts)
-        #: Every triangle sampled DENSE_M apart, for the dots drawn without a card: (points,
-        #: normals, uv, materials) in their parts' frames, and each part's span of them.
         self.dense, self.dense_spans = sampled(self, np.concatenate(faces))
-        #: The same patches among the dots drawn without a card: {joint: {part: mask}}.
-        self.dense_near = drums.near(self.patches, self.parts, self.drums, self.dense,
-                                     self.dense_spans)
+        self.dense_near = drums.near(self.patches, self.parts, self.drums, self.dense, self.dense_spans)
         self._rest_pivots = self.pivots({})
 
     def _frames(self, angles, root=None):
-        """Each part's (turn, spot) in the world for {joint: degrees}; `root` the pelvis's (place,
-        turn 3x3), else at the origin, upright. `angles['arms_out']`, degrees, spreads the upper
-        arms out from their rest, drawn only - her shoulders have no such joint."""
         np = _np()
         where, turn = root if root is not None else ((0.0, 0.0, 0.0), np.eye(3))
         spread = float(angles.get('arms_out', 0.0))
@@ -341,6 +242,7 @@ class Body:
                 here = above @ turn_about('z', rest) if rest else above
             else:
                 spot, here = np.asarray(where, float), np.asarray(turn, float)
+            here: Any = here
             for joint, axis, sign in joints:
                 deg = sign * float(angles.get(joint, 0.0))
                 if deg:
@@ -356,34 +258,29 @@ class Body:
                     for i in self.soles if self.spans[i][1] > self.spans[i][0]), default=0.0)
 
     def pivots(self, angles, root=None, _frames=None):
-        """{joint: its pivot, world}; `root` as `pose` takes it."""
         frames = _frames if _frames is not None else self._frames(angles, root)
         floor = _np().array([0.0, self._floor(frames) if root is None else 0.0, 0.0])
-        return {joint: spot - floor for (_name, _parent, joints, *_rest), (_turn, spot)
-                in zip(self.parts, frames) for joint, _axis, _sign in joints}
+        return {joint: spot - floor for (_n, _p, joints, *_r), (_t, spot)
+                in zip(self.parts, frames) for joint, _a, _s in joints}
 
     def pose(self, angles, dense=False, root=None, _frames=None):
-        """(positions, normals) in metres, the floor at y 0, for {joint: degrees}; `root` the
-        pelvis's (place, turn), else the feet stood on the floor; `dense` the sampled points."""
         frames = _frames if _frames is not None else self._frames(angles, root)
         floor = 0.0 if root is not None else self._floor(frames)
         src = (self.dense[0], self.dense[1], self.dense_spans) if dense else (
             self.corners, self.normals, self.spans)
-        positions, normals = moved(*src, frames)
+        pos, norm = moved(*src, frames)
         if floor:
-            positions[:, 1] -= floor
-        return positions, normals
+            pos[:, 1] -= floor
+        return pos, norm
 
 
 def _band(depth, width):
-    """(left, right) cells: where her drawing begins and ends across, a cell off her."""
     across = _np().nonzero((depth > 0.0).any(axis=0))[0]
     if not len(across):
         return None
     return max(0, int(across[0]) // DOTS_X - 1), min(width, int(across[-1]) // DOTS_X + 2)
 
 
-#: The body, built on first use: 0.1 s of lofts.
 _BODY = {}
 
 
@@ -396,16 +293,12 @@ def body(dressed=True, see=None):
 
 class Follow:
 
-    """A camera's place over the floor, (x, z): on at her mean velocity, meaned over `seconds`,
-    and toward her place four times slower - her surge shows, and a head carried evenly stands
-    still. Tied to her pelvis, the pelvis stood still and an even head swung; along
-    the world's z alone, up from a fall facing aside she walked out past the lens."""
+    """A camera's place over the floor, (x, z), tracking mean velocity and position."""
 
     def __init__(self, seconds=1.0):
         self.seconds, self.at = seconds, None
 
     def __call__(self, place, speed, t):
-        """The camera's place for her at `place` going `speed`, (x, z) m and m/s, at `t`, s."""
         if self.at is None or math.dist(place, self.at[0]) > 1.0 or t <= self.at[2]:
             self.at = (tuple(place), tuple(speed), t)
             return self.at[0]
@@ -417,7 +310,6 @@ class Follow:
         return at
 
 
-#: What she trips on, its ink by kind (`World.props`).
 PROP_INK = {'hole': (255, 96, 128), 'sill': (255, 184, 80), 'slip': (96, 214, 255),
             'rug': (200, 160, 110), 'lace': (230, 90, 230), 'stairs': (220, 225, 235),
             'brick': (205, 92, 70), 'board': (214, 178, 120), 'chair': (220, 165, 80),
@@ -427,14 +319,11 @@ PROP_INK = {'hole': (255, 96, 128), 'sill': (255, 184, 80), 'slip': (96, 214, 25
             'door': (205, 150, 90), 'lamp': (110, 100, 80), 'lit': (255, 220, 120),
             'switch': (200, 200, 200)}
 
-
-#: A mark's cells about its centre: (column, row) off it, the character.
 MARK = (((0, 0), '\u253c'), ((-1, 0), '\u2500'), ((-2, 0), '\u2500'), ((1, 0), '\u2500'),
         ((2, 0), '\u2500'), ((0, -1), '\u2502'), ((0, 1), '\u2502'))
 
 
 def _marked(overlay, mark, m, cam, centre, travel, width, height):
-    """The overlay with a crosshair's cells on `mark` (world point, ink), over her."""
     np = _np()
     point, ink = mark
     at = np.asarray(point, float) - (travel[0], 0.0, travel[1])
@@ -449,20 +338,15 @@ def _marked(overlay, mark, m, cam, centre, travel, width, height):
     return out
 
 
-_BOX_SIGNS = tuple((float(i), float(j), float(k))
-                   for i in (-1, 1) for j in (-1, 1) for k in (-1, 1))
-_BOX_EDGES = tuple((a, b) for a in range(8) for b in range(a + 1, 8)
-                   if bin(a ^ b).count('1') == 1)
+_BOX_SIGNS = tuple((float(i), float(j), float(k)) for i in (-1, 1) for j in (-1, 1) for k in (-1, 1))
+_BOX_EDGES = tuple((a, b) for a in range(8) for b in range(a + 1, 8) if bin(a ^ b).count('1') == 1)
 
 
 def _props(props, m, cam, centre, travel):
-    """[(dots, ink)]: each prop's edges - a box's twelve, a lace's line - in the fine camera's
-    dots, the floor `travel` (x, z) m on."""
     if not props:
         return []
     np = _np()
-    signs, by_ink = np.asarray(_BOX_SIGNS), {}
-    shift = (travel[0], 0.0, travel[1])
+    signs, by_ink, shift = np.asarray(_BOX_SIGNS), {}, (travel[0], 0.0, travel[1])
     for kind, *shape in props:
         if kind == 'lace':
             corners, edges = np.array(shape, float) - shift, ((0, 1),)
@@ -484,59 +368,56 @@ def _props(props, m, cam, centre, travel):
     return [(dots, ink) for ink, dots in by_ink.items()]
 
 
+def _heated(who, heat):
+    if not heat:
+        return who.materials, who.dense[3]
+    mats, dense = who.materials.copy(), who.dense[3].copy()
+    for joint, celsius in heat.items():
+        if joint not in who.drums:
+            continue
+        worn, i = paint(ansi.thermal_rgb(celsius)), who.drums[joint]
+        mats[slice(*who.spans[i])] = worn
+        dense[slice(*who.dense_spans[i])] = worn
+        for part, corners in who.patches.get(joint, ()):
+            mats[who.spans[part][0] + corners] = worn
+            lo, hi = who.dense_spans[part]
+            dense[lo:hi][who.dense_near[joint][part]] = worn
+    return mats, dense
+
+
+def _wired(who, frames, root, m, fine, centre):
+    np = _np()
+    depth = np.zeros((int(fine['height']), int(fine['width'])))
+    rgb, layers = np.zeros(depth.shape + (3,)), mechanism.wires(who.parts, frames)
+    low = 0.0 if root is not None else min(min(a[:, 1].min(), b[:, 1].min()) for a, b, _ink in layers)
+    wired = []
+    for a, b, ink in layers:
+        ax, ay, aw = project(a - (0.0, low, 0.0), m, fine, centre)
+        bx, by, bw = project(b - (0.0, low, 0.0), m, fine, centre)
+        dots = np.zeros(depth.shape, bool)
+        for k in np.flatnonzero((aw > 0.0) & (bw > 0.0)):
+            line(dots, (ax[k], ay[k]), (bx[k], by[k]))
+        wired.append((dots, ink))
+    return depth, rgb, wired
+
+
 def render(angles, width, height, yaw=30.0, pitch=8.0, zoom=1.0, colour=True, travel=(0.0, 0.0),
            lit=None, root=None, labels=None, heat=None, props=None, legend=None, dressed=True,
-           mark=None,
-           around=False, see=None, pan=(0.0, 0.0), inset=None, arrows=None):
-    """Her, posed at {joint: degrees}, the pelvis at `root` (place, turn) if given, `width` x
-    `height` cells: lines. `lit` a `gpu.LitRaster`, or None to splat her dots here; `labels`
-    {joint: [row, ..]} called out at the edges (`callouts`); `heat` {joint: C} each drive's drum
-    painted its temperature's colour (`ansi.thermal_rgb`); `props` what she trips on, world
-    (`World.props`), drawn as edges `travel` (x, z) m back; `legend` a row [(char, fg, bg)] on the
-    last line, the callouts kept above it; `dressed` False her shell; `around` the callouts docked
-    round her; `see` 'mechanism' or 'actuators' (`mechanism`); `pan` (right, up) m the view
-    moved in its plane; `inset` cells {(row, col): (codepoint, key)} laid over all."""
-    np = _np()
-    who = body(dressed, see)
-    m = view(yaw, pitch)
+           mark=None, around=False, see=None, pan=(0.0, 0.0), inset=None, arrows=None):
+    """Render the gynoid at `angles` (`{joint: deg}`) into `width` x `height` braille lines."""
+    np, who, m = _np(), body(dressed, see), view(yaw, pitch)
     fine = engine.fine(engine.camera(width, height, REACH, distance=DISTANCE, zoom=zoom))
     centre = np.asarray(CENTRE) + np.asarray(pan) @ np.reshape(m, (3, 3))[:2]
-    materials, dense = who.materials, who.dense[3]
-    if heat:
-        materials, dense = materials.copy(), dense.copy()
-        for joint, celsius in heat.items():
-            if joint in who.drums:
-                worn = paint(ansi.thermal_rgb(celsius))
-                i = who.drums[joint]
-                materials[slice(*who.spans[i])] = worn
-                dense[slice(*who.dense_spans[i])] = worn
-                for part, corners in who.patches.get(joint, ()):
-                    materials[who.spans[part][0] + corners] = worn
-                    lo, hi = who.dense_spans[part]
-                    dense[lo:hi][who.dense_near[joint][part]] = worn
-    frames = who._frames(angles, root)
-    wired = []
+    mats, dense = _heated(who, heat)
+    frames, wired = who._frames(angles, root), []
     if see == 'actuators':
-        depth = np.zeros((int(fine['height']), int(fine['width'])))
-        rgb = np.zeros(depth.shape + (3,))
-        layers = mechanism.wires(who.parts, frames)
-        low = 0.0 if root is not None else min(min(a[:, 1].min(), b[:, 1].min())
-                                                for a, b, _ink in layers)
-        for a, b, ink in layers:
-            a, b = a - (0.0, low, 0.0), b - (0.0, low, 0.0)
-            ax, ay, aw = project(a, m, fine, centre)
-            bx, by, bw = project(b, m, fine, centre)
-            dots = np.zeros(depth.shape, bool)
-            for k in np.flatnonzero((aw > 0.0) & (bw > 0.0)):
-                line(dots, (ax[k], ay[k]), (bx[k], by[k]))
-            wired.append((dots, ink))
+        depth, rgb, wired = _wired(who, frames, root, m, fine, centre)
     elif lit is not None:
-        positions, normals = who.pose(angles, root=root, _frames=frames)
-        depth, rgb = lit.raster(positions, normals, who.uv, materials, who.index, m, fine,
-                                centre, REACH * 1.4)
+        pos, norm = who.pose(angles, root=root, _frames=frames)
+        depth, rgb = lit.raster(pos, norm, who.uv, mats, who.index, m, fine, centre, REACH * 1.4)
     else:
-        positions, normals = who.pose(angles, dense=True, root=root, _frames=frames)
-        depth, rgb = splat((positions, normals, dense, who.dense[2]), m, fine, centre)
+        pos, norm = who.pose(angles, dense=True, root=root, _frames=frames)
+        depth, rgb = splat((pos, norm, dense, who.dense[2]), m, fine, centre)
     overlay = leaders = None
     if labels:
         pivots, rest = who.pivots(angles, root=root, _frames=frames), who._rest_pivots
@@ -560,3 +441,4 @@ def render(angles, width, height, yaw=30.0, pitch=8.0, zoom=1.0, colour=True, tr
     return braille(depth, rgb, grid(m, fine, centre, travel), width, height, colour, overlay,
                    leaders, _props(props or (), m, fine, centre, travel)
                    + _arrows.layers(arrows, m, fine, centre, travel) + wired)
+

@@ -1,5 +1,6 @@
 """The HUMANOID page's hands: its mouse on the view, its keys on her loop and on the view."""
 import sys
+from types import SimpleNamespace as SN
 
 from tools.dev.focus import chosen
 from views_kit import Report
@@ -7,7 +8,6 @@ from views_kit import Report
 
 def test_the_humanoid_pages_mouse(report):
     """The HUMANOID page holds the mouse, a key typed kept (`viewpoint`)."""
-    import types
     from terminal.ui import console
     from terminal.views import viewpoint
     keys = console.Keys(console=True, mouse=True, select=frozenset(), pan=True)
@@ -37,11 +37,10 @@ def test_the_humanoid_pages_mouse(report):
            ('5', 53, 2), (';', 188, 1), ('2', 50, 2), ('M', 77, 1),
            ('\x1b', 27, 1), ('[', 219, 1), ('<', 226, 1), ('0', 48, 1), (';', 188, 1),
            ('5', 53, 2), (';', 188, 1), ('2', 50, 2), ('m', 77, 1)]
-    keys._buffer = ''.join(keys._key_of(types.SimpleNamespace(ch=c, vk=v, repeat=r, down=1)) for c, v, r in sgr)
+    keys._buffer = ''.join(keys._key_of(SN(ch=c, vk=v, repeat=r, down=1)) for c, v, r in sgr)
     lv_c, _ = keys.poll()
-    keys._buffer = ''.join(sum((keys._mouse_of(types.SimpleNamespace(
-        pos=types.SimpleNamespace(X=x, Y=10), buttons=b, flags=console.MOUSE_MOVED))
-        for x, b in ((10, 1), (15, 1), (18, 0))), []))
+    keys._buffer = ''.join(sum((keys._mouse_of(SN(pos=SN(X=x, Y=10), buttons=b, flags=console.MOUSE_MOVED))
+                                for x, b in ((10, 1), (15, 1), (18, 0))), []))
     keys.poll()
     d_ok = (keys.clicked() == [(55, 22), (11, 11)] and keys.dragged() == (5, 0)
             and keys._buttons == 0 and not keys._holding)
@@ -54,10 +53,9 @@ def test_the_humanoid_pages_mouse(report):
 
 def test_the_humanoid_pages_keys(report):
     """The page's keys are her loop's and the view's: A lands her, digits say moves, W walks her."""
-    import types
     from terminal.views import gym, humanoid_keys, show_humanoid
     sent = []
-    st: dict = {'body': types.SimpleNamespace(send=lambda **cmd: sent.append(cmd)), 'side': 1.0,
+    st: dict = {'body': SN(send=lambda **cmd: sent.append(cmd)), 'side': 1.0,
                 'orbit': False, 'called': 'strong', 'shown': 'torque', 'skin': 'dressed'}
     for k in 'a4w':
         show_humanoid.KEYS[k](st)
@@ -164,7 +162,6 @@ def test_r_records_and_saves(report):
 
 def test_vision_scanner_docked_pip_and_affordances(report):
     """The stereo vision scanner detects props, renders PiP with affordances, and leaving WASD triggers auto-action."""
-    import types
     from terminal.views import scanner, show_humanoid
     sc = scanner.VisionScanner()
     report.check('model identification resolves or reports local stereo',
@@ -180,18 +177,16 @@ def test_vision_scanner_docked_pip_and_affordances(report):
     chars = ''.join(chr(c) for c, _k in cells.values())
     report.check('docked vision contains chair label and actions', 'chair' in chars and 'sit' in chars)
     sent = []
-    st = {'body': types.SimpleNamespace(send=lambda **kw: sent.append(kw)),
-          'wasd_mode': True, 'scanner': sc, 'now': now, 'yaw': 0.0}
+    st = {'body': SN(send=lambda **kw: sent.append(kw)), 'wasd_mode': True, 'scanner': sc, 'now': now, 'yaw': 0.0}
     show_humanoid.KEYS['~'](st)
     report.check('leaving WASD mode commands auto-action sit_chair', sent == [{'say': 'sit_chair'}])
 
 
 def test_tpw_controls(report):
     """TPW mode toggle, Shift sprint, F interact, viewport badge, and A disabled in normal mode."""
-    import types
     from terminal.views import humanoid_keys, show_humanoid
     sent = []
-    st = {'body': types.SimpleNamespace(send=lambda **cmd: sent.append(cmd)), 'wasd_mode': False,
+    st = {'body': SN(send=lambda **cmd: sent.append(cmd)), 'wasd_mode': False,
           'yaw': 180.0, 'pitch': 8.0, 'now': {'angles': {}, 'where': (0.0, 0.9, 0.0), 'turn': (1, 0, 0, 0), 'stage': 'stand'}}
     show_humanoid.KEYS['a'](st)
     report.check('a in normal mode is disabled and does not reset robot', not sent)
@@ -213,15 +208,16 @@ def test_tpw_controls(report):
     sent.clear()
     show_humanoid.KEYS['f'](st)
     report.check('f key executes interact action', len(sent) == 1 and 'say' in sent[0])
-    mk = show_humanoid.marked(st, st['now'], 1.0)
-    report.check('crosshair reticle is rendered along line of sight', mk is not None and mk[1] == (96, 220, 255))
+    report.check('shove crosshair is hidden in TPW mode', show_humanoid.marked(st, st['now'], 1.0) is None)
     sent.clear()
     humanoid_keys.act_on(show_humanoid.KEYS, [' '], st)
     report.check('Space in TPW mode triggers jump (hop) and does not charge push',
                  sent == [{'say': 'hop'}] and st.get('charge') is None and humanoid_keys.charging(st, 2.0) == 0.0)
     show_humanoid.KEYS['F1'](st)
     report.check('F1 toggles mode back to normal', st.get('wasd_mode') is False)
-    report.check('crosshair hidden in normal mode', show_humanoid.marked(st, st['now'], 1.0) is None)
+    report.check('shove crosshair marks torso on normal mode push and is hidden when idle',
+                 show_humanoid.marked({**st, 'landed': (0.8, 120.0)}, st['now'], 1.0) is not None
+                 and show_humanoid.marked(st, st['now'], 1.0) is None)
 
 
 def test_surface_arrows_setpoint_actual_and_landing_zones(report):
@@ -229,6 +225,7 @@ def test_surface_arrows_setpoint_actual_and_landing_zones(report):
     import numpy as np
     from coaxial.graphics import arrows, gynoid
     from machine import physics, se2, sprung
+    from terminal.views import humanoid_keys
     z3 = np.zeros(27)
     b0 = sprung.state(sprung.laid(every=3), z3, z3, 0.0, 1.0, None)
     w = physics.World()
@@ -266,7 +263,6 @@ def test_surface_arrows_setpoint_actual_and_landing_zones(report):
         se2.step_controller(st_wa, tok, 0.05, now=t_wa)
         swa = arrows.describe(dict(b0, doing='turn_left'), st_wa)
     tip_x = max(p[0] for seg in swa['frame_segments'] for p in seg)
-    from terminal.views import humanoid_keys
     sae = arrows.describe(dict(b0, doing='strafe_left', twist_actual=(0.0, 0.45, -0.60)),
                           humanoid_keys.step_se2(se2.state(), 'ae', 0.8, now=3.0))
     sq = arrows.describe(dict(b0, doing='turn_left'), humanoid_keys.step_se2(se2.state(), 'q', 0.8, now=3.0))
@@ -298,7 +294,7 @@ def test_surface_arrows_setpoint_actual_and_landing_zones(report):
 
 def test_scenario_deck_tour_handoff_and_cybernetic_hud(report):
     """Floor scenarios, [ / ] cycle, Enter/F toggle, tour handoff, BAL/THM/STB gauges, and 40-cell HUD boxes."""
-    import io, types
+    import io
     from rich.console import Console
     from machine import floor, se2
     from terminal import keybindings
@@ -307,7 +303,7 @@ def test_scenario_deck_tour_handoff_and_cybernetic_hud(report):
 
     miss = [s for s in floor.SCENARIOS if s not in keybindings.SCENARIO_MOVES or s not in keybindings.SCENARIO_DESC]
     sent, se2_st = [], se2.state()
-    st = {'body': types.SimpleNamespace(send=lambda **cmd: sent.append(cmd)), 'wasd_mode': True,
+    st = {'body': SN(send=lambda **cmd: sent.append(cmd)), 'wasd_mode': True,
           'scenario': 'chair', 'se2': se2_st, 'keys': show_humanoid.KEYS, 'now': {'doing': 'rest', 'where': (0.0, 0.9, 0.0)}}
     show_humanoid.KEYS['n'](st)
     show_humanoid.KEYS['N'](st)
@@ -345,7 +341,7 @@ def test_scenario_deck_tour_handoff_and_cybernetic_hud(report):
     show_humanoid.KEYS['H'](st)
     tr, vis = st.get('tour'), set()
     for _ in range(100):
-        if st.get('tour') is not None:
+        if tr is not None and st.get('tour') is not None:
             vis.add(tr.step_idx)
             tr.step(st, 0.5)
     report.check('H engages HouseTour on glass_room and stepping all 14 steps does not self-cancel',
@@ -370,7 +366,7 @@ def test_scenario_deck_tour_handoff_and_cybernetic_hud(report):
                  all(w in g_txt for w in ('Third Person Control', 'BAL', 'THM', 'STB')))
     vpb = show_humanoid.tpw_badge(True, 80, 24, state=st)
     r1 = ''.join(chr(c) for (r, _), (c, _) in sorted(vpb.items()) if r == 1)
-    t_bx = gym.boxes(nom, wasd=True, tour=types.SimpleNamespace(done=False))
+    t_bx = gym.boxes(nom, wasd=True, tour=SN(done=False))
     jr = show_humanoid._joint_row({'temp': {'spine': 42.0}}, 'spine', 'spine', 'temp')[1].plain
     buf = io.StringIO()
     c40 = Console(file=buf, width=40, theme=stage.THEME, legacy_windows=False)
@@ -383,12 +379,9 @@ def test_scenario_deck_tour_handoff_and_cybernetic_hud(report):
                  and '\u2026' not in b_txt and '+0.69' in b_txt and len(show_humanoid.legend('temp', 60)) > 20)
 
 
-ROSTER = (test_the_humanoid_pages_mouse, test_the_humanoid_pages_keys,
-          test_a_held_space_charges_a_push, test_r_records_and_saves,
-          test_vision_scanner_docked_pip_and_affordances,
-          test_tpw_controls,
-          test_surface_arrows_setpoint_actual_and_landing_zones,
-          test_scenario_deck_tour_handoff_and_cybernetic_hud)
+ROSTER = (test_the_humanoid_pages_mouse, test_the_humanoid_pages_keys, test_a_held_space_charges_a_push,
+          test_r_records_and_saves, test_vision_scanner_docked_pip_and_affordances, test_tpw_controls,
+          test_surface_arrows_setpoint_actual_and_landing_zones, test_scenario_deck_tour_handoff_and_cybernetic_hud)
 
 
 def main(argv=None):

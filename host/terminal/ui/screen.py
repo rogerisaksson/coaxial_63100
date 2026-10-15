@@ -146,27 +146,19 @@ def gauge(fraction, width, hot=THROTTLE_AT):
                         else cross_section.SOA_OK)
 
 
-#: Frames a second, at most, on every view, and its feed's reads: smooth against a stand-in or an
-#: emulator, no dearer in CPU. A feed at 5 ms held an emulated board's link.
+#: Maximum frames and feed reads per second across views.
 FPS_CAP = 20.0
 
-#: The board a page draws when none is named: this host's build of the board layer and
-#: the firmware's cores (tools.cores.native), in real time. The image on Renode ran 3.8 to
-#: 4.5 wall s a board s under the drive - its translator's code, the .NET crossings and the
-#: FPU's state saved at each interrupt, ours a fifth of it - and stays the firmware's proof
-#: (emulator://). Renode 1.17.0, the latest.
+#: Default rig URI when none is passed on the command line.
 PORT = 'native://'
 
-
-#: The least a feed waits between two reads, s.
+#: Minimum sleep between two feed reads, s.
 FEED_GAP_S = 0.005
 
 
 class Feed:
 
-    """The board read on its own thread, so a frame draws at the screen's
-    pace rather than the link's.
-    """
+    """The board read on its own thread, so a frame draws at the screen's pace rather than the link's."""
 
     def __init__(self, read, period=0.0):
         self.read = read
@@ -183,33 +175,22 @@ class Feed:
         return self
 
     def _run(self):
-
         while not self._stop.is_set():
             began = time.monotonic()
             try:
                 got = self.read()
             except Exception as exc:
-                # The thread's edge: whatever `read` raised is kept for the
-                # view to show while it keeps drawing - a feed that dies
-                # hides its own reason.
                 self.error = exc
             else:
                 self.error = None
-                # None is the link's silence (`steady`): the last reading stands, stale, rather
-                # than the frame going blank.
                 if got is not None:
                     self.latest = got
                 self.reads += 1
             if self.period:
-                # Start to start: the read's own time is inside the period, not added to it
-                # - added, a 20 ms read at 50 ms fed a 20 fps view 14 readings a second, and
-                # a frame in four drew the last one again. FEED_GAP_S even after
-                # a read longer than the period, so the link is left to the keys.
                 time.sleep(max(FEED_GAP_S, self.period - (time.monotonic() - began)))
 
     def stop(self, wait=1.0):
-        """Ask it to stop and wait, so nothing touches the link after the
-        caller starts putting the board back."""
+        """Ask it to stop and wait, so nothing touches the link during teardown."""
         self._stop.set()
         if self._thread is not None:
             self._thread.join(wait)
@@ -217,8 +198,7 @@ class Feed:
 
 
 def demo(origin):
-    """Whether a page may drive the board to show itself: the stand-in's or the emulated MCU's,
-    never a real one."""
+    """Whether a page may drive the board to show itself (simulated or emulated, never live)."""
     return standing(origin) != 'live'
 
 
@@ -229,36 +209,37 @@ def mode_of(args):
 
 def open_rig(banner, **kwargs):
     """The rig behind a boot strip, or None with the board's own words said."""
-
     try:
         with boot(banner):
             rig = Coaxial63100(**kwargs).open()
-        # The top row's STO chip, read beside the view's own requests.
         sto.watch(rig)
         return rig
     except (RigError, OSError) as exc:
-        # OSError as well: a port another process holds, and a broker socket
-        # that times out, both arrive here as something other than a RigError
-        # and both mean the same thing to a reader - no board.
         say('fail', 'link', str(exc))
         return None
 
 
-#: The screen's own rate: between a page's draws - its data's rate, 2 Hz on the
-#: thermal page - the last frame is shown again UI_HZ times a second, so what moves
-#: with the clock (the CRT, the lock, the tags, the clocks) never waits on the data.
+#: UI refresh rate between data draws so CRT/clock elements stay live, Hz.
 UI_HZ = 15.0
+
+
+def _wait_frame(keys, page, shown, started, period):
+    """Pace until `period` elapses from `started`, refreshing `page` at `UI_HZ` unless input arrives."""
+    leaving, moved, typed = None, 0.0, []
+    while True:
+        left = period - (time.monotonic() - started)
+        leaving, more, got = paced(keys, max(0.0, min(left, 1.0 / UI_HZ)))
+        moved += more
+        typed.extend(got)
+        if leaving or typed or moved or _mouse_pending(keys) or left <= 1.0 / UI_HZ:
+            return leaving, moved, typed
+        page.update(shown, refresh=True)
 
 
 def run_view(board_view, console, period, frames, draw, on_input=None,
              tick=None, mouse=False, on_click=None, on_drag=None,
              scroll_keys=True, on_pan=None, select=SELECT_KEYS, quits=QUIT_KEYS):
-    """The loop every view runs: draw, pace - `period`, FPS_CAP's at the least - take keys,
-    until Q, ESC, Ctrl+C or `frames` frames. Between draws the frame is shown again at UI_HZ;
-    a key cuts the wait and draws at once. `on_pan` takes a right drag's cells, `select` the
-    keys lending the mouse (`Keys`).
-    """
-
+    """Run a view loop: draw, pace at `period` (capped by `FPS_CAP`), and dispatch keys/mouse."""
     period = max(period, 1.0 / FPS_CAP)
     click, drag = on_click or _ignore, on_drag or _ignore
     count = 0
@@ -268,36 +249,22 @@ def run_view(board_view, console, period, frames, draw, on_input=None,
                                                pan=on_pan is not None, **q_kw) as keys:
             while True:
                 count += 1
-                # The period is frame to frame, measured from this draw's
-                # start - not a sleep after it.
                 started = time.monotonic()
                 shown = draw()
                 page.update(shown, refresh=True)
                 rate_of(board_view).tick(started)
-                if tick is not None and tick():
+                if (tick is not None and tick()) or (frames and count >= frames):
                     return None
-                if frames and count >= frames:
-                    return None
-                leaving, moved, typed = None, 0.0, []
-                while True:
-                    left = period - (time.monotonic() - started)
-                    leaving, more, got = paced(keys, max(0.0, min(left, 1.0 / UI_HZ)))
-                    moved += more
-                    typed.extend(got)
-                    if leaving or typed or moved or _mouse_pending(keys) or left <= 1.0 / UI_HZ:
-                        break
-                    page.update(shown, refresh=True)
+                leaving, moved, typed = _wait_frame(keys, page, shown, started, period)
                 if leaving:
                     return leaving
+                for step in (SCROLL_STEP[k] for k in typed if scroll_keys and k in SCROLL_STEP):
+                    scroll_by(board_view, step)
                 if scroll_keys:
-                    for step in (SCROLL_STEP[key] for key in typed
-                                 if key in SCROLL_STEP):
-                        scroll_by(board_view, step)
-                    typed = [key for key in typed if key not in SCROLL_STEP]
+                    typed = [k for k in typed if k not in SCROLL_STEP]
                 if on_input is not None:
                     on_input(typed, moved)
-                clicks = keys.clicked() if mouse or on_click is not None else ()
-                for col, row in clicks:
+                for col, row in (keys.clicked() if mouse or on_click is not None else ()):
                     scroll_click(board_view, col, row)
                     click(col, row)
                 dx, dy = keys.dragged() if mouse or on_drag is not None else (0, 0)

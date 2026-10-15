@@ -153,11 +153,11 @@ def test_kinetic_strike_and_tps_reticle(report):
     }
     state['now'] = now
 
-    # 1. TPS crosshair reticle rendered
-    mark = show_humanoid.marked(state, now, 0.0)
-    report.check('TPS aiming crosshair reticle is active', mark is not None and mark[1] == (96, 220, 255))
-    aim_pos = mark[0]
-    report.check('aiming reticle positioned along line of sight', aim_pos[2] > now['where'][2])
+    # 1. Shove crosshair hidden in TPW mode and only active on normal-mode push
+    report.check('shove crosshair is hidden on robot in TPW mode', show_humanoid.marked(state, now, 0.0) is None)
+    mark_push = show_humanoid.marked({**state, 'wasd_mode': False, 'landed': (0.0, 120.0)}, now, 0.1)
+    report.check('shove crosshair marks torso only in normal mode push',
+                 mark_push is not None and mark_push[1] == show_humanoid.LANDED_INK)
 
     # 2. Along line of sight calculation
     sight = show_humanoid.along(state)

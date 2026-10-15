@@ -159,15 +159,57 @@ def lay_rug(world, at, heading=0.0):
     d.qvel[dof:dof + 6] = 0.0
 
 
+def _place_slope(world, kind, at, heading):
+    rad = math.radians(SLOPE_ANGLE_DEG)
+    c, s = math.cos(heading), math.sin(heading)
+    ch, sh = math.cos(heading / 2.0), math.sin(heading / 2.0)
+    hz, hy = SLOPE_HALF[2] * math.cos(rad), SLOPE_HALF[2] * math.sin(rad)
+    k_ramp = world.model.body_mocapid[world.model.body('slope_ramp').id]
+    if kind == 'slope':
+        cr, sr = math.cos(-rad / 2.0), math.sin(-rad / 2.0)
+        ramp_at = _on(at, heading, 0.0, hy - SLOPE_HALF[1] * math.cos(rad), hz + SLOPE_HALF[1] * math.sin(rad))
+        world.data.mocap_pos[k_ramp], world.data.mocap_quat[k_ramp] = ramp_at, (ch * cr, ch * sr, sh * cr, -sh * sr)
+        top_at = _on(at, heading, 0.0, 2.0 * hy - SLOPE_TOP_HALF[1], 2.0 * hz + SLOPE_TOP_HALF[2])
+        mocap(world, 'slope_top', top_at, heading)
+        return
+    cr, sr = math.cos(rad / 2.0), math.sin(rad / 2.0)
+    span = (2.0 * hz + 1.2 if kind == 'slope_down' else 2.0 * SLOPE_HALF[2]) * c
+    pad = abs(s) * SLOPE_HALF[0]
+    slab(world, min(at[1], at[1] + span) - pad, max(at[1], at[1] + span) + pad)
+    world.hole_x = None
+    if kind == 'slope_down':
+        ramp_at = _on(at, heading, 0.0, -hy - SLOPE_HALF[1] * math.cos(rad), hz - SLOPE_HALF[1] * math.sin(rad))
+        q = (ch * cr, ch * sr, sh * cr, -sh * sr)
+    else:
+        ramp_at = _on(at, heading, 0.0, -SLOPE_HALF[1] * math.cos(rad), SLOPE_HALF[2])
+        q = (ch * cr, sh * sr, sh * cr, ch * sr)
+    world.data.mocap_pos[k_ramp], world.data.mocap_quat[k_ramp] = ramp_at, q
+
+
+_SIMPLE_PROPS = {
+    'sill': ('sill', 0.0, 0.0), 'slip': ('slip', 0.0, 0.0), 'chair': ('chair', 0.0, 0.0),
+    'wall': ('wall', 1.2, 0.0), 'tree': ('tree', 1.5, 0.0),
+    'bed': ('prop_bed', 0.0, 0.0), 'prop_bed': ('prop_bed', 0.0, 0.0),
+    'mattress': ('prop_bed', 0.004 - BED_MATTRESS_H, 0.0),
+    'asphalt': ('slope_top', 0.002 - SLOPE_TOP_HALF[1], SLOPE_TOP_HALF[2]),
+    'ice': ('ice', 0.001 - ICE_HALF[1], ICE_HALF[2]),
+    'snow': ('snow', 0.004 - SNOW_HALF[1], SNOW_HALF[2]),
+}
+
+
 def place(world, kind, z, x=0.0, heading=0.0):
     c, s = math.cos(heading), math.sin(heading)
     at = (x * c + z * s, -x * s + z * c)
+    if kind in _SIMPLE_PROPS:
+        body, dy, dz = _SIMPLE_PROPS[kind]
+        mocap(world, body, (at[0], dy, at[1] + dz), heading)
+        return
+    if kind in ('slope', 'slope_down', 'cross_slope'):
+        _place_slope(world, kind, at, heading)
+        return
     if kind == 'hole':
         slab(world, at[1] - HOLE_LONG_M / 2.0, at[1] + HOLE_LONG_M / 2.0)
         world.hole_x = at[0]
-        return
-    if kind in ('sill', 'slip', 'chair'):
-        mocap(world, kind, (at[0], 0.0, at[1]), heading)
         return
     if kind == 'rug':
         lay_rug(world, at, heading)
@@ -189,65 +231,8 @@ def place(world, kind, z, x=0.0, heading=0.0):
         world.hole_x = at[0]
         mocap(world, 'board_base', (at[0], -HOLE_M, at[1]), heading)
         return
-    if kind == 'wall':
-        mocap(world, 'wall', (at[0], 1.2, at[1]), heading)
-        return
-    if kind == 'tree':
-        mocap(world, 'tree', (at[0], 1.5, at[1]), heading)
-        return
-    if kind in ('bed', 'prop_bed'):
-        mocap(world, 'prop_bed', (at[0], 0.0, at[1]), heading)
-        return
-    if kind == 'mattress':
-        mocap(world, 'prop_bed', (at[0], 0.004 - BED_MATTRESS_H, at[1]), heading)
-        return
-    if kind == 'slope':
-        rad = math.radians(SLOPE_ANGLE_DEG)
-        cos_r, sin_r = math.cos(-rad / 2.0), math.sin(-rad / 2.0)
-        ch, sh = math.cos(heading / 2.0), math.sin(heading / 2.0)
-        q = (ch * cos_r, ch * sin_r, sh * cos_r, -sh * sin_r)
-        hz, hy = SLOPE_HALF[2] * math.cos(rad), SLOPE_HALF[2] * math.sin(rad)
-        ramp_at = _on(at, heading, 0.0, hy - SLOPE_HALF[1] * math.cos(rad), hz + SLOPE_HALF[1] * math.sin(rad))
-        k_ramp = world.model.body_mocapid[world.model.body('slope_ramp').id]
-        world.data.mocap_pos[k_ramp], world.data.mocap_quat[k_ramp] = ramp_at, q
-        top_at = _on(at, heading, 0.0, 2.0 * hy - SLOPE_TOP_HALF[1], 2.0 * hz + SLOPE_TOP_HALF[2])
-        mocap(world, 'slope_top', top_at, heading)
-        return
-    if kind == 'slope_down':
-        rad = math.radians(SLOPE_ANGLE_DEG)
-        cos_r, sin_r = math.cos(rad / 2.0), math.sin(rad / 2.0)
-        ch, sh = math.cos(heading / 2.0), math.sin(heading / 2.0)
-        q = (ch * cos_r, ch * sin_r, sh * cos_r, -sh * sin_r)
-        hz, hy = SLOPE_HALF[2] * math.cos(rad), SLOPE_HALF[2] * math.sin(rad)
-        span, pad = (2.0 * hz + 1.2) * c, abs(s) * SLOPE_HALF[0]
-        slab(world, min(at[1], at[1] + span) - pad, max(at[1], at[1] + span) + pad)
-        world.hole_x = None
-        ramp_at = _on(at, heading, 0.0, -hy - SLOPE_HALF[1] * math.cos(rad), hz - SLOPE_HALF[1] * math.sin(rad))
-        k_ramp = world.model.body_mocapid[world.model.body('slope_ramp').id]
-        world.data.mocap_pos[k_ramp], world.data.mocap_quat[k_ramp] = ramp_at, q
-        return
-    if kind == 'cross_slope':
-        rad = math.radians(SLOPE_ANGLE_DEG)
-        cr, sr = math.cos(rad / 2.0), math.sin(rad / 2.0)
-        ch, sh = math.cos(heading / 2.0), math.sin(heading / 2.0)
-        q = (ch * cr, sh * sr, sh * cr, ch * sr)
-        span, pad = 2.0 * SLOPE_HALF[2] * c, abs(s) * SLOPE_HALF[0]
-        slab(world, min(at[1], at[1] + span) - pad, max(at[1], at[1] + span) + pad)
-        world.hole_x = None
-        ramp_at = _on(at, heading, 0.0, -SLOPE_HALF[1] * math.cos(rad), SLOPE_HALF[2])
-        k_ramp = world.model.body_mocapid[world.model.body('slope_ramp').id]
-        world.data.mocap_pos[k_ramp], world.data.mocap_quat[k_ramp] = ramp_at, q
-        return
-    if kind == 'asphalt':
-        mocap(world, 'slope_top', (at[0], 0.002 - SLOPE_TOP_HALF[1], at[1] + SLOPE_TOP_HALF[2]), heading)
-        return
-    if kind == 'ice':
-        mocap(world, 'ice', (at[0], 0.001 - ICE_HALF[1], at[1] + ICE_HALF[2]), heading)
-        return
-    if kind == 'snow':
-        mocap(world, 'snow', (at[0], 0.004 - SNOW_HALF[1], at[1] + SNOW_HALF[2]), heading)
-        return
     raise MachineError('no floor event %r' % kind)
+
 
 
 def scenario(world, name, z=1.2, x=0.0):

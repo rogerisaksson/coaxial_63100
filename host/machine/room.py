@@ -94,7 +94,7 @@ def props(world):
     for g in range(m.ngeom):
         name = m.geom(g).name
         kind = KINDS.get(name.split('_')[0])
-        if kind is None:
+        if kind is None or d.geom_xpos[g][1] < -0.5 or m.body_mocapid[m.geom_bodyid[g]] >= 0:
             continue
         if kind == 'lamp' and getattr(world, 'lamp', False):
             kind = 'lit'
