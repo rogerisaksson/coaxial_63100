@@ -334,3 +334,30 @@ def stride_hop(g, by, t0, spd, back_now, fwd_gaits, back_gaits, said_fn, walk_on
         said_fn(g, 'jog', rj.tobytes(), ('run',), at=t_res + 0.01)
     elif prev in by:
         said_fn(g, *by[prev], at=t_res + 0.01, reset=(prev == '#201'))
+
+
+def check_contacts(g, world, out, cur_doing):
+    """Her upper body on an obstacle halts her drive and brakes her; a sole aloft on a sill trips her."""
+    import numpy as np
+    from machine import latent, modal, sprung
+    d = world.data
+    g['_upper_hit'] = False
+    if not d.ncon:
+        return
+    cb = world.model.geom_bodyid[d.contact.geom[:d.ncon]]
+    b0, b1, obs, up = cb[:, 0], cb[:, 1], g['obstacle_ids'], g['upper_ids']
+    if ((np.isin(b0, up) & np.isin(b1, obs)) | (np.isin(b1, up) & np.isin(b0, obs))).any():
+        g['_upper_hit'] = True
+        out[latent.SWAY][modal.DRIVE] = min(float(out[latent.SWAY][modal.DRIVE]), 0.04)
+        out[latent.REF][modal.DRIVE] = g['a'][modal.GOING] = 0.0
+        if cur_doing not in ('brake', '#201', 'rest') and abs(float(g['st'][latent.NOW][latent.AMP][modal.DRIVE])) > 0.06:
+            sprung._dropped(g)
+            sprung.said(g, 'brake', g['_brake_wire'], ('brake',), at=g['t'] + 0.001, reset=True)
+            if g['_stand_entry'] is not None:
+                sprung.said(g, *g['_stand_entry'], at=g['t'] + 1.20, reset=True)
+            g['active_entry'] = '#201'
+    aloft, sills = g['a'][modal.STANCE] < 0.5, g['sill_ids']
+    hl = aloft[0] and ((np.isin(b0, g['soles_l']) & np.isin(b1, sills)) | (np.isin(b1, g['soles_l']) & np.isin(b0, sills))).any()
+    hr = aloft[1] and ((np.isin(b0, g['soles_r']) & np.isin(b1, sills)) | (np.isin(b1, g['soles_r']) & np.isin(b0, sills))).any()
+    if hl or hr:
+        g['stumble_until'], g['a'][modal.GOING] = g['t'] + 0.95, min(float(g['a'][modal.GOING]), 0.25)

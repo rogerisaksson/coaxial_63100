@@ -8,8 +8,8 @@ The candidate of record, laid in `machine/drives.py` and written by
 
 | type | drives | motor | gearbox | inverter | stack mm | kg | peak N m | holds N m | deg/s | rotor kg m2 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| U8 | 15 | 87 x 27 mm, KV 100 | 64 mm, 1:30 | 100 mm, 100 A | 100 x 64 | 0.73 | 108 | 40 | 960 | 0.177 |
-| MN6007 | 6 | 67 x 26 mm, KV 160 | 64 mm, 1:30 | 100 mm, 100 A | 100 x 63 | 0.63 | 51 | 19 | 1536 | 0.063 |
+| U8 | 15 | 87 x 27 mm, KV 100 | 64 mm, 1:30 | 100 mm, 100 A | 100 x 64 | 0.73 | 108 | 42 | 960 | 0.177 |
+| MN6007 | 6 | 67 x 26 mm, KV 160 | 64 mm, 1:30 | 100 mm, 100 A | 100 x 63 | 0.63 | 51 | 22 | 1536 | 0.063 |
 
 A stack its inverter's disc, its outrunner and its gearbox on one axis; kg
 with the inverter. Peak at the gearbox's output at the inverter's amps;

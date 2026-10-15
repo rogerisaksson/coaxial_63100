@@ -170,7 +170,7 @@ def reset_for_scenario(g, scen):
         g['out'] = latent.step(g['st'].copy(), g['tab'][:0], g['t'], 0.001 * g['every'], np.zeros(latent.OUT))
         g['a'][:], g['a'][modal.STANCE], g['ref_q'][:], g['ref_v'][:], g['hold'][:] = 0.0, 1.0, q0, 0.0, 0.0
         g['left'], g['stumble_until'], g['eso'][:] = WEP_S, 0.0, [q0, 0.0 * q0, 0.0 * q0]
-        g['heat'].temp[:], g['heat'].hold[:], g['temp'][:] = 25.0, 0.0, 25.0
+        g['heat'], g['temp'][:] = type(g['heat']).for_joints(), 25.0
         g['_twist_active'], g['_twist_stop_until'], g['twist'], g['twist_actual'] = False, 0.0, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)
         g['active_entry'], g['n'], g['_chair_elevated'], g['_chair_cleared'], g['_look_yaw'], g['_last_way'] = None, 0, False, False, 0.0, 1.0
         for idx in (g.get('waist_idx'), g.get('head_idx')):
@@ -183,7 +183,7 @@ def reset_for_scenario(g, scen):
 
 def _step_control(g, dt):
     import numpy as np
-    from machine import flight, impedance, latent, modal, se2, wbc
+    from machine import flight, impedance, latent, modal, se2, support, wbc
     world, body, d, ev = g['world'], g['body'], g['world'].data, g['every']
     s = g['s'] = _seen(body, world, g['limbs'])
     g['loads'] = _loads(world, g['force'])
@@ -225,7 +225,7 @@ def _step_control(g, dt):
     if backing and abs(g['_look_yaw']) > 1e-3 and cur_doing not in STUNT_PHASES and g.get('waist_idx') is not None:
         imp[modal.HEADED][1] = g['posture'][g['waist_idx']]
     ask = g['ask'] = modal.given(imp, y, g['fr'], g['posture'], g['bend'], g['arms'], body.knees)
-    flight.shape_hop_and_support(g, ask, out, cur_doing)
+    support.shape_hop_and_support(g, ask, out, cur_doing)
     s_solve, cv = s, list(g.get('cervical', ()))
     if (cur_doing in ('load', 'throw', 'land') or ae == 'hop') and ae not in ('hop_up_chair', 'hop_down_chair', 'controlled_fall'):
         cv = cv + list(g['limbs']['shoulders'])

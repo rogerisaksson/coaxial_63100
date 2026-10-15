@@ -116,14 +116,12 @@ def meets(xi, c, flat, cruise, om, turns, wide, across=0.0):
     step_s = np.pi / np.maximum(turns, TINY)
     grown = np.exp(om * step_s)
     led = LEADS * np.maximum((xi[ALONG] - c[ALONG]) - cruise / om, -0.04)
-    d_lat = xi[LEFT] - c[LEFT]
-    s_ac = np.where(np.abs(across) > 1e-4, np.sign(across), np.sign(d_lat) * (np.abs(d_lat) > 0.045))
-    led_lat = s_ac * clip(s_ac * d_lat - np.where(np.abs(across) > 1e-4, 1.35 * np.abs(across) / om, 0.045), -0.052, 0.085)
+    s_ac = np.sign(across)
+    led_lat = s_ac * clip(s_ac * (xi[LEFT] - c[LEFT]) - 1.35 * np.abs(across) / om, -0.052, 0.042)
     meet = xi - np.stack([cruise * step_s / (grown - 1.0) - led + 0.0 * LIMBS,
-                          -led_lat - LIMBS * (wide / (grown + 1.0) + np.maximum(0.0, s_ac * LIMBS) * 0.45 * np.abs(led_lat))], axis=1)
-    lat = c[LEFT] + clip(meet[:, LEFT] - c[LEFT], -REACH_M, REACH_M)
+                          -led_lat - LIMBS * wide / (grown + 1.0)], axis=1)
     return np.stack([c[ALONG] + clip(meet[:, ALONG] - c[ALONG], -REACH_M, REACH_M),
-                     flat[::-1, LEFT] + LIMBS * clip(LIMBS * (lat - flat[::-1, LEFT]), APART_M, 2.0 * REACH_M)],
+                     flat[::-1, LEFT] + LIMBS * np.maximum(LIMBS * (meet[:, LEFT] - flat[::-1, LEFT]), APART_M)],
                     axis=1)
 
 
