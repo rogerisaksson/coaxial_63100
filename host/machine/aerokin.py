@@ -64,8 +64,8 @@ YAW_RATE, PITCH_RATE, ROLL_RATE = (LATENT_SYMBOL_MAP[name] for name in (
     'mode_yaw_rate', 'mode_pitch_rate', 'mode_roll_rate'))
 
 #: The force vector's slew: max turn rate, rad/s, acceleration, rad/s^2, and approach slope,
-#: 1/s, within reach.
-FORCE_W, FORCE_A, FORCE_K = 8.0, 200.0, 10.0
+#: 1/s, within reach; the share of its rate fed onto the frame's when pushed down.
+FORCE_W, FORCE_A, FORCE_K, FORCE_SHARE = 8.0, 200.0, 10.0, 0.25
 
 #: The law's constants that have a unit, by the powers of their metres and seconds
 #: (`quad.rescaled`).
@@ -131,6 +131,8 @@ def climb(row, h, v, room):
     slows = min(brake, pole * pole * left, KD * max(0.0, cruise - allowed(left, soft)))
     pull = way * (min(KD * (way * rate + speed - max(going, 0.0)) - slows + way * push,
                       up * min(gentle, room) + (1.0 - up) * gentle) - KD * min(going, 0.0))
+    dive = (1.0 - up) * float(v < 0.0) * float(rate < 0.0) * float(push + quad.GRAVITY < 0.0)
+    pull = (1.0 - dive) * pull + dive * min(pull, push)
     far = (1.0 - up) * float(left > brake / (pole * pole))
     return pull, DOING[int(far * (1.0 + float(quad.GRAVITY + pull <= idle())))]
 
@@ -194,7 +196,8 @@ def step(law, row, frame, dt, pull, head=(0.0, 0.0), pitch=math.inf):
     through = sum(float(v) * a for v, a in zip(frame['vel'], axis))
     reach = max(LEAST * quad.GRAVITY, pull * min(1.0, max(0.0, 1.0 - through / pitch)))
     up_pull, law['doing'] = climb(row, frame['h'], frame['v'], reach - quad.GRAVITY)
-    light = row['light'] * quad.GRAVITY
+    light = row['light'] * quad.GRAVITY + float(law['doing'] == FALL) * min(
+        1.5 * quad.GRAVITY, 0.2 * KD * max(0.0, float(frame['v'])))
     beside = math.sqrt(max(reach * reach - quad.GRAVITY ** 2, 0.0))
     along = lean(law, row, frame['at'], frame['vel'], dt, min(row['lean'], beside))
     # where the rotors' axis points for it in the world, against `light` of gravity at the
@@ -260,8 +263,9 @@ def step(law, row, frame, dt, pull, head=(0.0, 0.0), pitch=math.inf):
     # the tilt's damping is on what the frame turns short of it
     w_wing = sum(r * w for r, w in zip(w_rate, (turn[0][0], turn[1][0], turn[2][0])))
     w_nose = sum(r * n for r, n in zip(w_rate, (turn[0][2], turn[1][2], turn[2][2])))
-    targets[PITCH_RATE] = -rate * turn[1][0] - math.tau * row['flip'] - (1.0 - turning) * w_wing
-    targets[ROLL_RATE] = -rate * turn[1][2] - math.tau * row['roll'] - (1.0 - turning) * w_nose
+    w_share = (1.0 - turning) * (1.0 - (1.0 - FORCE_SHARE) * float(axis[1] < 0.0) * float(row['climb'] < 0.0))
+    targets[PITCH_RATE] = -rate * turn[1][0] - math.tau * row['flip'] - w_share * w_wing
+    targets[ROLL_RATE] = -rate * turn[1][2] - math.tau * row['roll'] - w_share * w_nose
     stiffness, damping = [0.0] * K_MODES, [0.0] * K_MODES
     stiffness[PITCH] = stiffness[ROLL] = TILT_K
     stiffness[PITCH_RATE], stiffness[ROLL_RATE] = flips * TURN_K, rolls * TURN_K

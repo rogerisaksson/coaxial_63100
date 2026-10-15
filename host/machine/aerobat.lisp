@@ -149,6 +149,12 @@
 (defstunt cuban_unwind
   (base knife_circle) (height 6.0m) (pace 2.5m_s) (slide -3.0m_s) (turn UNWIND_TURN_DEG_S))
 
+(defstunt takeoff
+  (base hover) (pace 2.5m_s))
+
+(defstunt approach
+  (base over) (pace 1.5m_s) (speed 0.8m_s))
+
 (defbehavior unlimited_torque_hang
   (phase punch_out (stunt high) (duration 1.2s) (blend 100ms))
   (phase snap_over (stunt snap_entry) (duration 1.0s) (blend 80ms))
@@ -170,9 +176,9 @@
   (phase recovery (stunt high) (duration 1.8s) (blend 150ms) (gate held)))
 
 (defroutine aerobat_3d
-  (stage idle (stunt down) (duration 0.4s) (ramp 0.0s) (gate fit))
-  (stage spool (stunt pressed) (duration 0.5s) (ramp 0.5s))
-  (stage lift (stunt hover) (duration 1.8s) (ramp 1.8s))
+  (stage idle (stunt down) (duration 2.0s) (ramp 0.0s) (gate fit))
+  (stage spool (stunt pressed) (duration 2.5s) (ramp 2.5s))
+  (stage lift (stunt takeoff) (duration 3.0s) (ramp 3.0s))
   (stage prop-hang (stunt hover) (duration 2.5s) (ramp 0.0s))
   (stage torque-roll (stunt torque_roll) (duration 2.0s) (ramp 1.0s))
   (stage poise (stunt hover) (duration 1.8s) (ramp 1.5s))
@@ -192,5 +198,5 @@
   (stage full_tilt (stunt sky) (duration 2.0s) (ramp 0.0s))
   (stage burn (stunt stop) (duration 0.0s) (ramp 0.0s) (gate held))
   (stage hold (stunt stop) (duration 1.5s) (ramp 0.0s))
-  (stage descend (stunt over) (duration 1.5s) (ramp 1.5s) (gate held))
+  (stage descend (stunt approach) (duration 1.5s) (ramp 1.5s) (gate held))
   (stage land (stunt pressed) (duration 3.0s) (ramp 3.0s)))

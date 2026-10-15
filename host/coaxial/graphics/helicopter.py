@@ -203,9 +203,11 @@ def _arrows(pose, thrusts, m, cam, centre):
         length = scale * abs(thrust)
         if length <= 1e-4:
             continue
-        way = axis if (mast_out or thrust >= 0.0) else -axis
+        way = (-axis if (axis[1] > 0.0 and thrust < 0.0) else axis) if mast_out else (
+            axis if thrust >= 0.0 else -axis)
         target = pos_drawn if thrust >= 0.0 else neg_drawn
-        hub = at + turn @ np.array(spot)
+        origin = (spot[0], -SKID_M, spot[2]) if (mast_out and axis[1] > 0.0 and thrust < 0.0) else spot
+        hub = at + turn @ np.array(origin)
         tip = hub + length * way
         back = tip - ARROW_HEAD * length * way
         points = np.array([hub, tip, back + 0.5 * ARROW_HEAD * length * cross_axis,

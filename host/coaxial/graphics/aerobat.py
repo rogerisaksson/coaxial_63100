@@ -25,13 +25,14 @@ from machine import aerobat as aero_phys
 SIGHT, REACH = 3.75, 0.68
 
 #: The airframe's geometry in its true MuJoCo body axes (x right wing, y nose/propeller axis,
-#: z dorsal), m: coaxial tractor propeller hubs at the nose, main wing half-span, and carbon
-#: tail-sitter landing struts at -SKID_M.
+#: -z dorsal canopy/fin, +z ventral landing gear), m: coaxial tractor propeller hubs at the
+#: nose, main wing half-span, and taildragger main/tail wheels.
 PROP_Y, VECT_Y, PROP_R = aero_phys.PROP_Z, aero_phys.PROP_Z - 0.045, aero_phys.PROP_R
 HALF_SPAN, WING_Y = aero_phys.HALF_M, 0.055
 TAIL_Y, HSTAB_SPAN = -0.105, 0.175
 SKID_M, FOOT_M, SKID_X, STRUT_Z = (
     aero_phys.SKID_M, aero_phys.FOOT_M, aero_phys.SKID_X, aero_phys.STRUT_Z)
+GEAR_MAIN_Z, GEAR_TAIL_Z = aero_phys.GEAR_MAIN_Z, aero_phys.GEAR_TAIL_Z
 
 _AERO_MESH = {}
 
@@ -53,12 +54,12 @@ def _fuselage():
 
 def _aero_parts():
     """[(name, mesh)]: the aerobat airframe in its true MuJoCo body axes (x right wing, y nose
-    tractor axis, z dorsal)."""
+    tractor axis, -z dorsal, +z ventral)."""
     carbon = paint(CARBON)
     can_h = CAN_L * 0.58
     out = [
         ('fuselage', _fuselage()),
-        ('canopy', shapes.ellipsoid((0.0, 0.050, 0.028), (0.026, 0.068, 0.022), CORE, rows=7)),
+        ('canopy', shapes.ellipsoid((0.0, 0.050, -0.028), (0.026, 0.068, 0.022), CORE, rows=7)),
         ('spinner', shapes.ellipsoid((0.0, PROP_Y + 0.018, 0.0), (0.016, 0.024, 0.016),
                                      PLATE, rows=6)),
         ('can0', _at(shapes.drum(CAN_R, can_h, 'y', PLATE), None,
@@ -73,9 +74,11 @@ def _aero_parts():
                        (0.0, 0.162 - can_h / 2.0 - BOARD_H / 2.0, 0.0))),
         ('sink1', _at(shapes.drum(SINK_R, SINK_H, 'y', carbon), None,
                       (0.0, 0.162 - can_h / 2.0 - BOARD_H - SINK_H / 2.0, 0.0))),
-        ('vfin', shapes.ellipsoid((0.0, TAIL_Y + 0.012, 0.052), (0.004, 0.026, 0.064),
+        ('vfin', shapes.ellipsoid((0.0, TAIL_Y + 0.012, -0.052), (0.004, 0.026, 0.064),
                                   carbon, rows=6)),
     ]
+    gear = ((-SKID_M, GEAR_TAIL_Z, 0.45, 0.085, 28.0),
+            (STRUT_Z[1], GEAR_MAIN_Z, 1.0, 0.145, -32.0))
     for s in (-1.0, 1.0):
         out.append(('spar%d' % (s > 0),
                     _at(shapes.drum(0.007, HALF_SPAN - 0.04, 'x', carbon), None,
@@ -86,14 +89,13 @@ def _aero_parts():
         out.append(('hstab%d' % (s > 0),
                     shapes.ellipsoid((s * 0.52 * HSTAB_SPAN, TAIL_Y + 0.010, 0.0),
                                      (0.48 * HSTAB_SPAN, 0.022, 0.004), carbon, rows=6)))
-        for k, sz in enumerate(STRUT_Z):
-            turn_leg = (shapes.turn_about('z', s * 48.0)
-                        @ shapes.turn_about('x', -42.0 if k else 34.0))
+        for k, (by, bz, x_sc, leg_l, ang_x) in enumerate(gear):
+            turn_leg = shapes.turn_about('y', -s * 28.0) @ shapes.turn_about('x', ang_x)
             out.append(('gear_leg%d_%d' % (s > 0, k),
-                        _at(shapes.drum(LEG_R, 0.095, 'y', carbon), turn_leg,
-                            (0.65 * s * SKID_X, -0.5 * (0.095 + SKID_M), 0.65 * sz))))
+                        _at(shapes.drum(LEG_R, leg_l, 'z', carbon), turn_leg,
+                            (0.55 * s * x_sc * SKID_X, by, 0.52 * bz))))
             out.append(('wheel%d_%d' % (s > 0, k),
-                        shapes.ellipsoid((s * SKID_X, -SKID_M, sz),
+                        shapes.ellipsoid((s * x_sc * SKID_X, by, bz),
                                          (FOOT_M,) * 3, PLATE, rows=6)))
     return out
 
@@ -121,8 +123,8 @@ def _elevator_mesh():
 
 
 def _rudder_mesh():
-    """The counterbalanced 3D rudder hinged along the vertical fin trailing edge (-y)."""
-    return [('rud', shapes.ellipsoid((0.0, -0.016, 0.044),
+    """The counterbalanced 3D rudder hinged along the dorsal vertical fin trailing edge (-y, -z)."""
+    return [('rud', shapes.ellipsoid((0.0, -0.016, -0.044),
                                      (0.004, 0.016, 0.068), paint(SURFACE), rows=6))]
 
 
@@ -216,9 +218,11 @@ def _arrows(pose, thrusts, m, cam, centre):
         length = scale * abs(thrust)
         if length <= 1e-4:
             continue
-        way = axis if (nose_out or thrust >= 0.0) else -axis
+        way = (-axis if (axis[1] > 0.0 and thrust < 0.0) else axis) if nose_out else (
+            axis if thrust >= 0.0 else -axis)
         target = pos_drawn if thrust >= 0.0 else neg_drawn
-        hub = at + turn @ np.array(spot)
+        origin = (0.0, -SKID_M, 0.0) if (nose_out and axis[1] > 0.0 and thrust < 0.0) else spot
+        hub = at + turn @ np.array(origin)
         tip = hub + length * way
         back = tip - ARROW_HEAD * length * way
         points = np.array([hub, tip, back + 0.5 * ARROW_HEAD * length * cross_axis,

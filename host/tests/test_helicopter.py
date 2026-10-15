@@ -9,9 +9,7 @@ from views_kit import Report, ansi_plain
 
 
 def test_helicopter_stunt_routine(report):
-    """`helicopter`, `ornithopter`, and `aerobat` fly their full 24-stage stunt cards in MuJoCo:
-    hover/prop-hang, orbits, inverted hover/dive/spin, CPG tic-tocs/rock/waterfall, flips, rolls,
-    full-tilt skyrocket, collective burn arrest at 10 cm, and landing."""
+    """`helicopter`, `ornithopter`, and `aerobat` fly their full 24-stage stunt cards in MuJoCo."""
     from machine import aerobat, aerobatics, aerokin, helicopter, ornithopter, pull
     dt, runs = 1.0 / 120.0, {}
     for craft in (helicopter, ornithopter, aerobat):
@@ -20,8 +18,7 @@ def test_helicopter_stunt_routine(report):
         pull_max = craft.K_THRUST * pull.held(pull.I_MAX) ** 2 / craft.MASS_KG
         by_stage, stages = {}, []
         for step_idx in range(int(62.0 / dt)):
-            clock = step_idx * dt
-            stage, row = aerobatics.fly(route, clock, ('held', 'fit') if law['held'] else ('fit',))
+            stage, row = aerobatics.fly(route, step_idx * dt, ('held', 'fit') if law['held'] else ('fit',))
             state = sky.state()
             ans = core.step(law, row, state, dt, pull_max)
             sky.step(ans.speeds + ans.controls, dt)
@@ -32,7 +29,8 @@ def test_helicopter_stunt_routine(report):
             by_stage.setdefault(stage, []).append({
                 'h': state['h'], 'v': state['v'], 'tilt': tilt, 'r11': float(state['turn'][1][1]),
                 'lift': state['lift'], 'coll': ans.controls[0], 'cyc_p': abs(ans.controls[1]),
-                'cyc_r': abs(ans.controls[2]), 'held': law['held'],
+                'cyc_r': abs(ans.controls[2]), 'held': law['held'], 'z': float(state['at'][2]),
+                'vz': float(state['vel'][2]), 'hdg': law['heading'][0],
                 'r': math.hypot(float(state['at'][0]), float(state['at'][2]))})
         runs[craft] = (sky, by_stage, stages)
 
@@ -41,8 +39,7 @@ def test_helicopter_stunt_routine(report):
     report.check('upright hover holds 1.50 m on positive collective',
                  abs(hover[-1]['h'] - 1.5) < 0.05 and hover[-1]['lift'] > 18.0 and hover[-1]['held'])
     report.check('funnel banks > 22 deg on the orbit and spiral climbs to 8 m',
-                 max(p['tilt'] for p in funnel) > 22.0 and max(p['r'] for p in funnel) > 2.0
-                 and spiral[-1]['h'] > 7.5)
+                 max(p['tilt'] for p in funnel) > 22.0 and max(p['r'] for p in funnel) > 2.0 and spiral[-1]['h'] > 7.5)
     inv, piro_inv, tictoc = by_stage['inverted'], by_stage['piro-inv'], by_stage['tic-toc']
     report.check('inverted hover and inverted pirouette fly upside-down on negative collective',
                  inv[-1]['tilt'] > 170.0 and inv[-1]['r11'] < -0.98 and inv[-1]['lift'] < -18.0
@@ -60,9 +57,10 @@ def test_helicopter_stunt_routine(report):
     full_tilt, burn, hold, land = (by_stage[k] for k in ('full tilt', 'burn', 'hold', 'land'))
     report.check('full tilt climbs past 40 m and collective burn arrests at 10 cm without chattering',
                  max(p['v'] for p in full_tilt) > 22.0 and max(p['h'] for p in burn) > 45.0
+                 and min(p['lift'] for p in burn if p['r11'] > 0.5) < -5.0
                  and stages.count('fall') == 1 and stages.count('burn') == 1
                  and abs(hold[-1]['h'] - helicopter.FLOOR_M) < 0.04 and hold[-1]['held']
-                 and land[-1]['h'] < 0.02 and sky.hit is None)
+                 and land[-1]['h'] < 0.02 and land[-1]['hdg'] > 0.99 and sky.hit is None)
 
     for craft, s_hov, s_orb, s_inv, s_cpg, s_tum in (
             (ornithopter, 'hover', 'spiral', 'dive', 'wing-rock', 'slash'),
@@ -70,14 +68,19 @@ def test_helicopter_stunt_routine(report):
         c_sky, c_by, c_st = runs[craft]
         hov, orb, inv, cpg, tum = (c_by[k] for k in (s_hov, s_orb, s_inv, s_cpg, s_tum))
         ft, burn, hold, land = (c_by[k] for k in ('full tilt', 'burn', 'hold', 'land'))
+        gl, gd = [p['z'] for p in c_by['lift'] if p['h'] < 0.03], [p['z'] for p in land if p['h'] < 0.03]
+        roll_ok = (True if craft is not aerobat else
+                   c_by['spool'][0]['tilt'] > 55.0 and len(gl) > 20 and len(gd) > 20
+                   and max(gl) - min(gl) > 0.35 and max(gd) - min(gd) > 0.20
+                   and max(p['h'] for p in land[-60:]) < 0.025 and abs(land[-1]['vz']) < 0.02 and land[-1]['tilt'] > 55.0)
         report.check('%s flies full 24-stage stunt routine and arrests at 10 cm' % craft.__name__,
                      abs(hov[-1]['h'] - 1.5) < 0.06 and hov[-1]['held'] and orb[-1]['h'] > 7.5
                      and inv[-1]['r11'] < -0.97 and inv[-1]['lift'] < -17.0
                      and min(p['tilt'] for p in cpg) < 65.0 and max(p['tilt'] for p in cpg) > 115.0
                      and min(p['r11'] for p in tum) < -0.80 and max(p['v'] for p in ft) > 22.0
-                     and max(p['h'] for p in burn) > 45.0 and c_st.count('fall') == 1
-                     and abs(hold[-1]['h'] - craft.FLOOR_M) < 0.05 and land[-1]['h'] < 0.02
-                     and c_sky.hit is None)
+                     and max(p['h'] for p in burn) > 45.0 and min(p['lift'] for p in burn if p['r11'] > 0.5) < -5.0
+                     and c_st.count('fall') == 1 and abs(hold[-1]['h'] - craft.FLOOR_M) < 0.05
+                     and land[-1]['h'] < 0.02 and land[-1]['hdg'] > 0.99 and roll_ok and c_sky.hit is None)
 
 
 def test_helicopter_wind_observer_and_inverted_hold(report):
@@ -147,34 +150,37 @@ def test_helicopter_boards_and_view(report):
         for _, aframe in aflown.passed(rotors, asky, aroute, alaw, aflt, 0.0, 0.08):
             pass
 
-        slow_r = [(0.2, 10.0, 45.0, 40.0, 35.0), (0.5, 10.0, 42.0, 39.0, 34.0)]
-        fast_r = [(r['angle'], r['w'], 55.0, 48.0, 42.0) for r in rotors]
-        h_slow = '\n'.join(heli_gfx.render(frame, slow_r, 60, 24, thrusts=view.thrusts(frame, rotors)))
-        h_fast = '\n'.join(heli_gfx.render(frame, fast_r, 60, 24, thrusts=view.thrusts(frame, rotors)))
-        o_slow = '\n'.join(orni_gfx.render(oframe, slow_r, 60, 24, thrusts=oview.thrusts(oframe, rotors)))
-        o_fast = '\n'.join(orni_gfx.render(oframe, fast_r, 60, 24, thrusts=oview.thrusts(oframe, rotors)))
-        a_slow = '\n'.join(aero_gfx.render(aframe, slow_r, 60, 24, thrusts=aview.thrusts(aframe, rotors)))
-        a_fast = '\n'.join(aero_gfx.render(aframe, fast_r, 60, 24, thrusts=aview.thrusts(aframe, rotors)))
-        quad_art = '\n'.join(quad_gfx.render(frame, [(0.3 * k, 420.0, 65.0, 58.0, 85.0) for k in range(4)], 60, 24))
+        sr = [(0.2, 10.0, 45.0, 40.0, 35.0), (0.5, 10.0, 42.0, 39.0, 34.0)]
+        fr = [(r['angle'], r['w'], 55.0, 48.0, 42.0) for r in rotors]
+        h_s, h_f = ('\n'.join(heli_gfx.render(frame, r, 60, 24, thrusts=view.thrusts(frame, rotors))) for r in (sr, fr))
+        o_s, o_f = ('\n'.join(orni_gfx.render(oframe, r, 60, 24, thrusts=oview.thrusts(oframe, rotors))) for r in (sr, fr))
+        a_s, a_f = ('\n'.join(aero_gfx.render(aframe, r, 60, 24, thrusts=aview.thrusts(aframe, rotors))) for r in (sr, fr))
+        q_art = '\n'.join(quad_gfx.render(frame, [(0.3 * k, 420.0, 65.0, 58.0, 85.0) for k in range(4)], 60, 24))
 
         con = Console(width=150, height=44, theme=stage.THEME, force_terminal=True)
         orig, tr = rotors[0]['rig'].origin, [(clock, frame['h'], 62.0, 240.0, 48.0)]
-        hi_frame = dict(frame, h=45.2, v=-22.4, a=-11.2 * 9.80665)
+        hi_f = dict(frame, h=45.2, v=-22.4, a=-11.2 * 9.80665)
         outs = []
-        for fn, args in ((view.compose, (con, orig, rotors, frame, flight, tr, clock, h_fast)),
-                         (oview.compose, (con, orig, rotors, oframe, oflt, tr, clock, o_fast)),
-                         (aview.compose, (con, orig, rotors, aframe, aflt, tr, clock, a_fast)),
-                         (quad_view.compose, (con, orig, rotors * 2, hi_frame, flight, tr, clock, quad_art))):
+        for fn, args in ((view.compose, (con, orig, rotors, frame, flight, tr, clock, h_f)),
+                         (oview.compose, (con, orig, rotors, oframe, oflt, tr, clock, o_f)),
+                         (aview.compose, (con, orig, rotors, aframe, aflt, tr, clock, a_f)),
+                         (quad_view.compose, (con, orig, rotors * 2, hi_f, flight, tr, clock, q_art))):
             with con.capture() as cap:
                 con.print(fn(*args))
             outs.append(ansi_plain(cap.get()))
         h_txt, o_txt, a_txt, q_txt = outs
+        m, cam = heli_gfx.shapes.view(30.0, 0.0), heli_gfx.engine.fine(heli_gfx.engine.camera(60, 24, 1.8, distance=7.0))
+        up_p = {'at': (0.0, 0.0, 0.0), 'turn': ((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0))}
+        inv_p = {'at': (0.0, 0.0, 0.0), 'turn': ((1.0, 0.0, 0.0), (0.0, -1.0, 0.0), (0.0, 0.0, -1.0))}
+        arr_ok = all(g._arrows(up_p, [25.0, 0.0], m, cam, up_p['at'])[0][0][:45].any()
+                     and g._arrows(up_p, [-25.0, 0.0], m, cam, up_p['at'])[1][0][45:].any()
+                     and g._arrows(inv_p, [-25.0, 0.0], m, cam, inv_p['at'])[1][0][50:].any()
+                     for g in (heli_gfx, orni_gfx, aero_gfx))
         report.check('all four aircraft renderers and HUDs fit all 5 boxes at 150x44 without truncation',
-                     len(h_slow.splitlines()) == 24 == len(o_fast.splitlines()) == len(a_fast.splitlines())
-                     and h_slow != h_fast and o_slow != o_fast and a_slow != a_fast
+                     len(h_s.splitlines()) == 24 == len(o_f.splitlines()) == len(a_f.splitlines())
+                     and h_s != h_f and o_s != o_f and a_s != a_f and arr_ok
                      and heli_gfx.BLADES_RAD_S == orni_gfx.BLADES_RAD_S == aero_gfx.BLADES_RAD_S == 20.0
-                     and '▾' not in (h_txt + o_txt + a_txt + q_txt)
-                     and '45.20 m, -22.4 m/s, -11.2 g' in q_txt
+                     and '▾' not in (h_txt + o_txt + a_txt + q_txt) and '45.20 m, -22.4 m/s, -11.2 g' in q_txt
                      and all(t in h_txt for t in ('HELICOPTER', 'MAIN', 'TAIL', 'SWASH', 'SINK'))
                      and all(t in o_txt for t in ('ORNITHOPTER', 'FORE', 'AFT', 'WINGS', 'SINK'))
                      and all(t in a_txt for t in ('AEROBAT', 'PROP', 'VECT', 'SURFS', 'SINK')))
@@ -195,28 +201,39 @@ def test_helicopter_boards_and_view(report):
 
 def test_helicopter_course_laps(report):
     """The 3D helicopter, Dune ornithopter, and 3D aerobat fly the 16-gate race course
-    (`machine.course.CARD`) in wind without striking any gate."""
+    (`machine.course.CARD`) in wind with multi-rate sub-stepping, land cleanly aligned with
+    Gate 0 without wobble, and cycle back to `idle`."""
     from machine import aerobat, aerobatics, aerokin, course, grounds, helicopter, ornithopter, pull, quad
-    solids, dt = grounds.solids(), 1.0 / 120.0
+    solids, dt, tick = grounds.solids(), 0.02, 0.002
     for craft in (helicopter, ornithopter, aerobat):
         sky, core, law = craft.Sky(solids), craft.Core(), aerokin.fresh()
         route, air = aerobatics.routine(course.CARD), quad.air(7, 'gusty')
         top = craft.K_THRUST * pull.held(pull.I_MAX) ** 2 / craft.MASS_KG
-        have, stages = aerokin.HEADROOM * top, []
-        for step_idx in range(int(51.0 / dt)):
+        have, stages, max_dcyc, sum_dcyc, n_lap, prev_cyc, end_land = aerokin.HEADROOM * top, [], 0.0, 0.0, 0, (0.0, 0.0), None
+        for step_idx in range(int(48.0 / dt)):
             clock, state = step_idx * dt, sky.state()
             route['seen'] = dict(aerokin.seen(law, state, dt, have, top), spent=False)
             stage, row = aerobatics.fly(route, clock, ('held', 'fit') if law['held'] else ('fit',))
             if not stages or stages[-1] != stage:
                 stages.append(stage)
-            ans = core.step(law, row, state, dt, have)
-            quad.blown(air, dt)
-            sky.step(ans.speeds + ans.controls, dt, air)
-            if sky.hit is not None or (stage == 'land' and state['h'] < 0.02):
+            along = core.plan(law, row, state, dt, have)
+            for _ in range(10):
+                ans = core.step(law, row, sky.state(), tick, have, None, along)
+                quad.blown(air, tick)
+                sky.step(ans.speeds + ans.controls, tick, air)
+            if stage == 'lap':
+                cyc = ans.controls[1:3]
+                dc = max(abs(cyc[0] - prev_cyc[0]), abs(cyc[1] - prev_cyc[1]))
+                max_dcyc, sum_dcyc, n_lap, prev_cyc = max(max_dcyc, dc), sum_dcyc + dc, n_lap + 1, cyc
+            elif stage == 'land':
+                end_land = (sky.state()['h'], abs(sky.state()['vel'][2]), law['heading'][0])
+            if sky.hit is not None or (len(stages) > 6 and stage == 'idle'):
                 break
         report.check('%s completes both 16-gate course laps in gusty wind and lands cleanly' % craft.__name__,
                      sky.hit is None and (route.get('lap') or {}).get('laps', 0) >= 1
-                     and 'land' in stages and state['h'] < 0.02)
+                     and stages[-2:] == ['land', 'idle'] and end_land is not None
+                     and end_land[0] < 0.025 and end_land[1] < 0.03 and end_land[2] > 0.99
+                     and sum_dcyc / max(1, n_lap) < 0.14 and max_dcyc < 0.95)
 
 
 def test_lisp_manifests_and_validation(report):
@@ -256,21 +273,17 @@ def test_lisp_manifests_and_validation(report):
                  and all(aerobatics.CARD[k][1] is q_card[k][1] for k in range(len(q_card)))
                  and abs(scaled_h - 1.5 * 0.75) < 1e-9 and abs(aerobatics.HOVER['height'] - 1.5) < 1e-9)
 
-    st_fan = heat.cooling_state(25.0, quad.COOLING)
-    no_fan = dict(quad.COOLING, fan_temp_on=500.0, fan_temp_full=600.0)
-    st_nofan = heat.cooling_state(25.0, no_fan)
+    sf, nf = heat.cooling_state(25.0, quad.COOLING), dict(quad.COOLING, fan_temp_on=500.0, fan_temp_full=600.0)
+    sn = heat.cooling_state(25.0, nf)
     for _ in range(400):
-        heat.step_cooling(st_fan, 85.0, 25.0, 1.0, 0.0, quad.COOLING)
-        heat.step_cooling(st_nofan, 85.0, 25.0, 1.0, 0.0, no_fan)
-    st_on = heat.step_board_cooling(heat.cooling_state(25.0, quad.COOLING), 0.0, 63.0, 1.0, 0.0,
-                                    quad.COOLING, switching=True)
-    st_cut = heat.step_board_cooling(heat.cooling_state(25.0, quad.COOLING), 0.0, 63.0, 1.0, 0.0,
-                                     quad.COOLING, switching=False)
+        heat.step_cooling(sf, 85.0, 25.0, 1.0, 0.0, quad.COOLING)
+        heat.step_cooling(sn, 85.0, 25.0, 1.0, 0.0, nf)
+    s_on = heat.step_board_cooling(heat.cooling_state(25.0, quad.COOLING), 0.0, 63.0, 1.0, 0.0, quad.COOLING, switching=True)
+    s_cut = heat.step_board_cooling(heat.cooling_state(25.0, quad.COOLING), 0.0, 63.0, 1.0, 0.0, quad.COOLING, switching=False)
     report.check('finned aluminium heatsink + fan cooling model is stable and tracks switching loss',
                  quad.COOLING == helicopter.COOLING == ornithopter.COOLING == aerobat.COOLING
-                 and st_fan['switches_c'] > st_fan['sink_c'] > 25.0
-                 and st_fan['fan_duty'] > 0.3 and st_fan['sink_c'] + 25.0 < st_nofan['sink_c']
-                 and st_on['switches_c'] > st_cut['switches_c'] + 0.5)
+                 and sf['switches_c'] > sf['sink_c'] > 25.0 and sf['fan_duty'] > 0.3
+                 and sf['sink_c'] + 25.0 < sn['sink_c'] and s_on['switches_c'] > s_cut['switches_c'] + 0.5)
 
     bad_cases = (
         ('(defunknown x)', 'unknown'), ('(include "no_such.lisp")', 'no_such.lisp'),
@@ -299,49 +312,40 @@ def test_lisp_manifests_and_validation(report):
 
 
 def test_helicopter_behaviors_and_streams(report):
-    """Multi-phase 3D stunt behaviors and compiled `stream_inject` payloads execute in MuJoCo for
-    `helicopter`, `ornithopter`, and `aerobat`."""
+    """Multi-phase 3D stunt behaviors and compiled `stream_inject` payloads execute in MuJoCo."""
     from machine import aerobat, aerokin, aerolisp, helicopter, ornithopter, pull
     dt = 1.0 / 120.0
     for craft, s_cpg, s_tum in ((helicopter, 'aileron_tictoc', 'chaos'),
                                 (ornithopter, 'wing_rock', 'coriolis_storm'),
                                 (aerobat, 'waterfall', 'gyro_tumble')):
-        pull_max = craft.K_THRUST * pull.held(pull.I_MAX) ** 2 / craft.MASS_KG
+        pmax = craft.K_THRUST * pull.held(pull.I_MAX) ** 2 / craft.MASS_KG
         sky, core, law = craft.Sky(), craft.Core(), aerokin.fresh()
         for _ in range(int(2.5 / dt)):
-            ans = core.step(law, craft.STUNTS['high'], sky.state(), dt, pull_max)
+            ans = core.step(law, craft.STUNTS['high'], sky.state(), dt, pmax)
             sky.step(ans.speeds + ans.controls, dt)
-        cpg_vals, chaos_rates = [], []
+        cpg_v, chaos_r = [], []
         for phases in craft.BEHAVIORS.values():
             for phase in phases:
-                row = phase['row']
                 for _ in range(int(phase['duration'] / dt)):
                     st = sky.state()
-                    ans = core.step(law, row, st, dt, pull_max)
+                    ans = core.step(law, phase['row'], st, dt, pmax)
                     sky.step(ans.speeds + ans.controls, dt)
                     if phase['stunt'] == s_cpg:
-                        cpg_vals.append(float(st['turn'][1][1]))
+                        cpg_v.append(float(st['turn'][1][1]))
                     if phase['stunt'] == s_tum:
-                        chaos_rates.append(math.hypot(float(st['spin'][0]), float(st['spin'][1]),
-                                                      float(st['spin'][2])))
-        st_end = sky.state()
+                        chaos_r.append(math.hypot(*[float(x) for x in st['spin']]))
         report.check('%s multi-phase stunt behaviors fly in MuJoCo' % craft.__name__,
-                     bool(cpg_vals) and max(cpg_vals) - min(cpg_vals) > 0.6
-                     and bool(chaos_rates) and max(chaos_rates) > 6.0
-                     and st_end['h'] > 5.0 and sky.hit is None)
+                     bool(cpg_v) and max(cpg_v) - min(cpg_v) > 0.6 and bool(chaos_r) and max(chaos_r) > 6.0
+                     and sky.state()['h'] > 5.0 and sky.hit is None)
 
-    rows = [helicopter.row_from_payload(p) for p in helicopter.STREAMS]
-    orows = [ornithopter.row_from_payload(p) for p in ornithopter.STREAMS]
-    arows = [aerobat.row_from_payload(p) for p in aerobat.STREAMS]
-    roll_cpg = aerolisp.compiled(
-        '(stream_inject (cpg_config (enable true) (frequency 1.25Hz) '
-        '(amplitude mode_attitude_roll 52.0deg)))')[0]
-    row_roll_cpg = helicopter.row_from_payload(roll_cpg)
+    rows, orows, arows = ([c.row_from_payload(p) for p in c.STREAMS] for c in (helicopter, ornithopter, aerobat))
+    rcpg = helicopter.row_from_payload(aerolisp.compiled(
+        '(stream_inject (cpg_config (enable true) (frequency 1.25Hz) (amplitude mode_attitude_roll 52.0deg)))')[0])
     report.check('compiled stream_inject payloads #301..#506 and roll CPG translate to stunt rows',
-                 rows[0]['height'] == 1.5 and orows[0]['height'] == 1.5 and arows[0]['height'] == 1.5
-                 and rows[2]['nose'] == -1.0 and orows[2]['nose'] == -1.0 and arows[2]['nose'] == -1.0
-                 and rows[3]['nose'] == -2.0 and orows[3]['nose'] == -2.0 and arows[3]['nose'] == -2.0
-                 and row_roll_cpg['nose'] == -3.0 and rows[5]['pace'] == 100.0)
+                 rows[0]['height'] == 1.5 == orows[0]['height'] == arows[0]['height']
+                 and rows[2]['nose'] == -1.0 == orows[2]['nose'] == arows[2]['nose']
+                 and rows[3]['nose'] == -2.0 == orows[3]['nose'] == arows[3]['nose']
+                 and rcpg['nose'] == -3.0 and rows[5]['pace'] == 100.0)
 
 
 ROSTER = (
