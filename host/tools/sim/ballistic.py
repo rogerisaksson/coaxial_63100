@@ -24,14 +24,14 @@ import time
 os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-import numpy as np  # noqa: E402
+import numpy as np
 
-from machine import figure, impedance, latent, modal, ortho, poise, sprung, stride  # noqa: E402
-from machine.errors import MachineError  # noqa: E402
-from tools import REPO  # noqa: E402
-from tools.dev import background  # noqa: E402
-from tools.sim import cmaes, fbx, gvs, look, looks, normal, strides  # noqa: E402
-from tools.sim import ortho as sim_ortho  # noqa: E402
+from machine import figure, impedance, latent, modal, ortho, poise, sprung, stride
+from machine.errors import MachineError
+from tools import REPO
+from tools.dev import background
+from tools.sim import cmaes, fbx, gvs, look, looks, normal, strides
+from tools.sim import ortho as sim_ortho
 
 MODULES = {'stride': stride, 'poise': poise, 'impedance': impedance, 'modal': modal, 'latent': latent}
 BLOCKS = {'z': ortho.Z, 'k': ortho.K, 'd': ortho.D, 'amp': ortho.AMP, 'phase': ortho.PHASE}

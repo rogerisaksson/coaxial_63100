@@ -20,9 +20,9 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from machine import drives, figure, linkage  # noqa: E402
-from tools import REPO  # noqa: E402
-from tools.cores import written  # noqa: E402
+from machine import drives, figure, linkage
+from tools import REPO
+from tools.cores import written
 
 PATH = os.path.join(REPO, 'host', 'machine', 'term_rows.py')
 NOTICE = "Her movements' terms as static arrays: written by host/tools/cores/terms.py, not by hand."

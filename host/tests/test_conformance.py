@@ -666,10 +666,10 @@ if __name__ == '__main__':
         PORT = sys.argv[sys.argv.index('--port') + 1]
         if PORT.startswith('fakeboard://'):
             sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-            import tools.cores.fakeboard  # noqa: F401 - the scheme
+            import tools.cores.fakeboard  # the scheme
         if PORT.startswith('frames://'):
             sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-            import tools.emu.emulator  # noqa: F401 - the scheme
+            import tools.emu.emulator  # the scheme
     elif not offline:
         from tools.target import find_board
         PORT = find_board.discover(PORT, BAUD, SLAVE)[0] or PORT

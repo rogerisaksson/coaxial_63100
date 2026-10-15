@@ -10,10 +10,10 @@ import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from machine import cyclic, parts  # noqa: E402
-from machine.nodes import Module  # noqa: E402
+from machine import cyclic, parts
+from machine.nodes import Module
 
-from test_modbus_core import Report  # noqa: E402
+from test_modbus_core import Report
 
 #: Each kind: its part's inputs by name, as the step's u rows after dt.
 PORTS = {'Gain': ('x',), 'Slew': ('x',), 'Wrap': ('x',), 'LowPass': ('x',),

@@ -9,13 +9,13 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from coaxial.model.inverter import GATE_UVLO_V  # noqa: E402
-from coaxial.simulated.values import DCBUS_V  # noqa: E402
-from tools.cores.build import build, find_cc  # noqa: E402
-from coaxial.model.thermal_app import APPLICATIONS  # noqa: E402
-from tools.emu.world import INCLUDES, SOURCES, heat_row  # noqa: E402
+from coaxial.model.inverter import GATE_UVLO_V
+from coaxial.simulated.values import DCBUS_V
+from tools.cores.build import build, find_cc
+from coaxial.model.thermal_app import APPLICATIONS
+from tools.emu.world import INCLUDES, SOURCES, heat_row
 
-from test_modbus_core import Report  # noqa: E402
+from test_modbus_core import Report
 
 JOINT, ROTOR, WHEEL = 1, 2, 3
 GROUND, LIFT, VEHICLE = 0, 1, 2

@@ -18,12 +18,12 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from coaxial import Coaxial63100  # noqa: E402
-from coaxial.model import rooms  # noqa: E402
-from terminal.ui.demo import cycle_motor, stop_motor  # noqa: E402
-from tools.cores.build import find_cc  # noqa: E402
-from tools.dev.focus import chosen, watchdog  # noqa: E402
-from views_kit import Report  # noqa: E402
+from coaxial import Coaxial63100
+from coaxial.model import rooms
+from terminal.ui.demo import cycle_motor, stop_motor
+from tools.cores.build import find_cc
+from tools.dev.focus import chosen, watchdog
+from views_kit import Report
 
 #: The world's and the observer's haste, three times the pages': at 100 STABLE in the first
 #: room at 2 726 observer s, the room moved 54 s on, UNCERTAIN 54 s after it and STABLE again

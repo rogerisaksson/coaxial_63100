@@ -13,10 +13,10 @@ import os
 
 os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
-import numpy as np  # noqa: E402
+import numpy as np
 
-from machine import flight  # noqa: E402
-from machine.figure import BALL, HEEL, SOLE_HALF  # noqa: E402
+from machine import flight
+from machine.figure import BALL, HEEL, SOLE_HALF
 
 #: A sole out of the polygon; a sway of nothing.
 BIG, TINY = 1e3, 1e-9

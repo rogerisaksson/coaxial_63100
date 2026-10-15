@@ -6,14 +6,14 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from coaxial import Coaxial63100  # noqa: E402
-from coaxial.errors import RigError  # noqa: E402
-from coaxial.model import thermal, thermal_app  # noqa: E402
-from machine.modes import SIMULATED  # noqa: E402
-from tools.cores.build import build, find_cc  # noqa: E402
-from tools.cores.thermal import NODES, SOURCES, THERMAL, Model  # noqa: E402
+from coaxial import Coaxial63100
+from coaxial.errors import RigError
+from coaxial.model import thermal, thermal_app
+from machine.modes import SIMULATED
+from tools.cores.build import build, find_cc
+from tools.cores.thermal import NODES, SOURCES, THERMAL, Model
 
-from test_modbus_core import Report  # noqa: E402
+from test_modbus_core import Report
 
 #: A leg's 3 W and its shunts' 1.5, the housekeeping's own and the winding's 20: a load that
 #: heats every path an application moves.

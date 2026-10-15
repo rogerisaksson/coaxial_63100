@@ -5,8 +5,8 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from tools.dev.focus import chosen  # noqa: E402
-from gynoid_kit import Report  # noqa: E402
+from tools.dev.focus import chosen
+from gynoid_kit import Report
 
 #: A step standing: its torques within APART_NM of the stack's, each sole's load within APART_N.
 APART_NM, APART_N = 0.5, 2.0

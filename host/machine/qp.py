@@ -18,7 +18,7 @@ import os
 
 os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
-import numpy as np  # noqa: E402
+import numpy as np
 
 #: A constraint violated by more than TOL (its row unit-norm) is added; a direction or a
 #: multiplier under TINY is none.

@@ -9,12 +9,12 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from tools.cores import model  # noqa: E402
-from tools.cores import wbc as core  # noqa: E402
-from tools.cores.build import build, find_cc  # noqa: E402
-from tools.dev.focus import chosen  # noqa: E402
-from gynoid_kit import Report  # noqa: E402
-from machine import physics  # noqa: E402
+from tools.cores import model
+from tools.cores import wbc as core
+from tools.cores.build import build, find_cc
+from tools.dev.focus import chosen
+from gynoid_kit import Report
+from machine import physics
 
 #: The loop's world has the gearboxes with their play (`machine.gearbox`).
 physics.BOXED = 1.0

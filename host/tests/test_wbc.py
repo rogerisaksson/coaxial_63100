@@ -6,8 +6,8 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from tools.dev.focus import chosen  # noqa: E402
-from gynoid_kit import Report  # noqa: E402
+from tools.dev.focus import chosen
+from gynoid_kit import Report
 
 #: Random problems the solver meets KKT on, and its worst residual allowed.
 PROBLEMS, KKT = 200, 1e-8

@@ -33,11 +33,11 @@ import serial
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from tools import REPO  # noqa: E402
-from coaxial.devices.boot import HAND_AT, HAND_MAGIC  # noqa: E402
-from coaxial.simulated.sto import PILOT_HZ  # noqa: E402
-from tools.emu import world as worlds  # noqa: E402
-from tools.emu.probes import (ANSI, answers, boot_answers, heard_quiet, heard_until,  # noqa: E402
+from tools import REPO
+from coaxial.devices.boot import HAND_AT, HAND_MAGIC
+from coaxial.simulated.sto import PILOT_HZ
+from tools.emu import world as worlds
+from tools.emu.probes import (ANSI, answers, boot_answers, heard_quiet, heard_until,
                               own_temp, tied)
 
 # frames://, the URL every emulator here hands out.

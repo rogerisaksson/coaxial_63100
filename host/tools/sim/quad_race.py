@@ -38,11 +38,11 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from machine import aerobatics, aerokin, course, grounds, pull, quad  # noqa: E402
-from tools import REPO  # noqa: E402
-from tools.cores import aero  # noqa: E402
-from tools.dev import background  # noqa: E402
-from tools.sim import cmaes, streams  # noqa: E402
+from machine import aerobatics, aerokin, course, grounds, pull, quad
+from tools import REPO
+from tools.cores import aero
+from tools.dev import background
+from tools.sim import cmaes, streams
 
 #: The air's seeds a candidate is flown in, beside still air (`--seeds`: a run's own); the
 #: frames' sizes beside the one built; the boards' rooms beside the bench (`coaxial.model.

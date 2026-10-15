@@ -23,12 +23,12 @@ import os
 
 os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
-import numpy as np  # noqa: E402
+import numpy as np
 
-from machine import drives, linkage, qp  # noqa: E402
-from machine.drives import kind  # noqa: E402
-from machine.errors import MachineError  # noqa: E402
-from machine.figure import ANKLE_H, BALL, HEEL, JOINTS, SOLE_HALF  # noqa: E402
+from machine import drives, linkage, qp
+from machine.drives import kind
+from machine.errors import MachineError
+from machine.figure import ANKLE_H, BALL, HEEL, JOINTS, SOLE_HALF
 
 G = 9.81
 

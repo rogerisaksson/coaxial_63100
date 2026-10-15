@@ -24,9 +24,9 @@ from typing import Any
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from machine import (aerobatics, aerokin, aerolisp, course, grounds, intents,  # noqa: E402
+from machine import (aerobatics, aerokin, aerolisp, course, grounds, intents,
                      pull, quad)
-from tools.cores import aero  # noqa: E402
+from tools.cores import aero
 
 #: The ideal rotors: their top, rad/s, and what their speed changes by at the most, rad/s^2 -
 #: the flight's clamp's and its loops' slew (`machine.pull`), no link theirs to run short -,

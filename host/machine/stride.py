@@ -20,11 +20,11 @@ import os
 
 os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
-import numpy as np  # noqa: E402
+import numpy as np
 
-from machine.figure import ANKLE_H, BALL, SHANK, THIGH, TOE_M  # noqa: E402
-from machine.poise import BIG, HALF_M, TINY, clip  # noqa: E402
-from machine.wbc import CONTACT_K  # noqa: E402
+from machine.figure import ANKLE_H, BALL, SHANK, THIGH, TOE_M
+from machine.poise import BIG, HALF_M, TINY, clip
+from machine.wbc import CONTACT_K
 
 #: A limb's place, her way's frame: along, to her left, up. Her limbs' mirrors, the first her left.
 ALONG, LEFT, UP = 0, 1, 2

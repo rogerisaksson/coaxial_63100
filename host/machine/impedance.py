@@ -15,19 +15,19 @@ import os
 
 os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
-import numpy as np  # noqa: E402
+import numpy as np
 
-from machine import latent, poise, stride  # noqa: E402
-from machine.modal import (  # noqa: E402
+from machine import latent, poise, stride
+from machine.modal import (
     ARM_RAD, ARMS, AXIAL, AXIAL_M, BEND, CLEAR_M, COM, COM_ACC, DRIVE, DT, EDGE, FLOOR, FOLD, FOLD_RATE, FOLDS, G,
     GOING, HANDS, HEADED, HEELED, HIP, HIPS_BY, HOT, KDOT, KNEE, LATERAL, LEG_M, LIFT, LIST, LIST_RAD, LOAD, LOWEST,
     MASS, MOMENT, PELVIS, PITCH, PITCH0, PITCH_RAD, PREFOLD, QUAT, REACH0, ROCK, ROLLED, ROT, SAGITTAL, SETTLE,
     SOLE,
     SOLE_ACC, SPIN, STANCE, STRIDES, SWUNG, TILT, TILT_RATE, TIPPED, TURN, TURN_RAD, TURNED, UNIT, VCOM, VSOLE,
     W0, WANT, WIDTH, Z0, reading, shortened)
-from machine.poise import HALF_M, TINY  # noqa: E402
-from machine.stride import ALONG, LEFT, LIMBS, UP  # noqa: E402
-from machine.wbc import MOMENTUM_K, POSTURE_KD, TURN_KD  # noqa: E402
+from machine.poise import HALF_M, TINY
+from machine.stride import ALONG, LEFT, LIMBS, UP
+from machine.wbc import MOMENTUM_K, POSTURE_KD, TURN_KD
 
 #: The mode whose impedance holds a sole that does not stand, an axis each.
 FREE_BY = np.array([DRIVE, WIDTH, LIFT])

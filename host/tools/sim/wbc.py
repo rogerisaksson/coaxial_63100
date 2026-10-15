@@ -39,7 +39,7 @@ CREEP_S = 2.0
 WAYS = tuple(range(0, 360, 45))
 
 #: The drives' PD round the stack's reference and war emergency power, as the loop has them.
-from machine.sprung import LEAK_S, SERVO_SHARE, STANDING_KP, WEP_HOLD_S, WEP_S  # noqa: E402
+from machine.sprung import LEAK_S, SERVO_SHARE, STANDING_KP, WEP_HOLD_S, WEP_S
 
 NAMES = ()
 

@@ -9,10 +9,10 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import numpy as np  # noqa: E402
+import numpy as np
 
-from gynoid_kit import Report  # noqa: E402
-from tools.sim import gvs  # noqa: E402
+from gynoid_kit import Report
+from tools.sim import gvs
 
 
 def test_hof_scaling_axiom_strips_dimensions(report):

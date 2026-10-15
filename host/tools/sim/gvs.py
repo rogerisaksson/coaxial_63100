@@ -17,10 +17,10 @@ import sys
 os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-import numpy as np  # noqa: E402
+import numpy as np
 
-from machine import figure  # noqa: E402
-from tools.sim import fbx, normal  # noqa: E402
+from machine import figure
+from tools.sim import fbx, normal
 
 G = 9.81
 L0_DEFAULT = figure.THIGH + figure.SHANK

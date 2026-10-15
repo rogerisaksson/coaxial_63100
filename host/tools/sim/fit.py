@@ -21,7 +21,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from coaxial.model.blocks import numpy as np  # noqa: E402
+from coaxial.model.blocks import numpy as np
 
 #: Each segment's carbon tube's radius, m (`mechanism._bones`; a rod's `linkage.ROD_R`).
 TUBE_R = {'pelvis': 0.015, 'torso': 0.02, 'neck': 0.013, 'upper_arm': 0.012, 'forearm': 0.01,

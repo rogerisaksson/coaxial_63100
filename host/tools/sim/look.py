@@ -25,8 +25,8 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from tools import REPO  # noqa: E402
-from tools.sim.strides import _faces, _gap, _lean, _mid, _out, _p, _roll, walked  # noqa: E402
+from tools import REPO
+from tools.sim.strides import _faces, _gap, _lean, _mid, _out, _p, _roll, walked
 
 #: The head's rest pitch in the neck's offset (`figure.SEGMENTS`: 0.09 up, 0.012 on), deg.
 HEAD_REST = math.degrees(math.atan2(0.012, 0.09))

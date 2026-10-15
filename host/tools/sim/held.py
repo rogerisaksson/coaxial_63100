@@ -12,8 +12,8 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from coaxial.model.blocks import numpy as np  # noqa: E402
-from tools.sim import fit  # noqa: E402
+from coaxial.model.blocks import numpy as np
+from tools.sim import fit
 
 
 def held_by(touch=0.001):

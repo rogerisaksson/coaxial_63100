@@ -95,7 +95,7 @@ def _console_records():
 
 try:
     _RECORD = _console_records()
-except ImportError:                      # pragma: no cover - no ctypes
+except ImportError:                      # no ctypes
     _RECORD = None
 
 

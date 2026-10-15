@@ -14,9 +14,9 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from coaxial import Coaxial63100  # noqa: E402
-from tools.cores import fakeboard  # noqa: E402
-from tools.cores.build import find_cc  # noqa: E402
+from coaxial import Coaxial63100
+from tools.cores import fakeboard
+from tools.cores.build import find_cc
 
 CONFORMANCE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_conformance.py')
 #: 18 s measured on the laptop, the harness's settle sleeps.

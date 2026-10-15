@@ -20,7 +20,7 @@ import zlib
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from coaxial.model.blocks import numpy as np  # noqa: E402   behind the OpenBLAS cap
+from coaxial.model.blocks import numpy as np  # behind the OpenBLAS cap
 
 #: FBX time units a second; the orders of `RotationOrder`, the first axis applied first.
 KTIME = 46186158000

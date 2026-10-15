@@ -16,11 +16,11 @@ import os
 
 os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
-import numpy as np  # noqa: E402
+import numpy as np
 
-from machine import drives  # noqa: E402
-from machine.figure import BALL, HEEL, JOINTS, SOLE_HALF  # noqa: E402
-from machine.wbc import (CONTACT_K, HEIGHT_BAND, HELD_K, MOMENTUM_K, MU, POSTURE_KD, SWING_KD,  # noqa: E402
+from machine import drives
+from machine.figure import BALL, HEEL, JOINTS, SOLE_HALF
+from machine.wbc import (CONTACT_K, HEIGHT_BAND, HELD_K, MOMENTUM_K, MU, POSTURE_KD, SWING_KD,
                          TURN_KD, G, turn_error)
 
 _DRIVEN = [j for j in JOINTS if drives.passive(j) is None]

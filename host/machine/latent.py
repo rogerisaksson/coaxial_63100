@@ -17,9 +17,9 @@ import os
 
 os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
-import numpy as np  # noqa: E402
+import numpy as np
 
-from machine import ortho  # noqa: E402
+from machine import ortho
 
 N, P = ortho.N, ortho.P
 #: A row's parameters as slices (`ortho`'s layout): a mode each, then four numbers.

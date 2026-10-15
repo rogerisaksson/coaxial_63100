@@ -16,9 +16,9 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from coaxial.model.blocks import numpy as np  # noqa: E402   behind the OpenBLAS cap
-from tools.sim import normal  # noqa: E402
-from tools.sim.fbx import take  # noqa: E402
+from coaxial.model.blocks import numpy as np  # behind the OpenBLAS cap
+from tools.sim import normal
+from tools.sim.fbx import take
 
 #: The straight walk: at least WALKING of the take's top speed, its heading within TURN_DEG of
 #: the walk's; TRIM_S off each end, where she gathers pace or slows. A take travelling less than

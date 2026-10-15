@@ -26,7 +26,7 @@ import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from tools import REPO  # noqa: E402
+from tools import REPO
 
 SIMULATIONS = os.path.join(REPO, 'electronic_simulations')
 SCHEMATIC = os.path.join(SIMULATIONS, 'afe', 'amplifiers.asc')

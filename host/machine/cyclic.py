@@ -20,10 +20,10 @@ from dataclasses import dataclass
 # One thread: OpenBLAS's pool is ~499 MB of commit a process on a laptop with no page file.
 os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
-import numpy as np  # noqa: E402
-from numpy.typing import NDArray  # noqa: E402
+import numpy as np
+from numpy.typing import NDArray
 
-from machine.controller import flat  # noqa: E402
+from machine.controller import flat
 
 # -- memory ----------------------------------------------------------------------------------
 

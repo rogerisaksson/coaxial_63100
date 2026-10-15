@@ -23,10 +23,10 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from machine import figure, linkage  # noqa: E402
-from machine.figure import BALL, HEEL, HIP_DROP, HIP_HALF, SHANK, THIGH, TOE_M  # noqa: E402
-from tools import REPO  # noqa: E402
-from tools.cores import written  # noqa: E402
+from machine import figure, linkage
+from machine.figure import BALL, HEEL, HIP_DROP, HIP_HALF, SHANK, THIGH, TOE_M
+from tools import REPO
+from tools.cores import written
 
 PATH = os.path.join(REPO, 'host', 'machine', 'reach_rows.py')
 NOTICE = "Her leg's reach over its foot as static arrays: written by host/tools/cores/reach.py, not by hand."

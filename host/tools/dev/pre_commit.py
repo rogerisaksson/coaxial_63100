@@ -22,8 +22,8 @@ from concurrent.futures import ThreadPoolExecutor
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from tools import REPO  # noqa: E402
-from tools.dev import token_budget  # noqa: E402
+from tools import REPO
+from tools.dev import token_budget
 
 #: How to take a file of each kind under the budget.
 SPLIT = {

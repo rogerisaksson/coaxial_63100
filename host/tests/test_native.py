@@ -13,19 +13,19 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from coaxial import EMULATED, Coaxial63100  # noqa: E402
-from coaxial.control.commission import Commissioning  # noqa: E402
-from coaxial.comm.session import standing  # noqa: E402
-from coaxial.devices.imu import ACCELEROMETER  # noqa: E402
-from coaxial.node import discover  # noqa: E402
-from coaxial.model.inverter import GATE_UVLO_V  # noqa: E402
-from coaxial.model.thermal import HASTE  # noqa: E402
-from coaxial.simulated.sto import PILOT_VOLTS  # noqa: E402
-from terminal.ui.demo import stop_motor, turn_motor  # noqa: E402
-from terminal.ui.screen import FPS_CAP  # noqa: E402
-from tools.cores import native  # noqa: E402
-from tools.cores.build import find_cc  # noqa: E402
-from tools.dev.focus import pick, watchdog  # noqa: E402
+from coaxial import EMULATED, Coaxial63100
+from coaxial.control.commission import Commissioning
+from coaxial.comm.session import standing
+from coaxial.devices.imu import ACCELEROMETER
+from coaxial.node import discover
+from coaxial.model.inverter import GATE_UVLO_V
+from coaxial.model.thermal import HASTE
+from coaxial.simulated.sto import PILOT_VOLTS
+from terminal.ui.demo import stop_motor, turn_motor
+from terminal.ui.screen import FPS_CAP
+from tools.cores import native
+from tools.cores.build import find_cc
+from tools.dev.focus import pick, watchdog
 
 WINDOW_S = 1.0
 ANGLE_COUNT = 360.0 / 4096

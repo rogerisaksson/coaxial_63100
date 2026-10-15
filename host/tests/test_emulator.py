@@ -22,17 +22,17 @@ import zlib
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-import test_wire as wire  # noqa: E402
-from coaxial import EMULATED, Coaxial63100  # noqa: E402
-from coaxial.devices import boot  # noqa: E402
-from coaxial.errors import RigError  # noqa: E402
-from coaxial.model.inverter import GATE_UVLO_V  # noqa: E402
-from coaxial.simulated.sto import PILOT_VOLTS  # noqa: E402
-from tools.dev.focus import pick, run_groups, watchdog  # noqa: E402
-from tools.dev.suites import EMULATOR_GROUPS  # noqa: E402
-from tools.emu import protocol_emulator  # noqa: E402
-from tools.emu import world as worlds  # noqa: E402
-from tools.emu.emulator import (BOOT_ELF, ELF, FAITHFUL_MIPS, Emulator, Limb,  # noqa: E402
+import test_wire as wire
+from coaxial import EMULATED, Coaxial63100
+from coaxial.devices import boot
+from coaxial.errors import RigError
+from coaxial.model.inverter import GATE_UVLO_V
+from coaxial.simulated.sto import PILOT_VOLTS
+from tools.dev.focus import pick, run_groups, watchdog
+from tools.dev.suites import EMULATOR_GROUPS
+from tools.emu import protocol_emulator
+from tools.emu import world as worlds
+from tools.emu.emulator import (BOOT_ELF, ELF, FAITHFUL_MIPS, Emulator, Limb,
                                 find_renode)
 
 AFE = worlds.AFE
