@@ -413,6 +413,11 @@ its no-load speed at 48 V, a node's span to its ceiling. Worst of the sides.
   load goes 265 -> 34 N; she saturates her hips 0.43 s with both soles bare.
   Without the grant the turns' play and the weave fall at every wobble; granted
   to every driver, her walk's head goes 38 mm aside (35) and strikes 455 N.
+- What unloads it: the turn reversed (left to right), her centre of mass goes
+  0.145 -> 0.410 m across from the new inside foot in 0.54 s, its hip's roll
+  0.09 -> 0.50 rad, its yaw held near 0 (posed where it is: no change); the
+  outside foot lands at 5.94 s, after the stance has let go. Its drives are
+  under half their clamps until then: a step landed too late, not a weak leg.
 
 ## As data
 
