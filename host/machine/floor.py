@@ -15,6 +15,10 @@ SLAB_FROM_M, SEAM_M, SLAB_TO_M, PARKED_M = -20.0, 30.0, 10000.0, -50.0
 DEEP_M, SLIP_TOP_M = 0.2, 0.001
 #: A flight of stairs: its steps, each's rise and run, m, and the landing at its top. A house's.
 STEPS, RISE_M, RUN_M, TOP_M = 5, 0.15, 0.30, 1.5
+#: A scene's floor a flight or a ramp climbs to or comes down to goes on this far, m: the base
+#: plane, the hole's bottom 10 cm down, lay over a descent's lower half and a 1.2 m top ended in
+#: a drop.
+UPPER_M = 6.0
 BRICK, BOARD, BOARD_HINGE_M, BOARD_KG = (0.06, 0.031, 0.125), (0.25, 0.005, 0.20), 0.02, 1.2
 BOARD_K, BOARD_C = 3000.0, 20.0
 CHAIR_SEAT, CHAIR_SEAT_H, CHAIR_BACK = (0.22, 0.02, 0.22), 0.45, (0.22, 0.20, 0.02)
@@ -36,12 +40,28 @@ def _rock():
     return math.degrees(math.atan(BOARD_HINGE_M / BOARD[0]))
 
 
-def _steps():
+def _steps(top=TOP_M):
     return [('step%d' % k, (0.5, (k + 1) * RISE_M / 2.0,
-                             (RUN_M + (TOP_M if k == STEPS - 1 else 0.0)) / 2.0),
+                             (RUN_M + (top if k == STEPS - 1 else 0.0)) / 2.0),
              (0.0, (k + 1) * RISE_M / 2.0,
-              k * RUN_M + (RUN_M + (TOP_M if k == STEPS - 1 else 0.0)) / 2.0))
+              k * RUN_M + (RUN_M + (top if k == STEPS - 1 else 0.0)) / 2.0))
             for k in range(STEPS)]
+
+
+def _sized(world, body, half):
+    """`body`'s one box `half` its sizes."""
+    m = world.model
+    m.geom_size[m.body_geomadr[m.body(body).id]][:3] = half
+
+
+def _beyond(world, along, ahead, pad):
+    """The slab taken away from `along` on, `ahead` the way she goes along z (1 or -1)."""
+    slab(world, along - pad, SLAB_TO_M) if ahead >= 0.0 else slab(world, SLAB_FROM_M, along + pad)
+
+
+def _base(world, y):
+    """The base plane `y` m up: the hole's bottom, a descent's lower floor."""
+    world.model.geom_pos[world.model.geom('floor').id][1] = y
 
 
 def ground(contacts, give, torsion):
@@ -130,6 +150,10 @@ def slab(world, a_to, b_from):
 
 def park(world):
     slab(world, SEAM_M, SEAM_M)
+    _base(world, -HOLE_M)
+    _sized(world, 'slope_top', SLOPE_TOP_HALF)
+    for name, half, _at in _steps():
+        _sized(world, name, half)
     world.hole_x = 0.0
     for name in ('sill', 'slip', 'brick_left', 'brick_right', 'board_base', 'wall', 'tree',
                  'chair', 'prop_bed', 'slope_ramp', 'slope_top', 'ice', 'snow'):
@@ -161,7 +185,7 @@ def lay_rug(world, at, heading=0.0):
     d.qvel[dof:dof + 6] = 0.0
 
 
-def _place_slope(world, kind, at, heading):
+def _place_slope(world, kind, at, heading, top):
     rad = math.radians(SLOPE_ANGLE_DEG)
     c, s = math.cos(heading), math.sin(heading)
     ch, sh = math.cos(heading / 2.0), math.sin(heading / 2.0)
@@ -171,13 +195,17 @@ def _place_slope(world, kind, at, heading):
         cr, sr = math.cos(-rad / 2.0), math.sin(-rad / 2.0)
         ramp_at = _on(at, heading, 0.0, hy - SLOPE_HALF[1] * math.cos(rad), hz + SLOPE_HALF[1] * math.sin(rad))
         world.data.mocap_pos[k_ramp], world.data.mocap_quat[k_ramp] = ramp_at, (ch * cr, ch * sr, sh * cr, -sh * sr)
-        top_at = _on(at, heading, 0.0, 2.0 * hy - SLOPE_TOP_HALF[1], 2.0 * hz + SLOPE_TOP_HALF[2])
-        mocap(world, 'slope_top', top_at, heading)
+        _sized(world, 'slope_top', (SLOPE_TOP_HALF[0], SLOPE_TOP_HALF[1], top / 2.0))
+        mocap(world, 'slope_top', _on(at, heading, 0.0, 2.0 * hy - SLOPE_TOP_HALF[1], 2.0 * hz + top / 2.0), heading)
         return
     cr, sr = math.cos(rad / 2.0), math.sin(rad / 2.0)
-    span = (2.0 * hz + 1.2 if kind == 'slope_down' else 2.0 * SLOPE_HALF[2]) * c
     pad = abs(s) * SLOPE_HALF[0]
-    slab(world, min(at[1], at[1] + span) - pad, max(at[1], at[1] + span) + pad)
+    if kind == 'slope_down':
+        _beyond(world, at[1], c, pad)
+        _base(world, -2.0 * hy)
+    else:
+        span = 2.0 * SLOPE_HALF[2] * c
+        slab(world, min(at[1], at[1] + span) - pad, max(at[1], at[1] + span) + pad)
     world.hole_x = None
     if kind == 'slope_down':
         ramp_at = _on(at, heading, 0.0, -hy - SLOPE_HALF[1] * math.cos(rad), hz - SLOPE_HALF[1] * math.sin(rad))
@@ -199,7 +227,7 @@ _SIMPLE_PROPS = {
 }
 
 
-def place(world, kind, z, x=0.0, heading=0.0):
+def place(world, kind, z, x=0.0, heading=0.0, top=None):
     c, s = math.cos(heading), math.sin(heading)
     at = (x * c + z * s, -x * s + z * c)
     if kind in _SIMPLE_PROPS:
@@ -207,7 +235,7 @@ def place(world, kind, z, x=0.0, heading=0.0):
         mocap(world, body, (at[0], dy, at[1] + dz), heading)
         return
     if kind in ('slope', 'slope_down', 'cross_slope'):
-        _place_slope(world, kind, at, heading)
+        _place_slope(world, kind, at, heading, 2.0 * SLOPE_TOP_HALF[2] if top is None else top)
         return
     if kind == 'hole':
         slab(world, at[1] - HOLE_LONG_M / 2.0, at[1] + HOLE_LONG_M / 2.0)
@@ -217,14 +245,16 @@ def place(world, kind, z, x=0.0, heading=0.0):
         lay_rug(world, at, heading)
         return
     if kind == 'stairs':
-        for name, _half, (dx, y, dz) in _steps():
+        for name, half, (dx, y, dz) in _steps(TOP_M if top is None else top):
+            _sized(world, name, half)
             mocap(world, name, _on(at, heading, dx, y, dz), heading)
         return
     if kind == 'stairs_down':
-        span, pad = (STEPS * RUN_M + TOP_M) * c, abs(s) * 0.5
-        slab(world, min(at[1], at[1] + span) - pad, max(at[1], at[1] + span) + pad)
+        _beyond(world, at[1], c, abs(s) * 0.5)
+        _base(world, -STEPS * RISE_M)
         world.hole_x = None
-        for k, (name, half, (dx, _y, dz)) in enumerate(_steps()):
+        for k, (name, half, (dx, _y, dz)) in enumerate(_steps(TOP_M if top is None else top)):
+            _sized(world, name, half)
             mocap(world, name, _on(at, heading, dx, -(k + 1) * RISE_M - half[1], dz), heading)
         return
     if kind == 'board':
@@ -250,11 +280,11 @@ def scenario(world, name, z=1.2, x=0.0):
         'chair': lambda: place(world, 'chair', z=0.88, x=x),
         'bed': lambda: place(world, 'bed', z=1.8, x=x),
         'mattress': lambda: place(world, 'mattress', z=0.6, x=x),
-        'slope': lambda: place(world, 'slope', z=0.25, x=x),
+        'slope': lambda: place(world, 'slope', z=0.25, x=x, top=UPPER_M),
         'slope_down': lambda: place(world, 'slope_down', z=0.25, x=x),
         'cross_slope': lambda: place(world, 'cross_slope', z=0.25, x=x),
-        'stairs': lambda: place(world, 'stairs', z=0.30, x=x),
-        'stairs_down': lambda: place(world, 'stairs_down', z=0.30, x=x),
+        'stairs': lambda: place(world, 'stairs', z=0.30, x=x, top=UPPER_M),
+        'stairs_down': lambda: place(world, 'stairs_down', z=0.30, x=x, top=UPPER_M),
         'ice': lambda: place(world, 'ice', z=0.15, x=x),
         'snow': lambda: place(world, 'snow', z=0.15, x=x),
         'asphalt': lambda: place(world, 'asphalt', z=0.15, x=x),

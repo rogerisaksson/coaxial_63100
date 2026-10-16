@@ -87,3 +87,15 @@ among them for the first time -, standing 32 and walking 23 of 32, replays 9 of
   0.22 rad off the floor turned her way and she crabbed into APART_M.
 - Stepping through a hop's load she left the floor rolling and landed at 60 deg:
   the need fires on a drift of 0.19 m/s after a stop; held back, the hop waits.
+
+## The terrain's scenes
+
+- The base plane, the hole's bottom 10 cm down, lay over every descent: the stairs
+  down and the slope down were a 10 cm dip, the slope down's goal (0.45 m lower)
+  out of reach; the stairs' landing (1.5 m) and the slope's top (1.2 m) ended in
+  a drop before a 7-10 s walk did. The bench's floors now go on 6 m (`UPPER_M`),
+  a descent's on the base plane laid at its foot; the page's room keeps a
+  house's landing.
+- On them, at every wobble: stairs up down at 2.95-2.98 s, down at 3.24-3.45,
+  the slope up at 6.36-7.19, down at 3.99, across it at 3.30-3.43, the rug at
+  5.91-5.96.
