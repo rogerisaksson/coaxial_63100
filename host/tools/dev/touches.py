@@ -2,7 +2,7 @@
 from tools.dev.suites import (AERO_CORE, BENCH, BOARD_MEM, BOOT, BOOT_CLIENT, BOOT_CORE, BROKER,
                               CONFORMANCE,
                               CONTROLLER, CORE, CTRL_CORE, CYCLIC, DAQ_API, DAQ_CORE, DRIVE,
-                              DRIVE_OBSERVER, EMULATOR, FILTER, FLIGHT, GYNOID,
+                              DRIVE_OBSERVER, EMULATOR, FILTER, FLIGHT, GVS, GYNOID,
                               HEATED, NATIVE, NATIVE_HEAT, OLLAMA, ORTHO, QUADS, REACH, RENDER,
                               SENSORLESS, SHTP, SIGHT, STREAMS, STRUCTURE, TERMS, THERMAL,
                               THERMAL_APP, VIEWS, WBC, WBC_CORE, WIRE, WORLD_CORE, WRENCH)
@@ -114,6 +114,7 @@ TOUCHES = (
     ('host/tools/sim/hop.py',                  (STRUCTURE, FLIGHT, WRENCH)),
     ('host/tools/sim/demand.py',               (STRUCTURE,)),
     ('host/tools/sim/ortho.py',                (STRUCTURE, ORTHO)),
+    ('host/tools/sim/gvs.py',                  (STRUCTURE, GVS)),
     ('host/tools/cores/terms.py',              (STRUCTURE, TERMS)),
     ('host/tools/cores/',                      (WIRE, NATIVE, NATIVE_HEAT)),
     ('host/tools/dev/counts.py',               ('test_ollama_runner.py',)),
