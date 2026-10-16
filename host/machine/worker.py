@@ -3,34 +3,17 @@ import math
 import multiprocessing
 import queue
 import time
-from machine import ortho, physics, sprung
+from machine import edge, ortho, physics, sprung
 from machine.errors import MachineError
 from machine.se2 import WALK_ON
 
 
-def robot_body_ids(m, world):
-    import numpy as np
-    bids = set()
-    for i in range(m.nbody):
-        p = i
-        while p > 0:
-            if p == world.pelvis:
-                bids.add(i)
-                break
-            p = m.body_parentid[p]
-    upper = np.array(sorted(bids - set(world.soles.nonzero()[0])), dtype=int)
-    if 'door' in [m.body(i).name for i in range(m.nbody)]:
-        bids.add(m.body('door').id)
-    return np.array(sorted(bids), dtype=int), upper
-
-
 def _start_mode(g, by, entry, at):
     from machine import se2
-    name, z = entry[0], float(g['world'].data.qpos[2])
+    name = entry[0]
     g['active_entry'] = name
     if name == 'hop':
         g['_jump_until'], g['_leap'] = at + 1.45, False
-    se2.align_chair_hop(g, name)
     iw = by['init_walk'][1][:ortho.ROW.size] if 'init_walk' in by else None
     if name in ('ballistic_walk', 'jog', '#201'):
         return sprung.said(g, *entry, at=at, reset=True)
@@ -44,10 +27,6 @@ def _start_mode(g, by, entry, at):
         sprung.said(g, 'init_walk', iw, ('init_walk',), at=at, reset=True)
         dt_iw = 0.12 if name in ('turn_left', 'turn_right', 'circle_walk') else (0.28 if g.get('_twist_active') else 0.65)
         return sprung.said(g, *by[name], at=at + dt_iw)
-    if name in ('sit_chair', 'lie_bed') and z < 0.25 and iw is not None and '#204' in by:
-        sprung.said(g, 'init_walk', iw, ('init_walk',), at=at, reset=True)
-        sprung.said(g, *by['#204'], at=at + 0.65)
-        return sprung.said(g, *by[name], at=at + (1.80 if name == 'sit_chair' else 1.50))
     sprung.said(g, *entry, at=at)
 
 
@@ -73,7 +52,7 @@ def heard_say(g, gym, entry):
                 or abs(float(g['out'][latent.SWAY][modal.LATERAL])) > 0.08 or g['st'][latent.NOW][latent.GAIN] > 0.02)
     lph, lamp = float(g['st'][latent.NOW][latent.PHASE][modal.LATERAL]), float(g['st'][latent.NOW][latent.AMP][modal.LATERAL])
     back_now = (math.sin(lph) * (1.0 if lamp >= 0.0 else -1.0)) < -0.2
-    spd, ref = math.hypot(float(g['world'].data.qvel[0]), float(g['world'].data.qvel[2])), g['out'][latent.REF]
+    spd, ref = math.hypot(float(g['est']['vel'][0]), float(g['est']['vel'][2])), g['out'][latent.REF]
     off_c = not striding and (max(abs(float(ref[modal.LIFT])), abs(float(ref[modal.SAGITTAL])), abs(float(ref[modal.LATERAL]))) > 0.15
                               or abs(float(ref[modal.AXIAL])) > 0.25 or spd > 0.04 or abs(float(g['loads'][0]) - float(g['loads'][1])) > 90.0)
     t0, cur_d = g['t'] + 0.001, sprung.doing(g)
@@ -171,7 +150,7 @@ def check_parry(g, out, cur_doing, cur_entry, sh, ch):
     s0_lt, s1_lt = float(soles[0, 0]) * ch - float(soles[0, 2]) * sh, float(soles[1, 0]) * ch - float(soles[1, 2]) * sh
     ex_al = max(0.0, min(s0_al, s1_al) - xi_al, xi_al - max(s0_al, s1_al))
     ex_lt = max(0.0, min(s0_lt, s1_lt) - xi_lt, xi_lt - max(s0_lt, s1_lt))
-    ct, vh = sprung.tilt(g), math.hypot(vc_al, vc_lt)
+    ct, vh = edge.tilt(g['sense']), math.hypot(vc_al, vc_lt)
     striding = abs(float(out[latent.SWAY][modal.DRIVE])) >= 0.06 or abs(float(out[latent.SWAY][modal.LATERAL])) >= 0.15
     if cur_doing == 'brake' and (vh > 0.22 or ex_al > 0.08 or ex_lt > 0.048 or ct > 6.5) and len(g['tab']):
         m = (g['tab'][:, latent.AT] > g['t']) & (g['tab'][:, latent.SAID][:, latent.GAIN] > 0.5) & (g['tab'][:, latent.VALS][:, latent.GAIN] < 0.05)
@@ -220,22 +199,7 @@ def heard(g, gym, command):
     if 'heading' in command:
         g['target_heading'] = None if command['heading'] is None else float(command['heading'])
     if 'push' in command:
-        force = command['push']
-        g['world'].push(force, command.get('seconds', sprung.SHOVE_S))
-        mag, t0 = (math.hypot(*force) if hasattr(force, '__iter__') else float(force)), g['t'] + 0.001
-        mode, ph = (('controlled_fall', 'cushion') if mag > 120.0
-                    else (('parry_shove', 'catch') if mag >= 35.0 else (None, None)))
-        if mode and mode in by and sprung.doing(g) not in ('lower', 'seated', 'bed_rest', 'floor_rest', 'over'):
-            sprung._dropped(g)
-            g['_twist_active'], g['twist'], g['target_heading'] = False, (0.0, 0.0, 0.0), None
-            if g['st'][latent.NOW][latent.GAIN] > 0.02:
-                lph = float(g['st'][latent.NOW][latent.PHASE][modal.LATERAL])
-                lamp = float(g['st'][latent.NOW][latent.AMP][modal.LATERAL])
-                back_now = (math.sin(lph) * (1.0 if lamp >= 0.0 else -1.0)) < -0.2
-                sprung.said(g, ph, sprung._BRAKE_BACK_WIRE if back_now else sprung._BRAKE_WIRE, (ph,), at=t0, reset=True)
-                t0 += 1.10
-            sprung.said(g, *by[mode], at=t0, reset=True)
-            g['active_entry'] = mode
+        g['world'].push(command['push'], command.get('seconds', sprung.SHOVE_S))
 
 
 def _is_fallen(g, world):

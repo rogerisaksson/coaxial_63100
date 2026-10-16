@@ -24,22 +24,8 @@ from machine.controller import Batch
 from machine.errors import MachineError
 from machine import floor
 from machine.mjcf import LACE_HOLD_N, LACE_M, LOOSE, mjcf
+from machine.servos import CLAMPED, SERVO
 from machine.figure import JOINTS
-
-#: A drive by its joint's kind: (peak N m, kp N m/rad, kd N m s/rad, armature kg m^2). The ankles
-#: stiffer than the body leaning on them (m g h, 490 N m/rad). The neck under a 3.3 kg head
-#: 0.18 m up (0.13 kg m^2), damped at half critical: at 60 N m/rad it nodded 6.1 degrees a step
-#: to her surge; 150, 300, 600: 3.0, 2.2, 1.7. The peaks her controller's own, at the
-#: drives' clamps before the stacks: her stacks grew to 1.5x them (`drives.STACKS`).
-SERVO = {'spine': (142.5, 800.0, 30.0, 0.05), 'spine_roll': (77.4, 800.0, 30.0, 0.05),
-         'waist': (77.4, 400.0, 20.0, 0.02),
-         'neck': (15.0, 300.0, 6.0, 0.02), 'head': (8.0, 30.0, 1.0, 0.02),
-         'shoulder': (40.0, 150.0, 6.0, 0.02), 'elbow': (25.0, 80.0, 3.0, 0.02),
-         'wrist': (11.3, 150.0, 5.0, 0.02), 'gripper': (10.0, 40.0, 1.0, 0.02),
-         'hip_yaw': (51.6, 300.0, 10.0, 0.05), 'hip_roll': (128.9, 900.0, 40.0, 0.05),
-         'hip': (171.0, 900.0, 40.0, 0.05), 'knee': (171.0, 900.0, 35.0, 0.05),
-         'ankle': (140.0, 1500.0, 40.0, 0.05), 'ankle_roll': (100.0, 1500.0, 40.0, 0.05),
-         'foot': (11.6, 40.0, 1.0, 0.02)}
 
 #: The world's step, s.
 STEP_S = 0.001
@@ -71,7 +57,7 @@ READING = ('degrees', 'rate', 'celsius', 'spent', 'derate', 'status')
 #: she fell back in 3 starts of 12; at none, no fall and no parry in 12. The look's suite:
 #: -274.2 at 0, -271.9 at 0.25, off its form at 0.5 and 0.75, down at 1; her knee lands at 30.0
 #: deg at 0.65 strides/s at 0, 30.3 at 0.12, 29.7 at 0.25, the form's 30.
-REFLECTED, ROTOR_FF, CLAMPED, PLACED, BACKDRIVE, SKELETON = 1.0, 0.25, 1.0, 1.0, 1.0, 0.0
+REFLECTED, ROTOR_FF, PLACED, BACKDRIVE, SKELETON = 1.0, 0.25, 1.0, 1.0, 0.0
 #: Where a drive's loop reads its angle and speed: 1 the motor's encoder, the rotor's side of
 #: the gearbox; 0 the joint's own sensor, its link's. Before the gearbox was a body of its own
 #: the wind-up was an offset on the sensed angle, and at 1 her walk fell at 6.4 s.

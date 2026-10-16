@@ -386,8 +386,9 @@ Six firmware defects, no hardware fault:
 | Kinematics: the figure's recipes, dual quaternions, the jeans' seams | [findings/kinematics.md](findings/kinematics.md) |
 | The whole-body stack: its solver, standing, shoves, the loop in C | [findings/wbc.md](findings/wbc.md) |
 | Flight on the stack: which soles stand from one pass, a hop stood | [findings/flight.md](findings/flight.md) |
-| Orthokinematics, the one way she moves: Humanoid robot movement as text, a latent loop with no branch, Humanoid robot modes on Humanoid robot body, Humanoid robot stride, Humanoid robot walk on it | [findings/orthokinematics.md](findings/orthokinematics.md) |
+| Orthokinematics, the one way she moves: movement as text, a latent loop with no branch, modes on the body, the stride, the walk on it | [findings/orthokinematics.md](findings/orthokinematics.md) |
 | Humanoid robot whole body's step without an active set: 21 unknowns, four solves | [findings/wrench.md](findings/wrench.md) |
+| What her law senses: edge, estimate, insoles | [findings/sensing.md](findings/sensing.md) |
 | Build, buses, falls, drawing, clothes | [findings/body.md](findings/body.md) |
 | Drives: motors, gearboxes, inverters, sizing | [findings/drives.md](findings/drives.md) |
 | One stack for every drive: demand, candidates, stacks as built | [findings/stacks.md](findings/stacks.md) |

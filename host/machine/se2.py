@@ -253,27 +253,33 @@ def _modulate_cpg(g, vx, vy, wz, out, vxp=0.0):
                 out[latent.REF][modal.LATERAL] = math.copysign(0.105, vy)
 
 
+#: The floor under her follows her bearing soles at FLOOR_HZ.
+FLOOR_HZ = 15.0
+
+
+def floored(g, y, dt):
+    """The floor under her where her bearing soles' lowest corners stand, in her estimate's own
+    height: held where she was laid it read her soles 22 mm over it as her estimate drifted up."""
+    import numpy as np
+    from machine import flight, modal
+    bear = np.array(g['loads']) * (np.array(g['loads']) >= flight.TOUCH_N)
+    under = float(bear @ y[modal.LOWEST]) / max(float(bear.sum()), 1e-9)
+    g['fr'][modal.FLOOR] += float(bear.sum() > 0.0) * min(1.0, FLOOR_HZ * dt) * (under - float(g['fr'][modal.FLOOR]))
+
+
 def step_physical_twist(g, dt, out=None):
-    from machine import floor, latent, modal, sprung
-    y, f0, cur_entry = g['y'], g.setdefault('floor0', float(g['fr'][modal.FLOOR])), g.get('active_entry')
-    d, hd = g['world'].data, float(g['heading'])
+    from machine import edge, latent, modal, sprung
+    y, cur_entry = g['y'], g.get('active_entry')
+    g.setdefault('floor0', float(g['fr'][modal.FLOOR]))
+    v, hd = g['est']['vel'], float(g['heading'])
     sh, ch = math.sin(hd), math.cos(hd)
-    if cur_entry in ('hop_up_chair', 'hop_down_chair') and min(float(y[modal.LOWEST][0]), float(y[modal.LOWEST][1])) > 0.025:
-        pos = (float(d.qpos[0]), float(d.qpos[2]))
-        if cur_entry == 'hop_up_chair' and not g.get('_chair_elevated'):
-            g['_chair_elevated'] = True
-            floor.mocap(g['world'], 'chair', floor._on(pos, hd, 0.0, 0.020 - floor.CHAIR_SEAT_H, -0.15), hd + math.pi)
-        elif cur_entry == 'hop_down_chair' and max(g['loads']) == 0.0 and not g.get('_chair_cleared'):
-            g['_chair_cleared'], g['_chair_elevated'] = True, False
-            floor.mocap(g['world'], 'chair', floor._on(pos, hd, 0.0, 0.002 - floor.CHAIR_SEAT_H, -0.45), hd + math.pi)
-    sy = min(float(y[modal.SOLE][1]), float(y[modal.SOLE][4]))
-    g['fr'][modal.FLOOR] += 15.0 * dt * ((min(f0, sy) if sy < f0 - 0.006 else f0) - float(g['fr'][modal.FLOOR]))
+    floored(g, y, dt)
     cur_doing = sprung.doing(g)
     twist_mode = bool(g.get('_twist_active') or g.get('_twist_stop_until', 0.0) > g['t'] or cur_entry in WASD_GAITS or cur_doing == 'brake')
     is_hop = cur_doing in ('load', 'throw', 'land') and cur_entry not in ('controlled_fall', 'hop_up_chair', 'hop_down_chair')
     vx, vy, wz = g.get('twist', (0.0, 0.0, 0.0))
     tx, ty, tz = (vx, vy, wz) if g.get('_twist_active') else NOMINAL_TWIST.get(cur_entry, (0.0, 0.0, 0.0))
-    vxp, vyp, wzp = float(d.qvel[0]) * sh + float(d.qvel[2]) * ch, float(d.qvel[0]) * ch - float(d.qvel[2]) * sh, float(d.qvel[4])
+    vxp, vyp, wzp = float(v[0]) * sh + float(v[2]) * ch, float(v[0]) * ch - float(v[2]) * sh, float(g['sense'][edge.GYRO][1])
     dt_ld = (g['t'] - g['_land_touch_t']) if g.get('_land_touch_t') is not None else -1.0
     if out is not None and is_hop and not (g.get('_leap') and dt_ld > 0.06):
         out[latent.SWAY][:] = 0.0
@@ -282,19 +288,18 @@ def step_physical_twist(g, dt, out=None):
         out[latent.REF][modal.WIDTH] = min(float(out[latent.REF][modal.WIDTH]), 0.04)
         out[latent.RATE][modal.WIDTH] = out[latent.ACC][modal.WIDTH] = 0.0
         if max(g['loads']) <= 10.0 and cur_doing in ('throw', 'land'):
-            out[latent.REF][modal.AXIAL] = min(1.10, max(0.20, 0.70 + 0.40 * float(d.qvel[1])))
+            out[latent.REF][modal.AXIAL] = min(1.10, max(0.20, 0.70 + 0.40 * float(v[1])))
             out[latent.KS][modal.LIFT], out[latent.DS][modal.LIFT] = 680.0, 60.0
     ax, ay, az = g.get('twist_actual', (0.0, 0.0, 0.0))
     kv, ky, kz = min(1.0, dt / 0.06), min(1.0, dt / (0.07 if abs(ty) > 0.01 else 0.10)), min(1.0, dt / (0.07 if abs(tz) > 0.01 else 0.10))
     g['twist_actual'] = (
         ax + kv * (vxp - ax),
-        ay + ky * ((vyp if abs(ty) > 0.01 or g['world'].push_until > g['t'] else 0.0) - ay),
+        ay + ky * ((vyp if abs(ty) > 0.01 else 0.0) - ay),
         az + kz * ((wzp if abs(tz) > 0.01 else 0.0) - az),
     )
     if g.get('_jump_until', 0.0) > g['t']:
         return
-    q = g['world'].data.qpos[3:7]
-    pelvis_yaw = 2.0 * math.atan2(float(q[2]), float(q[0]))
+    pelvis_yaw = edge.yaw(g['sense'])
     if abs(tz) > 1e-6 and g.get('target_heading') is None:
         l0, l1 = float(g['loads'][0]), float(g['loads'][1])
         out_st = 0.45 if ((tz > 0.0 and l0 > l1 + 60.0) or (tz < 0.0 and l1 > l0 + 60.0)) else 1.05
@@ -351,15 +356,6 @@ def boost_stumble(g, out):
         out[latent.ACC][modal.LIFT] -= d_sw * w * w * math.sin(psi_l)
     if g.get('_twist_active') or g.get('_twist_stop_until', 0.0) > g['t']:
         out[latent.REF][modal.WIDTH] = max(float(out[latent.REF][modal.WIDTH]), 0.16)
-
-
-def align_chair_hop(g, name):
-    if name in ('hop_up_chair', 'hop_down_chair'):
-        from machine import floor
-        d, hd = g['world'].data, float(g['heading'])
-        h0 = 0.020 if (name == 'hop_down_chair' and g.get('_chair_elevated')) else 0.002
-        g['_chair_elevated'], g['_chair_cleared'] = (h0 > 0.01), False
-        floor.mocap(g['world'], 'chair', floor._on((float(d.qpos[0]), float(d.qpos[2])), hd, 0.0, h0 - floor.CHAIR_SEAT_H, -0.15), hd + math.pi)
 
 
 def heard_twist(g, gym, tw, has_say, said_fn, dropped_fn, heard_say_fn, walk_on):

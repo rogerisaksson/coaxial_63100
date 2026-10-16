@@ -127,7 +127,8 @@ def _apart(xml, pairs):
 
 def _joint(joint, axis, sign):
     """A joint's element: its drive's armature, its stops, its spring or its gearbox's drag."""
-    from machine.physics import BACKDRIVE, REFLECTED, SERVO
+    from machine.physics import BACKDRIVE, REFLECTED
+    from machine.servos import SERVO
     # A four-bar's dead centres stop its joint: past them the rod would have to stretch.
     stop, spring = (STOPS.get(kind(joint)) or (linkage.PLANAR[kind(joint)][7] if kind(joint)
                                                 in linkage.PLANAR else None)), drives.passive(joint)
@@ -150,7 +151,8 @@ def _joint(joint, axis, sign):
 
 def _mjcf(bones):
     from machine import sight
-    from machine.physics import PLACED, ROOM, SERVO, SIGHT, STEP_S
+    from machine.physics import PLACED, ROOM, SIGHT, STEP_S
+    from machine.servos import SERVO
     shells = build.segments() if build.SHELLS else {}
     kids, riders = {}, build.riders() if PLACED and not shells else {}
     for seg in SEGMENTS:

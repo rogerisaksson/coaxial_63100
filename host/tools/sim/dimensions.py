@@ -61,7 +61,7 @@ def _sits(kind):
 
 def text():
     """The page."""
-    from machine import drives, heat, physics
+    from machine import drives, heat, servos
     from machine.figure import JOINTS
     rows = types()
     driven = [j for j in JOINTS if not drives.passive(j)]
@@ -106,7 +106,7 @@ def text():
                 '| --- | --- | --- | --- | --- | --- | --- | --- |']
         for kind in sorted(kinds, key=lambda k: -drives.peak(_joint(k))):
             j = _joint(kind)
-            clamp = min(physics.SERVO[kind][0], physics.CLAMPED * drives.peak(j))
+            clamp = min(servos.SERVO[kind][0], servos.CLAMPED * drives.peak(j))
             out.append('| %s | %d | %s | %s | %.1f | %.0f | %.0f | %.0f |' % (
                 kind.replace('_', ' '), sum(1 for d in driven if drives.kind(d) == kind),
                 _sits(kind), _through(kind), drives.ratio(j), drives.peak(j), clamp,

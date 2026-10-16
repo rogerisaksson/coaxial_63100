@@ -258,7 +258,7 @@ def test_no_unused_imports(r):
 def test_numpy_enters_behind_the_thread_cap(r):
     """numpy is imported at module level by the modules that step arrays - blocks.py,
     machine/cyclic.py and the whole-body loop's qp, wbc, wrench, latent, modal, impedance, poise,
-    stride - each capping OpenBLAS's thread pool before importing it.
+    stride, law, edge, estimate - each capping OpenBLAS's thread pool before importing it.
     """
     importers, uncapped = [], []
     for path, _text, tree in sources(beside=False):
@@ -275,7 +275,8 @@ def test_numpy_enters_behind_the_thread_cap(r):
             sorted(importers) == sorted([os.path.join('coaxial', 'model', 'blocks.py')]
                                         + [os.path.join('machine', m + '.py') for m in (
                                             'cyclic', 'qp', 'wbc', 'wrench',
-                                            'latent', 'modal', 'impedance', 'poise', 'stride')]),
+                                            'latent', 'modal', 'impedance', 'poise', 'stride',
+                                            'law', 'edge', 'estimate')]),
             ', '.join(importers) or 'nowhere')
     r.check('each sets OPENBLAS_NUM_THREADS before importing it', not uncapped,
             ', '.join(uncapped))
@@ -300,6 +301,60 @@ def test_motor_imports_no_board(r):
                                for n in _names_imported(node))})
     r.check('motor imports no board family and no machine', not importers,
             ', '.join(importers))
+
+
+#: Her law: what `machine.law` steps. It reads the world through `machine.edge` alone.
+LAW = ('law', 'se2', 'flight', 'support', 'latent', 'impedance', 'modal', 'poise', 'stride',
+       'estimate', 'wrench', 'wbc', 'reach')
+#: What her law may not name: the world, its truth, its ids, the writes that move it, the world's
+#: own modules. Her model posed is wbc.sense's and estimate.step's alone.
+TRUTH = {'world', 'obstacle_ids', 'sill_ids', 'upper_ids', 'robot_ids', 'push_until', 'push_n',
+         'xfrc_applied', 'qfrc_applied', 'mocap_pos', 'mocap_quat'}
+WORLDS, POSED = ('machine.physics', 'machine.floor', 'machine.room', 'machine.buses'), {'sense', 'step'}
+
+
+def _modules_imported(node):
+    """The modules one import statement names, dotted: `from machine import physics` names
+    machine.physics."""
+    if isinstance(node, ast.Import):
+        return [a.name for a in node.names]
+    if isinstance(node, ast.ImportFrom) and node.module:
+        return [node.module] + ['%s.%s' % (node.module, a.name) for a in node.names]
+    return []
+
+
+def _word(node):
+    """The name, attribute or subscript key `node` says, or None."""
+    if isinstance(node, ast.Name):
+        return node.id
+    if isinstance(node, ast.Attribute):
+        return node.attr
+    if isinstance(node, ast.Subscript) and isinstance(node.slice, ast.Constant):
+        return node.slice.value
+    return None
+
+
+def test_her_law_reads_her_sensors_alone(r):
+    """Her law names no world, none of its truth or ids, no shove and none of its modules; only
+    her model's posing writes qpos or qvel. A chair moved under her mid-hop, obstacles found by
+    their ids and a shove's newtons choosing her reaction were in it once."""
+    named, posed = [], []
+    for name in LAW:
+        tree = ast.parse(open(os.path.join(HOST, 'machine', name + '.py'), encoding='utf-8').read())
+        for fn in [n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef) and n.name not in POSED]:
+            for node in ast.walk(fn):
+                targets = (node.targets if isinstance(node, ast.Assign)
+                           else [node.target] if isinstance(node, ast.AugAssign) else [])
+                if any(isinstance(t, ast.Attribute) and t.attr in ('qpos', 'qvel')
+                       for target in targets for t in ast.walk(target)):
+                    posed.append('%s:%d' % (name, getattr(node, 'lineno', 0)))
+        for node in ast.walk(tree):
+            if _word(node) in TRUTH or set(_modules_imported(node)) & set(WORLDS):
+                named.append('%s:%d %s' % (name, getattr(node, 'lineno', 0), _word(node) or 'import'))
+    r.check("her law names none of the world's state, its ids, its shove or its modules", not named,
+            ', '.join(named[:6]))
+    r.check("only her model's posing (wbc.sense, estimate.step) writes qpos or qvel", not posed,
+            ', '.join(posed[:6]))
 
 
 def test_shape(r):
@@ -359,8 +414,8 @@ def test_no_escaping_scars(r):
 ROSTER = (test_every_file_fits_a_reading, test_imports, test_no_undefined_names, test_no_cycles,
           test_reexports, test_stand_ins_answer_every_call, test_no_duplicate_definitions,
           test_no_unused_imports, test_numpy_enters_behind_the_thread_cap,
-          test_machine_imports_no_board, test_motor_imports_no_board, test_shape,
-          test_documented, test_no_escaping_scars)
+          test_machine_imports_no_board, test_motor_imports_no_board,
+          test_her_law_reads_her_sensors_alone, test_shape, test_documented, test_no_escaping_scars)
 
 def main(argv=None):
     """Every test, or those the command line's words name, or its --shard k/n (tools.dev.focus)."""

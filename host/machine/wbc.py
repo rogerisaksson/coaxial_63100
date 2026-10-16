@@ -114,7 +114,7 @@ class Body:
     driven, held and free, the clamps, the soles' corners."""
 
     def __init__(self, xml=None):
-        from machine import mjcf, physics
+        from machine import mjcf, servos
         mj = self.mj = importlib.import_module('mujoco')
         m = self.m = mj.MjModel.from_xml_string(xml or mjcf.mjcf())
         m.opt.disableflags |= int(mj.mjtDisableBit.mjDSBL_CONSTRAINT)
@@ -137,8 +137,8 @@ class Body:
         self.held = vadr[[p is not None and p[0] is None for p in spring]]
         self.free = np.array(sorted(set(range(n)) - set(self.act) - set(self.held)))
         names = [j for j, p in zip(JOINTS, spring) if p is None]
-        self.clamp = np.array([min(physics.SERVO[kind(j)][0], drives.peak(j)) if physics.CLAMPED
-                               else physics.SERVO[kind(j)][0] for j in names])
+        self.clamp = np.array([min(servos.SERVO[kind(j)][0], drives.peak(j)) if servos.CLAMPED
+                               else servos.SERVO[kind(j)][0] for j in names])
         self.wep = np.maximum(self.clamp, [drives.peak(j) for j in names])
         self.top = CLAMP_SHARE * self.clamp
         #: Each drive's load the last step, of its clamp as derated (`_currents`); those of

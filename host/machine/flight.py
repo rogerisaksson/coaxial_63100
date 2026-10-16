@@ -14,7 +14,7 @@ next.
 """
 import math
 
-from machine import reach
+from machine import edge, reach
 from machine.figure import ANKLE_H, BALL, HEEL
 
 G = 9.81
@@ -96,8 +96,8 @@ def shape_hop(g, ask, out, cur_doing, tx, ty, mods):
     """Anatomical two-footed jump (jämfotahopp) and running leap (språng framåt) shaping."""
     import numpy as np
     latent, modal, wrench = mods
-    d, y, fl = g['world'].data, g['y'], float(g['fr'][modal.FLOOR])
-    py, vy, y0 = float(d.qpos[1]), float(d.qvel[1]), g['rest_y'] + fl - g.get('floor0', 0.0)
+    est, y, fl = g['est'], g['y'], float(g['fr'][modal.FLOOR])
+    py, vy, y0 = float(est['pos'][1]), float(est['vel'][1]), g['rest_y'] + fl - g.get('floor0', 0.0)
     soles, hd = y[modal.SOLE].reshape(2, 3), float(g['fr'][modal.HEADING])
     mid, sh, ch = 0.5 * (soles[0] + soles[1]), math.sin(hd), math.cos(hd)
     vxp, vyp = float(y[modal.VCOM][0]) * sh + float(y[modal.VCOM][2]) * ch, float(y[modal.VCOM][0]) * ch - float(y[modal.VCOM][2]) * sh
@@ -110,11 +110,8 @@ def shape_hop(g, ask, out, cur_doing, tx, ty, mods):
     vf = max(0.42, min(0.85, 0.92 * vxp)) if (is_leap or tx >= 0.05) else (min(-0.30, 0.75 * tx) if tx <= -0.05 else 0.0)
     vl, (sh_l, sh_r) = (0.75 * ty if abs(ty) >= 0.05 else 0.0), g['limbs']['shoulders']
     el_l, el_r, sp_i = g.setdefault('_hop_idx', (wrench._DRIVEN.index('left_elbow'), wrench._DRIVEN.index('right_elbow'), wrench._DRIVEN.index('spine')))
-    q_now, v_now, px, pz = g['s']['q'], g['s']['v'][g['body'].act], float(d.qpos[0]), float(d.qpos[2])
-    blocked = bool(g.get('_upper_hit')) or any(
-        float(d.xpos[b, 1]) > -0.1 and math.hypot(float(d.xpos[b, 0]) - px, float(d.xpos[b, 2]) - pz) < 0.55
-        for b in g.get('obstacle_ids', ()))
-    arm_s = 0.25 if blocked else 1.0
+    q_now, v_now = g['s']['q'], g['s']['v'][g['body'].act]
+    arm_s = 0.25 if g.get('_upper_hit') else 1.0
 
     def _upper(pose, sh_d, el_d, sp_d):
         pose[sh_l], pose[sh_r] = sh_d, sh_d
@@ -311,7 +308,7 @@ def stride_hop(g, by, t0, spd, back_now, fwd_gaits, back_gaits, said_fn, walk_on
     y, hd = g['y'], float(g['heading'])
     sh, ch = math.sin(hd), math.cos(hd)
     tr = 0 if float(y[modal.SOLE][0]) * sh + float(y[modal.SOLE][2]) * ch < float(y[modal.SOLE][3]) * sh + float(y[modal.SOLE][5]) * ch else 1
-    g['_leap'], g['_leap_t0'], g['_leap_synced'], g['_leap_tr'], g['_leap_y0'] = leap, t0, False, tr, float(g['world'].data.qpos[1])
+    g['_leap'], g['_leap_t0'], g['_leap_synced'], g['_leap_tr'], g['_leap_y0'] = leap, t0, False, tr, float(g['est']['pos'][1])
     g['_leap_p0'] = y[modal.SOLE].reshape(2, 3)[tr].copy()
     if leap:
         rows = np.frombuffer(by['hop'][1], latent.WIRE)[:3].copy()
@@ -336,18 +333,29 @@ def stride_hop(g, by, t0, spd, back_now, fwd_gaits, back_gaits, said_fn, walk_on
         said_fn(g, *by[prev], at=t_res + 0.01, reset=(prev == '#201'))
 
 
-def check_contacts(g, world, out, cur_doing):
-    """Her upper body on an obstacle halts her drive and brakes her; a sole aloft on a sill trips her."""
+#: Her segments under her knees, a side's: what bears on the floor, or trips over what is on it.
+SOLES = ((edge.SKIN.index('left_foot'), edge.SKIN.index('left_toes')),
+         (edge.SKIN.index('right_foot'), edge.SKIN.index('right_toes')))
+ABOVE = [k for k in range(len(edge.SKIN)) if k not in SOLES[0] + SOLES[1]]
+
+
+#: A sole meets an edge EDGE_M and more over the floor her bearing soles stand on: walking a flat
+#: floor her swinging soles were touched along it 7.9 mm over it at most - a landing's friction
+#: 544 N -, the 35 mm sill's face 14 to 38 mm up.
+EDGE_M = 0.01
+
+
+def check_contacts(g, out, cur_doing):
+    """A touch on her above her soles halts her drive and brakes her; a sole asked aloft that has
+    come clear of everything, then is touched more along the floor than up it EDGE_M over it -
+    an edge met, not the floor - trips her. Touched aloft at all, her toes leaving a flat floor
+    tripped her 13 times in 40 s."""
     import numpy as np
     from machine import latent, modal, sprung
-    d = world.data
-    g['_upper_hit'] = False
-    if not d.ncon:
-        return
-    cb = world.model.geom_bodyid[d.contact.geom[:d.ncon]]
-    b0, b1, obs, up = cb[:, 0], cb[:, 1], g['obstacle_ids'], g['upper_ids']
-    if ((np.isin(b0, up) & np.isin(b1, obs)) | (np.isin(b1, up) & np.isin(b0, obs))).any():
-        g['_upper_hit'] = True
+    y, model = g['sense'], g['body'].d
+    touch = y[edge.TOUCH].reshape(-1, 3)
+    g['_upper_hit'] = bool((np.linalg.norm(touch[ABOVE], axis=1) > edge.TOUCHED_N).any())
+    if g['_upper_hit']:
         out[latent.SWAY][modal.DRIVE] = min(float(out[latent.SWAY][modal.DRIVE]), 0.04)
         out[latent.REF][modal.DRIVE] = g['a'][modal.GOING] = 0.0
         if cur_doing not in ('brake', '#201', 'rest') and abs(float(g['st'][latent.NOW][latent.AMP][modal.DRIVE])) > 0.06:
@@ -356,8 +364,15 @@ def check_contacts(g, world, out, cur_doing):
             if g['_stand_entry'] is not None:
                 sprung.said(g, *g['_stand_entry'], at=g['t'] + 1.20, reset=True)
             g['active_entry'] = '#201'
-    aloft, sills = g['a'][modal.STANCE] < 0.5, g['sill_ids']
-    hl = aloft[0] and ((np.isin(b0, g['soles_l']) & np.isin(b1, sills)) | (np.isin(b1, g['soles_l']) & np.isin(b0, sills))).any()
-    hr = aloft[1] and ((np.isin(b0, g['soles_r']) & np.isin(b1, sills)) | (np.isin(b1, g['soles_r']) & np.isin(b0, sills))).any()
-    if hl or hr:
+    aloft, met, clear = g['a'][modal.STANCE] < 0.5, False, list(g.get('_clear', (False, False)))
+    for side, segs in enumerate(SOLES):
+        pushes = [model.xmat[g['body'].m.body(edge.SKIN[k]).id].reshape(3, 3) @ touch[k] for k in segs]
+        felt = max(float(np.linalg.norm(p)) for p in pushes) > edge.TOUCHED_N
+        up = float(g['y'][modal.LOWEST][side] - g['fr'][modal.FLOOR])
+        met = met or (clear[side] and up > EDGE_M and any(
+            np.linalg.norm(p) > edge.TOUCHED_N and math.hypot(float(p[0]), float(p[2])) > abs(float(p[1]))
+            for p in pushes))
+        clear[side] = bool(aloft[side]) and (clear[side] or not felt)
+    g['_clear'] = tuple(clear)
+    if met:
         g['stumble_until'], g['a'][modal.GOING] = g['t'] + 0.95, min(float(g['a'][modal.GOING]), 0.25)

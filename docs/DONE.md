@@ -382,3 +382,7 @@ it names. A closed item is cut from the list and gets its line here, last.
     name, every suite in a list ([host](findings/host.md)).
 79. Recordings that replay pass for pass, a measured stage, REC on every
     MuJoCo page ([host](findings/host.md)).
+80. Her law on her sensors alone: `machine.edge` the one reader and writer of the
+    world for it, `machine.estimate` her pelvis from her IMU and her insoles,
+    `machine.law` the pass; test_structure holds it off the world
+    ([sensing](findings/sensing.md)).

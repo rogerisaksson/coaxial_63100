@@ -197,17 +197,6 @@ gets a line at the end of [DONE](DONE.md).
       check in `test_layout`: no document names a module, a tool or a suite not
       in the tree.
 
-## Sensor boundary
-
-- **Her controller sees what a robot measures**: it reads `world.data`
-  (`qpos`, `obstacle_ids`, contact pairs by body) and writes the world
-  (`mocap` of the chair mid-hop). DOD: `machine/sensors.py` the one reader -
-  IMU, encoders, sole loads, contact forces a segment - and a state estimator
-  of them; test_structure holds every controller module off `world.data`,
-  `world.model`, body ids, and writes to `qpos`, `qvel`, `xfrc_applied`,
-  `mocap_*` (scene placement and the shove alone, in `floor`, `physics`);
-  her walk's measures kept.
-
 ## Mechatronics as data
 
 - **Parts and a robot as files**: motors, gearboxes and inverters are

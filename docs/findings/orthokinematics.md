@@ -317,34 +317,10 @@ What was tried on it, each 30 or 40 s:
   renderer 0.32, `wbc.sense` 0.16, `latent.step` 0.07 -, a third of real
   time.
 
-## Stunt Repertoire and Disturbance Rejection
+## The stunts as entries
 
-The 13 stunt behaviors compile to flat wire rows in `machine/gynoid_mesomorph_medium.lisp` and execute through the branchless latent and impedance pipelines:
-
-| Behavior | Kinematic Goal | Impedance & Constraints | Stability Outcome |
-| --- | --- | --- | --- |
-| `sit_chair` | 0.58 axial compression at 0.45m height | 4.5 kN/m axial, ZMP in support polygon | Seated, tilt 0.3 deg |
-| `rise_chair` | 0.32 trunk pitch, 0.15 axial thrust | 6.0 kN/m axial, 900 N s/m damping | Standing upright, tilt 0.5 deg |
-| `lie_bed` | 0.85 compression, -0.40 pitch, 0.50 lift | 1.5 kN/m bed rest compliance | Reclined, tilt 0.2 deg |
-| `rise_bed` | 0.35 pitch sit-up, leg swing-out | 4.0 kN/m axial stand transition | Standing upright, tilt 0.4 deg |
-| `lie_floor` | 0.75 kneel, 0.95 lower with arm reach | 1.2 kN/m prone compliance | Prone on floor, tilt 0.3 deg |
-| `rise_floor` | Push arms, half-kneel, power up | 5.0 kN/m stand thrust | Standing upright, tilt 0.3 deg |
-| `hop_down_chair`| 0.20 drop, compliant landing absorption | 5.0 kN/m, 1600 N s/m damping | Landed & recovered, tilt 0.1 deg |
-| `hop_up_chair` | 0.85 crouch load, MAX_SYS_K throw | Ballistic flight tuck, 4.5 kN/m seat land | Landed on seat, tilt 0.3 deg |
-| `stairs_walk` | 0.12 forward pitch, 0.68 Hz cadence | 3.5 kN/m axial, 1.0 limb lift | Ascends/descends stairs, tilt 0.2 deg |
-| `ice_walk` | Flat soles, narrow 0.18 sway, 1.15 Hz | Flat foot, shear minimized | Shuffles on ice, tilt 0.1 deg |
-| `slope_walk` | 0.15 pitch into grade, 0.40 foot rock | 3.4 kN/m axial, compliant ankle roll | Walks cross-slopes, tilt 0.2 deg |
-| `parry_shove` | 0.15 compression, absorb shove momentum | 4.5 kN/m axial, 4.0 kN/m lateral | Stood, absorbs 80 N, tilt 0.1 deg |
-| `controlled_fall`| 0.85 knee flex, arms forward/down | 2.5 kN/m cushion, head kept off floor | Protected fall, head safe, tilt 0.7 deg |
-
-### Reflex Loops, Soft Stops & Terrain Adaptations
-
-1. **Generalized Kinematic Contact Manifold**: Contact points are evaluated against kinematic subtree body IDs (`world.pelvis` hierarchy vs external bodies `(b > 0) not in robot_ids`) without string-matching body names:
-   - Dynamic upper-body collision against any external structure instantaneously damps sagittal drive sway by 50 % and zeros `a[GOING]`, smoothly arresting forward momentum without tipping (tilt < 1.0 deg).
-   - Airborne swing-foot collision (`stance < 0.5`) against any external geometry triggers a 350 ms clearance boost, elevating `mode_limb_lift` sway to 2.8 and reference to 0.6, cleanly lifting the foot over 6 cm obstacles without tripping.
-2. **$C^1$-Smooth Quadratic Soft-Stop & Barrier Spring**: To eliminate violent torque jumps and jerk ($\frac{d\tau}{dq} = 0$ at onset), knee hyperextension is countered by a continuous quadratic barrier starting at $q = 0.05$ rad:
-   $$\tau_{\text{sprung}} = K_{\text{knee}} \cdot \max(0, 1 - q / q_{\text{soft}})^{1.5} + 200.0 \cdot \left(\frac{\max(0, 0.05 - q)}{0.05}\right)^2$$
-   This delivers over 200 N m of restorative torque without infinite-stiffness impulse spikes.
-3. **Trailing Leg Natural Athletic Flexion at Initiation**: Ballistic gait initiation (#202 APA, #203 step, and `ballistic_walk`) targets axial compression 0.04–0.06, ensuring the trailing stance knee maintains natural flexion ($\ge 5.91^\circ$ left, $\ge 5.97^\circ$ right) throughout weight transfer, completely eliminating unnatural leg extension or knee locking.
-4. **Terrain Discontinuities**: Extended swing reach (`REACH_M_S` = 0.45 m/s, `REACH_S` = 0.25 s) allows the foot to reach into and cross 10 cm deep holes (`HOLE_M` = 0.10 m) while maintaining bilateral load distribution and support polygon invariance (tilt 2.6 deg).
-5. **Drivetrain Adequacy**: All maneuvers are executed using the invariant two-motor architecture (15x U8 motors rated at 108 N m / 171 N m WEP; 6x MN6007 motors rated at 51 N m peak at 1:30 cycloidal gearboxes). Rising from a chair demands ~54 N m per knee; jumping 45 cm up demands ~115 N m across knees; arm fall impact dissipation consumes ~35 N m per shoulder/elbow, all safely within thermal and torque envelopes with zero hardware alteration.
+The stunts were entries a case each (`sit_chair` to `controlled_fall`), measured beside crutches
+since taken out: the chair moved under her mid-hop, obstacles and sills found by body id, a
+shove's newtons choosing `parry_shove` or `controlled_fall`. Their outcomes stood on those and
+are void; TODO's Scenarios carry what is open. The knee's soft stop is a quadratic barrier from
+0.05 rad, over 200 N m at its end and no step in its slope.

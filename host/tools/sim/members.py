@@ -76,7 +76,7 @@ def members():
     """[(name, kind, length m, load, (I, J, A), material, c)]: kind 'bend' with a moment N m,
     'twist' with one, 'pull' with a rod's newtons; c the section's outer fibre, m."""
     from machine import drives, linkage, skeleton
-    from machine.physics import SERVO
+    from machine.servos import SERVO
     out = []
     # The design load: the drive's deliverable peak, or MARGIN times the controller's clamp where
     # that is less (one frame on the wrist delivers 120 N m it is never asked).
@@ -251,7 +251,7 @@ def families(served, most=6):
 def main(argv=None):
     import argparse
     from machine import drives
-    from machine.physics import SERVO
+    from machine.servos import SERVO
     parser = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
     parser.add_argument('--family', type=int, default=0, metavar='N',
                         help='the tubes cut from the lightest family of N stock sizes')
