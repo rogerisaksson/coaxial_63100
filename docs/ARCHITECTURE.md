@@ -136,7 +136,8 @@ terminal/           python -m terminal: loader, menu, readout
 terminal/pages/     the front page's entries, one module each
 terminal/views/     the live views (show_*.py), each runnable on its own
 terminal/ui/        what they draw with: stage, chrome (the house HUD: CRT snow, lock,
-                    clock, kana tags), screen, console, scroll, ..
+                    clock, kana tags), screen, console, scroll, recorder (R: a
+                    page's rows to a CSV, its counter on the page), ..
 tools/dev/          run_tests, pick_tests, counts, host_map, target_map,
                     warm_model, lint (markdownlint + pyright, the hooks),
                     measure_first (the prompt hook: a movement described, measured), ab (every
@@ -153,7 +154,7 @@ tools/render/       renderer checks against the exporter; ansi2png; attitude (th
 tools/sim/          the drive core on this host: montecarlo, observer_run;
                     ortho (humanoid robot latent loop as the page runs it, traced; --walk
                     --look humanoid robot walk's look); look (a HUMANOID recording a stage
-                    a row); strides, normal, looks (a walk's measures, a
+                    a row); replay (a recording's commands run again, pass for pass); strides, normal, looks (a walk's measures, a
                     woman's band, humanoid robot form); wbc (the whole-body stack
                     standing, shoved); hop (a hop on it: thrown, flown, landed);
                     quad_race (the quad's laps through fixed flights, a search
@@ -261,6 +262,7 @@ tests/              suites, .counts.json (measured sizes)
 | `test_reach.py` | humanoid robot leg's reach: its rows humanoid robot figure's, what they hold within humanoid robot stops, a place landed in MuJoCo by either limb |
 | `test_terms.py` | humanoid robot movements' terms: its rows humanoid robot figure's, a term moving humanoid robot in MuJoCo as its name says by either limb, its stops, what she has not |
 | `test_gvs.py` | the measures' dimensionless frame (Hof), SO(3)'s geodesic, the gates on them (`tools/sim/gvs.py`) |
+| `test_replays.py` | humanoid robot runs recorded on the page (`tests/replays`), each command at its pass, none ending in a fall; the falls still open in `tests/replays/falls` |
 | `test_wbc.py` | the QP solver's KKT, two levels' priority, standing, a nudge held |
 | `test_wbc_core.py` | humanoid robot chain in C against MuJoCo: frames, M, bias, Jacobians at random configurations; a step's time |
 | `test_wrench.py` | the step without an active set: a step standing beside the stack's, humanoid robot stand, nudges held, a hop |

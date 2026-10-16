@@ -30,13 +30,14 @@ from coaxial.graphics import helicopter as heli_gfx
 from machine import aerobatics, aerokin, gimbal, grounds, helicopter, pull, quad
 from machine.modes import SIMULATED
 from terminal.loader import TO_MENU
+from terminal.ui import recorder
 from terminal.ui.screen import FPS_CAP, Feed, closing, run_view, say
 from terminal.ui.scroll import HUD_WIDTH
 from terminal.ui.stage import boot, frame_of, hud, stage
 from terminal.views.helicopter import flight as flown
 from terminal.views.quad import traces, wind
 from terminal.views.show_quad import (PASS_S, PHYSICS_S, SIDE_PITCH, SWITCH_S, ZOOM, carried,
-                                       hands, look as quad_look, size_of)
+                                       flown_row, hands, look as quad_look, recorded, size_of, typed)
 
 TITLE = 'HELICOPTER'
 ROTORS = flown.ROTORS
@@ -122,7 +123,7 @@ def compose_craft(console, origin, rotors, frame, flight, trace, now, art, yaw, 
                          traces.heights(trace, now, HUD_WIDTH - 4)),
                      hud('BUS V, PEAK TEMP C', traces.buses(trace, now, HUD_WIDTH - 4))],
                     (('+ -', 'ZOOM'), ('W', 'WIND'), ('T', 'THRUST'), ('L', 'LINE'),
-                     ('C', 'CAMERA'), ('R', 'RESET'), ('Q', 'EXIT'), ('ESC', 'MENU')))
+                     ('C', 'CAMERA'), ('R', 'RECORD'), ('A', 'RESET'), ('Q', 'EXIT'), ('ESC', 'MENU')))
 
 
 def compose(console, origin, rotors, frame, flight, trace, now, art, yaw=0.0):
@@ -174,7 +175,7 @@ def run_craft_view(argv, doc, craft, gfx, flown_mod, compose_fn, thrusts_fn, loo
 
     def zoomed(k):
         camera['zoom'] = max(ZOOM[0], min(ZOOM[1], camera['zoom'] * k))
-    keys = hands(held, zoomed)
+    keys = hands(held, zoomed, lambda: recorded(held, craft.__name__.rpartition('.')[2], rotors))
 
     def sample():
         """Advance the flight on the background feed thread."""
@@ -208,6 +209,8 @@ def run_craft_view(argv, doc, craft, gfx, flown_mod, compose_fn, thrusts_fn, loo
                 trace.append((clock, frame['h'], cells['volts'], cells['watts'],
                               max((r['board_c'] for r in rotors if r['board_c'] is not None),
                                   default=None)))
+                if held.get('recording') is not None:
+                    recorder.added(held['recording'], [flown_row(clock, frame, cells, rotors, held.pop('keyed', ''))])
             while trace and held['clock'] - trace[0][0] > traces.TRACE_S:
                 trace.pop(0)
 
@@ -234,14 +237,14 @@ def run_craft_view(argv, doc, craft, gfx, flown_mod, compose_fn, thrusts_fn, loo
             reach=reach, centre=centre, colour=terminal, lit=lit, gate=gate,
             thrusts=thrusts_fn(frame, rotors) if held['arrows'] else None,
             line_=chased and held['line'],
-            inset=carried(frame, held['aim'], gate, chased and held['line'], width, height)
-            if held['carried'] else None))
+            inset={**(carried(frame, held['aim'], gate, chased and held['line'], width, height)
+                      if held['carried'] else {}), **recorder.corner(held.get('recording'), width)}))
         return compose_fn(board_view, origin, rotors, frame, held['flight'], list(trace),
                           held['clock'], art, yaw=camera['yaw'])
 
     try:
         leaving = run_view(board_view, terminal, 1.0 / max(args.hz, 0.5), args.frames, draw,
-                           on_input=lambda typed, _moved: [keys[k]() for k in typed if k in keys])
+                           on_input=lambda keyed, _moved: typed(held, keys, keyed))
     finally:
         feed.stop()
         sys.setswitchinterval(switched)

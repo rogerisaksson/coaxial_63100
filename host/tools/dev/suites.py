@@ -110,6 +110,8 @@ WBC_CORE, FLIGHT, WRENCH = 'test_wbc_core.py', 'test_flight.py', 'test_wrench.py
 ORTHO = 'test_ortho.py'
 #: Her motion's measures in a dimensionless frame on SO(3) (tools/sim/gvs.py).
 GVS = 'test_gvs.py'
+#: Her recorded runs replayed, each without a fall (tests/replays, tools/sim/replay.py).
+REPLAYS = 'test_replays.py'
 #: The frame's core (aero/) in a vacuum: its form, its share, its impedance; a text's streams
 #: compiled and flown on it.
 AERO_CORE, STREAMS = 'test_aero_core.py', 'test_quad_streams.py'
@@ -131,7 +133,7 @@ DEFAULT_SUITES = (STRUCTURES + (CORE, SHTP, DRIVE, DRIVE_OBSERVER, FILTER, THERM
                                 BOOT_CORE, BOOT_CLIENT,
                    CTRL_CORE, WORLD_CORE, WIRE, NATIVE, NATIVE_HEAT, EMULATOR,
                    SENSORLESS,
-                   BROKER, DAQ_API, CONTROLLER, GYNOID, SIGHT, REACH, TERMS, GVS, WBC,
+                   BROKER, DAQ_API, CONTROLLER, GYNOID, SIGHT, REACH, TERMS, GVS, REPLAYS, WBC,
                    WBC_CORE, FLIGHT, WRENCH, ORTHO, CYCLIC, QUAD, QUAD_PULL,
                    AERO_CORE, STREAMS, QUAD_COURSE, BOOT)
                   + VIEWS
@@ -157,6 +159,7 @@ JOINS = (
     (12, REACH),
     (12, TERMS),
     (12, GVS),
+    (12, REPLAYS),
     (12, WBC),
     (12, FLIGHT),
     (12, ORTHO),
@@ -249,7 +252,7 @@ PORT = ('test_mcp.py', 'test_parity.py')
 #: Suites that run their tests through tools.dev.focus.chosen: past a slice of the run they go
 #: on as shards side by side.
 SHARDED = (SENSORLESS, CONTROLLER, GYNOID, ORTHO, 'test_simulated.py', 'test_views_segments.py', DAQ_API,
-           QUAD_PAGE)
+           QUAD_PAGE, REPLAYS)
 
 #: A sharded suite's seconds where none are recorded (tests/.counts.json, not committed):
 #: the loop's suite 120 s here whole, a walk a shard; the quad's page 211 s, a flight a

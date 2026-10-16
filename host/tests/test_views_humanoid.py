@@ -137,31 +137,6 @@ def test_a_held_space_charges_a_push(report):
                  and abs(math.sqrt(sum(x * x for x in a)) - 1.0) < 1e-9)
 
 
-def test_r_records_and_saves(report):
-    """R starts a recording, every state becomes a row, R again writes the CSV under RECORDINGS."""
-    import csv, os, tempfile
-    from machine.figure import JOINTS
-    from terminal.views import humanoid_keys
-    now = {'t': 1.25, 'stage': 'walk', 'speed': 0.5, 'phase': 0.3, 'loads': (200.0, 300.0),
-           'where': (0.0, 0.9, 1.0), 'turn': (1.0, 0.0, 0.0, 0.0), 'set': {'left_knee': 20.0},
-           'watts': 150.0, 'angles': {j: 0.0 for j in JOINTS}}
-    was, humanoid_keys.RECORDINGS = humanoid_keys.RECORDINGS, tempfile.mkdtemp()
-    try:
-        st: dict = {'recording': None, 'recorded': None, 'yaw': 60.0}
-        humanoid_keys._recorded(st)
-        st['recording'] += [humanoid_keys.row(now, st['yaw']) for _ in range(3)]
-        humanoid_keys._recorded(st)
-        path = st['recorded']
-        with open(path, newline='', encoding='utf-8') as f:
-            rows = list(csv.reader(f))
-        report.check('R, three states, R: a CSV of the header and three rows, every field filled',
-                     rows[0] == humanoid_keys.HEADER and len(rows) == 4
-                     and all(len(r) == len(humanoid_keys.HEADER) for r in rows[1:])
-                     and st['recording'] is None and os.path.basename(path).startswith('humanoid_'))
-    finally:
-        humanoid_keys.RECORDINGS = was
-
-
 def test_vision_scanner_docked_pip_and_affordances(report):
     """The stereo vision scanner detects props, renders PiP with affordances, and leaving WASD triggers auto-action."""
     from terminal.views import scanner, show_humanoid
@@ -186,6 +161,7 @@ def test_vision_scanner_docked_pip_and_affordances(report):
 
 def test_tpw_controls(report):
     """TPW mode toggle, Shift sprint, F interact, viewport badge, and A disabled in normal mode."""
+    from terminal import keybindings
     from terminal.views import humanoid_keys, show_humanoid
     sent = []
     st = {'body': SN(send=lambda **cmd: sent.append(cmd)), 'wasd_mode': False,
@@ -193,7 +169,7 @@ def test_tpw_controls(report):
     show_humanoid.KEYS['a'](st)
     report.check('a in normal mode is disabled and does not reset robot', not sent)
     report.check('a description explains mode switch / restart disabled',
-                 'restart disabled' in humanoid_keys._action_of('a', wasd_mode=False))
+                 'restart disabled' in keybindings.describe_action('a', wasd_mode=False))
     show_humanoid.KEYS['§'](st)
     report.check('§ toggles TPW mode on', st.get('wasd_mode') is True)
     bar = dict(show_humanoid.bar_for(st))
@@ -371,7 +347,7 @@ def test_scenario_deck_tour_handoff_and_cybernetic_hud(report):
 
 
 ROSTER = (test_the_humanoid_pages_mouse, test_the_humanoid_pages_keys, test_a_held_space_charges_a_push,
-          test_r_records_and_saves, test_vision_scanner_docked_pip_and_affordances, test_tpw_controls,
+          test_vision_scanner_docked_pip_and_affordances, test_tpw_controls,
           test_surface_arrows_setpoint_actual_and_landing_zones, test_scenario_deck_tour_handoff_and_cybernetic_hud)
 
 

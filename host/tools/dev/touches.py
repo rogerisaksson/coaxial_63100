@@ -3,7 +3,7 @@ from tools.dev.suites import (AERO_CORE, BENCH, BOARD_MEM, BOOT, BOOT_CLIENT, BO
                               CONFORMANCE,
                               CONTROLLER, CORE, CTRL_CORE, CYCLIC, DAQ_API, DAQ_CORE, DRIVE,
                               DRIVE_OBSERVER, EMULATOR, FILTER, FLIGHT, GVS, GYNOID,
-                              HEATED, NATIVE, NATIVE_HEAT, OLLAMA, ORTHO, QUADS, REACH, RENDER,
+                              HEATED, NATIVE, NATIVE_HEAT, OLLAMA, ORTHO, QUADS, REACH, RENDER, REPLAYS,
                               SENSORLESS, SHTP, SIGHT, STREAMS, STRUCTURE, TERMS, THERMAL,
                               THERMAL_APP, VIEWS, WBC, WBC_CORE, WIRE, WORLD_CORE, WRENCH)
 
@@ -75,7 +75,7 @@ TOUCHES = (
     ('host/machine/gimbal.py',                 QUADS),
     ('host/coaxial/graphics/inset.py',         QUADS + (SIGHT, 'test_views_humanoid.py')),
     ('host/machine/',                          (CONTROLLER, GYNOID, SIGHT, REACH, TERMS, WBC, WBC_CORE,
-                                                FLIGHT, WRENCH, ORTHO, CYCLIC,
+                                                FLIGHT, WRENCH, ORTHO, CYCLIC, REPLAYS,
                                                 'test_simulated.py', 'test_mcp.py',
                                                 'test_views_humanoid.py')),
     ('host/coaxial/graphics/gynoid.py',        (RENDER, *VIEWS, GYNOID)),
@@ -115,6 +115,8 @@ TOUCHES = (
     ('host/tools/sim/demand.py',               (STRUCTURE,)),
     ('host/tools/sim/ortho.py',                (STRUCTURE, ORTHO)),
     ('host/tools/sim/gvs.py',                  (STRUCTURE, GVS)),
+    ('host/tools/sim/replay.py',               (STRUCTURE, REPLAYS)),
+    ('host/tests/replays/',                    (REPLAYS,)),
     ('host/tools/cores/terms.py',              (STRUCTURE, TERMS)),
     ('host/tools/cores/',                      (WIRE, NATIVE, NATIVE_HEAT)),
     ('host/tools/dev/counts.py',               ('test_ollama_runner.py',)),

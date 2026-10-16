@@ -268,97 +268,122 @@ def _put(states, item):
         pass
 
 
-def _apply_cmd(command, g, gym, says, refused, fallen_at):
+#: A pass of her world, s; her drives' torque, power and watts averaged over AVERAGE_S.
+DT = 1.0 / sprung.RATE_HZ
+K = DT / sprung.AVERAGE_S
+
+
+def session(every=sprung.STACK_EVERY, walks=False, heard=None):
+    """Her run on the loop, paced by nothing: her world `g`, the gym and what it says, the last
+    refusal, when she fell, her drives' torque, power and watts, the epoch - a world laid anew
+    each - and the passes in it. Each command heard goes to `heard` (a list's append, a queue's
+    put) as (epoch, pass, t, command), each epoch's lay first."""
+    s = {'every': every, 'walks': walks, 'gym_name': sprung.GYMS[0], 'gym': sprung.entries(),
+         'refused': None, 'epoch': -1, 'ratio': 1.0, 'heard': heard or (lambda entry: None)}
+    s['says'] = [s['gym_name']] + [entry[0] for entry in s['gym']]
+    laid(s)
+    return s
+
+
+def laid(s):
+    """A new epoch: her world laid anew, standing (walking where the session `walks`)."""
+    import numpy as np
+    g = s['g'] = sprung.laid(s['every'])
+    if s['walks']:
+        sprung.walked(g)
+    n = len(g['world'].peak)
+    s.update(fallen_at=None, torque=np.zeros(n), power=np.zeros(n), watts=0.0, epoch=s['epoch'] + 1,
+             passes=0)
+    s['heard']((s['epoch'], 0, g['t'], {'laid': {'every': s['every'], 'walks': s['walks'], 'gym': s['gym_name'],
+                                                 'room': physics.ROOM, 'sight': physics.SIGHT}}))
+
+
+def apply(s, command):
+    """`command` heard at this pass, logged before it is done; a restart lays a new epoch."""
+    s['heard']((s['epoch'], s['passes'], s['g']['t'], command))
+    if command.get('restart'):
+        laid(s)
+        s['refused'] = None
     try:
         if command.get('gym') in sprung.GYMS:
-            gym = sprung.entries(name=command['gym'])
-            says, refused = [command['gym']] + [entry[0] for entry in gym], None
+            s['gym_name'], s['gym'] = command['gym'], sprung.entries(name=command['gym'])
+            s['says'], s['refused'] = [command['gym']] + [entry[0] for entry in s['gym']], None
         if 'text' in command:
-            command, refused = dict(command, entries=sprung.entries(command['text'])), None
-        heard(g, gym, command)
+            command, s['refused'] = dict(command, entries=sprung.entries(command['text'])), None
+        heard(s['g'], s['gym'], command)
         if 'scenario' in command:
-            fallen_at = None
+            s['fallen_at'] = None
     except (SyntaxError, MachineError) as error:
-        refused = str(error)
-    return gym, says, refused, fallen_at
+        s['refused'] = str(error)
 
 
-def _step_slice(g, due, dt, fallen_at, torque, power, watts, k):
-    world = g['world']
-    while g['t'] < due - 1e-9:
-        try:
-            if fallen_at is None:
-                sprung.passed(g, dt)
-            else:
-                world.feed[:], world.rate[:] = 0.0, 0.0
-                world.target[:] += 0.05 * (world.data.qpos[world.qadr] - world.target)
-                g['t'] += dt
-                world.advance()
-        except MachineError:
-            fallen_at = g['t']
-        if fallen_at is None and _is_fallen(g, world):
-            fallen_at = g['t']
-        tau = world.data.ctrl
-        torque += k * (tau - torque)
-        power += k * (tau * world.data.qvel[world.vadr] - power)
-        watts += k * (world.drawn() - watts)
-    return fallen_at, watts
+def stepped(s):
+    """A pass of her world, judged: fallen, she lies RECOVER_S, then a new epoch is laid."""
+    g, world = s['g'], s['g']['world']
+    if s['fallen_at'] is not None and g['t'] - s['fallen_at'] >= sprung.RECOVER_S:
+        return laid(s)
+    try:
+        if s['fallen_at'] is None:
+            sprung.passed(g, DT)
+        else:
+            world.feed[:], world.rate[:] = 0.0, 0.0
+            world.target[:] += 0.05 * (world.data.qpos[world.qadr] - world.target)
+            g['t'] += DT
+            world.advance()
+    except MachineError:
+        s['fallen_at'] = g['t']
+    if s['fallen_at'] is None and _is_fallen(g, world):
+        s['fallen_at'] = g['t']
+    s['passes'] += 1
+    tau = world.data.ctrl
+    s['torque'] += K * (tau - s['torque'])
+    s['power'] += K * (tau * world.data.qvel[world.vadr] - s['power'])
+    s['watts'] += K * (world.drawn() - s['watts'])
 
 
-def run(commands, states, every=sprung.STACK_EVERY, walks=False):
-    """The worker: she stands on the loop, paced to the clock; commands heard, her state said.
-    Laid, she stands at rest unless `walks`."""
-    import numpy as np
+def told(s):
+    """Her state as the page hears it (`sprung.state`), her epoch beside it."""
+    return dict(sprung.state(s['g'], s['torque'], s['power'], s['watts'], s['ratio'], s['fallen_at'],
+                             s['says'], s['refused']), epoch=s['epoch'])
+
+
+def run(commands, states, heard=None, every=sprung.STACK_EVERY, walks=False):
+    """The worker: she stands on the loop, paced to the clock; commands heard - each put on
+    `heard` at its pass -, her state said. Laid, she stands at rest unless `walks`."""
     physics.ROOM, physics.SIGHT = 1.0, 0.0
-
-    def anew():
-        g = sprung.laid(every)
-        if walks:
-            sprung.walked(g)
-        return g
-
-    gym, g = sprung.entries(), anew()
-    says, refused = [sprung.GYMS[0]] + [entry[0] for entry in gym], None
-    dt, k = 1.0 / sprung.RATE_HZ, (1.0 / sprung.RATE_HZ) / sprung.AVERAGE_S
-    torque, power = np.zeros(len(g['world'].peak)), np.zeros(len(g['world'].peak))
-    watts, fallen_at = 0.0, None
-    wall0, sim0 = time.perf_counter(), g['t']
-    told, ratio, spent, ran = 0.0, 1.0, 0.0, 0.0
-    _put(states, sprung.state(g, torque, power, watts, ratio, fallen_at, says, refused))
+    s = session(every, walks, heard.put if heard is not None else None)
+    _put(states, told(s))
+    wall0, sim0, said_at, spent, ran = time.perf_counter(), s['g']['t'], 0.0, 0.0, 0.0
     while True:
+        epoch = s['epoch']
         try:
             while True:
                 command = commands.get_nowait()
                 if command is None:
                     return
-                if command.get('restart'):
-                    g, fallen_at, told = anew(), None, 0.0
-                    torque[:], power[:], watts, refused = 0.0, 0.0, 0.0, None
-                    wall0, sim0 = time.perf_counter(), g['t']
-                    _put(states, sprung.state(g, torque, power, watts, ratio, fallen_at, says, refused))
-                gym, says, refused, fallen_at = _apply_cmd(
-                    command, g, gym, says, refused, fallen_at)
+                apply(s, command)
         except queue.Empty:
             pass
         began = time.perf_counter()
-        due = sim0 + (began - wall0)
-        if due - g['t'] > sprung.SLICE_S:
-            due = g['t'] + sprung.SLICE_S
-            wall0, sim0 = began, due
-        if fallen_at is not None and g['t'] - fallen_at >= sprung.RECOVER_S:
-            g, fallen_at, told = anew(), None, 0.0
-            torque[:], power[:], watts = 0.0, 0.0, 0.0
-            wall0, sim0, due = time.perf_counter(), g['t'], g['t']
-            _put(states, sprung.state(g, torque, power, watts, ratio, fallen_at, says, refused))
-        from_t = g['t']
-        fallen_at, watts = _step_slice(g, due, dt, fallen_at, torque, power, watts, k)
-        spent += time.perf_counter() - began
-        ran += g['t'] - from_t
-        if g['t'] - told >= sprung.SAY_S:
-            ratio = ran / spent if spent > 1e-6 else ratio
+        if s['epoch'] == epoch:
+            due = sim0 + (began - wall0)
+            if due - s['g']['t'] > sprung.SLICE_S:
+                due = s['g']['t'] + sprung.SLICE_S
+                wall0, sim0 = began, due
+            from_t = s['g']['t']
+            while s['g']['t'] < due - 1e-9 and s['epoch'] == epoch:
+                stepped(s)
+            spent += time.perf_counter() - began
+            ran += s['g']['t'] - from_t
+        if s['epoch'] != epoch:
+            wall0, sim0, said_at, spent, ran = time.perf_counter(), s['g']['t'], 0.0, 0.0, 0.0
+            _put(states, told(s))
+            continue
+        if s['g']['t'] - said_at >= sprung.SAY_S:
+            s['ratio'] = ran / spent if spent > 1e-6 else s['ratio']
             spent = ran = 0.0
-            told = g['t']
-            _put(states, sprung.state(g, torque, power, watts, ratio, fallen_at, says, refused))
+            said_at = s['g']['t']
+            _put(states, told(s))
         rest = sprung.SAY_S / 4.0 - (time.perf_counter() - began)
         if rest > 0.0:
             time.sleep(rest)
@@ -366,16 +391,16 @@ def run(commands, states, every=sprung.STACK_EVERY, walks=False):
 
 class Running:
 
-    """Her worker process on the loop (`run`): `send` it commands, read its `latest` state;
-    laid, she stands at rest unless `walks`."""
+    """Her worker process on the loop (`run`): `send` it commands, read its `latest` state and
+    the commands it has `heard`; laid, she stands at rest unless `walks`."""
 
     def __init__(self, every=sprung.STACK_EVERY, walks=False):
         context = multiprocessing.get_context('spawn')
-        self._commands, self._states = context.Queue(), context.Queue(maxsize=8)
-        self._commands.cancel_join_thread()
-        self._states.cancel_join_thread()
+        self._commands, self._states, self._heard = context.Queue(), context.Queue(maxsize=8), context.Queue()
+        for each in (self._commands, self._states, self._heard):
+            each.cancel_join_thread()
         self._process = context.Process(target=run, daemon=True,
-                                        args=(self._commands, self._states, every, walks))
+                                        args=(self._commands, self._states, self._heard, every, walks))
         self._process.start()
         self._last = None
 
@@ -398,20 +423,30 @@ class Running:
             pass
         return self._last
 
+    def heard(self):
+        """The commands she has heard since this was last asked, (epoch, pass, t, command) each:
+        none is dropped, as a state can be."""
+        out = []
+        try:
+            while True:
+                out.append(self._heard.get_nowait())
+        except queue.Empty:
+            pass
+        return out
+
     def close(self):
         try:
             self._commands.put_nowait(None)
         except queue.Full:
             pass
         for _ in (0, 1):
-            while True:
-                try:
-                    self._states.get_nowait()
-                except queue.Empty:
-                    break
+            for each in (self._states, self._heard):
+                while True:
+                    try:
+                        each.get_nowait()
+                    except queue.Empty:
+                        break
             if not _:
                 self._process.join(timeout=1.0)
                 if self._process.is_alive():
                     self._process.terminate()
-
-

@@ -222,8 +222,6 @@ _KEY_SAYS = {
 
 
 def _dispatch_key(val, state, body):
-    from terminal.views import humanoid_keys
-    humanoid_keys.log_key(val, f'TOUR: {val}')
     keys_table = state.get('keys') or {}
     if val in keys_table:
         keys_table[val](state)

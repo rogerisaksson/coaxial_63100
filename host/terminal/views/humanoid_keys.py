@@ -7,15 +7,14 @@ The view (`terminal.views.show_humanoid`) holds the state and draws it; a key's 
 that state, moves it and sends her body (`machine.sprung`) what it asks. R's recordings and
 their rows (HEADER, `row`) are here with the key that writes them.
 """
-import csv
-import os
+import json
 import time
 
 from machine import se2
 from machine.figure import JOINTS, SEGMENTS, frames, quat
 from terminal import keybindings
+from terminal.ui import console, recorder
 from terminal.views import gym, viewpoint
-from tools import REPO
 
 #: Space held charges a push from the view onto her: CHARGE_N_S a second held, CHARGE_MAX_N at
 #: most, landing once the key's repeats stop - RELEASE_S after the last, FIRST_S after a lone
@@ -23,42 +22,80 @@ from tools import REPO
 CHARGE_N_S, CHARGE_MAX_N, RELEASE_S, FIRST_S = 120.0, 250.0, 0.25, 0.8
 
 #: Where R's recordings go, a CSV from a press to the next: every state the page hears from her,
-#: 10-20 a second of her time (HEADER).
-RECORDINGS = os.path.join(REPO, 'build', 'recordings')
+#: 10-20 a second of her time (HEADER); beside each, the keys typed and held since the row before
+#: and the commands she heard since, (epoch, pass, t, command) each - from her epoch's lay on in
+#: the first row, so `tools/sim/replay.py` runs it again pass for pass.
+RECORDINGS = recorder.RECORDINGS
 HEADER = (['t', 'stage', 'yaw', 'speed', 'phase', 'left_load', 'right_load',
            'x', 'y', 'z', 'qw', 'qx', 'qy', 'qz'] + list(JOINTS)
           + ['%s_%s' % (seg[0], axis) for seg in SEGMENTS for axis in 'xyz']
-          + ['set_' + j for j in JOINTS] + ['watts'])
+          + ['set_' + j for j in JOINTS] + ['watts', 'epoch', 'keys', 'commands'])
 
 #: What C steps her through: dressed, her shell, her mechanism (`coaxial.graphics.mechanism`),
 #: her drives alone - the stick figure.
 SKINS = ('dressed', 'shell', 'mechanism', 'actuators')
 
 
-def row(now, yaw):
-    """A recording's row (HEADER) at the page's `yaw`."""
+def row(now, yaw, keys='', commands=()):
+    """A recording's row (HEADER) at the page's `yaw`: `keys` typed and held, `commands` heard."""
     placed = frames(now['angles'], now['where'], quat(*now['turn']))
     asked = now.get('set', {})
     return ([round(now['t'], 4), now['stage'], yaw, now['speed'], now['phase']]
             + list(now['loads']) + list(now['where']) + list(now['turn'])
             + [now['angles'].get(j, 0.0) for j in JOINTS]
             + [v for seg in SEGMENTS for v in placed[seg[0]][0]]
-            + [asked.get(j, float('nan')) for j in JOINTS] + [now.get('watts', float('nan'))])
+            + [asked.get(j, float('nan')) for j in JOINTS] + [now.get('watts', float('nan')),
+                                                              now.get('epoch', 0), keys,
+                                                              json.dumps(plain(list(commands)))])
+
+
+def plain(value):
+    """`value` as JSON has it: tuples as lists, numbers as floats, bytes as hex."""
+    if isinstance(value, dict):
+        return {k: plain(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [plain(v) for v in value]
+    if isinstance(value, (bytes, bytearray)):
+        return value.hex()
+    if isinstance(value, (bool, str, int)) or value is None:
+        return value
+    return float(value)
+
+
+def heard(state, entries):
+    """Her heard commands into the page's `log` - her epoch's, from its lay - and, recording,
+    into those the next row carries."""
+    for entry in entries:
+        if 'laid' in entry[3]:
+            state['log'] = []
+        state.setdefault('log', []).append(entry)
+        if state.get('recording') is not None:
+            state['pending'].append(entry)
+
+
+def rows_of(state, said):
+    """A row of each state `said`; the keys typed and held, and the commands heard, since the
+    rows before on the first."""
+    typed, state['keyed'] = state.get('keyed', []), []
+    held = sorted(k for k in (console.held() or ()) if isinstance(k, str))
+    keys = ' '.join(typed) + (' [%s]' % '+'.join(held) if held else '')
+    out = []
+    for k, now in enumerate(said):
+        out.append(row(now, state['yaw'], keys if k == 0 else '', state['pending'] if k == 0 else ()))
+        if k == 0:
+            state['pending'] = []
+    return out
 
 
 def _recorded(state):
-    """R: recording from now; again: written to RECORDINGS, its name on the page."""
+    """R: recording from now, her epoch's commands so far its first row's; again: written to
+    RECORDINGS, its name on the page."""
     if state['recording'] is None:
-        state['recording'], state['recorded'] = [], None
+        state['recording'], state['recorded'] = recorder.started('humanoid', HEADER), None
+        state['pending'], state['keyed'] = list(state.get('log', ())), []
         return
-    rows, state['recording'] = state['recording'], None
-    os.makedirs(RECORDINGS, exist_ok=True)
-    path = os.path.join(RECORDINGS, time.strftime('humanoid_%Y%m%d_%H%M%S.csv'))
-    with open(path, 'w', newline='', encoding='utf-8') as f:
-        writer = csv.writer(f)
-        writer.writerow(HEADER)
-        writer.writerows(rows)
-    state['recorded'] = path
+    rec, state['recording'] = state['recording'], None
+    state['recorded'] = recorder.saved(rec, RECORDINGS)
 
 
 def _charged(state):
@@ -129,26 +166,6 @@ def table(view, calling, shown):
         + [(k, lambda state: state.update(shown=shown[(shown.index(state['shown']) + 1)
                                                       % len(shown)])) for k in 'tT']
         + [(k, _skinned) for k in 'cC'] + [(' ', _charged)])
-
-
-KEYLOG = os.path.join(REPO, 'build', 'keylog.txt')
-
-
-def log_key(key, action=''):
-    """Append a key typed on the tty to build/keylog.txt."""
-    try:
-        os.makedirs(os.path.dirname(KEYLOG), exist_ok=True)
-        now = time.time()
-        ts = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(now)) + ('.%03d' % int((now % 1) * 1000))
-        msg = '%s | TTY: %r%s' % (ts, key, ' -> %s' % action if action else '')
-        with open(KEYLOG, 'a', encoding='utf-8') as f:
-            f.write(msg + '\n')
-    except Exception:
-        pass
-
-
-def _action_of(key, wasd_mode=False):
-    return keybindings.describe_action(key, wasd_mode=wasd_mode)
 
 
 CHORDS = {frozenset(tag): (tag, mv) for tag, mv in keybindings.CHORD_PAIRS}
@@ -261,8 +278,6 @@ def _check_wasd_chords(typed, state):
     if found:
         tag, mv, _ = found
         state['body'].send(say=mv)
-        if os.environ.get('COAXIAL_KEYLOG'):
-            log_key(tag, _action_of(tag, wasd_mode=True))
         state['_last_wasd'] = (tag, t_now)
         return [k for k in typed if (k.lower() if isinstance(k, str) else k) not in active]
     for k in lowered:
@@ -277,6 +292,7 @@ def act_on(keys, typed, state, wheel=0.0):
     if wheel:
         viewpoint.zoomed(state, max(0.5, 1.0 + wheel))
     state.setdefault('typed', []).extend(typed)
+    state.setdefault('keyed', []).extend(k for k in typed if isinstance(k, str))
     typed = _check_wasd_chords(typed, state)
     t_now = time.monotonic()
     wasd_on = bool(state.get('wasd_mode'))
@@ -293,7 +309,5 @@ def act_on(keys, typed, state, wheel=0.0):
         state['_last_action_key'] = (key, t_now)
         filtered.append(key)
     for key in filtered:
-        if os.environ.get('COAXIAL_KEYLOG'):
-            log_key(key, _action_of(key, wasd_mode=wasd_on))
         if key in keys:
             keys[key](state)

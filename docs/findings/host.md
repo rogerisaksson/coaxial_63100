@@ -17,6 +17,22 @@ Pages, tooling, suites and the local model's runner. The board's findings:
   test's other rows.
 - The offline gate was 400 s of sleeping on the stand-in's clock; suites run
   four at a time: 142 s.
+- The pre-push smoke (`tools/dev/smoke.py`): every `machine` module imported
+  and her first 1.5 s on the loop told to walk, 2.7 s; a raise in
+  `flight.check_contacts` stopped it in 0.4 s.
+- test_controller's 1500 rpm lane on the wall read 1421 on Python 3.12: told
+  its seconds (`hostclock.Told`) it reads 1446 every run, the lane ringing
+  1420-1590 rpm at 0.7 Hz; its camera is read against the head's own reading
+  of the pass before.
+- test_parity and test_bench passed 0 of 0 on CI: without a board they skip
+  by name (`NEEDS_BOARD`); test_parity on the emulated image, 30 passed.
+  Four suites were in no list - test_gvs green, test_house_tour 4 failed,
+  test_stunts out of time, test_tps_gameplay 5 failed.
+- A HUMANOID recording replayed (`tools/sim/replay.py`) through the worker's
+  process: 7 commands over 2 epochs, the pelvis 0.0 mm off the recording, a
+  400 N shove's fall at 4.162 s again. `stage` read off the gait's amplitude
+  said stand at 0.9 m/s; measured, her first pass after a lay read 0 N on
+  both soles and walk for a second till a lift counted only off a bearing sole.
 - A FAIL behind a page's footer or screen clear went unnamed: the runner takes
   a line's first marker, escapes stripped.
 - numpy's OpenBLAS pool costs ~499 MB commit per process; this laptop has no
@@ -50,11 +66,18 @@ Pages, tooling, suites and the local model's runner. The board's findings:
   beside it (docs/TODO.md, the latent stack).
 
 - CI flakes diagnosed and resolved across 5 suites looped under heavy load:
-  + `test_native_heat`: transient stability mark cleared if state drops out of STABLE before movement begins.
-  + `test_sensorless`: 0.25 s settling time after rotor gain mismatch test dampens mechanical oscillations for accurate sign check; thread-safe lock in `simulated/drive/device.py:_now()` prevents concurrent advance race with background reader.
-  + Emulator protocol reads: quiet timeout raised from 1 ms to 5 ms, preventing socket buffer truncation and byte desync under CPU load.
-  + `test_wbc_core`: timing threshold on 100 loop ticks relaxed to 5 000 us to accommodate host CPU scheduler preemption.
-  + `coaxial_mcp`: ring test window broadened to 0.35 s ensuring >= 3 zero crossings, and `RigError` caught in server tool calls.
+  + `test_native_heat`: transient stability mark cleared if state drops out of
+    STABLE before movement begins.
+  + `test_sensorless`: 0.25 s settling time after rotor gain mismatch test
+    dampens mechanical oscillations for accurate sign check; thread-safe lock in
+    `simulated/drive/device.py:_now()` prevents concurrent advance race with
+    background reader.
+  + Emulator protocol reads: quiet timeout raised from 1 ms to 5 ms, preventing
+    socket buffer truncation and byte desync under CPU load.
+  + `test_wbc_core`: timing threshold on 100 loop ticks relaxed to 5 000 us to
+    accommodate host CPU scheduler preemption.
+  + `coaxial_mcp`: ring test window broadened to 0.35 s ensuring >= 3 zero
+    crossings, and `RigError` caught in server tool calls.
 
 ## Stand-in on the board's C
 

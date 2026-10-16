@@ -331,11 +331,7 @@ it names. A closed item is cut from the list and gets its line here, last.
     `open_session` falls back to `native://` when nothing answers on a port,
     and rigs on one URL bus share one refcounted `Transport` until the last
     closes ([emulation](findings/emulation.md)).
-76. Guards: `.githooks/pre-push` runs `host/tools/dev/smoke.py` (every `machine`
-    module imported, her first 1.5 s on the loop told to walk; 2.7 s);
-    `test_controller`'s lane on told time (`hostclock.Told`), its camera read
-    against the head's own reading; test_parity and test_bench skip by name
-    without a board (`NEEDS_BOARD`), test_parity against the emulated image in
-    the firmware's CI (30 checks); test_gvs registered, test_house_tour,
-    test_stunts and test_tps_gameplay - red, in no list - gone, test_layout
-    holding every suite to a list; an agent in a worktree of its own (CLAUDE.md).
+78. Guards: a pre-push smoke, the rpm lane on told time, suites that skip by
+    name, every suite in a list ([host](findings/host.md)).
+79. Recordings that replay pass for pass, a measured stage, REC on every
+    MuJoCo page ([host](findings/host.md)).

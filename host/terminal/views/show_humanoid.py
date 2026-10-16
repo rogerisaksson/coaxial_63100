@@ -19,10 +19,10 @@ from machine.routines import TYPES
 from terminal import keybindings
 from terminal.loader import TO_MENU
 from terminal.views import gym, viewpoint
-from terminal.views.humanoid_keys import CHARGE_MAX_N, act_on, charging, released, row, step_se2, table
+from terminal.views.humanoid_keys import CHARGE_MAX_N, act_on, charging, heard, released, rows_of, step_se2, table
 from terminal.views.playback import Playback
 from terminal.views.scanner import VisionScanner, docked_vision
-from terminal.ui import console as _console, screen as _screen
+from terminal.ui import console as _console, recorder, screen as _screen
 from terminal.ui.screen import PORT, FPS_CAP, closing, run_view, say
 from terminal.ui.scroll import HUD_WIDTH
 from terminal.ui.stage import boot, footer, frame_of, help_rows, helped, hud, stage
@@ -260,9 +260,8 @@ def boxes(state, now, name):
     soles_row = _ansi('%3.0fN %s %s %3.0fN' % (
         loads[0], _gauges.gauge(min(1.0, loads[0] / 350.0), 5), _gauges.gauge(min(1.0, loads[1] / 350.0), 5), loads[1]))
     max_c = max((float(v) for v in now['temp'].values()), default=25.0) if (now and now.get('temp')) else 25.0
-    rec = ('R starts' if state['recording'] is None and not state['recorded']
-           else 'on, %.1f s - R saves' % (len(state['recording']) / 60.0)
-           if state['recording'] is not None else os.path.basename(state['recorded'])[:25])
+    rec = (recorder.badge(state['recording']) + ' - R saves' if state['recording'] is not None
+           else os.path.basename(state['recorded'])[:25] if state['recorded'] else 'R starts')
     out = gym.boxes(now, wasd=wasd, tour=state.get('tour')) + [hud('BODY', [
         ('   control', '%s  [%s]' % ('TPW (WASD)' if wasd else 'normal', tag)),
         ('    status', gym.status(now)[:25]), ('   balance', core_row),
@@ -323,7 +322,8 @@ def _draw_viewport(state, now, width, height, terminal, lit):
         return '\n'.join(' ' * width for _ in range(height))
     x, y, z = now['where']
     camera, wasd = state['follow']((x, z), now['velocity'], now['t']), state.get('wasd_mode', False)
-    inset = {**docked_vision(state['scanner'], now, width, height, wasd_mode=wasd), **tpw_badge(wasd, width, height, state=state)}
+    inset = {**docked_vision(state['scanner'], now, width, height, wasd_mode=wasd), **tpw_badge(wasd, width, height, state=state),
+             **recorder.corner(state.get('recording'), width)}
     return '\n'.join(gynoid.render(
         now['angles'], width, height, yaw=state['yaw'], pitch=state['pitch'], pan=state['pan'],
         zoom=state['zoom'], colour=terminal, travel=camera, lit=lit,
@@ -377,8 +377,9 @@ def main(argv=None):
         t_mono, se2_st = _step_frame(state, state['body'], 1.0 / max(1.0, args.hz))
         said = []
         state['body'].latest(into=said)
+        heard(state, state['body'].heard())
         if state['recording'] is not None:
-            state['recording'] += [row(s, state['yaw']) for s in said]
+            recorder.added(state['recording'], rows_of(state, said))
         state['playback'].push(said)
         now = state['now'] = state['playback'].at(time.perf_counter())
         _sync_actual(now, se2_st)

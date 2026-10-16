@@ -28,6 +28,7 @@ from coaxial_mcp.schema import TOOLS
 from coaxial_ollama import cli, language, pull as pulling
 from coaxial_ollama.client import OllamaError
 from terminal.loader import TO_MENU
+from terminal.ui.recorder import SPIN
 from terminal.ui.console import Keys
 from terminal.ui.screen import PORT, ENTER_KEYS, paced
 from terminal.ui.chrome import Chrome
@@ -39,7 +40,6 @@ RESERVE = 5
 
 #: One cell, ten frames: the busy glyph, where the prompt arrow sat.
 #: Dots growing in the key bar shifted the whole row.
-SPIN = '⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
 
 
 def _origin(label, real, port):

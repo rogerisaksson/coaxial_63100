@@ -305,9 +305,38 @@ def test_its_thrust_and_its_line_are_drawn(report):
                  '%d cells on, %d off' % (lined(True), lined(False)))
 
 
+def test_r_records_its_flight(report):
+    """R on a flying page records its flight a row a pass, the keys typed beside; R again writes
+    it, A resets the flight, and while it records the drawing says REC."""
+    import csv
+    import tempfile
+    from machine import grounds, quad
+    from terminal.ui import recorder
+    from terminal.views import show_quad
+    held: dict = {'reset': False}
+    rotors = [{'w': 100.0}, {'w': 110.0}]
+    keys = show_quad.hands(held, lambda k: None, lambda: show_quad.recorded(held, 'quad', rotors))
+    frame, cells = quad.Sky(grounds.solids()).state(), {'volts': 50.0, 'watts': 10.0}
+    was, recorder.RECORDINGS = recorder.RECORDINGS, tempfile.mkdtemp()
+    try:
+        show_quad.typed(held, keys, ['r', 'w'])
+        recorder.added(held['recording'], [show_quad.flown_row(0.01, frame, cells, rotors, held.pop('keyed', ''))])
+        corner = ''.join(chr(c) for c, _ink in recorder.corner(held['recording'], 80).values())
+        show_quad.typed(held, keys, ['R', 'a'])
+        with open(held['recorded'], newline='', encoding='utf-8') as f:
+            rows = list(csv.reader(f))
+    finally:
+        recorder.RECORDINGS = was
+    report.check('R, a pass, R: the header and its row, the keys typed between in it; A resets',
+                 rows[0] == list(show_quad.FLIGHT) + ['w_0', 'w_1'] and len(rows) == 2
+                 and rows[1][len(show_quad.FLIGHT) - 1] == 'rw' and held['reset'] and held['recording'] is None,
+                 rows[1][len(show_quad.FLIGHT) - 1:])
+    report.check('while it records the drawing carries REC and its rows', corner.strip() == '● REC ⠙ 1', corner)
+
+
 ROSTER = (test_the_page_words_its_boards, test_its_traces_are_drawn, test_its_wind_is_pointed,
           test_its_thrust_and_its_line_are_drawn, test_the_page_flies_four_boards,
-          test_the_page_flies_its_course)
+          test_the_page_flies_its_course, test_r_records_its_flight)
 
 
 def main(argv=None):

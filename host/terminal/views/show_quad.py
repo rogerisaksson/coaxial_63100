@@ -41,6 +41,7 @@ from coaxial.graphics import gpu, inset, onboard, quadcopter
 from machine import aerobatics, aerokin, gimbal, grounds, pull, quad
 from machine.modes import SIMULATED
 from terminal.loader import TO_MENU
+from terminal.ui import recorder
 from terminal.ui.screen import FPS_CAP, Feed, closing, run_view, say
 from terminal.ui.scroll import HUD_WIDTH
 from terminal.ui.stage import boot, frame_of, hud, stage
@@ -143,7 +144,37 @@ def compose(console, origin, rotors, frame, flight, trace, now, art, yaw=0.0):
                          traces.heights(trace, now, HUD_WIDTH - 4)),
                      hud('BUS V, PEAK TEMP C', traces.buses(trace, now, HUD_WIDTH - 4))],
                     (('+ -', 'ZOOM'), ('W', 'WIND'), ('T', 'THRUST'), ('L', 'LINE'),
-                     ('C', 'CAMERA'), ('R', 'RESET'), ('Q', 'EXIT'), ('ESC', 'MENU')))
+                     ('C', 'CAMERA'), ('R', 'RECORD'), ('A', 'RESET'), ('Q', 'EXIT'), ('ESC', 'MENU')))
+
+
+#: R's recording on a flying page: a row a pass of the flight, the keys typed since the row
+#: before, then each rotor's rad/s.
+FLIGHT = (('t', 'x', 'y', 'z', 'vx', 'vy', 'vz', 'height', 'speed')
+          + tuple('turn_%d%d' % (i, j) for i in range(3) for j in range(3)) + ('volts', 'watts', 'keys'))
+
+
+def flown_row(clock, frame, cells, rotors, keys=''):
+    """A recording's row (FLIGHT, then each rotor's rad/s) of a pass at `clock`."""
+    return ([round(clock, 4)] + [float(v) for v in frame['at']] + [float(v) for v in frame['vel']]
+            + [frame['h'], frame['v']] + [float(v) for v in frame['turn'].ravel()]
+            + [cells.get('volts'), cells.get('watts'), keys] + [float(r['w']) for r in rotors])
+
+
+def recorded(held, name, rotors):
+    """R: recording the flight from now; again: written to the recordings."""
+    if held.get('recording') is None:
+        held['recording'] = recorder.started(name, FLIGHT + tuple('w_%d' % k for k in range(len(rotors))))
+        return
+    rec, held['recording'] = held['recording'], None
+    held['recorded'] = recorder.saved(rec)
+
+
+def typed(held, keys, keyed):
+    """`keyed` on the page's `keys`, each kept for the recording's next row."""
+    held['keyed'] = held.get('keyed', '') + ''.join(k for k in keyed if isinstance(k, str))
+    for k in keyed:
+        if k in keys:
+            keys[k]()
 
 
 def carried(frame, aim, gate, line_, width, height):
@@ -156,12 +187,13 @@ def carried(frame, aim, gate, line_, width, height):
     return inset.docked(onboard.picture(eye, aim, gate, line_), width, height, 'GIMBAL', note)
 
 
-def hands(held, zoomed):
+def hands(held, zoomed, record=None):
     """{key: what it does}: the page's keys on its `held` state, `zoomed` the view's zoom times
-    its argument."""
+    its argument, `record` R's."""
     return dict([(k, lambda: zoomed(ZOOM_STEP)) for k in '+=']
                 + [(k, lambda: zoomed(1.0 / ZOOM_STEP)) for k in '-_']
-                + [(k, lambda: held.update(reset=True)) for k in 'rR']
+                + [(k, lambda: held.update(reset=True)) for k in 'aA']
+                + [(k, record or (lambda: None)) for k in 'rR']
                 + [(k, lambda: held.update(wind=True)) for k in 'wW']
                 + [(k, lambda: held.update(arrows=not held['arrows'])) for k in 'tT']
                 + [(k, lambda: held.update(line=not held['line'])) for k in 'lL']
@@ -253,7 +285,7 @@ def main(argv=None):
 
     def zoomed(k):
         camera['zoom'] = max(ZOOM[0], min(ZOOM[1], camera['zoom'] * k))
-    keys = hands(held, zoomed)
+    keys = hands(held, zoomed, lambda: recorded(held, 'quad', rotors))
 
     def sample():
         """The flight's side of a frame, on the feed's thread: a pass of it."""
@@ -270,7 +302,7 @@ def main(argv=None):
                 held['wind'] = False
                 quad.kept(flight['air'])
             if held['reset']:
-                # R: the frame back on its skids at its spot, its flights from the routine's
+                # A: the frame back on its skids at its spot, its flights from the routine's
                 # spool on a fresh pack, the rotors' loops from rest - on this thread, the one
                 # that steps the world.
                 held['reset'] = False
@@ -291,6 +323,8 @@ def main(argv=None):
                 trace.append((clock, frame['h'], cells['volts'], cells['watts'],
                               max((r['board_c'] for r in rotors if r['board_c'] is not None),
                                   default=None)))
+                if held.get('recording') is not None:
+                    recorder.added(held['recording'], [flown_row(clock, frame, cells, rotors, held.pop('keyed', ''))])
             while trace and held['clock'] - trace[0][0] > traces.TRACE_S:
                 trace.pop(0)
 
@@ -317,14 +351,14 @@ def main(argv=None):
             reach=reach, centre=centre, colour=terminal, lit=lit, gate=gate,
             thrusts=thrusts(frame, rotors) if held['arrows'] else None,
             line_=chased and held['line'],
-            inset=carried(frame, held['aim'], gate, chased and held['line'], width, height)
-            if held['carried'] else None))
+            inset={**(carried(frame, held['aim'], gate, chased and held['line'], width, height)
+                      if held['carried'] else {}), **recorder.corner(held.get('recording'), width)}))
         return compose(board_view, origin, rotors, frame, held['flight'], list(trace),
                        held['clock'], art, yaw=camera['yaw'])
 
     try:
         leaving = run_view(board_view, terminal, 1.0 / max(args.hz, 0.5), args.frames, draw,
-                           on_input=lambda typed, _moved: [keys[k]() for k in typed if k in keys])
+                           on_input=lambda keyed, _moved: typed(held, keys, keyed))
     finally:
         feed.stop()
         sys.setswitchinterval(switched)

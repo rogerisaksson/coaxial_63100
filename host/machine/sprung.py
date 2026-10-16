@@ -5,10 +5,12 @@
 """
 import math
 import os
-from machine import ortho
+from machine import flight, ortho
 
 RATE_HZ, SLICE_S, SAY_S, AVERAGE_S, RECOVER_S = 1000.0, 0.05, 1.0 / 60.0, 0.05, 3.0
 SHOVES, SHOVE_S = {'nudge': 38.0, 'push': 80.0, 'shove': 120.0}, 0.12
+#: Her stage (`staged`): walking past WALK_M_S, or with a sole off the floor within STEP_S.
+WALK_M_S, STEP_S = 0.1, 1.0
 HEARD = ('say', 'walk', 'entries', 'gym', 'text', 'push', 'seconds', 'restart', 'scenario', 'heading', 'twist')
 WALK = (('#201', 0.5), ('#202', 2.0), ('#203', 5.0), ('#204', 9.0))
 BRAKE = ('(stream_inject (sequence_id 200) (blend_duration 500ms) (latent_targets (mode_axial_compression 0.04)'
@@ -177,7 +179,7 @@ def reset_for_scenario(g, scen):
             if idx is not None:
                 g['posture'][idx] = 0.0
         _dropped(g)
-    g['scenario'] = scen
+    g['scenario'], g['bore'] = scen, (False, False)
     world.scenario(scen)
 
 
@@ -259,6 +261,10 @@ def passed(g, dt=0.001):
     world, body = g['world'], g['body']
     if g['n'] % g['every'] == 0:
         _step_control(g, dt)
+        bears = tuple(n >= flight.TOUCH_N for n in g['loads'])
+        if any(b and not n for b, n in zip(g.get('bore', (False, False)), bears)):
+            g['lifted'] = g['t']
+        g['bore'] = bears
     got, held, eso, wo, ct = g['got'], float(g['hold'].any()), g['eso'], g['wo'], tilt(g)
     ys, sb = (max(0.0, min(1.0, (85.0 - ct) / 20.0)) if ct > 65.0 else 1.0), np.zeros(len(body.act))
     in_hop = (g.get('_jump_until', 0.0) > g['t'] or doing(g) in ('load', 'throw', 'land')) and not g.get('_leap')
@@ -310,9 +316,22 @@ def tilt(g):
     return math.degrees(math.acos(max(-1.0, min(1.0, 1.0 - 2.0 * float(q[4] ** 2 + q[6] ** 2)))))
 
 
+def staged(g, fallen_at):
+    """Her stage as measured: fallen; in the air, neither sole bearing `flight.TOUCH_N`; walking,
+    her pelvis faster than WALK_M_S or a sole off the floor within STEP_S; else standing. Read off
+    her gait's amplitude it said stand at 0.9 m/s."""
+    if fallen_at is not None:
+        return 'fallen'
+    if max(g['loads']) < flight.TOUCH_N:
+        return 'air'
+    d = g['world'].data
+    going = math.hypot(float(d.qvel[0]), float(d.qvel[2])) > WALK_M_S
+    return 'walk' if going or g['t'] - g.get('lifted', -math.inf) < STEP_S else 'stand'
+
+
 def state(g, torque, power, watts, ratio, fallen_at, says=(), refused=None):
     """Her state as the page hears it: stage, modes, joint torque/power/temp, and physical velocity."""
-    from machine import latent, modal, stride
+    from machine import latent, modal
     from machine.figure import JOINTS
     world, out, d, hd = g['world'], g['out'], g['world'].data, float(g['heading'])
     z = modal.read(g['y'], g['fr'], g['a'][modal.STANCE])[0]
@@ -326,8 +345,7 @@ def state(g, torque, power, watts, ratio, fallen_at, says=(), refused=None):
             'twist_actual': tuple(g.get('twist_actual', (0.0, 0.0, 0.0))),
             'speed': float(vxz[0] * math.sin(hd) + vxz[1] * math.cos(hd)), 'velocity': vxz,
             'phase': float(g['st'][latent.THETA]) / math.tau, 'cadence': float(out[latent.TURNS]) / math.tau,
-            'stage': ('fallen' if fallen_at is not None
-                      else 'walk' if abs(float(out[latent.SWAY][modal.DRIVE])) > stride.STIRS else 'stand'),
+            'stage': staged(g, fallen_at),
             'fallen': fallen_at is not None, 'loads': tuple(g['loads']), 'props': world.props(),
             'doing': doing(g), 'recover': None if fallen_at is None else RECOVER_S - (g['t'] - fallen_at),
             'ratio': min(ratio, 99.0), 'says': tuple(says), 'refused': refused,

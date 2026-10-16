@@ -197,19 +197,6 @@ gets a line at the end of [DONE](DONE.md).
       check in `test_layout`: no document names a module, a tool or a suite not
       in the tree.
 
-## Recordings
-
-- **Stage from measurement**: `stage` read the gait's amplitude and said
-  stand at 0.9 m/s. DOD: from her speed and her soles' changes; a walk
-  at 0.9 m/s reads walk on every row.
-- **Commands recorded**: a recording kept states, not what was asked. DOD:
-  a CSV's keys and commands columns at the loop's time; `tools/sim/replay.py`
-  replays a page recording to the same pelvis track within 1 mm.
-- **Falls as regressions**: DOD: `tests/replays/*.csv` replayed by a suite in
-  the gate, each without a fall.
-- **Recording shown**: DOD: every MuJoCo page records on R and shows a
-  spinner and the rows written.
-
 ## Sensor boundary
 
 - **Her controller sees what a robot measures**: it reads `world.data`
@@ -269,6 +256,9 @@ fall, its goal reached and its jerk. One law each, no entry a case.
   drive against its parts, none past 2/3; a change named if one is.
 - **Maneuver horizon**: DOD: each limb's reach and a swinging sole's
   landing room drawn, toggled from the page.
+- **The falls kept** (`host/tests/replays/falls`): a right turn at 0.69 m/s
+  down at 9.60 s, a hop after a stop down at 8.97 s, each replayed pass for
+  pass. DOD: each stands, moved up into `tests/replays`.
 
 ## Bench
 
