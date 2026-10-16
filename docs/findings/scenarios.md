@@ -116,3 +116,6 @@ among them for the first time -, standing 32 and walking 23 of 32, replays 9 of
 - On the 10 deg ramp each sole's floor reads -0.14 to -0.17 rad (-0.175); she
   speeds up it, 0.28 -> 1.07 m/s, her height measured from one floor for both
   soles, the lower sole's heel lifted further each step.
+- CI installed MuJoCo 3.16.0 against 3.14.0 here: the hole fell at two held
+  wobbles and the tree ended at 0.18-0.19 m/s (0.01-0.05 here). The engine is
+  pinned to the one measured on; the hole, 9 of 13 wobbles, left the held set.

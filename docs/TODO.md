@@ -214,14 +214,15 @@ gets a line at the end of [DONE](DONE.md).
 
 Each a test in MuJoCo: placed, commanded as a player would, judged by no
 fall, its goal reached and its jerk (`tools/sim/scenarios.py`; those that hold
-in `test_scenarios`, 16 of 26 at every wobble now:
+in `test_scenarios`, 15 of 26 at every wobble now:
 [scenarios](findings/scenarios.md)). One law each, no entry a case.
 
 - **Terrain by contact**: a swinging sole that meets something raises her
   swings by its height, one that meets nothing reaches on down; a sliding one
-  lowers the friction she asks. Met: the sill, the rug, the hole, ice, snow,
-  asphalt, a slick patch. DOD: stairs of 0.15 x 0.30 m up and down, a slope of
-  10 deg up, down and across; 3 times in 4 each.
+  lowers the friction she asks. Met: the sill, the rug, ice, snow, asphalt, a
+  slick patch; the hole at 9 of 13 wobbles. DOD: the hole held, stairs of 0.15
+  x 0.30 m up and down, a slope of 10 deg up, down and across; 3 times in 4
+  each.
 - **Support by contact**: sit, lie and rise as weight moved onto and off a
   sensed support. DOD: chair, soft bed and floor mattress, down and up.
 - **One jump**: takeoff from the height and distance to land. DOD: down
