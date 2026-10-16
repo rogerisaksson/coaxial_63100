@@ -99,3 +99,20 @@ among them for the first time -, standing 32 and walking 23 of 32, replays 9 of
 - On them, at every wobble: stairs up down at 2.95-2.98 s, down at 3.24-3.45,
   the slope up at 6.36-7.19, down at 3.99, across it at 3.30-3.43, the rug at
   5.91-5.96.
+
+## The floor under a sole
+
+- Her law read a pitched sole as on an edge, so a sole flat on a ramp stood on its
+  heel's line. Each sole's floor is now its own pitch while its insole's heel cell
+  and ball cell both press, as far as alike; under half `EDGE_RAD` it is level.
+  The rug held at 13 of 13 wobbles where 0; level floors unchanged to the digit.
+- One centre of pressure per insole took a hole's edge under a sole's middle for
+  a floor 10 deg up; two cells tell them apart. Read whole, a level floor was
+  0.003-0.006 rad heel up (her soft soles' balls pressed in deeper) and her
+  pelvis rolled 4.96 deg where 5.05.
+- `f * (R.T @ v)` for `(f * R.T) @ v` in the edge moved her roll by 0.015 deg
+  and flipped the turns' play at one held wobble: a scenario's three wobbles
+  are a margin's sample; thirteen (-6e-4 to 6e-4 rad) read the hole 9 of 13.
+- On the 10 deg ramp each sole's floor reads -0.14 to -0.17 rad (-0.175); she
+  speeds up it, 0.28 -> 1.07 m/s, her height measured from one floor for both
+  soles, the lower sole's heel lifted further each step.

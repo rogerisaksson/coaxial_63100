@@ -5,7 +5,7 @@
     meet = stride.meets(xi, c, flat, cruise, om, turns, wide)       # where each sole lands (2, 2)
     tip, tipping, tipped = stride.rocks(rock, rate, acc)    # each sole's pitch as her rock has it
     fold, short = stride.folds(off, loads, bent)            # a knee's fold before its swing, rad and m
-    rocked, flatten, pin, round = stride.heels(sole, hips, floor, long, short, off, tip, stance, stepping, was, dt)
+    rocked, flatten, pin, round = stride.heels(sole, hips, floor, long, short, off, tip, stance, stepping, was, dt, ground)
     clear = stride.clears(u, flying, swung, high, tip, tipping, tilt, late)     # (3, 2), over the floor
     acc = stride.goes(meet, flat, shod, v, u, turns, kp, kd)        # a striding sole's, along and across
 
@@ -143,7 +143,7 @@ def folds(off, loads, bent):
     return fold, (THIGH + SHANK) * (np.cos(0.5 * bent) - np.cos(0.5 * (bent + fold)))
 
 
-def heels(sole, hips, floor, long, short, off, tip, stance, stepping, was, dt):
+def heels(sole, hips, floor, long, short, off, tip, stance, stepping, was, dt, ground):
     """A standing sole's turn about the edge it stands on, striding: (the heel's rise asked,
     rad; its turn's acceleration, rad/s^2; how far it stands on an edge, 1 its ball and -1 its
     heel; its middle's acceleration round that edge, her way's frame (2, 3)). Flat; or, its
@@ -153,7 +153,9 @@ def heels(sole, hips, floor, long, short, off, tip, stance, stepping, was, dt):
     where it stood over a sole. Flat till it left, a sole
     25 cm behind her had her hips 4 cm down as the other landed, on a knee at 36 deg. `sole`
     each sole's (place in her way's frame (2, 3), pitch, its rate); `hips` each hip's place
-    along; `was` the rise asked the pass before, `dt` s ago."""
+    along; `was` the rise asked the pass before, `dt` s ago. Its pitch is read against the
+    floor's under it (`ground`, each's): flat on a 10 deg ramp, read as on its heel, a sole's
+    box was its heel's line and she fell 1.9 m up it."""
     place, tilt, tilting = sole
     spoke = np.stack([np.sin(tilt), 0.0 * tilt, np.cos(tilt)], axis=1)
     inward = np.stack([np.cos(tilt), 0.0 * tilt, -np.sin(tilt)], axis=1)
@@ -165,12 +167,19 @@ def heels(sole, hips, floor, long, short, off, tip, stance, stepping, was, dt):
         ((long - short) ** 2 - hip * hip - high * high - BALL * BALL - ANKLE_H * ANKLE_H) / (2.0 * lever),
         -1.0, 1.0)),
         0.0, HEEL_RAD) * clip(hip / BALL, 0.0, 1.0)
-    rocked = np.maximum(off * np.maximum(tip, 0.0), need)
-    flatten = stepping * stance * (FLAT_K * (rocked - tilt)
+    rocked, lean = np.maximum(off * np.maximum(tip, 0.0), need), tilt - pitched(ground)
+    flatten = stepping * stance * (FLAT_K * (rocked - lean)
                                    + CONTACT_K * clip((rocked - was) / dt, -HEEL_RAD_S, HEEL_RAD_S))
-    edge = np.sign(tilt + BIG * rocked)
-    return (rocked, flatten, stepping * stance * edge * clip(np.maximum(np.abs(tilt), rocked) / EDGE_RAD, 0.0, 1.0),
+    edge = np.sign(lean + BIG * rocked)
+    return (rocked, flatten, stepping * stance * edge * clip(np.maximum(np.abs(lean), rocked) / EDGE_RAD, 0.0, 1.0),
             (edge * HALF_M)[:, None] * (flatten[:, None] * spoke + (tilting * tilting)[:, None] * inward))
+
+
+def pitched(ground):
+    """The floor's pitch as her soles take it, rad: under half EDGE_RAD level, past it all of
+    it - a level floor read 0.003 to 0.006 rad as her soft soles pressed it, and her pelvis
+    rolled 4.96 deg where 5.05."""
+    return ground * clip((np.abs(ground) - 0.5 * EDGE_RAD) / (0.5 * EDGE_RAD), 0.0, 1.0)
 
 
 def clears(u, flying, swung, high, tip, tipping, tilt, late):

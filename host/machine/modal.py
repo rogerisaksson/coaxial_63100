@@ -54,7 +54,9 @@ SENSED = 51
 ROT, H0, W0, FLOOR, OMEGA, WEIGHT, KNEE = slice(0, 9), 9, 10, 11, 12, 13, 14
 PITCH0, HEADING, DT, REACH0, HIPS_BY, ARM0 = slice(15, 17), 17, 18, 19, 20, slice(21, 23)
 UNIT, Z0, MASS = (slice(23 + i * N, 23 + (i + 1) * N) for i in range(3))
-FRAME = 23 + 3 * N
+#: And the floor's pitch under each sole, as a sole pitched flat on it, rad, its heel up.
+GROUND = slice(23 + 3 * N, 25 + 3 * N)
+FRAME = GROUND.stop
 #: The loop's ask, flat: each sole standing (1) or not; her centre of mass's acceleration and
 #: each sole's, world; the pelvis's and the trunk's pitch wanted, rad; each knee's fold over its
 #: posture and its rate; whether a turn is asked; her knees' bend with her height; her angular

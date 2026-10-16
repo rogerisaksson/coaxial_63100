@@ -158,7 +158,8 @@ def reset_for_scenario(g, scen):
         hw, q0 = 0.5 * float(g['fr'][modal.WEIGHT]), g['sense'][edge.Q][g['joints']]
         g['loads'], g['heading'], g['target_heading'] = [hw, hw], 0.0, None
         modal.sensed(s, g['loads'], g['y'])
-        g['fr'][modal.HEADING], g['fr'][modal.FLOOR], g['fr'][modal.ROT] = 0.0, g.get('floor0', 0.0), np.array([0, 0, 1, 1, 0, 0, 0, 1, 0], float)
+        g['fr'][modal.HEADING], g['fr'][modal.FLOOR], g['fr'][modal.GROUND] = 0.0, g.get('floor0', 0.0), 0.0
+        g['fr'][modal.ROT] = np.array([0, 0, 1, 1, 0, 0, 0, 1, 0], float)
         g['st'] = latent.state(g['rest'])
         g['out'] = latent.step(g['st'].copy(), g['tab'][:0], g['t'], 0.001 * g['every'], np.zeros(latent.OUT))
         g['a'][:], g['a'][modal.STANCE], g['ref_q'][:], g['ref_v'][:], g['hold'][:] = 0.0, 1.0, q0, 0.0, 0.0

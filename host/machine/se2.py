@@ -259,12 +259,19 @@ FLOOR_HZ = 15.0
 
 def floored(g, y, dt):
     """The floor under her where her bearing soles' lowest corners stand, in her estimate's own
-    height: held where she was laid it read her soles 22 mm over it as her estimate drifted up."""
+    height - held where she was laid it read her soles 22 mm over it as her estimate drifted up -,
+    and its pitch under each sole: that sole's own while its heel's cell and its ball's both
+    press, as far as they press alike. One centre of pressure read inside its edges took a
+    hole's edge under a sole's middle for a floor 10 deg up."""
     import numpy as np
-    from machine import flight, modal
+    from machine import edge, flight, modal
     bear = np.array(g['loads']) * (np.array(g['loads']) >= flight.TOUCH_N)
     under = float(bear @ y[modal.LOWEST]) / max(float(bear.sum()), 1e-9)
-    g['fr'][modal.FLOOR] += float(bear.sum() > 0.0) * min(1.0, FLOOR_HZ * dt) * (under - float(g['fr'][modal.FLOOR]))
+    k = float(bear.sum() > 0.0) * min(1.0, FLOOR_HZ * dt)
+    g['fr'][modal.FLOOR] += k * (under - float(g['fr'][modal.FLOOR]))
+    cells = g['sense'][edge.CELLS].reshape(2, 2)
+    flat = (cells.min(axis=1) >= flight.TOUCH_N) * cells.min(axis=1) / np.maximum(cells.max(axis=1), 1e-9)
+    g['fr'][modal.GROUND] += min(1.0, FLOOR_HZ * dt) * flat * (y[modal.TILT] - g['fr'][modal.GROUND])
 
 
 def step_physical_twist(g, dt, out=None):

@@ -20,7 +20,7 @@ import numpy as np
 from machine import latent, poise, stride
 from machine.modal import (
     ARM_RAD, ARMS, AXIAL, AXIAL_M, BEND, CLEAR_M, COM, COM_ACC, DRIVE, DT, EDGE, FLOOR, FOLD, FOLD_RATE, FOLDS, G,
-    GOING, HANDS, HEADED, HEELED, HIP, HIPS_BY, HOT, KDOT, KNEE, LATERAL, LEG_M, LIFT, LIST, LIST_RAD, LOAD,
+    GOING, GROUND, HANDS, HEADED, HEELED, HIP, HIPS_BY, HOT, KDOT, KNEE, LATERAL, LEG_M, LIFT, LIST, LIST_RAD, LOAD,
     LOWEST, MASS, MOMENT, NEED, PELVIS, PITCH, PITCH0, PITCH_RAD, PREFOLD, QUAT, RAISE, REACH0, ROCK, ROLLED, ROT,
     SAGITTAL, SETTLE, SOLE, SOLE_ACC, SPIN, STANCE, STRIDES, SWINGS, SWUNG, TILT, TILT_RATE, TIPPED, TURN, TURN_RAD,
     TURNED, UNIT, VCOM, VSOLE, W0, WANT, WIDTH, Z0, reading, shortened)
@@ -108,7 +108,7 @@ def ask(out, y, fr, a):
     a[PREFOLD], short = stride.folds(off, y[LOAD], fr[KNEE] + a[BEND])
     a[HEELED], flatten, a[EDGE], rounds = stride.heels(
         (soles @ rot.T, tilt, tilting), (y[HIP].reshape(2, 3) @ rot.T)[:, ALONG], fr[FLOOR], long, short, off,
-        tip, stance, stepping, a[HEELED], fr[DT])
+        tip, stance, stepping, a[HEELED], fr[DT], fr[GROUND])
     a[SETTLE] = np.concatenate([flatten[:, None] * rot[LEFT], rounds @ rot], axis=1).ravel()
     # up as her height's spring asks of her standing legs' length: each leg's acceleration
     # along itself, what her going over it gives it taken off, by how far over its ankle
@@ -131,8 +131,9 @@ def ask(out, y, fr, a):
     a[SOLE_ACC] = ((1.0 - strides) * (free @ frame + ((1.0 - grounded * BETWEEN) * com) @ rot) + strides * (
         np.concatenate([stride.goes(meet, flat, shod, v, u, turns, kp[FREE_BY][:2], kd[FREE_BY][:2]),
                         free[:, UP:]], axis=1) @ rot)).ravel()
-    # its pitch on the rock's own spring; the loop's turn law asked for what gives that
-    a[TIPPED] = tilt + (aloft * (tipped + kp[ROCK] * (tip - tilt) + kd[ROCK] * (tipping - tilting))
+    # its pitch on the rock's own spring, from the floor's under the soles that stand; the
+    # loop's turn law asked for what gives that
+    a[TIPPED] = tilt + (aloft * (tipped + kp[ROCK] * (tip + bears @ stride.pitched(fr[GROUND]) - tilt) + kd[ROCK] * (tipping - tilting))
                         + TURN_KD[1] * tilting) / TURN_KD[0]
     a[GOING] += fr[DT] / GOING_S * ((y[VSOLE].reshape(2, 3) @ rot[ALONG]).mean() - a[GOING])
     a[STANCE], a[COM_ACC], a[STRIDES] = stance, com @ rot, stepping

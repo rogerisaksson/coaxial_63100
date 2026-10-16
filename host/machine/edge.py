@@ -19,7 +19,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 import numpy as np
 
 from machine import physics
-from machine.figure import JOINTS, SEGMENTS
+from machine.figure import BALL, HEEL, JOINTS, SEGMENTS
 
 G = np.array([0.0, -9.81, 0.0])
 J = len(JOINTS)
@@ -27,17 +27,21 @@ J = len(JOINTS)
 SKIN = tuple(seg[0] for seg in SEGMENTS)
 #: Her soles' segments, each with an insole: (left foot, left toes, right foot, right toes).
 INSOLES = ('left_foot', 'left_toes', 'right_foot', 'right_toes')
+#: A foot's insole's cells: its heel's half and its ball's, split at the sole's middle.
+FEET, MIDDLE_M = ('left_foot', 'right_foot'), 0.5 * (BALL - HEEL)
 #: The array: the IMU's turn (w, x, y, z, world from pelvis), spin (rad/s) and specific force
 #: (m/s^2), its frame; each joint's angle (rad) and rate (rad/s), each motor's angle seen through
 #: its gearbox (rad); each sole's load (N); each segment's touch (N, its frame); each insole's
-#: centre of pressure (m, its segment's frame) and its load (N).
+#: centre of pressure (m, its segment's frame) and its load (N); each foot's heel and ball cell's
+#: load (N).
 QUAT, GYRO, ACCEL = slice(0, 4), slice(4, 7), slice(7, 10)
 Q, QD, QM = (slice(10 + k * J, 10 + (k + 1) * J) for k in range(3))
 LOAD = slice(10 + 3 * J, 12 + 3 * J)
 TOUCH = slice(12 + 3 * J, 12 + 3 * J + 3 * len(SKIN))
 COP = slice(TOUCH.stop, TOUCH.stop + 3 * len(INSOLES))
 PRESS = slice(COP.stop, COP.stop + len(INSOLES))
-SENSED = PRESS.stop
+CELLS = slice(PRESS.stop, PRESS.stop + 2 * len(FEET))
+SENSED = CELLS.stop
 #: Her touch past this, N, a segment's: MuJoCo's soft contact holds a resting hand at a few.
 TOUCHED_N = 5.0
 
@@ -54,6 +58,9 @@ def laid(world):
     world.insole = np.full(m.nbody, -1, int)
     for k, name in enumerate(INSOLES):
         world.insole[m.body(name).id] = k
+    world.foot = np.full(m.nbody, -1, int)
+    for k, name in enumerate(FEET):
+        world.foot[m.body(name).id] = k
     return read(world, np.zeros(SENSED))
 
 
@@ -83,7 +90,7 @@ def read(world, y):
     felt(world, y)
     m, d = world.model, world.data
     loads, touch, force = [0.0, 0.0], np.zeros((len(SKIN), 3)), np.zeros(6)
-    pressed, at = np.zeros(len(INSOLES)), np.zeros((len(INSOLES), 3))
+    pressed, at, cells = np.zeros(len(INSOLES)), np.zeros((len(INSOLES), 3)), np.zeros(2 * len(FEET))
     for i in range(d.ncon):
         c = d.contact[i]
         b0, b1 = m.geom_bodyid[c.geom1], m.geom_bodyid[c.geom2]
@@ -98,6 +105,9 @@ def read(world, y):
         if k >= 0:
             pressed[k] += float(force[0])
             at[k] += float(force[0]) * d.xmat[mine].reshape(3, 3).T @ (c.pos - d.xpos[mine])
+            if world.foot[mine] >= 0:
+                along = float(d.xmat[mine].reshape(3, 3)[:, 2] @ (c.pos - d.xpos[mine]))
+                cells[2 * world.foot[mine] + int(along >= MIDDLE_M)] += float(force[0])
         k = world.skin[mine]
         if k >= 0:
             push = c.frame.reshape(3, 3).T @ force[:3] * (1.0 if mine == b1 else -1.0)
@@ -109,6 +119,7 @@ def read(world, y):
     y[TOUCH] = touch.ravel()
     y[PRESS] = pressed
     y[COP] = (at / np.maximum(pressed, 1e-9)[:, None]).ravel()
+    y[CELLS] = cells
     return y
 
 
