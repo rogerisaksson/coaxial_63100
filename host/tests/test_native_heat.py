@@ -53,7 +53,7 @@ def test_the_tour_loses_and_finds_the_room(report):
     """STABLE in the first room, the tour on once it is earned, the state lost to the next room
     and STABLE again there, the room identified nearer the new than the old."""
     rig = Coaxial63100(port='native://').open()
-    marks = {}
+    marks, before = {}, {}
     try:
         board = rig.board
         board.thermal.configure(clock=HASTE)
@@ -64,7 +64,7 @@ def test_the_tour_loses_and_finds_the_room(report):
         motor = cycle_motor(rig, rig.origin, ON_S / HASTE, OFF_S / HASTE, AMPS)
         began = read_at = time.monotonic()
         began_s = board.thermal.state()['seconds']
-        now = began_s
+        now = last = began_s
         while 'found' not in marks and time.monotonic() - began < WALL_S:
             if motor is not None:
                 motor()
@@ -73,18 +73,18 @@ def test_the_tour_loses_and_finds_the_room(report):
                 continue
             read_at = time.monotonic()
             ident = rig.thermal.identification()
-            now, room = board.thermal.state()['seconds'], ident['truth']['situation']
+            last, (now, room) = now, (board.thermal.state()['seconds'], ident['truth']['situation'])
             stable = ident['state'] == 'STABLE'
             if 'stable' not in marks:
                 if stable and room == first:
-                    marks['stable'] = now
+                    marks['stable'], before['stable'] = now, last
                 elif now > FIRST_S:
                     break
             elif 'moved' not in marks:
                 if not stable:
                     marks.pop('stable', None)
                 elif room != first:
-                    marks['moved'], marks['room'] = now, room
+                    marks['moved'], marks['room'], before['moved'] = now, room, last
                 elif now > marks['stable'] + MOVE_S:
                     break
             elif 'lost' not in marks:
@@ -110,10 +110,12 @@ def test_the_tour_loses_and_finds_the_room(report):
         return
     report.check('STABLE in the %s room within %d observer s' % (first, FIRST_S),
                  'stable' in marks, said)
+    # each mark is seen at a read, READ_S apart - 15 observer s at HASTE: the hold lies between
+    # the reads before and at each, 99 s read where the tour held 100
     report.check('the tour on once the room is earned: STABLE held %.0f s, within %d'
                  % (rooms.TOUR_STABLE_S, MOVE_S),
-                 'moved' in marks
-                 and rooms.TOUR_STABLE_S <= marks['moved'] - marks['stable'] <= MOVE_S, said)
+                 'moved' in marks and marks['moved'] - before['stable'] >= rooms.TOUR_STABLE_S
+                 and before['moved'] - marks['stable'] <= MOVE_S, said)
     report.check('the state lost to the next room within %d observer s' % LOSE_S,
                  'lost' in marks, said)
     old = rooms.SITUATIONS[first]['ambient']
