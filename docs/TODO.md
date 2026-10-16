@@ -223,9 +223,9 @@ in `test_scenarios`, 12 of 26 at every wobble now:
   stepped into and out of, stairs of 0.15 x 0.30 m up and down, a slope
   of 10 deg up, down and across, ice, snow, asphalt and a slick patch;
   3 times in 4 each.
-- **A stop that settles**: the wall's stop still moving at one wobble, a spin
-  in place down at 7.94 s at another, a walk's stop down at 10.1-11.3 s at two
-  of five (`tests/replays/falls`). DOD: each at every wobble.
+- **A stop that settles**: the wall's stop still moving at one wobble; a walk's
+  stop down at 8.79 s, its toes on the room's wall read as a trip
+  (`tests/replays/falls`). DOD: each at every wobble.
 - **Support by contact**: sit, lie and rise as weight moved onto and off a
   sensed support. DOD: chair, soft bed and floor mattress, down and up.
 - **One jump**: takeoff from the height and distance to land. DOD: down

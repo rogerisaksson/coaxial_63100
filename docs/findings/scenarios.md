@@ -46,3 +46,24 @@ the stunts as their entries said. 6 of 19 met.
   at 3.2 m on snow): 14 of 26 met, ice among them, and all seven of a player's
   sequences. Laid turned 2e-4 rad either way, 12 hold every time
   (`test_scenarios`); the wall's stop and a spin in place do not.
+
+## A stop
+
+The whole bench, each scenario laid 0 and 2e-4 rad either way, the 80 N polar, the
+kept replays at theirs: 40 of 78, standing 31 and walking 24 of 32, replays 5 of 9.
+
+- A swing begun is finished (`stride.beat`): 41 of 78, the spin in place standing
+  where it fell at 7.94 s; nothing else moved, her walk the same to the digit.
+- The kept stop after a walk: her left toes met the room's wall 31 mm up as she
+  stopped at it, read as a trip; the stumble - 1.15 Hz, lift 2.6, drive 0.32 and
+  more for 0.95 s - stepped her high against it, down at 8.79 s. At the bench's
+  wall five trips came in its brake and its stand, the last at 1.58 m/s.
+- A trip answered by her swings raised by the height it was met at, no stumble:
+  the wall at every wobble and the kept stop stood, the sill and the turns' play
+  fell after their stops at all three (36 of 78). Turned 0.25 rad by the trip,
+  her heading followed her pelvis, she crabbed, and APART_M refused the step
+  across that would have caught her.
+- Over a swing her walk holds her capture point's lead on her centre of mass,
+  0.19-0.20 m start to end at 0.69 m/s, where a linear inverted pendulum on her
+  sole foresees 0.35-0.36: her rhythm hurried by it acted on her plain walk in 4
+  to 7 % of its passes and moved it, 2.57 -> 3.58 off a woman's.

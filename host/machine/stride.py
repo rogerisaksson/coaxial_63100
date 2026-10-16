@@ -1,6 +1,6 @@
 """Her stride on her latent loop: when a limb swings, where its sole lands, how a sole rolls.
 
-    stepping, way, sweep, phi, off, u, flying, swung = stride.beat(drive, psi, sway, lateral, turns)
+    stepping, way, sweep, phi, off, u, flying, swung = stride.beat(drive, psi, sway, lateral, turns, was)
     cruise = stride.cruises(way, drive, turns, going)       # the speed her drive makes of its steps
     meet = stride.meets(xi, c, flat, cruise, om, turns, wide)       # where each sole lands (2, 2)
     tip, tipping, tipped = stride.rocks(rock, rate, acc)    # each sole's pitch as her rock has it
@@ -79,17 +79,19 @@ FOLD_RAD = 0.26
 HEEL_UP = 0.5
 
 
-def beat(drive, psi, sway, lateral, turns):
+def beat(drive, psi, sway, lateral, turns, was):
     """Her stride of her drive (its amplitude and angle) and her sway's: (whether she strides,
     0 to 1; her way, 1 or -1; each limb's place in its sweep, 1 its furthest on her way; its
     turn of it, 0 as it passes under her going on; whether her stride has it off the floor's
     count - it swings PHI_W either side of that, and is off from where the other's swing
-    ended -; its swing's share done; whether it swings; that share's rate, 1/s)."""
+    ended -; its swing's share done; whether it swings; that share's rate, 1/s). A swing
+    begun is finished, off as far as her stride has had it since (`was`, the pass before's),
+    its way kept with her drive let go: a spin in place stood where it fell at 7.94 s."""
     stepping = clip(np.abs(drive) / STIRS, 0.0, 1.0)
-    way = 1.0 - 2.0 * (np.sin(lateral - psi) * np.sign(sway) < -BACK)
-    side = -LIMBS * np.sign(drive) * way
+    way = 1.0 - 2.0 * (np.sin(lateral - psi) * np.copysign(1.0, sway) < -BACK)
+    side = -LIMBS * np.copysign(1.0, drive) * way
     sweep, phi = side * np.sin(psi), np.arctan2(side * np.sin(psi), side * np.cos(psi))
-    off = stepping * (phi > PHI_W - np.pi) * (phi < PHI_W)
+    off = np.maximum(stepping, was) * (phi > PHI_W - np.pi) * (phi < PHI_W)
     u = clip(0.5 * (phi / PHI_W + 1.0), 0.0, 1.0)
     return stepping, way, sweep, phi, off, u, off * (u > 0.0), 0.5 * turns / PHI_W
 

@@ -20,11 +20,10 @@ import numpy as np
 from machine import latent, poise, stride
 from machine.modal import (
     ARM_RAD, ARMS, AXIAL, AXIAL_M, BEND, CLEAR_M, COM, COM_ACC, DRIVE, DT, EDGE, FLOOR, FOLD, FOLD_RATE, FOLDS, G,
-    GOING, HANDS, HEADED, HEELED, HIP, HIPS_BY, HOT, KDOT, KNEE, LATERAL, LEG_M, LIFT, LIST, LIST_RAD, LOAD, LOWEST,
-    MASS, MOMENT, PELVIS, PITCH, PITCH0, PITCH_RAD, PREFOLD, QUAT, REACH0, ROCK, ROLLED, ROT, SAGITTAL, SETTLE,
-    SOLE,
-    SOLE_ACC, SPIN, STANCE, STRIDES, SWUNG, TILT, TILT_RATE, TIPPED, TURN, TURN_RAD, TURNED, UNIT, VCOM, VSOLE,
-    W0, WANT, WIDTH, Z0, reading, shortened)
+    GOING, HANDS, HEADED, HEELED, HIP, HIPS_BY, HOT, KDOT, KNEE, LATERAL, LEG_M, LIFT, LIST, LIST_RAD, LOAD,
+    LOWEST, MASS, MOMENT, PELVIS, PITCH, PITCH0, PITCH_RAD, PREFOLD, QUAT, REACH0, ROCK, ROLLED, ROT,
+    SAGITTAL, SETTLE, SOLE, SOLE_ACC, SPIN, STANCE, STRIDES, SWINGS, SWUNG, TILT, TILT_RATE, TIPPED, TURN, TURN_RAD,
+    TURNED, UNIT, VCOM, VSOLE, W0, WANT, WIDTH, Z0, reading, shortened)
 from machine.poise import HALF_M, TINY
 from machine.stride import ALONG, LEFT, LIMBS, UP
 from machine.wbc import MOMENTUM_K, POSTURE_KD, TURN_KD
@@ -65,7 +64,11 @@ def ask(out, y, fr, a):
     soles, shod = y[SOLE].reshape(2, 3), y[VSOLE].reshape(2, 3) @ rot.T
     tilt, tilting = y[TILT], y[TILT_RATE]
     stepping, way, sweep, phi, off, u, flying, swung = stride.beat(
-        out[latent.SWAY][DRIVE], out[latent.PSI][DRIVE], out[latent.SWAY][LATERAL], out[latent.PSI][LATERAL], turns)
+        out[latent.SWAY][DRIVE], out[latent.PSI][DRIVE], out[latent.SWAY][LATERAL], out[latent.PSI][LATERAL], turns,
+        a[SWINGS])
+    a[SWINGS] = off
+    # a limb strides as far as her stride or its own swing has it
+    limbs = np.maximum(stepping, off)
     # the lift's own rhythm is her stride's clearance, not a sole's place
     beat = out[latent.PSI][LIFT]
     tone = out[latent.SWAY][LIFT] * np.array([np.sin(beat), turns * np.cos(beat), -turns * turns * np.sin(beat)])
@@ -116,7 +119,7 @@ def ask(out, y, fr, a):
     clear = aloft * stride.clears(u, flying, swung, CLEAR_M * (1.0 + np.abs(out[latent.SWAY][LIFT])), tip,
                                   tipping, tilt, late)
     free, frame = _swings(y, fr, (rot, v, om, shod), (ref, rate, acc, kp, kd, hands), clear, stance, cruise)
-    strides = stepping * grounded
+    strides = (limbs * grounded)[:, None]
     a[SOLE_ACC] = ((1.0 - strides) * (free @ frame + ((1.0 - grounded * BETWEEN) * com) @ rot) + strides * (
         np.concatenate([stride.goes(meet, flat, shod, v, u, turns, kp[FREE_BY][:2], kd[FREE_BY][:2]),
                         free[:, UP:]], axis=1) @ rot)).ravel()
@@ -125,7 +128,7 @@ def ask(out, y, fr, a):
                         + TURN_KD[1] * tilting) / TURN_KD[0]
     a[GOING] += fr[DT] / GOING_S * ((y[VSOLE].reshape(2, 3) @ rot[ALONG]).mean() - a[GOING])
     a[STANCE], a[COM_ACC], a[STRIDES] = stance, com @ rot, stepping
-    _poses(out, y, fr, a, (z, ref, rate, acc, kp, kd), (turn, spun), up, aloft * (1.0 - stepping))
+    _poses(out, y, fr, a, (z, ref, rate, acc, kp, kd), (turn, spun), up, aloft * (1.0 - limbs))
     return a
 
 
