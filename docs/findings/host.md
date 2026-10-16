@@ -28,6 +28,11 @@ Pages, tooling, suites and the local model's runner. The board's findings:
   by name (`NEEDS_BOARD`); test_parity on the emulated image, 30 passed.
   Four suites were in no list - test_gvs green, test_house_tour 4 failed,
   test_stunts out of time, test_tps_gameplay 5 failed.
+- A kept replay that stood here fell at 10.60 s on CI's runner, Python 3.12 and
+  3.14 alike: another platform's floating point. Laid 0.2 mm aside it fell here
+  too, at 11.33 s; a kept replay now stands laid 0.2 mm either way. The hop
+  after a stop, a fall at 8.97 s when recorded, stands on her law since the
+  sensor boundary at every wobble to 1 mm.
 - A HUMANOID recording replayed (`tools/sim/replay.py`) through the worker's
   process: 7 commands over 2 epochs, the pelvis 0.0 mm off the recording, a
   400 N shove's fall at 4.162 s again. `stage` read off the gait's amplitude

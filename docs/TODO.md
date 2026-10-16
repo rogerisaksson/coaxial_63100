@@ -239,8 +239,9 @@ law each, no entry a case.
 - **Maneuver horizon**: DOD: each limb's reach and a swinging sole's
   landing room drawn, toggled from the page.
 - **The falls kept** (`host/tests/replays/falls`): a right turn at 0.69 m/s
-  down at 9.60 s, a hop after a stop down at 8.97 s, each replayed pass for
-  pass. DOD: each stands, moved up into `tests/replays`.
+  down at 8.6-8.9 s laid 0 to 1 mm aside; a stop after a walk down at 10.1 and
+  11.3 s laid 1 and 0.2 mm one way, standing the other. DOD: each stands at
+  every `replay.WOBBLES`, moved up into `tests/replays`.
 
 ## Bench
 

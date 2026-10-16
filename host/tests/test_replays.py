@@ -60,10 +60,11 @@ def _replay(path):
         from tools.sim import replay
         with open(path, encoding='utf-8') as f:
             rows = list(csv.DictReader(f))
-        got = replay.replayed(replay.entries(rows), rows)
-        report.check('%s, %d commands, to %.1f s: no fall' % (os.path.basename(path), len(replay.entries(rows)),
-                                                               got['t']),
-                     got['fell'] is None, got['fell'] and 'fell at %.3f s of epoch %d' % got['fell'][::-1])
+        for wobble in replay.WOBBLES:
+            got = replay.replayed(replay.entries(rows), rows, wobble=wobble)
+            report.check('%s, %d commands, to %.1f s, laid %+.1f mm aside: no fall' % (
+                os.path.basename(path), len(replay.entries(rows)), got['t'], 1e3 * wobble),
+                got['fell'] is None, got['fell'] and 'fell at %.3f s of epoch %d' % got['fell'][::-1])
     test.__name__ = 'test_' + os.path.splitext(os.path.basename(path))[0]
     return test
 

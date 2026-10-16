@@ -25,6 +25,9 @@ from tools import REPO
 
 #: What a kept replay holds of a recording, column by column.
 KEPT = ('t', 'epoch', 'stage', 'x', 'y', 'z', 'keys', 'commands')
+#: A kept replay stands laid these m to her left too: one that stood on this host fell at 10.6 s
+#: on CI's - another platform's floating point, a fall in the margin.
+WOBBLES = (0.0, 2e-4, -2e-4)
 
 
 def entries(rows):
@@ -35,15 +38,18 @@ def entries(rows):
     return sorted(out, key=lambda e: (e[0], e[1]))
 
 
-def replayed(heard, rows=(), to=None):
+def replayed(heard, rows=(), to=None, wobble=0.0):
     """{fell: (epoch, t) or None, off: m her pelvis furthest from the rows' (x, y, z) at their
     (epoch, t), t: where it ended, epochs}: `heard` (`entries`) replayed from its first epoch's
-    lay to its last command, or `to` s into its last epoch."""
+    lay to its last command, or `to` s into its last epoch; laid `wobble` m to her left."""
     from machine import physics, worker
     laid = next(c['laid'] for _e, _p, _t, c in heard if 'laid' in c)
     first = heard[0][0]
     physics.ROOM, physics.SIGHT = laid.get('room', 1.0), laid.get('sight', 0.0)
     s = worker.session(laid['every'], laid['walks'])
+    world = s['g']['world']
+    world.data.qpos[0] += wobble
+    world._mj.mj_forward(world.model, world.data)
     if laid.get('gym', s['gym_name']) != s['gym_name']:
         worker.apply(s, {'gym': laid['gym']})
     want = {(int(r['epoch']) - first, round(float(r['t']), 3)): (float(r['x']), float(r['y']), float(r['z']))
@@ -59,19 +65,32 @@ def replayed(heard, rows=(), to=None):
             here = g['world'].data.qpos[0:3]
             out['off'] = max(out['off'], math.dist(at, (float(here[0]), float(here[1]), float(here[2]))))
 
+    # replayed apart from the recording - wobbled, or by other code - she falls where it did not, or
+    # does not where it did: the epoch the recording went on into never comes, so the replay ends
+    # as she falls, or once it has run the passes the recording ran
+    timed = [(int(r['epoch']) - first, float(r['t'])) for r in rows if r.get('epoch') not in (None, '')]
+    last = max(timed) if timed else (0, 0.0)
+    spans = {}
+    for epoch, t in timed:
+        spans[epoch] = max(spans.get(epoch, 0.0), t)
+    budget = round(1e3 * sum(spans.values())) if spans else None
+    ran = 0
     for epoch, n, _t, command in heard:
         if 'laid' in command:
             continue
-        while (s['epoch'], s['passes']) < (epoch - first, n):
+        while (s['epoch'], s['passes']) < (epoch - first, n) and out['fell'] is None:
             worker.stepped(s)
             judged()
+            ran += 1
+        if out['fell'] is not None:
+            break
         worker.apply(s, command)
-    timed = [(int(r['epoch']) - first, float(r['t'])) for r in rows if r.get('epoch') not in (None, '')]
-    last = max(timed) if timed else (s['epoch'], s['g']['t'])
     end = (last[0], to if to is not None else last[1])
-    while (s['epoch'], s['g']['t']) < (end[0], end[1] - 1e-9):
+    while ((s['epoch'], s['g']['t']) < (end[0], end[1] - 1e-9) and out['fell'] is None
+           and (budget is None or ran < budget)):
         worker.stepped(s)
         judged()
+        ran += 1
     return dict(out, t=round(s['g']['t'], 3), epochs=s['epoch'] + 1)
 
 
