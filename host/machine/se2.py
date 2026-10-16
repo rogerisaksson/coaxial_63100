@@ -361,7 +361,9 @@ def boost_stumble(g, out):
 def heard_twist(g, gym, tw, has_say, said_fn, dropped_fn, heard_say_fn, walk_on):
     from machine import latent
     pvx, pvy, _ = g.get('twist', (0.0, 0.0, 0.0))
-    g['twist'] = (0.0, 0.0, 0.0) if tw is None else (float(tw[0]), float(tw[1]), float(tw[2]))
+    g['asked'] = (0.0, 0.0, 0.0) if tw is None else (float(tw[0]), float(tw[1]), float(tw[2]))
+    from machine import touch
+    g['twist'] = touch.against(g, g['asked'])
     vx, vy, wz = g['twist']
     by, jumping = {e[0]: e for e in gym}, g.get('_jump_until', 0.0) > g['t']
     decay = (not has_say and math.hypot(vx, vy) < math.hypot(pvx, pvy) - 1e-4

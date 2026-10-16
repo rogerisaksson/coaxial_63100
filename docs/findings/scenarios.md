@@ -31,3 +31,18 @@ the stunts as their entries said. 6 of 19 met.
   stands. The tilt was all their checks read.
 - `hop_down_chair` from the seat leaves her standing on it; `hop_up_chair` falls
   at 2.19 s with the chair no longer moved under her mid-hop.
+
+## A touch, and the shove as one
+
+- A shove is a hand on her: the edge feels what the world applies to her bodies
+  as touch. A touch above her soles not within 50 deg of her going stops it -
+  she brakes, steps, stands -, one along it she walks out; she goes on as told
+  1.5 s after it is gone, and her going toward what she felt is cut for 3 s.
+- 80 N for 0.12 s, eight ways, four moments a quarter stride apart: standing
+  30 -> 32 of 32 held, walking at 0.69 m/s 19 -> 24 of 32 (aside 1 -> 5 of 8).
+  Braked on every touch, a shove from behind fell her as the brake's stand came
+  on a timer with her capture point 0.34 m ahead.
+- On the open floor, the page's room taken away (its far wall and door felled her
+  at 3.2 m on snow): 14 of 26 met, ice among them, and all seven of a player's
+  sequences. Laid turned 2e-4 rad either way, 12 hold every time
+  (`test_scenarios`); the wall's stop and a spin in place do not.

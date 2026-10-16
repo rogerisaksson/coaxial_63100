@@ -57,10 +57,31 @@ SCENARIOS = {
     'hop_down': ('on_chair', [(1.0, {'say': 'hop_down_chair'})], 6.0, 'sank', 0.40),
     'hop_up': ('chair_ahead', [(1.0, {'say': 'hop_up_chair'})], 6.0, 'rose', 0.40),
 }
-#: Shoves: N, the way they push (deg about up from ahead, 90 to her left), standing or walking;
-#: 80 N held, 200 N held or fallen with her head slower than FALL_M_S onto the floor.
-SHOVES = {'shove_%d_%03d_%s' % (n, way, gait): (n, way, gait)
-          for n in (80, 200) for way in range(0, 360, 45) for gait in ('stand', 'walk')}
+#: A player's keys as twists, a hold each, s: what the page sends for WASD, Q/E and Shift.
+KEYS = {'w': WALK, 's': (-0.35, 0.0, 0.0), 'a': (0.0, 0.5, 0.0), 'd': (0.0, -0.5, 0.0),
+        'wa': (0.69, 0.0, 0.7), 'wd': (0.69, 0.0, -0.7), 'q': (0.0, 0.0, 0.7), 'W': (1.4, 0.0, 0.0), '-': STOP}
+PLAYS = {'start_stop': 'w3 -3 w3 -3', 'turns': 'w2 wa2 wd2 -3', 'strafes': 'a2 d2 -3', 'reverse': 'w2 s2 w2 -3',
+         'sprint': 'w2 W3 w2 -3', 'spin': 'q3 -3', 'weave': 'w1 wa1 w1 wd1 w1 -3'}
+
+
+def _played(keys):
+    """(commands, seconds) of a player's keys, 'w3 -2': each a twist held its seconds, from 1 s."""
+    at, plan = 1.0, []
+    for word in keys.split():
+        plan.append((at, {'twist': KEYS[word.rstrip('0123456789.')]}))
+        at += float(word[len(word.rstrip('0123456789.')):])
+    return plan, at + 1.0
+
+
+SCENARIOS.update({'play_' + n: ('flat', *_played(k), 'stands', None) for n, k in PLAYS.items()})
+
+#: Shoves: N, the way they push (deg about up from ahead, 90 to her left), standing or walking,
+#: at one of MOMENTS - a quarter of her stride apart, the foot that swings decides; 80 N held, 200 N
+#: held or fallen with her head slower than FALL_M_S onto the floor.
+MOMENTS = (5.0, 5.15, 5.30, 5.45)
+SHOVES = {'shove_%d_%03d_%s_%d' % (n, way, gait, k): (n, way, gait, at)
+          for n in (80, 200) for way in range(0, 360, 45) for gait in ('stand', 'walk')
+          for k, at in enumerate(MOMENTS)}
 FALL_M_S = 1.0
 
 
@@ -99,23 +120,29 @@ def borne(world, hers, kinds, force):
     return out
 
 
-def ran(name):
-    """{name, stood, fell_at, goal, met, went m, rose m, speed m/s, bore {kind: share held}, jerk}."""
+def ran(name, wobble=0.0):
+    """{name, stood, fell_at, goal, met, went m, rose m, speed m/s, bore {kind: share held}, jerk}:
+    laid turned `wobble` rad about up."""
     import numpy as np
     from machine import edge, modal, physics, worker
-    physics.ROOM, physics.SIGHT = 1.0, 0.0
+    # an open floor: the page's living room walls the longer walks in
+    physics.ROOM, physics.SIGHT = 0.0, 0.0
     shove = SHOVES.get(name)
     if shove:
-        n, way, gait = shove
+        n, way, gait, at = shove
         yaw = math.radians(way)
         plan = ([(0.5, {'twist': WALK})] if gait == 'walk' else []) + [
-            (5.0, {'push': (n * math.sin(yaw), 0.0, n * math.cos(yaw)), 'seconds': 0.12})]
+            (at, {'push': (n * math.sin(yaw), 0.0, n * math.cos(yaw)), 'seconds': 0.12})]
         scene, seconds, goal, aim = 'flat', 9.0, 'held', n
     else:
         scene, plan, seconds, goal, aim = SCENARIOS[name]
     s = worker.session()
     placed(s, scene)
     world = s['g']['world']
+    q = world.data.qpos[3:7].copy()
+    world.data.qpos[3:7] = (q[0] * math.cos(wobble / 2.0) - q[2] * math.sin(wobble / 2.0), q[1] * math.cos(wobble / 2.0) + q[3] * math.sin(wobble / 2.0),
+                            q[2] * math.cos(wobble / 2.0) + q[0] * math.sin(wobble / 2.0), q[3] * math.cos(wobble / 2.0) - q[1] * math.sin(wobble / 2.0))
+    world._mj.mj_forward(world.model, world.data)
     m, d = world.model, world.data
     hers = np.array([edge._rooted(m, b, world.pelvis) for b in range(m.nbody)])
     kinds = {m.body(n).id: k for n, k in BEARS.items()}
@@ -183,15 +210,19 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
     parser.add_argument('names', nargs='*', help='scenarios (all where none)')
     parser.add_argument('--one', help="one scenario, its line as JSON")
-    parser.add_argument('--shoves', action='store_true', help="the shoves' polar too")
+    parser.add_argument('--wobble', type=float, default=0.0, help='with --one: laid turned this rad')
+    parser.add_argument('--wobbles', action='store_true', help='each laid turned 0 and 2e-4 rad either way too')
+    parser.add_argument('--shoves', help="the shoves' polar too, of these N (80, 200)")
     args = parser.parse_args(argv)
     if args.one:
-        print(json.dumps(ran(args.one)))
+        print(json.dumps(ran(args.one, args.wobble)))
         return 0
     from tools.dev import focus
-    names = args.names or (list(SCENARIOS) + (list(SHOVES) if args.shoves else []))
-    jobs = [focus.Job(n, [sys.executable, '-X', 'utf8', os.path.abspath(__file__), '--one', n], timeout=900.0)
-            for n in names]
+    names = args.names or (list(SCENARIOS) + [n for n in SHOVES if args.shoves and n.split('_')[1] == args.shoves])
+    wobbles = (0.0, 2e-4, -2e-4) if args.wobbles else (0.0,)
+    names = [n if w == 0.0 else '%s@%+g' % (n, w) for n in names for w in wobbles]
+    jobs = [focus.Job(n, [sys.executable, '-X', 'utf8', os.path.abspath(__file__), '--one', n.split('@')[0],
+                          '--wobble', n.split('@')[1] if '@' in n else '0'], timeout=900.0) for n in names]
     rows = {}
     for job, text, _code, _seconds in focus.relay(jobs):
         line = next((ln for ln in reversed((text or '').splitlines()) if ln.startswith('{')), None)

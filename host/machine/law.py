@@ -14,7 +14,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
-from machine import edge, estimate, flight, impedance, latent, modal, se2, support, wbc
+from machine import edge, estimate, impedance, latent, modal, se2, support, touch, wbc
 
 
 def seen(g, dt):
@@ -55,7 +55,7 @@ def control(g, dt):
     g['_last_way'] = cw
     se2.step_physical_twist(g, dt * ev, out)
     cur_doing = sprung.doing(g)
-    flight.check_contacts(g, out, cur_doing)
+    touch.check_contacts(g, out, cur_doing)
     if g['t'] < max(g['stumble_until'], g.get('parry_until', 0.0)):
         se2.boost_stumble(g, out)
     ae, tw = g.get('active_entry'), g.get('twist', (0.0, 0.0, 0.0))

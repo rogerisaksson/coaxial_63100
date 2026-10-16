@@ -214,8 +214,8 @@ gets a line at the end of [DONE](DONE.md).
 
 Each a test in MuJoCo: placed, commanded as a player would, judged by no
 fall, its goal reached and its jerk (`tools/sim/scenarios.py`; those that hold
-in `test_scenarios`, 6 of 19 now: [scenarios](findings/scenarios.md)). One
-law each, no entry a case.
+in `test_scenarios`, 12 of 26 at every wobble now:
+[scenarios](findings/scenarios.md)). One law each, no entry a case.
 
 - **Terrain by contact**: a swinging sole that meets something raises its
   clearance, one that meets nothing reaches on down, a sliding one lowers
@@ -223,17 +223,18 @@ law each, no entry a case.
   stepped into and out of, stairs of 0.15 x 0.30 m up and down, a slope
   of 10 deg up, down and across, ice, snow, asphalt and a slick patch;
   3 times in 4 each.
-- **Contact on her upper body**: a force sensed on a segment stops her
-  going along its normal. DOD: into a wall and a tree at walking speed,
-  standing after.
+- **A stop that settles**: the wall's stop still moving at one wobble, a spin
+  in place down at 7.94 s at another, a walk's stop down at 10.1-11.3 s at two
+  of five (`tests/replays/falls`). DOD: each at every wobble.
 - **Support by contact**: sit, lie and rise as weight moved onto and off a
   sensed support. DOD: chair, soft bed and floor mattress, down and up.
 - **One jump**: takeoff from the height and distance to land. DOD: down
   from a chair, two-footed up onto one (0.45 m), in place; landed standing.
 - **A shove in any direction, any moment**: the capture point past her
   soles steps her; past her reach she falls controlled, knees then hands,
-  head off the floor. DOD: 80 N 3 times in 4 over the polar, walking and
-  standing; 200 N falls with the head under 1 m/s.
+  head off the floor. 80 N walking 24 of 32 (from behind and ahead-aside
+  fall). DOD: 80 N 3 times in 4 over the polar, walking and standing; 200 N
+  falls with the head under 1 m/s.
 - **The drives for it**: DOD: each scenario's peak, rms, speed and heat a
   drive against its parts, none past 2/3; a change named if one is.
 - **Maneuver horizon**: DOD: each limb's reach and a swinging sole's

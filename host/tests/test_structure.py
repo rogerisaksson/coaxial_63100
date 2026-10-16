@@ -305,7 +305,7 @@ def test_motor_imports_no_board(r):
 
 #: Her law: what `machine.law` steps. It reads the world through `machine.edge` alone.
 LAW = ('law', 'se2', 'flight', 'support', 'latent', 'impedance', 'modal', 'poise', 'stride',
-       'estimate', 'wrench', 'wbc', 'reach')
+       'estimate', 'wrench', 'wbc', 'reach', 'touch')
 #: What her law may not name: the world, its truth, its ids, the writes that move it, the world's
 #: own modules. Her model posed is wbc.sense's and estimate.step's alone.
 TRUTH = {'world', 'obstacle_ids', 'sill_ids', 'upper_ids', 'robot_ids', 'push_until', 'push_n',

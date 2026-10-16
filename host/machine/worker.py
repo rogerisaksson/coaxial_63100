@@ -299,6 +299,10 @@ def stepped(s):
     if s['fallen_at'] is None and _is_fallen(g, world):
         s['fallen_at'] = g['t']
     s['passes'] += 1
+    if g.get('_resume_at') is not None and g['t'] >= g['_resume_at']:
+        g['_resume_at'] = None
+        if any(abs(v) > 0.01 for v in g.get('asked', (0.0, 0.0, 0.0))):
+            heard(g, s['gym'], {'twist': g['asked']})
     tau = world.data.ctrl
     s['torque'] += K * (tau - s['torque'])
     s['power'] += K * (tau * world.data.qvel[world.vadr] - s['power'])

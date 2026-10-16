@@ -49,6 +49,7 @@ def laid(world):
     world.skin = np.full(m.nbody, -1, int)
     for k, name in enumerate(SKIN):
         world.skin[m.body(name).id] = k
+    world.skin_bodies = np.array([m.body(name).id for name in SKIN])
     world.hers = hers
     world.insole = np.full(m.nbody, -1, int)
     for k, name in enumerate(INSOLES):
@@ -101,6 +102,9 @@ def read(world, y):
         if k >= 0:
             push = c.frame.reshape(3, 3).T @ force[:3] * (1.0 if mine == b1 else -1.0)
             touch[k] += d.xmat[mine].reshape(3, 3).T @ push
+    # a shove is a hand on her: what the world applies to her bodies, her skin feels
+    for k, body in enumerate(world.skin_bodies):
+        touch[k] += d.xmat[body].reshape(3, 3).T @ d.xfrc_applied[body, :3]
     y[LOAD] = loads
     y[TOUCH] = touch.ravel()
     y[PRESS] = pressed

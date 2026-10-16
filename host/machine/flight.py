@@ -14,7 +14,7 @@ next.
 """
 import math
 
-from machine import edge, reach
+from machine import reach
 from machine.figure import ANKLE_H, BALL, HEEL
 
 G = 9.81
@@ -331,48 +331,3 @@ def stride_hop(g, by, t0, spd, back_now, fwd_gaits, back_gaits, said_fn, walk_on
         said_fn(g, 'jog', rj.tobytes(), ('run',), at=t_res + 0.01)
     elif prev in by:
         said_fn(g, *by[prev], at=t_res + 0.01, reset=(prev == '#201'))
-
-
-#: Her segments under her knees, a side's: what bears on the floor, or trips over what is on it.
-SOLES = ((edge.SKIN.index('left_foot'), edge.SKIN.index('left_toes')),
-         (edge.SKIN.index('right_foot'), edge.SKIN.index('right_toes')))
-ABOVE = [k for k in range(len(edge.SKIN)) if k not in SOLES[0] + SOLES[1]]
-
-
-#: A sole meets an edge EDGE_M and more over the floor her bearing soles stand on: walking a flat
-#: floor her swinging soles were touched along it 7.9 mm over it at most - a landing's friction
-#: 544 N -, the 35 mm sill's face 14 to 38 mm up.
-EDGE_M = 0.01
-
-
-def check_contacts(g, out, cur_doing):
-    """A touch on her above her soles halts her drive and brakes her; a sole asked aloft that has
-    come clear of everything, then is touched more along the floor than up it EDGE_M over it -
-    an edge met, not the floor - trips her. Touched aloft at all, her toes leaving a flat floor
-    tripped her 13 times in 40 s."""
-    import numpy as np
-    from machine import latent, modal, sprung
-    y, model = g['sense'], g['body'].d
-    touch = y[edge.TOUCH].reshape(-1, 3)
-    g['_upper_hit'] = bool((np.linalg.norm(touch[ABOVE], axis=1) > edge.TOUCHED_N).any())
-    if g['_upper_hit']:
-        out[latent.SWAY][modal.DRIVE] = min(float(out[latent.SWAY][modal.DRIVE]), 0.04)
-        out[latent.REF][modal.DRIVE] = g['a'][modal.GOING] = 0.0
-        if cur_doing not in ('brake', '#201', 'rest') and abs(float(g['st'][latent.NOW][latent.AMP][modal.DRIVE])) > 0.06:
-            sprung._dropped(g)
-            sprung.said(g, 'brake', g['_brake_wire'], ('brake',), at=g['t'] + 0.001, reset=True)
-            if g['_stand_entry'] is not None:
-                sprung.said(g, *g['_stand_entry'], at=g['t'] + 1.20, reset=True)
-            g['active_entry'] = '#201'
-    aloft, met, clear = g['a'][modal.STANCE] < 0.5, False, list(g.get('_clear', (False, False)))
-    for side, segs in enumerate(SOLES):
-        pushes = [model.xmat[g['body'].m.body(edge.SKIN[k]).id].reshape(3, 3) @ touch[k] for k in segs]
-        felt = max(float(np.linalg.norm(p)) for p in pushes) > edge.TOUCHED_N
-        up = float(g['y'][modal.LOWEST][side] - g['fr'][modal.FLOOR])
-        met = met or (clear[side] and up > EDGE_M and any(
-            np.linalg.norm(p) > edge.TOUCHED_N and math.hypot(float(p[0]), float(p[2])) > abs(float(p[1]))
-            for p in pushes))
-        clear[side] = bool(aloft[side]) and (clear[side] or not felt)
-    g['_clear'] = tuple(clear)
-    if met:
-        g['stumble_until'], g['a'][modal.GOING] = g['t'] + 0.95, min(float(g['a'][modal.GOING]), 0.25)
