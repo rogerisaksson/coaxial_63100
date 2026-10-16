@@ -9,7 +9,7 @@ A joint (deg, the drive holding an angle), a surface (a joint of narrow span), a
 """
 import math
 
-from coaxial.comm.hostclock import clock_of
+from coaxial.comm.hostclock import Told, clock_of
 from coaxial.control.commission import Commissioning
 from coaxial.control.motion import started
 from coaxial.comm.session import standing
@@ -36,27 +36,6 @@ START, START_S, STOP_S = 3.0, 0.4, 0.1
 #: leg's current crosses zero, and the same shaft rang 7 % higher (31.5 Hz where 29.4) and kept
 #: 0.70 of its swing a period where 0.93 - a shoulder read over its elbow one arm in six.
 AXIS = math.pi / 3.0
-
-
-class _Told:
-
-    """A stand-in's seconds for a ring: its law run by what it is told (`paced`) and by no
-    wall, a read of the clock `STEP` s on. On the wall's, six processes on two logical cores,
-    a 23 Hz ring was read 131 ms apart and one board's two reads came 100-134 % apart."""
-
-    STEP = 0.0002
-
-    def __init__(self, paced):
-        self._paced, self._at = paced, 0.0
-        paced(0.0)
-
-    def sleep(self, seconds):
-        self._paced(seconds)
-        self._at += seconds
-
-    def perf(self):
-        self.sleep(self.STEP)
-        return self._at
 
 
 def _arming(rig, arming):
@@ -290,7 +269,7 @@ class Coaxial(Node):
             drive.configure(source='model')
         rig.gates.on(**_arming(rig, arming))
         try:
-            clock = _Told(paced) if paced else clock_of(rig)    # the ring's own seconds
+            clock = Told(paced) if paced else clock_of(rig)    # the ring's own seconds
             axis = AXIS * round(drive.state()['theta_hat'] / AXIS)
             drive.write(id_ref=amps, iq_ref=0.0, theta=axis - math.radians(step_deg),
                         omega_target=0.0)

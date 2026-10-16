@@ -61,12 +61,39 @@ class HostClock:
             time.sleep(min(left * self._scale(), self.READ_S))
 
 
+class Told:
+
+    """A stand-in's seconds: its law run by what it is told (`paced`) and by no wall, a read of
+    the clock `STEP` s on. On the wall's, six processes on two logical cores, a 23 Hz ring was
+    read 131 ms apart and one board's two reads came 100-134 % apart; a velocity lane's 2 s
+    ended where the wall left it on its 0.7 Hz ring, 1421 rpm on Python 3.12, told 1446."""
+
+    STEP = 0.0002
+    virtual = True
+
+    def __init__(self, paced):
+        self._paced, self._at = paced, 0.0
+        paced(0.0)
+
+    def sleep(self, seconds):
+        self._paced(seconds)
+        self._at += seconds
+
+    def perf(self):
+        self.sleep(self.STEP)
+        return self._at
+
+    now = perf
+
+
 #: The PC's own.
 WALL = HostClock()
 
 
 def clock_of(owner):
-    """The clock of whatever `owner` - a rig, a board, a device - talks through; the PC's where
-    it names none (the stand-in, a broker)."""
+    """The clock of whatever `owner` - a rig, a board, a device - talks through: the board's own
+    (`host_clock`, a stand-in told its seconds), its transport's, else the PC's (the stand-in,
+    a broker)."""
     board = getattr(owner, 'board', owner)
-    return getattr(getattr(board, 'transport', None), 'host_clock', None) or WALL
+    return (getattr(board, 'host_clock', None)
+            or getattr(getattr(board, 'transport', None), 'host_clock', None) or WALL)

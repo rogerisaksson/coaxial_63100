@@ -82,9 +82,9 @@ def main():
 
     _session, origin = open_session()
     if not origin.real or origin.kind == 'emulator':
-        print('no board answered - a benchmark against the stand-in or the emulator '
-              'measures this PC, so there is nothing to say')
-        print('0 passed, 0 failed')
+        print('  SKIP  the board\'s rates against its baseline: no board answered, the '
+              'stand-in or the emulator measures this PC')
+        print('0 passed, 0 failed, 1 skipped')
         return 0
 
     # AFE_ON held, as the baseline was recorded.

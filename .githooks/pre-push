@@ -1,0 +1,4 @@
+#!/bin/sh
+# The repo's pre-push (setup.ps1 points git here): every machine module imported and her first
+# seconds run headless (host/tools/dev/smoke.py); a fault stops the push.
+exec python -X utf8 host/tools/dev/smoke.py

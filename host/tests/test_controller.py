@@ -10,6 +10,7 @@ import tempfile
 import time
 
 from coaxial import Coaxial63100
+from coaxial.comm.hostclock import Told
 from machine.controller import Feedback, Loop, Paced
 from machine.errors import MachineError
 from machine.modes import SIMULATED
@@ -76,6 +77,15 @@ class Clock:
             self.t += DT
 
 
+def refused(report, name, call, word):
+    """`call()` refused, `word` in its words."""
+    try:
+        call()
+        report.check(name, False)
+    except MachineError as exc:
+        report.check(name, word in str(exc), exc)
+
+
 def speed(rotor, regulator=None, estimator=None, **kw):
     """A loop of one feedback, 'speed', around the toy rotor."""
     loop = Loop({'rotor': rotor}, {'rotor': rotor}, **kw)
@@ -119,11 +129,7 @@ def test_every_channel_is_a_float(report):
     report.check('ints and bools land as floats, a string never does',
                  all(isinstance(v, float) for v in row.values()) and row['enable'] == 1.0
                  and row['rotor.spinning'] == 0.0 and 'rotor.name' not in row, sorted(row))
-    try:
-        loop.write(mode='hold')
-        report.check('a string setpoint is refused', False)
-    except MachineError as exc:
-        report.check('a string setpoint is refused', 'float' in str(exc), exc)
+    refused(report, 'a string setpoint is refused', lambda: loop.write(mode='hold'), 'float')
 
 
 def test_parts_swap_in_place(report):
@@ -247,11 +253,8 @@ def test_the_sequencer(report):
     seq.jump('end')
     report.check('jump, back, forward move the next main row',
                  (seq.at, seq.back(), seq.forward()) == (3, 2, 3))
-    try:
-        Sequencer([{'seconds': 1, 'goto': 'nowhere'}])
-        report.check('a goto to no label is refused', False)
-    except MachineError as exc:
-        report.check('a goto to no label is refused', 'nowhere' in str(exc), exc)
+    refused(report, 'a goto to no label is refused',
+            lambda: Sequencer([{'seconds': 1, 'goto': 'nowhere'}]), 'nowhere')
 
 
 def test_a_program_as_data(report):
@@ -276,11 +279,7 @@ def test_a_program_as_data(report):
     out = endless.run(loop)
     report.check('a program that never stops is stopped by max_steps',
                  out.status == 'limit' and len(out.steps) == 50, out.reason)
-    try:
-        Sequencer([{'seconds': 1, 'label': 'stop'}])
-        report.check('stop is not a label', False)
-    except MachineError as exc:
-        report.check('stop is not a label', 'stop' in str(exc), exc)
+    refused(report, 'stop is not a label', lambda: Sequencer([{'seconds': 1, 'label': 'stop'}]), 'stop')
 
 
 def test_the_table_refuses(report):
@@ -473,6 +472,7 @@ def test_the_pictures_and_the_panel(report):
 def test_velocity_is_a_feedback(report):
     device = Coaxial63100(execution_mode=SIMULATED).open()
     try:
+        device.board.host_clock = Told(device.board.drive.paced)
         drive = device.drive
         drive.configure(source='model')
         drive.model.configure(j=J, b=B, load=0.0)
@@ -516,11 +516,7 @@ def test_nodes_offer_then_configure(report):
         loop.step(0.04)
         report.check('a loop over a node\'s modules reads its channels by dotted name',
                      'LL_2.angle.degrees' in loop.bus)
-        try:
-            nodes.loop(inputs=['LL_2.gears'])
-            report.check('a module a node lacks is refused', False)
-        except MachineError as exc:
-            report.check('a module a node lacks is refused', 'gears' in str(exc), exc)
+        refused(report, 'a module a node lacks is refused', lambda: nodes.loop(inputs=['LL_2.gears']), 'gears')
     finally:
         nodes.close()
 
@@ -644,9 +640,9 @@ def test_machine_types_and_routines(report):
             report.check('%s: its routines run, its actuators read back' % kind,
                          out.status == 'done' and back in out.rows[-1], out.summary())
         humanoid = Machine(nodes, type='humanoid')
-        report.check('the camera sees what the head turned to',
-                     abs(humanoid.run('0 run=look yaw=35\n0.4').rows[-1]
-                         ['head_camera.vision.target.x'] - 5.0 / 30.0) < 0.05)
+        rows = humanoid.run('0 run=look yaw=35\n0.4').rows      # the camera read before the head
+        report.check('the camera sees what the head turned to', abs(
+            rows[-1]['head_camera.vision.target.x'] - (40.0 - rows[-2]['head.deg']) / 30.0) < 1e-9)
         told = humanoid.prompt()
         report.check('the prompt names the type, its routines and what it reads',
                      'This machine (humanoid)' in told and 'walk(stride=20' in told

@@ -247,7 +247,7 @@ class Velocity(_Mode):
             lq=p['motor_lq'], lam=p['motor_lambda'],
             poles=self.poles, j=j, b=b, measured=False)
         self.loop = Loop({'drive': Polled(self.drive.state)}, {'drive': self.drive},
-                         rate_hz=rate_hz)
+                         rate_hz=rate_hz, clock=self._clock.perf, sleep=self._clock.sleep)
         self.loop.add('speed', Feedback(
             regulator or SpeedPI.of(hz, float(amps), motor,
                                     load=Propeller(load_k) if load_k else None),

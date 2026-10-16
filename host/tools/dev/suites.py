@@ -108,6 +108,8 @@ REACH, TERMS = 'test_reach.py', 'test_terms.py'
 WBC_CORE, FLIGHT, WRENCH = 'test_wbc_core.py', 'test_flight.py', 'test_wrench.py'
 #: Orthokinematics: a text compiled, her latent loop, her walk on it, the page's gym.
 ORTHO = 'test_ortho.py'
+#: Her motion's measures in a dimensionless frame on SO(3) (tools/sim/gvs.py).
+GVS = 'test_gvs.py'
 #: The frame's core (aero/) in a vacuum: its form, its share, its impedance; a text's streams
 #: compiled and flown on it.
 AERO_CORE, STREAMS = 'test_aero_core.py', 'test_quad_streams.py'
@@ -129,7 +131,7 @@ DEFAULT_SUITES = (STRUCTURES + (CORE, SHTP, DRIVE, DRIVE_OBSERVER, FILTER, THERM
                                 BOOT_CORE, BOOT_CLIENT,
                    CTRL_CORE, WORLD_CORE, WIRE, NATIVE, NATIVE_HEAT, EMULATOR,
                    SENSORLESS,
-                   BROKER, DAQ_API, CONTROLLER, GYNOID, SIGHT, REACH, TERMS, WBC,
+                   BROKER, DAQ_API, CONTROLLER, GYNOID, SIGHT, REACH, TERMS, GVS, WBC,
                    WBC_CORE, FLIGHT, WRENCH, ORTHO, CYCLIC, QUAD, QUAD_PULL,
                    AERO_CORE, STREAMS, QUAD_COURSE, BOOT)
                   + VIEWS
@@ -154,6 +156,7 @@ JOINS = (
     (12, SIGHT),
     (12, REACH),
     (12, TERMS),
+    (12, GVS),
     (12, WBC),
     (12, FLIGHT),
     (12, ORTHO),
@@ -225,8 +228,10 @@ def plan_for(percent):
 
 
 # A cable is not a regression: every suite opens through open_session(), which
-# probes and falls back to the stand-in, and says which it got.
-NEEDS_BOARD = (CONFORMANCE,)
+# probes and falls back to the stand-in, and says which it got. These three mean a board:
+# parity compares one with the stand-in (the emulated image, in the firmware's CI), the bench
+# times one; without, they skip.
+NEEDS_BOARD = (CONFORMANCE, 'test_parity.py', BENCH)
 
 #: Suites that time the link or hold the model on the card: the host to themselves - the bench
 #: suite measures the link's own rates, conformance its frame gaps.

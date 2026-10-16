@@ -62,9 +62,9 @@ def main():
     report = Report()
 
     if not origin.real:
-        print('no board answered - both sides would be the stand-in, so there '
-              'is nothing to compare')
-        print('\n0 passed, 0 failed')
+        print('  SKIP  the board against the stand-in: no board answered, both sides '
+              'would be the stand-in')
+        print('\n0 passed, 0 failed, 1 skipped')
         return 0
 
     stand_in = SimulatedSession()

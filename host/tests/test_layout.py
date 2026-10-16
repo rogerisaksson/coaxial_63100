@@ -279,8 +279,18 @@ def test_no_dates_in_the_tree(r):
     r.check('the tree\'s text holds no dates', not dated, '; '.join(dated[:4]))
 
 
+def test_every_suite_runs(r):
+    """Every tests/test_*.py is a suite a run names (`tools/dev/suites.py`): four in no list
+    never ran, three of them red."""
+    from tools.dev.suites import ALL_SUITES
+    stray = sorted(n for n in (os.path.basename(p) for p in glob.glob(os.path.join(HERE, 'test_*.py')))
+                   if n not in ALL_SUITES)
+    r.check('every suite in tests/ is one a run names', not stray, ', '.join(stray))
+
+
 ROSTER = (test_target_briefs, test_emulation_is_transparent, test_null_has_its_header,
-          test_counts_are_measured, test_notebooks_are_papers, test_no_dates_in_the_tree)
+          test_counts_are_measured, test_notebooks_are_papers, test_no_dates_in_the_tree,
+          test_every_suite_runs)
 
 def main(argv=None):
     """Every test, or those the command line's words name, or its --shard k/n (tools.dev.focus)."""

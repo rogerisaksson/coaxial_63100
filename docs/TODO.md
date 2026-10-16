@@ -197,21 +197,6 @@ gets a line at the end of [DONE](DONE.md).
       check in `test_layout`: no document names a module, a tool or a suite not
       in the tree.
 
-## Guards
-
-- **Pre-push smoke**: `.githooks/pre-push` imports every `machine` module and
-  runs her a second headless. DOD: a broken import or a raise in her first
-  second stops the push, in under 20 s.
-- **Clocks in test_controller**: the 1500 rpm lane and the head camera ran on
-  the wall's clock; on Python 3.12 they read 1421 rpm and a miss. DOD: both on
-  simulated time, the same numbers on 3.12, 3.14 and a loaded host.
-- **Suites that run nothing**: test_parity and test_bench pass 0 of 0 without
-  a board; test_gvs, test_house_tour, test_stunts and test_tps_gameplay are in
-  no suite list. DOD: a suite with nothing to measure says SKIP and why; every
-  `tests/test_*.py` is in `tools/dev/suites.py` or gone (test_layout).
-- **A worktree an agent**: two writers in one tree met a half-done refactor.
-  DOD: CLAUDE.md's rule, an agent in its own worktree and branch.
-
 ## Recordings
 
 - **Stage from measurement**: `stage` read the gait's amplitude and said
@@ -322,5 +307,8 @@ fall, its goal reached and its jerk. One law each, no entry a case.
 
 ## Host
 
+- **The stand-in's velocity lane rings**: told its seconds, 1420-1590 rpm at
+  0.7 Hz about 1500 (`test_controller`'s lane reads 1446 at 2 s). DOD:
+  within 1 % past its ramp.
 - **native://**: a limb's world on a fixed mount as board/emu's. DOD: the
   body's balance and gait from the SIL.

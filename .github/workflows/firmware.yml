@@ -60,6 +60,13 @@ jobs:
         env:
           COAXIAL_ELF: ../build/${{ matrix.preset }}/coaxial_63100.elf
           COAXIAL_EMULATOR: required
+      # The stand-in against the firmware it stands in for, emulated: the same calls, the same
+      # shapes. Without a board the host's gate has nothing to compare it with.
+      - run: python -X utf8 tests/test_parity.py 2>&1 | tee -a ../build.log; exit ${PIPESTATUS[0]}
+        shell: bash
+        working-directory: host
+        env:
+          COAXIAL_ELF: ../build/${{ matrix.preset }}/coaxial_63100.elf
       # A red run must be readable without the Actions UI, like the host's.
       - if: failure()
         env:

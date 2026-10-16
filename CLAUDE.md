@@ -89,7 +89,9 @@ Fitted parts come from `0x6D` kind 4, never from a name. Host rules:
   memory laid once; tables of steps; the hardware at one edge.
 - **Local first.** Scripts, lint, suites on this host before agents or
   workflows, ultracode or not; agents only for what cannot run here. Two
-  swarms burned tokens and ran slower than local work.
+  swarms burned tokens and ran slower than local work. An agent writes in
+  a worktree and branch of its own (`isolation: worktree`), never in the
+  shared tree: a suite run there met another's half-done refactor.
 - **The relay maxes the host.** Suites only through the baton relay
   (`tools/dev/focus.py`: a baton a physical core, the longest first, the
   long ones as shards): `python tools/dev/run_tests.py --file test_a.py

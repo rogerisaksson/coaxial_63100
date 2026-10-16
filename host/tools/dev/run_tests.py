@@ -173,8 +173,9 @@ def _run(args, tags, live_sections):
             failing_lines.extend('%s: %s' % (name, x) for x in failing)
             if failed or code != 0:
                 ok = False
-            print('%-20s %s, %d failed  %.1fs'
-                  % (name, '%d passed' % passed, failed, elapsed))
+            print('%-20s %s, %d failed%s  %.1fs'
+                  % (name, '%d passed' % passed, failed,
+                     ', %d skipped' % skipped if skipped else '', elapsed))
 
         sizes = {n: p + f + s for n, (p, f, s) in suite_sizes.items()}
         counts.record('suites', sizes)
