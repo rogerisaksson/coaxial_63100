@@ -69,17 +69,10 @@ gets a line at the end of [DONE](DONE.md).
    + Humanoid robot walk's speed: a drive past 0.6 surges and falls at 17 to 26
      s; 1.0 m/s only with the humanoid robot arms at 130 deg and the humanoid
      robot head bobbing 0.19 m. Humanoid robot run: none.
-   + Shoves: moderate shoves (up to 80 N) interrupt movement into `parry_shove` reflex
-     absorbing momentum within dynamic footprint without falling; severe shoves (> 120 N)
-     trigger compliant `controlled_fall` (knees absorb, arms extend to cushion, head held off ground).
-   + The hop as given: full extension asked off the floor and no
-     landing; the humanoid robot own text stands. Two-footed hop up onto chair (`hop_up_chair`)
-     and controlled hop down (`hop_down_chair`) implemented.
-   + Humanoid robot words and stunts: `sit_chair`, `rise_chair`, `lie_bed`, `rise_bed`,
-     `lie_floor`, `rise_floor`, `stairs_walk`, `ice_walk`, `slope_walk` compiled in `machine/gynoid_mesomorph_medium.lisp`.
-   + The floor's events: 10cm hole (`HOLE_M = 0.10`), 6cm sill (`SILL_M = 0.06`), slip patch,
-     loose rug, stairs, wall, and tree (`machine/floor.py`); swing-foot collision triggers stumble
-     clearance boost reflex (`mode_limb_lift >= 2.8`); wall/tree collisions compliantly damp drive.
+   + Shoves, hops, stunts and the floor's events: as entries a case each
+     (`parry_shove` chosen by the shove's newtons, the chair moved under her
+     mid-hop, obstacles found by body id); their general laws are under
+     Scenarios below.
    + The loop in C: `latent.step` and `impedance.ask` as cores beside
      `wbc/`, `ortho_row_t` a header a test holds to `ortho.ROW`; the page
      on `wbc_wrench.c`. Solved every pass, every second, third (the
@@ -204,6 +197,94 @@ gets a line at the end of [DONE](DONE.md).
       check in `test_layout`: no document names a module, a tool or a suite not
       in the tree.
 
+## Guards
+
+- **Pre-push smoke**: `.githooks/pre-push` imports every `machine` module and
+  runs her a second headless. DOD: a broken import or a raise in her first
+  second stops the push, in under 20 s.
+- **Clocks in test_controller**: the 1500 rpm lane and the head camera ran on
+  the wall's clock; on Python 3.12 they read 1421 rpm and a miss. DOD: both on
+  simulated time, the same numbers on 3.12, 3.14 and a loaded host.
+- **Suites that run nothing**: test_parity and test_bench pass 0 of 0 without
+  a board; test_gvs, test_house_tour, test_stunts and test_tps_gameplay are in
+  no suite list. DOD: a suite with nothing to measure says SKIP and why; every
+  `tests/test_*.py` is in `tools/dev/suites.py` or gone (test_layout).
+- **A worktree an agent**: two writers in one tree met a half-done refactor.
+  DOD: CLAUDE.md's rule, an agent in its own worktree and branch.
+
+## Recordings
+
+- **Stage from measurement**: `stage` read the gait's amplitude and said
+  stand at 0.9 m/s. DOD: from her speed and her soles' changes; a walk
+  at 0.9 m/s reads walk on every row.
+- **Commands recorded**: a recording kept states, not what was asked. DOD:
+  a CSV's keys and commands columns at the loop's time; `tools/sim/replay.py`
+  replays a page recording to the same pelvis track within 1 mm.
+- **Falls as regressions**: DOD: `tests/replays/*.csv` replayed by a suite in
+  the gate, each without a fall.
+- **Recording shown**: DOD: every MuJoCo page records on R and shows a
+  spinner and the rows written.
+
+## Sensor boundary
+
+- **Her controller sees what a robot measures**: it reads `world.data`
+  (`qpos`, `obstacle_ids`, contact pairs by body) and writes the world
+  (`mocap` of the chair mid-hop). DOD: `machine/sensors.py` the one reader -
+  IMU, encoders, sole loads, contact forces a segment - and a state estimator
+  of them; test_structure holds every controller module off `world.data`,
+  `world.model`, body ids, and writes to `qpos`, `qvel`, `xfrc_applied`,
+  `mocap_*` (scene placement and the shove alone, in `floor`, `physics`);
+  her walk's measures kept.
+
+## Mechatronics as data
+
+- **Parts and a robot as files**: motors, gearboxes and inverters are
+  constants in `drives.py`. DOD: a library of each and a robot's file naming
+  its stacks; `drives.py` reads them; DIMENSIONS.md unchanged.
+- **The robot's manifest**: DOD: a generator writes the robot's
+  orthokinematic parameters as Lisp from its file; `ortho` compiles it,
+  test_mirrors holds it to the file.
+
+## One command, either driver
+
+- **Teleoperation and autonomy alike**: the tour presses keys through
+  `_dispatch_key`, the controller branches on `_twist_active`, entry names
+  and where a command came from. DOD: a twist and a verb, the same from a
+  key or an agent; the worker never knows which.
+- **A third-person page**: DOD: movement relative to the camera, a chase
+  camera with lag and recentring, shoulder swap, sprint and walk, crouch,
+  context prompts - test_views_humanoid's checks and a PNG judged.
+- **No jerk in a transition**: DOD: every segment's peak jerk through a run
+  of transitions (stand, walk, turn, strafe, back, stop, sit, rise, hop) no
+  higher than in her steady walk; a test holds it.
+
+## Scenarios
+
+Each a test in MuJoCo: placed, commanded as a player would, judged by no
+fall, its goal reached and its jerk. One law each, no entry a case.
+
+- **Terrain by contact**: a swinging sole that meets something raises its
+  clearance, one that meets nothing reaches on down, a sliding one lowers
+  the friction she asks. DOD: sill and rug tripped over, a 10 cm hole
+  stepped into and out of, stairs of 0.15 x 0.30 m up and down, a slope
+  of 10 deg up, down and across, ice, snow, asphalt and a slick patch;
+  3 times in 4 each.
+- **Contact on her upper body**: a force sensed on a segment stops her
+  going along its normal. DOD: into a wall and a tree at walking speed,
+  standing after.
+- **Support by contact**: sit, lie and rise as weight moved onto and off a
+  sensed support. DOD: chair, soft bed and floor mattress, down and up.
+- **One jump**: takeoff from the height and distance to land. DOD: down
+  from a chair, two-footed up onto one (0.45 m), in place; landed standing.
+- **A shove in any direction, any moment**: the capture point past her
+  soles steps her; past her reach she falls controlled, knees then hands,
+  head off the floor. DOD: 80 N 3 times in 4 over the polar, walking and
+  standing; 200 N falls with the head under 1 m/s.
+- **The drives for it**: DOD: each scenario's peak, rms, speed and heat a
+  drive against its parts, none past 2/3; a change named if one is.
+- **Maneuver horizon**: DOD: each limb's reach and a swinging sole's
+  landing room drawn, toggled from the page.
+
 ## Bench
 
 - **25 kHz under a 63 V drive**: a hover's heat is its legs' dry switching,
@@ -243,4 +324,3 @@ gets a line at the end of [DONE](DONE.md).
 
 - **native://**: a limb's world on a fixed mount as board/emu's. DOD: the
   body's balance and gait from the SIL.
-
