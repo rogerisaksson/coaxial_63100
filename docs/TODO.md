@@ -214,35 +214,27 @@ gets a line at the end of [DONE](DONE.md).
 
 Each a test in MuJoCo: placed, commanded as a player would, judged by no
 fall, its goal reached and its jerk (`tools/sim/scenarios.py`; those that hold
-in `test_scenarios`, 12 of 26 at every wobble now:
+in `test_scenarios`, 15 of 26 at every wobble now:
 [scenarios](findings/scenarios.md)). One law each, no entry a case.
 
-- **Terrain by contact**: a swinging sole that meets something raises its
-  clearance, one that meets nothing reaches on down, a sliding one lowers
-  the friction she asks. DOD: sill and rug tripped over, a 10 cm hole
-  stepped into and out of, stairs of 0.15 x 0.30 m up and down, a slope
-  of 10 deg up, down and across, ice, snow, asphalt and a slick patch;
-  3 times in 4 each.
-- **A stop that settles**: the wall's stop still moving at one wobble; a walk's
-  stop down at 8.79 s, its toes on the room's wall read as a trip
-  (`tests/replays/falls`). DOD: each at every wobble.
+- **Terrain by contact**: a swinging sole that meets something raises her
+  swings by its height, one that meets nothing reaches on down; a sliding one
+  lowers the friction she asks. Met: the sill, the hole, ice, snow, asphalt, a
+  slick patch. DOD: the rug tripped over, stairs of 0.15 x 0.30 m up and down,
+  a slope of 10 deg up, down and across; 3 times in 4 each.
 - **Support by contact**: sit, lie and rise as weight moved onto and off a
   sensed support. DOD: chair, soft bed and floor mattress, down and up.
 - **One jump**: takeoff from the height and distance to land. DOD: down
   from a chair, two-footed up onto one (0.45 m), in place; landed standing.
 - **A shove in any direction, any moment**: the capture point past her
   soles steps her; past her reach she falls controlled, knees then hands,
-  head off the floor. 80 N walking 24 of 32 (from behind and ahead-aside
-  fall). DOD: 80 N 3 times in 4 over the polar, walking and standing; 200 N
+  head off the floor. 80 N standing 32 of 32, walking 23 (forward-aside 1 of
+  8). DOD: 80 N 3 times in 4 over the polar, walking and standing; 200 N
   falls with the head under 1 m/s.
 - **The drives for it**: DOD: each scenario's peak, rms, speed and heat a
   drive against its parts, none past 2/3; a change named if one is.
 - **Maneuver horizon**: DOD: each limb's reach and a swinging sole's
   landing room drawn, toggled from the page.
-- **The falls kept** (`host/tests/replays/falls`): a right turn at 0.69 m/s
-  down at 8.6-8.9 s laid 0 to 1 mm aside; a stop after a walk down at 10.1 and
-  11.3 s laid 1 and 0.2 mm one way, standing the other. DOD: each stands at
-  every `replay.WOBBLES`, moved up into `tests/replays`.
 
 ## Bench
 

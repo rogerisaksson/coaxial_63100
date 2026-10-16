@@ -14,10 +14,9 @@ def shape_hop_and_support(g, ask, out, cur_doing):
     if (cur_doing in ('load', 'throw', 'land') or (cur_doing == 'rest' and g.get('_hop_until', 0.0) > g['t'])) and (
             g.get('_jump_until', 0.0) > g['t'] or cur_entry == 'hop' or g.get('_hop_until', 0.0) > g['t']):
         return flight.shape_hop(g, ask, out, cur_doing, tx, ty, (latent, modal, wrench))
-    st_or_p = g['t'] < max(g.get('stumble_until', 0.0), g.get('parry_until', 0.0))
-    if max(g['loads']) > 10.0 and (g.get('_upper_hit') or st_or_p):
+    if max(g['loads']) > 10.0 and g.get('_upper_hit'):
         ask['kdot'] = -8.0 * y[modal.MOMENT]
-    if (twist_mode or st_or_p) and cur_doing not in sprung.STUNT_PHASES and g.get('_jump_until', 0.0) <= g['t'] and ask.get('swing'):
+    if twist_mode and cur_doing not in sprung.STUNT_PHASES and g.get('_jump_until', 0.0) <= g['t'] and ask.get('swing'):
         pyaw = edge.yaw(g['sense'])
         cp, sp, soles = math.cos(pyaw), -math.sin(pyaw), y[modal.SOLE].reshape(2, 3)
         for k, sw in list(ask['swing'].items()):

@@ -308,7 +308,10 @@ def step_physical_twist(g, dt, out=None):
             g['heading'] = wrap_angle(g['heading'] + out_st * tz * dt)
         if d_yaw * tz > 0.0:
             g['heading'] = wrap_angle(g['heading'] + 10.0 * d_yaw * dt)
-    if twist_mode and g.get('target_heading') is None and cur_doing not in sprung.STUNT_PHASES:
+    # turning, her heading goes with her body; walking on, it is where she was told: held to her
+    # pelvis and her going, a yaw of 0.22 rad off the floor after a sill turned her way and she
+    # crabbed down; after her going alone, the hole, the wall and the tree went with 5 shoves
+    if twist_mode and abs(tz) > 1e-6 and g.get('target_heading') is None and cur_doing not in sprung.STUNT_PHASES:
         if tx >= 0.05 and abs(ty) < 0.05 and math.hypot(float(y[modal.VCOM][0]), float(y[modal.VCOM][2])) > 0.32 and vxp > 0.15:
             err_v = wrap_angle(math.atan2(float(y[modal.VCOM][0]), float(y[modal.VCOM][2])) - g['heading'])
             if abs(err_v) > 0.32:
@@ -321,41 +324,6 @@ def step_physical_twist(g, dt, out=None):
     g['fr'][modal.ROT][:] = (sh_n, 0.0, ch_n, ch_n, 0.0, -sh_n, 0.0, 1.0, 0.0)
     if g.get('_twist_active'):
         _modulate_cpg(g, vx, vy, wz, out, vxp)
-    if out is not None and not is_hop:
-        from machine import worker
-        worker.check_parry(g, out, cur_doing, cur_entry, sh_n, ch_n)
-
-
-def boost_stumble(g, out):
-    from machine import latent, modal
-    trip = g['t'] < g.get('stumble_until', 0.0)
-    hz0, gain0 = float(g['st'][latent.NOW][latent.HZ]), float(g['st'][latent.NOW][latent.GAIN])
-    if (trip and hz0 < 1.15) or (not trip and (hz0 < 0.85 or gain0 < 0.1)):
-        g['st'][latent.THETA] = (float(g['st'][latent.THETA]) + math.tau * ((1.15 if trip else 1.0) - hz0 * gain0) * 0.001 * g['every']) % math.tau
-    w = max(float(out[latent.TURNS]), math.tau * (1.15 if trip else 1.0))
-    out[latent.TURNS], out[latent.HELD] = w, 2.0
-    lat_ph = -1.885 if (g.get('active_entry') in ('#205', 'turn_back_left', 'turn_back_right') or g.get('twist', (0.0,))[0] < -0.05) else 1.885
-    if trip or abs(float(g['st'][latent.NOW][latent.PHASE][modal.LATERAL])) < 0.1:
-        for part in (latent.NOW, latent.TO):
-            if abs(float(g['st'][part][latent.PHASE][modal.LATERAL])) < 0.1:
-                g['st'][part][latent.PHASE][modal.LATERAL] = g['st'][part][latent.PHASE][modal.LIST] = lat_ph
-    psi_d = float(g['st'][latent.THETA] + g['st'][latent.NOW][latent.PHASE][modal.DRIVE])
-    psi_l = float(g['st'][latent.THETA] + g['st'][latent.NOW][latent.PHASE][modal.LIFT])
-    psi_lat = float(g['st'][latent.THETA] + g['st'][latent.NOW][latent.PHASE][modal.LATERAL])
-    out[latent.PSI][modal.DRIVE], out[latent.PSI][modal.LIFT], out[latent.PSI][modal.LATERAL] = psi_d, psi_l, psi_lat
-    drv = min(0.50 if trip else 0.70, max(0.32, float(out[latent.SWAY][modal.DRIVE])))
-    out[latent.SWAY][modal.DRIVE], out[latent.REF][modal.DRIVE] = drv, drv * math.sin(psi_d)
-    out[latent.RATE][modal.DRIVE], out[latent.ACC][modal.DRIVE] = drv * w * math.cos(psi_d), -drv * w * w * math.sin(psi_d)
-    out[latent.SWAY][modal.LATERAL] = max(0.28, float(out[latent.SWAY][modal.LATERAL]))
-    sw0, l_tgt = float(out[latent.SWAY][modal.LIFT]), (2.6 if trip else 1.15)
-    if sw0 < l_tgt:
-        d_sw = l_tgt - sw0
-        out[latent.SWAY][modal.LIFT] = l_tgt
-        out[latent.REF][modal.LIFT] += d_sw * math.sin(psi_l)
-        out[latent.RATE][modal.LIFT] += d_sw * w * math.cos(psi_l)
-        out[latent.ACC][modal.LIFT] -= d_sw * w * w * math.sin(psi_l)
-    if g.get('_twist_active') or g.get('_twist_stop_until', 0.0) > g['t']:
-        out[latent.REF][modal.WIDTH] = max(float(out[latent.REF][modal.WIDTH]), 0.16)
 
 
 def heard_twist(g, gym, tw, has_say, said_fn, dropped_fn, heard_say_fn, walk_on):

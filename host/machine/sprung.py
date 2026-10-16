@@ -18,8 +18,8 @@ BRAKE = ('(stream_inject (sequence_id 200) (blend_duration 500ms) (latent_target
          ' (mode_stance_width 0.0)) (impedance (stiffness mode_axial_compression 3000) (damping mode_axial_compression 600)'
          ' (stiffness mode_lateral_shift 3000) (damping mode_lateral_shift 300) (stiffness mode_sagittal_shift 0)'
          ' (damping mode_sagittal_shift 260) (stiffness mode_foot_rock 2400) (damping mode_foot_rock 240))'
-         ' (cpg_config (enable true) (frequency 0.85Hz) (amplitude mode_lateral_shift 0.28) (amplitude mode_sagittal_drive 0.04)'
-         ' (amplitude mode_limb_lift 0.7) (amplitude mode_foot_rock 0.0) (amplitude mode_pelvis_list 0.0)'
+         ' (cpg_config (enable true) (amplitude mode_lateral_shift 0.28) (amplitude mode_sagittal_drive 0.04)'
+         ' (amplitude mode_foot_rock 0.0) (amplitude mode_pelvis_list 0.0)'
          ' (amplitude mode_pelvis_turn 0.0) (amplitude mode_arm_swing 0.0) (amplitude mode_stance_width 0.0)'
          ' (phase_offset mode_lateral_shift mode_sagittal_drive 108deg) (phase_offset mode_pelvis_list mode_sagittal_drive 108deg))'
          ' (task_constraints (maintain_zmp (polygon dynamic_footprint))))')
@@ -101,7 +101,7 @@ def laid(every=1, inner=None, solver=None):
          't': float(world.data.time), 'n': 0, 'every': every, 's': s, 'loads': [hw, hw], 'ask': {}, 'got': {}, 'wo': ESO_WO * (inner == 'eso'),
          'eso': np.array([q0, np.zeros(len(q0)), np.zeros(len(q0))]), 'jeff': np.diag(s['M'])[body.act].copy(),
          '_brake_wire': _BRAKE_WIRE, '_stand_entry': next((e for e in entries() if e[0] == '#201'), None),
-         'stumble_until': 0.0, 'heading': float(fr[modal.HEADING]), 'twist': (0.0, 0.0, 0.0),
+         'heading': float(fr[modal.HEADING]), 'twist': (0.0, 0.0, 0.0),
          'heat': heat.Heat.for_joints(JOINTS), 'temp': np.full(len(JOINTS), 25.0), 'scenario': 'flat',
          'solve': {'stack': wbc.step, 'wrench': wrench.step}[solver or SOLVER]}
     world.clock = lambda: g['t']
@@ -162,7 +162,7 @@ def reset_for_scenario(g, scen):
         g['st'] = latent.state(g['rest'])
         g['out'] = latent.step(g['st'].copy(), g['tab'][:0], g['t'], 0.001 * g['every'], np.zeros(latent.OUT))
         g['a'][:], g['a'][modal.STANCE], g['ref_q'][:], g['ref_v'][:], g['hold'][:] = 0.0, 1.0, q0, 0.0, 0.0
-        g['left'], g['stumble_until'], g['eso'][:] = WEP_S, 0.0, [q0, 0.0 * q0, 0.0 * q0]
+        g['left'], g['eso'][:] = WEP_S, [q0, 0.0 * q0, 0.0 * q0]
         g['heat'], g['temp'][:] = type(g['heat']).for_joints(), 25.0
         g['_twist_active'], g['_twist_stop_until'], g['twist'], g['twist_actual'] = False, 0.0, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)
         g['active_entry'], g['n'], g['_look_yaw'], g['_last_way'] = None, 0, 0.0, 1.0

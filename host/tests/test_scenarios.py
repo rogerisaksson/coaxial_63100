@@ -10,10 +10,11 @@ from tools.dev.focus import chosen
 from gynoid_kit import Report
 
 #: The scenarios she meets laid turned by each of WOBBLES, rad - one met at 0 and not at
-#: 2e-4 is in the margin and out: into a tree, over a sill, a slick patch, ice, snow, asphalt; a
-#: player's starts and stops, turns, strafes, reversals, sprint and weave.
-HELD = ('tree', 'sill', 'slip', 'ice', 'snow', 'asphalt', 'play_start_stop', 'play_turns', 'play_strafes',
-        'play_reverse', 'play_sprint', 'play_weave')
+#: 2e-4 is in the margin and out: into a wall and a tree, over a sill and a 10 cm hole, a slick
+#: patch, ice, snow, asphalt; a player's starts and stops, turns, strafes, reversals, sprint,
+#: a spin in place and a weave.
+HELD = ('wall', 'tree', 'sill', 'hole', 'slip', 'ice', 'snow', 'asphalt', 'play_start_stop', 'play_turns',
+        'play_strafes', 'play_reverse', 'play_sprint', 'play_spin', 'play_weave')
 WOBBLES = (0.0, 2e-4, -2e-4)
 
 

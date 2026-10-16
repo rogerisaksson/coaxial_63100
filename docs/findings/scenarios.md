@@ -49,8 +49,9 @@ the stunts as their entries said. 6 of 19 met.
 
 ## A stop
 
-The whole bench, each scenario laid 0 and 2e-4 rad either way, the 80 N polar, the
-kept replays at theirs: 40 of 78, standing 31 and walking 24 of 32, replays 5 of 9.
+The whole bench, each scenario laid 0 and 2e-4 rad either way, the 80 N polar,
+the kept replays at theirs: 40 of 78, standing 31 and walking 24 of 32, replays
+5 of 9.
 
 - A swing begun is finished (`stride.beat`): 41 of 78, the spin in place standing
   where it fell at 7.94 s; nothing else moved, her walk the same to the digit.
@@ -58,12 +59,31 @@ kept replays at theirs: 40 of 78, standing 31 and walking 24 of 32, replays 5 of
   stopped at it, read as a trip; the stumble - 1.15 Hz, lift 2.6, drive 0.32 and
   more for 0.95 s - stepped her high against it, down at 8.79 s. At the bench's
   wall five trips came in its brake and its stand, the last at 1.58 m/s.
-- A trip answered by her swings raised by the height it was met at, no stumble:
-  the wall at every wobble and the kept stop stood, the sill and the turns' play
-  fell after their stops at all three (36 of 78). Turned 0.25 rad by the trip,
-  her heading followed her pelvis, she crabbed, and APART_M refused the step
-  across that would have caught her.
+- Trips on a flat floor: turning, toes scuffed it at 0.6-6.6 mm, touched along
+  it at 1.00-1.02 of their load (her soles' friction, 1.0) where their corners
+  read 17-35 mm; edges met read 12.5-54 mm and 1.35-58. The stumble those scuffs
+  fired carried the turns' play, a hop after a stop and the sill through their
+  stops; without it all three fell. The stumble and the parry were her only
+  stepping out of a rhythm, fired by chance.
+- The brake said 0.85 Hz and lift 0.7 where her walk is 0.94 and 1.05: kept as
+  it was, the stops after a walk and a turn stood at every wobble (replays 9 of
+  9), walking shoves 27.
 - Over a swing her walk holds her capture point's lead on her centre of mass,
   0.19-0.20 m start to end at 0.69 m/s, where a linear inverted pendulum on her
   sole foresees 0.35-0.36: her rhythm hurried by it acted on her plain walk in 4
   to 7 % of its passes and moved it, 2.57 -> 3.58 off a woman's.
+
+The laws now: her capture point past her soles - flat, past her ZMP's margin -
+steps her (`stride.beat`'s need), the stumble and the parry gone; a row that halts
+her rhythm waits while she steps (`law.held_back`); an edge met raises her swings
+by its height, read at her toes' tip (`touch`); her heading goes with her pelvis
+only in a turn asked. 45 of 78 - fifteen scenarios at every wobble, the hole
+among them for the first time -, standing 32 and walking 23 of 32, replays 9 of
+9; her walk 51.0 s, 0.69 m/s, 412 J/m, 2.61 off a woman's.
+
+- Walking shoves by way: forward-aside 1 of 8 where 5, aside and back-aside 8
+  of 8 where 5. Her heading after her going too, walking 18 and the hole, the
+  wall and the tree lost (the rug met); after her pelvis, the sill fell: a yaw of
+  0.22 rad off the floor turned her way and she crabbed into APART_M.
+- Stepping through a hop's load she left the floor rolling and landed at 60 deg:
+  the need fires on a drift of 0.19 m/s after a stop; held back, the hop waits.

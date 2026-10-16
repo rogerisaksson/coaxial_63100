@@ -3,7 +3,7 @@ import math
 import multiprocessing
 import queue
 import time
-from machine import edge, ortho, physics, sprung
+from machine import ortho, physics, sprung
 from machine.errors import MachineError
 from machine.se2 import WALK_ON
 
@@ -131,41 +131,6 @@ def heard_say(g, gym, entry):
         return _start_mode(g, by, entry, at=t0)
     g['active_entry'] = name
     sprung.said(g, *entry, at=t0)
-
-
-def check_parry(g, out, cur_doing, cur_entry, sh, ch):
-    import numpy as np
-    from machine import latent, modal
-    if (max(g['loads']) <= 10.0 or cur_doing in (sprung.STUNT_PHASES | {'over', 'touch', '#202', '#203', 'crouch', 'up', 'down'})
-            or cur_entry in ('#202', '#203', 'lean', 'one_sole', 'crouch', 'hop')
-            or (g.get('_land_touch_t') is not None and g['t'] - g['_land_touch_t'] < 0.45)):
-        return
-    y = g['y']
-    com, vcom, soles = y[modal.COM], y[modal.VCOM], y[modal.SOLE].reshape(2, 3)
-    om = math.sqrt(9.81 / max(0.35, float(com[1]) - float(g['fr'][modal.FLOOR])))
-    c_al, c_lt = float(com[0]) * sh + float(com[2]) * ch, float(com[0]) * ch - float(com[2]) * sh
-    vc_al, vc_lt = float(vcom[0]) * sh + float(vcom[2]) * ch, float(vcom[0]) * ch - float(vcom[2]) * sh
-    xi_al, xi_lt = c_al + vc_al / om, c_lt + vc_lt / om
-    s0_al, s1_al = float(soles[0, 0]) * sh + float(soles[0, 2]) * ch, float(soles[1, 0]) * sh + float(soles[1, 2]) * ch
-    s0_lt, s1_lt = float(soles[0, 0]) * ch - float(soles[0, 2]) * sh, float(soles[1, 0]) * ch - float(soles[1, 2]) * sh
-    ex_al = max(0.0, min(s0_al, s1_al) - xi_al, xi_al - max(s0_al, s1_al))
-    ex_lt = max(0.0, min(s0_lt, s1_lt) - xi_lt, xi_lt - max(s0_lt, s1_lt))
-    ct, vh = edge.tilt(g['sense']), math.hypot(vc_al, vc_lt)
-    striding = abs(float(out[latent.SWAY][modal.DRIVE])) >= 0.06 or abs(float(out[latent.SWAY][modal.LATERAL])) >= 0.15
-    if cur_doing == 'brake' and (vh > 0.22 or ex_al > 0.08 or ex_lt > 0.048 or ct > 6.5) and len(g['tab']):
-        m = (g['tab'][:, latent.AT] > g['t']) & (g['tab'][:, latent.SAID][:, latent.GAIN] > 0.5) & (g['tab'][:, latent.VALS][:, latent.GAIN] < 0.05)
-        if m.any():
-            g['tab'][m, latent.AT] = np.maximum(g['tab'][m, latent.AT], g['t'] + 0.35)
-    if not striding and (ex_al > 0.115 or ex_lt > 0.062 or (ct > 10.5 and vh > 0.22)):
-        if g['t'] >= g.get('parry_until', 0.0):
-            k_sw = 0 if (xi_lt - c_lt > 0.035 or (abs(xi_lt - c_lt) <= 0.035 and abs(xi_al - s0_al) > abs(xi_al - s1_al))) else 1
-            if vc_al < -0.10:
-                g['st'][latent.NOW][latent.PHASE][modal.LATERAL] = g['st'][latent.TO][latent.PHASE][modal.LATERAL] = -1.885
-                g['st'][latent.NOW][latent.PHASE][modal.LIST] = g['st'][latent.TO][latent.PHASE][modal.LIST] = -1.885
-                g['st'][latent.THETA] = ((-0.25 if k_sw == 0 else math.pi - 0.25) - float(g['st'][latent.NOW][latent.PHASE][modal.DRIVE])) % math.tau
-            else:
-                g['st'][latent.THETA] = ((0.25 if k_sw == 0 else math.pi + 0.25) - float(g['st'][latent.NOW][latent.PHASE][modal.DRIVE])) % math.tau
-        g['parry_until'] = max(g.get('parry_until', 0.0), g['t'] + 0.45)
 
 
 def heard(g, gym, command):

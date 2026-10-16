@@ -335,3 +335,8 @@ it names. A closed item is cut from the list and gets its line here, last.
 82. native://'s limb load the transport's time scale, a reply waited in the
     board's time; a suite's crash told with its test's header
     ([emulation](findings/emulation.md)).
+83. A stop that settles: her capture point past her soles steps her, the stumble
+    and the parry gone; a row that halts her rhythm waits while she steps; the
+    brake keeps her rhythm; her heading goes with her pelvis only in a turn.
+    Both kept falls stand at every wobble, in `tests/replays`; the hole met
+    ([scenarios](findings/scenarios.md)).

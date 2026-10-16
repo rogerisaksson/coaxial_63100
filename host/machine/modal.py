@@ -73,9 +73,10 @@ ROLLED, HEADED, TIPPED, SWUNG, FOLDS = slice(23, 25), slice(25, 27), slice(27, 2
 #: heel's rise asked of each the pass before.
 SETTLE, EDGE, HEELED = slice(32, 44), slice(44, 46), slice(46, 48)
 #: And how far she strides, 0 to 1; each standing knee's fold before its swing, rad; kept,
-#: how far each limb's stride has it off, 0 to 1.
-STRIDES, PREFOLD, SWINGS = 48, slice(49, 51), slice(51, 53)
-ASK = 53
+#: how far each limb's stride has it off, 0 to 1, and how much higher her swings clear the
+#: floor for what a sole met, m; how far her capture point steps her, 0 to 1.
+STRIDES, PREFOLD, SWINGS, RAISE, NEED = 48, slice(49, 51), slice(51, 53), 53, 54
+ASK = 55
 
 #: A unit of each mode on her: her centre of mass down, m - to her ankles' stroke, her trunk
 #: upright over her soles: asked 0.15 m she came down 0.117 and stood there; her trunk's

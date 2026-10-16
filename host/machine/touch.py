@@ -1,4 +1,4 @@
-"""What her skin and her soles feel: a touch that stops her going, a shove walked out, a trip.
+"""What her skin and her soles feel: a touch that stops her going, a shove walked out, an edge.
 
     touch.check_contacts(g, out, doing)     # a pass of her law, `g` and `out` as `machine.law`'s
     touch.against(g, twist)                 # a twist less its part toward what she felt
@@ -8,7 +8,7 @@ on her segments in their own frames, turned by her own model.
 """
 import math
 
-from machine import edge
+from machine import edge, figure
 
 #: Her segments under her knees, a side's: what bears on the floor, or trips over what is on it.
 SOLES = ((edge.SKIN.index('left_foot'), edge.SKIN.index('left_toes')),
@@ -27,15 +27,18 @@ FELT_S = 3.0
 
 #: A sole meets an edge EDGE_M and more over the floor her bearing soles stand on: walking a flat
 #: floor her swinging soles were touched along it 7.9 mm over it at most - a landing's friction
-#: 544 N -, the 35 mm sill's face 14 to 38 mm up.
+#: 544 N -, the 35 mm sill's face 14 to 38 mm up. Its lowest point is its toes' tip as much
+#: as its corners (TIPS, in the toes' frame): turning, toes scuffing the floor at 0.6 to 6.6 mm
+#: read 17 to 35 mm by the corners alone, tripped her on a flat floor.
 EDGE_M = 0.01
+TIPS = tuple((x, -figure.TOE_RY, figure.TOE_M) for x in (-figure.SOLE_HALF, figure.SOLE_HALF))
 
 
 def check_contacts(g, out, cur_doing):
     """A touch on her above her soles halts her drive and brakes her; a sole asked aloft that has
     come clear of everything, then is touched more along the floor than up it EDGE_M over it -
-    an edge met, not the floor - trips her. Touched aloft at all, her toes leaving a flat floor
-    tripped her 13 times in 40 s."""
+    an edge met, not the floor - raises her swings by how high it met it (`modal.RAISE`).
+    Touched aloft at all, her toes leaving a flat floor tripped her 13 times in 40 s."""
     import numpy as np
     from machine import latent, modal, sprung
     y, model = g['sense'], g['body'].d
@@ -57,18 +60,19 @@ def check_contacts(g, out, cur_doing):
             if g['_stand_entry'] is not None:
                 sprung.said(g, *g['_stand_entry'], at=g['t'] + 1.20, reset=True)
             g['active_entry'] = '#201'
-    aloft, met, clear = g['a'][modal.STANCE] < 0.5, False, list(g.get('_clear', (False, False)))
+    aloft, clear = g['a'][modal.STANCE] < 0.5, list(g.get('_clear', (False, False)))
     for side, segs in enumerate(SOLES):
         pushes = [model.xmat[g['body'].m.body(edge.SKIN[k]).id].reshape(3, 3) @ touch[k] for k in segs]
         felt = max(float(np.linalg.norm(p)) for p in pushes) > edge.TOUCHED_N
-        up = float(g['y'][modal.LOWEST][side] - g['fr'][modal.FLOOR])
-        met = met or (clear[side] and up > EDGE_M and any(
+        toes = g['body'].m.body(edge.SKIN[segs[1]]).id
+        tip = float((model.xpos[toes] + np.array(TIPS) @ model.xmat[toes].reshape(3, 3).T)[:, 1].min())
+        up = min(float(g['y'][modal.LOWEST][side]), tip) - float(g['fr'][modal.FLOOR])
+        met = clear[side] and up > EDGE_M and any(
             np.linalg.norm(p) > edge.TOUCHED_N and math.hypot(float(p[0]), float(p[2])) > abs(float(p[1]))
-            for p in pushes))
+            for p in pushes)
+        g['a'][modal.RAISE] = max(float(g['a'][modal.RAISE]), met * up)
         clear[side] = bool(aloft[side]) and (clear[side] or not felt)
     g['_clear'] = tuple(clear)
-    if met:
-        g['stumble_until'], g['a'][modal.GOING] = g['t'] + 0.95, min(float(g['a'][modal.GOING]), 0.25)
 
 
 def against(g, tw):

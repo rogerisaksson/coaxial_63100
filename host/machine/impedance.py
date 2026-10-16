@@ -21,7 +21,7 @@ from machine import latent, poise, stride
 from machine.modal import (
     ARM_RAD, ARMS, AXIAL, AXIAL_M, BEND, CLEAR_M, COM, COM_ACC, DRIVE, DT, EDGE, FLOOR, FOLD, FOLD_RATE, FOLDS, G,
     GOING, HANDS, HEADED, HEELED, HIP, HIPS_BY, HOT, KDOT, KNEE, LATERAL, LEG_M, LIFT, LIST, LIST_RAD, LOAD,
-    LOWEST, MASS, MOMENT, PELVIS, PITCH, PITCH0, PITCH_RAD, PREFOLD, QUAT, REACH0, ROCK, ROLLED, ROT,
+    LOWEST, MASS, MOMENT, NEED, PELVIS, PITCH, PITCH0, PITCH_RAD, PREFOLD, QUAT, RAISE, REACH0, ROCK, ROLLED, ROT,
     SAGITTAL, SETTLE, SOLE, SOLE_ACC, SPIN, STANCE, STRIDES, SWINGS, SWUNG, TILT, TILT_RATE, TIPPED, TURN, TURN_RAD,
     TURNED, UNIT, VCOM, VSOLE, W0, WANT, WIDTH, Z0, reading, shortened)
 from machine.poise import HALF_M, TINY
@@ -63,9 +63,17 @@ def ask(out, y, fr, a):
     om = np.sqrt(G / np.maximum(c[UP] - fr[FLOOR], LOW_M))
     soles, shod = y[SOLE].reshape(2, 3), y[VSOLE].reshape(2, 3) @ rot.T
     tilt, tilting = y[TILT], y[TILT_RATE]
+    flat, xi = (soles @ rot.T)[:, :2], c[:2] + v[:2] / om
+    low, high = poise.boxes(flat, a[EDGE], tilt)
+    # her capture point past the soles that stood - past her ZMP's margin in them, flat on the
+    # floor - steps her: on its ball, a sole's box its ball's line, a hop's throw stepped her
+    out_of = poise.BIG * (1.0 - stood)[:, None]
+    lo, hi = poise.boxes(flat, 0.0 * a[EDGE], tilt)
+    past = np.linalg.norm(xi - poise.clip(xi, (lo + out_of).min(axis=0), (hi - out_of).max(axis=0)))
+    a[NEED] = stood.max() * poise.clip(past / poise.MARGIN_M, 0.0, 1.0)
     stepping, way, sweep, phi, off, u, flying, swung = stride.beat(
         out[latent.SWAY][DRIVE], out[latent.PSI][DRIVE], out[latent.SWAY][LATERAL], out[latent.PSI][LATERAL], turns,
-        a[SWINGS])
+        a[SWINGS], a[NEED])
     a[SWINGS] = off
     # a limb strides as far as her stride or its own swing has it
     limbs = np.maximum(stepping, off)
@@ -86,8 +94,6 @@ def ask(out, y, fr, a):
     # mass's, the other way; its ZMP into her soles, and which of them stand
     hands = HANDS * fr[UNIT][:, None, None]
     both = np.einsum('nia,n->ia', hands, zdd).mean(axis=0)
-    flat, xi = (soles @ rot.T)[:, :2], c[:2] + v[:2] / om
-    low, high = poise.boxes(flat, a[EDGE], tilt)
     swaying = (np.abs(ref[LATERAL] - lat_dc - z[LATERAL]) < ON[0]) & (np.abs(rate[LATERAL] - zd[LATERAL]) < ON[1])
     up = LIMBS * ref[LIFT]
     stance, zmp = poise.stands(c[:2] + both[:2] / om ** 2, xi, low, high, om, out[latent.HELD], up, swaying,
@@ -116,7 +122,9 @@ def ask(out, y, fr, a):
     com = (grounded * np.array([along[0], along[1], poise.clip(bears @ risen / fr[HIPS_BY], -G, THROW_M_S2)])
            + (1.0 - grounded) * FALLS)
     late = stride.lates(phi, turns, stepping)
-    clear = aloft * stride.clears(u, flying, swung, CLEAR_M * (1.0 + np.abs(out[latent.SWAY][LIFT])), tip,
+    # what a sole met (`machine.touch`) her swings clear, for a turn of her rhythm
+    a[RAISE] -= fr[DT] * turns / (2.0 * np.pi) * a[RAISE]
+    clear = aloft * stride.clears(u, flying, swung, CLEAR_M * (1.0 + np.abs(out[latent.SWAY][LIFT])) + a[RAISE], tip,
                                   tipping, tilt, late)
     free, frame = _swings(y, fr, (rot, v, om, shod), (ref, rate, acc, kp, kd, hands), clear, stance, cruise)
     strides = (limbs * grounded)[:, None]

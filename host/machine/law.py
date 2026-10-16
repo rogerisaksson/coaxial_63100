@@ -26,6 +26,26 @@ def seen(g, dt):
     return s
 
 
+def held_back(g, dt):
+    """Rows that halt her rhythm - a stand, a hop's load - wait a pass while her capture point
+    steps her or a swing is under way (`modal.NEED`, `modal.SWINGS`), every row after them, her
+    labels and a hop's end with them: stepped through a hop's load, she left the floor rolling
+    and came down at 60 deg."""
+    tab, t, a = g['tab'], g['t'], g['a']
+    if not len(tab) or (a[modal.NEED] <= 0.0 and a[modal.SWINGS].max() <= 0.0):
+        return
+    at = tab[:, latent.AT]
+    halts = (tab[:, latent.SAID][:, latent.GAIN] > 0.5) & (tab[:, latent.VALS][:, latent.GAIN] < 0.05)
+    due = halts & (at <= t + latent.EDGE_S) & (at > t - dt + latent.EDGE_S)
+    if not due.any():
+        return
+    first = float(at[due].min()) - latent.EDGE_S
+    at[at >= first] += dt
+    g['labels'] = [(w + dt if w >= first else w, n) for w, n in g['labels']]
+    if g.get('_jump_until', 0.0) > t:
+        g['_jump_until'] += dt
+
+
 def control(g, dt):
     """A pass of her latent loop on what she senses: `g['got']` solved, `g['leg_kp']` her legs'
     stiffness by their stance."""
@@ -34,11 +54,9 @@ def control(g, dt):
     s = g['s'] = seen(g, dt * ev)
     g['loads'] = [float(v) for v in y_in[edge.LOAD]]
     y = modal.sensed(s, g['loads'], g['y'])
-    pyaw, thd, cur_doing = edge.yaw(y_in), g.get('target_heading'), sprung.doing(g)
+    thd, cur_doing = g.get('target_heading'), sprung.doing(g)
     if thd is not None:
         g['heading'] += max(-1.6 * dt * ev, min(1.6 * dt * ev, se2.wrap_angle(thd - g['heading'])))
-    elif abs(g.get('twist', (0.0, 0.0, 0.0))[2]) < 0.02:
-        g['heading'] += (0.02 if cur_doing == 'brake' else 0.005) * ev * se2.wrap_angle(pyaw - g['heading'])
     sh, ch = math.sin(g['heading']), math.cos(g['heading'])
     g['fr'][modal.HEADING], g['fr'][modal.ROT] = g['heading'], np.array([[sh, 0.0, ch], [ch, 0.0, -sh], [0.0, 1.0, 0.0]]).ravel()
     if g.get('_sync_cpg_at') is not None and g['t'] + 1e-9 >= g['_sync_cpg_at']:
@@ -47,6 +65,7 @@ def control(g, dt):
         if len(fut):
             ph = fut[0, latent.SAID][latent.PHASE] > 0.5
             g['st'][latent.NOW][latent.PHASE] = np.where(ph, fut[0, latent.VALS][latent.PHASE], g['st'][latent.NOW][latent.PHASE])
+    held_back(g, dt * ev)
     out = latent.step(g['st'], g['tab'], g['t'], dt * ev, g['out'])
     cw = -1.0 if (math.sin(float(out[latent.PSI][modal.LATERAL]) - float(out[latent.PSI][modal.DRIVE])) * (1.0 if float(out[latent.SWAY][modal.LATERAL]) >= 0.0 else -1.0) < -0.5) else 1.0
     if g.get('_last_way') is not None and cw != g['_last_way'] and (g['st'][latent.NOW][latent.GAIN] > 0.05 or abs(float(out[latent.SWAY][modal.DRIVE])) > 0.02):
@@ -56,8 +75,6 @@ def control(g, dt):
     se2.step_physical_twist(g, dt * ev, out)
     cur_doing = sprung.doing(g)
     touch.check_contacts(g, out, cur_doing)
-    if g['t'] < max(g['stumble_until'], g.get('parry_until', 0.0)):
-        se2.boost_stumble(g, out)
     ae, tw = g.get('active_entry'), g.get('twist', (0.0, 0.0, 0.0))
     backing = ((cur_doing in sprung._BACK_GAITS or ae in sprung._BACK_GAITS or tw[0] < -0.05)
                and cur_doing not in ('rest', '#201', 'brake') and cur_doing not in sprung.STUNT_PHASES and g.get('_jump_until', 0.0) <= g['t'])
