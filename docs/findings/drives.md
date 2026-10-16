@@ -418,6 +418,11 @@ its no-load speed at 48 V, a node's span to its ceiling. Worst of the sides.
   0.09 -> 0.50 rad, its yaw held near 0 (posed where it is: no change); the
   outside foot lands at 5.94 s, after the stance has let go. Its drives are
   under half their clamps until then: a step landed too late, not a weak leg.
+- Her rhythm hurried by her capture point's run sideways (off the standing
+  sole's edge, as e^(omega t), due before a stance's width) never acts on her
+  plain walk (0 of 6 666 passes); in the reversed turn it quickened every mode
+  with the swing, her pelvis's turn among them, and she spun 1.9 rad and fell.
+  A swing's timing needs a clock of its own, apart from her rhythm's angle.
 
 ## As data
 
