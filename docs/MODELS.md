@@ -112,3 +112,16 @@ clipped at 4000 chars.
   1200 terse) / find (12 hits with chapter).
 - `run_tests.py -m auto` asks `pick_tests.py` for the model's pick, held
   inside the tier; the path map settles cheap changes without the model.
+
+## What the models did
+
+- Wrote "Mid-scale ... 25.00 C" from the warning text when refusing was
+  tried.
+- Invented a coaxial cable twice; guessed `ch=['phA']`, BUS_VOLT, A0; sent
+  the left knee (asked in Swedish) as `right knee`.
+- gemma4:12b answered a measurement with HARDWARE.md's table; denied being
+  able to flash with the tool listed.
+- qwen2.5:14b switched the AFE on four times in one turn; answered in
+  Chinese, Japanese and Thai.
+- A search hit without its chapter was reported as the explanation when it
+  sat under Ruled Out: `find` reports the chapter.

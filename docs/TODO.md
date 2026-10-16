@@ -213,7 +213,9 @@ gets a line at the end of [DONE](DONE.md).
 ## Scenarios
 
 Each a test in MuJoCo: placed, commanded as a player would, judged by no
-fall, its goal reached and its jerk. One law each, no entry a case.
+fall, its goal reached and its jerk (`tools/sim/scenarios.py`; those that hold
+in `test_scenarios`, 6 of 19 now: [scenarios](findings/scenarios.md)). One
+law each, no entry a case.
 
 - **Terrain by contact**: a swinging sole that meets something raises its
   clearance, one that meets nothing reaches on down, a sliding one lowers

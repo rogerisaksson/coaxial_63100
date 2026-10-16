@@ -363,32 +363,20 @@ Six firmware defects, no hardware fault:
   for the bootloader and back for the application; the emulated adapter
   follows the port.
 
-## Local model
-
-- Wrote "Mid-scale ... 25.00 C" from the warning text when refusing was
-  tried.
-- Invented a coaxial cable twice; guessed `ch=['phA']`, BUS_VOLT, A0; sent
-  the left knee (asked in Swedish) as `right knee`.
-- gemma4:12b answered a measurement with HARDWARE.md's table; denied being
-  able to flash with the tool listed.
-- qwen2.5:14b switched the AFE on four times in one turn; answered in
-  Chinese, Japanese and Thai.
-- A search hit without its chapter was reported as the explanation when it
-  sat under Ruled Out: `find` reports the chapter.
-
 ## Subjects
 
 | Subject | File |
 | --- | --- |
 | A woman's walk as the metric: the band, walks off it, the take | [findings/normal.md](findings/normal.md) |
 | Feet: passive toes, the sole's give, the push-off | [findings/feet.md](findings/feet.md) |
-| Humanoid robot eyes: the stereo, the map she keeps, its things, Humanoid robot ways round them; the page's picture | [findings/sight.md](findings/sight.md) |
+| Her eyes: the stereo, the map she keeps, ways round its things | [findings/sight.md](findings/sight.md) |
 | Kinematics: the figure's recipes, dual quaternions, the jeans' seams | [findings/kinematics.md](findings/kinematics.md) |
 | The whole-body stack: its solver, standing, shoves, the loop in C | [findings/wbc.md](findings/wbc.md) |
 | Flight on the stack: which soles stand from one pass, a hop stood | [findings/flight.md](findings/flight.md) |
 | Orthokinematics, the one way she moves: movement as text, a latent loop with no branch, modes on the body, the stride, the walk on it | [findings/orthokinematics.md](findings/orthokinematics.md) |
 | Humanoid robot whole body's step without an active set: 21 unknowns, four solves | [findings/wrench.md](findings/wrench.md) |
 | What her law senses: edge, estimate, insoles | [findings/sensing.md](findings/sensing.md) |
+| Her scenarios as a player commands them | [findings/scenarios.md](findings/scenarios.md) |
 | Build, buses, falls, drawing, clothes | [findings/body.md](findings/body.md) |
 | Drives: motors, gearboxes, inverters, sizing | [findings/drives.md](findings/drives.md) |
 | One stack for every drive: demand, candidates, stacks as built | [findings/stacks.md](findings/stacks.md) |

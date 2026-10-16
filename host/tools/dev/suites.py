@@ -112,6 +112,8 @@ ORTHO = 'test_ortho.py'
 GVS = 'test_gvs.py'
 #: Her recorded runs replayed, each without a fall (tests/replays, tools/sim/replay.py).
 REPLAYS = 'test_replays.py'
+#: Her scenarios that hold, each placed and commanded as a player would (tools/sim/scenarios.py).
+SCENES = 'test_scenarios.py'
 #: The frame's core (aero/) in a vacuum: its form, its share, its impedance; a text's streams
 #: compiled and flown on it.
 AERO_CORE, STREAMS = 'test_aero_core.py', 'test_quad_streams.py'
@@ -133,7 +135,7 @@ DEFAULT_SUITES = (STRUCTURES + (CORE, SHTP, DRIVE, DRIVE_OBSERVER, FILTER, THERM
                                 BOOT_CORE, BOOT_CLIENT,
                    CTRL_CORE, WORLD_CORE, WIRE, NATIVE, NATIVE_HEAT, EMULATOR,
                    SENSORLESS,
-                   BROKER, DAQ_API, CONTROLLER, GYNOID, SIGHT, REACH, TERMS, GVS, REPLAYS, WBC,
+                   BROKER, DAQ_API, CONTROLLER, GYNOID, SIGHT, REACH, TERMS, GVS, REPLAYS, SCENES, WBC,
                    WBC_CORE, FLIGHT, WRENCH, ORTHO, CYCLIC, QUAD, QUAD_PULL,
                    AERO_CORE, STREAMS, QUAD_COURSE, BOOT)
                   + VIEWS
@@ -160,6 +162,7 @@ JOINS = (
     (12, TERMS),
     (12, GVS),
     (12, REPLAYS),
+    (12, SCENES),
     (12, WBC),
     (12, FLIGHT),
     (12, ORTHO),
@@ -252,12 +255,12 @@ PORT = ('test_mcp.py', 'test_parity.py')
 #: Suites that run their tests through tools.dev.focus.chosen: past a slice of the run they go
 #: on as shards side by side.
 SHARDED = (SENSORLESS, CONTROLLER, GYNOID, ORTHO, 'test_simulated.py', 'test_views_segments.py', DAQ_API,
-           QUAD_PAGE, REPLAYS)
+           QUAD_PAGE, REPLAYS, SCENES)
 
 #: A sharded suite's seconds where none are recorded (tests/.counts.json, not committed):
 #: the loop's suite 120 s here whole, a walk a shard; the quad's page 211 s, a flight a
 #: shard.
-FRESH_S = {ORTHO: 300.0, QUAD_PAGE: 250.0}
+FRESH_S = {ORTHO: 300.0, QUAD_PAGE: 250.0, SCENES: 160.0}
 
 #: The emulator's groups and each one's time, s, a Renode each: the rig's took 150 of the
 #: suite's 211 one after another here, and CI's runner ran the Release image's past 240.

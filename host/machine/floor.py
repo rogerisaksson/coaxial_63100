@@ -13,12 +13,14 @@ SLIP_LONG_M, SLIP_FRICTION = 0.5, 0.06
 RUG_LONG_M, RUG_M, RUG_KG, RUG_FRICTION = 0.9, 0.01, 1.5, 0.55
 SLAB_FROM_M, SEAM_M, SLAB_TO_M, PARKED_M = -20.0, 30.0, 10000.0, -50.0
 DEEP_M, SLIP_TOP_M = 0.2, 0.001
-STEPS, RISE_M, RUN_M, TOP_M = 5, 0.015, 0.425, 1.5
+#: A flight of stairs: its steps, each's rise and run, m, and the landing at its top. A house's.
+STEPS, RISE_M, RUN_M, TOP_M = 5, 0.15, 0.30, 1.5
 BRICK, BOARD, BOARD_HINGE_M, BOARD_KG = (0.06, 0.031, 0.125), (0.25, 0.005, 0.20), 0.02, 1.2
 BOARD_K, BOARD_C = 3000.0, 20.0
 CHAIR_SEAT, CHAIR_SEAT_H, CHAIR_BACK = (0.22, 0.02, 0.22), 0.45, (0.22, 0.20, 0.02)
 BED_MATTRESS, BED_MATTRESS_H, BED_FRAME = (0.50, 0.12, 1.0), 0.45, (0.52, 0.08, 1.02)
-SLOPE_ANGLE_DEG, SLOPE_HALF = 2.0, (0.60, 0.05, 1.44)
+#: A ramp's grade, deg, and its half sizes: 10 deg, a steep street's.
+SLOPE_ANGLE_DEG, SLOPE_HALF = 10.0, (0.60, 0.05, 1.44)
 SLOPE_TOP_HALF, SLOPE_TOP_H = (0.60, 0.05, 0.60), 0.10
 ICE_HALF, ICE_FRICTION = (0.60, 0.02, 1.25), 0.02
 SNOW_HALF, SNOW_FRICTION = (0.60, 0.03, 1.25), 0.35

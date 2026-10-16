@@ -154,7 +154,8 @@ tools/render/       renderer checks against the exporter; ansi2png; attitude (th
 tools/sim/          the drive core on this host: montecarlo, observer_run;
                     ortho (humanoid robot latent loop as the page runs it, traced; --walk
                     --look humanoid robot walk's look); look (a HUMANOID recording a stage
-                    a row); replay (a recording's commands run again, pass for pass); strides, normal, looks (a walk's measures, a
+                    a row); replay (a recording's commands run again, pass for pass); scenarios (each scene placed,
+                    commanded and judged, a table); strides, normal, looks (a walk's measures, a
                     woman's band, humanoid robot form); wbc (the whole-body stack
                     standing, shoved); hop (a hop on it: thrown, flown, landed);
                     quad_race (the quad's laps through fixed flights, a search
@@ -269,6 +270,7 @@ tests/              suites, .counts.json (measured sizes)
 | `test_reach.py` | humanoid robot leg's reach: its rows humanoid robot figure's, what they hold within humanoid robot stops, a place landed in MuJoCo by either limb |
 | `test_terms.py` | humanoid robot movements' terms: its rows humanoid robot figure's, a term moving humanoid robot in MuJoCo as its name says by either limb, its stops, what she has not |
 | `test_gvs.py` | the measures' dimensionless frame (Hof), SO(3)'s geodesic, the gates on them (`tools/sim/gvs.py`) |
+| `test_scenarios.py` | humanoid robot scenarios that hold (`tools/sim/scenarios.py`): a scene placed, commanded as a player would, its goal met by the world's truth |
 | `test_replays.py` | humanoid robot runs recorded on the page (`tests/replays`), each command at its pass, none ending in a fall; the falls still open in `tests/replays/falls` |
 | `test_wbc.py` | the QP solver's KKT, two levels' priority, standing, a nudge held |
 | `test_wbc_core.py` | humanoid robot chain in C against MuJoCo: frames, M, bias, Jacobians at random configurations; a step's time |
