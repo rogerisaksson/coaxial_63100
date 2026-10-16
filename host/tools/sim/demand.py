@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """Her drives against what her loop asks: each one's amps, speed and heat beside its parts' limits.
 
-Her walk, her hop and a shove on her loop as the page runs it, a relay job each.
+Her walk, her hop and a shove on her loop as the page runs it, and every scenario of the bench
+(`tools/sim/scenarios.py`) as it runs it, a relay job each.
 
     python tools/sim/demand.py                 # every scene, a relay job each: a row a drive
     python tools/sim/demand.py --scene walk    # one, here: its row as JSON
+    python tools/sim/demand.py --scenarios     # the bench's, those she stands through
 
 A drive's amps are its joint's torque over its N m an amp (`World.motor`, `drives.kt`); a
 parallel pair's two give the first joint's share plus and less its roll's (`physics.paired`),
@@ -47,54 +49,89 @@ def laid(world):
     return names, np.array(first), np.array(second), np.array(sign)
 
 
-def ran(scene, way=0):
-    """{scene, way, stood, t, names, amps (peak), peak, rms, box, speed, heat - a share of its
-    part's limit a drive -, often (the share of the passes its amps are past PAST of its
-    board's), celsius}: `scene` on her loop as the page runs it, a shove from `way` deg."""
+def meter(world):
+    """`world`'s drives laid to be metered a pass at a time (`ticked`): their parts' limits and
+    what they have been asked so far."""
     import numpy as np
-    from machine import drives, heat, sprung
+    from machine import drives, heat
     from machine.figure import JOINTS
+    names, first, second, sign = laid(world)
+    joints = [JOINTS[i] for i in first]
+    sizes = [drives.of(j)[1] for j in joints]
+    warm = heat.Heat([drives.heat(j) for j in joints])
+    warm.envelope = False
+    return {'names': names, 'first': first, 'second': second, 'sign': sign, 'warm': warm, 'n': 0,
+            'free': np.radians([drives.speed(j) if world.driven[i] else 1.0 for i, j in enumerate(JOINTS)]),
+            'board': np.array([s.amps for s in sizes]),
+            'holds': np.array([heat.held(j)[0] / drives.kt(j) for j in joints]),
+            'box': np.array([s.kt_motor * drives.RATIO * s.efficiency / s.shock for s in sizes]),
+            **{k: np.zeros(len(names)) for k in ('peak', 'square', 'fast', 'spent', 'often')}}
+
+
+def ticked(m, world):
+    """`m` (`meter`) on by `world`'s pass."""
+    import numpy as np
+    share, turns = world.motor / world.kt * world.driven, world.data.qvel[world.vadr] / m['free']
+    amps = share[m['first']] + m['sign'] * share[m['second']]
+    m['peak'], m['square'] = np.maximum(m['peak'], np.abs(amps)), m['square'] + amps * amps
+    m['often'] += np.abs(amps) > PAST * m['board']
+    m['fast'] = np.maximum(m['fast'], np.abs(turns[m['first']] + m['sign'] * turns[m['second']]))
+    for k, a in enumerate(amps):
+        m['warm'].load(k, a * m['warm'].kt[k])
+    m['n'] += 1
+    if m['n'] % 10 == 0:
+        m['warm'].step(0.01, [1.0] * len(amps), [1.0] * len(amps))
+        m['spent'] = np.maximum(m['spent'], m['warm'].spent)
+
+
+def row(m, **head):
+    """`head` and `m`'s shares: {names, amps (peak), peak, rms, box, speed, heat - a share of its
+    part's limit a drive -, often (the share of the passes its amps are past PAST of its
+    board's), celsius}."""
+    import numpy as np
+    n = max(m['n'], 1)
+    return dict(head, names=m['names'], amps=np.round(m['peak'], 1).tolist(), peak=(m['peak'] / m['board']).tolist(),
+                rms=(np.sqrt(m['square'] / n) / m['holds']).tolist(), box=(m['peak'] * m['box']).tolist(),
+                speed=m['fast'].tolist(), heat=m['spent'].tolist(), often=(m['often'] / n).tolist(),
+                celsius=[round(max(t), 1) for t in m['warm'].t])
+
+
+def ran(scene, way=0):
+    """`row` of `scene` on her loop as the page runs it, a shove from `way` deg."""
+    from machine import sprung
     asked, shove, seconds = SCENES[scene]
     g = sprung.laid(sprung.STACK_EVERY)
     by = {entry[0]: entry for entry in sprung.entries()}
     for label, at in (sprung.WALK if asked == 'walk' else asked):
         sprung.said(g, *by[label], at=at)
     world = g['world']
-    names, first, second, sign = laid(world)
-    joints = [JOINTS[i] for i in first]
-    sizes = [drives.of(j)[1] for j in joints]
-    kt = world.kt
-    free = np.radians([drives.speed(j) if world.driven[i] else 1.0 for i, j in enumerate(JOINTS)])
-    board = np.array([s.amps for s in sizes])
-    holds = np.array([heat.held(j)[0] / drives.kt(j) for j in joints])
-    box = np.array([s.kt_motor * drives.RATIO * s.efficiency / s.shock for s in sizes])
-    warm, ones = heat.Heat([drives.heat(j) for j in joints]), [1.0] * len(names)
-    warm.envelope = False
-    peak, square, fast, spent, often = (np.zeros(len(names)) for _ in range(5))
-    n, shoved = 0, shove == 0.0
+    m, shoved = meter(world), shove == 0.0
     while g['t'] < seconds and sprung.tilt(g) < sprung.DOWN_DEG and world.data.qpos[1] > sprung.DOWN_M:
         if not shoved and g['t'] >= SHOVE_AT:
             world.push((shove * math.cos(math.radians(way)), 0.0, shove * math.sin(math.radians(way))),
                        sprung.SHOVE_S)
             shoved = True
         sprung.passed(g)
-        share, turns = world.motor / kt * world.driven, world.data.qvel[world.vadr] / free
-        amps = share[first] + sign * share[second]
-        peak, square = np.maximum(peak, np.abs(amps)), square + amps * amps
-        often += np.abs(amps) > PAST * board
-        fast = np.maximum(fast, np.abs(turns[first] + sign * turns[second]))
-        for k, a in enumerate(amps):
-            warm.load(k, a * warm.kt[k])
-        n += 1
-        if n % 10 == 0:
-            warm.step(0.01, ones, ones)
-            spent = np.maximum(spent, warm.spent)
-    rms = np.sqrt(square / max(n, 1))
-    return {'scene': scene, 'way': way, 'stood': bool(g['t'] >= seconds - 1e-6), 't': round(g['t'], 3),
-            'names': names, 'amps': np.round(peak, 1).tolist(), 'peak': (peak / board).tolist(),
-            'rms': (rms / holds).tolist(), 'box': (peak * box).tolist(), 'speed': fast.tolist(),
-            'heat': spent.tolist(), 'often': (often / max(n, 1)).tolist(),
-            'celsius': [round(max(t), 1) for t in warm.t]}
+        ticked(m, world)
+    return row(m, scene=scene, way=way, stood=bool(g['t'] >= seconds - 1e-6), t=round(g['t'], 3))
+
+
+def scenario(name):
+    """`row` of the bench's scenario `name` as `scenarios.ran` runs it, standing if she stood."""
+    from machine import worker
+    from tools.sim import scenarios
+    was, held = worker.stepped, {}
+
+    def stepped(s):
+        was(s)
+        world = s['g']['world']
+        ticked(held.setdefault('m', meter(world)), world)
+    worker.stepped = stepped
+    try:
+        got = scenarios.ran(name)
+    finally:
+        worker.stepped = was
+    return row(held['m'], scene=name, way=0, stood=got['stood'], t=round(held['m']['n'] * 0.001, 3))
 
 
 def kinds(rows):
@@ -129,14 +166,23 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
     parser.add_argument('--scene', choices=sorted(SCENES), help='one scene, here: its row as JSON')
     parser.add_argument('--way', type=int, default=0, help="a shove's way, deg")
+    parser.add_argument('--scenario', help="one of the bench's scenarios, here: its row as JSON")
+    parser.add_argument('--scenarios', action='store_true', help="the bench's scenarios, not the scenes")
     args = parser.parse_args(argv)
     if args.scene:
         print(json.dumps(ran(args.scene, args.way)))
         return 0
+    if args.scenario:
+        print(json.dumps(scenario(args.scenario)))
+        return 0
     from tools.dev import focus
-    jobs = [focus.Job('%s@%d' % (scene, way), [sys.executable, '-X', 'utf8', os.path.abspath(__file__),
-                                              '--scene', scene, '--way', str(way)], 1.5, 1800.0)
-            for scene, (_asked, shove, _s) in SCENES.items() for way in (WAYS if shove else (0,))]
+    here = [sys.executable, '-X', 'utf8', os.path.abspath(__file__)]
+    if args.scenarios:
+        from tools.sim import scenarios
+        jobs = [focus.Job(n, here + ['--scenario', n], 1.5, 1800.0) for n in scenarios.SCENARIOS]
+    else:
+        jobs = [focus.Job('%s@%d' % (scene, way), here + ['--scene', scene, '--way', str(way)], 1.5, 1800.0)
+                for scene, (_asked, shove, _s) in SCENES.items() for way in (WAYS if shove else (0,))]
     rows = {}
     for job, text, code, _seconds in focus.relay(jobs):
         line = next((ln for ln in reversed(text.splitlines()) if ln.startswith('{')), None)
@@ -145,9 +191,9 @@ def main(argv=None):
             return 1
         row = json.loads(line)
         rows.setdefault(row['scene'], []).append(row)
-    over = [(scene,) + item for scene in SCENES for item in said(scene, rows[scene])]
+    over = [(scene,) + item for scene in rows for item in said(scene, rows[scene])]
     print("past %.2f of a part's limit:" % PAST)
-    for scene in SCENES:
+    for scene in rows:
         mine = ['%s %s %.2f' % item[1:] for item in over if item[0] == scene]
         print('  %s: %s' % (scene, ', '.join(mine) or 'none'))
     return 0

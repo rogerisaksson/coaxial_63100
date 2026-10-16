@@ -232,8 +232,11 @@ in `test_scenarios`, 15 of 26 at every wobble now:
   head off the floor. 80 N standing 32 of 32, walking 23 (forward-aside 1 of
   8). DOD: 80 N 3 times in 4 over the polar, walking and standing; 200 N
   falls with the head under 1 m/s.
-- **The drives for it**: DOD: each scenario's peak, rms, speed and heat a
-  drive against its parts, none past 2/3; a change named if one is.
+- **The drives for it**: a twist from a key grants a held drive 1.45x its
+  clamp, past its parts' peak, and her turns need it: the inside sole's heel
+  rise unloads it mid-turn (`demand.py --scenarios`, drives.md). DOD: one
+  ceiling whoever commands, each scenario's peak, rms, speed and heat under
+  2/3 of its parts.
 - **Maneuver horizon**: DOD: each limb's reach and a swinging sole's
   landing room drawn, toggled from the page.
 

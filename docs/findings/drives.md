@@ -403,6 +403,16 @@ its no-load speed at 48 V, a node's span to its ceiling. Worst of the sides.
   to swinging the sole is asked 33 m/s^2 at once, bearing 50 N still; the
   hip gives -108 N m for 15 ms, the knee 80, then 10 to 20 as before.
   16 ms a step, each step.
+- On the bench's scenarios (`demand.py --scenarios`) the hips, knees and
+  spine reach 1.45-1.58 of their board's amps and 1.2-1.34 of their gearbox's
+  momentary torque: a twist from a key grants a held drive 1.45x its clamp,
+  past its parts' peak, where her text's walk gets its peak. Her rms, speeds
+  and heat stay under 2/3 but in the turns' play (knee rms 0.85, heat 0.87).
+- The turns need it: in a right turn the inside sole's heel is asked up
+  0.3 rad by the other's landing (0.1 straight), falls behind the ask, and its
+  load goes 265 -> 34 N; she saturates her hips 0.43 s with both soles bare.
+  Without the grant the turns' play and the weave fall at every wobble; granted
+  to every driver, her walk's head goes 38 mm aside (35) and strikes 455 N.
 
 ## As data
 
