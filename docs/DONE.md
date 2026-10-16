@@ -185,34 +185,10 @@ it names. A closed item is cut from the list and gets its line here, last.
     rms where 26.6, the least a board held 65.6 A where 54.8; the boards'
     rows 90-92 % of the clamp's pull at the least in fourteen winds where
     72-85, 34 flights of 34 whole ([streams](findings/streams.md)).
-49. Harmonized gait initiation & forward swing dynamics: stands still ~1.5 s
-    on both soles before stepping directly (#201 to #203); core pre-engaged
-    (pitch attitude 0.06, stiffness 3500 N m/rad) and sagittal shift damped
-    (200 N s/m) to eliminate overshoot; landing target `meet` along Humanoid
-    robot travel
-    direction constrained to never step backward relative to foot lift-off
-    position,
-    eliminating the backward foot jerk ('horse kick'); swing clearance and foot
-    rock
-    harmonized in #203 (limb lift 0.8, foot rock 0.25, unpegged rock impedance)
-    for
-    natural forward pendulum swing without trailing heel flick; Humanoid robot
-    walk 0.71 m/s,
-    278 J/m, 2.13 off (stiff 0.16 where 0.32), head nod 1 deg
+49. Gait initiation from a stand to #203, its landing never behind its lift-off
     ([orthokinematics](findings/orthokinematics.md)).
-50. Invariant kinematic evaluation engine & CI guillotine (`tools/sim/gvs.py`,
-    `tests/test_gvs.py`):
-    - Strips physical dimensions by Hof's scaling axiom (time tau, forces Mg,
-      torques MgL0).
-    - Rigid Capture Point progression phase parameterization (no clock time or
-      DTW).
-    - Geodesic SO(3) Lie group logarithmic map difference metric (joint GVS,
-      aggregated GPS).
-    - Binary CI guillotine exit gate (`sys.exit(1) if gps > MAX_TOLERANCE`).
-    - Threadripper 32-core / 64-thread parallelization: MAX_SHARDS=32 in
-      runner.py, documented in CLAUDE.md.
-    - Terminal stance knee hyperextension eliminated in wrench.step and
-      sprung.py ref_q.
+50. Her motion's measures in a dimensionless frame on SO(3), a CI gate on them
+    (`tools/sim/gvs.py`).
 51. The frame's core on the image computes as its host twin, to the wire's
     millionth of a newton: built with no multiply fused into an add, where
     its thrusts stood 3.6e-4 N off on CI's host and 1.7e-5 here; 150 442
@@ -318,25 +294,10 @@ it names. A closed item is cut from the list and gets its line here, last.
     above the core; 72-73 % pull left unused, 0.6-0.8 s WEP taken, 100 % whole
     across winds, rooms, and pack charges (cost 27.56)
     ([streams](findings/streams.md), [envelope](findings/envelope.md)).
-71. Ballistic gait initiation, capture dynamics & data-oriented Monte Carlo
-    toolchain (`tools/sim/ballistic.py`, `tools/sim/gvs.py`,
-    `machine/gynoid_mesomorph_medium.lisp`,
-    `machine/stride.py`, `machine/impedance.py`): flat wire (`<4I59f`), APA
-    phase alignment (`0.83 Hz`, 2.50 cycles) and cruise bootstrap (`GOING_S`
-    0.45 s, `AHEAD_M_S` 0.22 m/s, `#203` blend 400 ms, drive 0.58) bring
-    `init_tau` 17.1 -> 7.2, step length `0.475` legs, walk ratio `1.02`, and
-    SO(3) mocap `GPS` `13.82 deg <= 15.0 deg` over 51 s walks
+71. Ballistic gait initiation and its Monte Carlo toolchain (`tools/sim/ballistic.py`)
     ([orthokinematics](findings/orthokinematics.md)).
-72. Stunt repertoire, obstacle compliance, stumble reflex, and fall protection
-    (`machine/gynoid_mesomorph_medium.lisp`, `machine/sprung.py`,
-    `machine/floor.py`,
-    `machine/stride.py`, `tests/test_stunts.py`): 13 stunt behaviors compiled
-    to flat wire rows (`sit_chair`..`controlled_fall`), C^1 quadratic knee
-    barrier (`q_barrier` 0.05 rad, `knee_min_deg >= -0.5 deg`), generalized
-    contact manifold damping upper-body contacts and boosting swing clearance
-    on foot obstacles (recovering `tilt < 2.0 deg`), 10 cm hole traversal
-    (`tilt 2.6 deg`), 80 N `parry_shove` and >120 N `controlled_fall` on the
-    2-motor architecture ([orthokinematics](findings/orthokinematics.md)).
+72. Stunts as entries a case each - their measures stood on crutches since taken
+    out ([orthokinematics](findings/orthokinematics.md)).
 73. A1335 CRC (MINOR 28) on the stand-ins (`board_angle.c`,
     `Coaxial63100_A1335.cs`, `native_a1335.c`, `test_emulator.py`,
     `test_native.py`): replies end in CRC-4 (`x^4 + x + 1`, seed `0xF`) with 0
@@ -347,30 +308,10 @@ it names. A closed item is cut from the list and gets its line here, last.
     STABLE, 0.25 s sign-check settle and `_now()` lock, 5 ms socket quiet wait,
     5 000 us WBC tick ceiling, 0.35 s ring test window and MCP `RigError`
     handling ([host](findings/host.md)).
-75. Sensorless below `w_lo` (`electronic_simulations/afe/amplifiers.asc`,
-    `board/emu/Coaxial63100_Plant.cs`, `host/tests/test_drive_observer.py`):
-    phase AFE AC response `10.312 mV/A`, `-0.34 deg` at `12.5 kHz` and
-    `10.309 mV/A` (`-0.003 dB`), `-0.68 deg` at `25 kHz` (`-3 dB` at `4.5 MHz`,
-    `2.5 nH` shunt zero pole-zero cancelled by `100 Ohm` / `6.8 nF`); with
-    `RCR = 1` loaded at an underflow (`board_pwm.c:enter_direct`), compares
-    transfer at each overflow and `CCR5 = ARR - 15` samples the `fs/2` peaks
-    (`0.995` of `demod_gain`: `-0.03338 A` core, `-0.03264 A` `native://`,
-    `-0.03394 A` Renode at `+0.3 rad` against `-0.03302 A`, `+0.00009 A` locked
-    at `0.0 rad`); paused on Renode through the 5 s `+-200 rpm` rock,
-    `theta_hat`
-    against `plant Shaft` stays within `0.138 rad` (`0.039 rad` mean, `0.117
-    rad`
-    on `native://`, `0.100 rad` on the drive core) ([drive](findings/drive.md)).
-76. One code, several executives (`world/src/world_stand.c`,
-    `world/src/world_parts.c`, `world/src/world_bno085.c`,
-    `world/src/world_emu.c`, `daq/src/daq.c`, `drive/src/drive_math.c`,
-    `drive/src/drive_observer.c`, `board/src/board_pwm.c`,
-    `board/src/board_sync.c`): `SimulatedDaq` on `daq.c` and `filter.c`,
-    `SimulatedSto` on `world_sto.c`, and `world_afe_t`, `world_a1335_t` and
-    `world_bno085_t` shared between `board/native` and `board/emu`; hot paths
-    cut to 0 functions outside ITCM (`ADC3_IRQHandler` 76 -> 60 functions,
-    396 -> 305 branches, 54 -> 47 divides; `TIM1_UP_IRQHandler` 8 -> 4
-    functions, 0 divides) and the remaining ranked ([FINDINGS](FINDINGS.md),
+75. Sensorless below `w_lo`: the AFE's AC response, RCR 1 sampling the peaks, the
+    rock tracked on Renode ([drive](findings/drive.md)).
+76. One code, several executives: the stand-in's DAQ and STO on the C, the world's
+    parts shared by native:// and Renode, hot paths in ITCM ([FINDINGS](FINDINGS.md),
     [host](findings/host.md)).
 77. `native://` fallback and shared URL bus `Transport`
     (`host/coaxial/comm/session.py`, `host/coaxial/devices/board.py`,
@@ -386,3 +327,8 @@ it names. A closed item is cut from the list and gets its line here, last.
     world for it, `machine.estimate` her pelvis from her IMU and her insoles,
     `machine.law` the pass; test_structure holds it off the world
     ([sensing](findings/sensing.md)).
+81. Mechatronics as data: motors, gearboxes and inverters a TOML library, her build
+    a robot's file naming them (`machine.mechatronics`); `drives` and `servos` read
+    them, DIMENSIONS.md unchanged; `tools/cores/manifest.py` writes her
+    orthokinematic manifest, her text includes it, test_mirrors holds it
+    ([drives](findings/drives.md)).

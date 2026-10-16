@@ -1,0 +1,29 @@
+# Motors as bought: can diameter and height (m), mass (kg), line-to-line resistance (ohm), peak
+# (N m), rotor inertia (kg m^2), winding (KV, rpm/V), and the thermal mass of the coaxial housing
+# and ring gear round it (J/K). Winding heat 310 J/K per kg and 5230SL's 2.2 K/W over 60 x 45 mm
+# scaled as 1/(D H) (machine.drives). docs/HARDWARE.md, docs/findings/stacks.md.
+#
+# KV100 turns the knee 960 deg/s at 48 V where it asks 860-1007; KV85 would 816 - a joint's torque
+# times its speed over the pack's volts is its amps whatever the winding.
+
+[U8]
+name = "T-Motor U8 II Lite KV100"
+can_m = 0.0871
+height_m = 0.0270
+kg = 0.253
+ohm = 0.1375
+peak_nm = 4.0
+rotor_kgm2 = 1.87e-4
+kv = 100.0
+stator_j_k = 280.0
+
+[MN6007]
+name = "T-Motor MN6007 II KV160"
+can_m = 0.0672
+height_m = 0.0261
+kg = 0.159
+ohm = 0.178
+peak_nm = 1.9
+rotor_kgm2 = 0.67e-4
+kv = 160.0
+stator_j_k = 180.0

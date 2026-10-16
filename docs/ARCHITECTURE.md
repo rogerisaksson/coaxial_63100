@@ -160,7 +160,8 @@ tools/sim/          the drive core on this host: montecarlo, observer_run;
                     quad_race (the quad's laps through fixed flights, a search
                     over its plan and its line); streams (a text's streams
                     flown on aero/, ideal rotors; a hover asked from upsets)
-tools/cores/        build: the portable cores' gcc build;
+tools/cores/        build: the portable cores' gcc build; manifest: a robot's build and
+                    figure as its orthokinematic manifest (machine/<robot>.manifest.lisp);
                     drive, thermal, wbc, aero: their ctypes harnesses; stand: the
                     stand-in's slots (world_stand.c, world_drive.c); model:
                     humanoid robot figure as static arrays (wbc/); reach: a leg's reach
@@ -222,7 +223,11 @@ tests/              suites, .counts.json (measured sizes)
 | impedance | humanoid robot modes' springs rendered, no branch: humanoid robot centre of mass's acceleration, a sole in the air, humanoid robot turns, humanoid robot arms and humanoid robot knees - the whole-body loop's ask |
 | poise | humanoid robot ZMP into humanoid robot soles' polygon, humanoid robot capture point kept in it; which soles stand |
 | stride | humanoid robot stride from humanoid robot drive's phase: when a limb swings, where its sole lands (humanoid robot capture point), its clearance, its rock heel to toe, a standing sole's heel rising |
-| sprung | the latent loop run: sensed, latent, impedance, wrench (or wbc), the drives' observers under it; humanoid robot process, paced to the clock: the one thing that moves humanoid robot |
+| sprung | the latent loop run: her world read and told through her edge, her law's pass between; her process, paced to the clock: the one thing that moves her |
+| law | her law's pass on her sensors alone: sensed, latent, impedance, wrench (or wbc), the drives' observers under it |
+| edge | the one reader of the world for her law - IMU, encoders, sole loads, a skin a segment, insoles - and the one writer of her drives |
+| estimate | her pelvis's place and speed of what she measures: the IMU carried, drawn to her bearing insoles |
+| worker | her process's session: a pass at a time, each command logged with its epoch and pass, falls recovered; the page's states |
 | physics | DYNAMIC: the figure in MuJoCo, a drive a joint |
 | gearbox | each drive's gearbox: the rotor free across its play, the box wound up past it, the link turned |
 | room | a living room round humanoid robot: glass walls, furniture, a door, a lamp |
@@ -236,7 +241,9 @@ tests/              suites, .counts.json (measured sizes)
 | rtu | Modbus RTU: CRC-16, a pass's frames |
 | buses | the boards on a bus a limb, a process each in lockstep with the world over a shared block, the host's frames bytes on a socket a bus |
 | heat | a drive's board's heat: three nodes, the envelope's derate and trip, reported in its reply; what a drive holds for ever |
-| drives | two motors as bought, one box, one board; each joint's drive and where it sits |
+| drives | two motors as bought, one box, one board; each joint's drive and where it sits, the parts her build's file names |
+| mechatronics | the parts library (`library/`: motors, gearboxes, inverters) and a robot's build of it (`robots/`), as TOML |
+| servos | each drive kind's servo - peak, stiffness, damping, armature - of her build's file |
 | qp | dense convex QP: dual active set, an interior-point fallback, a strict hierarchy by null space |
 | wbc | the whole-body stack: accelerations and corner forces a step, torques after |
 | wrench | the stack's step without an active set: each sole's wrench or acceleration and humanoid robot upper body's accelerations by one least squares, four times, clipped |

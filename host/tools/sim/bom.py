@@ -27,7 +27,7 @@ def parts():
         frame, box, inverter = drives.STACKS[drives.kind(j)]
         out['motor %s KV %.0f' % (frame, drives.KV[frame])] += 1
         out['gearbox %s, 1:%.0f' % (box, drives.RATIO)] += 1
-        out['inverter %d mm' % inverter] += 1
+        out['inverter %d mm' % round(1e3 * drives.INVERTERS[inverter][0])] += 1
     rows = [(m, members.judge(*m)) for m in members.members()]
     for (name, _kind, length, *_rest, r), _j in members.tubes(rows):
         size = next(((rr, t) for rr, t in members.TUBES if math.isclose(rr, r)), None)

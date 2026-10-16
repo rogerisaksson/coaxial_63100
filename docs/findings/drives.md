@@ -403,3 +403,11 @@ its no-load speed at 48 V, a node's span to its ceiling. Worst of the sides.
   to swinging the sole is asked 33 m/s^2 at once, bearing 50 N still; the
   hip gives -108 N m for 15 ms, the knee 80, then 10 to 20 as before.
   16 ms a step, each step.
+
+## As data
+
+- Her build's parts as files (machine/library, machine/robots): every drive's kt,
+  peak, armature, speed, drag, shock, ohm, mass, length and heat the same to the
+  bit for all 27 joints; DIMENSIONS.md unchanged; `drives.py` 5.8 k -> 4.7 k tokens.
+- Her manifest of them reads her 31.14 kg (305.5 N), her centre of mass 0.916 m
+  up, omega 3.27/s: her text's header had said 55 kg.

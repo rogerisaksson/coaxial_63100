@@ -197,15 +197,6 @@ gets a line at the end of [DONE](DONE.md).
       check in `test_layout`: no document names a module, a tool or a suite not
       in the tree.
 
-## Mechatronics as data
-
-- **Parts and a robot as files**: motors, gearboxes and inverters are
-  constants in `drives.py`. DOD: a library of each and a robot's file naming
-  its stacks; `drives.py` reads them; DIMENSIONS.md unchanged.
-- **The robot's manifest**: DOD: a generator writes the robot's
-  orthokinematic parameters as Lisp from its file; `ortho` compiles it,
-  test_mirrors holds it to the file.
-
 ## One command, either driver
 
 - **Teleoperation and autonomy alike**: the tour presses keys through

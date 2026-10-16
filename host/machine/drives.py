@@ -22,12 +22,14 @@ many rollers sharing a blow - backdrivable at the ratios here.
 """
 import math
 
-from machine import linkage
+from machine import linkage, mechatronics
 from machine.figure import HIP_DROP, HIP_HALF
 from motor.pmsm import TORQUE_FACTOR
 
-#: The supply's lowest, V: 48-63, the boards' top 63.
-PACK_V = 48.0
+#: The parts library and her build of it (machine/library, machine/robots): the tables below are
+#: theirs, read once.
+_LIB, _BUILD = mechatronics.library(), mechatronics.robot()
+PACK_V = _BUILD['pack_v']
 
 
 class Size:
@@ -48,53 +50,26 @@ class Size:
         self.drag, self.shock, self.board, self.parts = drag, shock, board, parts
 
 
-#: Every gearbox's ratio; its input side seen at the motor as GEAR_J of the rotor's inertia.
-#: Copper watts go as 1/ratio^2, reflected inertia as ratio^2 (docs/findings/drives.md).
-RATIO = 30.0
-GEAR_J = 0.05
-
-#: The motors as bought: (can D m, height m, kg, line-to-line ohm, peak N m, rotor kg m^2) -
-#: T-Motor U8 II Lite (87.1 x 27 mm, 253 g, 137.5 mohm, KV 100) and MN6007 II (67.2 x 26.1 mm,
-#: 159 g, 178 mohm, KV 160; docs/HARDWARE.md, docs/findings/stacks.md). Winding 310 J/K per kg
-#: and 5230SL's 2.2 K/W over 60 x 45 mm scaled as 1/(D H).
-FRAMES = {'U8': (0.0871, 0.0270, 0.253, 0.1375, 4.0, 1.87e-4),
-          'MN6007': (0.0672, 0.0261, 0.159, 0.178, 1.9, 0.67e-4)}
-
-#: The gearbox's diameter, m: a rolling-element box's momentary 250 N m at 80 mm, five times its
-#: rated, 0.45 kg, its drag at its input - its rollers' start, the motor's cogging - 0.08 N m, all
-#: as D^3, and 0.28 D long (estimated). A fall asked a knee's 763 N m of its 128, a 60 x 30's
-#: rotor spun up through it by the blow (docs/findings/stacks.md).
-BOXES = {'B': 0.064}
-#: Each box's torsional stiffness at its output, N m/rad (estimated: a harmonic drive of 70 mm
-#: gives 16-25 kN m/rad; a roller stage on a lobed ring, no flexspline, the same order), and its
-#: wind-up's damping ratio. At a printed cycloid's 1.5 kN m/rad the stance ankle sagged 3-4 deg
-#: under its 60 N m and the walk on setpoints fell at its first steps.
-BOX_K, BOX_ZETA = {'B': 9.0e3}, 0.3
-
-#: The inverter by its disc mm: (disc D m, amps, kg, its laminate's K/W to the air through the
-#: housing it is bolted to, its height m): the 63100 as built - 100 mm, 100 A, 0.2 kg, 3.6 K/W
-#: (parts' centres 92 x 93 mm, the housing's skin at 10 W/m^2 K still and the pad 0.3), 14.7 mm
-#: over all by its model (docs/HARDWARE.md) - on every drive (boards and
-#: gearboxes in variants are the pain, motors are bought): behind the U8's 87 mm, and 33 mm
-#: wider than the MN6007. A motor's peak is under its amps: the clamp is the motor's.
-INVERTERS = {100: (0.100, 100.0, 0.2, 3.6, 0.015)}
-
-#: The drives' cooling: each winding's and laminate's K/W to the air times this - 1 in air. Her
-#: joints air-cooled, a board's back on an aluminium holder over a third of it, on its motor or
-#: gearbox, its only cooling (0.3 in oil).
-COOLING = 1.0
-
-#: Each kind's stack: (frame, box, inverter), its winding its frame's KV: 100 turns the knee
-#: 960 deg/s at 48 V where it asks 860-1007, 85 would 816 - a joint's torque times its speed over
-#: the pack's volts is its amps whatever the winding. The U8 where a joint asks over 50 N m -
-#: the legs, the trunk -, the MN6007 for the arms and the head: 15 and 6 of her 21; her 30.8 kg
-#: where 28.4, a hip's rotor 0.177 kg m^2 at its joint where 0.071. What they replaced and why
-#: each stood: docs/findings/stacks.md.
-KV = {'U8': 100.0, 'MN6007': 160.0}
-STACKS = {**dict.fromkeys(('spine', 'spine_roll', 'waist', 'hip_yaw', 'hip_roll', 'hip', 'knee',
-                           'ankle', 'ankle_roll'), ('U8', 'B', 100)),
-          **dict.fromkeys(('neck', 'head', 'shoulder', 'elbow', 'wrist', 'gripper', 'foot'),
-                          ('MN6007', 'B', 100))}
+#: Her stacks' parts as the library has them: a motor's (can D m, height m, kg, line-to-line
+#: ohm, peak N m, rotor kg m^2) and its KV; a gearbox's diameter and stiffness; an inverter's
+#: (disc D m, amps, kg, its laminate's K/W to the air, its height m). Each kind's stack: (motor,
+#: gearbox, inverter). One gearbox for every stack: its ratio, its input's share of the rotor's
+#: inertia, its wind-up's damping ratio, its play and its mesh's friction.
+FRAMES = {k: (m['can_m'], m['height_m'], m['kg'], m['ohm'], m['peak_nm'], m['rotor_kgm2'])
+          for k, m in _LIB['motors'].items()}
+KV = {k: m['kv'] for k, m in _LIB['motors'].items()}
+BOXES = {k: b['diameter_m'] for k, b in _LIB['gearboxes'].items()}
+BOX_K = {k: b['stiffness_nm_rad'] for k, b in _LIB['gearboxes'].items()}
+INVERTERS = {k: (v['disc_m'], v['amps'], v['kg'], v['laminate_k_w'], v['height_m'])
+             for k, v in _LIB['inverters'].items()}
+STACKS = {kind: tuple(stack) for kind, stack in _BUILD['stacks'].items()}
+_BOX = _LIB['gearboxes'][STACKS['knee'][1]]
+RATIO, GEAR_J, BOX_ZETA = _BOX['ratio'], _BOX['input_j_share'], _BOX['zeta']
+BACKLASH_DEG, BOX_FRICTION = _BOX['backlash_deg'], _BOX['friction_share']
+COOLING, RIGID_PLAY_DEG = _BUILD['cooling'], _BUILD['rigid_play_deg']
+AHEAD_WIND, AHEAD_PLAY = _BUILD['ahead_wind'], _BUILD['ahead_play']
+#: Each kind's structure wound up a N m, mrad (`flex`).
+WIND = dict(_BUILD['wind'])
 
 #: The inverters out of their stacks: (segment, offset m in its frame, the axis its disc faces),
 #: else in its stack. The knee's and the ankle's split, two discs facing
@@ -112,27 +87,6 @@ BOARDS = {'knee': ('thigh', (0.035, -0.18, 0.01), 'x'),
           'spine': ('torso', (0.0, 0.14, -0.066), 'z'),
           'neck': ('torso', (0.0, 0.245, -0.066), 'z'),
           'head': ('torso', (0.0, 0.245, -0.049), 'z')}
-
-#: Each gearbox's play at its output, deg, and its mesh's friction as a share of its drive's
-#: peak: a good printed box's (estimated - PETG cycloid discs on steel pins
-#: print at 0.3-1 deg, 1-3 % of their rated torque lost in the mesh; `physics.BOXED`). Rigid
-#: (BOXED 0) the boards' encoders see the joint held within RIGID_PLAY_DEG, a wave drive's few
-#: arcmin, as her walk's band was measured.
-BACKLASH_DEG, BOX_FRICTION, RIGID_PLAY_DEG = 0.5, 0.02, 0.1
-#: The wind-up and the play a board asks its rotor ahead of its setpoint by (`gearbox.Boxes.ahead`):
-#: both, her toes dragged 16 mm at lift for 19, the walk 730 J/m for 607; the wind-up's alone
-#: 8-14 mm at 0.1-0.3 deg of play.
-AHEAD_WIND, AHEAD_PLAY = 0.0, 0.0
-
-#: Each joint's structure between its gearbox and its limb wound up a N m, mrad, its members in
-#: series (`tools/sim/members.py`: the pitch's bracket at 12 mm gave the spine 3.3,
-#: 27 deg at its clamp; sized, 0.085). With the box's own (BOX_K) a board sees its joint wound by
-#: its last torque (`flex`, `physics.WOUND`).
-WIND = {'spine': 0.085, 'spine_roll': 0.148, 'waist': 0.035, 'neck': 0.239, 'head': 0.239,
-        'shoulder': 0.122, 'elbow': 0.128, 'wrist': 0.173, 'gripper': 0.173, 'hip_yaw': 0.116,
-        'hip_roll': 0.085, 'hip': 0.061, 'knee': 0.051, 'ankle': 0.218, 'ankle_roll': 0.032,
-        'foot': 0.155}
-
 
 def flex(joint):
     """rad a N m its gearbox and the structure on to its limb wind up."""
@@ -157,26 +111,13 @@ def mesh(joint):
     none undriven."""
     return 0.0 if passive(joint) else BOX_FRICTION * peak(joint)
 
-#: Joints without a drive, a kind's way (WAYS): driven, 0; on a spring, 1 - PASSIVE's stiffness
-#: N m/rad and damping N m s/rad about its rest, deg, a kind not listed 40, 1 and 0 -; held at it,
-#: 2, between stops (`mjcf.HELD_DEG`). Any kind, for the fewest drives;
-#: the toes and the fingers to begin with: on the scoreboard, their four
-#: drives' 0.88 kg gone, the fingers held open at 20 deg 212 -> 349, held 79.5 -> 68.0 %, every
-#: rise down at 7.1 s; held a fist, 238 and 81.0 %; the toes sprung, 622 and 11.4 %, every walk
-#: down within 0.8 s - the walker's push-off asks them and its legs' reach counts on them. Each
-#: of the rest held in turn against 730 and 74.1 %: the wrists 602 and 74.2, every
-#: rise and walk standing - held; the head's turn 699 and 69.4 (a walk fell), the neck 628 and
-#: 71.2 (a rise), the waist 727 and 71.6 (a rise), the spine's roll 1293 and 23.0, the hips' yaw
-#: 1337 and 12.1.
-WAYS = {'foot': 1.0, 'gripper': 2.0, 'wrist': 2.0}
-PASSIVE = {'gripper': (40.0, 1.0, 80.0)}
-#: The toes' spring about flat, N m/rad, and its damping, N m s/rad: a sneaker's forefoot, 0.2-0.5
-#: N m a degree (a plated one's past 200 stood her on her toe tips) - a thin
-#: carbon-fibre sandwich with a TPU core, or TPU printed round carbon rods glued in with silicone:
-#: springy but damped, the TPU's loss factor TOE_LOSS at the push-off's
-#: TOE_RAD_S, c = loss k / omega (`passive`). The motors off them.
-#: TOE_REST deg its rest, toes up under 0 - a sneaker's toe spring (docs/findings/feet.md).
-TOE_K, TOE_LOSS, TOE_RAD_S, TOE_REST = 10.0, 0.3, 20.0, 0.0
+#: Joints without a drive (`passive`): a kind's way - 1 on a spring, 2 held - and a spring's
+#: (stiffness N m/rad, damping N m s/rad, rest deg); the toes' spring, its loss factor at its
+#: push-off's rad/s and its rest.
+WAYS = {k: v['way'] for k, v in _BUILD['passive'].items()}
+PASSIVE = {k: (v['stiffness'], v['damping'], v['rest']) for k, v in _BUILD['passive'].items()
+           if 'stiffness' in v}
+TOE_K, TOE_LOSS, TOE_RAD_S, TOE_REST = (_BUILD['toes'][k] for k in ('stiffness', 'loss', 'rad_s', 'rest'))
 
 
 def _stack(kind):
@@ -436,15 +377,11 @@ def speed(joint):
     return of(joint)[1].kv * PACK_V * 6.0 / ratio(joint)
 
 
-#: Clothing thermal insulation factor over bare-air convection (ISO 9920): 1.0 bare, 1.20 under
-#: a cotton T-shirt (0.15 clo, torso/arms), 1.45 under denim jeans (0.38 clo, pelvis/legs).
-CLOTH_AIR = {'hip_yaw': 1.45, 'hip_roll': 1.45, 'hip': 1.45, 'knee': 1.45, 'ankle': 1.45,
-             'ankle_roll': 1.45, 'spine': 1.20, 'spine_roll': 1.20, 'waist': 1.20,
-             'shoulder': 1.20, 'elbow': 1.20, 'neck': 1.0, 'head': 1.0, 'wrist': 1.0,
-             'gripper': 1.0, 'foot': 1.0}
-#: Coaxial aluminium stator-housing and cycloid ring-gear thermal mass (J/K) and board-to-stator
-#: mounting thermal resistance (K/W: 0.60 coaxial, 2.20 split off-axis on limb shell).
-STATOR_J_K, MOUNT_K_W, OFF_MOUNT_K_W = {'U8': 280.0, 'MN6007': 180.0}, 0.60, 2.20
+#: Clothing's insulation over bare air by kind (ISO 9920); each motor's housing's thermal mass,
+#: J/K, and a board's K/W to its stator on its axis and off it.
+CLOTH_AIR = dict(_BUILD['cloth'])
+STATOR_J_K = {k: m['stator_j_k'] for k, m in _LIB['motors'].items()}
+MOUNT_K_W, OFF_MOUNT_K_W = _BUILD['mount_k_w'], _BUILD['off_mount_k_w']
 
 
 def cloth_air(joint=None):

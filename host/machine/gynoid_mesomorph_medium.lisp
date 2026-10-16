@@ -15,13 +15,10 @@
 ;;                                  the knees and ankles.
 ;;   * gynoid_mesomorph_medium    - Anthropometric standard (160-168 cm); a pragmatic
 ;;                                  compromise between statistical human proportions and
-;;                                  sufficient internal and external envelope so the
-;;                                  structural chassis is robust rather than overly fragile
-;;                                  ("inte allt för skraltigt"), accommodating all structural
-;;                                  3D prints, actuators, harmonic drives, battery packs, TPU
-;;                                  gel pads, and clothing. [ACTIVE CHASSIS: 165.0 cm,
-;;                                  55.0 kg de Leva (1996), size 37-38 (24 cm) sole,
-;;                                  U8/MN6007 + 1:30 gearbox B]
+;;                                  enough internal and external envelope for a robust
+;;                                  rather than fragile chassis: structural 3D prints,
+;;                                  actuators, gearboxes, battery packs, TPU gel pads and
+;;                                  clothing. [ACTIVE: her numbers are her manifest's]
 ;;   * gynoid_hourglass_full      - Hyper-gynoid geometry (WHR <= 0.70); introduces a
 ;;                                  severe structural bottleneck for power buses and spinal
 ;;                                  actuators at the waist, while offering generous
@@ -44,6 +41,7 @@
 ;;   [4] Planar SE(2)        - Curvilinear & omnidirectional gaits (strafe, turn, circle, reverse arcs)
 ;; ============================================================================
 
+(include "gynoid_mesomorph_medium.manifest.lisp")
 (extends "gait_base.lisp")
 (include "postures_base.lisp")
 

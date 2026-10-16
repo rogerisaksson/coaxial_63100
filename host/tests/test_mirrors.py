@@ -239,8 +239,37 @@ def test_dimensions_page_is_the_drives(r):
             'python tools/sim/dimensions.py --write')
 
 
+def test_her_manifest_is_her_build(r):
+    """Her orthokinematic manifest is what `tools/cores/manifest.py` writes of her build's file
+    and her figure, and her text compiles it; her build names only the library's parts."""
+    from machine import mechatronics, ortho
+    from machine.errors import MachineError
+    from tools.cores import manifest
+    with open(manifest.path(), encoding='utf-8') as f:
+        page = f.read()
+    r.check("her manifest is its tool's output", page == manifest.text(), 'python tools/cores/manifest.py --write')
+    read = ortho.robot()
+    r.check('her text includes it: her mass, eleven modes, her drives', read is not None
+            and read['name'] == mechatronics.ROBOT and len(read['modes']) == 11 and 'left_knee' in read['drives'],
+            read and (read['body'].get('mass'), len(read['drives'])))
+    build, lib = mechatronics.robot(), mechatronics.library()
+    r.check("each stack's motor, gearbox and inverter is the library's", all(
+        named in lib[part] for stack in build['stacks'].values() for part, named in zip(mechatronics.PARTS, stack)))
+    was = build['stacks']['knee']
+    build['stacks']['knee'] = ['U9', 'B', 'coaxial_63100']
+    try:
+        mechatronics.robot()
+        refused = ''
+    except MachineError as exc:
+        refused = str(exc)
+    finally:
+        build['stacks']['knee'] = was
+    r.check('a stack naming a part the library lacks is refused, the parts named',
+            'U9 is no motor' in refused and 'MN6007' in refused, refused)
+
+
 ROSTER = (test_subsystem_calls_resolve, test_limits_live_in_one_file, test_mirrors_agree,
-          test_dimensions_page_is_the_drives)
+          test_dimensions_page_is_the_drives, test_her_manifest_is_her_build)
 
 def main(argv=None):
     """Every test, or those the command line's words name, or its --shard k/n (tools.dev.focus)."""

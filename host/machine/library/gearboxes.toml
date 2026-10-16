@@ -1,0 +1,26 @@
+# Gearboxes: one stage, a wave generator pushing rollers in a cage against a lobed ring - rolling
+# where a cycloid slides, many rollers sharing a blow -, backdrivable at these ratios.
+#
+# diameter_m: a rolling-element box's momentary 250 N m at 80 mm, five times its rated, 0.45 kg,
+# its drag at its input - its rollers' start, the motor's cogging - 0.08 N m, all as D^3, and
+# 0.28 D long (estimated). A fall asked a knee's 763 N m of its 128, a 60 x 30's rotor spun up
+# through it by the blow (docs/findings/stacks.md).
+# input_j_share: its input side seen at the motor as that share of the rotor's inertia; copper
+# watts go as 1/ratio^2, reflected inertia as ratio^2 (docs/findings/drives.md).
+# stiffness_nm_rad, zeta: its torsional stiffness at its output (estimated: a harmonic drive of
+# 70 mm gives 16-25 kN m/rad; a roller stage on a lobed ring, no flexspline, the same order) and
+# its wind-up's damping ratio. At a printed cycloid's 1.5 kN m/rad the stance ankle sagged 3-4
+# deg under its 60 N m and the walk on setpoints fell at its first steps.
+# backlash_deg, friction_share: its play at its output and its mesh's friction as a share of its
+# drive's peak - a good printed box's (estimated: PETG cycloid discs on steel pins print at
+# 0.3-1 deg, 1-3 % of their rated torque lost in the mesh).
+
+[B]
+kind = "roller wave"
+diameter_m = 0.064
+ratio = 30.0
+input_j_share = 0.05
+stiffness_nm_rad = 9.0e3
+zeta = 0.3
+backlash_deg = 0.5
+friction_share = 0.02

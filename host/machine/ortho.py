@@ -367,6 +367,36 @@ def _forms(text, here, seen=(), done=None):
             yield form
 
 
+def _robot(form):
+    """{name, body, modes, drives} of a (defrobot NAME (body (KEY N) ..) (mode MODE (KEY N) ..) ..
+    (drive JOINT (KEY V ..) ..) ..): her manifest's numbers (tools/cores/manifest.py)."""
+    if len(form) < 2 or not isinstance(form[1], str):
+        raise SyntaxError('%s: (defrobot NAME ..) wants a name' % said(form)[:60])
+    out = {'name': form[1], 'body': {}, 'modes': {}, 'drives': {}}
+    for part in form[2:]:
+        if not (isinstance(part, list) and part and part[0] in ('body', 'mode', 'drive')):
+            raise SyntaxError('(defrobot %s ..) holds (body ..), (mode MODE ..) and (drive JOINT ..): not %s'
+                              % (form[1], said(part)[:40]))
+        if part[0] == 'mode' and part[1:2] and part[1] not in _MODE:
+            raise SyntaxError('(defrobot %s (mode %s ..)): a mode is %s' % (form[1], part[1], ', '.join(_MODE)))
+        named = {kv[0]: (kv[1] if len(kv) == 2 else tuple(kv[1:])) for kv in part[1 + (part[0] != 'body'):]}
+        if part[0] == 'body':
+            out['body'] = named
+        else:
+            out['modes' if part[0] == 'mode' else 'drives'][part[1]] = named
+    return out
+
+
+def robot(text=None, here=None):
+    """Her manifest's (defrobot ..) in `text` (or `_FILE` and its includes), read: {name, body
+    {key: n}, modes {mode: {key: n}}, drives {joint: {key: v}}}; None with none."""
+    here = here or os.path.dirname(_FILE)
+    if text is None:
+        with open(_FILE, encoding='utf-8') as f:
+            text = f.read()
+    return next((_robot(f) for f in _forms(text, here) if isinstance(f, list) and f and f[0] == 'defrobot'), None)
+
+
 def rows(wire):
     """The rows of `wire`: [(id, at ms, blend ms, flags, the P parameters ..)]."""
     return list(ROW.iter_unpack(wire))
@@ -385,6 +415,9 @@ def compiled(text=None, here=None):
     tables, phases, raw, traits = {'': b''}, {}, {}, {}
     for form in _forms(text, here, seen):
         head = form[0] if isinstance(form, list) and form else None
+        if head == 'defrobot':
+            _robot(form)
+            continue
         if head == 'stream_inject':
             tables[''] += _packed(_row(form[1:], _PAYLOAD, traits=traits), 0)
             continue
@@ -401,8 +434,8 @@ def compiled(text=None, here=None):
             tables[form[1]], phases[form[1]], raw[form[1]] = _behavior(form[3:], base, traits, t_rows)
             continue
         if head != 'defbehavior' or len(form) < 3 or not isinstance(form[1], str):
-            raise SyntaxError('%s: a form is (include FILE ..), (deftrait NAME ..), (stream_inject ..), '
-                              '(defbehavior NAME ..) or (derive NAME BASE ..)' % said(form)[:60])
+            raise SyntaxError('%s: a form is (include FILE ..), (defrobot NAME ..), (deftrait NAME ..), '
+                              '(stream_inject ..), (defbehavior NAME ..) or (derive NAME BASE ..)' % said(form)[:60])
         ext = isinstance(form[2], list) and form[2] and form[2][0] in ('extends', 'use')
         if form[1] in tables and not (ext and form[1] in form[2][1:]):
             raise SyntaxError('(defbehavior %s ..): said twice' % form[1])

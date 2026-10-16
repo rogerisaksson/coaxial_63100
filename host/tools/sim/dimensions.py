@@ -34,7 +34,7 @@ def types():
         if not drives.passive(_joint(kind)):
             by.setdefault(stack, []).append(kind)
     frames = [stack[0] for stack in by]
-    return sorted(((stack[0] if frames.count(stack[0]) == 1 else '%s/%s/%d' % stack, stack, kinds)
+    return sorted(((stack[0] if frames.count(stack[0]) == 1 else '%s/%s/%s' % stack, stack, kinds)
                    for stack, kinds in by.items()),
                   key=lambda row: -max(drives.peak(_joint(k)) for k in row[2]))
 
@@ -87,7 +87,7 @@ def text():
         out.append('| %s | %d | %.0f x %.0f mm, KV %.0f | %.0f mm, 1:%.0f | %d mm, %.0f A | '
                    '%.0f x %.0f | %.2f | %.0f | %.0f | %.0f | %.3f |' % (
                        name, count, rotor * 1e3, stack * 1e3, size.kv, drives.BOXES[box] * 1e3,
-                       drives.RATIO, inverter, size.rated,
+                       drives.RATIO, round(1e3 * drives.INVERTERS[inverter][0]), size.rated,
                        max(size.diameter, 2e3 * size.board[1] / 1e3) * 1e3, long * 1e3,
                        size.mass + size.board[0], drives.peak(_joint(plain)) / lever,
                        heat.held(_joint(plain))[0] / lever,
