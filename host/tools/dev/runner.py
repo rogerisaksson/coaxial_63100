@@ -27,6 +27,9 @@ ANSI_RE = re.compile(r'\x1b\[[0-9;?]*[A-Za-z]')
 # The ollama suites under --tags say what they left out.
 GROUPS_RE = re.compile(r'^ran \d+ of \d+ groups: .*$')
 
+# A test's header: a crash's 1500 characters lost which test it was in (test_native_heat, 3.12).
+HEADER_RE = re.compile(r'^-- .+ --$')
+
 #: A suite's commit on the relay, GB: the stand-in's own process; the front page's views
 #: suite starts a page's processes by the dozen.
 SUITE_GB = 0.3
@@ -79,8 +82,10 @@ def _parse(out, code, elapsed, timeout):
                    if GROUPS_RE.match(l.strip())), None)
     if tally is None:
         # The suite crashed before printing its own tally - a traceback, an
-        # import error.
-        return None, code, failing, elapsed, (out or '').strip()[-1500:], groups
+        # import error - in the test its last header names.
+        header = next((l.strip() for l in reversed(lines) if HEADER_RE.match(l.strip())), None)
+        return (None, code, failing, elapsed,
+                '\n'.join(filter(None, [header, (out or '').strip()[-1500:]])), groups)
     return tally, code, failing, elapsed, None, groups
 
 

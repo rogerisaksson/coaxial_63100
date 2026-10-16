@@ -197,6 +197,11 @@ board's findings: [FINDINGS](../FINDINGS.md).
   `open_session` falls back to `native://` (`fallback_url()`), and rigs opened
   on the same URL bus share one refcounted `Transport` until the last rig
   disconnects.
+- CI's 3.12 runner heard silence from the dyno's board in test_native_heat
+  (calibration's read, 63 s in), once in 40 runs: a reply's 0.5 s was the
+  wall's. A limb's load (wall s a board s, `Limb.load`) is now the
+  transport's time scale, as Renode's is: 2.02-2.18 with its steps slowed to
+  half real time, 1.00 keeping up.
 
 ## Heat
 
@@ -243,4 +248,3 @@ board's findings: [FINDINGS](../FINDINGS.md).
   forwarded to the emulated world plant via `emu_world_model` and `emu_plant_reset`
   so the rotor runs bare or under commanded inertia/load instead of the demo flywheel.
   Both papers execute cleanly on `EMULATED`.
-

@@ -67,6 +67,9 @@ BURST_S = 0.05
 #: a scheduler's slice (Windows' 15.6 ms), s.
 TRAIL_S = 0.02
 
+#: The least wall s a limb's load is measured over.
+LOAD_S = 0.25
+
 #: A limb's boards run to one time in steps of this, the world stepped between them, us.
 LOCKSTEP_US = 1000
 
@@ -250,12 +253,25 @@ class Limb:
         self._line = 0                 # the line's last activity, us of the limb's clock
         self._start = time.monotonic()
         self._stop = threading.Event()
+        self._asked, self._load = (self._start, 0), 1.0
         self._thread = threading.Thread(target=self._pace, name='native limb', daemon=True)
         self._thread.start()
 
     def seconds(self):
         """The limb's clock, s."""
         return self.boards[0].seconds()
+
+    def load(self):
+        """Wall s a board s since last measured, at least 1: the transport's time scale, as
+        Renode's load is emulator://'s. A host too slow for the boards' haste stretches a reply's
+        wait: CI's 3.12 runner heard silence from the dyno's board at haste 30."""
+        wall = time.monotonic()
+        if wall - self._asked[0] >= LOAD_S:
+            with self.lock:
+                us = self._us
+            (was, was_us), self._asked = self._asked, (wall, us)
+            self._load = max(1.0, (wall - was) / max(1e-6 * (us - was_us), 1e-9))
+        return self._load
 
     def heat_clock(self, haste):
         """Every board's heat on `haste` thermal s a virtual s, as the rig sets their
@@ -422,6 +438,7 @@ class Serial(SerialBase):
         self.model = self._limb.model
         self.model_reset = self._limb.model_reset
         self.pilot = self._limb.pilot
+        self.time_scale_source = self._limb.load
         #: The units a scan probes, and whether the port is a board's console.
         self.units = self._limb.units
         self.console = self._limb.console

@@ -332,3 +332,6 @@ it names. A closed item is cut from the list and gets its line here, last.
     them, DIMENSIONS.md unchanged; `tools/cores/manifest.py` writes her
     orthokinematic manifest, her text includes it, test_mirrors holds it
     ([drives](findings/drives.md)).
+82. native://'s limb load the transport's time scale, a reply waited in the
+    board's time; a suite's crash told with its test's header
+    ([emulation](findings/emulation.md)).
