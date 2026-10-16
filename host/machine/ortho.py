@@ -49,7 +49,7 @@ import struct
 #:   mass at the knees and ankles.
 #: - gynoid_mesomorph_medium: Anthropometric standard (160-168 cm); a pragmatic compromise
 #:   between statistical human proportions and sufficient internal/external envelope so the
-#:   structural chassis is robust rather than overly fragile ("inte allt för skraltigt"),
+#:   structural chassis is robust rather than overly fragile,
 #:   accommodating all structural 3D prints, actuators, harmonic drives, battery packs, TPU
 #:   gel pads, and clothing (165 cm, 55.0 kg, 24 cm sole in machine.figure).
 #: - gynoid_hourglass_full: Hyper-gynoid geometry (WHR <= 0.70); introduces a severe structural

@@ -52,8 +52,8 @@ MAJOR_WIDE = 1.2
 #: the rim. Two deep: at four it outweighed the needle.
 SWEEP_OUT, SWEEP_IN = 9.0, 11.0
 
-#: The sweep fades behind the needle - bright where it has just been, to black
-#: ("tonas till svärta", not grey); at one weight it outshouted the
+#: The sweep fades behind the needle - bright where it has just been, to black,
+#: not grey; at one weight it outshouted the
 #: needle. In SWEEP_STEPS steps. SWEEP_FADE is how far back a still shows it,
 #: having no history to decay.
 SWEEP_FADE = math.radians(70.0)

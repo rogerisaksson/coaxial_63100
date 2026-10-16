@@ -93,7 +93,7 @@ def _hop_horiz(is_leap, g, ask, y, modal, mid, s_al, s_lt, c_al, c_lt, py, fl, a
 
 
 def shape_hop(g, ask, out, cur_doing, tx, ty, mods):
-    """Anatomical two-footed jump (jämfotahopp) and running leap (språng framåt) shaping."""
+    """Her two-footed jump and her running leap, shaped on her anatomy."""
     import numpy as np
     latent, modal, wrench = mods
     est, y, fl = g['est'], g['y'], float(g['fr'][modal.FLOOR])
