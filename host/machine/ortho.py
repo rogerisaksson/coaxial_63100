@@ -23,7 +23,7 @@
     ortho.rows(wire)  # [(id, at ms, blend ms, flags, the parameters ..)]
 
 A text speaks of balance, rhythm and elasticity alone. Where her latent coordinates are asked
-(`latent_targets`, -1 to 1 a mode); how stiffly and how damped each is held there (`impedance`:
+(`latent_targets`, -REACH to REACH a mode); how stiffly and how damped each is held there (`impedance`:
 N/m and N s/m, `global` every mode, MAX_SYS_K the stiffest said); her rhythm (`cpg_config`: on
 or off, its frequency, each mode's amplitude and its phase from another's; `cpg_override
 (halt_oscillators)` is off); what must hold whatever is asked (`task_constraints`: her ZMP in
@@ -192,12 +192,16 @@ def _offset(r, mode, of, v):
     r[_HEAD + PHASE + _MODE[mode][0]] = _CLEAR if rad is _CLEAR else (0.0 if math.isnan(lead) else lead) + rad
 
 
+#: How far a mode's target goes, units either way: past 1 is past her soles' own reach - a
+#: seat 3.5 axial units down and 3 sagittal back, the floor under her 6 - where a support, a
+#: step or a fall bears it.
+REACH = 6.0
 #: What a clause says, by the names down to it: how it is laid in the row. A latent target's
 #: last name is its mode.
 _PAYLOAD = {
     ('sequence_id',): _head(_ID),
     ('blend_duration',): _head(_BLEND, 's'),
-    ('latent_targets', 'MODE'): _mode(Z, -1.0, 1.0),
+    ('latent_targets', 'MODE'): _mode(Z, -REACH, REACH),
     ('impedance', 'stiffness'): _mode(K, 0.0, modes=_SPRUNG),
     ('impedance', 'damping'): _mode(D, 0.0, modes=_SPRUNG),
     ('cpg_config', 'enable'): _one(GAIN, 0.0, 1.0),

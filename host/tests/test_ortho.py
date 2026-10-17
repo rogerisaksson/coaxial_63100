@@ -91,7 +91,7 @@ def test_what_is_no_text_is_refused(report):
     from machine import ortho
     phase = '(defbehavior b (phase p (duration 1s) %s))'
     texts = (phase % '(latent_targets (mode_wing_flap 0.5))',
-             phase % '(latent_targets (mode_axial_compression 1.5))',
+             phase % '(latent_targets (mode_axial_compression 6.5))',
              phase % '(impedance (stiffness mode_axial_compression -1))',
              '(defbehavior b (phase p (latent_targets (mode_lateral_shift 0.5))))',
              phase % '(blend_duration 400)',

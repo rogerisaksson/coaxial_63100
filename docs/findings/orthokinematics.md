@@ -18,7 +18,7 @@ page).
 | `(stream_inject ..)` | a payload: one row, injected as it is said |
 | `(defbehavior NAME (phase NAME (duration 400ms) ..) ..)` | rows in a table, each at its time, then her rest over 200 ms |
 | `(sequence_id N)` `(blend_duration 800ms)` | its id; how long her state takes there, a straight line |
-| `(latent_targets (MODE N) ..)` | a mode's target, -1 to 1 |
+| `(latent_targets (MODE N) ..)` | a mode's target, -6 to 6: past 1 off her soles' own reach |
 | `(impedance (stiffness MODE N) (damping MODE N) ..)` | N/m and N s/m; `global` every mode; `MAX_SYS_K` 80 kN/m |
 | `(cpg_config (enable true) (frequency 0.8Hz) (amplitude MODE N) (phase_offset MODE OF 90deg))` | her rhythm: one angle, a sine a mode |
 | `(cpg_override (halt_oscillators))` | her rhythm off, in a phase |
@@ -102,8 +102,9 @@ third pass, 1.06 ms a pass walking, the page 0.9 of real time.
 
 ### Her walk
 
-201 to 204 of `gynoid_mesomorph_medium.lisp`: stand, sway at 0.83 Hz and 0.31 (2.50 cycles over
-the 3.0 s before `#203`, aligning the lateral weight shift with step onset),
+201 to 204 of `gynoid_mesomorph_medium.lisp`: stand, sway at 0.83 Hz and 0.31
+(2.50 cycles over the 3.0 s before `#203`, aligning the lateral weight shift with
+step onset),
 step at a 400 ms blend and a drive of 0.58 (`GOING_S` 0.45 s, `AHEAD_M_S` 0.22
 m/s, sagittal damping 260 N s/m), walk on at 0.65 with axial compression 0.02,
 her rock 0.6, her list and turn 0.4, her arms 0.8. 51 s: 0.70 m/s, step 0.475
@@ -319,8 +320,9 @@ What was tried on it, each 30 or 40 s:
 
 ## The stunts as entries
 
-The stunts were entries a case each (`sit_chair` to `controlled_fall`), measured beside crutches
-since taken out: the chair moved under her mid-hop, obstacles and sills found by body id, a
-shove's newtons choosing `parry_shove` or `controlled_fall`. Their outcomes stood on those and
-are void; TODO's Scenarios carry what is open. The knee's soft stop is a quadratic barrier from
-0.05 rad, over 200 N m at its end and no step in its slope.
+The stunts were entries a case each (`sit_chair` to `controlled_fall`), measured
+beside crutches since taken out: the chair moved under her mid-hop, obstacles and
+sills found by body id, a shove's newtons choosing `parry_shove` or
+`controlled_fall`. Their outcomes stood on those and are void; TODO's Scenarios
+carry what is open. The knee's soft stop is a quadratic barrier from 0.05 rad,
+over 200 N m at its end and no step in its slope.
