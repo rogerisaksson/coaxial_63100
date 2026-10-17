@@ -381,3 +381,4 @@ it names. A closed item is cut from the list and gets its line here, last.
 96. The aerobat's propeller pulls one way: no inverted hover, no flat spin, no
     lomcevak; a circuit and a flare onto its wheels
     ([aircraft](findings/aircraft.md)).
+97. The quad framed a third closer, its arms painted.

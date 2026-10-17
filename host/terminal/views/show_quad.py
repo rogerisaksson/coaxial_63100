@@ -68,7 +68,7 @@ SWITCH_S = 2e-4
 #: The camera: sit close on the floor before a flight, pull back in the air and zoom a little
 #: to follow altitude and box excursion while keeping contact with the horizon from a side
 #: RC-pilot perspective (`YAW`, `PILOT_M` off the line).
-NEAR_M, FAR_M, ZOOM_M, ZOOM_K, PULL_S = 0.8, 2.2, 0.9, 0.04, 1.5
+NEAR_M, FAR_M, ZOOM_M, ZOOM_K, PULL_S = 0.8, 1.5, 0.7, 0.04, 1.5
 YAW, SIDE_PITCH, PITCH, PILOT_M = 30.0, 18.0, 18.0, 14.0
 HORIZON_M, HORIZON_DIP, HORIZON_LIFT = 150.0, 9.0, 0.25
 TRAIL_S, TRAIL_SHARE = 0.12, 0.4

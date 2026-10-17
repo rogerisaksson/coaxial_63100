@@ -64,12 +64,12 @@ def _arm(x, z, material):
 def parts():
     """[(name, mesh)]: the frame in its own axes, x right, y up, z ahead - the rotors at
     `quad.ROTOR_AT`, the skids' feet where `quad.mjcf` stands them."""
-    carbon = paint(CARBON)
+    carbon, skin = paint(CARBON), paint(SKIN)
     out = [('plate', shapes.drum(PLATE_R, PLATE_H, 'y', PLATE)),
            ('dome', shapes.ellipsoid((0.0, PLATE_H / 2.0, 0.0), (0.055, 0.03, 0.075), CORE))]
     for k, (x, z) in enumerate(quad.ROTOR_AT):
         top = quad.DISC_M
-        out += [('arm%d' % k, _arm(x, z, carbon)),
+        out += [('arm%d' % k, _arm(x, z, skin)),
                 ('can%d' % k, _at(shapes.drum(CAN_R, CAN_L, 'y', PLATE), None,
                                   (x, top - CAN_L / 2.0, z))),
                 ('board%d' % k, _at(shapes.drum(BOARD_R, BOARD_H, 'y', paint(MASK)), None,
