@@ -83,3 +83,11 @@ torques. What her law senses: [sensing](sensing.md); the drives:
   0.22 kg heavier (their columns one, the gripper held), her forearm 0.06; her
   shoulder's residual 3.37 -> 0.05 N m, her elbow's 1.93 -> 0.05, her trunk's
   1.5-4.5 -> 0.1; no other drive's up by more than 0.06.
+- A world built 15 % off the figure, every link's mass, centre and inertia
+  and every drive's armature and friction drawn apart: Coulomb read back
+  within 0.6 % at the median, 10.4 % at worst; a knee's and an ankle's
+  armature within a few %, viscous 11.5 % at the median (0.3 N m s/rad is
+  little torque); 107 base parameters trusted, 61 within 10 % of the world's.
+  The correction laid over the build: a fresh campaign's residual 0.60 ->
+  0.36 N m rms a drive, the world's own model 0.30 (the friction band, the
+  hems); the trunk's rows 1.19 and 2.9 -> 0.28 and 0.18.

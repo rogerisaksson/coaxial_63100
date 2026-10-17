@@ -2,7 +2,7 @@
 """Her body identified of her edge alone (`machine.sysid`, `machine.identified`): the regressor against MuJoCo's inverse
 dynamics; a campaign on the stand reading her drives' friction and armature and her links; a
 payload in her hand found; its corrections laid over her law's model and judged on a fresh
-campaign."""
+campaign; a world built 15 % off the figure read back."""
 import os
 import sys
 import tempfile
@@ -33,6 +33,8 @@ FRICTION, VISCOUS, RESIDUAL, SHIFT = 0.15, 0.20, 1.5, 0.25
 ARMATURES = ('knee', 'ankle', 'ankle_roll', 'elbow')
 #: The first moments the payload moves most: its arm's and the trunk's.
 MOVED = ('left_forearm.hy', 'left_upper_arm.hy', 'torso.hy')
+#: How far a world is built off the figure, of each number.
+OFF = 0.15
 
 
 def _states(b, rng):
@@ -188,8 +190,51 @@ def test_her_corrections_are_laid_over_her_build(report, c):
                  'worst +%.2f N m, %s' % (worse.max(), names[int(np.argmax(worse))]))
 
 
+def test_a_world_off_the_figure_is_read_back(report, c):
+    """A world built OFF of the figure - every link's mass, centre and inertia, every drive's
+    armature and friction drawn apart -: each drive's Coulomb friction read back within
+    FRICTION, the armatures a swing tells apart within it; its corrections take the build's
+    misfit on a fresh campaign at least halfway to the world's own."""
+    from machine import identified, sysid, wbc
+    from machine.drives import kind
+    lay, rng = c['lay'], np.random.default_rng(7)
+    world = physics.World()
+    m = world.model
+    for body in lay['bodies']:
+        m.body_mass[body] *= rng.uniform(1.0 - OFF, 1.0 + OFF)
+        m.body_inertia[body] *= rng.uniform(1.0 - OFF, 1.0 + OFF, 3)
+        m.body_ipos[body] *= rng.uniform(1.0 - OFF, 1.0 + OFF, 3)
+    for d in c['body'].act:
+        for arr in (m.dof_armature, m.dof_damping, m.dof_frictionloss):
+            arr[d] *= rng.uniform(1.0 - OFF, 1.0 + OFF)
+    world._mj.mj_setConst(m, world.data)
+    Y, tau, touched, world = _campaign(c, 4, world)
+    base = sysid.base(lay, Y)
+    got = sysid.identify(base, Y, tau)
+    true = sysid.projected(base, sysid.truth(lay, m))
+    err = np.abs(got['theta'] - true) / np.maximum(np.abs(true), 1e-9)
+    f = {n: err[k] for k, n in enumerate(got['names']) if n.endswith('.f')}
+    arm = {n: err[k] for k, n in enumerate(got['names']) if n.endswith('.J') and kind(n[:-2]) in ARMATURES}
+    report.check('nothing touched her on the world %.0f %% off' % (100 * OFF), touched == 0, '%d steps' % touched)
+    report.check('every drive\'s Coulomb friction read back within %.0f %%' % (100 * FRICTION),
+                 max(f.values()) < FRICTION, 'worst %.1f %%, median %.1f %%' % (100 * max(f.values()), 100 * np.median(list(f.values()))))
+    report.check('the armatures a swing tells apart within %.0f %%' % (100 * FRICTION),
+                 max(arm.values()) < FRICTION, 'worst %.1f %%' % (100 * max(arm.values())))
+    fresh = wbc.Body(identified=False)
+    identified.correct(fresh, identified.correction(lay, c['body'], Y, tau))
+    Y3, tau3, _touched, world = _campaign(c, 5, world, SHORT)
+    read = np.maximum((np.abs(Y3).sum(axis=2) > 0).sum(axis=0), 1)
+    rms = {}
+    for label, model in (('build', c['body'].m), ('corrected', fresh.m), ('world', m)):
+        r = Y3 @ sysid.truth(lay, model) - tau3
+        rms[label] = float(np.sqrt((r * r).sum(axis=0) / read).mean())
+    report.check('its corrections take the build\'s misfit at least halfway to the world\'s own',
+                 rms['corrected'] <= 0.5 * (rms['build'] + rms['world']),
+                 'build %.3f, corrected %.3f, world %.3f N m rms a drive' % (rms['build'], rms['corrected'], rms['world']))
+
+
 ROSTER = (test_the_regressor_is_mujocos, test_her_drives_and_links_are_read, test_a_payload_is_found,
-          test_her_corrections_are_laid_over_her_build)
+          test_her_corrections_are_laid_over_her_build, test_a_world_off_the_figure_is_read_back)
 
 
 def main(argv=None):

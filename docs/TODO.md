@@ -213,12 +213,13 @@ gets a line at the end of [DONE](DONE.md).
 23. **The library's variants** (`machine/library`, `machine/robots`): more
     inverters, motors and gearboxes as data, a build naming them, as few
     kinds as her stunts allow. DOD: a second build runs her on the page.
-24. **Identification's rest** (identification.md): a world built 15 % off
-    the figure identified back within 10 % where trusted; the gearboxes'
-    wind-up and play with `physics.BOXED` on; her pelvis's rows - her weight
-    and its moments against her soles' loads - standing; the identified
-    model's torques on her walk within half the figure's misfit; hung in a
-    harness as on the stand.
+24. **Identification's rest** (identification.md): a world 15 % off the
+    figure reads back its drives and 61 of 107 trusted base parameters within
+    10 %, its correction 0.60 -> 0.36 N m where the world's own is 0.30; left:
+    the gearboxes' wind-up and play with `physics.BOXED` on; her pelvis's
+    rows - her weight and its moments against her soles' loads - standing;
+    the identified model's torques on her walk within half the figure's
+    misfit; hung in a harness as on the stand.
     + DOD: each measured in `test_sysid.py`.
 
 ## One command, either driver
