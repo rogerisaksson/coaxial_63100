@@ -24,6 +24,13 @@ Pages, tooling, suites and the local model's runner. The board's findings:
   its seconds (`hostclock.Told`) it reads 1446 every run, the lane ringing
   1420-1590 rpm at 0.7 Hz; its camera is read against the head's own reading
   of the pass before.
+- That lane's loop ran at 25 Hz under a 3 Hz crossover, acting a pass and a
+  half after it read - 65 deg of phase: its rotor 1447-1549 rpm. At 16 times
+  its crossover (48 Hz, `motion.RATE_PER_HZ`) 1472-1520, at 50 Hz 1484-1508.
+  The board's sensorless speed ripples 5 % about the rotor's, the lane's
+  estimate with it (1412-1577; its model trusted 100 times more, 1467-1524,
+  the rotor 1479-1500 and its mean 0.7 % low): a reading at an instant is
+  that ripple.
 - CI went red on stand-ins run by the wall: the quad's take-off (-5585 rpm) and
   the rotor demo's climb (1862 rpm of 1870). On 2 cores beside 6 busy loops the
   quad tripped 6 of 6, its 3 Hz speed loop sampled a few times a second. A

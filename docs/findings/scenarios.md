@@ -185,6 +185,15 @@ at her torso and hands, strafes 1.1-1.9, a hop down 11.7.
   was let go, its upper body's jump the same (12-16 N m walking, 130 N m in the
   weave). Its leg holds it to the floor through her drives' tracking and their
   observer, not her step's push: not kept.
+- The swing along and across on the least-jerk path from the sole's
+  acceleration, none if it stood: the let-go's upper-body jump 12.6 -> 7.2 N m
+  walking and 133 -> 59 in the weave, its first ask 35 -> 25 m/s^2; but her walk
+  2.52 -> 3.52 off, her knee landing at 42 deg - the old spring was the limb's
+  own stiffness through the whole swing, and the path's horizon held to it
+  lagged. The old spring's ask changing no faster than 4 000 m/s^3 (her steady
+  walk's feet): the jump 7.8 N m walking and 113 in the weave, her walk 2.56
+  off, every segment's jerk peak and her hips at their clamps 3.3 % of passes as
+  before: not kept.
 
 ## The terrain's scenes
 

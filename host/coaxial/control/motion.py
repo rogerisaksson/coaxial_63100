@@ -229,16 +229,22 @@ class Servo(_Mode):
                           self.amps))
 
 
+#: A speed loop's passes a second, of its crossover: it acts a pass and a half after it reads,
+#: and at 25 Hz a 3 Hz lane lost 65 deg of phase to it and rang 1447-1549 rpm about 1500.
+RATE_PER_HZ = 16.0
+
+
 class Velocity(_Mode):
 
     """Sensorless speed: a `Loop` of one `Feedback`, 'speed' - w_target -> Slew -> w_ref,
     drive.omega_hat -> Gain(1 / poles) -> w (-> estimator) -> w_hat, SpeedPI -> iq_ref ->
     the drive. `regulator=`, `estimator=` plug other parts in; `load_k` is the regulator's
-    feedforward, not a load (the stand-in's drag is `model.configure(load=...)`).
+    feedforward, not a load (the stand-in's drag is `model.configure(load=...)`). Its loop runs
+    RATE_PER_HZ times its crossover `hz` at least.
     """
 
     def __init__(self, device, amps, hz=3.0, j=2e-5, b=1e-5, load_k=0.0,
-                 rate_hz=25.0, regulator=None, estimator=None):
+                 rate_hz=None, regulator=None, estimator=None):
         super().__init__(device)
         self.amps = float(amps)
         p = self._params
@@ -247,7 +253,8 @@ class Velocity(_Mode):
             lq=p['motor_lq'], lam=p['motor_lambda'],
             poles=self.poles, j=j, b=b, measured=False)
         self.loop = Loop({'drive': Polled(self.drive.state)}, {'drive': self.drive},
-                         rate_hz=rate_hz, clock=self._clock.perf, sleep=self._clock.sleep)
+                         rate_hz=rate_hz or max(25.0, RATE_PER_HZ * hz), clock=self._clock.perf,
+                         sleep=self._clock.sleep)
         self.loop.add('speed', Feedback(
             regulator or SpeedPI.of(hz, float(amps), motor,
                                     load=Propeller(load_k) if load_k else None),
