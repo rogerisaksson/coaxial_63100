@@ -166,6 +166,13 @@ at her torso and hands, strafes 1.1-1.9, a hop down 11.7.
 - Left: a sole let go at 60 N on its toes, the other then 715 N where the step
   planned 192 (turns, the weave); a seat's touch flickering as she rises; a
   hop's landing.
+- The let-go itself: held still standing, the trailing sole is asked about 35
+  m/s^2 its first pass swinging - its toes' need (half a sole and its toes by
+  its tilt) whole at once, the clearance's cubic rise -, its hip 8 -> -158 N m,
+  the other hip -1 -> 115, her centre of mass -3.0 -> +2.3 m/s^2 up. Not kept:
+  the rise quintic and the toes' need eased in with it - 780 m/s^2 its third
+  pass, 600 J/m; the toes' need eased into its place alone - 100 m/s^2 its
+  second pass, 2.92 off.
 
 ## The terrain's scenes
 
