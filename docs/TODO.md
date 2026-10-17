@@ -296,9 +296,7 @@ serves its DOD; none an entry a case.
    parts' peak. Without it the turns hold and the turnabout better (13 of 13,
    7 granted); the weave falls at 4 of 13 (demand.md). DOD: each scenario's
    peak, rms, speed and heat under 2/3 of its parts.
-8. **A wall, a tree walked into**: her touch halts her (`machine.touch`).
-   DOD: each 3 times in 4, no fall.
-9. **Her horizons, an externality each**: the room a limb may reach and may
+8. **Her horizons, an externality each**: the room a limb may reach and may
    use, toggled on the page (Z the soles', DONE 87). DOD: arms, legs, hands.
 
 ## Bench
@@ -359,18 +357,9 @@ serves its DOD; none an entry a case.
 
 - **native://**: a limb's world on a fixed mount as board/emu's. DOD: the
   body's balance and gait from the SIL.
-- **A smoke test in the push hook**: every `machine` module imported, the
-  gynoid run a second headless. DOD: a broken import caught by it.
-- **Deterministic controller checks**: two in `test_controller` fell on 3.12
-  alone (1421 rpm for 1500; the camera), on the wall clock. DOD: on told
-  seconds, 10 of 10 green on 3.12 and 3.14.
-- **Empty suites in CI**: `test_parity`, `test_bench` run 0 checks there.
-  DOD: by design and said in the summary, or their checks back.
-- **Takes with their commands**: keys and commands a column beside the
-  state in every HUMANOID CSV; every crash take a regression test
-  (`tests/replays`). DOD: a crash take replayed to the pass, red then green.
-- **A counter while logging** on every MuJoCo page (`terminal/ui/recorder`).
-  DOD: each page, on a PNG.
+- **A counter while logging** on the aerobat's and the ornithopter's pages
+  as on the humanoid's, the quad's and the helicopter's (`terminal/ui/recorder`).
+  DOD: each on a PNG.
 - **Third-person controls as the games have them** (RDR2, GTA V): orbit,
   follow, shoulder swap, sprint, crouch, a context prompt. DOD: a PNG each.
 - **Identification on the robot** (identification.md): the campaign
