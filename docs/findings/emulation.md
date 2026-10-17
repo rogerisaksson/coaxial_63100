@@ -202,6 +202,14 @@ board's findings: [FINDINGS](../FINDINGS.md).
   wall's. A limb's load (wall s a board s, `Limb.load`) is now the
   transport's time scale, as Renode's is: 2.02-2.18 with its steps slowed to
   half real time, 1.00 keeping up.
+- The load is read between transactions: a board falling behind mid-wait went
+  unheard (CI's 3.14 runner, test_native_heat's world mounted anew). A reply's
+  start waits its budget on the wall and on the board's own clock
+  (`host_clock`), the wall's no more than 30 times it (`Transport.STALL_X`):
+  held 1.5 s behind the wall after a request a native board was heard at 1.51 s
+  where silence at 0.51. On the board's clock alone Renode's, carried ahead
+  between reads, ended waits early and test_emulator read a late reply into the
+  next.
 
 ## Heat
 

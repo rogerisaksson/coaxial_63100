@@ -90,6 +90,11 @@ class Transport:
     proven_dispatch = False
 
     DEFAULT_TIMEOUT = 0.5
+    #: A reply's start is waited for its budget on the wall and on the board's own clock
+    #: (`host_clock`), the wall's no more than STALL_X times it: on the wall's alone, CI's 3.14
+    #: runner stalled the dyno's native board mid-wait and heard silence; on the board's alone,
+    #: Renode's clock carried ahead between reads ended a wait early and a late reply was read.
+    STALL_X = 30.0
 
     _time_scale = 1.0
 
@@ -269,11 +274,14 @@ class Transport:
             return self._read_until_quiet(budget, reply_shape)
 
     def _first_byte(self, budget):
-        """Wait up to `budget` for a reply to start, in QUIET_TIME slices."""
-        deadline = time.monotonic() + budget
+        """Wait up to `budget` for a reply to start, in QUIET_TIME slices - and as long as its
+        board takes to run it."""
+        clock, start = self.host_clock, time.monotonic()
+        until = clock.perf() + budget / max(1.0, self._time_scale)
         while True:
             byte = self.serial.read(1)
-            if byte or time.monotonic() >= deadline:
+            gone = time.monotonic() - start
+            if byte or (gone >= budget and clock.perf() >= until) or gone >= self.STALL_X * budget:
                 return byte
 
     def _read_exactly(self, want, budget):

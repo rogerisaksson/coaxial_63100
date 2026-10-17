@@ -381,6 +381,7 @@ Six firmware defects, no hardware fault:
 | Her jerk through transitions against her steady walk, and its sources | [findings/jerk.md](findings/jerk.md) |
 | Build, buses, falls, drawing, clothes | [findings/body.md](findings/body.md) |
 | Drives: motors, gearboxes, inverters, sizing | [findings/drives.md](findings/drives.md) |
+| Each drive's demand on her loop, the chair's stunts against it | [findings/demand.md](findings/demand.md) |
 | One stack for every drive: demand, candidates, stacks as built | [findings/stacks.md](findings/stacks.md) |
 | The drive and its observers: stand-in, emulator, native://, rotor pages | [findings/drive.md](findings/drive.md) |
 | QUAD: frame, air, law, routine, course, tuner | [findings/quad.md](findings/quad.md) |

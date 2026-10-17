@@ -119,7 +119,7 @@ gets a line at the end of [DONE](DONE.md).
    drive's compliance a motor-side degree of freedom, else torque limiters.
    + DOD: none > 1.0 over a spread of falls.
 8. **Humanoid robot drives against what the loop asks** (`tools/sim/demand.py`,
-   drives.md): the humanoid robot rms, speeds and heat inside 2/3 of every
+   demand.md): the humanoid robot rms, speeds and heat inside 2/3 of every
    part's; the humanoid robot peaks not - walking and hopping the humanoid
    robot hips, knees and spine at their clamps (48.4 A, their gearboxes at 0.84
    of their momentary), a hip 2.7 % of the passes. Walking it is the humanoid
@@ -267,13 +267,15 @@ serves its DOD; none an entry a case.
    her head at 1.1-4.5 m/s. DOD: 200 N falls with the head under 1 m/s.
 6. **One jump**: takeoff from the height and distance to land - a hop's
    landing said with it, its throw forward from that, not from a twist; the
-   chair's two texts reach no hop yet (scenarios.md). DOD:
+   chair's two texts reach no hop yet (scenarios.md); off and onto a 0.45 m
+   seat her knees work at 0.93-1.0 of their peak, past the drives' 50 %
+   margin (demand.md) - the seat's height or the knees' drives to decide. DOD:
    down from a chair, two-footed up onto one (0.45 m), in place; landed
    standing.
 7. **The drives for it**: a gait under way, a swing led or her capture point
    past a lone standing sole grants a held drive 1.45x its clamp, past its
    parts' peak. Without it the turns hold and the turnabout better (13 of 13,
-   7 granted); the weave falls at 4 of 13 (drives.md). DOD: each scenario's
+   7 granted); the weave falls at 4 of 13 (demand.md). DOD: each scenario's
    peak, rms, speed and heat under 2/3 of its parts.
 
 ## Bench
