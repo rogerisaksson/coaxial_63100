@@ -224,6 +224,13 @@ plain walk the same bit for bit (her pose hashed each second for 20 s).
   with a 0.3 m/s twist (3.50); walked off it, 0.15 m/s for 0.3 s, 6 of 13 - the
   rest stop stepping in place on the seat, creep 0.07 m/s to its edge and walk off
   it at 5.1 s.
+- On her loop alone, `flight.shape_hop` left out, `hop` crouches 12 cm, throws
+  at 1.24 m/s up, flies 0.15 s and lands standing at 967 N (shaped, 18.7 cm
+  over her stand where 2.2). The chair's hop as a loop text - a lean onto her
+  toes, a throw with her sagittal shift stiff ahead, a soft landing - flies
+  0.2 s and lands on the seat's edge: off a seat 0.22 m to its edge and 0.45 m
+  down a throw needs 0.9-1.0 m/s ahead, her ZMP in her soles gives 4.9 m/s^2
+  for its 0.15 s, 0.74 m/s. Not kept.
 
 ## The floor under a sole
 
