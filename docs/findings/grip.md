@@ -54,3 +54,13 @@ and the patches in [scenarios](scenarios.md) walk it.
 - Snow holds 11 of 13 wobbles - 13 before its patch was made real, 12 after.
   At 3e-4 rad her standing sole's load fell 379 -> 40 N and her pelvis went
   0.23 -> 2.78 m/s ahead in 0.1 s, her grip read 0.6 throughout.
+- Unaware ice, traced: her left sole read 0.103 one pass after it met the ice
+  (2.31 s) and the slick patch 0.065 (0.06); the grip relaxed to her prior
+  over 3 s and was back inside her envelope (0.25) within a second, each
+  landing sole started at the prior, she drove on to 1.06 m/s, slid 0.3-0.4
+  m/s, flew at 5.9 s and fell at 6.6-6.7 s. Relaxed over 30 s and a landing
+  sole starting from the floor the other stands on: 0.6 -> 0.2 m/s by 4 s,
+  slips under 0.04, across the ice standing; ice, the slick patch and snow 9
+  of 9 wobbles, the turns, the turnabout, the weave, the spin, the sill, the
+  rug and the hole as before; her flat walk 51 s, 0.70 m/s, 408 J/m, 2.55
+  off the band. Ice and the slick patch join `test_scenarios`.

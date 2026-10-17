@@ -279,12 +279,12 @@ serves its DOD; none an entry a case.
    it is: her grip felt as a sole slides (`machine.grip`) or told, her
    centre of mass, her going, her landings and her step's cones bounded by
    it outside her envelope, a surface's text capping her rhythm under its
-   grip (`surfaces.lisp`); told, she crosses the ice at 13 of 13 wobbles;
-   unaware, ice (0.1) 1 of 13 and the slick patch (0.06) 6: her recovery
-   from the first slide (grip.md). DOD: asphalt, snow and ice
-   estimated within 20 % a second after she meets them, each walked 3 times
-   in 4 with its text; on skates she stands 10 s and goes 2 m by strides
-   across her blades.
+   grip (`surfaces.lisp`); the ice read 0.103 and the slick patch 0.065 a
+   pass after a sole meets them, kept 30 s and handed to each landing sole:
+   told or unaware she crosses both, and snow, at every wobble (grip.md).
+   Left: a floor her soles never slide on - asphalt, snow - read from what
+   her holding soles use alone; skates. DOD: on skates she stands 10 s and
+   goes 2 m by strides across her blades.
 5. **Reachable landings ahead**: where each limb lands before her capture
    point is past it, read from her reach (`machine.reach`); none, her height
    lowered and a limb set to meet the fall, knees then hands, head off the

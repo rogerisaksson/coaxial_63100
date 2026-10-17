@@ -16,7 +16,7 @@ from gynoid_kit import Report
 #: mid-stride; down onto a chair and up. Each holds at 13 of 13 wobbles, -6e-4 to 6e-4 rad; a
 #: bed at 9: in the margin. Ice and the slick patch held while they were 1 mm films her soles
 #: stood through onto the floor.
-HELD = ('wall', 'tree', 'sill', 'rug', 'hole', 'snow', 'asphalt', 'ice_told', 'play_start_stop', 'play_turns',
+HELD = ('wall', 'tree', 'sill', 'rug', 'hole', 'snow', 'asphalt', 'ice', 'slip', 'ice_told', 'play_start_stop', 'play_turns',
         'play_strafes', 'play_reverse', 'play_sprint', 'play_spin', 'play_weave', 'play_about', 'play_moves',
         'play_walk', 'play_stutter', 'chair')
 WOBBLES = (0.0, 2e-4, -2e-4)

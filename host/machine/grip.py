@@ -26,8 +26,10 @@ SOLES = np.array([[edge.SKIN.index(side + '_foot'), edge.SKIN.index(side + '_toe
 #: drawn to what it used over SLIDE_S - over 0.05 s a sole pushing off on ice slid back 0.3 m
 #: before her law asked less of it -; holding, up to what it used over TRUST_S - at once, a sole
 #: off the ice onto the floor freed her stride in a pass and she ran on to 1.7 m/s. Unread, a
-#: grip goes back to its prior over RELAX_S.
-BEARS, SLIDE_M_S, SLIDE_S, TRUST_S, RELAX_S = 0.1, 0.15, 0.006, 1.0, 3.0
+#: grip goes back to its prior over RELAX_S: at 3 s the ice read at 0.103 was 0.25, her
+#: envelope's, within a second, she drove on to 1.06 m/s and fell at 6.6-6.7 s; at 30 she kept
+#: it, slowed to 0.2 m/s by 4 s and crossed.
+BEARS, SLIDE_M_S, SLIDE_S, TRUST_S, RELAX_S = 0.1, 0.15, 0.006, 1.0, 30.0
 #: A slide's friction within 45 deg of against it. A slide counts once its share has held within
 #: PLATEAU of itself over its last SEEN passes: sliding, friction is a constant - on the ice 0.099
 #: to 0.101 while its load fell 348 -> 194 N; a hard landing's skid read 0.174 -> 0.137 in three,
@@ -56,10 +58,11 @@ def felt(grip, seen, frames, touch, slip, weight, dt, prior=MU, landed=(False, F
     """Each sole's grip `dt` s on (2,), `seen` (2, SEEN) its last shares used sliding (0 holding)
     moved on: `frames` (2, 2, 3, 3) her model's of each sole's foot and toes, `touch` the edge's
     (SKIN, 3), `slip` her bearing soles' (3,, world, m/s), `weight` hers, N; `prior` what she
-    knows of the floor. A sole `landed` this pass is on a floor not felt yet: its grip the prior -
-    kept from where it stood, past a slick patch a sole's reach was 5 cm on a floor of 1.0 for a
-    second and she fell there."""
-    grip = np.where(landed, prior, grip)
+    knows of the floor. A sole `landed` this pass is on the floor the other stands on, as far as
+    that is known under the prior - kept from where it stood itself, past a slick patch a
+    sole's reach was 5 cm on a floor of 1.0 for a second and she fell there."""
+    # a landing sole meets the floor the other stands on, as far as that is known under her prior
+    grip = np.where(landed, np.minimum(prior, grip.min()), grip)
     pushed = np.einsum('kjab,kjb->ka', frames, touch[SOLES])
     press = pushed @ UP
     across = pushed - press[:, None] * UP
