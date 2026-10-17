@@ -122,7 +122,7 @@ def cruises(way, drive, turns, going):
     return clip(cruise, going - AHEAD_M_S, going + AHEAD_M_S)
 
 
-def meets(xi, c, flat, cruise, om, turns, wide, across=0.0):
+def meets(xi, c, flat, cruise, om, turns, wide, across=0.0, reach=REACH_M):
     """Where each sole lands (2, 2: along, across): it meets her capture point `xi`, carried
     along with her - a step's offset short of it along her going, what her `cruise` makes of
     a step, and the sole's own side of it by her width's (`wide` m between her soles). On its
@@ -130,7 +130,7 @@ def meets(xi, c, flat, cruise, om, turns, wide, across=0.0):
     m/s, 7 cm past where she could go over it, and she stopped and went back; to where her
     capture point was foreseen from her ZMP, e^(omega t) on, she lost 0.06 m/s a landing and
     went 0.33 m/s where 0.46 was asked; half a step ahead of her, she went 0.2 m/s: over a
-    leg 16 cm ahead she rises 17 mm, 0.58 m/s to do it. No further than REACH_M from her
+    leg 16 cm ahead she rises 17 mm, 0.58 m/s to do it. No further than `reach` from her
     centre of mass `c`, and APART_M its own side of the other sole (`flat` their middles)."""
     step_s = np.pi / np.maximum(turns, TINY)
     grown = np.exp(om * step_s)
@@ -139,7 +139,7 @@ def meets(xi, c, flat, cruise, om, turns, wide, across=0.0):
     led_lat = s_ac * clip(s_ac * (xi[LEFT] - c[LEFT]) - 1.35 * np.abs(across) / om, -0.052, 0.042)
     meet = xi - np.stack([cruise * step_s / (grown - 1.0) - led + 0.0 * LIMBS,
                           -led_lat - LIMBS * wide / (grown + 1.0)], axis=1)
-    return np.stack([c[ALONG] + clip(meet[:, ALONG] - c[ALONG], -REACH_M, REACH_M),
+    return np.stack([c[ALONG] + clip(meet[:, ALONG] - c[ALONG], -reach, reach),
                      flat[::-1, LEFT] + LIMBS * np.maximum(LIMBS * (meet[:, LEFT] - flat[::-1, LEFT]), APART_M)],
                     axis=1)
 

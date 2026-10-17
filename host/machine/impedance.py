@@ -20,7 +20,7 @@ import numpy as np
 from machine import latent, poise, stride
 from machine.modal import (
     ARM_RAD, ARMS, AXIAL, AXIAL_M, BEND, CLEAR_M, COM, COM_ACC, DRIVE, DT, EDGE, FLOOR, FOLD, FOLD_RATE, FOLDS, G,
-    GOING, GROUND, HANDS, HEADED, HEELED, HIP, HIPS_BY, HOT, KDOT, KNEE, LATERAL, LEAD, LEG_M, LIFT, LIST, LIST_RAD,
+    GOING, GRIP, GROUND, HANDS, HEADED, HEELED, HIP, HIPS_BY, HOT, KDOT, KNEE, LATERAL, LEAD, LEG_M, LIFT, LIST, LIST_RAD,
     LOAD, LOWEST, MASS, MOMENT, NEED, OUTSIDE, PELVIS, PROP, PROP_HI, PROP_LO, BORNE, WEIGHT, PITCH, PITCH0, PITCH_RAD, PREFOLD, QUAT, RAISE, REACH0, ROCK, ROLLED, ROT,
     SAGITTAL, SETTLE, SOLE, SOLE_ACC, SPIN, STANCE, STRIDES, SWINGS, SWUNG, TILT, TILT_RATE, TIPPED, TURN, TURN_RAD,
     TURNED, UNIT, VCOM, VSOLE, W0, WANT, WIDTH, Z0, reading, shortened, under)
@@ -120,8 +120,14 @@ def ask(out, y, fr, a):
     grounded, aloft = np.maximum(stance.max(), propped), 1.0 - stance
     bears = (stance + TINY) / (stance.sum() + 2.0 * TINY)
     along = om ** 2 * (c[:2] - zmp)
+    # along the floor no harder than her standing soles' grip gives: on ice (0.02) her step asked
+    # a sole 0.85 of its load across and it slid
+    along = along * np.minimum(1.0, (bears @ y[GRIP]) * G / np.maximum(np.linalg.norm(along), TINY))
     # striding: where a sole lands, how it is pitched, how a standing one is turned
-    meet = stride.meets(xi, c, flat, cruise, om, turns, 2.0 * fr[W0] * (1.0 + ref[WIDTH]), across)
+    # a sole lands no further from her than its leg can push along itself inside its grip's cone:
+    # on ice (0.1) a sole landed 0.3 m ahead of her as the other slid, slid too, and she fell
+    reach = np.minimum(stride.REACH_M, (bears @ y[GRIP]) * (c[UP] - fr[FLOOR]))
+    meet = stride.meets(xi, c, flat, cruise, om, turns, 2.0 * fr[W0] * (1.0 + ref[WIDTH]), across, reach)
     tip, tipping, tipped = stride.rocks(ref[ROCK], rate[ROCK], acc[ROCK])
     long = fr[REACH0] - AXIAL_M * fr[HIPS_BY] * np.maximum(ref[AXIAL], 0.0)
     a[PREFOLD], short = stride.folds(off, y[LOAD], fr[KNEE] + a[BEND])

@@ -67,20 +67,20 @@ def _inv(A):
     return np.linalg.solve(A.T @ A + DAMP ** 2 * np.eye(A.shape[1]), A.T)
 
 
-def bounded(u, frames, stance, edge=(0.0, 0.0)):
+def bounded(u, frames, stance, edge=(0.0, 0.0), mu=(MU, MU)):
     """`u` with each standing sole's wrench (moment, force; world) inside its bounds - pressing,
-    in its friction's pyramid, its centre of pressure in its room -, and which parts moved. A
-    sole on an `edge` - 1 its ball, -1 its heel, a share between - has its centre of pressure
-    that far to it."""
+    in its friction's pyramid (`mu` each's), its centre of pressure in its room -, and which
+    parts moved. A sole on an `edge` - 1 its ball, -1 its heel, a share between - has its centre
+    of pressure that far to it."""
     out = u.copy()
     for k, R in enumerate(frames):
         m, f = R.T @ u[6 * k:6 * k + 3], u[6 * k + 3:6 * k + 6]
         fy = max(f[1], 0.0)
-        cap = np.array([ROOM[1] * fy, MU * YAW_M * fy, ROOM[0] * fy])
+        cap = np.array([ROOM[1] * fy, mu[k] * YAW_M * fy, ROOM[0] * fy])
         low = -cap * np.array([1.0 - 2.0 * max(-edge[k], 0.0), 1.0, 1.0])
         cap = cap * np.array([1.0 - 2.0 * max(edge[k], 0.0), 1.0, 1.0])
         inside = np.concatenate([R @ np.clip(m, low, cap),
-                                 [np.clip(f[0], -MU * fy, MU * fy), fy, np.clip(f[2], -MU * fy, MU * fy)]])
+                                 [np.clip(f[0], -mu[k] * fy, mu[k] * fy), fy, np.clip(f[2], -mu[k] * fy, mu[k] * fy)]])
         out[6 * k:6 * k + 6] += stance[k] * (inside - u[6 * k:6 * k + 6])
     return out, (np.abs(out - u) > 1e-9).astype(float)
 
@@ -97,7 +97,7 @@ def pushed(u, bears):
     return out, (np.abs(out - u) > 1e-9).astype(float)
 
 
-def faced(u, frames, stance, edge=(0.0, 0.0)):
+def faced(u, frames, stance, edge=(0.0, 0.0), mu=(MU, MU)):
     """`u` with each standing sole's wrench in its cone, as `bounded`; the faces it was past -
     six a sole, its moment about its own axes (pitch, yaw, roll), then its force - and each
     face's share of the sole's push: no part has a bound of its own."""
@@ -105,8 +105,8 @@ def faced(u, frames, stance, edge=(0.0, 0.0)):
     for k, R in enumerate(frames):
         was = np.concatenate([R.T @ u[6 * k:6 * k + 3], u[6 * k + 3:6 * k + 6]])
         fy = max(was[4], 0.0)
-        low = -np.array([ROOM[1] * (1.0 - 2.0 * max(-edge[k], 0.0)), MU * YAW_M, ROOM[0], MU, 0.0, MU])
-        high = np.array([ROOM[1] * (1.0 - 2.0 * max(edge[k], 0.0)), MU * YAW_M, ROOM[0], MU, 1.0, MU])
+        low = -np.array([ROOM[1] * (1.0 - 2.0 * max(-edge[k], 0.0)), mu[k] * YAW_M, ROOM[0], mu[k], 0.0, mu[k]])
+        high = np.array([ROOM[1] * (1.0 - 2.0 * max(edge[k], 0.0)), mu[k] * YAW_M, ROOM[0], mu[k], 1.0, mu[k]])
         inside = np.clip(was, low * fy, high * fy)
         past[6 * k:6 * k + 6] = stance[k] * (np.abs(inside - was) > 1e-9)
         share[6 * k:6 * k + 6] = np.where(was < low * fy, low, high)
@@ -114,7 +114,7 @@ def faced(u, frames, stance, edge=(0.0, 0.0)):
     return out, past, share
 
 
-def _taken(u0, metric, up, frames, stance, edge, band, grounded):
+def _taken(u0, metric, up, frames, stance, edge, band, grounded, mu):
     """Striding, what the floor cannot give her inertia takes: `u0`, the rows' answer with the
     floor unbounded, brought to the faces her soles' wrenches are past by the least change in
     `metric` - her kinetic energy's, a swinging sole's ask held. Traded among the rows, a row
@@ -139,7 +139,7 @@ def _taken(u0, metric, up, frames, stance, edge, band, grounded):
         met[12] = max(met[12], grounded * float(abs(past - G - ay) > 1e-9))
         C = met[:, None] * (F - share[:, None] * N)
         u = u0 - Gi @ C.T @ np.linalg.solve(C @ Gi @ C.T + np.diag(1.0 - met + gives), C @ u0 - met * level)
-        at, out, to = faced(u, frames, stance, edge)
+        at, out, to = faced(u, frames, stance, edge, mu)
         share[:12] += out * (to - share[:12])
         met[:12] = np.maximum(met[:12], out)
     return at
@@ -273,7 +273,7 @@ def step(b, s, ask):
         ay = float(sumf[1] @ u) / mass - G
         past = float(np.clip(ay, lo, hi)) + G
         band, edge = max(band, grounded * float(abs(past - G - ay) > 1e-9)), edge + (1.0 - band) * (past - edge)
-        at, moved = bounded(u, frames, stance, ask.get('edge', (0.0, 0.0)))
+        at, moved = bounded(u, frames, stance, ask.get('edge', (0.0, 0.0)), ask.get('mu', (MU, MU)))
         at, held = pushed(at, [c['f'][1] for c in contacts])
         pressed = pressed * (u[NU + 1:NU + k3:3] >= 0.0)
         pinned = np.maximum(pinned, np.maximum(moved, held))
@@ -282,7 +282,7 @@ def step(b, s, ask):
         keep = W_KEEP * np.concatenate([each, np.zeros(nu - 12)]) * part
         kinetic = full.T @ M @ full + np.diag((W_SWING * swung + spare) ** 2 + keep ** 2)
         u = u + strides * (_taken(np.linalg.solve(H0, g0), kinetic, up, frames, stance,
-                                  ask.get('edge', (0.0, 0.0)), (lo, hi), grounded) - u)
+                                  ask.get('edge', (0.0, 0.0)), (lo, hi), grounded, ask.get('mu', (MU, MU))) - u)
     qdd = full @ u + full0
     tau = (M @ qdd + h)[act]
     for i, c in enumerate(contacts):

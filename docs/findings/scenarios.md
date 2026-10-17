@@ -298,3 +298,34 @@ at her torso and hands, strafes 1.1-1.9, a hop down 11.7.
 - Left: on the ramp her speed 0.6-1.3 m/s where 0.69 is asked; past its top the
   plane run on over the level; down the ramp a swing hangs 6 cm over the floor,
   down the stairs 27 cm, and reaches on only 11 cm (`stride.REACH_S`).
+
+## Her floor's grip
+
+- The ice, the slick patch and the snow were boxes 1, 1 and 4 mm over the
+  floor's slab; a loaded sole sinks 1 to 3 mm (1.0 mm standing) and stood
+  through them on the slab's friction, 1.0: on the ice her sliding soles used
+  0.07 to 0.22 where the ice's is 0.02. Raised 5, 5 and 40 mm the ice fell at
+  3.0-3.8 s and the slick patch (0.06) at 2.8-3.9; snow (0.35) and asphalt held.
+  Ice is now a rubber sole's, 0.1; 0.02 is a skate blade's.
+- A bearing sole that slides uses the floor's friction, its push's share across
+  her IMU's up (`machine.grip`). Its slide is what the draw of her IMU-carried
+  speed to her bearing soles has added up to while they bore (`estimate`'s
+  slip): walking a level floor 0.071 m/s at most, turning 0.127, on ice 1.36 at
+  the 90th percentile; a sole slides past 0.15. Read across a sole's own up, one
+  pitched 0.2 rad at its heel's strike read its push 0.2 across; read as what
+  her step asked against what a sole used, the drives' lag at a walk's start
+  read 0.05 on a floor of 1.0; read as her soles' speed apart in double support,
+  rolling soles read 0.05 m/s and more in 94 of 216 passes.
+- Felt: the slick patch 0.065 0.37 s after its first slide, the ice (0.1)
+  0.104-0.125 within 0.15 s, snow at or over its 0.35, asphalt and a player's
+  turns 0.6 throughout.
+- On it: her centre of mass asked along the floor no harder than her standing
+  soles' grip times g; her going no faster than sqrt(2 STRIDE_M grip g), 0.77
+  m/s on ice; a sole landing no further from her than grip times her height,
+  0.09 m on ice; each sole's cone its grip (`wrench`, `wbc_cone.c`). Her level
+  walk the same to the digit; walking 80 N shoves 29 -> 30 of 32. Ice down at
+  4.8-4.9 s where 4.3-4.4, the slick patch at 3.0-4.4: she meets both at 0.69
+  m/s and slides before anything has slid.
+- Not kept yet: `ice_walk`'s amplitudes as caps under a grip of 0.25 - the ice
+  down at 4.6-7.2 s, 4.56 m on at one wobble; the slick patch at 3.2-3.5: her
+  toes on it as she sets out slide on their first push.

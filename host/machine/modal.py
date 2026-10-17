@@ -41,12 +41,13 @@ PELVIS = np.array([1.0, 0.0])
 #: speed; each sole's load, N; the pelvis's and the trunk's quaternions and spins; her angular
 #: momentum about her centre of mass; each sole's lowest corner's height; each hip's joint;
 #: each sole's pitch, its heel up, rad, and its rate; each shoulder's reach forward, rad; the
-#: share of her weight borne off her soles, and the box it is borne on (low, high; world).
+#: share of her weight borne off her soles, and the box it is borne on (low, high; world); each
+#: sole's grip, the floor's friction under it as she has felt it (`machine.grip`).
 COM, VCOM, SOLE, VSOLE = slice(0, 3), slice(3, 6), slice(6, 12), slice(12, 18)
 LOAD, QUAT, SPIN, MOMENT = slice(18, 20), slice(20, 28), slice(28, 34), slice(34, 37)
 LOWEST, HIP, TILT, TILT_RATE, ARM = slice(37, 39), slice(39, 45), slice(45, 47), slice(47, 49), slice(49, 51)
-PROP, PROP_LO, PROP_HI = 51, slice(52, 55), slice(55, 58)
-SENSED = 58
+PROP, PROP_LO, PROP_HI, GRIP = 51, slice(52, 55), slice(55, 58), slice(58, 60)
+SENSED = 60
 #: Her statics: her way's frame (3 x 3: along, left, up in the world); her centre of mass over
 #: her soles and her soles' half width as she stood; the floor; omega; her weight, N; her knees'
 #: bend standing, rad; the pelvis's and the trunk's pitch then; her heading, rad; a hip from

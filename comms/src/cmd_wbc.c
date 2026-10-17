@@ -41,6 +41,7 @@ static void stand(wbc_frame_t *base, wbc_ask_t *ask)
   memcpy(base->p, wbc_stand_base + 9, sizeof(base->p));
   memset(ask, 0, sizeof(*ask));
   ask->stance[0] = ask->stance[1] = 1;
+  ask->mu[0] = ask->mu[1] = WBC_MU;
   wbc_body_pose(&s_body, base, wbc_stand_q);
   wbc_quat_of(s_body.t[0].r, ask->turn[0]);
   wbc_quat_of(s_body.t[wbc_trunk].r, ask->turn[1]);

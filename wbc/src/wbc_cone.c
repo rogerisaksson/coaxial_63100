@@ -9,8 +9,8 @@
 
 #define NU WBC_U
 
-/** A sole's friction; its yaw moment's arm, m. */
-static const double MU = 0.6, YAW_M = 0.04;
+/** A sole's yaw moment's arm, m. */
+static const double YAW_M = 0.04;
 
 static double clip(double x, double lo, double hi)
 {
@@ -27,8 +27,8 @@ void wbc_cone_bounded(const wbc_body_t *b, const wbc_wrench_t *w, const wbc_ask_
   for (int k = 0; k < 2; k++)
   {
     const double *r = b->t[wbc_sole[k]].r, *m = x + 6 * k, *f = x + 6 * k + 3;
-    const double  fy = (f[1] > 0.0) ? f[1] : 0.0, e = ask->edge[k];
-    const double  cap[3] = {w->room[1] * fy, MU * YAW_M * fy, w->room[0] * fy};
+    const double  fy = (f[1] > 0.0) ? f[1] : 0.0, e = ask->edge[k], mu = ask->mu[k];
+    const double  cap[3] = {w->room[1] * fy, mu * YAW_M * fy, w->room[0] * fy};
     const double  lo0 = -cap[0] * (1.0 - 2.0 * ((e < 0.0) ? -e : 0.0));
     const double  hi0 = cap[0] * (1.0 - 2.0 * ((e > 0.0) ? e : 0.0));
     double        ml[3], in[6];
@@ -44,9 +44,9 @@ void wbc_cone_bounded(const wbc_body_t *b, const wbc_wrench_t *w, const wbc_ask_
     {
       in[i] = r[3 * i] * ml[0] + r[3 * i + 1] * ml[1] + r[3 * i + 2] * ml[2];
     }
-    in[3] = clip(f[0], -MU * fy, MU * fy);
+    in[3] = clip(f[0], -mu * fy, mu * fy);
     in[4] = fy;
-    in[5] = clip(f[2], -MU * fy, MU * fy);
+    in[5] = clip(f[2], -mu * fy, mu * fy);
     for (int i = 0; i < 6; i++)
     {
       at[6 * k + i] += stance[k] * (in[i] - x[6 * k + i]);
@@ -68,11 +68,11 @@ static void faced(const wbc_body_t *b, const wbc_wrench_t *w, const wbc_ask_t *a
   memcpy(at, x, NU * sizeof(double));
   for (int k = 0; k < 2; k++)
   {
-    const double *r = b->t[wbc_sole[k]].r, *m = x + 6 * k, e = ask->edge[k];
-    const double  high[6] = {w->room[1] * (1.0 - 2.0 * ((e > 0.0) ? e : 0.0)), MU * YAW_M, w->room[0],
-                             MU, 1.0, MU};
-    const double  low[6] = {-w->room[1] * (1.0 - 2.0 * ((e < 0.0) ? -e : 0.0)), -MU * YAW_M,
-                            -w->room[0], -MU, 0.0, -MU};
+    const double *r = b->t[wbc_sole[k]].r, *m = x + 6 * k, e = ask->edge[k], mu = ask->mu[k];
+    const double  high[6] = {w->room[1] * (1.0 - 2.0 * ((e > 0.0) ? e : 0.0)), mu * YAW_M, w->room[0],
+                             mu, 1.0, mu};
+    const double  low[6] = {-w->room[1] * (1.0 - 2.0 * ((e < 0.0) ? -e : 0.0)), -mu * YAW_M,
+                            -w->room[0], -mu, 0.0, -mu};
     double        was[6], in[6], fy;
 
     for (int i = 0; i < 3; i++)

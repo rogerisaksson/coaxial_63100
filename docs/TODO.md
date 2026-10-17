@@ -210,7 +210,7 @@ gets a line at the end of [DONE](DONE.md).
 
 Each a test in MuJoCo: placed, commanded as a player would, judged by no
 fall, its goal reached and its jerk (`tools/sim/scenarios.py`; those that hold
-in `test_scenarios`, 21 of 30 at every wobble now:
+in `test_scenarios`, 19 of 30 at every wobble now:
 [scenarios](findings/scenarios.md)). In order: each a mechanism, the scenes it
 serves its DOD; none an entry a case.
 
@@ -234,7 +234,7 @@ serves its DOD; none an entry a case.
 3. **A landing on what is there**: a swinging sole that meets something
    raises her swings by its height, one that meets nothing reaches on down; a
    sliding one lowers the friction she asks. Met at 13 of 13 wobbles: the
-   sill, the rug, the hole, ice, snow, asphalt, a slick patch. The floor
+   sill, the rug, the hole, snow, asphalt. The floor
    ahead a plane of her standing soles' pitch (`modal.under`): up a ramp she
    lands where she aims, down at its top; past a crest or down a descent a
    swing hangs 6-27 cm over the floor (scenarios.md). DOD: stairs of 0.15 x
@@ -247,10 +247,13 @@ serves its DOD; none an entry a case.
    (lisp) laid over the general law's: the friction her step asks, her
    rhythm, her step's length, her stiffness - no branch in the law. Skates:
    a sole's room a line along its blade, free along it, held across it. As
-   it is: nothing estimated; ice 0.02 and the slick patch 0.06 against 0.6
-   asked. DOD: asphalt, snow and ice estimated within 20 % a second after
-   she meets them, each walked 3 times in 4 with its text; on skates she
-   stands 10 s and goes 2 m by strides across her blades.
+   it is: her grip felt as a sole slides (`machine.grip`), her centre of
+   mass, her going, her landings and her step's cones bounded by it; the
+   slick patch felt 0.065 in 0.37 s, ice (0.1) and the slick patch (0.06)
+   down before 5 s; no text (scenarios.md). DOD: asphalt, snow and ice
+   estimated within 20 % a second after she meets them, each walked 3 times
+   in 4 with its text; on skates she stands 10 s and goes 2 m by strides
+   across her blades.
 5. **Reachable landings ahead**: where each limb lands before her capture
    point is past it, read from her reach (`machine.reach`); none, her height
    lowered and a limb set to meet the fall, knees then hands, head off the

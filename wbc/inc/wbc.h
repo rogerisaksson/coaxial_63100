@@ -105,6 +105,7 @@ typedef struct
   double settle[2][6];            /**< a standing sole's own acceleration (w, v), world: 0 still */
   double edge[2];                 /**< its centre of pressure toward its ball (1) or heel (-1) */
   double strides;                 /**< how far she strides, 0 to 1: the floor's shortfall her inertia's */
+  double mu[2];                   /**< each standing sole's friction: her grip (machine.grip) */
 } wbc_ask_t;
 
 /** What the loop answers: the drives' torques; every acceleration (u's order); each sole's
@@ -209,6 +210,8 @@ void wbc_stack_step(wbc_body_t *b, wbc_stack_t *s, const wbc_frame_t *base,
 #define WBC_U (12 + WBC_DRIVEN - 12)
 /** Its rounds of clipping, and of faces striding. */
 #define WBC_ROUNDS 4
+/** Her law's own friction, a sole's, before she has felt a floor (machine.wbc.MU). */
+#define WBC_MU 0.6
 #define WBC_PASSIVE (WBC_N - 6 - WBC_DRIVEN - WBC_HELD)
 
 /** Its memory, laid once. */

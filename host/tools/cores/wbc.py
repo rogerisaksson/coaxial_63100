@@ -11,6 +11,7 @@ import numpy as np
 
 from tools import REPO
 from tools.cores.build import cached
+from machine.wbc import MU
 from tools.cores.model import HEADER, rotation
 
 SOURCES = [os.path.join(REPO, 'wbc', 'test', 'harness.c'),
@@ -48,7 +49,7 @@ class Ask(ctypes.Structure):
                 ('fold_knee', _d * 2), ('fold_rate', _d * 2), ('fold_acc', _d * 2),
                 ('posture', _d * DRIVEN), ('derate', _d * DRIVEN), ('wep', _i),
                 ('kdot_given', _i), ('kdot', _d * 3), ('settle', (_d * 6) * 2), ('edge', _d * 2),
-                ('strides', _d)]
+                ('strides', _d), ('mu', _d * 2)]
 
 
 class Out(ctypes.Structure):
@@ -64,7 +65,7 @@ class Out(ctypes.Structure):
 
 def ask_of(ask):
     """An `Ask` from `machine.wbc.step`'s dict: stance, com_acc, turns - none asked, all zeros
-    -, swing, fold, posture, derate, wep, kdot; `machine.wrench.step`'s settle, edge and strides."""
+    -, swing, fold, posture, derate, wep, kdot; `machine.wrench.step`'s settle, edge, strides and mu."""
     a = Ask()
     for k in (0, 1):
         a.stance[k] = int(bool(ask['stance'][k]))
@@ -89,6 +90,7 @@ def ask_of(ask):
         a.settle[k][:] = [float(x) for x in settle]
     a.edge[:] = [float(x) for x in ask.get('edge', (0.0, 0.0))]
     a.strides = float(ask.get('strides', 0.0))
+    a.mu[:] = [float(x) for x in ask.get('mu', (MU, MU))]
     return a
 
 

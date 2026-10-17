@@ -227,7 +227,8 @@ tests/              suites, .counts.json (measured sizes)
 | sprung | the latent loop run: her world read and told through her edge, her law's pass between; her process, paced to the clock: the one thing that moves her |
 | law | her law's pass on her sensors alone: sensed, latent, impedance, wrench (or wbc), the drives' observers under it |
 | edge | the one reader of the world for her law - IMU, encoders, sole loads, a skin a segment, insoles - and the one writer of her drives |
-| estimate | her pelvis's place and speed of what she measures: the IMU carried, drawn to her bearing insoles |
+| estimate | her pelvis's place and speed of what she measures: the IMU carried, drawn to her bearing insoles; how fast they slide |
+| grip | each sole's floor friction as she feels it: what a sliding sole uses |
 | touch | what her skin and soles feel: a touch against her going stops it, one along it walked out, her going cut toward what she felt, a trip on an edge |
 | worker | her process's session: a pass at a time, each command logged with its epoch and pass, falls recovered; the page's states |
 | physics | DYNAMIC: the figure in MuJoCo, a drive a joint |

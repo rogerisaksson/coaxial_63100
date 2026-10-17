@@ -12,7 +12,7 @@ HOLE_M, HOLE_LONG_M, SILL_M, SILL_LONG_M = 0.10, 0.40, 0.035, 0.04
 SLIP_LONG_M, SLIP_FRICTION = 0.5, 0.06
 RUG_LONG_M, RUG_M, RUG_KG, RUG_FRICTION = 0.9, 0.01, 1.5, 0.55
 SLAB_FROM_M, SEAM_M, SLAB_TO_M, PARKED_M = -20.0, 30.0, 10000.0, -50.0
-DEEP_M, SLIP_TOP_M = 0.2, 0.001
+DEEP_M = 0.2
 #: A flight of stairs: its steps, each's rise and run, m, and the landing at its top. A house's.
 STEPS, RISE_M, RUN_M, TOP_M = 5, 0.15, 0.30, 1.5
 #: A scene's floor a flight or a ramp climbs to or comes down to goes on this far, m: the base
@@ -26,8 +26,12 @@ BED_MATTRESS, BED_MATTRESS_H, BED_FRAME = (0.50, 0.12, 1.0), 0.45, (0.52, 0.08, 
 #: A ramp's grade, deg, and its half sizes: 10 deg, a steep street's.
 SLOPE_ANGLE_DEG, SLOPE_HALF = 10.0, (0.60, 0.05, 1.44)
 SLOPE_TOP_HALF, SLOPE_TOP_H = (0.60, 0.05, 0.60), 0.10
-ICE_HALF, ICE_FRICTION = (0.60, 0.02, 1.25), 0.02
+#: Ice under a rubber sole: 0.1; 0.02 is a skate blade's.
+ICE_HALF, ICE_FRICTION = (0.60, 0.02, 1.25), 0.1
 SNOW_HALF, SNOW_FRICTION = (0.60, 0.03, 1.25), 0.35
+#: A patch's top over the floor, m: a loaded sole sinks 1 to 3 mm, into snow its give more. At 1
+#: mm a sole stood through the ice onto the floor and walked on its friction, 1.0 where 0.02.
+SLIP_TOP_M, ICE_TOP_M, SNOW_TOP_M = 0.005, 0.005, 0.04
 
 SCENARIOS = (
     'flat', 'glass_room', 'chair', 'bed', 'mattress', 'slope', 'slope_down', 'cross_slope',
@@ -227,8 +231,8 @@ _SIMPLE_PROPS = {
     'bed': ('prop_bed', 0.0, 0.0), 'prop_bed': ('prop_bed', 0.0, 0.0),
     'mattress': ('prop_bed', 0.004 - BED_MATTRESS_H, 0.0),
     'asphalt': ('slope_top', 0.002 - SLOPE_TOP_HALF[1], SLOPE_TOP_HALF[2]),
-    'ice': ('ice', 0.001 - ICE_HALF[1], ICE_HALF[2]),
-    'snow': ('snow', 0.004 - SNOW_HALF[1], SNOW_HALF[2]),
+    'ice': ('ice', ICE_TOP_M - ICE_HALF[1], ICE_HALF[2]),
+    'snow': ('snow', SNOW_TOP_M - SNOW_HALF[1], SNOW_HALF[2]),
 }
 
 

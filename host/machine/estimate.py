@@ -9,7 +9,9 @@ Her turn, her spin and her joints are her IMU's and her encoders'. Her pelvis's 
 on by her IMU's specific force and gravity, and drawn to what each bearing insole's centre of
 pressure says of it - the insoles weighed by their loads. From the soles' lowest corners alone it
 erred 0.165 m/s at the 99th percentile of a walk, 0.41 at worst, where a sole rolled. Her height and place are where she was laid,
-carried on: drift is her own, as on a robot.
+carried on: drift is her own, as on a robot. What that draw has added up to while her soles bore
+is how fast they slide (`est['slip']`, world): walking a level floor 0.071 m/s at most, turning
+0.127; on ice 1.36 at the 90th percentile.
 """
 import os
 
@@ -21,8 +23,9 @@ from machine import edge
 from machine.figure import JOINTS
 from machine.flight import TOUCH_N
 
-#: Her speed as her IMU carries it on, drawn to what her bearing soles say over HOLD_S.
-HOLD_S = 0.03
+#: Her speed as her IMU carries it on, drawn to what her bearing soles say over HOLD_S; her soles'
+#: slide forgotten over SLIP_S.
+HOLD_S, SLIP_S = 0.03, 0.3
 
 
 def laid(body, where):
@@ -32,7 +35,8 @@ def laid(body, where):
     vadr = np.array([m.jnt_dofadr[m.joint(j).id] for j in JOINTS])
     est = {'qpos': np.zeros(m.nq), 'qvel': np.zeros(m.nv), 'qadr': qadr, 'vadr': vadr,
            'pos': np.array(where, float), 'vel': np.zeros(3), 'jp': np.zeros((3, m.nv)),
-           'speeds': np.zeros((len(edge.INSOLES), 3)), 'insoles': [m.body(n).id for n in edge.INSOLES]}
+           'speeds': np.zeros((len(edge.INSOLES), 3)), 'insoles': [m.body(n).id for n in edge.INSOLES],
+           'slip': np.zeros(3)}
     est['qpos'][3] = 1.0
     return est
 
@@ -62,6 +66,7 @@ def step(est, body, y, dt):
     falls = est['vel'] + (_rot(y[edge.QUAT]) @ y[edge.ACCEL] + edge.G) * dt
     went = -(loads @ est['speeds']) / max(bears, 1e-9)
     vel = falls + float(bears > 0.0) * min(1.0, dt / HOLD_S) * (went - falls)
+    est['slip'] = float(bears > 0.0) * (1.0 - dt / SLIP_S) * (est['slip'] + falls - vel)
     est['pos'] += 0.5 * (est['vel'] + vel) * dt
     est['vel'] = vel
     qpos[0:3], qvel[0:3] = est['pos'], vel
