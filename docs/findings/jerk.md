@@ -124,3 +124,10 @@ strafes 2.9, a spin 5.9, turns 6.5, the weave 13.0, the chair 14.4, a hop down
 - Seated, only her thighs bear, their touch points side by side (`borne`: a
   point each): the seat gives her step no pitch moment, her turns' asks met by
   the plan's opposite, -3 to -15 rad/s^2 asked, +2 to +5 planned.
+- Not kept: an ask her drives cannot carry shrunk as one toward asking nothing
+  (her weight borne, every acceleration zero: a second solve of the same rows)
+  as far as brings every torque within its clamp, in place of the clip after
+  the solve. Her walk the same (0.70 m/s, 406 J/m, 2.52 off); a hop down's
+  hand 18.7 -> 10.9, the chair's 9.3 -> 5.8, turns 6.5 -> 3.7, but the weave's
+  hand 13.0 -> 15.9, the spin's pelvis 2.6 -> 4.5, the chair's head 11.6 as
+  it was: the peaks are not the clip's alone.
