@@ -39,6 +39,7 @@ import math
 import os
 import re
 import struct
+from machine import mechatronics
 
 #: Classification schema following the gynoid_<morphology>_<scale> convention:
 #: - gynoid_ectomorph_petite: Small-framed and fine-boned (waif/gamine, < 165 cm); yields an
@@ -61,7 +62,7 @@ import struct
 #: - gynoid_skeletal_ultralight: Hollowed truss or exoskeleton chassis stripped of synthetic soft
 #:   tissue; reduces feminine cues strictly to pelvic geometry, Q-angle, and lumbar lordosis to
 #:   minimize total system mass.
-_FILE = os.path.join(os.path.dirname(__file__), 'gynoid_mesomorph_medium.lisp')
+_FILE = os.path.join(os.path.dirname(__file__), mechatronics.ROBOT + '.lisp')
 
 #: Her latent coordinates, a row's vectors in this order. Of her centre of mass over her soles'
 #: middle: its height, 1 fully compressed; its place across, 1 over her first limb's sole;
@@ -393,12 +394,14 @@ def _robot(form):
 
 def robot(text=None, here=None):
     """Her manifest's (defrobot ..) in `text` (or `_FILE` and its includes), read: {name, body
-    {key: n}, modes {mode: {key: n}}, drives {joint: {key: v}}}; None with none."""
+    {key: n}, modes {mode: {key: n}}, drives {joint: {key: v}}}; the one named ROBOT where a
+    text extends another robot's, else the first; None with none."""
     here = here or os.path.dirname(_FILE)
     if text is None:
         with open(_FILE, encoding='utf-8') as f:
             text = f.read()
-    return next((_robot(f) for f in _forms(text, here) if isinstance(f, list) and f and f[0] == 'defrobot'), None)
+    found = [_robot(f) for f in _forms(text, here) if isinstance(f, list) and f and f[0] == 'defrobot']
+    return next((r for r in found if r['name'] == mechatronics.ROBOT), found[0] if found else None)
 
 
 def surfaces(text=None, here=None):

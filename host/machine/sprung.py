@@ -5,7 +5,7 @@
 """
 import math
 import os
-from machine import edge, estimate, flight, grip, ortho
+from machine import mechatronics, edge, estimate, flight, grip, ortho
 
 RATE_HZ, SLICE_S, SAY_S, AVERAGE_S, RECOVER_S = 1000.0, 0.05, 1.0 / 60.0, 0.05, 3.0
 SHOVES, SHOVE_S = {'nudge': 38.0, 'push': 80.0, 'shove': 120.0}, 0.12
@@ -37,7 +37,7 @@ _Q_LIM = {'hip_yaw': (-0.44, 0.44), 'hip_roll': (-0.61, 0.61), 'hip': (-2.0, 0.7
           'ankle': (-0.78, 0.73), 'ankle_roll': (-0.26, 0.26), 'waist': (-0.78, 0.78), 'spine': (-0.44, 1.31),
           'spine_roll': (-0.52, 0.52), 'shoulder': (-1.13, 2.62), 'elbow': (0.0, 2.62), 'neck': (-0.35, 0.45), 'head': (-0.85, 0.85)}
 KNEE_SOFT, KNEE_NM, STACK_EVERY, DOWN_DEG, DOWN_M = 0.1, 40.0, 3, 50.0, 0.45
-GYMS = ('gynoid_mesomorph_medium', 'examples')
+GYMS = (mechatronics.ROBOT, 'examples')
 STUNT_MODES = {'sit_chair', 'rise_chair', 'lie_bed', 'rise_bed', 'lie_floor', 'rise_floor', 'hop_down_chair',
                'hop_up_chair', 'stairs_down', 'parry_shove', 'controlled_fall'}
 STUNT_PHASES = {'approach', 'lower', 'seated', 'lean_forward', 'thrust', 'sit_edge', 'recline', 'bed_rest', 'sit_up',

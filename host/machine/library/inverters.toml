@@ -13,3 +13,14 @@ kg = 0.2
 laminate_k_w = 3.6
 height_m = 0.015
 volts = 63.0
+
+# A 50 A board on a 70 mm disc, estimated from the 63100's size class (stacks.md's frame B):
+# its laminate's K/W as the disc's area, its parts the 63100's at half the amps.
+
+[coaxial_63050]
+disc_m = 0.070
+amps = 50.0
+kg = 0.12
+laminate_k_w = 7.3
+height_m = 0.015
+volts = 63.0

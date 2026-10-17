@@ -27,3 +27,65 @@ peak_nm = 1.9
 rotor_kgm2 = 0.67e-4
 kv = 160.0
 stator_j_k = 180.0
+
+# Bought but not built in: the rest of docs/findings/stacks.md's table, each as its page has it
+# (mm, g, KV, line-to-line mohm, peak N m where a page gives one). Their rotors are estimated as
+# the U8 II's share of its mass at its can's radius (0.39 m r^2), their windings' heat 1.1 J/K a
+# gram; the U8 Lite's and the LA8308's peaks as their stators' class, 4.0 and 3.5 N m. A build
+# names them in `machine/robots`; her own keeps the two above (motors cost, variants of boards
+# and gearboxes cost more).
+
+[U8_LITE]
+name = "T-Motor U8 Lite KV85"
+can_m = 0.0870
+height_m = 0.0270
+kg = 0.243
+ohm = 0.225
+peak_nm = 4.0
+rotor_kgm2 = 1.80e-4
+kv = 85.0
+stator_j_k = 267.0
+
+[R80]
+name = "CubeMars R80 KV110"
+can_m = 0.0870
+height_m = 0.0275
+kg = 0.354
+ohm = 0.125
+peak_nm = 4.0
+rotor_kgm2 = 2.6e-4
+kv = 110.0
+stator_j_k = 390.0
+
+[RO80]
+name = "CubeMars RO80 KV105, a kit"
+can_m = 0.0930
+height_m = 0.0260
+kg = 0.352
+ohm = 0.120
+peak_nm = 4.0
+rotor_kgm2 = 2.97e-4
+kv = 105.0
+stator_j_k = 387.0
+
+[LA8308]
+name = "EaglePower LA8308 KV90"
+can_m = 0.0920
+height_m = 0.0285
+kg = 0.336
+ohm = 0.186
+peak_nm = 3.5
+rotor_kgm2 = 2.77e-4
+kv = 90.0
+stator_j_k = 370.0
+
+[R60]
+name = "CubeMars R60 KV115"
+can_m = 0.0690
+height_m = 0.0260
+kg = 0.248
+ohm = 0.300
+peak_nm = 2.4
+rotor_kgm2 = 1.15e-4
+kv = 115.0
+stator_j_k = 273.0

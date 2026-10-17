@@ -24,3 +24,27 @@ stiffness_nm_rad = 9.0e3
 zeta = 0.3
 backlash_deg = 0.5
 friction_share = 0.02
+
+# The same stage at the frame A's 84 mm (docs/findings/stacks.md, the stacks as built there) and
+# at 50 mm for a wrist's or a toe's drive: each by the laws above, D^3 for its torque, drag and
+# mass; its stiffness as D^2 of B's; its play and its mesh's friction a print's, as B's.
+
+[A]
+kind = "roller wave"
+diameter_m = 0.084
+ratio = 30.0
+input_j_share = 0.05
+stiffness_nm_rad = 15.5e3
+zeta = 0.3
+backlash_deg = 0.5
+friction_share = 0.02
+
+[S]
+kind = "roller wave"
+diameter_m = 0.050
+ratio = 30.0
+input_j_share = 0.05
+stiffness_nm_rad = 5.5e3
+zeta = 0.3
+backlash_deg = 0.5
+friction_share = 0.02

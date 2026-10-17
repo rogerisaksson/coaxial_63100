@@ -2,11 +2,14 @@
 
     lib = mechatronics.library()            # {'motors': .., 'gearboxes': .., 'inverters': ..}
     build = mechatronics.robot(ROBOT)       # machine/robots/<name>.toml, its parts the library's
+    mechatronics.robots()                   # every build file's name
 
 A robot's file names, for each joint kind, its stack's motor, gearbox and inverter from the
 library, the servo its board runs, the structure between its gearbox and its limb, and what has
 no drive; `machine.drives` and `machine.servos` read it, `tools/cores/manifest.py` writes its
-orthokinematic manifest of it.
+orthokinematic manifest of it, her text (machine/<robot>.lisp) includes that. ROBOT is the
+process's: COAXIAL_ROBOT in the environment names another build, its text, manifest and
+corrections (`machine.identified`) with it.
 """
 import os
 import tomllib
@@ -15,8 +18,8 @@ from machine.errors import MachineError
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 LIBRARY, ROBOTS = os.path.join(HERE, 'library'), os.path.join(HERE, 'robots')
-#: The robot this tree builds.
-ROBOT = 'gynoid_mesomorph_medium'
+#: The robot this process builds: COAXIAL_ROBOT names one of `robots()`, else her.
+ROBOT = os.environ.get('COAXIAL_ROBOT', 'gynoid_mesomorph_medium')
 #: Each part's file in the library, and what a stack names of it in turn.
 PARTS = ('motors', 'gearboxes', 'inverters')
 
@@ -33,6 +36,11 @@ def _toml(path):
 def library():
     """{part: {name: its data}} of every part in the library."""
     return {part: _toml(os.path.join(LIBRARY, part + '.toml')) for part in PARTS}
+
+
+def robots():
+    """Every robot a build file names (machine/robots)."""
+    return sorted(f[:-5] for f in os.listdir(ROBOTS) if f.endswith('.toml'))
 
 
 def robot(name=ROBOT):

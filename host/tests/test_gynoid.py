@@ -278,7 +278,24 @@ def _gearbox_has_play(report, physics, figure, i):
                      1e3 * (at if at is not None else 0.0), 1e3 * on[-1][2]))
 
 
-ROSTER = (test_a_virtual_body_is_told, test_a_leg_by_its_foot, test_a_body_with_mass_is_fitted,
+def test_every_build_runs_her(report):
+    """Every build file but hers (`mechatronics.robots`) runs her on her loop under COAXIAL_ROBOT:
+    every module imported, her first seconds and a walk told (`tools/dev/smoke.py`)."""
+    import os
+    import subprocess
+    from machine import mechatronics
+    host = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    others = [n for n in mechatronics.robots() if n != mechatronics.ROBOT]
+    report.check('a second build beside hers', bool(others), ', '.join(mechatronics.robots()))
+    for other in others:
+        run = subprocess.run([sys.executable, '-X', 'utf8', os.path.join(host, 'tools', 'dev', 'smoke.py')],
+                             cwd=host, env=dict(os.environ, COAXIAL_ROBOT=other, PYTHONPATH=host),
+                             capture_output=True, text=True, timeout=600)
+        report.check('%s runs her: every module imported, her first seconds on the loop' % other,
+                     run.returncode == 0 and 'smoke: clean' in run.stdout, (run.stdout + run.stderr)[-300:])
+
+
+ROSTER = (test_every_build_runs_her, test_a_virtual_body_is_told, test_a_leg_by_its_foot, test_a_body_with_mass_is_fitted,
           test_dressed_or_bare, test_her_views_draw, test_her_skeleton_collides,
           test_each_drive_turns_from_its_gearbox, test_each_drive_is_held,
           test_a_gearbox_has_play, test_her_kinematics_as_motors)

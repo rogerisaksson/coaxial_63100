@@ -269,6 +269,15 @@ def test_her_manifest_is_her_build(r):
         build['stacks']['knee'] = was
     r.check('a stack naming a part the library lacks is refused, the parts named',
             'U9 is no motor' in refused and 'MN6007' in refused, refused)
+    import subprocess
+    host = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    for other in [n for n in mechatronics.robots() if n != mechatronics.ROBOT]:
+        run = subprocess.run([sys.executable, '-X', 'utf8', '-c', 'from tools.cores import manifest\n'
+                              'raise SystemExit(0 if open(manifest.path(), encoding="utf-8").read() == manifest.text() else 1)'],
+                             cwd=host, env=dict(os.environ, COAXIAL_ROBOT=other, PYTHONPATH=host),
+                             capture_output=True, text=True, timeout=300)
+        r.check('%s\'s manifest is its tool\'s output under COAXIAL_ROBOT' % other, run.returncode == 0,
+                run.stderr[-300:] or 'COAXIAL_ROBOT=%s python tools/cores/manifest.py --write' % other)
 
 
 ROSTER = (test_subsystem_calls_resolve, test_limits_live_in_one_file, test_mirrors_agree,

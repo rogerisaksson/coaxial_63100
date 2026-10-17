@@ -210,10 +210,7 @@ gets a line at the end of [DONE](DONE.md).
     posing (`test_her_law_reads_her_sensors_alone`); the gym (`sprung`,
     `worker`, `tour`) and `xfrc_applied` outside it. DOD: the gym under the
     check, a scenario's placing and a shove the only writes left.
-23. **The library's variants** (`machine/library`, `machine/robots`): more
-    inverters, motors and gearboxes as data, a build naming them, as few
-    kinds as her stunts allow. DOD: a second build runs her on the page.
-24. **Identification's rest** (identification.md): a world 15 % off the
+23. **Identification's rest** (identification.md): a world 15 % off the
     figure reads back its drives and 61 of 107 trusted base parameters within
     10 %, its correction 0.60 -> 0.36 N m where the world's own is 0.30; left:
     the gearboxes' wind-up and play with `physics.BOXED` on; her pelvis's

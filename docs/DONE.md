@@ -363,23 +363,22 @@ it names. A closed item is cut from the list and gets its line here, last.
     edge and up ([scenarios](findings/scenarios.md)).
 89. Her soles' wrench kept in the striding projection (`wrench.W_KEEP`,
     `wbc_wrench.c`): in double support no plan of nothing; her steady walk's
-    peak jerk 0.5-0.8 of what it was, a start 1.6 of it (4.3); a contact the
-    step would have pull let go ([scenarios](findings/scenarios.md)).
+    peak jerk 0.5-0.8 of what it was ([scenarios](findings/scenarios.md)).
 90. The stand-in's velocity lane within 1 %: its speed the observer's angle,
-    turns counted, risen over a pass - its rotor 1489-1503 rpm past its ramp
-    where 1472-1520 ([host](findings/host.md)).
+    turns counted, risen over a pass ([host](findings/host.md)).
 91. The helicopter's head governed, its tail sized, the three crafts' pull
     planned on the governor ([aircraft](findings/aircraft.md)).
 92. The ornithopter's beat through a 6:1 crank, its pairs' lift pulsing
     ([aircraft](findings/aircraft.md)).
-93. The thrust arrows the force from the hub, inverted too, over the body
+93. The thrust arrows the force from the hub, over the body
     ([aircraft](findings/aircraft.md)).
 94. The aerobat's run on its wheels to the wing's speed, its law wing-borne
     ([aircraft](findings/aircraft.md)).
-95. The helicopter, the ornithopter, the aerobat and the quad drawn to read:
-    painted skins, a 500's pod and boom, a 1.3 m plane, the pages a third
-    closer.
+95. The four crafts drawn to read: painted skins, a 500's pod and boom, a
+    1.3 m plane, the pages a third closer.
 96. The aerobat's propeller pulls one way: no inverted hover, flat spin or
     lomcevak; a circuit and a flare ([aircraft](findings/aircraft.md)).
 97. Her body identified of her edge alone (`machine.sysid`)
     ([identification](findings/identification.md)).
+98. The library's variants as data, a build naming them, `COAXIAL_ROBOT`
+    running one: her figure on CubeMars' R80 and R60 ([stacks](findings/stacks.md)).
