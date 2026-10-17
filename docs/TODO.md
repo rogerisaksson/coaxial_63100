@@ -224,11 +224,13 @@ serves its DOD; none an entry a case.
    mattress, down and up.
 2. **Weight handed over, never switched**: a sole's share of her support
    continuous in her height's reading, her support region and her step's
-   bounds, where a flag now. `tools/sim/jerk.py` reads the worst at 11.7 of
-   her steady walk (a hop down's hands); a walk's start 4.3 (head), its first
-   landings; turns and the weave 7.8-8.2 (hands). DOD: every segment's peak
-   through stand, walk, turn, strafe, back, stop, sit, rise, hop no higher
-   than in her steady walk; a test holds it.
+   bounds, where a flag now. `tools/sim/jerk.py` against her steady walk
+   (head 597, hands 1398-1840 m/s^3): a start 1.6, strafes 2.9, turns 6.5, a
+   spin 5.9, the weave 13, the chair 13.4, a hop down 18.7. Left: a sole let
+   go at 60 N on its toes as the other takes 715 N (turns, the weave); a
+   seat's touch flickering as she rises; a hop's landing (scenarios.md). DOD:
+   every segment's peak through stand, walk, turn, strafe, back, stop, sit,
+   rise, hop no higher than in her steady walk; a test holds it.
 3. **A landing on what is there**: a swinging sole that meets something
    raises her swings by its height, one that meets nothing reaches on down; a
    sliding one lowers the friction she asks. Met: the sill, the rug, ice,

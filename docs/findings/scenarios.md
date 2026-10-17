@@ -140,6 +140,32 @@ at her torso and hands, strafes 1.1-1.9, a hop down 11.7.
   down until its swing: `play_about` 11 of 13 wobbles, walking shoves 28, but
   at the tree she stepped in place for good - need 1 each step, no double
   support to settle in: her stop rests on that sole standing again.
+- Under it, her step: in double support its striding projection planned her
+  weight's split flipping a pass - [0, 379], [382, 0], [0, 384] N - and at
+  times [0, 0]. Her soles on their ball and heel, each one's room a line, the
+  projection met it through her soles pushed against each other - 926 N along
+  one, -906 along the other: in her kinetic energy's metric 1e-7 per N^2
+  against 0.03 for a push that moves her -, drove one to pull and let both go:
+  11 times in 12 s of her walk, 7 in a start and stop.
+- Each standing sole's wrench kept in that metric, W_KEEP 3 of its share of her
+  weight: none let go walking; her walk's peaks 553, 590, 597, 1398-1840 m/s^3
+  (pelvis, torso, head, hands); a start 1.6 of them, turns 6.5, a spin 5.9, the
+  weave 13, the chair 13.4, a hop down 18.7; her walk 408 J/m, 2.55 off a
+  woman's (412, 2.61); the bench 62 of 87, 80 N walking 29 (28), 200 N standing
+  15 met (14), walking 17 (21). At 10 the tree and the hole fell at two
+  wobbles; at 30 2.84 off; at 100 let go 187 times.
+- A seat she rose from: a contact let go in a pass, its point still held,
+  asked 5134 N of a sole; let go when the step would have it pull, 488 N at
+  most - the bed 7 -> 9 of 13 wobbles.
+- Not kept: a support's push weighed by its distance from her ZMP - no seat
+  used till she is over it, the chair fell at 4.7 s; the blend eased, its rate
+  and acceleration nothing at its ends - a spin 4.6 -> 1.7, turns 2.8 -> 8.5,
+  her head 35.4 mm aside (35); a swing asked as far as its sole no longer
+  bears - 401 J/m, 2.64 off, the weave as it was; a standing leg's servos
+  softened by its load - every digit the same.
+- Left: a sole let go at 60 N on its toes, the other then 715 N where the step
+  planned 192 (turns, the weave); a seat's touch flickering as she rises; a
+  hop's landing.
 
 ## The terrain's scenes
 

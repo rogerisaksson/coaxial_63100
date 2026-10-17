@@ -361,3 +361,7 @@ it names. A closed item is cut from the list and gets its line here, last.
     support region, grounding her, a contact of her whole-body step
     (`machine.borne`, `wrench.pushed`); down onto a chair and up, onto a bed's
     edge and up ([scenarios](findings/scenarios.md)).
+89. Her soles' wrench kept in the striding projection (`wrench.W_KEEP`,
+    `wbc_wrench.c`): in double support no plan of nothing; her steady walk's
+    peak jerk 0.5-0.8 of what it was, a start 1.6 of it (4.3); a contact the
+    step would have pull let go ([scenarios](findings/scenarios.md)).

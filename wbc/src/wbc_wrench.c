@@ -28,6 +28,9 @@ static const double EDGE_M = 0.003, DAMP = 0.02, KNEE_MIN = 0.07;
 static const double W_COM = 1000.0, W_TURN = 30.0, W_SWING = 30.0, W_KNEE = 3.0, W_POSTURE = 1.0;
 static const double W_HEIGHT = 1.0, W_MOMENT = 0.3, W_FOLD = 3.0, W_STOP = 30.0, W_PART = 0.1;
 static const double W_AIR = 1e-3, W_PIN = 1e5;
+/* striding, a standing sole's wrench kept in the projection's metric, of its share of her weight:
+   her soles pushed against each other move her by nothing (machine/wrench.py, W_KEEP) */
+static const double W_KEEP = 3.0;
 
 static double clip(double x, double lo, double hi)
 {
@@ -597,6 +600,7 @@ void wbc_wrench_step(wbc_body_t *b, wbc_wrench_t *w, const wbc_frame_t *base,
     part[c] = (c >= 12) ? 0.0 : ((c % 6 < 3) ? 1.0 / (mass * G * w->room[0]) : 1.0 / (mass * G));
     weight = W_PART * sole * part[c] + W_AIR * air;
     own[c] = W_SWING * ((c < 12) ? asked[c / 6] : 0.0) + weight;
+    own[c] = sqrt(own[c] * own[c] + W_KEEP * W_KEEP * sole * part[c] * part[c]);
     w->h[c][c] += weight * weight + 1e-12;
   }
 

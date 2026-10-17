@@ -49,9 +49,16 @@ ROUNDS, DAMP, KNEE_MIN = 4, 0.02, 0.07
 #: wrench's parts in shares of her weight, a sole's acceleration left alone, a pinned part.
 W_COM, W_TURN, W_SWING, W_KNEE, W_POSTURE, W_HEIGHT, W_MOMENT = 1000.0, 30.0, 30.0, 3.0, 1.0, 1.0, 0.3
 W_FOLD, W_STOP, W_PART, W_AIR, W_PIN = 3.0, 30.0, 0.1, 1e-3, 1e5
-#: A contact's point held still, m/s^2; its push no more than GROW_N over what it bears now: let to
-#: plan 311 N where a mattress's soft edge bore 107, the step's push behind her centre of mass
-#: never came and she rolled back onto the bed.
+#: Striding, a standing sole's wrench kept in the projection's metric, of its share of her weight:
+#: her soles pushed against each other change her motion by nothing, and unkept the faces were
+#: met through it - 926 N along one sole, -906 along the other - till a sole pulled and both
+#: were let go, 11 times in 12 s of her walk. At 10 none and her walk 418 J/m, 2.53 off a
+#: woman's (412, 2.61); at 30 2.84; at 100 let go 187 times.
+W_KEEP = 3.0
+#: A contact's point held still, m/s^2, while it presses - one the step would have pull is let go,
+#: its point free: held still at nothing, a seat she rose from asked 5134 N of a sole; its push no
+#: more than GROW_N over what it bears now: let to plan 311 N where a mattress's soft edge bore
+#: 107, the step's push behind her centre of mass never came and she rolled back onto the bed.
 W_STILL, GROW_N = 1e4, 30.0
 
 
@@ -206,7 +213,7 @@ def step(b, s, ask):
         rows.append(weight * np.atleast_2d(R))
         rhs.append(weight * np.atleast_1d(c))
 
-    sumf, about = np.zeros((3, nu)), np.zeros((3, nu))
+    sumf, about, still = np.zeros((3, nu)), np.zeros((3, nu)), []
     for k, f in enumerate(feet):
         r = f['sole'] - s['com']
         sumf[:, 6 * k + 3:6 * k + 6] = stance[k] * np.eye(3)
@@ -217,7 +224,7 @@ def step(b, s, ask):
         r, at = c['p'] - s['com'], slice(NU + 3 * i, NU + 3 * i + 3)
         sumf[:, at] = np.eye(3)
         about[:, at] = np.array([[0.0, -r[2], r[1]], [r[2], 0.0, -r[0]], [-r[1], r[0], 0.0]])
-        lay(c['J'] @ full, -c['dJv'] - CONTACT_K * (c['J'] @ v) - c['J'] @ full0, W_STILL)
+        still.append((W_STILL * (c['J'] @ full), W_STILL * (-c['dJv'] - CONTACT_K * (c['J'] @ v) - c['J'] @ full0)))
     a = np.asarray(ask['com_acc'], float)
     lay(sumf[[0, 2]] / mass, a[[0, 2]], W_COM * grounded)
     lay(sumf[1] / mass, a[1] + G, W_HEIGHT * grounded)
@@ -249,7 +256,10 @@ def step(b, s, ask):
     frames, moment = [f['R'] for f in feet], np.concatenate([MOMENT, np.zeros(k3)])
     pinned, at, band, edge = np.zeros(nu), np.zeros(nu), 0.0, 0.0
     lo, hi = a[1] - HEIGHT_BAND, a[1] + HEIGHT_BAND
+    rows0, pressed = (H0, g0), np.ones(len(contacts))
     for _ in range(ROUNDS):
+        H0 = rows0[0] + sum(p * S.T @ S for p, (S, _r) in zip(pressed, still))
+        g0 = rows0[1] + sum(p * S.T @ r for p, (S, r) in zip(pressed, still))
         # a clipped force is held by a row, W_PIN its weight's share; a clipped moment is its
         # value and her height at its band's edge is met, the rest solved round them: as rows
         # of W_PIN they were 1e7 on the diagonal, and what her soles share came 0.6 N m apart
@@ -265,10 +275,12 @@ def step(b, s, ask):
         band, edge = max(band, grounded * float(abs(past - G - ay) > 1e-9)), edge + (1.0 - band) * (past - edge)
         at, moved = bounded(u, frames, stance, ask.get('edge', (0.0, 0.0)))
         at, held = pushed(at, [c['f'][1] for c in contacts])
+        pressed = pressed * (u[NU + 1:NU + k3:3] >= 0.0)
         pinned = np.maximum(pinned, np.maximum(moved, held))
     u, strides = at, float(ask.get('strides', 0.0))
     if strides > 0.0:
-        kinetic = full.T @ M @ full + np.diag((W_SWING * swung + spare) ** 2)
+        keep = W_KEEP * np.concatenate([each, np.zeros(nu - 12)]) * part
+        kinetic = full.T @ M @ full + np.diag((W_SWING * swung + spare) ** 2 + keep ** 2)
         u = u + strides * (_taken(np.linalg.solve(H0, g0), kinetic, up, frames, stance,
                                   ask.get('edge', (0.0, 0.0)), (lo, hi), grounded) - u)
     qdd = full @ u + full0
