@@ -360,9 +360,6 @@ serves its DOD; none an entry a case.
 
 - **native://**: a limb's world on a fixed mount as board/emu's. DOD: the
   body's balance and gait from the SIL.
-- **A counter while logging** on the aerobat's and the ornithopter's pages
-  as on the humanoid's, the quad's and the helicopter's (`terminal/ui/recorder`).
-  DOD: each on a PNG.
 - **Third-person controls as the games have them** (RDR2, GTA V): orbit,
   follow, shoulder swap, sprint, crouch, a context prompt. DOD: a PNG each.
 - **Identification on the robot** (identification.md): the campaign

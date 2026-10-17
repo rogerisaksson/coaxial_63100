@@ -71,9 +71,6 @@ WOUND = 1.0
 #: till the page walks on the loop (docs/findings/drives.md).
 #: ROOM: the living room round her (`machine.room`); SIGHT her eyes on it (`machine.sight`).
 BOXED, ROOM, SIGHT = 0.0, 0.0, 0.0
-#: Her pelvis welded to a stand STAND_M high, her soles clear of the floor: the identification's
-#: campaign (`machine.sysid`); 0, free.
-STAND, STAND_M = 0.0, 1.3
 
 #: Whether a drive on a gimbal's stage (`drives.mount`: the hip's roll M, its pitch L) rides it,
 #: turning with the leg's yaw and roll, or the segment that stage hangs from - on them, 0.7 kg of

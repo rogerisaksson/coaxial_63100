@@ -11,9 +11,9 @@ import numpy as np
 
 from tools.dev.focus import chosen
 from gynoid_kit import Report
-from machine import physics
+from machine import mjcf, physics
 
-physics.STAND = 1.0
+mjcf.STAND = 1.0
 
 #: Random states the regressor is held to MuJoCo at, and how far apart they may sit, N m.
 STATES, APART = 40, 1e-9
@@ -75,7 +75,7 @@ def _campaign(c, seed, world=None, seconds=SECONDS):
     """A campaign on the stand: (Y, tau, touched, world)."""
     from machine import sysid
     world = world or physics.World()
-    world.reset(sysid.pose(), where=(0.0, physics.STAND_M, 0.0))
+    world.reset(sysid.pose(), where=(0.0, mjcf.STAND_M, 0.0))
     ys, taus, touched = sysid.excite(world, sysid.setpoints(world, seconds, np.random.default_rng(seed)))
     Y, tau = sysid.rows(c['lay'], c['body'], ys, taus, physics.STEP_S, EVERY)
     return Y, tau, touched, world

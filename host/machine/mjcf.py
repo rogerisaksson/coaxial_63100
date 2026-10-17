@@ -25,6 +25,8 @@ PASSIVE_J, HELD_DEG = 0.0005, 0.5
 #: swings with it toward the other's (`drives.JOINTS`). At 25 the scoreboard held 81.0 % as free and
 #: 3 get-ups of 3.
 HIP_YAW_DEG = 25.0
+#: Her pelvis welded to a stand STAND_M high, soles clear, for identification (`machine.sysid`).
+STAND, STAND_M = 0.0, 1.3
 
 #: The contacts' friction cone: elliptic, the same grip every way, at IMPRATIO. On MuJoCo's
 #: pyramid she walked along the world's axes and fell 1.2 m on 45 degrees off them; elliptic at 1
@@ -151,7 +153,7 @@ def _joint(joint, axis, sign):
 
 def _mjcf(bones):
     from machine import sight
-    from machine.physics import PLACED, ROOM, SIGHT, STAND, STAND_M, STEP_S
+    from machine.physics import PLACED, ROOM, SIGHT, STEP_S
     from machine.servos import SERVO
     shells = build.segments() if build.SHELLS else {}
     kids, riders = {}, build.riders() if PLACED and not shells else {}

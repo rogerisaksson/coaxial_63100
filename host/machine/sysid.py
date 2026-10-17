@@ -1,7 +1,7 @@
 """Her body identified of what she measures: each link's inertia and each drive's friction, fitted.
 
     lay = sysid.laid(body)                          # her links and the columns, on her law's model
-    world.reset(sysid.pose(), where=(0.0, physics.STAND_M, 0.0))   # on the stand (physics.STAND)
+    world.reset(sysid.pose(), where=(0.0, mjcf.STAND_M, 0.0))   # on the stand (mjcf.STAND)
     ref = sysid.setpoints(world, seconds, rng)      # a stage a limb, its drives at tones
     ys, taus, touched = sysid.excite(world, ref)    # her on the stand, played a step at a time
     Y, tau = sysid.rows(lay, body, ys, taus, dt)    # the regressor of a campaign's edge arrays
@@ -18,7 +18,7 @@ drives' rows are measured, so her pelvis's own parameters never show and what a 
 with its neighbours, or what a campaign never moves apart, comes out as a sum: `base` finds
 those sums numerically (Gautier) in the campaign's own regressor, and `identify` fits them by
 least squares; `machine.identified` moves her build the least that fits the campaign and lays
-it over her law's model. On the stand (`physics.STAND`) her pelvis is welded to the world and nothing
+it over her law's model. On the stand (`mjcf.STAND`) her pelvis is welded to the world and nothing
 touches her soles; a robot of her build hangs the same way, its boards' currents its torques.
 """
 import math

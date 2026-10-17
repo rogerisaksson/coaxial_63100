@@ -12,9 +12,9 @@ import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from machine import physics
+from machine import mjcf, physics
 
-physics.STAND = 1.0
+mjcf.STAND = 1.0
 
 
 def main(argv=None):
@@ -32,7 +32,7 @@ def main(argv=None):
     if args.payload:
         world.model.body_mass[world.model.body('left_hand').id] += args.payload
         world._mj.mj_setConst(world.model, world.data)
-    world.reset(sysid.pose(), where=(0.0, physics.STAND_M, 0.0))
+    world.reset(sysid.pose(), where=(0.0, mjcf.STAND_M, 0.0))
     ys, taus, touched = sysid.excite(world, sysid.setpoints(world, args.seconds, np.random.default_rng(args.seed)))
     Y, tau = sysid.rows(lay, body, ys, taus, physics.STEP_S, args.every)
     base = sysid.base(lay, Y)

@@ -374,20 +374,12 @@ it names. A closed item is cut from the list and gets its line here, last.
     ([aircraft](findings/aircraft.md)).
 93. The thrust arrows the force from the hub, inverted too, over the body
     ([aircraft](findings/aircraft.md)).
-94. The aerobat's run on its wheels to the wing's speed, the climb on the wing,
-    its tail and fin in the air, its law wing-borne ([aircraft](findings/aircraft.md)).
-95. The helicopter, the ornithopter and the aerobat drawn to read: a painted
-    skin, a 500's pod and boom, a 1.3 m plane, the pages a third closer.
-96. The aerobat's propeller pulls one way: no inverted hover, no flat spin, no
-    lomcevak; a circuit and a flare onto its wheels
+94. The aerobat's run on its wheels to the wing's speed, its law wing-borne
     ([aircraft](findings/aircraft.md)).
-97. The quad framed a third closer, its arms painted.
-98. Her body identified of her edge alone (`machine.sysid`,
-    `machine.identified`): Newton-Euler down her tree to MuJoCo's inverse
-    dynamics at 1e-13 N m; on the stand a
-    limb at a time 8 s each, every drive's Coulomb friction within 15 % (the
-    arms', trunk's, knees' and ankles' within 5), a knee's armature within
-    8 %; a 0.5 kg payload in her hand read in her forearm's first moment and
-    laid on her hand by the least move of her build, saved over it and laid
-    whole on her law's model: her shoulder's residual 3.4 -> 0.05 N m
+95. The helicopter, the ornithopter, the aerobat and the quad drawn to read:
+    painted skins, a 500's pod and boom, a 1.3 m plane, the pages a third
+    closer.
+96. The aerobat's propeller pulls one way: no inverted hover, flat spin or
+    lomcevak; a circuit and a flare ([aircraft](findings/aircraft.md)).
+97. Her body identified of her edge alone (`machine.sysid`)
     ([identification](findings/identification.md)).
