@@ -235,7 +235,8 @@ def table(view, calling, shown):
         + [(k, _recorded) for k in 'rR']
         + [(k, lambda state: state.update(shown=shown[(shown.index(state['shown']) + 1)
                                                       % len(shown)])) for k in 'tT']
-        + [(k, _skinned) for k in 'mM'] + [('p', _charged)])
+        + [(k, _skinned) for k in 'mM'] + [('p', _charged)]
+        + [(k, lambda state: state.update(horizon=not state.get('horizon'))) for k in 'zZ'])
 
 
 def act_on(keys, typed, state, wheel=0.0):

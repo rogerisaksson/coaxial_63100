@@ -44,6 +44,7 @@ def groups():
         ('VIEW', (
             ('L-DRAG / ARROWS', 'look round her; behind her again as she goes'),
             ('X', 'the other shoulder'),
+            ('Z', "her horizon: each sole's landing room, her capture point"),
             ('R-DRAG / WHEEL', 'pan / zoom'),
             ('V / O', 'behind her / orbit'),
             ('M', 'dressed, shell, mechanism, drives'),

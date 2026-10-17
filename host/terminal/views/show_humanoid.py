@@ -10,7 +10,7 @@ from rich.text import Text
 
 from coaxial.comm.session import Origin
 from coaxial.draw import cross_section, gauges as _gauges
-from coaxial.graphics import arrows, gpu, gynoid
+from coaxial.graphics import arrows, gpu, gynoid, horizon
 from coaxial.graphics.callouts import packed
 from machine import figure, se2, sprung
 from machine.figure import JOINTS, quat
@@ -324,7 +324,8 @@ def _draw_viewport(state, now, width, height, terminal, lit):
         labels=labels(now, state['called'], state['shown']), props=now.get('props'),
         mark=marked(state, now, time.monotonic()),
         legend=legend(state['shown'], width) if state['called'] != 'none' else None,
-        dressed=state['skin'] == 'dressed', see=_seen(state), inset=inset, arrows=(now, state.get('pad'))))
+        dressed=state['skin'] == 'dressed', see=_seen(state), inset=inset, arrows=(now, state.get('pad')),
+        horizon=horizon.segments(now, now.get('props') or ()) if state.get('horizon') else None))
 
 
 def _boot_humanoid(board_view, state):

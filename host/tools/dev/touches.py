@@ -71,6 +71,7 @@ TOUCHES = (
     ('host/machine/aerobat.py',                ('test_helicopter.py', STRUCTURE)),
     ('host/machine/aerobat.lisp',              ('test_helicopter.py', STRUCTURE)),
     ('host/coaxial/graphics/scenery.py',       QUADS + (RENDER,)),
+    ('host/coaxial/graphics/horizon.py',       (STRUCTURE, 'test_views_humanoid.py')),
     ('host/coaxial/graphics/onboard.py',       QUADS),
     ('host/machine/gimbal.py',                 QUADS),
     ('host/coaxial/graphics/inset.py',         QUADS + (SIGHT, 'test_views_humanoid.py')),

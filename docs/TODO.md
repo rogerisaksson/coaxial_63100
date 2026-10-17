@@ -238,8 +238,6 @@ in `test_scenarios`, 15 of 27 at every wobble now:
   the stop her capture point runs outside the standing left foot (0.07 -> 0.21
   m) while the right swings in beside it, 0.10 m apart: the left steps out
   only after it. Each part alone holds 13 of 13. DOD: 13 of 13.
-- **Maneuver horizon**: DOD: each limb's reach and a swinging sole's
-  landing room drawn, toggled from the page.
 
 ## Bench
 

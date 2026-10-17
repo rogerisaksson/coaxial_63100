@@ -353,3 +353,7 @@ it names. A closed item is cut from the list and gets its line here, last.
     before her capture point is a reach across past the standing soles, its
     own side; walking 80 N shoves 26 of 32, the 80 N DOD met
     ([scenarios](findings/scenarios.md)).
+87. Her maneuver horizon, Z on the page: each sole's landing room as her law
+    has it (REACH_M about her centre of mass, APART_M past the other sole),
+    bright while it swings; her capture point; each arm's reach across her
+    front - from her state's own reading (`coaxial.graphics.horizon`).

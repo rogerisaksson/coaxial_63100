@@ -403,8 +403,9 @@ def _wired(who, frames, root, m, fine, centre):
 
 def render(angles, width, height, yaw=30.0, pitch=8.0, zoom=1.0, colour=True, travel=(0.0, 0.0),
            lit=None, root=None, labels=None, heat=None, props=None, legend=None, dressed=True,
-           mark=None, around=False, see=None, pan=(0.0, 0.0), inset=None, arrows=None):
-    """Render the gynoid at `angles` (`{joint: deg}`) into `width` x `height` braille lines."""
+           mark=None, around=False, see=None, pan=(0.0, 0.0), inset=None, arrows=None, horizon=None):
+    """Render the gynoid at `angles` (`{joint: deg}`) into `width` x `height` braille lines;
+    `horizon` [(segments, ink)] on it (`coaxial.graphics.horizon`)."""
     np, who, m = _np(), body(dressed, see), view(yaw, pitch)
     fine = engine.fine(engine.camera(width, height, REACH, distance=DISTANCE, zoom=zoom))
     centre = np.asarray(CENTRE) + np.asarray(pan) @ np.reshape(m, (3, 3))[:2]
@@ -440,5 +441,7 @@ def render(angles, width, height, yaw=30.0, pitch=8.0, zoom=1.0, colour=True, tr
         overlay = {**(overlay or {}), **inset}
     return braille(depth, rgb, grid(m, fine, centre, travel), width, height, colour, overlay,
                    leaders, _props(props or (), m, fine, centre, travel)
-                   + _arrows.layers(arrows, m, fine, centre, travel) + wired)
+                   + _arrows.layers(arrows, m, fine, centre, travel) + wired
+                   + [(dots, ink) for segs, ink in (horizon or ())
+                      for dots in (_arrows._rasterize(segs, m, fine, centre, travel),) if dots is not None])
 
