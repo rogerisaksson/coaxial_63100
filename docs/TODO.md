@@ -228,7 +228,9 @@ serves its DOD; none an entry a case.
    (head 597, hands 1398-1840 m/s^3): a start 1.6, strafes 2.9, turns 6.5, a
    spin 5.9, the weave 13, the chair 14.4, a hop down 18.7. Left: a sole let
    go at 60 N on its toes as the other takes 715 N (turns, the weave); a
-   seat's touch flickering as she rises; a hop's landing (jerk.md). DOD:
+   seat's touch flickering as she rises; a hop's landing; a row's blend
+   stepping her asks; her head and arms flung for her turns, seated and at a
+   takeoff, where a seat's points give no moment (jerk.md). DOD:
    every segment's peak through stand, walk, turn, strafe, back, stop, sit,
    rise, hop no higher than in her steady walk; a test holds it.
 3. **A landing on what is there**: a swinging sole that meets something

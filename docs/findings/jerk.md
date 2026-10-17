@@ -80,7 +80,9 @@ strafes 2.9, a spin 5.9, turns 6.5, the weave 13.0, the chair 14.4, a hop down
   12 cm in 24 ms - 328 m/s^2 up asked, 170 along; drives at up to 16.8 times
   their clamps, clipped after the solve, the other sole 764 N where 166
   planned. The chair's rise (a hand's 20 161): the standing rounds' split
-  flipping a pass, [343, 1], [56, 211], [532, 0] N, drives to 385 times. A hop's
+  flipping a pass, [343, 1], [56, 211], [532, 0] N, drives to 385 times, as
+  the seat's contacts come and go under it - [68, 69], [0, 96], [0, 0], [53],
+  [63, 3] N planned on them 3 ms apart. A hop's
   drop 11.5 times; the spin 2.5; turns' worst under its clamps (0.1).
 - Not kept: the drives' limits in the step - a torque past its limit pinned as
   a row in the standing rounds and a face in the striding projection: the
@@ -90,3 +92,33 @@ strafes 2.9, a spin 5.9, turns 6.5, the weave 13.0, the chair 14.4, a hop down
   eased in from its release - her walk's peaks 0.85-0.9 of before, the weave's
   hand 13 -> 8.5, but a stop's head 836 -> 6276 m/s^3 and her walk 3.25 off,
   on stilts.
+- A row's blend is a straight line (`latent.step`): its rate steps at both
+  ends and the damper's ask with it - at the sit's command the trunk's turn
+  asked 0 -> 9.2 rad/s^2 in a pass, both soles' centres of pressure -11 -> 83
+  mm, on their toes. Over five wobbles each peak is one event (turns 6.3-6.6
+  at 5.54 s, the weave 12.7-13.0 at 4.50); at wobble 0:
+
+  | blend | turns | spin | weave | chair | hop down |
+  | --- | --- | --- | --- | --- | --- |
+  | straight, its rate asked (as it is) | 6.5 | 5.9 | 12.9 | 14.4 | 18.7 |
+  | straight, its rate not | 8.2 | 6.0 | 12.8 | 5.1 | 15.9 |
+  | smoothstep, its rate asked | 12.3 | 1.5 | 10.6 | 14.1 | 16.1 |
+  | quintic, its rate and acceleration | 12.0 | 1.7 | 12.1 | 31.4 | 18.2 |
+  | quintic, neither | 12.7 | 1.8 | 13.0 | 13.1 | 18.8 |
+
+  Its rate not asked: the bench 63 -> 65 of 93 scenes (the slick patch 3 of
+  3), walking shoves 29 -> 30, her walk the same to the digit, but
+  `walk_turn_right_at_0.69` 12 of 13 wobbles - stepping in place after its
+  push, a landing at 912 N bounced both soles off the floor. Not kept; the
+  turns' peak is its let-go, moved by each.
+- Her head and arms are her step's reaction masses for her pelvis's and
+  trunk's turns (W_TURN 30, W_POSTURE 1; at W_TURN 0 the neck's worst error
+  1.82 -> 0.16 rad). Seated, the neck 1.74 rad off its posture for 6 s, its
+  drive asked 2.1-3.9 times its clamp, 40 % of the chair scene's passes; at a
+  hop's takeoff 2.11 rad at 33 rad/s. Her walk asks no upper drive past 0.3 of
+  its clamp. Not kept: the neck and head held as turns - the shoulders took it,
+  3.3-3.9 % of the passes past their clamps, 69.6 times at worst, a hand's
+  peak on the chair 22 091 -> 37 818 m/s^3.
+- Seated, only her thighs bear, their touch points side by side (`borne`: a
+  point each): the seat gives her step no pitch moment, her turns' asks met by
+  the plan's opposite, -3 to -15 rad/s^2 asked, +2 to +5 planned.
