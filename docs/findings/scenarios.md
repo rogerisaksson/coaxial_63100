@@ -300,6 +300,8 @@ plain walk the same bit for bit (her pose hashed each second for 20 s).
   lifted her cruise to 0.99 where 0.63 was asked, she ran 1.37 and flew off its
   top -, but snow went 13 -> 9: there her soles slide on ahead, 1.0-1.29 m/s, and
   her centre of mass must follow them - held to what was asked it fell back at
-  1.5 m/s. The bound's most held to what was asked of late, the same. A known
+  1.5 m/s. The bound's most held to what was asked of late, the same; neither
+  surge is a slide - her estimator's slip 0.009 m/s at snow's, her standing soles
+  0.003 at p90 -: both are her swing's, 3.3 m/s up the ramp. A known
   floor alone does not climb: her landings fall on nosings and edges, and her
   capture point runs on.
