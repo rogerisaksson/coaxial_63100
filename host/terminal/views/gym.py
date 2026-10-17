@@ -1,31 +1,40 @@
-"""The HUMANOID page's gym: her latent loop's moves said by digit, her modes shown.
+"""The HUMANOID page's gym: her verbs, her latent loop's moves said by digit, her modes shown.
 
-    KEYS = gym.table(KEYS)       # the page's keys with the gym's: the digits, >, W, P and N
+    KEYS = gym.table(KEYS)       # the page's keys with the gym's: verbs, digits, scenes, shoves
+    gym.offered(now, seen)       # what Space and F say now, the page's prompt
     gym.boxes(now)               # the side column's LATENT and SAY boxes
     gym.status(now)              # what she is doing, in a line
 
-She stands on the loop (`machine.sprung`) and walks from rest (`sprung.WALK`). A digit says an
-entry of the gym's text (`sprung.entries`) in place of what was to come - a payload injected, a
-behaviour begun -, > takes the gym's other text (`sprung.GYMS`), read anew each time - an edit
-to machine/gynoid_mesomorph_medium.lisp is two presses away -, W walks her from rest again, P and N
-shove her, A lands her anew. LATENT shows each mode as it is asked and as she is, and its spring.
+She stands on the loop (`machine.sprung`); the keys that move her are a twist (`humanoid_keys`).
+Space, C and F are verbs - a hop, a crouch, settling on or rising from what is near -, each one
+an agent would send. A digit says an entry of the gym's text (`sprung.entries`) in place of what
+was to come, > takes the gym's other text (`sprung.GYMS`), read anew each time - an edit to
+machine/gynoid_mesomorph_medium.lisp is two presses away -; [ ] step through the scenes, Enter
+lays the scene again, P N shove her along the view, H tours the scenes. LATENT shows each mode
+as it is asked and as she is, and its spring.
 """
-import sys
+import math
 
 from rich.text import Text
 
 from coaxial.draw import gauges
-from machine import se2, sprung
+from machine import sprung
 from terminal import keybindings
 from terminal.ui.stage import hud
+from terminal.views import scanner, viewpoint
 
-#: The gym's next text; her walk from rest.
-NEXT, WALKS = '>', 'wW'
+#: The gym's next text.
+NEXT = '>'
 #: A digit says the gym's entry of its place: 1 the first, 0 the tenth.
 DIGITS = '1234567890'
-#: P and Shift+P apply moderate shoves (80 N lateral / fore-aft, parried); Shift+N applies a
-#: severe shove (140 N, triggering parry attempt and controlled breakfall).
-PUSHES = {'p': ('push', False), 'P': ('push', True), 'N': ('severe', False)}
+#: P and N shove her along the view, the bench's 80 N she parries and 200 N she falls to
+#: (`tools/sim/scenarios.py`, SHOVES), sprung.SHOVE_S long.
+SHOVES_N = {'P': 80.0, 'N': 200.0}
+#: A support near enough for F, m from her pelvis over the floor; a chair she hops onto, m
+#: ahead and within a quarter turn of her heading; her pelvis over this, m, on a chair's seat.
+REACH_M, ONTO_M, ON_CHAIR_M = 1.2, 0.7, 1.12
+#: The crouch's phase (`postures_base.lisp`).
+CROUCHED = 'down'
 #: Each mode's name in the box; what each stream payload is called on the page.
 SHORT = ('axial', 'lateral', 'drive', 'pitch', 'sagittal', 'lift', 'width', 'list', 'turn', 'arms', 'rock')
 NAMED = {
@@ -33,19 +42,10 @@ NAMED = {
     'weight_shift': 'weight shift', 'bow': 'bow', 'ballistic_walk': 'ballistic walk',
     'sit_chair': 'sit chair', 'rise_chair': 'rise chair', 'lie_bed': 'lie bed', 'rise_bed': 'rise bed',
     'lie_floor': 'lie floor', 'rise_floor': 'rise floor', 'hop_down_chair': 'hop down chair',
-    'hop_up_chair': 'hop up chair', 'stairs_walk': 'stairs walk', 'stairs_down': 'stairs down',
-    'ice_walk': 'ice walk',
-    'slope_walk': 'slope walk', 'parry_shove': 'parry shove', 'controlled_fall': 'controlled fall',
-    'strafe_left': 'strafe left (A)', 'strafe_right': 'strafe right (D)',
-    'turn_left': 'turn left (WA)', 'turn_right': 'turn right (WD)',
-    'circle_walk': 'circle walk (Q)',
-    'turn_back_left': 'turn back left (SA)', 'turn_back_right': 'turn back right (SD)',
+    'hop_up_chair': 'hop up chair', 'strafe_left': 'sidestep left', 'strafe_right': 'sidestep right',
+    'turn_left': 'turn left', 'turn_right': 'turn right',
+    'turn_back_left': 'turn back left', 'turn_back_right': 'turn back right',
 }
-#: Named keys to trigger stunts directly from the terminal.
-STUNTS = keybindings.STUNT_KEYS
-
-SCENARIO_MOVES = keybindings.SCENARIO_MOVES
-SCENARIO_DESC = keybindings.SCENARIO_DESC
 
 _RISE_TABLE = (
     (('seat_land', 'hop_up_chair'), None, 'hop_down_chair'),
@@ -61,63 +61,77 @@ _RISE_TABLE = (
 
 
 def contextual_rise(now, scenario=None):
-    """Recovery or dismount move when seated, reclined, kneeling, or elevated on a prop."""
+    """The verb that takes her up from what bears her - seated, lying, kneeling, crouched, on a
+    chair's seat -; None standing."""
     if not now:
         return None
     doing, scen = now.get('doing', ''), scenario or now.get('scenario') or 'open'
-    if (now.get('where') or (0.0, 0.90, 0.0))[1] > 1.12:
+    if (now.get('where') or (0.0, 0.90, 0.0))[1] > ON_CHAIR_M:
         return 'hop_down_chair'
     for phases, scens, move in _RISE_TABLE:
         if doing in phases and (scens is None or scen in scens):
             return move
     if now.get('stage') in ('down', 'fallen', 'floor'):
         return 'rise_floor'
-    return '#201' if (doing == 'down' or now.get('fallen')) else None
+    return '#201' if (doing == CROUCHED or now.get('fallen')) else None
+
+
+def offered(now, seen):
+    """{key: verb} Space and F say now: `now` her state, `seen` the scanner's detections round
+    her, nearest first (`scanner.scan`'s, `reach`). Space a hop - down from a chair's seat, up
+    onto a chair close ahead -; F up from what bears her, else onto the support nearest."""
+    if not now:
+        return {}
+    x, _y, z = now.get('where') or (0.0, 0.9, 0.0)
+    heading = float(now.get('heading') or 0.0)
+    ahead = [d for d in seen if d['kind'] == 'chair' and d['dist'] < ONTO_M
+             and (d['pos'][0] - x) * math.sin(heading) + (d['pos'][2] - z) * math.cos(heading) > 0.5 * d['dist']]
+    rise = contextual_rise(now)
+    near = next((scanner.PRIMARY_ACTION[d['kind']] for d in seen
+                 if d['dist'] < REACH_M and d['kind'] in scanner.PRIMARY_ACTION), None)
+    hop = 'hop_down_chair' if rise == 'hop_down_chair' else ('hop_up_chair' if ahead else 'hop')
+    return {' ': hop, 'f': rise or near} if (rise or near) else {' ': hop}
+
+
+def touring(state):
+    """Whether the tour (`machine.tour`) is commanding her."""
+    tour = state.get('tour')
+    return tour is not None and not tour.done
 
 
 def _cancel_tour(state):
-    """Disengage automated house tour on manual operator intervention (ignoring tour's own dispatches)."""
-    if state.get('tour') is None or state.get('_in_tour_step'):
-        return
-    frame = sys._getframe(1)
-    for _ in range(4):
-        if frame is None:
-            break
-        if frame.f_code.co_name == '_dispatch_key':
-            return
-        frame = frame.f_back
-    state['tour'] = None
+    """The tour ended by a key that acts on her; the keys' twist sent again on the next frame."""
+    if touring(state):
+        state['tour'] = None
+        state.setdefault('pad', {})['setpoint'] = None
 
 
-def _clear_se2(state):
-    """Reset active SE(2) WASD velocity state so non-WASD actions are not overwritten on the next draw."""
-    state['_wasd_active'] = False
-    se2_st = state.get('se2')
-    if se2_st is not None:
-        se2_st['v_x'] = se2_st['v_y'] = se2_st['omega_z'] = 0.0
-        se2_st['setpoint'] = (0.0, 0.0, 0.0)
-        se2_st['actual'] = (0.0, 0.0, 0.0)
-        se2_st['gait'] = None
-        se2_st['keys'] = {'w': False, 's': False, 'a': False, 'd': False, 'q': False, 'e': False, 'shift': False}
-        se2_st['last_seen'].clear()
-    state['_last_sent_twist'] = (0.0, 0.0, 0.0)
+def _said(state, verb):
+    """`verb` said, the tour ended: a gym entry's name or place."""
+    _cancel_tour(state)
+    if verb is not None:
+        state['body'].send(say=verb)
+
+
+def _offer(key):
+    def say(state):
+        seen = state['scanner'].scan(state.get('now'), reach=REACH_M) if state.get('scanner') else []
+        _said(state, offered(state.get('now'), seen).get(key))
+    return say
+
+
+def _crouched(state):
+    """C: a crouch, or up from one."""
+    now = state.get('now') or {}
+    _said(state, '#201' if now.get('doing') == CROUCHED else 'crouch')
 
 
 def _run_scenario(state, scen=None):
+    """Scene `scen` laid round her, the one she is in again with none."""
     _cancel_tour(state)
-    _clear_se2(state)
-    is_replay = scen is None
     scen = scen or state.get('scenario', 'flat')
-    if is_replay and state.get('scenario') == scen:
-        rise = contextual_rise(state.get('now'), scen)
-        if rise:
-            state['body'].send(say=rise)
-            return
     state['scenario'] = scen
     state['body'].send(scenario=scen)
-    mv = SCENARIO_MOVES.get(scen)
-    if mv:
-        state['body'].send(say=mv)
 
 
 def _next(state):
@@ -129,124 +143,27 @@ def _step_scenario(state, delta=1):
     from machine import floor
     scens = floor.SCENARIOS
     cur = state.get('scenario', 'flat')
-    nxt = scens[(scens.index(cur) + delta) % len(scens)] if cur in scens else scens[0]
-    _run_scenario(state, nxt)
+    _run_scenario(state, scens[(scens.index(cur) + delta) % len(scens)] if cur in scens else scens[0])
 
 
-def _shoved(event, along):
+def _shoved(n):
     def shove(state):
         _cancel_tour(state)
-        _clear_se2(state)
-        state['side'] = -state.get('side', 1.0)
-        n = (140.0 if event == 'severe' else sprung.SHOVES[event]) * state['side']
-        state['body'].send(push=(0.0, 0.0, n) if along else (n, 0.0, 0.0), seconds=sprung.SHOVE_S)
+        state['body'].send(push=tuple(n * a for a in viewpoint.along(state)), seconds=sprung.SHOVE_S)
     return shove
 
 
-def _say_non_wasd(state, target):
-    _cancel_tour(state)
-    _clear_se2(state)
-    state['body'].send(say=target)
-
-
-def _toggle_wasd(state, key='~'):
-    import time
-    now = time.monotonic()
-    last_key, last_t = state.get('_last_wasd_toggle', ('', 0.0))
-    if key == last_key and (now - last_t) < 0.15:
-        return
-    state['_last_wasd_toggle'] = (key, now)
-    state['_last_wasd'] = (None, 0.0)
-    _clear_se2(state)
-    was_on = state.get('wasd_mode', False)
-    state['wasd_mode'] = not was_on
-    if was_on:
-        from terminal.views import scanner
-        sc = state.get('scanner') or scanner.VisionScanner()
-        action = scanner.auto_action(sc.scan(state.get('now'), state.get('yaw', 0.0)))
-        if action:
-            state['body'].send(say=action)
-
-
-_DIR_KEYS = {
-    'w': (3, None, False),
-    's': (4, 'sit_chair', False),
-    'a': ('strafe_left', None, False),
-    'd': ('strafe_right', 'hop_down_chair', False),
-    'q': ('turn_left', 'circle_walk', True),
-    'e': ('turn_right', 'lie_bed', True),
-}
-
-
-def _tpw_chord(state, key, default):
-    keys_st = (state.get('se2') or {}).get('keys', {})
-    return next((keybindings.CHORDS[(key, h)] for h in ('w', 's', 'a', 'd', 'q', 'e')
-                 if keys_st.get(h) and (key, h) in keybindings.CHORDS), default)
-
-
-def _key_dir(state, key, shifted=False):
-    _cancel_tour(state)
-    tpw_def, norm_def, clear = _DIR_KEYS[key]
-    if state.get('wasd_mode'):
-        se2_st = state.setdefault('se2', se2.state()) if key == 'w' else {}
-        if key == 'w' and (shifted or se2_st.get('keys', {}).get('shift') or se2_st.get('v_x', 0.0) > se2.WALK_SPEED + 0.01):
-            tpw_def = 'jog'
-        state['body'].send(say=_tpw_chord(state, key, tpw_def))
-        return
-    if key == 'w':
-        state['body'].send(walk=True)
-    elif key == 'a':
-        if 'wasd_mode' not in state:
-            state['body'].send(restart=True)
-    elif key == 's':
-        now = state.get('now')
-        moving = now and (now.get('stage') == 'walk' or abs(now.get('speed', 0.0)) > 0.05)
-        state['body'].send(say=4 if moving else norm_def)
-    else:
-        _say_non_wasd(state, norm_def) if clear else state['body'].send(say=norm_def)
-
-
-def _key_f(state):
-    _cancel_tour(state)
-    _clear_se2(state)
-    if state.get('wasd_mode'):
-        from terminal.views import scanner
-        now = state.get('now')
-        rise = contextual_rise(now, state.get('scenario'))
-        if rise:
-            state['body'].send(say=rise)
-            return
-        sc = state.get('scanner')
-        if sc and now:
-            act = scanner.auto_action(sc.scan(now, state.get('yaw', 0.0)))
-            if act:
-                state['body'].send(say=act)
-                return
-    state['body'].send(say='lie_floor')
-
-
-def _key_shift(state):
-    _cancel_tour(state)
-    if state.get('wasd_mode'):
-        gait = (state.get('se2') or {}).get('gait')
-        state['body'].send(say=gait if gait in se2.WASD_GAITS else 'jog')
-    else:
-        state['body'].send(say='ballistic_walk')
-
-
 def _toggle_tour(state):
+    """H: the tour from its start, or ended."""
     from machine.tour import HouseTour
-    _clear_se2(state)
-    if state.get('tour') is not None and not state['tour'].done:
-        state['tour'] = None
-    else:
-        state['scenario'] = 'glass_room'
-        state['body'].send(scenario='glass_room')
-        state['tour'] = HouseTour(loop=True)
+    if touring(state):
+        _cancel_tour(state)
+        return
+    state['tour'] = HouseTour(loop=True)
 
 
 def table(keys):
-    """`keys` (the page's own) with the gym's laid over them: arrows and WASD walk, back and strafe, digits say moves."""
+    """`keys` (the page's own) with the gym's laid over them: verbs, digits, scenes, shoves."""
     out = dict(keys)
     out[NEXT] = _next
     for k in ('<', ',', ']'):
@@ -254,25 +171,13 @@ def table(keys):
     out['['] = lambda state: _step_scenario(state, -1)
     for k in ('\r', '\n'):
         out[k] = lambda state: _run_scenario(state)
-    out['up'] = lambda state: _say_non_wasd(state, 3)
-    out['down'] = lambda state: _say_non_wasd(state, 4)
-    out['left'] = lambda state: _say_non_wasd(state, 'strafe_left' if state.get('wasd_mode') else 1)
-    out['right'] = lambda state: _say_non_wasd(state, 'strafe_right' if state.get('wasd_mode') else 1)
-    out.update((k, lambda state, i=i: _say_non_wasd(state, i)) for i, k in enumerate(DIGITS))
-    out.update((k, _shoved(*how)) for k, how in PUSHES.items())
-    for name, key in STUNTS.items():
-        handler = (lambda state, n=name: _say_non_wasd(state, n))
-        out[key] = handler
-        if key.isalpha() and key.upper() not in PUSHES:
-            out[key.upper()] = handler
-    for k in keybindings.TOGGLE_TPW_KEYS:
-        out[k] = (lambda state, key=k: _toggle_wasd(state, key))
-    for k in 'wWsSaAdDqQeE':
-        out[k] = lambda state, key=k.lower(), sh=k.isupper(): _key_dir(state, key, sh)
+    out.update((k, lambda state, i=i: _said(state, i)) for i, k in enumerate(DIGITS))
+    out.update((k, _shoved(n)) for k, n in SHOVES_N.items())
+    out[' '] = _offer(' ')
     for k in 'fF':
-        out[k] = _key_f
-    for k in ('shift', 'Shift', 'sprint'):
-        out[k] = _key_shift
+        out[k] = _offer('f')
+    for k in 'cC':
+        out[k] = _crouched
     out['H'] = _toggle_tour
     return out
 
@@ -297,57 +202,28 @@ def _mode_row(name, row):
     return (name.rjust(10), Text.from_ansi('%+5.2f %s %+5.2f %4.0f' % (ref, bar, z, k)))
 
 
-_SHORT_SAY = {'ballistic walk': 'ballistic wk', 'hop down chair': 'hop dn chair', 'controlled fall': 'breakfall'}
-
-
-def boxes(now, wasd=False, tour=None):
-    """The side column's boxes: each mode asked and as she is, its spring's N/m; what each
-    digit and stunt key says in a unified two-column instrument layout."""
+def boxes(now, tour=None):
+    """The side column's boxes: each mode asked and as she is, its spring's N/m; the scene, the
+    verbs' keys, what each digit says."""
     if not now:
         return []
     says = now.get('says') or ('gynoid_mesomorph_medium',)
     gym_name, entries = says[0], says[1:]
     scen = str(now.get('scenario') or 'flat')
-    scen_mv = SCENARIO_MOVES.get(scen, '')
-    scen_label = '%s (%s)' % (scen, NAMED.get(scen_mv, scen_mv)) if scen_mv else scen
-    scen_obj = (SCENARIO_DESC.get(scen) or scen).split('//')[-1].strip()
-    wasd_on = wasd or now.get('wasd_mode', False)
-    tour_on = tour is not None and not getattr(tour, 'done', False)
-    mode_badge = '[AUTO: HOUSE TOUR]' if tour_on else ('TPW active (§/~)' if wasd_on else 'normal (§/~ for TPW)')
     say_rows = [
-        ('control'.rjust(10), mode_badge),
-        ('scenario'.rjust(10), scen_label[:25]),
-        ('objective'.rjust(10), scen_obj[:25]),
-        ('[ ] / ent'.rjust(10), 'cycle / run scenario'),
+        ('control'.rjust(10), '[TOUR] ' + tour.current_label()[:18] if tour is not None and not tour.done
+         else 'keys or an agent'),
+        ('scenario'.rjust(10), scen[:25]),
+        ('objective'.rjust(10), keybindings.SCENARIO_DESC.get(scen, scen).split('//')[-1].strip()[:25]),
+        ('wasd / shf'.rjust(10), 'go from the view / sprint'),
+        ('q e / spc'.rjust(10), 'sidestep / hop'),
+        ('f / c'.rjust(10), 'interact / crouch'),
     ]
-    if wasd_on:
-        say_rows.append(('wasd / shf'.rjust(10), 'move, arc / sprint'))
-        say_rows.append(('spc / f'.rjust(10), 'jump / interact prop'))
-    else:
-        say_rows.append(('arrows / w'.rjust(10), 'walk, back, sway'))
-        say_rows.append(('spc / p, N'.rjust(10), 'charge push / shove'))
-    seen, items = set(), []
-    for i, s in enumerate(entries):
-        if s.startswith('#'):
-            key = DIGITS[i] if i < len(DIGITS) else str(i)
-        elif s in STUNTS:
-            key = STUNTS[s]
-        elif i < len(DIGITS) and s != 'init_walk':
-            key = DIGITS[i]
-        else:
-            continue
-        if s not in seen:
-            seen.add(s)
-            raw_lbl = (NAMED.get(s) or s).split(' (')[0].replace('_', ' ')
-            items.append((key, _SHORT_SAY.get(raw_lbl, raw_lbl)))
+    items = [(DIGITS[i], NAMED.get(s, str(s)).replace('_', ' '))
+             for i, s in enumerate(entries[:len(DIGITS)])]
     for idx in range(0, len(items), 2):
-        k1, n1 = items[idx]
-        if idx + 1 < len(items):
-            k2, n2 = items[idx + 1]
-            say_rows.append((('%s / %s' % (k1, k2)).rjust(10), ('%-12s %-12s' % (n1[:12], n2[:12])).rstrip()))
-        else:
-            say_rows.append((k1.rjust(10), n1[:25]))
+        (k1, n1), rest = items[idx], items[idx + 1:idx + 2]
+        say_rows.append((('%s / %s' % (k1, rest[0][0]) if rest else k1).rjust(10),
+                         ('%-12s %-12s' % (n1[:12], rest[0][1][:12]) if rest else n1[:25]).rstrip()))
     return [hud('LATENT', [_mode_row(name, row) for name, row in zip(SHORT, now.get('modes') or ())]),
             hud('SAY  ' + gym_name.upper(), say_rows)]
-
-

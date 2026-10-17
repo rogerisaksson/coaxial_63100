@@ -255,9 +255,7 @@ def describe(now, se2_st=None):
                      heading=pyaw, pelvis_yaw=pyaw)
     tw_cmd = now.get('twist')
     if any_key:
-        vx_set, vy_set, wz_set = se2_st['setpoint'] if se2_st and 'setpoint' in se2_st else se2.setpoint_for_keys(keys)
-        if wz_set == 0.0 and bool(keys.get('q')) != bool(keys.get('e')):
-            wz_set = (se2.YAW_SPRINT_RATE if keys.get('shift') else se2.YAW_RATE) * (1.0 if keys.get('q') else -1.0)
+        vx_set, vy_set, wz_set = (se2_st or {}).get('setpoint') or (0.0, 0.0, 0.0)
     elif tw_cmd is not None and (math.hypot(float(tw_cmd[0]), float(tw_cmd[1])) > 0.02 or abs(float(tw_cmd[2])) > 0.03):
         vx_set, vy_set, wz_set = float(tw_cmd[0]), float(tw_cmd[1]), float(tw_cmd[2])
     elif doing in GAIT_TWIST:

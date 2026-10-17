@@ -52,157 +52,157 @@ def test_the_humanoid_pages_mouse(report):
 
 
 def test_the_humanoid_pages_keys(report):
-    """The page's keys are her loop's and the view's: A lands her, digits say moves, W walks her."""
-    from machine import se2
-    from terminal.views import gym, humanoid_keys, show_humanoid
+    """The page's keys are her verbs, the gym's and the view's: Backspace lands her anew, digits
+    say entries, the arrows turn the view, the scene keys say nothing."""
+    from terminal.views import show_humanoid, viewpoint
     sent = []
-    st: dict = {'body': SN(send=lambda **cmd: sent.append(cmd)), 'side': 1.0,
-                'orbit': False, 'called': 'strong', 'shown': 'torque', 'skin': 'dressed'}
-    for k in 'a4w':
+    st: dict = {'body': SN(send=lambda **cmd: sent.append(cmd)), 'orbit': False, 'called': 'strong',
+                'shown': 'torque', 'skin': 'dressed', **viewpoint.HOME}
+    for k in ('\x08', '4'):
         show_humanoid.KEYS[k](st)
-    report.check('A lands her anew, 4 says the fourth entry, W her walk from rest',
-                 sent == [{'restart': True}, {'say': 3}, {'walk': True}])
-    for k in 'ltco':
+    report.check('Backspace lands her anew, 4 says the fourth entry', sent == [{'restart': True}, {'say': 3}])
+    for k in 'ltmo':
         show_humanoid.KEYS[k](st)
     s_pwr = st['shown']
     show_humanoid.KEYS['t'](st)
     s_tmp = st['shown']
     show_humanoid.KEYS['t'](st)
-    report.check('L the next callouts, T cycles power -> temp -> torque, C her shell, O the orbit',
+    report.check('L the next callouts, T cycles power -> temp -> torque, M her shell, O the orbit',
                  st['called'] == 'all' and (s_pwr, s_tmp, st['shown']) == ('power', 'temp', 'torque')
                  and st['skin'] == 'shell' and st['orbit'] is True)
-    letters = sorted(k for k in show_humanoid.KEYS if len(k) == 1 and k.isalpha() and k.islower())
-    expected = sorted(set(list('aclnoprtvw') + [v for v in gym.STUNTS.values() if v.isalpha()]))
-    report.check('its letters are the stunts, view and loop controls', letters == expected)
+    letters = ''.join(sorted(k for k in show_humanoid.KEYS if len(k) == 1 and k.isalpha() and k.islower()))
+    report.check('its letters: verbs, the view, the lab - none moves her', letters == 'cflmoprtvx', letters)
     sent.clear()
-    for k in ('up', 'down', '<', '\r'):
+    yaw = st['yaw']
+    for k in ('left', 'up', '<', '\r'):
         show_humanoid.KEYS[k](st)
-    report.check('arrows drive forward and back, < cycles scenario and move, enter runs scenario',
-                 sent[0] == {'say': 3} and sent[1] == {'say': 4} and 'scenario' in sent[2] and 'say' in sent[3])
-    sent.clear()
-    show_humanoid.KEYS['~'](st)
-    report.check('tilde / § toggles WASD mode on', st.get('wasd_mode') is True)
-    for k in 'wsad':
-        show_humanoid.KEYS[k](st)
-    report.check('WASD in TPW mode drives forward, back, strafe left and right',
-                 sent == [{'say': 3}, {'say': 4}, {'say': 'strafe_left'}, {'say': 'strafe_right'}])
-    sent.clear()
-    humanoid_keys.act_on(show_humanoid.KEYS, ['w', 'a'], st)
-    humanoid_keys.act_on(show_humanoid.KEYS, ['w', 'q'], st)
-    report.check('WA and WQ chords execute left turn (forward left arc)',
-                 sent == [{'say': 'turn_left'}, {'say': 'turn_left'}])
-    sent.clear()
-    for ch in (['s', 'd'], ['s', 'e'], ['a', 'e'], ['d', 'q'], ['q', 'e']):
-        humanoid_keys.act_on(show_humanoid.KEYS, ch, st)
-    humanoid_keys.act_on(show_humanoid.KEYS, ['a', 'e'], st)
-    st['_se2_last_t'] -= 0.05
-    show_humanoid._step_frame(st, st['body'], 0.05)
-    tw_ae = (0.0, round(se2.STRAFE_SPEED, 2), -round(se2.YAW_RATE, 2))
-    report.check('SD/SE turn back right, AE/DQ circle-strafe, Q+E cancels, and _step_frame streams twist',
-                 sent == [{'say': 'turn_back_right'}, {'say': 'turn_back_right'}, {'say': 'strafe_left'},
-                          {'say': 'strafe_right'}, {'say': 'strafe_left'}, {'twist': tw_ae}])
-    show_humanoid.KEYS['§'](st)
-    sent.clear()
-    show_humanoid.KEYS['q'](st)
-    show_humanoid.KEYS['e'](st)
-    report.check('§ toggles WASD mode off again and normal mode Q/E trigger circle_walk/lie_bed',
-                 st.get('wasd_mode') is False and sent == [{'say': 'circle_walk'}, {'say': 'lie_bed'}])
+    report.check('the arrows turn and lift the view, < lays the next scene, Enter lays it again, nothing said',
+                 st['yaw'] < yaw and st['pan'][1] > 0.0 and sent == [{'scenario': 'glass_room'}] * 2, sent)
 
 
-def test_a_held_space_charges_a_push(report):
-    """Space held charges a push CHARGE_N_S a second, landing RELEASE_S after its repeats stop."""
-    import math, time
-    from terminal.views import humanoid_keys, show_humanoid, viewpoint
+def test_the_keys_that_move_her_are_one_twist(report):
+    """W A S D go where the view looks, left of it, back to it, right of it; Q E sidestep; Shift
+    sprints: one twist, sent when it changes, each one the bench's plays hold."""
+    import time
+    from terminal.views import humanoid_keys, viewpoint
+    from tools.sim import scenarios
+
+    def tw(word, yaw=180.0, heading=0.0):
+        keys = dict({k: k in word.lower() for k in 'wsadqe'}, shift=word != word.lower())
+        return humanoid_keys.twist(keys, viewpoint.looks({'yaw': yaw}), heading)
+
+    report.check('the view behind her: W walks her on, S turns her round in place, A turns her left',
+                 (tw('w'), tw('s'), tw('a')) == ((0.69, 0.0, 0.0), (0.0, 0.0, 0.7), (0.0, 0.0, 0.7)))
+    report.check('the view 60 deg left of her: W arcs her left; facing it, Shift sprints; Q sidesteps her left',
+                 (tw('w', 240.0), tw('W'), tw('q')) == ((0.69, 0.0, 0.7), (1.4, 0.0, 0.0), (0.0, 0.5, 0.0)))
+    every = {tw(w, yaw, hd) for w in ('w', 's', 'a', 'd', 'wa', 'wd', 'sa', 'sd', 'q', 'e', 'W', 'WA', 'S')
+             for yaw in range(0, 360, 15) for hd in (0.0, 1.0, -2.0)}
+    bound = [max(abs(t[i]) for t in scenarios.KEYS.values()) for i in range(3)]
+    report.check("every twist the keys send within the bench plays' bounds, a sidestep alone, a sprint all but straight",
+                 all(abs(t[i]) <= bound[i] + 1e-9 for t in every for i in range(3))
+                 and all(not (t[1] and (t[0] or t[2])) for t in every)
+                 and all(abs(t[2]) <= 0.3 for t in every if t[0] > 0.69), sorted(every)[:4])
+    sent = []
+    st: dict = {'body': SN(send=lambda **cmd: sent.append(cmd)), 'yaw': 180.0, 'tour': None}
+    humanoid_keys.act_on({}, ['w'], st)
+    t = time.monotonic()
+    for dt in (0.0, 0.05, 2.0):
+        humanoid_keys.steered(st, t + dt, 0.0)
+    report.check('a W typed walks her, sent once while held, the stop once when let go',
+                 sent == [{'twist': (0.69, 0.0, 0.0)}, {'twist': (0.0, 0.0, 0.0)}], sent)
+
+
+def test_a_held_p_charges_a_push(report):
+    """P held charges a push CHARGE_N_S a second, landing RELEASE_S after its repeats stop."""
+    import math
+    import time
+    from terminal.views import humanoid_keys, viewpoint
     keys = humanoid_keys.table(viewpoint.KEYS, ('strong',), ('torque',))
     st: dict = {'charge': None, **viewpoint.HOME}
     t0 = time.monotonic()
-    humanoid_keys.act_on(keys, [' '], st)
+    humanoid_keys.act_on(keys, ['p'], st)
     lone = (humanoid_keys.released(st, t0 + 0.5), humanoid_keys.released(st, t0 + 1.0))
     report.check('a lone press lands FIRST_S on, a tap of a push', lone[0] == 0.0 and 0.0 < lone[1] < 20.0)
-    humanoid_keys.act_on(keys, [' '], st)
+    humanoid_keys.act_on(keys, ['p'], st)
     st['charge']['began'] -= 1.0
     for _ in range(10):
-        humanoid_keys.act_on(keys, [' '], st)
+        humanoid_keys.act_on(keys, ['p'], st)
     held = humanoid_keys.charging(st, time.monotonic())
     soon = humanoid_keys.released(st, time.monotonic() + 0.1)
     landed = humanoid_keys.released(st, time.monotonic() + 0.3)
     report.check('held a second it charges CHARGE_N_S, lands RELEASE_S after the last repeat',
                  abs(held - humanoid_keys.CHARGE_N_S) < 5.0 and soon == 0.0
                  and abs(landed - humanoid_keys.CHARGE_N_S) < 20.0 and st['charge'] is None)
-    a = show_humanoid.along(dict(viewpoint.HOME, yaw=0.0, pitch=0.0))
-    b = show_humanoid.along(dict(viewpoint.HOME, yaw=90.0, pitch=0.0))
-    report.check('the push comes along the line of sight: from +z at yaw 0, from +x at 90',
+    a = viewpoint.along(dict(viewpoint.HOME, yaw=0.0))
+    b = viewpoint.along(dict(viewpoint.HOME, yaw=90.0))
+    report.check('the push comes along the view over the floor: from +z at yaw 0, from +x at 90',
                  max(abs(x - y) for x, y in zip(a, (0.0, 0.0, -1.0))) < 1e-9
                  and max(abs(x - y) for x, y in zip(b, (-1.0, 0.0, 0.0))) < 1e-9
                  and abs(math.sqrt(sum(x * x for x in a)) - 1.0) < 1e-9)
 
 
 def test_vision_scanner_docked_pip_and_affordances(report):
-    """The stereo vision scanner detects props, renders PiP with affordances, and leaving WASD triggers auto-action."""
+    """The stereo scanner finds a support near her, F says its verb and the page prompts it."""
     from terminal.views import scanner, show_humanoid
     sc = scanner.VisionScanner()
     report.check('model identification resolves or reports local stereo',
                  'clef' in sc.model_name() or 'stereo' in sc.model_name())
-    now = {'where': (0.0, 0.0, 0.0), 'turn': (1, 0, 0, 0), 'angles': {},
-           'props': [('chair', (0.0, 0.45, 1.2), (0.22, 0.02, 0.22), ((1, 0, 0), (0, 1, 0), (0, 0, 1)))]}
-    det = sc.scan(now, yaw=0.0)
-    report.check('chair detected in forward sight cone', len(det) == 1 and det[0]['kind'] == 'chair')
-    report.check('chair has sit and hop affordances', any(a[0] == 's' for a in det[0]['affordances']))
-    report.check('auto_action selects sit_chair for detected chair', scanner.auto_action(det) == 'sit_chair')
-    cells = scanner.docked_vision(sc, now, 100, 40, wasd_mode=True)
-    report.check('docked vision returns cells overlay', len(cells) > 0)
+    now = {'where': (0.0, 0.0, 0.0), 'turn': (1, 0, 0, 0), 'angles': {}, 'heading': 0.0,
+           'props': [('chair', (0.0, 0.45, 0.9), (0.22, 0.02, 0.22), ((1, 0, 0), (0, 1, 0), (0, 0, 1)))]}
+    det = sc.scan(now, 0.0)
+    report.check('a chair in her sight, its verb sit_chair',
+                 len(det) == 1 and det[0]['kind'] == 'chair' and scanner.auto_action(det) == 'sit_chair'
+                 and det[0]['affordances'] == [('sit_chair', 'sit')])
+    cells = scanner.docked_vision(sc, now, 100, 40)
     chars = ''.join(chr(c) for c, _k in cells.values())
-    report.check('docked vision contains chair label and actions', 'chair' in chars and 'sit' in chars)
+    report.check('the docked eyes name the chair and F on it', 'chair' in chars and '[F] sit' in chars)
     sent = []
-    st = {'body': SN(send=lambda **kw: sent.append(kw)), 'wasd_mode': True, 'scanner': sc, 'now': now, 'yaw': 0.0}
-    show_humanoid.KEYS['~'](st)
-    report.check('leaving WASD mode commands auto-action sit_chair', sent == [{'say': 'sit_chair'}])
-
-
-def test_tpw_controls(report):
-    """TPW mode toggle, Shift sprint, F interact, viewport badge, and A disabled in normal mode."""
-    from terminal import keybindings
-    from terminal.views import humanoid_keys, show_humanoid
-    sent = []
-    st = {'body': SN(send=lambda **cmd: sent.append(cmd)), 'wasd_mode': False,
-          'yaw': 180.0, 'pitch': 8.0, 'now': {'angles': {}, 'where': (0.0, 0.9, 0.0), 'turn': (1, 0, 0, 0), 'stage': 'stand'}}
-    show_humanoid.KEYS['a'](st)
-    report.check('a in normal mode is disabled and does not reset robot', not sent)
-    report.check('a description explains mode switch / restart disabled',
-                 'restart disabled' in keybindings.describe_action('a', wasd_mode=False))
-    show_humanoid.KEYS['§'](st)
-    report.check('§ toggles TPW mode on', st.get('wasd_mode') is True)
-    bar = dict(show_humanoid.bar_for(st))
-    report.check('bar_for displays TPW controls', 'SHIFT' in bar and 'F' in bar)
-    bg = show_humanoid.tpw_badge(True, 80, 24)
-    report.check('TPW mode badge rendered in viewport', len(bg) > 0 and (0, 1) in bg)
-    report.check('TPW badge text displays Third Person Control ON',
-                 'Third Person Control ON' in ''.join(chr(c) for c, _ in bg.values()))
-    report.check('TPW badge text displays Third Person Control OFF',
-                 'Third Person Control OFF' in ''.join(chr(c) for c, _ in show_humanoid.tpw_badge(False, 80, 24).values()))
-    sent.clear()
-    show_humanoid.KEYS['shift'](st)
-    report.check('shift sends jog (sprint)', sent == [{'say': 'jog'}])
-    sent.clear()
+    st = {'body': SN(send=lambda **kw: sent.append(kw)), 'scanner': sc, 'now': now, 'yaw': 180.0, 'tour': None}
     show_humanoid.KEYS['f'](st)
-    report.check('f key executes interact action', len(sent) == 1 and 'say' in sent[0])
-    report.check('shove crosshair is hidden in TPW mode', show_humanoid.marked(st, st['now'], 1.0) is None)
+    report.check('F by the chair says sit_chair, the page prompts it, a plain hop unprompted',
+                 sent == [{'say': 'sit_chair'}] and show_humanoid.prompt(st) == '[F] sit chair', show_humanoid.prompt(st))
+
+
+def test_her_verbs_and_the_chase(report):
+    """Space hops - up onto a chair close ahead, down from its seat -, C crouches and stands her, X
+    swaps the shoulder; the view eases behind her as she goes, not after a look nor standing."""
+    import math
+    from terminal.views import scanner, show_humanoid, viewpoint
+    sent = []
+    chair = [('chair', (0.0, 0.45, 0.5), (0.22, 0.02, 0.22), ((1, 0, 0), (0, 1, 0), (0, 0, 1)))]
+    st: dict = {'body': SN(send=lambda **cmd: sent.append(cmd)), 'scanner': scanner.VisionScanner(), 'tour': None,
+                **viewpoint.HOME, 'now': {'where': (0.0, 0.9, 0.0), 'heading': 0.0, 'doing': 'rest', 'props': chair}}
+    show_humanoid.KEYS[' '](st)
+    st['now'] = dict(st['now'], where=(0.0, 1.35, 0.0))
+    show_humanoid.KEYS[' '](st)
+    st['now'] = dict(st['now'], where=(0.0, 0.9, 0.0), props=[])
+    show_humanoid.KEYS[' '](st)
+    report.check('Space hops her up onto a chair close ahead, down from its seat, in place with none',
+                 sent == [{'say': 'hop_up_chair'}, {'say': 'hop_down_chair'}, {'say': 'hop'}], sent)
     sent.clear()
-    humanoid_keys.act_on(show_humanoid.KEYS, [' '], st)
-    report.check('Space in TPW mode triggers jump (hop) and does not charge push',
-                 sent == [{'say': 'hop'}] and st.get('charge') is None and humanoid_keys.charging(st, 2.0) == 0.0)
-    show_humanoid.KEYS['F1'](st)
-    report.check('F1 toggles mode back to normal', st.get('wasd_mode') is False)
-    report.check('shove crosshair marks torso on normal mode push and is hidden when idle',
-                 show_humanoid.marked({**st, 'landed': (0.8, 120.0)}, st['now'], 1.0) is not None
-                 and show_humanoid.marked(st, st['now'], 1.0) is None)
+    show_humanoid.KEYS['c'](st)
+    st['now'] = dict(st['now'], doing='down')
+    show_humanoid.KEYS['c'](st)
+    show_humanoid.KEYS['x'](st)
+    report.check('C crouches her and stands her from it; X looks over her other shoulder',
+                 sent == [{'say': 'crouch'}, {'say': '#201'}] and st['shoulder'] == -1.0
+                 and viewpoint.panned(st)[0] == -viewpoint.SHOULDER_M)
+    t, behind = 100.0, 180.0 + math.degrees(1.0)
+    went, looked, stood = ({**viewpoint.HOME, 'orbit': False} for _ in range(3))
+    looked['looked'] = t + 0.5
+    for view, going in ((went, True), (looked, True), (stood, False)):
+        for dt in (0.0, viewpoint.LAG_S):
+            viewpoint.chased(view, 1.0, going, t + 0.5 + dt)
+    report.check('the view eases behind her as she goes, 63 % in LAG_S; not RECENTRE_S after a look, nor standing',
+                 abs((went['yaw'] - 180.0) / (behind - 180.0) - (1.0 - math.exp(-1.0))) < 1e-6
+                 and looked['yaw'] == stood['yaw'] == 180.0)
 
 
 def test_surface_arrows_setpoint_actual_and_landing_zones(report):
     """Surface-conforming 3D setpoint arrow frames, progressive actual fill, jump, stop, and fall arrows."""
     import numpy as np
     from coaxial.graphics import arrows, gynoid
-    from machine import physics, se2, sprung
+    from machine import physics, sprung
     from terminal.views import humanoid_keys
     z3 = np.zeros(27)
     b0, w = sprung.state(sprung.laid(every=3), z3, z3, 0.0, 1.0, None), physics.World()
@@ -213,39 +213,34 @@ def test_surface_arrows_setpoint_actual_and_landing_zones(report):
     w.scenario('hole')
     report.check('arrow surface_at dips into 10cm hole', arrows.surface_at(0.0, 0.55, w.props())[0] < -0.08)
 
-    st = se2.state()
-    se2.step_controller(st, 'w', 0.02, now=1.0)
-    nw0 = dict(b0, twist=(st['v_x'], 0.0, 0.0), velocity=(0.0, 0.02), speed=0.02, doing='#204')
-    sw0 = arrows.describe(nw0, st)
-    for k in range(7):
-        se2.step_controller(st, 'w', 0.05, now=1.02 + (k + 1) * 0.05)
-    sw_mid = arrows.describe(dict(nw0, velocity=(0.0, 0.35), speed=0.35), st)
-    sw_blk = arrows.describe(dict(nw0, velocity=(0.0, 0.0), speed=0.0), st)
-    sw_rev = arrows.describe(dict(nw0, velocity=(0.0, -0.25), speed=-0.25), st)
-    for k in range(40):
-        se2.step_controller(st, 'W', 0.05, now=1.40 + (k + 1) * 0.05)
-    nw_fast = dict(b0, twist=(st['v_x'], 0.0, 0.0), velocity=(0.0, st['v_x']), speed=st['v_x'], doing='jog')
-    sw1 = arrows.describe(nw_fast, st)
+    def held(word, setpoint, actual=(0.0, 0.0, 0.0)):
+        keys = dict({k: k in word.lower() for k in 'wsadqe'}, shift=word != word.lower())
+        return dict(humanoid_keys.pad(), keys=keys, setpoint=setpoint, actual=actual)
+
+    nw0 = dict(b0, twist=(0.69, 0.0, 0.0), velocity=(0.0, 0.02), speed=0.02, doing='#204')
+    sw0 = arrows.describe(nw0, held('w', (0.69, 0.0, 0.0)))
+    sw_mid = arrows.describe(dict(nw0, velocity=(0.0, 0.35), speed=0.35), held('w', (0.69, 0.0, 0.0)))
+    sw_blk = arrows.describe(dict(nw0, velocity=(0.0, 0.0), speed=0.0), held('w', (0.69, 0.0, 0.0)))
+    sw_rev = arrows.describe(dict(nw0, velocity=(0.0, -0.25), speed=-0.25), held('w', (0.69, 0.0, 0.0)))
+    nw_fast = dict(b0, twist=(1.4, 0.0, 0.0), velocity=(0.0, 1.35), speed=1.35, doing='jog')
+    sw1 = arrows.describe(nw_fast, held('W', (1.4, 0.0, 0.0)))
     report.check('W / Shift+W arrow starts hollow, stays empty if blocked, and fills from velocity',
                  sw0['kind'] == 'locomotion' and abs(sw0['origin'][0]) < 0.05 and sw_blk['fill'] == 0.0 and sw_rev['fill'] == 0.0
                  and 0.0 < sw0['fill'] < 0.20 < sw_mid['fill'] < 0.85 < sw1['fill'] <= 1.0 and sw1['setpoint'][0] > sw0['setpoint'][0]
                  and len(sw0['frame_segments']) > 10 and len(sw1['fill_segments']) > len(sw0['fill_segments']))
 
-    st_wa, t_wa = se2.state(), 2.0
-    for tok in ('wa', 'a', 'a', 'w', 'a', 'a'):
-        t_wa += 0.05
-        se2.step_controller(st_wa, tok, 0.05, now=t_wa)
-    swa = arrows.describe(dict(b0, doing='turn_left', heading=0.35, velocity=(0.0, 0.69), twist_actual=(0.69, 0.0, 0.70)), st_wa)
-    sae = arrows.describe(dict(b0, doing='strafe_left', twist_actual=(0.0, 0.45, -0.60)), humanoid_keys.step_se2(se2.state(), 'ae', 0.8, 3.0))
-    sq = arrows.describe(dict(b0, doing='turn_left'), humanoid_keys.step_se2(se2.state(), 'q', 0.8, 3.0))
+    swa = arrows.describe(dict(b0, doing='turn_left', heading=0.35, velocity=(0.0, 0.69), twist_actual=(0.69, 0.0, 0.70)),
+                          held('wa', (0.69, 0.0, 0.7)))
+    sq_side = arrows.describe(dict(b0, doing='strafe_left', twist_actual=(0.0, 0.45, 0.0)), held('q', (0.0, 0.5, 0.0)))
+    s_spin = arrows.describe(dict(b0, doing='turn_left'), held('s', (0.0, 0.0, 0.7), (0.0, 0.0, 0.6)))
     mx = lambda sp, i: max(p[i] for s in sp['frame_segments'] for p in s)
-    report.check('WA curved arrow, AE circle-strafe arc, and Q spin-in-place floor arc render cleanly',
+    report.check('an arc left, a sidestep and a turn in place render cleanly',
                  swa['kind'] == 'locomotion' and mx(swa, 0) > 0.15 and swa['setpoint'][1] == 0.0
                  and abs(swa['pelvis_yaw']) < 1e-6 and 0.10 < swa['heading'] < 0.15
                  and swa['fill_segments'][-1][0] == swa['frame_segments'][-1][1]
                  and arrows.pelvis_yaw({'turn': (1, 0, 0, 0), 'heading': 0.8}) == 0.0
-                 and sae['kind'] == 'locomotion' and mx(sae, 0) > 0.25 and mx(sae, 2) > 0.08
-                 and sq['kind'] == 'locomotion' and len(sq['frame_segments']) > 10 and sq['fill'] > 0.5)
+                 and sq_side['kind'] == 'locomotion' and mx(sq_side, 0) > 0.25
+                 and s_spin['kind'] == 'locomotion' and len(s_spin['frame_segments']) > 10 and s_spin['fill'] > 0.5)
 
     shop = arrows.describe(dict(b0, doing='throw', where=(0.0, 1.02, 0.0)))
     report.check('jump (hop) draws upward 3D arrow frame and fill',
@@ -260,41 +255,38 @@ def test_surface_arrows_setpoint_actual_and_landing_zones(report):
                  sfall['kind'] == 'fall' and sfall['landing'] is not None and sfall['landing'][2] > 0.20 and len(sfall['target_segments']) >= 16)
 
     report.check('gynoid.render draws movement arrows into braille viewport',
-                 gynoid.render(b0['angles'], 64, 28, colour=False) != gynoid.render(b0['angles'], 64, 28, colour=False, arrows=(nw_fast, st)))
+                 gynoid.render(b0['angles'], 64, 28, colour=False)
+                 != gynoid.render(b0['angles'], 64, 28, colour=False, arrows=(nw_fast, held('W', (1.4, 0.0, 0.0)))))
 
 
 def test_scenario_deck_tour_handoff_and_cybernetic_hud(report):
-    """Floor scenarios, [ / ] cycle, Enter/F toggle, tour handoff, BAL/THM/STB gauges, and 40-cell HUD boxes."""
+    """Floor scenarios, [ / ] cycle, F up from what bears her, the tour as an agent's commands,
+    BAL/THM/STB gauges, and 40-cell HUD boxes."""
     import io
     from rich.console import Console
-    from machine import floor, se2
+    from machine import floor, se2, tour
     from terminal import keybindings
     from terminal.ui import stage
-    from terminal.views import gym, humanoid_keys, scanner, show_humanoid
+    from terminal.views import gym, humanoid_keys, scanner, show_humanoid, viewpoint
 
-    miss = [s for s in floor.SCENARIOS if s not in keybindings.SCENARIO_MOVES or s not in keybindings.SCENARIO_DESC]
-    sent, se2_st = [], se2.state()
-    st = {'body': SN(send=lambda **cmd: sent.append(cmd)), 'wasd_mode': True,
-          'scenario': 'chair', 'se2': se2_st, 'keys': show_humanoid.KEYS, 'now': {'doing': 'rest', 'where': (0.0, 0.9, 0.0)}}
-    for k in ('n', 'N'):
-        show_humanoid.KEYS[k](st)
-    report.check('all 20 floor scenarios have moves/descriptions, n triggers stairs_down, Shift+N shoves',
-                 not miss and len(floor.SCENARIOS) == 20 and sent[0] == {'say': 'stairs_down'} and sent[1]['push'][0] == -140.0)
-
-    humanoid_keys.act_on(show_humanoid.KEYS, ['w'], st)
+    miss = [s for s in floor.SCENARIOS if s not in keybindings.SCENARIO_DESC]
+    sent = []
+    st = {'body': SN(send=lambda **cmd: sent.append(cmd)), 'scenario': 'chair', 'pad': humanoid_keys.pad(),
+          'keys': show_humanoid.KEYS, 'tour': None, **viewpoint.HOME, 'now': {'doing': 'rest', 'where': (0.0, 0.9, 0.0)}}
+    show_humanoid.KEYS['N'](st)
+    report.check('all 20 floor scenarios described, Shift+N shoves 200 N along the view',
+                 not miss and len(floor.SCENARIOS) == 20 and abs(sent[0]['push'][2] - 200.0) < 1e-9)
     sent.clear()
-    st['now'] = {'doing': 'lower', 'where': (0.0, 0.72, 0.0)}
-    show_humanoid.KEYS['\r'](st)
-    st['now'] = {'doing': 'seat_land', 'where': (0.0, 1.25, 0.0)}
+    st['now'] = {'doing': 'lower', 'where': (0.0, 0.72, 0.0), 'scenario': 'chair'}
     show_humanoid.KEYS['f'](st)
-    report.check('Enter/F on chair phases trigger rise_chair / hop_down_chair and clear SE(2) twist',
-                 sent == [{'say': 'rise_chair'}, {'say': 'hop_down_chair'}] and se2_st['v_x'] == 0.0 and not st.get('_wasd_active'))
-    sent.clear()
-    st['now'], st['scenario'] = {'doing': 'sit_edge'}, 'bed'
-    show_humanoid.KEYS['\r'](st)
-    st['now'], st['scenario'] = {'doing': 'kneel'}, 'mattress'
+    st['now'] = {'doing': 'seat_land', 'where': (0.0, 1.25, 0.0), 'scenario': 'chair'}
     show_humanoid.KEYS['f'](st)
-    report.check('Enter/F while on bed or mattress triggers rise_bed and rise_floor', sent == [{'say': 'rise_bed'}, {'say': 'rise_floor'}])
+    st['now'] = {'doing': 'sit_edge', 'scenario': 'bed'}
+    show_humanoid.KEYS['f'](st)
+    st['now'] = {'doing': 'kneel', 'scenario': 'mattress'}
+    show_humanoid.KEYS['f'](st)
+    report.check('F rises her from a chair, hops her down from its seat, rises her from a bed and a mattress',
+                 sent == [{'say': 'rise_chair'}, {'say': 'hop_down_chair'}, {'say': 'rise_bed'}, {'say': 'rise_floor'}])
     sent.clear()
     st['scenario'] = 'bed'
     show_humanoid.KEYS['['](st)
@@ -303,21 +295,25 @@ def test_scenario_deck_tour_handoff_and_cybernetic_hud(report):
     show_humanoid.KEYS[']'](st)
     sc = scanner.VisionScanner()
     det = sc.scan({'where': (0.0, 0.9, 0.0), 'heading': 0.0, 'scenario': 'mattress',
-                   'props': [('bed', (0.0, 0.08, 0.9), (0.45, 0.08, 0.95), ((1, 0, 0), (0, 1, 0), (0, 0, 1)))]}, yaw=180.0)
+                   'props': [('bed', (0.0, 0.08, 0.9), (0.45, 0.08, 0.95), ((1, 0, 0), (0, 1, 0), (0, 0, 1)))]}, 0.0)
     report.check('] cycles forward to bed and VisionScanner detects mattress in heading cone',
                  st['scenario'] == 'bed' and {'scenario': 'bed'} in sent
                  and len(det) == 1 and det[0]['kind'] == 'mattress' and scanner.auto_action(det) == 'lie_floor')
 
+    sent.clear()
     show_humanoid.KEYS['H'](st)
-    tr, vis = st.get('tour'), set()
-    for _ in range(100):
-        if tr is not None and st.get('tour') is not None:
+    tr, vis = st['tour'], set()
+    for _ in range(2 * int(sum(step[1] for step in tour.STEPS)) + 2):
+        if gym.touring(st):
             vis.add(tr.step_idx)
             tr.step(st, 0.5)
-    report.check('H engages HouseTour on glass_room and stepping all 14 steps does not self-cancel',
-                 tr is not None and st.get('tour') is tr and len(vis) == 14)
-    show_humanoid.KEYS['w'](st)
-    report.check('manual W key disengages active HouseTour autopilot cleanly', st.get('tour') is None)
+    verbs = {c['say'] for c in sent if 'say' in c}
+    report.check('H tours every step, sending what an agent sends: twists, verbs, scenes, pushes',
+                 tr is not None and st.get('tour') is tr and len(vis) == len(tour.STEPS)
+                 and all(set(c) <= {'twist', 'say', 'scenario', 'push', 'seconds'} for c in sent)
+                 and verbs == set(scanner.PRIMARY_ACTION.values()) | {'rise_chair', 'rise_bed', 'rise_floor'}, verbs)
+    humanoid_keys.act_on(show_humanoid.KEYS, ['w'], st)
+    report.check('a key that moves her ends the tour', st.get('tour') is None)
 
     nom = {'fallen': False, 'doing': '#204', 'watts': 120.0, 'turn': (1, 0, 0, 0), 'loads': (160.0, 160.0),
            'where': (0.0, 0.9, 0.0), 'cadence': 0.9, 'phase': 0.2, 'ratio': 1.2, 'speed': 0.65,
@@ -330,9 +326,8 @@ def test_scenario_deck_tour_handoff_and_cybernetic_hud(report):
     _, _, _, ft = show_humanoid.telemetry_core(dict(nom, doing='controlled_fall'))
     report.check('fallen state reports CRITICAL tag while controlled_fall reports ALERT tag', (cb, cs, ct, ft) == (0.0, 0.0, 'CRITICAL', 'ALERT'))
     st.update(now=nom, recording=None, recorded=None, shown='torque', scanner=sc, tour=None)
-    report.check('header gauges include BAL, THM, and STB bars alongside mode badge',
-                 all(w in show_humanoid.gauges(st).plain for w in ('Third Person Control', 'BAL', 'THM', 'STB')))
-    vpb = show_humanoid.tpw_badge(True, 80, 24, state=st)
+    report.check('header gauges show BAL, THM and STB bars', all(w in show_humanoid.gauges(st).plain for w in ('BAL', 'THM', 'STB')))
+    vpb = show_humanoid.badge(80, 24, st)
     r1 = ''.join(chr(c) for (r, _), (c, _) in sorted(vpb.items()) if r == 1)
     jr = show_humanoid._joint_row({'temp': {'spine': 42.0}}, 'spine', 'spine', 'temp')[1].plain
     buf = io.StringIO()
@@ -342,12 +337,12 @@ def test_scenario_deck_tour_handoff_and_cybernetic_hud(report):
     b_txt = buf.getvalue()
     report.check('viewport badge renders telemetry strip, gym.boxes shows tour, and HUD boxes fit',
                  all(w in r1 for w in ('BAL', 'THM', 'STB', 'NOMINAL')) and callable(show_humanoid.boot)
-                 and len(gym.boxes(nom, wasd=True, tour=SN(done=False))) == 2 and '42°C' in jr and len(jr) == 25
-                 and '\u2026' not in b_txt and ('%+5.2f' % se2.WALK_SPEED) in b_txt and len(show_humanoid.legend('temp', 60)) > 20)
+                 and len(gym.boxes(nom, tour=SN(done=False, current_label=lambda: 'x'))) == 2 and '42°C' in jr and len(jr) == 25
+                 and '…' not in b_txt and ('%+5.2f' % se2.WALK_SPEED) in b_txt and len(show_humanoid.legend('temp', 60)) > 20)
 
 
-ROSTER = (test_the_humanoid_pages_mouse, test_the_humanoid_pages_keys, test_a_held_space_charges_a_push,
-          test_vision_scanner_docked_pip_and_affordances, test_tpw_controls,
+ROSTER = (test_the_humanoid_pages_mouse, test_the_humanoid_pages_keys, test_the_keys_that_move_her_are_one_twist,
+          test_a_held_p_charges_a_push, test_vision_scanner_docked_pip_and_affordances, test_her_verbs_and_the_chase,
           test_surface_arrows_setpoint_actual_and_landing_zones, test_scenario_deck_tour_handoff_and_cybernetic_hud)
 
 

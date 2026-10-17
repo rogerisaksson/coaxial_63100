@@ -340,19 +340,19 @@ def test_the_gym_runs_her_in_a_process(report):
 
 
 def test_the_pages_keys_on_the_loop(report):
-    """`terminal.views.gym`: a digit says its entry, W walks her from rest, P shoves her, > takes
-    the other text; LATENT and SAY are her state's."""
+    """`terminal.views.gym`: a digit says its entry, Shift+P shoves her along the view, > takes
+    the other text, C crouches her; LATENT and SAY are her state's."""
     import types
     from terminal.views import gym
     sent = []
     body = types.SimpleNamespace(send=lambda **command: sent.append(command), close=lambda: None)
     keys = gym.table({})
-    state: dict = {'body': body, 'side': 1.0}
-    for key in '13p>w':
+    state: dict = {'body': body, 'yaw': 180.0}
+    for key in '13P>c':
         keys[key](state)
-    report.check('1 and 3 say the first and third, P a shove across, > the other text, W her walk',
-                 sent[:2] == [{'say': 0}, {'say': 2}] and sent[2]['push'][0] != 0.0 and sent[2]['push'][2] == 0.0
-                 and sent[3] == {'gym': 'examples'} and sent[4] == {'walk': True}, '%s' % sent)
+    report.check('1 and 3 say the first and third, Shift+P 80 N along the view, > the other text, C a crouch',
+                 sent[:2] == [{'say': 0}, {'say': 2}] and abs(sent[2]['push'][2] - 80.0) < 1e-9
+                 and sent[3] == {'gym': 'examples'} and sent[4] == {'say': 'crouch'}, '%s' % sent)
     modes = [(name, 0.1, 0.2, 3000.0, 60.0) for name in gym.SHORT]
     boxes = gym.boxes({'modes': modes, 'says': ('gynoid_mesomorph_medium', '#201', 'crouch')})
     report.check('LATENT and SAY of her state; none before it', len(boxes) == 2 and gym.boxes(None) == []

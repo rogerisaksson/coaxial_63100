@@ -340,3 +340,8 @@ it names. A closed item is cut from the list and gets its line here, last.
     brake keeps her rhythm; her heading goes with her pelvis only in a turn.
     Both kept falls stand at every wobble, in `tests/replays`; the hole met
     ([scenarios](findings/scenarios.md)).
+84. A third-person page: W A S D a way from the view, turned to and walked as
+    one twist, Q E a sidestep, Shift a sprint; Space, C and F verbs by what is
+    near; a chase camera eased behind her, X the other shoulder; a prompt for
+    F. The tour sends twists and verbs; no key says a gait
+    ([scenarios](findings/scenarios.md)).

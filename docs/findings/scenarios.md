@@ -88,6 +88,20 @@ among them for the first time -, standing 32 and walking 23 of 32, replays 9 of
 - Stepping through a hop's load she left the floor rolling and landed at 60 deg:
   the need fires on a drift of 0.19 m/s after a stop; held back, the hop waits.
 
+## One command
+
+The page's keys send a twist and verbs, as an agent does (`humanoid_keys.twist`):
+W A S D a way from the view, her heading turned to it at 1.5 rad/s a radian off,
+to 0.7; walked at 0.69 m/s within a quarter turn of it, 1.4 on Shift within 0.2
+rad; Q E a sidestep at 0.5. Every twist they send lies within the bench's plays
+(`test_views_humanoid`).
+
+- Its turnabout - in place 2 s, an arc 1 s, a walk 2 s, a stop (`play_about`) -
+  held 5 of 13 wobbles, down 6.93-7.80 s: on her right sole, her centre of mass
+  0.18 -> 0.73 m across from it, the left swing landing at 6.9 s. In place then
+  a walk, in place then an arc, an arc then a walk, an arc of 3 s, each with its
+  stop: 13 of 13.
+
 ## The terrain's scenes
 
 - The base plane, the hole's bottom 10 cm down, lay over every descent: the stairs

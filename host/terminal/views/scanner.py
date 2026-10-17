@@ -1,7 +1,7 @@
 """Vision and object affordance scanner for the gynoid's stereo eyes and local Ollama model.
 
     scanner = VisionScanner()
-    detected = scanner.scan(now, yaw)
+    detected = scanner.scan(now, look)
     cells = docked_vision(scanner, now, width, height)
     action = auto_action(detected)
 
@@ -16,110 +16,10 @@ from coaxial.graphics import inset
 from machine import sight
 
 
-#: Active affordances for each prop kind: list of (key, action label, command name)
-AFFORDANCES = {
-    'chair': [
-        ('s', 'sit chair', 'sit_chair'),
-        ('u', 'rise chair', 'rise_chair'),
-        ('j', 'hop up', 'hop_up_chair'),
-        ('d', 'hop down', 'hop_down_chair'),
-    ],
-    'bed': [
-        ('e', 'lie bed', 'lie_bed'),
-        ('g', 'rise bed', 'rise_bed'),
-    ],
-    'mattress': [
-        ('f', 'lie mattress', 'lie_floor'),
-        ('k', 'rise mattress', 'rise_floor'),
-    ],
-    'floor': [
-        ('f', 'lie floor', 'lie_floor'),
-        ('k', 'rise floor', 'rise_floor'),
-    ],
-    'stairs': [
-        ('x', 'stairs up', 'stairs_walk'),
-        ('n', 'stairs down', 'stairs_down'),
-    ],
-    'stairs_down': [
-        ('n', 'stairs down', 'stairs_down'),
-        ('x', 'stairs up', 'stairs_walk'),
-    ],
-    'slope': [
-        ('m', 'traverse slope', 'slope_walk'),
-    ],
-    'slope_down': [
-        ('m', 'descend slope', 'slope_walk'),
-    ],
-    'cross_slope': [
-        ('m', 'camber traverse', 'slope_walk'),
-    ],
-    'ice': [
-        ('i', 'ice walk (slick)', 'ice_walk'),
-    ],
-    'slip': [
-        ('i', 'ice walk (slick)', 'ice_walk'),
-    ],
-    'snow': [
-        ('w', 'snow tread', 'slope_walk'),
-    ],
-    'asphalt': [
-        ('w', 'asphalt stride', '#204'),
-    ],
-    'wall': [
-        ('w', 'lean compliant', 'ballistic_walk'),
-    ],
-    'tree': [
-        ('w', 'lean compliant', 'ballistic_walk'),
-    ],
-    'obstacle': [
-        ('w', 'lean compliant', 'ballistic_walk'),
-    ],
-    'sill': [
-        ('w', 'stumble reflex', 'ballistic_walk'),
-    ],
-    'rug': [
-        ('w', 'carpet tread', 'ballistic_walk'),
-    ],
-    'hole': [
-        ('w', 'cross 10cm hole', 'ballistic_walk'),
-    ],
-    'board': [
-        ('w', 'balance board', '#204'),
-    ],
-    'brick': [
-        ('w', 'brick step', '#204'),
-    ],
-    'door': [
-        ('w', 'push open door', 'ballistic_walk'),
-        ('q', 'circle walk', 'circle_walk'),
-    ],
-}
-
-#: Primary auto-action when leaving WASD mode facing a detected object
-PRIMARY_ACTION = {
-    'chair': 'sit_chair',
-    'bed': 'lie_bed',
-    'mattress': 'lie_floor',
-    'floor': 'lie_floor',
-    'stairs': 'stairs_walk',
-    'stairs_down': 'stairs_down',
-    'slope': 'slope_walk',
-    'slope_down': 'slope_walk',
-    'cross_slope': 'slope_walk',
-    'ice': 'ice_walk',
-    'slip': 'ice_walk',
-    'snow': 'slope_walk',
-    'asphalt': '#204',
-    'wall': 'ballistic_walk',
-    'tree': 'ballistic_walk',
-    'obstacle': 'ballistic_walk',
-    'sill': 'ballistic_walk',
-    'rug': 'ballistic_walk',
-    'hole': 'ballistic_walk',
-    'board': '#204',
-    'brick': '#204',
-    'door': 'ballistic_walk',
-}
+#: What F says by the support nearest her (`gym.offered`): its verb, and the verb's name.
+AFFORDANCES = {'chair': ('sit_chair', 'sit'), 'bed': ('lie_bed', 'lie down'),
+               'mattress': ('lie_floor', 'lie down')}
+PRIMARY_ACTION = {kind: verb for kind, (verb, _name) in AFFORDANCES.items()}
 
 #: Inks for affordance plates
 PLATE_TITLE_INK = (0, 215, 215)
@@ -129,12 +29,8 @@ PLATE_BG = (8, 14, 16)
 
 
 def auto_action(detected):
-    """Return the primary behavior name to execute when approaching the nearest detected prop."""
-    if not detected:
-        return '#201'
-    nearest = detected[0]
-    kind = nearest.get('kind', '')
-    return PRIMARY_ACTION.get(kind, '#201')
+    """The verb the nearest support detected asks, None with none."""
+    return next((PRIMARY_ACTION[d['kind']] for d in detected if d['kind'] in PRIMARY_ACTION), None)
 
 
 class VisionScanner:
@@ -161,17 +57,16 @@ class VisionScanner:
         except Exception:
             self._ollama_model = None
 
-    def scan(self, now, yaw=0.0):
-        """Scan surroundings for props in front of her forward visual cone."""
+    def scan(self, now, look=None, reach=None):
+        """The props in her sight - within 75 deg of her heading or the heading the view looks
+        along (`look`, rad), 8 m -, or with `reach` every one that near, nearest first."""
         if not now:
             return []
         props = now.get('props') or ()
         where = now.get('where', (0.0, 0.0, 0.0))
         scen = str(now.get('scenario', ''))
         gx, gz = where[0], where[2]
-        cones = [math.radians(yaw)]
-        if 'heading' in now and now['heading'] is not None:
-            cones.append(float(now['heading']))
+        cones = [float(now.get('heading') or 0.0)] + ([look] if look is not None else [])
 
         found = []
         for prop in props:
@@ -192,10 +87,10 @@ class VisionScanner:
                 kind = 'slope_down'
             dx, dz = px - gx, pz - gz
             dist = math.hypot(dx, dz)
-            if dist > 8.0 or dist < 0.05:
+            if dist > (reach or 8.0) or dist < 0.05:
                 continue
-            in_cone = False
-            for a_rad in cones:
+            in_cone = reach is not None
+            for a_rad in () if in_cone else cones:
                 angle = (math.atan2(dx, dz) - a_rad + math.pi) % (2.0 * math.pi) - math.pi
                 fwd = dx * math.sin(a_rad) + dz * math.cos(a_rad)
                 if abs(angle) < math.radians(75.0) and fwd > -0.4:
@@ -207,7 +102,7 @@ class VisionScanner:
                     'dist': dist,
                     'pos': (px, py, pz),
                     'label': '%s (%.1fm)' % (kind, dist),
-                    'affordances': AFFORDANCES.get(kind, []),
+                    'affordances': [AFFORDANCES[kind]] if kind in AFFORDANCES else [],
                 })
 
         found.sort(key=lambda item: item['dist'])
@@ -226,27 +121,25 @@ def _render_plate_row(row_idx, top, left, width, text, code, key_frame):
     return out
 
 
-def _build_plate_rows(detected, wasd_mode, max_rows=7):
-    lines = []
+def _build_plate_rows(detected, max_rows=7):
+    lines, detected = [], [d for d in detected if d['affordances']]
     if not detected:
-        lines.append(('(no props in sight)', packed(PLATE_LABEL_INK, PLATE_BG)))
+        lines.append(('(nothing to act on)', packed(PLATE_LABEL_INK, PLATE_BG)))
     else:
         for item in detected[:2]:
             kind, dist = item['kind'], item['dist']
             affs = item['affordances']
             head = '%s (%.1fm):' % (kind, dist)
             lines.append((head, packed(PLATE_TITLE_INK, PLATE_BG)))
-            for key, desc, _cmd in affs[:2]:
-                lines.append(('  [%s] %s' % (key, desc), packed(PLATE_KEY_INK, PLATE_BG)))
-    if wasd_mode:
-        lines.append(('~/§: exit TPW -> auto-go', packed((0, 255, 180), PLATE_BG)))
+            for _verb, name in affs:
+                lines.append(('  [F] %s' % name, packed(PLATE_KEY_INK, PLATE_BG)))
     return lines[:max_rows]
 
 
-def affordance_plate(detected, top, left, width, wasd_mode=False):
+def affordance_plate(detected, top, left, width):
     """Render the framed affordance interaction plate beneath the picture-in-picture inset."""
     key_frame = packed(FRAME_INK)
-    lines = _build_plate_rows(detected, wasd_mode)
+    lines = _build_plate_rows(detected)
     height = len(lines) + 2
     out = {}
 
@@ -269,7 +162,7 @@ def affordance_plate(detected, top, left, width, wasd_mode=False):
     return out
 
 
-def docked_vision(scanner, now, width, height, wasd_mode=False):
+def docked_vision(scanner, now, width, height):
     """Render the docked stereo eyes PiP and the affordance keypress list beneath it."""
     import numpy as np
     vw, vh = sight.VIEW
@@ -278,7 +171,7 @@ def docked_vision(scanner, now, width, height, wasd_mode=False):
         for c in range(vw):
             thumb[r, c] = (15, 22, 28)
 
-    detected = scanner.scan(now, now.get('yaw', 0.0) if now else 0.0)
+    detected = scanner.scan(now)
     hulls = []
     for item in detected[:3]:
         k = item['kind']
@@ -299,7 +192,7 @@ def docked_vision(scanner, now, width, height, wasd_mode=False):
 
     plate_top = max_r + 1
     if plate_top + 5 < height:
-        plate = affordance_plate(detected, plate_top, min_c, box_w, wasd_mode=wasd_mode)
+        plate = affordance_plate(detected, plate_top, min_c, box_w)
         cells.update(plate)
 
     return cells

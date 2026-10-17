@@ -2,24 +2,36 @@
 
     KEYS = humanoid_keys.table(viewpoint.KEYS, CALLING, SHOWN)
     humanoid_keys.act_on(KEYS, typed, state, wheel)
+    humanoid_keys.steered(state, now, heading)     # each frame: the keys held as her twist
 
 The view (`terminal.views.show_humanoid`) holds the state and draws it; a key's handler takes
-that state, moves it and sends her body (`machine.sprung`) what it asks. R's recordings and
-their rows (HEADER, `row`) are here with the key that writes them.
+that state, moves it and sends her body (`machine.sprung`) what it asks: a twist for the keys that
+move her, a verb for the rest - what an agent sends. R's recordings and their rows (HEADER,
+`row`) are here with the key that writes them.
 """
 import json
+import math
 import time
 
 from machine import se2
 from machine.figure import JOINTS, SEGMENTS, frames, quat
-from terminal import keybindings
 from terminal.ui import console, recorder
 from terminal.views import gym, viewpoint
 
-#: Space held charges a push from the view onto her: CHARGE_N_S a second held, CHARGE_MAX_N at
-#: most, landing once the key's repeats stop - RELEASE_S after the last, FIRST_S after a lone
-#: press (a terminal's first repeat comes 250-500 ms on) - along the view's line of sight.
+#: P held charges a push from the view onto her: CHARGE_N_S a second held, CHARGE_MAX_N at most,
+#: landing once the key's repeats stop - RELEASE_S after the last, FIRST_S after a lone press (a
+#: terminal's first repeat comes 250-500 ms on) - along the view's line of sight.
 CHARGE_N_S, CHARGE_MAX_N, RELEASE_S, FIRST_S = 120.0, 250.0, 0.25, 0.8
+
+#: W A S D a way from the view - W where it looks -: her heading turned to it, TURN_K rad/s a
+#: radian off, to se2.YAW_RATE in steps of TWIST_STEP; walked at se2.WALK_SPEED within a quarter
+#: turn of it, se2.RUN_SPEED on Shift within SPRINT_RAD. Q E a sidestep at se2.STRAFE_SPEED, her
+#: facing kept. Each twist one the bench's plays hold (`tools/sim/scenarios.py`, KEYS).
+TURN_K, SPRINT_RAD, TWIST_STEP = 1.5, 0.2, 0.05
+MOVES = frozenset('wasdqeWASDQE')
+#: A key typed counts held this long, s, where the console cannot tell (a terminal's first
+#: repeat comes 250-500 ms on).
+HOLD_WINDOW_S = 0.65
 
 #: Where R's recordings go, a CSV from a press to the next: every state the page hears from her,
 #: 10-20 a second of her time (HEADER); beside each, the keys typed and held since the row before
@@ -31,7 +43,7 @@ HEADER = (['t', 'stage', 'yaw', 'speed', 'phase', 'left_load', 'right_load',
           + ['%s_%s' % (seg[0], axis) for seg in SEGMENTS for axis in 'xyz']
           + ['set_' + j for j in JOINTS] + ['watts', 'epoch', 'keys', 'commands'])
 
-#: What C steps her through: dressed, her shell, her mechanism (`coaxial.graphics.mechanism`),
+#: What M steps her through: dressed, her shell, her mechanism (`coaxial.graphics.mechanism`),
 #: her drives alone - the stick figure.
 SKINS = ('dressed', 'shell', 'mechanism', 'actuators')
 
@@ -98,18 +110,81 @@ def _recorded(state):
     state['recorded'] = recorder.saved(rec, RECORDINGS)
 
 
-def _charged(state):
-    """Space, each press and repeat: jump/recover in TPW mode; otherwise the push charging."""
-    gym._cancel_tour(state)
-    if state.get('wasd_mode'):
-        state['charge'] = None
-        rise = gym.contextual_rise(state.get('now'), state.get('scenario'))
-        if rise:
-            gym._clear_se2(state)
-            state['body'].send(say=rise)
-        else:
-            state['body'].send(say='hop')
+def pad():
+    """The keys that move her as last seen (`polled`'s) and the twist they asked."""
+    return {'keys': dict.fromkeys(('w', 's', 'a', 'd', 'q', 'e', 'shift'), False), 'last_seen': {},
+            'setpoint': (0.0, 0.0, 0.0), 'actual': (0.0, 0.0, 0.0)}
+
+
+def _moving(raw):
+    """The keys that move her among `raw` - characters typed, or the console's held names -,
+    Shift with an upper-case one."""
+    out = set()
+    for k in raw:
+        if isinstance(k, str) and (k == 'shift' or (len(k) == 1 and k in 'WASDQE')):
+            out.add('shift')
+        if isinstance(k, str) and k.lower() in ('w', 'a', 's', 'd', 'q', 'e'):
+            out.add(k.lower())
+    return out
+
+
+def polled(raw, st, now, held=None):
+    """{key: held} of `st` (`pad`) with `raw` typed now: the console's `held` where it tells, else
+    each key seen within HOLD_WINDOW_S - one key typed renews those held beside it, its opposite
+    dropped -; of two opposite keys, neither."""
+    tokens, seen = _moving(raw), st['last_seen']
+    if held is not None and (held or not tokens):
+        active = _moving(held) | tokens
+        st['last_seen'] = dict.fromkeys(active, float(now))
+    else:
+        for k1, k2 in (('w', 's'), ('s', 'w'), ('a', 'd'), ('d', 'a'), ('q', 'e'), ('e', 'q')):
+            if k1 in tokens and k2 not in tokens:
+                seen.pop(k2, None)
+        if tokens and 'shift' not in tokens:
+            seen.pop('shift', None)
+        if tokens:
+            for k in list(seen):
+                if now - seen[k] <= HOLD_WINDOW_S:
+                    seen[k] = float(now)
+        seen.update(dict.fromkeys(tokens, float(now)))
+        active = {k for k, ts in seen.items() if now - ts <= HOLD_WINDOW_S}
+    w, s, a, d = ('w' in active) > ('s' in active), ('s' in active) > ('w' in active), \
+        ('a' in active) > ('d' in active), ('d' in active) > ('a' in active)
+    q, e = ('q' in active) > ('e' in active), ('e' in active) > ('q' in active)
+    st['keys'] = {'w': w, 's': s, 'a': a, 'd': d, 'q': q, 'e': e, 'shift': 'shift' in active and (w or s or a or d or q or e)}
+    return st['keys']
+
+
+def twist(keys, look, heading):
+    """(vx, vy, wz) the `keys` held (`polled`) ask of her: `look` the heading the view looks along,
+    `heading` hers, rad."""
+    fwd, left = int(keys['w']) - int(keys['s']), int(keys['a']) - int(keys['d'])
+    if fwd or left:
+        off = se2.wrap_angle(look + math.atan2(left, fwd) - heading)
+        wz = round(TWIST_STEP * round(max(-se2.YAW_RATE, min(se2.YAW_RATE, TURN_K * off)) / TWIST_STEP), 2)
+        if abs(off) >= 0.5 * math.pi:
+            return (0.0, 0.0, wz)
+        return (se2.RUN_SPEED if keys['shift'] and abs(off) < SPRINT_RAD else se2.WALK_SPEED, 0.0, wz)
+    return (0.0, (int(keys['q']) - int(keys['e'])) * se2.STRAFE_SPEED, 0.0)
+
+
+def steered(state, now, heading):
+    """Each frame: the keys held - the console's, else those typed within HOLD_WINDOW_S - as
+    her twist, sent when it changes; a key that moves her ends the tour. `now` the wall clock."""
+    held = state.setdefault('pad', pad())
+    keys = polled((), held, now, console.held())
+    if any(keys[k] for k in 'wsadqe'):
+        gym._cancel_tour(state)
+    elif gym.touring(state):
         return
+    tw = twist(keys, viewpoint.looks(state), heading)
+    if tw != held['setpoint']:
+        held['setpoint'] = tw
+        state['body'].send(twist=tw)
+
+
+def _charged(state):
+    """P, each press and repeat: the push charging."""
     now = time.monotonic()
     charge = state.get('charge')
     if not charge:
@@ -119,20 +194,15 @@ def _charged(state):
 
 
 def charging(state, now):
-    """The push charged so far, N: CHARGE_N_S a second since space was first pressed, to
-    CHARGE_MAX_N; 0 with none charging or in TPW mode."""
-    if state.get('wasd_mode'):
-        return 0.0
+    """The push charged so far, N: CHARGE_N_S a second since P was first pressed, to
+    CHARGE_MAX_N; 0 with none charging."""
     charge = state.get('charge')
     return min(CHARGE_MAX_N, CHARGE_N_S * (now - charge['began'])) if charge else 0.0
 
 
 def released(state, now):
-    """The push let go, N, once space's repeats have stopped (RELEASE_S, FIRST_S); 0 while it
+    """The push let go, N, once P's repeats have stopped (RELEASE_S, FIRST_S); 0 while it
     charges or none is."""
-    if state.get('wasd_mode'):
-        state['charge'] = None
-        return 0.0
     charge = state.get('charge')
     if not charge or now - charge['last'] < (RELEASE_S if charge['repeats'] > 1 else FIRST_S):
         return 0.0
@@ -147,9 +217,9 @@ def _skinned(state):
 
 
 def _restarted(state):
-    """A: restart her onto the floor and clear any active autopilot or SE(2) latch."""
+    """Backspace: her laid anew on the floor, the tour and the keys' twist ended."""
     gym._cancel_tour(state)
-    gym._clear_se2(state)
+    state['pad'] = pad()
     state['body'].send(restart=True)
 
 
@@ -158,156 +228,34 @@ def table(view, calling, shown):
     `calling` and `shown`."""
     return dict(
         list(view.items())
-        + [(k, _restarted) for k in 'aA']
+        + [(k, _restarted) for k in ('\x08', '\x7f')]
         + [(k, lambda state: state.update(orbit=not state['orbit'])) for k in 'oO']
         + [(k, lambda state: state.update(called=calling[(calling.index(state['called']) + 1)
                                                          % len(calling)])) for k in 'lL']
         + [(k, _recorded) for k in 'rR']
         + [(k, lambda state: state.update(shown=shown[(shown.index(state['shown']) + 1)
                                                       % len(shown)])) for k in 'tT']
-        + [(k, _skinned) for k in 'cC'] + [(' ', _charged)])
-
-
-CHORDS = {frozenset(tag): (tag, mv) for tag, mv in keybindings.CHORD_PAIRS}
-_QE_CHORDS = {k: tuple(k) for tag, _ in keybindings.CHORD_PAIRS if set(tag) & {'q', 'e'} for k in (tag, tag[::-1])}
-
-
-def _match_chord(keys_set, prefer=()):
-    for pair, target in CHORDS.items():
-        if pair.issubset(keys_set) and (not prefer or (pair & set(prefer))):
-            return target[0], target[1], tuple(pair)
-    for pair, target in CHORDS.items():
-        if pair.issubset(keys_set):
-            return target[0], target[1], tuple(pair)
-    return None
-
-
-def _se2_tokens(raw):
-    items = [raw] if isinstance(raw, str) else ([k for k, v in raw.items() if v] if isinstance(raw, dict) else list(raw or ()))
-    toks = set()
-    for s in (it.strip() for it in items if isinstance(it, str)):
-        low = s.lower()
-        if s in ('W', 'A', 'S', 'D', 'Q', 'E') or (len(low) == 2 and s.isupper()) or low in ('shift', 'sprint'):
-            toks.add('shift')
-        toks.update(_QE_CHORDS.get(low) or se2._CHORD_EXPAND.get(low) or ((low,) if low in 'wsadqe' else ()))
-    return toks
-
-
-def _sync_qe_seen(se2_st, toks, prev_ls, now, held):
-    ls = se2_st.setdefault('last_seen', {})
-    if held is not None and (held or not toks):
-        act = {k.lower() for k in held if isinstance(k, str)} | toks
-        for k in ('q', 'e', 'shift'):
-            if k in act and now is not None:
-                ls[k] = float(now)
-            else:
-                ls.pop(k, None)
-        return act
-    if now is None:
-        return toks
-    for k in ('q', 'e', 'shift'):
-        if k in prev_ls and k not in ls:
-            ls[k] = prev_ls[k]
-    for k1, k2 in (('q', 'e'), ('e', 'q')):
-        if k1 in toks and k2 not in toks:
-            ls.pop(k2, None)
-    if toks and 'shift' not in toks and (toks & set('wasdqe')):
-        ls.pop('shift', None)
-    if toks & set('wsad'):
-        for qk in ('q', 'e'):
-            if qk in ls and (now - ls[qk]) <= se2.HOLD_WINDOW_S:
-                ls[qk] = float(now)
-    for k in toks & {'q', 'e', 'shift'}:
-        ls[k] = float(now)
-    return {k for k, ts in list(ls.items()) if (now - ts) <= se2.HOLD_WINDOW_S}
-
-
-def step_se2(se2_st, raw=(), dt=0.05, now=None, held=None):
-    """Step SE(2) controller with full Q/E pure yaw and circle-strafe support."""
-    toks = _se2_tokens(raw)
-    prev_ls = dict(se2_st.get('last_seen') or {})
-    prev_act, prev_yaw = se2_st.get('actual', (0.0, 0.0, 0.0)), float(se2_st.get('yaw', 0.0))
-    if held is None and now is not None and (toks & {'q', 'e'}):
-        for k in ('w', 's', 'a', 'd'):
-            if k in prev_ls and (now - prev_ls[k]) <= se2.HOLD_WINDOW_S:
-                se2_st.setdefault('last_seen', {})[k] = float(now)
-    se2.step_controller(se2_st, list(toks) if toks else raw, dt, now=now, hold_window=se2.HOLD_WINDOW_S, held=held)
-    if 'q' in se2_st['keys'] and 'e' in se2_st['keys']:
-        return se2_st
-    act = _sync_qe_seen(se2_st, toks, prev_ls, now, held)
-    q, e = 'q' in act and 'e' not in act, 'e' in act and 'q' not in act
-    w, s, a, d = (bool(se2_st['keys'].get(k)) for k in ('w', 's', 'a', 'd'))
-    shift = bool(se2_st['keys'].get('shift')) or ('shift' in act and (w or s or a or d or q or e))
-    se2_st['keys'].update(q=q, e=e, shift=shift)
-    if q or e:
-        wz_set = (se2.YAW_SPRINT_RATE if shift else se2.YAW_RATE) * (1.0 if q else -1.0)
-        se2_st['setpoint'] = (se2_st['setpoint'][0], se2_st['setpoint'][1], wz_set)
-        se2_st['omega_z'] = wz_set
-        dt_f = max(0.0, float(dt))
-        wz_0 = 0.0 if wz_set * prev_act[2] < 0.0 else float(prev_act[2])
-        wz_act = se2._approach(wz_0, wz_set, 0.75 if abs(wz_set) >= abs(wz_0) else se2.STRAFE_DECAY, dt_f)
-        se2_st['actual'] = (se2_st['actual'][0], se2_st['actual'][1], wz_act)
-        se2_st['yaw'] = se2.wrap_angle(prev_yaw + wz_set * dt_f)
-        se2_st['v_wx'], se2_st['v_wy'] = se2.body_to_world(se2_st['v_x'], se2_st['v_y'], se2_st['yaw'])
-        qk = 'q' if q else 'e'
-        se2_st['gait'] = next((keybindings.CHORDS[(qk, k)] for k in ('w', 's', 'a', 'd') if se2_st['keys'].get(k)),
-                              'turn_left' if q else 'turn_right')
-    return se2_st
-
-
-def _check_wasd_chords(typed, state):
-    if not (state.get('wasd_mode') and typed):
-        return typed
-    from terminal.ui import console as _console
-    lowered = [k.lower() if isinstance(k, str) else k for k in typed]
-    t_now = time.monotonic()
-    se2_st = state.setdefault('se2', se2.state())
-    move_in = {k for k in lowered if k in ('w', 's', 'a', 'd', 'q', 'e')}
-    if len(move_in) >= 2:
-        for k in list(se2_st.get('last_seen', ())):
-            if k in ('w', 's', 'a', 'd', 'q', 'e') and k not in move_in:
-                se2_st['last_seen'].pop(k, None)
-    last_dt = min(0.1, max(0.01, t_now - state.get('_se2_last_t', t_now - 0.05)))
-    state['_se2_last_t'] = t_now
-    step_se2(se2_st, typed, last_dt, now=t_now, held=_console.held())
-    active = {k for k in ('w', 's', 'a', 'd', 'q', 'e') if se2_st['keys'].get(k)}
-    if active:
-        gym._cancel_tour(state)
-        state['_wasd_active'] = True
-    found = _match_chord(active, move_in)
-    if found:
-        tag, mv, _ = found
-        state['body'].send(say=mv)
-        state['_last_wasd'] = (tag, t_now)
-        return [k for k in typed if (k.lower() if isinstance(k, str) else k) not in active]
-    for k in lowered:
-        if k in active:
-            state['_last_wasd'] = (k, t_now)
-    return [k for k in typed if (k.lower() if isinstance(k, str) else k) not in ('w', 's', 'a', 'd', 'q', 'e')
-            or (k.lower() if isinstance(k, str) else k) in active]
+        + [(k, _skinned) for k in 'mM'] + [('p', _charged)])
 
 
 def act_on(keys, typed, state, wheel=0.0):
-    """`typed` and the wheel on the view's `state`, by `keys` (`table`)."""
+    """`typed` and the wheel on the view's `state`, by `keys` (`table`): the keys that move her
+    into her pad (`steered` sends them), the rest each its handler, a key repeated within 0.12 s
+    once - P's repeats all, they charge it."""
     if wheel:
         viewpoint.zoomed(state, max(0.5, 1.0 + wheel))
     state.setdefault('typed', []).extend(typed)
     state.setdefault('keyed', []).extend(k for k in typed if isinstance(k, str))
-    typed = _check_wasd_chords(typed, state)
-    t_now = time.monotonic()
-    wasd_on = bool(state.get('wasd_mode'))
-    filtered = []
+    now = time.monotonic()
+    moves = [k for k in typed if k in MOVES]
+    if moves:
+        gym._cancel_tour(state)
+        polled(moves, state.setdefault('pad', pad()), now, console.held())
     for key in typed:
-        last_k, last_t = state.get('_last_action_key', (None, 0.0))
-        if wasd_on and key == ' ' and last_k == ' ' and (t_now - last_t) < 0.35:
+        if key in MOVES or key not in keys:
             continue
-        if key == last_k and key != ' ' and (t_now - last_t) < 0.12:
-            if wasd_on and key in ('w', 'W') and (
-                    key == 'W' or state.get('se2', {}).get('keys', {}).get('shift')):
-                state['body'].send(say='jog')
+        last, at = state.get('_last_action_key', (None, 0.0))
+        if key == last and key != 'p' and now - at < 0.12:
             continue
-        state['_last_action_key'] = (key, t_now)
-        filtered.append(key)
-    for key in filtered:
-        if key in keys:
-            keys[key](state)
+        state['_last_action_key'] = (key, now)
+        keys[key](state)

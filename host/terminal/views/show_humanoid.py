@@ -12,17 +12,16 @@ from coaxial.comm.session import Origin
 from coaxial.draw import cross_section, gauges as _gauges
 from coaxial.graphics import arrows, gpu, gynoid
 from coaxial.graphics.callouts import packed
-from coaxial.graphics.shapes import view
 from machine import figure, se2, sprung
 from machine.figure import JOINTS, quat
 from machine.routines import TYPES
 from terminal import keybindings
 from terminal.loader import TO_MENU
 from terminal.views import gym, viewpoint
-from terminal.views.humanoid_keys import CHARGE_MAX_N, act_on, charging, heard, released, rows_of, step_se2, table
+from terminal.views.humanoid_keys import CHARGE_MAX_N, act_on, charging, heard, pad, released, rows_of, steered, table
 from terminal.views.playback import Playback
 from terminal.views.scanner import VisionScanner, docked_vision
-from terminal.ui import console as _console, recorder, screen as _screen
+from terminal.ui import recorder, screen as _screen
 from terminal.ui.screen import PORT, FPS_CAP, closing, run_view, say
 from terminal.ui.scroll import HUD_WIDTH
 from terminal.ui.stage import boot, footer, frame_of, help_rows, helped, hud, stage
@@ -56,18 +55,13 @@ LANDED_S = 0.5
 CHARGE_INK, LANDED_INK = (255, 96, 128), (236, 240, 244)
 
 
-def along(state):
-    m = view(state['yaw'], state['pitch'])
-    return (-m[6], -m[7], -m[8])
-
-
 def torso(now):
     at, turn = figure.frames(now['angles'], now['where'], quat(*now['turn']))['torso']
     return figure.add(at, figure.apply(turn, figure.shares()['torso'][1]))
 
 
 def marked(state, now, clock):
-    if state.get('wasd_mode') or now is None:
+    if now is None:
         return None
     charge, landed = charging(state, clock), state.get('landed')
     if charge:
@@ -113,16 +107,32 @@ def telemetry_core(now):
     return bal, thm, stb, ('CRITICAL' if worst < 0.35 else ('ALERT' if worst < 0.65 else 'NOMINAL'))
 
 
-def _tpw_tag(wasd):
-    return ' [Third Person Control %s] ' % ('ON' if wasd else 'OFF')
+PROMPT_INK = (255, 196, 80)
 
 
-def tpw_badge(wasd_mode, width, height, state=None):
+def prompt(state):
+    """What Space and F would say, as the page offers it: '[F] sit  [SPC] hop up', a plain hop
+    unsaid; '' with nothing to offer."""
+    now, sc = state.get('now'), state.get('scanner')
+    offer = gym.offered(now, sc.scan(now, reach=gym.REACH_M) if sc is not None and now else [])
+    words = [('F', offer.get('f')), ('SPC', offer.get(' ') if offer.get(' ') != 'hop' else None)]
+    return '  '.join('[%s] %s' % (k, gym.NAMED.get(v, v).replace('_', ' ')) for k, v in words if v)
+
+
+def badge(width, height, state):
+    """The viewport's corners: the tour's step at its top, her balance strip under it, what
+    Space and F offer at its foot."""
     if width < 30 or height < 6:
         return {}
-    ink = packed((120, 220, 255) if wasd_mode else (110, 130, 150), (10, 22, 35))
-    out = {(0, 1 + i): (ord(ch), ink) for i, ch in enumerate(_tpw_tag(wasd_mode))}
-    now = state.get('now') if isinstance(state, dict) else None
+    out, ink = {}, packed((120, 220, 255), (10, 22, 35))
+    if gym.touring(state):
+        out.update({(0, 1 + i): (ord(ch), ink) for i, ch in enumerate(' [TOUR] %s ' % state['tour'].current_label())})
+    offer = prompt(state)
+    if offer:
+        p_ink = packed(PROMPT_INK, (10, 22, 35))
+        out.update({(height - 2, max(0, (width - len(offer) - 2) // 2) + i): (ord(ch), p_ink)
+                    for i, ch in enumerate(' %s ' % offer[:width - 2])})
+    now = state.get('now')
     if now is not None and width >= 54 and height >= 10:
         bal, thm, stb, tag = telemetry_core(now)
         strip = f' BAL {_bar4(bal)}  THM {_bar4(thm)}  STB {_bar4(stb)}  [{tag}] '
@@ -133,11 +143,10 @@ def tpw_badge(wasd_mode, width, height, state=None):
 
 
 def gauges(state):
-    wasd = state.get('wasd_mode', False)
-    out = Text.assemble((_tpw_tag(wasd), 'bold cyan' if wasd else 'bar.dim'), (' §/~ ', 'bar.dim'))
+    out = Text()
     charge = charging(state, time.monotonic())
     if charge:
-        out.append('  PUSH ', style='bar.dim')
+        out.append(' PUSH ', style='bar.dim')
         out.append_text(meter(charge, CHARGES))
         return out
     bal, thm, stb, tag = telemetry_core(state.get('now'))
@@ -193,12 +202,8 @@ def labels(now, called, shown='torque'):
             for j in CALLED[called] for t, g in (_patch(now, j, shown),)}
 
 
-BAR = keybindings.BAR_NORMAL
+BAR = keybindings.BAR
 GROUPS = keybindings.groups()
-
-
-def bar_for(state):
-    return keybindings.bar_for(state.get('wasd_mode', False))
 
 
 def size_of(console, args, up=0.0):
@@ -208,11 +213,11 @@ def size_of(console, args, up=0.0):
     return width, args.height or max(12, (size.height if size else 44) - 5 - bar)
 
 
-def _sync_actual(now, se2_st):
+def _sync_actual(now, keys):
     if not now:
         return (0.0, 0.0, 0.0)
     hd = arrows.pelvis_yaw(now)
-    return arrows._actual_twist(now, se2_st, math.sin(hd), math.cos(hd), str(now.get('doing', 'rest')), True)
+    return arrows._actual_twist(now, keys, math.sin(hd), math.cos(hd), str(now.get('doing', 'rest')), True)
 
 
 _ANSI = {}
@@ -244,9 +249,9 @@ def _joint_row(now, joint, label, shown):
 
 
 def boxes(state, now, name):
-    z0, wasd, se2_st, shown = (0.0, 0.0, 0.0), state.get('wasd_mode', False), state.get('se2'), state.get('shown', 'torque')
-    tw_act = _sync_actual(now, se2_st)
-    raw_set = se2_st.get('setpoint', z0) if se2_st is not None else z0
+    z0, keys, shown = (0.0, 0.0, 0.0), state.get('pad'), state.get('shown', 'torque')
+    tw_act = _sync_actual(now, keys)
+    raw_set = (keys.get('setpoint') or z0) if keys is not None else z0
     tw_now, tw_nom = (now.get('twist', z0), se2.NOMINAL_TWIST.get(now.get('doing', ''), z0)) if now else (z0, z0)
     tw_set = next((t for t in (raw_set, tw_now, tw_nom) if any(abs(v) > 1e-4 for v in t)), z0)
     bal, _thm, stb, tag = telemetry_core(now)
@@ -262,8 +267,8 @@ def boxes(state, now, name):
     max_c = max((float(v) for v in now['temp'].values()), default=25.0) if (now and now.get('temp')) else 25.0
     rec = (recorder.badge(state['recording']) + ' - R saves' if state['recording'] is not None
            else os.path.basename(state['recorded'])[:25] if state['recorded'] else 'R starts')
-    out = gym.boxes(now, wasd=wasd, tour=state.get('tour')) + [hud('BODY', [
-        ('   control', '%s  [%s]' % ('TPW (WASD)' if wasd else 'normal', tag)),
+    out = gym.boxes(now, tour=state.get('tour')) + [hud('BODY', [
+        ('   control', '%s  [%s]' % ('tour' if gym.touring(state) else 'keys', tag)),
         ('    status', gym.status(now)[:25]), ('   balance', core_row),
         ('     speed', _ansi('%+5.2f m/s %s %+5.2f' % (spd_act, spd_bar, spd_set))),
         ('     twist', 'vx%+5.2f vy%+5.2f wz%+5.2f' % tw_act),
@@ -277,7 +282,7 @@ def boxes(state, now, name):
             _joint_row(now, j, j.split('_', 1)[-1] if sub.name != 'axis' else j, shown) for j in sub.actuators]))
     scanner = state.get('scanner')
     if scanner is not None and now is not None:
-        det = scanner.scan(now, state.get('yaw', 0.0))
+        det = scanner.scan(now, viewpoint.looks(state))
         out.append(hud('VISION (EYES)', [
             ('     model', scanner.model_name()[:25]), ('  detected', (det[0]['label'] if det else 'none')[:25]),
             ('    action', (det[0]['affordances'][0][1] if (det and det[0]['affordances']) else '-')[:25])]))
@@ -289,49 +294,37 @@ def _seen(state):
 
 
 KEYS = gym.table(table(viewpoint.KEYS, CALLING, SHOWN))
+#: Her speed over the floor past which she goes and the chase camera follows, m/s.
+GOING_M_S = 0.1
 
 
-def _step_frame(state, body, dt):
-    tour = state.get('tour')
-    if tour is not None and not tour.done:
-        state['_in_tour_step'] = True
-        try:
-            tour.step(state, dt)
-        finally:
-            state['_in_tour_step'] = False
-    t_mono, se2_st = time.monotonic(), state.get('se2')
-    if se2_st is not None and state.get('wasd_mode') and not (tour is not None and not tour.done):
-        if t_mono - state.get('_se2_last_t', 0.0) > 0.015:
-            dt_real, state['_se2_last_t'] = min(0.1, max(0.01, t_mono - state.get('_se2_last_t', t_mono - dt))), t_mono
-            step_se2(se2_st, (), dt_real, now=t_mono, held=_console.held())
-        any_wasd = any(se2_st['keys'].get(k) for k in ('w', 's', 'a', 'd', 'q', 'e'))
-        if state.get('_wasd_active') and not any_wasd:
-            gym._clear_se2(state)
-            body.send(twist=(0.0, 0.0, 0.0))
-        else:
-            state['_wasd_active'] = state.get('_wasd_active', False) or any_wasd
-            tw = (round(se2_st['v_x'], 2), round(se2_st['v_y'], 2), round(se2_st['omega_z'], 2))
-            if state.get('_last_sent_twist') != tw:
-                state['_last_sent_twist'] = tw
-                body.send(twist=tw)
-    return t_mono, se2_st
+def _step_frame(state, dt):
+    """A frame's commands: the tour's due, the keys' twist; the chase camera eased behind her."""
+    if gym.touring(state):
+        state['tour'].step(state, dt)
+    t_mono, now = time.monotonic(), state.get('now')
+    heading = float(now.get('heading') or 0.0) if now else 0.0
+    steered(state, t_mono, heading)
+    going = bool(now) and math.hypot(*now['velocity']) > GOING_M_S
+    viewpoint.chased(state, heading, going, t_mono)
+    return t_mono
 
 
 def _draw_viewport(state, now, width, height, terminal, lit):
     if now is None:
         return '\n'.join(' ' * width for _ in range(height))
     x, y, z = now['where']
-    camera, wasd = state['follow']((x, z), now['velocity'], now['t']), state.get('wasd_mode', False)
-    inset = {**docked_vision(state['scanner'], now, width, height, wasd_mode=wasd), **tpw_badge(wasd, width, height, state=state),
+    camera = state['follow']((x, z), now['velocity'], now['t'])
+    inset = {**docked_vision(state['scanner'], now, width, height), **badge(width, height, state),
              **recorder.corner(state.get('recording'), width)}
     return '\n'.join(gynoid.render(
-        now['angles'], width, height, yaw=state['yaw'], pitch=state['pitch'], pan=state['pan'],
+        now['angles'], width, height, yaw=state['yaw'], pitch=state['pitch'], pan=viewpoint.panned(state),
         zoom=state['zoom'], colour=terminal, travel=camera, lit=lit,
         root=((x - camera[0], y, z - camera[1]), quat(*now['turn'])),
         labels=labels(now, state['called'], state['shown']), props=now.get('props'),
         mark=marked(state, now, time.monotonic()),
         legend=legend(state['shown'], width) if state['called'] != 'none' else None,
-        dressed=state['skin'] == 'dressed', see=_seen(state), inset=inset, arrows=(now, state.get('se2'))))
+        dressed=state['skin'] == 'dressed', see=_seen(state), inset=inset, arrows=(now, state.get('pad'))))
 
 
 def _boot_humanoid(board_view, state):
@@ -371,10 +364,10 @@ def main(argv=None):
     state = {'body': None, 'orbit': False, **viewpoint.HOME, 'side': 1.0, 'last_t': None,
              'called': 'strong', 'follow': gynoid.Follow(), 'recording': None, 'recorded': None,
              'playback': Playback(), 'shown': 'torque', 'skin': 'dressed', 'scanner': VisionScanner(),
-             'now': None, 'wasd_mode': True, 'tour': None, 'se2': se2.state(), 'keys': KEYS}
+             'now': None, 'tour': None, 'pad': pad(), 'keys': KEYS}
 
     def draw():
-        t_mono, se2_st = _step_frame(state, state['body'], 1.0 / max(1.0, args.hz))
+        t_mono = _step_frame(state, 1.0 / max(1.0, args.hz))
         said = []
         state['body'].latest(into=said)
         heard(state, state['body'].heard())
@@ -382,17 +375,16 @@ def main(argv=None):
             recorder.added(state['recording'], rows_of(state, said))
         state['playback'].push(said)
         now = state['now'] = state['playback'].at(time.perf_counter())
-        _sync_actual(now, se2_st)
+        _sync_actual(now, state['pad'])
         pushed = released(state, t_mono)
         if pushed and now is not None:
-            gym._clear_se2(state)
-            state['body'].send(push=tuple(pushed * a for a in along(state)), seconds=sprung.SHOVE_S)
+            state['body'].send(push=tuple(pushed * a for a in viewpoint.along(state)), seconds=sprung.SHOVE_S)
             state['landed'] = (t_mono, pushed)
         if now is not None:
             viewpoint.orbited(state, now['t'])
         up = helped(state, state.pop('typed', ()), t_mono)
         art = _draw_viewport(state, now, *size_of(board_view, args, up), terminal, lit)
-        return frame_of(board_view, ORIGIN, TITLE, art, boxes(state, now, name), bar_for(state),
+        return frame_of(board_view, ORIGIN, TITLE, art, boxes(state, now, name), BAR,
                         gauges=gauges(state), help=(GROUPS, up))
 
     try:

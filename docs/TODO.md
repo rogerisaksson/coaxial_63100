@@ -199,13 +199,10 @@ gets a line at the end of [DONE](DONE.md).
 
 ## One command, either driver
 
-- **Teleoperation and autonomy alike**: the tour presses keys through
-  `_dispatch_key`, the controller branches on `_twist_active`, entry names
-  and where a command came from. DOD: a twist and a verb, the same from a
-  key or an agent; the worker never knows which.
-- **A third-person page**: DOD: movement relative to the camera, a chase
-  camera with lag and recentring, shoulder swap, sprint and walk, crouch,
-  context prompts - test_views_humanoid's checks and a PNG judged.
+- **Teleoperation and autonomy alike**: the page's keys and the tour send a
+  twist and verbs only; the worker still branches on `_twist_active` and entry
+  names - a gait said and a gait twisted run apart, the WEP grant the twist's
+  alone. DOD: the worker never knows which.
 - **No jerk in a transition**: DOD: every segment's peak jerk through a run
   of transitions (stand, walk, turn, strafe, back, stop, sit, rise, hop) no
   higher than in her steady walk; a test holds it.
@@ -214,7 +211,7 @@ gets a line at the end of [DONE](DONE.md).
 
 Each a test in MuJoCo: placed, commanded as a player would, judged by no
 fall, its goal reached and its jerk (`tools/sim/scenarios.py`; those that hold
-in `test_scenarios`, 15 of 26 at every wobble now:
+in `test_scenarios`, 15 of 27 at every wobble now:
 [scenarios](findings/scenarios.md)). One law each, no entry a case.
 
 - **Terrain by contact**: a swinging sole that meets something raises her
@@ -237,6 +234,11 @@ in `test_scenarios`, 15 of 26 at every wobble now:
   rise unloads it mid-turn (`demand.py --scenarios`, drives.md). DOD: one
   ceiling whoever commands, each scenario's peak, rms, speed and heat under
   2/3 of its parts.
+- **A player's turnabout**: in place 2 s, an arc 1 s, a walk 2 s, a stop
+  (`play_about`, what S sends with the view behind her): down 0.9-1.8 s after
+  the stop at 8 of 13 wobbles, her centre of mass 0.73 m across from the sole she
+  stands on, the swing landing late; each part alone holds 13 of 13. DOD: 13 of
+  13.
 - **Maneuver horizon**: DOD: each limb's reach and a swinging sole's
   landing room drawn, toggled from the page.
 

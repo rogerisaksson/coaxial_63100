@@ -1,154 +1,45 @@
-"""Automated house tour and synthetic maneuver generator for the gynoid inside the house.
+"""The tour: her scenes one after another, commanded as an agent commands her.
 
-Generates synthetic WASD keyboard chords, mouselook (yaw/pitch) controls, and stunt interactions
-to navigate the glass room, visit props, and perform all operations from the stunt repertoire:
-  1. Surveying house with stereo cameras / vision scanner
-  2. WASD maneuvering to chair, sitting down, rising, hopping up and down
-  3. WASD maneuvering to bed, lying down on compliant mattress, rising
-  4. WASD maneuvering to floor mattress, lying down, rising
-  5. Traversing rug and doorway sill with stumble reflex
-  6. Pushing through swinging door into outside area
-  7. Compliantly contacting tree and wall without falling
-  8. Navigating slick ice and snow terrain
-  9. Crossing 10cm hole without falling
- 10. Ascending and descending stairs
- 11. Absorbing moderate shove with parry and severe shove with controlled breakfall
+Each step lays a scene and sends what a player's keys or an agent send - a twist, a verb, a
+push - at its seconds; the view looks where it is told. Nothing in it presses a key.
 """
+import math
 
-#: Step definitions for the automated house tour: (label, duration_s, commands)
-#: commands is a list of tuples: (rel_time_s, 'key'|'mouse'|'push'|'scenario', value)
+#: (twists, m/s and rad/s) a walk, a stop, an arc each way.
+WALK, STOP, LEFT, RIGHT = (0.69, 0.0, 0.0), (0.0, 0.0, 0.0), (0.69, 0.0, 0.7), (0.69, 0.0, -0.7)
+
+#: (label, seconds, [(at s, kind, value)]): kind 'scene', 'twist', 'say', 'push' (N, from
+#: the view's side), 'look' ((yaw, pitch) deg).
 STEPS = [
-    (
-        'Survey glass room with stereo cameras',
-        2.0,
-        [
-            (0.0, 'scenario', 'glass_room'),
-            (0.2, 'mouse', (25.0, -5.0)), # Look towards chair
-            (1.0, 'mouse', (-30.0, -5.0)),# Look towards bed
-            (1.8, 'mouse', (0.0, 0.0)),   # Center view
-        ]
-    ),
-    (
-        'Maneuver to chair and sit down',
-        4.5,
-        [
-            (0.0, 'scenario', 'chair'),
-            (0.1, 'key', 'sit_chair'),    # Automatically approaches chair and sits down
-        ]
-    ),
-    (
-        'Rise from chair to standing',
-        3.0,
-        [
-            (0.1, 'key', 'rise_chair'),    # Rise from chair to standing
-        ]
-    ),
-    (
-        'Hop up onto chair',
-        3.0,
-        [
-            (0.1, 'key', 'hop_up_chair'),  # Two-footed hop up onto chair
-        ]
-    ),
-    (
-        'Hop down from chair',
-        2.5,
-        [
-            (0.1, 'key', 'hop_down_chair'),# Controlled hop down from chair
-        ]
-    ),
-    (
-        'Maneuver to bed and lie down',
-        3.5,
-        [
-            (0.0, 'scenario', 'bed'),
-            (0.1, 'key', 'lie_bed'),      # Approaches bed and reclines
-            (2.4, 'key', 'rise_bed'),     # Rise from bed to standing
-        ]
-    ),
-    (
-        'Maneuver to floor mattress and lie down',
-        3.5,
-        [
-            (0.0, 'scenario', 'mattress'),
-            (0.1, 'key', 'lie_floor'),    # Lie on floor mattress
-            (2.4, 'key', 'rise_floor'),   # Rise from floor
-        ]
-    ),
-    (
-        'Traverse rug and doorway sill threshold',
-        3.0,
-        [
-            (0.0, 'scenario', 'rug'),
-            (0.1, 'key', 'w'),            # Walk across rug
-            (1.5, 'scenario', 'sill'),    # Doorway sill threshold
-            (1.6, 'key', 'w'),            # Stumble reflex over sill
-        ]
-    ),
-    (
-        'Push open swinging door to exit house',
-        3.0,
-        [
-            (0.0, 'scenario', 'glass_room'),
-            (0.1, 'key', 'w'),            # Walk through doorway
-            (1.5, 'key', 'w'),            # Push through swinging door
-        ]
-    ),
-    (
-        'Compliant collision into tree and wall',
-        3.5,
-        [
-            (0.0, 'scenario', 'obstacle'),
-            (0.1, 'key', 'w'),            # Contact tree compliantly
-            (1.5, 'key', 'a'),            # Strafe left away from tree
-            (2.5, 'key', 'w'),            # Lean into wall compliantly
-        ]
-    ),
-    (
-        'Navigate slick ice and snow terrain',
-        3.5,
-        [
-            (0.0, 'scenario', 'ice'),
-            (0.1, 'key', 'ice_walk'),     # Ice walk mode (slick surface)
-            (1.8, 'scenario', 'snow'),
-            (1.9, 'key', 'slope_walk'),   # Traverse snow patch
-        ]
-    ),
-    (
-        'Cross 10cm deep hole without falling',
-        3.8,
-        [
-            (0.0, 'scenario', 'hole'),
-            (0.1, 'key', 'w'),            # Step across 10cm hole
-        ]
-    ),
-    (
-        'Ascend and descend stairs',
-        3.5,
-        [
-            (0.0, 'scenario', 'stairs'),
-            (0.1, 'key', 'stairs_walk'),  # Stairs walk up
-            (1.8, 'scenario', 'stairs_down'),
-            (1.9, 'key', 'stairs_down'),  # Stairs descend
-        ]
-    ),
-    (
-        'Absorb shove perturbation and breakfall',
-        3.5,
-        [
-            (0.0, 'scenario', 'flat'),
-            (0.1, 'push', (80.0, 0.0, 0.0)),  # Moderate shove
-            (0.2, 'key', 'parry_shove'),       # Parry shove reflex
-            (1.8, 'push', (140.0, 0.0, 0.0)), # Severe shove
-            (2.0, 'key', 'controlled_fall'),  # Controlled breakfall
-        ]
-    ),
+    ('Look round the house', 4.0, [
+        (0.0, 'scene', 'glass_room'), (0.5, 'look', (205.0, 8.0)), (2.0, 'look', (155.0, 8.0)),
+        (3.5, 'look', (180.0, 8.0))]),
+    ('Sit on the chair and rise', 12.0, [
+        (0.0, 'scene', 'chair'), (0.5, 'say', 'sit_chair'), (7.0, 'say', 'rise_chair')]),
+    ('Lie on the bed and rise', 14.0, [
+        (0.0, 'scene', 'bed'), (0.5, 'say', 'lie_bed'), (8.0, 'say', 'rise_bed')]),
+    ('Lie on the mattress and rise', 14.0, [
+        (0.0, 'scene', 'mattress'), (0.5, 'say', 'lie_floor'), (8.0, 'say', 'rise_floor')]),
+    ('Over the rug', 9.0, [(0.0, 'scene', 'rug'), (0.5, 'twist', WALK), (5.5, 'twist', STOP)]),
+    ('Over the sill', 9.0, [(0.0, 'scene', 'sill'), (0.5, 'twist', WALK), (5.5, 'twist', STOP)]),
+    ('Into the wall', 9.0, [(0.0, 'scene', 'wall'), (0.5, 'twist', WALK), (4.5, 'twist', STOP)]),
+    ('Into the tree', 9.0, [(0.0, 'scene', 'tree'), (0.5, 'twist', WALK), (4.5, 'twist', STOP)]),
+    ('On ice', 10.0, [(0.0, 'scene', 'ice'), (0.5, 'twist', WALK), (6.5, 'twist', STOP)]),
+    ('On snow', 10.0, [(0.0, 'scene', 'snow'), (0.5, 'twist', WALK), (6.5, 'twist', STOP)]),
+    ('Through the hole', 9.0, [(0.0, 'scene', 'hole'), (0.5, 'twist', WALK), (5.5, 'twist', STOP)]),
+    ('Up the stairs', 14.0, [(0.0, 'scene', 'stairs'), (0.5, 'twist', WALK), (10.5, 'twist', STOP)]),
+    ('Down the stairs', 14.0, [
+        (0.0, 'scene', 'stairs_down'), (0.5, 'twist', WALK), (10.5, 'twist', STOP)]),
+    ('Weave', 10.0, [
+        (0.0, 'scene', 'flat'), (0.5, 'twist', WALK), (1.5, 'twist', LEFT), (2.5, 'twist', WALK),
+        (3.5, 'twist', RIGHT), (4.5, 'twist', WALK), (5.5, 'twist', STOP)]),
+    ('Shoved, 80 N', 6.0, [(0.0, 'scene', 'flat'), (1.0, 'push', 80.0)]),
 ]
 
 
 class HouseTour:
 
-    """Orchestrates an automated walkthrough inside the house and environment."""
+    """The tour's clock and what it has sent."""
 
     def __init__(self, steps=None, loop=False):
         self.steps = list(steps or STEPS)
@@ -159,78 +50,48 @@ class HouseTour:
         self._dispatched = set()
 
     def current_label(self):
-        """Current high-level tour phase label."""
+        """The step under way."""
         if self.done:
             return 'TOUR COMPLETE'
-        if 0 <= self.step_idx < len(self.steps):
-            return self.steps[self.step_idx][0]
-        return 'IDLE'
+        return self.steps[self.step_idx][0] if 0 <= self.step_idx < len(self.steps) else 'IDLE'
 
     def reset(self):
-        """Reset tour to beginning."""
-        self.step_idx = 0
-        self.step_t = 0.0
-        self.done = False
+        """From the start."""
+        self.step_idx, self.step_t, self.done = 0, 0.0, False
         self._dispatched.clear()
 
     def step(self, state, dt):
-        """Advance tour clock by `dt` and dispatch scheduled synthetic keys/mouselook.
-
-        `state` is the view/simulation dictionary containing keys table, body, yaw, pitch, etc.
-        """
+        """`dt` s on: what falls due sent to `state['body']`, the view's `state` turned."""
         if self.done or self.step_idx >= len(self.steps):
             return
-        label, duration, events = self.steps[self.step_idx]
-        for idx, (ev_t, kind, val) in enumerate(events):
-            token = (self.step_idx, idx)
-            if self.step_t >= ev_t and token not in self._dispatched:
-                self._dispatched.add(token)
-                self._dispatch(kind, val, state)
-
+        _label, duration, events = self.steps[self.step_idx]
+        for idx, (at, kind, value) in enumerate(events):
+            if self.step_t >= at and (self.step_idx, idx) not in self._dispatched:
+                self._dispatched.add((self.step_idx, idx))
+                sent(kind, value, state)
         self.step_t += dt
         if self.step_t >= duration - 1e-5:
-            self.step_idx += 1
-            self.step_t = 0.0
+            self.step_idx, self.step_t = self.step_idx + 1, 0.0
             if self.step_idx >= len(self.steps):
                 if self.loop:
                     self.reset()
                 else:
                     self.done = True
 
-    def _dispatch(self, kind, val, state):
-        body = state.get('body')
-        if kind == 'key':
-            _dispatch_key(val, state, body)
-        elif kind == 'mouse':
-            state['yaw'], state['pitch'] = val
-        elif kind == 'scenario':
-            state['scenario'] = val
-            if body is not None:
-                body.send(scenario=val)
-        elif kind == 'push' and body is not None:
-            body.send(push=val, seconds=0.15)
 
-
-_KEY_SAYS = {
-    'w': 3, 'W': 3,
-    's': 4, 'S': 4,
-    'a': 'strafe_left', 'A': 'strafe_left',
-    'd': 'strafe_right', 'D': 'strafe_right',
-    'wa': 'turn_left', 'WA': 'turn_left',
-    'wd': 'turn_right', 'WD': 'turn_right',
-}
-
-
-def _dispatch_key(val, state, body):
-    keys_table = state.get('keys') or {}
-    if val in keys_table:
-        keys_table[val](state)
-        return
-    if body is None:
-        return
-    if val == '~':
-        state['wasd_mode'] = not state.get('wasd_mode', False)
-    elif val in _KEY_SAYS:
-        body.send(say=_KEY_SAYS[val])
-    else:
-        body.send(say=val)
+def sent(kind, value, state):
+    """One of a step's commands: a scene, a twist, a verb or a push to her body; a look to the
+    view."""
+    body = state['body']
+    if kind == 'scene':
+        state['scenario'] = value
+        body.send(scenario=value)
+    elif kind == 'twist':
+        body.send(twist=value)
+    elif kind == 'say':
+        body.send(say=value)
+    elif kind == 'push':
+        yaw = math.radians(state.get('yaw', 180.0))
+        body.send(push=(-value * math.sin(yaw), 0.0, -value * math.cos(yaw)), seconds=0.12)
+    elif kind == 'look':
+        state['yaw'], state['pitch'] = value
