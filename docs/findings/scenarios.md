@@ -212,6 +212,10 @@ plain walk the same bit for bit (her pose hashed each second for 20 s).
 - Not kept: her height held while something bears her - raised to as she is by
   the share off her soles -: the bed 9 -> 6 of 13, falling as she lay back where
   the soft mattress had her deeper than asked.
+- Not kept: her pelvis's pitch apart from her trunk's (a `pelvis_pitch` mode, 0
+  at rest - her walk the same to the digit): her trunk reclined 1 rad over a
+  pelvis kept at 0.5, the bed 11 -> 5 of 13; her pelvis bore 200 N on the edge
+  at 3.5 s and none at 4.0, nothing under her trunk, and she rolled back off it.
 
 ## Jumping
 
