@@ -262,8 +262,9 @@ SHARDED = (SENSORLESS, CONTROLLER, GYNOID, ORTHO, 'test_simulated.py', 'test_vie
 
 #: A sharded suite's seconds where none are recorded (tests/.counts.json, not committed):
 #: the loop's suite 120 s here whole, a walk a shard; the quad's page 211 s, a flight a
-#: shard.
-FRESH_S = {ORTHO: 300.0, QUAD_PAGE: 250.0, SCENES: 900.0}
+#: shard; the scenarios' 1 894 s here at 20 held, and a shard of CI's 3.14 runner cut past
+#: twice its share of 900.
+FRESH_S = {ORTHO: 300.0, QUAD_PAGE: 250.0, SCENES: 2400.0}
 
 #: The emulator's groups and each one's time, s, a Renode each: the rig's took 150 of the
 #: suite's 211 one after another here, and CI's runner ran the Release image's past 240.

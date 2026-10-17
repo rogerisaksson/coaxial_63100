@@ -173,6 +173,18 @@ at her torso and hands, strafes 1.1-1.9, a hop down 11.7.
   the rise quintic and the toes' need eased in with it - 780 m/s^2 its third
   pass, 600 J/m; the toes' need eased into its place alone - 100 m/s^2 its
   second pass, 2.92 off.
+- In the weave a sole let go bearing 63 N jumped her upper body's feed 133 N m
+  in the pass, the swing's first ask 89 m/s^2 - the steady walk's let-go 56 N,
+  13 N m, 35 m/s^2. Before it the right sole, in its stance phase on its toes
+  and read by its corners 24-37 mm over the floor, bore 30-39 N and nothing a
+  pass about and stood and was let go each. Its lowest point read with its toes'
+  tip: let-gos 35 -> 60, her walk 2.52 -> 2.60 off: not kept.
+- A sole's push capped in her step over its pre-swing, nothing left as its swing
+  begins: her step planned 0 N on it the pass before every let-go of her walk
+  and of the weave - and planned about that already -, and it bore 47-58 N as it
+  was let go, its upper body's jump the same (12-16 N m walking, 130 N m in the
+  weave). Its leg holds it to the floor through her drives' tracking and their
+  observer, not her step's push: not kept.
 
 ## The terrain's scenes
 
@@ -243,6 +255,12 @@ at her torso and hands, strafes 1.1-1.9, a hop down 11.7.
   13 wobbles; bed 7: at -5e-4 she sat over her right sole on the mattress's edge,
   2 and 219 N, 22 N on the edge, and a sole lifting stepped her. Seated deeper
   and slower, 3 of 13.
+- Rising off the soft bed at a failing wobble her capture point was past her
+  soles as the thrust came on the clock, and she left the mattress in a pass
+  (0.34 of her weight on it -> 0). Her height held while something bears her -
+  raised to as she is by the share off her soles -: the bed 9 -> 6 of 13,
+  falling as she lay back where the soft mattress had her deeper than asked: not
+  kept.
 
 ## Jumping
 
