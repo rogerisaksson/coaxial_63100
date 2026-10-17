@@ -75,9 +75,9 @@ TOUCH_M = TAIL_ARM * math.sin(HARRIER_RAD) + 0.145 * math.cos(HARRIER_RAD) - SKI
 #: The pull the law plans on, m/s^2: the propeller governed, boosted, at full pitch.
 PULL_MAX = K_THRUST / MASS_KG * (GOV_RAD_S * STUNT_BOOST) ** 2
 WING = Wing(MASS_KG, GRAVITY, RHO, WING_AREA, CL_ALPHA, WING_SPAN, STAB_AREA, FIN_AREA, TAIL_ARM)
-#: It stands RUNWAY_M short of home, 45 deg off the first gate's heading, clear of the gates.
+#: It stands RUNWAY_M short of home, 50 deg off the first gate's heading (aircraft.md).
 ROTATE_M_S, RUNWAY_M = WING.rotate, WING.runway(HOVER['lean'])
-RUNWAY_RAD = math.radians(grounds.GATES[0][3] + 45.0)
+RUNWAY_RAD = math.radians(grounds.GATES[0][3] + 50.0)
 
 
 def drive_loads(controls):
@@ -115,7 +115,7 @@ def mjcf(things=()):
     wheels = ((STRUT_Z[0], GEAR_TAIL_Z, 0.45), (STRUT_Z[1], GEAR_MAIN_Z, 1.0))
     for k, (sx, (by, bz, x_sc)) in enumerate((sx, w) for sx in (-SKID_X, SKID_X) for w in wheels):
         m += ('<geom name="skid%d" type="sphere" pos="%g %g %g" size="%g" '
-              'priority="1" solref="0.03 1" friction="0.15 0.002 0.0001"/>'
+              'priority="1" solref="0.03 1" friction="0.3 0.002 0.0001"/>'
               % (k, x_sc * sx, by, bz, FOOT_M))
     head = quad.mjcf(things).split('<body name="frame"')[0]
     return ('%s<body name="frame" pos="%g %g %g"><freejoint name="root"/>'
@@ -278,8 +278,10 @@ class Core:
         v_fwd = s * float(state['vel'][0]) + c * float(state['vel'][2])
         if not self.airborne and rh >= 0.0 and h >= AIRBORNE_M:
             self.airborne, brake = True, max(1.0, float(row.get('lean', GRAVITY)))
-            law['spot'] = [float(state['at'][a]) + float(state['vel'][a]) * abs(v_fwd) / (2.0 * brake)
-                           for a in (0, 2)]
+            ahead = -(float(state['at'][0]) * s + float(state['at'][2]) * c)
+            law['spot'] = ([0.0, 0.0] if 0.0 < ahead < 2.5 * RUNWAY_M else
+                           [float(state['at'][a]) + float(state['vel'][a]) * abs(v_fwd) / (2.0 * brake)
+                            for a in (0, 2)])
         if not self.airborne and rh >= 0.0 and pace < 20.0:
             return run(WING, self, v_fwd, h, yaw, rate) + (stunt, inv)
 
@@ -363,7 +365,7 @@ class Core:
                 law, row, state, turn, yaw, rate, acc_des, ay_thrust, ay_stop, dt)
 
         f_limit = MASS_KG * reach
-        # A propeller pulls one way: a tumble's inverted half falls through.
+        # A propeller pulls one way.
         f_des = max(0.0, min(f_limit, f_des))
         tau_x, tau_y, tau_z = _so3_torques(
             self, turn, r_des, w_ff, spin, INERTIA, (ATT_KP, YAW_KP, ROLL_KP), (ATT_KD, YAW_KD, ROLL_KD))

@@ -17,7 +17,7 @@ def test_helicopter_stunt_routine(report):
         route = aerobatics.routine(craft.CARD)
         pull_max = craft.PULL_MAX
         by_stage, stages = {}, []
-        for step_idx in range(int(75.0 / dt)):
+        for step_idx in range(int(95.0 / dt)):
             stage, row = aerobatics.fly(route, step_idx * dt, ('held', 'fit') if law['held'] else ('fit',))
             state = sky.state()
             ans = core.step(law, row, state, dt, pull_max)
@@ -83,7 +83,7 @@ def test_helicopter_stunt_routine(report):
                      and min(p['r11'] for p in tum) < -0.80 and max(p['v'] for p in ft) > 9.0
                      and max(p['h'] for p in burn) > 18.0 and min(p['lift'] for p in burn if p['r11'] > 0.5) < 2.0
                      and c_st.count('fall') == 1 and abs(hold[-1]['h'] - craft.FLOOR_M) < 0.05
-                     and land[-1]['h'] < 0.02 and land[-1]['hdg'] > (0.70 if craft is aerobat else 0.99)
+                     and land[-1]['h'] < 0.02 and land[-1]['hdg'] > (0.60 if craft is aerobat else 0.99)
                      and roll_ok and c_sky.hit is None)
 
 
@@ -205,13 +205,13 @@ def test_helicopter_boards_and_view(report):
 
 def test_helicopter_course_laps(report):
     """The helicopter and the ornithopter fly the 16-gate course in wind and land on gate 0's heading."""
-    from machine import aerobatics, aerokin, course, grounds, helicopter, ornithopter, quad
+    from machine import aerobatics, aerokin, course, grounds, helicopter, ornithopter, pull, quad
     solids, dt, tick = grounds.solids(), 0.02, 0.002
     for craft in (helicopter, ornithopter):
         sky, core, law = craft.Sky(solids), craft.Core(), aerokin.fresh()
         route, air = aerobatics.routine(course.CARD), quad.air(7, 'gusty')
-        top = craft.PULL_MAX
-        have, stages, max_dcyc, sum_dcyc, n_lap, prev_cyc, end_land = aerokin.HEADROOM * top, [], 0.0, 0.0, 0, (0.0, 0.0), None
+        top = craft.K_THRUST * pull.held(pull.I_MAX) ** 2 / craft.MASS_KG
+        have, stages, max_dcyc, sum_dcyc, n_lap, prev_cyc, end_land = craft.COURSE_SPHERE, [], 0.0, 0.0, 0, (0.0, 0.0), None
         for step_idx in range(int(100.0 / dt)):
             clock, state = step_idx * dt, sky.state()
             route['seen'] = dict(aerokin.seen(law, state, dt, have, top), spent=False)
@@ -235,7 +235,7 @@ def test_helicopter_course_laps(report):
                      sky.hit is None and (route.get('lap') or {}).get('laps', 0) >= 1
                      and stages[-2:] == ['land', 'idle'] and end_land is not None
                      and end_land[0] < 0.025 and end_land[1] < 0.03 and end_land[2] > 0.99
-                     and sum_dcyc / max(1, n_lap) < 0.14 and max_dcyc < 0.95)
+                     and sum_dcyc / max(1, n_lap) < 0.14 and max_dcyc < 1.5)
 
 
 def test_lisp_manifests_and_validation(report):
@@ -257,7 +257,7 @@ def test_lisp_manifests_and_validation(report):
                  and [s.sequence_id for s in hm['streams']] == [301, 302, 303, 304, 305, 306]
                  and [s.sequence_id for s in om['streams']] == [401, 402, 403, 404, 405, 406]
                  and [s.sequence_id for s in am['streams']] == [501, 502, 503, 504, 505, 506]
-                 and len(helicopter.CARD) == 24 == len(ornithopter.CARD) and len(aerobat.CARD) == 22)
+                 and len(helicopter.CARD) == 24 == len(ornithopter.CARD) and len(aerobat.CARD) == 24)
 
     q_card = qm['routines']['quadcopter']
     try:

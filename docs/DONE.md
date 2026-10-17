@@ -366,19 +366,16 @@ it names. A closed item is cut from the list and gets its line here, last.
     peak jerk 0.5-0.8 of what it was ([scenarios](findings/scenarios.md)).
 90. The stand-in's velocity lane within 1 %: its speed the observer's angle,
     turns counted, risen over a pass ([host](findings/host.md)).
-91. The helicopter's head governed, its tail sized, the three crafts' pull
-    planned on the governor ([aircraft](findings/aircraft.md)).
-92. The ornithopter's beat through a 6:1 crank, its pairs' lift pulsing
-    ([aircraft](findings/aircraft.md)).
-93. The thrust arrows the force from the hub, over the body
-    ([aircraft](findings/aircraft.md)).
-94. The aerobat's run on its wheels to the wing's speed, its law wing-borne
-    ([aircraft](findings/aircraft.md)).
-95. The four crafts drawn to read: painted skins, a 500's pod and boom, a
-    1.3 m plane, the pages a third closer.
-96. The aerobat's propeller pulls one way: no inverted hover, flat spin or
-    lomcevak; a circuit and a flare ([aircraft](findings/aircraft.md)).
+91. The helicopter's head governed, its tail sized ([aircraft](findings/aircraft.md)).
+92. The ornithopter's beat through a 6:1 crank, its pairs' lift pulsing.
+93. The thrust arrows the force from the hub, inverted too, over the body.
+94. The aerobat a plane: its run, its wing and tail, its law wing-borne.
+95. The four drawn to read: painted skins, a pod, a 1.3 m plane; closer.
+96. The aerobat's propeller pulls one way; a circuit and a flare.
 97. Her body identified of her edge alone (`machine.sysid`)
     ([identification](findings/identification.md)).
 98. The library's variants as data, a build naming them, `COAXIAL_ROBOT`
     running one: her figure on CubeMars' R80 and R60 ([stacks](findings/stacks.md)).
+99. The quad framed a third closer, its arms painted.
+100. The rotorcraft's laps on their own sphere, idled up; the aerobat's
+     racetrack ([aircraft](findings/aircraft.md)).
