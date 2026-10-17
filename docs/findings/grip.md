@@ -51,3 +51,6 @@ and the patches in [scenarios](scenarios.md) walk it.
   slick patch 5: met at 0.69 m/s, her bounds on ice give landings of 9 cm and
   0.98 m/s^2 along, too little to slow in a step or two; told, she meets it
   slow. Not kept.
+- Snow holds 11 of 13 wobbles - 13 before its patch was made real, 12 after.
+  At 3e-4 rad her standing sole's load fell 379 -> 40 N and her pelvis went
+  0.23 -> 2.78 m/s ahead in 0.1 s, her grip read 0.6 throughout.

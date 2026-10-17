@@ -236,7 +236,7 @@ serves its DOD; none an entry a case.
 3. **A landing on what is there**: a swinging sole that meets something
    raises her swings by its height, one that meets nothing reaches on down; a
    sliding one lowers the friction she asks. Met at 13 of 13 wobbles: the
-   sill, the rug, the hole, snow, asphalt. The floor
+   sill, the rug, the hole, asphalt; snow 11, a slide unread (grip.md). The floor
    ahead a plane of her standing soles' pitch (`modal.under`): up a ramp she
    lands where she aims, down at its top; past a crest or down a descent a
    swing hangs 6-27 cm over the floor; the world's floor known under, at and

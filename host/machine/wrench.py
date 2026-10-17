@@ -62,11 +62,23 @@ W_KEEP = 3.0
 #: more than GROW_N over what it bears now: let to plan 311 N where a mattress's soft edge bore
 #: 107, the step's push behind her centre of mass never came and she rolled back onto the bed.
 W_STILL, GROW_N = 1e4, 30.0
+#: A solve with no answer of its own is solved again with this share of its largest diagonal on
+#: its free unknowns: falling on a ramp, two bearing points 16 mm apart left the rounds' matrix
+#: rank 21 of 27 (cond 2.9e19), their split said by no row, and the solve raised.
+RIDGE = 1e-12
 
 
 def _inv(A):
     """A's damped inverse."""
     return np.linalg.solve(A.T @ A + DAMP ** 2 * np.eye(A.shape[1]), A.T)
+
+
+def _solved(K, rhs, free):
+    """K^-1 rhs, K ridged by RIDGE on its `free` unknowns where it has no inverse."""
+    try:
+        return np.linalg.solve(K, rhs)
+    except np.linalg.LinAlgError:
+        return np.linalg.solve(K + np.diag(free * RIDGE * float(np.diag(K).max())), rhs)
 
 
 def bounded(u, frames, stance, edge=(0.0, 0.0), mu=(MU, MU)):
@@ -270,7 +282,7 @@ def step(b, s, ask):
         hard, soft = pinned * moment, (W_PIN * pinned * (1.0 - moment) * part) ** 2
         H, free = H0 + np.diag(soft), 1.0 - hard
         K = H * np.outer(free, free) + np.diag(hard)
-        u, way = np.linalg.solve(K, np.array([free * (g0 + soft * at - H @ (hard * at)) + hard * at, up]).T).T
+        u, way = _solved(K, np.array([free * (g0 + soft * at - H @ (hard * at)) + hard * at, up]).T, free).T
         u = u + band * (edge - up @ u) / (up @ way + 1.0 - band) * way
         # her height's band: past an edge, held to it
         ay = float(sumf[1] @ u) / mass - G
@@ -292,7 +304,7 @@ def step(b, s, ask):
     if strides > 0.0:
         keep = W_KEEP * np.concatenate([each, np.zeros(nu - 12)]) * part
         kinetic = full.T @ M @ full + np.diag((W_SWING * swung + spare) ** 2 + keep ** 2)
-        u = u + strides * (_taken(np.linalg.solve(H0, g0), kinetic, up, frames, stance,
+        u = u + strides * (_taken(_solved(H0, g0, np.ones(nu)), kinetic, up, frames, stance,
                                   ask.get('edge', (0.0, 0.0)), (lo, hi), grounded, ask.get('mu', (MU, MU))) - u)
     qdd = full @ u + full0
     tau = (M @ qdd + h)[act]

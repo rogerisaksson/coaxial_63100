@@ -72,6 +72,10 @@ their play; the step in C stands the python step's 8 / 6 / 4 / 2 / 0.
   not striding (`PAST`, `WBC_PAST`): on the bed 417 of 4046 passes ended
   past it, 2.16 m/s^2 at the median and 4.34 at p90, then 0.01 and 0.22;
   the chair 3 to 0; her walk and her stand none of 4667.
+- A rounds' solve with no inverse is solved again ridged on its free
+  unknowns (`RIDGE`, 1e-12 of its largest diagonal): falling on a told ramp,
+  two bearing points 16 mm apart left it rank 21 of 27, cond 2.9e19, their
+  split said by no row, and the step raised. `wbc_wrench.c` has no contacts.
 - Open. 80 N and over: 4, 3 and 1 of 8 where the stack 7, 8 and 6. Her
   walk's 1 400 J/m: the clamps clip after the solve. The step in C and its
   tick on the M7. Stops but the knees'.
