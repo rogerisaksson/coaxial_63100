@@ -41,7 +41,7 @@ from terminal.views.show_quad import (PASS_S, PHYSICS_S, SIDE_PITCH, SWITCH_S, Z
 
 TITLE = 'HELICOPTER'
 ROTORS = flown.ROTORS
-NEAR_M, FAR_M, ZOOM_M, ZOOM_K, CHASE_M = 0.76, 1.00, 0.48, 0.022, 2.2
+NEAR_M, FAR_M, ZOOM_M, ZOOM_K, CHASE_M = 0.76, 0.80, 0.60, 0.022, 2.2
 YAW, PITCH = 52.0, 18.0
 
 

@@ -13,7 +13,7 @@ it names. A closed item is cut from the list and gets its line here, last.
 5. test_sensorless and test_daq_api 20 of 20 on the relay
    ([host](findings/host.md)).
 6. The heat's airspeed one input: the load carries it, every executive's
-   world flies in it ([quad](findings/quad.md)).
+   world flies in it ([aircraft](findings/aircraft.md)).
 7. Humanoid robot joints air-cooled, a board's back on an aluminium holder on
    its motor
    or gearbox, MINOR 30; no boards in oil ([drives](findings/drives.md)).
@@ -23,7 +23,7 @@ it names. A closed item is cut from the list and gets its line here, last.
    ([drives](findings/drives.md)); a
    shove charged from the page's view; the living room and its words
    ([room](findings/room.md)); the quad's thrusts as Humanoid robot law
-   ([quad](findings/quad.md)).
+   ([aircraft](findings/aircraft.md)).
 10. R on the HUMANOID page, which crashed it, held by a test
     ([host](findings/host.md)).
 11. Humanoid robot drives as bought, one stack on all
@@ -44,10 +44,10 @@ it names. A closed item is cut from the list and gets its line here, last.
     in
     the code ([kinematics](findings/kinematics.md)).
 19. The stand-in's drive and loop on the board's C, QUAD's rotors on their
-    boards' own loops ([host](findings/host.md), [quad](findings/quad.md)).
+    boards' own loops ([host](findings/host.md), [aircraft](findings/aircraft.md)).
 20. The picture in the viewport's corner in the instruments' frame, a key
     that takes it away; the quad's carried camera on a stabilised gimbal
-    ([quad](findings/quad.md), [sight](findings/sight.md)).
+    ([aircraft](findings/aircraft.md), [sight](findings/sight.md)).
 21. A rotor node started as a stepper and stopped before its stage goes
     down: the machine types' routines 36 runs of 36
     ([drive](findings/drive.md), [host](findings/host.md)).
@@ -107,7 +107,7 @@ it names. A closed item is cut from the list and gets its line here, last.
 34. The carried camera into its turns: its sight a share of the frame's
     lean across its way, 7.7 degrees inside a lap's bends where 12.5
     outside, rolled 9.5 degrees rms in them; level at rest
-    ([quad](findings/quad.md)).
+    ([aircraft](findings/aircraft.md)).
 35. One way she moves: the laws before Humanoid robot latent loop out of the
     tree - 34
     modules (the director, the walk as built, the one law, the stand, the
@@ -195,13 +195,13 @@ it names. A closed item is cut from the list and gets its line here, last.
     cycles a pass where 149 288 ([streams](findings/streams.md)).
 52. A stand-in board's pass in flight one C call (`world_drive_pass`):
     three calls a rotor a pass and their dictionary allocations unified;
-    the page's flight over 20 frames a second ([quad](findings/quad.md)).
+    the page's flight over 20 frames a second ([aircraft](findings/aircraft.md)).
 53. The heat's clock in flight: flown on the flight's own seconds (clock=1),
     observers warmed at idle on the floor out of UNCERTAIN before a first
     flight;
     full tilt boards hold 58.7 A where 43.2, race laps 13.9 and 14.2 s, SOA
     0.55-0.62
-    ([envelope](findings/envelope.md), [quad](findings/quad.md)).
+    ([envelope](findings/envelope.md), [aircraft](findings/aircraft.md)).
 54. The plan on boards that hold their pull: `quad_race.py --search` over
     `course.PULL` (0.37), `course.BRAKE` (0.735), `course.GO` (0.708) and
     `course.STOP` (0.45) on the core; laps 13.8 and 13.8 s across all eight
@@ -368,3 +368,17 @@ it names. A closed item is cut from the list and gets its line here, last.
 90. The stand-in's velocity lane within 1 %: its speed the observer's angle,
     turns counted, risen over a pass - its rotor 1489-1503 rpm past its ramp
     where 1472-1520 ([host](findings/host.md)).
+91. The helicopter's head governed, its tail sized, the three crafts' pull
+    planned on the governor ([aircraft](findings/aircraft.md)).
+92. The ornithopter's beat through a 6:1 crank, its pairs' lift pulsing
+    ([aircraft](findings/aircraft.md)).
+93. The thrust arrows the force from the hub, inverted too, over the body
+    ([aircraft](findings/aircraft.md)).
+94. The aerobat's run on its wheels to the wing's speed, the climb on the wing,
+    its tail and fin in the air, its law wing-borne ([aircraft](findings/aircraft.md)).
+95. The helicopter, the ornithopter and the aerobat drawn to read: a painted
+    skin, a 500's pod and boom, a 1.3 m plane, the pages a third closer.
+96. The aerobat's propeller pulls one way: no inverted hover, no flat spin, no
+    lomcevak; a circuit and a flare onto its wheels
+    ([aircraft](findings/aircraft.md)).
+97. The quad framed a third closer, its arms painted.

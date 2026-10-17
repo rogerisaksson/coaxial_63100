@@ -152,18 +152,23 @@ def braille(depth, rgb, floor, width, height, colour=True, overlay=None, leaders
             props=()):
     """Dot rasters down to cells: a dot where the light clears the blue noise, the silhouette and
     every depth step always; the floor's dots where nothing covers it, the `leaders`' dots and
-    the `props`' [(dots, ink)] in their inks - an ink, or one a cell, (height, width, 3); the
+    the `props`' [(dots, ink[, over])] in their inks - an ink, or one a cell, (height, width,
+    3) -, where nothing covers them or, `over`, whatever does (a force's arrow); the
     `overlay`'s cells {(row, col): (codepoint, key)} over all (`callouts`). Lines, ANSI where
     `colour`."""
     np, _k, _f, _h, _p, bits, floor_ink, leader_ink = _const()
     covered = depth > 0.0
-    for dots, _ink in props:
-        leaders = dots if leaders is None else (leaders | dots)
+    over = np.zeros_like(covered)
+    for dots, _ink, *on_top in props:
+        if on_top and on_top[0]:
+            over = over | dots
+        else:
+            leaders = dots if leaders is None else (leaders | dots)
     lum = rgb @ (0.2126 / 255.0, 0.7152 / 255.0, 0.0722 / 255.0)
     pad = np.pad(depth, 1)
     steps = [pad[1:-1, :-2], pad[1:-1, 2:], pad[:-2, 1:-1], pad[2:, 1:-1]]
     edge = covered & np.any([(s == 0.0) | (np.abs(s - depth) > 0.04 * depth) for s in steps], 0)
-    lit = (covered & (0.04 + 0.96 * np.clip(lum, 0.0, 1.0) ** 1.5 > _mask(*depth.shape))) | edge
+    lit = (covered & (0.04 + 0.96 * np.clip(lum, 0.0, 1.0) ** 1.5 > _mask(*depth.shape))) | edge | over
     ground = (floor > 0.0) & ~covered
     lead = leaders & ~covered if leaders is not None else np.zeros_like(covered)
     cells = ((lit | ground | lead).reshape(height, DOTS_Y, width, DOTS_X) * bits).sum(axis=(1, 3))
@@ -184,8 +189,9 @@ def braille(depth, rgb, floor, width, height, colour=True, overlay=None, leaders
     ink = np.where((hits > 0)[..., None], body, floor_ink * shine[..., None])
     led = lead.reshape(height, DOTS_Y, width, DOTS_X).any(axis=(1, 3)) & no_hit
     ink = np.where(led[..., None], leader_ink, ink)
-    for dots, prop_ink in props:
-        on = dots.reshape(height, DOTS_Y, width, DOTS_X).any(axis=(1, 3)) & no_hit
+    for dots, prop_ink, *on_top in props:
+        on = dots.reshape(height, DOTS_Y, width, DOTS_X).any(axis=(1, 3))
+        on = on if on_top and on_top[0] else on & no_hit
         ink = np.where(on[..., None], np.asarray(prop_ink, float), ink)
     ink = (ink.astype(int) // INK_STEP) * INK_STEP
     key = np.where(cells > 0, (ink[..., 0] << 16) | (ink[..., 1] << 8) | ink[..., 2], -1)

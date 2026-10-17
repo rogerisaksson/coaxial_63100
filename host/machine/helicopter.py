@@ -51,6 +51,8 @@ WO_TURN, WO_PULL, WO_WIND = _OBS['turn_bandwidth'], _OBS['pull_bandwidth'], _OBS
 WIND_REG, MIN_AIR_M_S = _OBS['wind_regularization'], _OBS['min_air_speed']
 FLOOR_M, HOVER_M, TOP_M = (
     KINEMATICS['envelope'][k] for k in ('floor_height', 'hover_height', 'top_height'))
+#: The pull the law plans on, m/s^2: the head governed, boosted, at full collective.
+PULL_MAX = K_THRUST * (GOV_RAD_S * STUNT_BOOST) ** 2 / MASS_KG
 TICTOC_HZ, TICTOC_RAD = (
     KINEMATICS['oscillator'][k] for k in ('tictoc_frequency', 'tictoc_amplitude'))
 FUNNEL, SPIRAL, FLIP_IN, INVERTED, INV_PIRO, TICTOC, AILERON_TICTOC, PIRO_FLIP, CHAOS, HURRICANE, UNWIND = (
@@ -99,7 +101,6 @@ def _rotor_inflow(along, v_horiz, w_m):
 
 
 def _init_sky(sky, xml, rest):
-    """`sky` on MuJoCo's model of `xml`, its middle `rest` m over the floor at rest."""
     os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
     sky._mj, sky._np = importlib.import_module('mujoco'), importlib.import_module('numpy')
     sky.model = sky._mj.MjModel.from_xml_string(xml)
@@ -342,7 +343,8 @@ class Core:
         self.tic_phase = self.roll_ang = self.piro_ang = 0.0
         self.flip_ang, sign = (math.pi, -1.0) if inv >= 0.5 else (0.0, 1.0)
         a_norm = math.hypot(ax_des, ay_des, az_des) or GRAVITY
-        want_up = (sign * ax_des / a_norm, sign * ay_des / a_norm, sign * az_des / a_norm)
+        s_f = 1.0 if (ay_des if inv >= 0.5 else ay_thrust) >= 0.0 else -1.0
+        want_up = (sign * s_f * ax_des / a_norm, sign * ay_des / a_norm, sign * s_f * az_des / a_norm)
         r_des, w_ff = _smooth_target(self, want_up, sign, yaw, rate, float(row.get('pace', 0.0)), dt)
         ay_use = ay_des if inv >= 0.5 else ay_thrust
         return r_des, w_ff, MASS_KG * (ax_des * turn[0][1] + ay_use * turn[1][1] + az_des * turn[2][1]), stunt, inv
@@ -397,12 +399,12 @@ class Core:
         w_ref = max(w_gov, float(sp[0] if sp[0] > 1.0 else self.Controls[0]))
         along_u = sum(u[a] * turn[a][1] for a in range(3))
         f_comp = f_des / max(INFLOW_FLOOR, _rotor_inflow(along_u if f_des >= 0.0 else -along_u, math.hypot(u[0], u[2]), w_ref))
-        w_ask = min(w_top, max(w_gov, math.sqrt(abs(f_comp) / K_THRUST)))
+        w_ask = min(w_top, w_gov)
         w_cur = max(IDLE_RAD_S, float(sp[0]) if limits and sp[0] > 1.0 else w_ask)
         coll = max(-1.0, min(1.0, f_comp / (K_THRUST * w_cur * w_cur)))
         cyc_p, cyc_r = (max(-1.0, min(1.0, t / (K_CYC * w_cur * w_cur))) for t in (tau_x, tau_z))
         f_tail_des = (tau_y + _rotor_drag(coll, cyc_p, cyc_r, w_cur)) / TAIL_M
-        w_t_ask = min(w_tail_top, max(TAIL_GOV_RAD_S, math.sqrt(abs(f_tail_des) / K_TAIL), TAIL_RATIO * w_ask))
+        w_t_ask = min(w_tail_top, max(TAIL_GOV_RAD_S, TAIL_RATIO * w_ask))
         w_t_cur = max(IDLE_RAD_S, float(sp[1]) if limits and sp[1] > 1.0 else w_t_ask)
         tail_p = max(-1.0, min(1.0, f_tail_des / (K_TAIL * w_t_cur * w_t_cur)))
         controls = (coll, cyc_p, cyc_r, tail_p)

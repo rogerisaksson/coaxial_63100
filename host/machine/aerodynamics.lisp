@@ -32,11 +32,11 @@
   (blade_pitch 0.3556m)
   (inflow_floor 0.35))
 
-(defblock tail_rotor tail_125_antitorque
+(defblock tail_rotor tail_150_antitorque
   (boom_arm 0.68m)
-  (radius 0.125m)
+  (radius 0.15m)
   (pitch_limit 16.0deg)
-  (k_thrust 0.000024))
+  (k_thrust 0.000060))
 
 (defblock drive_load swashplate_tail_load
   (main_base 0.42)
@@ -61,9 +61,11 @@
   (k_lift 0.16)
   (k_pitch 0.0000172)
   (k_roll 0.0000180)
-  (k_yaw 0.0000145)
+  (k_yaw 0.0000300)
   (k_drag 0.000004220)
-  (inflow_floor 0.35))
+  (inflow_floor 0.35)
+  (gear_ratio 6.0)
+  (beat_pulse 0.30))
 
 (defblock drive_load ornithopter_wing_load
   (use swashplate_tail_load)
@@ -72,12 +74,19 @@
   (tail_pitch 1.35)
   (tail_ceiling 1.20))
 
+(defblock airframe monoplane_airframe
+  (use standard_airframe)
+  (parasite_cda 0.03))
+
 (defblock aero_surfaces unlimited_3d_monoplane
-  (wing_span 0.96m)
-  (wing_chord 0.18m)
-  (wing_area 0.1728)
+  (wing_span 1.30m)
+  (wing_chord 0.26m)
+  (wing_area 0.338)
   (prop_radius 0.2032m)
-  (prop_z 0.36m)
+  (prop_z 0.55m)
+  (tail_arm 0.55m)
+  (stab_area 0.060)
+  (fin_area 0.045)
   (k_thrust 0.0004520)
   (k_drag 0.000004060)
   (cl_alpha 4.2)
@@ -86,9 +95,9 @@
   (elevator_limit 45.0deg)
   (aileron_limit 38.0deg)
   (rudder_limit 48.0deg)
-  (k_pitch 0.0000184)
-  (k_roll 0.0000192)
-  (k_yaw 0.0000150)
+  (k_pitch 0.0000550)
+  (k_roll 0.0000400)
+  (k_yaw 0.0000500)
   (propwash_share 0.85)
   (inflow_floor 0.35))
 

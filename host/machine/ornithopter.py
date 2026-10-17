@@ -58,7 +58,11 @@ RIDGE_SOAR, THERMAL_SPIRAL, FOLD_ENTRY, SANDSTORM_DIVE, DIVE_PIRO = (STUNTS[k] f
     'ridge_soar', 'thermal_spiral', 'fold_entry', 'sandstorm_dive', 'dive_piro'))
 WING_ROCK, BANK_ROCK, DUNE_SLASH, CORIOLIS_STORM, DESERT_UNWIND, UNWIND = (STUNTS[k] for k in (
     'wing_rock', 'bank_rock', 'dune_slash', 'coriolis_storm', 'desert_unwind', 'unwind'))
-GEAR_RATIO = 2.0
+#: The crank's gear from a drive's turn to a beat: 9.7 Hz at the governor, a 2 kg flapper's.
+#: A pair's lift pulses BEAT_PULSE of its mean twice a beat, the pairs in antiphase: their
+#: sum steady, a pitching moment at the beat.
+GEAR_RATIO, BEAT_PULSE = _FW['gear_ratio'], _FW['beat_pulse']
+PULL_MAX = (GOV_RAD_S * STUNT_BOOST) ** 2 * K_THRUST / MASS_KG
 
 
 def drive_loads(controls):
@@ -127,13 +131,14 @@ class Sky(quad.Sky):
     """The 4-wing Dune ornithopter in MuJoCo on the floor among `things`."""
 
     def __init__(self, things=()):
-        self.yaw_force = 0.0
+        self.yaw_force, self.phase = 0.0, 0.0
         _init_sky(self, mjcf(things), SKID_M + FOOT_M)
 
     def reset(self):
         """Return the ornithopter to its claws at the origin, still, nothing struck."""
         super().reset()
         self.yaw_force, self.speeds, self.controls = 0.0, (0.0, 0.0), (0.0, 0.0, 0.0, 0.0)
+        self.phase = 0.0
 
     def state(self):
         """The ornithopter's state: `quad.Sky.state` plus `yaw_force`, `speeds`, and `controls`."""
@@ -161,14 +166,17 @@ class Sky(quad.Sky):
         ab = (K_PITCH * w_sq * pitch_t, f_yaw - _wing_drag(stroke, pitch_t, roll_d, w_eq),
               K_ROLL * w_sq * roll_d)
         dk, qv, xf = 0.5 * RHO * _wing_cda(stroke), d.qvel, d.xfrc_applied
+        beat, rock = w_eq / GEAR_RATIO, 0.5 * lift * BEAT_PULSE * (FORE_Z - AFT_Z)
         for _ in range(max(1, int(round(dt / STEP_S)))):
             t = d.xmat[f].reshape(3, 3)
+            self.phase = (self.phase + beat * STEP_S) % math.tau
             vx, vy, vz = float(qv[0]) - wx, float(qv[1]) - wy, float(qv[2]) - wz
             dr = dk * math.sqrt(vx * vx + vy * vy + vz * vz)
             xf[f, :3] = (lift * float(t[0, 1]) - dr * vx,
                          lift * float(t[1, 1]) - dr * vy,
                          lift * float(t[2, 1]) - dr * vz)
-            xf[f, 3:] = tuple(float(t[r, 0]) * ab[0] + float(t[r, 1]) * ab[1]
+            ab0 = ab[0] + rock * math.cos(2.0 * self.phase)
+            xf[f, 3:] = tuple(float(t[r, 0]) * ab0 + float(t[r, 1]) * ab[1]
                               + float(t[r, 2]) * ab[2] for r in range(3))
             self._mj.mj_step(self.model, d)
             if d.ncon and self.hit is None:
@@ -240,7 +248,9 @@ class Core:
         self.tic_phase = self.roll_ang = self.piro_ang = 0.0
         self.flip_ang, sign = (math.pi, -1.0) if inv >= 0.5 else (0.0, 1.0)
         a_norm = math.hypot(ax_des, ay_des, az_des) or GRAVITY
-        want_up = (sign * ax_des / a_norm, sign * ay_des / a_norm, sign * az_des / a_norm)
+        # Pulled the other way along its axis - a burn's brake - a lean leans it the other way.
+        s_f = 1.0 if (ay_des if inv >= 0.5 else ay_thrust) >= 0.0 else -1.0
+        want_up = (sign * s_f * ax_des / a_norm, sign * ay_des / a_norm, sign * s_f * az_des / a_norm)
         r_des, w_ff = _smooth_target(self, want_up, sign, yaw, rate, float(row.get('pace', 0.0)), dt)
         ay_use = ay_des if inv >= 0.5 else ay_thrust
         f_des = MASS_KG * (ax_des * turn[0][1] + ay_use * turn[1][1] + az_des * turn[2][1])
@@ -309,7 +319,7 @@ class Core:
         along_u = sum(u[a] * turn[a][1] for a in range(3))
         f_comp = f_des / max(INFLOW_FLOOR, _flap_inflow(
             along_u if f_des >= 0.0 else -along_u, math.hypot(u[0], u[2]), w_ref))
-        w_f_ask = min(w_top, max(w_gov, math.sqrt(abs(f_comp) / K_THRUST)))
+        w_f_ask = min(w_top, w_gov)
         w_f_cur = max(IDLE_RAD_S, float(sp[0]) if limits and sp[0] > 1.0 else w_f_ask)
 
         stroke = max(-1.0, min(1.0, f_comp / (K_THRUST * w_f_cur * w_f_cur)))
@@ -317,8 +327,7 @@ class Core:
         roll_d = max(-1.0, min(1.0, tau_z / (K_ROLL * w_f_cur * w_f_cur)))
 
         tau_yaw_des = tau_y + _wing_drag(stroke, pitch_t, roll_d, w_f_cur)
-        w_a_ask = min(w_aft_top, max(AFT_GOV_RAD_S, math.sqrt(abs(tau_yaw_des) / K_YAW),
-                                     AFT_RATIO * w_f_ask))
+        w_a_ask = min(w_aft_top, max(AFT_GOV_RAD_S, AFT_RATIO * w_f_ask))
         w_a_cur = max(IDLE_RAD_S, float(sp[1]) if limits and sp[1] > 1.0 else w_a_ask)
         w_sq_cur = 0.5 * (w_f_cur * w_f_cur + w_a_cur * w_a_cur)
         stroke = max(-1.0, min(1.0, f_comp / (K_THRUST * w_sq_cur)))
