@@ -98,6 +98,7 @@ def laid(every=1, inner=None, solver=None):
          'free_kp': world.gains[:, 0].copy(), 'clamp': world.limit.copy(), 'wep_lim': wep_lim, 'joints': joints,
          'hold': np.zeros(len(body.clamp)), 'left': WEP_S, 'ref_q': q0.copy(), 'ref_v': np.zeros(len(q0)),
          'sense': sense, 'est': est, 'grip': grip.laid(), 'grip_prior': grip.laid(), 'surfaces': surfaced(),
+         'grip_seen': np.zeros((2, grip.SEEN)),
          'grip_at': np.array([[m.body(s0 + part).id for part in ('foot', 'toes')] for s0 in ('left_', 'right_')]),
          'q_lo': np.array([_Q_LIM.get(kind(j), (-2.0, 2.0))[0] for j in names]), 'q_hi': np.array([_Q_LIM.get(kind(j), (-2.0, 2.0))[1] for j in names]),
          't': float(world.data.time), 'n': 0, 'every': every, 's': s, 'loads': [hw, hw], 'ask': {}, 'got': {}, 'wo': ESO_WO * (inner == 'eso'),
@@ -164,6 +165,7 @@ def reset_for_scenario(g, scen):
             or tilt(g) > 2.0 or doing(g) != 'rest' or len(g['tab']) > 0):
         world.reset(figure.stand(), where=(0.0, g['rest_y'], 0.0))
         g['est'], g['grip'], g['grip_prior'] = estimate.laid(body, d.qpos[0:3]), grip.laid(), grip.laid()
+        g['grip_seen'][:] = 0.0
         s = g['s'] = _sensed(body, g['est'], edge.read(world, g['sense']), g['limbs'])
         hw, q0 = 0.5 * float(g['fr'][modal.WEIGHT]), g['sense'][edge.Q][g['joints']]
         g['loads'], g['heading'], g['target_heading'] = [hw, hw], 0.0, None

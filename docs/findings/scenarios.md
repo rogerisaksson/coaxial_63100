@@ -316,23 +316,28 @@ at her torso and hands, strafes 1.1-1.9, a hop down 11.7.
   her step asked against what a sole used, the drives' lag at a walk's start
   read 0.05 on a floor of 1.0; read as her soles' speed apart in double support,
   rolling soles read 0.05 m/s and more in 94 of 216 passes.
-- Felt: the slick patch 0.065 0.37 s after its first slide, the ice (0.1)
-  0.104-0.125 within 0.15 s, snow at or over its 0.35, asphalt and a player's
-  turns 0.6 throughout.
+- Read in two passes a slide's share took the slick patch to 13 of 13 wobbles,
+  but past 0.15 m/s her estimator reads a turnabout's pivot, a shove's skid, a
+  weave's and a trip over the sill as slides, and the bench lost the turnabout,
+  the sill and 5 walking shoves. A slide counts with the floor's friction
+  against it (45 deg) and its share held within 5 % over 4 passes: on the ice
+  0.099-0.101 while its load fell 348 -> 194 N, read 9 ms after it set out; the
+  shove's skid read 0.174 -> 0.137, the sill's edge 0.122 -> 0.096.
 - On it: her centre of mass asked along the floor no harder than her standing
   soles' grip times g; her going no faster than sqrt(2 STRIDE_M grip g), 0.77
   m/s on ice; a sole landing no further from her than grip times her height,
-  0.09 m on ice; each sole's cone its grip (`wrench`, `wbc_cone.c`). Her level
-  walk the same to the digit; walking 80 N shoves 29 -> 30 of 32. Ice down at
-  4.8-4.9 s where 4.3-4.4, the slick patch at 3.0-4.4: she meets both at 0.69
-  m/s and slides before anything has slid.
+  0.09 m on ice; each sole's cone its grip (`wrench`, `wbc_cone.c`); a surface's
+  text capping her rhythm. Her law takes the grip only outside her envelope -
+  under the highest surface's grip, 0.25 -; a sole landing starts from what she
+  knows of the floor: kept from the slick patch, her reach was 5 cm on a floor
+  of 1.0 for a second and she fell there.
 - A surface is text (`machine/surfaces.lisp`, `(defsurface NAME (grip G) ..)`):
   under its grip her rhythm's amplitudes no more than its, whatever she does,
   blended in over the fifth under G; one so far, slippery under 0.25 with
   `ice_walk`'s shape. What she is told of the floor - by a player or her eyes,
-  the `grip` command - is the grip her estimate goes back to when nothing
-  slides.
-- Told the ice's 0.1 before she meets it she walks it standing at 3 of 3
-  wobbles, 1.63 m in the scene's 6 s. Unaware she is down at 4.6-7.2 s, 4.55 m
-  on at one wobble; the slick patch, told or not, at 3.2-3.6 s: her toes on it
-  as she sets out slide on their first push.
+  the `grip` command - is her grip's prior.
+- Her level walk the same to the digit; the bench 60 of 90 scenes, 80 N standing
+  32 and walking 29 as before her grip. Told the ice's 0.1 she crosses it
+  standing at 13 of 13 wobbles (`ice_told`); unaware ice 1 of 13, down at
+  5.5-6.7 s; the slick patch 6 of 13: after the first slide, not before it, is
+  what she does not yet meet.

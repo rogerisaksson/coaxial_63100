@@ -80,9 +80,12 @@ def test_her_grip_bounds_her_rhythm(report):
     frames = np.broadcast_to(np.eye(3), (2, 2, 3, 3))
     touch = np.zeros((len(grip.edge.SKIN), 3))
     touch[grip.SOLES[:, 0]] = (8.0, 300.0, 0.0)
-    slid = grip.felt(np.full(2, MU), frames, touch, np.array([0.5, 0.0, 0.0]), 550.0, 1.0)
-    held_on = grip.felt(np.full(2, 0.01), frames, touch, np.zeros(3), 550.0, 1e-3)
-    report.check('a sliding sole\'s grip is the share it used, a holding one\'s at least that',
+    touch[grip.SOLES[:, 0]] = (-8.0, 300.0, 0.0)
+    seen, slid = np.zeros((2, grip.SEEN)), np.full(2, MU)
+    for _ in range(grip.SEEN):
+        slid = grip.felt(slid, seen, frames, touch, np.array([0.5, 0.0, 0.0]), 550.0, 1.0)
+    held_on = grip.felt(np.full(2, 0.01), np.zeros((2, grip.SEEN)), frames, touch, np.zeros(3), 550.0, grip.TRUST_S)
+    report.check('a sole sliding at one share its last passes has that grip, a holding one at least it',
                  np.allclose(slid, 8.0 / 300.0) and (held_on >= 8.0 / 300.0).all(), '%s, %s' % (slid, held_on))
 
 

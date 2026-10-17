@@ -210,7 +210,7 @@ gets a line at the end of [DONE](DONE.md).
 
 Each a test in MuJoCo: placed, commanded as a player would, judged by no
 fall, its goal reached and its jerk (`tools/sim/scenarios.py`; those that hold
-in `test_scenarios`, 19 of 30 at every wobble now:
+in `test_scenarios`, 20 of 31 at every wobble now:
 [scenarios](findings/scenarios.md)). In order: each a mechanism, the scenes it
 serves its DOD; none an entry a case.
 
@@ -249,9 +249,10 @@ serves its DOD; none an entry a case.
    a sole's room a line along its blade, free along it, held across it. As
    it is: her grip felt as a sole slides (`machine.grip`) or told, her
    centre of mass, her going, her landings and her step's cones bounded by
-   it, a surface's text capping her rhythm under its grip (`surfaces.lisp`);
-   told, she walks the ice standing; unaware, ice (0.1) and the slick patch
-   (0.06) down before 7 s (scenarios.md). DOD: asphalt, snow and ice
+   it outside her envelope, a surface's text capping her rhythm under its
+   grip (`surfaces.lisp`); told, she crosses the ice at 13 of 13 wobbles;
+   unaware, ice (0.1) 1 of 13 and the slick patch (0.06) 6: her recovery
+   from the first slide (scenarios.md). DOD: asphalt, snow and ice
    estimated within 20 % a second after she meets them, each walked 3 times
    in 4 with its text; on skates she stands 10 s and goes 2 m by strides
    across her blades.

@@ -14,7 +14,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
-from machine import borne, edge, estimate, grip, impedance, latent, modal, se2, stride, support, touch, wbc
+from machine import borne, edge, estimate, flight, grip, impedance, latent, modal, se2, stride, support, touch, wbc
 
 
 def seen(g, dt):
@@ -75,11 +75,13 @@ def control(g, dt):
     from machine import sprung
     body, ev, y_in = g['body'], g['every'], g['sense']
     s = g['s'] = seen(g, dt * ev)
-    g['grip'] = grip.felt(g['grip'], body.d.xmat[g['grip_at']].reshape(2, 2, 3, 3), y_in[edge.TOUCH].reshape(-1, 3),
-                          g['est']['slip'], float(g['fr'][modal.WEIGHT]), dt * ev, g['grip_prior'])
+    g['grip'] = grip.felt(g['grip'], g['grip_seen'], body.d.xmat[g['grip_at']].reshape(2, 2, 3, 3),
+                          y_in[edge.TOUCH].reshape(-1, 3),
+                          g['est']['slip'], float(g['fr'][modal.WEIGHT]), dt * ev, g['grip_prior'],
+                          (y_in[edge.LOAD] >= flight.TOUCH_N) & ~np.array(g.get('bore', (True, True))))
     g['loads'] = [float(v) for v in y_in[edge.LOAD]]
     y = modal.sensed(s, g['loads'], g['y'])
-    y[modal.GRIP] = g['grip']
+    y[modal.GRIP] = g['held'] = grip.outside(g['grip'], g['surfaces'][0])
     thd, cur_doing = g.get('target_heading'), sprung.doing(g)
     if thd is not None:
         g['heading'] += max(-1.6 * dt * ev, min(1.6 * dt * ev, se2.wrap_angle(thd - g['heading'])))
@@ -99,7 +101,7 @@ def control(g, dt):
         out = latent.step(g['st'], g['tab'], g['t'], 0.0, g['out'])
     g['_last_way'] = cw
     se2.step_physical_twist(g, dt * ev, out)
-    gripped(out, g['grip'], g['a'][modal.STANCE], g['surfaces'])
+    gripped(out, g['held'], g['a'][modal.STANCE], g['surfaces'])
     cur_doing = sprung.doing(g)
     touch.check_contacts(g, out, cur_doing)
     ae, tw = g.get('active_entry'), g.get('twist', (0.0, 0.0, 0.0))
@@ -115,7 +117,7 @@ def control(g, dt):
     if backing and abs(g['_look_yaw']) > 1e-3 and cur_doing not in sprung.STUNT_PHASES and g.get('waist_idx') is not None:
         imp[modal.HEADED][1] = g['posture'][g['waist_idx']]
     ask = g['ask'] = modal.given(imp, y, g['fr'], g['posture'], g['bend'], g['arms'], body.knees)
-    ask['mu'] = g['grip']
+    ask['mu'] = g['held']
     support.shape_hop_and_support(g, ask, out, cur_doing)
     s_solve, cv = s, list(g.get('cervical', ()))
     if (cur_doing in ('load', 'throw', 'land') or ae == 'hop') and ae not in ('hop_up_chair', 'hop_down_chair', 'controlled_fall'):
