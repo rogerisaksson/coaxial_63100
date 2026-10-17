@@ -122,6 +122,7 @@ TOUCHES = (
     ('host/tools/sim/gvs.py',                  (STRUCTURE, GVS)),
     ('host/tools/sim/replay.py',               (STRUCTURE, REPLAYS)),
     ('host/tools/sim/scenarios.py',            (STRUCTURE, SCENES)),
+    ('host/tools/sim/jerk.py',                 (STRUCTURE,)),
     ('host/tools/sim/bench.py',                (STRUCTURE,)),
     ('host/tools/cores/manifest.py',           (STRUCTURE, 'test_mirrors.py', ORTHO)),
     ('host/tests/replays/',                    (REPLAYS,)),

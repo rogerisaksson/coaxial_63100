@@ -119,6 +119,28 @@ plain walk the same bit for bit (her pose hashed each second for 20 s).
 - Either side or its own, `play_about` the same: its left lands at 6.75 s (6.9
   unhurried), the capture point still 5 cm past it.
 
+## Jerk
+
+Each segment's peak jerk (`tools/sim/jerk.py`, 20 ms windows) against her steady
+walk's - pelvis 927, torso 774, head 1262, hands 2238-2359, feet 4065-4136
+m/s^3: a walk's start 3.5-4.3 at her core and head, turns and the weave 6.3-8.2
+at her torso and hands, strafes 1.1-1.9, a hop down 11.7.
+
+- A start's spikes sit on its first landings, the trailing sole leaving 9 ms
+  after the other lands: its toe's 13-65 N stood it and let it go each law pass,
+  her asked acceleration 1.2 m/s^2 across and back every 3 ms. Her asked jerk
+  is no higher there than walking (p99 343 against 439 m/s^3); the weave's is
+  4 times (1767).
+- At the window's switch, a start's and a steady step's are alike: 21 ms after
+  the other landed, it bearing about half her load. Out of her support region
+  in one pass, her weight swung between the soles every 10 ms and her head
+  went 22 m/s^2 across.
+- That sole's share let go over her rhythm's double support: starts 4.0 -> 2.5,
+  her walk 412 -> 448 J/m, 2.61 -> 2.78 off a woman's. A released sole kept
+  down until its swing: `play_about` 11 of 13 wobbles, walking shoves 28, but
+  at the tree she stepped in place for good - need 1 each step, no double
+  support to settle in: her stop rests on that sole standing again.
+
 ## The terrain's scenes
 
 - The base plane, the hole's bottom 10 cm down, lay over every descent: the stairs

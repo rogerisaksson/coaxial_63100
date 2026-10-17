@@ -9,7 +9,8 @@ A scenario is a scene (`floor.scenario`, or a chair or a bed set at her) and its
 seconds, given through her worker's own session (`worker.apply`, `worker.stepped`) as the page
 gives them. The referee reads the world's truth her law never sees: whether she fell
 (`worker._is_fallen`), what bore her - the floor, a chair, a mattress, a wall -, where her pelvis
-went, and her head's and pelvis's jerk through a 20 ms window, its 99th percentile.
+went, and each segment's jerk (`JERKED`) through a 20 ms window, its 99th percentile and its
+peak.
 """
 import argparse
 import json
@@ -25,6 +26,8 @@ WALK, STOP = (0.69, 0.0, 0.0), (0.0, 0.0, 0.0)
 BEARS = {'chair': 'chair', 'prop_bed': 'bed', 'wall': 'wall', 'tree': 'tree'}
 #: A goal held this long, s; jerk through this window, s; an obstacle met past this, N.
 HELD_S, JERK_S, MET_N = 1.0, 0.02, 20.0
+#: The segments whose jerk is judged: her core, her head, her hands and her feet.
+JERKED = ('pelvis', 'torso', 'head', 'left_hand', 'right_hand', 'left_foot', 'right_foot')
 
 
 def _walk(seconds, then=6.0):
@@ -62,7 +65,8 @@ SCENARIOS = {
 KEYS = {'w': WALK, 's': (-0.35, 0.0, 0.0), 'a': (0.0, 0.5, 0.0), 'd': (0.0, -0.5, 0.0),
         'wa': (0.69, 0.0, 0.7), 'wd': (0.69, 0.0, -0.7), 'q': (0.0, 0.0, 0.7), 'W': (1.4, 0.0, 0.0), '-': STOP}
 PLAYS = {'start_stop': 'w3 -3 w3 -3', 'turns': 'w2 wa2 wd2 -3', 'strafes': 'a2 d2 -3', 'reverse': 'w2 s2 w2 -3',
-         'sprint': 'w2 W3 w2 -3', 'spin': 'q3 -3', 'weave': 'w1 wa1 w1 wd1 w1 -3', 'about': 'q2 wa1 w2 -3'}
+         'sprint': 'w2 W3 w2 -3', 'spin': 'q3 -3', 'weave': 'w1 wa1 w1 wd1 w1 -3', 'about': 'q2 wa1 w2 -3',
+         'walk': 'w10 -2', 'moves': 'w2 wa2 a2 s2 W2 -3'}
 
 
 def _played(keys):
@@ -149,6 +153,7 @@ def ran(name, wobble=0.0):
     kinds = {m.body(n).id: k for n, k in BEARS.items()}
     weight = float(s['g']['fr'][modal.WEIGHT])
     head, force = m.body('head').id, np.zeros(6)
+    jerked = [m.body(n).id for n in JERKED]
     track, fell, hit, k, bore, most = [], None, None, 0, {}, {}
     plan = sorted(plan, key=lambda c: c[0])
     while s['g']['t'] < seconds and s['epoch'] == 0:
@@ -162,7 +167,7 @@ def ran(name, wobble=0.0):
         speed_head = float(np.linalg.norm(d.cvel[head][3:]))
         if fell is not None and hit is None and float(d.xpos[head][1]) < 0.25:
             hit = speed_head
-        track.append((g['t'], *d.qpos[0:3].tolist(), *d.xpos[head].tolist()))
+        track.append((g['t'], *d.qpos[0:3].tolist(), *d.xpos[jerked].ravel().tolist()))
         if g['n'] % 10 == 0:
             now = borne(world, hers, kinds, force)
             for kind, n in now.items():
@@ -173,8 +178,9 @@ def ran(name, wobble=0.0):
     t = np.array(track)
     w = max(1, int(JERK_S / 0.001))
     smooth = lambda p: np.cumsum(p, axis=0)[w:] / w - np.cumsum(p, axis=0)[:-w] / w
-    jerk = lambda p: (float(np.percentile(np.linalg.norm(np.diff(smooth(p), n=3, axis=0), axis=1), 99) / 0.001 ** 3)
-                      if len(p) > 4 * w else math.nan)
+    jerks = lambda p: np.linalg.norm(np.diff(smooth(p), n=3, axis=0), axis=1) / 0.001 ** 3
+    cut = lambda f: {seg: round(float(f(jerks(t[:, 4 + 3 * k:7 + 3 * k]))), 1) if len(t) > 4 * w else math.nan
+                     for k, seg in enumerate(JERKED)}
     end = s['g'].get('_borne', {})
     out = {'name': name, 'stood': fell is None, 'fell_at': fell, 'goal': goal, 'aim': aim,
            'went': round(float(t[-1, 3] - t[0, 3]), 3), 'rose': round(float(t[-1, 2] - t[0, 2]), 3),
@@ -182,7 +188,7 @@ def ran(name, wobble=0.0):
            'bore': {kd: round(v, 2) for kd, v in bore.items()},
            'touched': {kd: round(v) for kd, v in most.items() if kd != 'floor'},
            'on_soles': round(end.get('floor', 0.0) / weight, 2), 'head_hit': hit,
-           'jerk_pelvis': round(jerk(t[:, 1:4]), 1), 'jerk_head': round(jerk(t[:, 4:7]), 1)}
+           'jerk': cut(lambda j: np.percentile(j, 99)), 'jerk_peak': cut(np.max)}
     out['met'] = judged(out)
     return out
 

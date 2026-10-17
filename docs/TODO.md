@@ -203,8 +203,10 @@ gets a line at the end of [DONE](DONE.md).
   twist and verbs only; the worker still branches on `_twist_active` and entry
   names - a gait said and a gait twisted run apart, the WEP grant the twist's
   alone. DOD: the worker never knows which.
-- **No jerk in a transition**: DOD: every segment's peak jerk through a run
-  of transitions (stand, walk, turn, strafe, back, stop, sit, rise, hop) no
+- **No jerk in a transition**: `tools/sim/jerk.py` reads the worst at 11.7
+  of her steady walk (a hop down's hands); a walk's start 4.3 (head), its
+  first landings; turns and the weave 7.8-8.2 (hands). DOD: every segment's
+  peak through stand, walk, turn, strafe, back, stop, sit, rise, hop no
   higher than in her steady walk; a test holds it.
 
 ## Scenarios
