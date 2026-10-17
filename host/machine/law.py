@@ -14,7 +14,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
-from machine import borne, edge, estimate, flight, grip, impedance, latent, modal, se2, stride, support, touch, wbc
+from machine import borne, edge, estimate, flight, grip, impedance, latent, modal, poise, se2, stride, support, touch, wbc
 
 
 def seen(g, dt):
@@ -69,6 +69,31 @@ def gripped(out, held, stance, surfaces):
     out[latent.SWAY] *= k
 
 
+def risen_back(g, dt):
+    """Rows that raise her - her height asked up - while something bears her off her soles wait a
+    pass, every row after them with them, while her capture point is off her soles: thrust up off
+    a bed on the clock, her centre of mass 14 cm behind her soles' middle, she rose, her trunk
+    came up and she stepped back as it let her go."""
+    tab, t, y, fr = g['tab'], g['t'], g['y'], g['fr']
+    if not len(tab) or y[modal.PROP] <= 0.0:
+        return
+    rot = fr[modal.ROT].reshape(3, 3)
+    c, v = rot @ y[modal.COM], rot @ y[modal.VCOM]
+    xi = c[:2] + v[:2] / math.sqrt(modal.G / max(float(c[2] - fr[modal.FLOOR]), 0.3))
+    lo, hi = poise.boxes((y[modal.SOLE].reshape(2, 3) @ rot.T)[:, :2], g['a'][modal.EDGE], y[modal.TILT])
+    if (xi >= lo.min(axis=0)).all() and (xi <= hi.max(axis=0)).all():
+        return
+    at, axial = tab[:, latent.AT], modal.AXIAL
+    rises = ((tab[:, latent.SAID][:, latent.Z][:, axial] > 0.5)
+             & (tab[:, latent.VALS][:, latent.Z][:, axial] < g['st'][latent.TO][latent.Z][axial] - 1e-6))
+    due = rises & (at <= t + latent.EDGE_S) & (at > t - dt + latent.EDGE_S)
+    if not due.any():
+        return
+    first = float(at[due].min()) - latent.EDGE_S
+    at[at >= first] += dt
+    g['labels'] = [(w + dt if w >= first else w, n) for w, n in g['labels']]
+
+
 def control(g, dt):
     """A pass of her latent loop on what she senses: `g['got']` solved, `g['leg_kp']` her legs'
     stiffness by their stance."""
@@ -94,6 +119,7 @@ def control(g, dt):
             ph = fut[0, latent.SAID][latent.PHASE] > 0.5
             g['st'][latent.NOW][latent.PHASE] = np.where(ph, fut[0, latent.VALS][latent.PHASE], g['st'][latent.NOW][latent.PHASE])
     held_back(g, dt * ev)
+    risen_back(g, dt * ev)
     out = latent.step(g['st'], g['tab'], g['t'], dt * ev, g['out'])
     cw = -1.0 if (math.sin(float(out[latent.PSI][modal.LATERAL]) - float(out[latent.PSI][modal.DRIVE])) * (1.0 if float(out[latent.SWAY][modal.LATERAL]) >= 0.0 else -1.0) < -0.5) else 1.0
     if g.get('_last_way') is not None and cw != g['_last_way'] and (g['st'][latent.NOW][latent.GAIN] > 0.05 or abs(float(out[latent.SWAY][modal.DRIVE])) > 0.02):

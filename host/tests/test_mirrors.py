@@ -54,6 +54,8 @@ MIRRORS = (
      'board/inc/board_limits.h', 'DAQ_BYTES', 1.0),
     ('coaxial.devices.boot', 'CHUNK', 'boot/inc/boot.h', 'BOOT_CHUNK_BYTES', 1.0),
     ('machine.wbc', 'MU', 'wbc/inc/wbc.h', 'WBC_MU', 1.0),
+    ('machine.wrench', 'ROUNDS', 'wbc/inc/wbc.h', 'WBC_ROUNDS', 1.0),
+    ('machine.wrench', 'PAST', 'wbc/inc/wbc.h', 'WBC_PAST', 1.0),
     ('coaxial.devices.boot', 'UID_BYTES', 'boot/inc/boot.h', 'BOOT_UID_BYTES', 1.0),
     ('coaxial.devices.boot', 'WORD', 'boot/inc/boot.h', 'BOOT_WORD_BYTES', 1.0),
     ('coaxial.devices.boot', 'HEADER', 'boot/inc/boot.h', 'BOOT_HEADER_OFFSET', 1.0),

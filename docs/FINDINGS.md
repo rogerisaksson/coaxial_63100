@@ -377,6 +377,7 @@ Six firmware defects, no hardware fault:
 | Humanoid robot whole body's step without an active set: 21 unknowns, four solves | [findings/wrench.md](findings/wrench.md) |
 | What her law senses: edge, estimate, insoles | [findings/sensing.md](findings/sensing.md) |
 | Her scenarios as a player commands them | [findings/scenarios.md](findings/scenarios.md) |
+| Her floor's grip: felt as a sole slides, told, her law bounded by it | [findings/grip.md](findings/grip.md) |
 | Build, buses, falls, drawing, clothes | [findings/body.md](findings/body.md) |
 | Drives: motors, gearboxes, inverters, sizing | [findings/drives.md](findings/drives.md) |
 | One stack for every drive: demand, candidates, stacks as built | [findings/stacks.md](findings/stacks.md) |

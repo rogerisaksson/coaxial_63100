@@ -607,7 +607,7 @@ void wbc_wrench_step(wbc_body_t *b, wbc_wrench_t *w, const wbc_frame_t *base,
   /* WBC_ROUNDS solves: the clipped parts pinned, her height held to its band's edge once past */
   memset(pinned, 0, sizeof(pinned));
   memset(at, 0, sizeof(at));
-  for (int round = 0; round < WBC_ROUNDS; round++)
+  for (int round = 0, rounds = WBC_ROUNDS; round < rounds; round++)
   {
     double ay, past, held = 0.0, clipped = 0.0;
 
@@ -681,6 +681,15 @@ void wbc_wrench_step(wbc_body_t *b, wbc_wrench_t *w, const wbc_frame_t *base,
     {
       pinned[c] = (moved[c] > pinned[c]) ? moved[c] : pinned[c];
       clipped += pinned[c];
+    }
+    /* an answer past her height's band after the rounds is held to its edge (machine/wrench.py) */
+    ay = (stance[0] * at[4] + stance[1] * at[10]) / mass - G;
+    if ((round == rounds - 1) && (rounds < WBC_ROUNDS + WBC_PAST) && (ask->strides == 0.0) && (grounded > 0.0)
+        && (fabs(clip(ay, lo, hi) - ay) > 1e-9))
+    {
+      band = 1.0;
+      edge = clip(ay, lo, hi) + G;
+      rounds++;
     }
     bent = clipped + band;
     if ((bent == 0.0) || (ask->strides >= 1.0))

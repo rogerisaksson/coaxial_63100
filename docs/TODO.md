@@ -216,9 +216,9 @@ serves its DOD; none an entry a case.
 
 1. **Her support, whatever bears her** (`machine.borne`): a segment the skin
    feels pushed up is in her support region, grounds her, and is a contact of
-   her whole-body step. Met: the chair, 13 of 13 wobbles; a bed's edge,
-   reclined 0.44 rad, 7 of 13 - she sits over one sole on its soft edge and a
-   lifting sole steps her (2). Open: lying flat, her pelvis and trunk pitched
+   her whole-body step. Met: the chair, 13 of 13 wobbles; the bed 11 - rising
+   at -5e-4 the mattress's share flickers (2), at 2e-4 it bears half her
+   weight 0.51 s of 1. Open: lying flat, her pelvis and trunk pitched
    apart; the floor mattress, down past her soles before anything bears her
    (4); `wbc_wrench.c` without contacts. DOD: chair, soft bed and floor
    mattress, down and up.
@@ -252,7 +252,7 @@ serves its DOD; none an entry a case.
    it outside her envelope, a surface's text capping her rhythm under its
    grip (`surfaces.lisp`); told, she crosses the ice at 13 of 13 wobbles;
    unaware, ice (0.1) 1 of 13 and the slick patch (0.06) 6: her recovery
-   from the first slide (scenarios.md). DOD: asphalt, snow and ice
+   from the first slide (grip.md). DOD: asphalt, snow and ice
    estimated within 20 % a second after she meets them, each walked 3 times
    in 4 with its text; on skates she stands 10 s and goes 2 m by strides
    across her blades.

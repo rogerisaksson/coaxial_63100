@@ -210,6 +210,8 @@ void wbc_stack_step(wbc_body_t *b, wbc_stack_t *s, const wbc_frame_t *base,
 #define WBC_U (12 + WBC_DRIVEN - 12)
 /** Its rounds of clipping, and of faces striding. */
 #define WBC_ROUNDS 4
+/** Rounds more, at most, for an answer past her height's band after them (machine.wrench.PAST). */
+#define WBC_PAST 2
 /** Her law's own friction, a sole's, before she has felt a floor (machine.wbc.MU). */
 #define WBC_MU 0.6
 #define WBC_PASSIVE (WBC_N - 6 - WBC_DRIVEN - WBC_HELD)

@@ -42,6 +42,8 @@ ROOM = np.array([SOLE_HALF - EDGE_M, (BALL + HEEL) / 2.0 - EDGE_M])
 #: asked 17 000 rad/s^2, at 0.05 she left the floor 8 mm where 20; a knee nearer straight than
 #: KNEE_MIN rad is sprung back.
 ROUNDS, DAMP, KNEE_MIN = 4, 0.02, 0.07
+#: Rounds more, at most, for an answer past her height's band after them.
+PAST = 2
 #: The rows' weights. Her centre of mass along the floor, m/s^2, all but exact; the turns and a
 #: swinging sole, rad/s^2 and m/s^2 - the sole at a third of the turns the walk fell at its 7th
 #: step -; her standing knees' posture, rad/s^2 - at 1, 60 N felled her 2 times of 8 -; the
@@ -257,7 +259,8 @@ def step(b, s, ask):
     pinned, at, band, edge = np.zeros(nu), np.zeros(nu), 0.0, 0.0
     lo, hi = a[1] - HEIGHT_BAND, a[1] + HEIGHT_BAND
     rows0, pressed = (H0, g0), np.ones(len(contacts))
-    for _ in range(ROUNDS):
+    done, rounds = 0, ROUNDS
+    while done < rounds:
         H0 = rows0[0] + sum(p * S.T @ S for p, (S, _r) in zip(pressed, still))
         g0 = rows0[1] + sum(p * S.T @ r for p, (S, r) in zip(pressed, still))
         # a clipped force is held by a row, W_PIN its weight's share; a clipped moment is its
@@ -277,6 +280,14 @@ def step(b, s, ask):
         at, held = pushed(at, [c['f'][1] for c in contacts])
         pressed = pressed * (u[NU + 1:NU + k3:3] >= 0.0)
         pinned = np.maximum(pinned, np.maximum(moved, held))
+        done += 1
+        # an answer past her height's band after the rounds - a contact let go in the last, its
+        # solve never held to it - is held to its edge: off a mattress's edge the step planned 145
+        # N up of her 358 asked and the edge took 309 along its normal, 23 deg ahead
+        ay = float(sumf[1] @ at) / mass - G
+        if (done == rounds < ROUNDS + PAST and not ask.get('strides')
+                and grounded * abs(float(np.clip(ay, lo, hi)) - ay) > 1e-9):
+            band, edge, rounds = 1.0, float(np.clip(ay, lo, hi)) + G, rounds + 1
     u, strides = at, float(ask.get('strides', 0.0))
     if strides > 0.0:
         keep = W_KEEP * np.concatenate([each, np.zeros(nu - 12)]) * part

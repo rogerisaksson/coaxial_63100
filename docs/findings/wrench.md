@@ -67,6 +67,11 @@ their play; the step in C stands the python step's 8 / 6 / 4 / 2 / 0.
 - Her height follows her standing knees' posture inside the band, as on
   the stack: asked alone her knees went straight in 0.35 s, 6 to 0 deg, and
   the leg's inverse with them.
+- An answer past the band after the rounds - a contact let go in the last,
+  its solve never held to it - is held to its edge in up to 2 rounds more,
+  not striding (`PAST`, `WBC_PAST`): on the bed 417 of 4046 passes ended
+  past it, 2.16 m/s^2 at the median and 4.34 at p90, then 0.01 and 0.22;
+  the chair 3 to 0; her walk and her stand none of 4667.
 - Open. 80 N and over: 4, 3 and 1 of 8 where the stack 7, 8 and 6. Her
   walk's 1 400 J/m: the clamps clip after the solve. The step in C and its
   tick on the M7. Stops but the knees'.

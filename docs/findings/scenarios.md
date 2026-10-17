@@ -215,6 +215,11 @@ at her torso and hands, strafes 1.1-1.9, a hop down 11.7.
   to her floor, her rate from her centre of mass - she still fell at 2.87-3.0 s
   and the slope earlier; each sole landed past the edge it met, the sill fell
   at 6.8 s.
+- A swing past its rhythm's end and not down checking her going as far as it is
+  late: up the ramp 0 -> 5 of 13 wobbles, but her stop at the tree, stepping in
+  place, moved at one (12 of 13). Only past 70 ms of lateness - her plain walk's
+  and turns' swings 7 ms late at most, stepping in place at the tree 68, over
+  the ramp's crest 106 at the median -: the tree 13, the ramp 2: not kept.
 
 ## A fall met low
 
@@ -264,12 +269,25 @@ at her torso and hands, strafes 1.1-1.9, a hop down 11.7.
   13 wobbles; bed 7: at -5e-4 she sat over her right sole on the mattress's edge,
   2 and 219 N, 22 N on the edge, and a sole lifting stepped her. Seated deeper
   and slower, 3 of 13.
-- Rising off the soft bed at a failing wobble her capture point was past her
-  soles as the thrust came on the clock, and she left the mattress in a pass
-  (0.34 of her weight on it -> 0). Her height held while something bears her -
-  raised to as she is by the share off her soles -: the bed 9 -> 6 of 13,
-  falling as she lay back where the soft mattress had her deeper than asked: not
-  kept.
+- Rising off the bed at -2e-4 her pelvis's geom was over the mattress's front
+  corner - 2.1 cm from its edge where the chair has her 6.7 -, the contact's
+  normal 23 deg ahead (0.92 up, 0.40 on). As the sit-up's blend ended the step
+  planned 145 N up of the 358 asked, a contact let go in its last round (wrench.md);
+  the corner took 241-309 N along its normal and threw her on at 4-6.7 m/s^2
+  against -1 asked, a 0.27 m step; the other sole, the step's counterweight on
+  one (W_COM 1000, W_SWING 30), rose to 0.34 m and never landed.
+  `wrench.pushed` takes every prop's normal as the world's up.
+- The step held to its band: the bed 10 -> 11 of 13 wobbles, its two falls
+  lying back (5.15, 6.24 s) gone. She sits deeper on it, her centre of mass 14
+  cm behind her soles' middle as the sit-up ends, and a rise waits while her
+  capture point is off her soles and something bears her (161 passes at wobble
+  0). The bench as it was but the bed, up at -2e-4, down at 2e-4: there the bed
+  bears half her weight 0.51 s of the 1 asked. At -5e-4 her soles' loads swap
+  side to side every 50 ms rising, the mattress's share flickering 0.17-1.0,
+  and she goes back over her heels (12.75 s).
+- Not kept: her height held while something bears her - raised to as she is by
+  the share off her soles -: the bed 9 -> 6 of 13, falling as she lay back where
+  the soft mattress had her deeper than asked.
 
 ## Jumping
 
@@ -325,46 +343,3 @@ at her torso and hands, strafes 1.1-1.9, a hop down 11.7.
 - Left: on the ramp her speed 0.6-1.3 m/s where 0.69 is asked; past its top the
   plane run on over the level; down the ramp a swing hangs 6 cm over the floor,
   down the stairs 27 cm, and reaches on only 11 cm (`stride.REACH_S`).
-
-## Her floor's grip
-
-- The ice, the slick patch and the snow were boxes 1, 1 and 4 mm over the
-  floor's slab; a loaded sole sinks 1 to 3 mm (1.0 mm standing) and stood
-  through them on the slab's friction, 1.0: on the ice her sliding soles used
-  0.07 to 0.22 where the ice's is 0.02. Raised 5, 5 and 40 mm the ice fell at
-  3.0-3.8 s and the slick patch (0.06) at 2.8-3.9; snow (0.35) and asphalt held.
-  Ice is now a rubber sole's, 0.1; 0.02 is a skate blade's.
-- A bearing sole that slides uses the floor's friction, its push's share across
-  her IMU's up (`machine.grip`). Its slide is what the draw of her IMU-carried
-  speed to her bearing soles has added up to while they bore (`estimate`'s
-  slip): walking a level floor 0.071 m/s at most, turning 0.127, on ice 1.36 at
-  the 90th percentile; a sole slides past 0.15. Read across a sole's own up, one
-  pitched 0.2 rad at its heel's strike read its push 0.2 across; read as what
-  her step asked against what a sole used, the drives' lag at a walk's start
-  read 0.05 on a floor of 1.0; read as her soles' speed apart in double support,
-  rolling soles read 0.05 m/s and more in 94 of 216 passes.
-- Read in two passes a slide's share took the slick patch to 13 of 13 wobbles,
-  but past 0.15 m/s her estimator reads a turnabout's pivot, a shove's skid, a
-  weave's and a trip over the sill as slides, and the bench lost the turnabout,
-  the sill and 5 walking shoves. A slide counts with the floor's friction
-  against it (45 deg) and its share held within 5 % over 4 passes: on the ice
-  0.099-0.101 while its load fell 348 -> 194 N, read 9 ms after it set out; the
-  shove's skid read 0.174 -> 0.137, the sill's edge 0.122 -> 0.096.
-- On it: her centre of mass asked along the floor no harder than her standing
-  soles' grip times g; her going no faster than sqrt(2 STRIDE_M grip g), 0.77
-  m/s on ice; a sole landing no further from her than grip times her height,
-  0.09 m on ice; each sole's cone its grip (`wrench`, `wbc_cone.c`); a surface's
-  text capping her rhythm. Her law takes the grip only outside her envelope -
-  under the highest surface's grip, 0.25 -; a sole landing starts from what she
-  knows of the floor: kept from the slick patch, her reach was 5 cm on a floor
-  of 1.0 for a second and she fell there.
-- A surface is text (`machine/surfaces.lisp`, `(defsurface NAME (grip G) ..)`):
-  under its grip her rhythm's amplitudes no more than its, whatever she does,
-  blended in over the fifth under G; one so far, slippery under 0.25 with
-  `ice_walk`'s shape. What she is told of the floor - by a player or her eyes,
-  the `grip` command - is her grip's prior.
-- Her level walk the same to the digit; the bench 60 of 90 scenes, 80 N standing
-  32 and walking 29 as before her grip. Told the ice's 0.1 she crosses it
-  standing at 13 of 13 wobbles (`ice_told`); unaware ice 1 of 13, down at
-  5.5-6.7 s; the slick patch 6 of 13: after the first slide, not before it, is
-  what she does not yet meet.
