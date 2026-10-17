@@ -269,3 +269,32 @@ at her torso and hands, strafes 1.1-1.9, a hop down 11.7.
 - CI installed MuJoCo 3.16.0 against 3.14.0 here: the hole fell at two held
   wobbles and the tree ended at 0.18-0.19 m/s (0.01-0.05 here). The engine is
   pinned to the one measured on; the hole, 9 of 13 wobbles, left the held set.
+
+## The floor ahead
+
+- Up the 10 deg ramp each swing came down early, 0.34, 0.36, 0.19 s where 0.40,
+  0.05 to 0.09 m behind her centre of mass (0.10 ahead on a level floor), her
+  speed 0.39 -> 1.74 m/s, down at 5.1 s: her swings and her stance read one
+  floor height for both soles. Read as a plane through the floor's height at its
+  point, pitched as her standing soles stand on it (`modal.under`), they land
+  0.04 to 0.28 m ahead and she climbs 0.33 m; her level walk the same to the
+  digit, the bench unmoved.
+- The ramp's top and the stairs' landing were grown 6 m long past their compiled
+  bounds (`floor._sized`); MuJoCo culled every contact 0.85 m from the top's
+  middle and she walked off the ramp through it.
+- At the top a swing ended in the air on the ramp's plane run on, 7 cm over the
+  top, and stood at 0 N by its height while the other was let go: a sole stands
+  by its height alone only over the floor felt. Down at 6.5-9.0 s where 5.1.
+- Not kept: a sole her law has flat turning its floor at 2 rad/s while one cell
+  alone presses - level ground has such windows at every toe-off, up to 0.153 s,
+  and her walk went 385 J/m with her knee 20 deg behind plumb; the floor bounded
+  by a sole on one cell, at least its pitch toes down on its heel and toes up on
+  its ball - the ramp 3 of 3 and 9 of 13, but at the hole's lip a sole on one
+  cell is on no plane and the hole fell 3 of 3; the same with the bearing point
+  within 20 mm of the sole's end (the ramp's 12-16 mm, the lip's 29 and more) -
+  ramp 1 of 3, hole 1 of 3; her height lowered with a swing past its rhythm's
+  end - down the ramp she fell at 5.0 s where 3.5, and a standing 80 N shove was
+  lost.
+- Left: on the ramp her speed 0.6-1.3 m/s where 0.69 is asked; past its top the
+  plane run on over the level; down the ramp a swing hangs 6 cm over the floor,
+  down the stairs 27 cm, and reaches on only 11 cm (`stride.REACH_S`).

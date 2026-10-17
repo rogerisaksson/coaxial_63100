@@ -61,12 +61,13 @@ def check_contacts(g, out, cur_doing):
                 sprung.said(g, *g['_stand_entry'], at=g['t'] + 1.20, reset=True)
             g['active_entry'] = '#201'
     aloft, clear = g['a'][modal.STANCE] < 0.5, list(g.get('_clear', (False, False)))
+    floors = modal.under(g['y'], g['fr'], g['a'][modal.STANCE])[0]
     for side, segs in enumerate(SOLES):
         pushes = [model.xmat[g['body'].m.body(edge.SKIN[k]).id].reshape(3, 3) @ touch[k] for k in segs]
         felt = max(float(np.linalg.norm(p)) for p in pushes) > edge.TOUCHED_N
         toes = g['body'].m.body(edge.SKIN[segs[1]]).id
         tip = float((model.xpos[toes] + np.array(TIPS) @ model.xmat[toes].reshape(3, 3).T)[:, 1].min())
-        up = min(float(g['y'][modal.LOWEST][side]), tip) - float(g['fr'][modal.FLOOR])
+        up = min(float(g['y'][modal.LOWEST][side]), tip) - float(floors[side])
         met = clear[side] and up > EDGE_M and any(
             np.linalg.norm(p) > edge.TOUCHED_N and math.hypot(float(p[0]), float(p[2])) > abs(float(p[1]))
             for p in pushes)

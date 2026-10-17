@@ -87,6 +87,8 @@ def floored(g, y, dt):
     under = float(bear @ y[modal.LOWEST]) / max(float(bear.sum()), 1e-9)
     k = float(bear.sum() > 0.0) * min(1.0, FLOOR_HZ * dt)
     g['fr'][modal.FLOOR] += k * (under - float(g['fr'][modal.FLOOR]))
+    at = bear @ y[modal.SOLE].reshape(2, 3)[:, [0, 2]] / max(float(bear.sum()), 1e-9)
+    g['fr'][modal.FLOOR_AT] += k * (at - g['fr'][modal.FLOOR_AT])
     cells = g['sense'][edge.CELLS].reshape(2, 2)
     flat = (cells.min(axis=1) >= flight.TOUCH_N) * cells.min(axis=1) / np.maximum(cells.max(axis=1), 1e-9)
     g['fr'][modal.GROUND] += min(1.0, FLOOR_HZ * dt) * flat * (y[modal.TILT] - g['fr'][modal.GROUND])

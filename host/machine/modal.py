@@ -22,7 +22,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
-from machine import flight, latent, ortho, terms
+from machine import flight, latent, ortho, stride, terms
 from machine.figure import ANKLE_H, SHANK, THIGH
 from machine.poise import HALF_M, TINY, clip
 from machine.stride import ALONG, LEFT, LIMBS, ROCK_RAD, STRIDE_M, UP
@@ -56,9 +56,11 @@ SENSED = 58
 ROT, H0, W0, FLOOR, OMEGA, WEIGHT, KNEE = slice(0, 9), 9, 10, 11, 12, 13, 14
 PITCH0, HEADING, DT, REACH0, HIPS_BY, ARM0 = slice(15, 17), 17, 18, 19, 20, slice(21, 23)
 UNIT, Z0, MASS = (slice(23 + i * N, 23 + (i + 1) * N) for i in range(3))
-#: And the floor's pitch under each sole, as a sole pitched flat on it, rad, its heel up.
+#: And the floor's pitch under each sole, as a sole pitched flat on it, rad, its heel up; the
+#: point its height is read at, world x and z, m.
 GROUND = slice(23 + 3 * N, 25 + 3 * N)
-FRAME = GROUND.stop
+FLOOR_AT = slice(25 + 3 * N, 27 + 3 * N)
+FRAME = FLOOR_AT.stop
 #: The loop's ask, flat: each sole standing (1) or not; her centre of mass's acceleration and
 #: each sole's, world; the pelvis's and the trunk's pitch wanted, rad; each knee's fold over its
 #: posture and its rate; whether a turn is asked; her knees' bend with her height; her angular
@@ -151,7 +153,7 @@ def frame(y, mass, limb, trunk, arm, knee, dt):
     legs = y[HIP].reshape(2, 3) - soles + flight.MIDDLE * rot[ALONG] - ANKLE_H * rot[UP]
     fr = np.zeros(FRAME)
     fr[ROT] = rot.ravel()
-    fr[FLOOR] = soles[:, 1].mean()
+    fr[FLOOR], fr[FLOOR_AT] = soles[:, 1].mean(), soles[:, [0, 2]].mean(axis=0)
     fr[H0] = y[COM][1] - fr[FLOOR]
     fr[W0] = 0.5 * abs((soles[0] - soles[1]) @ rot[LEFT])
     fr[OMEGA], fr[WEIGHT], fr[KNEE], fr[DT] = np.sqrt(G / fr[H0]), mass * G, knee, dt
@@ -187,6 +189,16 @@ def _legs(y, rot):
     leg = (y[HIP].reshape(2, 3) - y[SOLE].reshape(2, 3)) @ rot.T - ANKLE_H * spoke + flight.MIDDLE * inward
     long = np.linalg.norm(leg, axis=1)
     return leg, long, ((y[VCOM] - y[VSOLE].reshape(2, 3)) @ rot.T * leg).sum(axis=1) / long
+
+
+def under(y, fr, stance):
+    """(the floor under each sole's middle, m; its rise a metre along her way): a plane through
+    the floor's height at its point, pitched as the soles in `stance` stand on it - level under
+    half `stride.EDGE_RAD`. Read level, each swing up a 10 deg ramp came down on it early, 0.05
+    to 0.09 m behind her centre of mass, and she ran on to 1.7 m/s and fell at 5.1 s."""
+    bears = (stance + TINY) / (stance.sum() + 2.0 * TINY)
+    rise = bears @ -np.tan(stride.pitched(fr[GROUND]))
+    return fr[FLOOR] + rise * ((y[SOLE].reshape(2, 3)[:, [0, 2]] - fr[FLOOR_AT]) @ fr[ROT][[0, 2]]), rise
 
 
 def shortened(legs, fr, stance):

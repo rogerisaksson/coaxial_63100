@@ -247,7 +247,7 @@ def main(argv=None):
             continue
         print('%-22s %-5s %-7s %-6s %-6s %6.2f %6.2f %6.2f %-22s %5.2f %8.0f %8.0f' % (
             n, r['stood'], r['fell_at'] or '-', r['goal'], r['met'], r['went'], r['rose'], r['speed'],
-            ' '.join('%s %.1f' % kv for kv in r['bore'].items()), r['on_soles'], r['jerk_pelvis'], r['jerk_head']))
+            ' '.join('%s %.1f' % kv for kv in r['bore'].items()), r['on_soles'], r['jerk']['pelvis'], r['jerk']['head']))
     print('%d of %d met' % (sum(bool(r.get('met')) for r in rows.values()), len(rows)))
     return 0
 

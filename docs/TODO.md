@@ -234,9 +234,12 @@ serves its DOD; none an entry a case.
 3. **A landing on what is there**: a swinging sole that meets something
    raises her swings by its height, one that meets nothing reaches on down; a
    sliding one lowers the friction she asks. Met at 13 of 13 wobbles: the
-   sill, the rug, the hole, ice, snow, asphalt, a slick patch. DOD: stairs
-   of 0.15 x 0.30 m up and down, a slope of 10 deg up, down and across; 3
-   times in 4 each.
+   sill, the rug, the hole, ice, snow, asphalt, a slick patch. The floor
+   ahead a plane of her standing soles' pitch (`modal.under`): up a ramp she
+   lands where she aims, down at its top; past a crest or down a descent a
+   swing hangs 6-27 cm over the floor (scenarios.md). DOD: stairs of 0.15 x
+   0.30 m up and down, a slope of 10 deg up, down and across; 3 times in 4
+   each.
 4. **Her floor identified, a text over the general law**: what her
    standing soles meet - slip and sink under their load - read from her
    sensors against what her law assumes (friction 0.6 in her step, a rigid

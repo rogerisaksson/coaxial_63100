@@ -73,11 +73,16 @@ def stands(zmp, xi, low, high, om, held, up, swaying, beat, bears, stood, prop):
     and `high` her soles' boxes, `held` the polygon said (0 none, 1 her support's, 2 the
     dynamic footprint); `up` how far each sole is asked up, `swaying` whether she sways as
     asked; `beat` her stride's (sweep, off, flying), `bears` (loads N, heights over the floor
-    m, her speed up, what bears her off them N), `stood` the soles that stood the pass before;
+    as it runs on under them and over the floor felt m, her speed up, what bears her off them
+    N), `stood` the soles that stood the pass before;
     `prop` what bears her off
     them (`spanned`), her support with them."""
     sweep, off, flying = beat
-    loads, over, rising, borne = bears
+    loads, over, felt, rising, borne = bears
+    # a sole stands by its height alone only over a floor felt: at a 10 deg ramp's top a swing
+    # that ended in the air on the ramp's plane run on stood at 0 N, the other was let go and
+    # she came down at 1.8 kN
+    level = np.maximum(over, felt)
     kept, foot = clip(held, 0.0, 1.0), clip(held - 1.0, 0.0, 1.0)
     zmp = zmp + kept * (into(zmp, xi, *spanned(low.min(axis=0), high.max(axis=0), prop), om, 1.0 - foot) - zmp)
     # which soles stand. One asked up leaves the floor once that ZMP lies in the other. One
@@ -87,11 +92,11 @@ def stands(zmp, xi, low, high, om, held, up, swaying, beat, bears, stood, prop):
     # cm from the other, her ZMP in the other took it further off and the sole went up
     # and down on its ball
     within = ((zmp >= low - GATE_M) & (zmp <= high + GATE_M)).all(axis=1)
-    landed = np.array(flight.standing(off < 0.5, loads, over, rising, borne))
+    landed = np.array(flight.standing(off < 0.5, loads, level, rising, borne))
     early = (sweep > EARLY) & ((loads >= flight.TOUCH_N) | (stood > 0.5))
     gone = (flying > 0.5) & (landed[::-1] | (over > flight.TOUCH_M)) & ~early
     lifting = ((up > LIFT_EPS) & ((within[::-1] & swaying) | (over > flight.TOUCH_M))) | gone
-    stance = np.array(flight.standing(~lifting, loads, over, rising, borne), float)
+    stance = np.array(flight.standing(~lifting, loads, level, rising, borne), float)
     # and into the soles that are to stand - her capture point kept in them too while both
     # do, the footprint said: let go there, a drive asked under a sway her soles refused
     # leant her past her toes standing. A sole whose stride has it off is out of it once

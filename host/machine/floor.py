@@ -49,9 +49,14 @@ def _steps(top=TOP_M):
 
 
 def _sized(world, body, half):
-    """`body`'s one box `half` its sizes."""
+    """`body`'s one box `half` its sizes, and the bounds MuJoCo culls its contacts by with them:
+    grown 6 m long past its compiled 1.2, a slope's top bore nothing 0.85 m from its middle and
+    she fell through it at its edge."""
     m = world.model
-    m.geom_size[m.body_geomadr[m.body(body).id]][:3] = half
+    b = m.body(body).id
+    g = m.body_geomadr[b]
+    m.geom_size[g][:3], m.geom_aabb[g][3:], m.bvh_aabb[m.body_bvhadr[b]][3:] = half, half, half
+    m.geom_rbound[g] = math.sqrt(sum(h * h for h in half))
 
 
 def _beyond(world, along, ahead, pad):
