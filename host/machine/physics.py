@@ -93,6 +93,10 @@ ENVELOPE = 1.0
 #: sagging, the FETs half on, in their SOA; or its nodes at WARM_C - run hard, hot.
 SOA_RDS, WARM_C = 50.0, 100.0
 
+#: Her harness (`World.hang`): N/m and N s/m on her pelvis's place, N m/rad and N m s/rad on its
+#: turn - 0.7 of critical on her 31 kg and 3 kg m^2.
+HANG = (4000.0, 500.0, 400.0, 50.0)
+
 
 def paired(np, pairs, tau, top, kt):
     """`tau` within `top` a joint, a parallel pair's (`pairs` [(joint, its roll)]) as its two
@@ -179,6 +183,8 @@ class World:
         self.keys, self.named = [], []
         self.batch = Batch(self.drives)
         self.push_n, self.push_until = np.zeros(3), -1.0
+        #: Her pelvis's place and turn hung in a harness (`hang`), or None.
+        self.hung: Any = None
         #: The lace (`lace`), and whether it is snagged.
         self.lace_at, self.laced = m.tendon('lace').id, False
         #: A board glitched in its SOA (`glitch`): its index and until when.
@@ -268,6 +274,7 @@ class World:
         self.borne_at = None
         self.stamp, self.at, self.glitch_at, self.pending = d.time, d.time, None, {}
         self.push_until, self.laced = -1.0, False
+        self.hung, d.xfrc_applied[:] = None, 0.0
         self.model.tendon_range[self.lace_at] = (0.0, 10.0)
         if self.buses is not None:
             self.buses.drain()
@@ -337,6 +344,8 @@ class World:
             self.effort += float(np.abs(self.motor).sum()) * STEP_S
             d.xfrc_applied[:, 0:3] = 0.0
             d.xfrc_applied[self.torso, 0:3] = self.push_n if d.time < self.push_until else 0.0
+            if self.hung is not None:
+                d.xfrc_applied[self.pelvis] = self._harness()
             self._mj.mj_step(self.model, d)
             power = self.motor * (self.boxes.w if BOXED else d.qvel[self.vadr])
             self.work += float(power[power > 0.0].sum()) * STEP_S
@@ -398,6 +407,20 @@ class World:
         """A shove on the torso, world newtons, for `seconds`."""
         self.push_n = self._np.array(force, float)
         self.push_until = self.data.time + seconds
+
+    def hang(self):
+        """Her pelvis hung where it is in a harness (HANG): springs to its place and its turn."""
+        self.hung = (self.data.qpos[0:3].copy(), self.data.qpos[3:7].copy())
+
+    def _harness(self):
+        """The harness's wrench on her pelvis, world: twice the vector part of turn * conj(q)
+        is the small turn from q to turn."""
+        d, np = self.data, self._np
+        at, turn = self.hung
+        q, w = d.qpos[3:7], d.xmat[self.pelvis].reshape(3, 3) @ d.qvel[3:6]
+        off = 2.0 * (q[0] * turn[1:] - turn[0] * q[1:] - np.cross(turn[1:], q[1:]))
+        return np.r_[HANG[0] * (at - d.qpos[0:3]) - HANG[1] * d.qvel[0:3],
+                     HANG[2] * off - HANG[3] * w]
 
     def glitch(self, joint, kind, seconds=0.0, celsius=WARM_C):
         """Drive `joint`'s board glitched: 'soa' its switches SOA_RDS times their on-resistance

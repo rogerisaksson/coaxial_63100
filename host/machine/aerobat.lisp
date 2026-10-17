@@ -5,7 +5,7 @@
 (include "kinematics.lisp")
 
 (defvehicle aerobat_3d
-  (use standard_airframe)
+  (use monoplane_airframe)
   (use unlimited_3d_monoplane)
   (use aerobat_prop_load)
   (use aerobat_monoplane_body)
@@ -13,7 +13,7 @@
   (use aerobat_3d_governor)
   (use aerobat_3d_impedance)
   (use eso_3d_observers)
-  (use standard_arena_envelope)
+  (use aerobat_envelope)
   (use vertical_climb_brake)
   (use orbit_circle)
   (use aerobat_harrier_oscillator)
@@ -152,15 +152,17 @@
 (defstunt takeoff
   (base hover) (pace 2.5m_s))
 
-(defstunt approach
-  (base over) (pace 1.5m_s) (speed 0.8m_s))
+(defstunt parachute
+  (base stop) (height 0.55m) (pace 4.0m_s))
 
-(defbehavior unlimited_torque_hang
-  (phase punch_out (stunt high) (duration 1.2s) (blend 100ms))
-  (phase snap_over (stunt snap_entry) (duration 1.0s) (blend 80ms))
-  (phase elevator_waterfall (stunt waterfall) (duration 2.0s) (blend 80ms))
-  (phase tumble_burn (stunt gyro_tumble) (duration 1.2s) (blend 100ms))
-  (phase catch_high (stunt high) (duration 1.6s) (blend 150ms) (gate held)))
+(defstunt climbout
+  (base hover) (height 3.0m) (speed 10.5m_s) (pace 3.0m_s))
+
+(defstunt base_turn
+  (base climbout) (turn 60.0deg_s))
+
+(defstunt final
+  (base hover) (height 0.35m) (speed 10.5m_s) (pace 2.0m_s))
 
 (defbehavior knife_edge_circuit
   (phase carve_knife (stunt knife_circle) (duration LAP_S) (blend 200ms))
@@ -168,35 +170,34 @@
   (phase cuban_return (stunt cuban_unwind) (duration 2.5s) (blend 180ms))
   (phase unwind_home (stunt unwind) (duration LAP_S) (blend 200ms)))
 
-(defbehavior lomcevak_smackdown
-  (phase snap_inverted (stunt snap_entry) (duration 1.0s) (blend 100ms))
-  (phase inverted_harrier (stunt inverted) (duration 1.6s) (blend 120ms))
-  (phase inverted_flat_spin (stunt flat_spin) (duration 1.8s) (blend 100ms))
-  (phase lomcevak_out (stunt lomcevak) (duration 1.0s) (blend 80ms))
-  (phase recovery (stunt high) (duration 1.8s) (blend 150ms) (gate held)))
+
+(defbehavior unlimited_torque_hang
+  (phase punch_out (stunt high) (duration 3.5s) (blend 100ms))
+  (phase elevator_waterfall (stunt waterfall) (duration 2.0s) (blend 80ms))
+  (phase catch (stunt high) (duration 2.2s) (blend 100ms))
+  (phase snap_roll (stunt roll) (duration 0.8s) (blend 100ms))
+  (phase catch_high (stunt high) (duration 1.6s) (blend 150ms) (gate held)))
 
 (defroutine aerobat_3d
   (stage idle (stunt down) (duration 2.0s) (ramp 0.0s) (gate fit))
   (stage spool (stunt pressed) (duration 2.5s) (ramp 2.5s))
-  (stage lift (stunt takeoff) (duration 3.0s) (ramp 3.0s))
-  (stage prop-hang (stunt hover) (duration 2.5s) (ramp 0.0s))
+  (stage lift (stunt takeoff) (duration 6.0s) (ramp 3.0s))
+  (stage prop-hang (stunt hover) (duration 2.5s) (ramp 0.0s) (gate held))
   (stage torque-roll (stunt torque_roll) (duration 2.0s) (ramp 1.0s))
   (stage poise (stunt hover) (duration 1.8s) (ramp 1.5s))
   (stage knife-edge (stunt knife_circle) (duration LAP_S) (ramp 1.5s))
   (stage harrier (stunt climbing_harrier) (duration LAP_S) (ramp 1.5s))
   (stage home (stunt high) (duration 1.8s) (ramp 1.2s) (gate held))
-  (stage snap-in (stunt snap_entry) (duration 1.0s) (ramp 0.0s))
-  (stage inverted (stunt inverted) (duration 2.2s) (ramp 0.0s))
-  (stage flat-spin (stunt flat_spin) (duration 1.5s) (ramp 0.0s))
   (stage waterfall (stunt waterfall) (duration 2.0s) (ramp 0.0s))
-  (stage lomcevak (stunt lomcevak) (duration 1.0s) (ramp 0.0s))
   (stage catch (stunt high) (duration 2.2s) (ramp 0.0s))
   (stage snap-roll (stunt roll) (duration 0.8s) (ramp 0.0s))
   (stage catch (stunt high) (duration 2.2s) (ramp 0.0s))
   (stage unwind (stunt unwind) (duration LAP_S) (ramp 1.5s))
   (stage level (stunt hover) (duration 2.0s) (ramp 1.5s) (gate held))
   (stage full_tilt (stunt sky) (duration 2.0s) (ramp 0.0s))
-  (stage burn (stunt stop) (duration 0.0s) (ramp 0.0s) (gate held))
-  (stage hold (stunt stop) (duration 1.5s) (ramp 0.0s))
-  (stage descend (stunt approach) (duration 1.5s) (ramp 1.5s) (gate held))
-  (stage land (stunt pressed) (duration 3.0s) (ramp 3.0s)))
+  (stage burn (stunt parachute) (duration 0.0s) (ramp 0.0s) (gate held))
+  (stage hold (stunt parachute) (duration 1.5s) (ramp 0.0s))
+  (stage climb-out (stunt climbout) (duration 4.0s) (ramp 1.0s))
+  (stage base (stunt base_turn) (duration 3.0s) (ramp 0.5s))
+  (stage final (stunt final) (duration 4.0s) (ramp 1.0s))
+  (stage land (stunt pressed) (duration 8.0s) (ramp 0.0s)))

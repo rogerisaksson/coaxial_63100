@@ -9,6 +9,10 @@
   (hover_lean 8.0m_s2)
   (sky_lean 8.0m_s2))
 
+(defblock envelope aerobat_envelope
+  (use standard_arena_envelope)
+  (floor_height 0.55m))
+
 (defblock vertical vertical_climb_brake
   (climb_speed 4.0m_s)
   (descent_speed 2.0m_s)

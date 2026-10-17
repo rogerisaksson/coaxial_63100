@@ -28,8 +28,9 @@ ARM_R, CAN_R, CAN_L, BOARD_R, BOARD_H = 0.012, 0.0315, 0.1, 0.034, 0.005
 SINK_R, SINK_H = 0.032, 0.006
 LEG_R, BLADE_W, HUB_R = 0.008, 0.022, 0.014
 
-#: Their colours: carbon, the boards' solder mask, the propellers.
-CARBON, MASK, PROP = (70, 74, 84), (30, 110, 64), (205, 205, 200)
+#: Their colours: carbon, the boards' solder mask, the propellers, a painted skin - carbon's
+#: dark halftone left a body a cloud of dots.
+CARBON, MASK, PROP, SKIN = (70, 74, 84), (30, 110, 64), (205, 205, 200), (188, 194, 204)
 
 #: The speed below which a propeller shows its blades, rad/s; the swept disc's rim, a dot
 #: every RIM_EVERY of its line, and the inks.
@@ -63,12 +64,12 @@ def _arm(x, z, material):
 def parts():
     """[(name, mesh)]: the frame in its own axes, x right, y up, z ahead - the rotors at
     `quad.ROTOR_AT`, the skids' feet where `quad.mjcf` stands them."""
-    carbon = paint(CARBON)
+    carbon, skin = paint(CARBON), paint(SKIN)
     out = [('plate', shapes.drum(PLATE_R, PLATE_H, 'y', PLATE)),
            ('dome', shapes.ellipsoid((0.0, PLATE_H / 2.0, 0.0), (0.055, 0.03, 0.075), CORE))]
     for k, (x, z) in enumerate(quad.ROTOR_AT):
         top = quad.DISC_M
-        out += [('arm%d' % k, _arm(x, z, carbon)),
+        out += [('arm%d' % k, _arm(x, z, skin)),
                 ('can%d' % k, _at(shapes.drum(CAN_R, CAN_L, 'y', PLATE), None,
                                   (x, top - CAN_L / 2.0, z))),
                 ('board%d' % k, _at(shapes.drum(BOARD_R, BOARD_H, 'y', paint(MASK)), None,
@@ -192,7 +193,8 @@ def _discs(pose, rotors, m, cam, centre):
 
 
 def _arrows(pose, thrusts, m, cam, centre):
-    """[(dots, ink)]: each rotor's thrust, `thrusts` N, an arrow up its axis from its hub."""
+    """[(dots, ink, over)]: each rotor's thrust, `thrusts` N, an arrow up its axis from its
+    hub, over whatever covers it."""
     from coaxial.model.blocks import numpy as np
     turn, at = np.asarray(pose['turn'], float), np.asarray(pose['at'], float)
     up, side = turn[:, 1], turn[:, 0]
@@ -209,7 +211,7 @@ def _arrows(pose, thrusts, m, cam, centre):
         sx, sy, _w = project(points, m, cam, centre)
         for a, b in ((0, 1), (1, 2), (1, 3)):
             line(drawn, (sx[a], sy[a]), (sx[b], sy[b]))
-    return [(drawn, ARROW_INK)]
+    return [(drawn, ARROW_INK, True)]
 
 
 def render(pose, rotors, width, height, yaw=30.0, pitch=18.0, reach=REACH, centre=None,

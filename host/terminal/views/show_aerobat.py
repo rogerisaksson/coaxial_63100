@@ -25,7 +25,7 @@ from terminal.views.aerobat import flight as aero_flown
 from terminal.views.show_quad import look as quad_look
 
 TITLE, ROTORS = 'AEROBAT', aero_flown.ROTORS
-NEAR_M, FAR_M, ZOOM_M, ZOOM_K, CHASE_M, YAW, PITCH = 0.76, 1.00, 0.48, 0.022, 2.2, 58.0, 16.0
+NEAR_M, FAR_M, ZOOM_M, ZOOM_K, CHASE_M, YAW, PITCH = 0.85, 0.90, 0.60, 0.022, 2.4, 58.0, 16.0
 
 
 def look(camera, law, row, frame, chased, dt):

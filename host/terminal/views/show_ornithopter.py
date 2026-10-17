@@ -25,7 +25,7 @@ from terminal.views.ornithopter import flight as orni_flown
 from terminal.views.show_quad import look as quad_look
 
 TITLE, ROTORS = 'ORNITHOPTER', orni_flown.ROTORS
-NEAR_M, FAR_M, ZOOM_M, ZOOM_K, CHASE_M, YAW, PITCH = 0.76, 1.00, 0.48, 0.022, 2.2, 56.0, 16.0
+NEAR_M, FAR_M, ZOOM_M, ZOOM_K, CHASE_M, YAW, PITCH = 0.76, 0.80, 0.60, 0.022, 2.2, 56.0, 16.0
 
 
 def look(camera, law, row, frame, chased, dt):

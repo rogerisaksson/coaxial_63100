@@ -1,5 +1,6 @@
 """Flight intent and modular vehicle blocks (`defblock`/`use`) compiled from Lisp S-expressions."""
 import math
+from typing import Any
 import os
 import re
 import struct
@@ -128,7 +129,7 @@ def _parse_tuples(rows, n):
 
 
 def _parse_cpg(rows):
-    out = {'amplitudes': [], 'phase_offsets': []}
+    out: dict[str, Any] = {'amplitudes': [], 'phase_offsets': []}
     for r in rows:
         if not isinstance(r, list) or not r or not all(isinstance(x, str) for x in r):
             raise SyntaxError(f'invalid cpg_config row {r!r}')
@@ -197,8 +198,8 @@ AERO_BLOCKS = {
                   'inflow_j0 blade_pitch'),
     'flapping_wings': _sp('wing_span wing_chord shoulder_x fore_z aft_z shoulder_y '
                           'stroke_limit pitch_limit sweep_fold_limit k_thrust k_lift '
-                          'k_pitch k_roll k_yaw k_drag inflow_floor'),
-    'aero_surfaces': _sp('wing_span wing_chord wing_area prop_radius prop_z k_thrust '
+                          'k_pitch k_roll k_yaw k_drag inflow_floor gear_ratio beat_pulse'),
+    'aero_surfaces': _sp('wing_span wing_chord wing_area prop_radius prop_z k_thrust tail_arm stab_area fin_area '
                          'k_drag cl_alpha cd0 cd_induced elevator_limit aileron_limit '
                          'rudder_limit k_pitch k_roll k_yaw propwash_share inflow_floor'),
     'airframe': ('air_density', 'parasite_cda'),
@@ -369,10 +370,11 @@ def _compile_phase_or_stage(row, tag, stunts, c, beh_c=None, prev_row=None):
         raise SyntaxError(f'expected ({tag} NAME ...), not {row!r}')
     s_keys = {'stunt', 'duration', 'blend' if tag == 'phase' else 'ramp', 'gate'}
     o_keys = set(_BLOCKS) - {'sequence_id'} if tag == 'phase' else set()
-    props, sp, name = {'name': row[1], 'gate': ''}, {}, row[1]
+    props: dict[str, Any] = {'name': row[1], 'gate': ''}
+    sp, name = {}, row[1]
     for item in row[2:]:
         h = item[0] if isinstance(item, list) and item else None
-        if h in o_keys:
+        if isinstance(h, str) and h in o_keys:
             sp[h] = _BLOCKS[h](item[1:])
         elif not isinstance(h, str) or h not in s_keys or len(item) != 2 or not isinstance(item[1], str):
             raise SyntaxError(f'no {tag} field {item!r}')
@@ -399,7 +401,7 @@ def _compile_phase_or_stage(row, tag, stunts, c, beh_c=None, prev_row=None):
         base = dict(stunts[props['stunt']] if 'stunt' in props
                     else (prev_row or stunts.get('hover') or next(iter(stunts.values()), {})))
         props.update(payload=p, stunt=props.get('stunt', 'stream'),
-                     row=payload_to_row(p, base, c.symbols.get('HOVER_THRUST', 19.62)) if sp else base)
+                     row=payload_to_row(p, base, c.symbols.get('HOVER_THRUST', 19.62)) if p is not None else base)
     return props
 
 

@@ -212,6 +212,10 @@ plain walk the same bit for bit (her pose hashed each second for 20 s).
 - Not kept: her height held while something bears her - raised to as she is by
   the share off her soles -: the bed 9 -> 6 of 13, falling as she lay back where
   the soft mattress had her deeper than asked.
+- Not kept: her pelvis's pitch apart from her trunk's (a `pelvis_pitch` mode, 0
+  at rest - her walk the same to the digit): her trunk reclined 1 rad over a
+  pelvis kept at 0.5, the bed 11 -> 5 of 13; her pelvis bore 200 N on the edge
+  at 3.5 s and none at 4.0, nothing under her trunk, and she rolled back off it.
 
 ## Jumping
 
@@ -305,3 +309,14 @@ plain walk the same bit for bit (her pose hashed each second for 20 s).
   0.003 at p90 -: both are her swing's, 3.3 m/s up the ramp. A known
   floor alone does not climb: her landings fall on nosings and edges, and her
   capture point runs on.
+- Told the flight, each swing's landing moved onto the nearest tread its sole
+  fits within her reach - its heel over the nosing to its middle at most, its
+  toes 4 cm short of the next riser -, that tread held from its lift-off, the
+  swing cleared over the highest floor between and ended on the tread's
+  height (not kept): her first sole lands on the first tread at 2.66 s and
+  holds to 3.04; the second swing, 0.54 m to the second tread, leaves at 2.93
+  s as her centre of mass runs to 0.94 m/s and lifts her standing sole off -
+  down at 3.23 s where 2.95. Chosen nearest her capture point each pass, the
+  landing flipped between treads a pass before it touched, its toes met the
+  next riser and it was pushed back off its nosing; `stairs_walk` said over
+  it, down at 3.15.

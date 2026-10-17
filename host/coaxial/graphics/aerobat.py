@@ -13,23 +13,23 @@ import math
 
 from coaxial.graphics import engine, scenery, shapes
 from coaxial.graphics.callouts import line
-from coaxial.graphics.helicopter import NEG_ARROW_INK
+from coaxial.graphics.helicopter import force_arrows
 from coaxial.graphics.lit import CORE, PLATE, braille, paint, project, splat
-from coaxial.graphics.quadcopter import (ARROW_HEAD, ARROW_INK, BLADE_W, BLADES_RAD_S, BOARD_H,
-                                         BOARD_R, CAN_L, CAN_R, CARBON, LEG_R, MASK, PROP,
-                                         RIM_EVERY, RIM_INK, SINK_H, SINK_R, Mesh, _at, _painted)
+from coaxial.graphics.quadcopter import (BLADE_W, BLADES_RAD_S, BOARD_H, BOARD_R, CAN_L, CAN_R,
+                                         CARBON, LEG_R, MASK, PROP, RIM_EVERY, RIM_INK, SINK_H,
+                                         SINK_R, SKIN, Mesh, _at, _painted)
 from machine import aerobat as aero_phys
 
 #: The camera: the eye's distance in reaches framed, and the reach the monoplane fills, m -
-#: the main wing tips 0.52 m out, the coaxial nose spinner at +0.36 m.
-SIGHT, REACH = 3.75, 0.68
+#: the wing tips 0.65 m out, the spinner at +0.57 m, the tail post at -0.52.
+SIGHT, REACH = 3.75, 0.75
 
-#: The airframe's geometry in its true MuJoCo body axes (x right wing, y nose/propeller axis,
-#: -z dorsal canopy/fin, +z ventral landing gear), m: coaxial tractor propeller hubs at the
-#: nose, main wing half-span, and taildragger main/tail wheels.
+#: The airframe's geometry in its body axes (x right wing, y nose and thrust, -z dorsal, +z
+#: ventral), m: the coaxial tractor hubs at the nose, the wing's half span and its station, the
+#: tail's station and the stabiliser's half span, the taildragger's wheels.
 PROP_Y, VECT_Y, PROP_R = aero_phys.PROP_Z, aero_phys.PROP_Z - 0.045, aero_phys.PROP_R
-HALF_SPAN, WING_Y = aero_phys.HALF_M, 0.055
-TAIL_Y, HSTAB_SPAN = -0.105, 0.175
+HALF_SPAN, WING_Y, CHORD = aero_phys.HALF_M, 0.03, aero_phys.WING_CHORD
+TAIL_Y, HSTAB_HALF = -aero_phys.TAIL_ARM, 0.5 * aero_phys.STAB_SPAN
 SKID_M, FOOT_M, SKID_X, STRUT_Z = (
     aero_phys.SKID_M, aero_phys.FOOT_M, aero_phys.SKID_X, aero_phys.STRUT_Z)
 GEAR_MAIN_Z, GEAR_TAIL_Z = aero_phys.GEAR_MAIN_Z, aero_phys.GEAR_TAIL_Z
@@ -41,62 +41,56 @@ SURFACE = (92, 98, 112)
 
 
 def _fuselage():
-    """The slender carbon fuselage spine along the +y tractor thrust axis from the tail post
-    (-0.115 m) to the coaxial nose mount (+0.285 m)."""
+    """The carbon fuselage along +y from the tail post to the spinner's base: deep at the
+    cockpit, drawn to a post aft."""
     rings = [
-        (-0.115, 0.009, 0.011), (-0.065, 0.012, 0.015),
-        (-0.010, 0.015, 0.019), (0.055, 0.018, 0.022),
-        (0.125, 0.016, 0.019), (0.205, 0.014, 0.015),
-        (0.280, 0.010, 0.010),
+        (-0.50, 0.012, 0.016), (-0.36, 0.024, 0.032), (-0.20, 0.038, 0.050),
+        (-0.04, 0.052, 0.066), (0.12, 0.058, 0.070), (0.28, 0.052, 0.060),
+        (0.42, 0.042, 0.046), (0.52, 0.030, 0.032),
     ]
-    return shapes.loft(rings, paint(CARBON), poles=(-0.122, 0.288), along='y')
+    return shapes.loft(rings, paint(SKIN), poles=(-0.51, 0.525), along='y')
 
 
 def _aero_parts():
-    """[(name, mesh)]: the aerobat airframe in its true MuJoCo body axes (x right wing, y nose
-    tractor axis, -z dorsal, +z ventral)."""
-    carbon = paint(CARBON)
+    """[(name, mesh)]: the aerobat airframe in its body axes."""
+    carbon, skin = paint(CARBON), paint(SKIN)
     can_h = CAN_L * 0.58
     out = [
         ('fuselage', _fuselage()),
-        ('canopy', shapes.ellipsoid((0.0, 0.050, -0.028), (0.026, 0.068, 0.022), CORE, rows=7)),
-        ('spinner', shapes.ellipsoid((0.0, PROP_Y + 0.018, 0.0), (0.016, 0.024, 0.016),
+        ('canopy', shapes.ellipsoid((0.0, 0.14, -0.070), (0.036, 0.150, 0.036), CORE, rows=7)),
+        ('spinner', shapes.ellipsoid((0.0, PROP_Y + 0.024, 0.0), (0.024, 0.040, 0.024),
                                      PLATE, rows=6)),
-        ('can0', _at(shapes.drum(CAN_R, can_h, 'y', PLATE), None,
-                     (0.0, 0.246, 0.0))),
+        ('can0', _at(shapes.drum(CAN_R, can_h, 'y', PLATE), None, (0.0, 0.47, 0.0))),
         ('board0', _at(shapes.drum(BOARD_R, BOARD_H, 'y', paint(MASK)), None,
-                       (0.0, 0.246 - can_h / 2.0 - BOARD_H / 2.0, 0.0))),
+                       (0.0, 0.47 - can_h / 2.0 - BOARD_H / 2.0, 0.0))),
         ('sink0', _at(shapes.drum(SINK_R, SINK_H, 'y', carbon), None,
-                      (0.0, 0.246 - can_h / 2.0 - BOARD_H - SINK_H / 2.0, 0.0))),
-        ('can1', _at(shapes.drum(CAN_R, can_h, 'y', PLATE), None,
-                     (0.0, 0.162, 0.0))),
+                      (0.0, 0.47 - can_h / 2.0 - BOARD_H - SINK_H / 2.0, 0.0))),
+        ('can1', _at(shapes.drum(CAN_R, can_h, 'y', PLATE), None, (0.0, 0.385, 0.0))),
         ('board1', _at(shapes.drum(BOARD_R, BOARD_H, 'y', paint(MASK)), None,
-                       (0.0, 0.162 - can_h / 2.0 - BOARD_H / 2.0, 0.0))),
+                       (0.0, 0.385 - can_h / 2.0 - BOARD_H / 2.0, 0.0))),
         ('sink1', _at(shapes.drum(SINK_R, SINK_H, 'y', carbon), None,
-                      (0.0, 0.162 - can_h / 2.0 - BOARD_H - SINK_H / 2.0, 0.0))),
-        ('vfin', shapes.ellipsoid((0.0, TAIL_Y + 0.012, -0.052), (0.004, 0.026, 0.064),
-                                  carbon, rows=6)),
+                      (0.0, 0.385 - can_h / 2.0 - BOARD_H - SINK_H / 2.0, 0.0))),
+        ('vfin', shapes.ellipsoid((0.0, TAIL_Y + 0.03, -0.10), (0.005, 0.085, 0.095),
+                                  skin, rows=7)),
     ]
-    gear = ((-SKID_M, GEAR_TAIL_Z, 0.45, 0.085, 28.0),
-            (STRUT_Z[1], GEAR_MAIN_Z, 1.0, 0.145, -32.0))
+    legs = ((STRUT_Z[1], GEAR_MAIN_Z, 1.0), (STRUT_Z[0], GEAR_TAIL_Z, 0.45))
     for s in (-1.0, 1.0):
-        out.append(('spar%d' % (s > 0),
-                    _at(shapes.drum(0.007, HALF_SPAN - 0.04, 'x', carbon), None,
-                        (s * 0.5 * (HALF_SPAN + 0.02), WING_Y + 0.016, 0.0))))
         out.append(('wing%d' % (s > 0),
-                    shapes.ellipsoid((s * 0.52 * HALF_SPAN, WING_Y, 0.0),
-                                     (0.48 * HALF_SPAN, 0.036, 0.004), carbon, rows=7)))
+                    shapes.ellipsoid((s * 0.53 * HALF_SPAN, WING_Y, 0.0),
+                                     (0.50 * HALF_SPAN, 0.42 * CHORD, 0.012), skin, rows=7)))
         out.append(('hstab%d' % (s > 0),
-                    shapes.ellipsoid((s * 0.52 * HSTAB_SPAN, TAIL_Y + 0.010, 0.0),
-                                     (0.48 * HSTAB_SPAN, 0.022, 0.004), carbon, rows=6)))
-        for k, (by, bz, x_sc, leg_l, ang_x) in enumerate(gear):
-            turn_leg = shapes.turn_about('y', -s * 28.0) @ shapes.turn_about('x', ang_x)
+                    shapes.ellipsoid((s * 0.5 * HSTAB_HALF, TAIL_Y + 0.02, 0.0),
+                                     (0.5 * HSTAB_HALF, 0.055, 0.006), skin, rows=6)))
+        for k, (y, z, x_sc) in enumerate(legs):
+            x = s * x_sc * SKID_X
+            dx, dz = x - s * 0.04, z - 0.03
+            length = math.hypot(dx, dz)
             out.append(('gear_leg%d_%d' % (s > 0, k),
-                        _at(shapes.drum(LEG_R, leg_l, 'z', carbon), turn_leg,
-                            (0.55 * s * x_sc * SKID_X, by, 0.52 * bz))))
+                        _at(shapes.drum(LEG_R, length, 'z', carbon),
+                            shapes.turn_about('y', -math.degrees(math.atan2(dx, dz))),
+                            (s * 0.04 + 0.5 * dx, y, 0.03 + 0.5 * dz))))
             out.append(('wheel%d_%d' % (s > 0, k),
-                        shapes.ellipsoid((s * x_sc * SKID_X, by, bz),
-                                         (FOOT_M,) * 3, PLATE, rows=6)))
+                        shapes.ellipsoid((x, y, z), (FOOT_M, FOOT_M, FOOT_M), PLATE, rows=6)))
     return out
 
 
@@ -109,23 +103,28 @@ def _prop_blades(radius):
 
 
 def _aileron_mesh(side):
-    """One full-span 3D aileron along the trailing edge (-y) of the wing on `side` (`-1` or `+1`)."""
+    """One full-span 3D aileron behind its hinge on the wing's trailing edge, on `side`."""
     s = float(side)
-    return [('ail', shapes.ellipsoid((s * 0.54 * HALF_SPAN, -0.016, 0.0),
-                                     (0.42 * HALF_SPAN, 0.015, 0.004), paint(SURFACE), rows=6))]
+    return [('ail', shapes.ellipsoid((s * 0.56 * HALF_SPAN, -0.038, 0.0),
+                                     (0.44 * HALF_SPAN, 0.038, 0.006), paint(SURFACE), rows=6))]
 
 
 def _elevator_mesh():
-    """The oversized 3D elevator hinged along the horizontal stabilizer trailing edge (-y)."""
-    return [('elev', shapes.ellipsoid((s * 0.54 * HSTAB_SPAN, -0.014, 0.0),
-                                      (0.44 * HSTAB_SPAN, 0.014, 0.004), paint(SURFACE), rows=6))
+    """The oversized 3D elevator behind its hinge on the stabiliser's trailing edge."""
+    return [('elev', shapes.ellipsoid((s * 0.5 * HSTAB_HALF, -0.032, 0.0),
+                                      (0.5 * HSTAB_HALF, 0.032, 0.005), paint(SURFACE), rows=6))
             for s in (-1.0, 1.0)]
 
 
 def _rudder_mesh():
-    """The counterbalanced 3D rudder hinged along the dorsal vertical fin trailing edge (-y, -z)."""
-    return [('rud', shapes.ellipsoid((0.0, -0.016, -0.044),
-                                     (0.004, 0.016, 0.068), paint(SURFACE), rows=6))]
+    """The 3D rudder behind its hinge on the fin's trailing edge."""
+    return [('rud', shapes.ellipsoid((0.0, -0.036, -0.09),
+                                     (0.005, 0.036, 0.090), paint(SURFACE), rows=6))]
+
+
+#: The hinges, in the body: the ailerons' at the wing's trailing edge, the elevator's and the
+#: rudder's at the tail's.
+AIL_HINGE, TAIL_HINGE = (0.0, WING_Y - 0.42 * CHORD, 0.0), (0.0, TAIL_Y - 0.035, 0.0)
 
 
 def aero_mesh(which):
@@ -158,10 +157,10 @@ def _posed(pose, rotors, dense):
     index, base = [frame.index], len(points)
     _throt, elev, ail, rud = pose.get('controls', (0.0, 0.0, 0.0, 0.0))
     parts = [
-        ('ail_l', shapes.turn_about('x', -32.0 * float(ail)), (0.0, WING_Y - 0.036, 0.0)),
-        ('ail_r', shapes.turn_about('x', 32.0 * float(ail)), (0.0, WING_Y - 0.036, 0.0)),
-        ('elev', shapes.turn_about('x', 36.0 * float(elev)), (0.0, TAIL_Y - 0.012, 0.0)),
-        ('rud', shapes.turn_about('z', 36.0 * float(rud)), (0.0, TAIL_Y - 0.012, 0.0)),
+        ('ail_l', shapes.turn_about('x', -32.0 * float(ail)), AIL_HINGE),
+        ('ail_r', shapes.turn_about('x', 32.0 * float(ail)), AIL_HINGE),
+        ('elev', shapes.turn_about('x', 36.0 * float(elev)), TAIL_HINGE),
+        ('rud', shapes.turn_about('z', 36.0 * float(rud)), TAIL_HINGE),
     ]
     for (kind, y_hub, sign), rotor in zip((('prop', PROP_Y, 1.0), ('vect', VECT_Y, -1.0)), rotors):
         angle, w = float(rotor[0]), float(rotor[1])
@@ -204,36 +203,9 @@ def _discs(pose, rotors, m, cam, centre):
     return [(rim, RIM_INK)]
 
 
-def _arrows(pose, thrusts, m, cam, centre):
-    """[(dots, ink)]: 3D tractor thrust arrow along the true physical thrust axis `turn[:, 1]`
-    from the nose spinner and yaw/rudder torque arrow from the tail."""
-    from coaxial.model.blocks import numpy as np
-    turn, at = np.asarray(pose['turn'], float), np.asarray(pose['at'], float)
-    up, side, fwd = turn[:, 1], turn[:, 0], turn[:, 2]
-    pos_drawn = np.zeros((cam['height'], cam['width']), bool)
-    neg_drawn = np.zeros((cam['height'], cam['width']), bool)
-    specs = (((0.0, PROP_Y + 0.025, 0.0), up, side, 0.014, True),
-             ((0.0, TAIL_Y - 0.020, 0.0), side, fwd, 0.08, False))
-    for (spot, axis, cross_axis, scale, nose_out), thrust in zip(specs, thrusts):
-        length = scale * abs(thrust)
-        if length <= 1e-4:
-            continue
-        way = (-axis if (axis[1] > 0.0 and thrust < 0.0) else axis) if nose_out else (
-            axis if thrust >= 0.0 else -axis)
-        target = pos_drawn if thrust >= 0.0 else neg_drawn
-        origin = (0.0, -SKID_M, 0.0) if (nose_out and axis[1] > 0.0 and thrust < 0.0) else spot
-        hub = at + turn @ np.array(origin)
-        tip = hub + length * way
-        back = tip - ARROW_HEAD * length * way
-        points = np.array([hub, tip, back + 0.5 * ARROW_HEAD * length * cross_axis,
-                           back - 0.5 * ARROW_HEAD * length * cross_axis])
-        sx, sy, _w = project(points, m, cam, centre)
-        for a, b in ((0, 1), (1, 2), (1, 3)):
-            line(target, (sx[a], sy[a]), (sx[b], sy[b]))
-    out = [(pos_drawn, ARROW_INK)]
-    if neg_drawn.any():
-        out.append((neg_drawn, NEG_ARROW_INK))
-    return out
+#: The propeller's thrust from the spinner along the nose, the rudder's from the tail across.
+ARROWS = (((0.0, PROP_Y + 0.05, 0.0), 1, 0, 0.014), (TAIL_HINGE, 0, 2, 0.08))
+
 
 
 def render(pose, rotors, width, height, yaw=30.0, pitch=18.0, reach=REACH, centre=None,
@@ -253,7 +225,7 @@ def render(pose, rotors, width, height, yaw=30.0, pitch=18.0, reach=REACH, centr
         positions, normals, uv, materials, _index = _posed(pose, rotors, True)
         depth, rgb = splat((positions, normals, materials, uv), m, fine, centre)
     own = _discs(pose, rotors, m, fine, centre) + (
-        _arrows(pose, thrusts, m, fine, centre) if thrusts is not None else [])
+        force_arrows(pose, thrusts, ARROWS, m, fine, centre) if thrusts is not None else [])
     if not world:
         return braille(depth, rgb, np.zeros(depth.shape), width, height, colour, inset,
                        props=own)

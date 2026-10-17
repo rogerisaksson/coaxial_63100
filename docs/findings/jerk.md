@@ -119,6 +119,8 @@ strafes 2.9, a spin 5.9, turns 6.5, the weave 13.0, the chair 14.4, a hop down
   its clamp. Not kept: the neck and head held as turns - the shoulders took it,
   3.3-3.9 % of the passes past their clamps, 69.6 times at worst, a hand's
   peak on the chair 22 091 -> 37 818 m/s^3.
+  Seated it is her pelvis's turn: without her trunk's the neck still 1.73 rad
+  off; without her pelvis's she fell before she sat.
 - Seated, only her thighs bear, their touch points side by side (`borne`: a
   point each): the seat gives her step no pitch moment, her turns' asks met by
   the plan's opposite, -3 to -15 rad/s^2 asked, +2 to +5 planned.
