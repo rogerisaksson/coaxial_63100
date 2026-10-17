@@ -267,3 +267,19 @@ plain walk the same bit for bit (her pose hashed each second for 20 s).
 - Left: on the ramp her speed 0.6-1.3 m/s where 0.69 is asked; past its top the
   plane run on over the level; down the ramp a swing hangs 6 cm over the floor,
   down the stairs 27 cm, and reaches on only 11 cm (`stride.REACH_S`).
+- Down the stairs a swing goes 0.65 m, past the first tread, stands at 0 N by
+  its height over the floor her standing sole is on, and the other is let go:
+  down at 4 g. Down the ramp her soles read its pitch 0.04-0.14 rad where 0.17
+  (`se2.floored`: a sole's tilt while its heel and its ball press alike), a
+  swing hangs over the floor ahead, and on one sole her centre of mass goes 0.44
+  m past it, 0.69 -> 1.6 m/s.
+- Not kept, each measured: the world's floor under each sole, a ray (stairs 3.10
+  -> 2.93 s, down the ramp 3.82 -> 3.19, down the stairs 3.38); with it each
+  swing ending on its landing's floor over the highest between (stairs 3.32,
+  down the stairs 3.18, down the ramp 4.09, her walk unmoved); the stairs' gaits
+  told (2.95, 3.5); a sole arriving stood by its load alone (down the ramp 4.32,
+  across it 5.69, down the stairs 3.20); a 20 cm reach (as before); the floor's
+  pitch from her two bearing soles' heights apart (up the ramp 9.17 -> 4.46, the
+  hole fell). A known
+  floor alone does not climb: her landings fall on nosings and edges, and her
+  capture point runs on.
