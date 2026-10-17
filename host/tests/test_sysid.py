@@ -2,7 +2,8 @@
 """Her body identified of her edge alone (`machine.sysid`, `machine.identified`): the regressor against MuJoCo's inverse
 dynamics; a campaign on the stand reading her drives' friction and armature and her links; a
 payload in her hand found; its corrections laid over her law's model and judged on a fresh
-campaign; a world built 15 % off the figure read back."""
+campaign; a world built 15 % off the figure read back; her gearboxes' wind-up and play on the
+boxed world."""
 import os
 import sys
 import tempfile
@@ -35,6 +36,10 @@ ARMATURES = ('knee', 'ankle', 'ankle_roll', 'elbow')
 MOVED = ('left_forearm.hy', 'left_upper_arm.hy', 'torso.hy')
 #: How far a world is built off the figure, of each number.
 OFF = 0.15
+#: The drives whose gearboxes the campaign reads: those whose rotors ring least through it; the
+#: knees', elbows' and ankles' rings at their mode, 187 rad/s, which a 1 kHz encoder reads at a
+#: fifth of a cycle a step.
+BOXES = ('spine_roll', 'spine', 'waist', 'neck', 'head', 'shoulder', 'hip_yaw', 'hip')
 
 
 def _states(b, rng):
@@ -233,8 +238,50 @@ def test_a_world_off_the_figure_is_read_back(report, c):
                  'build %.3f, corrected %.3f, world %.3f N m rms a drive' % (rms['build'], rms['corrected'], rms['world']))
 
 
+def test_her_gearboxes_are_read(report, c):
+    """On the world with its gearboxes (`physics.BOXED`), the campaign's arrays low-passed both
+    ways, each drive's armature read at its motor's encoder; each box's wind-up and play from
+    its two encoders on the drives whose rotors ring least (BOXES), within FRICTION - at the
+    campaign's phases drawn with seed 1: drawn with 6 she touched herself 83 steps and the
+    head's wind-up came 24 % off."""
+    from machine import sysid
+    from machine.drives import kind
+    from machine.figure import JOINTS
+    lay = c['lay']
+    physics.BOXED = 1.0
+    try:
+        world = physics.World()
+        world.reset(sysid.pose(), where=(0.0, mjcf.STAND_M, 0.0))
+        ys, taus, touched = sysid.excite(world, sysid.setpoints(world, SECONDS, np.random.default_rng(1)))
+    finally:
+        physics.BOXED = 0.0
+    smooth_ys, smooth_taus = sysid.smoothed(ys, taus, physics.STEP_S)
+    Y, tau = sysid.rows(lay, c['body'], smooth_ys, smooth_taus, physics.STEP_S, EVERY)
+    base = sysid.base(lay, Y)
+    got = sysid.identify(base, Y, tau)
+    driven = [j for j in JOINTS if world.driven[JOINTS.index(j)]]
+    armature = np.array([got['theta'][got['names'].index(j + '.J')] for j in driven])
+    rotor = np.array([world.boxes.j[JOINTS.index(j)] for j in driven])
+    read = sysid.boxes(c['body'], ys, taus, physics.STEP_S, armature)
+    report.check('nothing touched her on the boxed world', touched == 0, '%d steps' % touched)
+    named = [i for i, j in enumerate(driven) if kind(j) in BOXES]
+    arm = np.abs(armature[named] - rotor[named]) / rotor[named]
+    report.check('every rotor\'s armature read positive at the motors\' encoders, the hip yaws\' within %.0f %%' % (100 * FRICTION),
+                 (armature > 0.0).all() and all(arm[k] < FRICTION for k, i in enumerate(named) if kind(driven[i]) == 'hip_yaw'),
+                 'worst %.1f %% on %s' % (100 * arm.max(), ', '.join(BOXES)))
+    k_true = np.array([world.boxes.k[JOINTS.index(j)] for j in driven])
+    gap_true = np.array([world.boxes.gap[JOINTS.index(j)] for j in driven])
+    k_err = np.abs(read[named, 0] - k_true[named]) / k_true[named]
+    gap_err = np.abs(read[named, 1] - gap_true[named]) / gap_true[named]
+    report.check('each box\'s wind-up within %.0f %% on them' % (100 * FRICTION), k_err.max() < FRICTION,
+                 'worst %.1f %% (%s)' % (100 * k_err.max(), driven[named[int(np.argmax(k_err))]]))
+    report.check('each box\'s play within %.0f %% on them' % (100 * FRICTION), gap_err.max() < FRICTION,
+                 'worst %.1f %% (%s)' % (100 * gap_err.max(), driven[named[int(np.argmax(gap_err))]]))
+
+
 ROSTER = (test_the_regressor_is_mujocos, test_her_drives_and_links_are_read, test_a_payload_is_found,
-          test_her_corrections_are_laid_over_her_build, test_a_world_off_the_figure_is_read_back)
+          test_her_corrections_are_laid_over_her_build, test_a_world_off_the_figure_is_read_back,
+          test_her_gearboxes_are_read)
 
 
 def main(argv=None):

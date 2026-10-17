@@ -91,3 +91,15 @@ torques. What her law senses: [sensing](sensing.md); the drives:
   The correction laid over the build: a fresh campaign's residual 0.60 ->
   0.36 N m rms a drive, the world's own model 0.30 (the friction band, the
   hems); the trunk's rows 1.19 and 2.9 -> 0.28 and 0.18.
+- The world with its gearboxes (`physics.BOXED`): the rotors ring at their
+  mode (187 rad/s at a knee) through the campaign, in the motor's encoder and
+  the torque that drives it; the armature read off its second differences
+  came out negative on 7 drives and the links' residual 0.3-2.8 N m. The
+  arrays low-passed both ways at 10 Hz (`sysid.smoothed`): residual 0.05-0.42,
+  every armature positive, the hips' within 3 %. Each box from its two
+  encoders on the raw arrays (`sysid.boxes`, what the motor passes less its
+  armature's share, at the step's middle): the wind-up within 1-10 % and the
+  play within 2 % on the trunk, the neck, the head, the shoulders, the hip
+  yaws and the hips; the knees', elbows' and ankle rolls' wind-up 30-60 %
+  low, the damping and the mesh's friction not read - they act at the mode,
+  which a 1 kHz encoder sees at a fifth of a cycle a step.

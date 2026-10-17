@@ -4,7 +4,9 @@
     world.reset(sysid.pose(), where=(0.0, mjcf.STAND_M, 0.0))   # on the stand (mjcf.STAND)
     ref = sysid.setpoints(world, seconds, rng)      # a stage a limb, its drives at tones
     ys, taus, touched = sysid.excite(world, ref)    # her on the stand, played a step at a time
+    ys, taus = sysid.smoothed(ys, taus, dt)         # low-passed both ways, the rotors' ring out
     Y, tau = sysid.rows(lay, body, ys, taus, dt)    # the regressor of a campaign's edge arrays
+    sysid.boxes(body, ys, taus, dt, got['theta'][J])   # each gearbox's wind-up, play, damping, mesh
     base = sysid.base(lay, Y)                       # the combinations its torques tell apart
     got = sysid.identify(base, Y, tau)              # each one fitted, with what it is worth
     identified.correction(lay, body, Y, tau)        # the least move of her build that fits it
@@ -39,6 +41,10 @@ TRUST = 0.10
 #: A drive's row is read only where it slides faster than this, rad/s: at rest its Coulomb
 #: friction is whatever holds it, anything within its limit.
 STICK = 0.25
+#: A gearbox counts as wound up passing more than this, N m, and is read on this many rows at
+#: least (`boxes`); a campaign's arrays low-passed at this, Hz, both ways, before its rows
+#: (`smoothed`: the tones under 1.4, a rotor's mode 30).
+WOUND_NM, WOUND_ROWS, SMOOTH_HZ = 1.0, 25, 10.0
 #: The excitation's sines a drive, Hz; the share of a joint's range it swings through and the
 #: share kept from either stop; an unlimited joint's swing, rad; the parts whose unlimited
 #: joint swings abducted; a stage's ease in and out, s.
@@ -103,10 +109,12 @@ def _rotation(q):
                      [2 * (x * z - w * y), 2 * (y * z + w * x), 1 - 2 * (x * x + y * y)]])
 
 
-def regressor(lay, body, qpos, qvel, qacc, a0):
+def regressor(lay, body, qpos, qvel, qacc, a0, wacc=None):
     """Y (N, hinges, P) at N states of her law's model: `qpos` (N, nq) and `qvel`, `qacc`
     (N, nv) in MuJoCo's convention, `a0` (N, 3) her pelvis's origin's acceleration less gravity,
-    world; every hinge's row, as its torque would be in a world without gravity."""
+    world; every hinge's row, as its torque would be in a world without gravity. `wacc` (N,
+    driven) each motor's acceleration through its gearbox, the armature's column: the joint's
+    own without."""
     import numpy as np
     m, d, mj = body.m, body.d, body.mj
     n = len(qpos)
@@ -171,7 +179,7 @@ def regressor(lay, body, qpos, qvel, qacc, a0):
     k = lay['drive']
     for i, j in enumerate(lay['driven']):
         dof = hinge[j]
-        Y[:, j, k + 3 * i] = qacc[:, dof]
+        Y[:, j, k + 3 * i] = qacc[:, dof] if wacc is None else wacc[:, i]
         Y[:, j, k + 3 * i + 1] = qvel[:, dof]
         Y[:, j, k + 3 * i + 2] = np.sign(qvel[:, dof])
     return Y
@@ -208,8 +216,15 @@ def rows(lay, body, ys, taus, dt, every=1):
     qacc[:, 3:6] = (then[:, edge.GYRO] - now[:, edge.GYRO]) / dt
     qacc[:, vadr] = (then[:, edge.QD] - now[:, edge.QD]) / dt
     a0 = np.stack([_rotation(q) @ a for q, a in zip(then[:, edge.QUAT], then[:, edge.ACCEL])])
-    Y = regressor(lay, body, qpos, qvel, qacc, a0)[:, lay['driven']]
-    tau = taus[:, np.flatnonzero(body.driven)]
+    driven = np.flatnonzero(body.driven)
+    # each motor's angle through its gearbox (QM): its rate and acceleration by differences
+    # over the steps about each sample, the armature's column; rigid, the joint's own
+    before = ys[np.maximum(at - 1, 0)]
+    wm = (then[:, edge.QM] - now[:, edge.QM])[:, driven] / dt
+    wacc = (then[:, edge.QM] - 2.0 * now[:, edge.QM] + before[:, edge.QM])[:, driven] / dt ** 2
+    wacc[at == 0] = qacc[at == 0][:, vadr[driven]]
+    Y = regressor(lay, body, qpos, qvel, qacc, a0, wacc)[:, lay['driven']]
+    tau = taus[:, driven]
     slides = np.abs(qvel[:, [lay['hinge'][j] for j in lay['driven']]]) >= STICK
     return Y * slides[:, :, None], tau * slides
 
@@ -292,6 +307,59 @@ def pose():
             if drives.kind(name) == kind_:
                 degrees[name] = degrees[name] + sign * deg
     return degrees
+
+
+def smoothed(ys, taus, dt, hz=SMOOTH_HZ):
+    """(ys, taus) low-passed at `hz` both ways (no phase), every sensed column and every torque
+    alike: a gearbox's rotor rings at its mode in the motor's encoder and the torque that
+    drives it, far above the campaign's tones, and the drives' armature read off its second
+    differences came out negative on a third of them."""
+    import numpy as np
+    a = math.exp(-2.0 * math.pi * hz * dt)
+
+    def both(x):
+        x = np.array(x, float)
+        for sweep in (range(1, len(x)), range(len(x) - 2, -1, -1)):
+            for k in sweep:
+                x[k] = a * x[k - 1 if sweep.step > 0 else k + 1] + (1.0 - a) * x[k]
+        return x
+    ys, taus = np.asarray(ys, float), np.asarray(taus, float)
+    out = ys.copy()
+    for cols in (edge.QUAT, edge.GYRO, edge.ACCEL, edge.Q, edge.QD, edge.QM):
+        out[:, cols] = both(ys[:, cols])
+    out[:, edge.QUAT] /= np.linalg.norm(out[:, edge.QUAT], axis=1, keepdims=True)
+    return out, both(taus)
+
+
+def boxes(body, ys, taus, dt, armature, every=1):
+    """Each drive's gearbox from its two encoders: (k N m/rad, play rad, c N m s/rad, mesh N m)
+    a drive (driven, 4) by least squares on the steps it is wound up - past its play the box
+    passes k (delta - play sign delta) + c rel + mesh sign rel to its link, delta the motor's
+    angle past the joint's (QM - Q), rel their rates' difference; what it passes is the motor's
+    torque less its armature's (`identify`'s J) share of its acceleration. Rigid, nothing winds
+    up and every number is 0."""
+    import numpy as np
+    at = np.arange(1, len(ys) - 2, every)
+    driven = np.flatnonzero(body.driven)
+    ys, taus = np.asarray(ys), np.asarray(taus, float)
+    # a torque holds over its step: the wind-up, its rate and the motor's acceleration at the
+    # step's middle
+    wound_up = ys[:, edge.QM] - ys[:, edge.Q]
+    delta = 0.5 * (wound_up[at] + wound_up[at + 1])[:, driven]
+    rel = (wound_up[at + 1] - wound_up[at])[:, driven] / dt
+    qm = ys[:, edge.QM]
+    wacc = (qm[at + 2] - qm[at + 1] - qm[at] + qm[at - 1])[:, driven] / (2.0 * dt ** 2)
+    passed = taus[at][:, driven] - np.asarray(armature) * wacc
+    out = np.zeros((len(driven), 4))
+    for i in range(len(driven)):
+        wound = np.abs(passed[:, i]) > WOUND_NM
+        if wound.sum() < 4 * WOUND_ROWS:
+            continue
+        A = np.column_stack([delta[wound, i], -np.sign(delta[wound, i]), rel[wound, i], np.sign(rel[wound, i])])
+        fit, _r, _k, _s = np.linalg.lstsq(A, passed[wound, i], rcond=None)
+        k = fit[0]
+        out[i] = (k, fit[1] / k if k > 0.0 else 0.0, fit[2], fit[3])
+    return out
 
 
 def swing(world, index):

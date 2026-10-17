@@ -2,7 +2,7 @@
 
 Each drive's friction and armature, the base parameters trusted, the corrections on her build.
 
-    python tools/sim/sysid.py [--seconds 24] [--payload 0.5] [--write machine/robots/X.identified.toml]
+    python tools/sim/sysid.py [--seconds 24] [--payload 0.5] [--boxed] [--write machine/robots/X.identified.toml]
 """
 import argparse
 import os
@@ -25,7 +25,9 @@ def main(argv=None):
     p.add_argument('--every', type=int, default=10, help='every how many steps a row is read')
     p.add_argument('--seed', type=int, default=1)
     p.add_argument('--write', help='the corrections on her build, TOML (`identified.IDENTIFIED` for her law)')
+    p.add_argument('--boxed', action='store_true', help='the world with its gearboxes: each box read too')
     args = p.parse_args(argv)
+    physics.BOXED = float(args.boxed)
     body = wbc.Body(identified=False)
     lay = sysid.laid(body)
     world = physics.World()
@@ -34,7 +36,8 @@ def main(argv=None):
         world._mj.mj_setConst(world.model, world.data)
     world.reset(sysid.pose(), where=(0.0, mjcf.STAND_M, 0.0))
     ys, taus, touched = sysid.excite(world, sysid.setpoints(world, args.seconds, np.random.default_rng(args.seed)))
-    Y, tau = sysid.rows(lay, body, ys, taus, physics.STEP_S, args.every)
+    smooth = sysid.smoothed(ys, taus, physics.STEP_S) if args.boxed else (ys, taus)
+    Y, tau = sysid.rows(lay, body, smooth[0], smooth[1], physics.STEP_S, args.every)
     base = sysid.base(lay, Y)
     got = sysid.identify(base, Y, tau)
     nominal = sysid.truth(lay, body.m)
@@ -50,6 +53,14 @@ def main(argv=None):
             k = got['names'].index('%s.%s' % (name, q))
             row.append('%7.4f%s' % (got['theta'][k], '  ' if got['trusted'][k] else ' ?'))
         print('%-20s %10s %10s %10s %8.3f' % (name, row[0], row[1], row[2], got['residual'][i]))
+    if args.boxed:
+        from machine.figure import JOINTS
+        armature = np.array([got['theta'][got['names'].index(n + '.J')] for n in drives])
+        read = sysid.boxes(body, ys, taus, physics.STEP_S, armature)
+        print('\n%-20s %9s %9s %8s %8s' % ('gearbox', 'k N m/rad', 'world', 'play rad', 'world'))
+        for i, name in enumerate(drives):
+            k = JOINTS.index(name)
+            print('%-20s %9.0f %9.0f %8.4f %8.4f' % (name, read[i, 0], world.boxes.k[k], read[i, 1], world.boxes.gap[k]))
     print('\n%-24s %10s %10s %10s %8s' % ('base parameter', 'build', 'world', 'read', '+- %'))
     for k in np.argsort(got['uncertainty']):
         if got['trusted'][k] and not got['names'][k].endswith(('.J', '.b', '.f')):

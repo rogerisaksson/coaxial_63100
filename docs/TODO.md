@@ -212,11 +212,12 @@ gets a line at the end of [DONE](DONE.md).
     check, a scenario's placing and a shove the only writes left.
 23. **Identification's rest** (identification.md): a world 15 % off the
     figure reads back its drives and 61 of 107 trusted base parameters within
-    10 %, its correction 0.60 -> 0.36 N m where the world's own is 0.30; left:
-    the gearboxes' wind-up and play with `physics.BOXED` on; her pelvis's
-    rows - her weight and its moments against her soles' loads - standing;
-    the identified model's torques on her walk within half the figure's
-    misfit; hung in a harness as on the stand.
+    10 %, its correction 0.60 -> 0.36 N m where the world's own is 0.30; with
+    the gearboxes on, the wind-up and the play of 13 drives within 10 %, the
+    knees', elbows' and ankles' rotors ringing at their mode; left: those,
+    each box's damping and mesh; her pelvis's rows - her weight and its
+    moments against her soles' loads - standing; the identified model's
+    torques on her walk within half the figure's misfit; hung in a harness.
     + DOD: each measured in `test_sysid.py`.
 
 ## One command, either driver
