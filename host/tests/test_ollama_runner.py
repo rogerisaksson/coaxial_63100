@@ -435,7 +435,7 @@ def test_smart_selection(report):
                table.BOOT_CLIENT, table.CTRL_CORE, table.WORLD_CORE, table.WIRE, table.SENSORLESS, table.DAQ_API,
                table.CONTROLLER, table.GYNOID,
                table.SIGHT, table.REACH, table.TERMS, table.GVS, table.REPLAYS, table.SCENES, table.WBC, table.WBC_CORE, table.FLIGHT,
-               table.ORTHO, table.WRENCH, table.CYCLIC, table.QUAD, table.QUAD_PULL,
+               table.ORTHO, table.FLOOR, table.WRENCH, table.CYCLIC, table.QUAD, table.QUAD_PULL,
                table.QUAD_COURSE, table.AERO_CORE, table.STREAMS,
                table.BOOT} | set(table.OLLAMA)
     for percent, expect in ((25, quarter),

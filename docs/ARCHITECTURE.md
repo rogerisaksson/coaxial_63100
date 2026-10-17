@@ -269,6 +269,7 @@ tests/              suites, .counts.json (measured sizes)
 | --- | --- |
 | `test_gynoid.py` | humanoid robot body on fantasy boards (`physics.ENVELOPE` 0, their SOA never binding): humanoid robot clothes, humanoid robot look, a leg by its foot, a virtual and a dynamic machine of humanoid robot, humanoid robot skeleton, humanoid robot drives' mounts and gearboxes, humanoid robot kinematics as motors |
 | `test_sight.py` | the stereo against the renderer's depth; a look round, posed standing, into humanoid robot map against the room, the chair and the table told, a way planned clear; the page's picture |
+| `test_floor.py` | humanoid robot floor: the plane under humanoid robot soles, its grip as she feels it, the surfaces that cap humanoid robot rhythm |
 | `test_reach.py` | humanoid robot leg's reach: its rows humanoid robot figure's, what they hold within humanoid robot stops, a place landed in MuJoCo by either limb |
 | `test_terms.py` | humanoid robot movements' terms: its rows humanoid robot figure's, a term moving humanoid robot in MuJoCo as its name says by either limb, its stops, what she has not |
 | `test_gvs.py` | the measures' dimensionless frame (Hof), SO(3)'s geodesic, the gates on them (`tools/sim/gvs.py`) |

@@ -247,10 +247,11 @@ serves its DOD; none an entry a case.
    (lisp) laid over the general law's: the friction her step asks, her
    rhythm, her step's length, her stiffness - no branch in the law. Skates:
    a sole's room a line along its blade, free along it, held across it. As
-   it is: her grip felt as a sole slides (`machine.grip`), her centre of
-   mass, her going, her landings and her step's cones bounded by it; the
-   slick patch felt 0.065 in 0.37 s, ice (0.1) and the slick patch (0.06)
-   down before 5 s; no text (scenarios.md). DOD: asphalt, snow and ice
+   it is: her grip felt as a sole slides (`machine.grip`) or told, her
+   centre of mass, her going, her landings and her step's cones bounded by
+   it, a surface's text capping her rhythm under its grip (`surfaces.lisp`);
+   told, she walks the ice standing; unaware, ice (0.1) and the slick patch
+   (0.06) down before 7 s (scenarios.md). DOD: asphalt, snow and ice
    estimated within 20 % a second after she meets them, each walked 3 times
    in 4 with its text; on skates she stands 10 s and goes 2 m by strides
    across her blades.

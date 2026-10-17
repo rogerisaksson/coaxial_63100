@@ -326,6 +326,13 @@ at her torso and hands, strafes 1.1-1.9, a hop down 11.7.
   walk the same to the digit; walking 80 N shoves 29 -> 30 of 32. Ice down at
   4.8-4.9 s where 4.3-4.4, the slick patch at 3.0-4.4: she meets both at 0.69
   m/s and slides before anything has slid.
-- Not kept yet: `ice_walk`'s amplitudes as caps under a grip of 0.25 - the ice
-  down at 4.6-7.2 s, 4.56 m on at one wobble; the slick patch at 3.2-3.5: her
-  toes on it as she sets out slide on their first push.
+- A surface is text (`machine/surfaces.lisp`, `(defsurface NAME (grip G) ..)`):
+  under its grip her rhythm's amplitudes no more than its, whatever she does,
+  blended in over the fifth under G; one so far, slippery under 0.25 with
+  `ice_walk`'s shape. What she is told of the floor - by a player or her eyes,
+  the `grip` command - is the grip her estimate goes back to when nothing
+  slides.
+- Told the ice's 0.1 before she meets it she walks it standing at 3 of 3
+  wobbles, 1.63 m in the scene's 6 s. Unaware she is down at 4.6-7.2 s, 4.55 m
+  on at one wobble; the slick patch, told or not, at 3.2-3.6 s: her toes on it
+  as she sets out slide on their first push.

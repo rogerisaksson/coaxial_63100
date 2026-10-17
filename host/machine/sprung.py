@@ -11,7 +11,8 @@ RATE_HZ, SLICE_S, SAY_S, AVERAGE_S, RECOVER_S = 1000.0, 0.05, 1.0 / 60.0, 0.05, 
 SHOVES, SHOVE_S = {'nudge': 38.0, 'push': 80.0, 'shove': 120.0}, 0.12
 #: Her stage (`staged`): walking past WALK_M_S, or with a sole off the floor within STEP_S.
 WALK_M_S, STEP_S = 0.1, 1.0
-HEARD = ('say', 'walk', 'entries', 'gym', 'text', 'push', 'seconds', 'restart', 'scenario', 'heading', 'twist')
+HEARD = ('say', 'walk', 'entries', 'gym', 'text', 'push', 'seconds', 'restart', 'scenario', 'heading', 'twist',
+         'grip')
 WALK = (('#201', 0.5), ('#202', 2.0), ('#203', 5.0), ('#204', 9.0))
 BRAKE = ('(stream_inject (sequence_id 200) (blend_duration 500ms) (latent_targets (mode_axial_compression 0.04)'
          ' (mode_pitch_attitude 0.0) (mode_sagittal_shift 0.0) (mode_lateral_shift 0.0) (mode_pelvis_turn 0.0)'
@@ -96,7 +97,7 @@ def laid(every=1, inner=None, solver=None):
          'legs': legs, 'leg_joints': np.concatenate(legs), 'leg_kp': world.gains[np.concatenate(legs), 0].copy(),
          'free_kp': world.gains[:, 0].copy(), 'clamp': world.limit.copy(), 'wep_lim': wep_lim, 'joints': joints,
          'hold': np.zeros(len(body.clamp)), 'left': WEP_S, 'ref_q': q0.copy(), 'ref_v': np.zeros(len(q0)),
-         'sense': sense, 'est': est, 'grip': grip.laid(),
+         'sense': sense, 'est': est, 'grip': grip.laid(), 'grip_prior': grip.laid(), 'surfaces': surfaced(),
          'grip_at': np.array([[m.body(s0 + part).id for part in ('foot', 'toes')] for s0 in ('left_', 'right_')]),
          'q_lo': np.array([_Q_LIM.get(kind(j), (-2.0, 2.0))[0] for j in names]), 'q_hi': np.array([_Q_LIM.get(kind(j), (-2.0, 2.0))[1] for j in names]),
          't': float(world.data.time), 'n': 0, 'every': every, 's': s, 'loads': [hw, hw], 'ask': {}, 'got': {}, 'wo': ESO_WO * (inner == 'eso'),
@@ -107,6 +108,14 @@ def laid(every=1, inner=None, solver=None):
          'solve': {'stack': wbc.step, 'wrench': wrench.step}[solver or SOLVER]}
     world.clock = lambda: g['t']
     return g
+
+
+def surfaced(text=None):
+    """(grips (S,), caps (S, N)) of her text's surfaces (`ortho.surfaces`, machine/surfaces.lisp)."""
+    import numpy as np
+    got = ortho.surfaces(text)
+    return (np.array([g for _n, g, _c in got], float).reshape(-1),
+            np.array([c for _n, _g, c in got], float).reshape(-1, ortho.N))
 
 
 def _sensed(body, est, sense, limbs):
@@ -154,7 +163,7 @@ def reset_for_scenario(g, scen):
     if (math.hypot(float(d.qpos[0]), float(d.qpos[2])) > 0.08 or abs(float(d.qpos[1]) - g['rest_y']) > 0.02
             or tilt(g) > 2.0 or doing(g) != 'rest' or len(g['tab']) > 0):
         world.reset(figure.stand(), where=(0.0, g['rest_y'], 0.0))
-        g['est'], g['grip'] = estimate.laid(body, d.qpos[0:3]), grip.laid()
+        g['est'], g['grip'], g['grip_prior'] = estimate.laid(body, d.qpos[0:3]), grip.laid(), grip.laid()
         s = g['s'] = _sensed(body, g['est'], edge.read(world, g['sense']), g['limbs'])
         hw, q0 = 0.5 * float(g['fr'][modal.WEIGHT]), g['sense'][edge.Q][g['joints']]
         g['loads'], g['heading'], g['target_heading'] = [hw, hw], 0.0, None

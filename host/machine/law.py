@@ -47,18 +47,26 @@ def held_back(g, dt):
         g['_jump_until'] += dt
 
 
-def gripped(out, held, stance):
-    """`out` with her stride no longer than her standing soles' grip (`held`) lets her stop within
-    it: her going no faster than sqrt(2 STRIDE_M grip g), its drive's sway and sinusoid scaled
-    down to it - 0.34 m/s on ice (0.02), 1.9 at her law's own 0.6. Asked 0.69 on the ice she ran
-    on and fell at 3.0-3.4 s."""
-    bears = (stance + 1e-9) / (stance.sum() + 2e-9)
-    cruise = 2.0 / math.pi * stride.STRIDE_M * abs(float(out[latent.SWAY][modal.DRIVE])) * math.sin(stride.PHI_W) * float(out[latent.TURNS])
-    k = min(1.0, math.sqrt(2.0 * stride.STRIDE_M * float(bears @ held) * modal.G) / max(cruise, 1e-9))
-    out[latent.SWAY][modal.DRIVE] *= k
-    out[latent.REF][modal.DRIVE] *= k
-    out[latent.RATE][modal.DRIVE] *= k
-    out[latent.ACC][modal.DRIVE] *= k
+def gripped(out, held, stance, surfaces):
+    """`out` on her standing soles' grip (`held`): each mode's sway and its sine scaled down to the
+    caps of the surfaces she is under (`sprung.surfaced`: grips (S,), caps (S, N)), each blended
+    in over the fifth under its grip; her drive's further to her going no faster than sqrt(2
+    STRIDE_M grip g) - a stride she can stop within: 0.77 m/s on ice (0.1), 1.9 at her law's own
+    0.6. Asked 0.69 on ice at 0.02 she ran on and fell at 3.0-3.4 s."""
+    grip_now = float(((stance + 1e-9) / (stance.sum() + 2e-9)) @ held)
+    sway = np.abs(out[latent.SWAY])
+    grips, caps = surfaces
+    under = np.clip((grips - grip_now) / (0.2 * grips), 0.0, 1.0)[:, None]
+    capped = np.where(np.isnan(caps), 1.0, np.minimum(1.0, np.nan_to_num(caps) / np.maximum(sway, 1e-9)))
+    k = np.min(1.0 - under + under * capped, axis=0, initial=1.0)
+    turns = float(out[latent.TURNS])
+    cruise = 2.0 / math.pi * stride.STRIDE_M * float(sway[modal.DRIVE] * k[modal.DRIVE]) * math.sin(stride.PHI_W) * turns
+    k[modal.DRIVE] *= min(1.0, math.sqrt(2.0 * stride.STRIDE_M * grip_now * modal.G) / max(cruise, 1e-9))
+    sine = out[latent.SWAY] * np.sin(out[latent.PSI])
+    out[latent.REF] += (k - 1.0) * sine
+    out[latent.RATE] += (k - 1.0) * out[latent.SWAY] * turns * np.cos(out[latent.PSI])
+    out[latent.ACC] -= (k - 1.0) * sine * turns * turns
+    out[latent.SWAY] *= k
 
 
 def control(g, dt):
@@ -68,7 +76,7 @@ def control(g, dt):
     body, ev, y_in = g['body'], g['every'], g['sense']
     s = g['s'] = seen(g, dt * ev)
     g['grip'] = grip.felt(g['grip'], body.d.xmat[g['grip_at']].reshape(2, 2, 3, 3), y_in[edge.TOUCH].reshape(-1, 3),
-                          g['est']['slip'], float(g['fr'][modal.WEIGHT]), dt * ev)
+                          g['est']['slip'], float(g['fr'][modal.WEIGHT]), dt * ev, g['grip_prior'])
     g['loads'] = [float(v) for v in y_in[edge.LOAD]]
     y = modal.sensed(s, g['loads'], g['y'])
     y[modal.GRIP] = g['grip']
@@ -91,7 +99,7 @@ def control(g, dt):
         out = latent.step(g['st'], g['tab'], g['t'], 0.0, g['out'])
     g['_last_way'] = cw
     se2.step_physical_twist(g, dt * ev, out)
-    gripped(out, g['grip'], g['a'][modal.STANCE])
+    gripped(out, g['grip'], g['a'][modal.STANCE], g['surfaces'])
     cur_doing = sprung.doing(g)
     touch.check_contacts(g, out, cur_doing)
     ae, tw = g.get('active_entry'), g.get('twist', (0.0, 0.0, 0.0))

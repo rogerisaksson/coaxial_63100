@@ -3,7 +3,7 @@ from tools.dev.suites import (AERO_CORE, BENCH, BOARD_MEM, BOOT, BOOT_CLIENT, BO
                               CONFORMANCE,
                               CONTROLLER, CORE, CTRL_CORE, CYCLIC, DAQ_API, DAQ_CORE, DRIVE,
                               DRIVE_OBSERVER, EMULATOR, FILTER, FLIGHT, GVS, GYNOID,
-                              HEATED, NATIVE, NATIVE_HEAT, OLLAMA, ORTHO, QUADS, REACH, RENDER, REPLAYS, SCENES,
+                              HEATED, NATIVE, NATIVE_HEAT, OLLAMA, ORTHO, FLOOR, QUADS, REACH, RENDER, REPLAYS, SCENES,
                               SENSORLESS, SHTP, SIGHT, STREAMS, STRUCTURE, TERMS, THERMAL,
                               THERMAL_APP, VIEWS, WBC, WBC_CORE, WIRE, WORLD_CORE, WRENCH)
 
@@ -79,7 +79,7 @@ TOUCHES = (
     ('host/machine/library/',                  (STRUCTURE, 'test_mirrors.py', GYNOID, ORTHO, WBC, WRENCH)),
     ('host/machine/robots/',                   (STRUCTURE, 'test_mirrors.py', GYNOID, ORTHO, WBC, WRENCH)),
     ('host/machine/',                          (CONTROLLER, GYNOID, SIGHT, REACH, TERMS, WBC, WBC_CORE,
-                                                FLIGHT, WRENCH, ORTHO, CYCLIC, REPLAYS, SCENES,
+                                                FLIGHT, WRENCH, ORTHO, FLOOR, CYCLIC, REPLAYS, SCENES,
                                                 'test_simulated.py', 'test_mcp.py',
                                                 'test_views_humanoid.py')),
     ('host/coaxial/graphics/gynoid.py',        (RENDER, *VIEWS, GYNOID)),

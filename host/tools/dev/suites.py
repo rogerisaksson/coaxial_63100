@@ -108,6 +108,8 @@ REACH, TERMS = 'test_reach.py', 'test_terms.py'
 WBC_CORE, FLIGHT, WRENCH = 'test_wbc_core.py', 'test_flight.py', 'test_wrench.py'
 #: Orthokinematics: a text compiled, her latent loop, her walk on it, the page's gym.
 ORTHO = 'test_ortho.py'
+#: Her floor: the plane under her soles, its grip as she feels it, the surfaces that cap her rhythm.
+FLOOR = 'test_floor.py'
 #: Her motion's measures in a dimensionless frame on SO(3) (tools/sim/gvs.py).
 GVS = 'test_gvs.py'
 #: Her recorded runs replayed, each without a fall (tests/replays, tools/sim/replay.py).
@@ -136,7 +138,7 @@ DEFAULT_SUITES = (STRUCTURES + (CORE, SHTP, DRIVE, DRIVE_OBSERVER, FILTER, THERM
                    CTRL_CORE, WORLD_CORE, WIRE, NATIVE, NATIVE_HEAT, EMULATOR,
                    SENSORLESS,
                    BROKER, DAQ_API, CONTROLLER, GYNOID, SIGHT, REACH, TERMS, GVS, REPLAYS, SCENES, WBC,
-                   WBC_CORE, FLIGHT, WRENCH, ORTHO, CYCLIC, QUAD, QUAD_PULL,
+                   WBC_CORE, FLIGHT, WRENCH, ORTHO, FLOOR, CYCLIC, QUAD, QUAD_PULL,
                    AERO_CORE, STREAMS, QUAD_COURSE, BOOT)
                   + VIEWS
                   + (RENDER,) + OLLAMA
@@ -166,6 +168,7 @@ JOINS = (
     (12, WBC),
     (12, FLIGHT),
     (12, ORTHO),
+    (12, FLOOR),
     (12, WRENCH),
     (12, CYCLIC),
     (12, QUAD),

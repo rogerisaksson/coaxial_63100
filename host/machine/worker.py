@@ -134,7 +134,7 @@ def heard_say(g, gym, entry):
 
 
 def heard(g, gym, command):
-    from machine import latent, modal, se2, stride
+    from machine import latent, modal, se2, stride, wbc
     unknown = sorted(set(command) - set(sprung.HEARD))
     if unknown:
         raise MachineError('the loop hears %s: not %s' % (', '.join(sprung.HEARD), ', '.join(unknown)))
@@ -165,6 +165,8 @@ def heard(g, gym, command):
         g['target_heading'] = None if command['heading'] is None else float(command['heading'])
     if 'push' in command:
         g['world'].push(command['push'], command.get('seconds', sprung.SHOVE_S))
+    if 'grip' in command:
+        g['grip'][:] = g['grip_prior'][:] = min(float(command['grip']), wbc.MU)
 
 
 def _is_fallen(g, world):
