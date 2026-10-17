@@ -226,9 +226,9 @@ serves its DOD; none an entry a case.
    continuous in her height's reading, her support region and her step's
    bounds, where a flag now. `tools/sim/jerk.py` against her steady walk
    (head 597, hands 1398-1840 m/s^3): a start 1.6, strafes 2.9, turns 6.5, a
-   spin 5.9, the weave 13, the chair 13.4, a hop down 18.7. Left: a sole let
+   spin 5.9, the weave 13, the chair 14.4, a hop down 18.7. Left: a sole let
    go at 60 N on its toes as the other takes 715 N (turns, the weave); a
-   seat's touch flickering as she rises; a hop's landing (scenarios.md). DOD:
+   seat's touch flickering as she rises; a hop's landing (jerk.md). DOD:
    every segment's peak through stand, walk, turn, strafe, back, stop, sit,
    rise, hop no higher than in her steady walk; a test holds it.
 3. **A landing on what is there**: a swinging sole that meets something
