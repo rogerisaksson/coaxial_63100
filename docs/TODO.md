@@ -197,6 +197,22 @@ gets a line at the end of [DONE](DONE.md).
       check in `test_layout`: no document names a module, a tool or a suite not
       in the tree.
 
+20. **System identification** (`machine.sysid`): her links' ten inertial
+    parameters, each drive's armature, viscous and Coulomb friction and its
+    gearbox's wind-up and play from her array and her boards' torques alone,
+    hung in her harness (`World.hang`) and excited by a multisine a joint,
+    then standing; solved toward the figure's values, `said` what the run
+    decided. As it is: the regressor is MuJoCo's to 1e-13 on `wbc.Body`
+    (joint and pelvis rows); hung, her upper body's rows fit within 0.3 N m
+    but her legs' miss 5-30 N m rms: 7 contacts on her while hung give
+    25-32 N m of constraint torque at the hips that no sensor reads - find
+    what touches (self-contact, a parked prop), then the excitation under
+    the clamps (the hips sit at 108-129 N m). No suite yet.
+    + DOD: on a world built 15 % off the figure, each drive's friction, its
+      box's wind-up and play and each link's mass and first moment within
+      10 % where `said` > 0.5; the identified model's torques on her walk
+      within half the figure's misfit; `test_sysid.py` on the relay.
+
 ## One command, either driver
 
 - **Teleoperation and autonomy alike**: keys, the tour and an agent send the
