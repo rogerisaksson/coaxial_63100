@@ -158,7 +158,7 @@
 (defstunt climbout
   (base hover) (height 3.0m) (speed 10.5m_s) (pace 3.0m_s))
 
-(defstunt base_turn
+(defstunt pattern_turn
   (base climbout) (turn 60.0deg_s))
 
 (defstunt final
@@ -197,7 +197,9 @@
   (stage full_tilt (stunt sky) (duration 2.0s) (ramp 0.0s))
   (stage burn (stunt parachute) (duration 0.0s) (ramp 0.0s) (gate held))
   (stage hold (stunt parachute) (duration 1.5s) (ramp 0.0s))
-  (stage climb-out (stunt climbout) (duration 4.0s) (ramp 1.0s))
-  (stage base (stunt base_turn) (duration 3.0s) (ramp 0.5s))
-  (stage final (stunt final) (duration 4.0s) (ramp 1.0s))
+  (stage climb-out (stunt climbout) (duration 2.5s) (ramp 1.0s))
+  (stage crosswind (stunt pattern_turn) (duration 3.0s) (ramp 0.5s))
+  (stage downwind (stunt climbout) (duration 7.5s) (ramp 0.5s))
+  (stage base (stunt pattern_turn) (duration 3.0s) (ramp 0.5s))
+  (stage final (stunt final) (duration 3.0s) (ramp 1.0s))
   (stage land (stunt pressed) (duration 8.0s) (ramp 0.0s)))

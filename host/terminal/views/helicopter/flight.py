@@ -28,11 +28,11 @@ def fresh(craft=helicopter):
     """The craft's flights' own before the first: stage, apex, controls, the pack's cells and
     peaks, the wind (`quad.air`), and the 3D `craft.Core`."""
     cells = quad.pack()
-    top = craft.PULL_MAX
+    top = craft.K_THRUST * pull.held(pull.I_MAX) ** 2 / craft.MASS_KG
     card = craft.CARD + course.CARD
     return {'stage': card[0][0], 'apex': 0.0, 'share': 1.0, 'over': 0.0, 'lap': None,
             'owed': 0.0, 'read': 0.0, 'core': craft.Core(), 'top': top,
-            'pull': aerokin.HEADROOM * top, 'row': dict(aerobatics.DOWN),
+            'pull': aerokin.HEADROOM * min(craft.PULL_MAX, top), 'row': dict(aerobatics.DOWN),
             'controls': (0.0, 0.0, 0.0, 0.0), 'stood': 0.0, 'cells': cells,
             'peak': {'watts': 0.0, 'low': cells['volts']},
             'air': quad.air(), 'wreck': None, 'crashes': 0}
@@ -82,11 +82,12 @@ def step(rotors, sky, route, law, flight, clock, dt, craft=helicopter):
         wreck = flight['wreck'] = {'what': frame['hit'], 'for': 0.0}
         flight['crashes'] += 1
     if wreck is None:
-        route['seen'] = dict(aerokin.seen(law, frame, dt, flight['pull'], flight['top']),
-                             spent=spent)
+        # The laps planned on the craft's sphere, the figures on all it has.
+        sphere = min(have, craft.COURSE_SPHERE) if lined(route) else have
+        route['seen'] = dict(aerokin.seen(law, frame, dt, sphere, flight['top']), spent=spent)
         name, row = aerobatics.fly(route, clock, [word for word, holds in (
             ('held', law['held']), ('spent', spent), ('fit', fit)) if holds])
-        flight.update(pull=have, share=have / (aerokin.HEADROOM * flight['top']), row=row)
+        flight.update(pull=sphere, share=have / (aerokin.HEADROOM * flight['top']), row=row)
         flown(rotors, sky, core, law, row, flight, dt, craft)
     else:
         name = CRASHED

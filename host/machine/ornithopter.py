@@ -63,6 +63,8 @@ WING_ROCK, BANK_ROCK, DUNE_SLASH, CORIOLIS_STORM, DESERT_UNWIND, UNWIND = (STUNT
 #: sum steady, a pitching moment at the beat.
 GEAR_RATIO, BEAT_PULSE = _FW['gear_ratio'], _FW['beat_pulse']
 PULL_MAX = (GOV_RAD_S * STUNT_BOOST) ** 2 * K_THRUST / MASS_KG
+#: Its laps' sphere: 2.0 and 1.7 struck gate 7, 1.5 lapped in 24 s whole.
+COURSE_SPHERE = 1.5 * GRAVITY
 
 
 def drive_loads(controls):
@@ -314,7 +316,8 @@ class Core:
         w_top = limits[0] if limits else pull.held(pull.I_MAX)
         w_aft_top = limits[1] if limits else w_top
         sp = state.get('speeds', (0.0, 0.0))
-        w_gov = GOV_RAD_S * (STUNT_BOOST if stunt or inv >= 0.5 or abs(rate) > STUNT_YAW_RAD_S else 1.0)
+        w_gov = GOV_RAD_S * (STUNT_BOOST if stunt or inv >= 0.5 or abs(rate) > STUNT_YAW_RAD_S
+                             or math.hypot(*along) > 0.5 * GRAVITY else 1.0)
         w_ref = max(w_gov, float(sp[0] if sp[0] > 1.0 else self.Controls[0]))
         along_u = sum(u[a] * turn[a][1] for a in range(3))
         f_comp = f_des / max(INFLOW_FLOOR, _flap_inflow(

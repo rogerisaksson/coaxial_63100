@@ -49,6 +49,13 @@ burn, land).
   leans 17-19 deg where 20, no longer against itself.
 - The arrows are the force from the hub, inverted too, drawn over whatever
   covers them; `NEG_ARROW_INK` where a thrust pulls against its axis.
+- The laps. Planned on `PULL` of the governed pull - the quad's share of the
+  drive's whole - the helicopter lapped the quad's line in 39 s at 4.3 m/s;
+  on all it has (3.2 g) it struck gate 4, on 2.6 gate 7, on 2.0 g lapped in
+  18 s whole, on 1.5 in 23 (`COURSE_SPHERE`, the page 19.5 s at 8.6 m/s, 13.2
+  at most); the ornithopter on 2.0 and 1.7 struck gate 7, on 1.5 lapped in
+  24 s whole. The head idles up (the stunt boost) where the plan leans past
+  half of gravity, as in the figures.
 
 ## Aerobat
 
@@ -82,20 +89,32 @@ wheels (0.25 m legs, the prop clear when level, the nose 12 deg up at rest).
   falls through, 8.0 to 4.9 m, caught at 3.6. Wing-borne is not a dive
   (`DIVE_M_S`): nose first down out of the waterfall the law followed the air
   into the floor.
-- The landing a circuit: climb-out at 3 m and 8 m/s in a harrier (tilt 45-68
-  deg, the hover's law on a spot walking at 10.5), a 180 deg base turn,
-  final to 0.35 m, the flare: throttle closed, the nose 40 deg up until the
-  tail wheel is 0.22 m from down, then as it rests; 2 m/s at the touch, 0.9
-  g, rolled out on the wheels' friction (0.15, their contact softened from
-  0.01 to 0.03 s: on 0.2 and 0.01 the run chattered at 5-9 g). With the
+- The landing a racetrack back onto its runway: climb-out at 3 m and 8 m/s
+  in a harrier (tilt 45-68 deg, the hover's law on a spot walking at 10.5),
+  crosswind 180 deg, downwind 7.5 s, base 180 deg, final to 0.35 m - down at
+  (-19, -39), rolled out to (-21, -30), the next run's hover over home. A
+  single 180 and a final struck a tree, and the next run from past home the
+  house, or hung 25 m beyond home and walked back 13 s. The flare: throttle
+  closed, the nose 40 deg up until the tail wheel is 0.22 m from down, then
+  as it rests; 2 m/s at the touch, 0.9
+  g, rolled out on the wheels' friction (0.3, their contact softened from
+  0.01 to 0.03 s: on 0.2 and 0.01 the run chattered at 5-9 g; on 0.5 it
+  nosed over at the touch). With the
   throttle held through the flare the wing floated it up at 1.4 m/s: no
   stall in it. Let down in the hover instead it sat on its tail at 0.36 and
   came over at 16 g, a strike.
-- The runway lies 45 deg off the first gate's heading: along it the run went
+- The runway lies 50 deg off the first gate's heading: along it the run went
   through gate 1 (its post 0.4 m off the line, the wing 0.65), across it
-  into the house; on its wheels the law keeps the runway's heading, in the
-  air it turns to the gates'. On the course it struck gate 11 before a lap:
-  the page flies its routine alone (docs/TODO.md).
+  into the house, at 45 deg the second run - from where the roll-out ended,
+  near home - into the tree 30 m on; on its wheels the law keeps the
+  runway's heading, in the air it turns to the gates'. Airborne with home
+  ahead its hover is over home: coasting on at 13 m/s a propeller pulling one
+  way ran it 45 m, so asked to slow it pulls up, its speed into height until
+  the hover's law has it; asked under its back it pushes - the nose on the
+  air with its back to what is asked rolled it inverted to go down. The
+  second flight's hover forms 27 m past home and walks back in 6 s. On the
+  course it struck gate 11 before a lap: the page flies its routine alone
+  (docs/TODO.md).
 - With the drag of a quad (0.15 m^2) and a 0.17 m^2 wing it could not reach
   the wing's speed: 12 m/s at the thrust's 0.85 g; its main wheels 0.15 m
   ahead of its middle, the elevator's 2.45 N m could not lift the tail

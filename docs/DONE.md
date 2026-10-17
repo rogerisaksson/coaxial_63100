@@ -382,3 +382,6 @@ it names. A closed item is cut from the list and gets its line here, last.
     ([identification](findings/identification.md)).
 98. The library's variants as data, a build naming them, `COAXIAL_ROBOT`
     running one: her figure on CubeMars' R80 and R60 ([stacks](findings/stacks.md)).
+99. The quad framed a third closer, its arms painted.
+100. The rotorcraft's laps on their own sphere, idled up; the aerobat's
+     racetrack ([aircraft](findings/aircraft.md)).

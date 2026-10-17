@@ -51,8 +51,8 @@ WO_TURN, WO_PULL, WO_WIND = _OBS['turn_bandwidth'], _OBS['pull_bandwidth'], _OBS
 WIND_REG, MIN_AIR_M_S = _OBS['wind_regularization'], _OBS['min_air_speed']
 FLOOR_M, HOVER_M, TOP_M = (
     KINEMATICS['envelope'][k] for k in ('floor_height', 'hover_height', 'top_height'))
-#: The pull the law plans on, m/s^2: the head governed, boosted, at full collective.
 PULL_MAX = K_THRUST * (GOV_RAD_S * STUNT_BOOST) ** 2 / MASS_KG
+COURSE_SPHERE = 2.0 * GRAVITY
 TICTOC_HZ, TICTOC_RAD = (
     KINEMATICS['oscillator'][k] for k in ('tictoc_frequency', 'tictoc_amplitude'))
 FUNNEL, SPIRAL, FLIP_IN, INVERTED, INV_PIRO, TICTOC, AILERON_TICTOC, PIRO_FLIP, CHAOS, HURRICANE, UNWIND = (
@@ -61,7 +61,7 @@ FUNNEL, SPIRAL, FLIP_IN, INVERTED, INV_PIRO, TICTOC, AILERON_TICTOC, PIRO_FLIP, 
 
 
 def drive_loads(controls):
-    """External load scales `(scale_main, scale_tail)` on the two 63100 drives for `controls`."""
+    """The two drives' load scales `(main, tail)` for `controls`."""
     c, p, r, t = controls
     return (min(_DL['main_ceiling'], _DL['main_base'] + _DL['main_collective'] * (
                 c * c + _DL['main_cyclic'] * (p * p + r * r))),
@@ -395,7 +395,8 @@ class Core:
 
         w_top, w_tail_top = (limits[0] if limits else pull.held(pull.I_MAX)), (limits[1] if limits else pull.held(pull.I_MAX))
         sp = state.get('speeds', (0.0, 0.0))
-        w_gov = GOV_RAD_S * (STUNT_BOOST if stunt or inv >= 0.5 or abs(rate) > STUNT_YAW_RAD_S else 1.0)
+        w_gov = GOV_RAD_S * (STUNT_BOOST if stunt or inv >= 0.5 or abs(rate) > STUNT_YAW_RAD_S
+                             or math.hypot(*along) > 0.5 * GRAVITY else 1.0)
         w_ref = max(w_gov, float(sp[0] if sp[0] > 1.0 else self.Controls[0]))
         along_u = sum(u[a] * turn[a][1] for a in range(3))
         f_comp = f_des / max(INFLOW_FLOOR, _rotor_inflow(along_u if f_des >= 0.0 else -along_u, math.hypot(u[0], u[2]), w_ref))

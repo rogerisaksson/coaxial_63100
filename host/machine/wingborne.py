@@ -90,10 +90,26 @@ def plane(wing, turn, acc, u, w, want_up):
     along = sum(acc[a] * v_hat[a] for a in range(3))
     perp = [acc[a] - along * v_hat[a] for a in range(3)]
     size = math.hypot(*perp)
-    d = [perp[a] + max(0.0, 3.0 - size) * -turn[a][2] for a in range(3)]
-    n = math.hypot(*d) or 1.0
-    d = [x / n for x in d]
-    alpha = min(ALPHA_MAX, wing.mass * size / (wing.q * wing.area * fast * fast))
+    # Its back across the path as it is; asked under it, it pushes - a plane does not roll
+    # onto its back to go down - else its back comes round to what is asked.
+    back = [-turn[a][2] for a in range(3)]
+    bv = sum(back[a] * v_hat[a] for a in range(3))
+    back = [back[a] - bv * v_hat[a] for a in range(3)]
+    n = math.hypot(*back) or 1.0
+    back = [x / n for x in back]
+    under = sum(perp[a] * back[a] for a in range(3))
+    if under < 0.0:
+        d, sign = back, -1.0
+    else:
+        d = [perp[a] + max(0.0, 3.0 - size) * back[a] for a in range(3)]
+        n = math.hypot(*d) or 1.0
+        d, sign = [x / n for x in d], 1.0
+    alpha = sign * min(ALPHA_MAX, wing.mass * abs(under if under < 0.0 else size)
+                       / (wing.q * wing.area * fast * fast))
+    # Asked to slow, a propeller pulling one way, it pulls up: its speed goes into height until
+    # the hover's law has it; coasting on it ran 45 m into a tree.
+    if along < 0.0 and under >= 0.0:
+        alpha = max(alpha, ALPHA_MAX * min(1.0, -along / wing.gravity))
     nose = [math.cos(alpha) * v_hat[a] + math.sin(alpha) * d[a] for a in range(3)]
     want_up = [(1.0 - w) * want_up[a] + w * nose[a] for a in range(3)]
     n = math.hypot(*want_up) or 1.0
