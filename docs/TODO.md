@@ -210,7 +210,7 @@ gets a line at the end of [DONE](DONE.md).
 
 Each a test in MuJoCo: placed, commanded as a player would, judged by no
 fall, its goal reached and its jerk (`tools/sim/scenarios.py`; those that hold
-in `test_scenarios`, 15 of 27 at every wobble now:
+in `test_scenarios`, 21 of 30 at every wobble now:
 [scenarios](findings/scenarios.md)). In order: each a mechanism, the scenes it
 serves its DOD; none an entry a case.
 
@@ -233,26 +233,32 @@ serves its DOD; none an entry a case.
    rise, hop no higher than in her steady walk; a test holds it.
 3. **A landing on what is there**: a swinging sole that meets something
    raises her swings by its height, one that meets nothing reaches on down; a
-   sliding one lowers the friction she asks. Met: the sill, the rug, ice,
-   snow, asphalt, a slick patch; the hole at 11 of 13 wobbles. DOD: the hole
-   held, stairs of 0.15 x 0.30 m up and down, a slope of 10 deg up, down and
-   across; 3 times in 4 each.
-4. **Reachable landings ahead**: where each limb lands before her capture
+   sliding one lowers the friction she asks. Met at 13 of 13 wobbles: the
+   sill, the rug, the hole, ice, snow, asphalt, a slick patch. DOD: stairs
+   of 0.15 x 0.30 m up and down, a slope of 10 deg up, down and across; 3
+   times in 4 each.
+4. **Her floor identified, a text over the general law**: what her
+   standing soles meet - slip and sink under their load - read from her
+   sensors against what her law assumes (friction 0.6 in her step, a rigid
+   floor) and estimated as data; outside that envelope a surface's text
+   (lisp) laid over the general law's: the friction her step asks, her
+   rhythm, her step's length, her stiffness - no branch in the law. Skates:
+   a sole's room a line along its blade, free along it, held across it. As
+   it is: nothing estimated; ice 0.02 and the slick patch 0.06 against 0.6
+   asked. DOD: asphalt, snow and ice estimated within 20 % a second after
+   she meets them, each walked 3 times in 4 with its text; on skates she
+   stands 10 s and goes 2 m by strides across her blades.
+5. **Reachable landings ahead**: where each limb lands before her capture
    point is past it, read from her reach (`machine.reach`); none, her height
    lowered and a limb set to meet the fall, knees then hands, head off the
    floor. 80 N met: standing 32 of 32, walking 28 (forward-aside 5 of 8).
    200 N: standing 14 of 32 stand or fall soft, walking 21; the rest strike
-   her head at 1.1-4.5 m/s. A player's turnabout (`play_about`: in place 2 s,
-   an arc 1 s, a walk 2 s, a stop) 7 of 13 wobbles: after the stop her
-   capture point runs outside the standing left foot (0.07 -> 0.21 m) while
-   the right swings in beside it, and the left steps out only after it; each
-   part alone 13 of 13. DOD: 200 N falls with the head under 1 m/s; the
-   turnabout 13 of 13.
-5. **One jump**: takeoff from the height and distance to land - a hop's
+   her head at 1.1-4.5 m/s. DOD: 200 N falls with the head under 1 m/s.
+6. **One jump**: takeoff from the height and distance to land - a hop's
    landing said with it, its throw forward from that, not from a twist. DOD:
    down from a chair, two-footed up onto one (0.45 m), in place; landed
    standing.
-6. **The drives for it**: a gait under way, a swing led or her capture point
+7. **The drives for it**: a gait under way, a swing led or her capture point
    past a lone standing sole grants a held drive 1.45x its clamp, past its
    parts' peak. Without it the turns hold and the turnabout better (13 of 13,
    7 granted); the weave falls at 4 of 13 (drives.md). DOD: each scenario's
