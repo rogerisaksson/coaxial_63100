@@ -20,8 +20,8 @@ import numpy as np
 from machine import latent, poise, stride
 from machine.modal import (
     ARM_RAD, ARMS, AXIAL, AXIAL_M, BEND, CLEAR_M, COM, COM_ACC, DRIVE, DT, EDGE, FLOOR, FOLD, FOLD_RATE, FOLDS, G,
-    GOING, GROUND, HANDS, HEADED, HEELED, HIP, HIPS_BY, HOT, KDOT, KNEE, LATERAL, LEG_M, LIFT, LIST, LIST_RAD, LOAD,
-    LOWEST, MASS, MOMENT, NEED, PELVIS, PITCH, PITCH0, PITCH_RAD, PREFOLD, QUAT, RAISE, REACH0, ROCK, ROLLED, ROT,
+    GOING, GROUND, HANDS, HEADED, HEELED, HIP, HIPS_BY, HOT, KDOT, KNEE, LATERAL, LEAD, LEG_M, LIFT, LIST, LIST_RAD,
+    LOAD, LOWEST, MASS, MOMENT, NEED, PELVIS, PITCH, PITCH0, PITCH_RAD, PREFOLD, QUAT, RAISE, REACH0, ROCK, ROLLED, ROT,
     SAGITTAL, SETTLE, SOLE, SOLE_ACC, SPIN, STANCE, STRIDES, SWINGS, SWUNG, TILT, TILT_RATE, TIPPED, TURN, TURN_RAD,
     TURNED, UNIT, VCOM, VSOLE, W0, WANT, WIDTH, Z0, reading, shortened)
 from machine.poise import HALF_M, TINY
@@ -69,19 +69,25 @@ def ask(out, y, fr, a):
     # floor - steps her: on its ball, a sole's box its ball's line, a hop's throw stepped her
     out_of = poise.BIG * (1.0 - stood)[:, None]
     lo, hi = poise.boxes(flat, 0.0 * a[EDGE], tilt)
-    past = np.linalg.norm(xi - poise.clip(xi, (lo + out_of).min(axis=0), (hi - out_of).max(axis=0)))
+    beyond = xi - poise.clip(xi, (lo + out_of).min(axis=0), (hi - out_of).max(axis=0))
+    past = np.linalg.norm(beyond)
     a[NEED] = stood.max() * poise.clip(past / poise.MARGIN_M, 0.0, 1.0)
-    stepping, way, sweep, phi, off, u, flying, swung = stride.beat(
+    stepping, way, sweep, phi, on, off, u, flying, swung = stride.beat(
         out[latent.SWAY][DRIVE], out[latent.PSI][DRIVE], out[latent.SWAY][LATERAL], out[latent.PSI][LATERAL], turns,
-        a[SWINGS], a[NEED])
+        a[SWINGS], a[NEED], a[LEAD])
     a[SWINGS] = off
+    kp, kd = out[latent.KS] / fr[MASS], out[latent.DS] / fr[MASS]
+    # a swing goes ahead of its rhythm as far as lands it before her capture point is a reach
+    # across past the soles that stood, its own side of them
+    aside = stood.max() * np.maximum(LIMBS * beyond[LEFT], 0.0)
+    hurry = 1.0 + flying * (stride.hurried(aside, om, u, swung, kp[FREE_BY][:2]) - 1.0)
+    a[LEAD] = on * (a[LEAD] + fr[DT] * swung * (hurry - 1.0))
     # a limb strides as far as her stride or its own swing has it
     limbs = np.maximum(stepping, off)
     # the lift's own rhythm is her stride's clearance, not a sole's place
     beat = out[latent.PSI][LIFT]
     tone = out[latent.SWAY][LIFT] * np.array([np.sin(beat), turns * np.cos(beat), -turns * turns * np.sin(beat)])
     ref, rate, acc = (out[part] - HOT[LIFT] * t for part, t in zip((latent.REF, latent.RATE, latent.ACC), tone))
-    kp, kd = out[latent.KS] / fr[MASS], out[latent.DS] / fr[MASS]
     # along her way her centre of mass is damped to her cruise, not to her soles' middle:
     # damped to that she stopped between steps and each sole waited for her
     cruise = stride.cruises(way, out[latent.SWAY][DRIVE], turns, a[GOING])
@@ -124,12 +130,12 @@ def ask(out, y, fr, a):
     late = stride.lates(phi, turns, stepping)
     # what a sole met (`machine.touch`) her swings clear, for a turn of her rhythm
     a[RAISE] -= fr[DT] * turns / (2.0 * np.pi) * a[RAISE]
-    clear = aloft * stride.clears(u, flying, swung, CLEAR_M * (1.0 + np.abs(out[latent.SWAY][LIFT])) + a[RAISE], tip,
+    clear = aloft * stride.clears(u, flying, swung * hurry, CLEAR_M * (1.0 + np.abs(out[latent.SWAY][LIFT])) + a[RAISE], tip,
                                   tipping, tilt, late)
     free, frame = _swings(y, fr, (rot, v, om, shod), (ref, rate, acc, kp, kd, hands), clear, stance, cruise)
     strides = (limbs * grounded)[:, None]
     a[SOLE_ACC] = ((1.0 - strides) * (free @ frame + ((1.0 - grounded * BETWEEN) * com) @ rot) + strides * (
-        np.concatenate([stride.goes(meet, flat, shod, v, u, turns, kp[FREE_BY][:2], kd[FREE_BY][:2]),
+        np.concatenate([stride.goes(meet, flat, shod, v, u, turns * hurry, kp[FREE_BY][:2], kd[FREE_BY][:2]),
                         free[:, UP:]], axis=1) @ rot)).ravel()
     # its pitch on the rock's own spring, from the floor's under the soles that stand; the
     # loop's turn law asked for what gives that

@@ -102,6 +102,23 @@ rad; Q E a sidestep at 0.5. Every twist they send lies within the bench's plays
   a walk, in place then an arc, an arc then a walk, an arc of 3 s, each with its
   stop: 13 of 13.
 
+## A swing's own clock
+
+Each swing's share runs ahead of its rhythm's (`stride.hurried`, `modal.LEAD`) as
+far as lands it before her capture point is a leg's reach (0.35 m) across past
+the soles that stood, on the swing's own side; her rhythm's angle untouched. Her
+plain walk the same bit for bit (her pose hashed each second for 20 s).
+
+- The bench: 50 of 81 scenes, walking 80 N shoves 23 -> 26 of 32 (forward-aside
+  1 -> 3 of 8), standing 32, replays 9 of 9; `play_about` 5 -> 8 of 13
+  wobbles, the turns and the weave 13 of 13.
+- Measured along her way too, the capture point runs past the standing sole every
+  step of a walk: her plain walk hurried from 10 s on. With no sole standing it
+  read 1000 m past them and a swing slammed down at 3 times its pace: a kept
+  replay fell at 12.78 s.
+- Either side or its own, `play_about` the same: its left lands at 6.75 s (6.9
+  unhurried), the capture point still 5 cm past it.
+
 ## The terrain's scenes
 
 - The base plane, the hole's bottom 10 cm down, lay over every descent: the stairs

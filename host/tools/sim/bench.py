@@ -22,8 +22,10 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 WOBBLES = ('0', '0.0002', '-0.0002')
 #: The polar's force, N.
 SHOVE_N = '80'
-#: A kept replay replayed in its own process, its line as JSON.
-REPLAYED = ('import csv, json, sys; from tools.sim import replay; rows = list(csv.DictReader(open(sys.argv[1], '
+#: A kept replay replayed in its own process on the tree at its third argument, its line as JSON:
+#: a relay's job runs in this tree, and `-c` imports from there.
+REPLAYED = ('import csv, json, sys; sys.path.insert(0, sys.argv[3]); from tools.sim import replay; '
+            'rows = list(csv.DictReader(open(sys.argv[1], '
             "encoding='utf-8'))); got = replay.replayed(replay.entries(rows), rows, wobble=float(sys.argv[2])); "
             "print(json.dumps({'fell': got['fell'], 't': got['t']}))")
 
@@ -39,7 +41,7 @@ def jobs(host):
     out = [focus.Job('%s@%s' % (n, w), one + [n, '--wobble', w], timeout=900.0) for n in scenes for w in WOBBLES]
     out += [focus.Job('%s@0' % n, one + [n, '--wobble', '0'], timeout=900.0) for n in shoves]
     kept = sorted(glob.glob(os.path.join(host, 'tests', 'replays', '*.csv')))
-    out += [focus.Job('replay:%s@%s' % (os.path.basename(p), w), [sys.executable, '-X', 'utf8', '-c', REPLAYED, p, w],
+    out += [focus.Job('replay:%s@%s' % (os.path.basename(p), w), [sys.executable, '-X', 'utf8', '-c', REPLAYED, p, w, host],
                       timeout=900.0) for p in kept for w in WOBBLES]
     return out
 

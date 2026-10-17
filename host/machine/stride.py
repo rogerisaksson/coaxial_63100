@@ -1,6 +1,7 @@
 """Her stride on her latent loop: when a limb swings, where its sole lands, how a sole rolls.
 
-    stepping, way, sweep, phi, off, u, flying, swung = stride.beat(drive, psi, sway, lateral, turns, was, need)
+    stepping, way, sweep, phi, on, off, u, flying, swung = stride.beat(drive, psi, sway, lateral, turns, was, need, lead)
+    hurry = stride.hurried(aside, om, u, swung, kp)                  # (2,), 1 unhurried
     cruise = stride.cruises(way, drive, turns, going)       # the speed her drive makes of its steps
     meet = stride.meets(xi, c, flat, cruise, om, turns, wide)       # where each sole lands (2, 2)
     tip, tipping, tipped = stride.rocks(rock, rate, acc)    # each sole's pitch as her rock has it
@@ -79,22 +80,37 @@ FOLD_RAD = 0.26
 HEEL_UP = 0.5
 
 
-def beat(drive, psi, sway, lateral, turns, was, need):
+def beat(drive, psi, sway, lateral, turns, was, need, lead):
     """Her stride of her drive (its amplitude and angle) and her sway's: (whether she strides,
     0 to 1, as far as her drive or her `need` has it; her way, 1 or -1; each limb's place in its
     sweep, 1 its furthest on her way; its turn of it, 0 as it passes under her going on;
-    whether her stride has it off the floor's count - it swings PHI_W either side of that, and
-    is off from where the other's swing ended -; its swing's share done; whether it swings;
-    that share's rate, 1/s). A swing begun is finished, off as far as her stride has had it
-    since (`was`, the pass before's), its way kept with her drive let go: a spin in place
-    stood where it fell at 7.94 s."""
+    whether its rhythm has it off, from where the other's swing ended to PHI_W past that place;
+    whether her stride has it off the floor's count; its swing's share done, `lead` ahead of its
+    rhythm's (`hurried`) - landed at its end -; whether it swings; its rhythm's rate of that
+    share, 1/s). A swing begun is finished, off as far as her stride has had it since (`was`,
+    the pass before's), its way kept with her drive let go: a spin in place stood where it fell
+    at 7.94 s."""
     stepping = np.maximum(clip(np.abs(drive) / STIRS, 0.0, 1.0), need)
     way = 1.0 - 2.0 * (np.sin(lateral - psi) * np.copysign(1.0, sway) < -BACK)
     side = -LIMBS * np.copysign(1.0, drive) * way
     sweep, phi = side * np.sin(psi), np.arctan2(side * np.sin(psi), side * np.cos(psi))
-    off = np.maximum(stepping, was) * (phi > PHI_W - np.pi) * (phi < PHI_W)
-    u = clip(0.5 * (phi / PHI_W + 1.0), 0.0, 1.0)
-    return stepping, way, sweep, phi, off, u, off * (u > 0.0), 0.5 * turns / PHI_W
+    on = (phi > PHI_W - np.pi) * (phi < PHI_W)
+    u = clip(0.5 * (phi / PHI_W + 1.0) + lead, 0.0, 1.0)
+    off = np.maximum(stepping, was) * on * (1.0 - (lead > 0.0) * (u >= 1.0))
+    return stepping, way, sweep, phi, on, off, u, off * (u > 0.0), 0.5 * turns / PHI_W
+
+
+def hurried(aside, om, u, rate, kp):
+    """How many times its rhythm's `rate` (1/s) each swing's share `u` goes: 1, or as fast as
+    lands it before her capture point - `aside` m across past the soles that stood, its own side
+    of them, growing as e^(omega t) - is a leg's reach (REACH_M) past them, in its spring's own
+    time at the soonest (`kp`, 1/s^2: `goes`). Along her way it runs past them every step of a
+    walk, and hurried swings from 10 s of her plain walk on; with no sole standing it read
+    1000 m, a swing slammed down 3 times its pace and she fell. Its stance let go, a turn
+    reversed landed its swing 0.54 s on and she fell; her whole rhythm hurried for it turned her
+    pelvis with it and spun her 1.9 rad."""
+    due = np.log(np.maximum(REACH_M / np.maximum(aside, TINY), 1.0)) / om
+    return np.maximum(1.0, (1.0 - u) / (rate * np.maximum(due, np.sqrt(6.0 / kp))))
 
 
 def cruises(way, drive, turns, going):

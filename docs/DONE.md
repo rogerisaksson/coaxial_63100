@@ -349,3 +349,7 @@ it names. A closed item is cut from the list and gets its line here, last.
     start settles its estimate 20 ms and its loop takes over at its reading;
     the rotor demo's and the virtual rotor's tests told theirs. CI's two
     flakes, 6 of 6 starved, 0 of 6 ([host](findings/host.md)).
+86. A swing's own clock: its share led ahead of its rhythm as far as lands it
+    before her capture point is a reach across past the standing soles, its
+    own side; walking 80 N shoves 26 of 32, the 80 N DOD met
+    ([scenarios](findings/scenarios.md)).
