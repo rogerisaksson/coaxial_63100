@@ -199,10 +199,12 @@ gets a line at the end of [DONE](DONE.md).
 
 ## One command, either driver
 
-- **Teleoperation and autonomy alike**: the page's keys and the tour send a
-  twist and verbs only, the drives' grant goes by the gait under way; the
-  worker still branches on `_twist_active` and entry names - a gait said and
-  a gait twisted run apart. DOD: the worker never knows which.
+- **Teleoperation and autonomy alike**: keys, the tour and an agent send the
+  same twist and verbs; the drives' grant goes by the gait under way. Inside,
+  a gait said rides its nominal twist and the worker's say path keeps a
+  transition by entry name (brake, rises, `init_walk`'s delay). DOD: those
+  transitions as data, a said gait and a twisted one one path - the kept
+  replays standing.
 - **No jerk in a transition**: `tools/sim/jerk.py` reads the worst at 11.7
   of her steady walk (a hop down's hands); a walk's start 4.3 (head), its
   first landings; turns and the weave 7.8-8.2 (hands). DOD: every segment's
@@ -219,7 +221,7 @@ in `test_scenarios`, 15 of 27 at every wobble now:
 - **Terrain by contact**: a swinging sole that meets something raises her
   swings by its height, one that meets nothing reaches on down; a sliding one
   lowers the friction she asks. Met: the sill, the rug, ice, snow, asphalt, a
-  slick patch; the hole at 9 of 13 wobbles. DOD: the hole held, stairs of 0.15
+  slick patch; the hole at 11 of 13 wobbles. DOD: the hole held, stairs of 0.15
   x 0.30 m up and down, a slope of 10 deg up, down and across; 3 times in 4
   each.
 - **Support by contact**: sit, lie and rise as weight moved onto and off a
@@ -229,7 +231,9 @@ in `test_scenarios`, 15 of 27 at every wobble now:
 - **A shove in any direction, any moment**: the capture point past her
   soles steps her; past her reach she falls controlled, knees then hands,
   head off the floor. 80 N met: standing 32 of 32, walking 28 (forward-aside
-  5 of 8). DOD: 200 N falls with the head under 1 m/s.
+  5 of 8). 200 N: standing 14 of 32 stand or fall soft, walking 21; the rest
+  strike her head at 1.1-4.5 m/s, nothing in her law falling. DOD: 200 N
+  falls with the head under 1 m/s.
 - **The drives for it**: a gait under way, a swing led or her capture point
   past a lone standing sole grants a held drive 1.45x its clamp, past its
   parts' peak. Without it the turns hold and the turnabout better (13 of 13,
