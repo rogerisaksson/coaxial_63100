@@ -200,9 +200,9 @@ gets a line at the end of [DONE](DONE.md).
 ## One command, either driver
 
 - **Teleoperation and autonomy alike**: the page's keys and the tour send a
-  twist and verbs only; the worker still branches on `_twist_active` and entry
-  names - a gait said and a gait twisted run apart, the WEP grant the twist's
-  alone. DOD: the worker never knows which.
+  twist and verbs only, the drives' grant goes by the gait under way; the
+  worker still branches on `_twist_active` and entry names - a gait said and
+  a gait twisted run apart. DOD: the worker never knows which.
 - **No jerk in a transition**: `tools/sim/jerk.py` reads the worst at 11.7
   of her steady walk (a hop down's hands); a walk's start 4.3 (head), its
   first landings; turns and the weave 7.8-8.2 (hands). DOD: every segment's
@@ -228,15 +228,15 @@ in `test_scenarios`, 15 of 27 at every wobble now:
   from a chair, two-footed up onto one (0.45 m), in place; landed standing.
 - **A shove in any direction, any moment**: the capture point past her
   soles steps her; past her reach she falls controlled, knees then hands,
-  head off the floor. 80 N met: standing 32 of 32, walking 26 (forward-aside
-  3 of 8). DOD: 200 N falls with the head under 1 m/s.
-- **The drives for it**: a twist from a key grants a held drive 1.45x its
-  clamp, past its parts' peak, and her turns need it: the inside sole's heel
-  rise unloads it mid-turn (`demand.py --scenarios`, drives.md). DOD: one
-  ceiling whoever commands, each scenario's peak, rms, speed and heat under
-  2/3 of its parts.
+  head off the floor. 80 N met: standing 32 of 32, walking 28 (forward-aside
+  5 of 8). DOD: 200 N falls with the head under 1 m/s.
+- **The drives for it**: a gait under way, a swing led or her capture point
+  past a lone standing sole grants a held drive 1.45x its clamp, past its
+  parts' peak. Without it the turns hold and the turnabout better (13 of 13,
+  7 granted); the weave falls at 4 of 13 (drives.md). DOD: each scenario's
+  peak, rms, speed and heat under 2/3 of its parts.
 - **A player's turnabout**: in place 2 s, an arc 1 s, a walk 2 s, a stop
-  (`play_about`, what S sends with the view behind her): 8 of 13 wobbles. After
+  (`play_about`, what S sends with the view behind her): 7 of 13 wobbles. After
   the stop her capture point runs outside the standing left foot (0.07 -> 0.21
   m) while the right swings in beside it, 0.10 m apart: the left steps out
   only after it. Each part alone holds 13 of 13. DOD: 13 of 13.

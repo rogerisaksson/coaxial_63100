@@ -99,7 +99,7 @@ def control(g, dt):
         acv, M = body.act[cv], s['M'].copy()
         M[:6, acv] = M[acv, :6] = 0.0
         s_solve = dict(s, M=M)
-    wb = bool(g.get('_twist_active') or g.get('_leap') or cur_doing in sprung.STUNT_PHASES)
+    wb = bool(g.get('_leap') or g.get('active_entry') in se2.WASD_GAITS or (g['a'][modal.LEAD] > 0.0).any() or g['a'][modal.OUTSIDE] > 0.0 or cur_doing in sprung.STUNT_PHASES)
     der = np.where((g['hold'] > 0.0) | wb, g['wep_lim'] / np.maximum(1.0, body.wep), 1.0)
     g['got'] = g['solve'](body, s_solve, dict(ask, wep=g['left'] > 0.0, derate=der))
     if len(cv) and no_stride:
@@ -138,7 +138,7 @@ def drives(g, dt):
         eso[1:] *= ys
     g['hold'] = np.where(got['over'], sprung.WEP_HOLD_S, np.maximum(0.0, g['hold'] - dt))
     g['left'] = min(sprung.WEP_S, max(0.0, g['left'] + dt * (sprung.WEP_FILL * (1.0 - held) - held)))
-    wb = bool(g.get('_twist_active') or g.get('_leap') or sprung.doing(g) in sprung.STUNT_PHASES)
+    wb = bool(g.get('_leap') or g.get('active_entry') in se2.WASD_GAITS or (g['a'][modal.LEAD] > 0.0).any() or g['a'][modal.OUTSIDE] > 0.0 or sprung.doing(g) in sprung.STUNT_PHASES)
     leak, lo, hi = dt / sprung.LEAK_S, g['q_lo'], g['q_hi']
     g['ref_v'] += qa * dt + leak * (qvel_act - g['ref_v'])
     if not in_hop:

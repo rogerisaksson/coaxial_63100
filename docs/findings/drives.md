@@ -423,6 +423,12 @@ its no-load speed at 48 V, a node's span to its ceiling. Worst of the sides.
   plain walk (0 of 6 666 passes); in the reversed turn it quickened every mode
   with the swing, her pelvis's turn among them, and she spun 1.9 rad and fell.
   A swing's timing needs a clock of its own, apart from her rhythm's angle.
+- With each swing's own clock the turns hold without the grant (13 of 13 wobbles),
+  the turnabout too and better (13, against 7 granted: saturation damps what her
+  law over-asks there); the weave falls at 4 of 13 without it, at 1 granted only
+  while a swing leads or her capture point is past a lone standing sole's own
+  side - never in her plain walk, 0 of 6 666 passes. Granted by the gait under
+  way, whoever said it: the bench as before, walking 80 N shoves 28 of 32.
 
 ## As data
 
