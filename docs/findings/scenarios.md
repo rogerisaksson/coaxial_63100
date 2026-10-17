@@ -294,6 +294,12 @@ plain walk the same bit for bit (her pose hashed each second for 20 s).
   across it 5.69, down the stairs 3.20); a 20 cm reach (as before); the floor's
   pitch from her two bearing soles' heights apart (up the ramp 9.17 -> 4.46, the
   hole fell); the ramp's pitch told under each sole (down it to its foot, 0.449
-  of 0.45 m, and down there at 4.49 s; up it at the crest, 9.25). A known
+  of 0.45 m, and down there at 4.49 s; up it at the crest, 9.25). Told the ramp
+  and her cruise no longer drawn on by her going (`stride.cruises`' AHEAD below
+  it) she climbs it at 12 of 13 wobbles - drawn on, her going 1.0-1.35 m/s up it
+  lifted her cruise to 0.99 where 0.63 was asked, she ran 1.37 and flew off its
+  top -, but snow went 13 -> 9: there her soles slide on ahead, 1.0-1.29 m/s, and
+  her centre of mass must follow them - held to what was asked it fell back at
+  1.5 m/s. The bound's most held to what was asked of late, the same. A known
   floor alone does not climb: her landings fall on nosings and edges, and her
   capture point runs on.
