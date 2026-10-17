@@ -140,8 +140,8 @@ def _wing_pose_angles(rotors, controls):
         return ((20.0, 6.0, 14.0), (20.0, 6.0, 14.0),
                 (-8.0, 4.0, -20.0), (-8.0, 4.0, -20.0))
     amp = (22.0 + 18.0 * abs(stroke)) * (1.0 - 0.65 * fold)
-    phase_f = ang_f
-    phase_a = ang_a + math.pi
+    phase_f = ang_f / orni_phys.GEAR_RATIO
+    phase_a = ang_a / orni_phys.GEAR_RATIO + math.pi
     dih_fl = 12.0 + amp * (1.0 - 0.25 * roll_d) * math.sin(phase_f)
     dih_fr = 12.0 + amp * (1.0 + 0.25 * roll_d) * math.sin(phase_f)
     dih_al = -6.0 + 0.90 * amp * (1.0 - 0.25 * roll_d) * math.sin(phase_a)

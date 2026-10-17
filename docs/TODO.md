@@ -313,6 +313,25 @@ serves its DOD; none an entry a case.
 - **The test line's limits** (`testline/plans/coaxial_63100_fct.yaml`).
   DOD: measured.
 
+## Flight pages
+
+- **The helicopter's head speed**: its main rotor is asked the drive's whole
+  703 rad/s in full tilt (6 700 rpm, the 0.5 m blades' tips at 351 m/s, Mach
+  1.03, 11 times its weight) and 403-480 in the 3D figures; a helicopter
+  governs its head speed and pulls by collective alone, 2.9 times its weight
+  at the governor's 360 rad/s ([quad](findings/quad.md)). DOD: the main rotor
+  held to the governor and its stunt boost, the routine flown on collective,
+  the full tilt and burn rows measured again.
+- **The ornithopter flies as the helicopter**: twelve stages the same to the
+  digit, its lift a rotor's K w^2 by a signed stroke with no beat in it, 29 Hz
+  at the governor and 56 in full tilt on a 0.56 m span, where a 2 kg bird
+  beats 3-6. DOD: a flapping law of its own - the beat's lift pulsing, the
+  beat by its gear - measured on the page; or the beat written as Dune's in
+  its manifest.
+- **The tail rotor's pitch saturates** in the tic-toc, the piro-flip and the
+  catch, the tail asked 428-480 rad/s for it. DOD: the tail's reach sized to
+  the figures, none at its stop.
+
 ## Host
 
 - **native://**: a limb's world on a fixed mount as board/emu's. DOD: the

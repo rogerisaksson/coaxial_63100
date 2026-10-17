@@ -204,6 +204,7 @@ class Sky:
         self.model = self._mj.MjModel.from_xml_string(mjcf(things))
         self.data = self._mj.MjData(self.model)
         self.frame = self.model.body('frame').id
+        self.rest = SKID_M + FOOT_M
         #: What the rotors gave at the last step in still air, N: their speeds' own.
         self.lift = 0.0
         #: What the frame struck first since it was put on its spot - a thing's name, the
@@ -253,7 +254,7 @@ class Sky:
         by in the world; 'lift' what its rotors' speeds give in still air, N; 'hit' what it
         struck first, or None."""
         d = self.data
-        return {'h': float(d.qpos[1]) - (SKID_M + FOOT_M), 'v': float(d.qvel[1]),
+        return {'h': float(d.qpos[1]) - self.rest, 'v': float(d.qvel[1]),
                 'a': float(d.qacc[1]), 'turn': d.xmat[self.frame].reshape(3, 3).copy(),
                 'spin': d.qvel[3:6].copy(), 'at': d.qpos[0:3].copy(),
                 'vel': d.qvel[0:3].copy(), 'acc': d.qacc[0:3].copy(), 'lift': self.lift,
@@ -267,7 +268,6 @@ class Sky:
         np, d = self._np, self.data
         # The four's lift and their torque about the frame's own axes, the pass's: a thrust up
         # the frame's axis at (x, z) turns it (-z, 0, x) of itself, the drags about that axis.
-        # Crossed a rotor a step in the world's frame, 40 crosses were 1.0 ms of a 20 ms pass.
         thrusts = [K_THRUST * w * w for w in speeds]
         self.lift = sum(thrusts)
         wind, push, twist = np.zeros(3), np.zeros(3), np.zeros(3)

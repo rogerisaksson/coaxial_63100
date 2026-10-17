@@ -98,12 +98,13 @@ def _rotor_inflow(along, v_horiz, w_m):
     return inflow(along, w_m) * (1.0 + 0.65 * min(0.35, v_horiz / max(w_m * ROTOR_R, 8.0)))
 
 
-def _init_sky(sky, xml):
+def _init_sky(sky, xml, rest):
+    """`sky` on MuJoCo's model of `xml`, its middle `rest` m over the floor at rest."""
     os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
     sky._mj, sky._np = importlib.import_module('mujoco'), importlib.import_module('numpy')
     sky.model = sky._mj.MjModel.from_xml_string(xml)
     sky.data = sky._mj.MjData(sky.model)
-    sky.frame = sky.model.body('frame').id
+    sky.frame, sky.rest = sky.model.body('frame').id, rest
     sky.lift, sky.speeds, sky.controls, sky.hit = 0.0, (0.0, 0.0), (0.0, 0.0, 0.0, 0.0), None
     names = [sky.model.geom(g).name for g in range(sky.model.ngeom)]
     sky._names = [n.split('.')[0] for n in names]
@@ -121,7 +122,7 @@ class Sky(quad.Sky):
 
     def __init__(self, things=()):
         self.tail = 0.0
-        _init_sky(self, mjcf(things))
+        _init_sky(self, mjcf(things), SKID_M + FOOT_M)
 
     def reset(self):
         super().reset()

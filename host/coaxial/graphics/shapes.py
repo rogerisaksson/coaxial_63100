@@ -169,7 +169,7 @@ def turn_about(axis, degrees):
     """The 3x3 that turns `degrees` about `axis`, 'x', 'y' or 'z'."""
     np = _SHAPES_NP or _np()
     if not degrees:
-        return _EYE3
+        return _EYE3 if _EYE3 is not None else np.eye(3)
     rad = math.radians(degrees)
     c, s = math.cos(rad), math.sin(rad)
     if axis == 'x':

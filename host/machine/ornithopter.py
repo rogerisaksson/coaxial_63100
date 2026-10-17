@@ -128,7 +128,7 @@ class Sky(quad.Sky):
 
     def __init__(self, things=()):
         self.yaw_force = 0.0
-        _init_sky(self, mjcf(things))
+        _init_sky(self, mjcf(things), SKID_M + FOOT_M)
 
     def reset(self):
         """Return the ornithopter to its claws at the origin, still, nothing struck."""

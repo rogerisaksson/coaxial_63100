@@ -126,7 +126,7 @@ def compose(console, origin, rotors, frame, flight, trace, now, art, yaw=0.0):
         budget = rotor['budget'] or {}
         held = budget.get('hold_amps', pull.I_MAX) < pull.I_MAX
         hot = rotor['amps'] >= 0.9 * pull.I_MAX or held or budget.get('tripped')
-        lines.append((label, Text('%4.0f rpm %4.1f A SOA %3.0f%% %s' % (
+        lines.append((label, Text('%4.0f rpm %4.1f A %3.0f%% %s' % (
             rotor['w'] * 60.0 / math.tau, rotor['amps'], 100.0 * (budget.get('worst') or 0.0),
             'THR' if held else policy_word(rotor['ident'])[0]),
             style='alarm' if hot else 'value')))
@@ -140,7 +140,7 @@ def compose(console, origin, rotors, frame, flight, trace, now, art, yaw=0.0):
                     [flying, hud('WIND  the way it blows, in the view',
                                  wind.pointer(flight['air'], frame['h'], yaw)),
                      hud('ROTORS  rpm, current, SOA, TH OBS', lines),
-                     hud('HEIGHT m, POWER OF ALL FOUR  last %.0f s' % traces.TRACE_S,
+                     hud('HEIGHT m, POWER x4  last %.0f s' % traces.TRACE_S,
                          traces.heights(trace, now, HUD_WIDTH - 4)),
                      hud('BUS V, PEAK TEMP C', traces.buses(trace, now, HUD_WIDTH - 4))],
                     (('+ -', 'ZOOM'), ('W', 'WIND'), ('T', 'THRUST'), ('L', 'LINE'),

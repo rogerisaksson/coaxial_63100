@@ -140,7 +140,7 @@ class Sky(quad.Sky):
 
     def __init__(self, things=()):
         self.rudder_force = 0.0
-        _init_sky(self, mjcf(things))
+        _init_sky(self, mjcf(things), SKID_M + FOOT_M)
         self._rest_pose()
 
     def _rest_pose(self):

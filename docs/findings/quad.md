@@ -376,9 +376,10 @@ race, 12 flights (`quad_race.py --suite all`):
   page runs >20 frames a second.
 - The heat's clock in flight (`configure(clock=1)`): flown on the flight's own
   thermal seconds instead of accelerated HASTE=10; boards warmed at rotor idle
-  on the floor (100 s) reach CONVERGING before the first flight (hold_amps 68.6 A),
-  avoiding the UNCERTAIN margin floor. Full tilt holds 58.7 A at least where 43.2,
-  legs at 0.81 of envelope where 0.90; race laps 13.9 and 14.2 s with SOA 0.55-0.62.
+  on the floor (100 s) reach CONVERGING before the first flight (hold_amps
+  68.6 A), avoiding the UNCERTAIN margin floor. Full tilt holds 58.7 A at
+  least where 43.2, legs at 0.81 of envelope where 0.90; race laps 13.9 and
+  14.2 s with SOA 0.55-0.62.
 - Struck frame crash recovery (`reset`): rotor plant models reinitialized via
   `rotor['rig'].board.drive.model.reset()` before re-spinning to idle; rotor
   restores 0 rad/s without residual negative back-EMF, avoiding secondary floor
@@ -407,3 +408,33 @@ world from the lens, dots over its sky and ground.
 - MuJoCo's renderer on the frame's world, 1.1 ms a shot at 320 x 240: a
   gate's 5 cm bars are under a pixel 10 m off and gone in 36 x 24; the dots
   kept.
+
+## Helicopter and ornithopter
+
+`machine.helicopter`, `machine.ornithopter`: one core, a swashplate's or four
+wings' names on it; their routines on ideal rotors at 120 Hz, a line a stage
+(hover, pirouette, orbit, spiral, flip, inverted, tic-toc, roll, full tilt,
+burn, land).
+
+| | Helicopter | Ornithopter |
+| --- | --- | --- |
+| hover: collective, lean | 0.34, 1 deg (the tail's thrust) | 0.34, 0 |
+| pirouette | 195 deg/s, tail 0.27 | 195, aft 0.27 |
+| orbit, spiral: bank, L/W | 32-36 deg, 1.19-1.45 | 32-36, 1.19-1.47 |
+| flip, inverted hover | 247 deg/s, 2.0 L/W; -0.97 held | 247, 2.0; -0.98 held |
+| tic-toc / wing rock | 602 deg/s, 2.9 g, L/W -3.2..3.2, tail at its stop | 648, 2.9 g, -3.3..3.2 |
+| piro-flip / slash: drift | 2.4 m off its spot, caught at 1.95 L/W | 2.4 m, 6.1 m low, 3.4 L/W |
+| full tilt | 703 rad/s, 11.1 L/W, 9.6 g, 26 m/s, 46 m | 703, 10.6, 9.1 g, 25 m/s, 44 m |
+| burn | from 61 m to 0.13, 3.9 g | from 55 m, 3.8 g |
+| landing | -0.06 m/s, 1.6 g for a step, one skid 53 deg/s | -0.07 m/s, 0.6 g |
+
+- The main rotor at 703 rad/s is 6 700 rpm: the 0.5 m blades' tips at 351
+  m/s, Mach 1.03. A helicopter governs its head and pulls by collective, 2.9 times
+  its weight at the governor's 360 rad/s. The ornithopter's beat at the
+  governor is 29 Hz (gear 2), 56 in full tilt; its wings were drawn at the
+  rotor's angle, twice the HUD's beat.
+- `quad.Sky.state` read every craft's height from the quad's rest on its skids,
+  0.135 m: the ornithopter's and the aerobat's is 0.150, their hover 1.485 m
+  and their burn's stop 85 mm; each sky carries its own `rest`.
+- The HUD's rotor rows at 40 cells: `CONV 93%` was `CONV …` behind `SOA`, the
+  title `POWER OF ALL FOUR  last 30 s` cut at `last 3`.
