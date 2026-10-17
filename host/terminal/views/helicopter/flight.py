@@ -28,7 +28,7 @@ def fresh(craft=helicopter):
     """The craft's flights' own before the first: stage, apex, controls, the pack's cells and
     peaks, the wind (`quad.air`), and the 3D `craft.Core`."""
     cells = quad.pack()
-    top = craft.K_THRUST * pull.held(pull.I_MAX) ** 2 / craft.MASS_KG
+    top = craft.PULL_MAX
     card = craft.CARD + course.CARD
     return {'stage': card[0][0], 'apex': 0.0, 'share': 1.0, 'over': 0.0, 'lap': None,
             'owed': 0.0, 'read': 0.0, 'core': craft.Core(), 'top': top,
@@ -44,7 +44,7 @@ def shell(flight, rotors, craft=helicopter):
     left = flight['cells']['left']
     hold = min([pull.I_WEP] + [(r['budget'] or {}).get('hold_amps', pull.I_WEP) for r in rotors])
     w_top = pull.top(left, min(pull.I_MAX, hold))
-    have = aerokin.HEADROOM * craft.K_THRUST * w_top * w_top / craft.MASS_KG
+    have = aerokin.HEADROOM * min(craft.PULL_MAX, craft.K_THRUST * w_top * w_top / craft.MASS_KG)
     flat = left <= quad.RESERVE
     return have, flat or have < aerokin.LEAST * craft.GRAVITY, not flat and hold >= pull.I_MAX
 

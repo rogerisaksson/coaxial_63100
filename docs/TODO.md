@@ -317,22 +317,18 @@ serves its DOD; none an entry a case.
 
 ## Flight pages
 
-- **The helicopter's head speed**: its main rotor is asked the drive's whole
-  703 rad/s in full tilt (6 700 rpm, the 0.5 m blades' tips at 351 m/s, Mach
-  1.03, 11 times its weight) and 403-480 in the 3D figures; a helicopter
-  governs its head speed and pulls by collective alone, 2.9 times its weight
-  at the governor's 360 rad/s ([quad](findings/quad.md)). DOD: the main rotor
-  held to the governor and its stunt boost, the routine flown on collective,
-  the full tilt and burn rows measured again.
-- **The ornithopter flies as the helicopter**: twelve stages the same to the
-  digit, its lift a rotor's K w^2 by a signed stroke with no beat in it, 29 Hz
-  at the governor and 56 in full tilt on a 0.56 m span, where a 2 kg bird
-  beats 3-6. DOD: a flapping law of its own - the beat's lift pulsing, the
-  beat by its gear - measured on the page; or the beat written as Dune's in
-  its manifest.
-- **The tail rotor's pitch saturates** in the tic-toc, the piro-flip and the
-  catch, the tail asked 428-480 rad/s for it. DOD: the tail's reach sized to
-  the figures, none at its stop.
+- **The four crafts drawn as the real things**: a racing quad's frame, a
+  500's pod and head, a 'thopter's body and wings, an Extra's lines. DOD: each
+  page's PNG judged, the parts told apart at the page's distance.
+- **The aerobat's flare**: throttle closed in a 40 deg harrier from 0.35 m it
+  touches at 2 m/s; with the throttle on, the wing - no stall in it - floats
+  it up again. DOD: a wing that stalls, the flare under 1 m/s.
+- **The aerobat's apex**: the top of full tilt rocks 17-21 deg, 620 deg/s for
+  a moment, as the wing-borne law hands over to the hover. DOD: under 10 deg.
+- **The aerobat's gates as a plane**: on the hover's law with the wing
+  where it falls it struck gate 11 before a lap was done; its page flies its
+  routine alone, the laps test the rotorcraft. DOD: the laps flown nose first,
+  banked and pulled, measured against the quad's.
 
 ## Host
 

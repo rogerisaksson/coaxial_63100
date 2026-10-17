@@ -13,11 +13,11 @@ import math
 
 from coaxial.graphics import engine, scenery, shapes
 from coaxial.graphics.callouts import line
-from coaxial.graphics.helicopter import NEG_ARROW_INK
+from coaxial.graphics.helicopter import force_arrows
 from coaxial.graphics.lit import CORE, PLATE, braille, paint, project, splat
-from coaxial.graphics.quadcopter import (ARROW_HEAD, ARROW_INK, BLADES_RAD_S, BOARD_H, BOARD_R,
-                                         CAN_L, CAN_R, CARBON, LEG_R, MASK, RIM_EVERY, RIM_INK,
-                                         SINK_H, SINK_R, Mesh, _at, _painted)
+from coaxial.graphics.quadcopter import (BLADES_RAD_S, BOARD_H, BOARD_R, CAN_L, CAN_R, CARBON,
+                                         LEG_R, MASK, RIM_EVERY, RIM_INK, SINK_H, SINK_R, SKIN,
+                                         Mesh, _at, _painted)
 from machine import ornithopter as orni_phys
 
 #: The camera: the eye's distance in reaches framed, and the reach the ornithopter fills, m -
@@ -44,7 +44,7 @@ def _carapace():
         (0.31, -0.008, 0.004, 0.008),
     ]
     rings = [(z, rx, 0.5 * (yt - yb), -0.5 * (yt + yb), 0.0) for z, yb, yt, rx in stations]
-    return shapes.loft(rings, paint(CARBON), poles=(-0.13, 0.32), along='z')
+    return shapes.loft(rings, paint(SKIN), poles=(-0.13, 0.32), along='z')
 
 
 def _boom():
@@ -85,7 +85,7 @@ def _orni_parts():
                     shapes.ellipsoid((s * SHOULDER_X, SHOULDER_Y + 0.004, AFT_Z),
                                      (0.015, 0.011, 0.015), PLATE, rows=6)))
         out.append(('vtail%d' % (s > 0),
-                    _at(shapes.ellipsoid((0.0, 0.0, 0.0), (0.088, 0.005, 0.022), carbon, rows=6),
+                    _at(shapes.ellipsoid((0.0, 0.0, 0.0), (0.088, 0.005, 0.022), paint(SKIN), rows=6),
                         shapes.turn_about('z', s * 34.0) @ shapes.turn_about('y', -s * 16.0),
                         (s * 0.068, 0.052, -0.58))))
         out.append(('claw_rail%d' % (s > 0),
@@ -103,13 +103,12 @@ def _orni_parts():
 
 def _wing_blade(span, side):
     """One slender dragonfly wing extending along `side * +x` from its shoulder joint at the origin."""
-    carbon = paint(CARBON)
     s = float(side)
     return [
-        ('spar', _at(shapes.drum(0.007, 0.88 * span, 'x', carbon), None,
+        ('spar', _at(shapes.drum(0.007, 0.88 * span, 'x', paint(CARBON)), None,
                      (s * 0.44 * span, 0.003, 0.012))),
         ('blade', shapes.ellipsoid((s * 0.50 * span, 0.0, -0.004),
-                                   (0.50 * span, 0.004, 0.020), carbon, rows=7)),
+                                   (0.50 * span, 0.004, 0.024), paint(SKIN), rows=7)),
     ]
 
 
@@ -214,33 +213,10 @@ def _stroke_arcs(pose, rotors, m, cam, centre):
     return [(rim, RIM_INK)] if rim.any() else []
 
 
-def _arrows(pose, thrusts, m, cam, centre):
-    """[(dots, ink)]: fore and aft wing-pair stroke thrust arrows from the dorsal shoulders."""
-    from coaxial.model.blocks import numpy as np
-    turn, at = np.asarray(pose['turn'], float), np.asarray(pose['at'], float)
-    up, side = turn[:, 1], turn[:, 0]
-    pos_drawn = np.zeros((cam['height'], cam['width']), bool)
-    neg_drawn = np.zeros((cam['height'], cam['width']), bool)
-    spots = ((0.0, SHOULDER_Y + 0.035, FORE_Z), (0.0, SHOULDER_Y + 0.035, AFT_Z))
-    for spot, thrust in zip(spots, thrusts):
-        length = 0.022 * abs(thrust)
-        if length <= 1e-4:
-            continue
-        way = -up if (up[1] > 0.0 and thrust < 0.0) else up
-        target = pos_drawn if thrust >= 0.0 else neg_drawn
-        origin = (spot[0], -SKID_M, spot[2]) if (up[1] > 0.0 and thrust < 0.0) else spot
-        hub = at + turn @ np.array(origin)
-        tip = hub + length * way
-        back = tip - ARROW_HEAD * length * way
-        points = np.array([hub, tip, back + 0.5 * ARROW_HEAD * length * side,
-                           back - 0.5 * ARROW_HEAD * length * side])
-        sx, sy, _w = project(points, m, cam, centre)
-        for a, b in ((0, 1), (1, 2), (1, 3)):
-            line(target, (sx[a], sy[a]), (sx[b], sy[b]))
-    out = [(pos_drawn, ARROW_INK)]
-    if neg_drawn.any():
-        out.append((neg_drawn, NEG_ARROW_INK))
-    return out
+#: Each wing pair's thrust from its shoulders, along the carapace's up.
+ARROWS = (((0.0, SHOULDER_Y + 0.035, FORE_Z), 1, 0, 0.022),
+          ((0.0, SHOULDER_Y + 0.035, AFT_Z), 1, 0, 0.022))
+
 
 
 def render(pose, rotors, width, height, yaw=30.0, pitch=18.0, reach=REACH, centre=None,
@@ -260,7 +236,7 @@ def render(pose, rotors, width, height, yaw=30.0, pitch=18.0, reach=REACH, centr
         positions, normals, uv, materials, _index = _posed(pose, rotors, True)
         depth, rgb = splat((positions, normals, materials, uv), m, fine, centre)
     own = _stroke_arcs(pose, rotors, m, fine, centre) + (
-        _arrows(pose, thrusts, m, fine, centre) if thrusts is not None else [])
+        force_arrows(pose, thrusts, ARROWS, m, fine, centre) if thrusts is not None else [])
     if not world:
         return braille(depth, rgb, np.zeros(depth.shape), width, height, colour, inset,
                        props=own)

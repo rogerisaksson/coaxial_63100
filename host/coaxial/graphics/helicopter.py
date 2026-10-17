@@ -17,7 +17,7 @@ from coaxial.graphics.lit import CORE, PLATE, braille, paint, project, splat
 from coaxial.graphics.quadcopter import (ARROW_HEAD, ARROW_INK, ARROW_M_PER_N, BLADE_W,
                                          BLADES_RAD_S, BOARD_H, BOARD_R, CAN_L, CAN_R, CARBON,
                                          LEG_R, MASK, PROP, RIM_EVERY, RIM_INK, SINK_H, SINK_R,
-                                         Mesh, _at, _painted)
+                                         SKIN, Mesh, _at, _painted)
 from machine import helicopter as heli_phys
 
 #: The camera: the eye's distance in reaches framed, and the reach the helicopter fills, m -
@@ -40,21 +40,22 @@ _HELI_MESH = {}
 def _canopy():
     """The streamlined carbon nose pod along +z ahead of the exposed 63100 main motor can."""
     stations = [
-        (0.01, -0.018, 0.056, 0.046), (0.06, -0.024, 0.062, 0.056),
-        (0.12, -0.024, 0.054, 0.052), (0.18, -0.020, 0.038, 0.040),
-        (0.24, -0.015, 0.020, 0.024), (0.29, -0.010, 0.004, 0.008),
+        (-0.09, -0.040, 0.070, 0.050), (-0.02, -0.056, 0.090, 0.066),
+        (0.06, -0.062, 0.100, 0.072), (0.14, -0.058, 0.092, 0.066),
+        (0.22, -0.046, 0.070, 0.052), (0.29, -0.028, 0.040, 0.034),
+        (0.34, -0.012, 0.014, 0.014),
     ]
     rings = [(z, rx, 0.5 * (yt - yb), -0.5 * (yt + yb), 0.0) for z, yb, yt, rx in stations]
-    return shapes.loft(rings, paint(CARBON), poles=(0.0, 0.30), along='z')
+    return shapes.loft(rings, paint(SKIN), poles=(-0.10, 0.35), along='z')
 
 
 def _boom():
     """The slender carbon tail boom tube from the main mast frame (-0.05 m) to the tail gearbox
     (-TAIL_M)."""
-    rings = [(-TAIL_M + (i / 10.0) * (-0.05 + TAIL_M),
-              0.010 + (i / 10.0) * 0.006, 0.010 + (i / 10.0) * 0.006,
-              -0.022, 0.0) for i in range(11)]
-    return shapes.loft(rings, paint(CARBON), poles=(-TAIL_M - 0.008, -0.045), along='z')
+    rings = [(-TAIL_M + (i / 10.0) * (-0.08 + TAIL_M),
+              0.014 + (i / 10.0) * 0.012, 0.014 + (i / 10.0) * 0.012,
+              -0.010, 0.0) for i in range(11)]
+    return shapes.loft(rings, paint(CARBON), poles=(-TAIL_M - 0.008, -0.075), along='z')
 
 
 def _vfin():
@@ -62,18 +63,20 @@ def _vfin():
     rings = [(-0.048, 0.005, 0.016, -TAIL_M - 0.018), (-0.012, 0.006, 0.024, -TAIL_M - 0.006),
              (0.022, 0.006, 0.028, -TAIL_M + 0.002), (0.075, 0.006, 0.022, -TAIL_M - 0.010),
              (0.130, 0.005, 0.014, -TAIL_M - 0.028)]
-    body = shapes.loft(rings, paint(CARBON), poles=(-0.052, 0.135), along='y')
+    body = shapes.loft(rings, paint(SKIN), poles=(-0.052, 0.135), along='y')
     body[0][:, 0] -= 0.010
     return body
 
 
 def heli_parts():
     """[(name, mesh)]: the helicopter in its own axes, x right, y up, z ahead."""
-    carbon = paint(CARBON)
+    carbon, skin = paint(CARBON), paint(SKIN)
     can_h = CAN_L * 0.85
     out = [
         ('canopy', _canopy()),
-        ('visor', shapes.ellipsoid((0.0, 0.036, 0.125), (0.042, 0.022, 0.072), CORE, rows=7)),
+        ('visor', shapes.ellipsoid((0.0, 0.060, 0.170), (0.056, 0.030, 0.110), CORE, rows=7)),
+        ('hstab', shapes.ellipsoid((0.0, 0.010, -0.50), (0.14, 0.004, 0.035), skin, rows=6)),
+        ('hfins', shapes.ellipsoid((0.0, 0.010, -0.50), (0.004, 0.040, 0.030), skin, rows=6)),
         ('mast', _at(shapes.drum(0.010, DISC_M - 0.02, 'y', PLATE), None,
                      (0.0, 0.5 * (DISC_M + 0.02), -0.015))),
         ('swash', _at(shapes.drum(0.034, 0.010, 'y', PLATE), None,
@@ -98,7 +101,7 @@ def heli_parts():
     ]
     for s in (-1.0, 1.0):
         out.append(('skid%d' % (s > 0),
-                    _at(shapes.drum(LEG_R, 0.38, 'z', carbon), None,
+                    _at(shapes.drum(1.4 * LEG_R, 0.46, 'z', carbon), None,
                         (s * SKID_X, -SKID_M, 0.03))))
         for k, z in enumerate(STRUT_Z):
             out.append(('strut%d_%d' % (s > 0, k),
@@ -188,37 +191,38 @@ def _discs(pose, rotors, m, cam, centre):
     return [(rim, RIM_INK)]
 
 
-def _arrows(pose, thrusts, m, cam, centre):
-    """[(dots, ink)]: the main rotor's collective thrust arrow along +up from the mast hub
-    (coloured `ARROW_INK` on positive collective and `NEG_ARROW_INK` on negative collective),
-    and the tail rotor's side-thrust arrow from the tail hub."""
+def force_arrows(pose, thrusts, specs, m, cam, centre):
+    """[(dots, ink)]: each of `thrusts`, N, an arrow of the force from its hub - `specs` a
+    (hub in the frame's axes, the column of `turn` it acts along, the column across it, m a
+    newton) each - `NEG_ARROW_INK` where it pulls against its axis: an inverted hover's
+    collective points at the sky; drawn over whatever covers it."""
     from coaxial.model.blocks import numpy as np
     turn, at = np.asarray(pose['turn'], float), np.asarray(pose['at'], float)
-    up, side, fwd = turn[:, 1], turn[:, 0], turn[:, 2]
     pos_drawn = np.zeros((cam['height'], cam['width']), bool)
     neg_drawn = np.zeros((cam['height'], cam['width']), bool)
-    specs = (((0.0, DISC_M + 0.006, -0.015), up, side, 0.014, True),
-             (TAIL_AT, side, fwd, ARROW_M_PER_N, False))
-    for (spot, axis, cross_axis, scale, mast_out), thrust in zip(specs, thrusts):
+    for (spot, along, across, scale), thrust in zip(specs, thrusts):
         length = scale * abs(thrust)
         if length <= 1e-4:
             continue
-        way = (-axis if (axis[1] > 0.0 and thrust < 0.0) else axis) if mast_out else (
-            axis if thrust >= 0.0 else -axis)
+        way = turn[:, along] * (1.0 if thrust >= 0.0 else -1.0)
         target = pos_drawn if thrust >= 0.0 else neg_drawn
-        origin = (spot[0], -SKID_M, spot[2]) if (mast_out and axis[1] > 0.0 and thrust < 0.0) else spot
-        hub = at + turn @ np.array(origin)
+        hub = at + turn @ np.array(spot)
         tip = hub + length * way
         back = tip - ARROW_HEAD * length * way
-        points = np.array([hub, tip, back + 0.5 * ARROW_HEAD * length * cross_axis,
-                           back - 0.5 * ARROW_HEAD * length * cross_axis])
+        points = np.array([hub, tip, back + 0.5 * ARROW_HEAD * length * turn[:, across],
+                           back - 0.5 * ARROW_HEAD * length * turn[:, across]])
         sx, sy, _w = project(points, m, cam, centre)
         for a, b in ((0, 1), (1, 2), (1, 3)):
             line(target, (sx[a], sy[a]), (sx[b], sy[b]))
-    out = [(pos_drawn, ARROW_INK)]
+    out = [(pos_drawn, ARROW_INK, True)]
     if neg_drawn.any():
-        out.append((neg_drawn, NEG_ARROW_INK))
+        out.append((neg_drawn, NEG_ARROW_INK, True))
     return out
+
+
+#: The collective's arrow from the mast's hub along it, the tail's from its hub across.
+ARROWS = (((0.0, DISC_M + 0.006, -0.015), 1, 0, 0.014), (TAIL_AT, 0, 2, ARROW_M_PER_N))
+
 
 
 def render(pose, rotors, width, height, yaw=30.0, pitch=18.0, reach=REACH, centre=None,
@@ -238,7 +242,7 @@ def render(pose, rotors, width, height, yaw=30.0, pitch=18.0, reach=REACH, centr
         positions, normals, uv, materials, _index = _posed(pose, rotors, True)
         depth, rgb = splat((positions, normals, materials, uv), m, fine, centre)
     own = _discs(pose, rotors, m, fine, centre) + (
-        _arrows(pose, thrusts, m, fine, centre) if thrusts is not None else [])
+        force_arrows(pose, thrusts, ARROWS, m, fine, centre) if thrusts is not None else [])
     if not world:
         return braille(depth, rgb, np.zeros(depth.shape), width, height, colour, inset,
                        props=own)

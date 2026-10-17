@@ -286,7 +286,7 @@ def test_its_thrust_and_its_line_are_drawn(report):
     pose = {'at': (0.0, 2.0, 0.0), 'turn': ((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0))}
 
     def dots(newtons):
-        (drawn, ink), = quadcopter._arrows(pose, [newtons] * 4, m, cam, pose['at'])
+        (drawn, ink, _over), = quadcopter._arrows(pose, [newtons] * 4, m, cam, pose['at'])
         return int(drawn.sum()), ink
     none, (small, ink), (big, _ink) = dots(0.0)[0], dots(10.0), dots(40.0)
     report.check('an arrow a rotor in its own ink, the longer the more it pulls, none for none',

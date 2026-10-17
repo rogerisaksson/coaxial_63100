@@ -40,13 +40,13 @@
 
 (defblock rigid_body aerobat_monoplane_body
   (use heli_pod_boom_body)
-  (inertia_xx 0.020)
-  (inertia_yy 0.028)
-  (inertia_zz 0.016)
-  (skid_height 0.135m)
-  (skid_span 0.135m)
-  (strut_aft -0.10m)
-  (strut_fore 0.15m))
+  (inertia_xx 0.090)
+  (inertia_yy 0.060)
+  (inertia_zz 0.120)
+  (skid_height 0.25m)
+  (skid_span 0.15m)
+  (strut_aft -0.52m)
+  (strut_fore 0.09m))
 
 ; Aluminium block with cooling fins conducting heat from the power switches (MOSFETs) and
 ; current shunts, plus a temperature-controlled cooling fan block, puzzled together.

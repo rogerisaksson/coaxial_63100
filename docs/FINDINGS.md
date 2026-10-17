@@ -385,6 +385,7 @@ Six firmware defects, no hardware fault:
 | One stack for every drive: demand, candidates, stacks as built | [findings/stacks.md](findings/stacks.md) |
 | The drive and its observers: stand-in, emulator, native://, rotor pages | [findings/drive.md](findings/drive.md) |
 | QUAD: frame, air, law, routine, course, tuner | [findings/quad.md](findings/quad.md) |
+| The helicopter, the ornithopter, the aerobat: governed, geared, on its wheels | [findings/aircraft.md](findings/aircraft.md) |
 | The envelope in flight: a climb, a hover, what a board may carry, what its rotors pull | [findings/envelope.md](findings/envelope.md) |
 | Flown from compiled streams: the text, the core with no branch, the rotors' reach, upsets, the power loop | [findings/streams.md](findings/streams.md) |
 | Renode, native:// and CI: the emulated image, peripherals, speed | [findings/emulation.md](findings/emulation.md) |
