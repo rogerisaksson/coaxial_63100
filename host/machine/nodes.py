@@ -29,6 +29,29 @@ Channel = namedtuple('Channel', 'name direction unit low high')
 FAMILIES = ('coaxial.node',)
 
 
+class Told:
+
+    """Seconds a machine tells its stand-ins (`Node.told`): a sleep runs each of them that long
+    and nothing else moves them; a read moves on STEP, so a loop polling it never stands."""
+
+    STEP = 0.0002
+    virtual = True
+
+    def __init__(self):
+        self.at, self.paces = 0.0, []
+
+    def sleep(self, seconds):
+        for pace in self.paces:
+            pace(seconds)
+        self.at += seconds
+
+    def perf(self):
+        self.sleep(self.STEP)
+        return self.at
+
+    now = perf
+
+
 class Module:
 
     """One of a node's IO modules: a read, and the writer and keys it takes, if any;
@@ -96,6 +119,11 @@ class Node(Endpoint):
 
     def couple(self, machine):
         """A stand-in's physics: what it sees of the machine it serves. A board sees the world."""
+
+    def told(self, clock):
+        """Whether this node runs on `clock` (`Told`) from now - a stand-in's world moved by
+        its sleeps alone -, on the wall's again with None; a board keeps its own."""
+        return False
 
     def close(self):
         pass

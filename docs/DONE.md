@@ -345,3 +345,7 @@ it names. A closed item is cut from the list and gets its line here, last.
     near; a chase camera eased behind her, X the other shoulder; a prompt for
     F. The tour sends twists and verbs; no key says a gait
     ([scenarios](findings/scenarios.md)).
+85. Stand-ins on told seconds: a machine's run tells them its own, a rotor's
+    start settles its estimate 20 ms and its loop takes over at its reading;
+    the rotor demo's and the virtual rotor's tests told theirs. CI's two
+    flakes, 6 of 6 starved, 0 of 6 ([host](findings/host.md)).

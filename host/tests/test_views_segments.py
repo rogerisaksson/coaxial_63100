@@ -1,17 +1,19 @@
 """The rotor demo's segments on the stand-in, each started on its own and judged by what it is."""
 import math
 import sys
-import time
 
 from tools.dev.focus import chosen
 from views_kit import Report
 
 
 def run(segment, extra=2.0):
-    """The rotor page from `segment` on, its length and `extra` seconds: a row a frame - the wall
+    """The rotor page from `segment` on, its length and `extra` seconds: a row a frame - its
     time, the segment, the stage, rpm, the current's size, the stand-in's true shaft, degrees
     unwrapped, whether the envelope throttled, the mark as drawn and the pole pairs - and
-    whether the page kept half its frame rate."""
+    whether the page kept half its frame rate. A stand-in is told a frame's seconds each frame
+    (`Told`): on the wall's a CI runner drew 10-12 frames a second, the speed loop sampled that
+    seldom, and the fixed wing climbed to 1862 rpm of 1870."""
+    from coaxial.comm.hostclock import Told
     from coaxial.draw import cross_section
     from terminal.ui.screen import FPS_CAP
     from terminal.views import show_rotor_observer as view
@@ -25,7 +27,16 @@ def run(segment, extra=2.0):
         marks.append(k.get('pointer_deg'))
         return real_render(*a, **k)
 
+    told = []
+
     def compose(rig, origin, console, v):
+        paced = getattr(rig.board.drive, 'paced', None)
+        if paced is not None and not told:
+            told.append(Told(paced))
+            told[0]._at = v['clock'].now()
+            rig.board.host_clock = v['clock'] = told[0]
+        if told:
+            told[0].sleep(1.0 / FPS_CAP)
         n = len(marks)
         out = real(rig, origin, console, v)
         st = v['state'] or {}
@@ -33,7 +44,7 @@ def run(segment, extra=2.0):
         theta = rig.board.drive.model.read().get('theta', 0.0)
         step = ((theta - shaft[1] + math.pi) % math.tau - math.pi) if shaft[1] is not None else 0.0
         shaft[0], shaft[1] = shaft[0] + math.degrees(step) / pairs, theta
-        rows.append((time.monotonic(), v.get('segment'), v.get('stage'),
+        rows.append((v['clock'].now(), v.get('segment'), v.get('stage'),
                      st.get('omega_hat', 0.0) / pairs * 60.0 / math.tau,
                      math.hypot(st.get('id', 0.0), st.get('iq', 0.0)), shaft[0],
                      bool((v.get('budget') or {}).get('throttling')),

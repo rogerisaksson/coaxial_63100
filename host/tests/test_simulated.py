@@ -1277,12 +1277,12 @@ def test_views(report):
 
 
 def test_virtual_rotor(report):
-    """The law turns its model's rotor: torque, the estimate's lag, a held vector."""
-    import time
+    """The law turns its model's rotor, told its seconds (on the wall's, loaded, -9427 rad/s
+    read): torque, the estimate's lag, a held vector."""
     from coaxial.simulated import SimulatedDrive
 
     still = SimulatedDrive()
-    time.sleep(0.02)
+    still.paced(0.02)
     still = still.model.read()
     report.check('a rotor nothing drives stands still',
                  still['theta'] == 0.0 and still['omega'] == 0.0, still)
@@ -1295,12 +1295,12 @@ def test_virtual_rotor(report):
         drive.configure(drv_l2=l2)
         drive.write(id_ref=1.0, theta=0.0)
         drive.hold()
-        time.sleep(seconds)
+        drive.paced(seconds)
         drive.write(id_ref=0.0, iq_ref=iq)
         drive.on('sensorless')
-        time.sleep(seconds)
+        drive.paced(seconds)
         drive.model.read()
-        time.sleep(seconds)
+        drive.paced(seconds)
         return drive.model.read()
 
     fast = spin(2.0, 100.0)
@@ -1320,7 +1320,7 @@ def test_virtual_rotor(report):
     turning.configure(source='model')
     turning.write(id_ref=2.0, omega_target=300.0, accel=3000.0)
     turning.hold()
-    time.sleep(0.15)
+    turning.paced(0.15)
     report.check('a held vector turned takes the rotor with it',
                  turning.model.read()['omega'] > 100.0, turning.model.read()['omega'])
     turning.off()

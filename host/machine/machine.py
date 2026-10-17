@@ -20,10 +20,13 @@ from machine.alarms import Alarms
 from machine.controller import Feedback
 from machine.errors import MachineError
 from machine.modes import DYNAMIC, HARDWARE, VIRTUAL
-from machine.nodes import Nodes
+from machine.nodes import Nodes, Told
 from machine.parts import Direct
 from machine.routines import TYPES
 from machine.sequencer import GRAMMAR, Sequencer, card
+
+#: Long enough for any part stepped to rest at its input, s.
+SETTLED_S = 1e9
 
 
 def _mean_angle(degrees):
@@ -196,12 +199,17 @@ class Machine:
                 rest(settle / 2.0)
             for name in aligns:
                 self.loop.feedbacks[name].measure.configure(zero=_mean_angle(zeros[name]))
-        for name in self.actuators:
-            f = self.loop.feedbacks[name]
+        # each loop takes over from where its actuator reads, its parts stepped to rest there:
+        # asked 0, a rotor its start left at 361 rpm was braked to 100, under its crossover
+        bus = self.loop.poll()
+        for name, actuator in self.actuators.items():
+            f, at = self.loop.feedbacks[name], bus.get('%s.%s' % (name, actuator.BACK), 0.0)
             if f.prefilter is not None:
                 f.prefilter.reset()
+                f.prefilter.step(SETTLED_S, x=at)
             f.regulator.reset()
-        self.loop.write(**{name: 0.0 for name in self.actuators})
+            f.regulator.step(0.0, setpoint=at, measured=at)
+            self.loop.write(**{name: at})
         for name, actuator in self.actuators.items():
             if actuator in self._on_nodes():
                 self._hand_over(name, actuator)
@@ -248,9 +256,20 @@ class Machine:
         return '\n'.join(lines)
 
     def run(self, text, **kw):
-        """A program as text: checked, armed, run, disarmed however it ends."""
-        return Sequencer.parse(text, ranges=self.ranges, alarms=self.alarms, init=self.arm,
-                               cleanup=self.disarm, routines=self.routines, **kw).run(self.loop)
+        """A program as text: checked, armed, run, disarmed however it ends - on stand-ins, in
+        the seconds the run tells them (`Told`): on the wall's, a starved CI runner sampled a
+        rotor's 3 Hz speed loop at a few Hz and read it at -5585 rpm."""
+        clock, was = Told(), (self.loop._clock, self.loop._sleep)
+        told = [node for node in self.nodes if node.told(clock)]
+        if told and all(a.node in told for a in self.actuators.values()):
+            self.loop._clock, self.loop._sleep = clock.perf, clock.sleep
+        try:
+            return Sequencer.parse(text, ranges=self.ranges, alarms=self.alarms, init=self.arm,
+                                   cleanup=self.disarm, routines=self.routines, **kw).run(self.loop)
+        finally:
+            self.loop._clock, self.loop._sleep = was
+            for node in told:
+                node.told(None)
 
     def status(self, changed=False):
         """Now, as a program writes it: 'now t=4.2 left_knee=30 battery.pack.volts=45.1' -

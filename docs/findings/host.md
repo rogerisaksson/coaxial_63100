@@ -24,6 +24,15 @@ Pages, tooling, suites and the local model's runner. The board's findings:
   its seconds (`hostclock.Told`) it reads 1446 every run, the lane ringing
   1420-1590 rpm at 0.7 Hz; its camera is read against the head's own reading
   of the pass before.
+- CI went red on stand-ins run by the wall: the quad's take-off (-5585 rpm) and
+  the rotor demo's climb (1862 rpm of 1870). On 2 cores beside 6 busy loops the
+  quad tripped 6 of 6, its 3 Hz speed loop sampled a few times a second. A
+  machine's run now tells its stand-ins its seconds (`machine.nodes.Told`): 0
+  of 6, 3.0 s a run where 11.7. Told, the first run after the humanoid's
+  tripped: its loop closed on the estimate at the switch (86 rpm off at 3 ms,
+  4 at 15) and asked 0 of a rotor at 361 rpm. `started` waits 20 ms, a loop
+  takes over at its reading: 361 -> 1747 rpm, no dip to 100. The demo's
+  segments are told a frame a frame: starved to 8.6 frames a second, 2108 rpm.
 - test_parity and test_bench passed 0 of 0 on CI: without a board they skip
   by name (`NEEDS_BOARD`); test_parity on the emulated image, 30 passed.
   Four suites were in no list - test_gvs green, test_house_tour 4 failed,

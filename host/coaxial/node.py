@@ -325,5 +325,16 @@ class Coaxial(Node):
         self._carried = {'hz': hz, 'j': k / (w * w)}
         return self._carried
 
+    def told(self, clock):
+        """A stand-in's drive run by `clock`'s sleeps alone, its rests and reads on it."""
+        paced = getattr(self.rig.board.drive, 'paced', None) if self.rig.simulated else None
+        if paced is None:
+            return False
+        self.rig.board.host_clock = clock
+        if clock is not None:
+            clock.paces.append(paced)
+        paced(None if clock is None else 0.0)
+        return True
+
     def close(self):
         self.rig.close()
