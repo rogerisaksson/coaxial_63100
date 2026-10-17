@@ -44,3 +44,10 @@ and the patches in [scenarios](scenarios.md) walk it.
   standing at 13 of 13 wobbles (`ice_told`); unaware ice 1 of 13, down at
   5.5-6.7 s; the slick patch 6 of 13: after the first slide, not before it, is
   what she does not yet meet.
+- Unaware, her grip reads the ice 0.104 three passes after a sole meets it, then
+  relaxes toward her prior and each landing restarts there: every step slides
+  anew, and her speed climbs 0.4 -> 1.0 m/s. A landing sole started from the
+  other's grip, she knows the ice throughout and still falls - ice 0 of 13, the
+  slick patch 5: met at 0.69 m/s, her bounds on ice give landings of 9 cm and
+  0.98 m/s^2 along, too little to slow in a step or two; told, she meets it
+  slow. Not kept.

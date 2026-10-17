@@ -286,6 +286,7 @@ plain walk the same bit for bit (her pose hashed each second for 20 s).
   told (2.95, 3.5); a sole arriving stood by its load alone (down the ramp 4.32,
   across it 5.69, down the stairs 3.20); a 20 cm reach (as before); the floor's
   pitch from her two bearing soles' heights apart (up the ramp 9.17 -> 4.46, the
-  hole fell). A known
+  hole fell); the ramp's pitch told under each sole (down it to its foot, 0.449
+  of 0.45 m, and down there at 4.49 s; up it at the crest, 9.25). A known
   floor alone does not climb: her landings fall on nosings and edges, and her
   capture point runs on.
