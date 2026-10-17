@@ -162,6 +162,19 @@ at her torso and hands, strafes 1.1-1.9, a hop down 11.7.
   and the slope earlier; each sole landed past the edge it met, the sill fell
   at 6.8 s.
 
+## A fall met low
+
+- A 200 N shove from standing, to her right: her head met the floor at 3.90 m/s.
+  Said a crouch of 2 axial units 0.15 s after it, 0.32-0.67 m/s; at 0.25 s,
+  1.16; at 0.35, 3.29; 3.5 units down, 2.29. Her capture point is then 0.17 m
+  past her standing sole (80 N: at most 0.05) and 0.79 m by 0.7 s.
+- Foreseen in her law - past the soles, cosh(omega t) to a landing, against a
+  leg's reach - her knees leading, her trunk tucked: standing 200 N 14 -> 11 of
+  32 met (soft falls turned to 1.05-1.5 m/s), walking 80 N 28 -> 26. Her step
+  had caught one with her capture point 0.4 m from her centre of mass, past the
+  0.35 m assumed: a foresight early enough to help a 200 N fall reads
+  recoverable shoves as falls.
+
 ## Sitting and jumping
 
 - Her modes stop at 1 - the sagittal unit half a sole, the axial her ankles'
