@@ -315,10 +315,5 @@ serves its DOD; none an entry a case.
 
 ## Host
 
-- **The stand-in's velocity lane**: its loop 16 times its crossover (48 Hz
-  for 3 Hz; at 25 Hz it rang 1447-1549 rpm about 1500), the rotor now
-  1472-1520; the board's sensorless speed ripples 5 %, the lane's estimate
-  with it (1412-1577; 1467-1524 trusting its model 100 times more), and a
-  reading at an instant is that. DOD: the rotor within 1 % past its ramp.
 - **native://**: a limb's world on a fixed mount as board/emu's. DOD: the
   body's balance and gait from the SIL.

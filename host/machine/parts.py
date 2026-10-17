@@ -53,6 +53,28 @@ class Wrap(Filter):
         return {'y': (x - self.zero + 180.0) % 360.0 - 180.0}
 
 
+class Rate(Filter):
+
+    """x's rise over a pass, times `k`: a whole angle's speed, the pass's mean. A speed read
+    once a pass aliases what ripples faster: a sensorless observer's 5 % at 175 Hz read 48 times
+    a second wandered the stand-in's rotor 1472-1520 rpm about 1500, its angle's rise 1489-1503."""
+
+    PARAMS = ('k',)
+
+    def __init__(self, k=1.0):
+        self.k = float(k)
+        self.reset()
+
+    def step(self, dt, x=0.0):
+        if self.was is not None and dt > 0.0:
+            self.y = self.k * (x - self.was) / dt
+        self.was = x
+        return {'y': self.y}
+
+    def reset(self):
+        self.was, self.y = None, 0.0
+
+
 class LowPass(Filter):
 
     """First order, time constant `tau` s."""

@@ -48,6 +48,11 @@ WALL_S, READ_S = 400, 0.5
 #: a fan's sink: the tour's room and haste stay on theirs.
 SOA_HASTE, SOA_S, SOA_PORT, SOA_FROM = 30, 25.0, 'native://?world=dyno', 'DYNO'
 
+#: The demo's SOA_S are its board's, on at most SOA_WALL times them of the wall's: on 500 frames
+#: of the wall's the full offline gate left the clamp unreached, 0.56 and 0.64 of the span at
+#: most, where alone it holds from 7.9 board s at 0.898.
+SOA_WALL = 4
+
 
 def test_the_tour_loses_and_finds_the_room(report):
     """STABLE in the first room, the tour on once it is earned, the state lost to the next room
@@ -131,6 +136,7 @@ def test_the_demo_takes_the_switches_into_their_soa(report):
     stages' torque: the envelope holds the switches' clamp in the first spin-up, their nodes
     at their throttle's point and none past it, every node under its ceiling. On the
     flywheel's current alone native's demo stood at 0.85 and its clamp was never held."""
+    from coaxial.comm.hostclock import clock_of
     from coaxial.devices import thermal as thermal_device
     from coaxial.model import thermal
     from terminal.ui.screen import FPS_CAP
@@ -139,21 +145,32 @@ def test_the_demo_takes_the_switches_into_their_soa(report):
     from tools.render import page
 
     rows, real, was, began = [], view.compose, thermal.HASTE, motions.START_AT
+    board_s = []
 
     def compose(rig, origin, console, v):
         out = real(rig, origin, console, v)
+        now = clock_of(rig).perf()
+        board_s[:] = [board_s[0] if board_s else now, now]
         budget = v.get('budget') or {}
         if budget:
             rows.append((v.get('stage'), budget.get('worst') or 0.0,
                          bool(budget.get('throttling')), bool(budget.get('tripped')),
                          budget.get('derate', 1.0)))
+        if board_s[1] - board_s[0] >= SOA_S:
+            raise KeyboardInterrupt          # run_view's way out: the page puts its board back
         return out
     view.compose, thermal.HASTE, motions.START_AT = compose, SOA_HASTE, SOA_FROM
+    wall = time.monotonic()
     try:
-        page.frame('rotor_observer', 150, 44, frames=int(SOA_S * FPS_CAP), port=SOA_PORT)
+        page.frame('rotor_observer', 150, 44, frames=int(SOA_WALL * SOA_S * FPS_CAP), port=SOA_PORT)
     finally:
         view.compose, thermal.HASTE, motions.START_AT = real, was, began
+    ran = board_s[1] - board_s[0] if board_s else 0.0
     first = next((r for r in rows if r[2]), None)
+    if first is None and ran < SOA_S:
+        report.skip('the demo\'s SOA', 'the host ran its board %.1f s in %.0f of the wall\'s'
+                    % (ran, time.monotonic() - wall))
+        return
     worst = max((r[1] for r in rows), default=0.0)
     report.check('the envelope holds the switches\' clamp in the dyno\'s run, their nodes at '
                  '%.1f of their span and none past it' % thermal_device.THROTTLE_AT,
@@ -207,7 +224,7 @@ def main(argv=None):
         print('  SKIP  no C compiler for the board layer, or built for gcov')
         print('\n0 passed, 0 failed, 1 skipped')
         return 0
-    watchdog(WALL_S + SOA_S + 120)
+    watchdog(WALL_S + SOA_WALL * SOA_S + 120)
     for test in chosen(ROSTER, sys.argv[1:] if argv is None else argv):
         print('\n-- %s --' % test.__name__[5:].replace('_', ' '))
         test(report)

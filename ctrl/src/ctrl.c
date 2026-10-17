@@ -9,10 +9,10 @@
 
 const char *const ctrl_kind_names[CTRL_KINDS] = {
   "", "Gain", "Slew", "Wrap", "LowPass", "SpeedKalman", "PI", "AngleHold", "Direct", "SpeedPI",
-  "Eso"
+  "Eso", "Rate"
 };
 
-const uint8_t ctrl_kind_params[CTRL_KINDS] = { 0U, 1U, 1U, 1U, 1U, 5U, 3U, 5U, 1U, 7U, 2U };
+const uint8_t ctrl_kind_params[CTRL_KINDS] = { 0U, 1U, 1U, 1U, 1U, 5U, 3U, 5U, 1U, 7U, 2U, 1U };
 
 static float clamp(float v, float limit)
 {
@@ -69,6 +69,17 @@ static float wrap(ctrl_part_t *part, float dt, float x)
 static float low_pass(ctrl_part_t *part, float dt, float x)
 {
   part->y += dt / (part->p[0] + dt) * (x - part->y);
+  return part->y;
+}
+
+static float rate(ctrl_part_t *part, float dt, float x)
+{
+  if (part->primed && (dt > 0.0f))
+  {
+    part->y = part->p[0] * (x - part->was) / dt;
+  }
+  part->was = x;
+  part->primed = true;
   return part->y;
 }
 
@@ -199,7 +210,8 @@ typedef float (*ctrl_regulate_fn)(ctrl_part_t *part, float dt, float setpoint, f
                                   float accel, bool held, float most);
 
 static const ctrl_filter_fn FILTERS[CTRL_KINDS] = {
-  [CTRL_GAIN] = gain, [CTRL_SLEW] = slew, [CTRL_WRAP] = wrap, [CTRL_LOW_PASS] = low_pass
+  [CTRL_GAIN] = gain, [CTRL_SLEW] = slew, [CTRL_WRAP] = wrap, [CTRL_LOW_PASS] = low_pass,
+  [CTRL_RATE] = rate
 };
 
 static const ctrl_estimate_fn ESTIMATORS[CTRL_KINDS] = {

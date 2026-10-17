@@ -31,6 +31,16 @@ Pages, tooling, suites and the local model's runner. The board's findings:
   estimate with it (1412-1577; its model trusted 100 times more, 1467-1524,
   the rotor 1479-1500 and its mean 0.7 % low): a reading at an instant is
   that ripple.
+- The ripple is the electrical frequency's, 175 Hz at 1500 rpm, read 48 times
+  a second: aliased into a wander the loop chased. The lane's speed is now the
+  observer's angle - its turns counted every step - risen over a pass
+  (`parts.Rate`, `ctrl.c`'s twin), the pass's mean: the rotor 1489-1503 rpm past
+  its ramp, 1488-1501 in test_controller's 3 s. A block's first pass takes no
+  time (`Loop.run`): at 1e-6 s the rate read what the drive turned between two
+  blocks as 7549 rad/s and braked a rotor at 900 rpm into reverse - the stop in
+  test_sensorless, told its seconds, at 98 rpm where 0.5 now. A disturbance state
+  in the speed's Kalman, trusting its model: 1481-1504, its mean 0.5 % low; not
+  kept.
 - CI went red on stand-ins run by the wall: the quad's take-off (-5585 rpm) and
   the rotor demo's climb (1862 rpm of 1870). On 2 cores beside 6 busy loops the
   quad tripped 6 of 6, its 3 Hz speed loop sampled a few times a second. A

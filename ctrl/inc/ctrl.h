@@ -19,6 +19,7 @@ typedef enum
   CTRL_DIRECT,        /**< limit */
   CTRL_SPEED_PI,      /**< hz limit kt j b load_k scale */
   CTRL_ESO,           /**< j wo */
+  CTRL_RATE,          /**< k */
   CTRL_KINDS
 } ctrl_kind_t;
 
@@ -33,8 +34,8 @@ typedef struct
   float   x;          /**< an integrator */
   float   y;          /**< a filter's output, a Kalman's speed */
   float   at;         /**< AngleHold: the command's angle, deg */
-  float   was;        /**< SpeedPI: the last setpoint; SpeedKalman: its variance */
-  bool    primed;     /**< SpeedKalman: seen a measurement */
+  float   was;        /**< SpeedPI: the last setpoint; SpeedKalman: its variance; Rate: the last x */
+  bool    primed;     /**< SpeedKalman, Rate: seen a measurement */
 } ctrl_part_t;
 
 /** One feedback loop: setpoint -> prefilter -> regulator -> command; measured -> measure

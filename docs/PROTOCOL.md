@@ -1,7 +1,7 @@
 # Protocol
 
 Host mirror: `host/coaxial/comm/protocol.py`, `wire.py`, `transport.py`. Version
-in `comms/inc/cmd.h` (`CMD_PROTO_MAJOR`/`MINOR`, 2.24); firmware version in
+in `comms/inc/cmd.h` (`CMD_PROTO_MAJOR`/`MINOR`, 2.36); firmware version in
 `version.h`. A host picks its codec on MAJOR only (invariant 4).
 
 ## Framing
@@ -507,14 +507,14 @@ held for its milliseconds, the last held. Channels in milli-units.
 | 4 clear | - | `u8 took`; the rows dropped, the setpoint held |
 | 5 run | `u8 on` | `u8 took`; on resets the feedback, needs a wire and a regulator |
 
-Slots: 0 prefilter, 1 measure, 2 estimator, 3 regulator. Kinds: 0 none,
-1 Gain, 2 Slew, 3 Wrap, 4 LowPass, 5 SpeedKalman, 6 PI, 7 AngleHold,
-8 Direct, 9 SpeedPI, each with its `PARAMS` in order. Measured: 0 the
-A1335's angle, deg; 1 omega_hat, rad/s; 2 iq, A. Command: 0 theta, rad;
-1 iq_ref, A. `hz` kept: the PWM rate over the nearest whole divider.
-`blind`: ticks with no reading; the command stood. A SpeedPI's sum and
-the drag it feeds forward stay within what the drive carries of an
-iq_ref: its clamp, the derate in it, and what its link's volts leave.
+Slots: 0 prefilter, 1 measure, 2 estimator, 3 regulator. Kinds: 0 none, 1 Gain,
+2 Slew, 3 Wrap, 4 LowPass, 5 SpeedKalman, 6 PI, 7 AngleHold, 8 Direct, 9
+SpeedPI, 10 Eso, 11 Rate (MINOR 36), each with its `PARAMS` in order. Measured:
+0 the A1335's angle, deg; 1 omega_hat, rad/s; 2 iq, A. Command: 0 theta, rad; 1
+iq_ref, A. `hz` kept: the PWM rate over the nearest whole divider. `blind`:
+ticks with no reading; the command stood. A SpeedPI's sum and the drag it feeds
+forward stay within what the drive carries of an iq_ref: its clamp, the derate
+in it, and what its link's volts leave.
 
 ### 13 WBC, `cmd_wbc.c`
 

@@ -365,3 +365,6 @@ it names. A closed item is cut from the list and gets its line here, last.
     `wbc_wrench.c`): in double support no plan of nothing; her steady walk's
     peak jerk 0.5-0.8 of what it was, a start 1.6 of it (4.3); a contact the
     step would have pull let go ([scenarios](findings/scenarios.md)).
+90. The stand-in's velocity lane within 1 %: its speed the observer's angle,
+    turns counted, risen over a pass - its rotor 1489-1503 rpm past its ramp
+    where 1472-1520 ([host](findings/host.md)).

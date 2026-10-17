@@ -40,6 +40,7 @@ appends; MAJOR breaks a codec.
 | 33 | device 13 op 1: the step without an active set ticked on humanoid robot stand |
 | 34 | device 14 AERO: a frame's core laid and stepped a pass |
 | 35 | device 13 op 2: the step with a sole swung, its rounds or striding |
+| 36 | device 12 CTRL kind 11 Rate: a whole angle's rise over a pass |
 
 MAJOR 2: thermal nodes went per leg, indices repurposed.
 A host ignores fields past what it knows. `test_conformance.py` holds a

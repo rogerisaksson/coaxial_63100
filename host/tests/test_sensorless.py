@@ -10,6 +10,7 @@ from tools.dev.focus import chosen
 import time
 
 from coaxial import Coaxial63100
+from coaxial.comm.hostclock import Told
 from coaxial.control.commission import Commissioning, _fit_deadtime, _harmonics
 from coaxial.devices.drive import from_wire, to_wire
 from coaxial.errors import RigError
@@ -371,6 +372,7 @@ def test_motion(r):
     from coaxial.errors import RigError
     rig = Coaxial63100(port='COM99', execution_mode=SIMULATED,
                        power_afe=False).open()
+    rig.board.host_clock = Told(rig.board.drive.paced)
     try:
         rig.drive.configure(source='model')
         # The record commissioned first, as a bench's: on the placeholders the law's estimate

@@ -5,7 +5,7 @@ from coaxial.comm.hostclock import clock_of
 from coaxial.errors import RigError
 from machine.controller import Feedback, Loop, Polled
 from machine.errors import MachineError
-from machine.parts import Gain, Slew, SpeedPI
+from machine.parts import Rate, Slew, SpeedPI
 from motor.loads import Propeller
 from motor.pmsm import RAD_S_PER_RPM, Parameters
 
@@ -237,8 +237,8 @@ RATE_PER_HZ = 16.0
 class Velocity(_Mode):
 
     """Sensorless speed: a `Loop` of one `Feedback`, 'speed' - w_target -> Slew -> w_ref,
-    drive.omega_hat -> Gain(1 / poles) -> w (-> estimator) -> w_hat, SpeedPI -> iq_ref ->
-    the drive. `regulator=`, `estimator=` plug other parts in; `load_k` is the regulator's
+    drive.angle (the observer's, its whole turns counted) -> Rate(1 / poles) -> w (-> estimator)
+    -> w_hat, SpeedPI -> iq_ref -> the drive. `regulator=`, `estimator=` plug other parts in; `load_k` is the regulator's
     feedforward, not a load (the stand-in's drag is `model.configure(load=...)`). Its loop runs
     RATE_PER_HZ times its crossover `hz` at least.
     """
@@ -252,20 +252,22 @@ class Velocity(_Mode):
             name='the record', r=p['motor_r'], ld=p['motor_ld'],
             lq=p['motor_lq'], lam=p['motor_lambda'],
             poles=self.poles, j=j, b=b, measured=False)
-        self.loop = Loop({'drive': Polled(self.drive.state)}, {'drive': self.drive},
+        self.loop = Loop({'drive': Polled(lambda: whole(self.drive.state()))}, {'drive': self.drive},
                          rate_hz=rate_hz or max(25.0, RATE_PER_HZ * hz), clock=self._clock.perf,
                          sleep=self._clock.sleep)
         self.loop.add('speed', Feedback(
             regulator or SpeedPI.of(hz, float(amps), motor,
                                     load=Propeller(load_k) if load_k else None),
-            setpoint='w_target', measured='drive.omega_hat', command='iq_ref',
-            sink='drive.iq_ref', prefilter=Slew(rate=0.0), measure=Gain(1.0 / self.poles),
+            setpoint='w_target', measured='drive.angle', command='iq_ref',
+            sink='drive.iq_ref', prefilter=Slew(rate=0.0), measure=Rate(1.0 / self.poles),
             estimator=estimator, ref='w_ref', value='w' if estimator else 'w_hat',
             estimate='w_hat'))
 
     def _start(self):
         w_hi = float(self._params.get('drv_w_hi') or 120.0)
         started(self.drive, self._clock.sleep, self.amps, 3.0 * w_hi, 0.4)
+        self.loop.parts['speed/measure'].reset()
+        self.loop.parts['speed/measure'].y = self.rpm_now * RAD_S_PER_RPM
         ramp = self.loop.parts.get('speed/prefilter')
         if ramp is not None:
             ramp.y = self.rpm_now * RAD_S_PER_RPM
@@ -318,6 +320,12 @@ def on_model(load, drive, log=None):
 #: The estimate's swing once sensorless, s: a stand-in's rotor at 375 rpm read 86 rpm over it
 #: 3 ms on, 4 at 15; a speed loop closed on it at once reversed the rotor.
 SETTLE_S = 0.02
+
+
+def whole(state):
+    """A drive's `state` with its observer's angle whole, rad: `theta_hat` past its counted turns."""
+    state['angle'] = state['theta_hat'] + math.tau * state['turns']
+    return state
 
 
 def started(drive, wait, amps, to, seconds):

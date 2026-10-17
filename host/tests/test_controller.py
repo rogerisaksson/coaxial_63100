@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """The controller: feedback loops over float channels, its parts, its panel, its sequencer."""
 import importlib.util
+import math
 import os
 import random
 import sys
@@ -18,19 +19,10 @@ from machine.parts import Gain, LowPass, PI, Slew, SpeedKalman, SpeedPI
 from machine.roles import Estimator, Input, Output, Regulator
 from machine.sequencer import Sequencer
 from machine.wiring import diagram, feedback
+from gynoid_kit import Report
 
 KT, J, B = 0.07, 2e-5, 1e-5
 DT = 0.002
-
-
-class Report:
-    def __init__(self):
-        self.passed = self.failed = 0
-
-    def check(self, name, ok, detail=''):
-        self.passed += bool(ok)
-        self.failed += (not ok)
-        print('  %s  %-58s %s' % ('PASS' if ok else 'FAIL', name, detail))
 
 
 class Rotor(Input, Output):
@@ -478,13 +470,15 @@ def test_velocity_is_a_feedback(report):
         drive.model.configure(j=J, b=B, load=0.0)
         device.gates.on(bypass_sto=True, ignore_interlock=True)
         lane = device.motion.velocity(2.0, estimator=SpeedKalman(1.5 * 7 * 0.005, J, B, 1e5, 100.0))
+        rotor = []
         with lane:
-            rpm = lane.rpm(1500.0, seconds=2.0)
+            lane.rpm(1500.0, seconds=3.0, watch=lambda v: rotor.append(drive.model.read()['omega'] / v.poles))
         report.check('motion.velocity is a loop with one feedback, the estimator plugged in',
                      list(lane.loop.feedbacks) == ['speed']
                      and isinstance(lane.loop.feedbacks['speed'].estimator, SpeedKalman))
-        report.check('and holds 1500 rpm on the stand-in within 5 %', abs(rpm - 1500.0) < 75.0,
-                     '%.0f rpm' % rpm)
+        held = [w * 30.0 / math.pi for w in rotor[len(rotor) * 2 // 5:]]
+        report.check('and holds the rotor at 1500 rpm within 1 % past its ramp', max(abs(r - 1500.0) for r in held) < 15.0,
+                     '%.0f-%.0f rpm' % (min(held), max(held)))
     finally:
         device.gates.off()
         drive.configure(source='adc')

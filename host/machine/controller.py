@@ -330,7 +330,9 @@ class Loop(Controller):
         last = start = self._clock()
         while self._clock() - start < seconds:
             now = self._clock()
-            rows.append(self.step(max(now - last, 1e-6)))
+            # a block's first pass takes no time: stepped at 1e-6 s, a rate read the angle a
+            # drive turned between blocks as 7549 rad/s and braked a rotor at 900 rpm into reverse
+            rows.append(self.step(max(now - last, 1e-6) if rows else 0.0))
             last = now
             if watch is not None and watch(self):
                 break
@@ -463,7 +465,7 @@ class Paced:
             if self.feed is not None:
                 inputs.update(self.feed())
             with self._part_lock:
-                out = self.part.step(max(now - last, 1e-6), **inputs)
+                out = self.part.step(max(now - last, 1e-6) if self.steps else 0.0, **inputs)
             last = now
             with self._lock:
                 self._out = out
