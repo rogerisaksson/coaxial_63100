@@ -175,13 +175,44 @@ at her torso and hands, strafes 1.1-1.9, a hop down 11.7.
   0.35 m assumed: a foresight early enough to help a 200 N fall reads
   recoverable shoves as falls.
 
-## Sitting and jumping
+## Support, whatever bears her
 
-- Her modes stop at 1 - the sagittal unit half a sole, the axial her ankles'
-  stroke - and a chair's seat is 3 and 3.5 units off: the compiler refuses past
-  1. Let past it, she lowers onto the chair (259 N on it at 2.0 s), her soles
-  unload, her law reads no stance and lets her fall freely: sat 0.1 m behind her
-  ankles where the seat's middle is 0.3 m, she slides off its front edge.
+- Past her modes' 1 onto a chair: 447 N on its seat at 1.83 s, her soles
+  unload, her law reads no stance and lets her fall freely: down at 3.06 s.
+- A segment the skin feels pushed up is support (`machine.borne`): in her
+  support region, grounding her, her soles standing while it bears. Its sensed
+  force fed to her whole-body step a pass late chattered: 695, 250, 88, 539, 131
+  N on the seat 30 ms apart, her soles 0 to 286 N; unfed, seat and soles shared
+  her weight, 100 N each.
+- Her free soles were held in her pelvis's frame, as in flight: pitched forward
+  0.5 rad on a seat they rose 9 cm. Something bearing her and no sole standing,
+  they are held up from the floor in her way's frame.
+- Her soles unloaded, the step took her base as free: her trunk pitched from
+  0.95 to 1.42 units and she slid off the seat. Each bearing segment a contact of
+  the step - three unknowns at the touch's centre, its point still, its push in
+  its cone -: seated 1.95 to 8 s, the seat 190-220 N, each sole 30-50 N.
+- On a mattress's soft edge the step planned 311 N where it bore 107, and she
+  rolled back; a contact's push no more than 30 N over what it bears now: she
+  reclines 0.44 rad on the edge 5.8 s and rises. Reclined 1 rad, her pelvis
+  pitched with her trunk - one pitch mode for both -, her thighs rose with it and
+  she slid off.
+- Rising: the old thrust's 6000 N/m threw her soles 15 cm up; a lean of 1 s
+  before the thrust overshot her trunk to 1.5 units and her capture point stepped
+  her out of a squat; a lean of 0.5 s under a thrust blended over 1.5 s, she
+  rises at 0.13 m/s.
+- Not kept: standing soles pressed 20 N while something bears her, a contact's
+  friction half a sole's - the chair fell rising at 11.9 s.
+- The referee: 'sat' and 'lay' count what bears her off her soles, on her soles
+  her soles' own loads; the bed side-on, its edge 0.1 m behind her (lengthwise,
+  its headboard stood in her).
+- The bench: scenes 62 of 87 (chair and bed up), the 80 N polar and the replays
+  as they were; 200 N as it was, standing 14 of 32 met, walking 21. Chair 13 of
+  13 wobbles; bed 7: at -5e-4 she sat over her right sole on the mattress's edge,
+  2 and 219 N, 22 N on the edge, and a sole lifting stepped her. Seated deeper
+  and slower, 3 of 13.
+
+## Jumping
+
 - A hop with no twist throws her straight up (`flight.shape_hop`'s forward speed
   is a twist's): from a chair's seat she lands on it again; up onto one she falls
   at 2.5 s.

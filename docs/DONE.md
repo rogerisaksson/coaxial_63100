@@ -357,3 +357,7 @@ it names. A closed item is cut from the list and gets its line here, last.
     has it (REACH_M about her centre of mass, APART_M past the other sole),
     bright while it swings; her capture point; each arm's reach across her
     front - from her state's own reading (`coaxial.graphics.horizon`).
+88. Her support, whatever bears her: a segment the skin feels pushed up in her
+    support region, grounding her, a contact of her whole-body step
+    (`machine.borne`, `wrench.pushed`); down onto a chair and up, onto a bed's
+    edge and up ([scenarios](findings/scenarios.md)).

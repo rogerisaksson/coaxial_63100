@@ -8,9 +8,9 @@
 A scenario is a scene (`floor.scenario`, or a chair or a bed set at her) and its commands at their
 seconds, given through her worker's own session (`worker.apply`, `worker.stepped`) as the page
 gives them. The referee reads the world's truth her law never sees: whether she fell
-(`worker._is_fallen`), what bore her - the floor, a chair, a mattress, a wall -, where her pelvis
-went, and each segment's jerk (`JERKED`) through a 20 ms window, its 99th percentile and its
-peak.
+(`worker._is_fallen`), what bore her off her soles - the floor, a chair, a mattress, a wall -,
+her soles' loads, where her pelvis went, and each segment's jerk (`JERKED`) through a 20 ms
+window, its 99th percentile and its peak.
 """
 import argparse
 import json
@@ -37,8 +37,9 @@ def _walk(seconds, then=6.0):
 
 #: name: (scene, commands, seconds, goal, its number). A goal: 'met' (the obstacle touched and
 #: her stopped at it), 'past' m (her pelvis that far on), 'rose'/'sank' m (her pelvis that much
-#: higher or lower at the end), 'sat'/'lay' (a chair's or a bed's bearing her half or more for
-#: HELD_S, standing on her soles at the end), 'stands' (on her soles, a chair's seat or not).
+#: higher or lower at the end), 'sat'/'lay' (a chair or a bed bearing her off her soles half
+#: her weight or more for HELD_S, her soles bearing her at the end), 'stands' (on her soles, a
+#: chair's seat or not).
 SCENARIOS = {
     'wall': ('wall', *_walk(4.0), 'met', 'wall'),
     'tree': ('tree', *_walk(4.0), 'met', 'tree'),
@@ -101,7 +102,7 @@ def placed(s, scene):
     elif scene == 'chair_ahead':
         floor.mocap(world, 'chair', (0.0, 0.0, 0.40), math.pi)
     elif scene == 'bed_behind':
-        floor.mocap(world, 'prop_bed', (0.0, 0.0, -0.40 - floor.BED_MATTRESS[2]), 0.0)
+        floor.mocap(world, 'prop_bed', (0.0, 0.0, -0.10 - floor.BED_MATTRESS[0]), math.pi / 2.0)
     elif scene == 'mattress_under':
         floor.mocap(world, 'prop_bed', (0.0, 0.004 - floor.BED_MATTRESS_H, -0.20), 0.0)
     elif scene == 'on_chair':
@@ -111,12 +112,13 @@ def placed(s, scene):
 
 
 def borne(world, hers, kinds, force):
-    """{kind: N} of what bears her now, by the body her contact is with (`kinds`, else 'floor')."""
+    """{kind: N} of what bears her off her soles now (`hers` 2 a sole's body, 1 another of hers), by
+    the body her contact is with (`kinds`, else 'floor')."""
     m, d, out = world.model, world.data, {}
     for i in range(d.ncon):
         c = d.contact[i]
         a, b = m.geom_bodyid[c.geom1], m.geom_bodyid[c.geom2]
-        if hers[a] == hers[b]:
+        if (hers[a] > 0) == (hers[b] > 0) or max(hers[a], hers[b]) > 1:
             continue
         other = b if hers[a] else a
         world._mj.mj_contactForce(m, d, i, force)
@@ -149,7 +151,8 @@ def ran(name, wobble=0.0):
                             q[2] * math.cos(wobble / 2.0) + q[0] * math.sin(wobble / 2.0), q[3] * math.cos(wobble / 2.0) - q[1] * math.sin(wobble / 2.0))
     world._mj.mj_forward(world.model, world.data)
     m, d = world.model, world.data
-    hers = np.array([edge._rooted(m, b, world.pelvis) for b in range(m.nbody)])
+    hers = np.array([edge._rooted(m, b, world.pelvis) for b in range(m.nbody)], int)
+    hers[[m.body(n).id for n in edge.INSOLES]] = 2
     kinds = {m.body(n).id: k for n, k in BEARS.items()}
     weight = float(s['g']['fr'][modal.WEIGHT])
     head, force = m.body('head').id, np.zeros(6)
@@ -187,7 +190,7 @@ def ran(name, wobble=0.0):
            'speed': round(float(np.linalg.norm(t[-1, 1:4] - t[-51, 1:4]) / 0.05), 3),
            'bore': {kd: round(v, 2) for kd, v in bore.items()},
            'touched': {kd: round(v) for kd, v in most.items() if kd != 'floor'},
-           'on_soles': round(end.get('floor', 0.0) / weight, 2), 'head_hit': hit,
+           'on_soles': round(sum(s['g']['loads']) / weight, 2), 'head_hit': hit,
            'jerk': cut(lambda j: np.percentile(j, 99)), 'jerk_peak': cut(np.max)}
     out['met'] = judged(out)
     return out

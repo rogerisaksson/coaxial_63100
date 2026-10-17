@@ -276,7 +276,7 @@ def test_numpy_enters_behind_the_thread_cap(r):
                                         + [os.path.join('machine', m + '.py') for m in (
                                             'cyclic', 'qp', 'wbc', 'wrench',
                                             'latent', 'modal', 'impedance', 'poise', 'stride',
-                                            'law', 'edge', 'estimate')]),
+                                            'law', 'edge', 'estimate', 'borne')]),
             ', '.join(importers) or 'nowhere')
     r.check('each sets OPENBLAS_NUM_THREADS before importing it', not uncapped,
             ', '.join(uncapped))

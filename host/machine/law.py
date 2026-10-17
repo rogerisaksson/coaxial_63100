@@ -14,7 +14,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
-from machine import edge, estimate, impedance, latent, modal, se2, support, touch, wbc
+from machine import borne, edge, estimate, impedance, latent, modal, se2, support, touch, wbc
 
 
 def seen(g, dt):
@@ -23,6 +23,7 @@ def seen(g, dt):
     qpos, qvel = estimate.step(g['est'], body, g['sense'], dt)
     s = wbc.sense(body, qpos, qvel)
     s['hips'], s['arms'] = body.d.xpos[limbs['hips']].copy(), s['q'][limbs['shoulders']]
+    s['prop'], s['contacts'] = borne.read(body, s, g['sense'], float(g['fr'][modal.WEIGHT]))
     return s
 
 

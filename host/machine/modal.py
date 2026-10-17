@@ -40,11 +40,13 @@ PELVIS = np.array([1.0, 0.0])
 #: What is sensed, world frame: her centre of mass and its speed; each sole's middle and its
 #: speed; each sole's load, N; the pelvis's and the trunk's quaternions and spins; her angular
 #: momentum about her centre of mass; each sole's lowest corner's height; each hip's joint;
-#: each sole's pitch, its heel up, rad, and its rate; each shoulder's reach forward, rad.
+#: each sole's pitch, its heel up, rad, and its rate; each shoulder's reach forward, rad; the
+#: share of her weight borne off her soles, and the box it is borne on (low, high; world).
 COM, VCOM, SOLE, VSOLE = slice(0, 3), slice(3, 6), slice(6, 12), slice(12, 18)
 LOAD, QUAT, SPIN, MOMENT = slice(18, 20), slice(20, 28), slice(28, 34), slice(34, 37)
 LOWEST, HIP, TILT, TILT_RATE, ARM = slice(37, 39), slice(39, 45), slice(45, 47), slice(47, 49), slice(49, 51)
-SENSED = 51
+PROP, PROP_LO, PROP_HI = 51, slice(52, 55), slice(55, 58)
+SENSED = 58
 #: Her statics: her way's frame (3 x 3: along, left, up in the world); her centre of mass over
 #: her soles and her soles' half width as she stood; the floor; omega; her weight, N; her knees'
 #: bend standing, rad; the pelvis's and the trunk's pitch then; her heading, rad; a hip from
@@ -78,9 +80,10 @@ SETTLE, EDGE, HEELED = slice(32, 44), slice(44, 46), slice(46, 48)
 #: how far each limb's stride has it off, 0 to 1, and how much higher her swings clear the
 #: floor for what a sole met, m; how far her capture point steps her, 0 to 1; how far each
 #: swing has gone ahead of its rhythm, of its share; how far her capture point is past a lone
-#: standing sole's own side, m - where no swing reaches.
-STRIDES, PREFOLD, SWINGS, RAISE, NEED, LEAD, OUTSIDE = 48, slice(49, 51), slice(51, 53), 53, 54, slice(55, 57), 57
-ASK = 58
+#: standing sole's own side, m - where no swing reaches; how far what bears her off her soles
+#: supports her, 0 to 1.
+STRIDES, PREFOLD, SWINGS, RAISE, NEED, LEAD, OUTSIDE, BORNE = 48, slice(49, 51), slice(51, 53), 53, 54, slice(55, 57), 57, 58
+ASK = 59
 
 #: A unit of each mode on her: her centre of mass down, m - to her ankles' stroke, her trunk
 #: upright over her soles: asked 0.15 m she came down 0.117 and stood there; her trunk's
@@ -252,6 +255,7 @@ def sensed(s, loads, y):
     y[SPIN] = np.concatenate([t['w'] for t in turns])
     y[LOWEST] = [f['pts'][:, 1].min() for f in feet]
     y[HIP], y[ARM] = np.ravel(s['hips']), s['arms']
+    y[PROP], y[PROP_LO], y[PROP_HI] = s.get('prop', (0.0, 0.0, 0.0))
     y[TILT] = np.arcsin(clip(np.array([-f['R'][1, 2] for f in feet]), -1.0, 1.0))
     y[TILT_RATE] = [(f['J6'][:3] @ s['v']) @ f['R'][:, 0] for f in feet]
     return y
@@ -272,5 +276,6 @@ def given(a, y, fr, posture, bend, arms, knees):
     return {'stance': tuple(a[STANCE] > 0.5), 'com_acc': a[COM_ACC].copy(),
             'turns': tuple(turns[:2 * int(a[TURNED])]), 'posture': pose, 'kdot': a[KDOT].copy(),
             'settle': a[SETTLE].reshape(2, 6).copy(), 'edge': tuple(a[EDGE]), 'strides': float(a[STRIDES]),
+            'borne': float(a[BORNE]),
             'swing': {int(i): (soles[i].copy(), speeds[i].copy(), accs[i].copy(), tips[i]) for i in free},
             'fold': {int(i): (pose[knees[i]] + a[FOLD][i], a[FOLD_RATE][i], 0.0) for i in folded}}

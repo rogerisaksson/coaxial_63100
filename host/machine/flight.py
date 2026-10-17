@@ -32,10 +32,11 @@ LAND_DROP_M, LAND_SHORT_M = 0.018, 0.004
 MIDDLE = (BALL - HEEL) / 2.0
 
 
-def standing(meant, loads, over, rising):
+def standing(meant, loads, over, rising, borne=0.0):
     """Which soles stand, a bool a sole: `meant` the ask's stance, `loads` the soles' N, `over`
-    each sole's height over the floor, `rising` her centre of mass's speed up."""
-    rests = (max(loads) >= TOUCH_N) | (abs(rising) <= REST_M_S)
+    each sole's height over the floor, `rising` her centre of mass's speed up, `borne` what bears
+    her off them, N."""
+    rests = (max(loads) >= TOUCH_N) | (borne >= TOUCH_N) | (abs(rising) <= REST_M_S)
     return tuple(bool(m) & bool((n >= TOUCH_N) | ((h <= TOUCH_M) & rests))
                  for m, n, h in zip(meant, loads, over))
 

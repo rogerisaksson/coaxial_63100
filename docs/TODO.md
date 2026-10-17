@@ -214,14 +214,14 @@ in `test_scenarios`, 15 of 27 at every wobble now:
 [scenarios](findings/scenarios.md)). In order: each a mechanism, the scenes it
 serves its DOD; none an entry a case.
 
-1. **Her support, whatever bears her**: a segment the skin feels bearing is
-   support - its place the skin's centre of pressure, its share of her
-   weight -; one not a sole is known to her whole-body step by its sensed
-   wrench (the base's rows of her dynamics, her centre of mass's, her
-   momentum's), in her support region and grounding her. Past her modes' 1
-   she lowers onto a chair, 259 N on it at 2.0 s, her soles unload and her
-   law, reading no stance, lets her fall freely off its front edge. DOD:
-   chair, soft bed and floor mattress, down and up.
+1. **Her support, whatever bears her** (`machine.borne`): a segment the skin
+   feels pushed up is in her support region, grounds her, and is a contact of
+   her whole-body step. Met: the chair, 13 of 13 wobbles; a bed's edge,
+   reclined 0.44 rad, 7 of 13 - she sits over one sole on its soft edge and a
+   lifting sole steps her (2). Open: lying flat, her pelvis and trunk pitched
+   apart; the floor mattress, down past her soles before anything bears her
+   (4); `wbc_wrench.c` without contacts. DOD: chair, soft bed and floor
+   mattress, down and up.
 2. **Weight handed over, never switched**: a sole's share of her support
    continuous in her height's reading, her support region and her step's
    bounds, where a flag now. `tools/sim/jerk.py` reads the worst at 11.7 of

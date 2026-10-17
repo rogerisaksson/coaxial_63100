@@ -9,61 +9,58 @@
 (deftrait two_footed
   (latent_targets (mode_limb_lift 0.0)))
 
-;; sit down on a chair
+;; sit down on a chair: down until the seat bears her, her weight back onto it
 (defbehavior sit_chair (extends stance_hold)
   (phase approach
-    (duration 1000ms) (blend_duration 500ms)
-    (latent_targets (mode_axial_compression 0.35) (mode_pitch_attitude 0.18) (mode_sagittal_shift -0.05)))
+    (duration 1500ms) (blend_duration 800ms)
+    (latent_targets (mode_axial_compression 2.0) (mode_pitch_attitude 0.8) (mode_sagittal_shift -0.5)))
   (phase lower
-    (duration 1200ms) (blend_duration 600ms)
-    (latent_targets (mode_axial_compression 0.58) (mode_pitch_attitude 0.08) (mode_sagittal_shift -0.12))
-    (impedance (stiffness mode_axial_compression 4500) (damping mode_axial_compression 800)))
+    (duration 1500ms) (blend_duration 800ms)
+    (latent_targets (mode_axial_compression 2.3) (mode_pitch_attitude 0.6) (mode_sagittal_shift -0.8))
+    (impedance (stiffness mode_axial_compression 3000) (damping mode_axial_compression 600)))
   (phase seated (use lower)
-    (duration 60s) (blend_duration 500ms)
-    (latent_targets (mode_pitch_attitude 0.04))
-    (impedance (stiffness mode_axial_compression 3000) (damping mode_axial_compression 600))))
+    (duration 60s) (blend_duration 800ms)
+    (latent_targets (mode_pitch_attitude 0.3) (mode_sagittal_shift -1.0))))
 
-;; rise up from a chair
+;; rise up from a chair: forward over the soles, up as she gets there
 (defbehavior rise_chair (extends stance_hold)
   (phase lean
-    (duration 800ms) (blend_duration 400ms)
-    (latent_targets (mode_axial_compression 0.55) (mode_pitch_attitude 0.32) (mode_sagittal_shift 0.14))
+    (duration 500ms) (blend_duration 500ms)
+    (latent_targets (mode_axial_compression 2.3) (mode_pitch_attitude 1.0) (mode_sagittal_shift 0.0))
     (impedance (stiffness mode_axial_compression 5000) (damping mode_axial_compression 800)))
   (phase thrust (use lean)
-    (duration 1000ms) (blend_duration 500ms)
-    (latent_targets (mode_axial_compression 0.15) (mode_pitch_attitude 0.10) (mode_sagittal_shift 0.05))
-    (impedance (stiffness mode_axial_compression 6000) (damping mode_axial_compression 900)))
+    (duration 2000ms) (blend_duration 1500ms)
+    (latent_targets (mode_axial_compression 0.5) (mode_pitch_attitude 0.3))
+    (impedance (stiffness mode_axial_compression 2000) (damping mode_axial_compression 600)))
   (phase stand (use thrust)
-    (latent_targets (mode_axial_compression 0.0) (mode_pitch_attitude 0.0) (mode_sagittal_shift 0.0))
+    (latent_targets (mode_axial_compression 0.0) (mode_pitch_attitude 0.0))
     (impedance (stiffness mode_axial_compression 3000) (damping mode_axial_compression 600))))
 
-;; lie down in a bed
+;; lie down on a bed: onto its edge as on a seat, her trunk back over it
 (defbehavior lie_bed (extends stance_hold)
   (phase sit_edge
-    (duration 1000ms) (blend_duration 500ms)
-    (latent_targets (mode_axial_compression 0.48) (mode_pitch_attitude 0.14) (mode_sagittal_shift -0.04)))
+    (duration 1500ms) (blend_duration 800ms)
+    (latent_targets (mode_axial_compression 2.0) (mode_pitch_attitude 0.8) (mode_sagittal_shift -0.5)))
   (phase recline
-    (duration 1500ms) (blend_duration 700ms)
-    (latent_targets (mode_axial_compression 0.65) (mode_pitch_attitude -0.14) (mode_pelvis_turn 0.12) (mode_limb_lift 0.0) (mode_sagittal_shift -0.06))
+    (duration 2500ms) (blend_duration 2000ms)
+    (latent_targets (mode_axial_compression 2.3) (mode_pitch_attitude -1.0) (mode_sagittal_shift -1.5))
     (impedance (stiffness mode_axial_compression 3000) (damping mode_axial_compression 600)))
   (phase bed_rest (use recline)
-    (duration 60s) (blend_duration 800ms)
-    (latent_targets (mode_axial_compression 0.72) (mode_pitch_attitude -0.18) (mode_pelvis_turn 0.0) (mode_arm_swing 0.0))
-    (impedance (stiffness mode_axial_compression 2500) (damping mode_axial_compression 500))))
+    (duration 60s) (blend_duration 800ms)))
 
-;; rise up from a bed
+;; rise up from a bed: forward over the soles, up as she gets there
 (defbehavior rise_bed (extends stance_hold)
   (phase sit_up
-    (duration 1200ms) (blend_duration 600ms)
-    (latent_targets (mode_axial_compression 0.52) (mode_pitch_attitude 0.20) (mode_limb_lift 0.0) (mode_sagittal_shift 0.04))
-    (impedance (stiffness mode_axial_compression 4000) (damping mode_axial_compression 700)))
-  (phase swing_out
-    (duration 1000ms) (blend_duration 500ms)
-    (latent_targets (mode_axial_compression 0.25) (mode_pitch_attitude 0.10) (mode_limb_lift 0.0) (mode_sagittal_shift 0.02)))
-  (phase stand (use sit_up)
-    (duration 1000ms) (blend_duration 500ms)
-    (latent_targets (mode_axial_compression 0.0) (mode_pitch_attitude 0.0) (mode_sagittal_shift 0.0))
-    (impedance (damping mode_axial_compression 600))))
+    (duration 1500ms) (blend_duration 1200ms)
+    (latent_targets (mode_axial_compression 2.3) (mode_pitch_attitude 1.0) (mode_sagittal_shift 0.0))
+    (impedance (stiffness mode_axial_compression 5000) (damping mode_axial_compression 800)))
+  (phase swing_out (use sit_up)
+    (duration 2000ms) (blend_duration 1500ms)
+    (latent_targets (mode_axial_compression 0.5) (mode_pitch_attitude 0.3))
+    (impedance (stiffness mode_axial_compression 2000) (damping mode_axial_compression 600)))
+  (phase stand (use swing_out)
+    (latent_targets (mode_axial_compression 0.0) (mode_pitch_attitude 0.0))
+    (impedance (stiffness mode_axial_compression 3000) (damping mode_axial_compression 600))))
 
 ;; lie down on the floor
 (defbehavior lie_floor (extends stance_hold)

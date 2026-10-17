@@ -33,7 +33,7 @@ FEET, MIDDLE_M = ('left_foot', 'right_foot'), 0.5 * (BALL - HEEL)
 #: (m/s^2), its frame; each joint's angle (rad) and rate (rad/s), each motor's angle seen through
 #: its gearbox (rad); each sole's load (N); each segment's touch (N, its frame); each insole's
 #: centre of pressure (m, its segment's frame) and its load (N); each foot's heel and ball cell's
-#: load (N).
+#: load (N); where on each segment its touch is, its centre (m, its frame).
 QUAT, GYRO, ACCEL = slice(0, 4), slice(4, 7), slice(7, 10)
 Q, QD, QM = (slice(10 + k * J, 10 + (k + 1) * J) for k in range(3))
 LOAD = slice(10 + 3 * J, 12 + 3 * J)
@@ -41,7 +41,8 @@ TOUCH = slice(12 + 3 * J, 12 + 3 * J + 3 * len(SKIN))
 COP = slice(TOUCH.stop, TOUCH.stop + 3 * len(INSOLES))
 PRESS = slice(COP.stop, COP.stop + len(INSOLES))
 CELLS = slice(PRESS.stop, PRESS.stop + 2 * len(FEET))
-SENSED = CELLS.stop
+AT = slice(CELLS.stop, CELLS.stop + 3 * len(SKIN))
+SENSED = AT.stop
 #: Her touch past this, N, a segment's: MuJoCo's soft contact holds a resting hand at a few.
 TOUCHED_N = 5.0
 
@@ -86,11 +87,13 @@ def felt(world, y):
 
 
 def read(world, y):
-    """`y` whole: the IMU and encoders (`felt`), her soles' loads, her segments' touch."""
+    """`y` whole: the IMU and encoders (`felt`), her soles' loads, her segments' touch and
+    where on each it is."""
     felt(world, y)
     m, d = world.model, world.data
     loads, touch, force = [0.0, 0.0], np.zeros((len(SKIN), 3)), np.zeros(6)
     pressed, at, cells = np.zeros(len(INSOLES)), np.zeros((len(INSOLES), 3)), np.zeros(2 * len(FEET))
+    felt_n, felt_at = np.zeros(len(SKIN)), np.zeros((len(SKIN), 3))
     for i in range(d.ncon):
         c = d.contact[i]
         b0, b1 = m.geom_bodyid[c.geom1], m.geom_bodyid[c.geom2]
@@ -112,14 +115,21 @@ def read(world, y):
         if k >= 0:
             push = c.frame.reshape(3, 3).T @ force[:3] * (1.0 if mine == b1 else -1.0)
             touch[k] += d.xmat[mine].reshape(3, 3).T @ push
-    # a shove is a hand on her: what the world applies to her bodies, her skin feels
+            felt_n[k] += abs(float(force[0]))
+            felt_at[k] += abs(float(force[0])) * d.xmat[mine].reshape(3, 3).T @ (c.pos - d.xpos[mine])
+    # a shove is a hand on her: what the world applies to her bodies, her skin feels - at
+    # their centres of mass, where the world applies it
     for k, body in enumerate(world.skin_bodies):
-        touch[k] += d.xmat[body].reshape(3, 3).T @ d.xfrc_applied[body, :3]
+        hand = d.xfrc_applied[body, :3]
+        touch[k] += d.xmat[body].reshape(3, 3).T @ hand
+        felt_n[k] += float(np.linalg.norm(hand))
+        felt_at[k] += float(np.linalg.norm(hand)) * d.xmat[body].reshape(3, 3).T @ (d.xipos[body] - d.xpos[body])
     y[LOAD] = loads
     y[TOUCH] = touch.ravel()
     y[PRESS] = pressed
     y[COP] = (at / np.maximum(pressed, 1e-9)[:, None]).ravel()
     y[CELLS] = cells
+    y[AT] = (felt_at / np.maximum(felt_n, 1e-9)[:, None]).ravel()
     return y
 
 
