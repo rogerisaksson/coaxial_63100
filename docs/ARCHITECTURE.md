@@ -155,7 +155,8 @@ tools/sim/          the drive core on this host: montecarlo, observer_run;
                     ortho (humanoid robot latent loop as the page runs it, traced; --walk
                     --look humanoid robot walk's look); look (a HUMANOID recording a stage
                     a row); replay (a recording's commands run again, pass for pass); scenarios (each scene placed,
-                    commanded and judged, a table); strides, normal, looks (a walk's measures, a
+                    commanded and judged, a table); sysid (her identification campaign on the
+                    stand, tabled, its corrections written); strides, normal, looks (a walk's measures, a
                     woman's band, humanoid robot form); wbc (the whole-body stack
                     standing, shoved); hop (a hop on it: thrown, flown, landed);
                     quad_race (the quad's laps through fixed flights, a search
@@ -228,6 +229,8 @@ tests/              suites, .counts.json (measured sizes)
 | law | her law's pass on her sensors alone: sensed, latent, impedance, wrench (or wbc), the drives' observers under it |
 | edge | the one reader of the world for her law - IMU, encoders, sole loads, a skin a segment, insoles - and the one writer of her drives |
 | estimate | her pelvis's place and speed of what she measures: the IMU carried, drawn to her bearing insoles; how fast they slide |
+| sysid | her body identified of her edge alone: each link's inertia and each drive's friction and armature, Newton-Euler down her tree, the base parameters of a campaign fitted; on the stand a limb at a time |
+| identified | her corrections as identified over her build: the least move of her links' masses and first moments and her drives' friction that fits a campaign, kept as TOML, laid over her law's model whole |
 | grip | each sole's floor friction as she feels it: what a sliding sole uses |
 | touch | what her skin and soles feel: a touch against her going stops it, one along it walked out, her going cut toward what she felt, a trip on an edge |
 | worker | her process's session: a pass at a time, each command logged with its epoch and pass, falls recovered; the page's states |
@@ -279,6 +282,7 @@ tests/              suites, .counts.json (measured sizes)
 | `test_wbc_core.py` | humanoid robot chain in C against MuJoCo: frames, M, bias, Jacobians at random configurations; a step's time |
 | `test_wrench.py` | the step without an active set: a step standing beside the stack's, humanoid robot stand, nudges held, a hop |
 | `test_flight.py` | which soles stand, from one pass alone; a landing within humanoid robot reach; the loop in C against the python stack with no sole standing; a hop stood on both, three in a row on the loop |
+| `test_sysid.py` | her identification: the regressor MuJoCo's inverse dynamics; a campaign on the stand reading her drives' friction and armature and her links; a payload in her hand found; its corrections over her build, laid on her law's model, judged on a fresh campaign |
 | `test_ortho.py` | a text compiled to rows, what is none refused; no branch in the core or the renderer; humanoid robot state blended and turned; crouched, shifted, bowed, on one sole, hopped; humanoid robot walk on humanoid robot own payloads; the first texts as given; the gym's worker and keys |
 
 - The quad's streams: `test_aero_core.py` holds aero/ to its form - no

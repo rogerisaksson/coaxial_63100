@@ -151,7 +151,7 @@ def _joint(joint, axis, sign):
 
 def _mjcf(bones):
     from machine import sight
-    from machine.physics import PLACED, ROOM, SIGHT, STEP_S
+    from machine.physics import PLACED, ROOM, SIGHT, STAND, STAND_M, STEP_S
     from machine.servos import SERVO
     shells = build.segments() if build.SHELLS else {}
     kids, riders = {}, build.riders() if PLACED and not shells else {}
@@ -277,4 +277,10 @@ def _mjcf(bones):
         + ['</actuator>', '<tendon>',
            '<spatial name="lace" limited="true" range="0 10" solreflimit="%g 1" width="0.002">'
            '<site site="lace_left"/><site site="lace_right"/></spatial>' % LACE_S,
-           '</tendon>', '</mujoco>'])
+           '</tendon>'] + _stand(STAND, STAND_M) + ['</mujoco>'])
+
+
+def _stand(stand, high):
+    """Her pelvis welded to the world `high` m up, where she stands for identification."""
+    return (['<equality><weld body1="pelvis" relpose="0 %g 0 1 0 0 0" solref="0.005 1"/></equality>'
+             % -high] if stand else [])

@@ -368,3 +368,12 @@ it names. A closed item is cut from the list and gets its line here, last.
 90. The stand-in's velocity lane within 1 %: its speed the observer's angle,
     turns counted, risen over a pass - its rotor 1489-1503 rpm past its ramp
     where 1472-1520 ([host](findings/host.md)).
+91. Her body identified of her edge alone (`machine.sysid`,
+    `machine.identified`): Newton-Euler down her tree to MuJoCo's inverse
+    dynamics at 1e-13 N m; on the stand a
+    limb at a time 8 s each, every drive's Coulomb friction within 15 % (the
+    arms', trunk's, knees' and ankles' within 5), a knee's armature within
+    8 %; a 0.5 kg payload in her hand read in her forearm's first moment and
+    laid on her hand by the least move of her build, saved over it and laid
+    whole on her law's model: her shoulder's residual 3.4 -> 0.05 N m
+    ([identification](findings/identification.md)).

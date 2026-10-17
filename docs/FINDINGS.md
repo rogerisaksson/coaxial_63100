@@ -376,6 +376,7 @@ Six firmware defects, no hardware fault:
 | Orthokinematics, the one way she moves: movement as text, a latent loop with no branch, modes on the body, the stride, the walk on it | [findings/orthokinematics.md](findings/orthokinematics.md) |
 | Humanoid robot whole body's step without an active set: 21 unknowns, four solves | [findings/wrench.md](findings/wrench.md) |
 | What her law senses: edge, estimate, insoles | [findings/sensing.md](findings/sensing.md) |
+| Her body identified of her edge: the campaign on the stand, what it tells apart, the corrections over her build | [findings/identification.md](findings/identification.md) |
 | Her scenarios as a player commands them | [findings/scenarios.md](findings/scenarios.md) |
 | Her floor's grip: felt as a sole slides, told, her law bounded by it | [findings/grip.md](findings/grip.md) |
 | Her jerk through transitions against her steady walk, and its sources | [findings/jerk.md](findings/jerk.md) |

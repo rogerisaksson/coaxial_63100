@@ -86,7 +86,9 @@ Fitted parts come from `0x6D` kind 4, never from a name. Host rules:
   remarks on progress) and no filler. A change is a cut, not a rewrite.
 - **Data-oriented**, target and host (docs/ARCHITECTURE.md): structs or
   structured arrays; `step(state, in) -> out` touching its arguments only;
-  memory laid once; tables of steps; the hardware at one edge.
+  memory laid once; tables of steps; the hardware at one edge. Her
+  kinematics and her law on SE(3) (Lie), and they stay so. English
+  throughout: docs, code, comments.
 - **Local first.** Scripts, lint, suites on this host before agents or
   workflows, ultracode or not; agents only for what cannot run here. Two
   swarms burned tokens and ran slower than local work. An agent writes in

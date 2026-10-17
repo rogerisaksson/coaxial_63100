@@ -106,6 +106,8 @@ GYNOID, WBC, SIGHT = 'test_gynoid.py', 'test_wbc.py', 'test_sight.py'
 REACH, TERMS = 'test_reach.py', 'test_terms.py'
 #: The loop in C against MuJoCo and the python stack (wbc/); flight on both; `machine.wrench`.
 WBC_CORE, FLIGHT, WRENCH = 'test_wbc_core.py', 'test_flight.py', 'test_wrench.py'
+#: Her body identified of her edge alone, on the stand (machine.sysid).
+SYSID = 'test_sysid.py'
 #: Orthokinematics: a text compiled, her latent loop, her walk on it, the page's gym.
 ORTHO = 'test_ortho.py'
 #: Her floor: the plane under her soles, its grip as she feels it, the surfaces that cap her rhythm.
@@ -138,7 +140,7 @@ DEFAULT_SUITES = (STRUCTURES + (CORE, SHTP, DRIVE, DRIVE_OBSERVER, FILTER, THERM
                    CTRL_CORE, WORLD_CORE, WIRE, NATIVE, NATIVE_HEAT, EMULATOR,
                    SENSORLESS,
                    BROKER, DAQ_API, CONTROLLER, GYNOID, SIGHT, REACH, TERMS, GVS, REPLAYS, SCENES, WBC,
-                   WBC_CORE, FLIGHT, WRENCH, ORTHO, FLOOR, CYCLIC, QUAD, QUAD_PULL,
+                   WBC_CORE, FLIGHT, WRENCH, SYSID, ORTHO, FLOOR, CYCLIC, QUAD, QUAD_PULL,
                    AERO_CORE, STREAMS, QUAD_COURSE, BOOT)
                   + VIEWS
                   + (RENDER,) + OLLAMA
@@ -195,6 +197,7 @@ JOINS = (
     (20, CTRL_CORE),
     (20, WORLD_CORE),
     (20, WBC_CORE),
+    (20, SYSID),
     (20, AERO_CORE),
     (20, WIRE),
     (20, SENSORLESS),
@@ -257,7 +260,7 @@ PORT = ('test_mcp.py', 'test_parity.py')
 
 #: Suites that run their tests through tools.dev.focus.chosen: past a slice of the run they go
 #: on as shards side by side.
-SHARDED = (SENSORLESS, CONTROLLER, GYNOID, ORTHO, 'test_simulated.py', 'test_views_segments.py', DAQ_API,
+SHARDED = (SENSORLESS, CONTROLLER, GYNOID, ORTHO, SYSID, 'test_simulated.py', 'test_views_segments.py', DAQ_API,
            QUAD_PAGE, REPLAYS, SCENES)
 
 #: A sharded suite's seconds where none are recorded (tests/.counts.json, not committed):

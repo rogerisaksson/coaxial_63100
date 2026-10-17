@@ -197,6 +197,23 @@ gets a line at the end of [DONE](DONE.md).
       check in `test_layout`: no document names a module, a tool or a suite not
       in the tree.
 
+20. **Her situation read, her law reconfigured**: an effector placed
+    anywhere reads where she is from her sensors and lays the text that fits
+    over the general law (Scenarios 4), one mechanism for every floor, seat,
+    bed, stair, wall and tree. DOD: each situation entered unannounced, told
+    within a second, held 3 times in 4.
+21. **No transition with a jerk**, whatever happens (Scenarios 2,
+    `tools/sim/jerk.py`). DOD: every segment's peak through every scenario
+    no higher than in her steady walk.
+22. **Her sensor boundary over the gym too**: her law's modules name no
+    world, truth, id or shove and write no `qpos` or `qvel` but her model's
+    posing (`test_her_law_reads_her_sensors_alone`); the gym (`sprung`,
+    `worker`, `tour`) and `xfrc_applied` outside it. DOD: the gym under the
+    check, a scenario's placing and a shove the only writes left.
+23. **The library's variants** (`machine/library`, `machine/robots`): more
+    inverters, motors and gearboxes as data, a build naming them, as few
+    kinds as her stunts allow. DOD: a second build runs her on the page.
+
 ## One command, either driver
 
 - **Teleoperation and autonomy alike**: keys, the tour and an agent send the
@@ -279,6 +296,10 @@ serves its DOD; none an entry a case.
    parts' peak. Without it the turns hold and the turnabout better (13 of 13,
    7 granted); the weave falls at 4 of 13 (demand.md). DOD: each scenario's
    peak, rms, speed and heat under 2/3 of its parts.
+8. **A wall, a tree walked into**: her touch halts her (`machine.touch`).
+   DOD: each 3 times in 4, no fall.
+9. **Her horizons, an externality each**: the room a limb may reach and may
+   use, toggled on the page (Z the soles', DONE 87). DOD: arms, legs, hands.
 
 ## Bench
 
@@ -338,3 +359,23 @@ serves its DOD; none an entry a case.
 
 - **native://**: a limb's world on a fixed mount as board/emu's. DOD: the
   body's balance and gait from the SIL.
+- **A smoke test in the push hook**: every `machine` module imported, the
+  gynoid run a second headless. DOD: a broken import caught by it.
+- **Deterministic controller checks**: two in `test_controller` fell on 3.12
+  alone (1421 rpm for 1500; the camera), on the wall clock. DOD: on told
+  seconds, 10 of 10 green on 3.12 and 3.14.
+- **Empty suites in CI**: `test_parity`, `test_bench` run 0 checks there.
+  DOD: by design and said in the summary, or their checks back.
+- **Takes with their commands**: keys and commands a column beside the
+  state in every HUMANOID CSV; every crash take a regression test
+  (`tests/replays`). DOD: a crash take replayed to the pass, red then green.
+- **A counter while logging** on every MuJoCo page (`terminal/ui/recorder`).
+  DOD: each page, on a PNG.
+- **Third-person controls as the games have them** (RDR2, GTA V): orbit,
+  follow, shoulder swap, sprint, crouch, a context prompt. DOD: a PNG each.
+- **Identification on the robot** (identification.md): the campaign
+  (`machine.sysid`) through her buses and on the bench, the boards' currents
+  its torques; the hips' yaw and roll armature untold on the stand; a link's
+  inertia about its centre as built under a correction. DOD: a campaign on
+  emulated boards end to end; a bench drive's armature and friction from its
+  board's current; a link's tensor corrected under a body's constraints.

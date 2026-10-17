@@ -111,15 +111,21 @@ def turn_error(want, have):
 class Body:
 
     """Her model laid once for the law: a MjData of its own, her degrees of freedom sorted
-    driven, held and free, the clamps, the soles' corners."""
+    driven, held and free, the clamps, the soles' corners; her corrections as identified laid
+    over it where `identified` (`identified.IDENTIFIED`)."""
 
-    def __init__(self, xml=None):
+    def __init__(self, xml=None, identified=True):
         from machine import mjcf, servos
         mj = self.mj = importlib.import_module('mujoco')
         m = self.m = mj.MjModel.from_xml_string(xml or mjcf.mjcf())
         m.opt.disableflags |= int(mj.mjtDisableBit.mjDSBL_CONSTRAINT)
         self.d = mj.MjData(m)
         self.pelvis, self.torso = m.body('pelvis').id, m.body('torso').id
+        #: Her links and drives corrected as identified (`identified.correct`).
+        self.identified = []
+        if identified:
+            from machine import identified
+            self.identified = identified.correct(self, identified.load(identified.IDENTIFIED))
 
         def hers(body):
             while body:
