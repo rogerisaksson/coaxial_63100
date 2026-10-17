@@ -205,49 +205,56 @@ gets a line at the end of [DONE](DONE.md).
   transition by entry name (brake, rises, `init_walk`'s delay). DOD: those
   transitions as data, a said gait and a twisted one one path - the kept
   replays standing.
-- **No jerk in a transition**: `tools/sim/jerk.py` reads the worst at 11.7
-  of her steady walk (a hop down's hands); a walk's start 4.3 (head), its
-  first landings; turns and the weave 7.8-8.2 (hands). DOD: every segment's
-  peak through stand, walk, turn, strafe, back, stop, sit, rise, hop no
-  higher than in her steady walk; a test holds it.
 
-## Scenarios
+## Scenarios, by the general case
 
 Each a test in MuJoCo: placed, commanded as a player would, judged by no
 fall, its goal reached and its jerk (`tools/sim/scenarios.py`; those that hold
 in `test_scenarios`, 15 of 27 at every wobble now:
-[scenarios](findings/scenarios.md)). One law each, no entry a case.
+[scenarios](findings/scenarios.md)). In order: each a mechanism, the scenes it
+serves its DOD; none an entry a case.
 
-- **Terrain by contact**: a swinging sole that meets something raises her
-  swings by its height, one that meets nothing reaches on down; a sliding one
-  lowers the friction she asks. Met: the sill, the rug, ice, snow, asphalt, a
-  slick patch; the hole at 11 of 13 wobbles. DOD: the hole held, stairs of 0.15
-  x 0.30 m up and down, a slope of 10 deg up, down and across; 3 times in 4
-  each.
-- **Support by contact**: sit, lie and rise as weight moved onto and off a
-  sensed support: modes past her soles' 1, a support that is not a sole in her
-  support region and its sensed force known to her whole-body step
-  (scenarios.md). DOD: chair, soft bed and floor mattress, down and up.
-- **One jump**: takeoff from the height and distance to land - a hop's
-  landing said with it, its throw forward from that, not from a twist. DOD:
-  down from a chair, two-footed up onto one (0.45 m), in place; landed
-  standing.
-- **A shove in any direction, any moment**: the capture point past her
-  soles steps her; past her reach she falls controlled, knees then hands,
-  head off the floor. 80 N met: standing 32 of 32, walking 28 (forward-aside
-  5 of 8). 200 N: standing 14 of 32 stand or fall soft, walking 21; the rest
-  strike her head at 1.1-4.5 m/s, nothing in her law falling. DOD: 200 N
-  falls with the head under 1 m/s.
-- **The drives for it**: a gait under way, a swing led or her capture point
-  past a lone standing sole grants a held drive 1.45x its clamp, past its
-  parts' peak. Without it the turns hold and the turnabout better (13 of 13,
-  7 granted); the weave falls at 4 of 13 (drives.md). DOD: each scenario's
-  peak, rms, speed and heat under 2/3 of its parts.
-- **A player's turnabout**: in place 2 s, an arc 1 s, a walk 2 s, a stop
-  (`play_about`, what S sends with the view behind her): 7 of 13 wobbles. After
-  the stop her capture point runs outside the standing left foot (0.07 -> 0.21
-  m) while the right swings in beside it, 0.10 m apart: the left steps out
-  only after it. Each part alone holds 13 of 13. DOD: 13 of 13.
+1. **Her support, whatever bears her**: a segment the skin feels bearing is
+   support - its place the skin's centre of pressure, its share of her
+   weight -; one not a sole is known to her whole-body step by its sensed
+   wrench (the base's rows of her dynamics, her centre of mass's, her
+   momentum's), in her support region and grounding her. Past her modes' 1
+   she lowers onto a chair, 259 N on it at 2.0 s, her soles unload and her
+   law, reading no stance, lets her fall freely off its front edge. DOD:
+   chair, soft bed and floor mattress, down and up.
+2. **Weight handed over, never switched**: a sole's share of her support
+   continuous in her height's reading, her support region and her step's
+   bounds, where a flag now. `tools/sim/jerk.py` reads the worst at 11.7 of
+   her steady walk (a hop down's hands); a walk's start 4.3 (head), its first
+   landings; turns and the weave 7.8-8.2 (hands). DOD: every segment's peak
+   through stand, walk, turn, strafe, back, stop, sit, rise, hop no higher
+   than in her steady walk; a test holds it.
+3. **A landing on what is there**: a swinging sole that meets something
+   raises her swings by its height, one that meets nothing reaches on down; a
+   sliding one lowers the friction she asks. Met: the sill, the rug, ice,
+   snow, asphalt, a slick patch; the hole at 11 of 13 wobbles. DOD: the hole
+   held, stairs of 0.15 x 0.30 m up and down, a slope of 10 deg up, down and
+   across; 3 times in 4 each.
+4. **Reachable landings ahead**: where each limb lands before her capture
+   point is past it, read from her reach (`machine.reach`); none, her height
+   lowered and a limb set to meet the fall, knees then hands, head off the
+   floor. 80 N met: standing 32 of 32, walking 28 (forward-aside 5 of 8).
+   200 N: standing 14 of 32 stand or fall soft, walking 21; the rest strike
+   her head at 1.1-4.5 m/s. A player's turnabout (`play_about`: in place 2 s,
+   an arc 1 s, a walk 2 s, a stop) 7 of 13 wobbles: after the stop her
+   capture point runs outside the standing left foot (0.07 -> 0.21 m) while
+   the right swings in beside it, and the left steps out only after it; each
+   part alone 13 of 13. DOD: 200 N falls with the head under 1 m/s; the
+   turnabout 13 of 13.
+5. **One jump**: takeoff from the height and distance to land - a hop's
+   landing said with it, its throw forward from that, not from a twist. DOD:
+   down from a chair, two-footed up onto one (0.45 m), in place; landed
+   standing.
+6. **The drives for it**: a gait under way, a swing led or her capture point
+   past a lone standing sole grants a held drive 1.45x its clamp, past its
+   parts' peak. Without it the turns hold and the turnabout better (13 of 13,
+   7 granted); the weave falls at 4 of 13 (drives.md). DOD: each scenario's
+   peak, rms, speed and heat under 2/3 of its parts.
 
 ## Bench
 
