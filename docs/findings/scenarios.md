@@ -218,6 +218,12 @@ plain walk the same bit for bit (her pose hashed each second for 20 s).
 - A hop with no twist throws her straight up (`flight.shape_hop`'s forward speed
   is a twist's): from a chair's seat she lands on it again; up onto one she falls
   at 2.5 s.
+- `hop_down_chair` and `hop_up_chair` reach no hop: their phases are not the
+  `load`, `throw`, `land` `flight.shape_hop` keys on, and name no targets; on the
+  loop she stands on the seat. Not kept: a hop said on the seat (down at 3.06 s),
+  with a 0.3 m/s twist (3.50); walked off it, 0.15 m/s for 0.3 s, 6 of 13 - the
+  rest stop stepping in place on the seat, creep 0.07 m/s to its edge and walk off
+  it at 5.1 s.
 
 ## The floor under a sole
 

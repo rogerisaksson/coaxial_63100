@@ -237,7 +237,10 @@ serves its DOD; none an entry a case.
    sill, the rug, the hole, snow, asphalt. The floor
    ahead a plane of her standing soles' pitch (`modal.under`): up a ramp she
    lands where she aims, down at its top; past a crest or down a descent a
-   swing hangs 6-27 cm over the floor (scenarios.md). DOD: stairs of 0.15 x
+   swing hangs 6-27 cm over the floor; the world's floor known under, at and
+   between her landings, or the ramp's pitch, she still falls - her landings on
+   nosings, her capture point running on down a descent, the plane wrong at a
+   ramp's ends (scenarios.md). DOD: stairs of 0.15 x
    0.30 m up and down, a slope of 10 deg up, down and across; 3 times in 4
    each.
 4. **Her floor identified, a text over the general law**: what her
@@ -263,7 +266,8 @@ serves its DOD; none an entry a case.
    200 N: standing 14 of 32 stand or fall soft, walking 21; the rest strike
    her head at 1.1-4.5 m/s. DOD: 200 N falls with the head under 1 m/s.
 6. **One jump**: takeoff from the height and distance to land - a hop's
-   landing said with it, its throw forward from that, not from a twist. DOD:
+   landing said with it, its throw forward from that, not from a twist; the
+   chair's two texts reach no hop yet (scenarios.md). DOD:
    down from a chair, two-footed up onto one (0.45 m), in place; landed
    standing.
 7. **The drives for it**: a gait under way, a swing led or her capture point
