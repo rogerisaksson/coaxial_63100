@@ -225,9 +225,13 @@ in `test_scenarios`, 15 of 27 at every wobble now:
   x 0.30 m up and down, a slope of 10 deg up, down and across; 3 times in 4
   each.
 - **Support by contact**: sit, lie and rise as weight moved onto and off a
-  sensed support. DOD: chair, soft bed and floor mattress, down and up.
-- **One jump**: takeoff from the height and distance to land. DOD: down
-  from a chair, two-footed up onto one (0.45 m), in place; landed standing.
+  sensed support: modes past her soles' 1, a support that is not a sole in her
+  support region and its sensed force known to her whole-body step
+  (scenarios.md). DOD: chair, soft bed and floor mattress, down and up.
+- **One jump**: takeoff from the height and distance to land - a hop's
+  landing said with it, its throw forward from that, not from a twist. DOD:
+  down from a chair, two-footed up onto one (0.45 m), in place; landed
+  standing.
 - **A shove in any direction, any moment**: the capture point past her
   soles steps her; past her reach she falls controlled, knees then hands,
   head off the floor. 80 N met: standing 32 of 32, walking 28 (forward-aside

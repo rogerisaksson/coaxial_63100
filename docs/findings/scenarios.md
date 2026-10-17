@@ -152,6 +152,26 @@ at her torso and hands, strafes 1.1-1.9, a hop down 11.7.
 - On them, at every wobble: stairs up down at 2.95-2.98 s, down at 3.24-3.45,
   the slope up at 6.36-7.19, down at 3.99, across it at 3.30-3.43, the rug at
   5.91-5.96.
+- The stairs up: both feet stay at the first riser - the right's swing bumps it
+  and lands at its foot, the left lands on its nosing and slides off - while her
+  body runs on 0.28 m ahead of both; she pitches onto the stairs at 2.95 s.
+  The step leg joining her stance steps her height reading 0.20 -> 0.61 units,
+  asked 10 m/s^2 up in a pass; a sole lifting off while still stood reads her
+  legs shortening 5 units a second. Each read otherwise - legs by their load,
+  to her floor, her rate from her centre of mass - she still fell at 2.87-3.0 s
+  and the slope earlier; each sole landed past the edge it met, the sill fell
+  at 6.8 s.
+
+## Sitting and jumping
+
+- Her modes stop at 1 - the sagittal unit half a sole, the axial her ankles'
+  stroke - and a chair's seat is 3 and 3.5 units off: the compiler refuses past
+  1. Let past it, she lowers onto the chair (259 N on it at 2.0 s), her soles
+  unload, her law reads no stance and lets her fall freely: sat 0.1 m behind her
+  ankles where the seat's middle is 0.3 m, she slides off its front edge.
+- A hop with no twist throws her straight up (`flight.shape_hop`'s forward speed
+  is a twist's): from a chair's seat she lands on it again; up onto one she falls
+  at 2.5 s.
 
 ## The floor under a sole
 
