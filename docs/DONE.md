@@ -230,3 +230,7 @@ the fifty before these: [DONE_1-50](DONE_1-50.md).
     her walk's, turns 6.5 -> 3.8 ([jerk](findings/jerk.md)).
 65. A load cell in her harness: her pelvis's six rows, ten more base
     parameters, her mass to 0.1 %.
+66. The five drawn to their pictures: the orni a dusty pod with a canopy and
+    slender wings, the quad a slate hump on round arms over two skid frames,
+    the Edge navy with a yellow cowl, the Goblin a lime canopy and blade
+    tips, her a fitted red tee, light jeans and a ponytail.

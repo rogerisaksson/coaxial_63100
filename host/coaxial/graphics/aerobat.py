@@ -17,7 +17,7 @@ from coaxial.graphics.helicopter import force_arrows
 from coaxial.graphics.lit import CORE, PLATE, braille, paint, project, splat
 from coaxial.graphics.quadcopter import (BLADE_W, BLADES_RAD_S, BOARD_H, BOARD_R, CARBON, CELLS,
                                          LEG_R, MASK, MOTOR_R, PROP, RIM_EVERY, RIM_INK, SHAFT_R,
-                                         SINK_H, SINK_R, SKIN, ACCENT, Mesh, _at, _painted)
+                                         SINK_H, SINK_R, ACCENT, Mesh, _at, _painted)
 from machine import aerobat as aero_phys
 
 #: The camera: the eye's distance in reaches framed, and the reach the monoplane fills, m -
@@ -41,6 +41,8 @@ _AERO_MESH = {}
 
 
 SURFACE = (92, 98, 112)
+#: The Edge 540's navy, its yellow cowl and white spinner.
+NAVY, YELLOW, WHITE = (28, 42, 98), (240, 190, 40), (236, 236, 232)
 
 
 def _fuselage():
@@ -52,7 +54,10 @@ def _fuselage():
         (0.26, 0.058, 0.072), (0.38, 0.052, 0.058), (0.47, 0.044, 0.046),
         (0.53, 0.034, 0.034),
     ]
-    return shapes.loft(rings, paint(SKIN), poles=(-0.53, 0.535), along='y')
+    from coaxial.model.blocks import numpy as np
+    navy, yellow = paint(NAVY), paint(YELLOW)
+    return shapes.loft(rings, lambda c: np.where(c[:, 1] > 0.40, yellow, navy), poles=(-0.53, 0.535),
+                       along='y')
 
 
 def _stack():
@@ -72,11 +77,11 @@ def _aero_parts(see='shell'):
     """[(name, mesh)]: the aerobat airframe in its body axes; `see` a layer: the airframe its
     longerons, firewall, spars and ribs, the pack under the canopy, bare the shafts, the spars
     and the keel's line."""
-    carbon, skin, accent = paint(CARBON), paint(SKIN), paint(ACCENT)
+    carbon, skin, accent = paint(CARBON), paint(NAVY), paint(ACCENT)
     shell, frame = see == 'shell', see != 'bare'
     stack, aft = _stack()
     out = [('spinner', shapes.ellipsoid((0.0, PROP_Y + 0.024, 0.0), (0.028, 0.044, 0.028),
-                                        PLATE, rows=6)),
+                                        paint(WHITE), rows=6)),
            ('shaft0', _at(shapes.drum(SHAFT_R, PROP_Y + 0.02 - aft, 'y', PLATE), None,
                           (0.0, 0.5 * (PROP_Y + 0.02 + aft), 0.0))),
            ('spar', _at(shapes.drum(0.007, 2.0 * HALF_SPAN, 'x', PLATE), None, (0.0, WING_Y, 0.0))),

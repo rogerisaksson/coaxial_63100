@@ -168,3 +168,9 @@ Layers (S on a page): shell, frame (the quad's two plates, the heli's
 frames and tray, the orni's spine, the aerobat's longerons, firewall, spar
 and ribs), pack (a 6S brick, 140 x 45 x 40 mm, or the heli's tray lit),
 bare (shafts, mast, swashplate, cranks, spars, every blade and surface).
+- Drawn to their pictures: the ornithopter's pod dusky (58, 54, 48) with
+  one canopy ahead and wings 16 mm in chord; the quad a slate hump
+  (86, 92, 100) on round arms, its two skid rails 100 mm out at SKID_M;
+  the Edge navy (28, 42, 98) with a yellow cowl from y 0.40 and a white
+  spinner; the Goblin's canopy a loft over the front frame, lime above its
+  floor, its blades lime past 0.8 of their reach.

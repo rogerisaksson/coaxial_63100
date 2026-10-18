@@ -17,7 +17,7 @@ from coaxial.graphics.helicopter import force_arrows
 from coaxial.graphics.lit import CORE, PLATE, braille, paint, project, splat
 from coaxial.graphics.quadcopter import (BLADES_RAD_S, BOARD_H, BOARD_R, CARBON, CELLS, LEG_R,
                                          MASK, MOTOR_R, RIM_EVERY, RIM_INK, SHAFT_R, SINK_H,
-                                         SINK_R, SKIN, Mesh, _at, _painted)
+                                         SINK_R, Mesh, _at, _painted)
 from machine import ornithopter as orni_phys
 
 #: The camera: the eye's distance in reaches framed, and the reach the ornithopter fills, m -
@@ -38,18 +38,22 @@ MOTOR_L, MOTOR_Y = 0.040, 0.020
 _ORNI_MESH = {}
 
 
+#: The pod's dusty black, its wings' dark skin.
+DUSK, WING = (58, 54, 48), (96, 92, 86)
+
+
 def _carapace():
-    """The dragonfly's body along +z: a thorax under the shoulders, a tapering abdomen aft, a
-    head ahead."""
+    """The pod along +z: a tapering tail boom, a deep thorax under the shoulders, the cockpit's
+    nose ahead, dusty black."""
     stations = [
         (-0.68, 0.000, 0.016, 0.010), (-0.55, -0.004, 0.024, 0.016),
-        (-0.40, -0.010, 0.038, 0.026), (-0.24, -0.016, 0.054, 0.040),
-        (-0.08, -0.020, 0.064, 0.052), (0.06, -0.018, 0.064, 0.056),
-        (0.18, -0.012, 0.056, 0.050), (0.28, -0.006, 0.044, 0.044),
-        (0.36, 0.000, 0.028, 0.030), (0.41, 0.004, 0.010, 0.012),
+        (-0.40, -0.012, 0.040, 0.026), (-0.24, -0.028, 0.062, 0.046),
+        (-0.08, -0.034, 0.072, 0.060), (0.06, -0.032, 0.074, 0.064),
+        (0.18, -0.026, 0.070, 0.060), (0.28, -0.016, 0.062, 0.054),
+        (0.36, -0.004, 0.048, 0.040), (0.41, 0.004, 0.028, 0.020),
     ]
     rings = [(z, rx, 0.5 * (yt - yb), -0.5 * (yt + yb), 0.0) for z, yb, yt, rx in stations]
-    return shapes.loft(rings, paint(SKIN), poles=(-0.69, 0.42), along='z')
+    return shapes.loft(rings, paint(DUSK), poles=(-0.69, 0.43), along='z')
 
 
 def _drive(k, z, frame):
@@ -77,8 +81,7 @@ def _orni_parts(see='shell'):
     spine's line, the cranks and the tail."""
     carbon, shell, frame = paint(CARBON), see == 'shell', see != 'bare'
     out = ([('carapace', _carapace()),
-            ('eye0', shapes.ellipsoid((-0.034, 0.032, 0.30), (0.030, 0.026, 0.040), CORE, rows=7)),
-            ('eye1', shapes.ellipsoid((0.034, 0.032, 0.30), (0.030, 0.026, 0.040), CORE, rows=7))]
+            ('canopy', shapes.ellipsoid((0.0, 0.052, 0.28), (0.050, 0.034, 0.10), CORE, rows=7))]
            if shell else
            [('spine', _at(shapes.drum(0.008 if frame else 0.003, 1.06, 'z', PLATE), None,
                           (0.0, 0.012, -0.13)))])
@@ -93,7 +96,7 @@ def _orni_parts(see='shell'):
                     shapes.ellipsoid((s * SHOULDER_X, SHOULDER_Y + 0.004, AFT_Z),
                                      (0.015, 0.011, 0.015), PLATE, rows=6)))
         out.append(('vtail%d' % (s > 0),
-                    _at(shapes.ellipsoid((0.0, 0.0, 0.0), (0.07, 0.004, 0.02), paint(SKIN), rows=6),
+                    _at(shapes.ellipsoid((0.0, 0.0, 0.0), (0.07, 0.004, 0.02), paint(WING), rows=6),
                         shapes.turn_about('z', s * 34.0) @ shapes.turn_about('y', -s * 16.0),
                         (s * 0.055, 0.04, -0.62))))
         for k, z in enumerate(STRUT_Z):
@@ -115,7 +118,7 @@ def _wing_blade(span, side):
         ('spar', _at(shapes.drum(0.007, 0.88 * span, 'x', paint(CARBON)), None,
                      (s * 0.44 * span, 0.003, 0.012))),
         ('blade', shapes.ellipsoid((s * 0.50 * span, 0.0, -0.004),
-                                   (0.50 * span, 0.004, 0.024), paint(SKIN), rows=7)),
+                                   (0.50 * span, 0.003, 0.016), paint(WING), rows=7)),
     ]
 
 

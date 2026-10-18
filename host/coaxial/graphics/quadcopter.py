@@ -36,8 +36,8 @@ LAYERS = ('shell', 'frame', 'pack', 'bare')
 #: Their colours: carbon, the boards' solder mask, the propellers, a painted skin - carbon's
 #: dark halftone left a body a cloud of dots.
 CARBON, MASK, PROP, SKIN = (70, 74, 84), (30, 110, 64), (205, 205, 200), (188, 194, 204)
-#: A tactical drone's olive and its dark fittings; a racer's red; a pack's cells.
-OLIVE, DARK, ACCENT, CELLS = (138, 142, 112), (92, 96, 94), (214, 62, 50), (226, 196, 64)
+#: A tactical drone's slate and its black fittings; a racer's red; a pack's cells.
+SLATE, DARK, ACCENT, CELLS = (86, 92, 100), (34, 36, 40), (214, 62, 50), (226, 196, 64)
 
 #: The speed below which a propeller shows its blades, rad/s; the swept disc's rim, a dot
 #: every RIM_EVERY of its line, and the inks.
@@ -59,13 +59,20 @@ def _at(mesh, turn=None, spot=(0.0, 0.0, 0.0)):
 
 
 def _arm(x, z, material):
-    """An arm's square boom from the body's corner out to the can at (x, z)."""
+    """An arm's round boom from the body's side out to the can at (x, z)."""
     out = math.hypot(x, z)
-    length = out - PLATE_R * 0.8 - MOTOR_R
-    mid = PLATE_R * 0.8 + length / 2.0
+    length = out - PLATE_R * 0.7 - MOTOR_R
+    mid = PLATE_R * 0.7 + length / 2.0
     turn = shapes.turn_about('y', -math.degrees(math.atan2(z, x)))
-    return _at(shapes.box((0.0, 0.0, 0.0), (length / 2.0, 0.011, 0.016), material), turn,
-               (mid * x / out, 0.0, mid * z / out))
+    return _at(shapes.drum(ARM_R, length, 'x', material), turn, (mid * x / out, 0.0, mid * z / out))
+
+
+def _hump():
+    """The body: a hump along z, flat under, its back rising to the middle."""
+    rings = [(-0.20, 0.05, 0.014, 0.0), (-0.12, 0.08, 0.030, 0.012), (-0.04, 0.095, 0.046, 0.022),
+             (0.04, 0.095, 0.046, 0.022), (0.12, 0.085, 0.036, 0.014), (0.20, 0.06, 0.022, 0.004),
+             (0.25, 0.03, 0.012, -0.004)]
+    return shapes.loft(rings, paint(SLATE), poles=(-0.21, 0.26), along='z')
 
 
 def drive(x, y, z, length=MOTOR_L, sink=None):
@@ -83,18 +90,16 @@ def drive(x, y, z, length=MOTOR_L, sink=None):
 
 def parts(see='shell'):
     """[(name, mesh)]: the frame in its own axes, x right, y up, z ahead - a tactical quad's:
-    an olive body on four square arms, a sensor ball under its nose, an aerial aft; the rotors
-    at `quad.ROTOR_AT`, the skids' feet where `quad.mjcf` stands them; `see` a layer of LAYERS:
-    the airframe two carbon plates, the pack between them, bare the shafts on their arms."""
-    olive, dark, shell = paint(OLIVE), paint(DARK), see == 'shell'
+    a slate hump on four round arms, a gimbal ball under its nose, an aerial aft, two skid
+    frames; the rotors at `quad.ROTOR_AT`, the skids' rails at `quad.SKID_M`; `see` a layer of
+    LAYERS: the airframe two carbon plates, the pack between them, bare the shafts on their arms."""
+    slate, dark, shell = paint(SLATE), paint(DARK), see == 'shell'
     frame, top, arm = see != 'bare', quad.DISC_M, 0.011
     if shell:
-        out = [('plate', shapes.box((0.0, 0.0, 0.0), (0.085, 0.028, 0.15), olive)),
-               ('dome', shapes.box((0.0, 0.046, -0.02), (0.055, 0.02, 0.09), dark)),
-               ('nose', shapes.box((0.0, -0.005, 0.16), (0.05, 0.02, 0.03), olive)),
-               ('ball', shapes.ellipsoid((0.0, -0.052, 0.13), (0.03, 0.03, 0.03), PLATE, rows=7)),
-               ('lens', shapes.ellipsoid((0.0, -0.052, 0.158), (0.012, 0.012, 0.006), CORE, rows=5)),
-               ('aerial', _at(shapes.drum(0.004, 0.11, 'y', dark), None, (0.05, 0.11, -0.12)))]
+        out = [('hump', _hump()),
+               ('ball', shapes.ellipsoid((0.0, -0.045, 0.14), (0.028, 0.028, 0.028), dark, rows=7)),
+               ('lens', shapes.ellipsoid((0.0, -0.045, 0.168), (0.011, 0.011, 0.005), CORE, rows=5)),
+               ('aerial', _at(shapes.drum(0.004, 0.11, 'y', dark), None, (0.05, 0.09, -0.12)))]
     elif frame:
         out = [('plate', shapes.box((0.0, -0.02, 0.0), (0.075, 0.003, 0.14), paint(CARBON))),
                ('deck', shapes.box((0.0, 0.028, 0.0), (0.075, 0.003, 0.14), paint(CARBON)))]
@@ -102,14 +107,16 @@ def parts(see='shell'):
             out.append(('pack', shapes.box((0.0, 0.004, -0.01), (0.0225, 0.02, 0.07), paint(CELLS))))
     else:
         out = []
+    for s in (-1.0, 1.0) if frame else ():
+        out.append(('rail%d' % (s > 0), _at(shapes.drum(0.006, 0.36, 'z', dark), None,
+                                             (s * 0.1, -quad.SKID_M, 0.0))))
+        out += [('leg%d_%d' % (s > 0, k), _at(shapes.drum(LEG_R, quad.SKID_M, 'y', dark), None,
+                                               (s * 0.1, -quad.SKID_M / 2.0, z)))
+                for k, z in enumerate((-0.14, 0.14))]
     for k, (x, z) in enumerate(quad.ROTOR_AT):
         if frame:
-            out += [('arm%d' % k, _arm(x, z, olive if shell else paint(CARBON)))]
+            out += [('arm%d' % k, _arm(x, z, slate if shell else paint(CARBON)))]
             out += [(name + str(k), mesh) for name, mesh in drive(x, arm, z)]
-            out += [('leg%d' % k, _at(shapes.drum(LEG_R, quad.SKID_M, 'y', dark), None,
-                                      (0.7 * x, -quad.SKID_M / 2.0, 0.7 * z))),
-                    ('foot%d' % k, shapes.ellipsoid((0.7 * x, -quad.SKID_M, 0.7 * z),
-                                                    (quad.FOOT_M,) * 3, PLATE, rows=6))]
         else:
             out.append(('rod%d' % k, _at(shapes.drum(0.003, math.hypot(x, z), 'z', PLATE),
                                          shapes.turn_about('y', math.degrees(math.atan2(x, z))),
