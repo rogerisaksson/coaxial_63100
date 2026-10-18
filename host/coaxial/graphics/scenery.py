@@ -123,33 +123,34 @@ def _rwy(along, across):
 
 
 @functools.lru_cache(maxsize=None)
-def standing():
-    """(ends, inks): every edge of what stands whatever is flown - the pole, the trees, the
-    houses, the cars, the masts - its ends (2n, 3) and its ink's name an edge."""
-    edges = {name: [] for name in INKS}
+def standing(field=grounds):
+    """(ends, inks): every edge of what stands whatever is flown on `field` (`grounds`,
+    `airfield`) - the pole, the trees, the houses, the cars, the masts - its ends (2n, 3) and
+    its ink's name an edge."""
+    edges, f = {name: [] for name in INKS}, field
     x, z = POLE_AT
     for h in range(POLE_TOP_M):
         half = TENTH_M if (h + 1) % 10 == 0 else TICK_M
         edges['pole'] += [((x, float(h), z), (x, h + 1.0, z)),
                           ((x - half, h + 1.0, z), (x + half, h + 1.0, z))]
-    for x, z, high, crown in grounds.TREES:
+    for x, z, high, crown in f.TREES:
         foot, top = grounds.CROWN * high, (x, high, z)
         ring = [(x + crown * math.cos(k * math.tau / 6), foot, z + crown * math.sin(k * math.tau / 6))
                 for k in range(6)]
         edges['tree'] += [((x, 0.0, z), (x, foot, z))] + _loop(ring) + [(p, top) for p in ring]
-    for hall in grounds.HOUSES + grounds.HALLS:
+    for hall in f.HOUSES + f.HALLS:
         x, z, wide, deep, wall, ridge = hall
         ends = [(x - wide / 2, ridge, z), (x + wide / 2, ridge, z)]
         edges['house'] += _box(x, z, wide, deep, 0.0, wall) + [tuple(ends)] + [
             (end, (end[0], wall, z + side * deep / 2)) for end in ends for side in (-1.0, 1.0)]
-    for g in grounds.windows():
-        edges['house'] += grounds.gate(*grounds.GATES[g])[:4]
+    for g in grounds.windows(f):
+        edges['house'] += grounds.gate(*f.GATES[g])[:4]
     wide, high, long_ = grounds.CAR_M
-    for x, z, heading in grounds.CARS:
+    for x, z, heading in f.CARS:
         edges['car'] += (_box(x, z, wide, long_, grounds.CAR_LOW, grounds.CAR_BODY * high, heading)
                          + _box(x, z, grounds.CAR_CABIN[0] * wide, grounds.CAR_CABIN[1] * long_,
                                 grounds.CAR_BODY * high, high, heading))
-    for x, z, side, high in grounds.MASTS:
+    for x, z, side, high in f.MASTS:
         edges['mast'] += _box(x, z, side, side, 0.0, high)
         for k in range(1, int(high / 3.5) + 1):
             edges['mast'] += _box(x, z, side, side, 3.5 * k, 3.5 * k)[:4]
@@ -170,11 +171,11 @@ def runway():
 
 
 @functools.lru_cache(maxsize=None)
-def gates(ahead):
-    """(ends, inks) of the course's gates, the one `ahead` lit and doubled."""
+def gates(ahead, field=grounds):
+    """(ends, inks) of the `field`'s course's gates, the one `ahead` lit and doubled."""
     edges = {'gate': [], 'next': []}
-    framed = grounds.windows()
-    for k, (x, y, z, heading, size) in enumerate(grounds.GATES):
+    framed = grounds.windows(field)
+    for k, (x, y, z, heading, size) in enumerate(field.GATES):
         if k not in framed:
             edges['next' if k == ahead else 'gate'] += grounds.gate(x, y, z, heading, size)
         if k == ahead:
@@ -191,31 +192,24 @@ def _laid(edges):
     return np.asarray(ends, float).reshape(-1, 3), np.asarray(inks, int)
 
 
-def asked():
-    """(ends, inks) of the line the course asks (`course.track`), dashed."""
+def asked(field=grounds):
+    """(ends, inks) of the line the course asks (`course.track`, or the `field`'s), dashed."""
     from coaxial.model.blocks import numpy as np
     from machine import course
-    at = course.track()['at']
+    at = (course if field is grounds else field).track()['at']
     ends = [end for k in range(0, len(at), 2 * LINE_DASH)
             for end in (at[k], at[(k + LINE_DASH) % len(at)])]
     return np.asarray(ends, float), np.full(len(ends) // 2, list(INKS).index('line'))
 
 
-def edges(gate=None, line_=False):
-    """(ends, inks) of every edge that stands - with the runway strip off the gate course, the
-    course's gates where `gate` is the one flown to next, and the line it asks with `line_`."""
+def edges(gate=None, line_=False, field=grounds):
+    """(ends, inks) of every edge that stands on `field` - with the runway strip off the gate
+    course, and on an airfield on it too, the course's gates where `gate` is the one flown to
+    next, and the line it asks with `line_`."""
     from coaxial.model.blocks import numpy as np
-    ends, inks = standing()
-    if gate is None:
-        more, theirs = runway()
-        ends, inks = np.vstack([ends, more]), np.concatenate([inks, theirs])
-    else:
-        more, theirs = gates(gate)
-        ends, inks = np.vstack([ends, more]), np.concatenate([inks, theirs])
-    if line_:
-        more, theirs = asked()
-        ends, inks = np.vstack([ends, more]), np.concatenate([inks, theirs])
-    return ends, inks
+    parts = [standing(field)] + [runway()] * int(gate is None or field is not grounds) + [
+        gates(gate, field)] * int(gate is not None) + [asked(field)] * int(bool(line_))
+    return np.vstack([p[0] for p in parts]), np.concatenate([p[1] for p in parts])
 
 
 def drawn(ends, m, cam, centre, reach=None):
@@ -233,12 +227,12 @@ def drawn(ends, m, cam, centre, reach=None):
         (size - FAR_SIZE) / (1.0 - FAR_SIZE), 0.0, 1.0)
 
 
-def props(m, cam, centre, gate=None, line_=False):
-    """[(dots, inks)] for `lit.braille`: what stands in the camera `cam` looking with `m` at
-    `centre` (`edges`) - its dots and a cell's ink, the nearest edge's, dimmer the further
-    off."""
+def props(m, cam, centre, gate=None, line_=False, field=grounds):
+    """[(dots, inks)] for `lit.braille`: what stands on `field` in the camera `cam` looking
+    with `m` at `centre` (`edges`) - its dots and a cell's ink, the nearest edge's, dimmer the
+    further off."""
     from coaxial.model.blocks import numpy as np
-    ends, inks = edges(gate, line_)
+    ends, inks = edges(gate, line_, field)
     ys, xs, which, share = drawn(ends, m, cam, centre)
     dots = np.zeros((cam['height'], cam['width']), bool)
     dots[ys, xs] = True

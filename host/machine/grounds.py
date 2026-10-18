@@ -7,6 +7,7 @@ Solid as the frame's world has them (`solids`), and how near a frame's middle co
     near = grounds.clearances(points)                # [(what, m)], the nearest first
 """
 import math
+import sys
 
 #: A gate: its middle (x, y, z), m from where the frame rises, y up; its heading, degrees from
 #: z toward x - flown through along it; its opening, m square, the floor under it at the
@@ -56,6 +57,7 @@ _UNITS = {'GATE_M': (1, 0), 'TRUNK_M': (1, 0), 'BAR_M': (1, 0), 'WALL_M': (1, 0)
 _PLACED = {'GATES': (3,), 'TREES': (), 'HOUSES': (), 'HALLS': (), 'CARS': (2,), 'CAR_M': None,
            'MASTS': ()}
 _BUILT, _SET = {}, {}
+_HERE = sys.modules[__name__]
 
 
 def sized():
@@ -111,9 +113,9 @@ def walls(hall):
     return out, windows
 
 
-def windows():
-    """Every hall's windows, by gate number."""
-    return {g for hall in HALLS for g in walls(hall)[1]}
+def windows(field=None):
+    """Every hall's windows, by gate number: these grounds', or a `field`'s laid as they are."""
+    return {g for hall in (field or _HERE).HALLS for g in walls(hall)[1]}
 
 
 def _roof(x, z, wide, deep, wall, ridge):
@@ -121,35 +123,36 @@ def _roof(x, z, wide, deep, wall, ridge):
         (x + a * wide / 2, ridge, z) for a in (-1, 1)]
 
 
-def solids():
+def solids(field=None):
     """What stands, as the frame's world has it to fly into (`quad.mjcf`): a tree its trunk and
     its cone, a house its walls and its roof, a hall its walls about its windows and its roof,
     a car its body and its cabin, a mast; a gate (`gateN`) its bars and its posts - none along
-    the floor, where the floor is its lower edge, none at all where it is a window."""
-    out = []
-    for x, z, high, crown in TREES:
+    the floor, where the floor is its lower edge, none at all where it is a window. These
+    grounds', or a `field`'s (`airfield`) laid as they are."""
+    f, out = field or _HERE, []
+    for x, z, high, crown in f.TREES:
         foot = CROWN * high
         out += [('rod', 'tree', (x, 0.0, z), (x, foot, z), TRUNK_M),
                 ('hull', 'tree', [(x + crown * math.cos(k * math.tau / 6), foot,
                                    z + crown * math.sin(k * math.tau / 6)) for k in range(6)]
                  + [(x, high, z)])]
-    for x, z, wide, deep, wall, ridge in HOUSES:
+    for x, z, wide, deep, wall, ridge in f.HOUSES:
         out += [('box', 'house', (x, wall / 2, z), (wide / 2, wall / 2, deep / 2), 0.0),
                 ('hull', 'house', _roof(x, z, wide, deep, wall, ridge))]
-    for hall in HALLS:
+    for hall in f.HALLS:
         out += [('box', 'house', middle, half, 0.0) for middle, half in walls(hall)[0]]
         out.append(('hull', 'house', _roof(*hall)))
     wide, high, long_ = CAR_M
-    for x, z, heading in CARS:
+    for x, z, heading in f.CARS:
         out += [('box', 'car', (x, (CAR_LOW + CAR_BODY * high) / 2, z),
                  (wide / 2, (CAR_BODY * high - CAR_LOW) / 2, long_ / 2), heading),
                 ('box', 'car', (x, (1.0 + CAR_BODY) * high / 2, z),
                  (CAR_CABIN[0] * wide / 2, (1.0 - CAR_BODY) * high / 2,
                   CAR_CABIN[1] * long_ / 2), heading)]
-    for x, z, side, high in MASTS:
+    for x, z, side, high in f.MASTS:
         out.append(('box', 'mast', (x, high / 2, z), (side / 2, high / 2, side / 2), 0.0))
-    framed = windows()
-    for k, place in enumerate(GATES):
+    framed = windows(f)
+    for k, place in enumerate(f.GATES):
         if k not in framed:
             out += [('rod', 'gate%d' % k, a, b, BAR_M) for a, b in gate(*place)
                     if max(a[1], b[1]) > 0.0]

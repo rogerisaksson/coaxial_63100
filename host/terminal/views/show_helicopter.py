@@ -167,7 +167,8 @@ def run_craft_view(argv, doc, craft, gfx, flown_mod, compose_fn, thrusts_fn, loo
     card = gpu.adapter()
     lit = gpu.LitRaster(found=card) if card is not None else None
     say('ok', 'drawing', lit.name if lit is not None else 'this process, dots')
-    sky, route, trace = craft.Sky(grounds.solids()), aerobatics.routine(flown_mod.CARD), []
+    sky = craft.Sky(getattr(flown_mod, 'FIELD', grounds).solids())
+    route, trace = aerobatics.routine(flown_mod.CARD), []
     began = time.monotonic()
     held = {'at': 0.0, 'clock': 0.0, 'frame': sky.state(), 'reset': False,
             'wind': False, 'law': aerokin.fresh(), 'flight': flown_mod.fresh(),

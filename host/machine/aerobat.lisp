@@ -188,6 +188,9 @@
 (defstunt pull_out
   (base climbout) (height 4.0m) (speed 12.0m_s))
 
+(defstunt run_in
+  (base line_up) (height 1.5m))
+
 (defbehavior knife_edge_circuit
   (phase carve_knife (stunt knife_circle) (duration LAP_S) (blend 200ms))
   (phase harrier_climb (stunt climbing_harrier) (duration LAP_S) (blend 200ms))
@@ -213,6 +216,10 @@
   (stage knife-in (stunt knife_pass) (duration 2.5s) (ramp 1.0s))
   (stage knife-edge (stunt knife_pass) (duration 2.5s) (ramp 0.0s))
   (stage pull-out (stunt pull_out) (duration 1.5s) (ramp 1.0s))
+  (stage turn-out (stunt teardrop) (duration 1.29s) (ramp 0.3s))
+  (stage turn-leg (stunt tear_leg) (duration 3.27s) (ramp 0.3s))
+  (stage turn-back (stunt tear_back) (duration 6.43s) (ramp 0.3s))
+  (stage run-in (stunt run_in) (duration 8.6s) (ramp 1.0s))
   (stage prop-hang (stunt hover) (duration 2.5s) (ramp 2.0s) (gate held))
   (stage torque-roll (stunt torque_roll) (duration 2.0s) (ramp 1.0s))
   (stage poise (stunt hover) (duration 1.8s) (ramp 1.5s))

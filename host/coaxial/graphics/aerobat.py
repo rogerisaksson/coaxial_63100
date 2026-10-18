@@ -18,7 +18,7 @@ from coaxial.graphics.lit import CORE, PLATE, braille, paint, project, splat
 from coaxial.graphics.quadcopter import (BLADE_W, BLADES_RAD_S, BOARD_H, BOARD_R, CARBON, CELLS,
                                          LEG_R, MASK, MOTOR_R, PROP, RIM_EVERY, RIM_INK, SHAFT_R,
                                          SINK_H, SINK_R, ACCENT, Mesh, _at, _painted)
-from machine import aerobat as aero_phys
+from machine import aerobat as aero_phys, airfield
 
 #: The camera: the eye's distance in reaches framed, and the reach the monoplane fills, m -
 #: the wing tips 0.65 m out, the spinner at +0.57 m, the tail post at -0.52.
@@ -273,4 +273,4 @@ def render(pose, rotors, width, height, yaw=30.0, pitch=18.0, reach=REACH, centr
         return braille(depth, rgb, np.zeros(depth.shape), width, height, colour, inset,
                        props=own)
     return braille(depth, rgb, scenery.ground(m, fine, centre), width, height, colour, inset,
-                   props=own + scenery.props(m, fine, centre, gate, line_))
+                   props=own + scenery.props(m, fine, centre, gate, line_, airfield))

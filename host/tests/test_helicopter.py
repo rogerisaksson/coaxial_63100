@@ -1,4 +1,4 @@
-"""The 3D helicopter, the ornithopter and the aerobat in MuJoCo, their boards and views."""
+"""The 3D helicopter and the ornithopter in MuJoCo, and with the aerobat their boards and views."""
 import math
 import os
 import sys
@@ -9,16 +9,15 @@ from views_kit import Report, ansi_plain
 
 
 def test_helicopter_stunt_routine(report):
-    """`helicopter`, `ornithopter` and `aerobat` fly their cards in MuJoCo."""
-    from machine import aerobat, aerobatics, aerokin, helicopter, ornithopter, se3mpc
+    """`helicopter` and `ornithopter` fly their cards in MuJoCo (the aerobat: `test_aerobat`)."""
+    from machine import aerobatics, aerokin, helicopter, ornithopter
     dt, runs = 1.0 / 120.0, {}
-    tail, foot = se3mpc.points(aerobat)[0][:, :3], aerobat.SKID_M + aerobat.FOOT_M
-    for craft in (helicopter, ornithopter, aerobat):
+    for craft in (helicopter, ornithopter):
         sky, core, law = craft.Sky(), craft.Core(), aerokin.fresh()
         route = aerobatics.routine(craft.CARD)
         pull_max = craft.PULL_MAX
         by_stage, stages = {}, []
-        for step_idx in range(int(125.0 / dt)):
+        for step_idx in range(int(115.0 / dt)):
             stage, row = aerobatics.fly(route, step_idx * dt, ('held', 'fit') if law['held'] else ('fit',))
             state = sky.state()
             ans = core.step(law, row, state, dt, pull_max)
@@ -34,8 +33,6 @@ def test_helicopter_stunt_routine(report):
                 'lift': state['lift'], 'coll': ans.controls[0], 'cyc_p': abs(ans.controls[1]),
                 'cyc_r': abs(ans.controls[2]), 'held': law['held'], 'z': float(state['at'][2]),
                 'vz': float(state['vel'][2]), 'hdg': law['heading'][0],
-                'w': getattr(core, 'wingborne', 0.0), 'tail': state['h'] + foot + float(min(tail @ state['turn'][1])),
-                'belly': float(state['turn'][1][2]), 'ahead': float(state['vel'] @ state['turn'][:, 1]),
                 'r': math.hypot(float(state['at'][0]), float(state['at'][2]))})
         runs[craft] = (sky, by_stage, stages)
 
@@ -67,29 +64,17 @@ def test_helicopter_stunt_routine(report):
                  and abs(hold[-1]['h'] - helicopter.FLOOR_M) < 0.04 and hold[-1]['held']
                  and land[-1]['h'] < 0.02 and land[-1]['hdg'] > 0.99 and sky.hit is None)
 
-    for c, s_hov, s_orb, s_inv, s_cpg, s_tum in (
-            (ornithopter, 'hover', 'spiral', 'dive', 'wing-rock', 'slash'),
-            (aerobat, 'prop-hang', 'harrier', 'catch', 'waterfall', 'snap-roll')):
-        c_sky, c_by, c_st = runs[c]
-        hov, orb, inv, cpg, tum = (c_by[k] for k in (s_hov, s_orb, s_inv, s_cpg, s_tum))
-        ft, burn, hold, land = (c_by[k] for k in ('full tilt', 'burn', 'hold', 'land'))
-        gl, gd = [p['z'] for p in c_by['lift'] if p['h'] < 0.03], [p['z'] for p in land if p['h'] < 0.03]
-        roll_ok = (c is not aerobat or (
-            c_by['spool'][0]['tilt'] > 55.0 and len(gl) > 20 and len(gd) > 20 and max(gl) - min(gl) > 5.0
-            and sorted(p['tail'] for p in c_by['knife-edge'])[len(c_by['knife-edge']) // 2] < 0.05
-            and all(abs(p['belly']) < 0.1 and p['ahead'] > 8.0 for p in c_by['knife-edge'])
-            and max(p['tilt'] for p in ft + burn) < 10.0
-            and c_by['final'][-1]['w'] > 0.5 and min(p['v'] for p in land if p['h'] < 0.03) > -1.0
-            and max(p['h'] for p in land[-60:]) < 0.025 and abs(land[-1]['vz']) < 0.02 and land[-1]['tilt'] > 55.0))
-        inv_ok = c is aerobat or (inv[-1]['r11'] < -0.97 and inv[-1]['lift'] < -17.0)
-        report.check('%s flies its routine and arrests over the floor' % c.__name__,
-                     abs(hov[-1]['h'] - 1.5) < 0.06 and hov[-1]['held'] and orb[-1]['h'] > 7.5 and inv_ok
-                     and min(p['tilt'] for p in cpg) < 65.0 and max(p['tilt'] for p in cpg) > 115.0
-                     and min(p['r11'] for p in tum) < -0.80 and max(p['v'] for p in ft) > 9.0
-                     and max(p['h'] for p in burn) > 18.0 and min(p['lift'] for p in burn if p['r11'] > 0.5) < 2.0
-                     and c_st.count('fall') == 1 and abs(hold[-1]['h'] - c.FLOOR_M) < 0.05
-                     and land[-1]['h'] < 0.02 and land[-1]['hdg'] > (0.60 if c is aerobat else 0.99)
-                     and roll_ok and c_sky.hit is None)
+    c_sky, c_by, c_st = runs[ornithopter]
+    hov, orb, inv, cpg, tum = (c_by[k] for k in ('hover', 'spiral', 'dive', 'wing-rock', 'slash'))
+    ft, burn, hold, land = (c_by[k] for k in ('full tilt', 'burn', 'hold', 'land'))
+    report.check('machine.ornithopter flies its routine and arrests over the floor',
+                 abs(hov[-1]['h'] - 1.5) < 0.06 and hov[-1]['held'] and orb[-1]['h'] > 7.5
+                 and inv[-1]['r11'] < -0.97 and inv[-1]['lift'] < -17.0
+                 and min(p['tilt'] for p in cpg) < 65.0 and max(p['tilt'] for p in cpg) > 115.0
+                 and min(p['r11'] for p in tum) < -0.80 and max(p['v'] for p in ft) > 9.0
+                 and max(p['h'] for p in burn) > 18.0 and min(p['lift'] for p in burn if p['r11'] > 0.5) < 2.0
+                 and c_st.count('fall') == 1 and abs(hold[-1]['h'] - ornithopter.FLOOR_M) < 0.05
+                 and land[-1]['h'] < 0.02 and land[-1]['hdg'] > 0.99 and c_sky.hit is None)
 
 
 def test_helicopter_wind_observer_and_inverted_hold(report):
@@ -204,10 +189,11 @@ def test_helicopter_boards_and_view(report):
 
 
 def test_helicopter_course_laps(report):
-    """The three fly the 16-gate course in wind and land on gate 0's heading."""
-    from machine import aerobat, aerobatics, aerokin, course, grounds, helicopter, ornithopter, pull, quad
+    """The helicopter and the ornithopter fly the 16-gate course in wind and land on gate 0's
+    heading (the aerobat its airfield's: `test_aerobat`)."""
+    from machine import aerobatics, aerokin, course, grounds, helicopter, ornithopter, pull, quad
     solids, dt, tick = grounds.solids(), 0.02, 0.002
-    for c in (helicopter, ornithopter, aerobat):
+    for c in (helicopter, ornithopter):
         sky, core, law = c.Sky(solids), c.Core(), aerokin.fresh()
         route, air = aerobatics.routine(course.CARD), quad.air(7, 'gusty')
         top = c.K_THRUST * pull.held(pull.I_MAX) ** 2 / c.MASS_KG
@@ -257,7 +243,7 @@ def test_lisp_manifests_and_validation(report):
                  and [s.sequence_id for s in hm['streams']] == [301, 302, 303, 304, 305, 306]
                  and [s.sequence_id for s in om['streams']] == [401, 402, 403, 404, 405, 406]
                  and [s.sequence_id for s in am['streams']] == [501, 502, 503, 504, 505, 506]
-                 and len(helicopter.CARD) == 24 == len(ornithopter.CARD) and len(aerobat.CARD) == 34)
+                 and len(helicopter.CARD) == 24 == len(ornithopter.CARD) and len(aerobat.CARD) == 38)
 
     q_card = qm['routines']['quadcopter']
     try:

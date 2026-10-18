@@ -150,21 +150,21 @@ def test_aerobatics_side_perspective_keeps_the_horizon(report):
     """During the aerobatics warm-up (`not chased`), both the quadcopter and the 3D helicopter are
     viewed from an RC pilot side perspective that pans gently across the box, zooms a little to
     follow altitude and horizontal excursion, and keeps contact with the horizon up to 42 m before
-    chasing from behind on the shared obstacle course (`course.CARD`)."""
+    chasing from behind on their course (`course.CARD`, the aerobat's `airfield.CARD`)."""
     import numpy as np
     from coaxial.graphics import (aerobat as aero_gfx, engine, helicopter as heli_gfx,
                                   ornithopter as orni_gfx, quadcopter, scenery, shapes)
-    from machine import aerobat, aerobatics, aerokin, course, helicopter, ornithopter
+    from machine import aerobat, aerobatics, aerokin, airfield, course, helicopter, ornithopter
     from terminal.views import show_aerobat, show_helicopter, show_ornithopter, show_quad
     from terminal.views.aerobat import flight as aero_flown
     from terminal.views.helicopter import flight as heli_flown
     from terminal.views.ornithopter import flight as orni_flown
     from terminal.views.quad import flight as quad_flown
-    report.check('all four aircraft run their own warm-ups before sharing course.CARD',
+    report.check('all four aircraft run their own warm-ups before their course',
                  quad_flown.CARD == aerobatics.CARD + course.CARD
                  and heli_flown.CARD == helicopter.CARD + course.CARD
                  and orni_flown.CARD == ornithopter.CARD + course.CARD
-                 and aero_flown.CARD == aerobat.CARD + course.CARD)
+                 and aero_flown.CARD == aerobat.CARD + airfield.CARD)
     law = aerokin.fresh()
     base = {'at': (0.0, 0.0, 0.0), 'vel': (0.0, 0.0, 0.0), 'v': 0.0}
     for mod, sight in ((show_quad, quadcopter.SIGHT), (show_helicopter, heli_gfx.SIGHT),

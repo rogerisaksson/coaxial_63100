@@ -352,19 +352,14 @@ serves its DOD; none an entry a case.
 
 ## Flight pages
 
-- **The models still look janky** (reported, with pictures): the five judged
-  against their pictures at the page's own size - silhouette, proportion,
-  colour masses, what reads in braille. DOD: PNGs beside the pictures.
-
-- **The aerobat's show** (aircraft.md): left: a touch under 0.5 m/s (-0.93
-  now, stopped on the runway 6.2 m short of its end, 0.61 m off the
-  centreline); the course in its gusty wind, where the side plate carries the
-  plane 0.4 to 0.8 m across the runway's 50 deg crossing of gate 0 and a wing
-  tip takes the post (calm it laps; 24 m of run-up laps in wind but spoils the
-  landing and strikes gate 6); the wind estimate wandering 1-2 m/s through the
-  waterfall and snap in still air. DOD: a touch under 0.5 m/s within 0.5 m of
-  the centreline, no bounce, stopped on the runway; both laps flown from a
-  run-up on the course's straightest leg.
+- **The models look janky** (reported, with pictures): the gynoid, quad and
+  helicopter first, after the FBX and glTF models beside the repo (not
+  checked in), judged at the page's size. DOD: PNGs beside the pictures.
+- **The crafts' modules split** into files of a subject each (plant, law,
+  observer): `aerobat`, `helicopter`, `quad`, `ornithopter` at the 6 k cap.
+- **The aerobat's landing** (aircraft.md): its touch, its roll-out unsteered
+  in wind, its wind estimate in still air. DOD: a touch under 0.5 m/s within
+  0.5 m of the centreline, stopped on the runway, still or gusty.
 
 ## Host
 

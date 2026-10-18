@@ -117,9 +117,24 @@ wheels (0.25 m legs, the prop clear when level, the nose 12 deg up at rest).
   up it. The course's grid heading is a hover's: crossing gate 0 at speed it
   swung the pass 55 deg and a tip struck.
 - The landing: a 9.9 s down-leg and a 6 s final put the flare over the
-  runway. It stops 6.2 m short of the far end, 0.61 m off the centreline,
+  runway. It stops 7.3 m short of the far end, 0.86 m off the centreline,
   touching at -0.93 m/s; on 6.5 s and 5.2 s it rolled 29 m past it, 1.49 m
   off, at -0.98.
+- Home from the knife-edge on its wing: a second teardrop and a run-in at
+  1.5 m up the runway, the prop-hang pulled up into at home and held in 7.4 s;
+  it walked 53 m home at 3 m/s in 18.5 s on the prop.
+- The airfield (`machine.airfield`): the routine roams 82 m out and 45 m
+  across; the hover course's field put a tree in the teardrop's leg at 9.35
+  s on the page (the tests flew it in an empty sky). Its own field keeps its
+  trees, hangar and cars clear of every line flown; its gates stand only on
+  its course. The course: a run-up off the runway through the first gate 20
+  m past its end, 22 m turns at 12 m/s and 35 deg/s, flown on the line of
+  the way ahead (`wingborne.lined`). A slalom of +-6 m in 35 m put a tip
+  into a post: the line converges in about 3 s; +-3 m in 40 m flies. A gate
+  at a turn's apex was passed outside its opening in gusty wind, the
+  downwind half swinging wide: the turns are pylons. Calm, 34.5 s a lap; in
+  gusty wind the downwind turns' airspeed dips under 8 m/s and the hover's
+  law holds it, then the wing again.
 - The tail is destabilising tail first, by the physics: the burn's 12 m/s
   tail slide turned it over and onto the floor at 8.8 g. The aerobat's burn is
   a parachute at 4 m/s (`parachute`, its floor 0.55 m: its tail hangs 0.665

@@ -7,17 +7,17 @@
 
 `CARD` is what the page flies: the unlimited 3D aerobatic monoplane routine (`machine.aerobat`),
 its two 63100 drives (`PROP` and `VECT` driving the coaxial contra-rotating tractor stages) and
-their thermal observers warmed on it, then the 16-gate course (`machine.course`).
+their thermal observers warmed on it, then its airfield's gate course (`machine.airfield`).
 """
-from machine import aerobat, course
+from machine import aerobat, airfield
 from terminal.views.helicopter import flight as hflight
 from terminal.views.quad.flight import arm, asked, observers, reset, spun, struck, warmth
 
 #: The aerobat's two 63100 drives: front tractor propeller and rear contra/vector stage.
 ROTORS = ('PROP', 'VECT')
 
-#: The page's flights: the 3D aerobat routine, then two laps of the 16-gate course.
-CARD = aerobat.CARD + course.CARD
+#: The page's flights: the 3D aerobat routine, then two laps of its airfield's course.
+CARD, FIELD = aerobat.CARD + airfield.CARD, airfield
 
 
 def fresh():

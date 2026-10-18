@@ -5,10 +5,9 @@ A 2 kg Extra 330SC / Edge 540 style 3D RC aerobatic monoplane (`machine.aerobat`
 on finned aluminium heatsinks with temperature-controlled cooling fans), each armed on the master's
 pilot and running sensorless on the 63100 outrunner's model; the two on one 63 V pack; the airframe
 in MuJoCo under reversible 3D prop-hang thrust and propwash-deflected elevator, full-span ailerons,
-and rudder (`terminal.views.aerobat.flight`). It flies its unlimited 3D aerobatics routine -
-prop-hang hover, torque roll, knife-edge circle, climbing harrier, inverted flat spin, waterfall,
-rolling harrier, lomcevak, gyro tumble, and prop-hang burn arrest 10 cm over the floor -, and then
-two laps of the shared 16-gate course (`machine.course`).
+and rudder (`terminal.views.aerobat.flight`). It takes off, turns back down the runway in a knife-edge, flies its 3D routine - prop-hang,
+torque roll, climbing harrier, waterfall, snap roll, unwind, prop-hang burn arrest 10 cm over
+the floor -, lands, and then flies two laps of its airfield's gate course (`machine.airfield`).
 
     python terminal/views/show_aerobat.py
     python terminal/views/show_aerobat.py --frames 60

@@ -12,6 +12,7 @@ MuJoCo, each on its 63100 drives. The quad and the core in C it flies on:
 | aerokin | the quad's kinematics in a vacuum, no branch: a row of `aerobatics`' setpoints and the frame as it flies to aero/'s payload - a collective, the rotors' axis's tilt in the heading, the rates its turn gives |
 | aerobatics | a figure a row of setpoints (`aerokin`'s), a routine a card of them |
 | grounds | the gates in the air and what stands about them |
+| airfield | the aerobat's runway, its gate course laid for a plane, what stands about them |
 | course | the gates among trees, houses and cars, a lap a line flown as rows |
 | helicopter | the 3D helicopter in MuJoCo: collective and cyclic swashplate, tail rotor, stunts |
 | ornithopter | the Dune-style four-wing flapping ornithopter in MuJoCo: articulated wings, dive fold, stunts |
@@ -23,5 +24,6 @@ MuJoCo, each on its 63100 drives. The quad and the core in C it flies on:
   `aerobat.lisp` a craft each.
 - Drawn by `coaxial/graphics/<craft>.py`; flown on `terminal/views/<craft>/`
   and `show_<craft>.py` ([views](views.md)).
-- `test_helicopter.py`: the helicopter, the ornithopter and the aerobat in
-  MuJoCo, their boards and their views.
+- `test_helicopter.py`: the helicopter and the ornithopter in MuJoCo, the
+  three's boards and views; `test_aerobat.py`: the aerobat's routine on its
+  airfield and its gate course in wind.

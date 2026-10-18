@@ -335,3 +335,10 @@ the fifty before these: [DONE_1-50](DONE_1-50.md).
     first, the tail's lowest point 0.029 m median; nose first it flies a
     speed, not a place; the landing stops on the runway
     ([aircraft](findings/aircraft.md)).
+87. The aerobat on an airfield of its own (`machine.airfield`): its runway, six
+    6 m arches on its straights and a pylon in each 22 m turn - a run-up off the
+    runway into the straightest leg, a slalom of three - flown on its wing by
+    the line of the way ahead, two laps through every gate in gusty wind and
+    down on the runway; the routine among its standing things unstruck, home
+    from the knife-edge on its wing, the prop-hang held at home in 7.4 s where
+    it walked 53 m in 18.5 s ([aircraft](findings/aircraft.md)).

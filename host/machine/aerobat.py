@@ -9,7 +9,7 @@ authority from zero airspeed.
 import math
 import os
 
-from machine import aerokin, aerolisp, grounds, pull, quad, se3mpc
+from machine import aerokin, aerolisp, airfield, pull, quad, se3mpc
 from machine.aerobatics import HOVER
 from machine.helicopter import (Answer, _course_rate, _init_sky, _observe_wind_spin,
                                 _smooth_target, _so3_torques, _stunt_step, _turn_heading)
@@ -58,7 +58,7 @@ PULL_MAX, COURSE_SPHERE = K_THRUST / MASS_KG * (GOV_RAD_S * STUNT_BOOST) ** 2, 1
 #: The air across the span meets mjcf's fuselage box, 0.08 deep, and the fin, m^2.
 SIDE_AREA = 0.16 * (PROP_Z - 0.04) + FIN_AREA
 WING = Wing(MASS_KG, GRAVITY, RHO, WING_AREA, CL_ALPHA, WING_SPAN, STAB_AREA, FIN_AREA, TAIL_ARM, SIDE_AREA)
-ROTATE_M_S, RUNWAY_M, RUNWAY_RAD = WING.rotate, WING.runway(HOVER['lean']), math.radians(grounds.GATES[0][3] + 50.0)
+ROTATE_M_S, RUNWAY_M, RUNWAY_RAD = WING.rotate, WING.runway(HOVER['lean']), airfield.RUNWAY_RAD
 
 
 def drive_loads(controls):
@@ -87,7 +87,7 @@ TAIL_ON = ' priority="1" solref="0.1 1" friction="0.4 0.005 0.0001"'
 
 
 def mjcf(things=()):
-    """The 3D aerobatic monoplane and `things` (`grounds.solids`) as MuJoCo XML."""
+    """The 3D aerobatic monoplane and `things` (`airfield.solids`) as MuJoCo XML."""
     m = ('<geom name="fuselage" type="box" pos="0 0.04 0" size="0.045 %g 0.04" contype="1" '
          'conaffinity="1"/><geom name="wing" type="box" pos="0 0.06 0" size="%g %g 0.010" '
          'contype="1" conaffinity="1"/><geom name="prop" type="cylinder" pos="0 %g 0" '
@@ -318,10 +318,7 @@ class Core:
         if along is None:
             along = self.plan(law, row, state, dt, pull_max)
         rate = math.radians(float(row.get('turn', 0.0))) if self.airborne else 0.0
-        on_grid = (math.hypot(at[0], at[2]) < 3.0 and not fast
-                   and (abs(row['height'] - grounds.GATES[0][1]) < 0.05 or row['height'] < FLOOR_M))
-        target_yaw = (math.radians(grounds.GATES[0][3]) if on_grid
-                      else lined(RUNWAY_RAD, fast and law['heading'], vel, at, state['h'], ROTATE_M_S))
+        target_yaw = lined(RUNWAY_RAD, fast and law['heading'], vel, at, state['h'], ROTATE_M_S)
         if (self.airborne or state['h'] > 0.1) and abs(rate) <= 1e-6 and row['height'] < 2.0 and not row.get('slide'):
             err = (target_yaw - math.atan2(law['heading'][1], law['heading'][0]) + math.pi) % math.tau - math.pi
             rate = max(-2.4, min(2.4, 3.0 * err))
