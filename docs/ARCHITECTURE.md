@@ -285,7 +285,7 @@ tests/              suites, .counts.json (measured sizes)
 | `test_wbc_core.py` | humanoid robot chain in C against MuJoCo: frames, M, bias, Jacobians at random configurations; a step's time |
 | `test_wrench.py` | the step without an active set: a step standing beside the stack's, humanoid robot stand, nudges held, a hop |
 | `test_flight.py` | which soles stand, from one pass alone; a landing within humanoid robot reach; the loop in C against the python stack with no sole standing; a hop stood on both, three in a row on the loop |
-| `test_sysid.py` | her identification on the stand: the regressor MuJoCo's; her drives and links read, a payload found; corrections over her build judged on a fresh campaign; a world 15 % off read back; her gearboxes |
+| `test_sysid.py` | her identification on the stand: the regressor MuJoCo's; her drives and links read, a payload found; corrections over her build judged on a fresh campaign; a world 15 % off read back; her gearboxes and rotors; hung in a harness |
 | `test_sysid_live.py` | her identification off the stand: her model held to her walk on a world off the figure; her weight and its moments standing on her insoles |
 | `test_ortho.py` | a text compiled to rows, what is none refused; no branch in the core or the renderer; the state blended and turned; crouched, shifted, bowed, on one sole, hopped; the walk on its own payloads; the first texts as given; the gym's worker and keys |
 

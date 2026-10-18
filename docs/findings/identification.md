@@ -60,6 +60,12 @@ torques. What her law senses: [sensing](sensing.md); the drives:
 - 0.5 kg in her left hand: her forearm's first moment -0.031 -> -0.156 kg m,
   read -0.155; her upper arm's -0.271 -> -0.411, read -0.412; her trunk's
   3.585 -> 3.756, read 3.751.
+- Hung in a harness (`World.hang`) where the stand would hold her, a robot's
+  rig: her pelvis 79 mm down on it, bouncing at 1.8 Hz under her limbs; 48
+  s, 0 steps touched, residual 0.24 N m rms a drive (the stand's 0.28), 110
+  base parameters trusted (101), 70 within 10 % (69). 237 base parameters
+  either way: the bounce tells no mass from its first moment at the base's
+  1 %.
 
 ## The corrections
 

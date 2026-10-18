@@ -3,7 +3,7 @@
 dynamics; a campaign on the stand reading her drives' friction and armature and her links; a
 payload in her hand found; its corrections laid over her law's model and judged on a fresh
 campaign; a world built 15 % off the figure read back; her rotors and her gearboxes' wind-up
-and play on the boxed world. Off the stand: test_sysid_live."""
+and play on the boxed world; hung in a harness. Off the stand: test_sysid_live."""
 import os
 import sys
 import tempfile
@@ -96,11 +96,20 @@ def test_the_regressor_is_mujocos(report, c):
                  len(lay['names']) == 10 * len(lay['bodies']) + 3 * len(lay['driven']) == 343)
 
 
-def _campaign(c, seed, world=None, seconds=SECONDS):
-    """A campaign on the stand: (Y, tau, touched, world)."""
+def _campaign(c, seed, world=None, seconds=SECONDS, hung=False):
+    """A campaign on the stand, or `hung` in the harness where the stand would hold her: (Y,
+    tau, touched, world)."""
     from machine import campaign, sysid
+    if hung:
+        mjcf.STAND = 0.0
+        try:
+            world = physics.World()
+        finally:
+            mjcf.STAND = 1.0
     world = world or physics.World()
     world.reset(campaign.pose(), where=(0.0, mjcf.STAND_M, 0.0))
+    if hung:
+        world.hang()
     ys, taus, touched = campaign.excite(world, campaign.setpoints(world, seconds, np.random.default_rng(seed)))
     Y, tau = sysid.rows(c['lay'], c['body'], ys, taus, physics.STEP_S, EVERY)
     return Y, tau, touched, world
@@ -110,15 +119,29 @@ def test_her_drives_and_links_are_read(report, c):
     """On the stand, a limb at a time, nothing touching her: each drive's Coulomb friction and
     viscous damping as the world has them, the armatures a swing tells apart, each drive's
     residual small, the trusted base parameters mostly the model's."""
+    _read(report, c, False)
+
+
+def test_hung_in_a_harness_she_reads_as_on_the_stand(report, c):
+    """Hung in a harness (`World.hang`: springs on her pelvis's place and turn), her pelvis 8 cm
+    down on it and bouncing under her limbs, a robot's rig: every drive read as on the stand.
+    The bounce tells no mass from its first moment - 237 base parameters either way, 110
+    trusted for 101, 70 within 10 % for 69."""
+    _read(report, c, True)
+
+
+def _read(report, c, hung):
     from machine import sysid
     from machine.drives import kind
     lay = c['lay']
-    Y, tau, touched, world = _campaign(c, 1)
+    Y, tau, touched, world = _campaign(c, 1, hung=hung)
     base = sysid.base(lay, Y)
     got = sysid.identify(base, Y, tau)
     true = sysid.projected(base, sysid.truth(lay, world.model))
-    c['base'], c['got'], c['true'] = base, got, true
-    report.check('nothing touched her through %.0f s' % SECONDS, touched == 0, '%d steps' % touched)
+    if not hung:
+        c['base'], c['got'], c['true'] = base, got, true
+    report.check('nothing touched her through %.0f s%s' % (SECONDS, ', hung %.0f mm down' % (
+        1e3 * (mjcf.STAND_M - world.data.qpos[1])) if hung else ''), touched == 0, '%d steps' % touched)
     report.check('%d base parameters of %d columns, condition %.1e' % (len(base['ind']), len(lay['names']), got['condition']),
                  got['condition'] > 1e-6)
     names = got['names']
@@ -314,7 +337,8 @@ def test_a_motor_is_read_off_its_rows(report, _c):
 
 ROSTER = (test_the_regressor_is_mujocos, test_her_drives_and_links_are_read, test_a_payload_is_found,
           test_her_corrections_are_laid_over_her_build, test_a_world_off_the_figure_is_read_back,
-          test_her_gearboxes_are_read, test_a_motor_is_read_off_its_rows)
+          test_her_gearboxes_are_read, test_a_motor_is_read_off_its_rows,
+          test_hung_in_a_harness_she_reads_as_on_the_stand)
 
 
 def main(argv=None):

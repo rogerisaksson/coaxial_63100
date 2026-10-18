@@ -223,3 +223,5 @@ the fifty before these: [DONE_1-50](DONE_1-50.md).
     fall and the locks close to it.
 62. Her rotors read on the steps inside their play, within 1.2 %; the boxed
     world's wind-up and damping off the link's stale speed.
+63. Hung in a harness she reads as on the stand: 0 touches, residual 0.24 N
+    m, 110 base parameters trusted.

@@ -208,9 +208,11 @@ gets a line at the end of [DONE](DONE.md).
     rows with the stand's take a fifth off the build's misfit on her walk,
     the stand's alone add to her legs'; standing, her insoles' three rows give
     her weight and a first moment of her pelvis; the rotors within 1.2 % on
-    the steps inside their play. Left: each box's damping (10-40 % low) and
-    mesh (unread: its rounding's slope under the ring), the ankles' boxes
-    (ringing across their play); hung in a harness.
+    the steps inside their play; hung in a harness she reads as on the stand,
+    no mass apart from its first moment. Left: each box's damping (10-40 %
+    low) and mesh (unread: its rounding's slope under the ring), the ankles'
+    boxes (ringing across their play); the masses, a shaken harness or a
+    load cell in it.
     + DOD: each measured in `test_sysid.py`.
 
 ## One command, either driver
