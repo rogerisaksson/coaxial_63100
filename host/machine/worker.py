@@ -330,9 +330,9 @@ def run(commands, states, heard=None, every=sprung.STACK_EVERY, walks=False):
             spent = ran = 0.0
             said_at = s['g']['t']
             _put(states, told(s))
-        rest = sprung.SAY_S / 4.0 - (time.perf_counter() - began)
-        if rest > 0.0:
-            time.sleep(rest)
+        ahead = s['g']['t'] - (sim0 + (time.perf_counter() - wall0))
+        if ahead > 0.002:
+            time.sleep(min(ahead * 0.5, sprung.SAY_S / 4.0))
 
 
 class Running:

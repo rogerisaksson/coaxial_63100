@@ -188,21 +188,33 @@ def drives(g, dt):
     observer stepped on its motor's encoder."""
     body, y, joints = g['body'], g['sense'], g['joints']
     got, held, eso, wo, ct = g['got'], float(g['hold'].any()), g['eso'], g['wo'], edge.tilt(y)
-    ys, sb = (max(0.0, min(1.0, (85.0 - ct) / 20.0)) if ct > 65.0 else 1.0), np.zeros(len(body.act))
+    ys = max(0.0, min(1.0, (85.0 - ct) / 20.0)) if ct > 65.0 else 1.0
+    sb = g.get('_sb')
+    if sb is None:
+        sb = g['_sb'] = np.zeros(len(body.act))
+        g['_knees_idx'] = list(body.knees)
+    else:
+        sb[:] = 0.0
+    kn = g['_knees_idx']
     in_hop = (g.get('_jump_until', 0.0) > g['t'] or se2.doing(g) in ('load', 'throw', 'land')) and not g.get('_leap')
     qpos_act, qvel_act = y[edge.Q][joints], y[edge.QD][joints]
-    qk, qvk = qpos_act[list(body.knees)], qvel_act[list(body.knees)]
-    sb[list(body.knees)] = (se2.KNEE_NM * np.clip(1.0 - qk / se2.KNEE_SOFT, 0.0, 3.0) + 2400.0 * np.maximum(0.0, (0.0 if in_hop else 0.02) - qk)
-                            - (0.0 if in_hop else 35.0) * np.clip((0.20 - qk) / 0.15, 0.0, 1.5) * np.minimum(0.0, qvk)) * ys
+    qk, qvk = qpos_act[kn], qvel_act[kn]
+    sb[kn] = (se2.KNEE_NM * np.clip(1.0 - qk / se2.KNEE_SOFT, 0.0, 3.0) + 2400.0 * np.maximum(0.0, (0.0 if in_hop else 0.02) - qk)
+              - (0.0 if in_hop else 35.0) * np.clip((0.20 - qk) / 0.15, 0.0, 1.5) * np.minimum(0.0, qvk)) * ys
     qa = got['qacc'][body.act] * ys
     if not in_hop:
         qa = np.clip(qa, -250.0, 250.0)
     q_m = y[edge.QM][joints]
     e = q_m - eso[0]
-    eso += dt * np.array([eso[1] + 3.0 * wo * e, qa + sb / g['jeff'] + eso[2] + 3.0 * wo * wo * e, wo ** 3 * e])
+    d0 = eso[1] + (3.0 * wo) * e
+    d1 = qa + sb / g['jeff'] + eso[2] + (3.0 * wo * wo) * e
+    eso[0] += dt * d0
+    eso[1] += dt * d1
+    eso[2] += (dt * wo ** 3) * e
     if not in_hop:
-        eso[0], z_lim = np.clip(eso[0], q_m - 0.08, q_m + 0.08), 0.35 * body.clamp / np.maximum(0.05, g['jeff'])
-        eso[2] = np.clip(eso[2], -z_lim, z_lim)
+        np.clip(eso[0], q_m - 0.08, q_m + 0.08, out=eso[0])
+        z_lim = 0.35 * body.clamp / np.maximum(0.05, g['jeff'])
+        np.clip(eso[2], -z_lim, z_lim, out=eso[2])
     if ys < 1.0:
         eso[1:] *= ys
     g['hold'] = np.where(got['over'], se2.WEP_HOLD_S, np.maximum(0.0, g['hold'] - dt))
@@ -211,16 +223,16 @@ def drives(g, dt):
     leak, lo, hi = dt / se2.LEAK_S, g['q_lo'], g['q_hi']
     g['ref_v'] += qa * dt + leak * (qvel_act - g['ref_v'])
     if not in_hop:
-        g['ref_v'] = np.clip(g['ref_v'], -18.0, 18.0)
+        np.clip(g['ref_v'], -18.0, 18.0, out=g['ref_v'])
     g['ref_q'] += g['ref_v'] * dt + leak * (qpos_act - g['ref_q'])
     if in_hop:
-        g['ref_q'][list(body.knees)] = np.maximum(0.0, g['ref_q'][list(body.knees)])
+        g['ref_q'][kn] = np.maximum(0.0, g['ref_q'][kn])
         cv = g.get('cervical', ())
         if len(cv) >= 2:
             g['ref_q'][cv[0]], g['ref_q'][cv[1]] = np.clip(g['ref_q'][cv[0]], -0.35, 0.45), np.clip(g['ref_q'][cv[1]], -0.85, 0.85)
     else:
         g['ref_v'] = np.where(((g['ref_q'] <= lo) & (g['ref_v'] < 0.0)) | ((g['ref_q'] >= hi) & (g['ref_v'] > 0.0)), 0.0, g['ref_v'])
-        g['ref_q'] = np.clip(g['ref_q'], lo, hi)
+        np.clip(g['ref_q'], lo, hi, out=g['ref_q'])
     if ys < 1.0:
         g['ref_v'], g['ref_q'] = g['ref_v'] * ys, qpos_act + (g['ref_q'] - qpos_act) * ys
     g['cmd'] = {'target': g['ref_q'], 'feed': got['tau'] * ys + sb - g['jeff'] * eso[2],

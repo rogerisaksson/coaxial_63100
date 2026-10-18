@@ -177,11 +177,63 @@ class Heat:
 
     def step_joints(self, torques, qd, dt):
         """Load and step all joints over `dt` s (real-time clock, `HASTE=1`) and return peak C per joint."""
-        for k in range(len(self.t)):
-            if self.scale[k] > 0.0:
-                self.load(k, float(torques[k]), float(qd[k]))
-        self.step(float(dt) / HASTE)
-        return [max(self.die[k], max(self.t[k])) for k in range(len(self.t))]
+        if not self.t:
+            return []
+        np = getattr(self, '_np', None)
+        if np is None:
+            import numpy as np
+            self._np = np
+            self._kt = np.asarray(self.kt, float)
+            self._scale = np.asarray(self.scale, float)
+            self._active = self._scale > 0.0
+            self._ratio_k = np.asarray(self.ratio, float) * (60.0 / (2.0 * 3.141592653589793 * 1000.0))
+            self._cloth_air = np.asarray(self.cloth_air, float)
+            self._r = np.asarray(self.r, float)
+            self._g_ls = 1.0 / np.asarray(self.mount_k_w, float)
+            self._g_ws = 1.0 / np.maximum(0.15, 0.35 * np.asarray(self.winding_k_w, float))
+            self._inv_lam = 1.0 / np.asarray(self.laminate_k_w, float)
+            self._inv_win = 1.0 / np.asarray(self.winding_k_w, float)
+            self._cap = np.asarray(self.capacity, float)
+            self._ceil = np.asarray(CEILING_C, float)
+            self._t_arr = np.asarray(self.t, float)
+            self._sw_on = np.array([g and not s for g, s in zip(self.gates, self.shorted)], float)
+            self._house_w = np.where(self._active, HOUSEKEEPING_W, 0.0)
+        t = self._t_arr
+        amps = np.where(self._active, np.asarray(torques, float) / self._kt, 0.0)
+        sq = amps * amps
+        w = np.where(self._active, np.abs(np.asarray(qd, float)), 0.0)
+        krpm = w * self._ratio_k
+        h = float(dt)
+        self.at += h
+        sub_n = max(1, int(h / 0.025) + 1)
+        sub_h = h / sub_n
+        board = sq * (self._scale * self._scale)
+        dt_sw = np.maximum(0.0, t[:, 0] - AMBIENT_C)
+        rds_k = 1.0 + RDS_ALPHA * dt_sw + RDS_BETA * dt_sw * dt_sw
+        air_k = (1.0 + 0.35 * np.minimum(4.0, w)) / self._cloth_air
+        rot_for = 1.0 + 0.55 * np.sqrt(krpm)
+        fet = 0.5 * board * RDS_OHM * rds_k
+        p_sw = 3.0 * fet + self.switching_w * self._sw_on
+        p_lam = 1.5 * board * SHUNT_OHM + self._house_w
+        p_win = self._r * sq * (1.0 + 0.00393 * np.maximum(0.0, t[:, 3] - AMBIENT_C))
+        g_la = 0.35 * air_k * self._inv_lam
+        g_sa = 0.65 * air_k * (1.0 + 0.25 * (rot_for - 1.0)) * self._inv_lam
+        g_wa = air_k * rot_for * self._inv_win
+        c0, c1, c2, c3 = self._cap[:, 0], self._cap[:, 1], self._cap[:, 2], self._cap[:, 3]
+        for _ in range(sub_n):
+            into = (t[:, 0] - t[:, 1]) * (1.0 / INTO_K_W)
+            q_ls = (t[:, 1] - t[:, 2]) * self._g_ls
+            q_ws = (t[:, 3] - t[:, 2]) * self._g_ws
+            n0 = p_sw - into
+            n1 = p_lam + into - q_ls - (t[:, 1] - AMBIENT_C) * g_la
+            n2 = q_ls + q_ws - (t[:, 2] - AMBIENT_C) * g_sa
+            n3 = p_win - q_ws - (t[:, 3] - AMBIENT_C) * g_wa
+            t[:, 0] += sub_h * n0 / c0
+            t[:, 1] += sub_h * n1 / c1
+            t[:, 2] += sub_h * n2 / c2
+            t[:, 3] += sub_h * n3 / c3
+        die = t[:, 0] + fet * RTH_JC
+        return np.maximum(die, t.max(axis=1))
 
     def _envelope(self, k, t, net, h):
         cap = min(1.0, self.cap[k] + (self.at - self.cap_at[k]) * TRIP_RECOVER_PER_S)

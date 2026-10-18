@@ -107,16 +107,22 @@ def touched(world, dt):
     """The lamp toggled where a hand of hers touches its switch, not twice within SWITCH_S;
     whether it is on."""
     m, d = world.model, world.data
-    switch = m.geom('switch').id
-    hands = {m.body(side + part).id for side in ('left', 'right') for part in ('_hand', '_fingers')}
+    ids = getattr(world, '_room_ids', None)
+    if ids is None:
+        ids = world._room_ids = (
+            m.geom('switch').id,
+            frozenset(m.body(side + part).id for side in ('left', 'right') for part in ('_hand', '_fingers')))
+    switch, hands = ids
     since = getattr(world, 'switched', SWITCH_S) + dt
-    if since >= SWITCH_S:
-        for i in range(d.ncon):
-            c = d.contact[i]
-            pair = (c.geom1, c.geom2)
-            if switch in pair and any(m.geom_bodyid[g] in hands for g in pair):
-                world.lamp, since = not getattr(world, 'lamp', False), 0.0
-                break
+    if since >= SWITCH_S and d.ncon:
+        g1, g2 = d.contact.geom1[:d.ncon], d.contact.geom2[:d.ncon]
+        if (g1 == switch).any() or (g2 == switch).any():
+            for i in range(d.ncon):
+                c = d.contact[i]
+                pair = (c.geom1, c.geom2)
+                if switch in pair and any(m.geom_bodyid[g] in hands for g in pair):
+                    world.lamp, since = not getattr(world, 'lamp', False), 0.0
+                    break
     world.switched = since
     return getattr(world, 'lamp', False)
 

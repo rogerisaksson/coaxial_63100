@@ -398,13 +398,16 @@ def step(b, s, ask):
     # the ask's answer, and nothing's: every acceleration 0, her weight borne, by the same rows
     whole = _rounds(H0, R0.T @ np.concatenate(rhs), [(S, r) for S, r, _r0 in still], felt,
                     a[1] - HEIGHT_BAND, a[1] + HEIGHT_BAND, geo, stride)
-    stood = _rounds(H0, R0.T @ np.concatenate(rhs0), [(S, r0) for S, _r, r0 in still], felt,
-                    -HEIGHT_BAND, HEIGHT_BAND, geo, stride)
     limit = (b.wep if ask.get('wep') else b.clamp) * np.asarray(ask.get('derate', 1.0))
-    tau = torques(whole)[0]
-    scale = shrunk(tau, torques(stood)[0], limit)
-    u = whole + (scale - 1.0) * (whole - stood)
-    carried, qdd = torques(u)
+    tau, qdd = torques(whole)
+    if (np.abs(tau) > limit).any():
+        stood = _rounds(H0, R0.T @ np.concatenate(rhs0), [(S, r0) for S, _r, r0 in still], felt,
+                        -HEIGHT_BAND, HEIGHT_BAND, geo, stride)
+        scale = shrunk(tau, torques(stood)[0], limit)
+        u = whole + (scale - 1.0) * (whole - stood)
+        carried, qdd = torques(u)
+    else:
+        scale, u, carried = 1.0, whole, tau
     bears, cop = [0.0, 0.0], []
     for k, f in enumerate(feet):
         wk = stance[k] * u[6 * k:6 * k + 6]

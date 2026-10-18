@@ -110,7 +110,7 @@ def ask(out, y, fr, a):
     # her limbs' places as her modes ask them; their sum's acceleration is her centre of
     # mass's, the other way; its ZMP into her soles, and which of them stand
     hands = HANDS * fr[UNIT][:, None, None]
-    both = np.einsum('nia,n->ia', hands, zdd).mean(axis=0)
+    both = ((zdd @ hands.reshape(len(zdd), 6)).reshape(2, 3)).mean(axis=0)
     swaying = (np.abs(ref[LATERAL] - lat_dc - z[LATERAL]) < ON[0]) & (np.abs(rate[LATERAL] - zd[LATERAL]) < ON[1])
     up = LIMBS * ref[LIFT]
     stance, zmp = poise.stands(c[:2] + both[:2] / om ** 2, xi, low, high, om, out[latent.HELD], up, swaying,
@@ -200,8 +200,10 @@ def _swings(y, fr, at, said, clear, stance, cruise, grounded):
     speed = (y[VSOLE].reshape(2, 3) - y[VCOM] - (1.0 - grounded) * np.cross(y[SPIN][:3], arm)) @ frame.T
     # a sole in the air is asked no further from her than her legs reach standing
     reach = ref - HOT[AXIAL] * np.minimum(ref[AXIAL], 0.0)
-    off3 = np.stack([np.einsum('nia,n->ia', hands, reach - fr[Z0]) - arm @ frame.T,
-                     np.einsum('nia,n->ia', hands, rate) - speed, np.einsum('nia,n->ia', hands, acc)])
+    h6 = hands.reshape(len(reach), 6)
+    off3 = (np.array([reach - fr[Z0], rate, acc]) @ h6).reshape(3, 2, 3)
+    off3[0] -= arm @ frame.T
+    off3[1] -= speed
     off3[:, :, UP] += clear
     bears = (stance + TINY) / (stance.sum() + 2.0 * TINY)
     off3 = off3 - stood * BETWEEN * (bears @ off3)[:, None, :]
@@ -209,7 +211,7 @@ def _swings(y, fr, at, said, clear, stance, cruise, grounded):
     along = (soles @ rot.T)[:, ALONG]
     off3[0, :, UP] -= aloft * (bears @ (soles[:, 1] - y[LOWEST]) - rise * (along - bears @ along))
     off3[1, :, UP] -= aloft * (bears @ shod[:, UP] - rise * (shod[:, ALONG] - bears @ shod[:, ALONG]))
-    floor = np.stack([clear[0] - (y[LOWEST] - floors), clear[1] - shod[:, UP], clear[2]])
+    floor = np.array([clear[0] - (y[LOWEST] - floors), clear[1] - shod[:, UP], clear[2]])
     off3[:, :, UP] += (grounded - stood) * (floor - off3[:, :, UP])
     lead = grounded * HOT3[ALONG] * (v[ALONG] - cruise) / om
     return off3[2] + kp[FREE_BY] * (off3[0] + lead) + kd[FREE_BY] * off3[1], frame

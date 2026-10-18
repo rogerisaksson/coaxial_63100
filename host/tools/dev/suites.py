@@ -279,8 +279,8 @@ SHARDED = (SENSORLESS, CONTROLLER, GYNOID, ORTHO, SYSID, SYSID_LIVE, WEAR, SITUA
 #: A sharded suite's seconds where none are recorded (tests/.counts.json, not committed):
 #: the loop's suite 120 s here whole, a walk a shard; the quad's page 211 s, a flight a
 #: shard; the scenarios' 1 894 s here at 20 held, and a shard of CI's 3.14 runner cut past
-#: twice its share of 900.
-FRESH_S = {ORTHO: 300.0, QUAD_PAGE: 250.0, SCENES: 2400.0, SITUATION: 400.0}
+#: twice its share of 900; the replays' 18 runs x 3 wobbles cut at 300 s unsharded on CI.
+FRESH_S = {ORTHO: 300.0, QUAD_PAGE: 250.0, REPLAYS: 900.0, SCENES: 2400.0, SITUATION: 400.0, WEAR: 300.0}
 
 #: The emulator's groups and each one's time, s, a Renode each: the rig's took 150 of the
 #: suite's 211 one after another here, and CI's runner ran the Release image's past 240.
