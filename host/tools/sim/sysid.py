@@ -46,7 +46,7 @@ def main(argv=None):
           '%d trusted' % (args.seconds, touched, len(base['ind']), len(lay['names']), got['condition'],
                           got['trusted'].sum()))
     print('\n%-20s %10s %10s %10s %8s' % ('drive', 'J kg m^2', 'b N m s', 'f N m', 'rms N m'))
-    drives = [n[:-2] for n in lay['names'][lay['drive']::3]]
+    drives = lay['drives']
     for i, name in enumerate(drives):
         row = []
         for q in sysid.FRICTION:
@@ -54,16 +54,15 @@ def main(argv=None):
             row.append('%7.4f%s' % (got['theta'][k], '  ' if got['trusted'][k] else ' ?'))
         print('%-20s %10s %10s %10s %8.3f' % (name, row[0], row[1], row[2], got['residual'][i]))
     if args.boxed:
-        from machine.figure import JOINTS
         armature = np.array([got['theta'][got['names'].index(n + '.J')] for n in drives])
         read = campaign.boxes(body, ys, taus, physics.STEP_S, armature)
         print('\n%-20s %9s %9s %8s %8s %8s %8s %8s %8s' % ('gearbox', 'k N m/rad', 'world', 'play rad', 'world',
                                                           'mesh N m', 'world', 'J kg m^2', 'world'))
-        for i, name in enumerate(drives):
-            k = JOINTS.index(name)
+        K, PLAY, MESH, J = (campaign.BOX.index(n) for n in ('k', 'play', 'mesh', 'J'))
+        for i, (name, k) in enumerate(zip(drives, lay['joint'])):
             print('%-20s %9.0f %9.0f %8.4f %8.4f %8.3f %8.3f %8.4f %8.4f' % (
-                name, read[i, 0], world.boxes.k[k], read[i, 1], world.boxes.gap[k], read[i, 3], world.boxes.mesh[k],
-                read[i, 4], world.boxes.j[k]))
+                name, read[i, K], world.boxes.k[k], read[i, PLAY], world.boxes.gap[k], read[i, MESH], world.boxes.mesh[k],
+                read[i, J], world.boxes.j[k]))
     print('\n%-24s %10s %10s %10s %8s' % ('base parameter', 'build', 'world', 'read', '+- %'))
     for k in np.argsort(got['uncertainty']):
         if got['trusted'][k] and not got['names'][k].endswith(('.J', '.b', '.f')):

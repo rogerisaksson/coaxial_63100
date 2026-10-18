@@ -13,7 +13,7 @@ import tomllib
 
 from machine import mechatronics
 from machine.errors import MachineError
-from machine.sysid import FRICTION, INERTIAL, laid, truth
+from machine.sysid import FRICTION, INERTIAL, following, laid, shifted, truth
 
 #: A correction's unit move a kind (kg, kg m; kg m^2, N m s/rad, N m): a payload is a mass
 #: where it hangs, not first moments up the limb - priced of each parameter's own size a hand's
@@ -33,15 +33,12 @@ def _links(lay, m, theta):
     body's where its mass and its spatial inertia's moments are positive."""
     import numpy as np
     out = []
-    for b in lay['bodies']:
-        k = lay['col'][b]
-        mass, h = float(theta[k]), theta[k + 1:k + 4]
-        c = h / mass if mass > 0.0 else np.zeros(3)
+    for k, b in enumerate(lay['bodies']):
+        mass, h = float(theta[10 * k]), theta[10 * k + 1:10 * k + 4]
         about = np.zeros((3, 3))
-        about[np.triu_indices(3)] = theta[k + 4:k + 10]
-        about = about + np.triu(about, 1).T - mass * (float(c @ c) * np.eye(3) - np.outer(c, c))
-        eig, axes = np.linalg.eigh(about)
-        out.append((b, mass, c, eig, axes, mass > 0.0 and eig.min() > 0.0))
+        about[np.triu_indices(3)] = theta[10 * k + 4:10 * k + 10] - shifted(mass, h)
+        eig, axes = np.linalg.eigh(about + np.triu(about, 1).T)
+        out.append((b, mass, h / mass if mass > 0.0 else np.zeros(3), eig, axes, mass > 0.0 and eig.min() > 0.0))
     return out
 
 
@@ -55,35 +52,26 @@ def correction(lay, body, Y, tau, ridge=RIDGE):
     KEPT of itself, no drive parameter under none. {name: correction}."""
     import numpy as np
     nominal = truth(lay, body.m)
-    names = lay['names']
+    n_b, n_d = len(lay['bodies']), len(lay['driven'])
     rows_ = Y.reshape(-1, Y.shape[-1])
     left = tau.reshape(-1) - rows_ @ nominal
-    # z: a link's (m, hx, hy, hz), a drive's (J, b, f); D: theta's move from z's.
-    moved = [k for k, n in enumerate(names) if n.rsplit('.', 1)[1] not in INERTIAL[4:]]
-    D = np.zeros((len(names), len(moved)))
-    D[moved, range(len(moved))] = 1.0
-    up = np.triu_indices(3)
-    for b in lay['bodies']:
-        k = lay['col'][b]
-        m0, h0 = float(nominal[k]), nominal[k + 1:k + 4]
-        if m0 <= 0.0:
-            continue
-        D[k + 4:k + 10, moved.index(k)] = -((float(h0 @ h0) * np.eye(3) - np.outer(h0, h0)) / m0 ** 2)[up]
-        for a in range(3):
-            e = np.zeros(3)
-            e[a] = 1.0
-            D[k + 4:k + 10, moved.index(k + 1 + a)] = (
-                (2.0 * h0[a] * np.eye(3) - np.outer(e, h0) - np.outer(h0, e)) / m0)[up]
-    unit = np.array([UNITS[names[k].rsplit('.', 1)[1]] for k in moved])
+    # z: each link's (m, hx, hy, hz), then each drive's (J, b, f), in UNITS; D theta's move a unit
+    # of each, a link's inertia about its origin following its mass and first moment.
+    moved = np.r_[(10 * np.arange(n_b)[:, None] + np.arange(4)).ravel(), lay['drive'] + np.arange(3 * n_d)]
+    kinds = np.array(INERTIAL[:4] * n_b + FRICTION * n_d)
+    unit = np.array([UNITS[k] for k in kinds])
+    D = np.zeros((len(nominal), len(moved)))
+    D[moved, np.arange(len(moved))] = 1.0
+    for k in range(n_b):
+        D[10 * k + 4:10 * k + 10, 4 * k:4 * k + 4] = following(float(nominal[10 * k]), nominal[10 * k + 1:10 * k + 4]).T
     A = rows_ @ D * unit
     lam = ridge * float(np.sqrt((A * A).sum(axis=0).mean()))
     stacked = np.vstack([A, lam * np.eye(len(moved))])
     target = np.concatenate([left, np.zeros(len(moved))])
     # No mass under KEPT of itself, no drive parameter under none: a bound met is held there
     # and the rest fitted again.
-    low = np.array([-(1.0 - KEPT) * nominal[k] / unit[i] if names[k].endswith('.m') else
-                    -nominal[k] / unit[i] if names[k].rsplit('.', 1)[1] in FRICTION else -np.inf
-                    for i, k in enumerate(moved)])
+    low = np.where(kinds == 'm', -(1.0 - KEPT) * nominal[moved] / unit,
+                   np.where(np.isin(kinds, FRICTION), -nominal[moved] / unit, -np.inf))
     held = np.zeros(len(moved), bool)
     z = np.zeros(len(moved))
     for _ in range(len(moved)):
@@ -96,14 +84,10 @@ def correction(lay, body, Y, tau, ridge=RIDGE):
         held[under], z[under] = True, low[under]
     theta = nominal.copy()
     theta[moved] += z * unit
-    for b in lay['bodies']:
-        k = lay['col'][b]
-        m0, h0, mass, h = float(nominal[k]), nominal[k + 1:k + 4], float(theta[k]), theta[k + 1:k + 4]
-        if m0 <= 0.0:
-            continue
-        centred = nominal[k + 4:k + 10] - ((float(h0 @ h0) * np.eye(3) - np.outer(h0, h0)) / m0)[up]
-        theta[k + 4:k + 10] = centred + ((float(h @ h) * np.eye(3) - np.outer(h, h)) / mass)[up]
-    return {n: float(d) for n, d in zip(names, theta - nominal) if d != 0.0}
+    for k in range(n_b):
+        link, was = theta[10 * k:10 * k + 10], nominal[10 * k:10 * k + 10]
+        link[4:] += shifted(float(link[0]), link[1:4]) - shifted(float(was[0]), was[1:4])
+    return {n: float(d) for n, d in zip(lay['names'], theta - nominal) if d != 0.0}
 
 
 def save(path, deltas, got):
@@ -156,9 +140,7 @@ def correct(body, deltas):
                for b, mass, _c, eig, _axes, ok in links if not ok]
     drives_ = []
     k = lay['drive']
-    for i, j in enumerate(lay['driven']):
-        dof = lay['hinge'][j]
-        name = m.joint(int(m.dof_jntid[dof])).name
+    for i, (name, dof) in enumerate(zip(lay['drives'], lay['dof'])):
         if name not in touched:
             continue
         arm, damp, fric = theta[k + 3 * i:k + 3 * i + 3]

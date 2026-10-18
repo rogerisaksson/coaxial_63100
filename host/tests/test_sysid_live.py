@@ -49,12 +49,11 @@ def test_her_model_holds_on_her_walk(report, c):
     from the stand alone it rose on her legs: her pelvis still there, masses and first moments
     never stand apart."""
     from machine import identified, sysid, wbc
-    from machine.figure import JOINTS
     lay = c['lay']
     Y, tau, _touched, world = _campaign(c, 4, _off(physics.World(), c, 7))
     ys, taus, s = _run(c, {'twist': (0.69, 0.0, 0.0)}, WALK_S, True)
     Yw, tw = sysid.rows(lay, c['body'], ys, taus, physics.STEP_S, EVERY)
-    free = sysid.free(c['body'], ys, EVERY)
+    free = sysid.free(lay, ys, EVERY)
     Yw, tw, at = Yw * free[:, :, None], tw * free, np.arange(0, len(ys) - 1, EVERY) * physics.STEP_S
     went = float(s['g']['world'].data.qpos[2])
     report.check('she walks %.1f m in %.0f s on the world %.0f %% off' % (went, WALK_S, 100 * OFF), s['fallen_at'] is None and went > 3.0)
@@ -64,12 +63,9 @@ def test_her_model_holds_on_her_walk(report, c):
         fresh = wbc.Body(identified=False)
         identified.correct(fresh, identified.correction(lay, c['body'], *rows))
         models[label] = fresh.m
-    read = np.maximum((np.abs(Yw[judge]).sum(axis=2) > 0).sum(axis=0), 1)
-    rms = {}
-    for label, m in models.items():
-        r = Yw[judge] @ sysid.truth(lay, m) - tw[judge]
-        rms[label] = np.sqrt((r * r).sum(axis=0) / read)
-    driven = [j for j, d in zip(JOINTS, c['body'].driven) if d]
+    read = sysid.read(Yw[judge])
+    rms = {label: sysid.misfit(Yw[judge], tw[judge], sysid.truth(lay, m)) for label, m in models.items()}
+    driven = lay['drives']
     trunk = [i for i, j in enumerate(driven) if j in ('spine_roll', 'spine', 'waist')]
     legs = [i for i, j in enumerate(driven) if j.endswith(('_hip', '_knee'))]
     report.check("the world's own model holds on the trunk's rows of her walk within 0.1 N m, %d-%d rows read a drive" % (read.min(), read.max()),

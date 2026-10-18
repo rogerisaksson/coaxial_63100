@@ -3,7 +3,7 @@
     lay = sysid.laid(body)                          # her links and the columns, on her law's model
     ys, taus, touched = campaign.excite(world, ref) # her edge arrays and her drives' torques a step
     Y, tau = sysid.rows(lay, body, ys, taus, dt)    # the regressor of a campaign's edge arrays
-    free = sysid.free(body, ys, every)              # off the stand, the rows the model holds on
+    free = sysid.free(lay, ys, every)               # off the stand, the rows the model holds on
     Yb, fb = sysid.borne(lay, body, ys, dt, every)  # her pelvis's rows her insoles measure, standing
     base = sysid.base(lay, Y)                       # the combinations its torques tell apart
     got = sysid.identify(base, Y, tau)              # each one fitted, with what it is worth
@@ -31,35 +31,91 @@ INERTIAL = ('m', 'hx', 'hy', 'hz', 'Ixx', 'Ixy', 'Ixz', 'Iyy', 'Iyz', 'Izz')
 #: A drive's: the rotor's inertia at the joint, kg m^2; viscous, N m s/rad; Coulomb, N m.
 FRICTION = ('J', 'b', 'f')
 #: A column is one of the base when, scaled, this much of it stands clear of the base before it;
-#: one under NONE of the largest is nothing but rounding.
-INDEPENDENT, NONE = 1e-3, 1e-9
+#: one under NONE of the largest is nothing but rounding; two within TIE of each other stand
+#: alike.
+INDEPENDENT, NONE, TIE = 1e-3, 1e-9, 1e-9
 #: A base parameter is trusted within this of itself.
 TRUST = 0.10
 #: A drive's row is read only where it slides faster than this, rad/s: at rest its Coulomb
 #: friction is whatever holds it, anything within its limit.
 STICK = 0.25
+#: Her pelvis's force rows are read in N m at this lever, m, beside the moment rows.
+LEVER_M = 0.1
+#: A drive's row off the stand is read where the model holds: no joint of its limb within
+#: STOP_DEG of a stop, nothing touching the limb's skin from the sample before to the one after.
+#: A limb's joints and its skin's segments, a leg's and an arm's.
+STOP_DEG = 2.0
+LIMBS = ((('hip', 'knee', 'ankle', 'foot'), ('thigh', 'shank', 'foot', 'toes')),
+         (('shoulder', 'elbow', 'wrist', 'gripper'), ('upper_arm', 'forearm', 'hand', 'fingers')))
 
 
 def laid(body):
-    """Her links and the columns, on her law's model: {bodies (hers, parents first), parent,
-    dofs (a body's hinge dofs), hinge (every hinge dof, MuJoCo's order), driven (their indices
-    among the hinges, JOINTS order), names, col (a body's ten columns' start, the drives' after
-    them)}."""
+    """Her links and the columns, on her law's model, laid once: {bodies (hers, parents first),
+    parent (each one's place among them, the pelvis -1), span (each one's hinges' range in
+    hinge), hinge (every hinge dof, MuJoCo's order), jnt (each one's joint), above (body, hinge:
+    the hinge lies between the body and her pelvis), col (a MuJoCo body's ten columns' start, -1
+    not hers), drive (the drives' columns' start), driven (the drives' places among the hinges,
+    JOINTS' order), dof, joint (their dofs, their places in JOINTS), drives (their names), names
+    (every column's), qadr, vadr (JOINTS' in qpos and qvel), lo, hi (JOINTS' stops, rad), limb
+    (drive, JOINTS) and skin (drive, SKIN): its limb's}."""
+    import numpy as np
     m = body.m
-    pelvis = body.pelvis
-    hers = [b for b in range(m.nbody) if edge._rooted(m, b, pelvis)]
-    dofs = {}
-    for b in hers:
-        first = int(m.body_jntadr[b])
-        dofs[b] = [int(m.jnt_dofadr[j]) for j in range(first, first + int(m.body_jntnum[b]))
-                   if b != pelvis]
-    hinge = [d for b in hers for d in dofs[b]]
-    driven = [hinge.index(int(d)) for d in body.act]
-    names = ['%s.%s' % (m.body(b).name, p) for b in hers for p in INERTIAL]
-    names += ['%s.%s' % (m.joint(int(m.dof_jntid[hinge[k]])).name, p) for k in driven for p in FRICTION]
-    return {'bodies': hers, 'parent': {b: int(m.body_parentid[b]) for b in hers}, 'dofs': dofs,
-            'hinge': hinge, 'driven': driven, 'names': names,
-            'col': {b: 10 * k for k, b in enumerate(hers)}, 'drive': 10 * len(hers)}
+    bodies = np.array([b for b in range(m.nbody) if edge._rooted(m, b, body.pelvis)])
+    place = np.full(m.nbody, -1)
+    place[bodies] = np.arange(len(bodies))
+    parent = place[m.body_parentid[bodies]]
+    count = np.where(bodies == body.pelvis, 0, m.body_jntnum[bodies])
+    span = np.column_stack([np.cumsum(count) - count, np.cumsum(count)])
+    jnt = np.concatenate([np.arange(f, f + c) for f, c in zip(m.body_jntadr[bodies], count)]).astype(int)
+    hinge = np.array(m.jnt_dofadr[jnt], int)
+    above = np.zeros((len(bodies), len(hinge)), bool)
+    for k in range(len(bodies)):
+        up = k
+        while up > 0:
+            above[k, span[up, 0]:span[up, 1]] = True
+            up = parent[up]
+    ids = [m.joint(j).id for j in JOINTS]
+    qadr, vadr = np.array(m.jnt_qposadr[ids], int), np.array(m.jnt_dofadr[ids], int)
+    joint = np.flatnonzero(body.driven)
+    dof = vadr[joint]
+    driven = np.array([int(np.flatnonzero(hinge == d)[0]) for d in dof])
+    drives = tuple(JOINTS[i] for i in joint)
+    col = np.full(m.nbody, -1)
+    col[bodies] = 10 * np.arange(len(bodies))
+    limited, rng = np.array(m.jnt_limited[ids], bool), np.array(m.jnt_range[ids], float)
+    limb, skin = np.zeros((len(joint), len(JOINTS)), bool), np.zeros((len(joint), len(edge.SKIN)), bool)
+    for i, name in enumerate(drives):
+        side = name.split('_')[0] + '_' if name.startswith(('left_', 'right_')) else None
+        for kinds, skins in LIMBS:
+            if side and any(w in name for w in kinds):
+                limb[i] = [n.startswith(side) and any(w in n for w in kinds) for n in JOINTS]
+                skin[i] = [n.startswith(side) and any(w in n for w in skins) for n in edge.SKIN]
+    return {'bodies': bodies, 'parent': parent, 'span': span, 'hinge': hinge, 'jnt': jnt, 'above': above,
+            'col': col, 'drive': 10 * len(bodies), 'driven': driven, 'dof': dof, 'joint': joint,
+            'drives': drives, 'names': ['%s.%s' % (m.body(b).name, p) for b in bodies for p in INERTIAL]
+            + ['%s.%s' % (name, p) for name in drives for p in FRICTION], 'qadr': qadr, 'vadr': vadr,
+            'lo': np.where(limited, rng[:, 0], -np.inf), 'hi': np.where(limited, rng[:, 1], np.inf),
+            'limb': limb, 'skin': skin}
+
+
+def shifted(mass, h):
+    """The inertia a link's `mass` and first moment `h` add about its origin over its centre's,
+    (h.h I - h h^T) / mass, the upper triangle (6,); none massless."""
+    import numpy as np
+    if mass <= 0.0:
+        return np.zeros(6)
+    return ((float(h @ h) * np.eye(3) - np.outer(h, h)) / mass)[np.triu_indices(3)]
+
+
+def following(mass, h):
+    """(4, 6) how `shifted` moves with (mass, hx, hy, hz): a link's inertia about its origin
+    following its mass and first moment, its centre's own as built."""
+    import numpy as np
+    if mass <= 0.0:
+        return np.zeros((4, 6))
+    eye, up = np.eye(3), np.triu_indices(3)
+    return np.array([-shifted(mass, h) / mass] + [
+        ((2.0 * h[a] * eye - np.outer(eye[a], h) - np.outer(h, eye[a])) / mass)[up] for a in range(3)])
 
 
 def truth(lay, m):
@@ -67,27 +123,41 @@ def truth(lay, m):
     in its own frame; each drive's armature, damping and friction loss."""
     import numpy as np
     theta = np.zeros(len(lay['names']))
-    for b in lay['bodies']:
-        mass, c = float(m.body_mass[b]), np.array(m.body_ipos[b], float)
-        r = _rotation(m.body_iquat[b])
-        about = r @ np.diag(np.array(m.body_inertia[b], float)) @ r.T
-        about += mass * (float(c @ c) * np.eye(3) - np.outer(c, c))
-        k = lay['col'][b]
-        theta[k], theta[k + 1:k + 4] = mass, mass * c
-        theta[k + 4:k + 10] = about[np.triu_indices(3)]
-    k = lay['drive']
-    for i, j in enumerate(lay['driven']):
-        d = lay['hinge'][j]
-        theta[k + 3 * i:k + 3 * i + 3] = (m.dof_armature[d], m.dof_damping[d], m.dof_frictionloss[d])
+    links = theta[:lay['drive']].reshape(-1, 10)
+    for k, b in enumerate(lay['bodies']):
+        mass = float(m.body_mass[b])
+        h = mass * np.array(m.body_ipos[b], float)
+        r = _rotations(m.body_iquat[b])
+        links[k, 0], links[k, 1:4] = mass, h
+        links[k, 4:] = (r @ np.diag(np.array(m.body_inertia[b], float)) @ r.T)[np.triu_indices(3)] + shifted(mass, h)
+    dof = lay['dof']
+    theta[lay['drive']:] = np.column_stack([m.dof_armature[dof], m.dof_damping[dof], m.dof_frictionloss[dof]]).ravel()
     return theta
 
 
-def _rotation(q):
+def _rotations(q):
+    """(..., 3, 3) of quaternions `q` (..., 4), w first."""
     import numpy as np
-    w, x, y, z = (float(c) for c in q)
-    return np.array([[1 - 2 * (y * y + z * z), 2 * (x * y - w * z), 2 * (x * z + w * y)],
-                     [2 * (x * y + w * z), 1 - 2 * (x * x + z * z), 2 * (y * z - w * x)],
-                     [2 * (x * z - w * y), 2 * (y * z + w * x), 1 - 2 * (x * x + y * y)]])
+    w, x, y, z = (np.asarray(q, float)[..., k] for k in range(4))
+    return np.stack([np.stack([1 - 2 * (y * y + z * z), 2 * (x * y - w * z), 2 * (x * z + w * y)], -1),
+                     np.stack([2 * (x * y + w * z), 1 - 2 * (x * x + z * z), 2 * (y * z - w * x)], -1),
+                     np.stack([2 * (x * z - w * y), 2 * (y * z + w * x), 1 - 2 * (x * x + y * y)], -1)], -2)
+
+
+def _frames(lay, body, qpos):
+    """(xpos (N, bodies, 3), xmat (N, bodies, 3, 3), axis (N, hinges, 3), anchor (N, hinges, 3))
+    her links' frames and her hinges' axes, world, at `qpos` (N, nq)."""
+    import numpy as np
+    m, d, mj = body.m, body.d, body.mj
+    bodies, jnt, n = lay['bodies'], lay['jnt'], len(qpos)
+    xpos, xmat = np.zeros((n, len(bodies), 3)), np.zeros((n, len(bodies), 3, 3))
+    axis, anchor = np.zeros((n, len(jnt), 3)), np.zeros((n, len(jnt), 3))
+    for k in range(n):
+        d.qpos[:] = qpos[k]
+        mj.mj_kinematics(m, d)
+        xpos[k], xmat[k] = d.xpos[bodies], d.xmat[bodies].reshape(-1, 3, 3)
+        axis[k], anchor[k] = d.xaxis[jnt], d.xanchor[jnt]
+    return xpos, xmat, axis, anchor
 
 
 def regressor(lay, body, qpos, qvel, qacc, a0, wacc=None):
@@ -98,75 +168,57 @@ def regressor(lay, body, qpos, qvel, qacc, a0, wacc=None):
     frame - what the floor and whatever else touches her must supply. `wacc` (N, driven) each
     motor's acceleration through its gearbox, the armature's column: the joint's own without."""
     import numpy as np
-    m, d, mj = body.m, body.d, body.mj
-    n = len(qpos)
-    xpos, xmat = np.zeros((n, m.nbody, 3)), np.zeros((n, m.nbody, 3, 3))
-    axis, anchor = np.zeros((n, m.njnt, 3)), np.zeros((n, m.njnt, 3))
-    for k in range(n):
-        d.qpos[:] = qpos[k]
-        mj.mj_kinematics(m, d)
-        xpos[k], xmat[k] = d.xpos, d.xmat.reshape(-1, 3, 3)
-        axis[k], anchor[k] = d.xaxis, d.xanchor
-    pelvis = body.pelvis
-    R, p = xmat[:, pelvis], xpos[:, pelvis]
+    hinge, parent, span, above = lay['hinge'], lay['parent'], lay['span'], lay['above']
+    n, nb, nh = len(qpos), len(lay['bodies']), len(hinge)
+    xpos, xmat, axis, anchor = _frames(lay, body, qpos)
+    R, p = xmat[:, 0], xpos[:, 0]
     w = np.einsum('nij,nj->ni', R, qvel[:, 3:6])
     al = np.einsum('nij,nj->ni', R, qacc[:, 3:6])
     vp = qvel[:, 0:3]
-    # Plucker at the world's origin: (w, u) the body's point there, (al, a) its rate.
-    V = {pelvis: (w, vp - np.cross(w, p))}
-    A = {pelvis: (al, a0 - np.cross(w, vp) - np.cross(al, p))}
-    S = {}
-    for b in lay['bodies'][1:]:
-        wv, uv = V[lay['parent'][b]]
-        wa, ua = A[lay['parent'][b]]
-        for dof in lay['dofs'][b]:
-            j = int(m.dof_jntid[dof])
-            sw, su = axis[:, j], np.cross(anchor[:, j], axis[:, j])
-            S[dof] = (sw, su)
+    # Plucker at the world's origin: (w, u) a body's point there and (al, a) its rate; each
+    # hinge's axis (sw, su).
+    V, A = np.zeros((nb, 2, n, 3)), np.zeros((nb, 2, n, 3))
+    V[0], A[0] = (w, vp - np.cross(w, p)), (al, a0 - np.cross(w, vp) - np.cross(al, p))
+    sw, su = axis, np.cross(anchor, axis)
+    for k in range(1, nb):
+        (wv, uv), (wa, ua) = V[parent[k]], A[parent[k]]
+        for h in range(span[k, 0], span[k, 1]):
+            dof = hinge[h]
             qd, qdd = qvel[:, dof:dof + 1], qacc[:, dof:dof + 1]
-            dsw, dsu = np.cross(wv, sw), np.cross(wv, su) + np.cross(uv, sw)
-            wa, ua = wa + sw * qdd + dsw * qd, ua + su * qdd + dsu * qd
-            wv, uv = wv + sw * qd, uv + su * qd
-        V[b], A[b] = (wv, uv), (wa, ua)
-    hinge = lay['hinge']
-    at = {dof: k for k, dof in enumerate(hinge)}
-    Y = np.zeros((n, len(hinge) + 6, len(lay['names'])))
-    force, moment = slice(len(hinge), len(hinge) + 3), slice(len(hinge) + 3, len(hinge) + 6)
-    for b in lay['bodies']:
-        Rb, pb = xmat[:, b], xpos[:, b]
-        wv, uv = V[b]
-        wa, ua = A[b]
+            dsw, dsu = np.cross(wv, sw[:, h]), np.cross(wv, su[:, h]) + np.cross(uv, sw[:, h])
+            wa, ua = wa + sw[:, h] * qdd + dsw * qd, ua + su[:, h] * qdd + dsu * qd
+            wv, uv = wv + sw[:, h] * qd, uv + su[:, h] * qd
+        V[k], A[k] = (wv, uv), (wa, ua)
+    Y = np.zeros((n, nh + 6, len(lay['names'])))
+    force, moment = slice(nh, nh + 3), slice(nh + 3, nh + 6)
+    for k in range(nb):
+        Rb, pb = xmat[:, k], xpos[:, k]
+        (wv, uv), (wa, ua) = V[k], A[k]
         # In the body's frame at its origin: its spin, its angular and its classical acceleration.
         om = np.einsum('nji,nj->ni', Rb, wv)
         alb = np.einsum('nji,nj->ni', Rb, wa)
         ac = np.einsum('nji,nj->ni', Rb, ua + np.cross(wa, pb) + np.cross(wv, uv + np.cross(wv, pb)))
         f, nn = np.zeros((n, 3, 10)), np.zeros((n, 3, 10))
         f[:, :, 0] = ac
-        for k in range(3):
+        for a in range(3):
             e = np.zeros(3)
-            e[k] = 1.0
-            f[:, :, 1 + k] = np.cross(alb, e) + np.cross(om, np.cross(om, e))
-            nn[:, :, 1 + k] = np.cross(e, ac)
+            e[a] = 1.0
+            f[:, :, 1 + a] = np.cross(alb, e) + np.cross(om, np.cross(om, e))
+            nn[:, :, 1 + a] = np.cross(e, ac)
         nn[:, :, 4:10] = _tensor(alb) + np.cross(om[:, :, None], _tensor(om), axis=1)
-        # To the world, about its origin; up her tree, each joint passed takes its row.
+        # To the world, about its origin; each hinge between the body and her pelvis takes its row.
         fw = np.einsum('nij,njc->nic', Rb, f)
         nw = np.einsum('nij,njc->nic', Rb, nn) + np.cross(pb[:, :, None], fw, axis=1)
-        cols = slice(lay['col'][b], lay['col'][b] + 10)
+        cols, rows_ = slice(10 * k, 10 * k + 10), np.flatnonzero(above[k])
         Y[:, force, cols] = fw
         Y[:, moment, cols] = np.einsum('nji,njc->nic', R, nw - np.cross(p[:, :, None], fw, axis=1))
-        up = b
-        while up != pelvis:
-            for dof in lay['dofs'][up]:
-                sw, su = S[dof]
-                Y[:, at[dof], cols] = (np.einsum('ni,nic->nc', sw, nw)
-                                       + np.einsum('ni,nic->nc', su, fw))
-            up = lay['parent'][up]
-    k = lay['drive']
-    for i, j in enumerate(lay['driven']):
-        dof = hinge[j]
-        Y[:, j, k + 3 * i] = qacc[:, dof] if wacc is None else wacc[:, i]
-        Y[:, j, k + 3 * i + 1] = qvel[:, dof]
-        Y[:, j, k + 3 * i + 2] = np.sign(qvel[:, dof])
+        Y[:, rows_, cols] = (np.einsum('nhi,nic->nhc', sw[:, rows_], nw)
+                             + np.einsum('nhi,nic->nhc', su[:, rows_], fw))
+    at = lay['drive']
+    for i, (h, dof) in enumerate(zip(lay['driven'], lay['dof'])):
+        Y[:, h, at + 3 * i] = qacc[:, dof] if wacc is None else wacc[:, i]
+        Y[:, h, at + 3 * i + 1] = qvel[:, dof]
+        Y[:, h, at + 3 * i + 2] = np.sign(qvel[:, dof])
     return Y
 
 
@@ -180,7 +232,7 @@ def _tensor(w):
     return L
 
 
-def _state(body, ys, dt, every):
+def _state(lay, body, ys, dt, every):
     """(qpos, qvel, qacc, a0, wacc, at) of her edge arrays `ys` a step `dt` apart, every
     `every`th: her turn, spin and specific force her IMU's, her joints her encoders'; a rate's
     difference over the step its acceleration; what she does not measure - her hair, her hems
@@ -191,19 +243,16 @@ def _state(body, ys, dt, every):
     at = np.arange(0, len(ys) - 1, every)
     n = len(at)
     qpos, qvel, qacc = np.zeros((n, m.nq)), np.zeros((n, m.nv)), np.zeros((n, m.nv))
-    qpos[:, 3] = 1.0
-    qadr = np.array([m.jnt_qposadr[m.joint(j).id] for j in JOINTS])
-    vadr = np.array([m.jnt_dofadr[m.joint(j).id] for j in JOINTS])
+    qadr, vadr = lay['qadr'], lay['vadr']
     ys = np.asarray(ys)
     now, then, before = ys[at], ys[at + 1], ys[np.maximum(at - 1, 0)]
     qpos[:, 3:7], qpos[:, qadr] = now[:, edge.QUAT], now[:, edge.Q]
     qvel[:, 3:6], qvel[:, vadr] = now[:, edge.GYRO], now[:, edge.QD]
     qacc[:, 3:6] = (then[:, edge.GYRO] - now[:, edge.GYRO]) / dt
     qacc[:, vadr] = (then[:, edge.QD] - now[:, edge.QD]) / dt
-    a0 = np.stack([_rotation(q) @ a for q, a in zip(then[:, edge.QUAT], then[:, edge.ACCEL])])
-    driven = np.flatnonzero(body.driven)
-    wacc = (then[:, edge.QM] - 2.0 * now[:, edge.QM] + before[:, edge.QM])[:, driven] / dt ** 2
-    wacc[at == 0] = qacc[at == 0][:, vadr[driven]]
+    a0 = np.einsum('nij,nj->ni', _rotations(then[:, edge.QUAT]), then[:, edge.ACCEL])
+    wacc = (then[:, edge.QM] - 2.0 * now[:, edge.QM] + before[:, edge.QM])[:, lay['joint']] / dt ** 2
+    wacc[at == 0] = qacc[at == 0][:, lay['dof']]
     return qpos, qvel, qacc, a0, wacc, at
 
 
@@ -212,15 +261,41 @@ def rows(lay, body, ys, taus, dt, every=1):
     step `dt` apart, `taus` (N, JOINTS) her drives' torques over each step, every `every`th
     step kept (`_state`); a drive's row zero where it does not slide (STICK)."""
     import numpy as np
-    qpos, qvel, qacc, a0, wacc, at = _state(body, ys, dt, every)
+    qpos, qvel, qacc, a0, wacc, at = _state(lay, body, ys, dt, every)
     Y = regressor(lay, body, qpos, qvel, qacc, a0, wacc)[:, lay['driven']]
-    tau = np.asarray(taus, float)[at][:, np.flatnonzero(body.driven)]
-    slides = np.abs(qvel[:, [lay['hinge'][j] for j in lay['driven']]]) >= STICK
+    tau = np.asarray(taus, float)[at][:, lay['joint']]
+    slides = np.abs(qvel[:, lay['dof']]) >= STICK
     return Y * slides[:, :, None], tau * slides
 
 
-#: Her pelvis's force row is read in N m at this lever, m, beside the moment rows.
-LEVER_M = 0.1
+def read(Y):
+    """(driven,) the rows of `Y` (N, driven, P) each drive is read on: those not zeroed."""
+    import numpy as np
+    return (np.abs(Y).sum(axis=2) > 0.0).sum(axis=0)
+
+
+def misfit(Y, tau, theta):
+    """(driven,) N m rms a drive over its rows read: `tau` less Y theta."""
+    import numpy as np
+    left = tau - Y @ theta
+    return np.sqrt((left * left).sum(axis=0) / np.maximum(read(Y), 1))
+
+
+def free(lay, ys, every=1, stop_deg=STOP_DEG):
+    """(N, driven) which drives' rows of `ys` (`rows`' arrays, every `every`th) the model holds
+    on, walking: none of the drive's limb's joints within `stop_deg` of a stop, nothing touching
+    the limb's skin (LIMBS) from the sample before to the one after, a sample beyond the arrays
+    unknown - against the world's own model a swinging hip's row read 0 within its swing and
+    2-6 N m the sample its sole landed."""
+    import numpy as np
+    seen = np.asarray(ys)[np.arange(0, len(ys) - 1, every)]
+    q, margin = seen[:, edge.Q], math.radians(stop_deg)
+    near = (q < lay['lo'] + margin) | (q > lay['hi'] - margin)
+    touch = np.linalg.norm(seen[:, edge.TOUCH].reshape(len(seen), -1, 3), axis=2) > 0.0
+    stopped = (near.astype(int) @ lay['limb'].T) > 0
+    clear = (touch.astype(int) @ lay['skin'].T) == 0
+    edges = ~lay['skin'].any(axis=1)[None, :]
+    return ~stopped & clear & np.r_[edges, clear[:-1]] & np.r_[clear[1:], edges]
 
 
 def borne(lay, body, ys, dt, every=1):
@@ -231,28 +306,24 @@ def borne(lay, body, ys, dt, every=1):
     centre of pressure. Her weight and its moments: her pelvis's own mass and first moments,
     which her drives' rows never show."""
     import numpy as np
-    m, d, mj = body.m, body.d, body.mj
-    qpos, qvel, qacc, a0, wacc, at = _state(body, ys, dt, every)
+    m = body.m
+    qpos, qvel, qacc, a0, wacc, at = _state(lay, body, ys, dt, every)
     now = np.asarray(ys)[at]
     Y = regressor(lay, body, qpos, qvel, qacc, a0, wacc)
-    n_h, pelvis = len(lay['hinge']), body.pelvis
-    insoles = [m.body(name).id for name in edge.INSOLES]
-    out, f = np.zeros((len(at), 3, Y.shape[2])), np.zeros((len(at), 3))
-    for k in range(len(at)):
-        d.qpos[:] = qpos[k]
-        mj.mj_kinematics(m, d)
-        R, p = d.xmat[pelvis].reshape(3, 3), d.xpos[pelvis]
-        push, turn, low, weight = np.zeros(3), np.zeros(3), 0.0, 0.0
-        for i, b in enumerate(insoles):
-            Ri, pi = d.xmat[b].reshape(3, 3), d.xpos[b]
-            pressed = float(now[k, edge.PRESS][i])
-            where = pi + Ri @ now[k, edge.COP][3 * i:3 * i + 3]
-            push, turn = push + Ri[:, 1] * pressed, turn + np.cross(where - p, Ri[:, 1] * pressed)
-            low, weight = low + pressed * where[1], weight + pressed
-        h = p[1] - low / max(weight, 1e-9)
-        F, M = Y[k, n_h:n_h + 3], R @ Y[k, n_h + 3:n_h + 6]
-        out[k] = (LEVER_M * F[1], M[0] + h * F[2], M[2] - h * F[0])
-        f[k] = (LEVER_M * push[1], turn[0] + h * push[2], turn[2] - h * push[0])
+    xpos, xmat, _axis, _anchor = _frames(lay, body, qpos)
+    soles = lay['col'][[m.body(name).id for name in edge.INSOLES]] // 10
+    Ri, pi = xmat[:, soles], xpos[:, soles]
+    pressed, cop = now[:, edge.PRESS], now[:, edge.COP].reshape(len(at), -1, 3)
+    normal = Ri[:, :, :, 1]
+    where = pi + np.einsum('nsij,nsj->nsi', Ri, cop)
+    R, p = xmat[:, 0], xpos[:, 0]
+    push = np.einsum('nsi,ns->ni', normal, pressed)
+    turn = np.einsum('nsi,ns->ni', np.cross(where - p[:, None], normal), pressed)
+    h = p[:, 1] - (pressed * where[:, :, 1]).sum(axis=1) / np.maximum(pressed.sum(axis=1), 1e-9)
+    n_h = len(lay['hinge'])
+    F, M = Y[:, n_h:n_h + 3], np.einsum('nij,njc->nic', R, Y[:, n_h + 3:n_h + 6])
+    out = np.stack([LEVER_M * F[:, 1], M[:, 0] + h[:, None] * F[:, 2], M[:, 2] - h[:, None] * F[:, 0]], axis=1)
+    f = np.stack([LEVER_M * push[:, 1], turn[:, 0] + h * push[:, 2], turn[:, 2] - h * push[:, 0]], axis=1)
     return out, f
 
 
@@ -262,53 +333,12 @@ def hung(lay, body, ys, dt, pulls, every=1):
     origin, world - `pulls` (N + 1, 6) what the cell reads a step (`World.pull`). Her pelvis's
     own ten join the base parameters, her mass among them."""
     import numpy as np
-    m, d, mj = body.m, body.d, body.mj
-    qpos, qvel, qacc, a0, wacc, at = _state(body, ys, dt, every)
+    qpos, qvel, qacc, a0, wacc, at = _state(lay, body, ys, dt, every)
     Y = regressor(lay, body, qpos, qvel, qacc, a0, wacc)
-    n_h, pelvis = len(lay['hinge']), body.pelvis
-    out = np.zeros((len(at), 6, Y.shape[2]))
-    f = np.asarray(pulls, float)[at] * np.r_[[LEVER_M] * 3, [1.0] * 3]
-    for k in range(len(at)):
-        d.qpos[:] = qpos[k]
-        mj.mj_kinematics(m, d)
-        out[k, :3] = LEVER_M * Y[k, n_h:n_h + 3]
-        out[k, 3:] = d.xmat[pelvis].reshape(3, 3) @ Y[k, n_h + 3:n_h + 6]
-    return out, f
-
-
-#: A drive's row off the stand is read where the model holds: no joint of its limb within
-#: STOP_DEG of a stop, nothing touching the limb's skin from the sample before to the one after.
-#: A limb's joints and its skin's segments, a leg's and an arm's.
-STOP_DEG = 2.0
-LIMBS = ((('hip', 'knee', 'ankle', 'foot'), ('thigh', 'shank', 'foot', 'toes')),
-         (('shoulder', 'elbow', 'wrist', 'gripper'), ('upper_arm', 'forearm', 'hand', 'fingers')))
-
-
-def free(body, ys, every=1, stop_deg=STOP_DEG):
-    """(N, driven) which drives' rows of `ys` (`rows`' arrays, every `every`th) the model holds
-    on, walking: none of the drive's limb's joints within `stop_deg` of a stop, nothing touching
-    the limb's skin (LIMBS) from the sample before to the one after - against the world's own
-    model a swinging hip's row read 0 within its swing and 2-6 N m the sample its sole landed."""
-    import numpy as np
-    m = body.m
-    seen = np.asarray(ys)[np.arange(0, len(ys) - 1, every)]
-    touch = np.linalg.norm(seen[:, edge.TOUCH].reshape(len(seen), -1, 3), axis=2) > 0.0
-    near = np.zeros((len(seen), len(JOINTS)), bool)
-    for i, j in enumerate(JOINTS):
-        jid = m.joint(j).id
-        if m.jnt_limited[jid]:
-            lo, hi = m.jnt_range[jid]
-            near[:, i] = (seen[:, edge.Q][:, i] < lo + np.radians(stop_deg)) | (seen[:, edge.Q][:, i] > hi - np.radians(stop_deg))
-    out = np.ones((len(seen), int(np.sum(body.driven))), bool)
-    for i, j in enumerate(j for j, d in zip(JOINTS, body.driven) if d):
-        side = j.split('_')[0] + '_' if j.startswith(('left_', 'right_')) else None
-        for kinds, skins in LIMBS:
-            if side and any(w in j for w in kinds):
-                limb = [k for k, n in enumerate(JOINTS) if n.startswith(side) and any(w in n for w in kinds)]
-                skin = [k for k, n in enumerate(edge.SKIN) if n.startswith(side) and any(w in n for w in skins)]
-                clear = ~touch[:, skin].any(axis=1)
-                out[:, i] = ~near[:, limb].any(axis=1) & clear & np.roll(clear, 1) & np.roll(clear, -1)
-    return out
+    n_h = len(lay['hinge'])
+    out = np.concatenate([LEVER_M * Y[:, n_h:n_h + 3],
+                          np.einsum('nij,njc->nic', _rotations(qpos[:, 3:7]), Y[:, n_h + 3:n_h + 6])], axis=1)
+    return out, np.asarray(pulls, float)[at] * np.r_[[LEVER_M] * 3, [1.0] * 3]
 
 
 def base(lay, Y):
@@ -316,7 +346,8 @@ def base(lay, Y):
     K theta[dep], the columns of `ind` what its torques tell apart (Gautier, numerically),
     each of `dep` a combination of them - `Y` (N, driven, P) its regressor (`rows`). Pivoted
     Cholesky on the scaled Gram matrix: the column standing clearest of the base so far taken
-    next, down to INDEPENDENT of itself."""
+    next, down to INDEPENDENT of itself; of columns standing alike (TIE), the first - a sum
+    lands on the parent, her pelvis's own first."""
     import numpy as np
     Y = Y.reshape(-1, Y.shape[-1])
     scale = np.linalg.norm(Y, axis=0)
@@ -327,7 +358,7 @@ def base(lay, Y):
     left, ind, P = G.diagonal().copy(), [], len(scale)
     L = np.zeros((P, 0))
     while True:
-        k = int(np.argmax(left))
+        k = int(np.argmax(left >= (1.0 - TIE) * left.max()))
         if left[k] <= INDEPENDENT ** 2:
             break
         col = (G[:, k] - L @ L[k]) / math.sqrt(left[k])
@@ -371,10 +402,10 @@ def identify(b, Y, tau, min_condition=1e-9):
     variance = float((left * left).sum()) / freedom
     err = np.sqrt(variance * ((Vt.T / singular) ** 2).sum(axis=1)) / scale
     unc = err / np.maximum(np.abs(theta), 1e-12)
-    read = (np.abs(Y).sum(axis=2) > 0.0).sum(axis=0)
+    seen = read(Y)
     return {'theta': theta, 'names': b['names'], 'uncertainty': unc, 'trusted': unc < TRUST,
-            'condition': condition, 'residual': np.sqrt((left * left).sum(axis=0) / np.maximum(read, 1)),
-            'read': read, 'samples': int(len(tau))}
+            'condition': condition, 'residual': np.sqrt((left * left).sum(axis=0) / np.maximum(seen, 1)),
+            'read': seen, 'samples': int(len(tau))}
 
 
 def motor(t, q, tau, gear=1.0, hz=None):
@@ -386,8 +417,8 @@ def motor(t, q, tau, gear=1.0, hz=None):
     torque's, gaps how many rows a gap cost."""
     import numpy as np
     from machine import campaign
-    dt = float(np.median(np.diff(t)))
-    qs, taus = campaign.lowpass(q, dt, hz or campaign.SMOOTH_HZ), campaign.lowpass(tau, dt, hz or campaign.SMOOTH_HZ)
+    dt, hz = float(np.median(np.diff(t))), hz or campaign.SMOOTH_HZ
+    qs, taus = campaign.lowpass(q, dt, hz), campaign.lowpass(tau, dt, hz)
     w = np.gradient(qs, t)
     A = np.column_stack([np.gradient(w, t), w, np.sign(w), np.sin(qs / gear), np.ones(len(t))])
     keep = (t > t[0] + 1.0) & (t < t[-1] - 1.0)

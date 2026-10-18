@@ -41,6 +41,8 @@ OFF = 0.15
 #: a rotor's inertia may sit from the world's, of itself.
 BOXES = ('spine_roll', 'spine', 'waist', 'neck', 'head', 'shoulder', 'elbow', 'hip_yaw', 'hip_roll', 'hip', 'knee')
 ROTOR = 0.02
+
+
 def _off(world, c, seed, keep=False):
     """`world` built OFF of the figure: every link's mass, centre and inertia, every drive's
     armature and friction drawn apart; `keep` its state through the constants laid anew."""
@@ -242,12 +244,8 @@ def test_her_corrections_are_laid_over_her_build(report, c):
     report.check('laid over her law\'s model whole: %d links and drives corrected' % len(applied),
                  len(applied) >= 20 and 'left_forearm' in applied and 'left_upper_arm' in applied)
     Y, tau, _touched, world = _campaign(c, 3, world, SHORT)
-    read = np.maximum((np.abs(Y).sum(axis=2) > 0).sum(axis=0), 1)
-    rms = {}
-    for label, model in (('nominal', c['body'].m), ('corrected', fresh.m)):
-        r = Y @ sysid.truth(lay, model) - tau
-        rms[label] = np.sqrt((r * r).sum(axis=0) / read)
-    names = [n[:-2] for n in lay['names'][lay['drive']::3]]
+    rms = {label: sysid.misfit(Y, tau, sysid.truth(lay, model)) for label, model in (('nominal', c['body'].m), ('corrected', fresh.m))}
+    names = lay['drives']
     arm = [k for k, n in enumerate(names) if n.startswith(('left_shoulder', 'left_elbow'))]
     report.check('on her arm\'s drives the residual falls to under half: %s' % ', '.join(
         '%.2f -> %.2f' % (rms['nominal'][k], rms['corrected'][k]) for k in arm),
@@ -282,11 +280,8 @@ def test_a_world_off_the_figure_is_read_back(report, c):
     fresh = wbc.Body(identified=False)
     identified.correct(fresh, identified.correction(lay, c['body'], Y, tau))
     Y3, tau3, _touched, world = _campaign(c, 5, world, SHORT)
-    read = np.maximum((np.abs(Y3).sum(axis=2) > 0).sum(axis=0), 1)
-    rms = {}
-    for label, model in (('build', c['body'].m), ('corrected', fresh.m), ('world', m)):
-        r = Y3 @ sysid.truth(lay, model) - tau3
-        rms[label] = float(np.sqrt((r * r).sum(axis=0) / read).mean())
+    rms = {label: float(sysid.misfit(Y3, tau3, sysid.truth(lay, model)).mean())
+           for label, model in (('build', c['body'].m), ('corrected', fresh.m), ('world', m))}
     report.check('its corrections take the build\'s misfit at least halfway to the world\'s own',
                  rms['corrected'] <= 0.5 * (rms['build'] + rms['world']),
                  'build %.3f, corrected %.3f, world %.3f N m rms a drive' % (rms['build'], rms['corrected'], rms['world']))
@@ -300,7 +295,6 @@ def test_her_gearboxes_are_read(report, c):
     she touched herself 83 steps and the head's wind-up came 24 % off."""
     from machine import campaign, sysid
     from machine.drives import kind
-    from machine.figure import JOINTS
     lay = c['lay']
     physics.BOXED = 1.0
     try:
@@ -313,9 +307,9 @@ def test_her_gearboxes_are_read(report, c):
     Y, tau = sysid.rows(lay, c['body'], smooth_ys, smooth_taus, physics.STEP_S, EVERY)
     base = sysid.base(lay, Y)
     got = sysid.identify(base, Y, tau)
-    driven = [j for j in JOINTS if world.driven[JOINTS.index(j)]]
+    driven, joint = lay['drives'], lay['joint']
     armature = np.array([got['theta'][got['names'].index(j + '.J')] for j in driven])
-    rotor = np.array([world.boxes.j[JOINTS.index(j)] for j in driven])
+    rotor = world.boxes.j[joint]
     read = campaign.boxes(c['body'], ys, taus, physics.STEP_S, armature)
     report.check('nothing touched her on the boxed world', touched == 0, '%d steps' % touched)
     named = [i for i, j in enumerate(driven) if kind(j) in BOXES]
@@ -323,13 +317,13 @@ def test_her_gearboxes_are_read(report, c):
     report.check('every rotor\'s armature read positive at the motors\' encoders, the hip yaws\' within %.0f %%' % (100 * FRICTION),
                  (armature > 0.0).all() and all(arm[k] < FRICTION for k, i in enumerate(named) if kind(driven[i]) == 'hip_yaw'),
                  'worst %.1f %% on %s' % (100 * arm.max(), ', '.join(BOXES)))
-    rotor_err = np.abs(read[:, 4] - rotor) / rotor
+    K, PLAY, J = (campaign.BOX.index(name) for name in ('k', 'play', 'J'))
+    rotor_err = np.abs(read[:, J] - rotor) / rotor
     report.check('every rotor\'s inertia on the steps inside its play within %.0f %%' % (100 * ROTOR),
                  rotor_err.max() < ROTOR, 'worst %.1f %% (%s)' % (100 * rotor_err.max(), driven[int(np.argmax(rotor_err))]))
-    k_true = np.array([world.boxes.k[JOINTS.index(j)] for j in driven])
-    gap_true = np.array([world.boxes.gap[JOINTS.index(j)] for j in driven])
-    k_err = np.abs(read[named, 0] - k_true[named]) / k_true[named]
-    gap_err = np.abs(read[named, 1] - gap_true[named]) / gap_true[named]
+    k_true, gap_true = world.boxes.k[joint], world.boxes.gap[joint]
+    k_err = np.abs(read[named, K] - k_true[named]) / k_true[named]
+    gap_err = np.abs(read[named, PLAY] - gap_true[named]) / gap_true[named]
     report.check('each box\'s wind-up within %.0f %% on them' % (100 * FRICTION), k_err.max() < FRICTION,
                  'worst %.1f %% (%s)' % (100 * k_err.max(), driven[named[int(np.argmax(k_err))]]))
     report.check('each box\'s play within %.0f %% on them' % (100 * FRICTION), gap_err.max() < FRICTION,

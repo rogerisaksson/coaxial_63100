@@ -51,7 +51,10 @@ torques. What her law senses: [sensing](sensing.md); the drives:
   campaign's regressor by pivoted Gram-Schmidt, a column kept at 1 % of
   itself clear, one under 1e-9 of the largest dropped as rounding: 237 of
   343, condition 1e-3; 92 trusted (under 10 % of themselves), 48 within 5 %
-  of the model's, 65 within 20.
+  of the model's, 65 within 20. The pivot's ties - every scaled column
+  starts at 1, the masses alike in the insoles' rows - fell to rounding:
+  `pelvis.m` left the base on a 1e-13 change of the rows. The first of a
+  tie is taken (`sysid.TIE`), a sum landing on the parent.
 - Untold on the stand: a hip's yaw armature (its swing 8.75 deg within its
   stops: 3.5-4.8 for 0.177) and its roll's (swung with the whole leg about its
   axis: 1.0-2.6 for 0.49); a foot's and its toes' tensors, the toes' sprung
@@ -196,6 +199,11 @@ doubt.
   off. Left: the hems as pendulums with their stops, at the world's step.
 - Her rows recorded a step early (the edge read at a pass's start after the
   pass) misfit the hips 4-6 N m rms for 1.5-3.
+- A window's edge rows, their neighbour beyond the window unseen: kept on
+  their own clear, a sole's landing read the right hip's friction -1.4 N m
+  and the right knee's torque an amp +0.67 of itself in 36 s, both named;
+  wrapped round (`np.roll`), they had been judged by the window's other end.
+  A neighbour unseen counts as touched (`sysid.free`).
 
 ## On her boards
 

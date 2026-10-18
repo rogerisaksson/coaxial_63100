@@ -21,8 +21,6 @@ from machine import mjcf, physics
 NOMINAL_S, LOADED_S, WORN_S = 10.0, 12.0, 14.0
 LOAD_KG, WITHIN, FRICTION_X, TORQUE_X = 0.5, 0.3, 2.0, 0.8
 CAMPAIGN_S, PLAY_X = 24.0, 2.0
-
-
 #: The jeans' hems' mass through the walk, kg: next to none. Swinging on her shanks they read her
 #: knees' torque an amp 12-21 % high and their friction 0.5-0.8 N m low, held at rest in her law's
 #: model (identification.md); 0.12 as she wears them.

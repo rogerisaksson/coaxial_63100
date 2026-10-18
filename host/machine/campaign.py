@@ -20,8 +20,10 @@ from machine.figure import JOINTS, LEG
 #: (`smoothed`: the tones under 1.4, a rotor's mode 30).
 WOUND_NM, WOUND_ROWS, SMOOTH_HZ = 1.0, 25, 10.0
 #: A rotor is read inside this share of its play, on this many steps at least, its torque's
-#: mean over the two steps about each past this, N m (`boxes`).
+#: mean over the two steps about each past this, N m (`boxes`); a box's numbers read, its
+#: columns.
 INSIDE, ROTOR_ROWS, ROTOR_NM = 0.85, 25, 0.5
+BOX = ('k', 'play', 'c', 'mesh', 'J')
 #: The excitation's sines a drive, Hz; the share of a joint's range it swings through and the
 #: share kept from either stop; an unlimited joint's swing, rad; the parts whose unlimited
 #: joint swings abducted; a stage's ease in and out, s.
@@ -55,9 +57,10 @@ def lowpass(x, dt, hz=SMOOTH_HZ):
     import numpy as np
     a = math.exp(-2.0 * math.pi * hz * dt)
     x = np.array(x, float)
-    for sweep in (range(1, len(x)), range(len(x) - 2, -1, -1)):
-        for k in sweep:
-            x[k] = a * x[k - 1 if sweep.step > 0 else k + 1] + (1.0 - a) * x[k]
+    for k in range(1, len(x)):
+        x[k] += a * (x[k - 1] - x[k])
+    for k in range(len(x) - 2, -1, -1):
+        x[k] += a * (x[k + 1] - x[k])
     return x
 
 
@@ -103,7 +106,7 @@ def _box(delta, rel, passed):
 
 def boxes(body, ys, taus, dt, armature, every=1):
     """Each drive's gearbox and rotor from its two encoders: (k N m/rad, play rad, c N m s/rad,
-    mesh N m, J kg m^2) a drive (driven, 5). The box first with `armature` (`identify`'s J, the
+    mesh N m, J kg m^2) a drive (driven, BOX). The box first with `armature` (`identify`'s J, the
     smoothed rows') the rotor's share of the motor's torque, for its play; the rotor's inertia on
     the steps inside the play, where the box passes nothing and the motor's torque is the
     rotor's alone - a step's second difference of the motor's angle, QM, is its torque's mean
@@ -125,7 +128,7 @@ def boxes(body, ys, taus, dt, armature, every=1):
     second = (qm[at + 1] - 2.0 * qm[at] + qm[at - 1])[:, driven] / dt ** 2
     mean = 0.5 * (taus[at] + taus[at - 1])[:, driven]
     motor = taus[at][:, driven]
-    out = np.zeros((len(driven), 5))
+    out = np.zeros((len(driven), len(BOX)))
     for i in range(len(driven)):
         J = float(armature[i])
         play = _box(delta[:, i], rel[:, i], motor[:, i] - J * wacc[:, i])[1]
@@ -171,9 +174,9 @@ def setpoints(world, seconds, rng):
         for name in stage:
             i = JOINTS.index(name)
             mid, amp = swing(world, i)
-            tone = np.array(TONES[i % len(TONES)])
-            phase = rng.uniform(0.0, 2.0 * math.pi, size=len(tone))
-            swung = mid + amp * np.sin(2.0 * math.pi * np.outer(t, tone) + phase).sum(axis=1) / len(tone)
+            hz = np.array(TONES[i % len(TONES)])
+            phase = rng.uniform(0.0, 2.0 * math.pi, size=len(hz))
+            swung = mid + amp * np.sin(2.0 * math.pi * np.outer(t, hz) + phase).sum(axis=1) / len(hz)
             ref[s * per:(s + 1) * per, i] = world.target[i] + ease * (swung - world.target[i])
     return ref
 
