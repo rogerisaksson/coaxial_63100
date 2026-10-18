@@ -59,8 +59,7 @@ READING = ('degrees', 'rate', 'celsius', 'spent', 'derate', 'status')
 #: deg at 0.65 strides/s at 0, 30.3 at 0.12, 29.7 at 0.25, the form's 30.
 REFLECTED, ROTOR_FF, PLACED, BACKDRIVE, SKELETON = 1.0, 0.25, 1.0, 1.0, 0.0
 #: Where a drive's loop reads its angle and speed: 1 the motor's encoder, the rotor's side of
-#: the gearbox; 0 the joint's own sensor, its link's. Before the gearbox was a body of its own
-#: the wind-up was an offset on the sensed angle, and at 1 her walk fell at 6.4 s.
+#: the gearbox; 0 the joint's own sensor, its link's.
 WOUND = 1.0
 
 #: The gearboxes between the rotors and the links (`machine.gearbox`): 1, each rotor runs free
@@ -87,7 +86,7 @@ STAGED = 1.0
 ENVELOPE = 1.0
 
 #: A board glitched (`World.glitch`): its switches' on-resistance SOA_RDS times - a gate drive
-#: sagging, the FETs half on, in their SOA; or its nodes at WARM_C - run hard, hot.
+#: sagging, the FETs half on -, or its nodes at WARM_C.
 SOA_RDS, WARM_C = 50.0, 100.0
 
 #: Her harness (`World.hang`): N/m and N s/m on her pelvis's place, N m/rad and N m s/rad on its
@@ -335,7 +334,8 @@ class World:
                 d.ctrl[:] = paired(np, self.pairs, tau, self.limit, self.kt)
             self.motor[:] = d.ctrl
             if BOXED:
-                d.ctrl[:] = self.boxes.step(np, d.ctrl, d.qvel[self.vadr],
+                d.ctrl[:] = self.boxes.step(np, d.ctrl, d.qpos[self.qadr],
+                                            d.qvel[self.vadr] + 0.5 * STEP_S * d.qacc[self.vadr],
                                             np.where(self.shorted, self.damping, 0.0), STEP_S)
             self.heat += float(self.loss @ (self.motor * self.motor)) * STEP_S
             self.effort += float(np.abs(self.motor).sum()) * STEP_S
@@ -344,6 +344,8 @@ class World:
             if self.hung is not None:
                 d.xfrc_applied[self.pelvis] = self._harness()
             self._mj.mj_step(self.model, d)
+            if BOXED:
+                self.boxes.moved(d.qpos[self.qadr])
             power = self.motor * (self.boxes.w if BOXED else d.qvel[self.vadr])
             self.work += float(power[power > 0.0].sum()) * STEP_S
             self.brake -= float(power[power < 0.0].sum()) * STEP_S

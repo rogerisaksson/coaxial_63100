@@ -218,3 +218,5 @@ the fifty before these: [DONE_1-50](DONE_1-50.md).
     link's ceiling, its hold trending to it.
 60. The STO chain's hold kept through a frame heard idle: a transaction on 1,
     2 and 4 native boards 18, 41 and 80 -> 9, 13 and 32 ms.
+61. Her rotors read on the steps inside their play, within 1.2 %; the boxed
+    world's wind-up and damping off the link's stale speed.

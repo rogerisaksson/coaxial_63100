@@ -96,18 +96,29 @@ torques. What her law senses: [sensing](sensing.md); the drives:
   the torque that drives it; the armature read off its second differences
   came out negative on 7 drives and the links' residual 0.3-2.8 N m. The
   arrays low-passed both ways at 10 Hz (`campaign.smoothed`): residual 0.05-0.42,
-  every armature positive, the hips' within 3 %. Each box from its two
-  encoders on the raw arrays (`campaign.boxes`, what the motor passes less its
-  armature's share, at the step's middle): the wind-up within 1-10 % and the
-  play within 2 % on the trunk, the neck, the head, the shoulders, the hip
-  yaws and the hips; the knees', elbows' and ankle rolls' wind-up 30-60 %
-  low, the damping and the mesh's friction not read - they act at the mode,
-  which a 1 kHz encoder sees at a fifth of a cycle a step. Not kept: the rotor's
-  inertia fitted with the box on the wound rows - the elbows within 3-10 % at
-  the first pass, the knees and ankles 5-46 %, the head 68 % off, the fit
-  wandering as the rows are chosen anew by it -; the box read on arrays
-  low-passed at 3-20 Hz, every wind-up 20-90 % low: the wind-up's signal is the
-  ring's size.
+  every armature positive, the hips' within 3 %, the rest 3-46 % off.
+- Two of the world's own under it: the box's wind-up integrated against the
+  link's start-of-step speed where MuJoCo moves the link at its end's - dt qd
+  on every wind-up, 2 mrad of a 4.4 mrad play at 2 rad/s, and the link's
+  jerk on the rotor's second difference -, and its damping and mesh against
+  that stale speed, (c + mesh / 0.02) dt qdd, 0.13 kg m^2 at the waist. Gone
+  (`gearbox.moved`, the step's middle's speed): the gearbox's play test
+  crosses in 89 ms where 142.
+- The rotor's inertia on the steps inside the play, where the box passes
+  nothing: the motor angle's second difference is its torque's mean over the
+  two steps about it, over J (`campaign.boxes`): within 1.2 % on all 21
+  drives. Each box with that rotor: the wind-up within 7 % and the play
+  within 1 % on 17 drives, the knees' and elbows' wind-up 5-13 %, the
+  ankles' 28-35 % low and their play 12 % (their rotors ring across the
+  play, the lowest mode, 93 rad/s); the damping 10-40 % low. The mesh's
+  friction is not read: it acts through its rounding's slope, mesh / 0.02
+  rad/s, 5 times the damping, and the ring swings the sliding across the
+  rounding within a step. Not kept: the mesh from the steps sliding past 0.04
+  rad/s - within 10 % at the hips and the neck, 60-70 % off at the knees,
+  nothing at the arms; the rotor's inertia fitted with the box on the wound
+  rows - the fit wandering as the rows are chosen anew by it; the box read
+  on arrays low-passed at 3-20 Hz, every wind-up 20-90 % low: the wind-up's
+  signal is the ring's size.
 
 ## On her walk
 

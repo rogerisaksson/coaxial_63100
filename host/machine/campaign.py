@@ -4,7 +4,7 @@
     ref = campaign.setpoints(world, seconds, rng)   # a stage a limb, its drives at tones
     ys, taus, touched = campaign.excite(world, ref) # her on the stand, played a step at a time
     ys, taus = campaign.smoothed(ys, taus, dt)      # low-passed both ways, the rotors' ring out
-    campaign.boxes(body, ys, taus, dt, armature)    # each gearbox's wind-up, play, damping, mesh
+    campaign.boxes(body, ys, taus, dt, armature)    # each gearbox's wind-up, play, damping, mesh; its rotor
 
 What `machine.sysid` reads its rows off: her edge arrays (`machine.edge`) and her drives' torques
 a step, on the world or on a robot of her build, its boards' currents its torques.
@@ -19,6 +19,9 @@ from machine.figure import JOINTS, LEG
 #: least (`boxes`); a campaign's arrays low-passed at this, Hz, both ways, before its rows
 #: (`smoothed`: the tones under 1.4, a rotor's mode 30).
 WOUND_NM, WOUND_ROWS, SMOOTH_HZ = 1.0, 25, 10.0
+#: A rotor is read inside this share of its play, on this many steps at least, its torque's
+#: mean over the two steps about each past this, N m (`boxes`).
+INSIDE, ROTOR_ROWS, ROTOR_NM = 0.85, 25, 0.5
 #: The excitation's sines a drive, Hz; the share of a joint's range it swings through and the
 #: share kept from either stop; an unlimited joint's swing, rad; the parts whose unlimited
 #: joint swings abducted; a stage's ease in and out, s.
@@ -83,13 +86,31 @@ def tone(t, tones, phase, amp):
     return ease * (amp * tones[0] / tones * np.sin(2.0 * math.pi * np.outer(t, tones) + phase)).sum(axis=1)
 
 
+def _box(delta, rel, passed):
+    """(k, play, c, mesh) of one box on the steps it is wound up, by least squares: past its play
+    it passes k (delta - play sign delta) + c rel + mesh tanh(rel / MESH_RAD_S) to its link. The
+    mesh's friction is not read: within a step the rotor's ring swings the sliding across the
+    rounding, and the step's mean sliding tells nothing of it (identification.md)."""
+    import numpy as np
+    from machine.gearbox import MESH_RAD_S
+    wound = np.abs(passed) > WOUND_NM
+    if wound.sum() < 4 * WOUND_ROWS:
+        return 0.0, 0.0, 0.0, 0.0
+    A = np.column_stack([delta[wound], -np.sign(delta[wound]), rel[wound], np.tanh(rel[wound] / MESH_RAD_S)])
+    fit = np.linalg.lstsq(A, passed[wound], rcond=None)[0]
+    return fit[0], fit[1] / fit[0] if fit[0] > 0.0 else 0.0, fit[2], fit[3]
+
+
 def boxes(body, ys, taus, dt, armature, every=1):
-    """Each drive's gearbox from its two encoders: (k N m/rad, play rad, c N m s/rad, mesh N m)
-    a drive (driven, 4) by least squares on the steps it is wound up - past its play the box
-    passes k (delta - play sign delta) + c rel + mesh sign rel to its link, delta the motor's
-    angle past the joint's (QM - Q), rel their rates' difference; what it passes is the motor's
-    torque less its armature's (`identify`'s J) share of its acceleration. Rigid, nothing winds
-    up and every number is 0."""
+    """Each drive's gearbox and rotor from its two encoders: (k N m/rad, play rad, c N m s/rad,
+    mesh N m, J kg m^2) a drive (driven, 5). The box first with `armature` (`identify`'s J, the
+    smoothed rows') the rotor's share of the motor's torque, for its play; the rotor's inertia on
+    the steps inside the play, where the box passes nothing and the motor's torque is the
+    rotor's alone - a step's second difference of the motor's angle, QM, is its torque's mean
+    over the two steps about it, over J (`ROTOR_ROWS` at least, the torque past ROTOR_NM) -; the
+    box again with that rotor (`_box`): delta the motor's angle past the joint's (QM - Q), rel
+    their rates' difference, the torque's held over its step. Rigid, nothing winds up and every
+    number is 0."""
     import numpy as np
     at = np.arange(1, len(ys) - 2, every)
     driven = np.flatnonzero(body.driven)
@@ -101,16 +122,19 @@ def boxes(body, ys, taus, dt, armature, every=1):
     rel = (wound_up[at + 1] - wound_up[at])[:, driven] / dt
     qm = ys[:, edge.QM]
     wacc = (qm[at + 2] - qm[at + 1] - qm[at] + qm[at - 1])[:, driven] / (2.0 * dt ** 2)
-    passed = taus[at][:, driven] - np.asarray(armature) * wacc
-    out = np.zeros((len(driven), 4))
+    second = (qm[at + 1] - 2.0 * qm[at] + qm[at - 1])[:, driven] / dt ** 2
+    mean = 0.5 * (taus[at] + taus[at - 1])[:, driven]
+    motor = taus[at][:, driven]
+    out = np.zeros((len(driven), 5))
     for i in range(len(driven)):
-        wound = np.abs(passed[:, i]) > WOUND_NM
-        if wound.sum() < 4 * WOUND_ROWS:
-            continue
-        A = np.column_stack([delta[wound, i], -np.sign(delta[wound, i]), rel[wound, i], np.sign(rel[wound, i])])
-        fit, _r, _k, _s = np.linalg.lstsq(A, passed[wound, i], rcond=None)
-        k = fit[0]
-        out[i] = (k, fit[1] / k if k > 0.0 else 0.0, fit[2], fit[3])
+        J = float(armature[i])
+        play = _box(delta[:, i], rel[:, i], motor[:, i] - J * wacc[:, i])[1]
+        if play > 0.0:
+            inside = np.abs(wound_up[:, driven[i]]) < INSIDE * play
+            rows = inside[at - 1] & inside[at] & inside[at + 1] & (np.abs(mean[:, i]) > ROTOR_NM)
+            if rows.sum() >= ROTOR_ROWS and (mean[rows, i] @ second[rows, i]) > 0.0:
+                J = float(mean[rows, i] @ mean[rows, i] / (mean[rows, i] @ second[rows, i]))
+        out[i] = _box(delta[:, i], rel[:, i], motor[:, i] - J * wacc[:, i]) + (J,)
     return out
 
 

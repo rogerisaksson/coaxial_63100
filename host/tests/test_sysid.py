@@ -2,8 +2,8 @@
 """Her body identified of her edge alone (`machine.sysid`, `machine.identified`): the regressor against MuJoCo's inverse
 dynamics; a campaign on the stand reading her drives' friction and armature and her links; a
 payload in her hand found; its corrections laid over her law's model and judged on a fresh
-campaign; a world built 15 % off the figure read back; her gearboxes' wind-up and play on the
-boxed world. Off the stand: test_sysid_live."""
+campaign; a world built 15 % off the figure read back; her rotors and her gearboxes' wind-up
+and play on the boxed world. Off the stand: test_sysid_live."""
 import os
 import sys
 import tempfile
@@ -36,10 +36,11 @@ ARMATURES = ('knee', 'ankle', 'ankle_roll', 'elbow')
 MOVED = ('left_forearm.hy', 'left_upper_arm.hy', 'torso.hy')
 #: How far a world is built off the figure, of each number.
 OFF = 0.15
-#: The drives whose gearboxes the campaign reads: those whose rotors ring least through it; the
-#: knees', elbows' and ankles' rings at their mode, 187 rad/s, which a 1 kHz encoder reads at a
-#: fifth of a cycle a step.
-BOXES = ('spine_roll', 'spine', 'waist', 'neck', 'head', 'shoulder', 'hip_yaw', 'hip')
+#: The drives whose gearboxes the campaign reads: all but the ankles', whose rotors ring across
+#: their play (their mode 93 rad/s, the lowest; the wind-up 28-35 % low, the play 12 %); how far
+#: a rotor's inertia may sit from the world's, of itself.
+BOXES = ('spine_roll', 'spine', 'waist', 'neck', 'head', 'shoulder', 'elbow', 'hip_yaw', 'hip_roll', 'hip', 'knee')
+ROTOR = 0.02
 def _off(world, c, seed, keep=False):
     """`world` built OFF of the figure: every link's mass, centre and inertia, every drive's
     armature and friction drawn apart; `keep` its state through the constants laid anew."""
@@ -249,10 +250,10 @@ def test_a_world_off_the_figure_is_read_back(report, c):
 
 def test_her_gearboxes_are_read(report, c):
     """On the world with its gearboxes (`physics.BOXED`), the campaign's arrays low-passed both
-    ways, each drive's armature read at its motor's encoder; each box's wind-up and play from
-    its two encoders on the drives whose rotors ring least (BOXES), within FRICTION - at the
-    campaign's phases drawn with seed 1: drawn with 6 she touched herself 83 steps and the
-    head's wind-up came 24 % off."""
+    ways, each drive's armature read at its motor's encoder; each rotor's inertia on the steps
+    inside its play, within ROTOR on every drive; each box's wind-up and play from its two
+    encoders on BOXES within FRICTION - at the campaign's phases drawn with seed 1: drawn with 6
+    she touched herself 83 steps and the head's wind-up came 24 % off."""
     from machine import campaign, sysid
     from machine.drives import kind
     from machine.figure import JOINTS
@@ -278,6 +279,9 @@ def test_her_gearboxes_are_read(report, c):
     report.check('every rotor\'s armature read positive at the motors\' encoders, the hip yaws\' within %.0f %%' % (100 * FRICTION),
                  (armature > 0.0).all() and all(arm[k] < FRICTION for k, i in enumerate(named) if kind(driven[i]) == 'hip_yaw'),
                  'worst %.1f %% on %s' % (100 * arm.max(), ', '.join(BOXES)))
+    rotor_err = np.abs(read[:, 4] - rotor) / rotor
+    report.check('every rotor\'s inertia on the steps inside its play within %.0f %%' % (100 * ROTOR),
+                 rotor_err.max() < ROTOR, 'worst %.1f %% (%s)' % (100 * rotor_err.max(), driven[int(np.argmax(rotor_err))]))
     k_true = np.array([world.boxes.k[JOINTS.index(j)] for j in driven])
     gap_true = np.array([world.boxes.gap[JOINTS.index(j)] for j in driven])
     k_err = np.abs(read[named, 0] - k_true[named]) / k_true[named]

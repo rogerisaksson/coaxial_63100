@@ -230,7 +230,7 @@ tests/              suites, .counts.json (measured sizes)
 | edge | the one reader of the world for her law - IMU, encoders, sole loads, a skin a segment, insoles - and the one writer of her drives |
 | estimate | her pelvis's place and speed of what she measures: the IMU carried, drawn to her bearing insoles; how fast they slide |
 | sysid | her body identified of her edge alone: Newton-Euler down her tree, each link's inertia and each drive's friction, the base parameters fitted; her pelvis's rows her insoles measure |
-| campaign | the stand's campaign: a limb a stage at tones, played step by step; each gearbox read |
+| campaign | the stand's campaign: a limb a stage at tones, played step by step; each gearbox and rotor read |
 | identified | her corrections over her build: the least move of her links and drives that fits a campaign, TOML, laid over her law's model whole |
 | grip | each sole's floor friction as she feels it: what a sliding sole uses |
 | situation | where she is, from her sensors: bounds on six readings, the text's caps over her law |

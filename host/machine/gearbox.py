@@ -4,7 +4,8 @@ The rotor runs free across the play, winds the box and the structure up past it 
 mesh's friction, and the link is turned by that wind-up alone (`physics.BOXED`).
 
     boxes = Boxes(np)                                   # the numbers a joint (`machine.drives`)
-    passed = boxes.step(np, ctrl, qd, brake, dt)        # the links' torques; the rotors stepped on
+    passed = boxes.step(np, ctrl, q, qd, brake, dt)     # the links' torques; the rotors stepped on
+    boxes.moved(q)                                      # the links where the world's step left them
     boxes.delta, boxes.w                                # each rotor's angle past its link, its speed
 """
 import math
@@ -37,6 +38,7 @@ class Boxes:
         self.mesh = np.array([drives.mesh(j) for j in JOINTS])
         self.delta, self.w = np.zeros(len(JOINTS)), np.zeros(len(JOINTS))
         self.held, self.q_was = math.radians(drives.RIGID_PLAY_DEG) / 2.0, np.zeros(len(JOINTS))
+        self.q_step, self.went = np.zeros(len(JOINTS)), np.zeros(len(JOINTS))
 
     def reset(self, q):
         """Every rotor on its joint at `q`, still: a board's encoder reads its hold there."""
@@ -58,15 +60,20 @@ class Boxes:
         return np.where(self.driven, drives.AHEAD_WIND * torque / k
                         + drives.AHEAD_PLAY * self.gap * np.tanh(torque / PLAY_NM), 0.0)
 
-    def step(self, np, ctrl, qd, brake, dt):
-        """The links' torques from the motors' `ctrl` with the links at `qd` rad/s: what each box
-        passes on - the wind-up past the play, its damping, the mesh's friction -, the rotors
-        stepped `dt` on by what is left of their motors' torques against it, `brake` each rotor's
-        braking, N m s/rad (a short's), implicit."""
+    def step(self, np, ctrl, q, qd, brake, dt):
+        """The links' torques from the motors' `ctrl` with the links at `q` rad and `qd` rad/s
+        through the step - the step's middle's, the start's and half a step of the last
+        acceleration: against the start's the mesh's slope and the damping on a stale speed
+        added (c + mesh / MESH_RAD_S) dt qdd to a drive's torque, 0.13 kg m^2 at the waist -:
+        what each box passes on - the wind-up past the play, its damping, the mesh's friction -,
+        the rotors stepped `dt` on by what is left of their motors' torques against it, `brake`
+        each rotor's braking, N m s/rad (a short's), implicit; `moved` sets each rotor's angle
+        past its link right after."""
         on = self.driven
         j = np.where(on, self.j, 1.0)
         h = dt / SUBSTEPS
         mean = np.zeros(len(ctrl))
+        self.q_step, self.went = q.copy(), dt * qd
         for _ in range(SUBSTEPS):
             rel = self.w - qd
             past = np.sign(self.delta) * np.maximum(np.abs(self.delta) - self.gap, 0.0)
@@ -76,3 +83,10 @@ class Boxes:
             self.delta += h * (self.w - qd) * on
             mean += passed / SUBSTEPS
         return np.where(on, mean, ctrl)
+
+    def moved(self, q):
+        """The links landed at `q` after the step: each rotor's angle past its link is the rotor's
+        turn less the link's. Taken as `qd` dt, the link's turn left dt qd on every wind-up - a
+        knee at 2 rad/s wound 2 mrad of its 4.4 mrad play by its speed alone - and its rotor's
+        second difference carried the link's jerk."""
+        self.delta += (self.went - (q - self.q_step)) * self.driven

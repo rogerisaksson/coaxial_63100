@@ -57,10 +57,13 @@ def main(argv=None):
         from machine.figure import JOINTS
         armature = np.array([got['theta'][got['names'].index(n + '.J')] for n in drives])
         read = campaign.boxes(body, ys, taus, physics.STEP_S, armature)
-        print('\n%-20s %9s %9s %8s %8s' % ('gearbox', 'k N m/rad', 'world', 'play rad', 'world'))
+        print('\n%-20s %9s %9s %8s %8s %8s %8s %8s %8s' % ('gearbox', 'k N m/rad', 'world', 'play rad', 'world',
+                                                          'mesh N m', 'world', 'J kg m^2', 'world'))
         for i, name in enumerate(drives):
             k = JOINTS.index(name)
-            print('%-20s %9.0f %9.0f %8.4f %8.4f' % (name, read[i, 0], world.boxes.k[k], read[i, 1], world.boxes.gap[k]))
+            print('%-20s %9.0f %9.0f %8.4f %8.4f %8.3f %8.3f %8.4f %8.4f' % (
+                name, read[i, 0], world.boxes.k[k], read[i, 1], world.boxes.gap[k], read[i, 3], world.boxes.mesh[k],
+                read[i, 4], world.boxes.j[k]))
     print('\n%-24s %10s %10s %10s %8s' % ('base parameter', 'build', 'world', 'read', '+- %'))
     for k in np.argsort(got['uncertainty']):
         if got['trusted'][k] and not got['names'][k].endswith(('.J', '.b', '.f')):
