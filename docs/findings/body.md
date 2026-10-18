@@ -328,3 +328,12 @@ loop, gone from the tree (tag `laws-before-the-loop`); on the loop:
   rolling onto her front, the arm bones and the ankles' rods sitting back);
   2 members of 61 past a limit, the shank's first run flexing 0.29 deg, the
   spine roll's horn 0.26.
+- Dressed as cloth hangs (`gynoid._draped`, `_cap`): the tee a tube hung
+  plumb from the chest and the bust, EASE_M 12 mm off the torso where it is
+  wider below, its hem at the hips' widest, 140 mm under the torso joint
+  (0.192 half-wide over the jeans; a hem 36 mm under it at 0.152 over the
+  jeans' 0.118 top read as a roll); the seat's back 100-126 mm behind the pelvis
+  where 130 stood a ledge over the thighs; the hair a cap 14 mm over the
+  skull from the ears' line, its front the hairline up to 0.65 of the
+  skull's height, where an ellipsoid 24 mm wider than the head reached the
+  jaw; the fall 36 mm deep behind the occiput where 160 stood a wall.
