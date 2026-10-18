@@ -22,6 +22,9 @@ gets a line at the end of [DONE](DONE.md).
 
 ## Gynoid, in order
 
+- **The slip scene falls** (`test_scenarios.py:slip`): 1 of 3 lays at 4.2 s
+  on the old hold, 2 of 3 at 3.6 s with the hold let go - the stand comes on
+  the slick patch where the old hold stepped on. DOD: stood, 3 of 3.
 - **The bed soft, her lie-down a throw** (asked): F at the bed lies her down
   or throws her onto it, the mattress giving, not a block. DOD: sink and
   time to rest measured.

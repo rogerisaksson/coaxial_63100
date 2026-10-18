@@ -239,9 +239,8 @@ the fifty before these: [DONE_1-50](DONE_1-50.md).
     two frames a corner by its height.
 68. Her errands settle without hesitation or flicker (`machine.law`,
     `terminal/views/gym.py`, `coaxial/graphics/arrows.py`, `test_errands.py`):
-    `held_back` waits only while her rhythm is on and a swing has its sole off
-    the floor (23 flips where 3 781 in 4 s, stand in 0.55 s), F sits and rises
-    her cleanly, and a scene laid anew clears the pad's cached twist
+    `held_back` lets a held row go after two of her rhythm's swings, F sits
+    and rises her, and a scene laid anew clears the pad's cached twist
     ([scenarios](findings/scenarios.md)).
 69. Findings that told of the laws before the loop cut to what holds on the
     loop (body, feet, drives, stacks, normal, wbc); `test_layout` holds that no

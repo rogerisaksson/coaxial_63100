@@ -28,21 +28,26 @@ def seen(g, dt):
 
 
 def held_back(g, dt):
-    """Rows that halt her rhythm - a stand, a hop's load - wait a pass, while her rhythm is on
-    (`latent.GAIN`), for her capture point's step or a swing under way with its sole off the floor
-    (`modal.NEED`, `modal.SWINGS`, `modal.STANCE`), every row after them, her labels and a hop's
-    end with them. Stepped through a hop's load, she left the floor rolling and came down at 60
-    deg. Held on a swing commanded alone they never came: the brake's sway kept one commanded on
-    two standing soles, 3 781 flips between brake and stand in 4 s. Held with no rhythm on, a
-    sit's rows flipped 125 times as she leant back off her soles onto the seat."""
+    """Rows that halt her rhythm - a stand, a hop's load - wait a pass while her capture point
+    steps her or a swing is under way (`modal.NEED`, `modal.SWINGS`), every row after them, her
+    labels and a hop's end with them: stepped through a hop's load, she left the floor rolling
+    and came down at 60 deg. Held longer than two of her rhythm's swings (`latent.TURNS`) they
+    come: the swing waited for is not coming - the brake's sway kept one commanded on two
+    standing soles for ever, the stand that would end it never came, a sit asked held with it,
+    and told to stop on ice she shuffled on 38 cm at 0.045 m/s."""
     tab, t, a = g['tab'], g['t'], g['a']
-    swinging = a[modal.SWINGS].max() > 0.0 and a[modal.STANCE].min() < 0.5
-    if not len(tab) or g['st'][latent.NOW][latent.GAIN] <= 0.05 or (a[modal.NEED] <= 0.0 and not swinging):
+    if not len(tab) or (a[modal.NEED] <= 0.0 and a[modal.SWINGS].max() <= 0.0):
+        g['_held_since'] = None
         return
     at = tab[:, latent.AT]
     halts = (tab[:, latent.SAID][:, latent.GAIN] > 0.5) & (tab[:, latent.VALS][:, latent.GAIN] < 0.05)
     due = halts & (at <= t + latent.EDGE_S) & (at > t - dt + latent.EDGE_S)
     if not due.any():
+        return
+    since = g.get('_held_since')
+    if since is None:
+        since = g['_held_since'] = t
+    if t - since > 4.0 * stride.PHI_W / max(float(g['out'][latent.TURNS]), stride.TINY):
         return
     first = float(at[due].min()) - latent.EDGE_S
     at[at >= first] += dt

@@ -335,8 +335,9 @@ pass beside the world's floor under each sole (`tools/sim/trace.py`).
   stood. An insole reads what presses up through it (`edge.read`'s load as
   the normal share): right, and not kept - the slick patch's 5 mm lip's push
   had stood a sole there and it fell at 3.9-4.4 s, and the snow's far edge
-  fell at one wobble of three, a hop off its 4 cm at 1.4 m/s. Pushed back, the swing held before its descent with her rhythm
-  and her rows waiting, its clearance climbing till the toes were over the edge,
+  fell at one wobble of three, a hop off its 4 cm at 1.4 m/s. Pushed back,
+  the swing held before its descent with her rhythm and her rows waiting, its
+  clearance climbing till the toes were over the edge,
   its heel landing 4 cm past where they met it: the first riser climbed (up 3.0
   -> 4.7 s), but the same hold fired at the tree's and the wall's foot and at
   the snow's 4 cm lip, and with it a give-up at 0.22-0.30 m of raise and a veto
@@ -355,16 +356,24 @@ pass beside the world's floor under each sole (`tools/sim/trace.py`).
 
 ## Her errands
 
-- Walked 2 s and told to stop, `law.held_back` waited on `modal.SWINGS > 0`
-  alone: the brake's sway kept one swing commanded while both soles stood
-  (`modal.STANCE >= 0.5`), flipping her doing between `brake` and `#201` 3 781
-  times in 4 s; with no rhythm on (`latent.GAIN <= 0.05`), `sit_chair`'s rows
-  flipped 125 times as she leant back off her soles onto the seat. Held only
-  while her rhythm is on and a swing has its sole off the floor (`swinging`),
-  she stands in 0.55 s (23 flips in 4 s), sits in 3.00 s (2 flips) and rises in
-  2.50 s (3 flips) (`test_errands`).
+- Walked 2 s and told to stop, `law.held_back` held the stand for ever: the
+  brake's sway kept a swing commanded on two standing soles, her doing flipped
+  between `brake` and `#201` 3 781 times in 4 s and `sit_chair`'s rows were
+  held with it. Holding on the sole off the floor, on her rhythm's gain or a
+  control step ahead of now each moved her: `walk_turn_right_at_0.69` fell at
+  its end and on ice she went 1.76 m, not past 1.8 (test_replays,
+  test_scenarios). The hold kept as it was and let go after two of her
+  rhythm's swings (`latent.TURNS`), the swing it waits for not coming: she
+  stands in 0.3 s, sits at 3.2 s, rises at 2.7 s, walks at once on a scene
+  laid anew; the hop as before, 172 flips and 152/153 N; the 12 replays whole
+  (`test_errands`). Let go only with her capture point inside her soles, the
+  hop-after-a-stop replay fell at its end.
+- The ice scene's `past 1.8` was the deadlock's shuffle: told to stop at
+  1.49 m, the old hold carried her on at 0.045 m/s for the 6 s she was to
+  stand, to 1.88 m, brake and stand flipping all the while; let go, she
+  stands at 9.0 s and the ice slides her 6 cm more, to 1.76 m, 0.02 m/s at
+  the end. The goal is 1.7 m now, a stop that stops.
 - On a scene laid anew (`gym._run_scenario`), the pad's cached `setpoint` held
   the prior twist and swallowed the next W asked at once; cleared on scene
   reset, a walk asked at once begins in 1 ms. `arrows.describe` draws the stop
   mark only on `STOP_DOING` and the going arrow only on a commanded twist.
-

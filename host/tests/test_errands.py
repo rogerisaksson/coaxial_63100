@@ -13,15 +13,16 @@ from views_kit import Report
 WALK, STOP = (0.69, 0.0, 0.0), (0.0, 0.0, 0.0)
 
 
-def _run(s, seconds, until=None):
-    """`seconds` of passes: (the flips of her doing, the seconds to `until`'s doing, or None)."""
+def _run(s, seconds, until=None, after=0.0):
+    """`seconds` of passes: (the flips of her doing from `after` s on, the seconds to `until`'s
+    doing, or None)."""
     from machine import sprung, worker
     g, last, flips, got, t0 = s['g'], None, 0, None, s['g']['t']
     for _ in range(int(round(seconds / worker.DT))):
         worker.stepped(s)
         doing = sprung.doing(g)
         if doing != last:
-            flips, last = flips + (last is not None), doing
+            flips, last = flips + (last is not None and g['t'] - t0 >= after), doing
             if got is None and doing == until:
                 got = g['t'] - t0
     return flips, got
@@ -33,8 +34,8 @@ def _speed(s):
 
 
 def test_a_stop_settles_and_f_is_heard(report):
-    """Walked 2 s and told to stop, her doing settles to the stand within the brake's own 1.2 s
-    and holds; told to sit she is seated within 5 s, told to rise she stands within 6 s; a scene
+    """Walked 2 s and told to stop, her doing comes to the stand within the brake's own 1.2 s
+    and, two of her rhythm's swings on, holds; told to sit she is seated within 5 s, told to rise she stands within 6 s; a scene
     laid anew with a walk asked at once, she walks at once."""
     from machine import floor, worker
     s = worker.session()
@@ -43,9 +44,9 @@ def test_a_stop_settles_and_f_is_heard(report):
     worker.apply(s, {'twist': WALK})
     _run(s, 2.0)
     worker.apply(s, {'twist': STOP})
-    flips, stood = _run(s, 4.0, until='#201')
-    report.check('the stop: the stand within 1.3 s, under 60 flips of her doing in 4 s',
-                 stood is not None and stood < 1.3 and flips < 60 and _speed(s) < 0.2,
+    flips, stood = _run(s, 4.0, until='#201', after=2.0)
+    report.check('the stop: the stand within 1.3 s, under 10 flips of her doing from 2 s on',
+                 stood is not None and stood < 1.3 and flips < 10 and _speed(s) < 0.2,
                  'stand after %s, %d flips, %.2f m/s at the end' % (stood, flips, _speed(s)))
     x, _, z = s['g']['est']['pos']
     floor.mocap(s['g']['world'], 'chair', (float(x), 0.0, float(z) - 0.30), math.pi)
