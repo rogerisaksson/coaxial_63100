@@ -45,8 +45,8 @@ def laid():
 
 def outside(grip, grips):
     """Each sole's grip as her law takes it: her own, MU, inside her envelope - over every
-    surface's grip (`grips`) -, the grip felt as far as she is outside it, the fifth under the
-    highest surface's grip from one to the other. Read whole, her estimator's slides of a
+    situation's bound on it (`grips`, `situation.text`) -, the grip felt as far as she is outside
+    it, the fifth under the highest bound from one to the other. Read whole, her estimator's slides of a
     turnabout's pivot, a shove's skid and a weave read 0.27 to 0.55 on a floor of 1.0, bounded
     her landings, and walking 80 N shoves fell 30 -> 25."""
     top = np.max(grips, initial=0.0)

@@ -14,7 +14,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
-from machine import borne, edge, estimate, flight, grip, impedance, latent, modal, poise, se2, stride, support, touch, wbc
+from machine import borne, edge, estimate, flight, grip, impedance, latent, modal, poise, se2, situation, stride, support, touch, wbc
 
 
 def seen(g, dt):
@@ -47,16 +47,15 @@ def held_back(g, dt):
         g['_jump_until'] += dt
 
 
-def gripped(out, held, stance, surfaces):
-    """`out` on her standing soles' grip (`held`): each mode's sway and its sine scaled down to the
-    caps of the surfaces she is under (`sprung.surfaced`: grips (S,), caps (S, N)), each blended
-    in over the fifth under its grip; her drive's further to her going no faster than sqrt(2
-    STRIDE_M grip g) - a stride she can stop within: 0.77 m/s on ice (0.1), 1.9 at her law's own
-    0.6. Asked 0.69 on ice at 0.02 she ran on and fell at 3.0-3.4 s."""
+def gripped(out, held, stance, caps, into):
+    """`out` in the situations she is in (`into` (S,), `situation.read`): each mode's sway and its
+    sine scaled down to each's caps (S, N; `situation.text`) as far as she is in it; her drive's
+    further to her going no faster than sqrt(2 STRIDE_M grip g) on her standing soles' grip
+    (`held`) - a stride she can stop within: 0.77 m/s on ice (0.1), 1.9 at her law's own 0.6.
+    Asked 0.69 on ice at 0.02 she ran on and fell at 3.0-3.4 s."""
     grip_now = float(((stance + 1e-9) / (stance.sum() + 2e-9)) @ held)
     sway = np.abs(out[latent.SWAY])
-    grips, caps = surfaces
-    under = np.clip((grips - grip_now) / (0.2 * grips), 0.0, 1.0)[:, None]
+    under = into[:, None]
     capped = np.where(np.isnan(caps), 1.0, np.minimum(1.0, np.nan_to_num(caps) / np.maximum(sway, 1e-9)))
     k = np.min(1.0 - under + under * capped, axis=0, initial=1.0)
     turns = float(out[latent.TURNS])
@@ -106,7 +105,9 @@ def control(g, dt):
                           (y_in[edge.LOAD] >= flight.TOUCH_N) & ~np.array(g.get('bore', (True, True))))
     g['loads'] = [float(v) for v in y_in[edge.LOAD]]
     y = modal.sensed(s, g['loads'], g['y'])
-    y[modal.GRIP] = g['held'] = grip.outside(g['grip'], g['surfaces'][0])
+    y[modal.GRIP] = g['held'] = grip.outside(g['grip'], g['situations']['grips'])
+    g['into'] = situation.read(g['situations'], situation.readings(
+        y, g['fr'], g['a'], g['grip'], y_in[edge.TOUCH].reshape(-1, 3), float(g['fr'][modal.WEIGHT])))
     thd, cur_doing = g.get('target_heading'), sprung.doing(g)
     if thd is not None:
         g['heading'] += max(-1.6 * dt * ev, min(1.6 * dt * ev, se2.wrap_angle(thd - g['heading'])))
@@ -127,7 +128,7 @@ def control(g, dt):
         out = latent.step(g['st'], g['tab'], g['t'], 0.0, g['out'])
     g['_last_way'] = cw
     se2.step_physical_twist(g, dt * ev, out)
-    gripped(out, g['held'], g['a'][modal.STANCE], g['surfaces'])
+    gripped(out, g['held'], g['a'][modal.STANCE], g['situations']['caps'], g['into'])
     cur_doing = sprung.doing(g)
     touch.check_contacts(g, out, cur_doing)
     ae, tw = g.get('active_entry'), g.get('twist', (0.0, 0.0, 0.0))

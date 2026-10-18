@@ -4,7 +4,7 @@ from tools.dev.suites import (AERO_CORE, BENCH, BOARD_MEM, BOOT, BOOT_CLIENT, BO
                               CONTROLLER, CORE, CTRL_CORE, CYCLIC, DAQ_API, DAQ_CORE, DRIVE,
                               DRIVE_OBSERVER, EMULATOR, FILTER, FLIGHT, GVS, GYNOID,
                               HEATED, NATIVE, NATIVE_HEAT, OLLAMA, ORTHO, FLOOR, QUADS, REACH, RENDER, REPLAYS, SCENES,
-                              SENSORLESS, SHTP, SIGHT, STREAMS, STRUCTURE, SYSID, SYSID_LIVE, TERMS, THERMAL,
+                              SENSORLESS, SHTP, SIGHT, SITUATION, STREAMS, STRUCTURE, SYSID, SYSID_LIVE, TERMS, THERMAL,
                               THERMAL_APP, VIEWS, WBC, WBC_CORE, WIRE, WORLD_CORE, WRENCH)
 
 # What a change to each part of the tree can plausibly have broken.
@@ -82,8 +82,10 @@ TOUCHES = (
     ('host/machine/sysid.py',                  (STRUCTURE, SYSID, SYSID_LIVE)),
     ('host/machine/campaign.py',               (STRUCTURE, SYSID, SYSID_LIVE)),
     ('host/machine/identified.py',             (STRUCTURE, SYSID, SYSID_LIVE, WBC, WBC_CORE)),
+    ('host/machine/situation.py',              (STRUCTURE, SITUATION, FLOOR, SCENES, REPLAYS)),
+    ('host/machine/situations.lisp',           (SITUATION, FLOOR, ORTHO, SCENES)),
     ('host/machine/',                          (CONTROLLER, GYNOID, SIGHT, REACH, TERMS, WBC, WBC_CORE,
-                                                FLIGHT, WRENCH, SYSID, SYSID_LIVE, ORTHO, FLOOR, CYCLIC, REPLAYS, SCENES,
+                                                FLIGHT, WRENCH, SYSID, SYSID_LIVE, ORTHO, FLOOR, SITUATION, CYCLIC, REPLAYS, SCENES,
                                                 'test_simulated.py', 'test_mcp.py',
                                                 'test_views_humanoid.py', 'test_views_floor.py')),
     ('host/coaxial/graphics/gynoid.py',        (RENDER, *VIEWS, GYNOID)),

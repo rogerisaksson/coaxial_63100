@@ -110,8 +110,11 @@ WBC_CORE, FLIGHT, WRENCH = 'test_wbc_core.py', 'test_flight.py', 'test_wrench.py
 SYSID, SYSID_LIVE = 'test_sysid.py', 'test_sysid_live.py'
 #: Orthokinematics: a text compiled, her latent loop, her walk on it, the page's gym.
 ORTHO = 'test_ortho.py'
-#: Her floor: the plane under her soles, its grip as she feels it, the surfaces that cap her rhythm.
+#: Her floor: the plane under her soles, its grip as she feels it, the situations that cap her rhythm.
 FLOOR = 'test_floor.py'
+#: Her situation read from her sensors: her text's bounds and caps, each entered unannounced told
+#: within a second.
+SITUATION = 'test_situation.py'
 #: Her motion's measures in a dimensionless frame on SO(3) (tools/sim/gvs.py).
 GVS = 'test_gvs.py'
 #: Her recorded runs replayed, each without a fall (tests/replays, tools/sim/replay.py).
@@ -140,7 +143,7 @@ DEFAULT_SUITES = (STRUCTURES + (CORE, SHTP, DRIVE, DRIVE_OBSERVER, FILTER, THERM
                    CTRL_CORE, WORLD_CORE, WIRE, NATIVE, NATIVE_HEAT, EMULATOR,
                    SENSORLESS,
                    BROKER, DAQ_API, CONTROLLER, GYNOID, SIGHT, REACH, TERMS, GVS, REPLAYS, SCENES, WBC,
-                   WBC_CORE, FLIGHT, WRENCH, SYSID, SYSID_LIVE, ORTHO, FLOOR, CYCLIC, QUAD, QUAD_PULL,
+                   WBC_CORE, FLIGHT, WRENCH, SYSID, SYSID_LIVE, ORTHO, FLOOR, SITUATION, CYCLIC, QUAD, QUAD_PULL,
                    AERO_CORE, STREAMS, QUAD_COURSE, BOOT)
                   + VIEWS
                   + (RENDER,) + OLLAMA
@@ -171,6 +174,7 @@ JOINS = (
     (12, FLIGHT),
     (12, ORTHO),
     (12, FLOOR),
+    (12, SITUATION),
     (12, WRENCH),
     (12, CYCLIC),
     (12, QUAD),
@@ -260,14 +264,14 @@ PORT = ('test_mcp.py', 'test_parity.py')
 
 #: Suites that run their tests through tools.dev.focus.chosen: past a slice of the run they go
 #: on as shards side by side.
-SHARDED = (SENSORLESS, CONTROLLER, GYNOID, ORTHO, SYSID, SYSID_LIVE, 'test_simulated.py', 'test_views_segments.py', DAQ_API,
-           QUAD_PAGE, REPLAYS, SCENES)
+SHARDED = (SENSORLESS, CONTROLLER, GYNOID, ORTHO, SYSID, SYSID_LIVE, SITUATION, 'test_simulated.py', 'test_views_segments.py',
+           DAQ_API, QUAD_PAGE, REPLAYS, SCENES)
 
 #: A sharded suite's seconds where none are recorded (tests/.counts.json, not committed):
 #: the loop's suite 120 s here whole, a walk a shard; the quad's page 211 s, a flight a
 #: shard; the scenarios' 1 894 s here at 20 held, and a shard of CI's 3.14 runner cut past
 #: twice its share of 900.
-FRESH_S = {ORTHO: 300.0, QUAD_PAGE: 250.0, SCENES: 2400.0}
+FRESH_S = {ORTHO: 300.0, QUAD_PAGE: 250.0, SCENES: 2400.0, SITUATION: 400.0}
 
 #: The emulator's groups and each one's time, s, a Renode each: the rig's took 150 of the
 #: suite's 211 one after another here, and CI's runner ran the Release image's past 240.

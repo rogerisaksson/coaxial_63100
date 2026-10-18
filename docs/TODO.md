@@ -197,15 +197,10 @@ gets a line at the end of [DONE](DONE.md).
       check in `test_layout`: no document names a module, a tool or a suite not
       in the tree.
 
-20. **Her situation read, her law reconfigured**: an effector placed
-    anywhere reads where she is from her sensors and lays the text that fits
-    over the general law (Scenarios 4), one mechanism for every floor, seat,
-    bed, stair, wall and tree. DOD: each situation entered unannounced, told
-    within a second, held 3 times in 4.
-21. **No transition with a jerk**, whatever happens (Scenarios 2,
+20. **No transition with a jerk**, whatever happens (Scenarios 2,
     `tools/sim/jerk.py`). DOD: every segment's peak through every scenario
     no higher than in her steady walk.
-22. **Identification's rest** (identification.md): a world 15 % off the
+21. **Identification's rest** (identification.md): a world 15 % off the
     figure reads back its drives and 61 of 107 trusted base parameters within
     10 %, its correction 0.60 -> 0.36 N m where the world's own is 0.30; with
     the gearboxes on, the wind-up and the play of 13 drives within 10 %, the
@@ -275,8 +270,9 @@ serves its DOD; none an entry a case.
    a sole's room a line along its blade, free along it, held across it. As
    it is: her grip felt as a sole slides (`machine.grip`) or told, her
    centre of mass, her going, her landings and her step's cones bounded by
-   it outside her envelope, a surface's text capping her rhythm under its
-   grip (`surfaces.lisp`); the ice read 0.103 and the slick patch 0.065 a
+   it outside her envelope, a situation's text capping her rhythm under its
+   grip (`situations.lisp`, situation.md: seven read, one laying caps); the
+   ice read 0.103 and the slick patch 0.065 a
    pass after a sole meets them, kept 30 s and handed to each landing sole:
    told or unaware she crosses both, and snow, at every wobble (grip.md).
    Left: a floor her soles never slide on - asphalt, snow - read from what

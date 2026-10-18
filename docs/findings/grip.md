@@ -34,11 +34,11 @@ and the patches in [scenarios](scenarios.md) walk it.
   under the highest surface's grip, 0.25 -; a sole landing starts from what she
   knows of the floor: kept from the slick patch, her reach was 5 cm on a floor
   of 1.0 for a second and she fell there.
-- A surface is text (`machine/surfaces.lisp`, `(defsurface NAME (grip G) ..)`):
+- A slippery floor is a situation of her text (`machine/situations.lisp`,
+  `(defsituation slippery (grip below 0.25) ..)`, [situation](situation.md)):
   under its grip her rhythm's amplitudes no more than its, whatever she does,
-  blended in over the fifth under G; one so far, slippery under 0.25 with
-  `ice_walk`'s shape. What she is told of the floor - by a player or her eyes,
-  the `grip` command - is her grip's prior.
+  blended in over the fifth under 0.25, `ice_walk`'s shape. What she is told of
+  the floor - by a player or her eyes, the `grip` command - is her grip's prior.
 - Her level walk the same to the digit; the bench 60 of 90 scenes, 80 N standing
   32 and walking 29 as before her grip. Told the ice's 0.1 she crosses it
   standing at 13 of 13 wobbles (`ice_told`); unaware ice 1 of 13, down at

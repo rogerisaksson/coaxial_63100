@@ -5,7 +5,7 @@
 """
 import math
 import os
-from machine import mechatronics, edge, estimate, flight, grip, ortho
+from machine import mechatronics, edge, estimate, flight, grip, ortho, situation
 
 RATE_HZ, SLICE_S, SAY_S, AVERAGE_S, RECOVER_S = 1000.0, 0.05, 1.0 / 60.0, 0.05, 3.0
 SHOVES, SHOVE_S = {'nudge': 38.0, 'push': 80.0, 'shove': 120.0}, 0.12
@@ -90,6 +90,7 @@ def laid(every=1, inner=None, solver=None):
     a[modal.STANCE] = 1.0
     legs = [[i for i, j in enumerate(JOINTS) if j.startswith(s0) and kind(j) in LEG_KINDS] for s0 in ('left_', 'right_')]
     wep_lim = np.array([max(float(servos.SERVO[kind(j)][0]), float(peak(j)), 1.45 * float(body.clamp[i])) for i, j in enumerate(names)])
+    sit = situation.text()
     g = {'world': world, 'body': body, 'y': y, 'fr': fr, 'rest': rest, 'rest_y': rest_y, 'st': st, 'out': out, 'a': a, 'tab': tab,
          'labels': [], 'posture': s['q'].copy(), 'limbs': limbs, 'bend': modal.crouch(names), 'arms': modal.swing(names),
          'cervical': [names.index(j) for j in ('neck', 'head') if j in names], 'waist_idx': names.index('waist') if 'waist' in names else None,
@@ -97,7 +98,7 @@ def laid(every=1, inner=None, solver=None):
          'legs': legs, 'leg_joints': np.concatenate(legs), 'leg_kp': world.gains[np.concatenate(legs), 0].copy(),
          'free_kp': world.gains[:, 0].copy(), 'clamp': world.limit.copy(), 'wep_lim': wep_lim, 'joints': joints,
          'hold': np.zeros(len(body.clamp)), 'left': WEP_S, 'ref_q': q0.copy(), 'ref_v': np.zeros(len(q0)),
-         'sense': sense, 'est': est, 'grip': grip.laid(), 'grip_prior': grip.laid(), 'surfaces': surfaced(),
+         'sense': sense, 'est': est, 'grip': grip.laid(), 'grip_prior': grip.laid(), 'situations': sit, 'into': np.zeros(len(sit['names'])),
          'grip_seen': np.zeros((2, grip.SEEN)),
          'grip_at': np.array([[m.body(s0 + part).id for part in ('foot', 'toes')] for s0 in ('left_', 'right_')]),
          'q_lo': np.array([_Q_LIM.get(kind(j), (-2.0, 2.0))[0] for j in names]), 'q_hi': np.array([_Q_LIM.get(kind(j), (-2.0, 2.0))[1] for j in names]),
@@ -109,14 +110,6 @@ def laid(every=1, inner=None, solver=None):
          'solve': {'stack': wbc.step, 'wrench': wrench.step}[solver or SOLVER]}
     world.clock = lambda: g['t']
     return g
-
-
-def surfaced(text=None):
-    """(grips (S,), caps (S, N)) of her text's surfaces (`ortho.surfaces`, machine/surfaces.lisp)."""
-    import numpy as np
-    got = ortho.surfaces(text)
-    return (np.array([g for _n, g, _c in got], float).reshape(-1),
-            np.array([c for _n, _g, c in got], float).reshape(-1, ortho.N))
 
 
 def _sensed(body, est, sense, limbs):
@@ -259,7 +252,7 @@ def state(g, torque, power, watts, ratio, fallen_at, says=(), refused=None):
             'fallen': fallen_at is not None, 'loads': tuple(g['loads']), 'props': world.props(),
             'doing': doing(g), 'recover': None if fallen_at is None else RECOVER_S - (g['t'] - fallen_at),
             'ratio': min(ratio, 99.0), 'says': tuple(says), 'refused': refused,
-            'scenario': g.get('scenario', 'flat'), 'horizon': horizon,
+            'scenario': g.get('scenario', 'flat'), 'situation': situation.told(g['situations'], g['into']), 'horizon': horizon,
             'modes': [(n, float(out[latent.REF][i]), float(z[i]), float(out[latent.KS][i]),
                        float(out[latent.DS][i])) for i, n in enumerate(ortho.MODES)]}
 

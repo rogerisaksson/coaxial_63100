@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Her floor: the plane under her soles, its grip as she feels it, the surfaces that cap her rhythm."""
+"""Her floor: the plane under her soles, its grip as she feels it, the situations that cap her rhythm."""
 import math
 import os
 import sys
@@ -48,30 +48,26 @@ def test_a_grown_prop_bears_where_it_has_grown(report):
 
 
 def test_her_grip_bounds_her_rhythm(report):
-    """Her text's surfaces cap her rhythm under their grip, its targets kept; at her law's own grip
-    nothing moves; a sliding sole's grip is what it used, a holding one's at least that."""
+    """Her text's slippery situation caps her rhythm under its grip, its targets kept; at her law's
+    own grip nothing moves; a sliding sole's grip is what it used, a holding one's at least that."""
     import numpy as np
-    from machine import grip, latent, law, modal, ortho, sprung
+    from machine import grip, latent, law, modal, ortho, situation
     from machine.wbc import MU
-    got = {n: (g, c) for n, g, c in ortho.surfaces()}
+    table = situation.text()
+    k = table['names'].index('slippery')
     report.check('her text has the slippery floor under a quarter of a sole\'s load',
-                 got.get('slippery', (None,))[0] == 0.25, str(got))
-    try:
-        ortho.surfaces('(defsurface s (cpg_config (amplitude mode_foot_rock 0.0)))')
-        refused = ''
-    except SyntaxError as error:
-        refused = str(error)
-    report.check('a surface without its grip is refused', len(refused) > 12, refused)
+                 table['hi'][k, situation.READINGS.index('grip')] == 0.25, str(table['hi'][k]))
     rng = np.random.default_rng(1)
     out = np.zeros(latent.OUT)
     out[latent.REF], out[latent.RATE], out[latent.ACC] = rng.normal(size=(3, ortho.N))
     out[latent.SWAY], out[latent.PSI], out[latent.TURNS] = 0.6, rng.uniform(0, 6, ortho.N), 5.9
-    surfaces, stance = sprung.surfaced(), np.ones(2)
+    stance, level = np.ones(2), np.array([MU, 0.0, 0.0, 1.0, 0.0, 0.0])
     held = out.copy()
-    law.gripped(held, np.full(2, MU), stance, surfaces)
+    law.gripped(held, np.full(2, MU), stance, table['caps'], situation.read(table, level))
     report.check('at her law\'s own grip her rhythm is the same to the bit', (held == out).all())
-    iced = out.copy()
-    law.gripped(iced, np.full(2, 0.1), stance, surfaces)
+    iced, on_ice = out.copy(), level.copy()
+    on_ice[0] = 0.1
+    law.gripped(iced, np.full(2, 0.1), stance, table['caps'], situation.read(table, on_ice))
     target = lambda o: o[latent.REF] - o[latent.SWAY] * np.sin(o[latent.PSI])
     report.check('on ice (0.1) her drive sways 0.20 at most, her soles rock none, her targets kept',
                  iced[latent.SWAY][modal.DRIVE] <= 0.2 + 1e-12 and iced[latent.SWAY][modal.ROCK] == 0.0

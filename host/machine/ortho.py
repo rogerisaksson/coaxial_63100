@@ -404,26 +404,6 @@ def robot(text=None, here=None):
     return next((r for r in found if r['name'] == mechatronics.ROBOT), found[0] if found else None)
 
 
-def surfaces(text=None, here=None):
-    """[(name, grip, caps (N))] of each (defsurface NAME (grip G) (cpg_config (amplitude MODE N)
-    ..)) in `text` (or `_FILE` and its includes): under grip G (`machine.grip`) her rhythm's
-    amplitude a mode no more than its cap, NaN where unsaid."""
-    here = here or os.path.dirname(_FILE)
-    if text is None:
-        with open(_FILE, encoding='utf-8') as f:
-            text = f.read()
-    out = []
-    for form in _forms(text, here):
-        if not (isinstance(form, list) and form and form[0] == 'defsurface'):
-            continue
-        grip = [c for c in form[2:] if isinstance(c, list) and c and c[0] == 'grip']
-        if len(form) < 3 or not isinstance(form[1], str) or len(grip) != 1 or len(grip[0]) != 2:
-            raise SyntaxError('%s: (defsurface NAME (grip G) (cpg_config (amplitude MODE N) ..))' % said(form)[:60])
-        r = _row([c for c in form[2:] if c is not grip[0]], _PAYLOAD)
-        out.append((form[1], _number(grip[0][1], 0.0), tuple(r[_HEAD + AMP:_HEAD + AMP + N])))
-    return out
-
-
 def rows(wire):
     """The rows of `wire`: [(id, at ms, blend ms, flags, the P parameters ..)]."""
     return list(ROW.iter_unpack(wire))
@@ -445,7 +425,7 @@ def compiled(text=None, here=None):
         if head == 'defrobot':
             _robot(form)
             continue
-        if head == 'defsurface':
+        if head == 'defsituation':
             continue
         if head == 'stream_inject':
             tables[''] += _packed(_row(form[1:], _PAYLOAD, traits=traits), 0)
@@ -465,7 +445,7 @@ def compiled(text=None, here=None):
         if head != 'defbehavior' or len(form) < 3 or not isinstance(form[1], str):
             raise SyntaxError('%s: a form is (include FILE ..), (defrobot NAME ..), (deftrait NAME ..), '
                               '(stream_inject ..), (defbehavior NAME ..), (derive NAME BASE ..) or '
-                              '(defsurface NAME ..)' % said(form)[:60])
+                              '(defsituation NAME ..)' % said(form)[:60])
         ext = isinstance(form[2], list) and form[2] and form[2][0] in ('extends', 'use')
         if form[1] in tables and not (ext and form[1] in form[2][1:]):
             raise SyntaxError('(defbehavior %s ..): said twice' % form[1])

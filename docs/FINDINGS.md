@@ -370,15 +370,16 @@ Six firmware defects, no hardware fault:
 | A woman's walk as the metric: the band, walks off it, the take | [findings/normal.md](findings/normal.md) |
 | Feet: passive toes, the sole's give, the push-off | [findings/feet.md](findings/feet.md) |
 | Her eyes: the stereo, the map she keeps, ways round its things | [findings/sight.md](findings/sight.md) |
-| Kinematics: the figure's recipes, dual quaternions, the jeans' seams | [findings/kinematics.md](findings/kinematics.md) |
+| Kinematics: the figure's recipes, dual quaternions, the seams | [findings/kinematics.md](findings/kinematics.md) |
 | The whole-body stack: its solver, standing, shoves, the loop in C | [findings/wbc.md](findings/wbc.md) |
 | Flight on the stack: which soles stand from one pass, a hop stood | [findings/flight.md](findings/flight.md) |
-| Orthokinematics, the one way she moves: text, a latent loop with no branch, modes, the stride, the walk | [findings/orthokinematics.md](findings/orthokinematics.md) |
-| Humanoid robot whole body's step without an active set: 21 unknowns, four solves | [findings/wrench.md](findings/wrench.md) |
+| Orthokinematics, the one way she moves: text, a latent loop, the stride, the walk | [findings/orthokinematics.md](findings/orthokinematics.md) |
+| The whole body's step without an active set: 21 unknowns, four solves | [findings/wrench.md](findings/wrench.md) |
 | What her law senses: edge, estimate, insoles | [findings/sensing.md](findings/sensing.md) |
 | Her body identified | [findings/identification.md](findings/identification.md) |
 | Her scenarios as a player commands them | [findings/scenarios.md](findings/scenarios.md) |
 | Her floor's grip: felt as a sole slides, told, her law bounded by it | [findings/grip.md](findings/grip.md) |
+| Her situation read from her sensors | [findings/situation.md](findings/situation.md) |
 | Her jerk through transitions against her steady walk, and its sources | [findings/jerk.md](findings/jerk.md) |
 | Build, buses, falls, drawing, clothes | [findings/body.md](findings/body.md) |
 | Drives: motors, gearboxes, inverters, sizing | [findings/drives.md](findings/drives.md) |
@@ -386,9 +387,9 @@ Six firmware defects, no hardware fault:
 | One stack for every drive: demand, candidates, stacks as built | [findings/stacks.md](findings/stacks.md) |
 | The drive and its observers: stand-in, emulator, native://, rotor pages | [findings/drive.md](findings/drive.md) |
 | QUAD: frame, air, law, routine, course, tuner | [findings/quad.md](findings/quad.md) |
-| The helicopter, the ornithopter, the aerobat: governed, geared, on its wheels | [findings/aircraft.md](findings/aircraft.md) |
-| The envelope in flight: a climb, a hover, what a board may carry, what its rotors pull | [findings/envelope.md](findings/envelope.md) |
-| Flown from compiled streams: the text, the core with no branch, the rotors' reach, upsets, the power loop | [findings/streams.md](findings/streams.md) |
+| The helicopter, the ornithopter, the aerobat: governed, geared | [findings/aircraft.md](findings/aircraft.md) |
+| The envelope in flight: a climb, a hover, what a board may carry | [findings/envelope.md](findings/envelope.md) |
+| Flown from compiled streams: the core, the rotors' reach, upsets, the power loop | [findings/streams.md](findings/streams.md) |
 | Renode, native:// and CI: the emulated image, peripherals, speed | [findings/emulation.md](findings/emulation.md) |
 | Host pages, tooling, suites, the local model's runner | [findings/host.md](findings/host.md) |
 

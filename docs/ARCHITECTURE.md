@@ -219,9 +219,9 @@ tests/              suites, .counts.json (measured sizes)
 | reach | a leg's reach over its foot from static arrays (reach_rows, laid by tools/cores/reach.py): margins, the flat place landed, two feet's gap; a limb an index |
 | terms | humanoid robot movements by their orthopaedic names from static arrays (term_rows, laid by tools/cores/terms.py): a part and a movement, its joint kind, sign and stops |
 | flight | on the whole-body stack: which soles stand, told from one pass - each as it bears, an unloaded one beside one that bears or with humanoid robot at rest; one that does not is asked to its landing (reach) |
-| ortho | orthokinematics: humanoid robot movement as text - `(stream_inject ..)`, `(defbehavior ..)`: latent targets, a stiffness and a damping a mode, humanoid robot rhythm, task constraints - compiled to rows of numbers (gynoid_mesomorph_medium.lisp hers, examples.lisp the first texts) |
+| ortho | orthokinematics: humanoid robot movement as text - `(stream_inject ..)`, `(defbehavior ..)`: latent targets, a stiffness and a damping a mode, rhythm, task constraints - compiled to rows of numbers (gynoid_mesomorph_medium.lisp, examples.lisp) |
 | latent | humanoid robot latent state stepped with no branch: a row laid by a mask, the state a lerp, humanoid robot rhythm one angle; each mode's reference and impedance out |
-| modal | humanoid robot modes on humanoid robot body, no branch: humanoid robot soles' places from humanoid robot centre of mass as sums and differences, humanoid robot standing legs' compression, humanoid robot turns; what is sensed, humanoid robot statics and the loop's ask laid flat |
+| modal | humanoid robot modes on the body, no branch: the soles' places from the centre of mass as sums and differences, the standing legs' compression, the turns; what is sensed, the statics and the loop's ask laid flat |
 | impedance | humanoid robot modes' springs rendered, no branch: humanoid robot centre of mass's acceleration, a sole in the air, humanoid robot turns, humanoid robot arms and humanoid robot knees - the whole-body loop's ask |
 | poise | humanoid robot ZMP into humanoid robot soles' polygon, humanoid robot capture point kept in it; which soles stand |
 | stride | humanoid robot stride from humanoid robot drive's phase: when a limb swings, where its sole lands (humanoid robot capture point), its clearance, its rock heel to toe, a standing sole's heel rising |
@@ -233,6 +233,7 @@ tests/              suites, .counts.json (measured sizes)
 | campaign | the stand's campaign: a limb a stage at tones, played step by step; each gearbox read |
 | identified | her corrections over her build: the least move of her links and drives that fits a campaign, TOML, laid over her law's model whole |
 | grip | each sole's floor friction as she feels it: what a sliding sole uses |
+| situation | where she is, from her sensors: bounds on six readings, the text's caps over her law |
 | touch | what her skin and soles feel: a touch against her going stops it, one along it walked out, her going cut toward what she felt, a trip on an edge |
 | worker | her process's session: a pass at a time, each command logged with its epoch and pass, falls recovered; the page's states |
 | physics | DYNAMIC: the figure in MuJoCo, a drive a joint |
@@ -271,9 +272,10 @@ tests/              suites, .counts.json (measured sizes)
 
 | Suite | Holds |
 | --- | --- |
-| `test_gynoid.py` | humanoid robot body on fantasy boards (`physics.ENVELOPE` 0, their SOA never binding): humanoid robot clothes, humanoid robot look, a leg by its foot, a virtual and a dynamic machine of humanoid robot, humanoid robot skeleton, humanoid robot drives' mounts and gearboxes, humanoid robot kinematics as motors |
+| `test_gynoid.py` | humanoid robot body on fantasy boards (`physics.ENVELOPE` 0, their SOA never binding): clothes, look, a leg by its foot, a virtual and a dynamic machine of it, the skeleton, the drives' mounts and gearboxes, kinematics as motors |
 | `test_sight.py` | the stereo against the renderer's depth; a look round, posed standing, into humanoid robot map against the room, the chair and the table told, a way planned clear; the page's picture |
-| `test_floor.py` | humanoid robot floor: the plane under humanoid robot soles, its grip as she feels it, the surfaces that cap humanoid robot rhythm |
+| `test_floor.py` | humanoid robot floor: the plane under humanoid robot soles, its grip as she feels it, the situations that cap humanoid robot rhythm |
+| `test_situation.py` | humanoid robot situation: the text's bounds and caps, each entered unannounced told within a second |
 | `test_reach.py` | humanoid robot leg's reach: its rows humanoid robot figure's, what they hold within humanoid robot stops, a place landed in MuJoCo by either limb |
 | `test_terms.py` | humanoid robot movements' terms: its rows humanoid robot figure's, a term moving humanoid robot in MuJoCo as its name says by either limb, its stops, what she has not |
 | `test_gvs.py` | the measures' dimensionless frame (Hof), SO(3)'s geodesic, the gates on them (`tools/sim/gvs.py`) |
@@ -285,7 +287,7 @@ tests/              suites, .counts.json (measured sizes)
 | `test_flight.py` | which soles stand, from one pass alone; a landing within humanoid robot reach; the loop in C against the python stack with no sole standing; a hop stood on both, three in a row on the loop |
 | `test_sysid.py` | her identification on the stand: the regressor MuJoCo's; her drives and links read, a payload found; corrections over her build judged on a fresh campaign; a world 15 % off read back; her gearboxes |
 | `test_sysid_live.py` | her identification off the stand: her model held to her walk on a world off the figure; her weight and its moments standing on her insoles |
-| `test_ortho.py` | a text compiled to rows, what is none refused; no branch in the core or the renderer; humanoid robot state blended and turned; crouched, shifted, bowed, on one sole, hopped; humanoid robot walk on humanoid robot own payloads; the first texts as given; the gym's worker and keys |
+| `test_ortho.py` | a text compiled to rows, what is none refused; no branch in the core or the renderer; the state blended and turned; crouched, shifted, bowed, on one sole, hopped; the walk on its own payloads; the first texts as given; the gym's worker and keys |
 
 - The quad's streams: `test_aero_core.py` holds aero/ to its form - no
   branch in its sources, no flag set from its data in this host's code -,

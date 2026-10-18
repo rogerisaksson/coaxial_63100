@@ -276,7 +276,7 @@ def test_numpy_enters_behind_the_thread_cap(r):
                                         + [os.path.join('machine', m + '.py') for m in (
                                             'cyclic', 'qp', 'wbc', 'wrench',
                                             'latent', 'modal', 'impedance', 'poise', 'stride',
-                                            'law', 'edge', 'estimate', 'borne', 'grip')]),
+                                            'law', 'edge', 'estimate', 'borne', 'grip', 'situation')]),
             ', '.join(importers) or 'nowhere')
     r.check('each sets OPENBLAS_NUM_THREADS before importing it', not uncapped,
             ', '.join(uncapped))
@@ -305,7 +305,7 @@ def test_motor_imports_no_board(r):
 
 #: Her law: what `machine.law` steps. It reads the world through `machine.edge` alone.
 LAW = ('law', 'se2', 'flight', 'support', 'latent', 'impedance', 'modal', 'poise', 'stride',
-       'estimate', 'wrench', 'wbc', 'reach', 'touch')
+       'estimate', 'wrench', 'wbc', 'reach', 'touch', 'situation')
 #: What her law may not name: the world, its truth, its ids, the writes that move it, the world's
 #: own modules. Her model posed is wbc.sense's and estimate.step's alone.
 TRUTH = {'world', 'obstacle_ids', 'sill_ids', 'upper_ids', 'robot_ids', 'push_until', 'push_n',

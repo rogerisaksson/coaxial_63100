@@ -38,7 +38,7 @@
 ;;   [1] gait_base.lisp      - Base traits, core gaits & stride progressions (#201-#205, trip, jog)
 ;;   [2] postures_base.lisp  - Athletic & calisthenic gym (crouch, hop, one_sole, weight_shift, bow)
 ;;   [3] stunts_base.lisp    - Daily stunts & terrain traversal (chair, bed, floor, stairs, ice, slope)
-;;   [3b] surfaces.lisp      - Her rhythm's caps on floors her soles slide on (defsurface)
+;;   [3b] situations.lisp    - Where she is, read from her sensors, and the caps laid there (defsituation)
 ;;   [4] Planar SE(2)        - Curvilinear & omnidirectional gaits (strafe, turn, circle, reverse arcs)
 ;; ============================================================================
 
@@ -52,7 +52,7 @@
     (impedance (stiffness mode_axial_compression 21800) (damping mode_axial_compression 0))))
 
 (include "stunts_base.lisp")
-(include "surfaces.lisp")
+(include "situations.lisp")
 
 ;; ----------------------------------------------------------------------------
 ;; CATEGORY 4: PLANAR SE(2) & CURVILINEAR GAITS

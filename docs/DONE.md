@@ -200,3 +200,6 @@ the fifty before these: [DONE_1-50](DONE_1-50.md).
     `--keys`: orbit, follow, shoulder swap, sprint, crouch, the prompt.
 53. The gym under her sensor boundary's check: `sprung`, `worker` and `tour`
     write none of the world's state, a lay, a scene and a shove its own calls.
+54. Her situation read from her sensors: six readings, `situations.lisp`'s
+    bounds and caps over her law in the surfaces' place; the ice, a ramp, a
+    chair and a wall entered unannounced told within a second at every lay.

@@ -214,6 +214,7 @@ def boxes(now, tour=None):
         ('control'.rjust(10), '[TOUR] ' + tour.current_label()[:18] if tour is not None and not tour.done
          else 'keys or an agent'),
         ('scenario'.rjust(10), scen[:25]),
+        ('situation'.rjust(10), str(now.get('situation') or 'open')[:25]),
         ('objective'.rjust(10), keybindings.SCENARIO_DESC.get(scen, scen).split('//')[-1].strip()[:25]),
         ('wasd / shf'.rjust(10), 'go from the view / sprint'),
         ('q e / spc'.rjust(10), 'sidestep / hop'),
