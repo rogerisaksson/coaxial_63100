@@ -218,9 +218,10 @@ def _course_rate(heading, row):
     return rate
 
 
-def _observe_wind_spin(core, u, fast, alpha, gamma, up, spin, tau, inertia, dt):
+def _observe_wind_spin(core, u, fast, alpha, gamma, up, spin, tau, inertia, dt, side=0.0, span=(0.0, 0.0, 0.0)):
     uh = tuple(u[a] / fast if fast > MIN_AIR_M_S else 0.0 for a in range(3))
-    m = [[alpha * ((1.0 if a == b else 0.0) + uh[a] * uh[b]) + gamma * up[a] * up[b] for b in range(3)] for a in range(3)]
+    m = [[alpha * ((1.0 if a == b else 0.0) + uh[a] * uh[b]) + gamma * up[a] * up[b] + side * span[a] * span[b]
+          for b in range(3)] for a in range(3)]
     for a in (0, 2):
         dw = dt * WO_WIND * sum(m[a][b] * core.push_hat[b] for b in range(3)) / (m[0][a] ** 2 + m[1][a] ** 2 + m[2][a] ** 2 + WIND_REG)
         core.wind[a] += dw

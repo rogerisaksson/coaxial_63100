@@ -123,13 +123,14 @@
   (base hover) (turn 180.0deg_s))
 
 (defstunt knife_pass
-  (base hover) (height 0.37m) (pace 1.0m_s) (slide 4.0m_s) (rail 1.0))
+  (base hover) (height 0.35m) (pace 1.0m_s) (slide 10.0m_s) (rail 1.0) (wing 0.0) (plan 1.0)
+  (skim 1.0))
 
 (defstunt knife_turn
-  (base hover) (height 0.45m) (turn 90.0deg_s) (slide 0.2m_s) (home 0.0) (rail 1.0))
+  (base hover) (height 0.5m) (turn 90.0deg_s) (slide 0.2m_s) (home 0.0) (rail 1.0))
 
 (defstunt knife_stop
-  (base knife_turn) (turn 0.0deg_s) (home 1.0) (rail 1.0))
+  (base knife_turn) (turn 0.0deg_s) (home 1.0) (rail 1.0) (plan 1.0))
 
 (defstunt pull_up
   (base hover) (height 14.0m) (pace 6.0m_s) (home 0.0))
@@ -209,10 +210,11 @@
   (stage pull-up (stunt pull_up) (duration 3.0s) (ramp 1.5s))
   (stage hammerhead (stunt top_turn) (duration 1.0s) (ramp 0.5s))
   (stage drop (stunt drop) (duration 4.5s) (ramp 0.5s))
-  (stage knife-edge (stunt knife_pass) (duration 6.0s) (ramp 2.0s))
+  (stage knife-edge (stunt knife_pass) (duration 3.0s) (ramp 2.0s))
   (stage brake (stunt knife_stop) (duration 1.5s) (ramp 1.5s))
-  (stage turn (stunt knife_turn) (duration 2.0s) (ramp 1.0s))
-  (stage knife-back (stunt knife_pass) (duration 6.0s) (ramp 1.0s))
+  (stage turn (stunt knife_turn) (duration 1.5s) (ramp 1.0s))
+  (stage knife-back (stunt knife_pass) (duration 3.0s) (ramp 2.0s))
+  (stage brake (stunt knife_stop) (duration 1.5s) (ramp 1.5s))
   (stage prop-hang (stunt hover) (duration 2.5s) (ramp 2.0s) (gate held))
   (stage torque-roll (stunt torque_roll) (duration 2.0s) (ramp 1.0s))
   (stage poise (stunt hover) (duration 1.8s) (ramp 1.5s))

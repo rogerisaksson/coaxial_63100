@@ -352,14 +352,16 @@ serves its DOD; none an entry a case.
   against their pictures at the page's own size - silhouette, proportion,
   colour masses, what reads in braille. DOD: PNGs beside the pictures.
 
-- **The aerobat's show** (aircraft.md): a takeoff run climbed out on the wing,
-  a turn, a knife-edge pass down the runway with its span along it and the
-  fin on the asphalt, a turn and the pass back, the 3D card, a landing on
-  the centreline; then the gate course entered by a run-up on its
-  straightest leg. DOD: the fin touching along both passes, throttled out
-  where the surfaces run out, nothing else struck; a touch under 0.5 m/s
-  within 0.5 m of the centreline, no bounce, stopped on the runway; both
-  laps flown from the run-up.
+- **The aerobat's show** (aircraft.md): the knife-edges fly (the tail's
+  lowest point 0.01-0.02 m median along both passes, 69 and 59 % under
+  5 cm, 3 % scraping). Left: a landing on the centreline (2.25 m off, −0.90 m/s);
+  the course in its gusty wind, where the side plate carries the plane 0.4
+  to 0.8 m across the runway's 50 deg crossing of gate 0 and a wing tip
+  takes the post (calm it laps; 24 m of run-up laps in wind but spoils the
+  landing and strikes gate 6); the wind estimate wandering 1-2 m/s through
+  the waterfall and snap in still air. DOD: a touch under 0.5 m/s within
+  0.5 m of the centreline, no bounce, stopped on the runway; both laps flown
+  from a run-up on the course's straightest leg.
 
 ## Host
 

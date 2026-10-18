@@ -10,7 +10,7 @@ from structure_kit import HERE, REPO, Report
 
 
 #: What only this host builds: the fake board, its silicon (native://), Renode's models.
-HOST_ONLY = ('board/fake', 'board/native', 'board/emu')
+HOST_ONLY = ('board/fake', 'board/native', 'board/emu', 'mppi')
 
 
 #: A firmware source asking where it runs.

@@ -1,17 +1,15 @@
-"""The unlimited 3D RC aerobatic monoplane in MuJoCo: prop-hang, high-deflection surfaces, stunts.
+"""The unlimited 3D RC aerobatic monoplane in MuJoCo: prop-hang, big surfaces, stunts.
 
-    sky, core = Sky(), Core()
-    out = core.step(law, row, sky.state(), dt, reach)
-    sky.step(out.speeds + out.controls, dt, air)
+    out = core.step(law, row, sky.state(), dt, reach); sky.step(out.speeds + out.controls, dt, air)
 
 An Edge 540 style 3D monoplane (`aerobat.lisp`) on two 63100 drives, `PROP` the tractor
 propeller and `VECT` the coaxial contra stage: propwash over oversized surfaces gives attitude
-authority from zero airspeed, a prop-hang to the race course.
+authority from zero airspeed; its knife-edges `se3mpc` flies.
 """
 import math
 import os
 
-from machine import aerokin, aerolisp, grounds, pull, quad
+from machine import aerokin, aerolisp, grounds, pull, quad, se3mpc
 from machine.aerobatics import HOVER
 from machine.helicopter import (Answer, _course_rate, _init_sky, _observe_wind_spin,
                                 _smooth_target, _so3_torques, _stunt_step, _turn_heading)
@@ -57,7 +55,10 @@ WATERFALL_HZ, WATERFALL_RAD = (KINEMATICS['oscillator'][k] for k in (
     'tictoc_frequency', 'tictoc_amplitude'))
 DIVE_M_S = 4.0
 PULL_MAX, COURSE_SPHERE = K_THRUST / MASS_KG * (GOV_RAD_S * STUNT_BOOST) ** 2, 1.5 * GRAVITY
-WING = Wing(MASS_KG, GRAVITY, RHO, WING_AREA, CL_ALPHA, WING_SPAN, STAB_AREA, FIN_AREA, TAIL_ARM)
+#: What the fuselage and the fin show the air across the span, m^2: mjcf's fuselage box, 0.08
+#: deep, and the fin.
+SIDE_AREA = 0.16 * (PROP_Z - 0.04) + FIN_AREA
+WING = Wing(MASS_KG, GRAVITY, RHO, WING_AREA, CL_ALPHA, WING_SPAN, STAB_AREA, FIN_AREA, TAIL_ARM, SIDE_AREA)
 ROTATE_M_S, RUNWAY_M, RUNWAY_RAD = WING.rotate, WING.runway(HOVER['lean']), math.radians(grounds.GATES[0][3] + 50.0)
 
 
@@ -132,7 +133,7 @@ class Sky(quad.Sky):
         self._rest_pose()
 
     def _rest_pose(self):
-        """On its wheels at the runway's end, its nose up the runway: R_y(RUNWAY_RAD) R_x(PITCH_REST)."""
+        """On its wheels at the runway's end, its nose up the runway."""
         cy, sy = math.cos(0.5 * RUNWAY_RAD), math.sin(0.5 * RUNWAY_RAD)
         cx, sx = math.cos(0.5 * PITCH_REST), math.sin(0.5 * PITCH_REST)
         self.data.qpos[3:7] = (cy * cx, cy * sx, sy * cx, -sy * sx)
@@ -186,7 +187,7 @@ class Sky(quad.Sky):
 
 class Core:
 
-    """The 3D aerobat's SO(3) prop-hang, propwash surface deflection, and wind-observer core."""
+    """The aerobat's SO(3) law, its surfaces in the propwash, its wind observer."""
 
     def __init__(self):
         self.reset()
@@ -239,7 +240,8 @@ class Core:
         tau = (K_PITCH * w_p * w_p * elev - (INERTIA[2] - INERTIA[1]) * spin[1] * spin[2],
                K_YAW * w_v * w_v * rud - q_p - (INERTIA[0] - INERTIA[2]) * spin[2] * spin[0],
                K_ROLL * w_p * w_p * ail - (INERTIA[1] - INERTIA[0]) * spin[0] * spin[1])
-        _observe_wind_spin(self, u, fast, alpha, gamma, up, spin, tau, INERTIA, dt)
+        _observe_wind_spin(self, u, fast, alpha, gamma, up, spin, tau, INERTIA, dt,
+                           RHO * WING.side * fast / MASS_KG, [r[0] for r in turn])
 
     def _target_attitude(self, law, row, state, turn, yaw, rate, acc_des, ay_thrust, dt):
         flips, rolls, nose_val = float(row.get('flip', 0.0)), float(row.get('roll', 0.0)), float(row.get('nose', 1.0))
@@ -301,8 +303,9 @@ class Core:
         self._observe(state, dt)
         if row.get('speed', 0.0) > 5.0 and row.get('lean', 0.0) < 10.0 and self.wingborne > 0.5:
             self.wingborne = self.wing_air = 1.0
+        self.wingborne, self.wing_air = (x * row.get('wing', 1.0) for x in (self.wingborne, self.wing_air))
         turn = [[float(x) for x in r] for r in state['turn']]
-        spin, vel = [float(x) for x in state['spin']], [float(x) for x in state['vel']]
+        spin, vel, at = ([float(x) for x in state[k]] for k in ('spin', 'vel', 'at'))
         u = [vel[a] - self.wind[a] for a in range(3)]
         prev_ctrl = state.get('controls', self.Controls[2:])
         drag = 0.5 * RHO * _aero_cda(*prev_ctrl[:3]) / MASS_KG * math.hypot(*u)
@@ -311,19 +314,19 @@ class Core:
                    for a in range(3)]
         if along is None:
             along = self.plan(law, row, state, dt, pull_max)
-        # Asked no turn under 2 m in the air, the nose comes round to the gate's or the runway's heading.
         rate = math.radians(float(row.get('turn', 0.0))) if self.airborne else 0.0
         on_grid = (math.hypot(float(state['at'][0]), float(state['at'][2])) < 3.0
                    and (abs(row['height'] - grounds.GATES[0][1]) < 0.05 or row['height'] < FLOOR_M))
-        target_yaw = math.radians(grounds.GATES[0][3]) if on_grid else RUNWAY_RAD
-        if self.airborne and abs(rate) <= 1e-6 and row['height'] < 2.0 and abs(row.get('slide', 0.0)) <= 1e-6:
+        rc, rs = math.cos(RUNWAY_RAD), math.sin(RUNWAY_RAD)
+        crab = math.atan2(rc * (vel[0] + at[0]) - rs * (vel[2] + at[2]), max(ROTATE_M_S, rs * vel[0] + rc * vel[2])
+                ) * min(1.0, max(0.0, 10.0 * (state['h'] - 0.1)))
+        target_yaw = math.radians(grounds.GATES[0][3]) if on_grid else RUNWAY_RAD - crab
+        if (self.airborne or state['h'] > 0.1) and abs(rate) <= 1e-6 and row['height'] < 2.0 and not row.get('slide'):
             err = (target_yaw - math.atan2(law['heading'][1], law['heading'][0]) + math.pi) % math.tau - math.pi
             rate = max(-2.4, min(2.4, 3.0 * err))
         law['heading'] = c, s = _turn_heading(law['heading'], rate, dt)
         yaw = math.atan2(s, c)
         reach, up_pull = max(aerokin.LEAST * GRAVITY, pull_max), self.up_pull
-        up_pull += aerokin.throttle_out(self.Controls[3:], float(state['h'] < HOVER_M) * (1.0 - self.wingborne),
-                                        reach - GRAVITY)
 
         if row['height'] < 0.0 and (row['height'] <= -0.1 or not self.airborne):
             if state['h'] < 0.03 and max(abs(x) for x in vel) < 0.05:
@@ -382,7 +385,8 @@ class Core:
         w_v_cur = max(IDLE_RAD_S, float(sp[1]) if limits and sp[1] > 1.0 else w_v_ask)
         rud = max(-1.0, min(1.0, (tau_y + _prop_drag(throt, elev, ail, w_p_cur)) / (K_YAW * w_v_cur * w_v_cur)))
 
-        controls = (throt, elev, ail, rud)
+        throt, elev, ail, rud = controls = se3mpc.blended(
+            self, law, row, state, r_des, (w_p_cur, w_v_cur), dt, (throt, elev, ail, rud))
         self.Controls = (w_p_ask, w_v_ask) + controls
         sign_ok = (-turn[1][1] if inv >= 0.5 else turn[1][1]) >= math.cos(2.0 * aerokin.HELD_RAD)
         law['held'] = bool(

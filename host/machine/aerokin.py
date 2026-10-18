@@ -106,13 +106,6 @@ def allowed(over, brake):
     return (1.0 - far) * pole * over + far * math.sqrt(2.0 * brake * max(over - 0.5 * near, 0.0))
 
 
-def throttle_out(surfaces, near, room):
-    """The pull asked up, m/s^2, of a craft `near` its floor whose `surfaces` (-1 to 1 each) leave
-    it less than half their margin: all its `room` as the largest goes from half to all - a
-    tail dragged on the asphalt tips it past what the surfaces hold, and it throttles out."""
-    return room * min(1.0, max(0.0, 2.0 * near * max(abs(x) for x in surfaces) - 1.0))
-
-
 def spooled(w, w_pull, w_idle):
     """(the seconds the rotors take from `w` to `w_pull`, to `w_idle`) on their loop's slew."""
     slew = pull.slew(pull.I_WEP, w)

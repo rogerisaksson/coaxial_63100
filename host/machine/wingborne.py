@@ -1,7 +1,7 @@
 """A plane's wing and tail in the air, its run on its wheels and its law wing-borne.
 
-    wing = Wing(MASS_KG, GRAVITY, RHO, WING_AREA, CL_ALPHA, WING_SPAN, STAB_AREA, FIN_AREA, TAIL_ARM)
-    lift = wing.lift(u, turn)                      # N along its back, the air `u` through it
+    wing = Wing(MASS_KG, GRAVITY, RHO, WING_AREA, CL_ALPHA, WING_SPAN, STAB_AREA, FIN_AREA, TAIL_ARM, SIDE_AREA)
+    lift = wing.lift(u, turn)                      # N, the wing's and the side's, the air `u` through it
     pitch, roll, yaw = wing.moments(u, turn, qv)   # N m about its axes
     r_des, w_ff, f_des = run(wing, core, v_fwd, h, yaw, rate)    # the takeoff run
     r_des, want_up = plane(wing, turn, acc_des, u, w, want_up)   # nose on the air
@@ -33,12 +33,14 @@ class Wing:
 
     """The wing, the stabiliser and the fin of a plane of `mass` kg: the air's `rho`, the wing's
     `area` m^2, `cl_alpha` a radian, its `span`; the stabiliser's and the fin's areas at
-    `tail_arm` behind the middle."""
+    `tail_arm` behind the middle; `side_area`, what the fuselage and the fin show the air
+    across the span."""
 
-    def __init__(self, mass, gravity, rho, area, cl_alpha, span, stab_area, fin_area, tail_arm):
+    def __init__(self, mass, gravity, rho, area, cl_alpha, span, stab_area, fin_area, tail_arm, side_area):
         self.mass, self.gravity, self.q = mass, gravity, 0.5 * rho * cl_alpha
         self.rho, self.cl_alpha = rho, cl_alpha
         self.area, self.span, self.stab, self.fin, self.arm = area, span, stab_area, fin_area, tail_arm
+        self.side = side_area
         #: The speed the wing bears the weight at ALPHA_RAD, m/s.
         self.rotate = math.sqrt(2.0 * mass * gravity / (rho * area * cl_alpha * ALPHA_RAD))
 
@@ -48,15 +50,19 @@ class Wing:
         return v2 / (2.0 * RUN_G * self.gravity) + AIRBORNE_M / math.tan(CLIMB_RAD) + v2 / (2.0 * lean)
 
     def lift(self, u, turn):
-        """The wing's force, N, in the world, nose first through the air `u` (none tail first):
-        its lift along the back (`-turn[:, 2]`) rising with the angle to the stall at
-        STALL_RAD and falling to a flat plate's past it, the plate's drag with it along the
-        air. Linear to 1.5 of the weight it floated a flare and a harrier on a closed throttle."""
+        """The airframe's force, N, in the world, through the air `u`. The wing's, nose first (none
+        tail first): its lift along the back (`-turn[:, 2]`) rising with the angle to the stall
+        at STALL_RAD and falling to a flat plate's past it, the plate's drag with it along the
+        air; linear to 1.5 of the weight it floated a flare and a harrier on a closed throttle.
+        The side's, a flat plate across the span, `rho S |u| u_x` against the slip: with the
+        wings vertical, what holds a knife-edge up beside the thrust."""
+        span = [float(turn[a][0]) for a in range(3)]
+        slip = -self.rho * self.side * math.sqrt(sum(x * x for x in u)) * sum(u[a] * span[a] for a in range(3))
         uy = max(0.0, sum(u[a] * float(turn[a][1]) for a in range(3)))
         uz = sum(u[a] * float(turn[a][2]) for a in range(3))
         v2 = uy * uy + uz * uz
         if uy <= 0.0 or v2 < 1e-6:
-            return (0.0, 0.0, 0.0)
+            return tuple(slip * span[a] for a in range(3))
         alpha = math.atan2(uz, uy)
         a_abs = abs(alpha)
         # The plate's normal force past the stall, the airfoil's lift before it, blended over
@@ -71,7 +77,7 @@ class Wing:
         speed = math.sqrt(v2)
         nose, back = [float(turn[a][1]) for a in range(3)], [-float(turn[a][2]) for a in range(3)]
         air = [(uy * nose[a] - uz * back[a]) / speed for a in range(3)]
-        return tuple(f_l * back[a] - f_d * air[a] for a in range(3))
+        return tuple(slip * span[a] + f_l * back[a] - f_d * air[a] for a in range(3))
 
     def moments(self, u, turn, qv):
         """The airframe's own moments about its axes, N m: the stabiliser's and the fin's lift
@@ -87,10 +93,10 @@ class Wing:
 
 def run(wing, core, v_fwd, h, yaw, rate):
     """The run on its wheels: `(r_des, w_ff, f_des)` for `core` going `v_fwd` m/s along `yaw`,
-    `h` m over its rest; rotated at the wing's speed it stays rotated, on its wheels no further
-    than it rests, the tail clear of the floor."""
+    `h` m over its rest; rotated at the wing's speed it asks the climb and stays rotated, its
+    tail wheel holding it at its rest till it lifts; the tail clear of the floor before."""
     core.rotated = core.rotated or v_fwd >= wing.rotate
-    pitch = ((0.5 * math.pi - CLIMB_RAD - ALPHA_RAD if h > 0.1 else PITCH_REST) if core.rotated
+    pitch = (0.5 * math.pi - CLIMB_RAD - ALPHA_RAD if core.rotated
              else PITCH_REST if v_fwd < TAIL_UP * wing.rotate else 0.5 * math.pi)
     r_des = _mat_mul(_rot_y(yaw), _rot_x(pitch))
     g = wing.gravity

@@ -63,7 +63,8 @@
   (height 1.5m) (pace 1.5m_s) (climb 0.0m_s) (push 0.0m_s2)
   (speed 0.0m_s) (slide 0.0m_s) (surge 0.0m_s2) (sway 0.0m_s2)
   (turn 0.0deg_s) (nose 1.0) (x 0.0m) (z 0.0m) (home 1.0) (rail 0.0)
-  (lean 8.0m_s2) (roll 0.0) (flip 0.0) (light 0.5))
+  (lean 8.0m_s2) (roll 0.0) (flip 0.0) (light 0.5) (wing 1.0)
+  (plan 0.0) (skim 0.0))
 
 (defstunt sky
   (base hover) (height 1000.0m) (pace 100.0m_s))

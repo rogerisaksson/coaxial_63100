@@ -130,6 +130,8 @@ SCENES = 'test_scenarios.py'
 #: The frame's core (aero/) in a vacuum: its form, its share, its impedance; a text's streams
 #: compiled and flown on it.
 AERO_CORE, STREAMS = 'test_aero_core.py', 'test_quad_streams.py'
+#: The plane's rollouts for its predictive control (mppi/, machine.se3mpc).
+MPPI_CORE = 'test_mppi_core.py'
 
 #: The cyclic executive (machine.cyclic): its steps against machine.parts, a cycle on a toy rotor.
 CYCLIC = 'test_cyclic.py'
@@ -150,7 +152,7 @@ DEFAULT_SUITES = (STRUCTURES + (CORE, SHTP, DRIVE, DRIVE_OBSERVER, FILTER, THERM
                    SENSORLESS,
                    BROKER, DAQ_API, CONTROLLER, GYNOID, SIGHT, REACH, TERMS, GVS, REPLAYS, SCENES, WBC,
                    WBC_CORE, FLIGHT, WRENCH, SYSID, SYSID_LIVE, WEAR, ORTHO, FLOOR, SITUATION, ERRANDS, CYCLIC, QUAD, QUAD_PULL,
-                   AERO_CORE, STREAMS, QUAD_COURSE, BOOT)
+                   AERO_CORE, MPPI_CORE, STREAMS, QUAD_COURSE, BOOT)
                   + VIEWS
                   + (RENDER,) + OLLAMA
                   + ('test_mcp.py', 'test_simulated.py', 'test_parity.py',
@@ -211,6 +213,7 @@ JOINS = (
     (20, WBC_CORE),
     (20, SYSID), (20, SYSID_LIVE),
     (20, AERO_CORE),
+    (20, MPPI_CORE),
     (20, WIRE),
     (20, SENSORLESS),
     (35, 'test_parity.py'),
