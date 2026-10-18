@@ -70,7 +70,7 @@ BOXED, ROOM, SIGHT = 0.0, 0.0, 0.0
 STAGED = 1.0
 
 #: The boards' envelopes: 1 as built, derating and tripping them; 0 fantasy boards whose SOA
-#: never binds, the heat counted (`tests/test_gynoid.py`, `tests/test_drives.py`).
+#: never binds, the heat counted (`tests/test_gynoid.py`).
 ENVELOPE = 1.0
 
 #: A board glitched (`World.glitch`): its switches' on-resistance SOA_RDS times - a gate drive

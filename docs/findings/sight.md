@@ -63,7 +63,7 @@ a look every 0.5 s, 29 looks):
 
 ## The picture on the page
 
-In the instruments' frame (`terminal.render.inset`: rounded, its title in
+In the instruments' frame (`coaxial.graphics.inset`: rounded, its title in
 the top edge, what she has told in the bottom one), W takes it away. A hull
 is its ink along its edge and lightly over what it covers: filled at 0.45 the
 wall's hull tinted the whole picture. A kind's label a plate at its hull's top

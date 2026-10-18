@@ -116,7 +116,7 @@ by `machine/reach.py`, a limb an index; tests/test_reach.py holds them.
 
 - Across, 0.268 of the hip's height either side: 0.20 m at 0.76.
 - A flat foot at her walking height reaches 0.124 m: her steps of 0.49 m
-  are on a risen heel and a landing toes up (`stride.rock`). `land` lays a
+  are on a risen heel and a landing toes up (`stride.heels`). `land` lays a
   foot flat; a pitched one is read in its own frame (`over`).
 - Rising from the squat and walking, 16 s at 0.85 m/s, her joints ran:
   ankle -41.3..10.8, its roll -0.8..4.2, knee -0.8..128.6, hip's yaw

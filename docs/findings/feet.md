@@ -27,8 +27,9 @@ Passive toes, the sole's give, and the heel's rise on the loop
 
 - A flat foot at her walking height reaches 0.124 m along the floor
   ([kinematics](kinematics.md)); her stride rolls the standing sole about its
-  ball (`stride.rock`, `stride.edges`), its heel rising as far as its leg at its
-  length needs for her hip under where it stood, 0.6 rad at most at 6 rad/s.
+  ball (`stride.rocks`, `stride.heels`), its heel rising as far as its leg at
+  its length needs for her hip under where it stood, 0.6 rad at most at
+  6 rad/s.
 - As the trailing sole's load leaves it, its knee folds (`stride.FOLD_RAD`
   0.26 rad with none on it), its leg that much shorter for its heel's rise
   ([orthokinematics](orthokinematics.md)).

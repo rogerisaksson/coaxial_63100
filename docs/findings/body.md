@@ -273,14 +273,15 @@ her latent loop in [orthokinematics](orthokinematics.md).
   bearing, the M 7 mm back: over +-35 deg its lever 1.33 at rest, 1.48-1.73
   toward the ends, its transmission 53 deg at worst, 2.9-3.7 kN in its rod;
   over spine -30..85 and roll +-35 the closest 1 mm.
-- By `tools/sim/bom.py`, `tools/sim/fit.py` and `tools/sim/members.py`: 21 part types, one bearing
+- By `tools/sim/bom.py`, `tools/sim/fit.py` and `tools/sim/members.py`:
+  21 part types, one bearing
   size, one rod end, tubes of 7 stock sizes; standing, the elbow 20, the
   shoulder 15 and the hip yaw 6 mm past the clothes; over 45 poses the
   closest pairs -13 to -19 mm (the pelvis's frame and the hip roll's drum
   rolling onto her front, the arm bones and the ankles' rods sitting back);
   2 members of 61 past a limit, the shank's first run flexing 0.29 deg, the
   spine roll's horn 0.26.
-- Dressed as cloth hangs (`terminal.render.gynoid`): the tee a tube hung
+- Dressed as cloth hangs (`coaxial.graphics.gynoid`): the tee a tube hung
   plumb from the chest and the bust, EASE_M 12 mm off the torso where it is
   wider below, its hem at the hips' widest, 140 mm under the torso joint
   (0.192 half-wide over the jeans; a hem 36 mm under it at 0.152 over the
@@ -289,7 +290,7 @@ her latent loop in [orthokinematics](orthokinematics.md).
   skull from the ears' line, its front the hairline up to 0.65 of the
   skull's height, where an ellipsoid 24 mm wider than the head reached the
   jaw; the fall 36 mm deep behind the occiput where 160 stood a wall.
-- Bent at the joints (`terminal.render.gynoid`, two frames a corner, blended over
+- Bent at the joints (`coaxial.graphics.drape`, two frames a corner, blended over
   the 35-90 mm past the joint): the seat's corners on a thigh swung 35 deg
   follow it, no notch at the hip; the tee's hem follows a spine bent 15;
   a stride's frame 0.01 s the dearer. A grid-and-tendon cloth (the ICARSC

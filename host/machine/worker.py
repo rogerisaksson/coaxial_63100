@@ -55,7 +55,7 @@ def heard_say(g, gym, entry):
     off_c = not striding and (max(abs(float(ref[modal.LIFT])), abs(float(ref[modal.SAGITTAL])), abs(float(ref[modal.LATERAL]))) > 0.15
                               or abs(float(ref[modal.AXIAL])) > 0.25 or spd > 0.04 or abs(float(g['loads'][0]) - float(g['loads'][1])) > 90.0)
     t0, cur_d = g['t'] + 0.001, sprung.doing(g)
-    future = g['tab'][g['tab'][:, latent.AT] > g['t']] if len(g['tab']) else ()
+    future = g['tab'][g['tab'][:, latent.AT] > g['t']]
     if cur_d in ('brake', '#201', 'init_walk') and g.get('active_entry') in sprung._FWD_GAITS and name in sprung._FWD_GAITS and len(future):
         t_end = float(future[0, latent.AT])
         t_last = min(t_end, g['t'] + 0.18) if (cur_d == 'init_walk' and name in ('jog', 'turn_left', 'turn_right')) else t_end

@@ -243,4 +243,6 @@ the fifty before these: [DONE_1-50](DONE_1-50.md).
     the floor (23 flips where 3 781 in 4 s, stand in 0.55 s), F sits and rises
     her cleanly, and a scene laid anew clears the pad's cached twist
     ([scenarios](findings/scenarios.md)).
-
+69. Findings that told of the laws before the loop cut to what holds on the
+    loop (body, feet, drives, stacks, normal, wbc); `test_layout` holds that no
+    document names a module, a tool or a suite not in the tree.

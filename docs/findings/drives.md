@@ -163,8 +163,9 @@ back (`tests/test_gynoid.py`).
 
 ## As data
 
-- Her build's parts as files (`machine/library`, `machine/robots`): every drive's kt,
-  peak, armature, speed, drag, shock, ohm, mass, length and heat the same to the
-  bit for all 27 joints; `docs/DIMENSIONS.md` unchanged; `drives.py` 5.8 k -> 4.7 k tokens.
+- Her build's parts as files (`machine/library`, `machine/robots`): every
+  drive's kt, peak, armature, speed, drag, shock, ohm, mass, length and heat
+  the same to the bit for all 27 joints; `docs/DIMENSIONS.md` unchanged;
+  `drives.py` 5.8 k -> 4.7 k tokens.
 - Her manifest of them reads her 31.14 kg (305.5 N), her centre of mass 0.916 m
   up, omega 3.27/s: her text's header had said 55 kg.

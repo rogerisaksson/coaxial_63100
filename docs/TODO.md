@@ -30,6 +30,14 @@ gets a line at the end of [DONE](DONE.md).
 - **HUMANOID freezes as the mouse moves** (reported): not seen here, 300
   frames in its own console under 6 070 sweeps, 37.5 s against 37.3 still.
   DOD: seen, its stack dumped, fixed.
+- **A bed a case in sight**: `sight.Map.things` forces a bed to 0.45 x 1.0 m
+  at the room's edge by its place's sign. DOD: no kind a case, `test_sight`,
+  the bed moved.
+- **Unwired**: `rtu.FEED_REG` 0x0180, no sender, not on the board's map;
+  `drives.wave_stage`, `figure.lumbar_curve`, `SHELL_ARMOR`,
+  `skeleton.printed_holders`, `flange_mounts`, `wear.torso_load`,
+  `campaign.de_ring_ankles`, no caller. DOD: wired and tested, or out.
+
 1. **Orthokinematics, the one way she moves** (orthokinematics.md): the
    humanoid robot movement is text of balance, rhythm and elasticity, compiled
    to rows; the humanoid robot latent state is stepped and rendered with no
@@ -199,22 +207,16 @@ gets a line at the end of [DONE](DONE.md).
     + DOD: the map's boxes against the room's within 0.1 m, the bed's too
       (0.51 m off: its near edge alone); a chair moved into the humanoid robot
       way walked round on the loop; the humanoid robot view on the page.
-19. **Findings that tell of the laws before the loop**: body, feet, drives,
-    stacks, normal and wbc keep their figures under a note.
-    + DOD: each cut to what holds for the humanoid robot body and the loop; a
-      check in `test_layout`: no document names a module, a tool or a suite not
-      in the tree.
-
-20. **No transition with a jerk**, whatever happens (Scenarios 2,
+19. **No transition with a jerk**, whatever happens (Scenarios 2,
     `tools/sim/jerk.py`). DOD: every segment's peak through every scenario
     no higher than in her steady walk.
-21. **Identification's rest** (identification.md): her drives, links,
+20. **Identification's rest** (identification.md): her drives, links,
     rotors, the boxes' wind-up and play, her walk's rows, her insoles' rows,
     a harness and its load cell read. Left: each box's damping and mesh, the
     ankles' boxes; a link's mass apart from its first moment.
     + DOD: each measured in `test_sysid.py`.
-22. **Identification on-line, under a load** (`machine.wear`): her drift
-    - friction, torque an amp, her boxes' play and wind-up - off her rows
+21. **Identification on-line, under a load** (`machine.wear`): her drift -
+    friction, torque an amp, her boxes' play and wind-up - off her rows
     as she goes, a load in a hand told apart; bands, alarms and service her
     build's ([service]). As it is: with her hems' mass off, the DOD's walk
     and the stand's box.
