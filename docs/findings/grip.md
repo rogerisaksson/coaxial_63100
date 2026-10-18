@@ -64,3 +64,12 @@ and the patches in [scenarios](scenarios.md) walk it.
   of 9 wobbles, the turns, the turnabout, the weave, the spin, the sill, the
   rug and the hole as before; her flat walk 51 s, 0.70 m/s, 408 J/m, 2.55
   off the band. Ice and the slick patch join `test_scenarios`.
+- A sliding sole's share is the most the floor holds, a holding sole's the
+  least: what is not friction - the patch's 5 mm edge pushing a toe, the
+  sole's own inertia - only adds to a push across. On the slick patch (0.06)
+  its far edge read 0.104-0.113 and her grip rose to 0.074; she split, the
+  sole standing on the patch sliding back as her centre of mass passed it 19
+  cm in 0.54 s, at 0 and 2e-4 rad. A slide now only lowers her grip, and a
+  slide read over its plateau is taken whole, no time to it (`SLIDE_S` 0.006
+  s gone; 0.004 stood the patch too): the patch 3 of 3, ice, ice told, snow,
+  asphalt and the kept replays at every wobble, her walk to the digit.

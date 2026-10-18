@@ -302,3 +302,6 @@ the fifty before these: [DONE_1-50](DONE_1-50.md).
     swings no longer comes and goes at the world's passes between, 596 flips in
     a stop to 2; `tools/sim/told.py` times what a player's keys and F ask
     ([scenarios](findings/scenarios.md)).
+79. Her grip bounded by what her soles read (`machine.grip`): a slide lowers it
+    and never raises it, a slide read is taken whole; the slick patch stands at
+    every wobble ([grip](findings/grip.md)).

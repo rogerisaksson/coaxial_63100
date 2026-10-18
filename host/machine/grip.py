@@ -23,13 +23,13 @@ from machine.wbc import MU
 #: Each sole's segments with skin: its foot and its toes.
 SOLES = np.array([[edge.SKIN.index(side + '_foot'), edge.SKIN.index(side + '_toes')] for side in ('left', 'right')])
 #: A sole reads its floor bearing BEARS of her weight; past SLIDE_M_S of slip it slides, its grip
-#: drawn to what it used over SLIDE_S - over 0.05 s a sole pushing off on ice slid back 0.3 m
-#: before her law asked less of it -; holding, up to what it used over TRUST_S - at once, a sole
+#: what it used once its slide is read (PLATEAU) - over 0.05 s a sole pushing off on ice slid back
+#: 0.3 m before her law asked less of it -; holding, up to what it used over TRUST_S - at once, a sole
 #: off the ice onto the floor freed her stride in a pass and she ran on to 1.7 m/s. Unread, a
 #: grip goes back to its prior over RELAX_S: at 3 s the ice read at 0.103 was 0.25, her
 #: envelope's, within a second, she drove on to 1.06 m/s and fell at 6.6-6.7 s; at 30 she kept
 #: it, slowed to 0.2 m/s by 4 s and crossed.
-BEARS, SLIDE_M_S, SLIDE_S, TRUST_S, RELAX_S = 0.1, 0.15, 0.006, 1.0, 30.0
+BEARS, SLIDE_M_S, TRUST_S, RELAX_S = 0.1, 0.15, 1.0, 30.0
 #: A slide's friction within 45 deg of against it. A slide counts once its share has held within
 #: PLATEAU of itself over its last SEEN passes: sliding, friction is a constant - on the ice 0.099
 #: to 0.101 while its load fell 348 -> 194 N; a hard landing's skid read 0.174 -> 0.137 in three,
@@ -74,6 +74,8 @@ def felt(grip, seen, frames, touch, slip, weight, dt, prior=MU, landed=(False, F
     moving = bears & (np.hypot(slip[0], slip[2]) > SLIDE_M_S) & against
     seen[:, :-1], seen[:, -1] = seen[:, 1:].copy(), moving * used
     slides = moving & (seen.min(axis=1) > 0.0) & (seen.max(axis=1) - seen.min(axis=1) <= PLATEAU * seen.mean(axis=1))
+    # a holding sole's share is the least the floor holds, a sliding one's the most: what is not
+    # friction - an edge's push, the sole's own inertia - only adds to a push across
     held = grip + (bears & ~moving) * min(1.0, dt / TRUST_S) * np.maximum(used - grip, 0.0)
-    return np.minimum(np.where(slides, grip + min(1.0, dt / SLIDE_S) * (used - grip),
+    return np.minimum(np.where(slides, grip + np.minimum(used - grip, 0.0),
                                held + min(1.0, dt / RELAX_S) * (prior - held)), MU)

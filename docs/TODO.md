@@ -22,11 +22,6 @@ gets a line at the end of [DONE](DONE.md).
 
 ## Gynoid, in order
 
-- **The slip scene falls** (`test_scenarios.py:slip`), at 0 and 2e-4 rad
-  here, at 0 on CI: a split. The sole standing on the patch slides back as her
-  centre of mass passes it 19 cm in 0.54 s of single support, past mu h (5 cm);
-  the trailing sole slid 8 cm in its push-off and its swing went 14 cm back
-  first. Rounding moves which wobbles fall. DOD: stood, 3 of 3.
 - **A hop falls** (`tools/sim/told.py hop`): said from a stand on her worker
   she lands with her centre of mass 15 cm ahead of her soles - her trunk turned
   on in the air and took them back - and is down at 2.4 s. A second law,
