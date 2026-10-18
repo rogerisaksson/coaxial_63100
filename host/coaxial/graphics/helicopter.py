@@ -17,7 +17,7 @@ from coaxial.graphics.lit import PLATE, braille, paint, project, splat
 from coaxial.graphics.quadcopter import (ARROW_HEAD, ARROW_INK, ARROW_M_PER_N, BLADE_W,
                                          BLADES_RAD_S, BOARD_H, BOARD_R, CARBON, CELLS, LEG_R,
                                          MASK, MOTOR_R, PROP, RIM_EVERY, RIM_INK, SHAFT_R,
-                                         SINK_H, SINK_R, SKIN, ACCENT, Mesh, _at, _painted)
+                                         SINK_H, SINK_R, SKIN, Mesh, _at, _painted)
 from machine import helicopter as heli_phys
 
 #: The camera: the eye's distance in reaches framed, and the reach the helicopter fills, m -
@@ -36,6 +36,8 @@ TAIL_AT = (0.032, 0.022, -TAIL_M)
 #: floor; the tail's, 28 x 20 mm; the 63100 boards on the frames' faces, 64 mm apart.
 MOTOR_L, MOTOR_Y, TAIL_MOTOR = 0.048, 0.055, (0.014, 0.020)
 NEG_ARROW_INK = (96, 224, 255)
+#: A Goblin Raw's lime canopy and blade tips.
+LIME = (196, 222, 40)
 
 _HELI_MESH = {}
 
@@ -52,11 +54,28 @@ def _side(name, x, mesh_r, h, material):
     return (name, _at(shapes.drum(mesh_r, h, 'x', material), None, (x, 0.04, 0.06)))
 
 
+def _canopy():
+    """The canopy over the front frame along z, lime above the frame's floor, black under."""
+    from coaxial.model.blocks import numpy as np
+    rings = [(-0.10, 0.040, 0.060, 0.045), (-0.04, 0.047, 0.078, 0.042), (0.04, 0.050, 0.084, 0.040),
+             (0.12, 0.049, 0.076, 0.044), (0.19, 0.038, 0.050, 0.050), (0.24, 0.014, 0.016, 0.055)]
+    lime, carbon = paint(LIME), paint(CARBON)
+    return shapes.loft(rings, lambda c: np.where(c[:, 1] > 0.005, lime, carbon),
+                       poles=(-0.11, 0.25), along='z')
+
+
+def _tipped(s):
+    """A blade's paint on side `s`: lime past 0.8 of its reach, white within."""
+    from coaxial.model.blocks import numpy as np
+    lime, prop = paint(LIME), paint(PROP)
+    return lambda c: np.where(s * c[:, 0] > 0.3 * ROTOR_R, lime, prop)
+
+
 def heli_parts(see='shell'):
     """[(name, mesh)]: the helicopter in its own axes, x right, y up, z ahead; `see` a layer:
     the airframe its two frames, tray and boom, the pack the tray's cells, bare the mast, the
     swashplate, the tail shaft and the boom's line."""
-    carbon, skin, accent = paint(CARBON), paint(SKIN), paint(ACCENT)
+    carbon, skin = paint(CARBON), paint(SKIN)
     shell, frame = see == 'shell', see != 'bare'
     out = [
         ('mast', _at(shapes.drum(0.010, DISC_M - MOTOR_Y - MOTOR_L, 'y', PLATE), None,
@@ -87,9 +106,9 @@ def heli_parts(see='shell'):
         _side('sink1', 0.036 + BOARD_H + SINK_H / 2.0, SINK_R, SINK_H, carbon),
     ]
     if shell:
-        out += [('nose', shapes.box((0.0, 0.04, 0.215), (0.028, 0.045, 0.03), accent)),
-                ('vfin', shapes.box((0.0, 0.0, -TAIL_M + 0.01), (0.005, 0.11, 0.045), accent)),
-                ('hstab', shapes.box((0.0, 0.03, -0.46), (0.13, 0.004, 0.035), skin))]
+        out += [('canopy', _canopy()),
+                ('vfin', shapes.box((0.0, 0.0, -TAIL_M + 0.01), (0.005, 0.11, 0.045), paint(LIME))),
+                ('hstab', shapes.box((0.0, 0.03, -0.46), (0.13, 0.004, 0.035), carbon))]
     for s in (-1.0, 1.0):
         out.append(('skid%d' % (s > 0),
                     _at(shapes.drum(1.4 * LEG_R, 0.46, 'z', skin), None,
@@ -104,9 +123,8 @@ def heli_parts(see='shell'):
 
 def main_blades():
     """The main rotor's two blades about the mast (y axis), shown when slow (`abs(w) < BLADES_RAD_S`)."""
-    prop = paint(PROP)
     return [('blade', shapes.ellipsoid((s * ROTOR_R / 2.0, 0.0, 0.0),
-                                       (ROTOR_R / 2.0, 0.004, BLADE_W), prop, rows=8))
+                                       (ROTOR_R / 2.0, 0.004, BLADE_W), _tipped(s), rows=8))
             for s in (-1.0, 1.0)]
 
 
