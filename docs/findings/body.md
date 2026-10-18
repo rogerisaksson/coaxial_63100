@@ -330,8 +330,9 @@ loop, gone from the tree (tag `laws-before-the-loop`); on the loop:
   spine roll's horn 0.26.
 - Dressed as cloth hangs (`gynoid._draped`, `_cap`): the tee a tube hung
   plumb from the chest and the bust, EASE_M 12 mm off the torso where it is
-  wider below, its hem pushed out by the hips (0.138 half-wide against the
-  old hem's 0.108 inside them); the seat's back 100-126 mm behind the pelvis
+  wider below, its hem at the hips' widest, 140 mm under the torso joint
+  (0.192 half-wide over the jeans; a hem 36 mm under it at 0.152 over the
+  jeans' 0.118 top read as a roll); the seat's back 100-126 mm behind the pelvis
   where 130 stood a ledge over the thighs; the hair a cap 14 mm over the
   skull from the ears' line, its front the hairline up to 0.65 of the
   skull's height, where an ellipsoid 24 mm wider than the head reached the

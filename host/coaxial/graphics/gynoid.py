@@ -45,7 +45,7 @@ CHEEK_AT, CHEEK_R = (0.056, -0.072, -0.078), (0.06, 0.056, 0.045)
 def _wear():
     """Tee, sleeves, and jeans shells."""
     tee, denim, z0, b = paint(TEE), paint(DENIM), (0.0, 0.0, 0.0), BAGGY_M - 0.012
-    out = [('cloth_tee', 'torso', z0, loft(_draped(), tee, poles=(-0.036, 0.378))),
+    out = [('cloth_tee', 'torso', z0, loft(_draped(), tee, poles=(HEM_Y - 0.01, 0.378))),
            ('cloth_seat', 'pelvis', z0, loft(
                [_hung(-0.12, 0.095, 0.05, 0.100), _hung(-0.10, 0.11, 0.06, 0.112)]
                + [_hung(*r) for r in _SEAT] + [(0.11, 0.118, 0.084)], denim, poles=(-0.135, 0.118)))]
@@ -76,8 +76,11 @@ _SEAT = ((-0.07, 0.148, 0.084, 0.126), (-0.03, 0.18, 0.096, 0.157), (0.02, 0.178
 _TORSO = ((-0.045, 0.094, 0.066), (0.0, 0.098, 0.069), (0.047, 0.102, 0.072), (0.093, 0.112, 0.079),
           (0.149, 0.122, 0.082), (0.205, 0.126, 0.083), (0.26, 0.13, 0.078), (0.307, 0.138, 0.07),
           (0.344, 0.14, 0.062), (0.372, 0.1, 0.055), (0.39, 0.05, 0.045))
-#: The hips under the tee's hem, in the torso's frame: (y, rx, front, back).
-_HIPS = ((-0.036, 0.138, 0.088, 0.112), (0.0, 0.116, 0.078, 0.088))
+#: The jeans' seat under the tee, in the torso's frame, (y, rx, front, back), down to the
+#: hips' widest at HEM_Y where the hem hangs.
+HEM_Y = -0.14
+_HIPS = ((HEM_Y, 0.18, 0.096, 0.157), (-0.10, 0.178, 0.096, 0.159), (-0.05, 0.146, 0.088, 0.116),
+         (-0.01, 0.118, 0.084, 0.084))
 EASE_M = 0.012
 
 
