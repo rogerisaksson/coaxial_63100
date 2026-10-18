@@ -140,7 +140,7 @@ def test_emulation_is_transparent(r):
     r.check('the target builds nothing of %s' % ', '.join(HOST_ONLY),
             not reached, ', '.join(reached))
     asks = []
-    for d in target_map.DIRS + ('core',):
+    for d in target_map.DIRS + ('core', 'wbc', 'aero'):
         for path in glob.glob(os.path.join(REPO, d, '**', '*.[chs]'), recursive=True):
             rel = os.path.relpath(path, REPO).replace(os.sep, '/')
             if rel.startswith(HOST_ONLY) or '/test/' in rel:
@@ -172,7 +172,7 @@ def test_null_has_its_header(r):
     <math.h> and <stdint.h> bring it and glibc's do not: ctrl_loop.c built here and for the
     part, and on CI's host no core did - 29 suites crashed, the emulator's among them."""
     from tools.dev import target_map
-    dirs = target_map.DIRS + ('wbc',)
+    dirs = target_map.DIRS + ('wbc', 'aero')
     headers = {}
     for d in dirs:
         for path in glob.glob(os.path.join(REPO, d, '**', '*.h'), recursive=True):
@@ -296,9 +296,41 @@ def test_a_crash_names_its_test(r):
             crash[:40])
 
 
+DOC_REF = re.compile(
+    r'\b(?:(?:host/)?(?:machine|coaxial\w*|terminal|tools(?:/\w+)?|tests)/[\w/]+\.(?:py|ps1|md|lisp|yaml)'
+    r'|host/\w+\.(?:py|ps1)|(?:tests/)?test_[a-z_]\w*\.py|machine\.([a-z_]\w*))\b')
+
+
+def test_docs_name_only_the_tree(r):
+    """No document in docs/ names a module, a tool or a suite not in the tree."""
+    host_dir = os.path.dirname(HERE)
+    gone = []
+    for path in sorted(glob.glob(os.path.join(REPO, 'docs', '**', '*.md'), recursive=True)):
+        rel = os.path.relpath(path, REPO).replace(os.sep, '/')
+        if rel == 'docs/DONE.md':
+            continue
+        text = io.open(path, encoding='utf-8', errors='replace').read()
+        for m in DOC_REF.finditer(text):
+            mod = m.group(1)
+            if mod:
+                target = os.path.join(host_dir, 'machine', mod + '.py')
+            else:
+                tok = m.group(0)
+                if tok.startswith('test_'):
+                    target = os.path.join(HERE, tok)
+                elif tok.startswith('host/'):
+                    target = os.path.join(REPO, *tok.split('/'))
+                else:
+                    target = os.path.join(host_dir, *tok.split('/'))
+            if not os.path.isfile(target):
+                gone.append('%s: %s' % (rel, m.group(0)))
+    r.check('every module, tool and suite named in docs/ is in the tree',
+            not gone, '; '.join(gone[:4]))
+
+
 ROSTER = (test_target_briefs, test_emulation_is_transparent, test_null_has_its_header,
           test_counts_are_measured, test_notebooks_are_papers, test_no_dates_in_the_tree,
-          test_every_suite_runs, test_a_crash_names_its_test)
+          test_every_suite_runs, test_a_crash_names_its_test, test_docs_name_only_the_tree)
 
 def main(argv=None):
     """Every test, or those the command line's words name, or its --shard k/n (tools.dev.focus)."""

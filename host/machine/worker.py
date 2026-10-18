@@ -15,17 +15,16 @@ def _start_mode(g, by, entry, at):
     if name == 'hop':
         g['_jump_until'], g['_leap'] = at + 1.45, False
     iw = by['init_walk'][1][:ortho.ROW.size] if 'init_walk' in by else None
-    if name in ('ballistic_walk', 'jog', '#201'):
+    if name in se2.RESET_MODES:
         return sprung.said(g, *entry, at=at, reset=True)
     if (name in ('turn_left', 'turn_right') and g.get('_twist_active')) or name == '#202':
         return sprung.said(g, *entry, at=at)
     if name == '#203' and '#202' in by:
         sprung.said(g, *by['#202'], at=at)
         return sprung.said(g, *by['#203'], at=at + 0.80)
-    if name in ('#204', 'trip', 'stairs_walk', 'stairs_down', 'ice_walk', 'slope_walk',
-                'turn_left', 'turn_right', 'circle_walk') and iw is not None:
+    if name in se2.INIT_GAITS and iw is not None:
         sprung.said(g, 'init_walk', iw, ('init_walk',), at=at, reset=True)
-        dt_iw = 0.12 if name in ('turn_left', 'turn_right', 'circle_walk') else (0.28 if g.get('_twist_active') else 0.65)
+        dt_iw = se2.INIT_DELAYS.get(name, se2.INIT_DELAYS['twist' if g.get('_twist_active') else 'say'])
         return sprung.said(g, *by[name], at=at + dt_iw)
     sprung.said(g, *entry, at=at)
 
@@ -56,13 +55,14 @@ def heard_say(g, gym, entry):
     off_c = not striding and (max(abs(float(ref[modal.LIFT])), abs(float(ref[modal.SAGITTAL])), abs(float(ref[modal.LATERAL]))) > 0.15
                               or abs(float(ref[modal.AXIAL])) > 0.25 or spd > 0.04 or abs(float(g['loads'][0]) - float(g['loads'][1])) > 90.0)
     t0, cur_d = g['t'] + 0.001, sprung.doing(g)
-    if cur_d in ('brake', '#201', 'init_walk') and g.get('active_entry') in sprung._FWD_GAITS and name in sprung._FWD_GAITS and len(g['tab']) and float(g['tab'][-1, latent.AT]) > g['t']:
-        t_end = float(g['tab'][-1, latent.AT])
+    future = g['tab'][g['tab'][:, latent.AT] > g['t']] if len(g['tab']) else ()
+    if cur_d in ('brake', '#201', 'init_walk') and g.get('active_entry') in sprung._FWD_GAITS and name in sprung._FWD_GAITS and len(future):
+        t_end = float(future[0, latent.AT])
         t_last = min(t_end, g['t'] + 0.18) if (cur_d == 'init_walk' and name in ('jog', 'turn_left', 'turn_right')) else t_end
         g['tab'], g['labels'] = g['tab'][g['tab'][:, latent.AT] < t_end - 1e-4], [(w, n) for w, n in g['labels'] if w < t_end - 1e-4]
         g['active_entry'] = name
         return sprung.said(g, '#204', se2._WALK_ON_WIRE, ('#204',), at=t_last) if name == '#204' else sprung.said(g, *entry, at=t_last)
-    if cur_d in ('hold', 'load', 'throw', 'land', 'step_off', 'drop', 'absorb', 'crouch_load', 'propulsion', 'flight_tuck', 'seat_land') and len(g['tab']):
+    if cur_d in se2.HOLD_PHASES and len(g['tab']):
         g['tab'] = g['tab'][g['tab'][:, latent.AT] <= g['t'] + 1.5]
         t0, off_c = (float(g['tab'][-1, latent.AT]) if len(g['tab']) else g['t']) + 0.05, True
     else:
@@ -82,17 +82,17 @@ def heard_say(g, gym, entry):
         g['active_entry'] = name
         if name != '#201' and name in (sprung._FWD_GAITS + sprung._BACK_GAITS):
             if name in sprung._BACK_GAITS:
-                dt_b = 0.38 if spd <= 0.55 else 0.52
+                dt_b = se2.BRAKE_DELAYS['back_slow' if spd <= 0.55 else 'back_fast']
                 rb = np.frombuffer(entry[1], latent.WIRE)
                 if len(rb) > 1:
                     rb = rb[1:].copy()
                     rb['at'] -= rb['at'][0]
                     return sprung.said(g, name, rb.tobytes(), entry[2][1:], at=t0 + dt_b, reset=True)
                 return sprung.said(g, *entry, at=t0 + dt_b, reset=True)
-            dt_b = 0.45 if spd <= 0.55 else 0.70
+            dt_b = se2.BRAKE_DELAYS['fwd_slow' if spd <= 0.55 else 'fwd_fast']
             return (sprung.said(g, '#204', se2._WALK_ON_WIRE, ('#204',), at=t0 + dt_b, reset=True) if name == '#204'
                     else sprung.said(g, *entry, at=t0 + dt_b, reset=True))
-        ts, tg = (1.20, 2.40) if spd > 0.45 else (0.55, 1.10)
+        ts, tg = se2.BRAKE_DELAYS['stand_fast' if spd > 0.45 else 'stand_slow']
         sprung.said(g, *by['#201'], at=t0 + ts, reset=True)
         if name != '#201':
             g['_sync_cpg_at'] = t0 + tg
@@ -114,9 +114,8 @@ def heard_say(g, gym, entry):
             g['_sync_cpg_at'] = t0 + 2.00
             _start_mode(g, by, entry, at=t0 + 2.00)
         return
-    rmap = {'seated': ('rise_chair', 2.20), 'bed_rest': ('rise_bed', 3.60), 'floor_rest': ('rise_floor', 3.30)}
-    if cur_d in rmap and name in (sprung._FWD_GAITS + sprung._BACK_GAITS) and rmap[cur_d][0] in by:
-        rm, dt_r = rmap[cur_d]
+    if cur_d in se2.RISES and name in (sprung._FWD_GAITS + sprung._BACK_GAITS) and se2.RISES[cur_d][0] in by:
+        rm, dt_r = se2.RISES[cur_d]
         sprung.said(g, *by[rm], at=t0, reset=True)
         g['_sync_cpg_at'] = t0 + dt_r
         return _start_mode(g, by, entry, at=t0 + dt_r)

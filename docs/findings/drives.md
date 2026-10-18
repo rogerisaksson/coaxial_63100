@@ -1,18 +1,14 @@
 # Findings: drives
 
 Motors, gearboxes, inverters and the numbers that size them
-(`machine.drives`). The demand they were sized on was read by
-`drive_sizes.py` off the laws before her latent loop, both gone from the
-tree (tag `laws-before-the-loop`); on the loop it is unmeasured
-(docs/TODO.md). The body's findings:
+(`machine.drives`). The body's findings:
 [body](body.md); the board's: [FINDINGS](../FINDINGS.md); one stack for
 every drive, its demand and the candidates: [stacks](stacks.md); each
 drive's demand on her loop and the stunts against it: [demand](demand.md).
 
 ## Assemblies
 
-Sized against the rise and 20 s of walk: three assemblies, a
-board behind an outrunner on a cycloid, coaxial.
+Three assembly classes, a board behind an outrunner on a cycloid, coaxial:
 
 | Size | Build | Peak | Joints |
 | --- | --- | --- | --- |
@@ -25,9 +21,7 @@ board behind an outrunner on a cycloid, coaxial.
   its housing), its speed within the unloaded (the knee 616 of 791 deg/s);
   the assemblies within their segments' masses (the shank 2.15 of 2.65 kg).
 - The cycloid shows the rotor at 0.49 kg m^2 at an L joint; the model carried
-  0.05. Walked with it: the head 44.9 -> 81.3 mm fore and aft, the strike 1550
-  -> 1031 N, held 83.8 -> 71.8 %, whatever L's ratio (36, 48, 64: 73.9, 71.4,
-  71.8 %).
+  0.05.
 - The frame fixes the product of that inertia and the copper's heat at a
   torque (J N^2 against t^2 / Km^2 N^2): the hips' winding 83 C at 1:64, 129
   at 1:48, 210 at 1:36.
@@ -45,10 +39,8 @@ mass and fixed range.
 ## Winding
 
 L wound 1.25 times its turns: 137 -> 171 N m at 100 A, 1520 ->
-1216 deg/s. From the squat 30 s walked; on the catalogue's winding it fell
-at 9.45 s (the page's 9.47). The hips at the clamp 3.4-3.6 % of walking
-either way, the knees 7.2-7.5 -> 6.1-6.8 %, copper 524 -> 606 W. The hip yaw
-at 1:60 beside it, 77 N m: fell at 5.82 s.
+1216 deg/s. The hips at the clamp 3.4-3.6 % of walking either way, the knees
+7.2-7.5 -> 6.1-6.8 %, copper 524 -> 606 W.
 
 ## Reducers
 
@@ -103,37 +95,10 @@ At the box's output, 1.5x:
   107 mm U12 II gives 27, its rotor heavy; a 72 x 26 mm stator 40.
 - One ratio then lies between each joint's heat's least and inertia's most.
 
-## Coaxial stacks
+## Coaxial stacks and frames
 
-`drives.STACKS`: frames 68 x 30 and 60 x 16 mm, boxes 84, 64
-and 44 mm, inverters 100 mm 100 A and 70 mm 50 A, 1:30. Gait Monte Carlo:
-
-| Build | Held % | After P's shove |
-| --- | --- | --- |
-| drives as they stood | 70.5 | - |
-| 72 x 28 / 60 x 12 at 1:30 (2.05 of the shank's 2.65 kg) | 61.3 | - |
-| on their old masses | 74.6 | - |
-| these at 1:36 (rotors seen 1.4-1.5x) | 73.7 | stayed down both ways |
-| these at 1:30 | - | up at 22.9 and 23.7 s |
-| knee and hip at KV 90 and 70 (1.5x torque) | 70.7 | - |
-| at KV 120 (x1.09, 960 deg/s) | 74.2 | - |
-
-Parrying asks speed; on 100 A at 48 V the knee has not both. Gynoid, falls
-and faults suites passed.
-
-## Six numbers
-
-`tools/sim/drive_sizes.py` (the demand cached, an iteration 0.4
-s): each 1 at a part's limit at 1.5x the walk's demand. P the inverter; T
-the copper at the ratio; J the rotor felt through it; Q = T J the frame alone
-(the ratio cancels); S the box; V the volts. The ratio's window sqrt(T) N ..
-N / sqrt(J).
-
-- The knee's window one number, 33..34 (Q 0.94, P 1.31, V 1.07); the hip's
-  32..82; the hip roll's T 1.57 at its spur's 1.67, 0.70 at the 2.5 planned
-  (window 63..126).
-- The ankles' and the toes' J 21-775, the rotor against a light limb, not a
-  limit (the foot's flick 0.12 of its peak); their S 0.42-0.94 the bound.
+- Frames 68 x 30 and 60 x 16 mm, boxes 84, 64 and 44 mm, inverters 100 mm
+  100 A and 70 mm 50 A, 1:30.
 - The knee's continuous torque is the inverter's: at 68 x 30 the winding
   binds at 76 N m (41 A); at 68 x 45 the 100 mm inverter's switches at 82 (44
   A) through its 3.6 K/W housing path. A longer or wider frame buys nothing
@@ -143,240 +108,63 @@ N / sqrt(J).
   x1.12 at the same winding freedom; its lever 0.63-0.89 over 15-45 deg where
   the knee asks its 171 N m and 1024 deg/s. No torque from it, only the dead
   centres.
-- BOM: 2 frames, 3 boxes, 2 inverters, 3 windings; the drives 15.2 kg of 55;
-  stacks 100/88/70/68 mm round.
-
-## Hip roll on a crank-rocker
-
-`linkage.PLANAR`: the drive on the fork behind, 48 mm from the
-roll axis; a 14 mm crank turning 360 deg, a 45 mm rod, a 25 mm horn; dead
-centres at -28 and +40 deg; lever 1.8 at 0, 2.2 at -14, 2.1 at +27, 3.8 at
--24; transmission 49 deg; the rod 7.7 kN at 1.5x. On the walk its heat 1.57
--> 1.14, amps 0.93 -> 0.94, volts 0.31 -> 0.37.
-
-- The linkage lives between the hip stack's end and the fork's arm: the
-  stack's 100 mm inverter rim cut every rod at 34 mm from the pitch axis, so
-  the stack went 20 mm in on its axis (16 mm into the pelvis boom squatting),
+- Hip roll on a crank-rocker (`linkage.PLANAR`): the drive on the fork behind,
+  48 mm from the roll axis; a 14 mm crank turning 360 deg, a 45 mm rod, a
+  25 mm horn; dead centres at -28 and +40 deg; lever 1.8 at 0, 2.2 at -14,
+  2.1 at +27, 3.8 at -24; transmission 49 deg; the rod 7.7 kN at 1.5x. The
+  linkage lives between the hip stack's end and the fork's arm: the stack's
+  100 mm inverter rim cut every rod at 34 mm from the pitch axis, so the
+  stack went 20 mm in on its axis (16 mm into the pelvis boom squatting),
   the roll's bearings 5 mm out; in front the drum stood 68 mm out of the skin.
-
-| Dead centres | Lever (stance) | Heat | Monte Carlo | Falls |
-| --- | --- | --- | --- | --- |
-| -22, +44 (12 mm crank, 22 mm horn) | 2.0; 3.2 at -14 | 0.86 | 75.8 % (74.2 on the spur); SOA fault 100 %; up after P at 23.0, 23.5 s | P's falls pin the adducting hip at -24 and swing the other to +35; on the -22 stop the head met the floor at 4.5 and 6.0 m/s (`landings`: 2 falls of 9 at 0.7 kN, 0 of 9 with the stop off; nudge parry 1 of 8) |
-| -28, +40 | 2.2 for 3.2 | 3.11 with the parries | 67.2 %; slip at 0.9 34 % (79); the fixed walk from the squat down at 13 s | off the dead centres, no head landing |
-| -40 or -45 (swing 84-94) | 1.3-1.5 | 2.3 | - | - |
-
-Neither stroke kept: the spur (1.67, no stops, 74.2 %, every suite) stays. A
-crank-rocker there needs a hip roll with twice the continuous torque, or dead
-centres a fall and a capture step never reach.
-
-## Demand over five scenes
-
-The walk, a slip, a nudge, a hole, P's shove at 1.5x (`drive_sizes.SCENES`).
-One walk's knee asked 1231 deg/s with a catch in it, 561 without. With the
-parries, on the spur build:
-
-| Joint | T | P | V | Other |
-| --- | --- | --- | --- | --- |
-| hip | 1.94 | 1.33 | 1.06 | - |
-| knee | 1.94 | 1.36 | 1.13 | window 42..34, inverted |
-| hip roll | 2.92 | - | - | - |
-| ankles | 1.4-1.5 | - | 1.15 | - |
-| hip yaw | 1.01 | - | - | - |
-| spine | - | - | 1.05 | - |
-
-On the walk alone every number but the knee's P and V stood under 1; the
-five scenes' rms moves 20-30 % between runs of one build. A joint folded past
-a four-bar's dead centre or a rod's stroke read the far branch's lever (0.44
-at the hip roll's -22, the demand 4.6x): clamped to the stroke.
-
-## Drives held rigid
-
-Each drive held rigid in turn on the scoreboard (`drives.WAYS`, fewest
-drives), against 730 and 74.1 % driven:
-
-| Held | Score | Held % | Outcome |
-| --- | --- | --- | --- |
-| wrists | 602 | 74.2 | every rise and walk standing: held since, 23 drives |
-| head's turn | 699 | 69.4 | a walk fell |
-| neck | 628 | 71.2 | a rise fell |
-| waist | 727 | 71.6 | a rise fell |
-| spine's roll | 1293 | 23.0 | - |
-| hips' yaw | 1337 | 12.1 | - |
-
-- One KV a frame (fewest variants): A's spine 1.05 of its amps at KV 110,
-  1.15 at 120; its hips and knees 1.26 (volts 1.15, 1.23) and 1.38 (1.06,
-  1.13).
-- The waist's and the shoulder's 44 mm boxes 2.79 and 1.44 times their
-  momentary rating, the 64 mm 0.91 and 0.47: B; the shoulder's stack +23 mm
-  past the skin standing (+22 before).
-- Wrists held and boxes B: A at KV 110 scored 623 and 72.7 %, at 120 763
-  and 72.9. 110 kept, two windings.
-
-## Run demand
-
-`drive_sizes --run`: the literature's peaks a kg at 3-3.5 m/s
-(hip 2.7, knee 3.0, ankle 3.6 N m; the rms 0.4 of them; 7-12 W a kg).
-
-- The hips' and knees' numbers unchanged: the walk's parries ask more than a
-  run.
-- The ankle binds, 147 -> 198 N m peak; on B: A 1.32, T 5.26, S 1.27, V 1.15;
-  the hip roll's T 2.92 as before.
-- On frame A with its box and inverter: the ankle 0.80, 0.73, 0.56, 0.94; the
-  ankle roll 0.59 and 0.20; the hip roll 0.57 and 0.41. Every leg joint on A
-  is 3.9 kg more drive (14.2 -> 18.1 of 55).
-
-## Frames, boxes, inverters
-
-- Two of each: frame C and box C gone after a day; the elbow,
-  the neck and the head on B direct (the elbow's drum 72 mm across the elbow
-  with its collars, the shell there 80, +5 mm past it standing). The ankles
-  on A with its box and inverter (on B 1.32 of its amps and 1.27 of its box
-  for a run), the stack 10 mm down the shank (its gearbox met the knee's by 7
-  mm with the knee folded), +3 past the calf's shell. The hip yaw, hip roll
-  and ankle roll on B (on A the hip roll's stack stood 19 mm into the pelvis
-  frame, the hip yaw's inverter 15 into the spine's).
-  + Electronics in oil, each stator on its inverter through a thermal
-    interface (`drives.COOLING` 0.3 on the windings' and the laminates'
-    K/W, assumed): every heat number under 1 (the hips' and knees' 1.94 ->
-    0.64, the hip roll's 2.92 -> 0.88, the ankle's 0.24), the switches
-    binding the A joints.
-  + Over 1 at 1.5x the parries' peaks: the hips' and knees' amps 1.26, power
-    1.33-1.36, volts 1.15-1.23 (at 1.0x 0.84, 0.89, 0.77-0.82), the spine's
-    amps 1.05: the margin's rule. Drives 17.3 kg of 55; parts 25 types
-    (`bom.py`).
-- A third frame, C, 40 mm round and 12 deep at KV 200, for the elbow, the
-  neck, the head and the toes (fewest parts):
-  + On B the elbow's rotor reflected 4.2 times its load's inertia
-    (`drive_sizes` J), the neck's 2.7, the toes' 775; on C 0.76 and 0.48; the
-    elbow's amps at stall 0.91 (1.09 at a 10 mm stack); 0.7 kg off the
-    drives.
-  + Across the elbow's 56 mm the C stack fits on the joint's own axis, -1 mm
-    inside the shell, where B's 68 needed a bevel pair and a belt: both gone,
-    the wrist's too (held); the elbow's inverter a ring round the humerus at
-    mid-arm facing along it (0 mm). The humerus ends at a collar on the
-    elbow's motor; the forearm hangs from one on its gearbox by a strut to
-    its axis (`skeleton.HUNG`). Parts: 28 -> 27 types (`tools/sim/bom.py`).
-- One frame, one box, one inverter for every drive (the DFM extreme,
-  `drive_sizes --cached`, `fit.py`):
-  + All on A: 27.6 kg of drives against 17.3 (+10.3 of 55); every joint
-    under 1 but the hips and knees at A's own 1.26; stacks past the shell
-    (the toes' 32 mm, the elbow's 19, the head's 14, the shoulder's and the
-    hip roll's 13).
-  + All on B: 12.7 kg; the hips and knees at 2.07 of their amps and 2.4 of
-    their power; the spine 1.72.
-  + Kept: two, A for the spine, hips, knees and ankles, B for the rest.
-
-## Restart after a fall
-
-Restarting after a fall the body spasms and falls (recordings
-humanoid_20261003_231619, 232719):
-
-- Headless from the squat with P's shove at 60 s (`look.py --push 60 --to
-  100`): collapses in the get-up's crouch at 76-80 s and again at 93-97 s,
-  the right hip 117 C and derated to 0.82 there (the bowed torso, 80-98 deg,
-  hangs on the hips). With the shove at 6 s the same restart stands.
-- Hottest drives: a knee 64-81 C through the walk, the left hip 106-109 in
-  the catch, the spine 86-89 sat back on the heels.
-- The test took the lying pose into a cold world; now the fall after 60 s of
-  walking with the heat carried (`getup_search.SHOVE_S`,
-  `World.glitch(celsius=)`).
-- The get-up is the heavy lift: sitting back from the kneel draws 1.5 kW at
-  its peak, lifting onto the feet 1.4, the crouch 0.1-0.5; the hip goes 82
-  -> 117 C through them, not derated until the crouch, so a rest on the
-  heels for a derated leg drive never fired, and was cut. The onto-feet
-  keyframes re-searched hot stand up 5 of 5 ([body](body.md)).
-
-## Gym scenes in the sizing
-
-`drive_sizes.SCENES` 'stand:': each rig of `events.STANDING`,
-standing on it, the event at 8 s; the rms the walk's alone (a stand of
-milliseconds before a fall made it the peak, T 3.75).
-
-- At 1.5x: the hips' and knees' amps 1.26 and power 1.20-1.23, the spine's
-  amps 1.05 (the parries' peaks, unmoved); the ankle roll's amps 1.08 and
-  box 1.04, the gym's (0.93 and 0.90 before); the rest under 1.
-- The ankle roll on A instead (`fit.py`): its stack 12 mm past the shell and
-  11 into the ankle's gearbox (7 on B), so it stays on B: 0.72 and 0.69 at
-  1.0x, the margin rule's call.
-
-## What binds the hips and knees
-
-A parry, not the run (`drive_sizes --cached --run`):
-
-- Their 171 N m and 1259 deg/s peaks are the scenes' (a catch's): 1.26 of
-  A's amps, 1.21 of its power, 1.19 of its volts at the pack's lowest 48 V
-  and 1.5x. The literature's 3-3.5 m/s run asks less (148 N m); the 2 m/s
-  jog `RUN` is sized on less still.
-- Amps x volts is the pack's volts x the inverter's amps: 1.15 at 54 V and KV
-  100, 1.07 at 63 V and KV 93; no ratio or KV moves it. KV A 100 tried: volts
-  1.31, back to 110.
-- The toes' motors out: 21 drives, 16.2 kg of 55. The elbow, the neck and
-  the head feel their rotors 6.8, 2.6 and 28.8 times their loads through box
-  B's 1:30 (windows 3..11, 2..19, 0..6); B direct overheats the elbow, its
-  rms 4 N m against 1.7 held.
+  Neither stroke kept: the spur (1.67, no stops) stays.
+- Electronics in oil, each stator on its inverter through a thermal
+  interface (`drives.COOLING` 0.3 on the windings' and the laminates'
+  K/W, assumed): every heat number under 1 (the hips' and knees' 1.94 ->
+  0.64, the hip roll's 2.92 -> 0.88, the ankle's 0.24), the switches
+  binding the A joints.
+- Across the elbow's 56 mm the stack fits on the joint's own axis, -1 mm
+  inside the shell, where a 68 mm stack needed a bevel pair and a belt: both
+  gone, the wrist's too (held); the elbow's inverter a ring round the humerus
+  at mid-arm facing along it (0 mm). The humerus ends at a collar on the
+  elbow's motor; the forearm hangs from one on its gearbox by a strut to
+  its axis (`skeleton.HUNG`). Parts: 28 -> 27 types (`tools/sim/bom.py`).
 
 ## A printed box's play
 
 The gearboxes as bodies of their own (`machine.gearbox`, `physics.BOXED`,
-Play and hysteresis as a good printed box has them):
+play and hysteresis as a good printed box has them):
 each rotor runs free across the play, winds the box and the structure up past
 it against the mesh's friction, and the link is turned by that wind-up
 alone; the rotor's inertia off the joint's armature; the rotors stepped five
 times a world step (at one the knee's 187 rad/s mode outgrew its damping).
 The numbers, estimated: 0.5 deg of play at the output (a wave drive's few
 arcmin before), the roller box's 9 kN m/rad as before (at a printed cycloid's
-1.5 the stance ankle sagged 3-4 deg under its 60 N m and the walk fell at its
-first steps), the mesh's friction 2 % of the drive's peak, the wind-up's
-damping ratio 0.3; at the knee 4.4 mrad, 6.2 kN m/rad, 2.2 N m on 0.177
-kg m^2. Fed 3 N m the waist's rotor crosses its play in 23 ms with the link
-still to 2e-9 rad, winds up 6.3 mrad (6.5 by the numbers), and reversed meets
-the other flank 85 ms later before the link turns back (test_gynoid.py).
+1.5 the stance ankle sagged 3-4 deg under its 60 N m), the mesh's friction
+2 % of the drive's peak, the wind-up's damping ratio 0.3; at the knee 4.4 mrad,
+6.2 kN m/rad, 2.2 N m on 0.177 kg m^2. Fed 3 N m the waist's rotor crosses its
+play in 23 ms with the link still to 2e-9 rad, winds up 6.3 mrad (6.5 by the
+numbers), and reversed meets the other flank 85 ms later before the link turns
+back (`tests/test_gynoid.py`).
 
 - A loop closed on the joint's angle through the box fell standing in 0.6 s
   (800 N m/rad on a 1.4 kN m/rad spring with the rotor behind it). The servo
   and the observer read the motor's encoder (`physics.WOUND` 1), as a board
   does; the whole-body law the joint's. The observer on the joint took the
   play for 84 N m of disturbance and she fell standing.
-- Her walk on setpoints from the squat (`look.py`, 14 s), the form's band
-  toes back at lift 2 mm at most:
-
-| World | Toes back at lift | Feet clear | Strike | J/m |
-| --- | --- | --- | --- | --- |
-| rigid | 0.6 mm | 29 mm | 358 N | 512 |
-| the rotor split, no play, no friction | 6.8 | 31 | 371 | 566 |
-| with the friction | 10.3 | 29 | 374 | 563 |
-| with 0.1 deg of play | 13.8 | 30 | 380 | 557 |
-| with 0.5 deg of play | 21.5 | 11 | 391 | 614 |
-| all | 19.3 | 13 | 382 | 607 |
-
 - The wind-up alone loses the ankle 2 x 60 / 6 200 = 1.2 deg at each torque
-  reversal, the play 0.5 more: the toes drag at lift. The rotor asked ahead
-  by the wind-up and the play its torque takes up (`gearbox.Boxes.ahead`)
-  dragged them 16 mm for 730 J/m; the wind-up's share alone 8-14 mm at
-  0.1-0.3 deg: dropped (`drives.AHEAD_WIND`, `AHEAD_PLAY` 0).
+  reversal, the play 0.5 more.
 - The loop on its torques walks the boxes: with its PD 2.52 m at 0.42 m/s
   and 265 J/m, with its observer 2.17 m at 0.36 m/s and 326 J/m (rigid 2.31
   and 265, 1.94 and 325), and the observer stands 8 of 8 at 100 N where the
-  PD 2 and the stack 7; the stack's own walk 1.89 m at 0.32 m/s and 1035 J/m
-  (792 rigid), all at the printed stiffness - the roller box's to be
-  measured again.
-- So the loop's world has the boxes (test_wbc_core.py, `tools/sim/wbc.py`,
-  `--rigid` off) and the walker's stays rigid till the page walks on the loop
-  (docs/TODO.md, the latent stack): a form held on setpoints through a
-  gearbox's lost motion is the torque loop's to hold.
+  PD 2 and the stack 7 (`tests/test_wbc_core.py`, `tools/sim/wbc.py`).
 - The drives' speed, back-EMF and copper are the rotor's; the boards see the
-  rotor's angle past the joint's on the block (`delta`, `delta_d`, `ahead`).
-- Rigid, the boards keep the encoder deadband the walk's band was measured
-  on: held within 0.05 deg of the joint, started at the hold (`gearbox.Boxes`
-  `rigid`, `drives.RIGID_PLAY_DEG`). Without it the gait suite's knee at
-  landing read 30.3 of 30 and knee behind plumb 10.0 of 10; started 0.05 deg
-  off the hold instead, knee at landing 30.7 for the take's 29.5: the walk
-  is that sensitive, and the last commit's 99 of 99 came back only exact.
+  rotor's angle past the joint's on the block (`delta`, `delta_d`, `ahead`,
+  `gearbox.Boxes`).
 
 ## As data
 
-- Her build's parts as files (machine/library, machine/robots): every drive's kt,
+- Her build's parts as files (`machine/library`, `machine/robots`): every drive's kt,
   peak, armature, speed, drag, shock, ohm, mass, length and heat the same to the
-  bit for all 27 joints; DIMENSIONS.md unchanged; `drives.py` 5.8 k -> 4.7 k tokens.
+  bit for all 27 joints; `docs/DIMENSIONS.md` unchanged; `drives.py` 5.8 k -> 4.7 k tokens.
 - Her manifest of them reads her 31.14 kg (305.5 N), her centre of mass 0.916 m
   up, omega 3.27/s: her text's header had said 55 kg.

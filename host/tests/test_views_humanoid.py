@@ -198,9 +198,13 @@ def test_her_verbs_and_the_chase(report):
     for view, going in ((went, True), (looked, True), (stood, False)):
         for dt in (0.0, viewpoint.LAG_S):
             viewpoint.chased(view, 1.0, going, t + 0.5 + dt)
+    from coaxial.graphics import arrows
+    errands = [arrows.describe(dict(st['now'], doing=d, entry=e, velocity=(0.0, 0.35)))['kind']
+               for e in ('sit_chair', 'lie_bed', 'stairs_walk') for d in ('init_walk', 'brake', '#201', e)]
     report.check('the view eases behind her as she goes, 63 % in LAG_S; not RECENTRE_S after a look, nor standing',
                  abs((went['yaw'] - 180.0) / (behind - 180.0) - (1.0 - math.exp(-1.0))) < 1e-6
-                 and looked['yaw'] == stood['yaw'] == 180.0)
+                 and looked['yaw'] == stood['yaw'] == 180.0
+                 and errands == ['fall'] * 8 + ['locomotion'] * 4)
 
 
 def test_scenario_deck_tour_handoff_and_cybernetic_hud(report):

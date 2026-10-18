@@ -1,5 +1,6 @@
 """The console's input: keys and the mouse, read raw off the Windows console or a tty."""
 import ctypes
+import os
 import re
 import select
 import sys
@@ -381,6 +382,8 @@ class Keys:
         """A key-down record as the characters a terminal would send."""
         if key.ch and key.ch != '\x00':
             return key.ch * max(1, key.repeat)
+        if key.vk == 27:
+            return '\x1b'
         if 112 <= key.vk <= 123:
             return 'f%d' % (key.vk - 111)
         return {37: '\x1b[D', 38: '\x1b[A', 39: '\x1b[C', 40: '\x1b[B'}.get(key.vk, '')
@@ -467,8 +470,8 @@ class Keys:
 
         keys = []
         while select.select([sys.stdin], [], [], 0)[0]:
-            got = sys.stdin.read(1)
+            got = os.read(sys.stdin.fileno(), 1024).decode('utf-8', 'replace')
             if not got:
                 break
-            keys.append(got)
+            keys.extend(got)
         return keys

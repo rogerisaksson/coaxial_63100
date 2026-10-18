@@ -338,22 +338,21 @@ def _draw_viewport(state, now, width, height, terminal, lit):
         horizon=horizon.segments(now, now.get('props') or (), state.get('horizon') or 'off') or None))
 
 
-def _boot_humanoid(board_view, state):
-    with boot('LINKING HUMANOID', board_view) as step:
-        step(0.15, 'SHADER & RASTER')
+def _boot_humanoid(_board_view, state):
+    with boot('LINKING HUMANOID') as step:
+        step(0.15, 'MUJOCO & LISP')
+        body = state['body'] = sprung.Running()
+        say('ok', 'body', '%.1f kg, %d drives, MuJoCo at 1 kHz in its own process'
+            % (figure.mass(), sum(len(s.actuators) for s in TYPES['gynoid'].body)))
+        step(0.45, 'SHADER & RASTER')
         card = gpu.adapter()
         lit = gpu.LitRaster(found=card) if card is not None else None
         name = lit.name if lit is not None else 'this process, dots'
         say('ok', 'drawing', name)
-        step(0.40, 'GYNOID MESHES')
-        for d, s in ((True, None), (False, None), (True, 'mechanism'), (True, 'actuators')):
-            gynoid.body(d, s)
-        step(0.70, 'MUJOCO & LISP')
-        body = state['body'] = sprung.Running()
-        say('ok', 'body', '%.1f kg, %d drives, MuJoCo at 1 kHz in its own process'
-            % (figure.mass(), sum(len(s.actuators) for s in TYPES['gynoid'].body)))
+        step(0.75, 'GYNOID MESHES')
+        gynoid.body(True, None)
         step(0.90, 'SETTLING STAND')
-        for _ in range(100):
+        for _ in range(300):
             first = body.latest()
             if first is not None:
                 state['playback'].push([first])

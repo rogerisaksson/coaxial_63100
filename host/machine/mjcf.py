@@ -83,8 +83,10 @@ SOLE_S, SOLE_DAMP, SOLE_SOFT, SOLE_WIDTH_M = 0.02, 1.5, 0.9, 0.005
 #: impedance PAD_SOFT, rising to 0.95 as the gel is spent; settling over PAD_S s at PAD_DAMP of
 #: critical. Over 12 falls against none, the padded parts' landing peak 5.99 -> 5.32 kN at the
 #: median, its spread 3.00 -> 2.53; the pads as stiff as her cloth, the worst 8.4 -> 11.3, at
-#: 0.005 s 61 (`tools/sim/landings.py`).
+#: 0.005 s 61.
 PAD_SOFT, PAD_S, PAD_DAMP = 0.5, 0.02, 1.5
+#: Carbon-fibre shell plates riding over PAD_M gel (`figure.SHELL_ARMOR`), 1 to build her so.
+ARMOR = 0.0
 
 #: Her left shoe's lace snagged on the right shoe (`World.lace`): from LACE_AT on the one to LACE_AT
 #: on the other (their frames), LACE_M between - a tendon, its limit settling over LACE_S s - until
@@ -224,38 +226,38 @@ def _mjcf(bones):
                                                 cloth if part in CLOTH else ''))
         for k, (part, axis, radius, toward, size, wide) in enumerate(figure.PADS):
             for x in ((1.0, -1.0) if name == part == 'pelvis' else
-                      ((1.0 if name.startswith('left') else -1.0),) if name.endswith('_' + part)
-                      else ()):
+                      ((1.0 if name.startswith('left') else -1.0),) if name.endswith('_' + part) else ()):
                 at = figure.pad(axis, radius, toward, size, x)
                 shape = ('type="capsule" size="%g" fromto="%g %g %g %g %g %g"' % (
                     (size, at[0] - wide) + at[1:] + (at[0] + wide,) + at[1:]) if wide else
                          'type="sphere" size="%g" pos="%g %g %g"' % ((size,) + at))
-                out.append('<geom name="%s_pad%d%s" %s%s priority="1" solref="%g %g" '
-                           'solimp="%g 0.95 %g"/>' % (
-                               name, k, '' if x > 0 else 'r', shape,
-                               grip % CLOTH.get(part, FRICTION), PAD_S, PAD_DAMP, PAD_SOFT,
-                               figure.PAD_M))
+                out.append('<geom name="%s_pad%d%s" %s%s priority="1" solref="%g %g" solimp="%g 0.95 %g"/>' % (
+                    name, k, '' if x > 0 else 'r', shape, grip % CLOTH.get(part, FRICTION),
+                    PAD_S, PAD_DAMP, PAD_SOFT, figure.PAD_M))
+        for part, half, at in (figure.SHELL_ARMOR if ARMOR else ()):
+            if name == part or name.endswith('_' + part):
+                s = -1.0 if name.startswith('right_') else 1.0
+                out.append('<geom name="%s_armor" type="box" size="%g %g %g" pos="%g %g %g"%s priority="1" '
+                           'solref="%g %g" solimp="%g 0.95 %g"/>' % (
+                               (name,) + half + (s * at[0], at[1], at[2], grip % CLOTH.get(part, FRICTION),
+                                                 PAD_S, PAD_DAMP, PAD_SOFT, figure.PAD_M)))
         if name.endswith('_shank'):
             side = name[:-len('_shank')]
-            out += ['<body name="%s_hem" pos="0 %g 0">' % (side, -HEM_AT)]
-            out += ['<joint name="%s_hem_%s" axis="%s" stiffness="%g" damping="%g" '
-                    'armature="0" limited="true" range="%g %g" solreflimit="%g 1"/>' % (
-                        side, axis, direction, HEM_K, HEM_D, low, high, HEM_STOP_S)
-                    for axis, direction, low, high in (
-                        ('x', '1 0 0', -HEM_FORE_DEG, HEM_BACK_DEG),
-                        ('z', '0 0 1', -HEM_SIDE_DEG, HEM_SIDE_DEG))]
-            out += ['<inertial pos="0 %g 0" mass="%g" diaginertia="%g %g %g"/>' % (
-                -HEM_M, HEM_KG, 0.02 * HEM_KG, 0.02 * HEM_KG, 0.02 * HEM_KG), '</body>']
+            out += ['<body name="%s_hem" pos="0 %g 0">' % (side, -HEM_AT)] + [
+                '<joint name="%s_hem_%s" axis="%s" stiffness="%g" damping="%g" armature="0" limited="true" '
+                'range="%g %g" solreflimit="%g 1"/>' % (side, ax, d, HEM_K, HEM_D, lo, hi, HEM_STOP_S)
+                for ax, d, lo, hi in (('x', '1 0 0', -HEM_FORE_DEG, HEM_BACK_DEG),
+                                      ('z', '0 0 1', -HEM_SIDE_DEG, HEM_SIDE_DEG))] + [
+                '<inertial pos="0 %g 0" mass="%g" diaginertia="%g %g %g"/>' % (
+                    -HEM_M, HEM_KG, 0.02 * HEM_KG, 0.02 * HEM_KG, 0.02 * HEM_KG), '</body>']
         if name == 'head':
-            out += ['<body name="hair" pos="%g %g %g">' % HAIR_AT]
-            out += ['<joint name="hair_%s" axis="%s" stiffness="%g" damping="%g" armature="0" '
-                    'limited="true" range="%g %g"/>' % (axis, direction, HAIR_K, HAIR_D, low, high)
-                    for axis, direction, low, high in (
-                        ('x', '1 0 0', -HAIR_IN_DEG, HAIR_DEG),
-                        ('z', '0 0 1', -HAIR_SIDE_DEG, HAIR_SIDE_DEG))]
-            out += ['<inertial pos="0 %g 0" mass="%g" diaginertia="%g %g %g"/>' % (
-                -HAIR_M, HAIR_KG, 0.0025 * HAIR_KG, 0.0025 * HAIR_KG, 0.0025 * HAIR_KG),
-                '</body>']
+            out += ['<body name="hair" pos="%g %g %g">' % HAIR_AT] + [
+                '<joint name="hair_%s" axis="%s" stiffness="%g" damping="%g" armature="0" limited="true" '
+                'range="%g %g"/>' % (ax, d, HAIR_K, HAIR_D, lo, hi)
+                for ax, d, lo, hi in (('x', '1 0 0', -HAIR_IN_DEG, HAIR_DEG),
+                                      ('z', '0 0 1', -HAIR_SIDE_DEG, HAIR_SIDE_DEG))] + [
+                '<inertial pos="0 %g 0" mass="%g" diaginertia="%g %g %g"/>' % (
+                    -HAIR_M, HAIR_KG, 0.0025 * HAIR_KG, 0.0025 * HAIR_KG, 0.0025 * HAIR_KG), '</body>']
         for kid in kids.get(name, []):
             out += body(kid)
         return out + ['</body>'] * (1 + len(stages))

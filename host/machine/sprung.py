@@ -5,7 +5,12 @@
 """
 import math
 import os
-from machine import mechatronics, edge, estimate, flight, grip, ortho, situation
+from machine import mechatronics, edge, estimate, flight, grip, ortho, se2, situation
+from machine.se2 import WEP_S, _dropped, doing, said
+
+LEAK_S, STANDING_KP, WEP_HOLD_S, WEP_FILL = se2.LEAK_S, se2.STANDING_KP, se2.WEP_HOLD_S, se2.WEP_FILL
+KNEE_SOFT, KNEE_NM, STUNT_MODES, STUNT_PHASES = se2.KNEE_SOFT, se2.KNEE_NM, se2.STUNT_MODES, se2.STUNT_PHASES
+_FWD_GAITS, _BACK_GAITS = se2._FWD_GAITS, se2._BACK_GAITS
 
 RATE_HZ, SLICE_S, SAY_S, AVERAGE_S, RECOVER_S = 1000.0, 0.05, 1.0 / 60.0, 0.05, 3.0
 SHOVES, SHOVE_S = {'nudge': 38.0, 'push': 80.0, 'shove': 120.0}, 0.12
@@ -30,22 +35,14 @@ _TOUCH = ('(stream_inject (sequence_id 200) (blend_duration 500ms) (latent_targe
           ' (damping mode_lateral_shift 600) (stiffness mode_pelvis_list 1500) (damping mode_pelvis_list 300))'
           ' (cpg_config (enable false)) (task_constraints (maintain_zmp (polygon support_polygon))))')
 _BRAKE_WIRE, _BRAKE_BACK_WIRE, _TOUCH_WIRE = ortho.compiled(BRAKE)[0][''], ortho.compiled(BRAKE.replace('108deg', '-108deg'))[0][''], ortho.compiled(_TOUCH)[0]['']
-SERVO_SHARE, LEAK_S, STANDING_KP, WEP_HOLD_S, WEP_S, WEP_FILL = (0.5, 1.0), 0.2, 0.1, 1.0, 8.0, 0.8
+SERVO_SHARE = (0.5, 1.0)
 INNER, ESO_WO, SOLVER = 'eso', 100.0, 'wrench'
 LEG_KINDS = ('hip_yaw', 'hip_roll', 'hip', 'knee', 'ankle', 'ankle_roll')
 _Q_LIM = {'hip_yaw': (-0.44, 0.44), 'hip_roll': (-0.61, 0.61), 'hip': (-2.0, 0.78), 'knee': (0.05, 2.70),
           'ankle': (-0.78, 0.73), 'ankle_roll': (-0.26, 0.26), 'waist': (-0.78, 0.78), 'spine': (-0.44, 1.31),
           'spine_roll': (-0.52, 0.52), 'shoulder': (-1.13, 2.62), 'elbow': (0.0, 2.62), 'neck': (-0.35, 0.45), 'head': (-0.85, 0.85)}
-KNEE_SOFT, KNEE_NM, STACK_EVERY, DOWN_DEG, DOWN_M = 0.1, 40.0, 3, 50.0, 0.45
+STACK_EVERY, DOWN_DEG, DOWN_M = 3, 50.0, 0.45
 GYMS = (mechatronics.ROBOT, 'examples')
-STUNT_MODES = {'sit_chair', 'rise_chair', 'lie_bed', 'rise_bed', 'lie_floor', 'rise_floor', 'hop_down_chair',
-               'hop_up_chair', 'stairs_down', 'parry_shove', 'controlled_fall'}
-STUNT_PHASES = {'approach', 'lower', 'seated', 'lean_forward', 'thrust', 'sit_edge', 'recline', 'bed_rest', 'sit_up',
-                'swing_out', 'kneel', 'floor_rest', 'push_arms', 'half_kneel', 'cushion', 'land', 'step_off', 'drop',
-                'absorb', 'crouch_load', 'propulsion', 'flight_tuck', 'seat_land', 'descent'}
-_FWD_GAITS = ('#204', 'trip', 'jog', 'ballistic_walk', 'stairs_walk', 'stairs_down', 'ice_walk', 'slope_walk',
-              'strafe_left', 'strafe_right', 'turn_left', 'turn_right', 'circle_walk')
-_BACK_GAITS = ('#205', 'turn_back_left', 'turn_back_right')
 
 
 def entries(text=None, name=GYMS[0]):
@@ -121,33 +118,11 @@ def _sensed(body, est, sense, limbs):
     return s
 
 
-def said(g, label, wire, names=(), at=None, reset=False):
-    import numpy as np
-    from machine import latent
-    new = latent.table(wire, g['t'] + 0.001 if at is None else at, g['rest'])
-    if reset and len(new):
-        new[0, latent.VALS] = np.where(new[0, latent.SAID] > 0.5, new[0, latent.VALS], g['rest'])
-        new[0, latent.SAID] = 1.0
-    t_eat = g['t'] - 0.001 * ((g['n'] - 1) % g['every'] + 1) + 1e-6 if g.get('n', 0) > 0 else -1.0
-    g['tab'] = np.concatenate([g['tab'][g['tab'][:, latent.AT] > t_eat], new])
-    g['labels'] = g['labels'][-16:] + [(float(w), names[i] if i < len(names) else label) for i, w in enumerate(new[:, latent.AT])]
-
-
 def walked(g):
     by = {e[0]: e for e in entries()}
     _dropped(g)
     for label, at in WALK:
         said(g, *by[label], at=g['t'] + at)
-
-
-def _dropped(g):
-    g['tab'], g['labels'], g['_sync_cpg_at'], g['_jump_until'] = g['tab'][:0], [(w, n) for w, n in g['labels'] if w <= g['t']], None, 0.0
-
-
-def doing(g):
-    """What she is doing now: the name of her table's row that last came, 'rest' with none."""
-    come = [(w, n) for w, n in g['labels'] if w <= g['t'] + 1e-9]
-    return max(come)[1] if come else 'rest'
 
 
 def reset_for_scenario(g, scen):
@@ -250,7 +225,8 @@ def state(g, torque, power, watts, ratio, fallen_at, says=(), refused=None):
             'phase': float(g['st'][latent.THETA]) / math.tau, 'cadence': float(out[latent.TURNS]) / math.tau,
             'stage': staged(g, fallen_at),
             'fallen': fallen_at is not None, 'loads': tuple(g['loads']), 'props': world.props(),
-            'doing': doing(g), 'recover': None if fallen_at is None else RECOVER_S - (g['t'] - fallen_at),
+            'doing': doing(g), 'entry': g.get('active_entry'),
+            'recover': None if fallen_at is None else RECOVER_S - (g['t'] - fallen_at),
             'ratio': min(ratio, 99.0), 'says': tuple(says), 'refused': refused,
             'scenario': g.get('scenario', 'flat'), 'situation': situation.told(g['situations'], g['into']), 'horizon': horizon,
             'modes': [(n, float(out[latent.REF][i]), float(z[i]), float(out[latent.KS][i]),

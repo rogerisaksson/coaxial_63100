@@ -233,18 +233,20 @@ def describe(now, se2_st=None):
     origin = feet_origin(now, props)
     _, normal = surface_at(origin[0], origin[2], props)
     raw_hd, doing, vel_xz = float(now.get('heading', 0.0)), str(now.get('doing', 'rest')), now.get('velocity', (0.0, 0.0))
+    entry = str(now.get('entry') or '')
+    intent = entry if doing in ('brake', '#201', 'rest', 'init_walk') and entry in (JUMP_DOING | FALL_DOING | RISE_DOING | set(GAIT_TWIST)) else doing
     pyaw = pelvis_yaw(now, raw_hd)
     set_hd = se2.wrap_angle(pyaw + 0.35 * se2.wrap_angle(raw_hd - pyaw))
     sh, ch, spd_phys = math.sin(pyaw), math.cos(pyaw), math.hypot(float(vel_xz[0]), float(vel_xz[1]))
     keys = (se2_st or {}).get('keys') or {}
     any_key = any(keys.get(k, False) for k in ('w', 's', 'a', 'd', 'q', 'e'))
-    tw_act = _actual_twist(now, se2_st, sh, ch, doing, any_key)
+    tw_act = _actual_twist(now, se2_st, sh, ch, intent, any_key)
     vx_act, vy_act, wz_act = tw_act
     act_mag = math.hypot(vx_act, vy_act)
-    special = _describe_special(doing, now, origin, normal, pyaw, sh, ch, spd_phys, props, tw_act)
+    special = _describe_special(intent, now, origin, normal, pyaw, sh, ch, spd_phys, props, tw_act)
     if special is not None:
         return special
-    if doing in STOP_DOING or (not any_key and doing in ('#201', 'rest') and (act_mag > 0.04 or spd_phys > 0.08)):
+    if intent in STOP_DOING or (not any_key and intent in ('#201', 'rest') and (act_mag > 0.14 or spd_phys > 0.16)):
         vx_dir, stop_dist = (vx_act if abs(vx_act) > 0.02 else 0.35), max(0.32, min(0.75, 0.32 + 0.45 * max(act_mag, spd_phys)))
         fill, sgn = max(0.15, min(1.0, 1.0 - act_mag / se2.WALK_SPEED)), (1.0 if vx_dir >= 0 else -1.0)
         sx, sz = origin[0] + stop_dist * sh * sgn, origin[2] + stop_dist * ch * sgn
@@ -258,8 +260,8 @@ def describe(now, se2_st=None):
         vx_set, vy_set, wz_set = (se2_st or {}).get('setpoint') or (0.0, 0.0, 0.0)
     elif tw_cmd is not None and (math.hypot(float(tw_cmd[0]), float(tw_cmd[1])) > 0.02 or abs(float(tw_cmd[2])) > 0.03):
         vx_set, vy_set, wz_set = float(tw_cmd[0]), float(tw_cmd[1]), float(tw_cmd[2])
-    elif doing in GAIT_TWIST:
-        vx_set, vy_set, wz_set = GAIT_TWIST[doing]
+    elif intent in GAIT_TWIST:
+        vx_set, vy_set, wz_set = GAIT_TWIST[intent]
     else:
         vx_set, vy_set, wz_set = (vx_act, vy_act, wz_act) if (act_mag > 0.02 or abs(wz_act) > 0.03) else (0.0, 0.0, 0.0)
     set_mag = math.hypot(vx_set, vy_set)

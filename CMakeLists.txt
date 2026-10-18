@@ -163,7 +163,8 @@ set(COAXIAL_SOURCES
     board/src/board_drive.c board/src/board_ctrl.c board/src/board_boot.c board/src/board_mem.c
     comms/src/console.c comms/src/wire.c comms/src/dev_uart.c
     comms/src/cmd.c comms/src/cmd_board.c comms/src/cmd_test.c
-    comms/src/cmd_angle.c comms/src/cmd_device.c comms/src/cmd_link.c
+    comms/src/cmd_imu.c comms/src/cmd_angle.c comms/src/cmd_device.c
+    comms/src/cmd_link.c comms/src/cmd_length.c
     comms/src/cmd_cal.c comms/src/cmd_gate_drivers.c comms/src/cmd_log.c
     comms/src/cmd_daq.c comms/src/cmd_time.c
     comms/src/cmd_power.c
@@ -193,7 +194,7 @@ set_source_files_properties(
     wbc/src/wbc_cone.c wbc/src/wbc_shrunk.c wbc/src/wbc_model.c
     comms/src/cmd_aero.c
     comms/src/wire.c comms/src/cmd.c comms/src/cmd_board.c
-    comms/src/cmd_test.c comms/src/cmd_imu.c comms/src/cmd_cal.c
+    comms/src/cmd_test.c comms/src/cmd_imu.c comms/src/cmd_length.c comms/src/cmd_cal.c
     comms/src/cmd_gate_drivers.c
     comms/src/cmd_log.c comms/src/cmd_daq.c comms/src/cmd_time.c
     comms/src/cmd_power.c
@@ -213,7 +214,7 @@ set_source_files_properties(
     # ctrl.c ticks inside the drive's sample.
     ctrl/src/ctrl.c ctrl/src/ctrl_loop.c
     wbc/src/wbc_body.c wbc/src/wbc_stack.c wbc/src/wbc_solve.c wbc/src/wbc_wrench.c
-    wbc/src/wbc_cone.c wbc/src/wbc_shrunk.c
+    wbc/src/wbc_cone.c wbc/src/wbc_shrunk.c wbc/src/wbc_model.c
     PROPERTIES COMPILE_OPTIONS "-O2;-fno-math-errno;-Wextra;-Wshadow;-Wconversion")
 # The frame's core as its host twin computes it, to the bit: no multiply fused into an add.
 set_source_files_properties(

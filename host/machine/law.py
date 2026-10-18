@@ -74,7 +74,9 @@ def risen_back(g, dt):
     a bed on the clock, her centre of mass 14 cm behind her soles' middle, she rose, her trunk
     came up and she stepped back as it let her go."""
     tab, t, y, fr = g['tab'], g['t'], g['y'], g['fr']
-    if not len(tab) or y[modal.PROP] <= 0.0:
+    if y[modal.PROP] > 0.0:
+        g['_prop_until'] = t + (0.06 if g.get('active_entry') in ('rise_bed', 'rise_floor') else 0.0)
+    if not len(tab) or (y[modal.PROP] <= 0.0 and t > g.get('_prop_until', -1.0)):
         return
     rot = fr[modal.ROT].reshape(3, 3)
     c, v = rot @ y[modal.COM], rot @ y[modal.VCOM]
@@ -96,7 +98,6 @@ def risen_back(g, dt):
 def control(g, dt):
     """A pass of her latent loop on what she senses: `g['got']` solved, `g['leg_kp']` her legs'
     stiffness by their stance."""
-    from machine import sprung
     body, ev, y_in = g['body'], g['every'], g['sense']
     s = g['s'] = seen(g, dt * ev)
     g['grip'] = grip.felt(g['grip'], g['grip_seen'], body.d.xmat[g['grip_at']].reshape(2, 2, 3, 3),
@@ -108,7 +109,7 @@ def control(g, dt):
     y[modal.GRIP] = g['held'] = grip.outside(g['grip'], g['situations']['grips'])
     g['into'] = situation.read(g['situations'], situation.readings(
         y, g['fr'], g['a'], g['grip'], y_in[edge.TOUCH].reshape(-1, 3), float(g['fr'][modal.WEIGHT])))
-    thd, cur_doing = g.get('target_heading'), sprung.doing(g)
+    thd, cur_doing = g.get('target_heading'), se2.doing(g)
     if thd is not None:
         g['heading'] += max(-1.6 * dt * ev, min(1.6 * dt * ev, se2.wrap_angle(thd - g['heading'])))
     sh, ch = math.sin(g['heading']), math.cos(g['heading'])
@@ -129,19 +130,19 @@ def control(g, dt):
     g['_last_way'] = cw
     se2.step_physical_twist(g, dt * ev, out)
     gripped(out, g['held'], g['a'][modal.STANCE], g['situations']['caps'], g['into'])
-    cur_doing = sprung.doing(g)
+    cur_doing = se2.doing(g)
     touch.check_contacts(g, out, cur_doing)
     ae, tw = g.get('active_entry'), g.get('twist', (0.0, 0.0, 0.0))
-    backing = ((cur_doing in sprung._BACK_GAITS or ae in sprung._BACK_GAITS or tw[0] < -0.05)
-               and cur_doing not in ('rest', '#201', 'brake') and cur_doing not in sprung.STUNT_PHASES and g.get('_jump_until', 0.0) <= g['t'])
+    backing = ((cur_doing in se2._BACK_GAITS or ae in se2._BACK_GAITS or tw[0] < -0.05)
+               and cur_doing not in ('rest', '#201', 'brake') and cur_doing not in se2.STUNT_PHASES and g.get('_jump_until', 0.0) <= g['t'])
     tl = ((-1.0 if (cur_doing == 'turn_back_right' or ae == 'turn_back_right' or tw[2] < -0.05) else 1.0) if backing
           else (max(-0.35, min(0.35, 0.35 * tw[2] / se2.YAW_RATE)) if abs(tw[2]) > 0.03 and cur_doing not in ('rest', '#201') else 0.0))
     g['_look_yaw'] += min(1.0, (4.5 if backing else 5.0) * dt * ev) * (tl - g.get('_look_yaw', 0.0))
     for idx, k in ((g.get('waist_idx'), 0.38), (g.get('head_idx'), 0.72)):
         if idx is not None:
-            g['posture'][idx] = k * g['_look_yaw'] if cur_doing not in sprung.STUNT_PHASES else 0.0
+            g['posture'][idx] = k * g['_look_yaw'] if cur_doing not in se2.STUNT_PHASES else 0.0
     imp = impedance.ask(out, y, g['fr'], g['a'])
-    if backing and abs(g['_look_yaw']) > 1e-3 and cur_doing not in sprung.STUNT_PHASES and g.get('waist_idx') is not None:
+    if backing and abs(g['_look_yaw']) > 1e-3 and cur_doing not in se2.STUNT_PHASES and g.get('waist_idx') is not None:
         imp[modal.HEADED][1] = g['posture'][g['waist_idx']]
     ask = g['ask'] = modal.given(imp, y, g['fr'], g['posture'], g['bend'], g['arms'], body.knees)
     ask['mu'] = g['held']
@@ -156,7 +157,7 @@ def control(g, dt):
         acv, M = body.act[cv], s['M'].copy()
         M[:6, acv] = M[acv, :6] = 0.0
         s_solve = dict(s, M=M)
-    wb = bool(g.get('_leap') or g.get('active_entry') in se2.WASD_GAITS or (g['a'][modal.LEAD] > 0.0).any() or g['a'][modal.OUTSIDE] > 0.0 or cur_doing in sprung.STUNT_PHASES)
+    wb = bool(g.get('_leap') or g.get('active_entry') in se2.WASD_GAITS or (g['a'][modal.LEAD] > 0.0).any() or g['a'][modal.OUTSIDE] > 0.0 or cur_doing in se2.STUNT_PHASES)
     der = np.where((g['hold'] > 0.0) | wb, g['wep_lim'] / np.maximum(1.0, body.wep), 1.0)
     g['got'] = g['solve'](body, s_solve, dict(ask, wep=g['left'] > 0.0, derate=der))
     if len(cv) and no_stride:
@@ -166,21 +167,20 @@ def control(g, dt):
         g['got']['qacc'][acv], g['got']['over'][cv_p] = qdd_cv, False
         g['got']['tau'][cv_p] = s['M'][acv, :][:, acv] @ qdd_cv + s['h'][acv]
     g['jeff'] = np.diag(s['M'])[body.act]
-    g['leg_kp'] = np.concatenate([g['free_kp'][leg] * (1.0 + (sprung.STANDING_KP - 1.0) * float(ask['stance'][k]))
+    g['leg_kp'] = np.concatenate([g['free_kp'][leg] * (1.0 + (se2.STANDING_KP - 1.0) * float(ask['stance'][k]))
                                   for k, leg in enumerate(g['legs'])])
 
 
 def drives(g, dt):
     """Each driven joint's setpoint (`g['ref_q']`), feed and clamp (`g['cmd']`) this pass, its
     observer stepped on its motor's encoder."""
-    from machine import sprung
     body, y, joints = g['body'], g['sense'], g['joints']
     got, held, eso, wo, ct = g['got'], float(g['hold'].any()), g['eso'], g['wo'], edge.tilt(y)
     ys, sb = (max(0.0, min(1.0, (85.0 - ct) / 20.0)) if ct > 65.0 else 1.0), np.zeros(len(body.act))
-    in_hop = (g.get('_jump_until', 0.0) > g['t'] or sprung.doing(g) in ('load', 'throw', 'land')) and not g.get('_leap')
+    in_hop = (g.get('_jump_until', 0.0) > g['t'] or se2.doing(g) in ('load', 'throw', 'land')) and not g.get('_leap')
     qpos_act, qvel_act = y[edge.Q][joints], y[edge.QD][joints]
     qk, qvk = qpos_act[list(body.knees)], qvel_act[list(body.knees)]
-    sb[list(body.knees)] = (sprung.KNEE_NM * np.clip(1.0 - qk / sprung.KNEE_SOFT, 0.0, 3.0) + 2400.0 * np.maximum(0.0, (0.0 if in_hop else 0.02) - qk)
+    sb[list(body.knees)] = (se2.KNEE_NM * np.clip(1.0 - qk / se2.KNEE_SOFT, 0.0, 3.0) + 2400.0 * np.maximum(0.0, (0.0 if in_hop else 0.02) - qk)
                             - (0.0 if in_hop else 35.0) * np.clip((0.20 - qk) / 0.15, 0.0, 1.5) * np.minimum(0.0, qvk)) * ys
     qa = got['qacc'][body.act] * ys
     if not in_hop:
@@ -193,10 +193,10 @@ def drives(g, dt):
         eso[2] = np.clip(eso[2], -z_lim, z_lim)
     if ys < 1.0:
         eso[1:] *= ys
-    g['hold'] = np.where(got['over'], sprung.WEP_HOLD_S, np.maximum(0.0, g['hold'] - dt))
-    g['left'] = min(sprung.WEP_S, max(0.0, g['left'] + dt * (sprung.WEP_FILL * (1.0 - held) - held)))
-    wb = bool(g.get('_leap') or g.get('active_entry') in se2.WASD_GAITS or (g['a'][modal.LEAD] > 0.0).any() or g['a'][modal.OUTSIDE] > 0.0 or sprung.doing(g) in sprung.STUNT_PHASES)
-    leak, lo, hi = dt / sprung.LEAK_S, g['q_lo'], g['q_hi']
+    g['hold'] = np.where(got['over'], se2.WEP_HOLD_S, np.maximum(0.0, g['hold'] - dt))
+    g['left'] = min(se2.WEP_S, max(0.0, g['left'] + dt * (se2.WEP_FILL * (1.0 - held) - held)))
+    wb = bool(g.get('_leap') or g.get('active_entry') in se2.WASD_GAITS or (g['a'][modal.LEAD] > 0.0).any() or g['a'][modal.OUTSIDE] > 0.0 or se2.doing(g) in se2.STUNT_PHASES)
+    leak, lo, hi = dt / se2.LEAK_S, g['q_lo'], g['q_hi']
     g['ref_v'] += qa * dt + leak * (qvel_act - g['ref_v'])
     if not in_hop:
         g['ref_v'] = np.clip(g['ref_v'], -18.0, 18.0)

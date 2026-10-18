@@ -21,6 +21,46 @@ NOMINAL_TWIST = {
     'circle_walk': (0.55, 0.0, 0.45),
     'turn_back_left': (-BACK_SPEED, 0.0, YAW_RATE), 'turn_back_right': (-BACK_SPEED, 0.0, -YAW_RATE),
 }
+LEAK_S, STANDING_KP, WEP_HOLD_S, WEP_S, WEP_FILL, KNEE_SOFT, KNEE_NM = 0.2, 0.1, 1.0, 8.0, 0.8, 0.1, 40.0
+STUNT_MODES = {'sit_chair', 'rise_chair', 'lie_bed', 'rise_bed', 'lie_floor', 'rise_floor', 'hop_down_chair',
+               'hop_up_chair', 'stairs_down', 'parry_shove', 'controlled_fall'}
+STUNT_PHASES = {'approach', 'lower', 'seated', 'lean_forward', 'thrust', 'sit_edge', 'recline', 'bed_rest', 'sit_up',
+                'swing_out', 'kneel', 'floor_rest', 'push_arms', 'half_kneel', 'cushion', 'land', 'step_off', 'drop',
+                'absorb', 'crouch_load', 'propulsion', 'flight_tuck', 'seat_land', 'descent'}
+_FWD_GAITS = ('#204', 'trip', 'jog', 'ballistic_walk', 'stairs_walk', 'stairs_down', 'ice_walk', 'slope_walk',
+              'strafe_left', 'strafe_right', 'turn_left', 'turn_right', 'circle_walk')
+_BACK_GAITS = ('#205', 'turn_back_left', 'turn_back_right')
+RESET_MODES = ('ballistic_walk', 'jog', '#201')
+INIT_GAITS = ('#204', 'trip', 'stairs_walk', 'stairs_down', 'ice_walk', 'slope_walk',
+              'turn_left', 'turn_right', 'circle_walk')
+INIT_DELAYS = {'turn_left': 0.12, 'turn_right': 0.12, 'circle_walk': 0.12, 'twist': 0.28, 'say': 0.65}
+BRAKE_DELAYS = {'back_slow': 0.38, 'back_fast': 0.52, 'fwd_slow': 0.45, 'fwd_fast': 0.70,
+                'stand_slow': (0.55, 1.10), 'stand_fast': (1.20, 2.40)}
+RISES = {'seated': ('rise_chair', 2.20), 'bed_rest': ('rise_bed', 3.60), 'floor_rest': ('rise_floor', 3.30)}
+HOLD_PHASES = ('hold', 'load', 'throw', 'land', 'step_off', 'drop', 'absorb',
+               'crouch_load', 'propulsion', 'flight_tuck', 'seat_land')
+
+
+def said(g, label, wire, names=(), at=None, reset=False):
+    import numpy as np
+    from machine import latent
+    new = latent.table(wire, g['t'] + 0.001 if at is None else at, g['rest'])
+    if reset and len(new):
+        new[0, latent.VALS] = np.where(new[0, latent.SAID] > 0.5, new[0, latent.VALS], g['rest'])
+        new[0, latent.SAID] = 1.0
+    t_eat = g['t'] - 0.001 * ((g['n'] - 1) % g['every'] + 1) + 1e-6 if g.get('n', 0) > 0 else -1.0
+    g['tab'] = np.concatenate([g['tab'][g['tab'][:, latent.AT] > t_eat], new])
+    g['labels'] = g['labels'][-16:] + [(float(w), names[i] if i < len(names) else label) for i, w in enumerate(new[:, latent.AT])]
+
+
+def _dropped(g):
+    g['tab'], g['labels'], g['_sync_cpg_at'], g['_jump_until'] = g['tab'][:0], [(w, n) for w, n in g['labels'] if w <= g['t']], None, 0.0
+
+
+def doing(g):
+    """What she is doing now: the name of her table's row that last came, 'rest' with none."""
+    come = [(w, n) for w, n in g['labels'] if w <= g['t'] + 1e-9]
+    return max(come)[1] if come else 'rest'
 
 
 def wrap_angle(angle):
@@ -95,13 +135,13 @@ def floored(g, y, dt):
 
 
 def step_physical_twist(g, dt, out=None):
-    from machine import edge, latent, modal, sprung
+    from machine import edge, latent, modal
     y, cur_entry = g['y'], g.get('active_entry')
     g.setdefault('floor0', float(g['fr'][modal.FLOOR]))
     v, hd = g['est']['vel'], float(g['heading'])
     sh, ch = math.sin(hd), math.cos(hd)
     floored(g, y, dt)
-    cur_doing = sprung.doing(g)
+    cur_doing = doing(g)
     twist_mode = bool(g.get('_twist_active') or g.get('_twist_stop_until', 0.0) > g['t'] or cur_entry in WASD_GAITS or cur_doing == 'brake')
     is_hop = cur_doing in ('load', 'throw', 'land') and cur_entry not in ('controlled_fall', 'hop_up_chair', 'hop_down_chair')
     vx, vy, wz = g.get('twist', (0.0, 0.0, 0.0))
@@ -138,7 +178,7 @@ def step_physical_twist(g, dt, out=None):
     # turning, her heading goes with her body; walking on, it is where she was told: held to her
     # pelvis and her going, a yaw of 0.22 rad off the floor after a sill turned her way and she
     # crabbed down; after her going alone, the hole, the wall and the tree went with 5 shoves
-    if twist_mode and abs(tz) > 1e-6 and g.get('target_heading') is None and cur_doing not in sprung.STUNT_PHASES:
+    if twist_mode and abs(tz) > 1e-6 and g.get('target_heading') is None and cur_doing not in STUNT_PHASES:
         if tx >= 0.05 and abs(ty) < 0.05 and math.hypot(float(y[modal.VCOM][0]), float(y[modal.VCOM][2])) > 0.32 and vxp > 0.15:
             err_v = wrap_angle(math.atan2(float(y[modal.VCOM][0]), float(y[modal.VCOM][2])) - g['heading'])
             if abs(err_v) > 0.32:
@@ -170,7 +210,7 @@ def heard_twist(g, gym, tw, has_say, said_fn, dropped_fn, heard_say_fn, walk_on)
             if not has_say and label in by and g.get('active_entry') != label:
                 heard_say_fn(g, gym, by[label])
             return
-        idle = float(g['st'][55]) < 1e-6 and not bool(len(g['tab']) and (g['tab'][:, -2] >= g['t']).any())
+        idle = float(g['st'][latent.NOW][latent.GAIN]) < 1e-6 and not bool(len(g['tab']) and (g['tab'][:, latent.AT] >= g['t']).any())
         if abs(vx) < 0.05 and abs(vy) < 0.05 and abs(wz) > 0.05 and any(n == 'init_walk' for _, n in g.get('labels', ())):
             dropped_fn(g)
             if label in by:

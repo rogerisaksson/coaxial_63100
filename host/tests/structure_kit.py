@@ -115,7 +115,7 @@ def _command_files():
 
 
 _HEADERS = ('comms/inc', 'board/inc', 'drive/inc', 'thermal/inc', 'daq/inc', 'boot/inc',
-            'filter/inc', 'shtp/inc', 'modbus/inc', 'ctrl/inc', 'aero/inc')
+            'filter/inc', 'shtp/inc', 'modbus/inc', 'ctrl/inc', 'aero/inc', 'wbc/inc')
 
 
 def _c_defines(extra_text=''):

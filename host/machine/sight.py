@@ -329,9 +329,14 @@ class Map:
             half = ((hi[0] - lo[0] + CELL_M) / 2.0, (hi[1] - lo[1] + CELL_M) / 2.0)
             colour = _chroma(self.colour[ii, jj].sum(axis=0) / max(1, int(self.hits[ii, jj].sum())))
             look = names[int(np.argmin(((means - colour) ** 2).sum(axis=1)))]
-            height = float(self.high[ii, jj].max())
-            out.append((classify(look, half, height), ((lo[0] + hi[0]) / 2.0, (lo[1] + hi[1]) / 2.0),
-                        half, height, look))
+            height = float(np.percentile(self.high[ii, jj], 95))
+            kind = classify(look, half, height)
+            at = ((lo[0] + hi[0]) / 2.0, (lo[1] + hi[1]) / 2.0)
+            if kind == 'bed':
+                half = (max(half[0], 0.45), max(half[1], 1.0))
+                at = (hi[0] + CELL_M / 2.0 - half[0] if at[0] < 0.0 else lo[0] - CELL_M / 2.0 + half[0],
+                      lo[1] - CELL_M / 2.0 + half[1] if at[1] > 0.0 else hi[1] + CELL_M / 2.0 - half[1])
+            out.append((kind, at, half, height, look))
         return out
 
     def blocked(self):

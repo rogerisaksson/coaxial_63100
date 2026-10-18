@@ -60,12 +60,13 @@ def decide(state, questions, model=None, host=HOST, images=()):
         raise RuntimeError('cannot reach ollama at %s (%s)' % (host, exc.reason))
 
 
-def available(models=MODELS, host=HOST):
+def available(models=MODELS, host=HOST, timeout=0.5):
     """The first of `models` pulled here; None when none is."""
     try:
-        with urllib.request.urlopen(host + '/api/tags', timeout=5.0) as reply:
+        with urllib.request.urlopen(host + '/api/tags', timeout=timeout) as reply:
             tags = {m.get('name', '') for m in
                     json.loads(reply.read().decode('utf-8')).get('models', [])}
-    except (urllib.error.URLError, ValueError):
+    except (urllib.error.URLError, ValueError, OSError):
         return None
     return next((m for m in models if m in tags), None)
+

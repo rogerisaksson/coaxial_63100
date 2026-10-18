@@ -82,7 +82,7 @@ build/prototypes/skin.py.
 
 ## Lumbar curve on the law
 
-No lumbar curve, front-heavy (`look.py`'s new columns).
+No lumbar curve, front-heavy.
 
 | Variant | Upper body ahead of the hips | Spine holds | J/m |
 | --- | --- | --- | --- |
@@ -91,8 +91,7 @@ No lumbar curve, front-heavy (`look.py`'s new columns).
 | the spine taking the lean out | 9.5 mm | 0.4 N m | 484 |
 | plus the trunk's seat 15 mm back on the pelvis | -3.8 mm | 0.6 N m | 439 |
 
-The last walked its walk row backward at 0.26 m/s; 4 more checks of
-test_gynoid_going fell, the falls suite 3 (docs/TODO.md, lumbar curve).
+The last walked its walk row backward at 0.26 m/s (docs/TODO.md, lumbar curve).
 
 ## A leg's reach over its foot
 
@@ -117,7 +116,7 @@ by `machine/reach.py`, a limb an index; tests/test_reach.py holds them.
 
 - Across, 0.268 of the hip's height either side: 0.20 m at 0.76.
 - A flat foot at her walking height reaches 0.124 m: her steps of 0.49 m
-  are on a risen heel and a landing toes up (`strut.ankle`). `land` lays a
+  are on a risen heel and a landing toes up (`stride.rock`). `land` lays a
   foot flat; a pitched one is read in its own frame (`over`).
 - Rising from the squat and walking, 16 s at 0.85 m/s, her joints ran:
   ankle -41.3..10.8, its roll -0.8..4.2, knee -0.8..128.6, hip's yaw

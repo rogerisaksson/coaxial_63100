@@ -32,11 +32,8 @@ STEP_S = 0.001
 
 #: Each sole's load as its sensor has it: the solver's through a first-order band of LOAD_S s.
 #: As the solver had it a pass, standing still it flickered 0-950 N, a foot at 0 N 104 passes
-#: a second - each let down for its share on it (`bearing.shared`) - and walking a leg's
-#: stance share with it (`stance.legs`), its setpoints 1.5-7 deg a pass to and fro. At 20 ms
-#: the feet stand on 159 and 160 N, sd 0.02; the walk's touchdown 769 -> 253 N, its power
-#: 683 -> 560 W; the scoreboard 229.0 and 86.4 % against 538.0 and 82.8, at 5 ms 408.6 and
-#: 85.2 (docs/findings/standing.md, stacks.md).
+#: a second. At 20 ms the feet stand on 159 and 160 N, sd 0.02; the walk's touchdown 769 -> 253 N,
+#: its power 683 -> 560 W (docs/findings/stacks.md).
 LOAD_S = 0.02
 
 #: A drive's reading, in `World.reading`'s order.
@@ -63,23 +60,17 @@ WOUND = 1.0
 #: across its play, winds the box and the structure up past it against the mesh's friction, and
 #: the link is turned by that wind-up alone; 0, rigid, the rotor's inertia on the link's joint.
 #: On the boxes the walk on setpoints drags its toes 7-19 mm at lift where 1 rigid and its form's
-#: 2, the loop on its torques walks them at 265-326 J/m: the loop's world, the walker's rigid
-#: till the page walks on the loop (docs/findings/drives.md).
+#: 2, the loop on its torques walks them at 265-326 J/m (docs/findings/drives.md).
 #: ROOM: the living room round her (`machine.room`); SIGHT her eyes on it (`machine.sight`).
 BOXED, ROOM, SIGHT = 0.0, 0.0, 0.0
 
 #: Whether a drive on a gimbal's stage (`drives.mount`: the hip's roll M, its pitch L) rides it,
 #: turning with the leg's yaw and roll, or the segment that stage hangs from - on them, 0.7 kg of
-#: yaw's 8 % more inertia, her walk from the squat fell at 5.8 s, the scoreboard 578 against 495.
-#: Retuned with them and her trunk's roll first: arrival's SHIFT_IN, LIFT_IN, LEAN_M, capture's
-#: MARGIN, GAIN, walker's SIDE_K, SIDE_D, landing's PARRY_M, PARRY_HURRY, 5 generations of 8 -
-#: the scoreboard 299, held 76.8 %; its chance 263 to 420 for the same knobs to 17, 6 or 3 digits,
-#: the last generation's median 335.
+#: yaw's 8 % more inertia.
 STAGED = 1.0
 
 #: The boards' envelopes: 1 as built, derating and tripping them; 0 fantasy boards whose SOA
-#: never binds, the heat counted - the walk, the clothes and the look are tuned on those
-#: (`tests/test_gynoid.py`), the faults run on the built ones (`tests/test_gynoid_faults.py`).
+#: never binds, the heat counted (`tests/test_gynoid.py`, `tests/test_drives.py`).
 ENVELOPE = 1.0
 
 #: A board glitched (`World.glitch`): its switches' on-resistance SOA_RDS times - a gate drive

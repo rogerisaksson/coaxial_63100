@@ -41,20 +41,22 @@ def standing(meant, loads, over, rising, borne=0.0):
                  for m, n, h in zip(meant, loads, over))
 
 
-def landing(limb, hip, heading, yaw, com, vcom, off):
+def landing(limb, hip, heading, yaw, com, vcom, off, target=(0.0, 0.0), pitch=0.0):
     """(sole's middle, speed, acceleration, quaternion), the stack's swing ask for a sole in the
     air: under her capture point as she lands - from her hip the same whenever that is -, `off`
-    it (x, z), drawn in to the leg's reach from `hip`."""
-    drop = reach.THIGH + reach.SHANK - LAND_DROP_M
+    it (x, z), drawn in to the leg's reach from `hip`, for `target` (height, distance) and `pitch`."""
+    dh, dz = target
+    drop = reach.THIGH + reach.SHANK - LAND_DROP_M - dh
     omega = math.sqrt(G / max(0.3, com[1] - (hip[1] - drop - ANKLE_H)))
     c, s = math.cos(yaw), math.sin(yaw)
-    want = ((com[0] + vcom[0] / omega + off[0] - MIDDLE * s, hip[1] - drop,
-             com[2] + vcom[2] / omega + off[1] - MIDDLE * c), yaw)
-    (ankle, yaw), _m = reach.land(limb, hip, heading, want, LAND_SHORT_M)
+    want = ((com[0] + vcom[0] / omega + off[0] + (dz - MIDDLE) * s, hip[1] - drop,
+             com[2] + vcom[2] / omega + off[1] + (dz - MIDDLE) * c), yaw)
+    (ankle, yaw), _m = reach.land(limb, hip, heading, want, LAND_SHORT_M, pitch)
     c, s = math.cos(yaw), math.sin(yaw)
+    cy, sy, cp, sp = math.cos(0.5 * yaw), math.sin(0.5 * yaw), math.cos(0.5 * pitch), math.sin(0.5 * pitch)
     return ((ankle[0] + MIDDLE * s, ankle[1] - ANKLE_H, ankle[2] + MIDDLE * c),
             (vcom[0], vcom[1], vcom[2]), (0.0, -G, 0.0),
-            (math.cos(0.5 * yaw), 0.0, math.sin(0.5 * yaw), 0.0))
+            (cy * cp, cy * sp, sy * cp, -sy * sp))
 
 
 def step(ask, loads, s, hips, floor=0.0):

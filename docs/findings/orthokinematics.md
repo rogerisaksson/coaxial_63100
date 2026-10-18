@@ -136,8 +136,8 @@ soles' loads then, of her 306 N.
 | the walk as built | 10 | 421 | 269 |
 | the loop, striding | 17 | 485 | 183 |
 
-By the eye's own measures (`strides.WALK`: landing load, unloading, dip,
-head nod; bounded in `looks.FORM`), striding: her soles bear 1.34 of her
+By the eye's own measures (`tools/sim/ortho.py --look`: landing load, unloading,
+dip, head nod), striding: her soles bear 1.34 of her
 weight about a landing (1.25) and 0.63 after (0.75), her pelvis falls 15
 mm into it, her head nods 3.5 deg (6) - 1.37, 0.70, 12 mm and 46 deg with
 the rows traded.
@@ -160,7 +160,7 @@ Striding, 305 J/m, 19 of the 25 in (step now in `normal.BAND`):
 | trunk lean, pelvis roll, turn, deg | 3.4, 5.3, 7.6 | in |
 | pelvis bob, vault, hips wag, feet apart, legs | 0.027, 0.020, 0.052, 0.139 | in |
 
-- Of `looks.FORM`'s 12, 5 broken: knee behind plumb 20.6 deg (10), hip over
+- Of the eye's 12 form bounds, 5 broken: knee behind plumb 20.6 deg (10), hip over
   stance 2.2 (3), head aside 46.8 mm (35), landing load 1.34 (1.25), unloading
   0.63 (0.75). Strike 412 N, head bob 24 mm.
 - Her trunk turns 5.9 deg with her pelvis and her shoulders wag 36 mm, 1.1

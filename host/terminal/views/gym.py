@@ -107,8 +107,12 @@ def _cancel_tour(state):
 
 
 def _said(state, verb):
-    """`verb` said, the tour ended: a gym entry's name or place."""
+    """`verb` said, the tour and any held pad keys ended: a gym entry's name or place."""
     _cancel_tour(state)
+    pad = state.get('pad')
+    if isinstance(pad, dict):
+        pad['keys'] = dict.fromkeys(pad.get('keys') or ('w', 's', 'a', 'd', 'q', 'e', 'shift'), False)
+        pad['last_seen'], pad['setpoint'] = {}, (0.0, 0.0, 0.0)
     if verb is not None:
         state['body'].send(say=verb)
 

@@ -10,6 +10,7 @@ using local Ollama inference when available or deterministic spatial geometry, a
 affordance interaction shortcuts displayed beneath her picture-in-picture viewport inset.
 """
 import math
+import threading
 
 from coaxial.graphics.callouts import FRAME_CORNERS, FRAME_INK, packed
 from coaxial.graphics import inset
@@ -51,18 +52,24 @@ class VisionScanner:
         if self._ollama_checked:
             return
         self._ollama_checked = True
-        try:
-            from coaxial_ollama import decide
-            self._ollama_model = decide.available()
-        except Exception:
-            self._ollama_model = None
+
+        def _probe():
+            try:
+                from coaxial_ollama import decide
+                self._ollama_model = decide.available(timeout=0.35)
+            except Exception:
+                self._ollama_model = None
+
+        threading.Thread(target=_probe, daemon=True).start()
 
     def scan(self, now, look=None, reach=None):
         """The props in her sight - within 75 deg of her heading or the heading the view looks
         along (`look`, rad), 8 m -, or with `reach` every one that near, nearest first."""
         if not now:
             return []
-        props = now.get('props') or ()
+        things = now.get('things') or ()
+        props = [((t[0], (t[1][0], t[3] * 0.5, t[1][1]), (t[2][0], t[3] * 0.5, t[2][1])))
+                 for t in things if len(t) >= 4] or (now.get('props') or ())
         where = now.get('where', (0.0, 0.0, 0.0))
         scen = str(now.get('scenario', ''))
         gx, gz = where[0], where[2]
@@ -165,23 +172,25 @@ def affordance_plate(detected, top, left, width):
 def docked_vision(scanner, now, width, height):
     """Render the docked stereo eyes PiP and the affordance keypress list beneath it."""
     import numpy as np
-    vw, vh = sight.VIEW
-    thumb = np.zeros((vh, vw, 3), dtype=np.uint8)
-    for r in range(vh):
-        for c in range(vw):
-            thumb[r, c] = (15, 22, 28)
-
     detected = scanner.scan(now)
-    hulls = []
-    for item in detected[:3]:
-        k = item['kind']
-        ink = sight.INK.get(k, sight.INK['thing'])
-        bx = max(2, min(vw - 6, int(vw / 2 + (item['pos'][0] - now.get('where', (0, 0, 0))[0]) * 8)))
-        by = max(2, min(vh - 6, int(vh / 2 - (item['pos'][2] - now.get('where', (0, 0, 0))[2]) * 4)))
-        box = [(bx, by), (bx + 5, by), (bx + 5, by + 4), (bx, by + 4)]
-        hulls.append((k, ink, box))
+    seen = now.get('seen') if now else None
+    if seen is None:
+        vw, vh = sight.VIEW
+        thumb = np.zeros((vh, vw, 3), dtype=np.uint8)
+        for r in range(vh):
+            for c in range(vw):
+                thumb[r, c] = (15, 22, 28)
+        hulls = []
+        for item in detected[:3]:
+            k = item['kind']
+            ink = sight.INK.get(k, sight.INK['thing'])
+            bx = max(2, min(vw - 6, int(vw / 2 + (item['pos'][0] - now.get('where', (0, 0, 0))[0]) * 8)))
+            by = max(2, min(vh - 6, int(vh / 2 - (item['pos'][2] - now.get('where', (0, 0, 0))[2]) * 4)))
+            box = [(bx, by), (bx + 5, by), (bx + 5, by + 4), (bx, by + 4)]
+            hulls.append((k, ink, box))
+        seen = (thumb, hulls)
 
-    cells = inset.eyes((thumb, hulls), width, height)
+    cells = inset.eyes(seen, width, height)
     if not cells:
         return {}
 

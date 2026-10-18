@@ -2,10 +2,8 @@
 
 The whole-body stack (`machine/wbc.py`) on its solver (`machine/qp.py`),
 measured by `tools/sim/wbc.py` in a world without buses. The board's
-findings: [FINDINGS](../FINDINGS.md). The MPC's steps and its walk told
-here were `mpc.py`'s and `balance.py`'s, gone from the tree with the laws
-before her latent loop (tag `laws-before-the-loop`): her steps are the
-loop's ([orthokinematics](orthokinematics.md)).
+findings: [FINDINGS](../FINDINGS.md); her steps on the latent loop:
+[orthokinematics](orthokinematics.md), [wrench](wrench.md).
 
 ## Solver
 
@@ -36,36 +34,26 @@ Each level's content and the failure that placed it:
 
 Gearbox drag 1.2-2.2 N m (`physics.BACKDRIVE`) on pure torque: CoM creep 5
 mm/s, 24 mm of it an ankle's deadband at the law's gain. The drives' PD at
-half `physics.SERVO`'s kp round a reference integrated from the stack's
+half `servos.SERVO`'s kp round a reference integrated from the stack's
 accelerations: 0.3 mm in 2 s.
 
 ## Shoves
 
-0.12 s on the trunk from 8 ways, stood of 8; the law as built,
-stepping on boards as built, of 12:
+0.12 s on the trunk from 8 ways, stood of 8:
 
-| N | stack, no step | stack, MPC's steps | law as built |
-| --- | --- | --- | --- |
-| 38 | 8 | 8 | 12 |
-| 60 | 8 | 8 | 12 |
-| 80 | 4 (the sides, the back diagonals) | 7 | 12, 1-2 steps along the way |
-| 100 | 2 (the sides) | 7 | 2 |
-| 120 | 0 | 3 | 0 |
+| N | stack, no step | stack, stepping |
+| --- | --- | --- |
+| 38 | 8 | 8 |
+| 60 | 8 | 8 |
+| 80 | 4 (the sides, the back diagonals) | 7 |
+| 100 | 2 (the sides) | 7 |
+| 120 | 0 | 3 |
 
 Spread polar, each way at three moments 35 ms apart, 24 shoves a force: 60 N
-24 of 24 with no step, 80 N 24, 100 N 20, 120 N 16.
+24 of 24 with no step, 80 N 24, 100 N 20, 120 N 16 (ZMP margin 5 mm, capture
+margin 5 mm).
 
-| Variant | 60 / 80 / 100 / 120 N of 24 | Kept |
-| --- | --- | --- |
-| MPC soles 2 cm inside their edges (`mpc.MARGIN_M`) | 22 at 60 N, 44 steps | no: 5 mm, no step |
-| end's pull to the support's middle 0.01 | 100 N 18, 120 N 9, 60 N 28 steps | no: 1 |
-| ZMP 5 mm, capture 5 mm | 24 / 24 / 20 / 16, walk 0.31 m/s | yes |
-| ZMP 1 cm, capture 5 mm | 24 / 23 / 21 / 21, walk 0.31 | no: lost test_wbc's 80 N from behind |
-| ZMP 2 cm | 23 / 23 / 20 / 23, walk 0.31 | no |
-
-- A sole the stack loaded that bore nothing for 50 ms swings
-  (`balance.LOST_S`). Counted standing on 0 N for 0.6 s, the rear foot
-  drifted 10 cm and the gynoid fell aside, the MPC seeing both feet down.
+- A sole the stack loaded that bears nothing swings (`flight.standing`).
 - WEP granted every drive: the thermal observer ignored, a blown MOSFET
   before a broken robot. The neck's and head's ranges the stack's own
   (`wbc.RANGES`): unbounded, the head, neck, elbows and shoulders ran at
@@ -81,59 +69,26 @@ Spread polar, each way at three moments 35 ms apart, 24 shoves a force: 60 N
 | straight knee lifts its sole only to second order | asked up 17 m/s^2, given 1.5 (0.09 of the row in the null space below the contacts) | the knee folded 45 deg over its line |
 | swing path at 400 and 40 | lagged 11 cm in a 0.2 s step | 1600 and 80: 100 N stood 8 of 8 where 4; 900 and 60: 7 |
 
-A step on the stack costs 1.6-2.6 ms in Python, 11 at worst while the MPC
-weighs four steps.
+A step on the stack costs 1.6-2.6 ms in Python.
 
 ## Walk
 
-`tools/sim/wbc.py --walk`, 0.5 m/s at 0.5 s a step asked.
-
-- MPC: two landings ahead, each about the one before; its end the LIPM's
-  periodic capture point, (w/2) tanh(wT/2) off the midline and l/(e^wT - 1)
-  ahead, and the pace along the way. Planned to stop on its second step,
-  the feet landed 0.26, -0.16, 0.32 m wide and the gynoid fell aside. Lifted at
-  once from standing, the capture point ran 0.19 m out over the standing
-  sole: 0.4 s on both soles first.
-- Up through 16 steps in 8 s:
+`tools/sim/wbc.py --walk`, 0.5 m/s at 0.5 s a step asked, up through 16 steps
+in 8 s:
 
 | Variant | m/s | J/m |
 | --- | --- | --- |
 | drives' PD at SERVO_SHARE everywhere | 0.25 | 705 |
 | drives' PD at 0.1 of kp | 0.29 | 637 |
 | no PD | 0.30 | 592 |
-| pace weight 10, 100 or 1000 | same | same |
 | double support 0.1 s | 0.30 | 1015 |
 | double support 0.03 s, pace priced each interval | 0.36 | 746 |
 | double support 0.03 s, pace priced at the end (kept) | 0.31 | 792 |
-| 0.4 s a step | 0.26 | - |
-| 0.35 s a step | 0.17 | - |
 
 - A standing leg's PD round the integrated reference fought the stack (an
-  ankle +15 N m against -11): kp at a tenth there.
-- The steps are short: 0.18 m at 0.5 s where the law's 0.375. Braked ~20 N
-  in the left foot's stance (the soles -9.9 and +6.8 N s along the way over
-  2 s); the toes bear 16 N a sole, unmodelled; the knees on their -5 deg
-  stops.
-
-### The landing, by heel and toe-base cells
-
-A cell under each heel and toe base, the floor's vertical load split by
-lever between z = -HEEL and BALL, the toes' to the toe base; a probe on
-`tools/sim/wbc.py --walk`:
-
-| t s | trailing sole, cells / plan N | landing sole, cells / plan N | landing sole m/s down |
-| --- | --- | --- | --- |
-| 3.316 | 274 + 23 / 299 | 0 / 0 | 0.43 |
-| 3.320 | 17 + 4 / 135 | 0 + 529 / 162, 114 against the way | 0.39 |
-| 3.324 | 5 + 0 / 127 | 439 + 379 / 131 | 0.27 |
-| 3.332 | 6 + 0 / 121 | 332 + 232 / 78 | 0.09 |
-| 3.348 | 0 / 138 | 180 + 94 / 42 | 0.04 |
-
-- The landing sole comes down toe base first at 0.39-0.47 m/s, its swing's
-  profile 0.25 -> 0; the impact lifts the body off the trailing sole within
-  a millisecond.
-- Both soles stay flat: the trailing heel 1.7 mm under its toe base, its toes
-  at 0 deg. The roll onto the toes recorded here before was not measured.
+  ankle +15 N m against -11): kp at a tenth there (`se2.STANDING_KP`).
+- The landing sole comes down toe base first at 0.39-0.47 m/s; the impact
+  lifts the body off the trailing sole within a millisecond.
 - In single support the stack's plan flips from one millisecond to the next
   among three solutions, the turns' errors 0.6 and 0.4 deg and the angular
   momentum steady: the rows its levels hold change each step.
@@ -149,7 +104,7 @@ lever between z = -HEEL and BALL, the toes' to the toe base; a probe on
 `wbc/` on the arrays `tools/cores/model.py` writes from the compiled figure
 (34 links, a degree of freedom each, the pelvis floating: screws, spatial
 inertias with the rotors' armatures, stops), against MuJoCo at 40 random
-configurations (test_wbc_core.py):
+configurations (`tests/test_wbc_core.py`):
 
 | Quantity | Worst apart |
 | --- | --- |
@@ -161,8 +116,7 @@ configurations (test_wbc_core.py):
 
 - The pelvis's twist is its own frame's (w, v); MuJoCo's free joint carries v in
   the world and w in the body, so M = T^T M_mj T and the bias takes M_mj dT u
-  beside h_mj. Both presets build the chain at 0 warnings; nothing on the board
-  calls it yet.
+  beside h_mj. Both presets build the chain at 0 warnings.
 
 ## The loop in C
 
@@ -172,28 +126,26 @@ acceleration and each sole's wrench affine in them (M's Cholesky, the
 contacts' Schur complement); the levels of `machine.wbc` in the null space of
 those above - a small level by its Gram matrix damped at 1e-6, the last by its
 normal equations; the polytope on the drives' loads, the lowest level scaled
-back first, then a hard clamp. The inequalities of the python stack are not in
-it: the friction pyramids, the sole's centre of pressure, the stops, the
-height's band and WEP's share are tasks or clips, or absent.
+back first, then a hard clamp.
 
 | Measure | Result |
 | --- | --- |
 | standing, asked to stay: the loop's torques against `machine.wbc.step`'s | 0.01 N m apart, the largest 2.9 |
 | a tick: pose, M, bias, centre, the contacts, 4 levels, the clip; this host at -O2 | 125 us |
 | in MuJoCo on the loop, 3 s | stood, tilt 0.8 deg, drift 28 mm |
-| shoved 60 N from behind, the MPC's steps | stood, tilt 1.5 deg, no step |
-| shoved from 8 ways at 60 / 80 / 100 / 120 N, the MPC's steps, WEP: stood of 8 | the loop 7 / 4 / 0 / 1; the stack 8 / 7 / 7 / 3 |
+| shoved 60 N from behind | stood, tilt 1.5 deg, no step |
+| shoved from 8 ways at 60 / 80 / 100 / 120 N, WEP: stood of 8 | the loop 7 / 4 / 0 / 1; the stack 8 / 7 / 7 / 3 |
 
 ### The drives' own loop under it
 
-`machine.parts.Eso` and `CTRL_ESO`, twins (test_ctrl_core.py): Han's extended
+`law.drives` and `CTRL_ESO` (`tests/test_ctrl_core.py`): Han's extended
 state observer on a joint's angle about the acceleration the loop planned for
 it, the drive's own residual taken off its torque, the inertia the loop's own
 (`jeff`, 1 / B_jj under the body and the contacts). `tools/sim/wbc.py --inner
 none|pd|eso [--eso-wo]`, standing 6 s on the loop, the centre of mass over the
 last 2 s:
 
-| Inner loop | MPC's steps: creep mm/s, drift mm, tilt deg | capture point alone |
+| Inner loop | stepping: creep mm/s, drift mm, tilt deg | capture point alone |
 | --- | --- | --- |
 | none, the torque as asked | 3.06, 33.6, 1.9 | 1.33, 16.4, 0.9 |
 | PD round the integrated reference | 1.73, 36.2, 0.9 | 1.39, 24.7, 0.6 |
@@ -201,17 +153,12 @@ last 2 s:
 | ESO at 400 rad/s | 1.64, 20.6, 0.7 | 1.69, 18.6, 0.7 |
 
 - Standing, the observers see 0.1 N m: the joints hardly move, the drag is
-  stiction without a signal, and the MPC's own replanning wanders more than
-  the friction. The measure that separates the three is a walk, where every
-  joint reverses against the drag each step.
-- The walk on the loop (`--walk 0.5 0.5 8 --core`) falls at its first step
-  with each inner loop, tilt 25 deg at 1.7 s; the python stack walks 1.88 m,
-  0.31 m/s, 792 J/m. The trace: as the swing begins the neck's torque sits at
-  3.6 times its top, its WEP peak, and the swinging sole gets little - the
-  clip scales a whole level back when one weak drive saturates, where the QP
-  redistributes within the clamps. Next: saturation in the null space (the
-  drive held at its bound, the level solved again in the rest), the centre of
-  pressure, the friction cone and the stops as rows held at their bound.
+  stiction without a signal. The measure that separates the three is a walk,
+  where every joint reverses against the drag each step.
+- The walk on the unconstrained stack falls at its first step with each inner
+  loop, tilt 25 deg at 1.7 s; the python stack walks 1.88 m, 0.31 m/s,
+  792 J/m. Next: the centre of pressure, the friction cone and the stops as
+  rows held at their bound.
 
 ### The bounds as inequalities
 

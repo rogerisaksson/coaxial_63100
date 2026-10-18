@@ -22,4 +22,4 @@ Her law on what a robot of her build measures (`machine.edge`,
   floor, 461 J/m where 415. Walking a flat floor its along-floor touches come
   with the sole 7.9 mm over her floor at most - a landing's friction 544 N -,
   the 35 mm sill's face 14 to 38 mm up: an edge met past 10 mm trips her
-  (`flight.EDGE_M`), none on a flat floor in 30 s.
+  (`touch.EDGE_M`), none on a flat floor in 30 s.

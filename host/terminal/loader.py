@@ -231,13 +231,19 @@ def main(argv=None):
         from tools.target import current
         current.ensure()
     state = fresh()
-    threading.Thread(target=preload, args=(state,), daemon=True).start()
+    preloading = False
+    if args.name != 'humanoid':
+        threading.Thread(target=preload, args=(state,), daemon=True).start()
+        preloading = True
     if args.frames and not args.name:
         return front_page(args, None, state)
     view = by_name(args.name) if args.name else None
     opened, code = None, 0
     while True:
         if view is None:
+            if not preloading:
+                threading.Thread(target=preload, args=(state,), daemon=True).start()
+                preloading = True
             picked = front_page(args, opened, state)
             if picked < FIRST:
                 break

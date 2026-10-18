@@ -27,3 +27,9 @@
 
 ;; a swing met an edge 2 cm up - a sill, a step
 (defsituation stepping (raised above 0.02))
+
+;; frictionless skates: zero sagittal drive, foot rock and arm swing, her balance held by her ankles and hips
+(defsituation skates (grip below 0.005)
+  (cpg_config
+    (amplitude mode_sagittal_drive 0.0) (amplitude mode_foot_rock 0.0)
+    (amplitude mode_arm_swing 0.0)))

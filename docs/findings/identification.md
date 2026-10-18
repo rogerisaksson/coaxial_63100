@@ -23,10 +23,6 @@ torques. What her law senses: [sensing](sensing.md); the drives:
 
 ## The campaign
 
-- A draft beside this one (`host/machine/sysid.py` of 2430ad8, no suite) hung
-  her in a harness of springs (`World.hang`) and read her pelvis's rows too;
-  hung, 7 contacts on her gave 25-32 N m at the hips that no sensor reads.
-  Superseded; its DOD is docs/TODO.md's item 24.
 - On the stand (`mjcf.STAND`: her pelvis welded 1.3 m up, `solref` 0.005):
   every drive swung at once met herself - feet on feet 417 steps of 12 000,
   forearm on thigh 372, shank on thigh 290. A limb at a time

@@ -40,7 +40,7 @@ def check_contacts(g, out, cur_doing):
     an edge met, not the floor - raises her swings by how high it met it (`modal.RAISE`).
     Touched aloft at all, her toes leaving a flat floor tripped her 13 times in 40 s."""
     import numpy as np
-    from machine import latent, modal, sprung
+    from machine import latent, modal, se2
     y, model = g['sense'], g['body'].d
     touch = y[edge.TOUCH].reshape(-1, 3)
     g['_upper_hit'] = bool((np.linalg.norm(touch[ABOVE], axis=1) > edge.TOUCHED_N).any())
@@ -55,10 +55,10 @@ def check_contacts(g, out, cur_doing):
             out[latent.SWAY][modal.DRIVE] = min(float(out[latent.SWAY][modal.DRIVE]), 0.04)
             out[latent.REF][modal.DRIVE] = g['a'][modal.GOING] = 0.0
         if opposed and cur_doing not in ('brake', '#201', 'rest') and abs(float(g['st'][latent.NOW][latent.AMP][modal.DRIVE])) > 0.06:
-            sprung._dropped(g)
-            sprung.said(g, 'brake', g['_brake_wire'], ('brake',), at=g['t'] + 0.001, reset=True)
+            se2._dropped(g)
+            se2.said(g, 'brake', g['_brake_wire'], ('brake',), at=g['t'] + 0.001, reset=True)
             if g['_stand_entry'] is not None:
-                sprung.said(g, *g['_stand_entry'], at=g['t'] + 1.20, reset=True)
+                se2.said(g, *g['_stand_entry'], at=g['t'] + 1.20, reset=True)
             g['active_entry'] = '#201'
     aloft, clear = g['a'][modal.STANCE] < 0.5, list(g.get('_clear', (False, False)))
     floors = modal.under(g['y'], g['fr'], g['a'][modal.STANCE])[0]

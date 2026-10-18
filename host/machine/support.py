@@ -1,11 +1,11 @@
 """Her whole-body ask shaped for a hop's flight, a hit's momentum and a swing kept clear."""
 import math
 
-from machine import edge, sprung
+from machine import edge, se2
 
 
 def shape_hop_and_support(g, ask, out, cur_doing):
-    from machine import flight, latent, modal, se2, wrench
+    from machine import flight, latent, modal, wrench
     y, cur_entry = g['y'], g.get('active_entry')
     twist_mode = bool(g.get('_twist_active') or g.get('_twist_stop_until', 0.0) > g['t']
                       or 0.0 < g.get('_jump_until', 0.0) and g['t'] < g['_jump_until'] + 1.5)
@@ -16,7 +16,7 @@ def shape_hop_and_support(g, ask, out, cur_doing):
         return flight.shape_hop(g, ask, out, cur_doing, tx, ty, (latent, modal, wrench))
     if max(g['loads']) > 10.0 and g.get('_upper_hit'):
         ask['kdot'] = -8.0 * y[modal.MOMENT]
-    if twist_mode and cur_doing not in sprung.STUNT_PHASES and g.get('_jump_until', 0.0) <= g['t'] and ask.get('swing'):
+    if twist_mode and cur_doing not in se2.STUNT_PHASES and g.get('_jump_until', 0.0) <= g['t'] and ask.get('swing'):
         pyaw = edge.yaw(g['sense'])
         cp, sp, soles = math.cos(pyaw), -math.sin(pyaw), y[modal.SOLE].reshape(2, 3)
         for k, sw in list(ask['swing'].items()):

@@ -95,7 +95,9 @@ def test_her_map_is_the_room(report):
         report.check('nine in ten occupied cells lie within 0.15 m of a wall or a thing',
                      near >= 0.9 * len(far), '%d of %d' % (near, len(far)))
         things = keep.map.things()
-        for name, kinds, at in (('chair', ('chair',), room.CHAIR_AT), ('table', ('table',), room.TABLE_AT)):
+        for name, kinds, at in (('chair', ('chair',), room.CHAIR_AT),
+                                ('table', ('table',), room.TABLE_AT),
+                                ('bed', ('bed',), room.BED_AT)):
             found = _nearest(things, kinds, at)
             report.check('the %s is told within 0.3 m of where it stands' % name,
                          found is not None and found[0] < 0.3,

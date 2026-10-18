@@ -54,28 +54,32 @@ def knee(r):
                                    / (2.0 * THIGH * SHANK))))
 
 
-def land(limb, hip, heading, want, short=0.0):
+def land(limb, hip, heading, want, short=0.0, pitch=0.0):
     """((ankle, yaw), m): `want` - (ankle (x, y, z), yaw), world - drawn in to where the limb's
-    leg reaches it flat from `hip`, `short` m of its length kept: its yaw to within the hip's
-    stops of `heading`, then along the floor to the leg's length, across to the roll's stroke,
-    along to the pitch's. m on the floor inside its reach; out of it, how far, negative."""
+    leg reaches it from `hip`, `short` m of its length kept, pitched `pitch` rad: its yaw to
+    within the hip's stops of `heading`, then along the floor to the leg's length, across to the
+    roll's stroke, along to the pitch's. m on the floor inside its reach; out of it, how far,
+    negative."""
     (wx, wy, wz), yaw = want
     sign = LIMBS[limb]
     yaw = heading + sign * max(-YAW[0], min(YAW[1], sign * math.remainder(yaw - heading, math.tau)))
     c, s = math.cos(yaw), math.sin(yaw)
+    cp, sp = math.cos(pitch), math.sin(pitch)
     dx, h, dz = hip[0] - wx, hip[1] - wy, hip[2] - wz
-    x, z = sign * (dx * c - dz * s), dx * s + dz * c
-    far = math.sqrt(max(0.0, (THIGH + SHANK - short) ** 2 - h * h))
+    x, z0 = sign * (dx * c - dz * s), dx * s + dz * c
+    y, z = h * cp - z0 * sp, h * sp + z0 * cp
+    far = math.sqrt(max(0.0, (THIGH + SHANK - short) ** 2 - y * y))
     d = math.hypot(x, z)
     k = min(1.0, far / d) if d > 0.0 else 1.0
-    ax = max(-h * ACROSS[0], min(h * ACROSS[1], x * k))
-    u = math.hypot(ax, h)
+    ax = max(-y * ACROSS[0], min(y * ACROSS[1], x * k))
+    u = math.hypot(ax, y)
     back, fore = _run(u)
     az = max(back, min(fore, z * k))
-    inside = min(far - math.hypot(ax, az), u - U0, h * ACROSS[1] - ax, ax + h * ACROSS[0],
+    inside = min(far - math.hypot(ax, az), u - U0, y * ACROSS[1] - ax, ax + y * ACROSS[0],
                  fore - az, az - back)
-    out = math.hypot(ax - x, az - z) + max(0.0, h - (THIGH + SHANK - short)) - min(0.0, inside)
-    ankle = (hip[0] - sign * ax * c - az * s, wy, hip[2] + sign * ax * s - az * c)
+    out = math.hypot(ax - x, az - z) + max(0.0, y - (THIGH + SHANK - short)) - min(0.0, inside)
+    az0 = az * cp - y * sp
+    ankle = (hip[0] - sign * ax * c - az0 * s, wy, hip[2] + sign * ax * s - az0 * c)
     return (ankle, yaw), (inside if out <= 0.0 else -out)
 
 
