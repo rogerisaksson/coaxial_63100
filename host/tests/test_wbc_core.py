@@ -204,14 +204,41 @@ def _standing(b):
     return s, ask
 
 
+def test_the_ortho_row_is_the_wires(report, c, b, rows):
+    """`ortho_row_t` (wbc/inc/wbc_ortho.h) is `machine.ortho.ROW` and `machine.latent.WIRE` on
+    the wire: 252 bytes, and every compiled row of her text unpacks identically in C."""
+    import numpy as np
+    from machine import latent, ortho
+    sz = c.ortho_row_size()
+    report.check('sizeof(ortho_row_t) is ortho.ROW.size (%d bytes)' % ortho.ROW.size,
+                 sz == ortho.ROW.size == ctypes.sizeof(core.OrthoRow) == latent.WIRE.itemsize,
+                 'C %d, ROW %d, ctypes %d, WIRE %d' % (sz, ortho.ROW.size,
+                                                       ctypes.sizeof(core.OrthoRow), latent.WIRE.itemsize))
+    with open(ortho._FILE, encoding='utf-8') as f:
+        tables, _ = ortho.compiled(f.read())
+    checked, mismatch = 0, ''
+    for wire in tables.values():
+        for i, want in enumerate(ortho.rows(wire)):
+            got = c.ortho_row(wire[i * sz:(i + 1) * sz])
+            want_p = np.asarray(want[4:], dtype=np.float32)
+            same = (got[:4] == want[:4]
+                    and np.array_equal(np.isnan(got[4]), np.isnan(want_p))
+                    and np.allclose(np.nan_to_num(got[4]), np.nan_to_num(want_p), atol=0.0, rtol=0.0))
+            if not same and not mismatch:
+                mismatch = 'row %d: C %r vs python %r' % (i, got[:4], want[:4])
+            checked += 1
+    report.check('every compiled row (%d) unpacks identically through ortho_row_t' % checked,
+                 checked > 20 and not mismatch, mismatch or '%d rows' % checked)
+
+
 def test_the_step_in_c_is_the_steps(report, c, b, rows):
     """wbc_wrench.c beside `machine.wrench.step` on her stand's pose under random velocities:
-    both soles standing, one with the other swung and its knee folded, neither - the torques,
-    every acceleration and the soles' loads; a tick's microseconds here."""
+    both soles standing, one with the other swung and its knee folded (still and striding),
+    neither - the torques, every acceleration and the soles' loads; a tick's microseconds here."""
     import numpy as np
     from machine import figure, physics, wbc, wrench
     from tools.cores.wbc import state_of, wrench_step
-    world, rng, worst = physics.World(), np.random.default_rng(5), np.zeros(3)
+    world, rng, worst, stride_worst = physics.World(), np.random.default_rng(5), np.zeros(3), np.zeros(3)
     world.reset(figure.stand())
     for _ in range(STEPS):
         qvel = np.zeros(len(world.data.qvel))
@@ -229,9 +256,20 @@ def test_the_step_in_c_is_the_steps(report, c, b, rows):
             worst = np.maximum(worst, [np.abs(ours['tau'] - theirs['tau']).max(),
                                        np.abs(ours['qacc'] - theirs['qacc']).max(),
                                        max(abs(x - y) for x, y in zip(ours['bears'], theirs['bears']))])
+        ask_stride = {'stance': (True, False), 'com_acc': np.array([1.2, 2.0, 2.5]) + 0.3 * rng.normal(size=3),
+                      'posture': s['q'] + 0.05 * rng.normal(size=len(s['q'])), 'turns': turns,
+                      'swing': {1: swung[1]}, 'fold': {1: (0.6, 0.0, 0.0)}, 'strides': 0.8,
+                      'edge': (0.5, 0.0), 'mu': (0.3, 0.6), 'wep': False}
+        ours, theirs = wrench.step(b, s, ask_stride), wrench_step(b, s, ask_stride, c)
+        stride_worst = np.maximum(stride_worst, [np.abs(ours['tau'] - theirs['tau']).max(),
+                                                 np.abs(ours['qacc'] - theirs['qacc']).max(),
+                                                 max(abs(x - y) for x, y in zip(ours['bears'], theirs['bears']))])
     report.check("the step in C is machine.wrench's over %d states" % (3 * STEPS),
                  worst[0] < STEP_APART and worst[1] < 1e3 * STEP_APART and worst[2] < STEP_APART,
                  '%.1e N m, %.1e rad/s^2, %.1e N apart at most' % tuple(worst))
+    report.check("and striding on one sole within %.0e over %d states" % (APART, STEPS),
+                 bool((stride_worst < APART).all()),
+                 '%.1e N m, %.1e rad/s^2, %.1e N apart at most' % tuple(stride_worst))
     base, q, u, _T = state_of(b)
     us = 1e6 * c.wrench_seconds(base, q, u, ask)
     report.check('a tick of it on this host', us < 1000.0, '%.1f us' % us)
@@ -254,15 +292,16 @@ def test_the_step_in_c_strides_as_the_steps(report, c, b, rows):
         if soles:
             count[soles] += 1
             worst[soles] = max(worst[soles], float(np.abs(ours['tau'] - theirs['tau']).max()),
+                               float(np.abs(ours['qacc'] - theirs['qacc']).max()) if soles == 1 else 0.0,
                                max(abs(x - y) for x, y in zip(ours['bears'], theirs['bears'])))
         return ours
 
     g['solve'] = both
     while g['t'] < WALK_S:
         sprung.passed(g)
-    report.check("striding on one sole the step in C is machine.wrench's",
-                 count[1] > 500 and worst[1] < 1e-6,
-                 '%.1e N m or N apart at most over %d solves' % (worst[1], count[1]))
+    report.check("striding on one sole the step in C is machine.wrench's within %.0e" % APART,
+                 count[1] > 500 and worst[1] < APART,
+                 '%.1e N m, rad/s^2 or N apart at most over %d solves' % (worst[1], count[1]))
     report.check('and on two, within what they share',
                  count[2] > 100 and worst[2] < STEP_APART,
                  '%.1e N m or N apart at most over %d solves' % (worst[2], count[2]))
@@ -301,13 +340,12 @@ def test_she_stands_on_the_loop(report, c, b, rows):
     report.check('shoved 38 N from behind she stands', out['stood'], 'tilt %.1f deg' % out['tilt'])
 
 
-ROSTER = (test_the_arrays_are_the_figures, test_the_frames_are_mujocos,
-          test_the_mass_matrix_is_mujocos, test_the_bias_is_mujocos,
-          test_the_jacobians_are_mujocos, test_the_centre_of_mass_is_mujocos,
-          test_a_step_on_this_host, test_the_step_in_c_is_the_steps,
-          test_the_step_in_c_strides_as_the_steps,
-          test_the_loop_stands_as_the_python_stack,
-          test_she_stands_on_the_loop)
+ROSTER = (test_the_arrays_are_the_figures, test_the_ortho_row_is_the_wires,
+          test_the_frames_are_mujocos, test_the_mass_matrix_is_mujocos,
+          test_the_bias_is_mujocos, test_the_jacobians_are_mujocos,
+          test_the_centre_of_mass_is_mujocos, test_a_step_on_this_host,
+          test_the_step_in_c_is_the_steps, test_the_step_in_c_strides_as_the_steps,
+          test_the_loop_stands_as_the_python_stack, test_she_stands_on_the_loop)
 
 
 def main(argv=None):

@@ -5,6 +5,7 @@
 #define WBC_H
 
 #include "wbc_model.h"
+#include "wbc_ortho.h"
 
 /** A frame: R by rows, then p. */
 typedef struct

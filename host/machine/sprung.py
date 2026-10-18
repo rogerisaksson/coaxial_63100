@@ -88,6 +88,10 @@ def laid(every=1, inner=None, solver=None):
     legs = [[i for i, j in enumerate(JOINTS) if j.startswith(s0) and kind(j) in LEG_KINDS] for s0 in ('left_', 'right_')]
     wep_lim = np.array([max(float(servos.SERVO[kind(j)][0]), float(peak(j)), 1.45 * float(body.clamp[i])) for i, j in enumerate(names)])
     sit = situation.text()
+    if (solver or SOLVER) == 'c':
+        from tools.cores.wbc import wrench_step as solve_step
+    else:
+        solve_step = {'stack': wbc.step, 'wrench': wrench.step}[solver or SOLVER]
     g = {'world': world, 'body': body, 'y': y, 'fr': fr, 'rest': rest, 'rest_y': rest_y, 'st': st, 'out': out, 'a': a, 'tab': tab,
          'labels': [], 'posture': s['q'].copy(), 'limbs': limbs, 'bend': modal.crouch(names), 'arms': modal.swing(names),
          'cervical': [names.index(j) for j in ('neck', 'head') if j in names], 'waist_idx': names.index('waist') if 'waist' in names else None,
@@ -104,7 +108,7 @@ def laid(every=1, inner=None, solver=None):
          '_brake_wire': _BRAKE_WIRE, '_stand_entry': next((e for e in entries() if e[0] == '#201'), None),
          'heading': float(fr[modal.HEADING]), 'twist': (0.0, 0.0, 0.0),
          'heat': heat.Heat.for_joints(JOINTS), 'temp': np.full(len(JOINTS), 25.0), 'scenario': 'flat',
-         'solve': {'stack': wbc.step, 'wrench': wrench.step}[solver or SOLVER]}
+         'solve': solve_step}
     world.clock = lambda: g['t']
     return g
 

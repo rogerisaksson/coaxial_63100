@@ -70,9 +70,16 @@ W_STILL, GROW_N = 1e4, 30.0
 RIDGE = 1e-12
 
 
+_EYE3, _EYE6, _EYE_NU = np.eye(3), np.eye(6), np.eye(NU)
+_DAMP_EYE6 = DAMP ** 2 * _EYE6
+_UPPER_IDX = 12 + np.arange(len(UPPER))
+_UPPER_ROWS = _EYE_NU[12:NU]
+_GIVES = 1e-9 * (np.arange(13) == 12)
+
+
 def _inv(A):
     """A's damped inverse."""
-    return np.linalg.solve(A.T @ A + DAMP ** 2 * np.eye(A.shape[1]), A.T)
+    return np.linalg.solve(A.T @ A + (_DAMP_EYE6 if A.shape[1] == 6 else DAMP ** 2 * np.eye(A.shape[1])), A.T)
 
 
 def _solved(K, rhs, free):
@@ -90,14 +97,22 @@ def bounded(u, frames, stance, edge=(0.0, 0.0), mu=(MU, MU)):
     of pressure that far to it."""
     out = u.copy()
     for k, R in enumerate(frames):
-        m, f = R.T @ u[6 * k:6 * k + 3], u[6 * k + 3:6 * k + 6]
-        fy = max(f[1], 0.0)
-        cap = np.array([ROOM[1] * fy, mu[k] * YAW_M * fy, ROOM[0] * fy])
-        low = -cap * np.array([1.0 - 2.0 * max(-edge[k], 0.0), 1.0, 1.0])
-        cap = cap * np.array([1.0 - 2.0 * max(edge[k], 0.0), 1.0, 1.0])
-        inside = np.concatenate([R @ np.clip(m, low, cap),
-                                 [np.clip(f[0], -mu[k] * fy, mu[k] * fy), fy, np.clip(f[2], -mu[k] * fy, mu[k] * fy)]])
-        out[6 * k:6 * k + 6] += stance[k] * (inside - u[6 * k:6 * k + 6])
+        uk = u[6 * k:6 * k + 6]
+        m = R.T @ uk[:3]
+        fx, fy, fz = float(uk[3]), max(float(uk[4]), 0.0), float(uk[5])
+        ek, muk = float(edge[k]), float(mu[k])
+        c0, c1, c2, mf = ROOM[1] * fy, muk * YAW_M * fy, ROOM[0] * fy, muk * fy
+        lo0 = -c0 * (1.0 - 2.0 * max(-ek, 0.0))
+        hi0 = c0 * (1.0 - 2.0 * max(ek, 0.0))
+        mc = np.array([min(max(float(m[0]), lo0), hi0),
+                       min(max(float(m[1]), -c1), c1),
+                       min(max(float(m[2]), -c2), c2)])
+        inside = np.empty(6)
+        inside[:3] = R @ mc
+        inside[3] = min(max(fx, -mf), mf)
+        inside[4] = fy
+        inside[5] = min(max(fz, -mf), mf)
+        out[6 * k:6 * k + 6] += stance[k] * (inside - uk)
     return out, (np.abs(out - u) > 1e-9).astype(float)
 
 
@@ -105,7 +120,10 @@ def pushed(u, bears):
     """`u` with each contact's force (world, after the soles' and her upper body's unknowns)
     pressing, no more than GROW_N over what it `bears` now (N up, one a contact), and in its
     friction's pyramid, and which parts moved."""
-    out, k = u.copy(), len(bears)
+    k = len(bears)
+    if not k:
+        return u.copy(), np.zeros(len(u))
+    out = u.copy()
     f = out[NU:NU + 3 * k].reshape(k, 3)
     f[:, 1] = np.clip(f[:, 1], 0.0, np.asarray(bears, float) + GROW_N)
     f[:, [0, 2]] = np.clip(f[:, [0, 2]], -MU * f[:, 1:2], MU * f[:, 1:2])
@@ -119,14 +137,19 @@ def faced(u, frames, stance, edge=(0.0, 0.0), mu=(MU, MU)):
     face's share of the sole's push: no part has a bound of its own."""
     out, past, share = u.copy(), np.zeros(12), np.zeros(12)
     for k, R in enumerate(frames):
-        was = np.concatenate([R.T @ u[6 * k:6 * k + 3], u[6 * k + 3:6 * k + 6]])
-        fy = max(was[4], 0.0)
-        low = -np.array([ROOM[1] * (1.0 - 2.0 * max(-edge[k], 0.0)), mu[k] * YAW_M, ROOM[0], mu[k], 0.0, mu[k]])
-        high = np.array([ROOM[1] * (1.0 - 2.0 * max(edge[k], 0.0)), mu[k] * YAW_M, ROOM[0], mu[k], 1.0, mu[k]])
-        inside = np.clip(was, low * fy, high * fy)
+        was = np.empty(6)
+        was[:3], was[3:] = R.T @ u[6 * k:6 * k + 3], u[6 * k + 3:6 * k + 6]
+        fy = max(float(was[4]), 0.0)
+        ek, muk = float(edge[k]), float(mu[k])
+        low = -np.array([ROOM[1] * (1.0 - 2.0 * max(-ek, 0.0)), muk * YAW_M, ROOM[0], muk, 0.0, muk])
+        high = np.array([ROOM[1] * (1.0 - 2.0 * max(ek, 0.0)), muk * YAW_M, ROOM[0], muk, 1.0, muk])
+        lfy, hfy = low * fy, high * fy
+        inside = np.clip(was, lfy, hfy)
         past[6 * k:6 * k + 6] = stance[k] * (np.abs(inside - was) > 1e-9)
-        share[6 * k:6 * k + 6] = np.where(was < low * fy, low, high)
-        out[6 * k:6 * k + 6] += stance[k] * (np.concatenate([R @ inside[:3], inside[3:]]) - u[6 * k:6 * k + 6])
+        share[6 * k:6 * k + 6] = np.where(was < lfy, low, high)
+        w = np.empty(6)
+        w[:3], w[3:] = R @ inside[:3], inside[3:]
+        out[6 * k:6 * k + 6] += stance[k] * (w - u[6 * k:6 * k + 6])
     return out, past, share
 
 
@@ -143,14 +166,14 @@ def _taken(u0, metric, up, frames, stance, edge, band, grounded, mu):
     Gi = np.linalg.inv(metric)
     F, N = np.zeros((13, u0.size)), np.zeros((13, u0.size))
     for k, R in enumerate(frames):
-        F[6 * k:6 * k + 3, 6 * k:6 * k + 3], F[6 * k + 3:6 * k + 6, 6 * k + 3:6 * k + 6] = R.T, np.eye(3)
+        F[6 * k:6 * k + 3, 6 * k:6 * k + 3], F[6 * k + 3:6 * k + 6, 6 * k + 3:6 * k + 6] = R.T, _EYE3
         N[6 * k:6 * k + 6, 6 * k + 4] = 1.0
     F[12] = up
-    met, share, level, gives = np.zeros(13), np.zeros(13), np.zeros(13), 1e-9 * (np.arange(13) == 12)
+    met, share, level, gives = np.zeros(13), np.zeros(13), np.zeros(13), _GIVES
     u = at = u0
     for _ in range(ROUNDS):
         ay = float(up @ u) - G
-        past = float(np.clip(ay, band[0], band[1])) + G
+        past = min(max(ay, band[0]), band[1]) + G
         level[12] += (1.0 - met[12]) * (past - level[12])
         met[12] = max(met[12], grounded * float(abs(past - G - ay) > 1e-9))
         C = met[:, None] * (F - share[:, None] * N)
@@ -181,9 +204,9 @@ def _maps(b, s, ask, want):
     acceleration, world: flat again from its heel, over its ball)."""
     n, M, h, v, act = b.n, s['M'], s['h'], s['v'], b.act
     T, E, t0 = np.zeros((n, 6)), np.zeros((n, NU)), np.zeros(n)
-    T[:6] = np.eye(6)
+    T[:6] = _EYE6
     t0[b.held] = -HELD_K * v[b.held]
-    E[act[UPPER], 12 + np.arange(len(UPPER))] = 1.0
+    E[act[UPPER], _UPPER_IDX] = 1.0
     a6, asked, swing = np.zeros(NU), np.zeros(2), ask.get('swing', {})
     settle = ask.get('settle', np.zeros((2, 6)))
     for k, leg in enumerate(LEGS):
@@ -198,18 +221,23 @@ def _maps(b, s, ask, want):
             t0[cols] = inv @ (settle[k] - f['dJv'] - CONTACT_K * twist)
             continue
         at, speed, acc, quat = swing[k]
-        a6[6 * k:6 * k + 6] = np.concatenate([
-            TURN_KD[0] * turn_error(quat, f['quat']) - TURN_KD[1] * twist[:3],
-            np.asarray(acc) + SWING_KD[0] * (np.asarray(at) - f['sole'])
-            + SWING_KD[1] * (np.asarray(speed) - twist[3:])])
+        a6[6 * k:6 * k + 3] = TURN_KD[0] * turn_error(quat, f['quat']) - TURN_KD[1] * twist[:3]
+        a6[6 * k + 3:6 * k + 6] = (np.asarray(acc) + SWING_KD[0] * (np.asarray(at) - f['sole'])
+                                   + SWING_KD[1] * (np.asarray(speed) - twist[3:]))
         asked[k] = 1.0
         t0[cols] = -inv @ f['dJv']
         E[cols, 6 * k:6 * k + 6] = inv
     # the joints no drive holds, by their own rows of her dynamics under all the rest
-    passive = np.array([i >= 6 and i in b.free for i in range(n)])
-    pull = -np.linalg.solve(M[np.ix_(passive, passive)], M[np.ix_(passive, ~passive)])
-    T[passive], E[passive] = pull @ T[~passive], pull @ E[~passive]
-    t0[passive] = pull @ t0[~passive] - np.linalg.solve(M[np.ix_(passive, passive)], h[passive])
+    passive = getattr(b, 'passive', None)
+    if passive is None:
+        passive = np.array([i >= 6 and i in b.free for i in range(n)])
+        active = ~passive
+    else:
+        active = b.active_dof
+    m_pp = M[np.ix_(passive, passive)]
+    pull = -np.linalg.solve(m_pp, M[np.ix_(passive, active)])
+    T[passive], E[passive] = pull @ T[active], pull @ E[active]
+    t0[passive] = pull @ t0[active] - np.linalg.solve(m_pp, h[passive])
     return T, E, t0, a6, asked
 
 
@@ -224,8 +252,11 @@ def _rounds(H0, g0, held, bears, lo, hi, geo, stride):
     pressed, done, rounds = np.ones(len(bears)), 0, ROUNDS
     Hr = gr = None
     while done < rounds:
-        Hr = H0 + sum(p * S.T @ S for p, (S, _r) in zip(pressed, held))
-        gr = g0 + sum(p * S.T @ r for p, (S, r) in zip(pressed, held))
+        if held:
+            Hr = H0 + sum(p * S.T @ S for p, (S, _r) in zip(pressed, held))
+            gr = g0 + sum(p * S.T @ r for p, (S, r) in zip(pressed, held))
+        else:
+            Hr, gr = H0, g0
         # a clipped force is held by a row, W_PIN its weight's share; a clipped moment is its
         # value and her height at its band's edge is met, the rest solved round them: as rows
         # of W_PIN they were 1e7 on the diagonal, and what her soles share came 0.6 N m apart
@@ -237,20 +268,23 @@ def _rounds(H0, g0, held, bears, lo, hi, geo, stride):
         u = u + band * (edge - up @ u) / (up @ way + 1.0 - band) * way
         # her height's band: past an edge, held to it
         ay = float(lift @ u) / mass - G
-        past = float(np.clip(ay, lo, hi)) + G
+        past = min(max(ay, lo), hi) + G
         band, edge = max(band, grounded * float(abs(past - G - ay) > 1e-9)), edge + (1.0 - band) * (past - edge)
         at, moved = bounded(u, frames, stance, edges, mu)
-        at, kept = pushed(at, bears)
-        pressed = pressed * (u[NU + 1:NU + k3:3] >= 0.0)
-        pinned = np.maximum(pinned, np.maximum(moved, kept))
+        if k3:
+            at, kept = pushed(at, bears)
+            pressed = pressed * (u[NU + 1:NU + k3:3] >= 0.0)
+            pinned = np.maximum(pinned, np.maximum(moved, kept))
+        else:
+            pinned = np.maximum(pinned, moved)
         done += 1
         # an answer past her height's band after the rounds - a contact let go in the last, its
         # solve never held to it - is held to its edge: off a mattress's edge the step planned 145
         # N up of her 358 asked and the edge took 309 along its normal, 23 deg ahead
         ay = float(lift @ at) / mass - G
         if (done == rounds < ROUNDS + PAST and not strides
-                and grounded * abs(float(np.clip(ay, lo, hi)) - ay) > 1e-9):
-            band, edge, rounds = 1.0, float(np.clip(ay, lo, hi)) + G, rounds + 1
+                and grounded * abs(min(max(ay, lo), hi) - ay) > 1e-9):
+            band, edge, rounds = 1.0, min(max(ay, lo), hi) + G, rounds + 1
         if (not pinned.any() and not band) or (strides >= 1.0 and k3 == 0):
             break
     if strides > 0.0 and (pinned.any() or band):
@@ -274,34 +308,37 @@ def step(b, s, ask):
     turned = max(grounded, float(ask.get('borne', 0.0))) * float(len(turns) > 0)
     want = POSTURE_KD[0] * (np.asarray(ask['posture']) - s['q']) - POSTURE_KD[1] * v[act]
     T, E, t0, a6, asked = _maps(b, s, ask, want)
-    E, a6 = np.hstack([E, np.zeros((n, k3))]), np.concatenate([a6, np.zeros(k3)])
+    if k3:
+        E, a6 = np.hstack([E, np.zeros((n, k3))]), np.concatenate([a6, np.zeros(k3)])
     # the base's rows of her dynamics: A base = Gm u - M_b E u - d
     Gm = np.zeros((6, nu))
-    Gm[:, :12] = np.hstack([f['J6'][:, :6].T for f in feet]) * each
+    Gm[:, :6] = feet[0]['J6'][:, :6].T * stance[0]
+    Gm[:, 6:12] = feet[1]['J6'][:, :6].T * stance[1]
     for i, c in enumerate(contacts):
         Gm[:, NU + 3 * i:NU + 3 * i + 3] = c['J'][:, :6].T
-    Ai = np.linalg.inv(M[:6] @ T + 1e-9 * np.eye(6))
+    Ai = np.linalg.inv(M[:6] @ T + 1e-9 * _EYE6)
     P, p0 = Ai @ (Gm - M[:6] @ E), -Ai @ (M[:6] @ t0 + h[:6])
     full, full0 = T @ P + E, T @ p0 + t0
     rows, rhs, rhs0 = [], [], []
 
-    def lay(R, c, weight, c0=0.0):
+    def lay(R, c, weight, c0=None):
         """A row = `c`, weighed; `c0` what it is with nothing asked, every acceleration 0."""
         c = np.atleast_1d(c)
-        rows.append(weight * np.atleast_2d(R))
+        rows.append(weight * (R if R.ndim == 2 else R[None, :]))
         rhs.append(weight * c)
-        rhs0.append(weight * np.broadcast_to(np.asarray(c0, float), c.shape))
+        rhs0.append(np.zeros(c.shape) if c0 is None else weight * (np.full(c.shape, float(c0)) if np.ndim(c0) == 0 else np.asarray(c0, float)))
 
     sumf, about, still = np.zeros((3, nu)), np.zeros((3, nu)), []
     for k, f in enumerate(feet):
         r = f['sole'] - s['com']
-        sumf[:, 6 * k + 3:6 * k + 6] = stance[k] * np.eye(3)
-        about[:, 6 * k:6 * k + 3] = stance[k] * np.eye(3)
-        about[:, 6 * k + 3:6 * k + 6] = stance[k] * np.array([[0.0, -r[2], r[1]], [r[2], 0.0, -r[0]],
-                                                              [-r[1], r[0], 0.0]])
+        sk = stance[k]
+        sumf[:, 6 * k + 3:6 * k + 6] = sk * _EYE3
+        about[:, 6 * k:6 * k + 3] = sk * _EYE3
+        about[:, 6 * k + 3:6 * k + 6] = sk * np.array([[0.0, -r[2], r[1]], [r[2], 0.0, -r[0]],
+                                                       [-r[1], r[0], 0.0]])
     for i, c in enumerate(contacts):
         r, at = c['p'] - s['com'], slice(NU + 3 * i, NU + 3 * i + 3)
-        sumf[:, at] = np.eye(3)
+        sumf[:, at] = _EYE3
         about[:, at] = np.array([[0.0, -r[2], r[1]], [r[2], 0.0, -r[0]], [-r[1], r[0], 0.0]])
         left = -c['dJv'] - c['J'] @ full0
         still.append((W_STILL * (c['J'] @ full), W_STILL * (left - CONTACT_K * (c['J'] @ v)), W_STILL * left))
@@ -312,7 +349,7 @@ def step(b, s, ask):
         left = -t['dJr'] - t['Jr'] @ full0
         lay(t['Jr'] @ full, TURN_KD[0] * turn_error(turn, t['quat']) - TURN_KD[1] * t['w'] + left, W_TURN * turned,
             left)
-    lay(np.eye(nu)[12:NU], want[UPPER], W_POSTURE)
+    lay(_UPPER_ROWS if not k3 else np.eye(nu)[12:NU], want[UPPER], W_POSTURE)
     swung = np.concatenate([np.repeat(asked, 6), np.zeros(nu - 12)])
     lay(np.diag(swung), a6, W_SWING)
     knees = act[KNEES]
@@ -325,18 +362,21 @@ def step(b, s, ask):
     for k, j in enumerate(knees):
         short = KNEE_MIN - s['q'][KNEES[k]]
         lay(full[j], POSTURE_KD[0] * short - POSTURE_KD[1] * v[j] - full0[j],
-            W_STOP * float(np.clip(short / KNEE_MIN, 0.0, 1.0)), -full0[j])
+            W_STOP * min(max(float(short / KNEE_MIN), 0.0), 1.0), -full0[j])
     kdot = ask.get('kdot')
     lay(about, -MOMENTUM_K * s['k'] if kdot is None else np.asarray(kdot), W_MOMENT * grounded)
     part = np.zeros(nu)
-    part[:12] = np.tile(np.concatenate([np.full(3, 1.0 / (mass * G * ROOM[0])), np.full(3, 1.0 / (mass * G))]), 2)
-    part[NU:] = 1.0 / (mass * G)
-    spare = W_PART * np.concatenate([each, np.zeros(NU - 12), np.ones(k3)]) * part + W_AIR * np.concatenate(
+    inv_mg = 1.0 / (mass * G)
+    inv_mgr = 1.0 / (mass * G * ROOM[0])
+    part[:12] = (inv_mgr, inv_mgr, inv_mgr, inv_mg, inv_mg, inv_mg) * 2
+    if k3:
+        part[NU:] = inv_mg
+    spare = W_PART * (np.concatenate([each, np.zeros(NU - 12), np.ones(k3)]) if k3 else np.concatenate([each, np.zeros(NU - 12)])) * part + W_AIR * np.concatenate(
         [1.0 - each, np.zeros(nu - 12)])
     lay(np.diag(spare), np.zeros(nu), 1.0)
     R0, up = np.vstack(rows), sumf[1] / mass
-    H0 = R0.T @ R0 + 1e-12 * np.eye(nu)
-    frames, moment = [f['R'] for f in feet], np.concatenate([MOMENT, np.zeros(k3)])
+    H0 = R0.T @ R0 + 1e-12 * (_EYE_NU if not k3 else np.eye(nu))
+    frames, moment = [f['R'] for f in feet], (MOMENT if not k3 else np.concatenate([MOMENT, np.zeros(k3)]))
     edges, mu, strides = ask.get('edge', (0.0, 0.0)), ask.get('mu', (MU, MU)), float(ask.get('strides', 0.0))
     kinetic = None
     if strides > 0.0:
@@ -380,3 +420,4 @@ def step(b, s, ask):
     b.load = np.abs(tau) / b.clamp
     return {'tau': np.clip(carried, -limit, limit), 'qacc': qdd, 'bears': bears, 'cop': cop, 'over': over,
             'slack': [], 'held': (), 'borne': u[NU:].reshape(-1, 3), 'scale': scale}
+

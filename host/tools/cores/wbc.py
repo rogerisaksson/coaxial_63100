@@ -64,34 +64,58 @@ class Out(ctypes.Structure):
                 ('stuck', _i), ('clipped', _d * 2)]
 
 
-def ask_of(ask):
+class OrthoRow(ctypes.Structure):
+
+    """ortho_row_t: a row on the wire (machine.ortho.ROW)."""
+
+    _fields_ = [('id', ctypes.c_uint32), ('at', ctypes.c_uint32), ('blend', ctypes.c_uint32),
+                ('flags', ctypes.c_uint32), ('p', ctypes.c_float * 59)]
+
+
+def ask_of(ask, a=None):
     """An `Ask` from `machine.wbc.step`'s dict: stance, com_acc, turns - none asked, all zeros
     -, swing, fold, posture, derate, wep, kdot; `machine.wrench.step`'s settle, edge, strides and mu."""
-    a = Ask()
-    for k in (0, 1):
-        a.stance[k] = int(bool(ask['stance'][k]))
+    if a is None:
+        a = Ask()
+    else:
+        ctypes.memset(ctypes.byref(a), 0, ctypes.sizeof(a))
+    st = ask['stance']
+    a.stance[0], a.stance[1] = int(bool(st[0])), int(bool(st[1]))
     for k, turn in enumerate(ask['turns']):
-        a.turn[k][:] = [float(x) for x in turn]
-    a.com_acc[:] = [float(x) for x in ask['com_acc']]
-    for k, (at, speed, acc, quat) in ask.get('swing', {}).items():
-        a.swing[k] = 1
-        a.swing_at[k][:] = [float(x) for x in at]
-        a.swing_speed[k][:] = [float(x) for x in speed]
-        a.swing_acc[k][:] = [float(x) for x in acc]
-        a.swing_quat[k][:] = [float(x) for x in quat]
-    for k, (knee, rate, acc) in ask.get('fold', {}).items():
-        a.fold[k], a.fold_knee[k], a.fold_rate[k], a.fold_acc[k] = 1, knee, rate, acc
-    a.posture[:] = [float(x) for x in ask['posture']]
-    a.derate[:] = list(np.broadcast_to(np.asarray(ask.get('derate', 1.0), float), (DRIVEN,)))
+        a.turn[k][:] = turn
+    a.com_acc[:] = ask['com_acc']
+    swing = ask.get('swing')
+    if swing:
+        for k, (at, speed, acc, quat) in swing.items():
+            a.swing[k] = 1
+            a.swing_at[k][:] = at
+            a.swing_speed[k][:] = speed
+            a.swing_acc[k][:] = acc
+            a.swing_quat[k][:] = quat
+    fold = ask.get('fold')
+    if fold:
+        for k, (knee, rate, acc) in fold.items():
+            a.fold[k], a.fold_knee[k], a.fold_rate[k], a.fold_acc[k] = 1, knee, rate, acc
+    np.ctypeslib.as_array(a.posture)[:] = ask['posture']
+    np.ctypeslib.as_array(a.derate)[:] = ask.get('derate', 1.0)
     a.wep = int(bool(ask.get('wep', False)))
-    if ask.get('kdot') is not None:
+    kdot = ask.get('kdot')
+    if kdot is not None:
         a.kdot_given = 1
-        a.kdot[:] = [float(x) for x in ask['kdot']]
-    for k, settle in enumerate(ask.get('settle', ())):
-        a.settle[k][:] = [float(x) for x in settle]
-    a.edge[:] = [float(x) for x in ask.get('edge', (0.0, 0.0))]
+        a.kdot[:] = kdot
+    settle = ask.get('settle')
+    if settle is not None:
+        for k, row in enumerate(settle):
+            a.settle[k][:] = row
+    edge = ask.get('edge')
+    if edge is not None:
+        a.edge[0], a.edge[1] = float(edge[0]), float(edge[1])
     a.strides = float(ask.get('strides', 0.0))
-    a.mu[:] = [float(x) for x in ask.get('mu', (MU, MU))]
+    mu = ask.get('mu')
+    if mu is None:
+        a.mu[0] = a.mu[1] = MU
+    else:
+        a.mu[0], a.mu[1] = float(mu[0]), float(mu[1])
     return a
 
 
@@ -99,6 +123,8 @@ def typed(lib):
     """`lib`'s harness calls typed; `lib` back."""
     d, i = ctypes.c_double, ctypes.c_int
     dp = ctypes.POINTER(d)
+    u32p = ctypes.POINTER(ctypes.c_uint32)
+    fp = ctypes.POINTER(ctypes.c_float)
     lib.wbh_links.restype = i
     lib.wbh_n.restype = i
     lib.wbh_name.restype = ctypes.c_char_p
@@ -123,6 +149,9 @@ def typed(lib):
     lib.wbh_wrench.argtypes = [dp, dp, dp, ctypes.POINTER(Ask), ctypes.POINTER(Out)]
     lib.wbh_wrench_seconds.restype = d
     lib.wbh_wrench_seconds.argtypes = [dp, dp, dp, ctypes.POINTER(Ask), i]
+    lib.wbh_ortho_row_size.restype = i
+    lib.wbh_ortho_row_size.argtypes = []
+    lib.wbh_ortho_row.argtypes = [ctypes.c_void_p, u32p, fp]
     return lib
 
 
@@ -151,10 +180,25 @@ class Core:
         self.links, self.n = int(self.lib.wbh_links()), int(self.lib.wbh_n())
         self.names = [self.lib.wbh_name(k).decode() for k in range(self.links)]
         self.parent = [int(self.lib.wbh_parent(k)) for k in range(self.links)]
+        self._ask, self._out = Ask(), Out()
 
     def reset(self):
         """The loop's memory cleared: the loads WEP is granted on, the warm set."""
         self.lib.wbh_stack_init()
+
+    def ortho_row_size(self):
+        """sizeof(ortho_row_t), bytes."""
+        return int(self.lib.wbh_ortho_row_size())
+
+    def ortho_row(self, wire):
+        """(id, at, blend, flags, p) unpacked by `ortho_row_t` in C from `wire`."""
+        head = np.zeros(4, dtype=np.uint32)
+        p = np.zeros(59, dtype=np.float32)
+        self.lib.wbh_ortho_row(
+            ctypes.c_char_p(bytes(wire)),
+            head.ctypes.data_as(ctypes.POINTER(ctypes.c_uint32)),
+            p.ctypes.data_as(ctypes.POINTER(ctypes.c_float)))
+        return int(head[0]), int(head[1]), int(head[2]), int(head[3]), p
 
     def pose(self, base, q):
         """Every link's frame in the world, (links, 12): R by rows, then p. `base` the pelvis's
@@ -213,38 +257,45 @@ class Core:
     def stack(self, base, q, u, ask):
         """One tick of the loop for `ask` (`machine.wbc.step`'s dict): {tau, udot, wrench, bears,
         held, passes, over, load, jeff}, udot in u's order."""
-        base, q, u, out = _arr(base), _arr(q), _arr(u), Out()
-        self.lib.wbh_stack(_ptr(base), _ptr(q), _ptr(u), ctypes.byref(ask_of(ask)), ctypes.byref(out))
-        return {'tau': np.array(out.tau), 'udot': np.array(out.udot),
-                'wrench': np.array([list(w) for w in out.wrench]), 'bears': list(out.bears),
+        base, q, u, out = _arr(base), _arr(q), _arr(u), self._out
+        self.lib.wbh_stack(_ptr(base), _ptr(q), _ptr(u), ctypes.byref(ask_of(ask, self._ask)), ctypes.byref(out))
+        return {'tau': np.ctypeslib.as_array(out.tau).copy(),
+                'udot': np.ctypeslib.as_array(out.udot).copy(),
+                'wrench': np.ctypeslib.as_array(out.wrench).copy(),
+                'bears': [float(out.bears[0]), float(out.bears[1])],
                 'held': int(out.held), 'passes': int(out.passes), 'guarded': list(out.guarded),
                 'ids': [i for i in out.ids if i >= 0], 'residual': float(out.residual),
                 'alpha': list(out.alpha),
-                'over': np.array(out.over, bool),
-                'load': np.array(out.load), 'jeff': np.array(out.jeff),
-                'force': np.array([list(f) for f in out.force]).reshape(2, 4, 3),
+                'over': np.ctypeslib.as_array(out.over).astype(bool),
+                'load': np.ctypeslib.as_array(out.load).copy(),
+                'jeff': np.ctypeslib.as_array(out.jeff).copy(),
+                'force': np.ctypeslib.as_array(out.force).reshape(2, 4, 3).copy(),
                 'stuck': int(out.stuck), 'clipped': list(out.clipped)}
 
     def wrench(self, base, q, u, ask):
         """One tick of the step without an active set (wbc_wrench.c) for `ask`
         (`machine.wrench.step`'s dict): {tau, udot, wrench, bears, over, load, scale}."""
-        base, q, u, out = _arr(base), _arr(q), _arr(u), Out()
-        self.lib.wbh_wrench(_ptr(base), _ptr(q), _ptr(u), ctypes.byref(ask_of(ask)), ctypes.byref(out))
-        return {'tau': np.array(out.tau), 'udot': np.array(out.udot),
-                'wrench': np.array([list(w) for w in out.wrench]), 'bears': list(out.bears),
-                'over': np.array(out.over, bool), 'load': np.array(out.load), 'scale': float(out.alpha[0])}
+        base, q, u, out = _arr(base), _arr(q), _arr(u), self._out
+        self.lib.wbh_wrench(_ptr(base), _ptr(q), _ptr(u), ctypes.byref(ask_of(ask, self._ask)), ctypes.byref(out))
+        return {'tau': np.ctypeslib.as_array(out.tau).copy(),
+                'udot': np.ctypeslib.as_array(out.udot).copy(),
+                'wrench': np.ctypeslib.as_array(out.wrench).copy(),
+                'bears': [float(out.bears[0]), float(out.bears[1])],
+                'over': np.ctypeslib.as_array(out.over).astype(bool),
+                'load': np.ctypeslib.as_array(out.load).copy(),
+                'scale': float(out.alpha[0])}
 
     def wrench_seconds(self, base, q, u, ask, reps=2000):
         """Seconds a tick of it on this host."""
         base, q, u = _arr(base), _arr(q), _arr(u)
         return float(self.lib.wbh_wrench_seconds(_ptr(base), _ptr(q), _ptr(u),
-                                                 ctypes.byref(ask_of(ask)), reps))
+                                                 ctypes.byref(ask_of(ask, self._ask)), reps))
 
     def stack_seconds(self, base, q, u, ask, reps=200):
         """Seconds a tick of the loop on this host."""
         base, q, u = _arr(base), _arr(q), _arr(u)
         return float(self.lib.wbh_stack_seconds(_ptr(base), _ptr(q), _ptr(u),
-                                                ctypes.byref(ask_of(ask)), reps))
+                                                ctypes.byref(ask_of(ask, self._ask)), reps))
 
 
 def state_of(b):
@@ -254,7 +305,10 @@ def state_of(b):
     R = rotation(qpos[3:7])
     T = np.eye(n)
     T[:3, :3], T[:3, 3:6], T[3:6, :3], T[3:6, 3:6] = 0.0, R, np.eye(3), 0.0
-    return np.r_[R.ravel(), qpos[:3]], qpos[7:7 + n - 6].copy(), np.linalg.solve(T, qvel[:n]), T
+    u, base = np.empty(n), np.empty(12)
+    u[:3], u[3:6], u[6:] = qvel[3:6], R.T @ qvel[:3], qvel[6:n]
+    base[:9], base[9:] = R.ravel(), qpos[:3]
+    return base, qpos[7:7 + n - 6].copy(), u, T
 
 
 @functools.lru_cache(maxsize=None)
@@ -288,16 +342,25 @@ def stack_step(b, s, ask, core=None):
 
 def wrench_step(b, s, ask, core=None):
     """`machine.wrench.step`'s answer from wbc_wrench.c, on her `wbc.Body` as `sense` left it:
-    {tau, qacc (MuJoCo's qvel order), bears, cop, over, slack, held, scale}."""
+    {tau, qacc (MuJoCo's qvel order), bears, cop, over, slack, held, scale, borne}."""
     core = core or shared()
-    base, q, u, T = state_of(b)
-    out = core.wrench(base, q, u, ask)
-    dT_u = np.zeros(b.n)
-    dT_u[:3] = T[:3, 3:6] @ np.cross(u[:3], u[3:6])
+    qpos, qvel, n = b.d.qpos, b.d.qvel, b.n
+    R = rotation(qpos[3:7])
+    base, u = np.empty(12), np.empty(n)
+    base[:9], base[9:] = R.ravel(), qpos[:3]
+    u[:3], u[3:6], u[6:] = qvel[3:6], R.T @ qvel[:3], qvel[6:n]
+    out = core.wrench(base, qpos[7:7 + n - 6], u, ask)
+    udot = out['udot']
+    qacc = udot.copy()
+    qacc[:3] = R @ (udot[3:6] + np.cross(u[:3], u[3:6]))
+    qacc[3:6] = udot[:3]
     cop = []
     for k in (0, 1):
         if ask['stance'][k]:
-            ml, fy = s['feet'][k]['R'].T @ out['wrench'][k][:3], out['wrench'][k][4]
+            ml, fy = s['feet'][k]['R'].T @ out['wrench'][k][:3], float(out['wrench'][k][4])
             cop.append(np.array([ml[2], -ml[0]]) / fy if fy > 1e-6 else None)
-    return {'tau': out['tau'], 'qacc': T @ out['udot'] + dT_u, 'bears': out['bears'], 'cop': cop,
-            'over': out['over'], 'slack': [], 'held': (), 'scale': out['scale']}
+    b.load = out['load']
+    return {'tau': out['tau'], 'qacc': qacc, 'bears': out['bears'], 'cop': cop,
+            'over': out['over'], 'slack': [], 'held': (), 'scale': out['scale'],
+            'borne': np.zeros((0, 3))}
+

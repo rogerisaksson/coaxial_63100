@@ -142,6 +142,8 @@ class Body:
         self.act, self.qact = vadr[self.driven], qadr[self.driven]
         self.held = vadr[[p is not None and p[0] is None for p in spring]]
         self.free = np.array(sorted(set(range(n)) - set(self.act) - set(self.held)))
+        self.passive = np.array([i >= 6 and i in self.free for i in range(n)])
+        self.active_dof = ~self.passive
         names = [j for j, p in zip(JOINTS, spring) if p is None]
         self.clamp = np.array([min(servos.SERVO[kind(j)][0], drives.peak(j)) if servos.CLAMPED
                                else servos.SERVO[kind(j)][0] for j in names])
@@ -195,7 +197,10 @@ def sense(b, qpos, qvel):
         pts, sole = o + b.corners @ R.T, o + R @ b.sole
         mj.mj_jac(m, d, jp, jr, sole, foot)
         J6 = np.vstack([jr[:, :n], jp[:, :n]])
-        Jc = J6[3:][None] - np.cross((pts - sole)[:, None], J6[:3], axisb=0).transpose(0, 2, 1)
+        r = pts - sole
+        wx, wy, wz = J6[0], J6[1], J6[2]
+        rx, ry, rz = r[:, 0:1], r[:, 1:2], r[:, 2:3]
+        Jc = J6[3:][None] - np.stack([ry * wz - rz * wy, rz * wx - rx * wz, rx * wy - ry * wx], axis=1)
         mj.mj_jacDot(m, d, jp, jr, sole, foot)
         feet.append({'R': R, 'quat': d.xquat[foot].copy(), 'pts': pts, 'Jc': Jc, 'J6': J6,
                      'dJv': np.vstack([jr[:, :n], jp[:, :n]]) @ v, 'sole': sole})

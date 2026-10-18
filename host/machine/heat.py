@@ -185,12 +185,12 @@ class Heat:
 
     def _envelope(self, k, t, net, h):
         cap = min(1.0, self.cap[k] + (self.at - self.cap_at[k]) * TRIP_RECOVER_PER_S)
-        spent, worst = 0.0, 0
+        spent, worst, cap_k = 0.0, 0, self.capacity[k]
         for i, top in enumerate(CEILING_C):
             limit = AMBIENT_C + cap * (top - AMBIENT_C)
             used = max(0.0, min(1.0, (t[i] - AMBIENT_C) / (limit - AMBIENT_C)))
             if net[i] > 0.0:
-                hold = max(0.0, (limit - t[i]) * self.capacity[k][i] / net[i])
+                hold = max(0.0, (limit - t[i]) * cap_k[i] / net[i])
                 used = max(used, min(1.0, 1.0 - hold / LOOKAHEAD_S))
             if used > spent:
                 spent, worst = used, i
@@ -200,7 +200,8 @@ class Heat:
         want = 1.0 if spent <= THROTTLE_AT else max(0.0, (1.0 - spent) / (1.0 - THROTTLE_AT))
         self.derate[k] = min(want, self.derate[k] + RECOVER_PER_S * h)
         if self.gates[k] and (self.die[k] >= TJ_MAX_C
-                              or any(x >= top for x, top in zip(t, CEILING_C))):
+                              or t[0] >= CEILING_C[0] or t[1] >= CEILING_C[1]
+                              or t[2] >= CEILING_C[2] or t[3] >= CEILING_C[3]):
             self.gates[k] = False
             self.trips[k] += 1
             self.cap[k], self.cap_at[k] = TRIP_MARGIN, self.at

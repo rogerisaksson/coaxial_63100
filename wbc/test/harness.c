@@ -179,3 +179,21 @@ API double wbh_wrench_seconds(const double *base, const double *q, const double 
   }
   return (double)(clock() - t0) / (double)CLOCKS_PER_SEC / (double)reps;
 }
+
+API int wbh_ortho_row_size(void)
+{
+  return (int)sizeof(ortho_row_t);
+}
+
+/** One orthokinematic row from its wire bytes into `head` (id, at, blend, flags) and `p`. */
+API void wbh_ortho_row(const void *wire, uint32_t *head, float *p)
+{
+  ortho_row_t row;
+
+  memcpy(&row, wire, sizeof(row));
+  head[0] = row.id;
+  head[1] = row.at;
+  head[2] = row.blend;
+  head[3] = row.flags;
+  memcpy(p, row.p, sizeof(row.p));
+}

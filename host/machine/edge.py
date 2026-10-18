@@ -62,6 +62,12 @@ def laid(world):
     world.foot = np.full(m.nbody, -1, int)
     for k, name in enumerate(FEET):
         world.foot[m.body(name).id] = k
+    world._gb = tuple(int(x) for x in m.geom_bodyid)
+    world._hers = tuple(bool(x) for x in hers)
+    world._insole = tuple(int(x) for x in world.insole)
+    world._foot = tuple(int(x) for x in world.foot)
+    world._skin = tuple(int(x) for x in world.skin)
+    world._sole_side = tuple(int(s[1]) if s.any() else -1 for s in world.soles)
     return read(world, np.zeros(SENSED))
 
 
@@ -94,36 +100,54 @@ def read(world, y):
     loads, touch, force = [0.0, 0.0], np.zeros((len(SKIN), 3)), np.zeros(6)
     pressed, at, cells = np.zeros(len(INSOLES)), np.zeros((len(INSOLES), 3)), np.zeros(2 * len(FEET))
     felt_n, felt_at = np.zeros(len(SKIN)), np.zeros((len(SKIN), 3))
-    for i in range(d.ncon):
-        c = d.contact[i]
-        b0, b1 = m.geom_bodyid[c.geom1], m.geom_bodyid[c.geom2]
-        mine, theirs = (b0, b1) if world.hers[b0] else (b1, b0)
-        if not world.hers[mine] or world.hers[theirs]:
-            continue
-        world._mj.mj_contactForce(m, d, i, force)
-        on = world.soles[mine]
-        if on.any():
-            loads[int(on[1])] += float(force[0])
-        k = world.insole[mine]
-        if k >= 0:
-            pressed[k] += float(force[0])
-            at[k] += float(force[0]) * d.xmat[mine].reshape(3, 3).T @ (c.pos - d.xpos[mine])
-            if world.foot[mine] >= 0:
-                along = float(d.xmat[mine].reshape(3, 3)[:, 2] @ (c.pos - d.xpos[mine]))
-                cells[2 * world.foot[mine] + int(along >= MIDDLE_M)] += float(force[0])
-        k = world.skin[mine]
-        if k >= 0:
-            push = c.frame.reshape(3, 3).T @ force[:3] * (1.0 if mine == b1 else -1.0)
-            touch[k] += d.xmat[mine].reshape(3, 3).T @ push
-            felt_n[k] += abs(float(force[0]))
-            felt_at[k] += abs(float(force[0])) * d.xmat[mine].reshape(3, 3).T @ (c.pos - d.xpos[mine])
+    ncon = d.ncon
+    if ncon:
+        geoms = d.contact.geom[:ncon].tolist()
+        c_pos = d.contact.pos[:ncon]
+        c_frame = d.contact.frame[:ncon].reshape(ncon, 3, 3)
+        gb, hers = world._gb, world._hers
+        insole, foot, skin, sole_side = world._insole, world._foot, world._skin, world._sole_side
+        xmat, xpos = d.xmat.reshape(-1, 3, 3), d.xpos
+        mj_cf = world._mj.mj_contactForce
+        for i, (g0, g1) in enumerate(geoms):
+            b0, b1 = gb[g0], gb[g1]
+            mine, theirs = (b0, b1) if hers[b0] else (b1, b0)
+            if not hers[mine] or hers[theirs]:
+                continue
+            mj_cf(m, d, i, force)
+            f0 = float(force[0])
+            ss = sole_side[mine]
+            if ss >= 0:
+                loads[ss] += f0
+            rm_t = xmat[mine].T
+            rel = c_pos[i] - xpos[mine]
+            k = insole[mine]
+            if k >= 0:
+                pressed[k] += f0
+                at[k] += f0 * rm_t @ rel
+                f_id = foot[mine]
+                if f_id >= 0:
+                    cells[2 * f_id + int(float(rm_t[2] @ rel) >= MIDDLE_M)] += f0
+            k = skin[mine]
+            if k >= 0:
+                push = c_frame[i].T @ force[:3] * (1.0 if mine == b1 else -1.0)
+                touch[k] += rm_t @ push
+                af0 = abs(f0)
+                felt_n[k] += af0
+                felt_at[k] += af0 * rm_t @ rel
     # a shove is a hand on her: what the world applies to her bodies, her skin feels - at
     # their centres of mass, where the world applies it
-    for k, body in enumerate(world.skin_bodies):
-        hand = d.xfrc_applied[body, :3]
-        touch[k] += d.xmat[body].reshape(3, 3).T @ hand
-        felt_n[k] += float(np.linalg.norm(hand))
-        felt_at[k] += float(np.linalg.norm(hand)) * d.xmat[body].reshape(3, 3).T @ (d.xipos[body] - d.xpos[body])
+    if d.xfrc_applied.any():
+        sb = world.skin_bodies
+        hands = d.xfrc_applied[sb, :3]
+        for k, body in enumerate(sb):
+            hand = hands[k]
+            if hand.any():
+                hn = float(np.linalg.norm(hand))
+                rm_t = d.xmat[body].reshape(3, 3).T
+                touch[k] += rm_t @ hand
+                felt_n[k] += hn
+                felt_at[k] += hn * rm_t @ (d.xipos[body] - d.xpos[body])
     y[LOAD] = loads
     y[TOUCH] = touch.ravel()
     y[PRESS] = pressed
