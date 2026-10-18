@@ -23,7 +23,7 @@ WOUND_NM, WOUND_ROWS, SMOOTH_HZ = 1.0, 25, 10.0
 #: mean over the two steps about each past this, N m (`boxes`); a box's numbers read, its
 #: columns.
 INSIDE, ROTOR_ROWS, ROTOR_NM = 0.85, 25, 0.5
-BOX = ('k', 'play', 'c', 'mesh', 'J')
+BOX = ('k', 'play', 'c', 'mesh', 'J', 'zero')
 #: The excitation's sines a drive, Hz; the share of a joint's range it swings through and the
 #: share kept from either stop; an unlimited joint's swing, rad; the parts whose unlimited
 #: joint swings abducted; a stage's ease in and out, s.
@@ -103,30 +103,40 @@ def tone(t, tones, phase, amp):
 
 
 def _box(delta, rel, passed):
-    """(k, play, c, mesh) of one box on the steps it is wound up, by least squares: past its play
-    it passes k (delta - play sign delta) + c rel + mesh tanh(rel / MESH_RAD_S) to its link. The
-    mesh's friction is not read: within a step the rotor's ring swings the sliding across the
-    rounding, and the step's mean sliding tells nothing of it (identification.md)."""
+    """(k, play, c, mesh, zero) of one box on the steps it is wound up, by least squares: past its
+    play about `zero` (its encoder's slip, rad) it passes k (delta - zero - play sign(delta -
+    zero)) + c rel + mesh tanh(rel / MESH_RAD_S) to its link. The mesh's friction is not read:
+    within a step the rotor's ring swings the sliding across the rounding, and the step's mean
+    sliding tells nothing of it (identification.md)."""
     import numpy as np
     from machine.gearbox import MESH_RAD_S
     wound = np.abs(passed) > WOUND_NM
-    if wound.sum() < 4 * WOUND_ROWS:
-        return 0.0, 0.0, 0.0, 0.0
-    A = np.column_stack([delta[wound], -np.sign(delta[wound]), rel[wound], np.tanh(rel[wound] / MESH_RAD_S)])
+    if wound.sum() < 4 * WOUND_ROWS or (np.abs(rel[wound]) > 1e-6).sum() < WOUND_ROWS:
+        return 0.0, 0.0, 0.0, 0.0, float(delta[-1]) if len(delta) else 0.0
+    pos, neg = passed > WOUND_NM, passed < -WOUND_NM
+    if pos.sum() < WOUND_ROWS or neg.sum() < WOUND_ROWS:
+        A = np.column_stack([delta[wound], -np.sign(delta[wound]), rel[wound], np.tanh(rel[wound] / MESH_RAD_S)])
+        fit = np.linalg.lstsq(A, passed[wound], rcond=None)[0]
+        return float(fit[0]), float(fit[1] / fit[0]) if fit[0] > 0.0 else 0.0, float(fit[2]), float(fit[3]), 0.0
+    m0 = 0.5 * (float(np.median(delta[pos])) + float(np.median(delta[neg])))
+    A = np.column_stack([delta[wound], -np.sign(delta[wound] - m0), rel[wound],
+                         np.tanh(rel[wound] / MESH_RAD_S), -np.ones(wound.sum())])
     fit = np.linalg.lstsq(A, passed[wound], rcond=None)[0]
-    return fit[0], fit[1] / fit[0] if fit[0] > 0.0 else 0.0, fit[2], fit[3]
+    k = float(fit[0])
+    return (k, float(fit[1]) / k if k > 0.0 else 0.0, float(fit[2]), float(fit[3]),
+            float(fit[4]) / k if k > 0.0 else 0.0)
 
 
 def boxes(body, ys, taus, dt, armature, every=1):
     """Each drive's gearbox and rotor from its two encoders: (k N m/rad, play rad, c N m s/rad,
-    mesh N m, J kg m^2) a drive (driven, BOX). The box first with `armature` (`identify`'s J, the
-    smoothed rows') the rotor's share of the motor's torque, for its play; the rotor's inertia on
-    the steps inside the play, where the box passes nothing and the motor's torque is the
-    rotor's alone - a step's second difference of the motor's angle, QM, is its torque's mean
+    mesh N m, J kg m^2, zero rad) a drive (driven, BOX). The box first with `armature` (`identify`'s
+    J, the smoothed rows') the rotor's share of the motor's torque, for its play; the rotor's
+    inertia on the steps inside the play, where the box passes nothing and the motor's torque is
+    the rotor's alone - a step's second difference of the motor's angle, QM, is its torque's mean
     over the two steps about it, over J (`ROTOR_ROWS` at least, the torque past ROTOR_NM) -; the
     box again with that rotor (`_box`): delta the motor's angle past the joint's (QM - Q), rel
-    their rates' difference, the torque's held over its step. Rigid, nothing winds up and every
-    number is 0."""
+    their rates' difference, the torque's held over its step. Rigid, nothing winds up and only
+    `zero` is read."""
     import numpy as np
     at = np.arange(1, len(ys) - 2, every)
     driven = np.flatnonzero(body.driven)
@@ -144,13 +154,14 @@ def boxes(body, ys, taus, dt, armature, every=1):
     out = np.zeros((len(driven), len(BOX)))
     for i in range(len(driven)):
         J = float(armature[i])
-        play = _box(delta[:, i], rel[:, i], motor[:, i] - J * wacc[:, i])[1]
+        _, play, _, _, zero = _box(delta[:, i], rel[:, i], motor[:, i] - J * wacc[:, i])
         if play > 0.0:
-            inside = np.abs(wound_up[:, driven[i]]) < INSIDE * play
+            inside = np.abs(wound_up[:, driven[i]] - zero) < INSIDE * play
             rows = inside[at - 1] & inside[at] & inside[at + 1] & (np.abs(mean[:, i]) > ROTOR_NM)
             if rows.sum() >= ROTOR_ROWS and (mean[rows, i] @ second[rows, i]) > 0.0:
                 J = float(mean[rows, i] @ mean[rows, i] / (mean[rows, i] @ second[rows, i]))
-        out[i] = _box(delta[:, i], rel[:, i], motor[:, i] - J * wacc[:, i]) + (J,)
+        k, play, c, mesh, zero = _box(delta[:, i], rel[:, i], motor[:, i] - J * wacc[:, i])
+        out[i] = k, play, c, mesh, J, zero
     return out
 
 

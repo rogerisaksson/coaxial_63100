@@ -40,7 +40,7 @@ gets a line at the end of [DONE](DONE.md).
   the bed moved.
 - **Unwired**: `rtu.FEED_REG` 0x0180, no sender, not on the board's map;
   `drives.wave_stage`, `figure.lumbar_curve`, `SHELL_ARMOR`,
-  `skeleton.printed_holders`, `flange_mounts`, `wear.torso_load`,
+  `skeleton.printed_holders`, `flange_mounts`,
   `campaign.de_ring_ankles`, no caller. DOD: wired and tested, or out.
 
 1. **Orthokinematics, the one way she moves** (orthokinematics.md): the
@@ -220,14 +220,6 @@ gets a line at the end of [DONE](DONE.md).
     a harness and its load cell read. Left: each box's damping and mesh, the
     ankles' boxes; a link's mass apart from its first moment.
     + DOD: each measured in `test_sysid.py`.
-21. **Identification on-line, under a load** (`machine.wear`): her drift -
-    friction, torque an amp, her boxes' play and wind-up - off her rows
-    as she goes, a load in a hand told apart; bands, alarms and service her
-    build's ([service]). As it is: with her hems' mass off, the DOD's walk
-    and the stand's box.
-    + DOD: her jeans on (their hems read the knees' torque 12-21 % high at
-      rest); the filter in her worker and on the page; a slipped encoder
-      zero; a load on her back off her insoles; the load into her law.
 
 ## One command, either driver
 

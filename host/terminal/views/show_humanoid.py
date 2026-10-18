@@ -281,6 +281,16 @@ def boxes(state, now, name):
     for sub in TYPES['gynoid'].body:
         out.append(hud(sub.name.replace('_', ' ').upper(), [
             _joint_row(now, j, j.split('_', 1)[-1] if sub.name != 'axis' else j, shown) for j in sub.actuators]))
+    w_now = (now.get('wear') if now else None) or {}
+    ld = w_now.get('load') or {}
+    lh = float((ld.get('left_hand') or (0.0,))[0])
+    rh = float((ld.get('right_hand') or (0.0,))[0])
+    tr = float((ld.get('torso') or (0.0,))[0])
+    al = w_now.get('alarms') or ()
+    out.append(hud('SERVICE', [
+        ('     hands', ('%+.2f kg L  %+.2f kg R' % (lh, rh))[:25]),
+        ('     torso', ('%+.2f kg  due %.0fh' % (tr, float(w_now.get('left_h', 500.0))))[:25]),
+        ('    alarms', ('%d: %s' % (len(al), al[0][0]) if al else 'none')[:25])]))
     scanner = state.get('scanner')
     if scanner is not None and now is not None:
         det = scanner.scan(now, viewpoint.looks(state))

@@ -37,13 +37,13 @@ class Boxes:
         self.c = 2.0 * drives.BOX_ZETA * np.sqrt(self.k * self.j)
         self.mesh = np.array([drives.mesh(j) for j in JOINTS])
         self.shock = np.array([drives.shock(j) for j in JOINTS])
-        self.delta, self.w = np.zeros(len(JOINTS)), np.zeros(len(JOINTS))
+        self.delta, self.w, self.zero = np.zeros(len(JOINTS)), np.zeros(len(JOINTS)), np.zeros(len(JOINTS))
         self.held, self.q_was = math.radians(drives.RIGID_PLAY_DEG) / 2.0, np.zeros(len(JOINTS))
         self.q_step, self.went = np.zeros(len(JOINTS)), np.zeros(len(JOINTS))
 
     def reset(self, q):
         """Every rotor on its joint at `q`, still: a board's encoder reads its hold there."""
-        self.delta[:] = self.w[:] = 0.0
+        self.delta[:] = self.w[:] = self.zero[:] = 0.0
         self.q_was[:] = q
 
     def rigid(self, np, q):

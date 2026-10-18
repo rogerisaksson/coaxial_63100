@@ -179,20 +179,28 @@ by `campaign.boxes` on the window; the bands, a load's most and the service
 interval her build's [service]; an alarm a drift past its band by two of its
 doubt.
 
-- Walking at 0.69 m/s, 0.5 kg put in her left hand reads 0.47-0.50 +- 0.2 kg
-  there within 6 s, 0.00 in the right, no alarm; her left knee's friction
-  doubled reads +1.1 N m for +1.2 and her left hip's torque an amp 0.8
-  reads 0.78-0.71 of itself, each named within 6-10 s; a window 0.3 s.
+- Walking at 0.69 m/s with her jeans on (`mjcf.HEM_KG` 0.12 kg), 0.5 kg put in
+  her left hand reads 0.48 +- 0.2 kg there within 12 s, 0.00 in the right, no
+  alarm, and is laid into her law (`wear.loaded`, `body.m` and `g['fr']`) and
+  shown in the page's `SERVICE` box; her left knee's friction doubled reads
+  +0.98 N m for +1.2, her left hip's torque an amp 0.8 reads -0.23 of itself,
+  and her right elbow's encoder zero slipped +20 mrad reads +20.0 mrad, each
+  named within 14 s; a window 0.3 s. Standing on her insoles (`#202`) with 1.5
+  kg on her back (`torso`), `wear.torso_load` reads 1.500 kg off her insoles'
+  rows (`sysid.borne`) and lays it into her law.
 - A kt's column whole - the drive's predicted torque - told nothing from
   its friction's columns (the knee's doubling read as kt +0.25); short of
   the friction it does.
 - The jeans' hems swinging on her shanks, at rest in her law's model, read
   her knees' torque an amp 12-21 % high and their friction 0.5-0.8 N m low
-  as built, a false alarm at 0.15: the test walks her with next to none on.
-  Not kept: the hems swung in her law's model from her motion by its inverse
-  dynamics - free, three times the world's, which bang on their stops; held
-  at their stops, the stops' impulses in the rows read the hips 1-2.5 N m
-  off. Left: the hems as pendulums with their stops, at the world's step.
+  as built, a false alarm at 0.15. Integrated in `wear._hems` as 2-DoF
+  pendulums with their stops (`jnt_solref`, `jnt_solimp`) at the world's step
+  from her pelvis's IMU and her legs' encoders, and the samples within 5 steps
+  of a hem stop masked out, her 10 s walk as built raises no alarm and keeps
+  every drive's residual under 0.25 N m. Not kept: the hems swung in her law's
+  model from her motion by its inverse dynamics - free, three times the
+  world's, which bang on their stops; held at their stops, the stops' impulses
+  in the rows read the hips 1-2.5 N m off.
 - Her rows recorded a step early (the edge read at a pass's start after the
   pass) misfit the hips 4-6 N m rms for 1.5-3.
 - A window's edge rows, their neighbour beyond the window unseen: kept on

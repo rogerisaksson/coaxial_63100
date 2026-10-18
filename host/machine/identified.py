@@ -64,10 +64,11 @@ def correction(lay, body, Y, tau, ridge=RIDGE):
     D[moved, np.arange(len(moved))] = 1.0
     for k in range(n_b):
         D[10 * k + 4:10 * k + 10, 4 * k:4 * k + 4] = following(float(nominal[10 * k]), nominal[10 * k + 1:10 * k + 4]).T
-    A = rows_ @ D * unit
-    lam = ridge * float(np.sqrt((A * A).sum(axis=0).mean()))
-    stacked = np.vstack([A, lam * np.eye(len(moved))])
-    target = np.concatenate([left, np.zeros(len(moved))])
+    D *= unit
+    G = D.T @ (rows_.T @ rows_) @ D
+    lam = ridge * float(np.sqrt(np.diag(G).mean()))
+    G += lam ** 2 * np.eye(len(moved))
+    rhs = D.T @ (rows_.T @ left)
     # No mass under KEPT of itself, no drive parameter under none: a bound met is held there
     # and the rest fitted again.
     low = np.where(kinds == 'm', -(1.0 - KEPT) * nominal[moved] / unit,
@@ -76,8 +77,7 @@ def correction(lay, body, Y, tau, ridge=RIDGE):
     z = np.zeros(len(moved))
     for _ in range(len(moved)):
         free = np.flatnonzero(~held)
-        fit, _r, _k, _s = np.linalg.lstsq(stacked[:, free], target - stacked[:, held] @ z[held], rcond=None)
-        z[free] = fit
+        z[free] = np.linalg.solve(G[np.ix_(free, free)], rhs[free] - G[np.ix_(free, held)] @ z[held])
         under = (z < low) & ~held
         if not under.any():
             break
@@ -158,4 +158,6 @@ def correct(body, deltas):
     for dof, arm, damp, fric in drives_:
         m.dof_armature[dof], m.dof_damping[dof], m.dof_frictionloss[dof] = arm, damp, fric
     mj.mj_setConst(m, body.d)
+    if hasattr(body, 'mass'):
+        body.mass = float(m.body_subtreemass[body.pelvis])
     return sorted(touched)

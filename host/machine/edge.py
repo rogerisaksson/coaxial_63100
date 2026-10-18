@@ -82,7 +82,7 @@ def felt(world, y):
     y[ACCEL] = rot.T @ (d.qacc[0:3] - G)
     y[Q] = d.qpos[world.qadr]
     y[QD] = d.qvel[world.vadr]
-    y[QM] = y[Q] + physics.WOUND * world.boxes.delta
+    y[QM] = y[Q] + physics.WOUND * world.boxes.delta + world.boxes.zero
     return y
 
 

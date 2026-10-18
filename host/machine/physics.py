@@ -303,7 +303,7 @@ class World:
                     b.rds[self.glitch_at], self.glitch_at = 1.0, None
                 b.time[0] = d.time
                 b.q[:], b.qd[:] = d.qpos[self.qadr], d.qvel[self.vadr]
-                b.delta[:] = WOUND * self.boxes.delta if BOXED else self.boxes.rigid(np, b.q)
+                b.delta[:] = (WOUND * self.boxes.delta if BOXED else self.boxes.rigid(np, b.q)) + self.boxes.zero
                 b.delta_d[:] = WOUND * (self.boxes.w - b.qd) if BOXED else np.zeros(len(JOINTS))
                 b.ahead[:] = WOUND * self.boxes.ahead(np, self.motor) if BOXED else np.zeros(len(JOINTS))
                 self._stroked()
@@ -313,7 +313,7 @@ class World:
                 ref = self.target + self.rate * (d.time - start)
                 if BOXED:
                     ref = ref + WOUND * self.boxes.ahead(np, self.motor)
-                seen = d.qpos[self.qadr] + WOUND * self.boxes.delta
+                seen = d.qpos[self.qadr] + WOUND * self.boxes.delta + self.boxes.zero
                 seen_d = (d.qvel[self.vadr] + WOUND * (self.boxes.w - d.qvel[self.vadr]) if BOXED
                           else d.qvel[self.vadr])
                 tau = (self.gains[:, 0] * (ref - seen) + self.gains[:, 1] * (self.rate - seen_d)

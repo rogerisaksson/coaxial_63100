@@ -232,40 +232,43 @@ def _tensor(w):
     return L
 
 
-def _state(lay, body, ys, dt, every):
+def _state(lay, body, ys, dt, every, extra=None):
     """(qpos, qvel, qacc, a0, wacc, at) of her edge arrays `ys` a step `dt` apart, every
     `every`th: her turn, spin and specific force her IMU's, her joints her encoders'; a rate's
     difference over the step its acceleration; what she does not measure - her hair, her hems
-    - at rest; each motor's acceleration through its gearbox (QM) by differences over the steps
-    about each sample, the armature's column - rigid, the joint's own."""
+    - at rest unless `extra` is given; each motor's acceleration through its gearbox (QM) by
+    differences over the steps about each sample, the armature's column - rigid, the joint's own."""
     import numpy as np
-    m = body.m
-    at = np.arange(0, len(ys) - 1, every)
-    n = len(at)
+    m, at = body.m, np.arange(0, len(ys) - 1, every)
+    n, qadr, vadr = len(at), lay['qadr'], lay['vadr']
     qpos, qvel, qacc = np.zeros((n, m.nq)), np.zeros((n, m.nv)), np.zeros((n, m.nv))
-    qadr, vadr = lay['qadr'], lay['vadr']
-    ys = np.asarray(ys)
-    now, then, before = ys[at], ys[at + 1], ys[np.maximum(at - 1, 0)]
+    now, then, before = (np.asarray([ys[max(i + d, 0)] for i in at]) for d in (0, 1, -1))
     qpos[:, 3:7], qpos[:, qadr] = now[:, edge.QUAT], now[:, edge.Q]
     qvel[:, 3:6], qvel[:, vadr] = now[:, edge.GYRO], now[:, edge.QD]
     qacc[:, 3:6] = (then[:, edge.GYRO] - now[:, edge.GYRO]) / dt
     qacc[:, vadr] = (then[:, edge.QD] - now[:, edge.QD]) / dt
+    if extra is not None:
+        qpos[:, extra[0]], qvel[:, extra[1]], qacc[:, extra[1]] = extra[2:]
     a0 = np.einsum('nij,nj->ni', _rotations(then[:, edge.QUAT]), then[:, edge.ACCEL])
     wacc = (then[:, edge.QM] - 2.0 * now[:, edge.QM] + before[:, edge.QM])[:, lay['joint']] / dt ** 2
     wacc[at == 0] = qacc[at == 0][:, lay['dof']]
     return qpos, qvel, qacc, a0, wacc, at
 
 
-def rows(lay, body, ys, taus, dt, every=1):
+def rows(lay, body, ys, taus, dt, every=1, extra=None):
     """(Y (N, driven, P), tau (N, driven)) of a campaign: `ys` (N + 1, SENSED) her edge arrays a
     step `dt` apart, `taus` (N, JOINTS) her drives' torques over each step, every `every`th
     step kept (`_state`); a drive's row zero where it does not slide (STICK)."""
     import numpy as np
-    qpos, qvel, qacc, a0, wacc, at = _state(lay, body, ys, dt, every)
-    Y = regressor(lay, body, qpos, qvel, qacc, a0, wacc)[:, lay['driven']]
-    tau = np.asarray(taus, float)[at][:, lay['joint']]
+    qpos, qvel, qacc, a0, wacc, at = _state(lay, body, ys, dt, every, extra)
+    Y = np.empty((len(at), len(lay['driven']), len(lay['names'])))
+    for s in range(0, len(at), 400):
+        e = min(s + 400, len(at))
+        Y[s:e] = regressor(lay, body, qpos[s:e], qvel[s:e], qacc[s:e], a0[s:e], wacc[s:e])[:, lay['driven']]
+    tau = np.asarray([taus[i] for i in at], float)[:, lay['joint']]
     slides = np.abs(qvel[:, lay['dof']]) >= STICK
-    return Y * slides[:, :, None], tau * slides
+    Y *= slides[:, :, None]
+    return Y, tau * slides
 
 
 def read(Y):
@@ -288,7 +291,7 @@ def free(lay, ys, every=1, stop_deg=STOP_DEG):
     unknown - against the world's own model a swinging hip's row read 0 within its swing and
     2-6 N m the sample its sole landed."""
     import numpy as np
-    seen = np.asarray(ys)[np.arange(0, len(ys) - 1, every)]
+    seen = np.asarray([ys[i] for i in range(0, len(ys) - 1, every)])
     q, margin = seen[:, edge.Q], math.radians(stop_deg)
     near = (q < lay['lo'] + margin) | (q > lay['hi'] - margin)
     touch = np.linalg.norm(seen[:, edge.TOUCH].reshape(len(seen), -1, 3), axis=2) > 0.0
@@ -308,7 +311,7 @@ def borne(lay, body, ys, dt, every=1):
     import numpy as np
     m = body.m
     qpos, qvel, qacc, a0, wacc, at = _state(lay, body, ys, dt, every)
-    now = np.asarray(ys)[at]
+    now = np.asarray([ys[i] for i in at])
     Y = regressor(lay, body, qpos, qvel, qacc, a0, wacc)
     xpos, xmat, _axis, _anchor = _frames(lay, body, qpos)
     soles = lay['col'][[m.body(name).id for name in edge.INSOLES]] // 10
@@ -338,7 +341,7 @@ def hung(lay, body, ys, dt, pulls, every=1):
     n_h = len(lay['hinge'])
     out = np.concatenate([LEVER_M * Y[:, n_h:n_h + 3],
                           np.einsum('nij,njc->nic', _rotations(qpos[:, 3:7]), Y[:, n_h + 3:n_h + 6])], axis=1)
-    return out, np.asarray(pulls, float)[at] * np.r_[[LEVER_M] * 3, [1.0] * 3]
+    return out, np.asarray([pulls[i] for i in at], float) * np.r_[[LEVER_M] * 3, [1.0] * 3]
 
 
 def base(lay, Y):
@@ -350,10 +353,11 @@ def base(lay, Y):
     lands on the parent, her pelvis's own first."""
     import numpy as np
     Y = Y.reshape(-1, Y.shape[-1])
-    scale = np.linalg.norm(Y, axis=0)
+    G = Y.T @ Y
+    scale = np.sqrt(np.maximum(G.diagonal(), 0.0))
     none = scale <= NONE * scale.max()
     scale[none] = 1.0
-    G = (Y / scale).T @ (Y / scale)
+    G = G / np.outer(scale, scale)
     G[none], G[:, none] = 0.0, 0.0
     left, ind, P = G.diagonal().copy(), [], len(scale)
     L = np.zeros((P, 0))
@@ -386,23 +390,21 @@ def identify(b, Y, tau, min_condition=1e-9):
     rms a drive over its rows read), read (rows a drive), samples}. Refused where the campaign
     cannot tell them apart."""
     import numpy as np
-    rows_ = Y[:, :, b['ind']].reshape(-1, len(b['ind']))
-    target = tau.reshape(-1)
-    scale = np.linalg.norm(rows_, axis=0)
+    ind, rows_, target = b['ind'], Y.reshape(-1, Y.shape[-1]), tau.reshape(-1)
+    G0 = (rows_.T @ rows_)[np.ix_(ind, ind)]
+    scale = np.sqrt(np.maximum(G0.diagonal(), 0.0))
     scale[scale == 0.0] = 1.0
-    U, singular, Vt = np.linalg.svd(rows_ / scale, full_matrices=False)
+    eig, V = np.linalg.eigh(G0 / np.outer(scale, scale))
+    singular, V = np.sqrt(np.maximum(eig[::-1], 0.0)), V[:, ::-1]
     condition = float(singular[-1] / singular[0]) if singular[0] else 0.0
     if condition < min_condition:
         raise ValueError('this campaign cannot separate the base parameters - condition %.2e '
                          'against a floor of %.0e: every drive has to move, each at tones of '
                          'its own' % (condition, min_condition))
-    theta = Vt.T @ ((U.T @ target) / singular) / scale
-    left = (target - rows_ @ theta).reshape(tau.shape)
-    freedom = max(1, rows_.shape[0] - rows_.shape[1])
-    variance = float((left * left).sum()) / freedom
-    err = np.sqrt(variance * ((Vt.T / singular) ** 2).sum(axis=1)) / scale
+    theta = (V @ ((V.T @ ((rows_.T @ target)[ind] / scale)) / singular ** 2)) / scale
+    left, seen = tau - Y[:, :, ind] @ theta, read(Y)
+    err = np.sqrt(float((left * left).sum()) / max(1, rows_.shape[0] - len(ind)) * ((V / singular) ** 2).sum(axis=1)) / scale
     unc = err / np.maximum(np.abs(theta), 1e-12)
-    seen = read(Y)
     return {'theta': theta, 'names': b['names'], 'uncertainty': unc, 'trusted': unc < TRUST,
             'condition': condition, 'residual': np.sqrt((left * left).sum(axis=0) / np.maximum(seen, 1)),
             'read': seen, 'samples': int(len(tau))}
@@ -422,11 +424,10 @@ def motor(t, q, tau, gear=1.0, hz=None):
     w = np.gradient(qs, t)
     A = np.column_stack([np.gradient(w, t), w, np.sign(w), np.sin(qs / gear), np.ones(len(t))])
     keep = (t > t[0] + 1.0) & (t < t[-1] - 1.0)
-    gap = np.flatnonzero(np.diff(t) > 1.5 * dt)
-    near = np.unique(np.clip(gap[:, None] + np.arange(-2, 4), 0, len(t) - 1))
+    near = np.unique(np.clip(np.flatnonzero(np.diff(t) > 1.5 * dt)[:, None] + np.arange(-2, 4), 0, len(t) - 1))
     gaps = int(keep[near].sum())
     keep[near] = False
     x, *_ = np.linalg.lstsq(A[keep], taus[keep], rcond=None)
     left = taus[keep] - A[keep] @ x
-    return {'J': float(x[0]), 'b': float(x[1]), 'f': float(x[2]), 'gravity': float(x[3]), 'offset': float(x[4]),
-            'residual': float(np.sqrt(np.mean(left ** 2))), 'rms': float(np.sqrt(np.mean(taus[keep] ** 2))), 'gaps': gaps}
+    return dict(zip(('J', 'b', 'f', 'gravity', 'offset'), map(float, x)),
+                residual=float(np.sqrt(np.mean(left ** 2))), rms=float(np.sqrt(np.mean(taus[keep] ** 2))), gaps=gaps)

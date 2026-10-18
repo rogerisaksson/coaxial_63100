@@ -273,3 +273,10 @@ the fifty before these: [DONE_1-50](DONE_1-50.md).
     (`machine.law.held_back`): a hop said after a stop no longer loads on one
     sole mid-step; `hop_after_a_stop.csv` stands at 8 of 9 wobbles where 6
     ([scenarios](findings/scenarios.md)).
+75. Identification on-line, under a load (`machine.wear`, `machine.worker`,
+    `terminal/views/show_humanoid.py`, `tests/test_wear.py`): her jeans' hems
+    integrated as 2-DoF pendulums with their stops at the world's step, a
+    slipped encoder zero read on both rigid and boxed drives, a load on her
+    back read off her insoles (`wear.torso_load`), and her hands' and torso's
+    loads laid into her law (`wear.loaded`) and shown on the page
+    ([identification](findings/identification.md)).

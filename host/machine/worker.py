@@ -3,7 +3,7 @@ import math
 import multiprocessing
 import queue
 import time
-from machine import ortho, physics, sprung
+from machine import ortho, physics, sprung, wear
 from machine.errors import MachineError
 from machine.se2 import WALK_ON
 
@@ -198,9 +198,11 @@ def _put(states, item):
         pass
 
 
-#: A pass of her world, s; her drives' torque, power and watts averaged over AVERAGE_S.
+#: A pass of her world, s; her drives' torque, power and watts averaged over AVERAGE_S; a wear
+#: window's passes.
 DT = 1.0 / sprung.RATE_HZ
 K = DT / sprung.AVERAGE_S
+WINDOW_STEPS = int(round(wear.WINDOW_S / DT))
 
 
 def session(every=sprung.STACK_EVERY, walks=False, heard=None):
@@ -223,7 +225,7 @@ def laid(s):
         sprung.walked(g)
     n = len(g['world'].peak)
     s.update(fallen_at=None, torque=np.zeros(n), power=np.zeros(n), watts=0.0, epoch=s['epoch'] + 1,
-             passes=0)
+             passes=0, wear=wear.laid(g['body']), ys=[], taus=[])
     s['heard']((s['epoch'], 0, g['t'], {'laid': {'every': s['every'], 'walks': s['walks'], 'gym': s['gym_name'],
                                                  'room': physics.ROOM, 'sight': physics.SIGHT}}))
 
@@ -242,7 +244,7 @@ def apply(s, command):
             command, s['refused'] = dict(command, entries=sprung.entries(command['text'])), None
         heard(s['g'], s['gym'], command)
         if 'scenario' in command:
-            s['fallen_at'] = None
+            s['fallen_at'], s['ys'], s['taus'] = None, [], []
     except (SyntaxError, MachineError) as error:
         s['refused'] = str(error)
 
@@ -255,7 +257,17 @@ def stepped(s):
     try:
         if s['fallen_at'] is None:
             sprung.passed(g, DT)
+            ys, taus = s['ys'], s['taus']
+            ys.append(g['sense'].copy())
+            taus.append(world.motor.copy())
+            if len(ys) > WINDOW_STEPS:
+                w = s['wear']
+                wear.step(w, wear.window(w, ys, taus[:-1], DT))
+                wear.boxed(w, ys, taus[:-1], DT)
+                wear.loaded(w, g)
+                s['ys'], s['taus'] = [ys[-1]], [taus[-1]]
         else:
+            s['ys'], s['taus'] = [], []
             world.feed[:], world.rate[:] = 0.0, 0.0
             world.target[:] += 0.05 * (world.data.qpos[world.qadr] - world.target)
             g['t'] += DT
@@ -276,9 +288,9 @@ def stepped(s):
 
 
 def told(s):
-    """Her state as the page hears it (`sprung.state`), her epoch beside it."""
+    """Her state as the page hears it (`sprung.state`), her epoch and her wear beside it."""
     return dict(sprung.state(s['g'], s['torque'], s['power'], s['watts'], s['ratio'], s['fallen_at'],
-                             s['says'], s['refused']), epoch=s['epoch'])
+                             s['says'], s['refused']), epoch=s['epoch'], wear=wear.told(s['wear']))
 
 
 def run(commands, states, heard=None, every=sprung.STACK_EVERY, walks=False):
