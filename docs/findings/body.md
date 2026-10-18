@@ -101,6 +101,19 @@ her latent loop in [orthokinematics](orthokinematics.md).
   (`impedance.ask` 1.0, the wrench step 0.6, her sensing 0.4, her heat
   0.2). The C step through its ctypes edge: 1 355 us a pass, 0.74; the law
   every fourth pass 1 180, 0.85; both 1 060, 0.94. CPython's JIT: slower.
+- The pass's glue in C (`wbc/src/wbc_pass.c`, `tools.cores.wbc`, the arrays
+  laid once and pointed to): her drives told (`law.drives`), her world's
+  torques, pairs and meters (`physics.advance`, `drawn`), her IMU, encoders,
+  soles and skin read (`edge.felt`, `edge.read`: a contact's force its rows
+  of `efc_force`), her drives' heat (`heat.Heat`) - numpy's arithmetic
+  operation for operation, its clip and its pairwise sum: the trajectory the
+  same bit for bit, 1 530 -> 1 260 us a pass, 0.65 -> 0.79. The C wrench
+  step's ctypes edge 180 -> 60 us (laid buffers, no np.cross); as the
+  default, 0.83, it sat the chair 0 of 3 wobbles (bore 0.35 s of 1), fell
+  in snow 3 of 3, hopped 0.85 m/s where 0.9 and fell turning at 0.69 m/s:
+  the python step stays. Left: `impedance.ask` 1.3 ms and the python step
+  0.8 of the law's 2.6 every third pass; libm here gives numpy's bits for
+  sin, cos, exp, log, atan2, sqrt, acos, asin, hypot and pow, tanh an ulp off.
 
 ## Mechanics
 

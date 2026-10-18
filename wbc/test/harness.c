@@ -1,6 +1,7 @@
 /** harness.c - A flat C API over wbc/, so test_wbc_core.py can run the real chain on the host
     through ctypes beside MuJoCo. */
 #include "wbc.h"
+#include "wbc_pass.h"
 
 #include <string.h>
 #include <time.h>
@@ -196,4 +197,63 @@ API void wbh_ortho_row(const void *wire, uint32_t *head, float *p)
   head[2] = row.blend;
   head[3] = row.flags;
   memcpy(p, row.p, sizeof(row.p));
+}
+
+API void wbh_pass_drives(wbc_drives_t *p, double dt, double wo, double wo3, double ys, int in_hop, int wb)
+{
+  wbc_pass_drives(p, dt, wo, wo3, ys, in_hop, wb);
+}
+
+API void wbh_pass_ctrl(wbc_world_t *w, double span, const double *ahead, const double *wrate)
+{
+  wbc_pass_ctrl(w, span, ahead, wrate);
+}
+
+API void wbh_pass_motor(wbc_world_t *w, double step_s)
+{
+  wbc_pass_motor(w, step_s);
+}
+
+API void wbh_pass_metered(wbc_world_t *w, const double *speed, double step_s)
+{
+  wbc_pass_metered(w, speed, step_s);
+}
+
+API void wbh_pass_felt(const wbc_world_t *w, double *y, int quat_at, int gyro_at, int accel_at, int q_at,
+                       int qd_at, int qm_at)
+{
+  wbc_pass_felt(w, y, quat_at, gyro_at, accel_at, q_at, qd_at, qm_at);
+}
+
+API void wbh_pass_contacts(wbc_contacts_t *c, int ncon, const char *pos, const double *efc_force)
+{
+  wbc_pass_contacts(c, ncon, pos, efc_force);
+}
+
+API void wbh_pass_sensed(const wbc_contacts_t *c, double *y, int load_at, int touch_at, int press_at, int cop_at,
+                         int cells_at, int at_at)
+{
+  wbc_pass_sensed(c, y, load_at, touch_at, press_at, cop_at, cells_at, at_at);
+}
+
+API void wbh_pass_heat_load(wbc_heat_t *h, const double *torques, const double *qd)
+{
+  wbc_pass_heat_load(h, torques, qd);
+}
+
+API void wbh_pass_heat(wbc_heat_t *h, double dt, const double *air, const double *rds, int envelope)
+{
+  wbc_pass_heat(h, dt, air, rds, envelope);
+}
+
+API void wbh_pass_heat_peak(const wbc_heat_t *h, double *out)
+{
+  wbc_pass_heat_peak(h, out);
+}
+
+API double wbh_pass_drawn(const wbc_world_t *w, const double *tau, const double *speed, const double *loss,
+                          const unsigned char *driven, const double *testing, const double *ohm,
+                          double housekeeping_w, double switching_w)
+{
+  return wbc_pass_drawn(w, tau, speed, loss, driven, testing, ohm, housekeeping_w, switching_w);
 }

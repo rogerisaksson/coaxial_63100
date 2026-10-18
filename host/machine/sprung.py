@@ -60,7 +60,7 @@ def entries(text=None, name=GYMS[0]):
 def laid(every=1, inner=None, solver=None):
     """She stands on the floor on the loop, at rest: one dict of what a run holds."""
     import numpy as np
-    from machine import figure, heat, latent, modal, physics, servos, wbc, wrench
+    from machine import figure, heat, latent, law, modal, physics, servos, wbc, wrench
     from machine.drives import kind, peak
     from machine.figure import JOINTS
     world, body, pose, inner = physics.World(), wbc.Body(), figure.stand(), (inner or INNER)
@@ -109,6 +109,7 @@ def laid(every=1, inner=None, solver=None):
          'heading': float(fr[modal.HEADING]), 'twist': (0.0, 0.0, 0.0),
          'heat': heat.Heat.for_joints(JOINTS), 'temp': np.full(len(JOINTS), 25.0), 'scenario': 'flat',
          'solve': solve_step}
+    law.laid(g)
     world.clock = lambda: g['t']
     return g
 

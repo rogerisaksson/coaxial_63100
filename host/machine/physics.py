@@ -12,6 +12,7 @@ events parked out of the way until placed (`World.terrain`); only the soles, the
 and the knuckles touch it.
 """
 import atexit
+import ctypes
 import importlib
 import math
 import os
@@ -82,22 +83,6 @@ SOA_RDS, WARM_C = 50.0, 100.0
 HANG = (4000.0, 500.0, 400.0, 50.0)
 
 
-def paired(np, pairs, tau, top, kt):
-    """`tau` within `top` a joint, a parallel pair's (`pairs` [(joint, its roll)]) as its two
-    drives give it: each's current the first's share plus or less the second's, within its own
-    board's (top / kt), `kt` each joint's N m an amp in both."""
-    out = np.clip(tau, -top, top)
-    if len(pairs):
-        p, r = pairs[:, 0], pairs[:, 1]
-        kt_p, kt_r = kt[p], kt[r]
-        a, b = tau[p] / kt_p, tau[r] / kt_r
-        top_p, top_r = top[p] / kt_p, top[r] / kt_r
-        one = np.clip(a + b, -top_p, top_p)
-        two = np.clip(a - b, -top_r, top_r)
-        out[p], out[r] = kt_p * (one + two) / 2.0, kt_r * (one - two) / 2.0
-    return out
-
-
 class World:
 
     """The body in MuJoCo, advanced to `clock()` on the drives' setpoints (radians)."""
@@ -121,7 +106,8 @@ class World:
         #: positive - a drive does not charge its battery braking.
         self.loss = np.array([drives.motors(j) * drives.r_ohm(j) / drives.kt(j) ** 2
                               for j in JOINTS])
-        #: Each joint's N m an amp (`drives.kt`); each parallel pair, (joint, its roll) (`paired`).
+        #: Each joint's N m an amp (`drives.kt`); each parallel pair, (joint, its roll): each's
+        #: current the first's share plus or less the second's, within its own board's (wbc_pass.c).
         self.kt = np.array([drives.kt(j) for j in JOINTS])
         self.pairs = np.array([(i, JOINTS.index(j[:-len(kind(j))] + linkage.PAIRS[kind(j)]))
                                for i, j in enumerate(JOINTS) if kind(j) in linkage.PAIRS],
@@ -195,7 +181,31 @@ class World:
         #: Where the world has stepped to, s: `advance` returns on it without touching MjData.
         self.at = 0.0
         self.clock = lambda: self.data.time
+        #: The pass in C (wbc_pass.c, `tools.cores.wbc.World`): its struct pointing at the
+        #: arrays above and MuJoCo's once, its calls bound.
+        self.passing = self._laid()
         self._park()
+
+    def _laid(self):
+        from tools.cores import wbc as cores
+        np, d = self._np, self.data
+        self._kept = tuple(np.ascontiguousarray(a, dtype=np.int32) for a in (self.qadr, self.vadr, self.pairs))
+        p = cores.World(n=len(JOINTS), npairs=len(self.pairs), pelvis=self.pelvis, wound=WOUND)
+        for name, a in zip(('qadr', 'vadr', 'pairs'), self._kept):
+            setattr(p, name, cores.pointer(a, np.int32))
+        for name, a in (('qpos', d.qpos), ('qvel', d.qvel), ('qacc', d.qacc), ('xmat', d.xmat), ('ctrl', d.ctrl),
+                        ('target', self.target), ('rate', self.rate), ('feed', self.feed), ('gains', self.gains),
+                        ('limit', self.limit), ('kt', self.kt), ('delta', self.boxes.delta), ('zero', self.boxes.zero),
+                        ('armature', self.armature), ('motor', self.motor), ('geared', self.geared)):
+            setattr(p, name, cores.pointer(a))
+        for name, a in (('shorted', self.shorted), ('cut', self.cut)):
+            setattr(p, name, cores.pointer(a, np.bool_))
+        lib = cores.library()
+        self._ctrl, self._motor, self._metered = lib.wbh_pass_ctrl, lib.wbh_pass_motor, lib.wbh_pass_metered
+        self._drawn = lib.wbh_pass_drawn
+        self._drawn_of = (cores.pointer(self.loss), cores.pointer(self.driven, np.bool_), cores.pointer(self.testing),
+                          cores.pointer(self.ohm))
+        return p
 
     def wire(self, limbs):
         """The boards on their buses: a bus a limb, `limbs` [[joint index, ..], ..], their
@@ -254,6 +264,7 @@ class World:
         self.target[:] = d.qpos[self.qadr]
         self.was[:], self.rate[:] = self.target, d.qvel[self.vadr]
         self.work = self.brake = self.heat = self.effort = 0.0
+        self.passing.effort = self.passing.work = self.passing.brake = 0.0
         self.geared[:] = 0.0
         self.boxes.reset(d.qpos[self.qadr])
         self.motor[:] = 0.0
@@ -295,9 +306,9 @@ class World:
         else:
             span = now - self.stamp
             if span > 1e-9:
-                self.rate = (self.target - self.was) / span
-            self.was, self.stamp = self.target.copy(), now
-        start = d.time
+                np.divide(self.target - self.was, span, out=self.rate)
+            self.was[:], self.stamp = self.target, now
+        start, p = d.time, self.passing
         while d.time < now - 1e-9:
             if self.buses is not None:
                 b = self.block
@@ -311,24 +322,20 @@ class World:
                 self._stroked()
                 self.buses.step()
                 d.ctrl[:] = b.ctrl
+            elif BOXED:
+                ahead = WOUND * self.boxes.ahead(np, self.motor)
+                wrate = WOUND * (self.boxes.w - d.qvel[self.vadr])
+                p.delta = self.boxes.delta.ctypes.data
+                self._ctrl(ctypes.byref(p), d.time - start, ahead.ctypes.data, wrate.ctypes.data)
             else:
-                ref = self.target + self.rate * (d.time - start)
-                if BOXED:
-                    ref = ref + WOUND * self.boxes.ahead(np, self.motor)
-                seen = d.qpos[self.qadr] + WOUND * self.boxes.delta + self.boxes.zero
-                seen_d = (d.qvel[self.vadr] + WOUND * (self.boxes.w - d.qvel[self.vadr]) if BOXED
-                          else d.qvel[self.vadr])
-                tau = (self.gains[:, 0] * (ref - seen) + self.gains[:, 1] * (self.rate - seen_d)
-                       + self.feed)
-                tau = np.where(self.shorted | self.cut, 0.0, tau)
-                d.ctrl[:] = paired(np, self.pairs, tau, self.limit, self.kt)
-            self.motor[:] = d.ctrl
+                self._ctrl(ctypes.byref(p), d.time - start, None, None)
+            self._motor(ctypes.byref(p), STEP_S)
             if BOXED:
                 d.ctrl[:] = self.boxes.step(np, d.ctrl, d.qpos[self.qadr],
                                             d.qvel[self.vadr] + 0.5 * STEP_S * d.qacc[self.vadr],
                                             np.where(self.shorted, self.damping, 0.0), STEP_S)
+                p.delta = self.boxes.delta.ctypes.data
             self.heat += float(self.loss @ (self.motor * self.motor)) * STEP_S
-            self.effort += float(np.abs(self.motor).sum()) * STEP_S
             pushing = d.time < self.push_until
             if pushing or self.pushed:
                 d.xfrc_applied[:, 0:3] = 0.0
@@ -339,16 +346,13 @@ class World:
             self._mj.mj_step(self.model, d)
             if BOXED:
                 self.boxes.moved(d.qpos[self.qadr])
-            power = self.motor * (self.boxes.w if BOXED else d.qvel[self.vadr])
-            self.work += float(power[power > 0.0].sum()) * STEP_S
-            self.brake -= float(power[power < 0.0].sum()) * STEP_S
-            np.maximum(self.geared, np.abs(d.ctrl - self.armature * d.qacc[self.vadr]),
-                       out=self.geared)
+            self._metered(ctypes.byref(p), self.boxes.w.ctypes.data if BOXED else None, STEP_S)
             if self.laced:
                 self._unlace()
             if ROOM:
                 room.touched(self, STEP_S)
         self.at = d.time
+        self.effort, self.work, self.brake = p.effort, p.work, p.brake
         if self.buses is not None:
             self.buses.drain()
 
@@ -474,13 +478,10 @@ class World:
         """What her drives draw now, W: the work they do - braking gives nothing back -, their
         copper's heat and their boards' own, housekeeping each, switching neither shorted nor
         cut but checking (`test`), and that check's copper."""
-        np = self._np
-        tau, speed = ((self.motor, self.boxes.w) if BOXED
-                      else (self.data.ctrl, self.data.qvel[self.vadr]))
-        on = (self.driven & ~self.shorted & ~self.cut) | (self.testing > 0.0)
-        return (float(np.maximum(tau * speed, 0.0).sum() + self.loss @ (tau * tau))
-                + heat.HOUSEKEEPING_W * int(self.driven.sum()) + heat.SWITCHING_W * int(on.sum())
-                + float(self.ohm @ (self.testing * self.testing)))
+        p = self.passing
+        return self._drawn(ctypes.byref(p), self.motor.ctypes.data if BOXED else p.ctrl,
+                           self.boxes.w.ctypes.data if BOXED else None, *self._drawn_of,
+                           heat.HOUSEKEEPING_W, heat.SWITCHING_W)
 
     def reading(self, index):
         """(degrees, deg/s, C, spent, derate, status) of a joint's drive as its board last

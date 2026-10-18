@@ -7,6 +7,7 @@ The world is never seen: her array is `machine.edge`'s.
 
 `g` is `sprung.laid`'s; its `sense` the edge's array, its `est` her estimate (`machine.estimate`).
 """
+import ctypes
 import math
 import os
 
@@ -186,55 +187,46 @@ def control(g, dt):
                                   for k, leg in enumerate(g['legs'])])
 
 
+def laid(g):
+    """Her drive-side step laid in C (`wbc_pass.c`, `tools.cores.wbc.Drives`): the struct
+    pointing at `g`'s arrays once - the observers, the setpoints and their rates, the holds, the
+    knees' spring, the feed and the clamps her drives are told (`g['cmd']`) - and what it reads
+    by, kept beside it."""
+    from tools.cores import wbc as cores
+    body, joints = g['body'], g['joints']
+    n = len(joints)
+    kept = {'joints': np.ascontiguousarray(joints, dtype=np.int32),
+            'act': np.ascontiguousarray(body.act, dtype=np.int32), 'sb': np.zeros(n), 'feed': np.zeros(n),
+            'limit': np.zeros(n), 'clamp_j': np.ascontiguousarray(g['clamp'][joints], dtype=np.float64)}
+    p = cores.Drives(n=n, q_at=edge.Q.start, qd_at=edge.QD.start, qm_at=edge.QM.start, knee_nm=se2.KNEE_NM,
+                     knee_soft=se2.KNEE_SOFT, leak_s=se2.LEAK_S, wep_hold_s=se2.WEP_HOLD_S)
+    p.knee[0], p.knee[1] = body.knees
+    cv = list(g.get('cervical', ()))
+    p.cervical[0], p.cervical[1] = (cv[0], cv[1]) if len(cv) >= 2 else (-1, -1)
+    for name, arr in (('joints', kept['joints']), ('act', kept['act'])):
+        setattr(p, name, cores.pointer(arr, np.int32))
+    for name, arr in (('y', g['sense']), ('clamp', body.clamp), ('wep', body.wep), ('wep_lim', g['wep_lim']),
+                      ('clamp_j', kept['clamp_j']), ('q_lo', g['q_lo']), ('q_hi', g['q_hi']), ('eso', g['eso']),
+                      ('ref_q', g['ref_q']), ('ref_v', g['ref_v']), ('hold', g['hold']), ('sb', kept['sb']),
+                      ('feed', kept['feed']), ('limit', kept['limit'])):
+        setattr(p, name, cores.pointer(arr))
+    g['cmd'] = {'target': g['ref_q'], 'feed': kept['feed'], 'limit': kept['limit']}
+    g['drives'] = (p, kept, cores.library().wbh_pass_drives)
+
+
 def drives(g, dt):
     """Each driven joint's setpoint (`g['ref_q']`), feed and clamp (`g['cmd']`) this pass, its
-    observer stepped on its motor's encoder."""
-    body, y, joints = g['body'], g['sense'], g['joints']
-    got, held, eso, wo, ct = g['got'], float(g['hold'].any()), g['eso'], g['wo'], edge.tilt(y)
+    observer stepped on its motor's encoder: the step in C (`laid`), told here what of her it
+    reads whole - her law's yield as she tilts, a hop, which WEP limit is hers."""
+    y, got, p, _kept, step = g['sense'], g['got'], *g['drives']
+    held, wo, ct = float(g['hold'].any()), g['wo'], edge.tilt(y)
     ys = max(0.0, min(1.0, (85.0 - ct) / 20.0)) if ct > 65.0 else 1.0
-    sb = g.get('_sb')
-    if sb is None:
-        sb = g['_sb'] = np.zeros(len(body.act))
-        g['_knees_idx'] = list(body.knees)
-    else:
-        sb[:] = 0.0
-    kn = g['_knees_idx']
-    in_hop = (g.get('_jump_until', 0.0) > g['t'] or se2.doing(g) in ('load', 'throw', 'land')) and not g.get('_leap')
-    qpos_act, qvel_act = y[edge.Q][joints], y[edge.QD][joints]
-    qk, qvk = qpos_act[kn], qvel_act[kn]
-    sb[kn] = (se2.KNEE_NM * np.clip(1.0 - qk / se2.KNEE_SOFT, 0.0, 3.0) + 2400.0 * np.maximum(0.0, (0.0 if in_hop else 0.02) - qk)
-              - (0.0 if in_hop else 35.0) * np.clip((0.20 - qk) / 0.15, 0.0, 1.5) * np.minimum(0.0, qvk)) * ys
-    qa = got['qacc'][body.act] * ys
-    if not in_hop:
-        qa = np.clip(qa, -250.0, 250.0)
-    q_m = y[edge.QM][joints]
-    e = q_m - eso[0]
-    eso[0] += dt * (eso[1] + 3.0 * wo * e)
-    eso[1] += dt * (qa + sb / g['jeff'] + eso[2] + 3.0 * wo * wo * e)
-    eso[2] += dt * (wo ** 3 * e)
-    if not in_hop:
-        np.clip(eso[0], q_m - 0.08, q_m + 0.08, out=eso[0])
-        z_lim = 0.35 * body.clamp / np.maximum(0.05, g['jeff'])
-        np.clip(eso[2], -z_lim, z_lim, out=eso[2])
-    if ys < 1.0:
-        eso[1:] *= ys
-    g['hold'] = np.where(got['over'], se2.WEP_HOLD_S, np.maximum(0.0, g['hold'] - dt))
+    doing = se2.doing(g)
+    in_hop = (g.get('_jump_until', 0.0) > g['t'] or doing in ('load', 'throw', 'land')) and not g.get('_leap')
+    wb = bool(g.get('_leap') or g.get('active_entry') in se2.WASD_GAITS or (g['a'][modal.LEAD] > 0.0).any()
+              or g['a'][modal.OUTSIDE] > 0.0 or doing in se2.STUNT_PHASES)
+    qacc, tau, jeff = (np.ascontiguousarray(a, dtype=np.float64) for a in (got['qacc'], got['tau'], g['jeff']))
+    over = np.ascontiguousarray(got['over'], dtype=np.bool_)
+    p.qacc, p.tau, p.over, p.jeff = qacc.ctypes.data, tau.ctypes.data, over.ctypes.data, jeff.ctypes.data
+    step(ctypes.byref(p), dt, wo, wo ** 3, ys, int(in_hop), int(wb))
     g['left'] = min(se2.WEP_S, max(0.0, g['left'] + dt * (se2.WEP_FILL * (1.0 - held) - held)))
-    wb = bool(g.get('_leap') or g.get('active_entry') in se2.WASD_GAITS or (g['a'][modal.LEAD] > 0.0).any() or g['a'][modal.OUTSIDE] > 0.0 or se2.doing(g) in se2.STUNT_PHASES)
-    leak, lo, hi = dt / se2.LEAK_S, g['q_lo'], g['q_hi']
-    g['ref_v'] += qa * dt + leak * (qvel_act - g['ref_v'])
-    if not in_hop:
-        np.clip(g['ref_v'], -18.0, 18.0, out=g['ref_v'])
-    g['ref_q'] += g['ref_v'] * dt + leak * (qpos_act - g['ref_q'])
-    if in_hop:
-        g['ref_q'][kn] = np.maximum(0.0, g['ref_q'][kn])
-        cv = g.get('cervical', ())
-        if len(cv) >= 2:
-            g['ref_q'][cv[0]], g['ref_q'][cv[1]] = np.clip(g['ref_q'][cv[0]], -0.35, 0.45), np.clip(g['ref_q'][cv[1]], -0.85, 0.85)
-    else:
-        g['ref_v'] = np.where(((g['ref_q'] <= lo) & (g['ref_v'] < 0.0)) | ((g['ref_q'] >= hi) & (g['ref_v'] > 0.0)), 0.0, g['ref_v'])
-        np.clip(g['ref_q'], lo, hi, out=g['ref_q'])
-    if ys < 1.0:
-        g['ref_v'], g['ref_q'] = g['ref_v'] * ys, qpos_act + (g['ref_q'] - qpos_act) * ys
-    g['cmd'] = {'target': g['ref_q'], 'feed': got['tau'] * ys + sb - g['jeff'] * eso[2],
-                'limit': np.where(g['hold'] > 0.0, g['wep_lim'] if wb else body.wep, g['clamp'][joints])}

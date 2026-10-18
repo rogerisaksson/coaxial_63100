@@ -21,7 +21,8 @@ SOURCES = [os.path.join(REPO, 'wbc', 'test', 'harness.c'),
            os.path.join(REPO, 'wbc', 'src', 'wbc_wrench.c'),
            os.path.join(REPO, 'wbc', 'src', 'wbc_cone.c'),
            os.path.join(REPO, 'wbc', 'src', 'wbc_shrunk.c'),
-           os.path.join(REPO, 'wbc', 'src', 'wbc_model.c')]
+           os.path.join(REPO, 'wbc', 'src', 'wbc_model.c'),
+           os.path.join(REPO, 'wbc', 'src', 'wbc_pass.c')]
 INCLUDES = [os.path.join(REPO, 'wbc', 'inc')]
 #: The firmware compiles the chain at -O2 (CMakeLists.txt).
 FLAGS = ('-O2',)
@@ -70,6 +71,69 @@ class OrthoRow(ctypes.Structure):
 
     _fields_ = [('id', ctypes.c_uint32), ('at', ctypes.c_uint32), ('blend', ctypes.c_uint32),
                 ('flags', ctypes.c_uint32), ('p', ctypes.c_float * 59)]
+
+
+_vp = ctypes.c_void_p
+
+
+class Drives(ctypes.Structure):
+
+    """wbc_drives_t: her law's drive-side step, pointing at her law's arrays (`machine.law.laid`)."""
+
+    _fields_ = [('n', _i), ('q_at', _i), ('qd_at', _i), ('qm_at', _i), ('knee', _i * 2), ('cervical', _i * 2),
+                ('knee_nm', _d), ('knee_soft', _d), ('leak_s', _d), ('wep_hold_s', _d),
+                ('joints', _vp), ('act', _vp), ('y', _vp), ('qacc', _vp), ('tau', _vp), ('over', _vp),
+                ('jeff', _vp), ('clamp', _vp), ('wep', _vp), ('wep_lim', _vp), ('clamp_j', _vp), ('q_lo', _vp),
+                ('q_hi', _vp), ('eso', _vp), ('ref_q', _vp), ('ref_v', _vp), ('hold', _vp), ('sb', _vp),
+                ('feed', _vp), ('limit', _vp)]
+
+
+class World(ctypes.Structure):
+
+    """wbc_world_t: her world's pass, pointing at the world's arrays and MuJoCo's (`physics.World`)."""
+
+    _fields_ = [('n', _i), ('npairs', _i), ('pelvis', _i), ('wound', _d),
+                ('qadr', _vp), ('vadr', _vp), ('pairs', _vp), ('qpos', _vp), ('qvel', _vp), ('qacc', _vp),
+                ('xmat', _vp), ('ctrl', _vp), ('target', _vp), ('rate', _vp), ('feed', _vp), ('gains', _vp),
+                ('limit', _vp), ('kt', _vp), ('shorted', _vp), ('cut', _vp), ('delta', _vp), ('zero', _vp),
+                ('armature', _vp), ('motor', _vp), ('geared', _vp),
+                ('effort', _d), ('work', _d), ('brake', _d)]
+
+
+class Contacts(ctypes.Structure):
+
+    """wbc_contacts_t: her soles' and skin's contacts read, pointing at the edge's bins (`machine.edge.laid`)."""
+
+    _fields_ = [('nbody', _i), ('nskin', _i), ('ninsoles', _i), ('nfeet', _i), ('stride', _i), ('off_geom', _i),
+                ('off_frame', _i), ('off_dim', _i), ('off_efc', _i), ('middle_m', _d),
+                ('gb', _vp), ('hers', _vp), ('sole_side', _vp), ('insole', _vp), ('foot', _vp), ('skin', _vp),
+                ('xmat', _vp), ('xpos', _vp), ('loads', _vp), ('touch', _vp), ('pressed', _vp), ('at', _vp),
+                ('cells', _vp), ('felt_n', _vp), ('felt_at', _vp)]
+
+
+class Heat(ctypes.Structure):
+
+    """wbc_heat_t: her drives' heat, pointing at `machine.heat.Heat`'s arrays."""
+
+    _fields_ = [('n', _i), ('at', _d), ('haste', _d), ('ambient_c', _d), ('rds_ohm', _d), ('rds_alpha', _d),
+                ('rds_beta', _d), ('shunt_ohm', _d), ('switching_w', _d), ('into_k_w', _d), ('rth_jc', _d),
+                ('lookahead_s', _d), ('throttle_at', _d), ('recover_per_s', _d), ('trip_margin', _d),
+                ('trip_recover_per_s', _d), ('tj_max_c', _d),
+                ('kt', _vp), ('scale', _vp), ('ratio_k', _vp), ('cloth_air', _vp), ('r', _vp), ('g_ls', _vp),
+                ('g_ws', _vp), ('lam_k_w', _vp), ('win_k_w', _vp), ('capacity', _vp), ('ceiling', _vp),
+                ('house_w', _vp), ('active', _vp), ('t', _vp), ('sq', _vp), ('krpm', _vp), ('limb_rad_s', _vp),
+                ('derate', _vp), ('spent', _vp), ('die', _vp), ('cap', _vp), ('cap_at', _vp), ('ticks', _vp),
+                ('worst', _vp), ('trips', _vp), ('gates', _vp), ('shorted', _vp)]
+
+
+def pointer(a, dtype=np.float64):
+    """`a`'s address for a struct's pointer, `a` contiguous and of `dtype` - a copy would be
+    pointed at and written in vain."""
+    if not a.flags.c_contiguous or a.dtype != dtype:
+        raise ValueError('a laid array is contiguous %s, not %s %s' % (np.dtype(dtype).name, a.dtype.name,
+                                                                        'contiguous' if a.flags.c_contiguous
+                                                                        else 'strided'))
+    return a.ctypes.data
 
 
 def ask_of(ask, a=None):
@@ -152,6 +216,22 @@ def typed(lib):
     lib.wbh_ortho_row_size.restype = i
     lib.wbh_ortho_row_size.argtypes = []
     lib.wbh_ortho_row.argtypes = [ctypes.c_void_p, u32p, fp]
+    lib.wbh_pass_drives.argtypes = [ctypes.POINTER(Drives), d, d, d, d, i, i]
+    lib.wbh_pass_ctrl.argtypes = [ctypes.POINTER(World), d, _vp, _vp]
+    lib.wbh_pass_motor.argtypes = [ctypes.POINTER(World), d]
+    lib.wbh_pass_metered.argtypes = [ctypes.POINTER(World), _vp, d]
+    lib.wbh_pass_felt.argtypes = [ctypes.POINTER(World), _vp, i, i, i, i, i, i]
+    lib.wbh_pass_contacts.argtypes = [ctypes.POINTER(Contacts), i, _vp, _vp]
+    lib.wbh_pass_sensed.argtypes = [ctypes.POINTER(Contacts), _vp, i, i, i, i, i, i]
+    lib.wbh_pass_heat_load.argtypes = [ctypes.POINTER(Heat), _vp, _vp]
+    lib.wbh_pass_heat.argtypes = [ctypes.POINTER(Heat), d, _vp, _vp, i]
+    lib.wbh_pass_heat_peak.argtypes = [ctypes.POINTER(Heat), _vp]
+    lib.wbh_pass_drawn.argtypes = [ctypes.POINTER(World), _vp, _vp, _vp, _vp, _vp, _vp, d, d]
+    lib.wbh_pass_drawn.restype = d
+    for name in ('wbh_pass_drives', 'wbh_pass_ctrl', 'wbh_pass_motor', 'wbh_pass_metered', 'wbh_pass_felt',
+                 'wbh_pass_contacts', 'wbh_pass_sensed', 'wbh_pass_heat_load', 'wbh_pass_heat',
+                 'wbh_pass_heat_peak'):
+        getattr(lib, name).restype = None
     return lib
 
 
@@ -181,6 +261,9 @@ class Core:
         self.names = [self.lib.wbh_name(k).decode() for k in range(self.links)]
         self.parent = [int(self.lib.wbh_parent(k)) for k in range(self.links)]
         self._ask, self._out = Ask(), Out()
+        #: The step's inputs laid once (`wrench_laid`): the pelvis's frame, the hinges, u.
+        self._base, self._q, self._u = np.empty(12), np.empty(self.n - 6), np.empty(self.n)
+        self._pb, self._pq, self._pu = _ptr(self._base), _ptr(self._q), _ptr(self._u)
 
     def reset(self):
         """The loop's memory cleared: the loads WEP is granted on, the warm set."""
@@ -275,8 +358,13 @@ class Core:
     def wrench(self, base, q, u, ask):
         """One tick of the step without an active set (wbc_wrench.c) for `ask`
         (`machine.wrench.step`'s dict): {tau, udot, wrench, bears, over, load, scale}."""
-        base, q, u, out = _arr(base), _arr(q), _arr(u), self._out
-        self.lib.wbh_wrench(_ptr(base), _ptr(q), _ptr(u), ctypes.byref(ask_of(ask, self._ask)), ctypes.byref(out))
+        self._base[:], self._q[:], self._u[:] = base, q, u
+        return self.wrench_laid(ask)
+
+    def wrench_laid(self, ask):
+        """The tick on `_base`, `_q` and `_u` as the caller filled them."""
+        out = self._out
+        self.lib.wbh_wrench(self._pb, self._pq, self._pu, ctypes.byref(ask_of(ask, self._ask)), ctypes.byref(out))
         return {'tau': np.ctypeslib.as_array(out.tau).copy(),
                 'udot': np.ctypeslib.as_array(out.udot).copy(),
                 'wrench': np.ctypeslib.as_array(out.wrench).copy(),
@@ -346,13 +434,15 @@ def wrench_step(b, s, ask, core=None):
     core = core or shared()
     qpos, qvel, n = b.d.qpos, b.d.qvel, b.n
     R = rotation(qpos[3:7])
-    base, u = np.empty(12), np.empty(n)
+    base, u = core._base, core._u
     base[:9], base[9:] = R.ravel(), qpos[:3]
     u[:3], u[3:6], u[6:] = qvel[3:6], R.T @ qvel[:3], qvel[6:n]
-    out = core.wrench(base, qpos[7:7 + n - 6], u, ask)
+    core._q[:] = qpos[7:7 + n - 6]
+    out = core.wrench_laid(ask)
     udot = out['udot']
     qacc = udot.copy()
-    qacc[:3] = R @ (udot[3:6] + np.cross(u[:3], u[3:6]))
+    w0, w1, w2, v0, v1, v2 = u[:6].tolist()
+    qacc[:3] = R @ (udot[3:6] + np.array([w1 * v2 - w2 * v1, w2 * v0 - w0 * v2, w0 * v1 - w1 * v0]))
     qacc[3:6] = udot[:3]
     cop = []
     for k in (0, 1):

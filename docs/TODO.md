@@ -38,18 +38,9 @@ gets a line at the end of [DONE](DONE.md).
   A frame past 3 s appends every thread's stack to
   `%LOCALAPPDATA%/coaxial_63100/stalls.txt` (`screen.STALL_LOG`). DOD: seen,
   its stack dumped, fixed.
-- **Her world short of real time** (`machine.worker`): a pass 1 680 -> 1 460
-  us on the laptop walking, 0.60 -> 0.69 of real time, her trajectory the
-  same bit for bit (body.md). MuJoCo's step is 92 us of it; her law 2.7 ms
-  every third pass - `impedance.ask` 1.0, the wrench step 0.6, her sensing
-  0.4, her heat 0.2 -, her wear's window 250 ms at once every 4 s (sysid's
-  rows). Measured, not taken: the C step (`sprung.SOLVER = 'c'`) 1 355 us,
-  0.74, through its ctypes edge; the law every fourth pass 1 180, 0.85; both
-  1 060, 0.94. DOD: the page's x1.0, a pass under 1 000 us, no window past a
-  frame, her walk's measures kept.
-- **The chair at -2e-4 rad** (test_scenarios, `chair`): laid turned -0.0002
-  she sits 0.66 s of HELD_S 1.0 and the check fails, on the tree before the
-  item above as after it, 0 and +2e-4 met. DOD: 3 of 3 wobbles.
+- **Her world short of real time** (`machine.worker`): a pass 1 260 us, 0.79
+  of real time; her law 2.6 ms every third pass; the C step not her law
+  (body.md). DOD: x1.0.
 
 1. **Orthokinematics, the one way she moves** (orthokinematics.md): the
    humanoid robot movement is text of balance, rhythm and elasticity, compiled
@@ -253,7 +244,8 @@ serves its DOD; none an entry a case.
 
 1. **Her support, whatever bears her** (`machine.borne`): a segment the skin
    feels pushed up is in her support region, grounds her, and is a contact of
-   her whole-body step. Met: the chair, 13 of 13 wobbles; the bed 11 - rising
+   her whole-body step. Met: the chair 2 of 3 wobbles (-2e-4 sits 0.66 s of
+   1); the bed 11 - rising
    at -5e-4 the mattress's share flickers (2), at 2e-4 it bears half her
    weight 0.51 s of 1. Open: lying flat, her pelvis and trunk pitched
    apart; the floor mattress, told to lie she crouches, her pelvis at 0.763 m
