@@ -352,6 +352,15 @@ serves its DOD; none an entry a case.
   against their pictures at the page's own size - silhouette, proportion,
   colour masses, what reads in braille. DOD: PNGs beside the pictures.
 
+- **The aerobat's show** (aircraft.md): a takeoff run climbed out on the wing,
+  a turn, a knife-edge pass down the runway with its span along it and the
+  fin on the asphalt, a turn and the pass back, the 3D card, a landing on
+  the centreline; then the gate course entered by a run-up on its
+  straightest leg. DOD: the fin touching along both passes, throttled out
+  where the surfaces run out, nothing else struck; a touch under 0.5 m/s
+  within 0.5 m of the centreline, no bounce, stopped on the runway; both
+  laps flown from the run-up.
+
 ## Host
 
 - **native://**: a limb's world on a fixed mount as board/emu's. A frame on

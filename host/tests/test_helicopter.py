@@ -17,7 +17,7 @@ def test_helicopter_stunt_routine(report):
         route = aerobatics.routine(craft.CARD)
         pull_max = craft.PULL_MAX
         by_stage, stages = {}, []
-        for step_idx in range(int(95.0 / dt)):
+        for step_idx in range(int(115.0 / dt)):
             stage, row = aerobatics.fly(route, step_idx * dt, ('held', 'fit') if law['held'] else ('fit',))
             state = sky.state()
             ans = core.step(law, row, state, dt, pull_max)
@@ -74,7 +74,9 @@ def test_helicopter_stunt_routine(report):
         gl, gd = [p['z'] for p in c_by['lift'] if p['h'] < 0.03], [p['z'] for p in land if p['h'] < 0.03]
         roll_ok = (c is not aerobat or (
             c_by['spool'][0]['tilt'] > 55.0 and len(gl) > 20 and len(gd) > 20 and max(gl) - min(gl) > 5.0
-            and max(p['r'] for p in c_by['knife-edge']) > 3.0 and c_by['knife-back'][-1]['r'] < 2.0
+            and max(p['r'] for p in c_by['knife-edge']) > 3.0 and all(sorted(
+                abs(p['h'] - aerobat.STUNTS['knife_pass']['height']) for p in c_by[s])[len(c_by[s]) // 2] < 0.05
+                for s in ('knife-edge', 'knife-back'))
             and max(p['tilt'] for p in ft + burn) < 10.0
             and c_by['final'][-1]['w'] > 0.5 and min(p['v'] for p in land if p['h'] < 0.03) > -1.0
             and max(p['h'] for p in land[-60:]) < 0.025 and abs(land[-1]['vz']) < 0.02 and land[-1]['tilt'] > 55.0))
@@ -255,7 +257,7 @@ def test_lisp_manifests_and_validation(report):
                  and [s.sequence_id for s in hm['streams']] == [301, 302, 303, 304, 305, 306]
                  and [s.sequence_id for s in om['streams']] == [401, 402, 403, 404, 405, 406]
                  and [s.sequence_id for s in am['streams']] == [501, 502, 503, 504, 505, 506]
-                 and len(helicopter.CARD) == 24 == len(ornithopter.CARD) and len(aerobat.CARD) == 29)
+                 and len(helicopter.CARD) == 24 == len(ornithopter.CARD) and len(aerobat.CARD) == 34)
 
     q_card = qm['routines']['quadcopter']
     try:

@@ -91,9 +91,17 @@ wheels (0.25 m legs, the prop clear when level, the nose 12 deg up at rest).
   the nose goes on the air and over it by the angle the wing needs for what is
   asked across the path, solved across the stall blend up to 15 deg, its back
   rolled to that; no thrust pulled back nose first (it coasts to its apex).
-  After the prop-hang the routine opens with a knife-edge pass out and back
-  (`knife_pass`, `knife_back`, 5.4 m out and back within 1.5 m of home) before
-  the torque-roll.
+- The opening, on the law: the run climbed out on the wing, a pull-up to 14 m,
+  a hammerhead, a drop to the runway, a knife-edge pass down it at 4 m/s,
+  span along it, asked at 0.37 m, the fin at the asphalt (`knife_pass`), a
+  brake, a turn, the pass back. The fin under 0.05 m for 68 % of the pass
+  and 84 % of the pass back, touching 2 % and 1 %, the elevator's tips 8 and
+  2 times; on the page 70 % and 54 % in its wind (the broadside wing takes
+  6.5 N at 4 m/s), 69 % and 79 % calm; nothing struck. Near the floor the
+  law throttles out as the surfaces pass half their reach
+  (`aerokin.throttle_out`). The wing's share cut by the asked slide flew
+  the passes no better (66 % and 84 %) and put the course into gate 6: the
+  course's slide is a turn's lag, not air along the span.
 - The tail is destabilising tail first, by the physics: the burn's 12 m/s
   tail slide turned it over and onto the floor at 8.8 g. The aerobat's burn is
   a parachute at 4 m/s (`parachute`, its floor 0.55 m: its tail hangs 0.665
@@ -109,8 +117,9 @@ wheels (0.25 m legs, the prop clear when level, the nose 12 deg up at rest).
   turns at 50 deg/s and 10.5 m/s, the final flown wing-borne (`w = 1.0`) at
   11.5 m/s down to 0.33 m over the runway. The flare: throttle closed, the
   nose pitched up as `1 / v_fwd^2` to 16 deg (`HARRIER_RAD`) as airspeed
-  bleeds off in ground effect, touching at -0.85 m/s (under 1 m/s) and rolling
-  out on its wheels.
+  bleeds off in ground effect, touching at -0.90 m/s 2.38 m off the
+  centreline at along 12.6 m, 85 contacts made and broken, and rolling to
+  along 32.4 m, past the runway's end at 16: open (TODO).
 - The wing stalls (`wingborne.STALL_RAD`): the airfoil's lift to 15 deg, a flat
   plate's normal force past 23, blended between, the plate's drag with it;
   at 10 m/s 21.5 N at 15 deg, 14 N at 45, 40 N of drag at 90.
@@ -145,6 +154,7 @@ Layers (S on a page): shell, frame (the quad's two plates, the heli's
 frames and tray, the orni's spine, the aerobat's longerons, firewall, spar
 and ribs), pack (a 6S brick, 140 x 45 x 40 mm, or the heli's tray lit),
 bare (shafts, mast, swashplate, cranks, spars, every blade and surface).
+
 - Drawn to their pictures: the ornithopter's pod dusky (58, 54, 48) with
   one canopy ahead and wings 16 mm in chord; the quad a slate hump
   (86, 92, 100) on round arms, its two skid rails 100 mm out at SKID_M;

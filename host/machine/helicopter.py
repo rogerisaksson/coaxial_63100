@@ -98,7 +98,7 @@ def _rotor_inflow(along, v_horiz, w_m):
     return inflow(along, w_m) * (1.0 + 0.65 * min(0.35, v_horiz / max(w_m * ROTOR_R, 8.0)))
 
 
-def _init_sky(sky, xml, rest):
+def _init_sky(sky, xml, rest, touch=()):
     os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
     sky._mj, sky._np = importlib.import_module('mujoco'), importlib.import_module('numpy')
     sky.model = sky._mj.MjModel.from_xml_string(xml)
@@ -109,7 +109,7 @@ def _init_sky(sky, xml, rest):
     sky._names = [n.split('.')[0] for n in names]
     sky._mine = {g for g in range(sky.model.ngeom) if sky.model.geom_bodyid[g] == sky.frame}
     sky._feet = {(min(g, names.index('floor')), max(g, names.index('floor')))
-                 for g, n in enumerate(names) if n.startswith('skid')}
+                 for g, n in enumerate(names) if n.startswith('skid') or n in touch}
     sky._gates = [g for g, n in enumerate(names) if n.startswith('gate')]
     sky.gated = True
     sky._mj.mj_forward(sky.model, sky.data)

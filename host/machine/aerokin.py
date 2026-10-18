@@ -106,6 +106,13 @@ def allowed(over, brake):
     return (1.0 - far) * pole * over + far * math.sqrt(2.0 * brake * max(over - 0.5 * near, 0.0))
 
 
+def throttle_out(surfaces, near, room):
+    """The pull asked up, m/s^2, of a craft `near` its floor whose `surfaces` (-1 to 1 each) leave
+    it less than half their margin: all its `room` as the largest goes from half to all - a
+    tail dragged on the asphalt tips it past what the surfaces hold, and it throttles out."""
+    return room * min(1.0, max(0.0, 2.0 * near * max(abs(x) for x in surfaces) - 1.0))
+
+
 def spooled(w, w_pull, w_idle):
     """(the seconds the rotors take from `w` to `w_pull`, to `w_idle`) on their loop's slew."""
     slew = pull.slew(pull.I_WEP, w)
@@ -149,12 +156,15 @@ def climb(row, h, v, room, spool=(0.0, 0.0), dt=0.0):
 def lean(law, row, at, vel, dt, most):
     """The pull asked along the floor, world (x, z), m/s^2, `most` at the most: the law's spot
     gone on at the speed asked and to its place, the frame kept on it and leant into what
-    that speed changed by, the row's own pull with it."""
+    that speed changed by, the row's own pull with it. On its `rail` (1) home takes the spot
+    back across its way only: onto the line through its place along the way it is asked."""
     c, s = law['heading']
+    way = (row['speed'] * s + row['slide'] * c, row['speed'] * c - row['slide'] * s)
     off = (law['spot'][0] - row['x'], law['spot'][1] - row['z'])
+    on = row.get('rail', 0.0) * (off[0] * way[0] + off[1] * way[1]) / (way[0] ** 2 + way[1] ** 2 + 0.01)
+    off = (off[0] - on * way[0], off[1] - on * way[1])
     home = -row['home'] * min(HOME_K, HOME_M_S / max(math.hypot(off[0], off[1]), 1e-9))
-    speed = (row['speed'] * s + row['slide'] * c + home * off[0],
-             row['speed'] * c - row['slide'] * s + home * off[1])
+    speed = (way[0] + home * off[0], way[1] + home * off[1])
     own = (row['surge'] * s + row['sway'] * c, row['surge'] * c - row['sway'] * s)
     law['spot'] = [p + u * dt for p, u in zip(law['spot'], speed)]
     out = [(speed[k] - law['speed'][k]) / dt + own[k] + SPOT_KD * (speed[k] - float(vel[axis]))

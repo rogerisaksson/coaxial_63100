@@ -15,7 +15,7 @@ from machine import aerokin, aerolisp, grounds, pull, quad
 from machine.aerobatics import HOVER
 from machine.helicopter import (Answer, _course_rate, _init_sky, _observe_wind_spin,
                                 _smooth_target, _so3_torques, _stunt_step, _turn_heading)
-from machine.wingborne import AIRBORNE_M, HARRIER_RAD, PITCH_REST, Wing, flare, plane, run
+from machine.wingborne import AIRBORNE_M, PITCH_REST, Wing, flare, plane, run
 from machine.quad import STEP_S, inflow, wind_at
 
 LISP_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'aerobat.lisp')
@@ -51,18 +51,11 @@ RHO, BODY_CDA = _AF['air_density'], _AF['parasite_cda']
 ATT_KP, ATT_KD = _IMP['stiffness']['attitude_pitch'], _IMP['damping']['attitude_pitch']
 ROLL_KP, ROLL_KD = _IMP['stiffness']['attitude_roll'], _IMP['damping']['attitude_roll']
 YAW_KP, YAW_KD = _IMP['stiffness']['attitude_yaw'], _IMP['damping']['attitude_yaw']
-WO_TURN, WO_PULL, WO_WIND = _OBS['turn_bandwidth'], _OBS['pull_bandwidth'], _OBS['wind_bandwidth']
-WIND_REG, MIN_AIR_M_S = _OBS['wind_regularization'], _OBS['min_air_speed']
-FLOOR_M, HOVER_M, TOP_M = (KINEMATICS['envelope'][k] for k in (
-    'floor_height', 'hover_height', 'top_height'))
+WO_TURN, WO_PULL = _OBS['turn_bandwidth'], _OBS['pull_bandwidth']
+FLOOR_M, HOVER_M = (KINEMATICS['envelope'][k] for k in ('floor_height', 'hover_height'))
 WATERFALL_HZ, WATERFALL_RAD = (KINEMATICS['oscillator'][k] for k in (
     'tictoc_frequency', 'tictoc_amplitude'))
-TORQUE_ROLL, KNIFE_CIRCLE, CLIMBING_HARRIER, SNAP_ENTRY, INVERTED, FLAT_SPIN = (STUNTS[k] for k in (
-    'torque_roll', 'knife_circle', 'climbing_harrier', 'snap_entry', 'inverted', 'flat_spin'))
-WATERFALL, ROLLING_HARRIER, LOMCEVAK, GYRO_TUMBLE, CUBAN_UNWIND, UNWIND = (STUNTS[k] for k in (
-    'waterfall', 'rolling_harrier', 'lomcevak', 'gyro_tumble', 'cuban_unwind', 'unwind'))
-TAKEOFF, CLIMBOUT, FINAL, DIVE_M_S = STUNTS['takeoff'], STUNTS['climbout'], STUNTS['final'], 4.0
-TOUCH_M = TAIL_ARM * math.sin(HARRIER_RAD) + 0.145 * math.cos(HARRIER_RAD) - SKID_M - FOOT_M + 0.02
+DIVE_M_S = 4.0
 PULL_MAX, COURSE_SPHERE = K_THRUST / MASS_KG * (GOV_RAD_S * STUNT_BOOST) ** 2, 1.5 * GRAVITY
 WING = Wing(MASS_KG, GRAVITY, RHO, WING_AREA, CL_ALPHA, WING_SPAN, STAB_AREA, FIN_AREA, TAIL_ARM)
 ROTATE_M_S, RUNWAY_M, RUNWAY_RAD = WING.rotate, WING.runway(HOVER['lean']), math.radians(grounds.GATES[0][3] + 50.0)
@@ -88,6 +81,11 @@ def row_from_payload(payload, base=None):
         payload, base or HOVER, MASS_KG * GRAVITY, KINEMATICS['horizontal']['orbit_speed'])
 
 
+#: The tail on asphalt, its fin 1 cm past the elevator, softer than the wheels: at their 0.03 s a
+#: touch read 37-143 N, 7-27 N m against the ailerons' 5.3.
+TAIL_ON = ' priority="1" solref="0.1 1" friction="0.4 0.005 0.0001"'
+
+
 def mjcf(things=()):
     """The 3D aerobatic monoplane and `things` (`grounds.solids`) as MuJoCo XML."""
     m = ('<geom name="fuselage" type="box" pos="0 0.04 0" size="0.045 %g 0.04" contype="1" '
@@ -95,10 +93,10 @@ def mjcf(things=()):
          'contype="1" conaffinity="1"/><geom name="prop" type="cylinder" pos="0 %g 0" '
          'size="%g 0.008" euler="90 0 0" contype="1" conaffinity="1"/>'
          '<geom name="hstab" type="box" pos="0 %g 0" size="%g 0.075 0.008" contype="1" '
-         'conaffinity="1"/><geom name="vfin" type="box" pos="0 %g -0.08" '
-         'size="0.008 0.07 0.08" contype="1" conaffinity="1"/>'
+         'conaffinity="1"%s/><geom name="vfin" type="box" pos="0 %g -0.08" '
+         'size="0.008 0.07 0.08" contype="1" conaffinity="1"%s/>'
          % (PROP_Z - 0.04, 0.5 * WING_SPAN, 0.5 * WING_CHORD, PROP_Z, PROP_R, -TAIL_ARM,
-            STAB_SPAN / 2.0, -TAIL_ARM))
+            STAB_SPAN / 2.0, TAIL_ON, -TAIL_ARM - 0.01, TAIL_ON))
     wheels = ((STRUT_Z[0], GEAR_TAIL_Z, 0.45), (STRUT_Z[1], GEAR_MAIN_Z, 1.0))
     for k, (sx, (by, bz, x_sc)) in enumerate((sx, w) for sx in (-SKID_X, SKID_X) for w in wheels):
         m += ('<geom name="skid%d" type="sphere" pos="%g %g %g" size="%g" '
@@ -130,7 +128,7 @@ class Sky(quad.Sky):
 
     def __init__(self, things=()):
         self.rudder_force = 0.0
-        _init_sky(self, mjcf(things), SKID_M + FOOT_M)
+        _init_sky(self, mjcf(things), SKID_M + FOOT_M, ('hstab', 'vfin'))
         self._rest_pose()
 
     def _rest_pose(self):
@@ -200,7 +198,7 @@ class Core:
         self.begun, self.flip_ang, self.roll_ang = False, 0.0, 0.0
         self.piro_ang, self.tic_phase = 0.0, 0.0
         self.r_prev, self.up_filt, self.w_ff, self.airborne = None, None, (0.0, 0.0, 0.0), False
-        self.rotated, self.wingborne, self.wing_air = False, 0.0, 0.0
+        self.rotated, self.wingborne, self.wing_air, self.floor = False, 0.0, 0.0, FLOOR_M
         self.Controls = (IDLE_RAD_S, IDLE_RAD_S, 0.0, 0.0, 0.0, 0.0)
         self.out = Answer((IDLE_RAD_S, IDLE_RAD_S), (0.0, 0.0, 0.0, 0.0), (0.0, 0.0),
                           (1.0, 0.0), (0.0, 0.0, 0.0))
@@ -286,8 +284,8 @@ class Core:
         c0, s0 = law['heading']
         law['heading'] = _turn_heading((c0, s0), _course_rate((c0, s0), row), dt)
         reach = max(aerokin.LEAST * GRAVITY, pull_max)
-        floor = 0.0 if row.get('speed', 0.0) > 5.0 else FLOOR_M
-        r_climb = dict(row, height=max(floor, row['height'])) if row['height'] >= 0.0 else row
+        self.floor = FLOOR_M * max(0.0, 1.0 - math.hypot(row.get('speed', 0.0), row.get('slide', 0.0)) / 5.0)
+        r_climb = dict(row, height=max(self.floor, row['height'])) if row['height'] >= 0.0 else row
         self.up_pull, law['doing'] = aerokin.climb(
             r_climb, state['h'], state['v'], reach - GRAVITY,
             aerokin.spooled(self.out.speeds[0], math.sqrt(reach * MASS_KG / K_THRUST), IDLE_RAD_S), dt)
@@ -324,6 +322,8 @@ class Core:
         law['heading'] = c, s = _turn_heading(law['heading'], rate, dt)
         yaw = math.atan2(s, c)
         reach, up_pull = max(aerokin.LEAST * GRAVITY, pull_max), self.up_pull
+        up_pull += aerokin.throttle_out(self.Controls[3:], float(state['h'] < HOVER_M) * (1.0 - self.wingborne),
+                                        reach - GRAVITY)
 
         if row['height'] < 0.0 and (row['height'] <= -0.1 or not self.airborne):
             if state['h'] < 0.03 and max(abs(x) for x in vel) < 0.05:
@@ -342,8 +342,7 @@ class Core:
             self.out = Answer((w_p_ask, w_v_ask), controls, (0.0, 0.0), (c, s), tuple(self.wind))
             return self.out
 
-        floor = 0.0 if row.get('speed', 0.0) > 5.0 else FLOOR_M
-        rh = max(floor, float(row['height'])) if row['height'] >= 0.0 else float(row['height'])
+        rh = max(self.floor, float(row['height'])) if row['height'] >= 0.0 else float(row['height'])
         ay_des = max(GRAVITY + up_pull - air_acc[1], float(row.get('light', 0.5)) * GRAVITY)
         acc_des = (along[0] - air_acc[0], ay_des, along[1] - air_acc[2])
         ay_stop = max(0.0, GRAVITY + up_pull - air_acc[1])
