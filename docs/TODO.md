@@ -207,30 +207,19 @@ gets a line at the end of [DONE](DONE.md).
 20. **No transition with a jerk**, whatever happens (Scenarios 2,
     `tools/sim/jerk.py`). DOD: every segment's peak through every scenario
     no higher than in her steady walk.
-21. **Identification's rest** (identification.md): a world 15 % off the
-    figure reads back its drives and 61 of 107 trusted base parameters within
-    10 %, its correction 0.60 -> 0.36 N m where the world's own is 0.30; with
-    the gearboxes on, the wind-up and the play of 13 drives within 10 %, the
-    knees', elbows' and ankles' rotors ringing at their mode; her walk's
-    rows with the stand's take a fifth off the build's misfit on her walk,
-    the stand's alone add to her legs'; standing, her insoles' three rows give
-    her weight and a first moment of her pelvis; the rotors within 1.2 % on
-    the steps inside their play; hung in a harness she reads as on the stand,
-    a load cell in it her pelvis's ten more, her mass to 0.1 %. Left: each
-    box's damping (10-40 % low) and mesh (unread: its rounding's slope under
-    the ring), the ankles' boxes (ringing across their play); a link's mass
-    apart from its first moment, a shaken harness.
+21. **Identification's rest** (identification.md): her drives, links,
+    rotors, the boxes' wind-up and play, her walk's rows, her insoles' rows,
+    a harness and its load cell read. Left: each box's damping and mesh, the
+    ankles' boxes; a link's mass apart from its first moment.
     + DOD: each measured in `test_sysid.py`.
 22. **Identification on-line, under a load** (`machine.wear`): her drift
     - friction, torque an amp, her boxes' play and wind-up - off her rows
     as she goes, a load in a hand told apart; bands, alarms and service her
-    build's ([service]). As it is: on her walk with her hems' mass off, the
-    load, a knee's friction and a hip's torque read and named as the DOD
-    asks; a box's play on the stand.
-    + DOD: the same with her jeans on (their hems read the knees' torque
-      12-21 % high held at rest); the filter in her worker, her state and
-      the page; a slipped encoder zero; a load on her back off her insoles;
-      the load into her law.
+    build's ([service]). As it is: with her hems' mass off, the DOD's walk
+    and the stand's box.
+    + DOD: her jeans on (their hems read the knees' torque 12-21 % high at
+      rest); the filter in her worker and on the page; a slipped encoder
+      zero; a load on her back off her insoles; the load into her law.
 
 ## One command, either driver
 
