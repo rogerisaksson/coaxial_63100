@@ -357,8 +357,6 @@ serves its DOD; none an entry a case.
 
 - **native://**: a limb's world on a fixed mount as board/emu's. DOD: the
   body's balance and gait from the SIL.
-- **Third-person controls as the games have them** (RDR2, GTA V): orbit,
-  follow, shoulder swap, sprint, crouch, a context prompt. DOD: a PNG each.
 - **Identification on the robot** (identification.md): the campaign
   (`machine.sysid`) through her buses and on the bench, the boards' currents
   its torques; the hips' yaw and roll armature untold on the stand; a link's

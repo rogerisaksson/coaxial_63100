@@ -299,6 +299,15 @@ KEYS = gym.table(table(viewpoint.KEYS, CALLING, SHOWN))
 GOING_M_S = 0.1
 
 
+def scripted(state, keys):
+    """`--keys`: the frame's key typed as the console would, a key a frame from the first, '.'
+    none - a page rendered under a key (tools/render/page.py)."""
+    k = state.get('frame', 0)
+    state['frame'] = k + 1
+    if k < len(keys) and keys[k] != '.':
+        act_on(state['keys'], [keys[k]], state)
+
+
 def _step_frame(state, dt):
     """A frame's commands: the tour's due, the keys' twist; the chase camera eased behind her."""
     if gym.touring(state):
@@ -361,6 +370,7 @@ def main(argv=None):
     parser.add_argument('--simulated', action='store_true')
     for flag in ('--frames', '--width', '--height'):
         parser.add_argument(flag, type=int, default=0)
+    parser.add_argument('--keys', default='', help="a key a frame from the first, '.' none")
     args, board_view = parser.parse_args(argv), stage()
     terminal, body, leaving, lit, name = board_view.is_terminal, None, None, None, 'this process, dots'
     state = {'body': None, 'orbit': False, **viewpoint.HOME, 'side': 1.0, 'last_t': None,
@@ -369,6 +379,7 @@ def main(argv=None):
              'now': None, 'tour': None, 'pad': pad(), 'keys': KEYS}
 
     def draw():
+        scripted(state, args.keys)
         t_mono = _step_frame(state, 1.0 / max(1.0, args.hz))
         said = []
         state['body'].latest(into=said)

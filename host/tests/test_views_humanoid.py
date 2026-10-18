@@ -78,6 +78,11 @@ def test_the_humanoid_pages_keys(report):
         show_humanoid.KEYS[k](st)
     report.check('the arrows turn and lift the view, < lays the next scene, Enter lays it again, nothing said',
                  st['yaw'] < yaw and st['pan'][1] > 0.0 and sent == [{'scenario': 'glass_room'}] * 2, sent)
+    st.update(keys=show_humanoid.KEYS, orbit=False)
+    for _ in range(4):
+        show_humanoid.scripted(st, 'o.x')
+    report.check("--keys types a key a frame, '.' none: O the first frame, X the third, nothing after",
+                 st['orbit'] is True and st['shoulder'] == -1.0 and st['frame'] == 4)
 
 
 def test_the_keys_that_move_her_are_one_twist(report):

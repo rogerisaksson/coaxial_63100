@@ -59,10 +59,10 @@ class _Nowhere(io.StringIO):
         return len(text)
 
 
-def frame(name, width=150, height=44, frames=12, port=None):
-    """The page's last frame as ANSI text: simulated, or on `port`. Only the last is kept: every
-    frame and the console's whole output grew 0.5 MB a frame, and two six-minute pages ran this
-    laptop's commit out."""
+def frame(name, width=150, height=44, frames=12, port=None, keys=''):
+    """The page's last frame as ANSI text: simulated, or on `port`; `keys` typed a frame each
+    where the page takes `--keys`. Only the last is kept: every frame and the console's whole
+    output grew 0.5 MB a frame, and two six-minute pages ran this laptop's commit out."""
     drawn = []
 
     def sized():
@@ -88,7 +88,8 @@ def frame(name, width=150, height=44, frames=12, port=None):
         setattr(module, 'stage', sized)
         if hasattr(module, 'Keys'):
             setattr(module, 'Keys', _Still)
-        argv = (['--port', port] if port else ['--simulated']) + ['--frames', str(frames)]
+        argv = ((['--port', port] if port else ['--simulated']) + ['--frames', str(frames)]
+                + (['--keys', keys] if keys else []))
         if inspect.signature(module.main).parameters:
             module.main(argv)
         else:
@@ -117,8 +118,9 @@ def main(argv=None):
     parser.add_argument('--frames', type=int, default=12)
     parser.add_argument('--png', help='also the picture as a PNG here')
     parser.add_argument('--port', help='a port, not the stand-in (emulator:// for the image)')
+    parser.add_argument('--keys', default='', help="typed a frame each, '.' none (HUMANOID)")
     args = parser.parse_args(argv)
-    art = frame(args.page, *args.size, frames=args.frames, port=args.port)
+    art = frame(args.page, *args.size, frames=args.frames, port=args.port, keys=args.keys)
     print(art)
     if args.png:
         size = ansi.png(art, args.png)

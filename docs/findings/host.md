@@ -162,6 +162,11 @@ Pages, tooling, suites and the local model's runner. The board's findings:
 
 - A `Feed` slept its period after the read: a 20 ms read at 50 ms fed 14
   readings a second to a 20 fps page. Start to start now.
+- HUMANOID rendered under `--keys` (a key a frame, `tools/render/page.py`):
+  O turns the view, X puts her at the other side, Shift+W runs her at 0.90
+  m/s, W+A walks her an arc the chase follows, C has her down with `[F]
+  #201 stand` offered, the chair scene offers `[F] sit chair` at 0.8 m. Her
+  process ran at 0.2-0.3 of real time on four cores, 8-10 frames a second.
 - HUMANOID's R crashed the page at once with no traceback
   kept; headless it took R and saved 97 rows then, and R starting, three
   states and R saving is test_views_humanoid.py's. The
