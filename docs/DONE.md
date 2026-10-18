@@ -288,3 +288,14 @@ the fifty before these: [DONE_1-50](DONE_1-50.md).
     `figure.lumbar_curve`, `SHELL_ARMOR`, `skeleton.printed_holders`,
     `flange_mounts`, `campaign.de_ring_ankles`) is out
     ([sight](findings/sight.md)).
+77. Stereo disparity on the card and columnar telemetry tables
+    (`machine/stereo.py`, `machine/sight.py`, `tools/sim/tabular.py`,
+    `tools/bench/analyze_phase_log.py`, `tools/sim/gvs.py`, `tools/sim/replay.py`,
+    `tools/sim/look.py`, `coaxial/acquire/task.py`, `coaxial/graphics/lit.py`):
+    3-stage WGSL compute / CuPy stereo block matching cuts 320x240 x 48
+    disparity from 95.6 ms to 1.60 ms (60x faster, 99.85 % kept agreement, max
+    0.0173 px), RAPIDS (`cudf` / `cupy`) and `pandas` / `numpy` columnar CSV
+    ingestion and trend fitting replace row-by-row `csv.DictReader` loops, and
+    unrolled 4x2 cell reductions in `lit.braille` shave 1.8 ms/frame bit-for-bit
+    ([sight](findings/sight.md)).
+

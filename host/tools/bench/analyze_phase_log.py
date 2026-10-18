@@ -6,7 +6,11 @@ script is that the scaling lives in one place: the earlier hand-rolled
 comparison reported DC bus figures at the ADC pin and silently dropped the
 23.7x divider, which made the absolute numbers meaningless.
 """
-import csv, math, sys
+import os, sys
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
+from tools.sim import tabular
 
 VREF   = 3.3
 N_SE   = 65536.0          # single-ended: 0..65535, 0 = 0 V
@@ -27,27 +31,20 @@ def lsb_volts(full_scale, gain):
 
 def fit(t, a):
     """mean, peak-to-peak, slope per minute, sd, sd after removing the trend."""
-    n = len(a)
-    m = sum(a) / n
-    tb = sum(t) / n
-    sxx = sum((x - tb) ** 2 for x in t)
-    slope = sum((t[i] - tb) * (a[i] - m) for i in range(n)) / sxx
-    res = [a[i] - (m + slope * (t[i] - tb)) for i in range(n)]
-    sd = math.sqrt(sum((x - m) ** 2 for x in a) / (n - 1))
-    rsd = math.sqrt(sum(x * x for x in res) / (n - 1))
-    return m, max(a) - min(a), slope * 60000.0, sd, rsd
+    return tabular.fit_line(t, a)
 
 def report(path):
-    rows = list(csv.DictReader(open(path)))
-    t = [float(r['t_ms']) for r in rows]
-    print('=== %s : n=%d over %.0f s ===' % (path, len(rows), (t[-1] - t[0]) / 1000))
-    period = (t[-1] - t[0]) / (len(t) - 1)
+    cols = tabular.numeric_columns(path)
+    t = cols['t_ms']
+    n = len(t)
+    span = float(t[-1] - t[0])
+    print('=== %s : n=%d over %.0f s ===' % (path, n, span / 1000))
+    period = span / (n - 1)
     print('heartbeat %.3f ms (%+.0f ppm vs host clock)\n' % (period, (period - 1000) / 1000 * 1e6))
     for name, (fs, gain, unit, note) in CHANNELS.items():
-        if name not in rows[0]:
+        if name not in cols:
             continue
-        a = [float(r[name]) for r in rows]
-        m, p2p, drift, sd, rsd = fit(t, a)
+        m, p2p, drift, sd, rsd = fit(t, cols[name])
         k = lsb_volts(fs, gain)
         print('%-6s mean %+10.4f %s   p2p %8.2f m%s   drift %+7.2f m%s/min' % (
             name, m * k, unit, p2p * k * 1000, unit, drift * k * 1000, unit))
@@ -58,3 +55,4 @@ def report(path):
 if __name__ == '__main__':
     for p in (sys.argv[1:] or ['phase_log.csv']):
         report(p)
+

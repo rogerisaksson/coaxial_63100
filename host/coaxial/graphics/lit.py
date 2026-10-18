@@ -156,7 +156,7 @@ def braille(depth, rgb, floor, width, height, colour=True, overlay=None, leaders
     3) -, where nothing covers them or, `over`, whatever does (a force's arrow); the
     `overlay`'s cells {(row, col): (codepoint, key)} over all (`callouts`). Lines, ANSI where
     `colour`."""
-    np, _k, _f, _h, _p, bits, floor_ink, leader_ink = _const()
+    np, _k, _f, _h, _p, _bits, floor_ink, leader_ink = _const()
     covered = depth > 0.0
     over = np.zeros_like(covered)
     for dots, _ink, *on_top in props:
@@ -171,10 +171,20 @@ def braille(depth, rgb, floor, width, height, colour=True, overlay=None, leaders
     lit = (covered & (0.04 + 0.96 * np.clip(lum, 0.0, 1.0) ** 1.5 > _mask(*depth.shape))) | edge | over
     ground = (floor > 0.0) & ~covered
     lead = leaders & ~covered if leaders is not None else np.zeros_like(covered)
-    cells = ((lit | ground | lead).reshape(height, DOTS_Y, width, DOTS_X) * bits).sum(axis=(1, 3))
-    hits = covered.reshape(height, DOTS_Y, width, DOTS_X).sum(axis=(1, 3))
-    body = ((rgb * covered[..., None]).reshape(height, DOTS_Y, width, DOTS_X, 3).sum(axis=(1, 3))
-            / np.maximum(hits, 1)[..., None])
+    on_dots = lit | ground | lead
+    cells = ((on_dots[0::4, 0::2] * BRAILLE_BITS[0][0])
+             | (on_dots[1::4, 0::2] * BRAILLE_BITS[0][1])
+             | (on_dots[2::4, 0::2] * BRAILLE_BITS[0][2])
+             | (on_dots[3::4, 0::2] * BRAILLE_BITS[0][3])
+             | (on_dots[0::4, 1::2] * BRAILLE_BITS[1][0])
+             | (on_dots[1::4, 1::2] * BRAILLE_BITS[1][1])
+             | (on_dots[2::4, 1::2] * BRAILLE_BITS[1][2])
+             | (on_dots[3::4, 1::2] * BRAILLE_BITS[1][3]))
+    c4 = covered[0::4].astype(int) + covered[1::4] + covered[2::4] + covered[3::4]
+    hits = c4[:, 0::2] + c4[:, 1::2]
+    masked = rgb * covered[..., None]
+    m4 = masked[0::4].astype(int) + masked[1::4] + masked[2::4] + masked[3::4]
+    body = (m4[:, 0::2] + m4[:, 1::2]) / np.maximum(hits, 1)[..., None]
     body = np.clip(body * 1.2 + 18.0, 0.0, 255.0)
     shine = floor.reshape(height, DOTS_Y, width, DOTS_X).max(axis=(1, 3))
     text = np.where(cells > 0, BRAILLE + cells, ord(' ')).tolist()
@@ -187,10 +197,12 @@ def braille(depth, rgb, floor, width, height, colour=True, overlay=None, leaders
     # 180 x 56, and rich parsed an escape a cell after it.
     no_hit = hits == 0
     ink = np.where((hits > 0)[..., None], body, floor_ink * shine[..., None])
-    led = lead.reshape(height, DOTS_Y, width, DOTS_X).any(axis=(1, 3)) & no_hit
+    led = (lead[0::4] | lead[1::4] | lead[2::4] | lead[3::4])
+    led = (led[:, 0::2] | led[:, 1::2]) & no_hit
     ink = np.where(led[..., None], leader_ink, ink)
     for dots, prop_ink, *on_top in props:
-        on = dots.reshape(height, DOTS_Y, width, DOTS_X).any(axis=(1, 3))
+        d4 = dots[0::4] | dots[1::4] | dots[2::4] | dots[3::4]
+        on = d4[:, 0::2] | d4[:, 1::2]
         on = on if on_top and on_top[0] else on & no_hit
         ink = np.where(on[..., None], np.asarray(prop_ink, float), ink)
     ink = (ink.astype(int) // INK_STEP) * INK_STEP

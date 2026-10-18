@@ -50,6 +50,13 @@ def test_r_records_and_saves(report):
         report.check('while it records the drawing carries REC, its wheel and its rows',
                      ''.join(chr(c) for c, _ink in badge.values()).strip() == '● REC ⠹ 2',
                      ''.join(chr(c) for c, _ink in badge.values()))
+        from tools.sim import tabular
+        cols = tabular.numeric_columns(path, ('t', 'watts', 'left_knee'))
+        m, p2p, drift, _sd, rsd = tabular.fit_line([0.0, 1000.0, 2000.0], [10.0, 12.0, 14.0])
+        report.check('tabular reads numeric columns and fits linear trends without row loops',
+                     len(cols['t']) == 3 and len(tabular.read_rows(path)) == 3
+                     and abs(m - 12.0) < 1e-9 and abs(p2p - 4.0) < 1e-9
+                     and abs(drift - 120.0) < 1e-6 and rsd < 1e-9)
     finally:
         humanoid_keys.RECORDINGS = was
 
@@ -57,9 +64,8 @@ def test_r_records_and_saves(report):
 def _replay(path):
     """A test of one kept replay: replayed to its last row, standing."""
     def test(report):
-        from tools.sim import replay
-        with open(path, encoding='utf-8') as f:
-            rows = list(csv.DictReader(f))
+        from tools.sim import replay, tabular
+        rows = tabular.read_rows(path)
         for wobble in replay.WOBBLES:
             got = replay.replayed(replay.entries(rows), rows, wobble=wobble)
             report.check('%s, %d commands, to %.1f s, laid %+.1f mm aside: no fall' % (

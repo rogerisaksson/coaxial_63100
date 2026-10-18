@@ -12,19 +12,14 @@ Nothing here reads the world's geometry: the cameras' images and poses alone (`p
 """
 import heapq
 import math
-import os
+
+from machine.stereo import H, W, _np, disparity
 
 #: Her eyes: BASELINE_M apart on the head, EYES (x, y, z) in the head's frame the left one's,
 #: looking along the head's z, DOWN_DEG under it - level, their view's lower edge 30 deg
 #: down, a table's top was out of it nearer than 1.4 m and a chair's seat nearer than 1.9;
-#: FOVY_DEG high, W x H pixels.
-BASELINE_M, EYES, FOVY_DEG, W, H, DOWN_DEG = 0.1, (0.05, 0.10, 0.09), 60.0, 320, 240, 15.0
-
-#: Block matching: DISPARITIES tried, a WINDOW square summed; a pixel is kept with texture
-#: (its window's spread over TEXTURE) and a match UNIQUE times better than the next best. The
-#: table's top 1.6-2.3 m off, looked down on, spreads 2.2 at the median: at 4.0 a quarter of
-#: it was kept, at 1.5 0.70, 99 % of those within 1.5 px of the renderer's.
-DISPARITIES, WINDOW, TEXTURE, UNIQUE = 48, 9, 1.5, 1.15
+#: FOVY_DEG high, W x H pixels (`machine.stereo`).
+BASELINE_M, EYES, FOVY_DEG, DOWN_DEG = 0.1, (0.05, 0.10, 0.09), 60.0, 15.0
 
 #: Her map: CELL_M squares over the room's floor (X_M, Z_M); a cell is a thing from TOLD looks
 #: with HITS points in it - one look's mismatches are not a thing -
@@ -57,12 +52,6 @@ VIEW = (32, 24)
 INK = {'wall': (120, 190, 255), 'door': (255, 120, 90), 'lamp': (255, 230, 90),
        'bed': (110, 140, 255), 'table': (230, 170, 100), 'chair': (255, 190, 120),
        'thing': (200, 200, 200)}
-
-
-def _np():
-    os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
-    import numpy
-    return numpy
 
 
 def assets():
@@ -136,60 +125,6 @@ class Eyes:
             return self.renderer.render().copy()
         finally:
             self.renderer.disable_depth_rendering()
-
-
-def _gray(rgb):
-    np = _np()
-    return rgb.astype(np.float32) @ np.array([0.299, 0.587, 0.114], dtype=np.float32)
-
-
-def _boxed(a, r):
-    """`a` summed over (2r+1)^2 windows, edges clipped."""
-    np = _np()
-    p = np.pad(a, r, mode='edge')
-    c = np.cumsum(np.cumsum(p, axis=0), axis=1)
-    c = np.pad(c, ((1, 0), (1, 0)))
-    k = 2 * r + 1
-    return c[k:, k:] - c[:-k, k:] - c[k:, :-k] + c[:-k, :-k]
-
-
-def disparity(left, right):
-    """(disparity px, kept) of the left image against the right: the best SAD a pixel over
-    DISPARITIES, refined by the parabola through its neighbours; kept where textured and the
-    best UNIQUE times under the next best."""
-    np = _np()
-    gl, gr = _gray(left), _gray(right)
-    r = WINDOW // 2
-    cost = np.full((DISPARITIES, H, W), np.inf, dtype=np.float32)
-    for d in range(DISPARITIES):
-        diff = np.abs(gl[:, d:] - gr[:, :W - d])
-        cost[d, :, d:] = _boxed(diff, r)
-    best = np.argmin(cost, axis=0)
-    rows, cols = np.indices((H, W))
-    c0 = cost[best, rows, cols]
-    lo = cost[np.maximum(best - 1, 0), rows, cols]
-    hi = cost[np.minimum(best + 1, DISPARITIES - 1), rows, cols]
-    denom = lo - 2.0 * c0 + hi
-    curved = np.isfinite(denom) & (denom > 1e-6)
-    sub = np.zeros_like(c0)
-    sub[curved] = 0.5 * (lo[curved] - hi[curved]) / denom[curved]
-    disp = best + np.clip(sub, -0.5, 0.5)
-    # the next best away from the best's own neighbours: next to it the cost is its own
-    apart = np.abs(np.arange(DISPARITIES)[:, None, None] - best[None, :, :]) > 2
-    second = np.where(apart, cost, np.inf).min(axis=0)
-    mean = _boxed(gl, r) / WINDOW ** 2
-    spread = np.sqrt(np.maximum(_boxed(gl * gl, r) / WINDOW ** 2 - mean * mean, 0.0))
-    # the right eye's own best match from the same costs: a left pixel is kept where the
-    # right pixel it matched picks it back, within a pixel - what one eye alone sees, and a
-    # match to the wrong speckle, do not
-    back = np.full_like(cost, np.inf)
-    for d in range(DISPARITIES):
-        back[d, :, :W - d] = cost[d, :, d:]
-    agreed = np.abs(np.argmin(back, axis=0)[rows, np.clip(cols - best, 0, W - 1)] - best) <= 1
-    kept = ((spread > TEXTURE) & (second > UNIQUE * np.maximum(c0, 1.0)) & (best > 0)
-            & (best < DISPARITIES - 1) & np.isfinite(c0) & agreed)
-    kept[:, :DISPARITIES] = False
-    return disp, kept
 
 
 def depth(disp):

@@ -1,7 +1,8 @@
 # Findings: her eyes
 
-A stereo pair on her head (`machine/sight.py`, `physics.SIGHT`), rendered from
-the world by MuJoCo, the disparity by block matching in numpy, the depth from
+A stereo pair on her head (`machine/sight.py`, `machine/stereo.py`,
+`physics.SIGHT`), rendered from the world by MuJoCo, the disparity by block
+matching on the card (`wgpu` WGSL compute / `cupy`) or numpy, the depth from
 it, the points into a map she keeps of the room (`machine/room.py`), its things
 told by shape and colour, a way planned round them, and the page's
 picture of her view (`coaxial/graphics/inset.py`); test_sight.py holds it.
@@ -12,9 +13,9 @@ Nothing of hers reads the world's geometry.
 | | |
 | --- | --- |
 | cameras | two on the head, 0.1 m apart, 60 deg high, 320 x 240, looking 15 deg down |
-| a look | 95-120 ms: both renders 2 ms, block matching 48 disparities over 9 x 9 windows the rest |
-| kept | 51 % of the pixels: textured (a window's spread over 1.5), unique (the next best 1.15 times the best, off its own neighbours) and picked back by the right eye within a pixel |
-| depth | within 1.3 % of the renderer's at the median, 2.9 % at the ninth decile |
+| a look | 3.6 ms on the card (both renders 2.0 ms, 3-stage WGSL/CuPy block matching 1.60 ms; 95.6 ms on CPU, 99.85 % kept agreement, max 0.0173 px) |
+| kept | 50 % of the pixels: textured (a window's spread over 1.5), unique (the next best 1.15 times the best, off its own neighbours) and picked back by the right eye within a pixel |
+| depth | within 1.4 % of the renderer's at the median, 3.3 % at the ninth decile |
 
 - A checker texture repeats: block matching matched a square to the next and
   the map filled with phantoms (1 747 cells); so did speckles laid 12 a

@@ -49,13 +49,15 @@ def _nearest(things, kinds, at):
 def test_the_stereo_holds_to_the_depth(report):
     """One look from her stand: the depth from the two eyes' disparity against the renderer's
     own, on the pixels kept."""
-    from machine import sight
+    from machine import sight, stereo
     body, world = _room()
     try:
         _stood(world)
         eyes = sight.Eyes(world)
         seen = eyes.see(world)
         disp, kept = sight.disparity(seen.left, seen.right)
+        c_disp, c_kept = stereo.cpu_disparity(seen.left, seen.right)
+        both = kept & c_kept
         truth = eyes.truth(world)
         ok = kept & (truth > 0.3) & (truth < STEREO_M)
         err = np.abs(sight.depth(disp)[ok] - truth[ok]) / truth[ok]
@@ -64,6 +66,10 @@ def test_the_stereo_holds_to_the_depth(report):
         report.check('their depth is within 3 %% of the renderer\'s at the median, 10 %% at the '
                      'ninth decile', np.median(err) < 0.03 and np.percentile(err, 90) < 0.10,
                      'median %.1f %%, 90th %.1f %%' % (100 * np.median(err), 100 * np.percentile(err, 90)))
+        report.check('the card\'s disparity agrees with the CPU\'s within 0.05 px on 99 %% of pixels',
+                     (kept == c_kept).mean() > 0.99 and np.max(np.abs(disp[both] - c_disp[both])) < 0.05,
+                     '%.2f %% agree, max %.4f px' % (100.0 * (kept == c_kept).mean(),
+                                                     float(np.max(np.abs(disp[both] - c_disp[both])))))
     finally:
         body.close()
 

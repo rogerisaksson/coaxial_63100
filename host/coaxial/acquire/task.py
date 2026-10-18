@@ -1,4 +1,5 @@
 """The rig's task: channels by name, the configuration, the outputs, frames and columns."""
+import os
 import re
 from typing import Any
 
@@ -92,20 +93,28 @@ class Task:
                      if want in (self._match(pin),
                                  self._match(pin.split('/')[-1]))), None)
 
-    def frame(self, records, index='time', scaled=False):
-        """A run as a pandas DataFrame: one column per channel."""
-        try:
-            import pandas
-        except ImportError:
-            raise RigError(
-                'frame() needs pandas, which this library does not require '
-                '- `pip install pandas`, or use columns() and build what '
-                'you like from plain lists') from None
+    def frame(self, records, index='time', scaled=False, gpu=False):
+        """A run as a DataFrame (`cudf` when `gpu` or `COAXIAL_DF=cudf`, else `pandas`)."""
+        lib = None
+        if gpu or os.environ.get('COAXIAL_DF', '').lower() == 'cudf':
+            try:
+                import importlib
+                lib = importlib.import_module('cudf')
+            except ImportError:
+                lib = None
+        if lib is None:
+            try:
+                import pandas as lib
+            except ImportError:
+                raise RigError(
+                    'frame() needs pandas (or cudf), which this library does not require '
+                    '- `pip install pandas`, or use columns() and build what '
+                    'you like from plain lists') from None
 
         cols = self.columns(records)
         if scaled:
             cols.update(self._in_units(cols))
-        frame = pandas.DataFrame(cols)
+        frame = lib.DataFrame(cols)
         stamped = cols['time'] and cols['time'][0] is not None
         if index == 'since' and stamped:
             # Seconds before now: newest at 0, older negative.
@@ -118,7 +127,7 @@ class Task:
             # A real timestamp rather than a float, so resample() and the rest
             # of the time machinery work without a conversion the caller has to
             # remember.
-            frame['time'] = pandas.to_datetime(frame['time'], unit='s')
+            frame['time'] = lib.to_datetime(frame['time'], unit='s')
             return frame.set_index('time')
         return frame
 

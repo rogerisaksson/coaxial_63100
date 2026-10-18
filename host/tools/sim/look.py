@@ -17,7 +17,6 @@ they meet), how far the pelvis's and the head's forward point above level (90 on
 seat's drives past her skin, what her drives draw - least and most over the stage.
 """
 import argparse
-import csv
 import glob
 import math
 import os
@@ -58,8 +57,8 @@ def _ahead(world):
 
 def recorded(path):
     """The rows of a recording."""
-    with open(path, encoding='utf-8') as f:
-        return list(csv.DictReader(f))
+    from tools.sim import tabular
+    return tabular.read_rows(path)
 
 
 #: (name, unit, of a row and the stand's heights {pelvis, head, hip L, hip R}): each column.

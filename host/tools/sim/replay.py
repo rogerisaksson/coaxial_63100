@@ -104,8 +104,8 @@ def main(argv=None):
     path = args.csv or (max(found, key=os.path.getmtime) if found else None)
     if path is None:
         parser.error('a recording, or --last')
-    with open(path, encoding='utf-8') as f:
-        rows = list(csv.DictReader(f))
+    from tools.sim import tabular
+    rows = tabular.read_rows(path)
     heard = entries(rows)
     if not heard:
         print('%s: no commands recorded - a recording from before they were' % path)

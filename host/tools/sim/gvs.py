@@ -361,7 +361,7 @@ def capture_gates(times, com_along, joints_places=None, leg=L0_DEFAULT, gps_rad=
     stall_share = float(np.mean(dxi[active] <= 0.0)) if np.any(active) else 1.0
     step_star, first_step_star, walk_ratio, arm_deg, heel_deg, knee_min_deg, lift_asym = (math.nan,) * 7
     has_joints = joints_places is not None and 'LeftUpLeg' in joints_places
-    if has_joints:
+    if has_joints and joints_places is not None:
         if int(np.sum(active)) >= 60:
             t_act = np.asarray(times, float)[active]
             j_act = {k: (v[active] if isinstance(v, np.ndarray) and v.ndim >= 2 else v)
@@ -472,20 +472,21 @@ def evaluate_simulation(ref_path, duration=15.0, joints=EVAL_JOINTS, tolerance=M
 
 def evaluate_recording(record_path, ref_path, joints=EVAL_JOINTS, tolerance=MAX_TOLERANCE_RAD):
     """Evaluate recorded CSV telemetry against reference FBX take."""
-    import csv
+    from tools.sim import tabular
     ref_times, ref_joints, ref_rots = extract_take_rotations(ref_path)
     ref_com = ref_joints['Hips'][:, 2]
 
-    robot_times, frames_list = [], []
-    with open(record_path, 'r', encoding='utf-8') as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            robot_times.append(float(row['t']))
-            angles = {j_name: float(row[j_name]) for j_name in figure.JOINTS if j_name in row}
-            pelvis_at = (float(row.get('x', 0.0)), float(row.get('y', 0.0)), float(row.get('z', 0.0)))
-            pelvis_quat = figure.quat(float(row.get('qw', 1.0)), float(row.get('qx', 0.0)),
-                                      float(row.get('qy', 0.0)), float(row.get('qz', 0.0)))
-            frames_list.append(figure.frames(angles, pelvis_at, pelvis_quat))
+    defaults = {'x': 0.0, 'y': 0.0, 'z': 0.0, 'qw': 1.0, 'qx': 0.0, 'qy': 0.0, 'qz': 0.0}
+    cols = tabular.numeric_columns(record_path, ('t',) + tuple(defaults) + figure.JOINTS, defaults)
+    robot_times = cols['t'].tolist()
+    j_cols = [j for j in figure.JOINTS if j in cols]
+    frames_list = [
+        figure.frames({j: float(cols[j][i]) for j in j_cols},
+                      (float(cols['x'][i]), float(cols['y'][i]), float(cols['z'][i])),
+                      figure.quat(float(cols['qw'][i]), float(cols['qx'][i]),
+                                  float(cols['qy'][i]), float(cols['qz'][i])))
+        for i in range(len(robot_times))
+    ]
 
     rob_joints = _sim_joints(frames_list)
     robot_com, _v, robot_rots, leg = anatomical_frames(robot_times, rob_joints)
