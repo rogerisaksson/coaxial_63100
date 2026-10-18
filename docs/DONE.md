@@ -313,3 +313,10 @@ the fifty before these: [DONE_1-50](DONE_1-50.md).
     electronics, drivetrain, thermals, kinematics, solvers, planners, robotics,
     aerodynamics, quad, host, views, tests. Every machine/ module named in one
     of them; a drive's heat at its four nodes, not three.
+82. Her rhythm at rest holds no row (`law.held_back`): sitting and rising, her
+    centre of mass behind her heels before the seat bore her, a seat asked was
+    held for ever - CI's 3.12 seated her in none of 5 s
+    ([orthokinematics](findings/orthokinematics.md)).
+83. Her slide kept through a pass no sole bears (`machine.estimate`): a swing's
+    scuff no longer reads as a slide of the sole that holds, on the snow 393
+    passes of 11 219 to 21 ([sensing](findings/sensing.md)).

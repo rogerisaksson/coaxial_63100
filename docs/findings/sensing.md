@@ -23,3 +23,10 @@ Her law on what a robot of her build measures (`machine.edge`,
   with the sole 7.9 mm over her floor at most - a landing's friction 544 N -,
   the 35 mm sill's face 14 to 38 mm up: an edge met past 10 mm trips her
   (`touch.EDGE_M`), none on a flat floor in 30 s.
+- Her slide is the draw's sum, kept through a pass no sole bears
+  (`machine.estimate`): dropped there, a swing's toes scuffing the floor at
+  2.6-2.9 m/s under 64-77 N drew her speed to 2.2 m/s where 1.3, its return read
+  a slide of the sole that held, 0.6 m/s - its grip 0.157 - and she fell off the
+  snow at 7.6 s. Kept, a pull and its return cancel: on the snow her holding
+  soles read 0.086 m/s at the 99th percentile where 0.353 at 2e-4 rad, 0.052
+  where 0.164 at 0; asphalt, ice, the slick patch and the plays to the digit.

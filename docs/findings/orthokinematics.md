@@ -326,3 +326,9 @@ sills found by body id, a shove's newtons choosing `parry_shove` or
 `controlled_fall`. Their outcomes stood on those and are void; TODO's Scenarios
 carry what is open. The knee's soft stop is a quadratic barrier from 0.05 rad,
 over 200 N m at its end and no step in its slope.
+
+- `law.held_back` waited two of her rhythm's swings, for ever with her rhythm at
+  rest - every phase of sitting and rising sets its gain to 0: lowering, her
+  centre of mass behind her heels before the seat bore her, `seated` was held
+  and the rise with it (CI, 3.12: none in 5 and 6 s). At rest no swing comes and
+  nothing waits for one.
