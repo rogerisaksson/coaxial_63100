@@ -1,5 +1,4 @@
-"""The quad's course (machine.course, machine.grounds) on ideal rotors: its gates, what stands,
-drawn, its envelopes."""
+"""The quad's course on ideal rotors: its gates, what stands, drawn, its envelopes."""
 import functools
 import math
 import random
@@ -21,10 +20,9 @@ def reach():
 
 @functools.lru_cache(maxsize=None)
 def lapped(share=1.0, spent_at=None, air=False):
-    """The course's card once through, a row a pass (`streams.asked`, `streams.flew`):
-    machine.quad's frame in MuJoCo on the core and its ideal rotors, on `share` of their pull,
-    its passes a page's - 10 to 30 ms, one in twenty 50; `spent` from `spent_at` s on; in
-    still air, or - `air` - the air's tour; among what stands, solid (`grounds.solids`)."""
+    """The course's card once through, a row a pass (`streams.asked`, `streams.flew`): the
+    frame in MuJoCo on the core and ideal rotors, `share` of their pull, passes a page's - 10
+    to 30 ms, one in twenty 50; `spent` from `spent_at` s; `air` the air's tour; what stands."""
     from machine import aerobatics, aerokin, course, grounds, quad
     from tools.sim import streams
     dice = random.Random(1)
@@ -50,32 +48,32 @@ def lapped(share=1.0, spent_at=None, air=False):
 
 
 def passes(rows):
-    """{gate: [(across, up, m/s)]}: where the frame passed each gate's plane on its laps, m off
-    the gate's middle."""
+    """{gate: [(across, up, m/s)]}: each gate's plane flown through on the laps, m off its
+    middle - from outside its frame to beyond it, no stand left or come to."""
     from machine import grounds
     laps = [r for r in rows if r['name'] == 'lap']
     out = {}
-    for g, (gx, gy, gz, heading, _size) in enumerate(grounds.GATES):
+    for g, (gx, gy, gz, heading, size) in enumerate(grounds.GATES):
         nx, nz = math.sin(math.radians(heading)), math.cos(math.radians(heading))
-        out[g] = []
-        for a, b in zip(laps, laps[1:]):
+        out[g], far = [], False
+        for k, (a, b) in enumerate(zip(laps, laps[1:])):
+            far = far or math.hypot(a['x'] - gx, a['z'] - gz) > size / 2.0
             before = (a['x'] - gx) * nx + (a['z'] - gz) * nz
             after = (b['x'] - gx) * nx + (b['z'] - gz) * nz
-            if before < 0.0 <= after and math.hypot(b['x'] - gx, b['z'] - gz) < 6.0 and b['v'] > 1.0:
+            if far and before < 0.0 <= after and math.hypot(b['x'] - gx, b['z'] - gz) < 6.0 and any(
+                    (r['x'] - gx) * nx + (r['z'] - gz) * nz > size / 2.0 for r in laps[k + 1:k + 200]):
                 out[g].append(((b['x'] - gx) * nz - (b['z'] - gz) * nx, b['y'] - gy, b['v']))
     return out
 
 
 def clear(rows):
-    """[(what, m)], the nearest first: how near the frame's middle came to each thing standing
-    (`grounds.clearances`)."""
+    """[(what, m)], the nearest first: the frame's middle to each thing standing."""
     from machine import grounds
     return grounds.clearances([(r['x'], r['y'], r['z']) for r in rows])
 
 
 def worst(gates):
-    """The most any pass came nearer its gate's frame than CLEAR_M from a propeller's tip, m,
-    across or up - less than nothing where every one kept it."""
+    """The most a pass came nearer a gate's frame than CLEAR_M from a tip, m; under none, kept."""
     from machine import grounds
     return max((max(abs(across), abs(up)) - (grounds.GATES[g][4] / 2.0 - reach() - CLEAR_M)
                 for g, hits in gates.items() for across, up, _v in hits), default=math.nan)
@@ -87,9 +85,8 @@ def lap_seconds(rows, lap):
 
 
 def test_its_gates_are_flown(report):
-    """The course from the floor and back: both laps through every gate inside its opening, a
-    propeller's tip clear of its frame; clear of every tree, house, car and mast; raw;
-    landed where it rose."""
+    """Floor to floor: both laps through every gate inside its opening, a tip clear of its
+    frame and of every tree, house, car and mast; raw; landed where it rose."""
     from machine import course, grounds, quad
     rows = lapped()
     gates = passes(rows)

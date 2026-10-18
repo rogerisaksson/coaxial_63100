@@ -146,3 +146,28 @@ they looked ahead with (`quad.Sky.ahead`, a second world).
   under the 60 A flight clamp. `flight.shell` fit evaluates False, holding the frame
   safely cooling on the floor instead of lifting into a dive strike.
 
+## The lift and the burn
+
+The lift (`launch`, any pace) and the stop (`stop`, any pace) on all the
+rotors have, braked from the lead the frame moves while the rotors spool -
+`aerokin.spooled`, to the pull falling, to idle rising - and a pass goes by,
+the brake's fixed 0.55 gone (`vertical_climb_brake`); the page's path, four
+stand-in boards, HASTE 10:
+
+| | Before | After |
+| --- | --- | --- |
+| lift to 1.45 m | 0.82 s at 0.95 m/s, 9 A | 0.96 s, 3.2 m/s, 73 A, 1.50 at most |
+| full tilt, 2 s | 43 m, 24.8 m/s, 680 rad/s | the same |
+| the fall | 10 m/s, the pace's | 13.4 m/s, the drag's |
+| the burn | 44 m/s^2, from 7 m | 83 A, from 3.4 m, 0.10 at the mark |
+| four gusty winds | - | 10-13 m off, 0.10 at the mark, 0 struck |
+
+- On all the room without the lead the quad struck: rotors 86 to 650 rad/s in
+  0.2 s, 2.7 m of a 3.4 m stop, a leg lagging at 85 while the others were
+  at 400, the frame tilted onto a foot at 0.16 m.
+- Full tilt is the link's: 680 rad/s on the sagged bus at 55-57 A, the hold
+  falling 1 A a 40 ms from 90 to 59 in its 2 s - the thermal limit meets the
+  link's at 2.5 s. Over I_MAX 0.3 s.
+- The helicopter's drives at 22-25 A of the 90 held, the worst node 0.51:
+  271 W at the governed top loads a 63 V 100 A stage at a third of its clamp
+  and none of its envelope; the governor, not the sink, is its ceiling.

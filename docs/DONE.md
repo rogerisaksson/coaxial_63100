@@ -213,3 +213,6 @@ the fifty before these: [DONE_1-50](DONE_1-50.md).
 58. A drive identified on its board through the wire: held and swung by the
     board's own loop, its DAQ's currents and A1335 the rows; the leg's four
     on native:// within 11 % of the world's J and 5 % of its gravity.
+59. The lift at any pace and the burn a free fall, braked on all the rotors
+    have from the lead their spool and the pass take; the quad's full tilt at the
+    link's ceiling, its hold trending to it.

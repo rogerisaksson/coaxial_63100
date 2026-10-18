@@ -29,11 +29,13 @@ _ST, _KIN, _ENV_M = quad.STUNTS, quad.KINEMATICS, (FLOOR_M, HOVER_M)
 HOVER = _ST['hover']
 #: Full tilt: a height out of reach, at any pace.
 SKY = _ST['sky']
-#: The stop over the floor, from wherever it is: let fall, burned, held. It falls no faster
-#: than its rotors keep hold of it at, half its weight on them: at any pace they stood at
-#: their idle, a wind took the frame 15 m off its spot, and its burn found it on its side -
-#: on the floor at 11 m/s, seven winds of seven. And on the floor: let fall half a metre
-#: under it, the skids down and the rotors at their idle.
+#: The lift off the floor: the hover come to at any pace, on all the rotors have.
+LAUNCH = _ST['launch']
+#: The stop over the floor, from wherever it is: let fall, burned, held. It falls free, half
+#: its weight on the rotors - 13 m/s, blown 10-13 m off in a gusty wind -, and its burn
+#: begins the rotors' spool before the stop on all they have: at the mark in four winds of
+#: four. And on the floor: let fall half a metre under it, the skids down and the rotors at
+#: their idle.
 STOP = _ST['stop']
 DOWN = _ST['down']
 #: A turn on its spot, as the discs' drag turns it.

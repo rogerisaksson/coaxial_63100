@@ -186,7 +186,7 @@
 (defroutine helicopter_3d
   (stage idle (stunt down) (duration 2.0s) (ramp 0.0s) (gate fit))
   (stage spool (stunt pressed) (duration 2.5s) (ramp 2.5s))
-  (stage lift (stunt hover) (duration 3.0s) (ramp 3.0s))
+  (stage lift (stunt launch) (duration 3.0s) (ramp 0.0s))
   (stage hover (stunt hover) (duration 2.5s) (ramp 0.0s))
   (stage pirouette (stunt pirouette) (duration 2.0s) (ramp 1.0s))
   (stage poise (stunt hover) (duration 1.8s) (ramp 1.5s))

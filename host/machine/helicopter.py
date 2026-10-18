@@ -4,9 +4,7 @@
     out = core.step(law, row, sky.state(), dt, reach)
     sky.step(out.speeds + out.controls, dt, air)
 
-A single-main-rotor 3D helicopter on two 63100 drives (`MAIN` on the mast, `TAIL` on the boom):
-collective pitch pulls either way along the mast, cyclic tilts the hub through zero thrust, and
-the tail rotor counters main-rotor torque and drives pirouettes.
+Two 63100 drives: `MAIN` on the mast, `TAIL` on the boom.
 """
 import importlib
 import math
@@ -353,7 +351,9 @@ class Core:
         c0, s0 = law['heading']
         law['heading'] = _turn_heading((c0, s0), _course_rate((c0, s0), row), dt)
         reach = max(aerokin.LEAST * GRAVITY, pull_max)
-        self.up_pull, law['doing'] = aerokin.climb(row, state['h'], state['v'], reach - GRAVITY)
+        self.up_pull, law['doing'] = aerokin.climb(
+            row, state['h'], state['v'], reach - GRAVITY,
+            aerokin.spooled(self.out.speeds[0], math.sqrt(reach * MASS_KG / K_THRUST), IDLE_RAD_S), dt)
         along = aerokin.lean(law, row, state['at'], state['vel'], dt, min(row['lean'], math.sqrt(max(reach * reach - GRAVITY * GRAVITY, 0.0))))
         law['heading'] = (c0, s0)
         return along

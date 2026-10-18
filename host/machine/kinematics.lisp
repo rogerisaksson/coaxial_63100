@@ -18,7 +18,6 @@
 (defblock vertical vertical_climb_brake
   (climb_speed 4.0m_s)
   (descent_speed 2.0m_s)
-  (brake_gain 0.55)
   (settle_kp 6.4)
   (settle_kd 12.8))
 
@@ -70,7 +69,10 @@
   (base hover) (height 1000.0m) (pace 100.0m_s))
 
 (defstunt stop
-  (base hover) (height 0.1m) (pace 10.0m_s))
+  (base hover) (height 0.1m) (pace 100.0m_s))
+
+(defstunt launch
+  (base hover) (pace 100.0m_s))
 
 (defstunt down
   (base stop) (height -0.5m))
