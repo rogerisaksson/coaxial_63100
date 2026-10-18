@@ -40,7 +40,7 @@ from terminal.views.quad import traces, wind
 from terminal.views.show_quad import (PASS_S, PHYSICS_S, SIDE_PITCH, SWITCH_S, ZOOM, carried,
                                        flown_row, hands, look as quad_look, recorded, size_of, typed, wheeled)
 
-TITLE = 'HELICOPTER'
+TITLE = 'HELICOPTER 3D FLYING'
 ROTORS = flown.ROTORS
 NEAR_M, FAR_M, ZOOM_M, ZOOM_K, CHASE_M = 0.76, 0.80, 0.60, 0.022, 2.2
 YAW, PITCH = 52.0, 18.0

@@ -49,7 +49,7 @@ from terminal.ui.stage import boot, frame_of, hud, stage
 from terminal.views.quad import flight as flown
 from terminal.views.quad import traces, wind
 
-TITLE = 'QUAD'
+TITLE = 'QUAD ACRO FLYING'
 
 #: The rotors, round the frame: front left, front right, rear right, rear left.
 ROTORS = ('FL', 'FR', 'RR', 'RL')

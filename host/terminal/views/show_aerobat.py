@@ -24,7 +24,7 @@ from terminal.views import show_helicopter as base_view
 from terminal.views.aerobat import flight as aero_flown
 from terminal.views.show_quad import look as quad_look
 
-TITLE, ROTORS = 'AEROBAT', aero_flown.ROTORS
+TITLE, ROTORS = 'AIRCRAFT XE AEROBATICS', aero_flown.ROTORS
 NEAR_M, FAR_M, ZOOM_M, ZOOM_K, CHASE_M, YAW, PITCH = 0.85, 0.90, 0.60, 0.022, 2.4, 58.0, 16.0
 CAM_S, CAM_W, CAM_Y = -2.0, 3.2, 0.95
 _RC, _RS = math.cos(aerobat.RUNWAY_RAD), math.sin(aerobat.RUNWAY_RAD)

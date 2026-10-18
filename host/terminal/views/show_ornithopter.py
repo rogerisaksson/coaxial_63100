@@ -24,7 +24,7 @@ from terminal.views import show_helicopter as base_view
 from terminal.views.ornithopter import flight as orni_flown
 from terminal.views.show_quad import look as quad_look
 
-TITLE, ROTORS = 'ORNITHOPTER', orni_flown.ROTORS
+TITLE, ROTORS = 'ORNITHOPTER DUNE FLYING', orni_flown.ROTORS
 NEAR_M, FAR_M, ZOOM_M, ZOOM_K, CHASE_M, YAW, PITCH = 0.76, 0.80, 0.60, 0.022, 2.2, 56.0, 16.0
 
 

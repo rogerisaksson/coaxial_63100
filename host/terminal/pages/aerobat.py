@@ -1,7 +1,7 @@
-"""AEROBAT: two coaxial boards flying a 3D aerobatic monoplane, prop-hang stunts and gates."""
+"""AIRCRAFT XE AEROBATICS: two coaxial boards flying a 3D monoplane, its stunts and gates."""
 from terminal.loader import call, common
 
-HEADLINE, KEY, WHAT = 'AEROBAT', 'P', '3D aerobatic monoplane, prop-hang stunts and gates'
+HEADLINE, KEY, WHAT = 'AIRCRAFT XE AEROBATICS', 'P', '3D aerobatic monoplane, prop-hang stunts and gates'
 ORDER, NAME = 69, 'aerobat'
 
 

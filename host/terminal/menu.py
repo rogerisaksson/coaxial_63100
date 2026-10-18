@@ -142,16 +142,16 @@ def roster(picked):
     """The access list."""
     # Every row is one line, picked or not: a framed highlight changed the
     # list's height and the page jumped on each keypress.
-    lines = [Text('')]
+    lines, wide = [Text('')], max(18, *(len(name) + 1 for _key, name, _what in ENTRIES))
     for i, (key, name, what) in enumerate(ENTRIES):
         kana = '%-12s' % KANA[name][0] if name in KANA else ' ' * 12
         if i == picked:
             row = Text.assemble((' > ', 'value'), (key, 'value'),
-                                ('  ', ''), ('%-18s' % name, 'value'),
+                                ('  ', ''), (name.ljust(wide), 'value'),
                                 (kana, 'name'), ('  ' + what.upper(), 'label'))
         else:
             row = Text.assemble('   ', (key, 'label'), ('  ', ''),
-                                ('%-18s' % name, 'label'), (kana, 'frame.hud'),
+                                (name.ljust(wide), 'label'), (kana, 'frame.hud'),
                                 ('  ' + what.upper(), 'label'))
         # Cropped, never wrapped: on a narrow tty a wrapped row doubled the
         # list's height and the page scrolled.
