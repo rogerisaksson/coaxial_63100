@@ -338,9 +338,6 @@ serves its DOD; none an entry a case.
 - **The budget's throttling flag**: set with the derate at 1.00 and the hold
   at 89.5 of 90 A (the helicopter's main at 16 A). DOD: the flag means a
   derate under 1, held by a test.
-- **The gynoid's face, head and clothes**: the jeans and the T-shirt to fall
-  on the body as cloth does, the head and face drawn to anatomy. DOD: her
-  page's PNG judged, the walk's measures unmoved (test_ortho.py).
 - **The aerobat's flare**: the final arrives hovering over the runway's start
   at 0.6 m and the plane drops onto its wheels, 14 g for a step; a flare on
   the wing from a slow final would touch under 1 m/s. DOD: a final flown

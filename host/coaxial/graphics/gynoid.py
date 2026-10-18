@@ -45,12 +45,9 @@ CHEEK_AT, CHEEK_R = (0.056, -0.072, -0.078), (0.06, 0.056, 0.045)
 def _wear():
     """Tee, sleeves, and jeans shells."""
     tee, denim, z0, b = paint(TEE), paint(DENIM), (0.0, 0.0, 0.0), BAGGY_M - 0.012
-    out = [('cloth_tee', 'torso', z0, loft(
-        [_hung(y, rx + b, front, back + b) for y, rx, front, back in _TANK]
-        + [(0.307, 0.150 + b, 0.082 + b), (0.344, 0.152 + b, 0.074 + b), (0.366, 0.112, 0.064)],
-        tee, poles=(-0.036, 0.378))),
+    out = [('cloth_tee', 'torso', z0, loft(_draped(), tee, poles=(-0.036, 0.378))),
            ('cloth_seat', 'pelvis', z0, loft(
-               [_hung(-0.12, 0.095, 0.05, 0.13), _hung(-0.10, 0.11, 0.06, 0.13)]
+               [_hung(-0.12, 0.095, 0.05, 0.100), _hung(-0.10, 0.11, 0.06, 0.112)]
                + [_hung(*r) for r in _SEAT] + [(0.11, 0.118, 0.084)], denim, poles=(-0.135, 0.118)))]
     for side, x in _SIDES:
         out += [(f'cloth_{side}_bust', 'torso', (BUST_AT[0] * x, BUST_AT[1], BUST_AT[2] + b),
@@ -73,26 +70,47 @@ def _wear():
     return out
 
 
-_TANK = ((-0.03, 0.108, 0.106, 0.081), (0.047, 0.114, 0.112, 0.086), (0.093, 0.124, 0.116, 0.092),
-         (0.149, 0.134, 0.116, 0.093), (0.205, 0.138, 0.116, 0.094), (0.26, 0.142, 0.104, 0.090))
-_SEAT = ((-0.07, 0.148, 0.084, 0.134), (-0.03, 0.18, 0.096, 0.157), (0.02, 0.178, 0.096, 0.159),
+_SEAT = ((-0.07, 0.148, 0.084, 0.126), (-0.03, 0.18, 0.096, 0.157), (0.02, 0.178, 0.096, 0.159),
          (0.07, 0.146, 0.088, 0.116))
+#: The torso's rings, (y, rx, rz): the tee hangs on them.
+_TORSO = ((-0.045, 0.094, 0.066), (0.0, 0.098, 0.069), (0.047, 0.102, 0.072), (0.093, 0.112, 0.079),
+          (0.149, 0.122, 0.082), (0.205, 0.126, 0.083), (0.26, 0.13, 0.078), (0.307, 0.138, 0.07),
+          (0.344, 0.14, 0.062), (0.372, 0.1, 0.055), (0.39, 0.05, 0.045))
+#: The hips under the tee's hem, in the torso's frame: (y, rx, front, back).
+_HIPS = ((-0.036, 0.138, 0.088, 0.112), (0.0, 0.116, 0.078, 0.088))
+EASE_M = 0.012
 
 
 def _hung(y, rx, front, back):
     return (y, rx, (front + back) / 2.0, (front - back) / 2.0)
 
 
+def _draped():
+    """The tee's rings: a tube hung plumb from the chest and the bust, EASE_M off the torso
+    where it is wider below, its hem pushed out by the hips; its collar the torso's own."""
+    bust = BUST_AT[2] + BUST_R[2] + LOOSE_M / 2.0
+    body = [(y, rx, bust if y <= BUST_AT[1] + BUST_R[1] else rz, rz) for y, rx, rz in _TORSO[2:9]]
+    hung, out = (0.0, 0.0, 0.0), []
+    for y, rx, front, back in reversed(body):
+        hung = tuple(max(h, r + EASE_M) for h, r in zip(hung, (rx, front, back)))
+        out.append(_hung(y, *hung))
+    out += [_hung(y, *(max(h, r + EASE_M) for h, r in zip(hung, hip))) for y, *hip in reversed(_HIPS)]
+    return out[::-1] + [(0.366, 0.112, 0.064)]
+
+
 HEAD_Y = 0.095
 HAIR, HAIR_ENDS, LIPS, EYES = (118, 80, 52), (222, 168, 100), (192, 112, 112), (46, 46, 58)
 PART_M, BALAYAGE = 0.004, 1.2
-HAIR_FALL = ((0.10, 0.104, 0.08, -0.053), (0.06, 0.106, 0.079, -0.056),
-             (0.02, 0.111, 0.076, -0.06), (-0.01, 0.108, 0.073, -0.063),
-             (-0.045, 0.114, 0.068, -0.066))
-HAIR_LOCK = ((0.12, 0.022, 0.043, 0.022), (0.09, 0.025, 0.048, 0.027), (0.06, 0.023, 0.049, 0.026),
-             (0.03, 0.027, 0.049, 0.024), (0.0, 0.024, 0.048, 0.02), (-0.02, 0.028, 0.046, 0.016),
-             (-0.045, 0.026, 0.042, 0.012))
-HAIR_LOCK_X = 0.084
+HAIR_FALL = ((0.10, 0.082, 0.040, -0.072), (0.06, 0.084, 0.038, -0.082),
+             (0.02, 0.086, 0.034, -0.088), (-0.01, 0.084, 0.030, -0.090),
+             (-0.045, 0.080, 0.026, -0.092))
+HAIR_LOCK = ((0.12, 0.020, 0.036, 0.016), (0.09, 0.023, 0.040, 0.020), (0.06, 0.022, 0.042, 0.020),
+             (0.03, 0.024, 0.042, 0.018), (0.0, 0.022, 0.040, 0.014), (-0.02, 0.024, 0.038, 0.010),
+             (-0.045, 0.022, 0.034, 0.006))
+HAIR_LOCK_X = 0.076
+#: The skull's radii and its middle; the hair a cap HAIR_M over it from ear level, its front
+#: edge the hairline: at the ears' line below, up the forehead to HAIRLINE of the skull's height.
+SKULL_R, SKULL_Z, HAIR_M, HAIRLINE = (0.07, 0.104, 0.09), 0.012, 0.014, 0.65
 BUST_AT, BUST_R = (0.056, 0.208, 0.062), (0.062, 0.056, 0.052)
 HUNG = (('hair_x', 'x', 1), ('hair_z', 'z', 1))
 
@@ -101,7 +119,7 @@ def _features():
     z0 = (0.0, 0.0, 0.0)
     out = [('nose', 'head', z0, ellipsoid((0.0, HEAD_Y - 0.004, 0.1), (0.011, 0.022, 0.016), SKIN, rows=6)),
            ('lips', 'head', z0, ellipsoid((0.0, HEAD_Y - 0.048, 0.094), (0.02, 0.007, 0.01), paint(LIPS), rows=6)),
-           ('hair', 'head', z0, ellipsoid((-PART_M, HEAD_Y + 0.036, -0.018), (0.094, 0.11, 0.11), paint(HAIR))),
+           ('hair', 'head', z0, _cap()),
            ('hair_fall', 'head', HUNG, HAIR_AT, _hair(HAIR_FALL, 0.0, 0.03))]
     for side, x in _SIDES:
         out += [(f'{side}_lock', 'head', HUNG, HAIR_AT, _hair(HAIR_LOCK, HAIR_LOCK_X * x, 0.01)),
@@ -110,6 +128,21 @@ def _features():
                 (f'{side}_eye', 'head', z0,
                  ellipsoid((0.029 * x, HEAD_Y + 0.016, 0.092), (0.013, 0.006, 0.006), paint(EYES), rows=6))]
     return out
+
+
+def _cap():
+    """The hair over the skull: rings HAIR_M off it from ear level to the crown, each ring's
+    front held back to the hairline, from the ears' line to the forehead."""
+    rx, ry, rz = (r + HAIR_M for r in SKULL_R)
+    rings = []
+    for k in range(9):
+        u = -0.2 + 1.15 * k / 8.0
+        s = math.sqrt(max(0.0, 1.0 - u * u))
+        s_line = math.sqrt(max(0.0, 1.0 - HAIRLINE * HAIRLINE))
+        front = min(SKULL_Z + rz * s, (SKULL_Z + rz * s_line) * min(1.0, (u + 0.2) / (HAIRLINE + 0.2)))
+        back = SKULL_Z - rz * s
+        rings.append((HEAD_Y + u * ry, rx * s, (front - back) / 2.0, (front + back) / 2.0 - PART_M))
+    return loft(rings, paint(HAIR), poles=(rings[0][0] - 0.02, HEAD_Y + ry + 0.004))
 
 
 def _hair(rings, x, crown):
@@ -147,14 +180,11 @@ def _meshes():
     pelvis = loft([(-0.10, 0.06, 0.05), (-0.07, 0.135, 0.097, -0.0215),
                    (-0.03, 0.168, 0.115, -0.0275), (0.02, 0.166, 0.117, -0.0295), (0.07, 0.14, 0.092, -0.012),
                    (0.11, 0.114, 0.074), (0.13, 0.098, 0.068)], PLATE, poles=(-0.115, 0.14))
-    torso = loft([(-0.045, 0.094, 0.066), (0.0, 0.098, 0.069), (0.047, 0.102, 0.072),
-                  (0.093, 0.112, 0.079), (0.149, 0.122, 0.082), (0.205, 0.126, 0.083), (0.26, 0.13, 0.078),
-                  (0.307, 0.138, 0.07), (0.344, 0.14, 0.062), (0.372, 0.1, 0.055),
-                  (0.39, 0.05, 0.045)], _core, poles=(-0.055, 0.40))
+    torso = loft(list(_TORSO), _core, poles=(-0.055, 0.40))
     meshes = {'pelvis': pelvis, 'torso': torso,
               'neck': loft([(0.0, 0.055, 0.052), (0.035, 0.05, 0.048), (0.07, 0.05, 0.048)],
                            SKIN, poles=(-0.01, 0.075)),
-              'head': ellipsoid((0.0, HEAD_Y, 0.012), (0.07, 0.104, 0.09), _face, rows=12)}
+              'head': ellipsoid((0.0, HEAD_Y, SKULL_Z), SKULL_R, _face, rows=12)}
     extra = [('jaw', 'head', z0, ellipsoid((0.0, 0.042, 0.03), (0.047, 0.048, 0.056), SKIN))] + _features()
     for side, x in _SIDES:
         for tag, par, (ax, ay, az), rad, mat in (
