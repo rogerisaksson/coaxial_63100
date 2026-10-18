@@ -14,8 +14,9 @@ stack's place ([wbc](wbc.md)); `tools/sim/wbc.py --wrench` and
   rows of her dynamics. One weighted least squares over the 21, four times:
   each wrench clipped into its sole's bounds (pressing, its friction's
   pyramid, its centre of pressure 3 mm inside its edges), what was clipped
-  pinned for the next; her height's band the same way. The drives' clamps
-  clip the torques after it. No other iteration, no branch on a leg.
+  pinned for the next; her height's band the same way. An ask past the
+  drives' clamps is shrunk as one toward nothing asked, the same rows solved
+  again (`shrunk`, [jerk](jerk.md)). No other iteration, no branch on a leg.
 
 | Measure | The step | The python stack | The loop in C |
 | --- | --- | --- | --- |
@@ -77,12 +78,15 @@ their play; the step in C stands the python step's 8 / 6 / 4 / 2 / 0.
   two bearing points 16 mm apart left it rank 21 of 27, cond 2.9e19, their
   split said by no row, and the step raised. `wbc_wrench.c` has no contacts.
 - Open. 80 N and over: 4, 3 and 1 of 8 where the stack 7, 8 and 6. Her
-  walk's 1 400 J/m: the clamps clip after the solve. The step in C and its
-  tick on the M7. Stops but the knees'.
+  walk's 1 400 J/m. The step in C and its tick on the M7. Stops but the
+  knees'.
+- The second solve, nothing asked (`shrunk`): a pass in python 1.14 -> 1.70
+  ms standing, 1.64 -> 2.53 striding; the C tick 25 -> 35 us a sole swung,
+  26 -> 36 striding, standing the same - the rounds end at their first solve.
 
 ## In C
 
-`wbc/src/wbc_wrench.c` and `wbc_cone.c`, the same rows on her chain in C;
+`wbc/src/wbc_wrench.c`, `wbc_cone.c` and `wbc_shrunk.c`, the same rows on her chain in C;
 `tools.cores.wbc.wrench_step`, `tools/sim/wbc.py --core --wrench`;
 tests/test_wbc_core.py holds it to the step.
 

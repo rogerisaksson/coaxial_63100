@@ -10,6 +10,10 @@ int wbc_cholesky(int n, int ld, double *a);
 /** x = (L L^T)^-1 b. */
 void wbc_chol_solve(int n, int ld, const double *l, const double *b, double *x);
 
+/** a's inverse by Gauss and Jordan, the largest pivot a column, into inv, a spent; 0 where it
+    has none. */
+int wbc_invert6(double a[6][6], double inv[6][6]);
+
 /** The quaternion (w, x, y, z) of a frame's rotation, R by rows. */
 void wbc_quat_of(const double r[9], double q[4]);
 

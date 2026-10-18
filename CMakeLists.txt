@@ -76,6 +76,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     wbc/src/wbc_solve.c
     wbc/src/wbc_wrench.c
     wbc/src/wbc_cone.c
+    wbc/src/wbc_shrunk.c
     wbc/src/wbc_model.c
     # Aero: a frame's core, flown from a compiled intent.
     aero/src/aero.c
@@ -148,7 +149,7 @@ set(COAXIAL_SOURCES
     drive/src/drive_observer.c drive/src/drive_thermal.c
     filter/src/filter.c ctrl/src/ctrl.c ctrl/src/ctrl_loop.c
     wbc/src/wbc_body.c wbc/src/wbc_stack.c wbc/src/wbc_solve.c wbc/src/wbc_wrench.c
-    wbc/src/wbc_cone.c wbc/src/wbc_model.c
+    wbc/src/wbc_cone.c wbc/src/wbc_shrunk.c wbc/src/wbc_model.c
     aero/src/aero.c aero/src/aero_turn.c aero/src/aero_share.c
     board/src/board_adc.c board/src/board_clock.c board/src/board_selftest.c
     board/src/board_io.c board/src/board_imu.c board/src/board_angle.c
@@ -189,7 +190,7 @@ set_source_files_properties(
     drive/src/drive_observer.c drive/src/drive_thermal.c
     filter/src/filter.c
     wbc/src/wbc_body.c wbc/src/wbc_stack.c wbc/src/wbc_solve.c wbc/src/wbc_wrench.c
-    wbc/src/wbc_cone.c wbc/src/wbc_model.c
+    wbc/src/wbc_cone.c wbc/src/wbc_shrunk.c wbc/src/wbc_model.c
     comms/src/cmd_aero.c
     comms/src/wire.c comms/src/cmd.c comms/src/cmd_board.c
     comms/src/cmd_test.c comms/src/cmd_imu.c comms/src/cmd_cal.c
@@ -212,7 +213,7 @@ set_source_files_properties(
     # ctrl.c ticks inside the drive's sample.
     ctrl/src/ctrl.c ctrl/src/ctrl_loop.c
     wbc/src/wbc_body.c wbc/src/wbc_stack.c wbc/src/wbc_solve.c wbc/src/wbc_wrench.c
-    wbc/src/wbc_cone.c
+    wbc/src/wbc_cone.c wbc/src/wbc_shrunk.c
     PROPERTIES COMPILE_OPTIONS "-O2;-fno-math-errno;-Wextra;-Wshadow;-Wconversion")
 # The frame's core as its host twin computes it, to the bit: no multiply fused into an add.
 set_source_files_properties(

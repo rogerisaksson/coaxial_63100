@@ -238,6 +238,7 @@ typedef struct
   double p0[6];
   double h[WBC_U][WBC_U];         /**< the rows' normal equations, and a round's, factored */
   double g[WBC_U];
+  double gn[WBC_U];               /**< the rows' right-hand side with nothing asked: every acceleration 0, her weight borne */
   double k[WBC_U][WBC_U];
   double gk[WBC_U];
   double mt[WBC_N][6];            /**< striding: M t and M e, t^T M e, (t^T M t) p + t^T M e */
@@ -272,5 +273,16 @@ void wbc_cone_bounded(const wbc_body_t *b, const wbc_wrench_t *w, const wbc_ask_
 int wbc_cone_taken(const wbc_body_t *b, wbc_wrench_t *w, const wbc_ask_t *ask, const double stance[2],
                    double lo, double hi, const double mbt[6][6], const double own[WBC_U],
                    const double u0[WBC_U], double at[WBC_U]);
+
+/** What the step hands out (wbc_shrunk.c): every acceleration at the unknowns x - the pelvis's
+    six by p, then udot = t base + e x + t0 -; the drives' torques at x and the udot they give;
+    how far from tau0, the torques with nothing asked, toward tau, the ask's, every drive stays
+    within its limit - the largest s in [0, 1] with every |tau0 + s (tau - tau0)| <= limit, 0
+    where none is. */
+void wbc_wrench_motion(const wbc_wrench_t *w, const double x[WBC_U], double udot[WBC_N]);
+void wbc_wrench_torques(const wbc_body_t *b, const wbc_wrench_t *w, const double stance[2],
+                        const double x[WBC_U], const double udot[WBC_N], double tau[WBC_DRIVEN]);
+double wbc_shrunk(const double tau[WBC_DRIVEN], const double tau0[WBC_DRIVEN],
+                  const double limit[WBC_DRIVEN]);
 
 #endif
