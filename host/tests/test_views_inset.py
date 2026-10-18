@@ -160,12 +160,11 @@ def test_aerobatics_side_perspective_keeps_the_horizon(report):
     from terminal.views.helicopter import flight as heli_flown
     from terminal.views.ornithopter import flight as orni_flown
     from terminal.views.quad import flight as quad_flown
-    report.check('three aircraft run their own warm-ups before sharing course.CARD; the aerobat '
-                 'its routine alone, the gates a drone\'s (docs/TODO.md)',
+    report.check('all four aircraft run their own warm-ups before sharing course.CARD',
                  quad_flown.CARD == aerobatics.CARD + course.CARD
                  and heli_flown.CARD == helicopter.CARD + course.CARD
                  and orni_flown.CARD == ornithopter.CARD + course.CARD
-                 and aero_flown.CARD == aerobat.CARD)
+                 and aero_flown.CARD == aerobat.CARD + course.CARD)
     law = aerokin.fresh()
     base = {'at': (0.0, 0.0, 0.0), 'vel': (0.0, 0.0, 0.0), 'v': 0.0}
     for mod, sight in ((show_quad, quadcopter.SIGHT), (show_helicopter, heli_gfx.SIGHT),

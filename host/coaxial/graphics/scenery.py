@@ -28,7 +28,7 @@ POLE_AT, POLE_TOP_M, TICK_M, TENTH_M = (-2.5, -2.5), 60, 0.06, 0.16
 #: point, and is not drawn smaller: a band of every far thing's dots along the horizon.
 INKS = {'pole': (40, 130, 140), 'tree': (70, 170, 90), 'house': (150, 165, 200),
         'car': (200, 90, 110), 'mast': (150, 150, 150), 'gate': (235, 110, 40),
-        'next': (255, 235, 90), 'line': (80, 200, 235)}
+        'next': (255, 235, 90), 'line': (80, 200, 235), 'runway': (215, 220, 230)}
 
 #: The line the course asks, drawn a dash of LINE_DASH samples every other.
 LINE_DASH = 2
@@ -115,6 +115,13 @@ def _box(x, z, wide, deep, low, high, heading=0.0):
     return _loop(down) + _loop(up) + list(zip(down, up))
 
 
+def _rwy(along, across):
+    """A point `(along, across)` m on the aerobat's runway (`aerobat.RUNWAY_RAD`), in world `(x, y, z)`."""
+    from machine import aerobat
+    rc, rs = math.cos(aerobat.RUNWAY_RAD), math.sin(aerobat.RUNWAY_RAD)
+    return (along * rs + across * rc, 0.01, along * rc - across * rs)
+
+
 @functools.lru_cache(maxsize=None)
 def standing():
     """(ends, inks): every edge of what stands whatever is flown - the pole, the trees, the
@@ -146,7 +153,20 @@ def standing():
         edges['mast'] += _box(x, z, side, side, 0.0, high)
         for k in range(1, int(high / 3.5) + 1):
             edges['mast'] += _box(x, z, side, side, 3.5 * k, 3.5 * k)[:4]
+    edges['runway'] += ([(_rwy(-20.5, -1.35), _rwy(-20.5, 1.35))]
+                        + [(_rwy(-20.0, w), _rwy(-18.4, w)) for w in (-0.9, -0.45, 0.45, 0.9)])
     return _laid(edges)
+
+
+@functools.lru_cache(maxsize=None)
+def runway():
+    """(ends, inks) of the runway strip beyond the standing threshold (`aerobat.RUNWAY_RAD`): side
+    boundaries, far threshold, piano keys, and dashed centerline."""
+    return _laid({'runway': (
+        [(_rwy(-20.5, -1.35), _rwy(16.0, -1.35)), (_rwy(16.0, -1.35), _rwy(16.0, 1.35)),
+         (_rwy(16.0, 1.35), _rwy(-20.5, 1.35))]
+        + [(_rwy(14.0, w), _rwy(15.6, w)) for w in (-0.9, -0.45, 0.45, 0.9)]
+        + [(_rwy(-17.0 + 3.2 * k, 0.0), _rwy(-15.2 + 3.2 * k, 0.0)) for k in range(10)])})
 
 
 @functools.lru_cache(maxsize=None)
@@ -182,11 +202,14 @@ def asked():
 
 
 def edges(gate=None, line_=False):
-    """(ends, inks) of every edge that stands - with the course's gates where `gate` is the one
-    flown to next, and the line it asks with `line_`."""
+    """(ends, inks) of every edge that stands - with the runway strip off the gate course, the
+    course's gates where `gate` is the one flown to next, and the line it asks with `line_`."""
     from coaxial.model.blocks import numpy as np
     ends, inks = standing()
-    if gate is not None:
+    if gate is None:
+        more, theirs = runway()
+        ends, inks = np.vstack([ends, more]), np.concatenate([inks, theirs])
+    else:
         more, theirs = gates(gate)
         ends, inks = np.vstack([ends, more]), np.concatenate([inks, theirs])
     if line_:
