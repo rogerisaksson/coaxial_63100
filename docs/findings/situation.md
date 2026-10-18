@@ -24,5 +24,8 @@ tests/test_situation.py holds it.
   bearing 160 N (1.71 s; its slide read at 2.30); the ramp uphill 0.16 s after
   a sole lands on it (2.23 s); the chair seated 1 ms after its seat bears half
   her weight (1.82 s); the wall held 2 ms after 22 N on it (2.21 s).
-- Her flat walk the same to the digit: 51 s, 0.70 m/s, 408 J/m, 2.55 off the
+- Told at the slide, the unaware ice's caps hold her 0.65 s sooner: in the
+  scene's 6 s of walking she goes 1.88 m where 2.17, standing, at 13 of 13
+  lays; its goal 2.0 -> 1.8 m. The other 21 held scenes, the 12 replays and
+  her flat walk the same to the digit: 51 s, 0.70 m/s, 408 J/m, 2.55 off the
   band.

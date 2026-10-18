@@ -47,7 +47,7 @@ SCENARIOS = {
     'rug': ('rug', *_walk(5.0), 'past', 1.5),
     'hole': ('hole', *_walk(5.0), 'past', 1.3),
     'slip': ('slip', *_walk(5.0), 'past', 1.2),
-    'ice': ('ice', *_walk(6.0), 'past', 2.0),
+    'ice': ('ice', *_walk(6.0), 'past', 1.8),
     'ice_told': ('ice', [(0.5, {'grip': 0.1})] + _walk(13.0)[0], _walk(13.0)[1], 'past', 2.8),
     'snow': ('snow', *_walk(6.0), 'past', 2.0),
     'asphalt': ('asphalt', *_walk(6.0), 'past', 2.0),
