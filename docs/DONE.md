@@ -205,3 +205,5 @@ the fifty before these: [DONE_1-50](DONE_1-50.md).
     chair and a wall entered unannounced told within a second at every lay.
 55. The wing stalls; the aerobat's circuit a rectangle at 9 m aimed at its
     runway, its figures at 14 m ([aircraft](findings/aircraft.md)).
+56. The four drawn as the real things: an Edge 540, a tactical quad, a Goblin
+    Raw, Dune's ornithopter ([aircraft](findings/aircraft.md)).

@@ -342,12 +342,6 @@ serves its DOD; none an entry a case.
 - **The gynoid's face, head and clothes**: the jeans and the T-shirt to fall
   on the body as cloth does, the head and face drawn to anatomy. DOD: her
   page's PNG judged, the walk's measures unmoved (test_ortho.py).
-- **The four drawn as the real things**: an Edge 540's lines for the
-  aerobat, a tactical quad's body and sensor pod, Dune's ornithopter, a
-  Goblin Raw's open frame for the helicopter. DOD: each page's PNG judged.
-- **The four crafts drawn as the real things**: a racing quad's frame, a
-  500's pod and head, a 'thopter's body and wings, an Extra's lines. DOD: each
-  page's PNG judged, the parts told apart at the page's distance.
 - **The aerobat's flare**: the final arrives hovering over the runway's start
   at 0.6 m and the plane drops onto its wheels, 14 g for a step; a flare on
   the wing from a slow final would touch under 1 m/s. DOD: a final flown

@@ -31,6 +31,8 @@ LEG_R, BLADE_W, HUB_R = 0.008, 0.022, 0.014
 #: Their colours: carbon, the boards' solder mask, the propellers, a painted skin - carbon's
 #: dark halftone left a body a cloud of dots.
 CARBON, MASK, PROP, SKIN = (70, 74, 84), (30, 110, 64), (205, 205, 200), (188, 194, 204)
+#: A tactical drone's olive and its dark fittings; a racer's red.
+OLIVE, DARK, ACCENT = (138, 142, 112), (92, 96, 94), (214, 62, 50)
 
 #: The speed below which a propeller shows its blades, rad/s; the swept disc's rim, a dot
 #: every RIM_EVERY of its line, and the inks.
@@ -52,33 +54,38 @@ def _at(mesh, turn=None, spot=(0.0, 0.0, 0.0)):
 
 
 def _arm(x, z, material):
-    """An arm's tube from the plate's rim out to the can at (x, z)."""
+    """An arm's square boom from the body's corner out to the can at (x, z)."""
     out = math.hypot(x, z)
     length = out - PLATE_R * 0.8 - CAN_R
     mid = PLATE_R * 0.8 + length / 2.0
     turn = shapes.turn_about('y', -math.degrees(math.atan2(z, x)))
-    return _at(shapes.drum(ARM_R, length, 'x', material), turn,
+    return _at(shapes.box((0.0, 0.0, 0.0), (length / 2.0, 0.011, 0.016), material), turn,
                (mid * x / out, 0.0, mid * z / out))
 
 
 def parts():
-    """[(name, mesh)]: the frame in its own axes, x right, y up, z ahead - the rotors at
-    `quad.ROTOR_AT`, the skids' feet where `quad.mjcf` stands them."""
-    carbon, skin = paint(CARBON), paint(SKIN)
-    out = [('plate', shapes.drum(PLATE_R, PLATE_H, 'y', PLATE)),
-           ('dome', shapes.ellipsoid((0.0, PLATE_H / 2.0, 0.0), (0.055, 0.03, 0.075), CORE))]
+    """[(name, mesh)]: the frame in its own axes, x right, y up, z ahead - a tactical quad's:
+    an olive body on four square arms, a sensor ball under its nose, an aerial aft; the rotors
+    at `quad.ROTOR_AT`, the skids' feet where `quad.mjcf` stands them."""
+    olive, dark = paint(OLIVE), paint(DARK)
+    out = [('plate', shapes.box((0.0, 0.0, 0.0), (0.085, 0.028, 0.15), olive)),
+           ('dome', shapes.box((0.0, 0.046, -0.02), (0.055, 0.02, 0.09), dark)),
+           ('nose', shapes.box((0.0, -0.005, 0.16), (0.05, 0.02, 0.03), olive)),
+           ('ball', shapes.ellipsoid((0.0, -0.052, 0.13), (0.03, 0.03, 0.03), PLATE, rows=7)),
+           ('lens', shapes.ellipsoid((0.0, -0.052, 0.158), (0.012, 0.012, 0.006), CORE, rows=5)),
+           ('aerial', _at(shapes.drum(0.004, 0.11, 'y', dark), None, (0.05, 0.11, -0.12)))]
     for k, (x, z) in enumerate(quad.ROTOR_AT):
         top = quad.DISC_M
-        out += [('arm%d' % k, _arm(x, z, skin)),
+        out += [('arm%d' % k, _arm(x, z, olive)),
                 ('can%d' % k, _at(shapes.drum(CAN_R, CAN_L, 'y', PLATE), None,
                                   (x, top - CAN_L / 2.0, z))),
                 ('board%d' % k, _at(shapes.drum(BOARD_R, BOARD_H, 'y', paint(MASK)), None,
                                     (x, top - CAN_L - BOARD_H / 2.0, z))),
-                ('sink%d' % k, _at(shapes.drum(SINK_R, SINK_H, 'y', carbon), None,
+                ('sink%d' % k, _at(shapes.drum(SINK_R, SINK_H, 'y', dark), None,
                                    (x, top - CAN_L - BOARD_H - SINK_H / 2.0, z))),
                 ('hub%d' % k, shapes.ellipsoid((x, top + 0.004, z), (HUB_R, 0.01, HUB_R),
                                                PLATE, rows=6)),
-                ('leg%d' % k, _at(shapes.drum(LEG_R, quad.SKID_M, 'y', carbon), None,
+                ('leg%d' % k, _at(shapes.drum(LEG_R, quad.SKID_M, 'y', dark), None,
                                   (0.7 * x, -quad.SKID_M / 2.0, 0.7 * z))),
                 ('foot%d' % k, shapes.ellipsoid((0.7 * x, -quad.SKID_M, 0.7 * z),
                                                 (quad.FOOT_M,) * 3, PLATE, rows=6))]

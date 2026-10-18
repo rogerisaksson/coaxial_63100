@@ -57,6 +57,20 @@ burn, land).
   24 s whole. The head idles up (the stunt boost) where the plan leans past
   half of gravity, as in the figures.
 
+## Drawn
+
+Four meshes of lofts, drums, ellipsoids and boxes (`shapes.box`, flat-faced),
+each judged by PNG at 100 x 36 cells alone and on its page: the aerobat an
+Edge 540's - a deep fuselage, a bubble canopy, a square mid wing with red
+tips, a tall swept red fin, wheel pants; the quad a tactical drone's - an
+olive slab on square arms, a sensor ball under its nose, an aerial; the
+helicopter a Goblin Raw's - two side plates, the can and the head on top, a
+battery tray and a red nose block, a long boom to a tall red fin and a
+stabiliser, skids on two rails; the ornithopter Dune's - a long tapering
+body, two bulging eyes of a cockpit, four thin wings, insect legs. Skin,
+plate and accent paints: carbon's halftone leaves a cloud of dots, so the
+bodies are light and the fittings dark.
+
 ## Aerobat
 
 `machine.aerobat`, `machine.wingborne`: a 1.30 m, 2 kg 3D monoplane (wing

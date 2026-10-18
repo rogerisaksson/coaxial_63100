@@ -13,11 +13,11 @@ import math
 
 from coaxial.graphics import engine, scenery, shapes
 from coaxial.graphics.callouts import line
-from coaxial.graphics.lit import CORE, PLATE, braille, paint, project, splat
+from coaxial.graphics.lit import PLATE, braille, paint, project, splat
 from coaxial.graphics.quadcopter import (ARROW_HEAD, ARROW_INK, ARROW_M_PER_N, BLADE_W,
                                          BLADES_RAD_S, BOARD_H, BOARD_R, CAN_L, CAN_R, CARBON,
                                          LEG_R, MASK, PROP, RIM_EVERY, RIM_INK, SINK_H, SINK_R,
-                                         SKIN, Mesh, _at, _painted)
+                                         SKIN, ACCENT, Mesh, _at, _painted)
 from machine import helicopter as heli_phys
 
 #: The camera: the eye's distance in reaches framed, and the reach the helicopter fills, m -
@@ -37,60 +37,36 @@ NEG_ARROW_INK = (96, 224, 255)
 _HELI_MESH = {}
 
 
-def _canopy():
-    """The streamlined carbon nose pod along +z ahead of the exposed 63100 main motor can."""
-    stations = [
-        (-0.09, -0.040, 0.070, 0.050), (-0.02, -0.056, 0.090, 0.066),
-        (0.06, -0.062, 0.100, 0.072), (0.14, -0.058, 0.092, 0.066),
-        (0.22, -0.046, 0.070, 0.052), (0.29, -0.028, 0.040, 0.034),
-        (0.34, -0.012, 0.014, 0.014),
-    ]
-    rings = [(z, rx, 0.5 * (yt - yb), -0.5 * (yt + yb), 0.0) for z, yb, yt, rx in stations]
-    return shapes.loft(rings, paint(SKIN), poles=(-0.10, 0.35), along='z')
-
-
 def _boom():
-    """The slender carbon tail boom tube from the main mast frame (-0.05 m) to the tail gearbox
-    (-TAIL_M)."""
-    rings = [(-TAIL_M + (i / 10.0) * (-0.08 + TAIL_M),
-              0.014 + (i / 10.0) * 0.012, 0.014 + (i / 10.0) * 0.012,
-              -0.010, 0.0) for i in range(11)]
+    """The carbon tail boom from the frame's back (-0.08 m) to the tail gearbox (-TAIL_M)."""
+    rings = [(-TAIL_M + (i / 10.0) * (-0.08 + TAIL_M), 0.013 + (i / 10.0) * 0.004,
+              0.013 + (i / 10.0) * 0.004, 0.0, 0.0) for i in range(11)]
     return shapes.loft(rings, paint(CARBON), poles=(-TAIL_M - 0.008, -0.075), along='z')
-
-
-def _vfin():
-    """The slender swept carbon vertical tail fin at `-TAIL_M`."""
-    rings = [(-0.048, 0.005, 0.016, -TAIL_M - 0.018), (-0.012, 0.006, 0.024, -TAIL_M - 0.006),
-             (0.022, 0.006, 0.028, -TAIL_M + 0.002), (0.075, 0.006, 0.022, -TAIL_M - 0.010),
-             (0.130, 0.005, 0.014, -TAIL_M - 0.028)]
-    body = shapes.loft(rings, paint(SKIN), poles=(-0.052, 0.135), along='y')
-    body[0][:, 0] -= 0.010
-    return body
 
 
 def heli_parts():
     """[(name, mesh)]: the helicopter in its own axes, x right, y up, z ahead."""
-    carbon, skin = paint(CARBON), paint(SKIN)
+    carbon, skin, accent = paint(CARBON), paint(SKIN), paint(ACCENT)
     can_h = CAN_L * 0.85
     out = [
-        ('canopy', _canopy()),
-        ('visor', shapes.ellipsoid((0.0, 0.060, 0.170), (0.056, 0.030, 0.110), CORE, rows=7)),
-        ('hstab', shapes.ellipsoid((0.0, 0.010, -0.50), (0.14, 0.004, 0.035), skin, rows=6)),
-        ('hfins', shapes.ellipsoid((0.0, 0.010, -0.50), (0.004, 0.040, 0.030), skin, rows=6)),
+        ('frame0', shapes.box((-0.032, 0.03, 0.03), (0.004, 0.075, 0.16), skin)),
+        ('frame1', shapes.box((0.032, 0.03, 0.03), (0.004, 0.075, 0.16), skin)),
+        ('tray', shapes.box((0.0, -0.025, 0.11), (0.034, 0.018, 0.09), PLATE)),
+        ('nose', shapes.box((0.0, 0.04, 0.215), (0.028, 0.045, 0.03), accent)),
         ('mast', _at(shapes.drum(0.010, DISC_M - 0.02, 'y', PLATE), None,
                      (0.0, 0.5 * (DISC_M + 0.02), -0.015))),
-        ('swash', _at(shapes.drum(0.034, 0.010, 'y', PLATE), None,
-                      (0.0, SWASH_M, -0.015))),
-        ('hub0', shapes.ellipsoid((0.0, DISC_M + 0.004, -0.015), (0.022, 0.010, 0.022), PLATE,
+        ('swash', _at(shapes.drum(0.034, 0.010, 'y', PLATE), None, (0.0, SWASH_M, -0.015))),
+        ('hub0', shapes.ellipsoid((0.0, DISC_M + 0.004, -0.015), (0.03, 0.012, 0.03), PLATE,
                                   rows=6)),
         ('can0', _at(shapes.drum(CAN_R, can_h, 'y', PLATE), None,
-                     (0.0, 0.020 - can_h / 2.0, -0.015))),
+                     (0.0, 0.055 + can_h / 2.0, -0.015))),
         ('board0', _at(shapes.drum(BOARD_R, BOARD_H, 'y', paint(MASK)), None,
-                       (0.0, 0.020 - can_h - BOARD_H / 2.0, -0.015))),
+                       (0.0, 0.055 - BOARD_H / 2.0, -0.015))),
         ('sink0', _at(shapes.drum(SINK_R, SINK_H, 'y', carbon), None,
-                      (0.0, 0.020 - can_h - BOARD_H - SINK_H / 2.0, -0.015))),
+                      (0.0, 0.055 - BOARD_H - SINK_H / 2.0, -0.015))),
         ('boom', _boom()),
-        ('vfin', _vfin()),
+        ('vfin', shapes.box((0.0, 0.0, -TAIL_M + 0.01), (0.005, 0.11, 0.045), accent)),
+        ('hstab', shapes.box((0.0, 0.03, -0.46), (0.13, 0.004, 0.035), skin)),
         ('can1', _at(shapes.drum(0.022, 0.038, 'x', PLATE), None,
                      (0.012, TAIL_AT[1], TAIL_AT[2]))),
         ('board1', _at(shapes.drum(0.024, 0.006, 'x', paint(MASK)), None,
@@ -101,15 +77,13 @@ def heli_parts():
     ]
     for s in (-1.0, 1.0):
         out.append(('skid%d' % (s > 0),
-                    _at(shapes.drum(1.4 * LEG_R, 0.46, 'z', carbon), None,
+                    _at(shapes.drum(1.4 * LEG_R, 0.46, 'z', skin), None,
                         (s * SKID_X, -SKID_M, 0.03))))
         for k, z in enumerate(STRUT_Z):
             out.append(('strut%d_%d' % (s > 0, k),
                         _at(shapes.drum(LEG_R, SKID_M - 0.025, 'y', carbon),
                             shapes.turn_about('z', s * 18.0),
                             (s * 0.78 * SKID_X, -0.5 * (SKID_M + 0.025), z))))
-            out.append(('foot%d_%d' % (s > 0, k),
-                        shapes.ellipsoid((s * SKID_X, -SKID_M, z), (FOOT_M,) * 3, PLATE, rows=6)))
     return out
 
 

@@ -36,24 +36,17 @@ _ORNI_MESH = {}
 
 
 def _carapace():
-    """The streamlined carbon thoracic carapace along +z above the twin 63100 drives."""
+    """The dragonfly's body along +z: a thorax under the shoulders, a tapering abdomen aft, a
+    head ahead."""
     stations = [
-        (-0.12, 0.008, 0.044, 0.032), (-0.06, 0.004, 0.056, 0.052),
-        (0.02, -0.006, 0.060, 0.058), (0.10, -0.010, 0.054, 0.054),
-        (0.18, -0.012, 0.042, 0.042), (0.25, -0.010, 0.024, 0.026),
-        (0.31, -0.008, 0.004, 0.008),
+        (-0.68, 0.000, 0.016, 0.010), (-0.55, -0.004, 0.024, 0.016),
+        (-0.40, -0.010, 0.038, 0.026), (-0.24, -0.016, 0.054, 0.040),
+        (-0.08, -0.020, 0.064, 0.052), (0.06, -0.018, 0.064, 0.056),
+        (0.18, -0.012, 0.056, 0.050), (0.28, -0.006, 0.044, 0.044),
+        (0.36, 0.000, 0.028, 0.030), (0.41, 0.004, 0.010, 0.012),
     ]
     rings = [(z, rx, 0.5 * (yt - yb), -0.5 * (yt + yb), 0.0) for z, yb, yt, rx in stations]
-    return shapes.loft(rings, paint(SKIN), poles=(-0.13, 0.32), along='z')
-
-
-def _boom():
-    """The slender carbon dragonfly tail boom from the thoracic carapace (-0.12 m) to the V-tail
-    (-0.62 m)."""
-    rings = [(-0.62 + (i / 10.0) * 0.50,
-              0.009 + (i / 10.0) * 0.007, 0.009 + (i / 10.0) * 0.007,
-              -0.018, 0.0) for i in range(11)]
-    return shapes.loft(rings, paint(CARBON), poles=(-0.63, -0.11), along='z')
+    return shapes.loft(rings, paint(SKIN), poles=(-0.69, 0.42), along='z')
 
 
 def _orni_parts():
@@ -62,8 +55,8 @@ def _orni_parts():
     can_h = CAN_L * 0.72
     out = [
         ('carapace', _carapace()),
-        ('visor', shapes.ellipsoid((0.0, 0.036, 0.155), (0.040, 0.020, 0.072), CORE, rows=7)),
-        ('boom', _boom()),
+        ('eye0', shapes.ellipsoid((-0.034, 0.032, 0.30), (0.030, 0.026, 0.040), CORE, rows=7)),
+        ('eye1', shapes.ellipsoid((0.034, 0.032, 0.30), (0.030, 0.026, 0.040), CORE, rows=7)),
         ('can0', _at(shapes.drum(CAN_R, can_h, 'y', PLATE), None,
                      (0.0, 0.004 - can_h / 2.0, FORE_Z))),
         ('board0', _at(shapes.drum(BOARD_R, BOARD_H, 'y', paint(MASK)), None,
@@ -85,16 +78,13 @@ def _orni_parts():
                     shapes.ellipsoid((s * SHOULDER_X, SHOULDER_Y + 0.004, AFT_Z),
                                      (0.015, 0.011, 0.015), PLATE, rows=6)))
         out.append(('vtail%d' % (s > 0),
-                    _at(shapes.ellipsoid((0.0, 0.0, 0.0), (0.088, 0.005, 0.022), paint(SKIN), rows=6),
+                    _at(shapes.ellipsoid((0.0, 0.0, 0.0), (0.07, 0.004, 0.02), paint(SKIN), rows=6),
                         shapes.turn_about('z', s * 34.0) @ shapes.turn_about('y', -s * 16.0),
-                        (s * 0.068, 0.052, -0.58))))
-        out.append(('claw_rail%d' % (s > 0),
-                    _at(shapes.drum(LEG_R, 0.30, 'z', carbon), None,
-                        (s * SKID_X, -SKID_M, 0.025))))
+                        (s * 0.055, 0.04, -0.62))))
         for k, z in enumerate(STRUT_Z):
             out.append(('leg%d_%d' % (s > 0, k),
                         _at(shapes.drum(LEG_R, SKID_M - 0.032, 'y', carbon),
-                            shapes.turn_about('z', s * 20.0),
+                            shapes.turn_about('z', s * 28.0) @ shapes.turn_about('x', (k - 0.5) * 30.0),
                             (s * 0.78 * SKID_X, -0.5 * (SKID_M + 0.032), z))))
             out.append(('claw%d_%d' % (s > 0, k),
                         shapes.ellipsoid((s * SKID_X, -SKID_M, z), (FOOT_M,) * 3, PLATE, rows=6)))

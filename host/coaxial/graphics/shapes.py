@@ -75,6 +75,25 @@ def ellipsoid(centre, radii, material, rows=10):
     return body
 
 
+def box(centre, half, material):
+    """A box about `centre`, `half` sizes each way, its faces flat: four corners a face."""
+    from coaxial.model.blocks import numpy as np
+    cx, cy, cz = centre
+    hx, hy, hz = half
+    faces = []
+    for axis, sign in ((0, -1.0), (0, 1.0), (1, -1.0), (1, 1.0), (2, -1.0), (2, 1.0)):
+        u, v = [k for k in range(3) if k != axis]
+        for su, sv in ((-1.0, -1.0), (1.0, -1.0), (1.0, 1.0), (-1.0, 1.0)):
+            p = [0.0, 0.0, 0.0]
+            p[axis], p[u], p[v] = sign, su, sv
+            faces.append(p)
+    corners = np.array(faces) * np.array([hx, hy, hz]) + np.array([cx, cy, cz])
+    quads = np.arange(6)[:, None, None] * 4 + np.array([[0, 1, 2], [0, 2, 3]])[None]
+    triangles = quads.reshape(-1, 3)
+    uv = np.zeros((len(corners), 2))
+    return corners, triangles, uv, np.full(len(corners), material)
+
+
 def drum(radius, length, axis, material):
     """A drum `radius` round and `length` long on its part's `axis` ('x', 'y' or 'z') through
     the origin, its rims chamfered."""
