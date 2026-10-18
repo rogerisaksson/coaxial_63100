@@ -91,17 +91,35 @@ wheels (0.25 m legs, the prop clear when level, the nose 12 deg up at rest).
   the nose goes on the air and over it by the angle the wing needs for what is
   asked across the path, solved across the stall blend up to 15 deg, its back
   rolled to that; no thrust pulled back nose first (it coasts to its apex).
-- The opening, on the law: the run climbed out on the wing, a pull-up to 14 m,
-  a hammerhead, a drop to the runway, a knife-edge pass down it at 4 m/s,
-  span along it, asked at 0.37 m, the fin at the asphalt (`knife_pass`), a
-  brake, a turn, the pass back. The fin under 0.05 m for 68 % of the pass
-  and 84 % of the pass back, touching 2 % and 1 %, the elevator's tips 8 and
-  2 times; on the page 70 % and 54 % in its wind (the broadside wing takes
-  6.5 N at 4 m/s), 69 % and 79 % calm; nothing struck. Near the floor the
-  law throttles out as the surfaces pass half their reach
-  (`aerokin.throttle_out`). The wing's share cut by the asked slide flew
-  the passes no better (66 % and 84 %) and put the course into gate 6: the
-  course's slide is a turn's lag, not air along the span.
+- The opening: the run climbs out on the wing; a teardrop at 2 m (45 deg out
+  at 35 deg/s, a leg of two turn radii, 225 deg back) lays it on the
+  runway's line the other way, under 1 m off; a line-up at 0.5 m, a roll
+  onto its side (`knife-in`), the knife-edge back down the runway
+  (`knife_pass`), a pull-out on the wing, the prop-hang. Over the runway the
+  belly is level within 0.01, the nose 38 deg over the path at 11.9 m/s, the
+  tail's lowest point 0.029 m median and under 0.05 m for 90 % of the pass,
+  none touching, a wing tip 0.072 m at its lowest, 0.29 m off the centreline
+  at most.
+- On its side (`plane`'s `knife`) the attitude is rolled a quarter turn about
+  the nose and the side plate bears what the wing did, at the slip
+  `tan b = need / (rho S v^2 / m + along)`: 36-38 deg at 12 m/s. The fin's
+  weathervane, 4.5 N m, takes 65 % of the surfaces' boosted reach; left to
+  the law's 33 N m/rad (no `Wing.trimmed`) it held the slip 8 deg short and
+  the tail sank 3.7 cm in 1.8 s. At 18 m/s it passed their reach and a tip
+  struck. Its airspeed latches it wing-borne, the nose's share being cos b.
+  The sampling MPC (`plan` 1) flew it nose-high at 7 m/s: the law flies it.
+- Nose first it flies a speed, not a place (`Core.plan`): chasing its spot
+  along the path it lagged the teardrop's turn by 12 m and the line-up ran to
+  18 m/s to catch up. On a spot laid on itself the teardrop holds 11.7-11.8
+  m/s and the final glides on the centreline at 11.5 m/s, where it swung
+  35-80 deg at 10-16 m/s.
+- Low it lines up on the runway's way nearer its heading (`lined`), a hover
+  up it. The course's grid heading is a hover's: crossing gate 0 at speed it
+  swung the pass 55 deg and a tip struck.
+- The landing: a 9.9 s down-leg and a 6 s final put the flare over the
+  runway. It stops 6.2 m short of the far end, 0.61 m off the centreline,
+  touching at -0.93 m/s; on 6.5 s and 5.2 s it rolled 29 m past it, 1.49 m
+  off, at -0.98.
 - The tail is destabilising tail first, by the physics: the burn's 12 m/s
   tail slide turned it over and onto the floor at 8.8 g. The aerobat's burn is
   a parachute at 4 m/s (`parachute`, its floor 0.55 m: its tail hangs 0.665

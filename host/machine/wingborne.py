@@ -3,8 +3,10 @@
     wing = Wing(MASS_KG, GRAVITY, RHO, WING_AREA, CL_ALPHA, WING_SPAN, STAB_AREA, FIN_AREA, TAIL_ARM, SIDE_AREA)
     lift = wing.lift(u, turn)                      # N, the wing's and the side's, the air `u` through it
     pitch, roll, yaw = wing.moments(u, turn, qv)   # N m about its axes
+    tau = wing.trimmed(tau, u, turn, share)        # less a share of its own static moments
     r_des, w_ff, f_des = run(wing, core, v_fwd, h, yaw, rate)    # the takeoff run
-    r_des, want_up = plane(wing, turn, acc_des, u, w, want_up)   # nose on the air
+    r_des, want_up = plane(wing, turn, acc_des, u, w, want_up, knife)   # nose on the air
+    yaw = lined(runway, heading, vel, at, h, wing.rotate)        # low, onto the runway's line
 
 The run, at RUN_G of gravity: the wing bears the weight at ALPHA_RAD, so fast (`Wing.rotate`);
 the tail comes up at TAIL_UP of it, the nose to CLIMB_RAD over ALPHA_RAD once the wheels are
@@ -79,6 +81,11 @@ class Wing:
         air = [(uy * nose[a] - uz * back[a]) / speed for a in range(3)]
         return tuple(slip * span[a] + f_l * back[a] - f_d * air[a] for a in range(3))
 
+    def trimmed(self, tau, u, turn, share):
+        """The law's torques `tau` less `share` of the airframe's own moments still in the air `u`:
+        on its side the fin's, 4.5 N m at 12 m/s, held the slip 8 deg short and the plane sank."""
+        return tuple(t - share * m for t, m in zip(tau, self.moments(u, turn, (0.0,) * 6)))
+
     def moments(self, u, turn, qv):
         """The airframe's own moments about its axes, N m: the stabiliser's and the fin's lift
         at the arm turning the nose into the air it flies through and against its rates, the
@@ -115,11 +122,13 @@ def flare(wing, v_fwd, h, v, yaw, rate, r11):
     return r_des, (0.0, rate, 0.0), f_des
 
 
-def plane(wing, turn, acc, u, w, want_up):
+def plane(wing, turn, acc, u, w, want_up, knife=0.0):
     """Wing-borne `w` (0 a hover, 1 at the wing's speed) through the air `u` asked `acc`: the
     nose `want_up` blended onto the air and over it by the wing's angle, and past half wing-borne
     the whole attitude `r_des`, its back to what is asked across the path - little asked, where
-    it is."""
+    it is. `knife` 1 (-1) rolls it a quarter turn about the nose, its left (right) wing where its
+    back was: a knife-edge, the side's plate at the slip `rho S v^2 sin b = need cos b - along
+    sin b` bearing what the wing did."""
     fast = math.hypot(*u)
     if w <= 0.0 or fast <= 1e-3:
         return None, want_up
@@ -129,7 +138,8 @@ def plane(wing, turn, acc, u, w, want_up):
     size = math.hypot(*perp)
     # Its back across the path as it is; asked under it, it pushes - a plane does not roll
     # onto its back to go down - else its back comes round to what is asked.
-    back = [-turn[a][2] for a in range(3)]
+    cr, sr = math.cos(0.5 * math.pi * knife), math.sin(0.5 * math.pi * knife)
+    back = [sr * turn[a][0] - cr * turn[a][2] for a in range(3)]
     bv = sum(back[a] * v_hat[a] for a in range(3))
     back = [back[a] - bv * v_hat[a] for a in range(3)]
     n = math.hypot(*back) or 1.0
@@ -157,6 +167,7 @@ def plane(wing, turn, acc, u, w, want_up):
         else:
             hi = mid
     alpha = sign * 0.5 * (lo + hi)
+    alpha += abs(knife) * (sign * math.atan2(need, wing.rho * wing.side * fast * fast / wing.mass + al_pos) - alpha)
     # Asked to slow, a propeller pulling one way, it pulls up: its speed goes into height until
     # the hover's law has it; coasting on it ran 45 m into a tree.
     if along < 0.0 and under >= 0.0:
@@ -172,4 +183,14 @@ def plane(wing, turn, acc, u, w, want_up):
     n = math.hypot(*back) or 1.0
     z = [-b / n for b in back]
     x = cross(y, z)
+    x, z = [cr * x[a] - sr * z[a] for a in range(3)], [sr * x[a] + cr * z[a] for a in range(3)]
     return tuple((x[a], y[a], z[a]) for a in range(3)), y
+
+
+def lined(runway, heading, vel, at, h, rotate):
+    """The heading low flight comes round to: along `runway` (rad) the way nearer `heading`
+    (cos, sin), up it without one, crabbed onto its line over a second of flight from 0.1 m up."""
+    way = math.copysign(1.0, heading[0] * math.cos(runway) + heading[1] * math.sin(runway)) if heading else 1.0
+    rc, rs = way * math.cos(runway), way * math.sin(runway)
+    crab = math.atan2(rc * (vel[0] + at[0]) - rs * (vel[2] + at[2]), max(rotate, rs * vel[0] + rc * vel[2]))
+    return runway + 0.5 * math.pi * (1.0 - way) - crab * min(1.0, max(0.0, 10.0 * (h - 0.1)))

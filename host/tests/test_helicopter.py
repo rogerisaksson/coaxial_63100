@@ -18,7 +18,7 @@ def test_helicopter_stunt_routine(report):
         route = aerobatics.routine(craft.CARD)
         pull_max = craft.PULL_MAX
         by_stage, stages = {}, []
-        for step_idx in range(int(115.0 / dt)):
+        for step_idx in range(int(125.0 / dt)):
             stage, row = aerobatics.fly(route, step_idx * dt, ('held', 'fit') if law['held'] else ('fit',))
             state = sky.state()
             ans = core.step(law, row, state, dt, pull_max)
@@ -35,6 +35,7 @@ def test_helicopter_stunt_routine(report):
                 'cyc_r': abs(ans.controls[2]), 'held': law['held'], 'z': float(state['at'][2]),
                 'vz': float(state['vel'][2]), 'hdg': law['heading'][0],
                 'w': getattr(core, 'wingborne', 0.0), 'tail': state['h'] + foot + float(min(tail @ state['turn'][1])),
+                'belly': float(state['turn'][1][2]), 'ahead': float(state['vel'] @ state['turn'][:, 1]),
                 'r': math.hypot(float(state['at'][0]), float(state['at'][2]))})
         runs[craft] = (sky, by_stage, stages)
 
@@ -75,8 +76,8 @@ def test_helicopter_stunt_routine(report):
         gl, gd = [p['z'] for p in c_by['lift'] if p['h'] < 0.03], [p['z'] for p in land if p['h'] < 0.03]
         roll_ok = (c is not aerobat or (
             c_by['spool'][0]['tilt'] > 55.0 and len(gl) > 20 and len(gd) > 20 and max(gl) - min(gl) > 5.0
-            and max(p['r'] for p in c_by['knife-edge']) > 3.0
-            and all(sorted(p['tail'] for p in c_by[s])[len(c_by[s]) // 2] < 0.05 for s in ('knife-edge', 'knife-back'))
+            and sorted(p['tail'] for p in c_by['knife-edge'])[len(c_by['knife-edge']) // 2] < 0.05
+            and all(abs(p['belly']) < 0.1 and p['ahead'] > 8.0 for p in c_by['knife-edge'])
             and max(p['tilt'] for p in ft + burn) < 10.0
             and c_by['final'][-1]['w'] > 0.5 and min(p['v'] for p in land if p['h'] < 0.03) > -1.0
             and max(p['h'] for p in land[-60:]) < 0.025 and abs(land[-1]['vz']) < 0.02 and land[-1]['tilt'] > 55.0))
@@ -92,7 +93,7 @@ def test_helicopter_stunt_routine(report):
 
 
 def test_helicopter_wind_observer_and_inverted_hold(report):
-    """The three flip from `HOVER` to `INVERTED` / `SANDSTORM_DIVE` / `high` and track gusts."""
+    """The three flip from `HOVER` to their inverted rows and track gusts."""
     from machine import aerobat, aerokin, helicopter, ornithopter, quad
     dt = 1.0 / 120.0
     for c, inv_row in ((helicopter, helicopter.INVERTED),
@@ -203,7 +204,7 @@ def test_helicopter_boards_and_view(report):
 
 
 def test_helicopter_course_laps(report):
-    """The three craft fly the 16-gate course in wind and land on gate 0's heading."""
+    """The three fly the 16-gate course in wind and land on gate 0's heading."""
     from machine import aerobat, aerobatics, aerokin, course, grounds, helicopter, ornithopter, pull, quad
     solids, dt, tick = grounds.solids(), 0.02, 0.002
     for c in (helicopter, ornithopter, aerobat):
@@ -240,8 +241,7 @@ def test_helicopter_course_laps(report):
 
 
 def test_lisp_manifests_and_validation(report):
-    """Shared Lisp block files compile standalone and puzzle into `helicopter.lisp`,
-    `quadcopter.lisp`, `ornithopter.lisp`, and `aerobat.lisp`; cooling and error checks pass."""
+    """Shared Lisp blocks compile alone and into the four crafts' files; cooling and errors check."""
     from machine import aerobat, aerobatics, aerokin, aerolisp, heat, helicopter, ornithopter, quad
     hm, qm, om, am = helicopter.MANIFEST, quad.MANIFEST, ornithopter.MANIFEST, aerobat.MANIFEST
     mdir = os.path.dirname(os.path.abspath(helicopter.LISP_PATH))
@@ -257,7 +257,7 @@ def test_lisp_manifests_and_validation(report):
                  and [s.sequence_id for s in hm['streams']] == [301, 302, 303, 304, 305, 306]
                  and [s.sequence_id for s in om['streams']] == [401, 402, 403, 404, 405, 406]
                  and [s.sequence_id for s in am['streams']] == [501, 502, 503, 504, 505, 506]
-                 and len(helicopter.CARD) == 24 == len(ornithopter.CARD) and len(aerobat.CARD) == 35)
+                 and len(helicopter.CARD) == 24 == len(ornithopter.CARD) and len(aerobat.CARD) == 34)
 
     q_card = qm['routines']['quadcopter']
     try:
@@ -314,7 +314,7 @@ def test_lisp_manifests_and_validation(report):
 
 
 def test_helicopter_behaviors_and_streams(report):
-    """Multi-phase 3D stunt behaviors and compiled `stream_inject` payloads execute in MuJoCo."""
+    """3D stunt behaviors and compiled `stream_inject` payloads fly in MuJoCo."""
     from machine import aerobat, aerokin, aerolisp, helicopter, ornithopter
     dt = 1.0 / 120.0
     for craft, s_cpg, s_tum in ((helicopter, 'aileron_tictoc', 'chaos'),

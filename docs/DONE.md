@@ -324,8 +324,14 @@ the fifty before these: [DONE_1-50](DONE_1-50.md).
     F at the bed lies her at 2.2 s where 4.2, still at 3.4 where 6.3, 7.5 cm into
     a foam's mattress where 5.5; the page draws its top a grid sagging where she
     presses ([scenarios](findings/scenarios.md)).
-85. The aerobat's knife-edges flown by a sampling MPC on SE(3) (`machine.se3mpc`,
-    `mppi/`, one C rollout for gcc and NVRTC with a numpy twin): wings
-    vertical, nose 35-45 deg up, the tail's lowest point 0.01 m median over
-    the runway along both passes; a fuselage side plate in the plant and the
-    wind observer; the takeoff rotates to its climb at the wing's speed.
+85. The aerobat's low passes flown by a sampling MPC on SE(3) (`machine.se3mpc`,
+    `mppi/`, one C rollout for gcc and NVRTC with a numpy twin): sideways on
+    the hover's law, the tail's lowest point 0.01 m median over the runway;
+    a fuselage side plate in the plant and the wind observer; the takeoff
+    rotates to its climb at the wing's speed.
+86. The aerobat opens with a knife-edge back down the runway on its wing law
+    (`wingborne.plane`'s `knife`): takeoff, a teardrop onto the runway's
+    line, wings vertical, the nose 38 deg over the path at 11.9 m/s nose
+    first, the tail's lowest point 0.029 m median; nose first it flies a
+    speed, not a place; the landing stops on the runway
+    ([aircraft](findings/aircraft.md)).

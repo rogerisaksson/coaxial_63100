@@ -235,7 +235,7 @@ KIN_BLOCKS = {
 }
 ALL_BLOCK_KINDS = set(AERO_BLOCKS) | set(DYN_BLOCKS) | {'impedance'} | set(KIN_BLOCKS)
 STUNT_FIELDS = _sp('height pace climb push speed slide surge sway turn nose x z home rail '
-                   'lean roll flip light wing plan skim')
+                   'lean roll flip light wing plan skim knife')
 GATES = ('', 'fit', 'held')
 
 
