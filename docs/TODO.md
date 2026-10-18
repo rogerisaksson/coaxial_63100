@@ -341,6 +341,12 @@ serves its DOD; none an entry a case.
 
 ## Flight pages
 
+- **The five drawn to their pictures**: the ornithopter a faceted dark
+  pod with a canopy, long slender wings, four bent legs; the quad a slate
+  hump on round arms, black motors, two skid frames, a gimbal under the
+  nose; the Edge 540 navy with a yellow cowl, white spinner, red tail; the
+  Goblin Raw a lime canopy over the front frame, lime blade tips; the gynoid
+  a fitted red tee to the jeans' top, light jeans, a ponytail. DOD: PNGs.
 - **The budget's throttling flag**: set with the derate at 1.00 and the hold
   at 89.5 of 90 A (the helicopter's main at 16 A). DOD: the flag means a
   derate under 1, held by a test.

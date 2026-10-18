@@ -29,7 +29,7 @@ def _np():
     return _NP
 
 
-DENIM, TEE = (118, 150, 182), (230, 230, 226)
+DENIM, TEE = (150, 178, 206), (178, 30, 40)
 LOOSE_M, FIT_M, BAGGY_M, HEM_R = 0.02, 0.008, 0.02, (0.074, 0.08, 0.004)
 HEM_UP, HEM_LEAN = 0.029, 0.26
 JEANS_LEG = ((0.01, 0.07, 0.076, -0.008), (-0.1, 0.072, 0.088, -0.016), (-0.2, 0.074, 0.092, -0.018),
@@ -76,12 +76,11 @@ _SEAT = ((-0.07, 0.148, 0.084, 0.126), (-0.03, 0.18, 0.096, 0.157), (0.02, 0.178
 _TORSO = ((-0.045, 0.094, 0.066), (0.0, 0.098, 0.069), (0.047, 0.102, 0.072), (0.093, 0.112, 0.079),
           (0.149, 0.122, 0.082), (0.205, 0.126, 0.083), (0.26, 0.13, 0.078), (0.307, 0.138, 0.07),
           (0.344, 0.14, 0.062), (0.372, 0.1, 0.055), (0.39, 0.05, 0.045))
-#: The jeans' seat under the tee, in the torso's frame, (y, rx, front, back), down to the
-#: hips' widest at HEM_Y where the hem hangs.
-HEM_Y = -0.14
-_HIPS = ((HEM_Y, 0.18, 0.096, 0.157), (-0.10, 0.178, 0.096, 0.159), (-0.05, 0.146, 0.088, 0.116),
-         (-0.01, 0.118, 0.084, 0.084))
-EASE_M = 0.012
+#: The jeans' waistband under the tee's hem, in the torso's frame, (y, rx, front, back), the
+#: hem at HEM_Y over it; the tee fitted, EASE_M off the body.
+HEM_Y = -0.035
+_HIPS = ((HEM_Y, 0.118, 0.084, 0.084), (-0.012, 0.118, 0.084, 0.084))
+EASE_M = 0.008
 
 
 def _hung(y, rx, front, back):
@@ -89,28 +88,22 @@ def _hung(y, rx, front, back):
 
 
 def _draped():
-    """The tee's rings: a tube hung plumb from the chest and the bust, EASE_M off the torso
-    where it is wider below, its hem pushed out by the hips; its collar the torso's own."""
+    """The fitted tee's rings: the torso's each EASE_M off, over the bust where it is, the hem
+    over the jeans' waistband; its collar the torso's own."""
     bust = BUST_AT[2] + BUST_R[2] + LOOSE_M / 2.0
-    body = [(y, rx, bust if y <= BUST_AT[1] + BUST_R[1] else rz, rz) for y, rx, rz in _TORSO[2:9]]
-    hung, out = (0.0, 0.0, 0.0), []
-    for y, rx, front, back in reversed(body):
-        hung = tuple(max(h, r + EASE_M) for h, r in zip(hung, (rx, front, back)))
-        out.append(_hung(y, *hung))
-    out += [_hung(y, *(max(h, r + EASE_M) for h, r in zip(hung, hip))) for y, *hip in reversed(_HIPS)]
-    return out[::-1] + [(0.366, 0.112, 0.064)]
+    out = [_hung(y, rx + EASE_M, front + EASE_M, back + EASE_M) for y, rx, front, back in _HIPS]
+    for y, rx, rz in _TORSO[1:9]:
+        front = bust if abs(y - BUST_AT[1]) <= BUST_R[1] else rz
+        out.append(_hung(y, rx + EASE_M, max(front, out[-1][2] + out[-1][3] - 0.03) + EASE_M, rz + EASE_M))
+    return out + [(0.366, 0.112, 0.064)]
 
 
 HEAD_Y = 0.095
 HAIR, HAIR_ENDS, LIPS, EYES = (118, 80, 52), (222, 168, 100), (192, 112, 112), (46, 46, 58)
 PART_M, BALAYAGE = 0.004, 1.2
-HAIR_FALL = ((0.10, 0.082, 0.040, -0.072), (0.06, 0.084, 0.038, -0.082),
-             (0.02, 0.086, 0.034, -0.088), (-0.01, 0.084, 0.030, -0.090),
-             (-0.045, 0.080, 0.026, -0.092))
-HAIR_LOCK = ((0.12, 0.020, 0.036, 0.016), (0.09, 0.023, 0.040, 0.020), (0.06, 0.022, 0.042, 0.020),
-             (0.03, 0.024, 0.042, 0.018), (0.0, 0.022, 0.040, 0.014), (-0.02, 0.024, 0.038, 0.010),
-             (-0.045, 0.022, 0.034, 0.006))
-HAIR_LOCK_X = 0.076
+#: Her ponytail: gathered at the occiput, hanging behind the neck.
+HAIR_FALL = ((0.085, 0.030, 0.026, -0.082), (0.05, 0.030, 0.026, -0.094), (0.0, 0.028, 0.024, -0.098),
+             (-0.06, 0.026, 0.022, -0.100), (-0.12, 0.020, 0.016, -0.102))
 #: The skull's radii and its middle; the hair a cap HAIR_M over it from ear level, its front
 #: edge the hairline: at the ears' line below, up the forehead to HAIRLINE of the skull's height.
 SKULL_R, SKULL_Z, HAIR_M, HAIRLINE = (0.07, 0.104, 0.09), 0.012, 0.014, 0.65
@@ -125,8 +118,7 @@ def _features():
            ('hair', 'head', z0, _cap()),
            ('hair_fall', 'head', HUNG, HAIR_AT, _hair(HAIR_FALL, 0.0, 0.03))]
     for side, x in _SIDES:
-        out += [(f'{side}_lock', 'head', HUNG, HAIR_AT, _hair(HAIR_LOCK, HAIR_LOCK_X * x, 0.01)),
-                (f'{side}_ear', 'head', z0,
+        out += [(f'{side}_ear', 'head', z0,
                  ellipsoid((0.071 * x, HEAD_Y - 0.004, 0.006), (0.009, 0.028, 0.018), SKIN, rows=6)),
                 (f'{side}_eye', 'head', z0,
                  ellipsoid((0.029 * x, HEAD_Y + 0.016, 0.092), (0.013, 0.006, 0.006), paint(EYES), rows=6))]
