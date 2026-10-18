@@ -47,26 +47,40 @@ def pose():
     return degrees
 
 
+def lowpass(x, dt, hz=SMOOTH_HZ):
+    """`x` (N, ..) low-passed at `hz` both ways: no phase, first order each way."""
+    import numpy as np
+    a = math.exp(-2.0 * math.pi * hz * dt)
+    x = np.array(x, float)
+    for sweep in (range(1, len(x)), range(len(x) - 2, -1, -1)):
+        for k in sweep:
+            x[k] = a * x[k - 1 if sweep.step > 0 else k + 1] + (1.0 - a) * x[k]
+    return x
+
+
 def smoothed(ys, taus, dt, hz=SMOOTH_HZ):
-    """(ys, taus) low-passed at `hz` both ways (no phase), every sensed column and every torque
+    """(ys, taus) low-passed at `hz` both ways (`lowpass`), every sensed column and every torque
     alike: a gearbox's rotor rings at its mode in the motor's encoder and the torque that
     drives it, far above the campaign's tones, and the drives' armature read off its second
     differences came out negative on a third of them."""
     import numpy as np
-    a = math.exp(-2.0 * math.pi * hz * dt)
-
-    def both(x):
-        x = np.array(x, float)
-        for sweep in (range(1, len(x)), range(len(x) - 2, -1, -1)):
-            for k in sweep:
-                x[k] = a * x[k - 1 if sweep.step > 0 else k + 1] + (1.0 - a) * x[k]
-        return x
     ys, taus = np.asarray(ys, float), np.asarray(taus, float)
     out = ys.copy()
     for cols in (edge.QUAT, edge.GYRO, edge.ACCEL, edge.Q, edge.QD, edge.QM):
-        out[:, cols] = both(ys[:, cols])
+        out[:, cols] = lowpass(ys[:, cols], dt, hz)
     out[:, edge.QUAT] /= np.linalg.norm(out[:, edge.QUAT], axis=1, keepdims=True)
-    return out, both(taus)
+    return out, lowpass(taus, dt, hz)
+
+
+def tone(t, tones, phase, amp):
+    """(len(t),) rad: sines at `tones` Hz with `phase` (rad) each, the first `amp` rad and the
+    rest as much slower - every tone at one speed -, eased in and out over RAMP_S: one drive's
+    excitation on its board (`coaxial.control.identify`), where a record's mean current turns
+    with the shaft's speed."""
+    import numpy as np
+    ease = np.minimum(1.0, np.minimum(t - t[0], t[-1] - t) / RAMP_S)
+    tones = np.asarray(tones, float)
+    return ease * (amp * tones[0] / tones * np.sin(2.0 * math.pi * np.outer(t, tones) + phase)).sum(axis=1)
 
 
 def boxes(body, ys, taus, dt, armature, every=1):

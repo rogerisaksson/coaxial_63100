@@ -114,7 +114,7 @@ coaxial/acquire/    the rig's task and stream (its mixins), records, reader,
                     clock, filter
 coaxial/model/      inverter, thermal network, sensorless, blocks (the
                     control loops as sim blocks around motor.pmsm)
-coaxial/control/    motion, commission: procedures on a rig
+coaxial/control/    motion, commission, identify: procedures on a rig
 coaxial/draw/       2D drawings: dials, gauges, cross_section, thermal map
 coaxial/graphics/   board renderer (wireframe pipeline + one module per concern);
                     gpu (the raster and a lit mesh on a card, wgpu; the crew
@@ -222,7 +222,7 @@ tests/              suites, .counts.json (measured sizes)
 | ortho | orthokinematics: humanoid robot movement as text - `(stream_inject ..)`, `(defbehavior ..)`: latent targets, a stiffness and a damping a mode, rhythm, task constraints - compiled to rows of numbers (gynoid_mesomorph_medium.lisp, examples.lisp) |
 | latent | humanoid robot latent state stepped with no branch: a row laid by a mask, the state a lerp, humanoid robot rhythm one angle; each mode's reference and impedance out |
 | modal | humanoid robot modes on the body, no branch: the soles' places from the centre of mass as sums and differences, the standing legs' compression, the turns; what is sensed, the statics and the loop's ask laid flat |
-| impedance | humanoid robot modes' springs rendered, no branch: humanoid robot centre of mass's acceleration, a sole in the air, humanoid robot turns, humanoid robot arms and humanoid robot knees - the whole-body loop's ask |
+| impedance | humanoid robot modes' springs rendered, no branch: the centre of mass's acceleration, a sole in the air, the turns, arms and knees - the whole-body loop's ask |
 | poise | humanoid robot ZMP into humanoid robot soles' polygon, humanoid robot capture point kept in it; which soles stand |
 | stride | humanoid robot stride from humanoid robot drive's phase: when a limb swings, where its sole lands (humanoid robot capture point), its clearance, its rock heel to toe, a standing sole's heel rising |
 | sprung | the latent loop run: her world read and told through her edge, her law's pass between; her process, paced to the clock: the one thing that moves her |
@@ -243,7 +243,7 @@ tests/              suites, .counts.json (measured sizes)
 | gimbal | a camera on a stabilised gimbal: its sight level, after the way its frame goes |
 | aerolisp | flight intent as text - `(stream_inject ..)`: latent targets, a stiffness and a damping a mode, an oscillator, task constraints - compiled to aero/'s payloads, a stream laid over the one before |
 | intents | the quad's flights as that text, and each stream's seconds |
-| aerokin | the quad's kinematics in a vacuum, no branch: a row of `aerobatics`' setpoints and the frame as it flies to aero/'s payload - a collective, its rotors' axis's tilt in the heading the core holds, the rates its own heading's turn gives it |
+| aerokin | the quad's kinematics in a vacuum, no branch: a row of `aerobatics`' setpoints and the frame as it flies to aero/'s payload - a collective, the rotors' axis's tilt in the heading, the rates its turn gives |
 | pull | the quad's action space, no branch: a rotor's top on its clamp and on its link's volts, the four's on their pack's charge, its reach, its stage's watts - from motor, propeller and pack, its tables laid once |
 | floor | the slab, a sill, a patch, a rug, a stair |
 | rtu | Modbus RTU: CRC-16, a pass's frames |
@@ -303,7 +303,7 @@ tests/              suites, .counts.json (measured sizes)
   page on both, a process a page, and marks a read missing, a range apart
   over the board seconds both cover, or a number the physics rules out;
   `test_native` holds the board's thermometers, current and legs to the
-  world's.
+  world's; `test_native_sysid` a drive read off its board.
 - Tiers: `run_tests.ps1` sells checks by percentage; suites join by
   seconds per check. `touches.TOUCHES` maps a changed path to its suites;
   `CHEAP` ones settle without asking the model.

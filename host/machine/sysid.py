@@ -355,3 +355,27 @@ def identify(b, Y, tau, min_condition=1e-9):
     return {'theta': theta, 'names': b['names'], 'uncertainty': unc, 'trusted': unc < TRUST,
             'condition': condition, 'residual': np.sqrt((left * left).sum(axis=0) / np.maximum(read, 1)),
             'read': read, 'samples': int(len(tau))}
+
+
+def motor(t, q, tau, gear=1.0, hz=None):
+    """{J, b, f, gravity, offset, residual, rms} of one drive off its own rows: `t` s, `q` its
+    shaft, rad, `tau` its torque, N m - J qdd + b qd + f sgn qd + gravity sin(q / gear) + offset
+    = tau by least squares, q and tau low-passed at `hz` (`campaign.SMOOTH_HZ`) both ways, the
+    first and last second left out, and the rows either side of a gap in `t` (a record lost on
+    the wire: its differences are no derivative); residual N m rms of what is left, rms the
+    torque's, gaps how many rows a gap cost."""
+    import numpy as np
+    from machine import campaign
+    dt = float(np.median(np.diff(t)))
+    qs, taus = campaign.lowpass(q, dt, hz or campaign.SMOOTH_HZ), campaign.lowpass(tau, dt, hz or campaign.SMOOTH_HZ)
+    w = np.gradient(qs, t)
+    A = np.column_stack([np.gradient(w, t), w, np.sign(w), np.sin(qs / gear), np.ones(len(t))])
+    keep = (t > t[0] + 1.0) & (t < t[-1] - 1.0)
+    gap = np.flatnonzero(np.diff(t) > 1.5 * dt)
+    near = np.unique(np.clip(gap[:, None] + np.arange(-2, 4), 0, len(t) - 1))
+    gaps = int(keep[near].sum())
+    keep[near] = False
+    x, *_ = np.linalg.lstsq(A[keep], taus[keep], rcond=None)
+    left = taus[keep] - A[keep] @ x
+    return {'J': float(x[0]), 'b': float(x[1]), 'f': float(x[2]), 'gravity': float(x[3]), 'offset': float(x[4]),
+            'residual': float(np.sqrt(np.mean(left ** 2))), 'rms': float(np.sqrt(np.mean(taus[keep] ** 2))), 'gaps': gaps}

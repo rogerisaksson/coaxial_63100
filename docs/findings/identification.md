@@ -141,3 +141,44 @@ torques. What her law senses: [sensing](sensing.md); the drives:
   parameters, 237 -> 239: her mass 31.14 kg to 0.02 %, and a first moment of her
   pelvis (hz -0.137 for -0.147 kg m, 6 % of itself), which her drives' rows never
   show.
+
+## On her boards
+
+A drive on its board, through the wire alone (`coaxial.control.identify`,
+`tools/bench/sysid_drives.py`, tests/test_native_sysid.py): held as a stepper
+at 2 A, swung by the board's own loop (device 12, a Direct regulator on
+`theta`, rows of 10 ms), its DAQ streaming two phase currents and the A1335
+in one stamped record at 100 Hz; the rotor frame's q current times kt the
+torque, `sysid.motor` the least squares for J, b, f and the gravity on the
+shaft.
+
+- The leg's four boards on `native://` (`humanoid_leg`, 36:1 joints), 16 s
+  each, against the world's own J, b and m g arm / gear:
+
+| drive | J kg m^2 | b N m s | gravity N m |
+| --- | --- | --- | --- |
+| hip | 2.37e-4 for 2.13e-4 | 1.35e-3 for 1.19e-3 | 0.339 for 0.327 |
+| knee | 1.77e-4 for 1.59e-4 | 1.10e-3 for 1.03e-3 | 0.200 for 0.191 |
+| ankle | 1.25e-4 for 1.24e-4 | 1.03e-3 for 0.88e-3 | 0.032 for 0.026 |
+| foot | 1.09e-4 for 1.21e-4 | 1.05e-3 for 0.84e-3 | 0.0074 for 0.0065 |
+
+- The torque left over 0.12 to 0.24 of the torque's rms; the Coulomb term
+  under 1.5e-4 N m where the world has none. Seven campaigns on the hip read
+  J 1.87 to 2.39e-4, b 1.35 to 1.42e-3, gravity 0.339 to 0.355.
+- A record's mean current turns with the shaft: the A1335 is taken at the
+  window's middle (half a window before its snapshot) and half the A1335's
+  poll period later (the snapshot is the last poll, 0.23 ms old in the
+  mean), the vector grown back by the sine over its turn; each tone at one
+  speed, the first's swing 1.2 rad, the 2.9 Hz tone the inertia's (without
+  it the hip's J read 1.65e-4). Half a window off, b read -6e-3; the poll
+  left out, +20 to +30 %.
+- Not kept: the log ring (device 5, angle and drive at the link's share)
+  overflows at this host's 12 ops a second to the native limb, its records
+  bursts; single-sweep records are the PWM's ripple, J 2e-5.
+- A profile loaded whole on a native rig lays its model on the world's plant,
+  and the emulator clears the load's inertia and damping with a motor's j or
+  b laid live: the hip's J read 1.2e-4, the bench flywheel rang at 30 Hz.
+  The record takes the profile's drive part alone.
+- The current vector's angle from two phases and the A1335 agree to 0.26 rad
+  el rms on the hip's swing: the hold's lag, 0.3 rad el at 2.9 Hz, is what is
+  read; the A1335's 12 bits are 0.088 deg.

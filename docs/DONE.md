@@ -203,3 +203,6 @@ the fifty before these: [DONE_1-50](DONE_1-50.md).
 54. Her situation read from her sensors: six readings, `situations.lisp`'s
     bounds and caps over her law in the surfaces' place; the ice, a ramp, a
     chair and a wall entered unannounced told within a second at every lay.
+55. A drive identified on its board through the wire: held and swung by the
+    board's own loop, its DAQ's currents and A1335 the rows; the leg's four
+    on native:// within 11 % of the world's J and 5 % of its gravity.

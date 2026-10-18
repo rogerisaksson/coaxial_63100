@@ -440,7 +440,7 @@ def test_smart_selection(report):
                table.BOOT} | set(table.OLLAMA)
     for percent, expect in ((25, quarter),
                             (75, quarter | {'test_parity.py', 'test_mcp.py', table.EMULATOR,
-                                            table.NATIVE, table.NATIVE_HEAT, table.CONFORMANCE,
+                                            table.NATIVE, table.NATIVE_HEAT, table.NATIVE_SYSID, table.CONFORMANCE,
                                             table.BENCH})):
         suites, _ = table.plan_for(percent)
         report.check('%d %% is what it always was' % percent,

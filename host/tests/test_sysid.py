@@ -288,9 +288,29 @@ def test_her_gearboxes_are_read(report, c):
                  'worst %.1f %% (%s)' % (100 * gap_err.max(), driven[named[int(np.argmax(gap_err))]]))
 
 
+def test_a_motor_is_read_off_its_rows(report, _c):
+    """One drive's rows (`sysid.motor`, a board's: `coaxial.control.identify`): a shaft swung at
+    the tones through a 36:1 joint, its torque J qdd + b qd + gravity sin(q / 36) + an offset, each
+    read back within 5 % - the low-pass and the differences at the 2.9 Hz tone cost 2 to 3 -, the
+    Coulomb term under 1e-3 N m, the rows either side of a lost record left out."""
+    from machine import campaign, sysid
+    t = np.arange(0.0, 16.0, 0.01)
+    q = campaign.tone(t, campaign.TONES[0] + (2.9,), np.array([0.3, 1.1, 2.0, 4.0]), 1.0)
+    w, a = np.gradient(q, t), np.gradient(np.gradient(q, t), t)
+    J, b, g, c0 = 2.1e-4, 1.2e-3, 0.33, 8e-4
+    tau = J * a + b * w + g * np.sin(q / 36.0) + c0
+    keep = np.ones(len(t), bool)
+    keep[700:712] = False
+    got = sysid.motor(t[keep], q[keep], tau[keep], 36.0)
+    report.check('J %.3e, b %.3e, gravity %.3f and the offset %.1e read back within 5 %%, f %.1e, %d rows by the gap' % (
+        got['J'], got['b'], got['gravity'], got['offset'], got['f'], got['gaps']),
+                 abs(got['J'] / J - 1.0) < 0.05 and abs(got['b'] / b - 1.0) < 0.05 and abs(got['gravity'] / g - 1.0) < 0.05
+                 and abs(got['offset'] - c0) < 0.05 * c0 and abs(got['f']) < 1e-3 and got['gaps'] == 6)
+
+
 ROSTER = (test_the_regressor_is_mujocos, test_her_drives_and_links_are_read, test_a_payload_is_found,
           test_her_corrections_are_laid_over_her_build, test_a_world_off_the_figure_is_read_back,
-          test_her_gearboxes_are_read)
+          test_her_gearboxes_are_read, test_a_motor_is_read_off_its_rows)
 
 
 def main(argv=None):

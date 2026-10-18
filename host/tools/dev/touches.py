@@ -3,7 +3,7 @@ from tools.dev.suites import (AERO_CORE, BENCH, BOARD_MEM, BOOT, BOOT_CLIENT, BO
                               CONFORMANCE,
                               CONTROLLER, CORE, CTRL_CORE, CYCLIC, DAQ_API, DAQ_CORE, DRIVE,
                               DRIVE_OBSERVER, EMULATOR, FILTER, FLIGHT, GVS, GYNOID,
-                              HEATED, NATIVE, NATIVE_HEAT, OLLAMA, ORTHO, FLOOR, QUADS, REACH, RENDER, REPLAYS, SCENES,
+                              HEATED, NATIVE, NATIVE_HEAT, NATIVE_SYSID, OLLAMA, ORTHO, FLOOR, QUADS, REACH, RENDER, REPLAYS, SCENES,
                               SENSORLESS, SHTP, SIGHT, SITUATION, STREAMS, STRUCTURE, SYSID, SYSID_LIVE, TERMS, THERMAL,
                               THERMAL_APP, VIEWS, WBC, WBC_CORE, WIRE, WORLD_CORE, WRENCH)
 
@@ -79,8 +79,10 @@ TOUCHES = (
     ('host/machine/tour.py',                   (STRUCTURE, 'test_views_humanoid.py')),
     ('host/machine/library/',                  (STRUCTURE, 'test_mirrors.py', GYNOID, ORTHO, WBC, WRENCH)),
     ('host/machine/robots/',                   (STRUCTURE, 'test_mirrors.py', GYNOID, ORTHO, WBC, WRENCH)),
-    ('host/machine/sysid.py',                  (STRUCTURE, SYSID, SYSID_LIVE)),
-    ('host/machine/campaign.py',               (STRUCTURE, SYSID, SYSID_LIVE)),
+    ('host/machine/sysid.py',                  (STRUCTURE, SYSID, SYSID_LIVE, NATIVE_SYSID)),
+    ('host/machine/campaign.py',               (STRUCTURE, SYSID, SYSID_LIVE, NATIVE_SYSID)),
+    ('host/coaxial/control/identify.py',       (STRUCTURE, NATIVE_SYSID)),
+    ('host/tools/bench/sysid_drives.py',       (STRUCTURE, NATIVE_SYSID)),
     ('host/machine/identified.py',             (STRUCTURE, SYSID, SYSID_LIVE, WBC, WBC_CORE)),
     ('host/machine/situation.py',              (STRUCTURE, SITUATION, FLOOR, SCENES, REPLAYS)),
     ('host/machine/situations.lisp',           (SITUATION, FLOOR, ORTHO, SCENES)),

@@ -352,9 +352,12 @@ serves its DOD; none an entry a case.
 
 - **native://**: a limb's world on a fixed mount as board/emu's. DOD: the
   body's balance and gait from the SIL.
-- **Identification on the robot** (identification.md): the campaign
-  (`machine.sysid`) through her buses and on the bench, the boards' currents
-  its torques; the hips' yaw and roll armature untold on the stand; a link's
-  inertia about its centre as built under a correction. DOD: a campaign on
-  emulated boards end to end; a bench drive's armature and friction from its
-  board's current; a link's tensor corrected under a body's constraints.
+- **Identification on the robot** (identification.md): her tree's campaign
+  (`machine.sysid`) through her buses once the SIL moves her figure; the
+  hips' yaw and roll armature untold on the stand; a link's inertia about
+  its centre as built under a correction. As it is: a drive on its board
+  (`coaxial.control.identify`, `tools/bench/sysid_drives.py`) - held, swung
+  by the board's own loop, its DAQ's currents and A1335 the rows - reads its
+  J, b and the gravity on its shaft against the world's. DOD: her tree's
+  campaign on emulated boards end to end; a bench drive on COM4; a link's
+  tensor corrected under a body's constraints.

@@ -52,6 +52,8 @@ WIRE = 'test_wire.py'
 #: this host keeps the wall's time; the firmware's validation is EMULATOR's.
 NATIVE = 'test_native.py'
 NATIVE_HEAT = 'test_native_heat.py'
+#: A drive identified on its native board: held and swung by the board's loop, its DAQ the rows.
+NATIVE_SYSID = 'test_native_sysid.py'
 
 #: The firmware's own image on an emulated MCU (tools/emu, board/emu): the conformance suite
 #: and test_wire's sweeps against the ELF, CubeMX's code and the HAL included.
@@ -140,7 +142,7 @@ RENDER = 'test_render.py'
 DEFAULT_SUITES = (STRUCTURES + (CORE, SHTP, DRIVE, DRIVE_OBSERVER, FILTER, THERMAL, THERMAL_APP,
                                 DAQ_CORE, BOARD_MEM,
                                 BOOT_CORE, BOOT_CLIENT,
-                   CTRL_CORE, WORLD_CORE, WIRE, NATIVE, NATIVE_HEAT, EMULATOR,
+                   CTRL_CORE, WORLD_CORE, WIRE, NATIVE, NATIVE_HEAT, NATIVE_SYSID, EMULATOR,
                    SENSORLESS,
                    BROKER, DAQ_API, CONTROLLER, GYNOID, SIGHT, REACH, TERMS, GVS, REPLAYS, SCENES, WBC,
                    WBC_CORE, FLIGHT, WRENCH, SYSID, SYSID_LIVE, ORTHO, FLOOR, SITUATION, CYCLIC, QUAD, QUAD_PULL,
@@ -211,6 +213,7 @@ JOINS = (
     # The SIL/HIL engine, not a validation: a compiler and two seconds of real time.
     (40, NATIVE),
     (40, NATIVE_HEAT),
+    (40, NATIVE_SYSID),
     (45, 'test_mcp.py'),
     (65, CONFORMANCE),
 
@@ -257,7 +260,7 @@ ALONE = (BENCH, CONFORMANCE, LIVE)
 #: has four batons or fewer - CI's runner stood native's attitude page 4.7-8.3 s beside the
 #: others while it drew on; the rotor demo's switches spent 16.3 % of their
 #: margin where 20 is asked, a walking suite beside it (CI).
-REAL_TIME = (NATIVE, NATIVE_HEAT, QUAD_PAGE, 'test_views_demo.py')
+REAL_TIME = (NATIVE, NATIVE_HEAT, NATIVE_SYSID, QUAD_PAGE, 'test_views_demo.py')
 
 #: Suites that may reach the board's port: one at a time, beside the rest.
 PORT = ('test_mcp.py', 'test_parity.py')
