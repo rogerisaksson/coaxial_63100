@@ -273,7 +273,7 @@ tests/              suites, .counts.json (measured sizes)
 
 | Suite | Holds |
 | --- | --- |
-| `test_gynoid.py` | humanoid robot body on fantasy boards (`physics.ENVELOPE` 0, their SOA never binding): clothes, look, a leg by its foot, a virtual and a dynamic machine of it, the skeleton, the drives' mounts and gearboxes, kinematics as motors |
+| `test_gynoid.py` | the body on fantasy boards (`physics.ENVELOPE` 0, their SOA never binding): clothes, look, a leg by its foot, a virtual and a dynamic machine, the skeleton, the drives' mounts and gearboxes, kinematics as motors |
 | `test_sight.py` | the stereo against the renderer's depth; a look round, posed standing, into humanoid robot map against the room, the chair and the table told, a way planned clear; the page's picture |
 | `test_floor.py` | humanoid robot floor: the plane under humanoid robot soles, its grip as she feels it, the situations that cap humanoid robot rhythm |
 | `test_situation.py` | humanoid robot situation: the text's bounds and caps, each entered unannounced told within a second |
@@ -285,11 +285,12 @@ tests/              suites, .counts.json (measured sizes)
 | `test_wbc.py` | the QP solver's KKT, two levels' priority, standing, a nudge held |
 | `test_wbc_core.py` | humanoid robot chain in C against MuJoCo: frames, M, bias, Jacobians at random configurations; a step's time |
 | `test_wrench.py` | the step without an active set: a step standing beside the stack's, humanoid robot stand, nudges held, a hop |
-| `test_flight.py` | which soles stand, from one pass alone; a landing within humanoid robot reach; the loop in C against the python stack with no sole standing; a hop stood on both, three in a row on the loop |
+| `test_flight.py` | which soles stand, from one pass alone; a landing within reach; the loop in C against the python stack, no sole standing; a hop on both, three in a row on the loop |
 | `test_sysid.py` | her identification: drives, links, a payload, boxes, rotors; corrections; a world 15 % off; a harness |
 | `test_wear.py` | on-line: a load read walking, a knee's friction and a hip's torque named; a box's play |
+| `test_errands.py` | errands: a stop settles, F heard, a new scene walked |
 | `test_sysid_live.py` | her identification off the stand: her model held to her walk on a world off the figure; her weight and its moments standing on her insoles |
-| `test_ortho.py` | a text compiled to rows, what is none refused; no branch in the core or the renderer; the state blended and turned; crouched, shifted, bowed, on one sole, hopped; the walk on its own payloads; the first texts as given; the gym's worker and keys |
+| `test_ortho.py` | a text compiled to rows, none refused; no branch in the core or the renderer; the state blended and turned; crouched, shifted, bowed, on one sole, hopped; the walk on its own payloads; the first texts as given; the gym's worker, keys |
 
 - The quad's streams: `test_aero_core.py` holds aero/ to its form - no
   branch in its sources, no flag set from its data in this host's code -,
