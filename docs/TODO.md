@@ -355,16 +355,6 @@ serves its DOD; none an entry a case.
 - **The models still look janky** (reported, with pictures): the five judged
   against their pictures at the page's own size - silhouette, proportion,
   colour masses, what reads in braille. DOD: PNGs beside the pictures.
-- **The aerobat's flare**: the final arrives hovering over the runway's start
-  at 0.6 m and the plane drops onto its wheels, 14 g for a step; a flare on
-  the wing from a slow final would touch under 1 m/s. DOD: a final flown
-  wing-borne to the flare, the touch under 1 m/s.
-- **The aerobat's apex**: the top of full tilt rocks 17-21 deg, 620 deg/s for
-  a moment, as the wing-borne law hands over to the hover. DOD: under 10 deg.
-- **The aerobat's gates as a plane**: on the hover's law with the wing
-  where it falls it struck gate 11 before a lap was done; its page flies its
-  routine alone, the laps test the rotorcraft. DOD: the laps flown nose first,
-  banked and pulled, measured against the quad's.
 
 ## Host
 

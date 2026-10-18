@@ -122,6 +122,12 @@
 (defstunt torque_roll
   (base hover) (turn 180.0deg_s))
 
+(defstunt knife_pass
+  (base hover) (height 2.0m) (slide 3.0m_s) (home 0.0))
+
+(defstunt knife_back
+  (base knife_pass) (slide -3.0m_s) (home 1.5))
+
 (defstunt knife_circle
   (base orbit) (height 1.5m) (slide 2.0m_s) (turn FUNNEL_TURN_DEG_S))
 
@@ -162,13 +168,13 @@
   (base stop) (height 0.55m) (pace 4.0m_s))
 
 (defstunt climbout
-  (base hover) (height 9.0m) (speed 9.0m_s) (pace 3.0m_s))
+  (base hover) (height 9.0m) (speed 11.5m_s) (pace 3.0m_s) (home 0.0))
 
 (defstunt pattern_turn
-  (base climbout) (speed 6.5m_s) (turn 50.0deg_s))
+  (base climbout) (speed 10.5m_s) (turn 50.0deg_s))
 
 (defstunt final
-  (base hover) (height 0.6m) (pace 2.5m_s) (x -13.7m) (z -11.5m) (home 1.0))
+  (base climbout) (height 0.22m) (speed 11.5m_s) (pace 1.8m_s))
 
 (defbehavior knife_edge_circuit
   (phase carve_knife (stunt knife_circle) (duration LAP_S) (blend 200ms))
@@ -189,9 +195,10 @@
   (stage spool (stunt pressed) (duration 2.5s) (ramp 2.5s))
   (stage lift (stunt takeoff) (duration 6.0s) (ramp 3.0s))
   (stage prop-hang (stunt hover) (duration 2.5s) (ramp 0.0s) (gate held))
+  (stage knife-edge (stunt knife_pass) (duration 2.0s) (ramp 0.6s))
+  (stage knife-back (stunt knife_back) (duration 2.2s) (ramp 0.6s))
   (stage torque-roll (stunt torque_roll) (duration 2.0s) (ramp 1.0s))
   (stage poise (stunt hover) (duration 1.8s) (ramp 1.5s))
-  (stage knife-edge (stunt knife_circle) (duration LAP_S) (ramp 1.5s))
   (stage harrier (stunt climbing_harrier) (duration LAP_S) (ramp 1.5s))
   (stage home (stunt high) (duration 1.8s) (ramp 1.2s) (gate held))
   (stage waterfall (stunt waterfall) (duration 2.0s) (ramp 0.0s))
@@ -207,9 +214,9 @@
   (stage crosswind (stunt pattern_turn) (duration 1.8s) (ramp 0.5s))
   (stage cross-leg (stunt climbout) (duration 2.0s) (ramp 0.5s))
   (stage downwind (stunt pattern_turn) (duration 1.8s) (ramp 0.5s))
-  (stage down-leg (stunt climbout) (duration 6.0s) (ramp 0.5s))
+  (stage down-leg (stunt climbout) (duration 6.5s) (ramp 0.5s))
   (stage base (stunt pattern_turn) (duration 1.8s) (ramp 0.5s))
   (stage base-leg (stunt climbout) (duration 2.0s) (ramp 0.5s))
   (stage final-turn (stunt pattern_turn) (duration 1.8s) (ramp 0.5s))
-  (stage final (stunt final) (duration 14.0s) (ramp 1.0s))
+  (stage final (stunt final) (duration 5.2s) (ramp 0.5s))
   (stage land (stunt pressed) (duration 8.0s) (ramp 0.0s)))

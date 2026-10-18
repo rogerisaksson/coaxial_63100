@@ -85,64 +85,41 @@ wheels (0.25 m legs, the prop clear when level, the nose 12 deg up at rest).
   lean ends. It stands 17.9 m short of home on the first gate's heading
   (`RUNWAY_M`): rolls 2.5 s, lifts at home +1, climbs to 1.9 m at 13.9 m/s,
   comes to its prop-hang 10 m on and walks home.
-- Wing-borne (nose first at the wing's speed, `Core.wingborne`) the nose
-  goes on the air and over it by the angle the wing needs for what is asked
-  across the path, no more than 15 deg, its back rolled to that; its push
-  observer frozen (what it learnt there was the wing's own 1.5 g, turning
-  with the nose faster than it was learnt: push_hat +-9 m/s^2, leans of 46-64
-  deg asked, a 45 deg tumble at the top of full tilt); no thrust pulled back
-  nose first (it coasts to its apex).
+- Wing-borne (nose first at the wing's speed, `Core.wingborne`, gated on
+  horizontal airspeed `min(along, vh)` so a vertical climb stays on the
+  hover's law while `Core.wing_air` freezes the push observer along the nose)
+  the nose goes on the air and over it by the angle the wing needs for what is
+  asked across the path, solved across the stall blend up to 15 deg, its back
+  rolled to that; no thrust pulled back nose first (it coasts to its apex).
+  After the prop-hang the routine opens with a knife-edge pass out and back
+  (`knife_pass`, `knife_back`, 5.4 m out and back within 1.5 m of home) before
+  the torque-roll.
 - The tail is destabilising tail first, by the physics: the burn's 12 m/s
   tail slide turned it over and onto the floor at 8.8 g. The aerobat's burn is
   a parachute at 4 m/s (`parachute`, its floor 0.55 m: its tail hangs 0.665
   under its middle in a prop-hang, the quad's 0.1 m sat it on its tail).
-- Full tilt 12.4 m/s and 18.7 m, 3.07 L/W, 2.0 g; the apex 17-21 deg, 623
-  deg/s for a moment; the parachute held at 0.58.
+- Full tilt 12.4 m/s and 18.7 m, 3.07 L/W, 2.0 g; the apex 3.2 deg (under 10
+  deg); the parachute held at 0.58.
 - A propeller pulls one way (`f_des >= 0`): the inverted hover, the flat spin
   and the lomcevak are gone from its card; the waterfall's inverted half
   falls through, 8.0 to 4.9 m, caught at 3.6. Wing-borne is not a dive
   (`DIVE_M_S`): nose first down out of the waterfall the law followed the air
   into the floor.
-- The landing a racetrack back onto its runway: climb-out at 3 m and 8 m/s
-  in a harrier (tilt 45-68 deg, the hover's law on a spot walking at 10.5),
-  crosswind 180 deg, downwind 7.5 s, base 180 deg, final to 0.35 m - down at
-  (-19, -39), rolled out to (-21, -30), the next run's hover over home. A
-  single 180 and a final struck a tree, and the next run from past home the
-  house, or hung 25 m beyond home and walked back 13 s. The flare: throttle
-  closed, the nose 40 deg up until the tail wheel is 0.22 m from down, then
-  as it rests; 2 m/s at the touch, 0.9
-  g, rolled out on the wheels' friction (0.3, their contact softened from
-  0.01 to 0.03 s: on 0.2 and 0.01 the run chattered at 5-9 g; on 0.5 it
-  nosed over at the touch). With the
-  throttle held through the flare the wing floated it up at 1.4 m/s: no
-  stall in it. Let down in the hover instead it sat on its tail at 0.36 and
-  came over at 16 g, a strike.
+- The landing a rectangle at 9 m back onto its runway: climb-out, four 90 deg
+  turns at 50 deg/s and 10.5 m/s, the final flown wing-borne (`w = 1.0`) at
+  11.5 m/s down to 0.33 m over the runway. The flare: throttle closed, the
+  nose pitched up as `1 / v_fwd^2` to 16 deg (`HARRIER_RAD`) as airspeed
+  bleeds off in ground effect, touching at -0.85 m/s (under 1 m/s) and rolling
+  out on its wheels.
 - The wing stalls (`wingborne.STALL_RAD`): the airfoil's lift to 15 deg, a flat
   plate's normal force past 23, blended between, the plate's drag with it;
-  at 10 m/s 21.5 N at 15 deg, 14 N at 45, 40 N of drag at 90. Linear to 1.5
-  of the weight it floated a flare and a harrier on a closed throttle.
-- The circuit a rectangle at 9 m (the trees are 6.5-7 m tall: at 6 m the
-  page struck one): climb-out, four 90 deg turns at 50 deg/s and 6.5 m/s
-  (at 9 the spot ran 15 m ahead and the final was a chase at full throttle),
-  the final aimed at the runway's start by its row's (x, z) and `home`,
-  hovering there at 0.6 m - an open-loop final landed anywhere from 13 m
-  past home to 60 m off and the next run struck a house. The figures at 14
-  m (`high` overridden): the waterfall's fall from 8 m drifted 5 m into
-  the tree 6 m from home, 7 m tall. Under 2 m in the air the nose comes
-  round to the runway's heading (the gates' steering is a drone's): after
-  the figures the climb-out went wherever the last turn left it.
-- The runway lies 50 deg off the first gate's heading: along it the run went
-  through gate 1 (its post 0.4 m off the line, the wing 0.65), across it
-  into the house, at 45 deg the second run - from where the roll-out ended,
-  near home - into the tree 30 m on; on its wheels the law keeps the
-  runway's heading, in the air it turns to the gates'. Airborne with home
-  ahead its hover is over home: coasting on at 13 m/s a propeller pulling one
-  way ran it 45 m, so asked to slow it pulls up, its speed into height until
-  the hover's law has it; asked under its back it pushes - the nose on the
-  air with its back to what is asked rolled it inverted to go down. The
-  second flight's hover forms 27 m past home and walks back in 6 s. On the
-  course it struck gate 11 before a lap: the page flies its routine alone
-  (docs/TODO.md).
+  at 10 m/s 21.5 N at 15 deg, 14 N at 45, 40 N of drag at 90.
+- The runway lies 50 deg off the first gate's heading: on its wheels at the
+  runway's start the law keeps the runway's heading, on the grid and in the
+  air under 2 m it turns to the first gate's heading. On `COURSE_SPHERE`
+  (1.5 g) the aerobat flies both laps of the 16-gate course nose first, banked
+  and pulled (`CARD = aerobat.CARD + course.CARD`), in 23 s whole, and lands on
+  gate 0's heading.
 - With the drag of a quad (0.15 m^2) and a 0.17 m^2 wing it could not reach
   the wing's speed: 12 m/s at the thrust's 0.85 g; its main wheels 0.15 m
   ahead of its middle, the elevator's 2.45 N m could not lift the tail

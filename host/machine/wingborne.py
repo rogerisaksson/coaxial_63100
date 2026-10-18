@@ -25,8 +25,8 @@ ALPHA_MAX = math.radians(15.0)
 #: The airfoil stalls at STALL_RAD, a plate over STALL_BLEND past it; its drag CD_LIFT of its
 #: lift squared (an aspect ratio of 5).
 STALL_RAD, STALL_BLEND, CD_LIFT = math.radians(15.0), math.radians(8.0), 0.07
-#: On its wheels: the nose this far from the vertical, 12 deg up.
-PITCH_REST = math.radians(78.0)
+#: On its wheels: the nose this far from the vertical, 12 deg up; the flare's limit, 16 deg.
+PITCH_REST, HARRIER_RAD = math.radians(78.0), math.radians(16.0)
 
 
 class Wing:
@@ -99,6 +99,16 @@ def run(wing, core, v_fwd, h, yaw, rate):
     return r_des, (0.0, rate, 0.0), f_run
 
 
+def flare(wing, v_fwd, h, v, yaw, rate, r11):
+    """The flare and roll-out: `(r_des, w_ff, f_des)` pitching up as `1 / v_fwd^2` to HARRIER_RAD."""
+    g, m = wing.gravity, wing.mass
+    q_fl = wing.q * wing.area * wing.cl_alpha * max(1.0, v_fwd * v_fwd)
+    a_fl = min(HARRIER_RAD, max(0.0, m * max(0.0, g - 6.0 * (0.3 + v)) / q_fl - math.atan2(v, max(1.0, v_fwd))))
+    r_des = _mat_mul(_rot_y(yaw), _rot_x(0.5 * math.pi - a_fl if h > 0.03 and v_fwd > 2.0 else PITCH_REST))
+    f_des = m * max(0.0, g - 3.0 * (0.4 + v)) * r11 if v_fwd <= 2.0 and r11 > 0.4 and h > 0.04 else 0.0
+    return r_des, (0.0, rate, 0.0), f_des
+
+
 def plane(wing, turn, acc, u, w, want_up):
     """Wing-borne `w` (0 a hover, 1 at the wing's speed) through the air `u` asked `acc`: the
     nose `want_up` blended onto the air and over it by the wing's angle, and past half wing-borne
@@ -120,13 +130,27 @@ def plane(wing, turn, acc, u, w, want_up):
     back = [x / n for x in back]
     under = sum(perp[a] * back[a] for a in range(3))
     if under < 0.0:
-        d, sign = back, -1.0
+        d, sign, need = back, -1.0, -under
     else:
         d = [perp[a] + max(0.0, 3.0 - size) * back[a] for a in range(3)]
         n = math.hypot(*d) or 1.0
-        d, sign = [x / n for x in d], 1.0
-    alpha = sign * min(ALPHA_MAX, wing.mass * abs(under if under < 0.0 else size)
-                       / (wing.q * wing.area * fast * fast))
+        d, sign, need = [x / n for x in d], 1.0, size
+    k_w = wing.q * wing.area * fast * fast / wing.mass
+    al_pos = max(0.0, along)
+    hi = (ALPHA_MAX if sign < 0.0
+          else math.atan2(need, al_pos) if need > k_w * ALPHA_MAX else ALPHA_MAX)
+    lo = 0.0
+    for _ in range(10):
+        mid = 0.5 * (lo + hi)
+        flat = min(1.0, max(0.0, (mid - STALL_RAD) / STALL_BLEND))
+        c_lin = wing.cl_alpha * mid
+        a_w = (k_w / wing.cl_alpha) * (
+            (1.0 - flat) * c_lin + flat * 2.0 * math.sin(mid) * math.cos(mid))
+        if need * math.cos(mid) - al_pos * math.sin(mid) > a_w:
+            lo = mid
+        else:
+            hi = mid
+    alpha = sign * 0.5 * (lo + hi)
     # Asked to slow, a propeller pulling one way, it pulls up: its speed goes into height until
     # the hover's law has it; coasting on it ran 45 m into a tree.
     if along < 0.0 and under >= 0.0:

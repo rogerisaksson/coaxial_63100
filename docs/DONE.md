@@ -264,3 +264,8 @@ the fifty before these: [DONE_1-50](DONE_1-50.md).
     writes skipped when `arr_dyn` is unchanged while preserving calibrated
     `drv_trigger_ticks` lead, and `wbc_wrench.c` / `machine.wrench` matching
     within `1.5e-10` across all 1 259 striding solves.
+73. The aerobat's knife-edge pass out and back after its prop-hang, its full
+    tilt apex under 10 deg (3.2 deg), its final flown wing-borne (`w = 1.0`) to
+    a progressive flare touching at -0.85 m/s, and both laps of the 16-gate
+    course flown nose first, banked and pulled on `COURSE_SPHERE`
+    ([aircraft](findings/aircraft.md)).
