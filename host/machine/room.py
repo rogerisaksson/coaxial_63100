@@ -5,7 +5,7 @@
     room.touched(world, dt)                # the lamp's switch under her hand: toggled, debounced
 
 Y up, z her walk's line from the squat, x to her left. The walls are static boxes with the floor's
-contacts and glass's look (`coaxial.graphics.gynoid.PROP_INK`): nothing breaks. The door hangs on a
+contacts and glass's look (`coaxial.graphics.props.PROP_INK`): nothing breaks. The door hangs on a
 hinge at its post and swings out as she pushes it; the lamp's switch sits on the wall by it.
 """
 import math

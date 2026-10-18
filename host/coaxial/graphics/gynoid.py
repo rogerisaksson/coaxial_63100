@@ -10,6 +10,7 @@ from coaxial.graphics import arrows as _arrows, drape, drums, engine, mechanism,
 from coaxial.graphics.callouts import callouts, line, packed
 from coaxial.graphics.lit import (CORE, MESH, PAINTED, PLATE, SKIN, braille, grid, paint,
                                   project, splat)
+from coaxial.graphics.props import lines as prop_lines
 from coaxial.graphics.raster import DOTS_X, DOTS_Y
 from coaxial.graphics.shapes import (ellipsoid, limb, loft, moved, sampled, smooth, turn_about,
                                      view)
@@ -337,15 +338,6 @@ class Follow:
         return at
 
 
-PROP_INK = {'hole': (255, 96, 128), 'sill': (255, 184, 80), 'slip': (96, 214, 255),
-            'rug': (200, 160, 110), 'lace': (230, 90, 230), 'stairs': (220, 225, 235),
-            'brick': (205, 92, 70), 'board': (214, 178, 120), 'chair': (220, 165, 80),
-            'bed': (130, 160, 230), 'slope': (120, 210, 140), 'ice': (170, 235, 255),
-            'snow': (240, 245, 255), 'wall': (180, 180, 195), 'tree': (90, 170, 90),
-            'glass': (110, 160, 210), 'wood': (176, 120, 70),
-            'door': (205, 150, 90), 'lamp': (110, 100, 80), 'lit': (255, 220, 120),
-            'switch': (200, 200, 200)}
-
 MARK = (((0, 0), '\u253c'), ((-1, 0), '\u2500'), ((-2, 0), '\u2500'), ((1, 0), '\u2500'),
         ((2, 0), '\u2500'), ((0, -1), '\u2502'), ((0, 1), '\u2502'))
 
@@ -363,36 +355,6 @@ def _marked(overlay, mark, m, cam, centre, travel, width, height):
         if 0 <= row + dr < height and 0 <= col + dc < width:
             out[(row + dr, col + dc)] = (ord(char), packed(ink, None))
     return out
-
-
-_BOX_SIGNS = tuple((float(i), float(j), float(k)) for i in (-1, 1) for j in (-1, 1) for k in (-1, 1))
-_BOX_EDGES = tuple((a, b) for a in range(8) for b in range(a + 1, 8) if bin(a ^ b).count('1') == 1)
-
-
-def _props(props, m, cam, centre, travel):
-    if not props:
-        return []
-    np = _np()
-    signs, by_ink, shift = np.asarray(_BOX_SIGNS), {}, (travel[0], 0.0, travel[1])
-    for kind, *shape in props:
-        if kind == 'lace':
-            corners, edges = np.array(shape, float) - shift, ((0, 1),)
-        else:
-            pos, half, turn = shape
-            corners = (signs * np.asarray(half)) @ np.asarray(turn, float).T + (
-                pos[0] - travel[0], pos[1], pos[2] - travel[1])
-            edges = _BOX_EDGES
-        sx, sy, w = project(corners, m, cam, centre)
-        if (w <= 0.0).all():
-            continue
-        ink = PROP_INK.get(kind, (200, 200, 200))
-        dots = by_ink.get(ink)
-        if dots is None:
-            dots = by_ink[ink] = np.zeros((cam['height'], cam['width']), bool)
-        for a, b in edges:
-            if w[a] > 0.0 and w[b] > 0.0:
-                line(dots, (sx[a], sy[a]), (sx[b], sy[b]))
-    return [(dots, ink) for ink, dots in by_ink.items()]
 
 
 def _heated(who, heat):
@@ -429,7 +391,7 @@ def _wired(who, frames, root, m, fine, centre):
 
 
 def render(angles, width, height, yaw=30.0, pitch=8.0, zoom=1.0, colour=True, travel=(0.0, 0.0),
-           lit=None, root=None, labels=None, heat=None, props=None, legend=None, dressed=True,
+           lit=None, root=None, labels=None, heat=None, props=None, legend=None, dressed=True, dents=None,
            mark=None, around=False, see=None, pan=(0.0, 0.0), inset=None, arrows=None, horizon=None):
     """Render the gynoid at `angles` (`{joint: deg}`) into `width` x `height` braille lines;
     `horizon` [(segments, ink)] on it (`coaxial.graphics.horizon`)."""
@@ -467,7 +429,7 @@ def render(angles, width, height, yaw=30.0, pitch=8.0, zoom=1.0, colour=True, tr
     if inset:
         overlay = {**(overlay or {}), **inset}
     return braille(depth, rgb, grid(m, fine, centre, travel), width, height, colour, overlay,
-                   leaders, _props(props or (), m, fine, centre, travel)
+                   leaders, prop_lines(props or (), m, fine, centre, travel, dents)
                    + _arrows.layers(arrows, m, fine, centre, travel) + wired
                    + [(dots, ink) for segs, ink in (horizon or ())
                       for dots in (_arrows._rasterize(segs, m, fine, centre, travel),) if dots is not None])

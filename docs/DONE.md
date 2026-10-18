@@ -320,3 +320,7 @@ the fifty before these: [DONE_1-50](DONE_1-50.md).
 83. Her slide kept through a pass no sole bears (`machine.estimate`): a swing's
     scuff no longer reads as a slide of the sole that holds, on the snow 393
     passes of 11 219 to 21 ([sensing](findings/sensing.md)).
+84. The bed soft, her lie-down quicker (`floor`, `stunts_base.lisp`, `gynoid`):
+    F at the bed lies her at 2.2 s where 4.2, still at 3.4 where 6.3, 7.5 cm into
+    a foam's mattress where 5.5; the page draws its top a grid sagging where she
+    presses ([scenarios](findings/scenarios.md)).

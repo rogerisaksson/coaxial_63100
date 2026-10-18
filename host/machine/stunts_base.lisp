@@ -39,10 +39,10 @@
 ;; lie down on a bed: onto its edge as on a seat, her trunk back over it
 (defbehavior lie_bed (extends stance_hold)
   (phase sit_edge
-    (duration 1500ms) (blend_duration 800ms)
+    (duration 900ms) (blend_duration 800ms)
     (latent_targets (mode_axial_compression 2.0) (mode_pitch_attitude 0.8) (mode_sagittal_shift -0.5)))
   (phase recline
-    (duration 2500ms) (blend_duration 2000ms)
+    (duration 1200ms) (blend_duration 600ms)
     (latent_targets (mode_axial_compression 2.3) (mode_pitch_attitude -1.0) (mode_sagittal_shift -1.5))
     (impedance (stiffness mode_axial_compression 3000) (damping mode_axial_compression 600)))
   (phase bed_rest (use recline)

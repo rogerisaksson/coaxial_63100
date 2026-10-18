@@ -121,8 +121,9 @@ def ground(contacts, give, torsion):
             + CHAIR_BACK + (CHAIR_SEAT_H + CHAIR_BACK[1], CHAIR_SEAT[2], contacts)
             + (leg_h, leg_h, contacts) * 4),
         '<body name="prop_bed" mocap="true" pos="0 -5 0">'
+        # a foam's give: she lies 7.5 cm in, 5.5 at 0.04 s and 5 cm, and a quicker lie fell there
         '<geom name="bed_mattress" type="box" size="%g %g %g" pos="0 %g 0" priority="2" condim="4"'
-        ' solref="0.04 1" solimp="0.8 0.95 0.05"%s/>'
+        ' solref="0.08 1" solimp="0.8 0.95 0.10"%s/>'
         '<geom name="bed_frame" type="box" size="%g %g %g" pos="0 %g 0"%s/>'
         '<geom name="bed_headboard" type="box" size="%g 0.25 0.03" pos="0 %g %g"%s/>'
         '</body>' % (
@@ -334,6 +335,14 @@ def take(world, name):
 def board(world, k, c):
     m, j = world.model, world.model.joint('board').id
     m.jnt_stiffness[j], m.dof_damping[m.jnt_dofadr[j]] = k, c
+
+
+def dents(world):
+    """[(x, y, z, m)] where her mattress gives under her: each contact in it, world, and how deep."""
+    m, d = world.model, world.data
+    mat = m.geom('bed_mattress').id
+    return [tuple(float(v) for v in d.contact[i].pos) + (-float(d.contact[i].dist),)
+            for i in range(d.ncon) if mat in (d.contact[i].geom1, d.contact[i].geom2) and d.contact[i].dist < 0.0]
 
 
 def props(world):

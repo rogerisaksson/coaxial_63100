@@ -31,9 +31,6 @@ gets a line at the end of [DONE](DONE.md).
   with no need and she throws on one sole, down at 8.8 s at every wobble. DOD:
   no second law; still within 3 s from a stand and after a stop, 3 of 3
   wobbles; `test_ortho`'s hop to 5 s.
-- **The bed soft, her lie-down a throw** (asked): F at the bed lies her down
-  or throws her onto it, the mattress giving, not a block. DOD: sink and
-  time to rest measured.
 - **Up the stairs on W she fell at the first step** at 0.6 m/s (the page's
   own keys, `test_errands.py`). DOD: climbed on W, a test.
 - **HUMANOID freezes as the mouse moves** (reported): not seen here, 300

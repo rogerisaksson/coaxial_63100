@@ -363,6 +363,10 @@ class World:
             m.dof_damping[self.vadr[i]] = free + (self.damping[i] * s * s if self.shorted[i]
                                                   and not BOXED else 0.0)
 
+    def dents(self):
+        """Where her mattress gives under her (`floor.dents`)."""
+        return floor.dents(self)
+
     def props(self):
         """What lies on the floor (`floor.props`), and a lace snagged: ('lace', from, to), shoe
         to shoe."""
