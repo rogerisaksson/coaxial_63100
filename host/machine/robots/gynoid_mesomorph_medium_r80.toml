@@ -138,3 +138,18 @@ head = 1.0
 wrist = 1.0
 gripper = 1.0
 foot = 1.0
+
+# Service (`machine.wear`): a drift from the build past these raises an alarm - a drive's
+# Coulomb friction up this share of its own and at least this, N m; its viscous friction, N m
+# s/rad; its torque an amp down this share; a box's play up this share, its wind-up down this
+# (the ankles' read 0.35 low on the stand); a load past this, kg -; the hours between services,
+# and the hours from one before a drift's trend counts toward the next.
+[service]
+friction = [0.5, 0.5]
+viscous = [0.5, 0.3]
+torque = 0.15
+play = 0.8
+wind_up = 0.5
+load_kg = 3.0
+hours = 500.0
+trend_h = 1.0

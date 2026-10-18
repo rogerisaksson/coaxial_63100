@@ -5,7 +5,7 @@ from tools.dev.suites import (AERO_CORE, BENCH, BOARD_MEM, BOOT, BOOT_CLIENT, BO
                               DRIVE_OBSERVER, EMULATOR, FILTER, FLIGHT, GVS, GYNOID,
                               HEATED, NATIVE, NATIVE_HEAT, NATIVE_SYSID, OLLAMA, ORTHO, FLOOR, QUADS, REACH, RENDER, REPLAYS, SCENES,
                               SENSORLESS, SHTP, SIGHT, SITUATION, STREAMS, STRUCTURE, SYSID, SYSID_LIVE, TERMS, THERMAL,
-                              THERMAL_APP, VIEWS, WBC, WBC_CORE, WIRE, WORLD_CORE, WRENCH)
+                              THERMAL_APP, VIEWS, WBC, WBC_CORE, WEAR, WIRE, WORLD_CORE, WRENCH)
 
 # What a change to each part of the tree can plausibly have broken.
 TOUCHES = (
@@ -84,6 +84,8 @@ TOUCHES = (
     ('host/coaxial/control/identify.py',       (STRUCTURE, NATIVE_SYSID)),
     ('host/tools/bench/sysid_drives.py',       (STRUCTURE, NATIVE_SYSID)),
     ('host/machine/identified.py',             (STRUCTURE, SYSID, SYSID_LIVE, WBC, WBC_CORE)),
+    ('host/machine/wear.py',                   (STRUCTURE, WEAR)),
+    ('host/machine/robots/',                   (STRUCTURE, WEAR, GYNOID, ORTHO)),
     ('host/machine/situation.py',              (STRUCTURE, SITUATION, FLOOR, SCENES, REPLAYS)),
     ('host/machine/situations.lisp',           (SITUATION, FLOOR, ORTHO, SCENES)),
     ('host/machine/',                          (CONTROLLER, GYNOID, SIGHT, REACH, TERMS, WBC, WBC_CORE,

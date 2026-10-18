@@ -169,6 +169,34 @@ torques. What her law senses: [sensing](sensing.md); the drives:
   pelvis (hz -0.137 for -0.147 kg m, 6 % of itself), which her drives' rows never
   show.
 
+## On-line, under a load
+
+`machine.wear` (tests/test_wear.py): her walk's rows every 4 s against her
+build's prediction, where her model holds; a load in a hand (a mass and its
+first moment), each drive's Coulomb and viscous friction and its torque an
+amp the movers, a Kalman filter on a random walk keeping each with its
+doubt, each drive's rows weighed by its misfit the window before; her boxes
+by `campaign.boxes` on the window; the bands, a load's most and the service
+interval her build's [service]; an alarm a drift past its band by two of its
+doubt.
+
+- Walking at 0.69 m/s, 0.5 kg put in her left hand reads 0.47-0.50 +- 0.2 kg
+  there within 6 s, 0.00 in the right, no alarm; her left knee's friction
+  doubled reads +1.1 N m for +1.2 and her left hip's torque an amp 0.8
+  reads 0.78-0.71 of itself, each named within 6-10 s; a window 0.3 s.
+- A kt's column whole - the drive's predicted torque - told nothing from
+  its friction's columns (the knee's doubling read as kt +0.25); short of
+  the friction it does.
+- The jeans' hems swinging on her shanks, at rest in her law's model, read
+  her knees' torque an amp 12-21 % high and their friction 0.5-0.8 N m low
+  as built, a false alarm at 0.15: the test walks her with next to none on.
+  Not kept: the hems swung in her law's model from her motion by its inverse
+  dynamics - free, three times the world's, which bang on their stops; held
+  at their stops, the stops' impulses in the rows read the hips 1-2.5 N m
+  off. Left: the hems as pendulums with their stops, at the world's step.
+- Her rows recorded a step early (the edge read at a pass's start after the
+  pass) misfit the hips 4-6 N m rms for 1.5-3.
+
 ## On her boards
 
 A drive on its board, through the wire alone (`coaxial.control.identify`,

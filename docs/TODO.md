@@ -214,6 +214,16 @@ gets a line at the end of [DONE](DONE.md).
     the ring), the ankles' boxes (ringing across their play); a link's mass
     apart from its first moment, a shaken harness.
     + DOD: each measured in `test_sysid.py`.
+22. **Identification on-line, under a load** (`machine.wear`): her drift
+    - friction, torque an amp, her boxes' play and wind-up - off her rows
+    as she goes, a load in a hand told apart; bands, alarms and service her
+    build's ([service]). As it is: on her walk with her hems' mass off, the
+    load, a knee's friction and a hip's torque read and named as the DOD
+    asks; a box's play on the stand.
+    + DOD: the same with her jeans on (their hems read the knees' torque
+      12-21 % high held at rest); the filter in her worker, her state and
+      the page; a slipped encoder zero; a load on her back off her insoles;
+      the load into her law.
 
 ## One command, either driver
 

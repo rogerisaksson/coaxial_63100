@@ -117,6 +117,7 @@ FLOOR = 'test_floor.py'
 #: Her situation read from her sensors: her text's bounds and caps, each entered unannounced told
 #: within a second.
 SITUATION = 'test_situation.py'
+WEAR = 'test_wear.py'
 #: Her motion's measures in a dimensionless frame on SO(3) (tools/sim/gvs.py).
 GVS = 'test_gvs.py'
 #: Her recorded runs replayed, each without a fall (tests/replays, tools/sim/replay.py).
@@ -145,7 +146,7 @@ DEFAULT_SUITES = (STRUCTURES + (CORE, SHTP, DRIVE, DRIVE_OBSERVER, FILTER, THERM
                    CTRL_CORE, WORLD_CORE, WIRE, NATIVE, NATIVE_HEAT, NATIVE_SYSID, EMULATOR,
                    SENSORLESS,
                    BROKER, DAQ_API, CONTROLLER, GYNOID, SIGHT, REACH, TERMS, GVS, REPLAYS, SCENES, WBC,
-                   WBC_CORE, FLIGHT, WRENCH, SYSID, SYSID_LIVE, ORTHO, FLOOR, SITUATION, CYCLIC, QUAD, QUAD_PULL,
+                   WBC_CORE, FLIGHT, WRENCH, SYSID, SYSID_LIVE, WEAR, ORTHO, FLOOR, SITUATION, CYCLIC, QUAD, QUAD_PULL,
                    AERO_CORE, STREAMS, QUAD_COURSE, BOOT)
                   + VIEWS
                   + (RENDER,) + OLLAMA
@@ -177,6 +178,7 @@ JOINS = (
     (12, ORTHO),
     (12, FLOOR),
     (12, SITUATION),
+    (12, WEAR),
     (12, WRENCH),
     (12, CYCLIC),
     (12, QUAD),
@@ -267,7 +269,7 @@ PORT = ('test_mcp.py', 'test_parity.py')
 
 #: Suites that run their tests through tools.dev.focus.chosen: past a slice of the run they go
 #: on as shards side by side.
-SHARDED = (SENSORLESS, CONTROLLER, GYNOID, ORTHO, SYSID, SYSID_LIVE, SITUATION, 'test_simulated.py', 'test_views_segments.py',
+SHARDED = (SENSORLESS, CONTROLLER, GYNOID, ORTHO, SYSID, SYSID_LIVE, WEAR, SITUATION, 'test_simulated.py', 'test_views_segments.py',
            DAQ_API, QUAD_PAGE, REPLAYS, SCENES)
 
 #: A sharded suite's seconds where none are recorded (tests/.counts.json, not committed):

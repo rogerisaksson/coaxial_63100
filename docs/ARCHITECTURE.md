@@ -229,8 +229,9 @@ tests/              suites, .counts.json (measured sizes)
 | law | her law's pass on her sensors alone: sensed, latent, impedance, wrench (or wbc), the drives' observers under it |
 | edge | the one reader of the world for her law - IMU, encoders, sole loads, a skin a segment, insoles - and the one writer of her drives |
 | estimate | her pelvis's place and speed of what she measures: the IMU carried, drawn to her bearing insoles; how fast they slide |
-| sysid | her body identified of her edge alone: Newton-Euler down her tree, each link's inertia and each drive's friction, the base parameters fitted; her pelvis's rows off her insoles or her harness's load cell |
-| campaign | the stand's campaign: a limb a stage at tones, played step by step; each gearbox and rotor read |
+| sysid | her body identified of her edge alone: Newton-Euler down her tree, the base parameters; her pelvis's rows off her insoles or a load cell |
+| campaign | the stand's campaign; each gearbox and rotor read |
+| wear | her drift and a load off her rows on-line; bands, alarms, service |
 | identified | her corrections over her build: the least move of her links and drives that fits a campaign, TOML, laid over her law's model whole |
 | grip | each sole's floor friction as she feels it: what a sliding sole uses |
 | situation | where she is, from her sensors: bounds on six readings, the text's caps over her law |
@@ -285,7 +286,8 @@ tests/              suites, .counts.json (measured sizes)
 | `test_wbc_core.py` | humanoid robot chain in C against MuJoCo: frames, M, bias, Jacobians at random configurations; a step's time |
 | `test_wrench.py` | the step without an active set: a step standing beside the stack's, humanoid robot stand, nudges held, a hop |
 | `test_flight.py` | which soles stand, from one pass alone; a landing within humanoid robot reach; the loop in C against the python stack with no sole standing; a hop stood on both, three in a row on the loop |
-| `test_sysid.py` | her identification: the regressor MuJoCo's; drives, links, a payload, gearboxes and rotors read; corrections judged on a fresh campaign; a world 15 % off read back; hung in a harness |
+| `test_sysid.py` | her identification: drives, links, a payload, boxes, rotors; corrections; a world 15 % off; a harness |
+| `test_wear.py` | on-line: a load read walking, a knee's friction and a hip's torque named; a box's play |
 | `test_sysid_live.py` | her identification off the stand: her model held to her walk on a world off the figure; her weight and its moments standing on her insoles |
 | `test_ortho.py` | a text compiled to rows, what is none refused; no branch in the core or the renderer; the state blended and turned; crouched, shifted, bowed, on one sole, hopped; the walk on its own payloads; the first texts as given; the gym's worker and keys |
 
