@@ -65,7 +65,11 @@ torques. What her law senses: [sensing](sensing.md); the drives:
   s, 0 steps touched, residual 0.24 N m rms a drive (the stand's 0.28), 110
   base parameters trusted (101), 70 within 10 % (69). 237 base parameters
   either way: the bounce tells no mass from its first moment at the base's
-  1 %.
+  1 %. A load cell in the harness (`World.pull`, `sysid.hung`: its force on
+  her and its moment about her pelvis's origin, six rows beside the drives')
+  adds her pelvis's ten: 247 base parameters, 115 trusted, 83 within 10 %,
+  her mass 31.142 for 31.143 kg; the force rows' residual 0.07 N m at the 0.1
+  m lever, the moment rows' 0.3-0.57.
 
 ## The corrections
 

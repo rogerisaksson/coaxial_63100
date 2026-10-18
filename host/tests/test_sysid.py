@@ -97,8 +97,8 @@ def test_the_regressor_is_mujocos(report, c):
 
 
 def _campaign(c, seed, world=None, seconds=SECONDS, hung=False):
-    """A campaign on the stand, or `hung` in the harness where the stand would hold her: (Y,
-    tau, touched, world)."""
+    """A campaign on the stand, or `hung` in the harness where the stand would hold her, its
+    load cell's six rows after the drives': (Y, tau, touched, world)."""
     from machine import campaign, sysid
     if hung:
         mjcf.STAND = 0.0
@@ -108,10 +108,15 @@ def _campaign(c, seed, world=None, seconds=SECONDS, hung=False):
             mjcf.STAND = 1.0
     world = world or physics.World()
     world.reset(campaign.pose(), where=(0.0, mjcf.STAND_M, 0.0))
+    pulls = None
     if hung:
         world.hang()
-    ys, taus, touched = campaign.excite(world, campaign.setpoints(world, seconds, np.random.default_rng(seed)))
+        pulls = []
+    ys, taus, touched = campaign.excite(world, campaign.setpoints(world, seconds, np.random.default_rng(seed)), pulls)
     Y, tau = sysid.rows(c['lay'], c['body'], ys, taus, physics.STEP_S, EVERY)
+    if hung:
+        cell_Y, cell = sysid.hung(c['lay'], c['body'], ys, physics.STEP_S, pulls, EVERY)
+        Y, tau = np.concatenate([Y, cell_Y], axis=1), np.concatenate([tau, cell], axis=1)
     return Y, tau, touched, world
 
 
@@ -124,9 +129,10 @@ def test_her_drives_and_links_are_read(report, c):
 
 def test_hung_in_a_harness_she_reads_as_on_the_stand(report, c):
     """Hung in a harness (`World.hang`: springs on her pelvis's place and turn), her pelvis 8 cm
-    down on it and bouncing under her limbs, a robot's rig: every drive read as on the stand.
-    The bounce tells no mass from its first moment - 237 base parameters either way, 110
-    trusted for 101, 70 within 10 % for 69."""
+    down on it and bouncing under her limbs, a robot's rig: every drive read as on the stand,
+    and a load cell in the harness (`sysid.hung`) adds her pelvis's ten base parameters, her
+    mass among them. Without it the bounce tells no mass from its first moment - 237 base
+    parameters as on the stand, 110 trusted for 101, 70 within 10 % for 69."""
     _read(report, c, True)
 
 
@@ -138,8 +144,22 @@ def _read(report, c, hung):
     base = sysid.base(lay, Y)
     got = sysid.identify(base, Y, tau)
     true = sysid.projected(base, sysid.truth(lay, world.model))
+    drives = int(c['body'].driven.sum())
     if not hung:
         c['base'], c['got'], c['true'] = base, got, true
+    else:
+        alone = sysid.base(lay, Y[:, :drives])
+        told = sysid.identify(alone, Y[:, :drives], tau[:, :drives])
+        err_alone = np.abs(told['theta'] - sysid.projected(alone, sysid.truth(lay, world.model))) / np.maximum(
+            np.abs(sysid.projected(alone, sysid.truth(lay, world.model))), 1e-9)
+        within = (got['trusted'] & (np.abs(got['theta'] - true) / np.maximum(np.abs(true), 1e-9) < 0.1)).sum()
+        within_alone = (told['trusted'] & (err_alone < 0.1)).sum()
+        mass = got['names'].index('pelvis.m')
+        report.check('the load cell adds her pelvis\'s ten base parameters, her mass within 0.1 %%: %d of %d within 10 %% for %d of %d by the drives alone'
+                     % (within, got['trusted'].sum(), within_alone, told['trusted'].sum()),
+                     len(base['ind']) == len(alone['ind']) + 10 and abs(got['theta'][mass] / true[mass] - 1.0) < 1e-3
+                     and within > within_alone,
+                     '%d and %d base parameters, her mass %.3f for %.3f kg' % (len(base['ind']), len(alone['ind']), got['theta'][mass], true[mass]))
     report.check('nothing touched her through %.0f s%s' % (SECONDS, ', hung %.0f mm down' % (
         1e3 * (mjcf.STAND_M - world.data.qpos[1])) if hung else ''), touched == 0, '%d steps' % touched)
     report.check('%d base parameters of %d columns, condition %.1e' % (len(base['ind']), len(lay['names']), got['condition']),
@@ -160,8 +180,9 @@ def _read(report, c, hung):
            if name.endswith('.J') and kind(name[:-2]) in ARMATURES}
     report.check('the armatures a swing tells apart within %.0f %%: %s' % (100 * FRICTION, ', '.join(sorted(set(ARMATURES)))),
                  arm and max(arm.values()) < FRICTION, 'worst %.1f %%' % (100 * max(arm.values())))
-    report.check('every drive\'s residual under %.1f N m' % RESIDUAL, got['residual'].max() < RESIDUAL,
-                 'worst %.2f N m, %d-%d rows read a drive' % (got['residual'].max(), got['read'].min(), got['read'].max()))
+    report.check('every drive\'s residual under %.1f N m' % RESIDUAL, got['residual'][:drives].max() < RESIDUAL,
+                 'worst %.2f N m, %d-%d rows read a drive' % (got['residual'][:drives].max(), got['read'][:drives].min(),
+                                                              got['read'][:drives].max()))
     err = np.abs(got['theta'] - true) / np.maximum(np.abs(true), 1e-9)
     tr = got['trusted']
     report.check('of %d base parameters trusted, two in three within 20 %% of the model\'s' % tr.sum(),

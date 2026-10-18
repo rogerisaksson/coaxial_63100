@@ -225,3 +225,5 @@ the fifty before these: [DONE_1-50](DONE_1-50.md).
     world's wind-up and damping off the link's stale speed.
 63. Hung in a harness she reads as on the stand: 0 touches, residual 0.24 N
     m, 110 base parameters trusted.
+64. A load cell in her harness: her pelvis's six rows, ten more base
+    parameters, her mass to 0.1 %.

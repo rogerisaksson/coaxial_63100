@@ -178,10 +178,11 @@ def setpoints(world, seconds, rng):
     return ref
 
 
-def excite(world, ref):
+def excite(world, ref, pulls=None):
     """(ys (N + 1, SENSED), taus (N, JOINTS), touched) of `ref` (N + 1, JOINTS) played on the
     stand a step each: her edge read every step and her drives' torques over it; `touched` the
-    steps something touched her."""
+    steps something touched her. Hung, a list `pulls` takes what the harness's load cell reads
+    each step (`World.pull`)."""
     import numpy as np
     from machine import physics
     y = edge.laid(world)
@@ -191,6 +192,8 @@ def excite(world, ref):
     ys, taus, touched = [], [], 0
     for k in range(len(ref)):
         ys.append(edge.felt(world, y).copy())
+        if pulls is not None:
+            pulls.append(world.pull())
         touched += int(world.hers[world.model.geom_bodyid[world.data.contact.geom[:world.data.ncon]]].any())
         if k == len(ref) - 1:
             break

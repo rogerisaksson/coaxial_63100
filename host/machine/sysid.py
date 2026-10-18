@@ -256,6 +256,26 @@ def borne(lay, body, ys, dt, every=1):
     return out, f
 
 
+def hung(lay, body, ys, dt, pulls, every=1):
+    """(Y (N, 6, P), f (N, 6)) her pelvis's rows a load cell in her harness measures, hung: the
+    harness's force on her, world, LEVER_M as a moment, and its moment about her pelvis's
+    origin, world - `pulls` (N + 1, 6) what the cell reads a step (`World.pull`). Her pelvis's
+    own ten join the base parameters, her mass among them."""
+    import numpy as np
+    m, d, mj = body.m, body.d, body.mj
+    qpos, qvel, qacc, a0, wacc, at = _state(body, ys, dt, every)
+    Y = regressor(lay, body, qpos, qvel, qacc, a0, wacc)
+    n_h, pelvis = len(lay['hinge']), body.pelvis
+    out = np.zeros((len(at), 6, Y.shape[2]))
+    f = np.asarray(pulls, float)[at] * np.r_[[LEVER_M] * 3, [1.0] * 3]
+    for k in range(len(at)):
+        d.qpos[:] = qpos[k]
+        mj.mj_kinematics(m, d)
+        out[k, :3] = LEVER_M * Y[k, n_h:n_h + 3]
+        out[k, 3:] = d.xmat[pelvis].reshape(3, 3) @ Y[k, n_h + 3:n_h + 6]
+    return out, f
+
+
 #: A drive's row off the stand is read where the model holds: no joint of its limb within
 #: STOP_DEG of a stop, nothing touching the limb's skin from the sample before to the one after.
 #: A limb's joints and its skin's segments, a leg's and an arm's.
