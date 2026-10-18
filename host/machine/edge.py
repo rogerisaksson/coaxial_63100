@@ -45,6 +45,8 @@ AT = slice(CELLS.stop, CELLS.stop + 3 * len(SKIN))
 SENSED = AT.stop
 #: Her touch past this, N, a segment's: MuJoCo's soft contact holds a resting hand at a few.
 TOUCHED_N = 5.0
+#: A contact's force rows read: its normal and its two tangents.
+ROWS = np.arange(3)
 
 
 def laid(world):
@@ -62,12 +64,8 @@ def laid(world):
     world.foot = np.full(m.nbody, -1, int)
     for k, name in enumerate(FEET):
         world.foot[m.body(name).id] = k
-    world._gb = tuple(int(x) for x in m.geom_bodyid)
-    world._hers = tuple(bool(x) for x in hers)
-    world._insole = tuple(int(x) for x in world.insole)
-    world._foot = tuple(int(x) for x in world.foot)
-    world._skin = tuple(int(x) for x in world.skin)
-    world._sole_side = tuple(int(s[1]) if s.any() else -1 for s in world.soles)
+    world._gb = np.asarray(m.geom_bodyid)
+    world._sole_side = np.array([int(s[1]) if s.any() else -1 for s in world.soles])
     return read(world, np.zeros(SENSED))
 
 
@@ -96,45 +94,52 @@ def read(world, y):
     """`y` whole: the IMU and encoders (`felt`), her soles' loads, her segments' touch and
     where on each it is."""
     felt(world, y)
-    m, d = world.model, world.data
-    loads, touch, force = [0.0, 0.0], np.zeros((len(SKIN), 3)), np.zeros(6)
+    d = world.data
+    loads, touch = np.zeros(2), np.zeros((len(SKIN), 3))
     pressed, at, cells = np.zeros(len(INSOLES)), np.zeros((len(INSOLES), 3)), np.zeros(2 * len(FEET))
     felt_n, felt_at = np.zeros(len(SKIN)), np.zeros((len(SKIN), 3))
     ncon = d.ncon
     if ncon:
-        geoms = d.contact.geom[:ncon].tolist()
-        c_pos = d.contact.pos[:ncon]
-        c_frame = d.contact.frame[:ncon].reshape(ncon, 3, 3)
-        gb, hers = world._gb, world._hers
-        insole, foot, skin, sole_side = world._insole, world._foot, world._skin, world._sole_side
-        xmat, xpos = d.xmat.reshape(-1, 3, 3), d.xpos
-        mj_cf = world._mj.mj_contactForce
-        for i, (g0, g1) in enumerate(geoms):
-            b0, b1 = gb[g0], gb[g1]
-            mine, theirs = (b0, b1) if hers[b0] else (b1, b0)
-            if not hers[mine] or hers[theirs]:
-                continue
-            mj_cf(m, d, i, force)
-            f0 = float(force[0])
-            ss = sole_side[mine]
-            if ss >= 0:
-                loads[ss] += f0
-            rm_t = xmat[mine].T
-            rel = c_pos[i] - xpos[mine]
-            k = insole[mine]
-            if k >= 0:
-                pressed[k] += f0
-                at[k] += f0 * rm_t @ rel
-                f_id = foot[mine]
-                if f_id >= 0:
-                    cells[2 * f_id + int(float(rm_t[2] @ rel) >= MIDDLE_M)] += f0
-            k = skin[mine]
-            if k >= 0:
-                push = c_frame[i].T @ force[:3] * (1.0 if mine == b1 else -1.0)
-                touch[k] += rm_t @ push
-                af0 = abs(f0)
-                felt_n[k] += af0
-                felt_at[k] += af0 * rm_t @ rel
+        # the contacts between a body of hers and one not, as arrays: each's force is its
+        # rows of the solver's (the cone elliptic, `mjcf.CONE`), the frame's and the body's
+        # products summed as the loop did, a bin a segment in the contacts' order
+        geom = d.contact.geom[:ncon]
+        b0, b1 = world._gb[geom[:, 0]], world._gb[geom[:, 1]]
+        h0 = world.hers[b0]
+        sel = np.flatnonzero(h0 != world.hers[b1])
+    if ncon and len(sel):
+        mine = np.where(h0[sel], b0[sel], b1[sel])
+        adr, dim = d.contact.efc_address[:ncon][sel], d.contact.dim[:ncon][sel]
+        have = (adr >= 0)[:, None] & (dim[:, None] > ROWS)
+        force = np.where(have, d.efc_force[np.where(have, adr[:, None] + ROWS, 0)], 0.0)
+        f0, af0 = force[:, 0], np.abs(force[:, 0])
+        rm = d.xmat.reshape(-1, 3, 3)[mine]
+        rel = d.contact.pos[:ncon][sel] - d.xpos[mine]
+        frame = d.contact.frame[:ncon][sel].reshape(-1, 3, 3)
+        push = (frame[:, 0] * force[:, 0:1] + frame[:, 1] * force[:, 1:2] + frame[:, 2] * force[:, 2:3]
+                ) * np.where(h0[sel], -1.0, 1.0)[:, None]
+        rf, ra = f0[:, None, None] * rm, af0[:, None, None] * rm
+        where = rf[:, 0] * rel[:, 0:1] + rf[:, 1] * rel[:, 1:2] + rf[:, 2] * rel[:, 2:3]
+        felt_where = ra[:, 0] * rel[:, 0:1] + ra[:, 1] * rel[:, 1:2] + ra[:, 2] * rel[:, 2:3]
+        pushed = rm[:, 0] * push[:, 0:1] + rm[:, 1] * push[:, 1:2] + rm[:, 2] * push[:, 2:3]
+        along = rm[:, 0, 2] * rel[:, 0] + rm[:, 1, 2] * rel[:, 1] + rm[:, 2, 2] * rel[:, 2]
+        ss = world._sole_side[mine]
+        on = ss >= 0
+        loads = np.bincount(ss[on], f0[on], minlength=2)
+        k = world.insole[mine]
+        ins = k >= 0
+        pressed = np.bincount(k[ins], f0[ins], minlength=len(INSOLES))
+        rows = (3 * k[ins])[:, None] + ROWS
+        at = np.bincount(rows.ravel(), where[ins].ravel(), minlength=3 * len(INSOLES)).reshape(-1, 3)
+        f_id = world.foot[mine]
+        ft = ins & (f_id >= 0)
+        cells = np.bincount(2 * f_id[ft] + (along[ft] >= MIDDLE_M), f0[ft], minlength=2 * len(FEET))
+        k = world.skin[mine]
+        sk = k >= 0
+        rows = (3 * k[sk])[:, None] + ROWS
+        touch = np.bincount(rows.ravel(), pushed[sk].ravel(), minlength=3 * len(SKIN)).reshape(-1, 3)
+        felt_n = np.bincount(k[sk], af0[sk], minlength=len(SKIN))
+        felt_at = np.bincount(rows.ravel(), felt_where[sk].ravel(), minlength=3 * len(SKIN)).reshape(-1, 3)
     # a shove is a hand on her: what the world applies to her bodies, her skin feels - at
     # their centres of mass, where the world applies it
     if d.xfrc_applied.any():

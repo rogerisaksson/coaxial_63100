@@ -34,6 +34,14 @@ EDGE_M = 0.01
 TIPS = tuple((x, -figure.TOE_RY, figure.TOE_M) for x in (-figure.SOLE_HALF, figure.SOLE_HALF))
 
 
+def _ids(g):
+    """Her segments' bodies in her law's model, `edge.SKIN`'s order, looked up once."""
+    ids = g.get('_skin_ids')
+    if ids is None:
+        ids = g['_skin_ids'] = [g['body'].m.body(n).id for n in edge.SKIN]
+    return ids
+
+
 def check_contacts(g, out, cur_doing):
     """A touch on her above her soles halts her drive and brakes her; a sole asked aloft that has
     come clear of everything, then is touched more along the floor than up it EDGE_M over it -
@@ -41,11 +49,10 @@ def check_contacts(g, out, cur_doing):
     Touched aloft at all, her toes leaving a flat floor tripped her 13 times in 40 s."""
     import numpy as np
     from machine import latent, modal, se2
-    y, model = g['sense'], g['body'].d
+    y, model, ids = g['sense'], g['body'].d, _ids(g)
     touch = y[edge.TOUCH].reshape(-1, 3)
     g['_upper_hit'] = bool((np.linalg.norm(touch[ABOVE], axis=1) > edge.TOUCHED_N).any())
     if g['_upper_hit']:
-        ids = g.setdefault('_skin_ids', [g['body'].m.body(n).id for n in edge.SKIN])
         f = np.sum([model.xmat[ids[k]].reshape(3, 3) @ touch[k] for k in ABOVE], axis=0)
         g['_resume_at'], g['_felt'] = g['t'] + RESUME_S, (float(f[0]), float(f[2]), g['t'])
         v = g['est']['vel']
@@ -62,11 +69,14 @@ def check_contacts(g, out, cur_doing):
             g['active_entry'] = '#201'
     aloft, clear = g['a'][modal.STANCE] < 0.5, list(g.get('_clear', (False, False)))
     floors = modal.under(g['y'], g['fr'], g['a'][modal.STANCE])[0]
+    tips = g.get('_tips')
+    if tips is None:
+        tips = g['_tips'] = np.array(TIPS)
     for side, segs in enumerate(SOLES):
-        pushes = [model.xmat[g['body'].m.body(edge.SKIN[k]).id].reshape(3, 3) @ touch[k] for k in segs]
+        pushes = [model.xmat[ids[k]].reshape(3, 3) @ touch[k] for k in segs]
         felt = max(float(np.linalg.norm(p)) for p in pushes) > edge.TOUCHED_N
-        toes = g['body'].m.body(edge.SKIN[segs[1]]).id
-        tip = float((model.xpos[toes] + np.array(TIPS) @ model.xmat[toes].reshape(3, 3).T)[:, 1].min())
+        toes = ids[segs[1]]
+        tip = float((model.xpos[toes] + tips @ model.xmat[toes].reshape(3, 3).T)[:, 1].min())
         up = min(float(g['y'][modal.LOWEST][side]), tip) - float(floors[side])
         met = clear[side] and up > EDGE_M and any(
             np.linalg.norm(p) > edge.TOUCHED_N and math.hypot(float(p[0]), float(p[2])) > abs(float(p[1]))

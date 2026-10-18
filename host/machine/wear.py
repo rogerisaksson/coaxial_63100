@@ -155,13 +155,22 @@ def _hems(w, ys, dt, every):
         lo, hi = (float(m.jnt_range[jx, 0]), float(m.jnt_range[jz, 0])), (float(m.jnt_range[jx, 1]), float(m.jnt_range[jz, 1]))
         k_imp, b_imp = 1.0 / (dmax * dmax * tc * tc * dr * dr), 2.0 / (dmax * tc)
         qx, qz, vx, vz = prev[1][s_idx] if cont and prev is not None else (0.0, 0.0, 0.0, 0.0)
+        # floats a step: the window's 8 000 steps of np.cross on 3-vectors stood her 1.4 s
+        aps, oms, albs = ap.tolist(), om.tolist(), alb.tolist()
+        qs, vs, qdds = [], [], []
         for t in range(n):
             cx, sx, cz, sz = math.cos(qx), math.sin(qx), math.cos(qz), math.sin(qz)
-            r = np.array([L * sz, -L * cx * cz, -L * sx * cz])
-            drx, drz = np.array([0.0, L * sx * cz, -L * cx * cz]), np.array([L * cz, L * cx * sz, L * sx * sz])
-            af = ap[t] + np.cross(alb[t], r) + np.cross(om[t], np.cross(om[t], r)) + 2.0 * np.cross(om[t], drx * vx + drz * vz)
-            tx = -mass * float(drx @ af) - I0 * alb[t, 0] - stiff * qx - damp * vx
-            tz = -mass * float(drz @ af) - I0 * (alb[t, 2] * cx - alb[t, 1] * sx) - stiff * qz - damp * vz
+            (p0, p1, p2), (o0, o1, o2), (b0, b1, b2) = aps[t], oms[t], albs[t]
+            r0, r1, r2 = L * sz, -L * cx * cz, -L * sx * cz
+            x1, x2 = L * sx * cz, -L * cx * cz
+            z0, z1, z2 = L * cz, L * cx * sz, L * sx * sz
+            d0, d1, d2 = o1 * r2 - o2 * r1, o2 * r0 - o0 * r2, o0 * r1 - o1 * r0
+            v0, v1, v2 = 0.0 * vx + z0 * vz, x1 * vx + z1 * vz, x2 * vx + z2 * vz
+            af0 = p0 + (b1 * r2 - b2 * r1) + (o1 * d2 - o2 * d1) + 2.0 * (o1 * v2 - o2 * v1)
+            af1 = p1 + (b2 * r0 - b0 * r2) + (o2 * d0 - o0 * d2) + 2.0 * (o2 * v0 - o0 * v2)
+            af2 = p2 + (b0 * r1 - b1 * r0) + (o0 * d1 - o1 * d0) + 2.0 * (o0 * v1 - o1 * v0)
+            tx = -mass * (0.0 * af0 + x1 * af1 + x2 * af2) - I0 * b0 - stiff * qx - damp * vx
+            tz = -mass * (z0 * af0 + z1 * af1 + z2 * af2) - I0 * (b2 * cx - b1 * sx) - stiff * qz - damp * vz
             qdd = [tx / J, tz / J]
             for i, (qi, vi) in enumerate(((qx, vx), (qz, vz))):
                 r_pen, sgn = (lo[i] - qi, 1.0) if qi < lo[i] else ((qi - hi[i], -1.0) if qi > hi[i] else (0.0, 0.0))
@@ -171,11 +180,14 @@ def _hems(w, ys, dt, every):
                     aref = sgn * (k_imp * imp * r_pen) - b_imp * vi
                     if sgn * (aref - qdd[i]) > 0.0:
                         qdd[i] += (aref - qdd[i]) / (1.0 + (1.0 - imp) / imp * invw[i] * J)
-            q_out[t, 2 * s_idx:2 * s_idx + 2], v_out[t, 2 * s_idx:2 * s_idx + 2], a_out[t, 2 * s_idx:2 * s_idx + 2] = (qx, qz), (vx, vz), qdd
+            qs.append((qx, qz))
+            vs.append((vx, vz))
+            qdds.append(qdd)
             vx += qdd[0] * dt
             vz += qdd[1] * dt
             qx += vx * dt
             qz += vz * dt
+        q_out[:, 2 * s_idx:2 * s_idx + 2], v_out[:, 2 * s_idx:2 * s_idx + 2], a_out[:, 2 * s_idx:2 * s_idx + 2] = qs, vs, qdds
         next_state.append((qx, qz, vx, vz))
     w['_hem_prev'] = (ys[-1, edge.Q].copy(), next_state)
     pad = np.zeros((len(at), len(hems)), bool)

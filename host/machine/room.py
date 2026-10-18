@@ -90,13 +90,16 @@ def props(world):
     """The room's boxes for the page: [(kind, centre, half sizes, turn 3x3)], the door where it
     swings, the lamp 'lit' while it is on."""
     m, d = world.model, world.data
-    out = []
-    for g in range(m.ngeom):
-        name = m.geom(g).name
-        kind = KINDS.get(name.split('_')[0])
-        if kind is None or d.geom_xpos[g][1] < -0.5 or m.body_mocapid[m.geom_bodyid[g]] >= 0:
+    geoms = getattr(world, '_room_geoms', None)
+    if geoms is None:
+        geoms = world._room_geoms = [(g, KINDS.get(m.geom(g).name.split('_')[0])) for g in range(m.ngeom)]
+        geoms = world._room_geoms = [(g, kind) for g, kind in geoms
+                                     if kind is not None and m.body_mocapid[m.geom_bodyid[g]] < 0]
+    out, lit = [], getattr(world, 'lamp', False)
+    for g, kind in geoms:
+        if d.geom_xpos[g][1] < -0.5:
             continue
-        if kind == 'lamp' and getattr(world, 'lamp', False):
+        if kind == 'lamp' and lit:
             kind = 'lit'
         out.append((kind, tuple(d.geom_xpos[g]), tuple(m.geom_size[g]),
                     tuple(map(tuple, d.geom_xmat[g].reshape(3, 3)))))
@@ -115,8 +118,7 @@ def touched(world, dt):
     switch, hands = ids
     since = getattr(world, 'switched', SWITCH_S) + dt
     if since >= SWITCH_S and d.ncon:
-        g1, g2 = d.contact.geom1[:d.ncon], d.contact.geom2[:d.ncon]
-        if (g1 == switch).any() or (g2 == switch).any():
+        if (d.contact.geom[:d.ncon] == switch).any():
             for i in range(d.ncon):
                 c = d.contact[i]
                 pair = (c.geom1, c.geom2)

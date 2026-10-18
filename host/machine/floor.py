@@ -337,53 +337,70 @@ def board(world, k, c):
     m.jnt_stiffness[j], m.dof_damping[m.jnt_dofadr[j]] = k, c
 
 
-def dents(world):
+def _ids(world):
+    """The props' ids in the world's model, looked up once: the slabs; each event's body, geom
+    and kind; the rug; the chair and its seat and back; the bed, its mattress and headboard; the
+    slopes' bodies and geoms."""
+    ids = getattr(world, '_prop_ids', None)
+    if ids is None:
+        m = world.model
+        events = [('stairs' if n.startswith('step') else n.split('_')[0], n, m.body(n).id)
+                  for n in ('sill', 'slip', 'brick_left', 'brick_right', 'board', 'wall', 'tree',
+                            'ice', 'snow') + tuple(n for n, _h, _a in _steps())]
+        ids = world._prop_ids = {
+            'slabs': (m.geom('slab_a').id, m.geom('slab_b').id),
+            'events': [(kind, b, m.body_geomadr[b], name in ('board', 'wall', 'tree') or name.startswith('step'))
+                       for kind, name, b in events],
+            'rug': m.body('rug').id,
+            'chair': (m.body('chair').id, m.geom('chair_seat').id, m.geom('chair_back').id),
+            'bed': (m.body('prop_bed').id, m.geom('bed_mattress').id, m.geom('bed_headboard').id),
+            'slopes': [(m.body(n).id, m.geom(n).id) for n in ('slope_ramp', 'slope_top')]}
+    return ids
+
+
+def dents(world, np):
     """[(x, y, z, m)] where her mattress gives under her: each contact in it, world, and how deep."""
-    m, d = world.model, world.data
-    mat = m.geom('bed_mattress').id
-    return [tuple(float(v) for v in d.contact[i].pos) + (-float(d.contact[i].dist),)
-            for i in range(d.ncon) if mat in (d.contact[i].geom1, d.contact[i].geom2) and d.contact[i].dist < 0.0]
+    d, mat, ncon = world.data, _ids(world)['bed'][1], world.data.ncon
+    if not ncon:
+        return []
+    geom, dist = d.contact.geom[:ncon], d.contact.dist[:ncon]
+    hit = np.flatnonzero((geom == mat).any(axis=1) & (dist < 0.0))
+    pos = d.contact.pos[:ncon]
+    return [tuple(float(v) for v in pos[i]) + (-float(dist[i]),) for i in hit]
 
 
 def props(world):
     m, d, out = world.model, world.data, []
-    a, b = m.geom('slab_a').id, m.geom('slab_b').id
+    ids = _ids(world)
+    a, b = ids['slabs']
     gap = (m.geom_pos[a][2] + m.geom_size[a][2], m.geom_pos[b][2] - m.geom_size[b][2])
     if gap[1] - gap[0] > 1e-6 and getattr(world, 'hole_x', 0.0) is not None:
         out.append(('hole', (getattr(world, 'hole_x', 0.0), -HOLE_M / 2.0, sum(gap) / 2.0),
                     (0.5, HOLE_M / 2.0, (gap[1] - gap[0]) / 2.0), ((1, 0, 0), (0, 1, 0), (0, 0, 1))))
-    for name in ('sill', 'slip', 'brick_left', 'brick_right', 'board', 'wall', 'tree',
-                 'ice', 'snow') + tuple(n for n, _h, _a in _steps()):
-        body = m.body(name).id
+    for kind, body, g, whole in ids['events']:
         if d.xpos[body][1] > -0.5:
-            g = m.body_geomadr[body]
             c, half = d.geom_xpos[g], m.geom_size[g]
             top = c[1] + half[1]
-            low = c[1] - half[1] if (name in ('board', 'wall', 'tree') or name.startswith('step')) else max(0.0, c[1] - half[1])
-            out.append(('stairs' if name.startswith('step') else name.split('_')[0],
-                        (c[0], (top + low) / 2.0, c[2]), (half[0], (top - low) / 2.0, half[2] or half[0]),
+            low = c[1] - half[1] if whole else max(0.0, c[1] - half[1])
+            out.append((kind, (c[0], (top + low) / 2.0, c[2]), (half[0], (top - low) / 2.0, half[2] or half[0]),
                         tuple(map(tuple, d.xmat[body].reshape(3, 3)))))
-    rug_id = m.body('rug').id
+    rug_id = ids['rug']
     if d.xpos[rug_id][2] > PARKED_M + 1.0:
         out.append(('rug', tuple(d.xpos[rug_id]), (0.3, RUG_M / 2.0, RUG_LONG_M / 2.0),
                     tuple(map(tuple, d.xmat[rug_id].reshape(3, 3)))))
-    chair_id = m.body('chair').id
+    chair_id, seat, back = ids['chair']
     if d.xpos[chair_id][1] > -0.5:
         c_mat = tuple(map(tuple, d.xmat[chair_id].reshape(3, 3)))
-        for gname in ('chair_seat', 'chair_back'):
-            g = m.geom(gname).id
+        for g in (seat, back):
             out.append(('chair', tuple(d.geom_xpos[g]), tuple(m.geom_size[g]), c_mat))
-    bed_id = m.body('prop_bed').id
+    bed_id, g_mat, g_hb = ids['bed']
     if d.xpos[bed_id][1] > -0.5:
         b_mat = tuple(map(tuple, d.xmat[bed_id].reshape(3, 3)))
-        g_mat, g_hb = m.geom('bed_mattress').id, m.geom('bed_headboard').id
         out.append(('bed', tuple(d.geom_xpos[g_mat]), tuple(m.geom_size[g_mat]), b_mat))
         if d.xpos[bed_id][1] > -0.1:
             out.append(('bed', tuple(d.geom_xpos[g_hb]), tuple(m.geom_size[g_hb]), b_mat))
-    for bname in ('slope_ramp', 'slope_top'):
-        bid = m.body(bname).id
+    for bid, g in ids['slopes']:
         if d.xpos[bid][1] > -0.5:
-            g = m.geom(bname).id
             out.append(('slope', tuple(d.geom_xpos[g]), tuple(m.geom_size[g]),
                         tuple(map(tuple, d.xmat[bid].reshape(3, 3)))))
     return out

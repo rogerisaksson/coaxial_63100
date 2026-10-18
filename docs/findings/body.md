@@ -88,6 +88,19 @@ her latent loop in [orthokinematics](orthokinematics.md).
   once in 234, simulated time per wall second 0.22 of spread where 0.62. The
   drives' six-field readings had cost the loop's `flat` twice its time; a
   float taken as it is: 0.53 -> 0.64 of real time.
+- Her worker's pass walking, the laptop, two trees interleaved by process
+  time: 1 680 -> 1 460 us, 0.60 -> 0.69 of real time, her trajectory's sha1
+  a pass the same over 9 s and her walk's smoke the same to the digit. Her
+  wear's window had stood her 0.9-1.3 s every 4 s: 8 000 steps of np.cross
+  on 3-vectors (`wear._hems`), in floats 250 ms, sysid's rows the rest. The
+  referee's and her edge's contact loops are arrays - a contact's force its
+  rows of `efc_force`, the cone elliptic -, the props' ids and her skin's
+  looked up once, her heat's state arrays where lists went to and fro each
+  step, `paired`'s index once, the shove's rows zeroed only while it acts.
+  MuJoCo's step is 92 us of the pass; her law 2.7 ms every third
+  (`impedance.ask` 1.0, the wrench step 0.6, her sensing 0.4, her heat
+  0.2). The C step through its ctypes edge: 1 355 us a pass, 0.74; the law
+  every fourth pass 1 180, 0.85; both 1 060, 0.94. CPython's JIT: slower.
 
 ## Mechanics
 

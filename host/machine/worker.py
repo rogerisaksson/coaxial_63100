@@ -174,14 +174,16 @@ def _is_fallen(g, world):
     was a fall, and thrown back onto it she was down at 3.7 s."""
     m, d = world.model, world.data
     if g.get('_falls_by', (None,))[0] is not m:
-        g['_falls_by'] = (m, {m.body(n).id for n in edge.SKIN if not n.endswith(('_shank', '_foot', '_toes'))},
-                          floor.grounds(m))
+        np = world._np
+        down = {m.body(n).id for n in edge.SKIN if not n.endswith(('_shank', '_foot', '_toes'))}
+        g['_falls_by'] = (m, np.isin(m.geom_bodyid, list(down)), np.isin(m.geom_bodyid, list(floor.grounds(m))))
     _m, down, ground = g['_falls_by']
-    for i in range(d.ncon):
-        a, b = m.geom_bodyid[d.contact[i].geom1], m.geom_bodyid[d.contact[i].geom2]
-        if (a in down and b in ground) or (b in down and a in ground):
-            return True
-    return False
+    ncon = d.ncon
+    if not ncon:
+        return False
+    geom = d.contact.geom[:ncon]
+    a, b = geom[:, 0], geom[:, 1]
+    return bool(((down[a] & ground[b]) | (down[b] & ground[a])).any())
 
 
 def _put(states, item):
@@ -224,6 +226,7 @@ def laid(s):
     n = len(g['world'].peak)
     s.update(fallen_at=None, torque=np.zeros(n), power=np.zeros(n), watts=0.0, epoch=s['epoch'] + 1,
              passes=0, wear=wear.laid(g['body']), ys=[], taus=[])
+    s['wear_told'] = wear.told(s['wear'])
     s['heard']((s['epoch'], 0, g['t'], {'laid': {'every': s['every'], 'walks': s['walks'], 'gym': s['gym_name'],
                                                  'room': physics.ROOM, 'sight': physics.SIGHT}}))
 
@@ -263,6 +266,7 @@ def stepped(s):
                 wear.step(w, wear.window(w, ys, taus[:-1], DT))
                 wear.boxed(w, ys, taus[:-1], DT)
                 wear.loaded(w, g)
+                s['wear_told'] = wear.told(w)
                 s['ys'], s['taus'] = [ys[-1]], [taus[-1]]
         else:
             s['ys'], s['taus'] = [], []
@@ -286,9 +290,10 @@ def stepped(s):
 
 
 def told(s):
-    """Her state as the page hears it (`sprung.state`), her epoch and her wear beside it."""
+    """Her state as the page hears it (`sprung.state`), her epoch and her wear beside it, as its
+    last window left it."""
     return dict(sprung.state(s['g'], s['torque'], s['power'], s['watts'], s['ratio'], s['fallen_at'],
-                             s['says'], s['refused']), epoch=s['epoch'], wear=wear.told(s['wear']))
+                             s['says'], s['refused']), epoch=s['epoch'], wear=s['wear_told'])
 
 
 def run(commands, states, heard=None, every=sprung.STACK_EVERY, walks=False):

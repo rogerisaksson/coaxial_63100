@@ -89,10 +89,12 @@ def paired(np, pairs, tau, top, kt):
     out = np.clip(tau, -top, top)
     if len(pairs):
         p, r = pairs[:, 0], pairs[:, 1]
-        a, b = tau[p] / kt[p], tau[r] / kt[r]
-        one = np.clip(a + b, -top[p] / kt[p], top[p] / kt[p])
-        two = np.clip(a - b, -top[r] / kt[r], top[r] / kt[r])
-        out[p], out[r] = kt[p] * (one + two) / 2.0, kt[r] * (one - two) / 2.0
+        kt_p, kt_r = kt[p], kt[r]
+        a, b = tau[p] / kt_p, tau[r] / kt_r
+        top_p, top_r = top[p] / kt_p, top[r] / kt_r
+        one = np.clip(a + b, -top_p, top_p)
+        two = np.clip(a - b, -top_r, top_r)
+        out[p], out[r] = kt_p * (one + two) / 2.0, kt_r * (one - two) / 2.0
     return out
 
 
@@ -166,7 +168,7 @@ class World:
         #: batch a pass (`drives`).
         self.keys, self.named = [], []
         self.batch = Batch(self.drives)
-        self.push_n, self.push_until = np.zeros(3), -1.0
+        self.push_n, self.push_until, self.pushed = np.zeros(3), -1.0, False
         #: Her pelvis's place and turn hung in a harness (`hang`), or None.
         self.hung: Any = None
         #: The lace (`lace`), and whether it is snagged.
@@ -257,7 +259,7 @@ class World:
         self.motor[:] = 0.0
         self.borne_at = None
         self.stamp, self.at, self.glitch_at, self.pending = d.time, d.time, None, {}
-        self.push_until, self.laced = -1.0, False
+        self.push_until, self.pushed, self.laced = -1.0, False, False
         self.hung, d.xfrc_applied[:] = None, 0.0
         self.model.tendon_range[self.lace_at] = (0.0, 10.0)
         if self.buses is not None:
@@ -327,8 +329,11 @@ class World:
                                             np.where(self.shorted, self.damping, 0.0), STEP_S)
             self.heat += float(self.loss @ (self.motor * self.motor)) * STEP_S
             self.effort += float(np.abs(self.motor).sum()) * STEP_S
-            d.xfrc_applied[:, 0:3] = 0.0
-            d.xfrc_applied[self.torso, 0:3] = self.push_n if d.time < self.push_until else 0.0
+            pushing = d.time < self.push_until
+            if pushing or self.pushed:
+                d.xfrc_applied[:, 0:3] = 0.0
+                d.xfrc_applied[self.torso, 0:3] = self.push_n if pushing else 0.0
+            self.pushed = pushing
             if self.hung is not None:
                 d.xfrc_applied[self.pelvis] = self._harness()
             self._mj.mj_step(self.model, d)
@@ -365,7 +370,7 @@ class World:
 
     def dents(self):
         """Where her mattress gives under her (`floor.dents`)."""
-        return floor.dents(self)
+        return floor.dents(self, self._np)
 
     def props(self):
         """What lies on the floor (`floor.props`), and a lace snagged: ('lace', from, to), shoe
