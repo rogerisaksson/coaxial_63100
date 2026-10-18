@@ -9,7 +9,7 @@
 - Domains, imports one way: `motor/` (the PMSM; imports nothing here),
   `machine/` (the executive over IO nodes; imports no board), `coaxial/`
   (the inverter; imports both). Machine means the executive, motor the PMSM,
-  host this computer (docs/ARCHITECTURE.md).
+  host this computer (docs/architecture/host.md).
 - Front door: `Coaxial63100` (`coaxial/rig.py`); on a real board `open()` first
   makes it run this host's build (`coaxial.devices.boot.load`, docs/BOOT.md);
   `device.daq`, `.imu`, `.angle`, `.thermal`, `.gates`, `.drive`, `.motion`,

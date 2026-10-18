@@ -49,7 +49,7 @@ CURSOR = '█'
 def _column(labels, width):
     longest = max((len(label) for label in labels), default=0)
     return min(longest + 2, max(6, width // 2))
-#: The host's portable cores, host-tested through gcc (docs/ARCHITECTURE.md).
+#: The host's portable cores, host-tested through gcc (docs/architecture/firmware.md).
 CORES = 'MODBUS DRIVE THERMAL FILTER DAQ SHTP BOOT'
 
 

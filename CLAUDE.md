@@ -45,7 +45,7 @@ Fitted parts come from `0x6D` kind 4, never from a name. Host rules:
 
 | Read | Before |
 | --- | --- |
-| docs/ARCHITECTURE.md | layout, tests |
+| docs/ARCHITECTURE.md | layout, tests; a subject a file in docs/architecture/ |
 | docs/PROTOCOL.md | anything on the wire |
 | docs/BOOT.md | bootloader, flash map |
 | docs/HARDWARE.md | interpreting a measurement |

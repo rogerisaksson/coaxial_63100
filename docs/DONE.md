@@ -309,3 +309,7 @@ the fifty before these: [DONE_1-50](DONE_1-50.md).
     a part above her shins on the floor, what lies on it or a step; a chair, a
     bed and a wall bear her. On her back on a bed she lies where a tilt past
     45 deg fell her ([scenarios](findings/scenarios.md)).
+81. ARCHITECTURE.md an index; a subject a file in docs/architecture/: firmware,
+    electronics, drivetrain, thermals, kinematics, solvers, planners, robotics,
+    aerodynamics, quad, host, views, tests. Every machine/ module named in one
+    of them; a drive's heat at its four nodes, not three.

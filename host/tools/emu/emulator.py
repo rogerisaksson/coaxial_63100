@@ -16,7 +16,7 @@ them on one RS485 bus, the host's adapter on it.
         rig = Coaxial63100(port=limb.url, unit=3, own_image=False).open()
 
 Renode: $RENODE, `renode` on PATH, or the newest portable build under
-%LOCALAPPDATA%/renode (setup: docs/ARCHITECTURE.md).
+%LOCALAPPDATA%/renode (setup: docs/architecture/electronics.md).
 """
 import argparse
 import glob
