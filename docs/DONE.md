@@ -198,3 +198,5 @@ the fifty before these: [DONE_1-50](DONE_1-50.md).
     law allows it, an arm's band; Z cycles them.
 52. The third-person controls as the games have them, a PNG each under
     `--keys`: orbit, follow, shoulder swap, sprint, crouch, the prompt.
+53. The gym under her sensor boundary's check: `sprung`, `worker` and `tour`
+    write none of the world's state, a lay, a scene and a shove its own calls.

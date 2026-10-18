@@ -205,12 +205,7 @@ gets a line at the end of [DONE](DONE.md).
 21. **No transition with a jerk**, whatever happens (Scenarios 2,
     `tools/sim/jerk.py`). DOD: every segment's peak through every scenario
     no higher than in her steady walk.
-22. **Her sensor boundary over the gym too**: her law's modules name no
-    world, truth, id or shove and write no `qpos` or `qvel` but her model's
-    posing (`test_her_law_reads_her_sensors_alone`); the gym (`sprung`,
-    `worker`, `tour`) and `xfrc_applied` outside it. DOD: the gym under the
-    check, a scenario's placing and a shove the only writes left.
-23. **Identification's rest** (identification.md): a world 15 % off the
+22. **Identification's rest** (identification.md): a world 15 % off the
     figure reads back its drives and 61 of 107 trusted base parameters within
     10 %, its correction 0.60 -> 0.36 N m where the world's own is 0.30; with
     the gearboxes on, the wind-up and the play of 13 drives within 10 %, the
@@ -262,12 +257,14 @@ serves its DOD; none an entry a case.
    sill, the rug, the hole, asphalt; snow 11, a slide unread (grip.md). The floor
    ahead a plane of her standing soles' pitch (`modal.under`): up a ramp she
    lands where she aims, down at its top; past a crest or down a descent a
-   swing hangs 6-27 cm over the floor; the world's floor known under, at and
-   between her landings, or the ramp's pitch, she still falls - her landings on
-   nosings, her capture point running on down a descent, the plane wrong at a
-   ramp's ends (scenarios.md). DOD: stairs of 0.15 x
-   0.30 m up and down, a slope of 10 deg up, down and across; 3 times in 4
-   each.
+   swing hangs 6-27 cm over the floor. Measured and not kept (scenarios.md,
+   blind on a flight): a sole standing by its load alone, a swing held at an
+   edge till its toes clear it, the floor's rise read from her landings, a
+   late swing lowering her - each took a held scene. Left: her centre of mass
+   running on past a lone standing sole while the next swing is late, the
+   common root on every descent; the first step down a flight, nothing told,
+   a drop. DOD: stairs of 0.15 x 0.30 m up and down, a slope of 10 deg up,
+   down and across; 3 times in 4 each.
 4. **Her floor identified, a text over the general law**: what her
    standing soles meet - slip and sink under their load - read from her
    sensors against what her law assumes (friction 0.6 in her step, a rigid
@@ -282,8 +279,9 @@ serves its DOD; none an entry a case.
    pass after a sole meets them, kept 30 s and handed to each landing sole:
    told or unaware she crosses both, and snow, at every wobble (grip.md).
    Left: a floor her soles never slide on - asphalt, snow - read from what
-   her holding soles use alone; skates. DOD: on skates she stands 10 s and
-   goes 2 m by strides across her blades.
+   her holding soles use alone; her insoles reading their normal load alone
+   (scenarios.md, blind on a flight); skates. DOD: on skates she stands 10 s
+   and goes 2 m by strides across her blades.
 5. **Reachable landings ahead**: where each limb lands before her capture
    point is past it, read from her reach (`machine.reach`); none, her height
    lowered and a limb set to meet the fall, knees then hands, head off the

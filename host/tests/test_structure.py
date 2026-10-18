@@ -357,6 +357,26 @@ def test_her_law_reads_her_sensors_alone(r):
             ', '.join(posed[:6]))
 
 
+#: The gym over her law lays her, places a scene and shoves her through the world's own calls
+#: (`physics.World.reset`, `.scenario`, `.push`) and writes none of the world's state itself.
+GYM, MOVES = ('sprung', 'worker', 'tour'), ('qpos', 'qvel', 'xfrc_applied', 'qfrc_applied', 'mocap_pos', 'mocap_quat')
+
+
+def test_the_gym_moves_her_through_the_world_alone(r):
+    """The gym writes none of the world's state: her lay, a scene and a shove are the world's own
+    calls, and nothing else moves her."""
+    wrote = []
+    for name in GYM:
+        tree = ast.parse(open(os.path.join(HOST, 'machine', name + '.py'), encoding='utf-8').read())
+        for node in ast.walk(tree):
+            targets = (node.targets if isinstance(node, ast.Assign)
+                       else [node.target] if isinstance(node, ast.AugAssign) else [])
+            if any(isinstance(t, ast.Attribute) and t.attr in MOVES for target in targets for t in ast.walk(target)):
+                wrote.append('%s:%d' % (name, getattr(node, 'lineno', 0)))
+    r.check("the gym writes none of the world's state: a lay, a scene and a shove are the world's own calls",
+            not wrote, ', '.join(wrote[:6]))
+
+
 def test_shape(r):
     """No function past the length or nesting a reader can hold."""
     long_ones, deep_ones = [], []
@@ -415,7 +435,8 @@ ROSTER = (test_every_file_fits_a_reading, test_imports, test_no_undefined_names,
           test_reexports, test_stand_ins_answer_every_call, test_no_duplicate_definitions,
           test_no_unused_imports, test_numpy_enters_behind_the_thread_cap,
           test_machine_imports_no_board, test_motor_imports_no_board,
-          test_her_law_reads_her_sensors_alone, test_shape, test_documented, test_no_escaping_scars)
+          test_her_law_reads_her_sensors_alone, test_the_gym_moves_her_through_the_world_alone, test_shape,
+          test_documented, test_no_escaping_scars)
 
 def main(argv=None):
     """Every test, or those the command line's words name, or its --shard k/n (tools.dev.focus)."""

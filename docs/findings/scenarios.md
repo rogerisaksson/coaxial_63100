@@ -320,3 +320,35 @@ plain walk the same bit for bit (her pose hashed each second for 20 s).
   landing flipped between treads a pass before it touched, its toes met the
   next riser and it was pushed back off its nosing; `stairs_walk` said over
   it, down at 3.15.
+
+## Blind on a flight
+
+Stairs of 0.15 x 0.30 m walked into at 0.69 m/s, nothing told, traced 20 ms a
+pass beside the world's floor under each sole (`tools/sim/trace.py`).
+
+- Down: the swing passing the believed floor's level in the air, 15 cm over the
+  tread, stands by its height alone, the other is let go and she drops 4 g onto
+  it (3.10 s). Held to a load or to lying still there instead, she reached on
+  while her centre of mass ran past the standing sole, 0.8 -> 1.5 m/s in 0.3 s,
+  and the hole's 10 cm, which that commitment and drop had held, fell: not kept.
+- Up: the toes pushed back by the riser's face loaded the sole 85-285 N and it
+  stood. An insole reads what presses up through it (`edge.read`'s load as
+  the normal share): right, and not kept - the slick patch's 5 mm lip's push
+  had stood a sole there and it fell at 3.9-4.4 s, and the snow's far edge
+  fell at one wobble of three, a hop off its 4 cm at 1.4 m/s. Pushed back, the swing held before its descent with her rhythm
+  and her rows waiting, its clearance climbing till the toes were over the edge,
+  its heel landing 4 cm past where they met it: the first riser climbed (up 3.0
+  -> 4.7 s), but the same hold fired at the tree's and the wall's foot and at
+  the snow's 4 cm lip, and with it a give-up at 0.22-0.30 m of raise and a veto
+  on a touch above her soles, the wall still fell at 6.3-9.0 s: not kept.
+- A flight read from its landings - the floor's rise a metre along from one
+  landing to the next, the plane ahead the steeper of it and the soles' pitch -:
+  down the ramp -0.23 where -0.18, with a late swing lowering her as far as its
+  leg needs she went 3.1 m to its foot (down at 7.63 s where 3.82), but on the
+  snow the plane read the standing sole behind 3 cm over its floor and it was
+  let go, and a spin in place lowered her and fell: not kept. The floor under a
+  standing sole as where it landed, the plane for the swing alone: stairs 2.96,
+  across the ramp 4.32: not kept.
+- Left: on a tread or a ramp her centre of mass runs on past the standing sole
+  while the next swing is late, and the swing goes where her capture point has
+  gone - two treads on; nothing told, her first step down a flight is a drop.
