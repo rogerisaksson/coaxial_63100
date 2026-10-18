@@ -113,7 +113,9 @@ her latent loop in [orthokinematics](orthokinematics.md).
   in snow 3 of 3, hopped 0.85 m/s where 0.9 and fell turning at 0.69 m/s:
   the python step stays. Left: `impedance.ask` 1.3 ms and the python step
   0.8 of the law's 2.6 every third pass; libm here gives numpy's bits for
-  sin, cos, exp, log, atan2, sqrt, acos, asin, hypot and pow, tanh an ulp off.
+  sin, cos, tan, exp, log, atan2, sqrt, acos, asin, hypot and pow, tanh an
+  ulp off; numpy's (2,3)@(3,3) is dgemm's fma chain, its (3,)@(3,3) a plain
+  sum, its (3,3)@(3,) and einsum 'nia,ia->n' neither (60 000 draws each).
 
 ## Mechanics
 
