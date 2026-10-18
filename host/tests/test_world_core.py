@@ -263,16 +263,36 @@ def test_the_sto_chain_holds_settled(report, lib):
                  '%.1f us a step held, FAULTOUT low %s ms after the pilot went'
                  % (held / steps * 1e6, '%.3f' % (low * 1e3) if low else '-'))
     # Idle: AFE_ON off, main() in WFI toggling PA10 a SysTick apart - down, and held down.
+    def idle(steps):
+        """`steps` of a SysTick each, PA10 toggled a step apart; each step's s."""
+        costs = []
+        for _ in range(steps):
+            chain.given[5] = 1.0 if chain.pin else 0.0
+            t0 = time.perf_counter()
+            lib.emu_sto_step(chain.unit, 1e-3, chain.given, 0, None, chain.pins)
+            costs.append(time.perf_counter() - t0)
+            chain.pin = not chain.pin
+        return costs
+
     chain.given[4] = 0.0
-    t0 = time.perf_counter()
-    for _ in range(1000):
-        chain.given[5] = 1.0 if chain.pin else 0.0
-        lib.emu_sto_step(chain.unit, 1e-3, chain.given, 0, None, chain.pins)
-        chain.pin = not chain.pin
-    idle = time.perf_counter() - t0
+    second = sum(idle(1000))
     report.check('idle with AFE_ON off, down and held: a simulated second in under 50 ms',
-                 idle < 0.05 and chain.pins[3] < FAULT_HIGH / 2,
-                 '%.1f ms, FAULTOUT %.2f V' % (idle * 1e3, chain.pins[3]))
+                 second < 0.05 and chain.pins[3] < FAULT_HIGH / 2,
+                 '%.1f ms, FAULTOUT %.2f V' % (second * 1e3, chain.pins[3]))
+    # A frame heard idle, the master's pilot on the bus: main() out of WFI 2.3 ms (six bytes
+    # and t3.5), PA10 at its pace, then asleep again - a disturbance, not a regime; the
+    # recovery's and the check's steps, then held again.
+    chain.given[0] = 1.5
+    idle(20)
+    t0 = time.perf_counter()
+    chain.run(2.3e-3, rail5=False)
+    costs = idle(10)
+    woke = time.perf_counter() - t0
+    held_at = next((k for k, c in enumerate(costs) if c < 20e-6), None)
+    report.check('a frame heard idle: held again from the third SysTick after, down throughout',
+                 held_at == 2 and chain.pins[3] < FAULT_HIGH / 2,
+                 'held again from step %s; the wake and 10 ms after it %.1f ms, FAULTOUT %.2f V'
+                 % (held_at, woke * 1e3, chain.pins[3]))
 
 
 def test_the_model_parameters_laid_live(report, lib):

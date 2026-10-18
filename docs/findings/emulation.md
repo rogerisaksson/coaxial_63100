@@ -210,6 +210,15 @@ board's findings: [FINDINGS](../FINDINGS.md).
   where silence at 0.51. On the board's clock alone Renode's, carried ahead
   between reads, ended waits early and test_emulator read a late reply into the
   next.
+- A frame heard cost an idle board 12 ms of the STO chain's 1 us substeps:
+  main() out of WFI for the frame (the addressed board 0.5 ms, the rest t3.5
+  longer), PA10 pumped at the pass's 20 us, and the chain took the pump for a
+  regime of its own, two 5 ms windows settled in it and two more out of it.
+  A transaction 18, 41 and 77-85 ms of the wall on 1, 2 and 4 boards (the
+  wire's 10), the pacer holding the lock through the substeps. The pump off a
+  held regime's either way is a disturbance run from the state (world_sto.c,
+  HOLD_AWAY): held again 3 ms after the frame; 9, 13 and 32 ms. Left: the
+  rest of a limb awake t3.5 and each chain's 2 ms recovery at 1 us.
 
 ## Heat
 

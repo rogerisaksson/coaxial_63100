@@ -355,8 +355,10 @@ serves its DOD; none an entry a case.
 
 ## Host
 
-- **native://**: a limb's world on a fixed mount as board/emu's. DOD: the
-  body's balance and gait from the SIL.
+- **native://**: a limb's world on a fixed mount as board/emu's. A frame on
+  an idle limb of four 32 ms, the wire's 10: three boards awake t3.5 and each
+  chain's 2 ms recovery at 1 us substeps (emulation.md). DOD: the body's
+  balance and gait from the SIL.
 - **Identification on the robot** (identification.md): her tree's campaign
   (`machine.sysid`) through her buses once the SIL moves her figure; the
   hips' yaw and roll armature untold on the stand; a link's inertia about

@@ -107,14 +107,17 @@
 /* The hold: a regime's outputs averaged over HOLD_WINDOW s agreeing with the last window's to
    HOLD_V (Cinj, Clevel: the keepalive's ripple sampled at the steps' ends parts two windows by
    1.3 mV) and HOLD_GATE (+15V7), the keepalive's every gap within HOLD_GAP s (5 to 25 us moves
-   Clevel 2.86 to 2.72 V) - or the chain tripped, which a pump slower still keeps down. A longer
-   gap in a held pumped regime - the thermal observer's slice holds main() 129 us at 10 Hz, 190
-   under the drive's interrupts - is run from the state, held or settling, and the hold
-   resumes once the pump is back HOLD_RECOVER s (Clevel's dip decays at R98 C106, 185 us) and
-   a HOLD_CHECK s window of Clevel agrees with the means to HOLD_CHECK_V (the pilot's 5 kHz
-   ripple on Clevel is 40 mV, and the window holds a part of a period) and +15V7 to HOLD_GATE,
-   the settling goes on with the gap left out; a gap that goes on is a loss. Taken as a change
-   of regime, the slices kept the emulated chain from ever holding. */
+   Clevel 2.86 to 2.72 V) - or the chain tripped, which a pump slower still keeps down. The pump
+   off a held regime's - a gap in a pumped one (the thermal observer's slice holds main() 129
+   us at 10 Hz, 190 under the drive's interrupts), a wake in an idle one (a frame's reception
+   holds main() out of WFI 0.5 to 2.3 ms, PA10 at its pace) - is run from the state, held or
+   settling, and the hold resumes once the pump is back HOLD_RECOVER s (Clevel's dip decays at
+   R98 C106, 185 us; a wake's 2.7 V on it too) and a HOLD_CHECK s window of the steps begun
+   after that agrees with the means on Clevel to HOLD_CHECK_V (the pilot's 5 kHz ripple on
+   Clevel is 40 mV, and the window holds a part of a period) and on +15V7 to HOLD_GATE, the
+   settling goes on with the gap left out; off past HOLD_AWAY s, a window's worth, it is a
+   change of regime. Taken as one from the first, the slices kept the emulated chain from ever
+   holding, and each frame heard cost a native board 12 ms of substeps. */
 #define HOLD_WINDOW 5e-3
 #define HOLD_V      5e-3
 #define HOLD_GATE   10e-3
@@ -122,6 +125,7 @@
 #define HOLD_RECOVER 1e-3
 #define HOLD_CHECK  1e-3
 #define HOLD_CHECK_V 25e-3
+#define HOLD_AWAY   HOLD_WINDOW
 
 /* Newton: iterations at most, the settled step (V, A). */
 #define NEWTON      40
@@ -636,12 +640,14 @@ void world_sto_step(world_sto_t *s, const world_sto_in_t *in, float dt, world_st
              : ((in->link_volts > UV_ON) && (in->link_volts < OV_ON))
   };
   const bool kept = same(&now, &s->regime);
+  const bool away = !kept && alike(&now, &s->regime);
 
-  /* A longer gap in a pumped regime, held or settling: run from the state, the windows kept. */
-  if (!kept && alike(&now, &s->regime) && s->regime.pumping && (s->disturbed < 0.0))
+  /* The pump off the regime's, held or settling: run from the state, the windows kept. */
+  if (away && (s->disturbed < 0.0))
   {
     s->held = false;
     s->disturbed = 0.0;
+    s->away = 0.0;
     memset(s->check, 0, sizeof(s->check));
   }
   if ((s->disturbed >= 0.0) && !alike(&now, &s->regime))
@@ -656,37 +662,40 @@ void world_sto_step(world_sto_t *s, const world_sto_in_t *in, float dt, world_st
   else if (s->disturbed >= 0.0)
   {
     run(s, in, dt);
-    s->disturbed += dt;
-    if (!now.pumping)
+    if (away)
     {
-      if (s->disturbed > HOLD_RECOVER + HOLD_CHECK)
+      s->away += dt;
+      s->disturbed = 0.0;
+      memset(s->check, 0, sizeof(s->check));
+      if (s->away > HOLD_AWAY)
       {
-        adopt(s, &now);                       /* the gap goes on: a loss */
+        adopt(s, &now);                       /* it goes on: a change of regime */
       }
     }
-    else if (s->disturbed >= HOLD_RECOVER)
+    else if (s->disturbed < HOLD_RECOVER)
     {
-      if (!s->settled)
+      s->disturbed += dt;                     /* the pump back, Clevel's excursion decaying */
+    }
+    else if (!s->settled)
+    {
+      s->disturbed = -1.0;                    /* the settling goes on, the gap left out */
+    }
+    else
+    {
+      s->check[0] += s->clevel * dt;
+      s->check[1] += s->gate * dt;
+      s->check[2] += dt;
+      if (s->check[2] >= HOLD_CHECK)
       {
-        s->disturbed = -1.0;                  /* the settling goes on, the gap left out */
-      }
-      else
-      {
-        s->check[0] += s->clevel * dt;
-        s->check[1] += s->gate * dt;
-        s->check[2] += dt;
-        if (s->check[2] >= HOLD_CHECK)
+        if ((fabs(s->check[0] / s->check[2] - s->means[1]) < HOLD_CHECK_V)
+            && (fabs(s->check[1] / s->check[2] - s->means[2]) < HOLD_GATE))
         {
-          if ((fabs(s->check[0] / s->check[2] - s->means[1]) < HOLD_CHECK_V)
-              && (fabs(s->check[1] / s->check[2] - s->means[2]) < HOLD_GATE))
-          {
-            s->held = true;
-            s->disturbed = -1.0;
-          }
-          else
-          {
-            adopt(s, &now);
-          }
+          s->held = true;
+          s->disturbed = -1.0;
+        }
+        else
+        {
+          adopt(s, &now);
         }
       }
     }

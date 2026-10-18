@@ -81,7 +81,9 @@ typedef struct
   double sums[3], means[3]; /**< Cinj, Clevel, +15V7: the window's integrals, the last one's means */
   bool   settled;           /**< a window has closed in this regime */
   bool   held;
-  double disturbed;         /**< s into a longer gap run from the state held or settling, -1 none */
+  double disturbed;         /**< s since the pump came back to the regime's, run from the state
+                                 held or settling, -1 none */
+  double away;              /**< s the pump has been off the regime's in that run */
   double check[3];          /**< its Clevel and +15V7 integrals, the window's s */
 } world_sto_t;
 
