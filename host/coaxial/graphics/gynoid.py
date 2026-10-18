@@ -6,7 +6,7 @@ offset. Without `root`, the lowest foot stands on y = 0.
 import math
 from typing import Any
 
-from coaxial.graphics import arrows as _arrows, drums, engine, mechanism, panels, sneaker
+from coaxial.graphics import arrows as _arrows, drape, drums, engine, mechanism, panels, sneaker
 from coaxial.graphics.callouts import callouts, line, packed
 from coaxial.graphics.lit import (CORE, MESH, PAINTED, PLATE, SKIN, braille, grid, paint,
                                   project, splat)
@@ -248,6 +248,7 @@ class Body:
         self.patches = drums.patches(self.parts)
         self.dense, self.dense_spans = sampled(self, np.concatenate(faces))
         self.dense_near = drums.near(self.patches, self.parts, self.drums, self.dense, self.dense_spans)
+        self.bends = drape.table(self.parts, self.corners, self.spans, self.dense[0], self.dense_spans)
         self._rest_pivots = self.pivots({})
 
     def _frames(self, angles, root=None):
@@ -294,6 +295,7 @@ class Body:
         src = (self.dense[0], self.dense[1], self.dense_spans) if dense else (
             self.corners, self.normals, self.spans)
         pos, norm = moved(*src, frames)
+        drape.bent(pos, norm, src[0], src[2], frames, self.bends, dense)
         if floor:
             pos[:, 1] -= floor
         return pos, norm

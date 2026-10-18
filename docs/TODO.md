@@ -22,6 +22,9 @@ gets a line at the end of [DONE](DONE.md).
 
 ## Gynoid, in order
 
+- **HUMANOID hangs in the tty at once** (reported): here `-m terminal humanoid
+  --frames 150` ran 28.7 s and the page 400 frames walking, GPU raster on,
+  native://. DOD: the hang seen here, its stack dumped, fixed.
 1. **Orthokinematics, the one way she moves** (orthokinematics.md): the
    humanoid robot movement is text of balance, rhythm and elasticity, compiled
    to rows; the humanoid robot latent state is stepped and rendered with no

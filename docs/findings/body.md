@@ -337,3 +337,9 @@ loop, gone from the tree (tag `laws-before-the-loop`); on the loop:
   skull from the ears' line, its front the hairline up to 0.65 of the
   skull's height, where an ellipsoid 24 mm wider than the head reached the
   jaw; the fall 36 mm deep behind the occiput where 160 stood a wall.
+- Bent at the joints (`graphics.drape`, two frames a corner, blended over
+  the 35-90 mm past the joint): the seat's corners on a thigh swung 35 deg
+  follow it, no notch at the hip; the tee's hem follows a spine bent 15;
+  a stride's frame 0.01 s the dearer. A grid-and-tendon cloth (the ICARSC
+  2026 composite, 20 x 26 spheres a panel) is a page's whole budget: not
+  taken.

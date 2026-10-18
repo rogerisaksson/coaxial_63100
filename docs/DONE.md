@@ -234,3 +234,6 @@ the fifty before these: [DONE_1-50](DONE_1-50.md).
     slender wings, the quad a slate hump on round arms over two skid frames,
     the Edge navy with a yellow cowl, the Goblin a lime canopy and blade
     tips, her a fitted red tee, light jeans and a ponytail.
+67. Her clothes bent at the joints they span (`graphics.drape`): the tee into
+    the pelvis, the seat into each thigh, the shins and sleeves into theirs,
+    two frames a corner by its height.
