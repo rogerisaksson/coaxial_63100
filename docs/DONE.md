@@ -269,3 +269,7 @@ the fifty before these: [DONE_1-50](DONE_1-50.md).
     a progressive flare touching at -0.85 m/s, and both laps of the 16-gate
     course flown nose first, banked and pulled on `COURSE_SPHERE`
     ([aircraft](findings/aircraft.md)).
+74. Each hold on her halting rows counts from its own start
+    (`machine.law.held_back`): a hop said after a stop no longer loads on one
+    sole mid-step; `hop_after_a_stop.csv` stands at 8 of 9 wobbles where 6
+    ([scenarios](findings/scenarios.md)).

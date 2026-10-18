@@ -97,10 +97,8 @@ rad; Q E a sidestep at 0.5. Every twist they send lies within the bench's plays
 (`test_views_humanoid`).
 
 - Its turnabout - in place 2 s, an arc 1 s, a walk 2 s, a stop (`play_about`) -
-  held 5 of 13 wobbles, down 6.93-7.80 s: on her right sole, her centre of mass
-  0.18 -> 0.73 m across from it, the left swing landing at 6.9 s. In place then
-  a walk, in place then an arc, an arc then a walk, an arc of 3 s, each with its
-  stop: 13 of 13.
+  held 5 of 13 wobbles. In place then a walk, in place then an arc, an arc
+  then a walk, an arc of 3 s, each with its stop: 13 of 13.
 
 ## A swing's own clock
 
@@ -362,12 +360,14 @@ pass beside the world's floor under each sole (`tools/sim/trace.py`).
   the sole off the floor, on her rhythm's gain or a control step ahead of now
   each moved her (`walk_turn_right_at_0.69` fell, ice 1.76 m); the hold as it
   was, let go after two of her rhythm's swings (`latent.TURNS`): she stands in
-  0.3 s, sits at 3.2 s, rises at 2.7 s; the hop as before (172 flips, 152/153
-  N), the 12 replays whole. Let go only with her capture point inside her
-  soles, hop-after-a-stop fell.
+  0.3 s, sits at 3.2 s, rises at 2.7 s, the 12 replays whole. Let go only
+  with her capture point inside her soles, hop-after-a-stop fell.
+- A hold let go kept its start: a hop said 2.1 s after a stop, her still
+  stepping, was let go at once onto one sole (275/0 N) and fell landing at 3 of
+  9 wobbles; each hold counted from its own, 1, after a 38 N push.
 - The ice scene's `past 1.8` was that shuffle: told to stop at 1.49 m she
-  crept on at 0.045 m/s for 6 s to 1.88 m; let go she stands at 9.0 s and
-  slides to 1.76 m. The goal is 1.7 m, a stop that stops.
+  crept on at 0.045 m/s to 1.88 m; let go she stands at 9.0 s at 1.76 m. Its
+  goal is 1.7 m.
 - A walk asked of a stand swaying over 0.04 m/s got a stand first and the gait
   1.35 s later (`worker.heard_say`'s `off_c`); at rest she sways 0.05, after
   a stop 0.05-0.16, so every W waited 1.35 s. The sway term gone, init_walk

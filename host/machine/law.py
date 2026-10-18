@@ -34,7 +34,8 @@ def held_back(g, dt):
     and came down at 60 deg. Held longer than two of her rhythm's swings (`latent.TURNS`) they
     come: the swing waited for is not coming - the brake's sway kept one commanded on two
     standing soles for ever, the stand that would end it never came, a sit asked held with it,
-    and told to stop on ice she shuffled on 38 cm at 0.045 m/s."""
+    and told to stop on ice she shuffled on 38 cm at 0.045 m/s. Each hold counts its own: a
+    hop said 2.1 s after a stop, still stepping, loaded on one sole at once on the stand's."""
     tab, t, a = g['tab'], g['t'], g['a']
     if not len(tab) or (a[modal.NEED] <= 0.0 and a[modal.SWINGS].max() <= 0.0):
         g['_held_since'] = None
@@ -43,6 +44,7 @@ def held_back(g, dt):
     halts = (tab[:, latent.SAID][:, latent.GAIN] > 0.5) & (tab[:, latent.VALS][:, latent.GAIN] < 0.05)
     due = halts & (at <= t + latent.EDGE_S) & (at > t - dt + latent.EDGE_S)
     if not due.any():
+        g['_held_since'] = None
         return
     since = g.get('_held_since')
     if since is None:

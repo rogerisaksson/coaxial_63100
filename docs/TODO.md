@@ -22,9 +22,11 @@ gets a line at the end of [DONE](DONE.md).
 
 ## Gynoid, in order
 
-- **The slip scene falls** (`test_scenarios.py:slip`): 1 of 3 lays at 4.2 s
-  on the old hold, 2 of 3 at 3.6 s with the hold let go - the stand comes on
-  the slick patch where the old hold stepped on. DOD: stood, 3 of 3.
+- **The slip scene falls** (`test_scenarios.py:slip`), at 0 and 2e-4 rad
+  here, at 0 on CI: a split. The sole standing on the patch slides back as her
+  centre of mass passes it 19 cm in 0.54 s of single support, past mu h (5 cm);
+  the trailing sole slid 8 cm in its push-off and its swing went 14 cm back
+  first. Rounding moves which wobbles fall. DOD: stood, 3 of 3.
 - **The bed soft, her lie-down a throw** (asked): F at the bed lies her down
   or throws her onto it, the mattress giving, not a block. DOD: sink and
   time to rest measured.
@@ -229,12 +231,16 @@ gets a line at the end of [DONE](DONE.md).
 
 ## One command, either driver
 
-- **Teleoperation and autonomy alike**: keys, the tour and an agent send the
-  same twist and verbs; the drives' grant goes by the gait under way. Inside,
-  a gait said rides its nominal twist and the worker's say path keeps a
-  transition by entry name (brake, rises, `init_walk`'s delay). DOD: those
-  transitions as data, a said gait and a twisted one one path - the kept
-  replays standing.
+- **Told as a dynamic system** (asked): keys, the tour and an agent send the
+  same twist and verbs; a command moves her latent targets, the twist her
+  rhythm's drive and a verb her modes', and when she moves follows from her
+  state: her capture point, her swings, her rhythm's phase and gain. As it is
+  the worker's say path is a switchboard of speed gates, delays by name
+  (`BRAKE_DELAYS`, `RISES`, `INIT_DELAYS`, `off_c`'s 1.35 s) and gaits picked
+  by thresholds: W 2.0 s into her stand after a stop waits 1.35 s, 2.01 s to
+  0.3 m/s (0.89, 0.90, 0.67 at 0, 1, 4 s). DOD: no gate, delay or branch by
+  name in it; W at any moment of a stop past 0.3 m/s within 1 s; the kept
+  replays, the errands and her walk standing.
 
 ## Scenarios, by the general case
 
