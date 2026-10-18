@@ -7,7 +7,9 @@
     dynamics. One weighted least squares on the normal equations finds x, WBC_ROUNDS times, each
     wrench clipped into its sole's bounds and what was clipped pinned for the next. Striding,
     what the floor cannot give is not traded among the rows again: her inertia takes it
-    (wbc_cone.c). The drives' clamps clip the torques after it. No iteration but those rounds
+    (wbc_cone.c). An ask the drives cannot carry is shrunk as one toward nothing asked - the
+    same rows solved again with every acceleration 0 and her weight borne - as far as brings
+    every torque within its clamp (wbc_shrunk.c). No iteration but those rounds
     (docs/findings/wrench.md). */
 #include "wbc.h"
 #include "wbc_solve.h"
@@ -38,8 +40,8 @@ static double clip(double x, double lo, double hi)
 }
 
 /** A row over the unknowns, = c, weighed, onto the normal equations: their lower half, which
-    is all a Cholesky reads. */
-static void lay(wbc_wrench_t *w, const double r[NU], double c, double weight)
+    is all a Cholesky reads; = none with nothing asked, onto the second right-hand side. */
+static void lay(wbc_wrench_t *w, const double r[NU], double c, double none, double weight)
 {
   const double ww = weight * weight;
 
@@ -48,6 +50,7 @@ static void lay(wbc_wrench_t *w, const double r[NU], double c, double weight)
     const double ri = ww * r[i];
 
     w->g[i] += ri * c;
+    w->gn[i] += ri * none;
     for (int j = 0; (ri != 0.0) && (j <= i); j++)
     {
       w->h[i][j] += ri * r[j];
@@ -85,56 +88,6 @@ static double over(const wbc_wrench_t *w, const double r[WBC_N], double row[NU])
     }
   }
   return rest;
-}
-
-/** a's inverse by Gauss and Jordan, the largest pivot a column; 0 where it has none. */
-static int invert6(double a[6][6], double inv[6][6])
-{
-  memset(inv, 0, 36U * sizeof(double));
-  for (int i = 0; i < 6; i++)
-  {
-    inv[i][i] = 1.0;
-  }
-  for (int c = 0; c < 6; c++)
-  {
-    int    best = c;
-    double d;
-
-    for (int r = c + 1; r < 6; r++)
-    {
-      best = (fabs(a[r][c]) > fabs(a[best][c])) ? r : best;
-    }
-    if (fabs(a[best][c]) < 1e-300)
-    {
-      return 0;
-    }
-    for (int k = 0; k < 6; k++)
-    {
-      const double x = a[c][k], y = inv[c][k];
-
-      a[c][k] = a[best][k];
-      a[best][k] = x;
-      inv[c][k] = inv[best][k];
-      inv[best][k] = y;
-    }
-    d = 1.0 / a[c][c];
-    for (int k = 0; k < 6; k++)
-    {
-      a[c][k] *= d;
-      inv[c][k] *= d;
-    }
-    for (int r = 0; r < 6; r++)
-    {
-      const double f = (r == c) ? 0.0 : a[r][c];
-
-      for (int k = 0; k < 6; k++)
-      {
-        a[r][k] -= f * a[c][k];
-        inv[r][k] -= f * inv[c][k];
-      }
-    }
-  }
-  return 1;
 }
 
 void wbc_wrench_init(wbc_wrench_t *w)
@@ -418,201 +371,26 @@ static void maps(wbc_body_t *b, wbc_wrench_t *w, const double u[WBC_N], const wb
   passive_of(b, w);
 }
 
-void wbc_wrench_step(wbc_body_t *b, wbc_wrench_t *w, const wbc_frame_t *base,
-                     const double q[WBC_N - 6], const double u[WBC_N], const wbc_ask_t *ask,
-                     wbc_out_t *out)
+/** The unknowns for the rows' right-hand side g, her height's band lo to hi: WBC_ROUNDS
+    solves, the clipped parts pinned, her height held to its band's edge once past; striding,
+    what the floor cannot give her inertia takes. 0 where a solve has no factor. */
+static int solved(wbc_body_t *b, wbc_wrench_t *w, const wbc_ask_t *ask, const double stance[2],
+                  double grounded, double lo, double hi, const double g[NU], const double part[NU],
+                  const double own[NU], const double mbt[6][6], double at[NU])
 {
-  const double origin[3] = {0.0, 0.0, 0.0};
-  const double stance[2] = {ask->stance[0] ? 1.0 : 0.0, ask->stance[1] ? 1.0 : 0.0};
-  const double grounded = (stance[0] > stance[1]) ? stance[0] : stance[1];
-  const double mass = wbc_total_mass, lo = ask->com_acc[1] - HEIGHT_BAND, hi = ask->com_acc[1] + HEIGHT_BAND;
-  double       want[WBC_DRIVEN], a6[12], asked[2], com[3], k3[3], row[NU], part[NU];
-  double       a[6][6], ai[6][6], d[6], x[NU], at[NU], pinned[NU], moved[NU], hard[NU], way[NU];
-  double       mbt[6][6], own[NU], u0[NU];
+  const double mass = wbc_total_mass;
+  double       x[NU], pinned[NU], moved[NU], hard[NU], way[NU], row[NU], u0[NU];
   double       band = 0.0, edge = 0.0, bent = 0.0;
 
-  memset(out, 0, sizeof(*out));
-  wbc_body_pose(b, base, q);
-  wbc_body_mass(b);
-  wbc_body_bias(b, u);
-  wbc_body_com(b, com, w->jcom);
-  for (int j = 0; j < WBC_DRIVEN; j++)
-  {
-    const int dof = 5 + wbc_driven[j];
-
-    want[j] = POSTURE_KP * (ask->posture[j] - b->q[dof - 6]) - POSTURE_KD * u[dof];
-  }
-  maps(b, w, u, ask, want, a6, asked);
-
-  /* the base's rows of her dynamics: A base = (Gm - M_b E) x - d */
-  for (int i = 0; i < 6; i++)
-  {
-    d[i] = b->h[i];
-    for (int n = 0; n < WBC_N; n++)
-    {
-      d[i] += b->m[i][n] * w->t0[n];
-    }
-    for (int c = 0; c < 6; c++)
-    {
-      /* the pelvis's own block, and what its six lead */
-      a[i][c] = b->m[i][c] + ((i == c) ? 1e-9 : 0.0);
-      for (int n = 0; n < 12 + w->npassive; n++)
-      {
-        a[i][c] += b->m[i][w->led[n]] * w->t[w->led[n]][c];
-      }
-    }
-    for (int c = 0; c < NU; c++)
-    {
-      w->bm[i][c] = (c < 12) ? stance[c / 6] * w->jsole[c / 6][c % 6][i] : 0.0;
-    }
-  }
-  for (int n = 0; n < WBC_N; n++)
-  {
-    for (int c = w->reach[n][0]; c < w->reach[n][1]; c++)
-    {
-      const double e = w->e[n][c];
-
-      for (int i = 0; (e != 0.0) && (i < 6); i++)
-      {
-        w->bm[i][c] -= b->m[i][n] * e;
-      }
-    }
-  }
-  memcpy(mbt, a, sizeof(mbt));
-  if (!invert6(a, ai))
-  {
-    return;
-  }
-  for (int i = 0; i < 6; i++)
-  {
-    w->p0[i] = 0.0;
-    for (int r = 0; r < 6; r++)
-    {
-      w->p0[i] -= ai[i][r] * d[r];
-    }
-    for (int c = 0; c < NU; c++)
-    {
-      double v = 0.0;
-
-      for (int r = 0; r < 6; r++)
-      {
-        v += ai[i][r] * w->bm[r][c];
-      }
-      w->p[i][c] = v;
-    }
-  }
-
-  /* the rows, onto the normal equations */
-  memset(w->h, 0, sizeof(w->h));
-  memset(w->g, 0, sizeof(w->g));
-  for (int axis = 0; axis < 3; axis++)
-  {
-    memset(row, 0, sizeof(row));
-    row[3 + axis] = stance[0] / mass;
-    row[9 + axis] = stance[1] / mass;
-    lay(w, row, ask->com_acc[axis] + ((axis == 1) ? G : 0.0), grounded * ((axis == 1) ? W_HEIGHT : W_COM));
-  }
-  for (int t = 0; t < 2; t++)
-  {
-    const int    link = t ? wbc_trunk : 0;
-    const double asks = ((ask->turn[t][0] != 0.0) || (ask->turn[t][1] != 0.0) || (ask->turn[t][2] != 0.0)
-                         || (ask->turn[t][3] != 0.0)) ? 1.0 : 0.0;
-    double       drift[6], have[4], err[3];
-
-    wbc_body_jacobian(b, link, origin, w->jac);
-    wbc_body_drift(b, link, origin, drift);
-    wbc_quat_of(b->t[link].r, have);
-    wbc_turn_error(ask->turn[t], have, err);
-    for (int i = 0; i < 3; i++)
-    {
-      const double rest = over(w, w->jac[i], row);
-      double       spin = 0.0;
-
-      for (int n = 0; n < WBC_N; n++)
-      {
-        spin += w->jac[i][n] * u[n];
-      }
-      lay(w, row, TURN_KP * err[i] - TURN_KD * spin - drift[i] - rest, W_TURN * grounded * asks);
-    }
-  }
-  /* an unknown asked alone: its own weight on the diagonal */
-  for (int i = 0; i < UPPER; i++)
-  {
-    w->h[12 + i][12 + i] += W_POSTURE * W_POSTURE;
-    w->g[12 + i] += W_POSTURE * W_POSTURE * want[w->upper[i]];
-  }
-  for (int c = 0; c < 12; c++)
-  {
-    const double ww = W_SWING * W_SWING * asked[c / 6];
-
-    w->h[c][c] += ww;
-    w->g[c] += ww * a6[c];
-  }
-  {
-    /* each knee's acceleration over the unknowns: her standing knees' posture, a swinging
-       knee's fold, a knee sprung back from straight */
-    double pick[WBC_N], bends[2][NU], left[2], rhs = 0.0;
-
-    memset(row, 0, sizeof(row));
-    for (int k = 0; k < 2; k++)
-    {
-      memset(pick, 0, sizeof(pick));
-      pick[5 + wbc_knee[k]] = 1.0;
-      left[k] = over(w, pick, bends[k]);
-      rhs += stance[k] * (want[w->leg[k][3]] - left[k]);
-      for (int c = 0; c < NU; c++)
-      {
-        row[c] += stance[k] * bends[k][c];
-      }
-    }
-    lay(w, row, rhs, W_KNEE * grounded);
-    for (int k = 0; k < 2; k++)
-    {
-      const int    knee = 5 + wbc_knee[k];
-      const double bend = b->q[knee - 6], shrt = KNEE_MIN - bend;
-
-      lay(w, bends[k], ask->fold_acc[k] + SWING_KP * (ask->fold_knee[k] - bend)
-          + SWING_KD * (ask->fold_rate[k] - u[knee]) - left[k], ask->fold[k] ? W_FOLD : 0.0);
-      lay(w, bends[k], POSTURE_KP * shrt - POSTURE_KD * u[knee] - left[k],
-          W_STOP * clip(shrt / KNEE_MIN, 0.0, 1.0));
-    }
-  }
-  wbc_body_momentum(b, com, k3);
-  for (int i = 0; i < 3; i++)
-  {
-    memset(row, 0, sizeof(row));
-    for (int k = 0; k < 2; k++)
-    {
-      const double r[3] = {w->sole_p[k][0] - com[0], w->sole_p[k][1] - com[1], w->sole_p[k][2] - com[2]};
-
-      /* k-dot = m + r x f */
-      row[6 * k + i] = stance[k];
-      row[6 * k + 3 + (i + 1) % 3] = -stance[k] * r[(i + 2) % 3];
-      row[6 * k + 3 + (i + 2) % 3] = stance[k] * r[(i + 1) % 3];
-    }
-    lay(w, row, ask->kdot_given ? ask->kdot[i] : -MOMENTUM_K * k3[i], W_MOMENT * grounded);
-  }
-  for (int c = 0; c < NU; c++)
-  {
-    const double sole = (c < 12) ? stance[c / 6] : 0.0, air = (c < 12) ? 1.0 - stance[c / 6] : 0.0;
-    double       weight;
-
-    part[c] = (c >= 12) ? 0.0 : ((c % 6 < 3) ? 1.0 / (mass * G * w->room[0]) : 1.0 / (mass * G));
-    weight = W_PART * sole * part[c] + W_AIR * air;
-    own[c] = W_SWING * ((c < 12) ? asked[c / 6] : 0.0) + weight;
-    own[c] = sqrt(own[c] * own[c] + W_KEEP * W_KEEP * sole * part[c] * part[c]);
-    w->h[c][c] += weight * weight + 1e-12;
-  }
-
-  /* WBC_ROUNDS solves: the clipped parts pinned, her height held to its band's edge once past */
   memset(pinned, 0, sizeof(pinned));
-  memset(at, 0, sizeof(at));
+  memset(at, 0, NU * sizeof(double));
+  memset(u0, 0, sizeof(u0));
   for (int round = 0, rounds = WBC_ROUNDS; round < rounds; round++)
   {
     double ay, past, held = 0.0, clipped = 0.0;
 
     memcpy(w->k, w->h, sizeof(w->k));
-    memcpy(w->gk, w->g, sizeof(w->gk));
+    memcpy(w->gk, g, NU * sizeof(double));
     /* a clipped force is held by a row, a clipped moment is its value and the rest solved
        round it (machine/wrench.py) */
     for (int c = 0; c < NU; c++)
@@ -650,7 +428,7 @@ void wbc_wrench_step(wbc_body_t *b, wbc_wrench_t *w, const wbc_frame_t *base,
     }
     if (!wbc_cholesky(NU, NU, &w->k[0][0]))
     {
-      return;
+      return 0;
     }
     wbc_chol_solve(NU, NU, &w->k[0][0], w->gk, x);
     if (round == 0)
@@ -701,43 +479,238 @@ void wbc_wrench_step(wbc_body_t *b, wbc_wrench_t *w, const wbc_frame_t *base,
   if ((ask->strides > 0.0) && (bent > 0.0))
   {
     /* striding: what the floor cannot give her inertia takes, as far as she strides */
-    for (int i = 0; i < 6; i++)
-    {
-      mbt[i][i] -= 1e-9;
-    }
     if (!wbc_cone_taken(b, w, ask, stance, lo, hi, mbt, own, u0, way))
     {
-      return;
+      return 0;
     }
     for (int c = 0; c < NU; c++)
     {
       at[c] += ask->strides * (way[c] - at[c]);
     }
   }
+  return 1;
+}
 
-  /* out: the accelerations, the drives' torques inside their clamps, the soles' wrenches */
+void wbc_wrench_step(wbc_body_t *b, wbc_wrench_t *w, const wbc_frame_t *base,
+                     const double q[WBC_N - 6], const double u[WBC_N], const wbc_ask_t *ask,
+                     wbc_out_t *out)
+{
+  const double origin[3] = {0.0, 0.0, 0.0};
+  const double stance[2] = {ask->stance[0] ? 1.0 : 0.0, ask->stance[1] ? 1.0 : 0.0};
+  const double grounded = (stance[0] > stance[1]) ? stance[0] : stance[1];
+  const double mass = wbc_total_mass, lo = ask->com_acc[1] - HEIGHT_BAND, hi = ask->com_acc[1] + HEIGHT_BAND;
+  double       want[WBC_DRIVEN], a6[12], asked[2], com[3], k3[3], row[NU], part[NU];
+  double       a[6][6], ai[6][6], d[6], mbt[6][6], own[NU], whole[NU], stood[NU], at[NU];
+  double       tau[WBC_DRIVEN], tau0[WBC_DRIVEN], carried[WBC_DRIVEN], limit[WBC_DRIVEN], s;
+
+  memset(out, 0, sizeof(*out));
+  wbc_body_pose(b, base, q);
+  wbc_body_mass(b);
+  wbc_body_bias(b, u);
+  wbc_body_com(b, com, w->jcom);
+  for (int j = 0; j < WBC_DRIVEN; j++)
+  {
+    const int dof = 5 + wbc_driven[j];
+
+    want[j] = POSTURE_KP * (ask->posture[j] - b->q[dof - 6]) - POSTURE_KD * u[dof];
+  }
+  maps(b, w, u, ask, want, a6, asked);
+
+  /* the base's rows of her dynamics: A base = (Gm - M_b E) x - d */
   for (int i = 0; i < 6; i++)
   {
-    d[i] = w->p0[i];                    /* the pelvis's, d's rows done with */
+    d[i] = b->h[i];
+    for (int n = 0; n < WBC_N; n++)
+    {
+      d[i] += b->m[i][n] * w->t0[n];
+    }
+    for (int c = 0; c < 6; c++)
+    {
+      /* the pelvis's own block, and what its six lead */
+      a[i][c] = b->m[i][c] + ((i == c) ? 1e-9 : 0.0);
+      for (int n = 0; n < 12 + w->npassive; n++)
+      {
+        a[i][c] += b->m[i][w->led[n]] * w->t[w->led[n]][c];
+      }
+    }
     for (int c = 0; c < NU; c++)
     {
-      d[i] += w->p[i][c] * at[c];
+      w->bm[i][c] = (c < 12) ? stance[c / 6] * w->jsole[c / 6][c % 6][i] : 0.0;
     }
   }
   for (int n = 0; n < WBC_N; n++)
   {
-    double v = w->t0[n];
-
-    for (int i = 0; i < 6; i++)
-    {
-      v += w->t[n][i] * d[i];
-    }
     for (int c = w->reach[n][0]; c < w->reach[n][1]; c++)
     {
-      v += w->e[n][c] * at[c];
+      const double e = w->e[n][c];
+
+      for (int i = 0; (e != 0.0) && (i < 6); i++)
+      {
+        w->bm[i][c] -= b->m[i][n] * e;
+      }
     }
-    out->udot[n] = v;
   }
+  memcpy(mbt, a, sizeof(mbt));
+  for (int i = 0; i < 6; i++)
+  {
+    mbt[i][i] -= 1e-9;
+  }
+  if (!wbc_invert6(a, ai))
+  {
+    return;
+  }
+  for (int i = 0; i < 6; i++)
+  {
+    w->p0[i] = 0.0;
+    for (int r = 0; r < 6; r++)
+    {
+      w->p0[i] -= ai[i][r] * d[r];
+    }
+    for (int c = 0; c < NU; c++)
+    {
+      double v = 0.0;
+
+      for (int r = 0; r < 6; r++)
+      {
+        v += ai[i][r] * w->bm[r][c];
+      }
+      w->p[i][c] = v;
+    }
+  }
+
+  /* the rows, onto the normal equations: the ask's right-hand side, and nothing's */
+  memset(w->h, 0, sizeof(w->h));
+  memset(w->g, 0, sizeof(w->g));
+  memset(w->gn, 0, sizeof(w->gn));
+  for (int axis = 0; axis < 3; axis++)
+  {
+    const double borne = (axis == 1) ? G : 0.0;
+
+    memset(row, 0, sizeof(row));
+    row[3 + axis] = stance[0] / mass;
+    row[9 + axis] = stance[1] / mass;
+    lay(w, row, ask->com_acc[axis] + borne, borne, grounded * ((axis == 1) ? W_HEIGHT : W_COM));
+  }
+  for (int t = 0; t < 2; t++)
+  {
+    const int    link = t ? wbc_trunk : 0;
+    const double asks = ((ask->turn[t][0] != 0.0) || (ask->turn[t][1] != 0.0) || (ask->turn[t][2] != 0.0)
+                         || (ask->turn[t][3] != 0.0)) ? 1.0 : 0.0;
+    double       drift[6], have[4], err[3];
+
+    wbc_body_jacobian(b, link, origin, w->jac);
+    wbc_body_drift(b, link, origin, drift);
+    wbc_quat_of(b->t[link].r, have);
+    wbc_turn_error(ask->turn[t], have, err);
+    for (int i = 0; i < 3; i++)
+    {
+      const double rest = over(w, w->jac[i], row);
+      double       spin = 0.0;
+
+      for (int n = 0; n < WBC_N; n++)
+      {
+        spin += w->jac[i][n] * u[n];
+      }
+      lay(w, row, TURN_KP * err[i] - TURN_KD * spin - drift[i] - rest, -drift[i] - rest, W_TURN * grounded * asks);
+    }
+  }
+  /* an unknown asked alone: its own weight on the diagonal */
+  for (int i = 0; i < UPPER; i++)
+  {
+    w->h[12 + i][12 + i] += W_POSTURE * W_POSTURE;
+    w->g[12 + i] += W_POSTURE * W_POSTURE * want[w->upper[i]];
+  }
+  for (int c = 0; c < 12; c++)
+  {
+    const double ww = W_SWING * W_SWING * asked[c / 6];
+
+    w->h[c][c] += ww;
+    w->g[c] += ww * a6[c];
+  }
+  {
+    /* each knee's acceleration over the unknowns: her standing knees' posture, a swinging
+       knee's fold, a knee sprung back from straight */
+    double pick[WBC_N], bends[2][NU], left[2], rhs = 0.0, none = 0.0;
+
+    memset(row, 0, sizeof(row));
+    for (int k = 0; k < 2; k++)
+    {
+      memset(pick, 0, sizeof(pick));
+      pick[5 + wbc_knee[k]] = 1.0;
+      left[k] = over(w, pick, bends[k]);
+      rhs += stance[k] * (want[w->leg[k][3]] - left[k]);
+      none -= stance[k] * left[k];
+      for (int c = 0; c < NU; c++)
+      {
+        row[c] += stance[k] * bends[k][c];
+      }
+    }
+    lay(w, row, rhs, none, W_KNEE * grounded);
+    for (int k = 0; k < 2; k++)
+    {
+      const int    knee = 5 + wbc_knee[k];
+      const double bend = b->q[knee - 6], shrt = KNEE_MIN - bend;
+
+      lay(w, bends[k], ask->fold_acc[k] + SWING_KP * (ask->fold_knee[k] - bend)
+          + SWING_KD * (ask->fold_rate[k] - u[knee]) - left[k], -left[k], ask->fold[k] ? W_FOLD : 0.0);
+      lay(w, bends[k], POSTURE_KP * shrt - POSTURE_KD * u[knee] - left[k], -left[k],
+          W_STOP * clip(shrt / KNEE_MIN, 0.0, 1.0));
+    }
+  }
+  wbc_body_momentum(b, com, k3);
+  for (int i = 0; i < 3; i++)
+  {
+    memset(row, 0, sizeof(row));
+    for (int k = 0; k < 2; k++)
+    {
+      const double r[3] = {w->sole_p[k][0] - com[0], w->sole_p[k][1] - com[1], w->sole_p[k][2] - com[2]};
+
+      /* k-dot = m + r x f */
+      row[6 * k + i] = stance[k];
+      row[6 * k + 3 + (i + 1) % 3] = -stance[k] * r[(i + 2) % 3];
+      row[6 * k + 3 + (i + 2) % 3] = stance[k] * r[(i + 1) % 3];
+    }
+    lay(w, row, ask->kdot_given ? ask->kdot[i] : -MOMENTUM_K * k3[i], 0.0, W_MOMENT * grounded);
+  }
+  for (int c = 0; c < NU; c++)
+  {
+    const double sole = (c < 12) ? stance[c / 6] : 0.0, air = (c < 12) ? 1.0 - stance[c / 6] : 0.0;
+    double       weight;
+
+    part[c] = (c >= 12) ? 0.0 : ((c % 6 < 3) ? 1.0 / (mass * G * w->room[0]) : 1.0 / (mass * G));
+    weight = W_PART * sole * part[c] + W_AIR * air;
+    own[c] = W_SWING * ((c < 12) ? asked[c / 6] : 0.0) + weight;
+    own[c] = sqrt(own[c] * own[c] + W_KEEP * W_KEEP * sole * part[c] * part[c]);
+    w->h[c][c] += weight * weight + 1e-12;
+  }
+
+  /* the ask's answer, and nothing's: every acceleration 0, her weight borne, by the same rows */
+  if (!solved(b, w, ask, stance, grounded, lo, hi, w->g, part, own, mbt, whole)
+      || !solved(b, w, ask, stance, grounded, -HEIGHT_BAND, HEIGHT_BAND, w->gn, part, own, mbt, stood))
+  {
+    return;
+  }
+  wbc_wrench_motion(w, whole, out->udot);
+  wbc_wrench_torques(b, w, stance, whole, out->udot, tau);
+  wbc_wrench_motion(w, stood, out->udot);
+  wbc_wrench_torques(b, w, stance, stood, out->udot, tau0);
+  for (int j = 0; j < WBC_DRIVEN; j++)
+  {
+    const double clamp = wbc_clamp[wbc_driven[j]], peak = wbc_peak[wbc_driven[j]];
+
+    limit[j] = ((ask->wep && (peak > clamp)) ? peak : clamp) * ask->derate[j];
+  }
+  s = wbc_shrunk(tau, tau0, limit);
+  out->alpha[0] = s;
+  for (int c = 0; c < NU; c++)
+  {
+    at[c] = whole[c] + (s - 1.0) * (whole[c] - stood[c]);
+  }
+
+  /* out: the accelerations, the soles' wrenches, the drives' torques inside their clamps; the
+     drives asked past their clamps and their loads the ask's, before it was shrunk */
+  wbc_wrench_motion(w, at, out->udot);
+  wbc_wrench_torques(b, w, stance, at, out->udot, carried);
   for (int k = 0; k < 2; k++)
   {
     for (int i = 0; i < 6; i++)
@@ -748,25 +721,11 @@ void wbc_wrench_step(wbc_body_t *b, wbc_wrench_t *w, const wbc_frame_t *base,
   }
   for (int j = 0; j < WBC_DRIVEN; j++)
   {
-    const int    dof = 5 + wbc_driven[j];
-    const double clamp = wbc_clamp[wbc_driven[j]], peak = wbc_peak[wbc_driven[j]];
-    const double limit = ((ask->wep && (peak > clamp)) ? peak : clamp) * ask->derate[j];
-    double       tau = b->h[dof];
+    const double clamp = wbc_clamp[wbc_driven[j]];
 
-    for (int n = 0; n < WBC_N; n++)
-    {
-      tau += b->m[dof][n] * out->udot[n];
-    }
-    for (int k = 0; k < 2; k++)
-    {
-      for (int i = 0; i < 6; i++)
-      {
-        tau -= w->jsole[k][i][dof] * out->wrench[k][i];
-      }
-    }
-    out->over[j] = fabs(tau) > clamp * (1.0 + 1e-6);
-    out->load[j] = fabs(tau) / clamp;
-    out->tau[j] = clip(tau, -limit, limit);
+    out->over[j] = fabs(tau[j]) > clamp * (1.0 + 1e-6);
+    out->load[j] = fabs(tau[j]) / clamp;
+    out->tau[j] = clip(carried[j], -limit[j], limit[j]);
   }
   for (int j = 0; j < WBC_DRIVEN; j++)
   {

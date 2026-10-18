@@ -20,6 +20,7 @@ SOURCES = [os.path.join(REPO, 'wbc', 'test', 'harness.c'),
            os.path.join(REPO, 'wbc', 'src', 'wbc_solve.c'),
            os.path.join(REPO, 'wbc', 'src', 'wbc_wrench.c'),
            os.path.join(REPO, 'wbc', 'src', 'wbc_cone.c'),
+           os.path.join(REPO, 'wbc', 'src', 'wbc_shrunk.c'),
            os.path.join(REPO, 'wbc', 'src', 'wbc_model.c')]
 INCLUDES = [os.path.join(REPO, 'wbc', 'inc')]
 #: The firmware compiles the chain at -O2 (CMakeLists.txt).
@@ -226,12 +227,12 @@ class Core:
 
     def wrench(self, base, q, u, ask):
         """One tick of the step without an active set (wbc_wrench.c) for `ask`
-        (`machine.wrench.step`'s dict): {tau, udot, wrench, bears, over, load}."""
+        (`machine.wrench.step`'s dict): {tau, udot, wrench, bears, over, load, scale}."""
         base, q, u, out = _arr(base), _arr(q), _arr(u), Out()
         self.lib.wbh_wrench(_ptr(base), _ptr(q), _ptr(u), ctypes.byref(ask_of(ask)), ctypes.byref(out))
         return {'tau': np.array(out.tau), 'udot': np.array(out.udot),
                 'wrench': np.array([list(w) for w in out.wrench]), 'bears': list(out.bears),
-                'over': np.array(out.over, bool), 'load': np.array(out.load)}
+                'over': np.array(out.over, bool), 'load': np.array(out.load), 'scale': float(out.alpha[0])}
 
     def wrench_seconds(self, base, q, u, ask, reps=2000):
         """Seconds a tick of it on this host."""
@@ -287,7 +288,7 @@ def stack_step(b, s, ask, core=None):
 
 def wrench_step(b, s, ask, core=None):
     """`machine.wrench.step`'s answer from wbc_wrench.c, on her `wbc.Body` as `sense` left it:
-    {tau, qacc (MuJoCo's qvel order), bears, cop, over, slack, held}."""
+    {tau, qacc (MuJoCo's qvel order), bears, cop, over, slack, held, scale}."""
     core = core or shared()
     base, q, u, T = state_of(b)
     out = core.wrench(base, q, u, ask)
@@ -299,4 +300,4 @@ def wrench_step(b, s, ask, core=None):
             ml, fy = s['feet'][k]['R'].T @ out['wrench'][k][:3], out['wrench'][k][4]
             cop.append(np.array([ml[2], -ml[0]]) / fy if fy > 1e-6 else None)
     return {'tau': out['tau'], 'qacc': T @ out['udot'] + dT_u, 'bears': out['bears'], 'cop': cop,
-            'over': out['over'], 'slack': [], 'held': ()}
+            'over': out['over'], 'slack': [], 'held': (), 'scale': out['scale']}

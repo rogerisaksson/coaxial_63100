@@ -1,5 +1,6 @@
-/** wbc_solve.c - the loop's numerics: Cholesky, a level's dual active set in the null space of
-    the levels above (Goldfarb and Idnani), the drives' loads through their rods. */
+/** wbc_solve.c - the loop's numerics: Cholesky, a 6 by 6 inverse, a level's dual active set in
+    the null space of the levels above (Goldfarb and Idnani), the drives' loads through their
+    rods. */
 #include "wbc_solve.h"
 
 #include <math.h>
@@ -73,6 +74,55 @@ void wbc_chol_solve(int n, int ld, const double *l, const double *b, double *x)
     }
     x[i] = s / l[i * ld + i];
   }
+}
+
+int wbc_invert6(double a[6][6], double inv[6][6])
+{
+  memset(inv, 0, 36U * sizeof(double));
+  for (int i = 0; i < 6; i++)
+  {
+    inv[i][i] = 1.0;
+  }
+  for (int c = 0; c < 6; c++)
+  {
+    int    best = c;
+    double d;
+
+    for (int r = c + 1; r < 6; r++)
+    {
+      best = (fabs(a[r][c]) > fabs(a[best][c])) ? r : best;
+    }
+    if (fabs(a[best][c]) < 1e-300)
+    {
+      return 0;
+    }
+    for (int k = 0; k < 6; k++)
+    {
+      const double x = a[c][k], y = inv[c][k];
+
+      a[c][k] = a[best][k];
+      a[best][k] = x;
+      inv[c][k] = inv[best][k];
+      inv[best][k] = y;
+    }
+    d = 1.0 / a[c][c];
+    for (int k = 0; k < 6; k++)
+    {
+      a[c][k] *= d;
+      inv[c][k] *= d;
+    }
+    for (int r = 0; r < 6; r++)
+    {
+      const double f = (r == c) ? 0.0 : a[r][c];
+
+      for (int k = 0; k < 6; k++)
+      {
+        a[r][k] -= f * a[c][k];
+        inv[r][k] -= f * inv[c][k];
+      }
+    }
+  }
+  return 1;
 }
 
 void wbc_quat_of(const double r[9], double q[4])

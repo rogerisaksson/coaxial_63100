@@ -3,9 +3,9 @@
 Each segment's peak jerk through her transitions (`tools/sim/jerk.py`, the
 referee's 20 ms windows; the scenes in [scenarios](scenarios.md)) against her
 steady walk's - pelvis 553, torso 590, head 597, hands 1398-1840, feet
-4109-4159 m/s^3: back 1.3, a start and stop 1.6, a sprint 1.7, moves 2.6,
-strafes 2.9, a spin 5.9, turns 6.5, the weave 13.0, the chair 14.4, a hop down
-18.7, a hand the worst in most.
+4109-4159 m/s^3: back 1.3, a start and stop 1.4, a sprint 1.8, moves 2.6,
+strafes 2.9, turns 3.8, a spin 4.4, a hop down 11.1, the chair 11.6, the weave
+17.9, a hand the worst in most.
 
 - A start's spikes sit on its first landings, the trailing sole leaving 9 ms
   after the other lands: its toe's 13-65 N stood it and let it go each law pass,
@@ -124,13 +124,21 @@ strafes 2.9, a spin 5.9, turns 6.5, the weave 13.0, the chair 14.4, a hop down
 - Seated, only her thighs bear, their touch points side by side (`borne`: a
   point each): the seat gives her step no pitch moment, her turns' asks met by
   the plan's opposite, -3 to -15 rad/s^2 asked, +2 to +5 planned.
-- Not kept: an ask her drives cannot carry shrunk as one toward asking nothing
-  (her weight borne, every acceleration zero: a second solve of the same rows)
-  as far as brings every torque within its clamp, in place of the clip after
-  the solve. Her walk the same (0.70 m/s, 406 J/m, 2.52 off); a hop down's
-  hand 18.7 -> 10.9, the chair's 9.3 -> 5.8, turns 6.5 -> 3.7, but the weave's
-  hand 13.0 -> 15.9, the spin's pelvis 2.6 -> 4.5, the chair's head 11.6 as
-  it was: the peaks are not the clip's alone.
+- Kept: an ask her drives cannot carry shrunk as one toward asking nothing
+  (her weight borne, every acceleration zero: the same rows solved again,
+  `wrench.shrunk`, wbc_shrunk.c) as far as brings every torque within its
+  clamp, in place of the clip after the solve - the largest s in [0, 1] along
+  u0 + s (u1 - u0) with every drive within its limit, closed form a drive; her
+  `over` and WEP's grant the ask's, before it. Her walk the same (0.70 m/s,
+  408 J/m, 2.51 off; 12 of 16 001 solves shrunk, to 0.21 at the least); the 22
+  held scenes 66 of 66 at three wobbles; a hop down's hand 18.7 -> 11.1, the
+  chair's 9.3 -> 5.7, turns 6.5 -> 3.8, a spin 5.9 -> 4.4, a start 1.6 -> 1.4,
+  the chair's head 11.6 as it was; the weave's hand 13.0 -> 17.9: at 4.48 s
+  its hurried swing asks the left hip 10.7 times its clamp and her balance's
+  ask goes with it, 0.09-0.5 of itself over 60 ms (its 99th percentiles
+  856/1353 -> 810/1259). A hop down's shrink is the neck's 19 of 19 passes,
+  the head her turns' reaction mass, 5 of them to 0. A pass 1.14 -> 1.70 ms
+  in python, the C tick 25 -> 35 us a sole swung, standing the same.
 - Not kept: a contact's hold in the step grown with its felt force, nothing at
   5 N to whole at a tenth of her weight, in place of the switch at 5 N: the
   chair's 99th percentiles the same (pelvis 291, head 1109 m/s^3), the bed's

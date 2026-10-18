@@ -124,8 +124,8 @@ gets a line at the end of [DONE](DONE.md).
    robot hips, knees and spine at their clamps (48.4 A, their gearboxes at 0.84
    of their momentary), a hip 2.7 % of the passes. Walking it is the humanoid
    robot leg's lift: its sole asked 33 m/s^2 the pass it stops standing,
-   bearing 50 N still, the hip -108 N m for 15 ms, the knee 80. The step's
-   clamps clip after its solve.
+   bearing 50 N still, the hip -108 N m for 15 ms, the knee 80. An ask past
+   the clamps the step shrinks as one (jerk.md).
    + DOD: each drive's peak, rms, speed and heat on the humanoid robot walk,
      the humanoid robot hop and a shove on the loop, none past 2/3 of a part's
      limit.
@@ -243,14 +243,16 @@ serves its DOD; none an entry a case.
 2. **Weight handed over, never switched**: a sole's share of her support
    continuous in her height's reading, her support region and her step's
    bounds, where a flag now. `tools/sim/jerk.py` against her steady walk
-   (head 597, hands 1398-1840 m/s^3): a start 1.6, strafes 2.9, turns 6.5, a
-   spin 5.9, the weave 13, the chair 14.4, a hop down 18.7. Left: a sole let
-   go at 60 N on its toes as the other takes 715 N (turns, the weave); a
-   seat's touch flickering as she rises; a hop's landing; a row's blend
-   stepping her asks; her head and arms flung for her turns, seated and at a
-   takeoff, where a seat's points give no moment (jerk.md). DOD:
-   every segment's peak through stand, walk, turn, strafe, back, stop, sit,
-   rise, hop no higher than in her steady walk; a test holds it.
+   (head 597, hands 1398-1840 m/s^3): a start 1.4, strafes 2.9, turns 3.8, a
+   spin 4.4, the chair 11.6, a hop down 11.1, the weave 17.9. Left: a sole let
+   go at 60 N on its toes as the other takes 715 N (turns, the weave); the
+   weave's hurried swing asking a hip 10.7 times its clamp, her balance's
+   ask shrunk with it; a seat's touch flickering as she rises; a hop's
+   landing, its shrink the neck's; a row's blend stepping her asks; her head
+   and arms flung for her turns, seated and at a takeoff, where a seat's
+   points give no moment (jerk.md). DOD: every segment's peak through stand,
+   walk, turn, strafe, back, stop, sit, rise, hop no higher than in her
+   steady walk; a test holds it.
 3. **A landing on what is there**: a swinging sole that meets something
    raises her swings by its height, one that meets nothing reaches on down; a
    sliding one lowers the friction she asks. Met at 13 of 13 wobbles: the
@@ -339,6 +341,12 @@ serves its DOD; none an entry a case.
 
 ## Flight pages
 
+- **The five drawn to their pictures**: the ornithopter a faceted dark
+  pod with a canopy, long slender wings, four bent legs; the quad a slate
+  hump on round arms, black motors, two skid frames, a gimbal under the
+  nose; the Edge 540 navy with a yellow cowl, white spinner, red tail; the
+  Goblin Raw a lime canopy over the front frame, lime blade tips; the gynoid
+  a fitted red tee to the jeans' top, light jeans, a ponytail. DOD: PNGs.
 - **The budget's throttling flag**: set with the derate at 1.00 and the hold
   at 89.5 of 90 A (the helicopter's main at 16 A). DOD: the flag means a
   derate under 1, held by a test.
