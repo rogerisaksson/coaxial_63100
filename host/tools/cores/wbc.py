@@ -126,7 +126,7 @@ class Heat(ctypes.Structure):
                 ('worst', _vp), ('trips', _vp), ('gates', _vp), ('shorted', _vp)]
 
 
-def pointer(a, dtype=np.float64):
+def pointer(a, dtype: type = np.float64):
     """`a`'s address for a struct's pointer, `a` contiguous and of `dtype` - a copy would be
     pointed at and written in vain."""
     if not a.flags.c_contiguous or a.dtype != dtype:
