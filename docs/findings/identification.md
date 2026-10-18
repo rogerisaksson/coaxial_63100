@@ -103,3 +103,21 @@ torques. What her law senses: [sensing](sensing.md); the drives:
   yaws and the hips; the knees', elbows' and ankle rolls' wind-up 30-60 %
   low, the damping and the mesh's friction not read - they act at the mode,
   which a 1 kHz encoder sees at a fifth of a cycle a step.
+
+## On her walk
+
+- Her walk on the gym's world 15 % off the figure, 0.69 m/s for 9 s, her
+  edge arrays and her drives' torques a step: a row is read where the model
+  holds (`sysid.free`) - no joint of the limb within 2 deg of a stop, nothing
+  touching its skin from the sample before to the one after. Against the
+  world's own model the trunk's rows read 0.02-0.03 N m rms, a hip's 1.3-2.3
+  and a knee's 0.9-1.2: the edge's differences (the same rows off the world's
+  own state 0.3), a swinging hip's row 0 within its swing and 2-6 N m the
+  sample its sole landed, before the guard. The arms' rows fall to the elbow's
+  stop, 2.7 deg flexed.
+- Judged on the walk's second half, N m rms a drive in the mean: the build
+  0.53, the world's own 0.35; corrected on the stand's campaign alone 0.62 -
+  her hips' and knees' 1.8 and 1.3 -> 3.1 and 2.4: her pelvis still on the
+  stand, masses and first moments never stand apart -; on the walk's first
+  half alone 0.44; on both 0.42, the trunk's 0.47, 0.45, 0.11 -> 0.30, 0.17,
+  0.03, no drive's up by more than 0.02 (`test_her_model_holds_on_her_walk`).

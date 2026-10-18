@@ -40,6 +40,28 @@ OFF = 0.15
 #: knees', elbows' and ankles' rings at their mode, 187 rad/s, which a 1 kHz encoder reads at a
 #: fifth of a cycle a step.
 BOXES = ('spine_roll', 'spine', 'waist', 'neck', 'head', 'shoulder', 'hip_yaw', 'hip')
+#: Her walk on the world off the figure, s, its first SPLIT_S s a campaign's rows and the rest the
+#: judge's; the misfit a correction takes off the build's in the mean, of it.
+WALK_S, SPLIT_S, TAKEN = 10.0, 5.5, 0.15
+
+
+def _off(world, c, seed, keep=False):
+    """`world` built OFF of the figure: every link's mass, centre and inertia, every drive's
+    armature and friction drawn apart; `keep` its state through the constants laid anew."""
+    m, rng = world.model, np.random.default_rng(seed)
+    for body in c['lay']['bodies']:
+        m.body_mass[body] *= rng.uniform(1.0 - OFF, 1.0 + OFF)
+        m.body_inertia[body] *= rng.uniform(1.0 - OFF, 1.0 + OFF, 3)
+        m.body_ipos[body] *= rng.uniform(1.0 - OFF, 1.0 + OFF, 3)
+    for d in c['body'].act:
+        for arr in (m.dof_armature, m.dof_damping, m.dof_frictionloss):
+            arr[d] *= rng.uniform(1.0 - OFF, 1.0 + OFF)
+    qpos, qvel = world.data.qpos.copy(), world.data.qvel.copy()
+    world._mj.mj_setConst(m, world.data)
+    if keep:
+        world.data.qpos[:], world.data.qvel[:] = qpos, qvel
+        world._mj.mj_forward(m, world.data)
+    return world
 
 
 def _states(b, rng):
@@ -202,17 +224,9 @@ def test_a_world_off_the_figure_is_read_back(report, c):
     misfit on a fresh campaign at least halfway to the world's own."""
     from machine import identified, sysid, wbc
     from machine.drives import kind
-    lay, rng = c['lay'], np.random.default_rng(7)
-    world = physics.World()
+    lay = c['lay']
+    world = _off(physics.World(), c, 7)
     m = world.model
-    for body in lay['bodies']:
-        m.body_mass[body] *= rng.uniform(1.0 - OFF, 1.0 + OFF)
-        m.body_inertia[body] *= rng.uniform(1.0 - OFF, 1.0 + OFF, 3)
-        m.body_ipos[body] *= rng.uniform(1.0 - OFF, 1.0 + OFF, 3)
-    for d in c['body'].act:
-        for arr in (m.dof_armature, m.dof_damping, m.dof_frictionloss):
-            arr[d] *= rng.uniform(1.0 - OFF, 1.0 + OFF)
-    world._mj.mj_setConst(m, world.data)
     Y, tau, touched, world = _campaign(c, 4, world)
     base = sysid.base(lay, Y)
     got = sysid.identify(base, Y, tau)
@@ -279,9 +293,72 @@ def test_her_gearboxes_are_read(report, c):
                  'worst %.1f %% (%s)' % (100 * gap_err.max(), driven[named[int(np.argmax(gap_err))]]))
 
 
+def _walked(c, seconds=WALK_S):
+    """Her walk on the gym's world built OFF of the figure, 0.69 m/s from 1 s: (Y, tau, at, s) of
+    its rows the model holds on (`sysid.free`), her edge arrays and her drives' torques a step."""
+    from machine import edge, sysid, worker
+    physics.ROOM, physics.SIGHT, mjcf.STAND = 0.0, 0.0, 0.0
+    try:
+        s = worker.session()
+    finally:
+        mjcf.STAND = 1.0
+    g, world = s['g'], s['g']['world']
+    _off(world, c, 7, keep=True)
+    ys, taus, told = [], [], False
+    while g['t'] < seconds and s['epoch'] == 0:
+        if g['t'] >= 1.0 and not told:
+            worker.apply(s, {'twist': (0.69, 0.0, 0.0)})
+            told = True
+        worker.stepped(s)
+        ys.append(g['sense'].copy())
+        taus.append(world.motor.copy())
+    ys.append(edge.felt(world, g['sense'].copy()).copy())
+    Y, tau = sysid.rows(c['lay'], c['body'], ys, taus, physics.STEP_S, EVERY)
+    free = sysid.free(c['body'], ys, EVERY)
+    return Y * free[:, :, None], tau * free, np.arange(0, len(ys) - 1, EVERY) * physics.STEP_S, s
+
+
+def test_her_model_holds_on_her_walk(report, c):
+    """On the world OFF of the figure she walks; on her walk's rows the model holds on, the world's
+    own model fits the trunk's; a correction from the stand's campaign and the walk's first half
+    takes TAKEN of the build's misfit off the second half in the mean and adds none to any drive -
+    from the stand alone it rose on her legs: her pelvis still there, masses and first moments
+    never stand apart."""
+    from machine import identified, sysid, wbc
+    from machine.figure import JOINTS
+    lay = c['lay']
+    Y, tau, _touched, world = _campaign(c, 4, _off(physics.World(), c, 7))
+    Yw, tw, at, s = _walked(c)
+    went = float(s['g']['world'].data.qpos[2])
+    report.check('she walks %.1f m in %.0f s on the world %.0f %% off' % (went, WALK_S, 100 * OFF), s['fallen_at'] is None and went > 3.0)
+    fit, judge = at < SPLIT_S, at >= SPLIT_S
+    models = {'build': c['body'].m, 'world': s['g']['world'].model}
+    for label, rows in (('stand', (Y, tau)), ('both', (np.concatenate([Y, Yw[fit]]), np.concatenate([tau, tw[fit]])))):
+        fresh = wbc.Body(identified=False)
+        identified.correct(fresh, identified.correction(lay, c['body'], *rows))
+        models[label] = fresh.m
+    read = np.maximum((np.abs(Yw[judge]).sum(axis=2) > 0).sum(axis=0), 1)
+    rms = {}
+    for label, m in models.items():
+        r = Yw[judge] @ sysid.truth(lay, m) - tw[judge]
+        rms[label] = np.sqrt((r * r).sum(axis=0) / read)
+    driven = [j for j, d in zip(JOINTS, c['body'].driven) if d]
+    trunk = [i for i, j in enumerate(driven) if j in ('spine_roll', 'spine', 'waist')]
+    legs = [i for i, j in enumerate(driven) if j.endswith(('_hip', '_knee'))]
+    report.check("the world's own model holds on the trunk's rows of her walk within 0.1 N m, %d-%d rows read a drive" % (read.min(), read.max()),
+                 rms['world'][trunk].max() < 0.1, 'worst %.3f N m; the hips\' and knees\' %.2f, the edge\'s differences' % (
+                     rms['world'][trunk].max(), rms['world'][legs].mean()))
+    report.check('corrected on the stand and her walk\'s first half, the misfit on her second half falls %.0f %% in the mean: build %.3f, corrected %.3f, world %.3f N m' % (
+        100 * (1.0 - rms['both'].mean() / rms['build'].mean()), rms['build'].mean(), rms['both'].mean(), rms['world'].mean()),
+                 rms['both'].mean() < (1.0 - TAKEN) * rms['build'].mean(), 'from the stand alone %.3f, its legs %.2f for %.2f' % (
+                     rms['stand'].mean(), rms['stand'][legs].mean(), rms['build'][legs].mean()))
+    worse = rms['both'] - rms['build']
+    report.check('and rises nowhere by more than 0.1 N m', worse.max() < 0.1, 'worst +%.2f N m, %s' % (worse.max(), driven[int(np.argmax(worse))]))
+
+
 ROSTER = (test_the_regressor_is_mujocos, test_her_drives_and_links_are_read, test_a_payload_is_found,
           test_her_corrections_are_laid_over_her_build, test_a_world_off_the_figure_is_read_back,
-          test_her_gearboxes_are_read)
+          test_her_gearboxes_are_read, test_her_model_holds_on_her_walk)
 
 
 def main(argv=None):

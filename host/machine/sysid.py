@@ -229,6 +229,41 @@ def rows(lay, body, ys, taus, dt, every=1):
     return Y * slides[:, :, None], tau * slides
 
 
+#: A drive's row off the stand is read where the model holds: no joint of its limb within
+#: STOP_DEG of a stop, nothing touching the limb's skin from the sample before to the one after.
+#: A limb's joints and its skin's segments, a leg's and an arm's.
+STOP_DEG = 2.0
+LIMBS = ((('hip', 'knee', 'ankle', 'foot'), ('thigh', 'shank', 'foot', 'toes')),
+         (('shoulder', 'elbow', 'wrist', 'gripper'), ('upper_arm', 'forearm', 'hand', 'fingers')))
+
+
+def free(body, ys, every=1, stop_deg=STOP_DEG):
+    """(N, driven) which drives' rows of `ys` (`rows`' arrays, every `every`th) the model holds
+    on, walking: none of the drive's limb's joints within `stop_deg` of a stop, nothing touching
+    the limb's skin (LIMBS) from the sample before to the one after - against the world's own
+    model a swinging hip's row read 0 within its swing and 2-6 N m the sample its sole landed."""
+    import numpy as np
+    m = body.m
+    seen = np.asarray(ys)[np.arange(0, len(ys) - 1, every)]
+    touch = np.linalg.norm(seen[:, edge.TOUCH].reshape(len(seen), -1, 3), axis=2) > 0.0
+    near = np.zeros((len(seen), len(JOINTS)), bool)
+    for i, j in enumerate(JOINTS):
+        jid = m.joint(j).id
+        if m.jnt_limited[jid]:
+            lo, hi = m.jnt_range[jid]
+            near[:, i] = (seen[:, edge.Q][:, i] < lo + np.radians(stop_deg)) | (seen[:, edge.Q][:, i] > hi - np.radians(stop_deg))
+    out = np.ones((len(seen), int(np.sum(body.driven))), bool)
+    for i, j in enumerate(j for j, d in zip(JOINTS, body.driven) if d):
+        side = j.split('_')[0] + '_' if j.startswith(('left_', 'right_')) else None
+        for kinds, skins in LIMBS:
+            if side and any(w in j for w in kinds):
+                limb = [k for k, n in enumerate(JOINTS) if n.startswith(side) and any(w in n for w in kinds)]
+                skin = [k for k, n in enumerate(edge.SKIN) if n.startswith(side) and any(w in n for w in skins)]
+                clear = ~touch[:, skin].any(axis=1)
+                out[:, i] = ~near[:, limb].any(axis=1) & clear & np.roll(clear, 1) & np.roll(clear, -1)
+    return out
+
+
 def base(lay, Y):
     """The base parameters of a campaign: {ind, dep, K, names}: theta_b = theta[ind] +
     K theta[dep], the columns of `ind` what its torques tell apart (Gautier, numerically),
