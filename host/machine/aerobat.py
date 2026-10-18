@@ -40,7 +40,7 @@ PROP_R, PROP_Z = _AS['prop_radius'], _AS['prop_z']
 TAIL_ARM, STAB_AREA, FIN_AREA = _AS['tail_arm'], _AS['stab_area'], _AS['fin_area']
 SKID_M, FOOT_M, SKID_X = _RB['skid_height'], _RB['foot_radius'], _RB['skid_span']
 STRUT_Z, HALF_M = (_RB['strut_aft'], _RB['strut_fore']), 0.5 * WING_SPAN
-#: The stabiliser's span, m, its area at the wing's chord ratio.
+#: The stabiliser's span, m.
 STAB_SPAN = math.sqrt(STAB_AREA * WING_SPAN / WING_CHORD)
 GEAR_MAIN_Z = (STRUT_Z[1] * math.cos(PITCH_REST) + SKID_M) / math.sin(PITCH_REST)
 GEAR_TAIL_Z = (STRUT_Z[0] * math.cos(PITCH_REST) + SKID_M) / math.sin(PITCH_REST)
@@ -69,13 +69,12 @@ WATERFALL, ROLLING_HARRIER, LOMCEVAK, GYRO_TUMBLE, CUBAN_UNWIND, UNWIND = (STUNT
     'waterfall', 'rolling_harrier', 'lomcevak', 'gyro_tumble', 'cuban_unwind', 'unwind'))
 TAKEOFF, CLIMBOUT, FINAL = STUNTS['takeoff'], STUNTS['climbout'], STUNTS['final']
 DIVE_M_S = 4.0
-#: The flare's nose, and the height its tail wheel touches at from that.
-HARRIER_RAD = math.radians(40.0)
+#: The flare's nose, the height its tail wheel touches at.
+HARRIER_RAD = math.radians(30.0)
 TOUCH_M = TAIL_ARM * math.sin(HARRIER_RAD) + 0.145 * math.cos(HARRIER_RAD) - SKID_M - FOOT_M + 0.02
-#: The pull the law plans on, m/s^2: the propeller governed, boosted, at full pitch.
+#: The pull the law plans on, m/s^2.
 PULL_MAX = K_THRUST / MASS_KG * (GOV_RAD_S * STUNT_BOOST) ** 2
 WING = Wing(MASS_KG, GRAVITY, RHO, WING_AREA, CL_ALPHA, WING_SPAN, STAB_AREA, FIN_AREA, TAIL_ARM)
-#: It stands RUNWAY_M short of home, 50 deg off the first gate's heading (aircraft.md).
 ROTATE_M_S, RUNWAY_M = WING.rotate, WING.runway(HOVER['lean'])
 RUNWAY_RAD = math.radians(grounds.GATES[0][3] + 50.0)
 
@@ -242,8 +241,7 @@ class Core:
         s_along = along * (1.0 if throt >= 0.0 else -1.0)
         lift = float(state.get('lift', 0.0)) * _aero_inflow(s_along, math.hypot(u[0], u[2]), w_p)
         w_lift = WING.lift(u, turn)
-        # Nose first through the air at the wing's speed it is wing-borne: a push learnt there
-        # is the wing's own, a 1.5 g that turns with the nose faster than it is learnt.
+        # Wing-borne, a push learnt is the wing's own.
         self.wingborne = w = (min(1.0, max(0.0, along / ROTATE_M_S)) ** 2
                               * min(1.0, max(0.0, 1.0 + vel[1] / DIVE_M_S)))
         for a in range(3):
@@ -286,7 +284,6 @@ class Core:
             return run(WING, self, v_fwd, h, yaw, rate) + (stunt, inv)
 
         a_norm = math.hypot(ax_des, ay_des, az_des) or GRAVITY
-        # Pulled the other way along its axis - a burn's brake - a lean leans it the other way.
         s_f = 1.0 if (ay_des if inv >= 0.5 else ay_thrust) >= 0.0 else -1.0
         want_up = [sign * s_f * ax_des / a_norm, sign * ay_des / a_norm, sign * s_f * az_des / a_norm]
         ay_use = ay_des if inv >= 0.5 else ay_thrust
@@ -324,7 +321,11 @@ class Core:
         air_acc = [(1.0 - self.wingborne) * self.push_hat[a] - drag * u[a] for a in range(3)]
         if along is None:
             along = self.plan(law, row, state, dt, pull_max)
-        rate = _course_rate(law['heading'], row) if self.airborne else 0.0
+        # Asked no turn under 2 m in the air, the nose comes round to the runway's heading.
+        rate = math.radians(float(row.get('turn', 0.0))) if self.airborne else 0.0
+        if self.airborne and abs(rate) <= 1e-6 and row['height'] < 2.0 and abs(row.get('slide', 0.0)) <= 1e-6:
+            err = (RUNWAY_RAD - math.atan2(law['heading'][1], law['heading'][0]) + math.pi) % math.tau - math.pi
+            rate = max(-2.4, min(2.4, 3.0 * err))
         law['heading'] = c, s = _turn_heading(law['heading'], rate, dt)
         yaw = math.atan2(s, c)
         reach, up_pull = max(aerokin.LEAST * GRAVITY, pull_max), self.up_pull
@@ -365,7 +366,6 @@ class Core:
                 law, row, state, turn, yaw, rate, acc_des, ay_thrust, ay_stop, dt)
 
         f_limit = MASS_KG * reach
-        # A propeller pulls one way.
         f_des = max(0.0, min(f_limit, f_des))
         tau_x, tau_y, tau_z = _so3_torques(
             self, turn, r_des, w_ff, spin, INERTIA, (ATT_KP, YAW_KP, ROLL_KP), (ATT_KD, YAW_KD, ROLL_KD))

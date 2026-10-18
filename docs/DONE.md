@@ -203,3 +203,5 @@ the fifty before these: [DONE_1-50](DONE_1-50.md).
 54. Her situation read from her sensors: six readings, `situations.lisp`'s
     bounds and caps over her law in the surfaces' place; the ice, a ramp, a
     chair and a wall entered unannounced told within a second at every lay.
+55. The wing stalls; the aerobat's circuit a rectangle at 9 m aimed at its
+    runway, its figures at 14 m ([aircraft](findings/aircraft.md)).

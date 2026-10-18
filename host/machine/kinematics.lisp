@@ -11,7 +11,9 @@
 
 (defblock envelope aerobat_envelope
   (use standard_arena_envelope)
-  (floor_height 0.55m))
+  (floor_height 0.55m)
+  (high_height 14.0m)
+  (top_height 14.0m))
 
 (defblock vertical vertical_climb_brake
   (climb_speed 4.0m_s)

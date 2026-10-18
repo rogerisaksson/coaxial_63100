@@ -335,12 +335,23 @@ serves its DOD; none an entry a case.
 
 ## Flight pages
 
+- **The crafts undressed in layers**, as the gynoid is: the shell, the
+  airframe, the batteries, then the bare kinematics - the control surfaces,
+  the rotor blades and their shafts, the swashplate, the wings' cranks.
+  DOD: a key on each page steps the layers, each judged by PNG.
+- **The gynoid's face, head and clothes**: the jeans and the T-shirt to fall
+  on the body as cloth does, the head and face drawn to anatomy. DOD: her
+  page's PNG judged, the walk's measures unmoved (test_ortho.py).
+- **The four drawn as the real things**: an Edge 540's lines for the
+  aerobat, a tactical quad's body and sensor pod, Dune's ornithopter, a
+  Goblin Raw's open frame for the helicopter. DOD: each page's PNG judged.
 - **The four crafts drawn as the real things**: a racing quad's frame, a
   500's pod and head, a 'thopter's body and wings, an Extra's lines. DOD: each
   page's PNG judged, the parts told apart at the page's distance.
-- **The aerobat's flare**: throttle closed in a 40 deg harrier from 0.35 m it
-  touches at 2 m/s; with the throttle on, the wing - no stall in it - floats
-  it up again. DOD: a wing that stalls, the flare under 1 m/s.
+- **The aerobat's flare**: the final arrives hovering over the runway's start
+  at 0.6 m and the plane drops onto its wheels, 14 g for a step; a flare on
+  the wing from a slow final would touch under 1 m/s. DOD: a final flown
+  wing-borne to the flare, the touch under 1 m/s.
 - **The aerobat's apex**: the top of full tilt rocks 17-21 deg, 620 deg/s for
   a moment, as the wing-borne law hands over to the hover. DOD: under 10 deg.
 - **The aerobat's gates as a plane**: on the hover's law with the wing
