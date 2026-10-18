@@ -57,6 +57,20 @@ burn, land).
   24 s whole. The head idles up (the stunt boost) where the plan leans past
   half of gravity, as in the figures.
 
+## Drawn
+
+Four meshes of lofts, drums, ellipsoids and boxes (`shapes.box`, flat-faced),
+each judged by PNG at 100 x 36 cells alone and on its page: the aerobat an
+Edge 540's - a deep fuselage, a bubble canopy, a square mid wing with red
+tips, a tall swept red fin, wheel pants; the quad a tactical drone's - an
+olive slab on square arms, a sensor ball under its nose, an aerial; the
+helicopter a Goblin Raw's - two side plates, the can and the head on top, a
+battery tray and a red nose block, a long boom to a tall red fin and a
+stabiliser, skids on two rails; the ornithopter Dune's - a long tapering
+body, two bulging eyes of a cockpit, four thin wings, insect legs. Skin,
+plate and accent paints: carbon's halftone leaves a cloud of dots, so the
+bodies are light and the fittings dark.
+
 ## Aerobat
 
 `machine.aerobat`, `machine.wingborne`: a 1.30 m, 2 kg 3D monoplane (wing
@@ -103,6 +117,20 @@ wheels (0.25 m legs, the prop clear when level, the nose 12 deg up at rest).
   throttle held through the flare the wing floated it up at 1.4 m/s: no
   stall in it. Let down in the hover instead it sat on its tail at 0.36 and
   came over at 16 g, a strike.
+- The wing stalls (`wingborne.STALL_RAD`): the airfoil's lift to 15 deg, a flat
+  plate's normal force past 23, blended between, the plate's drag with it;
+  at 10 m/s 21.5 N at 15 deg, 14 N at 45, 40 N of drag at 90. Linear to 1.5
+  of the weight it floated a flare and a harrier on a closed throttle.
+- The circuit a rectangle at 9 m (the trees are 6.5-7 m tall: at 6 m the
+  page struck one): climb-out, four 90 deg turns at 50 deg/s and 6.5 m/s
+  (at 9 the spot ran 15 m ahead and the final was a chase at full throttle),
+  the final aimed at the runway's start by its row's (x, z) and `home`,
+  hovering there at 0.6 m - an open-loop final landed anywhere from 13 m
+  past home to 60 m off and the next run struck a house. The figures at 14
+  m (`high` overridden): the waterfall's fall from 8 m drifted 5 m into
+  the tree 6 m from home, 7 m tall. Under 2 m in the air the nose comes
+  round to the runway's heading (the gates' steering is a drone's): after
+  the figures the climb-out went wherever the last turn left it.
 - The runway lies 50 deg off the first gate's heading: along it the run went
   through gate 1 (its post 0.4 m off the line, the wing 0.65), across it
   into the house, at 45 deg the second run - from where the roll-out ended,

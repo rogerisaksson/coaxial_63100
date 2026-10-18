@@ -22,6 +22,9 @@ from machine.helicopter import _mat_mul, _rot_x, _rot_y
 ALPHA_RAD, TAIL_UP, CLIMB_RAD, AIRBORNE_M, RUN_G, CLIMB_V = (
     math.radians(10.0), 0.4, math.radians(12.0), 0.85, 1.2, 1.3)
 ALPHA_MAX = math.radians(15.0)
+#: The airfoil stalls at STALL_RAD, a plate over STALL_BLEND past it; its drag CD_LIFT of its
+#: lift squared (an aspect ratio of 5).
+STALL_RAD, STALL_BLEND, CD_LIFT = math.radians(15.0), math.radians(8.0), 0.07
 #: On its wheels: the nose this far from the vertical, 12 deg up.
 PITCH_REST = math.radians(78.0)
 
@@ -34,6 +37,7 @@ class Wing:
 
     def __init__(self, mass, gravity, rho, area, cl_alpha, span, stab_area, fin_area, tail_arm):
         self.mass, self.gravity, self.q = mass, gravity, 0.5 * rho * cl_alpha
+        self.rho, self.cl_alpha = rho, cl_alpha
         self.area, self.span, self.stab, self.fin, self.arm = area, span, stab_area, fin_area, tail_arm
         #: The speed the wing bears the weight at ALPHA_RAD, m/s.
         self.rotate = math.sqrt(2.0 * mass * gravity / (rho * area * cl_alpha * ALPHA_RAD))
@@ -44,13 +48,30 @@ class Wing:
         return v2 / (2.0 * RUN_G * self.gravity) + AIRBORNE_M / math.tan(CLIMB_RAD) + v2 / (2.0 * lean)
 
     def lift(self, u, turn):
-        """The wing's lift, N, in the world along the back (`-turn[:, 2]`), nose first through
-        the air `u`; none tail first; 1.5 of the weight at most."""
+        """The wing's force, N, in the world, nose first through the air `u` (none tail first):
+        its lift along the back (`-turn[:, 2]`) rising with the angle to the stall at
+        STALL_RAD and falling to a flat plate's past it, the plate's drag with it along the
+        air. Linear to 1.5 of the weight it floated a flare and a harrier on a closed throttle."""
         uy = max(0.0, sum(u[a] * float(turn[a][1]) for a in range(3)))
         uz = sum(u[a] * float(turn[a][2]) for a in range(3))
-        lim = 1.5 * self.mass * self.gravity
-        f_l = max(-lim, min(lim, self.q * self.area * uy * uz))
-        return (-f_l * float(turn[0][2]), -f_l * float(turn[1][2]), -f_l * float(turn[2][2]))
+        v2 = uy * uy + uz * uz
+        if uy <= 0.0 or v2 < 1e-6:
+            return (0.0, 0.0, 0.0)
+        alpha = math.atan2(uz, uy)
+        a_abs = abs(alpha)
+        # The plate's normal force past the stall, the airfoil's lift before it, blended over
+        # STALL_BLEND; the airfoil's drag a share of its lift squared.
+        flat = min(1.0, max(0.0, (a_abs - STALL_RAD) / STALL_BLEND))
+        sa, ca = math.sin(alpha), math.cos(alpha)
+        c_lin = self.cl_alpha * alpha
+        c_l = (1.0 - flat) * c_lin + flat * 2.0 * sa * ca
+        c_d = (1.0 - flat) * CD_LIFT * c_lin * c_lin + flat * 2.0 * sa * sa
+        q = 0.5 * self.rho * self.area * v2
+        f_l, f_d = q * c_l, q * c_d
+        speed = math.sqrt(v2)
+        nose, back = [float(turn[a][1]) for a in range(3)], [-float(turn[a][2]) for a in range(3)]
+        air = [(uy * nose[a] - uz * back[a]) / speed for a in range(3)]
+        return tuple(f_l * back[a] - f_d * air[a] for a in range(3))
 
     def moments(self, u, turn, qv):
         """The airframe's own moments about its axes, N m: the stabiliser's and the fin's lift

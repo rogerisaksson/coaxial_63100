@@ -17,7 +17,7 @@ from coaxial.graphics.helicopter import force_arrows
 from coaxial.graphics.lit import CORE, PLATE, braille, paint, project, splat
 from coaxial.graphics.quadcopter import (BLADE_W, BLADES_RAD_S, BOARD_H, BOARD_R, CAN_L, CAN_R,
                                          CARBON, LEG_R, MASK, PROP, RIM_EVERY, RIM_INK, SINK_H,
-                                         SINK_R, SKIN, Mesh, _at, _painted)
+                                         SINK_R, SKIN, ACCENT, Mesh, _at, _painted)
 from machine import aerobat as aero_phys
 
 #: The camera: the eye's distance in reaches framed, and the reach the monoplane fills, m -
@@ -41,24 +41,25 @@ SURFACE = (92, 98, 112)
 
 
 def _fuselage():
-    """The carbon fuselage along +y from the tail post to the spinner's base: deep at the
-    cockpit, drawn to a post aft."""
+    """The fuselage along +y from the tail post to the cowl: deep under the canopy, flat-sided
+    aft, a round cowl ahead."""
     rings = [
-        (-0.50, 0.012, 0.016), (-0.36, 0.024, 0.032), (-0.20, 0.038, 0.050),
-        (-0.04, 0.052, 0.066), (0.12, 0.058, 0.070), (0.28, 0.052, 0.060),
-        (0.42, 0.042, 0.046), (0.52, 0.030, 0.032),
+        (-0.52, 0.010, 0.016), (-0.42, 0.020, 0.032), (-0.30, 0.032, 0.050),
+        (-0.16, 0.046, 0.066), (-0.02, 0.056, 0.078), (0.12, 0.060, 0.080),
+        (0.26, 0.058, 0.072), (0.38, 0.052, 0.058), (0.47, 0.044, 0.046),
+        (0.53, 0.034, 0.034),
     ]
-    return shapes.loft(rings, paint(SKIN), poles=(-0.51, 0.525), along='y')
+    return shapes.loft(rings, paint(SKIN), poles=(-0.53, 0.535), along='y')
 
 
 def _aero_parts():
     """[(name, mesh)]: the aerobat airframe in its body axes."""
-    carbon, skin = paint(CARBON), paint(SKIN)
+    carbon, skin, accent = paint(CARBON), paint(SKIN), paint(ACCENT)
     can_h = CAN_L * 0.58
     out = [
         ('fuselage', _fuselage()),
-        ('canopy', shapes.ellipsoid((0.0, 0.14, -0.070), (0.036, 0.150, 0.036), CORE, rows=7)),
-        ('spinner', shapes.ellipsoid((0.0, PROP_Y + 0.024, 0.0), (0.024, 0.040, 0.024),
+        ('canopy', shapes.ellipsoid((0.0, 0.10, -0.078), (0.040, 0.165, 0.042), CORE, rows=7)),
+        ('spinner', shapes.ellipsoid((0.0, PROP_Y + 0.024, 0.0), (0.028, 0.044, 0.028),
                                      PLATE, rows=6)),
         ('can0', _at(shapes.drum(CAN_R, can_h, 'y', PLATE), None, (0.0, 0.47, 0.0))),
         ('board0', _at(shapes.drum(BOARD_R, BOARD_H, 'y', paint(MASK)), None,
@@ -70,17 +71,20 @@ def _aero_parts():
                        (0.0, 0.385 - can_h / 2.0 - BOARD_H / 2.0, 0.0))),
         ('sink1', _at(shapes.drum(SINK_R, SINK_H, 'y', carbon), None,
                       (0.0, 0.385 - can_h / 2.0 - BOARD_H - SINK_H / 2.0, 0.0))),
-        ('vfin', shapes.ellipsoid((0.0, TAIL_Y + 0.03, -0.10), (0.005, 0.085, 0.095),
-                                  skin, rows=7)),
+        ('vfin', shapes.box((0.0, TAIL_Y + 0.04, -0.105), (0.005, 0.075, 0.095), accent)),
+        ('finlead', shapes.box((0.0, TAIL_Y + 0.14, -0.06), (0.005, 0.03, 0.045), accent)),
     ]
     legs = ((STRUT_Z[1], GEAR_MAIN_Z, 1.0), (STRUT_Z[0], GEAR_TAIL_Z, 0.45))
     for s in (-1.0, 1.0):
         out.append(('wing%d' % (s > 0),
-                    shapes.ellipsoid((s * 0.53 * HALF_SPAN, WING_Y, 0.0),
-                                     (0.50 * HALF_SPAN, 0.42 * CHORD, 0.012), skin, rows=7)))
+                    shapes.box((s * 0.50 * HALF_SPAN, WING_Y, 0.0),
+                               (0.50 * HALF_SPAN, 0.46 * CHORD, 0.011), skin)))
+        out.append(('tip%d' % (s > 0),
+                    shapes.box((s * 0.93 * HALF_SPAN, WING_Y, 0.0),
+                               (0.07 * HALF_SPAN, 0.46 * CHORD, 0.012), accent)))
         out.append(('hstab%d' % (s > 0),
-                    shapes.ellipsoid((s * 0.5 * HSTAB_HALF, TAIL_Y + 0.02, 0.0),
-                                     (0.5 * HSTAB_HALF, 0.055, 0.006), skin, rows=6)))
+                    shapes.box((s * 0.5 * HSTAB_HALF, TAIL_Y + 0.02, 0.0),
+                               (0.5 * HSTAB_HALF, 0.05, 0.005), skin)))
         for k, (y, z, x_sc) in enumerate(legs):
             x = s * x_sc * SKID_X
             dx, dz = x - s * 0.04, z - 0.03
@@ -91,6 +95,10 @@ def _aero_parts():
                             (s * 0.04 + 0.5 * dx, y, 0.03 + 0.5 * dz))))
             out.append(('wheel%d_%d' % (s > 0, k),
                         shapes.ellipsoid((x, y, z), (FOOT_M, FOOT_M, FOOT_M), PLATE, rows=6)))
+            if k == 0:
+                out.append(('pant%d' % (s > 0),
+                            shapes.ellipsoid((x, y + 0.005, z - 0.01), (0.014, 0.06, 0.042),
+                                             accent, rows=6)))
     return out
 
 
@@ -105,21 +113,20 @@ def _prop_blades(radius):
 def _aileron_mesh(side):
     """One full-span 3D aileron behind its hinge on the wing's trailing edge, on `side`."""
     s = float(side)
-    return [('ail', shapes.ellipsoid((s * 0.56 * HALF_SPAN, -0.038, 0.0),
-                                     (0.44 * HALF_SPAN, 0.038, 0.006), paint(SURFACE), rows=6))]
+    return [('ail', shapes.box((s * 0.56 * HALF_SPAN, -0.038, 0.0),
+                               (0.44 * HALF_SPAN, 0.038, 0.006), paint(SURFACE)))]
 
 
 def _elevator_mesh():
     """The oversized 3D elevator behind its hinge on the stabiliser's trailing edge."""
-    return [('elev', shapes.ellipsoid((s * 0.5 * HSTAB_HALF, -0.032, 0.0),
-                                      (0.5 * HSTAB_HALF, 0.032, 0.005), paint(SURFACE), rows=6))
+    return [('elev', shapes.box((s * 0.5 * HSTAB_HALF, -0.032, 0.0),
+                                (0.5 * HSTAB_HALF, 0.032, 0.005), paint(SURFACE)))
             for s in (-1.0, 1.0)]
 
 
 def _rudder_mesh():
     """The 3D rudder behind its hinge on the fin's trailing edge."""
-    return [('rud', shapes.ellipsoid((0.0, -0.036, -0.09),
-                                     (0.005, 0.036, 0.090), paint(SURFACE), rows=6))]
+    return [('rud', shapes.box((0.0, -0.036, -0.10), (0.005, 0.036, 0.090), paint(SURFACE)))]
 
 
 #: The hinges, in the body: the ailerons' at the wing's trailing edge, the elevator's and the

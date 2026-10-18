@@ -203,6 +203,10 @@ the fifty before these: [DONE_1-50](DONE_1-50.md).
 54. Her situation read from her sensors: six readings, `situations.lisp`'s
     bounds and caps over her law in the surfaces' place; the ice, a ramp, a
     chair and a wall entered unannounced told within a second at every lay.
-55. A drive identified on its board through the wire: held and swung by the
+55. The wing stalls; the aerobat's circuit a rectangle at 9 m aimed at its
+    runway, its figures at 14 m ([aircraft](findings/aircraft.md)).
+56. The four drawn as the real things: an Edge 540, a tactical quad, a Goblin
+    Raw, Dune's ornithopter ([aircraft](findings/aircraft.md)).
+57. A drive identified on its board through the wire: held and swung by the
     board's own loop, its DAQ's currents and A1335 the rows; the leg's four
     on native:// within 11 % of the world's J and 5 % of its gravity.
