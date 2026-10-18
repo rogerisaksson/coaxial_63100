@@ -23,6 +23,8 @@ BRICK, BOARD, BOARD_HINGE_M, BOARD_KG = (0.06, 0.031, 0.125), (0.25, 0.005, 0.20
 BOARD_K, BOARD_C = 3000.0, 20.0
 CHAIR_SEAT, CHAIR_SEAT_H, CHAIR_BACK = (0.22, 0.02, 0.22), 0.45, (0.22, 0.20, 0.02)
 BED_MATTRESS, BED_MATTRESS_H, BED_FRAME = (0.50, 0.12, 1.0), 0.45, (0.52, 0.08, 1.02)
+#: What lies on the floor and bears none of her but her soles - with the floor itself, her ground.
+TERRAIN = ('sill', 'slip', 'brick_left', 'brick_right', 'board_base', 'slope_ramp', 'slope_top', 'ice', 'snow', 'rug')
 #: A ramp's grade, deg, and its half sizes: 10 deg, a steep street's.
 SLOPE_ANGLE_DEG, SLOPE_HALF = 10.0, (0.60, 0.05, 1.44)
 SLOPE_TOP_HALF, SLOPE_TOP_H = (0.60, 0.05, 0.60), 0.10
@@ -50,6 +52,13 @@ def _steps(top=TOP_M):
              (0.0, (k + 1) * RISE_M / 2.0,
               k * RUN_M + (RUN_M + (top if k == STEPS - 1 else 0.0)) / 2.0))
             for k in range(STEPS)]
+
+
+def grounds(m):
+    """Her ground's bodies in model `m`: the world's - the floor, its slabs -, what lies on it
+    (`TERRAIN`) and the steps; a chair, a bed, a wall, what may bear her above her soles, none."""
+    laid = {m.body(n).id for n in TERRAIN + tuple(n for n, _h, _a in _steps())}
+    return {0} | {b for b in range(m.nbody) if m.body_rootid[b] in laid}
 
 
 def _sized(world, body, half):

@@ -3,7 +3,7 @@ import math
 import multiprocessing
 import queue
 import time
-from machine import ortho, physics, sprung, wear
+from machine import edge, floor, ortho, physics, sprung, wear
 from machine.errors import MachineError
 from machine.se2 import WALK_ON
 
@@ -169,20 +169,18 @@ def heard(g, gym, command):
 
 
 def _is_fallen(g, world):
-    """Whether the gynoid has lost balance or fallen."""
-    cur_doing = sprung.doing(g)
-    cur_tilt = sprung.tilt(g)
-    cur_y = float(world.data.qpos[1])
-    if cur_tilt > 75.0 or cur_y < 0.08:
-        return True
-    if cur_doing in ('seated', 'approach', 'lower', 'lean', 'thrust'):
-        return cur_tilt > 45.0 or cur_y < 0.28
-    if cur_doing in ('bed_rest', 'recline', 'sit_edge', 'sit_up'):
-        return cur_tilt > 45.0 or cur_y < 0.25
-    if cur_doing in ('floor_rest', 'kneel', 'cushion', 'land'):
-        return cur_tilt > 75.0 or cur_y < 0.06
-    if cur_doing not in sprung.STUNT_PHASES:
-        return cur_y < sprung.DOWN_M or (cur_tilt > sprung.DOWN_DEG and cur_y < 0.65) or cur_tilt > 80.0
+    """Fallen, the referee's: a part of her above her shins - thighs, pelvis, trunk, head, arms,
+    hands - touches her ground (`floor.grounds`). By what she was doing, a tilt past 45 deg on a bed
+    was a fall, and thrown back onto it she was down at 3.7 s."""
+    m, d = world.model, world.data
+    if g.get('_falls_by', (None,))[0] is not m:
+        g['_falls_by'] = (m, {m.body(n).id for n in edge.SKIN if not n.endswith(('_shank', '_foot', '_toes'))},
+                          floor.grounds(m))
+    _m, down, ground = g['_falls_by']
+    for i in range(d.ncon):
+        a, b = m.geom_bodyid[d.contact[i].geom1], m.geom_bodyid[d.contact[i].geom2]
+        if (a in down and b in ground) or (b in down and a in ground):
+            return True
     return False
 
 

@@ -179,6 +179,9 @@ plain walk the same bit for bit (her pose hashed each second for 20 s).
 - The referee: 'sat' and 'lay' count what bears her off her soles, on her soles
   her soles' own loads; the bed side-on, its edge 0.1 m behind her (lengthwise,
   its headboard stood in her).
+- A fall is a part of her above her shins on her ground - the floor, what lies
+  on it, a step (`floor.grounds`): by her doing's name, on her back on a bed was
+  one; the room's walls as ground, the replays fell against them at 5.9-7.9 s.
 - The bench: scenes 62 of 87 (chair and bed up), the 80 N polar and the replays
   as they were; 200 N as it was, standing 14 of 32 met, walking 21. Chair 13 of
   13 wobbles; bed 7: at -5e-4 she sat over her right sole on the mattress's edge,

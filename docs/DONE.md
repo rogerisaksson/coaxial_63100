@@ -305,3 +305,7 @@ the fifty before these: [DONE_1-50](DONE_1-50.md).
 79. Her grip bounded by what her soles read (`machine.grip`): a slide lowers it
     and never raises it, a slide read is taken whole; the slick patch stands at
     every wobble ([grip](findings/grip.md)).
+80. Her fall judged by what she touches (`worker._is_fallen`, `floor.grounds`):
+    a part above her shins on the floor, what lies on it or a step; a chair, a
+    bed and a wall bear her. On her back on a bed she lies where a tilt past
+    45 deg fell her ([scenarios](findings/scenarios.md)).

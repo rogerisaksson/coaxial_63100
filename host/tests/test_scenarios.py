@@ -34,7 +34,33 @@ def _scenario(name, wobble):
     return test
 
 
-ROSTER = [_scenario(name, wobble) for name in HELD for wobble in WOBBLES]
+def test_the_referee_judges_by_touch(report):
+    """Laid on her back onto a bed she lies, onto the floor she fell (`worker._is_fallen`): judged
+    by what she was doing, a tilt past 45 deg on a bed was a fall."""
+    import math
+    from machine import floor, worker
+    s = worker.session()
+    worker.apply(s, {'scenario': 'flat'})
+    g, world = s['g'], s['g']['world']
+    m, d, torso = world.model, world.data, world.model.body('torso').id
+
+    def laid():
+        d.qpos[1], d.qpos[3:7] = 1.2, (math.cos(math.pi / 4.0), -math.sin(math.pi / 4.0), 0.0, 0.0)
+        world._mj.mj_forward(m, d)
+        while torso not in m.geom_bodyid[d.contact.geom1[:d.ncon]].tolist() + m.geom_bodyid[d.contact.geom2[:d.ncon]].tolist():
+            d.qpos[1] -= 0.002
+            world._mj.mj_forward(m, d)
+        return worker._is_fallen(g, world)
+    stood = worker._is_fallen(g, world)
+    floor.mocap(world, 'prop_bed', (float(d.qpos[0]), 0.0, float(d.qpos[2])), 0.0)
+    on_bed = laid()
+    floor.take(world, 'prop_bed')
+    on_floor = laid()
+    report.check('standing no fall, on her back on a bed none, on the floor a fall',
+                 (stood, on_bed, on_floor) == (False, False, True), (stood, on_bed, on_floor))
+
+
+ROSTER = [_scenario(name, wobble) for name in HELD for wobble in WOBBLES] + [test_the_referee_judges_by_touch]
 
 
 def main(argv=None):
