@@ -356,23 +356,26 @@ pass beside the world's floor under each sole (`tools/sim/trace.py`).
 
 ## Her errands
 
-- Walked 2 s and told to stop, `law.held_back` held the stand for ever: the
-  brake's sway kept a swing commanded on two standing soles, her doing flipped
-  between `brake` and `#201` 3 781 times in 4 s and `sit_chair`'s rows were
-  held with it. Holding on the sole off the floor, on her rhythm's gain or a
-  control step ahead of now each moved her: `walk_turn_right_at_0.69` fell at
-  its end and on ice she went 1.76 m, not past 1.8 (test_replays,
-  test_scenarios). The hold kept as it was and let go after two of her
-  rhythm's swings (`latent.TURNS`), the swing it waits for not coming: she
-  stands in 0.3 s, sits at 3.2 s, rises at 2.7 s, walks at once on a scene
-  laid anew; the hop as before, 172 flips and 152/153 N; the 12 replays whole
-  (`test_errands`). Let go only with her capture point inside her soles, the
-  hop-after-a-stop replay fell at its end.
-- The ice scene's `past 1.8` was the deadlock's shuffle: told to stop at
-  1.49 m, the old hold carried her on at 0.045 m/s for the 6 s she was to
-  stand, to 1.88 m, brake and stand flipping all the while; let go, she
-  stands at 9.0 s and the ice slides her 6 cm more, to 1.76 m, 0.02 m/s at
-  the end. The goal is 1.7 m now, a stop that stops.
+- Told to stop, `law.held_back` held the stand for ever: the brake's sway
+  kept a swing commanded on two standing soles, her doing flipped between
+  `brake` and `#201` 3 781 times in 4 s, `sit_chair` held with it. Holding on
+  the sole off the floor, on her rhythm's gain or a control step ahead of now
+  each moved her (`walk_turn_right_at_0.69` fell, ice 1.76 m); the hold as it
+  was, let go after two of her rhythm's swings (`latent.TURNS`): she stands in
+  0.3 s, sits at 3.2 s, rises at 2.7 s; the hop as before (172 flips, 152/153
+  N), the 12 replays whole. Let go only with her capture point inside her
+  soles, hop-after-a-stop fell.
+- The ice scene's `past 1.8` was that shuffle: told to stop at 1.49 m she
+  crept on at 0.045 m/s for 6 s to 1.88 m; let go she stands at 9.0 s and
+  slides to 1.76 m. The goal is 1.7 m, a stop that stops.
+- A walk asked of a stand swaying over 0.04 m/s got a stand first and the gait
+  1.35 s later (`worker.heard_say`'s `off_c`); at rest she sways 0.05, after
+  a stop 0.05-0.16, so every W waited 1.35 s. The sway term gone, init_walk
+  comes with the ask, her posture and loads still gating it.
+- W held through a scene change: what she felt of the chair (`g['_felt']`,
+  3 s) outlived the world laid anew and deflected the walk into a sidestep at
+  0.29 m/s. Cleared on the reset, init_walk within 10 ms, 0.49 m/s at 2 s;
+  the page tells her the keys' twist again as it sees the new scene.
 - On a scene laid anew (`gym._run_scenario`), the pad's cached `setpoint` held
   the prior twist and swallowed the next W asked at once; cleared on scene
   reset, a walk asked at once begins in 1 ms. `arrows.describe` draws the stop

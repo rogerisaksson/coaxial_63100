@@ -170,7 +170,8 @@ def twist(keys, look, heading):
 
 def steered(state, now, heading):
     """Each frame: the keys held - the console's, else those typed within HOLD_WINDOW_S - as
-    her twist, sent when it changes; a key that moves her ends the tour. `now` the wall clock."""
+    her twist, sent when it changes and again as she reports a scene laid anew, her twist
+    zeroed with it; a key that moves her ends the tour. `now` the wall clock."""
     held = state.setdefault('pad', pad())
     keys = polled((), held, now, console.held())
     if any(keys[k] for k in 'wsadqe'):
@@ -178,6 +179,9 @@ def steered(state, now, heading):
     elif gym.touring(state):
         return
     tw = twist(keys, viewpoint.looks(state), heading)
+    scene = (state.get('now') or {}).get('scenario')
+    if scene != state.get('_scene'):
+        state['_scene'], held['setpoint'] = scene, None
     if tw != held['setpoint']:
         held['setpoint'] = tw
         state['body'].send(twist=tw)

@@ -39,7 +39,7 @@ def test_a_stop_settles_and_f_is_heard(report):
     laid anew with a walk asked at once, she walks at once."""
     from machine import floor, worker
     s = worker.session()
-    worker.apply(s, {'scenario': 'chair'})
+    worker.apply(s, {'scenario': 'flat'})
     _run(s, 0.5)
     worker.apply(s, {'twist': WALK})
     _run(s, 2.0)

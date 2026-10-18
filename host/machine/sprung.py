@@ -148,6 +148,7 @@ def reset_for_scenario(g, scen):
         g['heat'], g['temp'][:] = type(g['heat']).for_joints(), 25.0
         g['_twist_active'], g['_twist_stop_until'], g['twist'], g['twist_actual'] = False, 0.0, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)
         g['active_entry'], g['n'], g['_look_yaw'], g['_last_way'] = None, 0, 0.0, 1.0
+        g.pop('_felt', None)       # what she felt stood in the world laid away
         for idx in (g.get('waist_idx'), g.get('head_idx')):
             if idx is not None:
                 g['posture'][idx] = 0.0

@@ -312,9 +312,29 @@ def test_her_clothes_bend_at_the_joints(report):
                  {k: round(v, 3) for k, v in cloth.items()})
 
 
+def test_a_scene_laid_anew_is_told_the_keys_again(report):
+    """W held through a scene change: her loop lays her anew with no twist, and the page tells
+    her the keys' twist again as it sees the new scene, not only when the keys change."""
+    from terminal.views import humanoid_keys, viewpoint
+    sent = []
+    state = {'body': SN(send=lambda **cmd: sent.append(cmd)), 'now': {'scenario': 'chair'}, 'tour': None,
+             **viewpoint.HOME, 'pad': humanoid_keys.pad()}
+    humanoid_keys.polled(['w'], state['pad'], 0.0)
+    humanoid_keys.steered(state, 0.0, 0.0)
+    humanoid_keys.polled(['w'], state['pad'], 0.05)
+    humanoid_keys.steered(state, 0.05, 0.0)
+    state['now'] = {'scenario': 'bed'}
+    humanoid_keys.polled(['w'], state['pad'], 0.1)
+    humanoid_keys.steered(state, 0.1, 0.0)
+    twists = [c['twist'] for c in sent if 'twist' in c]
+    report.check('the walk told once on W, not again the next frame, again on the new scene',
+                 len(twists) == 2 and twists[0] == twists[1] and twists[0][0] > 0.5, twists)
+
+
 ROSTER = (test_the_humanoid_pages_mouse, test_the_humanoid_pages_keys, test_the_keys_that_move_her_are_one_twist,
           test_a_held_p_charges_a_push, test_vision_scanner_docked_pip_and_affordances, test_her_verbs_and_the_chase,
-          test_scenario_deck_tour_handoff_and_cybernetic_hud, test_her_clothes_bend_at_the_joints)
+          test_scenario_deck_tour_handoff_and_cybernetic_hud, test_her_clothes_bend_at_the_joints,
+          test_a_scene_laid_anew_is_told_the_keys_again)
 
 
 def main(argv=None):
