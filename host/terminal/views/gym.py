@@ -136,6 +136,7 @@ def _run_scenario(state, scen=None):
     scen = scen or state.get('scenario', 'flat')
     state['scenario'] = scen
     state['body'].send(scenario=scen)
+    state.setdefault('pad', {})['setpoint'] = None
 
 
 def _next(state):

@@ -117,7 +117,10 @@ FLOOR = 'test_floor.py'
 #: Her situation read from her sensors: her text's bounds and caps, each entered unannounced told
 #: within a second.
 SITUATION = 'test_situation.py'
+#: Her drift from her build and a load in a hand read off her rows on-line (machine.wear).
 WEAR = 'test_wear.py'
+#: Her errands on her loop: a stop that settles, F heard, a scene laid anew and walked at once.
+ERRANDS = 'test_errands.py'
 #: Her motion's measures in a dimensionless frame on SO(3) (tools/sim/gvs.py).
 GVS = 'test_gvs.py'
 #: Her recorded runs replayed, each without a fall (tests/replays, tools/sim/replay.py).
@@ -146,7 +149,7 @@ DEFAULT_SUITES = (STRUCTURES + (CORE, SHTP, DRIVE, DRIVE_OBSERVER, FILTER, THERM
                    CTRL_CORE, WORLD_CORE, WIRE, NATIVE, NATIVE_HEAT, NATIVE_SYSID, EMULATOR,
                    SENSORLESS,
                    BROKER, DAQ_API, CONTROLLER, GYNOID, SIGHT, REACH, TERMS, GVS, REPLAYS, SCENES, WBC,
-                   WBC_CORE, FLIGHT, WRENCH, SYSID, SYSID_LIVE, WEAR, ORTHO, FLOOR, SITUATION, CYCLIC, QUAD, QUAD_PULL,
+                   WBC_CORE, FLIGHT, WRENCH, SYSID, SYSID_LIVE, WEAR, ORTHO, FLOOR, SITUATION, ERRANDS, CYCLIC, QUAD, QUAD_PULL,
                    AERO_CORE, STREAMS, QUAD_COURSE, BOOT)
                   + VIEWS
                   + (RENDER,) + OLLAMA
@@ -179,6 +182,7 @@ JOINS = (
     (12, FLOOR),
     (12, SITUATION),
     (12, WEAR),
+    (12, ERRANDS),
     (12, WRENCH),
     (12, CYCLIC),
     (12, QUAD),

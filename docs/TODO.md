@@ -22,10 +22,11 @@ gets a line at the end of [DONE](DONE.md).
 
 ## Gynoid, in order
 
-- **Her errands hesitate and flicker** (reported): walked to the bed, chair
-  and stairs on keys and mouse, told to lie, sit, climb, she dithers and the
-  marks at her feet flicker. DOD: the page's key sequences run, her speed's
-  dips and the marks' toggles counted a frame, both gone, a test.
+- **The bed soft, her lie-down a throw** (asked): F at the bed lies her down
+  or throws her onto it, the mattress giving, not a block. DOD: sink and
+  time to rest measured.
+- **Up the stairs on W she fell at the first step** at 0.6 m/s (the page's
+  own keys, `test_errands.py`). DOD: climbed on W, a test.
 - **HUMANOID freezes as the mouse moves** (reported): not seen here, 300
   frames in its own console under 6 070 sweeps, 37.5 s against 37.3 still.
   DOD: seen, its stack dumped, fixed.

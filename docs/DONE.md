@@ -237,3 +237,10 @@ the fifty before these: [DONE_1-50](DONE_1-50.md).
 67. Her clothes bent at the joints they span (`graphics.drape`): the tee into
     the pelvis, the seat into each thigh, the shins and sleeves into theirs,
     two frames a corner by its height.
+68. Her errands settle without hesitation or flicker (`machine.law`,
+    `terminal/views/gym.py`, `coaxial/graphics/arrows.py`, `test_errands.py`):
+    `held_back` waits only while her rhythm is on and a swing has its sole off
+    the floor (23 flips where 3 781 in 4 s, stand in 0.55 s), F sits and rises
+    her cleanly, and a scene laid anew clears the pad's cached twist
+    ([scenarios](findings/scenarios.md)).
+

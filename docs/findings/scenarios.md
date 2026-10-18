@@ -352,3 +352,19 @@ pass beside the world's floor under each sole (`tools/sim/trace.py`).
 - Left: on a tread or a ramp her centre of mass runs on past the standing sole
   while the next swing is late, and the swing goes where her capture point has
   gone - two treads on; nothing told, her first step down a flight is a drop.
+
+## Her errands
+
+- Walked 2 s and told to stop, `law.held_back` waited on `modal.SWINGS > 0`
+  alone: the brake's sway kept one swing commanded while both soles stood
+  (`modal.STANCE >= 0.5`), flipping her doing between `brake` and `#201` 3 781
+  times in 4 s; with no rhythm on (`latent.GAIN <= 0.05`), `sit_chair`'s rows
+  flipped 125 times as she leant back off her soles onto the seat. Held only
+  while her rhythm is on and a swing has its sole off the floor (`swinging`),
+  she stands in 0.55 s (23 flips in 4 s), sits in 3.00 s (2 flips) and rises in
+  2.50 s (3 flips) (`test_errands`).
+- On a scene laid anew (`gym._run_scenario`), the pad's cached `setpoint` held
+  the prior twist and swallowed the next W asked at once; cleared on scene
+  reset, a walk asked at once begins in 1 ms. `arrows.describe` draws the stop
+  mark only on `STOP_DOING` and the going arrow only on a commanded twist.
+

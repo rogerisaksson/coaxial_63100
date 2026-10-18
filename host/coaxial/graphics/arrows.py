@@ -246,7 +246,7 @@ def describe(now, se2_st=None):
     special = _describe_special(intent, now, origin, normal, pyaw, sh, ch, spd_phys, props, tw_act)
     if special is not None:
         return special
-    if intent in STOP_DOING or (not any_key and intent in ('#201', 'rest') and (act_mag > 0.14 or spd_phys > 0.16)):
+    if intent in STOP_DOING:
         vx_dir, stop_dist = (vx_act if abs(vx_act) > 0.02 else 0.35), max(0.32, min(0.75, 0.32 + 0.45 * max(act_mag, spd_phys)))
         fill, sgn = max(0.15, min(1.0, 1.0 - act_mag / se2.WALK_SPEED)), (1.0 if vx_dir >= 0 else -1.0)
         sx, sz = origin[0] + stop_dist * sh * sgn, origin[2] + stop_dist * ch * sgn
@@ -263,7 +263,7 @@ def describe(now, se2_st=None):
     elif intent in GAIT_TWIST:
         vx_set, vy_set, wz_set = GAIT_TWIST[intent]
     else:
-        vx_set, vy_set, wz_set = (vx_act, vy_act, wz_act) if (act_mag > 0.02 or abs(wz_act) > 0.03) else (0.0, 0.0, 0.0)
+        vx_set, vy_set, wz_set = 0.0, 0.0, 0.0
     set_mag = math.hypot(vx_set, vy_set)
     if set_mag > 0.02 or abs(wz_set) > 0.03:
         lin_s = max(0.0, (vx_act * vx_set + vy_act * vy_set) / (set_mag * set_mag)) if set_mag > 0.02 else 0.0
