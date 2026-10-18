@@ -101,6 +101,12 @@ torques. What her law senses: [sensing](sensing.md); the drives:
   The correction laid over the build: a fresh campaign's residual 0.60 ->
   0.36 N m rms a drive, the world's own model 0.30 (the friction band, the
   hems); the trunk's rows 1.19 and 2.9 -> 0.28 and 0.18.
+- Not kept: each link's inertia about its centre moved too, held a body's
+  (positive moments, each pair over the third; 25 links' moves shrunk to
+  it) - build 0.73, corrected 0.45, the tensors too 0.51, the world's own
+  0.38 N m rms a drive, the centred moments 7.6 -> 16 % off the world's. The
+  stand's campaign tells a tensor only in the base's combinations, and freed
+  it takes the misfit that is not its own.
 - The world with its gearboxes (`physics.BOXED`): the rotors ring at their
   mode (187 rad/s at a knee) through the campaign, in the motor's encoder and
   the torque that drives it; the armature read off its second differences
