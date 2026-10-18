@@ -38,7 +38,7 @@ from terminal.ui.stage import boot, frame_of, hud, stage
 from terminal.views.helicopter import flight as flown
 from terminal.views.quad import traces, wind
 from terminal.views.show_quad import (PASS_S, PHYSICS_S, SIDE_PITCH, SWITCH_S, ZOOM, carried,
-                                       flown_row, hands, look as quad_look, recorded, size_of, typed)
+                                       flown_row, hands, look as quad_look, recorded, size_of, typed, wheeled)
 
 TITLE = 'HELICOPTER'
 ROTORS = flown.ROTORS
@@ -245,7 +245,8 @@ def run_craft_view(argv, doc, craft, gfx, flown_mod, compose_fn, thrusts_fn, loo
 
     try:
         leaving = run_view(board_view, terminal, 1.0 / max(args.hz, 0.5), args.frames, draw,
-                           on_input=lambda keyed, _moved: typed(held, keys, keyed))
+                           on_input=lambda keyed, moved: (typed(held, keys, keyed), wheeled(zoomed, moved)),
+                           mouse=True, select=frozenset(), scroll_keys=False)
     finally:
         feed.stop()
         sys.setswitchinterval(switched)
