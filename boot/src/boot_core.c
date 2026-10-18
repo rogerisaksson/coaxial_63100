@@ -135,6 +135,31 @@ static uint32_t store_image(void)
   return s.layout.store_base + BOOT_WORD_BYTES;
 }
 
+/* One flash word from `from`, clipped to the image's size and padded 0xFF. */
+static void word_of(uint32_t from, uint32_t offset, uint32_t size, uint8_t *word)
+{
+  const uint32_t have = ((size - offset) < BOOT_WORD_BYTES) ? (size - offset) : BOOT_WORD_BYTES;
+
+  memset(word, 0xFF, BOOT_WORD_BYTES);
+  memcpy(word, s.port->read(s.ctx, from + offset), have);
+}
+
+/* CRC over `size` bytes in the flash store, one 256-bit flash word at a time. */
+static uint32_t store_crc(uint32_t size)
+{
+  uint32_t crc = CRC32_INIT;
+  uint8_t word[BOOT_WORD_BYTES];
+
+  for (uint32_t offset = 0U; offset < size; offset += BOOT_WORD_BYTES)
+  {
+    const uint32_t have = ((size - offset) < BOOT_WORD_BYTES) ? (size - offset) : BOOT_WORD_BYTES;
+
+    word_of(store_image(), offset, size, word);
+    crc = boot_crc32(crc, word, have);
+  }
+  return crc ^ CRC32_INIT;
+}
+
 /* The image the store's seal names, its size and crc - checked against the
    bytes behind it, so a seal over a torn or foreign copy names nothing. */
 static bool store_sealed(uint32_t *bytes, uint32_t *crc)
@@ -147,8 +172,7 @@ static bool store_sealed(uint32_t *bytes, uint32_t *crc)
       || (read_u32(at + offsetof(boot_seal_t, type)) != s.layout.type)
       || (size <= BOOT_HEADER_OFFSET) || (size > s.layout.app_bytes)
       || !shape_ok(store_image())
-      || ((boot_crc32(CRC32_INIT, s.port->read(s.ctx, store_image()), size)
-           ^ CRC32_INIT) != sum))
+      || (store_crc(size) != sum))
   {
     return false;
   }
@@ -163,15 +187,6 @@ static bool store_holds(uint32_t size, uint32_t crc)
   uint32_t sum = 0U;
 
   return store_sealed(&bytes, &sum) && (bytes == size) && (sum == crc);
-}
-
-/* One flash word from `from`, clipped to the image's size and padded 0xFF. */
-static void word_of(uint32_t from, uint32_t offset, uint32_t size, uint8_t *word)
-{
-  const uint32_t have = ((size - offset) < BOOT_WORD_BYTES) ? (size - offset) : BOOT_WORD_BYTES;
-
-  memset(word, 0xFF, BOOT_WORD_BYTES);
-  memcpy(word, s.port->read(s.ctx, from + offset), have);
 }
 
 /* The store's copy into RAM, word for word. */
@@ -566,7 +581,15 @@ static boot_answer_t h_boot_dump(rd_t *in, wr_t *out)
   const uint16_t page = (uint16_t)((left < BOOT_CHUNK_BYTES) ? left : BOOT_CHUNK_BYTES);
 
   wr_u16(out, offset);
-  wr_bytes(out, s.port->read(s.ctx, s.layout.record_base + offset), page);
+  for (uint16_t at = 0U; at < page; )
+  {
+    const uint16_t rem = (uint16_t)(page - at);
+    const uint16_t word_rem = (uint16_t)(BOOT_WORD_BYTES - ((offset + (uint32_t)at) & (BOOT_WORD_BYTES - 1U)));
+    const uint16_t step = (rem < word_rem) ? rem : word_rem;
+
+    wr_bytes(out, s.port->read(s.ctx, s.layout.record_base + offset + (uint32_t)at), step);
+    at = (uint16_t)(at + step);
+  }
   return BOOT_REPLY;
 }
 

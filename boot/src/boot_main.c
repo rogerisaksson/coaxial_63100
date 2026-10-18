@@ -163,6 +163,7 @@ static struct
   mb_rtu_t         rtu[PORTS];
   USART_TypeDef   *usart[PORTS];
   boot_layout_t    layout;
+  uint8_t          flash_word[BOOT_WORD_BYTES];
   uint32_t         go_at;
   bool             going;
 } s;
@@ -428,6 +429,39 @@ static bool flash_erase(void *ctx, uint32_t address, uint32_t bytes)
   return true;
 }
 
+/** Reads one 256-bit flash word at `base` with data BusFaults ignored under
+    FAULTMASK, returning false and clearing ECC/bus fault flags if a torn
+    write or erase raised a double-bit ECC error (RM0433 4.3.9). */
+static bool flash_probe(uint32_t base, uint32_t *words)
+{
+  const bank_t b = bank_of(base);
+  const volatile uint32_t *src = (const volatile uint32_t *)base;
+  const uint32_t ccr = SCB->CCR;
+
+  *b.ccr = FLASH_SR_ERRORS;
+  SCB->CCR = ccr | SCB_CCR_BFHFNMIGN_Msk;
+  __DSB();
+  __ISB();
+  __set_FAULTMASK(1);
+  for (uint32_t i = 0U; i < FLASH_WORD_U32; i++)
+  {
+    words[i] = src[i];
+  }
+  __DSB();
+  __ISB();
+  __set_FAULTMASK(0);
+  SCB->CCR = ccr;
+
+  const bool clean = ((*b.sr & (FLASH_SR_DBECCERR | FLASH_SR_RDSERR | FLASH_SR_RDPERR)) == 0U);
+
+  if (!clean)
+  {
+    *b.ccr = FLASH_SR_ERRORS;
+    SCB->CFSR = SCB_CFSR_BUSFAULTSR_Msk;
+  }
+  return clean;
+}
+
 /** boot_port_t.program: one 256-bit word, at a word-aligned address that
     reads erased - the controller programs a word once, and the core never
     asks twice, but the harness refuses the second write and so does this. */
@@ -435,16 +469,17 @@ static bool flash_program(void *ctx, uint32_t address, const uint8_t *word)
 {
   const bank_t b = bank_of(address);
   volatile uint32_t *dst = (volatile uint32_t *)address;
+  uint32_t existing[FLASH_WORD_U32];
   uint32_t src[FLASH_WORD_U32];
 
   (void)ctx;
-  if ((address % BOOT_WORD_BYTES) != 0U)
+  if (((address % BOOT_WORD_BYTES) != 0U) || !flash_probe(address, existing))
   {
     return false;
   }
   for (uint32_t i = 0U; i < FLASH_WORD_U32; i++)
   {
-    if (dst[i] != 0xFFFFFFFFU)
+    if (existing[i] != 0xFFFFFFFFU)
     {
       return false;
     }
@@ -469,8 +504,19 @@ static bool flash_program(void *ctx, uint32_t address, const uint8_t *word)
 
 static const uint8_t *flash_read(void *ctx, uint32_t address)
 {
+  const uint32_t base = address & ~(BOOT_WORD_BYTES - 1U);
+  uint32_t words[FLASH_WORD_U32];
+
   (void)ctx;
-  return (const uint8_t *)address;
+  if (!flash_probe(base, words))
+  {
+    memset(s.flash_word, 0, sizeof(s.flash_word));
+  }
+  else
+  {
+    memcpy(s.flash_word, words, sizeof(s.flash_word));
+  }
+  return &s.flash_word[address & (BOOT_WORD_BYTES - 1U)];
 }
 
 /* -- RAM, where the image runs --------------------------------------------- */
@@ -501,7 +547,16 @@ static bool mem_program(void *ctx, uint32_t address, const uint8_t *word)
   return flash_program(ctx, address, word);
 }
 
-static const boot_port_t PORT = { mem_erase, mem_program, flash_read, say };
+static const uint8_t *mem_read(void *ctx, uint32_t address)
+{
+  if (in_run(address))
+  {
+    return (const uint8_t *)address;
+  }
+  return flash_read(ctx, address);
+}
+
+static const boot_port_t PORT = { mem_erase, mem_program, mem_read, say };
 
 /* -- the RTU seam ---------------------------------------------------------- */
 

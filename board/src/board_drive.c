@@ -31,8 +31,10 @@ static struct
   int32_t v_off;
   float v_k;
   float arr;
+  uint16_t arr_active;
+  uint16_t trig_lead;
 } s = {
-  .derate = 1.0f, .i_max_cal = 0.0f
+  .derate = 1.0f, .i_max_cal = 0.0f, .trig_lead = 15U
 };
 
 void Board_DriveDerate(float factor)
@@ -124,7 +126,15 @@ void Board_DriveParamsFromCal(void)
   /* The sample point the commissioning chose, if it chose one. */
   if (cal->drv_trigger_ticks != 0U)
   {
-    (void)Board_SyncSetTrigger((uint16_t)cal->drv_trigger_ticks);
+    const uint16_t trig = (uint16_t)cal->drv_trigger_ticks;
+    const uint16_t arr_nom = (uint16_t)s.arr;
+
+    s.trig_lead = (arr_nom > trig) ? (uint16_t)(arr_nom - trig) : 15U;
+    (void)Board_SyncSetTrigger(trig);
+  }
+  else
+  {
+    s.trig_lead = 15U;
   }
 }
 
@@ -140,6 +150,8 @@ void Board_DriveInit(void)
                    ? ((float)ticks / (float)hz) : 20e-6f;
 
   s.arr = (float)arr;
+  s.arr_active = (uint16_t)arr;
+  s.trig_lead = 15U;
   drive_init(&s.drive, ts);
   s.drive.cycles = Board_Cycles;
   Board_DriveParamsFromCal();
@@ -409,11 +421,12 @@ static void commit_duties(const drive_out_t *out, bool enabled)
     const float f_act = fminf(fmaxf(s.drive.th.f_sw, 500.0f), f_nom);
     const uint16_t arr_dyn = (uint16_t)rounded(s.arr * (f_nom / f_act));
 
-    if ((arr_dyn >= 64U) && Board_PwmSetPeriod(arr_dyn))
+    if ((arr_dyn >= 64U) && (arr_dyn != s.arr_active) && Board_PwmSetPeriod(arr_dyn))
     {
-      const uint16_t lead = 15U;
+      const uint16_t lead = s.trig_lead;
       const uint16_t trig = (arr_dyn > lead) ? (uint16_t)(arr_dyn - lead) : 1U;
 
+      s.arr_active = arr_dyn;
       (void)Board_SyncSetTrigger(trig);
     }
 
@@ -429,14 +442,18 @@ static void commit_duties(const drive_out_t *out, bool enabled)
   }
   if (s.owned)
   {
-    if (s.arr >= 64.0f)
+    if ((s.arr >= 64.0f) && (s.arr_active != (uint16_t)s.arr))
     {
       const uint16_t arr_nom = (uint16_t)s.arr;
+      const uint16_t lead = s.trig_lead;
 
-      (void)Board_PwmSetPeriod(arr_nom);
-      if (arr_nom > 15U)
+      if (Board_PwmSetPeriod(arr_nom))
       {
-        (void)Board_SyncSetTrigger((uint16_t)(arr_nom - 15U));
+        s.arr_active = arr_nom;
+        if (arr_nom > lead)
+        {
+          (void)Board_SyncSetTrigger((uint16_t)(arr_nom - lead));
+        }
       }
     }
     Board_PwmDriveOwn(false);

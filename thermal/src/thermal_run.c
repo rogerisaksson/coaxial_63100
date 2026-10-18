@@ -249,7 +249,7 @@ void thermal_run_slice(thermal_run_t *r, const thermal_run_in_t *in, thermal_run
 
     r->derate = in->wep ? 1.0f : ((held < throttle) ? held : throttle);
     /* A clamp held under its record's is throttled: the word a host reads. */
-    r->budget.throttling = r->budget.throttling || (!in->wep && (held < 1.0f));
+    r->budget.throttling = r->derate < 1.0f;
   }
   out->derate = r->derate;
   out->drop = r->budget.tripped && in->switching;

@@ -319,9 +319,8 @@ serves its DOD; none an entry a case.
   6.45 W of 9.4 (envelope.md); the bench's dry rise halves at 25 kHz. DOD:
   TIM1's period and the law's ts from the record; the ripple on a 33 uH
   winding measured; a hover's legs at it.
-- **Bootloader**. DOD: a power cycle runs the store at unit 1, PWR_CR3
-  written on a fresh supply; the prefix search's real collision seen; 10
-  Mbit on the bench adapter; a torn flash word's bus fault handled.
+- **Bootloader**. DOD: a power cycle runs the store at unit 1 on the bench;
+  the prefix search's real collision seen; 10 Mbit on the bench adapter.
 - **From D2 SRAM**. DOD: the ITCM sample path under the drive; LOOP and
   `__sbrk_heap_end` stable an hour.
 - **Drive**: a current loop closed through a winding,
@@ -353,9 +352,6 @@ serves its DOD; none an entry a case.
 - **The models still look janky** (reported, with pictures): the five judged
   against their pictures at the page's own size - silhouette, proportion,
   colour masses, what reads in braille. DOD: PNGs beside the pictures.
-- **The budget's throttling flag**: set with the derate at 1.00 and the hold
-  at 89.5 of 90 A (the helicopter's main at 16 A). DOD: the flag means a
-  derate under 1, held by a test.
 - **The aerobat's flare**: the final arrives hovering over the runway's start
   at 0.6 m and the plane drops onto its wheels, 14 g for a step; a flare on
   the wing from a slow final would touch under 1 m/s. DOD: a final flown

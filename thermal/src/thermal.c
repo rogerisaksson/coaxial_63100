@@ -220,7 +220,7 @@ float thermal_board_to_ambient_at(const thermal_cfg_t *cfg, float rise_k)
   }
 
   /* Convection, as the fourth root of the rise. */
-  const float conv = powf(rise_k / cal, 0.25f);
+  const float conv = sqrtf(sqrtf(rise_k / cal));
 
   /* Radiation, exactly. */
   const float t0 = 293.15f;               /* the 20 C room the fit used */
@@ -505,8 +505,8 @@ void thermal_budget(const thermal_t *th, const thermal_power_t *p,
       out->worst_node = (uint8_t)i;
     }
   }
-  out->throttling = ((float)out->worst / 255.0f) >= soa->throttle_at;
   out->derate = derate_of(spent, soa);
+  out->throttling = out->derate < 1.0f;
 
   /* Time left, for the node that has least of it - the same hold the
      throttle acts on. */

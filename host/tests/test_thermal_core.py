@@ -533,7 +533,7 @@ def test_the_lookahead_catches_a_ramp(report, lib):
     fault = cold.budget({'phase_u': 300.0}, lookahead_s=LOOKAHEAD_S)
     report.check('a power past what the node can hold for the window is '
                  'throttled from cold, and that is the rule, not a hole in it',
-                 0.0 < fault['derate'] < 1.0 and not fault['tripped'],
+                 0.0 < fault['derate'] < 1.0 and fault['throttling'] and not fault['tripped'],
                  'clamp %.2f at ambient' % fault['derate'])
 
     at = {}

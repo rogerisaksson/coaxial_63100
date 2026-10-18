@@ -123,12 +123,13 @@ float drive_thermal_step(drive_t *d, const float *i_abc, float vdc, float omega_
   th->p_loss = p_loss;
 
   /* 4. Unconditionally stable 3x3 tridiagonal backward-Euler step anchored to T_NTC */
+  const float inv_dt = 1.0f / dt;
   const float g01 = 1.0f / fmaxf(tp->r_th[0], 1e-5f);
   const float g12 = 1.0f / fmaxf(tp->r_th[1], 1e-5f);
   const float g2b = 1.0f / fmaxf(tp->r_th[2], 1e-5f);
-  const float k0 = fmaxf(tp->c_th[0], 1e-6f) / dt;
-  const float k1 = fmaxf(tp->c_th[1], 1e-6f) / dt;
-  const float k2 = fmaxf(tp->c_th[2], 1e-6f) / dt;
+  const float k0 = fmaxf(tp->c_th[0], 1e-6f) * inv_dt;
+  const float k1 = fmaxf(tp->c_th[1], 1e-6f) * inv_dt;
+  const float k2 = fmaxf(tp->c_th[2], 1e-6f) * inv_dt;
 
   const float d0 = k0 + g01;
   const float d1 = k1 + g01 + g12;
@@ -139,18 +140,20 @@ float drive_thermal_step(drive_t *d, const float *i_abc, float vdc, float omega_
   const float b2 = k2 * th->t_node[2] + g2b * th->t_pcb;
 
   /* Forward elimination */
-  const float m1 = -g01 / d0;
+  const float inv_d0 = 1.0f / d0;
+  const float m1 = -g01 * inv_d0;
   const float d1_p = d1 - m1 * (-g01);
+  const float inv_d1_p = 1.0f / d1_p;
   const float b1_p = b1 - m1 * b0;
 
-  const float m2 = -g12 / d1_p;
+  const float m2 = -g12 * inv_d1_p;
   const float d2_p = d2 - m2 * (-g12);
   const float b2_p = b2 - m2 * b1_p;
 
   /* Back substitution */
   const float t2_new = b2_p / d2_p;
-  const float t1_new = (b1_p + g12 * t2_new) / d1_p;
-  const float t0_new = (b0 + g01 * t1_new) / d0;
+  const float t1_new = (b1_p + g12 * t2_new) * inv_d1_p;
+  const float t0_new = (b0 + g01 * t1_new) * inv_d0;
 
   th->t_node[0] = t0_new;
   th->t_node[1] = t1_new;
@@ -160,17 +163,21 @@ float drive_thermal_step(drive_t *d, const float *i_abc, float vdc, float omega_
   /* 5. Inverse ceiling prediction I_max(Delta_t) over horizon_s using Schur complement
         of the 3-node Cauer network and positive-tempco R_DS(on)(T_{j,limit}) */
   const float dt_h = fmaxf(tp->horizon_s, dt);
-  const float kh0 = fmaxf(tp->c_th[0], 1e-6f) / dt_h;
-  const float kh1 = fmaxf(tp->c_th[1], 1e-6f) / dt_h;
-  const float kh2 = fmaxf(tp->c_th[2], 1e-6f) / dt_h;
+  const float inv_dt_h = 1.0f / dt_h;
+  const float kh0 = fmaxf(tp->c_th[0], 1e-6f) * inv_dt_h;
+  const float kh1 = fmaxf(tp->c_th[1], 1e-6f) * inv_dt_h;
+  const float kh2 = fmaxf(tp->c_th[2], 1e-6f) * inv_dt_h;
 
   const float dh2 = kh2 + g12 + g2b;
+  const float inv_dh2 = 1.0f / dh2;
+  const float g12_dh2 = g12 * inv_dh2;
   const float rh2 = kh2 * t2_new + g2b * th->t_pcb;
 
-  const float dh1 = kh1 + g01 + g12 - (g12 * g12) / dh2;
-  const float rh1 = kh1 * t1_new + (g12 / dh2) * rh2;
+  const float dh1 = kh1 + g01 + g12 - g12 * g12_dh2;
+  const float inv_dh1 = 1.0f / dh1;
+  const float rh1 = kh1 * t1_new + g12_dh2 * rh2;
 
-  const float t1_at_lim = (rh1 + g01 * tj_lim) / dh1;
+  const float t1_at_lim = (rh1 + g01 * tj_lim) * inv_dh1;
   const float p_max = fmaxf((kh0 + g01) * tj_lim - kh0 * t0_new - g01 * t1_at_lim, 0.0f);
 
   const float r_lim = fmaxf(tp->r_ds0, 1e-6f)

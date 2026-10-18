@@ -251,7 +251,9 @@ def _rounds(H0, g0, held, bears, lo, hi, geo, stride):
         if (done == rounds < ROUNDS + PAST and not strides
                 and grounded * abs(float(np.clip(ay, lo, hi)) - ay) > 1e-9):
             band, edge, rounds = 1.0, float(np.clip(ay, lo, hi)) + G, rounds + 1
-    if strides > 0.0:
+        if (not pinned.any() and not band) or (strides >= 1.0 and k3 == 0):
+            break
+    if strides > 0.0 and (pinned.any() or band):
         return at + strides * (_taken(_solved(Hr, gr, np.ones(nu)), kinetic, up, frames, stance, edges, (lo, hi),
                                       grounded, mu) - at)
     return at

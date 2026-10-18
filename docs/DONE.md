@@ -246,3 +246,21 @@ the fifty before these: [DONE_1-50](DONE_1-50.md).
 69. Findings that told of the laws before the loop cut to what holds on the
     loop (body, feet, drives, stacks, normal, wbc); `test_layout` holds that no
     document names a module, a tool or a suite not in the tree.
+70. The budget's throttling flag (`thermal/src/thermal.c`,
+    `thermal/src/thermal_run.c`, `host/tests/test_thermal_core.py`):
+    `throttling` means `derate < 1.0f` across both `thermal_budget` and
+    `thermal_run_slice`, matching lookahead-triggered derating from cold and
+    staying false when `derate == 1.0f`.
+71. Bootloader torn flash word protection (`boot/src/boot_main.c`,
+    `boot/src/boot_core.c`, `host/tests/test_boot_core.py`): 256-bit flash
+    words probed under `FAULTMASK` and `SCB_CCR_BFHFNMIGN_Msk`, clearing
+    `FLASH_SR_DBECCERR` and `SCB_CFSR_BUSFAULTSR_Msk` on a torn word while
+    store CRCs and record dumps read word by word.
+72. Drive thermal reciprocal precomputation, TIM1 dynamic ARR/CCR4 caching,
+    and striding wrench parity (`drive/src/drive_thermal.c`,
+    `board/src/board_drive.c`, `wbc/src/wbc_wrench.c`,
+    `host/machine/wrench.py`): eight redundant `vdiv.f32` instructions
+    replaced by reciprocals in `drive_thermal_step`, redundant APB2 MMIO
+    writes skipped when `arr_dyn` is unchanged while preserving calibrated
+    `drv_trigger_ticks` lead, and `wbc_wrench.c` / `machine.wrench` matching
+    within `1.5e-10` across all 1 259 striding solves.

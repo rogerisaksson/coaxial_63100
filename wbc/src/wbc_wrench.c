@@ -378,6 +378,7 @@ static int solved(wbc_body_t *b, wbc_wrench_t *w, const wbc_ask_t *ask, const do
                   double grounded, double lo, double hi, const double g[NU], const double part[NU],
                   const double own[NU], const double mbt[6][6], double at[NU])
 {
+  const int    n3 = 0;
   const double mass = wbc_total_mass;
   double       x[NU], pinned[NU], moved[NU], hard[NU], way[NU], row[NU], u0[NU];
   double       band = 0.0, edge = 0.0, bent = 0.0;
@@ -470,7 +471,7 @@ static int solved(wbc_body_t *b, wbc_wrench_t *w, const wbc_ask_t *ask, const do
       rounds++;
     }
     bent = clipped + band;
-    if ((bent == 0.0) || (ask->strides >= 1.0))
+    if ((bent == 0.0) || ((ask->strides >= 1.0) && (n3 == 0)))
     {
       break;                      /* nothing clipped: the rounds to come would solve the same;
                                      striding whole, their answer is not hers */
