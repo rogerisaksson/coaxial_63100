@@ -228,7 +228,7 @@ DYN_MODES = _sp('attitude_pitch attitude_roll attitude_yaw pitch_rate roll_rate'
 KIN_BLOCKS = {
     'envelope': _sp('floor_height hover_height high_height top_height least_pull '
                     'hover_lean sky_lean'),
-    'vertical': _sp('climb_speed descent_speed brake_gain settle_kp settle_kd'),
+    'vertical': _sp('climb_speed descent_speed settle_kp settle_kd'),
     'horizontal': _sp('orbit_radius orbit_speed lap_duration spot_kp spot_kd'),
     'oscillator': ('tictoc_frequency', 'tictoc_amplitude'),
     'hold': _sp('height_tol speed_tol spot_tol tilt_tol'),

@@ -4,12 +4,9 @@
     out = core.step(law, row, sky.state(), dt, reach)
     sky.step(out.speeds + out.controls, dt, air)
 
-An Extra 330SC / Edge 540 style 3D RC aerobatic monoplane (`aerobat.lisp`) powered by two Coaxial
-63100 drives (`PROP` driving the 3D tractor propeller and `VECT` driving the coaxial contra/pitch
-assist stage on finned aluminium heatsinks with temperature-controlled cooling fans): reversible
-3D pitch/throttle pulls upright in vertical prop-hang (`hover` / `torque-roll`) or inverted in
-flat spins and harriers, while propwash over the oversized 3D elevator, full-span ailerons, and
-rudder provides crisp attitude authority from zero airspeed through the 16-gate race course.
+An Edge 540 style 3D monoplane (`aerobat.lisp`) on two 63100 drives, `PROP` the tractor
+propeller and `VECT` the coaxial contra stage: propwash over oversized surfaces gives attitude
+authority from zero airspeed, a prop-hang to the race course.
 """
 import math
 import os
@@ -301,7 +298,9 @@ class Core:
         c0, s0 = law['heading']
         law['heading'] = _turn_heading((c0, s0), _course_rate((c0, s0), row), dt)
         reach = max(aerokin.LEAST * GRAVITY, pull_max)
-        self.up_pull, law['doing'] = aerokin.climb(row, state['h'], state['v'], reach - GRAVITY)
+        self.up_pull, law['doing'] = aerokin.climb(
+            row, state['h'], state['v'], reach - GRAVITY,
+            aerokin.spooled(self.out.speeds[0], math.sqrt(reach * MASS_KG / K_THRUST), IDLE_RAD_S), dt)
         beside = math.sqrt(max(reach * reach - GRAVITY * GRAVITY, 0.0))
         along = aerokin.lean(law, row, state['at'], state['vel'], dt, min(row['lean'], beside))
         if not self.airborne and row['height'] >= 0.0:

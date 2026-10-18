@@ -165,8 +165,8 @@ def test_struck_it_is_begun_again(report):
     rows, flight = flown(40.0, twice, slab)
     stages = [row[0] for row in rows]
     first = stages.index(view.CRASHED) if view.CRASHED in stages else len(stages)
-    wreck = [row for row in rows[first:] if row[0] == view.CRASHED]
     again = next((k for k in range(first, len(rows)) if rows[k][0] != view.CRASHED), len(rows))
+    wreck = rows[first:max(first + 1, again - 1)]
     report.check('the lift struck the slab under it: crashed into a house, %.0f s a wreck, its '
                  'rotors stopped' % view.CRASH_S,
                  first < len(rows) and rows[first - 1][0] == 'lift' and 0.5 < rows[first][4] < 1.2

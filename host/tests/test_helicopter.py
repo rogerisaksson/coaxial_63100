@@ -235,7 +235,9 @@ def test_helicopter_course_laps(report):
                      sky.hit is None and (route.get('lap') or {}).get('laps', 0) >= 1
                      and stages[-2:] == ['land', 'idle'] and end_land is not None
                      and end_land[0] < 0.025 and end_land[1] < 0.03 and end_land[2] > 0.99
-                     and sum_dcyc / max(1, n_lap) < 0.14 and max_dcyc < 1.5)
+                     and sum_dcyc / max(1, n_lap) < 0.14 and max_dcyc < 1.5,
+                     'hit %s, laps %s, %s, landed %s' % (
+                         sky.hit, (route.get('lap') or {}).get('laps'), stages[-3:], end_land))
 
 
 def test_lisp_manifests_and_validation(report):
@@ -250,7 +252,7 @@ def test_lisp_manifests_and_validation(report):
               for fn, name in zip(fns, shared_files)]
     report.check('shared Lisp files compile and puzzle into helicopter, quadcopter, ornithopter, and aerobat',
                  shared[0]['name'] == 'shared' and shared[1]['name'] == 'shared'
-                 and shared[2]['kinematics']['name'] == 'shared' and len(shared[2]['stunts']) == 10
+                 and shared[2]['kinematics']['name'] == 'shared' and len(shared[2]['stunts']) == 11
                  and all(m['includes'] == shared_files for m in (hm, qm, om, am))
                  and hm['vehicle'] == 'helicopter_3d' and qm['vehicle'] == 'quadcopter'
                  and om['vehicle'] == 'ornithopter_dune' and am['vehicle'] == 'aerobat_3d'

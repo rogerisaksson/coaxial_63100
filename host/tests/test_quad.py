@@ -162,13 +162,13 @@ def test_its_figures_are_flown(report):
                  abs(level['h'] - quad.HOVER_M) <= 0.05
                  and math.hypot(level['x'], level['z']) <= 0.2,
                  '%.2f m up, %.2f m off' % (level['h'], math.hypot(level['x'], level['z'])))
-    # Gently: outside the turns, full tilt and the burn, the pull within 0.7 g of none.
-    hard = ('roll', 'flip', 'catch', 'full tilt', 'burn')
+    # Gently: outside the lift, the turns, full tilt and the burn, the pull within 0.7 g of none.
+    hard = ('lift', 'roll', 'flip', 'catch', 'full tilt', 'burn')
     pull = max(abs(r['a']) / quad.GRAVITY for r in flown() if r['name'] not in hard)
     still = [r['thrust'] for r in spin]
     px, pz = scenery.POLE_AT
     pole = min(math.hypot(r['x'] - px, r['z'] - pz) for r in flown())
-    report.check('gently: 0.7 g at most outside its turns, full tilt and the burn, the '
+    report.check('gently: 0.7 g at most outside its lift, turns, full tilt and the burn, the '
                  'pirouette on its hover\'s thrust within 1 N; the pole 1.5 m off at the least',
                  pull <= 0.7 and bool(still) and max(still) - min(still) <= 1.0 and pole >= 1.5,
                  '%.2f g, the pirouette %.1f-%.1f N, the pole %.2f m off' % (

@@ -15,7 +15,7 @@ or 1, a bound a least or a most.
 """
 import math
 
-from machine import quad
+from machine import pull, quad
 from machine.aerolisp import CompiledAeroPayload, K_MODES, LATENT_SYMBOL_MAP
 from machine.figure import cross
 
@@ -33,9 +33,9 @@ TURN_K, TURN_D = _IMP['stiffness']['pitch_rate'], _IMP['damping']['pitch_rate']
 YAW_D, NOSE_K = _IMP['damping']['attitude_yaw'], 1.0
 
 #: The height's loop, 1/s on its rate, both its poles at half of it; a height is flown to
-#: braked at this share of what the rotors' pull leaves - rising, of gravity -, a pace come to
-#: and stopped from in PACE_S.
-KD, BRAKE_SHARE, PACE_S = _VERT['settle_kd'], _VERT['brake_gain'], 1.0
+#: braked on all the rotors' pull leaves - rising, gravity over their idle - from where the
+#: lead the spool and the pass take ends; a pace come to and stopped from in PACE_S.
+KD, PACE_S = _VERT['settle_kd'], 1.0
 
 #: Along the floor: the spot's loop, 1/s^2 and 1/s; its spot goes to its place at HOME_K, 1/s,
 #: HOME_M_S at the most.
@@ -106,13 +106,21 @@ def allowed(over, brake):
     return (1.0 - far) * pole * over + far * math.sqrt(2.0 * brake * max(over - 0.5 * near, 0.0))
 
 
-def climb(row, h, v, room):
+def spooled(w, w_pull, w_idle):
+    """(the seconds the rotors take from `w` to `w_pull`, to `w_idle`) on their loop's slew."""
+    slew = pull.slew(pull.I_WEP, w)
+    return max(0.0, w_pull - w) / slew, max(0.0, w - w_idle) / slew
+
+
+def climb(row, h, v, room, spool=(0.0, 0.0), dt=0.0):
     """(the pull asked up, m/s^2, what it is doing) for the frame at `h` climbing `v`, `room`
-    the pull up its rotors leave it: braked as its pace asks or as its height needs, their
-    share - rising, gravity's - at the most; the speed its distance allows on its height's
-    own rate, its pace at the most, and that speed's own fall, begun where its pace's stop
-    turns; sped toward its height as gently - up, on its room at the most -, the height's
-    own pull in it, and stopped outright going from it."""
+    the pull up its rotors leave it: braked as its pace asks or as its height needs, on all
+    of it - rising, gravity over the rotors' idle - from the lead the frame moves before
+    the brake is there, the rotors' `spool` to the pull and to their idle (`spooled`) and
+    the pass of `dt`; the speed its distance allows on its height's own rate, its pace at
+    the most, and that speed's own fall, begun where its pace's stop turns; sped toward its
+    height as gently - up, on its room at the most -, the height's own pull in it, and
+    stopped outright going from it."""
     pace = row['pace']
     gentle, pole = pace / PACE_S, 0.5 * KD
     rate = max(-pace, min(pace, row['climb']))
@@ -121,14 +129,15 @@ def climb(row, h, v, room):
     way = math.copysign(1.0, over)
     up = float(way > 0.0)
     left, toward, going = abs(over), way * (v - rate), way * v
-    hard = BRAKE_SHARE * (up * quad.GRAVITY + (1.0 - up) * room)
+    stop = max(0.0, left - abs(v) * (spool[int(up)] + dt))
+    hard = up * (quad.GRAVITY - idle()) + (1.0 - up) * room
     soft = min(gentle, hard)
     need = float(toward > 0.0) * pole * pole * (
-        left - math.sqrt(max(0.0, left * left - (toward / pole) ** 2)))
+        stop - math.sqrt(max(0.0, stop * stop - (toward / pole) ** 2)))
     brake = min(hard, max(soft, need))
     cruise = pace - way * rate
-    speed = min(allowed(left, brake), cruise)
-    slows = min(brake, pole * pole * left, KD * max(0.0, cruise - allowed(left, soft)))
+    speed = min(allowed(stop, brake), cruise)
+    slows = min(brake, pole * pole * stop, KD * max(0.0, cruise - allowed(stop, soft)))
     pull = way * (min(KD * (way * rate + speed - max(going, 0.0)) - slows + way * push,
                       up * min(gentle, room) + (1.0 - up) * gentle) - KD * min(going, 0.0))
     dive = (1.0 - up) * float(v < 0.0) * float(rate < 0.0) * float(push + quad.GRAVITY < 0.0)
@@ -170,12 +179,12 @@ def seen(law, frame, dt, pull, top):
             'vel': [float(x) for x in frame['vel']]}
 
 
-def step(law, row, frame, dt, pull, head=(0.0, 0.0), pitch=math.inf):
+def step(law, row, frame, dt, pull, head=(0.0, 0.0), pitch=math.inf, spool=(0.0, 0.0)):
     """The payload for a pass of `dt` s: the row `row` asked of the frame as `frame`
     (`quad.Sky.state`) has it, `pull` the most its rotors give a kg, m/s^2, `head` the heading
     the core holds, (cos, sin) from z toward x (its answer's) - none held yet, both none, the
-    frame's nose along the floor: the core's own from a level stand. The law's heading turned
-    on;
+    frame's nose along the floor: the core's own from a level stand; `spool` the seconds the
+    rotors take to the pull and to their idle. The law's heading turned on;
     the pull up and along the floor (`climb`, `lean`); the force that is, as a collective
     along its direction and that direction's tilt in the core's level frame; the turn its
     heading gives the axis, as the rates about its wing and its nose; its nose brought round
@@ -195,7 +204,7 @@ def step(law, row, frame, dt, pull, head=(0.0, 0.0), pitch=math.inf):
     axis = (turn[0][1], turn[1][1], turn[2][1])
     through = sum(float(v) * a for v, a in zip(frame['vel'], axis))
     reach = max(LEAST * quad.GRAVITY, pull * min(1.0, max(0.0, 1.0 - through / pitch)))
-    up_pull, law['doing'] = climb(row, frame['h'], frame['v'], reach - quad.GRAVITY)
+    up_pull, law['doing'] = climb(row, frame['h'], frame['v'], reach - quad.GRAVITY, spool, dt)
     light = row['light'] * quad.GRAVITY + float(law['doing'] == FALL) * min(
         1.5 * quad.GRAVITY, 0.2 * KD * max(0.0, float(frame['v'])))
     beside = math.sqrt(max(reach * reach - quad.GRAVITY ** 2, 0.0))

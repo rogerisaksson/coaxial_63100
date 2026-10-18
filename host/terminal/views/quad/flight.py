@@ -265,8 +265,10 @@ def step(rotors, sky, route, law, flight, clock, dt):
         name, row = aerobatics.fly(route, clock, [word for word, holds in (
             ('held', law['held']), ('spent', spent), ('fit', fit)) if holds])
         flight.update(pull=have, share=have / (aerokin.HEADROOM * flight['top']), row=row)
+        spool = tuple(max(s) for s in zip(*[aerokin.spooled(
+            r['w'], quad.speed_for(have * quad.MASS_KG / 4.0), LEAST_RAD_S) for r in rotors]))
         flown(rotors, sky, core, aero.payload(aerokin.step(
-            law, row, frame, dt, have, tuple(core.out.head), route['seen']['pitch'])),
+            law, row, frame, dt, have, tuple(core.out.head), route['seen']['pitch'], spool)),
             flight, dt)
     else:
         name = CRASHED

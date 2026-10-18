@@ -335,10 +335,9 @@ serves its DOD; none an entry a case.
 
 ## Flight pages
 
-- **Flown into the thermal limit**: the drives maxed to the envelope the
-  finned sink allows, aggressive take-offs and catches on a hair, the
-  observer's margin not a fixed fraction. DOD: the pull cap derived from the
-  thermal record, laps and routines re-measured, no strike, no ceiling trip.
+- **The budget's throttling flag**: set with the derate at 1.00 and the hold
+  at 89.5 of 90 A (the helicopter's main at 16 A). DOD: the flag means a
+  derate under 1, held by a test.
 - **The gynoid's face, head and clothes**: the jeans and the T-shirt to fall
   on the body as cloth does, the head and face drawn to anatomy. DOD: her
   page's PNG judged, the walk's measures unmoved (test_ortho.py).
