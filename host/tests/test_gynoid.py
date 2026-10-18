@@ -32,7 +32,7 @@ def test_dressed_or_bare(report):
                  [p[0] for p in bare.parts if not p[0].startswith('release_')]
                  == [p[0] for p in dressed.parts if not gynoid._worn(p[0])]
                  and len(bands) == 4
-                 and {'cloth_tee', 'cloth_left_sleeve', 'hair_fall', 'left_lock',
+                 and {'cloth_tee', 'cloth_left_sleeve', 'hair', 'hair_fall',
                       'left_sole'} <= set(worn),
                  '%d of %d worn, %d bands' % (len(worn), len(dressed.parts), len(bands)))
     feet = [i for i, p in enumerate(bare.parts) if p[0].split('_', 1)[-1] in ('foot', 'toes')]

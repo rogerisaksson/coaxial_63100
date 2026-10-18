@@ -201,7 +201,7 @@ def _meshes():
 
 
 def _worn(name):
-    return name.startswith(('cloth_', 'hair')) or name.endswith(('_lock', '_sole'))
+    return name.startswith(('cloth_', 'hair')) or name.endswith('_sole')
 
 
 def _parts(dressed=True):
