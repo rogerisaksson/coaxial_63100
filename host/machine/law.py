@@ -206,11 +206,9 @@ def drives(g, dt):
         qa = np.clip(qa, -250.0, 250.0)
     q_m = y[edge.QM][joints]
     e = q_m - eso[0]
-    d0 = eso[1] + (3.0 * wo) * e
-    d1 = qa + sb / g['jeff'] + eso[2] + (3.0 * wo * wo) * e
-    eso[0] += dt * d0
-    eso[1] += dt * d1
-    eso[2] += (dt * wo ** 3) * e
+    eso[0] += dt * (eso[1] + 3.0 * wo * e)
+    eso[1] += dt * (qa + sb / g['jeff'] + eso[2] + 3.0 * wo * wo * e)
+    eso[2] += dt * (wo ** 3 * e)
     if not in_hop:
         np.clip(eso[0], q_m - 0.08, q_m + 0.08, out=eso[0])
         z_lim = 0.35 * body.clamp / np.maximum(0.05, g['jeff'])

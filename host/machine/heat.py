@@ -132,53 +132,7 @@ class Heat:
         """Drive k's nodes at `celsius` at least: run hard before."""
         self.t[k] = [max(t, celsius) for t in self.t[k]]
 
-    def step(self, dt, air=None, rds=None):
-        """`dt` s of the clock on: each drive's losses on its mean square since the last step,
-        its coaxial 4-node network integrated, its envelope's derate and trip."""
-        h = dt * HASTE
-        self.at += h
-        sub_n = max(1, int(h / 0.025) + 1)
-        sub_h = h / sub_n
-        for k, t in enumerate(self.t):
-            sq = self.sq[k] / self.ticks[k] if self.ticks[k] else 0.0
-            self.sq[k], self.ticks[k] = 0.0, 0
-            board = sq * self.scale[k] ** 2
-            dt_sw = max(0.0, t[0] - AMBIENT_C)
-            rds_k = float(rds[k]) if rds is not None else (1.0 + RDS_ALPHA * dt_sw + RDS_BETA * dt_sw * dt_sw)
-            air_k = (float(air[k]) if air is not None
-                     else (1.0 + 0.35 * min(4.0, self.limb_rad_s[k])) / self.cloth_air[k])
-            rot_for = 1.0 + 0.55 * (self.krpm[k] ** 0.5)
-            fet = 0.5 * board * RDS_OHM * rds_k
-            sw_on = self.gates[k] and not self.shorted[k]
-            p_sw = 3.0 * fet + (self.switching_w if sw_on else 0.0)
-            p_lam = 1.5 * board * SHUNT_OHM + (HOUSEKEEPING_W if self.scale[k] > 0.0 else 0.0)
-            p_win = self.r[k] * sq * (1.0 + 0.00393 * max(0.0, t[3] - AMBIENT_C))
-            g_ls = 1.0 / self.mount_k_w[k]
-            g_ws = 1.0 / max(0.15, 0.35 * self.winding_k_w[k])
-            g_la = 0.35 * air_k / self.laminate_k_w[k]
-            g_sa = 0.65 * air_k * (1.0 + 0.25 * (rot_for - 1.0)) / self.laminate_k_w[k]
-            g_wa = air_k * rot_for / self.winding_k_w[k]
-            c0, c1, c2, c3 = self.capacity[k]
-            net = (0.0, 0.0, 0.0, 0.0)
-            for _ in range(sub_n):
-                into = (t[0] - t[1]) / INTO_K_W
-                q_ls = (t[1] - t[2]) * g_ls
-                q_ws = (t[3] - t[2]) * g_ws
-                net = (p_sw - into,
-                       p_lam + into - q_ls - (t[1] - AMBIENT_C) * g_la,
-                       q_ls + q_ws - (t[2] - AMBIENT_C) * g_sa,
-                       p_win - q_ws - (t[3] - AMBIENT_C) * g_wa)
-                t[0] += sub_h * net[0] / c0
-                t[1] += sub_h * net[1] / c1
-                t[2] += sub_h * net[2] / c2
-                t[3] += sub_h * net[3] / c3
-            self.die[k] = t[0] + fet * RTH_JC
-            self._envelope(k, t, net, h)
-
-    def step_joints(self, torques, qd, dt):
-        """Load and step all joints over `dt` s (real-time clock, `HASTE=1`) and return peak C per joint."""
-        if not self.t:
-            return []
+    def _arrays(self):
         np = getattr(self, '_np', None)
         if np is None:
             import numpy as np
@@ -191,37 +145,47 @@ class Heat:
             self._r = np.asarray(self.r, float)
             self._g_ls = 1.0 / np.asarray(self.mount_k_w, float)
             self._g_ws = 1.0 / np.maximum(0.15, 0.35 * np.asarray(self.winding_k_w, float))
-            self._inv_lam = 1.0 / np.asarray(self.laminate_k_w, float)
-            self._inv_win = 1.0 / np.asarray(self.winding_k_w, float)
+            self._lam_k_w = np.asarray(self.laminate_k_w, float)
+            self._win_k_w = np.asarray(self.winding_k_w, float)
             self._cap = np.asarray(self.capacity, float)
             self._ceil = np.asarray(CEILING_C, float)
-            self._t_arr = np.asarray(self.t, float)
-            self._sw_on = np.array([g and not s for g, s in zip(self.gates, self.shorted)], float)
             self._house_w = np.where(self._active, HOUSEKEEPING_W, 0.0)
-        t = self._t_arr
-        amps = np.where(self._active, np.asarray(torques, float) / self._kt, 0.0)
-        sq = amps * amps
-        w = np.where(self._active, np.abs(np.asarray(qd, float)), 0.0)
-        krpm = w * self._ratio_k
-        h = float(dt)
+        return np
+
+    def step(self, dt, air=None, rds=None):
+        """`dt` s of the clock on: each drive's losses on its mean square since the last step,
+        its coaxial 4-node network integrated, its envelope's derate and trip."""
+        if not self.t:
+            return
+        np = self._arrays()
+        n = len(self.t)
+        h = float(dt) * HASTE
         self.at += h
         sub_n = max(1, int(h / 0.025) + 1)
         sub_h = h / sub_n
+        t = np.asarray(self.t, float)
+        ticks = np.asarray(self.ticks, float)
+        sq = np.where(ticks > 0.0, np.asarray(self.sq, float) / np.maximum(1.0, ticks), 0.0)
+        self.sq[:], self.ticks[:] = [0.0] * n, [0] * n
         board = sq * (self._scale * self._scale)
         dt_sw = np.maximum(0.0, t[:, 0] - AMBIENT_C)
-        rds_k = 1.0 + RDS_ALPHA * dt_sw + RDS_BETA * dt_sw * dt_sw
-        air_k = (1.0 + 0.35 * np.minimum(4.0, w)) / self._cloth_air
-        rot_for = 1.0 + 0.55 * np.sqrt(krpm)
+        rds_k = (np.asarray(rds, float) if rds is not None
+                 else 1.0 + RDS_ALPHA * dt_sw + RDS_BETA * dt_sw * dt_sw)
+        air_k = (np.asarray(air, float) if air is not None
+                 else (1.0 + 0.35 * np.minimum(4.0, np.asarray(self.limb_rad_s, float))) / self._cloth_air)
+        rot_for = 1.0 + 0.55 * np.sqrt(np.asarray(self.krpm, float))
         fet = 0.5 * board * RDS_OHM * rds_k
-        p_sw = 3.0 * fet + self.switching_w * self._sw_on
+        sw_on = np.array([g and not s for g, s in zip(self.gates, self.shorted)], float)
+        p_sw = 3.0 * fet + self.switching_w * sw_on
         p_lam = 1.5 * board * SHUNT_OHM + self._house_w
         p_win = self._r * sq * (1.0 + 0.00393 * np.maximum(0.0, t[:, 3] - AMBIENT_C))
-        g_la = 0.35 * air_k * self._inv_lam
-        g_sa = 0.65 * air_k * (1.0 + 0.25 * (rot_for - 1.0)) * self._inv_lam
-        g_wa = air_k * rot_for * self._inv_win
+        g_la = 0.35 * air_k / self._lam_k_w
+        g_sa = 0.65 * air_k * (1.0 + 0.25 * (rot_for - 1.0)) / self._lam_k_w
+        g_wa = air_k * rot_for / self._win_k_w
         c0, c1, c2, c3 = self._cap[:, 0], self._cap[:, 1], self._cap[:, 2], self._cap[:, 3]
+        n0 = n1 = n2 = n3 = p_sw
         for _ in range(sub_n):
-            into = (t[:, 0] - t[:, 1]) * (1.0 / INTO_K_W)
+            into = (t[:, 0] - t[:, 1]) / INTO_K_W
             q_ls = (t[:, 1] - t[:, 2]) * self._g_ls
             q_ws = (t[:, 3] - t[:, 2]) * self._g_ws
             n0 = p_sw - into
@@ -233,30 +197,46 @@ class Heat:
             t[:, 2] += sub_h * n2 / c2
             t[:, 3] += sub_h * n3 / c3
         die = t[:, 0] + fet * RTH_JC
-        return np.maximum(die, t.max(axis=1))
+        self.t[:] = t.tolist()
+        self.die[:] = die.tolist()
+        self._envelope(t, np.stack([n0, n1, n2, n3], axis=1), die, h)
 
-    def _envelope(self, k, t, net, h):
-        cap = min(1.0, self.cap[k] + (self.at - self.cap_at[k]) * TRIP_RECOVER_PER_S)
-        spent, worst, cap_k = 0.0, 0, self.capacity[k]
-        for i, top in enumerate(CEILING_C):
-            limit = AMBIENT_C + cap * (top - AMBIENT_C)
-            used = max(0.0, min(1.0, (t[i] - AMBIENT_C) / (limit - AMBIENT_C)))
-            if net[i] > 0.0:
-                hold = max(0.0, (limit - t[i]) * cap_k[i] / net[i])
-                used = max(used, min(1.0, 1.0 - hold / LOOKAHEAD_S))
-            if used > spent:
-                spent, worst = used, i
-        self.spent[k], self.worst[k] = spent, worst
+    def step_joints(self, torques, qd, dt):
+        """Load and step all joints over `dt` s (real-time clock, `HASTE=1`) and return peak C per joint."""
+        if not self.t:
+            return []
+        np = self._arrays()
+        amps = np.where(self._active, np.asarray(torques, float) / self._kt, 0.0)
+        w = np.where(self._active, np.abs(np.asarray(qd, float)), 0.0)
+        self.sq[:] = (amps * amps).tolist()
+        self.ticks[:] = [1 if a else 0 for a in self._active]
+        self.limb_rad_s[:] = w.tolist()
+        self.krpm[:] = (w * self._ratio_k).tolist()
+        self.step(float(dt) / HASTE)
+        return [max(d, max(tk)) for d, tk in zip(self.die, self.t)]
+
+    def _envelope(self, t, net, die, h):
+        np = self._np
+        cap = np.minimum(1.0, np.asarray(self.cap, float) + (self.at - np.asarray(self.cap_at, float)) * TRIP_RECOVER_PER_S)[:, None]
+        limit = AMBIENT_C + cap * (self._ceil - AMBIENT_C)
+        used = np.clip((t - AMBIENT_C) / (limit - AMBIENT_C), 0.0, 1.0)
+        pos = net > 0.0
+        hold = np.where(pos, np.maximum(0.0, (limit - t) * self._cap / np.where(pos, net, 1.0)), LOOKAHEAD_S)
+        used = np.maximum(used, np.where(pos, np.clip(1.0 - hold / LOOKAHEAD_S, 0.0, 1.0), 0.0))
+        worst = np.argmax(used, axis=1)
+        spent = used[np.arange(len(t)), worst]
+        self.spent[:] = spent.tolist()
+        self.worst[:] = worst.tolist()
         if not self.envelope:
             return
-        want = 1.0 if spent <= THROTTLE_AT else max(0.0, (1.0 - spent) / (1.0 - THROTTLE_AT))
-        self.derate[k] = min(want, self.derate[k] + RECOVER_PER_S * h)
-        if self.gates[k] and (self.die[k] >= TJ_MAX_C
-                              or t[0] >= CEILING_C[0] or t[1] >= CEILING_C[1]
-                              or t[2] >= CEILING_C[2] or t[3] >= CEILING_C[3]):
-            self.gates[k] = False
-            self.trips[k] += 1
-            self.cap[k], self.cap_at[k] = TRIP_MARGIN, self.at
+        want = np.where(spent <= THROTTLE_AT, 1.0, np.maximum(0.0, (1.0 - spent) / (1.0 - THROTTLE_AT)))
+        self.derate[:] = np.minimum(want, np.asarray(self.derate, float) + RECOVER_PER_S * h).tolist()
+        tripped = (die >= TJ_MAX_C) | (t >= self._ceil).any(axis=1)
+        for k, tr in enumerate(tripped.tolist()):
+            if tr and self.gates[k]:
+                self.gates[k] = False
+                self.trips[k] += 1
+                self.cap[k], self.cap_at[k] = TRIP_MARGIN, self.at
 
     def report(self, k):
         """(celsius, spent, derate, status) of drive k: its worst node's temperature, how much

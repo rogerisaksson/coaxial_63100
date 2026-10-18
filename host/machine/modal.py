@@ -218,9 +218,8 @@ def reading(y, fr, stance):
     turn, spun = _turns(y, rot)
     legs = _legs(y, rot)
     axial = shortened(legs, fr, stance)
-    h6 = HANDS.reshape(N, 6)
-    z = 0.5 * (h6 @ place.ravel()) / fr[UNIT] + fr[Z0]
-    zd = 0.5 * (h6 @ speed.ravel()) / fr[UNIT]
+    z = 0.5 * np.einsum('nia,ia->n', HANDS, place) / fr[UNIT] + fr[Z0]
+    zd = 0.5 * np.einsum('nia,ia->n', HANDS, speed) / fr[UNIT]
     z += HOT[AXIAL] * (axial[0] - z[AXIAL])
     zd += HOT[AXIAL] * (axial[1] - zd[AXIAL])
     angle = (HOT[PITCH] * (turn[0, 1] - fr[PITCH0][1]) + HOT[LIST] * turn[1, 0] + HOT[TURN] * turn[2, 0]
