@@ -335,10 +335,10 @@ serves its DOD; none an entry a case.
 
 ## Flight pages
 
-- **The crafts undressed in layers**, as the gynoid is: the shell, the
-  airframe, the batteries, then the bare kinematics - the control surfaces,
-  the rotor blades and their shafts, the swashplate, the wings' cranks.
-  DOD: a key on each page steps the layers, each judged by PNG.
+- **Flown into the thermal limit**: the drives maxed to the envelope the
+  finned sink allows, aggressive take-offs and catches on a hair, the
+  observer's margin not a fixed fraction. DOD: the pull cap derived from the
+  thermal record, laps and routines re-measured, no strike, no ceiling trip.
 - **The gynoid's face, head and clothes**: the jeans and the T-shirt to fall
   on the body as cloth does, the head and face drawn to anatomy. DOD: her
   page's PNG judged, the walk's measures unmoved (test_ortho.py).

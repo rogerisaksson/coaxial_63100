@@ -143,7 +143,7 @@ def compose(console, origin, rotors, frame, flight, trace, now, art, yaw=0.0):
                      hud('HEIGHT m, POWER x4  last %.0f s' % traces.TRACE_S,
                          traces.heights(trace, now, HUD_WIDTH - 4)),
                      hud('BUS V, PEAK TEMP C', traces.buses(trace, now, HUD_WIDTH - 4))],
-                    (('+ -', 'ZOOM'), ('W', 'WIND'), ('T', 'THRUST'), ('L', 'LINE'),
+                    (('+ -', 'ZOOM'), ('W', 'WIND'), ('T', 'THRUST'), ('S', 'LAYER'), ('L', 'LINE'),
                      ('C', 'CAMERA'), ('R', 'RECORD'), ('A', 'RESET'), ('Q', 'EXIT'), ('ESC', 'MENU')))
 
 
@@ -197,7 +197,9 @@ def hands(held, zoomed, record=None):
                 + [(k, lambda: held.update(wind=True)) for k in 'wW']
                 + [(k, lambda: held.update(arrows=not held['arrows'])) for k in 'tT']
                 + [(k, lambda: held.update(line=not held['line'])) for k in 'lL']
-                + [(k, lambda: held.update(carried=not held['carried'])) for k in 'cC'])
+                + [(k, lambda: held.update(carried=not held['carried'])) for k in 'cC']
+                + [(k, lambda: held.update(see=(held['see'] + 1) % len(quadcopter.LAYERS)))
+                   for k in 'sS'])
 
 
 def look(camera, law, row, frame, chased, dt, near_m=NEAR_M, far_m=FAR_M, zoom_m=ZOOM_M,
@@ -280,7 +282,7 @@ def main(argv=None):
     held = {'at': 0.0, 'clock': 0.0, 'frame': sky.state(), 'reset': False,
             'wind': False, 'law': aerokin.fresh(),
             'flight': flown.fresh(), 'arrows': True, 'line': True, 'carried': True,
-            'aim': gimbal.REST}
+            'aim': gimbal.REST, 'see': 0}
     camera = {'reach': NEAR_M, 'yaw': YAW, 'pitch': SIDE_PITCH, 't': None, 'zoom': 1.0}
 
     def zoomed(k):
@@ -350,7 +352,7 @@ def main(argv=None):
                     for r in rotors], width, height, yaw=camera['yaw'], pitch=camera['pitch'],
             reach=reach, centre=centre, colour=terminal, lit=lit, gate=gate,
             thrusts=thrusts(frame, rotors) if held['arrows'] else None,
-            line_=chased and held['line'],
+            line_=chased and held['line'], see=quadcopter.LAYERS[held['see']],
             inset={**(carried(frame, held['aim'], gate, chased and held['line'], width, height)
                       if held['carried'] else {}), **recorder.corner(held.get('recording'), width)}))
         return compose(board_view, origin, rotors, frame, held['flight'], list(trace),

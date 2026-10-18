@@ -15,9 +15,9 @@ from coaxial.graphics import engine, scenery, shapes
 from coaxial.graphics.callouts import line
 from coaxial.graphics.helicopter import force_arrows
 from coaxial.graphics.lit import CORE, PLATE, braille, paint, project, splat
-from coaxial.graphics.quadcopter import (BLADES_RAD_S, BOARD_H, BOARD_R, CAN_L, CAN_R, CARBON,
-                                         LEG_R, MASK, RIM_EVERY, RIM_INK, SINK_H, SINK_R, SKIN,
-                                         Mesh, _at, _painted)
+from coaxial.graphics.quadcopter import (BLADES_RAD_S, BOARD_H, BOARD_R, CARBON, CELLS, LEG_R,
+                                         MASK, MOTOR_R, RIM_EVERY, RIM_INK, SHAFT_R, SINK_H,
+                                         SINK_R, SKIN, Mesh, _at, _painted)
 from machine import ornithopter as orni_phys
 
 #: The camera: the eye's distance in reaches framed, and the reach the ornithopter fills, m -
@@ -31,6 +31,9 @@ FORE_Z, AFT_Z = orni_phys.FORE_Z, orni_phys.AFT_Z
 WING_SPAN, AFT_SPAN = orni_phys.WING_SPAN, 0.88 * orni_phys.WING_SPAN
 SKID_M, FOOT_M, SKID_X, STRUT_Z = (
     orni_phys.SKID_M, orni_phys.FOOT_M, orni_phys.SKID_X, orni_phys.STRUT_Z)
+#: A wing pair's motor, 42 x 40 mm (304 W at the governed top, aircraft.md), lying along z in
+#: the thorax at MOTOR_Y, its 63100 board behind it, its crank up to the shoulders.
+MOTOR_L, MOTOR_Y = 0.040, 0.020
 
 _ORNI_MESH = {}
 
@@ -49,27 +52,39 @@ def _carapace():
     return shapes.loft(rings, paint(SKIN), poles=(-0.69, 0.42), along='z')
 
 
-def _orni_parts():
-    """[(name, mesh)]: the ornithopter body in its own axes, x right, y up, z ahead."""
-    carbon = paint(CARBON)
-    can_h = CAN_L * 0.72
-    out = [
-        ('carapace', _carapace()),
-        ('eye0', shapes.ellipsoid((-0.034, 0.032, 0.30), (0.030, 0.026, 0.040), CORE, rows=7)),
-        ('eye1', shapes.ellipsoid((0.034, 0.032, 0.30), (0.030, 0.026, 0.040), CORE, rows=7)),
-        ('can0', _at(shapes.drum(CAN_R, can_h, 'y', PLATE), None,
-                     (0.0, 0.004 - can_h / 2.0, FORE_Z))),
-        ('board0', _at(shapes.drum(BOARD_R, BOARD_H, 'y', paint(MASK)), None,
-                       (0.0, 0.004 - can_h - BOARD_H / 2.0, FORE_Z))),
-        ('sink0', _at(shapes.drum(SINK_R, SINK_H, 'y', carbon), None,
-                      (0.0, 0.004 - can_h - BOARD_H - SINK_H / 2.0, FORE_Z))),
-        ('can1', _at(shapes.drum(CAN_R, can_h, 'y', PLATE), None,
-                     (0.0, 0.004 - can_h / 2.0, AFT_Z))),
-        ('board1', _at(shapes.drum(BOARD_R, BOARD_H, 'y', paint(MASK)), None,
-                       (0.0, 0.004 - can_h - BOARD_H / 2.0, AFT_Z))),
-        ('sink1', _at(shapes.drum(SINK_R, SINK_H, 'y', carbon), None,
-                      (0.0, 0.004 - can_h - BOARD_H - SINK_H / 2.0, AFT_Z))),
-    ]
+def _drive(k, z, frame):
+    """The wing pair's drive at station `z`: its motor aft of it along z with the board and
+    sink behind, or bare its shaft; the crank up to the shoulders' cross shaft."""
+    out = [('crank%d' % k, _at(shapes.drum(SHAFT_R, SHOULDER_Y - MOTOR_Y, 'y', PLATE), None,
+                               (0.0, 0.5 * (SHOULDER_Y + MOTOR_Y), z))),
+           ('cross%d' % k, _at(shapes.drum(SHAFT_R, 2.0 * SHOULDER_X, 'x', PLATE), None,
+                               (0.0, SHOULDER_Y, z)))]
+    if not frame:
+        return out
+    stack = ((MOTOR_L, lambda: shapes.drum(MOTOR_R, MOTOR_L, 'z', PLATE), 'can'),
+             (BOARD_H, lambda: shapes.drum(BOARD_R, BOARD_H, 'z', paint(MASK)), 'board'),
+             (SINK_H, lambda: shapes.drum(SINK_R, SINK_H, 'z', paint(CARBON)), 'sink'))
+    back = z
+    for h, mesh, name in stack:
+        out.append((name + str(k), _at(mesh(), None, (0.0, MOTOR_Y, back - h / 2.0))))
+        back -= h
+    return out
+
+
+def _orni_parts(see='shell'):
+    """[(name, mesh)]: the ornithopter body in its own axes, x right, y up, z ahead; `see` a
+    layer: the airframe a spine with its drives and legs, the pack in the thorax, bare the
+    spine's line, the cranks and the tail."""
+    carbon, shell, frame = paint(CARBON), see == 'shell', see != 'bare'
+    out = ([('carapace', _carapace()),
+            ('eye0', shapes.ellipsoid((-0.034, 0.032, 0.30), (0.030, 0.026, 0.040), CORE, rows=7)),
+            ('eye1', shapes.ellipsoid((0.034, 0.032, 0.30), (0.030, 0.026, 0.040), CORE, rows=7))]
+           if shell else
+           [('spine', _at(shapes.drum(0.008 if frame else 0.003, 1.06, 'z', PLATE), None,
+                          (0.0, 0.012, -0.13)))])
+    if see == 'pack':
+        out.append(('pack', shapes.box((0.0, MOTOR_Y, -0.005), (0.022, 0.018, 0.045), paint(CELLS))))
+    out += _drive(0, FORE_Z, frame) + _drive(1, AFT_Z, frame)
     for s in (-1.0, 1.0):
         out.append(('sh_f%d' % (s > 0),
                     shapes.ellipsoid((s * SHOULDER_X, SHOULDER_Y, FORE_Z),
@@ -82,6 +97,8 @@ def _orni_parts():
                         shapes.turn_about('z', s * 34.0) @ shapes.turn_about('y', -s * 16.0),
                         (s * 0.055, 0.04, -0.62))))
         for k, z in enumerate(STRUT_Z):
+            if not frame:
+                continue
             out.append(('leg%d_%d' % (s > 0, k),
                         _at(shapes.drum(LEG_R, SKID_M - 0.032, 'y', carbon),
                             shapes.turn_about('z', s * 28.0) @ shapes.turn_about('x', (k - 0.5) * 30.0),
@@ -102,18 +119,18 @@ def _wing_blade(span, side):
     ]
 
 
-def orni_mesh(which):
+def orni_mesh(which, see='shell'):
     """The cached `Mesh` for `'frame'`, `'fore_l'`, `'fore_r'`, `'aft_l'`, or `'aft_r'`."""
-    got = _ORNI_MESH.get(which)
+    got = _ORNI_MESH.get((which, see))
     if got is None:
         builders = {
-            'frame': _orni_parts,
+            'frame': lambda: _orni_parts(see),
             'fore_l': lambda: _wing_blade(WING_SPAN, -1.0),
             'fore_r': lambda: _wing_blade(WING_SPAN, 1.0),
             'aft_l': lambda: _wing_blade(AFT_SPAN, -1.0),
             'aft_r': lambda: _wing_blade(AFT_SPAN, 1.0),
         }
-        got = _ORNI_MESH[which] = Mesh(builders[which]())
+        got = _ORNI_MESH[(which, see)] = Mesh(builders[which]())
     return got
 
 
@@ -143,12 +160,12 @@ def _wing_pose_angles(rotors, controls):
             (dih_al, feather_a - 10.0 * yaw_t, sweep_a), (dih_ar, feather_a + 10.0 * yaw_t, sweep_a))
 
 
-def _posed(pose, rotors, dense):
+def _posed(pose, rotors, dense, see='shell'):
     """(positions, normals, uv, materials, index) in the world: the ornithopter carapace at `pose`
     and all four dragonfly wings articulated at their shoulder joints."""
     from coaxial.model.blocks import numpy as np
     turn, at = np.asarray(pose['turn'], float), np.asarray(pose['at'], float)
-    frame = orni_mesh('frame')
+    frame = orni_mesh('frame', see)
     pick = (lambda mesh: (mesh.dense[0], mesh.dense[1], mesh.dense[2], mesh.dense[3])) if dense \
         else (lambda mesh: (mesh.corners, mesh.normals, mesh.uv, mesh.materials))
     points, normals, uv, _materials = pick(frame)
@@ -210,7 +227,8 @@ ARROWS = (((0.0, SHOULDER_Y + 0.035, FORE_Z), 1, 0, 0.022),
 
 
 def render(pose, rotors, width, height, yaw=30.0, pitch=18.0, reach=REACH, centre=None,
-           colour=True, lit=None, world=True, gate=None, thrusts=None, line_=False, inset=None):
+           colour=True, lit=None, world=True, gate=None, thrusts=None, line_=False, inset=None,
+           see='shell'):
     """The 4-wing Dune ornithopter at `pose` on its `rotors`, `width` x `height` cells, `reach` m
     framed about `centre` from SIGHT reaches off: lines."""
     from coaxial.model.blocks import numpy as np
@@ -219,13 +237,13 @@ def render(pose, rotors, width, height, yaw=30.0, pitch=18.0, reach=REACH, centr
     at = np.asarray(pose['at'], float)
     centre = at if centre is None else np.asarray(centre, float)
     if lit is not None:
-        positions, normals, uv, materials, index = _posed(pose, rotors, False)
+        positions, normals, uv, materials, index = _posed(pose, rotors, False, see)
         depth, rgb = lit.raster(positions, normals, uv, materials, index, m, fine,
                                 tuple(centre), float(np.linalg.norm(at - centre)) + REACH)
     else:
-        positions, normals, uv, materials, _index = _posed(pose, rotors, True)
+        positions, normals, uv, materials, _index = _posed(pose, rotors, True, see)
         depth, rgb = splat((positions, normals, materials, uv), m, fine, centre)
-    own = _stroke_arcs(pose, rotors, m, fine, centre) + (
+    own = ([] if see == 'bare' else _stroke_arcs(pose, rotors, m, fine, centre)) + (
         force_arrows(pose, thrusts, ARROWS, m, fine, centre) if thrusts is not None else [])
     if not world:
         return braille(depth, rgb, np.zeros(depth.shape), width, height, colour, inset,

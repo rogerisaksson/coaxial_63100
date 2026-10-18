@@ -21,18 +21,23 @@ from machine import ansi, quad
 #: propellers' tips 0.68 m out.
 SIGHT, REACH = 3.75, 0.8
 
-#: The frame's parts, m: the centre plate and the dome on it, an arm's tube, a can (the 63100,
-#: 63 mm by 100 mm), its board and finned heatsink under it, a skid's leg, a propeller's blade, a hub.
+#: The frame's parts, m: the centre plate, an arm's tube, a rotor's motor (42 x 27 mm: 39 W a
+#: hover, aircraft.md), the Coaxial 63100 board behind its stator (68 mm) and the finned
+#: heatsink under it, a shaft, a skid's leg, a propeller's blade, a hub.
 PLATE_R, PLATE_H = 0.1, 0.03
-ARM_R, CAN_R, CAN_L, BOARD_R, BOARD_H = 0.012, 0.0315, 0.1, 0.034, 0.005
-SINK_R, SINK_H = 0.032, 0.006
+ARM_R, MOTOR_R, MOTOR_L, BOARD_R, BOARD_H = 0.012, 0.021, 0.027, 0.034, 0.005
+SINK_R, SINK_H, SHAFT_R = 0.032, 0.006, 0.004
 LEG_R, BLADE_W, HUB_R = 0.008, 0.022, 0.014
+
+#: What a page draws of a craft, S stepping on: the craft whole, its airframe, its pack in it,
+#: and bare - the shafts, blades, surfaces and cranks that move.
+LAYERS = ('shell', 'frame', 'pack', 'bare')
 
 #: Their colours: carbon, the boards' solder mask, the propellers, a painted skin - carbon's
 #: dark halftone left a body a cloud of dots.
 CARBON, MASK, PROP, SKIN = (70, 74, 84), (30, 110, 64), (205, 205, 200), (188, 194, 204)
-#: A tactical drone's olive and its dark fittings; a racer's red.
-OLIVE, DARK, ACCENT = (138, 142, 112), (92, 96, 94), (214, 62, 50)
+#: A tactical drone's olive and its dark fittings; a racer's red; a pack's cells.
+OLIVE, DARK, ACCENT, CELLS = (138, 142, 112), (92, 96, 94), (214, 62, 50), (226, 196, 64)
 
 #: The speed below which a propeller shows its blades, rad/s; the swept disc's rim, a dot
 #: every RIM_EVERY of its line, and the inks.
@@ -56,39 +61,63 @@ def _at(mesh, turn=None, spot=(0.0, 0.0, 0.0)):
 def _arm(x, z, material):
     """An arm's square boom from the body's corner out to the can at (x, z)."""
     out = math.hypot(x, z)
-    length = out - PLATE_R * 0.8 - CAN_R
+    length = out - PLATE_R * 0.8 - MOTOR_R
     mid = PLATE_R * 0.8 + length / 2.0
     turn = shapes.turn_about('y', -math.degrees(math.atan2(z, x)))
     return _at(shapes.box((0.0, 0.0, 0.0), (length / 2.0, 0.011, 0.016), material), turn,
                (mid * x / out, 0.0, mid * z / out))
 
 
-def parts():
+def drive(x, y, z, length=MOTOR_L, sink=None):
+    """A drive's stack up y from `y` at (x, z): the heatsink, the 63100 board, the motor
+    `length` long, as [(name, mesh)] to suffix; `sink` its material."""
+    stack = ((SINK_H, lambda: shapes.drum(SINK_R, SINK_H, 'y', sink or paint(DARK)), 'sink'),
+             (BOARD_H, lambda: shapes.drum(BOARD_R, BOARD_H, 'y', paint(MASK)), 'board'),
+             (length, lambda: shapes.drum(MOTOR_R, length, 'y', PLATE), 'can'))
+    out, top = [], y
+    for h, mesh, name in stack:
+        out.append((name, _at(mesh(), None, (x, top + h / 2.0, z))))
+        top += h
+    return out[::-1]
+
+
+def parts(see='shell'):
     """[(name, mesh)]: the frame in its own axes, x right, y up, z ahead - a tactical quad's:
     an olive body on four square arms, a sensor ball under its nose, an aerial aft; the rotors
-    at `quad.ROTOR_AT`, the skids' feet where `quad.mjcf` stands them."""
-    olive, dark = paint(OLIVE), paint(DARK)
-    out = [('plate', shapes.box((0.0, 0.0, 0.0), (0.085, 0.028, 0.15), olive)),
-           ('dome', shapes.box((0.0, 0.046, -0.02), (0.055, 0.02, 0.09), dark)),
-           ('nose', shapes.box((0.0, -0.005, 0.16), (0.05, 0.02, 0.03), olive)),
-           ('ball', shapes.ellipsoid((0.0, -0.052, 0.13), (0.03, 0.03, 0.03), PLATE, rows=7)),
-           ('lens', shapes.ellipsoid((0.0, -0.052, 0.158), (0.012, 0.012, 0.006), CORE, rows=5)),
-           ('aerial', _at(shapes.drum(0.004, 0.11, 'y', dark), None, (0.05, 0.11, -0.12)))]
+    at `quad.ROTOR_AT`, the skids' feet where `quad.mjcf` stands them; `see` a layer of LAYERS:
+    the airframe two carbon plates, the pack between them, bare the shafts on their arms."""
+    olive, dark, shell = paint(OLIVE), paint(DARK), see == 'shell'
+    frame, top, arm = see != 'bare', quad.DISC_M, 0.011
+    if shell:
+        out = [('plate', shapes.box((0.0, 0.0, 0.0), (0.085, 0.028, 0.15), olive)),
+               ('dome', shapes.box((0.0, 0.046, -0.02), (0.055, 0.02, 0.09), dark)),
+               ('nose', shapes.box((0.0, -0.005, 0.16), (0.05, 0.02, 0.03), olive)),
+               ('ball', shapes.ellipsoid((0.0, -0.052, 0.13), (0.03, 0.03, 0.03), PLATE, rows=7)),
+               ('lens', shapes.ellipsoid((0.0, -0.052, 0.158), (0.012, 0.012, 0.006), CORE, rows=5)),
+               ('aerial', _at(shapes.drum(0.004, 0.11, 'y', dark), None, (0.05, 0.11, -0.12)))]
+    elif frame:
+        out = [('plate', shapes.box((0.0, -0.02, 0.0), (0.075, 0.003, 0.14), paint(CARBON))),
+               ('deck', shapes.box((0.0, 0.028, 0.0), (0.075, 0.003, 0.14), paint(CARBON)))]
+        if see == 'pack':
+            out.append(('pack', shapes.box((0.0, 0.004, -0.01), (0.0225, 0.02, 0.07), paint(CELLS))))
+    else:
+        out = []
     for k, (x, z) in enumerate(quad.ROTOR_AT):
-        top = quad.DISC_M
-        out += [('arm%d' % k, _arm(x, z, olive)),
-                ('can%d' % k, _at(shapes.drum(CAN_R, CAN_L, 'y', PLATE), None,
-                                  (x, top - CAN_L / 2.0, z))),
-                ('board%d' % k, _at(shapes.drum(BOARD_R, BOARD_H, 'y', paint(MASK)), None,
-                                    (x, top - CAN_L - BOARD_H / 2.0, z))),
-                ('sink%d' % k, _at(shapes.drum(SINK_R, SINK_H, 'y', dark), None,
-                                   (x, top - CAN_L - BOARD_H - SINK_H / 2.0, z))),
+        if frame:
+            out += [('arm%d' % k, _arm(x, z, olive if shell else paint(CARBON)))]
+            out += [(name + str(k), mesh) for name, mesh in drive(x, arm, z)]
+            out += [('leg%d' % k, _at(shapes.drum(LEG_R, quad.SKID_M, 'y', dark), None,
+                                      (0.7 * x, -quad.SKID_M / 2.0, 0.7 * z))),
+                    ('foot%d' % k, shapes.ellipsoid((0.7 * x, -quad.SKID_M, 0.7 * z),
+                                                    (quad.FOOT_M,) * 3, PLATE, rows=6))]
+        else:
+            out.append(('rod%d' % k, _at(shapes.drum(0.003, math.hypot(x, z), 'z', PLATE),
+                                         shapes.turn_about('y', math.degrees(math.atan2(x, z))),
+                                         (x / 2.0, arm, z / 2.0))))
+        out += [('shaft%d' % k, _at(shapes.drum(SHAFT_R, top - arm, 'y', PLATE), None,
+                                    (x, (top + arm) / 2.0, z))),
                 ('hub%d' % k, shapes.ellipsoid((x, top + 0.004, z), (HUB_R, 0.01, HUB_R),
-                                               PLATE, rows=6)),
-                ('leg%d' % k, _at(shapes.drum(LEG_R, quad.SKID_M, 'y', dark), None,
-                                  (0.7 * x, -quad.SKID_M / 2.0, 0.7 * z))),
-                ('foot%d' % k, shapes.ellipsoid((0.7 * x, -quad.SKID_M, 0.7 * z),
-                                                (quad.FOOT_M,) * 3, PLATE, rows=6))]
+                                               PLATE, rows=6))]
     return out
 
 
@@ -133,10 +162,10 @@ class Mesh:
 _MESH = {}
 
 
-def mesh(which):
-    got = _MESH.get(which)
+def mesh(which, see='shell'):
+    got = _MESH.get((which, see))
     if got is None:
-        got = _MESH[which] = Mesh(parts() if which == 'frame' else blades())
+        got = _MESH[(which, see)] = Mesh(parts(see) if which == 'frame' else blades())
     return got
 
 
@@ -153,19 +182,19 @@ def _painted(frame, rotors, dense):
     return materials
 
 
-def _posed(pose, rotors, dense):
+def _posed(pose, rotors, dense, see='shell'):
     """(positions, normals, uv, materials, index) in the world: the frame at its pose, each
-    slow propeller's blades at its angle over its hub."""
+    slow propeller's blades at its angle over its hub - every propeller's, bare."""
     from coaxial.model.blocks import numpy as np
     turn, at = np.asarray(pose['turn'], float), np.asarray(pose['at'], float)
-    frame, prop = mesh('frame'), mesh('prop')
+    frame, prop = mesh('frame', see), mesh('prop')
     pick = (lambda m: (m.dense[0], m.dense[1], m.dense[2], m.dense[3])) if dense else \
         (lambda m: (m.corners, m.normals, m.uv, m.materials))
     points, normals, uv, _materials = pick(frame)
     out = [[points @ turn.T + at], [normals @ turn.T], [uv], [_painted(frame, rotors, dense)]]
     index, base = [frame.index], len(points)
     for (x, z), spin, (angle, w, *_heat) in zip(quad.ROTOR_AT, quad.SPIN, rotors):
-        if abs(w) >= BLADES_RAD_S:
+        if abs(w) >= BLADES_RAD_S and see != 'bare':
             continue
         here = turn @ shapes.turn_about('y', math.degrees(spin * angle))
         p, n, u, m = pick(prop)
@@ -222,26 +251,27 @@ def _arrows(pose, thrusts, m, cam, centre):
 
 
 def render(pose, rotors, width, height, yaw=30.0, pitch=18.0, reach=REACH, centre=None,
-           colour=True, lit=None, world=True, gate=None, thrusts=None, line_=False, inset=None):
+           colour=True, lit=None, world=True, gate=None, thrusts=None, line_=False, inset=None,
+           see='shell'):
     """The quad at `pose` on its `rotors`, `width` x `height` cells, `reach` m framed about
     `centre` (the quad's middle) from SIGHT reaches off: lines. `lit` a `gpu.LitRaster`, or
     None to splat its dots here; `world` False the quad alone, nothing under it or about it;
     `gate` the course's gates stood too, the one of that number lit, and `line_` the line it
     asks through them; `thrusts` each rotor's, N, its arrow; `inset` cells {(row, col):
-    (codepoint, key)} laid over all."""
+    (codepoint, key)} laid over all; `see` a layer of LAYERS."""
     from coaxial.model.blocks import numpy as np
     m = shapes.view(yaw, pitch)
     fine = engine.fine(engine.camera(width, height, reach, distance=SIGHT * reach))
     at = np.asarray(pose['at'], float)
     centre = at if centre is None else np.asarray(centre, float)
     if lit is not None:
-        positions, normals, uv, materials, index = _posed(pose, rotors, False)
+        positions, normals, uv, materials, index = _posed(pose, rotors, False, see)
         depth, rgb = lit.raster(positions, normals, uv, materials, index, m, fine,
                                 tuple(centre), float(np.linalg.norm(at - centre)) + REACH)
     else:
-        positions, normals, uv, materials, _index = _posed(pose, rotors, True)
+        positions, normals, uv, materials, _index = _posed(pose, rotors, True, see)
         depth, rgb = splat((positions, normals, materials, uv), m, fine, centre)
-    own = _discs(pose, rotors, m, fine, centre) + (
+    own = ([] if see == 'bare' else _discs(pose, rotors, m, fine, centre)) + (
         _arrows(pose, thrusts, m, fine, centre) if thrusts is not None else [])
     if not world:
         return braille(depth, rgb, np.zeros(depth.shape), width, height, colour, inset,

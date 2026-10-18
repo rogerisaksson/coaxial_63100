@@ -27,6 +27,7 @@ from coaxial.draw.gauges import policy_word
 from coaxial.errors import RigError
 from coaxial.graphics import gpu
 from coaxial.graphics import helicopter as heli_gfx
+from coaxial.graphics.quadcopter import LAYERS
 from machine import aerobatics, aerokin, gimbal, grounds, helicopter, pull, quad
 from machine.modes import SIMULATED
 from terminal.loader import TO_MENU
@@ -122,7 +123,7 @@ def compose_craft(console, origin, rotors, frame, flight, trace, now, art, yaw, 
                      hud('HEIGHT m, POWER OF BOTH  last %.0f s' % traces.TRACE_S,
                          traces.heights(trace, now, HUD_WIDTH - 4)),
                      hud('BUS V, PEAK TEMP C', traces.buses(trace, now, HUD_WIDTH - 4))],
-                    (('+ -', 'ZOOM'), ('W', 'WIND'), ('T', 'THRUST'), ('L', 'LINE'),
+                    (('+ -', 'ZOOM'), ('W', 'WIND'), ('T', 'THRUST'), ('S', 'LAYER'), ('L', 'LINE'),
                      ('C', 'CAMERA'), ('R', 'RECORD'), ('A', 'RESET'), ('Q', 'EXIT'), ('ESC', 'MENU')))
 
 
@@ -170,7 +171,7 @@ def run_craft_view(argv, doc, craft, gfx, flown_mod, compose_fn, thrusts_fn, loo
     began = time.monotonic()
     held = {'at': 0.0, 'clock': 0.0, 'frame': sky.state(), 'reset': False,
             'wind': False, 'law': aerokin.fresh(), 'flight': flown_mod.fresh(),
-            'arrows': True, 'line': True, 'carried': True, 'aim': gimbal.REST}
+            'arrows': True, 'line': True, 'carried': True, 'aim': gimbal.REST, 'see': 0}
     camera = {'reach': NEAR_M, 'yaw': base_yaw, 'pitch': SIDE_PITCH, 't': None, 'zoom': 1.0}
 
     def zoomed(k):
@@ -236,7 +237,7 @@ def run_craft_view(argv, doc, craft, gfx, flown_mod, compose_fn, thrusts_fn, loo
                     for r in rotors], width, height, yaw=camera['yaw'], pitch=camera['pitch'],
             reach=reach, centre=centre, colour=terminal, lit=lit, gate=gate,
             thrusts=thrusts_fn(frame, rotors) if held['arrows'] else None,
-            line_=chased and held['line'],
+            line_=chased and held['line'], see=LAYERS[held['see']],
             inset={**(carried(frame, held['aim'], gate, chased and held['line'], width, height)
                       if held['carried'] else {}), **recorder.corner(held.get('recording'), width)}))
         return compose_fn(board_view, origin, rotors, frame, held['flight'], list(trace),

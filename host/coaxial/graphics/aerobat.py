@@ -15,9 +15,9 @@ from coaxial.graphics import engine, scenery, shapes
 from coaxial.graphics.callouts import line
 from coaxial.graphics.helicopter import force_arrows
 from coaxial.graphics.lit import CORE, PLATE, braille, paint, project, splat
-from coaxial.graphics.quadcopter import (BLADE_W, BLADES_RAD_S, BOARD_H, BOARD_R, CAN_L, CAN_R,
-                                         CARBON, LEG_R, MASK, PROP, RIM_EVERY, RIM_INK, SINK_H,
-                                         SINK_R, SKIN, ACCENT, Mesh, _at, _painted)
+from coaxial.graphics.quadcopter import (BLADE_W, BLADES_RAD_S, BOARD_H, BOARD_R, CARBON, CELLS,
+                                         LEG_R, MASK, MOTOR_R, PROP, RIM_EVERY, RIM_INK, SHAFT_R,
+                                         SINK_H, SINK_R, SKIN, ACCENT, Mesh, _at, _painted)
 from machine import aerobat as aero_phys
 
 #: The camera: the eye's distance in reaches framed, and the reach the monoplane fills, m -
@@ -33,6 +33,9 @@ TAIL_Y, HSTAB_HALF = -aero_phys.TAIL_ARM, 0.5 * aero_phys.STAB_SPAN
 SKID_M, FOOT_M, SKID_X, STRUT_Z = (
     aero_phys.SKID_M, aero_phys.FOOT_M, aero_phys.SKID_X, aero_phys.STRUT_Z)
 GEAR_MAIN_Z, GEAR_TAIL_Z = aero_phys.GEAR_MAIN_Z, aero_phys.GEAR_TAIL_Z
+#: The two tractor motors, 42 x 40 mm each (292 W at the governed top, aircraft.md), stacked
+#: in the cowl from MOTOR_Y aft, each with its 63100 board and sink behind its stator.
+MOTOR_L, MOTOR_Y = 0.040, 0.495
 
 _AERO_MESH = {}
 
@@ -52,39 +55,66 @@ def _fuselage():
     return shapes.loft(rings, paint(SKIN), poles=(-0.53, 0.535), along='y')
 
 
-def _aero_parts():
-    """[(name, mesh)]: the aerobat airframe in its body axes."""
+def _stack():
+    """The coaxial pair's parts down the nose from MOTOR_Y: a motor, its board, its sink, the
+    next motor, its board, its sink; and where the stack ends."""
+    out, top = [], MOTOR_Y
+    for k in (0, 1):
+        for h, mesh, name in ((MOTOR_L, lambda: shapes.drum(MOTOR_R, MOTOR_L, 'y', PLATE), 'can'),
+                              (BOARD_H, lambda: shapes.drum(BOARD_R, BOARD_H, 'y', paint(MASK)), 'board'),
+                              (SINK_H, lambda: shapes.drum(SINK_R, SINK_H, 'y', paint(CARBON)), 'sink')):
+            out.append((name + str(k), _at(mesh(), None, (0.0, top - h / 2.0, 0.0))))
+            top -= h
+    return out, top
+
+
+def _aero_parts(see='shell'):
+    """[(name, mesh)]: the aerobat airframe in its body axes; `see` a layer: the airframe its
+    longerons, firewall, spars and ribs, the pack under the canopy, bare the shafts, the spars
+    and the keel's line."""
     carbon, skin, accent = paint(CARBON), paint(SKIN), paint(ACCENT)
-    can_h = CAN_L * 0.58
-    out = [
-        ('fuselage', _fuselage()),
-        ('canopy', shapes.ellipsoid((0.0, 0.10, -0.078), (0.040, 0.165, 0.042), CORE, rows=7)),
-        ('spinner', shapes.ellipsoid((0.0, PROP_Y + 0.024, 0.0), (0.028, 0.044, 0.028),
-                                     PLATE, rows=6)),
-        ('can0', _at(shapes.drum(CAN_R, can_h, 'y', PLATE), None, (0.0, 0.47, 0.0))),
-        ('board0', _at(shapes.drum(BOARD_R, BOARD_H, 'y', paint(MASK)), None,
-                       (0.0, 0.47 - can_h / 2.0 - BOARD_H / 2.0, 0.0))),
-        ('sink0', _at(shapes.drum(SINK_R, SINK_H, 'y', carbon), None,
-                      (0.0, 0.47 - can_h / 2.0 - BOARD_H - SINK_H / 2.0, 0.0))),
-        ('can1', _at(shapes.drum(CAN_R, can_h, 'y', PLATE), None, (0.0, 0.385, 0.0))),
-        ('board1', _at(shapes.drum(BOARD_R, BOARD_H, 'y', paint(MASK)), None,
-                       (0.0, 0.385 - can_h / 2.0 - BOARD_H / 2.0, 0.0))),
-        ('sink1', _at(shapes.drum(SINK_R, SINK_H, 'y', carbon), None,
-                      (0.0, 0.385 - can_h / 2.0 - BOARD_H - SINK_H / 2.0, 0.0))),
-        ('vfin', shapes.box((0.0, TAIL_Y + 0.04, -0.105), (0.005, 0.075, 0.095), accent)),
-        ('finlead', shapes.box((0.0, TAIL_Y + 0.14, -0.06), (0.005, 0.03, 0.045), accent)),
-    ]
+    shell, frame = see == 'shell', see != 'bare'
+    stack, aft = _stack()
+    out = [('spinner', shapes.ellipsoid((0.0, PROP_Y + 0.024, 0.0), (0.028, 0.044, 0.028),
+                                        PLATE, rows=6)),
+           ('shaft0', _at(shapes.drum(SHAFT_R, PROP_Y + 0.02 - aft, 'y', PLATE), None,
+                          (0.0, 0.5 * (PROP_Y + 0.02 + aft), 0.0))),
+           ('spar', _at(shapes.drum(0.007, 2.0 * HALF_SPAN, 'x', PLATE), None, (0.0, WING_Y, 0.0))),
+           ('stabspar', _at(shapes.drum(0.005, 2.0 * HSTAB_HALF, 'x', PLATE), None,
+                            (0.0, TAIL_Y + 0.02, 0.0))),
+           ('finpost', _at(shapes.drum(0.005, 0.19, 'z', PLATE), None, (0.0, TAIL_Y + 0.04, -0.105)))]
+    if shell:
+        out += [('fuselage', _fuselage()),
+                ('canopy', shapes.ellipsoid((0.0, 0.10, -0.078), (0.040, 0.165, 0.042), CORE, rows=7)),
+                ('vfin', shapes.box((0.0, TAIL_Y + 0.04, -0.105), (0.005, 0.075, 0.095), accent)),
+                ('finlead', shapes.box((0.0, TAIL_Y + 0.14, -0.06), (0.005, 0.03, 0.045), accent))]
+    elif frame:
+        out += [('longeron%d' % k, _at(shapes.drum(0.005, aft + 0.52, 'y', PLATE), None,
+                                       (sx * 0.03, 0.5 * (aft - 0.52), sz * 0.035)))
+                for k, (sx, sz) in enumerate(((-1, -1), (1, -1), (1, 1), (-1, 1)))]
+        out += [('firewall', _at(shapes.drum(0.046, 0.006, 'y', PLATE), None, (0.0, aft - 0.003, 0.0)))]
+        out += [('rib%d' % k, shapes.box((x, WING_Y, 0.0), (0.002, 0.46 * CHORD, 0.011), PLATE))
+                for k, x in enumerate(HALF_SPAN * (j / 5.0) for j in range(-5, 6))]
+        if see == 'pack':
+            out.append(('pack', shapes.box((0.0, 0.20, 0.0), (0.022, 0.07, 0.02), paint(CELLS))))
+    else:
+        out.append(('keel', _at(shapes.drum(0.003, aft + 0.52, 'y', PLATE), None,
+                                (0.0, 0.5 * (aft - 0.52), 0.0))))
+    if not frame:
+        return out
+    out += stack
     legs = ((STRUT_Z[1], GEAR_MAIN_Z, 1.0), (STRUT_Z[0], GEAR_TAIL_Z, 0.45))
     for s in (-1.0, 1.0):
-        out.append(('wing%d' % (s > 0),
-                    shapes.box((s * 0.50 * HALF_SPAN, WING_Y, 0.0),
-                               (0.50 * HALF_SPAN, 0.46 * CHORD, 0.011), skin)))
-        out.append(('tip%d' % (s > 0),
-                    shapes.box((s * 0.93 * HALF_SPAN, WING_Y, 0.0),
-                               (0.07 * HALF_SPAN, 0.46 * CHORD, 0.012), accent)))
-        out.append(('hstab%d' % (s > 0),
-                    shapes.box((s * 0.5 * HSTAB_HALF, TAIL_Y + 0.02, 0.0),
-                               (0.5 * HSTAB_HALF, 0.05, 0.005), skin)))
+        if shell:
+            out.append(('wing%d' % (s > 0),
+                        shapes.box((s * 0.50 * HALF_SPAN, WING_Y, 0.0),
+                                   (0.50 * HALF_SPAN, 0.46 * CHORD, 0.011), skin)))
+            out.append(('tip%d' % (s > 0),
+                        shapes.box((s * 0.93 * HALF_SPAN, WING_Y, 0.0),
+                                   (0.07 * HALF_SPAN, 0.46 * CHORD, 0.012), accent)))
+            out.append(('hstab%d' % (s > 0),
+                        shapes.box((s * 0.5 * HSTAB_HALF, TAIL_Y + 0.02, 0.0),
+                                   (0.5 * HSTAB_HALF, 0.05, 0.005), skin)))
         for k, (y, z, x_sc) in enumerate(legs):
             x = s * x_sc * SKID_X
             dx, dz = x - s * 0.04, z - 0.03
@@ -95,7 +125,7 @@ def _aero_parts():
                             (s * 0.04 + 0.5 * dx, y, 0.03 + 0.5 * dz))))
             out.append(('wheel%d_%d' % (s > 0, k),
                         shapes.ellipsoid((x, y, z), (FOOT_M, FOOT_M, FOOT_M), PLATE, rows=6)))
-            if k == 0:
+            if k == 0 and shell:
                 out.append(('pant%d' % (s > 0),
                             shapes.ellipsoid((x, y + 0.005, z - 0.01), (0.014, 0.06, 0.042),
                                              accent, rows=6)))
@@ -134,12 +164,12 @@ def _rudder_mesh():
 AIL_HINGE, TAIL_HINGE = (0.0, WING_Y - 0.42 * CHORD, 0.0), (0.0, TAIL_Y - 0.035, 0.0)
 
 
-def aero_mesh(which):
+def aero_mesh(which, see='shell'):
     """The cached `Mesh` for `'frame'`, `'prop'`, `'vect'`, `'ail_l'`, `'ail_r'`, `'elev'`, `'rud'`."""
-    got = _AERO_MESH.get(which)
+    got = _AERO_MESH.get((which, see))
     if got is None:
         builders = {
-            'frame': _aero_parts,
+            'frame': lambda: _aero_parts(see),
             'prop': lambda: _prop_blades(PROP_R),
             'vect': lambda: _prop_blades(0.88 * PROP_R),
             'ail_l': lambda: _aileron_mesh(-1.0),
@@ -147,16 +177,16 @@ def aero_mesh(which):
             'elev': _elevator_mesh,
             'rud': _rudder_mesh,
         }
-        got = _AERO_MESH[which] = Mesh(builders[which]())
+        got = _AERO_MESH[(which, see)] = Mesh(builders[which]())
     return got
 
 
-def _posed(pose, rotors, dense):
+def _posed(pose, rotors, dense, see='shell'):
     """(positions, normals, uv, materials, index) in the world: the aerobat airframe at its true
     physical `pose['turn']`, its slow coaxial tractor propellers, and its deflected 3D surfaces."""
     from coaxial.model.blocks import numpy as np
     turn, at = np.asarray(pose['turn'], float), np.asarray(pose['at'], float)
-    frame = aero_mesh('frame')
+    frame = aero_mesh('frame', see)
     pick = (lambda mesh: (mesh.dense[0], mesh.dense[1], mesh.dense[2], mesh.dense[3])) if dense \
         else (lambda mesh: (mesh.corners, mesh.normals, mesh.uv, mesh.materials))
     points, normals, uv, _materials = pick(frame)
@@ -171,7 +201,7 @@ def _posed(pose, rotors, dense):
     ]
     for (kind, y_hub, sign), rotor in zip((('prop', PROP_Y, 1.0), ('vect', VECT_Y, -1.0)), rotors):
         angle, w = float(rotor[0]), float(rotor[1])
-        if abs(w) < BLADES_RAD_S:
+        if abs(w) < BLADES_RAD_S or see == 'bare':
             parts.append((kind, shapes.turn_about('y', math.degrees(sign * angle)),
                           (0.0, y_hub, 0.0)))
     for kind, rot_local, spot in parts:
@@ -216,7 +246,8 @@ ARROWS = (((0.0, PROP_Y + 0.05, 0.0), 1, 0, 0.014), (TAIL_HINGE, 0, 2, 0.08))
 
 
 def render(pose, rotors, width, height, yaw=30.0, pitch=18.0, reach=REACH, centre=None,
-           colour=True, lit=None, world=True, gate=None, thrusts=None, line_=False, inset=None):
+           colour=True, lit=None, world=True, gate=None, thrusts=None, line_=False, inset=None,
+           see='shell'):
     """The 3D aerobatic monoplane at `pose` on its `rotors`, `width` x `height` cells, `reach` m
     framed about `centre` from SIGHT reaches off: lines."""
     from coaxial.model.blocks import numpy as np
@@ -225,13 +256,13 @@ def render(pose, rotors, width, height, yaw=30.0, pitch=18.0, reach=REACH, centr
     at = np.asarray(pose['at'], float)
     centre = at if centre is None else np.asarray(centre, float)
     if lit is not None:
-        positions, normals, uv, materials, index = _posed(pose, rotors, False)
+        positions, normals, uv, materials, index = _posed(pose, rotors, False, see)
         depth, rgb = lit.raster(positions, normals, uv, materials, index, m, fine,
                                 tuple(centre), float(np.linalg.norm(at - centre)) + REACH)
     else:
-        positions, normals, uv, materials, _index = _posed(pose, rotors, True)
+        positions, normals, uv, materials, _index = _posed(pose, rotors, True, see)
         depth, rgb = splat((positions, normals, materials, uv), m, fine, centre)
-    own = _discs(pose, rotors, m, fine, centre) + (
+    own = ([] if see == 'bare' else _discs(pose, rotors, m, fine, centre)) + (
         force_arrows(pose, thrusts, ARROWS, m, fine, centre) if thrusts is not None else [])
     if not world:
         return braille(depth, rgb, np.zeros(depth.shape), width, height, colour, inset,

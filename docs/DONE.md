@@ -207,3 +207,6 @@ the fifty before these: [DONE_1-50](DONE_1-50.md).
     runway, its figures at 14 m ([aircraft](findings/aircraft.md)).
 56. The four drawn as the real things: an Edge 540, a tactical quad, a Goblin
     Raw, Dune's ornithopter ([aircraft](findings/aircraft.md)).
+57. The four crafts undressed on S: shell, airframe, pack, bare; their motors
+    sized to the sim's shaft power, the 63100 board behind each stator or on
+    the frame's face.
