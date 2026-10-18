@@ -402,3 +402,17 @@ def heat(joint):
     return (kt(joint), r_ohm(joint), 100.0 / s.rated, s.winding[0], s.winding[1] * COOLING,
             s.housing_k_w * COOLING)
 
+
+def wave_stage(joint):
+    """{ratio, lobes, rollers, roller_d_m, ring_d_m, stiffness_nm_rad, shock_nm} of `joint`'s
+    single-stage rolling-element wave gearbox."""
+    k = kind(joint)
+    box = STACKS[k][1]
+    d = BOXES[box]
+    lobes = int(round(RATIO)) + 2
+    rollers = int(round(RATIO))
+    return {'ratio': RATIO, 'lobes': lobes, 'rollers': rollers,
+            'roller_d_m': round(0.055 * d, 5), 'ring_d_m': round(0.82 * d, 4),
+            'stiffness_nm_rad': BOX_K[box], 'shock_nm': shock(joint)}
+
+

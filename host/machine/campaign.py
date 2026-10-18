@@ -78,6 +78,19 @@ def smoothed(ys, taus, dt, hz=SMOOTH_HZ):
     return out, lowpass(taus, dt, hz)
 
 
+def de_ring_ankles(ys, taus, dt, hz=4.0):
+    """(ys, taus) with the ankles' and feet's encoders and torques low-passed at `hz` both ways
+    to damp the shank's coupled ringing across the parallel ankle linkage."""
+    import numpy as np
+    ys_out, taus_out = np.array(ys, float), np.array(taus, float)
+    idx = [k for k, name in enumerate(JOINTS) if 'ankle' in name or 'foot' in name]
+    for c in (edge.Q, edge.QD, edge.QM):
+        cols = np.arange(c.start, c.stop)[idx]
+        ys_out[:, cols] = lowpass(ys_out[:, cols], dt, hz)
+    taus_out[:, idx] = lowpass(taus_out[:, idx], dt, hz)
+    return ys_out, taus_out
+
+
 def tone(t, tones, phase, amp):
     """(len(t),) rad: sines at `tones` Hz with `phase` (rad) each, the first `amp` rad and the
     rest as much slower - every tone at one speed -, eased in and out over RAMP_S: one drive's

@@ -101,7 +101,8 @@ GAITS = (('a run', ('flying',), (), 0.25), ('on stilts', ('stiff',), ('flying',)
          ("Groucho's", ('crouched',), ('flying',), 0.4),
          ('a catwalk', ('swaying',), ('wide', 'flying'), 0.3),
          ('a waddle', ('wide', 'swaying'), ('flying',), 0.3),
-         ('a shuffle', ('shuffling', 'tripping'), ('flying',), 0.3))
+         ('a shuffle', ('shuffling', 'tripping'), ('flying',), 0.3),
+         ('a dance', ('swaying', 'swinging'), ('flying',), 0.3))
 
 #: A take no longer than LOOP_S whose last pose is its first within LOOP_LEG legs is a loop:
 #: three of it, the seam out.

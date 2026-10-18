@@ -1,44 +1,14 @@
 """Her boards on their buses: a limb's boards a process, the host's Modbus RTU frames real bytes.
 
     block = Block(joints, buses); buses = Buses(block, limbs)   # World.wire: the processes up
-    bus.arm(index); bus.short(index)        # its gates on again; its phases shorted - the next pass
-    bus.off(index)                          # its gates off - the next pass
+    bus.arm(index); bus.short(index); bus.off(index)            # gate writes - the next pass
     bus.send(at, now, {index: degrees})     # a pass: the setpoints broadcast, every board polled
-    buses.step()                            # a step: every process ticks its boards, in lockstep
-    buses.drain(); bus.reading(index)       # the replies read; the board as last heard
-    python -m machine.buses NAME J B BAUD TURN_S K=i,i..    # a process: `serve`
+    buses.step(); buses.drain(); bus.reading(index)             # lockstep, replies read
 
-The wire is Modbus RTU (`machine.rtu`) on RS485 at BAUD, USART2/UART5's rate (the .ioc), over a
-TCP socket a bus - `socket://`, as an emulated limb's port. A pass the host writes one broadcast
-of the bus's setpoints and a poll a board, their stamps in the block; a frame lands at the
-boards its bytes after its stamp, or after the wire frees, 8N1; a poll is answered TURN_S after
-it lands with the board's state then, the reply's bytes on the wire behind it, a gate write with
-its echo. Nothing goes on a bus still busy a pass on. A board holds its setpoint by PD (`gains`)
-every step, carried on at the rate its last two frames came at, within its clamp (`limit`) as
-its envelope derates it and nothing with its gates dropped; its phases shorted, it
-gives kt^2/R of the joint's speed back against it (`drives.heat`), within the same clamp - a
-short from 1 979 rpm tripped the bench's board (docs/FINDINGS.md), so its current is held to
-its amps; its heat (`machine.heat`) steps every THERMAL_S on the currents it gave.
-
-The block (`Block`, FIELDS): the world writes time, q, qd and limit, bumps seq and sends a byte
-to each process's stdin; a process takes each bus's new bytes (written - received), ticks its
-boards (frames landed, PD to ctrl, polls answered and sent counted) and writes done = seq;
-epoch and hold: a reset, every board holding `hold`, its heat at the room's; rotor: the inertia a
-board feeds forward on its setpoint's acceleration, its own rotor's; delta, delta_d: rad and
-rad/s its rotor stands past its joint - across the gearbox's play and its wind-up
-(`machine.gearbox`) - as far as its encoder sees it (`physics.WOUND`: on the motor 1, on the
-joint 0); ahead: rad past its setpoint it asks its rotor, the wind-up and the play its last
-torque took up (`gearbox.Boxes.ahead`); scale: its
-ratio now over its rest's along its rod (`machine.linkage`), its clamp and its amps a N m by it;
-emf, ohm, volts: its back-EMF a rad/s, its phase's resistance, the supply over sqrt 3 - its
-q current no more than they leave at its speed; air, rds, warm:
-a board glitched (`heat.Heat.step`, `heat.Heat.warm`; warm is cleared as taken); pair: a
-parallel pair's other joint's index + 1, positive on its first, negative on its second, its two
-boards' currents each the first's share plus or less the second's (`physics.paired`); envelope: 0
-fantasy boards (`heat.Heat.envelope`); drive: what its heat is kept by (`drives.heat`), written
-before the processes start. An emulated limb takes a process's place on
-the same port and block. A limb a process where the machine has THREADS_A_LIMB hardware threads
-a limb, else the limbs shared out by their boards (`share`).
+The wire is Modbus RTU (`machine.rtu`) on RS485 at BAUD over a TCP socket per bus (`socket://`).
+Each pass broadcasts setpoints (and optional feedforward torques) and polls each board; a board
+holds its setpoint by PD (`gains`) within its clamp (`limit`) as its envelope derates it, and its
+heat (`machine.heat`) steps every THERMAL_S. Shared state lives in `Block` (`FIELDS`).
 """
 import collections
 import copy
@@ -182,12 +152,13 @@ class Segment:
         #: Per board: the setpoint held (rad), its rate (rad/s), when it was set (s), and
         #: whether a frame set it - the rate is read between two frames, never from a hold.
         self.target, self.rate, self.set_at = [0.0] * n, [0.0] * n, [0.0] * n
-        self.framed, self.accel = [False] * n, [0.0] * n
+        self.framed, self.accel, self.feed = [False] * n, [0.0] * n, [0.0] * n
         #: The joint as its board's encoder sees it, rad (`delta`).
         self.seen = [0.0] * n
         #: Frames landing: (at, {unit: mdeg}); requests to answer: (at, unit, a gate write's
         #: frame or None for a poll).
         self.inbox, self.mail = collections.deque(), collections.deque()
+        self.feed_inbox = collections.deque()
         self.drives = [tuple(block.drive[6 * i:6 * i + 6]) for i in self.indices]
         #: Each parallel pair's boards, (first's, second's) (`pair`).
         at = {i: k for k, i in enumerate(self.indices)}
@@ -217,8 +188,9 @@ class Segment:
         b = self.block
         for k, i in enumerate(self.indices):
             self.target[k], self.rate[k], self.set_at[k] = b.hold[i], 0.0, now
-            self.framed[k], self.accel[k], self.seen[k] = False, 0.0, b.hold[i]
+            self.framed[k], self.accel[k], self.feed[k], self.seen[k] = False, 0.0, 0.0, b.hold[i]
         self.inbox.clear()
+        self.feed_inbox.clear()
         self.mail.clear()
         self.free_at = now
         self.heat, self.heat_at = heat.Heat(self.drives), now
@@ -237,7 +209,10 @@ class Segment:
         for unit, fc, body in frames:
             if fc == rtu.WRITE and unit == rtu.BROADCAST:
                 self.free_at = max(stamps[0], self.free_at) + wire(len(body) + 4, self.baud)
-                self.inbox.append((self.free_at, rtu.setpoints(body)))
+                if (body[0] << 8 | body[1]) >= rtu.FEED_REG:
+                    self.feed_inbox.append((self.free_at, rtu.feeds(body)))
+                else:
+                    self.inbox.append((self.free_at, rtu.setpoints(body)))
             elif fc in (rtu.READ, rtu.WRITE_ONE) and 1 <= unit <= len(self.indices):
                 gate = rtu.framed(bytes((unit, fc)) + body) if fc == rtu.WRITE_ONE else None
                 start = max(stamps[1], self.free_at) + wire(rtu.POLL_B, self.baud) + self.turn
@@ -261,6 +236,11 @@ class Segment:
                 setattr(self, k, v)
         h = self.heat
         self.hear()
+        while self.feed_inbox and self.feed_inbox[0][0] <= now:
+            _, feeds = self.feed_inbox.popleft()
+            for unit, mnm in feeds.items():
+                if 0 <= unit - 1 < len(self.indices):
+                    self.feed[unit - 1] = mnm / 1000.0
         while self.inbox and self.inbox[0][0] <= now:
             at, setpoints = self.inbox.popleft()
             for unit, mdeg in setpoints.items():
@@ -291,7 +271,7 @@ class Segment:
                 ref = self.target[k] + self.rate[k] * (now - self.set_at[k]) + b.ahead[i]
                 tau = (b.gains[2 * i] * (ref - self.seen[k])
                        + b.gains[2 * i + 1] * (self.rate[k] - qd)
-                       + b.rotor[i] * self.accel[k])
+                       + b.rotor[i] * self.accel[k] + self.feed[k])
                 ask[k], emf[k] = tau / (self.drives[k][0] * s), b.emf[i] * s * qd
             if b.warm[i] > 0.0:
                 h.warm(k, b.warm[i])
@@ -375,7 +355,7 @@ class Bus:
         #: The gate writes for the next pass, {index: rtu op}.
         self.received, self.bad, self.gating = 0, 0, {}
 
-    def send(self, at, now, degrees):
+    def send(self, at, now, degrees, feeds=None):
         """The pass: the bus's setpoints {index: degrees} - every board's, none for the polls
         alone - broadcast at `at` s, then every board polled at `now`; a bus still busy a pass
         on gets nothing."""
@@ -385,6 +365,8 @@ class Bus:
         frames = b''.join(rtu.gate(self.indices.index(i) + 1, op)
                           for i, op in self.gating.items()) + self.polls
         self.gating = {}
+        if feeds:
+            frames = rtu.broadcast_feed(1, [round(feeds.get(i, 0.0) * 1000.0) for i in self.indices]) + frames
         if degrees:
             frames = rtu.broadcast(1, [round(degrees[i] * 1000.0) for i in self.indices]) + frames
         b.at[2 * link], b.at[2 * link + 1] = at, now

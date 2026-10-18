@@ -116,4 +116,28 @@
   (phase turn
     (latent_targets (mode_pelvis_turn -0.38))))
 
-
+;; dance: rhythmic sway, pelvic roll/turn, axial bounce and arm swing in place
+(defbehavior dance (extends stance_hold)
+  (phase sway_in
+    (duration 2400ms) (blend_duration 600ms)
+    (latent_targets (mode_axial_compression 0.12) (mode_pitch_attitude 0.04) (mode_stance_width 0.16))
+    (cpg_config
+      (enable true) (frequency 1.05Hz)
+      (amplitude mode_axial_compression 0.08) (amplitude mode_lateral_shift 0.32)
+      (amplitude mode_pelvis_list 0.42) (amplitude mode_pelvis_turn 0.45)
+      (amplitude mode_arm_swing 0.85)
+      (phase_offset mode_lateral_shift mode_axial_compression 90deg)
+      (phase_offset mode_pelvis_list mode_axial_compression 90deg)
+      (phase_offset mode_pelvis_turn mode_axial_compression 180deg)))
+  (phase turn_groove (use sway_in)
+    (duration 2400ms) (blend_duration 500ms)
+    (latent_targets (mode_axial_compression 0.16) (mode_pitch_attitude 0.08))
+    (cpg_config
+      (frequency 1.15Hz)
+      (amplitude mode_axial_compression 0.10) (amplitude mode_lateral_shift 0.36)
+      (amplitude mode_pelvis_list 0.48) (amplitude mode_pelvis_turn 0.52)
+      (amplitude mode_arm_swing 0.95)))
+  (phase bow_out
+    (duration 1200ms) (blend_duration 500ms)
+    (cpg_override (halt_oscillators))
+    (latent_targets (mode_axial_compression 0.08) (mode_pitch_attitude 0.35) (mode_lateral_shift 0.0))))

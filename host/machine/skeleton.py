@@ -17,24 +17,12 @@ from typing import Any
 from machine import drives, linkage
 from machine.figure import SEGMENTS, SHANK, THIGH, UPPER_ARM
 
-#: The femur and the tibia, her left's, their tubes through these points of their segments'
-#: frames, m (the right's x mirrored), their radii: the femur from under the hip's gearbox to over
-#: the knee's motor's middle, toward the thigh's front over its last 25 cm, clear of the calf's
-#: drives and rod folded at 163 deg - from the drums' centres the bones ran 40 mm through the hip's
-#: motor and gearbox; the tibia from the knee's gearbox behind the ankle's
-#: drives to the ankle, between their rods - two tubes 46 mm apart round one rod were wider than
-#: her calf with two. Each drum they hang from or reach clamped by a collar
-#: (`coaxial.graphics.mechanism`): (joint, its gearbox or motor, y on the segment).
-#: The tibia ends in a clevis round the ankle's cross; the humerus from a flange on the shoulder
-#: to a collar on the elbow's motor, the forearm from a collar on its gearbox by a strut to its
-#: own axis and down to the wrist (the elbow on its axis); the foot a keel from the
-#: heel to the toes' axle, cheeks on the cross's roll pins, a bar for the rods' balls. Every tube one of seven stock sizes in one high-modulus carbon - 12x1, 20x1, 25x1,
-#: 30x2, 35x2, 40x2, 50x2 mm - the fewest passing every member (`tools/sim/members.py
-#: --family`, fewest variants): the femur's lower run 50 -> 40 in the
-#: shanks' high-modulus grade (flex 0.25 deg), the boom 50 (0.30 at 40), the tibia's lower run
-#: 36 -> 35 (0.31; 40 met the ankle's rod by 6 mm in the crouch), the humerus and the forearm's
-#: upper run 24 and 22 -> 25, the forearm's lower runs 20 and 18 -> 20, the shank's yoke and
-#: cheeks kept 20 (12 passes the rods' pull at 0.88, no bending in it).
+#: The femur and tibia, her left's, their tubes through these points of their segments' frames, m
+#: (the right's x mirrored), their radii: femur from under the hip's gearbox to over the knee's
+#: motor's middle, clear of the calf's drives and rod folded at 163 deg; tibia from the knee's
+#: gearbox behind the ankle's drives to the ankle, between their rods. Each drum clamped by a
+#: collar (`coaxial.graphics.mechanism`): (joint, its gearbox or motor, y on the segment).
+#: Seven stock sizes in high-modulus carbon: 12x1, 20x1, 25x1, 30x2, 35x2, 40x2, 50x2 mm.
 HUNG = {'thigh': ((((0.034, -0.05, 0.0), (0.0, -0.14, 0.03)),
                    ((0.0, -0.14, 0.03), (-0.019, 0.05 - THIGH, 0.012))), (0.020, 0.020),
                   (('hip', 'gear', 0.0), ('knee', 'motor', -THIGH))),
@@ -64,34 +52,11 @@ HUNG = {'thigh': ((((0.034, -0.05, 0.0), (0.0, -0.14, 0.03)),
 #: A crank's radius (a rod's `linkage.ROD_R`).
 CRANK_R = 0.012
 
-#: The pelvis's boom, its radius and the points it runs through, m: its middle 60 mm long, an arm
-#: up to each hip's yaw drive - across, it lay on the hips' L, their inner corners 16 mm higher
-#: rolled 25 deg, and no fork's crown fitted between; its middle 30 mm down under the trunk's
-#: roll M it ran through, the M on it - 40 mm back, the hips' roll M yawed 18 deg met it, 17 mm.
-#: 50 mm round for a hip's pitch twisting it (`docs/findings/body.md`), its arms steep to the yaw
-#: drives' tops: at 45 deg the hips' L met them, 8 mm; 50x2 high-modulus (`HUNG`).
+#: The pelvis's boom, its radius and the points it runs through, m: 50x2 high-modulus (`HUNG`).
 BOOM = (0.025, ((0.066, 0.062, 0.0), (0.006, -0.03, 0.0), (-0.006, -0.03, 0.0), (-0.066, 0.062, 0.0)))
 
-#: Her trunk's frame, the wires through its drives gone: per frame, tubes
-#: through these points, TRUNK_R round, and rings (centre, axis, radius, half), m in it - the
-#: pelvis's fork from the boom up to the roll's bearings 66 mm before and behind the spine's
-#: pivot, its front legs 55 mm out past the roll's 1:1 spur pair and in under the bearing - a
-#: bar across at its height met the pitch's bracket at 75 deg rolled 35, 11 mm -, its back one
-#: on her middle - 30 mm out, a hip's roll M yawed 18 deg met it; the roll's band round the
-#: pitch's L and its trunnions; the pitch's bracket from the L's output arched 52-85 mm over the
-#: band to the waist's M, clear of the bearings to 85 deg; the column from the waist's M to the
-#: neck's, the girdle to the shoulders'; the neck's bracket from its M's output to the head's S.
-#: Each frame's runs' radii (`docs/findings/body.md`): the fork's front legs 24 mm high-modulus,
-#: all its skin and the roll's spur pair leave, its back one 30; the trunnions steel pins; the
-#: column 40, the girdle 30; the neck's bracket 10, the head's 0.77 kg on it, inside her neck - 25
-#: stood 15 mm out of it; the pitch's bracket thin, to come.
-#: Sized by `tools/sim/members.py`: the pitch's bracket 40 mm - at 12 it took 8.1 of
-#: its allowable and wound the spine up 27 deg at its 142 N m, the bob seen -, the fork's
-#: legs 34 and its back member 40 as cantilevers under the pitch's couple on the bearings, the
-#: neck's bracket 16; each run a carbon tube cut to length in printed PAHT-CF holders, each
-#: holder an extrusion along its print axis - its bores along it, a side hole a 45 deg roof, a
-#: ring split - no overhang in any print pose. Stock sizes (`HUNG`): the
-#: pitch's bracket 36 -> 40, the neck's 18 -> 20 (its flex 0.28 deg).
+#: Her trunk's frame: per frame, tubes through these points, TRUNK_R round, and rings (centre,
+#: axis, radius, half), m in it; carbon tubes cut to length in printed PAHT-CF holders.
 TRUNK_R = {'pelvis': (0.015, 0.015, 0.020), 'spine_roll': (0.007, 0.007), 'spine': (0.020,),
            'torso': (0.02, 0.015), 'neck': (0.010,)}
 TRUNK = {'pelvis': ((((0.055, 0.045, 0.0), (0.055, 0.045, 0.066), (0.0, 0.099, 0.066)),
@@ -107,17 +72,7 @@ TRUNK = {'pelvis': ((((0.055, 0.045, 0.0), (0.055, 0.045, 0.066), (0.0, 0.099, 0
                     ((-0.105, 0.325, -0.005), (0.105, 0.325, -0.005))), ()),
          'neck': ((((0.047, 0.0, 0.0), (0.047, 0.042, 0.0), (0.0, 0.042, 0.012)),), ())}
 
-#: The hip's gimbal (`gimbal`): its tubes' radius; its roll bearings' radius and half length,
-#: 55 mm before and behind the hip's centre; its cradle's band's radius and half length round the
-#: pitch's L. Crown to L 7 mm rolled 25 deg; the back leg 20 mm out, 8 mm off the roll's M; the
-#: front 20 mm in, the femur's collar 3 mm off its bearing at 90 deg of flexion. It rolls -35..+28
-#: deg: further the L meets the front leg, the femur's collar the crown's back leg.
-#: Its legs 22 mm tubes, for the yaw's torque on them; its crown a carbon plate CROWN_R thick in
-#: the 25 mm between the yaw's drum and the pitch's L - a tube there met the femur's collar, 4 mm.
-#: Its steerer STEERER_R round: the yaw's 77 N m in torsion stood 3.7 times a 10 mm tube's
-#: allowable; its bearing arms FORK_R, a 9 mm one 1.2 (`tools/sim/members.py`). Stock
-#: sizes (`HUNG`): the steerer and the arms 24 and 22 -> 25 (the arms 1.02 of their allowable at
-#: the hips' 203 N m peak).
+#: The hip's gimbal (`gimbal`): tubes' radius, roll bearings (radius, half length, z), cradle band.
 FORK_R, CROWN_R, BEARING, BAND = 0.015, 0.005, (0.009, 0.007, 0.060), (0.043, 0.008)
 STEERER_R, ARM_R = 0.0125, 0.0125
 
@@ -395,3 +350,28 @@ def overlapping(model, angles):
         if a in ours or b in ours:
             pairs.add(tuple(sorted((model.body(a).name, model.body(b).name))))
     return sorted(pairs)
+
+
+def printed_holders():
+    """[(name, rides, print_axis, bore_r, wall_m, roof_deg)]: 2.5D PAHT-CF printed tube holders
+    and split clamp rings - each extruded along `print_axis` with zero overhang (`roof_deg` 45 on
+    transverse bolt holes)."""
+    out = []
+    for name, rides, shape in held('left_') + [(f + '_frame', f, sh) for f, sh in trunk()]:
+        if shape[0] == 'ring':
+            _t, _c, ax, r, _half = shape
+            axis = 'xyz'[max(range(3), key=lambda i: abs(ax[i]))]
+            out.append((name, rides, axis, round(r - COLLAR_M, 4), COLLAR_M, 45.0))
+    return out
+
+
+def flange_mounts():
+    """[(joint, rides, bolt_circle_r, bolts, screw_m)]: direct axial bolt-flange mounts on motor
+    cans and gearbox housings where a drum meets its bone or gimbal without an external collar."""
+    out = []
+    for joint, rides, _at, _axis in _drums():
+        if not joint.startswith('right_'):
+            r = drives.of(joint)[1].diameter / 2.0
+            out.append((joint, rides, round(r - 0.004, 4), 8 if r >= 0.035 else 6, 0.004 if r >= 0.035 else 0.003))
+    return out
+

@@ -190,3 +190,20 @@ def told(w):
 def serviced(w):
     """A service done: the drifts' trends start anew from here."""
     w['serviced_at'] = w['hours']
+
+
+def torso_load(w, ys, dt):
+    """(mass kg, (hx, hy, hz) m) of a load riding her torso, read off her insoles' rows
+    (`sysid.borne`) against her build's prediction."""
+    import numpy as np
+    lay, body = w['lay'], w['body']
+    Yb, fb = sysid.borne(lay, body, ys, dt, EVERY)
+    b = body.m.body('torso').id
+    k = lay['col'][b]
+    A = Yb[:, :, k:k + 4].reshape(-1, 4)
+    left = (fb - Yb @ w['nominal']).reshape(-1)
+    theta, *_ = np.linalg.lstsq(A, left, rcond=None)
+    mass = float(theta[0])
+    where = tuple((theta[1:4] / mass).tolist()) if abs(mass) > HUNG_KG else (0.0, 0.0, 0.0)
+    return mass, where
+

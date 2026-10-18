@@ -36,6 +36,7 @@ class Boxes:
         self.j = np.array([drives.armature(j) for j in JOINTS])
         self.c = 2.0 * drives.BOX_ZETA * np.sqrt(self.k * self.j)
         self.mesh = np.array([drives.mesh(j) for j in JOINTS])
+        self.shock = np.array([drives.shock(j) for j in JOINTS])
         self.delta, self.w = np.zeros(len(JOINTS)), np.zeros(len(JOINTS))
         self.held, self.q_was = math.radians(drives.RIGID_PLAY_DEG) / 2.0, np.zeros(len(JOINTS))
         self.q_step, self.went = np.zeros(len(JOINTS)), np.zeros(len(JOINTS))
@@ -74,13 +75,15 @@ class Boxes:
         h = dt / SUBSTEPS
         mean = np.zeros(len(ctrl))
         self.q_step, self.went = q.copy(), dt * qd
+        lim = self.gap + self.shock / np.maximum(self.k, 1.0)
         for _ in range(SUBSTEPS):
             rel = self.w - qd
             past = np.sign(self.delta) * np.maximum(np.abs(self.delta) - self.gap, 0.0)
             passed = np.where(past != 0.0, self.k * past + self.c * rel
                               + self.mesh * np.tanh(rel / MESH_RAD_S), 0.0)
+            passed = np.where(on, np.clip(passed, -self.shock, self.shock), passed)
             self.w = np.where(on, (self.w + h * (ctrl - passed) / j) / (1.0 + h * brake / j), qd)
-            self.delta += h * (self.w - qd) * on
+            self.delta = np.where(on, np.clip(self.delta + h * (self.w - qd), -lim, lim), self.delta)
             mean += passed / SUBSTEPS
         return np.where(on, mean, ctrl)
 

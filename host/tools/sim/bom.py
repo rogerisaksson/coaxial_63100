@@ -65,13 +65,34 @@ def parts():
     return sorted(out.items())
 
 
+def family_parts(n=3):
+    """[(part, count)] with all carbon tubes consolidated into `n` stock sizes (`members.families`)."""
+    from tools.sim import members
+    base = [(p, c) for p, c in parts() if not p.startswith('tube ')]
+    rows = [(m, members.judge(*m)) for m in members.members()]
+    served = [s for s in members.spans(rows) if s[2] is not None]
+    fams = members.families(served, most=max(n, 3))
+    fam = fams[n - 1][0] if len(fams) >= n and fams[n - 1] else ()
+    out = collections.Counter(dict(base))
+    for name, length, (first, last) in served:
+        k = next((i for i in fam if first <= i <= last), first)
+        rr, t = members.TUBES[k]
+        sides = 1 if name.startswith(('pelvis', 'spine', 'torso', 'neck', 'boom')) else 2
+        out['tube %gx%g mm' % (2e3 * rr, 1e3 * t)] += sides
+        out['tube %gx%g mm, m' % (2e3 * rr, 1e3 * t)] += sides * length
+    return sorted(out.items())
+
+
 def main():
     got = parts()
     for part, count in got:
         print('%5s  %s' % ('%.2f' % count if part.endswith(', m') else count, part))
-    print('%d part types' % sum(1 for p, _c in got if not p.endswith(', m')))
+    print('%d part types (%d with 3-tube family)' % (
+        sum(1 for p, _c in got if not p.endswith(', m')),
+        sum(1 for p, _c in family_parts(3) if not p.endswith(', m'))))
     return 0
 
 
 if __name__ == '__main__':
     sys.exit(main())
+
