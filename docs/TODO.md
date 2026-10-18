@@ -22,6 +22,13 @@ gets a line at the end of [DONE](DONE.md).
 
 ## Gynoid, in order
 
+- **Her errands hesitate and flicker** (reported): walked to the bed, chair
+  and stairs on keys and mouse, told to lie, sit, climb, she dithers and the
+  marks at her feet flicker. DOD: the page's key sequences run, her speed's
+  dips and the marks' toggles counted a frame, both gone, a test.
+- **HUMANOID freezes as the mouse moves** (reported): not seen here, 300
+  frames in its own console under 6 070 sweeps, 37.5 s against 37.3 still.
+  DOD: seen, its stack dumped, fixed.
 1. **Orthokinematics, the one way she moves** (orthokinematics.md): the
    humanoid robot movement is text of balance, rhythm and elasticity, compiled
    to rows; the humanoid robot latent state is stepped and rendered with no
@@ -351,6 +358,9 @@ serves its DOD; none an entry a case.
 
 ## Flight pages
 
+- **The models still look janky** (reported, with pictures): the five judged
+  against their pictures at the page's own size - silhouette, proportion,
+  colour masses, what reads in braille. DOD: PNGs beside the pictures.
 - **The budget's throttling flag**: set with the derate at 1.00 and the hold
   at 89.5 of 90 A (the helicopter's main at 16 A). DOD: the flag means a
   derate under 1, held by a test.

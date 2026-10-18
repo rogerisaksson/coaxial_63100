@@ -42,6 +42,7 @@ from machine import aerobatics, aerokin, gimbal, grounds, pull, quad
 from machine.modes import SIMULATED
 from terminal.loader import TO_MENU
 from terminal.ui import recorder
+from terminal.ui.console import WHEEL_STEP
 from terminal.ui.screen import FPS_CAP, Feed, closing, run_view, say
 from terminal.ui.scroll import HUD_WIDTH
 from terminal.ui.stage import boot, frame_of, hud, stage
@@ -185,6 +186,12 @@ def carried(frame, aim, gate, line_, width, height):
     note = '' if gate is None else 'GATE %d  %.0f m' % (
         gate, math.dist(eye, grounds.GATES[gate % len(grounds.GATES)][:3]))
     return inset.docked(onboard.picture(eye, aim, gate, line_), width, height, 'GIMBAL', note)
+
+
+def wheeled(zoomed, moved):
+    """The wheel's `moved` (WHEEL_STEP a notch) on the view's `zoomed`: a notch a ZOOM_STEP."""
+    if moved:
+        zoomed(ZOOM_STEP ** (moved / WHEEL_STEP))
 
 
 def hands(held, zoomed, record=None):
@@ -360,7 +367,8 @@ def main(argv=None):
 
     try:
         leaving = run_view(board_view, terminal, 1.0 / max(args.hz, 0.5), args.frames, draw,
-                           on_input=lambda keyed, _moved: typed(held, keys, keyed))
+                           on_input=lambda keyed, moved: (typed(held, keys, keyed), wheeled(zoomed, moved)),
+                           mouse=True, select=frozenset(), scroll_keys=False)
     finally:
         feed.stop()
         sys.setswitchinterval(switched)

@@ -285,9 +285,32 @@ def test_scenario_deck_tour_handoff_and_cybernetic_hud(report):
                  and '…' not in b_txt and ('%+5.2f' % se2.WALK_SPEED) in b_txt and len(show_humanoid.legend('temp', 60)) > 20)
 
 
+def test_her_clothes_bend_at_the_joints(report):
+    """A stride: the seat's dots on the swung thigh's side follow it, the tee's hem the pelvis
+    under a bent spine, the sleeves the torso; the rest of her as unbent."""
+    from coaxial.graphics import gynoid
+    body = gynoid.body()
+    stride = {'left_hip': -35.0, 'right_hip': 25.0, 'left_knee': 15.0, 'right_knee': 40.0, 'spine': 15.0,
+              'left_shoulder': 30.0, 'right_shoulder': -30.0}
+    bent, _n = body.pose(stride, dense=True)
+    kept, body.bends = body.bends, []
+    try:
+        stiff, _n = body.pose(stride, dense=True)
+    finally:
+        body.bends = kept
+    moved = {body.parts[i][0]: float(abs(bent[lo:hi] - stiff[lo:hi]).max())
+             for i, (lo, hi) in enumerate(body.dense_spans) if hi > lo}
+    cloth = {k: v for k, v in moved.items() if v > 1e-9}
+    report.check('the seat, the tee, the shins and the sleeves bend by 1-8 cm; nothing else moves',
+                 set(cloth) == {'cloth_seat', 'cloth_tee', 'cloth_left_shin', 'cloth_right_shin',
+                                'cloth_left_sleeve', 'cloth_right_sleeve'}
+                 and all(0.01 < v < 0.08 for v in cloth.values()),
+                 {k: round(v, 3) for k, v in cloth.items()})
+
+
 ROSTER = (test_the_humanoid_pages_mouse, test_the_humanoid_pages_keys, test_the_keys_that_move_her_are_one_twist,
           test_a_held_p_charges_a_push, test_vision_scanner_docked_pip_and_affordances, test_her_verbs_and_the_chase,
-          test_scenario_deck_tour_handoff_and_cybernetic_hud)
+          test_scenario_deck_tour_handoff_and_cybernetic_hud, test_her_clothes_bend_at_the_joints)
 
 
 def main(argv=None):

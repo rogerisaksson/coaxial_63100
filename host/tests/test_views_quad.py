@@ -332,6 +332,12 @@ def test_r_records_its_flight(report):
                  and rows[1][len(show_quad.FLIGHT) - 1] == 'rw' and held['reset'] and held['recording'] is None,
                  rows[1][len(show_quad.FLIGHT) - 1:])
     report.check('while it records the drawing carries REC and its rows', corner.strip() == '● REC ⠙ 1', corner)
+    from terminal.ui.console import WHEEL_STEP
+    zooms = []
+    show_quad.wheeled(zooms.append, 2.0 * WHEEL_STEP)
+    show_quad.wheeled(zooms.append, 0.0)
+    report.check('two wheel notches zoom two steps in, none nothing',
+                 zooms == [show_quad.ZOOM_STEP ** 2], zooms)
 
 
 def test_s_undresses_the_crafts(report):
