@@ -55,16 +55,9 @@ the kept replays at theirs: 40 of 78, standing 31 and walking 24 of 32, replays
 
 - A swing begun is finished (`stride.beat`): 41 of 78, the spin in place standing
   where it fell at 7.94 s; nothing else moved, her walk the same to the digit.
-- The kept stop after a walk: her left toes met the room's wall 31 mm up as she
-  stopped at it, read as a trip; the stumble - 1.15 Hz, lift 2.6, drive 0.32 and
-  more for 0.95 s - stepped her high against it, down at 8.79 s. At the bench's
-  wall five trips came in its brake and its stand, the last at 1.58 m/s.
-- Trips on a flat floor: turning, toes scuffed it at 0.6-6.6 mm, touched along
-  it at 1.00-1.02 of their load (her soles' friction, 1.0) where their corners
-  read 17-35 mm; edges met read 12.5-54 mm and 1.35-58. The stumble those scuffs
-  fired carried the turns' play, a hop after a stop and the sill through their
-  stops; without it all three fell. The stumble and the parry were her only
-  stepping out of a rhythm, fired by chance.
+- Trips on a flat floor: turning, toes scuffed it at 0.6-6.6 mm where their
+  corners read 17-35 mm; the stumble those scuffs fired carried the turns' play,
+  a hop after a stop and the sill through their stops, by chance.
 - The brake said 0.85 Hz and lift 0.7 where her walk is 0.94 and 1.05: kept as
   it was, the stops after a walk and a turn stood at every wobble (replays 9 of
   9), walking shoves 27.
@@ -362,6 +355,9 @@ pass beside the world's floor under each sole (`tools/sim/trace.py`).
   was, let go after two of her rhythm's swings (`latent.TURNS`): she stands in
   0.3 s, sits at 3.2 s, rises at 2.7 s, the 12 replays whole. Let go only
   with her capture point inside her soles, hop-after-a-stop fell.
+- Her doing read at the world's passes between her law's: a stand her law held
+  came and went at every pass, 596 flips in a stop, the page's arrows with it.
+  Read at her law's last pass (`se2.doing`), 2.
 - A hold let go kept its start: a hop said 2.1 s after a stop, her still
   stepping, was let go at once onto one sole (275/0 N) and fell landing at 3 of
   9 wobbles; each hold counted from its own, 1, after a 38 N push.

@@ -27,6 +27,15 @@ gets a line at the end of [DONE](DONE.md).
   centre of mass passes it 19 cm in 0.54 s of single support, past mu h (5 cm);
   the trailing sole slid 8 cm in its push-off and its swing went 14 cm back
   first. Rounding moves which wobbles fall. DOD: stood, 3 of 3.
+- **A hop falls** (`tools/sim/told.py hop`): said from a stand on her worker
+  she lands with her centre of mass 15 cm ahead of her soles - her trunk turned
+  on in the air and took them back - and is down at 2.4 s. A second law,
+  `flight.shape_hop`, governs it, not her text. Left out, her loop's own hop
+  stands from a stand (still at 4.16 s) and the turn's replay at 7 of 7
+  wobbles; after a stop, still stepping, the hold lets the load go at a pass
+  with no need and she throws on one sole, down at 8.8 s at every wobble. DOD:
+  no second law; still within 3 s from a stand and after a stop, 3 of 3
+  wobbles; `test_ortho`'s hop to 5 s.
 - **The bed soft, her lie-down a throw** (asked): F at the bed lies her down
   or throws her onto it, the mattress giving, not a block. DOD: sink and
   time to rest measured.

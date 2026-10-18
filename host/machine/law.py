@@ -110,6 +110,7 @@ def control(g, dt):
     """A pass of her latent loop on what she senses: `g['got']` solved, `g['leg_kp']` her legs'
     stiffness by their stance."""
     body, ev, y_in = g['body'], g['every'], g['sense']
+    g['t_law'] = g['t']
     s = g['s'] = seen(g, dt * ev)
     g['grip'] = grip.felt(g['grip'], g['grip_seen'], body.d.xmat[g['grip_at']].reshape(2, 2, 3, 3),
                           y_in[edge.TOUCH].reshape(-1, 3),

@@ -58,8 +58,10 @@ def _dropped(g):
 
 
 def doing(g):
-    """What she is doing now: the name of her table's row that last came, 'rest' with none."""
-    come = [(w, n) for w, n in g['labels'] if w <= g['t'] + 1e-9]
+    """What she is doing: the name of her table's row that last came by her law's last pass, 'rest'
+    with none. Read at the world's own passes between, a row her law holds came and went every
+    pass, 596 flips in a stop."""
+    come = [(w, n) for w, n in g['labels'] if w <= g.get('t_law', g['t']) + 1e-9]
     return max(come)[1] if come else 'rest'
 
 

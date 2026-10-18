@@ -298,4 +298,7 @@ the fifty before these: [DONE_1-50](DONE_1-50.md).
     ingestion and trend fitting replace row-by-row `csv.DictReader` loops, and
     unrolled 4x2 cell reductions in `lit.braille` shave 1.8 ms/frame bit-for-bit
     ([sight](findings/sight.md)).
-
+78. Her doing read at her law's passes (`se2.doing`): a stand held while she
+    swings no longer comes and goes at the world's passes between, 596 flips in
+    a stop to 2; `tools/sim/told.py` times what a player's keys and F ask
+    ([scenarios](findings/scenarios.md)).
