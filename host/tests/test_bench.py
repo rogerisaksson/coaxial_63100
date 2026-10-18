@@ -4,7 +4,7 @@ import os
 import sys
 import time
 
-from coaxial import Coaxial63100
+from coaxial import SIMULATED, Coaxial63100
 from coaxial.comm.session import open_session
 from coaxial.errors import NoReplyError, RigError
 
@@ -22,16 +22,16 @@ SLACK = 0.70
 WINDOW = 6.0
 
 
-def round_trips(rig):
+def round_trips(rig, window=WINDOW):
     """Modbus request/reply per second, on the cheapest call there is."""
-    done, quiet, end = 0, 0, time.time() + WINDOW
+    done, quiet, end = 0, 0, time.time() + window
     while time.time() < end:
         try:
             rig.board.afe.is_on()
             done += 1
         except (NoReplyError, RigError):
             quiet += 1
-    return done / WINDOW, quiet
+    return done / window, quiet
 
 
 def per_second(rig, read, seconds=WINDOW):
@@ -42,15 +42,15 @@ def per_second(rig, read, seconds=WINDOW):
     return (read() - first) / (time.time() - t0)
 
 
-def measure(rig):
+def measure(rig, window=WINDOW):
     """Each figure in its own quiet window; the order is part of it."""
     got = {
         'angle_updates_per_s': per_second(
-            rig, lambda: rig.board.angle.state()['updates']),
+            rig, lambda: rig.board.angle.state()['updates'], window),
         'observer_steps_per_s': per_second(
-            rig, lambda: rig.board.thermal.state()['steps']),
+            rig, lambda: rig.board.thermal.state()['steps'], window),
     }
-    trips, quiet = round_trips(rig)
+    trips, quiet = round_trips(rig, window)
     got['round_trips_per_s'] = trips
     got['quiet_replies'] = quiet
     return got
@@ -77,25 +77,46 @@ def report(now, was):
     return lines, bad
 
 
+def selftest(was):
+    """(passed, failed) for the baseline, the regression gate and the probe."""
+    keys = ('angle_updates_per_s', 'observer_steps_per_s', 'round_trips_per_s')
+    passed = failed = 0
+    with Coaxial63100(execution_mode=SIMULATED) as rig:
+        sampled = measure(rig, window=0.01)
+    _, ok_bad = report({k: was[k] * SLACK for k in keys}, was)
+    lines, reg_bad = report(dict(was, round_trips_per_s=was['round_trips_per_s'] * 0.5), was)
+    for label, cond in (
+            ('baseline carries the three positive rates',
+             all(was.get(k, 0.0) > 0.0 for k in keys)),
+            ('report passes at SLACK and flags a regression below it',
+             ok_bad == 0 and reg_bad == 1 and any('REGRESSED' in x for x in lines)),
+            ('measure samples every rate and quiet_replies',
+             set(sampled) == set(keys) | {'quiet_replies'} and sampled['round_trips_per_s'] > 0.0)):
+        print('  %s  %s' % ('PASS' if cond else 'FAIL', label))
+        passed += bool(cond)
+        failed += not cond
+    return passed, failed
+
+
 def main():
     record = '--record' in sys.argv
+    was = {}
+    if os.path.exists(BASELINE):
+        with open(BASELINE, encoding='utf-8') as handle:
+            was = json.load(handle)
 
     _session, origin = open_session()
     if not origin.real or origin.kind == 'emulator':
+        passed, failed = selftest(was)
         print('  SKIP  the board\'s rates against its baseline: no board answered, the '
               'stand-in or the emulator measures this PC')
-        print('0 passed, 0 failed, 1 skipped')
-        return 0
+        print('\n%d passed, %d failed, 1 skipped' % (passed, failed))
+        return 1 if failed else 0
 
     # AFE_ON held, as the baseline was recorded.
     with Coaxial63100(port=origin.port, power_afe=True) as rig:
         print('  %s\n' % rig.origin.label)
         now = measure(rig)
-
-    was = {}
-    if os.path.exists(BASELINE):
-        with open(BASELINE, encoding='utf-8') as handle:
-            was = json.load(handle)
 
     lines, bad = report(now, was)
     print('\n'.join(lines))

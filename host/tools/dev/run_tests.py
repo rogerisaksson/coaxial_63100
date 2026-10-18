@@ -23,6 +23,7 @@ import sys
 # The stand-in where no board answers, not an emulator a suite: the emulator's own suite names
 # its URLs.
 os.environ.setdefault('COAXIAL_FALLBACK', 'simulated')
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from tools.dev import background, counts
 from tools.dev.focus import physical_cores

@@ -49,7 +49,7 @@ def run_captured(argv, timeout, cwd=None):
     """`argv` run with its output captured, or None once `timeout` has
     passed - the whole tree killed, not the child alone.
     """
-    env = dict(os.environ, PYTHONIOENCODING='utf-8')
+    env = dict(os.environ, PYTHONIOENCODING='utf-8', PYTHONPATH=str(ROOT))
     group = {'start_new_session': True} if os.name != 'nt' else {}
     proc = subprocess.Popen(argv, cwd=cwd, env=env, stdout=subprocess.PIPE,
                             stderr=subprocess.PIPE, text=True,

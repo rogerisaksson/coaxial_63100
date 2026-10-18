@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 """The stand-in must answer in the same shape as the board."""
+import os
 import re
 import sys
 import time
+
+os.environ['COAXIAL_FALLBACK'] = 'emulated'
 
 from coaxial.comm.session import open_session
 from coaxial.errors import LINK_FAULTS

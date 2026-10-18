@@ -796,11 +796,13 @@ def test_the_board_loops_a_joint(report):
                  all(abs(b - x) <= 1e-7 * abs(x) for b, x in zip(back, v)), back)
     rig = Coaxial63100(execution_mode=SIMULATED).open()
     try:
+        paced = rig.board.drive.paced
+        paced(0.0)
         joint = Coaxial(rig, name='knee').actuator('joint')
         f = joint.feedback('knee')
         joint.arm(f)
         joint.align(f)
-        time.sleep(0.3)
+        paced(0.3)
         f.measure.configure(zero=joint.zero())
         ctrl = rig.ctrl
         ctrl.load(f)
@@ -813,11 +815,11 @@ def test_the_board_loops_a_joint(report):
         except RigError as exc:
             report.check('a slot is refused while the loop runs', 'off' in str(exc), exc)
         ctrl.rows([(0.8, 20.0), (0.8, -20.0)])
-        time.sleep(0.7)
+        paced(0.7)
         up = ctrl.state()
-        time.sleep(0.8)
+        paced(0.8)
         down = ctrl.state()
-        time.sleep(0.5)
+        paced(0.5)
         held = ctrl.state()
         report.check('the shaft follows the rows, 20 deg then -20',
                      abs(up['value'] - 20.0) < 1.0 and abs(down['value'] + 20.0) < 1.0,

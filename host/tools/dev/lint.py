@@ -22,6 +22,8 @@ import tarfile
 import tempfile
 import urllib.request
 
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
 from tools import HOST, REPO
 
 CACHE = os.path.join(os.environ.get('LOCALAPPDATA') or os.path.expanduser('~/.cache'),

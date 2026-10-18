@@ -66,6 +66,10 @@ except Exception:
     $stale = Invoke-Python -Python $Python -Code @'
 import fnmatch, importlib.util as util, pathlib, re
 host = pathlib.Path(r'HOST_PATH').resolve()
+git = host.parent / '.git'
+roots = {host}
+if git.is_file():
+    roots.add((host.parent / git.read_text(encoding='utf-8').split(':', 1)[1].strip()).resolve().parents[2] / 'host')
 text = (host / 'pyproject.toml').read_text(encoding='utf-8')
 include = re.findall(r'"([^"]+)"', re.search(r'^include\s*=\s*\[([^\]]*)\]', text, re.M).group(1))
 stale = []
@@ -73,7 +77,7 @@ for d in sorted(p for p in host.iterdir() if p.is_dir() and any(p.glob('*.py')))
     if any(fnmatch.fnmatch(d.name, p) for p in include):
         spec = util.find_spec(d.name)
         where = [pathlib.Path(p).resolve() for p in (spec.submodule_search_locations or [])] if spec else []
-        if d not in where:
+        if not any((r / d.name) in where for r in roots):
             stale.append(d.name)
 print(','.join(stale))
 '@.Replace('HOST_PATH', $Host_)
