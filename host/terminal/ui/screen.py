@@ -2,6 +2,7 @@
 
 Shared: the structure suite fails a definition that lives in two files.
 """
+import faulthandler
 import os
 import re
 import sys
@@ -149,6 +150,12 @@ def gauge(fraction, width, hot=THROTTLE_AT):
 #: Maximum frames and feed reads per second across views.
 FPS_CAP = 20.0
 
+#: A frame of a page in a console past STALL_S dumps every thread's stack, appended to STALL_LOG:
+#: HUMANOID froze as the mouse moved on the bench, and not here in 300 frames under 6 070 sweeps.
+STALL_S = 3.0
+STALL_LOG = os.path.join(os.environ.get('LOCALAPPDATA') or os.path.expanduser('~/.cache'), 'coaxial_63100',
+                         'stalls.txt')
+
 #: Default rig URI when none is passed on the command line.
 PORT = 'native://'
 
@@ -244,12 +251,15 @@ def run_view(board_view, console, period, frames, draw, on_input=None,
     click, drag = on_click or _ignore, on_drag or _ignore
     count = 0
     q_kw = {'quits': quits} if quits != QUIT_KEYS else {}
+    stalls = _stall_log() if console else None
     try:
         with curtain(board_view) as page, Keys(console, mouse=mouse, select=select,
                                                pan=on_pan is not None, **q_kw) as keys:
             while True:
                 count += 1
                 started = time.monotonic()
+                if stalls is not None:
+                    faulthandler.dump_traceback_later(STALL_S, file=stalls)
                 shown = draw()
                 page.update(shown, refresh=True)
                 rate_of(board_view).tick(started)
@@ -275,6 +285,22 @@ def run_view(board_view, console, period, frames, draw, on_input=None,
                 if on_pan is not None and (px or py):
                     on_pan(px, py)
     except KeyboardInterrupt:
+        return None
+    finally:
+        if stalls is not None:
+            faulthandler.cancel_dump_traceback_later()
+            stalls.close()
+
+
+def _stall_log():
+    """STALL_LOG open to append, a line naming the page's start; None where it cannot be."""
+    try:
+        os.makedirs(os.path.dirname(STALL_LOG), exist_ok=True)
+        out = open(STALL_LOG, 'a', encoding='utf-8')
+        out.write('%s %s\n' % (time.strftime('%Y-%m-%d %H:%M:%S'), ' '.join(sys.argv)))
+        out.flush()
+        return out
+    except OSError:
         return None
 
 

@@ -36,6 +36,32 @@ def test_the_screen_keeps_its_own_rate(report):
                  '%d draws, the first shown %d times' % (len(drawn), again))
 
 
+def test_a_stalled_frame_leaves_its_stack(report):
+    """A page in a console whose frame stands past STALL_S appends every thread's stack to its
+    stall log, the stalled call named: HUMANOID froze as the mouse moved on the bench, not here."""
+    import io
+    import os
+    import tempfile
+    import time
+    from rich.console import Console
+    from terminal.ui import screen
+    was, log, drawn = (screen.STALL_S, screen.STALL_LOG), os.path.join(tempfile.mkdtemp(), 'stalls.txt'), []
+
+    def stalled_draw():
+        drawn.append(len(drawn))
+        if len(drawn) == 2:
+            time.sleep(0.6)
+        return 'frame %d' % len(drawn)
+    screen.STALL_S, screen.STALL_LOG = 0.2, log
+    try:
+        screen.run_view(Console(file=io.StringIO()), True, 0.05, 3, stalled_draw, scroll_keys=False)
+    finally:
+        screen.STALL_S, screen.STALL_LOG = was
+    with open(log, encoding='utf-8') as f:
+        text = f.read()
+    report.check('a frame past STALL_S leaves the stack of its stalled draw', 'stalled_draw' in text, text[-300:])
+
+
 def test_the_chrome_at_its_edges(report):
     """The chrome off its usual ground: no region to dress, control codes and wide
     characters in what it dresses, a piece of it with no room."""
@@ -450,7 +476,7 @@ def test_the_thermal_page_arms_with_the_break_in(report):
 
 
 ROSTER = (test_the_stand_shows_its_acts, test_the_page_tool_holds_one_frame, test_the_screen_keeps_its_own_rate,
-          test_the_thermal_page_arms_with_the_break_in,
+          test_a_stalled_frame_leaves_its_stack, test_the_thermal_page_arms_with_the_break_in,
           test_the_chrome_at_its_edges,
           test_each_page_draws_on_a_terminal, test_the_console_it_draws_on,
           test_the_crt_draws_on_the_terminal, test_the_terminal_is_asked_how_tall_a_cell_is,

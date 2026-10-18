@@ -35,7 +35,9 @@ gets a line at the end of [DONE](DONE.md).
   own keys, `test_errands.py`). DOD: climbed on W, a test.
 - **HUMANOID freezes as the mouse moves** (reported): not seen here, 300
   frames in its own console under 6 070 sweeps, 37.5 s against 37.3 still.
-  DOD: seen, its stack dumped, fixed.
+  A frame past 3 s appends every thread's stack to
+  `%LOCALAPPDATA%/coaxial_63100/stalls.txt` (`screen.STALL_LOG`). DOD: seen,
+  its stack dumped, fixed.
 
 1. **Orthokinematics, the one way she moves** (orthokinematics.md): the
    humanoid robot movement is text of balance, rhythm and elasticity, compiled
