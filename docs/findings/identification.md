@@ -102,7 +102,12 @@ torques. What her law senses: [sensing](sensing.md); the drives:
   play within 2 % on the trunk, the neck, the head, the shoulders, the hip
   yaws and the hips; the knees', elbows' and ankle rolls' wind-up 30-60 %
   low, the damping and the mesh's friction not read - they act at the mode,
-  which a 1 kHz encoder sees at a fifth of a cycle a step.
+  which a 1 kHz encoder sees at a fifth of a cycle a step. Not kept: the rotor's
+  inertia fitted with the box on the wound rows - the elbows within 3-10 % at
+  the first pass, the knees and ankles 5-46 %, the head 68 % off, the fit
+  wandering as the rows are chosen anew by it -; the box read on arrays
+  low-passed at 3-20 Hz, every wind-up 20-90 % low: the wind-up's signal is the
+  ring's size.
 
 ## On her walk
 
