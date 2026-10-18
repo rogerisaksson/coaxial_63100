@@ -18,7 +18,7 @@ mjcf.STAND = 1.0
 
 
 def main(argv=None):
-    from machine import identified, sysid, wbc
+    from machine import campaign, identified, sysid, wbc
     p = argparse.ArgumentParser(description='Her identification campaign on the stand, run and tabled.')
     p.add_argument('--seconds', type=float, default=24.0, help='the campaign, s')
     p.add_argument('--payload', type=float, default=0.0, help='kg in her left hand, the world\'s')
@@ -34,9 +34,9 @@ def main(argv=None):
     if args.payload:
         world.model.body_mass[world.model.body('left_hand').id] += args.payload
         world._mj.mj_setConst(world.model, world.data)
-    world.reset(sysid.pose(), where=(0.0, mjcf.STAND_M, 0.0))
-    ys, taus, touched = sysid.excite(world, sysid.setpoints(world, args.seconds, np.random.default_rng(args.seed)))
-    smooth = sysid.smoothed(ys, taus, physics.STEP_S) if args.boxed else (ys, taus)
+    world.reset(campaign.pose(), where=(0.0, mjcf.STAND_M, 0.0))
+    ys, taus, touched = campaign.excite(world, campaign.setpoints(world, args.seconds, np.random.default_rng(args.seed)))
+    smooth = campaign.smoothed(ys, taus, physics.STEP_S) if args.boxed else (ys, taus)
     Y, tau = sysid.rows(lay, body, smooth[0], smooth[1], physics.STEP_S, args.every)
     base = sysid.base(lay, Y)
     got = sysid.identify(base, Y, tau)
@@ -56,7 +56,7 @@ def main(argv=None):
     if args.boxed:
         from machine.figure import JOINTS
         armature = np.array([got['theta'][got['names'].index(n + '.J')] for n in drives])
-        read = sysid.boxes(body, ys, taus, physics.STEP_S, armature)
+        read = campaign.boxes(body, ys, taus, physics.STEP_S, armature)
         print('\n%-20s %9s %9s %8s %8s' % ('gearbox', 'k N m/rad', 'world', 'play rad', 'world'))
         for i, name in enumerate(drives):
             k = JOINTS.index(name)

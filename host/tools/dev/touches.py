@@ -4,7 +4,7 @@ from tools.dev.suites import (AERO_CORE, BENCH, BOARD_MEM, BOOT, BOOT_CLIENT, BO
                               CONTROLLER, CORE, CTRL_CORE, CYCLIC, DAQ_API, DAQ_CORE, DRIVE,
                               DRIVE_OBSERVER, EMULATOR, FILTER, FLIGHT, GVS, GYNOID,
                               HEATED, NATIVE, NATIVE_HEAT, OLLAMA, ORTHO, FLOOR, QUADS, REACH, RENDER, REPLAYS, SCENES,
-                              SENSORLESS, SHTP, SIGHT, STREAMS, STRUCTURE, SYSID, TERMS, THERMAL,
+                              SENSORLESS, SHTP, SIGHT, STREAMS, STRUCTURE, SYSID, SYSID_LIVE, TERMS, THERMAL,
                               THERMAL_APP, VIEWS, WBC, WBC_CORE, WIRE, WORLD_CORE, WRENCH)
 
 # What a change to each part of the tree can plausibly have broken.
@@ -79,10 +79,11 @@ TOUCHES = (
     ('host/machine/tour.py',                   (STRUCTURE, 'test_views_humanoid.py')),
     ('host/machine/library/',                  (STRUCTURE, 'test_mirrors.py', GYNOID, ORTHO, WBC, WRENCH)),
     ('host/machine/robots/',                   (STRUCTURE, 'test_mirrors.py', GYNOID, ORTHO, WBC, WRENCH)),
-    ('host/machine/sysid.py',                  (STRUCTURE, SYSID)),
-    ('host/machine/identified.py',             (STRUCTURE, SYSID, WBC, WBC_CORE)),
+    ('host/machine/sysid.py',                  (STRUCTURE, SYSID, SYSID_LIVE)),
+    ('host/machine/campaign.py',               (STRUCTURE, SYSID, SYSID_LIVE)),
+    ('host/machine/identified.py',             (STRUCTURE, SYSID, SYSID_LIVE, WBC, WBC_CORE)),
     ('host/machine/',                          (CONTROLLER, GYNOID, SIGHT, REACH, TERMS, WBC, WBC_CORE,
-                                                FLIGHT, WRENCH, SYSID, ORTHO, FLOOR, CYCLIC, REPLAYS, SCENES,
+                                                FLIGHT, WRENCH, SYSID, SYSID_LIVE, ORTHO, FLOOR, CYCLIC, REPLAYS, SCENES,
                                                 'test_simulated.py', 'test_mcp.py',
                                                 'test_views_humanoid.py', 'test_views_floor.py')),
     ('host/coaxial/graphics/gynoid.py',        (RENDER, *VIEWS, GYNOID)),

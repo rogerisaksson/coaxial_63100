@@ -30,9 +30,9 @@ torques. What her law senses: [sensing](sensing.md); the drives:
 - On the stand (`mjcf.STAND`: her pelvis welded 1.3 m up, `solref` 0.005):
   every drive swung at once met herself - feet on feet 417 steps of 12 000,
   forearm on thigh 372, shank on thigh 290. A limb at a time
-  (`sysid.STAGES`), its joints swung 35 % of their range 5 % from either stop
+  (`campaign.STAGES`), its joints swung 35 % of their range 5 % from either stop
   and the unlimited 0.5 rad, the hip's roll abducted, her arms held out before
-  her (`sysid.POSE`, shoulders flexed 90 deg): 0 steps touched in 24 s.
+  her (`campaign.POSE`, shoulders flexed 90 deg): 0 steps touched in 24 s.
 - MuJoCo's `frictionloss` is Coulomb past 0.25 rad/s and a dead band under it:
   read everywhere, a drive's viscous friction came out 0.7-2.1 N m s/rad for
   0.3 and its Coulomb 0.1-0.4 for 1.2-2.2. A drive's row read only where it
@@ -95,9 +95,9 @@ torques. What her law senses: [sensing](sensing.md); the drives:
   mode (187 rad/s at a knee) through the campaign, in the motor's encoder and
   the torque that drives it; the armature read off its second differences
   came out negative on 7 drives and the links' residual 0.3-2.8 N m. The
-  arrays low-passed both ways at 10 Hz (`sysid.smoothed`): residual 0.05-0.42,
+  arrays low-passed both ways at 10 Hz (`campaign.smoothed`): residual 0.05-0.42,
   every armature positive, the hips' within 3 %. Each box from its two
-  encoders on the raw arrays (`sysid.boxes`, what the motor passes less its
+  encoders on the raw arrays (`campaign.boxes`, what the motor passes less its
   armature's share, at the step's middle): the wind-up within 1-10 % and the
   play within 2 % on the trunk, the neck, the head, the shoulders, the hip
   yaws and the hips; the knees', elbows' and ankle rolls' wind-up 30-60 %
@@ -121,3 +121,18 @@ torques. What her law senses: [sensing](sensing.md); the drives:
   stand, masses and first moments never stand apart -; on the walk's first
   half alone 0.44; on both 0.42, the trunk's 0.47, 0.45, 0.11 -> 0.30, 0.17,
   0.03, no drive's up by more than 0.02 (`test_her_model_holds_on_her_walk`).
+
+## Standing on her insoles
+
+- Her pelvis's six rows (`sysid.regressor`'s last: the force on her, world, and
+  the moment about her pelvis's origin in its frame) are MuJoCo's inverse
+  dynamics to 3e-13 N m at 20 random states. Standing on her law and swaying
+  (#202) 8 s, her insoles' pressures along their soles' normals at their
+  centres of pressure against them, shear-free about the point under her
+  pelvis at her insoles' height (`sysid.borne`): her weight 305.2 for 305.5 N,
+  0.034 N m rms apart at a 0.1 m lever, the moments 0.13 and 0.45 N m rms
+  apart on swings of 2 and 18.
+- Those three rows beside the stand's campaign add her pelvis's own to the base
+  parameters, 237 -> 239: her mass 31.14 kg to 0.02 %, and a first moment of her
+  pelvis (hz -0.137 for -0.147 kg m, 6 % of itself), which her drives' rows never
+  show.

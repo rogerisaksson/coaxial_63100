@@ -1,12 +1,10 @@
 """Her body identified of what she measures: each link's inertia and each drive's friction, fitted.
 
     lay = sysid.laid(body)                          # her links and the columns, on her law's model
-    world.reset(sysid.pose(), where=(0.0, mjcf.STAND_M, 0.0))   # on the stand (mjcf.STAND)
-    ref = sysid.setpoints(world, seconds, rng)      # a stage a limb, its drives at tones
-    ys, taus, touched = sysid.excite(world, ref)    # her on the stand, played a step at a time
-    ys, taus = sysid.smoothed(ys, taus, dt)         # low-passed both ways, the rotors' ring out
+    ys, taus, touched = campaign.excite(world, ref) # her edge arrays and her drives' torques a step
     Y, tau = sysid.rows(lay, body, ys, taus, dt)    # the regressor of a campaign's edge arrays
-    sysid.boxes(body, ys, taus, dt, got['theta'][J])   # each gearbox's wind-up, play, damping, mesh
+    free = sysid.free(body, ys, every)              # off the stand, the rows the model holds on
+    Yb, fb = sysid.borne(lay, body, ys, dt, every)  # her pelvis's rows her insoles measure, standing
     base = sysid.base(lay, Y)                       # the combinations its torques tell apart
     got = sysid.identify(base, Y, tau)              # each one fitted, with what it is worth
     identified.correction(lay, body, Y, tau)        # the least move of her build that fits it
@@ -25,9 +23,8 @@ touches her soles; a robot of her build hangs the same way, its boards' currents
 """
 import math
 
-from machine import drives, edge, figure, terms
-from machine.errors import MachineError
-from machine.figure import JOINTS, LEG
+from machine import edge
+from machine.figure import JOINTS
 
 #: A link's inertial parameters, in its frame about its origin.
 INERTIAL = ('m', 'hx', 'hy', 'hz', 'Ixx', 'Ixy', 'Ixz', 'Iyy', 'Iyz', 'Izz')
@@ -41,22 +38,6 @@ TRUST = 0.10
 #: A drive's row is read only where it slides faster than this, rad/s: at rest its Coulomb
 #: friction is whatever holds it, anything within its limit.
 STICK = 0.25
-#: A gearbox counts as wound up passing more than this, N m, and is read on this many rows at
-#: least (`boxes`); a campaign's arrays low-passed at this, Hz, both ways, before its rows
-#: (`smoothed`: the tones under 1.4, a rotor's mode 30).
-WOUND_NM, WOUND_ROWS, SMOOTH_HZ = 1.0, 25, 10.0
-#: The excitation's sines a drive, Hz; the share of a joint's range it swings through and the
-#: share kept from either stop; an unlimited joint's swing, rad; the parts whose unlimited
-#: joint swings abducted; a stage's ease in and out, s.
-TONES, SWING, MARGIN, FREE_RAD = ((0.23, 0.61, 1.37), (0.31, 0.79, 1.13)), 0.35, 0.05, 0.5
-ABDUCTED, RAMP_S = ('hip',), 0.5
-#: Her pose on the stand: the stand's (`figure.stand`) with each (part, movement, deg) of
-#: POSE laid on it (`machine.terms`) - her arms held out before her, clear of her thighs.
-POSE = (('shoulder', 'flexion', 90.0),)
-#: The campaign's stages, a limb each: its driven joints swung, the rest held where they stand.
-STAGES = (('spine_roll', 'spine', 'waist', 'neck', 'head'),) + tuple(
-    tuple(side + k for k in kinds) for kinds in (('shoulder', 'elbow'), tuple(k[1:] for k in LEG))
-    for side in ('left_', 'right_'))
 
 
 def laid(body):
@@ -110,11 +91,12 @@ def _rotation(q):
 
 
 def regressor(lay, body, qpos, qvel, qacc, a0, wacc=None):
-    """Y (N, hinges, P) at N states of her law's model: `qpos` (N, nq) and `qvel`, `qacc`
+    """Y (N, hinges + 6, P) at N states of her law's model: `qpos` (N, nq) and `qvel`, `qacc`
     (N, nv) in MuJoCo's convention, `a0` (N, 3) her pelvis's origin's acceleration less gravity,
-    world; every hinge's row, as its torque would be in a world without gravity. `wacc` (N,
-    driven) each motor's acceleration through its gearbox, the armature's column: the joint's
-    own without."""
+    world; every hinge's row, as its torque would be in a world without gravity, then her
+    pelvis's six: the force on her, world, and the moment about her pelvis's origin in its
+    frame - what the floor and whatever else touches her must supply. `wacc` (N, driven) each
+    motor's acceleration through its gearbox, the armature's column: the joint's own without."""
     import numpy as np
     m, d, mj = body.m, body.d, body.mj
     n = len(qpos)
@@ -148,7 +130,8 @@ def regressor(lay, body, qpos, qvel, qacc, a0, wacc=None):
         V[b], A[b] = (wv, uv), (wa, ua)
     hinge = lay['hinge']
     at = {dof: k for k, dof in enumerate(hinge)}
-    Y = np.zeros((n, len(hinge), len(lay['names'])))
+    Y = np.zeros((n, len(hinge) + 6, len(lay['names'])))
+    force, moment = slice(len(hinge), len(hinge) + 3), slice(len(hinge) + 3, len(hinge) + 6)
     for b in lay['bodies']:
         Rb, pb = xmat[:, b], xpos[:, b]
         wv, uv = V[b]
@@ -169,6 +152,8 @@ def regressor(lay, body, qpos, qvel, qacc, a0, wacc=None):
         fw = np.einsum('nij,njc->nic', Rb, f)
         nw = np.einsum('nij,njc->nic', Rb, nn) + np.cross(pb[:, :, None], fw, axis=1)
         cols = slice(lay['col'][b], lay['col'][b] + 10)
+        Y[:, force, cols] = fw
+        Y[:, moment, cols] = np.einsum('nji,njc->nic', R, nw - np.cross(p[:, :, None], fw, axis=1))
         up = b
         while up != pelvis:
             for dof in lay['dofs'][up]:
@@ -195,12 +180,12 @@ def _tensor(w):
     return L
 
 
-def rows(lay, body, ys, taus, dt, every=1):
-    """(Y (N, driven, P), tau (N, driven)) of a campaign: `ys` (N + 1, SENSED) her edge arrays a
-    step `dt` apart, `taus` (N, JOINTS) her drives' torques over each step, every `every`th
-    step kept. Her turn, spin and specific force are her IMU's, her joints her encoders'; a
-    rate's difference over the step its acceleration; what she does not measure - her hair,
-    her hems - at rest; a drive's row zero where it does not slide (STICK)."""
+def _state(body, ys, dt, every):
+    """(qpos, qvel, qacc, a0, wacc, at) of her edge arrays `ys` a step `dt` apart, every
+    `every`th: her turn, spin and specific force her IMU's, her joints her encoders'; a rate's
+    difference over the step its acceleration; what she does not measure - her hair, her hems
+    - at rest; each motor's acceleration through its gearbox (QM) by differences over the steps
+    about each sample, the armature's column - rigid, the joint's own."""
     import numpy as np
     m = body.m
     at = np.arange(0, len(ys) - 1, every)
@@ -210,23 +195,65 @@ def rows(lay, body, ys, taus, dt, every=1):
     qadr = np.array([m.jnt_qposadr[m.joint(j).id] for j in JOINTS])
     vadr = np.array([m.jnt_dofadr[m.joint(j).id] for j in JOINTS])
     ys = np.asarray(ys)
-    now, then, taus = ys[at], ys[at + 1], np.asarray(taus, float)[at]
+    now, then, before = ys[at], ys[at + 1], ys[np.maximum(at - 1, 0)]
     qpos[:, 3:7], qpos[:, qadr] = now[:, edge.QUAT], now[:, edge.Q]
     qvel[:, 3:6], qvel[:, vadr] = now[:, edge.GYRO], now[:, edge.QD]
     qacc[:, 3:6] = (then[:, edge.GYRO] - now[:, edge.GYRO]) / dt
     qacc[:, vadr] = (then[:, edge.QD] - now[:, edge.QD]) / dt
     a0 = np.stack([_rotation(q) @ a for q, a in zip(then[:, edge.QUAT], then[:, edge.ACCEL])])
     driven = np.flatnonzero(body.driven)
-    # each motor's angle through its gearbox (QM): its rate and acceleration by differences
-    # over the steps about each sample, the armature's column; rigid, the joint's own
-    before = ys[np.maximum(at - 1, 0)]
-    wm = (then[:, edge.QM] - now[:, edge.QM])[:, driven] / dt
     wacc = (then[:, edge.QM] - 2.0 * now[:, edge.QM] + before[:, edge.QM])[:, driven] / dt ** 2
     wacc[at == 0] = qacc[at == 0][:, vadr[driven]]
+    return qpos, qvel, qacc, a0, wacc, at
+
+
+def rows(lay, body, ys, taus, dt, every=1):
+    """(Y (N, driven, P), tau (N, driven)) of a campaign: `ys` (N + 1, SENSED) her edge arrays a
+    step `dt` apart, `taus` (N, JOINTS) her drives' torques over each step, every `every`th
+    step kept (`_state`); a drive's row zero where it does not slide (STICK)."""
+    import numpy as np
+    qpos, qvel, qacc, a0, wacc, at = _state(body, ys, dt, every)
     Y = regressor(lay, body, qpos, qvel, qacc, a0, wacc)[:, lay['driven']]
-    tau = taus[:, driven]
+    tau = np.asarray(taus, float)[at][:, np.flatnonzero(body.driven)]
     slides = np.abs(qvel[:, [lay['hinge'][j] for j in lay['driven']]]) >= STICK
     return Y * slides[:, :, None], tau * slides
+
+
+#: Her pelvis's force row is read in N m at this lever, m, beside the moment rows.
+LEVER_M = 0.1
+
+
+def borne(lay, body, ys, dt, every=1):
+    """(Y (N, 3, P), f (N, 3)) her pelvis's rows her insoles measure, standing: the floor's push
+    up on her, LEVER_M as a moment, and its moments about the point under her pelvis's origin
+    at her insoles' height, along the world's x and z, where a push along the floor turns
+    nothing - `f` what her insoles read, each one's pressure along its sole's normal at its
+    centre of pressure. Her weight and its moments: her pelvis's own mass and first moments,
+    which her drives' rows never show."""
+    import numpy as np
+    m, d, mj = body.m, body.d, body.mj
+    qpos, qvel, qacc, a0, wacc, at = _state(body, ys, dt, every)
+    now = np.asarray(ys)[at]
+    Y = regressor(lay, body, qpos, qvel, qacc, a0, wacc)
+    n_h, pelvis = len(lay['hinge']), body.pelvis
+    insoles = [m.body(name).id for name in edge.INSOLES]
+    out, f = np.zeros((len(at), 3, Y.shape[2])), np.zeros((len(at), 3))
+    for k in range(len(at)):
+        d.qpos[:] = qpos[k]
+        mj.mj_kinematics(m, d)
+        R, p = d.xmat[pelvis].reshape(3, 3), d.xpos[pelvis]
+        push, turn, low, weight = np.zeros(3), np.zeros(3), 0.0, 0.0
+        for i, b in enumerate(insoles):
+            Ri, pi = d.xmat[b].reshape(3, 3), d.xpos[b]
+            pressed = float(now[k, edge.PRESS][i])
+            where = pi + Ri @ now[k, edge.COP][3 * i:3 * i + 3]
+            push, turn = push + Ri[:, 1] * pressed, turn + np.cross(where - p, Ri[:, 1] * pressed)
+            low, weight = low + pressed * where[1], weight + pressed
+        h = p[1] - low / max(weight, 1e-9)
+        F, M = Y[k, n_h:n_h + 3], R @ Y[k, n_h + 3:n_h + 6]
+        out[k] = (LEVER_M * F[1], M[0] + h * F[2], M[2] - h * F[0])
+        f[k] = (LEVER_M * push[1], turn[0] + h * push[2], turn[2] - h * push[0])
+    return out, f
 
 
 #: A drive's row off the stand is read where the model holds: no joint of its limb within
@@ -328,134 +355,3 @@ def identify(b, Y, tau, min_condition=1e-9):
     return {'theta': theta, 'names': b['names'], 'uncertainty': unc, 'trusted': unc < TRUST,
             'condition': condition, 'residual': np.sqrt((left * left).sum(axis=0) / np.maximum(read, 1)),
             'read': read, 'samples': int(len(tau))}
-
-
-def pose():
-    """{joint: deg} she takes on the stand: the stand's, POSE's movements on it, every limb's."""
-    degrees = figure.stand()
-    for part, movement, deg in POSE:
-        found = terms.find(part, movement)
-        if found is None:
-            raise MachineError('she has no %s of the %s to pose' % (movement, part))
-        kind_, sign = found[0], found[1]
-        for name in JOINTS:
-            if drives.kind(name) == kind_:
-                degrees[name] = degrees[name] + sign * deg
-    return degrees
-
-
-def smoothed(ys, taus, dt, hz=SMOOTH_HZ):
-    """(ys, taus) low-passed at `hz` both ways (no phase), every sensed column and every torque
-    alike: a gearbox's rotor rings at its mode in the motor's encoder and the torque that
-    drives it, far above the campaign's tones, and the drives' armature read off its second
-    differences came out negative on a third of them."""
-    import numpy as np
-    a = math.exp(-2.0 * math.pi * hz * dt)
-
-    def both(x):
-        x = np.array(x, float)
-        for sweep in (range(1, len(x)), range(len(x) - 2, -1, -1)):
-            for k in sweep:
-                x[k] = a * x[k - 1 if sweep.step > 0 else k + 1] + (1.0 - a) * x[k]
-        return x
-    ys, taus = np.asarray(ys, float), np.asarray(taus, float)
-    out = ys.copy()
-    for cols in (edge.QUAT, edge.GYRO, edge.ACCEL, edge.Q, edge.QD, edge.QM):
-        out[:, cols] = both(ys[:, cols])
-    out[:, edge.QUAT] /= np.linalg.norm(out[:, edge.QUAT], axis=1, keepdims=True)
-    return out, both(taus)
-
-
-def boxes(body, ys, taus, dt, armature, every=1):
-    """Each drive's gearbox from its two encoders: (k N m/rad, play rad, c N m s/rad, mesh N m)
-    a drive (driven, 4) by least squares on the steps it is wound up - past its play the box
-    passes k (delta - play sign delta) + c rel + mesh sign rel to its link, delta the motor's
-    angle past the joint's (QM - Q), rel their rates' difference; what it passes is the motor's
-    torque less its armature's (`identify`'s J) share of its acceleration. Rigid, nothing winds
-    up and every number is 0."""
-    import numpy as np
-    at = np.arange(1, len(ys) - 2, every)
-    driven = np.flatnonzero(body.driven)
-    ys, taus = np.asarray(ys), np.asarray(taus, float)
-    # a torque holds over its step: the wind-up, its rate and the motor's acceleration at the
-    # step's middle
-    wound_up = ys[:, edge.QM] - ys[:, edge.Q]
-    delta = 0.5 * (wound_up[at] + wound_up[at + 1])[:, driven]
-    rel = (wound_up[at + 1] - wound_up[at])[:, driven] / dt
-    qm = ys[:, edge.QM]
-    wacc = (qm[at + 2] - qm[at + 1] - qm[at] + qm[at - 1])[:, driven] / (2.0 * dt ** 2)
-    passed = taus[at][:, driven] - np.asarray(armature) * wacc
-    out = np.zeros((len(driven), 4))
-    for i in range(len(driven)):
-        wound = np.abs(passed[:, i]) > WOUND_NM
-        if wound.sum() < 4 * WOUND_ROWS:
-            continue
-        A = np.column_stack([delta[wound, i], -np.sign(delta[wound, i]), rel[wound, i], np.sign(rel[wound, i])])
-        fit, _r, _k, _s = np.linalg.lstsq(A, passed[wound, i], rcond=None)
-        k = fit[0]
-        out[i] = (k, fit[1] / k if k > 0.0 else 0.0, fit[2], fit[3])
-    return out
-
-
-def swing(world, index):
-    """(middle rad, half swing rad) of drive `index`'s excitation: SWING of its range, MARGIN
-    from either stop, from where it stands as far as that leaves it; FREE_RAD with no stop,
-    about where it stands - a joint of ABDUCTED swung abducted from there (`machine.terms`)."""
-    m = world.model
-    name = JOINTS[index]
-    j, q0 = m.joint(name).id, float(world.target[index])
-    if m.jnt_limited[j]:
-        lo, hi = m.jnt_range[j]
-        amp, keep = SWING * (hi - lo), MARGIN * (hi - lo)
-        return min(max(q0, lo + keep + amp), hi - keep - amp), amp
-    for part in ABDUCTED:
-        found = terms.find(part, 'abduction')
-        if found and drives.kind(name) == found[0]:
-            return q0 + found[1] * FREE_RAD, FREE_RAD
-    return q0, FREE_RAD
-
-
-def setpoints(world, seconds, rng):
-    """(N + 1, JOINTS) rad, the campaign's setpoints a step of `seconds`: a stage a limb
-    (STAGES) in turn, its drives each at TONES about its swing's middle, the phases drawn, eased
-    in and out over RAMP_S; the rest where they stand."""
-    import numpy as np
-    from machine import physics
-    h = physics.STEP_S
-    per = int(round(seconds / len(STAGES) / h))
-    ref = np.tile(world.target, (per * len(STAGES) + 1, 1))
-    t = np.arange(per) * h
-    ease = np.minimum(1.0, np.minimum(t, t[-1] - t) / RAMP_S)
-    for s, stage in enumerate(STAGES):
-        for name in stage:
-            i = JOINTS.index(name)
-            mid, amp = swing(world, i)
-            tone = np.array(TONES[i % len(TONES)])
-            phase = rng.uniform(0.0, 2.0 * math.pi, size=len(tone))
-            swung = mid + amp * np.sin(2.0 * math.pi * np.outer(t, tone) + phase).sum(axis=1) / len(tone)
-            ref[s * per:(s + 1) * per, i] = world.target[i] + ease * (swung - world.target[i])
-    return ref
-
-
-def excite(world, ref):
-    """(ys (N + 1, SENSED), taus (N, JOINTS), touched) of `ref` (N + 1, JOINTS) played on the
-    stand a step each: her edge read every step and her drives' torques over it; `touched` the
-    steps something touched her."""
-    import numpy as np
-    from machine import physics
-    y = edge.laid(world)
-    driven = np.flatnonzero(world.driven)
-    now = [world.at]
-    world.clock = lambda: now[0]
-    ys, taus, touched = [], [], 0
-    for k in range(len(ref)):
-        ys.append(edge.felt(world, y).copy())
-        touched += int(world.hers[world.model.geom_bodyid[world.data.contact.geom[:world.data.ncon]]].any())
-        if k == len(ref) - 1:
-            break
-        world.target[driven] = ref[k + 1, driven]
-        now[0] = world.at + physics.STEP_S
-        world.advance()
-        taus.append(world.motor.copy())
-    world.clock = lambda: world.data.time
-    return np.array(ys), np.array(taus), touched

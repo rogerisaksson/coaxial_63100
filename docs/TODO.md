@@ -211,9 +211,9 @@ gets a line at the end of [DONE](DONE.md).
     the gearboxes on, the wind-up and the play of 13 drives within 10 %, the
     knees', elbows' and ankles' rotors ringing at their mode; her walk's
     rows with the stand's take a fifth off the build's misfit on her walk,
-    the stand's alone add to her legs'. Left: the rotors, each box's damping
-    and mesh; her pelvis's rows - her weight and its moments against her
-    soles' loads - standing; hung in a harness.
+    the stand's alone add to her legs'; standing, her insoles' three rows give
+    her weight and a first moment of her pelvis. Left: the rotors, each box's
+    damping and mesh; hung in a harness.
     + DOD: each measured in `test_sysid.py`.
 
 ## One command, either driver
