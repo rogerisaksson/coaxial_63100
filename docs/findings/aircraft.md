@@ -148,3 +148,23 @@ wheels (0.25 m legs, the prop clear when level, the nose 12 deg up at rest).
   ahead of its middle, the elevator's 2.45 N m could not lift the tail
   (0.09 now). Its rudder, the ornithopter's and the helicopter's hold at
   2-3x their loads.
+
+## Motors
+
+Shaft power is `k_drag w^3` at the governed top (`GOV_RAD_S * STUNT_BOOST`),
+the quad's at hover (211 rad/s a rotor, 4.9 N). Cans drawn to that load,
+diameter x length; the Coaxial 63100 board (68 mm) behind each stator, on
+the helicopter's frame faces (the frames 64 mm apart, the board too wide).
+
+| Craft | W | Can mm | Board |
+| --- | --- | --- | --- |
+| quad, a rotor | 39 | 42 x 27 | under the can on the arm |
+| helicopter, main | 271 | 42 x 48 | frame's left face |
+| helicopter, tail | - | 28 x 20 | frame's right face |
+| ornithopter, a pair | 304 | 42 x 40 | behind it in the thorax |
+| aerobat, each | 292 | 42 x 40 | behind it in the cowl |
+
+Layers (S on a page): shell, frame (the quad's two plates, the heli's
+frames and tray, the orni's spine, the aerobat's longerons, firewall, spar
+and ribs), pack (a 6S brick, 140 x 45 x 40 mm, or the heli's tray lit),
+bare (shafts, mast, swashplate, cranks, spars, every blade and surface).

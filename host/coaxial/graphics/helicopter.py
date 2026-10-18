@@ -15,9 +15,9 @@ from coaxial.graphics import engine, scenery, shapes
 from coaxial.graphics.callouts import line
 from coaxial.graphics.lit import PLATE, braille, paint, project, splat
 from coaxial.graphics.quadcopter import (ARROW_HEAD, ARROW_INK, ARROW_M_PER_N, BLADE_W,
-                                         BLADES_RAD_S, BOARD_H, BOARD_R, CAN_L, CAN_R, CARBON,
-                                         LEG_R, MASK, PROP, RIM_EVERY, RIM_INK, SINK_H, SINK_R,
-                                         SKIN, ACCENT, Mesh, _at, _painted)
+                                         BLADES_RAD_S, BOARD_H, BOARD_R, CARBON, CELLS, LEG_R,
+                                         MASK, MOTOR_R, PROP, RIM_EVERY, RIM_INK, SHAFT_R,
+                                         SINK_H, SINK_R, SKIN, ACCENT, Mesh, _at, _painted)
 from machine import helicopter as heli_phys
 
 #: The camera: the eye's distance in reaches framed, and the reach the helicopter fills, m -
@@ -32,6 +32,9 @@ SKID_M, FOOT_M, SKID_X, STRUT_Z = (
     heli_phys.SKID_M, heli_phys.FOOT_M, heli_phys.SKID_X, heli_phys.STRUT_Z)
 TAIL_M, TAIL_R = heli_phys.TAIL_M, heli_phys.TAIL_R
 TAIL_AT = (0.032, 0.022, -TAIL_M)
+#: The main motor, 42 x 48 mm (271 W at the governed top, aircraft.md), up from the frame's
+#: floor; the tail's, 28 x 20 mm; the 63100 boards on the frames' faces, 64 mm apart.
+MOTOR_L, MOTOR_Y, TAIL_MOTOR = 0.048, 0.055, (0.014, 0.020)
 NEG_ARROW_INK = (96, 224, 255)
 
 _HELI_MESH = {}
@@ -44,37 +47,49 @@ def _boom():
     return shapes.loft(rings, paint(CARBON), poles=(-TAIL_M - 0.008, -0.075), along='z')
 
 
-def heli_parts():
-    """[(name, mesh)]: the helicopter in its own axes, x right, y up, z ahead."""
+def _side(name, x, mesh_r, h, material):
+    """A disc `mesh_r` round, `h` thick, standing on the frame's face at `x`, its axis across."""
+    return (name, _at(shapes.drum(mesh_r, h, 'x', material), None, (x, 0.04, 0.06)))
+
+
+def heli_parts(see='shell'):
+    """[(name, mesh)]: the helicopter in its own axes, x right, y up, z ahead; `see` a layer:
+    the airframe its two frames, tray and boom, the pack the tray's cells, bare the mast, the
+    swashplate, the tail shaft and the boom's line."""
     carbon, skin, accent = paint(CARBON), paint(SKIN), paint(ACCENT)
-    can_h = CAN_L * 0.85
+    shell, frame = see == 'shell', see != 'bare'
     out = [
-        ('frame0', shapes.box((-0.032, 0.03, 0.03), (0.004, 0.075, 0.16), skin)),
-        ('frame1', shapes.box((0.032, 0.03, 0.03), (0.004, 0.075, 0.16), skin)),
-        ('tray', shapes.box((0.0, -0.025, 0.11), (0.034, 0.018, 0.09), PLATE)),
-        ('nose', shapes.box((0.0, 0.04, 0.215), (0.028, 0.045, 0.03), accent)),
-        ('mast', _at(shapes.drum(0.010, DISC_M - 0.02, 'y', PLATE), None,
-                     (0.0, 0.5 * (DISC_M + 0.02), -0.015))),
+        ('mast', _at(shapes.drum(0.010, DISC_M - MOTOR_Y - MOTOR_L, 'y', PLATE), None,
+                     (0.0, 0.5 * (DISC_M + MOTOR_Y + MOTOR_L), -0.015))),
         ('swash', _at(shapes.drum(0.034, 0.010, 'y', PLATE), None, (0.0, SWASH_M, -0.015))),
         ('hub0', shapes.ellipsoid((0.0, DISC_M + 0.004, -0.015), (0.03, 0.012, 0.03), PLATE,
                                   rows=6)),
-        ('can0', _at(shapes.drum(CAN_R, can_h, 'y', PLATE), None,
-                     (0.0, 0.055 + can_h / 2.0, -0.015))),
-        ('board0', _at(shapes.drum(BOARD_R, BOARD_H, 'y', paint(MASK)), None,
-                       (0.0, 0.055 - BOARD_H / 2.0, -0.015))),
-        ('sink0', _at(shapes.drum(SINK_R, SINK_H, 'y', carbon), None,
-                      (0.0, 0.055 - BOARD_H - SINK_H / 2.0, -0.015))),
-        ('boom', _boom()),
-        ('vfin', shapes.box((0.0, 0.0, -TAIL_M + 0.01), (0.005, 0.11, 0.045), accent)),
-        ('hstab', shapes.box((0.0, 0.03, -0.46), (0.13, 0.004, 0.035), skin)),
-        ('can1', _at(shapes.drum(0.022, 0.038, 'x', PLATE), None,
-                     (0.012, TAIL_AT[1], TAIL_AT[2]))),
-        ('board1', _at(shapes.drum(0.024, 0.006, 'x', paint(MASK)), None,
-                       (-0.010, TAIL_AT[1], TAIL_AT[2]))),
-        ('sink1', _at(shapes.drum(0.022, 0.006, 'x', carbon), None,
-                      (-0.016, TAIL_AT[1], TAIL_AT[2]))),
+        ('shaft1', _at(shapes.drum(SHAFT_R, 0.07, 'x', PLATE), None,
+                       (0.0, TAIL_AT[1], TAIL_AT[2]))),
         ('hub1', shapes.ellipsoid(TAIL_AT, (0.012, 0.012, 0.012), PLATE, rows=6)),
     ]
+    if not frame:
+        return out + [('boom', _at(shapes.drum(0.003, TAIL_M - 0.08, 'z', PLATE), None,
+                                   (0.0, 0.012, -0.5 * (TAIL_M + 0.08))))]
+    out += [
+        ('frame0', shapes.box((-0.032, 0.03, 0.03), (0.004, 0.075, 0.16), skin)),
+        ('frame1', shapes.box((0.032, 0.03, 0.03), (0.004, 0.075, 0.16), skin)),
+        ('tray', shapes.box((0.0, -0.025, 0.11), (0.034, 0.018, 0.09),
+                            paint(CELLS) if see == 'pack' else PLATE)),
+        ('can0', _at(shapes.drum(MOTOR_R, MOTOR_L, 'y', PLATE), None,
+                     (0.0, MOTOR_Y + MOTOR_L / 2.0, -0.015))),
+        _side('board0', -0.036 - BOARD_H / 2.0, BOARD_R, BOARD_H, paint(MASK)),
+        _side('sink0', -0.036 - BOARD_H - SINK_H / 2.0, SINK_R, SINK_H, carbon),
+        ('boom', _boom()),
+        ('can1', _at(shapes.drum(*TAIL_MOTOR, 'x', PLATE), None,
+                     (0.012, TAIL_AT[1], TAIL_AT[2]))),
+        _side('board1', 0.036 + BOARD_H / 2.0, BOARD_R, BOARD_H, paint(MASK)),
+        _side('sink1', 0.036 + BOARD_H + SINK_H / 2.0, SINK_R, SINK_H, carbon),
+    ]
+    if shell:
+        out += [('nose', shapes.box((0.0, 0.04, 0.215), (0.028, 0.045, 0.03), accent)),
+                ('vfin', shapes.box((0.0, 0.0, -TAIL_M + 0.01), (0.005, 0.11, 0.045), accent)),
+                ('hstab', shapes.box((0.0, 0.03, -0.46), (0.13, 0.004, 0.035), skin))]
     for s in (-1.0, 1.0):
         out.append(('skid%d' % (s > 0),
                     _at(shapes.drum(1.4 * LEG_R, 0.46, 'z', skin), None,
@@ -103,21 +118,21 @@ def tail_blades():
             for s in (-1.0, 1.0)]
 
 
-def heli_mesh(which):
+def heli_mesh(which, see='shell'):
     """The cached `Mesh` for `'frame'`, `'main'` or `'tail'`."""
-    got = _HELI_MESH.get(which)
+    got = _HELI_MESH.get((which, see))
     if got is None:
-        builders = {'frame': heli_parts, 'main': main_blades, 'tail': tail_blades}
-        got = _HELI_MESH[which] = Mesh(builders[which]())
+        builders = {'frame': lambda: heli_parts(see), 'main': main_blades, 'tail': tail_blades}
+        got = _HELI_MESH[(which, see)] = Mesh(builders[which]())
     return got
 
 
-def _posed(pose, rotors, dense):
+def _posed(pose, rotors, dense, see='shell'):
     """(positions, normals, uv, materials, index) in the world: the helicopter frame at `pose`,
     and each slow rotor's blades at its angle over its hub."""
     from coaxial.model.blocks import numpy as np
     turn, at = np.asarray(pose['turn'], float), np.asarray(pose['at'], float)
-    frame = heli_mesh('frame')
+    frame = heli_mesh('frame', see)
     pick = (lambda mesh: (mesh.dense[0], mesh.dense[1], mesh.dense[2], mesh.dense[3])) if dense \
         else (lambda mesh: (mesh.corners, mesh.normals, mesh.uv, mesh.materials))
     points, normals, uv, _materials = pick(frame)
@@ -127,7 +142,7 @@ def _posed(pose, rotors, dense):
              ('tail', 'x', TAIL_AT))
     for (kind, axis, spot), rotor in zip(specs, rotors):
         angle, w = rotor[0], rotor[1]
-        if abs(w) >= BLADES_RAD_S:
+        if abs(w) >= BLADES_RAD_S and see != 'bare':
             continue
         prop = heli_mesh(kind)
         here = turn @ shapes.turn_about(axis, math.degrees(angle))
@@ -200,7 +215,8 @@ ARROWS = (((0.0, DISC_M + 0.006, -0.015), 1, 0, 0.014), (TAIL_AT, 0, 2, ARROW_M_
 
 
 def render(pose, rotors, width, height, yaw=30.0, pitch=18.0, reach=REACH, centre=None,
-           colour=True, lit=None, world=True, gate=None, thrusts=None, line_=False, inset=None):
+           colour=True, lit=None, world=True, gate=None, thrusts=None, line_=False, inset=None,
+           see='shell'):
     """The 3D helicopter at `pose` on its `rotors`, `width` x `height` cells, `reach` m framed
     about `centre` from SIGHT reaches off: lines."""
     from coaxial.model.blocks import numpy as np
@@ -209,13 +225,13 @@ def render(pose, rotors, width, height, yaw=30.0, pitch=18.0, reach=REACH, centr
     at = np.asarray(pose['at'], float)
     centre = at if centre is None else np.asarray(centre, float)
     if lit is not None:
-        positions, normals, uv, materials, index = _posed(pose, rotors, False)
+        positions, normals, uv, materials, index = _posed(pose, rotors, False, see)
         depth, rgb = lit.raster(positions, normals, uv, materials, index, m, fine,
                                 tuple(centre), float(np.linalg.norm(at - centre)) + REACH)
     else:
-        positions, normals, uv, materials, _index = _posed(pose, rotors, True)
+        positions, normals, uv, materials, _index = _posed(pose, rotors, True, see)
         depth, rgb = splat((positions, normals, materials, uv), m, fine, centre)
-    own = _discs(pose, rotors, m, fine, centre) + (
+    own = ([] if see == 'bare' else _discs(pose, rotors, m, fine, centre)) + (
         force_arrows(pose, thrusts, ARROWS, m, fine, centre) if thrusts is not None else [])
     if not world:
         return braille(depth, rgb, np.zeros(depth.shape), width, height, colour, inset,

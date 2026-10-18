@@ -334,9 +334,41 @@ def test_r_records_its_flight(report):
     report.check('while it records the drawing carries REC and its rows', corner.strip() == '● REC ⠙ 1', corner)
 
 
+def test_s_undresses_the_crafts(report):
+    """S steps the layers round; each craft's frame thins to its shafts, its pack shows between,
+    the motors and their 63100 boards stay till bare, and every layer draws."""
+    from coaxial.graphics import aerobat, helicopter, ornithopter, quadcopter
+    from coaxial.graphics.lit import paint
+    from terminal.views import show_quad
+    held = {'see': 0, 'reset': False}
+    keys = show_quad.hands(held, lambda k: None)
+    show_quad.typed(held, keys, ['s'])
+    once = held['see']
+    show_quad.typed(held, keys, ['S', 's', 's'])
+    report.check('S steps the layer, four steps round', (once, held['see']) == (1, 0), (once, held['see']))
+    crafts = ((quadcopter, quadcopter.mesh, 4, 'shaft0'), (helicopter, helicopter.heli_mesh, 2, 'mast'),
+              (ornithopter, ornithopter.orni_mesh, 2, 'crank0'), (aerobat, aerobat.aero_mesh, 2, 'shaft0'))
+    pose = {'at': (0.0, 1.5, 0.0), 'turn': ((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0)),
+            'controls': (0.4, 0.1, 0.05, 0.1)}
+    for gfx, mesh, n, moving in crafts:
+        parts = {see: set(mesh('frame', see).parts) for see in quadcopter.LAYERS}
+        packed = mesh('frame', 'pack')
+        cells = 'pack' in parts['pack'] or (
+            packed.materials[packed.span('tray')[0]] == paint(quadcopter.CELLS))
+        drives = all({'can0', 'board0', 'sink0'} <= parts[see] for see in ('shell', 'frame', 'pack'))
+        bare = moving in parts['bare'] and 'can0' not in parts['bare'] and len(parts['bare']) < len(parts['frame'])
+        rotors = [(0.3 * k, 420.0, 45.0, 40.0, 35.0) for k in range(n)]
+        drawn = all(len(gfx.render(pose, rotors, 60, 24, world=False, lit=None, see=see)) == 24
+                    for see in quadcopter.LAYERS)
+        report.check('%s: the pack shows, the drives stay till bare, bare keeps %s, every layer draws'
+                     % (gfx.__name__.rpartition('.')[2], moving), cells and drives and bare and drawn,
+                     (cells, drives, bare, drawn, sorted(parts['bare'])))
+
+
 ROSTER = (test_the_page_words_its_boards, test_its_traces_are_drawn, test_its_wind_is_pointed,
           test_its_thrust_and_its_line_are_drawn, test_the_page_flies_four_boards,
-          test_the_page_flies_its_course, test_r_records_its_flight)
+          test_the_page_flies_its_course, test_r_records_its_flight,
+          test_s_undresses_the_crafts)
 
 
 def main(argv=None):
