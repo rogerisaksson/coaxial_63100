@@ -234,7 +234,8 @@ def staged(g, fallen_at):
 
 def state(g, torque, power, watts, ratio, fallen_at, says=(), refused=None):
     """Her state as the page hears it: stage, modes, joint torque/power/temp, physical velocity, and
-    her law's horizon - her centre of mass, her capture point, her soles, which stand (world)."""
+    her law's horizon - her centre of mass, her capture point, her soles, which stand (world),
+    her shoulders' range."""
     from machine import latent, modal
     from machine.figure import JOINTS
     world, out, d, hd = g['world'], g['out'], g['world'].data, float(g['heading'])
@@ -245,7 +246,7 @@ def state(g, torque, power, watts, ratio, fallen_at, says=(), refused=None):
     horizon = {'com': tuple(y[modal.COM].tolist()), 'xi': (float(y[modal.COM][0] + y[modal.VCOM][0] / om),
                                                            float(y[modal.COM][2] + y[modal.VCOM][2] / om)),
                'soles': tuple(tuple(s) for s in y[modal.SOLE].reshape(2, 3).tolist()),
-               'stance': tuple(g['a'][modal.STANCE].tolist())}
+               'stance': tuple(g['a'][modal.STANCE].tolist()), 'shoulder': tuple(_Q_LIM['shoulder'])}
     return {'t': g['t'], 'angles': dict(angles, **world.loose()), 'set': angles,
             'torque': dict(zip(JOINTS, torque.tolist())), 'power': dict(zip(JOINTS, power.tolist())),
             'temp': dict(zip(JOINTS, g['temp'].tolist())), 'peak': dict(zip(JOINTS, world.peak.tolist())),

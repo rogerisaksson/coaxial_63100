@@ -276,7 +276,8 @@ def boxes(state, now, name):
         ('     soles', soles_row), ('     power', _ansi('%4.0f W  %s  %4.0f °C' % (watts, _screen.gauge(watts / 800.0, 8), max_c))),
         ('   physics', 'x%.1f real time  T:%s' % (now['ratio'], shown) if now else '-'),
         (' autopilot', state['tour'].current_label()[:25] if state.get('tour') and not state['tour'].done else 'manual'),
-        ('    record', rec), ('  drawn by', name[:25])])]
+        ('    record', rec), ('   horizon', '%s  Z cycles' % (state.get('horizon') or 'off')),
+        ('  drawn by', name[:25])])]
     for sub in TYPES['gynoid'].body:
         out.append(hud(sub.name.replace('_', ' ').upper(), [
             _joint_row(now, j, j.split('_', 1)[-1] if sub.name != 'axis' else j, shown) for j in sub.actuators]))
@@ -325,7 +326,7 @@ def _draw_viewport(state, now, width, height, terminal, lit):
         mark=marked(state, now, time.monotonic()),
         legend=legend(state['shown'], width) if state['called'] != 'none' else None,
         dressed=state['skin'] == 'dressed', see=_seen(state), inset=inset, arrows=(now, state.get('pad')),
-        horizon=horizon.segments(now, now.get('props') or ()) if state.get('horizon') else None))
+        horizon=horizon.segments(now, now.get('props') or (), state.get('horizon') or 'off') or None))
 
 
 def _boot_humanoid(board_view, state):

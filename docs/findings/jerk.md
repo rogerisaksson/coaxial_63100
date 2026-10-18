@@ -131,3 +131,15 @@ strafes 2.9, a spin 5.9, turns 6.5, the weave 13.0, the chair 14.4, a hop down
   hand 18.7 -> 10.9, the chair's 9.3 -> 5.8, turns 6.5 -> 3.7, but the weave's
   hand 13.0 -> 15.9, the spin's pelvis 2.6 -> 4.5, the chair's head 11.6 as
   it was: the peaks are not the clip's alone.
+- Not kept: a contact's hold in the step grown with its felt force, nothing at
+  5 N to whole at a tenth of her weight, in place of the switch at 5 N: the
+  chair's 99th percentiles the same (pelvis 291, head 1109 m/s^3), the bed's
+  up (634 -> 893, 962 -> 1468); her walk the same.
+- The chair's worst head jerk (6945 m/s^3 at 1.10 s, the sit's first passes)
+  sits on the neck at 1.04-1.14 of its clamp, the head the step's reaction
+  mass; the law's setpoints and feeds are smooth through it, her soles' loads
+  swing 125/90 -> 91/138 N a pass. Not kept: each drive drawn to its clamp in
+  the rounds by a row whose weight grows with the overshoot (nothing at the
+  clamp, whole a tenth past it): her head nodded 8 deg walking where 2, the
+  weave's 99th percentiles 856/1353 -> 1155/2263, the turns' 391/430 ->
+  446/648, the chair's the same.

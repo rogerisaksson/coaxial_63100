@@ -379,3 +379,5 @@ it names. A closed item is cut from the list and gets its line here, last.
 99. The quad framed a third closer, its arms painted.
 100. The rotorcraft's laps on their own sphere, idled up; the aerobat's
      racetrack ([aircraft](findings/aircraft.md)).
+101. Her horizon an externality each: the floor a leg reaches, the room her
+     law allows it, an arm's band; Z cycles them.

@@ -302,8 +302,6 @@ serves its DOD; none an entry a case.
    parts' peak. Without it the turns hold and the turnabout better (13 of 13,
    7 granted); the weave falls at 4 of 13 (demand.md). DOD: each scenario's
    peak, rms, speed and heat under 2/3 of its parts.
-8. **Her horizons, an externality each**: the room a limb may reach and may
-   use, toggled on the page (Z the soles', DONE 87). DOD: arms, legs, hands.
 
 ## Bench
 

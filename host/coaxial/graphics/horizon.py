@@ -1,22 +1,59 @@
-"""Her maneuver horizon on the floor, drawn from her law's own reading.
+"""Her maneuver horizon, drawn from her law's own reading: an externality each.
 
-Where each sole may land - her law's room for it (`stride.meets`), REACH_M about her centre of
-mass, APART_M its own side of the other sole -, her capture point, each arm's reach; the reading
-is `sprung.state`'s 'horizon'.
+Each sole's room - the floor its leg reaches with it flat (`machine.reach`), dim, and the room
+her law lets it land in (`stride.meets`: REACH_M about her centre of mass, APART_M its own side
+of the other sole), bright while it swings -, her capture point; each arm's band, its hand from
+its elbow's stop to straight over its shoulder's range. The reading is `sprung.state`'s
+'horizon'; a mode of MODES says which are drawn, Z cycles them.
 
-    layers = horizon.segments(now, props)     # [(segments, ink)] for `gynoid.render`
+    layers = horizon.segments(now, props, show)     # [(segments, ink)] for `gynoid.render`
 """
 import math
 
 from coaxial.graphics.arrows import _ring_segments, surface_at
-from machine.figure import FOREARM, UPPER_ARM, frames, quat
+from machine import reach
+from machine.figure import ANKLE_H, FOREARM, UPPER_ARM, frames, quat
+from machine.mjcf import STOPS
 from machine.stride import APART_M, REACH_M
 
-#: A swinging sole's room, a standing sole's - off the floor grid's blue -, her capture point, an
-#: arm's reach.
-SWING_INK, ROOM_INK, CAPTURE_INK, ARM_INK = (255, 184, 72), (170, 160, 100), (255, 96, 128), (150, 120, 220)
-#: Points to a half ring; her capture point's ring, m.
-RING_N, CAPTURE_M = 24, 0.04
+#: What is drawn: nothing, the soles' rooms and her capture point, the arms' bands, all.
+MODES = ('off', 'soles', 'arms', 'all')
+#: The floor a leg reaches, a swinging sole's room, a standing sole's - off the floor grid's
+#: blue -, her capture point, an arm's band.
+REACH_INK, SWING_INK, ROOM_INK = (110, 110, 140), (255, 184, 72), (170, 160, 100)
+CAPTURE_INK, ARM_INK = (255, 96, 128), (150, 120, 220)
+#: Points to a half ring; her capture point's ring, m; the farthest a leg is searched, m.
+RING_N, CAPTURE_M, FAR_M = 24, 0.04, 1.0
+
+
+def _turn(heading):
+    """A flat foot headed `heading`, a 3x3 of rows: across to her left, up, along the toes."""
+    sh, ch = math.sin(heading), math.cos(heading)
+    return ((ch, 0.0, sh), (0.0, 1.0, 0.0), (-sh, 0.0, ch))
+
+
+def reachable(limb, hip, heading, props=()):
+    """The floor `limb`'s leg reaches with its sole flat and headed `heading` (`reach.margins`,
+    its stops and its length): the outline (segments) about its `hip` (world) in RING_N
+    directions, each as far out as reaches, none where none does."""
+    sh, ch = math.sin(heading), math.cos(heading)
+    turn, floor = _turn(heading), surface_at(hip[0], hip[2], props)[0]
+
+    def inside(x, z):
+        return min(reach.margins(reach.over(limb, hip, (x, floor + ANKLE_H, z), turn))) >= 0.0
+
+    ring = []
+    for k in range(RING_N):
+        a = math.tau * k / RING_N
+        dx, dz = math.cos(a) * ch + math.sin(a) * sh, -math.cos(a) * sh + math.sin(a) * ch
+        low, high = 0.0, FAR_M
+        if not inside(hip[0], hip[2]):
+            continue
+        for _ in range(14):
+            mid = 0.5 * (low + high)
+            low, high = (mid, high) if inside(hip[0] + mid * dx, hip[2] + mid * dz) else (low, mid)
+        ring.append((hip[0] + low * dx, floor + 0.005, hip[2] + low * dz))
+    return [(ring[k], ring[(k + 1) % len(ring)]) for k in range(len(ring))] if len(ring) > 2 else []
 
 
 def room(c, other, side, heading, props=()):
@@ -38,22 +75,42 @@ def room(c, other, side, heading, props=()):
     return list(zip(arc, arc[1:])) + ([(arc[-1], arc[0])] if half < math.pi else [])
 
 
-def segments(now, props=()):
-    """[(segments, ink)]: each sole's landing room - bright while it swings -, her capture point,
-    each arm's reach about its shoulder across her front; none without her law's reading."""
+def band(shoulder, heading, low, high):
+    """An arm's band in her sagittal plane (segments): its hand's arc straight over the
+    shoulder's range `low` to `high` (rad of flexion, hanging 0), the arc at the elbow's stop
+    inside it, the two closed at the range's ends."""
+    sh, ch = math.sin(heading), math.cos(heading)
+    stop = math.radians(STOPS['elbow'][1])
+
+    def hand(flex, elbow):
+        fwd = UPPER_ARM * math.sin(flex) + FOREARM * math.sin(flex + elbow)
+        down = UPPER_ARM * math.cos(flex) + FOREARM * math.cos(flex + elbow)
+        return (shoulder[0] + fwd * sh, shoulder[1] - down, shoulder[2] + fwd * ch)
+    arcs = [[hand(low + (high - low) * k / RING_N, elbow) for k in range(RING_N + 1)] for elbow in (0.0, stop)]
+    return (list(zip(arcs[0], arcs[0][1:])) + list(zip(arcs[1], arcs[1][1:]))
+            + [(arcs[0][0], arcs[1][0]), (arcs[0][-1], arcs[1][-1])])
+
+
+def segments(now, props=(), show='all'):
+    """[(segments, ink)] of `show` (MODES): each leg's reach and each sole's landing room -
+    bright while it swings -, her capture point; each arm's band; none without her law's
+    reading."""
     seen = (now or {}).get('horizon')
-    if not seen:
+    if not seen or show == 'off':
         return []
     heading, (cx, _cy, cz) = float(now.get('heading') or 0.0), seen['com']
-    soles = [(s[0], s[2]) for s in seen['soles']]
-    out = [(room((cx, cz), soles[1 - k], side, heading, props), ROOM_INK if seen['stance'][k] > 0.5 else SWING_INK)
-           for k, side in enumerate((1.0, -1.0))]
-    out.append((_ring_segments(seen['xi'][0], seen['xi'][1], CAPTURE_M, props, 8), CAPTURE_INK))
     placed = frames(now.get('angles') or {}, now.get('where', (0.0, 0.9, 0.0)), quat(*now.get('turn', (1, 0, 0, 0))))
-    arm, lx, lz = UPPER_ARM + FOREARM, math.cos(heading), -math.sin(heading)
-    for side in ('left', 'right'):
-        sx, sy, sz = (float(v) for v in placed[side + '_upper_arm'][0])
-        ring = [(sx + arm * math.cos(a) * lx, sy + arm * math.sin(a), sz + arm * math.cos(a) * lz)
-                for a in (math.tau * k / RING_N for k in range(RING_N + 1))]
-        out.append((list(zip(ring, ring[1:])), ARM_INK))
+    out = []
+    if show in ('soles', 'all'):
+        soles = [(s[0], s[2]) for s in seen['soles']]
+        for k, side in enumerate(('left', 'right')):
+            out.append((reachable(k, tuple(float(v) for v in placed[side + '_thigh'][0]), heading, props), REACH_INK))
+        for k, side in enumerate((1.0, -1.0)):
+            out.append((room((cx, cz), soles[1 - k], side, heading, props),
+                        ROOM_INK if seen['stance'][k] > 0.5 else SWING_INK))
+        out.append((_ring_segments(seen['xi'][0], seen['xi'][1], CAPTURE_M, props, 8), CAPTURE_INK))
+    if show in ('arms', 'all'):
+        low, high = seen.get('shoulder', (-1.13, 2.62))
+        for side in ('left', 'right'):
+            out.append((band(tuple(float(v) for v in placed[side + '_upper_arm'][0]), heading, low, high), ARM_INK))
     return [(segs, ink) for segs, ink in out if segs]

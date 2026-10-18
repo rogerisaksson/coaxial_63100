@@ -236,7 +236,14 @@ def table(view, calling, shown):
         + [(k, lambda state: state.update(shown=shown[(shown.index(state['shown']) + 1)
                                                       % len(shown)])) for k in 'tT']
         + [(k, _skinned) for k in 'mM'] + [('p', _charged)]
-        + [(k, lambda state: state.update(horizon=not state.get('horizon'))) for k in 'zZ'])
+        + [('z', lambda state: state.update(horizon=_shown(state, 1))),
+           ('Z', lambda state: state.update(horizon=_shown(state, -1)))])
+
+
+def _shown(state, by):
+    """The horizon's next mode (`horizon.MODES`): z on through them, Z back."""
+    from coaxial.graphics.horizon import MODES
+    return MODES[(MODES.index(state.get('horizon') or 'off') + by) % len(MODES)]
 
 
 def act_on(keys, typed, state, wheel=0.0):
