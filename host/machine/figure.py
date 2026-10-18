@@ -174,35 +174,6 @@ def pad(axis, radius, toward, size, x=1.0):
     return c[0] * x, c[1], c[2]
 
 
-#: Carbon-fibre shell plates riding over PAD_M viscoelastic gel pads (`mjcf.ARMOR`): (segment,
-#: half-sizes (x, y, z) m, centre in segment frame m). A hard shell over soft gel spreads a floor
-#: blow over the whole pad's area instead of bottoming out at a point.
-SHELL_ARMOR = (('pelvis', (0.095, 0.055, 0.065), (0.0, -0.02, -0.03)),
-               ('torso', (0.110, 0.140, 0.075), (0.0, 0.18, -0.01)),
-               ('thigh', (0.058, 0.140, 0.058), (0.01, -0.18, 0.015)),
-               ('shank', (0.042, 0.130, 0.044), (0.0, -0.16, 0.01)),
-               ('upper_arm', (0.032, 0.100, 0.032), (0.0, -0.14, 0.0)),
-               ('forearm', (0.024, 0.095, 0.024), (0.0, -0.12, 0.0)))
-
-#: Lumbar L1-L5 and thoracic T1-T12 share of the spine's flexion, and resting lordosis (deg).
-VERTEBRAE = (('L5', 0.025, 0.22, -4.5), ('L3', 0.065, 0.26, -5.5), ('L1', 0.105, 0.20, -3.0),
-             ('T10', 0.155, 0.14, 2.0), ('T6', 0.215, 0.10, 4.5), ('T2', 0.285, 0.08, 3.5))
-
-
-def lumbar_curve(spine_deg=0.0, roll_deg=0.0):
-    """[(name, y_m, pitch_deg, roll_deg, z_arc_m)]: the spine's curve across its lumbar and
-    thoracic segments for `spine_deg` flexion and `roll_deg` lateral bend."""
-    out, z, pitch, roll = [], 0.0, 0.0, 0.0
-    y_prev = 0.0
-    for name, y, share, rest in VERTEBRAE:
-        pitch += rest + share * spine_deg
-        roll += share * roll_deg
-        z += (y - y_prev) * math.sin(math.radians(pitch))
-        y_prev = y
-        out.append((name, y, pitch, roll, z))
-    return out
-
-
 #: Every joint, in the order the segments carry them.
 JOINTS = tuple(j for seg in SEGMENTS for j, _axis, _sign in seg[2])
 

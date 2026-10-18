@@ -34,7 +34,7 @@ DISPARITIES, WINDOW, TEXTURE, UNIQUE = 48, 9, 1.5, 1.15
 #: through it and again as she sees (`barred`) - held shut, a target unseen had no way and
 #: every first word a look round first, 14 s on 23 steps. A look LOOK_S apart.
 CELL_M, X_M, Z_M = 0.1, (-3.5, 3.5), (-2.0, 5.0)
-HITS, TOLD, FLOOR_M, CEIL_M, NEAR_M, FAR_M, RADIUS_M, LOOK_S = 3, 2, 0.08, 2.3, 0.7, 2.5, 0.3, 0.5
+HITS, TOLD, FLOOR_M, CEIL_M, NEAR_M, FAR_M, RADIUS_M, LOOK_S = 3, 2, 0.08, 2.3, 0.7, 3.5, 0.3, 0.5
 
 #: What the room's things are made to look like, for her eyes (`mjcf`): a kind's colour,
 #: speckled with a darker shade, the speckles a cube's on every face and one scale in space,
@@ -330,13 +330,8 @@ class Map:
             colour = _chroma(self.colour[ii, jj].sum(axis=0) / max(1, int(self.hits[ii, jj].sum())))
             look = names[int(np.argmin(((means - colour) ** 2).sum(axis=1)))]
             height = float(np.percentile(self.high[ii, jj], 95))
-            kind = classify(look, half, height)
-            at = ((lo[0] + hi[0]) / 2.0, (lo[1] + hi[1]) / 2.0)
-            if kind == 'bed':
-                half = (max(half[0], 0.45), max(half[1], 1.0))
-                at = (hi[0] + CELL_M / 2.0 - half[0] if at[0] < 0.0 else lo[0] - CELL_M / 2.0 + half[0],
-                      lo[1] - CELL_M / 2.0 + half[1] if at[1] > 0.0 else hi[1] + CELL_M / 2.0 - half[1])
-            out.append((kind, at, half, height, look))
+            out.append((classify(look, half, height), ((lo[0] + hi[0]) / 2.0, (lo[1] + hi[1]) / 2.0),
+                        half, height, look))
         return out
 
     def blocked(self):

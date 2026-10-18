@@ -35,13 +35,6 @@ gets a line at the end of [DONE](DONE.md).
 - **HUMANOID freezes as the mouse moves** (reported): not seen here, 300
   frames in its own console under 6 070 sweeps, 37.5 s against 37.3 still.
   DOD: seen, its stack dumped, fixed.
-- **A bed a case in sight**: `sight.Map.things` forces a bed to 0.45 x 1.0 m
-  at the room's edge by its place's sign. DOD: no kind a case, `test_sight`,
-  the bed moved.
-- **Unwired**: `rtu.FEED_REG` 0x0180, no sender, not on the board's map;
-  `drives.wave_stage`, `figure.lumbar_curve`, `SHELL_ARMOR`,
-  `skeleton.printed_holders`, `flange_mounts`,
-  `campaign.de_ring_ankles`, no caller. DOD: wired and tested, or out.
 
 1. **Orthokinematics, the one way she moves** (orthokinematics.md): the
    humanoid robot movement is text of balance, rhythm and elasticity, compiled
@@ -207,11 +200,12 @@ gets a line at the end of [DONE](DONE.md).
 18. **Knowledge and models of the humanoid robot surroundings** (sight.md): a
     stereo pair on the humanoid robot head, the room's things on a map she
     keeps, a way planned round them. After a look round the chair is told where
-    it stands and the table 0.07 m off, 254 of 256 cells within 0.15 m of a
-    thing; she maps what is within 2.5 m.
-    + DOD: the map's boxes against the room's within 0.1 m, the bed's too
-      (0.51 m off: its near edge alone); a chair moved into the humanoid robot
-      way walked round on the loop; the humanoid robot view on the page.
+    it stands, the table 0.07 m off and the bed 0.05 m off (0.00 m off when
+    moved to (-0.9, 1.2)), 697 of 725 cells within 0.15 m of a thing; she maps
+    what is within 3.5 m.
+    + DOD: the map's boxes against the room's within 0.1 m; a chair moved into
+      the humanoid robot way walked round on the loop; the humanoid robot view
+      on the page.
 19. **No transition with a jerk**, whatever happens (Scenarios 2,
     `tools/sim/jerk.py`). DOD: every segment's peak through every scenario
     no higher than in her steady walk.

@@ -32,20 +32,19 @@ Nothing of hers reads the world's geometry.
 ## The map
 
 0.1 m cells; a cell is a thing from 2 looks with 3 points in it between 0.08
-and 2.3 m high, 0.7 to 2.5 m from the eye - further a quarter pixel of
-disparity is over half a cell -, hit more often than seen through under its
-top. What she has not seen is open. After a look round standing (0.5 rad/s,
-a look every 0.5 s, 29 looks):
+and 2.3 m high, 0.7 to 3.5 m from the eye, hit more often than seen through
+under its top. What she has not seen is open. After a look round standing
+(25 looks):
 
 | | |
 | --- | --- |
-| occupied cells | 256, 254 of them within 0.15 m of a wall or a thing, 1 beyond 0.4 m |
-| the chair | told where it stands, 0.6 m square, 1.06 m high |
+| occupied cells | 725, 697 of them within 0.15 m of a wall or a thing |
+| the chair | told where it stands, 0.6 m square, 1.02 m high |
 | the table | told within 0.07 m, 1.3 x 0.7 m, 0.79 m high |
-| the lamp | within 0.21 m, 1.76 m high |
-| the bed | 0.51 m off: 2.6 m away, its near edge alone |
-| the walls | 11 % of their cells: 3 m off but the one behind her |
-| lumps | 19, 7 of them over 0.04 m2 |
+| the lamp | told where it stands, 1.77 m high |
+| the bed | told within 0.05 m (0.00 m moved to (-0.9, 1.2)), 1.0 x 2.1 m, 0.49 m high |
+| the walls | four walls mapped out to 3.5 m |
+| lumps | each box from its cells alone, no kind a case |
 
 - A ray freed every cell it crossed: over the table to the wall behind it
   each freed the table's, and the table was never told (87 cells in all). A

@@ -118,6 +118,16 @@ def test_her_map_is_the_room(report):
         cells = inset.eyes(seen, 120, 40)
         report.check('the picture\'s cells fill its frame', len(cells) >= sight.VIEW[0] * sight.VIEW[1] // 2,
                      '%d cells' % len(cells))
+        moved = (-0.9, 1.2)
+        world.model.body('bed').pos[:] = (moved[0], room.BED[1], moved[1])
+        keep.map, keep.looked_at = sight.Map(), None
+        _looked_round(world, keep)
+        found = _nearest(keep.map.things(), ('bed',), moved)
+        report.check('the bed moved is told within 0.3 m of its new place and size',
+                     found is not None and found[0] < 0.3
+                     and math.hypot(found[3][0] - room.BED[0], found[3][1] - room.BED[2]) < 0.2,
+                     '%.2f m off, half (%.2f %.2f)' % (found[0], found[3][0], found[3][1])
+                     if found else 'not told')
     finally:
         body.close()
 

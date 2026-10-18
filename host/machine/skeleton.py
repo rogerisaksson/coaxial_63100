@@ -350,28 +350,3 @@ def overlapping(model, angles):
         if a in ours or b in ours:
             pairs.add(tuple(sorted((model.body(a).name, model.body(b).name))))
     return sorted(pairs)
-
-
-def printed_holders():
-    """[(name, rides, print_axis, bore_r, wall_m, roof_deg)]: 2.5D PAHT-CF printed tube holders
-    and split clamp rings - each extruded along `print_axis` with zero overhang (`roof_deg` 45 on
-    transverse bolt holes)."""
-    out = []
-    for name, rides, shape in held('left_') + [(f + '_frame', f, sh) for f, sh in trunk()]:
-        if shape[0] == 'ring':
-            _t, _c, ax, r, _half = shape
-            axis = 'xyz'[max(range(3), key=lambda i: abs(ax[i]))]
-            out.append((name, rides, axis, round(r - COLLAR_M, 4), COLLAR_M, 45.0))
-    return out
-
-
-def flange_mounts():
-    """[(joint, rides, bolt_circle_r, bolts, screw_m)]: direct axial bolt-flange mounts on motor
-    cans and gearbox housings where a drum meets its bone or gimbal without an external collar."""
-    out = []
-    for joint, rides, _at, _axis in _drums():
-        if not joint.startswith('right_'):
-            r = drives.of(joint)[1].diameter / 2.0
-            out.append((joint, rides, round(r - 0.004, 4), 8 if r >= 0.035 else 6, 0.004 if r >= 0.035 else 0.003))
-    return out
-

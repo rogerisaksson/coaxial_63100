@@ -39,7 +39,7 @@ if crc16(b'123456789') != CHECK_VALUE:
                        'not %#06x' % (crc16(b'123456789'), CHECK_VALUE))
 
 READ, WRITE, WRITE_ONE, BROADCAST = 0x03, 0x10, 0x06, 0
-SETPOINT_REG, FEED_REG, STATE_REG, GATE_REG = 0x0100, 0x0180, 0x0200, 0x0300
+SETPOINT_REG, STATE_REG, GATE_REG = 0x0100, 0x0200, 0x0300
 GATE_OFF, GATE_ON, GATE_SHORT = 0, 1, 2
 
 #: A state's registers and bytes: angle, rate, heat.
@@ -59,13 +59,6 @@ def broadcast(first, values):
     """Setpoints for units `first` up, i32 mdeg each: 0x10 to every board."""
     data = struct.pack('>%di' % len(values), *values)
     return framed(struct.pack('>BBHHB', BROADCAST, WRITE, SETPOINT_REG + 2 * (first - 1),
-                              2 * len(values), len(data)) + data)
-
-
-def broadcast_feed(first, values):
-    """Feedforward torques for units `first` up, i32 mN m each: 0x10 to every board."""
-    data = struct.pack('>%di' % len(values), *values)
-    return framed(struct.pack('>BBHHB', BROADCAST, WRITE, FEED_REG + 2 * (first - 1),
                               2 * len(values), len(data)) + data)
 
 
@@ -100,14 +93,6 @@ def setpoints(body):
     """{unit: mdeg} a broadcast's body carries."""
     address, count, _size = struct.unpack_from('>HHB', body)
     first = (address - SETPOINT_REG) // 2 + 1
-    return dict(zip(range(first, first + count // 2),
-                    struct.unpack_from('>%di' % (count // 2), body, 5)))
-
-
-def feeds(body):
-    """{unit: mnm} a feedforward broadcast's body carries."""
-    address, count, _size = struct.unpack_from('>HHB', body)
-    first = (address - FEED_REG) // 2 + 1
     return dict(zip(range(first, first + count // 2),
                     struct.unpack_from('>%di' % (count // 2), body, 5)))
 

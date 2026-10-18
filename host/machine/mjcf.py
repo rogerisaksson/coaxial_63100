@@ -85,8 +85,6 @@ SOLE_S, SOLE_DAMP, SOLE_SOFT, SOLE_WIDTH_M = 0.02, 1.5, 0.9, 0.005
 #: median, its spread 3.00 -> 2.53; the pads as stiff as her cloth, the worst 8.4 -> 11.3, at
 #: 0.005 s 61.
 PAD_SOFT, PAD_S, PAD_DAMP = 0.5, 0.02, 1.5
-#: Carbon-fibre shell plates riding over PAD_M gel (`figure.SHELL_ARMOR`), 1 to build her so.
-ARMOR = 0.0
 
 #: Her left shoe's lace snagged on the right shoe (`World.lace`): from LACE_AT on the one to LACE_AT
 #: on the other (their frames), LACE_M between - a tendon, its limit settling over LACE_S s - until
@@ -234,13 +232,6 @@ def _mjcf(bones):
                 out.append('<geom name="%s_pad%d%s" %s%s priority="1" solref="%g %g" solimp="%g 0.95 %g"/>' % (
                     name, k, '' if x > 0 else 'r', shape, grip % CLOTH.get(part, FRICTION),
                     PAD_S, PAD_DAMP, PAD_SOFT, figure.PAD_M))
-        for part, half, at in (figure.SHELL_ARMOR if ARMOR else ()):
-            if name == part or name.endswith('_' + part):
-                s = -1.0 if name.startswith('right_') else 1.0
-                out.append('<geom name="%s_armor" type="box" size="%g %g %g" pos="%g %g %g"%s priority="1" '
-                           'solref="%g %g" solimp="%g 0.95 %g"/>' % (
-                               (name,) + half + (s * at[0], at[1], at[2], grip % CLOTH.get(part, FRICTION),
-                                                 PAD_S, PAD_DAMP, PAD_SOFT, figure.PAD_M)))
         if name.endswith('_shank'):
             side = name[:-len('_shank')]
             out += ['<body name="%s_hem" pos="0 %g 0">' % (side, -HEM_AT)] + [

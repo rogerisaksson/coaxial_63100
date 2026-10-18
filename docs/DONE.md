@@ -280,3 +280,11 @@ the fifty before these: [DONE_1-50](DONE_1-50.md).
     back read off her insoles (`wear.torso_load`), and her hands' and torso's
     loads laid into her law (`wear.loaded`) and shown on the page
     ([identification](findings/identification.md)).
+76. Her map's boxes from their cells alone (`machine/sight.py`, `test_sight.py`):
+    `FAR_M` 3.5 m maps the whole bed with no case by kind (0.05 m off at
+    (-1.8, 1.8), 0.00 m off moved to (-0.9, 1.2), half sizes within 0.05 m,
+    697 of 725 occupied cells within 0.15 m of a wall or a thing) and the
+    unwired scaffolding (`rtu.FEED_REG`, `drives.wave_stage`,
+    `figure.lumbar_curve`, `SHELL_ARMOR`, `skeleton.printed_holders`,
+    `flange_mounts`, `campaign.de_ring_ankles`) is out
+    ([sight](findings/sight.md)).
