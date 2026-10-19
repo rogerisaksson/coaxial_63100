@@ -40,6 +40,11 @@ def held():
     return Keys.holder.held() if Keys.holder is not None else None
 
 
+def left_held():
+    """Whether the left mouse button is held in the active view right now."""
+    return Keys.holder is not None and Keys.holder.left_held()
+
+
 #: Windows console input flags: VT_INPUT sends SGR mouse; QUICK_EDIT must be cleared with EXTENDED_FLAGS.
 VT_INPUT, MOUSE_INPUT, EXTENDED_FLAGS = 0x0200, 0x0010, 0x0080
 QUICK_EDIT, LINE_INPUT, ECHO_INPUT = 0x0040, 0x0002, 0x0004
@@ -324,6 +329,17 @@ class Keys:
             return bool(sys.platform == 'win32' and (u.GetAsyncKeyState(1) & 0x8000 or u.GetAsyncKeyState(2) & 0x8000))
         except AttributeError:
             return False
+
+    def left_held(self):
+        """Whether the left mouse button is currently held down."""
+        if self._holding:
+            return True
+        if self._async_keys and self._is_console_focused() and sys.platform == 'win32':
+            try:
+                return bool(ctypes.windll.user32.GetAsyncKeyState(1) & 0x8000)
+            except AttributeError:
+                return False
+        return False
 
     def _is_console_focused(self):
         """True when the console/terminal window is focused."""

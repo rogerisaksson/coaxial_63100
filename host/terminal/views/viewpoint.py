@@ -12,6 +12,7 @@ import math
 import time
 
 from coaxial.graphics import engine, gynoid
+from terminal.ui import console
 
 #: Where it starts - straight behind her (`yaw` 180°), tipped down a little -, degrees a
 #: key turns it, the orbit's degrees a second, the zoom's bounds: at 8 a knee's linkage fills it.
@@ -31,6 +32,13 @@ def turned(state, dx, dy):
     state['yaw'] += dx * DRAG_DEG[0]
     state['pitch'] = max(TIP_DEG[0], min(TIP_DEG[1], state['pitch'] + dy * DRAG_DEG[1]))
     state['looked'] = time.monotonic()
+
+
+def dragged(state, dx, dy):
+    """Turned by a left mouse drag: free to orbit while held, returning behind her on release."""
+    state['yaw'] += dx * DRAG_DEG[0]
+    state['pitch'] = max(TIP_DEG[0], min(TIP_DEG[1], state['pitch'] + dy * DRAG_DEG[1]))
+    state['dragging'] = True
 
 
 def zoomed(state, k):
@@ -69,13 +77,27 @@ def along(state):
 
 
 def chased(state, heading, going, now):
-    """Its yaw eased behind her `heading` (rad) while she is `going`, RECENTRE_S on from the
-    view's last turn; `now` the wall clock, s."""
+    """Its yaw eased behind her `heading` (rad) while she is `going` (or returning from a
+    released left-drag), RECENTRE_S on from the view's last key turn; held steady while the
+    left mouse button is down; `now` the wall clock, s."""
     then, state['chased'] = state.get('chased', now), now
-    if not going or state.get('orbit') or now - state.get('looked', -RECENTRE_S) < RECENTRE_S:
+    if state.get('left_held') or console.left_held():
+        state['dragging'] = True
         return
+    if state.pop('dragging', False):
+        state['looked'] = now - RECENTRE_S
+        state['returning'] = True
+    returning = bool(state.get('returning'))
+    if (not going and not returning) or state.get('orbit') or now - state.get('looked', -RECENTRE_S) < RECENTRE_S:
+        return
+    k = 1.0 - math.exp(-max(0.0, now - then) / LAG_S)
     off = (math.degrees(heading) + YAW - state['yaw'] + 180.0) % 360.0 - 180.0
-    state['yaw'] += off * (1.0 - math.exp(-max(0.0, now - then) / LAG_S))
+    state['yaw'] += off * k
+    if returning:
+        dp = PITCH - state.get('pitch', PITCH)
+        state['pitch'] = state.get('pitch', PITCH) + dp * k
+        if abs(off) < 0.5 and abs(dp) < 0.5:
+            state['returning'] = False
 
 
 def shouldered(state):
@@ -91,10 +113,10 @@ def panned(state):
 
 def mouse(state, size):
     """`run_view`'s mouse: held throughout, F the page's pace; a left drag turns - across, the
-    other way round her than the arrows -, a right drag moves, `size` () ->
-    the drawing's (width, height); the wheel zooms through `on_input`."""
+    other way round her than the arrows, and returns behind her on release -, a right drag moves,
+    `size` () -> the drawing's (width, height); the wheel zooms through `on_input`."""
     return {'mouse': True, 'select': frozenset(), 'scroll_keys': False,
-            'on_drag': lambda dx, dy: turned(state, -dx, dy),
+            'on_drag': lambda dx, dy: dragged(state, -dx, dy),
             'on_pan': lambda dx, dy: moved(state, dx, dy, *size())}
 
 

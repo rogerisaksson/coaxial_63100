@@ -125,6 +125,70 @@ def _step_modal(g, s, y, y_in, out):
     return dq, g['impedance'](out, y, g['fr'], g['a'])
 
 
+_BRACE_TUCK = {'spine': 0.55, 'neck': 0.45, 'left_hip_roll': 0.12, 'right_hip_roll': -0.12,
+               'left_hip': -1.05, 'right_hip': -1.05, 'left_knee': 1.45, 'right_knee': 1.45,
+               'left_ankle': -0.45, 'right_ankle': -0.45, 'left_shoulder': 0.35, 'right_shoulder': 0.35,
+               'left_elbow': 0.95, 'right_elbow': 0.95}
+_BRACE_AX = {'spine': -0.10, 'left_shoulder': 0.70, 'right_shoulder': 0.70, 'left_elbow': 0.10, 'right_elbow': 0.10}
+_BRACE_LAT = {'left_shoulder_roll': 0.45, 'right_shoulder_roll': 0.45, 'left_hip_roll': 0.15, 'right_hip_roll': 0.15}
+
+
+def surety(g, dt, ct=None, cur_doing=None, ae=None, qacc=None):
+    """Her directional surety field (`g['surety']` in [0, 1], `g['surety_vec']` = (s_ax, s_lat,
+    d_ax, d_lat)) from her IMU, her soles' loads and her kinematics: highest in a wide double
+    stance, lower on a single walking sole, held in quasi-static equilibrium on a seat or bed,
+    contracting into her 2D tuck-and-brace regime on an unrecoverable topple and absorbing at 0."""
+    y_in, y, fr, a = g['sense'], g['y'], g['fr'], g['a']
+    rot = fr[modal.ROT].reshape(3, 3)
+    c, v = rot @ y[modal.COM], rot @ y[modal.VCOM]
+    om = math.sqrt(modal.G / max(float(c[2] - fr[modal.FLOOR]), 0.3))
+    xi, flat = c[:2] + v[:2] / om, (y[modal.SOLE].reshape(2, 3) @ rot.T)[:, :2]
+    lo, hi = poise.boxes(flat, a[modal.EDGE], y[modal.TILT])
+    qw, qx, qj, qk = y_in[edge.QUAT]
+    acc, gyro = y_in[edge.ACCEL], y_in[edge.GYRO]
+    up_w = np.array([2.0 * (qx * qj - qw * qk), 1.0 - 2.0 * (qx * qx + qk * qk), 2.0 * (qj * qk + qw * qx)])
+    r_y = np.array([2.0 * (qx * qj + qw * qk), 1.0 - 2.0 * (qx * qx + qk * qk), 2.0 * (qj * qk - qw * qx)])
+    ap_y, w_gyro = float(r_y @ acc), float(np.linalg.norm(gyro))
+    wt = max(float(fr[modal.WEIGHT]), 1.0)
+    loads = np.maximum(y[modal.LOAD], y_in[edge.LOAD])
+    w, f_soles = np.clip(loads / (0.25 * wt), 0.0, 1.0), float(loads.sum()) / wt
+    theta = math.radians(edge.tilt(y_in) if ct is None else ct)
+    theta_e = max(0.0, theta - abs(float(a[modal.WANT][0])))
+    v_norm = float(np.linalg.norm(v))
+    w_ext = min(1.0, max(0.0, (ap_y / modal.G - f_soles) / 0.45)) * math.exp(-(w_gyro / 1.2) ** 2 - (v_norm / 0.18) ** 2 - (theta_e / 0.65) ** 4)
+    g['surety_probe'] = 0.008 * max(0.0, 4.0 * f_soles * (1.0 - f_soles)) * math.exp(-(w_gyro / 0.6) ** 2) * math.sin(math.tau * 6.0 * float(g.get('t', 0.0)))
+    w_sum, w_both = float(w[0] + w[1]) + 1e-9, float(min(w[0], w[1]))
+    lo_1, hi_1 = (w @ lo) / w_sum, (w @ hi) / w_sum
+    b_lo = (1.0 - w_both) * lo_1 + w_both * lo.min(axis=0) - w_ext * 0.16
+    b_hi = (1.0 - w_both) * hi_1 + w_both * hi.max(axis=0) + w_ext * 0.16
+    mid, span = 0.5 * (b_lo + b_hi), np.maximum(0.5 * (b_hi - b_lo), 0.02)
+    w_air = max(0.0, 1.0 - float(g['out'][latent.ZMP]))
+    w_sup = min(1.0, 0.5 * float(w[0] + w[1]) + 0.34 * float(max(w[0], w[1])) + 0.95 * max(w_ext, float(a[modal.BORNE]), w_air))
+    cap = w_sup * (0.85 + 0.15 * (span / (span + np.array([0.04, 0.05]))))
+    out_xi = (xi - np.clip(xi, b_lo, b_hi)) * (1.0 - max(w_ext, w_air))
+    s_dir = cap * np.exp(-((out_xi / 0.24) ** 2) - 0.04 * ((v[:2] * (1.0 - max(w_ext, w_air))) ** 2))
+    u_xy = np.array([float(up_w @ rot[0]), float(up_w @ rot[1])])
+    e_vec = (xi - mid) * (1.0 - w_ext) + 0.35 * u_xy + 0.15 * v[:2]
+    d_xy = e_vec / math.hypot(float(e_vec[0]), float(e_vec[1]), 0.08)
+    w_tilt = float(np.hypot(gyro[0], gyro[2]))
+    tau_e = theta_e + 0.14 * w_tilt * (theta_e / (theta_e + 0.35))
+    f_att = math.exp(-((tau_e / 0.96) ** 5))
+    s_vec = np.clip(s_dir * f_att, 0.0, 1.0)
+    raw = float(np.mean(s_vec))
+    prev_q = g.get('_qacc_prev')
+    flip = max(0.0, -float(np.min(qacc * prev_q)) - 3600.0) if (qacc is not None and prev_q is not None and len(prev_q) == len(qacc)) else 0.0
+    g['_qacc_prev'] = prev_q if qacc is None else qacc.copy()
+    raw /= 1.0 + (flip / 12000.0) ** 2
+    prev = float(g.get('surety', 1.0))
+    diff = raw - prev
+    step = (min(1.0, dt / 0.015) * min(diff, 0.0) + min(1.0, dt / 0.15) * (prev ** 3) * max(diff, 0.0)
+            - 6.0 * dt * ((1.0 - raw) ** 3) * ((1.0 - prev) ** 2))
+    cur = min(1.0, max(0.0, prev + step))
+    g['surety'] = cur
+    g['surety_vec'] = (float(s_vec[0]), float(s_vec[1]), float(d_xy[0]), float(d_xy[1]))
+    return cur
+
+
 def control(g, dt):
     """A pass of her latent loop on what she senses: `g['got']` solved, `g['leg_kp']` her legs'
     stiffness by their stance."""
@@ -177,8 +241,20 @@ def control(g, dt):
         imp[modal.HEADED][1] = g['posture'][g['waist_idx']]
     clear = 0.115 * bool((g.get('_twist_active') or g.get('_twist_stop_until', 0.0) > g['t'])
                          and cur_doing not in se2.STUNT_PHASES and g.get('_jump_until', 0.0) <= g['t'])
-    posed = g['poses'](imp, y, g['fr'], g['posture'] + dq, g['bend'], g['arms'], body.knees, clear)
+    sr = surety(g, dt * ev)
+    auth = 1.0 - math.exp(-((sr / 0.38) ** 8))
+    bw, keep = 1.0 - auth, round(auth)
+    _, _, d_ax, d_lat = g['surety_vec']
+    imp[modal.TURNED] *= keep
+    imp[modal.BEND] *= auth
+    imp[modal.SWUNG] *= auth
+    imp[modal.PREFOLD] *= auth
+    imp[modal.FOLDS] *= keep
+    imp[modal.COM_ACC] = np.array([auth * imp[modal.COM_ACC][0], auth * imp[modal.COM_ACC][1] - bw * 2.5, auth * imp[modal.COM_ACC][2]])
+    q_post = auth * (g['posture'] + dq) + bw * (np.array([1.0, d_ax, d_lat]) @ g['brace'])
+    posed = g['poses'](imp, y, g['fr'], q_post, g['bend'], g['arms'], body.knees, clear * auth)
     ask = g['ask'] = modal.given(imp, y, posed, body.knees)
+    ask['swing'] = {k: v for k, v in ask['swing'].items() if keep}
     ask['mu'] = g['held']
     s_solve, cv = s, list(g.get('cervical', ()))
     if (cur_doing in ('load', 'throw', 'land') or ae == 'hop') and ae not in ('hop_up_chair', 'hop_down_chair', 'controlled_fall'):
@@ -192,8 +268,9 @@ def control(g, dt):
         M[:6, acv] = M[acv, :6] = 0.0
         s_solve = dict(s, M=M)
     wb = bool(g.get('_leap') or g.get('active_entry') in se2.WASD_GAITS or (g['a'][modal.LEAD] > 0.0).any() or g['a'][modal.OUTSIDE] > 0.0 or cur_doing in se2.STUNT_PHASES)
-    der = np.where((g['hold'] > 0.0) | wb, g['wep_lim'] / np.maximum(1.0, body.wep), 1.0)
-    g['got'] = g['solve'](body, s_solve, dict(ask, wep=g['left'] > 0.0, derate=der))
+    der = np.where((g['hold'] > 0.0) | wb, g['wep_lim'] / np.maximum(1.0, body.wep), 1.0) * max(0.25, auth)
+    g['got'] = g['solve'](body, s_solve, dict(ask, wep=(g['left'] > 0.0) and bool(keep), derate=der))
+    surety(g, 0.0, qacc=g['got']['qacc'][body.act])
     if len(cv) and no_stride:
         cv_p = cv + ([1] if cur_doing == 'land' and g.get('_land_touch_t') is not None and not g.get('_leap') else [])
         acv = body.act[cv_p]
@@ -212,6 +289,7 @@ def laid(g):
     by, kept beside it. Her latent step, her upper body's coupling and her ask in C, her python's
     bit for bit (`tools.cores.motion`); her estimate, her grip's feel and floor, her situation, her
     drive's cap and her ask's poses compiled from their numpy (`tools.cores.bodied`)."""
+    from machine.figure import JOINTS
     from tools.cores import bodied, motion as c_motion, wbc as cores
     g['estimated'] = bodied.on_body(estimate.step, 'estimate', (0, 2), body=1)
     g['felt'] = bodied.on_args(grip.felt, 'felt', (0, 1, 2, 3, 4, 5, 7, 8))
@@ -226,6 +304,8 @@ def laid(g):
     laid_ = c_motion.latent_laid()
     g['latent'], g['couple'] = functools.partial(c_motion.stepped, laid_), functools.partial(c_motion.coupled, laid_)
     body, joints = g['body'], g['joints']
+    names = [JOINTS[j] for j in joints]
+    g['brace'] = np.array([[d.get(n, 0.0) for n in names] for d in (_BRACE_TUCK, _BRACE_AX, _BRACE_LAT)])
     n = len(joints)
     kept = {'joints': np.ascontiguousarray(joints, dtype=np.int32),
             'act': np.ascontiguousarray(body.act, dtype=np.int32), 'sb': np.zeros(n), 'feed': np.zeros(n),
@@ -250,11 +330,13 @@ def laid(g):
 def drives(g, dt):
     """Each driven joint's setpoint (`g['ref_q']`), feed and clamp (`g['cmd']`) this pass, its
     observer stepped on its motor's encoder: the step in C (`laid`), told here what of her it
-    reads whole - her law's yield as she tilts, a hop, which WEP limit is hers."""
+    reads whole - her surety as she tilts or slips, a hop, which WEP limit is hers."""
     y, got, p, kept, step = g['sense'], g['got'], *g['drives']
-    held, wo, ct = float(g['hold'].any()), g['wo'], edge.tilt(y)
-    ys = max(0.0, min(1.0, (85.0 - ct) / 20.0)) if ct > 65.0 else 1.0
     doing = se2.doing(g)
+    held, wo, ct = float(g['hold'].any()), g['wo'], edge.tilt(y)
+    ys = surety(g, dt, ct, doing)
+    auth = 1.0 - math.exp(-((ys / 0.38) ** 8))
+    wo_s = wo * auth
     in_hop = (g.get('_jump_until', 0.0) > g['t'] or doing in ('load', 'throw', 'land')) and not g.get('_leap')
     wb = bool(g.get('_leap') or g.get('active_entry') in se2.WASD_GAITS or (g['a'][modal.LEAD] > 0.0).any()
               or g['a'][modal.OUTSIDE] > 0.0 or doing in se2.STUNT_PHASES)
@@ -266,5 +348,5 @@ def drives(g, dt):
         p.qacc, p.tau, p.over, p.jeff = at(qacc), at(tau), at(over), at(jeff)
         kept['laid'] = (qacc, tau, jeff, over)
         kept['pointed'] = arrays if all(x is y for x, y in zip(arrays, kept['laid'])) else ()
-    step(ctypes.byref(p), dt, wo, wo ** 3, ys, int(in_hop), int(wb))
+    step(ctypes.byref(p), dt, wo_s, wo_s ** 3, auth, int(in_hop), int(wb))
     g['left'] = min(se2.WEP_S, max(0.0, g['left'] + dt * (se2.WEP_FILL * (1.0 - held) - held)))

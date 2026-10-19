@@ -115,8 +115,46 @@ def test_singular_fall_is_bounded(report):
                  'scale %.4f, max |qacc| %.1f rad/s^2' % (out['scale'], qacc_max))
 
 
+def test_surety_contracts_authority_and_damps_fall(report):
+    """Her directional surety field (`motion.surety`, `g['surety']`, `g['surety_vec']`) ranks a
+    wide double-support stance above narrow standing and single-sole walking, contracts into her
+    2D tuck-and-brace regime outside her upright envelope, absorbs at 0 on collapse so a bounce
+    never re-fires torques, and damps her joints passively."""
+    import numpy as np
+    from machine import edge, modal, motion, sprung
+    g = sprung.laid()
+    for _ in range(5):
+        sprung.passed(g)
+    s_up = motion.surety(g, 0.2, ct=2.0)
+    soles0 = g['y'][modal.SOLE].copy()
+    g['y'][modal.SOLE] = np.array([-0.22, 0.0, 0.20, 0.22, 0.0, -0.20])
+    s_wide = motion.surety(g, 1.0, ct=2.0)
+    g['y'][modal.SOLE] = soles0
+    g['y'][modal.LOAD][:] = g['sense'][edge.LOAD][:] = 0.0
+    s_seat = motion.surety(g, 1.0, ct=4.0)
+    g['y'][modal.LOAD][0] = g['sense'][edge.LOAD][0] = 150.0
+    g['y'][modal.VCOM][2] = 0.55
+    s_walk = motion.surety(g, 1.0, ct=4.0)
+    g['sense'][edge.QUAT][:] = (0.891, 0.454, 0.0, 0.0)
+    s_mid = motion.surety(g, 0.05)
+    motion.control(g, 0.001)
+    knee_tuck = float(g['ask']['posture'][g['body'].knees[0]])
+    s_col = motion.surety(g, 0.05, ct=70.0)
+    s_bnc = motion.surety(g, 0.05, ct=42.0)
+    g['sense'][edge.QD][g['joints']] = 2.0
+    motion.drives(g, 0.001)
+    feed = g['cmd']['feed'].copy()
+    qd = g['sense'][edge.QD][g['joints']]
+    power = float((feed * qd).max())
+    report.check('surety orders wide > stand > walk > topple -> 0 on collapse, tucks knees, and damps passively',
+                 s_wide > s_up > s_walk > 0.65 and s_seat > 0.80 and 0.20 < s_mid < 0.60 and knee_tuck > 0.6
+                 and s_col == 0.0 and s_bnc == 0.0 and power < -0.1 and float(np.abs(g['eso'][2]).max()) == 0.0,
+                 'wide %.3f > stand %.3f > walk %.3f (seat %.3f) -> mid %.2f (knee %.2f rad) -> col %.2f (bounce %.2f), %.2f W'
+                 % (s_wide, s_up, s_walk, s_seat, s_mid, knee_tuck, s_col, s_bnc, power))
+
+
 ROSTER = (test_a_step_standing_is_the_stacks, test_a_contact_bears, test_she_stands_still, test_nudged_she_holds,
-          test_she_hops, test_singular_fall_is_bounded)
+          test_she_hops, test_singular_fall_is_bounded, test_surety_contracts_authority_and_damps_fall)
 
 
 def main(argv=None):

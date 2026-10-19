@@ -12,7 +12,8 @@
 void wbc_pass_drives(wbc_drives_t *p, double dt, double wo, double wo3, double ys, int in_hop, int wb)
 {
   const int    n = p->n;
-  const double c3 = 3.0 * wo, c33 = (3.0 * wo) * wo, leak = dt / p->leak_s;
+  const double c3 = 3.0 * wo, c33 = (3.0 * wo) * wo;
+  const double leak = dt / (p->leak_s * npmax(0.05, ys));
   const double under = in_hop ? 0.0 : 0.02, pull = in_hop ? 0.0 : 35.0;
   double      *eso0 = p->eso, *eso1 = p->eso + n, *eso2 = p->eso + 2 * n;
 
@@ -34,6 +35,7 @@ void wbc_pass_drives(wbc_drives_t *p, double dt, double wo, double wo3, double y
   {
     const int    jo = p->joints[i];
     const double qm = p->y[p->qm_at + jo], qpos = p->y[p->q_at + jo], qvel = p->y[p->qd_at + jo];
+    const double b_pas = (1.0 - ys) * 25.0 * npmin(p->jeff[i], 0.6);
     double       qa = p->qacc[p->act[i]] * ys, e;
 
     if (!in_hop)
@@ -52,12 +54,9 @@ void wbc_pass_drives(wbc_drives_t *p, double dt, double wo, double wo3, double y
       eso0[i] = npclip(eso0[i], qm - 0.08, qm + 0.08);
       eso2[i] = npclip(eso2[i], -z_lim, z_lim);
     }
-    if (ys < 1.0)
-    {
-      eso1[i] *= ys;
-      eso2[i] *= ys;
-    }
-    p->hold[i] = p->over[i] ? p->wep_hold_s : npmax(0.0, p->hold[i] - dt);
+    eso1[i] *= ys;
+    eso2[i] *= ys;
+    p->hold[i] = p->over[i] ? p->wep_hold_s * ys : npmax(0.0, p->hold[i] * ys - dt);
     /* the setpoint carried on by the ask, leaking to the encoder */
     p->ref_v[i] += (qa * dt) + leak * (qvel - p->ref_v[i]);
     if (!in_hop)
@@ -91,12 +90,9 @@ void wbc_pass_drives(wbc_drives_t *p, double dt, double wo, double wo3, double y
       }
       p->ref_q[i] = npclip(p->ref_q[i], p->q_lo[i], p->q_hi[i]);
     }
-    if (ys < 1.0)
-    {
-      p->ref_v[i] *= ys;
-      p->ref_q[i] = qpos + (p->ref_q[i] - qpos) * ys;
-    }
-    p->feed[i] = (p->tau[i] * ys + p->sb[i]) - p->jeff[i] * eso2[i];
+    p->ref_v[i] *= ys;
+    p->ref_q[i] -= (1.0 - ys) * (p->ref_q[i] - qpos);
+    p->feed[i] = ((p->tau[i] * ys + p->sb[i]) - p->jeff[i] * eso2[i]) - b_pas * qvel;
     p->limit[i] = p->hold[i] > 0.0 ? (wb ? p->wep_lim[i] : p->wep[i]) : p->clamp_j[i];
   }
 }

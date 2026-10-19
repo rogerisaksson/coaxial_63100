@@ -203,9 +203,18 @@ def test_her_verbs_and_the_chase(report):
     from coaxial.graphics import arrows
     errands = [arrows.describe(dict(st['now'], doing=d, entry=e, velocity=(0.0, 0.35)))['kind']
                for e in ('sit_chair', 'lie_bed', 'stairs_walk') for d in ('init_walk', 'brake', '#201', e)]
-    report.check('the view eases behind her as she goes, 63 % in LAG_S; not RECENTRE_S after a look, nor standing',
+    orb = {**viewpoint.HOME, 'orbit': False, 'left_held': True}
+    viewpoint.mouse(orb, lambda: (120, 50))['on_drag'](30, 5)
+    yaw_held, pitch_held = orb['yaw'], orb['pitch']
+    viewpoint.chased(orb, 0.0, True, t)
+    viewpoint.chased(orb, 0.0, True, t + 5.0)
+    held_ok = orb['yaw'] == yaw_held and orb['pitch'] == pitch_held
+    orb['left_held'] = False
+    viewpoint.chased(orb, 0.0, True, t + 5.0 + viewpoint.LAG_S)
+    ret_ok = abs((orb['yaw'] - yaw_held) / (180.0 - yaw_held) - (1.0 - math.exp(-1.0))) < 1e-6 and orb['pitch'] < pitch_held
+    report.check('the view eases behind her as she goes, 63 % in LAG_S; left-drag holds while pressed and returns on release',
                  abs((went['yaw'] - 180.0) / (behind - 180.0) - (1.0 - math.exp(-1.0))) < 1e-6
-                 and looked['yaw'] == stood['yaw'] == 180.0
+                 and looked['yaw'] == stood['yaw'] == 180.0 and held_ok and ret_ok
                  and errands == ['fall'] * 8 + ['locomotion'] * 4)
 
 

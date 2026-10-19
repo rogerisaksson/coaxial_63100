@@ -271,10 +271,11 @@ def stepped(s):
                 s['wearing'] = wear.wearing(s['wear'], ys, taus[:-1], DT, g)
                 s['ys'], s['taus'] = [ys[-1]], [taus[-1]]
         else:
-            s['ys'], s['taus'] = [], []
+            from machine import motion
+            s['ys'], s['taus'], g['surety'] = [], [], 0.0
             edge.felt(world, g['sense'])
-            g['ref_q'][:] += 0.05 * (g['sense'][edge.Q][g['joints']] - g['ref_q'])
-            edge.drive(world, g['joints'], target=g['ref_q'], feed=0.0 * g['ref_q'])
+            motion.drives(g, DT)
+            edge.drive(world, g['joints'], **g['cmd'])
             g['t'] += DT
             world.advance()
         if s['wearing'] is not None:
