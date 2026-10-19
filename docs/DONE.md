@@ -180,3 +180,7 @@ the hundred before these: [DONE_1-50](DONE_1-50.md),
 44. Her law in C her python's bit for bit: her ask, latent step, coupling and
     whole-body step on numpy's own OpenBLAS (`tools.cores.law`), the generated
     law core cut; 1.55 of real time ([body](findings/body.md)).
+45. The helicopter and the ornithopter drawn after their models: the T-REX
+    700's red teardrop canopy over the frames (its loft had dropped below
+    them), a swept fin; the ornithopter's cabin fuller, its wings their
+    0.085 m chord in sand ([host](findings/host.md)).

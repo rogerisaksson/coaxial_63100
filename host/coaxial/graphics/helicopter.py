@@ -36,8 +36,8 @@ TAIL_AT = (0.032, 0.022, -TAIL_M)
 #: floor; the tail's, 28 x 20 mm; the 63100 boards on the frames' faces, 64 mm apart.
 MOTOR_L, MOTOR_Y, TAIL_MOTOR = 0.048, 0.055, (0.014, 0.020)
 NEG_ARROW_INK = (96, 224, 255)
-#: A Goblin Raw's lime canopy and blade tips.
-LIME = (196, 222, 40)
+#: A T-REX 700's red canopy, fin and blade tips.
+RED = (186, 28, 36)
 
 _HELI_MESH = {}
 
@@ -55,20 +55,22 @@ def _side(name, x, mesh_r, h, material):
 
 
 def _canopy():
-    """The canopy over the front frame along z, lime above the frame's floor, black under."""
+    """The canopy along z over the frames, a T-REX's teardrop from the nose into the boom: red
+    above the frames' floor, black under."""
     from coaxial.model.blocks import numpy as np
-    rings = [(-0.10, 0.040, 0.060, 0.045), (-0.04, 0.047, 0.078, 0.042), (0.04, 0.050, 0.084, 0.040),
-             (0.12, 0.049, 0.076, 0.044), (0.19, 0.038, 0.050, 0.050), (0.24, 0.014, 0.016, 0.055)]
-    lime, carbon = paint(LIME), paint(CARBON)
-    return shapes.loft(rings, lambda c: np.where(c[:, 1] > 0.005, lime, carbon),
-                       poles=(-0.11, 0.25), along='z')
+    rings = [(-0.26, 0.014, 0.018, -0.015), (-0.22, 0.026, 0.036, -0.022), (-0.16, 0.046, 0.062, -0.030),
+             (-0.10, 0.062, 0.080, -0.035), (-0.02, 0.070, 0.090, -0.035), (0.08, 0.068, 0.088, -0.035),
+             (0.18, 0.055, 0.072, -0.035), (0.25, 0.035, 0.045, -0.035), (0.30, 0.012, 0.014, -0.030)]
+    red, carbon = paint(RED), paint(CARBON)
+    return shapes.loft(rings, lambda c: np.where(c[:, 1] > 0.005, red, carbon),
+                       poles=(-0.27, 0.31), along='z')
 
 
 def _tipped(s):
-    """A blade's paint on side `s`: lime past 0.8 of its reach, white within."""
+    """A blade's paint on side `s`: red past 0.8 of its reach, white within."""
     from coaxial.model.blocks import numpy as np
-    lime, prop = paint(LIME), paint(PROP)
-    return lambda c: np.where(s * c[:, 0] > 0.3 * ROTOR_R, lime, prop)
+    red, prop = paint(RED), paint(PROP)
+    return lambda c: np.where(s * c[:, 0] > 0.3 * ROTOR_R, red, prop)
 
 
 def heli_parts(see='shell'):
@@ -91,8 +93,8 @@ def heli_parts(see='shell'):
         return out + [('boom', _at(shapes.drum(0.003, TAIL_M - 0.08, 'z', PLATE), None,
                                    (0.0, 0.012, -0.5 * (TAIL_M + 0.08))))]
     out += [
-        ('frame0', shapes.box((-0.032, 0.03, 0.03), (0.004, 0.075, 0.16), skin)),
-        ('frame1', shapes.box((0.032, 0.03, 0.03), (0.004, 0.075, 0.16), skin)),
+        ('frame0', shapes.box((-0.032, 0.025, 0.03), (0.004, 0.06, 0.14), skin)),
+        ('frame1', shapes.box((0.032, 0.025, 0.03), (0.004, 0.06, 0.14), skin)),
         ('tray', shapes.box((0.0, -0.025, 0.11), (0.034, 0.018, 0.09),
                             paint(CELLS) if see == 'pack' else PLATE)),
         ('can0', _at(shapes.drum(MOTOR_R, MOTOR_L, 'y', PLATE), None,
@@ -107,8 +109,9 @@ def heli_parts(see='shell'):
     ]
     if shell:
         out += [('canopy', _canopy()),
-                ('vfin', shapes.box((0.0, 0.0, -TAIL_M + 0.01), (0.005, 0.11, 0.045), paint(LIME))),
-                ('hstab', shapes.box((0.0, 0.03, -0.46), (0.13, 0.004, 0.035), carbon))]
+                ('vfin', _at(shapes.box((0.0, 0.0, 0.0), (0.004, 0.065, 0.04), paint(RED)),
+                             shapes.turn_about('x', 25.0), (0.0, 0.035, -TAIL_M + 0.03))),
+                ('hstab', shapes.box((0.0, 0.03, -0.46), (0.10, 0.004, 0.03), carbon))]
     for s in (-1.0, 1.0):
         out.append(('skid%d' % (s > 0),
                     _at(shapes.drum(1.4 * LEG_R, 0.46, 'z', skin), None,

@@ -234,6 +234,11 @@ Pages, tooling, suites and the local model's runner. The board's findings:
   points beside the glTF and FBX models they were judged against. Her jeans
   (70, 98, 150), 0.062-0.068 m a thigh where 0.072-0.088, 0.052 m a hem where
   0.074; her shoulders' rings 0.118 m at 0.344 m where 0.14.
+- The helicopter after the T-REX 700 beside the repo: its canopy a 0.57 m
+  teardrop over the frames, red over black; a loft's fourth number drops a
+  ring, and the lime canopy had sat under the frames, unseen from the side.
+  The ornithopter's cabin 0.18 x 0.15 m, its wings their 0.085 m chord where
+  0.032 was drawn.
 - The tty's face (VS Code 1.141's xterm 6.1 in Edge 154, WebGL,
   125 %): a cell is the face's W wide, its braille and boxes drawn to fill
   it.
