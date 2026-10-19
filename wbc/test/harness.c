@@ -3,6 +3,7 @@
 #include "wbc.h"
 #include "wbc_imp.h"
 #include "wbc_law.h"
+#include "wbc_np.h"
 #include "wbc_pass.h"
 
 #include <string.h>
@@ -285,4 +286,51 @@ API void wbh_law_couple(const wbc_law_t *k, const double *q, const double *qd, c
 API int wbh_law_size(void)
 {
   return (int)sizeof(wbc_law_t);
+}
+
+/** numpy's primitives as her law's C computes them, `n` draws: 0 a (3, 3) @ (3,), 1 a (2, 2) @ (2,),
+    2 a (2, 3) @ (3, 3).T and 3 @ (3, 3), 4 a 1-d dot of 3, 5 einsum 'nia,ia->n' of six; 10 sin,
+    11 cos, 12 tan, 13 asin, 14 acos, 15 atan2, 16 exp, 17 log, 18 hypot, 19 pow(x, 2) of libm. */
+API void wbh_np_probe(int which, const double *a, const double *b, double *out, int n)
+{
+  for (int k = 0; k < n; k++)
+  {
+    const double *x = a + 9 * k, *y = b + 9 * k;
+    double       *o = out + 9 * k;
+
+    switch (which)
+    {
+    case 0:
+      for (int j = 0; j < 3; j++)
+      {
+        o[j] = npmv3(x + 3 * j, y);
+      }
+      break;
+    case 1:
+      o[0] = npmv2(x, y);
+      o[1] = npmv2(x + 2, y);
+      break;
+    case 2:
+    case 3:
+      for (int i = 0; i < 2; i++)
+      {
+        for (int j = 0; j < 3; j++)
+        {
+          o[3 * i + j] = which == 2 ? npmm3(x + 3 * i, y + 3 * j, 1) : npmm3(x + 3 * i, y + j, 3);
+        }
+      }
+      break;
+    case 4:
+      o[0] = npdot(x, 1, y, 1, 3);
+      break;
+    case 5:
+      o[0] = npein6(x, y);
+      break;
+    default:
+      o[0] = which == 10 ? sin(x[0]) : which == 11 ? cos(x[0]) : which == 12 ? tan(x[0]) : which == 13 ? asin(x[0])
+             : which == 14 ? acos(x[0]) : which == 15 ? atan2(x[0], y[0]) : which == 16 ? exp(x[0])
+             : which == 17 ? log(x[0]) : which == 18 ? hypot(x[0], y[0]) : pow(x[0], 2.0);
+      break;
+    }
+  }
 }

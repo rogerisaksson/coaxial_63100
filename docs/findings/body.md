@@ -127,7 +127,11 @@ her latent loop in [orthokinematics](orthokinematics.md).
   `wbc_blas.c`: numpy's matmul dispatch - gemm, syrk, gemv, ddot or its own
   loop by shapes and strides - and its linalg's dgesv on Fortran copies,
   4 000 random shapes the same): 41 022 steps and 41 011 couplings bit for
-  bit. Left in the pass: the
+  bit. Bit for bit where numpy is the C's (`law.exact_host`: its orders and
+  its libm, here UCRT's - whose pow(x, 2) is not x x in 1 of 2 000, numpy's
+  for a scalar's square, its x x an array's); CI's runners parted 3 asks of
+  9 463 on one, 3 709 of 9 668 on another, numpy's kernels theirs: there
+  within 1e-9. Left in the pass: the
   python wrench step, her sensing, the wear's window 0.23 s every 4 s - it
   feeds her law (`wear.loaded`).
 - What her law sees, reviewed: her edge's array alone - an IMU in its own

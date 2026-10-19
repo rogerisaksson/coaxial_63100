@@ -9,6 +9,7 @@ their layouts and constants.
     c = law.latent_laid()
     law.stepped(c, st, tab, now, dt, out)   # latent.step(st, tab, now, dt, out)
     dq = law.coupled(c, q, qd, ref_q, ref_v, eso_z, out)     # support.couple(...)
+    law.exact_host()                        # bit for bit here, or only within the last bits
 """
 import ctypes
 import functools
@@ -107,6 +108,49 @@ def asked(k, ask, out, y, fr, a):
     """`a`, the loop's ask this pass, in place - `impedance.ask(out, y, fr, a)` in C."""
     ask(ctypes.byref(k), wbc.pointer(out), wbc.pointer(y), wbc.pointer(fr), wbc.pointer(a))
     return a
+
+
+@functools.lru_cache(maxsize=None)
+def exact_host(draws=1000):
+    """Whether this host's numpy computes her law's primitives as her law's C does, bit for bit -
+    its small matmuls', dots' and einsum's orders; its sin, cos, tan, arcsin, arccos, arctan2, exp,
+    log and hypot on arrays and on scalars, a scalar's square its pow (wbh_np_probe): where it
+    does, her law in C is her python's bit for bit; a numpy dispatching elsewhere (SVML, other
+    OpenBLAS kernels) parts the last bits."""
+    lib = wbc.library()
+    lib.wbh_np_probe.argtypes = [ctypes.c_int, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_int]
+    lib.wbh_np_probe.restype = None
+    rng = np.random.default_rng(3)
+    a = rng.normal(size=(draws, 9)) * rng.choice([1e-3, 1.0, 1e3], size=(draws, 1))
+    b = rng.normal(size=(draws, 9))
+
+    def probe(which):
+        out = np.zeros((draws, 9))
+        lib.wbh_np_probe(which, a.ctypes.data, b.ctypes.data, out.ctypes.data, draws)
+        return out
+    wants = {0: (a.reshape(draws, 3, 3) @ b[:, :3, None])[:, :, 0],
+             1: (a[:, :4].reshape(draws, 2, 2) @ b[:, :2, None])[:, :, 0],
+             2: (a[:, :6].reshape(draws, 2, 3) @ np.transpose(b.reshape(draws, 3, 3), (0, 2, 1))).reshape(draws, 6),
+             3: (a[:, :6].reshape(draws, 2, 3) @ b.reshape(draws, 3, 3)).reshape(draws, 6),
+             4: np.array([x[:3] @ y[:3] for x, y in zip(a, b)])[:, None],
+             5: np.array([np.einsum('nia,ia->n', x[None, :6].reshape(1, 2, 3), y[:6].reshape(2, 3))[0]
+                          for x, y in zip(a, b)])[:, None]}
+    for which, want in wants.items():
+        if not np.array_equal(probe(which)[:, :want.shape[1]], want):
+            return False
+    x, y = a[:, 0] * 0.3, b[:, 0].copy()
+    unit = np.clip(x, -1.0, 1.0)
+    ufuncs: list = [(10, np.sin, (x,)), (11, np.cos, (x,)), (12, np.tan, (x,)), (13, np.arcsin, (unit,)),
+                    (14, np.arccos, (unit,)), (15, np.arctan2, (x, y)), (16, np.exp, (np.clip(x, -50.0, 50.0),)),
+                    (17, np.log, (np.abs(x) + 1e-3,)), (18, np.hypot, (x, y))]
+    for which, fn, args in ufuncs + [(19, None, (x,))]:
+        a[:, 0] = args[0]
+        b[:, 0] = args[1] if len(args) > 1 else 0.0
+        got = probe(which)[:, 0]
+        scalars = [np.float64(args[0][k]) ** 2 if fn is None else fn(*[np.float64(v[k]) for v in args]) for k in range(200)]
+        if not np.array_equal(got[:200], np.array(scalars)) or (fn is not None and not np.array_equal(got, fn(*args))):
+            return False
+    return True
 
 
 class Blas(ctypes.Structure):
