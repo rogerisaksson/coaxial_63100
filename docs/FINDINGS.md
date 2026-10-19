@@ -260,7 +260,7 @@ Six firmware defects, no hardware fault:
 | Her eyes: the stereo, the map she keeps, ways round its things | [findings/sight.md](findings/sight.md) |
 | Kinematics: the figure's recipes, dual quaternions, the seams | [findings/kinematics.md](findings/kinematics.md) |
 | The whole-body stack: its solver, standing, shoves, the loop in C | [findings/wbc.md](findings/wbc.md) |
-| Flight on the stack: which soles stand from one pass, a hop stood | [findings/flight.md](findings/flight.md) |
+| Leap on the stack: which soles stand from one pass, a hop stood | [findings/leap.md](findings/leap.md) |
 | Orthokinematics, the one way she moves: text, a latent loop, the stride, the walk | [findings/orthokinematics.md](findings/orthokinematics.md) |
 | The whole body's step without an active set: 21 unknowns, four solves | [findings/wrench.md](findings/wrench.md) |
 | What her law senses: edge, estimate, insoles | [findings/sensing.md](findings/sensing.md) |

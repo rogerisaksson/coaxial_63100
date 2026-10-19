@@ -113,8 +113,8 @@ her latent loop in [orthokinematics](orthokinematics.md).
   in snow 3 of 3, hopped 0.85 m/s where 0.9 and fell turning at 0.69 m/s:
   the python step stays. libm here gives numpy's bits for sin, cos, tan,
   exp, log, atan2, sqrt, acos, asin, hypot and pow, tanh an ulp off.
-- Her ask in C (`wbc/src/wbc_imp.c`, `wbc_stride.c`, `tools.cores.law`):
-  `impedance.ask` with modal's reading, poise, stride and flight.standing
+- Her ask in C (`wbc/src/wbc_imp.c`, `wbc_stride.c`, `tools.cores.motion`):
+  `impedance.ask` with modal's reading, poise, stride and leap.standing
   under it, numpy's orders in `wbc/inc/wbc_np.h` - (3,3)@(3,) and (2,3)@(3,)
   dgemv_t's tail contracted, fma(a2, x2, fma(a0, x0, a1 x1)), (2,2)@(2,)
   fma(a0, x0, a1 x1), dgemm's fma chain, a vector @ a stack and a 1-d dot a

@@ -5,7 +5,7 @@
 """
 import math
 import os
-from machine import mechatronics, edge, estimate, flight, grip, ortho, se2, situation
+from machine import mechatronics, edge, estimate, grip, leap, ortho, se2, situation
 from machine.se2 import WEP_S, _dropped, doing, said
 
 LEAK_S, STANDING_KP, WEP_HOLD_S, WEP_FILL = se2.LEAK_S, se2.STANDING_KP, se2.WEP_HOLD_S, se2.WEP_FILL
@@ -17,7 +17,7 @@ SHOVES, SHOVE_S = {'nudge': 38.0, 'push': 80.0, 'shove': 120.0}, 0.12
 #: Her stage (`staged`): walking past WALK_M_S, or with a sole off the floor within STEP_S.
 WALK_M_S, STEP_S = 0.1, 1.0
 HEARD = ('say', 'walk', 'entries', 'gym', 'text', 'push', 'seconds', 'restart', 'scenario', 'heading', 'twist',
-         'grip')
+         'grip', 'charge')
 WALK = (('#201', 0.5), ('#202', 2.0), ('#203', 5.0), ('#204', 9.0))
 BRAKE = ('(stream_inject (sequence_id 200) (blend_duration 500ms) (latent_targets (mode_axial_compression 0.04)'
          ' (mode_pitch_attitude 0.0) (mode_sagittal_shift 0.0) (mode_lateral_shift 0.0) (mode_pelvis_turn 0.0)'
@@ -60,7 +60,7 @@ def entries(text=None, name=GYMS[0]):
 def laid(every=1, inner=None, solver=None):
     """She stands on the floor on the loop, at rest: one dict of what a run holds."""
     import numpy as np
-    from machine import figure, heat, latent, law, modal, physics, servos, wbc, wrench
+    from machine import figure, heat, latent, modal, motion, physics, servos, wbc, wrench
     from machine.drives import kind, peak
     from machine.figure import JOINTS
     world, body, pose, inner = physics.World(), wbc.Body(), figure.stand(), (inner or INNER)
@@ -93,8 +93,8 @@ def laid(every=1, inner=None, solver=None):
     if (solver or SOLVER) == 'c':
         from tools.cores.wbc import wrench_step as solve_step
     elif (solver or SOLVER) == 'wrench':
-        from tools.cores import law as c_law
-        solve_step = c_law.wrench_laid(body, sensed)
+        from tools.cores import motion as c_motion
+        solve_step = c_motion.wrench_laid(body, sensed)
     else:
         solve_step = {'stack': wbc.step}[solver or SOLVER]
     g = {'world': world, 'body': body, 'y': y, 'fr': fr, 'rest': rest, 'rest_y': rest_y, 'st': st, 'out': out, 'a': a, 'tab': tab,
@@ -114,7 +114,7 @@ def laid(every=1, inner=None, solver=None):
          'heading': float(fr[modal.HEADING]), 'twist': (0.0, 0.0, 0.0),
          'heat': heat.Heat.for_joints(JOINTS), 'temp': np.full(len(JOINTS), 25.0), 'scenario': 'flat',
          'solve': solve_step, 'sensed': sensed}
-    law.laid(g)
+    motion.laid(g)
     world.clock = lambda: g['t']
     return g
 
@@ -169,15 +169,15 @@ def reset_for_scenario(g, scen):
 
 def passed(g, dt=0.001):
     """A pass: (sensed, her soles' loads, the loop's ask, the latent out) - and her world a `dt` on:
-    read through her edge, her law's pass (`machine.law`), her drives told through her edge."""
+    read through her edge, her motion pass (`machine.motion`), her drives told through her edge."""
     import numpy as np
-    from machine import law
+    from machine import motion
     world, y, ev = g['world'], g['sense'], g['every']
     if g['n'] % ev == 0:
         edge.read(world, y)
-        law.control(g, dt)
+        motion.control(g, dt)
         edge.drive(world, g['leg_joints'], kp=g['leg_kp'])
-        bears = tuple(n >= flight.TOUCH_N for n in g['loads'])
+        bears = tuple(n >= leap.TOUCH_N for n in g['loads'])
         if any(b and not n for b, n in zip(g.get('bore', (False, False)), bears)):
             g['lifted'] = g['t']
         g['bore'] = bears
@@ -185,7 +185,7 @@ def passed(g, dt=0.001):
             g['temp'] = np.asarray(g['heat'].step_joints(world.data.ctrl, world.data.qvel[world.vadr], dt * ev))
     else:
         edge.felt(world, y)
-    law.drives(g, dt)
+    motion.drives(g, dt)
     edge.drive(world, g['joints'], **g['cmd'])
     g['t'], g['n'] = g['t'] + dt, g['n'] + 1
     world.advance()
@@ -199,12 +199,12 @@ def tilt(g):
 
 
 def staged(g, fallen_at):
-    """Her stage as measured: fallen; in the air, neither sole bearing `flight.TOUCH_N`; walking,
+    """Her stage as measured: fallen; in the air, neither sole bearing `leap.TOUCH_N`; walking,
     her pelvis faster than WALK_M_S or a sole off the floor within STEP_S; else standing. Read off
     her gait's amplitude it said stand at 0.9 m/s."""
     if fallen_at is not None:
         return 'fallen'
-    if max(g['loads']) < flight.TOUCH_N:
+    if max(g['loads']) < leap.TOUCH_N:
         return 'air'
     d = g['world'].data
     going = math.hypot(float(d.qvel[0]), float(d.qvel[2])) > WALK_M_S
@@ -225,7 +225,8 @@ def state(g, torque, power, watts, ratio, fallen_at, says=(), refused=None):
     horizon = {'com': tuple(y[modal.COM].tolist()), 'xi': (float(y[modal.COM][0] + y[modal.VCOM][0] / om),
                                                            float(y[modal.COM][2] + y[modal.VCOM][2] / om)),
                'soles': tuple(tuple(s) for s in y[modal.SOLE].reshape(2, 3).tolist()),
-               'stance': tuple(g['a'][modal.STANCE].tolist()), 'shoulder': tuple(_Q_LIM['shoulder'])}
+                'stance': tuple(g['a'][modal.STANCE].tolist()), 'shoulder': tuple(_Q_LIM['shoulder'])}
+    buses = {b.name: (b.frames, b.comm_errors, b.tx_bytes) for b in (getattr(world, 'limb_buses', None) or ())}
     return {'t': g['t'], 'angles': dict(angles, **world.loose()), 'set': angles,
             'torque': dict(zip(JOINTS, torque.tolist())), 'power': dict(zip(JOINTS, power.tolist())),
             'temp': dict(zip(JOINTS, g['temp'].tolist())), 'peak': dict(zip(JOINTS, world.peak.tolist())),
@@ -238,7 +239,7 @@ def state(g, torque, power, watts, ratio, fallen_at, says=(), refused=None):
             'fallen': fallen_at is not None, 'loads': tuple(g['loads']), 'props': world.props(), 'dents': world.dents(),
             'doing': doing(g), 'entry': g.get('active_entry'),
             'recover': None if fallen_at is None else RECOVER_S - (g['t'] - fallen_at),
-            'ratio': min(ratio, 99.0), 'says': tuple(says), 'refused': refused,
+            'ratio': min(ratio, 99.0), 'says': tuple(says), 'refused': refused, 'buses': buses,
             'scenario': g.get('scenario', 'flat'), 'situation': situation.told(g['situations'], g['into']), 'horizon': horizon,
             'modes': [(n, float(out[latent.REF][i]), float(z[i]), float(out[latent.KS][i]),
                        float(out[latent.DS][i])) for i, n in enumerate(ortho.MODES)]}

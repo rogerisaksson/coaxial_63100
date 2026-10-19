@@ -22,7 +22,7 @@ import numpy as np
 
 from machine import edge
 from machine.figure import JOINTS
-from machine.flight import TOUCH_N
+from machine.leap import TOUCH_N
 
 #: Her speed as her IMU carries it on, drawn to what her bearing soles say over HOLD_S; her soles'
 #: slide forgotten over SLIP_S.

@@ -1,17 +1,17 @@
-"""Her law in C through ctypes, her python's bit for bit.
+"""Her motion pass in C through ctypes, her python's bit for bit.
 
 Her ask (wbc_imp.c, wbc_stride.c), her latent step and her upper body's coupling (wbc_law.c) on
 numpy's own OpenBLAS (wbc_blas.c); the structs they are laid on, filled of the modules that define
 their layouts and constants.
 
-    k, ask = law.laid()
-    law.asked(k, ask, out, y, fr, a)        # `a` this pass, in place: impedance.ask(out, y, fr, a)
-    c = law.latent_laid()
-    law.stepped(c, st, tab, now, dt, out)   # latent.step(st, tab, now, dt, out)
-    dq = law.coupled(c, q, qd, ref_q, ref_v, eso_z, out)     # support.couple(...)
-    solve = law.wrench_laid(body)
+    k, ask = motion.laid()
+    motion.asked(k, ask, out, y, fr, a)     # `a` this pass, in place: impedance.ask(out, y, fr, a)
+    c = motion.latent_laid()
+    motion.stepped(c, st, tab, now, dt, out)    # latent.step(st, tab, now, dt, out)
+    dq = motion.coupled(c, q, qd, ref_q, ref_v, eso_z, out)  # support.couple(...)
+    solve = motion.wrench_laid(body)
     out = solve(body, s, ask)               # wrench.step(body, s, ask)
-    law.exact_host()                        # bit for bit here, or only within the last bits
+    motion.exact_host()                     # bit for bit here, or only within the last bits
 """
 import ctypes
 import functools
@@ -40,7 +40,7 @@ def _at(x):
 
 def _doubles():
     """wbc_imp_t's doubles in its order: (name, value) - a tuple or an array lays that many."""
-    from machine import figure, flight, impedance as imp, modal, poise, stride, wbc as law
+    from machine import figure, impedance as imp, leap, modal, poise, stride, wbc as law
     return (('on', imp.ON), ('going_s', imp.GOING_S), ('ahead', imp.AHEAD), ('yaw_k', imp.YAW_K),
             ('throw_m_s2', imp.THROW_M_S2), ('prop_on', imp.PROP_ON), ('low_m', imp.LOW_M), ('low_leg', imp.LOW_LEG),
             ('falls', imp.FALLS), ('upward', imp.UPWARD), ('between', imp.BETWEEN),
@@ -51,8 +51,8 @@ def _doubles():
             ('big', poise.BIG), ('tiny', poise.TINY), ('half_m', poise.HALF_M), ('margin_m', poise.MARGIN_M),
             ('capture_s', poise.CAPTURE_S), ('extent', poise.EXTENT), ('lift_eps', poise.LIFT_EPS),
             ('gate_m', poise.GATE_M), ('early', poise.EARLY), ('along_on', poise.ON),
-            ('touch_n', flight.TOUCH_N), ('touch_m', flight.TOUCH_M), ('rest_m_s', flight.REST_M_S),
-            ('middle', flight.MIDDLE), ('ankle_h', figure.ANKLE_H), ('ball', figure.BALL), ('toe_m', figure.TOE_M),
+            ('touch_n', leap.TOUCH_N), ('touch_m', leap.TOUCH_M), ('rest_m_s', leap.REST_M_S),
+            ('middle', leap.MIDDLE), ('ankle_h', figure.ANKLE_H), ('ball', figure.BALL), ('toe_m', figure.TOE_M),
             ('limbs', stride.LIMBS), ('stride_m', stride.STRIDE_M), ('rock_rad', stride.ROCK_RAD),
             ('stirs', stride.STIRS), ('phi_w', stride.PHI_W), ('back', stride.BACK), ('ahead_m_s', stride.AHEAD_M_S),
             ('reach_m', stride.REACH_M), ('apart_m', stride.APART_M), ('soon_s', stride.SOON_S),

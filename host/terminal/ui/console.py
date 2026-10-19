@@ -121,7 +121,7 @@ class Keys:
 
     PARTIAL_RE = re.compile(r'\033(?:\[(?:<[\d;]*|\d*)?|O[P-S]?)?$')
     CSI_RE = re.compile(r'\033\[[\x30-\x3f]*[\x20-\x2f]*[\x40-\x7e]')
-    VK_MAP = {87: 'w', 65: 'a', 83: 's', 68: 'd', 81: 'q', 69: 'e',
+    VK_MAP = {87: 'w', 65: 'a', 83: 's', 68: 'd', 81: 'q', 69: 'e', 32: ' ',
               16: 'shift', 160: 'shift', 161: 'shift'}
 
     def __init__(self, console, mouse=False, quits=QUIT_KEYS, select=SELECT_KEYS, pan=False):
@@ -354,7 +354,7 @@ class Keys:
                 self._async_keys = True
                 if self._latched_wasd or self._keys_down:
                     hw = {c for vk, c in self.VK_MAP.items() if user32.GetAsyncKeyState(vk) & 0x8000}
-                    if hw & {'w', 'a', 's', 'd', 'q', 'e'}:
+                    if hw & {'w', 'a', 's', 'd', 'q', 'e', ' '}:
                         self._hw_seen = self._latched_wasd = True
                         self._keys_down, self._last_key_at = set(hw), now
                         return set(hw)
@@ -429,7 +429,7 @@ class Keys:
             if record.type == 1:
                 key = record.event.key
                 ch_low = (key.ch or '').lower()
-                tok = self.VK_MAP.get(key.vk) or (ch_low if ch_low in ('w', 'a', 's', 'd', 'q', 'e') else None)
+                tok = self.VK_MAP.get(key.vk) or (ch_low if ch_low in ('w', 'a', 's', 'd', 'q', 'e', ' ') else None)
                 if key.down:
                     if fg:
                         self._term_hwnd = fg
@@ -458,7 +458,7 @@ class Keys:
                 keys.append(('f%d' % (ord(code) - 58)) if ';' <= code <= 'D' else
                             {'H': '\x1b[A', 'P': '\x1b[B', 'M': '\x1b[C', 'K': '\x1b[D'}.get(code, ''))
                 continue
-            if got.lower() in ('w', 'a', 's', 'd', 'q', 'e'):
+            if got.lower() in ('w', 'a', 's', 'd', 'q', 'e', ' '):
                 self._last_key_at, self._latched_wasd = now, True
                 self._keys_down.add(got.lower())
                 if got in ('W', 'A', 'S', 'D', 'Q', 'E'):

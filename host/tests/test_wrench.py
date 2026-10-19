@@ -81,13 +81,13 @@ def test_nudged_she_holds(report):
 
 
 def test_she_hops(report):
-    """A hop (`tools.sim.hop`): thrown, flown a tenth of a second, landed, stood."""
+    """A hop (`tools.sim.hop`): thrown, airborne a tenth of a second, landed, stood."""
     from tools.sim import hop
     out = hop.hop(wrench=True)
-    report.check('thrown, she flies, lands and stands',
-                 out['stood'] and out['flights'] == 1 and out['flight_s'] >= 0.1 and out['clear_mm'] >= 12.0,
+    report.check('thrown, she leaps, lands and stands',
+                 out['stood'] and out['leaps'] == 1 and out['air_s'] >= 0.1 and out['clear_mm'] >= 12.0,
                  '%.3f s, %.1f mm under her soles, landed %d N, tilt %.1f deg, %s'
-                 % (out['flight_s'], out['clear_mm'], out['landed_n'], out['tilt'], out['stances']))
+                 % (out['air_s'], out['clear_mm'], out['landed_n'], out['tilt'], out['stances']))
 
 
 ROSTER = (test_a_step_standing_is_the_stacks, test_a_contact_bears, test_she_stands_still, test_nudged_she_holds,

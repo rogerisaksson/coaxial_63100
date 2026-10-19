@@ -189,7 +189,7 @@ the table under [Subjects](#subjects).
 17. **The latent stack** (wbc.md): the humanoid robot physics as static arrays,
     one C loop over them (`wbc/`), R^k the only thing upward, the model feeding
     R^k as data.
-    + Flight (`machine/flight.py`, flight.md): the strike at a landing,
+    + Leap (`machine/leap.py`, leap.md): the strike at a landing,
       1.8-2.8 kN at 0.8 m/s; the loop in C 15-17 deg over a hop of 48 mm;
       a hop on one sole.
     + Reach (`machine/reach.py`, kinematics.md): the humanoid robot stride

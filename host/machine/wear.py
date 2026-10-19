@@ -19,7 +19,7 @@ last service meets its band. The same rows off a robot's boards, its currents it
 """
 import math
 
-from machine import campaign, drives, edge, flight, identified, mechatronics, modal, sysid
+from machine import campaign, drives, edge, identified, leap, mechatronics, modal, sysid
 from machine.errors import MachineError
 
 #: Where a load may ride on her limbs: her hands. Her back's load is seen by her drives only
@@ -217,7 +217,7 @@ def windowing(w, ys, taus, dt):
     yield
     keep = np.abs(rows_).sum(axis=1) > 0.0
     zero = (ys_arr[-1, edge.QM] - ys_arr[-1, edge.Q])[lay['joint']]
-    if (ys_arr[:, edge.LOAD] >= flight.TOUCH_N).all(axis=1).mean() > 0.8:
+    if (ys_arr[:, edge.LOAD] >= leap.TOUCH_N).all(axis=1).mean() > 0.8:
         yield
         yield from torso_loading(w, ys_arr, dt)
     return {'A': A[keep], 'left': (tau.reshape(-1) - pred)[keep], 'drive': drive[keep],
@@ -382,7 +382,7 @@ def torso_loading(w, ys, dt):
     import numpy as np
     lay, body = w['lay'], w['body']
     Yb, fb = yield from sysid.borning(lay, body, ys, dt, EVERY)
-    borne = fb[:, 0] > 2.0 * flight.TOUCH_N * sysid.LEVER_M
+    borne = fb[:, 0] > 2.0 * leap.TOUCH_N * sysid.LEVER_M
     Yb, fb = Yb[borne], fb[borne]
     b = body.m.body('torso').id
     k = lay['col'][b]

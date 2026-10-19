@@ -56,6 +56,7 @@ def said(g, label, wire, names=(), at=None, reset=False):
 def _dropped(g):
     g['tab'], g['labels'], g['_sync_cpg_at'], g['_jump_until'], g['_held_since'] = (
         g['tab'][:0], [(w, n) for w, n in g['labels'] if w <= g['t']], None, 0.0, None)
+    g['_jump_t0'], g['_jump_throw'], g['_leap'] = 0.0, 0.0, False
 
 
 def doing(g):
@@ -126,15 +127,15 @@ def floored(g, y, dt):
     press, as far as they press alike. One centre of pressure read inside its edges took a
     hole's edge under a sole's middle for a floor 10 deg up."""
     import numpy as np
-    from machine import edge, flight, modal
-    bear = np.array(g['loads']) * (np.array(g['loads']) >= flight.TOUCH_N)
+    from machine import edge, leap, modal
+    bear = np.array(g['loads']) * (np.array(g['loads']) >= leap.TOUCH_N)
     under = float(bear @ y[modal.LOWEST]) / max(float(bear.sum()), 1e-9)
     k = float(bear.sum() > 0.0) * min(1.0, FLOOR_HZ * dt)
     g['fr'][modal.FLOOR] += k * (under - float(g['fr'][modal.FLOOR]))
     at = bear @ y[modal.SOLE].reshape(2, 3)[:, [0, 2]] / max(float(bear.sum()), 1e-9)
     g['fr'][modal.FLOOR_AT] += k * (at - g['fr'][modal.FLOOR_AT])
     cells = g['sense'][edge.CELLS].reshape(2, 2)
-    flat = (cells.min(axis=1) >= flight.TOUCH_N) * cells.min(axis=1) / np.maximum(cells.max(axis=1), 1e-9)
+    flat = (cells.min(axis=1) >= leap.TOUCH_N) * cells.min(axis=1) / np.maximum(cells.max(axis=1), 1e-9)
     g['fr'][modal.GROUND] += min(1.0, FLOOR_HZ * dt) * flat * (y[modal.TILT] - g['fr'][modal.GROUND])
 
 
@@ -216,7 +217,11 @@ def heard_twist(g, gym, tw, has_say, said_fn, dropped_fn, heard_say_fn, walk_on)
             g['tab'] = g['tab'][g['tab'][:, latent.AT] <= g['_jump_until'] + 0.01]
             g['labels'] = [(w, n) for w, n in g['labels'] if w <= g['_jump_until'] + 0.01]
             if '#201' in by:
-                said_fn(g, *by['#201'], at=g['_jump_until'] + 0.02, reset=True)
+                if g.get('_leap') and '_brake_wire' in g:
+                    said_fn(g, 'brake', g['_brake_wire'], ('brake',), at=g['_jump_until'] + 0.01, reset=True)
+                    said_fn(g, *by['#201'], at=g['_jump_until'] + 0.56, reset=True)
+                else:
+                    said_fn(g, *by['#201'], at=g['_jump_until'] + 0.02, reset=True)
             g['active_entry'] = '#201'
             return
         if not has_say and '#201' in by:
@@ -239,5 +244,5 @@ _WALK_ON_WIRE = ortho.compiled(WALK_ON)[0]['']
 
 
 def stride_hop(g, by, t0, spd, back_now, fwd_gaits, back_gaits, said_fn):
-    from machine import flight
-    return flight.stride_hop(g, by, t0, spd, back_now, fwd_gaits, back_gaits, said_fn, _WALK_ON_WIRE)
+    from machine import leap
+    return leap.stride_hop(g, by, t0, spd, back_now, fwd_gaits, back_gaits, said_fn, _WALK_ON_WIRE)

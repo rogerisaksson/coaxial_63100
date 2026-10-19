@@ -66,17 +66,17 @@ def test_a_stop_settles_and_f_is_heard(report):
 
 def test_a_halting_row_waits_for_a_swing_only_while_her_rhythm_turns(report):
     """A row halting her rhythm, due while her capture point asks a step, waits a pass while her
-    rhythm turns; at rest no swing comes and it comes at once (`law.held_back`): sitting, her
+    rhythm turns; at rest no swing comes and it comes at once (`motion.held_back`): sitting, her
     centre of mass behind her heels, a seat asked was held for ever."""
     import numpy as np
-    from machine import latent, law, modal
+    from machine import latent, modal, motion
 
     def waited(turns):
         tab = np.zeros((1, latent.TABLE))
         tab[0, latent.SAID][latent.GAIN], tab[0, latent.AT] = 1.0, 1.0
         g = {'tab': tab, 't': 1.0, 'a': np.zeros(modal.ASK), 'out': np.zeros(latent.OUT), 'labels': [(1.0, 'seated')]}
         g['a'][modal.NEED], g['out'][latent.TURNS] = 1.0, turns
-        law.held_back(g, 0.003)
+        motion.held_back(g, 0.003)
         return float(g['tab'][0, latent.AT]) - 1.0
     report.check('a halting row waits a pass while her rhythm turns, none at rest',
                  waited(np.pi) > 0.0 and waited(0.0) == 0.0, (waited(np.pi), waited(0.0)))

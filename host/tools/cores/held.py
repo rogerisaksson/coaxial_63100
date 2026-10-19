@@ -101,9 +101,9 @@ def matmuls(prog):
 
 @functools.lru_cache(maxsize=None)
 def blas():
-    """numpy's own BLAS laid once (`law.numpy_blas`), every build's matmuls'."""
-    from tools.cores import law
-    return law.numpy_blas()
+    """numpy's own BLAS laid once (`motion.numpy_blas`), every build's matmuls'."""
+    from tools.cores import motion
+    return motion.numpy_blas()
 
 
 def compiled(fn, args, inputs, name, fresh=2, seed=1):

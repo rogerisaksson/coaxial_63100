@@ -89,7 +89,7 @@ def rows_of(state, said):
     """A row of each state `said`; the keys typed and held, and the commands heard, since the
     rows before on the first."""
     typed, state['keyed'] = state.get('keyed', []), []
-    held = sorted(k for k in (console.held() or ()) if isinstance(k, str))
+    held = sorted(k for k in (console.held() or ()) if isinstance(k, str) and k != ' ')
     keys = ' '.join(typed) + (' [%s]' % '+'.join(held) if held else '')
     out = []
     for k, now in enumerate(said):
@@ -168,12 +168,27 @@ def twist(keys, look, heading):
     return (0.0, (int(keys['q']) - int(keys['e'])) * se2.STRAFE_SPEED, 0.0)
 
 
+def _hop_held(state, now, held):
+    """Space held during the leap's preload window: sends progressive `charge` in [0, 1]."""
+    hh = state.get('hop_hold')
+    if not hh or now - hh['began'] > 0.55:
+        state['hop_hold'] = None
+        return
+    if ' ' in (held or ()) or (hh.get('repeats', 0) > 0 and now - hh['last'] <= 0.12):
+        ch = min(1.0, (now - hh['began']) / 0.40)
+        if ch > hh['sent'] + 0.02:
+            hh['sent'] = ch
+            state['body'].send(charge=round(ch, 3))
+
+
 def steered(state, now, heading):
     """Each frame: the keys held - the console's, else those typed within HOLD_WINDOW_S - as
     her twist, sent when it changes and again as she reports a scene laid anew, her twist
     zeroed with it; a key that moves her ends the tour. `now` the wall clock."""
+    raw_held = console.held()
+    _hop_held(state, now, raw_held)
     held = state.setdefault('pad', pad())
-    keys = polled((), held, now, console.held())
+    keys = polled((), held, now, raw_held)
     if any(keys[k] for k in 'wsadqe'):
         gym._cancel_tour(state)
     elif gym.touring(state):
@@ -253,7 +268,7 @@ def _shown(state, by):
 def act_on(keys, typed, state, wheel=0.0):
     """`typed` and the wheel on the view's `state`, by `keys` (`table`): the keys that move her
     into her pad (`steered` sends them), the rest each its handler, a key repeated within 0.12 s
-    once - P's repeats all, they charge it."""
+    once - P's and Space's repeats charge them."""
     if wheel:
         viewpoint.zoomed(state, max(0.5, 1.0 + wheel))
     state.setdefault('typed', []).extend(typed)
@@ -265,6 +280,11 @@ def act_on(keys, typed, state, wheel=0.0):
         polled(moves, state.setdefault('pad', pad()), now, console.held())
     for key in typed:
         if key in MOVES or key not in keys:
+            continue
+        hh = state.get('hop_hold')
+        if key == ' ' and hh and now - hh['began'] <= 0.55 and (state.get('now') or {}).get('doing') in ('load', 'push', 'hop'):
+            hh['last'], hh['repeats'] = now, hh.get('repeats', 0) + 1
+            _hop_held(state, now, (' ',))
             continue
         last, at = state.get('_last_action_key', (None, 0.0))
         if key == last and key != 'p' and now - at < 0.12:

@@ -1,17 +1,17 @@
-# Findings: flight
+# Findings: leap
 
 Her soles off the floor on the whole-body stack ([wbc](wbc.md)): which
 stand, the others asked to their landing.
 
-`machine/flight.py` stands between a law's ask and the stack's step;
-`tools/sim/hop.py` throws her; tests/test_flight.py holds it.
+`machine/leap.py` stands between a motion pass's ask and the stack's step;
+`tools/sim/hop.py` throws her; tests/test_leap.py holds it.
 
 - The stack and the loop both solve a step with no sole standing: no force,
   her centre of mass at -9.81 m/s^2, the drives at 0 N m. What they are asked
   was missing: asked to stand on both soles 0.2 m over the floor the stack
   lays 153 N a sole on nothing.
 - Which soles stand is told from one pass, nothing kept
-  (`flight.standing`): a sole stands that bears 15 N; one that bears
+  (`leap.standing`): a sole stands that bears 15 N; one that bears
   nothing stands within 2 mm of the floor beside one that bears, or with
   her centre of mass under 0.1 m/s. What fell on the way:
   + By its load alone: the first sole to lighten was lifted and the other

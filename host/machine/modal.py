@@ -23,7 +23,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
-from machine import flight, latent, ortho, stride, terms
+from machine import latent, leap, ortho, stride, terms
 from machine.figure import ANKLE_H, SHANK, THIGH
 from machine.poise import HALF_M, TINY, clip
 from machine.stride import ALONG, LEFT, LIMBS, ROCK_RAD, STRIDE_M, UP
@@ -153,7 +153,7 @@ def frame(y, mass, limb, trunk, arm, knee, dt):
     s, c = np.sin(yaw), np.cos(yaw)
     rot = np.array([[s, 0.0, c], [c, 0.0, -s], [0.0, 1.0, 0.0]])
     soles = y[SOLE].reshape(2, 3)
-    legs = y[HIP].reshape(2, 3) - soles + flight.MIDDLE * rot[ALONG] - ANKLE_H * rot[UP]
+    legs = y[HIP].reshape(2, 3) - soles + leap.MIDDLE * rot[ALONG] - ANKLE_H * rot[UP]
     fr = np.zeros(FRAME)
     fr[ROT] = rot.ravel()
     fr[FLOOR], fr[FLOOR_AT] = soles[:, 1].mean(), soles[:, [0, 2]].mean(axis=0)
@@ -189,7 +189,7 @@ def _legs(y, rot):
     tilt = y[TILT]
     spoke = np.stack([np.sin(tilt), 0.0 * tilt, np.cos(tilt)], axis=1)
     inward = np.stack([np.cos(tilt), 0.0 * tilt, -np.sin(tilt)], axis=1)
-    leg = (y[HIP].reshape(2, 3) - y[SOLE].reshape(2, 3)) @ rot.T - ANKLE_H * spoke + flight.MIDDLE * inward
+    leg = (y[HIP].reshape(2, 3) - y[SOLE].reshape(2, 3)) @ rot.T - ANKLE_H * spoke + leap.MIDDLE * inward
     long = np.linalg.norm(leg, axis=1)
     return leg, long, ((y[VCOM] - y[VSOLE].reshape(2, 3)) @ rot.T * leg).sum(axis=1) / long
 

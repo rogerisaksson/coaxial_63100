@@ -108,12 +108,16 @@ def _cancel_tour(state):
 
 def _said(state, verb):
     """`verb` said, the tour and any held pad keys ended: a gym entry's name or place."""
+    import time
     _cancel_tour(state)
     pad = state.get('pad')
-    if isinstance(pad, dict):
+    if isinstance(pad, dict) and verb != 'hop':
         pad['keys'] = dict.fromkeys(pad.get('keys') or ('w', 's', 'a', 'd', 'q', 'e', 'shift'), False)
         pad['last_seen'], pad['setpoint'] = {}, (0.0, 0.0, 0.0)
     if verb is not None:
+        if verb == 'hop':
+            now_t = time.monotonic()
+            state['hop_hold'] = {'began': now_t, 'last': now_t, 'sent': 0.0}
         state['body'].send(say=verb)
 
 

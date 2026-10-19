@@ -51,7 +51,7 @@ def test_her_grip_bounds_her_rhythm(report):
     """Her text's slippery situation caps her rhythm under its grip, its targets kept; at her law's
     own grip nothing moves; a sliding sole's grip is what it used, a holding one's at least that."""
     import numpy as np
-    from machine import grip, latent, law, modal, ortho, situation
+    from machine import grip, latent, modal, motion, ortho, situation
     from machine.wbc import MU
     table = situation.text()
     k = table['names'].index('slippery')
@@ -63,11 +63,11 @@ def test_her_grip_bounds_her_rhythm(report):
     out[latent.SWAY], out[latent.PSI], out[latent.TURNS] = 0.6, rng.uniform(0, 6, ortho.N), 5.9
     stance, level = np.ones(2), np.array([MU, 0.0, 0.0, 1.0, 0.0, 0.0])
     held = out.copy()
-    law.gripped(held, np.full(2, MU), stance, table['caps'], situation.read(table, level))
+    motion.gripped(held, np.full(2, MU), stance, table['caps'], situation.read(table, level))
     report.check('at her law\'s own grip her rhythm is the same to the bit', (held == out).all())
     iced, on_ice = out.copy(), level.copy()
     on_ice[0] = 0.1
-    law.gripped(iced, np.full(2, 0.1), stance, table['caps'], situation.read(table, on_ice))
+    motion.gripped(iced, np.full(2, 0.1), stance, table['caps'], situation.read(table, on_ice))
     target = lambda o: o[latent.REF] - o[latent.SWAY] * np.sin(o[latent.PSI])
     report.check('on ice (0.1) her drive sways 0.20 at most, her soles rock none, her targets kept',
                  iced[latent.SWAY][modal.DRIVE] <= 0.2 + 1e-12 and iced[latent.SWAY][modal.ROCK] == 0.0

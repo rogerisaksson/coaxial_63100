@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""A hop on the whole-body stack: thrown, flown and landed, her soles released by `machine.flight`.
+"""A hop on the whole-body stack: thrown, airborne and landed, her soles released by `machine.leap`.
 
-    python tools/sim/hop.py                  # one hop standing: flight, apex, landing, stood
+    python tools/sim/hop.py                  # one hop standing: leap, apex, landing, stood
     python tools/sim/hop.py --push 18 -v     # the throw's ask, m/s^2; traced 10 ms a row
     python tools/sim/hop.py --core           # on the loop in C (`tools.cores.wbc.stack_step`)
     python tools/sim/hop.py --wrench         # on the step without an active set (`machine.wrench`)
@@ -15,9 +15,9 @@ The ask is the stack's own (`wbc.step`): her stand's law (`tools.sim.wbc.law`) a
 middle; her height let down LOAD_M over LOAD_S, her posture crouched with it and leant until
 her centre of mass is over her soles (`crouched`); then thrown PUSH_S - her centre of mass on
 a spring to RELEASE_M under her standing height, no stronger than `--push` m/s^2 -, her
-posture back the way it came, her trunk's turn unasked; then her stand's law again. Nothing of it names the flight: her soles leave the floor bearing nothing,
-`flight.step` asks each to its landing and stands it again as it bears. She flies while
-neither bears `flight.TOUCH_N`.
+posture back the way it came, her trunk's turn unasked; then her stand's law again. Nothing of it names the leap: her soles leave the floor bearing nothing,
+`leap.step` asks each to its landing and stands it again as it bears. She is airborne while
+neither bears `leap.TOUCH_N`.
 `tools.sim.wbc.stand`'s world, no buses.
 """
 import argparse
@@ -37,9 +37,9 @@ AT_S, LOAD_M, LOAD_S, PUSH_S, SETTLE_S, PUSH = 0.5, 0.10, 0.5, 0.15, 1.5, 14.0
 #: 4.3-5.0 kg m^2/s about her - the loop in C 13.6 deg over, down at 56 mm; the spring 4.6.
 RELEASE_M, RELEASE_K = 0.0175, 700.0
 
-#: A flight is one that lasts FLOWN passes: her soles' loads cross `flight.TOUCH_N` twice
+#: A leap is one that lasts LEAPT passes: her soles' loads cross `leap.TOUCH_N` twice
 #: in the 3 ms they leave the floor in.
-FLOWN = 20
+LEAPT = 20
 
 
 def _eased(u):
@@ -84,18 +84,18 @@ def crouched(posture, names, deg):
     return bent(lean)
 
 
-def hop(push=PUSH, hops=1, core=False, trace=False, fly=True, inner='pd', free=True, stack=False,
+def hop(push=PUSH, hops=1, core=False, trace=False, release=True, inner='pd', free=True, stack=False,
         spring=True, wrench=False):
-    """{stood, flights, flight_s, apex_mm, clear_mm, landed_n, tilt, stances, ..}: `hops` hops
-    standing, her throw `push` m/s^2. `fly` False, her soles are never released - the stack as
+    """{stood, leaps, air_s, apex_mm, clear_mm, landed_n, tilt, stances, ..}: `hops` hops
+    standing, her throw `push` m/s^2. `release` False, her soles are never released - the stack as
     it was; `free` False, her trunk is asked upright through the throw; `spring` False, her throw
     is asked to its time's end; `wrench`, on `machine.wrench`'s step; `trace` a row every 10 ms,
     `stack` the stand's own rows."""
-    from machine import flight, wbc
+    from machine import leap, wbc
     from machine.figure import SHANK, THIGH
     from tools.sim import wbc as sim
     period = LOAD_S + PUSH_S + SETTLE_S
-    rec = {'air': 0, 'apex': 0.0, 'clear': 0.0, 'landed': 0.0, 'flights': 0, 'run': 0,
+    rec = {'air': 0, 'apex': 0.0, 'clear': 0.0, 'landed': 0.0, 'leaps': 0, 'run': 0,
            'home': 0.0, 'stances': [], 'rows': []}
     thighs = []
     knee = 2.0 * math.degrees(math.acos(1.0 - LOAD_M / (THIGH + SHANK)))
@@ -118,25 +118,25 @@ def hop(push=PUSH, hops=1, core=False, trace=False, fly=True, inner='pd', free=T
             # the stack put her weight on her heels' edges to turn her legs under it, and she
             # left the floor with 4.7 kg m^2/s about her, 14 deg over as she landed
             let = RELEASE_K * (st['height'] - RELEASE_M - s['com'][1])
-            acc[1] = max(-flight.G, min(push, let)) if spring else push
+            acc[1] = max(-leap.G, min(push, let)) if spring else push
             ask['posture'] = crouched(st['posture'], sim.NAMES,
                                       knee * (1.0 - _eased((t - LOAD_S) / PUSH_S)))
             if free:
                 ask['turns'] = ()
         ask['com_acc'] = acc
-        if fly:
-            ask = flight.step(ask, loads, s, [body.d.xpos[i] for i in thighs])
-        flying = now >= AT_S and max(loads) < flight.TOUCH_N
+        if release:
+            ask = leap.step(ask, loads, s, [body.d.xpos[i] for i in thighs])
+        airborne = now >= AT_S and max(loads) < leap.TOUCH_N
         low = min(float(f['pts'][:, 1].min()) for f in s['feet'])
-        if flying:
+        if airborne:
             rec['air'] += 1
             rec['run'] += 1
             rec['apex'] = max(rec['apex'], float(s['com'][1]) - rec['home'])
             rec['clear'] = max(rec['clear'], low)
         else:
-            rec['flights'] += rec['run'] >= FLOWN
+            rec['leaps'] += rec['run'] >= LEAPT
             rec['run'] = 0
-        if not flying and rec['air']:
+        if not airborne and rec['air']:
             rec['landed'] = max(rec['landed'], loads[0] + loads[1])
         stance = ''.join('S' if k else '-' for k in ask['stance'])
         if not rec['stances'] or rec['stances'][-1] != stance:
@@ -157,7 +157,7 @@ def hop(push=PUSH, hops=1, core=False, trace=False, fly=True, inner='pd', free=T
                     trace=stack, wrench=wrench)
     for row in rec['rows']:
         print(row)
-    return {'stood': out['stood'], 'flights': rec['flights'], 'flight_s': round(rec['air'] * 0.001, 3),
+    return {'stood': out['stood'], 'leaps': rec['leaps'], 'air_s': round(rec['air'] * 0.001, 3),
             'apex_mm': round(1e3 * rec['apex'], 1), 'clear_mm': round(1e3 * rec['clear'], 1),
             'landed_n': round(rec['landed']), 'tilt': out['tilt'], 'drift_mm': out['drift_mm'],
             'stances': ' '.join(rec['stances']), 'top': out['top'], 'failed': out['failed'],

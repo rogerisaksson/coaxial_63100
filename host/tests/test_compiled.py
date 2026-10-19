@@ -116,7 +116,7 @@ def test_her_sensing_in_c_is_her_numpys(report, c):
     """`wbc.sense` compiled on her body beside its numpy on a body of its own, over random
     configurations: every array it returns, her data and her scratch after, bit for bit."""
     from machine import wbc
-    from tools.cores import bodied, law, trace, trace_mj
+    from tools.cores import bodied, motion, trace, trace_mj
     from tools.cores.orders import same
     b = c['body']
     twin, configurations = trace_mj.twin(b), list(_configurations(b, np.random.default_rng(11)))
@@ -124,7 +124,7 @@ def test_her_sensing_in_c_is_her_numpys(report, c):
     try:
         shape = sense.wait(b, *configurations[0]).prog.shape
     except (trace.Untraced, AssertionError, RuntimeError, OSError) as e:
-        report.check("her sensing in C held, or numpy's own here", not law.exact_host(), str(e)[:200])
+        report.check("her sensing in C held, or numpy's own here", not motion.exact_host(), str(e)[:200])
         return
     bad = 0
     for q, v in configurations:
@@ -153,7 +153,7 @@ def _arrays(args):
 
 
 def _beside(real, fn, twin, tally, at=0):
-    """`real` (Compiled) as her law calls it, built and held at its first call, beside `fn` on
+    """`real` (Compiled) as her motion pass calls it, built and held at its first call, beside `fn` on
     copies - her body's `twin` at `at`, its state hers -: its result and its arguments after, bit for
     bit (`tally`)."""
     from tools.cores import trace, trace_mj
@@ -179,16 +179,16 @@ def _beside(real, fn, twin, tally, at=0):
 
 
 def test_her_law_in_c_as_she_walks(report, c):
-    """Her law's compiled parts - her estimate, her sensing, her grip's feel and floor, her
-    situation, her drive's cap, her ask's poses, her sensing flat, her soles' touch (`law.laid`) -
-    at every pass of her law over PASSES of her walk, built at their first and held there, each
+    """Her motion's compiled parts - her estimate, her sensing, her grip's feel and floor, her
+    situation, her drive's cap, her ask's poses, her sensing flat, her soles' touch (`motion.laid`) -
+    at every pass of her motion over PASSES of her walk, built at their first and held there, each
     beside its numpy on copies."""
-    from machine import estimate, grip, law, modal, situation, touch, wbc, worker
-    from tools.cores import law as c_law, trace_mj
+    from machine import estimate, grip, modal, motion, situation, touch, wbc, worker
+    from tools.cores import motion as c_motion, trace_mj
     s = worker.session(walks=True)
     g = s['g']
     parts = {'estimated': estimate.step, 'sensed': wbc.sense, 'felt': grip.felt, 'outside': grip.outside,
-             'readings': situation.readings, 'read': situation.read, 'gripped': law.gripped, 'poses': modal.poses,
+             'readings': situation.readings, 'read': situation.read, 'gripped': motion.gripped, 'poses': modal.poses,
              'modal_sensed': modal.sensed, 'soles': touch.soles}
     tallies, reals = {name: [0, 0, None] for name in parts}, {name: g[name] for name in parts}
     for name, fn in parts.items():
@@ -199,7 +199,7 @@ def test_her_law_in_c_as_she_walks(report, c):
     for name, tally in tallies.items():
         n, bad, why = tally[0], tally[1], tally[2] or reals[name].why
         if why is not None:
-            report.check("her law's %s in C held, or numpy's own here" % name, not c_law.exact_host(), str(why)[:200])
+            report.check("her law's %s in C held, or numpy's own here" % name, not c_motion.exact_host(), str(why)[:200])
         else:
             report.check("her law's %s in C is her numpy's bit for bit at %d of her law's passes walking" % (name, n),
                          n >= PASSES // 3 - 1 and not bad, '%d apart' % bad)
@@ -212,7 +212,7 @@ def test_aircraft_substeps_in_c_are_their_numpys(report, c):
     from machine.aerobat import sky as asky
     from machine.helicopter import sky as hsky
     from machine.ornithopter import sky as osky
-    from tools.cores import law as c_law, trace, trace_mj
+    from tools.cores import motion as c_motion, trace, trace_mj
     from tools.cores.orders import same
     rng = np.random.default_rng(19)
     for label, cls, fn, attr, n_in in (
@@ -227,7 +227,7 @@ def test_aircraft_substeps_in_c_are_their_numpys(report, c):
         try:
             comp.wait(sky, *args)
         except (trace.Untraced, AssertionError, RuntimeError, OSError) as e:
-            report.check("%s's substep in C held, or numpy's own here" % label, not c_law.exact_host(), str(e)[:200])
+            report.check("%s's substep in C held, or numpy's own here" % label, not c_motion.exact_host(), str(e)[:200])
             continue
         trace_mj.copy_state(twin, sky)
         bad = 0

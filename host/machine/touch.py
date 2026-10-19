@@ -1,6 +1,6 @@
 """What her skin and her soles feel: a touch that stops her going, a shove walked out, an edge.
 
-    touch.check_contacts(g, out, doing)     # a pass of her law, `g` and `out` as `machine.law`'s
+    touch.check_contacts(g, out, doing)     # a pass of her motion, `g` and `out` as `machine.motion`'s
     touch.soles(b, touch, ids, tips, y, fr, stance)   # its arithmetic of her soles
     touch.against(g, twist)                 # a twist less its part toward what she felt
 
@@ -14,7 +14,8 @@ from machine import edge, figure
 #: Her segments under her knees, a side's: what bears on the floor, or trips over what is on it.
 SOLES = ((edge.SKIN.index('left_foot'), edge.SKIN.index('left_toes')),
          (edge.SKIN.index('right_foot'), edge.SKIN.index('right_toes')))
-ABOVE = [k for k in range(len(edge.SKIN)) if k not in SOLES[0] + SOLES[1]]
+HANDS = tuple(edge.SKIN.index(n) for n in ('left_hand', 'left_fingers', 'right_hand', 'right_fingers'))
+ABOVE = [k for k in range(len(edge.SKIN)) if k not in SOLES[0] + SOLES[1] + HANDS]
 
 
 #: A touch above her soles not along her going - a wall, a tree, a hand that shoves her back or
@@ -53,21 +54,41 @@ def check_contacts(g, out, cur_doing):
     y, model, ids = g['sense'], g['body'].d, _ids(g)
     touch = y[edge.TOUCH].reshape(-1, 3)
     g['_upper_hit'] = bool((np.linalg.norm(touch[ABOVE], axis=1) > edge.TOUCHED_N).any())
+    cx, cz = float(g['y'][modal.COM][0]), float(g['y'][modal.COM][2])
     if g['_upper_hit']:
         f = np.sum([model.xmat[ids[k]].reshape(3, 3) @ touch[k] for k in ABOVE], axis=0)
-        g['_resume_at'], g['_felt'] = g['t'] + RESUME_S, (float(f[0]), float(f[2]), g['t'])
-        v = g['est']['vel']
-        opposed = (float(f[0]) * float(v[0]) + float(f[2]) * float(v[2])
-                   <= ALONG_COS * math.hypot(float(f[0]), float(f[2])) * math.hypot(float(v[0]), float(v[2])))
-        if opposed:
-            out[latent.SWAY][modal.DRIVE] = min(float(out[latent.SWAY][modal.DRIVE]), 0.04)
-            out[latent.REF][modal.DRIVE] = g['a'][modal.GOING] = 0.0
-        if opposed and cur_doing not in ('brake', '#201', 'rest') and abs(float(g['st'][latent.NOW][latent.AMP][modal.DRIVE])) > 0.06:
-            se2._dropped(g)
-            se2.said(g, 'brake', g['_brake_wire'], ('brake',), at=g['t'] + 0.001, reset=True)
-            if g['_stand_entry'] is not None:
-                se2.said(g, *g['_stand_entry'], at=g['t'] + 1.20, reset=True)
-            g['active_entry'] = '#201'
+        fx, fz = float(f[0]), float(f[2])
+        f_mag = math.hypot(fx, fz)
+        x0, z0 = g.setdefault('_felt_pos', (cx, cz))
+        yielding = (cx - x0) * fx + (cz - z0) * fz < -0.08 * f_mag
+        if yielding:
+            g.pop('_felt', None)
+            g['_resume_at'] = None
+        else:
+            g['_resume_at'], g['_felt'] = g['t'] + RESUME_S, (fx, fz, g['t'])
+            v = g['est']['vel']
+            way = -1.0 if (cur_doing in se2._BACK_GAITS or g.get('active_entry') in se2._BACK_GAITS
+                           or g.get('twist', (0.0, 0.0, 0.0))[0] < -0.01) else 1.0
+            gx, gz = way * math.sin(g['heading']), way * math.cos(g['heading'])
+            driving = abs(float(out[latent.SWAY][modal.DRIVE])) > 0.06
+            opposed = (fx * float(v[0]) + fz * float(v[2]) <= ALONG_COS * f_mag * math.hypot(float(v[0]), float(v[2]))
+                       and fx * gx + fz * gz <= ALONG_COS * f_mag)
+            if opposed:
+                out[latent.SWAY][modal.DRIVE] = min(float(out[latent.SWAY][modal.DRIVE]), 0.04)
+                out[latent.REF][modal.DRIVE] = g['a'][modal.GOING] = 0.0
+            if opposed and driving and cur_doing not in ('brake', '#201', 'rest') and abs(float(g['st'][latent.NOW][latent.AMP][modal.DRIVE])) > 0.06:
+                se2._dropped(g)
+                se2.said(g, 'brake', g['_brake_wire'], ('brake',), at=g['t'] + 0.001, reset=True)
+                if g['_stand_entry'] is not None:
+                    se2.said(g, *g['_stand_entry'], at=g['t'] + 1.20, reset=True)
+                g['active_entry'] = '#201'
+    else:
+        if '_felt' in g and '_felt_pos' in g:
+            fx, fz, _at = g['_felt']
+            x0, z0 = g['_felt_pos']
+            if (cx - x0) * fx + (cz - z0) * fz < -0.08 * math.hypot(fx, fz):
+                g.pop('_felt', None)
+        g.pop('_felt_pos', None)
     aloft, clear = g['a'][modal.STANCE] < 0.5, list(g.get('_clear', (False, False)))
     tips = g.get('_tips')
     if tips is None:
@@ -98,14 +119,13 @@ def soles(b, touch, ids, tips, y, fr, stance):
 
 
 def against(g, tw):
-    """`tw` (body frame) less its part toward what she felt within FELT_S: a wall walked
-    into, a hand that shoved her - she does not walk on into it."""
+    """`tw` (body frame) less any axis aimed within ALONG_COS into what she felt within FELT_S:
+    a wall walked into, a hand that shoved her - she does not walk on into it."""
     fx, fz, at = g.get('_felt', (0.0, 0.0, -math.inf))
     size = math.hypot(fx, fz)
     if g['t'] - at > FELT_S or size < 1e-9:
         return tw
     nx, nz, sh, ch = fx / size, fz / size, math.sin(g['heading']), math.cos(g['heading'])
-    wx, wz_ = tw[0] * sh + tw[1] * ch, tw[0] * ch - tw[1] * sh
-    into = min(0.0, wx * nx + wz_ * nz)
-    wx, wz_ = wx - into * nx, wz_ - into * nz
-    return (wx * sh + wz_ * ch, wx * ch - wz_ * sh, tw[2])
+    vx = 0.0 if tw[0] * (sh * nx + ch * nz) < -ALONG_COS * abs(tw[0]) else tw[0]
+    vy = 0.0 if tw[1] * (ch * nx - sh * nz) < -ALONG_COS * abs(tw[1]) else tw[1]
+    return (vx, vy, tw[2])

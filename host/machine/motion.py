@@ -1,9 +1,9 @@
-"""Her law's pass: what her sensors read, through her latent loop, to what her drives are told.
+"""Her motion pass: what her sensors read, through her latent loop, to what her drives are told.
 
 The world is never seen: her array is `machine.edge`'s.
 
-    law.control(g, dt)       # a pass of the loop, every `g['every']`: her ask solved, her legs' stiffness
-    law.drives(g, dt)        # every pass: each drive's setpoint, feed and clamp, `g['cmd']`
+    motion.control(g, dt)    # a pass of the loop, every `g['every']`: her ask solved, her legs' stiffness
+    motion.drives(g, dt)     # every pass: each drive's setpoint, feed and clamp, `g['cmd']`
 
 `g` is `sprung.laid`'s; its `sense` the edge's array, its `est` her estimate (`machine.estimate`).
 """
@@ -16,7 +16,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
-from machine import borne, edge, estimate, flight, grip, latent, modal, poise, se2, situation, stride, touch, wbc
+from machine import borne, edge, estimate, grip, latent, leap, modal, poise, se2, situation, stride, touch, wbc
 
 
 def seen(g, dt):
@@ -134,7 +134,7 @@ def control(g, dt):
     g['grip'] = g['felt'](g['grip'], g['grip_seen'], body.d.xmat[g['grip_at']].reshape(2, 2, 3, 3),
                           y_in[edge.TOUCH].reshape(-1, 3),
                           g['est']['slip'], float(g['fr'][modal.WEIGHT]), dt * ev, g['grip_prior'],
-                          (y_in[edge.LOAD] >= flight.TOUCH_N) & ~np.array(g.get('bore', (True, True))))
+                          (y_in[edge.LOAD] >= leap.TOUCH_N) & ~np.array(g.get('bore', (True, True))))
     g['loads'] = [float(v) for v in y_in[edge.LOAD]]
     y = g['modal_sensed'](s, g['loads'], g['y'])
     y[modal.GRIP] = g['held'] = g['outside'](g['grip'], g['situations']['grips'])
@@ -209,9 +209,9 @@ def laid(g):
     pointing at `g`'s arrays once - the observers, the setpoints and their rates, the holds, the
     knees' spring, the feed and the clamps her drives are told (`g['cmd']`) - and what it reads
     by, kept beside it. Her latent step, her upper body's coupling and her ask in C, her python's
-    bit for bit (`tools.cores.law`); her estimate, her grip's feel and floor, her situation, her
+    bit for bit (`tools.cores.motion`); her estimate, her grip's feel and floor, her situation, her
     drive's cap and her ask's poses compiled from their numpy (`tools.cores.bodied`)."""
-    from tools.cores import bodied, law as c_law, wbc as cores
+    from tools.cores import bodied, motion as c_motion, wbc as cores
     g['estimated'] = bodied.on_body(estimate.step, 'estimate', (0, 2), body=1)
     g['felt'] = bodied.on_args(grip.felt, 'felt', (0, 1, 2, 3, 4, 5, 7, 8))
     g['outside'] = bodied.on_args(grip.outside, 'outside', (0, 1))
@@ -221,9 +221,9 @@ def laid(g):
     g['poses'] = bodied.on_args(modal.poses, 'poses', (0, 1, 2, 3, 4, 5, 7))
     g['modal_sensed'] = bodied.on_args(modal.sensed, 'modal_sensed', (0, 1, 2), sources={0: g['sensed']})
     g['soles'] = bodied.on_body(touch.soles, 'soles', (1, 3, 4, 5, 6), body=0)
-    g['impedance'] = functools.partial(c_law.asked, *c_law.laid())
-    laid_ = c_law.latent_laid()
-    g['latent'], g['couple'] = functools.partial(c_law.stepped, laid_), functools.partial(c_law.coupled, laid_)
+    g['impedance'] = functools.partial(c_motion.asked, *c_motion.laid())
+    laid_ = c_motion.latent_laid()
+    g['latent'], g['couple'] = functools.partial(c_motion.stepped, laid_), functools.partial(c_motion.coupled, laid_)
     body, joints = g['body'], g['joints']
     n = len(joints)
     kept = {'joints': np.ascontiguousarray(joints, dtype=np.int32),

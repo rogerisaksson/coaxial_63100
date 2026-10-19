@@ -106,8 +106,8 @@ CONTROLLER = 'test_controller.py'
 #: skeleton, her drives' mounts and gearboxes; the whole-body stack; her eyes.
 GYNOID, WBC, SIGHT = 'test_gynoid.py', 'test_wbc.py', 'test_sight.py'
 REACH, TERMS = 'test_reach.py', 'test_terms.py'
-#: The loop in C against MuJoCo and the python stack (wbc/); flight on both; `machine.wrench`.
-WBC_CORE, FLIGHT, WRENCH = 'test_wbc_core.py', 'test_flight.py', 'test_wrench.py'
+#: The loop in C against MuJoCo and the python stack (wbc/); leaps on both; `machine.wrench`.
+WBC_CORE, LEAP, WRENCH = 'test_wbc_core.py', 'test_leap.py', 'test_wrench.py'
 #: Her body identified of her edge alone, on the stand (machine.sysid).
 SYSID, SYSID_LIVE = 'test_sysid.py', 'test_sysid_live.py'
 #: Her numpy compiled to C beside numpy's own (tools.cores.trace, emit, held, bodied).
@@ -153,7 +153,7 @@ DEFAULT_SUITES = (STRUCTURES + (CORE, SHTP, DRIVE, DRIVE_OBSERVER, FILTER, THERM
                    CTRL_CORE, WORLD_CORE, WIRE, NATIVE, NATIVE_HEAT, NATIVE_SYSID, EMULATOR,
                    SENSORLESS,
                    BROKER, DAQ_API, CONTROLLER, GYNOID, SIGHT, REACH, TERMS, GVS, REPLAYS, SCENES, WBC,
-                   WBC_CORE, FLIGHT, WRENCH, SYSID, SYSID_LIVE, COMPILED, WEAR, ORTHO, FLOOR, SITUATION, ERRANDS, CYCLIC,
+                   WBC_CORE, LEAP, WRENCH, SYSID, SYSID_LIVE, COMPILED, WEAR, ORTHO, FLOOR, SITUATION, ERRANDS, CYCLIC,
                    QUAD, QUAD_PULL,
                    AERO_CORE, MPPI_CORE, STREAMS, QUAD_COURSE, SWEEP, BOOT)
                   + VIEWS
@@ -182,7 +182,7 @@ JOINS = (
     (12, REPLAYS),
     (12, SCENES),
     (12, WBC),
-    (12, FLIGHT),
+    (12, LEAP),
     (12, ORTHO),
     (12, FLOOR),
     (12, SITUATION),

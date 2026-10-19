@@ -309,16 +309,16 @@ def test_the_step_in_c_strides_as_the_steps(report, c, b, rows):
 
 
 def test_her_law_in_c_is_her_python_s(report, c, b, rows):
-    """wbc_law.c, wbc_imp.c and wbc_step.c (`tools.cores.law`) beside `latent.step`,
-    `support.couple`, `impedance.ask` and `wrench.step` at every pass of her law over a player's
+    """wbc_law.c, wbc_imp.c and wbc_step.c (`tools.cores.motion`) beside `latent.step`,
+    `support.couple`, `impedance.ask` and `wrench.step` at every pass of her motion over a player's
     moves - a walk, turns, a strafe, back, a sprint, a stop - and a sit on a chair and up: every
     field the same, bit for bit."""
     import numpy as np
     from machine import impedance, latent, support
-    from tools.cores import law
+    from tools.cores import motion
     from tools.sim import scenarios
     from machine import wrench
-    kept, tally = (law.asked, law.stepped, law.coupled, law._stepped), {}
+    kept, tally = (motion.asked, motion.stepped, motion.coupled, motion._stepped), {}
 
     def check(name, got, want):
         n, bad, apart = tally.get(name, (0, 0, 0))
@@ -355,13 +355,13 @@ def test_her_law_in_c_is_her_python_s(report, c, b, rows):
         check('whole-body step', [np.asarray(got[f], float) for f in fields] + [b.load, nones[0]] + [x for x, _y in cops],
               [np.asarray(want[f], float) for f in fields] + [load, nones[1]] + [y for _x, y in cops])
         return got
-    law.asked, law.stepped, law.coupled, law._stepped = asked, stepped, coupled, solved
+    motion.asked, motion.stepped, motion.coupled, motion._stepped = asked, stepped, coupled, solved
     try:
         for name in ('play_moves', 'chair'):
             scenarios.ran(name)
     finally:
-        law.asked, law.stepped, law.coupled, law._stepped = kept
-    exact = law.exact_host()
+        motion.asked, motion.stepped, motion.coupled, motion._stepped = kept
+    exact = motion.exact_host()
     features = getattr(getattr(getattr(np, '_core', None), '_multiarray_umath', None), '__cpu_features__', {})
     host = 'numpy %s %s' % (np.__version__, ','.join(sorted(k for k, on in features.items()
                                                           if on and k.startswith(('AVX512', 'X86_V')))))

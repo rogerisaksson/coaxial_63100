@@ -9,11 +9,17 @@ from machine.se2 import WALK_ON
 
 
 def _start_mode(g, by, entry, at):
-    from machine import se2
+    from machine import latent, leap, se2
     name = entry[0]
     g['active_entry'] = name
     if name == 'hop':
-        g['_jump_until'], g['_leap'] = at + 1.45, False
+        wire, names, dur, dt_load_ms = leap.standing_leap(entry[1], float(g.get('_hop_charge', 0.0)))
+        g['st'][latent.THETA] = ((0.10 - dt_load_ms * 0.001) % 1.0) * math.tau
+        g['_jump_t0'], g['_jump_throw'], g['_jump_until'], g['_leap'] = at, at + dt_load_ms * 0.001, at + dur, False
+        sprung.said(g, 'hop', wire, names, at=at, reset=True)
+        if '#201' in by:
+            sprung.said(g, *by['#201'], at=at + dur + 0.01, reset=True)
+        return
     iw = by['init_walk'][1][:ortho.ROW.size] if 'init_walk' in by else None
     if name in se2.RESET_MODES:
         return sprung.said(g, *entry, at=at, reset=True)
@@ -30,9 +36,11 @@ def _start_mode(g, by, entry, at):
 
 
 def heard_say(g, gym, entry):
-    from machine import latent, modal, se2, stride
+    from machine import latent, leap, modal, se2, stride
     by, name = {e[0]: e for e in gym}, entry[0]
-    if g.get('_jump_until', 0.0) > g['t'] and name != 'hop':
+    if g.get('_jump_until', 0.0) > g['t']:
+        if name == 'hop':
+            return leap.update_leap_charge(g, by, se2._WALK_ON_WIRE, float(g.get('_hop_charge', 0.0)))
         if name == g.get('active_entry') and any(w > g['_jump_until'] for w, _ in g['labels']):
             return
         t_res = g['_jump_until'] + 0.02
@@ -41,6 +49,9 @@ def heard_say(g, gym, entry):
         g['active_entry'] = name
         if name in ('#204', 'jog'):
             sprung.said(g, name, se2._WALK_ON_WIRE, (name,), at=t_res)
+        elif name == '#201' and g.get('_leap') and '_brake_wire' in g:
+            sprung.said(g, 'brake', g['_brake_wire'], ('brake',), at=t_res - 0.01, reset=True)
+            sprung.said(g, *by['#201'], at=t_res + 0.54, reset=True)
         elif name in by:
             sprung.said(g, *by[name], at=t_res, reset=(name == '#201'))
         return
@@ -133,7 +144,7 @@ def heard_say(g, gym, entry):
 
 
 def heard(g, gym, command):
-    from machine import latent, modal, se2, stride, wbc
+    from machine import latent, leap, modal, se2, stride, wbc
     unknown = sorted(set(command) - set(sprung.HEARD))
     if unknown:
         raise MachineError('the loop hears %s: not %s' % (', '.join(sprung.HEARD), ', '.join(unknown)))
@@ -144,11 +155,17 @@ def heard(g, gym, command):
     if 'twist' in command:
         se2.heard_twist(g, gym, command['twist'], 'say' in command, sprung.said, sprung._dropped, heard_say, WALK_ON)
     by = {e[0]: e for e in gym}
+    if 'charge' in command:
+        g['_hop_charge'] = max(0.0, min(1.0, float(command['charge'])))
+        if 'say' not in command and g.get('_jump_until', 0.0) > g['t']:
+            leap.update_leap_charge(g, by, se2._WALK_ON_WIRE, g['_hop_charge'])
     if 'say' in command:
         sc = command['say']
         entry = (gym[int(sc)] if (isinstance(sc, int) or (isinstance(sc, str) and sc.isdigit()))
                  and 0 <= int(sc) < len(gym) else by.get(sc))
         if entry is not None:
+            if entry[0] == 'hop' and 'charge' not in command and g.get('_jump_until', 0.0) <= g['t']:
+                g['_hop_charge'] = 0.0
             if 'twist' not in command and entry[0] != 'hop' and not (g.get('_twist_active') and entry[0] in se2.WASD_GAITS):
                 g['_twist_active'], g['_twist_stop_until'], g['twist'] = False, 0.0, (0.0, 0.0, 0.0)
             if 'heading' not in command and entry[0] in ('turn_left', 'turn_right', 'turn_back_left', 'turn_back_right'):
@@ -266,9 +283,9 @@ def stepped(s):
                 s['ys'], s['taus'] = [ys[-1]], [taus[-1]]
         else:
             s['ys'], s['taus'] = [], []
-            world.feed[:], world.rate[:] = 0.0, 0.0
             edge.felt(world, g['sense'])
-            world.target[:] += 0.05 * (g['sense'][edge.Q] - world.target)
+            g['ref_q'][:] += 0.05 * (g['sense'][edge.Q][g['joints']] - g['ref_q'])
+            edge.drive(world, g['joints'], target=g['ref_q'], feed=0.0 * g['ref_q'])
             g['t'] += DT
             world.advance()
         if s['wearing'] is not None:
@@ -302,13 +319,15 @@ def told(s):
                              s['says'], s['refused']), epoch=s['epoch'], wear=s['wear_told'])
 
 
-def run(commands, states, heard=None, every=sprung.STACK_EVERY, walks=False):
-    """The worker: she stands on the loop, paced to the clock; commands heard - each put on
-    `heard` at its pass -, her state said. Laid, she stands at rest unless `walks`."""
+def run(commands, states, heard=None, every=sprung.STACK_EVERY, walks=False, realtime=True):
+    """The worker: she stands on the loop, paced to the clock (`realtime`, or flat out without it);
+    commands heard - each put on `heard` at its pass -, her state said. Laid, she stands at rest
+    unless `walks`."""
     physics.ROOM, physics.SIGHT = 1.0, 0.0
     s = session(every, walks, heard.put if heard is not None else None)
     _put(states, told(s))
-    wall0, sim0, said_at, spent, ran = time.perf_counter(), s['g']['t'], 0.0, 0.0, 0.0
+    wall0 = wall_said = last_wall = time.perf_counter()
+    sim0, said_at, spent, ran = s['g']['t'], 0.0, 0.0, 0.0
     while True:
         epoch = s['epoch']
         try:
@@ -321,31 +340,43 @@ def run(commands, states, heard=None, every=sprung.STACK_EVERY, walks=False):
             pass
         began = time.perf_counter()
         if s['epoch'] == epoch:
-            due = sim0 + (began - wall0)
-            if due - s['g']['t'] > sprung.SLICE_S:
+            if not realtime:
                 due = s['g']['t'] + sprung.SLICE_S
-                wall0, sim0 = began, due
+            else:
+                if began - last_wall > sprung.SLICE_S:
+                    wall0, sim0 = began, s['g']['t']
+                due = sim0 + (began - wall0)
+                if due - s['g']['t'] > sprung.SLICE_S:
+                    due = s['g']['t'] + sprung.SLICE_S
+                    wall0, sim0 = began - sprung.SLICE_S, s['g']['t']
             from_t = s['g']['t']
             while s['g']['t'] < due - 1e-9 and s['epoch'] == epoch:
                 t_step = time.perf_counter()
                 stepped(s)
                 dt_wear = s.pop('_wear_s', 0.0)
                 wall0 += dt_wear
+                wall_said += dt_wear
                 spent += max(0.0, (time.perf_counter() - t_step) - dt_wear)
                 ran += s['g']['t'] - from_t
                 from_t = s['g']['t']
                 if s['epoch'] == epoch and s['g']['t'] - said_at >= sprung.SAY_S:
-                    s['ratio'] = ran / spent if spent > 1e-6 else s['ratio']
-                    spent = ran = 0.0
-                    said_at = s['g']['t']
+                    now_w = time.perf_counter()
+                    wall_dt = now_w - wall_said
+                    s['ratio'] = (min(1.0, ran / wall_dt) if (realtime and wall_dt > 1e-6)
+                                  else (ran / spent if spent > 1e-6 else s['ratio']))
+                    wall_said, spent, ran, said_at = now_w, 0.0, 0.0, s['g']['t']
                     _put(states, told(s))
+        last_wall = time.perf_counter()
         if s['epoch'] != epoch:
-            wall0, sim0, said_at, spent, ran = time.perf_counter(), s['g']['t'], 0.0, 0.0, 0.0
+            wall0 = wall_said = last_wall
+            sim0, said_at, spent, ran = s['g']['t'], 0.0, 0.0, 0.0
             _put(states, told(s))
             continue
-        ahead = s['g']['t'] - (sim0 + (time.perf_counter() - wall0))
-        if ahead > 0.002:
-            time.sleep(min(ahead * 0.5, sprung.SAY_S / 4.0))
+        if realtime:
+            rest = sprung.SAY_S / 4.0 - (last_wall - began)
+            if rest > 0.0:
+                time.sleep(rest)
+                last_wall = time.perf_counter()
 
 
 class Running:
@@ -353,13 +384,13 @@ class Running:
     """Her worker process on the loop (`run`): `send` it commands, read its `latest` state and
     the commands it has `heard`; laid, she stands at rest unless `walks`."""
 
-    def __init__(self, every=sprung.STACK_EVERY, walks=False):
+    def __init__(self, every=sprung.STACK_EVERY, walks=False, realtime=True):
         context = multiprocessing.get_context('spawn')
         self._commands, self._states, self._heard = context.Queue(), context.Queue(maxsize=8), context.Queue()
         for each in (self._commands, self._states, self._heard):
             each.cancel_join_thread()
         self._process = context.Process(target=run, daemon=True,
-                                        args=(self._commands, self._states, self._heard, every, walks))
+                                        args=(self._commands, self._states, self._heard, every, walks, realtime))
         self._process.start()
         self._last = None
 

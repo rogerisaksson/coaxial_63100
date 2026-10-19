@@ -31,4 +31,4 @@ Run by her law ([robotics](robotics.md)). Findings:
 | Suite | Holds |
 | --- | --- |
 | `test_ortho.py` | a text compiled to rows, none refused; no branch in the core or the renderer; the state blended and turned; crouched, shifted, bowed, on one sole, hopped; the walk on its own payloads; the first texts as given; the gym's worker, keys |
-| `test_flight.py` | which soles stand, from one pass alone; a landing within reach; the loop in C against the python stack, no sole standing; a hop on both, three in a row on the loop |
+| `test_leap.py` | which soles stand, from one pass alone; a landing within reach; the loop in C against the python stack, no sole standing; a hop on both, three in a row on the loop |
