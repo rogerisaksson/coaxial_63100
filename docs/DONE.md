@@ -208,3 +208,6 @@ the hundred before these: [DONE_1-50](DONE_1-50.md),
     filtered gaze, a lens framing the craft over its horizon, the chase on the
     course's laps alone - the aerobat's routine had been chased and flown on
     the course's 1.5 g ([aircraft](findings/aircraft.md)).
+52. The rotorcraft swept past the spectator before their figures and the
+    figures brought down to 4 m, full tilt to 15-20 m where 22-63; the four
+    pages watched from one spot by the runway ([quad](findings/quad.md)).

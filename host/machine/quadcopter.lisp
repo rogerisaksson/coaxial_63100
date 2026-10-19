@@ -83,7 +83,7 @@
   (base hover) (turn 120.0deg_s))
 
 (defstunt corkscrew
-  (base orbit) (height 8.0m) (pace 2.0m_s))
+  (base orbit) (height 4.0m) (pace 2.0m_s))
 
 (defstunt toss
   (base sky) (pace 5.0m_s))
@@ -127,7 +127,7 @@
   (stage catch (stunt high) (duration 3.0s) (ramp 0.0s))
   (stage unwind (stunt unwind) (duration LAP_S) (ramp 1.5s))
   (stage level (stunt hover) (duration 2.0s) (ramp 1.5s) (gate held))
-  (stage full_tilt (stunt sky) (duration 2.0s) (ramp 0.0s))
+  (stage full_tilt (stunt sky) (duration 0.45s) (ramp 0.0s))
   (stage burn (stunt stop) (duration 0.0s) (ramp 0.0s) (gate held))
   (stage hold (stunt stop) (duration 1.5s) (ramp 0.0s))
   (stage descend (stunt over) (duration 1.5s) (ramp 1.5s) (gate held))

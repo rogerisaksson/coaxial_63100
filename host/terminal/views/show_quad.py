@@ -39,7 +39,7 @@ from coaxial import Coaxial63100
 from coaxial.errors import RigError
 from coaxial.draw.gauges import policy_word
 from coaxial.graphics import engine, gpu, inset, onboard, quadcopter
-from machine import aerobatics, aerokin, flightpack, gimbal, grounds, pull, quad, weather
+from machine import aerobatics, aerokin, airfield, flightpack, gimbal, grounds, pull, quad, weather
 from machine.modes import SIMULATED
 from terminal.loader import TO_MENU
 from terminal.ui import recorder
@@ -61,9 +61,11 @@ PHYSICS_S, PASS_S = 0.01, 0.05
 #: The interpreter's threads change hands this often while the page flies, s.
 SWITCH_S = 2e-4
 
-#: The spectator of a craft's figures: SPOT_M from its home on its `YAW` side, SPOT_Y up;
-#: their gaze LEAD_S ahead, their lens over LENS_S framing it FILL of the frame's height.
-SPOT_M, SPOT_Y, LEAD_S, LENS_S, FILL, FILL_MIN, HORIZON_RAD = 12.0, 1.7, 0.15, 0.6, 0.35, 0.12, 0.035
+#: The spectator of every page's figures: beside the runway's middle (`airfield.placed`),
+#: SPOT_ACROSS off its line by the hangar, SPOT_Y up; gaze LEAD_S ahead, lens over LENS_S.
+SPOT_ALONG, SPOT_ACROSS, SPOT_Y = -2.0, -14.0, 1.7
+SPOT = airfield.placed(SPOT_ALONG, SPOT_ACROSS)
+LEAD_S, LENS_S, FILL, FILL_MIN, HORIZON_RAD = 0.15, 0.6, 0.25, 0.12, 0.035
 UP_FADE = (0.35, 0.79)
 #: Before a flight and on the course: the reach framed on the floor, m, its pull over PULL_S;
 #: the side the spectator stands on and the chase's pitch, deg.
@@ -265,11 +267,10 @@ def watch(camera, frame, eye, build, sight, dt):
 def look(camera, law, row, frame, chased, dt, near_m=NEAR_M, chase_m=CHASE_M, base_yaw=YAW,
          chase_pitch=PITCH, build=quadcopter.mesh, sight=quadcopter.SIGHT):
     """The camera `dt` s on, `(reach, centre)`: during a craft's figures (`not chased`) its
-    spectator (`watch`) SPOT_M from home on its `base_yaw` side; on the course (`chased`) the
+    spectator (`watch`) at SPOT; on the course (`chased`) the
     frame `chase_m` wide, come round behind the law's heading and framing ahead of it."""
     if not chased:
-        rad = math.radians(base_yaw)
-        return watch(camera, frame, (SPOT_M * math.sin(rad), SPOT_Y, SPOT_M * math.cos(rad)), build, sight, dt)
+        return watch(camera, frame, (SPOT[0], SPOT_Y, SPOT[1]), build, sight, dt)
     camera['lens'] = 1.0
     camera.pop('gaze', None)
     x, y, z = (float(c) for c in frame['at'])

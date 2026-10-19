@@ -14,6 +14,15 @@
   drawn Extra's 0.77 m, 0.45 m^2 and 0.25 m^2. DOD: `airframe` reads them
   from `form`; the card flies whole, the knife pass's tip within 2 cm of
   its 4 cm over the runway.
+- **The four of one size on their boards** (aircraft.md): the quad 0.9 m
+  across on 16 in props, the helicopter's 1.0 m rotor, the ornithopter, the
+  aerobat's 1.6 m wing, all 2 kg - drawn and flown alike in size, each
+  driven within the 63100's 63 V and 100 A. DOD: their drawn radii within
+  10 % of one another, their routines and courses flown whole on four, two
+  and two stand-in boards, none past its throttle.
+- **The courses after the aerobatics** (aircraft.md): brought to the
+  routines' new shape - close by, watched, sized to the crafts. DOD: to be
+  agreed.
 - **The aerobat's landing** (aircraft.md): its touch, its roll-out unsteered
   in wind. DOD: a touch under 0.5 m/s within 0.5 m of the centreline,
   stopped on the runway, still or gusty.

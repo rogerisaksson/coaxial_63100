@@ -141,8 +141,8 @@ CYCLIC = 'test_cyclic.py'
 #: The quad's suites; what a change reaches. Its action space (machine.pull) against the
 #: board's law on the stand-in.
 QUAD, QUAD_COURSE, QUAD_PAGE = 'test_quad.py', 'test_quad_course.py', 'test_views_quad.py'
-QUAD_PULL = 'test_quad_pull.py'
-QUADS = (QUAD, QUAD_COURSE, QUAD_PAGE, QUAD_PULL, 'test_views_quad_flight.py',
+QUAD_PULL, SWEEP = 'test_quad_pull.py', 'test_sweep.py'
+QUADS = (QUAD, QUAD_COURSE, QUAD_PAGE, QUAD_PULL, SWEEP, 'test_views_quad_flight.py',
          'test_views_inset.py', STRUCTURE)
 
 RENDER = 'test_render.py'
@@ -155,7 +155,7 @@ DEFAULT_SUITES = (STRUCTURES + (CORE, SHTP, DRIVE, DRIVE_OBSERVER, FILTER, THERM
                    BROKER, DAQ_API, CONTROLLER, GYNOID, SIGHT, REACH, TERMS, GVS, REPLAYS, SCENES, WBC,
                    WBC_CORE, FLIGHT, WRENCH, SYSID, SYSID_LIVE, COMPILED, WEAR, ORTHO, FLOOR, SITUATION, ERRANDS, CYCLIC,
                    QUAD, QUAD_PULL,
-                   AERO_CORE, MPPI_CORE, STREAMS, QUAD_COURSE, BOOT)
+                   AERO_CORE, MPPI_CORE, STREAMS, QUAD_COURSE, SWEEP, BOOT)
                   + VIEWS
                   + (RENDER,) + OLLAMA
                   + ('test_mcp.py', 'test_simulated.py', 'test_parity.py',
@@ -192,6 +192,7 @@ JOINS = (
     (12, CYCLIC),
     (12, QUAD),
     (12, QUAD_COURSE),
+    (12, SWEEP),
     (12, QUAD_PULL),
     (12, STREAMS),
     (12, BOOT),

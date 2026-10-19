@@ -9,7 +9,7 @@
 drives (`MAIN` on the mast and `TAIL` on the boom) and their thermal observers warmed on it, then
 the 16-gate course (`machine.course`).
 """
-from machine import aerobatics, aerokin, course, flightpack, helicopter, pull, quad, weather
+from machine import aerobatics, aerokin, course, flightpack, helicopter, pull, quad, sweep, weather
 from terminal.views.quad import flight as qflight
 from terminal.views.quad.flight import (CRASHED, CRASH_S, FAULTS, THERMAL_S, TICK_S, _LIB,
                                         _step_bus_and_heat, _step_drives, arm, asked, fallen, kept,
@@ -19,7 +19,7 @@ from terminal.views.quad.flight import (CRASHED, CRASH_S, FAULTS, THERMAL_S, TIC
 ROTORS = ('MAIN', 'TAIL')
 
 #: The page's flights: the 3D helicopter routine first, then the 16-gate race course.
-CARD = helicopter.CARD + course.CARD
+CARD = sweep.opened(helicopter.CARD) + course.CARD
 
 
 def fresh(craft=helicopter):

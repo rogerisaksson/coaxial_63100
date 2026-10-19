@@ -30,6 +30,7 @@ Findings: [quad](../findings/quad.md), [streams](../findings/streams.md).
   law on the stand-in: a rotor's top, its reach, its stage's watts, the four
   on their pack.
 - `test_quad.py` its routine and payloads on aero/; `test_quad_course.py`
-  its course on ideal rotors; `test_views_quad.py` and
-  `test_views_quad_flight.py` the QUAD page on four stand-in boards;
+  its course on ideal rotors; `test_sweep.py` the three rotorcraft's sweep;
+  `test_views_quad.py` and `test_views_quad_flight.py` the QUAD page on four
+  stand-in boards;
   `test_views_inset.py` the quad's camera on its gimbal in the corner.

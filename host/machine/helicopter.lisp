@@ -124,7 +124,7 @@
   (base orbit) (height 1.5m) (slide 3.0m_s) (turn FUNNEL_TURN_DEG_S))
 
 (defstunt spiral
-  (base funnel) (height 8.0m) (pace 2.0m_s))
+  (base funnel) (height 4.0m) (pace 2.0m_s))
 
 (defstunt flip_in
   (base high) (flip -0.5) (nose -1.0))
@@ -203,7 +203,7 @@
   (stage catch (stunt high) (duration 2.2s) (ramp 0.0s))
   (stage unwind (stunt unwind) (duration LAP_S) (ramp 1.5s))
   (stage level (stunt hover) (duration 2.0s) (ramp 1.5s) (gate held))
-  (stage full_tilt (stunt sky) (duration 2.0s) (ramp 0.0s))
+  (stage full_tilt (stunt sky) (duration 1.4s) (ramp 0.0s))
   (stage burn (stunt stop) (duration 0.0s) (ramp 0.0s) (gate held))
   (stage hold (stunt stop) (duration 1.5s) (ramp 0.0s))
   (stage descend (stunt over) (duration 1.5s) (ramp 1.5s) (gate held))
