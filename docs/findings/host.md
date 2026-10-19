@@ -297,4 +297,6 @@ Pages, tooling, suites and the local model's runner. The board's findings:
   apart; her walk 765 -> 713 us a pass, the two in one process pass by pass,
   her trajectory the same to the bit over 6000 passes. Traced and written
   10 ms at her law's first pass, built 0.9 s in a thread, held on the twin
-  4.5 ms; a new library's first load 40 ms, loaded in the thread.
+  4.5 ms; a new library's first load 40 ms, loaded in the thread. Her step
+  pointed at its block in one write, its 24 pointers from the block's base
+  (`law.POINTED`): the step's call 142 -> 98 us, its Python 92 -> 47.

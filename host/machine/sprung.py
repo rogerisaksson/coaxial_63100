@@ -88,11 +88,13 @@ def laid(every=1, inner=None, solver=None):
     legs = [[i for i, j in enumerate(JOINTS) if j.startswith(s0) and kind(j) in LEG_KINDS] for s0 in ('left_', 'right_')]
     wep_lim = np.array([max(float(servos.SERVO[kind(j)][0]), float(peak(j)), 1.45 * float(body.clamp[i])) for i, j in enumerate(names)])
     sit = situation.text()
+    from tools.cores import bodied
+    sensed = bodied.on_body(wbc.sense, 'sense')
     if (solver or SOLVER) == 'c':
         from tools.cores.wbc import wrench_step as solve_step
     elif (solver or SOLVER) == 'wrench':
         from tools.cores import law as c_law
-        solve_step = c_law.wrench_laid(body)
+        solve_step = c_law.wrench_laid(body, sensed)
     else:
         solve_step = {'stack': wbc.step}[solver or SOLVER]
     g = {'world': world, 'body': body, 'y': y, 'fr': fr, 'rest': rest, 'rest_y': rest_y, 'st': st, 'out': out, 'a': a, 'tab': tab,
@@ -111,7 +113,7 @@ def laid(every=1, inner=None, solver=None):
          '_brake_wire': _BRAKE_WIRE, '_stand_entry': next((e for e in entries() if e[0] == '#201'), None),
          'heading': float(fr[modal.HEADING]), 'twist': (0.0, 0.0, 0.0),
          'heat': heat.Heat.for_joints(JOINTS), 'temp': np.full(len(JOINTS), 25.0), 'scenario': 'flat',
-         'solve': solve_step}
+         'solve': solve_step, 'sensed': sensed}
     law.laid(g)
     world.clock = lambda: g['t']
     return g

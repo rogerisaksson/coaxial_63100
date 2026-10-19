@@ -21,7 +21,7 @@ from machine import borne, edge, estimate, flight, grip, latent, modal, poise, s
 
 def seen(g, dt):
     """`wbc.sense`'s view of her as her sensors and her estimate have her, `dt` s on: its C bit for
-    bit once built (`g['sensed']`, `laid`)."""
+    bit once built (`g['sensed']`, `sprung.laid`)."""
     body, limbs = g['body'], g['limbs']
     qpos, qvel = estimate.step(g['est'], body, g['sense'], dt)
     s = g['sensed'](body, qpos, qvel)
@@ -208,9 +208,8 @@ def laid(g):
     pointing at `g`'s arrays once - the observers, the setpoints and their rates, the holds, the
     knees' spring, the feed and the clamps her drives are told (`g['cmd']`) - and what it reads
     by, kept beside it. Her latent step, her upper body's coupling and her ask in C, her python's
-    bit for bit (`tools.cores.law`); her sensing compiled from its numpy (`tools.cores.bodied`)."""
-    from tools.cores import bodied, law as c_law, wbc as cores
-    g['sensed'] = bodied.on_body(wbc.sense, 'sense')
+    bit for bit (`tools.cores.law`)."""
+    from tools.cores import law as c_law, wbc as cores
     g['impedance'] = functools.partial(c_law.asked, *c_law.laid())
     laid_ = c_law.latent_laid()
     g['latent'], g['couple'] = functools.partial(c_law.stepped, laid_), functools.partial(c_law.coupled, laid_)

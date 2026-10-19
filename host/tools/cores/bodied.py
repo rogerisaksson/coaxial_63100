@@ -56,6 +56,11 @@ class OnBody:
             return c([args[k] for k in self.inputs])
         return self.fn(*args)
 
+    @property
+    def last(self):
+        """(its C's last result, the address of the block it lies in), None before the C."""
+        return None if self.c is None else self.c.last
+
     def wait(self, *args):
         """Built and held at `args` now: its C (Bound), or why it stays numpy raised."""
         self(*args)
@@ -145,12 +150,14 @@ class Bound:
         self.block = np.empty(max(1, total))
         self.views = [self.block[a:b].reshape(s) for (a, b), s in zip(spans, self.shapes)]
         spans, self.total = info['outs']
+        self.spans = [a for a, _b in spans]
         self.made = maker(prog.shape, [(a, b, r.shape) for (a, b), r in zip(spans, prog.outs)])
         self.work = np.empty(max(1, info['doubles']))
         self.lapack = ctypes.addressof(held.blas()) if held.matmuls(prog) else None
         self.funcs = (ctypes.c_void_p * max(1, len(prog.calls)))(*trace_mj.functions(prog))
         self.body = self.kept = self.ext = None
         self.fixed: tuple = ()
+        self.last: tuple | None = None
 
     def bind(self, b):
         """Her body `b` addressed - its externs, her model, her data; None, none."""
@@ -174,8 +181,21 @@ class Bound:
             view[...] = a
         flat = np.empty(self.total)
         i, w, e, lapack, m, d, f = self.fixed
-        self.cfn(i, flat.ctypes.data, w, e, lapack, m, d, f)
-        return self.made(flat)
+        address = flat.ctypes.data
+        self.cfn(i, address, w, e, lapack, m, d, f)
+        got = self.made(flat)
+        self.last = (got, address)
+        return got
+
+    def place(self, path):
+        """Where in its output block the leaf at `path` (keys and indices into fn's result) starts."""
+        node = self.prog.shape
+        for key in path:
+            kind, body = node
+            node = dict(body)[key] if kind == 'dict' else body[key]
+        if node[0] != 'leaf':
+            raise KeyError(path)
+        return self.spans[node[1]]
 
 
 def maker(shape, outs):

@@ -278,10 +278,11 @@ def _step_typed():
     return Step, lib.wbh_step, (n, d, c)
 
 
-def wrench_laid(b):
+def wrench_laid(b, sensed=None):
     """`machine.wrench.step` in C on her law's body `b`: a solve (b, s, ask) -> its dict, `b.load`
     set; her body's indices and the step's constants laid once, her mass, clamps and WEP read at
-    each - her model's masses move as her wear finds a load."""
+    each - her model's masses move as her wear finds a load. `s` her compiled sensing's last
+    (`sensed`, `bodied.on_body`), the step pointed at its block in one write (POINTED)."""
     from machine import wbc as law, wrench
     Step, step, (most_n, most_d, most_c) = _step_typed()
     passive, active = np.flatnonzero(b.passive), np.flatnonzero(b.active_dof)
@@ -309,7 +310,19 @@ def wrench_laid(b):
     k.posture_kd[:], k.swing_kd[:], k.turn_kd[:] = law.POSTURE_KD, law.SWING_KD, law.TURN_KD
     k.blas = numpy_blas()
     views = {name: np.ctypeslib.as_array(getattr(k, name)) for name in VIEWED}
+    first = getattr(Step, POINTED[0][0]).offset
+    k.sensed, k.placed, k.words = sensed, None, np.frombuffer(k, dtype=np.uint64)
+    k.pointed = slice(first // 8, first // 8 + len(POINTED))
+    if [getattr(Step, f).offset + 8 * i for f, i, _p in POINTED] != list(range(first, first + 8 * len(POINTED), 8)):
+        k.sensed = None
     return functools.partial(_stepped, k, step, views)
+
+
+#: The step's pointers at what her sensing returns, in the struct's order: (field, index, path).
+POINTED = ([(name, 0, (name,)) for name in ('M', 'h', 'v', 'q', 'com', 'k')]
+           + [(name, side, ('feet', side, name)) for name in ('R', 'quat', 'J6', 'dJv', 'sole') for side in (0, 1)]
+           + [(field, t, ('turns', t, name)) for field, name in (('tquat', 'quat'), ('Jr', 'Jr'), ('dJr', 'dJr'),
+                                                                ('tw', 'w')) for t in (0, 1)])
 
 
 #: The step's fields read and written through numpy views of the struct's own memory.
@@ -328,12 +341,19 @@ def _stepped(k, step, v, b, s, ask):
         a = np.ascontiguousarray(a, dtype=np.float64)
         kept.append(a)
         return a.ctypes.data
-    k.M, k.h, k.v, k.q, k.com, k.k = (at(s[name]) for name in ('M', 'h', 'v', 'q', 'com', 'k'))
-    for side, f in enumerate(s['feet']):
-        k.R[side], k.quat[side], k.J6[side], k.dJv[side], k.sole[side] = (at(f[name]) for name in
-                                                                           ('R', 'quat', 'J6', 'dJv', 'sole'))
-    for t, turn in enumerate(s['turns']):
-        k.tquat[t], k.Jr[t], k.dJr[t], k.tw[t] = (at(turn[name]) for name in ('quat', 'Jr', 'dJr', 'w'))
+    last = getattr(k.sensed, 'last', None)
+    if last is not None and s is last[0]:
+        c = k.sensed.c
+        if k.placed is None or k.placed[0] is not c:
+            k.placed = (c, np.array([8 * c.place(path) for _f, _i, path in POINTED], dtype=np.uint64))
+        k.words[k.pointed] = last[1] + k.placed[1]
+    else:
+        k.M, k.h, k.v, k.q, k.com, k.k = (at(s[name]) for name in ('M', 'h', 'v', 'q', 'com', 'k'))
+        for side, f in enumerate(s['feet']):
+            k.R[side], k.quat[side], k.J6[side], k.dJv[side], k.sole[side] = (at(f[name]) for name in
+                                                                               ('R', 'quat', 'J6', 'dJv', 'sole'))
+        for t, turn in enumerate(s['turns']):
+            k.tquat[t], k.Jr[t], k.dJr[t], k.tw[t] = (at(turn[name]) for name in ('quat', 'Jr', 'dJr', 'w'))
     contacts = s.get('contacts', ())
     if len(contacts) > len(k.cJ):
         raise ValueError('wbc_step.c lays %d contacts at most, %d bear her' % (len(k.cJ), len(contacts)))
@@ -364,7 +384,8 @@ def _stepped(k, step, v, b, s, ask):
             v['fold_knee'][side], v['fold_rate'][side], v['fold_acc'][side] = fold[side]
     k.wep = int(bool(ask.get('wep')))
     k.posture = at(ask['posture'])
-    k.derate = at(np.broadcast_to(np.asarray(ask.get('derate', 1.0), float), (k.nd,)))
+    derate = np.asarray(ask.get('derate', 1.0), float)
+    k.derate = at(derate if derate.shape == (k.nd,) else np.broadcast_to(derate, (k.nd,)))
     k.clamp, k.wep_nm, k.mass = at(b.clamp), at(b.wep), b.mass
     if step(ctypes.byref(k)):
         raise np.linalg.LinAlgError('Singular matrix')
