@@ -48,7 +48,7 @@ the hundred before these: [DONE_1-50](DONE_1-50.md),
 17. Her clothes bent at the joints they span (`graphics.drape`): the tee into
     the pelvis, the seat into each thigh, the shins and sleeves into theirs,
     two frames a corner by its height.
-18. Her errands settle without hesitation or flicker (`machine.law`,
+18. Her errands settle without hesitation or flicker (`machine.motion`,
     `terminal/views/gym.py`, `coaxial/graphics/arrows.py`, `test_errands.py`):
     `held_back` lets a held row go after two of her rhythm's swings, F sits
     and rises her; a walk asked of a swaying stand no longer waits 1.35 s; a
@@ -81,7 +81,7 @@ the hundred before these: [DONE_1-50](DONE_1-50.md),
     course flown nose first, banked and pulled on `COURSE_SPHERE`
     ([aircraft](findings/aircraft.md)).
 24. Each hold on her halting rows counts from its own start
-    (`machine.law.held_back`): a hop said after a stop no longer loads on one
+    (`machine.motion.held_back`): a hop said after a stop no longer loads on one
     sole mid-step; `hop_after_a_stop.csv` stands at 8 of 9 wobbles where 6
     ([scenarios](findings/scenarios.md)).
 25. Identification on-line, under a load (`machine.wear`, `machine.worker`,
