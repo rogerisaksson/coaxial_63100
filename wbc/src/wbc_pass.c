@@ -468,3 +468,67 @@ void wbc_pass_heat_peak(const wbc_heat_t *h, double *out)
     out[i] = h->die[i] >= top ? h->die[i] : top;
   }
 }
+
+void wbc_pass_hem(int n, double dt, const double *ap, const double *om, const double *alb, const double *c,
+                  double *state, double *q, double *v, double *a, unsigned char *hit)
+{
+  const double L = c[0], mass = c[1], I0 = c[2], J = c[3], stiff = c[4], damp = c[5], dmin = c[6], dmax = c[7];
+  const double width = c[8], k_imp = c[9], b_imp = c[10], invw[2] = {c[11], c[12]}, lo[2] = {c[13], c[14]};
+  const double hi[2] = {c[15], c[16]};
+  double       qx = state[0], qz = state[1], vx = state[2], vz = state[3];
+
+  for (int t = 0; t < n; t++)
+  {
+    const double cx = cos(qx), sx = sin(qx), cz = cos(qz), sz = sin(qz);
+    const double p0 = ap[3 * t], p1 = ap[3 * t + 1], p2 = ap[3 * t + 2];
+    const double o0 = om[3 * t], o1 = om[3 * t + 1], o2 = om[3 * t + 2];
+    const double b0 = alb[3 * t], b1 = alb[3 * t + 1], b2 = alb[3 * t + 2];
+    const double r0 = L * sz, r1 = ((-L) * cx) * cz, r2 = ((-L) * sx) * cz;
+    const double x1 = (L * sx) * cz, x2 = ((-L) * cx) * cz;
+    const double z0 = L * cz, z1 = (L * cx) * sz, z2 = (L * sx) * sz;
+    const double d0 = o1 * r2 - o2 * r1, d1 = o2 * r0 - o0 * r2, d2 = o0 * r1 - o1 * r0;
+    const double v0 = 0.0 * vx + z0 * vz, v1 = x1 * vx + z1 * vz, v2 = x2 * vx + z2 * vz;
+    const double af0 = ((p0 + (b1 * r2 - b2 * r1)) + (o1 * d2 - o2 * d1)) + 2.0 * (o1 * v2 - o2 * v1);
+    const double af1 = ((p1 + (b2 * r0 - b0 * r2)) + (o2 * d0 - o0 * d2)) + 2.0 * (o2 * v0 - o0 * v2);
+    const double af2 = ((p2 + (b0 * r1 - b1 * r0)) + (o0 * d1 - o1 * d0)) + 2.0 * (o0 * v1 - o1 * v0);
+    const double tx = (((-mass) * ((0.0 * af0 + x1 * af1) + x2 * af2) - I0 * b0) - stiff * qx) - damp * vx;
+    const double tz = (((-mass) * ((z0 * af0 + z1 * af1) + z2 * af2) - I0 * (b2 * cx - b1 * sx)) - stiff * qz)
+                      - damp * vz;
+    const double was[2] = {qx, qz}, rate[2] = {vx, vz};
+    double       qdd[2] = {tx / J, tz / J};
+
+    hit[t] = 0;
+    for (int i = 0; i < 2; i++)
+    {
+      const double r_pen = was[i] < lo[i] ? lo[i] - was[i] : (was[i] > hi[i] ? was[i] - hi[i] : 0.0);
+      const double sgn = was[i] < lo[i] ? 1.0 : (was[i] > hi[i] ? -1.0 : 0.0);
+
+      if (r_pen > 0.0)
+      {
+        const double share = r_pen / width, x = share < 1.0 ? share : 1.0;
+        const double imp = dmin + (dmax - dmin) * ((x * x) * (3.0 - 2.0 * x));
+        const double aref = sgn * ((k_imp * imp) * r_pen) - b_imp * rate[i];
+
+        hit[t] = 1;
+        if (sgn * (aref - qdd[i]) > 0.0)
+        {
+          qdd[i] += (aref - qdd[i]) / (1.0 + (((1.0 - imp) / imp) * invw[i]) * J);
+        }
+      }
+    }
+    q[2 * t] = qx;
+    q[2 * t + 1] = qz;
+    v[2 * t] = vx;
+    v[2 * t + 1] = vz;
+    a[2 * t] = qdd[0];
+    a[2 * t + 1] = qdd[1];
+    vx += qdd[0] * dt;
+    vz += qdd[1] * dt;
+    qx += vx * dt;
+    qz += vz * dt;
+  }
+  state[0] = qx;
+  state[1] = qz;
+  state[2] = vx;
+  state[3] = vz;
+}

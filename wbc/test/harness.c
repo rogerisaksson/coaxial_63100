@@ -352,3 +352,9 @@ API void wbh_step_sizes(int *out)
   out[5] = WBC_STEP_WORK;
   out[6] = (int)sizeof(wbc_step_t);
 }
+
+API void wbh_pass_hem(int n, double dt, const double *ap, const double *om, const double *alb, const double *c,
+                      double *state, double *q, double *v, double *a, unsigned char *hit)
+{
+  wbc_pass_hem(n, dt, ap, om, alb, c, state, q, v, a, hit);
+}

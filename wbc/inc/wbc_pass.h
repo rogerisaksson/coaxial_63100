@@ -213,4 +213,12 @@ double wbc_pass_drawn(const wbc_world_t *w, const double *tau, const double *spe
                       const unsigned char *driven, const double *testing, const double *ohm, double housekeeping_w,
                       double switching_w);
 
+/** machine.wear._hems' pendulum: a hem 2-DoF about its x and z hinges with their stops, `n` steps of
+    `dt` on its hinge's acceleration `ap`, spin `om` and angular acceleration `alb` (n, 3 each, its
+    frame): its angles, rates and accelerations (n, 2 each), the steps it met a stop, its (qx, qz,
+    vx, vz) carried in and out. `c`: its arm, mass, inertia, J, stiffness, damping, the stop's
+    dmin, dmax, width, stiffness and damping, its two inverse weights, lows and highs. */
+void wbc_pass_hem(int n, double dt, const double *ap, const double *om, const double *alb, const double *c,
+                  double *state, double *q, double *v, double *a, unsigned char *hit);
+
 #endif

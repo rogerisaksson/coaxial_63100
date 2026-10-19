@@ -234,6 +234,8 @@ def typed(lib):
     lib.wbh_pass_heat_peak.argtypes = [ctypes.POINTER(Heat), _vp]
     lib.wbh_pass_drawn.argtypes = [ctypes.POINTER(World), _vp, _vp, _vp, _vp, _vp, _vp, d, d]
     lib.wbh_pass_drawn.restype = d
+    lib.wbh_pass_hem.argtypes = [i, d] + [_vp] * 9
+    lib.wbh_pass_hem.restype = None
     for name in ('wbh_pass_drives', 'wbh_pass_ctrl', 'wbh_pass_motor', 'wbh_pass_metered', 'wbh_pass_felt',
                  'wbh_pass_contacts', 'wbh_pass_sensed', 'wbh_pass_heat_load', 'wbh_pass_heat',
                  'wbh_pass_heat_peak'):
