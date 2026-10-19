@@ -30,35 +30,26 @@ import functools
 import math
 import sys
 import time
-from contextlib import suppress
 
 from rich.text import Text
 
-from coaxial import Coaxial63100
-from coaxial.errors import RigError
 from coaxial.draw.gauges import policy_word
 from coaxial.graphics import engine, gpu, inset, onboard, quadcopter
-from machine import aerobatics, aerokin, airfield, flightpack, gimbal, grounds, pull, quad, weather
-from machine.modes import SIMULATED
+from machine import airfield, flightpack, gimbal, grounds, pull, quad
 from terminal.loader import TO_MENU
 from terminal.ui import recorder
 from terminal.ui.console import WHEEL_STEP
-from terminal.ui.screen import FPS_CAP, Feed, closing, run_view, say
+from terminal.ui.screen import FPS_CAP, closing, run_view, say
 from terminal.ui.scroll import HUD_WIDTH
 from terminal.ui.stage import boot, frame_of, hud, stage
+from terminal.views.playback import Playback
 from terminal.views.quad import flight as flown
-from terminal.views.quad import traces, wind
+from terminal.views.quad import flying, traces, wind
 
 TITLE = 'QUAD ACRO FLYING'
 
 #: The rotors, round the frame: front left, front right, rear right, rear left.
 ROTORS = ('FL', 'FR', 'RR', 'RL')
-
-#: The feed's period, s, and the longest a pass takes the flight on (`flight.steps`).
-PHYSICS_S, PASS_S = 0.01, 0.05
-
-#: The interpreter's threads change hands this often while the page flies, s.
-SWITCH_S = 2e-4
 
 #: The spectator of every page's figures: beside the runway's middle (`airfield.placed`),
 #: SPOT_ACROSS off its line by the hangar, SPOT_Y up; gaze LEAD_S ahead, lens over LENS_S.
@@ -209,14 +200,15 @@ def wheeled(zoomed, moved):
         zoomed(ZOOM_STEP ** (moved / WHEEL_STEP))
 
 
-def hands(held, zoomed, record=None):
+def hands(held, zoomed, record=None, send=None):
     """{key: what it does}: the page's keys on its `held` state, `zoomed` the view's zoom times
-    its argument, `record` R's."""
+    its argument, `record` R's, `send` the flight's commands (`flying.Flight.apply`)."""
+    sent = send or (lambda **command: None)
     return dict([(k, lambda: zoomed(ZOOM_STEP)) for k in '+=']
                 + [(k, lambda: zoomed(1.0 / ZOOM_STEP)) for k in '-_']
-                + [(k, lambda: held.update(reset=True)) for k in 'aA']
+                + [(k, lambda: sent(reset=True)) for k in 'aA']
                 + [(k, record or (lambda: None)) for k in 'rR']
-                + [(k, lambda: held.update(wind=True)) for k in 'wW']
+                + [(k, lambda: sent(wind=True)) for k in 'wW']
                 + [(k, lambda: held.update(arrows=not held['arrows'])) for k in 'tT']
                 + [(k, lambda: held.update(line=not held['line'])) for k in 'lL']
                 + [(k, lambda: held.update(carried=not held['carried'])) for k in 'cC']
@@ -297,7 +289,8 @@ def size_of(console):
 def run_craft_view(argv, doc, craft, gfx, flown_mod, compose_fn, thrusts_fn, look_fn,
                    base_yaw=YAW, near_m=NEAR_M, banner=None, close_note=None):
     """Run the interactive terminal view for any coaxial aircraft (`quad`, `helicopter`,
-    `ornithopter`, or `aerobat`)."""
+    `ornithopter`, or `aerobat`): its flight apart (`flying`), played back on the page's clock -
+    in real time while a frame draws in `flying.MOST_S`, slower when it cannot, never run ahead."""
     labels = getattr(flown_mod, 'ROTORS', ROTORS)
     word = 'four' if len(labels) == 4 else 'two'
     parser = argparse.ArgumentParser(description=(doc or '').splitlines()[0])
@@ -308,88 +301,66 @@ def run_craft_view(argv, doc, craft, gfx, flown_mod, compose_fn, thrusts_fn, loo
     parser.add_argument('--frames', type=int, default=0,
                         help='stop after this many, instead of running until closed')
     args = parser.parse_args(argv)
-    rotors = []
     with boot('LINKING %s ROTORS' % word.upper()) as ready:
+        apart = flying.Flying(craft, flown_mod, len(labels))
         try:
-            for _ in labels:
-                rotors.append(flown_mod.arm(Coaxial63100(execution_mode=SIMULATED).open()))
-        except RigError as exc:
+            said = apart.first()
+        except RuntimeError as exc:
             say('fail', 'rotors', str(exc))
-            for rotor in rotors:
-                rotor['rig'].close()
+            apart.close()
             return 1
         ready()
-    origin = rotors[0]['rig'].origin
+    origin = said[0]['origin']
     say('warn', 'rotors', banner or ('two stand-in boards on the pilot, %s and %s on the 63100'
                                      % labels))
     card = gpu.adapter()
     lit = gpu.LitRaster(found=card) if card is not None else None
     say('ok', 'drawing', lit.name if lit is not None else 'this process, dots')
-    sky = craft.Sky(grounds.world(getattr(flown_mod, 'FIELD', None)))
-    route, trace = aerobatics.routine(flown_mod.CARD), []
-    began = time.monotonic()
-    held = {'at': 0.0, 'clock': 0.0, 'frame': sky.state(), 'reset': False,
-            'wind': False, 'law': aerokin.fresh(), 'flight': flown_mod.fresh(),
-            'arrows': True, 'line': True, 'carried': True, 'aim': gimbal.REST, 'see': 0}
+    playback, trace = Playback(flying.blend, catch_up=0.0, most_s=flying.MOST_S), []
+    held = {'epoch': None, 'shown': None, 'arrows': True, 'line': True, 'carried': True, 'see': 0}
     camera = {'reach': near_m, 'yaw': base_yaw, 'pitch': SIDE_PITCH, 't': None, 'zoom': 1.0}
 
     def zoomed(k):
         camera['zoom'] = max(ZOOM[0], min(ZOOM[1], camera['zoom'] * k))
-    keys = hands(held, zoomed, lambda: recorded(held, craft.__name__.rpartition('.')[2], rotors))
+    keys = hands(held, zoomed, lambda: recorded(held, craft.__name__.rpartition('.')[2], labels),
+                 apart.send)
 
-    def sample():
-        """The flight's side of a frame, on the feed's thread: a pass of it."""
-        with suppress(RigError):
-            now = time.monotonic() - began
-            dt = min(PASS_S, max(0.0, now - held['at']))
-            held['at'] = now
-            if dt <= 0.0:
-                return
-            flight = held['flight']
-            cells = flight['cells']
-            if held['wind']:
-                held['wind'] = False
-                weather.kept(flight['air'])
-            if held['reset']:
-                held['reset'] = False
-                sky.reset()
-                route.pop('lap', None)
-                route.update(aerobatics.routine(flown_mod.CARD), at=held['clock'])
-                flown_mod.begun(held['law'], flight)
-                flown_mod.reset(rotors)
+    def took(states):
+        """The states the flight said since the last frame: the trace's rows and a recording's."""
+        for state in states:
+            if state['epoch'] != held['epoch']:
+                held['epoch'] = state['epoch']
                 trace.clear()
-                cells.update(flightpack.pack())
-                flight.update(apex=0.0, share=1.0, over=0.0, gone=0.0, stood=0.0, wreck=None)
-                camera.update(reach=near_m, yaw=base_yaw, pitch=SIDE_PITCH)
-            for clock, frame in flown_mod.passed(rotors, sky, route, held['law'], flight,
-                                                 held['clock'], dt):
-                held['aim'] = gimbal.step(held['aim'], frame['turn'], frame['vel'],
-                                          clock - held['clock'])
-                held['clock'], held['frame'] = clock, frame
-                trace.append((clock, frame['h'], cells['volts'], cells['watts'],
-                              max((r['board_c'] for r in rotors if r['board_c'] is not None),
-                                  default=None)))
-                if held.get('recording') is not None:
-                    recorder.added(held['recording'], [flown_row(clock, frame, cells, rotors, held.pop('keyed', ''))])
-            while trace and held['clock'] - trace[0][0] > traces.TRACE_S:
-                trace.pop(0)
+            frame, cells = state['frame'], state['flight']['cells']
+            trace.append((state['t'], frame['h'], cells['volts'], cells['watts'],
+                          max((r['board_c'] for r in state['rotors'] if r['board_c'] is not None),
+                              default=None)))
+            if held.get('recording') is not None:
+                recorder.added(held['recording'], [flown_row(state['t'], frame, cells, state['rotors'],
+                                                             held.pop('keyed', ''))])
+        while trace and trace[-1][0] - trace[0][0] > traces.TRACE_S:
+            trace.pop(0)
+        playback.push(states)
 
-    switched = sys.getswitchinterval()
-    sys.setswitchinterval(SWITCH_S)
-    feed = Feed(sample, period=PHYSICS_S).start()
+    took(said)
     board_view = stage()
     terminal = board_view.is_terminal
     leaving = None
 
     def draw():
-        now = time.monotonic() - began
-        frame = held['frame']
-        dt = 0.0 if camera['t'] is None else now - camera['t']
-        camera['t'] = now
-        chased = flown.lined(route)
-        reach, centre = look_fn(camera, held['law'], held['flight']['row'], frame, chased, dt)
+        took(apart.said())
+        now = playback.at(time.perf_counter()) or said[-1]
+        apart.shown(now['t'])
+        if now['epoch'] != held['shown']:
+            held['shown'] = now['epoch']
+            camera.update(reach=near_m, yaw=base_yaw, pitch=SIDE_PITCH, t=None)
+        frame, rotors, flight = now['frame'], now['rotors'], now['flight']
+        dt = 0.0 if camera['t'] is None else now['t'] - camera['t']
+        camera['t'] = now['t']
+        chased = now['lined']
+        reach, centre = look_fn(camera, {'heading': now['heading']}, flight['row'], frame, chased, dt)
         width, height = size_of(board_view)
-        gate = (held['flight']['lap'] or {}).get('gate', 1) if chased else None
+        gate = (flight['lap'] or {}).get('gate', 1) if chased else None
         field = getattr(flown_mod, 'FIELD', grounds if chased else airfield)
         art = '\n'.join(gfx.render(
             frame, [(r['angle'], r['w'], (r['budget'] or {}).get('winding_c'), r['board_c'],
@@ -398,27 +369,22 @@ def run_craft_view(argv, doc, craft, gfx, flown_mod, compose_fn, thrusts_fn, loo
             reach=reach, centre=centre, colour=terminal, lit=lit, gate=gate, lens=camera.get('lens', 1.0),
             field=field, thrusts=thrusts_fn(frame, rotors) if held['arrows'] else None,
             line_=chased and held['line'], see=quadcopter.LAYERS[held['see']],
-            inset={**(carried(frame, held['aim'], gate, chased and held['line'], width, height, field)
+            inset={**(carried(frame, now['aim'], gate, chased and held['line'], width, height, field)
                       if held['carried'] else {}), **recorder.corner(held.get('recording'), width)}))
-        return compose_fn(board_view, origin, rotors, frame, held['flight'], list(trace),
-                          held['clock'], art, yaw=camera['yaw'])
+        return compose_fn(board_view, origin, rotors, frame, flight,
+                          [row for row in trace if row[0] <= now['t']], now['t'], art, yaw=camera['yaw'])
 
     try:
         leaving = run_view(board_view, terminal, 1.0 / max(args.hz, 0.5), args.frames, draw,
                            on_input=lambda keyed, moved: (typed(held, keys, keyed), wheeled(zoomed, moved)),
                            mouse=True, select=frozenset(), scroll_keys=False)
+    except RuntimeError as exc:
+        say('fail', 'flight', str(exc))
     finally:
-        feed.stop()
-        sys.setswitchinterval(switched)
-        done = []
-        for rotor in rotors:
-            with suppress(RigError):
-                rotor['rig'].board.drive.off()
-                rotor['rig'].gates.off()
-            rotor['rig'].close()
-        done.append(('rotors', close_note or ('%s drives off, gates off, %s stand-ins closed' % (word, word))))
+        apart.close(wait=3.0)
         sys.stdout.write('\n')
-        closing(done, terminal, 0)
+        closing([('rotors', close_note or ('%s drives off, gates off, %s stand-ins closed' % (word, word)))],
+                terminal, 0)
     return TO_MENU if leaving == 'menu' else 0
 
 

@@ -96,7 +96,8 @@ BOOT = 'test_boot.py'
 VIEWS = ('test_views_terminal.py', 'test_views_front.py', 'test_views_rotor.py',
          'test_views_drawing.py', 'test_views_gauges.py', 'test_views_thermal.py',
          'test_views_demo.py', 'test_views_segments.py',
-         'test_views_quad.py', 'test_views_quad_flight.py', 'test_helicopter.py', 'test_aerobat.py',
+         'test_views_quad.py', 'test_views_quad_flight.py', 'test_views_flying.py', 'test_helicopter.py',
+         'test_aerobat.py',
          'test_views_humanoid.py', 'test_views_floor.py', 'test_views_inset.py')
 
 #: The composed controller and its parts, against a toy rotor and the stand-in.
@@ -143,7 +144,7 @@ CYCLIC = 'test_cyclic.py'
 QUAD, QUAD_COURSE, QUAD_PAGE = 'test_quad.py', 'test_quad_course.py', 'test_views_quad.py'
 QUAD_PULL, SWEEP = 'test_quad_pull.py', 'test_sweep.py'
 QUADS = (QUAD, QUAD_COURSE, QUAD_PAGE, QUAD_PULL, SWEEP, 'test_views_quad_flight.py',
-         'test_views_inset.py', STRUCTURE)
+         'test_views_flying.py', 'test_views_inset.py', STRUCTURE)
 
 RENDER = 'test_render.py'
 

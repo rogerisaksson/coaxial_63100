@@ -1,9 +1,8 @@
 """The gynoid worker process on her latent loop: paced to the clock, commands heard, state said."""
 import math
-import multiprocessing
 import queue
 import time
-from machine import edge, floor, ortho, physics, sprung, wear
+from machine import apart, edge, floor, ortho, physics, sprung, wear
 from machine.errors import MachineError
 from machine.se2 import WALK_ON
 
@@ -204,18 +203,6 @@ def _is_fallen(g, world):
     return bool(((down[a] & ground[b]) | (down[b] & ground[a])).any())
 
 
-def _put(states, item):
-    while states.full():
-        try:
-            states.get_nowait()
-        except queue.Empty:
-            break
-    try:
-        states.put_nowait(item)
-    except queue.Full:
-        pass
-
-
 #: A pass of her world, s; her drives' torque, power and watts averaged over AVERAGE_S; a wear
 #: window's passes.
 DT = 1.0 / sprung.RATE_HZ
@@ -320,99 +307,60 @@ def told(s):
                              s['says'], s['refused']), epoch=s['epoch'], wear=s['wear_told'])
 
 
-def run(commands, states, heard=None, every=sprung.STACK_EVERY, walks=False, realtime=True):
+class Her:
+
+    """Her session (`session`) as `apart.paced` steps it: her time, her epoch, a command applied,
+    a pass - its wear's seconds left out of the pace -, her state told at her ratio."""
+
+    def __init__(self, s):
+        self.s = s
+
+    @property
+    def t(self):
+        return self.s['g']['t']
+
+    @property
+    def epoch(self):
+        return self.s['epoch']
+
+    def apply(self, command):
+        apply(self.s, command)
+
+    def step(self):
+        stepped(self.s)
+        return self.s.pop('_wear_s', 0.0)
+
+    def said(self, ratio):
+        if ratio is not None:
+            self.s['ratio'] = ratio
+        return told(self.s)
+
+
+def run(commands, states, shown, heard=None, every=sprung.STACK_EVERY, walks=False, realtime=True):
     """The worker: she stands on the loop, paced to the clock (`realtime`, or flat out without it);
     commands heard - each put on `heard` at its pass -, her state said. Laid, she stands at rest
-    unless `walks`."""
+    unless `walks`. Run apart (`apart.paced`); what her page has `shown` holds her back nowhere."""
     physics.ROOM, physics.SIGHT = 1.0, 0.0
     s = session(every, walks, heard.put if heard is not None else None)
-    _put(states, told(s))
-    wall0 = wall_said = last_wall = time.perf_counter()
-    sim0, said_at, spent, ran = s['g']['t'], 0.0, 0.0, 0.0
-    while True:
-        epoch = s['epoch']
-        try:
-            while True:
-                command = commands.get_nowait()
-                if command is None:
-                    return
-                apply(s, command)
-        except queue.Empty:
-            pass
-        began = time.perf_counter()
-        if s['epoch'] == epoch:
-            if not realtime:
-                due = s['g']['t'] + sprung.SLICE_S
-            else:
-                if began - last_wall > sprung.SLICE_S:
-                    wall0, sim0 = began, s['g']['t']
-                due = sim0 + (began - wall0)
-                if due - s['g']['t'] > sprung.SLICE_S:
-                    due = s['g']['t'] + sprung.SLICE_S
-                    wall0, sim0 = began - sprung.SLICE_S, s['g']['t']
-            from_t = s['g']['t']
-            while s['g']['t'] < due - 1e-9 and s['epoch'] == epoch:
-                t_step = time.perf_counter()
-                stepped(s)
-                dt_wear = s.pop('_wear_s', 0.0)
-                wall0 += dt_wear
-                wall_said += dt_wear
-                spent += max(0.0, (time.perf_counter() - t_step) - dt_wear)
-                ran += s['g']['t'] - from_t
-                from_t = s['g']['t']
-                if s['epoch'] == epoch and s['g']['t'] - said_at >= sprung.SAY_S:
-                    now_w = time.perf_counter()
-                    wall_dt = now_w - wall_said
-                    s['ratio'] = (min(1.0, ran / wall_dt) if (realtime and wall_dt > 1e-6)
-                                  else (ran / spent if spent > 1e-6 else s['ratio']))
-                    wall_said, spent, ran, said_at = now_w, 0.0, 0.0, s['g']['t']
-                    _put(states, told(s))
-        last_wall = time.perf_counter()
-        if s['epoch'] != epoch:
-            wall0 = wall_said = last_wall
-            sim0, said_at, spent, ran = s['g']['t'], 0.0, 0.0, 0.0
-            _put(states, told(s))
-            continue
-        if realtime:
-            rest = sprung.SAY_S / 4.0 - (last_wall - began)
-            if rest > 0.0:
-                time.sleep(rest)
-                last_wall = time.perf_counter()
+    apart.paced(Her(s), commands, states, realtime=realtime, say_s=sprung.SAY_S,
+                rest_s=sprung.SAY_S / 4.0, slice_s=sprung.SLICE_S)
 
 
-class Running:
+class Running(apart.Apart):
 
-    """Her worker process on the loop (`run`): `send` it commands, read its `latest` state and
-    the commands it has `heard`; laid, she stands at rest unless `walks`."""
+    """Her worker process on the loop (`run`, apart): `send` it commands, read its `latest` state
+    and the commands it has `heard`; laid, she stands at rest unless `walks`."""
 
     def __init__(self, every=sprung.STACK_EVERY, walks=False, realtime=True):
-        context = multiprocessing.get_context('spawn')
-        self._commands, self._states, self._heard = context.Queue(), context.Queue(maxsize=8), context.Queue()
-        for each in (self._commands, self._states, self._heard):
-            each.cancel_join_thread()
-        self._process = context.Process(target=run, daemon=True,
-                                        args=(self._commands, self._states, self._heard, every, walks, realtime))
-        self._process.start()
-        self._last = None
+        self._heard = apart.CONTEXT.Queue()
+        super().__init__(run, self._heard, every, walks, realtime, states=8, kept=(self._heard,))
 
     def send(self, **command):
         """{'say': the gym's entry by its place, in place of what was to come} | {'walk': True}:
         her walk from rest | {'entries': [(label, wire, names)]} | {'gym': one of GYMS} |
         {'text': orthokinematics, begun now} | {'push': (x, y, z) N, 'seconds': s} |
         {'restart': True}: laid anew. Any other key is refused, said with her state."""
-        self._commands.put(command)
-
-    def latest(self, into=None):
-        """The newest state the worker has said, or the last one if nothing new; every one said
-        since appended to `into` if given."""
-        try:
-            while True:
-                self._last = self._states.get_nowait()
-                if into is not None:
-                    into.append(self._last)
-        except queue.Empty:
-            pass
-        return self._last
+        super().send(**command)
 
     def heard(self):
         """The commands she has heard since this was last asked, (epoch, pass, t, command) each:
@@ -424,20 +372,3 @@ class Running:
         except queue.Empty:
             pass
         return out
-
-    def close(self):
-        try:
-            self._commands.put_nowait(None)
-        except queue.Full:
-            pass
-        for _ in (0, 1):
-            for each in (self._states, self._heard):
-                while True:
-                    try:
-                        each.get_nowait()
-                    except queue.Empty:
-                        break
-            if not _:
-                self._process.join(timeout=1.0)
-                if self._process.is_alive():
-                    self._process.terminate()

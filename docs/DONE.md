@@ -244,3 +244,7 @@ the hundred before these: [DONE_1-50](DONE_1-50.md),
     of 13 under 0.5 m/s within 0.51 m, where the circuit came down 25-37 m
     beside the runway and the final 15-62 m short of it
     ([aircraft](findings/aircraft.md)).
+60. The crafts' pages run as her page does: the flight in a process of its
+    own, her worker's loop made general (`machine.apart`), played back in
+    real time or slower, never ahead: 18.7-19.3 frames a second where
+    13.4-18.7, the longest gap 89 ms where 639 ([host](findings/host.md)).

@@ -178,6 +178,14 @@ Pages, tooling, suites and the local model's runner. The board's findings:
   A frame at 15 a second showed the same state again 65 times in 235, the
   rest 0.036 s of her time apart with 0.022 of spread, her process at 0.7 of
   real time in slices of 0.05 s (`terminal/views/playback.py`).
+- The crafts' pages flew on a `Feed` thread in the page's process and drew
+  the newest of its 20 ms steps: on a 200 x 56 truecolor terminal 13.4-18.7
+  frames a second, gaps p95 80-115 ms, the longest 484-639, the flight's
+  Python sharing the GIL with a frame's 3D (16-33 ms) and rich's update
+  (21-28 ms). Run apart as hers is (`machine.apart`, `quad/flying.py`) and
+  played back no further than 0.15 s behind what it said, a frame 0.1 s of
+  its time at the most: 18.7-19.3 frames a second, p95 66-77 ms, the longest
+  75-89, its time on at the wall's (1.00). HUMANOID on the same loop: 17.2.
 - HUMANOID's R crashed the page at once with no traceback
   kept; headless it took R and saved 97 rows then, and R starting, three
   states and R saving is test_views_humanoid.py's. The

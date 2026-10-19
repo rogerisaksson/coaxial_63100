@@ -1,10 +1,11 @@
 """The QUAD page on four stand-in boards: its words, its traces and its wind, its flights."""
 import math
 import sys
-import time
 
 from tools.dev.focus import chosen
 from views_kit import Report
+
+from page_kit import paged
 
 from test_quad import spans
 from test_quad_course import CLEAR_M, passes, reach, worst
@@ -82,68 +83,13 @@ def test_its_wind_is_pointed(report):
         lines[2].split('  ')[-1])
 
 
-#: The page's flights drawn this long at most, s.
-LANDED_S = 200.0
-
-#: A flight is judged where its clock - its passes' sum, a pass 50 ms at the most - kept
-#: within this of the wall's: a page starved past it has not landed in LANDED_S.
+#: A flight is judged where its clock - its steps' sum - kept within this of the wall's: a
+#: page starved past it has not landed in LANDED_S (page_kit).
 BEHIND = 0.2
 
 #: The page's pack for its test, A h: a first flight whole, spent early in the second - on the
 #: flight's own seconds (clock=1) the routine takes 0.152 on the 16x14s; 0.19 was spent in its descend.
 TEST_PACK_AH = 0.21
-
-
-def paged(card, done, pack_ah=None):
-    """The page headless on `card` - and a pack of `pack_ah` A h - until `done(the stages flown,
-    the one it is in)` at a frame, LANDED_S drawn at the most: (a row a step of its flight, a
-    row a frame - its stage, its art's braille cells, the gate lit - its frames a second)."""
-    from machine import flightpack
-    from terminal.ui.screen import FPS_CAP
-    from terminal.views import show_quad as view
-    from terminal.views.quad import flight as flown
-    from tools.render import page
-    steps, frames, flew = [], [], set()
-    was = view.compose, flown.step, flown.CARD, flightpack.PACK_AH, view.quadcopter.render
-
-    class Done(Exception):
-        """What it was flown for is flown."""
-
-    def stepped(rotors, sky, route, law, flight, clock, dt):
-        name = was[1](rotors, sky, route, law, flight, clock, dt)
-        frame, lap, cells = sky.state(), route.get('lap') or {}, flight['cells']
-        flew.add(name)
-        steps.append({'name': name, 't': time.monotonic(), 'dt': dt, 'x': float(frame['at'][0]),
-                      'y': frame['h'], 'z': float(frame['at'][2]),
-                      'v': math.sqrt(sum(float(c) ** 2 for c in frame['vel'])),
-                      'share': flight['share'], 'laps': lap.get('laps', 0), 'of': lap.get('of', 0),
-                      'amps': max(r['amps'] for r in rotors),
-                      'soa': max((r['budget'] or {}).get('worst') or 0.0 for r in rotors),
-                      'states': [(r['ident'] or {}).get('state') for r in rotors],
-                      'tripped': any((r['budget'] or {}).get('tripped') for r in rotors),
-                      'volts': cells['volts'], 'watts': cells['watts'], 'left': cells['left']})
-        return name
-
-    def render(*args, **kw):
-        frames.append({'t': time.monotonic(), 'name': steps[-1]['name'] if steps else '',
-                       'gate': kw.get('gate'), 'cells': 0})
-        return was[4](*args, **kw)
-
-    def compose(console, origin, rotors, frame, flight, trace, now, art, **kw):
-        frames[-1]['cells'] = sum(0x2800 < ord(c) <= 0x28FF for c in art)
-        # Flown, or LANDED_S of the wall's time drawn.
-        if done(flew, flight['stage']) or frames[-1]['t'] - frames[0]['t'] > LANDED_S:
-            raise Done
-        return was[0](console, origin, rotors, frame, flight, trace, now, art, **kw)
-    view.compose, flown.step, flown.CARD, flightpack.PACK_AH, view.quadcopter.render = (
-        compose, stepped, card, pack_ah or was[3], render)
-    try:
-        page.frame('quad', 150, 44, frames=int(LANDED_S * FPS_CAP))
-    except Done:
-        pass
-    finally:
-        view.compose, flown.step, flown.CARD, flightpack.PACK_AH, view.quadcopter.render = was
-    return steps, frames, (len(frames) - 1) / max(1e-9, frames[-1]['t'] - frames[0]['t'])
 
 
 def test_the_page_flies_four_boards(report):
@@ -315,9 +261,10 @@ def test_r_records_its_flight(report):
     from machine import grounds, quad
     from terminal.ui import recorder
     from terminal.views import show_quad
-    held: dict = {'reset': False}
-    rotors = [{'w': 100.0}, {'w': 110.0}]
-    keys = show_quad.hands(held, lambda k: None, lambda: show_quad.recorded(held, 'quad', rotors))
+    held: dict = {}
+    rotors, sent = [{'w': 100.0}, {'w': 110.0}], []
+    keys = show_quad.hands(held, lambda k: None, lambda: show_quad.recorded(held, 'quad', rotors),
+                           lambda **command: sent.append(command))
     frame, cells = quad.Sky(grounds.solids()).state(), {'volts': 50.0, 'watts': 10.0}
     was, recorder.RECORDINGS = recorder.RECORDINGS, tempfile.mkdtemp()
     try:
@@ -329,10 +276,12 @@ def test_r_records_its_flight(report):
             rows = list(csv.reader(f))
     finally:
         recorder.RECORDINGS = was
-    report.check('R, a pass, R: the header and its row, the keys typed between in it; A resets',
+    report.check('R, a pass, R: the header and its row, the keys typed between in it; W keeps the '
+                 'air and A resets the flight',
                  rows[0] == list(show_quad.FLIGHT) + ['w_0', 'w_1'] and len(rows) == 2
-                 and rows[1][len(show_quad.FLIGHT) - 1] == 'rw' and held['reset'] and held['recording'] is None,
-                 rows[1][len(show_quad.FLIGHT) - 1:])
+                 and rows[1][len(show_quad.FLIGHT) - 1] == 'rw' and held['recording'] is None
+                 and sent == [{'wind': True}, {'reset': True}],
+                 (rows[1][len(show_quad.FLIGHT) - 1:], sent))
     report.check('while it records the drawing carries REC and its rows', corner.strip() == '● REC ⠙ 1', corner)
     from terminal.ui.console import WHEEL_STEP
     zooms = []

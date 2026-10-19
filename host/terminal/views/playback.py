@@ -1,24 +1,28 @@
-"""The humanoid page's playback: her states said, drawn on a clock of their own at an even pace.
+"""A page's playback: the states a world run apart said, drawn on a clock of their own.
+
+At an even pace, blended between two: hers (`_blended`), a craft's (`terminal.views.quad.flying`).
 
     playback = Playback()
-    playback.push(said)                       # the states her process said since the last frame
+    playback.push(said)                       # the states its process said since the last frame
     now = playback.at(time.perf_counter())    # the state to draw, blended, or None before the first
 """
 import math
 
 #: The page plays her back LAG_S of her time behind the newest state said, its clock's pace her
 #: process's ratio to real time and CATCH_UP of the lag's error a second, eased over PACE_S; a
-#: buffer of KEEP_S.
-LAG_S, CATCH_UP, PACE_S, KEEP_S = 0.06, 1.5, 0.35, 1.0
+#: buffer of KEEP_S; a frame plays MOST_S of the wall at the most.
+LAG_S, CATCH_UP, PACE_S, KEEP_S, MOST_S = 0.06, 1.5, 0.35, 1.0, 0.2
 
 
 class Playback:
 
-    """Her states said, played back on a clock of their own at an even pace, the frame's state
-    blended between the two it falls between: `push(states)`, `at(wall)`."""
+    """States said, played back on a clock of their own at an even pace, the frame's state
+    `blend`ed between the two it falls between: `push(states)`, `at(wall)`. `catch_up` of the
+    lag's error a second; a frame `most_s` of the wall at the most."""
 
-    def __init__(self):
+    def __init__(self, blend=None, catch_up=CATCH_UP, most_s=MOST_S):
         self.states, self.shown, self.wall, self.pace = [], None, None, 1.0
+        self.blend, self.catch_up, self.most_s = blend or _blended, catch_up, most_s
 
     def push(self, states):
         for s in states:
@@ -40,10 +44,10 @@ class Playback:
         newest = self.states[-1]['t']
         if self.shown is None or self.shown > newest or self.shown < self.states[0]['t']:
             self.shown, self.wall = max(self.states[0]['t'], newest - LAG_S), wall
-        dt = max(0.0, min(0.2, wall - self.wall))
+        dt = max(0.0, min(self.most_s, wall - self.wall))
         self.wall = wall
         ratio = min(1.0, max(0.2, float(self.states[-1].get('ratio', 1.0))))
-        want = ratio + CATCH_UP * ((newest - LAG_S) - self.shown)
+        want = ratio + self.catch_up * ((newest - LAG_S) - self.shown)
         self.pace += (want - self.pace) * min(1.0, dt / PACE_S)
         self.shown = min(newest, self.shown + max(0.0, self.pace) * dt)
         after = next((i for i, s in enumerate(self.states) if s['t'] >= self.shown),
@@ -52,7 +56,7 @@ class Playback:
         a = self.states[max(0, after - 1)]
         span = b['t'] - a['t']
         k = 0.0 if span <= 1e-9 else max(0.0, min(1.0, (self.shown - a['t']) / span))
-        return dict(b, t=self.shown, **_blended(a, b, k))
+        return dict(b, t=self.shown, **self.blend(a, b, k))
 
 
 def _blended(a, b, k):
