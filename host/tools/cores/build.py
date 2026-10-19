@@ -86,6 +86,7 @@ def _claimed(lib):
     """Whether this process is to build `lib`: its marker made here; else another's built it -
     waited for while that process lives - and False."""
     from tools.dev.focus import _alive
+    os.makedirs(OUT, exist_ok=True)
     marker = lib + '.building'
     while True:
         try:
