@@ -127,6 +127,7 @@ TOUCHES = (
     ('host/tools/cores/thermal.py',            (THERMAL, THERMAL_APP)),
     ('host/tools/cores/reach.py',              (STRUCTURE, REACH)),
     ('host/tools/cores/wbc.py',                (STRUCTURE, WBC_CORE, FLIGHT)),
+    ('host/tools/cores/imp.py',                (STRUCTURE, WBC_CORE)),
     ('host/tools/cores/aero.py',               QUADS + (AERO_CORE, STREAMS)),
     ('host/tools/sim/streams.py',              QUADS + (STREAMS,)),
     ('host/tools/sim/wbc.py',                  (STRUCTURE, WBC, WBC_CORE, FLIGHT, WRENCH)),

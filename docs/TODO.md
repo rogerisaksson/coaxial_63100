@@ -38,9 +38,12 @@ gets a line at the end of [DONE](DONE.md).
   A frame past 3 s appends every thread's stack to
   `%LOCALAPPDATA%/coaxial_63100/stalls.txt` (`screen.STALL_LOG`). DOD: seen,
   its stack dumped, fixed.
-- **Her world short of real time** (`machine.worker`): a pass 1 260 us, 0.79
-  of real time; her law 2.6 ms every third pass; the C step not her law
-  (body.md). DOD: x1.0.
+- **Her law core's latent step, couple and rounds** (`tools.cores`): their C
+  is not her python's bits, her hash apart from 0.5 s on; the ask's is
+  (body.md). DOD: each held to its python by a test, bit for bit.
+- **Her wear's window stalls her world** 0.23 s every 4 s (`worker.stepped`,
+  sysid's regressor its most); it feeds her law (`wear.loaded`). DOD: no
+  pass over 20 ms walking.
 
 1. **Orthokinematics, the one way she moves** (orthokinematics.md): the
    humanoid robot movement is text of balance, rhythm and elasticity, compiled

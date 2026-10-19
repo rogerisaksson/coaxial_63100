@@ -111,11 +111,20 @@ her latent loop in [orthokinematics](orthokinematics.md).
   step's ctypes edge 180 -> 60 us (laid buffers, no np.cross); as the
   default, 0.83, it sat the chair 0 of 3 wobbles (bore 0.35 s of 1), fell
   in snow 3 of 3, hopped 0.85 m/s where 0.9 and fell turning at 0.69 m/s:
-  the python step stays. Left: `impedance.ask` 1.3 ms and the python step
-  0.8 of the law's 2.6 every third pass; libm here gives numpy's bits for
-  sin, cos, tan, exp, log, atan2, sqrt, acos, asin, hypot and pow, tanh an
-  ulp off; numpy's (2,3)@(3,3) is dgemm's fma chain, its (3,)@(3,3) a plain
-  sum, its (3,3)@(3,) and einsum 'nia,ia->n' neither (60 000 draws each).
+  the python step stays. libm here gives numpy's bits for sin, cos, tan,
+  exp, log, atan2, sqrt, acos, asin, hypot and pow, tanh an ulp off.
+- Her ask in C (`wbc/src/wbc_imp.c`, `wbc_stride.c`, `tools.cores.imp`):
+  `impedance.ask` with modal's reading, poise, stride and flight.standing
+  under it, numpy's orders in `wbc/inc/wbc_np.h` - (3,3)@(3,) and (2,3)@(3,)
+  dgemv_t's tail contracted, fma(a2, x2, fma(a0, x0, a1 x1)), (2,2)@(2,)
+  fma(a0, x0, a1 x1), dgemm's fma chain, a vector @ a stack and a 1-d dot a
+  plain sum, einsum 'nia,ia->n' SSE's two lanes (20 000 draws each). 47 880
+  asks over 14 scenarios, still in half of them, the same bit for bit; 1 280
+  -> 8 us an ask; her pass 1 130 -> 785 us, 0.88 -> 1.27 of real time, her
+  trajectory's sha1 her python's. The law core's own C ask (`tools.cores`),
+  as fast, left her python's bits from 0.5 s on: cut. Left in the pass: the
+  python wrench step, her sensing, the wear's window 0.23 s every 4 s - it
+  feeds her law (`wear.loaded`).
 
 ## Mechanics
 

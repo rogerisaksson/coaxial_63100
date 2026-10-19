@@ -1,6 +1,7 @@
 /** harness.c - A flat C API over wbc/, so test_wbc_core.py can run the real chain on the host
     through ctypes beside MuJoCo. */
 #include "wbc.h"
+#include "wbc_imp.h"
 #include "wbc_pass.h"
 
 #include <string.h>
@@ -256,4 +257,14 @@ API double wbh_pass_drawn(const wbc_world_t *w, const double *tau, const double 
                           double housekeeping_w, double switching_w)
 {
   return wbc_pass_drawn(w, tau, speed, loss, driven, testing, ohm, housekeeping_w, switching_w);
+}
+
+API void wbh_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const double *fr, double *a)
+{
+  wbc_imp_ask(k, out, y, fr, a);
+}
+
+API int wbh_imp_size(void)
+{
+  return (int)sizeof(wbc_imp_t);
 }

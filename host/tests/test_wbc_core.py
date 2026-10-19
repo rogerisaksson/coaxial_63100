@@ -1,8 +1,9 @@
 """Her chain and the loop on the static model (wbc/) against MuJoCo and the python stack.
 
 The arrays as the figure compiles; the core's poses, Jacobians, mass matrix and bias at random
-configurations; the loop's torques standing against `machine.wbc.step`'s; her stand and a shove
-in MuJoCo on the loop; a step's and a tick's time on this host."""
+configurations; the loop's torques standing against `machine.wbc.step`'s; her ask against
+`machine.impedance.ask`'s; her stand and a shove in MuJoCo on the loop; a step's and a tick's
+time on this host."""
 import ctypes
 import os
 import sys
@@ -307,6 +308,34 @@ def test_the_step_in_c_strides_as_the_steps(report, c, b, rows):
                  '%.1e N m or N apart at most over %d solves' % (worst[2], count[2]))
 
 
+def test_her_ask_in_c_is_impedance_s(report, c, b, rows):
+    """wbc_imp.c (`tools.cores.imp`) beside `machine.impedance.ask` at every ask of a player's
+    moves - a walk, turns, a strafe, back, a sprint, a stop - and of a sit on a chair and up:
+    every field the same, bit for bit."""
+    import numpy as np
+    from machine import impedance
+    from tools.cores import imp
+    from tools.sim import scenarios
+    asked, tally = imp.asked, {'asks': 0, 'differ': 0, 'first': ''}
+
+    def both(k, ask, out, y, fr, a):
+        want = impedance.ask(out.copy(), y.copy(), fr.copy(), a.copy())
+        got = asked(k, ask, out, y, fr, a)
+        tally['asks'] += 1
+        if not np.array_equal(got, want, equal_nan=True):
+            tally['differ'] += 1
+            tally['first'] = tally['first'] or 'ask %d at %s' % (tally['asks'], np.flatnonzero(got != want).tolist())
+        return got
+    imp.asked = both
+    try:
+        for name in ('play_moves', 'chair'):
+            scenarios.ran(name)
+    finally:
+        imp.asked = asked
+    report.check("her ask in C is machine.impedance's bit for bit", tally['asks'] > 5000 and not tally['differ'],
+                 '%d of %d asks differ %s' % (tally['differ'], tally['asks'], tally['first']))
+
+
 def test_the_loop_stands_as_the_python_stack(report, c, b, rows):
     """Standing still, asked to stay: the loop's torques against `machine.wbc.step`'s, whose
     inequalities all sleep there; its clip untouched; a tick's time."""
@@ -345,7 +374,8 @@ ROSTER = (test_the_arrays_are_the_figures, test_the_ortho_row_is_the_wires,
           test_the_bias_is_mujocos, test_the_jacobians_are_mujocos,
           test_the_centre_of_mass_is_mujocos, test_a_step_on_this_host,
           test_the_step_in_c_is_the_steps, test_the_step_in_c_strides_as_the_steps,
-          test_the_loop_stands_as_the_python_stack, test_she_stands_on_the_loop)
+          test_her_ask_in_c_is_impedance_s, test_the_loop_stands_as_the_python_stack,
+          test_she_stands_on_the_loop)
 
 
 def main(argv=None):

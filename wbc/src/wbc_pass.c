@@ -4,66 +4,10 @@
     machine.heat keeps it - numpy's arithmetic operation for operation, its clip and its pairwise
     sum, so a pass is the same bit for bit. Portable C11. */
 #include "wbc_pass.h"
+#include "wbc_np.h"
 
 #include <math.h>
 #include <stddef.h>
-
-/** numpy's maximum and minimum: the first where it wins or is nan. */
-static double npmax(double a, double b)
-{
-  return (a >= b || isnan(a)) ? a : b;
-}
-
-static double npmin(double a, double b)
-{
-  return (a <= b || isnan(a)) ? a : b;
-}
-
-/** numpy's clip: minimum(maximum(x, lo), hi). */
-static double npclip(double x, double lo, double hi)
-{
-  return npmin(npmax(x, lo), hi);
-}
-
-/** numpy's sum of a contiguous row: eight running sums under 129, halves over. */
-static double npsum(const double *a, int n)
-{
-  double r[8], res;
-  int    i, n2;
-
-  if (n < 8)
-  {
-    res = 0.0;
-    for (i = 0; i < n; i++)
-    {
-      res += a[i];
-    }
-    return res;
-  }
-  if (n <= 128)
-  {
-    for (i = 0; i < 8; i++)
-    {
-      r[i] = a[i];
-    }
-    for (i = 8; i < n - (n % 8); i += 8)
-    {
-      for (int j = 0; j < 8; j++)
-      {
-        r[j] += a[i + j];
-      }
-    }
-    res = ((r[0] + r[1]) + (r[2] + r[3])) + ((r[4] + r[5]) + (r[6] + r[7]));
-    for (; i < n; i++)
-    {
-      res += a[i];
-    }
-    return res;
-  }
-  n2 = n / 2;
-  n2 -= n2 % 8;
-  return npsum(a, n2) + npsum(a + n2, n - n2);
-}
 
 void wbc_pass_drives(wbc_drives_t *p, double dt, double wo, double wo3, double ys, int in_hop, int wb)
 {

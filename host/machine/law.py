@@ -8,6 +8,7 @@ The world is never seen: her array is `machine.edge`'s.
 `g` is `sprung.laid`'s; its `sense` the edge's array, its `est` her estimate (`machine.estimate`).
 """
 import ctypes
+import functools
 import math
 import os
 
@@ -123,7 +124,8 @@ def _step_latent(g, dt):
 
 
 def _step_modal(g, s, y, y_in, out):
-    """Step `support.couple` and `impedance.ask` via the compiled C law core when laid."""
+    """Step `support.couple` via the compiled C law core when laid, and `impedance.ask` in C
+    bit for bit (`g['impedance']`, `law.laid`)."""
     lib = g.get('law_c')
     qd = y_in[edge.QD][g['joints']]
     if lib is None:
@@ -134,9 +136,7 @@ def _step_modal(g, s, y, y_in, out):
     lib.law_support_couple(q_c.ctypes.data_as(dp), qd_c.ctypes.data_as(dp), g['ref_q'].ctypes.data_as(dp),
                            g['ref_v'].ctypes.data_as(dp), g['eso'][2].ctypes.data_as(dp),
                            out.ctypes.data_as(dp), dq.ctypes.data_as(dp))
-    lib.law_impedance_ask(out.ctypes.data_as(dp), y.ctypes.data_as(dp), g['fr'].ctypes.data_as(dp),
-                          g['a'].ctypes.data_as(dp))
-    return dq, g['a']
+    return dq, g['impedance'](out, y, g['fr'], g['a'])
 
 
 def control(g, dt):
@@ -221,8 +221,9 @@ def laid(g):
     """Her drive-side step laid in C (`wbc_pass.c`, `tools.cores.wbc.Drives`): the struct
     pointing at `g`'s arrays once - the observers, the setpoints and their rates, the holds, the
     knees' spring, the feed and the clamps her drives are told (`g['cmd']`) - and what it reads
-    by, kept beside it."""
-    from tools.cores import law_library, wbc as cores
+    by, kept beside it. Her ask in C (`tools.cores.imp`), `machine.impedance.ask` bit for bit."""
+    from tools.cores import imp, law_library, wbc as cores
+    g['impedance'] = functools.partial(imp.asked, *imp.laid())
     body, joints = g['body'], g['joints']
     n = len(joints)
     kept = {'joints': np.ascontiguousarray(joints, dtype=np.int32),

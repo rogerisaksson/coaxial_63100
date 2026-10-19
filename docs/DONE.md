@@ -353,3 +353,5 @@ the fifty before these: [DONE_1-50](DONE_1-50.md).
     draws; two laps through all in gusty wind, every gate within 0.9 m.
 90. `machine.aerobat` and `machine.helicopter` packages of a subject a file:
     airframe, sky, law, observer, and the SO(3) law's shared kit.
+91. Her world past real time walking: her pass's glue and her ask in C bit for
+    bit on numpy's own orders, 1.27 of real time ([body](findings/body.md)).
