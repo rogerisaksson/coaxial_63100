@@ -39,6 +39,14 @@ the table under [Subjects](#subjects).
   A frame past 3 s appends every thread's stack to
   `%LOCALAPPDATA%/coaxial_63100/stalls.txt` (`screen.STALL_LOG`). DOD: seen,
   its stack dumped, fixed.
+- **Seated she still falls or does not rise** (CI's test_errands, `F sits her`,
+  some runners): here 1 run in 16-48 perturbed. Off the seat she rocks side
+  to side, the ZMP her springs ask 0.23 m out (the chair -0.9 um). A sole let
+  go hovers 42 mm up, asked -6.8 m/s^2 down and given -0.2: her centre of mass
+  asked 2.95 m/s^2 down through the seat outweighs it (W_COM, seed 9). Not
+  kept: that ask stopped at the seat (seed 9 still down, the rise 2.50 -> 2.71
+  s); a prop kept within 2 mm of where it bore (4 and 6 of 48 risen). DOD:
+  64 of 64 perturbed runs seated and risen.
 - **Her wear's window stalls her world** 0.12 s every 4 s (`worker.stepped`:
   its rows 31 ms - the regressor's C 16 -, its hems 15, its boxes 12); it
   feeds her law (`wear.loaded`). DOD: no pass over 20 ms walking.
