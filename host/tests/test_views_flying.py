@@ -91,8 +91,48 @@ def test_the_page_plays_it_back_never_ahead(report):
                  't %.3f, angle %.4f' % (one['t'], one['rotors'][0]['angle']))
 
 
+def test_the_frames_leave_on_their_beat(report):
+    """`screen.run_view`'s beat: a frame's draw 20 to 45 ms at random, yet each frame's bytes
+    leave at the instant it drew (`screen.drawn_at`) and the frames leave on an even beat - a
+    page playing a flight back shows it as it is seen."""
+    import io
+    import random
+    import statistics
+    import time
+    import rich.console
+    from rich.text import Text
+    from terminal.ui import screen
+    writes, drawn, dice = [], [], random.Random(3)
 
-ROSTER = (test_the_flight_apart_keeps_to_what_is_shown, test_the_page_plays_it_back_never_ahead)
+    class Sink(io.StringIO):
+        def write(self, s):
+            writes.append((time.perf_counter(), len(s)))
+            return len(s)
+
+        def isatty(self):
+            return True
+
+    def draw():
+        drawn.append(screen.drawn_at())
+        time.sleep(dice.uniform(0.02, 0.045))
+        return Text('%.6f' % drawn[-1])
+    screen.run_view(rich.console.Console(file=Sink(), force_terminal=True, width=80, height=10,
+                                         color_system='truecolor'), False, 0.05, 40, draw)
+    sent = [t for t, n in writes if n > 200][:len(drawn)]
+    off = [t - d for t, d in zip(sent, drawn)][5:]
+    gaps = [b - a for a, b in zip(sent[5:], sent[6:])]
+    change = sorted(abs(b - a) for a, b in zip(gaps, gaps[1:]))
+    report.check('each frame leaves at the instant it drew, on an even beat',
+                 len(sent) == len(drawn) and max(abs(o) for o in off) <= 0.008
+                 and change[int(0.9 * (len(change) - 1))] <= 0.005,
+                 'left %.1f ms from its instant at most, %.1f ms apart, gap to gap %.1f ms at p90' % (
+                     1e3 * max(abs(o) for o in off), 1e3 * statistics.median(gaps),
+                     1e3 * change[int(0.9 * (len(change) - 1))]))
+
+
+
+ROSTER = (test_the_flight_apart_keeps_to_what_is_shown, test_the_page_plays_it_back_never_ahead,
+          test_the_frames_leave_on_their_beat)
 
 
 def main(argv=None):

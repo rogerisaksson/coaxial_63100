@@ -186,6 +186,14 @@ Pages, tooling, suites and the local model's runner. The board's findings:
   played back no further than 0.15 s behind what it said, a frame 0.1 s of
   its time at the most: 18.7-19.3 frames a second, p95 66-77 ms, the longest
   75-89, its time on at the wall's (1.00). HUMANOID on the same loop: 17.2.
+- Played back at a frame's start, the flight reached the terminal 35-80 ms
+  later, rich's update 24 ms and 51 at p95 - a collection of the whole heap
+  in it (28 at p95 with none): on screen the helicopter flew 0.67-1.48 of
+  its speed frame to frame (p5-p95), "it jerks". Each frame now leaves on a
+  beat (`screen.Beat`: the last one's write and the 90th percentile of the
+  work since), the heap before the page frozen, the flight shown at that
+  instant (`screen.drawn_at`): 0.98-1.02, the gap frame to frame 0.3 ms and
+  1.5 at p95, a frame 61 ms where 55.
 - HUMANOID's R crashed the page at once with no traceback
   kept; headless it took R and saved 97 rows then, and R starting, three
   states and R saving is test_views_humanoid.py's. The

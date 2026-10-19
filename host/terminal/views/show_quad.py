@@ -29,7 +29,6 @@ import argparse
 import functools
 import math
 import sys
-import time
 
 from rich.text import Text
 
@@ -39,7 +38,7 @@ from machine import airfield, flightpack, gimbal, grounds, pull, quad
 from terminal.loader import TO_MENU
 from terminal.ui import recorder
 from terminal.ui.console import WHEEL_STEP
-from terminal.ui.screen import FPS_CAP, closing, run_view, say
+from terminal.ui.screen import FPS_CAP, closing, drawn_at, run_view, say
 from terminal.ui.scroll import HUD_WIDTH
 from terminal.ui.stage import boot, frame_of, hud, stage
 from terminal.views.playback import Playback
@@ -349,7 +348,7 @@ def run_craft_view(argv, doc, craft, gfx, flown_mod, compose_fn, thrusts_fn, loo
 
     def draw():
         took(apart.said())
-        now = playback.at(time.perf_counter()) or said[-1]
+        now = playback.at(drawn_at()) or said[-1]
         apart.shown(now['t'])
         if now['epoch'] != held['shown']:
             held['shown'] = now['epoch']

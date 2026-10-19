@@ -396,7 +396,7 @@ def main(argv=None):
         if state['recording'] is not None:
             recorder.added(state['recording'], rows_of(state, said))
         state['playback'].push(said)
-        now = state['now'] = state['playback'].at(time.perf_counter())
+        now = state['now'] = state['playback'].at(_screen.drawn_at())
         _sync_actual(now, state['pad'])
         pushed = released(state, t_mono)
         if pushed and now is not None:

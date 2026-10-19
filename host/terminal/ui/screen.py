@@ -3,6 +3,7 @@
 Shared: the structure suite fails a definition that lives in two files.
 """
 import faulthandler
+import gc
 import os
 import re
 import sys
@@ -229,6 +230,48 @@ def open_rig(banner, **kwargs):
 #: UI refresh rate between data draws so CRT/clock elements stay live, Hz.
 UI_HZ = 15.0
 
+#: A frame reaches the terminal its lead after its start: the LEAD_SHARE-th of the work - its draw
+#: and rich's update - of the last LEAD_FRAMES frames, LEAD_MARGIN_S over it, s.
+LEAD_FRAMES, LEAD_SHARE, LEAD_MARGIN_S = 40, 0.9, 0.002
+
+#: When the frame being drawn reaches the terminal, on time.perf_counter's clock; None between.
+_DRAWN_AT: list = [None]
+
+
+def drawn_at():
+    """When the frame being drawn reaches the terminal, s (time.perf_counter): a page playing a
+    world back shows it at that instant - its motion in step with the frames as they are seen.
+    Now, outside a frame."""
+    return time.perf_counter() if _DRAWN_AT[0] is None else _DRAWN_AT[0]
+
+
+class Beat:
+
+    """A view's frames on an even beat: a frame's slot the last one's write and the interval - the
+    view's `period` or the frames' `lead`, the longer -, no sooner than its own start and lead; the
+    work of the frames before measured (`took`), each write kept (`wrote`)."""
+
+    def __init__(self, period):
+        self.period, self.works, self.last = period, [], None
+
+    def lead(self):
+        if not self.works:
+            return 0.0
+        ordered = sorted(self.works)
+        return ordered[int(LEAD_SHARE * (len(ordered) - 1))] + LEAD_MARGIN_S
+
+    def slot(self, began):
+        """When the frame begun at `began` is to be written."""
+        lead = self.lead()
+        due = began + lead
+        return due if self.last is None else max(due, self.last + max(self.period, lead))
+
+    def took(self, seconds):
+        self.works = (self.works + [seconds])[-LEAD_FRAMES:]
+
+    def wrote(self, at):
+        self.last = at
+
 
 def _wait_frame(keys, page, shown, started, period):
     """Pace until `period` elapses from `started`, refreshing `page` at `UI_HZ` unless input arrives."""
@@ -246,10 +289,14 @@ def _wait_frame(keys, page, shown, started, period):
 def run_view(board_view, console, period, frames, draw, on_input=None,
              tick=None, mouse=False, on_click=None, on_drag=None,
              scroll_keys=True, on_pan=None, select=SELECT_KEYS, quits=QUIT_KEYS):
-    """Run a view loop: draw, pace at `period` (capped by `FPS_CAP`), and dispatch keys/mouse."""
+    """Run a view loop: draw, pace at `period` (capped by `FPS_CAP`), and dispatch keys/mouse.
+    A frame is held till its beat (`Beat`, `drawn_at`); the heap built before the view is frozen
+    out of its collections: a full one in a frame held it 25 ms."""
     period = max(period, 1.0 / FPS_CAP)
     click, drag = on_click or _ignore, on_drag or _ignore
-    count = 0
+    count, beat = 0, Beat(period)
+    gc.collect()
+    gc.freeze()
     q_kw = {'quits': quits} if quits != QUIT_KEYS else {}
     stalls = _stall_log() if console else None
     try:
@@ -260,8 +307,17 @@ def run_view(board_view, console, period, frames, draw, on_input=None,
                 started = time.monotonic()
                 if stalls is not None:
                     faulthandler.dump_traceback_later(STALL_S, file=stalls)
-                shown = draw()
-                page.update(shown, refresh=True)
+                began = time.perf_counter()
+                _DRAWN_AT[0] = beat.slot(began)
+                with board_view:
+                    shown = draw()
+                    page.update(shown, refresh=True)
+                    beat.took(time.perf_counter() - began)
+                    rest = _DRAWN_AT[0] - time.perf_counter()
+                    if rest > 0.0:
+                        time.sleep(rest)
+                beat.wrote(time.perf_counter())
+                _DRAWN_AT[0] = None
                 rate_of(board_view).tick(started)
                 if (tick is not None and tick()) or (frames and count >= frames):
                     return None
@@ -287,6 +343,8 @@ def run_view(board_view, console, period, frames, draw, on_input=None,
     except KeyboardInterrupt:
         return None
     finally:
+        _DRAWN_AT[0] = None
+        gc.unfreeze()
         if stalls is not None:
             faulthandler.cancel_dump_traceback_later()
             stalls.close()

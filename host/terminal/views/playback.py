@@ -4,7 +4,7 @@ At an even pace, blended between two: hers (`_blended`), a craft's (`terminal.vi
 
     playback = Playback()
     playback.push(said)                       # the states its process said since the last frame
-    now = playback.at(time.perf_counter())    # the state to draw, blended, or None before the first
+    now = playback.at(screen.drawn_at())      # the state to draw, blended, or None before the first
 """
 import math
 
