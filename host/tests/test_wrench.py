@@ -139,6 +139,7 @@ def test_surety_contracts_authority_and_damps_fall(report):
     s_mid = motion.surety(g, 0.05)
     motion.control(g, 0.001)
     knee_tuck = float(g['ask']['posture'][g['body'].knees[0]])
+    sh_reach = float(g['ask']['posture'][g['limbs']['shoulders'][0]])
     s_col = motion.surety(g, 0.05, ct=70.0)
     s_bnc = motion.surety(g, 0.05, ct=42.0)
     g['sense'][edge.QD][g['joints']] = 2.0
@@ -146,11 +147,12 @@ def test_surety_contracts_authority_and_damps_fall(report):
     feed = g['cmd']['feed'].copy()
     qd = g['sense'][edge.QD][g['joints']]
     power = float((feed * qd).max())
-    report.check('surety orders wide > stand > walk > topple -> 0 on collapse, tucks knees, and damps passively',
+    report.check('surety orders wide > stand > walk > topple -> 0 on collapse, braces arms/knees, and damps passively',
                  s_wide > s_up > s_walk > 0.65 and s_seat > 0.80 and 0.20 < s_mid < 0.60 and knee_tuck > 0.6
-                 and s_col == 0.0 and s_bnc == 0.0 and power < -0.1 and float(np.abs(g['eso'][2]).max()) == 0.0,
-                 'wide %.3f > stand %.3f > walk %.3f (seat %.3f) -> mid %.2f (knee %.2f rad) -> col %.2f (bounce %.2f), %.2f W'
-                 % (s_wide, s_up, s_walk, s_seat, s_mid, knee_tuck, s_col, s_bnc, power))
+                 and sh_reach > 1.0 and s_col == 0.0 and s_bnc == 0.0 and power < -0.1
+                 and float(np.abs(g['eso'][2]).max()) == 0.0,
+                 'wide %.3f > stand %.3f > walk %.3f (seat %.3f) -> mid %.2f (knee %.2f, sh %.2f rad) -> col %.2f (bounce %.2f), %.2f W'
+                 % (s_wide, s_up, s_walk, s_seat, s_mid, knee_tuck, sh_reach, s_col, s_bnc, power))
 
 
 ROSTER = (test_a_step_standing_is_the_stacks, test_a_contact_bears, test_she_stands_still, test_nudged_she_holds,
