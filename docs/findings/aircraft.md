@@ -158,12 +158,13 @@ tail arm with a 0.06 m^2 stabiliser and a 0.045 fin; a fuselage 0.16 m deep,
   up it, no faster than its lean turns it at its speed: at 2.4 rad/s the
   line-up stalled, 27 deg at p90. The course's grid heading is a hover's:
   crossing gate 0 at speed it swung the pass 55 deg and a tip struck.
-- The landing: a 9.9 s down-leg and a 6 s final put the flare over the
-  runway. It stops 8.2 m short of the far end, 0.8 m off the centreline,
-  touching at -0.69 m/s.
-- Home from the knife-edge on its wing: a second teardrop and a run-in at
-  1.5 m up the runway, the prop-hang pulled up into at home and held there;
-  it walked 53 m home at 3 m/s in 18.5 s on the prop.
+- Close to the runway, a spectator 14 m beside it: the card within 62 m of
+  them where it reached 105, its 3D figures within 23 m, its circuit at 3.5
+  m where it flew at 9, the burn from 31 m (44), 92 s (124). The opening's
+  turns on 8 m, or its run 6 m, bled it to 4.5 m/s; rolled onto its side
+  over 12 m its wings swung 23 deg off upright; its teardrop flown as
+  timed turns ran 54 m out and 19 m beside the runway, the prop-hang then
+  walking 50 m home in 15.4 s - laid, it hands over 1.5 m from home.
 - The airfield (`machine.airfield`): its trees 85 and 100 m off the runway's
   line and 165 m along it, a teardrop's 64 m across at 14 m/s; its gates
   stand only on its course. The course, a lap of 543 m at 14 m/s airspeed on
@@ -177,8 +178,9 @@ tail arm with a 0.06 m^2 stabiliser and a 0.045 fin; a fuselage 0.16 m deep,
   gusts; a slot of 1.5 m, narrower than the wings, 1.6 m off.
 - The tail is destabilising tail first, by the physics: the burn's 12 m/s
   tail slide turned it over and onto the floor at 8.8 g. The aerobat's burn is
-  a parachute at 4 m/s (`parachute`, its floor 0.55 m: its tail hangs 0.665
-  under its middle in a prop-hang, the quad's 0.1 m sat it on its tail).
+  a parachute at 4 m/s (`parachute`, its floor 0.74 m: the Extra's rudder
+  hangs 1.0 m under its middle in a prop-hang, the quad's 0.1 m sat it on its
+  tail).
 - Full tilt 12.4 m/s and 18.7 m, 3.07 L/W, 2.0 g; the apex 3.2 deg (under 10
   deg); the parachute held at 0.58.
 - A propeller pulls one way (`f_des >= 0`): the inverted hover, the flat spin
@@ -186,7 +188,7 @@ tail arm with a 0.06 m^2 stabiliser and a 0.045 fin; a fuselage 0.16 m deep,
   falls through, 8.0 to 4.9 m, caught at 3.6. Wing-borne is not a dive
   (`DIVE_M_S`): nose first down out of the waterfall the law followed the air
   into the floor.
-- The landing a rectangle at 9 m back onto its runway: climb-out, four 90 deg
+- The landing a rectangle back onto its runway: climb-out, four 90 deg
   turns at 50 deg/s and 12 m/s, 8 deg, the final flown wing-borne (`w =
   1.0`) at 11.5 m/s down to 0.38 m over the runway. At 50 deg/s and 10.5 m/s
   the turns asked CL 1.20 past the stall's 1.10 and flew at 25 deg on the
@@ -224,11 +226,11 @@ tail arm with a 0.06 m^2 stabiliser and a 0.045 fin; a fuselage 0.16 m deep,
   strip, at 9.5 m/s it ballooned to 5.5 m; it stops 3.2 m short of the
   middle. The routine's teardrops at 18 m/s and 130 deg/s (4.2 g), its
   circuit at 100 deg/s; the turn-out's roll at its stop is 166 rad/s^2.
-- Its opening a laid line (`airfield.opening`): 30 m to 17 m/s, right a
-  quarter turn straight into a left three quarters round on 10 m turns, onto
-  the runway's line and down it on its side at 19 m/s, within 1.3 m of the
-  line, its lower tip 4-6 cm over the runway. Flown as timed turns it ended
-  22 m beside the runway at 6 m/s.
+- Its opening a laid line (`airfield.opening`): 12 m on from the lift, right
+  a quarter turn straight into a left three quarters round on 9 m turns, onto
+  the runway's line and down it on its side at 19 m/s, its lower tip 4-6 cm
+  over the runway; a teardrop to the far side and up the line to the
+  prop-hang. Flown as timed turns it ended 22 m beside the runway at 6 m/s.
 - On its side the span stays up, the wing bearing what is asked across: the
   gusty course's knife gate at a belly of 0.00 on both laps, where the span
   rolled to every ask rocked it 0.07-0.86 and passed the gate at 0.29.

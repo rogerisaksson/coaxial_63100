@@ -95,15 +95,18 @@ def _ramp(x):
 #: The routine's opening off the runway, a line as the lap is: from LIFT_M up its line RUN_M
 #: to OPEN_M_S, sharp right a quarter turn straight into a sharp left three quarters round on
 #: OPENING_M turns - onto the runway's line again 2 OPENING_M on -, then PASS_M down it, down
-#: to KNIFE_M and rolled onto its side over DESCENT_M at PASS_M_S, rolled back over its last
-#: PULL_M. Flown as timed turns the same figure ended 22 m beside the runway at 6 m/s; turned
-#: off the lift at 13 m/s on 8 m it bled to 3.6.
-LIFT_M, RUN_M, OPENING_M, OPEN_M_S, PASS_M, PASS_M_S = 20.0, 30.0, 10.0, 18.0, 80.0, 20.0
-KNIFE_M, DESCENT_M, PULL_M = 0.545, 16.0, 15.0
-_OPEN, _OPEN_AT = _laid((LIFT_M, 0.0), (RUN_M, (-90.0, OPENING_M), (270.0, OPENING_M), PASS_M))
-OPENING = tuple(p + (HIGH_M - (HIGH_M - KNIFE_M) * _ramp((s - _OPEN_AT[3]) / DESCENT_M),
-                     _ramp((s - _OPEN_AT[3]) / DESCENT_M) - _ramp((s - len(_OPEN) + PULL_M) / PULL_M))
-                for s, p in enumerate(_OPEN))
+#: to KNIFE_M and rolled onto its side over DESCENT_M at PASS_M_S, rolled back and up over its
+#: last PULL_M; a teardrop to the far side on OPENING_M turns, its leg twice them so it closes
+#: on the line, and RUN_IN_M up it slowing to RUN_IN_M_S, before the spectator. Flown as timed
+#: turns the same figure ended 22 m beside the runway at 6 m/s, the teardrop 54 m out and 19
+#: beside it; turned off the lift at 13 m/s on 8 m it bled to 3.6.
+LIFT_M, RUN_M, OPENING_M, OPEN_M_S, PASS_M, PASS_M_S = 20.0, 12.0, 9.0, 18.0, 70.0, 20.0
+KNIFE_M, DESCENT_M, PULL_M, RUN_IN_M, RUN_IN_M_S = 0.545, 16.0, 15.0, 45.0, 12.0
+_OPEN, _OPEN_AT = _laid((LIFT_M, 0.0), (RUN_M, (-90.0, OPENING_M), (270.0, OPENING_M), PASS_M,
+                                        (-45.0, OPENING_M), 2.0 * OPENING_M, (225.0, OPENING_M), RUN_IN_M))
+_SIDE = tuple(_ramp((s - _OPEN_AT[3]) / DESCENT_M) - _ramp((s - _OPEN_AT[4] + PULL_M) / PULL_M)
+              for s in range(len(_OPEN)))
+OPENING = tuple(p + (HIGH_M - (HIGH_M - KNIFE_M) * k, k) for p, k in zip(_OPEN, _SIDE))
 
 
 def _gate(s, wide, high, middle, across=None):
@@ -184,7 +187,8 @@ def _followed(track, k, seen, round_):
 
 def opening(route, now):
     """The routine's opening's row for now (`aerobatics.fly`'s giver): OPENING's line flown as
-    the lap's (`line`), OPEN_M_S on to PASS_M_S on its side; `passed` at its end."""
+    the lap's (`line`), OPEN_M_S on to PASS_M_S on its side, RUN_IN_M_S at its end; `passed`
+    there."""
     fresh = {'began': route['at'], 'k': 0}
     run = route.get('open', fresh)
     run = route['open'] = (run, fresh)[int(run['began'] != route['at'])]
@@ -192,8 +196,9 @@ def opening(route, now):
     run['k'], n = k, len(OPENING)
     route['holds'] = (route.get('holds', ()), ('passed',))[int(k >= n - 2)]
     knife = OPENING[min(n - 1, k + round(LEAD_S[1] * PASS_M_S))][5]
+    slow = (OPEN_M_S - RUN_IN_M_S) * _ramp((k - _OPEN_AT[7]) / RUN_IN_M)
     return dict(CRUISE, turn=math.degrees(rate), height=OPENING[min(n - 1, k + round(LEAD_S[0] * OPEN_M_S))][4],
-                knife=knife, speed=OPEN_M_S + (PASS_M_S - OPEN_M_S) * knife, lined=0.0, lean=G15_M_S2)
+                knife=knife, speed=OPEN_M_S + (PASS_M_S - OPEN_M_S) * knife - slow, lined=0.0, lean=G15_M_S2)
 
 
 #: Where along the lap each gate stands, m.

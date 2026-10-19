@@ -201,3 +201,6 @@ the hundred before these: [DONE_1-50](DONE_1-50.md),
     halves, a full-height rudder, the Extra's gear; the flight model's
     contacts on its wheels, tail and fuselage, the low hover's floor 0.74 m,
     the rudder 5.8 cm over the runway ([aircraft](findings/aircraft.md)).
+50. The aerobat's card close to the runway: within 62 m of the spectator
+    where it reached 105, its 3D figures within 23 m, its circuit at 3.5 m,
+    its teardrop laid on the opening's line ([aircraft](findings/aircraft.md)).
