@@ -259,16 +259,16 @@ def _arrows(pose, thrusts, m, cam, centre):
 
 def render(pose, rotors, width, height, yaw=30.0, pitch=18.0, reach=REACH, centre=None,
            colour=True, lit=None, world=True, gate=None, thrusts=None, line_=False, inset=None,
-           see='shell'):
+           see='shell', lens=1.0):
     """The quad at `pose` on its `rotors`, `width` x `height` cells, `reach` m framed about
-    `centre` (the quad's middle) from SIGHT reaches off: lines. `lit` a `gpu.LitRaster`, or
+    `centre` (the quad's middle) from SIGHT reaches off through a `lens` that much nearer: lines. `lit` a `gpu.LitRaster`, or
     None to splat its dots here; `world` False the quad alone, nothing under it or about it;
     `gate` the course's gates stood too, the one of that number lit, and `line_` the line it
     asks through them; `thrusts` each rotor's, N, its arrow; `inset` cells {(row, col):
     (codepoint, key)} laid over all; `see` a layer of LAYERS."""
     from coaxial.model.blocks import numpy as np
     m = shapes.view(yaw, pitch)
-    fine = engine.fine(engine.camera(width, height, reach, distance=SIGHT * reach))
+    fine = engine.fine(engine.camera(width, height, reach, distance=SIGHT * reach, zoom=lens))
     at = np.asarray(pose['at'], float)
     centre = at if centre is None else np.asarray(centre, float)
     if lit is not None:

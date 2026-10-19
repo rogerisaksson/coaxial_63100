@@ -25,15 +25,14 @@ from terminal.views.ornithopter import flight as orni_flown
 from terminal.views.show_quad import look as quad_look
 
 TITLE, ROTORS = 'ORNITHOPTER DUNE FLYING', orni_flown.ROTORS
-NEAR_M, FAR_M, ZOOM_M, ZOOM_K, CHASE_M, YAW, PITCH = 0.76, 0.80, 0.60, 0.022, 2.2, 56.0, 16.0
+NEAR_M, CHASE_M, YAW, PITCH = 0.76, 2.2, 56.0, 16.0
 
 
 def look(camera, law, row, frame, chased, dt):
-    """The ornithopter camera `dt` s on, `(reach, centre)`: RC side perspective with horizon
-    contact during the Dune aerobatics routine, and behind the heading on the gate course."""
-    return quad_look(camera, law, row, frame, chased, dt, near_m=NEAR_M, far_m=FAR_M,
-                     zoom_m=ZOOM_M, zoom_k=ZOOM_K, chase_m=CHASE_M, base_yaw=YAW,
-                     chase_pitch=PITCH)
+    """The ornithopter camera `dt` s on, `(reach, centre)`: its spectator during its Dune
+    figures, behind its heading on the gate course (`show_quad.look`)."""
+    return quad_look(camera, law, row, frame, chased, dt, near_m=NEAR_M, chase_m=CHASE_M, base_yaw=YAW,
+                     chase_pitch=PITCH, build=orni_gfx.orni_mesh, sight=orni_gfx.SIGHT)
 
 
 def thrusts(frame, rotors):

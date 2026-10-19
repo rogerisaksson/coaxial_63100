@@ -146,11 +146,11 @@ def test_its_camera_rides_a_gimbal(report):
                  '%d cells' % len(cells))
 
 
-def test_aerobatics_side_perspective_keeps_the_horizon(report):
-    """During the aerobatics warm-up (`not chased`), both the quadcopter and the 3D helicopter are
-    viewed from an RC pilot side perspective that pans gently across the box, zooms a little to
-    follow altitude and horizontal excursion, and keeps contact with the horizon up to 42 m before
-    chasing from behind on their course (`course.CARD`, the aerobat's `airfield.CARD`)."""
+def test_figures_are_watched_from_beside_the_field(report):
+    """Through a craft's figures a spectator beside its field watches it - their eye where they
+    stand, their gaze filtered onto it, their lens framing it with the horizon below it while it
+    is low - and on its course (a lap held till `lapped`) the chase; the aerobat's opening, a
+    line held till `passed`, is a figure: read as the course's, the page chased its routine."""
     import numpy as np
     from coaxial.graphics import (aerobat as aero_gfx, engine, helicopter as heli_gfx,
                                   ornithopter as orni_gfx, quadcopter, scenery, shapes)
@@ -165,66 +165,62 @@ def test_aerobatics_side_perspective_keeps_the_horizon(report):
                  and heli_flown.CARD == helicopter.CARD + course.CARD
                  and orni_flown.CARD == ornithopter.CARD + course.CARD
                  and aero_flown.CARD == aerobat.CARD + airfield.CARD)
-    law = aerokin.fresh()
-    base = {'at': (0.0, 0.0, 0.0), 'vel': (0.0, 0.0, 0.0), 'v': 0.0}
-    spot, framed = (show_aerobat.SPOT_X, show_aerobat.SPOT_Y, show_aerobat.SPOT_Z), []
-    for at in ((0.0, 0.0, 0.0), (0.0, 1.5, 0.0), (0.0, 8.0, 2.5), (30.0, 42.0, -20.0)):
-        cam = {'reach': 1.0, 'yaw': 0.0, 'pitch': 0.0, 'zoom': 1.0}
-        reach, centre = show_aerobat.look(cam, law, aerobatics.HIGH, dict(base, at=at), False, 10.0)
-        d = [s - a for s, a in zip(spot, at)]
-        framed.append(abs(reach * aero_gfx.SIGHT - math.hypot(*d)) < 1e-9 and tuple(centre) == at
-                      and abs(cam['yaw'] - math.degrees(math.atan2(d[0], d[2]))) < 1e-9
-                      and abs(cam['pitch'] - math.degrees(math.atan2(d[1], math.hypot(d[0], d[2])))) < 1e-9)
-    report.check('the aerobat seen by a spectator beside the runway: one eye, turning after the plane',
-                 all(framed), '%s' % framed)
-    for mod, sight in ((show_quad, quadcopter.SIGHT), (show_helicopter, heli_gfx.SIGHT),
-                       (show_ornithopter, orni_gfx.SIGHT)):
-        cam = {'reach': mod.NEAR_M, 'yaw': mod.YAW, 'pitch': show_quad.SIDE_PITCH, 'zoom': 1.0}
-        r_ground, c_ground = mod.look(cam, law, aerobatics.DOWN, base, False, 2.0)
-        f_low = dict(base, at=(0.0, 1.5, 0.0))
-        r_low, _ = mod.look(cam, law, aerobatics.HOVER, f_low, False, 10.0)
-        r_high, _ = mod.look(cam, law, aerobatics.HIGH, dict(base, at=(0.0, 8.0, 2.5)), False, 10.0)
-        yaw_plus = cam['yaw']
-        mod.look(cam, law, aerobatics.HIGH, dict(base, at=(0.0, 8.0, -2.5)), False, 10.0)
-        yaw_minus = cam['yaw']
-        r_apex, c_apex = mod.look(cam, law, aerobatics.SKY, dict(base, at=(0.0, 42.0, 0.0)),
-                                  False, 10.0)
-        r_climb, c_climb = mod.look(cam, law, aerobatics.SKY,
-                                    dict(base, at=(0.0, 4.0, 0.0), vel=(0.0, 20.0, 0.0), v=20.0),
-                                    False, 10.0)
-        _, c_zout = mod.look(dict(cam, zoom=0.25), law, aerobatics.HOVER, f_low, False, 10.0)
-        r_zin, c_zin = mod.look(dict(cam, zoom=4.0), law, aerobatics.SKY,
-                                dict(base, at=(0.0, 4.0, 0.0), vel=(0.0, 20.0, 0.0), v=20.0),
-                                False, 10.0)
-        horizons = []
-        for h_y, h_row in ((0.0, aerobatics.DOWN), (1.5, aerobatics.HOVER),
-                           (8.0, aerobatics.HIGH), (42.0, aerobatics.SKY)):
-            r_h, c_h = mod.look(cam, law, h_row, dict(base, at=(0.0, h_y, 0.0)), False, 10.0)
-            m = shapes.view(cam['yaw'], cam['pitch'])
-            fine = engine.fine(engine.camera(68, 38, r_h, distance=sight * r_h))
-            g = scenery.ground(m, fine, c_h)
-            ys = np.nonzero(g.any(axis=1))[0]
-            horizons.append((int(ys[0]) // 4, int(ys[-1]) // 4) if len(ys) else (-1, -1))
-        r_chase, _ = mod.look(cam, {'heading': (1.0, 0.0)}, aerobatics.HOVER, f_low, True, 10.0)
-        _, c_chase_zout = mod.look(dict(cam, zoom=0.25), {'heading': (1.0, 0.0)}, aerobatics.HOVER,
-                                   dict(base, at=(0.0, 0.2, 0.0), vel=(0.0, 10.0, 0.0), v=10.0),
-                                   True, 10.0)
-        report.check('%s camera keeps RC side perspective, zooms slightly to follow, and '
-                     'maintains horizon contact up to 42 m before chasing on the course'
+    chased = {name: [quad_flown.lined({'card': card, 'row': k}) for k in range(len(card))] == [
+        k >= n for k in range(len(card))] for name, card, n in (
+        ('quad', quad_flown.CARD, len(aerobatics.CARD)), ('helicopter', heli_flown.CARD, len(helicopter.CARD)),
+        ('ornithopter', orni_flown.CARD, len(ornithopter.CARD)), ('aerobat', aero_flown.CARD, len(aerobat.CARD)))}
+    report.check('each page chases its course alone, the aerobat its laps and not its opening',
+                 all(chased.values()), '%s' % chased)
+    law, base = aerokin.fresh(), {'at': (0.0, 0.0, 0.0), 'vel': (0.0, 0.0, 0.0), 'v': 0.0}
+    crafts = [(mod, gfx, build, (show_quad.SPOT_M * math.sin(math.radians(mod.YAW)), show_quad.SPOT_Y,
+                                 show_quad.SPOT_M * math.cos(math.radians(mod.YAW))))
+              for mod, gfx, build in ((show_quad, quadcopter, quadcopter.mesh),
+                                      (show_helicopter, heli_gfx, heli_gfx.heli_mesh),
+                                      (show_ornithopter, orni_gfx, orni_gfx.orni_mesh))]
+    crafts.append((show_aerobat, aero_gfx, aero_gfx.aero_mesh,
+                   (show_aerobat.SPOT_X, show_aerobat.SPOT_Y, show_aerobat.SPOT_Z)))
+    for mod, gfx, build, eye in crafts:
+        cam = engine.camera(400, 100, 1.0, distance=gfx.SIGHT)
+        half_tan, seen = cam['height'] / cam['scale'], []
+        for at in ((0.0, 0.0, 0.0), (0.0, 1.5, 0.0), (40.0, 3.0, -30.0), (0.0, 30.0, 0.0)):
+            camera = {'reach': 1.0, 'yaw': 0.0, 'pitch': 0.0, 'zoom': 1.0}
+            for _ in range(200):
+                reach, centre = mod.look(camera, law, aerobatics.HIGH, dict(base, at=at), False, 0.02)
+            yaw, up = math.radians(camera['yaw']), -math.radians(camera['pitch'])
+            axis = np.array([-math.cos(up) * math.sin(yaw), math.sin(up), -math.cos(up) * math.cos(yaw)])
+            stood = np.asarray(centre) - axis * gfx.SIGHT * reach
+            to = np.asarray(at) - stood
+            half = math.atan(half_tan / camera['lens'])
+            off = math.acos(max(-1.0, min(1.0, float(axis @ to) / np.linalg.norm(to))))
+            share = math.atan2(show_quad.drawn_radius(build), np.linalg.norm(to)) / half
+            fine = engine.fine(engine.camera(68, 38, reach, distance=gfx.SIGHT * reach, zoom=camera['lens']))
+            rows = np.nonzero(scenery.ground(shapes.view(camera['yaw'], camera['pitch']), fine, centre).any(axis=1))[0]
+            low = at[1] < 5.0
+            seen.append(bool(np.allclose(stood, eye, atol=1e-6) and off < half
+                             and share >= 0.99 * show_quad.FILL_MIN and (not low or len(rows) > 0)))
+        camera = {'reach': 1.0, 'yaw': 0.0, 'pitch': 0.0, 'zoom': 1.0}
+        mod.look(camera, law, aerobatics.HIGH, dict(base, at=(0.0, 5.0, 0.0)), False, 0.02)
+        before = camera['yaw']
+        mod.look(camera, law, aerobatics.HIGH, dict(base, at=(10.0, 5.0, 0.0)), False, 0.02)
+        jumped = abs(camera['yaw'] - before)
+        for _ in range(150):
+            mod.look(camera, law, aerobatics.HIGH, dict(base, at=(10.0, 5.0, 0.0)), False, 0.02)
+        settled = abs(camera['yaw'] - before)
+        chase = {'reach': 1.0, 'yaw': 0.0, 'pitch': 0.0, 'zoom': 1.0, 'lens': 2.0}
+        for _ in range(100):
+            mod.look(chase, {'heading': (1.0, 0.0)}, aerobatics.HOVER, dict(base, at=(0.0, 1.5, 0.0)),
+                     True, 0.1)
+        report.check('%s watched from beside its field: the eye where it stands, the craft framed '
+                     'with the horizon below it while low, its gaze filtered; chased on its course'
                      % mod.TITLE,
-                     r_ground < r_low < r_high < r_apex < r_chase
-                     and yaw_minus < mod.YAW < yaw_plus and abs(yaw_plus - mod.YAW) < 20.0
-                     and c_ground[1] >= 0.16 and c_chase_zout[1] >= 0.16 and 0.0 < c_apex[1] < 42.0
-                     and 4.0 - c_climb[1] <= show_quad.TRAIL_SHARE * r_climb + 1e-6
-                     and c_zout[1] > 0.8 and 4.0 - c_zin[1] <= show_quad.TRAIL_SHARE * r_zin + 1e-6
-                     and all(0 <= top <= 16 and bot >= 30 for top, bot in horizons)
-                     and abs((cam['yaw'] - 180.0 + 180.0) % 360.0 - 180.0) < 1.0,
-                     'reaches %.2f < %.2f < %.2f < %.2f < %.2f, horizons %s' % (
-                         r_ground, r_low, r_high, r_apex, r_chase, horizons))
+                     all(seen) and jumped < 0.3 * settled and chase['lens'] == 1.0
+                     and abs((chase['yaw'] - 180.0 + 180.0) % 360.0 - 180.0) < 1.0,
+                     '%s, the gaze %.1f of %.1f deg on a step, chased lens %.1f yaw %.1f' % (
+                         seen, jumped, settled, chase['lens'], chase['yaw']))
 
 
 ROSTER = (test_her_eyes_picture_is_framed, test_its_camera_rides_a_gimbal,
-          test_aerobatics_side_perspective_keeps_the_horizon)
+          test_figures_are_watched_from_beside_the_field)
 
 
 def main(argv=None):

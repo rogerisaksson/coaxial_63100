@@ -433,12 +433,13 @@ def kept(flight, stood, stage, off, frame, dt):
 
 
 def lined(route):
-    """Whether the flight `route` is on flies a line: a row that gives its own among those
-    between two that wait to be fit."""
+    """Whether the flight `route` is on flies its course: a lap held till `lapped` among the rows
+    between two that wait to be fit. The aerobat's opening is a line held till `passed`, a figure:
+    read as the course's it put its routine on the course's sphere, its gates up, chased."""
     card, row = route['card'], route['row']
     floors = [k for k, figure in enumerate(card) if 'fit' in figure[4].split()] + [len(card)]
     first = max((k for k in floors if k <= row), default=0)
-    return any(callable(figure[1]) for figure in card[first:min(k for k in floors if k > row)])
+    return any('lapped' in figure[4].split() for figure in card[first:min(k for k in floors if k > row)])
 
 
 def reset(rotors):

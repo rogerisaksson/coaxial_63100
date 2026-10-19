@@ -430,12 +430,12 @@ ARROWS = (((0.0, PROP_Y + 0.05, 0.0), 1, 0, 0.014), ((0.0, TAIL_END - 0.06, -0.1
 
 def render(pose, rotors, width, height, yaw=30.0, pitch=18.0, reach=REACH, centre=None,
            colour=True, lit=None, world=True, gate=None, thrusts=None, line_=False, inset=None,
-           see='shell'):
+           see='shell', lens=1.0):
     """The 3D aerobatic monoplane at `pose` on its `rotors`, `width` x `height` cells, `reach` m
-    framed about `centre` from SIGHT reaches off: lines."""
+    framed about `centre` from SIGHT reaches off through a `lens` that much nearer: lines."""
     from coaxial.model.blocks import numpy as np
     m = shapes.view(yaw, pitch)
-    fine = engine.fine(engine.camera(width, height, reach, distance=SIGHT * reach))
+    fine = engine.fine(engine.camera(width, height, reach, distance=SIGHT * reach, zoom=lens))
     at = np.asarray(pose['at'], float)
     centre = at if centre is None else np.asarray(centre, float)
     if lit is not None:

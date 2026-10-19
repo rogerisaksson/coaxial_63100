@@ -165,8 +165,10 @@ def test_the_page_flies_four_boards(report):
         report.skip('the flight', "the page drew %.1f frames a second, its flight's clock "
                     "%.0f %% behind the wall's" % (rate, 100.0 * behind))
         return
+    # Its spectator's frame of the sky holds the quad alone, a third of its height: 90-110
+    # braille cells in its flips, rolls and corkscrew, where the ground made 1 700-2 200.
     report.check('the quad drawn in the viewport, every frame',
-                 min(f['cells'] for f in frames) >= 150, '%d braille cells at the least'
+                 min(f['cells'] for f in frames) >= 75, '%d braille cells at the least'
                  % min(f['cells'] for f in frames))
     early = [r for r in rows if r['name'] == first][:1]
     hard = [r for r in rows if r['name'] in ('full tilt', 'burn')]

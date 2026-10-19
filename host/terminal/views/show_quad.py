@@ -27,6 +27,7 @@ coaxial.graphics.onboard), there or not (C).
     python terminal/views/show_quad.py --frames 60
 """
 import argparse
+import functools
 import math
 import sys
 import time
@@ -37,7 +38,7 @@ from rich.text import Text
 from coaxial import Coaxial63100
 from coaxial.errors import RigError
 from coaxial.draw.gauges import policy_word
-from coaxial.graphics import gpu, inset, onboard, quadcopter
+from coaxial.graphics import engine, gpu, inset, onboard, quadcopter
 from machine import aerobatics, aerokin, flightpack, gimbal, grounds, pull, quad, weather
 from machine.modes import SIMULATED
 from terminal.loader import TO_MENU
@@ -66,12 +67,18 @@ PHYSICS_S, PASS_S = 0.01, 0.05
 #: and its clock ran 21 % behind; here 0.52, none behind, 15.6 frames a second where 16.3.
 SWITCH_S = 2e-4
 
-#: The camera: sit close on the floor before a flight, pull back in the air and zoom a little
-#: to follow altitude and box excursion while keeping contact with the horizon from a side
-#: RC-pilot perspective (`YAW`, `PILOT_M` off the line).
-NEAR_M, FAR_M, ZOOM_M, ZOOM_K, PULL_S = 0.8, 1.5, 0.7, 0.04, 1.5
-YAW, SIDE_PITCH, PITCH, PILOT_M = 30.0, 18.0, 18.0, 14.0
-HORIZON_M, HORIZON_DIP, HORIZON_LIFT = 150.0, 9.0, 0.25
+#: The spectator of a craft's figures: SPOT_M from its home on its `YAW` side, a man's height
+#: up, where they stand; their gaze on the craft LEAD_S ahead filtered over as long - a steady
+#: flight unlagged -, their lens over LENS_S framing it FILL of the frame's height, wide enough
+#: for the horizon below it while it keeps FILL_MIN, HORIZON_RAD of sky over the horizon - a
+#: claim fading out over UP_FADE of elevation, rad: kept at 60 deg up it held the burn at
+#: FILL_MIN, the horizon out of the frame all the same. Carried along with the craft, the eye
+#: left the field and its figures were never seen from it.
+SPOT_M, SPOT_Y, LEAD_S, LENS_S, FILL, FILL_MIN, HORIZON_RAD = 12.0, 1.7, 0.15, 0.6, 0.35, 0.12, 0.035
+UP_FADE = (0.35, 0.79)
+#: Before a flight and on the course: the reach framed on the floor, m, its pull over PULL_S;
+#: the side the spectator stands on and the chase's pitch, deg.
+NEAR_M, PULL_S, YAW, SIDE_PITCH, PITCH = 0.8, 1.5, 30.0, 18.0, 18.0
 TRAIL_S, TRAIL_SHARE = 0.12, 0.4
 
 #: On the course: the reach framed, m; the camera comes round behind the frame's heading at
@@ -209,36 +216,61 @@ def hands(held, zoomed, record=None):
                    for k in 'sS'])
 
 
-def look(camera, law, row, frame, chased, dt, near_m=NEAR_M, far_m=FAR_M, zoom_m=ZOOM_M,
-         zoom_k=ZOOM_K, chase_m=CHASE_M, base_yaw=YAW, chase_pitch=PITCH):
-    """The camera `dt` s on, `(reach, centre)`: during aerobatics (`not chased`), a side RC-pilot
-    perspective (`base_yaw`) that pans gently across the flight box, zooms a little to follow
-    altitude and horizontal excursion, and keeps visual contact with the horizon; on the course
-    (`chased`), wider (`chase_m`), come round behind the law's heading and framing ahead of it."""
-    aloft = row['height'] > 0.0
+@functools.lru_cache(maxsize=None)
+def drawn_radius(build):
+    """How far the craft `build('frame')` draws reaches from its middle, m: framed by its view's
+    reach, the quad (0.46 m against 0.8) drew 51 braille cells and the others twice its size."""
+    from coaxial.model.blocks import numpy as np
+    return float(np.linalg.norm(build('frame').corners, axis=1).max())
+
+
+def watch(camera, frame, eye, build, sight, dt):
+    """The spectator at `eye` `dt` s on after the craft at `frame` (`build`'s, `drawn_radius`),
+    `(reach, centre)` for a render from SIGHT `sight`: its gaze filtered, its lens
+    (`camera['lens']`, the wheel's zoom on it) framing the craft with the horizon below it, the
+    eye where it stands."""
+    radius = drawn_radius(build)
     x, y, z = (float(c) for c in frame['at'])
-    dist = math.hypot(max(0.0, y), 0.5 * math.hypot(x, z))
-    want = near_m if not aloft else chase_m if chased else far_m + min(zoom_m, zoom_k * dist)
+    vel = [float(c) for c in frame['vel']]
+    aim = (x + LEAD_S * vel[0], y + LEAD_S * vel[1], z + LEAD_S * vel[2])
+    k = min(1.0, dt / LEAD_S) if dt > 0.0 and 'gaze' in camera else 1.0
+    gaze = camera['gaze'] = tuple(g + (a - g) * k for g, a in zip(camera.get('gaze', aim), aim))
+    dx, dy, dz = (g - e for g, e in zip(gaze, eye))
+    d = math.hypot(math.hypot(dx, dz), dy)
+    up, rho = math.atan2(dy, max(0.5, math.hypot(dx, dz))), math.atan2(radius, d)
+    cam = engine.camera(400, 100, 1.0, distance=sight)
+    half_tan = cam['height'] / cam['scale']
+    framed = [half_tan / math.tan(min(1.5, rho / share)) for share in (FILL, FILL_MIN)]
+    horizon = half_tan / math.tan(min(1.5, 0.5 * abs(up) + rho + HORIZON_RAD))
+    kept = max(0.0, min(1.0, (UP_FADE[1] - abs(up)) / (UP_FADE[1] - UP_FADE[0])))
+    want = framed[0] ** (1.0 - kept) * max(framed[1], min(framed[0], horizon)) ** kept * camera['zoom']
+    lens = camera.get('lens', want)
+    lens = camera['lens'] = lens * (want / lens) ** (min(1.0, dt / LENS_S) if dt > 0.0 else 1.0)
+    half = math.atan(half_tan / lens)
+    room = max(0.0, 0.9 * half - rho)
+    pitch = max(up - room, min(up + room, 0.5 * up))
+    yaw = math.atan2(-dx, -dz)
+    camera['yaw'], camera['pitch'] = math.degrees(yaw), -math.degrees(pitch)
+    return d / sight, (eye[0] - d * math.cos(pitch) * math.sin(yaw), eye[1] + d * math.sin(pitch),
+                       eye[2] - d * math.cos(pitch) * math.cos(yaw))
+
+
+def look(camera, law, row, frame, chased, dt, near_m=NEAR_M, chase_m=CHASE_M, base_yaw=YAW,
+         chase_pitch=PITCH, build=quadcopter.mesh, sight=quadcopter.SIGHT):
+    """The camera `dt` s on, `(reach, centre)`: during a craft's figures (`not chased`) its
+    spectator (`watch`) SPOT_M from home on its `base_yaw` side; on the course (`chased`) the
+    frame `chase_m` wide, come round behind the law's heading and framing ahead of it."""
+    if not chased:
+        rad = math.radians(base_yaw)
+        return watch(camera, frame, (SPOT_M * math.sin(rad), SPOT_Y, SPOT_M * math.cos(rad)), build, sight, dt)
+    camera['lens'] = 1.0
+    camera.pop('gaze', None)
+    x, y, z = (float(c) for c in frame['at'])
+    want = chase_m if row['height'] > 0.0 else near_m
     camera['reach'] += (want - camera['reach']) * min(1.0, dt / PULL_S)
     reach = camera['reach'] / camera['zoom']
     trail = max(-TRAIL_SHARE * reach, min(TRAIL_SHARE * reach, TRAIL_S * frame['v']))
     pitch = camera.get('pitch', SIDE_PITCH)
-    if not chased:
-        lift = min(0.5 * max(0.0, y - 0.16), HORIZON_LIFT * min(reach, camera['reach']))
-        shift = max(-TRAIL_SHARE * reach, min(TRAIL_SHARE * reach, lift + TRAIL_S * frame['v']))
-        cy_w = max(0.16, y - shift)
-        rad = math.radians(base_yaw)
-        across = z * math.sin(rad) - x * math.cos(rad)
-        along = x * math.sin(rad) + z * math.cos(rad)
-        want_yaw = base_yaw + math.degrees(math.atan2(across, max(4.0, PILOT_M - along)))
-        turn = (want_yaw - camera['yaw'] + 180.0) % 360.0 - 180.0
-        camera['yaw'] += turn * min(1.0, CHASE_K * dt)
-        horizon_deg = math.degrees(math.atan2(cy_w, HORIZON_M))
-        want_pitch = horizon_deg + SIDE_PITCH - HORIZON_DIP * min(1.0, max(0.0, cy_w - 2.0) / 16.0)
-        camera['pitch'] = pitch + (want_pitch - pitch) * (1.0 if dt <= 0.0 else min(1.0, 8.0 * dt))
-        hx = max(-0.2 * reach, min(0.2 * reach, TRAIL_S * float(frame['vel'][0])))
-        hz = max(-0.2 * reach, min(0.2 * reach, TRAIL_S * float(frame['vel'][2])))
-        return reach, (x - hx, cy_w, z - hz)
     heading = math.degrees(math.atan2(law['heading'][1], law['heading'][0]))
     behind = (heading + 180.0 - camera['yaw'] + 180.0) % 360.0 - 180.0
     camera['yaw'] += behind * min(1.0, CHASE_K * dt)
@@ -357,7 +389,7 @@ def main(argv=None):
             frame, [(r['angle'], r['w'], (r['budget'] or {}).get('winding_c'), r['board_c'],
                      (r.get('cooling') or {}).get('sink_c'))
                     for r in rotors], width, height, yaw=camera['yaw'], pitch=camera['pitch'],
-            reach=reach, centre=centre, colour=terminal, lit=lit, gate=gate,
+            reach=reach, centre=centre, colour=terminal, lit=lit, gate=gate, lens=camera.get('lens', 1.0),
             thrusts=thrusts(frame, rotors) if held['arrows'] else None,
             line_=chased and held['line'], see=quadcopter.LAYERS[held['see']],
             inset={**(carried(frame, held['aim'], gate, chased and held['line'], width, height)

@@ -158,6 +158,14 @@ tail arm with a 0.06 m^2 stabiliser and a 0.045 fin; a fuselage 0.16 m deep,
   up it, no faster than its lean turns it at its speed: at 2.4 rad/s the
   line-up stalled, 27 deg at p90. The course's grid heading is a hover's:
   crossing gate 0 at speed it swung the pass 55 deg and a tip struck.
+- The pages watched by a spectator beside the field (`show_quad.watch`): the
+  eye where it stands, its gaze 0.15 s ahead of the craft filtered over as
+  long, its lens framing the craft by its drawn radius a third of the frame
+  high over its horizon - the horizon's claim fading from 20 to 45 deg up:
+  kept at 60 it held the burn at an eighth of the frame -; the chase on the
+  course's laps only. `lined` read any line as the course: the aerobat's
+  opening chased its whole routine on the course's 1.5 g sphere with its
+  gates up, 33 rows of 33, now 5.
 - Close to the runway, a spectator 14 m beside it: the card within 62 m of
   them where it reached 105, its 3D figures within 23 m, its circuit at 3.5
   m where it flew at 9, the burn from 31 m (44), 92 s (124). The opening's

@@ -21,31 +21,24 @@ from coaxial.graphics import aerobat as aero_gfx
 from machine import aerobat
 from terminal.views import show_helicopter as base_view
 from terminal.views.aerobat import flight as aero_flown
-from terminal.views.show_quad import look as quad_look
+from terminal.views.show_quad import look as quad_look, watch
 
 TITLE, ROTORS = 'AIRCRAFT XE AEROBATICS', aero_flown.ROTORS
-NEAR_M, FAR_M, ZOOM_M, ZOOM_K, CHASE_M, YAW, PITCH = 0.85, 0.90, 0.60, 0.022, 2.4, 58.0, 16.0
-#: The spectator: by the hangar beside the runway's middle, SPOT_ACROSS off its line, the eye a
-#: man's height up, turning after the plane with a fixed lens - framed as near or far as it is,
-#: SIGHT reaches off. Zoomed onto the plane and chasing it, the figure was never in view.
+NEAR_M, CHASE_M, YAW, PITCH = 0.85, 2.4, 58.0, 16.0
+#: The spectator (`show_quad.watch`): by the hangar beside the runway's middle, SPOT_ACROSS off
+#: its line, the eye a man's height up.
 SPOT_ALONG, SPOT_ACROSS, SPOT_Y = -2.0, -14.0, 1.7
 _RC, _RS = math.cos(aerobat.RUNWAY_RAD), math.sin(aerobat.RUNWAY_RAD)
 SPOT_X, SPOT_Z = SPOT_ALONG * _RS + SPOT_ACROSS * _RC, SPOT_ALONG * _RC - SPOT_ACROSS * _RS
 
 
 def look(camera, law, row, frame, chased, dt):
-    """The aerobat camera, `(reach, centre)`: the spectator beside the runway turning after the
-    plane; chased, the quad's chase (`quad_look`)."""
+    """The aerobat camera, `(reach, centre)`: the spectator beside the runway (`watch`); on its
+    course the quad's chase (`quad_look`)."""
     if chased:
-        return quad_look(camera, law, row, frame, chased, dt, near_m=NEAR_M, far_m=FAR_M,
-                         zoom_m=ZOOM_M, zoom_k=ZOOM_K, chase_m=CHASE_M, base_yaw=YAW,
-                         chase_pitch=PITCH)
-    x, y, z = (float(c) for c in frame['at'])
-    dx, dy, dz = x - SPOT_X, y - SPOT_Y, z - SPOT_Z
-    dh = max(0.5, math.hypot(dx, dz))
-    camera['yaw'] = math.degrees(math.atan2(-dx, -dz))
-    camera['pitch'] = math.degrees(math.atan2(-dy, dh))
-    return math.hypot(dh, dy) / aero_gfx.SIGHT / camera['zoom'], (x, y, z)
+        return quad_look(camera, law, row, frame, chased, dt, near_m=NEAR_M, chase_m=CHASE_M,
+                         base_yaw=YAW, chase_pitch=PITCH)
+    return watch(camera, frame, (SPOT_X, SPOT_Y, SPOT_Z), aero_gfx.aero_mesh, aero_gfx.SIGHT, dt)
 
 
 def thrusts(frame, rotors):

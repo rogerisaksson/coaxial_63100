@@ -204,3 +204,7 @@ the hundred before these: [DONE_1-50](DONE_1-50.md),
 50. The aerobat's card close to the runway: within 62 m of the spectator
     where it reached 105, its 3D figures within 23 m, its circuit at 3.5 m,
     its teardrop laid on the opening's line ([aircraft](findings/aircraft.md)).
+51. The flight pages watched by a spectator beside the field: one eye, a
+    filtered gaze, a lens framing the craft over its horizon, the chase on the
+    course's laps alone - the aerobat's routine had been chased and flown on
+    the course's 1.5 g ([aircraft](findings/aircraft.md)).

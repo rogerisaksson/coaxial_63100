@@ -42,17 +42,14 @@ from terminal.views.show_quad import (PASS_S, PHYSICS_S, SIDE_PITCH, SWITCH_S, Z
 
 TITLE = 'HELICOPTER 3D FLYING'
 ROTORS = flown.ROTORS
-NEAR_M, FAR_M, ZOOM_M, ZOOM_K, CHASE_M = 0.76, 0.80, 0.60, 0.022, 2.2
-YAW, PITCH = 52.0, 18.0
+NEAR_M, CHASE_M, YAW, PITCH = 0.76, 2.2, 52.0, 18.0
 
 
 def look(camera, law, row, frame, chased, dt):
-    """The helicopter camera `dt` s on, `(reach, centre)`: RC side perspective with slight
-    zoom-follow and horizon contact during the 3D aerobatics warm-up, and behind the heading on
-    the gate course."""
-    return quad_look(camera, law, row, frame, chased, dt, near_m=NEAR_M, far_m=FAR_M,
-                     zoom_m=ZOOM_M, zoom_k=ZOOM_K, chase_m=CHASE_M, base_yaw=YAW,
-                     chase_pitch=PITCH)
+    """The helicopter camera `dt` s on, `(reach, centre)`: its spectator during its figures,
+    behind its heading on the gate course (`show_quad.look`)."""
+    return quad_look(camera, law, row, frame, chased, dt, near_m=NEAR_M, chase_m=CHASE_M, base_yaw=YAW,
+                     chase_pitch=PITCH, build=heli_gfx.heli_mesh, sight=heli_gfx.SIGHT)
 
 
 def thrusts(frame, rotors):
@@ -236,7 +233,7 @@ def run_craft_view(argv, doc, craft, gfx, flown_mod, compose_fn, thrusts_fn, loo
             frame, [(r['angle'], r['w'], (r['budget'] or {}).get('winding_c'), r['board_c'],
                      (r.get('cooling') or {}).get('sink_c'))
                     for r in rotors], width, height, yaw=camera['yaw'], pitch=camera['pitch'],
-            reach=reach, centre=centre, colour=terminal, lit=lit, gate=gate,
+            reach=reach, centre=centre, colour=terminal, lit=lit, gate=gate, lens=camera.get('lens', 1.0),
             thrusts=thrusts_fn(frame, rotors) if held['arrows'] else None,
             line_=chased and held['line'], see=LAYERS[held['see']],
             inset={**(carried(frame, held['aim'], gate, chased and held['line'], width, height)
