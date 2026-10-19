@@ -282,6 +282,7 @@ Six firmware defects, no hardware fault:
 | Flown from compiled streams: the core, the rotors' reach, upsets, the power loop | [findings/streams.md](findings/streams.md) |
 | Renode, native:// and CI: the emulated image, peripherals, speed | [findings/emulation.md](findings/emulation.md) |
 | Host pages, tooling, suites, the local model's runner | [findings/host.md](findings/host.md) |
+| Her law compiled from her numpy: numpy's orders, her parts, their time and memory | [findings/compiler.md](findings/compiler.md) |
 
 ## Ruled Out
 

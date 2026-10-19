@@ -25,9 +25,11 @@ import numpy as np
 from tools.cores import emit, held, layout, trace, trace_mj
 from tools.cores.wbc import address
 
-#: The builds under way in this process by their source's digest, a thread each.
+#: The builds of this process by their source's digest, one thread building them in turn.
 _BUILDING = {}
 _LOCK = threading.Lock()
+_QUEUE: list = []
+_RUNNING = [False]
 #: A trace or a hold no sooner than SPREAD_S after the last, any part's, s: nine traced in her law's
 #: first pass held it 47.6 ms.
 SPREAD_S = 0.005
@@ -109,6 +111,9 @@ class Compiled:
             c = Bound(lib, cfn, prog, info, specs, self.body, self.sources)
             self._hold(c, args, twin)
             self.c, _LAST[0] = c, time.perf_counter()
+            for e in prog.externs:
+                e.root = None
+            self.made = (prog, info, None, specs)
         if self.body is not None:
             b = args[self.body]
             if any(getattr(b, k, None) is not v for k, v in prog.consts.items()):
@@ -285,23 +290,33 @@ def _leaves_in(trees):
 
 def building(source, name, matmul):
     """The build of `source` under way or done, {'done': its Event, 'lib': (the library, its function)
-    or 'why'}: one thread a source in this process, the library loaded there - a new one's first load
-    40 ms of the walking process."""
+    or 'why'}: one thread of this process building its sources in turn, the library loaded there - a
+    new one's first load 40 ms of the walking process."""
     key = hashlib.sha1(source.encode()).hexdigest()
     with _LOCK:
         job = _BUILDING.get(key)
         if job is None:
             job = _BUILDING[key] = {'done': threading.Event()}
-            threading.Thread(target=_build, args=(job, source, name, matmul), name='held ' + name, daemon=True).start()
+            _QUEUE.append((job, source, name, matmul))
+            if not _RUNNING[0]:
+                _RUNNING[0] = True
+                threading.Thread(target=_builds, name='held builds', daemon=True).start()
     return job
 
 
-def _build(job, source, name, matmul):
-    try:
-        job['lib'] = held.loaded(held.built(source, name, matmul), name)
-    except (RuntimeError, OSError) as e:
-        job['why'] = e
-    job['done'].set()
+def _builds():
+    """This process's builds one after another, while any are queued."""
+    while True:
+        with _LOCK:
+            if not _QUEUE:
+                _RUNNING[0] = False
+                return
+            job, source, name, matmul = _QUEUE.pop(0)
+        try:
+            job['lib'] = held.loaded(held.built(source, name, matmul), name)
+        except (RuntimeError, OSError) as e:
+            job['why'] = e
+        job['done'].set()
 
 
 class Bound:

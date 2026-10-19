@@ -112,32 +112,48 @@ def in_c(lay, body, qpos, qvel, qacc, a0, wacc=None, frames=None, wait=False):
     return run(*arrays)[0]
 
 
-#: Each layout's build, by the layout it was built for: (layout, its C or None, its build's process).
+#: Each layout's build, by the layout it was built for: (layout, its C or None, its build's process,
+#: when one was last sought), the latest KEPT layouts' - a session lays its own. A build not begun -
+#: the machine's commit short, another process building it - sought again RETRY_S on.
 _BUILT: dict = {}
+KEPT, RETRY_S = 8, 30.0
 
 
 def _compiled(lay, given, arrays, wait):
     import os
     import sys
+    import time
     from tools.cores import held
     key = (id(lay), given, tuple(a.shape[1:] for a in arrays))
     made_of = (sys.modules[__name__], lay, given)
     if key in _BUILT and _BUILT[key][0] is not lay:
         del _BUILT[key]
     if key not in _BUILT:
-        run, child = held.found('regressor', made_of, key[2]), None
-        if run is None and held.kept('regressor', made_of, key[2]) is None:
-            child = held.apart(__name__, 'build', (lay, given, [a[:held.STATES].copy() for a in arrays]))
-        _BUILT[key] = (lay, run, child)
-    _lay, run, child = _BUILT[key]
-    if child is not None and (wait or child[0].poll() is not None):
-        child[0].wait()
-        try:
-            os.remove(child[1])
-        except OSError:
-            pass
-        run = held.found('regressor', made_of, key[2])
-        _BUILT[key] = (lay, run, None)
+        while len(_BUILT) >= KEPT:
+            del _BUILT[next(iter(_BUILT))]
+        _BUILT[key] = (lay, held.found('regressor', made_of, key[2]), None, -RETRY_S)
+    _lay, run, child, sought = _BUILT[key]
+    while run is None:
+        if child is not None:
+            if not wait and child[0].poll() is None:
+                break
+            child[0].wait()
+            try:
+                os.remove(child[1])
+            except OSError:
+                pass
+            child, run = None, held.found('regressor', made_of, key[2])
+            break
+        if not wait and time.monotonic() - sought < RETRY_S:
+            break
+        sought, run = time.monotonic(), held.found('regressor', made_of, key[2])
+        if run is not None or held.kept('regressor', made_of, key[2]) is not None:
+            break
+        child = held.apart(__name__, 'build', (lay, given, [a[:held.STATES].copy() for a in arrays]),
+                           held.digest(made_of, list(key[2])))
+        if child is None and wait:
+            time.sleep(1.0)
+    _BUILT[key] = (lay, run, child, sought)
     return run
 
 

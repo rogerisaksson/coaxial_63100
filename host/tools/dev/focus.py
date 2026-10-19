@@ -151,12 +151,13 @@ class _Locked:
         self.f.close()
 
 
-def booked(path, gb, pid=None):
-    """A job in the ledger: `gb` its commit, `pid` its process once started."""
+def booked(path, gb, pid=None, owner=None):
+    """A job in the ledger: `gb` its commit, `pid` its process once started, held while `owner`
+    (this relay) lives."""
     os.makedirs(LEDGER, exist_ok=True)
     part = os.path.join(LEDGER, '.%s.part' % os.path.basename(path))
     with open(part, 'w', encoding='utf-8') as f:
-        json.dump({'relay': os.getpid(), 'gb': gb, 'pid': pid}, f)
+        json.dump({'relay': owner or os.getpid(), 'gb': gb, 'pid': pid}, f)
     os.replace(part, path)
 
 
@@ -182,6 +183,21 @@ def outstanding():
             owed += max(0.0, job['gb'] - (held or 0.0))
             running += 1
     return owed, running
+
+
+def admitted(gb, start, name, busy=None):
+    """A process begun outside a relay (`start()`) where the machine's commit holds `gb` over every
+    relay's owed and RESERVE_GB and `busy()` is not, booked in the ledger as `name` under its lock
+    while it lives: (the process, its booking), or None."""
+    with _Locked():
+        free = free_commit_gb()
+        if (busy is not None and busy()) or (free is not None and free - outstanding()[0] - RESERVE_GB < gb):
+            return None
+        proc = start()
+        booking = os.path.join(LEDGER, '%s-%d-%d' % (name, os.getpid(), proc.pid))
+        with suppress(OSError):
+            booked(booking, gb, proc.pid, proc.pid)
+        return proc, booking
 
 
 def pick(tests, names):

@@ -154,8 +154,9 @@ def _arrays(args):
 
 def _beside(real, fn, twin, tally, at=0):
     """`real` (Compiled) as her law calls it, built and held at its first call, beside `fn` on
-    copies - her body's `twin` at `at`: its result and its arguments after, bit for bit (`tally`)."""
-    from tools.cores import trace
+    copies - her body's `twin` at `at`, its state hers -: its result and its arguments after, bit for
+    bit (`tally`)."""
+    from tools.cores import trace, trace_mj
 
     def called(*args):
         if real.c is None and real.why is None:
@@ -165,6 +166,7 @@ def _beside(real, fn, twin, tally, at=0):
                 tally[2] = e
         ours = _copies(args)
         if twin is not None:
+            trace_mj.copy_state(twin, args[at])
             ours[at] = twin
         want, got = fn(*ours), real(*args)
         if real.c is not None:
@@ -178,18 +180,19 @@ def _beside(real, fn, twin, tally, at=0):
 
 def test_her_law_in_c_as_she_walks(report, c):
     """Her law's compiled parts - her estimate, her sensing, her grip's feel and floor, her
-    situation, her drive's cap, her ask's poses, her sensing flat (`law.laid`) - at every pass of her
-    law over PASSES of her walk, built at their first and held there, each beside its numpy on copies."""
-    from machine import estimate, grip, law, modal, situation, wbc, worker
+    situation, her drive's cap, her ask's poses, her sensing flat, her soles' touch (`law.laid`) -
+    at every pass of her law over PASSES of her walk, built at their first and held there, each
+    beside its numpy on copies."""
+    from machine import estimate, grip, law, modal, situation, touch, wbc, worker
     from tools.cores import law as c_law, trace_mj
     s = worker.session(walks=True)
     g = s['g']
     parts = {'estimated': estimate.step, 'sensed': wbc.sense, 'felt': grip.felt, 'outside': grip.outside,
              'readings': situation.readings, 'read': situation.read, 'gripped': law.gripped, 'poses': modal.poses,
-             'modal_sensed': modal.sensed}
+             'modal_sensed': modal.sensed, 'soles': touch.soles}
     tallies, reals = {name: [0, 0, None] for name in parts}, {name: g[name] for name in parts}
     for name, fn in parts.items():
-        twin = trace_mj.twin(g['body']) if name in ('sensed', 'estimated') else None
+        twin = trace_mj.twin(g['body']) if name in ('sensed', 'estimated', 'soles') else None
         g[name] = _beside(g[name], fn, twin, tallies[name], 1 if name == 'estimated' else 0)
     for _ in range(PASSES):
         worker.stepped(s)

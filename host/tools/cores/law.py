@@ -311,7 +311,7 @@ def wrench_laid(b, sensed=None):
     k.blas = numpy_blas()
     views = {name: wbc.plain(np.ctypeslib.as_array(getattr(k, name))) for name in VIEWED}
     first = getattr(Step, POINTED[0][0]).offset
-    k.sensed, k.placed, k.words = sensed, None, np.frombuffer(k, dtype=np.uint64)
+    k.sensed, k.placed, views['words'] = sensed, None, np.frombuffer(k, dtype=np.uint64)
     k.pointed = slice(first // 8, first // 8 + len(POINTED))
     if [getattr(Step, f).offset + 8 * i for f, i, _p in POINTED] != list(range(first, first + 8 * len(POINTED), 8)):
         k.sensed = None
@@ -346,7 +346,7 @@ def _stepped(k, step, v, b, s, ask):
         c = k.sensed.c
         if k.placed is None or k.placed[0] is not c:
             k.placed = (c, np.array([8 * c.place(path) for _f, _i, path in POINTED], dtype=np.uint64))
-        k.words[k.pointed] = last[1] + k.placed[1]
+        v['words'][k.pointed] = last[1] + k.placed[1]
     else:
         k.M, k.h, k.v, k.q, k.com, k.k = (at(s[name]) for name in ('M', 'h', 'v', 'q', 'com', 'k'))
         for side, f in enumerate(s['feet']):

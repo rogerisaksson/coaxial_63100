@@ -3,6 +3,7 @@ import glob
 import hashlib
 import os
 import subprocess
+import time
 from shutil import which
 
 from tools import REPO
@@ -54,7 +55,8 @@ def build(cc, sources, includes, name, extra=()):
 def cached(sources, includes, name, extra=()):
     """(path, warnings) of a library built once for these sources', their headers' and the
     flags' bytes, shared by every process that asks - a stand-in opened in each of a gate's
-    suites built it once -, a compiler sought only where none is built yet."""
+    suites built it once -, a compiler sought only where none is built yet; built by one process
+    at a time, the others waiting for it (`_claimed`)."""
     digest = hashlib.sha1(' '.join(FLAGS + list(extra)).encode())
     digest.update(str(bool(os.environ.get('COAXIAL_GCOV'))).encode())
     headers = sorted(h for d in includes for h in glob.glob(os.path.join(d, '*.h')))
@@ -63,18 +65,52 @@ def cached(sources, includes, name, extra=()):
             digest.update(f.read())
     lib = os.path.join(OUT, '%s_%s%s' % (name, digest.hexdigest()[:12],
                                           '.dll' if os.name == 'nt' else '.so'))
-    if os.path.exists(lib):
+    if os.path.exists(lib) or not _claimed(lib):
         return lib, []
-    cc = find_cc()
-    if cc is None:
-        raise RuntimeError('%s is C built on this host, and there is no C compiler here '
-                           '(setup.ps1 installs one)' % name)
-    made, warnings = build(cc, sources, includes, '%s_%d' % (name, os.getpid()), extra)
     try:
-        os.replace(made, lib)
-    except OSError:
-        return made, warnings           # another process's is there, loaded
-    return lib, warnings
+        cc = find_cc()
+        if cc is None:
+            raise RuntimeError('%s is C built on this host, and there is no C compiler here '
+                               '(setup.ps1 installs one)' % name)
+        made, warnings = build(cc, sources, includes, '%s_%d' % (name, os.getpid()), extra)
+        try:
+            os.replace(made, lib)
+        except OSError:
+            return made, warnings           # another process's is there, loaded
+        return lib, warnings
+    finally:
+        os.remove(lib + '.building')
+
+
+def _claimed(lib):
+    """Whether this process is to build `lib`: its marker made here; else another's built it -
+    waited for while that process lives - and False."""
+    from tools.dev.focus import _alive
+    marker = lib + '.building'
+    while True:
+        try:
+            fd = os.open(marker, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        except FileExistsError:
+            try:
+                with open(marker, encoding='utf-8') as f:
+                    pid = int(f.read() or 0)
+            except (OSError, ValueError):
+                pid = 0
+            if os.path.exists(lib):
+                return False
+            if pid and not _alive(pid):
+                try:
+                    os.remove(marker)
+                except OSError:
+                    pass
+            time.sleep(0.2)
+            continue
+        with os.fdopen(fd, 'w', encoding='utf-8') as f:
+            f.write(str(os.getpid()))
+        if os.path.exists(lib):
+            os.remove(marker)
+            return False
+        return True
 
 
 # setup.ps1's probe, before host/ is installed: winget's gcc is on PATH in new shells only.

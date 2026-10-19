@@ -220,6 +220,7 @@ def laid(g):
     g['gripped'] = bodied.on_args(gripped, 'gripped', (0, 1, 2, 3, 4))
     g['poses'] = bodied.on_args(modal.poses, 'poses', (0, 1, 2, 3, 4, 5, 7))
     g['modal_sensed'] = bodied.on_args(modal.sensed, 'modal_sensed', (0, 1, 2), sources={0: g['sensed']})
+    g['soles'] = bodied.on_body(touch.soles, 'soles', (1, 3, 4, 5, 6), body=0)
     g['impedance'] = functools.partial(c_law.asked, *c_law.laid())
     laid_ = c_law.latent_laid()
     g['latent'], g['couple'] = functools.partial(c_law.stepped, laid_), functools.partial(c_law.coupled, laid_)

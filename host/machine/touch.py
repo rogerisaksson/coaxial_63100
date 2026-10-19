@@ -1,6 +1,7 @@
 """What her skin and her soles feel: a touch that stops her going, a shove walked out, an edge.
 
     touch.check_contacts(g, out, doing)     # a pass of her law, `g` and `out` as `machine.law`'s
+    touch.soles(b, touch, ids, tips, y, fr, stance)   # its arithmetic of her soles
     touch.against(g, twist)                 # a twist less its part toward what she felt
 
 Her law's own reading of the edge's touch (`machine.edge`): no body is named, nothing but forces
@@ -68,22 +69,32 @@ def check_contacts(g, out, cur_doing):
                 se2.said(g, *g['_stand_entry'], at=g['t'] + 1.20, reset=True)
             g['active_entry'] = '#201'
     aloft, clear = g['a'][modal.STANCE] < 0.5, list(g.get('_clear', (False, False)))
-    floors = modal.under(g['y'], g['fr'], g['a'][modal.STANCE])[0]
     tips = g.get('_tips')
     if tips is None:
         tips = g['_tips'] = np.array(TIPS)
-    for side, segs in enumerate(SOLES):
-        pushes = [model.xmat[ids[k]].reshape(3, 3) @ touch[k] for k in segs]
-        felt = max(float(np.linalg.norm(p)) for p in pushes) > edge.TOUCHED_N
-        toes = ids[segs[1]]
-        tip = float((model.xpos[toes] + tips @ model.xmat[toes].reshape(3, 3).T)[:, 1].min())
-        up = min(float(g['y'][modal.LOWEST][side]), tip) - float(floors[side])
+    pushed, sizes, lowest, floors = g['soles'](g['body'], touch, ids, tips, g['y'], g['fr'], g['a'][modal.STANCE])
+    for side in range(len(SOLES)):
+        felt = max(float(n) for n in sizes[side]) > edge.TOUCHED_N
+        up = min(float(g['y'][modal.LOWEST][side]), float(lowest[side])) - float(floors[side])
         met = clear[side] and up > EDGE_M and any(
-            np.linalg.norm(p) > edge.TOUCHED_N and math.hypot(float(p[0]), float(p[2])) > abs(float(p[1]))
-            for p in pushes)
+            n > edge.TOUCHED_N and math.hypot(float(p[0]), float(p[2])) > abs(float(p[1]))
+            for p, n in zip(pushed[side], sizes[side]))
         g['a'][modal.RAISE] = max(float(g['a'][modal.RAISE]), met * up)
         clear[side] = bool(aloft[side]) and (clear[side] or not felt)
     g['_clear'] = tuple(clear)
+
+
+def soles(b, touch, ids, tips, y, fr, stance):
+    """`check_contacts`' arithmetic of her soles on her law's body `b` as `wbc.sense` left it: (each
+    sole's pushes, world - its foot's and its toes' -, their sizes, N; its toes' lowest tip and the
+    floor under it, m) - `touch` the edge's (SKIN, 3), `ids` her segments' bodies, `tips` TIPS."""
+    import numpy as np
+    from machine import modal
+    d = b.d
+    pushed = [[d.xmat[ids[k]].reshape(3, 3) @ touch[k] for k in segs] for segs in SOLES]
+    sizes = [[np.linalg.norm(p) for p in side] for side in pushed]
+    lowest = [(d.xpos[ids[segs[1]]] + tips @ d.xmat[ids[segs[1]]].reshape(3, 3).T)[:, 1].min() for segs in SOLES]
+    return pushed, sizes, lowest, modal.under(y, fr, stance)[0]
 
 
 def against(g, tw):

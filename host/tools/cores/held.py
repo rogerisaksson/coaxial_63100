@@ -187,30 +187,43 @@ def refused(name, made_of, rest, why):
     os.replace(note + '.%d' % os.getpid(), note)
 
 
-def apart(module, fn, payload):
+def apart(module, fn, payload, key):
     """`module.fn(*payload)` in a process of its own - a build's trace holds its own interpreter, not
     the caller's -, `payload` pickled beside the builds, the process booked in the relay's ledger
-    (APART_GB) while it runs. (the process, running; its booking) - its words in gen/<its payload>.log."""
+    (APART_GB) while it runs: begun only where the machine's commit holds it and no live process
+    builds `key` (`focus.admitted`). (the process, running; its booking), or None - its words in
+    gen/<its payload>.log."""
     from tools.dev import focus
     folder = os.path.join(build.OUT, 'gen')
     os.makedirs(folder, exist_ok=True)
+    marker = os.path.join(folder, 'building_%s.json' % key)
+
+    def busy():
+        try:
+            with open(marker, encoding='utf-8') as f:
+                return focus._alive(json.load(f)['pid'])
+        except (OSError, ValueError, KeyError):
+            return False
     path = os.path.join(folder, 'payload_%d_%d.pkl' % (os.getpid(), next(_count)))
     with open(path, 'wb') as f:
         pickle.dump(payload, f)
     host = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     code = ('import os, pickle, sys\nfrom %s import %s as f\nwith open(sys.argv[1], "rb") as g:\n    a = pickle.load(g)\n'
-            'os.remove(sys.argv[1])\nf(*a)\n' % (module, fn))
+            'os.remove(sys.argv[1])\ntry:\n    f(*a)\nfinally:\n    try:\n        os.remove(sys.argv[2])\n'
+            '    except OSError:\n        pass\n' % (module, fn))
     env = dict(os.environ, OPENBLAS_NUM_THREADS='1',
                PYTHONPATH=os.pathsep.join([host] + [p for p in os.environ.get('PYTHONPATH', '').split(os.pathsep) if p]))
-    with open(path[:-4] + '.log', 'w', encoding='utf-8') as log:
-        proc = subprocess.Popen([sys.executable, '-c', code, path], cwd=host, env=env, stdout=log,
-                                stderr=subprocess.STDOUT)
-    booking = os.path.join(focus.LEDGER, 'apart-%d-%d' % (os.getpid(), proc.pid))
-    try:
-        focus.booked(booking, APART_GB, proc.pid)
-    except OSError:
-        pass
-    return proc, booking
+    def start():
+        with open(path[:-4] + '.log', 'w', encoding='utf-8') as log:
+            proc = subprocess.Popen([sys.executable, '-c', code, path, marker], cwd=host, env=env, stdout=log,
+                                    stderr=subprocess.STDOUT)
+        with open(marker, 'w', encoding='utf-8') as f:
+            json.dump({'pid': proc.pid}, f)
+        return proc
+    got = focus.admitted(APART_GB, start, 'apart', busy)
+    if got is None:
+        os.remove(path)
+    return got
 
 
 def found(name, made_of, rest):
