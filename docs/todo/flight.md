@@ -26,6 +26,8 @@
 - **A spent pack mid-turn-over** (aircraft.md): spent in its roll or its
   flip, the quad's way down begins upside down and strikes. DOD: spent
   anywhere on its card, it lands.
-- **The aerobat's landing** (aircraft.md): its touch, its roll-out unsteered
-  in wind. DOD: a touch under 0.5 m/s within 0.5 m of the centreline,
-  stopped on the runway, still or gusty.
+- **The aerobat's landing** (aircraft.md): in gusts one landing of 13
+  stalled in its turn onto the final at 12 m/s, one rolled 1 m past the
+  runway's end - 12.9 m/s on its wheels in a 1.1 m/s tail wind. DOD: a
+  touch under 0.5 m/s within 0.5 m of the centreline, stopped on the
+  runway, still or gusty.

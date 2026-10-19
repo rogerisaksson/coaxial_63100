@@ -14,11 +14,14 @@ with open(LISP_PATH, encoding='utf-8') as _f:
 
 AERO, DYNAMICS, KINEMATICS = MANIFEST['aerodynamics'], MANIFEST['dynamics'], MANIFEST['kinematics']
 STREAMS, STUNTS, BEHAVIORS = MANIFEST['streams'], MANIFEST['stunts'], MANIFEST['behaviors']
-#: The card: the routine's, its opening off the runway a laid line after its lift
-#: (`airfield.opening`).
+#: The card: the routine's, its opening off the runway, its circuit and its final laid lines
+#: (`airfield.opening`, `circuit`, `approach`).
 _ROUTINE, COOLING = MANIFEST['routines']['aerobat_3d'], DYNAMICS['cooling']
-_LIFT = [stage[0] for stage in _ROUTINE].index('lift') + 1
-CARD = _ROUTINE[:_LIFT] + (('knife pass', airfield.opening, 0.0, 0.0, 'passed'),) + _ROUTINE[_LIFT:]
+_LIFT, _LAND = ([stage[0] for stage in _ROUTINE].index(name) for name in ('lift', 'land'))
+CARD = (_ROUTINE[:_LIFT + 1] + (('knife pass', airfield.opening, 0.0, 0.0, 'passed'),)
+        + _ROUTINE[_LIFT + 1:_LAND] + (('circuit', airfield.circuit, 0.0, 0.0, 'circled'),
+                                       ('final', airfield.approach, 0.0, 0.0, 'flared'))
+        + _ROUTINE[_LAND:])
 _AS, _AF, _DL = AERO['aero_surfaces'], AERO['airframe'], AERO['drive_load']
 _RB, _GOV, _IMP, _OBS = (
     DYNAMICS['rigid_body'], DYNAMICS['governor'], DYNAMICS['impedance'], DYNAMICS['observers'])

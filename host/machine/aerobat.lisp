@@ -164,15 +164,6 @@
 (defstunt parachute
   (base stop) (height 0.74m) (pace 4.0m_s))
 
-(defstunt climbout
-  (base hover) (height 1.8m) (speed 12.0m_s) (pace 3.0m_s) (home 0.0))
-
-(defstunt pattern_turn
-  (base climbout) (turn 100.0deg_s) (lean 147.0m_s2))
-
-(defstunt final
-  (base climbout) (height 0.22m) (speed 11.5m_s) (pace 1.8m_s))
-
 (defbehavior knife_edge_circuit
   (phase carve_knife (stunt knife_circle) (duration LAP_S) (blend 200ms))
   (phase harrier_climb (stunt climbing_harrier) (duration LAP_S) (blend 200ms))
@@ -205,13 +196,4 @@
   (stage full_tilt (stunt sky) (duration 1.2s) (ramp 0.0s))
   (stage burn (stunt parachute) (duration 0.0s) (ramp 0.0s) (gate held))
   (stage hold (stunt parachute) (duration 1.5s) (ramp 0.0s))
-  (stage climb-out (stunt climbout) (duration 1.5s) (ramp 1.0s))
-  (stage crosswind (stunt pattern_turn) (duration 0.9s) (ramp 0.5s))
-  (stage cross-leg (stunt climbout) (duration 1.0s) (ramp 0.5s))
-  (stage downwind (stunt pattern_turn) (duration 0.9s) (ramp 0.5s))
-  (stage down-leg (stunt climbout) (duration 5.0s) (ramp 0.5s))
-  (stage base (stunt pattern_turn) (duration 0.9s) (ramp 0.5s))
-  (stage base-leg (stunt climbout) (duration 1.0s) (ramp 0.5s))
-  (stage final-turn (stunt pattern_turn) (duration 0.9s) (ramp 0.5s))
-  (stage final (stunt final) (duration 2.5s) (ramp 0.5s))
   (stage land (stunt pressed) (duration 8.0s) (ramp 0.0s)))

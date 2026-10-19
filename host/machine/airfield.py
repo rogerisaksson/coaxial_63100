@@ -156,7 +156,9 @@ def line(route, now):
     """The lap's row for now (`aerobatics.fly`'s giver): on its wing at SPEED_M_S at the height
     and the knife the line asks LEAD_S ahead, turned for its point L1_S ahead as `2 sin(eta) /
     L1_S`, eta its way over the floor off it, TURN_RAD_S at the most; a lap at its end, LAPS
-    laps, `lapped` there."""
+    laps, `lapped` there, the last one home from its last gate eased to the circuit's height
+    and speed: off 20 m/s and 3 m its final's drag left it 13 m/s in its flare in gusts, at 16
+    m/s 12.5."""
     fresh = {'began': route['at'], 'k': None, 'laps': 0, 'gate': 0, 'of': LAPS}
     lap = route.get('lap', fresh)
     lap = route['lap'] = (lap, fresh)[int(lap['began'] != route['at'])]
@@ -166,8 +168,10 @@ def line(route, now):
     lap['gate'] = next((g for g, at in enumerate(S_GATES) if at > k), 0)
     route['holds'] = (route.get('holds', ()), ('lapped',))[int(lap['laps'] >= LAPS)]
     knife = TRACK[(k + round(LEAD_S[1] * SPEED_M_S)) % n][5]
-    return dict(CRUISE, turn=math.degrees(rate), height=TRACK[(k + round(LEAD_S[0] * SPEED_M_S)) % n][4],
-                knife=knife, speed=SPEED_M_S + KNIFE_M_S * knife, lined=0.0)
+    home = float(lap['laps'] >= LAPS - 1) * _ramp((k - S_GATES[-1]) / (n - S_GATES[-1]))
+    high = TRACK[(k + round(LEAD_S[0] * SPEED_M_S)) % n][4]
+    return dict(CRUISE, turn=math.degrees(rate), height=high + (CIRCUIT_H - high) * home, knife=knife,
+                speed=SPEED_M_S + KNIFE_M_S * knife - (SPEED_M_S - CIRCUIT_M_S) * home, lined=0.0)
 
 
 def _followed(track, k, seen, round_):
@@ -203,6 +207,58 @@ def opening(route, now):
                 knife=knife, speed=OPEN_M_S + (PASS_M_S - OPEN_M_S) * abs(knife) - slow, lined=0.0, lean=G15_M_S2)
 
 
+#: The routine's circuit off its hold over the runway's middle, a line as the lap is: CLIMB_M up
+#: the runway, round to its far side on CIRCUIT_M, DOWNWIND_M down it and round onto its line
+#: again, CIRCUIT_H up at CIRCUIT_M_S. Flown as timed legs it came down 25-37 m beside the runway
+#: in gusts, or into the house on its near side. At 14 m/s it banked a tip into the runway
+#: lining up low in two gusty airs of eight.
+CLIMB_M, CIRCUIT_M, DOWNWIND_M, CIRCUIT_H, CIRCUIT_M_S = 30.0, 12.0, 100.0, 1.8, 12.0
+CIRCUIT = tuple(p + (CIRCUIT_H, 0.0) for p in _laid(
+    (0.0, 0.0), (CLIMB_M, (180.0, CIRCUIT_M), DOWNWIND_M, (180.0, CIRCUIT_M)))[0])
+#: The final down the runway's line from where the lap and the circuit leave it: on a glide of
+#: GLIDE to TOUCH_M along, flared where the glide is FLARE_H up. Flown on its heading for its
+#: seconds it touched 15-62 m short of the runway, 0.3-4.8 m off its line.
+GLIDE, TOUCH_M, FLARE_H = 0.035, -18.0, 0.22
+#: Its speed down to FINAL's where it flares, slowed SLOW_M_S2 a second - its idle drag's 1.7-2.9
+#: at 11.5-15 m/s -, the one it came on with at the most. Asked FINAL's at once off the lap's 18
+#: m/s it pitched up to slow, ballooned to 8 m and came down at 1.7 m/s into its flare; slowed as
+#: its drag does, 0.01 of its speed a metre, it held 20 m/s first and touched 15-35 m on.
+SLOW_M_S2 = 1.5
+_FLARE_AT = TOUCH_M - FLARE_H / GLIDE
+APPROACH = tuple(p + (min(HIGH_M, max(0.0, GLIDE * (TOUCH_M - p[0]))), 0.0)
+                 for p in _laid((-130.0, 0.0), (160.0,))[0])
+
+
+def circuit(route, now):
+    """The routine's circuit's row for now (`aerobatics.fly`'s giver): CIRCUIT flown as the lap
+    is (`_followed`) at CIRCUIT_M_S; `circled` at its end, on the runway's line."""
+    fresh = {'began': route['at'], 'k': 0}
+    run = route.get('circle', fresh)
+    run = route['circle'] = (run, fresh)[int(run['began'] != route['at'])]
+    k, rate = _followed(CIRCUIT, run['k'], route.get('seen', {}), False)
+    run['k'], n = k, len(CIRCUIT)
+    route['holds'] = (route.get('holds', ()), ('circled',))[int(k >= n - 2)]
+    return dict(CRUISE, turn=math.degrees(rate), height=CIRCUIT_H, speed=CIRCUIT_M_S, lined=0.0)
+
+
+def approach(route, now):
+    """The final's row for now (`aerobatics.fly`'s giver): APPROACH flown as the lap is from where
+    the frame joins it, on its glide where it is - its slope the climb -; `flared` where the
+    glide is FLARE_H. Its height LEAD_S ahead brought it down at 1.3 m/s into the flare."""
+    seen = route.get('seen', {})
+    fresh = {'began': route['at'], 'k': None, 'v': math.hypot(*seen.get('vel', (0.0, 0.0, 0.0))[::2])}
+    run = route.get('glide', fresh)
+    run = route['glide'] = (run, fresh)[int(run['began'] != route['at'])]
+    k, rate = _followed(APPROACH, run['k'], seen, False)
+    run['k'], here = k, APPROACH[k][4]
+    route['holds'] = (route.get('holds', ()), ('flared',))[int(here <= FLARE_H)]
+    left = max(0.0, _FLARE_AT - APPROACH[k][0])
+    speed = max(FINAL['speed'], min(run['v'], math.sqrt(FINAL['speed'] ** 2 + 2.0 * SLOW_M_S2 * left)))
+    sloped = float(FLARE_H < here < HIGH_M)
+    return dict(FINAL, turn=math.degrees(rate), height=max(FLARE_H, here), speed=speed,
+                climb=-sloped * GLIDE * speed)
+
+
 #: Where along the lap each gate stands, m.
 S_GATES = (S_GATE, S_LIMBO, S_HOOP) + S_PYLONS + (S_SLOT,)
 
@@ -211,6 +267,6 @@ CARD = (
     ('idle', DOWN, 2.0, 0.0, 'fit'),
     ('spool', PRESSED, 2.5, 2.5, ''),
     ('lap', line, 0.0, 0.0, 'lapped'),
-    ('final', FINAL, 2.4, 0.5, ''),
+    ('final', approach, 0.0, 0.0, 'flared'),
     ('land', PRESSED, 10.0, 0.0, ''),
 )

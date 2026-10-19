@@ -177,8 +177,15 @@ class Wing:
                 -self.arm * self.fin * (q * ux + qd * self.arm * wz))
 
 
+#: On its wheels, WHEELS_M of its rest, it rolls along them and grips across them: GRIP of its
+#: load at the most, its slip across taken back over GRIP_S. On skids alone, sliding, a 1.1 m/s
+#: crosswind carried it 2.3-3.3 m off its line on the roll-out.
+GRIP, GRIP_S, WHEELS_M = 0.8, 0.05, 0.05
+
+
 def wing_substep(sky, lift, wx, wy, wz, dk, ab0, ab1, ab2):
-    """One STEP_S MuJoCo substep on `sky` with `sky.wing`'s lift, side force and moments."""
+    """One STEP_S MuJoCo substep on `sky` with `sky.wing`'s lift, side force and moments, and
+    its wheels' grip across them."""
     from machine.quad import substep
     np, xm, qv, sp, w = sky._np, sky._xmat, sky._vel, sky._spin, sky.wing
     vx, vy, vz = qv[0] - wx, qv[1] - wy, qv[2] - wz
@@ -200,6 +207,10 @@ def wing_substep(sky, lift, wx, wy, wz, dk, ab0, ab1, ab2):
     lx = slip * xm[0] + np.where(on, f_l * ((uz * n0 + uy * b0) / speed) - f_d * ((uy * n0 - uz * b0) / speed), 0.0)
     ly = slip * xm[3] + np.where(on, f_l * ((uz * n1 + uy * b1) / speed) - f_d * ((uy * n1 - uz * b1) / speed), 0.0)
     lz = slip * xm[6] + np.where(on, f_l * ((uz * n2 + uy * b2) / speed) - f_d * ((uy * n2 - uz * b2) / speed), 0.0)
+    flat = np.sqrt(xm[0] * xm[0] + xm[6] * xm[6]) + 1e-9
+    load = np.where(sky._at[1] - sky.rest < WHEELS_M, np.maximum(0.0, w.mass * w.gravity - ly), 0.0)
+    grip = -np.minimum(GRIP * load, np.maximum(-GRIP * load, w.mass * (qv[0] * xm[0] + qv[2] * xm[6]) / (flat * GRIP_S)))
+    lx, lz = lx + grip * xm[0] / flat, lz + grip * xm[6] / flat
     q, qd = w.q * uy0, w.q * np.abs(uy0)
     a0 = w.arm * w.stab * (q * uz - qd * w.arm * sp[0])
     a1 = -qd * w.area * (0.25 * w.span) ** 2 * sp[1]
@@ -222,12 +233,25 @@ def run(wing, core, v_fwd, h, yaw, rate):
     return r_des, (0.0, rate, 0.0), f_run
 
 
+#: The flare's sink asked: its height over HOLD_M over FLARE_S - held off there till its wing
+#: can hold it no longer, three-point at the stall. On 0.3 m/s at any height it eased off from
+#: 8.8 deg at 0.29 m and touched at 0.64 m/s; on 0.2 at the least, at 11 m/s, its wing lifting
+#: it on its wheels, it skimmed 34-55 m.
+FLARE_S, HOLD_M = 0.5, 0.05
+
+
 def flare(wing, v_fwd, h, v, yaw, rate, r11):
-    """The flare and roll-out: `(r_des, w_ff, f_des)` pitching up as `1 / v_fwd^2` to HARRIER_RAD."""
+    """The flare and roll-out: `(r_des, w_ff, f_des)` pitching up as `1 / v_fwd^2` to HARRIER_RAD,
+    its sink as its height over HOLD_M asks (FLARE_S); on its wheels its tail up as the run has it
+    at its speed, its wing off them: three-point at 10.5 m/s the wing bore it 34-55 m."""
     g, m = wing.gravity, wing.mass
-    q_fl = wing.q * wing.area * wing.cl_alpha * max(1.0, v_fwd * v_fwd)
-    a_fl = min(HARRIER_RAD, max(0.0, m * max(0.0, g - 6.0 * (0.3 + v)) / q_fl - math.atan2(v, max(1.0, v_fwd))))
-    r_des = _mat_mul(_rot_y(yaw), _rot_x(0.5 * math.pi - a_fl if h > 0.03 and v_fwd > 2.0 else PITCH_REST))
+    # The lift a radian, `q` its lift slope's already: counted twice, and the path's angle added
+    # to the nose where it is the wing's own, it touched at 0.64 m/s at 7-10 deg.
+    q_fl = wing.q * wing.area * max(1.0, v_fwd * v_fwd)
+    sink = max(0.0, (h - HOLD_M) / FLARE_S)
+    a_fl = min(HARRIER_RAD, max(0.0, m * max(0.0, g - 6.0 * (sink + v)) / q_fl + math.atan2(v, max(1.0, v_fwd))))
+    rolled = PITCH_REST + (0.5 * math.pi - PITCH_REST) * ease((v_fwd / wing.rotate - TAIL_UP) / RUN_EASE)
+    r_des = _mat_mul(_rot_y(yaw), _rot_x(0.5 * math.pi - a_fl if h > 0.03 and v_fwd > 2.0 else rolled))
     f_des = m * max(0.0, g - 3.0 * (0.4 + v)) * r11 if v_fwd <= 2.0 and r11 > 0.4 and h > 0.04 else 0.0
     return r_des, (0.0, rate, 0.0), f_des
 
