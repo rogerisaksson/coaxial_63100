@@ -167,8 +167,18 @@ def test_aerobatics_side_perspective_keeps_the_horizon(report):
                  and aero_flown.CARD == aerobat.CARD + airfield.CARD)
     law = aerokin.fresh()
     base = {'at': (0.0, 0.0, 0.0), 'vel': (0.0, 0.0, 0.0), 'v': 0.0}
+    spot, framed = (show_aerobat.SPOT_X, show_aerobat.SPOT_Y, show_aerobat.SPOT_Z), []
+    for at in ((0.0, 0.0, 0.0), (0.0, 1.5, 0.0), (0.0, 8.0, 2.5), (30.0, 42.0, -20.0)):
+        cam = {'reach': 1.0, 'yaw': 0.0, 'pitch': 0.0, 'zoom': 1.0}
+        reach, centre = show_aerobat.look(cam, law, aerobatics.HIGH, dict(base, at=at), False, 10.0)
+        d = [s - a for s, a in zip(spot, at)]
+        framed.append(abs(reach * aero_gfx.SIGHT - math.hypot(*d)) < 1e-9 and tuple(centre) == at
+                      and abs(cam['yaw'] - math.degrees(math.atan2(d[0], d[2]))) < 1e-9
+                      and abs(cam['pitch'] - math.degrees(math.atan2(d[1], math.hypot(d[0], d[2])))) < 1e-9)
+    report.check('the aerobat seen by a spectator beside the runway: one eye, turning after the plane',
+                 all(framed), '%s' % framed)
     for mod, sight in ((show_quad, quadcopter.SIGHT), (show_helicopter, heli_gfx.SIGHT),
-                       (show_ornithopter, orni_gfx.SIGHT), (show_aerobat, aero_gfx.SIGHT)):
+                       (show_ornithopter, orni_gfx.SIGHT)):
         cam = {'reach': mod.NEAR_M, 'yaw': mod.YAW, 'pitch': show_quad.SIDE_PITCH, 'zoom': 1.0}
         r_ground, c_ground = mod.look(cam, law, aerobatics.DOWN, base, False, 2.0)
         f_low = dict(base, at=(0.0, 1.5, 0.0))

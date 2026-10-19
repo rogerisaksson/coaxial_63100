@@ -25,36 +25,27 @@ from terminal.views.show_quad import look as quad_look
 
 TITLE, ROTORS = 'AIRCRAFT XE AEROBATICS', aero_flown.ROTORS
 NEAR_M, FAR_M, ZOOM_M, ZOOM_K, CHASE_M, YAW, PITCH = 0.85, 0.90, 0.60, 0.022, 2.4, 58.0, 16.0
-CAM_S, CAM_W, CAM_Y = -2.0, 3.2, 0.95
+#: The spectator: by the hangar beside the runway's middle, SPOT_ACROSS off its line, the eye a
+#: man's height up, turning after the plane with a fixed lens - framed as near or far as it is,
+#: SIGHT reaches off. Zoomed onto the plane and chasing it, the figure was never in view.
+SPOT_ALONG, SPOT_ACROSS, SPOT_Y = -2.0, -14.0, 1.7
 _RC, _RS = math.cos(aerobat.RUNWAY_RAD), math.sin(aerobat.RUNWAY_RAD)
-CAM_X, CAM_Z = CAM_S * _RS + CAM_W * _RC, CAM_S * _RC - CAM_W * _RS
+SPOT_X, SPOT_Z = SPOT_ALONG * _RS + SPOT_ACROSS * _RC, SPOT_ALONG * _RC - SPOT_ACROSS * _RS
 
 
 def look(camera, law, row, frame, chased, dt):
-    """The aerobat camera `dt` s on, `(reach, centre)`: standing beside the runway (`CAM_X`,
-    `CAM_Z`) panning and zooming as the plane takes off, rotates, dives into its low knife-edge
-    pass, and follows into the vertical 3D box (`quad_look`) and gate course."""
-    x, y, z = (float(c) for c in frame['at'])
-    on_runway = not chased and (row.get('speed', 0.0) > 0.0 or abs(row.get('slide', 0.0)) > 0.0
-                                or (y < 3.2 and math.hypot(x, z) > 2.6))
-    if not on_runway:
+    """The aerobat camera, `(reach, centre)`: the spectator beside the runway turning after the
+    plane; chased, the quad's chase (`quad_look`)."""
+    if chased:
         return quad_look(camera, law, row, frame, chased, dt, near_m=NEAR_M, far_m=FAR_M,
                          zoom_m=ZOOM_M, zoom_k=ZOOM_K, chase_m=CHASE_M, base_yaw=YAW,
                          chase_pitch=PITCH)
-    dx, dy, dz = x - CAM_X, y - CAM_Y, z - CAM_Z
-    dh = max(1.5, math.hypot(dx, dz))
-    aloft = row['height'] > 0.0
-    want = NEAR_M if not aloft else (0.74 if abs(row.get('slide', 0.0)) > 0.1 else 0.82) + 0.012 * min(16.0, dh)
-    camera['reach'] += (want - camera['reach']) * (1.0 if dt <= 0.0 else min(1.0, dt / 0.45))
-    reach = camera['reach'] / camera['zoom']
-    want_yaw = math.degrees(math.atan2(-dx, -dz))
-    turn = (want_yaw - camera['yaw'] + 180.0) % 360.0 - 180.0
-    camera['yaw'] += turn * (1.0 if dt <= 0.0 else min(1.0, 8.0 * dt))
-    want_pitch = max(8.0, min(22.0, 14.5 - 0.55 * math.degrees(math.atan2(dy, dh))))
-    pitch = camera.get('pitch', PITCH)
-    camera['pitch'] = pitch + (want_pitch - pitch) * (1.0 if dt <= 0.0 else min(1.0, 8.0 * dt))
-    vx, vz = float(frame['vel'][0]), float(frame['vel'][2])
-    return reach, (x + 0.05 * vx, max(0.20, y), z + 0.05 * vz)
+    x, y, z = (float(c) for c in frame['at'])
+    dx, dy, dz = x - SPOT_X, y - SPOT_Y, z - SPOT_Z
+    dh = max(0.5, math.hypot(dx, dz))
+    camera['yaw'] = math.degrees(math.atan2(-dx, -dz))
+    camera['pitch'] = math.degrees(math.atan2(-dy, dh))
+    return math.hypot(dh, dy) / aero_gfx.SIGHT / camera['zoom'], (x, y, z)
 
 
 def thrusts(frame, rotors):

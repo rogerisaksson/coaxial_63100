@@ -17,7 +17,7 @@ from coaxial.graphics.helicopter import force_arrows
 from coaxial.graphics.lit import CORE, PLATE, braille, paint, project, splat
 from coaxial.graphics.quadcopter import (BLADE_W, BLADES_RAD_S, BOARD_H, BOARD_R, CARBON, CELLS,
                                          MASK, MOTOR_R, PROP, RIM_EVERY, RIM_INK, SHAFT_R,
-                                         SINK_H, SINK_R, ACCENT, Mesh, _at, _painted)
+                                         SINK_H, SINK_R, Mesh, _at, _painted)
 from machine import aerobat as aero_phys, airfield
 
 #: The camera: the eye's distance in reaches framed, and the reach the monoplane fills, m -
@@ -78,8 +78,91 @@ def _tail_wheel(carbon):
 
 
 SURFACE = (92, 98, 112)
-#: The Edge 540's navy, its yellow cowl and white spinner.
-NAVY, YELLOW, WHITE = (28, 42, 98), (240, 190, 40), (236, 236, 232)
+#: The terminal's palette on an Extra 300: its shell the quad's skin, its cowl, tips, spats and
+#: rudder the pages' amber, its lettering black - black keeps no dots (`lit.braille`).
+WHITE, RED, INK = (188, 194, 204), (255, 176, 0), (0, 0, 0)
+#: Its wing ahead of the ailerons' hinge: tapered ROOT_C to TIP_C, the leading edge swept, the
+#: tips rounded over their last TIP_S of the span, THICK of the chord through - square boxes
+#: read as a trainer's. Its stab and fin tapered alike.
+ROOT_C, TIP_C, TIP_S, THICK = 0.31, 0.18, 0.08, 0.05
+#: "COAXIAL" and "63100" in square wide capitals like Eurostile Bold Extended, PX_W a column
+#: along the span and PX_H a row along the chord, from LETTER_X out, their top LETTER_Y ahead of
+#: the hinge, on top, read from above nose up.
+PX_W, PX_H, LETTER_X, LETTER_Y = 0.0125, 0.0214, 0.11, 0.165
+GLYPHS = {
+    'C': ('.#####', '##....', '##....', '##....', '##....', '##....', '.#####'),
+    'O': ('.####.', '##..##', '##..##', '##..##', '##..##', '##..##', '.####.'),
+    'A': ('.####.', '##..##', '##..##', '######', '##..##', '##..##', '##..##'),
+    'X': ('##..##', '##..##', '.####.', '..##..', '.####.', '##..##', '##..##'),
+    'I': ('##', '##', '##', '##', '##', '##', '##'),
+    'L': ('##....', '##....', '##....', '##....', '##....', '##....', '######'),
+    '6': ('.#####', '##....', '##....', '#####.', '##..##', '##..##', '.####.'),
+    '3': ('#####.', '....##', '....##', '.####.', '....##', '....##', '#####.'),
+    '1': ('.##', '###', '.##', '.##', '.##', '.##', '.##'),
+    '0': ('.####.', '##..##', '##..##', '##..##', '##..##', '##..##', '.####.'),
+}
+
+
+def _letters(word):
+    """`word` in GLYPHS' rows, top first, a column apart."""
+    return ['.'.join(GLYPHS[ch][r] for ch in word) for r in range(7)]
+
+
+_WORDS = {'COAXIAL': _letters('COAXIAL'), '63100': _letters('63100')}
+def _inked(x, y, side, hinge):
+    """Whether the lettering inks the wing at `x`, `y` on `side` (-1 its top): "COAXIAL" out to
+    in on the left, "63100" in to out on the right."""
+    rows = int((hinge + LETTER_Y - y) // PX_H)
+    text = _WORDS['COAXIAL' if x < 0.0 else '63100']
+    n = len(text[0])
+    col = int((abs(x) - LETTER_X) // PX_W)
+    col = n - 1 - col if x < 0.0 else col
+    return side < 0 and 0 <= rows < 7 and 0 <= col < n and text[rows][col] == '#'
+
+
+def _lifting(half, root, tip, hinge, place, colour, ink=None, step=None):
+    """A tapered, round-tipped lifting surface `half` each way of its root (`half` < 0: one way
+    only), `root` to `tip` of chord ahead of `hinge` on its straight hinge line, as
+    (corners, triangles, uv, materials): `place(s, y, t)` its point at `s` along the span, `y`
+    along the chord, `t` through it; `ink(s, y, side)` a quad's lettering, `step` its columns."""
+    from coaxial.model.blocks import numpy as np
+    span = abs(half)
+    flat = span * (1.0 - TIP_S)
+
+    def chord(s):
+        a = abs(s)
+        c = root + (tip - root) * min(a, flat) / flat
+        return c * math.sqrt(max(0.0, 1.0 - ((a - flat) / (span - flat)) ** 2)) if a > flat else c
+    out = [0.0, LETTER_X] if step else [0.0]
+    while step and out[-1] + step < flat:
+        out.append(out[-1] + step)
+    out += [flat * k / 6.0 for k in range(1, 7)] if not step else [flat]
+    out += [flat + (span - flat) * k / 4.0 for k in range(1, 5)]
+    stations = sorted(set(out)) if half < 0 else sorted(set([-x for x in out] + out))
+    band = [hinge + LETTER_Y - k * PX_H for k in range(7, -1, -1)] if ink else []
+    corners, mats = [], []
+    for side in (-1, 1):
+        for s0, s1 in zip(stations, stations[1:]):
+            ys = [[hinge] + [min(b, hinge + chord(s)) for b in band] + [hinge + chord(s)] for s in (s0, s1)]
+            for j in range(len(ys[0]) - 1):
+                quad = ((s0, ys[0][j]), (s1, ys[1][j]), (s1, ys[1][j + 1]), (s0, ys[0][j + 1]))
+                if side < 0:
+                    quad = quad[::-1]
+                for s, y in quad:
+                    c = max(chord(s), 1e-6)
+                    u = min(1.0, (y - hinge) / c)
+                    corners.append(place(s, y, side * THICK * c * math.sqrt(max(0.0, math.sin(math.pi * (0.15 + 0.85 * u))))))
+                ys_mid, s_mid = 0.25 * sum(y for _s, y in quad), 0.5 * (s0 + s1)
+                mats += [ink[1] if ink and ink[0](s_mid, ys_mid, side) else colour] * 4
+        if side < 0:
+            continue
+        for s0, s1 in zip(stations, stations[1:]):
+            t0, t1 = (THICK * max(chord(s), 1e-6) * math.sqrt(math.sin(0.15 * math.pi)) for s in (s0, s1))
+            corners += [place(s0, hinge, -t0), place(s1, hinge, -t1), place(s1, hinge, t1), place(s0, hinge, t0)]
+            mats += [colour] * 4
+    corners = np.array(corners, float)
+    quads = np.arange(len(corners) // 4)[:, None, None] * 4 + np.array([[0, 1, 2], [0, 2, 3]])[None]
+    return corners, quads.reshape(-1, 3), np.zeros((len(corners), 2)), np.array(mats)
 
 
 def _fuselage():
@@ -92,8 +175,8 @@ def _fuselage():
         (0.53, 0.034, 0.034),
     ]
     from coaxial.model.blocks import numpy as np
-    navy, yellow = paint(NAVY), paint(YELLOW)
-    return shapes.loft(rings, lambda c: np.where(c[:, 1] > 0.40, yellow, navy), poles=(-0.53, 0.535),
+    white, red = paint(WHITE), paint(RED)
+    return shapes.loft(rings, lambda c: np.where(c[:, 1] > 0.40, red, white), poles=(-0.53, 0.535),
                        along='y')
 
 
@@ -114,7 +197,7 @@ def _aero_parts(see='shell'):
     """[(name, mesh)]: the aerobat airframe in its body axes; `see` a layer: the airframe its
     longerons, firewall, spars and ribs, the pack under the canopy, bare the shafts, the spars
     and the keel's line."""
-    carbon, skin, accent = paint(CARBON), paint(NAVY), paint(ACCENT)
+    carbon, skin, accent = paint(CARBON), paint(WHITE), paint(RED)
     shell, frame = see == 'shell', see != 'bare'
     stack, aft = _stack()
     out = [('spinner', shapes.ellipsoid((0.0, PROP_Y + 0.024, 0.0), (0.028, 0.044, 0.028),
@@ -128,8 +211,10 @@ def _aero_parts(see='shell'):
     if shell:
         out += [('fuselage', _fuselage()),
                 ('canopy', shapes.ellipsoid((0.0, 0.10, -0.078), (0.040, 0.165, 0.042), CORE, rows=7)),
-                ('vfin', shapes.box((0.0, TAIL_Y + 0.04, -0.105), (0.005, 0.075, 0.095), accent)),
-                ('finlead', shapes.box((0.0, TAIL_Y + 0.14, -0.06), (0.005, 0.03, 0.045), accent))]
+                ('wing', _lifting(HALF_SPAN, ROOT_C, TIP_C, AIL_HINGE[1], lambda s, y, t: (s, y, t), skin,
+                                  ((lambda s, y, side: _inked(s, y, side, AIL_HINGE[1])), paint(INK)), PX_W)),
+                ('hstab', _lifting(HSTAB_HALF, 0.10, 0.06, TAIL_HINGE[1], lambda s, y, t: (s, y, t), skin)),
+                ('vfin', _lifting(-0.19, 0.17, 0.06, TAIL_HINGE[1], lambda s, y, t: (t, y, -0.012 - s), accent))]
     elif frame:
         out += [('longeron%d' % k, _at(shapes.drum(0.005, aft + 0.52, 'y', PLATE), None,
                                        (sx * 0.03, 0.5 * (aft - 0.52), sz * 0.035)))
@@ -146,16 +231,6 @@ def _aero_parts(see='shell'):
         return out
     out += stack + _tail_wheel(carbon)
     for s in (-1.0, 1.0):
-        if shell:
-            out.append(('wing%d' % (s > 0),
-                        shapes.box((s * 0.50 * HALF_SPAN, WING_Y, 0.0),
-                                   (0.50 * HALF_SPAN, 0.46 * CHORD, 0.011), skin)))
-            out.append(('tip%d' % (s > 0),
-                        shapes.box((s * 0.93 * HALF_SPAN, WING_Y, 0.0),
-                                   (0.07 * HALF_SPAN, 0.46 * CHORD, 0.012), accent)))
-            out.append(('hstab%d' % (s > 0),
-                        shapes.box((s * 0.5 * HSTAB_HALF, TAIL_Y + 0.02, 0.0),
-                                   (0.5 * HSTAB_HALF, 0.05, 0.005), skin)))
         out += _bow(s, carbon, accent if shell else None)
     return out
 
@@ -171,20 +246,18 @@ def _prop_blades(radius):
 def _aileron_mesh(side):
     """One full-span 3D aileron behind its hinge on the wing's trailing edge, on `side`."""
     s = float(side)
-    return [('ail', shapes.box((s * 0.56 * HALF_SPAN, -0.038, 0.0),
-                               (0.44 * HALF_SPAN, 0.038, 0.006), paint(SURFACE)))]
+    return [('ail', _lifting(-0.80 * HALF_SPAN, 0.075, 0.06, 0.0,
+                             lambda d, y, t: (s * (0.12 * HALF_SPAN + d), -y, t), paint(WHITE)))]
 
 
 def _elevator_mesh():
     """The oversized 3D elevator behind its hinge on the stabiliser's trailing edge."""
-    return [('elev', shapes.box((s * 0.5 * HSTAB_HALF, -0.032, 0.0),
-                                (0.5 * HSTAB_HALF, 0.032, 0.005), paint(SURFACE)))
-            for s in (-1.0, 1.0)]
+    return [('elev', _lifting(0.96 * HSTAB_HALF, 0.064, 0.05, 0.0, lambda d, y, t: (d, -y, t), paint(WHITE)))]
 
 
 def _rudder_mesh():
     """The 3D rudder behind its hinge on the fin's trailing edge."""
-    return [('rud', shapes.box((0.0, -0.036, -0.10), (0.005, 0.036, 0.090), paint(SURFACE)))]
+    return [('rud', _lifting(-0.19, 0.075, 0.05, 0.0, lambda d, y, t: (t, -y, -0.012 - d), paint(RED)))]
 
 
 #: The hinges, in the body: the ailerons' at the wing's trailing edge, the elevator's and the

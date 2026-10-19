@@ -169,8 +169,10 @@ def braille(depth, rgb, floor, width, height, colour=True, overlay=None, leaders
     steps = [pad[1:-1, :-2], pad[1:-1, 2:], pad[:-2, 1:-1], pad[2:, 1:-1]]
     edge = covered & np.any([(s == 0.0) | (np.abs(s - depth) > 0.04 * depth) for s in steps], 0)
     # A covered cell keeps 0.4 of its dots at the least: on 0.04 + 0.96 lum^1.5 a mid-grey shell
-    # read as a cloud of points.
-    lit = (covered & (0.40 + 0.60 * np.clip(lum, 0.0, 1.0) > _mask(*depth.shape))) | edge | over
+    # read as a cloud of points. Black paint keeps none - a wing's lettering, on the floor's 0.4 a
+    # blur.
+    keep = (0.40 + 0.60 * np.clip(lum, 0.0, 1.0)) * (lum > 0.004)
+    lit = (covered & (keep > _mask(*depth.shape))) | edge | over
     ground = (floor > 0.0) & ~covered
     lead = leaders & ~covered if leaders is not None else np.zeros_like(covered)
     on_dots = lit | ground | lead
