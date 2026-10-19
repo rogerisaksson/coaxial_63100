@@ -21,7 +21,7 @@ import sys
 import numpy as np
 
 from tools import REPO
-from tools.cores import build, emit, orders, trace, trace_mj
+from tools.cores import build, emit, layout, orders, trace, trace_mj, trace_np
 from tools.cores.wbc import FLAGS, INCLUDES
 
 #: Generated C as her chain's library is built, at -O3: a loop nest a statement, numpy's arithmetic
@@ -63,7 +63,7 @@ def digest(*parts):
         else:
             h.update(repr(x).encode())
     feed(parts)
-    for module in (trace, emit, orders, trace_mj):
+    for module in (trace, trace_np, trace_mj, emit, layout, orders):
         feed(module)
     with open(__file__, 'rb') as f:
         h.update(f.read())
@@ -231,7 +231,7 @@ def _batched_run(path, name, rest, outs, doubles, matmul):
     lib, cfn = loaded(path, name, batch=True)
     work = np.empty(max(1, doubles))
     lapack = ctypes.addressof(blas()) if matmul else None
-    spans, total = emit.blocks(outs)
+    spans, total = layout.blocks(outs)
 
     def run(*arrays):
         ins = [np.ascontiguousarray(a, dtype=float) for a in arrays]

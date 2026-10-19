@@ -135,6 +135,8 @@ TOUCHES = (
     ('host/tools/cores/law.py',                (STRUCTURE, WBC_CORE)),
     ('host/tools/cores/trace.py',              (STRUCTURE, COMPILED, SYSID, WEAR, ORTHO)),
     ('host/tools/cores/trace_mj.py',           (STRUCTURE, COMPILED, ORTHO)),
+    ('host/tools/cores/trace_np.py',           (STRUCTURE, COMPILED, SYSID, WEAR, ORTHO)),
+    ('host/tools/cores/layout.py',             (STRUCTURE, COMPILED, SYSID, WEAR, ORTHO)),
     ('host/tools/cores/emit.py',               (STRUCTURE, COMPILED, SYSID, WEAR, ORTHO)),
     ('host/tools/cores/orders.py',             (STRUCTURE, COMPILED, SYSID, WEAR)),
     ('host/tools/cores/held.py',               (STRUCTURE, COMPILED, SYSID, WEAR, ORTHO)),

@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Her numpy compiled to C beside numpy's own (`tools.cores.trace`, `emit`, `held`, `bodied`).
 
-Her sensing on her body over random configurations - every array it returns, her data and her
-scratch after, bit for bit, its time and numpy's - and at every pass of her law as she walks.
+numpy's reductions, selections, comparisons and its ties of zeros; her sensing on her body over
+random configurations - every array it returns, her data and her scratch after, bit for bit, its
+time and numpy's - and at every pass of her law as she walks.
 The regressor's: test_sysid. Where numpy's arithmetic is not this C's (`law.exact_host`), what
 is not held stays numpy's own."""
 import os
@@ -43,6 +44,34 @@ def _configurations(b, rng):
 def _apart(got, want):
     from tools.cores.orders import same
     return any(not same(got[k], want[k]) for k in want)
+
+
+def _numpys(x, y, m):
+    """numpy's sums along each axis, contiguous and strided, full, its mean, min, max and initial;
+    where, clip, nan_to_num, isnan, its comparisons and logic, its norms; a tie of zeros at its
+    maximum and minimum, the sign arctan2 reads."""
+    with np.errstate(invalid='ignore'):
+        roots = np.sqrt(x)
+    zero = np.minimum(x, 0.0) * 0.0
+    return {'sums': (x.sum(axis=1), x.sum(axis=0), x.sum(), x[:, ::2].sum(axis=1), np.add.reduce(m, axis=1), m.sum()),
+            'mean': (np.mean(y), y.mean(axis=0)), 'min': (x.min(axis=1), np.min(y, axis=0, initial=0.25)),
+            'max': (np.max(x, axis=0), m.max(axis=2)), 'where': np.where(x > 0.3, x, y), 'clip': np.clip(y, -0.5, 0.5),
+            'nans': (np.nan_to_num(roots), np.isnan(roots)), 'flags': (x > 0.0) & ~(y < 0.0) | (x == y),
+            'norms': (np.linalg.norm(x, axis=1), np.linalg.norm(y[0])),
+            'ties': np.arctan2(np.maximum(zero, 0.0), -1.0) + 2.0 * np.arctan2(np.minimum(0.0, zero), -1.0)}
+
+
+def test_numpys_reductions_and_selections_in_c(report, c):
+    """`_numpys` compiled (`held.compiled`): held bit for bit on its traced arrays and fresh draws."""
+    from tools.cores import held, trace
+    rng = np.random.default_rng(13)
+    args = (rng.normal(size=(4, 9)), rng.normal(size=(4, 9)), rng.normal(size=(2, 3, 5)))
+    try:
+        run = held.compiled(_numpys, args, (0, 1, 2), 'numpys', fresh=4)
+        report.check("numpy's reductions, selections and ties of zeros in C bit for bit", True,
+                     '%d statements' % len(run.prog.statements))
+    except (trace.Untraced, AssertionError, RuntimeError) as e:
+        report.check("numpy's reductions, selections and ties of zeros in C bit for bit", False, str(e)[:300])
 
 
 def test_her_sensing_in_c_is_her_numpys(report, c):
@@ -105,7 +134,8 @@ def test_her_sensing_in_c_as_she_walks(report, c):
                  tally[0] >= PASSES // 3 - 1 and not tally[1], '%d apart' % tally[1])
 
 
-ROSTER = (test_her_sensing_in_c_is_her_numpys, test_her_sensing_in_c_as_she_walks)
+ROSTER = (test_numpys_reductions_and_selections_in_c, test_her_sensing_in_c_is_her_numpys,
+          test_her_sensing_in_c_as_she_walks)
 
 
 def main(argv=None):
