@@ -15,7 +15,7 @@ from coaxial.graphics import shapes
 from coaxial.graphics.callouts import line
 from coaxial.graphics.helicopter import force_arrows
 from coaxial.graphics.lit import CORE, PLATE, paint, project
-from coaxial.graphics.quadcopter import (BLADES_RAD_S, BOARD_H, BOARD_R, CARBON, CELLS, LEG_R,
+from coaxial.graphics.quadcopter import (BLADES_RAD_S, BOARD_H, BOARD_R, CARBON, CELLS,
                                          MASK, MOTOR_R, RIM_EVERY, RIM_INK, SHAFT_R, SINK_H,
                                          SINK_R, Mesh, _at, pose_meshes, render_craft)
 from machine import ornithopter as orni_phys
@@ -37,24 +37,26 @@ MOTOR_L, MOTOR_Y = 0.040, 0.020
 
 _ORNI_MESH = {}
 
+#: The pod's dust, its ribs' and veins' dusk, its wings' sand.
+SHELL, DUSK, WING = (128, 120, 104), (58, 54, 48), (150, 142, 126)
 
-#: The pod's dusty black, its wings' sand-coloured skin.
-DUSK, WING = (58, 54, 48), (150, 142, 126)
-
-
-def _carapace():
-    """The pod along +z: a tapering tail boom, a deep thorax under the shoulders, the cockpit's
-    nose ahead, dusty black."""
-    stations = [
-        (-0.68, 0.000, 0.018, 0.012), (-0.55, -0.006, 0.028, 0.020),
-        (-0.40, -0.020, 0.050, 0.036), (-0.24, -0.042, 0.074, 0.060),
-        (-0.08, -0.056, 0.088, 0.080), (0.06, -0.060, 0.094, 0.090),
-        (0.18, -0.056, 0.092, 0.088), (0.28, -0.044, 0.084, 0.078),
-        (0.36, -0.026, 0.066, 0.060), (0.42, -0.004, 0.040, 0.034),
-    ]
-    rings = [(z, rx, 0.5 * (yt - yb), -0.5 * (yt + yb), 0.0) for z, yb, yt, rx in stations]
-    return shapes.loft(rings, paint(DUSK), poles=(-0.69, 0.43), along='z')
-
+#: Its body, designed (no model), tail to nose: rings (z, half-width, half-height, middle's
+#: height), m; glazed ahead of GLASS_Z, ribbed every RIB_M, the abdomen's segments SEGMENT_M
+#: long behind WAIST_Z.
+BODY = ((-0.66, 0.0, 0.0, 0.026), (-0.60, 0.014, 0.015, 0.026), (-0.50, 0.018, 0.020, 0.024),
+        (-0.38, 0.024, 0.026, 0.022), (-0.26, 0.030, 0.033, 0.020), (-0.16, 0.036, 0.040, 0.016),
+        (-0.11, 0.045, 0.048, 0.012), (-0.06, 0.055, 0.060, 0.006), (0.0, 0.058, 0.064, 0.004),
+        (0.06, 0.055, 0.062, 0.006), (0.11, 0.050, 0.052, 0.012), (0.135, 0.058, 0.056, 0.020),
+        (0.17, 0.068, 0.064, 0.020), (0.21, 0.070, 0.066, 0.020), (0.25, 0.064, 0.060, 0.020),
+        (0.28, 0.050, 0.048, 0.020), (0.30, 0.030, 0.030, 0.020), (0.31, 0.0, 0.0, 0.020))
+GLASS_Z, RIB_M, WAIST_Z, SEGMENT_M = 0.13, 0.045, -0.11, 0.06
+#: A wing's chord along its span, both over WING_CHORD and the span; its leading edge
+#: LEAD of the chord ahead of the shoulder.
+PLAN, LEAD = ((0.0, 0.45), (0.08, 0.6), (0.3, 0.9), (0.5, 1.0), (0.7, 0.95), (0.85, 0.8),
+              (0.95, 0.55), (1.0, 0.15)), 0.3
+#: The V-tail's fins: span, root and tip chords, the tip's leading edge back, dihedral (deg),
+#: their roots' (y, z), m.
+TAIL, TAIL_AT = (0.10, 0.07, 0.035, 0.03, 40.0), (0.02, -0.575)
 
 def _drive(k, z, frame):
     """The wing pair's drive at station `z`: its motor aft of it along z with the board and
@@ -75,16 +77,46 @@ def _drive(k, z, frame):
     return out
 
 
+def _body():
+    """The pod lofted tail to nose: dust, its head glass between ribs, its abdomen segmented."""
+    from coaxial.model.blocks import numpy as np
+    n = int(round((BODY[-1][0] - BODY[0][0]) / 0.012))
+    zs = [BODY[0][0] + (BODY[-1][0] - BODY[0][0]) * j / n for j in range(1, n)]
+    rings = [(z, shapes.over(BODY, z, 1), shapes.over(BODY, z, 2), -shapes.over(BODY, z, 3)) for z in zs]
+
+    def coat(c):
+        z, x = c[:, 2], c[:, 0]
+        rib = ((z - GLASS_Z) % RIB_M < 0.009) | (np.abs(x) < 0.005)
+        joint = (WAIST_Z - z) % SEGMENT_M < 0.009
+        return np.where(z > GLASS_Z, np.where(rib, paint(DUSK), CORE),
+                        np.where((z < WAIST_Z) & joint, paint(DUSK), paint(SHELL)))
+    return shapes.loft(rings, coat, poles=(BODY[0][0], BODY[-1][0]), along='z')
+
+
+def _fin(s):
+    """A V-tail fin on side `s`, swept, tapered, its dihedral TAIL's."""
+    span, root, tip, sweep, dihedral = TAIL
+    y0, z0 = TAIL_AT
+    d = math.radians(dihedral)
+    out, up = (s * math.cos(d), math.sin(d), 0.0), (-s * math.sin(d), math.cos(d), 0.0)
+
+    def edges(r):
+        f = r / span
+        return -sweep * f, -sweep * f - root - (tip - root) * f
+    rows = [-k * (sweep + root) / 5.0 for k in range(6)]
+    return shapes.surface([span * j / 4.0 for j in range(5)], rows, edges, shapes.foil(edges, 0.06),
+                          lambda r, c, t: (r * out[0] + t * up[0], y0 + r * out[1] + t * up[1], z0 + c),
+                          paint(WING))
+
+
 def _orni_parts(see='shell'):
     """[(name, mesh)]: the ornithopter body in its own axes, x right, y up, z ahead; `see` a
     layer: the airframe a spine with its drives and legs, the pack in the thorax, bare the
-    spine's line, the cranks and the tail."""
+    spine's line and the cranks."""
     carbon, shell, frame = paint(CARBON), see == 'shell', see != 'bare'
-    out = ([('carapace', _carapace()),
-            ('canopy', shapes.ellipsoid((0.0, 0.07, 0.26), (0.075, 0.05, 0.14), CORE, rows=7))]
-           if shell else
-           [('spine', _at(shapes.drum(0.008 if frame else 0.003, 1.06, 'z', PLATE), None,
-                          (0.0, 0.012, -0.13)))])
+    out = ([('body', _body()), ('fin0', _fin(-1.0)), ('fin1', _fin(1.0))] if shell else
+           [('spine', _at(shapes.drum(0.008 if frame else 0.003, 0.96, 'z', PLATE), None,
+                          (0.0, 0.012, -0.18)))])
     if see == 'pack':
         out.append(('pack', shapes.box((0.0, MOTOR_Y, -0.005), (0.022, 0.018, 0.045), paint(CELLS))))
     out += _drive(0, FORE_Z, frame) + _drive(1, AFT_Z, frame)
@@ -95,31 +127,32 @@ def _orni_parts(see='shell'):
         out.append(('sh_a%d' % (s > 0),
                     shapes.ellipsoid((s * SHOULDER_X, SHOULDER_Y + 0.004, AFT_Z),
                                      (0.015, 0.011, 0.015), PLATE, rows=6)))
-        out.append(('vtail%d' % (s > 0),
-                    _at(shapes.ellipsoid((0.0, 0.0, 0.0), (0.10, 0.004, 0.035), paint(WING), rows=6),
-                        shapes.turn_about('z', s * 34.0) @ shapes.turn_about('y', -s * 16.0),
-                        (s * 0.055, 0.04, -0.62))))
-        for k, z in enumerate(STRUT_Z):
-            if not frame:
-                continue
-            out.append(('leg%d_%d' % (s > 0, k),
-                        _at(shapes.drum(LEG_R, SKID_M - 0.032, 'y', carbon),
-                            shapes.turn_about('z', s * 28.0) @ shapes.turn_about('x', (k - 0.5) * 30.0),
-                            (s * 0.78 * SKID_X, -0.5 * (SKID_M + 0.032), z))))
-            out.append(('claw%d_%d' % (s > 0, k),
-                        shapes.ellipsoid((s * SKID_X, -SKID_M, z), (FOOT_M,) * 3, PLATE, rows=6)))
+        for k, z in enumerate(STRUT_Z if frame else ()):
+            out += [('leg%d_%d' % (s > 0, k), shapes.tube([(s * 0.035, -0.035, z), (s * 0.105, 0.0, z),
+                                                         (s * SKID_X, -SKID_M, z)], 0.005, carbon)),
+                    ('claw%d_%d' % (s > 0, k), shapes.ellipsoid((s * SKID_X, -SKID_M, z), (FOOT_M,) * 3,
+                                                                PLATE, rows=6))]
     return out
 
 
 def _wing_blade(span, side):
-    """One slender dragonfly wing extending along `side * +x` from its shoulder joint at the origin."""
-    s = float(side)
-    return [
-        ('spar', _at(shapes.drum(0.007, 0.88 * span, 'x', paint(CARBON)), None,
-                     (s * 0.44 * span, 0.003, 0.012))),
-        ('blade', shapes.ellipsoid((s * 0.50 * span, 0.0, -0.004),
-                                   (0.50 * span, 0.003, 0.5 * orni_phys.WING_CHORD), paint(WING), rows=7)),
-    ]
+    """A dragonfly wing out along `side` x from its shoulder at the origin: its membrane on
+    PLAN's planform with two veins along it and its pterostigma dusk, its spar carbon."""
+    chord = orni_phys.WING_CHORD
+
+    def edges(r):
+        front = LEAD * chord * (1.0 - 0.5 * max(0.0, r / span - 0.9) / 0.1)
+        return front, front - chord * shapes.over(PLAN, r / span, 1)
+
+    def veined(r, c, _side):
+        front, back = edges(r)
+        u = (front - c) / max(front - back, 1e-6)
+        return 0.2 < u < 0.28 or 0.55 < u < 0.63 or (0.8 < r / span < 0.88 and u < 0.3)
+    rows = [LEAD * chord - chord * j / 8.0 for j in range(9)]
+    return [('spar', _at(shapes.drum(0.004, 0.95 * span, 'x', paint(CARBON)), None,
+                         (side * 0.475 * span, 0.002, 0.9 * LEAD * chord))),
+            ('blade', shapes.surface([span * j / 18.0 for j in range(19)], rows, edges, shapes.foil(edges, 0.03),
+                                     lambda r, c, t: (side * r, t, c), paint(WING), (veined, paint(DUSK))))]
 
 
 def orni_mesh(which, see='shell'):

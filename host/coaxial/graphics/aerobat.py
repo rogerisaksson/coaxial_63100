@@ -14,9 +14,9 @@ import math
 from coaxial.graphics import shapes
 from coaxial.graphics.helicopter import force_arrows
 from coaxial.graphics.lit import CORE, PLATE, paint
-from coaxial.graphics.quadcopter import (BLADE_W, BLADES_RAD_S, BOARD_H, BOARD_R, CARBON, CELLS,
-                                         MASK, MOTOR_R, PROP, SHAFT_R, SINK_H, SINK_R, Mesh, _at,
-                                         pose_meshes, render_craft, swept_rings)
+from coaxial.graphics.quadcopter import (BLADES_RAD_S, BOARD_H, BOARD_R, CARBON, CELLS,
+                                         MASK, MOTOR_R, SHAFT_R, SINK_H, SINK_R, Mesh, _at,
+                                         pose_meshes, prop_blade, render_craft, swept_rings)
 from machine import aerobat as aero_phys, airfield
 from machine.aerobat import form
 
@@ -339,11 +339,8 @@ def _aero_parts(see='shell'):
 
 
 def _prop_blades(radius):
-    """Two symmetric tractor propeller blades in the x-z plane about the y axis, shown when slow."""
-    prop = paint(PROP)
-    return [('blade', shapes.ellipsoid((s * radius / 2.0, 0.0, 0.0),
-                                       (radius / 2.0, 0.004, BLADE_W * 0.85), prop, rows=7))
-            for s in (-1.0, 1.0)]
+    """Two tractor propeller blades in the x-z plane about the y axis, shown when slow."""
+    return [('blade', prop_blade(radius, s)) for s in (-1.0, 1.0)]
 
 
 def aero_mesh(which, see='shell'):

@@ -32,9 +32,9 @@
   (blade_pitch 0.3556m)
   (inflow_floor 0.35))
 
-(defblock tail_rotor tail_150_antitorque
+(defblock tail_rotor tail_90_antitorque
   (boom_arm 0.68m)
-  (radius 0.15m)
+  (radius 0.09m)
   (pitch_limit 16.0deg)
   (k_thrust 0.000060))
 

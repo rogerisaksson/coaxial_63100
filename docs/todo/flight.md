@@ -23,6 +23,11 @@
 - **The courses after the aerobatics** (aircraft.md): brought to the
   routines' new shape - close by, watched, sized to the crafts. DOD: to be
   agreed.
+- **The rotorcraft's routines over the runway** (aircraft.md): the quad, the
+  helicopter and the ornithopter lifting from the runway and flying their
+  figures over it as the aerobat does, none among the houses or by the
+  trees. DOD: every routine's track within the runway's strip and clear of
+  every solid by 3 m, flown whole on its stand-in boards.
 - **The aerobat's landing** (aircraft.md): its touch, its roll-out unsteered
   in wind. DOD: a touch under 0.5 m/s within 0.5 m of the centreline,
   stopped on the runway, still or gusty.

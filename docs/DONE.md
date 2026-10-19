@@ -211,3 +211,8 @@ the hundred before these: [DONE_1-50](DONE_1-50.md),
 52. The rotorcraft swept past the spectator before their figures and the
     figures brought down to 4 m, full tilt to 15-20 m where 22-63; the four
     pages watched from one spot by the runway ([quad](findings/quad.md)).
+53. The helicopter drawn a T-REX 700's and the quad a Hunter's, measured off
+    models, the ornithopter a dragonfly's: a canopy over frames, a boom on
+    supports, bowed gear; plates on flat arms, the pack, a GPS mast, legs on
+    the sky's feet; a ribbed glass head, veined wings
+    ([aircraft](findings/aircraft.md)).

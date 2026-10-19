@@ -120,10 +120,48 @@ def strut(a, b, radius, material):
     return corners @ turn.T + 0.5 * (a + b), triangles, uv, materials
 
 
+def joined(meshes):
+    """Meshes laid end to end as one."""
+    from coaxial.model.blocks import numpy as np
+    base, triangles = 0, []
+    for corners, t, _uv, _m in meshes:
+        triangles.append(t + base)
+        base += len(corners)
+    return (np.vstack([m[0] for m in meshes]), np.vstack(triangles), np.vstack([m[2] for m in meshes]),
+            np.concatenate([m[3] for m in meshes]))
+
+
+def tube(points, radius, material):
+    """A tube `radius` round through `points`, a strut a leg, none along -z."""
+    return joined([strut(a, b, radius, material) for a, b in zip(points, points[1:])])
+
+
+def bowed(a, b, c, n=8):
+    """`n` + 1 points along the quadratic curve from `a` toward `b` to `c`."""
+    return [tuple((1 - t) ** 2 * p + 2 * (1 - t) * t * q + t * t * r for p, q, r in zip(a, b, c))
+            for t in (j / n for j in range(n + 1))]
+
+
 def naca(u):
     """A symmetric NACA section's half thickness at `u` of its chord, over its thickness."""
     u = min(1.0, max(0.0, u))
     return 5.0 * (0.2969 * math.sqrt(u) - 0.1260 * u - 0.3516 * u * u + 0.2843 * u ** 3 - 0.1036 * u ** 4)
+
+
+def foil(edges, thick):
+    """A section `thick` of its chord between `edges(s) -> (front, back)`: `surface`'s half."""
+    def half(s, c):
+        front, back = edges(s)
+        return thick * (front - back) * naca((front - c) / max(front - back, 1e-6))
+    return half
+
+
+def over(table, key, k):
+    """Column `k` of `table`, its rows ascending by their first, at `key`: linear between rows."""
+    for a, b in zip(table, table[1:]):
+        if key <= b[0]:
+            return a[k] + (key - a[0]) / (b[0] - a[0]) * (b[k] - a[k])
+    return table[-1][k]
 
 
 def surface(stations, rows, edges, half, place, colour, ink=None):

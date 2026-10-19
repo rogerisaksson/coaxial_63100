@@ -15,7 +15,7 @@ MuJoCo, each on its 63100 drives. The quad and the core in C it flies on:
 | airfield | the aerobat's runway, its course laid for a plane - an air gate, a limbo, a hoop, a slalom, a knife gate on one line of arcs it flies by L1 - what stands about them |
 | course | the gates among trees, houses and cars, a lap a line flown as rows; `flown` any laid line |
 | sweep | the rotorcraft's sweep past the spectator before their figures, out down the runway and back past them |
-| helicopter | the 3D helicopter in MuJoCo: collective and cyclic swashplate, tail rotor, stunts; `airframe`, `sky`, `law`, `observer`, and `kit` the SO(3) law's pieces the three share |
+| helicopter | the 3D helicopter in MuJoCo: collective and cyclic swashplate, tail rotor, stunts; `airframe`, `form` a T-REX 700's measured form - drawn -, `sky`, `law`, `observer`, and `kit` the SO(3) law's pieces the three share |
 | ornithopter | the Dune-style four-wing flapping ornithopter in MuJoCo: articulated wings, dive fold, stunts; `airframe`, `sky`, `law`, `observer` |
 | aerobat | an Extra 300 in MuJoCo: prop-hang, high-deflection surfaces, stunts; `airframe`, `form` its measured form - drawn, and what touches the runway -, `sky`, `law`, `observer` |
 | wingborne | a plane's wing and tail in the air, its run on its wheels and its law wing-borne |

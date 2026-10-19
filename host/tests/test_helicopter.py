@@ -99,7 +99,7 @@ def test_helicopter_wind_observer_and_inverted_hold(report):
 def test_helicopter_boards_and_view(report):
     """Two boards fly the three; four renderers and HUDs fit at 150x44."""
     from coaxial import Coaxial63100
-    from coaxial.graphics import (aerobat as aero_gfx, helicopter as heli_gfx,
+    from coaxial.graphics import (aerobat as aero_gfx, engine, helicopter as heli_gfx, shapes,
                                   ornithopter as orni_gfx, quadcopter as quad_gfx)
     from machine import aerobat, aerobatics, aerokin, helicopter, ornithopter
     from machine.modes import SIMULATED
@@ -158,7 +158,7 @@ def test_helicopter_boards_and_view(report):
                 con.print(fn(*args))
             outs.append(ansi_plain(cap.get()))
         h_txt, o_txt, a_txt, q_txt = outs
-        m, cam = heli_gfx.shapes.view(30.0, 0.0), heli_gfx.engine.fine(heli_gfx.engine.camera(60, 24, 1.8, distance=7.0))
+        m, cam = shapes.view(30.0, 0.0), engine.fine(engine.camera(60, 24, 1.8, distance=7.0))
         up_p = {'at': (0.0, 0.0, 0.0), 'turn': ((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0))}
         inv_p = {'at': (0.0, 0.0, 0.0), 'turn': ((1.0, 0.0, 0.0), (0.0, -1.0, 0.0), (0.0, 0.0, -1.0))}
         arr_ok = all(g.force_arrows(up_p, [25.0, 0.0], g.ARROWS, m, cam, up_p['at'])[0][0][:45].any()

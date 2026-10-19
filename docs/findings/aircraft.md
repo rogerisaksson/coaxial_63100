@@ -63,16 +63,26 @@ burn, land).
 
 ## Drawn
 
-Four meshes of lofts, drums, ellipsoids and boxes (`shapes.box`, flat-faced),
-each judged by PNG at 100 x 36 cells alone and on its page: the aerobat an
-Extra 300's, measured off a model (`machine.aerobat.form`); the quad a
-tactical drone's - an olive slab on square arms, a sensor ball under its
-nose, an aerial; the helicopter a Goblin Raw's - two side plates, the can and
-the head on top, a battery tray and a red nose block, a long boom to a tall
-red fin and a stabiliser, skids on two rails; the ornithopter Dune's - a long
-tapering body, two bulging eyes of a cockpit, four thin wings, insect legs.
-Skin, plate and accent paints: carbon's halftone leaves a cloud of dots, so
-the bodies are light and the fittings dark.
+Four meshes of lofts, surfaces, drums, tubes and boxes, each judged by PNG
+at 150 x 62 cells alone and at 80 x 30 on its page: the aerobat an Extra
+300's and the helicopter a T-REX 700's, measured off models
+(`machine.aerobat.form`, `machine.helicopter.form`); the quad a Hunter
+long-range quad's, measured off a model - two plates on flat arms, the pack
+under them, the camera ahead, a GPS mast, an aerial; the ornithopter
+designed, no model - a ribbed glass head, a segmented abdomen, veined
+dragonfly wings, a V-tail, insect legs. Skin, plate and accent paints:
+carbon's halftone leaves a cloud of dots, so the bodies are light and the
+fittings dark.
+
+Each laid on what the sky flies and stands on. The T-REX at 0.662 a unit,
+its tail hub at the boom's 0.68 m, its disc 4 mm over the sky's 0.175 m; its
+tail rotor 0.09 m (0.15 drawn before, its tip 7 mm over the ground); its skids
+at the sky's feet 0.135 m out, the model's 0.068, the bows spread to them.
+The Hunter at 0.0216 m a cm, its motors' 19.6 cm reach at the rotors'; its
+legs on the sky's feet at 0.7 of the arms (the rails before stood 0.1 m out,
+0.11 off them); its two-bladed props on its planform at 16 in, the aerobat's
+on the same. The 63100 stacks coaxial: under each motor, the helicopter's
+main under its mast, its tail's out from the boom's side.
 
 The Extra at the 1.6 m span, off a model 21.9 units across: fuselage 1.45 m
 to the spinner's tip (drawn before, 1.14), the stabiliser's quarter chord

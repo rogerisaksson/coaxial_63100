@@ -21,13 +21,27 @@ from machine import ansi, quad
 #: propellers' tips 0.68 m out.
 SIGHT, REACH = 3.75, 0.8
 
-#: The frame's parts, m: the centre plate, an arm's tube, a rotor's motor (42 x 27 mm: 39 W a
-#: hover, aircraft.md), the Coaxial 63100 board behind its stator (68 mm) and the finned
-#: heatsink under it, a shaft, a skid's leg, a propeller's blade, a hub.
-PLATE_R, PLATE_H = 0.1, 0.03
-ARM_R, MOTOR_R, MOTOR_L, BOARD_R, BOARD_H = 0.012, 0.021, 0.027, 0.034, 0.005
+#: A rotor's motor (42 x 27 mm: 39 W a hover, aircraft.md), the Coaxial 63100 board behind its
+#: stator (68 mm) and the finned heatsink under it, a shaft, a leg, a hub, m.
+MOTOR_R, MOTOR_L, BOARD_R, BOARD_H = 0.021, 0.027, 0.034, 0.005
 SINK_R, SINK_H, SHAFT_R = 0.032, 0.006, 0.004
-LEG_R, BLADE_W, HUB_R = 0.008, 0.022, 0.014
+LEG_R, HUB_R = 0.006, 0.014
+
+#: A Hunter long-range quad, measured off a model, cm: its motors' reach from the middle; its
+#: plates (nose, tail, half-width, half-width and half-length where the arms join, the arms'
+#: plate's and the top's thickness, the top's height over the arms'); an arm's width; the pack
+#: under the plates (nose, tail, half-width, depth, gap); the camera between them ahead (length,
+#: half-width, bottom, top over the arms'); the GPS on its mast (back, height, radius, depth);
+#: the aerial aft (its foot's back and height, its tip's); a blade's chord along its radius,
+#: both over the radius.
+REACH_CM = 19.63
+PLATES = (7.2, -6.5, 1.75, 2.5, 3.5, 0.5, 0.2, 3.55)
+ARM_W, PACK, CAMERA = 1.6, (4.5, -4.0, 2.1, 3.7, 0.45), (2.8, 1.5, 0.55, 3.05)
+GPS, AERIAL = (4.0, 7.4, 1.7, 1.2), ((6.8, 2.55), (10.5, 6.35))
+CHORD = ((0.06, 0.10), (0.25, 0.11), (0.4, 0.15), (0.65, 0.15), (0.8, 0.12), (0.92, 0.08),
+         (0.98, 0.045), (1.0, 0.02))
+#: The form's unit at the rotors' reach, m a cm; the arms' plate's middle, m up.
+K, ARM_Y = math.hypot(*quad.ROTOR_AT[0]) / REACH_CM, 0.011
 
 #: What a page draws of a craft, S stepping on: the craft whole, its airframe, its pack in it,
 #: and bare - the shafts, blades, surfaces and cranks that move.
@@ -58,21 +72,19 @@ def _at(mesh, turn=None, spot=(0.0, 0.0, 0.0)):
     return corners + np.asarray(spot, float), triangles, uv, materials
 
 
-def _arm(x, z, material):
-    """An arm's round boom from the body's side out to the can at (x, z)."""
-    out = math.hypot(x, z)
-    length = out - PLATE_R * 0.7 - MOTOR_R
-    mid = PLATE_R * 0.7 + length / 2.0
-    turn = shapes.turn_about('y', -math.degrees(math.atan2(z, x)))
-    return _at(shapes.drum(ARM_R, length, 'x', material), turn, (mid * x / out, 0.0, mid * z / out))
+def _arm(root, tip, material):
+    """A flat arm from `root` (x, z) on the plates out to its pad at `tip`."""
+    (x0, z0), (x1, z1) = root, tip
+    length = math.hypot(x1 - x0, z1 - z0)
+    turn = shapes.turn_about('y', -math.degrees(math.atan2(z1 - z0, x1 - x0)))
+    return _at(shapes.box((0.0, 0.0, 0.0), (0.5 * length, 0.5 * K * PLATES[5], 0.5 * K * ARM_W), material),
+               turn, (0.5 * (x0 + x1), ARM_Y, 0.5 * (z0 + z1)))
 
 
-def _hump():
-    """The body: a hump along z, flat under, its back rising to the middle."""
-    rings = [(-0.20, 0.05, 0.014, 0.0), (-0.12, 0.08, 0.030, 0.012), (-0.04, 0.095, 0.046, 0.022),
-             (0.04, 0.095, 0.046, 0.022), (0.12, 0.085, 0.036, 0.014), (0.20, 0.06, 0.022, 0.004),
-             (0.25, 0.03, 0.012, -0.004)]
-    return shapes.loft(rings, paint(SLATE), poles=(-0.21, 0.26), along='z')
+def _box(name, nose, tail, half, bottom, top, material):
+    """(name, a box from `tail` to `nose`, cm ahead, `half` cm across, `bottom` to `top` m up)."""
+    return (name, shapes.box((0.0, 0.5 * (bottom + top), 0.5 * K * (nose + tail)),
+                             (K * half, 0.5 * (top - bottom), 0.5 * K * (nose - tail)), material))
 
 
 def drive(x, y, z, length=MOTOR_L, sink=None):
@@ -89,51 +101,74 @@ def drive(x, y, z, length=MOTOR_L, sink=None):
 
 
 def parts(see='shell'):
-    """[(name, mesh)]: the frame in its own axes, x right, y up, z ahead - a tactical quad's:
-    a slate hump on four round arms, a gimbal ball under its nose, an aerial aft, two skid
-    frames; the rotors at `quad.ROTOR_AT`, the skids' rails at `quad.SKID_M`; `see` a layer of
-    LAYERS: the airframe two carbon plates, the pack between them, bare the shafts on their arms."""
-    slate, dark, shell = paint(SLATE), paint(DARK), see == 'shell'
-    frame, top, arm = see != 'bare', quad.DISC_M, 0.011
+    """[(name, mesh)]: the frame in its own axes, x right, y up, z ahead - a long-range quad's: two
+    plates on four flat arms, the camera between them ahead, the pack under them, the GPS on its
+    mast, the aerial aft, a leg under each arm to its skid's foot (`quad.SKID_M`); the rotors at
+    `quad.ROTOR_AT`; `see` a layer of LAYERS: the airframe its plates, arms and legs, the pack
+    under them, bare the shafts on their arms."""
+    shell, frame, top = see == 'shell', see != 'bare', quad.DISC_M
+    nose, tail, half, joint_w, joint_l, arm_t, top_t, top_h = PLATES
+    plate, carbon = paint(SLATE if shell else CARBON), paint(CARBON)
+    a0, a1, deck = ARM_Y - 0.5 * K * arm_t, ARM_Y + 0.5 * K * arm_t, ARM_Y + K * top_h
+    out = []
+    if frame:
+        out += [_box('plate', nose, tail, half, a0, a1, plate),
+                _box('joint', joint_l, -joint_l, joint_w, a0, a1, plate),
+                _box('deck', nose, tail, half, deck - 0.5 * K * top_t, deck + 0.5 * K * top_t, plate)]
+        out += [('post%d' % k, _at(shapes.drum(0.004, deck - a1, 'y', PLATE), None,
+                                   (sx * K * (half - 0.3), 0.5 * (a1 + deck), K * z)))
+                for k, (sx, z) in enumerate((sx, z) for sx in (-1.0, 1.0) for z in (nose - 0.6, tail + 0.6))]
+    if see in ('shell', 'pack'):
+        p_nose, p_tail, p_half, depth, gap = PACK
+        out.append(_box('pack', p_nose, p_tail, p_half, a0 - K * (gap + depth), a0 - K * gap, paint(CELLS)))
     if shell:
-        out = [('hump', _hump()),
-               ('ball', shapes.ellipsoid((0.0, -0.045, 0.14), (0.028, 0.028, 0.028), dark, rows=7)),
-               ('lens', shapes.ellipsoid((0.0, -0.045, 0.168), (0.011, 0.011, 0.005), CORE, rows=5)),
-               ('aerial', _at(shapes.drum(0.004, 0.11, 'y', dark), None, (0.05, 0.09, -0.12)))]
-    elif frame:
-        out = [('plate', shapes.box((0.0, -0.02, 0.0), (0.075, 0.003, 0.14), paint(CARBON))),
-               ('deck', shapes.box((0.0, 0.028, 0.0), (0.075, 0.003, 0.14), paint(CARBON)))]
-        if see == 'pack':
-            out.append(('pack', shapes.box((0.0, 0.004, -0.01), (0.0225, 0.02, 0.07), paint(CELLS))))
-    else:
-        out = []
-    for s in (-1.0, 1.0) if frame else ():
-        out.append(('rail%d' % (s > 0), _at(shapes.drum(0.006, 0.36, 'z', dark), None,
-                                             (s * 0.1, -quad.SKID_M, 0.0))))
-        out += [('leg%d_%d' % (s > 0, k), _at(shapes.drum(LEG_R, quad.SKID_M, 'y', dark), None,
-                                               (s * 0.1, -quad.SKID_M / 2.0, z)))
-                for k, z in enumerate((-0.14, 0.14))]
+        length, c_half, c_bottom, c_top = CAMERA
+        back, high, radius, thick = GPS
+        (foot_b, foot_h), (tip_b, tip_h) = AERIAL
+        gps, tip = (0.0, ARM_Y + K * high, -K * back), (0.0, ARM_Y + K * tip_h, -K * tip_b)
+        out += [_box('camera', nose, nose - length, c_half, ARM_Y + K * c_bottom, ARM_Y + K * c_top, paint(DARK)),
+                ('lens', _at(shapes.drum(K, 0.01, 'z', CORE), None,
+                             (0.0, ARM_Y + 0.5 * K * (c_bottom + c_top), K * nose + 0.005))),
+                ('mast', shapes.strut((0.0, deck, 0.0), gps, 0.005, paint(ACCENT))),
+                ('gps', _at(shapes.drum(K * radius, K * thick, 'y', paint(SKIN)), None, gps)),
+                ('aerial', shapes.strut((0.0, ARM_Y + K * foot_h, -K * foot_b), tip, 0.003, carbon)),
+                ('cap', shapes.ellipsoid(tip, (0.012, 0.012, 0.012), paint(ACCENT), rows=6))]
     for k, (x, z) in enumerate(quad.ROTOR_AT):
         if frame:
-            out += [('arm%d' % k, _arm(x, z, slate if shell else paint(CARBON)))]
-            out += [(name + str(k), mesh) for name, mesh in drive(x, arm, z)]
+            foot = (0.7 * x, -quad.SKID_M, 0.7 * z)
+            root = (math.copysign(K * joint_w, x), math.copysign(K * joint_l, z))
+            out += [('arm%d' % k, _arm(root, (x, z), plate)),
+                    ('pad%d' % k, _at(shapes.drum(BOARD_R + 0.003, K * arm_t, 'y', plate), None, (x, ARM_Y, z))),
+                    ('leg%d' % k, shapes.strut((foot[0], a0, foot[2]), foot, LEG_R, carbon)),
+                    ('foot%d' % k, shapes.ellipsoid(foot, (quad.FOOT_M,) * 3, carbon, rows=6))]
+            out += [(name + str(k), mesh) for name, mesh in drive(x, a1, z)]
         else:
             out.append(('rod%d' % k, _at(shapes.drum(0.003, math.hypot(x, z), 'z', PLATE),
                                          shapes.turn_about('y', math.degrees(math.atan2(x, z))),
-                                         (x / 2.0, arm, z / 2.0))))
-        out += [('shaft%d' % k, _at(shapes.drum(SHAFT_R, top - arm, 'y', PLATE), None,
-                                    (x, (top + arm) / 2.0, z))),
+                                         (x / 2.0, ARM_Y, z / 2.0))))
+        out += [('shaft%d' % k, _at(shapes.drum(SHAFT_R, top - a1, 'y', PLATE), None,
+                                    (x, (top + a1) / 2.0, z))),
                 ('hub%d' % k, shapes.ellipsoid((x, top + 0.004, z), (HUB_R, 0.01, HUB_R),
                                                PLATE, rows=6))]
     return out
 
 
+def prop_blade(radius, s):
+    """A propeller's blade from its hub out to `radius` along `s` x, CHORD's planform, a thin
+    foil."""
+    def edges(r):
+        half = 0.5 * radius * shapes.over(CHORD, r / radius, 1)
+        return half, -half
+    widest = 0.5 * radius * max(c for _r, c in CHORD)
+    stations = [HUB_R + (radius - HUB_R) * j / 13.0 for j in range(14)]
+    rows = [widest - 2.0 * widest * j / 5.0 for j in range(6)]
+    return shapes.surface(stations, rows, edges, shapes.foil(edges, 0.08),
+                          lambda r, c, t: (s * r, t, s * c), paint(PROP))
+
+
 def blades():
     """A propeller's two blades about its hub, y its axis."""
-    prop = paint(PROP)
-    return [('blade', shapes.ellipsoid((s * quad.DISC_R / 2.0, 0.0, 0.0),
-                                       (quad.DISC_R / 2.0, 0.004, BLADE_W), prop, rows=8))
-            for s in (-1.0, 1.0)]
+    return [('blade', prop_blade(quad.DISC_R, s)) for s in (-1.0, 1.0)]
 
 
 class Mesh:
