@@ -259,17 +259,25 @@ up at rest).
   (`DIVE_M_S`): nose first down out of the waterfall the law followed the air
   into the floor.
 - The landing: its circuit and its final laid lines flown as the lap is
-  (`airfield.CIRCUIT`, `APPROACH`), 1.8 m up at 12 m/s - at 10.5 m/s its
-  turns at 50 deg/s had asked CL 1.20 past the stall's 1.10 -, the final a
-  glide of 0.035 to 2.5 m past the threshold, slowed 1.5 m/s^2 into its
-  flare at 0.22 m. The flare: throttle closed, the nose pitched up as `1 /
-  v_fwd^2` to 16 deg (`HARRIER_RAD`), its sink its height over 0.5 s, held
-  off 5 cm up; the roll-out tail up, down as it slows, its tyres gripping
-  across at 0.8 of the load. Still air: a touch at 0.05 m/s and 10.5 m/s,
-  0.04 m off the centreline, stopped 6 m short of the runway's end. Gusty,
-  a 0.6-1.1 m/s tail wind: 12 landings of 13 at 0.27-0.47 m/s within 0.51
-  m, stopped 10-17 m along (the end at 16); one stalled in its turn onto the
-  final and touched at 0.91 m/s, 1.7 m short and 2.2 m off.
+  (`airfield.CIRCUIT`, `APPROACH`), the course's off its last lap: up the
+  runway's line, slowed 1.5 m/s^2 to 12 m/s by its first turn 20 m along,
+  round to its near side on 20 m turns 1.8 m up, the final a glide of 0.035
+  to 2.5 m past the threshold, 11.5 m/s into its flare at 0.22 m. On 12 m
+  turns at 12 m/s - 12.3 deg of the stall's 15, the angle swinging 6-27 deg
+  in gusts - every gusty course stalled in its last near turn and hung on
+  its propeller down its final at 2-9 m/s; on 20 m, 9.6 deg, no final of 13
+  past the stall, the circuit 0.3-1.0 s. At 10.5 m/s turns at 50 deg/s had
+  asked CL 1.20 past the stall's 1.10; the far side's gates stood 1.3-2.9 m
+  off a 20 m turn.
+- The flare: throttle closed, the nose up as `1 / v^2` through the air to 16
+  deg (`HARRIER_RAD`), its sink its height over 0.5 s, 0.15 m/s at the
+  least; the roll-out tail up, down as it slows, its tyres gripping across
+  at 0.8 of the load, 2.35 m/s^2 along. On the ground's speed a 1.1 m/s tail
+  wind left its lift 16 % short, a touch at 0.34-0.50 m/s; held off at 5 cm
+  to the stall it floated 12-38 m. Still air: a touch at 0.22 m/s and 11.0
+  m/s, 0.04 m off the centreline, stopped 8 m along. Gusty, a 1 m/s tail wind
+  on the floor: 13 of 13 at 0.11-0.22 m/s, 0.19-0.68 m downwind, stopped
+  15-22 m along - past the strip's first end at 16 in 10; its end now 30.
 - The wing stalls (`wingborne.STALL_RAD`): the airfoil's lift to 15 deg, a flat
   plate's normal force past 23, blended between, the plate's drag with it;
   at 10 m/s 21.5 N at 15 deg, 14 N at 45, 40 N of drag at 90.

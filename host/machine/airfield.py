@@ -19,8 +19,10 @@ from machine import grounds
 from machine.aerobatics import DOWN, HOVER, PRESSED
 
 RUNWAY_RAD = math.radians(50.0)
-#: The runway's strip, m along its line from its end: where a landing stops.
-RUNWAY_ALONG = (-20.5, 16.0)
+#: The runway's strip, m along its line from its end: where a landing stops. To 16 m, its
+#: take-off's length, a landing in the gusty kind's 1 m/s tail wind on the floor rolled past it in
+#: 10 of 13: a 9-13 m float and 32 m on its wheels from 12.2 m/s.
+RUNWAY_ALONG = (-20.5, 30.0)
 SPEED_M_S, TURN_M, HIGH_M, LOW_M, TOP_M, LAPS = 20.0, 12.0, 3.0, 1.2, 10.0, 2
 #: The point on the line it turns for, s ahead over the floor (L1, ArduPlane's), its rate at the
 #: most; the height and the knife read so far ahead, s. The line's tangent crabbed onto it over
@@ -156,9 +158,7 @@ def line(route, now):
     """The lap's row for now (`aerobatics.fly`'s giver): on its wing at SPEED_M_S at the height
     and the knife the line asks LEAD_S ahead, turned for its point L1_S ahead as `2 sin(eta) /
     L1_S`, eta its way over the floor off it, TURN_RAD_S at the most; a lap at its end, LAPS
-    laps, `lapped` there, the last one home from its last gate eased to the circuit's height
-    and speed: off 20 m/s and 3 m its final's drag left it 13 m/s in its flare in gusts, at 16
-    m/s 12.5."""
+    laps, `lapped` there."""
     fresh = {'began': route['at'], 'k': None, 'laps': 0, 'gate': 0, 'of': LAPS}
     lap = route.get('lap', fresh)
     lap = route['lap'] = (lap, fresh)[int(lap['began'] != route['at'])]
@@ -168,10 +168,8 @@ def line(route, now):
     lap['gate'] = next((g for g, at in enumerate(S_GATES) if at > k), 0)
     route['holds'] = (route.get('holds', ()), ('lapped',))[int(lap['laps'] >= LAPS)]
     knife = TRACK[(k + round(LEAD_S[1] * SPEED_M_S)) % n][5]
-    home = float(lap['laps'] >= LAPS - 1) * _ramp((k - S_GATES[-1]) / (n - S_GATES[-1]))
-    high = TRACK[(k + round(LEAD_S[0] * SPEED_M_S)) % n][4]
-    return dict(CRUISE, turn=math.degrees(rate), height=high + (CIRCUIT_H - high) * home, knife=knife,
-                speed=SPEED_M_S + KNIFE_M_S * knife - (SPEED_M_S - CIRCUIT_M_S) * home, lined=0.0)
+    return dict(CRUISE, turn=math.degrees(rate), height=TRACK[(k + round(LEAD_S[0] * SPEED_M_S)) % n][4],
+                knife=knife, speed=SPEED_M_S + KNIFE_M_S * knife, lined=0.0)
 
 
 def _followed(track, k, seen, round_):
@@ -207,15 +205,17 @@ def opening(route, now):
                 knife=knife, speed=OPEN_M_S + (PASS_M_S - OPEN_M_S) * abs(knife) - slow, lined=0.0, lean=G15_M_S2)
 
 
-#: The routine's circuit off its hold over the runway's middle, a line as the lap is: CLIMB_M up
-#: the runway, round to its far side on CIRCUIT_M, DOWNWIND_M down it and round onto its line
-#: again, CIRCUIT_H up at CIRCUIT_M_S. Flown as timed legs it came down 25-37 m beside the runway
-#: in gusts, or into the house on its near side. At 14 m/s it banked a tip into the runway
-#: lining up low in two gusty airs of eight.
-CLIMB_M, CIRCUIT_M, DOWNWIND_M, CIRCUIT_H, CIRCUIT_M_S = 30.0, 12.0, 100.0, 1.8, 12.0
+#: The circuit, a line as the lap is: from the lap's START up the runway's line to TURN_AT_M,
+#: round to its near side on CIRCUIT_M, down it and round onto its line at BASE_M, CIRCUIT_H up
+#: at CIRCUIT_M_S, slowed SLOW_M_S2 to it before its first turn; the routine joins it off its hold.
+#: As timed legs it came down 25-37 m beside the runway in gusts, or into the house. On 12 m turns
+#: at 12 m/s - 12.3 deg of the stall's 15 - it stalled in gusts, the course in its last near turn
+#: in all of eight; at 14 m/s a tip struck lining up low. The far side's gates stood 1.3 m off.
+TURN_AT_M, CIRCUIT_M, BASE_M, CIRCUIT_H, CIRCUIT_M_S = 20.0, 20.0, -70.0, 1.8, 12.0
 CIRCUIT = tuple(p + (CIRCUIT_H, 0.0) for p in _laid(
-    (0.0, 0.0), (CLIMB_M, (180.0, CIRCUIT_M), DOWNWIND_M, (180.0, CIRCUIT_M)))[0])
-#: The final down the runway's line from where the lap and the circuit leave it: on a glide of
+    START, (TURN_AT_M - START[0], (-180.0, CIRCUIT_M), TURN_AT_M - BASE_M, (-180.0, CIRCUIT_M)))[0])
+_TURN_K = round(TURN_AT_M - START[0])
+#: The final down the runway's line from where the circuit leaves it: on a glide of
 #: GLIDE to TOUCH_M along, flared where the glide is FLARE_H up. Flown on its heading for its
 #: seconds it touched 15-62 m short of the runway, 0.3-4.8 m off its line.
 GLIDE, TOUCH_M, FLARE_H = 0.035, -18.0, 0.22
@@ -230,15 +230,18 @@ APPROACH = tuple(p + (min(HIGH_M, max(0.0, GLIDE * (TOUCH_M - p[0]))), 0.0)
 
 
 def circuit(route, now):
-    """The routine's circuit's row for now (`aerobatics.fly`'s giver): CIRCUIT flown as the lap
-    is (`_followed`) at CIRCUIT_M_S; `circled` at its end, on the runway's line."""
-    fresh = {'began': route['at'], 'k': 0}
+    """The circuit's row for now (`aerobatics.fly`'s giver): CIRCUIT flown as the lap is
+    (`_followed`) from where the frame joins it, slowed from the speed it came on with to
+    CIRCUIT_M_S at its first turn; `circled` at its end, on the runway's line."""
+    seen = route.get('seen', {})
+    fresh = {'began': route['at'], 'k': None, 'v': math.hypot(*seen.get('vel', (0.0, 0.0, 0.0))[::2])}
     run = route.get('circle', fresh)
     run = route['circle'] = (run, fresh)[int(run['began'] != route['at'])]
-    k, rate = _followed(CIRCUIT, run['k'], route.get('seen', {}), False)
+    k, rate = _followed(CIRCUIT, run['k'], seen, False)
     run['k'], n = k, len(CIRCUIT)
     route['holds'] = (route.get('holds', ()), ('circled',))[int(k >= n - 2)]
-    return dict(CRUISE, turn=math.degrees(rate), height=CIRCUIT_H, speed=CIRCUIT_M_S, lined=0.0)
+    speed = max(CIRCUIT_M_S, min(run['v'], math.sqrt(CIRCUIT_M_S ** 2 + 2.0 * SLOW_M_S2 * max(0, _TURN_K - k))))
+    return dict(CRUISE, turn=math.degrees(rate), height=CIRCUIT_H, speed=speed, lined=0.0)
 
 
 def approach(route, now):
@@ -262,11 +265,12 @@ def approach(route, now):
 #: Where along the lap each gate stands, m.
 S_GATES = (S_GATE, S_LIMBO, S_HOOP) + S_PYLONS + (S_SLOT,)
 
-#: The course's flight: off the runway into its laps and back onto it.
+#: The course's flight: off the runway into its laps and round its circuit back onto it.
 CARD = (
     ('idle', DOWN, 2.0, 0.0, 'fit'),
     ('spool', PRESSED, 2.5, 2.5, ''),
     ('lap', line, 0.0, 0.0, 'lapped'),
+    ('circuit', circuit, 0.0, 0.0, 'circled'),
     ('final', approach, 0.0, 0.0, 'flared'),
     ('land', PRESSED, 10.0, 0.0, ''),
 )

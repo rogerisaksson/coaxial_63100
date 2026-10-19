@@ -238,12 +238,12 @@ the hundred before these: [DONE_1-50](DONE_1-50.md),
     at 2.2 g, their laws on all they have: 18 s a lap where 24, none struck in
     17 airs, six page winds and 36 turbulent seeds
     ([aircraft](findings/aircraft.md)).
-59. The aerobat's circuit and final laid lines flown as its laps are, its
-    flare on its wing's own lift, its tyres gripping across: in still air a
-    touch at 0.05 m/s 0.04 m off the centreline where 0.64 m/s; in gusts 12
-    of 13 under 0.5 m/s within 0.51 m, where the circuit came down 25-37 m
-    beside the runway and the final 15-62 m short of it
-    ([aircraft](findings/aircraft.md)).
+59. The aerobat lands off a circuit and a final laid as its laps are, the
+    course's off its last lap: in still air a touch at 0.22 m/s 0.04 m off
+    the centreline where 0.64 m/s; in gusts 13 of 13 at 0.11-0.22 m/s, no
+    final past the stall where every course's hung on its propeller, all
+    stopped on a strip to 30 m where the timed circuit came down 25-37 m
+    beside the runway ([aircraft](findings/aircraft.md)).
 60. The crafts' pages run as her page does: the flight in a process of its
     own, her worker's loop made general (`machine.apart`), played back in
     real time or slower, never ahead: 18.7-19.3 frames a second where

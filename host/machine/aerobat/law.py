@@ -193,7 +193,10 @@ class Core:
         ay_thrust = ay_stop if in_burn else max(GRAVITY + up_pull, -1.5 * GRAVITY) - air_acc[1]
         if row['height'] < 0.0:
             v_fwd = s * vel[0] + c * vel[2]
-            r_des, w_ff, f_des = flare(WING, v_fwd, state['h'], state['v'], yaw, rate, turn[1][1])
+            # Its lift on the air's speed: on the ground's a 1.1 m/s tail wind left it 16 % short
+            # of its weight, and it touched at 0.34-0.50 m/s where in still air 0.05.
+            r_des, w_ff, f_des = flare(WING, v_fwd - s * self.wind[0] - c * self.wind[2], state['h'], state['v'],
+                                       yaw, rate, turn[1][1])
             stunt, inv = False, 0.0
             if state['h'] <= 0.025 and abs(v_fwd) <= 0.03 and row['height'] <= -0.012:
                 self.airborne, law['spot'] = False, [at[0], at[2]]

@@ -233,22 +233,24 @@ def run(wing, core, v_fwd, h, yaw, rate):
     return r_des, (0.0, rate, 0.0), f_run
 
 
-#: The flare's sink asked: its height over HOLD_M over FLARE_S - held off there till its wing
-#: can hold it no longer, three-point at the stall. On 0.3 m/s at any height it eased off from
-#: 8.8 deg at 0.29 m and touched at 0.64 m/s; on 0.2 at the least, at 11 m/s, its wing lifting
-#: it on its wheels, it skimmed 34-55 m.
-FLARE_S, HOLD_M = 0.5, 0.05
+#: The flare's sink asked: its height over FLARE_S, TOUCH_M_S at the least - onto its wheels,
+#: the wheels' 2.35 m/s^2 stopping it where the float's drag slows it 1. Held off at 5 cm till
+#: its wing could hold it no longer it floated 12-38 m in gusts, every landing of 13 past the
+#: runway's end. On 0.3 m/s at any height it eased off from 8.8 deg at 0.29 m and touched at
+#: 0.64 m/s; on 0.2 at the least, its wing lifting it on its wheels, it skimmed 34-55 m.
+FLARE_S, TOUCH_M_S = 0.5, 0.15
 
 
 def flare(wing, v_fwd, h, v, yaw, rate, r11):
-    """The flare and roll-out: `(r_des, w_ff, f_des)` pitching up as `1 / v_fwd^2` to HARRIER_RAD,
-    its sink as its height over HOLD_M asks (FLARE_S); on its wheels its tail up as the run has it
-    at its speed, its wing off them: three-point at 10.5 m/s the wing bore it 34-55 m."""
+    """The flare and roll-out at `v_fwd` through the air along its heading: `(r_des, w_ff, f_des)`
+    pitching up as `1 / v_fwd^2` to HARRIER_RAD, its sink as its height asks (FLARE_S, TOUCH_M_S);
+    on its wheels its tail up as the run has it at its speed, its wing off them: three-point at
+    10.5 m/s the wing bore it 34-55 m."""
     g, m = wing.gravity, wing.mass
     # The lift a radian, `q` its lift slope's already: counted twice, and the path's angle added
     # to the nose where it is the wing's own, it touched at 0.64 m/s at 7-10 deg.
     q_fl = wing.q * wing.area * max(1.0, v_fwd * v_fwd)
-    sink = max(0.0, (h - HOLD_M) / FLARE_S)
+    sink = max(TOUCH_M_S, h / FLARE_S)
     a_fl = min(HARRIER_RAD, max(0.0, m * max(0.0, g - 6.0 * (sink + v)) / q_fl + math.atan2(v, max(1.0, v_fwd))))
     rolled = PITCH_REST + (0.5 * math.pi - PITCH_REST) * ease((v_fwd / wing.rotate - TAIL_UP) / RUN_EASE)
     r_des = _mat_mul(_rot_y(yaw), _rot_x(0.5 * math.pi - a_fl if h > 0.03 and v_fwd > 2.0 else rolled))

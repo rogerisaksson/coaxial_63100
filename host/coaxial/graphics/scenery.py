@@ -177,7 +177,8 @@ def runway():
         [(_rwy(lo, -1.35), _rwy(hi, -1.35)), (_rwy(hi, -1.35), _rwy(hi, 1.35)),
          (_rwy(hi, 1.35), _rwy(lo, 1.35))]
         + [(_rwy(hi - 2.0, w), _rwy(hi - 0.4, w)) for w in (-0.9, -0.45, 0.45, 0.9)]
-        + [(_rwy(lo + 3.5 + 3.2 * k, 0.0), _rwy(lo + 5.3 + 3.2 * k, 0.0)) for k in range(10)])})
+        + [(_rwy(lo + 3.5 + 3.2 * k, 0.0), _rwy(lo + 5.3 + 3.2 * k, 0.0))
+           for k in range(int((hi - lo - 7.7) / 3.2) + 1)])})
 
 
 @functools.lru_cache(maxsize=None)
