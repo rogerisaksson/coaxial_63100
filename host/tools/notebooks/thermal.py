@@ -360,7 +360,7 @@ REFERENCES = [
     ('host/coaxial/devices/thermal.py', '`device.thermal`: state, budget, identification, the record\'s ceilings and the sample interval'),
     ('host/coaxial/simulated/thermal/', 'the stand-in: a hypothetical board with a ground truth, the situations, the tour and the trip cap'),
     ('docs/HARDWARE.md', 'the campaign, the camera, and how a measurement here is to be read'),
-    ('docs/FINDINGS.md', 'the camera campaign, the two measured numbers, the envelope\'s 100 ms slice, the identification against a ground truth'),
+    ('docs/findings/thermal.md', 'the camera campaign, the two measured numbers, the envelope\'s 100 ms slice, the identification against a ground truth'),
     ('host/tests/test_thermal_core.py', 'the envelope as the C that will run, and the identification against a ground truth'),
 ]
 

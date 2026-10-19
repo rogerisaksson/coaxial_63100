@@ -82,7 +82,32 @@ def test_a_halting_row_waits_for_a_swing_only_while_her_rhythm_turns(report):
                  waited(np.pi) > 0.0 and waited(0.0) == 0.0, (waited(np.pi), waited(0.0)))
 
 
-ROSTER = (test_a_stop_settles_and_f_is_heard, test_a_halting_row_waits_for_a_swing_only_while_her_rhythm_turns)
+def test_a_chair_a_hair_off_is_sat_on_and_risen_from(report):
+    """The chair 0.4 um off where her stop left her: a sole let go as she sat, the other standing,
+    rose where her folded legs put it and she was thrown off the chair at 4.1 s (`impedance._swings`);
+    she sits within 5 s and rises within 6 s."""
+    from machine import floor, worker
+    s = worker.session()
+    worker.apply(s, {'scenario': 'flat'})
+    _run(s, 0.5)
+    worker.apply(s, {'twist': WALK})
+    _run(s, 2.0)
+    worker.apply(s, {'twist': STOP})
+    _run(s, 4.0)
+    x, _, z = s['g']['est']['pos']
+    floor.mocap(s['g']['world'], 'chair', (float(x) + 4e-7, 0.0, float(z) - 0.30), math.pi)
+    worker.apply(s, {'say': 'sit_chair'})
+    _flips, seated = _run(s, 5.0, until='seated')
+    height = float(s['g']['world'].data.qpos[1])
+    worker.apply(s, {'say': 'rise_chair'})
+    _flips, stand = _run(s, 6.0, until='stand')
+    report.check('the chair 0.4 um off, F sits her within 5 s and rises her within 6 s',
+                 seated is not None and stand is not None, 'seated at %s s, her pelvis %.3f m up, stood at %s s'
+                 % (seated, height, stand))
+
+
+ROSTER = (test_a_stop_settles_and_f_is_heard, test_a_halting_row_waits_for_a_swing_only_while_her_rhythm_turns,
+          test_a_chair_a_hair_off_is_sat_on_and_risen_from)
 
 
 def main(argv=None):

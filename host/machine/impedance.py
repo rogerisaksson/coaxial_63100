@@ -161,7 +161,7 @@ def ask(out, y, fr, a):
     clear = aloft * stride.clears(u, flying, swung * hurry, CLEAR_M * (1.0 + np.abs(out[latent.SWAY][LIFT])) + a[RAISE], tip,
                                   tipping, tilt, late)
     free, frame = _swings(y, fr, (rot, v, om, shod, floors, rise), (ref, rate, acc, kp, kd, hands), clear, stance, cruise,
-                          grounded)
+                          grounded, propped)
     strides = (limbs * grounded)[:, None]
     a[SOLE_ACC] = ((1.0 - strides) * (free @ frame + ((1.0 - grounded * BETWEEN) * com) @ rot) + strides * (
         np.concatenate([stride.goes(meet, flat, shod, v, u, turns * hurry, kp[FREE_BY][:2], kd[FREE_BY][:2]),
@@ -176,7 +176,7 @@ def ask(out, y, fr, a):
     return a
 
 
-def _swings(y, fr, at, said, clear, stance, cruise, grounded):
+def _swings(y, fr, at, said, clear, stance, cruise, grounded, propped):
     """A sole that does not stand, on the limbs' own impedance: (its acceleration (2, 3) in
     the frame its place is read in, that frame). Up against the soles that do, from the floor
     they touch: what is asked of it - `clear` over it, its rate and its acceleration (3, 2) -
@@ -189,7 +189,9 @@ def _swings(y, fr, at, said, clear, stance, cruise, grounded):
     trunk took it all - 0.7 rad forward in 0.15 s off the floor; none standing and something
     else bearing her (`grounded` past them), up from the floor, in her way's frame: in her
     pelvis's on a chair, pitched forward 0.5 rad, her soles rose 9 cm off the floor and she
-    slid off it. Up from the floor under it (`modal.under`). `at` her (way's frame, speed in it,
+    slid off it. So each sole that does not stand while something else bears her (`propped`):
+    one let go seated, the other standing, rose where her folded legs put it, 7 mm in 70 ms,
+    and she was thrown off the chair. Up from the floor under it (`modal.under`). `at` her (way's frame, speed in it,
     omega, soles' speeds in it, the floor under each sole, its rise along her way); `said` her
     modes' (reference, rate, acceleration, 1/s^2, 1/s, hands)."""
     rot, v, om, shod, floors, rise = at
@@ -218,7 +220,7 @@ def _swings(y, fr, at, said, clear, stance, cruise, grounded):
     off3[0, :, UP] -= aloft * (bears @ (soles[:, 1] - y[LOWEST]) - rise * (along - bears @ along))
     off3[1, :, UP] -= aloft * (bears @ shod[:, UP] - rise * (shod[:, ALONG] - bears @ shod[:, ALONG]))
     floor = np.stack([clear[0] - (y[LOWEST] - floors), clear[1] - shod[:, UP], clear[2]])
-    off3[:, :, UP] += (grounded - stood) * (floor - off3[:, :, UP])
+    off3[:, :, UP] += np.maximum(grounded - stood, propped * (1.0 - stance)) * (floor - off3[:, :, UP])
     lead = grounded * HOT3[ALONG] * (v[ALONG] - cruise) / om
     return off3[2] + kp[FREE_BY] * (off3[0] + lead) + kd[FREE_BY] * off3[1], frame
 

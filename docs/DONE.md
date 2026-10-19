@@ -188,3 +188,8 @@ the hundred before these: [DONE_1-50](DONE_1-50.md),
     receiver on the RS485 bus, a star camera where the signal is lost; a
     hover 5-6 cm rms off its spot in every air, 0.53 m without the signal
     ([quad](findings/quad.md)).
+47. Seated on a chair 0.4 um off she was thrown off it: a sole let go, the other
+    standing, rose where her folded legs put it; each sole that does not stand
+    held at the floor while something bears her, her python's and her C's -
+    16 of 16 offsets seated and risen, her walk the same to the bit
+    ([support](findings/support.md)).

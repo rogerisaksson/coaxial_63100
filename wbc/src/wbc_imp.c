@@ -21,7 +21,7 @@ typedef struct
 static void swings(const wbc_imp_t *k, const double *y, const double *fr, const double v[3], double om,
                    const double shod[2][3], const double floors[2], double rise, const said_t *s,
                    const double clear[3][2], const double stance[2], double cruise, double grounded,
-                   double got[2][3], double frame[3][3])
+                   double propped, double got[2][3], double frame[3][3])
 {
   const double *rot = fr + k->f_rot, *q = y + k->y_quat, *soles = y + k->y_sole, *sp = y + k->y_spin;
   const double  stood = npmax(stance[0], stance[1]);
@@ -126,10 +126,11 @@ static void swings(const wbc_imp_t *k, const double *y, const double *fr, const 
   for (int b = 0; b < 2; b++)
   {
     const double fl[3] = {clear[0][b] - (y[k->y_lowest + b] - floors[b]), clear[1][b] - shod[b][2], clear[2][b]};
+    const double held = npmax(grounded - stood, propped * (1.0 - stance[b]));
 
     for (int r = 0; r < 3; r++)
     {
-      off3[r][b][2] += (grounded - stood) * (fl[r] - off3[r][b][2]);
+      off3[r][b][2] += held * (fl[r] - off3[r][b][2]);
     }
   }
   for (int j = 0; j < 3; j++)
@@ -493,7 +494,7 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
     clear[r][0] = aloft[0] * clr[r][0];
     clear[r][1] = aloft[1] * clr[r][1];
   }
-  swings(k, y, fr, v, om, shod, floors, rise, &s, clear, stance, cruise, grounded, loose, frame);
+  swings(k, y, fr, v, om, shod, floors, rise, &s, clear, stance, cruise, grounded, propped, loose, frame);
   npmm(&loose[0][0], &frame[0][0], &ff[0][0]);
   for (int j = 0; j < 3; j++)
   {
