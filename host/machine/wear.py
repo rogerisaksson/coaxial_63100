@@ -30,7 +30,7 @@ SITES = ('left_hand', 'right_hand')
 #: kind's unit, and how far it walks in a second, units a root second.
 LOAD, DRIFT, SCALE = ('m', 'hx', 'hy', 'hz'), ('f', 'b'), ('kt',)
 UNIT = {'m': 0.1, 'hx': 0.02, 'hy': 0.02, 'hz': 0.02, 'f': 0.1, 'b': 0.05, 'kt': 0.01}
-PACE = {'m': 5.0, 'hx': 5.0, 'hy': 5.0, 'hz': 5.0, 'f': 0.5, 'b': 0.5, 'kt': 0.5}
+PACE = {'m': 4.5, 'hx': 4.5, 'hy': 4.5, 'hz': 4.5, 'f': 0.5, 'b': 0.5, 'kt': 0.5}
 #: Each one's doubt at the start, units; a row's noise, N m; a drift is past its band by this
 #: many of its doubt before it is named.
 PRIOR, NOISE, SIGMAS = 10.0, 0.5, 2.0

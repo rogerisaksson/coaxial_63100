@@ -189,7 +189,8 @@ def control(g, dt):
     dq, imp = _step_modal(g, s, y, y_in, out)
     if backing and abs(g['_look_yaw']) > 1e-3 and cur_doing not in se2.STUNT_PHASES and g.get('waist_idx') is not None:
         imp[modal.HEADED][1] = g['posture'][g['waist_idx']]
-    clear = 0.115 * bool(g.get('_twist_active') or g.get('_twist_stop_until', 0.0) > g['t'])
+    clear = 0.115 * bool((g.get('_twist_active') or g.get('_twist_stop_until', 0.0) > g['t'])
+                         and cur_doing not in se2.STUNT_PHASES and g.get('_jump_until', 0.0) <= g['t'])
     ask = g['ask'] = modal.given(imp, y, g['fr'], g['posture'] + dq, g['bend'], g['arms'], body.knees, clear)
     ask['mu'] = g['held']
     s_solve, cv = s, list(g.get('cervical', ()))
