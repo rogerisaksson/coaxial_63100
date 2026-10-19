@@ -59,7 +59,9 @@ DIVE_M_S = 4.0
 #: and a full pack's volts, as the page's drives have it.
 ROTOR = pull.Rotor(*pull.ROTOR[:4], pull.CAN_J + PROP_INERTIA, pull.ROTOR.b, K_DRAG)
 W_TOP = pull.ceiling(flightpack.open_volts(1.0), pull.I_MAX, ROTOR)
-PULL_MAX, COURSE_SPHERE = K_THRUST / MASS_KG * W_TOP ** 2, 1.5 * GRAVITY
+#: Its course on all it has: on 1.5 g its climb to the hoop had 0.5 and it struck gate 2 in a
+#: gusty air of eight.
+PULL_MAX = COURSE_SPHERE = K_THRUST / MASS_KG * W_TOP ** 2
 #: The tail in the propeller's wash (`slipstream`): its surfaces' moments a pascal, as quick at
 #: the hover as on the head governed at GOV_RAD_S, where they were the propwash's alone.
 A_DISC = math.pi * PROP_R ** 2

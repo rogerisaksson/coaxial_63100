@@ -122,8 +122,7 @@ def links(rotor):
 
 def ceiling(volts, amps, rotor=ROTOR):
     """A rotor's steady top on a clamp of `amps`, its link held at `volts`, rad/s."""
-    link = LINK if rotor is ROTOR else links(rotor)
-    return min(held(amps, rotor), between(link, (volts - VOLTS[0]) / VOLTS[2]))
+    return min(held(amps, rotor), between(links(rotor), (volts - VOLTS[0]) / VOLTS[2]))
 
 
 def top(left, amps):

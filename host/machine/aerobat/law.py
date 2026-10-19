@@ -1,7 +1,7 @@
 """The aerobat's SO(3) law: hover and prop-hang, its stunts, on its wing nose first; its observer's."""
 import math
 
-from machine import aerokin, se3mpc
+from machine import aerokin, airfield, se3mpc
 from machine.aerobatics import ease
 from machine.aerobat.airframe import (A_DISC, ATT_KD, ATT_KP, FLOOR_M, GRAVITY, IDLE_RAD_S, INERTIA,
                                       K_PITCH_Q, K_ROLL_Q, K_THRUST, K_YAW, MASS_KG, RHO, ROLL_KD,
@@ -24,6 +24,10 @@ FAST_M_S = (3.0, 7.0)
 LINED_M, LINED_RAD_S, LINED_M_S = (1.5, 2.0), math.radians(10.0), 1.0
 #: The share of its surfaces' throw its propeller's wash is kept for.
 AUTHORITY = 0.7
+#: Gusty, its figures higher: its wind's swing about its mean over GUST_SLOW_S, rms over GUST_RMS_S,
+#: past GUST_FLOOR, times GUST_S, m - a figure's row (`lined` 1), not a laid line's (0), which says
+#: them to its giver (`aerokin.seen`). In still air its own estimate swung 0.10-0.17 m/s rms.
+GUST_SLOW_S, GUST_RMS_S, GUST_FLOOR, GUST_S = 5.0, 3.0, 0.3, airfield.GUST_S
 
 
 def flies(row, w):
@@ -41,6 +45,7 @@ class Core:
     def reset(self):
         """Reset observer and trajectory state."""
         self.vel_hat, self.push_hat, self.wind = [0.0] * 3, [0.0] * 3, [0.0] * 3
+        self.wind_slow, self.gust2 = [0.0] * 3, 0.0
         self.spin_hat, self.turn_hat = [0.0] * 3, [0.0] * 3
         self.begun, self.flip_ang, self.roll_ang = False, 0.0, 0.0
         self.piro_ang, self.tic_phase = 0.0, 0.0
@@ -112,13 +117,17 @@ class Core:
         top = min(2.4, row['lean'] / max(1.0, math.hypot(vel[0], vel[2])))
         return rate + low * (max(-top, min(top, 3.0 * err)) - rate), target
 
+    def margin(self, row):
+        """How much higher `row` is flown in its air's gusts, m: a figure's, not a laid line's."""
+        return float(row.get('lined', 1.0) >= 0.5) * GUST_S * max(0.0, math.sqrt(self.gust2) - GUST_FLOOR)
+
     def plan(self, law, row, state, dt, pull_max):
         """Advance outer horizontal kinematics `aerokin.lean` across `dt` s."""
         c0, s0 = law['heading']
         law['heading'] = _turn_heading((c0, s0), self.yawed(law, row, state)[0], dt)
         reach = max(aerokin.LEAST * GRAVITY, pull_max)
         self.floor = FLOOR_M * max(0.0, 1.0 - math.hypot(row.get('speed', 0.0), row.get('slide', 0.0)) / 5.0)
-        r_climb = dict(row, height=max(self.floor, row['height'])) if row['height'] >= 0.0 else row
+        r_climb = dict(row, height=max(self.floor, row['height'] + self.margin(row))) if row['height'] >= 0.0 else row
         self.up_pull, law['doing'] = aerokin.climb(
             r_climb, state['h'], state['v'], reach - GRAVITY,
             aerokin.spooled(self.out.speeds[0], math.sqrt(reach * MASS_KG / K_THRUST), IDLE_RAD_S), dt)
@@ -144,6 +153,10 @@ class Core:
     def step(self, law, row, state, dt, pull_max, limits=None, along=None):
         """One pass of `dt` s on `row` and `state`: returns `Answer`."""
         observe(self, state, dt)
+        a_slow, a_rms = min(1.0, dt / GUST_SLOW_S), min(1.0, dt / GUST_RMS_S)
+        self.wind_slow = [s + a_slow * (w - s) for s, w in zip(self.wind_slow, self.wind)]
+        self.gust2 += a_rms * (sum((w - s) ** 2 for w, s in zip(self.wind, self.wind_slow)) - self.gust2)
+        law['gust'] = max(0.0, math.sqrt(self.gust2) - GUST_FLOOR)
         t_in, s_in, v_in, a_in = state['turn'], state['spin'], state['vel'], state['at']
         turn = t_in if (type(t_in) is tuple and type(t_in[0]) is tuple and type(t_in[0][0]) is float) \
             else (t_in.tolist() if hasattr(t_in, 'tolist') else [[float(x) for x in r] for r in t_in])
@@ -186,7 +199,7 @@ class Core:
             self.out = Answer((w_p_ask, w_v_ask), controls, (0.0, 0.0), (c, s), tuple(self.wind))
             return self.out
 
-        rh = max(self.floor, float(row['height'])) if row['height'] >= 0.0 else float(row['height'])
+        rh = max(self.floor, float(row['height']) + self.margin(row)) if row['height'] >= 0.0 else float(row['height'])
         ay_des = max(GRAVITY + up_pull - air_acc[1], float(row.get('light', 0.5)) * GRAVITY)
         acc_des = (along[0] - air_acc[0], ay_des, along[1] - air_acc[2])
         ay_stop = max(0.0, GRAVITY + up_pull - air_acc[1])

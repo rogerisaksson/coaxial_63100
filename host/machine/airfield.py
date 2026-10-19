@@ -23,7 +23,9 @@ RUNWAY_RAD = math.radians(50.0)
 #: take-off's length, a landing in the gusty kind's 1 m/s tail wind on the floor rolled past it in
 #: 10 of 13: a 9-13 m float and 32 m on its wheels from 12.2 m/s.
 RUNWAY_ALONG = (-20.5, 30.0)
-SPEED_M_S, TURN_M, HIGH_M, LOW_M, TOP_M, LAPS = 20.0, 12.0, 3.0, 1.2, 10.0, 2
+#: Its lap at SPEED_M_S: at 20 m/s its 17x8 on a pack sagged to 48 V, its top 600 rad/s and its pitch's
+#: speed 20 m/s, could not hold it and hung nose-high at 4-9 m/s into the slalom's pylons.
+SPEED_M_S, TURN_M, HIGH_M, LOW_M, TOP_M, LAPS = 16.0, 12.0, 3.0, 1.2, 10.0, 2
 #: The point on the line it turns for, s ahead over the floor (L1, ArduPlane's), its rate at the
 #: most; the height and the knife read so far ahead, s. The line's tangent crabbed onto it over
 #: a second (`wingborne.lined`) put it 3.9 m off the hoop in gusts.
@@ -106,6 +108,8 @@ def _ramp(x):
 #: Its tip 4 cm over the runway on its side: at 0.45 m it struck.
 LIFT_M, RUN_M, OPENING_M, OPEN_M_S, PASS_M, PASS_M_S = 20.0, 12.0, 11.0, 18.0, 70.0, 20.0
 KNIFE_M, DESCENT_M, PULL_M, RUN_IN_M, RUN_IN_M_S = 0.47, 16.0, 15.0, 45.0, 12.0
+#: Gusty, the opening's pass higher by the law's gusts times GUST_S, m (`aerobat.law.GUST_S`).
+GUST_S = 0.6
 _OPEN, _OPEN_AT = _laid((LIFT_M, 0.0), (RUN_M, (-90.0, OPENING_M), (270.0, OPENING_M), PASS_M,
                                         (-45.0, OPENING_M), 2.0 * OPENING_M, (225.0, OPENING_M), RUN_IN_M))
 _SIDE = tuple(_ramp((s - _OPEN_AT[3]) / DESCENT_M) - _ramp((s - _OPEN_AT[4] + PULL_M) / PULL_M)
@@ -201,7 +205,10 @@ def opening(route, now):
     route['holds'] = (route.get('holds', ()), ('passed',))[int(k >= n - 2)]
     knife = OPENING[min(n - 1, k + round(LEAD_S[1] * PASS_M_S))][5]
     slow = (OPEN_M_S - RUN_IN_M_S) * _ramp((k - _OPEN_AT[7]) / RUN_IN_M)
-    return dict(CRUISE, turn=math.degrees(rate), height=OPENING[min(n - 1, k + round(LEAD_S[0] * OPEN_M_S))][4],
+    # Gusty, its pass higher by its law's gusts (`aerokin.seen`): at KNIFE_M on the 17x8 the
+    # page's tours sank it onto its tip 15 times in 47 crashes.
+    lift = GUST_S * route.get('seen', {}).get('gust', 0.0)
+    return dict(CRUISE, turn=math.degrees(rate), height=OPENING[min(n - 1, k + round(LEAD_S[0] * OPEN_M_S))][4] + lift,
                 knife=knife, speed=OPEN_M_S + (PASS_M_S - OPEN_M_S) * abs(knife) - slow, lined=0.0, lean=G15_M_S2)
 
 

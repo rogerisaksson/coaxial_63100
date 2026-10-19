@@ -97,8 +97,10 @@ def test_helicopter_wind_observer_and_inverted_hold(report):
             sky.step(ans.speeds + ans.controls, dt, air)
         st = sky.state()
         act, est = weather.wind_at(air['wind'], st['h'], air['steady']), ans.wind
+        # Gusty, the aerobat's figures higher by its law's margin.
+        aim = inv_row['height'] + (core.margin(inv_row) if c is aerobat else 0.0)
         report.check('%s wind observer tracks gusty wind while holding its hover' % c.__name__,
-                     abs(st['h'] - inv_row['height']) < 0.1
+                     abs(st['h'] - aim) < 0.1
                      and float(st['turn'][1][1]) * (-1.0 if c is aerobat else 1.0) < -0.90
                      and (act[0] * est[0] + act[2] * est[2]) > 0.5 and sky.hit is None)
 

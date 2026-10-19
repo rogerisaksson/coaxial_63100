@@ -261,3 +261,7 @@ the hundred before these: [DONE_1-50](DONE_1-50.md),
     frame ahead in its own process (`terminal.ui.ahead`, the flights' too):
     27.3 frames a second where 14.8, her motion on screen 0.92-1.03 of its
     speed where 0.59-1.07 ([host](findings/host.md)).
+64. The aerobat's page on its 17x8 as its boards turn it: gusty, its figures
+    higher by its law's gusts, the waterfall one tumble from 6 m, its lap at
+    16 m/s, its course on all it has - 2 crashes in six tours of 400 s where
+    47 ([aerobat](findings/aerobat.md)).

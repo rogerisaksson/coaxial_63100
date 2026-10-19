@@ -178,7 +178,7 @@ def seen(law, frame, dt, pull, top):
             'pull': max(LEAST * quad.GRAVITY, pull),
             'pitch': quad.INFLOW_J0 * quad.PITCH_M * quad.speed_for(
                 top * quad.MASS_KG / 4.0) / math.tau,
-            'spot': tuple(law['spot']), 'at': [float(x) for x in frame['at']],
+            'spot': tuple(law['spot']), 'gust': law.get('gust', 0.0), 'at': [float(x) for x in frame['at']],
             'vel': [float(x) for x in frame['vel']]}
 
 
