@@ -16,7 +16,7 @@ from coaxial.graphics.callouts import line
 from coaxial.graphics.helicopter import force_arrows
 from coaxial.graphics.lit import CORE, PLATE, braille, paint, project, splat
 from coaxial.graphics.quadcopter import (BLADE_W, BLADES_RAD_S, BOARD_H, BOARD_R, CARBON, CELLS,
-                                         LEG_R, MASK, MOTOR_R, PROP, RIM_EVERY, RIM_INK, SHAFT_R,
+                                         MASK, MOTOR_R, PROP, RIM_EVERY, RIM_INK, SHAFT_R,
                                          SINK_H, SINK_R, ACCENT, Mesh, _at, _painted)
 from machine import aerobat as aero_phys, airfield
 
@@ -37,7 +37,44 @@ GEAR_MAIN_Z, GEAR_TAIL_Z = aero_phys.GEAR_MAIN_Z, aero_phys.GEAR_TAIL_Z
 #: in the cowl from MOTOR_Y aft, each with its 63100 board and sink behind its stator.
 MOTOR_L, MOTOR_Y = 0.040, 0.495
 
+#: The gear an Extra 300's: each main leg a carbon bow out from the belly and down to its wheel
+#: in a spat, the wheels WHEEL_R drawn on the ground where the frame's rest; one tail wheel on a
+#: leaf under the tail post. Drawn as straight struts with a tail wheel each side, it read as
+#: a quad's skids.
+WHEEL_R, TAIL_WHEEL_R, BOW_N, BOW_R = 0.04, 0.018, 8, 0.006
+
 _AERO_MESH = {}
+
+
+def _bow(s, carbon, spat):
+    """A main leg, `s` its side: its bow in BOW_N pieces, its wheel, and its spat in `spat` (None:
+    none)."""
+    y, x = STRUT_Z[1], s * SKID_X
+    z = GEAR_MAIN_Z + FOOT_M - WHEEL_R
+    a, b, c = (s * 0.02, 0.07), (s * 0.13, 0.12), (x, z)
+    pts = [tuple((1 - t) ** 2 * p + 2 * (1 - t) * t * q + t * t * r for p, q, r in zip(a, b, c))
+           for t in (j / BOW_N for j in range(BOW_N + 1))]
+    out = []
+    for j, ((x0, z0), (x1, z1)) in enumerate(zip(pts, pts[1:])):
+        dx, dz = x1 - x0, z1 - z0
+        out.append(('bow%d_%d' % (s > 0, j),
+                    _at(shapes.drum(BOW_R, math.hypot(dx, dz), 'z', carbon),
+                        shapes.turn_about('y', -math.degrees(math.atan2(dx, dz))),
+                        (0.5 * (x0 + x1), y, 0.5 * (z0 + z1)))))
+    out.append(('wheel%d' % (s > 0), shapes.ellipsoid((x, y, z), (0.35 * WHEEL_R, WHEEL_R, WHEEL_R),
+                                                       PLATE, rows=6)))
+    if spat is not None:
+        out.append(('spat%d' % (s > 0), shapes.ellipsoid((x, y - 0.012, z - 0.006), (0.022, 0.078, 0.046),
+                                                          spat, rows=7)))
+    return out
+
+
+def _tail_wheel(carbon):
+    """The tail wheel on its leaf under the tail post."""
+    z = GEAR_TAIL_Z + FOOT_M - TAIL_WHEEL_R
+    return [('tail_leaf', _at(shapes.drum(BOW_R, z - 0.02, 'z', carbon), None, (0.0, STRUT_Z[0], 0.5 * (z + 0.02)))),
+            ('tail_wheel', shapes.ellipsoid((0.0, STRUT_Z[0], z), (0.4 * TAIL_WHEEL_R, TAIL_WHEEL_R, TAIL_WHEEL_R),
+                                            PLATE, rows=6))]
 
 
 SURFACE = (92, 98, 112)
@@ -107,8 +144,7 @@ def _aero_parts(see='shell'):
                                 (0.0, 0.5 * (aft - 0.52), 0.0))))
     if not frame:
         return out
-    out += stack
-    legs = ((STRUT_Z[1], GEAR_MAIN_Z, 1.0), (STRUT_Z[0], GEAR_TAIL_Z, 0.45))
+    out += stack + _tail_wheel(carbon)
     for s in (-1.0, 1.0):
         if shell:
             out.append(('wing%d' % (s > 0),
@@ -120,20 +156,7 @@ def _aero_parts(see='shell'):
             out.append(('hstab%d' % (s > 0),
                         shapes.box((s * 0.5 * HSTAB_HALF, TAIL_Y + 0.02, 0.0),
                                    (0.5 * HSTAB_HALF, 0.05, 0.005), skin)))
-        for k, (y, z, x_sc) in enumerate(legs):
-            x = s * x_sc * SKID_X
-            dx, dz = x - s * 0.04, z - 0.03
-            length = math.hypot(dx, dz)
-            out.append(('gear_leg%d_%d' % (s > 0, k),
-                        _at(shapes.drum(LEG_R, length, 'z', carbon),
-                            shapes.turn_about('y', -math.degrees(math.atan2(dx, dz))),
-                            (s * 0.04 + 0.5 * dx, y, 0.03 + 0.5 * dz))))
-            out.append(('wheel%d_%d' % (s > 0, k),
-                        shapes.ellipsoid((x, y, z), (FOOT_M, FOOT_M, FOOT_M), PLATE, rows=6)))
-            if k == 0 and shell:
-                out.append(('pant%d' % (s > 0),
-                            shapes.ellipsoid((x, y + 0.005, z - 0.01), (0.014, 0.06, 0.042),
-                                             accent, rows=6)))
+        out += _bow(s, carbon, accent if shell else None)
     return out
 
 

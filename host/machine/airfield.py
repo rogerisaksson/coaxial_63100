@@ -45,11 +45,11 @@ def placed(along, across):
     return along * s + across * c, along * c - across * s
 
 
-def _laid():
-    """The lap a metre apart, [(along, across, heading rad off the runway's, 1/m turned)], and
-    where along it each leg begins."""
-    a, c, psi, out, starts = START[0], START[1], 0.0, [], []
-    for leg in LEGS:
+def _laid(start=START, legs=LEGS):
+    """A line from `start` up the runway's way a metre apart, [(along, across, heading rad off
+    the runway's, 1/m turned)], `legs` metres straight or (deg, m) turned; where each begins."""
+    a, c, psi, out, starts = start[0], start[1], 0.0, [], []
+    for leg in legs:
         starts.append(len(out))
         if isinstance(leg, tuple):
             turned, r = math.radians(leg[0]), leg[1]
@@ -88,6 +88,24 @@ TRACK = tuple(p + (HIGH_M - (HIGH_M - LOW_M) * _bump(s - S_LIMBO, 30.0) + (TOP_M
               for s, p in enumerate(_LAP))
 
 
+def _ramp(x):
+    return 0.5 * (1.0 - math.cos(math.pi * min(1.0, max(0.0, x))))
+
+
+#: The routine's opening off the runway, a line as the lap is: from LIFT_M up its line RUN_M
+#: to OPEN_M_S, sharp right a quarter turn straight into a sharp left three quarters round on
+#: OPENING_M turns - onto the runway's line again 2 OPENING_M on -, then PASS_M down it, down
+#: to KNIFE_M and rolled onto its side over DESCENT_M at PASS_M_S, rolled back over its last
+#: PULL_M. Flown as timed turns the same figure ended 22 m beside the runway at 6 m/s; turned
+#: off the lift at 13 m/s on 8 m it bled to 3.6.
+LIFT_M, RUN_M, OPENING_M, OPEN_M_S, PASS_M, PASS_M_S = 20.0, 30.0, 10.0, 18.0, 80.0, 20.0
+KNIFE_M, DESCENT_M, PULL_M = 0.545, 16.0, 15.0
+_OPEN, _OPEN_AT = _laid((LIFT_M, 0.0), (RUN_M, (-90.0, OPENING_M), (270.0, OPENING_M), PASS_M))
+OPENING = tuple(p + (HIGH_M - (HIGH_M - KNIFE_M) * _ramp((s - _OPEN_AT[3]) / DESCENT_M),
+                     _ramp((s - _OPEN_AT[3]) / DESCENT_M) - _ramp((s - len(_OPEN) + PULL_M) / PULL_M))
+                for s, p in enumerate(_OPEN))
+
+
 def _gate(s, wide, high, middle, across=None):
     a, c, psi = _LAP[int(s)][:3]
     x, z = placed(a, c if across is None else across)
@@ -112,6 +130,10 @@ MASTS, HALLS = (), ()
 #: Its lean the wing's, m/s^2: 12 at 14 m/s is 10.5 deg; the hover's 8 left 0.7 in a turn.
 CRUISE = dict(HOVER, height=HIGH_M, pace=5.0, speed=SPEED_M_S, home=0.0, lean=50.0)
 FINAL = dict(CRUISE, height=0.22, speed=11.5, pace=1.8)
+#: The opening's lean its carbon airframe's 15 g; what a turn takes short of it is its wing's,
+#: short of the stall (`aerobat.law`). On 15 g the course's laps left it into the floor on its
+#: final, 36 m on.
+G15_M_S2 = 15.0 * 9.81
 
 
 def solids():
@@ -133,24 +155,45 @@ def line(route, now):
     fresh = {'began': route['at'], 'k': None, 'laps': 0, 'gate': 0, 'of': LAPS}
     lap = route.get('lap', fresh)
     lap = route['lap'] = (lap, fresh)[int(lap['began'] != route['at'])]
-    seen = route.get('seen', {})
-    x, y, z = seen.get('at', (0.0, 0.0, 0.0))
-    vel, heading = seen.get('vel', (0.0, 0.0, 0.0)), seen.get('heading', RUNWAY_RAD)
-    s, c = math.sin(RUNWAY_RAD), math.cos(RUNWAY_RAD)
-    a, b, n = x * s + z * c, x * c - z * s, len(TRACK)
-    near = range(n) if lap['k'] is None else range(lap['k'], lap['k'] + 40)
-    k = min(near, key=lambda i: (TRACK[i % n][0] - a) ** 2 + (TRACK[i % n][1] - b) ** 2) % n
+    n = len(TRACK)
+    k, rate = _followed(TRACK, lap['k'], route.get('seen', {}), True)
     lap.update(laps=lap['laps'] + int(lap['k'] is not None and k < lap['k']), k=k)
     lap['gate'] = next((g for g, at in enumerate(S_GATES) if at > k), 0)
     route['holds'] = (route.get('holds', ()), ('lapped',))[int(lap['laps'] >= LAPS)]
-    fast = math.hypot(vel[0], vel[2])
-    px, pz = placed(*TRACK[(k + max(4, round(L1_S * fast))) % n][:2])
-    eta = (math.atan2(px - x, pz - z) - (math.atan2(vel[0], vel[2]) if fast > 1.0 else heading)
-           + math.pi) % math.tau - math.pi
-    rate = max(-TURN_RAD_S, min(TURN_RAD_S, 2.0 * math.sin(eta) / L1_S))
     knife = TRACK[(k + round(LEAD_S[1] * SPEED_M_S)) % n][5]
     return dict(CRUISE, turn=math.degrees(rate), height=TRACK[(k + round(LEAD_S[0] * SPEED_M_S)) % n][4],
                 knife=knife, speed=SPEED_M_S + KNIFE_M_S * knife, lined=0.0)
+
+
+def _followed(track, k, seen, round_):
+    """(the point of `track` nearest the frame from `k` on - none, anywhere -, the turn for its
+    point L1_S ahead as `2 sin(eta) / L1_S`): round its end where it is `round_`, else held."""
+    x, _y, z = seen.get('at', (0.0, 0.0, 0.0))
+    vel, heading = seen.get('vel', (0.0, 0.0, 0.0)), seen.get('heading', RUNWAY_RAD)
+    s, c = math.sin(RUNWAY_RAD), math.cos(RUNWAY_RAD)
+    a, b, n = x * s + z * c, x * c - z * s, len(track)
+    near = range(n) if k is None else range(k, k + 40) if round_ else range(k, min(n, k + 40))
+    k = min(near, key=lambda i: (track[i % n][0] - a) ** 2 + (track[i % n][1] - b) ** 2) % n
+    fast = math.hypot(vel[0], vel[2])
+    ahead = k + max(4, round(L1_S * fast))
+    px, pz = placed(*track[ahead % n if round_ else min(ahead, n - 1)][:2])
+    eta = (math.atan2(px - x, pz - z) - (math.atan2(vel[0], vel[2]) if fast > 1.0 else heading)
+           + math.pi) % math.tau - math.pi
+    return k, max(-TURN_RAD_S, min(TURN_RAD_S, 2.0 * math.sin(eta) / L1_S))
+
+
+def opening(route, now):
+    """The routine's opening's row for now (`aerobatics.fly`'s giver): OPENING's line flown as
+    the lap's (`line`), OPEN_M_S on to PASS_M_S on its side; `passed` at its end."""
+    fresh = {'began': route['at'], 'k': 0}
+    run = route.get('open', fresh)
+    run = route['open'] = (run, fresh)[int(run['began'] != route['at'])]
+    k, rate = _followed(OPENING, run['k'], route.get('seen', {}), False)
+    run['k'], n = k, len(OPENING)
+    route['holds'] = (route.get('holds', ()), ('passed',))[int(k >= n - 2)]
+    knife = OPENING[min(n - 1, k + round(LEAD_S[1] * PASS_M_S))][5]
+    return dict(CRUISE, turn=math.degrees(rate), height=OPENING[min(n - 1, k + round(LEAD_S[0] * OPEN_M_S))][4],
+                knife=knife, speed=OPEN_M_S + (PASS_M_S - OPEN_M_S) * knife, lined=0.0, lean=G15_M_S2)
 
 
 #: Where along the lap each gate stands, m.

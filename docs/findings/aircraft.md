@@ -210,6 +210,10 @@ tail arm with a 0.06 m^2 stabiliser and a 0.045 fin; a fuselage 0.16 m deep,
   strip, at 9.5 m/s it ballooned to 5.5 m; it stops 3.2 m short of the
   middle. The routine's teardrops at 18 m/s and 130 deg/s (4.2 g), its
   circuit at 100 deg/s; the turn-out's roll at its stop is 166 rad/s^2.
+- Its opening a laid line (`airfield.opening`): 30 m to 17 m/s, right a quarter turn
+  straight into a left three quarters round on 10 m turns, onto the runway's line
+  and down it on its side at 19 m/s, within 1.3 m of the line, its lower tip 4-6
+  cm over the runway. Flown as timed turns it ended 22 m beside the runway at 6 m/s.
 - On its side the span stays up, the wing bearing what is asked across: the
   gusty course's knife gate at a belly of 0.00 on both laps, where the span
   rolled to every ask rocked it 0.07-0.86 and passed the gate at 0.29.

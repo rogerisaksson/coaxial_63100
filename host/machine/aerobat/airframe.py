@@ -13,7 +13,11 @@ with open(LISP_PATH, encoding='utf-8') as _f:
 
 AERO, DYNAMICS, KINEMATICS = MANIFEST['aerodynamics'], MANIFEST['dynamics'], MANIFEST['kinematics']
 STREAMS, STUNTS, BEHAVIORS = MANIFEST['streams'], MANIFEST['stunts'], MANIFEST['behaviors']
-CARD, COOLING = MANIFEST['routines']['aerobat_3d'], DYNAMICS['cooling']
+#: The card: the routine's, its opening off the runway a laid line after its lift
+#: (`airfield.opening`).
+_ROUTINE, COOLING = MANIFEST['routines']['aerobat_3d'], DYNAMICS['cooling']
+_LIFT = [stage[0] for stage in _ROUTINE].index('lift') + 1
+CARD = _ROUTINE[:_LIFT] + (('knife pass', airfield.opening, 0.0, 0.0, 'passed'),) + _ROUTINE[_LIFT:]
 _AS, _AF, _DL = AERO['aero_surfaces'], AERO['airframe'], AERO['drive_load']
 _RB, _GOV, _IMP, _OBS = (
     DYNAMICS['rigid_body'], DYNAMICS['governor'], DYNAMICS['impedance'], DYNAMICS['observers'])

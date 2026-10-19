@@ -9,16 +9,18 @@ from views_kit import Report
 def _routine():
     """The card flown as the page flies it on the airfield, its gates down: {stage: [rows]},
     the stages in order, the sky."""
-    from machine import aerobat, aerobatics, aerokin, airfield, se3mpc
+    from machine import aerobat, aerobatics, aerokin, airfield, pull, se3mpc
     dt, by_stage, stages = 1.0 / 120.0, {}, []
+    top = aerobat.K_THRUST * pull.held(pull.I_MAX) ** 2 / aerobat.MASS_KG
     rest, foot = se3mpc.points(aerobat)[2], aerobat.SKID_M + aerobat.FOOT_M
     rc, rs = math.cos(airfield.RUNWAY_RAD), math.sin(airfield.RUNWAY_RAD)
     sky, core, law = aerobat.Sky(airfield.solids()), aerobat.Core(), aerokin.fresh()
     sky.stand(False)
     route = aerobatics.routine(aerobat.CARD)
     for k in range(int(160.0 / dt)):
-        stage, row = aerobatics.fly(route, k * dt, ('held', 'fit') if law['held'] else ('fit',))
         state = sky.state()
+        route['seen'] = dict(aerokin.seen(law, state, dt, aerobat.PULL_MAX, top), spent=False)
+        stage, row = aerobatics.fly(route, k * dt, ('held', 'fit') if law['held'] else ('fit',))
         ans = core.step(law, row, state, dt, aerobat.PULL_MAX)
         sky.step(ans.speeds + ans.controls, dt)
         shown = aerokin.FALL if stage == 'burn' and law['doing'] == aerokin.FALL else stage
@@ -33,7 +35,7 @@ def _routine():
             'held': law['held'], 'along': float(state['at'][0]) * rs + float(state['at'][2]) * rc,
             'vz': float(vel[2]), 'hdg': law['heading'][0], 'span': abs(float(turn[1][0])),
             'tip': state['h'] + foot + float(min(rest @ turn[1])),
-            'w': core.wingborne,
+            'w': core.wingborne, 'knife': row.get('knife', 0.0),
             'belly': float(turn[1][2]), 'ahead': float(vel @ turn[:, 1])})
         if sky.hit is not None:
             break
@@ -46,7 +48,8 @@ def test_aerobat_routine(report):
     centimetres over the runway -, its 3D figures, its circuit and down on the runway."""
     from machine import aerobat
     c, stages, sky = _routine()
-    hov, ft, burn, hold, land, ke = (c[k] for k in ('prop-hang', 'full tilt', 'burn', 'hold', 'land', 'knife-edge'))
+    hov, ft, burn, hold, land = (c[k] for k in ('prop-hang', 'full tilt', 'burn', 'hold', 'land'))
+    ke = [p for p in c['knife pass'] if p['knife'] > 0.99]
     gl, gd = [p['along'] for p in c['lift'] if p['h'] < 0.03], [p['along'] for p in land if p['h'] < 0.03]
     report.check('aerobat rolls its runway, flies a knife-edge back down it and its 3D figures',
                  c['spool'][0]['tilt'] > 55.0 and len(gl) > 20 and max(gl) - min(gl) > 3.0
