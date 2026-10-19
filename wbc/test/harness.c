@@ -2,6 +2,7 @@
     through ctypes beside MuJoCo. */
 #include "wbc.h"
 #include "wbc_imp.h"
+#include "wbc_law.h"
 #include "wbc_pass.h"
 
 #include <string.h>
@@ -267,4 +268,21 @@ API void wbh_imp_ask(const wbc_imp_t *k, const double *out, const double *y, con
 API int wbh_imp_size(void)
 {
   return (int)sizeof(wbc_imp_t);
+}
+
+API void wbh_law_latent(const wbc_law_t *k, double *st, const double *tab, int ntab, double now, double dt,
+                        double *out, double *hit)
+{
+  wbc_law_latent(k, st, tab, ntab, now, dt, out, hit);
+}
+
+API void wbh_law_couple(const wbc_law_t *k, const double *q, const double *qd, const double *ref_q,
+                        const double *ref_v, double *eso_z, double *out, double *dq)
+{
+  wbc_law_couple(k, q, qd, ref_q, ref_v, eso_z, out, dq);
+}
+
+API int wbh_law_size(void)
+{
+  return (int)sizeof(wbc_law_t);
 }

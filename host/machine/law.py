@@ -16,7 +16,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
-from machine import borne, edge, estimate, flight, grip, impedance, latent, modal, poise, se2, situation, stride, support, touch, wbc
+from machine import borne, edge, estimate, flight, grip, latent, modal, poise, se2, situation, stride, touch, wbc
 
 
 def seen(g, dt):
@@ -112,30 +112,15 @@ def risen_back(g, dt):
 
 
 def _step_latent(g, dt):
-    """Step her latent state via the compiled C law core when laid, else Python `latent.step`."""
-    lib = g.get('law_c')
-    if lib is None:
-        return latent.step(g['st'], g['tab'], g['t'], dt, g['out'])
-    dp = ctypes.POINTER(ctypes.c_double)
-    tab = np.ascontiguousarray(g['tab'], dtype=np.float64)
-    lib.law_latent_step(g['st'].ctypes.data_as(dp), tab.ctypes.data_as(dp), len(tab),
-                        float(g['t']), float(dt), g['out'].ctypes.data_as(dp))
-    return g['out']
+    """Her latent state stepped, `latent.step` in C bit for bit (`g['latent']`, `laid`)."""
+    return g['latent'](g['st'], g['tab'], g['t'], dt, g['out'])
 
 
 def _step_modal(g, s, y, y_in, out):
-    """Step `support.couple` via the compiled C law core when laid, and `impedance.ask` in C
-    bit for bit (`g['impedance']`, `law.laid`)."""
-    lib = g.get('law_c')
-    qd = y_in[edge.QD][g['joints']]
-    if lib is None:
-        return support.couple(s['q'], qd, g['ref_q'], g['ref_v'], g['eso'][2], out), impedance.ask(out, y, g['fr'], g['a'])
-    dp = ctypes.POINTER(ctypes.c_double)
-    q_c, qd_c = np.ascontiguousarray(s['q'], dtype=np.float64), np.ascontiguousarray(qd, dtype=np.float64)
-    dq = np.empty(len(q_c), dtype=np.float64)
-    lib.law_support_couple(q_c.ctypes.data_as(dp), qd_c.ctypes.data_as(dp), g['ref_q'].ctypes.data_as(dp),
-                           g['ref_v'].ctypes.data_as(dp), g['eso'][2].ctypes.data_as(dp),
-                           out.ctypes.data_as(dp), dq.ctypes.data_as(dp))
+    """Her upper body's yield and the loop's ask: `support.couple` and `impedance.ask` in C bit
+    for bit (`g['couple']`, `g['impedance']`, `laid`)."""
+    qd = np.ascontiguousarray(y_in[edge.QD][g['joints']], dtype=np.float64)
+    dq = g['couple'](np.ascontiguousarray(s['q'], dtype=np.float64), qd, g['ref_q'], g['ref_v'], g['eso'][2], out)
     return dq, g['impedance'](out, y, g['fr'], g['a'])
 
 
@@ -221,9 +206,12 @@ def laid(g):
     """Her drive-side step laid in C (`wbc_pass.c`, `tools.cores.wbc.Drives`): the struct
     pointing at `g`'s arrays once - the observers, the setpoints and their rates, the holds, the
     knees' spring, the feed and the clamps her drives are told (`g['cmd']`) - and what it reads
-    by, kept beside it. Her ask in C (`tools.cores.imp`), `machine.impedance.ask` bit for bit."""
-    from tools.cores import imp, law_library, wbc as cores
-    g['impedance'] = functools.partial(imp.asked, *imp.laid())
+    by, kept beside it. Her latent step, her upper body's coupling and her ask in C, her python's
+    bit for bit (`tools.cores.law`)."""
+    from tools.cores import law as c_law, wbc as cores
+    g['impedance'] = functools.partial(c_law.asked, *c_law.laid())
+    laid_ = c_law.latent_laid()
+    g['latent'], g['couple'] = functools.partial(c_law.stepped, laid_), functools.partial(c_law.coupled, laid_)
     body, joints = g['body'], g['joints']
     n = len(joints)
     kept = {'joints': np.ascontiguousarray(joints, dtype=np.int32),
@@ -243,7 +231,6 @@ def laid(g):
         setattr(p, name, cores.pointer(arr))
     g['cmd'] = {'target': g['ref_q'], 'feed': kept['feed'], 'limit': kept['limit']}
     g['drives'] = (p, kept, cores.library().wbh_pass_drives)
-    g['law_c'] = law_library()
 
 
 def drives(g, dt):

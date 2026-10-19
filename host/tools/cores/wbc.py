@@ -24,7 +24,9 @@ SOURCES = [os.path.join(REPO, 'wbc', 'test', 'harness.c'),
            os.path.join(REPO, 'wbc', 'src', 'wbc_model.c'),
            os.path.join(REPO, 'wbc', 'src', 'wbc_pass.c'),
            os.path.join(REPO, 'wbc', 'src', 'wbc_imp.c'),
-           os.path.join(REPO, 'wbc', 'src', 'wbc_stride.c')]
+           os.path.join(REPO, 'wbc', 'src', 'wbc_stride.c'),
+           os.path.join(REPO, 'wbc', 'src', 'wbc_blas.c'),
+           os.path.join(REPO, 'wbc', 'src', 'wbc_law.c')]
 INCLUDES = [os.path.join(REPO, 'wbc', 'inc')]
 #: The firmware compiles the chain at -O2 (CMakeLists.txt).
 FLAGS = ('-O2',)

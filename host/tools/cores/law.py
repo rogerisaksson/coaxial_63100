@@ -1,12 +1,20 @@
-"""`machine.impedance.ask` in C (wbc_imp.c, wbc_stride.c) through ctypes, bit for bit.
+"""Her law in C through ctypes, her python's bit for bit.
 
-The struct it is laid on, filled of the modules that define its layouts and constants.
+Her ask (wbc_imp.c, wbc_stride.c), her latent step and her upper body's coupling (wbc_law.c) on
+numpy's own OpenBLAS (wbc_blas.c); the structs they are laid on, filled of the modules that define
+their layouts and constants.
 
-    k, ask = imp.laid()
-    imp.asked(k, ask, out, y, fr, a)        # `a` this pass, in place: impedance.ask(out, y, fr, a)
+    k, ask = law.laid()
+    law.asked(k, ask, out, y, fr, a)        # `a` this pass, in place: impedance.ask(out, y, fr, a)
+    c = law.latent_laid()
+    law.stepped(c, st, tab, now, dt, out)   # latent.step(st, tab, now, dt, out)
+    dq = law.coupled(c, q, qd, ref_q, ref_v, eso_z, out)     # support.couple(...)
 """
 import ctypes
 import functools
+import glob
+import math
+import os
 
 import numpy as np
 
@@ -99,3 +107,90 @@ def asked(k, ask, out, y, fr, a):
     """`a`, the loop's ask this pass, in place - `impedance.ask(out, y, fr, a)` in C."""
     ask(ctypes.byref(k), wbc.pointer(out), wbc.pointer(y), wbc.pointer(fr), wbc.pointer(a))
     return a
+
+
+class Blas(ctypes.Structure):
+
+    """wbc_blas_t: numpy's own OpenBLAS - cblas_dgemm, cblas_dsyrk, cblas_dgemv, cblas_ddot, dgesv."""
+
+    _fields_ = [(name, ctypes.c_void_p) for name in ('gemm', 'syrk', 'gemv', 'dot', 'gesv')]
+
+
+@functools.lru_cache(maxsize=None)
+def numpy_blas():
+    """numpy's own OpenBLAS (scipy-openblas, ILP64) as wbc_blas_t: the library numpy's matmul and
+    linalg call, so C calling it gets numpy's bits."""
+    found = sorted(glob.glob(os.path.join(os.path.dirname(np.__file__), os.pardir, 'numpy.libs', '*scipy_openblas64*')))
+    if not found:
+        raise RuntimeError("numpy carries no scipy-openblas64 beside it: her law in C needs numpy's own BLAS")
+    lib = ctypes.CDLL(os.path.abspath(found[0]))
+    names = ('scipy_cblas_dgemm64_', 'scipy_cblas_dsyrk64_', 'scipy_cblas_dgemv64_', 'scipy_cblas_ddot64_',
+             'scipy_dgesv_64_')
+    return Blas(*[ctypes.cast(getattr(lib, n), ctypes.c_void_p).value for n in names])
+
+
+#: wbc_law_t's ints and doubles in its order, by what fills them.
+LAW_INTS = ('n p driven z k d amp phase gain hz zmp yaw now from to t0 blend theta vals said at lerp table '
+            'ref rate acc ks ds psi sway turns held yawed').split()
+LAW_DOUBLES = 'edge_s tau tau_v eso_0 eso_s sigma bleed'.split()
+
+
+class Law(ctypes.Structure):
+
+    """wbc_law_t: latent.step's and support.couple's layouts, their constants, numpy's BLAS."""
+
+    _fields_ = ([(name, ctypes.c_int) for name in LAW_INTS] + [(name, ctypes.c_double) for name in LAW_DOUBLES]
+                + [('pi', ctypes.c_void_p), ('gamma', ctypes.c_void_p), ('blas', Blas)])
+
+
+@functools.lru_cache(maxsize=None)
+def _law_typed():
+    """The core's latent step and coupling typed, wbc_law_t's size the C's."""
+    lib = wbc.library()
+    lib.wbh_law_size.restype = ctypes.c_int
+    if lib.wbh_law_size() != ctypes.sizeof(Law):
+        raise ValueError('wbc_law_t is %d bytes, its mirror %d' % (lib.wbh_law_size(), ctypes.sizeof(Law)))
+    lib.wbh_law_latent.argtypes = [ctypes.POINTER(Law), ctypes.c_void_p, ctypes.c_void_p, ctypes.c_int,
+                                   ctypes.c_double, ctypes.c_double, ctypes.c_void_p, ctypes.c_void_p]
+    lib.wbh_law_couple.argtypes = [ctypes.POINTER(Law)] + [ctypes.c_void_p] * 7
+    lib.wbh_law_latent.restype = lib.wbh_law_couple.restype = None
+    return lib.wbh_law_latent, lib.wbh_law_couple
+
+
+def latent_laid():
+    """wbc_law_t filled of machine.latent, machine.ortho and machine.support as they are now, and
+    its steps: (struct, latent, couple)."""
+    from machine import latent, ortho, support
+    if ortho.N > 16 or ortho.P > 64 or support.DRIVEN > 32:
+        raise ValueError('wbc_law.c lays 16 modes, 64 parameters and 32 drives at most')
+    names = {'n': ortho.N, 'p': ortho.P, 'driven': support.DRIVEN, 'gain': latent.GAIN, 'hz': latent.HZ,
+             'zmp': latent.ZMP, 'yaw': latent.YAW, 't0': latent.T0, 'blend': latent.BLEND, 'theta': latent.THETA,
+             'at': latent.AT, 'lerp': latent.LERP, 'table': latent.TABLE, 'turns': latent.TURNS,
+             'held': latent.HELD, 'yawed': latent.YAWED}
+    k = Law(**{name: int(names[name]) if name in names else _at(getattr(latent, name.upper())) for name in LAW_INTS},
+            edge_s=latent.EDGE_S, tau=math.tau, tau_v=support.TAU_V, eso_0=support.ESO_0, eso_s=support.ESO_S,
+            sigma=support.SIGMA, bleed=support.BLEED)
+    k.kept = (np.array(support.PI, dtype=np.float64), np.array(support.GAMMA, dtype=np.float64))
+    k.pi, k.gamma = wbc.pointer(k.kept[0]), wbc.pointer(k.kept[1])
+    k.blas = numpy_blas()
+    k.hit = np.zeros(64)
+    return (k,) + _law_typed()
+
+
+def stepped(laid_, st, tab, now, dt, out):
+    """`out` this pass, `st` blended - latent.step(st, tab, now, dt, out) in C."""
+    k, step, _couple = laid_
+    if len(k.hit) < len(tab):
+        k.hit = np.zeros(2 * len(tab))
+    step(ctypes.byref(k), wbc.pointer(st), wbc.pointer(tab), len(tab), float(now), float(dt), wbc.pointer(out),
+         k.hit.ctypes.data)
+    return out
+
+
+def coupled(laid_, q, qd, ref_q, ref_v, eso_z, out):
+    """`dq`, out's REF shifted and `eso_z` bled - support.couple(q, qd, ref_q, ref_v, eso_z, out) in C."""
+    k, _step, couple = laid_
+    dq = np.empty(len(q))
+    couple(ctypes.byref(k), wbc.pointer(q), wbc.pointer(qd), wbc.pointer(ref_q), wbc.pointer(ref_v),
+           wbc.pointer(eso_z), wbc.pointer(out), dq.ctypes.data)
+    return dq

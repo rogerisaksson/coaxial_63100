@@ -113,7 +113,7 @@ her latent loop in [orthokinematics](orthokinematics.md).
   in snow 3 of 3, hopped 0.85 m/s where 0.9 and fell turning at 0.69 m/s:
   the python step stays. libm here gives numpy's bits for sin, cos, tan,
   exp, log, atan2, sqrt, acos, asin, hypot and pow, tanh an ulp off.
-- Her ask in C (`wbc/src/wbc_imp.c`, `wbc_stride.c`, `tools.cores.imp`):
+- Her ask in C (`wbc/src/wbc_imp.c`, `wbc_stride.c`, `tools.cores.law`):
   `impedance.ask` with modal's reading, poise, stride and flight.standing
   under it, numpy's orders in `wbc/inc/wbc_np.h` - (3,3)@(3,) and (2,3)@(3,)
   dgemv_t's tail contracted, fma(a2, x2, fma(a0, x0, a1 x1)), (2,2)@(2,)
@@ -122,7 +122,12 @@ her latent loop in [orthokinematics](orthokinematics.md).
   asks over 14 scenarios, still in half of them, the same bit for bit; 1 280
   -> 8 us an ask; her pass 1 130 -> 785 us, 0.88 -> 1.27 of real time, her
   trajectory's sha1 her python's. The law core's own C ask (`tools.cores`),
-  as fast, left her python's bits from 0.5 s on: cut. Left in the pass: the
+  as fast, left her python's bits from 0.5 s on: cut. Her latent step and
+  her upper body's coupling on numpy's own OpenBLAS (`wbc_law.c`,
+  `wbc_blas.c`: numpy's matmul dispatch - gemm, syrk, gemv, ddot or its own
+  loop by shapes and strides - and its linalg's dgesv on Fortran copies,
+  4 000 random shapes the same): 41 022 steps and 41 011 couplings bit for
+  bit. Left in the pass: the
   python wrench step, her sensing, the wear's window 0.23 s every 4 s - it
   feeds her law (`wear.loaded`).
 
