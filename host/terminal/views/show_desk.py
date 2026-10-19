@@ -23,7 +23,7 @@ from coaxial.draw import desk
 from coaxial.errors import RigError
 from terminal.loader import TO_MENU
 from terminal.ui import screen as _screen
-from terminal.ui.screen import PORT, FPS_CAP, Feed, closing, mode_of, open_rig, run_view, say
+from terminal.ui.screen import PORT, FEED_HZ, FPS_CAP, Feed, closing, mode_of, open_rig, run_view, say
 from terminal.ui.stage import frame_of, stage
 from terminal.views.desk.boxes import (buffer_box, chain_box, digital_box, legend,
                                        scale)
@@ -143,7 +143,7 @@ def watch(rig, args, layout, chain, params):
         return clock['state']
 
     # Not tied to the frame rate.
-    feed = Feed(read, period=1.0 / FPS_CAP).start()
+    feed = Feed(read, period=1.0 / FEED_HZ).start()
 
     def draw():
         # Re-fitted every frame: the bars shrink with the tty instead of

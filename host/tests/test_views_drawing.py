@@ -257,8 +257,34 @@ def test_the_flat_drawings_spend_the_block(report):
                      any(0 < bin(ord(c) - 0x2800).count('1') < 8
                          for c in seen))
 
+def test_lines_draw_what_line_draws(report):
+    """`callouts.lines`, a ring's chords at once, sets the dots `line` sets one at a time: lines
+    in, out of and across the grid, flat, upright and points, a ring of 96."""
+    import random
+    import numpy as np
+    from coaxial.graphics.callouts import line, lines
+    rng, bad = random.Random(5), 0
+    for trial in range(300):
+        h, w = rng.choice(((88, 300), (40, 120), (5, 7), (1, 1)))
+        if trial % 10 == 0:
+            k = np.arange(96) * (2.0 * math.pi / 96)
+            x, y = w / 2 + 0.4 * w * np.cos(k), h / 2 + 0.6 * h * np.sin(k)
+            segs = list(zip(zip(x, y), zip(np.roll(x, 1), np.roll(y, 1))))
+        else:
+            ends = ([(rng.uniform(-w, 2 * w), rng.uniform(-h, 2 * h)) for _ in range(2)]
+                    for _ in range(rng.choice((1, 7, 96))))
+            segs = [(a, rng.choice((b, a, (a[0], b[1]), (b[0], a[1])))) for a, b in ends]
+        one, many = np.zeros((h, w), bool), np.zeros((h, w), bool)
+        for a, b in segs:
+            line(one, a, b)
+        lines(many, [a[0] for a, _b in segs], [a[1] for a, _b in segs], [b[0] for _a, b in segs],
+              [b[1] for _a, b in segs])
+        bad += not np.array_equal(one, many)
+    report.check('lines sets the dots line sets, dot for dot', bad == 0, '%d of 300 differ' % bad)
 
-ROSTER = (test_the_level_is_drawn_at_the_dot,
+
+
+ROSTER = (test_lines_draw_what_line_draws, test_the_level_is_drawn_at_the_dot,
           test_the_teeth_keep_their_length_and_a_shared_cell_goes_to_the_most,
           test_a_line_keeps_the_cell_it_shares_with_an_area,
           test_nothing_in_the_drawing_can_be_sheared, test_the_flat_drawings_spend_the_block)

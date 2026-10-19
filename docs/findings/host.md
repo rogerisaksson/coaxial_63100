@@ -194,6 +194,17 @@ Pages, tooling, suites and the local model's runner. The board's findings:
   work since), the heap before the page frozen, the flight shown at that
   instant (`screen.drawn_at`): 0.98-1.02, the gap frame to frame 0.3 ms and
   1.5 at p95, a frame 61 ms where 55.
+- A helicopter frame was 52 ms: its 3D 23 (the rotors' rings 7 of it, 192
+  lines of a few numpy calls each), rich 20 (the CRT 18: every cell of the
+  screen a list, twice, for the few dozen it puts), compose 4. The chrome
+  keeps rich's segments and splits them where it puts (`chrome._Row`, the
+  same cells on eight pages at seven instants), a ring's chords one call
+  (`callouts.lines`, `line`'s dots): 35 ms, frames to 30 a second
+  (`FPS_CAP`; a board read 20, `FEED_HZ`) - the helicopter 28.7, the quad
+  27.8 where 16.4 and 13.8 -, each one a synchronized update (DEC 2026).
+  On its course lap at 12.6 m/s the craft on screen is off smooth motion
+  0.04 dots (0.38 at p95), its path in the world 9 mm at p95; the chase
+  holds it 15 dots off the middle, 43 at p95.
 - HUMANOID's R crashed the page at once with no traceback
   kept; headless it took R and saved 97 rows then, and R starting, three
   states and R saving is test_views_humanoid.py's. The

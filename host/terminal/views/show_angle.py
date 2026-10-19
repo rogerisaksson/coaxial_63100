@@ -26,7 +26,7 @@ from machine import ansi
 from terminal.loader import TO_MENU
 from terminal.ui import aspect as _aspect, screen as _screen
 from terminal.ui.demo import stop_motor, sweep_motor
-from terminal.ui.screen import (PORT, FPS_CAP, Feed, Freshness, closing, mode_of, open_rig, run_view,
+from terminal.ui.screen import (PORT, FEED_HZ, FPS_CAP, Feed, Freshness, closing, mode_of, open_rig, run_view,
                                 say, steady)
 from terminal.ui.stage import frame_of, hud, stage
 
@@ -285,7 +285,7 @@ def main(argv=None):
             motor()
         return steady(board.angle.state)
 
-    feed = Feed(sample, period=1.0 / FPS_CAP).start()
+    feed = Feed(sample, period=1.0 / FEED_HZ).start()
 
     def draw():
         state = feed.latest

@@ -26,7 +26,7 @@ from coaxial.comm.session import standing
 from coaxial.devices import scaling
 from coaxial.errors import RigError
 from terminal.loader import TO_MENU
-from terminal.ui.screen import (PORT, FPS_CAP, Feed, closing, mode_of, open_rig, panel_width, run_view,
+from terminal.ui.screen import (PORT, FEED_HZ, FPS_CAP, Feed, closing, mode_of, open_rig, panel_width, run_view,
                                 say)
 from terminal.ui.stage import hud, panels_of, stage
 
@@ -293,7 +293,7 @@ def main(argv=None):
         drain(rig, task['layout'], view)
         task['layout'] = adapt(rig, task['layout'], args, view)
 
-    feed = Feed(take, period=1.0 / FPS_CAP).start()
+    feed = Feed(take, period=1.0 / FEED_HZ).start()
 
     try:
         leaving = run_view(board_view, terminal, 1.0 / max(args.hz, 0.5), args.frames,

@@ -24,7 +24,7 @@ from coaxial.errors import RigError
 from terminal.loader import TO_MENU
 from terminal.ui import console as _console, screen as _screen
 from terminal.ui.console import WHEEL_STEP
-from terminal.ui.screen import (PORT, FPS_CAP, Feed, Freshness, closing, mode_of, open_rig, run_view,
+from terminal.ui.screen import (PORT, FEED_HZ, FPS_CAP, Feed, Freshness, closing, mode_of, open_rig, run_view,
                                 say)
 from terminal.ui.stage import boot, frame_of, hud, stage
 
@@ -424,7 +424,7 @@ def main(argv=None):
     tally = Freshness()
     # The board read on its own thread: a frame draws at the screen's pace, not the link's - an
     # emulated board's link is several times slower than a real one's.
-    feed = Feed(lambda: latest(board), period=1.0 / FPS_CAP).start()
+    feed = Feed(lambda: latest(board), period=1.0 / FEED_HZ).start()
 
     def draw():
         wide, tall = canvas(args)

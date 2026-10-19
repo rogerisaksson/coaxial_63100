@@ -13,7 +13,7 @@ a pole marked each metre up and what stands about the course are its world
 import math
 
 from coaxial.graphics import engine, scenery, shapes
-from coaxial.graphics.callouts import line
+from coaxial.graphics.callouts import line, lines
 from coaxial.graphics.lit import CORE, PLATE, braille, paint, project, splat
 from machine import ansi, quad
 
@@ -261,18 +261,17 @@ def swept_rings(pose, rings_and_rotors, m, cam, centre):
     its rim dotted."""
     from coaxial.model.blocks import numpy as np
     turn, at = np.asarray(pose['turn'], float), np.asarray(pose['at'], float)
-    rim = np.zeros((cam['height'], cam['width']), bool)
+    drawn = np.zeros((cam['height'], cam['width']), bool)
     for (ring, spot), (_angle, w, *_heat) in rings_and_rotors:
         if abs(w) < BLADES_RAD_S:
             continue
         hub = at + turn @ np.asarray(spot, float)
         sx, sy, _w = project(ring @ turn.T + hub, m, cam, centre)
-        drawn = np.zeros_like(rim)
-        for a in range(len(ring)):
-            line(drawn, (sx[a], sy[a]), (sx[a - 1], sy[a - 1]))
-        ys, xs = np.nonzero(drawn)
-        keep = ((xs + ys) % RIM_EVERY) == 0
-        rim[ys[keep], xs[keep]] = True
+        lines(drawn, sx, sy, np.roll(sx, 1), np.roll(sy, 1))
+    ys, xs = np.nonzero(drawn)
+    keep = ((xs + ys) % RIM_EVERY) == 0
+    rim = np.zeros_like(drawn)
+    rim[ys[keep], xs[keep]] = True
     return [(rim, RIM_INK)]
 
 

@@ -22,7 +22,7 @@ from coaxial.model.inverter import GATE_UVLO_V
 from coaxial.model.thermal import HASTE
 from coaxial.simulated.sto import PILOT_VOLTS
 from terminal.ui.demo import stop_motor, turn_motor
-from terminal.ui.screen import FPS_CAP
+from terminal.ui.screen import FEED_HZ
 from tools.cores import native
 from tools.cores.build import find_cc
 from tools.dev.focus import pick, watchdog
@@ -321,13 +321,13 @@ def test_a_page_drawing_leaves_the_board_its_time(report, _rig):
     stood = max(b - a for a, b in zip(marks, marks[1:]))
     said = ('%d attitudes in %d frames over %.1f s, the longest standing %.2f s'
             % (len({q for _, q in drawn}), len(drawn), drawn[-1][0] - drawn[0][0], stood))
-    # Judged where the host let the page keep a third of its rate: squeezed to two cores
-    # beside four busy loops it drew 80 frames in 31 s, reading slower with them - 1.86 s
+    # Judged where the host let the page draw a third of its feed's reads: squeezed to two
+    # cores beside four busy loops it drew 80 frames in 31 s, reading slower with them - 1.86 s
     # standing, the board at 100 % - and CI's runner stood it 4.7-6.1 s (78a1038). Both
     # freezes drew at the full rate standing still.
-    if (len(drawn) - 1) / max(1e-9, drawn[-1][0] - drawn[0][0]) < FPS_CAP / 3.0:
+    if (len(drawn) - 1) / max(1e-9, drawn[-1][0] - drawn[0][0]) < FEED_HZ / 3.0:
         report.skip('the page\'s attitude moving with the part',
-                    'the host held the page under a third of its rate: ' + said)
+                    'the host held the page under a third of its feed\'s rate: ' + said)
     elif (os.cpu_count() or 1) <= 4:
         # The page draws on a crew of processes, one a core: on CI's four the feed stood 4.5 s
         # at 9 frames a second, the host itself alone on the relay (e5ca56d).

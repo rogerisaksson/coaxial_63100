@@ -1,7 +1,8 @@
 """Callouts on a drawing: a framed column of rows a joint, a leader to it.
 
 `callouts` places them at the drawing's edges, or around her (`band`), each at its joint's
-height at rest, and draws the leaders; `line` a line of dots; `packed` a cell's inks as a key.
+height at rest, and draws the leaders; `line` a line of dots, `lines` many; `packed` a cell's inks
+as a key.
 """
 from coaxial.graphics.raster import DOTS_X, DOTS_Y
 
@@ -11,7 +12,9 @@ LEADER_INK = (96, 110, 124)
 
 
 def line(dots, a, b):
-    """The dots from `a` to `b`, (x, y) dot coordinates, set in `dots`."""
+    """The dots from `a` to `b`, (x, y) dot coordinates, set in `dots`: clipped to them
+    (Liang-Barsky, the boundaries in turn), a dot a step of its longer side - numpy's linspace -,
+    rounded to its nearest."""
     import numpy as np
     h, w = dots.shape
     if h <= 0 or w <= 0:
@@ -41,6 +44,41 @@ def line(dots, a, b):
     x = np.clip(np.rint(np.linspace(x0, x1, n)).astype(int), 0, w - 1)
     y = np.clip(np.rint(np.linspace(y0, y1, n)).astype(int), 0, h - 1)
     dots[y, x] = True
+
+
+def lines(dots, ax, ay, bx, by):
+    """`line` from (`ax`, `ay`) to (`bx`, `by`), arrays of dot coordinates, every one at once:
+    the same dots, its clip and its linspace in numpy over all of them - a ring's 96 chords one
+    call, not 96 (test_views_drawing holds them equal)."""
+    import numpy as np
+    h, w = dots.shape
+    if h <= 0 or w <= 0:
+        return
+    ax, ay, bx, by = (np.asarray(v, float).ravel() for v in (ax, ay, bx, by))
+    dx, dy = bx - ax, by - ay
+    t0, t1, alive = np.zeros(ax.shape), np.ones(ax.shape), np.ones(ax.shape, bool)
+    with np.errstate(divide='ignore', invalid='ignore'):
+        for p, q in ((-dx, ax), (dx, (w - 1) - ax), (-dy, ay), (dy, (h - 1) - ay)):
+            alive &= ~((p == 0.0) & (q < 0.0))
+            r = q / p
+            neg, pos = p < 0.0, p > 0.0
+            alive &= ~(neg & (r > t1))
+            t0 = np.where(neg & (r > t0), r, t0)
+            alive &= ~(pos & (r < t0))
+            t1 = np.where(pos & (r < t1), r, t1)
+    if not alive.any():
+        return
+    ax, ay, dx, dy, t0, t1 = ax[alive], ay[alive], dx[alive], dy[alive], t0[alive], t1[alive]
+    x0, y0, x1, y1 = ax + t0 * dx, ay + t0 * dy, ax + t1 * dx, ay + t1 * dy
+    n = np.maximum(np.abs(x1 - x0), np.abs(y1 - y0)).astype(int) + 1
+    seg = np.repeat(np.arange(len(n)), n)
+    k = np.arange(len(seg)) - np.repeat(np.cumsum(n) - n, n)
+    div = np.maximum(n - 1, 1)[seg]
+    x = k * ((x1 - x0)[seg] / div) + x0[seg]
+    y = k * ((y1 - y0)[seg] / div) + y0[seg]
+    end = (k == n[seg] - 1) & (n[seg] > 1)
+    x[end], y[end] = x1[seg][end], y1[seg][end]
+    dots[np.clip(np.rint(y).astype(int), 0, h - 1), np.clip(np.rint(x).astype(int), 0, w - 1)] = True
 
 
 def packed(fg, bg=None):

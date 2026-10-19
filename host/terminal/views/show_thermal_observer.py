@@ -24,7 +24,7 @@ from coaxial.model.thermal import IDENT_MARGIN_FLOOR
 from terminal.loader import TO_MENU
 from terminal.ui import aspect as _aspect, screen as _screen
 from terminal.ui.demo import cycle_motor, stop_motor
-from terminal.ui.screen import (PORT, FPS_CAP, Feed, closing, mode_of, run_view, say, stamp_crosses,
+from terminal.ui.screen import (PORT, FEED_HZ, FPS_CAP, Feed, closing, mode_of, run_view, say, stamp_crosses,
                                 visible)
 from terminal.ui.stage import boot, frame_of, hud, stage
 from terminal.views.thermal.boxes import room_hint, status_boxes
@@ -271,7 +271,7 @@ def main():
             except (NoReplyError, RigError) as exc:
                 last['quiet'] = last['quiet'] or (time.monotonic(), str(exc))
 
-        feed = Feed(sample, period=1.0 / FPS_CAP).start()
+        feed = Feed(sample, period=1.0 / FEED_HZ).start()
 
         def draw():
             # Three cells of pad and eight of field: six and twelve read as

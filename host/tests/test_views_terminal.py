@@ -76,16 +76,17 @@ def test_the_chrome_at_its_edges(report):
     court.print(chrome.Chrome(Text('plain'), 'METER BRIDGE'))
     report.check('with no height there is no region to dress: the drawing as it is',
                  court.export_text().strip() == 'plain')
-    cells = chrome._cells([Segment('a'), Segment('', None, [(ControlType.HOME,)]), Segment('\u6f22b')])
+    row = chrome._Row([Segment('a'), Segment('', None, [(ControlType.HOME,)]), Segment('\u6f22b')])
     report.check('a control code takes no cell, a wide character two',
-                 [ch for ch, _style in cells] == ['a', '\u6f22', '', 'b'], str(cells))
-    rows = [[[' ', None] for _ in range(6)] for _ in range(2)]
-    rows[0][2] = ['x', Style()]
+                 row.text == 'a\u6f22' + chrome.WIDE + 'b' and len(row.bg) == 4, repr(row.text))
+    rows = [chrome._Row([Segment(' ' * 6)]) for _ in range(2)]
+    rows[0].put[2] = ('x', Style())
     report.check('a piece goes in whole where it fits on blanks, or not at all',
                  not chrome._put(rows, 5, 0, 'ab', None)
                  and not chrome._put(rows, 0, 5, 'ab', None)
                  and not chrome._put(rows, 0, 1, 'ab', None)
-                 and chrome._put(rows, 1, 1, 'ab', None) and rows[1][1][0] == 'a')
+                 and chrome._put(rows, 1, 1, 'ab', None) and rows[1].put[1][0] == 'a'
+                 and ''.join(seg.text for seg in rows[1].segments()) == ' ab   ')
 
 
 def test_each_page_draws_on_a_terminal(report):
@@ -333,18 +334,19 @@ def test_a_frame_rasterises_as_the_terminal_draws_it(report):
 
 def test_the_attitude_caps_its_frame_rate(report):
     """Every view draws at most FPS_CAP frames a second whatever `--hz` asks - so the
-    laptop's fans stay down - BOARD ATTITUDE never slower than one every two
-    seconds."""
-    from terminal.ui.screen import FPS_CAP
+    laptop's fans stay down -, its feeds read the board FEED_HZ times; BOARD ATTITUDE never
+    slower than one every two seconds."""
+    from terminal.ui.screen import FEED_HZ, FPS_CAP
     from terminal.views import show_orientation as view
 
-    report.check('the cap is twenty', FPS_CAP == 20.0, str(FPS_CAP))
-    report.check('--hz 60 draws at twenty',
-                 abs(view.period_of(60.0) - 1.0 / 20.0) < 1e-9,
+    report.check('the cap is thirty, the feeds twenty', (FPS_CAP, FEED_HZ) == (30.0, 20.0),
+                 str((FPS_CAP, FEED_HZ)))
+    report.check('--hz 60 draws at thirty',
+                 abs(view.period_of(60.0) - 1.0 / 30.0) < 1e-9,
                  '%.4f s' % view.period_of(60.0))
-    report.check('--hz 20, the default, is honoured',
+    report.check('--hz 20 is honoured, the cap the default',
                  abs(view.period_of(20.0) - 0.05) < 1e-9
-                 and view.parse_args(['--simulated']).hz == 20.0,
+                 and view.parse_args(['--simulated']).hz == FPS_CAP,
                  '%.4f s' % view.period_of(20.0))
     report.check('and nothing slower than one frame every two seconds',
                  view.period_of(0.0) == 2.0, '%.4f s' % view.period_of(0.0))

@@ -10,6 +10,8 @@ import sys
 import threading
 import time
 
+from rich.segment import Segment
+
 from coaxial import Coaxial63100
 from coaxial.comm.session import standing
 from coaxial.devices.thermal import THROTTLE_AT
@@ -148,8 +150,12 @@ def gauge(fraction, width, hot=THROTTLE_AT):
                         else cross_section.SOA_OK)
 
 
-#: Maximum frames and feed reads per second across views.
-FPS_CAP = 20.0
+#: Maximum frames per second across views; the most a feed reads its board a second.
+FPS_CAP, FEED_HZ = 30.0, 20.0
+
+#: A frame between these, a synchronized update (DEC mode 2026): a terminal that knows it paints
+#: the frame whole, not the half of it a write had reached; one that does not ignores them.
+SYNC_BEGIN, SYNC_END = '\x1b[?2026h', '\x1b[?2026l'
 
 #: A frame of a page in a console past STALL_S dumps every thread's stack, appended to STALL_LOG:
 #: HUMANOID froze as the mouse moved on the bench, and not here in 300 frames under 6 070 sweeps.
@@ -311,7 +317,11 @@ def run_view(board_view, console, period, frames, draw, on_input=None,
                 _DRAWN_AT[0] = beat.slot(began)
                 with board_view:
                     shown = draw()
+                    if console:
+                        board_view._buffer.append(Segment(SYNC_BEGIN))
                     page.update(shown, refresh=True)
+                    if console:
+                        board_view._buffer.append(Segment(SYNC_END))
                     beat.took(time.perf_counter() - began)
                     rest = _DRAWN_AT[0] - time.perf_counter()
                     if rest > 0.0:

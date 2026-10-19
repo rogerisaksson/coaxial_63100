@@ -52,7 +52,7 @@ from coaxial.errors import RigError
 from coaxial.model import thermal as _thermal
 from terminal.loader import TO_MENU
 from terminal.ui import aspect as _aspect, console as _console, screen as _screen
-from terminal.ui.screen import PORT, FPS_CAP, Feed, closing, mode_of, open_rig, run_view, say
+from terminal.ui.screen import PORT, FEED_HZ, FPS_CAP, Feed, closing, mode_of, open_rig, run_view, say
 from terminal.ui.stage import frame_of, hud, stage
 from terminal.ui.stage import mode_of as port_mode
 from terminal.views.rotor.keys import LIMITS, MODES, RATING_A, act
@@ -530,7 +530,7 @@ def main(argv=None):
                 rearm_after_trip(rig, origin, view)
 
     sample()
-    feed = Feed(sample, period=1.0 / FPS_CAP).start()
+    feed = Feed(sample, period=1.0 / FEED_HZ).start()
 
     def draw():
         # The console itself: `frame_of` pages on its scroll state and size.

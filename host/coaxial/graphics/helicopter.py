@@ -227,14 +227,18 @@ def _posed(pose, rotors, dense, see='shell'):
     return pose_meshes(pose, rotors, dense, heli_mesh('frame', see), moving)
 
 
+_RINGS = []
+
+
 def _discs(pose, rotors, m, cam, centre):
     """[(dots, ink)]: when turning faster than BLADES_RAD_S, the swept main rotor tip-path ring
-    and vertical tail rotor ring, their rims dotted."""
-    from coaxial.model.blocks import numpy as np
-    k = np.arange(96) * (2.0 * math.pi / 96)
-    rings = ((np.stack([np.cos(k), np.zeros_like(k), np.sin(k)], 1) * ROTOR_R, HUB_AT),
-             (np.stack([np.zeros_like(k), np.cos(k), np.sin(k)], 1) * TAIL_R, TAIL_AT))
-    return swept_rings(pose, zip(rings, rotors), m, cam, centre)
+    and vertical tail rotor ring, their rims dotted; the rings laid once."""
+    if not _RINGS:
+        from coaxial.model.blocks import numpy as np
+        k = np.arange(96) * (2.0 * math.pi / 96)
+        _RINGS.extend(((np.stack([np.cos(k), np.zeros_like(k), np.sin(k)], 1) * ROTOR_R, HUB_AT),
+                       (np.stack([np.zeros_like(k), np.cos(k), np.sin(k)], 1) * TAIL_R, TAIL_AT)))
+    return swept_rings(pose, zip(_RINGS, rotors), m, cam, centre)
 
 
 def force_arrows(pose, thrusts, specs, m, cam, centre):
