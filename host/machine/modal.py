@@ -4,7 +4,8 @@
     fr = modal.frame(y, mass, limb, trunk, arm, knee, dt)    # her statics, once
     rest = modal.rest(fr)                               # her rest vector (`latent.state`)
     z, rate = modal.read(y, fr, a[modal.STANCE])        # her modes as she is, and their rates
-    ask = modal.given(a, y, fr, posture, bend, arms, knees)  # the stack's ask (`wbc.step`) of `a`
+    posed = modal.poses(a, y, fr, posture, bend, arms, knees)  # the arithmetic of the stack's ask
+    ask = modal.given(a, y, posed, knees)               # the stack's ask (`wbc.step`) of `a`
 
 Flat arrays and arithmetic on them; a choice is a mask, a limit a minimum or a maximum, a
 change a blend. A limb's place is its sole's from her centre of mass, along her way, to her
@@ -276,16 +277,14 @@ def sensed(s, loads, y):
     return y
 
 
-def given(a, y, fr, posture, bend, arms, knees, clear=0.0):
-    """The stack's ask (`wbc.step`) of `a`: `posture` her driven joints standing, rad; `bend`
-    how each goes with her knees' (`crouch`), `arms` with her arms' swing (`swing`); `knees`
-    each knee's index among them. A sole that does not stand is asked its acceleration where
-    it is; no turn is asked with none standing."""
-    free = np.flatnonzero(a[STANCE] < 0.5)
-    folded = np.flatnonzero((a[STANCE] < 0.5) & (a[FOLDS] > 0.5))
-    soles, speeds, accs = (v.reshape(2, 3) for v in (y[SOLE], y[VSOLE], a[SOLE_ACC]))
-    q0, q2 = float(y[QUAT][0]), float(y[QUAT][2])
-    lat = np.array([q0 * q0 - q2 * q2, 0.0, -2.0 * q0 * q2]) / max(q0 * q0 + q2 * q2, 1e-12)
+def poses(a, y, fr, posture, bend, arms, knees, clear=0.0):
+    """(each sole's place asked as it swings (2, 3), her posture (driven), her turns (pelvis,
+    trunk) and a swinging sole's quaternion (2, 4)) of `a`, the stack's ask's arithmetic
+    (`given`): `posture` her driven joints standing, rad; `bend` how each goes with her knees'
+    (`crouch`), `arms` with her arms' swing (`swing`); `knees` each knee's index among them."""
+    soles, speeds = y[SOLE].reshape(2, 3), y[VSOLE].reshape(2, 3)
+    q0, q2 = y[QUAT][0], y[QUAT][2]
+    lat = np.array([q0 * q0 - q2 * q2, 0.0, -2.0 * q0 * q2]) / np.maximum(q0 * q0 + q2 * q2, 1e-12)
     signs = np.array([1.0, -1.0])
     dl = signs * ((soles + 0.05 * speeds - soles[::-1]) @ lat)
     sw_at = soles + (a[STANCE][::-1] * signs * np.maximum(clear - dl, 0.0))[:, None] * lat
@@ -293,6 +292,15 @@ def given(a, y, fr, posture, bend, arms, knees, clear=0.0):
     pose[list(knees)] += a[STANCE] * a[PREFOLD]
     turns = _turned(fr[HEADING] + a[HEADED], a[WANT], a[ROLLED])
     tips = _turned(fr[HEADING] + 0.0 * a[TIPPED], a[TIPPED], 0.0 * a[TIPPED])
+    return sw_at, pose, turns, tips
+
+
+def given(a, y, posed, knees):
+    """The stack's ask (`wbc.step`) of `a` and its poses (`posed`, `poses`), by her stance: a sole
+    that does not stand is asked its acceleration where it is; no turn is asked with none standing."""
+    (sw_at, pose, turns, tips), speeds, accs = posed, y[VSOLE].reshape(2, 3), a[SOLE_ACC].reshape(2, 3)
+    free = np.flatnonzero(a[STANCE] < 0.5)
+    folded = np.flatnonzero((a[STANCE] < 0.5) & (a[FOLDS] > 0.5))
     return {'stance': tuple(a[STANCE] > 0.5), 'com_acc': a[COM_ACC].copy(),
             'turns': tuple(turns[:2 * int(a[TURNED])]), 'posture': pose, 'kdot': a[KDOT].copy(),
             'settle': a[SETTLE].reshape(2, 6).copy(), 'edge': tuple(a[EDGE]), 'strides': float(a[STRIDES]),

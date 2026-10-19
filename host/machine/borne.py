@@ -20,6 +20,8 @@ from machine import edge, touch
 
 #: A segment bears that is pushed up past this, N: her skin's touch.
 BEARS_N = edge.TOUCHED_N
+#: The segments above her soles (`touch.ABOVE`), indices into her skin.
+ABOVE = np.array(touch.ABOVE)
 
 
 def read(b, s, y, weight):
@@ -31,10 +33,9 @@ def read(b, s, y, weight):
         ids = b.skin = np.array([m.body(name).id for name in edge.SKIN])
     pushes, at = y[edge.TOUCH].reshape(-1, 3), y[edge.AT].reshape(-1, 3)
     up, low, high, contacts = 0.0, np.full(3, np.inf), np.full(3, -np.inf), []
-    jp, jr = np.zeros((3, m.nv)), np.zeros((3, m.nv))
-    for k in touch.ABOVE:
-        if not pushes[k].any():
-            continue
+    pushed = ABOVE[pushes[ABOVE].any(axis=1)]
+    jp, jr = (np.zeros((3, m.nv)), np.zeros((3, m.nv))) if len(pushed) else (None, None)
+    for k in pushed:
         R = d.xmat[ids[k]].reshape(3, 3)
         f, p = R @ pushes[k], d.xpos[ids[k]] + R @ at[k]
         if f[1] <= BEARS_N:

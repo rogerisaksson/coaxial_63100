@@ -178,14 +178,14 @@ def _beside(real, fn, twin, tally, at=0):
 
 def test_her_law_in_c_as_she_walks(report, c):
     """Her law's compiled parts - her estimate, her sensing, her grip's feel and floor, her
-    situation, her drive's cap (`law.laid`) - at every pass of her law over PASSES of her walk,
-    built at their first and held there, each beside its numpy on copies."""
-    from machine import estimate, grip, law, situation, wbc, worker
+    situation, her drive's cap, her ask's poses (`law.laid`) - at every pass of her law over PASSES
+    of her walk, built at their first and held there, each beside its numpy on copies."""
+    from machine import estimate, grip, law, modal, situation, wbc, worker
     from tools.cores import law as c_law, trace_mj
     s = worker.session(walks=True)
     g = s['g']
     parts = {'estimated': estimate.step, 'sensed': wbc.sense, 'felt': grip.felt, 'outside': grip.outside,
-             'readings': situation.readings, 'read': situation.read, 'gripped': law.gripped}
+             'readings': situation.readings, 'read': situation.read, 'gripped': law.gripped, 'poses': modal.poses}
     tallies, reals = {name: [0, 0, None] for name in parts}, {name: g[name] for name in parts}
     for name, fn in parts.items():
         twin = trace_mj.twin(g['body']) if name in ('sensed', 'estimated') else None

@@ -322,3 +322,11 @@ Pages, tooling, suites and the local model's runner. The board's findings:
   Python max and float numpy's, the same bits. Her walk 780 -> 648 us a pass
   with the seven, p99 2.32 -> 1.76 ms, the two in one process pass by pass,
   her trajectory the same to the bit.
+- Her ask's arithmetic its own function, compiled (`modal.poses`; `given` the
+  ask of it by her stance). A compiled call 16 -> 6.75 us: an argument the
+  same array as the last call's keeps its address, one converted written
+  into a buffer of its own, an address read off numpy's array head. Her
+  drives' step pointed only at the law's new arrays (the median pass 251 ->
+  198 us); `borne.read` over the pushed segments alone. Her walk 792 -> 600
+  us a pass, p99 2.26 -> 1.49 ms, the two in one process pass by pass, her
+  trajectory the same to the bit.

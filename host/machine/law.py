@@ -177,7 +177,8 @@ def control(g, dt):
         imp[modal.HEADED][1] = g['posture'][g['waist_idx']]
     clear = 0.115 * bool((g.get('_twist_active') or g.get('_twist_stop_until', 0.0) > g['t'])
                          and cur_doing not in se2.STUNT_PHASES and g.get('_jump_until', 0.0) <= g['t'])
-    ask = g['ask'] = modal.given(imp, y, g['fr'], g['posture'] + dq, g['bend'], g['arms'], body.knees, clear)
+    posed = g['poses'](imp, y, g['fr'], g['posture'] + dq, g['bend'], g['arms'], body.knees, clear)
+    ask = g['ask'] = modal.given(imp, y, posed, body.knees)
     ask['mu'] = g['held']
     s_solve, cv = s, list(g.get('cervical', ()))
     if (cur_doing in ('load', 'throw', 'land') or ae == 'hop') and ae not in ('hop_up_chair', 'hop_down_chair', 'controlled_fall'):
@@ -208,8 +209,8 @@ def laid(g):
     pointing at `g`'s arrays once - the observers, the setpoints and their rates, the holds, the
     knees' spring, the feed and the clamps her drives are told (`g['cmd']`) - and what it reads
     by, kept beside it. Her latent step, her upper body's coupling and her ask in C, her python's
-    bit for bit (`tools.cores.law`); her estimate, her grip's feel and floor, her situation and her
-    drive's cap compiled from their numpy (`tools.cores.bodied`)."""
+    bit for bit (`tools.cores.law`); her estimate, her grip's feel and floor, her situation, her
+    drive's cap and her ask's poses compiled from their numpy (`tools.cores.bodied`)."""
     from tools.cores import bodied, law as c_law, wbc as cores
     g['estimated'] = bodied.on_body(estimate.step, 'estimate', (0, 2), body=1)
     g['felt'] = bodied.on_args(grip.felt, 'felt', (0, 1, 2, 3, 4, 5, 7, 8))
@@ -217,6 +218,7 @@ def laid(g):
     g['readings'] = bodied.on_args(situation.readings, 'readings', (0, 1, 2, 3, 4, 5))
     g['read'] = bodied.on_args(situation.read, 'read', (0, 1))
     g['gripped'] = bodied.on_args(gripped, 'gripped', (0, 1, 2, 3, 4))
+    g['poses'] = bodied.on_args(modal.poses, 'poses', (0, 1, 2, 3, 4, 5, 7))
     g['impedance'] = functools.partial(c_law.asked, *c_law.laid())
     laid_ = c_law.latent_laid()
     g['latent'], g['couple'] = functools.partial(c_law.stepped, laid_), functools.partial(c_law.coupled, laid_)
@@ -245,15 +247,20 @@ def drives(g, dt):
     """Each driven joint's setpoint (`g['ref_q']`), feed and clamp (`g['cmd']`) this pass, its
     observer stepped on its motor's encoder: the step in C (`laid`), told here what of her it
     reads whole - her law's yield as she tilts, a hop, which WEP limit is hers."""
-    y, got, p, _kept, step = g['sense'], g['got'], *g['drives']
+    y, got, p, kept, step = g['sense'], g['got'], *g['drives']
     held, wo, ct = float(g['hold'].any()), g['wo'], edge.tilt(y)
     ys = max(0.0, min(1.0, (85.0 - ct) / 20.0)) if ct > 65.0 else 1.0
     doing = se2.doing(g)
     in_hop = (g.get('_jump_until', 0.0) > g['t'] or doing in ('load', 'throw', 'land')) and not g.get('_leap')
     wb = bool(g.get('_leap') or g.get('active_entry') in se2.WASD_GAITS or (g['a'][modal.LEAD] > 0.0).any()
               or g['a'][modal.OUTSIDE] > 0.0 or doing in se2.STUNT_PHASES)
-    qacc, tau, jeff = (np.ascontiguousarray(a, dtype=np.float64) for a in (got['qacc'], got['tau'], g['jeff']))
-    over = np.ascontiguousarray(got['over'], dtype=np.bool_)
-    p.qacc, p.tau, p.over, p.jeff = qacc.ctypes.data, tau.ctypes.data, over.ctypes.data, jeff.ctypes.data
+    arrays = (got['qacc'], got['tau'], g['jeff'], got['over'])
+    pointed = kept.get('pointed', ())
+    if len(pointed) != 4 or any(a is not b for a, b in zip(arrays, pointed)):
+        qacc, tau, jeff = (np.ascontiguousarray(a, dtype=np.float64) for a in arrays[:3])
+        over = np.ascontiguousarray(arrays[3], dtype=np.bool_)
+        p.qacc, p.tau, p.over, p.jeff = qacc.ctypes.data, tau.ctypes.data, over.ctypes.data, jeff.ctypes.data
+        kept['laid'] = (qacc, tau, jeff, over)
+        kept['pointed'] = arrays if all(x is y for x, y in zip(arrays, kept['laid'])) else ()
     step(ctypes.byref(p), dt, wo, wo ** 3, ys, int(in_hop), int(wb))
     g['left'] = min(se2.WEP_S, max(0.0, g['left'] + dt * (se2.WEP_FILL * (1.0 - held) - held)))

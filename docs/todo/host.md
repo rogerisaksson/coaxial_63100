@@ -17,8 +17,8 @@
   her arrays, each emitted in C11 on `wbc_np.h`'s primitives at its layout and
   held bit for bit as it is built (`tools.cores.held`). As it is: the
   regressor, her estimate, her sensing, her grip's feel and floor, her
-  situation and her drive's cap generated, the rest of her law ported by
-  hand or numpy's - its `npmax`
+  situation, her drive's cap and her ask's poses generated, the rest of her
+  law ported by hand or numpy's - its `npmax`
   and `npmin` Python's tie of zeros where they stand for numpy's maximum and
   minimum (110 calls). DOD: latent.step, support.couple and impedance.ask
   generated, bit for bit, as fast as their ports.

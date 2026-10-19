@@ -26,6 +26,26 @@ from tools.cores import emit, held, layout, trace, trace_mj
 #: The builds under way in this process by their source's digest, a thread each.
 _BUILDING = {}
 _LOCK = threading.Lock()
+#: numpy's float64, the dtype an extern is.
+F64 = np.dtype(np.float64)
+
+
+def _data_at():
+    """Where in an ndarray's object its data pointer is, bytes: numpy's PyArrayObject, after the head."""
+    probes = [np.empty(k + 1) for k in range(3)]
+    for at in range(8, 80, 8):
+        if all(ctypes.c_void_p.from_address(id(a) + at).value == a.ctypes.data for a in probes):
+            return at
+    raise RuntimeError("numpy's array head not found")
+
+
+#: An ndarray's data pointer, `address(a)`.
+_AT = _data_at()
+
+
+def address(a):
+    """The address of an ndarray's first element, read off its object."""
+    return ctypes.c_void_p.from_address(id(a) + _AT).value or 0
 
 
 def on_body(fn, name, inputs=(1, 2), fresh=2, seed=1, body=0):
@@ -247,6 +267,10 @@ class Bound:
         self.funcs = (ctypes.c_void_p * max(1, len(prog.calls)))(*trace_mj.functions(prog))
         self.body, self.kept, self.model, self.data = None, [], None, None
         self.last: tuple | None = None
+        self.seen: list = [None] * len(self.args)
+        self.own = [None if written else np.empty(shape) for _i, _k, _p, written, shape in self.args]
+        self.fixed = (self.work.ctypes.data, ctypes.addressof(self.table), self.lapack, None, None,
+                      ctypes.addressof(self.funcs))
 
     def bind(self, b):
         """Her body `b` addressed - its externs, her model, her data."""
@@ -254,6 +278,7 @@ class Bound:
         for i, arr in arrays:
             self.words[i] = arr.ctypes.data
         self.kept, self.body = [arr for _i, arr in arrays], b
+        self.fixed = self.fixed[:3] + (self.model, self.data) + self.fixed[5:]
 
     def fits(self, args):
         """The arrays converted for this call, its arguments' externs addressed; None where `args` are
@@ -268,28 +293,33 @@ class Bound:
                 a = a[p]
             if a is not v and (isinstance(v, np.ndarray) or type(a) is not type(v) or a != v):
                 return None
-        kept = []
-        for i, k, path, written, shape in self.args:
+        seen, words = self.seen, self.words
+        for j, (i, k, path, written, shape) in enumerate(self.args):
             a = args[k]
             for p in path:
                 a = a[p]
-            if type(a) is not np.ndarray or a.dtype != np.float64 or not a.flags.c_contiguous:
-                if written:
+            if a is seen[j] and a.shape == shape:
+                continue
+            if type(a) is not np.ndarray or a.dtype is not F64 or not a.flags.c_contiguous:
+                own = self.own[j]
+                if own is None or np.shape(a) != shape:
                     return None
-                a = np.array(a, dtype=np.float64, order='C')
-                kept.append(a)
+                own[...] = a
+                seen[j] = None
+                words[i] = address(own)
+                continue
             if a.shape != shape:
                 return None
-            self.words[i] = a.__array_interface__['data'][0]
-        return kept
+            seen[j] = a
+            words[i] = address(a)
+        return seen
 
     def __call__(self, kept):
         flat = np.empty(self.total) if self.total else None
-        address = None if flat is None else flat.ctypes.data
-        self.cfn(None, address, self.work.ctypes.data, ctypes.addressof(self.table), self.lapack, self.model,
-                 self.data, ctypes.addressof(self.funcs))
+        at = None if flat is None else address(flat)
+        self.cfn(None, at, *self.fixed)
         got = self.made(flat)
-        self.last = (got, address)
+        self.last = (got, at)
         return got
 
     def place(self, path):
