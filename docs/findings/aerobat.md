@@ -58,12 +58,31 @@ up at rest).
   wing-borne none was read; in gusts now 0.5-1 m/s off, a second behind. On
   its wing it flies the air's speed (`Core.plan`): on the ground's 14 m/s a
   7 m/s tail stalled it in the course's climbing turn.
-- Wing-borne (nose first at the wing's speed, `Core.wingborne`, gated on
-  horizontal airspeed `min(along, vh)` so a vertical climb stays on the
-  hover's law) the nose goes on the air and over it by the angle the wing
-  needs for what is asked across the path, solved across the stall blend up
-  to 15 deg, its back rolled to that; no thrust pulled back nose first (it
-  coasts to its apex).
+- Wing-borne (nose first at the wing's speed, `Core.wingborne`, on its air
+  in its plane of symmetry whatever its pitch, none past 60 deg off the nose,
+  and on its horizontal airspeed so a vertical climb stays on the hover's law)
+  the nose goes on the air and over it by the angle the wing needs for what
+  is asked across the path, solved across the stall blend up to 15 deg, its
+  back rolled to that; no thrust pulled back nose first (it coasts to its
+  apex). On its air along the nose the share swung 0.4-1.0 with the pitch it
+  set, 6-35 deg at 2 Hz, from a hover into its circuit at 8 m/s.
+- It speeds up on its propeller's sphere and turns on its wing's
+  (`Core.plan`): held to its wing's under the stall's speed it hung
+  nose-high at 7 m/s from a hover into its circuit; on its propeller's, 12
+  m/s through the air in 1.5 s, its pitch 8-9 deg.
+- Flown, not forced: on its wing its height's loop no quicker than
+  `PATH_POLE` over its climb's lag (`path_pole`, 1.4 rad/s at 12 m/s). On the
+  hover's 6.4 it swung its pull 6.7 m/s^2 at 1.8 Hz in a 1.5 g turn over 10
+  cm, its angle 6-26 deg, past the stall; on the hover's past 0.5-1 m off,
+  so again off the hoop. On its side the hover's: its tip touched at 0.45 m
+  on the wing's. Its push over `PUSH_S`: dropped, a turn's lift 14 % short
+  sank it 1.2 m. Its take-off climbs no faster than that loop stops (at 12
+  deg it rose 1.3 m over the lap's line into the limbo 30 m on), its heading
+  turns no faster than its lean (at the line's 115 deg/s, its nose at 64,
+  its pull ahead asked against its nose, it stalled into the house). In the
+  air grown and subsided ([air](air.md)), six tours of 400 s: 3 strikes,
+  gates in gusts, where the committed law's 7; its circuit's pitch 1.4 deg
+  about its 1 s mean where 3.1.
 - The opening: the run climbs out on the wing to 3 m; a teardrop at 2 m (45
   deg out at 60 deg/s and 14 m/s, 4-9 deg, a leg of two turn radii, 225 deg
   back) lays it on the runway's line the other way; a line-up at 0.52 m and

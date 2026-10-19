@@ -265,3 +265,9 @@ the hundred before these: [DONE_1-50](DONE_1-50.md),
     higher by its law's gusts, the waterfall one tumble from 6 m, its lap at
     16 m/s, its course on all it has - 2 crashes in six tours of 400 s where
     47 ([aerobat](findings/aerobat.md)).
+65. The aerobat flown, not forced, in air grown and subsided: gusts over 4-8 s,
+    eddies of two stages, a kind eased in on an S - the air's change 0.09-1.5
+    m/s^2 rms where 1.2-14 -; its wing-borne share whatever its pitch, sped up
+    on its propeller, its height's loop at its wing's pace, its take-off and
+    heading within what its wing does: 3 strikes in six tours where 7, its
+    circuit's pitch 1.4 deg where 3.1 ([aerobat](findings/aerobat.md)).

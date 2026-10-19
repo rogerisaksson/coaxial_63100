@@ -28,6 +28,20 @@ AUTHORITY = 0.7
 #: past GUST_FLOOR, times GUST_S, m - a figure's row (`lined` 1), not a laid line's (0), which says
 #: them to its giver (`aerokin.seen`). In still air its own estimate swung 0.10-0.17 m/s rms.
 GUST_SLOW_S, GUST_RMS_S, GUST_FLOOR, GUST_S = 5.0, 3.0, 0.3, airfield.GUST_S
+#: On its wing its climb follows its pitch, by its path's lag, m / (q S v), and its attitude
+#: loop's: its height's loop no quicker than PATH_POLE over them (`path_pole`). On the hover's
+#: 6.4 rad/s it swung its pull 6.7 m/s^2 at 1.8 Hz in a turn, past the stall, over 10 cm; the
+#: hover's past 0.5-1 m of its height, it swung so off the hoop. On its side its thrust and its
+#: side bear it, not its wing: on the wing's loop there it put its tip on the floor at 0.45 m.
+PATH_POLE = 0.35
+#: On its wing the push its observer reads off its model, over PUSH_S: dropped there, a turn's
+#: lift 14 % short of its model on a wind read 1 m/s off sank it 1.2 m on that loop.
+PUSH_S = 1.0
+
+
+def path_pole(v):
+    """Its height's loop on its wing at `v` m/s through the air, 1/s (PATH_POLE)."""
+    return PATH_POLE / (MASS_KG / (WING.q * WING.area * max(ROTATE_M_S, v)) + ATT_KD / ATT_KP)
 
 
 def flies(row, w):
@@ -45,7 +59,7 @@ class Core:
     def reset(self):
         """Reset observer and trajectory state."""
         self.vel_hat, self.push_hat, self.wind = [0.0] * 3, [0.0] * 3, [0.0] * 3
-        self.wind_slow, self.gust2 = [0.0] * 3, 0.0
+        self.wind_slow, self.gust2, self.push_slow = [0.0] * 3, 0.0, [0.0] * 3
         self.spin_hat, self.turn_hat = [0.0] * 3, [0.0] * 3
         self.begun, self.flip_ang, self.roll_ang = False, 0.0, 0.0
         self.piro_ang, self.tic_phase = 0.0, 0.0
@@ -79,7 +93,9 @@ class Core:
                            [float(state['at'][a]) + float(state['vel'][a]) * abs(v_fwd) / (2.0 * brake)
                             for a in (0, 2)])
         if not self.airborne and rh >= 0.0 and pace < 20.0:
-            return run(WING, self, v_fwd, h, yaw, rate) + (stunt, inv)
+            # It climbs out no faster than its wing's loop stops at its height: at 12 deg it
+            # rose 1.3 m over the lap's line into the limbo's bar 30 m on.
+            return run(WING, self, v_fwd, h, yaw, rate, path_pole(v_fwd) * max(0.0, rh - h)) + (stunt, inv)
 
         a_norm = math.hypot(ax_des, ay_des, az_des) or GRAVITY
         s_f = -1.0 if inv >= 0.5 and ay_des < 0.0 else 1.0
@@ -113,9 +129,11 @@ class Core:
                * ease((LINED_M[1] - row['height']) / (LINED_M[1] - LINED_M[0]))
                * (1.0 - ease(abs(rate) / LINED_RAD_S)) * (1.0 - ease(abs(row.get('slide', 0.0)) / LINED_M_S)))
         err = (target - math.atan2(law['heading'][1], law['heading'][0]) + math.pi) % math.tau - math.pi
-        # No faster than its lean carries it round at its speed: on a wing it stalled.
+        # No faster than its lean carries it round at its speed: on a wing it stalled - its
+        # heading turned at the line's 115 deg/s, its nose at 64, 100 deg behind it, the pull
+        # ahead asked against its nose: no thrust, into the house at 5 m/s.
         top = min(2.4, row['lean'] / max(1.0, math.hypot(vel[0], vel[2])))
-        return rate + low * (max(-top, min(top, 3.0 * err)) - rate), target
+        return max(-top, min(top, rate + low * (max(-top, min(top, 3.0 * err)) - rate))), target
 
     def margin(self, row):
         """How much higher `row` is flown in its air's gusts, m: a figure's, not a laid line's."""
@@ -128,21 +146,30 @@ class Core:
         reach = max(aerokin.LEAST * GRAVITY, pull_max)
         self.floor = FLOOR_M * max(0.0, 1.0 - math.hypot(row.get('speed', 0.0), row.get('slide', 0.0)) / 5.0)
         r_climb = dict(row, height=max(self.floor, row['height'] + self.margin(row))) if row['height'] >= 0.0 else row
+        v2 = sum((float(state['vel'][a]) - self.wind[a]) ** 2 for a in range(3))
+        kd = aerokin.KD + self.wingborne * (1.0 - abs(row.get('knife', 0.0))) * (
+            min(aerokin.KD, 2.0 * path_pole(math.sqrt(v2))) - aerokin.KD)
         self.up_pull, law['doing'] = aerokin.climb(
             r_climb, state['h'], state['v'], reach - GRAVITY,
-            aerokin.spooled(self.out.speeds[0], math.sqrt(reach * MASS_KG / K_THRUST), IDLE_RAD_S), dt)
+            aerokin.spooled(self.out.speeds[0], math.sqrt(reach * MASS_KG / K_THRUST), IDLE_RAD_S), dt, kd)
         beside = math.sqrt(max(reach * reach - GRAVITY * GRAVITY, 0.0))
         # On its wing it turns on the wing, its lift short of the stall, not the propeller's
-        # sphere: held to its 1.1 g, a 12 m turn at 20 m/s ran 9.5 m wide of the hoop.
-        v2 = sum((float(state['vel'][a]) - self.wind[a]) ** 2 for a in range(3))
+        # sphere: held to its 1.1 g, a 12 m turn at 20 m/s ran 9.5 m wide of the hoop. It
+        # speeds up on its propeller: held to its wing's under the stall's speed, it hung
+        # nose-high at 7 m/s from a hover into its circuit.
         lift = WING.q * WING.area * v2 * STALL_RAD / MASS_KG
-        beside += self.wingborne * (math.sqrt(max(lift * lift - GRAVITY * GRAVITY, 0.0)) - beside)
+        across = beside + self.wingborne * (math.sqrt(max(lift * lift - GRAVITY * GRAVITY, 0.0)) - beside)
         # On its wing it flies the air's speed: the ground's 14 m/s stalled it in a 7 m/s tail.
         c, s = law['heading']
         on = flies(row, self.wingborne)
         wx, wz = on * self.wind[0], on * self.wind[2]
         aired = dict(row, speed=row['speed'] + wx * s + wz * c, slide=row['slide'] + wx * c - wz * s)
-        along = aerokin.lean(law, aired, state['at'], state['vel'], dt, min(row['lean'], beside))
+        most = min(row['lean'], max(beside, across))
+        ax, az = aerokin.lean(law, aired, state['at'], state['vel'], dt, most)
+        ahead, side = ax * s + az * c, ax * c - az * s
+        ahead = max(-min(most, beside), min(min(most, beside), ahead))
+        side = max(-min(most, across), min(min(most, across), side))
+        along = (ahead * s + side * c, ahead * c - side * s)
         # Nose first it flies a speed: chasing a place it lagged a turn by 12 m.
         held = 1.0 - self.airborne * (1.0 - on)
         if row['height'] >= 0.0:
@@ -157,9 +184,11 @@ class Core:
         self.wind_slow = [s + a_slow * (w - s) for s, w in zip(self.wind_slow, self.wind)]
         self.gust2 += a_rms * (sum((w - s) ** 2 for w, s in zip(self.wind, self.wind_slow)) - self.gust2)
         law['gust'] = max(0.0, math.sqrt(self.gust2) - GUST_FLOOR)
+        a_push = min(1.0, dt / PUSH_S)
+        self.push_slow = [s + a_push * (p - s) for s, p in zip(self.push_slow, self.push_hat)]
         t_in, s_in, v_in, a_in = state['turn'], state['spin'], state['vel'], state['at']
         turn = t_in if (type(t_in) is tuple and type(t_in[0]) is tuple and type(t_in[0][0]) is float) \
-            else (t_in.tolist() if hasattr(t_in, 'tolist') else [[float(x) for x in r] for r in t_in])
+            else getattr(t_in, 'tolist', lambda: [[float(x) for x in r] for r in t_in])()
         spin = s_in if (type(s_in) is tuple and type(s_in[0]) is float) else [float(x) for x in s_in]
         vel = v_in if (type(v_in) is tuple and type(v_in[0]) is float) else [float(x) for x in v_in]
         at = a_in if (type(a_in) is tuple and type(a_in[0]) is float) else [float(x) for x in a_in]
@@ -171,8 +200,8 @@ class Core:
         prev_ctrl = state.get('controls', self.Controls[2:])
         drag = 0.5 * RHO * _aero_cda(*prev_ctrl[1:3]) / MASS_KG * math.hypot(*u)
         w_lift = WING.lift(u, turn)
-        air_acc = [(1.0 - self.wing_air) * (self.push_hat[a] + w_lift[a] / MASS_KG) - drag * u[a]
-                   for a in (0, 1, 2)]
+        air_acc = [(1.0 - self.wing_air) * (self.push_hat[a] + w_lift[a] / MASS_KG)
+                   + self.wing_air * self.push_slow[a] - drag * u[a] for a in (0, 1, 2)]
         if along is None:
             along = self.plan(law, row, state, dt, pull_max)
         rate, target_yaw = self.yawed(law, row, state)

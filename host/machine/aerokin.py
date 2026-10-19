@@ -97,10 +97,10 @@ def fresh():
             'sequence': 0, 'held': False, 'doing': None}
 
 
-def allowed(over, brake):
+def allowed(over, brake, kd=KD):
     """The speed the frame flies `over` m from its height, m/s: the loop's own approach near
     it, `brake`'s pull past where the two meet in speed and pull."""
-    pole = 0.5 * KD
+    pole = 0.5 * kd
     near = brake / (pole * pole)
     far = float(over > near)
     return (1.0 - far) * pole * over + far * math.sqrt(2.0 * brake * max(over - 0.5 * near, 0.0))
@@ -112,7 +112,7 @@ def spooled(w, w_pull, w_idle):
     return max(0.0, w_pull - w) / slew, max(0.0, w - w_idle) / slew
 
 
-def climb(row, h, v, room, spool=(0.0, 0.0), dt=0.0):
+def climb(row, h, v, room, spool=(0.0, 0.0), dt=0.0, kd=KD):
     """(the pull asked up, m/s^2, what it is doing) for the frame at `h` climbing `v`, `room`
     the pull up its rotors leave it: braked as its pace asks or as its height needs, on all
     of it - rising, gravity over the rotors' idle - from the lead the frame moves before
@@ -120,9 +120,9 @@ def climb(row, h, v, room, spool=(0.0, 0.0), dt=0.0):
     the pass of `dt`; the speed its distance allows on its height's own rate, its pace at
     the most, and that speed's own fall, begun where its pace's stop turns; sped toward its
     height as gently - up, on its room at the most -, the height's own pull in it, and
-    stopped outright going from it."""
+    stopped outright going from it; its loop `kd`, 1/s."""
     pace = row['pace']
-    gentle, pole = pace / PACE_S, 0.5 * KD
+    gentle, pole = pace / PACE_S, 0.5 * kd
     rate = max(-pace, min(pace, row['climb']))
     push = float(rate == row['climb']) * max(-gentle, min(gentle, row['push']))
     over = row['height'] - h
@@ -136,10 +136,10 @@ def climb(row, h, v, room, spool=(0.0, 0.0), dt=0.0):
         stop - math.sqrt(max(0.0, stop * stop - (toward / pole) ** 2)))
     brake = min(hard, max(soft, need))
     cruise = pace - way * rate
-    speed = min(allowed(stop, brake), cruise)
-    slows = min(brake, pole * pole * stop, KD * max(0.0, cruise - allowed(stop, soft)))
-    pull = way * (min(KD * (way * rate + speed - max(going, 0.0)) - slows + way * push,
-                      up * min(gentle, room) + (1.0 - up) * gentle) - KD * min(going, 0.0))
+    speed = min(allowed(stop, brake, kd), cruise)
+    slows = min(brake, pole * pole * stop, kd * max(0.0, cruise - allowed(stop, soft, kd)))
+    pull = way * (min(kd * (way * rate + speed - max(going, 0.0)) - slows + way * push,
+                      up * min(gentle, room) + (1.0 - up) * gentle) - kd * min(going, 0.0))
     dive = (1.0 - up) * float(v < 0.0) * float(rate < 0.0) * float(push + quad.GRAVITY < 0.0)
     pull = (1.0 - dive) * pull + dive * min(pull, push)
     far = (1.0 - up) * float(left > brake / (pole * pole))

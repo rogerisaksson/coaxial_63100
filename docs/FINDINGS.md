@@ -276,7 +276,8 @@ Six firmware defects, no hardware fault:
 | Each drive's demand on her loop, the chair's stunts against it | [findings/demand.md](findings/demand.md) |
 | One stack for every drive: demand, candidates, stacks as built | [findings/stacks.md](findings/stacks.md) |
 | The drive and its observers: stand-in, emulator, native://, rotor pages | [findings/drive.md](findings/drive.md) |
-| QUAD: frame, air, law, routine, course, tuner | [findings/quad.md](findings/quad.md) |
+| QUAD: frame, law, routine, course, tuner | [findings/quad.md](findings/quad.md) |
+| The air every craft flies: its kinds, gusts, eddies | [findings/air.md](findings/air.md) |
 | The helicopter, the ornithopter: governed, geared | [findings/aircraft.md](findings/aircraft.md) |
 | The aerobat: its wing, its propeller, its routine, its field | [findings/aerobat.md](findings/aerobat.md) |
 | The envelope in flight: a climb, a hover, what a board may carry | [findings/envelope.md](findings/envelope.md) |

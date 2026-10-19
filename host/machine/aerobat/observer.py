@@ -22,7 +22,7 @@ def observe(core, state, dt):
     its wing too; its spin and the turn on it, the airframe's own moments known."""
     t_in, v_in, s_in = state['turn'], state['vel'], state['spin']
     turn = t_in if (type(t_in) is tuple and type(t_in[0]) is tuple and type(t_in[0][0]) is float) \
-        else (t_in.tolist() if hasattr(t_in, 'tolist') else [[float(x) for x in r] for r in t_in])
+        else getattr(t_in, 'tolist', lambda: [[float(x) for x in r] for r in t_in])()
     vel = v_in if (type(v_in) is tuple and type(v_in[0]) is float) else [float(x) for x in v_in]
     spin = s_in if (type(s_in) is tuple and type(s_in[0]) is float) else [float(x) for x in s_in]
     h = float(state['h'])
@@ -50,8 +50,13 @@ def observe(core, state, dt):
     q_s = max(1.0, slipstream(along, lift)) / max(1.0, w_p * w_p)
     k_pitch, k_roll = K_PITCH_Q * q_s, K_ROLL_Q * q_s
     dive = min(1.0, max(0.0, 1.0 + vel[1] / DIVE_M_S))
-    core.wing_air = min(1.0, max(0.0, along / ROTATE_M_S)) ** 2 * dive
-    core.wingborne = min(1.0, max(0.0, min(along, vh) / ROTATE_M_S)) ** 2 * dive
+    # Its wing's air in its plane of symmetry, whatever its pitch, none past 60 deg off the nose:
+    # on the nose's share it swung 0.4-1.0 with the pitch it set, 2 Hz, from a hover into its
+    # circuit at 8 m/s.
+    flat = math.sqrt(max(0.0, fast * fast - (u[0] * t0[0] + u[1] * t1[0] + u[2] * t2[0]) ** 2))
+    flat *= min(1.0, max(0.0, 2.0 * along / max(fast, 1e-6)))
+    core.wing_air = min(1.0, flat / ROTATE_M_S) ** 2 * dive
+    core.wingborne = min(1.0, min(flat, vh) / ROTATE_M_S) ** 2 * dive
     gamma = (abs(lift_raw) / (2.0 * MASS_KG * w_p * PROP_R)
              if w_p > 1.0 and abs(s_along) < 4.0 * w_p * PROP_R else 0.0)
     q_p = _prop_drag(share, elev, ail, w_p)

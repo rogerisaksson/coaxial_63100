@@ -84,16 +84,18 @@ def test_helicopter_stunt_routine(report):
 
 
 def test_helicopter_wind_observer_and_inverted_hold(report):
-    """The three flip from `high` to their inverted rows and track gusts."""
+    """The three flip from `high` to their inverted rows once their air has come to its kind
+    (`weather.EASE_S`) and track its gusts: flipped at 5 s, the ornithopter had read none of a
+    wind come over 8 s."""
     from machine import aerobat, aerokin, helicopter, ornithopter, weather
-    dt = 1.0 / 120.0
+    dt, flip = 1.0 / 120.0, weather.EASE_S + 2.0
     for c, inv_row in ((helicopter, helicopter.INVERTED),
                        (ornithopter, ornithopter.SANDSTORM_DIVE),
                        (aerobat, aerobat.STUNTS['high'])):
         sky, core, law, air = c.Sky(), c.Core(), aerokin.fresh(), weather.air(7, 'gusty')
-        for k in range(int(10.0 / dt)):
+        for k in range(int((flip + 5.0) / dt)):
             weather.blown(air, dt)
-            ans = core.step(law, c.STUNTS['high'] if k * dt < 5.0 else inv_row, sky.state(), dt, c.PULL_MAX)
+            ans = core.step(law, c.STUNTS['high'] if k * dt < flip else inv_row, sky.state(), dt, c.PULL_MAX)
             sky.step(ans.speeds + ans.controls, dt, air)
         st = sky.state()
         act, est = weather.wind_at(air['wind'], st['h'], air['steady']), ans.wind

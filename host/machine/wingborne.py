@@ -218,14 +218,16 @@ def wing_substep(sky, lift, wx, wy, wz, dk, ab0, ab1, ab2):
     substep(sky, 0.0, lift, wx, wy, wz, dk, ab0 + a0, ab1 + a1, ab2 + a2, lx, ly, lz, 0.0, 0.0, 0.0)
 
 
-def run(wing, core, v_fwd, h, yaw, rate):
+def run(wing, core, v_fwd, h, yaw, rate, up=math.inf):
     """The run on its wheels: `(r_des, w_ff, f_des)` for `core` going `v_fwd` m/s along `yaw`,
-    `h` m over its rest; rotated by the wing's speed it asks the climb and stays rotated, its
-    tail wheel holding it at its rest till it lifts; the tail clear of the floor before."""
+    `h` m over its rest; rotated by the wing's speed it asks the climb - CLIMB_RAD, `up` m/s at
+    the most - and stays rotated, its tail wheel holding it at its rest till it lifts; the tail
+    clear of the floor before."""
     v = v_fwd / wing.rotate
     core.rotated = max(core.rotated, ease((v - 1.0 + RUN_EASE) / RUN_EASE))
+    climb = min(CLIMB_RAD, math.asin(min(1.0, up / max(1.0, v_fwd))))
     pitch = (PITCH_REST + (0.5 * math.pi - PITCH_REST) * ease((v - TAIL_UP) / RUN_EASE)
-             - (CLIMB_RAD + ALPHA_RAD) * core.rotated)
+             - (climb + ALPHA_RAD) * core.rotated)
     r_des = _mat_mul(_rot_y(yaw), _rot_x(pitch))
     g = wing.gravity
     f_run = wing.mass * max(0.20 * g, min(RUN_G * g, 2.5 * (CLIMB_V * wing.rotate - v_fwd)
