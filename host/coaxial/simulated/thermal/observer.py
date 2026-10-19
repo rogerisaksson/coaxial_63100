@@ -9,6 +9,7 @@ laid, the clamp and the stage acted on, the views named as the board's device na
 import ctypes
 import math
 import random
+import threading
 import time
 from typing import Callable, Optional
 
@@ -120,6 +121,7 @@ class SimulatedThermal(ThermalControl):
         self._cycle = None
         self._row_buf = (ctypes.c_float * len(stand.ROW))()
         self._out_buf = (ctypes.c_float * 3)()
+        self._lock = threading.RLock()
         name = self._resolve(situation)
         self._lib.world_stand_init(self._slot, thermal_app.APPLICATIONS.index(self._app),
                                    self.WINDING_K_PER_W, self.WINDING_J_PER_K, self.WINDING_R,
@@ -154,22 +156,24 @@ class SimulatedThermal(ThermalControl):
     def _run(self, model_seconds, seen, live):
         """`model_seconds` of the pair, the envelope acting on the board where `live`; on a
         tour in TOUR_STEP_S, each judged."""
-        left, out = float(model_seconds), self._out_buf
-        while True:
-            part = min(left, self.TOUR_STEP_S) if self._tour else left
-            self._lib.world_stand_run(self._slot, self._row(seen, live), part, out)
-            if live and self._derate_to is not None:
-                self._derate_to(out[0])
-            if live and out[1] and self._gate is not None:
-                self._gate()
-            if self._tour:
-                self._tour_step(part)
-            left -= part
-            if left <= 0.0:
-                return
+        with self._lock:
+            left, out = float(model_seconds), self._out_buf
+            while True:
+                part = min(left, self.TOUR_STEP_S) if self._tour else left
+                self._lib.world_stand_run(self._slot, self._row(seen, live), part, out)
+                if live and self._derate_to is not None:
+                    self._derate_to(out[0])
+                if live and out[1] and self._gate is not None:
+                    self._gate()
+                if self._tour:
+                    self._tour_step(part)
+                left -= part
+                if left <= 0.0:
+                    return
 
     def _view(self, what):
-        return stand.view(self._slot, what)
+        with self._lock:
+            return stand.view(self._slot, what)
 
     @property
     def _model_s(self):
@@ -219,7 +223,8 @@ class SimulatedThermal(ThermalControl):
     def settle(self, seen=None):
         """Both boards at their equilibria for `seen`'s power - as a board is after an hour of
         idling: where a test starts that asks what idling teaches."""
-        self._lib.world_stand_settle(self._slot, self._row(seen, False), 7200.0)
+        with self._lock:
+            self._lib.world_stand_settle(self._slot, self._row(seen, False), 7200.0)
 
     # ---- what the board's device answers --------------------------------------------------
 

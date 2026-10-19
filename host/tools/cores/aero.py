@@ -11,6 +11,8 @@ import math
 import os
 import struct
 
+import numpy as np
+
 from machine import quad
 from tools import REPO
 from tools.cores.build import cached
@@ -144,23 +146,34 @@ def speeds(thrusts):
     return [math.sqrt(max(0.0, f) / quad.K_THRUST) for f in thrusts]
 
 
+def _in_views(read):
+    """Numpy views of `read`'s (`In`) own memory, laid once on `read._views`."""
+    views = getattr(read, '_views', None)
+    if views is None:
+        views = read._views = {
+            'turn': np.ctypeslib.as_array(read.r).reshape(3, 3),
+            'spin': np.ctypeslib.as_array(read.spin),
+            'vel': np.ctypeslib.as_array(read.vel),
+            'given': np.ctypeslib.as_array(read.given),
+            'lo': np.ctypeslib.as_array(read.lo),
+            'hi': np.ctypeslib.as_array(read.hi),
+        }
+    return views
+
+
 def reading(state, given, lo, hi, dt, into=None):
     """A pass's reading from the frame as `quad.Sky.state` has it: its axes, its rates about
     them, its speed, its height; each rotor's thrust as its speed has it and at the least and
     the most it reaches by the next pass, N."""
     read = In() if into is None else into
-    r, spin, vel = read.r, read.spin, read.vel
-    turn, st_spin, st_vel = state['turn'], state['spin'], state['vel']
-    r[0], r[1], r[2] = float(turn[0][0]), float(turn[0][1]), float(turn[0][2])
-    r[3], r[4], r[5] = float(turn[1][0]), float(turn[1][1]), float(turn[1][2])
-    r[6], r[7], r[8] = float(turn[2][0]), float(turn[2][1]), float(turn[2][2])
-    spin[0], spin[1], spin[2] = float(st_spin[0]), float(st_spin[1]), float(st_spin[2])
-    vel[0], vel[1], vel[2] = float(st_vel[0]), float(st_vel[1]), float(st_vel[2])
+    v = _in_views(read)
+    v['turn'][:] = state['turn']
+    v['spin'][:] = state['spin']
+    v['vel'][:] = state['vel']
     read.height, read.dt = float(state['h']), float(dt)
-    g_arr, lo_arr, hi_arr = read.given, read.lo, read.hi
-    g_arr[0], g_arr[1], g_arr[2], g_arr[3] = given[0], given[1], given[2], given[3]
-    lo_arr[0], lo_arr[1], lo_arr[2], lo_arr[3] = lo[0], lo[1], lo[2], lo[3]
-    hi_arr[0], hi_arr[1], hi_arr[2], hi_arr[3] = hi[0], hi[1], hi[2], hi[3]
+    v['given'][:] = given
+    v['lo'][:] = lo
+    v['hi'][:] = hi
     return read
 
 
@@ -173,6 +186,7 @@ class Core:
         self.params = params or frame()
         self.state = ctypes.create_string_buffer(self.lib.aeh_size(0))
         self.read = In()
+        _in_views(self.read)
         self.out = Out()
         self.lib.aero_init(self.state, ctypes.byref(self.params))
 

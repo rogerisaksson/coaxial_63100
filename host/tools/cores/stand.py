@@ -8,6 +8,7 @@ library a process, built once for its sources' bytes (tools.cores.build.cached).
 import ctypes
 import functools
 import os
+import threading
 
 from tools import REPO
 from tools.cores import drive
@@ -253,10 +254,17 @@ class DaqCore:
                 'accumulate': int(s[12]), 'sections': int(s[13]), 'chain_decimate': int(s[14])}
 
 
-_VIEW_BUF = (ctypes.c_float * VIEW_FLOATS)()
-_ROW_BUF = (ctypes.c_double * len(DRIVE_ROW))()
-_WIN_BUF = (ctypes.c_double * len(WINDOW_ROW))()
-_LOOP_BUF = (ctypes.c_double * len(LOOP_ROW))()
+_TLS = threading.local()
+
+
+def _bufs():
+    bufs = getattr(_TLS, 'bufs', None)
+    if bufs is None:
+        bufs = _TLS.bufs = ((ctypes.c_float * VIEW_FLOATS)(),
+                            (ctypes.c_double * len(DRIVE_ROW))(),
+                            (ctypes.c_double * len(WINDOW_ROW))(),
+                            (ctypes.c_double * len(LOOP_ROW))())
+    return bufs
 
 
 def floats(values):
@@ -266,8 +274,9 @@ def floats(values):
 
 def view(slot, what):
     """View `what` of `slot`, its floats."""
-    n = library().world_stand_read(slot, what, _VIEW_BUF)
-    return _VIEW_BUF[:n]
+    buf = _bufs()[0]
+    n = library().world_stand_read(slot, what, buf)
+    return buf[:n]
 
 
 def law(slot, ts):
@@ -279,18 +288,21 @@ def law(slot, ts):
 
 def row(slot):
     """Slot `slot`'s drive row, named (DRIVE_ROW)."""
-    library().world_drive_read(slot, _ROW_BUF)
-    return dict(zip(DRIVE_ROW, _ROW_BUF))
+    buf = _bufs()[1]
+    library().world_drive_read(slot, buf)
+    return dict(zip(DRIVE_ROW, buf))
 
 
 def window(slot):
     """Slot `slot`'s drive's window, named (WINDOW_ROW), taken."""
-    library().world_drive_window(slot, _WIN_BUF)
-    return dict(zip(WINDOW_ROW, _WIN_BUF))
+    buf = _bufs()[2]
+    library().world_drive_window(slot, buf)
+    return dict(zip(WINDOW_ROW, buf))
 
 
 def loop(slot):
     """Slot `slot`'s loop as it stands, named (LOOP_ROW)."""
-    library().world_drive_loop_read(slot, _LOOP_BUF)
-    return dict(zip(LOOP_ROW, _LOOP_BUF))
+    buf = _bufs()[3]
+    library().world_drive_loop_read(slot, buf)
+    return dict(zip(LOOP_ROW, buf))
 

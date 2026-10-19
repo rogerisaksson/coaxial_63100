@@ -125,6 +125,36 @@ class Wing:
                 -self.arm * self.fin * (q * ux + qd * self.arm * wz))
 
 
+def wing_substep(sky, lift, wx, wy, wz, dk, ab0, ab1, ab2):
+    """One STEP_S MuJoCo substep on `sky` with `sky.wing`'s lift, side force and moments."""
+    from machine.quad import substep
+    np, xm, qv, sp, w = sky._np, sky._xmat, sky._vel, sky._spin, sky.wing
+    vx, vy, vz = qv[0] - wx, qv[1] - wy, qv[2] - wz
+    ux = vx * xm[0] + vy * xm[3] + vz * xm[6]
+    uy0 = vx * xm[1] + vy * xm[4] + vz * xm[7]
+    uz = vx * xm[2] + vy * xm[5] + vz * xm[8]
+    slip = -w.rho * w.side * np.sqrt(vx * vx + vy * vy + vz * vz) * ux
+    uy = np.maximum(0.0, uy0)
+    v2 = uy * uy + uz * uz
+    on = (uy > 0.0) & (v2 >= 1e-6)
+    alpha = np.arctan2(uz, uy)
+    flat = np.minimum(1.0, np.maximum(0.0, (np.abs(alpha) - STALL_RAD) / STALL_BLEND))
+    sa, ca, c_lin = np.sin(alpha), np.cos(alpha), w.cl_alpha * alpha
+    q_w = np.where(on, 0.5 * w.rho * w.area * v2, 0.0)
+    f_l = q_w * ((1.0 - flat) * c_lin + flat * 2.0 * sa * ca)
+    f_d = q_w * ((1.0 - flat) * CD_LIFT * c_lin * c_lin + flat * 2.0 * sa * sa)
+    speed = np.where(on, np.sqrt(v2), 1.0)
+    n0, n1, n2, b0, b1, b2 = xm[1], xm[4], xm[7], -xm[2], -xm[5], -xm[8]
+    lx = slip * xm[0] + np.where(on, f_l * ((uz * n0 + uy * b0) / speed) - f_d * ((uy * n0 - uz * b0) / speed), 0.0)
+    ly = slip * xm[3] + np.where(on, f_l * ((uz * n1 + uy * b1) / speed) - f_d * ((uy * n1 - uz * b1) / speed), 0.0)
+    lz = slip * xm[6] + np.where(on, f_l * ((uz * n2 + uy * b2) / speed) - f_d * ((uy * n2 - uz * b2) / speed), 0.0)
+    q, qd = w.q * uy0, w.q * np.abs(uy0)
+    a0 = w.arm * w.stab * (q * uz - qd * w.arm * sp[0])
+    a1 = -qd * w.area * (0.25 * w.span) ** 2 * sp[1]
+    a2 = -w.arm * w.fin * (q * ux + qd * w.arm * sp[2])
+    substep(sky, 0.0, lift, wx, wy, wz, dk, ab0 + a0, ab1 + a1, ab2 + a2, lx, ly, lz, 0.0, 0.0, 0.0)
+
+
 def run(wing, core, v_fwd, h, yaw, rate):
     """The run on its wheels: `(r_des, w_ff, f_des)` for `core` going `v_fwd` m/s along `yaw`,
     `h` m over its rest; rotated by the wing's speed it asks the climb and stays rotated, its

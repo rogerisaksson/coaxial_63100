@@ -5,7 +5,8 @@ from machine.aerobat.airframe import (FOOT_M, K_PITCH, K_ROLL, K_THRUST, K_YAW, 
                                       SKID_M, WING, _aero_cda, _aero_inflow, _prop_drag, mjcf)
 from machine.helicopter import sky as hsky
 from machine.quad import STEP_S
-from machine.wingborne import PITCH_REST
+from machine.wingborne import PITCH_REST, wing_substep
+from tools.cores import bodied
 
 
 class Sky(hsky.Sky):
@@ -15,8 +16,9 @@ class Sky(hsky.Sky):
     _force_key = 'rudder_force'
 
     def __init__(self, things=()):
-        self.rudder_force = 0.0
+        self.rudder_force, self.wing = 0.0, WING
         hsky._init_sky(self, mjcf(things), SKID_M + FOOT_M, ('hstab', 'vfin'))
+        self._wing_step = bodied.on_body(wing_substep, 'wing_substep', tuple(range(1, 9)))
         self._rest_pose()
 
     def _rest_pose(self):
@@ -40,11 +42,9 @@ class Sky(hsky.Sky):
         ab0 = K_PITCH * w_p * w_p * elev
         ab1 = tau_rud - _prop_drag(throt, elev, ail, w_p)
         ab2 = K_ROLL * w_p * w_p * ail
-        dk, qv, turn = 0.5 * RHO * _aero_cda(throt, elev, ail), self.data.qvel, self._turn
+        dk, d = 0.5 * RHO * _aero_cda(throt, elev, ail), self.data
         for _ in range(max(1, int(round(dt / STEP_S)))):
-            vx0, vy0, vz0 = self._vel.tolist()
-            u = (vx0 - wx, vy0 - wy, vz0 - wz)
-            lx, ly, lz = WING.lift(u, turn)
-            a0, a1, a2 = WING.moments(u, turn, qv)
-            self._substep(0.0, lift, wx, wy, wz, dk, ab0 + a0, ab1 + a1, ab2 + a2, lx, ly, lz)
+            self._wing_step(self, lift, wx, wy, wz, dk, ab0, ab1, ab2)
+            if d.ncon and self.hit is None:
+                self.hit = self._struck(d)
 

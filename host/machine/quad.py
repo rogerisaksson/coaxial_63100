@@ -14,6 +14,7 @@ import os
 
 from machine import aerolisp
 from machine.weather import wind_at
+from tools.cores import bodied
 
 QUAD_LISP_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'quadcopter.lisp')
 with open(QUAD_LISP_PATH, encoding='utf-8') as _qf:
@@ -173,6 +174,22 @@ def mjcf(things=(), geoms=None, pos=None, mass=None, inertia=None):
                                        + tuple(inertia) + (geoms,)))
 
 
+def substep(sky, fx_b, fy_b, wx, wy, wz, dk, ab0, ab1, ab2, px, py, pz, tx, ty, tz):
+    """One STEP_S MuJoCo substep on `sky`: body forces `(fx_b, fy_b, 0)`, body torques
+    `(ab0, ab1, ab2)`, drag factor `dk` in wind `(wx, wy, wz)` and world wrench offset
+    `(px, py, pz, tx, ty, tz)` into `xfrc_applied`, then `mj_step`."""
+    np, xm, qv, xf = sky._np, sky._xmat, sky._vel, sky._xfrc
+    vx, vy, vz = qv[0] - wx, qv[1] - wy, qv[2] - wz
+    dr = dk * np.sqrt(vx * vx + vy * vy + vz * vz)
+    xf[0] = fy_b * xm[1] + fx_b * xm[0] - dr * vx + px
+    xf[1] = fy_b * xm[4] + fx_b * xm[3] - dr * vy + py
+    xf[2] = fy_b * xm[7] + fx_b * xm[6] - dr * vz + pz
+    xf[3] = xm[0] * ab0 + xm[1] * ab1 + xm[2] * ab2 + tx
+    xf[4] = xm[3] * ab0 + xm[4] * ab1 + xm[5] * ab2 + ty
+    xf[5] = xm[6] * ab0 + xm[7] * ab1 + xm[8] * ab2 + tz
+    sky._mj.mj_step(sky.model, sky.data)
+
+
 class Sky:
 
     """The frame in MuJoCo on the floor among `things` (`mjcf`), stepped on its rotors'
@@ -212,6 +229,7 @@ class Sky:
         self._vel = self.data.qvel[0:3]
         self._acc = self.data.qacc[0:3]
         self._xfrc = self.data.xfrc_applied[self.frame]
+        self._step = bodied.on_body(substep, 'substep', tuple(range(1, 16)))
         self._mj.mj_forward(self.model, self.data)
 
     def reset(self):
@@ -266,20 +284,9 @@ class Sky:
                  px=0.0, py=0.0, pz=0.0, tx=0.0, ty=0.0, tz=0.0):
         """One STEP_S MuJoCo substep under body forces `(fx_b, fy_b, 0)`, body torques
         `(ab0, ab1, ab2)`, drag factor `dk` in wind `(wx, wy, wz)`, and world wrench offset."""
-        d, xm, qv, xf = self.data, self._xmat, self._vel, self._xfrc
-        t00, t01, t02, t10, t11, t12, t20, t21, t22 = xm.tolist()
-        vx0, vy0, vz0 = qv.tolist()
-        vx, vy, vz = vx0 - wx, vy0 - wy, vz0 - wz
-        dr = dk * math.sqrt(vx * vx + vy * vy + vz * vz)
-        xf[0] = fy_b * t01 + fx_b * t00 - dr * vx + px
-        xf[1] = fy_b * t11 + fx_b * t10 - dr * vy + py
-        xf[2] = fy_b * t21 + fx_b * t20 - dr * vz + pz
-        xf[3] = t00 * ab0 + t01 * ab1 + t02 * ab2 + tx
-        xf[4] = t10 * ab0 + t11 * ab1 + t12 * ab2 + ty
-        xf[5] = t20 * ab0 + t21 * ab1 + t22 * ab2 + tz
-        self._mj.mj_step(self.model, d)
-        if d.ncon and self.hit is None:
-            self.hit = self._struck(d)
+        self._step(self, fx_b, fy_b, wx, wy, wz, dk, ab0, ab1, ab2, px, py, pz, tx, ty, tz)
+        if self.data.ncon and self.hit is None:
+            self.hit = self._struck(self.data)
 
     def step(self, speeds, dt, air=None):
         """The frame `dt` s on under the rotors at `speeds`, mechanical rad/s: each one's thrust

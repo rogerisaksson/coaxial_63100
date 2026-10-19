@@ -128,7 +128,7 @@ class Compiled:
 
     def _hold(self, c, args, twin):
         """`c` held bit for bit against `fn` on copies, at the call's arguments then `fresh` draws: its
-        result and every argument after."""
+        result, her body's externs and every argument after."""
         rng = np.random.default_rng(self.seed)
         if twin is not None:
             c.bind(twin)
@@ -138,16 +138,22 @@ class Compiled:
             mine, other = list(args), list(args)
             if twin is not None:
                 mine[self.body] = other[self.body] = twin
+                trace_mj.copy_state(twin, args[self.body])
             for k, x, y in zip(self.inputs, ours, theirs):
                 mine[k], other[k] = x, y
             with np.errstate(all='ignore'):
                 want = self.fn(*mine)
+            want_body = {i: a.copy() for i, a in enumerate(c.kept)} if twin is not None else None
+            if twin is not None:
+                trace_mj.copy_state(twin, args[self.body])
             kept = c.fits(other)
             if kept is None:
                 raise held.Parted('%s: its own copies do not fit it' % self.name)
             on = 'its copies of %s' % ("the call's arguments" if d == 0 else 'fresh draws %d' % d)
             held.alike(trace.leaves_of(c.prog.shape, want), trace.leaves_of(c.prog.shape, c(other)), self.name, on)
             held.alike(dict(enumerate(_leaves_in(ours))), dict(enumerate(_leaves_in(theirs))), self.name + "'s arguments", on)
+            if want_body is not None:
+                held.alike(want_body, dict(enumerate(c.kept)), self.name + "'s body", on)
 
 
 def _tree_in(prog, k, path, v, specs, top):

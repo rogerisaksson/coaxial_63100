@@ -202,8 +202,44 @@ def test_her_law_in_c_as_she_walks(report, c):
                          n >= PASSES // 3 - 1 and not bad, '%d apart' % bad)
 
 
+def test_aircraft_substeps_in_c_are_their_numpys(report, c):
+    """`quad.substep` and `wingborne.wing_substep` compiled on each aircraft's `Sky` beside numpy's
+    on a twin `Sky`, over 40 substeps: `qpos`, `qvel`, `qacc` and `xfrc_applied` bit for bit."""
+    from machine import quad, wingborne
+    from machine.aerobat import sky as asky
+    from machine.helicopter import sky as hsky
+    from machine.ornithopter import sky as osky
+    from tools.cores import law as c_law, trace, trace_mj
+    from tools.cores.orders import same
+    rng = np.random.default_rng(19)
+    for label, cls, fn, attr, n_in in (
+            ('quad', quad.Sky, quad.substep, '_step', 15),
+            ('helicopter', hsky.Sky, quad.substep, '_step', 15),
+            ('ornithopter', osky.Sky, quad.substep, '_step', 15),
+            ('aerobat', asky.Sky, wingborne.wing_substep, '_wing_step', 8)):
+        sky = cls()
+        twin = trace_mj.twin(sky)
+        comp = getattr(sky, attr)
+        args = tuple(float(x) for x in rng.normal(size=n_in))
+        try:
+            comp.wait(sky, *args)
+        except (trace.Untraced, AssertionError, RuntimeError, OSError) as e:
+            report.check("%s's substep in C held, or numpy's own here" % label, not c_law.exact_host(), str(e)[:200])
+            continue
+        trace_mj.copy_state(twin, sky)
+        bad = 0
+        for _ in range(40):
+            draw = tuple(float(x) for x in rng.normal(size=n_in))
+            comp(sky, *draw)
+            fn(twin, *draw)
+            bad += any(not same(getattr(sky.data, k), getattr(twin.data, k))
+                       for k in ('qpos', 'qvel', 'qacc', 'xfrc_applied'))
+        report.check("%s's MuJoCo substep in C is its numpy's bit for bit over 40 substeps" % label,
+                     not bad and comp.c is not None, '%d apart' % bad)
+
+
 ROSTER = (test_numpys_reductions_and_selections_in_c, test_her_state_in_place_in_c, test_her_sensing_in_c_is_her_numpys,
-          test_her_law_in_c_as_she_walks)
+          test_her_law_in_c_as_she_walks, test_aircraft_substeps_in_c_are_their_numpys)
 
 
 def main(argv=None):

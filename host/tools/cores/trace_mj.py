@@ -23,7 +23,30 @@ from tools.cores.trace import Traced, Untraced
 
 #: Her body's own scratch a MuJoCo call writes into (`machine.wbc.Body`).
 SCRATCH = ('_M', '_jp', '_jr', '_am')
+#: MjData's float arrays a holder may keep a view of (`quad.Sky._xmat`, `_vel`, `_xfrc`).
+DATA_ARRAYS = ('qpos', 'qvel', 'qacc', 'act', 'ctrl', 'qfrc_applied', 'xfrc_applied',
+               'xpos', 'xquat', 'xmat', 'xipos', 'ximat', 'site_xpos', 'site_xmat',
+               'subtree_com', 'cdof', 'qfrc_bias', 'qfrc_passive')
 trace.hide(__file__)
+
+
+def _of(b):
+    """(MjModel, MjData, mujoco) of any MuJoCo holder `b` (`wbc.Body`, `quad.Sky`, `physics.World`)."""
+    m = getattr(b, 'm', None) or b.model
+    d = getattr(b, 'd', None) or b.data
+    mj = getattr(b, 'mj', None) or b._mj
+    return m, d, mj
+
+
+def _in_data(d, arr):
+    """(array name on `d`, byte offset in it) if `arr` is a view of one of `d`'s arrays, else None."""
+    at = arr.ctypes.data
+    for attr in DATA_ARRAYS:
+        base = getattr(d, attr)
+        lo = base.ctypes.data
+        if lo <= at < lo + base.nbytes:
+            return attr, at - lo
+    return None
 
 
 class Model:
@@ -84,7 +107,11 @@ class Body:
     """Her body as traced: its model, data, MuJoCo and scratch traced, the rest constants read."""
 
     def __init__(self, prog, b):
-        self.prog, self.raw, self.m, self.d, self.mj = prog, b, Model(b.m), Data(prog, b.d), Mj(prog, b.mj)
+        m, d, mj = _of(b)
+        self.prog, self.raw = prog, b
+        self.m = self.model = Model(m)
+        self.d = self.data = Data(prog, d)
+        self.mj = self._mj = Mj(prog, mj)
         for name in SCRATCH:
             if hasattr(b, name):
                 setattr(self, name, prog.extern('b.' + name, getattr(b, name)))
@@ -93,6 +120,13 @@ class Body:
         got = getattr(self.raw, name)
         if callable(got):
             raise Untraced("her body's %s called at %s: its reads not traced" % (name, trace.where()))
+        if isinstance(got, np.ndarray) and got.dtype == np.float64:
+            found = _in_data(self.d.raw, got)
+            if found is not None:
+                attr, off = found
+                ext = getattr(self.d, attr)
+                return Traced(self.prog, ext.buffer,
+                              np.ndarray(got.shape, np.float64, buffer=ext.view, offset=off, strides=got.strides))
         self.prog.consts[name] = got
         return got
 
@@ -133,29 +167,51 @@ def _contiguous(r):
     return True
 
 
+def copy_state(dst, src):
+    """`dst`'s MjData and scratch copied from `src`'s (`mj_copyData`)."""
+    m, d, mj = _of(src)
+    mj.mj_copyData(_of(dst)[1], m, d)
+    for name in SCRATCH:
+        if hasattr(src, name) and hasattr(dst, name):
+            getattr(dst, name)[:] = getattr(src, name)
+
+
 def twin(b):
     """Her body with a MjData and scratch of its own: traced and held on, hers untouched."""
+    m, d, mj = _of(b)
     t = copy.copy(b)
-    t.d = b.mj.MjData(b.m)
+    td = mj.MjData(m)
+    mj.mj_copyData(td, m, d)
+    t.d = t.data = td
+    t.m = t.model = m
+    t.mj = t._mj = mj
     for name in SCRATCH:
         if hasattr(b, name):
             setattr(t, name, np.zeros_like(getattr(b, name)))
+    for name, val in list(vars(b).items()):
+        if isinstance(val, np.ndarray) and val.dtype == np.float64:
+            found = _in_data(d, val)
+            if found is not None:
+                attr, off = found
+                setattr(t, name, np.ndarray(val.shape, np.float64, buffer=getattr(td, attr),
+                                            offset=off, strides=val.strides))
     return t
 
 
 def bound(prog, b):
     """Her body `b` as the C addresses it: ([(each of her body's externs' place in `prog.externs`, its
     array)], her model's address, her data's) - Untraced where an array is not as traced."""
+    m, d, _mj = _of(b)
     arrays = []
     for i, e in enumerate(prog.externs):
         kind, _dot, name = e.name.partition('.')
         if kind not in ('d', 'b') or not _dot:
             continue
-        arr = getattr(b.d if kind == 'd' else b, name)
+        arr = getattr(d if kind == 'd' else b, name)
         if arr.shape != e.shape or arr.dtype != np.float64 or not arr.flags.c_contiguous:
             raise Untraced('%s is %s %s, traced %s' % (e.name, arr.dtype, arr.shape, e.shape))
         arrays.append((i, arr))
-    return arrays, b.m._address, b.d._address
+    return arrays, m._address, d._address
 
 
 def functions(prog):
