@@ -66,10 +66,10 @@ def test_aerobat_airfield_laps(report):
     """The aerobat laps its airfield's course in gusty wind - through the air gate, under the
     limbo bar, up through the hoop, round each pylon on its line's side, through the knife gate
     on its side - and lands on its runway along it."""
-    from machine import aerobat, aerobatics, aerokin, airfield, pull, quad
+    from machine import aerobat, aerobatics, aerokin, airfield, pull, weather
     dt, tick, foot = 0.02, 0.002, aerobat.SKID_M + aerobat.FOOT_M
     sky, core, law = aerobat.Sky(airfield.solids()), aerobat.Core(), aerokin.fresh()
-    route, air = aerobatics.routine(airfield.CARD), quad.air(7, 'gusty')
+    route, air = aerobatics.routine(airfield.CARD), weather.air(7, 'gusty')
     top = aerobat.K_THRUST * pull.held(pull.I_MAX) ** 2 / aerobat.MASS_KG
     stages, misses, crossed = [], [], 0
     sides: list[bool | None] = [None] * len(airfield.GATES)
@@ -82,7 +82,7 @@ def test_aerobat_airfield_laps(report):
         along = core.plan(law, row, st, dt, aerobat.COURSE_SPHERE)
         for _ in range(10):
             ans = core.step(law, row, sky.state(), tick, aerobat.COURSE_SPHERE, None, along)
-            quad.blown(air, tick)
+            weather.blown(air, tick)
             sky.step(ans.speeds + ans.controls, tick, air)
         st = sky.state()
         (x, y, z), belly = (float(v) for v in st['at']), abs(float(st['turn'][1][2]))

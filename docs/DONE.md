@@ -351,7 +351,9 @@ the fifty before these: [DONE_1-50](DONE_1-50.md).
     limbo bar, a hoop at the far turn's top, a slalom of three pylons, a
     knife gate taken on its side, on one line of arcs it flies by L1 and
     draws; two laps through all in gusty wind, every gate within 0.9 m.
-90. `machine.aerobat` and `machine.helicopter` packages of a subject a file:
-    airframe, sky, law, observer, and the SO(3) law's shared kit.
+90. The crafts' modules of a subject a file: `machine.aerobat`,
+    `machine.helicopter` and `machine.ornithopter` packages - airframe, sky,
+    law, observer, the SO(3) law's shared kit -, the quad's air and pack
+    their own (`machine.weather`, `machine.flightpack`).
 91. Her world past real time walking: her pass's glue and her ask in C bit for
     bit on numpy's own orders, 1.27 of real time ([body](findings/body.md)).

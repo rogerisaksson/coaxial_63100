@@ -6,7 +6,8 @@ import os
 from machine import quad
 from machine.helicopter.airframe import (BODY_CDA, FOOT_M, K_CYC, K_TAIL, K_THRUST, RHO, SKID_M,
                                          TAIL_M, _rotor_drag, _rotor_inflow, mjcf)
-from machine.quad import STEP_S, wind_at
+from machine.quad import STEP_S
+from machine.weather import wind_at
 
 
 def _init_sky(sky, xml, rest, touch=()):

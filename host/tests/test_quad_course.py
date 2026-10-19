@@ -23,10 +23,10 @@ def lapped(share=1.0, spent_at=None, air=False):
     """The course's card once through, a row a pass (`streams.asked`, `streams.flew`): the
     frame in MuJoCo on the core and ideal rotors, `share` of their pull, passes a page's - 10
     to 30 ms, one in twenty 50; `spent` from `spent_at` s; `air` the air's tour; what stands."""
-    from machine import aerobatics, aerokin, course, grounds, quad
+    from machine import aerobatics, aerokin, course, grounds, weather
     from tools.sim import streams
     dice = random.Random(1)
-    flight = streams.Flight(quad.air() if air else None, things=grounds.solids())
+    flight = streams.Flight(weather.air() if air else None, things=grounds.solids())
     sky, route, law = flight.sky, aerobatics.routine(course.CARD), aerokin.fresh()
     t, rows = 0.0, []
     while t < 240.0:

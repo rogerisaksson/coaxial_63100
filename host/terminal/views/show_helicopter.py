@@ -28,7 +28,7 @@ from coaxial.errors import RigError
 from coaxial.graphics import gpu
 from coaxial.graphics import helicopter as heli_gfx
 from coaxial.graphics.quadcopter import LAYERS
-from machine import aerobatics, aerokin, gimbal, grounds, helicopter, pull, quad
+from machine import aerobatics, aerokin, flightpack, gimbal, grounds, helicopter, pull, weather
 from machine.modes import SIMULATED
 from terminal.loader import TO_MENU
 from terminal.ui import recorder
@@ -98,7 +98,7 @@ def compose_craft(console, origin, rotors, frame, flight, trace, now, art, yaw, 
                      style='alarm' if tight or over else 'value')),
         ('bus', '%8.1f V, low %.1f' % (cells['volts'], peak['low'])),
         ('pack', Text('%8.0f %% left, %.1f A' % (100.0 * cells['left'], cells['amps']),
-                      style='alarm' if cells['left'] <= quad.RESERVE else 'value')),
+                      style='alarm' if cells['left'] <= flightpack.RESERVE else 'value')),
         ('power x2', '%8.0f W, peak %.0f' % (cells['watts'], peak['watts']))])
     lines = []
     for label, rotor in zip(flown_mod.ROTORS, rotors):
@@ -191,7 +191,7 @@ def run_craft_view(argv, doc, craft, gfx, flown_mod, compose_fn, thrusts_fn, loo
             cells = flight['cells']
             if held['wind']:
                 held['wind'] = False
-                quad.kept(flight['air'])
+                weather.kept(flight['air'])
             if held['reset']:
                 held['reset'] = False
                 sky.reset()
@@ -200,7 +200,7 @@ def run_craft_view(argv, doc, craft, gfx, flown_mod, compose_fn, thrusts_fn, loo
                 flown_mod.begun(held['law'], flight)
                 flown_mod.reset(rotors)
                 trace.clear()
-                cells.update(quad.pack())
+                cells.update(flightpack.pack())
                 flight.update(apex=0.0, share=1.0, over=0.0, stood=0.0, wreck=None)
                 camera.update(reach=NEAR_M, yaw=base_yaw, pitch=SIDE_PITCH)
             for clock, frame in flown_mod.passed(rotors, sky, route, held['law'], flight,

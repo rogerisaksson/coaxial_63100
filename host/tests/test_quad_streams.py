@@ -232,7 +232,7 @@ def test_a_hover_keeps_still_in_the_air(report):
     """A hover's stream through the tour's five kinds of air, 100 s, no place asked: the frame
     leans into the wind and keeps its speed along the floor under 1 m/s, its height to the
     centimetre; with no lean left it (`aero.LEAN` 0) it stands level and goes with the wind."""
-    from machine import aerolisp, quad
+    from machine import aerolisp, weather
     from tools.cores import aero
     from tools.sim import streams
     payload = aero.payload(aerolisp.compiled(streams.HOVER % 5.0)[0])
@@ -240,7 +240,7 @@ def test_a_hover_keeps_still_in_the_air(report):
     for lean in (aero.LEAN, 0.0):
         kept, aero.LEAN = aero.LEAN, lean
         try:
-            flight = streams.Flight(air=quad.air(3), at=(0.0, 5.0, 0.0))
+            flight = streams.Flight(air=weather.air(3), at=(0.0, 5.0, 0.0))
         finally:
             aero.LEAN = kept
         passes = streams.flown(flight, [payload], [100.0])[0]['passes']
@@ -331,10 +331,10 @@ def test_the_course_is_flown_from_its_rows(report):
     """`course.CARD` among what stands, solid, a pass a row's payload: from the floor onto
     its grid, its laps and down - nothing struck, no propeller's tip nearer a gate's frame
     than a quarter of a metre; and in the tour's air."""
-    from machine import course, grounds, quad
+    from machine import course, grounds, weather
     from tools.sim import quad_race, streams
     for seed in (None, 3):
-        flight = streams.Flight(None if seed is None else quad.air(seed),
+        flight = streams.Flight(None if seed is None else weather.air(seed),
                                 things=grounds.solids())
         rows = streams.routine(flight, course.CARD)
         laps, hit = streams.laps(rows), flight.sky.state()['hit']

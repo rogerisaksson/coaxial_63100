@@ -12,7 +12,7 @@ the 16-gate course (`machine.course`).
 import ctypes
 import math
 
-from machine import aerobatics, aerokin, course, heat as mheat, helicopter, pull, quad
+from machine import aerobatics, aerokin, course, flightpack, heat as mheat, helicopter, pull, quad, weather
 from terminal.views.quad.flight import (CRASHED, CRASH_S, FAULTS, STEP_S, THERMAL_S, TICK_S, _LIB,
                                         airspeeds, arm, asked, fallen, kept, lined, observers,
                                         reset, spun, steps, struck, warmth)
@@ -26,8 +26,8 @@ CARD = helicopter.CARD + course.CARD
 
 def fresh(craft=helicopter):
     """The craft's flights' own before the first: stage, apex, controls, the pack's cells and
-    peaks, the wind (`quad.air`), and the 3D `craft.Core`."""
-    cells = quad.pack()
+    peaks, the wind (`weather.air`), and the 3D `craft.Core`."""
+    cells = flightpack.pack()
     top = craft.K_THRUST * pull.held(pull.I_MAX) ** 2 / craft.MASS_KG
     card = craft.CARD + course.CARD
     return {'stage': card[0][0], 'apex': 0.0, 'share': 1.0, 'over': 0.0, 'lap': None,
@@ -35,7 +35,7 @@ def fresh(craft=helicopter):
             'pull': aerokin.HEADROOM * min(craft.PULL_MAX, top), 'row': dict(aerobatics.DOWN),
             'controls': (0.0, 0.0, 0.0, 0.0), 'stood': 0.0, 'cells': cells,
             'peak': {'watts': 0.0, 'low': cells['volts']},
-            'air': quad.air(), 'wreck': None, 'crashes': 0}
+            'air': weather.air(), 'wreck': None, 'crashes': 0}
 
 
 def shell(flight, rotors, craft=helicopter):
@@ -45,7 +45,7 @@ def shell(flight, rotors, craft=helicopter):
     hold = min([pull.I_WEP] + [(r['budget'] or {}).get('hold_amps', pull.I_WEP) for r in rotors])
     w_top = pull.top(left, min(pull.I_MAX, hold))
     have = aerokin.HEADROOM * min(craft.PULL_MAX, craft.K_THRUST * w_top * w_top / craft.MASS_KG)
-    flat = left <= quad.RESERVE
+    flat = left <= flightpack.RESERVE
     return have, flat or have < aerokin.LEAST * craft.GRAVITY, not flat and hold >= pull.I_MAX
 
 
@@ -106,7 +106,7 @@ def step(rotors, sky, route, law, flight, clock, dt, craft=helicopter):
     if name == CRASHED:
         return name
     if 'fit' in route['card'][route['row']][4].split() and not fit:
-        return 'swap' if cells['left'] <= quad.RESERVE else 'cool'
+        return 'swap' if cells['left'] <= flightpack.RESERVE else 'cool'
     return aerokin.FALL if name == 'burn' and law['doing'] == aerokin.FALL else name
 
 
@@ -159,10 +159,10 @@ def flown(rotors, sky, core, law, row, flight, dt, craft=helicopter):
         for rotor, speed in zip(rotors, out.speeds):
             rotor['ask'] = speed
         if air is not None:
-            quad.blown(air, TICK_S)
+            weather.blown(air, TICK_S)
         sky.step((rotors[0]['w'], rotors[1]['w']) + tuple(out.controls), TICK_S, air)
     watts = sum(pull.watts(r['w'], r['iq'], r['amps']) for r in rotors)
-    quad.drawn(cells, watts, dt)
+    flightpack.drawn(cells, watts, dt)
     flight['over'] += dt * float(max(rotor['amps'] for rotor in rotors) > pull.I_MAX)
     told, through = airspeeds(sky.state(), air)
     for rotor in rotors:

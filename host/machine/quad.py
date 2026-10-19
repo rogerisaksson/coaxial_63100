@@ -1,23 +1,19 @@
-"""A quad on four coaxial boards in MuJoCo: its frame, on what its rotors turn, its air, its pack.
+"""A quad on four coaxial boards in MuJoCo: its frame and on what its rotors turn.
 
     sky = Sky()                                   # the frame on the floor, y up
-    wind = blown(air, dt)                         # the air on: its wind, its gusts, its eddies
-    sky.step(rotor_speeds, dt, air)               # the frame on what the rotors turn, in that air
-    volts = drawn(cells, watts, dt)               # its pack's bus under what they take
+    sky.step(rotor_speeds, dt, air)               # on what the rotors turn, in `weather`'s air
 
 A 2 kg frame on four direct-drive 63100 rotors under 16x14 propellers (board/emu/worlds/
-quad.json) on skids: gravity, the air on it and the floor; its boards on one pack of 15 cells,
-63 V full. The air is a kind of weather at a time (`AIR`): a wind, its way swinging, gusts over
-it and eddies in it - what the frame is flown through, none of it told to its law. Its flying
-is `machine.aerobatics`' rows made payloads (`machine.aerokin`) for its core (aero/); the
-rotors are the caller's.
+quad.json) on skids: gravity, the air on it (`machine.weather`) and the floor; its boards on one
+pack of 15 cells (`machine.flightpack`). Its flying is `machine.aerobatics`' rows made payloads
+(`machine.aerokin`) for its core (aero/); the rotors are the caller's.
 """
 import importlib
 import math
 import os
-import random
 
 from machine import aerolisp
+from machine.weather import wind_at
 
 QUAD_LISP_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'quadcopter.lisp')
 with open(QUAD_LISP_PATH, encoding='utf-8') as _qf:
@@ -73,34 +69,6 @@ SPIN_S = _GOV['spin_time']
 
 #: The world's step, s.
 STEP_S = _GOV['step_time']
-
-#: The air's kinds, a row each - a day's weather over a field at REF_M, assumptions: the wind's
-#: mean, m/s; how far its way swings either side, degrees, and a swing's seconds; its gusts'
-#: size over the mean, m/s, and the seconds between two; its eddies', m/s rms.
-AIR = {
-    'calm':      (0.5,  0.0,  0.0, 0.0, 0.0, 0.1),
-    'constant':  (4.0,  0.0,  0.0, 0.0, 0.0, 0.2),
-    'gusty':     (3.0, 15.0,  8.0, 4.0, 5.0, 0.5),
-    'changing':  (3.5, 80.0, 14.0, 1.0, 9.0, 0.3),
-    'turbulent': (2.5, 25.0,  6.0, 2.0, 6.0, 1.2),
-}
-
-#: The kinds in turn, KIND_S of each, the air come to a kind's sizes over EASE_S and round to
-#: its own way, within TURN_DEG of the last.
-TOUR, KIND_S, EASE_S, TURN_DEG = tuple(AIR), 20.0, 4.0, 120.0
-
-#: A gust: up and down again as 1 - cos over so long, s, so much of its kind's size, within
-#: GUST_DEG of the wind's way.
-GUST_S, GUST_SHARE, GUST_DEG = (1.5, 3.0), (0.6, 1.0), 30.0
-
-#: The eddies: the frame's turn over in EDDY_S; each disc has one of its own besides,
-#: EDDY_DISC of the size, over in EDDY_DISC_S; up and down EDDY_UP of along the floor.
-EDDY_S, EDDY_DISC_S, EDDY_DISC, EDDY_UP = 1.5, 0.3, 0.5, 0.5
-
-#: The wind over the ground: (h / REF_M) ** SHEAR of what it is at REF_M, counted from SHEAR_M
-#: up and SHEAR_MOST at the most; the air rises and falls not at all at the floor, wholly from
-#: RISE_M up.
-REF_M, SHEAR, SHEAR_M, SHEAR_MOST, RISE_M = 5.0, 0.2, 0.1, 1.5, 3.0
 
 #: A disc's thrust falls with the air through it along its axis - the frame's own way, the
 #: wind's and its eddy's against it -, to none at INFLOW_J0 of its pitch's speed, a 16x14's
@@ -328,73 +296,6 @@ class Sky:
                 self.hit = self._struck(d)
 
 
-def air(seed=3, kind=None):
-    """Air before its first second, still: the 'kind' it is in - toured from TOUR's first, or
-    `kind` 'kept' -, how long 'for', its sizes 'come' so far (the wind's mean, its way's swing,
-    its gusts', its eddies'); the 'way' its wind blows, rad from z toward x, the way it comes
-    round 'to' and its 'swing'; its 'gust' (s into it, of, its share, rad off the way) and the
-    seconds to the 'next'; the frame's 'eddy' and each disc's, m/s; what they make: its 'wind'
-    at REF_M, m/s in the world, the gust in it 'blows', m/s."""
-    return {'kind': kind or TOUR[0], 'kept': kind is not None, 'for': 0.0, 'come': [0.0] * 4,
-            'way': 0.0, 'to': 0.0, 'swing': 0.0, 'gust': None, 'next': 0.0, 'blows': 0.0,
-            'eddy': [0.0] * 3, 'eddies': [[0.0] * 3 for _ in ROTOR_AT],
-            'dice': random.Random(seed), 'wind': (0.0, 0.0, 0.0)}
-
-
-def blown(air, dt):
-    """The air `dt` s on, its wind at REF_M: its kind's turn over, TOUR's next and a new way;
-    its sizes eased to its kind's and its way round, swung; a gust begun where one is due,
-    risen and fallen; its eddies turned over, each as far as its seconds let it."""
-    dice = air['dice']
-    air['for'] += dt
-    if not air['kept'] and air['for'] >= KIND_S:
-        air['kind'], air['for'] = TOUR[(TOUR.index(air['kind']) + 1) % len(TOUR)], 0.0
-        air['to'] += math.radians(dice.uniform(-TURN_DEG, TURN_DEG))
-    mean, veer, veer_s, gust, every, rough = AIR[air['kind']]
-    ease = min(1.0, dt / EASE_S)
-    mean, veer, gust, rough = air['come'] = [was + (now - was) * ease for was, now in zip(
-        air['come'], (mean, veer, gust, rough))]
-    air['way'] += (air['to'] - air['way']) * ease
-    air['swing'] += math.tau * dt / veer_s if veer_s else 0.0
-    way = air['way'] + math.radians(veer) * math.sin(air['swing'])
-    if air['gust'] is None:
-        air['next'] -= dt
-        if every and air['next'] <= 0.0:
-            air['gust'] = (0.0, dice.uniform(*GUST_S), dice.uniform(*GUST_SHARE),
-                           math.radians(dice.uniform(-GUST_DEG, GUST_DEG)))
-            air['next'] = every * dice.uniform(0.5, 1.5)
-    blows, off = 0.0, 0.0
-    if air['gust'] is not None:
-        into, of, share, off = air['gust']
-        blows = 0.5 * share * gust * (1.0 - math.cos(math.tau * into / of))
-        air['gust'] = (into + dt, of, share, off) if into + dt < of else None
-    for eddy, size, over in [(air['eddy'], rough, EDDY_S)] + [
-            (own, EDDY_DISC * rough, EDDY_DISC_S) for own in air['eddies']]:
-        keep = math.exp(-dt / over)
-        kick = size * math.sqrt(1.0 - keep * keep)
-        for k in range(3):
-            eddy[k] = eddy[k] * keep + (EDDY_UP if k == 1 else 1.0) * kick * dice.gauss(0.0, 1.0)
-    air['blows'] = blows
-    air['wind'] = (mean * math.sin(way) + blows * math.sin(way + off) + air['eddy'][0],
-                   air['eddy'][1],
-                   mean * math.cos(way) + blows * math.cos(way + off) + air['eddy'][2])
-    return air['wind']
-
-
-def kept(air):
-    """The air's kind stepped by hand: TOUR's first, kept, then the next; after the last, the
-    tour again."""
-    k = TOUR.index(air['kind']) + 1 if air['kept'] else 0
-    air['kind'], air['kept'], air['for'] = TOUR[k % len(TOUR)], k < len(TOUR), 0.0
-
-
-def wind_at(wind, h):
-    """The air's speed `wind`, m/s at REF_M, where the frame is `h` m up: sheared along the
-    floor, its rise and fall none at the floor."""
-    low = min(SHEAR_MOST, (max(h, SHEAR_M) / REF_M) ** SHEAR)
-    return (low * wind[0], low * min(1.0, max(0.0, h) / RISE_M) * wind[1], low * wind[2])
-
-
 def inflow(along, w):
     """A disc's thrust's share with the air through it `along` its axis, m/s - the disc moving
     up it -, at `w` rad/s: falling to none at INFLOW_J0 of its pitch's speed."""
@@ -408,41 +309,6 @@ def speed_for(thrust, along=0.0):
     return (lose + math.sqrt(lose * lose + 4.0 * K_THRUST * max(0.0, thrust))) / (2.0 * K_THRUST)
 
 
-#: The pack: PACK_CELLS in series, a cell's open volts by the share of its charge left - a LiPo's
-#: curve, 63 V full -, its charge, A h - a racer's, a few flights -, and its and its leads'
-#: resistance, ohm, the bus drooping that much a link amp: assumptions with a name each. Spent
-#: at RESERVE of its charge. At 0.12 ohm the four's 8 kW at their clamps took the bus to half.
-PACK_CELLS, PACK_AH, PACK_OHM, RESERVE = 15, 1.0, 0.04, 0.2
-CELL_V = ((0.0, 3.30), (0.05, 3.50), (0.2, 3.70), (0.5, 3.85), (0.9, 4.05), (1.0, 4.20))
 COOLING = DYNAMICS['cooling']
 
 
-def open_volts(left):
-    """The pack's volts unloaded with `left` of its charge in it."""
-    left = max(0.0, min(1.0, left))
-    for (a, low), (b, high) in zip(CELL_V, CELL_V[1:]):
-        if left <= b:
-            return PACK_CELLS * (low + (high - low) * (left - a) / (b - a))
-    return PACK_CELLS * CELL_V[-1][1]
-
-
-def pack():
-    """A fresh pack: the share of its charge left, its bus's volts, the amps and watts it gave
-    last."""
-    return {'left': 1.0, 'volts': open_volts(1.0), 'amps': 0.0, 'watts': 0.0}
-
-
-def sagged(volts, watts):
-    """The pack's bus with `watts` taken at it, V: its open `volts` less PACK_OHM a link amp."""
-    return 0.5 * (volts + math.sqrt(max(0.0, volts * volts - 4.0 * PACK_OHM * watts)))
-
-
-def drawn(cells, watts, dt):
-    """The pack `cells` `dt` s on with `watts` taken at its bus - given, braked into: the bus's
-    volts (`sagged`), its charge less what its link's amps took."""
-    volts = open_volts(cells['left'])
-    bus = sagged(volts, watts)
-    amps = (volts - bus) / PACK_OHM
-    cells.update(left=max(0.0, min(1.0, cells['left'] - amps * dt / (3600.0 * PACK_AH))),
-                 volts=bus, amps=amps, watts=watts)
-    return bus

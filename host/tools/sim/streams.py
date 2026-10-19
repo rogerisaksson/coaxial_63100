@@ -24,8 +24,7 @@ from typing import Any
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from machine import (aerobatics, aerokin, aerolisp, course, grounds, intents,
-                     pull, quad)
+from machine import aerobatics, aerokin, aerolisp, course, grounds, intents, pull, quad, weather
 from tools.cores import aero
 
 #: The ideal rotors: their top, rad/s, and what their speed changes by at the most, rad/s^2 -
@@ -70,7 +69,7 @@ def tilt(turn):
 class Flight:
 
     """The frame on the floor - or `at` (x, m up, z), hovering -, its core and its four ideal
-    rotors; `air` the flight's (`quad.air`), or still. The rotors' top, their spool and their
+    rotors; `air` the flight's (`weather.air`), or still. The rotors' top, their spool and their
     lag are its own (`top`, `spool`, `lag`): TOP_RAD_S, SPOOL_RAD_S2 and LAG_S as built."""
 
     def __init__(self, air=None, at=None, things=()):
@@ -96,7 +95,7 @@ class Flight:
             more = (min(self.top, self.w[k] + (want - self.w[k]) / gain) - self.w[k]) * gain
             self.w[k] += max(-self.spool * dt, min(self.spool * dt, more))
         if self.air:
-            quad.blown(self.air, dt)
+            weather.blown(self.air, dt)
         self.sky.step(self.w, dt, self.air)
         self.clock += dt
         return state, out
@@ -306,7 +305,7 @@ def main(argv=None):
     args = parser.parse_args(argv)
     if args.card:
         card, things = CARDS[args.card]
-        rows = routine(Flight(None if args.air is None else quad.air(args.air),
+        rows = routine(Flight(None if args.air is None else weather.air(args.air),
                               things=things()), card())
         for row in rows:
             _figure(row)
@@ -332,7 +331,7 @@ def main(argv=None):
         again = aero.payload(bytes(payloads[0]))
         again.sequence_id = max(p.sequence_id for p in payloads) + 1
         payloads, seconds = payloads + [again], seconds + [args.hover]
-    air = None if args.air is None else quad.air(args.air)
+    air = None if args.air is None else weather.air(args.air)
     boards = Boards(air) if args.boards else None
     try:
         for row in flown(boards or Flight(air), payloads, seconds):

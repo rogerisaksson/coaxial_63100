@@ -38,7 +38,7 @@ from coaxial import Coaxial63100
 from coaxial.errors import RigError
 from coaxial.draw.gauges import policy_word
 from coaxial.graphics import gpu, inset, onboard, quadcopter
-from machine import aerobatics, aerokin, gimbal, grounds, pull, quad
+from machine import aerobatics, aerokin, flightpack, gimbal, grounds, pull, quad, weather
 from machine.modes import SIMULATED
 from terminal.loader import TO_MENU
 from terminal.ui import recorder
@@ -120,7 +120,7 @@ def compose(console, origin, rotors, frame, flight, trace, now, art, yaw=0.0):
                      style='alarm' if tight or over else 'value')),
         ('bus', '%8.1f V, low %.1f' % (cells['volts'], peak['low'])),
         ('pack', Text('%8.0f %% left, %.1f A' % (100.0 * cells['left'], cells['amps']),
-                      style='alarm' if cells['left'] <= quad.RESERVE else 'value')),
+                      style='alarm' if cells['left'] <= flightpack.RESERVE else 'value')),
         ('power x4', '%8.0f W, peak %.0f' % (cells['watts'], peak['watts']))])
     lines = []
     for label, rotor in zip(ROTORS, rotors):
@@ -309,7 +309,7 @@ def main(argv=None):
             if held['wind']:
                 # W: the air's next kind, kept - on the thread that blows it.
                 held['wind'] = False
-                quad.kept(flight['air'])
+                weather.kept(flight['air'])
             if held['reset']:
                 # A: the frame back on its skids at its spot, its flights from the routine's
                 # spool on a fresh pack, the rotors' loops from rest - on this thread, the one
@@ -321,7 +321,7 @@ def main(argv=None):
                 flown.begun(held['law'], flight)
                 flown.reset(rotors)
                 trace.clear()
-                cells.update(quad.pack())
+                cells.update(flightpack.pack())
                 flight.update(apex=0.0, share=1.0, gone=0.0, stood=0.0, wreck=None)
                 camera.update(reach=NEAR_M, yaw=YAW, pitch=SIDE_PITCH)
             for clock, frame in flown.passed(rotors, sky, route, held['law'], flight,

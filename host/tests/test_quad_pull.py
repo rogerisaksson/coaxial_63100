@@ -41,7 +41,7 @@ def test_the_space_closes(report):
     leaves, the reach none at either; the tables read between two rows are the top sought
     there; the four on their pack are under one on its open volts, and under less charge
     lower."""
-    from machine import pull, quad
+    from machine import flightpack, pull
     rotor = pull.ROTOR
     clamp = [abs(pull.torque(pull.held(a)) / rotor.kt - a) for a in (10.0, pull.I_MAX, pull.I_WEP)]
     link = [abs(pull.room(pull.linked(v), v) - pull.torque(pull.linked(v)) / rotor.kt)
@@ -54,21 +54,21 @@ def test_the_space_closes(report):
                      max(clamp), max(link), max(still)))
     volts = [abs(pull.ceiling(v, 1e3) - pull.linked(v)) for v in (41.3, 52.77, 57.3, 62.9)]
     lefts = (0.0, 0.03, 0.2, 0.33, 0.62, 0.9, 0.97, 1.0)
-    packs = [abs(pull.top(left, 1e3) - pull.linked(quad.open_volts(left), 4)) for left in lefts]
+    packs = [abs(pull.top(left, 1e3) - pull.linked(flightpack.open_volts(left), 4)) for left in lefts]
     report.check('read between two rows a table is the top sought there, within 0.05 rad/s',
                  max(volts) < 0.05 and max(packs) < 0.05,
                  '%.4f rad/s off on a link, %.4f on the pack' % (max(volts), max(packs)))
     tops = [pull.top(left, pull.I_MAX) for left in lefts]
     full = pull.top(1.0, pull.I_MAX)
     need = pull.torque(full) / rotor.kt
-    bus = quad.sagged(quad.open_volts(1.0), 4.0 * pull.watts(full, need, need))
+    bus = flightpack.sagged(flightpack.open_volts(1.0), 4.0 * pull.watts(full, need, need))
     report.check('the four on a full pack: under one on its open volts, their bus what their '
                  'draw leaves of it; lower on less charge, WEP\'s clamp no higher',
-                 full < pull.ceiling(quad.open_volts(1.0), pull.I_MAX)
+                 full < pull.ceiling(flightpack.open_volts(1.0), pull.I_MAX)
                  and abs(pull.ceiling(bus, 1e3) - full) < 0.05 and tops == sorted(tops)
                  and tops[0] < tops[-1] and pull.top(1.0, pull.I_WEP) == full,
                  '%.1f rad/s on %.1f A each, the bus %.1f V of %.1f; %.1f at the reserve' % (
-                     full, need, bus, quad.open_volts(1.0), pull.top(quad.RESERVE, pull.I_MAX)))
+                     full, need, bus, flightpack.open_volts(1.0), pull.top(flightpack.RESERVE, pull.I_MAX)))
 
 
 def test_a_rotors_top_is_the_laws(report):
@@ -160,10 +160,10 @@ def test_four_on_their_pack(report):
     """Four stand-in boards asked past their top on one pack, their thermal derate held off:
     they come to the top the space has for the charge left in it, the bus where their draw
     leaves it."""
-    from machine import pull, quad
+    from machine import flightpack, pull
     from terminal.views.quad import flight as view
     rigs = [armed() for _ in range(4)]
-    cells, rows = quad.pack(), []
+    cells, rows = flightpack.pack(), []
     try:
         for rig, _rotor in rigs:
             rig.board.thermal.wep(2.0)
@@ -174,7 +174,7 @@ def test_four_on_their_pack(report):
                 rig.board.drive.model.configure(vdc=cells['volts'])
                 rotor['w'] = turned(rig, rotor, 0.01)
                 watts += view.stated(rotor)
-            quad.drawn(cells, watts, 0.01)
+            flightpack.drawn(cells, watts, 0.01)
             rows.append(([rotor['w'] for _rig, rotor in rigs], cells['volts'], cells['amps'],
                          cells['left'], [rotor['amps'] for _rig, rotor in rigs]))
     finally:
@@ -189,7 +189,7 @@ def test_four_on_their_pack(report):
                  and want < pull.held(pull.I_MAX),
                  '%s rad/s, the space %.1f at %.3f of the charge; %.1f A each, the clamp %.0f' % (
                      ' '.join('%.1f' % w for w in speeds), want, left, max(each), pull.I_MAX))
-    bus = quad.sagged(quad.open_volts(left), 4.0 * pull.watts(want, need, need))
+    bus = flightpack.sagged(flightpack.open_volts(left), 4.0 * pull.watts(want, need, need))
     report.check('the bus where their draw leaves it, within 0.3 V; a second and a half of '
                  'it a twentieth of the charge',
                  abs(volts - bus) < 0.3 and 0.03 < 1.0 - left < 0.07,

@@ -38,7 +38,7 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from machine import aerobatics, aerokin, course, grounds, pull, quad
+from machine import aerobatics, aerokin, course, flightpack, grounds, pull, quad, weather
 from tools import REPO
 from tools.cores import aero
 from tools.dev import background
@@ -228,7 +228,7 @@ def boards(air, room=BENCH, left=1.0):
     rotors = [view.arm(Coaxial63100(execution_mode=SIMULATED).open(), room=room) for _ in range(4)]
     sky, route = quad.Sky(grounds.solids()), aerobatics.routine(course.CARD)
     law, flight = aerokin.fresh(), view.fresh()
-    flight['cells'].update(left=left, volts=quad.open_volts(left))
+    flight['cells'].update(left=left, volts=flightpack.open_volts(left))
     flight['air'], t, laps, soa, least = air, 0.0, {}, 0.0, 1.0
     whole = pull.thrust(pull.held(pull.I_MAX))
     try:
@@ -259,7 +259,7 @@ def trial(values, job):
     sized(size)
     clock = quad.scales()[1]
     laps, struck, soa, least, wep = (ideal if rotors == 'ideal' else boards)(
-        None if seed is None else quad.air(seed), room_, left)
+        None if seed is None else weather.air(seed), room_, left)
     rows = [row[1:] for lap in sorted(laps) for row in laps[lap]]
     miss, passes = missed(rows) if rows else (math.nan, 0)
     thrust, jerk, turns = flowed(laps)

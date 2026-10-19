@@ -37,7 +37,7 @@ def test_the_boards_air_is_the_rotors(report):
     speed: the rpm its thermal network's air sees is the rotor's own, by the record's pole
     pairs."""
     from coaxial import Coaxial63100
-    from machine import quad
+    from machine import flightpack, quad
     from machine.modes import SIMULATED
     from terminal.views.quad import flight as view
     rig = Coaxial63100(execution_mode=SIMULATED).open()
@@ -62,7 +62,7 @@ def test_the_boards_air_is_the_rotors(report):
                  rpm > 1000.0 and abs(air - rpm) <= 0.03 * rpm,
                  'the rotor %.0f rpm, the air %.0f' % (rpm, air))
     report.check('its link is the pack\'s, 63 V full, and its drive says so',
-                 link is not None and abs(link - quad.open_volts(1.0)) < 0.01, '%s V' % link)
+                 link is not None and abs(link - flightpack.open_volts(1.0)) < 0.01, '%s V' % link)
 
 
 def test_a_rotor_turns_by_its_pass(report):
@@ -288,7 +288,7 @@ def test_its_rows_are_inside_the_shell(report):
     clamp the board with the least in it holds, the flight's at the most, and on the pack's
     charge; spent where that is under what the frame is sped up on or the pack at its
     reserve; fit with a charged pack and every board holding the flight's clamp."""
-    from machine import aerokin, pull, quad
+    from machine import aerokin, flightpack, pull, quad
     from terminal.views.quad import flight as view
 
     def shell(left, *amps):
@@ -308,7 +308,7 @@ def test_its_rows_are_inside_the_shell(report):
                  and warm == (have(1.0, 0.5 * whole), False, False) and warm[0] < full[0],
                  '%.1f m/s^2 a kg on all of it, %.1f on half' % (full[0], warm[0]))
     low, shut = shell(0.5, wep, wep, wep, wep), shell(1.0, wep, wep, 8.0, wep)
-    flat = shell(quad.RESERVE, wep, wep, wep, wep)
+    flat = shell(flightpack.RESERVE, wep, wep, wep, wep)
     report.check('on half its charge less; a board holding 8 A: under what the frame is sped '
                  'up on, spent; its pack at its reserve: spent with all its pull, not fit',
                  low[0] < full[0] and low[1:] == (False, True)

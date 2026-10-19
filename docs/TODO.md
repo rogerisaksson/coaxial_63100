@@ -358,8 +358,6 @@ serves its DOD; none an entry a case.
 - **The models look janky** (reported, with pictures): the gynoid, quad and
   helicopter first, after the FBX and glTF models beside the repo (not
   checked in), judged at the page's size. DOD: PNGs beside the pictures.
-- **The crafts' modules split** into files of a subject each (plant, law,
-  observer): `quad`, `ornithopter`, as `aerobat` and `helicopter` are.
 - **The aerobat's landing** (aircraft.md): its touch, its roll-out unsteered
   in wind. DOD: a touch under 0.5 m/s within 0.5 m of the centreline,
   stopped on the runway, still or gusty.

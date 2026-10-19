@@ -15,7 +15,7 @@ number of 0 or 1, a bound a least or a most.
 import math
 from typing import NamedTuple
 
-from machine import quad
+from machine import flightpack, quad
 
 
 class Rotor(NamedTuple):
@@ -87,12 +87,12 @@ def held(amps, rotor=ROTOR):
 def linked(volts, rotors=0, rotor=ROTOR):
     """A rotor's steady top on its link, rad/s: the fastest it turns on a current the link's
     volts leave it - `volts` held or, `rotors` drawing alike through the pack's ohms, its open
-    ones (`quad.sagged`)."""
+    ones (`flightpack.sagged`)."""
     low, high = 0.0, OVER_RAD_S
     for _ in range(HALVINGS):
         w = 0.5 * (low + high)
         need = torque(w, rotor) / rotor.kt
-        bus = quad.sagged(volts, rotors * watts(w, need, need, rotor))
+        bus = flightpack.sagged(volts, rotors * watts(w, need, need, rotor))
         fits = float(need <= room(w, bus, rotor))
         low, high = low + fits * (w - low), high - (1.0 - fits) * (high - w)
     return low
@@ -100,7 +100,7 @@ def linked(volts, rotors=0, rotor=ROTOR):
 
 LINK = tuple(linked(VOLTS[0] + k * VOLTS[2])
              for k in range(int(round((VOLTS[1] - VOLTS[0]) / VOLTS[2])) + 1))
-PACK = tuple(linked(quad.open_volts(k / (CHARGES - 1.0)), 4) for k in range(CHARGES))
+PACK = tuple(linked(flightpack.open_volts(k / (CHARGES - 1.0)), 4) for k in range(CHARGES))
 
 
 def between(rows, x):

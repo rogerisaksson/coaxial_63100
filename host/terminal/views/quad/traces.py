@@ -10,7 +10,7 @@ rotors took for a pass before the boards' envelopes had it back.
 import math
 
 from coaxial.draw import braille
-from machine import quad
+from machine import flightpack, quad
 
 #: The traces' span, s; the height's top, m, the band drawn linear from the floor, m, and the
 #: share of the plot it takes; the heights labelled up its left edge, m.
@@ -119,7 +119,7 @@ def heights(trace, now, width):
 def buses(trace, now, width):
     """The bus, V up its left - a mark a row - and the boards' hottest node, C down its
     right, each on the range it had; inked and marked as the height and the power are."""
-    low, high = _range([v for _t, _h, v, _w, _c in trace] or [quad.open_volts(1.0)], BUS_V,
+    low, high = _range([v for _t, _h, v, _w, _c in trace] or [flightpack.open_volts(1.0)], BUS_V,
                        BUS_ROWS - 1)
     warm = [(t, c) for t, _h, _v, _w, c in trace if c is not None]
     cool, hot = _range([c for _t, c in warm] or [25.0], TEMP_K)

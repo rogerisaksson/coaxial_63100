@@ -79,18 +79,18 @@ def test_helicopter_stunt_routine(report):
 
 def test_helicopter_wind_observer_and_inverted_hold(report):
     """The three flip from `HOVER` to their inverted rows and track gusts."""
-    from machine import aerobat, aerokin, helicopter, ornithopter, quad
+    from machine import aerobat, aerokin, helicopter, ornithopter, weather
     dt = 1.0 / 120.0
     for c, inv_row in ((helicopter, helicopter.INVERTED),
                        (ornithopter, ornithopter.SANDSTORM_DIVE),
                        (aerobat, aerobat.STUNTS['high'])):
-        sky, core, law, air = c.Sky(), c.Core(), aerokin.fresh(), quad.air(7, 'gusty')
+        sky, core, law, air = c.Sky(), c.Core(), aerokin.fresh(), weather.air(7, 'gusty')
         for k in range(int(10.0 / dt)):
-            quad.blown(air, dt)
+            weather.blown(air, dt)
             ans = core.step(law, helicopter.HOVER if k * dt < 5.0 else inv_row, sky.state(), dt, c.PULL_MAX)
             sky.step(ans.speeds + ans.controls, dt, air)
         st = sky.state()
-        act, est = quad.wind_at(air['wind'], st['h']), ans.wind
+        act, est = weather.wind_at(air['wind'], st['h']), ans.wind
         report.check('%s wind observer tracks gusty wind while holding its hover' % c.__name__,
                      st['h'] > 6.5 and float(st['turn'][1][1]) * (-1.0 if c is aerobat else 1.0) < -0.90
                      and (act[0] * est[0] + act[2] * est[2]) > 0.5 and sky.hit is None)
@@ -191,11 +191,11 @@ def test_helicopter_boards_and_view(report):
 def test_helicopter_course_laps(report):
     """The helicopter and the ornithopter fly the 16-gate course in wind and land on gate 0's
     heading (the aerobat its airfield's: `test_aerobat`)."""
-    from machine import aerobatics, aerokin, course, grounds, helicopter, ornithopter, pull, quad
+    from machine import aerobatics, aerokin, course, grounds, helicopter, ornithopter, pull, weather
     solids, dt, tick = grounds.solids(), 0.02, 0.002
     for c in (helicopter, ornithopter):
         sky, core, law = c.Sky(solids), c.Core(), aerokin.fresh()
-        route, air = aerobatics.routine(course.CARD), quad.air(7, 'gusty')
+        route, air = aerobatics.routine(course.CARD), weather.air(7, 'gusty')
         top = c.K_THRUST * pull.held(pull.I_MAX) ** 2 / c.MASS_KG
         have, stages, max_dc, sum_dc, n_lap, prev_c, end_l = c.COURSE_SPHERE, [], 0.0, 0.0, 0, (0.0, 0.0), None
         for k in range(int(100.0 / dt)):
@@ -207,7 +207,7 @@ def test_helicopter_course_laps(report):
             along = core.plan(law, row, st, dt, have)
             for _ in range(10):
                 ans = core.step(law, row, sky.state(), tick, have, None, along)
-                quad.blown(air, tick)
+                weather.blown(air, tick)
                 sky.step(ans.speeds + ans.controls, tick, air)
             if stage == 'lap':
                 cyc = ans.controls[1:3]

@@ -104,7 +104,7 @@ house's ridge, round a mast, between two cars, a slalom).
 
 ## Air
 
-`machine.quad`: `AIR`, `blown`.
+`machine.weather`: `AIR`, `blown`.
 
 - One kind of weather at a time: calm, constant, gusty, changing, turbulent,
   20 s each or one kept (W). A wind of 0.5-4 m/s at 5 m, sheared along the

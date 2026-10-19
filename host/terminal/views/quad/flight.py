@@ -18,7 +18,7 @@ from coaxial.control.commission import Commissioning
 from coaxial.control.motion import started
 from coaxial.model.thermal import MOTOR
 from coaxial.simulated.sto import PILOT_VOLTS
-from machine import aerobatics, aerokin, course, heat as mheat, pull, quad
+from machine import aerobatics, aerokin, course, flightpack, heat as mheat, pull, quad, weather
 from machine.controller import Feedback
 from machine.parts import Gain, Slew, SpeedPI
 from tools.cores import aero, stand
@@ -129,7 +129,7 @@ def arm(rig, clock=1, warm_s=100.0, room='bench'):
     drive = board.drive
     drive.configure(profile=PROFILE)
     drive.configure(drv_i_max=pull.I_WEP, drv_i_trip=I_TRIP)
-    drive.model.configure(j=pull.ROTOR.j, b=pull.ROTOR.b, load=0.0, vdc=quad.open_volts(1.0))
+    drive.model.configure(j=pull.ROTOR.j, b=pull.ROTOR.b, load=0.0, vdc=flightpack.open_volts(1.0))
     drive.configure(source='model')
     Commissioning(rig).gains()
     params = drive.params()
@@ -177,18 +177,18 @@ def asked(rotor, speed):
 def fresh():
     """The flights' own before the first: the stage, the apex, the share of the clamp's pull
     its rows have, the lap, how long a spent pack has stood, the pack's cells and a flight's
-    peaks of them, the air they are flown in (`quad.air`), the wreck of one struck - what it
+    peaks of them, the air they are flown in (`weather.air`), the wreck of one struck - what it
     struck, how long ago - and how many were; the seconds a rotor was over the flight's
     clamp, on WEP's; the seconds a pass owes its next step, the clock its observers were
     read at; the frame's core, what the flight's clamp pulls a kg and the pull its row has
     (`shell`), m/s^2, the row flown."""
-    cells = quad.pack()
+    cells = flightpack.pack()
     top = pull.thrust(pull.held(pull.I_MAX)) / quad.MASS_KG
     return {'stage': CARD[0][0], 'apex': 0.0, 'share': 1.0, 'over': 0.0, 'lap': None,
             'owed': 0.0, 'read': 0.0, 'core': aero.Core(), 'top': top,
             'pull': aerokin.HEADROOM * top, 'row': dict(aerobatics.DOWN),
             'stood': 0.0, 'cells': cells, 'peak': {'watts': 0.0, 'low': cells['volts']},
-            'air': quad.air(), 'wreck': None, 'crashes': 0}
+            'air': weather.air(), 'wreck': None, 'crashes': 0}
 
 
 def shell(flight, rotors):
@@ -204,7 +204,7 @@ def shell(flight, rotors):
     left = flight['cells']['left']
     hold = min([pull.I_WEP] + [(r['budget'] or {}).get('hold_amps', pull.I_WEP) for r in rotors])
     have = aerokin.HEADROOM * pull.thrust(pull.top(left, min(pull.I_MAX, hold))) / quad.MASS_KG
-    flat = left <= quad.RESERVE
+    flat = left <= flightpack.RESERVE
     return have, flat or have < aerokin.LEAST * quad.GRAVITY, not flat and hold >= pull.I_MAX
 
 
@@ -286,7 +286,7 @@ def step(rotors, sky, route, law, flight, clock, dt):
     if name == CRASHED:
         return name
     if 'fit' in route['card'][route['row']][4].split() and not fit:
-        return 'swap' if cells['left'] <= quad.RESERVE else 'cool'
+        return 'swap' if cells['left'] <= flightpack.RESERVE else 'cool'
     return aerokin.FALL if name == 'burn' and law['doing'] == aerokin.FALL else name
 
 
@@ -312,7 +312,7 @@ def fallen(rotors, sky, flight, dt, cut=True):
             rotor.update(ask=0.0, cut=True)
         drive.model.configure(b=pull.ROTOR.b, vdc=cells['volts'],
                               load=quad.K_DRAG * rotor['w'] * abs(rotor['w']))
-    quad.drawn(cells, watts, dt)
+    flightpack.drawn(cells, watts, dt)
     told, through = airspeeds(sky.state(), air)
     for rotor in rotors:
         heat = rotor['rig'].board.thermal
@@ -323,7 +323,7 @@ def fallen(rotors, sky, flight, dt, cut=True):
                 rotor['cooling'], rotor.get('amps') or 0.0, cells['volts'], dt * heat.HASTE,
                 through, quad.COOLING, switching=not rotor.get('cut'))
     if air is not None:
-        quad.blown(air, dt)
+        weather.blown(air, dt)
     sky.step([r['w'] for r in rotors], dt, air)
 
 
@@ -396,10 +396,10 @@ def flown(rotors, sky, core, payload, flight, dt):
         for rotor, speed in zip(rotors, aero.speeds(out.thrust)):
             rotor['ask'] = speed
         if air is not None:
-            quad.blown(air, TICK_S)
+            weather.blown(air, TICK_S)
         sky.step([r['w'] for r in rotors], TICK_S, air)
     watts = sum(pull.watts(r['w'], r['iq'], r['amps']) for r in rotors)
-    quad.drawn(cells, watts, dt)
+    flightpack.drawn(cells, watts, dt)
     flight['over'] += dt * float(max(rotor['amps'] for rotor in rotors) > pull.I_MAX)
     told, through = airspeeds(sky.state(), air)
     for rotor in rotors:
@@ -416,7 +416,7 @@ def flown(rotors, sky, core, payload, flight, dt):
 def airspeeds(frame, air):
     """(the frame's speed as its flight controller has it - over the ground -, its speed
     through `air`), m/s: what its boards' observers are told, what their truths fly in."""
-    wind = quad.wind_at(air['wind'], frame['h']) if air else (0.0, 0.0, 0.0)
+    wind = weather.wind_at(air['wind'], frame['h']) if air else (0.0, 0.0, 0.0)
     return (math.sqrt(sum(float(v) ** 2 for v in frame['vel'])),
             math.sqrt(sum((float(v) - u) ** 2 for v, u in zip(frame['vel'], wind))))
 
@@ -428,7 +428,7 @@ def kept(flight, stood, stage, off, frame, dt):
     cells, peak = flight['cells'], flight['peak']
     stood = stood + dt if stage == 'swap' else 0.0
     if stood >= SWAP_S:
-        cells.update(quad.pack())
+        cells.update(flightpack.pack())
     if off:
         peak.update(watts=0.0, low=cells['volts'])
         flight['over'] = 0.0

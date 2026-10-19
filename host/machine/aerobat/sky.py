@@ -5,7 +5,8 @@ from machine import quad
 from machine.aerobat.airframe import (FOOT_M, K_PITCH, K_ROLL, K_THRUST, K_YAW, RHO, RUNWAY_RAD,
                                       SKID_M, WING, _aero_cda, _aero_inflow, _prop_drag, mjcf)
 from machine.helicopter.sky import _init_sky
-from machine.quad import STEP_S, wind_at
+from machine.quad import STEP_S
+from machine.weather import wind_at
 from machine.wingborne import PITCH_REST
 
 

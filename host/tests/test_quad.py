@@ -209,27 +209,27 @@ def test_spent_it_comes_down(report):
 def test_its_pack(report):
     """machine.quad's pack: 63 V full, its bus drooping its resistance a link amp, its charge
     counted down by those amps and up by what is braked into it, spent at its reserve."""
-    from machine import quad
-    cells = quad.pack()
+    from machine import flightpack
+    cells = flightpack.pack()
     full = cells['volts']
-    loaded = quad.drawn(cells, 1500.0, 1.0)
+    loaded = flightpack.drawn(cells, 1500.0, 1.0)
     amps, left = cells['amps'], cells['left']
     report.check('63 V full; 1.5 kW droops it its ohms a link amp and takes those amps\' charge',
-                 abs(full - 63.0) < 1e-6 and abs(full - loaded - quad.PACK_OHM * amps) < 0.05
+                 abs(full - 63.0) < 1e-6 and abs(full - loaded - flightpack.PACK_OHM * amps) < 0.05
                  and abs(loaded * amps - 1500.0) < 1.0
-                 and abs((1.0 - left) - amps / (3600.0 * quad.PACK_AH)) < 1e-9,
+                 and abs((1.0 - left) - amps / (3600.0 * flightpack.PACK_AH)) < 1e-9,
                  '%.1f V full, %.2f V at %.1f A, %.5f of it left' % (full, loaded, amps, left))
-    raised = quad.drawn(cells, -300.0, 1.0)
+    raised = flightpack.drawn(cells, -300.0, 1.0)
     report.check('braked into, its bus rises over its open volts and its charge with it',
-                 raised > quad.open_volts(left) and cells['left'] > left and cells['amps'] < 0.0,
-                 '%.2f V over %.2f open, %.5f left' % (raised, quad.open_volts(left), cells['left']))
+                 raised > flightpack.open_volts(left) and cells['left'] > left and cells['amps'] < 0.0,
+                 '%.2f V over %.2f open, %.5f left' % (raised, flightpack.open_volts(left), cells['left']))
     seconds = 0
-    while cells['left'] > quad.RESERVE and seconds < 3600:
-        quad.drawn(cells, 250.0, 1.0)
+    while cells['left'] > flightpack.RESERVE and seconds < 3600:
+        flightpack.drawn(cells, 250.0, 1.0)
         seconds += 1
     report.check('a hover and its figures\' 250 W spend it to its reserve in minutes, its volts '
                  'down the cells\' curve',
-                 120 <= seconds <= 900 and quad.open_volts(quad.RESERVE) < cells['volts'] + 1.0 < 60.0,
+                 120 <= seconds <= 900 and flightpack.open_volts(flightpack.RESERVE) < cells['volts'] + 1.0 < 60.0,
                  '%d s, %.1f V under it' % (seconds, cells['volts']))
 
 
@@ -238,57 +238,57 @@ def test_its_air(report):
     kind has them, its way swung in a changing one and kept in a constant, its eddies their
     size; the same from the same seed; sheared along the floor and rising nowhere at it; its
     kinds toured in turn, and stepped by hand."""
-    from machine import quad
+    from machine import weather
 
     def minute(kind, seed=3):
-        air, rows = quad.air(seed, kind), []
+        air, rows = weather.air(seed, kind), []
         for _ in range(3000):
-            wind = quad.blown(air, 0.02)
+            wind = weather.blown(air, 0.02)
             rows.append((math.hypot(wind[0], wind[2]), math.atan2(wind[0], wind[2]),
                          air['blows'], air['eddy'][0], air['eddy'][1]))
         return rows[500:]
-    seen = {kind: minute(kind) for kind in quad.AIR}
+    seen = {kind: minute(kind) for kind in weather.AIR}
     mean = {kind: sum(r[0] for r in rows) / len(rows) for kind, rows in seen.items()}
     gust = {kind: max(r[2] for r in rows) for kind, rows in seen.items()}
     swing = {kind: math.degrees(max(r[1] for r in rows) - min(r[1] for r in rows))
              for kind, rows in seen.items()}
     report.check('a constant wind its 4 m/s on one way, a calm under 1; gusts in the gusty one '
                  'alone of the two, 2 m/s and more; a changing one\'s way swung 100 degrees',
-                 abs(mean['constant'] - quad.AIR['constant'][0]) <= 0.3 and mean['calm'] < 1.0
+                 abs(mean['constant'] - weather.AIR['constant'][0]) <= 0.3 and mean['calm'] < 1.0
                  and gust['constant'] == 0.0 and gust['gusty'] >= 2.0
                  and swing['constant'] <= 20.0 and swing['changing'] >= 100.0,
                  'means %s m/s; gusts %.1f and %.1f; ways swung %.0f and %.0f degrees' % (
-                     ' '.join('%.1f' % mean[k] for k in quad.AIR), gust['constant'], gust['gusty'],
+                     ' '.join('%.1f' % mean[k] for k in weather.AIR), gust['constant'], gust['gusty'],
                      swing['constant'], swing['changing']))
     rough = [math.sqrt(sum(r[k] ** 2 for r in seen['turbulent']) / len(seen['turbulent']))
              for k in (3, 4)]
-    size = quad.AIR['turbulent'][5]
-    report.check('a turbulent one\'s eddies their size along the floor, %.1f of it up' % quad.EDDY_UP,
+    size = weather.AIR['turbulent'][5]
+    report.check('a turbulent one\'s eddies their size along the floor, %.1f of it up' % weather.EDDY_UP,
                  0.6 * size <= rough[0] <= 1.4 * size
-                 and 0.6 * quad.EDDY_UP * size <= rough[1] <= 1.4 * quad.EDDY_UP * size,
+                 and 0.6 * weather.EDDY_UP * size <= rough[1] <= 1.4 * weather.EDDY_UP * size,
                  '%.2f and %.2f m/s rms of %.1f' % (rough[0], rough[1], size))
     report.check('the same air from the same seed, another from another',
                  minute('gusty') == seen['gusty'] and minute('gusty', 4) != seen['gusty'],
                  '%d passes alike' % len(seen['gusty']))
-    low, ref, high = (quad.wind_at((4.0, 1.0, 0.0), h) for h in (0.0, quad.REF_M, 100.0))
+    low, ref, high = (weather.wind_at((4.0, 1.0, 0.0), h) for h in (0.0, weather.REF_M, 100.0))
     report.check('sheared along the floor - under half of it at the floor, %.1f of it at the most '
-                 '- and rising nowhere at the floor' % quad.SHEAR_MOST,
+                 '- and rising nowhere at the floor' % weather.SHEAR_MOST,
                  low[0] < 2.0 and low[1] == 0.0 and ref == (4.0, 1.0, 0.0)
-                 and abs(high[0] - quad.SHEAR_MOST * 4.0) < 1e-9,
+                 and abs(high[0] - weather.SHEAR_MOST * 4.0) < 1e-9,
                  '%.2f m/s at the floor, %.2f up there; %.1f at %g m' % (
                      low[0], low[1], high[0], 100.0))
-    air, kinds = quad.air(), []
-    for _ in range(len(quad.TOUR)):
+    air, kinds = weather.air(), []
+    for _ in range(len(weather.TOUR)):
         kinds.append(air['kind'])
-        quad.blown(air, quad.KIND_S)
+        weather.blown(air, weather.KIND_S)
     by_hand = []
-    for _ in range(len(quad.TOUR) + 1):
-        quad.kept(air)
+    for _ in range(len(weather.TOUR) + 1):
+        weather.kept(air)
         by_hand.append((air['kind'], air['kept']))
     report.check('its kinds toured in turn, %.0f s each; by hand each kept in turn, then the tour '
-                 'again' % quad.KIND_S,
-                 tuple(kinds) == quad.TOUR
-                 and by_hand == [(kind, True) for kind in quad.TOUR] + [(quad.TOUR[0], False)],
+                 'again' % weather.KIND_S,
+                 tuple(kinds) == weather.TOUR
+                 and by_hand == [(kind, True) for kind in weather.TOUR] + [(weather.TOUR[0], False)],
                  '%s; %s' % (' '.join(kinds), ' '.join(k for k, _kept in by_hand)))
 
 
@@ -296,7 +296,7 @@ def test_it_holds_in_wind(report):
     """A hover's row at 5 m in the air, the wind told to nothing: in a constant wind it is held
     on its spot, the wind the core's observer holds the wind on it - with no observer of its
     speed, ten times as far off and never held; in gusts within half a metre."""
-    from machine import aerobatics, aerokin, quad
+    from machine import aerobatics, aerokin, weather
     from tools.cores import aero
     from tools.sim import streams
 
@@ -309,7 +309,7 @@ def test_it_holds_in_wind(report):
             flight = streams.Flight()
         finally:
             aero.WO_PULL = kept
-        air = quad.air(3, kind)
+        air = weather.air(3, kind)
         route = aerobatics.routine((('hover', dict(aerobatics.HOVER, height=5.0), 1e9, 0.0, ''),))
         law, t, rows = aerokin.fresh(), 0.0, []
         while t < 40.0:
@@ -319,7 +319,7 @@ def test_it_holds_in_wind(report):
             t += streams.PASS_S
             if t >= 20.0:
                 s = flight.sky.state()
-                wind, held = quad.wind_at(air['wind'], s['h']), flight.core.out.wind
+                wind, held = weather.wind_at(air['wind'], s['h']), flight.core.out.wind
                 rows.append((math.hypot(float(s['at'][0]) - law['spot'][0],
                                         float(s['at'][2]) - law['spot'][1]), law['held'],
                              math.hypot(held[0] - wind[0], held[2] - wind[2])))

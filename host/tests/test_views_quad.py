@@ -60,7 +60,7 @@ def test_its_wind_is_pointed(report):
     """terminal.views.quad.wind: the dial's up is into the screen - a wind along the heading of
     a frame seen from behind points up, against it down; its needle the longer the stronger;
     its rows the dial and the air's kind, kept, in words."""
-    from machine import quad
+    from machine import weather
     from terminal.views.quad import wind
     ways = [math.degrees(wind.seen((0.0, 0.0, z), 180.0)[0]) for z in (3.0, -3.0)]
     dots = [sum(bin(cell).count('1') for row in wind.dial(0.7, share)[1] for cell in row)
@@ -70,9 +70,9 @@ def test_its_wind_is_pointed(report):
                  abs(ways[0]) < 1e-6 and abs(abs(ways[1]) - 180.0) < 1e-6
                  and dots[0] < dots[1] < dots[2],
                  '%.0f and %.0f degrees from up; %s dots' % (ways[0], ways[1], dots))
-    air = quad.air(3, 'gusty')
+    air = weather.air(3, 'gusty')
     for _ in range(500):
-        quad.blown(air, 0.02)
+        weather.blown(air, 0.02)
     lines = wind.pointer(air, 5.0, 30.0)
     report.check('%d rows of %d cells of dial, the kind and its wind beside it' % (
         wind.ROWS, 2 * wind.ROWS),
@@ -98,13 +98,13 @@ def paged(card, done, pack_ah=None):
     """The page headless on `card` - and a pack of `pack_ah` A h - until `done(the stages flown,
     the one it is in)` at a frame, LANDED_S drawn at the most: (a row a step of its flight, a
     row a frame - its stage, its art's braille cells, the gate lit - its frames a second)."""
-    from machine import quad
+    from machine import flightpack
     from terminal.ui.screen import FPS_CAP
     from terminal.views import show_quad as view
     from terminal.views.quad import flight as flown
     from tools.render import page
     steps, frames, flew = [], [], set()
-    was = view.compose, flown.step, flown.CARD, quad.PACK_AH, view.quadcopter.render
+    was = view.compose, flown.step, flown.CARD, flightpack.PACK_AH, view.quadcopter.render
 
     class Done(Exception):
         """What it was flown for is flown."""
@@ -135,14 +135,14 @@ def paged(card, done, pack_ah=None):
         if done(flew, flight['stage']) or frames[-1]['t'] - frames[0]['t'] > LANDED_S:
             raise Done
         return was[0](console, origin, rotors, frame, flight, trace, now, art, **kw)
-    view.compose, flown.step, flown.CARD, quad.PACK_AH, view.quadcopter.render = (
+    view.compose, flown.step, flown.CARD, flightpack.PACK_AH, view.quadcopter.render = (
         compose, stepped, card, pack_ah or was[3], render)
     try:
         page.frame('quad', 150, 44, frames=int(LANDED_S * FPS_CAP))
     except Done:
         pass
     finally:
-        view.compose, flown.step, flown.CARD, quad.PACK_AH, view.quadcopter.render = was
+        view.compose, flown.step, flown.CARD, flightpack.PACK_AH, view.quadcopter.render = was
     return steps, frames, (len(frames) - 1) / max(1e-9, frames[-1]['t'] - frames[0]['t'])
 
 
@@ -153,7 +153,7 @@ def test_the_page_flies_four_boards(report):
     fall burned to a stop over the floor and held at 10 cm; the bus drooping under it; the pack
     spent in the second flight, the way down, a charged one on the floor and its routine again
     - the observers kept through it all."""
-    from machine import aerobatics, quad
+    from machine import aerobatics, flightpack, quad
     from terminal.views.quad import flight as flown
     first = aerobatics.CARD[[name for name, *_row in aerobatics.CARD].index('hover') + 1][0]
     # The routine alone, flight after flight, into the one after the pack's change.
@@ -202,15 +202,15 @@ def test_the_page_flies_four_boards(report):
     early = sorted(r['volts'] for r in rows if r['t'] - rows[0]['t'] <= 2.0)
     full = early[len(early) // 2]
     report.check('the bus droops a volt and more under full tilt\'s kilowatt, 63 V at its start',
-                 -1.5 < full - quad.open_volts(1.0) < 0.2
+                 -1.5 < full - flightpack.open_volts(1.0) < 0.2
                  and bool(tilt) and max(r['watts'] for r in tilt) >= 1000.0
-                 and sag <= quad.open_volts(tilt[0]['left']) - 1.0,
+                 and sag <= flightpack.open_volts(tilt[0]['left']) - 1.0,
                  '%.1f V at its start; %.1f V under %.0f W, %.1f open' % (
                      full, sag, max((r['watts'] for r in tilt), default=math.nan),
-                     quad.open_volts(tilt[0]['left']) if tilt else math.nan))
+                     flightpack.open_volts(tilt[0]['left']) if tilt else math.nan))
     names = [name for name, _rows in spans(rows)]
     swap = names.index('swap') if 'swap' in names else len(names)
-    spent = next((r for r in rows if r['left'] <= quad.RESERVE), None)
+    spent = next((r for r in rows if r['left'] <= flightpack.RESERVE), None)
     report.check('its pack spent in the air, the way down, a charged one on the floor, and its '
                  'routine again',
                  spent is not None and spent['y'] > 1.0

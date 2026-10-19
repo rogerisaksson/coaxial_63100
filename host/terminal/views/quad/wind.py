@@ -4,7 +4,7 @@
 
 The dial is the floor seen from above as the view has it - up into the screen, the view
 `yaw` degrees round, a tick each quarter: its needle the way the wind blows, as long as it is
-strong, SPAN_M_S to its whole reach. Beside it the air's kind (`quad.AIR`) and how long it
+strong, SPAN_M_S to its whole reach. Beside it the air's kind (`weather.AIR`) and how long it
 stays, the wind and what of it is on the frame `h` m up, the gust in it, the kind's own wind
 and its eddies.
 """
@@ -12,7 +12,7 @@ import math
 
 from coaxial.draw import braille
 from coaxial.graphics import shapes
-from machine import quad
+from machine import weather
 
 #: The dial's rows - twice as many cells, a square of dots - the dots round its rim, and the
 #: wind its needle is whole at, m/s: REACH of the way to the rim, STUB of it at the least,
@@ -74,12 +74,12 @@ def pointer(air, h, yaw):
     the wind, what of it is on the frame `h` m up, the gust in it, the kind's own wind and
     its eddies."""
     to, speed = seen(air['wind'], yaw)
-    here = quad.wind_at(air['wind'], h)
+    here = weather.wind_at(air['wind'], h)
     rim, needle = dial(to, speed / SPAN_M_S)
     ink = INKS[air['kind']]
     mean, _veer, gust, rough = air['come']
     words = (ink + air['kind'].upper() + RESET,
-             'kept' if air['kept'] else '%.0f s more' % max(0.0, quad.KIND_S - air['for']),
+             'kept' if air['kept'] else '%.0f s more' % max(0.0, weather.KIND_S - air['for']),
              '%.1f m/s, %.1f on it' % (speed, math.hypot(here[0], here[2])),
              'gust %+.1f of %.1f' % (air['blows'], gust) if air['blows'] >= GUST_M_S
              else 'gusts %.1f' % gust if gust >= GUST_M_S else 'no gusts',

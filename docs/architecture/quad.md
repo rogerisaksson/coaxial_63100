@@ -7,7 +7,9 @@ Findings: [quad](../findings/quad.md), [streams](../findings/streams.md).
 
 | Where | Is |
 | --- | --- |
-| `machine/quad` | a quad on four coaxial boards in MuJoCo: its frame, on what its rotors turn, its air, its pack |
+| `machine/quad` | a quad on four coaxial boards in MuJoCo: its frame and on what its rotors turn |
+| `machine/weather` | the air every craft flies through: a kind of weather at a time, its wind, gusts and eddies |
+| `machine/flightpack` | a craft's flight pack: its cells' volts by the charge left, its bus under its drives |
 | `aero/` | a frame flown from a compiled intent (machine.aerolisp's payload): its blend, oscillator and observers, the lift inside its constraints (aero.c), where the rotors' axis is asked and the torque there (aero_turn.c), the thrusts shared by an active set (aero_share.c); a choice a mask (aero_bits.h), no branch; host-tested; on the image behind device 14 (cmd_aero.c, `coaxial/devices/aero`) |
 | `machine/pull` | the quad's action space, no branch: a rotor's top on its clamp and on its link's volts, the four's on their pack's charge, its reach, its stage's watts - from motor, propeller and pack, its tables laid once |
 | `machine/intents` | the quad's flights as text, and each stream's seconds |
