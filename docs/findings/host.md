@@ -133,6 +133,12 @@ Pages, tooling, suites and the local model's runner. The board's findings:
   (`_dq`, `_spin`, `_converge`, `_ih`) and the observers' Python copy gone.
   282 ns a period here, 14 ms a board second: QUAD's four rotors 60 ms a
   flight second where the closed form took 40.
+- The period at 448 ns, ucrt's floorf, fminf and fmaxf 38 % of it (a
+  sampler on a flying rotor's snapshot): gcc keeps a NaN-honouring fminf a
+  call. SSE4.1's roundss and ucrt's pair inline (`world_libm.h`, equal on
+  all 144 pairs of zeros, NaNs, infinities): 277 ns, the state the same bits.
+  The crafts a flown second, frames' hashes the same: quad 0.19 -> 0.155 s,
+  helicopter 0.115 -> 0.10, aerobat 0.13 -> 0.11, ornithopter 0.115 -> 0.10.
 - A QUAD rotor through the flight's loop, the law against the closed form:
   450.0 and 450.0 rad/s on 27.5 A, 690.0 on 58.0; 33 rad/s apart at most,
   in a 2 900 rad/s^2 spool.

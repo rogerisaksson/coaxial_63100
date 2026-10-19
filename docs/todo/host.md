@@ -23,3 +23,10 @@
   and `npmin` Python's tie of zeros where they stand for numpy's maximum and
   minimum (110 calls). DOD: latent.step, support.couple and impedance.ask
   generated, bit for bit, as fast as their ports.
+- **The crafts' laws compiled from their Python** (asked): the helicopter's,
+  the aerobat's and the ornithopter's `Core.step` scalar Python - dicts,
+  attributes, branches, a namedtuple - that the numpy tracer refuses; 18.4,
+  30.3 and 20.7 ms of 113, 128 and 114 a flown second, the drives' 50 kHz
+  ticks 43 %; their hot helpers ported by hand (`aero/test/harness.c`'s
+  `aeh_*`). The quad's law is the firmware's `aero.c`. DOD: the three steps
+  generated from their Python, bit for bit, the hand ports gone.

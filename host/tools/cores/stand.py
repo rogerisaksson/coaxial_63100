@@ -8,6 +8,7 @@ library a process, built once for its sources' bytes (tools.cores.build.cached).
 import ctypes
 import functools
 import os
+import platform
 import threading
 
 from tools import REPO
@@ -27,8 +28,13 @@ INCLUDES = [os.path.join(REPO, part)
                          'daq/inc', 'filter/inc')]
 
 #: Built at -O3 -fno-math-errno for the stand-in host library; the harness marks its own for
-#: export, so a PE linker needs --export-all-symbols.
-EXPORT = ['-O3', '-fno-math-errno'] + (['-Wl,--export-all-symbols'] if os.name == 'nt' else [])
+#: export, so a PE linker needs --export-all-symbols. On x86-64 SSE4.1's roundss for floorf and
+#: nearbyintf, exact; on Windows ucrt's fminf and fmaxf inline (world_libm.h): the drive's
+#: period 448 -> 277 ns, its state the same bits.
+EXPORT = (['-O3', '-fno-math-errno']
+          + (['-msse4.1'] if platform.machine().lower() in ('amd64', 'x86_64') else [])
+          + (['-include', os.path.join(REPO, 'world', 'inc', 'world_libm.h'),
+              '-Wl,--export-all-symbols'] if os.name == 'nt' else []))
 
 #: The slots a process holds (WORLD_STANDS).
 SLOTS = 64
