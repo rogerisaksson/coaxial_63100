@@ -276,7 +276,7 @@ def sensed(s, loads, y):
     return y
 
 
-def given(a, y, fr, posture, bend, arms, knees):
+def given(a, y, fr, posture, bend, arms, knees, clear=0.0):
     """The stack's ask (`wbc.step`) of `a`: `posture` her driven joints standing, rad; `bend`
     how each goes with her knees' (`crouch`), `arms` with her arms' swing (`swing`); `knees`
     each knee's index among them. A sole that does not stand is asked its acceleration where
@@ -284,6 +284,11 @@ def given(a, y, fr, posture, bend, arms, knees):
     free = np.flatnonzero(a[STANCE] < 0.5)
     folded = np.flatnonzero((a[STANCE] < 0.5) & (a[FOLDS] > 0.5))
     soles, speeds, accs = (v.reshape(2, 3) for v in (y[SOLE], y[VSOLE], a[SOLE_ACC]))
+    q0, q2 = float(y[QUAT][0]), float(y[QUAT][2])
+    lat = np.array([q0 * q0 - q2 * q2, 0.0, -2.0 * q0 * q2]) / max(q0 * q0 + q2 * q2, 1e-12)
+    signs = np.array([1.0, -1.0])
+    dl = signs * ((soles + 0.05 * speeds - soles[::-1]) @ lat)
+    sw_at = soles + (a[STANCE][::-1] * signs * np.maximum(clear - dl, 0.0))[:, None] * lat
     pose = posture + bend * a[BEND] + arms * a[SWUNG]
     pose[list(knees)] += a[STANCE] * a[PREFOLD]
     turns = _turned(fr[HEADING] + a[HEADED], a[WANT], a[ROLLED])
@@ -292,5 +297,5 @@ def given(a, y, fr, posture, bend, arms, knees):
             'turns': tuple(turns[:2 * int(a[TURNED])]), 'posture': pose, 'kdot': a[KDOT].copy(),
             'settle': a[SETTLE].reshape(2, 6).copy(), 'edge': tuple(a[EDGE]), 'strides': float(a[STRIDES]),
             'borne': float(a[BORNE]),
-            'swing': {int(i): (soles[i].copy(), speeds[i].copy(), accs[i].copy(), tips[i]) for i in free},
+            'swing': {int(i): (sw_at[i].copy(), speeds[i].copy(), accs[i].copy(), tips[i]) for i in free},
             'fold': {int(i): (pose[knees[i]] + a[FOLD][i], a[FOLD_RATE][i], 0.0) for i in folded}}

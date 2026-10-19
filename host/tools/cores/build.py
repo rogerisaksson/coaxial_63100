@@ -404,8 +404,9 @@ static void c_poses(const double *out, const double *y, const double *fr, double
   double spun[3][2];
   memcpy(spun, spun_in, sizeof(spun));
   const double wh0 = dot3(fr + 0, y + 67), wh1 = dot3(fr + 3, y + 67);
-  spun[0][1] += 0.5 * still * (wh1 - spun[0][1]);
-  spun[1][1] += 0.5 * still * (wh0 - spun[1][1]);
+  const double dw0 = wh1 - spun[0][1], dw1 = wh0 - spun[1][1], w04 = (dw0 * dw0) * (dw0 * dw0), w14 = (dw1 * dw1) * (dw1 * dw1);
+  spun[0][1] += 0.5 * still * dw0 * w04 / (w04 + 0.04);
+  spun[1][1] += 0.5 * still * dw1 * w14 / (w14 + 0.04);
   const double turn_dc = ref[TURN] - out[66 + TURN] * sin(out[55 + TURN]);
   const int by[3] = {PITCH, LIST, TURN};
   for (int k = 0; k < 2; k++) {

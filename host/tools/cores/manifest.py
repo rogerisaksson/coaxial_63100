@@ -114,7 +114,7 @@ void law_impedance_ask(const double *out, const double *y, const double *fr, dou
     kp[n] = out[33 + n] / fr[45 + n]; kd[n] = out[44 + n] / fr[45 + n];
     sw_n2 += out[66 + n] * out[66 + n];
   }
-  const double up[2] = {ref[LIFT], -ref[LIFT]}, still = 1.0 - c_clip(sqrt(sw_n2) / STIRS, 0.0, 1.0);
+  const double up[2] = {ref[LIFT], -ref[LIFT]}, still = 1.0 - c_clip(sqrt(sw_n2) / TINY, 0.0, 1.0);
   const double zero2[2] = {0.0, 0.0}, out_of[2] = {BIG * (1.0 - stood[0]), BIG * (1.0 - stood[1])};
   c_boxes(flat, zero2, tilt, lo, hi);
   const double lifted_b[2] = {
@@ -163,12 +163,18 @@ def _c_impedance_ask_b():
   const double st_lt = ((stood[0] + stood[1]) < 1.5) ? 1.0 : 0.0;
   a[57] = stood[0] * st_lt * fmax(beyond[1], 0.0) + stood[1] * st_lt * fmax(-beyond[1], 0.0);
   const double raw_cr = way_dir * 2.0 / C_PI * STRIDE_M * fabs(drive_sw) * sin(PHI_W) * turns;
-  const double cruise = (1.0 - still) * c_clip(raw_cr, a[22] - AHEAD_M_S, a[22] + AHEAD_M_S);
+  const double cruise = c_clip(raw_cr, a[22] - AHEAD_M_S, a[22] + AHEAD_M_S);
   const double lat_dc = stepping * (ref[LATERAL] - sway_lat * sin(lat_psi)), across = 2.5 * lat_dc;
   const double dv0 = v[0] - cruise - HALF_M * rate[SAGITTAL], dv1 = v[1] - across - fr[10] * rate[LATERAL];
-  ref[AXIAL] += stood_max * still * c_clip(0.5 * (dv0 * dv0 + dv1 * dv1) / (G * AXIAL_M), 0.0, 0.25);
-  zd[SAGITTAL] = (v[0] - cruise + 0.5 * still * (vh[0] - v[0] - HALF_M * PITCH_RAD * rate[PITCH])) / HALF_M;
-  zd[LATERAL] += fmax(stepping, still) * ((v[1] - across + 0.5 * still * (vh[1] - v[1])) / fr[10] - zd[LATERAL]);
+  const double dv2 = dv0 * dv0 + dv1 * dv1, dv4 = dv2 * dv2;
+  double dvh[3] = {vh[0] - v[0] - HALF_M * PITCH_RAD * rate[PITCH], vh[1] - v[1], vh[2] - v[2]};
+  for (int i = 0; i < 3; i++) {
+    const double h2 = dvh[i] * dvh[i], h4 = h2 * h2;
+    dvh[i] = 0.5 * still * dvh[i] * h4 / (h4 + 0.02);
+  }
+  ref[AXIAL] += stood_max * still * c_clip(0.5 * dv2 * (dv4 / (dv4 + 0.02)) / (G * AXIAL_M), 0.0, 0.25);
+  zd[SAGITTAL] = (v[0] - cruise + dvh[0]) / HALF_M;
+  zd[LATERAL] += stepping * ((v[1] - across) / fr[10] - zd[LATERAL]) + dvh[1] / fr[10];
   double both[3] = {0.0, 0.0, 0.0};
   for (int n = 0; n < 11; n++) {
     zdd[n] = acc[n] + kp[n] * (ref[n] - z[n]) + kd[n] * (rate[n] - zd[n]);
@@ -277,7 +283,7 @@ def _c_impedance_ask_c():
   }
   const double st_max = fmax(stance[0], stance[1]);
   z[AXIAL] = (fr[19] - (b0 * leg1[0] + b1 * leg1[1])) / (AXIAL_M * fr[20]);
-  zd[AXIAL] = -(b0 * leg2[0] + b1 * leg2[1] + st_max * still * (b0 * shod[0][2] + b1 * shod[1][2] + 0.5 * (vh[2] - v[2]))) / (AXIAL_M * fr[20]);
+  zd[AXIAL] = -(b0 * leg2[0] + b1 * leg2[1] + st_max * dvh[2]) / (AXIAL_M * fr[20]);
   const double pressed = acc[AXIAL] + kp[AXIAL] * (ref[AXIAL] - z[AXIAL]) + kd[AXIAL] * (rate[AXIAL] - zd[AXIAL]);
   double b_risen = 0.0;
   for (int k = 0; k < 2; k++) {

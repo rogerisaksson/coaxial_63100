@@ -81,7 +81,7 @@ def ask(out, y, fr, a):
     up = LIMBS * ref[LIFT]
     # her capture point past the soles that stood - past her ZMP's margin in them, flat on the
     # floor - steps her: on its ball, a sole's box its ball's line, a hop's throw stepped her
-    still = 1.0 - poise.clip(np.linalg.norm(out[latent.SWAY]) / stride.STIRS, 0.0, 1.0)
+    still = 1.0 - poise.clip(np.linalg.norm(out[latent.SWAY]) / TINY, 0.0, 1.0)
     out_of = poise.BIG * (1.0 - stood)[:, None]
     lifted = out_of * np.maximum(1.0 - still, np.maximum(a[SWINGS], up > poise.LIFT_EPS))[:, None]
     lo, hi = poise.boxes(flat, 0.0 * a[EDGE], tilt)
@@ -104,13 +104,17 @@ def ask(out, y, fr, a):
     limbs = np.maximum(stepping, off)
     # along her way her centre of mass is damped to her cruise, not to her soles' middle:
     # damped to that she stopped between steps and each sole waited for her
-    cruise = (1.0 - still) * stride.cruises(way, out[latent.SWAY][DRIVE], turns, a[GOING])
+    cruise = stride.cruises(way, out[latent.SWAY][DRIVE], turns, a[GOING])
     lat_dc = stepping * (ref[LATERAL] - out[latent.SWAY][LATERAL] * np.sin(out[latent.PSI][LATERAL]))
     across = 2.5 * lat_dc
     dv2 = (v[ALONG] - cruise - HALF_M * rate[SAGITTAL]) ** 2 + (v[LEFT] - across - fr[W0] * rate[LATERAL]) ** 2
-    ref = ref + HOT[AXIAL] * stood.max() * still * poise.clip(0.5 * dv2 / (G * AXIAL_M), 0.0, 0.25)
-    zd = (zd + HOT[SAGITTAL] * ((v[ALONG] - cruise + 0.5 * still * (vh[ALONG] - v[ALONG] - HALF_M * PITCH_RAD * rate[PITCH])) / HALF_M - zd[SAGITTAL])
-          + np.maximum(stepping, still) * HOT[LATERAL] * ((v[LEFT] - across + 0.5 * still * (vh[LEFT] - v[LEFT])) / fr[W0] - zd[LATERAL]))
+    dvh = np.array([vh[ALONG] - v[ALONG] - HALF_M * PITCH_RAD * rate[PITCH], vh[LEFT] - v[LEFT], vh[UP] - v[UP]])
+    dvh4 = (dvh * dvh) ** 2
+    dvh = 0.5 * still * dvh * dvh4 / (dvh4 + 0.02)
+    ref = ref + HOT[AXIAL] * stood.max() * still * poise.clip(0.5 * dv2 * (dv2 * dv2 / (dv2 * dv2 + 0.02)) / (G * AXIAL_M), 0.0, 0.25)
+    zd = (zd + HOT[SAGITTAL] * ((v[ALONG] - cruise + dvh[0]) / HALF_M - zd[SAGITTAL])
+          + stepping * HOT[LATERAL] * ((v[LEFT] - across) / fr[W0] - zd[LATERAL])
+          + HOT[LATERAL] * (dvh[1] / fr[W0]))
     zdd = acc + kp * (ref - z) + kd * (rate - zd)
     # her limbs' places as her modes ask them; their sum's acceleration is her centre of
     # mass's, the other way; its ZMP into her soles, and which of them stand
@@ -144,7 +148,7 @@ def ask(out, y, fr, a):
     # its hip is - her centre of mass less than her hips
     axial = shortened(legs, fr, stance)
     z += HOT[AXIAL] * (axial[0] - z[AXIAL])
-    zd += HOT[AXIAL] * (axial[1] - stance.max() * still * (bears @ shod[:, UP] + 0.5 * (vh[UP] - v[UP])) / (AXIAL_M * fr[HIPS_BY]) - zd[AXIAL])
+    zd += HOT[AXIAL] * (axial[1] - stance.max() * dvh[2] / (AXIAL_M * fr[HIPS_BY]) - zd[AXIAL])
     pressed = acc[AXIAL] + kp[AXIAL] * (ref[AXIAL] - z[AXIAL]) + kd[AXIAL] * (rate[AXIAL] - zd[AXIAL])
     risen = ((legs[2] ** 2 - ((v - shod) ** 2).sum(axis=1) - legs[0][:, :2] @ along
               - legs[1] * AXIAL_M * fr[HIPS_BY] * pressed) / np.maximum(legs[0][:, UP], LOW_LEG * fr[REACH0]))
@@ -229,7 +233,9 @@ def _poses(out, y, fr, a, said, turned, up, folds, still):
     z, ref, rate, acc, kp, kd = said
     turn, spun = turned
     wh = fr[ROT].reshape(3, 3) @ y[HSPIN]
-    spun = spun + 0.5 * still * (1.0 - PELVIS) * np.array([wh[LEFT] - spun[0, 1], wh[ALONG] - spun[1, 1], 0.0])[:, None]
+    dwh = np.array([wh[LEFT] - spun[0, 1], wh[ALONG] - spun[1, 1], 0.0])
+    dwh4 = (dwh * dwh) ** 2
+    spun = spun + 0.5 * still * (1.0 - PELVIS) * (dwh * dwh4 / (dwh4 + 0.04))[:, None]
     turn_dc = ref[TURN] - out[latent.SWAY][TURN] * np.sin(out[latent.PSI][TURN])
     aim = np.stack([fr[PITCH0] + PITCH_RAD * ref[PITCH], PELVIS * LIST_RAD * ref[LIST],
                     TURN_RAD * (PELVIS * ref[TURN] + (1.0 - PELVIS) * 1.10 * turn_dc)])
