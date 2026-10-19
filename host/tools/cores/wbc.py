@@ -30,8 +30,9 @@ SOURCES = [os.path.join(REPO, 'wbc', 'test', 'harness.c'),
            os.path.join(REPO, 'wbc', 'src', 'wbc_step.c'),
            os.path.join(REPO, 'wbc', 'src', 'wbc_rounds.c')]
 INCLUDES = [os.path.join(REPO, 'wbc', 'inc')]
-#: The firmware compiles the chain at -O2 (CMakeLists.txt).
-FLAGS = ('-O2',)
+#: The firmware compiles the chain at -O2 (CMakeLists.txt); sin and cos called apart, as numpy calls
+#: them: gcc's sincos for the pair is glibc's own path at 0.855 < |x| < 2.43, its sin's last bit not sin's.
+FLAGS = ('-O2', '-fno-builtin-sin', '-fno-builtin-cos')
 
 
 def _define(name):

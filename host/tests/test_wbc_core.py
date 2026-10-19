@@ -369,7 +369,7 @@ def test_her_law_in_c_is_her_python_s(report, c, b, rows):
         n, bad, apart = tally.get(name, (0, 0, 0))
         if exact:
             report.check("her %s in C is her python's bit for bit" % name, n > 5000 and not bad,
-                         '%d of %d differ (%s)' % (bad, n, host))
+                         '%d of %d differ, %d past 1e-9 (%s)' % (bad, n, apart, host))
         else:
             report.check("her %s in C is her python's within its last bits where numpy dispatches elsewhere" % name,
                          n > 5000 and apart <= 0.01 * n, '%d of %d past 1e-9, %d not bit for bit (%s)' % (apart, n, bad, host))

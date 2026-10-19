@@ -130,8 +130,10 @@ her latent loop in [orthokinematics](orthokinematics.md).
   bit. Bit for bit where numpy is the C's (`law.exact_host`: its orders and
   its libm, here UCRT's - whose pow(x, 2) is not x x in 1 of 2 000, numpy's
   for a scalar's square, its x x an array's); CI's runners parted 3 asks of
-  9 463 on one, 3 709 of 9 668 on another, numpy's kernels theirs: there
-  within 1e-9. Her whole-body step too (`wbc_step.c`, `wbc_rounds.c`, the
+  9 463 on one - gcc's sincos for a sin and cos of one angle, glibc's own
+  path at 0.855 < |x| < 2.43, built apart since -, 3 709 of 9 668 on
+  another, numpy's kernels theirs: there within 1e-9. Her whole-body step
+  too (`wbc_step.c`, `wbc_rounds.c`, the
   generated core's rounds cut): numpy's a[:, idx] is F-ordered, its .T C -
   `J6[:, act].T @ w` is dgemv_t, a sum's other order -, and her mass is read
   at each solve, her wear moving it as it finds a load; every solve of 12

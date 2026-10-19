@@ -290,8 +290,7 @@ API int wbh_law_size(void)
 }
 
 /** numpy's primitives as her law's C computes them, `n` draws: 0 a (3, 3) @ (3,), 1 a (2, 2) @ (2,),
-    2 a (2, 3) @ (3, 3).T and 3 @ (3, 3), 4 a 1-d dot of 3, 5 einsum 'nia,ia->n' of six; 10 sin,
-    11 cos, 12 tan, 13 asin, 14 acos, 15 atan2, 16 exp, 17 log, 18 hypot, 19 pow(x, 2) of libm. */
+    2 a (2, 3) @ (3, 3).T and 3 @ (3, 3), 4 a 1-d dot of 3, 5 einsum 'nia,ia->n' of six. */
 API void wbh_np_probe(int which, const double *a, const double *b, double *out, int n)
 {
   for (int k = 0; k < n; k++)
@@ -328,11 +327,31 @@ API void wbh_np_probe(int which, const double *a, const double *b, double *out, 
       o[0] = npein6(x, y);
       break;
     default:
-      o[0] = which == 10 ? sin(x[0]) : which == 11 ? cos(x[0]) : which == 12 ? tan(x[0]) : which == 13 ? asin(x[0])
-             : which == 14 ? acos(x[0]) : which == 15 ? atan2(x[0], y[0]) : which == 16 ? exp(x[0])
-             : which == 17 ? log(x[0]) : which == 18 ? hypot(x[0], y[0]) : pow(x[0], 2.0);
       break;
     }
+  }
+}
+
+/** libm as her law's C calls it, side by side in one body: of in (n, 5) - x, y, x within [-1, 1],
+    x within [-50, 50], |x| + 1e-3 - out (n, 10) sin x, cos x, tan x, asin, acos, atan2(x, y), exp,
+    log, hypot(x, y), pow(x, 2). */
+API void wbh_np_libm(int n, const double *in, double *out)
+{
+  for (int k = 0; k < n; k++)
+  {
+    const double *x = in + 5 * k;
+    double       *o = out + 10 * k;
+
+    o[0] = sin(x[0]);
+    o[1] = cos(x[0]);
+    o[2] = tan(x[0]);
+    o[3] = asin(x[2]);
+    o[4] = acos(x[2]);
+    o[5] = atan2(x[0], x[1]);
+    o[6] = exp(x[3]);
+    o[7] = log(x[4]);
+    o[8] = hypot(x[0], x[1]);
+    o[9] = pow(x[0], 2.0);
   }
 }
 

@@ -115,13 +115,16 @@ def asked(k, ask, out, y, fr, a):
 @functools.lru_cache(maxsize=None)
 def exact_host(draws=1000):
     """Whether this host's numpy computes her law's primitives as her law's C does, bit for bit -
-    its small matmuls', dots' and einsum's orders; its sin, cos, tan, arcsin, arccos, arctan2, exp,
-    log and hypot on arrays and on scalars, a scalar's square its pow (wbh_np_probe): where it
-    does, her law in C is her python's bit for bit; a numpy dispatching elsewhere (SVML, other
+    its small matmuls', dots' and einsum's orders (wbh_np_probe); its sin, cos, tan, arcsin,
+    arccos, arctan2, exp, log and hypot on arrays and on scalars and a scalar's square its pow,
+    libm called side by side as her C calls it, 10^5 draws across its paths (wbh_np_libm): where
+    it does, her law in C is her python's bit for bit; a numpy dispatching elsewhere (SVML, other
     OpenBLAS kernels) parts the last bits."""
     lib = wbc.library()
     lib.wbh_np_probe.argtypes = [ctypes.c_int, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_int]
     lib.wbh_np_probe.restype = None
+    lib.wbh_np_libm.argtypes = [ctypes.c_int, ctypes.c_void_p, ctypes.c_void_p]
+    lib.wbh_np_libm.restype = None
     rng = np.random.default_rng(3)
     a = rng.normal(size=(draws, 9)) * rng.choice([1e-3, 1.0, 1e3], size=(draws, 1))
     b = rng.normal(size=(draws, 9))
@@ -140,19 +143,17 @@ def exact_host(draws=1000):
     for which, want in wants.items():
         if not np.array_equal(probe(which)[:, :want.shape[1]], want):
             return False
-    x, y = a[:, 0] * 0.3, b[:, 0].copy()
-    unit = np.clip(x, -1.0, 1.0)
-    ufuncs: list = [(10, np.sin, (x,)), (11, np.cos, (x,)), (12, np.tan, (x,)), (13, np.arcsin, (unit,)),
-                    (14, np.arccos, (unit,)), (15, np.arctan2, (x, y)), (16, np.exp, (np.clip(x, -50.0, 50.0),)),
-                    (17, np.log, (np.abs(x) + 1e-3,)), (18, np.hypot, (x, y))]
-    for which, fn, args in ufuncs + [(19, None, (x,))]:
-        a[:, 0] = args[0]
-        b[:, 0] = args[1] if len(args) > 1 else 0.0
-        got = probe(which)[:, 0]
-        scalars = [np.float64(args[0][k]) ** 2 if fn is None else fn(*[np.float64(v[k]) for v in args]) for k in range(200)]
-        if not np.array_equal(got[:200], np.array(scalars)) or (fn is not None and not np.array_equal(got, fn(*args))):
+    x = np.concatenate([a[:, 0] * 0.3, rng.uniform(-8.0, 8.0, 100 * draws)])
+    ins = (x, rng.normal(size=len(x)), np.clip(x, -1.0, 1.0), np.clip(x, -50.0, 50.0), np.abs(x) + 1e-3)
+    got, few, laid = np.zeros((len(x), 10)), 2 * draws, np.ascontiguousarray(np.stack(ins, axis=1))
+    lib.wbh_np_libm(len(x), laid.ctypes.data, got.ctypes.data)
+    libm: list = [(np.sin, (0,)), (np.cos, (0,)), (np.tan, (0,)), (np.arcsin, (2,)), (np.arccos, (2,)),
+                  (np.arctan2, (0, 1)), (np.exp, (3,)), (np.log, (4,)), (np.hypot, (0, 1))]
+    for j, (fn, at) in enumerate(libm):
+        scalars = np.array([fn(*[np.float64(ins[i][k]) for i in at]) for k in range(few)])
+        if not (np.array_equal(got[:, j], fn(*[ins[i] for i in at])) and np.array_equal(got[:few, j], scalars)):
             return False
-    return True
+    return np.array_equal(got[:few, 9], np.array([np.float64(v) ** 2 for v in x[:few]]))
 
 
 class Blas(ctypes.Structure):
