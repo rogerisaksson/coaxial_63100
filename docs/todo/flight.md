@@ -9,6 +9,11 @@
   branch on a threshold in the three laws; at each stage change the angular
   acceleration and the controls' step within the stage's own; the three on
   their instruments, the knife pass 2.5 cm higher; Dryden's scales.
+- **The aerobat's aerodynamics from its form** (aircraft.md): the flight
+  model's tail arm 0.55 m, wing 0.512 m^2 and side 0.208 m^2 against the
+  drawn Extra's 0.77 m, 0.45 m^2 and 0.25 m^2. DOD: `airframe` reads them
+  from `form`; the card flies whole, the knife pass's tip within 2 cm of
+  its 4 cm over the runway.
 - **The aerobat's landing** (aircraft.md): its touch, its roll-out unsteered
   in wind. DOD: a touch under 0.5 m/s within 0.5 m of the centreline,
   stopped on the runway, still or gusty.

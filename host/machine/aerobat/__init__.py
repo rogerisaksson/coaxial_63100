@@ -2,13 +2,13 @@
 
     out = core.step(law, row, sky.state(), dt, reach); sky.step(out.speeds + out.controls, dt, air)
 
-An Edge 540 style 3D monoplane (`aerobat.lisp`) on two 63100 drives, `PROP` the tractor
-propeller and `VECT` the coaxial contra stage: propwash over oversized surfaces gives attitude
-authority from zero airspeed. Its numbers, its wing and its XML (`airframe`), its flight in
+An Extra 300 (`aerobat.lisp`) on two 63100 drives, `PROP` the tractor propeller and `VECT`
+the coaxial contra stage: propwash over oversized surfaces gives attitude authority from zero
+airspeed. Its numbers, its wing and its XML (`airframe`), its form (`form`), its flight in
 MuJoCo (`sky`), its law (`law`) and its observer (`observer`).
 """
 from machine.aerobat.airframe import (BEHAVIORS, BODY_CDA, CARD, CD0, CD_INDUCED, CL_ALPHA, COOLING,
-                                      COURSE_SPHERE, FLOOR_M, FOOT_M, GEAR_MAIN_Z, GEAR_TAIL_Z,
+                                      COURSE_SPHERE, FLOOR_M, FOOT_M, FORM, GEAR_MAIN_Z, GEAR_TAIL_Z,
                                       GRAVITY, HALF_M, IDLE_RAD_S, INERTIA, K_DRAG, K_PITCH, K_ROLL,
                                       K_THRUST, K_YAW, LISP_PATH, MANIFEST, MASS_KG, PROP_R, PROP_Z,
                                       PROPWASH_SHARE, PULL_MAX, RHO, RUNWAY_M, RUNWAY_RAD, SKID_M,

@@ -65,15 +65,29 @@ burn, land).
 
 Four meshes of lofts, drums, ellipsoids and boxes (`shapes.box`, flat-faced),
 each judged by PNG at 100 x 36 cells alone and on its page: the aerobat an
-Edge 540's - a deep fuselage, a bubble canopy, a square mid wing with red
-tips, a tall swept red fin, wheel pants; the quad a tactical drone's - an
-olive slab on square arms, a sensor ball under its nose, an aerial; the
-helicopter a Goblin Raw's - two side plates, the can and the head on top, a
-battery tray and a red nose block, a long boom to a tall red fin and a
-stabiliser, skids on two rails; the ornithopter Dune's - a long tapering
-body, two bulging eyes of a cockpit, four thin wings, insect legs. Skin,
-plate and accent paints: carbon's halftone leaves a cloud of dots, so the
-bodies are light and the fittings dark.
+Extra 300's, measured off a model (`machine.aerobat.form`); the quad a
+tactical drone's - an olive slab on square arms, a sensor ball under its
+nose, an aerial; the helicopter a Goblin Raw's - two side plates, the can and
+the head on top, a battery tray and a red nose block, a long boom to a tall
+red fin and a stabiliser, skids on two rails; the ornithopter Dune's - a long
+tapering body, two bulging eyes of a cockpit, four thin wings, insect legs.
+Skin, plate and accent paints: carbon's halftone leaves a cloud of dots, so
+the bodies are light and the fittings dark.
+
+The Extra at the 1.6 m span, off a model 21.9 units across: fuselage 1.45 m
+to the spinner's tip (drawn before, 1.14), the stabiliser's quarter chord
+0.77 m behind the centre of gravity at 27 % of the mean chord (the flight
+model's arm 0.55), the tail wheel 0.93 m (0.52). Its surfaces on hinge
+lines: the ailerons 28 % of the chord from 0.12 to 0.73 m out, the hinge
+swept 5 deg with the trailing edge; the elevator's halves behind 0.81 m; the
+rudder full height behind the fuselage's end. The flight model keeps its
+aerodynamics; its contacts are the drawing's - the wheels at 0.106 and
+-0.931 m, 0.167 out; the fuselage four boxes along its sections, one box at
+the belly's depth to the tail having struck the runway rolling at 5.6 s. The
+low hover's floor 0.55 -> 0.74 m: at 0.55 the rudder's foot went 13 cm into
+the runway, at 0.74 it holds 5.8 cm over it. The main legs 6.7 cm longer
+than the model's, the sky standing it 12 deg nose-up on them. The lettering
+read mirrored from above until its columns ran tip-in on +x.
 
 ## Aerobat
 
@@ -242,6 +256,6 @@ bare (shafts, mast, swashplate, cranks, spars, every blade and surface).
 - Drawn to their pictures: the ornithopter's pod dusky (58, 54, 48) with
   one canopy ahead and wings 16 mm in chord; the quad a slate hump
   (86, 92, 100) on round arms, its two skid rails 100 mm out at SKID_M;
-  the Edge navy (28, 42, 98) with a yellow cowl from y 0.40 and a white
-  spinner; the Goblin's canopy a loft over the front frame, lime above its
-  floor, its blades lime past 0.8 of their reach.
+  the Extra the quad's skin, its cowl, fin, rudder and spats amber, black
+  lettering on top; the Goblin's canopy a loft over the front frame, lime
+  above its floor, its blades lime past 0.8 of their reach.

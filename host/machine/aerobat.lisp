@@ -159,7 +159,7 @@
   (base hover) (height 3.0m) (pace 4.0m_s) (speed 12.0m_s) (home 0.0))
 
 (defstunt parachute
-  (base stop) (height 0.55m) (pace 4.0m_s))
+  (base stop) (height 0.74m) (pace 4.0m_s))
 
 (defstunt climbout
   (base hover) (height 9.0m) (speed 12.0m_s) (pace 3.0m_s) (home 0.0))

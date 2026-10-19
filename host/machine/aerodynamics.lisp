@@ -87,7 +87,7 @@
   (wing_chord 0.32m)
   (wing_area 0.512)
   (prop_radius 0.254m)
-  (prop_z 0.55m)
+  (prop_z 0.405m)
   (tail_arm 0.55m)
   (stab_area 0.060)
   (fin_area 0.045)

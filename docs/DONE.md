@@ -196,3 +196,8 @@ the hundred before these: [DONE_1-50](DONE_1-50.md),
 48. Her wear's window a part a pass: her worst pass walking 118-146 -> 18.2 ms,
     her trajectory and her wear the same to the bit; her regressor compiled
     from its numpy ([identification](findings/identification.md)).
+49. The aerobat an Extra 300 measured off a model, drawn as an assembly
+    (`machine.aerobat.form`): ailerons on their swept hinges, the elevator's
+    halves, a full-height rudder, the Extra's gear; the flight model's
+    contacts on its wheels, tail and fuselage, the low hover's floor 0.74 m,
+    the rudder 5.8 cm over the runway ([aircraft](findings/aircraft.md)).

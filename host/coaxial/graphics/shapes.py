@@ -108,6 +108,62 @@ def drum(radius, length, axis, material):
     return corners @ np.asarray(turn), triangles, uv, materials
 
 
+def strut(a, b, radius, material):
+    """A drum `radius` round from `a` to `b`, never straight up."""
+    from coaxial.model.blocks import numpy as np
+    a, b = np.asarray(a, float), np.asarray(b, float)
+    u = (b - a) / np.linalg.norm(b - a)
+    v = np.cross((0.0, 0.0, 1.0), u)
+    vx = np.array([[0.0, -v[2], v[1]], [v[2], 0.0, -v[0]], [-v[1], v[0], 0.0]])
+    turn = np.eye(3) + vx + vx @ vx / (1.0 + u[2])
+    corners, triangles, uv, materials = drum(radius, float(np.linalg.norm(b - a)), 'z', material)
+    return corners @ turn.T + 0.5 * (a + b), triangles, uv, materials
+
+
+def naca(u):
+    """A symmetric NACA section's half thickness at `u` of its chord, over its thickness."""
+    u = min(1.0, max(0.0, u))
+    return 5.0 * (0.2969 * math.sqrt(u) - 0.1260 * u - 0.3516 * u * u + 0.2843 * u ** 3 - 0.1036 * u ** 4)
+
+
+def surface(stations, rows, edges, half, place, colour, ink=None):
+    """A lifting surface's panel between `edges(s) -> (front, back)` over the span `stations`, as
+    (corners, triangles, uv, materials): its chord's `rows` (y, falling) held between the edges,
+    `half(s, y)` its half thickness, `place(s, y, t)` its point `t` through (-: its top),
+    `ink(s, y, side)` a quad's lettering; its faces turned out, its edges and ends closed."""
+    from coaxial.model.blocks import numpy as np
+    grid = [[min(edges(s)[0], max(edges(s)[1], r)) for r in rows] for s in stations]
+    quads = []
+
+    def face(pts, inside, mat):
+        p = [np.asarray(place(*q), float) for q in pts]
+        if np.linalg.norm(np.cross(p[2] - p[0], p[3] - p[1])) < 1e-12:
+            return
+        out = 0.25 * sum(p) - np.asarray(place(*inside), float)
+        quads.append((p if np.cross(p[2] - p[0], p[3] - p[1]) @ out > 0.0 else p[::-1], mat))
+    for i in range(len(stations) - 1):
+        s0, s1 = stations[i], stations[i + 1]
+        for j in range(len(rows) - 1):
+            ys = (grid[i][j], grid[i + 1][j], grid[i + 1][j + 1], grid[i][j + 1])
+            sm, ym = 0.5 * (s0 + s1), 0.25 * sum(ys)
+            for side in (-1.0, 1.0):
+                pts = [(s, y, side * half(s, y)) for s, y in zip((s0, s1, s1, s0), ys)]
+                face(pts, (sm, ym, 0.0), ink[1] if ink and ink[0](sm, ym, side) else colour)
+        for j, way in ((0, -1.0), (len(rows) - 1, 1.0)):
+            y0, y1 = grid[i][j], grid[i + 1][j]
+            face([(s0, y0, -half(s0, y0)), (s1, y1, -half(s1, y1)), (s1, y1, half(s1, y1)),
+                  (s0, y0, half(s0, y0))], (0.5 * (s0 + s1), 0.5 * (y0 + y1) + 0.01 * way, 0.0), colour)
+    for i, way in ((0, 1.0), (len(stations) - 1, -1.0)):
+        s = stations[i]
+        for j in range(len(rows) - 1):
+            y0, y1 = grid[i][j], grid[i][j + 1]
+            face([(s, y0, -half(s, y0)), (s, y1, -half(s, y1)), (s, y1, half(s, y1)), (s, y0, half(s, y0))],
+                 (s + 0.01 * way, 0.5 * (y0 + y1), 0.0), colour)
+    corners = np.array([q for pts, _m in quads for q in pts], float)
+    index = np.arange(len(quads))[:, None, None] * 4 + np.array([[0, 1, 2], [0, 2, 3]])[None]
+    return corners, index.reshape(-1, 3), np.zeros((len(corners), 2)), np.array([m for _p, m in quads for _ in range(4)])
+
+
 def smooth(corners, index):
     """Smooth normals: each corner's faces' normals, area-weighted - within its own part, whose
     corners no other part shares."""
@@ -185,12 +241,15 @@ def sampled(body, part_of):
 
 
 def turn_about(axis, degrees):
-    """The 3x3 that turns `degrees` about `axis`, 'x', 'y' or 'z'."""
+    """The 3x3 that turns `degrees` about `axis`, 'x', 'y', 'z' or a unit vector."""
     np = _SHAPES_NP or _np()
     if not degrees:
         return _EYE3 if _EYE3 is not None else np.eye(3)
     rad = math.radians(degrees)
     c, s = math.cos(rad), math.sin(rad)
+    if not isinstance(axis, str):
+        ux = np.array([[0.0, -axis[2], axis[1]], [axis[2], 0.0, -axis[0]], [-axis[1], axis[0], 0.0]])
+        return np.eye(3) + s * ux + (1.0 - c) * (ux @ ux)
     if axis == 'x':
         return np.array(((1.0, 0.0, 0.0), (0.0, c, -s), (0.0, s, c)))
     if axis == 'y':

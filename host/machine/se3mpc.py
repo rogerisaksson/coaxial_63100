@@ -74,14 +74,11 @@ def points(craft):
     radius and friction - the tail's `tail` corners first, then the wheels, as `aerobat.mjcf`
     lays them - and those that must not: the wingtips and the propeller's rim."""
     import numpy as np
-    s, a, c, half, r, z = (craft.STAB_SPAN / 2.0, craft.TAIL_ARM, craft.WING_CHORD / 2.0, craft.HALF_M,
-                           craft.PROP_R, craft.PROP_Z)
-    tail = [(-s, -a - 0.075, 0.0, 0.0, 0.4), (s, -a - 0.075, 0.0, 0.0, 0.4), (0.0, -a - 0.08, 0.0, 0.0, 0.4),
-            (0.0, -a - 0.08, -0.16, 0.0, 0.4)]
+    r, z = craft.PROP_R, craft.PROP_Z
+    tail = [tuple(p) + (0.0, 0.4) for p in craft.FORM['tail']]
     wheels = [(x_sc * sx, by, bz, craft.FOOT_M, 0.3) for sx in (-craft.SKID_X, craft.SKID_X)
               for by, bz, x_sc in ((craft.STRUT_Z[0], craft.GEAR_TAIL_Z, 0.45), (craft.STRUT_Z[1], craft.GEAR_MAIN_Z, 1.0))]
-    rest = [(x, 0.06 + y, 0.0) for x in (-half, half) for y in (-c, c)] + [
-        (r, z, 0.0), (-r, z, 0.0), (0.0, z, r), (0.0, z, -r)]
+    rest = [tuple(p) for p in craft.FORM['tips']] + [(r, z, 0.0), (-r, z, 0.0), (0.0, z, r), (0.0, z, -r)]
     return np.array(tail + wheels, float), len(tail), np.array(rest, float)
 
 

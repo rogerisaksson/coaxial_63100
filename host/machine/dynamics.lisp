@@ -44,9 +44,9 @@
   (inertia_yy 0.060)
   (inertia_zz 0.120)
   (skid_height 0.30m)
-  (skid_span 0.15m)
-  (strut_aft -0.52m)
-  (strut_fore 0.09m))
+  (skid_span 0.167m)
+  (strut_aft -0.931m)
+  (strut_fore 0.106m))
 
 ; Aluminium block with cooling fins conducting heat from the power switches (MOSFETs) and
 ; current shunts, plus a temperature-controlled cooling fan block, puzzled together.

@@ -3,6 +3,7 @@ import math
 import os
 
 from machine import aerolisp, airfield, quad
+from machine.aerobat import form
 from machine.aerobatics import HOVER
 from machine.quad import inflow
 from machine.wingborne import PITCH_REST, Wing
@@ -30,6 +31,8 @@ PROP_R, PROP_Z, TAIL_ARM, STAB_AREA, FIN_AREA = (
 SKID_M, FOOT_M, SKID_X = _RB['skid_height'], _RB['foot_radius'], _RB['skid_span']
 STRUT_Z, HALF_M = (_RB['strut_aft'], _RB['strut_fore']), 0.5 * WING_SPAN
 STAB_SPAN = math.sqrt(STAB_AREA * WING_SPAN / WING_CHORD)
+#: What touches the runway: the drawn Extra's tail, wing tips and boxes (`form.extents`).
+FORM = form.extents(HALF_M / form.HALF)
 GEAR_TAIL_Z, GEAR_MAIN_Z = ((z * math.cos(PITCH_REST) + SKID_M) / math.sin(PITCH_REST) for z in STRUT_Z)
 IDLE_RAD_S, GOV_RAD_S, VECT_GOV_RAD_S = _GOV['idle_speed'], _GOV['main_speed'], _GOV['tail_speed']
 STUNT_BOOST, STUNT_YAW_RAD_S, VECT_RATIO = (
@@ -50,9 +53,9 @@ WATERFALL_HZ, WATERFALL_RAD = (KINEMATICS['oscillator'][k] for k in (
     'tictoc_frequency', 'tictoc_amplitude'))
 DIVE_M_S = 4.0
 PULL_MAX, COURSE_SPHERE = K_THRUST / MASS_KG * (GOV_RAD_S * STUNT_BOOST) ** 2, 1.5 * GRAVITY
-#: The air across the span meets mjcf's fuselage box, 0.16 deep as drawn under the canopy, and
-#: the fin, m^2: at 0.08 deep a knife-edge at 12 m/s flew 39 deg nose-up.
-SIDE_AREA = 0.32 * (PROP_Z - 0.04) + FIN_AREA
+#: The air across the span meets the fuselage's side, 0.163 m^2 as the flight model flies it,
+#: and the fin, m^2: at half the side a knife-edge at 12 m/s flew 39 deg nose-up.
+SIDE_AREA = 0.163 + FIN_AREA
 WING = Wing(MASS_KG, GRAVITY, RHO, WING_AREA, CL_ALPHA, WING_SPAN, STAB_AREA, FIN_AREA, TAIL_ARM, SIDE_AREA)
 ROTATE_M_S, RUNWAY_M, RUNWAY_RAD = WING.rotate, WING.runway(HOVER['lean']), airfield.RUNWAY_RAD
 
@@ -83,16 +86,14 @@ TAIL_ON = ' priority="1" solref="0.1 1" friction="0.4 0.005 0.0001"'
 
 
 def mjcf(things=()):
-    """The 3D aerobatic monoplane and `things` (`airfield.solids`) as MuJoCo XML."""
-    m = ('<geom name="fuselage" type="box" pos="0 0.04 0" size="0.045 %g 0.08" contype="1" '
-         'conaffinity="1"/><geom name="wing" type="box" pos="0 0.06 0" size="%g %g 0.010" '
-         'contype="1" conaffinity="1"/><geom name="prop" type="cylinder" pos="0 %g 0" '
-         'size="%g 0.008" euler="90 0 0" contype="1" conaffinity="1"/>'
-         '<geom name="hstab" type="box" pos="0 %g 0" size="%g 0.075 0.008" contype="1" '
-         'conaffinity="1"%s/><geom name="vfin" type="box" pos="0 %g -0.08" '
-         'size="0.008 0.07 0.08" contype="1" conaffinity="1"%s/>'
-         % (PROP_Z - 0.04, 0.5 * WING_SPAN, 0.5 * WING_CHORD, PROP_Z, PROP_R, -TAIL_ARM,
-            STAB_SPAN / 2.0, TAIL_ON, -TAIL_ARM - 0.01, TAIL_ON))
+    """The 3D aerobatic monoplane and `things` (`airfield.solids`) as MuJoCo XML: the drawn
+    Extra's boxes, its prop's disc, its wheels."""
+    boxes = [('fuselage%d' % k, box, '') for k, box in enumerate(FORM['fuselage'])] + [
+        ('wing', FORM['wing'], ''), ('hstab', FORM['stab'], TAIL_ON), ('vfin', FORM['fin'], TAIL_ON)]
+    m = ''.join('<geom name="%s" type="box" pos="%g %g %g" size="%g %g %g" contype="1" conaffinity="1"%s/>'
+                % ((name,) + tuple(box[0]) + tuple(box[1]) + (on,)) for name, box, on in boxes)
+    m += ('<geom name="prop" type="cylinder" pos="0 %g 0" size="%g 0.008" euler="90 0 0" contype="1" '
+          'conaffinity="1"/>' % (PROP_Z, PROP_R))
     wheels = ((STRUT_Z[0], GEAR_TAIL_Z, 0.45), (STRUT_Z[1], GEAR_MAIN_Z, 1.0))
     for k, (sx, (by, bz, x_sc)) in enumerate((sx, w) for sx in (-SKID_X, SKID_X) for w in wheels):
         m += ('<geom name="skid%d" type="sphere" pos="%g %g %g" size="%g" '
