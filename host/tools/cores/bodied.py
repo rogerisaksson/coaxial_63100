@@ -151,7 +151,7 @@ class Bound:
         self.views = [self.block[a:b].reshape(s) for (a, b), s in zip(spans, self.shapes)]
         spans, self.total = info['outs']
         self.spans = [a for a, _b in spans]
-        self.made = maker(prog.shape, [(a, b, r.shape) for (a, b), r in zip(spans, prog.outs)])
+        self.made = maker(prog.shape, [(a, b, r.shape, r.buffer.dtype) for (a, b), r in zip(spans, prog.outs)])
         self.work = np.empty(max(1, info['doubles']))
         self.lapack = ctypes.addressof(held.blas()) if held.matmuls(prog) else None
         self.funcs = (ctypes.c_void_p * max(1, len(prog.calls)))(*trace_mj.functions(prog))
@@ -199,12 +199,13 @@ class Bound:
 
 
 def maker(shape, outs):
-    """fn's result laid back of an output block, a function of it: each leaf a view of the block at
-    its span (a 0-d one numpy's scalar), its dicts, lists and tuples as traced (`trace.unflatten`)."""
+    """fn's result laid back of an output block, a function of it: each leaf a view of it at its span (a
+    0-d one numpy's scalar, a bool one numpy's bools), its dicts, lists and tuples as traced
+    (`trace.unflatten`)."""
     consts, lines = [], []
-    for k, (a, b, s) in enumerate(outs):
+    for k, (a, b, s, dtype) in enumerate(outs):
         view = 'f[%d]' % a if not s else 'f[%d:%d]' % (a, b) if len(s) == 1 else 'f[%d:%d].reshape(%r)' % (a, b, tuple(s))
-        lines.append('    l%d = %s' % (k, view))
+        lines.append('    l%d = %s' % (k, view + ' != 0.0' if dtype == bool else view))
 
     def put(x):
         consts.append(x)

@@ -300,3 +300,11 @@ Pages, tooling, suites and the local model's runner. The board's findings:
   4.5 ms; a new library's first load 40 ms, loaded in the thread. Her step
   pointed at its block in one write, its 24 pointers from the block's base
   (`law.POINTED`): the step's call 142 -> 98 us, its Python 92 -> 47.
+- numpy 2.5's reductions, read off its bits: a sum from +0.0 (`np.sum([-0.0])`
+  is 0.0), a run innermost in memory and summed pairwise - eight running sums
+  from 8 terms, halves past 128 -, an axis not innermost added in order; min
+  and max from the first in order; a mean the sum over its count. Its maximum
+  and minimum keep the second operand at a tie of zeros at every length (maxpd,
+  minpd), Python's max and min the first, its clip x; `wbc_np.h`'s `npmax`
+  and `npmin` Python's, `npmaximum` and `npminimum` numpy's. Compiled, 38
+  statements of them bit for bit (`test_compiled`).

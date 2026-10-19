@@ -7,11 +7,12 @@ A statement over dense buffers and their affine views, what `tools.cores.emit` w
     prog.statements, prog.buffers, prog.ins, prog.outs, prog.externs
 
 A statement: 'fill' a buffer laid by np.zeros; 'ew' an elementwise tree (IEEE per element, any loop
-order the same); 'einsum' a contraction, its order numpy's to be found (`orders.ordered`); 'matmul'
-numpy's a @ b, its BLAS's in C (`wbc_matmul`); 'gather' and 'scatter' a copy through index tables;
-'mj' a MuJoCo function on her model and data (`trace_mj`), an extern's memory theirs. A branch, a
-float or a write into a plain array on her state cannot be traced and raises: what is compiled is
-a function of its arrays alone.
+order the same); 'reduce' a sum, min or max in numpy's own order; 'einsum' a contraction, its order
+numpy's to be found (`orders.ordered`); 'matmul' numpy's a @ b, its BLAS's in C (`wbc_matmul`);
+'gather' and 'scatter' a copy through index tables; 'mj' a MuJoCo function on her model and data
+(`trace_mj`), an extern's memory theirs. numpy's functions: `trace_np`. A branch, a float or a
+write into a plain array on her state cannot be traced and raises: what is compiled is a function
+of its arrays alone.
 """
 import sys
 import threading
@@ -22,7 +23,7 @@ import numpy as np
 UFUNCS = ('add', 'subtract', 'multiply', 'divide', 'negative', 'positive', 'sign', 'maximum', 'minimum',
           'sqrt', 'absolute', 'square', 'sin', 'cos', 'tan', 'arcsin', 'arccos', 'arctan', 'arctan2', 'exp',
           'log', 'hypot', 'floor', 'ceil', 'greater', 'greater_equal', 'less', 'less_equal', 'equal',
-          'not_equal', 'logical_and', 'logical_or', 'logical_not')
+          'not_equal', 'logical_and', 'logical_or', 'logical_not', 'isnan', 'invert')
 #: Files whose frames are the tracer's, not her code's (`hide`).
 _HERE = {__file__}
 
@@ -127,7 +128,7 @@ def where():
     return '%s:%d' % (f.f_code.co_filename, f.f_lineno) if f is not None else '?'
 
 
-def _owner(a):
+def owner(a):
     while isinstance(a.base, np.ndarray):
         a = a.base
     return a
@@ -186,7 +187,7 @@ class Traced:
         return 'Traced(%s)' % (self.shape,)
 
     def _view(self, view):
-        if _owner(view) is not _owner(self.view):
+        if owner(view) is not owner(self.view):
             raise Untraced('a view that is a copy')
         return Traced(self.prog, self.buffer, view)
 
@@ -195,7 +196,7 @@ class Traced:
 
     def reshape(self, *shape):
         got = self.view.reshape(*shape)
-        if _owner(got) is _owner(self.view):
+        if owner(got) is owner(self.view):
             return self._view(got)
         raise Untraced('a reshape numpy copies at %s' % where())
 
@@ -204,7 +205,7 @@ class Traced:
         got = self.view[key]
         if not isinstance(got, np.ndarray):
             got = self.view[key + (Ellipsis,) if isinstance(key, tuple) else (key, Ellipsis)]
-        if _owner(got) is _owner(self.view):
+        if owner(got) is owner(self.view):
             return Traced(self.prog, self.buffer, got)
         return _gathered(self.prog, self, key)
 
@@ -239,6 +240,25 @@ class Traced:
     def __neg__(self):
         return np.negative(self)
 
+    def __invert__(self):
+        return np.invert(self)
+
+    def sum(self, axis=None, keepdims=False):
+        from tools.cores import trace_np
+        return trace_np.reduced(self.prog, 'add', self, axis, None, keepdims)
+
+    def mean(self, axis=None, keepdims=False):
+        from tools.cores import trace_np
+        return trace_np.mean(self.prog, self, axis, keepdims)
+
+    def min(self, axis=None, keepdims=False, initial=None):
+        from tools.cores import trace_np
+        return trace_np.reduced(self.prog, 'minimum', self, axis, initial, keepdims)
+
+    def max(self, axis=None, keepdims=False, initial=None):
+        from tools.cores import trace_np
+        return trace_np.reduced(self.prog, 'maximum', self, axis, initial, keepdims)
+
     def __abs__(self):
         return np.absolute(self)
 
@@ -258,13 +278,21 @@ class Traced:
         raise Untraced('** %r at %s' % (other, where()))
 
     def __array_ufunc__(self, ufunc, method, *inputs, **kwargs):
+        from tools.cores import trace_np
         if ufunc is np.matmul and method == '__call__' and not kwargs:
-            return _matmul(self.prog, *inputs)
+            return trace_np.matmul(self.prog, *inputs)
+        if method == 'reduce' and ufunc.__name__ in ('add', 'minimum', 'maximum') and not set(kwargs) - {
+                'axis', 'keepdims', 'initial'}:
+            return trace_np.reduced(self.prog, ufunc.__name__, inputs[0], kwargs.get('axis', 0),
+                                    kwargs.get('initial'), kwargs.get('keepdims', False))
         if method != '__call__' or ufunc.__name__ not in UFUNCS or set(kwargs) - {'out'}:
             raise Untraced('np.%s.%s at %s' % (ufunc.__name__, method, where()))
+        if ufunc.__name__ == 'invert' and any(isinstance(x, Traced) and x.dtype != bool for x in inputs):
+            raise Untraced('~ of a float at %s' % where())
         return _ufunc(self.prog, ufunc, inputs, kwargs.get('out'))
 
     def __array_function__(self, func, types, args, kwargs):
+        from tools.cores.trace_np import FUNCTIONS
         rule = FUNCTIONS.get(func.__name__)
         if rule is None:
             raise Untraced('np.%s at %s' % (func.__name__, where()))
@@ -315,14 +343,14 @@ def _indexed(src, key):
 def _gathered(prog, src, key):
     """A copy numpy makes of `src[key]`: its new buffer, laid as numpy lays it, the addresses it reads."""
     got = src.view[key]
-    buf = prog.buffer(_owner(got), 'temp')
+    buf = prog.buffer(owner(got), 'temp')
     out = Traced(prog, buf, got)
     table = _indexed(src, key)
     prog.add('gather', out.ref(), (src.buffer, table if isinstance(table, Ref) else np.asarray(table)))
     return out
 
 
-def _operand(prog, x, shape):
+def operand(prog, x, shape):
     """An elementwise operand: ('ref', Ref broadcast to `shape`), ('const', its array, its strides
     broadcast to `shape`) or ('scalar', x)."""
     if isinstance(x, Traced):
@@ -345,53 +373,11 @@ def _ufunc(prog, ufunc, inputs, out):
         got = ufunc(*concrete)
         if not isinstance(got, np.ndarray):
             got = np.array(got)
-        buf = prog.buffer(_owner(got), 'temp')
+        buf = prog.buffer(owner(got), 'temp')
         result = Traced(prog, buf, got)
-    tree = (ufunc.__name__,) + tuple(_operand(prog, x, got.shape) for x in inputs)
+    tree = (ufunc.__name__,) + tuple(operand(prog, x, got.shape) for x in inputs)
     prog.add('ew', result.ref(), tree)
     return result
-
-
-def _einsum(prog, subscripts, *operands, **kwargs):
-    if kwargs.get('optimize', False) or set(kwargs) - {'optimize'}:
-        raise Untraced('np.einsum %r with %s at %s' % (subscripts, kwargs, where()))
-    concrete = [x.view if isinstance(x, Traced) else np.asarray(x) for x in operands]
-    got = np.einsum(subscripts, *concrete)
-    buf = prog.buffer(_owner(got), 'temp')
-    result = Traced(prog, buf, got)
-    refs = [x.ref() if isinstance(x, Traced) else ('const', np.array(x)) for x in operands]
-    prog.add('einsum', result.ref(), (subscripts, refs, [np.array(c, copy=True) for c in concrete]), got)
-    return result
-
-
-def _cross(prog, a, b, axisa=-1, axisb=-1, axisc=-1, axis=None):
-    """np.cross as numpy computes it: each component a product less a product, in its own buffer laid
-    as numpy lays it, the vector's axis moved back where it asked."""
-    if axis is not None:
-        axisa = axisb = axisc = axis
-    ca, cb = (x.view if isinstance(x, Traced) else np.asarray(x) for x in (a, b))
-    got = np.cross(ca, cb, axisa=axisa, axisb=axisb, axisc=axisc)
-    buf = prog.buffer(_owner(got), 'temp')
-    result = Traced(prog, buf, got)
-    am, bm = (_moved(prog, x, ax) for x, ax in ((a, axisa), (b, axisb)))
-    cm = np.moveaxis(got, axisc, -1)
-    for c, (i, j) in enumerate(((1, 2), (2, 0), (0, 1))):
-        part = prog.ref(buf, cm[..., c])
-        shape = part.shape
-        tree = ('subtract', ('multiply', _comp(prog, am, i, shape), _comp(prog, bm, j, shape)),
-                ('multiply', _comp(prog, am, j, shape), _comp(prog, bm, i, shape)))
-        prog.add('ew', part, tree)
-    return result
-
-
-def _moved(prog, x, ax):
-    if isinstance(x, Traced):
-        return Traced(prog, x.buffer, np.moveaxis(x.view, ax, -1))
-    return np.moveaxis(np.asarray(x, dtype=float), ax, -1)
-
-
-def _comp(prog, x, k, shape):
-    return _operand(prog, x[..., k] if isinstance(x, Traced) else x[..., k], shape)
 
 
 def _zeros(prog, shape, dtype=float):
@@ -402,49 +388,6 @@ def _zeros(prog, shape, dtype=float):
     return result
 
 
-def _matmul(prog, a, b):
-    """numpy's a @ b of 1-d and 2-d operands: a 'matmul' statement, its core dims (m, n, p), each side
-    (its Ref or constant, its strides with a 1-d operand's missing one 0), numpy's own dispatch on
-    them in C (`wbc_matmul`)."""
-    ca, cb = (x.view if isinstance(x, Traced) else np.asarray(x, dtype=float) for x in (a, b))
-    if ca.ndim > 2 or cb.ndim > 2 or not ca.ndim or not cb.ndim:
-        raise Untraced('a matmul of %d-d and %d-d at %s' % (ca.ndim, cb.ndim, where()))
-    got = np.matmul(ca, cb)
-    got = got if isinstance(got, np.ndarray) else np.array(got)
-    result = Traced(prog, prog.buffer(_owner(got), 'temp'), got)
-    m, n, p = (1 if ca.ndim == 1 else ca.shape[0]), ca.shape[-1], (1 if cb.ndim == 1 else cb.shape[1])
-
-    def side(x, c, left):
-        held = x.ref() if isinstance(x, Traced) else ('const', np.ascontiguousarray(c, dtype=float))
-        st = held.strides if isinstance(held, Ref) else tuple(k // 8 for k in held[1].strides)
-        return held, ((0, st[0]) if left else (st[0], 0)) if c.ndim == 1 else st
-    out = result.ref()
-    o = (0, 0) if got.ndim == 0 else (((out.strides[0], 0) if p == 1 else (0, out.strides[0])) if got.ndim == 1
-                                      else out.strides)
-    prog.add('matmul', out, (side(a, ca, True), side(b, cb, False), o, (m, n, p)))
-    return result
-
-
-def _placed(prog, func, arrays, *rest, **kw):
-    """np.stack, vstack or concatenate: numpy's own result, each array copied to its place in it."""
-    concrete = [x.view if isinstance(x, Traced) else np.asarray(x, dtype=float) for x in arrays]
-    got = func(concrete, *rest, **kw)
-    result = Traced(prog, prog.buffer(_owner(got), 'temp'), got)
-    tags = func([np.full(c.shape, k) for k, c in enumerate(concrete)], *rest, **kw)
-    addresses = result.ref().addresses()
-    for k, (x, c) in enumerate(zip(arrays, concrete)):
-        table = addresses[tags == k].reshape(c.shape)
-        if isinstance(x, Traced):
-            prog.add('scatter', Ref(result.buffer, 0, (), ()), (table, x.buffer, x.ref()))
-        else:
-            prog.add('scatter', Ref(result.buffer, 0, (), ()), (table, None, np.array(c)))
-    return result
-
-
-FUNCTIONS = {'einsum': _einsum, 'cross': _cross,
-             'stack': lambda prog, arrays, *a, **k: _placed(prog, np.stack, arrays, *a, **k),
-             'vstack': lambda prog, arrays, *a, **k: _placed(prog, np.vstack, arrays, *a, **k),
-             'concatenate': lambda prog, arrays, *a, **k: _placed(prog, np.concatenate, arrays, *a, **k)}
 #: numpy's array makers her code lays a traced buffer with, called from her code.
 MAKERS = {'zeros': _zeros}
 #: One trace at a time: numpy's makers patched by one alone.

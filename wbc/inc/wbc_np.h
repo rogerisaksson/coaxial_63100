@@ -5,9 +5,11 @@
 #ifndef WBC_NP_H
 #define WBC_NP_H
 
+#include <float.h>
 #include <math.h>
 
-/** numpy's maximum and minimum: the first where it wins or is nan. */
+/** The first where it wins, ties too, or is nan: Python's max and min; numpy's but at a tie of
+    zeros (npmaximum, npminimum). */
 static inline double npmax(double a, double b)
 {
   return (a >= b || isnan(a)) ? a : b;
@@ -18,7 +20,25 @@ static inline double npmin(double a, double b)
   return (a <= b || isnan(a)) ? a : b;
 }
 
-/** numpy's clip: minimum(maximum(x, lo), hi). */
+/** numpy's maximum and minimum: the first where it wins outright or is nan, else the second -
+    at a tie of zeros the second, as maxpd and minpd give it. */
+static inline double npmaximum(double a, double b)
+{
+  return (a > b || isnan(a)) ? a : b;
+}
+
+static inline double npminimum(double a, double b)
+{
+  return (a < b || isnan(a)) ? a : b;
+}
+
+/** numpy's nan_to_num: nan 0, an infinity the largest finite of its sign. */
+static inline double npnan_to_num(double x)
+{
+  return isnan(x) ? 0.0 : (isinf(x) ? (x > 0.0 ? DBL_MAX : -DBL_MAX) : x);
+}
+
+/** numpy's clip: x below lo lo, above hi hi, else x - a zero kept its sign. */
 static inline double npclip(double x, double lo, double hi)
 {
   return npmin(npmax(x, lo), hi);
@@ -68,6 +88,46 @@ static inline double npsum(const double *a, int n)
   n2 = n / 2;
   n2 -= n2 % 8;
   return npsum(a, n2) + npsum(a + n2, n - n2);
+}
+
+/** numpy's pairwise sum of n at stride s, as npsum. */
+static inline double npsum_s(const double *a, long n, long s)
+{
+  double r[8], res;
+  long   i, n2;
+
+  if (n < 8)
+  {
+    res = 0.0;
+    for (i = 0; i < n; i++)
+    {
+      res += a[i * s];
+    }
+    return res;
+  }
+  if (n <= 128)
+  {
+    for (i = 0; i < 8; i++)
+    {
+      r[i] = a[i * s];
+    }
+    for (i = 8; i < n - (n % 8); i += 8)
+    {
+      for (long j = 0; j < 8; j++)
+      {
+        r[j] += a[(i + j) * s];
+      }
+    }
+    res = ((r[0] + r[1]) + (r[2] + r[3])) + ((r[4] + r[5]) + (r[6] + r[7]));
+    for (; i < n; i++)
+    {
+      res += a[i * s];
+    }
+    return res;
+  }
+  n2 = n / 2;
+  n2 -= n2 % 8;
+  return npsum_s(a, n2, s) + npsum_s(a + n2 * s, n - n2, s);
 }
 
 /** A 1-d dot of two, a's at stride sa, b's at sb (ddot): the plain sum from zero. A vector @
