@@ -139,6 +139,8 @@ Pages, tooling, suites and the local model's runner. The board's findings:
   all 144 pairs of zeros, NaNs, infinities): 277 ns, the state the same bits.
   The crafts a flown second, frames' hashes the same: quad 0.19 -> 0.155 s,
   helicopter 0.115 -> 0.10, aerobat 0.13 -> 0.11, ornithopter 0.115 -> 0.10.
+  native:// built so too (`build.FAST`): her twenty boards 2.03 -> 1.81 CPU s
+  a wall s.
 - A QUAD rotor through the flight's loop, the law against the closed form:
   450.0 and 450.0 rad/s on 27.5 A, 690.0 on 58.0; 33 rad/s apart at most,
   in a 2 900 rad/s^2 spool.

@@ -2,6 +2,7 @@
 import glob
 import hashlib
 import os
+import platform
 import subprocess
 import time
 from shutil import which
@@ -12,6 +13,13 @@ OUT = os.path.join(REPO, 'build', 'hosttest')
 
 # The warnings the firmware build puts on the portable cores.
 FLAGS = ['-std=c11', '-O1', '-Wall', '-Wextra', '-Wconversion', '-Wshadow']
+
+#: A world run here: -O3; on x86-64 SSE4.1's roundss for floorf and nearbyintf, exact; on Windows
+#: ucrt's fminf and fmaxf inline (world_libm.h). The stand-in's drive period 448 -> 277 ns, its
+#: state the same bits at -O0 to -O3; her twenty native boards 2.03 -> 1.81 CPU s a wall s.
+FAST = (['-O3', '-fno-math-errno']
+        + (['-msse4.1'] if platform.machine().lower() in ('amd64', 'x86_64') else [])
+        + (['-include', os.path.join(REPO, 'world', 'inc', 'world_libm.h')] if os.name == 'nt' else []))
 
 #: With COAXIAL_GCOV set (tools/dev/cover.py), built for gcov: unoptimised, so a
 #: line is a line, the counts beside the library.

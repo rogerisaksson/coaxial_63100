@@ -33,7 +33,7 @@ from coaxial.model.thermal_app import APPLICATIONS
 from coaxial.simulated.sto import PILOT_HZ
 from tools import REPO
 from tools.cores import fakeboard
-from tools.cores.build import OUT, build, find_cc
+from tools.cores.build import FAST, OUT, build, find_cc
 from tools.emu import world as worlds
 from tools.emu.protocol_emulator import BODIES
 
@@ -108,8 +108,8 @@ def _libraries():
             except OSError:
                 pass                 # a live process holds it
         pid = os.getpid()
-        board = build(cc, SOURCES, INCLUDES, 'native_%d' % pid, EXTRA)[0]
-        world = build(cc, worlds.SOURCES, worlds.INCLUDES, 'native_world_%d' % pid)[0]
+        board = build(cc, SOURCES, INCLUDES, 'native_%d' % pid, EXTRA + tuple(FAST))[0]
+        world = build(cc, worlds.SOURCES, worlds.INCLUDES, 'native_world_%d' % pid, FAST)[0]
         _BUILT['board'], _BUILT['world'] = board, world
     return _BUILT['board'], _BUILT['world']
 
