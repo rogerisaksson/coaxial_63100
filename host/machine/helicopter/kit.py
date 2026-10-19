@@ -178,6 +178,15 @@ def _stunt_step(core, flips, rolls, nose_val, osc_amp, osc_hz, turn, yaw, rate, 
     return r_des, w_ff, MASS_KG * (ay_s + 0.35 * (ax * turn[0][1] + az * turn[2][1]))
 
 
+def _exp_so3(x, y, z):
+    a2 = (x * x + y * y) + z * z
+    a = math.sqrt(a2)
+    s, c = (math.sin(a) / a, (1.0 - math.cos(a)) / a2) if a > 1e-7 else (1.0 - a2 / 6.0, 0.5 - a2 / 24.0)
+    return ((1.0 - c * (y * y + z * z), -s * z + c * x * y, s * y + c * x * z),
+            (s * z + c * x * y, 1.0 - c * (x * x + z * z), -s * x + c * y * z),
+            (-s * y + c * x * z, s * x + c * y * z, 1.0 - c * (x * x + y * y)))
+
+
 def _smooth_target(core, want_up, sign, yaw, rate, pace, dt):
     lib = _aero_lib()
     if lib is not None:
@@ -198,17 +207,20 @@ def _smooth_target(core, want_up, sign, yaw, rate, pace, dt):
                                (_R_DES_BUF[6], _R_DES_BUF[7], _R_DES_BUF[8]))
         core.w_ff = w_ff = (_FILT_IO[12], _FILT_IO[13], _FILT_IO[14])
         return r_des, w_ff
-    w_ff, a, aw = (0.0, sign * rate, 0.0), min(1.0, 24.0 * dt), min(1.0, 12.0 * dt)
-    if core.up_filt is not None and dt > 1e-6:
-        ub = [core.up_filt[k] + a * (want_up[k] - core.up_filt[k]) for k in range(3)]
-        un = math.sqrt((ub[0] * ub[0] + ub[1] * ub[1]) + ub[2] * ub[2]) or 1.0
-        want_up = (ub[0] / un, ub[1] / un, ub[2] / un)
-    r0 = r_des = _align_axis((0.0, sign, 0.0), want_up, _mat_mul(_rot_y(yaw), _rot_x(core.flip_ang)))
-    if pace > 20.0 and core.r_prev is not None:
-        r_tr = _mat_mul(_align_axis((core.r_prev[0][1], core.r_prev[1][1], core.r_prev[2][1]), want_up, core.r_prev), _rot_y(sign * rate * dt))
-        r_des = _mat_mul(r_tr, _rot_y(aw * _so3_error(r_tr, r0)[1])) if sign * want_up[1] > 0.25 else r_tr
-        raw = tuple(max(-5.5, min(5.5, 0.50 * x / max(dt, 1e-6))) for x in _so3_error(core.r_prev, r_des))
-        w_ff = tuple(core.w_ff[k] + aw * (raw[k] - core.w_ff[k]) for k in range(3))
+    r0 = _align_axis((0.0, sign, 0.0), want_up, _mat_mul(_rot_y(yaw), _rot_x(core.flip_ang)))
+    if core.r_prev is None or dt <= 1e-6:
+        core.up_filt, core.r_prev, core.w_ff = want_up, r0, (0.0, sign * rate, 0.0)
+        return r0, core.w_ff
+    r_ref = core.r_prev
+    r_tr = _mat_mul(_align_axis((r_ref[0][1], r_ref[1][1], r_ref[2][1]), want_up, r_ref), _rot_y(sign * rate * dt))
+    wy = max(0.0, sign * want_up[1])
+    r_t = _mat_mul(r_tr, _rot_y((wy * wy) * _so3_error(r_tr, r0)[1]))
+    er = _so3_error(r_ref, r_t)
+    kp, kd, a_max, w_max = 100.0, 20.0, 50.0, 6.0
+    w_ff = (max(-w_max, min(w_max, core.w_ff[0] + max(-a_max, min(a_max, kp * er[0] - kd * core.w_ff[0])) * dt)),
+            max(-w_max, min(w_max, core.w_ff[1] + max(-a_max, min(a_max, kp * er[1] - kd * (core.w_ff[1] - sign * rate))) * dt)),
+            max(-w_max, min(w_max, core.w_ff[2] + max(-a_max, min(a_max, kp * er[2] - kd * core.w_ff[2])) * dt)))
+    r_des = _mat_mul(r_ref, _exp_so3(w_ff[0] * dt, w_ff[1] * dt, w_ff[2] * dt))
     core.up_filt, core.r_prev, core.w_ff = want_up, r_des, w_ff
     return r_des, w_ff
 

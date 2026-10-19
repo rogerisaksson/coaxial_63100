@@ -14,9 +14,6 @@
   m and 0.345 m^2; its side is the form's. DOD: `airframe` reads them from
   `form`; the card flies whole, the knife pass's tip within 2 cm of its 4 cm
   over the runway.
-- **The line drawn is the one flown** (aircraft.md): the helicopter's and the
-  ornithopter's pages draw the quad's line (L) where they fly their own
-  (`course.TWIN_WAYS`). DOD: each page draws the line its lap's giver flies.
 - **The courses after the aerobatics** (aircraft.md): brought to the
   routines' new shape - close by, watched, sized to the crafts. DOD: to be
   agreed.
@@ -43,16 +40,9 @@
   air it rolls past level 2 deg at 12 m/s, 6 at 16, 12 at 19; straight in
   gusts its bank spreads 12-20 deg. DOD: out of a turn within 2 deg of level
   at any speed; straight in gusts within 5.
-- **The two-drive crafts' lines** (aircraft.md): the helicopter's lap and its
-  sweep ask pulls that step - its course's line turned +0.05 to -0.22 rad/m
-  in 0.75 m at gate 12, its side pull +5 to -22 m/s^2 in 0.15 s; its sweep's
-  straights met its 1.5 m turns head-on, 2.9 g in 0.1 s. Its tilt follows its
-  target within 0.05-0.1 s and swings 13-84 deg, its cyclic 0.28-0.33 rms
-  about its 1 s mean in still air - the same planned on its own tilt swing,
-  0.27 s, or twice it, as on the quad's 0.21. DOD: each line's bend
-  continuous; the cyclic under 0.1 rms in still air, no gate struck.
 - **The aerobat's landing** (aerobat.md): in gusts five touches of 13
   land 0.50-0.68 m downwind of the centreline - the line's crab eased out
   under 0.2 m, its float drifts in the floor's 1 m/s crosswind. DOD: a touch
   under 0.5 m/s within 0.5 m of the centreline, stopped on the runway, still
   or gusty.
+

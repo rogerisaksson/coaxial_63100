@@ -2,15 +2,16 @@
 import math
 
 from machine import aerokin, pull
-from machine.helicopter.kit import (Answer, _course_rate, _smooth_target, _so3_torques,
-                                    _stunt_step, _turn_heading)
-from machine.ornithopter.airframe import (AFT_GOV_RAD_S, AFT_RATIO, ATT_KD, ATT_KP, FLAP_ROCK_HZ,
-                                          FLAP_ROCK_RAD, FLOOR_M, GOV_RAD_S, GRAVITY, IDLE_RAD_S,
-                                          INERTIA, INFLOW_FLOOR, K_PITCH, K_ROLL, K_THRUST, K_YAW,
-                                          MASS_KG, RHO, ROLL_KD, ROLL_KP, STUNT_BOOST,
-                                          STUNT_YAW_RAD_S, YAW_KD, YAW_KP, _flap_inflow, _wing_cda,
-                                          _wing_drag)
+from machine.helicopter.kit import (Answer, _course_rate, _mat_mul, _rot_x, _smooth_target,
+                                    _so3_torques, _stunt_step, _turn_heading)
+from machine.ornithopter.airframe import (AFT_GOV_RAD_S, AFT_RATIO, AFT_Z, ATT_KD, ATT_KP,
+                                          BEAT_PULSE, FLAP_ROCK_HZ, FLAP_ROCK_RAD, FORE_Z,
+                                          GEAR_RATIO, GOV_RAD_S, GRAVITY, IDLE_RAD_S, INERTIA,
+                                          INFLOW_FLOOR, K_PITCH, K_ROLL, K_THRUST, K_YAW, MASS_KG,
+                                          RHO, ROLL_KD, ROLL_KP, STUNT_BOOST, STUNT_YAW_RAD_S,
+                                          YAW_KD, YAW_KP, _flap_inflow, _wing_cda, _wing_drag)
 from machine.ornithopter.observer import observe
+from machine.quad import STEP_S
 
 
 class Core:
@@ -31,7 +32,7 @@ class Core:
         self.out = Answer((IDLE_RAD_S, IDLE_RAD_S), (0.0, 0.0, 0.0, 0.0), (0.0, 0.0),
                           (1.0, 0.0), (0.0, 0.0, 0.0))
 
-    def _target_attitude(self, row, state, turn, yaw, rate, acc_des, ay_thrust, dt):
+    def _target_attitude(self, row, state, turn, yaw, rate, acc_des, ay_use, dt):
         flips, rolls, nose_val = float(row.get('flip', 0.0)), float(row.get('roll', 0.0)), float(row.get('nose', 1.0))
         rock_amp, inv = (FLAP_ROCK_RAD if nose_val <= -1.5 else 0.0), (1.0 if -1.5 < nose_val <= -0.5 else 0.0)
         ax_des, ay_des, az_des = acc_des
@@ -41,13 +42,13 @@ class Core:
                 self, flips, rolls, nose_val, rock_amp, FLAP_ROCK_HZ, turn, yaw, rate, acc_des, dt)
             return r_des, w_ff, f_des, stunt, inv
         self.tic_phase = self.roll_ang = self.piro_ang = 0.0
+        prev_flip = self.flip_ang
         self.flip_ang, sign = (math.pi, -1.0) if inv >= 0.5 else (0.0, 1.0)
+        if self.r_prev is not None:
+            self.r_prev = _mat_mul(self.r_prev, _rot_x(self.flip_ang - prev_flip))
         a_norm = math.hypot(ax_des, ay_des, az_des) or GRAVITY
-        # Pulled the other way along its axis - a burn's brake - a lean leans it the other way.
-        s_f = 1.0 if (ay_des if inv >= 0.5 else ay_thrust) >= 0.0 else -1.0
-        want_up = (sign * s_f * ax_des / a_norm, sign * ay_des / a_norm, sign * s_f * az_des / a_norm)
+        want_up = (sign * ax_des / a_norm, sign * ay_des / a_norm, sign * az_des / a_norm)
         r_des, w_ff = _smooth_target(self, want_up, sign, yaw, rate, float(row.get('pace', 0.0)), dt)
-        ay_use = ay_des if inv >= 0.5 else ay_thrust
         f_des = MASS_KG * (ax_des * turn[0][1] + ay_use * turn[1][1] + az_des * turn[2][1])
         return r_des, w_ff, f_des, stunt, inv
 
@@ -74,6 +75,16 @@ class Core:
         vel = v_in if (type(v_in) is tuple and type(v_in[0]) is float) else [float(x) for x in v_in]
         u = (vel[0] - self.wind[0], vel[1] - self.wind[1], vel[2] - self.wind[2])
         prev_stroke = float(state.get('controls', self.Controls[2:])[0])
+        sp = state.get('speeds', (0.0, 0.0))
+        w_f_prev = float(sp[0]) if sp[0] > 1.0 else self.Controls[0]
+        w_a_prev = float(sp[1]) if sp[1] > 1.0 else self.Controls[1]
+        w_eq_prev = math.sqrt(0.5 * (w_f_prev * w_f_prev + w_a_prev * w_a_prev))
+        beat = max(1.0, w_eq_prev / GEAR_RATIO)
+        s_along = sum(u[a] * turn[a][1] for a in range(3)) * (1.0 if prev_stroke >= 0.0 else -1.0)
+        lift_prev = float(state.get('lift', 0.0)) * _flap_inflow(s_along, math.hypot(u[0], u[2]), w_eq_prev)
+        rock = 0.5 * lift_prev * BEAT_PULSE * (FORE_Z - AFT_Z)
+        w_rock = rock * math.sin(2.0 * float(state.get('phase', 0.0)) + beat * STEP_S) / (2.0 * beat * INERTIA[0])
+        spin = (spin[0] - w_rock, spin[1], spin[2])
         drag = 0.5 * RHO * _wing_cda(prev_stroke) / MASS_KG * math.sqrt(
             u[0] * u[0] + u[1] * u[1] + u[2] * u[2])
         air_acc = (self.push_hat[0] - drag * u[0], self.push_hat[1] - drag * u[1], self.push_hat[2] - drag * u[2])
@@ -100,11 +111,9 @@ class Core:
         light_val = float(row.get('light', 0.5))
         ay_des = max(GRAVITY + up_pull - air_acc[1], light_val * GRAVITY)
         acc_des = (along[0] - air_acc[0], ay_des, along[1] - air_acc[2])
-        ay_stop = max(0.0, GRAVITY + up_pull - air_acc[1])
-        in_burn = row['height'] <= FLOOR_M + 0.05 and (state['h'] < 22.0 or state['v'] <= -0.5 * row['pace'])
-        ay_thrust = ay_stop if in_burn else max(GRAVITY + up_pull, -1.5 * GRAVITY) - air_acc[1]
+        ay_use = (1.0 - float(law.get('doing') == aerokin.FALL)) * ay_des
         r_des, w_ff, f_des, stunt, inv = self._target_attitude(
-            row, state, turn, yaw, rate, acc_des, ay_thrust, dt)
+            row, state, turn, yaw, rate, acc_des, ay_use, dt)
 
         f_limit = MASS_KG * reach
         f_des = max(-f_limit, min(f_limit, f_des))

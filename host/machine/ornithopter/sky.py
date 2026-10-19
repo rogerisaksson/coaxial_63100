@@ -23,6 +23,11 @@ class Sky(hsky.Sky):
         super().reset()
         self.phase = 0.0
 
+    def state(self, copy=True):
+        out = super().state(copy)
+        out['phase'] = self.phase
+        return out
+
     def step(self, command, dt, air=None):
         """Step `dt` s under `command` `(w_fore, w_aft, stroke, pitch_tilt, roll_diff, yaw_twist)`."""
         (w_f, w_a), (stroke, pitch_t, roll_d, yaw_t), (wx, wy, wz), along, vh = self._unpack_and_wind(command, air)

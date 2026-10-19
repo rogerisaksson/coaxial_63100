@@ -434,6 +434,11 @@ def lined(route):
     return any('lapped' in figure[4].split() for figure in card[first:min(k for k in floors if k > row)])
 
 
+def ways(card):
+    """The `ways` (`True` if none) the lap's giver in `card` flies."""
+    return next((getattr(f[1], 'ways', None) or True for f in card if 'lapped' in f[4].split()), True)
+
+
 def reset(rotors):
     """Every rotor from rest again (`spun`): the frame back on the floor, at their idle."""
     for rotor in rotors:

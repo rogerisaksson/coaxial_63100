@@ -19,6 +19,37 @@ from machine import airfield, course
 ACROSS_M, OUT_M, BACK_M, TURN_M, HIGH_M, LOW_M, SPEED_M_S = -2.0, -30.0, 14.0, 1.5, 1.2, 0.85, 12.0
 
 
+def smoothed(out, smooth=4.8):
+    """`out` (`course.laid`) with its points, tangents, bends and curve smoothed over `smooth`
+    samples, its conservative `swings` kept."""
+    at, step, n = out['at'], out['step'], len(out['at'])
+    hw = max(1, int(round(2.5 * smooth)))
+    wt = [math.exp(-0.5 * (m / smooth) ** 2) for m in range(-hw, hw + 1)]
+    ws = sum(wt)
+    wt = [w / ws for w in wt]
+    at1 = [tuple(sum(w * at[(j + m) % n][c] for m, w in zip(range(-hw, hw + 1), wt))
+                 for c in range(3)) for j in range(n)]
+    at2 = [tuple(sum(w * at1[(j + m) % n][c] for m, w in zip(range(-hw, hw + 1), wt))
+                 for c in range(3)) for j in range(n)]
+    at = [tuple(at1[j][c] + 0.55 * (at1[j][c] - at2[j][c]) for c in range(3)) for j in range(n)]
+    way = []
+    for j in range(n):
+        d = [b - a for a, b in zip(at[j - 1], at[(j + 1) % n])]
+        size = math.sqrt(sum(x * x for x in d)) or 1.0
+        way.append(tuple(x / size for x in d))
+    bends = [(math.dist(way[j - 2], way[(j + 2) % n]) / (4.0 * step),
+              (way[(j + 2) % n][1] - way[j - 2][1]) / (4.0 * step),
+              ((math.atan2(way[(j + 2) % n][0], way[(j + 2) % n][2])
+                - math.atan2(way[j - 2][0], way[j - 2][2]) + math.pi) % math.tau - math.pi)
+              / (4.0 * step)) for j in range(n)]
+    curve = [tuple((b - a) / (4.0 * step) for a, b in zip(way[j - 2], way[(j + 2) % n]))
+             for j in range(n)]
+    swings = [max(out['swings'][j], math.dist(curve[(j + 2) % n], curve[j - 2]) / (4.0 * step))
+              for j in range(n)]
+    out.update(at=at, way=way, bends=bends, curve=curve, swings=swings)
+    return out
+
+
 @functools.lru_cache(maxsize=None)
 def track():
     """The sweep's line, laid as the course's (`course.laid`): no gates."""
@@ -34,7 +65,7 @@ def track():
     points = (straight(0.0, OUT_M, c, HIGH_M) + bend(OUT_M, -1.0, HIGH_M, LOW_M)
               + straight(OUT_M, BACK_M, c - 2.0 * r, LOW_M) + bend(BACK_M, 1.0, LOW_M, HIGH_M)
               + straight(BACK_M, 0.0, c, HIGH_M))
-    return course.laid([(x, h, z) for a, across, h in points for x, z in [airfield.placed(a, across)]], [])
+    return smoothed(course.laid([(x, h, z) for a, across, h in points for x, z in [airfield.placed(a, across)]], []))
 
 
 def row(route, now):

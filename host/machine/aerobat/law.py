@@ -10,7 +10,7 @@ from machine.aerobat.airframe import (A_DISC, ATT_KD, ATT_KP, FLOOR_M, GRAVITY, 
                                       YAW_KP, _aero_cda, _aero_inflow, _prop_drag, prop_speed,
                                       slipstream)
 from machine.aerobat.observer import observe
-from machine.helicopter.kit import (Answer, _smooth_target, _so3_torques,
+from machine.helicopter.kit import (Answer, _mat_mul, _rot_x, _smooth_target, _so3_torques,
                                     _stunt_step, _turn_heading)
 from machine.wingborne import AIRBORNE_M, STALL_RAD, WHEELS_M, flare, lined, plane, run, toward, whole
 
@@ -62,7 +62,6 @@ class Core:
         """Reset observer and trajectory state."""
         self.vel_hat, self.push_hat, self.wind = [0.0] * 3, [0.0] * 3, [0.0] * 3
         self.wind_slow, self.gust2, self.push_slow, self.landed = [0.0] * 3, 0.0, [0.0] * 3, False
-        self.touched = 0.0
         self.spin_hat, self.turn_hat = [0.0] * 3, [0.0] * 3
         self.begun, self.flip_ang, self.roll_ang = False, 0.0, 0.0
         self.piro_ang, self.tic_phase = 0.0, 0.0
@@ -72,7 +71,7 @@ class Core:
         self.out = Answer((IDLE_RAD_S, IDLE_RAD_S), (0.0, 0.0, 0.0, 0.0), (0.0, 0.0),
                           (1.0, 0.0), (0.0, 0.0, 0.0))
 
-    def _target_attitude(self, law, row, state, turn, yaw, rate, acc_des, ay_thrust, dt,
+    def _target_attitude(self, law, row, state, turn, yaw, rate, acc_des, ay_use, dt,
                          u=None, w_lift=None):
         flips, rolls, nose_val = float(row.get('flip', 0.0)), float(row.get('roll', 0.0)), float(row.get('nose', 1.0))
         wfall, inv = (WATERFALL_RAD if nose_val <= -1.5 else 0.0), (1.0 if -1.5 < nose_val <= -0.5 else 0.0)
@@ -85,7 +84,10 @@ class Core:
             return r_des, w_ff, f_des, stunt, inv
 
         self.tic_phase = self.roll_ang = self.piro_ang = 0.0
+        prev_flip = self.flip_ang
         self.flip_ang, sign = (math.pi, -1.0) if inv >= 0.5 else (0.0, 1.0)
+        if self.r_prev is not None:
+            self.r_prev = _mat_mul(self.r_prev, _rot_x(self.flip_ang - prev_flip))
         rh, pace, h = float(row['height']), float(row.get('pace', 0.0)), float(state['h'])
         c, s = math.cos(yaw), math.sin(yaw)
         v_fwd = s * float(state['vel'][0]) + c * float(state['vel'][2])
@@ -101,9 +103,7 @@ class Core:
             return run(WING, self, v_fwd, h, yaw, rate, path_pole(v_fwd) * max(0.0, rh - h)) + (stunt, inv)
 
         a_norm = math.hypot(ax_des, ay_des, az_des) or GRAVITY
-        s_f = -1.0 if inv >= 0.5 and ay_des < 0.0 else 1.0
-        want_up = [sign * s_f * ax_des / a_norm, sign * ay_des / a_norm, sign * s_f * az_des / a_norm]
-        ay_use = ay_des if inv >= 0.5 else ay_thrust
+        want_up = [sign * ax_des / a_norm, sign * ay_des / a_norm, sign * az_des / a_norm]
         if u is None:
             u = (float(state['vel'][0]) - self.wind[0],
                  float(state['vel'][1]) - self.wind[1],
@@ -213,9 +213,7 @@ class Core:
         reach, up_pull = max(aerokin.LEAST * GRAVITY, pull_max), self.up_pull
         # Landed, its motors cut till a row flies it again: idled, its propeller's thrust rolled
         # it on at 5 m/s; its land's row and its run's spool alike, restarted it idled at a stand.
-        landed = row['height'] < 0.0 and (self.landed or (self.airborne and state['h'] <= TOUCH_M))
-        self.touched = self.touched if self.landed or not landed else self.Controls[3]
-        self.landed = landed
+        self.landed = row['height'] < 0.0 and (self.landed or (self.airborne and state['h'] <= TOUCH_M))
 
         if row['height'] < 0.0 and (row['height'] <= -0.1 or not self.airborne):
             if state['h'] < 0.03 and max(abs(x) for x in vel) < 0.05:
@@ -240,9 +238,7 @@ class Core:
         rh = max(self.floor, float(row['height']) + self.margin(row)) if row['height'] >= 0.0 else float(row['height'])
         ay_des = max(GRAVITY + up_pull - air_acc[1], float(row.get('light', 0.5)) * GRAVITY)
         acc_des = (along[0] - air_acc[0], ay_des, along[1] - air_acc[2])
-        ay_stop = max(0.0, GRAVITY + up_pull - air_acc[1])
-        in_burn = rh <= FLOOR_M + 0.05 and (state['h'] < 22.0 or state['v'] <= -0.5 * row['pace'])
-        ay_thrust = ay_stop if in_burn else max(GRAVITY + up_pull, -1.5 * GRAVITY) - air_acc[1]
+        ay_use = (1.0 - float(law.get('doing') == aerokin.FALL)) * ay_des
         if row['height'] < 0.0:
             v_fwd = s * vel[0] + c * vel[2]
             # Its lift on the air's speed: on the ground's a 1.1 m/s tail wind left it 16 % short
@@ -254,7 +250,7 @@ class Core:
                 self.airborne, law['spot'] = False, [at[0], at[2]]
         else:
             r_des, w_ff, f_des, stunt, inv = self._target_attitude(
-                law, row, state, turn, yaw, rate, acc_des, ay_thrust, dt, u, w_lift)
+                law, row, state, turn, yaw, rate, acc_des, ay_use, dt, u, w_lift)
 
         f_des = max(0.0, min(MASS_KG * reach, f_des))
         tau_x, tau_y, tau_z = WING.trimmed(_so3_torques(
@@ -291,12 +287,11 @@ class Core:
             self, law, row, state, r_des, (w_p_cur, w_v_cur), dt, (1.0, elev, ail, rud))
         if self.landed:
             # Its wheels hold its attitude, its rudder on the runway's line: on its law, with no
-            # wash, its elevator flapped 0.24 rms from stop to stop. Its stick where its flare
-            # left it - neutral, its nose dipped 2.7 deg -, back once its three points' 12 deg
-            # cannot lift it off - from its rotate speed, all of it at three quarters -, its tail
-            # held down.
+            # wash, its elevator flapped 0.24 rms from stop to stop. Its stick blends from its
+            # rollout law to full back once its three points' 12 deg cannot lift it off - from its
+            # rotate speed, all of it at three quarters -, its tail held down.
             back = ease((ROTATE_M_S - math.hypot(u[0], u[2])) / (0.25 * ROTATE_M_S))
-            _pitch, elev, ail, rud = controls = (1.0, min(self.touched, -back), 0.0, rud)
+            _pitch, elev, ail, rud = controls = (1.0, (1.0 - back) * elev - back, 0.0, rud)
         self.Controls = (w_p_ask, w_v_ask) + controls
         sign_ok = (-turn[1][1] if inv >= 0.5 else turn[1][1]) >= math.cos(2.0 * aerokin.HELD_RAD)
         law['held'] = bool(

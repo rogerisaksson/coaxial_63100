@@ -173,6 +173,15 @@ def test_figures_are_watched_from_beside_the_field(report):
         ('ornithopter', orni_flown.CARD, len(ornithopter.CARD) + 1), ('aerobat', aero_flown.CARD, len(aerobat.CARD)))}
     report.check('each page chases its course alone, the aerobat its laps and not its opening',
                  all(chased.values()), '%s' % chased)
+    from machine import grounds
+    report.check('each page draws the line its lap\'s giver flies',
+                 quad_flown.ways(quad_flown.CARD) is True
+                 and quad_flown.ways(heli_flown.CARD) == course.TWIN_WAYS
+                 and quad_flown.ways(orni_flown.CARD) == course.TWIN_WAYS
+                 and np.array_equal(scenery.asked(grounds, quad_flown.ways(heli_flown.CARD))[0],
+                                    scenery.asked(grounds, course.TWIN_WAYS)[0])
+                 and not np.array_equal(scenery.asked(grounds, quad_flown.ways(heli_flown.CARD))[0],
+                                        scenery.asked(grounds, quad_flown.ways(quad_flown.CARD))[0]))
     law, base = aerokin.fresh(), {'at': (0.0, 0.0, 0.0), 'vel': (0.0, 0.0, 0.0), 'v': 0.0}
     eye = (show_quad.SPOT[0], show_quad.SPOT_Y, show_quad.SPOT[1])
     for mod, gfx, build in ((show_quad, quadcopter, quadcopter.mesh), (show_helicopter, heli_gfx, heli_gfx.heli_mesh),

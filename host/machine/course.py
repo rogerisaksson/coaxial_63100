@@ -144,7 +144,8 @@ def track(ways=None):
     for i, gate in enumerate(cross):
         marks.append(len(fine))
         fine += [_span(gate, cross[(i + 1) % len(cross)], u / 64.0) for u in range(64)]
-    return laid(fine, marks)
+    from machine import sweep
+    return laid(fine, marks) if ways is None else sweep.smoothed(laid(fine, marks))
 
 
 def laid(fine, marks):
@@ -171,11 +172,9 @@ def laid(fine, marks):
         size = math.sqrt(sum(x * x for x in d))
         way.append(tuple(x / size for x in d))
     step = length / n
-    bends = [(math.dist(way[j - 2], way[(j + 2) % n]) / (4.0 * step),
-              (way[(j + 2) % n][1] - way[j - 2][1]) / (4.0 * step),
-              ((math.atan2(way[(j + 2) % n][0], way[(j + 2) % n][2])
-                - math.atan2(way[j - 2][0], way[j - 2][2]) + math.pi) % math.tau - math.pi)
-              / (4.0 * step)) for j in range(n)]
+    bends = [(math.dist(a, b) / (4.0 * step), (b[1] - a[1]) / (4.0 * step),
+              ((math.atan2(b[0], b[2]) - math.atan2(a[0], a[2]) + math.pi) % math.tau - math.pi)
+              / (4.0 * step)) for j in range(n) for a, b in [(way[j - 2], way[(j + 2) % n])]]
     curve = [tuple((b - a) / (4.0 * step) for a, b in zip(way[j - 2], way[(j + 2) % n]))
              for j in range(n)]
     swings = [math.dist(curve[(j + 2) % n], curve[j - 2]) / (4.0 * step) for j in range(n)]
@@ -295,10 +294,13 @@ def line(route, now):
 
 def twin(route, now):
     """`line`'s row on the line laid for the two-drive crafts (`TWIN_WAYS`)."""
-    return flown(route, track(TWIN_WAYS), LAPS, 'lapped', math.inf)
+    return flown(route, track(TWIN_WAYS), LAPS, 'lapped', math.inf, 0.10)
 
 
-def flown(route, line_, laps, word, most_m_s):
+line.ways, twin.ways = None, TWIN_WAYS
+
+
+def flown(route, line_, laps, word, most_m_s, lag=0.0):
     """A row of the laid `line_` for now, by what `route['seen']` says (`aerokin.seen`) - where
     the frame is and goes, the law's spot and heading, the pull its rotors have, the pass's
     seconds, whether it is `spent`: its speed the one the bends ahead allow in its sphere
@@ -336,7 +338,7 @@ def flown(route, line_, laps, word, most_m_s):
     along = max(0.0, sum(float(v) * w for v, w in zip(vel, way)))
     # what the law takes the change of spans the pass to come: asked for where that ends
     on = min(end, s + along * dt / step)
-    lead = min(end, on + trailed(dt) * lap['v'] / step)
+    lead = min(end, on + (trailed(dt) + lag) * lap['v'] / step)
     # as fast as the bends ahead allow in its sphere, read as much further on as its asked
     # speed trails: a bend at the speed all of the sphere turns it, braked for on what the
     # bend there leaves along its way; to a stand at its finish; sped up on what is left

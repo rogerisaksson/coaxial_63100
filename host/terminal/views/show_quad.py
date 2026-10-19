@@ -361,14 +361,15 @@ def run_craft_view(argv, doc, craft, gfx, flown_mod, compose_fn, thrusts_fn, loo
         width, height = size_of(board_view)
         gate = (flight['lap'] or {}).get('gate', 1) if chased else None
         field = getattr(flown_mod, 'FIELD', grounds if chased else airfield)
+        line_ = flown.ways(flown_mod.CARD) if chased and held['line'] else False
         art = '\n'.join(drawing.drawn(
             frame, [(r['angle'], r['w'], (r['budget'] or {}).get('winding_c'), r['board_c'],
                      (r.get('cooling') or {}).get('sink_c'))
                     for r in rotors], width, height, yaw=camera['yaw'], pitch=camera['pitch'],
             reach=reach, centre=centre, colour=terminal, lit=True, gate=gate, lens=camera.get('lens', 1.0),
             field=field, thrusts=thrusts_fn(frame, rotors) if held['arrows'] else None,
-            line_=chased and held['line'], see=quadcopter.LAYERS[held['see']],
-            inset={**(carried(frame, now['aim'], gate, chased and held['line'], width, height, field)
+            line_=line_, see=quadcopter.LAYERS[held['see']],
+            inset={**(carried(frame, now['aim'], gate, line_, width, height, field)
                       if held['carried'] else {}), **recorder.corner(held.get('recording'), width)}))
         # Drawn a frame ahead: this frame shows the state asked the frame before, its HUD too.
         (shown, yaw), held['drawn'] = held.get('drawn') or (now, camera['yaw']), (now, camera['yaw'])

@@ -75,9 +75,9 @@ ROTATE_M_S, RUNWAY_M, RUNWAY_RAD = WING.rotate, WING.runway(HOVER['lean']), airf
 
 
 def drive_loads(controls, share=1.0):
-    """The PROP and VECT drives' loads over their rotor's `drag w^2`, `(prop, vect)`: the
-    propeller's torque at its thrust's `share` of the static and its surfaces, the contra
-    stage's by its own."""
+    """The PROP and VECT drives' loads over their rotor's `drag w^2`, `(prop, vect)`: the single
+    tractor propeller's torque at its thrust's `share` of the static and its surfaces, the vector
+    drive's by its own."""
     _pitch, elev, ail, rud = controls
     return (min(_DL['main_ceiling'], PROP_BASE + PROP_LOAD * share + PROP_SURF * (elev * elev + ail * ail)),
             min(_DL['tail_ceiling'], _DL['tail_base'] + _DL['tail_pitch'] * (0.5 * share * share + rud * rud)))

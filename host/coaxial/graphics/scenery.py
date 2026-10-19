@@ -203,11 +203,12 @@ def _laid(edges):
     return np.asarray(ends, float).reshape(-1, 3), np.asarray(inks, int)
 
 
-def asked(field=grounds):
+def asked(field=grounds, line_=True):
     """(ends, inks) of the line the course asks (`course.track`, or the `field`'s), dashed."""
     from coaxial.model.blocks import numpy as np
     from machine import course
-    at = (course if field is grounds else field).track()['at']
+    ways = line_ if isinstance(line_, tuple) else getattr(line_, 'ways', None)
+    at = (course.track(ways) if field is grounds else field.track())['at']
     ends = [end for k in range(0, len(at), 2 * LINE_DASH)
             for end in (at[k], at[(k + LINE_DASH) % len(at)])]
     return np.asarray(ends, float), np.full(len(ends) // 2, list(INKS).index('line'))
@@ -219,7 +220,7 @@ def edges(gate=None, line_=False, field=grounds):
     next, and the line it asks with `line_`."""
     from coaxial.model.blocks import numpy as np
     parts = [standing(field)] + [runway()] * int(gate is None or field is not grounds) + [
-        gates(gate, field)] * int(gate is not None) + [asked(field)] * int(bool(line_))
+        gates(gate, field)] * int(gate is not None) + [asked(field, line_)] * int(bool(line_))
     return np.vstack([p[0] for p in parts]), np.concatenate([p[1] for p in parts])
 
 

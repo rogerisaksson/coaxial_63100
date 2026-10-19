@@ -287,13 +287,11 @@ API void aeh_aerobat_observe(double state_io[15], const double vel[3], const dou
   const double  q_p = params[7], w_p = params[8], w_v = params[9];
   const double  elev = params[10], rud = params[11], ail = params[12];
   const double  lift_inflow = params[13], alpha = params[14], fast = params[15], dt = params[16];
-  const double  lift_raw = params[17 - 1]; /* unused alias check */
   const double  u[3] = {vel[0] - wind[0], vel[1] - wind[1], vel[2] - wind[2]};
   const double  up[3] = {turn[1], turn[4], turn[7]};
   const double  span[3] = {turn[0], turn[3], turn[6]};
   double        f_wing[3], own[3], tau[3], wing_j[9];
 
-  (void)lift_raw;
   aeh_wing_lift(w_lift, u, turn, f_wing);
   for (int a = 0; a < 3; a++)
   {
@@ -411,6 +409,24 @@ API void aeh_align_axis(const double from_u[3], const double to_u[3], const doub
   }
 }
 
+static inline void exp_so3_3(double x, double y, double z, double out[9])
+{
+  const double a2 = (x * x + y * y) + z * z;
+  const double a = sqrt(a2);
+  const double s = (a > 1e-7) ? (sin(a) / a) : (1.0 - a2 / 6.0);
+  const double c = (a > 1e-7) ? ((1.0 - cos(a)) / a2) : (0.5 - a2 / 24.0);
+
+  out[0] = 1.0 - c * (y * y + z * z);
+  out[1] = -s * z + c * x * y;
+  out[2] = s * y + c * x * z;
+  out[3] = s * z + c * x * y;
+  out[4] = 1.0 - c * (x * x + z * z);
+  out[5] = -s * x + c * y * z;
+  out[6] = -s * y + c * x * z;
+  out[7] = s * x + c * y * z;
+  out[8] = 1.0 - c * (x * x + y * y);
+}
+
 /** Smooth attitude target (`helicopter.kit._smooth_target`).
     filt_io = {up_filt[3], r_prev[9], w_ff[3]}, flags = {has_up, has_r}. */
 API void aeh_smooth_target(double filt_io[15], int flags[2], const double want_in[3],
@@ -420,69 +436,50 @@ API void aeh_smooth_target(double filt_io[15], int flags[2], const double want_i
   double      *up_filt = filt_io;
   double      *r_prev = filt_io + 3;
   double      *w_ff = filt_io + 12;
-  const double a = clamp_d(24.0 * dt, -1e9, 1.0);
-  const double aw = clamp_d(12.0 * dt, -1e9, 1.0);
-  double       want_up[3] = {want_in[0], want_in[1], want_in[2]};
   double       ry[9], rx[9], r_yx[9], r0[9], r_des[9];
   const double from0[3] = {0.0, sign, 0.0};
 
-  if (flags[0] && dt > 1e-6)
-  {
-    const double ub0 = up_filt[0] + a * (want_up[0] - up_filt[0]);
-    const double ub1 = up_filt[1] + a * (want_up[1] - up_filt[1]);
-    const double ub2 = up_filt[2] + a * (want_up[2] - up_filt[2]);
-    double       un = norm3(ub0, ub1, ub2);
-
-    if (un == 0.0)
-    {
-      un = 1.0;
-    }
-    want_up[0] = ub0 / un;
-    want_up[1] = ub1 / un;
-    want_up[2] = ub2 / un;
-  }
+  (void)pace;
   rot_y3(yaw, ry);
   rot_x3(flip_ang, rx);
   mat_mul3(ry, rx, r_yx);
-  aeh_align_axis(from0, want_up, r_yx, r0);
-  memcpy(r_des, r0, 9 * sizeof(double));
-  if (pace > 20.0 && flags[1])
-  {
-    const double prev_y[3] = {r_prev[1], r_prev[4], r_prev[7]};
-    const double w_prev[3] = {w_ff[0], w_ff[1], w_ff[2]};
-    double       aligned[9], ry_dt[9], r_tr[9], err_step[3];
-    const double dt_safe = (dt > 1e-6) ? dt : 1e-6;
-
-    aeh_align_axis(prev_y, want_up, r_prev, aligned);
-    rot_y3((sign * rate) * dt, ry_dt);
-    mat_mul3(aligned, ry_dt, r_tr);
-    if (sign * want_up[1] > 0.25)
-    {
-      double err0[3], ry_aw[9];
-
-      aeh_so3_error(r_tr, r0, err0);
-      rot_y3(aw * err0[1], ry_aw);
-      mat_mul3(r_tr, ry_aw, r_des);
-    }
-    else
-    {
-      memcpy(r_des, r_tr, 9 * sizeof(double));
-    }
-    aeh_so3_error(r_prev, r_des, err_step);
-    for (int k = 0; k < 3; k++)
-    {
-      const double raw = clamp_d((0.50 * err_step[k]) / dt_safe, -5.5, 5.5);
-
-      w_ff[k] = w_prev[k] + aw * (raw - w_prev[k]);
-    }
-  }
-  else
+  aeh_align_axis(from0, want_in, r_yx, r0);
+  if (!flags[1] || dt <= 1e-6)
   {
     w_ff[0] = 0.0;
     w_ff[1] = sign * rate;
     w_ff[2] = 0.0;
+    memcpy(up_filt, want_in, 3 * sizeof(double));
+    memcpy(r_prev, r0, 9 * sizeof(double));
+    memcpy(r_des_out, r0, 9 * sizeof(double));
+    flags[0] = 1;
+    flags[1] = 1;
+    return;
   }
-  memcpy(up_filt, want_up, 3 * sizeof(double));
+  {
+    const double prev_y[3] = {r_prev[1], r_prev[4], r_prev[7]};
+    const double wy = (sign * want_in[1] > 0.0) ? (sign * want_in[1]) : 0.0;
+    const double kp = 100.0, kd = 20.0, a_max = 50.0, w_max = 6.0;
+    double       aligned[9], ry_dt[9], r_tr[9], err0[3], ry_wy[9], r_t[9], er[3], d_exp[9];
+
+    aeh_align_axis(prev_y, want_in, r_prev, aligned);
+    rot_y3((sign * rate) * dt, ry_dt);
+    mat_mul3(aligned, ry_dt, r_tr);
+    aeh_so3_error(r_tr, r0, err0);
+    rot_y3((wy * wy) * err0[1], ry_wy);
+    mat_mul3(r_tr, ry_wy, r_t);
+    aeh_so3_error(r_prev, r_t, er);
+    w_ff[0] = clamp_d(w_ff[0] + clamp_d(kp * er[0] - kd * w_ff[0], -a_max, a_max) * dt, -w_max,
+                      w_max);
+    w_ff[1] = clamp_d(
+        w_ff[1] + clamp_d(kp * er[1] - kd * (w_ff[1] - sign * rate), -a_max, a_max) * dt, -w_max,
+        w_max);
+    w_ff[2] = clamp_d(w_ff[2] + clamp_d(kp * er[2] - kd * w_ff[2], -a_max, a_max) * dt, -w_max,
+                      w_max);
+    exp_so3_3(w_ff[0] * dt, w_ff[1] * dt, w_ff[2] * dt, d_exp);
+    mat_mul3(r_prev, d_exp, r_des);
+  }
+  memcpy(up_filt, want_in, 3 * sizeof(double));
   memcpy(r_prev, r_des, 9 * sizeof(double));
   memcpy(r_des_out, r_des, 9 * sizeof(double));
   flags[0] = 1;

@@ -2,14 +2,13 @@
 import math
 
 from machine import aerokin, pull
-from machine.helicopter.airframe import (ATT_KD, ATT_KP, BODY_CDA, FLOOR_M, GOV_RAD_S, GRAVITY,
-                                         IDLE_RAD_S, INERTIA, INFLOW_FLOOR, K_CYC, K_TAIL,
-                                         K_THRUST, MASS_KG, RHO, ROLL_KD, ROLL_KP, STUNT_BOOST,
-                                         STUNT_YAW_RAD_S, TAIL_GOV_RAD_S, TAIL_M, TAIL_RATIO,
-                                         TICTOC_HZ, TICTOC_RAD, YAW_KD, YAW_KP, _rotor_drag,
-                                         _rotor_inflow)
-from machine.helicopter.kit import (Answer, _course_rate, _smooth_target, _so3_torques,
-                                    _stunt_step, _turn_heading)
+from machine.helicopter.airframe import (ATT_KD, ATT_KP, BODY_CDA, GOV_RAD_S, GRAVITY, IDLE_RAD_S,
+                                         INERTIA, INFLOW_FLOOR, K_CYC, K_TAIL, K_THRUST, MASS_KG,
+                                         RHO, ROLL_KD, ROLL_KP, STUNT_BOOST, STUNT_YAW_RAD_S,
+                                         TAIL_GOV_RAD_S, TAIL_M, TAIL_RATIO, TICTOC_HZ, TICTOC_RAD,
+                                         YAW_KD, YAW_KP, _rotor_drag, _rotor_inflow)
+from machine.helicopter.kit import (Answer, _course_rate, _mat_mul, _rot_x, _smooth_target,
+                                    _so3_torques, _stunt_step, _turn_heading)
 from machine.helicopter.observer import observe
 
 
@@ -27,7 +26,7 @@ class Core:
         self.Controls = (IDLE_RAD_S, IDLE_RAD_S, 0.0, 0.0, 0.0, 0.0)
         self.out = Answer((IDLE_RAD_S, IDLE_RAD_S), (0.0, 0.0, 0.0, 0.0), (0.0, 0.0), (1.0, 0.0), (0.0, 0.0, 0.0))
 
-    def _target_attitude(self, row, state, turn, yaw, rate, acc_des, ay_thrust, dt):
+    def _target_attitude(self, row, state, turn, yaw, rate, acc_des, ay_use, dt):
         flips, rolls, nose_val = float(row.get('flip', 0.0)), float(row.get('roll', 0.0)), float(row.get('nose', 1.0))
         tictoc, inv = (TICTOC_RAD if nose_val <= -1.5 else 0.0), (1.0 if -1.5 < nose_val <= -0.5 else 0.0)
         ax_des, ay_des, az_des = acc_des
@@ -35,12 +34,13 @@ class Core:
         if stunt:
             return _stunt_step(self, flips, rolls, nose_val, tictoc, TICTOC_HZ, turn, yaw, rate, acc_des, dt) + (stunt, inv)
         self.tic_phase = self.roll_ang = self.piro_ang = 0.0
+        prev_flip = self.flip_ang
         self.flip_ang, sign = (math.pi, -1.0) if inv >= 0.5 else (0.0, 1.0)
+        if self.r_prev is not None:
+            self.r_prev = _mat_mul(self.r_prev, _rot_x(self.flip_ang - prev_flip))
         a_norm = math.hypot(ax_des, ay_des, az_des) or GRAVITY
-        s_f = 1.0 if (ay_des if inv >= 0.5 else ay_thrust) >= 0.0 else -1.0
-        want_up = (sign * s_f * ax_des / a_norm, sign * ay_des / a_norm, sign * s_f * az_des / a_norm)
+        want_up = (sign * ax_des / a_norm, sign * ay_des / a_norm, sign * az_des / a_norm)
         r_des, w_ff = _smooth_target(self, want_up, sign, yaw, rate, float(row.get('pace', 0.0)), dt)
-        ay_use = ay_des if inv >= 0.5 else ay_thrust
         return r_des, w_ff, MASS_KG * (ax_des * turn[0][1] + ay_use * turn[1][1] + az_des * turn[2][1]), stunt, inv
 
     def plan(self, law, row, state, dt, pull_max):
@@ -81,11 +81,9 @@ class Core:
         ay_des = max(GRAVITY + up_pull - air_acc[1], light_val * GRAVITY)
         acc_des = (along[0] - air_acc[0] - tail_prev * turn[0][0] / MASS_KG, ay_des,
                    along[1] - air_acc[2] - tail_prev * turn[2][0] / MASS_KG)
-        ay_stop = max(0.0, GRAVITY + up_pull - air_acc[1])
-        in_burn = row['height'] <= FLOOR_M + 0.05 and (state['h'] < 22.0 or state['v'] <= -0.5 * row['pace'])
-        ay_thrust = ay_stop if in_burn else max(GRAVITY + up_pull, -1.5 * GRAVITY) - air_acc[1]
+        ay_use = (1.0 - float(law.get('doing') == aerokin.FALL)) * ay_des
         r_des, w_ff, f_des, stunt, inv = self._target_attitude(
-            row, state, turn, yaw, rate, acc_des, ay_thrust, dt)
+            row, state, turn, yaw, rate, acc_des, ay_use, dt)
 
         f_limit = MASS_KG * reach
         f_des = max(-f_limit, min(f_limit, f_des))

@@ -3,11 +3,11 @@
     lines = render(pose, rotors, 96, 40, lit=gpu.LitRaster())   # the GPU's lit raster
     lines = render(pose, rotors, 96, 40)                        # its dots splatted here
 
-`pose` is `machine.aerobat.Sky.state()`'s, its 'turn', 'at' and 'controls'; `rotors` the front
-and rear coaxial 63100 tractor drives' (angle rad, speed rad/s, can C, board C[, sink C]), each
-can, board and heatsink painted their heat (`ansi.thermal_rgb`). A propeller slower than
-`BLADES_RAD_S` shows its blades; faster, the swept prop disc ring, while the ailerons, elevator
-and rudder deflect live with `controls` about their hinge lines.
+`pose` is `machine.aerobat.Sky.state()`'s, its 'turn', 'at' and 'controls'; `rotors` the two
+63100 drives' (angle rad, speed rad/s, can C, board C[, sink C]), each can, board and heatsink
+painted their heat (`ansi.thermal_rgb`). A propeller slower than `BLADES_RAD_S` shows its blades;
+faster, the swept prop disc ring, while the ailerons, elevator and rudder deflect live with
+`controls` about their hinge lines.
 """
 import math
 
@@ -25,13 +25,13 @@ from machine.aerobat import form
 SIGHT, REACH = 3.75, 0.92
 
 #: The airframe in its body axes (x the span, y the nose and thrust, z down), m: the form's unit,
-#: the coaxial tractor hubs ahead of the cowl, the wheels where the sky stands it.
+#: the single tractor hub ahead of the cowl, the wheels where the sky stands it.
 K = aero_phys.HALF_M / form.HALF
-PROP_Y, VECT_Y, PROP_R = aero_phys.PROP_Z, aero_phys.PROP_Z - 0.045, aero_phys.PROP_R
+PROP_Y, PROP_R = aero_phys.PROP_Z, aero_phys.PROP_R
 HALF_SPAN, FOOT_M, SKID_X, STRUT_Z = aero_phys.HALF_M, aero_phys.FOOT_M, aero_phys.SKID_X, aero_phys.STRUT_Z
 GEAR_MAIN_Z, GEAR_TAIL_Z = aero_phys.GEAR_MAIN_Z, aero_phys.GEAR_TAIL_Z
-#: The two tractor motors, 42 x 40 mm each (292 W at the governed top, aircraft.md), stacked
-#: in the cowl from MOTOR_Y aft, each with its 63100 board and sink behind its stator.
+#: The two 63100 drives, 42 x 40 mm each (292 W at the governed top, aircraft.md), in the cowl
+#: from MOTOR_Y aft, each with its 63100 board and sink behind its stator.
 MOTOR_L, MOTOR_Y = 0.040, K * form.COWL_X - 0.004
 
 #: The gear an Extra 300's: each main leg a carbon bow from the belly out and down to its wheel
@@ -344,13 +344,12 @@ def _prop_blades(radius):
 
 
 def aero_mesh(which, see='shell'):
-    """The cached `Mesh` for `'frame'`, `'prop'`, `'vect'`, `'ail_l'`, `'ail_r'`, `'elev'`, `'rud'`."""
+    """The cached `Mesh` for `'frame'`, `'prop'`, `'ail_l'`, `'ail_r'`, `'elev'`, `'rud'`."""
     got = _AERO_MESH.get((which, see))
     if got is None:
         builders = {
             'frame': lambda: _aero_parts(see),
             'prop': lambda: _prop_blades(PROP_R),
-            'vect': lambda: _prop_blades(0.88 * PROP_R),
             'ail_l': lambda: [('ail', _aileron(-1.0))],
             'ail_r': lambda: [('ail', _aileron(1.0))],
             'elev': _elevator_mesh,
@@ -362,8 +361,8 @@ def aero_mesh(which, see='shell'):
 
 def _posed(pose, rotors, dense, see='shell'):
     """(positions, normals, uv, materials, index) in the world: the aerobat airframe at its true
-    physical `pose['turn']`, its slow coaxial tractor propellers, and its surfaces turned about
-    their hinges."""
+    physical `pose['turn']`, its slow tractor propeller, and its surfaces turned about their
+    hinges."""
     _throt, elev, ail, rud = pose.get('controls', (0.0, 0.0, 0.0, 0.0))
     parts = [
         ('ail_l', shapes.turn_about(AIL_AXIS[0], -32.0 * float(ail)), AIL_AT[0]),
@@ -371,23 +370,23 @@ def _posed(pose, rotors, dense, see='shell'):
         ('elev', shapes.turn_about('x', 36.0 * float(elev)), ELEV_AT),
         ('rud', shapes.turn_about('z', 36.0 * float(rud)), RUDDER_AT),
     ]
-    for (kind, y_hub, sign), rotor in zip((('prop', PROP_Y, 1.0), ('vect', VECT_Y, -1.0)), rotors):
-        angle, w = float(rotor[0]), float(rotor[1])
+    if rotors:
+        angle, w = float(rotors[0][0]), float(rotors[0][1])
         if abs(w) < BLADES_RAD_S or see == 'bare':
-            parts.append((kind, shapes.turn_about('y', math.degrees(sign * angle)),
-                          (0.0, y_hub, 0.0)))
+            parts.append(('prop', shapes.turn_about('y', math.degrees(angle)),
+                          (0.0, PROP_Y, 0.0)))
     moving = [(aero_mesh(kind), rot_local, spot) for kind, rot_local, spot in parts]
     return pose_meshes(pose, rotors, dense, aero_mesh('frame', see), moving)
 
 
 def _discs(pose, rotors, m, cam, centre):
-    """[(dots, ink)]: when turning faster than `BLADES_RAD_S`, the coaxial tractor propeller
-    swept disc rings in the x-z plane at the nose, their rims dotted."""
+    """[(dots, ink)]: when turning faster than `BLADES_RAD_S`, the tractor propeller swept disc
+    ring in the x-z plane at the nose, its rim dotted."""
     from coaxial.model.blocks import numpy as np
     k = np.arange(96) * (2.0 * math.pi / 96)
     unit = np.stack([np.cos(k), np.zeros_like(k), np.sin(k)], 1)
-    rings = ((unit * PROP_R, (0.0, PROP_Y, 0.0)), (unit * (0.88 * PROP_R), (0.0, VECT_Y, 0.0)))
-    return swept_rings(pose, zip(rings, rotors), m, cam, centre)
+    rings = ((unit * PROP_R, (0.0, PROP_Y, 0.0)),)
+    return swept_rings(pose, zip(rings, rotors[:1]), m, cam, centre)
 
 
 #: The propeller's thrust from the spinner along the nose, the rudder's from its middle across.

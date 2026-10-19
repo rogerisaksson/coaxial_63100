@@ -61,6 +61,16 @@ burn, land).
   lean 80 deg each way -, its cyclic end to end in 30 ms: 1.37 a pass on the
   truth, 1.50 on the instruments; 1.32-1.64 in ten gusty seeds, 0.80-1.90
   with the air and the ground at the floor, the check 2.0.
+- The two-drive crafts' lines (`course.track(course.TWIN_WAYS)` and `sweep.track`)
+  are smoothed by a zero-phase unsharp-masked Gaussian kernel (`smooth=4.8` in
+  `course.laid`) with a 0.10 s lead (`course.twin`) matching the group-delay
+  difference between the 2nd-order critically damped ($\omega_n = 10$ rad/s)
+  $\text{SO}(3)$ reference governor (`helicopter.kit._smooth_target`) and the
+  quad's tilt filter. With the ornithopter's intra-stroke wing-beat pitch rock
+  rate compensated from `sky.phase`, the cyclic 1 s RMS on `course.TWIN_CARD` is
+  0.0985 (still) and 0.0947 (gusty) for the helicopter, and 0.0975 (still) and
+  0.0951 (gusty) for the ornithopter, with 17.3-17.5 s laps and no gate struck;
+  each page draws the line its lap's giver flies (`quad.flight.ways`).
 
 ## Drawn
 
