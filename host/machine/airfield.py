@@ -150,7 +150,7 @@ def line(route, now):
     rate = max(-TURN_RAD_S, min(TURN_RAD_S, 2.0 * math.sin(eta) / L1_S))
     knife = TRACK[(k + round(LEAD_S[1] * SPEED_M_S)) % n][5]
     return dict(CRUISE, turn=math.degrees(rate), height=TRACK[(k + round(LEAD_S[0] * SPEED_M_S)) % n][4],
-                knife=knife, speed=SPEED_M_S + KNIFE_M_S * knife)
+                knife=knife, speed=SPEED_M_S + KNIFE_M_S * knife, lined=0.0)
 
 
 #: Where along the lap each gate stands, m.

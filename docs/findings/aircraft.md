@@ -192,6 +192,18 @@ tail arm with a 0.06 m^2 stabiliser and a 0.045 fin; a fuselage 0.16 m deep,
   left it 0.6 m off its spot, 0.15 m/s off in speed, and the burn's coast -
   no thrust, and hovering, a row's 5 m/s short of wing-borne at 9-17 m/s -
   leant 28 deg after it against 1.6 on the truth.
+- Its figures one into the next, a stage change's most angular acceleration
+  in still air: wing-borne carried whole over 0.4-0.6 of its share (snapped
+  at half) and the wing's attitude eased in with it, the teardrop's leg
+  133 -> 42 rad/s^2 and a turn's 96 -> 43; the yaw lined up low eased in as
+  a row's turn and slide go, the run-in 159 -> 30; the plan turning the
+  heading as the law does (it turned to the quad course's gate), the final
+  184 -> 48, the pull-out 102 -> 13, the line-up 109 -> 76; the run's pitch
+  by its speed, the lift 72 -> 49. The turn-out's roll at its stop is 108,
+  the stunts' entries 150-276, the wheels' contacts 179.
+- On its side the span stays up, the wing bearing what is asked across: the
+  gusty course's knife gate at a belly of 0.00 on both laps, where the span
+  rolled to every ask rocked it 0.07-0.86 and passed the gate at 0.29.
 
 ## Motors
 

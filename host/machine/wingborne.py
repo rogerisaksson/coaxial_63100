@@ -6,6 +6,7 @@
     tau = wing.trimmed(tau, u, turn, spin)         # less its own moments, as it turns
     r_des, w_ff, f_des = run(wing, core, v_fwd, h, yaw, rate)    # the takeoff run
     r_des, want_up = plane(wing, turn, acc_des, u, w, want_up, knife)   # nose on the air
+    r = toward(r_hover, r_des, whole(w))                         # the wing's share of it
     yaw = lined(runway, heading, vel, at, h, wing.rotate)        # low, onto the runway's line
 
 The run, at RUN_G of gravity: the wing bears the weight at ALPHA_RAD, so fast (`Wing.rotate`);
@@ -18,8 +19,9 @@ turned a vertical line into a 45 deg tumble.
 """
 import math
 
+from machine.aerobatics import ease
 from machine.figure import cross
-from machine.helicopter.kit import _mat_mul, _rot_x, _rot_y
+from machine.helicopter.kit import _mat_mul, _rot_x, _rot_y, _so3_error
 
 ALPHA_RAD, TAIL_UP, CLIMB_RAD, AIRBORNE_M, RUN_G, CLIMB_V = (
     math.radians(10.0), 0.4, math.radians(12.0), 0.85, 1.2, 1.3)
@@ -29,6 +31,28 @@ ALPHA_MAX = math.radians(15.0)
 STALL_RAD, STALL_BLEND, CD_LIFT = math.radians(15.0), math.radians(8.0), 0.07
 #: On its wheels: the nose this far from the vertical, 12 deg up; the flare's limit, 16 deg.
 PITCH_REST, HARRIER_RAD = math.radians(78.0), math.radians(16.0)
+#: On its wheels the tail comes up from TAIL_UP of the wing's speed and the nose rotates up to
+#: the wing's, each over RUN_EASE of it: stepped, the rotation asked 22 deg in a tick.
+RUN_EASE = 0.15
+#: Wing-borne the whole attitude the wing's, eased in over WHOLE of the share: handed over at
+#: half, the share's crossing stepped the target 1.8 deg in a tick, 127 rad/s^2, the rudder 0.5.
+WHOLE = (0.4, 0.6)
+
+
+def whole(w):
+    """How much of the attitude is the wing's, wing-borne `w`: none to WHOLE[0], all from WHOLE[1]."""
+    return ease((w - WHOLE[0]) / (WHOLE[1] - WHOLE[0]))
+
+
+def toward(r, to, k):
+    """The attitude `k` of the way from `r` to `to` along SO(3)'s geodesic."""
+    x, y, z = (k * e for e in _so3_error(r, to))
+    a = math.sqrt(x * x + y * y + z * z)
+    s, c = (math.sin(a) / a, (1.0 - math.cos(a)) / (a * a)) if a > 1e-9 else (1.0, 0.5)
+    k_ = ((0.0, -z, y), (z, 0.0, -x), (-y, x, 0.0))
+    k2 = _mat_mul(k_, k_)
+    turn = tuple(tuple(float(i == j) + s * k_[i][j] + c * k2[i][j] for j in range(3)) for i in range(3))
+    return _mat_mul(r, turn)
 
 
 class Wing:
@@ -103,11 +127,12 @@ class Wing:
 
 def run(wing, core, v_fwd, h, yaw, rate):
     """The run on its wheels: `(r_des, w_ff, f_des)` for `core` going `v_fwd` m/s along `yaw`,
-    `h` m over its rest; rotated at the wing's speed it asks the climb and stays rotated, its
+    `h` m over its rest; rotated by the wing's speed it asks the climb and stays rotated, its
     tail wheel holding it at its rest till it lifts; the tail clear of the floor before."""
-    core.rotated = core.rotated or v_fwd >= wing.rotate
-    pitch = (0.5 * math.pi - CLIMB_RAD - ALPHA_RAD if core.rotated
-             else PITCH_REST if v_fwd < TAIL_UP * wing.rotate else 0.5 * math.pi)
+    v = v_fwd / wing.rotate
+    core.rotated = max(core.rotated, ease((v - 1.0 + RUN_EASE) / RUN_EASE))
+    pitch = (PITCH_REST + (0.5 * math.pi - PITCH_REST) * ease((v - TAIL_UP) / RUN_EASE)
+             - (CLIMB_RAD + ALPHA_RAD) * core.rotated)
     r_des = _mat_mul(_rot_y(yaw), _rot_x(pitch))
     g = wing.gravity
     f_run = wing.mass * max(0.20 * g, min(RUN_G * g, 2.5 * (CLIMB_V * wing.rotate - v_fwd)
@@ -127,11 +152,12 @@ def flare(wing, v_fwd, h, v, yaw, rate, r11):
 
 def plane(wing, turn, acc, u, w, want_up, knife=0.0):
     """Wing-borne `w` (0 a hover, 1 at the wing's speed) through the air `u` asked `acc`: the
-    nose `want_up` blended onto the air and over it by the wing's angle, and past half wing-borne
-    the whole attitude `r_des`, its back to what is asked across the path - little asked, where
-    it is. `knife` 1 (-1) rolls it a quarter turn about the nose, its left (right) wing where its
-    back was: a knife-edge, the side's plate at the slip `rho S v^2 sin b = need cos b - along
-    sin b` bearing what the wing did."""
+    nose `want_up` blended onto the air and over it by the wing's angle, and the wing's whole
+    attitude `r_des`, its back to what is asked across the path - little asked, where it is.
+    `knife` 1 (-1) rolls it a quarter turn about the nose, its left (right) wing where its back
+    was: a knife-edge, its span up, the side's plate at the slip `rho S v^2 sin b = need cos b -
+    along sin b` bearing what is asked up, the wing what is asked across - the span rolled to
+    all of it, a gusty course's asks across rocked its belly 0.07-0.86 in a second."""
     fast = math.hypot(*u)
     if w <= 0.0 or fast <= 1e-3:
         return None, want_up
@@ -154,6 +180,15 @@ def plane(wing, turn, acc, u, w, want_up, knife=0.0):
         d = [perp[a] + max(0.0, 3.0 - size) * back[a] for a in range(3)]
         n = math.hypot(*d) or 1.0
         d, sign, need = [x / n for x in d], 1.0, size
+    ka = abs(knife)
+    upp = [float(a == 1) - v_hat[1] * v_hat[a] for a in range(3)]
+    n = math.hypot(*upp) or 1.0
+    upp = [x / n for x in upp]
+    d = [(1.0 - ka) * d[a] + ka * upp[a] for a in range(3)]
+    n = math.hypot(*d) or 1.0
+    d = [x / n for x in d]
+    up_ask = sum(perp[a] * upp[a] for a in range(3))
+    across = [perp[a] - up_ask * upp[a] for a in range(3)]
     k_w = wing.q * wing.area * fast * fast / wing.mass
     al_pos = max(0.0, along)
     hi = (ALPHA_MAX if sign < 0.0
@@ -172,17 +207,16 @@ def plane(wing, turn, acc, u, w, want_up, knife=0.0):
         else:
             hi = mid
     alpha = sign * 0.5 * (lo + hi)
-    alpha += abs(knife) * (sign * math.atan2(need, wing.rho * wing.side * fast * fast / wing.mass + al_pos) - alpha)
+    alpha += ka * (math.atan2(up_ask, wing.rho * wing.side * fast * fast / wing.mass + al_pos) - alpha)
+    a_cross = min(ALPHA_MAX, math.hypot(*across) / max(k_w, 1e-9)) / (math.hypot(*across) or 1.0)
     # Asked to slow, a propeller pulling one way, it pulls up: its speed goes into height until
     # the hover's law has it; coasting on it ran 45 m into a tree.
     if along < 0.0 and under >= 0.0:
         alpha = max(alpha, ALPHA_MAX * min(1.0, -along / wing.gravity))
-    nose = [math.cos(alpha) * v_hat[a] + math.sin(alpha) * d[a] for a in range(3)]
+    nose = [math.cos(alpha) * v_hat[a] + math.sin(alpha) * d[a] + ka * a_cross * across[a] for a in range(3)]
     want_up = [(1.0 - w) * want_up[a] + w * nose[a] for a in range(3)]
     n = math.hypot(*want_up) or 1.0
     y = [x / n for x in want_up]
-    if w <= 0.5:
-        return None, y
     dy = sum(d[a] * y[a] for a in range(3))
     back = [d[a] - dy * y[a] for a in range(3)]
     n = math.hypot(*back) or 1.0
