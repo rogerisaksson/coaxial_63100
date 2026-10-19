@@ -9,7 +9,7 @@
 drives (`MAIN` on the mast and `TAIL` on the boom) and their thermal observers warmed on it, then
 the 16-gate course (`machine.course`).
 """
-from machine import aerobatics, aerokin, course, flightpack, helicopter, pull, quad, sweep, weather
+from machine import aerobatics, aerokin, course, flightpack, helicopter, pull, sweep, weather
 from terminal.views.quad import flight as qflight
 from terminal.views.quad.flight import (CRASHED, CRASH_S, FAULTS, THERMAL_S, TICK_S, _LIB,
                                         _step_bus_and_heat, _step_drives, arm, asked, fallen, kept,
@@ -26,7 +26,7 @@ def fresh(craft=helicopter):
     """The craft's flights' own before the first: stage, apex, controls, the pack's cells and
     peaks, the wind (`weather.air`), and the 3D `craft.Core`."""
     cells = flightpack.pack()
-    top = craft.K_THRUST * pull.held(pull.I_MAX) ** 2 / craft.MASS_KG
+    top = craft.K_THRUST * pull.held(pull.I_MAX, getattr(craft, 'ROTOR', pull.ROTOR)) ** 2 / craft.MASS_KG
     card = craft.CARD + course.CARD
     return {'stage': card[0][0], 'apex': 0.0, 'share': 1.0, 'over': 0.0, 'lap': None,
             'owed': 0.0, 'read': 0.0, 'core': craft.Core(), 'top': top,
@@ -108,20 +108,21 @@ def flown(rotors, sky, core, law, row, flight, dt, craft=helicopter):
     volts, clamp = cells['volts'], pull.I_WEP
     holds = [0.0 if r['fault'] else min(clamp, (r['budget'] or {}).get('hold_amps', clamp))
              for r in rotors]
-    top, count, out = pull.ceiling(volts, clamp), max(1, int(round(dt / TICK_S))), None
+    turned = getattr(craft, 'ROTOR', pull.ROTOR)
+    top, count, out = pull.ceiling(volts, clamp, turned), max(1, int(round(dt / TICK_S))), None
     along = core.plan(law, row, sky.state(False), dt, flight['pull'])
-    scales = craft.drive_loads(sky.controls)
+    scales = craft.drive_loads(sky.controls, getattr(sky, 'share', 1.0))
     for rotor, sc in zip(rotors, scales):
         w = rotor['w']
         rotor['rig'].board.drive.model.configure(
-            b=pull.ROTOR.b + 2.0 * quad.K_DRAG * abs(w),
-            load=(sc - 2.0) * quad.K_DRAG * w * abs(w), vdc=volts)
+            b=turned.b + 2.0 * turned.drag * abs(w),
+            load=(sc - 2.0) * turned.drag * w * abs(w), vdc=volts)
     periods = int(round(TICK_S * 50000))
     for _ in range(count):
         _step_drives(rotors, periods)
         limits = [max(craft.IDLE_RAD_S,
-                      min(top, r['ask'] + min(pull.slew(clamp, r['w_hat']),
-                                              pull.reach(r['w_hat'], volts, hold)) * TICK_S))
+                      min(top, r['ask'] + min(pull.slew(clamp, r['w_hat'], turned),
+                                              pull.reach(r['w_hat'], volts, hold, turned)) * TICK_S))
                   for r, hold in zip(rotors, holds)]
         out = core.step(law, row, sky.state(False), TICK_S, flight['pull'], limits, along)
         for rotor, speed in zip(rotors, out.speeds):

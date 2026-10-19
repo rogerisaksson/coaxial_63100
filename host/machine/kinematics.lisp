@@ -13,8 +13,8 @@
   (use standard_arena_envelope)
   (floor_height 0.74m)
   (hover_height 0.9m)
-  (high_height 4.5m)
-  (top_height 4.5m))
+  (high_height 5.0m)
+  (top_height 5.0m))
 
 (defblock vertical vertical_climb_brake
   (climb_speed 4.0m_s)

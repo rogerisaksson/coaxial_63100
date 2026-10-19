@@ -80,7 +80,7 @@ STRUCK = {'tree': 'into a tree', 'house': 'into a house', 'car': 'into a car',
 APPLICATION = 'airstream'
 
 
-def arm(rig, clock=1, warm_s=100.0, room='bench'):
+def arm(rig, clock=1, warm_s=100.0, room='bench', rotor_m=pull.ROTOR):
     """A stand-in board's stage and drive for flight: its gates on the master's pilot, the
     63100's model under the propeller's inertia, a flight's clamp, its record's gains
     commissioning's arithmetic on that motor - on the record's placeholders the board's law
@@ -105,15 +105,14 @@ def arm(rig, clock=1, warm_s=100.0, room='bench'):
     drive = board.drive
     drive.configure(profile=PROFILE)
     drive.configure(drv_i_max=pull.I_WEP, drv_i_trip=I_TRIP)
-    drive.model.configure(j=pull.ROTOR.j, b=pull.ROTOR.b, load=0.0, vdc=flightpack.open_volts(1.0))
+    drive.model.configure(j=rotor_m.j, b=rotor_m.b, load=0.0, vdc=flightpack.open_volts(1.0))
     drive.configure(source='model')
     Commissioning(rig).gains()
     params = drive.params()
     pairs = max(1.0, params.get('motor_pole_pairs') or 1.0)
     kt = 1.5 * pairs * (params.get('motor_lambda') or 0.002)
-    board.ctrl.load(Feedback(SpeedPI(SPEED_HZ, pull.I_WEP, kt, pull.ROTOR.j, pull.ROTOR.b,
-                                     quad.K_DRAG),
-                             prefilter=Slew(SPOOL_RAD_S2), measure=Gain(1.0 / pairs)))
+    board.ctrl.load(Feedback(SpeedPI(SPEED_HZ, pull.I_WEP, kt, rotor_m.j, rotor_m.b, rotor_m.drag),
+                             prefilter=Slew(pull.slew(pull.I_WEP, math.inf, rotor_m)), measure=Gain(1.0 / pairs)))
     board.ctrl.wire('omega_hat', 'iq_ref', LOOP_HZ)
     rotor = {'rig': rig, 'pairs': pairs, 'w': 0.0, 'w_hat': 0.0, 'iq': 0.0,
              'amps': 0.0, 'angle': 0.0, 'ask': 0.0, 'cut': False, 'fault': None,

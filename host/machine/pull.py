@@ -12,6 +12,7 @@ link's over sqrt 3: a row a volt (LINK) and, the four drawing alike through the 
 a row a share of its charge (PACK), laid once and read between two. No branch: a choice is a
 number of 0 or 1, a bound a least or a most.
 """
+import functools
 import math
 from typing import NamedTuple
 
@@ -37,9 +38,11 @@ class Rotor(NamedTuple):
         return 1.5 * self.pairs * self.lam
 
 
+#: The 63100's can and a 16x14 on it, kg m^2.
+CAN_J, PROP_J = 1.2e-4, 3.3e-4
 #: The quad's as built: the 63100 as its boards' record has it (the profile
 #: outrunner_63100_14p), its can and a 16x14 turning.
-ROTOR = Rotor(0.03, 4.1e-5, 0.00207, 14.0, 1.2e-4 + 3.3e-4, 8e-4, quad.K_DRAG)
+ROTOR = Rotor(0.03, 4.1e-5, 0.00207, 14.0, CAN_J + PROP_J, 8e-4, quad.K_DRAG)
 
 #: The clamp a flight is planned on and war emergency power's, A: the space's two shells.
 I_MAX, I_WEP = 60.0, 90.0
@@ -110,9 +113,17 @@ def between(rows, x):
     return rows[k] + (rows[k + 1] - rows[k]) * (x - k)
 
 
-def ceiling(volts, amps):
+@functools.lru_cache(maxsize=None)
+def links(rotor):
+    """`LINK` for `rotor`."""
+    return tuple(linked(VOLTS[0] + k * VOLTS[2], 0, rotor)
+                 for k in range(int(round((VOLTS[1] - VOLTS[0]) / VOLTS[2])) + 1))
+
+
+def ceiling(volts, amps, rotor=ROTOR):
     """A rotor's steady top on a clamp of `amps`, its link held at `volts`, rad/s."""
-    return min(held(amps), between(LINK, (volts - VOLTS[0]) / VOLTS[2]))
+    link = LINK if rotor is ROTOR else links(rotor)
+    return min(held(amps, rotor), between(link, (volts - VOLTS[0]) / VOLTS[2]))
 
 
 def top(left, amps):

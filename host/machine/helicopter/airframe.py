@@ -48,7 +48,7 @@ FUNNEL, SPIRAL, FLIP_IN, INVERTED, INV_PIRO, TICTOC, AILERON_TICTOC, PIRO_FLIP, 
                         'aileron_tictoc', 'piro_flip', 'chaos', 'hurricane', 'unwind'))
 
 
-def drive_loads(controls):
+def drive_loads(controls, _share=1.0):
     """The two drives' load scales `(main, tail)` for `controls`."""
     c, p, r, t = controls
     return (min(_DL['main_ceiling'], _DL['main_base'] + _DL['main_collective'] * (

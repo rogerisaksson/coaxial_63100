@@ -120,7 +120,7 @@
   (base hover) (height 0.9m))
 
 (defstunt high
-  (base high) (height 4.5m))
+  (base high) (height 5.0m))
 
 (defstunt torque_roll
   (base hover) (turn 180.0deg_s))
@@ -173,7 +173,7 @@
 
 (defbehavior unlimited_torque_hang
   (phase punch_out (stunt high) (duration 3.5s) (blend 100ms))
-  (phase elevator_waterfall (stunt waterfall) (duration 2.0s) (blend 80ms))
+  (phase elevator_waterfall (stunt waterfall) (duration 1.5s) (blend 80ms))
   (phase catch (stunt high) (duration 2.2s) (blend 100ms))
   (phase snap_roll (stunt roll) (duration 0.8s) (blend 100ms))
   (phase catch_high (stunt high) (duration 1.6s) (blend 150ms) (gate held)))
@@ -187,7 +187,7 @@
   (stage poise (stunt hover) (duration 1.8s) (ramp 1.5s))
   (stage harrier (stunt climbing_harrier) (duration LAP_S) (ramp 1.5s))
   (stage home (stunt high) (duration 1.8s) (ramp 1.2s) (gate held))
-  (stage waterfall (stunt waterfall) (duration 2.0s) (ramp 0.0s))
+  (stage waterfall (stunt waterfall) (duration 1.5s) (ramp 0.0s))
   (stage catch (stunt high) (duration 2.2s) (ramp 0.0s))
   (stage snap-roll (stunt roll) (duration 0.8s) (ramp 0.0s))
   (stage catch (stunt high) (duration 2.2s) (ramp 0.0s))

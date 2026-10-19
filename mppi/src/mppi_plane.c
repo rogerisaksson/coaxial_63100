@@ -24,16 +24,16 @@ MPPI_FN double mppi_plane_rollout(const double *x0, const double *u, const doubl
     const double mass = k[MP_MASS], wp2 = w_p * w_p, I[3] = {k[MP_IX], k[MP_IY], k[MP_IZ]};
     for (int t = 0; t < h; t++) {
         const double *ut = u + 4 * t, *rf = ref + MR_REF * t;
-        const double th = ut[0], el = ut[1], ai = ut[2], ru = ut[3];
+        const double el = ut[1], ai = ut[2], ru = ut[3];
         const double ax = v[0] - wind[0], ay = v[1] - wind[1], az = v[2] - wind[2];
         const double sx = R[0], sy = R[3], sz = R[6], nx = R[1], ny = R[4], nz = R[7];
         const double bx = R[2], by = R[5], bz = R[8];
         const double along = ax * nx + ay * ny + az * nz, vh = hypot(ax, az);
         const double air = sqrt(ax * ax + ay * ay + az * az);
-        /* the propeller through its inflow (quad.inflow, aerobat._aero_inflow) */
+        /* the propeller, its pitch fixed, through its inflow (aerobat._aero_inflow) */
         const double jj = fmax(0.0, 1.0 - along / (k[MP_J0] * fmax(1.0, k[MP_PITCH] * fabs(w_p) / 6.283185307179586)));
-        const double lift = k[MP_K_THRUST] * wp2 * th * jj
-                            * (1.0 + 0.04 * k[MP_CL_ALPHA_A] * fmin(0.35, vh / fmax(w_p * k[MP_PROP_R], 8.0)));
+        const double share = jj * (1.0 + 0.04 * k[MP_CL_ALPHA_A] * fmin(0.35, vh / fmax(w_p * k[MP_PROP_R], 8.0)));
+        const double lift = k[MP_K_THRUST] * wp2 * share;
         /* the wing nose first, to and past its stall (wingborne.Wing.lift) */
         const double uy = fmax(0.0, along), uz = ax * bx + ay * by + az * bz, v2 = uy * uy + uz * uz;
         const double on = POS(uy) * POS(v2 - 1e-6);
@@ -48,17 +48,20 @@ MPPI_FN double mppi_plane_rollout(const double *x0, const double *u, const doubl
         /* the side, a plate across the span, against the slip */
         const double slip = -k[MP_RHO] * k[MP_SIDE] * air * (ax * sx + ay * sy + az * sz);
         /* the airframe's drag (aerobat._aero_cda) */
-        const double cle = 0.12 * k[MP_CL_ALPHA_A] * (fabs(th) + k[MP_SHARE] * hypot(el, ai));
+        const double cle = 0.12 * k[MP_CL_ALPHA_A] * k[MP_SHARE] * hypot(el, ai);
         const double dn = 0.5 * k[MP_RHO] * (k[MP_CDA] + k[MP_AREA_A] * (k[MP_CD0] + k[MP_CDI] * cle * cle)) * air;
         double F[3] = {lift * nx + q * cl * lx - q * cd * dx + slip * sx - dn * ax,
                        lift * ny + q * cl * ly - q * cd * dy + slip * sy - dn * ay - mass * k[MP_GRAVITY],
                        lift * nz + q * cl * lz - q * cd * dz + slip * sz - dn * az};
-        /* the surfaces in the propwash, the prop's drag, the wing's own moments (Wing.moments) */
+        /* the surfaces in the slipstream (aerobat.slipstream), the prop's torque, the wing's own
+           moments (Wing.moments) */
         const double uxb = ax * sx + ay * sy + az * sz, qw = k[MP_WQ] * along, qd = k[MP_WQ] * fabs(along);
-        const double arm = k[MP_ARM], prop = (0.34 + 1.60 * (th * th + 0.45 * (el * el + ai * ai))) * k[MP_K_DRAG] * wp2;
-        double T[3] = {k[MP_K_PITCH] * wp2 * el + arm * k[MP_STAB] * (qw * uz - qd * arm * w[0]),
+        const double qs = 0.5 * k[MP_RHO] * uy * uy + fmax(0.0, lift) / k[MP_A_DISC];
+        const double arm = k[MP_ARM], prop = (k[MP_PROP_BASE] + k[MP_PROP_LOAD] * share
+                                              + k[MP_PROP_SURF] * (el * el + ai * ai)) * k[MP_K_DRAG] * wp2;
+        double T[3] = {k[MP_K_PITCH] * qs * el + arm * k[MP_STAB] * (qw * uz - qd * arm * w[0]),
                        k[MP_K_YAW] * w_v * w_v * ru - prop - qd * k[MP_AREA] * SQ(0.25 * k[MP_SPAN]) * w[1],
-                       k[MP_K_ROLL] * wp2 * ai - arm * k[MP_FIN] * (qw * uxb + qd * arm * w[2])};
+                       k[MP_K_ROLL] * qs * ai - arm * k[MP_FIN] * (qw * uxb + qd * arm * w[2])};
         /* the floor under its contact points: a spring and a damper up, friction against the slip */
         const double ww[3] = {R[0] * w[0] + R[1] * w[1] + R[2] * w[2], R[3] * w[0] + R[4] * w[1] + R[5] * w[2],
                               R[6] * w[0] + R[7] * w[1] + R[8] * w[2]};
@@ -129,7 +132,7 @@ MPPI_FN double mppi_plane_rollout(const double *x0, const double *u, const doubl
             cost += weight[MW_EASE] * SQ(ut[j] - last[j]);
             last[j] = ut[j];
         }
-        cost += weight[MW_THRUST] * th * th;
+        cost += weight[MW_THRUST] * ut[0] * ut[0];
     }
     return fmin(cost, 1e18);
 }

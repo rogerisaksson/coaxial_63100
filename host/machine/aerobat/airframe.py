@@ -2,10 +2,9 @@
 import math
 import os
 
-from machine import aerolisp, airfield, quad
+from machine import aerolisp, airfield, flightpack, pull, quad
 from machine.aerobat import form
 from machine.aerobatics import HOVER
-from machine.quad import inflow
 from machine.wingborne import PITCH_REST, Wing
 
 LISP_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'aerobat.lisp')
@@ -44,6 +43,7 @@ ELEV_DEG, AIL_DEG, RUD_DEG = (round(math.degrees(x), 6) for x in (
     _AS['elevator_limit'], _AS['aileron_limit'], _AS['rudder_limit']))
 K_THRUST, K_DRAG, CL_ALPHA, CD0, CD_INDUCED = (
     _AS['k_thrust'], _AS['k_drag'], _AS['cl_alpha'], _AS['cd0'], _AS['cd_induced'])
+BLADE_PITCH, INFLOW_J0, PROP_INERTIA = _AS['blade_pitch'], _AS['inflow_j0'], _AS['prop_inertia']
 K_PITCH, K_ROLL, K_YAW, PROPWASH_SHARE, INFLOW_FLOOR = (
     _AS['k_pitch'], _AS['k_roll'], _AS['k_yaw'], _AS['propwash_share'], _AS['inflow_floor'])
 RHO, BODY_CDA = _AF['air_density'], _AF['parasite_cda']
@@ -55,7 +55,16 @@ FLOOR_M, HOVER_M = (KINEMATICS['envelope'][k] for k in ('floor_height', 'hover_h
 WATERFALL_HZ, WATERFALL_RAD = (KINEMATICS['oscillator'][k] for k in (
     'tictoc_frequency', 'tictoc_amplitude'))
 DIVE_M_S = 4.0
-PULL_MAX, COURSE_SPHERE = K_THRUST / MASS_KG * (GOV_RAD_S * STUNT_BOOST) ** 2, 1.5 * GRAVITY
+#: Both boards turn a 17x8 stage on the 63100's can; the propeller's top on the flight's clamp
+#: and a full pack's volts, as the page's drives have it.
+ROTOR = pull.Rotor(*pull.ROTOR[:4], pull.CAN_J + PROP_INERTIA, pull.ROTOR.b, K_DRAG)
+W_TOP = pull.ceiling(flightpack.open_volts(1.0), pull.I_MAX, ROTOR)
+PULL_MAX, COURSE_SPHERE = K_THRUST / MASS_KG * W_TOP ** 2, 1.5 * GRAVITY
+#: The tail in the propeller's wash (`slipstream`): its surfaces' moments a pascal, as quick at
+#: the hover as on the head governed at GOV_RAD_S, where they were the propwash's alone.
+A_DISC = math.pi * PROP_R ** 2
+K_PITCH_Q, K_ROLL_Q = (k * GOV_RAD_S ** 2 * A_DISC / (MASS_KG * GRAVITY) for k in (K_PITCH, K_ROLL))
+PROP_BASE, PROP_LOAD, PROP_SURF = _DL['main_base'], _DL['main_collective'], _DL['main_cyclic']
 #: The air across the span meets the fuselage's side, its form's (0.159 m^2 at 1.4 m; 0.163
 #: flown at 1.6 m), and the fin, m^2: at half the side a knife-edge at 12 m/s flew 39 deg nose-up.
 SIDE_AREA = form.side(HALF_M / form.HALF) + FIN_AREA
@@ -63,13 +72,13 @@ WING = Wing(MASS_KG, GRAVITY, RHO, WING_AREA, CL_ALPHA, WING_SPAN, STAB_AREA, FI
 ROTATE_M_S, RUNWAY_M, RUNWAY_RAD = WING.rotate, WING.runway(HOVER['lean']), airfield.RUNWAY_RAD
 
 
-def drive_loads(controls):
-    """External load scales `(scale_prop, scale_vect)` on the PROP and VECT 63100 drives."""
-    throt, elev, ail, rud = controls
-    return (min(_DL['main_ceiling'], _DL['main_base'] + _DL['main_collective'] * (
-                throt * throt + _DL['main_cyclic'] * (elev * elev + ail * ail))),
-            min(_DL['tail_ceiling'], _DL['tail_base'] + _DL['tail_pitch'] * (
-                0.5 * throt * throt + rud * rud)))
+def drive_loads(controls, share=1.0):
+    """The PROP and VECT drives' loads over their rotor's `drag w^2`, `(prop, vect)`: the
+    propeller's torque at its thrust's `share` of the static and its surfaces, the contra
+    stage's by its own."""
+    _pitch, elev, ail, rud = controls
+    return (min(_DL['main_ceiling'], PROP_BASE + PROP_LOAD * share + PROP_SURF * (elev * elev + ail * ail)),
+            min(_DL['tail_ceiling'], _DL['tail_base'] + _DL['tail_pitch'] * (0.5 * share * share + rud * rud)))
 
 
 def surface_angles(controls):
@@ -106,14 +115,34 @@ def mjcf(things=()):
     return quad.mjcf(things, m, pos, MASS_KG, INERTIA)
 
 
-def _prop_drag(throt, elev, ail, w):
-    return (0.34 + 1.60 * (throt * throt + 0.45 * (elev * elev + ail * ail))) * K_DRAG * w * w
+def _prop_drag(share, elev, ail, w):
+    """The propeller's torque, N m, at `w` rad/s, its thrust `share` of the static, its surfaces
+    at `elev` and `ail`."""
+    return (PROP_BASE + PROP_LOAD * share + PROP_SURF * (elev * elev + ail * ail)) * K_DRAG * w * w
 
 
-def _aero_cda(throt=0.0, elev=0.0, ail=0.0):
-    cl_eff = 0.12 * CL_ALPHA * (abs(throt) + PROPWASH_SHARE * math.hypot(elev, ail))
+def _aero_cda(elev=0.0, ail=0.0):
+    cl_eff = 0.12 * CL_ALPHA * PROPWASH_SHARE * math.hypot(elev, ail)
     return BODY_CDA + WING_AREA * (CD0 + CD_INDUCED * cl_eff * cl_eff)
 
 
 def _aero_inflow(along, v_horiz, w_p):
-    return inflow(along, w_p) * (1.0 + 0.04 * CL_ALPHA * min(0.35, v_horiz / max(w_p * PROP_R, 8.0)))
+    """The propeller's thrust's share of the static at `w_p` rad/s, the air `along` its axis and
+    `v_horiz` across: none at INFLOW_J0 of its pitch's speed, more edgewise."""
+    return (max(0.0, 1.0 - along / (INFLOW_J0 * max(1.0, BLADE_PITCH * abs(w_p) / math.tau)))
+            * (1.0 + 0.04 * CL_ALPHA * min(0.35, v_horiz / max(w_p * PROP_R, 8.0))))
+
+
+def prop_speed(thrust, along, v_horiz):
+    """The propeller's speed for `thrust`, N, the air `along` its axis and `v_horiz` across, rad/s:
+    the root of `K_THRUST w^2 _aero_inflow` = thrust, edgewise where the static's root has it."""
+    c, need = along * math.tau / (INFLOW_J0 * BLADE_PITCH), max(0.0, thrust) / K_THRUST
+    w = 0.5 * (c + math.sqrt(c * c + 4.0 * need))
+    edge = 1.0 + 0.04 * CL_ALPHA * min(0.35, v_horiz / max(w * PROP_R, 8.0))
+    return 0.5 * (c + math.sqrt(c * c + 4.0 * need / edge))
+
+
+def slipstream(along, thrust):
+    """The dynamic pressure on the tail in the propeller's wash, Pa: the air along the nose and
+    the thrust over its disc."""
+    return 0.5 * RHO * max(0.0, along) ** 2 + max(0.0, thrust) / A_DISC

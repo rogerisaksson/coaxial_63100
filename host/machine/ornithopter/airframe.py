@@ -52,7 +52,7 @@ GEAR_RATIO, BEAT_PULSE = _FW['gear_ratio'], _FW['beat_pulse']
 PULL_MAX = (GOV_RAD_S * STUNT_BOOST) ** 2 * K_THRUST / MASS_KG
 
 
-def drive_loads(controls):
+def drive_loads(controls, _share=1.0):
     """External load scales `(scale_fore, scale_aft)` on the FORE and AFT 63100 wing drives."""
     stroke, pitch_t, roll_d, yaw_t = controls
     return (min(_DL['main_ceiling'], _DL['main_base'] + _DL['main_collective'] * (

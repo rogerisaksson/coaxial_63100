@@ -26,6 +26,17 @@
 - **A spent pack mid-turn-over** (aircraft.md): spent in its roll or its
   flip, the quad's way down begins upside down and strikes. DOD: spent
   anywhere on its card, it lands.
+- **The propellers' inertia and grip** (aircraft.md): the helicopter's and the
+  ornithopter's pages turn the quad's motor and 16x14 (`pull.ROTOR`, 4.5e-4
+  kg m^2) - the helicopter's 1 m head among them -, every suite ideal rotors;
+  their discs' thrust against the air through them the quad's 14 in pitch
+  whatever their collective (`quad.inflow`). DOD: each craft's rotor its own
+  inertia, its thrust by its blades' pitch against its inflow, page and
+  suites alike.
+- **The aerobat's control at speed** (aircraft.md): off a 15 m turn in still
+  air it rolls past level 2 deg at 12 m/s, 6 at 16, 12 at 19; straight in
+  gusts its bank spreads 12-20 deg. DOD: out of a turn within 2 deg of level
+  at any speed; straight in gusts within 5.
 - **The aerobat's landing** (aircraft.md): in gusts five touches of 13
   land 0.50-0.68 m downwind of the centreline - the line's crab eased out
   under 0.2 m, its float drifts in the floor's 1 m/s crosswind. DOD: a touch

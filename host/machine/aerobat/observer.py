@@ -2,9 +2,9 @@
 import ctypes
 import math
 
-from machine.aerobat.airframe import (DIVE_M_S, GRAVITY, INERTIA, K_PITCH, K_ROLL, K_YAW, MASS_KG,
-                                      PROP_R, RHO, ROTATE_M_S, WING, WO_PULL, WO_TURN, _aero_cda,
-                                      _aero_inflow, _prop_drag)
+from machine.aerobat.airframe import (DIVE_M_S, GRAVITY, INERTIA, K_PITCH_Q, K_ROLL_Q, K_YAW,
+                                      MASS_KG, PROP_R, RHO, ROTATE_M_S, WING, WO_PULL, WO_TURN,
+                                      _aero_cda, _aero_inflow, _prop_drag, slipstream)
 from machine.helicopter.kit import _OBS_P, _aero_lib, _observe_wind_spin
 
 _AERO_STATE = (ctypes.c_double * 15)()
@@ -12,7 +12,7 @@ _AERO_VEL = (ctypes.c_double * 3)()
 _AERO_SPIN = (ctypes.c_double * 3)()
 _AERO_TURN = (ctypes.c_double * 9)()
 _AERO_PARAMS = (ctypes.c_double * 17)(
-    MASS_KG, GRAVITY, WO_PULL, 0.0, K_PITCH, K_YAW, K_ROLL,
+    MASS_KG, GRAVITY, WO_PULL, 0.0, 0.0, K_YAW, 0.0,
     0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
 _AERO_INERTIA = (ctypes.c_double * 3)(*INERTIA)
 
@@ -37,21 +37,24 @@ def observe(core, state, dt):
     fast, sp = math.hypot(*u), state.get('speeds', (0.0, 0.0))
     w_p = float(sp[0]) if sp[0] > 1.0 else core.Controls[0]
     w_v = float(sp[1]) if sp[1] > 1.0 else core.Controls[1]
-    throt, elev, ail, rud = state.get('controls', core.Controls[2:])
-    alpha = 0.5 * RHO * _aero_cda(throt, elev, ail) / MASS_KG * fast
+    _pitch, elev, ail, rud = state.get('controls', core.Controls[2:])
+    alpha = 0.5 * RHO * _aero_cda(elev, ail) / MASS_KG * fast
     t0, t1, t2 = turn
     up = (t0[1], t1[1], t2[1])
-    along = u[0] * up[0] + u[1] * up[1] + u[2] * up[2]
-    s_along = along * (1.0 if throt >= 0.0 else -1.0)
+    along = s_along = u[0] * up[0] + u[1] * up[1] + u[2] * up[2]
     vh = math.hypot(u[0], u[2])
     lift_raw = float(state.get('lift', 0.0))
-    lift = lift_raw * _aero_inflow(s_along, vh, w_p)
+    share = _aero_inflow(along, vh, w_p)
+    lift = lift_raw * share
+    # The surfaces in its slipstream as the propwash's at w_p: what the C reads, `K w^2`.
+    q_s = max(1.0, slipstream(along, lift)) / max(1.0, w_p * w_p)
+    k_pitch, k_roll = K_PITCH_Q * q_s, K_ROLL_Q * q_s
     dive = min(1.0, max(0.0, 1.0 + vel[1] / DIVE_M_S))
     core.wing_air = min(1.0, max(0.0, along / ROTATE_M_S)) ** 2 * dive
     core.wingborne = min(1.0, max(0.0, min(along, vh) / ROTATE_M_S)) ** 2 * dive
     gamma = (abs(lift_raw) / (2.0 * MASS_KG * w_p * PROP_R)
              if w_p > 1.0 and abs(s_along) < 4.0 * w_p * PROP_R else 0.0)
-    q_p = _prop_drag(throt, elev, ail, w_p)
+    q_p = _prop_drag(share, elev, ail, w_p)
     lib = _aero_lib()
     if lib is not None:
         p0, p1, p2 = core.push_hat
@@ -63,6 +66,7 @@ def observe(core, state, dt):
         _AERO_SPIN[:] = spin
         _AERO_TURN[:] = (t0[0], t0[1], t0[2], t1[0], t1[1], t1[2], t2[0], t2[1], t2[2])
         _AERO_PARAMS[3] = gamma
+        _AERO_PARAMS[4], _AERO_PARAMS[6] = k_pitch, k_roll
         _AERO_PARAMS[7] = q_p
         _AERO_PARAMS[8] = w_p
         _AERO_PARAMS[9] = w_v
@@ -90,9 +94,9 @@ def observe(core, state, dt):
         core.push_hat[a] += dt * WO_PULL * WO_PULL * off
     # The airframe's own moments are known: left to `turn_hat` beside the law's trim, twice.
     own = WING.moments(u, turn, (0.0, 0.0, 0.0, spin[0], spin[1], spin[2]))
-    tau = (K_PITCH * w_p * w_p * elev + own[0] - (INERTIA[2] - INERTIA[1]) * spin[1] * spin[2],
+    tau = (k_pitch * w_p * w_p * elev + own[0] - (INERTIA[2] - INERTIA[1]) * spin[1] * spin[2],
            K_YAW * w_v * w_v * rud - q_p + own[1] - (INERTIA[0] - INERTIA[2]) * spin[2] * spin[0],
-           K_ROLL * w_p * w_p * ail + own[2] - (INERTIA[1] - INERTIA[0]) * spin[0] * spin[1])
+           k_roll * w_p * w_p * ail + own[2] - (INERTIA[1] - INERTIA[0]) * spin[0] * spin[1])
     # The wind as the wing's pull answers it too: on the drag's alone a push left from a hover
     # read 6 m/s in still air, and wing-borne none was read.
     _observe_wind_spin(core, u, fast, alpha, gamma, up, spin, tau, INERTIA, dt, RHO * WING.side * fast / MASS_KG,

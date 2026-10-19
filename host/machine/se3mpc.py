@@ -22,7 +22,7 @@ K_FLOOR, C_FLOOR = 400.0, 20.0
 #: The model's constants in mppi.h's order.
 CONSTS = ('m', 'g', 'kt', 'kp', 'kr', 'ky', 'kd', 'rho', 'area', 'cla', 'span', 'stab', 'fin', 'arm', 'wq',
           'stall', 'blend', 'cdl', 'j0', 'pitch', 'r', 'cla_a', 'cda', 'area_a', 'cd0', 'cdi', 'share',
-          'ix', 'iy', 'iz', 'kf', 'cf', 'side')
+          'ix', 'iy', 'iz', 'kf', 'cf', 'side', 'adisc', 'pb', 'pl', 'ps')
 #: The tail's lowest point a row's `skim` asks, m over the floor: a few centimetres.
 SKIM_M = 0.03
 #: A step's reference, mppi.h's MR_*: where each part starts in a row of REF.
@@ -42,16 +42,18 @@ def forces(craft, x, u, w_p, w_v, wind=(0.0, 0.0, 0.0)):
     off the floor - through the craft's own functions, the twin's reference."""
     import numpy as np
     p, v, r, w = x
-    throt, elev, ail, rud = (float(k) for k in u)
+    _pitch, elev, ail, rud = (float(k) for k in u)
     air = v - np.asarray(wind, float)
     along = float(air @ r[:, 1])
-    lift = craft.K_THRUST * w_p * w_p * throt * craft._aero_inflow(along, math.hypot(air[0], air[2]), w_p)
-    drag = 0.5 * craft.RHO * craft._aero_cda(throt, elev, ail) * float(np.linalg.norm(air))
+    share = craft._aero_inflow(along, math.hypot(air[0], air[2]), w_p)
+    lift = craft.K_THRUST * w_p * w_p * share
+    drag = 0.5 * craft.RHO * craft._aero_cda(elev, ail) * float(np.linalg.norm(air))
     force = lift * r[:, 1] + np.array(craft.WING.lift(tuple(air), r), float) - drag * air + np.array(
         [0.0, -craft.MASS_KG * craft.GRAVITY, 0.0])
-    ab = np.array((craft.K_PITCH * w_p * w_p * elev,
-                   craft.K_YAW * w_v * w_v * rud - craft._prop_drag(throt, elev, ail, w_p),
-                   craft.K_ROLL * w_p * w_p * ail))
+    q_s = craft.slipstream(along, lift)
+    ab = np.array((craft.K_PITCH_Q * q_s * elev,
+                   craft.K_YAW * w_v * w_v * rud - craft._prop_drag(share, elev, ail, w_p),
+                   craft.K_ROLL_Q * q_s * ail))
     return force, ab + np.array(craft.WING.moments(tuple(air), r, (0.0, 0.0, 0.0) + tuple(w)), float)
 
 
@@ -60,13 +62,14 @@ def constants(craft):
     from machine import quad, wingborne
     w = craft.WING
     ix, iy, iz = craft.INERTIA
-    return dict(m=craft.MASS_KG, g=craft.GRAVITY, kt=craft.K_THRUST, kp=craft.K_PITCH, kr=craft.K_ROLL,
+    return dict(m=craft.MASS_KG, g=craft.GRAVITY, kt=craft.K_THRUST, kp=craft.K_PITCH_Q, kr=craft.K_ROLL_Q,
                 ky=craft.K_YAW, kd=craft.K_DRAG, rho=w.rho, area=w.area, cla=w.cl_alpha, span=w.span,
                 stab=w.stab, fin=w.fin, arm=w.arm, wq=w.q, stall=wingborne.STALL_RAD,
-                blend=wingborne.STALL_BLEND, cdl=wingborne.CD_LIFT, j0=quad.INFLOW_J0, pitch=quad.PITCH_M,
+                blend=wingborne.STALL_BLEND, cdl=wingborne.CD_LIFT, j0=craft.INFLOW_J0, pitch=craft.BLADE_PITCH,
                 r=craft.PROP_R, cla_a=craft.CL_ALPHA, cda=craft.BODY_CDA, area_a=craft.WING_AREA,
                 cd0=craft.CD0, cdi=craft.CD_INDUCED, share=craft.PROPWASH_SHARE, ix=ix, iy=iy, iz=iz,
-                kf=K_FLOOR, cf=C_FLOOR, side=w.side)
+                kf=K_FLOOR, cf=C_FLOOR, side=w.side, adisc=craft.A_DISC, pb=craft.PROP_BASE,
+                pl=craft.PROP_LOAD, ps=craft.PROP_SURF)
 
 
 def points(craft):
@@ -109,13 +112,14 @@ class Batch:
     def forces(self, v, r, w, u, w_p, w_v, wind):
         """(force (K, 3) world, torque (K, 3) body) of states (v, r, w) under controls `u` (K, 4)."""
         xp, k = self.xp, self.k
-        throt, elev, ail, rud = u[:, 0], u[:, 1], u[:, 2], u[:, 3]
+        elev, ail, rud = u[:, 1], u[:, 2], u[:, 3]
         air = v - wind
         span, nose, belly = r[:, :, 0], r[:, :, 1], r[:, :, 2]
         along, speed = (air * nose).sum(1), xp.sqrt((air * air).sum(1))
         vh = xp.hypot(air[:, 0], air[:, 2])
         j = xp.maximum(0.0, 1.0 - along / (k['j0'] * max(1.0, k['pitch'] * abs(w_p) / math.tau)))
-        lift = k['kt'] * w_p * w_p * throt * j * (1.0 + 0.04 * k['cla_a'] * xp.minimum(0.35, vh / max(w_p * k['r'], 8.0)))
+        share = j * (1.0 + 0.04 * k['cla_a'] * xp.minimum(0.35, vh / max(w_p * k['r'], 8.0)))
+        lift = k['kt'] * w_p * w_p * share
         uy, uz = xp.maximum(0.0, along), (air * belly).sum(1)
         v2 = uy * uy + uz * uz
         on = self.pos(uy) * self.pos(v2 - 1e-6)
@@ -129,17 +133,18 @@ class Batch:
         dirn, up = (uy[:, None] * nose + uz[:, None] * belly) / sp, (uz[:, None] * nose - uy[:, None] * belly) / sp
         ux = (air * span).sum(1)
         slip = -k['rho'] * k['side'] * speed * ux
-        cl_eff = 0.12 * k['cla_a'] * (xp.abs(throt) + k['share'] * xp.hypot(elev, ail))
+        cl_eff = 0.12 * k['cla_a'] * k['share'] * xp.hypot(elev, ail)
         cda = k['cda'] + k['area_a'] * (k['cd0'] + k['cdi'] * cl_eff * cl_eff)
         drag = (0.5 * k['rho'] * cda * speed)[:, None] * air
         force = (lift[:, None] * nose + (q * c_l)[:, None] * up - (q * c_d)[:, None] * dirn
                  + slip[:, None] * span - drag)
         force[:, 1] -= k['m'] * k['g']
         qw, qd = k['wq'] * along, k['wq'] * xp.abs(along)
-        prop = (0.34 + 1.60 * (throt * throt + 0.45 * (elev * elev + ail * ail))) * k['kd'] * w_p * w_p
-        torque = xp.stack((k['kp'] * w_p * w_p * elev + k['arm'] * k['stab'] * (qw * uz - qd * k['arm'] * w[:, 0]),
+        prop = (k['pb'] + k['pl'] * share + k['ps'] * (elev * elev + ail * ail)) * k['kd'] * w_p * w_p
+        q_s = 0.5 * k['rho'] * uy * uy + xp.maximum(0.0, lift) / k['adisc']
+        torque = xp.stack((k['kp'] * q_s * elev + k['arm'] * k['stab'] * (qw * uz - qd * k['arm'] * w[:, 0]),
                            k['ky'] * w_v * w_v * rud - prop - qd * k['area'] * (0.25 * k['span']) ** 2 * w[:, 1],
-                           k['kr'] * w_p * w_p * ail - k['arm'] * k['fin'] * (qw * ux + qd * k['arm'] * w[:, 2])), 1)
+                           k['kr'] * q_s * ail - k['arm'] * k['fin'] * (qw * ux + qd * k['arm'] * w[:, 2])), 1)
         return force, torque
 
     def floor(self, p, v, r, w, contacts):

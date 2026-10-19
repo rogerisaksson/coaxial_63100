@@ -11,13 +11,20 @@ their thermal observers warmed on it, then its airfield's gate course (`machine.
 """
 from machine import aerobat, airfield
 from terminal.views.helicopter import flight as hflight
-from terminal.views.quad.flight import arm, asked, observers, reset, spun, struck, warmth
+from terminal.views.quad import flight as qflight
+from terminal.views.quad.flight import asked, observers, reset, spun, struck, warmth
 
 #: The aerobat's two 63100 drives: front tractor propeller and rear contra/vector stage.
 ROTORS = ('PROP', 'VECT')
 
 #: The page's flights: the 3D aerobat routine, then two laps of its airfield's course.
 CARD, FIELD = aerobat.CARD + airfield.CARD, airfield
+
+
+def arm(rig, **kw):
+    """A stand-in board armed (`quad.flight.arm`) under a 20 in stage, the propeller's or the
+    contra stage's: its inertia and its drag on the drive's model and its speed's loop."""
+    return qflight.arm(rig, rotor_m=aerobat.ROTOR, **kw)
 
 
 def fresh():

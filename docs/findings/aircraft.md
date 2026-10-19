@@ -104,7 +104,7 @@ read mirrored from above until its columns ran tip-in on +x.
 ## Aerobat
 
 `machine.aerobat`, `machine.wingborne`: a 1.40 m, 2 kg 3D monoplane (wing
-0.392 m^2, 51 g/dm^2; 0.016 m^2 of parasite drag; a 20 in propeller; a 0.48 m
+0.392 m^2, 51 g/dm^2; 0.016 m^2 of parasite drag; a 17x8 propeller; a 0.48 m
 tail arm with a 0.046 m^2 stabiliser and a 0.035 fin; a fuselage 0.14 m deep,
 its form's 0.157 m^2 of side; inertias 0.070/0.046/0.093 kg m^2) on a
 taildragger's wheels (0.26 m legs, the prop clear when level, the nose 12 deg
@@ -114,11 +114,18 @@ up at rest).
   m/s and turned on 32 m at 14 m/s; on 1.60 x 0.32 at 7.6 m/s. One size with
   the others on 1.40 x 0.28 m: its opening's 9 m turns asked a CL of 0.95 of
   its 1.1, it ran wide and came to its knife 14.2 s on where 5.1; on 11 m
-  turns 5.5 s. The 20 in
-  propeller and its contra stage: thrust and the surfaces in their wash by
-  the diameter^4 of the 16 in's, drag and the stage's torque by ^5, the
-  boards' loads with them - 9.7 g at the governor's boost, 1.2 kW a drive at
-  full collective, the loads 1.3 hovering, 3.8 at the most.
+  turns 5.5 s.
+- Its propeller a 1.4 m 3D model's 17x8, fixed, on its speed (static CT 0.08,
+  CP 0.04): 477 rad/s and 321 W hovering, 455 and 136 W at 12 m/s, its top 776
+  rad/s on a full pack's 63 V, 2.65 g; its thrust none at 1.05 of its pitch's
+  speed. Its surfaces in its slipstream, `0.5 rho v^2` along the nose and its
+  thrust over its disc (`slipstream`): as quick hovering as on the head
+  governed at 365 rad/s, 0.85 of that at 12 m/s, 2.2 at 20. That head on a
+  pitch had four 16x14s' thrust, 7.5 g; the 16x14 grown to 20 in, 2.5 g on
+  60 A. Idled through a waterfall's top its tail read 5 Pa where a hover's
+  97, and it fell 4.5 m onto its back: it is held for 0.7 of its surfaces'
+  throw (`AUTHORITY`). Its routine lands in 9 airs of 9 where 7, the course
+  in 8 (gate 2 at seed 3) as before.
 - The wing bears the weight at 10 deg at 9.3 m/s (`Wing.rotate`). The run:
   on its wheels at 1.2 g, the tail up at 0.4 of that speed, rotated at it
   no further than it rests, the nose 22 deg up once the wheels are off, 1.5
@@ -251,11 +258,11 @@ up at rest).
   a parachute at 4 m/s (`parachute`, its floor 0.74 m: the Extra's rudder
   hangs 1.0 m under its middle in a prop-hang, the quad's 0.1 m sat it on its
   tail).
-- Full tilt 12.4 m/s and 18.7 m, 3.07 L/W, 2.0 g; the apex 3.2 deg (under 10
-  deg); the parachute held at 0.58.
+- Full tilt to 14.0 m, 18.7 on 7.5 g, its tilt within 1.7 deg; the parachute
+  held at the floor's 0.74 m.
 - A propeller pulls one way (`f_des >= 0`): the inverted hover, the flat spin
-  and the lomcevak are gone from its card; the waterfall's inverted half
-  falls through, 8.0 to 4.9 m, caught at 3.6. Wing-borne is not a dive
+  and the lomcevak are gone from its card; its waterfall's two tumbles fall
+  from 5.0 m to 0.56, caught there. Wing-borne is not a dive
   (`DIVE_M_S`): nose first down out of the waterfall the law followed the air
   into the floor.
 - The landing: its circuit and its final laid lines flown as the lap is

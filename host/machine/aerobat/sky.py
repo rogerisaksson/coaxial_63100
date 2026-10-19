@@ -1,9 +1,9 @@
 """The 3D aerobatic monoplane in MuJoCo: its propeller, its surfaces in the propwash, its wing."""
 import math
 
-from machine.aerobat.airframe import (FOOT_M, K_PITCH, K_ROLL, K_THRUST, K_YAW, PROP_R, PROP_Z, RHO,
-                                      RUNWAY_RAD, SKID_M, WING, _aero_cda, _aero_inflow, _prop_drag,
-                                      mjcf)
+from machine.aerobat.airframe import (FOOT_M, K_PITCH_Q, K_ROLL_Q, K_THRUST, K_YAW, PROP_R, PROP_Z,
+                                      RHO, RUNWAY_RAD, SKID_M, WING, _aero_cda, _aero_inflow, _prop_drag,
+                                      mjcf, slipstream)
 from machine.helicopter import sky as hsky
 from machine.quad import STEP_S
 from machine.wingborne import PITCH_REST, wing_substep
@@ -35,15 +35,17 @@ class Sky(hsky.Sky):
         self._rest_pose()
 
     def step(self, command, dt, air=None):
-        """Step `dt` s under `command` `(w_prop, w_vect, throttle_pitch, elev, ail, rud)`."""
-        (w_p, w_v), (throt, elev, ail, rud), (wx, wy, wz), along, vh = self._unpack_and_wind(command, air)
-        self.lift = K_THRUST * w_p * w_p * throt
-        lift = self.lift * _aero_inflow(along, vh, w_p) * self.ground(throt)
+        """Step `dt` s under `command` `(w_prop, w_vect, _, elev, ail, rud)`: its propeller's pitch
+        fixed, its thrust its speed's through its inflow, its surfaces in its slipstream."""
+        (w_p, w_v), (_pitch, elev, ail, rud), (wx, wy, wz), along, vh = self._unpack_and_wind(command, air)
+        self.lift, self.share = K_THRUST * w_p * w_p, _aero_inflow(along, vh, w_p)
+        lift = self.lift * self.share * self.ground(1.0)
+        q_s = slipstream(along, self.lift * self.share)
         self.rudder_force = tau_rud = K_YAW * w_v * w_v * rud
-        ab0 = K_PITCH * w_p * w_p * elev
-        ab1 = tau_rud - _prop_drag(throt, elev, ail, w_p)
-        ab2 = K_ROLL * w_p * w_p * ail
-        dk, d = 0.5 * RHO * _aero_cda(throt, elev, ail), self.data
+        ab0 = K_PITCH_Q * q_s * elev
+        ab1 = tau_rud - _prop_drag(self.share, elev, ail, w_p)
+        ab2 = K_ROLL_Q * q_s * ail
+        dk, d = 0.5 * RHO * _aero_cda(elev, ail), self.data
         for _ in range(max(1, int(round(dt / STEP_S)))):
             self._wing_step(self, lift, wx, wy, wz, dk, ab0, ab1, ab2)
             if d.ncon and self.hit is None:

@@ -201,7 +201,8 @@ AERO_BLOCKS = {
                           'k_pitch k_roll k_yaw k_drag inflow_floor gear_ratio beat_pulse'),
     'aero_surfaces': _sp('wing_span wing_chord wing_area prop_radius prop_z k_thrust tail_arm stab_area fin_area '
                          'k_drag cl_alpha cd0 cd_induced elevator_limit aileron_limit '
-                         'rudder_limit k_pitch k_roll k_yaw propwash_share inflow_floor'),
+                         'rudder_limit k_pitch k_roll k_yaw propwash_share inflow_floor blade_pitch '
+                         'inflow_j0 prop_inertia'),
     'airframe': ('air_density', 'parasite_cda'),
     'drive_load': _sp('main_base main_collective main_cyclic main_ceiling tail_base '
                       'tail_pitch tail_ceiling'),

@@ -253,3 +253,7 @@ the hundred before these: [DONE_1-50](DONE_1-50.md),
     a synchronized update - on screen 0.98-1.02 of its speed where
     0.67-1.48, on its lap 0.04 dots off smooth motion -, a frame 35 ms where
     52 ([host](findings/host.md)).
+62. The aerobat's propeller a 1.4 m 3D model's 17x8, fixed, on its speed,
+    its surfaces in its slipstream, both boards on its own rotor: 2.65 g
+    where 7.5; its routine lands in 9 airs of 9 where 7
+    ([aircraft](findings/aircraft.md)).

@@ -11,7 +11,7 @@ def _routine():
     the stages in order, the sky."""
     from machine import aerobat, aerobatics, aerokin, airfield, pull, se3mpc
     dt, by_stage, stages = 1.0 / 120.0, {}, []
-    top = aerobat.K_THRUST * pull.held(pull.I_MAX) ** 2 / aerobat.MASS_KG
+    top = aerobat.PULL_MAX
     rest, foot = se3mpc.points(aerobat)[2], aerobat.SKID_M + aerobat.FOOT_M
     rc, rs = math.cos(airfield.RUNWAY_RAD), math.sin(airfield.RUNWAY_RAD)
     sky, core, law = aerobat.Sky(airfield.solids()), aerobat.Core(), aerokin.fresh()
@@ -62,7 +62,7 @@ def test_aerobat_routine(report):
                  and min(p['r11'] for p in c['snap-roll']) < -0.80 and max(p['v'] for p in ft) > 9.0,
                  'stages %s' % stages[-4:])
     report.check('aerobat arrests its burn over the floor and lands on its runway',
-                 max(p['tilt'] for p in ft + burn) < 10.0 and max(p['h'] for p in burn) > 18.0
+                 max(p['tilt'] for p in ft + burn) < 10.0 and max(p['h'] for p in burn) > 12.0
                  and min(p['lift'] for p in burn if p['r11'] > 0.5) < 2.0 and stages.count('fall') == 1
                  and abs(hold[-1]['h'] - aerobat.FLOOR_M) < 0.05 and c['final'][-1]['w'] > 0.5
                  and len(gd) > 20 and min(p['v'] for p in land if p['h'] < 0.03) > -1.0
@@ -79,7 +79,7 @@ def test_aerobat_airfield_laps(report):
     dt, tick, foot = 0.02, 0.002, aerobat.SKID_M + aerobat.FOOT_M
     sky, core, law = aerobat.Sky(airfield.solids()), aerobat.Core(), aerokin.fresh()
     route, air = aerobatics.routine(airfield.CARD), weather.air(7, 'gusty')
-    top = aerobat.K_THRUST * pull.held(pull.I_MAX) ** 2 / aerobat.MASS_KG
+    top = aerobat.PULL_MAX
     stages, misses, crossed = [], [], 0
     sides: list[bool | None] = [None] * len(airfield.GATES)
     for k in range(int(130.0 / dt)):

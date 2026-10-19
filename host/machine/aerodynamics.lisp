@@ -84,18 +84,23 @@
 
 ; 51 g/dm^2 on 2 kg, a 55-inch 3D plane's, one size with the others (64 inches at 39 before): on
 ; 1.30 x 0.26 m (59 g/dm^2) it stalled at 9.4 m/s and turned on 32 m at 14 m/s. Its surfaces as
-; quick on the inertia of its size.
+; quick on the inertia of its size. Its propeller a 1.4 m 3D model's 17x8, fixed, on its speed:
+; static thrust and power coefficients 0.08 and 0.04, k = C rho D^4 / (2 pi)^2 and C rho D^5 /
+; (2 pi)^3. The quad's 16x14 grown to 20 in, or four of them's thrust on a pitch it had, 7.5 g.
 (defblock aero_surfaces unlimited_3d_monoplane
   (wing_span 1.40m)
   (wing_chord 0.28m)
   (wing_area 0.392)
-  (prop_radius 0.254m)
+  (prop_radius 0.2159m)
   (prop_z 0.356m)
   (tail_arm 0.484m)
   (stab_area 0.046)
   (fin_area 0.035)
-  (k_thrust 0.0011035)
-  (k_drag 0.00001239)
+  (k_thrust 0.0000863)
+  (k_drag 0.000002965)
+  (blade_pitch 0.2032m)
+  (inflow_j0 1.05)
+  (prop_inertia 0.0004)
   (cl_alpha 4.2)
   (cd0 0.035)
   (cd_induced 0.085)
@@ -108,16 +113,18 @@
   (propwash_share 0.85)
   (inflow_floor 0.35))
 
-; A 20 in propeller and its contra stage: thrust and the surfaces in its wash by the diameter^4
-; of the 16 in's, drag and the contra stage's torque by ^5 - the boards' loads with them.
+; The propeller's torque over its k_drag w^2: main_base unloaded, main_collective more by its
+; thrust's share of the static, main_cyclic by its surfaces' squares, main_ceiling at the most;
+; the contra stage's by the tail's - both boards on the propeller's own rotor.
 (defblock drive_load aerobat_prop_load
   (use swashplate_tail_load)
-  (main_base 1.22)
-  (main_collective 5.03)
-  (main_ceiling 3.81)
-  (tail_base 0.98)
-  (tail_pitch 3.51)
-  (tail_ceiling 3.51))
+  (main_base 0.34)
+  (main_collective 0.66)
+  (main_cyclic 0.72)
+  (main_ceiling 2.5)
+  (tail_base 0.32)
+  (tail_pitch 1.15)
+  (tail_ceiling 1.15))
 
 (defaerodynamics shared
   (use standard_airframe))
