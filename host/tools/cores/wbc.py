@@ -28,8 +28,7 @@ SOURCES = [os.path.join(REPO, 'wbc', 'test', 'harness.c'),
            os.path.join(REPO, 'wbc', 'src', 'wbc_blas.c'),
            os.path.join(REPO, 'wbc', 'src', 'wbc_law.c'),
            os.path.join(REPO, 'wbc', 'src', 'wbc_step.c'),
-           os.path.join(REPO, 'wbc', 'src', 'wbc_rounds.c'),
-           os.path.join(REPO, 'wbc', 'src', 'wbc_regressor.c')]
+           os.path.join(REPO, 'wbc', 'src', 'wbc_rounds.c')]
 INCLUDES = [os.path.join(REPO, 'wbc', 'inc')]
 #: The firmware compiles the chain at -O2 (CMakeLists.txt); sin and cos called apart, as numpy calls
 #: them: gcc's sincos for the pair is glibc's own path at 0.855 < |x| < 2.43, its sin's last bit not sin's.
@@ -132,14 +131,6 @@ class Heat(ctypes.Structure):
                 ('house_w', _vp), ('active', _vp), ('t', _vp), ('sq', _vp), ('krpm', _vp), ('limb_rad_s', _vp),
                 ('derate', _vp), ('spent', _vp), ('die', _vp), ('cap', _vp), ('cap_at', _vp), ('ticks', _vp),
                 ('worst', _vp), ('trips', _vp), ('gates', _vp), ('shorted', _vp)]
-
-
-class Regressor(ctypes.Structure):
-
-    """wbc_regressor_t: `machine.regressor`'s layout (sysid.laid)."""
-
-    _fields_ = [(name, _i) for name in 'nb nh p nv nd drive'.split()] + [
-        (name, _vp) for name in 'parent span hinge driven dof above'.split()]
 
 
 def pointer(a, dtype: type = np.float64):
@@ -246,8 +237,6 @@ def typed(lib):
     lib.wbh_pass_drawn.restype = d
     lib.wbh_pass_hem.argtypes = [i, d] + [_vp] * 9
     lib.wbh_pass_hem.restype = None
-    lib.wbh_regressor.argtypes = [ctypes.POINTER(Regressor), i] + [_vp] * 10
-    lib.wbh_regressor.restype = None
     for name in ('wbh_pass_drives', 'wbh_pass_ctrl', 'wbh_pass_motor', 'wbh_pass_metered', 'wbh_pass_felt',
                  'wbh_pass_contacts', 'wbh_pass_sensed', 'wbh_pass_heat_load', 'wbh_pass_heat',
                  'wbh_pass_heat_peak'):

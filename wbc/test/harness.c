@@ -6,7 +6,6 @@
 #include "wbc_np.h"
 #include "wbc_step.h"
 #include "wbc_pass.h"
-#include "wbc_regressor.h"
 
 #include <string.h>
 #include <time.h>
@@ -377,11 +376,4 @@ API void wbh_pass_hem(int n, double dt, const double *ap, const double *om, cons
                       double *state, double *q, double *v, double *a, unsigned char *hit)
 {
   wbc_pass_hem(n, dt, ap, om, alb, c, state, q, v, a, hit);
-}
-
-API void wbh_regressor(const wbc_regressor_t *r, int n, const double *xpos, const double *xmat, const double *axis,
-                       const double *anchor, const double *qvel, const double *qacc, const double *a0,
-                       const double *wacc, double *Y, double *work)
-{
-  wbc_regressor(r, n, xpos, xmat, axis, anchor, qvel, qacc, a0, wacc, Y, work);
 }

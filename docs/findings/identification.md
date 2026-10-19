@@ -208,11 +208,13 @@ doubt.
   and the right knee's torque an amp +0.67 of itself in 36 s, both named;
   wrapped round (`np.roll`), they had been judged by the window's other end.
   A neighbour unseen counts as touched (`sysid.free`).
-- Her regressor in C (`wbc_regressor.c`, its numpy `machine/regressor.py` the
-  definition): numpy's arithmetic operation for operation - 'nij,nj->ni' on
-  R's views SSE's two lanes, its other einsums a plain sum, its cross's
-  formula -; 0 of 5.35 M entries apart over three of her walk's windows, 9
-  against 57 ms a window, her wear's worst pass 202 -> 116 ms.
+- Her regressor in C, compiled from its numpy (`machine/regressor.py`,
+  `tools.cores.held`): numpy's arithmetic operation for operation -
+  'nij,nj->ni' on R's views SSE's two lanes, its other einsums a plain sum,
+  its cross's formula, each read off numpy's own -; 0 of 5.35 M entries apart
+  over three of her walk's windows, 9 against 57 ms a window, her wear's worst
+  pass 202 -> 116 ms. Its port by hand ran 9.4 ms at 400 states, the build
+  5.95 at -O3 (8.0 at -O2), each level bit for bit.
 
 ## On her boards
 

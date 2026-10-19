@@ -281,3 +281,12 @@ Pages, tooling, suites and the local model's runner. The board's findings:
   jobs in (`focus.LEDGER`), each counted at what it has still to commit,
   measured and booked under one lock: two relays side by side, room for 3
   jobs of 2 GB, held 5 before, room for 2 held 2 after.
+- Her numpy compiled to C (`tools.cores.trace`, `emit`, `held`): traced on her
+  arrays, each statement a loop nest at its layout, each einsum summed in the
+  order numpy's own result shows (the regressor's 'nij,nj->ni' SSE's two
+  lanes, its other 222 a plain sum), held bit for bit on the arrays traced and
+  on fresh ones. One state's program at one state over any number: the
+  regressor 0 of 5.35 M entries apart, its C 5.95 ms at -O3 for 400 states
+  (8.0 at -O2, 8.5 at -O1, each level bit for bit), gcc 18 s and 0.79 GB.
+  Built in the walking process its trace held her world 0.88 s: built in a
+  process of its own, numpy's own meanwhile, kept by what its C is made of.

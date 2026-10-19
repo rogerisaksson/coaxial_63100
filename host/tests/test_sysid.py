@@ -123,21 +123,18 @@ def _campaign(c, seed, world=None, seconds=SECONDS, hung=False):
 
 
 def test_the_regressor_in_c_is_its_numpy_s(report, c):
-    """wbc_regressor.c beside machine.regressor's numpy at random states, a motor's own acceleration
-    given and not: bit for bit where numpy is the C's (`tools.cores.law.exact_host`), else within 1e-9."""
+    """machine.regressor's C, compiled from its numpy, beside its numpy at random states, a motor's
+    own acceleration given and not: bit for bit, as it was held when built (`tools.cores.held`)."""
     from machine import regressor
-    from tools.cores import law
     b, lay = c['body'], c['lay']
     qpos, qvel, qacc = _states(b, np.random.default_rng(2))
     a0 = qacc[:, :3] - np.array(b.m.opt.gravity)
     wacc = np.random.default_rng(3).normal(size=(len(qpos), len(lay['driven'])))
-    exact = law.exact_host()
     for given in (None, wacc):
-        got = regressor.in_c(lay, b, qpos, qvel, qacc, a0, given)
+        got = regressor.in_c(lay, b, qpos, qvel, qacc, a0, given, wait=True)
         want = regressor.regressor(lay, b, qpos, qvel, qacc, a0, given)
-        same = np.array_equal(got, want) if exact else np.allclose(got, want, rtol=1e-9, atol=1e-12)
-        report.check('the regressor in C is its numpy %s, %s' % (
-            'bit for bit' if exact else 'within 1e-9',
+        same = np.array_equal(got.view(np.int64), want.view(np.int64))
+        report.check('the regressor in C is its numpy bit for bit, %s' % (
             "a motor's acceleration given" if given is not None else "its joint's own"), same,
             '%d of %d entries apart, at most %.1e' % (int((got != want).sum()), got.size,
                                                       float(np.abs(got - want).max())))

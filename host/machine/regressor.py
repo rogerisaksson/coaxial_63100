@@ -1,7 +1,7 @@
 """Her Newton-Euler regressor: tau = Y(q, v, a) theta, her drives' torques at N states of her model.
 
-Numpy's, its definition, on `sysid.laid`'s layout, and in C bit for bit (wbc_regressor.c, the same
-steps by the same names).
+Numpy's, its definition, on `sysid.laid`'s layout, and compiled from it to C bit for bit
+(`tools.cores.held`), no port between them.
 
     xpos, xmat, axis, anchor = regressor.posed(lay, body, qpos)     # her frames, MuJoCo's
     Y = regressor.regressor(lay, body, qpos, qvel, qacc, a0, wacc)  # numpy
@@ -97,26 +97,63 @@ def _tensor(w):
     return L
 
 
-def in_c(lay, body, qpos, qvel, qacc, a0, wacc=None, frames=None):
-    """`regressor` in C (wbc_regressor.c): numpy's arithmetic operation for operation, its einsums'
-    orders and its crosses' formula; bit for bit where numpy is the C's (test_sysid)."""
-    import ctypes
+def in_c(lay, body, qpos, qvel, qacc, a0, wacc=None, frames=None, wait=False):
+    """`regressor` compiled from its numpy (`tools.cores.held`): one state's program run over the
+    states, numpy's arithmetic operation for operation, its einsums' orders read off numpy's own;
+    held bit for bit as it is built, a build a layout kept. A layout not yet built is built in a
+    process of its own (`wait` till it is), numpy's own meanwhile and where this host builds none -
+    her bits the same either way; built in this one, its trace held her world 0.88 s."""
     import numpy as np
-    from tools.cores import wbc as cores
-    n, nb, nh, p = len(qpos), len(lay['bodies']), len(lay['hinge']), len(lay['names'])
-    xpos, xmat, axis, anchor = (np.ascontiguousarray(f, dtype=np.float64)
-                                for f in (posed(lay, body, qpos) if frames is None else frames))
-    if axis.shape[1:] != (nh, 3):
-        raise ValueError('wbc_regressor.c reads a hinge an axis: %d hinges, axes %s' % (nh, axis.shape))
-    kept = [np.ascontiguousarray(lay[k], dtype=np.int32).ravel() for k in ('parent', 'span', 'hinge', 'driven', 'dof')]
-    above = np.ascontiguousarray(lay['above'], dtype=np.uint8).ravel()
-    r = cores.Regressor(nb=nb, nh=nh, p=p, nv=qvel.shape[1], nd=len(lay['driven']), drive=int(lay['drive']))
-    r.parent, r.span, r.hinge, r.driven, r.dof = (a.ctypes.data for a in kept)
-    r.above = above.ctypes.data
-    qvel, qacc, a0 = (np.ascontiguousarray(x, dtype=np.float64) for x in (qvel, qacc, a0))
-    wacc = None if wacc is None else np.ascontiguousarray(wacc, dtype=np.float64)
-    Y, work = np.empty((n, nh + 6, p)), np.zeros(12 * nb + 3 * nh)
-    cores.library().wbh_regressor(ctypes.byref(r), n, xpos.ctypes.data, xmat.ctypes.data, axis.ctypes.data,
-                                  anchor.ctypes.data, qvel.ctypes.data, qacc.ctypes.data, a0.ctypes.data,
-                                  None if wacc is None else wacc.ctypes.data, Y.ctypes.data, work.ctypes.data)
-    return Y
+    arrays = [np.ascontiguousarray(f, dtype=np.float64) for f in (posed(lay, body, qpos) if frames is None else frames)]
+    arrays += [np.ascontiguousarray(x, dtype=np.float64) for x in (qvel, qacc, a0) + (() if wacc is None else (wacc,))]
+    run = _compiled(lay, wacc is not None, arrays, wait)
+    if run is None:
+        return regressor(lay, body, qpos, qvel, qacc, a0, wacc, tuple(arrays[:4]))
+    return run(*arrays)[0]
+
+
+#: Each layout's build, by the layout it was built for: (layout, its C or None, its build's process).
+_BUILT: dict = {}
+
+
+def _compiled(lay, given, arrays, wait):
+    import os
+    import sys
+    from tools.cores import held
+    key = (id(lay), given, tuple(a.shape[1:] for a in arrays))
+    made_of = (sys.modules[__name__], lay, given)
+    if key in _BUILT and _BUILT[key][0] is not lay:
+        del _BUILT[key]
+    if key not in _BUILT:
+        run, child = held.found('regressor', made_of, key[2]), None
+        if run is None and held.kept('regressor', made_of, key[2]) is None:
+            child = held.apart(__name__, 'build', (lay, given, [a[:held.STATES].copy() for a in arrays]))
+        _BUILT[key] = (lay, run, child)
+    _lay, run, child = _BUILT[key]
+    if child is not None and (wait or child[0].poll() is not None):
+        child[0].wait()
+        try:
+            os.remove(child[1])
+        except OSError:
+            pass
+        run = held.found('regressor', made_of, key[2])
+        _BUILT[key] = (lay, run, None)
+    return run
+
+
+def build(lay, given, arrays):
+    """A layout's regressor built and kept (`held.batched`) - a build apart's own work; where this
+    host builds none, kept as none."""
+    import sys
+    from tools.cores import held, trace
+
+    def per(xpos, xmat, axis, anchor, qvel, qacc, a0, *wacc):
+        import numpy as np
+        return regressor(lay, None, np.zeros((len(qvel), 1)), qvel, qacc, a0, wacc[0] if wacc else None,
+                         (xpos, xmat, axis, anchor))
+    made_of = (sys.modules[__name__], lay, given)
+    try:
+        held.batched(per, arrays, range(len(arrays)), 'regressor', made_of=made_of)
+    except (trace.Untraced, held.Parted, RuntimeError) as why:
+        print('machine.regressor: no C on this host, numpy\'s own (%s)' % why, file=sys.stderr)
+        held.refused('regressor', made_of, [a.shape[1:] for a in arrays], why)
