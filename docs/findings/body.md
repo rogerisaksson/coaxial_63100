@@ -130,6 +130,14 @@ her latent loop in [orthokinematics](orthokinematics.md).
   bit. Left in the pass: the
   python wrench step, her sensing, the wear's window 0.23 s every 4 s - it
   feeds her law (`wear.loaded`).
+- What her law sees, reviewed: her edge's array alone - an IMU in its own
+  frame, encoders, load cells, skin in each segment's frame, no place or
+  speed of hers in the world - and her own model as her estimate poses it;
+  her floor and its pitch from her soles. Her law in C is given her law's
+  arrays alone. The world is written by the drives' torques, a lay, a scene
+  and a shove; its harness is the stand's (`test_sysid`). test_structure
+  holds it, `borne`, `grip` and her law's C now among it; the fallen limp
+  took the world's joint angles where her encoders give the same bits.
 
 ## Mechanics
 

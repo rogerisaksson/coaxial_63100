@@ -273,7 +273,8 @@ def stepped(s):
         else:
             s['ys'], s['taus'] = [], []
             world.feed[:], world.rate[:] = 0.0, 0.0
-            world.target[:] += 0.05 * (world.data.qpos[world.qadr] - world.target)
+            edge.felt(world, g['sense'])
+            world.target[:] += 0.05 * (g['sense'][edge.Q] - world.target)
             g['t'] += DT
             world.advance()
     except MachineError:

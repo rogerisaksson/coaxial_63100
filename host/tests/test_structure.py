@@ -305,7 +305,10 @@ def test_motor_imports_no_board(r):
 
 #: Her law: what `machine.law` steps. It reads the world through `machine.edge` alone.
 LAW = ('law', 'se2', 'flight', 'support', 'latent', 'impedance', 'modal', 'poise', 'stride',
-       'estimate', 'wrench', 'wbc', 'reach', 'touch', 'situation')
+       'estimate', 'wrench', 'wbc', 'reach', 'touch', 'situation', 'borne', 'grip')
+#: Her law in C: the binding it is laid and called through, and the sources it runs - given her
+#: law's arrays alone, they name no world, no MuJoCo and none of its truth.
+LAW_C, LAW_C_SOURCES = ('tools/cores/law.py',), ('wbc_imp.c', 'wbc_stride.c', 'wbc_law.c', 'wbc_blas.c')
 #: What her law may not name: the world, its truth, its ids, the writes that move it, the world's
 #: own modules. Her model posed is wbc.sense's and estimate.step's alone.
 TRUTH = {'world', 'obstacle_ids', 'sill_ids', 'upper_ids', 'robot_ids', 'push_until', 'push_n',
@@ -351,8 +354,16 @@ def test_her_law_reads_her_sensors_alone(r):
         for node in ast.walk(tree):
             if _word(node) in TRUTH or set(_modules_imported(node)) & set(WORLDS):
                 named.append('%s:%d %s' % (name, getattr(node, 'lineno', 0), _word(node) or 'import'))
-    r.check("her law names none of the world's state, its ids, its shove or its modules", not named,
-            ', '.join(named[:6]))
+    for path in LAW_C:
+        for node in ast.walk(ast.parse(open(os.path.join(HOST, path), encoding='utf-8').read())):
+            if _word(node) in TRUTH or set(_modules_imported(node)) & set(WORLDS):
+                named.append('%s:%d %s' % (path, getattr(node, 'lineno', 0), _word(node) or 'import'))
+    for name in LAW_C_SOURCES:
+        text = open(os.path.join(HOST, os.pardir, 'wbc', 'src', name), encoding='utf-8').read()
+        named += ['%s %s' % (name, word) for word in ('mujoco', 'mjData', 'mjModel', 'world', 'xfrc')
+                  if word in text]
+    r.check("her law names none of the world's state, its ids, its shove or its modules - nor her law in C",
+            not named, ', '.join(named[:6]))
     r.check("only her model's posing (wbc.sense, estimate.step) writes qpos or qvel", not posed,
             ', '.join(posed[:6]))
 
