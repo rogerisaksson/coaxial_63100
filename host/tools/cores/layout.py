@@ -55,22 +55,22 @@ def fused(prog):
     written between - a MuJoCo call writes every extern. The per-element arithmetic numpy's, its
     temps gone."""
     sts = list(prog.statements)
-    writes, reads = {}, {}
+    writers, readers = {}, {}
     for k, st in enumerate(sts):
-        for b in _writes(st):
-            writes.setdefault(b.id, []).append(k)
-        for b in _reads(st):
-            reads.setdefault(b.id, []).append(k)
+        for b in writes(st):
+            writers.setdefault(b.id, []).append(k)
+        for b in reads(st):
+            readers.setdefault(b.id, []).append(k)
     outs = {r.buffer.id for r in prog.outs}
     gone = set()
     for k, st in enumerate(sts):
         if st.kind != 'ew':
             continue
         b = st.out.buffer
-        if (b.role != 'temp' or b.id in outs or writes.get(b.id) != [k]
-                or len(set(reads.get(b.id, []))) != 1 or st.out.offset != 0 or b.size != int(np.prod(st.out.shape))):
+        if (b.role != 'temp' or b.id in outs or writers.get(b.id) != [k]
+                or len(set(readers.get(b.id, []))) != 1 or st.out.offset != 0 or b.size != int(np.prod(st.out.shape))):
             continue
-        j = reads[b.id][0]
+        j = readers[b.id][0]
         use = sts[j]
         if use.kind != 'ew' or use.out.shape != st.out.shape:
             continue
@@ -79,12 +79,12 @@ def fused(prog):
             continue
         read = {leaf[1].buffer.id for leaf in leaves(st.args)}
         theirs = any(prog.buffers[i].role == 'extern' for i in read)
-        if any((theirs and sts[i].kind == 'mj') or read & {x.id for x in _writes(sts[i])}
+        if any((theirs and sts[i].kind == 'mj') or read & {x.id for x in writes(sts[i])}
                for i in range(k + 1, j) if i not in gone):
             continue
         sts[j] = type(use)(use.kind, use.out, _put(use.args, st.out, st.args), use.value, use.where)
         for leaf in leaves(st.args):
-            reads.setdefault(leaf[1].buffer.id, []).append(j)
+            readers.setdefault(leaf[1].buffer.id, []).append(j)
         gone.add(k)
     return [st for k, st in enumerate(sts) if k not in gone]
 
@@ -143,14 +143,14 @@ def _merged(free):
     return out
 
 
-def _writes(st):
+def writes(st):
     """The buffers a statement writes: its own, a MuJoCo call's buffers not const."""
     if st.kind == 'mj':
         return [k[1].buffer for k in st.args[1] if k[0] == 'buf' and not k[2]]
     return [st.out.buffer]
 
 
-def _reads(st):
+def reads(st):
     """The buffers a statement reads."""
     if st.kind == 'ew':
         return [leaf[1].buffer for leaf in leaves(st.args)]
@@ -168,4 +168,4 @@ def _reads(st):
 
 
 def touched(st):
-    return _writes(st) + _reads(st)
+    return writes(st) + reads(st)

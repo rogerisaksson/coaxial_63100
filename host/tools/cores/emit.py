@@ -15,6 +15,8 @@ The inputs one block in their order, the outputs one in theirs (`blocks`; over n
 array's n together), the workspace, each extern's address, numpy's BLAS, her model and data, the
 MuJoCo functions `prog.calls` names.
 """
+import itertools
+
 import numpy as np
 
 from tools.cores.layout import blocks, cstrides, fused, lay, leaves, same_ref
@@ -143,40 +145,51 @@ def _tree(w, node, idx):
 
 
 def _einsum(w, st, order):
-    ops, out, c = letters(st)
-    refs = st.args[1]
-    J = dict(zip(''.join(ops), sum((list(np.shape(v)) for v in st.args[2]), [])))[c]
+    """An einsum in `order` (`orders.ordered`): each run along its inner summed letter in its lanes,
+    added to the output in turn over the outer ones, unrolled."""
+    (perm, inner), (ops, out, _c), refs = order, letters(st), st.args[1]
+    sizes = dict(zip(''.join(ops), sum((list(np.shape(v)) for v in st.args[2]), [])))
+    if any(isinstance(r, tuple) for r in refs):
+        raise Untraced('einsum on a constant operand (%s)' % st.where)
 
-    def inner(idx):
-        place = dict(zip(out, idx))
+    def run(place):
         terms = []
-        for j in range(J):
-            factors = []
-            for letters, r in zip(ops, refs):
-                if isinstance(r, tuple):
-                    raise Untraced('einsum on a constant operand (%s)' % st.where)
-                sub = [place[x] if x != c else str(j) for x in letters]
-                factors.append(w.ref(r, sub))
+        for j in range(sizes[perm[-1]]):
+            at = dict(place, **{perm[-1]: str(j)})
+            factors = [w.ref(r, [at[x] for x in lets]) for lets, r in zip(ops, refs)]
             terms.append(' * '.join(factors) if len(factors) < 3 else '(' + ' * '.join(factors[:2]) + ') * ' + factors[2])
-        target = w.ref(st.out, idx)
-        if order == 'seq':
-            expr = '0.0'
-            for t in terms:
-                expr = '(%s + %s)' % (expr, t)
-            return ['%s = %s;' % (target, expr)]
-        v = int(order[5:])
-        lanes, t = ['0.0'] * v, 0
-        while J - t >= 4 * v:
-            lanes = ['((((%s + %s) + %s) + %s) + %s)' % (lanes[k], terms[t + 3 * v + k], terms[t + 2 * v + k],
-                                                       terms[t + v + k], terms[t + k]) for k in range(v)]
-            t += 4 * v
-        while t < J:
-            lanes = ['(%s + %s)' % (lanes[k], terms[t + k] if t + k < J else '0.0') for k in range(v)]
-            t += v
-        across = '(%s + %s)' % (lanes[0], lanes[1]) if v == 2 else '((%s + %s) + (%s + %s))' % (
-            lanes[0], lanes[2], lanes[1], lanes[3])
-        return ['%s = 0.0 + %s;' % (target, across)]
-    return w.loops(st.out.shape, inner)
+        return _summed(terms, inner)
+
+    def element(idx):
+        place, outer = dict(zip(out, idx)), perm[:-1]
+        if not outer:
+            got = run(place)
+            return ['%s = %s;' % (w.ref(st.out, idx), got if inner == 'seq' else '0.0 + ' + got)]
+        acc = '0.0'
+        for combo in itertools.product(*[range(sizes[x]) for x in outer]):
+            acc = '(%s + %s)' % (acc, run(dict(place, **{x: str(v) for x, v in zip(outer, combo)})))
+        return ['%s = %s;' % (w.ref(st.out, idx), acc)]
+    return w.loops(st.out.shape, element)
+
+
+def _summed(terms, order):
+    """A run of terms summed in `order` (`orders.summed`): a chain from zero, or SIMD lanes across."""
+    if order == 'seq':
+        expr = '0.0'
+        for t in terms:
+            expr = '(%s + %s)' % (expr, t)
+        return expr
+    v, J = int(order[5:]), len(terms)
+    lanes, t = ['0.0'] * v, 0
+    while J - t >= 4 * v:
+        lanes = ['((((%s + %s) + %s) + %s) + %s)' % (lanes[k], terms[t + 3 * v + k], terms[t + 2 * v + k],
+                                                   terms[t + v + k], terms[t + k]) for k in range(v)]
+        t += 4 * v
+    while t < J:
+        lanes = ['(%s + %s)' % (lanes[k], terms[t + k] if t + k < J else '0.0') for k in range(v)]
+        t += v
+    return '(%s + %s)' % (lanes[0], lanes[1]) if v == 2 else '((%s + %s) + (%s + %s))' % (
+        lanes[0], lanes[2], lanes[1], lanes[3])
 
 
 def _reduce(w, _prog, st):
@@ -246,8 +259,14 @@ def _fill(w, _prog, st):
 
 
 def _elementwise(w, _prog, st):
-    if any(leaf[1].buffer is st.out.buffer and not same_ref(leaf[1], st.out) for leaf in leaves(st.args)):
-        raise Untraced('an elementwise write over what it reads, elsewhere in it (%s)' % st.where)
+    """Each element of its tree: refused where it reads what it writes but at another element."""
+    written = None
+    for leaf in leaves(st.args):
+        if leaf[1].buffer is st.out.buffer and not same_ref(leaf[1], st.out):
+            written = st.out.addresses() if written is None else written
+            read = leaf[1].addresses()
+            if np.isin(read, written).any() and not np.array_equal(read, written):
+                raise Untraced('an elementwise write over what it reads, elsewhere in it (%s)' % st.where)
     return w.loops(st.out.shape, lambda idx: ['%s = %s;' % (w.ref(st.out, idx), _tree(w, st.args, idx))])
 
 

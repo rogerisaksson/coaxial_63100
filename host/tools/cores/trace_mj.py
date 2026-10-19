@@ -1,7 +1,7 @@
 """Her MuJoCo as a trace sees it (`tools.cores.trace`): her body's model, data and scratch, her calls.
 
-    prog, got = trace.traced(wbc.sense, (twin(b), qpos, qvel), (1, 2), wrap=wrap(0))
-    ext, model, data = bound(prog, b)                  # at call time, her own body's
+    prog, got = trace.traced(wbc.sense, (t, qpos, qvel), (1, 2), wrap=lambda prog, a: [Body(prog, t)] + a[1:])
+    arrays, model, data = bound(prog, b)               # at call time, her own body's (t = twin(b))
 
 Her data's arrays and her body's scratch (SCRATCH) are externs: memory MuJoCo's and hers, addressed
 at call time. A MuJoCo function her code calls runs as it is and stands an 'mj' statement: in C the
@@ -133,15 +133,6 @@ def _contiguous(r):
     return True
 
 
-def wrap(at):
-    """`trace.traced`'s wrap: the argument at `at`, her body, traced (Body)."""
-    def wrapped(prog, args):
-        args = list(args)
-        args[at] = Body(prog, args[at])
-        return args
-    return wrapped
-
-
 def twin(b):
     """Her body with a MjData and scratch of its own: traced and held on, hers untouched."""
     t = copy.copy(b)
@@ -153,15 +144,17 @@ def twin(b):
 
 
 def bound(prog, b):
-    """Her body `b` as the C addresses it: (each extern's array as `prog.externs` lists them, her
-    model's address, her data's) - Untraced where an array is not as traced."""
+    """Her body `b` as the C addresses it: ([(each of her body's externs' place in `prog.externs`, its
+    array)], her model's address, her data's) - Untraced where an array is not as traced."""
     arrays = []
-    for e in prog.externs:
-        kind, name = e.name.split('.', 1)
+    for i, e in enumerate(prog.externs):
+        kind, _dot, name = e.name.partition('.')
+        if kind not in ('d', 'b') or not _dot:
+            continue
         arr = getattr(b.d if kind == 'd' else b, name)
         if arr.shape != e.shape or arr.dtype != np.float64 or not arr.flags.c_contiguous:
             raise Untraced('%s is %s %s, traced %s' % (e.name, arr.dtype, arr.shape, e.shape))
-        arrays.append(arr)
+        arrays.append((i, arr))
     return arrays, b.m._address, b.d._address
 
 

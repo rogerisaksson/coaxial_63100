@@ -219,6 +219,10 @@ class Traced:
         shape = target.shape
         if isinstance(value, Traced):
             if value.buffer is self.buffer:
+                held = value.ref()
+                if isinstance(target, Ref) and (held.offset, held.strides, held.shape) == (
+                        target.offset, target.strides, target.shape):
+                    return
                 raise Untraced('a write from the array it writes at %s' % where())
             self.view[key] = value.view
             self.prog.add('scatter', Ref(self.buffer, 0, (), ()), (target, value.buffer, value.ref().broadcast(shape)))
@@ -443,9 +447,10 @@ def leaves_of(shape, tree, out=None):
     return out
 
 
-def traced(fn, args, inputs, kwargs=None, wrap=None):
+def traced(fn, args, inputs, kwargs=None, wrap=None, after=None):
     """(the Program, fn's own result) of `fn(*args, **kwargs)`, the arrays at `inputs` traced: numpy's
-    makers patched for her code's own calls in this thread while it runs - another thread's, numpy's."""
+    makers patched for her code's own calls in this thread while it runs - another thread's, numpy's.
+    `wrap(prog, args)` the arguments as traced, `after(prog, args)` once fn has run."""
     prog = Program()
     args = list(args)
     for k in inputs:
@@ -472,6 +477,8 @@ def traced(fn, args, inputs, kwargs=None, wrap=None):
             for name in MAKERS:
                 setattr(np, name, maker(name))
             got = fn(*args, **(kwargs or {}))
+            if after is not None:
+                after(prog, args)
         finally:
             for name, real in kept.items():
                 setattr(np, name, real)

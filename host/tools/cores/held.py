@@ -107,27 +107,20 @@ def blas():
 
 
 def compiled(fn, args, inputs, name, fresh=2, seed=1):
-    """`fn(*args)` compiled for the arrays at `inputs` (their shapes as traced, the rest of `args` as
-    they are): a callable of those arrays returning fn's own result (the C's), held against numpy's
-    own on the traced arrays and on `fresh` draws of new ones - Parted where any element differs."""
-    from tools.cores.bodied import Bound
+    """`fn(*args)` compiled for the arrays at `inputs` (`bodied.on_args`), built and held now on the
+    traced arrays and `fresh` draws: a callable of those arrays returning fn's own result, its C's -
+    Parted where any element differs."""
+    from tools.cores import bodied
     inputs = list(inputs)
-    prog, _got = trace.traced(fn, args, inputs)
-    if prog.externs or prog.calls:
-        raise trace.Untraced('%s reads memory not its arrays: compiled on her body (on_body)' % name)
-    source, info = emit.c(prog, name)
-    lib, cfn = loaded(built(source, name, matmuls(prog)), name)
-    c = Bound(lib, cfn, prog, info)
-    c.bind(None)
-    shapes = [b.root.shape for b in prog.ins]
+    fn_c = bodied.on_args(fn, name, inputs, fresh, seed)
+    c = fn_c.wait(*args)
 
     def run(*arrays):
-        if [np.shape(a) for a in arrays] != shapes:
-            raise ValueError('%s was compiled for %s, given %s' % (name, shapes, [np.shape(a) for a in arrays]))
-        return c(arrays)
-
-    held(run, fn, args, inputs, shapes, fresh, seed, name, prog)
-    run.lib, run.source, run.info, run.prog = lib, source, info, prog
+        full = list(args)
+        for k, a in zip(inputs, arrays):
+            full[k] = a
+        return fn_c(*full)
+    run.lib, run.prog = c.lib, c.prog
     return run
 
 

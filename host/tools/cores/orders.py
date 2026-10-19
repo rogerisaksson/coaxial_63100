@@ -1,7 +1,12 @@
 """The order numpy sums an einsum's terms in, read off its own result (`tools.cores.emit`'s einsums).
 
-    order = orders.ordered(st)      # 'seq', 'lanes2' or 'lanes4': the first whose sums are numpy's bits
+    perm, inner = orders.ordered(st)    # the summed letters outer to inner; 'seq', 'lanes2' or 'lanes4'
+
+Each run along the innermost summed index summed in `inner` (numpy's sum_of_products), added to the
+output in turn over the outer ones.
 """
+import itertools
+
 import numpy as np
 
 from tools.cores.trace import Untraced
@@ -41,20 +46,20 @@ def summed(P, order):
 
 
 def letters(st):
-    """(each operand's letters, the output's, the one letter summed) of an einsum statement."""
+    """(each operand's letters, the output's, the letters summed) of an einsum statement."""
     subscripts = st.args[0].replace(' ', '')
     ins, out = subscripts.split('->')
     ops = ins.split(',')
     contracted = sorted(set(''.join(ops)) - set(out))
-    if len(contracted) != 1 or any(len(set(o)) != len(o) for o in ops):
-        raise Untraced('einsum %r: one index summed, none repeated in an operand (%s)' % (subscripts, st.where))
-    return ops, out, contracted[0]
+    if not contracted or any(len(set(o)) != len(o) for o in ops):
+        raise Untraced('einsum %r: an index summed, none repeated in an operand (%s)' % (subscripts, st.where))
+    return ops, out, contracted
 
 
-def products(st):
-    """The einsum's terms (out..., J), numpy's products left to right."""
-    ops, out, c = letters(st)
-    full = out + c
+def products(st, perm):
+    """The einsum's terms (out..., the summed letters of `perm` in its order), numpy's products left to right."""
+    ops, out, _c = letters(st)
+    full = out + ''.join(perm)
     factors = []
     for lets, value in zip(ops, st.args[2]):
         axes = [lets.index(x) for x in full if x in lets]
@@ -66,11 +71,25 @@ def products(st):
     return P
 
 
+def grouped(P, n, inner):
+    """P (..., n summed axes)'s terms: each run along the last summed in `inner`, added to zero in
+    turn over the outer ones in order."""
+    if n == 1:
+        return summed(P, inner)
+    acc = np.zeros(P.shape[:-n])
+    for idx in itertools.product(*[range(m) for m in P.shape[-n:-1]]):
+        acc = acc + summed(P[(Ellipsis,) + idx + (slice(None),)], inner)
+    return acc
+
+
 def ordered(st):
-    """The order numpy summed an einsum's terms in, as its result shows: the first of ORDERS its
-    values are bit for bit; a plain sum where the terms cannot tell (one term, or zeros)."""
-    P = products(st)
-    found = [o for o in ORDERS if same(summed(P, o), st.value)]
-    if not found:
-        raise Untraced('einsum %r in no order numpy sums in (%s)' % (st.args[0], st.where))
-    return 'seq' if 'seq' in found else found[0]
+    """(the summed letters outer to inner, the inner run's order) numpy summed an einsum's terms in,
+    as its result shows: the first permutation with an order of ORDERS bit for bit, a plain sum where
+    the terms cannot tell."""
+    _ops, _out, contracted = letters(st)
+    for perm in itertools.permutations(contracted):
+        P = products(st, perm)
+        found = [o for o in ORDERS if same(grouped(P, len(perm), o), st.value)]
+        if found:
+            return perm, 'seq' if 'seq' in found else found[0]
+    raise Untraced('einsum %r in no order numpy sums in (%s)' % (st.args[0], st.where))

@@ -76,3 +76,4 @@ identification. Her figure: [kinematics](kinematics.md); her drives:
 | `test_wear.py` | on-line: a load read walking, a knee's friction and a hip's torque named; a box's play |
 | `test_errands.py` | errands: a stop settles, F heard, a new scene walked |
 | `test_sysid_live.py` | her identification off the stand: her model held to her walk on a world off the figure; her weight and its moments standing on her insoles |
+| `test_compiled.py` | her numpy compiled to C (`tools.cores.bodied`) beside numpy's own: its reductions and ties of zeros, her state in place, her sensing at random configurations, her law's compiled parts at every pass walking |

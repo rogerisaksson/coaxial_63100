@@ -70,14 +70,14 @@ def gripped(out, held, stance, caps, into):
     further to her going no faster than sqrt(2 STRIDE_M grip g) on her standing soles' grip
     (`held`) - a stride she can stop within: 0.77 m/s on ice (0.1), 1.9 at her law's own 0.6.
     Asked 0.69 on ice at 0.02 she ran on and fell at 3.0-3.4 s."""
-    grip_now = float(((stance + 1e-9) / (stance.sum() + 2e-9)) @ held)
+    grip_now = ((stance + 1e-9) / (stance.sum() + 2e-9)) @ held
     sway = np.abs(out[latent.SWAY])
     under = into[:, None]
     capped = np.where(np.isnan(caps), 1.0, np.minimum(1.0, np.nan_to_num(caps) / np.maximum(sway, 1e-9)))
     k = np.min(1.0 - under + under * capped, axis=0, initial=1.0)
-    turns = float(out[latent.TURNS])
-    cruise = 2.0 / math.pi * stride.STRIDE_M * float(sway[modal.DRIVE] * k[modal.DRIVE]) * math.sin(stride.PHI_W) * turns
-    k[modal.DRIVE] *= min(1.0, math.sqrt(2.0 * stride.STRIDE_M * grip_now * modal.G) / max(cruise, 1e-9))
+    turns = out[latent.TURNS]
+    cruise = 2.0 / math.pi * stride.STRIDE_M * (sway[modal.DRIVE] * k[modal.DRIVE]) * math.sin(stride.PHI_W) * turns
+    k[modal.DRIVE] *= np.minimum(1.0, np.sqrt(2.0 * stride.STRIDE_M * grip_now * modal.G) / np.maximum(cruise, 1e-9))
     sine = out[latent.SWAY] * np.sin(out[latent.PSI])
     out[latent.REF] += (k - 1.0) * sine
     out[latent.RATE] += (k - 1.0) * out[latent.SWAY] * turns * np.cos(out[latent.PSI])
@@ -131,7 +131,7 @@ def control(g, dt):
     body, ev, y_in = g['body'], g['every'], g['sense']
     g['t_law'] = g['t']
     s = g['s'] = seen(g, dt * ev)
-    g['grip'] = grip.felt(g['grip'], g['grip_seen'], body.d.xmat[g['grip_at']].reshape(2, 2, 3, 3),
+    g['grip'] = g['felt'](g['grip'], g['grip_seen'], body.d.xmat[g['grip_at']].reshape(2, 2, 3, 3),
                           y_in[edge.TOUCH].reshape(-1, 3),
                           g['est']['slip'], float(g['fr'][modal.WEIGHT]), dt * ev, g['grip_prior'],
                           (y_in[edge.LOAD] >= flight.TOUCH_N) & ~np.array(g.get('bore', (True, True))))
@@ -160,7 +160,7 @@ def control(g, dt):
         out = _step_latent(g, 0.0)
     g['_last_way'] = cw
     se2.step_physical_twist(g, dt * ev, out)
-    gripped(out, g['held'], g['a'][modal.STANCE], g['situations']['caps'], g['into'])
+    g['gripped'](out, g['held'], g['a'][modal.STANCE], g['situations']['caps'], g['into'])
     cur_doing = se2.doing(g)
     touch.check_contacts(g, out, cur_doing)
     ae, tw = g.get('active_entry'), g.get('twist', (0.0, 0.0, 0.0))
@@ -208,8 +208,11 @@ def laid(g):
     pointing at `g`'s arrays once - the observers, the setpoints and their rates, the holds, the
     knees' spring, the feed and the clamps her drives are told (`g['cmd']`) - and what it reads
     by, kept beside it. Her latent step, her upper body's coupling and her ask in C, her python's
-    bit for bit (`tools.cores.law`)."""
-    from tools.cores import law as c_law, wbc as cores
+    bit for bit (`tools.cores.law`); her grip's feel and her drive's cap compiled from their numpy
+    (`tools.cores.bodied`)."""
+    from tools.cores import bodied, law as c_law, wbc as cores
+    g['felt'] = bodied.on_args(grip.felt, 'felt', (0, 1, 2, 3, 4, 5, 7, 8))
+    g['gripped'] = bodied.on_args(gripped, 'gripped', (0, 1, 2, 3, 4))
     g['impedance'] = functools.partial(c_law.asked, *c_law.laid())
     laid_ = c_law.latent_laid()
     g['latent'], g['couple'] = functools.partial(c_law.stepped, laid_), functools.partial(c_law.coupled, laid_)

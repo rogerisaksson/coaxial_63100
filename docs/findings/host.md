@@ -308,3 +308,11 @@ Pages, tooling, suites and the local model's runner. The board's findings:
   minpd), Python's max and min the first, its clip x; `wbc_np.h`'s `npmax`
   and `npmin` Python's, `npmaximum` and `npminimum` numpy's. Compiled, 38
   statements of them bit for bit (`test_compiled`).
+- Her law's functions compiled on her memory (`bodied.on_args`): each array
+  given an extern in its own memory - `grip.felt`'s `seen` and
+  `law.gripped`'s `out` written where Python writes them -, a dict's entry
+  rebound written back, a number traced, the rest pinned; an einsum over two
+  summed indices numpy's (`kjab,kjb->ka`: j outer, each run over b in SSE's
+  two lanes, 500 of 500 draws). `grip.felt` 51 -> 16 us a call; her walk 797
+  -> 696 us a pass with her sensing, felt, gripped and the step's pointers,
+  the two in one process pass by pass, her trajectory the same to the bit.
