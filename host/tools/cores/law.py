@@ -308,11 +308,19 @@ def wrench_laid(b):
         setattr(k, 'w_' + name.lower(), getattr(wrench, 'W_' + name))
     k.posture_kd[:], k.swing_kd[:], k.turn_kd[:] = law.POSTURE_KD, law.SWING_KD, law.TURN_KD
     k.blas = numpy_blas()
-    return functools.partial(_stepped, k, step)
+    views = {name: np.ctypeslib.as_array(getattr(k, name)) for name in VIEWED}
+    return functools.partial(_stepped, k, step, views)
 
 
-def _stepped(k, step, b, s, ask):
-    """wrench.step(b, s, ask) on the laid `k`: what `s` senses and `ask` asks pointed at or copied."""
+#: The step's fields read and written through numpy views of the struct's own memory.
+VIEWED = ('stance', 'com_acc', 'turn', 'kdot', 'settle', 'edge', 'mus', 'swing', 'fold', 'swing_at', 'swing_speed',
+          'swing_acc', 'swing_quat', 'fold_knee', 'fold_rate', 'fold_acc', 'tau', 'qacc', 'bears', 'cop', 'forces',
+          'load', 'cop_none', 'over')
+
+
+def _stepped(k, step, v, b, s, ask):
+    """wrench.step(b, s, ask) on the laid `k`: what `s` senses pointed at, what `ask` asks copied
+    through `v`, its fields' views."""
     from machine import wbc as law
     kept = []
 
@@ -332,40 +340,36 @@ def _stepped(k, step, b, s, ask):
     k.nc = len(contacts)
     for at_, c in enumerate(contacts):
         k.cJ[at_], k.cp[at_], k.cdJv[at_], k.cf[at_] = (at(c[name]) for name in ('J', 'p', 'dJv', 'f'))
-    k.stance[0], k.stance[1] = (int(bool(x)) for x in ask['stance'])
-    k.com_acc[:] = [float(x) for x in ask['com_acc']]
+    v['stance'][:] = [bool(x) for x in ask['stance']]
+    v['com_acc'][:] = ask['com_acc']
     turns = ask.get('turns', ())
     k.nturns = len(turns)
     for t, quat in enumerate(turns):
-        k.turn[t][:] = [float(x) for x in quat]
+        v['turn'][t] = quat
     kdot = ask.get('kdot')
     k.kdot_given = int(kdot is not None)
     if kdot is not None:
-        k.kdot[:] = [float(x) for x in kdot]
-    settle = np.asarray(ask.get('settle', np.zeros((2, 6))), float)
-    for side in range(2):
-        k.settle[side][:] = settle[side].tolist()
-    k.edge[:] = [float(x) for x in ask.get('edge', (0.0, 0.0))]
-    k.mus[:] = [float(x) for x in ask.get('mu', (law.MU, law.MU))]
+        v['kdot'][:] = kdot
+    v['settle'][:] = ask.get('settle', 0.0)
+    v['edge'][:] = ask.get('edge', (0.0, 0.0))
+    v['mus'][:] = ask.get('mu', (law.MU, law.MU))
     k.strides, k.borne = float(ask.get('strides', 0.0)), float(ask.get('borne', 0.0))
     swing, fold = ask.get('swing', {}), ask.get('fold', {})
     for side in range(2):
-        k.swing[side] = int(side in swing)
+        v['swing'][side] = side in swing
         if side in swing:
-            place, speed, acc, quat = swing[side]
-            k.swing_at[side][:], k.swing_speed[side][:] = [float(x) for x in place], [float(x) for x in speed]
-            k.swing_acc[side][:], k.swing_quat[side][:] = [float(x) for x in acc], [float(x) for x in quat]
-        k.fold[side] = int(side in fold)
+            v['swing_at'][side], v['swing_speed'][side], v['swing_acc'][side], v['swing_quat'][side] = swing[side]
+        v['fold'][side] = side in fold
         if side in fold:
-            k.fold_knee[side], k.fold_rate[side], k.fold_acc[side] = (float(x) for x in fold[side])
+            v['fold_knee'][side], v['fold_rate'][side], v['fold_acc'][side] = fold[side]
     k.wep = int(bool(ask.get('wep')))
     k.posture = at(ask['posture'])
     k.derate = at(np.broadcast_to(np.asarray(ask.get('derate', 1.0), float), (k.nd,)))
     k.clamp, k.wep_nm, k.mass = at(b.clamp), at(b.wep), b.mass
     if step(ctypes.byref(k)):
         raise np.linalg.LinAlgError('Singular matrix')
-    nd, cop = k.nd, [None if k.cop_none[side] else np.array(list(k.cop[side])) for side in range(k.cop_n)]
-    b.load = np.array(k.load[:nd])
-    return {'tau': np.array(k.tau[:nd]), 'qacc': np.array(k.qacc[:k.n]), 'bears': list(k.bears), 'cop': cop,
-            'over': np.array(k.over[:nd], bool), 'slack': [], 'held': (),
-            'borne': np.array([list(k.forces[at_]) for at_ in range(k.nc)]).reshape(-1, 3), 'scale': k.scale}
+    nd, cop = k.nd, [None if v['cop_none'][side] else v['cop'][side].copy() for side in range(k.cop_n)]
+    b.load = v['load'][:nd].copy()
+    return {'tau': v['tau'][:nd].copy(), 'qacc': v['qacc'][:k.n].copy(), 'bears': v['bears'].tolist(), 'cop': cop,
+            'over': v['over'][:nd].astype(bool), 'slack': [], 'held': (),
+            'borne': v['forces'][:k.nc].reshape(-1, 3).copy(), 'scale': k.scale}

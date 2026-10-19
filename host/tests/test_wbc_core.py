@@ -345,10 +345,10 @@ def test_her_law_in_c_is_her_python_s(report, c, b, rows):
         dq = kept[2](laid_, q, qd, ref_q, ref_v, eso_z, out)
         check('coupling', (dq, eso_z, out), (dq_w, eso_w, out_w))
         return dq
-    def solved(k, step, b, s, ask):
+    def solved(k, step, v, b, s, ask):
         want = wrench.step(b, s, ask)
         load = b.load.copy()
-        got = kept[3](k, step, b, s, ask)
+        got = kept[3](k, step, v, b, s, ask)
         fields = ('tau', 'qacc', 'bears', 'over', 'borne', 'scale')
         cops = [(x, y) for x, y in zip(got['cop'], want['cop']) if x is not None and y is not None]
         nones = [np.array([x is None for x in cop], float) for cop in (got['cop'], want['cop'])]
