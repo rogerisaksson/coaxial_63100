@@ -314,7 +314,8 @@ def test_docs_name_only_the_tree(r):
         for m in DOC_REF.finditer(text):
             mod = m.group(1)
             if mod:
-                target = os.path.join(host_dir, 'machine', mod + '.py')
+                base = os.path.join(host_dir, 'machine', mod)
+                target = os.path.join(base, '__init__.py') if os.path.isdir(base) else base + '.py'
             else:
                 tok = m.group(0)
                 if tok.startswith('test_'):

@@ -15,7 +15,7 @@ def _routine():
     sky, core, law = aerobat.Sky(airfield.solids()), aerobat.Core(), aerokin.fresh()
     sky.stand(False)
     route = aerobatics.routine(aerobat.CARD)
-    for k in range(int(140.0 / dt)):
+    for k in range(int(160.0 / dt)):
         stage, row = aerobatics.fly(route, k * dt, ('held', 'fit') if law['held'] else ('fit',))
         state = sky.state()
         ans = core.step(law, row, state, dt, aerobat.PULL_MAX)
@@ -63,16 +63,17 @@ def test_aerobat_routine(report):
 
 
 def test_aerobat_airfield_laps(report):
-    """The aerobat laps its airfield's gate course in gusty wind through every gate's opening,
-    and lands on its runway along it."""
+    """The aerobat laps its airfield's course in gusty wind - through the air gate, under the
+    limbo bar, up through the hoop, round each pylon on its line's side, through the knife gate
+    on its side - and lands on its runway along it."""
     from machine import aerobat, aerobatics, aerokin, airfield, pull, quad
-    dt, tick, half = 0.02, 0.002, airfield.GATE_M / 2.0
+    dt, tick, foot = 0.02, 0.002, aerobat.SKID_M + aerobat.FOOT_M
     sky, core, law = aerobat.Sky(airfield.solids()), aerobat.Core(), aerokin.fresh()
     route, air = aerobatics.routine(airfield.CARD), quad.air(7, 'gusty')
     top = aerobat.K_THRUST * pull.held(pull.I_MAX) ** 2 / aerobat.MASS_KG
     stages, misses, crossed = [], [], 0
     sides: list[bool | None] = [None] * len(airfield.GATES)
-    for k in range(int(110.0 / dt)):
+    for k in range(int(130.0 / dt)):
         st = sky.state()
         route['seen'] = dict(aerokin.seen(law, st, dt, aerobat.COURSE_SPHERE, top), spent=False)
         stage, row = aerobatics.fly(route, k * dt, ('held', 'fit') if law['held'] else ('fit',))
@@ -83,14 +84,19 @@ def test_aerobat_airfield_laps(report):
             ans = core.step(law, row, sky.state(), tick, aerobat.COURSE_SPHERE, None, along)
             quad.blown(air, tick)
             sky.step(ans.speeds + ans.controls, tick, air)
-        x, y, z = (float(v) for v in sky.state()['at'])
-        for g, (gx, gy, gz, heading, _size) in enumerate(airfield.GATES):
+        st = sky.state()
+        (x, y, z), belly = (float(v) for v in st['at']), abs(float(st['turn'][1][2]))
+        for g, (gx, gy, gz, heading, wide, high) in enumerate(airfield.GATES):
             s, c = math.sin(math.radians(heading)), math.cos(math.radians(heading))
-            side = (x - gx) * s + (z - gz) * c > 0.0
-            across = (x - gx) * c - (z - gz) * s
-            if sides[g] is False and side and abs(across) < 2.0 * airfield.GATE_M:
+            side, across = (x - gx) * s + (z - gz) * c > 0.0, (x - gx) * c - (z - gz) * s
+            if sides[g] is False and side and abs(across) < 10.0:
                 crossed += 1
-                misses += [g] * int(abs(across) > half - aerobat.HALF_M or y > airfield.GATE_M - 0.3)
+                lx, lz = airfield.placed(*airfield.TRACK[int(airfield.S_GATES[g])][:2])
+                kept = ((lx - gx) * c - (lz - gz) * s) * across > 0.0 and abs(across) > wide / 2 + aerobat.HALF_M
+                knife = wide == airfield.SLOT_M
+                inside = (abs(across) < wide / 2 - (0.3 if knife else aerobat.HALF_M)
+                          and gy - high / 2 + 0.3 < st['h'] + foot < gy + high / 2 - 0.3 and (belly < 0.25 or not knife))
+                misses += [g] * int(not (kept if wide == airfield.PYLON_M else inside))
             sides[g] = side
         if sky.hit is not None or (len(stages) > 3 and stage == 'idle'):
             break
@@ -99,7 +105,8 @@ def test_aerobat_airfield_laps(report):
     report.check('aerobat laps its airfield in gusty wind through every gate and lands on its runway',
                  sky.hit is None and route['lap']['laps'] == airfield.LAPS and not misses
                  and crossed >= airfield.LAPS * len(airfield.GATES) and stages[-2:] == ['land', 'idle']
-                 and st['h'] < 0.025 and math.hypot(*st['vel']) < 0.03 and -aerobat.RUNWAY_M < ahead < 0.0
+                 and st['h'] < 0.025 and math.hypot(*st['vel']) < 0.03
+                 and airfield.RUNWAY_ALONG[0] < ahead < airfield.RUNWAY_ALONG[1]
                  and law['heading'][0] * rc + law['heading'][1] * rs > 0.98,
                  'hit %s, laps %s, crossed %d, missed %s, %s, %.1f m along' % (
                      sky.hit, route['lap']['laps'], crossed, misses, stages[-2:], ahead))

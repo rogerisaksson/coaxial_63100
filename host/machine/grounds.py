@@ -73,13 +73,14 @@ def sized():
             tuple(v if k in angles else size * v for k, v in enumerate(row)) for row in _SET[name])
 
 
-def gate(x, y, z, heading, size=None):
-    """A gate's edges, [(an end, the other)]: its opening's frame, `size` square to its
-    heading, the floor under it at the lowest, on two posts."""
+def gate(x, y, z, heading, size=None, high=None):
+    """A gate's edges, [(an end, the other)]: its opening's frame, `size` wide square to its
+    heading and `high` tall (`size`), the floor under it at the lowest, on two posts."""
     c, s = math.cos(math.radians(heading)), math.sin(math.radians(heading))
     half = (GATE_M if size is None else size) / 2
+    up = half if high is None else high / 2
     frame = [(x + a * c, max(0.0, y + b), z - a * s)
-             for a, b in ((-half, -half), (half, -half), (half, half), (-half, half))]
+             for a, b in ((-half, -up), (half, -up), (half, up), (-half, up))]
     return list(zip(frame, frame[1:] + frame[:1])) + [(p, (p[0], 0.0, p[2])) for p in frame[:2]]
 
 

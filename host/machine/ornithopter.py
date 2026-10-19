@@ -15,8 +15,9 @@ import os
 
 from machine import aerokin, aerolisp, pull, quad
 from machine.aerobatics import HOVER
-from machine.helicopter import (Answer, _course_rate, _init_sky, _observe_wind_spin,
-                                _smooth_target, _so3_torques, _stunt_step, _turn_heading)
+from machine.helicopter.kit import (Answer, _course_rate, _observe_wind_spin, _smooth_target, _so3_torques,
+                                    _stunt_step, _turn_heading)
+from machine.helicopter.sky import _init_sky
 from machine.quad import STEP_S, inflow, wind_at
 
 LISP_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'ornithopter.lisp')

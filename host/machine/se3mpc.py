@@ -128,13 +128,14 @@ class Batch:
         c_l = (1.0 - flat) * c_lin + flat * 2.0 * sa * ca
         c_d = (1.0 - flat) * k['cdl'] * c_lin * c_lin + flat * 2.0 * sa * sa
         q = on * 0.5 * k['rho'] * k['area'] * v2
-        dirn = (uy[:, None] * nose + uz[:, None] * belly) / xp.sqrt(xp.maximum(v2, 1e-12))[:, None]
+        sp = xp.sqrt(xp.maximum(v2, 1e-12))[:, None]
+        dirn, up = (uy[:, None] * nose + uz[:, None] * belly) / sp, (uz[:, None] * nose - uy[:, None] * belly) / sp
         ux = (air * span).sum(1)
         slip = -k['rho'] * k['side'] * speed * ux
         cl_eff = 0.12 * k['cla_a'] * (xp.abs(throt) + k['share'] * xp.hypot(elev, ail))
         cda = k['cda'] + k['area_a'] * (k['cd0'] + k['cdi'] * cl_eff * cl_eff)
         drag = (0.5 * k['rho'] * cda * speed)[:, None] * air
-        force = (lift[:, None] * nose - (q * c_l)[:, None] * belly - (q * c_d)[:, None] * dirn
+        force = (lift[:, None] * nose + (q * c_l)[:, None] * up - (q * c_d)[:, None] * dirn
                  + slip[:, None] * span - drag)
         force[:, 1] -= k['m'] * k['g']
         qw, qd = k['wq'] * along, k['wq'] * xp.abs(along)

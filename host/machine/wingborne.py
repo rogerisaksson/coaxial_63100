@@ -19,7 +19,7 @@ turned a vertical line into a 45 deg tumble.
 import math
 
 from machine.figure import cross
-from machine.helicopter import _mat_mul, _rot_x, _rot_y
+from machine.helicopter.kit import _mat_mul, _rot_x, _rot_y
 
 ALPHA_RAD, TAIL_UP, CLIMB_RAD, AIRBORNE_M, RUN_G, CLIMB_V = (
     math.radians(10.0), 0.4, math.radians(12.0), 0.85, 1.2, 1.3)
@@ -53,11 +53,11 @@ class Wing:
 
     def lift(self, u, turn):
         """The airframe's force, N, in the world, through the air `u`. The wing's, nose first (none
-        tail first): its lift along the back (`-turn[:, 2]`) rising with the angle to the stall
-        at STALL_RAD and falling to a flat plate's past it, the plate's drag with it along the
-        air; linear to 1.5 of the weight it floated a flare and a harrier on a closed throttle.
-        The side's, a flat plate across the span, `rho S |u| u_x` against the slip: with the
-        wings vertical, what holds a knife-edge up beside the thrust."""
+        tail first): its lift across the air in the plane of the nose and the back, rising with
+        the angle to the stall at STALL_RAD and falling to a flat plate's past it, its drag along
+        the air. Along the back the lift was a drag of L sin a: at 12 m/s, 9 deg, the thrust
+        bore 39 % of the weight. The side's, a flat plate across the span, `rho S |u| u_x`
+        against the slip: with the wings vertical, what holds a knife-edge up beside the thrust."""
         span = [float(turn[a][0]) for a in range(3)]
         slip = -self.rho * self.side * math.sqrt(sum(x * x for x in u)) * sum(u[a] * span[a] for a in range(3))
         uy = max(0.0, sum(u[a] * float(turn[a][1]) for a in range(3)))
@@ -79,11 +79,13 @@ class Wing:
         speed = math.sqrt(v2)
         nose, back = [float(turn[a][1]) for a in range(3)], [-float(turn[a][2]) for a in range(3)]
         air = [(uy * nose[a] - uz * back[a]) / speed for a in range(3)]
-        return tuple(slip * span[a] + f_l * back[a] - f_d * air[a] for a in range(3))
+        up = [(uz * nose[a] + uy * back[a]) / speed for a in range(3)]
+        return tuple(slip * span[a] + f_l * up[a] - f_d * air[a] for a in range(3))
 
     def trimmed(self, tau, u, turn, share):
         """The law's torques `tau` less `share` of the airframe's own moments still in the air `u`:
-        on its side the fin's, 4.5 N m at 12 m/s, held the slip 8 deg short and the plane sank."""
+        on its side the fin's, 4.5 N m at 12 m/s, held the slip 8 deg short and the plane sank;
+        on its wing the stabiliser's, 1.9 N m at 9 deg, held the angle 2.6 deg short."""
         return tuple(t - share * m for t, m in zip(tau, self.moments(u, turn, (0.0,) * 6)))
 
     def moments(self, u, turn, qv):
@@ -162,7 +164,9 @@ def plane(wing, turn, acc, u, w, want_up, knife=0.0):
         c_lin = wing.cl_alpha * mid
         a_w = (k_w / wing.cl_alpha) * (
             (1.0 - flat) * c_lin + flat * 2.0 * math.sin(mid) * math.cos(mid))
-        if need * math.cos(mid) - al_pos * math.sin(mid) > a_w:
+        d_w = (k_w / wing.cl_alpha) * (
+            (1.0 - flat) * CD_LIFT * c_lin * c_lin + flat * 2.0 * math.sin(mid) ** 2)
+        if need - (al_pos + d_w) * math.tan(mid) > a_w:
             lo = mid
         else:
             hi = mid

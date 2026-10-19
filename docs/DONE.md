@@ -342,3 +342,14 @@ the fifty before these: [DONE_1-50](DONE_1-50.md).
     down on the runway; the routine among its standing things unstruck, home
     from the knife-edge on its wing, the prop-hang held at home in 7.4 s where
     it walked 53 m in 18.5 s ([aircraft](findings/aircraft.md)).
+88. The aerobat flies on its wing (`wingborne`, `machine.aerobat`): its lift
+    across the air, its airframe's drag, its moments trimmed, the wind read
+    through its wing, the air's speed held; its circuit and teardrops at 14
+    m/s, 7-8 deg, where 50 deg/s at 10.5 m/s flew 25 deg on the propeller
+    ([aircraft](findings/aircraft.md)).
+89. The airfield's course laid for a plane (`machine.airfield`): an air gate, a
+    limbo bar, a hoop at the far turn's top, a slalom of three pylons, a
+    knife gate taken on its side, on one line of arcs it flies by L1 and
+    draws; two laps through all in gusty wind, every gate within 0.9 m.
+90. `machine.aerobat` and `machine.helicopter` packages of a subject a file:
+    airframe, sky, law, observer, and the SO(3) law's shared kit.

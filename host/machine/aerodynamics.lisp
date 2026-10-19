@@ -74,9 +74,11 @@
   (tail_pitch 1.35)
   (tail_ceiling 1.20))
 
+; The fuselage's 0.09 x 0.08 m front at 0.8, the gear's legs and wheels, m^2; the wing's own
+; drag is cd0's. At 0.03 the airframe was 0.12 of its wing in drag, three times a 3D plane's.
 (defblock airframe monoplane_airframe
   (use standard_airframe)
-  (parasite_cda 0.03))
+  (parasite_cda 0.010))
 
 (defblock aero_surfaces unlimited_3d_monoplane
   (wing_span 1.30m)

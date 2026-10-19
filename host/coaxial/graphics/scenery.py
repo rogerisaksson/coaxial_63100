@@ -161,13 +161,15 @@ def standing(field=grounds):
 
 @functools.lru_cache(maxsize=None)
 def runway():
-    """(ends, inks) of the runway strip beyond the standing threshold (`aerobat.RUNWAY_RAD`): side
-    boundaries, far threshold, piano keys, and dashed centerline."""
+    """(ends, inks) of the runway strip beyond the standing threshold (`airfield.RUNWAY_ALONG`):
+    side boundaries, far threshold, piano keys, and dashed centerline."""
+    from machine import airfield
+    lo, hi = airfield.RUNWAY_ALONG
     return _laid({'runway': (
-        [(_rwy(-20.5, -1.35), _rwy(16.0, -1.35)), (_rwy(16.0, -1.35), _rwy(16.0, 1.35)),
-         (_rwy(16.0, 1.35), _rwy(-20.5, 1.35))]
-        + [(_rwy(14.0, w), _rwy(15.6, w)) for w in (-0.9, -0.45, 0.45, 0.9)]
-        + [(_rwy(-17.0 + 3.2 * k, 0.0), _rwy(-15.2 + 3.2 * k, 0.0)) for k in range(10)])})
+        [(_rwy(lo, -1.35), _rwy(hi, -1.35)), (_rwy(hi, -1.35), _rwy(hi, 1.35)),
+         (_rwy(hi, 1.35), _rwy(lo, 1.35))]
+        + [(_rwy(hi - 2.0, w), _rwy(hi - 0.4, w)) for w in (-0.9, -0.45, 0.45, 0.9)]
+        + [(_rwy(lo + 3.5 + 3.2 * k, 0.0), _rwy(lo + 5.3 + 3.2 * k, 0.0)) for k in range(10)])})
 
 
 @functools.lru_cache(maxsize=None)
@@ -175,11 +177,11 @@ def gates(ahead, field=grounds):
     """(ends, inks) of the `field`'s course's gates, the one `ahead` lit and doubled."""
     edges = {'gate': [], 'next': []}
     framed = grounds.windows(field)
-    for k, (x, y, z, heading, size) in enumerate(field.GATES):
+    for k, place in enumerate(field.GATES):
         if k not in framed:
-            edges['next' if k == ahead else 'gate'] += grounds.gate(x, y, z, heading, size)
+            edges['next' if k == ahead else 'gate'] += grounds.gate(*place)
         if k == ahead:
-            edges['next'] += grounds.gate(x, y, z, heading, 0.94 * size)[:4]
+            edges['next'] += grounds.gate(*place[:4], *(0.94 * v for v in place[4:]))[:4]
     return _laid(edges)
 
 

@@ -44,14 +44,15 @@ MPPI_FN double mppi_plane_rollout(const double *x0, const double *u, const doubl
         const double cd = (1.0 - flat) * k[MP_CD_LIFT] * cln * cln + flat * 2.0 * sa * sa;
         const double q = on * 0.5 * k[MP_RHO] * k[MP_AREA] * v2, sp = sqrt(fmax(v2, 1e-12));
         const double dx = (uy * nx + uz * bx) / sp, dy = (uy * ny + uz * by) / sp, dz = (uy * nz + uz * bz) / sp;
+        const double lx = (uz * nx - uy * bx) / sp, ly = (uz * ny - uy * by) / sp, lz = (uz * nz - uy * bz) / sp;
         /* the side, a plate across the span, against the slip */
         const double slip = -k[MP_RHO] * k[MP_SIDE] * air * (ax * sx + ay * sy + az * sz);
         /* the airframe's drag (aerobat._aero_cda) */
         const double cle = 0.12 * k[MP_CL_ALPHA_A] * (fabs(th) + k[MP_SHARE] * hypot(el, ai));
         const double dn = 0.5 * k[MP_RHO] * (k[MP_CDA] + k[MP_AREA_A] * (k[MP_CD0] + k[MP_CDI] * cle * cle)) * air;
-        double F[3] = {lift * nx - q * cl * bx - q * cd * dx + slip * sx - dn * ax,
-                       lift * ny - q * cl * by - q * cd * dy + slip * sy - dn * ay - mass * k[MP_GRAVITY],
-                       lift * nz - q * cl * bz - q * cd * dz + slip * sz - dn * az};
+        double F[3] = {lift * nx + q * cl * lx - q * cd * dx + slip * sx - dn * ax,
+                       lift * ny + q * cl * ly - q * cd * dy + slip * sy - dn * ay - mass * k[MP_GRAVITY],
+                       lift * nz + q * cl * lz - q * cd * dz + slip * sz - dn * az};
         /* the surfaces in the propwash, the prop's drag, the wing's own moments (Wing.moments) */
         const double uxb = ax * sx + ay * sy + az * sz, qw = k[MP_WQ] * along, qd = k[MP_WQ] * fabs(along);
         const double arm = k[MP_ARM], prop = (0.34 + 1.60 * (th * th + 0.45 * (el * el + ai * ai))) * k[MP_K_DRAG] * wp2;

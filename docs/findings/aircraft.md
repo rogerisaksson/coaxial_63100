@@ -74,7 +74,7 @@ bodies are light and the fittings dark.
 ## Aerobat
 
 `machine.aerobat`, `machine.wingborne`: a 1.30 m, 2 kg 3D monoplane (wing
-0.338 m^2, 0.03 m^2 of parasite drag, a 0.55 m tail arm with a 0.06 m^2
+0.338 m^2, 0.010 m^2 of parasite drag, a 0.55 m tail arm with a 0.06 m^2
 stabiliser and a 0.045 fin, inertias 0.09/0.06/0.12 kg m^2) on a taildragger's
 wheels (0.25 m legs, the prop clear when level, the nose 12 deg up at rest).
 
@@ -85,24 +85,39 @@ wheels (0.25 m legs, the prop clear when level, the nose 12 deg up at rest).
   lean ends. It stands 17.9 m short of home on the first gate's heading
   (`RUNWAY_M`): rolls 2.5 s, lifts at home +1, climbs to 1.9 m at 13.9 m/s,
   comes to its prop-hang 10 m on and walks home.
+- The wing's lift across the air, its drag along it (`Wing.lift`, the
+  planner's twins `se3mpc` and `mppi_plane.c`): along the back the lift was a
+  drag of L sin a, and level at 12 m/s and 9 deg the thrust bore 0.39 of the
+  weight; across the air 0.24; on 0.010 m^2 of parasite drag (the fuselage's
+  front and the gear; 0.03 was three times a 3D plane's) 0.15. The thrust
+  gives along the nose what the wing does not.
+- Its own moments trimmed always (`Wing.trimmed`) and known to its spin
+  observer (`aerobat.observer`): untrimmed, the stabiliser's 1.9 N m at 9 deg
+  held the angle 2.6 deg short and it sank 0.1 m/s; trimmed and left to
+  `turn_hat` as well, it held 2.5 deg over and would not come down its final.
+- The wind read through the wing too (its Jacobian in the wind observer): on
+  the drag's alone a hover's push came out 6 m/s of wind in still air, and
+  wing-borne none was read; in gusts now 0.5-1 m/s off, a second behind. On
+  its wing it flies the air's speed (`Core.plan`): on the ground's 14 m/s a
+  7 m/s tail stalled it in the course's climbing turn.
 - Wing-borne (nose first at the wing's speed, `Core.wingborne`, gated on
   horizontal airspeed `min(along, vh)` so a vertical climb stays on the
-  hover's law while `Core.wing_air` freezes the push observer along the nose)
-  the nose goes on the air and over it by the angle the wing needs for what is
-  asked across the path, solved across the stall blend up to 15 deg, its back
-  rolled to that; no thrust pulled back nose first (it coasts to its apex).
+  hover's law) the nose goes on the air and over it by the angle the wing
+  needs for what is asked across the path, solved across the stall blend up
+  to 15 deg, its back rolled to that; no thrust pulled back nose first (it
+  coasts to its apex).
 - The opening: the run climbs out on the wing; a teardrop at 2 m (45 deg out
-  at 35 deg/s, a leg of two turn radii, 225 deg back) lays it on the
-  runway's line the other way, under 1 m off; a line-up at 0.5 m, a roll
+  at 25 deg/s and 14 m/s, a leg of two turn radii, 225 deg back) lays it on
+  the runway's line the other way, under 1 m off; a line-up at 0.5 m, a roll
   onto its side (`knife-in`), the knife-edge back down the runway
   (`knife_pass`), a pull-out on the wing, the prop-hang. Over the runway the
-  belly is level within 0.01, the nose 38 deg over the path at 11.9 m/s, the
-  tail's lowest point 0.029 m median and under 0.05 m for 90 % of the pass,
-  none touching, a wing tip 0.072 m at its lowest, 0.29 m off the centreline
-  at most.
+  belly is level within 0.06, the nose 39 deg over the path at 12.0 m/s, the
+  tail's lowest point 0.009 m median and under 0.05 m for 99 % of the pass,
+  none touching, a wing tip 0.066 m at its lowest, 0.39 m off the centreline
+  at most. At 12 m/s and 35 deg/s the teardrop asked 11 deg, 19 at p90.
 - On its side (`plane`'s `knife`) the attitude is rolled a quarter turn about
   the nose and the side plate bears what the wing did, at the slip
-  `tan b = need / (rho S v^2 / m + along)`: 36-38 deg at 12 m/s. The fin's
+  `tan b = need / (rho S v^2 / m + along)`: 39 deg at 12 m/s. The fin's
   weathervane, 4.5 N m, takes 65 % of the surfaces' boosted reach; left to
   the law's 33 N m/rad (no `Wing.trimmed`) it held the slip 8 deg short and
   the tail sank 3.7 cm in 1.8 s. At 18 m/s it passed their reach and a tip
@@ -110,31 +125,29 @@ wheels (0.25 m legs, the prop clear when level, the nose 12 deg up at rest).
   The sampling MPC (`plan` 1) flew it nose-high at 7 m/s: the law flies it.
 - Nose first it flies a speed, not a place (`Core.plan`): chasing its spot
   along the path it lagged the teardrop's turn by 12 m and the line-up ran to
-  18 m/s to catch up. On a spot laid on itself the teardrop holds 11.7-11.8
+  18 m/s to catch up. On a spot laid on itself the teardrop holds 13.8-14
   m/s and the final glides on the centreline at 11.5 m/s, where it swung
   35-80 deg at 10-16 m/s.
 - Low it lines up on the runway's way nearer its heading (`lined`), a hover
-  up it. The course's grid heading is a hover's: crossing gate 0 at speed it
-  swung the pass 55 deg and a tip struck.
+  up it, no faster than its lean turns it at its speed: at 2.4 rad/s the
+  line-up stalled, 27 deg at p90. The course's grid heading is a hover's:
+  crossing gate 0 at speed it swung the pass 55 deg and a tip struck.
 - The landing: a 9.9 s down-leg and a 6 s final put the flare over the
-  runway. It stops 7.3 m short of the far end, 0.86 m off the centreline,
-  touching at -0.93 m/s; on 6.5 s and 5.2 s it rolled 29 m past it, 1.49 m
-  off, at -0.98.
+  runway. It stops 15.7 m short of the far end, 1.4 m off the centreline,
+  touching at -0.71 m/s.
 - Home from the knife-edge on its wing: a second teardrop and a run-in at
-  1.5 m up the runway, the prop-hang pulled up into at home and held in 7.4 s;
+  1.5 m up the runway, the prop-hang pulled up into at home and held there;
   it walked 53 m home at 3 m/s in 18.5 s on the prop.
-- The airfield (`machine.airfield`): the routine roams 82 m out and 45 m
-  across; the hover course's field put a tree in the teardrop's leg at 9.35
-  s on the page (the tests flew it in an empty sky). Its own field keeps its
-  trees, hangar and cars clear of every line flown; its gates stand only on
-  its course. The course: a run-up off the runway through the first gate 20
-  m past its end, 22 m turns at 12 m/s and 35 deg/s, flown on the line of
-  the way ahead (`wingborne.lined`). A slalom of +-6 m in 35 m put a tip
-  into a post: the line converges in about 3 s; +-3 m in 40 m flies. A gate
-  at a turn's apex was passed outside its opening in gusty wind, the
-  downwind half swinging wide: the turns are pylons. Calm, 34.5 s a lap; in
-  gusty wind the downwind turns' airspeed dips under 8 m/s and the hover's
-  law holds it, then the wing again.
+- The airfield (`machine.airfield`): its trees 85 and 100 m off the runway's
+  line and 165 m along it, a teardrop's 64 m across at 14 m/s; its gates
+  stand only on its course. The course, a lap of 543 m at 14 m/s airspeed on
+  27 m turns: an air gate, a limbo bar at 2.8 m, a hoop at 10 m at the far
+  turn's top, a slalom of three pylons 4 m off its line, a knife gate twice
+  the wings taken on its side - one line of arcs a metre apart, flown and
+  drawn. Flown by L1, a point 1 s ahead (`2 sin(eta) / T`): calm, every gate
+  within 0.2 m, 39.5 s a lap; gusty, within 0.9 m, down 15 m along its 16 m
+  runway. On the tangent crabbed over a second (`lined`) it passed the hoop
+  3.9 m off in gusts; a slot of 1.5 m, narrower than the wings, 1.6 m off.
 - The tail is destabilising tail first, by the physics: the burn's 12 m/s
   tail slide turned it over and onto the floor at 8.8 g. The aerobat's burn is
   a parachute at 4 m/s (`parachute`, its floor 0.55 m: its tail hangs 0.665
@@ -147,21 +160,14 @@ wheels (0.25 m legs, the prop clear when level, the nose 12 deg up at rest).
   (`DIVE_M_S`): nose first down out of the waterfall the law followed the air
   into the floor.
 - The landing a rectangle at 9 m back onto its runway: climb-out, four 90 deg
-  turns at 50 deg/s and 10.5 m/s, the final flown wing-borne (`w = 1.0`) at
-  11.5 m/s down to 0.33 m over the runway. The flare: throttle closed, the
-  nose pitched up as `1 / v_fwd^2` to 16 deg (`HARRIER_RAD`) as airspeed
-  bleeds off in ground effect, touching at -0.90 m/s 2.38 m off the
-  centreline at along 12.6 m, 85 contacts made and broken, and rolling to
-  along 32.4 m, past the runway's end at 16: open (TODO).
+  turns at 25 deg/s and 14 m/s, 7-8 deg, the final flown wing-borne (`w =
+  1.0`) at 11.5 m/s down to 0.38 m over the runway. At 50 deg/s and 10.5 m/s
+  the turns asked CL 1.20 past the stall's 1.10 and flew at 25 deg on the
+  propeller. The flare: throttle closed, the nose pitched up as `1 / v_fwd^2`
+  to 16 deg (`HARRIER_RAD`) as airspeed bleeds off in ground effect.
 - The wing stalls (`wingborne.STALL_RAD`): the airfoil's lift to 15 deg, a flat
   plate's normal force past 23, blended between, the plate's drag with it;
   at 10 m/s 21.5 N at 15 deg, 14 N at 45, 40 N of drag at 90.
-- The runway lies 50 deg off the first gate's heading: on its wheels at the
-  runway's start the law keeps the runway's heading, on the grid and in the
-  air under 2 m it turns to the first gate's heading. On `COURSE_SPHERE`
-  (1.5 g) the aerobat flies both laps of the 16-gate course nose first, banked
-  and pulled (`CARD = aerobat.CARD + course.CARD`), in 23 s whole, and lands on
-  gate 0's heading.
 - With the drag of a quad (0.15 m^2) and a 0.17 m^2 wing it could not reach
   the wing's speed: 12 m/s at the thrust's 0.85 g; its main wheels 0.15 m
   ahead of its middle, the elevator's 2.45 N m could not lift the tail
