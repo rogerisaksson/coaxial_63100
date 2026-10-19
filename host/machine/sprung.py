@@ -90,8 +90,11 @@ def laid(every=1, inner=None, solver=None):
     sit = situation.text()
     if (solver or SOLVER) == 'c':
         from tools.cores.wbc import wrench_step as solve_step
+    elif (solver or SOLVER) == 'wrench':
+        from tools.cores import law as c_law
+        solve_step = c_law.wrench_laid(body)
     else:
-        solve_step = {'stack': wbc.step, 'wrench': wrench.step}[solver or SOLVER]
+        solve_step = {'stack': wbc.step}[solver or SOLVER]
     g = {'world': world, 'body': body, 'y': y, 'fr': fr, 'rest': rest, 'rest_y': rest_y, 'st': st, 'out': out, 'a': a, 'tab': tab,
          'labels': [], 'posture': s['q'].copy(), 'limbs': limbs, 'bend': modal.crouch(names), 'arms': modal.swing(names),
          'cervical': [names.index(j) for j in ('neck', 'head') if j in names], 'waist_idx': names.index('waist') if 'waist' in names else None,

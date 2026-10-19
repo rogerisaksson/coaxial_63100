@@ -9,6 +9,8 @@ their layouts and constants.
     c = law.latent_laid()
     law.stepped(c, st, tab, now, dt, out)   # latent.step(st, tab, now, dt, out)
     dq = law.coupled(c, q, qd, ref_q, ref_v, eso_z, out)     # support.couple(...)
+    solve = law.wrench_laid(body)
+    out = solve(body, s, ask)               # wrench.step(body, s, ask)
     law.exact_host()                        # bit for bit here, or only within the last bits
 """
 import ctypes
@@ -238,3 +240,131 @@ def coupled(laid_, q, qd, ref_q, ref_v, eso_z, out):
     couple(ctypes.byref(k), wbc.pointer(q), wbc.pointer(qd), wbc.pointer(ref_q), wbc.pointer(ref_v),
            wbc.pointer(eso_z), wbc.pointer(out), dq.ctypes.data)
     return dq
+
+
+@functools.lru_cache(maxsize=None)
+def _step_typed():
+    """wbc_step_t's mirror laid by the C's own sizes, its bytes the C's, and the step typed on it."""
+    lib = wbc.library()
+    sizes = (ctypes.c_int * 7)()
+    lib.wbh_step_sizes(sizes)
+    n, d, c, u, r, work, size = list(sizes)
+    i, f, p = ctypes.c_int, ctypes.c_double, ctypes.c_void_p
+    fields = [(name, i) for name in 'n nd nu0 nupper nheld npass nact npairs'.split()]
+    fields += [('act', i * d), ('legs', (i * 6) * 2), ('knees', i * 2), ('upper', i * d), ('held', i * n),
+               ('passive', i * n), ('active', i * n), ('pairs', (i * 2) * d), ('rounds', i), ('past', i),
+               ('mass', f), ('moment', f * u), ('room', f * 2)]
+    fields += [(name, f) for name in ('yaw_m damp2 knee_min w_com w_turn w_swing w_knee w_posture w_height w_moment '
+                                      'w_fold w_stop w_part w_air w_pin w_keep w_still grow_n ridge contact_k '
+                                      'height_band held_k momentum_k mu g').split()]
+    fields += [('posture_kd', f * 2), ('swing_kd', f * 2), ('turn_kd', f * 2), ('blas', Blas)]
+    fields += [(name, p) for name in 'M h v q com k'.split()]
+    fields += [(name, p * 2) for name in 'R quat J6 dJv sole tquat Jr dJr tw'.split()]
+    fields += [('nc', i)] + [(name, p * c) for name in 'cJ cp cdJv cf'.split()]
+    fields += [('stance', i * 2), ('nturns', i), ('kdot_given', i), ('swing', i * 2), ('fold', i * 2), ('wep', i),
+               ('com_acc', f * 3), ('turn', (f * 4) * 2), ('kdot', f * 3), ('settle', (f * 6) * 2), ('edge', f * 2),
+               ('strides', f), ('borne', f), ('mus', f * 2), ('swing_at', (f * 3) * 2), ('swing_speed', (f * 3) * 2),
+               ('swing_acc', (f * 3) * 2), ('swing_quat', (f * 4) * 2), ('fold_knee', f * 2), ('fold_rate', f * 2),
+               ('fold_acc', f * 2)]
+    fields += [(name, p) for name in 'posture derate clamp wep_nm'.split()]
+    fields += [('tau', f * d), ('qacc', f * n), ('bears', f * 2), ('cop', (f * 2) * 2), ('forces', (f * 3) * c),
+               ('scale', f), ('load', f * d), ('cop_n', i), ('cop_none', i * 2), ('over', i * d), ('work', f * work)]
+    Step = type('Step', (ctypes.Structure,), {'_fields_': fields})
+    if ctypes.sizeof(Step) != size:
+        raise ValueError('wbc_step_t is %d bytes, its mirror %d' % (size, ctypes.sizeof(Step)))
+    lib.wbh_step.argtypes = [ctypes.POINTER(Step)]
+    lib.wbh_step.restype = ctypes.c_int
+    return Step, lib.wbh_step, (n, d, c)
+
+
+def wrench_laid(b):
+    """`machine.wrench.step` in C on her law's body `b`: a solve (b, s, ask) -> its dict, `b.load`
+    set; her body's indices and the step's constants laid once, her mass, clamps and WEP read at
+    each - her model's masses move as her wear finds a load."""
+    from machine import wbc as law, wrench
+    Step, step, (most_n, most_d, most_c) = _step_typed()
+    passive, active = np.flatnonzero(b.passive), np.flatnonzero(b.active_dof)
+    if b.n > most_n or len(b.act) > most_d or wrench.NU > most_d:
+        raise ValueError('wbc_step.c lays %d dofs and %d drives at most' % (most_n, most_d))
+    k = Step(n=b.n, nd=len(b.act), nu0=wrench.NU, nupper=len(wrench.UPPER), nheld=len(b.held), npass=len(passive),
+             nact=len(active), npairs=len(b.pairs), rounds=wrench.ROUNDS, past=wrench.PAST, yaw_m=wrench.YAW_M,
+             damp2=wrench.DAMP ** 2, knee_min=wrench.KNEE_MIN, grow_n=wrench.GROW_N, ridge=wrench.RIDGE,
+             contact_k=law.CONTACT_K, height_band=law.HEIGHT_BAND, held_k=law.HELD_K, momentum_k=law.MOMENTUM_K,
+             mu=law.MU, g=law.G)
+    k.act[:len(b.act)] = [int(x) for x in b.act]
+    for side in range(2):
+        k.legs[side][:] = wrench.LEGS[side]
+        k.knees[side] = wrench.KNEES[side]
+    k.upper[:len(wrench.UPPER)] = wrench.UPPER
+    k.held[:len(b.held)] = [int(x) for x in b.held]
+    k.passive[:len(passive)] = passive.tolist()
+    k.active[:len(active)] = active.tolist()
+    for at, (p, r) in enumerate(b.pairs):
+        k.pairs[at][0], k.pairs[at][1] = p, r
+    k.moment[:wrench.NU] = wrench.MOMENT.tolist()
+    k.room[:] = wrench.ROOM.tolist()
+    for name in 'COM TURN SWING KNEE POSTURE HEIGHT MOMENT FOLD STOP PART AIR PIN KEEP STILL'.split():
+        setattr(k, 'w_' + name.lower(), getattr(wrench, 'W_' + name))
+    k.posture_kd[:], k.swing_kd[:], k.turn_kd[:] = law.POSTURE_KD, law.SWING_KD, law.TURN_KD
+    k.blas = numpy_blas()
+    return functools.partial(_stepped, k, step)
+
+
+def _stepped(k, step, b, s, ask):
+    """wrench.step(b, s, ask) on the laid `k`: what `s` senses and `ask` asks pointed at or copied."""
+    from machine import wbc as law
+    kept = []
+
+    def at(a):
+        a = np.ascontiguousarray(a, dtype=np.float64)
+        kept.append(a)
+        return a.ctypes.data
+    k.M, k.h, k.v, k.q, k.com, k.k = (at(s[name]) for name in ('M', 'h', 'v', 'q', 'com', 'k'))
+    for side, f in enumerate(s['feet']):
+        k.R[side], k.quat[side], k.J6[side], k.dJv[side], k.sole[side] = (at(f[name]) for name in
+                                                                           ('R', 'quat', 'J6', 'dJv', 'sole'))
+    for t, turn in enumerate(s['turns']):
+        k.tquat[t], k.Jr[t], k.dJr[t], k.tw[t] = (at(turn[name]) for name in ('quat', 'Jr', 'dJr', 'w'))
+    contacts = s.get('contacts', ())
+    if len(contacts) > len(k.cJ):
+        raise ValueError('wbc_step.c lays %d contacts at most, %d bear her' % (len(k.cJ), len(contacts)))
+    k.nc = len(contacts)
+    for at_, c in enumerate(contacts):
+        k.cJ[at_], k.cp[at_], k.cdJv[at_], k.cf[at_] = (at(c[name]) for name in ('J', 'p', 'dJv', 'f'))
+    k.stance[0], k.stance[1] = (int(bool(x)) for x in ask['stance'])
+    k.com_acc[:] = [float(x) for x in ask['com_acc']]
+    turns = ask.get('turns', ())
+    k.nturns = len(turns)
+    for t, quat in enumerate(turns):
+        k.turn[t][:] = [float(x) for x in quat]
+    kdot = ask.get('kdot')
+    k.kdot_given = int(kdot is not None)
+    if kdot is not None:
+        k.kdot[:] = [float(x) for x in kdot]
+    settle = np.asarray(ask.get('settle', np.zeros((2, 6))), float)
+    for side in range(2):
+        k.settle[side][:] = settle[side].tolist()
+    k.edge[:] = [float(x) for x in ask.get('edge', (0.0, 0.0))]
+    k.mus[:] = [float(x) for x in ask.get('mu', (law.MU, law.MU))]
+    k.strides, k.borne = float(ask.get('strides', 0.0)), float(ask.get('borne', 0.0))
+    swing, fold = ask.get('swing', {}), ask.get('fold', {})
+    for side in range(2):
+        k.swing[side] = int(side in swing)
+        if side in swing:
+            place, speed, acc, quat = swing[side]
+            k.swing_at[side][:], k.swing_speed[side][:] = [float(x) for x in place], [float(x) for x in speed]
+            k.swing_acc[side][:], k.swing_quat[side][:] = [float(x) for x in acc], [float(x) for x in quat]
+        k.fold[side] = int(side in fold)
+        if side in fold:
+            k.fold_knee[side], k.fold_rate[side], k.fold_acc[side] = (float(x) for x in fold[side])
+    k.wep = int(bool(ask.get('wep')))
+    k.posture = at(ask['posture'])
+    k.derate = at(np.broadcast_to(np.asarray(ask.get('derate', 1.0), float), (k.nd,)))
+    k.clamp, k.wep_nm, k.mass = at(b.clamp), at(b.wep), b.mass
+    if step(ctypes.byref(k)):
+        raise np.linalg.LinAlgError('Singular matrix')
+    nd, cop = k.nd, [None if k.cop_none[side] else np.array(list(k.cop[side])) for side in range(k.cop_n)]
+    b.load = np.array(k.load[:nd])
+    return {'tau': np.array(k.tau[:nd]), 'qacc': np.array(k.qacc[:k.n]), 'bears': list(k.bears), 'cop': cop,
+            'over': np.array(k.over[:nd], bool), 'slack': [], 'held': (),
+            'borne': np.array([list(k.forces[at_]) for at_ in range(k.nc)]).reshape(-1, 3), 'scale': k.scale}

@@ -309,14 +309,16 @@ def test_the_step_in_c_strides_as_the_steps(report, c, b, rows):
 
 
 def test_her_law_in_c_is_her_python_s(report, c, b, rows):
-    """wbc_law.c and wbc_imp.c (`tools.cores.law`) beside `latent.step`, `support.couple` and
-    `impedance.ask` at every pass of her law over a player's moves - a walk, turns, a strafe,
-    back, a sprint, a stop - and a sit on a chair and up: every field the same, bit for bit."""
+    """wbc_law.c, wbc_imp.c and wbc_step.c (`tools.cores.law`) beside `latent.step`,
+    `support.couple`, `impedance.ask` and `wrench.step` at every pass of her law over a player's
+    moves - a walk, turns, a strafe, back, a sprint, a stop - and a sit on a chair and up: every
+    field the same, bit for bit."""
     import numpy as np
     from machine import impedance, latent, support
     from tools.cores import law
     from tools.sim import scenarios
-    kept, tally = (law.asked, law.stepped, law.coupled), {}
+    from machine import wrench
+    kept, tally = (law.asked, law.stepped, law.coupled, law._stepped), {}
 
     def check(name, got, want):
         n, bad, apart = tally.get(name, (0, 0, 0))
@@ -343,17 +345,27 @@ def test_her_law_in_c_is_her_python_s(report, c, b, rows):
         dq = kept[2](laid_, q, qd, ref_q, ref_v, eso_z, out)
         check('coupling', (dq, eso_z, out), (dq_w, eso_w, out_w))
         return dq
-    law.asked, law.stepped, law.coupled = asked, stepped, coupled
+    def solved(k, step, b, s, ask):
+        want = wrench.step(b, s, ask)
+        load = b.load.copy()
+        got = kept[3](k, step, b, s, ask)
+        fields = ('tau', 'qacc', 'bears', 'over', 'borne', 'scale')
+        cops = [(x, y) for x, y in zip(got['cop'], want['cop']) if x is not None and y is not None]
+        nones = [np.array([x is None for x in cop], float) for cop in (got['cop'], want['cop'])]
+        check('whole-body step', [np.asarray(got[f], float) for f in fields] + [b.load, nones[0]] + [x for x, _y in cops],
+              [np.asarray(want[f], float) for f in fields] + [load, nones[1]] + [y for _x, y in cops])
+        return got
+    law.asked, law.stepped, law.coupled, law._stepped = asked, stepped, coupled, solved
     try:
         for name in ('play_moves', 'chair'):
             scenarios.ran(name)
     finally:
-        law.asked, law.stepped, law.coupled = kept
+        law.asked, law.stepped, law.coupled, law._stepped = kept
     exact = law.exact_host()
     features = getattr(getattr(getattr(np, '_core', None), '_multiarray_umath', None), '__cpu_features__', {})
     host = 'numpy %s %s' % (np.__version__, ','.join(sorted(k for k, on in features.items()
                                                           if on and k.startswith(('AVX512', 'X86_V')))))
-    for name in ('latent step', 'coupling', 'ask'):
+    for name in ('latent step', 'coupling', 'ask', 'whole-body step'):
         n, bad, apart = tally.get(name, (0, 0, 0))
         if exact:
             report.check("her %s in C is her python's bit for bit" % name, n > 5000 and not bad,

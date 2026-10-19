@@ -177,3 +177,6 @@ the hundred before these: [DONE_1-50](DONE_1-50.md),
     trimmed; off the runway a teardrop at 60 deg/s and a normal knife-edge
     down it at 19 m/s, the wings within 16 deg of upright, the lower tip 2 cm
     over the runway ([aircraft](findings/aircraft.md)).
+44. Her law in C her python's bit for bit: her ask, latent step, coupling and
+    whole-body step on numpy's own OpenBLAS (`tools.cores.law`), the generated
+    law core cut; 1.55 of real time ([body](findings/body.md)).

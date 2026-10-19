@@ -4,6 +4,7 @@
 #include "wbc_imp.h"
 #include "wbc_law.h"
 #include "wbc_np.h"
+#include "wbc_step.h"
 #include "wbc_pass.h"
 
 #include <string.h>
@@ -333,4 +334,21 @@ API void wbh_np_probe(int which, const double *a, const double *b, double *out, 
       break;
     }
   }
+}
+
+API int wbh_step(wbc_step_t *p)
+{
+  return wbc_step(p);
+}
+
+/** wbc_step_t's sizes: the most dofs, driven, contacts, unknowns, rows, its workspace, its bytes. */
+API void wbh_step_sizes(int *out)
+{
+  out[0] = WBC_STEP_N;
+  out[1] = WBC_STEP_D;
+  out[2] = WBC_STEP_C;
+  out[3] = WBC_STEP_U;
+  out[4] = WBC_STEP_R;
+  out[5] = WBC_STEP_WORK;
+  out[6] = (int)sizeof(wbc_step_t);
 }

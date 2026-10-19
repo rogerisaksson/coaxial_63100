@@ -38,9 +38,6 @@ gets a line at the end of [DONE](DONE.md).
   A frame past 3 s appends every thread's stack to
   `%LOCALAPPDATA%/coaxial_63100/stalls.txt` (`screen.STALL_LOG`). DOD: seen,
   its stack dumped, fixed.
-- **Her law core's rounds** (`wrench._rounds` in `tools.cores`): its C is
-  not her python's bits; her ask, latent step and coupling are (body.md).
-  DOD: held to its python by a test, bit for bit.
 - **Her wear's window stalls her world** 0.23 s every 4 s (`worker.stepped`,
   sysid's regressor its most); it feeds her law (`wear.loaded`). DOD: no
   pass over 20 ms walking.

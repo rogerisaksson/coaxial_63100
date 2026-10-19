@@ -131,9 +131,13 @@ her latent loop in [orthokinematics](orthokinematics.md).
   its libm, here UCRT's - whose pow(x, 2) is not x x in 1 of 2 000, numpy's
   for a scalar's square, its x x an array's); CI's runners parted 3 asks of
   9 463 on one, 3 709 of 9 668 on another, numpy's kernels theirs: there
-  within 1e-9. Left in the pass: the
-  python wrench step, her sensing, the wear's window 0.23 s every 4 s - it
-  feeds her law (`wear.loaded`).
+  within 1e-9. Her whole-body step too (`wbc_step.c`, `wbc_rounds.c`, the
+  generated core's rounds cut): numpy's a[:, idx] is F-ordered, its .T C -
+  `J6[:, act].T @ w` is dgemv_t, a sum's other order -, and her mass is read
+  at each solve, her wear moving it as it finds a load; every solve of 12
+  scenarios bit for bit, her pass 825 -> 645 us, 1.55 of real time. Left in
+  the pass: her sensing, the wear's window 0.23 s every 4 s - it feeds her
+  law (`wear.loaded`).
 - What her law sees, reviewed: her edge's array alone - an IMU in its own
   frame, encoders, load cells, skin in each segment's frame, no place or
   speed of hers in the world - and her own model as her estimate poses it;

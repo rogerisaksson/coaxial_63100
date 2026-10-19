@@ -247,9 +247,6 @@ def _rounds(H0, g0, held, bears, lo, hi, geo, stride):
     `hi`: the rounds, then the stride. `geo`: (nu, k3, moment, part, up, lift, mass, grounded,
     stance, frames, edges, mu); `stride`: (strides, her kinetic energy's metric)."""
     nu, k3, moment, part, up, lift, mass, grounded, stance, frames, edges, mu = geo
-    if k3 == 0 and not held:
-        from tools.cores import wrench_rounds_c
-        return wrench_rounds_c(H0, g0, lo, hi, geo, stride)
     strides, kinetic = stride
     pinned, at, band, edge = np.zeros(nu), np.zeros(nu), 0.0, 0.0
     pressed, done, rounds = np.ones(len(bears)), 0, ROUNDS
