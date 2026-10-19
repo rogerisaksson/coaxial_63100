@@ -127,18 +127,31 @@ def rescaled(scope, units, built):
         scope[name] = built[name] * size ** metres * clock ** seconds
 
 
-def mjcf(things=()):
-    """The quad as MuJoCo's XML, y up: the frame free over the floor, its mass a plate's with a
-    rotor at each corner, on four skid feet, its discs and its hub what it strikes with;
-    `things` what stands about it (`grounds.solids`), each ('box', its name, its middle, its
-    half sizes, its heading, degrees), ('rod', name, an end, the other, its radius) or
-    ('hull', name, the points it is the hull of), m."""
-    mine = ''.join('<geom name="skid%d" type="sphere" size="%g" pos="%g %g %g"/>'
-                   '<geom name="disc%d" type="cylinder" size="%g %g" pos="%g %g %g" '
-                   'euler="90 0 0"/>' % (k, FOOT_M, 0.7 * x, -SKID_M, 0.7 * z, k, DISC_R,
-                                         DISC_HALF_M, x, DISC_M, z)
-                   for k, (x, z) in enumerate(ROTOR_AT))
-    mine += '<geom name="hub" type="box" size="%g %g %g"/>' % HUB_M
+def skids(skid_x, skid_m, strut_z, foot_m):
+    """Four skid feet at `(-skid_x, skid_x)` by `strut_z`, `skid_m` under the frame, as MuJoCo
+    `<geom>` tags."""
+    return ''.join('<geom name="skid%d" type="sphere" pos="%g %g %g" size="%g" '
+                   'solref="0.01 1" friction="0.8 0.005 0.0001"/>' % (k, sx, -skid_m, sz, foot_m)
+                   for k, (sx, sz) in enumerate((sx, sz) for sx in (-skid_x, skid_x) for sz in strut_z))
+
+
+def mjcf(things=(), geoms=None, pos=None, mass=None, inertia=None):
+    """The quad (or a craft with `geoms` at `pos`, `mass` and `inertia`) as MuJoCo's XML, y up:
+    the frame free over the floor, its mass a plate's with a rotor at each corner, on four skid
+    feet, its discs and its hub what it strikes with; `things` what stands about it
+    (`grounds.solids`), each ('box', its name, its middle, its half sizes, its heading, degrees),
+    ('rod', name, an end, the other, its radius) or ('hull', name, the points it is the hull
+    of), m."""
+    if geoms is None:
+        geoms = ''.join('<geom name="skid%d" type="sphere" size="%g" pos="%g %g %g"/>'
+                        '<geom name="disc%d" type="cylinder" size="%g %g" pos="%g %g %g" '
+                        'euler="90 0 0"/>' % (k, FOOT_M, 0.7 * x, -SKID_M, 0.7 * z, k, DISC_R,
+                                              DISC_HALF_M, x, DISC_M, z)
+                        for k, (x, z) in enumerate(ROTOR_AT))
+        geoms += '<geom name="hub" type="box" size="%g %g %g"/>' % HUB_M
+    pos = (0.0, SKID_M + FOOT_M, 0.0) if pos is None else pos
+    mass = MASS_KG if mass is None else mass
+    inertia = INERTIA if inertia is None else inertia
     hulls, stood = '', ''
     for n, (shape, name, *size) in enumerate(things):
         if shape == 'box':
@@ -154,10 +167,10 @@ def mjcf(things=()):
             stood += '<geom name="%s.%d" type="mesh" mesh="hull%d"/>' % (name, n, n)
     return ('<mujoco model="quad"><option timestep="%g" gravity="0 %g 0"/><asset>%s</asset>'
             '<worldbody><geom name="floor" type="plane" size="50 50 0.1" zaxis="0 1 0"/>%s'
-            '<body name="frame" pos="0 %g 0"><freejoint name="root"/>'
+            '<body name="frame" pos="%g %g %g"><freejoint name="root"/>'
             '<inertial pos="0 0 0" mass="%g" diaginertia="%g %g %g"/>%s</body>'
-            '</worldbody></mujoco>' % ((STEP_S, -GRAVITY, hulls, stood, SKID_M + FOOT_M, MASS_KG)
-                                       + INERTIA + (mine,)))
+            '</worldbody></mujoco>' % ((STEP_S, -GRAVITY, hulls, stood) + tuple(pos) + (mass,)
+                                       + tuple(inertia) + (geoms,)))
 
 
 class Sky:
@@ -165,14 +178,14 @@ class Sky:
     """The frame in MuJoCo on the floor among `things` (`mjcf`), stepped on its rotors'
     speeds."""
 
-    def __init__(self, things=()):
+    def __init__(self, things=(), xml=None, rest=None, touch=()):
         os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
         self._mj = importlib.import_module('mujoco')
         self._np = importlib.import_module('numpy')
-        self.model = self._mj.MjModel.from_xml_string(mjcf(things))
+        self.model = self._mj.MjModel.from_xml_string(mjcf(things) if xml is None else xml)
         self.data = self._mj.MjData(self.model)
         self.frame = self.model.body('frame').id
-        self.rest = SKID_M + FOOT_M
+        self.rest = SKID_M + FOOT_M if rest is None else rest
         #: What the rotors gave at the last step in still air, N: their speeds' own.
         self.lift = 0.0
         #: What the frame struck first since it was put on its spot - a thing's name, the
@@ -182,10 +195,19 @@ class Sky:
         self._names = [name.split('.')[0] for name in names]
         self._mine = {g for g in range(self.model.ngeom)
                       if self.model.geom_bodyid[g] == self.frame}
-        self._feet = {(min(g, names.index('floor')), max(g, names.index('floor')))
-                      for g, name in enumerate(names) if name.startswith('skid')}
+        floor = names.index('floor')
+        self._feet = {(min(g, floor), max(g, floor))
+                      for g, name in enumerate(names)
+                      if name.startswith('skid') or name in touch}
         self._gates = [g for g, name in enumerate(names) if name.startswith('gate')]
         self.gated = True
+        self._xmat = self.data.xmat[self.frame]
+        self._turn = self._xmat.reshape(3, 3)
+        self._spin = self.data.qvel[3:6]
+        self._at = self.data.qpos[0:3]
+        self._vel = self.data.qvel[0:3]
+        self._acc = self.data.qacc[0:3]
+        self._xfrc = self.data.xfrc_applied[self.frame]
         self._mj.mj_forward(self.model, self.data)
 
     def reset(self):
@@ -215,39 +237,60 @@ class Sky:
                     return names[b if a in mine else a]
         return None
 
-    def state(self):
+    def state(self, copy=True):
         """{'h', 'v', 'a'}: the frame's height over its rest on the skids, m, its climb, m/s,
         and acceleration, m/s^2, up; 'turn' its 3x3 in the world, 'spin' its rates about its
         own axes, rad/s, 'at' its middle, m, 'vel' and 'acc' its speed and what that changes
         by in the world; 'lift' what its rotors' speeds give in still air, N; 'hit' what it
         struck first, or None."""
         d = self.data
+        if not copy:
+            return {'h': float(d.qpos[1]) - self.rest, 'v': float(d.qvel[1]),
+                    'a': float(d.qacc[1]), 'turn': self._turn, 'spin': self._spin,
+                    'at': self._at, 'vel': self._vel, 'acc': self._acc,
+                    'lift': self.lift, 'hit': self.hit}
         return {'h': float(d.qpos[1]) - self.rest, 'v': float(d.qvel[1]),
-                'a': float(d.qacc[1]), 'turn': d.xmat[self.frame].reshape(3, 3).copy(),
-                'spin': d.qvel[3:6].copy(), 'at': d.qpos[0:3].copy(),
-                'vel': d.qvel[0:3].copy(), 'acc': d.qacc[0:3].copy(), 'lift': self.lift,
+                'a': float(d.qacc[1]), 'turn': self._turn.copy(),
+                'spin': self._spin.copy(), 'at': self._at.copy(),
+                'vel': self._vel.copy(), 'acc': self._acc.copy(), 'lift': self.lift,
                 'hit': self.hit}
+
+    def _substep(self, fx_b, fy_b, wx, wy, wz, dk, ab0, ab1, ab2,
+                 px=0.0, py=0.0, pz=0.0, tx=0.0, ty=0.0, tz=0.0):
+        """One STEP_S MuJoCo substep under body forces `(fx_b, fy_b, 0)`, body torques
+        `(ab0, ab1, ab2)`, drag factor `dk` in wind `(wx, wy, wz)`, and world wrench offset."""
+        d, xm, qv, xf = self.data, self._xmat, self._vel, self._xfrc
+        t00, t01, t02, t10, t11, t12, t20, t21, t22 = xm.tolist()
+        vx0, vy0, vz0 = qv.tolist()
+        vx, vy, vz = vx0 - wx, vy0 - wy, vz0 - wz
+        dr = dk * math.sqrt(vx * vx + vy * vy + vz * vz)
+        xf[0] = fy_b * t01 + fx_b * t00 - dr * vx + px
+        xf[1] = fy_b * t11 + fx_b * t10 - dr * vy + py
+        xf[2] = fy_b * t21 + fx_b * t20 - dr * vz + pz
+        xf[3] = t00 * ab0 + t01 * ab1 + t02 * ab2 + tx
+        xf[4] = t10 * ab0 + t11 * ab1 + t12 * ab2 + ty
+        xf[5] = t20 * ab0 + t21 * ab1 + t22 * ab2 + tz
+        self._mj.mj_step(self.model, d)
+        if d.ncon and self.hit is None:
+            self.hit = self._struck(d)
 
     def step(self, speeds, dt, air=None):
         """The frame `dt` s on under the rotors at `speeds`, mechanical rad/s: each one's thrust
         up its axis at its place, their drags' torques about it, the air on the frame - still,
         or `air` (`blown`): its drag against the wind where it is, a quarter of it at each
         disc in that disc's own eddy, a disc's thrust the more for the air rising through it."""
-        np, d = self._np, self.data
-        # The four's lift and their torque about the frame's own axes, the pass's: a thrust up
-        # the frame's axis at (x, z) turns it (-z, 0, x) of itself, the drags about that axis.
+        d, xm = self.data, self._xmat
         thrusts = [K_THRUST * w * w for w in speeds]
         self.lift = sum(thrusts)
-        wind, push, twist = np.zeros(3), np.zeros(3), np.zeros(3)
-        turn = d.xmat[self.frame].reshape(3, 3)
+        wx = wy = wz = px = py = pz = tx = ty = tz = 0.0
         if air is None:
-            along = float(np.dot(d.qvel[0:3], turn[:, 1]))
+            vx0, vy0, vz0 = self._vel.tolist()
+            along = vx0 * float(xm[1]) + vy0 * float(xm[4]) + vz0 * float(xm[7])
             thrusts = [t * inflow(along, w) for t, w in zip(thrusts, speeds)]
         else:
-            # A disc's arithmetic in floats: as arrays of three 51 us of a call's 86, 19.
             h = float(d.qpos[1]) - (SKID_M + FOOT_M)
-            blows, rows = wind_at(air['wind'], h), turn.tolist()
-            still = [float(v) - u for v, u in zip(d.qvel[0:3], blows)]
+            blows, rows = wind_at(air['wind'], h), self._turn.tolist()
+            still = [float(v) - u for v, u in zip(self._vel.tolist(), blows)]
             fast = math.sqrt(still[0] * still[0] + still[1] * still[1] + still[2] * still[2])
             axis, shove, turned = (rows[0][1], rows[1][1], rows[2][1]), [0.0] * 3, [0.0] * 3
             for k, ((x, z), eddy) in enumerate(zip(ROTOR_AT, air['eddies'])):
@@ -262,38 +305,17 @@ class Sky:
                 turned = [turned[0] + arm[1] * more[2] - arm[2] * more[1],
                           turned[1] + arm[2] * more[0] - arm[0] * more[2],
                           turned[2] + arm[0] * more[1] - arm[1] * more[0]]
-            wind, push, twist = np.array(blows), np.array(shove), np.array(turned)
+            wx, wy, wz = float(blows[0]), float(blows[1]), float(blows[2])
+            px, py, pz = float(shove[0]), float(shove[1]), float(shove[2])
+            tx, ty, tz = float(turned[0]), float(turned[1]), float(turned[2])
         lift = sum(thrusts)
-        about = np.array([-sum(t * z for t, (_x, z) in zip(thrusts, ROTOR_AT)),
-                          sum(spin * K_DRAG * w * w for spin, w in zip(SPIN, speeds)),
-                          sum(t * x for t, (x, _z) in zip(thrusts, ROTOR_AT))])
-        drag_const = 0.5 * RHO * BODY_CDA
-        wx, wy, wz = float(wind[0]), float(wind[1]), float(wind[2])
-        px, py, pz = float(push[0]), float(push[1]), float(push[2])
-        tx, ty, tz = float(twist[0]), float(twist[1]), float(twist[2])
-        ab0, ab1, ab2 = float(about[0]), float(about[1]), float(about[2])
-        frame = self.frame
-        qvel = d.qvel
-        xfrc = d.xfrc_applied
+        ab0 = -sum(t * z for t, (_x, z) in zip(thrusts, ROTOR_AT))
+        ab1 = sum(spin * K_DRAG * w * w for spin, w in zip(SPIN, speeds))
+        ab2 = sum(t * x for t, (x, _z) in zip(thrusts, ROTOR_AT))
+        dk = 0.5 * RHO * BODY_CDA
         for _ in range(max(1, int(round(dt / STEP_S)))):
-            turn = d.xmat[frame].reshape(3, 3)
-            vx = float(qvel[0]) - wx
-            vy = float(qvel[1]) - wy
-            vz = float(qvel[2]) - wz
-            speed = math.sqrt(vx * vx + vy * vy + vz * vz)
-            drag = drag_const * speed
-            t00, t01, t02 = float(turn[0, 0]), float(turn[0, 1]), float(turn[0, 2])
-            t10, t11, t12 = float(turn[1, 0]), float(turn[1, 1]), float(turn[1, 2])
-            t20, t21, t22 = float(turn[2, 0]), float(turn[2, 1]), float(turn[2, 2])
-            xfrc[frame, 0] = lift * t01 - drag * vx + px
-            xfrc[frame, 1] = lift * t11 - drag * vy + py
-            xfrc[frame, 2] = lift * t21 - drag * vz + pz
-            xfrc[frame, 3] = t00 * ab0 + t01 * ab1 + t02 * ab2 + tx
-            xfrc[frame, 4] = t10 * ab0 + t11 * ab1 + t12 * ab2 + ty
-            xfrc[frame, 5] = t20 * ab0 + t21 * ab1 + t22 * ab2 + tz
-            self._mj.mj_step(self.model, d)
-            if d.ncon and self.hit is None:
-                self.hit = self._struck(d)
+            self._substep(0.0, lift, wx, wy, wz, dk, ab0, ab1, ab2, px, py, pz, tx, ty, tz)
+
 
 
 def inflow(along, w):

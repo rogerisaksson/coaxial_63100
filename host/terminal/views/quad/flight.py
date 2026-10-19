@@ -30,52 +30,32 @@ FAULTS = {0: None, 1: 'overcurrent', 2: 'stage', 3: 'supply'}
 #: their observers out of UNCERTAIN before the course asks its lean of them.
 CARD = aerobatics.CARD + course.CARD
 
-#: Each rotor's machine and its trip for a flight, A, the board's rating. Its clamps, its
-#: tops and its reach are the action space's (`machine.pull`): the drive's clamp and its
-#: speed loop's WEP's, each board holding its own to what its envelope leaves; the plan's
-#: the flight's.
+#: Each rotor's machine and its trip for a flight, A, the board's rating (`machine.pull`).
 PROFILE, I_TRIP = 'outrunner_63100_14p', 100.0
 
 #: The rotors' speed loop, Hz: each board's own (device 12), ticked LOOP_HZ a second in its
-#: drive's sample: stepped here a pass of 20 ms at a time, 38 A of braking held a pass took a
-#: rotor from 197 rad/s through its crossover to 37, the estimate lost it on the torque's turn
-#: and two boards tripped in a burn.
+#: drive's sample.
 SPEED_HZ, LOOP_HZ = 3.0, 1000
 
-#: A rotor's speed is come to no faster than this, rad/s^2 - its loop's own slew, the
-#: flight's clamp's. Stepped, 14 rad/s more in a pass was the whole clamp, and the gate
-#: stage's envelope 0.2 the higher for a read. On WEP's slew, 4 347, a rotor braked to its
-#: idle in a lap went to 15 rad/s and was lost; flown, its loop's slew scales by speed
-#: (`pull.slew`).
+#: A rotor's speed is come to no faster than this, rad/s^2 - its loop's own slew (`pull.slew`).
 SPOOL_RAD_S2 = pull.slew(pull.I_WEP)
 
-#: A rotor is asked no slower than this while it flies, rad/s: its idle. Slower, the law's
-#: estimate has no back-EMF to stand on - asked none in a fall, a rotor went to -5 rad/s and its
-#: board tripped.
+#: A rotor is asked no slower than this while it flies, rad/s: its idle.
 LEAST_RAD_S = quad.IDLE_RAD_S
 
-#: A rotor is started on this current, A, its vector turned up to the idle over this long, s of
-#: the rotor's clock: from rest through its loop the injection's estimate ran 2.8 rad ahead in
-#: 20 ms on 30 A and the rotor spun back to -44 rad/s.
+#: A rotor is started on this current, A, its vector turned up to the idle over this long, s.
 START_A, START_S = 15.0, 0.4
 
-#: The STO chain's charge on the master's pilot before the interlock passes, s, on the wall's
-#: clock the stand-in's chain runs on: opened, a board's charge pump read 2.16 V of the 3.0
-#: wanted and its level detector 0.31 of 2.0.
+#: The STO chain's charge on the master's pilot before the interlock passes, s.
 STO_SETTLE_S = 0.05
 
-#: The observers' states out of UNCERTAIN, the margin off its floor: STABLE from 49-70 s of a
-#: flight, never in 900 s held at 16 A.
+#: The observers' states out of UNCERTAIN, the margin off its floor.
 GO = ('CONVERGING', 'STABLE')
 
 #: A spent pack is changed on the floor in this long, s.
 SWAP_S = 3.0
 
-#: The flight is stepped this long, s - the race's (tools/sim/quad_race.py) -, a pass's
-#: seconds short of a step owed to the next: stepped as the wall's passes came, a loaded page
-#: flew its air's eddies drawn on other steps and crossed gate 0 0.97 m low, one flight in nine.
-#: Stepped 50 ms the frame rang on its rotors: 30 A through the corkscrew where
-#: 24 at 45 ms.
+#: The flight is stepped this long, s (`tools/sim/quad_race.py`).
 STEP_S = 0.02
 
 #: The boards' observers are read this often by the flight's clock, s.
@@ -84,14 +64,10 @@ THERMAL_S = 0.1
 #: The core's pass (aero/), s: the world's step, STEP_S / TICK_S of them a step of the flight.
 TICK_S = quad.STEP_S
 
-#: An ask goes to its board as this many rows, a tick of its loop each, along the line from
-#: the last (`asked`): written whole a pass of the core, the loop's feed-forward took each
-#: for a spool and the tick after for its end - 6.3 A apart at 500 Hz on 300 rad/s^2, 12 %
-#: of the copper's heat round the course.
+#: An ask goes to its board as this many rows, a tick of its loop each (`asked`).
 ROWS = int(round(TICK_S * LOOP_HZ))
 
-#: Struck, a flight is over: its stage this, its rotors stopped and the wreck left where it
-#: falls for so long, s; then the frame is on its spot again and the flight begun over.
+#: Struck, a flight is over: its stage this, its rotors stopped and the wreck left for CRASH_S.
 CRASHED, CRASH_S = 'crashed', 4.0
 
 #: What it struck, in words (`quad.Sky.hit`); a gate by its number.
@@ -220,18 +196,19 @@ def steps(owed):
     return count, max(0.0, owed - count * STEP_S)
 
 
-def passed(rotors, sky, route, law, flight, clock, dt):
+def passed(rotors, sky, route, law, flight, clock, dt, step_fn=None):
     """The flight a pass of `dt` s on from `clock` - what it owed before -, (its clock, the
     frame) after each of its steps: what its boards hold, the card's row flown, its lap where
     the row is a line's, a spent pack changed where it has stood to be; the boards' observers
     read every THERMAL_S."""
+    run_step = step if step_fn is None else step_fn
     count, flight['owed'] = steps(flight['owed'] + dt)
     for part in [STEP_S] * count:
         clock += part
         row = route['row']
         for rotor in rotors:
             rotor['budget'] = rotor['rig'].board.thermal.budget()
-        name = flight['stage'] = step(rotors, sky, route, law, flight, clock, part)
+        name = flight['stage'] = run_step(rotors, sky, route, law, flight, clock, part)
         flight['lap'] = route.get('lap') if callable(route['card'][route['row']][1]) else None
         frame = sky.state()
         flight['stood'] = kept(flight, flight['stood'], name, route['row'] != row
@@ -252,7 +229,7 @@ def step(rotors, sky, route, law, flight, clock, dt):
     first; where the card waits to be fit a spent pack is changed and the boards cool.
     Struck (`quad.Sky.hit`), it is CRASHED: its rotors stopped (`fallen`), and CRASH_S on the
     frame on its spot and its flight begun again."""
-    cells, core, frame = flight['cells'], flight['core'], sky.state()
+    cells, core, frame = flight['cells'], flight['core'], sky.state(False)
     have, spent, fit = shell(flight, rotors)
     sky.stand(lined(route))
     wreck = flight.get('wreck')
@@ -316,7 +293,7 @@ def fallen(rotors, sky, flight, dt, cut=True):
         drive.model.configure(b=pull.ROTOR.b, vdc=cells['volts'],
                               load=quad.K_DRAG * rotor['w'] * abs(rotor['w']))
     flightpack.drawn(cells, watts, dt)
-    told, through = weather.airspeeds(sky.state(), air)
+    told, through = weather.airspeeds(sky.state(False), air)
     for rotor in rotors:
         heat = rotor['rig'].board.thermal
         heat.fast_forward(dt * heat.HASTE, live=True)
@@ -351,6 +328,45 @@ def stated(rotor):
     return pull.watts(rotor['w'], rotor['iq'], rotor['amps'])
 
 
+def _step_drives(rotors, periods):
+    """Advance each stand-in drive by `periods` 50 kHz ticks in C (`world_drive_pass`)."""
+    lib = _LIB
+    tau = math.tau
+    for rotor in rotors:
+        buf = rotor['buf']
+        tripped = lib.world_drive_pass(rotor['slot'], periods, True, True,
+                                       ctypes.c_float(rotor['ask']), buf)
+        if tripped:
+            rotor['rig'].gates.off()
+        w = buf[0] / rotor['pairs']
+        rotor['w'] = w
+        rotor['w_hat'] = buf[1] / rotor['pairs']
+        rotor['angle'] = (rotor['angle'] + w * TICK_S) % tau
+        id_val = buf[2]
+        iq_val = buf[3]
+        rotor['iq'] = iq_val
+        rotor['amps'] = math.hypot(id_val, iq_val)
+        rotor['fault'] = FAULTS.get(int(buf[4]))
+
+
+def _step_bus_and_heat(rotors, sky, flight, dt, cooling=quad.COOLING):
+    """Advance the pack bus, WEP seconds, thermal observers, and heatsink cooling after `dt`."""
+    cells, air = flight['cells'], flight.get('air')
+    volts = cells['volts']
+    watts = sum(pull.watts(r['w'], r['iq'], r['amps']) for r in rotors)
+    flightpack.drawn(cells, watts, dt)
+    flight['over'] += dt * float(max(rotor['amps'] for rotor in rotors) > pull.I_MAX)
+    told, through = weather.airspeeds(sky.state(False), air)
+    for rotor in rotors:
+        heat = rotor['rig'].board.thermal
+        heat.fast_forward(dt * heat.HASTE, live=True)
+        heat.airspeed(told, truth=through)
+        if 'cooling' in rotor:
+            mheat.step_board_cooling(
+                rotor['cooling'], rotor.get('amps') or 0.0, volts, dt * heat.HASTE, through,
+                cooling)
+
+
 def flown(rotors, sky, core, payload, flight, dt):
     """The flight `dt` s on on `payload` (aero/), the core's passes of TICK_S: each board's
     rotor read; its reach from the speed its loop is asked - the loop's slew either way, up no
@@ -372,47 +388,23 @@ def flown(rotors, sky, core, payload, flight, dt):
         rotor['rig'].board.drive.model.configure(
             b=pull.ROTOR.b + 2.0 * quad.K_DRAG * abs(rotor['w']),
             load=-quad.K_DRAG * rotor['w'] * abs(rotor['w']), vdc=volts)
-    lib = _LIB
     periods = int(round(TICK_S * 50000))
-    tau = math.tau
+    eyes = flight.get('eyes')
+    read_buf = getattr(core, 'read', None)
     for _ in range(count):
-        for rotor in rotors:
-            buf = rotor['buf']
-            tripped = lib.world_drive_pass(rotor['slot'], periods, True, True,
-                                           ctypes.c_float(rotor['ask']), buf)
-            if tripped:
-                rotor['rig'].gates.off()
-            w = buf[0] / rotor['pairs']
-            rotor['w'] = w
-            rotor['w_hat'] = buf[1] / rotor['pairs']
-            rotor['angle'] = (rotor['angle'] + w * TICK_S) % tau
-            id_val = buf[2]
-            iq_val = buf[3]
-            rotor['iq'] = iq_val
-            rotor['amps'] = math.hypot(id_val, iq_val)
-            rotor['fault'] = FAULTS.get(int(buf[4]))
+        _step_drives(rotors, periods)
         most = [pull.reach(r['w_hat'], volts, hold) for r, hold in zip(rotors, holds)]
         slews = [pull.slew(clamp, r['w_hat']) for r in rotors]
-        out = core.step(payload, aero.reading(senses.told(flight.get('eyes'), sky.state(), TICK_S), *aero.reach(
-            [r['ask'] for r in rotors], [r['w_hat'] for r in rotors], TICK_S, slews,
-            LEAST_RAD_S, top, most), TICK_S))
+        out = core.step(payload, aero.reading(
+            senses.told(eyes, sky.state(False), TICK_S), *aero.reach(
+                [r['ask'] for r in rotors], [r['w_hat'] for r in rotors], TICK_S, slews,
+                LEAST_RAD_S, top, most), TICK_S, into=read_buf))
         for rotor, speed in zip(rotors, aero.speeds(out.thrust)):
             rotor['ask'] = speed
         if air is not None:
             weather.blown(air, TICK_S)
         sky.step([r['w'] for r in rotors], TICK_S, air)
-    watts = sum(pull.watts(r['w'], r['iq'], r['amps']) for r in rotors)
-    flightpack.drawn(cells, watts, dt)
-    flight['over'] += dt * float(max(rotor['amps'] for rotor in rotors) > pull.I_MAX)
-    told, through = weather.airspeeds(sky.state(), air)
-    for rotor in rotors:
-        heat = rotor['rig'].board.thermal
-        heat.fast_forward(dt * heat.HASTE, live=True)
-        heat.airspeed(told, truth=through)
-        if 'cooling' in rotor:
-            mheat.step_board_cooling(
-                rotor['cooling'], rotor.get('amps') or 0.0, volts, dt * heat.HASTE, through,
-                quad.COOLING)
+    _step_bus_and_heat(rotors, sky, flight, dt, quad.COOLING)
     return out
 
 

@@ -148,6 +148,13 @@ class SimulatedDrive(DrivePlant, DriveCapture, DriveControl):
             self._advance()
             return self._law.state(), stand.row(self._slot)
 
+    def _now_row(self):
+        """Its slot's row at this moment."""
+        with self._lock:
+            self._advance()
+            return stand.row(self._slot)
+
+
     # -- the record -------------------------------------------------------
 
     #: What an uncommissioned board answers: the firmware's compiled-in

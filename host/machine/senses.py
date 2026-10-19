@@ -130,12 +130,16 @@ def read(eyes, state, dt):
                               [vel_m * g(0.0, 1.0) for _ in range(3)], None))
     _fixed(eyes, t)
     x, y, z = eyes['err']
-    tilt = ((1.0, -z, y), (z, 1.0, -x), (-y, x, 1.0))
     noise = GYRO / math.sqrt(2.0 * dt)
+    t0, t1, t2 = turn[0], turn[1], turn[2]
+    turn_out = [
+        [t0[0] - z * t1[0] + y * t2[0], t0[1] - z * t1[1] + y * t2[1], t0[2] - z * t1[2] + y * t2[2]],
+        [z * t0[0] + t1[0] - x * t2[0], z * t0[1] + t1[1] - x * t2[1], z * t0[2] + t1[2] - x * t2[2]],
+        [-y * t0[0] + x * t1[0] + t2[0], -y * t0[1] + x * t1[1] + t2[1], -y * t0[2] + x * t1[2] + t2[2]],
+    ]
     seen = dict(state, at=[float(c) + d for c, d in zip(state['at'], p)], lost=eyes['lost'],
                 vel=[c + d for c, d in zip(vel, v)], h=float(state['h']) + p[1], v=vel[1] + v[1],
-                turn=[[sum(tilt[r][k] * turn[k][c] for k in range(3)) for c in range(3)] for r in range(3)],
-                spin=[float(s) + noise * g(0.0, 1.0) for s in state['spin']])
+                turn=turn_out, spin=[float(s) + noise * g(0.0, 1.0) for s in state['spin']])
     eyes['seen'] = seen
     return seen
 

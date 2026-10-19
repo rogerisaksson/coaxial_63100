@@ -144,14 +144,24 @@ def speeds(thrusts):
     return [math.sqrt(max(0.0, f) / quad.K_THRUST) for f in thrusts]
 
 
-def reading(state, given, lo, hi, dt):
+def reading(state, given, lo, hi, dt, into=None):
     """A pass's reading from the frame as `quad.Sky.state` has it: its axes, its rates about
     them, its speed, its height; each rotor's thrust as its speed has it and at the least and
     the most it reaches by the next pass, N."""
-    return In(r=(_f * 9)(*[float(x) for row in state['turn'] for x in row]),
-              spin=(_f * AXES)(*[float(x) for x in state['spin']]),
-              vel=(_f * AXES)(*[float(x) for x in state['vel']]), height=float(state['h']),
-              given=(_f * ROTORS)(*given), lo=(_f * ROTORS)(*lo), hi=(_f * ROTORS)(*hi), dt=dt)
+    read = In() if into is None else into
+    r, spin, vel = read.r, read.spin, read.vel
+    turn, st_spin, st_vel = state['turn'], state['spin'], state['vel']
+    r[0], r[1], r[2] = float(turn[0][0]), float(turn[0][1]), float(turn[0][2])
+    r[3], r[4], r[5] = float(turn[1][0]), float(turn[1][1]), float(turn[1][2])
+    r[6], r[7], r[8] = float(turn[2][0]), float(turn[2][1]), float(turn[2][2])
+    spin[0], spin[1], spin[2] = float(st_spin[0]), float(st_spin[1]), float(st_spin[2])
+    vel[0], vel[1], vel[2] = float(st_vel[0]), float(st_vel[1]), float(st_vel[2])
+    read.height, read.dt = float(state['h']), float(dt)
+    g_arr, lo_arr, hi_arr = read.given, read.lo, read.hi
+    g_arr[0], g_arr[1], g_arr[2], g_arr[3] = given[0], given[1], given[2], given[3]
+    lo_arr[0], lo_arr[1], lo_arr[2], lo_arr[3] = lo[0], lo[1], lo[2], lo[3]
+    hi_arr[0], hi_arr[1], hi_arr[2], hi_arr[3] = hi[0], hi[1], hi[2], hi[3]
+    return read
 
 
 class Core:
@@ -162,6 +172,7 @@ class Core:
         self.lib = library()
         self.params = params or frame()
         self.state = ctypes.create_string_buffer(self.lib.aeh_size(0))
+        self.read = In()
         self.out = Out()
         self.lib.aero_init(self.state, ctypes.byref(self.params))
 

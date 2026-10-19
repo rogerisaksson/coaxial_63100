@@ -99,11 +99,8 @@ def mjcf(things=()):
         m += ('<geom name="skid%d" type="sphere" pos="%g %g %g" size="%g" '
               'priority="1" solref="0.03 1" friction="0.3 0.002 0.0001"/>'
               % (k, x_sc * sx, by, bz, FOOT_M))
-    head = quad.mjcf(things).split('<body name="frame"')[0]
-    return ('%s<body name="frame" pos="%g %g %g"><freejoint name="root"/>'
-            '<inertial pos="0 0 0" mass="%g" diaginertia="%g %g %g"/>%s</body>'
-            '</worldbody></mujoco>' % ((head, -RUNWAY_M * math.sin(RUNWAY_RAD), SKID_M + FOOT_M,
-                                        -RUNWAY_M * math.cos(RUNWAY_RAD), MASS_KG) + INERTIA + (m,)))
+    pos = (-RUNWAY_M * math.sin(RUNWAY_RAD), SKID_M + FOOT_M, -RUNWAY_M * math.cos(RUNWAY_RAD))
+    return quad.mjcf(things, m, pos, MASS_KG, INERTIA)
 
 
 def _prop_drag(throt, elev, ail, w):

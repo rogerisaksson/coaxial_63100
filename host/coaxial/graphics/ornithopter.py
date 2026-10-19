@@ -11,13 +11,13 @@ stroke arcs shimmer in braille.
 """
 import math
 
-from coaxial.graphics import engine, scenery, shapes
+from coaxial.graphics import shapes
 from coaxial.graphics.callouts import line
 from coaxial.graphics.helicopter import force_arrows
-from coaxial.graphics.lit import CORE, PLATE, braille, paint, project, splat
+from coaxial.graphics.lit import CORE, PLATE, paint, project
 from coaxial.graphics.quadcopter import (BLADES_RAD_S, BOARD_H, BOARD_R, CARBON, CELLS, LEG_R,
                                          MASK, MOTOR_R, RIM_EVERY, RIM_INK, SHAFT_R, SINK_H,
-                                         SINK_R, Mesh, _at, _painted)
+                                         SINK_R, Mesh, _at, pose_meshes, render_craft)
 from machine import ornithopter as orni_phys
 
 #: The camera: the eye's distance in reaches framed, and the reach the ornithopter fills, m -
@@ -166,33 +166,18 @@ def _wing_pose_angles(rotors, controls):
 def _posed(pose, rotors, dense, see='shell'):
     """(positions, normals, uv, materials, index) in the world: the ornithopter carapace at `pose`
     and all four dragonfly wings articulated at their shoulder joints."""
-    from coaxial.model.blocks import numpy as np
-    turn, at = np.asarray(pose['turn'], float), np.asarray(pose['at'], float)
-    frame = orni_mesh('frame', see)
-    pick = (lambda mesh: (mesh.dense[0], mesh.dense[1], mesh.dense[2], mesh.dense[3])) if dense \
-        else (lambda mesh: (mesh.corners, mesh.normals, mesh.uv, mesh.materials))
-    points, normals, uv, _materials = pick(frame)
-    out = [[points @ turn.T + at], [normals @ turn.T], [uv], [_painted(frame, rotors, dense)]]
-    index, base = [frame.index], len(points)
     wings = (('fore_l', -1.0, (-SHOULDER_X, SHOULDER_Y, FORE_Z)),
-              ('fore_r', 1.0, (SHOULDER_X, SHOULDER_Y, FORE_Z)),
-              ('aft_l', -1.0, (-SHOULDER_X, SHOULDER_Y + 0.004, AFT_Z)),
-              ('aft_r', 1.0, (SHOULDER_X, SHOULDER_Y + 0.004, AFT_Z)))
+             ('fore_r', 1.0, (SHOULDER_X, SHOULDER_Y, FORE_Z)),
+             ('aft_l', -1.0, (-SHOULDER_X, SHOULDER_Y + 0.004, AFT_Z)),
+             ('aft_r', 1.0, (SHOULDER_X, SHOULDER_Y + 0.004, AFT_Z)))
     angles = _wing_pose_angles(rotors, pose.get('controls'))
-    for (kind, side, spot), (dih, feather, sweep) in zip(wings, angles):
-        wing = orni_mesh(kind)
-        rot_local = (shapes.turn_about('y', -side * sweep)
-                     @ shapes.turn_about('z', side * dih)
-                     @ shapes.turn_about('x', feather))
-        here = turn @ rot_local
-        p, n, u, mat = pick(wing)
-        out[0].append(p @ here.T + at + turn @ np.array(spot))
-        out[1].append(n @ here.T)
-        out[2].append(u)
-        out[3].append(mat)
-        index.append(wing.index + base)
-        base += len(p)
-    return tuple(np.concatenate(o) for o in out) + (np.vstack(index),)
+    moving = [(orni_mesh(kind),
+               shapes.turn_about('y', -side * sweep)
+               @ shapes.turn_about('z', side * dih)
+               @ shapes.turn_about('x', feather),
+               spot)
+              for (kind, side, spot), (dih, feather, sweep) in zip(wings, angles)]
+    return pose_meshes(pose, rotors, dense, orni_mesh('frame', see), moving)
 
 
 def _stroke_arcs(pose, rotors, m, cam, centre):
@@ -228,28 +213,12 @@ ARROWS = (((0.0, SHOULDER_Y + 0.035, FORE_Z), 1, 0, 0.022),
           ((0.0, SHOULDER_Y + 0.035, AFT_Z), 1, 0, 0.022))
 
 
-
 def render(pose, rotors, width, height, yaw=30.0, pitch=18.0, reach=REACH, centre=None,
            colour=True, lit=None, world=True, gate=None, thrusts=None, line_=False, inset=None,
            see='shell', lens=1.0):
     """The 4-wing Dune ornithopter at `pose` on its `rotors`, `width` x `height` cells, `reach` m
     framed about `centre` from SIGHT reaches off through a `lens` that much nearer: lines."""
-    from coaxial.model.blocks import numpy as np
-    m = shapes.view(yaw, pitch)
-    fine = engine.fine(engine.camera(width, height, reach, distance=SIGHT * reach, zoom=lens))
-    at = np.asarray(pose['at'], float)
-    centre = at if centre is None else np.asarray(centre, float)
-    if lit is not None:
-        positions, normals, uv, materials, index = _posed(pose, rotors, False, see)
-        depth, rgb = lit.raster(positions, normals, uv, materials, index, m, fine,
-                                tuple(centre), float(np.linalg.norm(at - centre)) + REACH)
-    else:
-        positions, normals, uv, materials, _index = _posed(pose, rotors, True, see)
-        depth, rgb = splat((positions, normals, materials, uv), m, fine, centre)
-    own = ([] if see == 'bare' else _stroke_arcs(pose, rotors, m, fine, centre)) + (
-        force_arrows(pose, thrusts, ARROWS, m, fine, centre) if thrusts is not None else [])
-    if not world:
-        return braille(depth, rgb, np.zeros(depth.shape), width, height, colour, inset,
-                       props=own)
-    return braille(depth, rgb, scenery.ground(m, fine, centre), width, height, colour, inset,
-                   props=own + scenery.props(m, fine, centre, gate, line_))
+    return render_craft(pose, rotors, width, height, yaw, pitch, reach, SIGHT, REACH, centre,
+                        colour, lit, world, gate, thrusts, line_, inset, see, lens, _posed,
+                        _stroke_arcs, lambda p, t, m, c, ctr: force_arrows(p, t, ARROWS, m, c, ctr))
+

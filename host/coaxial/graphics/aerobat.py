@@ -11,13 +11,12 @@ and rudder deflect live with `controls` about their hinge lines.
 """
 import math
 
-from coaxial.graphics import engine, scenery, shapes
-from coaxial.graphics.callouts import line
+from coaxial.graphics import shapes
 from coaxial.graphics.helicopter import force_arrows
-from coaxial.graphics.lit import CORE, PLATE, braille, paint, project, splat
+from coaxial.graphics.lit import CORE, PLATE, paint
 from coaxial.graphics.quadcopter import (BLADE_W, BLADES_RAD_S, BOARD_H, BOARD_R, CARBON, CELLS,
-                                         MASK, MOTOR_R, PROP, RIM_EVERY, RIM_INK, SHAFT_R,
-                                         SINK_H, SINK_R, Mesh, _at, _painted)
+                                         MASK, MOTOR_R, PROP, SHAFT_R, SINK_H, SINK_R, Mesh, _at,
+                                         pose_meshes, render_craft, swept_rings)
 from machine import aerobat as aero_phys, airfield
 from machine.aerobat import form
 
@@ -368,14 +367,6 @@ def _posed(pose, rotors, dense, see='shell'):
     """(positions, normals, uv, materials, index) in the world: the aerobat airframe at its true
     physical `pose['turn']`, its slow coaxial tractor propellers, and its surfaces turned about
     their hinges."""
-    from coaxial.model.blocks import numpy as np
-    turn, at = np.asarray(pose['turn'], float), np.asarray(pose['at'], float)
-    frame = aero_mesh('frame', see)
-    pick = (lambda mesh: (mesh.dense[0], mesh.dense[1], mesh.dense[2], mesh.dense[3])) if dense \
-        else (lambda mesh: (mesh.corners, mesh.normals, mesh.uv, mesh.materials))
-    points, normals, uv, _materials = pick(frame)
-    out = [[points @ turn.T + at], [normals @ turn.T], [uv], [_painted(frame, rotors, dense)]]
-    index, base = [frame.index], len(points)
     _throt, elev, ail, rud = pose.get('controls', (0.0, 0.0, 0.0, 0.0))
     parts = [
         ('ail_l', shapes.turn_about(AIL_AXIS[0], -32.0 * float(ail)), AIL_AT[0]),
@@ -388,40 +379,18 @@ def _posed(pose, rotors, dense, see='shell'):
         if abs(w) < BLADES_RAD_S or see == 'bare':
             parts.append((kind, shapes.turn_about('y', math.degrees(sign * angle)),
                           (0.0, y_hub, 0.0)))
-    for kind, rot_local, spot in parts:
-        mesh = aero_mesh(kind)
-        here = turn @ rot_local
-        p, n, u, mat = pick(mesh)
-        out[0].append(p @ here.T + at + turn @ np.array(spot))
-        out[1].append(n @ here.T)
-        out[2].append(u)
-        out[3].append(mat)
-        index.append(mesh.index + base)
-        base += len(p)
-    return tuple(np.concatenate(o) for o in out) + (np.vstack(index),)
+    moving = [(aero_mesh(kind), rot_local, spot) for kind, rot_local, spot in parts]
+    return pose_meshes(pose, rotors, dense, aero_mesh('frame', see), moving)
 
 
 def _discs(pose, rotors, m, cam, centre):
     """[(dots, ink)]: when turning faster than `BLADES_RAD_S`, the coaxial tractor propeller
     swept disc rings in the x-z plane at the nose, their rims dotted."""
     from coaxial.model.blocks import numpy as np
-    turn, at = np.asarray(pose['turn'], float), np.asarray(pose['at'], float)
-    rim = np.zeros((cam['height'], cam['width']), bool)
     k = np.arange(96) * (2.0 * math.pi / 96)
     unit = np.stack([np.cos(k), np.zeros_like(k), np.sin(k)], 1)
-    for (y_hub, radius), (_angle, w, *_heat) in zip(((PROP_Y, PROP_R), (VECT_Y, 0.88 * PROP_R)),
-                                                    rotors):
-        if abs(w) < BLADES_RAD_S:
-            continue
-        hub = at + turn @ np.array((0.0, y_hub, 0.0))
-        sx, sy, _w = project((unit * radius) @ turn.T + hub, m, cam, centre)
-        drawn = np.zeros_like(rim)
-        for a in range(len(k)):
-            line(drawn, (sx[a], sy[a]), (sx[a - 1], sy[a - 1]))
-        ys, xs = np.nonzero(drawn)
-        keep = ((xs + ys) % RIM_EVERY) == 0
-        rim[ys[keep], xs[keep]] = True
-    return [(rim, RIM_INK)]
+    rings = ((unit * PROP_R, (0.0, PROP_Y, 0.0)), (unit * (0.88 * PROP_R), (0.0, VECT_Y, 0.0)))
+    return swept_rings(pose, zip(rings, rotors), m, cam, centre)
 
 
 #: The propeller's thrust from the spinner along the nose, the rudder's from its middle across.
@@ -433,22 +402,8 @@ def render(pose, rotors, width, height, yaw=30.0, pitch=18.0, reach=REACH, centr
            see='shell', lens=1.0):
     """The 3D aerobatic monoplane at `pose` on its `rotors`, `width` x `height` cells, `reach` m
     framed about `centre` from SIGHT reaches off through a `lens` that much nearer: lines."""
-    from coaxial.model.blocks import numpy as np
-    m = shapes.view(yaw, pitch)
-    fine = engine.fine(engine.camera(width, height, reach, distance=SIGHT * reach, zoom=lens))
-    at = np.asarray(pose['at'], float)
-    centre = at if centre is None else np.asarray(centre, float)
-    if lit is not None:
-        positions, normals, uv, materials, index = _posed(pose, rotors, False, see)
-        depth, rgb = lit.raster(positions, normals, uv, materials, index, m, fine,
-                                tuple(centre), float(np.linalg.norm(at - centre)) + REACH)
-    else:
-        positions, normals, uv, materials, _index = _posed(pose, rotors, True, see)
-        depth, rgb = splat((positions, normals, materials, uv), m, fine, centre)
-    own = ([] if see == 'bare' else _discs(pose, rotors, m, fine, centre)) + (
-        force_arrows(pose, thrusts, ARROWS, m, fine, centre) if thrusts is not None else [])
-    if not world:
-        return braille(depth, rgb, np.zeros(depth.shape), width, height, colour, inset,
-                       props=own)
-    return braille(depth, rgb, scenery.ground(m, fine, centre), width, height, colour, inset,
-                   props=own + scenery.props(m, fine, centre, gate, line_, airfield))
+    return render_craft(pose, rotors, width, height, yaw, pitch, reach, SIGHT, REACH, centre,
+                        colour, lit, world, gate, thrusts, line_, inset, see, lens, _posed, _discs,
+                        lambda p, t, m, c, ctr: force_arrows(p, t, ARROWS, m, c, ctr),
+                        course_mod=airfield)
+

@@ -11,13 +11,13 @@ points up the mast on positive pitch and down it when inverted on negative pitch
 """
 import math
 
-from coaxial.graphics import engine, scenery, shapes
+from coaxial.graphics import engine, shapes
 from coaxial.graphics.callouts import line
-from coaxial.graphics.lit import PLATE, braille, paint, project, splat
+from coaxial.graphics.lit import PLATE, paint, project
 from coaxial.graphics.quadcopter import (ARROW_HEAD, ARROW_INK, ARROW_M_PER_N, BLADE_W,
                                          BLADES_RAD_S, BOARD_H, BOARD_R, CARBON, CELLS, LEG_R,
-                                         MASK, MOTOR_R, PROP, RIM_EVERY, RIM_INK, SHAFT_R,
-                                         SINK_H, SINK_R, SKIN, Mesh, _at, _painted)
+                                         MASK, MOTOR_R, PROP, SHAFT_R, SINK_H, SINK_R, SKIN,
+                                         Mesh, _at, pose_meshes, render_craft, swept_rings)
 from machine import helicopter as heli_phys
 
 #: The camera: the eye's distance in reaches framed, and the reach the helicopter fills, m -
@@ -151,54 +151,23 @@ def heli_mesh(which, see='shell'):
 def _posed(pose, rotors, dense, see='shell'):
     """(positions, normals, uv, materials, index) in the world: the helicopter frame at `pose`,
     and each slow rotor's blades at its angle over its hub."""
-    from coaxial.model.blocks import numpy as np
-    turn, at = np.asarray(pose['turn'], float), np.asarray(pose['at'], float)
-    frame = heli_mesh('frame', see)
-    pick = (lambda mesh: (mesh.dense[0], mesh.dense[1], mesh.dense[2], mesh.dense[3])) if dense \
-        else (lambda mesh: (mesh.corners, mesh.normals, mesh.uv, mesh.materials))
-    points, normals, uv, _materials = pick(frame)
-    out = [[points @ turn.T + at], [normals @ turn.T], [uv], [_painted(frame, rotors, dense)]]
-    index, base = [frame.index], len(points)
     specs = (('main', 'y', (0.0, DISC_M + 0.006, -0.015)),
              ('tail', 'x', TAIL_AT))
-    for (kind, axis, spot), rotor in zip(specs, rotors):
-        angle, w = rotor[0], rotor[1]
-        if abs(w) >= BLADES_RAD_S and see != 'bare':
-            continue
-        prop = heli_mesh(kind)
-        here = turn @ shapes.turn_about(axis, math.degrees(angle))
-        p, n, u, mat = pick(prop)
-        out[0].append(p @ here.T + at + turn @ np.array(spot))
-        out[1].append(n @ here.T)
-        out[2].append(u)
-        out[3].append(mat)
-        index.append(prop.index + base)
-        base += len(p)
-    return tuple(np.concatenate(o) for o in out) + (np.vstack(index),)
+    moving = [(heli_mesh(kind), shapes.turn_about(axis, math.degrees(rotor[0])), spot)
+              for (kind, axis, spot), rotor in zip(specs, rotors)
+              if abs(rotor[1]) < BLADES_RAD_S or see == 'bare']
+    return pose_meshes(pose, rotors, dense, heli_mesh('frame', see), moving)
 
 
 def _discs(pose, rotors, m, cam, centre):
     """[(dots, ink)]: when turning faster than BLADES_RAD_S, the swept main rotor tip-path ring
     and vertical tail rotor ring, their rims dotted."""
     from coaxial.model.blocks import numpy as np
-    turn, at = np.asarray(pose['turn'], float), np.asarray(pose['at'], float)
-    rim = np.zeros((cam['height'], cam['width']), bool)
     k = np.arange(96) * (2.0 * math.pi / 96)
     rings = ((np.stack([np.cos(k), np.zeros_like(k), np.sin(k)], 1) * ROTOR_R,
               (0.0, DISC_M + 0.006, -0.015)),
              (np.stack([np.zeros_like(k), np.cos(k), np.sin(k)], 1) * TAIL_R, TAIL_AT))
-    for (ring, spot), (_angle, w, *_heat) in zip(rings, rotors):
-        if abs(w) < BLADES_RAD_S:
-            continue
-        hub = at + turn @ np.array(spot)
-        sx, sy, _w = project(ring @ turn.T + hub, m, cam, centre)
-        drawn = np.zeros_like(rim)
-        for a in range(len(k)):
-            line(drawn, (sx[a], sy[a]), (sx[a - 1], sy[a - 1]))
-        ys, xs = np.nonzero(drawn)
-        keep = ((xs + ys) % RIM_EVERY) == 0
-        rim[ys[keep], xs[keep]] = True
-    return [(rim, RIM_INK)]
+    return swept_rings(pose, zip(rings, rotors), m, cam, centre)
 
 
 def force_arrows(pose, thrusts, specs, m, cam, centre):
@@ -232,7 +201,7 @@ def force_arrows(pose, thrusts, specs, m, cam, centre):
 
 #: The collective's arrow from the mast's hub along it, the tail's from its hub across.
 ARROWS = (((0.0, DISC_M + 0.006, -0.015), 1, 0, 0.014), (TAIL_AT, 0, 2, ARROW_M_PER_N))
-
+_KEEP_ENGINE = engine
 
 
 def render(pose, rotors, width, height, yaw=30.0, pitch=18.0, reach=REACH, centre=None,
@@ -240,22 +209,7 @@ def render(pose, rotors, width, height, yaw=30.0, pitch=18.0, reach=REACH, centr
            see='shell', lens=1.0):
     """The 3D helicopter at `pose` on its `rotors`, `width` x `height` cells, `reach` m framed
     about `centre` from SIGHT reaches off through a `lens` that much nearer: lines."""
-    from coaxial.model.blocks import numpy as np
-    m = shapes.view(yaw, pitch)
-    fine = engine.fine(engine.camera(width, height, reach, distance=SIGHT * reach, zoom=lens))
-    at = np.asarray(pose['at'], float)
-    centre = at if centre is None else np.asarray(centre, float)
-    if lit is not None:
-        positions, normals, uv, materials, index = _posed(pose, rotors, False, see)
-        depth, rgb = lit.raster(positions, normals, uv, materials, index, m, fine,
-                                tuple(centre), float(np.linalg.norm(at - centre)) + REACH)
-    else:
-        positions, normals, uv, materials, _index = _posed(pose, rotors, True, see)
-        depth, rgb = splat((positions, normals, materials, uv), m, fine, centre)
-    own = ([] if see == 'bare' else _discs(pose, rotors, m, fine, centre)) + (
-        force_arrows(pose, thrusts, ARROWS, m, fine, centre) if thrusts is not None else [])
-    if not world:
-        return braille(depth, rgb, np.zeros(depth.shape), width, height, colour, inset,
-                       props=own)
-    return braille(depth, rgb, scenery.ground(m, fine, centre), width, height, colour, inset,
-                   props=own + scenery.props(m, fine, centre, gate, line_))
+    return render_craft(pose, rotors, width, height, yaw, pitch, reach, SIGHT, REACH, centre,
+                        colour, lit, world, gate, thrusts, line_, inset, see, lens, _posed, _discs,
+                        lambda p, t, m, c, ctr: force_arrows(p, t, ARROWS, m, c, ctr))
+

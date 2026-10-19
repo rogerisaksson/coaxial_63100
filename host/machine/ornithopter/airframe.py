@@ -89,14 +89,9 @@ def mjcf(things=()):
          'fromto="0 0.018 -0.08 0 0.018 -0.64" size="0.013" contype="1" conaffinity="1"/>'
          '<geom name="vtail" type="box" pos="0 0.04 -0.62" size="0.11 0.045 0.03" contype="1" '
          'conaffinity="1"/>' % (SHOULDER_Y, FORE_Z, 0.85 * WING_SPAN, 0.5 * WING_CHORD,
-                                SHOULDER_Y + 0.01, AFT_Z, 0.75 * WING_SPAN, 0.45 * WING_CHORD))
-    for k, (sx, sz) in enumerate((sx, sz) for sx in (-SKID_X, SKID_X) for sz in STRUT_Z):
-        m += ('<geom name="skid%d" type="sphere" pos="%g %g %g" size="%g" '
-              'solref="0.01 1" friction="0.8 0.005 0.0001"/>' % (k, sx, -SKID_M, sz, FOOT_M))
-    head = quad.mjcf(things).split('<body name="frame"')[0]
-    return ('%s<body name="frame" pos="0 %g 0"><freejoint name="root"/>'
-            '<inertial pos="0 0 0" mass="%g" diaginertia="%g %g %g"/>%s</body>'
-            '</worldbody>' '</mujoco>' % ((head, SKID_M + FOOT_M, MASS_KG) + INERTIA + (m,)))
+                                SHOULDER_Y + 0.01, AFT_Z, 0.75 * WING_SPAN, 0.45 * WING_CHORD)
+         + quad.skids(SKID_X, SKID_M, STRUT_Z, FOOT_M))
+    return quad.mjcf(things, m, (0.0, SKID_M + FOOT_M, 0.0), MASS_KG, INERTIA)
 
 
 def _wing_drag(stroke, pitch_t, roll_d, w_eq):

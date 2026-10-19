@@ -70,14 +70,9 @@ def mjcf(things=()):
          'euler="90 0 0" contype="1" conaffinity="1"/><geom name="boom" type="capsule" '
          'fromto="0 0.012 -0.05 0 0.012 %g" size="0.014" contype="1" conaffinity="1"/>'
          '<geom name="fin" type="box" pos="0 0.02 %g" size="0.01 0.08 0.03" contype="1" '
-         'conaffinity="1"/>' % (DISC_M, ROTOR_R, -TAIL_M, -TAIL_M))
-    for k, (sx, sz) in enumerate((sx, sz) for sx in (-SKID_X, SKID_X) for sz in STRUT_Z):
-        m += ('<geom name="skid%d" type="sphere" pos="%g %g %g" size="%g" '
-              'solref="0.01 1" friction="0.8 0.005 0.0001"/>' % (k, sx, -SKID_M, sz, FOOT_M))
-    head = quad.mjcf(things).split('<body name="frame"')[0]
-    return ('%s<body name="frame" pos="0 %g 0"><freejoint name="root"/>'
-            '<inertial pos="0 0 0" mass="%g" diaginertia="%g %g %g"/>%s</body>'
-            '</worldbody></mujoco>' % ((head, SKID_M + FOOT_M, MASS_KG) + INERTIA + (m,)))
+         'conaffinity="1"/>' % (DISC_M, ROTOR_R, -TAIL_M, -TAIL_M)
+         + quad.skids(SKID_X, SKID_M, STRUT_Z, FOOT_M))
+    return quad.mjcf(things, m, (0.0, SKID_M + FOOT_M, 0.0), MASS_KG, INERTIA)
 
 
 def _rotor_drag(coll, cyc_p, cyc_r, w):

@@ -189,50 +189,65 @@ def _painted(frame, rotors, dense):
     return materials
 
 
-def _posed(pose, rotors, dense, see='shell'):
-    """(positions, normals, uv, materials, index) in the world: the frame at its pose, each
-    slow propeller's blades at its angle over its hub - every propeller's, bare."""
+def pose_meshes(pose, rotors, dense, frame, moving):
+    """(positions, normals, uv, materials, index) in the world: `frame` at `pose` and each
+    `(part_mesh, rot_local, spot)` in `moving` turned and placed in the frame's axes."""
     from coaxial.model.blocks import numpy as np
     turn, at = np.asarray(pose['turn'], float), np.asarray(pose['at'], float)
-    frame, prop = mesh('frame', see), mesh('prop')
     pick = (lambda m: (m.dense[0], m.dense[1], m.dense[2], m.dense[3])) if dense else \
         (lambda m: (m.corners, m.normals, m.uv, m.materials))
     points, normals, uv, _materials = pick(frame)
     out = [[points @ turn.T + at], [normals @ turn.T], [uv], [_painted(frame, rotors, dense)]]
     index, base = [frame.index], len(points)
-    for (x, z), spin, (angle, w, *_heat) in zip(quad.ROTOR_AT, quad.SPIN, rotors):
-        if abs(w) >= BLADES_RAD_S and see != 'bare':
-            continue
-        here = turn @ shapes.turn_about('y', math.degrees(spin * angle))
-        p, n, u, m = pick(prop)
-        out[0].append(p @ here.T + at + turn @ np.array([x, quad.DISC_M + 0.006, z]))
+    for part, rot_local, spot in moving:
+        here = turn @ rot_local
+        p, n, u, m = pick(part)
+        out[0].append(p @ here.T + at + turn @ np.asarray(spot, float))
         out[1].append(n @ here.T)
         out[2].append(u)
         out[3].append(m)
-        index.append(prop.index + base)
+        index.append(part.index + base)
         base += len(p)
     return tuple(np.concatenate(o) for o in out) + (np.vstack(index),)
 
 
-def _discs(pose, rotors, m, cam, centre):
-    """[(dots, ink)]: each fast propeller's swept disc, its rim dotted."""
+def _posed(pose, rotors, dense, see='shell'):
+    """(positions, normals, uv, materials, index) in the world: the frame at its pose, each
+    slow propeller's blades at its angle over its hub - every propeller's, bare."""
+    frame, prop = mesh('frame', see), mesh('prop')
+    moving = [(prop, shapes.turn_about('y', math.degrees(spin * angle)), (x, quad.DISC_M + 0.006, z))
+              for (x, z), spin, (angle, w, *_heat) in zip(quad.ROTOR_AT, quad.SPIN, rotors)
+              if abs(w) < BLADES_RAD_S or see == 'bare']
+    return pose_meshes(pose, rotors, dense, frame, moving)
+
+
+def swept_rings(pose, rings_and_rotors, m, cam, centre):
+    """[(dots, ink)]: each fast rotor's swept ring `(ring, spot)` where `abs(w) >= BLADES_RAD_S`,
+    its rim dotted."""
     from coaxial.model.blocks import numpy as np
     turn, at = np.asarray(pose['turn'], float), np.asarray(pose['at'], float)
     rim = np.zeros((cam['height'], cam['width']), bool)
-    k = np.arange(96) * (2.0 * math.pi / 96)
-    ring = np.stack([np.cos(k), np.zeros_like(k), np.sin(k)], 1) * quad.DISC_R
-    for (x, z), (_angle, w, *_heat) in zip(quad.ROTOR_AT, rotors):
+    for (ring, spot), (_angle, w, *_heat) in rings_and_rotors:
         if abs(w) < BLADES_RAD_S:
             continue
-        hub = at + turn @ np.array([x, quad.DISC_M + 0.006, z])
+        hub = at + turn @ np.asarray(spot, float)
         sx, sy, _w = project(ring @ turn.T + hub, m, cam, centre)
         drawn = np.zeros_like(rim)
-        for a in range(len(k)):
+        for a in range(len(ring)):
             line(drawn, (sx[a], sy[a]), (sx[a - 1], sy[a - 1]))
         ys, xs = np.nonzero(drawn)
         keep = ((xs + ys) % RIM_EVERY) == 0
         rim[ys[keep], xs[keep]] = True
     return [(rim, RIM_INK)]
+
+
+def _discs(pose, rotors, m, cam, centre):
+    """[(dots, ink)]: each fast propeller's swept disc, its rim dotted."""
+    from coaxial.model.blocks import numpy as np
+    k = np.arange(96) * (2.0 * math.pi / 96)
+    ring = np.stack([np.cos(k), np.zeros_like(k), np.sin(k)], 1) * quad.DISC_R
+    specs = [((ring, (x, quad.DISC_M + 0.006, z)), r) for (x, z), r in zip(quad.ROTOR_AT, rotors)]
+    return swept_rings(pose, specs, m, cam, centre)
 
 
 def _arrows(pose, thrusts, m, cam, centre):
@@ -257,6 +272,33 @@ def _arrows(pose, thrusts, m, cam, centre):
     return [(drawn, ARROW_INK, True)]
 
 
+def render_craft(pose, rotors, width, height, yaw, pitch, reach, sight, base_reach, centre,
+                 colour, lit, world, gate, thrusts, line_, inset, see, lens,
+                 posed_fn, discs_fn, arrows_fn, course_mod=None):
+    """Shared 3D braille craft renderer across quad, helicopter, ornithopter and aerobat."""
+    from coaxial.model.blocks import numpy as np
+    m = shapes.view(yaw, pitch)
+    fine = engine.fine(engine.camera(width, height, reach, distance=sight * reach, zoom=lens))
+    at = np.asarray(pose['at'], float)
+    centre = at if centre is None else np.asarray(centre, float)
+    if lit is not None:
+        positions, normals, uv, materials, index = posed_fn(pose, rotors, False, see)
+        depth, rgb = lit.raster(positions, normals, uv, materials, index, m, fine,
+                                tuple(centre), float(np.linalg.norm(at - centre)) + base_reach)
+    else:
+        positions, normals, uv, materials, _index = posed_fn(pose, rotors, True, see)
+        depth, rgb = splat((positions, normals, materials, uv), m, fine, centre)
+    own = ([] if see == 'bare' else discs_fn(pose, rotors, m, fine, centre)) + (
+        arrows_fn(pose, thrusts, m, fine, centre) if thrusts is not None else [])
+    if not world:
+        return braille(depth, rgb, np.zeros(depth.shape), width, height, colour, inset,
+                       props=own)
+    scenery_props = (scenery.props(m, fine, centre, gate, line_) if course_mod is None
+                     else scenery.props(m, fine, centre, gate, line_, course_mod))
+    return braille(depth, rgb, scenery.ground(m, fine, centre), width, height, colour, inset,
+                   props=own + scenery_props)
+
+
 def render(pose, rotors, width, height, yaw=30.0, pitch=18.0, reach=REACH, centre=None,
            colour=True, lit=None, world=True, gate=None, thrusts=None, line_=False, inset=None,
            see='shell', lens=1.0):
@@ -266,22 +308,7 @@ def render(pose, rotors, width, height, yaw=30.0, pitch=18.0, reach=REACH, centr
     `gate` the course's gates stood too, the one of that number lit, and `line_` the line it
     asks through them; `thrusts` each rotor's, N, its arrow; `inset` cells {(row, col):
     (codepoint, key)} laid over all; `see` a layer of LAYERS."""
-    from coaxial.model.blocks import numpy as np
-    m = shapes.view(yaw, pitch)
-    fine = engine.fine(engine.camera(width, height, reach, distance=SIGHT * reach, zoom=lens))
-    at = np.asarray(pose['at'], float)
-    centre = at if centre is None else np.asarray(centre, float)
-    if lit is not None:
-        positions, normals, uv, materials, index = _posed(pose, rotors, False, see)
-        depth, rgb = lit.raster(positions, normals, uv, materials, index, m, fine,
-                                tuple(centre), float(np.linalg.norm(at - centre)) + REACH)
-    else:
-        positions, normals, uv, materials, _index = _posed(pose, rotors, True, see)
-        depth, rgb = splat((positions, normals, materials, uv), m, fine, centre)
-    own = ([] if see == 'bare' else _discs(pose, rotors, m, fine, centre)) + (
-        _arrows(pose, thrusts, m, fine, centre) if thrusts is not None else [])
-    if not world:
-        return braille(depth, rgb, np.zeros(depth.shape), width, height, colour, inset,
-                       props=own)
-    return braille(depth, rgb, scenery.ground(m, fine, centre), width, height, colour, inset,
-                   props=own + scenery.props(m, fine, centre, gate, line_))
+    return render_craft(pose, rotors, width, height, yaw, pitch, reach, SIGHT, REACH, centre,
+                        colour, lit, world, gate, thrusts, line_, inset, see, lens,
+                        _posed, _discs, _arrows)
+

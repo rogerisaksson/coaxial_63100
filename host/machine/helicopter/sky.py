@@ -1,7 +1,5 @@
 """The 3D helicopter in MuJoCo (`Sky`), and the frame every two-drive craft lays in it (`_init_sky`)."""
-import importlib
 import math
-import os
 
 from machine import quad
 from machine.helicopter.airframe import (BODY_CDA, FOOT_M, K_CYC, K_TAIL, K_THRUST, RHO, SKID_M,
@@ -11,58 +9,60 @@ from machine.weather import wind_at
 
 
 def _init_sky(sky, xml, rest, touch=()):
-    os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
-    sky._mj, sky._np = importlib.import_module('mujoco'), importlib.import_module('numpy')
-    sky.model = sky._mj.MjModel.from_xml_string(xml)
-    sky.data = sky._mj.MjData(sky.model)
-    sky.frame, sky.rest = sky.model.body('frame').id, rest
-    sky.lift, sky.speeds, sky.controls, sky.hit = 0.0, (0.0, 0.0), (0.0, 0.0, 0.0, 0.0), None
-    names = [sky.model.geom(g).name for g in range(sky.model.ngeom)]
-    sky._names = [n.split('.')[0] for n in names]
-    sky._mine = {g for g in range(sky.model.ngeom) if sky.model.geom_bodyid[g] == sky.frame}
-    sky._feet = {(min(g, names.index('floor')), max(g, names.index('floor')))
-                 for g, n in enumerate(names) if n.startswith('skid') or n in touch}
-    sky._gates = [g for g, n in enumerate(names) if n.startswith('gate')]
-    sky.gated = True
-    sky._mj.mj_forward(sky.model, sky.data)
+    quad.Sky.__init__(sky, xml=xml, rest=rest, touch=touch)
+    sky.speeds, sky.controls = (0.0, 0.0), (0.0, 0.0, 0.0, 0.0)
 
 
 class Sky(quad.Sky):
 
     """The 3D helicopter in MuJoCo on the floor among `things`."""
 
+    _force_key = 'tail'
+
     def __init__(self, things=()):
-        self.tail = 0.0
+        setattr(self, self._force_key, 0.0)
         _init_sky(self, mjcf(things), SKID_M + FOOT_M)
 
     def reset(self):
         super().reset()
-        self.tail, self.speeds, self.controls = 0.0, (0.0, 0.0), (0.0, 0.0, 0.0, 0.0)
+        setattr(self, self._force_key, 0.0)
+        self.speeds, self.controls = (0.0, 0.0), (0.0, 0.0, 0.0, 0.0)
 
-    def state(self):
-        out = super().state()
-        out.update(tail=self.tail, speeds=self.speeds, controls=self.controls)
+    def state(self, copy=True):
+        out = super().state(copy)
+        out[self._force_key] = getattr(self, self._force_key)
+        out['speeds'] = self.speeds
+        out['controls'] = self.controls
         return out
 
+    def _unpack_and_wind(self, command, air):
+        """Unpack 6-element `command` into `speeds` and `controls`, and return
+        `((w0, w1), controls, (wx, wy, wz), signed_along, v_horiz)` at the current pose."""
+        c = tuple(float(x) for x in command[:6])
+        if len(c) < 6:
+            c = c + (0.0,) * (6 - len(c))
+        self.speeds, self.controls = c[:2], c[2:]
+        d, xm = self.data, self._xmat
+        h = float(d.qpos[1]) - self.rest
+        if air is not None:
+            w0, e0 = wind_at(air['wind'], h), wind_at(air['eddies'][0], h)
+            wx, wy, wz = w0[0] + e0[0], w0[1] + e0[1], w0[2] + e0[2]
+        else:
+            wx = wy = wz = 0.0
+        vx0, vy0, vz0 = self._vel.tolist()
+        vx, vy, vz = vx0 - wx, vy0 - wy, vz0 - wz
+        along = vx * float(xm[1]) + vy * float(xm[4]) + vz * float(xm[7])
+        return self.speeds, self.controls, (wx, wy, wz), (along if c[2] >= 0.0 else -along), math.hypot(vx, vz)
+
     def step(self, command, dt, air=None):
-        d, f = self.data, self.frame
-        w_m, w_t, coll, cyc_p, cyc_r, tail_p = (float(x) for x in (list(command) + [0.0] * 6)[:6])
-        self.speeds, self.controls, self.lift = (w_m, w_t), (coll, cyc_p, cyc_r, tail_p), K_THRUST * w_m * w_m * coll
-        turn, h = d.xmat[f].reshape(3, 3), float(d.qpos[1]) - (SKID_M + FOOT_M)
-        wx, wy, wz = (tuple(a + b for a, b in zip(wind_at(air['wind'], h), wind_at(air['eddies'][0], h))) if air is not None else (0.0, 0.0, 0.0))
-        along = sum((float(d.qvel[a]) - w) * float(turn[a, 1]) for a, w in enumerate((wx, wy, wz)))
-        lift = self.lift * _rotor_inflow(along if coll >= 0.0 else -along, math.hypot(float(d.qvel[0]) - wx, float(d.qvel[2]) - wz), w_m)
+        (w_m, w_t), (coll, cyc_p, cyc_r, tail_p), (wx, wy, wz), along, vh = self._unpack_and_wind(command, air)
+        self.lift = K_THRUST * w_m * w_m * coll
+        lift = self.lift * _rotor_inflow(along, vh, w_m)
         self.tail = f_t = K_TAIL * w_t * w_t * tail_p
-        ab = (K_CYC * w_m * w_m * cyc_p, TAIL_M * f_t - _rotor_drag(coll, cyc_p, cyc_r, w_m), K_CYC * w_m * w_m * cyc_r)
-        dk, qv, xf = 0.5 * RHO * BODY_CDA, d.qvel, d.xfrc_applied
+        ab0 = K_CYC * w_m * w_m * cyc_p
+        ab1 = TAIL_M * f_t - _rotor_drag(coll, cyc_p, cyc_r, w_m)
+        ab2 = K_CYC * w_m * w_m * cyc_r
+        dk = 0.5 * RHO * BODY_CDA
         for _ in range(max(1, int(round(dt / STEP_S)))):
-            t = d.xmat[f].reshape(3, 3)
-            vx, vy, vz = float(qv[0]) - wx, float(qv[1]) - wy, float(qv[2]) - wz
-            dr = dk * math.hypot(vx, vy, vz)
-            xf[f, :3] = (lift * float(t[0, 1]) + f_t * float(t[0, 0]) - dr * vx,
-                         lift * float(t[1, 1]) + f_t * float(t[1, 0]) - dr * vy,
-                         lift * float(t[2, 1]) + f_t * float(t[2, 0]) - dr * vz)
-            xf[f, 3:] = tuple(sum(float(t[r, k]) * ab[k] for k in range(3)) for r in range(3))
-            self._mj.mj_step(self.model, d)
-            if d.ncon and self.hit is None:
-                self.hit = self._struck(d)
+            self._substep(f_t, lift, wx, wy, wz, dk, ab0, ab1, ab2)
+

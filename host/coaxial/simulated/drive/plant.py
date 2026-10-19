@@ -18,12 +18,14 @@ class DrivePlant:
 
     # What the class this mixes into brings.
     DEFAULTS: Any
+    _advance: Any
     _counted: Any
     _law: Any
     _lib: Any
     _lock: Any
     _model: Any
     _now: Any
+    _now_row: Any
     _params: Any
     _slot: Any
     _source: Any
@@ -36,7 +38,7 @@ class DrivePlant:
             if name not in MODEL_IDS:
                 raise ValueError('%r is not a model parameter; they are %s'
                                  % (name, ', '.join(MODEL_IDS)))
-        self._now()                              # the old parameters' time, first
+        self._advance()                          # the old parameters' time, first
         self._model.update({k: float(v) for k, v in values.items()})
         # Live, as Board_DriveModelParam writes them under a turning rotor.
         self._law.model_params(**self._model)
@@ -58,7 +60,7 @@ class DrivePlant:
     @_rotor_locked
     def _reset_model(self):
         """The rotor back to theta0, at rest - the contract `drive.py` states."""
-        self._now()
+        self._advance()
         self._lib.world_drive_rest(self._slot)
         return True
 
@@ -70,8 +72,11 @@ class DrivePlant:
         bridge that does not switch, the model source's being its own -, whether it does, the
         link; and what its sync counted since it was last asked - each phase's mean square
         and the link's mean amps (`world_drive_window`), the last where it counted nothing."""
-        law, row = self._now()
-        on = self._stage()[1] if self._switching else law['mode'] != 0.0
+        if self._switching:
+            row, on = self._now_row(), self._stage()[1]
+        else:
+            law, row = self._now()
+            on = law['mode'] != 0.0
         amps = (row['amps_u'], row['amps_v'], row['amps_w']) if on else (0.0, 0.0, 0.0)
         counted = stand.window(self._slot)
         if counted['periods']:
@@ -84,7 +89,7 @@ class DrivePlant:
     @_rotor_locked
     def _carrying(self):
         """(amps, electrical angle) of the stator's current vector now."""
-        _law, row = self._now()
+        row = self._now_row()
         alpha = row['amps_u']
         beta = (row['amps_v'] - row['amps_w']) * INV_SQRT3
         return math.hypot(alpha, beta), math.atan2(beta, alpha) % math.tau
@@ -92,7 +97,7 @@ class DrivePlant:
     @_rotor_locked
     def _duty(self):
         """What the modulator put on the compares last period; none on an open bridge."""
-        _law, row = self._now()
+        row = self._now_row()
         if not row['driven']:
             return (0.0, 0.0, 0.0)
         return (row['duty_u'], row['duty_v'], row['duty_w'])
@@ -123,7 +128,7 @@ class DrivePlant:
     def _mech(self):
         """The shaft, rad mechanical, unwrapped: what a shaft sensor reads."""
         with self._lock:
-            return self._now()[1]['shaft']
+            return self._now_row()['shaft']
 
     @_rotor_locked
     def _rpm(self):

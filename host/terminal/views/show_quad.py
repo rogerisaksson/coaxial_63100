@@ -55,25 +55,14 @@ TITLE = 'QUAD ACRO FLYING'
 #: The rotors, round the frame: front left, front right, rear right, rear left.
 ROTORS = ('FL', 'FR', 'RR', 'RL')
 
-#: The feed's period, s - the stand-in's boards answer out of memory -, and the longest a pass
-#: takes the flight on, in its steps (`flight.steps`). The flight's clock is its steps' sum: a
-#: pass in twenty ran 50 ms, the routine's rows asked by the wall's clock moved further than
-#: their pass and the rotors' loops went to their clamp on what that looked like.
+#: The feed's period, s, and the longest a pass takes the flight on (`flight.steps`).
 PHYSICS_S, PASS_S = 0.01, 0.05
 
-#: The interpreter's threads change hands this often while the page flies, s: the flight's
-#: thread asks its boards and its core 40 000 times a second and gives way at each. At
-#: Python's own 5 ms it waited on the drawing's, a flight's second took 1.02 of the wall's
-#: and its clock ran 21 % behind; here 0.52, none behind, 15.6 frames a second where 16.3.
+#: The interpreter's threads change hands this often while the page flies, s.
 SWITCH_S = 2e-4
 
-#: The spectator of a craft's figures: SPOT_M from its home on its `YAW` side, a man's height
-#: up, where they stand; their gaze on the craft LEAD_S ahead filtered over as long - a steady
-#: flight unlagged -, their lens over LENS_S framing it FILL of the frame's height, wide enough
-#: for the horizon below it while it keeps FILL_MIN, HORIZON_RAD of sky over the horizon - a
-#: claim fading out over UP_FADE of elevation, rad: kept at 60 deg up it held the burn at
-#: FILL_MIN, the horizon out of the frame all the same. Carried along with the craft, the eye
-#: left the field and its figures were never seen from it.
+#: The spectator of a craft's figures: SPOT_M from its home on its `YAW` side, SPOT_Y up;
+#: their gaze LEAD_S ahead, their lens over LENS_S framing it FILL of the frame's height.
 SPOT_M, SPOT_Y, LEAD_S, LENS_S, FILL, FILL_MIN, HORIZON_RAD = 12.0, 1.7, 0.15, 0.6, 0.35, 0.12, 0.035
 UP_FADE = (0.35, 0.79)
 #: Before a flight and on the course: the reach framed on the floor, m, its pull over PULL_S;
@@ -81,8 +70,7 @@ UP_FADE = (0.35, 0.79)
 NEAR_M, PULL_S, YAW, SIDE_PITCH, PITCH = 0.8, 1.5, 30.0, 18.0, 18.0
 TRAIL_S, TRAIL_SHARE = 0.12, 0.4
 
-#: On the course: the reach framed, m; the camera comes round behind the frame's heading at
-#: this gain, 1/s, and frames a point this far ahead of it, s of its speed.
+#: On the course: the reach framed, m; the camera comes round behind the frame's heading.
 CHASE_M, CHASE_K, CHASE_S = 4.0, 2.0, 0.3
 
 #: A press of + or -, the reach framed over or times it, and the zoom's bounds.
@@ -96,41 +84,49 @@ def thrusts(frame, rotors):
     return [quad.K_THRUST * r['w'] * r['w'] * quad.inflow(along, r['w']) for r in rotors]
 
 
-def compose(console, origin, rotors, frame, flight, trace, now, art, yaw=0.0):
-    """One frame: the quad in the viewport; at the side the `flight` - its stage, its apex or
-    its `lap`, its pack `cells`, their `peak`, the `share` of the clamp's pull its rows have
-    or, a rotor past the flight's clamp, the seconds `over` it - its `air`'s wind as the
-    view, `yaw` degrees round, has it, the rotors, and `trace` drawn: the height and the
-    power, the bus and the hottest board."""
+def compose_craft(console, origin, rotors, frame, flight, trace, now, art, yaw, title, craft,
+                  flown_mod, extra_row=None):
+    """One frame for any coaxial aircraft: the 3D viewport and the 5-box side HUD (`FLIGHT`,
+    `WIND`, `ROTORS`, `HEIGHT/POWER`, `BUS/PEAK TEMP`)."""
     name, cells, peak, share = flight['stage'], flight['cells'], flight['peak'], flight['share']
-    weight = quad.MASS_KG * quad.GRAVITY
-    lift = sum(quad.K_THRUST * r['w'] * r['w'] for r in rotors)
+    n_rotors = len(rotors)
+    weight = craft.MASS_KG * craft.GRAVITY
+    if extra_row is None:
+        lift = sum(craft.K_THRUST * r['w'] * r['w'] for r in rotors)
+        height_rows = [('height', '%5.2f m, %+.1f m/s, %+.1f g' % (
+            frame['h'], frame['v'], frame['a'] / craft.GRAVITY))]
+        thrust_fmt, power_hdr = '%8.1f of %.1f N', 'HEIGHT m, POWER x4  last %.0f s'
+    else:
+        ctrl0 = frame.get('controls', flight.get('controls', (0.0, 0.0, 0.0, 0.0)))[0]
+        lift = float(frame.get('lift', craft.K_THRUST * rotors[0]['w'] ** 2 * ctrl0))
+        height_rows = [('height', '%8.2f m' % frame['h']),
+                       ('climb', '%+8.1f m/s, %+.1f g' % (frame['v'], frame['a'] / craft.GRAVITY))]
+        thrust_fmt, power_hdr = '%+8.1f of %.1f N', 'HEIGHT m, POWER OF BOTH  last %.0f s'
     tilt = math.degrees(math.acos(max(-1.0, min(1.0, float(frame['turn'][1][1])))))
     worst = max(((r['budget'] or {}).get('worst') or 0.0) for r in rotors)
     lap, over = flight.get('lap'), max(r['amps'] for r in rotors) > pull.I_MAX
     tight = min((r['budget'] or {}).get('hold_amps', pull.I_MAX) for r in rotors) < pull.I_MAX
     flying = hud('FLIGHT', [
-        ('stage', Text(('%s %s' % (name, flown.struck(flight))).upper().strip(), style='alarm'
+        ('stage', Text(('%s %s' % (name, flown_mod.struck(flight))).upper().strip(), style='alarm'
                        if name in ('full tilt', 'burn', 'swap', 'cool', flown.CRASHED)
                        else 'value')),
-        ('height', '%5.2f m, %+.1f m/s, %+.1f g' % (frame['h'], frame['v'],
-                                                    frame['a'] / quad.GRAVITY)),
-        ('thrust', '%8.1f of %.1f N' % (lift, weight)),
+        *height_rows,
+        ('thrust', thrust_fmt % (lift, weight)),
         ('tilt', '%8.1f deg, %.2f m off' % (tilt, math.hypot(frame['at'][0], frame['at'][2]))),
         ('lap', '%8s gate %d, %.1f m/s' % (
             '%d/%d' % (lap['laps'] + 1, lap['of']), lap['gate'],
             math.hypot(float(frame['vel'][0]), float(frame['vel'][2]))))
         if lap else ('apex', '%8.1f m' % flight['apex']),
-        ('TH OBS', flown.observers(rotors)),
+        ('TH OBS', flown_mod.observers(rotors)),
         ('SOA', Text('%8.0f %% worst, %s' % (100.0 * worst, 'WEP %.1f s' % flight['over']
                                              if over else 'pull %.0f %%' % (100.0 * share)),
                      style='alarm' if tight or over else 'value')),
         ('bus', '%8.1f V, low %.1f' % (cells['volts'], peak['low'])),
         ('pack', Text('%8.0f %% left, %.1f A' % (100.0 * cells['left'], cells['amps']),
                       style='alarm' if cells['left'] <= flightpack.RESERVE else 'value')),
-        ('power x4', '%8.0f W, peak %.0f' % (cells['watts'], peak['watts']))])
+        ('power x%d' % n_rotors, '%8.0f W, peak %.0f' % (cells['watts'], peak['watts']))])
     lines = []
-    for label, rotor in zip(ROTORS, rotors):
+    for label, rotor in zip(getattr(flown_mod, 'ROTORS', ROTORS), rotors):
         budget = rotor['budget'] or {}
         held = budget.get('hold_amps', pull.I_MAX) < pull.I_MAX
         hot = rotor['amps'] >= 0.9 * pull.I_MAX or held or budget.get('tripped')
@@ -138,21 +134,32 @@ def compose(console, origin, rotors, frame, flight, trace, now, art, yaw=0.0):
             rotor['w'] * 60.0 / math.tau, rotor['amps'], 100.0 * (budget.get('worst') or 0.0),
             'THR' if held else policy_word(rotor['ident'])[0]),
             style='alarm' if hot else 'value')))
+    if extra_row is not None:
+        lines.append(extra_row)
     sinks = [r.get('cooling') or {} for r in rotors]
     sink_c = max((float(s.get('sink_c', 25.0)) for s in sinks), default=25.0)
     fan_pct = 100.0 * max((float(s.get('fan_duty', 0.0)) for s in sinks), default=0.0)
     fan_rpm = max((float(s.get('fan_rpm', 0.0)) for s in sinks), default=0.0)
     lines.append(('SINK', Text('%4.1f C  fan %3.0f%%  %4.0f rpm' % (sink_c, fan_pct, fan_rpm),
                                style='alarm' if fan_pct >= 80.0 else 'value')))
-    return frame_of(console, origin, TITLE, art,
+    return frame_of(console, origin, title, art,
                     [flying, hud('WIND  the way it blows, in the view',
                                  wind.pointer(flight['air'], frame['h'], yaw)),
                      hud('ROTORS  rpm, current, SOA, TH OBS', lines),
-                     hud('HEIGHT m, POWER x4  last %.0f s' % traces.TRACE_S,
-                         traces.heights(trace, now, HUD_WIDTH - 4)),
+                     hud(power_hdr % traces.TRACE_S, traces.heights(trace, now, HUD_WIDTH - 4)),
                      hud('BUS V, PEAK TEMP C', traces.buses(trace, now, HUD_WIDTH - 4))],
                     (('+ -', 'ZOOM'), ('W', 'WIND'), ('T', 'THRUST'), ('S', 'LAYER'), ('L', 'LINE'),
                      ('C', 'CAMERA'), ('R', 'RECORD'), ('A', 'RESET'), ('Q', 'EXIT'), ('ESC', 'MENU')))
+
+
+def compose(console, origin, rotors, frame, flight, trace, now, art, yaw=0.0):
+    """One frame: the quad in the viewport; at the side the `flight` - its stage, its apex or
+    its `lap`, its pack `cells`, their `peak`, the `share` of the clamp's pull its rows have
+    or, a rotor past the flight's clamp, the seconds `over` it - its `air`'s wind as the
+    view, `yaw` degrees round, has it, the rotors, and `trace` drawn: the height and the
+    power, the bus and the hottest board."""
+    return compose_craft(console, origin, rotors, frame, flight, trace, now, art, yaw,
+                         TITLE, quad, flown)
 
 
 #: R's recording on a flying page: a row a pass of the flight, the keys typed since the row
@@ -287,23 +294,25 @@ def size_of(console):
             max(12, (size.height if size else 44) - 6))
 
 
-def main(argv=None):
-    parser = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
-    # Every page takes them (terminal.loader.common); the rotors are the stand-in's for now,
-    # simulated before emulated.
-    parser.add_argument('--port', help='taken, not used: four stand-in boards fly')
+def run_craft_view(argv, doc, craft, gfx, flown_mod, compose_fn, thrusts_fn, look_fn,
+                   base_yaw=YAW, near_m=NEAR_M, banner=None, close_note=None):
+    """Run the interactive terminal view for any coaxial aircraft (`quad`, `helicopter`,
+    `ornithopter`, or `aerobat`)."""
+    labels = getattr(flown_mod, 'ROTORS', ROTORS)
+    word = 'four' if len(labels) == 4 else 'two'
+    parser = argparse.ArgumentParser(description=(doc or '').splitlines()[0])
+    parser.add_argument('--port', help='taken, not used: %s stand-in boards fly' % word)
     parser.add_argument('--simulated', action='store_true', help='taken: the rotors are')
     parser.add_argument('--hz', type=float, default=FPS_CAP,
                         help='screen refreshes per second, at most %.0f' % FPS_CAP)
     parser.add_argument('--frames', type=int, default=0,
                         help='stop after this many, instead of running until closed')
     args = parser.parse_args(argv)
-
     rotors = []
-    with boot('LINKING FOUR ROTORS') as ready:
+    with boot('LINKING %s ROTORS' % word.upper()) as ready:
         try:
-            for _ in ROTORS:
-                rotors.append(flown.arm(Coaxial63100(execution_mode=SIMULATED).open()))
+            for _ in labels:
+                rotors.append(flown_mod.arm(Coaxial63100(execution_mode=SIMULATED).open()))
         except RigError as exc:
             say('fail', 'rotors', str(exc))
             for rotor in rotors:
@@ -311,22 +320,22 @@ def main(argv=None):
             return 1
         ready()
     origin = rotors[0]['rig'].origin
-    say('warn', 'rotors', 'four stand-in boards on the pilot, sensorless on the 63100 under '
-        '16x14s')
+    say('warn', 'rotors', banner or ('two stand-in boards on the pilot, %s and %s on the 63100'
+                                     % labels))
     card = gpu.adapter()
     lit = gpu.LitRaster(found=card) if card is not None else None
     say('ok', 'drawing', lit.name if lit is not None else 'this process, dots')
-    sky, route, trace = quad.Sky(grounds.solids()), aerobatics.routine(flown.CARD), []
+    sky = craft.Sky(getattr(flown_mod, 'FIELD', grounds).solids())
+    route, trace = aerobatics.routine(flown_mod.CARD), []
     began = time.monotonic()
     held = {'at': 0.0, 'clock': 0.0, 'frame': sky.state(), 'reset': False,
-            'wind': False, 'law': aerokin.fresh(),
-            'flight': flown.fresh(), 'arrows': True, 'line': True, 'carried': True,
-            'aim': gimbal.REST, 'see': 0}
-    camera = {'reach': NEAR_M, 'yaw': YAW, 'pitch': SIDE_PITCH, 't': None, 'zoom': 1.0}
+            'wind': False, 'law': aerokin.fresh(), 'flight': flown_mod.fresh(),
+            'arrows': True, 'line': True, 'carried': True, 'aim': gimbal.REST, 'see': 0}
+    camera = {'reach': near_m, 'yaw': base_yaw, 'pitch': SIDE_PITCH, 't': None, 'zoom': 1.0}
 
     def zoomed(k):
         camera['zoom'] = max(ZOOM[0], min(ZOOM[1], camera['zoom'] * k))
-    keys = hands(held, zoomed, lambda: recorded(held, 'quad', rotors))
+    keys = hands(held, zoomed, lambda: recorded(held, craft.__name__.rpartition('.')[2], rotors))
 
     def sample():
         """The flight's side of a frame, on the feed's thread: a pass of it."""
@@ -339,25 +348,21 @@ def main(argv=None):
             flight = held['flight']
             cells = flight['cells']
             if held['wind']:
-                # W: the air's next kind, kept - on the thread that blows it.
                 held['wind'] = False
                 weather.kept(flight['air'])
             if held['reset']:
-                # A: the frame back on its skids at its spot, its flights from the routine's
-                # spool on a fresh pack, the rotors' loops from rest - on this thread, the one
-                # that steps the world.
                 held['reset'] = False
                 sky.reset()
                 route.pop('lap', None)
-                route.update(aerobatics.routine(flown.CARD), at=held['clock'])
-                flown.begun(held['law'], flight)
-                flown.reset(rotors)
+                route.update(aerobatics.routine(flown_mod.CARD), at=held['clock'])
+                flown_mod.begun(held['law'], flight)
+                flown_mod.reset(rotors)
                 trace.clear()
                 cells.update(flightpack.pack())
-                flight.update(apex=0.0, share=1.0, gone=0.0, stood=0.0, wreck=None)
-                camera.update(reach=NEAR_M, yaw=YAW, pitch=SIDE_PITCH)
-            for clock, frame in flown.passed(rotors, sky, route, held['law'], flight,
-                                             held['clock'], dt):
+                flight.update(apex=0.0, share=1.0, over=0.0, gone=0.0, stood=0.0, wreck=None)
+                camera.update(reach=near_m, yaw=base_yaw, pitch=SIDE_PITCH)
+            for clock, frame in flown_mod.passed(rotors, sky, route, held['law'], flight,
+                                                 held['clock'], dt):
                 held['aim'] = gimbal.step(held['aim'], frame['turn'], frame['vel'],
                                           clock - held['clock'])
                 held['clock'], held['frame'] = clock, frame
@@ -382,20 +387,20 @@ def main(argv=None):
         dt = 0.0 if camera['t'] is None else now - camera['t']
         camera['t'] = now
         chased = flown.lined(route)
-        reach, centre = look(camera, held['law'], held['flight']['row'], frame, chased, dt)
+        reach, centre = look_fn(camera, held['law'], held['flight']['row'], frame, chased, dt)
         width, height = size_of(board_view)
         gate = (held['flight']['lap'] or {}).get('gate', 1) if chased else None
-        art = '\n'.join(quadcopter.render(
+        art = '\n'.join(gfx.render(
             frame, [(r['angle'], r['w'], (r['budget'] or {}).get('winding_c'), r['board_c'],
                      (r.get('cooling') or {}).get('sink_c'))
                     for r in rotors], width, height, yaw=camera['yaw'], pitch=camera['pitch'],
             reach=reach, centre=centre, colour=terminal, lit=lit, gate=gate, lens=camera.get('lens', 1.0),
-            thrusts=thrusts(frame, rotors) if held['arrows'] else None,
+            thrusts=thrusts_fn(frame, rotors) if held['arrows'] else None,
             line_=chased and held['line'], see=quadcopter.LAYERS[held['see']],
             inset={**(carried(frame, held['aim'], gate, chased and held['line'], width, height)
                       if held['carried'] else {}), **recorder.corner(held.get('recording'), width)}))
-        return compose(board_view, origin, rotors, frame, held['flight'], list(trace),
-                       held['clock'], art, yaw=camera['yaw'])
+        return compose_fn(board_view, origin, rotors, frame, held['flight'], list(trace),
+                          held['clock'], art, yaw=camera['yaw'])
 
     try:
         leaving = run_view(board_view, terminal, 1.0 / max(args.hz, 0.5), args.frames, draw,
@@ -410,11 +415,21 @@ def main(argv=None):
                 rotor['rig'].board.drive.off()
                 rotor['rig'].gates.off()
             rotor['rig'].close()
-        done.append(('rotors', 'four drives off, gates off, four stand-ins closed'))
+        done.append(('rotors', close_note or ('%s drives off, gates off, %s stand-ins closed' % (word, word))))
         sys.stdout.write('\n')
         closing(done, terminal, 0)
     return TO_MENU if leaving == 'menu' else 0
 
 
+def main(argv=None):
+    return run_craft_view(
+        argv, __doc__, quad, sys.modules[__name__].quadcopter, flown,
+        lambda c, o, r, f, fl, tr, cl, ar, yaw=0.0: sys.modules[__name__].compose(
+            c, o, r, f, fl, tr, cl, ar, yaw=yaw),
+        thrusts, look, YAW, NEAR_M,
+        banner='four stand-in boards on the pilot, sensorless on the 63100 under 16x14s')
+
+
 if __name__ == '__main__':
     sys.exit(main())
+

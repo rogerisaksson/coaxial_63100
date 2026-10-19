@@ -118,6 +118,8 @@ class SimulatedThermal(ThermalControl):
         self._driven = False
         self._at = None
         self._cycle = None
+        self._row_buf = (ctypes.c_float * len(stand.ROW))()
+        self._out_buf = (ctypes.c_float * 3)()
         name = self._resolve(situation)
         self._lib.world_stand_init(self._slot, thermal_app.APPLICATIONS.index(self._app),
                                    self.WINDING_K_PER_W, self.WINDING_J_PER_K, self.WINDING_R,
@@ -133,24 +135,28 @@ class SimulatedThermal(ThermalControl):
         """The load as the board gathers it (world_stand.h's row, `stand.ROW`): `seen` a sample
         fixed by the caller, or the drive's."""
         sample = seen if seen is not None else self._sample()
-        amps = tuple(sample.get('amps') or (0.0, 0.0, 0.0))
-        duty = tuple(sample.get('duty') or self._duty() or (0.0, 0.0, 0.0))
-        return stand.floats((float(bool(self._afe_on())), float(bool(sample.get('switching'))))
-                            + duty + amps
-                            + (float(sample.get('link') or 0.0),
-                               float(sample.get('link_amps', -1.0)),
-                               float(self._speed_of() or 0.0), inverter.T_DEAD,
-                               float(bool(self._meter_locked())), float(bool(acting)),
-                               float(self._clamp_of() or 0.0))
-                            + tuple(sample.get('squares') or (-1.0, -1.0, -1.0)))
+        amps = sample.get('amps') or (0.0, 0.0, 0.0)
+        duty = sample.get('duty') or self._duty() or (0.0, 0.0, 0.0)
+        squares = sample.get('squares') or (-1.0, -1.0, -1.0)
+        buf = self._row_buf
+        buf[0], buf[1] = float(bool(self._afe_on())), float(bool(sample.get('switching')))
+        buf[2], buf[3], buf[4] = duty[0], duty[1], duty[2]
+        buf[5], buf[6], buf[7] = amps[0], amps[1], amps[2]
+        buf[8] = float(sample.get('link') or 0.0)
+        buf[9] = float(sample.get('link_amps', -1.0))
+        buf[10] = float(self._speed_of() or 0.0)
+        buf[11] = inverter.T_DEAD
+        buf[12], buf[13] = float(bool(self._meter_locked())), float(bool(acting))
+        buf[14] = float(self._clamp_of() or 0.0)
+        buf[15], buf[16], buf[17] = squares[0], squares[1], squares[2]
+        return buf
 
     def _run(self, model_seconds, seen, live):
         """`model_seconds` of the pair, the envelope acting on the board where `live`; on a
         tour in TOUR_STEP_S, each judged."""
-        left = float(model_seconds)
+        left, out = float(model_seconds), self._out_buf
         while True:
             part = min(left, self.TOUR_STEP_S) if self._tour else left
-            out = (ctypes.c_float * 3)()
             self._lib.world_stand_run(self._slot, self._row(seen, live), part, out)
             if live and self._derate_to is not None:
                 self._derate_to(out[0])
