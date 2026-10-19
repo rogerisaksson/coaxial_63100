@@ -20,10 +20,10 @@ from machine import borne, edge, estimate, flight, grip, latent, modal, poise, s
 
 
 def seen(g, dt):
-    """`wbc.sense`'s view of her as her sensors and her estimate have her, `dt` s on: its C bit for
-    bit once built (`g['sensed']`, `sprung.laid`)."""
+    """`wbc.sense`'s view of her as her sensors and her estimate have her, `dt` s on: both in C bit
+    for bit once built (`g['estimated']`, `laid`; `g['sensed']`, `sprung.laid`)."""
     body, limbs = g['body'], g['limbs']
-    qpos, qvel = estimate.step(g['est'], body, g['sense'], dt)
+    qpos, qvel = g['estimated'](g['est'], body, g['sense'], dt)
     s = g['sensed'](body, qpos, qvel)
     s['hips'], s['arms'] = body.d.xpos[limbs['hips']].copy(), s['q'][limbs['shoulders']]
     s['prop'], s['contacts'] = borne.read(body, s, g['sense'], float(g['fr'][modal.WEIGHT]))
@@ -137,8 +137,8 @@ def control(g, dt):
                           (y_in[edge.LOAD] >= flight.TOUCH_N) & ~np.array(g.get('bore', (True, True))))
     g['loads'] = [float(v) for v in y_in[edge.LOAD]]
     y = modal.sensed(s, g['loads'], g['y'])
-    y[modal.GRIP] = g['held'] = grip.outside(g['grip'], g['situations']['grips'])
-    g['into'] = situation.read(g['situations'], situation.readings(
+    y[modal.GRIP] = g['held'] = g['outside'](g['grip'], g['situations']['grips'])
+    g['into'] = g['read'](g['situations'], g['readings'](
         y, g['fr'], g['a'], g['grip'], y_in[edge.TOUCH].reshape(-1, 3), float(g['fr'][modal.WEIGHT])))
     thd, cur_doing = g.get('target_heading'), se2.doing(g)
     if thd is not None:
@@ -208,10 +208,14 @@ def laid(g):
     pointing at `g`'s arrays once - the observers, the setpoints and their rates, the holds, the
     knees' spring, the feed and the clamps her drives are told (`g['cmd']`) - and what it reads
     by, kept beside it. Her latent step, her upper body's coupling and her ask in C, her python's
-    bit for bit (`tools.cores.law`); her grip's feel and her drive's cap compiled from their numpy
-    (`tools.cores.bodied`)."""
+    bit for bit (`tools.cores.law`); her estimate, her grip's feel and floor, her situation and her
+    drive's cap compiled from their numpy (`tools.cores.bodied`)."""
     from tools.cores import bodied, law as c_law, wbc as cores
+    g['estimated'] = bodied.on_body(estimate.step, 'estimate', (0, 2), body=1)
     g['felt'] = bodied.on_args(grip.felt, 'felt', (0, 1, 2, 3, 4, 5, 7, 8))
+    g['outside'] = bodied.on_args(grip.outside, 'outside', (0, 1))
+    g['readings'] = bodied.on_args(situation.readings, 'readings', (0, 1, 2, 3, 4, 5))
+    g['read'] = bodied.on_args(situation.read, 'read', (0, 1))
     g['gripped'] = bodied.on_args(gripped, 'gripped', (0, 1, 2, 3, 4))
     g['impedance'] = functools.partial(c_law.asked, *c_law.laid())
     laid_ = c_law.latent_laid()

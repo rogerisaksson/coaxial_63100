@@ -263,6 +263,10 @@ class Traced:
         from tools.cores import trace_np
         return trace_np.reduced(self.prog, 'maximum', self, axis, initial, keepdims)
 
+    def prod(self, axis=None, keepdims=False):
+        from tools.cores import trace_np
+        return trace_np.reduced(self.prog, 'multiply', self, axis, None, keepdims)
+
     def __abs__(self):
         return np.absolute(self)
 
@@ -285,7 +289,7 @@ class Traced:
         from tools.cores import trace_np
         if ufunc is np.matmul and method == '__call__' and not kwargs:
             return trace_np.matmul(self.prog, *inputs)
-        if method == 'reduce' and ufunc.__name__ in ('add', 'minimum', 'maximum') and not set(kwargs) - {
+        if method == 'reduce' and ufunc.__name__ in ('add', 'multiply', 'minimum', 'maximum') and not set(kwargs) - {
                 'axis', 'keepdims', 'initial'}:
             return trace_np.reduced(self.prog, ufunc.__name__, inputs[0], kwargs.get('axis', 0),
                                     kwargs.get('initial'), kwargs.get('keepdims', False))
@@ -384,7 +388,7 @@ def _ufunc(prog, ufunc, inputs, out):
     return result
 
 
-def _zeros(prog, shape, dtype=float):
+def _zeros(prog, _real, shape, dtype=float):
     root = np.zeros(shape, dtype=dtype)
     buf = prog.buffer(root, 'zeros')
     result = Traced(prog, buf, root)
@@ -392,8 +396,42 @@ def _zeros(prog, shape, dtype=float):
     return result
 
 
+def _holds(x):
+    return isinstance(x, Traced) or (isinstance(x, (list, tuple)) and any(_holds(v) for v in x))
+
+
+def _array(prog, real, copy, obj, dtype=None, **kw):
+    """np.array or np.asarray of a nested list holding her arrays: numpy's own value, laid first as it
+    is, each of hers then copied to its place; of one of hers, it (asarray) or its copy."""
+    if not _holds(obj):
+        return real(obj, dtype, **kw)
+    if isinstance(obj, Traced) and dtype in (None, float, np.float64) and not kw:
+        return obj.copy() if copy else obj
+    hers = []
+
+    def concrete(x, tagged):
+        if isinstance(x, Traced):
+            hers.append(x)
+            return np.full(x.shape, len(hers)) if tagged else x.view
+        if isinstance(x, (list, tuple)):
+            return [concrete(v, tagged) for v in x]
+        return np.zeros(np.shape(x), dtype=int) if tagged else x
+    got = real(concrete(obj, False), dtype, **kw)
+    if got.dtype.kind not in 'fb':
+        raise Untraced('np.array of %s at %s' % (got.dtype, where()))
+    hers.clear()
+    tags = real(concrete(obj, True))
+    result = Traced(prog, prog.buffer(got, 'temp'), got)
+    at = result.ref().addresses()
+    prog.add('scatter', Ref(result.buffer, 0, (), ()), (at[tags == 0], None, np.array(got[tags == 0], dtype=float)))
+    for k, x in enumerate(hers):
+        prog.add('scatter', Ref(result.buffer, 0, (), ()), (at[tags == k + 1].reshape(x.shape), x.buffer, x.ref()))
+    return result
+
+
 #: numpy's array makers her code lays a traced buffer with, called from her code.
-MAKERS = {'zeros': _zeros}
+MAKERS = {'zeros': _zeros, 'array': lambda prog, real, *a, **k: _array(prog, real, True, *a, **k),
+          'asarray': lambda prog, real, *a, **k: _array(prog, real, False, *a, **k)}
 #: One trace at a time: numpy's makers patched by one alone.
 _ONE = threading.Lock()
 
@@ -471,7 +509,7 @@ def traced(fn, args, inputs, kwargs=None, wrap=None, after=None):
                 caller = sys._getframe(1).f_code.co_filename
                 if threading.get_ident() != tracing or 'numpy' in caller or caller in _HERE:
                     return real(*a, **k)
-                return MAKERS[name](prog, *a, **k)
+                return MAKERS[name](prog, real, *a, **k)
             return made
         try:
             for name in MAKERS:

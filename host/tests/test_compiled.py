@@ -48,9 +48,9 @@ def _apart(got, want):
 
 
 def _numpys(x, y, m):
-    """numpy's sums along each axis, contiguous and strided, full, its mean, min, max and initial;
-    where, clip, nan_to_num, isnan, its comparisons and logic, its norms; a tie of zeros at its
-    maximum and minimum, the sign arctan2 reads."""
+    """numpy's sums along each axis, contiguous and strided, full, its mean, min, max and initial,
+    its products; where, clip, nan_to_num, isnan, its comparisons and logic, its norms; an array of
+    her scalars; a tie of zeros at its maximum and minimum, the sign arctan2 reads."""
     with np.errstate(invalid='ignore'):
         roots = np.sqrt(x)
     zero = np.minimum(x, 0.0) * 0.0
@@ -59,7 +59,9 @@ def _numpys(x, y, m):
             'max': (np.max(x, axis=0), m.max(axis=2)), 'where': np.where(x > 0.3, x, y), 'clip': np.clip(y, -0.5, 0.5),
             'nans': (np.nan_to_num(roots), np.isnan(roots)), 'flags': (x > 0.0) & ~(y < 0.0) | (x == y),
             'norms': (np.linalg.norm(x, axis=1), np.linalg.norm(y[0])),
-            'ties': np.arctan2(np.maximum(zero, 0.0), -1.0) + 2.0 * np.arctan2(np.minimum(0.0, zero), -1.0)}
+            'ties': np.arctan2(np.maximum(zero, 0.0), -1.0) + 2.0 * np.arctan2(np.minimum(0.0, zero), -1.0),
+            'arrays': np.array([[x[0, 0] * y[1, 1], 0.5], [np.min(y), 1.0 - x[2, 3]]]) @ np.asarray([x.sum(), 2.0]),
+            'prods': (np.prod(x[0, :4]), m.prod(axis=1))}
 
 
 def _carried(st, seen, w, dt):
@@ -140,12 +142,19 @@ def test_her_sensing_in_c_is_her_numpys(report, c):
 
 
 def _copies(args):
-    return [a.copy() if isinstance(a, np.ndarray) else a for a in args]
+    """Each array copied, a dict's float arrays too - its others pinned (`bodied._tree_in`), the same."""
+    return [a.copy() if isinstance(a, np.ndarray) else {
+        k: v.copy() if isinstance(v, np.ndarray) and v.dtype.kind in 'fb' else v for k, v in a.items()}
+        if isinstance(a, dict) else a for a in args]
 
 
-def _beside(real, fn, twin, tally):
+def _arrays(args):
+    return [x for a in args for x in (a.values() if isinstance(a, dict) else (a,)) if isinstance(x, np.ndarray)]
+
+
+def _beside(real, fn, twin, tally, at=0):
     """`real` (Compiled) as her law calls it, built and held at its first call, beside `fn` on
-    copies - her body's `twin`: its result and its arguments after, bit for bit (`tally`)."""
+    copies - her body's `twin` at `at`: its result and its arguments after, bit for bit (`tally`)."""
     from tools.cores import trace
 
     def called(*args):
@@ -156,33 +165,35 @@ def _beside(real, fn, twin, tally):
                 tally[2] = e
         ours = _copies(args)
         if twin is not None:
-            ours[0] = twin
+            ours[at] = twin
         want, got = fn(*ours), real(*args)
         if real.c is not None:
             shape = real.c.prog.shape
             tally[0] += 1
             tally[1] += _apart(trace.leaves_of(shape, got), trace.leaves_of(shape, want))
-            tally[1] += _apart(dict(enumerate(a for a in args if isinstance(a, np.ndarray))),
-                               dict(enumerate(a for a in ours if isinstance(a, np.ndarray))))
+            tally[1] += _apart(dict(enumerate(_arrays(args))), dict(enumerate(_arrays(ours))))
         return got
     return called
 
 
 def test_her_law_in_c_as_she_walks(report, c):
-    """Her law's compiled parts - her sensing, her grip's feel, her drive's cap (`law.laid`) - at
-    every pass of her law over PASSES of her walk, built at their first and held there, each beside
-    its numpy on copies."""
-    from machine import grip, law, wbc, worker
+    """Her law's compiled parts - her estimate, her sensing, her grip's feel and floor, her
+    situation, her drive's cap (`law.laid`) - at every pass of her law over PASSES of her walk,
+    built at their first and held there, each beside its numpy on copies."""
+    from machine import estimate, grip, law, situation, wbc, worker
     from tools.cores import law as c_law, trace_mj
     s = worker.session(walks=True)
     g = s['g']
-    tallies = {name: [0, 0, None] for name in ('sensed', 'felt', 'gripped')}
-    for name, fn in (('sensed', wbc.sense), ('felt', grip.felt), ('gripped', law.gripped)):
-        twin = trace_mj.twin(g['body']) if name == 'sensed' else None
-        g[name] = _beside(g[name], fn, twin, tallies[name])
+    parts = {'estimated': estimate.step, 'sensed': wbc.sense, 'felt': grip.felt, 'outside': grip.outside,
+             'readings': situation.readings, 'read': situation.read, 'gripped': law.gripped}
+    tallies, reals = {name: [0, 0, None] for name in parts}, {name: g[name] for name in parts}
+    for name, fn in parts.items():
+        twin = trace_mj.twin(g['body']) if name in ('sensed', 'estimated') else None
+        g[name] = _beside(g[name], fn, twin, tallies[name], 1 if name == 'estimated' else 0)
     for _ in range(PASSES):
         worker.stepped(s)
-    for name, (n, bad, why) in tallies.items():
+    for name, tally in tallies.items():
+        n, bad, why = tally[0], tally[1], tally[2] or reals[name].why
         if why is not None:
             report.check("her law's %s in C held, or numpy's own here" % name, not c_law.exact_host(), str(why)[:200])
         else:

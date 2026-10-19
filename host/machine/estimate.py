@@ -65,8 +65,8 @@ def step(est, body, y, dt):
     loads = y[edge.PRESS] * (y[edge.PRESS] >= TOUCH_N / 2.0)
     bears = loads.sum()
     falls = est['vel'] + (_rot(y[edge.QUAT]) @ y[edge.ACCEL] + edge.G) * dt
-    went = -(loads @ est['speeds']) / max(bears, 1e-9)
-    vel = falls + float(bears > 0.0) * min(1.0, dt / HOLD_S) * (went - falls)
+    went = -(loads @ est['speeds']) / np.maximum(bears, 1e-9)
+    vel = falls + (bears > 0.0) * min(1.0, dt / HOLD_S) * (went - falls)
     est['slip'] = (1.0 - dt / SLIP_S) * (est['slip'] + falls - vel)
     est['pos'] += 0.5 * (est['vel'] + vel) * dt
     est['vel'] = vel

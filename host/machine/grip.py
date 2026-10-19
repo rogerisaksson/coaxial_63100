@@ -50,7 +50,7 @@ def outside(grip, grips):
     turnabout's pivot, a shove's skid and a weave read 0.27 to 0.55 on a floor of 1.0, bounded
     her landings, and walking 80 N shoves fell 30 -> 25."""
     top = np.max(grips, initial=0.0)
-    out = np.clip((top - grip) / (0.2 * max(top, 1e-9)), 0.0, 1.0)
+    out = np.clip((top - grip) / (0.2 * np.maximum(top, 1e-9)), 0.0, 1.0)
     return MU + out * (grip - MU)
 
 

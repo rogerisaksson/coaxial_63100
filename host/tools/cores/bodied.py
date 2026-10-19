@@ -28,9 +28,9 @@ _BUILDING = {}
 _LOCK = threading.Lock()
 
 
-def on_body(fn, name, inputs=(1, 2), fresh=2, seed=1):
-    """`fn(b, ...)`, her body first, the arrays at `inputs` (Compiled)."""
-    return Compiled(fn, name, inputs, 0, fresh, seed)
+def on_body(fn, name, inputs=(1, 2), fresh=2, seed=1, body=0):
+    """`fn(..., b, ...)`, her body at `body`, the arrays at `inputs` (Compiled)."""
+    return Compiled(fn, name, inputs, body, fresh, seed)
 
 
 def on_args(fn, name, inputs, fresh=2, seed=1):

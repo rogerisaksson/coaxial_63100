@@ -93,8 +93,8 @@ def _placed(prog, func, arrays, *rest, **kw):
 
 
 def reduced(prog, op, x, axis=None, initial=None, keepdims=False):
-    """numpy's `op` ('add', 'minimum', 'maximum') reduced over `axis` (None every one): a 'reduce'
-    statement, numpy's own result."""
+    """numpy's `op` ('add', 'multiply', 'minimum', 'maximum') reduced over `axis` (None every one): a
+    'reduce' statement, numpy's own result."""
     ufunc = getattr(np, op)
     kw = {} if initial is None else {'initial': initial}
     if not isinstance(x, Traced):
@@ -170,6 +170,7 @@ FUNCTIONS = {'einsum': _einsum, 'cross': _cross,
              'vstack': lambda prog, arrays, *a, **k: _placed(prog, np.vstack, arrays, *a, **k),
              'concatenate': lambda prog, arrays, *a, **k: _placed(prog, np.concatenate, arrays, *a, **k),
              'sum': lambda prog, x, axis=None, keepdims=False: reduced(prog, 'add', x, axis, None, keepdims),
+             'prod': lambda prog, x, axis=None, keepdims=False: reduced(prog, 'multiply', x, axis, None, keepdims),
              'mean': lambda prog, x, axis=None, keepdims=False: mean(prog, x, axis, keepdims),
              'min': _reducing('minimum'), 'amin': _reducing('minimum'), 'max': _reducing('maximum'),
              'amax': _reducing('maximum'), 'where': _where, 'clip': _clip, 'nan_to_num': _nan_to_num, 'norm': _norm,

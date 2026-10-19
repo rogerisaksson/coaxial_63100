@@ -316,3 +316,9 @@ Pages, tooling, suites and the local model's runner. The board's findings:
   two lanes, 500 of 500 draws). `grip.felt` 51 -> 16 us a call; her walk 797
   -> 696 us a pass with her sensing, felt, gripped and the step's pointers,
   the two in one process pass by pass, her trajectory the same to the bit.
+- Her estimate, her grip's floor and her situation compiled beside them
+  (`law.laid`): `np.array` of her scalars laid as numpy lays it, a product
+  along an axis from one in turn; `estimate.step`'s and `grip.outside`'s
+  Python max and float numpy's, the same bits. Her walk 780 -> 648 us a pass
+  with the seven, p99 2.32 -> 1.76 ms, the two in one process pass by pass,
+  her trajectory the same to the bit.

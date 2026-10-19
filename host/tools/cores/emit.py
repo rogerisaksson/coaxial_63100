@@ -195,7 +195,7 @@ def _summed(terms, order):
 def _reduce(w, _prog, st):
     """numpy's reduction in its own order: the source's axes outer to inner by stride, neighbours its
     iterator coalesces one; along an innermost reduced run a sum pairwise (npsum_s), else each in
-    turn; a sum from zero (or `initial`), min and max from the first."""
+    turn; a sum from zero, a product from one (or `initial`), min and max from the first."""
     op, src, axes, initial = st.args
     out, nd = st.out, len(src.shape)
     oaxes = [d for d in range(nd) if d not in axes] if len(out.shape) < nd else list(range(nd))
@@ -211,8 +211,9 @@ def _reduce(w, _prog, st):
             groups.append([n, step, ostep, cut])
 
     def first(idx):
-        if op == 'add' or initial is not None:
-            return ['%s = %s;' % (w.ref(out, idx), _lit(0.0 if initial is None else float(initial)))]
+        if op in ('add', 'multiply') or initial is not None:
+            start = {'add': 0.0, 'multiply': 1.0}.get(op) if initial is None else float(initial)
+            return ['%s = %s;' % (w.ref(out, idx), _lit(start))]
         at = ['0'] * nd
         for d, i in zip(oaxes, idx):
             at[d] = '0' if d in axes else i
@@ -233,7 +234,8 @@ def _reduce(w, _prog, st):
         lines.append(pad + '%s = %s + npsum_s(&%s, %d, %d);' % (o, o, place(src, k, 1), n, step))
     else:
         o, x = place(out, k + 1, 2), place(src, k + 1, 1)
-        rule = {'add': '%s + %s', 'minimum': 'npminimum(%s, %s)', 'maximum': 'npmaximum(%s, %s)'}[op]
+        rule = {'add': '%s + %s', 'multiply': '%s * %s', 'minimum': 'npminimum(%s, %s)',
+                'maximum': 'npmaximum(%s, %s)'}[op]
         lines += [pad + 'for (long g%d = 0; g%d < %d; g%d++) {' % (k, k, n, k), pad + '  %s = %s;' % (o, rule % (o, x)),
                   pad + '}']
     for j in reversed(range(len(groups) - 1)):
