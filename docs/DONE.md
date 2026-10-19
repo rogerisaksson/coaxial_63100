@@ -219,3 +219,7 @@ the hundred before these: [DONE_1-50](DONE_1-50.md),
 54. The rotorcraft's routines flown on the airfield, as the aerobat's, the
     course's grounds standing for the course alone: a tree had stood 6 m from
     home ([quad](findings/quad.md)).
+55. The four of one size at 2 kg, 1.25-1.4 m: the helicopter on a 1.25 m rotor
+    (1.0), its turns as quick; the Extra on a 1.4 m wing (1.6), its side
+    its form's, its opening's turns 11 m and its knife 0.47 m; the quad and
+    the ornithopter as they were ([aircraft](findings/aircraft.md)).

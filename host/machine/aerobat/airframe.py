@@ -53,9 +53,9 @@ WATERFALL_HZ, WATERFALL_RAD = (KINEMATICS['oscillator'][k] for k in (
     'tictoc_frequency', 'tictoc_amplitude'))
 DIVE_M_S = 4.0
 PULL_MAX, COURSE_SPHERE = K_THRUST / MASS_KG * (GOV_RAD_S * STUNT_BOOST) ** 2, 1.5 * GRAVITY
-#: The air across the span meets the fuselage's side, 0.163 m^2 as the flight model flies it,
-#: and the fin, m^2: at half the side a knife-edge at 12 m/s flew 39 deg nose-up.
-SIDE_AREA = 0.163 + FIN_AREA
+#: The air across the span meets the fuselage's side, its form's (0.159 m^2 at 1.4 m; 0.163
+#: flown at 1.6 m), and the fin, m^2: at half the side a knife-edge at 12 m/s flew 39 deg nose-up.
+SIDE_AREA = form.side(HALF_M / form.HALF) + FIN_AREA
 WING = Wing(MASS_KG, GRAVITY, RHO, WING_AREA, CL_ALPHA, WING_SPAN, STAB_AREA, FIN_AREA, TAIL_ARM, SIDE_AREA)
 ROTATE_M_S, RUNWAY_M, RUNWAY_RAD = WING.rotate, WING.runway(HOVER['lean']), airfield.RUNWAY_RAD
 

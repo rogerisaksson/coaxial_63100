@@ -17,13 +17,15 @@
   (inflow_j0 1.05)
   (blade_pitch 0.3556m))
 
-(defblock main_rotor swashplate_500_3d
-  (disc_height 0.175m)
-  (radius 0.50m)
+; A 550's 1.25 m rotor on 2 kg, one size with the others; its cyclic as quick on the inertia
+; of its size as the 1.0 m rotor's was.
+(defblock main_rotor swashplate_550_3d
+  (disc_height 0.22m)
+  (radius 0.625m)
   (collective_limit 14.0deg)
   (cyclic_limit 10.0deg)
   (k_thrust 0.0004398)
-  (k_cyclic 0.000016)
+  (k_cyclic 0.000025)
   (k_drag 0.000004136)
   (profile_drag_share 0.35)
   (induced_drag_share 1.65)
@@ -32,11 +34,11 @@
   (blade_pitch 0.3556m)
   (inflow_floor 0.35))
 
-(defblock tail_rotor tail_90_antitorque
-  (boom_arm 0.68m)
-  (radius 0.09m)
+(defblock tail_rotor tail_110_antitorque
+  (boom_arm 0.85m)
+  (radius 0.11m)
   (pitch_limit 16.0deg)
-  (k_thrust 0.000060))
+  (k_thrust 0.000075))
 
 (defblock drive_load swashplate_tail_load
   (main_base 0.42)
@@ -80,17 +82,18 @@
   (use standard_airframe)
   (parasite_cda 0.016))
 
-; 39 g/dm^2 on 2 kg, a 64-inch 3D plane's: on 1.30 x 0.26 m (59 g/dm^2) it stalled at 9.4 m/s and
-; turned on 32 m at 14 m/s.
+; 51 g/dm^2 on 2 kg, a 55-inch 3D plane's, one size with the others (64 inches at 39 before): on
+; 1.30 x 0.26 m (59 g/dm^2) it stalled at 9.4 m/s and turned on 32 m at 14 m/s. Its surfaces as
+; quick on the inertia of its size.
 (defblock aero_surfaces unlimited_3d_monoplane
-  (wing_span 1.60m)
-  (wing_chord 0.32m)
-  (wing_area 0.512)
+  (wing_span 1.40m)
+  (wing_chord 0.28m)
+  (wing_area 0.392)
   (prop_radius 0.254m)
-  (prop_z 0.405m)
-  (tail_arm 0.55m)
-  (stab_area 0.060)
-  (fin_area 0.045)
+  (prop_z 0.356m)
+  (tail_arm 0.484m)
+  (stab_area 0.046)
+  (fin_area 0.035)
   (k_thrust 0.0011035)
   (k_drag 0.00001239)
   (cl_alpha 4.2)
@@ -99,9 +102,9 @@
   (elevator_limit 45.0deg)
   (aileron_limit 38.0deg)
   (rudder_limit 48.0deg)
-  (k_pitch 0.00013428)
-  (k_roll 0.00009766)
-  (k_yaw 0.00015259)
+  (k_pitch 0.00010393)
+  (k_roll 0.00007559)
+  (k_yaw 0.00011810)
   (propwash_share 0.85)
   (inflow_floor 0.35))
 

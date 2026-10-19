@@ -6,8 +6,8 @@
 
 (defvehicle helicopter_3d
   (use standard_airframe)
-  (use swashplate_500_3d)
-  (use tail_90_antitorque)
+  (use swashplate_550_3d)
+  (use tail_110_antitorque)
   (use swashplate_tail_load)
   (use heli_pod_boom_body)
   (use finned_aluminium_fan_sink)

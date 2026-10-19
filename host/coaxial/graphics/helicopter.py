@@ -24,8 +24,8 @@ from machine import helicopter as heli_phys
 from machine.helicopter import form
 
 #: The camera: the eye's distance in reaches framed, and the reach the helicopter fills, m -
-#: the main rotor's tips 0.50 m out, the tail rotor at -0.68 m.
-SIGHT, REACH = 3.75, 0.68
+#: the main rotor's tips 0.625 m out, the tail rotor at -0.85 m.
+SIGHT, REACH = 3.75, 0.85
 
 #: What the sky flies and stands on, m: the main rotor's disc on the mast and its radius, the
 #: tail rotor's arm and radius, the skids' feet under the frame.

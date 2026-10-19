@@ -64,13 +64,17 @@ def row_from_payload(payload, base=None):
 
 
 def mjcf(things=()):
-    """The helicopter and `things` (`grounds.solids`) as MuJoCo XML."""
-    m = ('<geom name="canopy" type="box" pos="0 0 0.08" size="0.06 0.05 0.18" contype="1" '
+    """The helicopter and `things` (`grounds.solids`) as MuJoCo XML: its canopy, boom and fin
+    laid in rotor radii."""
+    r = ROTOR_R
+    m = ('<geom name="canopy" type="box" pos="0 0 %g" size="%g %g %g" contype="1" '
          'conaffinity="1"/><geom name="disc" type="cylinder" pos="0 %g 0" size="%g 0.008" '
          'euler="90 0 0" contype="1" conaffinity="1"/><geom name="boom" type="capsule" '
-         'fromto="0 0.012 -0.05 0 0.012 %g" size="0.014" contype="1" conaffinity="1"/>'
-         '<geom name="fin" type="box" pos="0 0.02 %g" size="0.01 0.08 0.03" contype="1" '
-         'conaffinity="1"/>' % (DISC_M, ROTOR_R, -TAIL_M, -TAIL_M)
+         'fromto="0 %g %g 0 %g %g" size="%g" contype="1" conaffinity="1"/>'
+         '<geom name="fin" type="box" pos="0 %g %g" size="%g %g %g" contype="1" '
+         'conaffinity="1"/>' % (0.16 * r, 0.12 * r, 0.1 * r, 0.36 * r, DISC_M, r, 0.024 * r,
+                                -0.1 * r, 0.024 * r, -TAIL_M, 0.028 * r, 0.04 * r, -TAIL_M,
+                                0.02 * r, 0.16 * r, 0.06 * r)
          + quad.skids(SKID_X, SKID_M, STRUT_Z, FOOT_M))
     return quad.mjcf(things, m, (0.0, SKID_M + FOOT_M, 0.0), MASS_KG, INERTIA)
 

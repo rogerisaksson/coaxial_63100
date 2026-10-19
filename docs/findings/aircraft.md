@@ -74,25 +74,26 @@ dragonfly wings, a V-tail, insect legs. Skin, plate and accent paints:
 carbon's halftone leaves a cloud of dots, so the bodies are light and the
 fittings dark.
 
-Each laid on what the sky flies and stands on. The T-REX at 0.662 a unit,
-its tail hub at the boom's 0.68 m, its disc 4 mm over the sky's 0.175 m; its
-tail rotor 0.09 m (0.15 drawn before, its tip 7 mm over the ground); its skids
-at the sky's feet 0.135 m out, the model's 0.068, the bows spread to them.
+Each laid on what the sky flies and stands on. The T-REX at 0.831 a unit,
+its tail hub at the boom's 0.85 m, its disc 1 cm over the sky's 0.22 m; its
+tail rotor 0.11 m (0.15 at the 1.0 m rotor, its tip 7 mm over the ground); its
+skids at the sky's feet 0.17 m out, the model's 0.086, the bows spread to
+them.
 The Hunter at 0.0216 m a cm, its motors' 19.6 cm reach at the rotors'; its
 legs on the sky's feet at 0.7 of the arms (the rails before stood 0.1 m out,
 0.11 off them); its two-bladed props on its planform at 16 in, the aerobat's
 on the same. The 63100 stacks coaxial: under each motor, the helicopter's
 main under its mast, its tail's out from the boom's side.
 
-The Extra at the 1.6 m span, off a model 21.9 units across: fuselage 1.45 m
-to the spinner's tip (drawn before, 1.14), the stabiliser's quarter chord
-0.77 m behind the centre of gravity at 27 % of the mean chord (the flight
-model's arm 0.55), the tail wheel 0.93 m (0.52). Its surfaces on hinge
-lines: the ailerons 28 % of the chord from 0.12 to 0.73 m out, the hinge
-swept 5 deg with the trailing edge; the elevator's halves behind 0.81 m; the
+The Extra at the 1.4 m span, off a model 21.9 units across: fuselage 1.27 m
+to the spinner's tip, the stabiliser's quarter chord 0.67 m behind the
+centre of gravity at 27 % of the mean chord (the flight model's arm 0.48),
+the tail wheel 0.81 m. Its surfaces on hinge lines: the ailerons 28 % of the
+chord from 0.10 to 0.64 m out, the hinge swept 5 deg with the trailing edge;
+the elevator's halves behind 0.71 m; the
 rudder full height behind the fuselage's end. The flight model keeps its
-aerodynamics; its contacts are the drawing's - the wheels at 0.106 and
--0.931 m, 0.167 out; the fuselage four boxes along its sections, one box at
+aerodynamics; its contacts are the drawing's - the wheels at 0.093 and
+-0.819 m, 0.147 out; the fuselage four boxes along its sections, one box at
 the belly's depth to the tail having struck the runway rolling at 5.6 s. The
 low hover's floor 0.55 -> 0.74 m: at 0.55 the rudder's foot went 13 cm into
 the runway, at 0.74 it holds 5.8 cm over it. The main legs 6.7 cm longer
@@ -101,14 +102,18 @@ read mirrored from above until its columns ran tip-in on +x.
 
 ## Aerobat
 
-`machine.aerobat`, `machine.wingborne`: a 1.60 m, 2 kg 3D monoplane (wing
-0.512 m^2, 39 g/dm^2; 0.016 m^2 of parasite drag; a 20 in propeller; a 0.55 m
-tail arm with a 0.06 m^2 stabiliser and a 0.045 fin; a fuselage 0.16 m deep,
-0.208 m^2 of side; inertias 0.09/0.06/0.12 kg m^2) on a taildragger's wheels
-(0.30 m legs, the prop clear when level, the nose 12 deg up at rest).
+`machine.aerobat`, `machine.wingborne`: a 1.40 m, 2 kg 3D monoplane (wing
+0.392 m^2, 51 g/dm^2; 0.016 m^2 of parasite drag; a 20 in propeller; a 0.48 m
+tail arm with a 0.046 m^2 stabiliser and a 0.035 fin; a fuselage 0.14 m deep,
+its form's 0.157 m^2 of side; inertias 0.070/0.046/0.093 kg m^2) on a
+taildragger's wheels (0.26 m legs, the prop clear when level, the nose 12 deg
+up at rest).
 
 - A 64-inch 3D plane's wing: on 1.30 x 0.26 m (59 g/dm^2) it stalled at 9.4
-  m/s and turned on 32 m at 14 m/s; on 1.60 x 0.32 at 7.6 m/s. The 20 in
+  m/s and turned on 32 m at 14 m/s; on 1.60 x 0.32 at 7.6 m/s. One size with
+  the others on 1.40 x 0.28 m: its opening's 9 m turns asked a CL of 0.95 of
+  its 1.1, it ran wide and came to its knife 14.2 s on where 5.1; on 11 m
+  turns 5.5 s. The 20 in
   propeller and its contra stage: thrust and the surfaces in their wash by
   the diameter^4 of the 16 in's, drag and the stage's torque by ^5, the
   boards' loads with them - 9.7 g at the governor's boost, 1.2 kW a drive at
@@ -228,8 +233,10 @@ tail arm with a 0.06 m^2 stabiliser and a 0.045 fin; a fuselage 0.16 m deep,
   2-3x their loads.
 - On its instruments the knife pass at 0.52 m struck the runway in two draws
   of eight - a pull's tilt left its height 2 cm off -; at 0.545 m none of
-  ten, its tip 1.8-4.6 cm over. Full tilt's 0.2 deg of tilt on its 147 N
-  left it 0.6 m off its spot, 0.15 m/s off in speed, and the burn's coast -
+  ten, its tip 1.8-4.6 cm over. On the 1.4 m wing at 0.47 m its tip 3.3-4.3
+  cm over, its wings 0.94 upright at the least; at 0.45 it struck. Full
+  tilt's 0.2 deg of tilt on its 147 N left it 0.6 m off its spot, 0.15 m/s
+  off in speed, and the burn's coast -
   no thrust, and hovering, a row's 5 m/s short of wing-borne at 9-17 m/s -
   leant 28 deg after it against 1.6 on the truth.
 - Its figures one into the next, a stage change's most angular acceleration
@@ -251,7 +258,7 @@ tail arm with a 0.06 m^2 stabiliser and a 0.045 fin; a fuselage 0.16 m deep,
   middle. The routine's teardrops at 18 m/s and 130 deg/s (4.2 g), its
   circuit at 100 deg/s; the turn-out's roll at its stop is 166 rad/s^2.
 - Its opening a laid line (`airfield.opening`): 12 m on from the lift, right
-  a quarter turn straight into a left three quarters round on 9 m turns, onto
+  a quarter turn straight into a left three quarters round on 11 m turns, onto
   the runway's line and down it on its side at 19 m/s, its lower tip 4-6 cm
   over the runway, its top to the spectator (0.90 toward them abreast, -0.50
   the other way round); a teardrop to the far side and up the line to the

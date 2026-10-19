@@ -21,12 +21,13 @@
 
 (defblock rigid_body heli_pod_boom_body
   (use base_airframe_2kg)
-  (inertia_xx 0.022)
-  (inertia_yy 0.030)
-  (inertia_zz 0.015)
-  (skid_span 0.135m)
-  (strut_aft -0.08m)
-  (strut_fore 0.13m))
+  (inertia_xx 0.034)
+  (inertia_yy 0.047)
+  (inertia_zz 0.023)
+  (skid_height 0.15m)
+  (skid_span 0.17m)
+  (strut_aft -0.10m)
+  (strut_fore 0.16m))
 
 (defblock rigid_body ornithopter_carapace_body
   (use heli_pod_boom_body)
@@ -40,13 +41,13 @@
 
 (defblock rigid_body aerobat_monoplane_body
   (use heli_pod_boom_body)
-  (inertia_xx 0.090)
-  (inertia_yy 0.060)
-  (inertia_zz 0.120)
-  (skid_height 0.30m)
-  (skid_span 0.167m)
-  (strut_aft -0.931m)
-  (strut_fore 0.106m))
+  (inertia_xx 0.070)
+  (inertia_yy 0.046)
+  (inertia_zz 0.093)
+  (skid_height 0.264m)
+  (skid_span 0.147m)
+  (strut_aft -0.819m)
+  (strut_fore 0.093m))
 
 ; Aluminium block with cooling fins conducting heat from the power switches (MOSFETs) and
 ; current shunts, plus a temperature-controlled cooling fan block, puzzled together.

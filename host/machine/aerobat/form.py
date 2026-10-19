@@ -96,6 +96,12 @@ def fin_edges(y):
     return le, RUDDER_X + (FOOT[0] - RUDDER_X) * (y - RUDDER_Y) / (FOOT[1] - RUDDER_Y)
 
 
+def side(k):
+    """The fuselage's side at `k` m a unit, m^2: its sections' heights along it."""
+    return k * k * sum(0.5 * ((a[2] - a[1]) + (b[2] - b[1])) * (a[0] - b[0])
+                       for a, b in zip(SECTIONS, SECTIONS[1:]))
+
+
 def extents(k):
     """What touches the runway, in the body's axes at `k` m a unit, m: 'tail' the stabiliser's
     trailing tips, the rudder's foot, its top aft; 'tips' the wing's tip corners; 'fuselage' four

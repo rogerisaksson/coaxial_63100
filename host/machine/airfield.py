@@ -100,9 +100,10 @@ def _ramp(x):
 #: teardrop to the far side on OPENING_M turns, its leg twice them so it closes on the line,
 #: and RUN_IN_M up it slowing to RUN_IN_M_S, before the spectator. Flown as timed turns the
 #: same figure ended 22 m beside the runway at 6 m/s, the teardrop 54 m out and 19 beside it;
-#: turned off the lift at 13 m/s on 8 m it bled to 3.6.
-LIFT_M, RUN_M, OPENING_M, OPEN_M_S, PASS_M, PASS_M_S = 20.0, 12.0, 9.0, 18.0, 70.0, 20.0
-KNIFE_M, DESCENT_M, PULL_M, RUN_IN_M, RUN_IN_M_S = 0.545, 16.0, 15.0, 45.0, 12.0
+#: turned off the lift at 13 m/s on 8 m it bled to 3.6; the 1.4 m wing ran wide of 9 m turns.
+#: Its tip 4 cm over the runway on its side: at 0.45 m it struck.
+LIFT_M, RUN_M, OPENING_M, OPEN_M_S, PASS_M, PASS_M_S = 20.0, 12.0, 11.0, 18.0, 70.0, 20.0
+KNIFE_M, DESCENT_M, PULL_M, RUN_IN_M, RUN_IN_M_S = 0.47, 16.0, 15.0, 45.0, 12.0
 _OPEN, _OPEN_AT = _laid((LIFT_M, 0.0), (RUN_M, (-90.0, OPENING_M), (270.0, OPENING_M), PASS_M,
                                         (-45.0, OPENING_M), 2.0 * OPENING_M, (225.0, OPENING_M), RUN_IN_M))
 _SIDE = tuple(_ramp((s - _OPEN_AT[3]) / DESCENT_M) - _ramp((s - _OPEN_AT[4] + PULL_M) / PULL_M)

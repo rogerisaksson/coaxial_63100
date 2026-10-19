@@ -21,8 +21,8 @@ from machine import aerobat as aero_phys, airfield
 from machine.aerobat import form
 
 #: The camera: the eye's distance in reaches framed, and the reach the monoplane fills, m -
-#: the wing tips 0.80 m out, the spinner's tip at +0.49 m, the rudder's foot at -1.00.
-SIGHT, REACH = 3.75, 1.05
+#: the wing tips 0.70 m out, the spinner's tip at +0.43 m, the rudder's foot at -0.88.
+SIGHT, REACH = 3.75, 0.92
 
 #: The airframe in its body axes (x the span, y the nose and thrust, z down), m: the form's unit,
 #: the coaxial tractor hubs ahead of the cowl, the wheels where the sky stands it.
