@@ -396,11 +396,11 @@ ARROWS = (((0.0, PROP_Y + 0.05, 0.0), 1, 0, 0.014), ((0.0, TAIL_END - 0.06, -0.1
 
 def render(pose, rotors, width, height, yaw=30.0, pitch=18.0, reach=REACH, centre=None,
            colour=True, lit=None, world=True, gate=None, thrusts=None, line_=False, inset=None,
-           see='shell', lens=1.0):
+           see='shell', lens=1.0, field=airfield):
     """The 3D aerobatic monoplane at `pose` on its `rotors`, `width` x `height` cells, `reach` m
     framed about `centre` from SIGHT reaches off through a `lens` that much nearer: lines."""
     return render_craft(pose, rotors, width, height, yaw, pitch, reach, SIGHT, REACH, centre,
                         colour, lit, world, gate, thrusts, line_, inset, see, lens, _posed, _discs,
                         lambda p, t, m, c, ctr: force_arrows(p, t, ARROWS, m, c, ctr),
-                        course_mod=airfield)
+                        course_mod=field)
 

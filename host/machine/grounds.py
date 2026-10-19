@@ -160,6 +160,20 @@ def solids(field=None):
     return out
 
 
+def world(field=None):
+    """A page's world: a `field`'s whole (`airfield`'s), or the rotorcraft's - these grounds and
+    their gates for the course's flights, the airfield's runway and what stands by it for their
+    routines, as the aerobat's are flown (`quad.Sky.stand`); each scene's things named under its
+    tag."""
+    from machine import airfield
+    if field is not None:
+        return solids(field)
+    course = [(shape, name if name.startswith('gate') else 'course:' + name, *rest)
+              for shape, name, *rest in solids()]
+    return course + [(shape, 'field:' + name, *rest) for shape, name, *rest in solids(airfield)
+                     if not name.startswith('gate')]
+
+
 def clearances(points):
     """[(what, m)], the nearest first: how near any of the (x, y, z) `points` - a frame's
     middle - came to each tree, house, hall's wall or roof, car and mast: beside it or over

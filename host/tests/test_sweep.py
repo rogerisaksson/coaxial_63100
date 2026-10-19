@@ -1,5 +1,6 @@
 """The rotorcraft's sweep past the spectator (`machine.sweep`): the quad on its core and ideal
-rotors, the helicopter and the ornithopter in MuJoCo, each through its sweep and home."""
+rotors, the helicopter and the ornithopter in MuJoCo, each through its sweep and home; their
+routines on the airfield (`grounds.world`)."""
 import math
 import random
 import sys
@@ -72,7 +73,28 @@ def test_the_helicopter_and_the_ornithopter_sweep(report):
         _swept('the ' + craft.__name__.rpartition('.')[2], rows, report)
 
 
-ROSTER = (test_the_quad_sweeps, test_the_helicopter_and_the_ornithopter_sweep)
+def test_the_routines_fly_the_airfield(report):
+    """The rotorcraft's world (`grounds.world`): the course's grounds standing for its flights
+    alone, the airfield's runway and what stands by it for the routines, as the aerobat's."""
+    from machine import airfield, grounds, quad
+    sky = quad.Sky(grounds.world())
+
+    def struck(x, y, z):
+        sky.reset()
+        sky.data.qpos[0:3] = (x, y, z)
+        sky._mj.mj_forward(sky.model, sky.data)
+        return sky._struck(sky.data)
+    tree, hangar = grounds.TREES[9], airfield.HOUSES[0]
+    seen = []
+    for course in (False, True):
+        sky.stand(course)
+        seen.append((struck(tree[0], 1.0, tree[1]), struck(hangar[0], 1.5, hangar[1])))
+    report.check("a routine flies among the airfield's things, the course among its own",
+                 seen == [(None, 'house'), ('tree', None)], seen)
+
+
+ROSTER = (test_the_quad_sweeps, test_the_helicopter_and_the_ornithopter_sweep,
+          test_the_routines_fly_the_airfield)
 
 
 def main(argv=None):

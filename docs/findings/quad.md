@@ -36,6 +36,11 @@ its figures.
 - On the page its routine opens with the sweep (`machine.sweep`): out down
   the runway and back past the spectator at 11.9 m/s, 1.5 m up and 9 m in
   front of them, 13.9 s, home within 0.3 m.
+- The routines flown on the airfield, as the aerobat's: its runway, hangar,
+  cars and tree lines standing for them, the course's grounds and gates for
+  the course alone (`grounds.world`, `quad.Sky.stand`), each drawn while it
+  stands. Among the grounds a tree stood 6 m from home, two more 9 and 11 m,
+  a house 15 m.
 
 | Fault | Fix |
 | --- | --- |

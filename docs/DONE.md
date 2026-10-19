@@ -216,3 +216,6 @@ the hundred before these: [DONE_1-50](DONE_1-50.md),
     supports, bowed gear; plates on flat arms, the pack, a GPS mast, legs on
     the sky's feet; a ribbed glass head, veined wings
     ([aircraft](findings/aircraft.md)).
+54. The rotorcraft's routines flown on the airfield, as the aerobat's, the
+    course's grounds standing for the course alone: a tree had stood 6 m from
+    home ([quad](findings/quad.md)).

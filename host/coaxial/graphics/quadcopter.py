@@ -336,14 +336,15 @@ def render_craft(pose, rotors, width, height, yaw, pitch, reach, sight, base_rea
 
 def render(pose, rotors, width, height, yaw=30.0, pitch=18.0, reach=REACH, centre=None,
            colour=True, lit=None, world=True, gate=None, thrusts=None, line_=False, inset=None,
-           see='shell', lens=1.0):
+           see='shell', lens=1.0, field=None):
     """The quad at `pose` on its `rotors`, `width` x `height` cells, `reach` m framed about
-    `centre` (the quad's middle) from SIGHT reaches off through a `lens` that much nearer: lines. `lit` a `gpu.LitRaster`, or
-    None to splat its dots here; `world` False the quad alone, nothing under it or about it;
-    `gate` the course's gates stood too, the one of that number lit, and `line_` the line it
-    asks through them; `thrusts` each rotor's, N, its arrow; `inset` cells {(row, col):
-    (codepoint, key)} laid over all; `see` a layer of LAYERS."""
+    `centre` (the quad's middle) from SIGHT reaches off through a `lens` that much nearer:
+    lines. `lit` a `gpu.LitRaster`, or None to splat its dots here; `world` False the quad
+    alone, nothing under it or about it; `field` what stands about it (`grounds`, or
+    `airfield`); `gate` the course's gates stood too, the one of that number lit, and `line_`
+    the line it asks through them; `thrusts` each rotor's, N, its arrow; `inset` cells {(row,
+    col): (codepoint, key)} laid over all; `see` a layer of LAYERS."""
     return render_craft(pose, rotors, width, height, yaw, pitch, reach, SIGHT, REACH, centre,
                         colour, lit, world, gate, thrusts, line_, inset, see, lens,
-                        _posed, _discs, _arrows)
+                        _posed, _discs, _arrows, field)
 

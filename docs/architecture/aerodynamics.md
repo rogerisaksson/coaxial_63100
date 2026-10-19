@@ -11,7 +11,7 @@ MuJoCo, each on its 63100 drives. The quad and the core in C it flies on:
 | aerolisp | flight intent as text - `(stream_inject ..)`: latent targets, a stiffness and a damping a mode, an oscillator, task constraints - compiled to aero/'s payloads, a stream laid over the one before; a vehicle's blocks by `defblock` and `use` |
 | aerokin | the quad's kinematics in a vacuum, no branch: a row of `aerobatics`' setpoints and the frame as it flies to aero/'s payload - a collective, the rotors' axis's tilt in the heading, the rates its turn gives |
 | aerobatics | a figure a row of setpoints (`aerokin`'s), a routine a card of them |
-| grounds | the gates in the air and what stands about them |
+| grounds | the gates in the air and what stands about them; `world` the rotorcraft's, these grounds for the course and the airfield for the routines |
 | airfield | the aerobat's runway, its course laid for a plane - an air gate, a limbo, a hoop, a slalom, a knife gate on one line of arcs it flies by L1 - what stands about them |
 | course | the gates among trees, houses and cars, a lap a line flown as rows; `flown` any laid line |
 | sweep | the rotorcraft's sweep past the spectator before their figures, out down the runway and back past them |

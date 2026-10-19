@@ -192,7 +192,7 @@ class Sky:
         #: 'floor' with more of it than its skids - or None.
         self.hit = None
         names = [self.model.geom(g).name for g in range(self.model.ngeom)]
-        self._names = [name.split('.')[0] for name in names]
+        self._names = [name.split('.')[0].rpartition(':')[2] for name in names]
         self._mine = {g for g in range(self.model.ngeom)
                       if self.model.geom_bodyid[g] == self.frame}
         floor = names.index('floor')
@@ -200,7 +200,11 @@ class Sky:
                       for g, name in enumerate(names)
                       if name.startswith('skid') or name in touch}
         self._gates = [g for g, name in enumerate(names) if name.startswith('gate')]
+        self._course = [g for g, name in enumerate(names) if name.startswith('course:')]
+        self._field = [g for g, name in enumerate(names) if name.startswith('field:')]
         self.gated = True
+        for g in self._field:
+            self.model.geom_contype[g] = self.model.geom_conaffinity[g] = 0
         self._xmat = self.data.xmat[self.frame]
         self._turn = self._xmat.reshape(3, 3)
         self._spin = self.data.qvel[3:6]
@@ -217,12 +221,15 @@ class Sky:
         self._mj.mj_forward(self.model, self.data)
 
     def stand(self, gates):
-        """The gates among the things stood in the frame's way, or `gates` False - not: they
-        stand for the course's flights alone, as they are drawn."""
+        """The gates and the course's grounds among the things stood in the frame's way and the
+        airfield's not, or `gates` False the other way round: each stands for its own flights,
+        as it is drawn (`grounds.world`)."""
         if gates != self.gated:
             self.gated = gates
-            for g in self._gates:
+            for g in self._gates + self._course:
                 self.model.geom_contype[g] = self.model.geom_conaffinity[g] = int(gates)
+            for g in self._field:
+                self.model.geom_contype[g] = self.model.geom_conaffinity[g] = int(not gates)
 
     def _struck(self, data):
         """What the frame of `data` touches with more than a skid on the floor: its name, or

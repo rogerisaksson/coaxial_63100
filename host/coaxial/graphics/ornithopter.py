@@ -248,10 +248,10 @@ ARROWS = (((0.0, SHOULDER_Y + 0.035, FORE_Z), 1, 0, 0.022),
 
 def render(pose, rotors, width, height, yaw=30.0, pitch=18.0, reach=REACH, centre=None,
            colour=True, lit=None, world=True, gate=None, thrusts=None, line_=False, inset=None,
-           see='shell', lens=1.0):
+           see='shell', lens=1.0, field=None):
     """The 4-wing Dune ornithopter at `pose` on its `rotors`, `width` x `height` cells, `reach` m
     framed about `centre` from SIGHT reaches off through a `lens` that much nearer: lines."""
     return render_craft(pose, rotors, width, height, yaw, pitch, reach, SIGHT, REACH, centre,
                         colour, lit, world, gate, thrusts, line_, inset, see, lens, _posed,
-                        _stroke_arcs, lambda p, t, m, c, ctr: force_arrows(p, t, ARROWS, m, c, ctr))
+                        _stroke_arcs, lambda p, t, m, c, ctr: force_arrows(p, t, ARROWS, m, c, ctr), field)
 

@@ -14,6 +14,7 @@ from coaxial.graphics import inset, scenery, shapes
 from coaxial.graphics.engine import fine
 from coaxial.graphics.lit import FLOOR_INK, project
 from coaxial.graphics.raster import DOTS_X, DOTS_Y
+from machine import grounds
 
 #: The picture, cells; the lens' field across it, degrees; how far off an edge is drawn in its
 #: full ink, m - `scenery.FAR_SIZE` of it four times as far, and no further.
@@ -68,14 +69,14 @@ def sight(eye, aim):
     return tuple(m.ravel().tolist()), np.asarray(eye, float) - lens()['distance'] * level[2]
 
 
-def picture(eye, aim, gate=None, line_=False):
+def picture(eye, aim, gate=None, line_=False, field=grounds):
     """The picture's body (`inset.dotted`) from the lens at `eye` looking as `aim` has it
-    (`sight`): the ground's grid and what stands, with the course's gates where `gate` is the
-    one flown to next and its line with `line_`."""
+    (`sight`): the ground's grid and what stands on `field`, with the course's gates where
+    `gate` is the one flown to next and its line with `line_`."""
     from coaxial.model.blocks import numpy as np
     (m, centre), cam = sight(eye, aim), lens()
     ground = air(aim[1], aim[2] if len(aim) > 2 else 0.0)
-    (floor, pitch), (ends, inks) = scenery.grid(), scenery.edges(gate, line_)
+    (floor, pitch), (ends, inks) = scenery.grid(), scenery.edges(gate, line_, field)
     palette = np.asarray(list(scenery.INKS.values()) + [FLOOR_INK], float)
     reach = np.concatenate([np.sqrt(cam['scale'] * max(0.0, float(eye[1])) * pitch / APART),
                             np.full(len(inks), np.inf)])

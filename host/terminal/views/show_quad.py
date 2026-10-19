@@ -15,10 +15,9 @@ pull the action space has for them (machine.pull): the rotors' on what each boar
 its clamp - WEP's at the most - and on the pack's charge; spent, it comes down for a charged
 pack, or to cool. It is flown in the air's weather (machine.quad): a wind, gusts over it and eddies in it,
 a kind at a time or one kept (W), none of it told to the law - its way and size a pointer at
-the side (terminal.views.quad.wind). The camera sits close on the floor before a flight, pulls
-back into a side RC-pilot perspective as it lifts - zooming a little to follow it while keeping
-contact with the horizon, and on the course coming round behind it as it turns
-(coaxial.graphics.quadcopter, scenery); the height and the power, the bus and the hottest
+the side (terminal.views.quad.wind). Its routine is flown on the airfield, watched from beside its
+runway, the course among its grounds, chased (machine.grounds.world, coaxial.graphics.quadcopter,
+scenery); the height and the power, the bus and the hottest
 board over the last half minute are boxes at the side (terminal.views.quad.traces). In the
 viewport's corner the picture of the camera it carries on a stabilised gimbal (machine.gimbal,
 coaxial.graphics.onboard), there or not (C).
@@ -194,14 +193,14 @@ def typed(held, keys, keyed):
             keys[k]()
 
 
-def carried(frame, aim, gate, line_, width, height):
-    """The carried camera's picture for `quadcopter.render`'s `inset`: the world from its lens
-    on the `frame`, its sight `aim` (`gimbal.step`), with the course's gates where `gate` is the
-    one flown to next - how far off it is the picture's note - and its line with `line_`."""
+def carried(frame, aim, gate, line_, width, height, field=grounds):
+    """The carried camera's picture for `quadcopter.render`'s `inset`: the world on `field` from
+    its lens on the `frame`, its sight `aim` (`gimbal.step`), the course's gates where `gate` is
+    the one flown to next - its note how far - and its line with `line_`."""
     eye = gimbal.lens(frame['at'], frame['turn'])
     note = '' if gate is None else 'GATE %d  %.0f m' % (
-        gate, math.dist(eye, grounds.GATES[gate % len(grounds.GATES)][:3]))
-    return inset.docked(onboard.picture(eye, aim, gate, line_), width, height, 'GIMBAL', note)
+        gate, math.dist(eye, field.GATES[gate % len(field.GATES)][:3]))
+    return inset.docked(onboard.picture(eye, aim, gate, line_, field), width, height, 'GIMBAL', note)
 
 
 def wheeled(zoomed, moved):
@@ -326,7 +325,7 @@ def run_craft_view(argv, doc, craft, gfx, flown_mod, compose_fn, thrusts_fn, loo
     card = gpu.adapter()
     lit = gpu.LitRaster(found=card) if card is not None else None
     say('ok', 'drawing', lit.name if lit is not None else 'this process, dots')
-    sky = craft.Sky(getattr(flown_mod, 'FIELD', grounds).solids())
+    sky = craft.Sky(grounds.world(getattr(flown_mod, 'FIELD', None)))
     route, trace = aerobatics.routine(flown_mod.CARD), []
     began = time.monotonic()
     held = {'at': 0.0, 'clock': 0.0, 'frame': sky.state(), 'reset': False,
@@ -391,14 +390,15 @@ def run_craft_view(argv, doc, craft, gfx, flown_mod, compose_fn, thrusts_fn, loo
         reach, centre = look_fn(camera, held['law'], held['flight']['row'], frame, chased, dt)
         width, height = size_of(board_view)
         gate = (held['flight']['lap'] or {}).get('gate', 1) if chased else None
+        field = getattr(flown_mod, 'FIELD', grounds if chased else airfield)
         art = '\n'.join(gfx.render(
             frame, [(r['angle'], r['w'], (r['budget'] or {}).get('winding_c'), r['board_c'],
                      (r.get('cooling') or {}).get('sink_c'))
                     for r in rotors], width, height, yaw=camera['yaw'], pitch=camera['pitch'],
             reach=reach, centre=centre, colour=terminal, lit=lit, gate=gate, lens=camera.get('lens', 1.0),
-            thrusts=thrusts_fn(frame, rotors) if held['arrows'] else None,
+            field=field, thrusts=thrusts_fn(frame, rotors) if held['arrows'] else None,
             line_=chased and held['line'], see=quadcopter.LAYERS[held['see']],
-            inset={**(carried(frame, held['aim'], gate, chased and held['line'], width, height)
+            inset={**(carried(frame, held['aim'], gate, chased and held['line'], width, height, field)
                       if held['carried'] else {}), **recorder.corner(held.get('recording'), width)}))
         return compose_fn(board_view, origin, rotors, frame, held['flight'], list(trace),
                           held['clock'], art, yaw=camera['yaw'])
