@@ -218,14 +218,16 @@ def opening(route, now):
 #: As timed legs it came down 25-37 m beside the runway in gusts, or into the house. On 12 m turns
 #: at 12 m/s - 12.3 deg of the stall's 15 - it stalled in gusts, the course in its last near turn
 #: in all of eight; at 14 m/s a tip struck lining up low. The far side's gates stood 1.3 m off.
-TURN_AT_M, CIRCUIT_M, BASE_M, CIRCUIT_H, CIRCUIT_M_S = 20.0, 20.0, -70.0, 1.8, 12.0
+#: At 1.8 m its final came in on a 2 deg glide.
+TURN_AT_M, CIRCUIT_M, BASE_M, CIRCUIT_H, CIRCUIT_M_S = 20.0, 20.0, -70.0, 3.0, 12.0
 CIRCUIT = tuple(p + (CIRCUIT_H, 0.0) for p in _laid(
     START, (TURN_AT_M - START[0], (-180.0, CIRCUIT_M), TURN_AT_M - BASE_M, (-180.0, CIRCUIT_M)))[0])
 _TURN_K = round(TURN_AT_M - START[0])
-#: The final down the runway's line from where the circuit leaves it: on a glide of
-#: GLIDE to TOUCH_M along, flared where the glide is FLARE_H up. Flown on its heading for its
+#: The final down the runway's line from where the circuit leaves it: on a glide from CIRCUIT_H
+#: there to TOUCH_M along, flared where the glide is FLARE_H up. Flown on its heading for its
 #: seconds it touched 15-62 m short of the runway, 0.3-4.8 m off its line.
-GLIDE, TOUCH_M, FLARE_H = 0.035, -18.0, 0.22
+TOUCH_M, FLARE_H = -18.0, 0.22
+GLIDE = CIRCUIT_H / (TOUCH_M - BASE_M)
 #: Its speed down to FINAL's where it flares, slowed SLOW_M_S2 a second - its idle drag's 1.7-2.9
 #: at 11.5-15 m/s -, the one it came on with at the most. Asked FINAL's at once off the lap's 18
 #: m/s it pitched up to slow, ballooned to 8 m and came down at 1.7 m/s into its flare; slowed as

@@ -12,7 +12,7 @@ from machine.aerobat.airframe import (A_DISC, ATT_KD, ATT_KP, FLOOR_M, GRAVITY, 
 from machine.aerobat.observer import observe
 from machine.helicopter.kit import (Answer, _smooth_target, _so3_torques,
                                     _stunt_step, _turn_heading)
-from machine.wingborne import AIRBORNE_M, STALL_RAD, flare, lined, plane, run, toward, whole
+from machine.wingborne import AIRBORNE_M, STALL_RAD, WHEELS_M, flare, lined, plane, run, toward, whole
 
 #: A row asked faster than FAST_M_S, m/s, flies on its wing whole once it is past half of it
 #: (`wingborne.whole`), eased in over the span: none slower, all faster.
@@ -34,6 +34,8 @@ GUST_SLOW_S, GUST_RMS_S, GUST_FLOOR, GUST_S = 5.0, 3.0, 0.3, airfield.GUST_S
 #: hover's past 0.5-1 m of its height, it swung so off the hoop. On its side its thrust and its
 #: side bear it, not its wing: on the wing's loop there it put its tip on the floor at 0.45 m.
 PATH_POLE = 0.35
+#: Its wheels on the runway, m over their rest: cut at 0.05, it dropped onto them at 1 m/s.
+TOUCH_M = 0.03
 #: On its wing the push its observer reads off its model, over PUSH_S: dropped there, a turn's
 #: lift 14 % short of its model on a wind read 1 m/s off sank it 1.2 m on that loop.
 PUSH_S = 1.0
@@ -59,7 +61,8 @@ class Core:
     def reset(self):
         """Reset observer and trajectory state."""
         self.vel_hat, self.push_hat, self.wind = [0.0] * 3, [0.0] * 3, [0.0] * 3
-        self.wind_slow, self.gust2, self.push_slow = [0.0] * 3, 0.0, [0.0] * 3
+        self.wind_slow, self.gust2, self.push_slow, self.landed = [0.0] * 3, 0.0, [0.0] * 3, False
+        self.touched = 0.0
         self.spin_hat, self.turn_hat = [0.0] * 3, [0.0] * 3
         self.begun, self.flip_ang, self.roll_ang = False, 0.0, 0.0
         self.piro_ang, self.tic_phase = 0.0, 0.0
@@ -208,6 +211,11 @@ class Core:
         law['heading'] = c, s = _turn_heading(law['heading'], rate, dt)
         yaw = math.atan2(s, c)
         reach, up_pull = max(aerokin.LEAST * GRAVITY, pull_max), self.up_pull
+        # Landed, its motors cut till a row flies it again: idled, its propeller's thrust rolled
+        # it on at 5 m/s; its land's row and its run's spool alike, restarted it idled at a stand.
+        landed = row['height'] < 0.0 and (self.landed or (self.airborne and state['h'] <= TOUCH_M))
+        self.touched = self.touched if self.landed or not landed else self.Controls[3]
+        self.landed = landed
 
         if row['height'] < 0.0 and (row['height'] <= -0.1 or not self.airborne):
             if state['h'] < 0.03 and max(abs(x) for x in vel) < 0.05:
@@ -216,10 +224,11 @@ class Core:
             self.r_prev, self.up_filt, self.w_ff, self.airborne = None, None, (0.0, 0.0, 0.0), False
             self.rotated = 0.0
             law['spot'] = [at[0], at[2]]
-            # Its pitch fixed, the propeller idles on its wheels: spooled to the head's 365 rad/s
-            # it pulled 36 N, six times what they hold.
-            w_p_ask = IDLE_RAD_S
-            w_v_ask = VECT_GOV_RAD_S if row['height'] > -0.1 else IDLE_RAD_S
+            # Its pitch fixed, the propeller idles on its wheels for its run, its motors cut where
+            # its row is down: spooled to the head's 365 rad/s it pulled 36 N, six times what they
+            # hold.
+            ready = float(row['height'] > -0.1 and not self.landed)
+            w_p_ask, w_v_ask = ready * IDLE_RAD_S, ready * VECT_GOV_RAD_S
             if limits:
                 w_p_ask, w_v_ask = min(limits[0], w_p_ask), min(limits[1], w_v_ask)
             controls = (0.0, 0.0, 0.0, 0.0)
@@ -260,9 +269,10 @@ class Core:
         along_u, across_u = sum(u[a] * turn[a][1] for a in range(3)), math.hypot(u[0], u[2])
         # No slower than its surfaces' wash gives what they are asked at AUTHORITY of their throw,
         # thrust or none: idled through a waterfall's top its tail read 5 Pa where a hover's 97,
-        # its elevator at its stop, and it fell 4.5 m onto its back.
+        # its elevator at its stop, and it fell 4.5 m onto its back. Not on its wheels: the
+        # wash's thrust rolled it out at 1.9 m/s^2 where its wheels stop it at 2.35.
         q_need = max(abs(tau_x) / K_PITCH_Q, abs(tau_z) / K_ROLL_Q) / AUTHORITY
-        held = A_DISC * max(0.0, q_need - 0.5 * RHO * max(0.0, along_u) ** 2)
+        held = A_DISC * max(0.0, q_need - 0.5 * RHO * max(0.0, along_u) ** 2) * float(state['h'] > WHEELS_M)
         w_p_ask = max(IDLE_RAD_S, min(w_top, prop_speed(max(f_des, held), along_u, across_u)))
         w_p_cur = max(IDLE_RAD_S, float(sp[0]) if limits and sp[0] > 1.0 else w_p_ask)
         share = _aero_inflow(along_u, across_u, w_p_cur)
@@ -272,11 +282,21 @@ class Core:
         ail = max(-1.0, min(1.0, tau_z / (K_ROLL_Q * q_s)))
 
         w_v_ask = min(w_vect_top, max(VECT_GOV_RAD_S, VECT_RATIO * w_p_ask))
+        if self.landed:
+            w_p_ask = w_v_ask = 0.0
         w_v_cur = max(IDLE_RAD_S, float(sp[1]) if limits and sp[1] > 1.0 else w_v_ask)
         rud = max(-1.0, min(1.0, (tau_y + _prop_drag(share, elev, ail, w_p_cur)) / (K_YAW * w_v_cur * w_v_cur)))
 
         _pitch, elev, ail, rud = controls = se3mpc.blended(
             self, law, row, state, r_des, (w_p_cur, w_v_cur), dt, (1.0, elev, ail, rud))
+        if self.landed:
+            # Its wheels hold its attitude, its rudder on the runway's line: on its law, with no
+            # wash, its elevator flapped 0.24 rms from stop to stop. Its stick where its flare
+            # left it - neutral, its nose dipped 2.7 deg -, back once its three points' 12 deg
+            # cannot lift it off - from its rotate speed, all of it at three quarters -, its tail
+            # held down.
+            back = ease((ROTATE_M_S - math.hypot(u[0], u[2])) / (0.25 * ROTATE_M_S))
+            _pitch, elev, ail, rud = controls = (1.0, min(self.touched, -back), 0.0, rud)
         self.Controls = (w_p_ask, w_v_ask) + controls
         sign_ok = (-turn[1][1] if inv >= 0.5 else turn[1][1]) >= math.cos(2.0 * aerokin.HELD_RAD)
         law['held'] = bool(

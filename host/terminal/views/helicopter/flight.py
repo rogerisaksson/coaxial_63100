@@ -101,6 +101,18 @@ def begun(law, flight, craft=helicopter):
                   controls=(0.0, 0.0, 0.0, 0.0))
 
 
+def throttled(rotor, speed):
+    """A rotor its law asks `speed`, rad/s: cut where asked none - its loop off, its bridge off
+    (`_step_drives`), run down on its propeller's drag -, spun from rest (`spun`) where a cut one
+    is asked to turn."""
+    if speed <= 0.0 and not rotor['cut']:
+        rotor['rig'].board.ctrl.off()
+        rotor['rig'].board.drive.write(iq_ref=0.0)
+        rotor['cut'] = True
+    elif speed > 0.0 and rotor['cut']:
+        spun(rotor)
+
+
 def flown(rotors, sky, core, law, row, flight, dt, craft=helicopter):
     """Step the two 63100 drives, the 3D controller (`core.step`), and the MuJoCo airframe
     (`sky.step`) across `dt` s in substeps of `TICK_S`."""
@@ -126,6 +138,7 @@ def flown(rotors, sky, core, law, row, flight, dt, craft=helicopter):
                   for r, hold in zip(rotors, holds)]
         out = core.step(law, row, sky.state(False), TICK_S, flight['pull'], limits, along)
         for rotor, speed in zip(rotors, out.speeds):
+            throttled(rotor, speed)
             rotor['ask'] = speed
         if air is not None:
             weather.blown(air, TICK_S)

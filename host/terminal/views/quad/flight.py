@@ -328,12 +328,13 @@ def stated(rotor):
 
 
 def _step_drives(rotors, periods):
-    """Advance each stand-in drive by `periods` 50 kHz ticks in C (`world_drive_pass`)."""
+    """Advance each stand-in drive by `periods` 50 kHz ticks in C (`world_drive_pass`), a cut
+    one's bridge off."""
     lib = _LIB
     tau = math.tau
     for rotor in rotors:
         buf = rotor['buf']
-        tripped = lib.world_drive_pass(rotor['slot'], periods, True, True,
+        tripped = lib.world_drive_pass(rotor['slot'], periods, not rotor['cut'], True,
                                        ctypes.c_float(rotor['ask']), buf)
         if tripped:
             rotor['rig'].gates.off()
