@@ -96,8 +96,8 @@ def test_the_keys_that_move_her_are_one_twist(report):
         keys = dict({k: k in word.lower() for k in 'wsadqe'}, shift=word != word.lower())
         return humanoid_keys.twist(keys, viewpoint.looks({'yaw': yaw}), heading)
 
-    report.check('the view behind her: W walks her on, S turns her round in place, A turns her left',
-                 (tw('w'), tw('s'), tw('a')) == ((0.69, 0.0, 0.0), (0.0, 0.0, 0.7), (0.0, 0.0, 0.7)))
+    report.check('the view behind her: W walks her on, S walks her back, A turns her left',
+                 (tw('w'), tw('s'), tw('a')) == ((0.69, 0.0, 0.0), (-0.35, 0.0, 0.0), (0.0, 0.0, 0.7)))
     report.check('the view 60 deg left of her: W arcs her left; facing it, Shift sprints; Q sidesteps her left',
                  (tw('w', 240.0), tw('W'), tw('q')) == ((0.69, 0.0, 0.7), (1.4, 0.0, 0.0), (0.0, 0.5, 0.0)))
     every = {tw(w, yaw, hd) for w in ('w', 's', 'a', 'd', 'wa', 'wd', 'sa', 'sd', 'q', 'e', 'W', 'WA', 'S')
@@ -114,7 +114,8 @@ def test_the_keys_that_move_her_are_one_twist(report):
     for dt in (0.0, 0.05, 2.0):
         humanoid_keys.steered(st, t + dt, 0.0)
     report.check('a W typed walks her, sent once while held, the stop once when let go',
-                 sent == [{'twist': (0.69, 0.0, 0.0)}, {'twist': (0.0, 0.0, 0.0)}], sent)
+                 sent == [{'twist': (0.69, 0.0, 0.0)}, {'twist': (0.0, 0.0, 0.0)}]
+                 and not humanoid_keys.polled(['s'], st['pad'], t, held=set())['s'], sent)
 
 
 def test_a_held_p_charges_a_push(report):

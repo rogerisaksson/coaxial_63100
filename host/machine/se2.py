@@ -194,7 +194,7 @@ def heard_twist(g, gym, tw, has_say, said_fn, dropped_fn, heard_say_fn, walk_on)
     vx, vy, wz = g['twist']
     by, jumping = {e[0]: e for e in gym}, g.get('_jump_until', 0.0) > g['t']
     decay = (not has_say and math.hypot(vx, vy) < math.hypot(pvx, pvy) - 1e-4
-             and abs(vx) < WALK_SPEED - 0.01 and abs(vy) < STRAFE_SPEED - 0.01 and abs(wz) < 0.01)
+             and -(BACK_SPEED - 0.01) < vx < WALK_SPEED - 0.01 and abs(vy) < STRAFE_SPEED - 0.01 and abs(wz) < 0.01)
     if (abs(vx) > 0.01 or abs(vy) > 0.01 or abs(wz) > 0.01) and not decay:
         label = gait_for_twist(vx, vy, wz) or ('#205' if vx < -0.01 else '#204')
         g['_twist_active'], g['_twist_stop_until'] = True, g['t'] + 2.5
@@ -211,8 +211,8 @@ def heard_twist(g, gym, tw, has_say, said_fn, dropped_fn, heard_say_fn, walk_on)
         elif not has_say and label in by and (g.get('active_entry') != label or idle):
             heard_say_fn(g, gym, by[label])
             g['active_entry'] = label
-    elif g.get('_twist_active') or g.get('active_entry') in WASD_GAITS:
-        g['_twist_active'], g['_twist_stop_until'] = False, g['t'] + 2.5
+    elif g.get('_twist_active') or g.get('active_entry') in WASD_GAITS or doing(g) in WASD_GAITS:
+        g['_twist_active'], g['_twist_stop_until'], g['_resume_at'] = False, g['t'] + 2.5, None
         if jumping:
             g['tab'] = g['tab'][g['tab'][:, latent.AT] <= g['_jump_until'] + 0.01]
             g['labels'] = [(w, n) for w, n in g['labels'] if w <= g['_jump_until'] + 0.01]

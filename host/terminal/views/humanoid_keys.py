@@ -23,10 +23,11 @@ from terminal.views import gym, viewpoint
 #: terminal's first repeat comes 250-500 ms on) - along the view's line of sight.
 CHARGE_N_S, CHARGE_MAX_N, RELEASE_S, FIRST_S = 120.0, 250.0, 0.25, 0.8
 
-#: W A S D a way from the view - W where it looks -: her heading turned to it, TURN_K rad/s a
+#: W A D a way from the view - W where it looks -: her heading turned to it, TURN_K rad/s a
 #: radian off, to se2.YAW_RATE in steps of TWIST_STEP; walked at se2.WALK_SPEED within a quarter
-#: turn of it, se2.RUN_SPEED on Shift within SPRINT_RAD. Q E a sidestep at se2.STRAFE_SPEED, her
-#: facing kept. Each twist one the bench's plays hold (`tools/sim/scenarios.py`, KEYS).
+#: turn of it, se2.RUN_SPEED on Shift within SPRINT_RAD; S a walk back at -se2.BACK_SPEED. Q E a
+#: sidestep at se2.STRAFE_SPEED, her facing kept. Each twist one the bench's plays hold
+#: (`tools/sim/scenarios.py`, KEYS).
 TURN_K, SPRINT_RAD, TWIST_STEP = 1.5, 0.2, 0.05
 MOVES = frozenset('wasdqeWASDQE')
 #: A key typed counts held this long, s, where the console cannot tell (a terminal's first
@@ -133,8 +134,8 @@ def polled(raw, st, now, held=None):
     each key seen within HOLD_WINDOW_S - one key typed renews those held beside it, its opposite
     dropped -; of two opposite keys, neither."""
     tokens, seen = _moving(raw), st['last_seen']
-    if held is not None and (held or not tokens):
-        active = _moving(held) | tokens
+    if held is not None:
+        active = _moving(held)
         st['last_seen'] = dict.fromkeys(active, float(now))
     else:
         for k1, k2 in (('w', 's'), ('s', 'w'), ('a', 'd'), ('d', 'a'), ('q', 'e'), ('e', 'q')):
@@ -159,6 +160,8 @@ def twist(keys, look, heading):
     """(vx, vy, wz) the `keys` held (`polled`) ask of her: `look` the heading the view looks along,
     `heading` hers, rad."""
     fwd, left = int(keys['w']) - int(keys['s']), int(keys['a']) - int(keys['d'])
+    if fwd < 0:
+        return (-se2.BACK_SPEED, 0.0, round(left * se2.YAW_RATE, 2))
     if fwd or left:
         off = se2.wrap_angle(look + math.atan2(left, fwd) - heading)
         wz = round(TWIST_STEP * round(max(-se2.YAW_RATE, min(se2.YAW_RATE, TURN_K * off)) / TWIST_STEP), 2)

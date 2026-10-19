@@ -167,7 +167,8 @@ def heard(g, gym, command):
             if entry[0] == 'hop' and 'charge' not in command and g.get('_jump_until', 0.0) <= g['t']:
                 g['_hop_charge'] = 0.0
             if 'twist' not in command and entry[0] != 'hop' and not (g.get('_twist_active') and entry[0] in se2.WASD_GAITS):
-                g['_twist_active'], g['_twist_stop_until'], g['twist'] = False, 0.0, (0.0, 0.0, 0.0)
+                g['_twist_active'], g['_twist_stop_until'], g['_resume_at'] = False, 0.0, None
+                g['twist'] = g['asked'] = (0.0, 0.0, 0.0)
             if 'heading' not in command and entry[0] in ('turn_left', 'turn_right', 'turn_back_left', 'turn_back_right'):
                 g['target_heading'] = None
             heard_say(g, gym, entry)

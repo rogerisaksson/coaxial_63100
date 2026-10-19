@@ -359,13 +359,13 @@ class Keys:
                         self._keys_down, self._last_key_at = set(hw), now
                         return set(hw)
                     if self._hw_seen:
-                        self._hw_seen = self._latched_wasd = False
+                        self._latched_wasd = False
                         self._keys_down.clear()
                         return set()
                     if now - self._last_key_at > 0.65:
                         self._latched_wasd = False
                         self._keys_down.clear()
-                return None
+                return set() if self._hw_seen else None
             except AttributeError:
                 pass
         return None
@@ -437,11 +437,14 @@ class Keys:
                     if tok:
                         self._latched_wasd = True
                         self._keys_down.add(tok)
+                        if user32 is not None and (user32.GetAsyncKeyState(key.vk) & 0x8000):
+                            self._hw_seen = True
                     if key.ch in ('W', 'A', 'S', 'D', 'Q', 'E') or (key.state & 0x0010):
                         self._latched_wasd = True
                         self._keys_down.add('shift')
                     keys.append(self._key_of(key))
                 elif tok and (user32 is None or not (user32.GetAsyncKeyState(key.vk) & 0x8000)):
+                    self._hw_seen = True
                     self._keys_down.discard(tok)
             elif record.type == 2:
                 keys.extend(self._mouse_of(record.event.mouse))
@@ -450,6 +453,8 @@ class Keys:
     def _drain_msvcrt(self):
         import msvcrt
 
+        user32 = getattr(ctypes.windll, 'user32', None)
+        fg = user32.GetForegroundWindow() if user32 is not None else 0
         keys, now = [], time.monotonic()
         while msvcrt.kbhit():
             got = msvcrt.getwch()
@@ -458,6 +463,8 @@ class Keys:
                 keys.append(('f%d' % (ord(code) - 58)) if ';' <= code <= 'D' else
                             {'H': '\x1b[A', 'P': '\x1b[B', 'M': '\x1b[C', 'K': '\x1b[D'}.get(code, ''))
                 continue
+            if fg:
+                self._term_hwnd = fg
             if got.lower() in ('w', 'a', 's', 'd', 'q', 'e', ' '):
                 self._last_key_at, self._latched_wasd = now, True
                 self._keys_down.add(got.lower())
