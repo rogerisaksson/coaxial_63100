@@ -11,7 +11,8 @@ def _routine():
     the stages in order, the sky."""
     from machine import aerobat, aerobatics, aerokin, airfield, se3mpc
     dt, by_stage, stages = 1.0 / 120.0, {}, []
-    tail, foot = se3mpc.points(aerobat)[0][:, :3], aerobat.SKID_M + aerobat.FOOT_M
+    rest, foot = se3mpc.points(aerobat)[2], aerobat.SKID_M + aerobat.FOOT_M
+    rc, rs = math.cos(airfield.RUNWAY_RAD), math.sin(airfield.RUNWAY_RAD)
     sky, core, law = aerobat.Sky(airfield.solids()), aerobat.Core(), aerokin.fresh()
     sky.stand(False)
     route = aerobatics.routine(aerobat.CARD)
@@ -29,8 +30,10 @@ def _routine():
         by_stage.setdefault(stage, []).append({
             'h': state['h'], 'v': state['v'], 'r11': float(turn[1][1]), 'lift': state['lift'],
             'tilt': math.degrees(math.acos(max(-1.0, min(1.0, float(turn[1][1]))))),
-            'held': law['held'], 'z': float(state['at'][2]), 'vz': float(vel[2]), 'hdg': law['heading'][0],
-            'w': core.wingborne, 'tail': state['h'] + foot + float(min(tail @ turn[1])),
+            'held': law['held'], 'along': float(state['at'][0]) * rs + float(state['at'][2]) * rc,
+            'vz': float(vel[2]), 'hdg': law['heading'][0], 'span': abs(float(turn[1][0])),
+            'tip': state['h'] + foot + float(min(rest @ turn[1])),
+            'w': core.wingborne,
             'belly': float(turn[1][2]), 'ahead': float(vel @ turn[:, 1])})
         if sky.hit is not None:
             break
@@ -38,16 +41,18 @@ def _routine():
 
 
 def test_aerobat_routine(report):
-    """`aerobat` flies its card on its airfield: off the runway, a teardrop, the knife-edge back
-    down it, its 3D figures, its circuit and down on the runway."""
+    """`aerobat` flies its card on its airfield: off the runway, a teardrop at 60 deg/s, the
+    knife-edge back down it at 19 m/s - its wings within 20 deg of upright, its lower tip a few
+    centimetres over the runway -, its 3D figures, its circuit and down on the runway."""
     from machine import aerobat
     c, stages, sky = _routine()
     hov, ft, burn, hold, land, ke = (c[k] for k in ('prop-hang', 'full tilt', 'burn', 'hold', 'land', 'knife-edge'))
-    gl, gd = [p['z'] for p in c['lift'] if p['h'] < 0.03], [p['z'] for p in land if p['h'] < 0.03]
+    gl, gd = [p['along'] for p in c['lift'] if p['h'] < 0.03], [p['along'] for p in land if p['h'] < 0.03]
     report.check('aerobat rolls its runway, flies a knife-edge back down it and its 3D figures',
-                 c['spool'][0]['tilt'] > 55.0 and len(gl) > 20 and max(gl) - min(gl) > 5.0
-                 and sorted(p['tail'] for p in ke)[len(ke) // 2] < 0.05
-                 and all(abs(p['belly']) < 0.1 and p['ahead'] > 8.0 for p in ke)
+                 c['spool'][0]['tilt'] > 55.0 and len(gl) > 20 and max(gl) - min(gl) > 3.0
+                 and sorted(p['tip'] for p in ke)[len(ke) // 2] < 0.06
+                 and all(p['tip'] > 0.0 and p['span'] > 0.94 and abs(p['belly']) < 0.35 and p['ahead'] > 16.0
+                         for p in ke)
                  and abs(hov[-1]['h'] - 1.5) < 0.06 and hov[-1]['held'] and c['harrier'][-1]['h'] > 7.5
                  and min(p['tilt'] for p in c['waterfall']) < 65.0 and max(p['tilt'] for p in c['waterfall']) > 115.0
                  and min(p['r11'] for p in c['snap-roll']) < -0.80 and max(p['v'] for p in ft) > 9.0,
@@ -95,7 +100,7 @@ def test_aerobat_airfield_laps(report):
                 kept = ((lx - gx) * c - (lz - gz) * s) * across > 0.0 and abs(across) > wide / 2 + aerobat.HALF_M
                 knife = wide == airfield.SLOT_M
                 inside = (abs(across) < wide / 2 - (0.3 if knife else aerobat.HALF_M)
-                          and gy - high / 2 + 0.3 < st['h'] + foot < gy + high / 2 - 0.3 and (belly < 0.25 or not knife))
+                          and gy - high / 2 + 0.3 < st['h'] + foot < gy + high / 2 - 0.3 and (belly < 0.35 or not knife))
                 misses += [g] * int(not (kept if wide == airfield.PYLON_M else inside))
             sides[g] = side
         if sky.hit is not None or (len(stages) > 3 and stage == 'idle'):

@@ -26,9 +26,11 @@ SPEED_M_S, TURN_M, HIGH_M, LOW_M, TOP_M, LAPS = 14.0, 27.0, 3.0, 1.2, 10.0, 2
 #: most; the height and the knife read so far ahead, s. The line's tangent crabbed onto it over
 #: a second (`wingborne.lined`) put it 3.9 m off the hoop in gusts.
 L1_S, TURN_RAD_S, LEAD_S = 1.0, math.radians(45.0), (0.8, 0.5)
+#: Faster on its side, m/s: at 14 m/s in gusts its wings swung 34 deg off upright in the gate.
+KNIFE_M_S = 4.0
 #: A pylon's side and the knife gate's width, m: an air race's, twice the wings, taken on its
 #: side by the rule - at 1.5 m, narrower than them, gusts put it 1.6 m off in knife-edge.
-PYLON_M, SLOT_M = 0.4, 2.6
+PYLON_M, SLOT_M = 0.4, 3.2
 #: Where the lap starts, (along, across) the runway from its end: the near turn's exit.
 START = (-76.0, 0.0)
 #: The slalom, (deg, m) turned, + toward the far side: its peaks 4 m either side of its pylons.
@@ -108,7 +110,7 @@ CARS = tuple(placed(a, c) + (math.degrees(RUNWAY_RAD),) for a, c in ((-3.0, -19.
 MASTS, HALLS = (), ()
 
 #: Its lean the wing's, m/s^2: 12 at 14 m/s is 10.5 deg; the hover's 8 left 0.7 in a turn.
-CRUISE = dict(HOVER, height=HIGH_M, pace=3.0, speed=SPEED_M_S, home=0.0, lean=12.0)
+CRUISE = dict(HOVER, height=HIGH_M, pace=5.0, speed=SPEED_M_S, home=0.0, lean=12.0)
 FINAL = dict(CRUISE, height=0.22, speed=11.5, pace=1.8)
 
 
@@ -146,8 +148,9 @@ def line(route, now):
     eta = (math.atan2(px - x, pz - z) - (math.atan2(vel[0], vel[2]) if fast > 1.0 else heading)
            + math.pi) % math.tau - math.pi
     rate = max(-TURN_RAD_S, min(TURN_RAD_S, 2.0 * math.sin(eta) / L1_S))
+    knife = TRACK[(k + round(LEAD_S[1] * SPEED_M_S)) % n][5]
     return dict(CRUISE, turn=math.degrees(rate), height=TRACK[(k + round(LEAD_S[0] * SPEED_M_S)) % n][4],
-                knife=TRACK[(k + round(LEAD_S[1] * SPEED_M_S)) % n][5])
+                knife=knife, speed=SPEED_M_S + KNIFE_M_S * knife)
 
 
 #: Where along the lap each gate stands, m.
@@ -159,5 +162,5 @@ CARD = (
     ('spool', PRESSED, 2.5, 2.5, ''),
     ('lap', line, 0.0, 0.0, 'lapped'),
     ('final', FINAL, 2.4, 0.5, ''),
-    ('land', PRESSED, 8.0, 0.0, ''),
+    ('land', PRESSED, 10.0, 0.0, ''),
 )

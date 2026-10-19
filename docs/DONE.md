@@ -172,3 +172,8 @@ the hundred before these: [DONE_1-50](DONE_1-50.md),
     0.4 of its dots at the least; her jeans darker and narrower, her
     shoulders sloped, judged on PNGs beside the glTF and FBX models
     ([host](findings/host.md)).
+43. The aerobat lighter and pushed (`machine.aerobat`): a 1.6 m wing at 39
+    g/dm^2, a 20 in propeller on its boards' loads at 9.7 g, its damping
+    trimmed; off the runway a teardrop at 60 deg/s and a normal knife-edge
+    down it at 19 m/s, the wings within 16 deg of upright, the lower tip 2 cm
+    over the runway ([aircraft](findings/aircraft.md)).

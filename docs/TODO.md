@@ -355,6 +355,9 @@ serves its DOD; none an entry a case.
 
 ## Flight pages
 
+- **The wind seen on the crafts**: the plane, the quad, the helicopter and the
+  ornithopter pushed by the page's gusts where they are seen. DOD: a gust's
+  push measured on each and shown on its page.
 - **The aerobat's landing** (aircraft.md): its touch, its roll-out unsteered
   in wind. DOD: a touch under 0.5 m/s within 0.5 m of the centreline,
   stopped on the runway, still or gusty.

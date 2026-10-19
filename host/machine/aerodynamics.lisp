@@ -74,41 +74,47 @@
   (tail_pitch 1.35)
   (tail_ceiling 1.20))
 
-; The fuselage's 0.09 x 0.08 m front at 0.8, the gear's legs and wheels, m^2; the wing's own
+; The fuselage's 0.09 x 0.16 m front at 0.8, the gear's legs and wheels, m^2; the wing's own
 ; drag is cd0's. At 0.03 the airframe was 0.12 of its wing in drag, three times a 3D plane's.
 (defblock airframe monoplane_airframe
   (use standard_airframe)
-  (parasite_cda 0.010))
+  (parasite_cda 0.016))
 
+; 39 g/dm^2 on 2 kg, a 64-inch 3D plane's: on 1.30 x 0.26 m (59 g/dm^2) it stalled at 9.4 m/s and
+; turned on 32 m at 14 m/s.
 (defblock aero_surfaces unlimited_3d_monoplane
-  (wing_span 1.30m)
-  (wing_chord 0.26m)
-  (wing_area 0.338)
-  (prop_radius 0.2032m)
+  (wing_span 1.60m)
+  (wing_chord 0.32m)
+  (wing_area 0.512)
+  (prop_radius 0.254m)
   (prop_z 0.55m)
   (tail_arm 0.55m)
   (stab_area 0.060)
   (fin_area 0.045)
-  (k_thrust 0.0004520)
-  (k_drag 0.000004060)
+  (k_thrust 0.0011035)
+  (k_drag 0.00001239)
   (cl_alpha 4.2)
   (cd0 0.035)
   (cd_induced 0.085)
   (elevator_limit 45.0deg)
   (aileron_limit 38.0deg)
   (rudder_limit 48.0deg)
-  (k_pitch 0.0000550)
-  (k_roll 0.0000400)
-  (k_yaw 0.0000500)
+  (k_pitch 0.00013428)
+  (k_roll 0.00009766)
+  (k_yaw 0.00015259)
   (propwash_share 0.85)
   (inflow_floor 0.35))
 
+; A 20 in propeller and its contra stage: thrust and the surfaces in its wash by the diameter^4
+; of the 16 in's, drag and the contra stage's torque by ^5 - the boards' loads with them.
 (defblock drive_load aerobat_prop_load
   (use swashplate_tail_load)
-  (main_base 0.40)
-  (tail_base 0.32)
-  (tail_pitch 1.15)
-  (tail_ceiling 1.15))
+  (main_base 1.22)
+  (main_collective 5.03)
+  (main_ceiling 3.81)
+  (tail_base 0.98)
+  (tail_pitch 3.51)
+  (tail_ceiling 3.51))
 
 (defaerodynamics shared
   (use standard_airframe))

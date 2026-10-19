@@ -156,40 +156,40 @@
   (base unwind) (slide -2.0m_s))
 
 (defstunt takeoff
-  (base hover) (height 7.0m) (pace 4.0m_s) (speed 12.0m_s) (home 0.0))
+  (base hover) (height 3.0m) (pace 4.0m_s) (speed 12.0m_s) (home 0.0))
 
 (defstunt parachute
   (base stop) (height 0.55m) (pace 4.0m_s))
 
 (defstunt climbout
-  (base hover) (height 9.0m) (speed 14.0m_s) (pace 3.0m_s) (home 0.0))
+  (base hover) (height 9.0m) (speed 12.0m_s) (pace 3.0m_s) (home 0.0))
 
 (defstunt pattern_turn
-  (base climbout) (turn 25.0deg_s))
+  (base climbout) (turn 50.0deg_s) (lean 12.0m_s2))
 
 (defstunt final
   (base climbout) (height 0.22m) (speed 11.5m_s) (pace 1.8m_s))
 
 (defstunt teardrop
-  (base climbout) (height 2.0m) (turn -25.0deg_s))
+  (base climbout) (height 2.0m) (speed 14.0m_s) (turn -60.0deg_s) (lean 20.0m_s2))
 
 (defstunt tear_leg
   (base teardrop) (turn 0.0deg_s))
 
 (defstunt tear_back
-  (base teardrop) (turn 25.0deg_s))
+  (base teardrop) (turn 60.0deg_s))
 
 (defstunt line_up
-  (base climbout) (height 0.5m) (speed 12.0m_s) (pace 1.5m_s))
+  (base climbout) (height 0.52m) (speed 20.0m_s) (pace 1.5m_s) (lean 12.0m_s2))
 
 (defstunt knife_pass
-  (base line_up) (height 0.35m) (pace 1.0m_s) (knife 1.0))
+  (base line_up) (pace 1.0m_s) (knife 1.0))
 
 (defstunt pull_out
   (base climbout) (height 4.0m) (speed 12.0m_s))
 
 (defstunt run_in
-  (base line_up) (height 1.5m))
+  (base line_up) (height 1.5m) (speed 12.0m_s))
 
 (defbehavior knife_edge_circuit
   (phase carve_knife (stunt knife_circle) (duration LAP_S) (blend 200ms))
@@ -208,18 +208,18 @@
 (defroutine aerobat_3d
   (stage idle (stunt down) (duration 2.0s) (ramp 0.0s) (gate fit))
   (stage spool (stunt pressed) (duration 2.5s) (ramp 2.5s))
-  (stage lift (stunt takeoff) (duration 3.0s) (ramp 1.0s))
-  (stage tear-out (stunt teardrop) (duration 1.8s) (ramp 0.3s))
-  (stage tear-leg (stunt tear_leg) (duration 4.57s) (ramp 0.3s))
-  (stage tear-back (stunt tear_back) (duration 9.0s) (ramp 0.3s))
-  (stage line-up (stunt line_up) (duration 5.0s) (ramp 1.0s))
-  (stage knife-in (stunt knife_pass) (duration 2.5s) (ramp 1.0s))
-  (stage knife-edge (stunt knife_pass) (duration 2.5s) (ramp 0.0s))
+  (stage lift (stunt takeoff) (duration 3.6s) (ramp 1.0s))
+  (stage tear-out (stunt teardrop) (duration 0.75s) (ramp 0.3s))
+  (stage tear-leg (stunt tear_leg) (duration 1.91s) (ramp 0.3s))
+  (stage tear-back (stunt tear_back) (duration 4.05s) (ramp 0.3s))
+  (stage line-up (stunt line_up) (duration 1.4s) (ramp 0.3s))
+  (stage knife-in (stunt knife_pass) (duration 1.5s) (ramp 1.0s))
+  (stage knife-edge (stunt knife_pass) (duration 1.8s) (ramp 0.0s))
   (stage pull-out (stunt pull_out) (duration 1.5s) (ramp 1.0s))
-  (stage turn-out (stunt teardrop) (duration 1.8s) (ramp 0.3s))
-  (stage turn-leg (stunt tear_leg) (duration 4.57s) (ramp 0.3s))
-  (stage turn-back (stunt tear_back) (duration 9.0s) (ramp 0.3s))
-  (stage run-in (stunt run_in) (duration 10.8s) (ramp 1.0s))
+  (stage turn-out (stunt teardrop) (duration 0.75s) (ramp 0.3s))
+  (stage turn-leg (stunt tear_leg) (duration 1.91s) (ramp 0.3s))
+  (stage turn-back (stunt tear_back) (duration 4.05s) (ramp 0.3s))
+  (stage run-in (stunt run_in) (duration 7.9s) (ramp 1.0s))
   (stage prop-hang (stunt hover) (duration 2.5s) (ramp 2.0s) (gate held))
   (stage torque-roll (stunt torque_roll) (duration 2.0s) (ramp 1.0s))
   (stage poise (stunt hover) (duration 1.8s) (ramp 1.5s))
@@ -235,12 +235,12 @@
   (stage burn (stunt parachute) (duration 0.0s) (ramp 0.0s) (gate held))
   (stage hold (stunt parachute) (duration 1.5s) (ramp 0.0s))
   (stage climb-out (stunt climbout) (duration 2.5s) (ramp 1.0s))
-  (stage crosswind (stunt pattern_turn) (duration 3.6s) (ramp 0.5s))
-  (stage cross-leg (stunt climbout) (duration 0.5s) (ramp 0.5s))
-  (stage downwind (stunt pattern_turn) (duration 3.6s) (ramp 0.5s))
+  (stage crosswind (stunt pattern_turn) (duration 1.8s) (ramp 0.5s))
+  (stage cross-leg (stunt climbout) (duration 2.0s) (ramp 0.5s))
+  (stage downwind (stunt pattern_turn) (duration 1.8s) (ramp 0.5s))
   (stage down-leg (stunt climbout) (duration 9.9s) (ramp 0.5s))
-  (stage base (stunt pattern_turn) (duration 3.6s) (ramp 0.5s))
-  (stage base-leg (stunt climbout) (duration 0.5s) (ramp 0.5s))
-  (stage final-turn (stunt pattern_turn) (duration 3.6s) (ramp 0.5s))
+  (stage base (stunt pattern_turn) (duration 1.8s) (ramp 0.5s))
+  (stage base-leg (stunt climbout) (duration 2.0s) (ramp 0.5s))
+  (stage final-turn (stunt pattern_turn) (duration 1.8s) (ramp 0.5s))
   (stage final (stunt final) (duration 6.0s) (ramp 0.5s))
   (stage land (stunt pressed) (duration 8.0s) (ramp 0.0s)))

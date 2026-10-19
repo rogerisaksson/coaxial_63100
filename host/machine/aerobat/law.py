@@ -160,7 +160,7 @@ class Core:
         f_des = max(0.0, min(MASS_KG * reach, f_des))
         tau_x, tau_y, tau_z = WING.trimmed(_so3_torques(
             self, turn, r_des, w_ff, spin, INERTIA, (ATT_KP, YAW_KP, ROLL_KP), (ATT_KD, YAW_KD, ROLL_KD)),
-            u, turn, 1.0)
+            u, turn, spin)
 
         w_top = limits[0] if limits else pull.held(pull.I_MAX)
         w_vect_top = limits[1] if limits else w_top

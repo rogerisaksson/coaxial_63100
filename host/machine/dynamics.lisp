@@ -43,7 +43,7 @@
   (inertia_xx 0.090)
   (inertia_yy 0.060)
   (inertia_zz 0.120)
-  (skid_height 0.25m)
+  (skid_height 0.30m)
   (skid_span 0.15m)
   (strut_aft -0.52m)
   (strut_fore 0.09m))

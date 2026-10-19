@@ -46,8 +46,9 @@ WATERFALL_HZ, WATERFALL_RAD = (KINEMATICS['oscillator'][k] for k in (
     'tictoc_frequency', 'tictoc_amplitude'))
 DIVE_M_S = 4.0
 PULL_MAX, COURSE_SPHERE = K_THRUST / MASS_KG * (GOV_RAD_S * STUNT_BOOST) ** 2, 1.5 * GRAVITY
-#: The air across the span meets mjcf's fuselage box, 0.08 deep, and the fin, m^2.
-SIDE_AREA = 0.16 * (PROP_Z - 0.04) + FIN_AREA
+#: The air across the span meets mjcf's fuselage box, 0.16 deep as drawn under the canopy, and
+#: the fin, m^2: at 0.08 deep a knife-edge at 12 m/s flew 39 deg nose-up.
+SIDE_AREA = 0.32 * (PROP_Z - 0.04) + FIN_AREA
 WING = Wing(MASS_KG, GRAVITY, RHO, WING_AREA, CL_ALPHA, WING_SPAN, STAB_AREA, FIN_AREA, TAIL_ARM, SIDE_AREA)
 ROTATE_M_S, RUNWAY_M, RUNWAY_RAD = WING.rotate, WING.runway(HOVER['lean']), airfield.RUNWAY_RAD
 
@@ -79,7 +80,7 @@ TAIL_ON = ' priority="1" solref="0.1 1" friction="0.4 0.005 0.0001"'
 
 def mjcf(things=()):
     """The 3D aerobatic monoplane and `things` (`airfield.solids`) as MuJoCo XML."""
-    m = ('<geom name="fuselage" type="box" pos="0 0.04 0" size="0.045 %g 0.04" contype="1" '
+    m = ('<geom name="fuselage" type="box" pos="0 0.04 0" size="0.045 %g 0.08" contype="1" '
          'conaffinity="1"/><geom name="wing" type="box" pos="0 0.06 0" size="%g %g 0.010" '
          'contype="1" conaffinity="1"/><geom name="prop" type="cylinder" pos="0 %g 0" '
          'size="%g 0.008" euler="90 0 0" contype="1" conaffinity="1"/>'

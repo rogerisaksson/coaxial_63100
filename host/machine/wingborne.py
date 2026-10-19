@@ -3,7 +3,7 @@
     wing = Wing(MASS_KG, GRAVITY, RHO, WING_AREA, CL_ALPHA, WING_SPAN, STAB_AREA, FIN_AREA, TAIL_ARM, SIDE_AREA)
     lift = wing.lift(u, turn)                      # N, the wing's and the side's, the air `u` through it
     pitch, roll, yaw = wing.moments(u, turn, qv)   # N m about its axes
-    tau = wing.trimmed(tau, u, turn, share)        # less a share of its own static moments
+    tau = wing.trimmed(tau, u, turn, spin)         # less its own moments, as it turns
     r_des, w_ff, f_des = run(wing, core, v_fwd, h, yaw, rate)    # the takeoff run
     r_des, want_up = plane(wing, turn, acc_des, u, w, want_up, knife)   # nose on the air
     yaw = lined(runway, heading, vel, at, h, wing.rotate)        # low, onto the runway's line
@@ -82,11 +82,12 @@ class Wing:
         up = [(uz * nose[a] + uy * back[a]) / speed for a in range(3)]
         return tuple(slip * span[a] + f_l * up[a] - f_d * air[a] for a in range(3))
 
-    def trimmed(self, tau, u, turn, share):
-        """The law's torques `tau` less `share` of the airframe's own moments still in the air `u`:
+    def trimmed(self, tau, u, turn, spin):
+        """The law's torques `tau` less the airframe's own moments in the air `u` turning at `spin`:
         on its side the fin's, 4.5 N m at 12 m/s, held the slip 8 deg short and the plane sank;
-        on its wing the stabiliser's, 1.9 N m at 9 deg, held the angle 2.6 deg short."""
-        return tuple(t - share * m for t, m in zip(tau, self.moments(u, turn, (0.0,) * 6)))
+        on its wing the stabiliser's, 1.9 N m at 9 deg, held the angle 2.6 deg short; the 1.6 m
+        wing's damping, 3.5 N m a rad/s at 17 m/s, rolled it onto its side at 15 deg/s."""
+        return tuple(t - m for t, m in zip(tau, self.moments(u, turn, (0.0,) * 3 + tuple(spin))))
 
     def moments(self, u, turn, qv):
         """The airframe's own moments about its axes, N m: the stabiliser's and the fin's lift
