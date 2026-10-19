@@ -2,7 +2,8 @@
 
 Open work. An item is a gap and its DOD (done when); its measurements are in
 the files under docs/FINDINGS.md. An item is deleted when its DOD is met and
-gets a line at the end of [DONE](DONE.md).
+gets a line at the end of [DONE](DONE.md). Subjects off the gynoid's list:
+the table under [Subjects](#subjects).
 
 ## Goal
 
@@ -38,9 +39,9 @@ gets a line at the end of [DONE](DONE.md).
   A frame past 3 s appends every thread's stack to
   `%LOCALAPPDATA%/coaxial_63100/stalls.txt` (`screen.STALL_LOG`). DOD: seen,
   its stack dumped, fixed.
-- **Her wear's window stalls her world** 0.23 s every 4 s (`worker.stepped`,
-  sysid's regressor its most); it feeds her law (`wear.loaded`). DOD: no
-  pass over 20 ms walking.
+- **Her wear's window stalls her world** 0.12 s every 4 s (`worker.stepped`:
+  its rows 31 ms - the regressor's C 16 -, its hems 15, its boxes 12); it
+  feeds her law (`wear.loaded`). DOD: no pass over 20 ms walking.
 
 1. **Orthokinematics, the one way she moves** (orthokinematics.md): the
    humanoid robot movement is text of balance, rhythm and elasticity, compiled
@@ -234,145 +235,11 @@ gets a line at the end of [DONE](DONE.md).
   name in it; W at any moment of a stop past 0.3 m/s within 1 s; the kept
   replays, the errands and her walk standing.
 
-## Scenarios, by the general case
+## Subjects
 
-Each a test in MuJoCo: placed, commanded as a player would, judged by no
-fall, its goal reached and its jerk (`tools/sim/scenarios.py`; those that hold
-in `test_scenarios`, 20 of 31 at every wobble now:
-[scenarios](findings/scenarios.md)). In order: each a mechanism, the scenes it
-serves its DOD; none an entry a case.
-
-1. **Her support, whatever bears her** (`machine.borne`): a segment the skin
-   feels pushed up is in her support region, grounds her, and is a contact of
-   her whole-body step. Met: the chair 2 of 3 wobbles (-2e-4 sits 0.66 s of
-   1); the bed 11 - rising
-   at -5e-4 the mattress's share flickers (2), at 2e-4 it bears half her
-   weight 0.51 s of 1. Open: lying flat, her pelvis and trunk pitched
-   apart; the floor mattress, told to lie she crouches, her pelvis at 0.763 m
-   after 12 s (4), and lain on the bare floor the referee calls a fall;
-   `wbc_wrench.c` without contacts. DOD: chair, soft bed, floor mattress and
-   floor, down and up, no fall called.
-2. **Weight handed over, never switched**: a sole's share of her support
-   continuous in her height's reading, her support region and her step's
-   bounds, where a flag now. `tools/sim/jerk.py` against her steady walk
-   (head 597, hands 1398-1840 m/s^3): a start 1.4, strafes 2.9, turns 3.8, a
-   spin 4.4, the chair 11.6, a hop down 11.1, the weave 17.9. Left: a sole let
-   go at 60 N on its toes as the other takes 715 N (turns, the weave); the
-   weave's hurried swing asking a hip 10.7 times its clamp, her balance's
-   ask shrunk with it; a seat's touch flickering as she rises; a hop's
-   landing, its shrink the neck's; a row's blend stepping her asks; her head
-   and arms flung for her turns, seated and at a takeoff, where a seat's
-   points give no moment (jerk.md). DOD: every segment's peak through stand,
-   walk, turn, strafe, back, stop, sit, rise, hop no higher than in her
-   steady walk; a test holds it.
-3. **A landing on what is there**: a swinging sole that meets something
-   raises her swings by its height, one that meets nothing reaches on down; a
-   sliding one lowers the friction she asks. Met at 13 of 13 wobbles: the
-   sill, the rug, the hole, asphalt; snow 11, a slide unread (grip.md). The floor
-   ahead a plane of her standing soles' pitch (`modal.under`): up a ramp she
-   lands where she aims, down at its top; past a crest or down a descent a
-   swing hangs 6-27 cm over the floor. Measured and not kept (scenarios.md,
-   blind on a flight): a sole standing by its load alone, a swing held at an
-   edge till its toes clear it, the floor's rise read from her landings, a
-   late swing lowering her - each took a held scene. Left: her centre of mass
-   running on past a lone standing sole while the next swing is late, the
-   common root on every descent; the first step down a flight, nothing told,
-   a drop. DOD: stairs of 0.15 x 0.30 m up and down, a slope of 10 deg up,
-   down and across; 3 times in 4 each.
-4. **Her floor identified, a text over the general law**: what her
-   standing soles meet - slip and sink under their load - read from her
-   sensors against what her law assumes (friction 0.6 in her step, a rigid
-   floor) and estimated as data; outside that envelope a surface's text
-   (lisp) laid over the general law's: the friction her step asks, her
-   rhythm, her step's length, her stiffness - no branch in the law. Skates:
-   a sole's room a line along its blade, free along it, held across it. As
-   it is: her grip felt as a sole slides (`machine.grip`) or told, her
-   centre of mass, her going, her landings and her step's cones bounded by
-   it outside her envelope, a situation's text capping her rhythm under its
-   grip (`situations.lisp`, situation.md: seven read, one laying caps); the
-   ice read 0.103 and the slick patch 0.065 a
-   pass after a sole meets them, kept 30 s and handed to each landing sole:
-   told or unaware she crosses both, and snow, at every wobble (grip.md).
-   Left: a floor her soles never slide on - asphalt, snow - read from what
-   her holding soles use alone; her insoles reading their normal load alone
-   (scenarios.md, blind on a flight); skates. DOD: on skates she stands 10 s
-   and goes 2 m by strides across her blades.
-5. **Reachable landings ahead**: where each limb lands before her capture
-   point is past it, read from her reach (`machine.reach`); none, her height
-   lowered and a limb set to meet the fall, knees then hands, head off the
-   floor. 80 N met: standing 32 of 32, walking 28 (forward-aside 5 of 8).
-   200 N: standing 14 of 32 stand or fall soft, walking 21; the rest strike
-   her head at 1.1-4.5 m/s. DOD: 200 N falls with the head under 1 m/s.
-6. **One jump**: takeoff from the height and distance to land - a hop's
-   landing said with it, its throw forward from that, not from a twist; the
-   chair's two texts reach no hop yet (scenarios.md); off and onto a 0.45 m
-   seat her knees work at 0.93-1.0 of their peak, past the drives' 50 %
-   margin (demand.md) - the seat's height or the knees' drives to decide. DOD:
-   down from a chair, two-footed up onto one (0.45 m), in place; landed
-   standing.
-7. **The drives for it**: a gait under way, a swing led or her capture point
-   past a lone standing sole grants a held drive 1.45x its clamp, past its
-   parts' peak. Without it the turns hold and the turnabout better (13 of 13,
-   7 granted); the weave falls at 4 of 13 (demand.md). DOD: each scenario's
-   peak, rms, speed and heat under 2/3 of its parts.
-
-## Bench
-
-- **25 kHz under a 63 V drive**: a hover's heat is its legs' dry switching,
-  6.45 W of 9.4 (envelope.md); the bench's dry rise halves at 25 kHz. DOD:
-  TIM1's period and the law's ts from the record; the ripple on a 33 uH
-  winding measured; a hover's legs at it.
-- **Bootloader**. DOD: a power cycle runs the store at unit 1 on the bench;
-  the prefix search's real collision seen; 10 Mbit on the bench adapter.
-- **From D2 SRAM**. DOD: the ITCM sample path under the drive; LOOP and
-  `__sbrk_heap_end` stable an hour.
-- **Drive**: a current loop closed through a winding,
-  `tools/bench/commission.py` past its dry run. DOD: record ids 15..44
-  measured.
-- **SOA path**. DOD: dry `budget()` over the wire, a gate proof with a
-  lowered ceiling and a load run on target; `Board_SyncMeanSquare`'s ISR
-  cost measured.
-- **Thermal observer at short periods**: the NTC anchor inverts a standing
-  miss x1.8. DOD: `tools/bench/power_check.py` at 1-5 s keeps its patches.
-- **STO chain** (`tools/bench/sto_probe.py`): R93 to 3V3D, a master's pilot
-  on RS485, one arm with neither bypass, the keepalive from a timer
-  interrupt. DOD: on the bench as on the emulator; one transient of
-  `sto.asc` at 0.7 and 2.2 V within the model's windows.
-- **DMA and WFI**. DOD: the A1335 by DMA against the poll; CYCCNT through
-  WFI; the gate supply back after an idle's paused keepalive; ADC3's
-  injected end off HAL's handler; RCR 1 on the scope.
-- **Scope**: counted hold, dead-time skew, `Q_RING`. DOD: each on it.
-- **Thermal**: a camera under load, a thermocouple on a winding, the
-  supply's amps dry. DOD: the ceilings measured; the room found on the
-  laminate's two nodes; `thermal_app.c`'s tables fitted in each.
-- **Spans**: phase gain, the DC link. DOD: by a DMM.
-- **`CMD_LINK_SHARE_PCT`** 75. DOD: measured on a populated RS485 segment.
-- **The test line's limits** (`testline/plans/coaxial_63100_fct.yaml`).
-  DOD: measured.
-
-## Flight pages
-
-- **The wind seen on the crafts**: in 6 m/s gusts each holds its hover's spot
-  within 2-3 cm, its law reading the truth. Its laws to read it through
-  modeled sensors - place from GPS or optical flow with their delay and noise,
-  the IMU's -, not softer observers (the quad's are its board's core's). DOD:
-  2-5 dm in gusts on each page, its course still flown.
-- **The aerobat's landing** (aircraft.md): its touch, its roll-out unsteered
-  in wind. DOD: a touch under 0.5 m/s within 0.5 m of the centreline,
-  stopped on the runway, still or gusty.
-
-## Host
-
-- **native://**: a limb's world on a fixed mount as board/emu's. A frame on
-  an idle limb of four 32 ms, the wire's 10: three boards awake t3.5 and each
-  chain's 2 ms recovery at 1 us substeps (emulation.md). DOD: the body's
-  balance and gait from the SIL.
-- **Identification on the robot** (identification.md): her tree's campaign
-  (`machine.sysid`) through her buses once the SIL moves her figure; the
-  hips' yaw and roll armature untold on the stand; a link's inertia about
-  its centre as built under a correction. As it is: a drive on its board
-  (`coaxial.control.identify`, `tools/bench/sysid_drives.py`) - held, swung
-  by the board's own loop, its DAQ's currents and A1335 the rows - reads its
-  J, b and the gravity on its shaft against the world's. DOD: her tree's
-  campaign on emulated boards end to end; a bench drive on COM4; a link's
-  tensor corrected under a body's constraints.
+| Subject | File |
+| --- | --- |
+| Scenarios, by the general case: each a test in MuJoCo, in order | [todo/scenarios.md](todo/scenarios.md) |
+| The bench: what the board has still to show | [todo/bench.md](todo/bench.md) |
+| Flight pages: the crafts in wind, the aerobat's landing | [todo/flight.md](todo/flight.md) |
+| Host: native://, identification on the robot, her law compiled | [todo/host.md](todo/host.md) |

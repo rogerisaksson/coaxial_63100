@@ -31,8 +31,8 @@ NOT_CODE = re.compile(r'/\*.*?\*/|//[^\n]*|"(?:\\.|[^"\\])*"', re.S)
 #: and each was wrong at once: CLAUDE.md said 1679 with structure at 300
 #: when it was 349, and three more files carried a third total.
 COUNTED = ('CLAUDE.md', 'host/run_tests.ps1', 'docs/ARCHITECTURE.md', 'docs/TODO.md') + tuple(
-    'docs/architecture/' + os.path.basename(p)
-    for p in sorted(glob.glob(os.path.join(REPO, 'docs', 'architecture', '*.md'))))
+    'docs/%s/%s' % (sub, os.path.basename(p)) for sub in ('architecture', 'todo')
+    for p in sorted(glob.glob(os.path.join(REPO, 'docs', sub, '*.md'))))
 
 
 #: The notebooks' shape, as `tools/notebooks/parts.paper` lays it out.
