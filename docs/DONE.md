@@ -248,3 +248,8 @@ the hundred before these: [DONE_1-50](DONE_1-50.md),
     own, her worker's loop made general (`machine.apart`), played back in
     real time or slower, never ahead: 18.7-19.3 frames a second where
     13.4-18.7, the longest gap 89 ms where 639 ([host](findings/host.md)).
+61. The flights drawn in step and at 30 frames a second: each frame on a
+    beat, the flight shown at the instant it is written (`screen.drawn_at`),
+    a synchronized update - on screen 0.98-1.02 of its speed where
+    0.67-1.48, on its lap 0.04 dots off smooth motion -, a frame 35 ms where
+    52 ([host](findings/host.md)).
