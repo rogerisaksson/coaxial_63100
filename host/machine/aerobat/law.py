@@ -51,7 +51,8 @@ class Core:
         self.out = Answer((IDLE_RAD_S, IDLE_RAD_S), (0.0, 0.0, 0.0, 0.0), (0.0, 0.0),
                           (1.0, 0.0), (0.0, 0.0, 0.0))
 
-    def _target_attitude(self, law, row, state, turn, yaw, rate, acc_des, ay_thrust, dt):
+    def _target_attitude(self, law, row, state, turn, yaw, rate, acc_des, ay_thrust, dt,
+                         u=None, w_lift=None):
         flips, rolls, nose_val = float(row.get('flip', 0.0)), float(row.get('roll', 0.0)), float(row.get('nose', 1.0))
         wfall, inv = (WATERFALL_RAD if nose_val <= -1.5 else 0.0), (1.0 if -1.5 < nose_val <= -0.5 else 0.0)
         ax_des, ay_des, az_des = acc_des
@@ -80,9 +81,14 @@ class Core:
         s_f = -1.0 if inv >= 0.5 and ay_des < 0.0 else 1.0
         want_up = [sign * s_f * ax_des / a_norm, sign * ay_des / a_norm, sign * s_f * az_des / a_norm]
         ay_use = ay_des if inv >= 0.5 else ay_thrust
-        u = [float(state['vel'][a]) - self.wind[a] for a in range(3)]
+        if u is None:
+            u = (float(state['vel'][0]) - self.wind[0],
+                 float(state['vel'][1]) - self.wind[1],
+                 float(state['vel'][2]) - self.wind[2])
+        if w_lift is None:
+            w_lift = WING.lift(u, turn)
         # The thrust gives along the nose what the wing does not; the hover's share is in acc_des.
-        w_nose = sum(x * turn[a][1] for a, x in enumerate(WING.lift(u, turn)))
+        w_nose = sum(x * turn[a][1] for a, x in enumerate(w_lift))
         f_des = MASS_KG * (ax_des * turn[0][1] + ay_use * turn[1][1] + az_des * turn[2][1]) - self.wing_air * w_nose
         r_wing, want_up = plane(WING, turn, (ax_des, ay_des, az_des), u, self.wingborne, want_up,
                                 row.get('knife', 0.0))
@@ -139,9 +145,13 @@ class Core:
     def step(self, law, row, state, dt, pull_max, limits=None, along=None):
         """One pass of `dt` s on `row` and `state`: returns `Answer`."""
         observe(self, state, dt)
-        turn = [[float(x) for x in r] for r in state['turn']]
-        spin, vel, at = ([float(x) for x in state[k]] for k in ('spin', 'vel', 'at'))
-        u, knife, fast = [vel[a] - self.wind[a] for a in range(3)], row.get('knife', 0.0), row.get('speed', 0.0) > 5.0
+        t_in, s_in, v_in, a_in = state['turn'], state['spin'], state['vel'], state['at']
+        turn = t_in if (type(t_in) is tuple and type(t_in[0]) is tuple and type(t_in[0][0]) is float) \
+            else (t_in.tolist() if hasattr(t_in, 'tolist') else [[float(x) for x in r] for r in t_in])
+        spin = s_in if (type(s_in) is tuple and type(s_in[0]) is float) else [float(x) for x in s_in]
+        vel = v_in if (type(v_in) is tuple and type(v_in[0]) is float) else [float(x) for x in v_in]
+        at = a_in if (type(a_in) is tuple and type(a_in[0]) is float) else [float(x) for x in a_in]
+        u, knife, fast = (vel[0] - self.wind[0], vel[1] - self.wind[1], vel[2] - self.wind[2]), row.get('knife', 0.0), row.get('speed', 0.0) > 5.0
         # On its side the nose is off the air by the slip; fast, the share carried whole.
         k = flies(row, max(self.wingborne, abs(knife) * sum(x * x for x in u) / ROTATE_M_S ** 2))
         self.wingborne, self.wing_air = (row.get('wing', 1.0) * (x + k * (1.0 - x))
@@ -150,7 +160,7 @@ class Core:
         drag = 0.5 * RHO * _aero_cda(*prev_ctrl[:3]) / MASS_KG * math.hypot(*u)
         w_lift = WING.lift(u, turn)
         air_acc = [(1.0 - self.wing_air) * (self.push_hat[a] + w_lift[a] / MASS_KG) - drag * u[a]
-                   for a in range(3)]
+                   for a in (0, 1, 2)]
         if along is None:
             along = self.plan(law, row, state, dt, pull_max)
         rate, target_yaw = self.yawed(law, row, state)
@@ -189,7 +199,7 @@ class Core:
                 self.airborne, law['spot'] = False, [at[0], at[2]]
         else:
             r_des, w_ff, f_des, stunt, inv = self._target_attitude(
-                law, row, state, turn, yaw, rate, acc_des, ay_thrust, dt)
+                law, row, state, turn, yaw, rate, acc_des, ay_thrust, dt, u, w_lift)
 
         f_des = max(0.0, min(MASS_KG * reach, f_des))
         tau_x, tau_y, tau_z = WING.trimmed(_so3_torques(

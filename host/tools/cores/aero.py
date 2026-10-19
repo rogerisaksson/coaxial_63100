@@ -21,7 +21,8 @@ SOURCES = [os.path.join(REPO, 'aero', name)
            for name in ('test/harness.c', 'src/aero.c', 'src/aero_turn.c', 'src/aero_share.c')]
 INCLUDES = [os.path.join(REPO, 'aero', 'inc'), os.path.join(REPO, 'aero', 'src')]
 #: Built as the firmware builds it (CMakeLists.txt), every symbol kept for ctypes.
-BUILT = ('-O2', '-fno-math-errno', '-ffp-contract=off') + (
+BUILT = ('-O2', '-fno-math-errno', '-ffp-contract=off', '-fno-builtin-sin',
+         '-fno-builtin-cos', '-fno-builtin-tan') + (
     ('-Wl,--export-all-symbols',) if os.name == 'nt' else ())
 
 #: aero.h's sizes.
@@ -39,7 +40,9 @@ PACK = 'I I %df %df %df I f %df I %df' % (MODES, MODES, MODES, MODES, TASKS)
 WEIGH_TILT, WEIGH_LIFT, WEIGH_HEADING = 30.0, 3.0, 1.0
 WO_TURN, WO_PULL, RISE, LEAN, WO_WIND = 40.0, 10.0, 5.0, 0.6, 5.0
 
-_f, _u = ctypes.c_float, ctypes.c_uint32
+_f, _u, _d = ctypes.c_float, ctypes.c_uint32, ctypes.c_double
+_d3, _d4, _d6, _d9, _d12 = _d * 3, _d * 4, _d * 6, _d * 9, _d * 12
+_dp = ctypes.POINTER(_d)
 
 
 class Payload(ctypes.Structure):
@@ -99,6 +102,22 @@ def library():
                                ctypes.POINTER(_f * ROTORS), ctypes.POINTER(_f * ROTORS),
                                ctypes.POINTER(ctypes.c_double * ROTORS), ctypes.POINTER(_u)]
     lib.aeh_row.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.POINTER(_f * (MODES + AXES))]
+    lib.aeh_wing_lift.argtypes = [_dp, _dp, _dp, _dp]
+    lib.aeh_wing_moments.argtypes = [_dp, _dp, _dp, _dp, _dp]
+    lib.aeh_wing_jacobian.argtypes = [_dp, _dp, _dp, _d, _dp]
+    lib.aeh_observe_wind_spin.argtypes = [
+        _dp, _dp, _d, _d, _d, _dp, _dp, _dp, _dp, _d, _d, _dp, _dp, _dp]
+    lib.aeh_aerobat_observe.argtypes = [_dp, _dp, _dp, _dp, _dp, _dp, _dp, _dp, _dp]
+    lib.aeh_plane_alpha.argtypes = [_d, _d, _d, _d, _d]
+    lib.aeh_plane_alpha.restype = _d
+    lib.aeh_so3_error.argtypes = [_dp, _dp, _dp]
+    lib.aeh_align_axis.argtypes = [_dp, _dp, _dp, _dp]
+    lib.aeh_smooth_target.argtypes = [
+        _dp, ctypes.POINTER(ctypes.c_int), _dp, _d, _d, _d, _d, _d, _d, _dp]
+    lib.aeh_toward.argtypes = [_dp, _dp, _d, _dp]
+    lib.aeh_so3_torques.argtypes = [_dp, _dp, _dp, _dp, _dp, _dp, _dp, _dp, _dp]
+    lib.aeh_plane.argtypes = [_dp, _dp, _dp, _dp, _d, _dp, _d, _dp]
+    lib.aeh_plane.restype = ctypes.c_int
     return lib
 
 
@@ -114,7 +133,7 @@ def frame():
         at_x=(_f * ROTORS)(*[x for x, _z in quad.ROTOR_AT]),
         at_z=(_f * ROTORS)(*[z for _x, z in quad.ROTOR_AT]), spin=(_f * ROTORS)(*quad.SPIN),
         kappa=kappa, weigh=(_f * WRENCH)(WEIGH_LIFT, WEIGH_TILT / arm, WEIGH_HEADING / kappa,
-                                        WEIGH_TILT / arm),
+                                         WEIGH_TILT / arm),
         wo_turn=WO_TURN / clock, wo_pull=WO_PULL / clock, rise=RISE / clock, lean=LEAN,
         drag=0.5 * quad.RHO * quad.BODY_CDA / quad.MASS_KG,
         inflow=math.tau * math.sqrt(quad.K_THRUST) / (quad.INFLOW_J0 * quad.PITCH_M),
@@ -133,7 +152,18 @@ def reach(asked, turning, dt, slew, least, top, most=None):
     way, up no faster than `most` where its board's current gives less, inside `least` and
     `top`; `turning` its speed as it is."""
     k = quad.K_THRUST
-    slews = slew if isinstance(slew, (list, tuple)) else [slew] * len(asked)
+    if not isinstance(slew, (list, tuple)):
+        sd = slew * dt
+        if most is None:
+            return ([k * w * w for w in turning],
+                    [k * (least if w - sd < least else w - sd) ** 2 for w in asked],
+                    [k * (least if (top if w + sd > top else w + sd) < least
+                          else (top if w + sd > top else w + sd)) ** 2 for w in asked])
+        return ([k * w * w for w in turning],
+                [k * (least if w - sd < least else w - sd) ** 2 for w in asked],
+                [k * max(least, min(top, w + (slew if slew < m else m) * dt)) ** 2
+                 for w, m in zip(asked, most)])
+    slews = slew
     up = slews if most is None else [min(s, each) for s, each in zip(slews, most)]
     return ([k * w * w for w in turning],
             [k * max(least, w - s * dt) ** 2 for w, s in zip(asked, slews)],
@@ -166,14 +196,19 @@ def reading(state, given, lo, hi, dt, into=None):
     them, its speed, its height; each rotor's thrust as its speed has it and at the least and
     the most it reaches by the next pass, N."""
     read = In() if into is None else into
-    v = _in_views(read)
-    v['turn'][:] = state['turn']
-    v['spin'][:] = state['spin']
-    v['vel'][:] = state['vel']
+    t = state['turn']
+    if isinstance(t, np.ndarray):
+        v = _in_views(read)
+        v['turn'][:] = t
+    else:
+        t0, t1, t2 = t
+        read.r[:] = (t0[0], t0[1], t0[2], t1[0], t1[1], t1[2], t2[0], t2[1], t2[2])
+    read.spin[:] = state['spin']
+    read.vel[:] = state['vel']
     read.height, read.dt = float(state['h']), float(dt)
-    v['given'][:] = given
-    v['lo'][:] = lo
-    v['hi'][:] = hi
+    read.given[:] = given
+    read.lo[:] = lo
+    read.hi[:] = hi
     return read
 
 

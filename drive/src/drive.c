@@ -749,20 +749,23 @@ bool drive_step(drive_t *d, const drive_sample_t *in, bool stage_enabled,
   /* the inverter's error on the fundamental, cancelled before it happens:
      the raw sample carries an fs/2 injection ripple whose sign turns every
      period. */
-  float ia_f, ib_f, i_f[DRIVE_PHASES], comp[DRIVE_PHASES];
-  float ca, cb;
-
-  drive_inv_park_cs(id, iq, c, s, &ia_f, &ib_f);
-  i_f[0] = ia_f;
-  i_f[1] = -0.5f * ia_f + HALF_SQRT3 * ib_f;
-  i_f[2] = -0.5f * ia_f - HALF_SQRT3 * ib_f;
-  for (uint8_t k = 0U; k < DRIVE_PHASES; k++)
+  if (d->p.dt_step > 0.0f)
   {
-    comp[k] = drive_dt_volts(&d->p, i_f[k]);
+    float ia_f, ib_f, i_f[DRIVE_PHASES], comp[DRIVE_PHASES];
+    float ca, cb;
+
+    drive_inv_park_cs(id, iq, c, s, &ia_f, &ib_f);
+    i_f[0] = ia_f;
+    i_f[1] = -0.5f * ia_f + HALF_SQRT3 * ib_f;
+    i_f[2] = -0.5f * ia_f - HALF_SQRT3 * ib_f;
+    for (uint8_t k = 0U; k < DRIVE_PHASES; k++)
+    {
+      comp[k] = drive_dt_volts(&d->p, i_f[k]);
+    }
+    drive_clarke(comp, &ca, &cb);
+    va += ca;
+    vb += cb;
   }
-  drive_clarke(comp, &ca, &cb);
-  va += ca;
-  vb += cb;
 
   inject(d, injecting, amp, n, th_out, c, s, &va, &vb);
 

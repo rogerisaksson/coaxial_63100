@@ -42,16 +42,15 @@ class Sky(quad.Sky):
         if len(c) < 6:
             c = c + (0.0,) * (6 - len(c))
         self.speeds, self.controls = c[:2], c[2:]
-        d, xm = self.data, self._xmat
-        h = float(d.qpos[1]) - self.rest
+        qv, xm = self._qv, self._xm
+        h = self._qp[1] - self.rest
         if air is not None:
             w0, e0 = wind_at(air['wind'], h), wind_at(air['eddies'][0], h)
             wx, wy, wz = w0[0] + e0[0], w0[1] + e0[1], w0[2] + e0[2]
         else:
             wx = wy = wz = 0.0
-        vx0, vy0, vz0 = self._vel.tolist()
-        vx, vy, vz = vx0 - wx, vy0 - wy, vz0 - wz
-        along = vx * float(xm[1]) + vy * float(xm[4]) + vz * float(xm[7])
+        vx, vy, vz = qv[0] - wx, qv[1] - wy, qv[2] - wz
+        along = vx * xm[1] + vy * xm[4] + vz * xm[7]
         return self.speeds, self.controls, (wx, wy, wz), (along if c[2] >= 0.0 else -along), math.hypot(vx, vz)
 
     def step(self, command, dt, air=None):

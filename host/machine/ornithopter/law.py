@@ -67,13 +67,16 @@ class Core:
     def step(self, law, row, state, dt, pull_max, limits=None, along=None):
         """One pass of `dt` s on `row` and `state`: returns `Answer`."""
         observe(self, state, dt)
-        turn = [[float(state['turn'][r][c]) for c in range(3)] for r in range(3)]
-        spin, vel = [float(x) for x in state['spin']], [float(x) for x in state['vel']]
-        u = [vel[a] - self.wind[a] for a in range(3)]
+        t_in, s_in, v_in = state['turn'], state['spin'], state['vel']
+        turn = t_in if (type(t_in) is tuple and type(t_in[0]) is tuple and type(t_in[0][0]) is float) \
+            else (t_in.tolist() if hasattr(t_in, 'tolist') else [[float(t_in[r][c]) for c in range(3)] for r in range(3)])
+        spin = s_in if (type(s_in) is tuple and type(s_in[0]) is float) else [float(x) for x in s_in]
+        vel = v_in if (type(v_in) is tuple and type(v_in[0]) is float) else [float(x) for x in v_in]
+        u = (vel[0] - self.wind[0], vel[1] - self.wind[1], vel[2] - self.wind[2])
         prev_stroke = float(state.get('controls', self.Controls[2:])[0])
         drag = 0.5 * RHO * _wing_cda(prev_stroke) / MASS_KG * math.sqrt(
             u[0] * u[0] + u[1] * u[1] + u[2] * u[2])
-        air_acc = [self.push_hat[a] - drag * u[a] for a in range(3)]
+        air_acc = (self.push_hat[0] - drag * u[0], self.push_hat[1] - drag * u[1], self.push_hat[2] - drag * u[2])
         if along is None:
             along = self.plan(law, row, state, dt, pull_max)
         rate = _course_rate(law['heading'], row)

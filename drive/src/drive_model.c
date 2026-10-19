@@ -89,7 +89,8 @@ static void omega_add(drive_model_t *m, float d)
 
 static float model_ld(const drive_model_t *m)
 {
-  return m->p.ld * (1.0f - m->p.sat * drive_tanh(m->id / m->p.i_sat));
+  return (m->p.sat == 0.0f) ? m->p.ld
+         : (m->p.ld * (1.0f - m->p.sat * drive_tanh(m->id / m->p.i_sat)));
 }
 
 void drive_model_sample(drive_model_t *m, drive_sample_t *out)
@@ -104,9 +105,18 @@ void drive_model_sample(drive_model_t *m, drive_sample_t *out)
   m->i_abc[0] = ia;
   m->i_abc[1] = -0.5f * ia + HALF_SQRT3 * ib;
   m->i_abc[2] = -0.5f * ia - HALF_SQRT3 * ib;
-  for (uint8_t k = 0U; k < DRIVE_PHASES; k++)
+  if (m->p.noise > 0.0f)
   {
-    out->i[k] = m->i_abc[k] + model_noise(m, m->p.noise);
+    for (uint8_t k = 0U; k < DRIVE_PHASES; k++)
+    {
+      out->i[k] = m->i_abc[k] + model_noise(m, m->p.noise);
+    }
+  }
+  else
+  {
+    out->i[0] = m->i_abc[0];
+    out->i[1] = m->i_abc[1];
+    out->i[2] = m->i_abc[2];
   }
   out->vdc = m->p.vdc;
 }

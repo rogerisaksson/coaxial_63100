@@ -164,15 +164,22 @@ void drive_observer_step(drive_obs_t *o, const drive_params_t *p,
   g = fminf(fmaxf(g, 0.0f), 1.0f);
   o->blend = g;
 
-  float sd, cd, sf, cf;
+  if (g <= 0.0f)
+  {
+    o->theta = o->dual_theta;
+  }
+  else if (g >= 1.0f)
+  {
+    o->theta = o->flux_only;
+  }
+  else
+  {
+    float sd, cd, sf, cf;
 
-  drive_sincos(o->dual_theta, &sd, &cd);
-  drive_sincos(o->flux_only, &sf, &cf);
-
-  const float x = (1.0f - g) * cd + g * cf;
-  const float y = (1.0f - g) * sd + g * sf;
-
-  o->theta = drive_atan2(y, x);
+    drive_sincos(o->dual_theta, &sd, &cd);
+    drive_sincos(o->flux_only, &sf, &cf);
+    o->theta = drive_atan2((1.0f - g) * sd + g * sf, (1.0f - g) * cd + g * cf);
+  }
   o->omega = (1.0f - g) * o->pll_omega + g * o->flux_omega;
   /* Below the leak's own corner neither model has a back-EMF to work with,
      whatever either of them is reporting. */

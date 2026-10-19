@@ -349,7 +349,15 @@ class Bound:
         self.body, self.kept, self.model, self.data = None, [], None, None
         self.last: tuple | None = None
         self.seen: list = [None] * len(self.args)
-        self.own = [None if written else np.empty(shape) for _i, _k, _p, written, shape in self.args]
+        self._sbuf = np.empty(max(1, len(self.args)))
+        self.scalars = memoryview(self._sbuf)
+        self.own = [None if written else (self._sbuf[j:j + 1].reshape(()) if not shape else np.empty(shape))
+                    for j, (_i, _k, _p, written, shape) in enumerate(self.args)]
+        self.own_at = [0 if own is None else address(own) for own in self.own]
+        for j, (i, _k, _p, written, _shape) in enumerate(self.args):
+            if not written:
+                self.words[i] = self.own_at[j]
+        self.all_args = [(j,) + e for j, e in enumerate(self.args)]
         self.fixed = (self.work.ctypes.data, ctypes.addressof(self.table), self.lapack, None, None,
                       ctypes.addressof(self.funcs))
 
@@ -373,7 +381,7 @@ class Bound:
                 a = args[k]
                 for p in path:
                     a = a[p]
-                if a is not v and (isinstance(v, np.ndarray) or type(a) is not type(v) or a != v):
+                if a is not v and (not np.array_equal(a, v) if isinstance(v, np.ndarray) else (type(a) is not type(v) or a != v)):
                     return None
             for kind, k, path, *rest in self.checks:
                 a = args[k]
@@ -384,14 +392,23 @@ class Bound:
                     return None
         except (KeyError, IndexError, TypeError):
             return None
-        seen, words = self.seen, self.words
-        for j, i, k, path, written, shape in self._sourced(args):
+        seen, words, scalars = self.seen, self.words, self.scalars
+        for j, i, k, path, written, shape in (self._sourced(args) if self.sources else self.all_args):
             a = args[k]
-            try:
-                for p in path:
-                    a = a[p]
-            except (KeyError, IndexError, TypeError):
-                return None
+            if path:
+                try:
+                    for p in path:
+                        a = a[p]
+                except (KeyError, IndexError, TypeError):
+                    return None
+            if type(a) is float and not shape:
+                if written:
+                    return None
+                scalars[j] = a
+                if seen[j] is not None:
+                    seen[j] = None
+                    words[i] = self.own_at[j]
+                continue
             if a is seen[j] and a.shape == shape:
                 continue
             if type(a) is not np.ndarray or (a.dtype is not F64 and a.dtype != F64) or not a.flags.c_contiguous:
@@ -400,7 +417,7 @@ class Bound:
                     return None
                 own[...] = a
                 seen[j] = None
-                words[i] = address(own)
+                words[i] = self.own_at[j]
                 continue
             if a.shape != shape:
                 return None
@@ -450,8 +467,12 @@ class Bound:
         return set(places), np.array(slots, dtype=np.intp), np.array(offs, dtype=np.uint64)
 
     def __call__(self, args):
-        flat = np.empty(self.total) if self.total else None
-        at = None if flat is None else address(flat)
+        if not self.total:
+            self.cfn(None, None, *self.fixed)
+            self.last = (None, None)
+            return None
+        flat = np.empty(self.total)
+        at = address(flat)
         self.cfn(None, at, *self.fixed)
         got = self.made(flat, args)
         self.last = (got, at)

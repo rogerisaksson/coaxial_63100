@@ -229,6 +229,10 @@ class Sky:
         self._vel = self.data.qvel[0:3]
         self._acc = self.data.qacc[0:3]
         self._xfrc = self.data.xfrc_applied[self.frame]
+        self._qp = memoryview(self.data.qpos)
+        self._qv = memoryview(self.data.qvel)
+        self._qa = memoryview(self.data.qacc)
+        self._xm = memoryview(self._xmat)
         self._step = bodied.on_body(substep, 'substep', tuple(range(1, 16)))
         self._mj.mj_forward(self.model, self.data)
 
@@ -252,11 +256,10 @@ class Sky:
     def _struck(self, data):
         """What the frame of `data` touches with more than a skid on the floor: its name, or
         None."""
-        geom, dist, ncon = data.contact.geom, data.contact.dist, data.ncon
+        con = data.contact
         feet, mine, names = self._feet, self._mine, self._names
-        for k in range(ncon):
-            if dist[k] <= 0.0:
-                a, b = int(geom[k, 0]), int(geom[k, 1])
+        for d_val, (a, b) in zip(con.dist.tolist(), con.geom.tolist()):
+            if d_val <= 0.0:
                 pair = (a, b) if a < b else (b, a)
                 if pair not in feet and (a in mine or b in mine):
                     return names[b if a in mine else a]
@@ -268,14 +271,14 @@ class Sky:
         own axes, rad/s, 'at' its middle, m, 'vel' and 'acc' its speed and what that changes
         by in the world; 'lift' what its rotors' speeds give in still air, N; 'hit' what it
         struck first, or None."""
-        d = self.data
+        qp, qv, qa = self._qp, self._qv, self._qa
         if not copy:
-            return {'h': float(d.qpos[1]) - self.rest, 'v': float(d.qvel[1]),
-                    'a': float(d.qacc[1]), 'turn': self._turn, 'spin': self._spin,
+            return {'h': qp[1] - self.rest, 'v': qv[1],
+                    'a': qa[1], 'turn': self._turn, 'spin': self._spin,
                     'at': self._at, 'vel': self._vel, 'acc': self._acc,
                     'lift': self.lift, 'hit': self.hit}
-        return {'h': float(d.qpos[1]) - self.rest, 'v': float(d.qvel[1]),
-                'a': float(d.qacc[1]), 'turn': self._turn.copy(),
+        return {'h': qp[1] - self.rest, 'v': qv[1],
+                'a': qa[1], 'turn': self._turn.copy(),
                 'spin': self._spin.copy(), 'at': self._at.copy(),
                 'vel': self._vel.copy(), 'acc': self._acc.copy(), 'lift': self.lift,
                 'hit': self.hit}
@@ -293,35 +296,36 @@ class Sky:
         up its axis at its place, their drags' torques about it, the air on the frame - still,
         or `air` (`blown`): its drag against the wind where it is, a quarter of it at each
         disc in that disc's own eddy, a disc's thrust the more for the air rising through it."""
-        d, xm = self.data, self._xmat
+        qv, xm = self._qv, self._xm
         thrusts = [K_THRUST * w * w for w in speeds]
         self.lift = sum(thrusts)
         wx = wy = wz = px = py = pz = tx = ty = tz = 0.0
         if air is None:
-            vx0, vy0, vz0 = self._vel.tolist()
-            along = vx0 * float(xm[1]) + vy0 * float(xm[4]) + vz0 * float(xm[7])
+            along = qv[0] * xm[1] + qv[1] * xm[4] + qv[2] * xm[7]
             thrusts = [t * inflow(along, w) for t, w in zip(thrusts, speeds)]
         else:
-            h = float(d.qpos[1]) - (SKID_M + FOOT_M)
-            blows, rows = wind_at(air['wind'], h), self._turn.tolist()
-            still = [float(v) - u for v, u in zip(self._vel.tolist(), blows)]
-            fast = math.sqrt(still[0] * still[0] + still[1] * still[1] + still[2] * still[2])
-            axis, shove, turned = (rows[0][1], rows[1][1], rows[2][1]), [0.0] * 3, [0.0] * 3
+            h = self._qp[1] - (SKID_M + FOOT_M)
+            wx, wy, wz = wind_at(air['wind'], h)
+            r00, r01, r02, r10, r11, r12, r20, r21, r22 = (
+                xm[0], xm[1], xm[2], xm[3], xm[4], xm[5], xm[6], xm[7], xm[8])
+            s0, s1, s2 = qv[0] - wx, qv[1] - wy, qv[2] - wz
+            fast = math.sqrt(s0 * s0 + s1 * s1 + s2 * s2)
+            k_eddy = -0.125 * RHO * BODY_CDA
             for k, ((x, z), eddy) in enumerate(zip(ROTOR_AT, air['eddies'])):
-                own = [s - e for s, e in zip(still, wind_at(eddy, h))]
-                thrusts[k] *= inflow(own[0] * axis[0] + own[1] * axis[1] + own[2] * axis[2],
-                                     speeds[k])
-                size = math.sqrt(own[0] * own[0] + own[1] * own[1] + own[2] * own[2])
-                more = [-0.125 * RHO * BODY_CDA * (size * o - fast * s)
-                        for o, s in zip(own, still)]
-                arm = [row[0] * x + row[2] * z for row in rows]
-                shove = [a + b for a, b in zip(shove, more)]
-                turned = [turned[0] + arm[1] * more[2] - arm[2] * more[1],
-                          turned[1] + arm[2] * more[0] - arm[0] * more[2],
-                          turned[2] + arm[0] * more[1] - arm[1] * more[0]]
-            wx, wy, wz = float(blows[0]), float(blows[1]), float(blows[2])
-            px, py, pz = float(shove[0]), float(shove[1]), float(shove[2])
-            tx, ty, tz = float(turned[0]), float(turned[1]), float(turned[2])
+                ex, ey, ez = wind_at(eddy, h)
+                o0, o1, o2 = s0 - ex, s1 - ey, s2 - ez
+                thrusts[k] *= inflow(o0 * r01 + o1 * r11 + o2 * r21, speeds[k])
+                size = math.sqrt(o0 * o0 + o1 * o1 + o2 * o2)
+                m0 = k_eddy * (size * o0 - fast * s0)
+                m1 = k_eddy * (size * o1 - fast * s1)
+                m2 = k_eddy * (size * o2 - fast * s2)
+                a0, a1, a2 = r00 * x + r02 * z, r10 * x + r12 * z, r20 * x + r22 * z
+                px += m0
+                py += m1
+                pz += m2
+                tx += a1 * m2 - a2 * m1
+                ty += a2 * m0 - a0 * m2
+                tz += a0 * m1 - a1 * m0
         lift = sum(thrusts)
         ab0 = -sum(t * z for t, (_x, z) in zip(thrusts, ROTOR_AT))
         ab1 = sum(spin * K_DRAG * w * w for spin, w in zip(SPIN, speeds))

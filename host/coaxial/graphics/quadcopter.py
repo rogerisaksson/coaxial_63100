@@ -276,11 +276,17 @@ def swept_rings(pose, rings_and_rotors, m, cam, centre):
     return [(rim, RIM_INK)]
 
 
+_DISC_RING = None
+
+
 def _discs(pose, rotors, m, cam, centre):
     """[(dots, ink)]: each fast propeller's swept disc, its rim dotted."""
-    from coaxial.model.blocks import numpy as np
-    k = np.arange(96) * (2.0 * math.pi / 96)
-    ring = np.stack([np.cos(k), np.zeros_like(k), np.sin(k)], 1) * quad.DISC_R
+    global _DISC_RING
+    ring = _DISC_RING
+    if ring is None:
+        from coaxial.model.blocks import numpy as np
+        k = np.arange(96) * (2.0 * math.pi / 96)
+        ring = _DISC_RING = np.stack([np.cos(k), np.zeros_like(k), np.sin(k)], 1) * quad.DISC_R
     specs = [((ring, (x, quad.DISC_M + 0.006, z)), r) for (x, z), r in zip(quad.ROTOR_AT, rotors)]
     return swept_rings(pose, specs, m, cam, centre)
 

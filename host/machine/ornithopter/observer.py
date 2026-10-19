@@ -10,15 +10,19 @@ from machine.ornithopter.airframe import (GRAVITY, INERTIA, K_PITCH, K_ROLL, K_Y
 def observe(core, state, dt):
     """`core`'s estimates `dt` s on from `state`: its velocity, the push on it and the wind, its
     spin and the turn on it."""
-    turn = [[float(state['turn'][r][c]) for c in range(3)] for r in range(3)]
-    vel, spin, h = [float(x) for x in state['vel']], [float(x) for x in state['spin']], float(state['h'])
+    t_in, v_in, s_in = state['turn'], state['vel'], state['spin']
+    turn = t_in if (type(t_in) is tuple and type(t_in[0]) is tuple and type(t_in[0][0]) is float) \
+        else (t_in.tolist() if hasattr(t_in, 'tolist') else [[float(t_in[r][c]) for c in range(3)] for r in range(3)])
+    vel = v_in if (type(v_in) is tuple and type(v_in[0]) is float) else [float(x) for x in v_in]
+    spin = s_in if (type(s_in) is tuple and type(s_in[0]) is float) else [float(x) for x in s_in]
+    h = float(state['h'])
     if not (h > 0.03 and core.begun):
         core.vel_hat, core.spin_hat, core.begun = list(vel), list(spin), True
         core.push_hat = [p * max(0.0, 1.0 - WO_PULL * dt) for p in core.push_hat]
         core.turn_hat = [t * max(0.0, 1.0 - WO_TURN * dt) for t in core.turn_hat]
         core.wind = [w * max(0.0, 1.0 - WO_PULL * dt) for w in core.wind]
         return
-    u = [vel[a] - core.wind[a] for a in range(3)]
+    u = (vel[0] - core.wind[0], vel[1] - core.wind[1], vel[2] - core.wind[2])
     fast = math.hypot(*u)
     sp = state.get('speeds', (0.0, 0.0))
     w_f = float(sp[0]) if sp[0] > 1.0 else core.Controls[0]

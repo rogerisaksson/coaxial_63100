@@ -3,19 +3,48 @@
 Rotations, the attitude's error and its torques, the heading's turn, a stunt's and a hover's
 target, the wind and spin observer, the answer.
 """
+import ctypes
 import math
 
 from machine import grounds
 from machine.figure import cross
 from machine.helicopter.airframe import (GRAVITY, MASS_KG, MIN_AIR_M_S, WIND_REG, WO_TURN, WO_WIND)
 
+_d3, _d4, _d9, _d12 = ctypes.c_double * 3, ctypes.c_double * 4, ctypes.c_double * 9, ctypes.c_double * 12
+_OBS_P = _d4(MIN_AIR_M_S, WO_WIND, WIND_REG, WO_TURN)
+_STATE_IO, _U_BUF, _UP_BUF, _SPIN_BUF, _TAU_BUF, _INERTIA_BUF, _SPAN_BUF, _WING_BUF = (
+    _d12(), _d3(), _d3(), _d3(), _d3(), _d3(), _d3(), _d9())
+_LIB = False
+
+
+def _aero_lib():
+    global _LIB
+    if _LIB is False:
+        try:
+            from tools.cores import aero
+            _LIB = aero.library()
+        except Exception:
+            _LIB = None
+    return _LIB
+
 
 def _mat_mul(a, b):
-    return tuple(tuple(a[i][0] * b[0][j] + a[i][1] * b[1][j] + a[i][2] * b[2][j] for j in range(3)) for i in range(3))
+    a0, a1, a2 = a
+    b0, b1, b2 = b
+    a00, a01, a02 = a0
+    a10, a11, a12 = a1
+    a20, a21, a22 = a2
+    b00, b01, b02 = b0
+    b10, b11, b12 = b1
+    b20, b21, b22 = b2
+    return ((a00 * b00 + a01 * b10 + a02 * b20, a00 * b01 + a01 * b11 + a02 * b21, a00 * b02 + a01 * b12 + a02 * b22),
+            (a10 * b00 + a11 * b10 + a12 * b20, a10 * b01 + a11 * b11 + a12 * b21, a10 * b02 + a11 * b12 + a12 * b22),
+            (a20 * b00 + a21 * b10 + a22 * b20, a20 * b01 + a21 * b11 + a22 * b21, a20 * b02 + a21 * b12 + a22 * b22))
 
 
 def _mat_t(a):
-    return tuple(tuple(a[j][i] for j in range(3)) for i in range(3))
+    a0, a1, a2 = a
+    return ((a0[0], a1[0], a2[0]), (a0[1], a1[1], a2[1]), (a0[2], a1[2], a2[2]))
 
 
 def _rot_x(r):
@@ -37,18 +66,26 @@ def _align_axis(from_u, to_u, mat):
     w, d = cross(from_u, to_u), 1.0 + sum(a * b for a, b in zip(from_u, to_u))
     if d <= 1e-4:
         return _mat_mul(_rot_x(math.pi), mat)
+    m0, m1, m2 = mat
     cols = []
-    for col in range(3):
-        v = (mat[0][col], mat[1][col], mat[2][col])
+    for col in (0, 1, 2):
+        v = (m0[col], m1[col], m2[col])
         u = cross(w, v)
-        cols.append(tuple(v[k] + u[k] + cross(w, u)[k] / d for k in range(3)))
+        wu = cross(w, u)
+        cols.append((v[0] + u[0] + wu[0] / d, v[1] + u[1] + wu[1] / d, v[2] + u[2] + wu[2] / d))
     return _mat_t(cols)
+
+
+_d15 = ctypes.c_double * 15
+_i2 = ctypes.c_int * 2
+_FILT_IO, _FLAGS_IO, _R_CUR_BUF, _R_DES_BUF, _W_FF_BUF, _TURN_HAT_BUF, _KP_BUF, _KD_BUF, _OUT3_BUF = (
+    _d15(), _i2(), _d9(), _d9(), _d3(), _d3(), _d3(), _d3(), _d3())
 
 
 def _so3_error(r_cur, r_des):
     e = _mat_mul(_mat_t(r_cur), r_des)
     vx, vy, vz = 0.5 * (e[2][1] - e[1][2]), 0.5 * (e[0][2] - e[2][0]), 0.5 * (e[1][0] - e[0][1])
-    sa, ca = math.hypot(vx, vy, vz), max(-1.0, min(1.0, 0.5 * (e[0][0] + e[1][1] + e[2][2] - 1.0)))
+    sa, ca = math.sqrt((vx * vx + vy * vy) + vz * vz), max(-1.0, min(1.0, 0.5 * (e[0][0] + e[1][1] + e[2][2] - 1.0)))
     if sa <= 1e-4 and ca < 0.0:
         return (-math.pi * (math.sqrt(max(0.0, 0.5 * (e[0][0] + 1.0))) or 1.0),
                 math.pi * math.sqrt(max(0.0, 0.5 * (e[1][1] + 1.0))),
@@ -73,7 +110,37 @@ def _course_rate(heading, row):
 
 
 def _observe_wind_spin(core, u, fast, alpha, gamma, up, spin, tau, inertia, dt, side=0.0, span=(0.0, 0.0, 0.0),
-                       wing=((0.0,) * 3,) * 3):
+                       wing=None):
+    lib = _aero_lib()
+    if lib is not None:
+        w0, w1, w2 = core.wind
+        p0, p1, p2 = core.push_hat
+        s0, s1, s2 = core.spin_hat
+        t0, t1, t2 = core.turn_hat
+        _STATE_IO[:] = (w0, w1, w2, p0, p1, p2, s0, s1, s2, t0, t1, t2)
+        _U_BUF[:] = u
+        _UP_BUF[:] = up
+        _SPIN_BUF[:] = spin
+        _TAU_BUF[:] = tau
+        _INERTIA_BUF[:] = inertia
+        _SPAN_BUF[:] = span
+        if wing is None:
+            wj = None
+        elif isinstance(wing, _d9):
+            wj = wing
+        else:
+            r0, r1, r2 = wing
+            _WING_BUF[:] = (r0[0], r0[1], r0[2], r1[0], r1[1], r1[2], r2[0], r2[1], r2[2])
+            wj = _WING_BUF
+        lib.aeh_observe_wind_spin(_STATE_IO, _U_BUF, fast, alpha, gamma, _UP_BUF, _SPIN_BUF,
+                                  _TAU_BUF, _INERTIA_BUF, dt, side, _SPAN_BUF, wj, _OBS_P)
+        core.wind[:] = (_STATE_IO[0], _STATE_IO[1], _STATE_IO[2])
+        core.push_hat[:] = (_STATE_IO[3], _STATE_IO[4], _STATE_IO[5])
+        core.spin_hat[:] = (_STATE_IO[6], _STATE_IO[7], _STATE_IO[8])
+        core.turn_hat[:] = (_STATE_IO[9], _STATE_IO[10], _STATE_IO[11])
+        return
+    if wing is None:
+        wing = ((0.0,) * 3,) * 3
     uh = tuple(u[a] / fast if fast > MIN_AIR_M_S else 0.0 for a in range(3))
     m = [[alpha * ((1.0 if a == b else 0.0) + uh[a] * uh[b]) + gamma * up[a] * up[b] + side * span[a] * span[b]
           + wing[a][b] for b in range(3)] for a in range(3)]
@@ -112,10 +179,29 @@ def _stunt_step(core, flips, rolls, nose_val, osc_amp, osc_hz, turn, yaw, rate, 
 
 
 def _smooth_target(core, want_up, sign, yaw, rate, pace, dt):
+    lib = _aero_lib()
+    if lib is not None:
+        has_up, has_r = core.up_filt is not None, core.r_prev is not None
+        _FLAGS_IO[0], _FLAGS_IO[1] = int(has_up), int(has_r)
+        if has_up:
+            _FILT_IO[0], _FILT_IO[1], _FILT_IO[2] = core.up_filt
+        if has_r:
+            r0, r1, r2 = core.r_prev
+            _FILT_IO[3:12] = (r0[0], r0[1], r0[2], r1[0], r1[1], r1[2], r2[0], r2[1], r2[2])
+        _FILT_IO[12], _FILT_IO[13], _FILT_IO[14] = core.w_ff
+        _UP_BUF[:] = want_up
+        lib.aeh_smooth_target(_FILT_IO, _FLAGS_IO, _UP_BUF, sign, yaw, rate, pace, dt,
+                              core.flip_ang, _R_DES_BUF)
+        core.up_filt = (_FILT_IO[0], _FILT_IO[1], _FILT_IO[2])
+        core.r_prev = r_des = ((_R_DES_BUF[0], _R_DES_BUF[1], _R_DES_BUF[2]),
+                               (_R_DES_BUF[3], _R_DES_BUF[4], _R_DES_BUF[5]),
+                               (_R_DES_BUF[6], _R_DES_BUF[7], _R_DES_BUF[8]))
+        core.w_ff = w_ff = (_FILT_IO[12], _FILT_IO[13], _FILT_IO[14])
+        return r_des, w_ff
     w_ff, a, aw = (0.0, sign * rate, 0.0), min(1.0, 24.0 * dt), min(1.0, 12.0 * dt)
     if core.up_filt is not None and dt > 1e-6:
         ub = [core.up_filt[k] + a * (want_up[k] - core.up_filt[k]) for k in range(3)]
-        un = math.hypot(*ub) or 1.0
+        un = math.sqrt((ub[0] * ub[0] + ub[1] * ub[1]) + ub[2] * ub[2]) or 1.0
         want_up = (ub[0] / un, ub[1] / un, ub[2] / un)
     r0 = r_des = _align_axis((0.0, sign, 0.0), want_up, _mat_mul(_rot_y(yaw), _rot_x(core.flip_ang)))
     if pace > 20.0 and core.r_prev is not None:
@@ -128,6 +214,21 @@ def _smooth_target(core, want_up, sign, yaw, rate, pace, dt):
 
 
 def _so3_torques(core, turn, r_des, w_ff, spin, inertia, kp, kd):
+    lib = _aero_lib()
+    if lib is not None:
+        t0, t1, t2 = turn
+        d0, d1, d2 = r_des
+        _R_CUR_BUF[:] = (t0[0], t0[1], t0[2], t1[0], t1[1], t1[2], t2[0], t2[1], t2[2])
+        _R_DES_BUF[:] = (d0[0], d0[1], d0[2], d1[0], d1[1], d1[2], d2[0], d2[1], d2[2])
+        _W_FF_BUF[:] = w_ff
+        _SPIN_BUF[:] = spin
+        _TURN_HAT_BUF[:] = core.turn_hat
+        _INERTIA_BUF[:] = inertia
+        _KP_BUF[:] = kp
+        _KD_BUF[:] = kd
+        lib.aeh_so3_torques(_R_CUR_BUF, _R_DES_BUF, _W_FF_BUF, _SPIN_BUF, _TURN_HAT_BUF,
+                            _INERTIA_BUF, _KP_BUF, _KD_BUF, _OUT3_BUF)
+        return (_OUT3_BUF[0], _OUT3_BUF[1], _OUT3_BUF[2])
     er, ew = _so3_error(turn, r_des), (w_ff[0] - spin[0], w_ff[1] - spin[1], w_ff[2] - spin[2])
     return (inertia[0] * (kp[0] * er[0] + kd[0] * ew[0] - core.turn_hat[0]) + (inertia[2] - inertia[1]) * spin[1] * spin[2],
             inertia[1] * (kp[1] * er[1] + kd[1] * ew[1] - core.turn_hat[1]) + (inertia[0] - inertia[2]) * spin[2] * spin[0],

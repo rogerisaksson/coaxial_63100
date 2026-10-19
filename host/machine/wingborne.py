@@ -17,11 +17,16 @@ on the air and over it by the angle the wing needs for what is asked across the 
 than ALPHA_MAX, its back rolled to that; leant against the air as a hover, the wing's 1.5 g
 turned a vertical line into a 45 deg tumble.
 """
+import ctypes
 import math
 
 from machine.aerobatics import ease
 from machine.figure import cross
-from machine.helicopter.kit import _mat_mul, _rot_x, _rot_y, _so3_error
+from machine.helicopter.kit import _aero_lib, _mat_mul, _rot_x, _rot_y, _so3_error
+
+_d3, _d4, _d6, _d7, _d9 = (
+    ctypes.c_double * 3, ctypes.c_double * 4, ctypes.c_double * 6, ctypes.c_double * 7, ctypes.c_double * 9)
+_R_BUF, _TO_BUF, _OUT_R = _d9(), _d9(), _d9()
 
 ALPHA_RAD, TAIL_UP, CLIMB_RAD, AIRBORNE_M, RUN_G, CLIMB_V = (
     math.radians(10.0), 0.4, math.radians(12.0), 0.85, 1.2, 1.3)
@@ -46,12 +51,23 @@ def whole(w):
 
 def toward(r, to, k):
     """The attitude `k` of the way from `r` to `to` along SO(3)'s geodesic."""
-    x, y, z = (k * e for e in _so3_error(r, to))
-    a = math.sqrt(x * x + y * y + z * z)
+    lib = _aero_lib()
+    if lib is not None:
+        r0, r1, r2 = r
+        t0, t1, t2 = to
+        _R_BUF[:] = (r0[0], r0[1], r0[2], r1[0], r1[1], r1[2], r2[0], r2[1], r2[2])
+        _TO_BUF[:] = (t0[0], t0[1], t0[2], t1[0], t1[1], t1[2], t2[0], t2[1], t2[2])
+        lib.aeh_toward(_R_BUF, _TO_BUF, k, _OUT_R)
+        return ((_OUT_R[0], _OUT_R[1], _OUT_R[2]),
+                (_OUT_R[3], _OUT_R[4], _OUT_R[5]),
+                (_OUT_R[6], _OUT_R[7], _OUT_R[8]))
+    e0, e1, e2 = _so3_error(r, to)
+    x, y, z = k * e0, k * e1, k * e2
+    a = math.sqrt((x * x + y * y) + z * z)
     s, c = (math.sin(a) / a, (1.0 - math.cos(a)) / (a * a)) if a > 1e-9 else (1.0, 0.5)
     k_ = ((0.0, -z, y), (z, 0.0, -x), (-y, x, 0.0))
     k2 = _mat_mul(k_, k_)
-    turn = tuple(tuple(float(i == j) + s * k_[i][j] + c * k2[i][j] for j in range(3)) for i in range(3))
+    turn = tuple(tuple(float(i == j) + s * k_[i][j] + c * k2[i][j] for j in (0, 1, 2)) for i in (0, 1, 2))
     return _mat_mul(r, turn)
 
 
@@ -69,6 +85,11 @@ class Wing:
         self.side = side_area
         #: The speed the wing bears the weight at ALPHA_RAD, m/s.
         self.rotate = math.sqrt(2.0 * mass * gravity / (rho * area * cl_alpha * ALPHA_RAD))
+        self._w_lift = _d4(rho, side_area, area, cl_alpha)
+        self._w_mom = _d6(self.q, tail_arm, stab_area, area, span, fin_area)
+        self._w_plane = _d7(self.q, area, mass, cl_alpha, rho, side_area, gravity)
+        self._u, self._turn, self._spin, self._out3, self._out9 = _d3(), _d9(), _d3(), _d3(), _d9()
+        self._acc, self._want = _d3(), _d3()
 
     def runway(self, lean):
         """The run, the climb and a hover's brake at `lean` m/s^2 laid end to end, m."""
@@ -82,6 +103,13 @@ class Wing:
         the air. Along the back the lift was a drag of L sin a: at 12 m/s, 9 deg, the thrust
         bore 39 % of the weight. The side's, a flat plate across the span, `rho S |u| u_x`
         against the slip: with the wings vertical, what holds a knife-edge up beside the thrust."""
+        lib = _aero_lib()
+        if lib is not None:
+            t0, t1, t2 = turn
+            self._u[:] = u
+            self._turn[:] = (t0[0], t0[1], t0[2], t1[0], t1[1], t1[2], t2[0], t2[1], t2[2])
+            lib.aeh_wing_lift(self._w_lift, self._u, self._turn, self._out3)
+            return (self._out3[0], self._out3[1], self._out3[2])
         span = [float(turn[a][0]) for a in range(3)]
         slip = -self.rho * self.side * math.sqrt(sum(x * x for x in u)) * sum(u[a] * span[a] for a in range(3))
         uy = max(0.0, sum(u[a] * float(turn[a][1]) for a in range(3)))
@@ -106,17 +134,41 @@ class Wing:
         up = [(uz * nose[a] + uy * back[a]) / speed for a in range(3)]
         return tuple(slip * span[a] + f_l * up[a] - f_d * air[a] for a in range(3))
 
+    def jacobian(self, u, turn):
+        """Finite-difference Jacobian of `lift` over `u` divided by `mass`, as a flat 9-double
+        buffer for `_observe_wind_spin` (or 3x3 list when no C compiler is present)."""
+        lib = _aero_lib()
+        if lib is not None:
+            t0, t1, t2 = turn
+            self._u[:] = u
+            self._turn[:] = (t0[0], t0[1], t0[2], t1[0], t1[1], t1[2], t2[0], t2[1], t2[2])
+            lib.aeh_wing_jacobian(self._w_lift, self._u, self._turn, self.mass, self._out9)
+            return self._out9
+        ends = [[self.lift([u[k] + d * (k == b) for k in range(3)], turn) for d in (0.1, -0.1)]
+                for b in range(3)]
+        return [[(ends[b][1][a] - ends[b][0][a]) / (0.2 * self.mass) for b in range(3)]
+                for a in range(3)]
+
     def trimmed(self, tau, u, turn, spin):
         """The law's torques `tau` less the airframe's own moments in the air `u` turning at `spin`:
         on its side the fin's, 4.5 N m at 12 m/s, held the slip 8 deg short and the plane sank;
         on its wing the stabiliser's, 1.9 N m at 9 deg, held the angle 2.6 deg short; the 1.6 m
         wing's damping, 3.5 N m a rad/s at 17 m/s, rolled it onto its side at 15 deg/s."""
-        return tuple(t - m for t, m in zip(tau, self.moments(u, turn, (0.0,) * 3 + tuple(spin))))
+        m0, m1, m2 = self.moments(u, turn, (0.0, 0.0, 0.0, spin[0], spin[1], spin[2]))
+        return (tau[0] - m0, tau[1] - m1, tau[2] - m2)
 
     def moments(self, u, turn, qv):
         """The airframe's own moments about its axes, N m: the stabiliser's and the fin's lift
         at the arm turning the nose into the air it flies through and against its rates, the
         wing's against its roll - a tail slide's turn it over, the propwash's surfaces hold it."""
+        lib = _aero_lib()
+        if lib is not None:
+            t0, t1, t2 = turn
+            self._u[:] = u
+            self._turn[:] = (t0[0], t0[1], t0[2], t1[0], t1[1], t1[2], t2[0], t2[1], t2[2])
+            self._spin[:] = (qv[3], qv[4], qv[5])
+            lib.aeh_wing_moments(self._w_mom, self._u, self._turn, self._spin, self._out3)
+            return (self._out3[0], self._out3[1], self._out3[2])
         ux, uy, uz = (sum(u[a] * float(turn[a][k]) for a in range(3)) for k in range(3))
         wx, wy, wz = float(qv[3]), float(qv[4]), float(qv[5])
         q, qd = self.q * uy, self.q * abs(uy)
@@ -188,34 +240,49 @@ def plane(wing, turn, acc, u, w, want_up, knife=0.0):
     was: a knife-edge, its span up, the side's plate at the slip `rho S v^2 sin b = need cos b -
     along sin b` bearing what is asked up, the wing what is asked across - the span rolled to
     all of it, a gusty course's asks across rocked its belly 0.07-0.86 in a second."""
-    fast = math.hypot(*u)
+    lib = _aero_lib()
+    if lib is not None:
+        if w <= 0.0:
+            return None, want_up
+        t0, t1, t2 = turn
+        wing._turn[:] = (t0[0], t0[1], t0[2], t1[0], t1[1], t1[2], t2[0], t2[1], t2[2])
+        wing._acc[:] = acc
+        wing._u[:] = u
+        wing._want[:] = want_up
+        ok = lib.aeh_plane(wing._w_plane, wing._turn, wing._acc, wing._u, w, wing._want, knife, wing._out9)
+        if not ok:
+            return None, want_up
+        r = wing._out9
+        return (((r[0], r[1], r[2]), (r[3], r[4], r[5]), (r[6], r[7], r[8])),
+                [wing._want[0], wing._want[1], wing._want[2]])
+    fast = math.sqrt((u[0] * u[0] + u[1] * u[1]) + u[2] * u[2])
     if w <= 0.0 or fast <= 1e-3:
         return None, want_up
     v_hat = [u[a] / fast for a in range(3)]
     along = sum(acc[a] * v_hat[a] for a in range(3))
     perp = [acc[a] - along * v_hat[a] for a in range(3)]
-    size = math.hypot(*perp)
+    size = math.sqrt((perp[0] * perp[0] + perp[1] * perp[1]) + perp[2] * perp[2])
     # Its back across the path as it is; asked under it, it pushes - a plane does not roll
     # onto its back to go down - else its back comes round to what is asked.
     cr, sr = math.cos(0.5 * math.pi * knife), math.sin(0.5 * math.pi * knife)
     back = [sr * turn[a][0] - cr * turn[a][2] for a in range(3)]
     bv = sum(back[a] * v_hat[a] for a in range(3))
     back = [back[a] - bv * v_hat[a] for a in range(3)]
-    n = math.hypot(*back) or 1.0
+    n = math.sqrt((back[0] * back[0] + back[1] * back[1]) + back[2] * back[2]) or 1.0
     back = [x / n for x in back]
     under = sum(perp[a] * back[a] for a in range(3))
     if under < 0.0:
         d, sign, need = back, -1.0, -under
     else:
         d = [perp[a] + max(0.0, 3.0 - size) * back[a] for a in range(3)]
-        n = math.hypot(*d) or 1.0
+        n = math.sqrt((d[0] * d[0] + d[1] * d[1]) + d[2] * d[2]) or 1.0
         d, sign, need = [x / n for x in d], 1.0, size
     ka = abs(knife)
     upp = [float(a == 1) - v_hat[1] * v_hat[a] for a in range(3)]
-    n = math.hypot(*upp) or 1.0
+    n = math.sqrt((upp[0] * upp[0] + upp[1] * upp[1]) + upp[2] * upp[2]) or 1.0
     upp = [x / n for x in upp]
     d = [(1.0 - ka) * d[a] + ka * upp[a] for a in range(3)]
-    n = math.hypot(*d) or 1.0
+    n = math.sqrt((d[0] * d[0] + d[1] * d[1]) + d[2] * d[2]) or 1.0
     d = [x / n for x in d]
     up_ask = sum(perp[a] * upp[a] for a in range(3))
     across = [perp[a] - up_ask * upp[a] for a in range(3)]
@@ -238,18 +305,19 @@ def plane(wing, turn, acc, u, w, want_up, knife=0.0):
             hi = mid
     alpha = sign * 0.5 * (lo + hi)
     alpha += ka * (math.atan2(up_ask, wing.rho * wing.side * fast * fast / wing.mass + al_pos) - alpha)
-    a_cross = min(ALPHA_MAX, math.hypot(*across) / max(k_w, 1e-9)) / (math.hypot(*across) or 1.0)
+    across_n = math.sqrt((across[0] * across[0] + across[1] * across[1]) + across[2] * across[2])
+    a_cross = min(ALPHA_MAX, across_n / max(k_w, 1e-9)) / (across_n or 1.0)
     # Asked to slow, a propeller pulling one way, it pulls up: its speed goes into height until
     # the hover's law has it; coasting on it ran 45 m into a tree.
     if along < 0.0 and under >= 0.0:
         alpha = max(alpha, ALPHA_MAX * min(1.0, -along / wing.gravity))
     nose = [math.cos(alpha) * v_hat[a] + math.sin(alpha) * d[a] + ka * a_cross * across[a] for a in range(3)]
     want_up = [(1.0 - w) * want_up[a] + w * nose[a] for a in range(3)]
-    n = math.hypot(*want_up) or 1.0
+    n = math.sqrt((want_up[0] * want_up[0] + want_up[1] * want_up[1]) + want_up[2] * want_up[2]) or 1.0
     y = [x / n for x in want_up]
     dy = sum(d[a] * y[a] for a in range(3))
     back = [d[a] - dy * y[a] for a in range(3)]
-    n = math.hypot(*back) or 1.0
+    n = math.sqrt((back[0] * back[0] + back[1] * back[1]) + back[2] * back[2]) or 1.0
     z = [-b / n for b in back]
     x = cross(y, z)
     x, z = [cr * x[a] - sr * z[a] for a in range(3)], [sr * x[a] + cr * z[a] for a in range(3)]

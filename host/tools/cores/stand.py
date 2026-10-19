@@ -26,8 +26,9 @@ INCLUDES = [os.path.join(REPO, part)
             for part in ('world/inc', 'thermal/inc', 'drive/inc', 'ctrl/inc',
                          'daq/inc', 'filter/inc')]
 
-#: The harness marks its own for export, and a PE linker then exports nothing else unasked.
-EXPORT = ['-Wl,--export-all-symbols'] if os.name == 'nt' else []
+#: Built at -O3 -fno-math-errno for the stand-in host library; the harness marks its own for
+#: export, so a PE linker needs --export-all-symbols.
+EXPORT = ['-O3', '-fno-math-errno'] + (['-Wl,--export-all-symbols'] if os.name == 'nt' else [])
 
 #: The slots a process holds (WORLD_STANDS).
 SLOTS = 64

@@ -97,11 +97,14 @@ uint32_t world_drive_run(int i, uint32_t periods, bool moe, bool supplied)
       ctrl_loop_step(&b->loop, d, shaft_deg(b));
     }
     const bool trip = closed ? drive_step_virtual(d, &out) : open_period(d, moe, &out);
-    const float turned = d->model.theta - b->theta_was;
+    float turned = d->model.theta - b->theta_was;
 
     /* A period turns the rotor a fraction of a turn: the rest of a gap is its wrap. */
-    b->shaft += (double)((turned - (TWO_PI_F * nearbyintf(turned / TWO_PI_F)))
-                         / d->model.p.pole_pairs);
+    if (fabsf(turned) > 3.0f)
+    {
+      turned -= TWO_PI_F * nearbyintf(turned / TWO_PI_F);
+    }
+    b->shaft += (double)(turned / d->model.p.pole_pairs);
     b->theta_was = d->model.theta;
     tripped += trip ? 1U : 0U;
     if (out.driven)
