@@ -145,7 +145,7 @@ def build(lay, given, arrays):
     """A layout's regressor built and kept (`held.batched`) - a build apart's own work; where this
     host builds none, kept as none."""
     import sys
-    from tools.cores import held, trace
+    from tools.cores import held
 
     def per(xpos, xmat, axis, anchor, qvel, qacc, a0, *wacc):
         import numpy as np
@@ -154,6 +154,7 @@ def build(lay, given, arrays):
     made_of = (sys.modules[__name__], lay, given)
     try:
         held.batched(per, arrays, range(len(arrays)), 'regressor', made_of=made_of)
-    except (trace.Untraced, held.Parted, RuntimeError) as why:
-        print('machine.regressor: no C on this host, numpy\'s own (%s)' % why, file=sys.stderr)
-        held.refused('regressor', made_of, [a.shape[1:] for a in arrays], why)
+    except Exception as why:    # a build apart's edge: what it raised kept as its refusal, not tried again
+        print('machine.regressor: no C on this host, numpy\'s own (%s: %s)' % (type(why).__name__, why),
+              file=sys.stderr)
+        held.refused('regressor', made_of, [a.shape[1:] for a in arrays], '%s: %s' % (type(why).__name__, why))

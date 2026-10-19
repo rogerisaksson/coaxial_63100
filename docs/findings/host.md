@@ -338,3 +338,14 @@ Pages, tooling, suites and the local model's runner. The board's findings:
   21 -> 10.6 us a call; `wbc.pointer` an address read off the array's head.
   Her walk 773 -> 576 us a pass, p99 2.25 -> 1.42 ms, the two in one process
   pass by pass, her trajectory the same to the bit.
+- The regressor's two einsums of no element (`nhi,nic->nhc`, h of 0) took
+  no order in C and shifted every later one by two; once an order carried
+  its letters its build apart died on it, her wear's window ran numpy's
+  regressor (parts 27 -> 54 ms) and `test_sysid` held numpy to numpy. Each
+  takes its own now; numpy's orders read off random states - her rest pose
+  twice read SSE's lanes as a plain sum -; a build apart keeps what it raised
+  as its refusal; the test holds that its C was built. Her compiled parts
+  traced and held 5 ms apart: her first pass 47.6 -> 11.1 ms, none past 20.
+  A ctypes field's view in numpy's own dtype (`wbc.plain`): as_array's equal
+  one made numpy copy the step's arrays at each `ascontiguousarray`, her
+  drives re-pointed each pass (29 -> 23 us a pass).

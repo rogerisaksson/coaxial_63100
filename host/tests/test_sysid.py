@@ -130,10 +130,15 @@ def test_the_regressor_in_c_is_its_numpy_s(report, c):
     qpos, qvel, qacc = _states(b, np.random.default_rng(2))
     a0 = qacc[:, :3] - np.array(b.m.opt.gravity)
     wacc = np.random.default_rng(3).normal(size=(len(qpos), len(lay['driven'])))
+    from tools.cores import law
     for given in (None, wacc):
         got = regressor.in_c(lay, b, qpos, qvel, qacc, a0, given, wait=True)
         want = regressor.regressor(lay, b, qpos, qvel, qacc, a0, given)
         same = np.array_equal(got.view(np.int64), want.view(np.int64))
+        built = [run for at, run, _child in regressor._BUILT.values() if at is lay and run is not None]
+        report.check('the regressor in C is built here, %s' % (
+            "a motor's acceleration given" if given is not None else "its joint's own"),
+            len(built) == (1 if given is None else 2) or not law.exact_host(), '%d built' % len(built))
         report.check('the regressor in C is its numpy bit for bit, %s' % (
             "a motor's acceleration given" if given is not None else "its joint's own"), same,
             '%d of %d entries apart, at most %.1e' % (int((got != want).sum()), got.size,

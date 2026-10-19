@@ -147,6 +147,12 @@ _AT = _data_at()
 _DTYPES = {np.float64: np.dtype(np.float64), np.int32: np.dtype(np.int32), np.bool_: np.dtype(np.bool_)}
 
 
+def plain(a):
+    """`a`, a ctypes field's numpy view, in numpy's own dtype: as_array's is equal but another
+    instance, and numpy copies an array of it where one of its own is asked."""
+    return a.view(np.dtype(a.dtype.char))
+
+
 def address(a):
     """The address of an ndarray's first element, read off its object."""
     return ctypes.c_void_p.from_address(id(a) + _AT).value or 0

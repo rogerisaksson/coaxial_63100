@@ -353,6 +353,8 @@ def c(prog, name, orders=None, batch=False):
             raise Untraced('her code writes an input (%s)' % st.where)
         if st.kind == 'mj' or 0 not in (st.args[0].shape if st.kind == 'scatter' else st.out.shape):
             w.body += WRITERS[st.kind](w, prog, st)
+        elif st.kind == 'einsum':
+            w.found.append(None if w.given is None else w.given[len(w.found)])
     found = w.found
     for k, r in enumerate(prog.outs):
         if laid['out'].get(r.buffer.id) == k:

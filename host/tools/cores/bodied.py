@@ -18,6 +18,7 @@ import ctypes
 import hashlib
 import sys
 import threading
+import time
 
 import numpy as np
 
@@ -27,6 +28,10 @@ from tools.cores.wbc import address
 #: The builds under way in this process by their source's digest, a thread each.
 _BUILDING = {}
 _LOCK = threading.Lock()
+#: A trace or a hold no sooner than SPREAD_S after the last, any part's, s: nine traced in her law's
+#: first pass held it 47.6 ms.
+SPREAD_S = 0.005
+_LAST = [0.0]
 #: numpy's float64, the dtype an extern is.
 F64 = np.dtype(np.float64)
 
@@ -59,12 +64,12 @@ class Compiled:
         """(its C's last result, the address of the block it lies in), None before the C."""
         return None if self.c is None else self.c.last
 
-    def __call__(self, *args):
+    def __call__(self, *args, paced=True):
         c = self.c
         kept = None if c is None else c.fits(args)
         if kept is None and self.why is None:
             try:
-                self._advance(args)
+                self._advance(args, paced)
             except (trace.Untraced, held.Parted, RuntimeError, OSError) as e:
                 self.why, self.c = e, None
                 print('%s stays numpy: %s' % (self.name, e), file=sys.stderr)
@@ -74,19 +79,22 @@ class Compiled:
 
     def wait(self, *args):
         """Built and held at `args` now: its C (Bound), or why it stays numpy raised."""
-        self(*args)
+        self(*args, paced=False)
         if self.job is not None:
             self.job['done'].wait()
-        self(*args)
+        self(*args, paced=False)
         if self.why is not None:
             raise self.why
         if self.c is None:
             raise trace.Untraced("%s: its constants not the body's" % self.name)
         return self.c
 
-    def _advance(self, args):
+    def _advance(self, args, paced):
+        due = time.perf_counter() - _LAST[0] >= SPREAD_S or not paced
         if self.made is None:
-            self._trace(args)
+            if due:
+                self._trace(args)
+                _LAST[0] = time.perf_counter()
             return
         prog, info, twin, specs = self.made
         job = self.job or {}
@@ -95,10 +103,12 @@ class Compiled:
                 return
             if 'why' in job:
                 raise job['why']
+            if not due:
+                return
             lib, cfn = job['lib']
             c = Bound(lib, cfn, prog, info, specs, self.body, self.sources)
             self._hold(c, args, twin)
-            self.c = c
+            self.c, _LAST[0] = c, time.perf_counter()
         if self.body is not None:
             b = args[self.body]
             if any(getattr(b, k, None) is not v for k, v in prog.consts.items()):
@@ -369,7 +379,7 @@ class Bound:
                 return None
             if a is seen[j] and a.shape == shape:
                 continue
-            if type(a) is not np.ndarray or a.dtype is not F64 or not a.flags.c_contiguous:
+            if type(a) is not np.ndarray or (a.dtype is not F64 and a.dtype != F64) or not a.flags.c_contiguous:
                 own = self.own[j]
                 if own is None or np.shape(a) != shape:
                     return None

@@ -227,7 +227,8 @@ def laid(g):
     n = len(joints)
     kept = {'joints': np.ascontiguousarray(joints, dtype=np.int32),
             'act': np.ascontiguousarray(body.act, dtype=np.int32), 'sb': np.zeros(n), 'feed': np.zeros(n),
-            'limit': np.zeros(n), 'clamp_j': np.ascontiguousarray(g['clamp'][joints], dtype=np.float64)}
+            'limit': np.zeros(n), 'clamp_j': np.ascontiguousarray(g['clamp'][joints], dtype=np.float64),
+            'address': cores.address}
     p = cores.Drives(n=n, q_at=edge.Q.start, qd_at=edge.QD.start, qm_at=edge.QM.start, knee_nm=se2.KNEE_NM,
                      knee_soft=se2.KNEE_SOFT, leak_s=se2.LEAK_S, wep_hold_s=se2.WEP_HOLD_S)
     p.knee[0], p.knee[1] = body.knees
@@ -259,8 +260,8 @@ def drives(g, dt):
     pointed = kept.get('pointed', ())
     if len(pointed) != 4 or any(a is not b for a, b in zip(arrays, pointed)):
         qacc, tau, jeff = (np.ascontiguousarray(a, dtype=np.float64) for a in arrays[:3])
-        over = np.ascontiguousarray(arrays[3], dtype=np.bool_)
-        p.qacc, p.tau, p.over, p.jeff = qacc.ctypes.data, tau.ctypes.data, over.ctypes.data, jeff.ctypes.data
+        over, at = np.ascontiguousarray(arrays[3], dtype=np.bool_), kept['address']
+        p.qacc, p.tau, p.over, p.jeff = at(qacc), at(tau), at(over), at(jeff)
         kept['laid'] = (qacc, tau, jeff, over)
         kept['pointed'] = arrays if all(x is y for x, y in zip(arrays, kept['laid'])) else ()
     step(ctypes.byref(p), dt, wo, wo ** 3, ys, int(in_hop), int(wb))

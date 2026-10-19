@@ -126,8 +126,9 @@ def compiled(fn, args, inputs, name, fresh=2, seed=1):
 
 def batched(fn, args, inputs, name, fresh=2, seed=1, made_of=None):
     """`fn(*args)` compiled as one state's program run over any number: the arrays at `inputs` each
-    a state along their first axis, fn's outputs too; traced at one state for its program and at the
-    states given for numpy's orders, held against numpy's own run at those states and on `fresh` draws.
+    a state along their first axis, fn's outputs too; traced at one state for its program and at as
+    many states drawn at random for numpy's orders - an order is numpy's algorithm, states alike
+    leave it untold -, held against numpy's own run at the states given and on `fresh` draws.
     `made_of` what fn's arithmetic is made of beyond its arrays' shapes (its modules, its constants):
     a build kept under it is loaded again untraced. The run returns fn's outputs, a tuple."""
     inputs = list(inputs)
@@ -141,7 +142,10 @@ def batched(fn, args, inputs, name, fresh=2, seed=1, made_of=None):
         one[k] = np.ascontiguousarray(args[k][:1], dtype=float)
         args[k] = np.ascontiguousarray(args[k][:STATES], dtype=float)
     prog, _ = trace.traced(fn, one, inputs)
-    many, _ = trace.traced(fn, args, inputs)
+    rng, drawn = np.random.default_rng(seed + 1), list(args)
+    for k in inputs:
+        drawn[k] = rng.normal(size=args[k].shape)
+    many, _ = trace.traced(fn, drawn, inputs)
     kinds = [(st.kind, st.args[0] if st.kind == 'einsum' else None) for st in prog.statements]
     if kinds != [(st.kind, st.args[0] if st.kind == 'einsum' else None) for st in many.statements]:
         raise Parted('%s: one state\'s program is not each of many states\'' % name)

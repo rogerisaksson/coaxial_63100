@@ -309,7 +309,7 @@ def wrench_laid(b, sensed=None):
         setattr(k, 'w_' + name.lower(), getattr(wrench, 'W_' + name))
     k.posture_kd[:], k.swing_kd[:], k.turn_kd[:] = law.POSTURE_KD, law.SWING_KD, law.TURN_KD
     k.blas = numpy_blas()
-    views = {name: np.ctypeslib.as_array(getattr(k, name)) for name in VIEWED}
+    views = {name: wbc.plain(np.ctypeslib.as_array(getattr(k, name))) for name in VIEWED}
     first = getattr(Step, POINTED[0][0]).offset
     k.sensed, k.placed, k.words = sensed, None, np.frombuffer(k, dtype=np.uint64)
     k.pointed = slice(first // 8, first // 8 + len(POINTED))
