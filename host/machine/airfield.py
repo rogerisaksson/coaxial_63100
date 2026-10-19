@@ -130,7 +130,7 @@ TREES = tuple(placed(a, c) + (h, 1.4) for a, c, h in (
     + [(165.0, c, 8.0) for c in (-45.0, -15.0, 15.0, 45.0, 75.0)] + [(a, 100.0, 6.5) for a in (-60.0, 0.0, 60.0)]))
 HOUSES = (placed(-12.0, -22.0) + (12.0, 10.0, 4.0, 5.5),)
 CARS = tuple(placed(a, c) + (math.degrees(RUNWAY_RAD),) for a, c in ((-3.0, -19.0), (0.5, -19.5)))
-MASTS, HALLS = (), ()
+MASTS, HALLS, PADS = (), (), ()
 
 #: Its lean the wing's, m/s^2: 12 at 14 m/s is 10.5 deg; the hover's 8 left 0.7 in a turn.
 CRUISE = dict(HOVER, height=HIGH_M, pace=5.0, speed=SPEED_M_S, home=0.0, lean=50.0)

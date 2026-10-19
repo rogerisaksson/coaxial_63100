@@ -50,8 +50,6 @@ WING_ROCK, BANK_ROCK, DUNE_SLASH, CORIOLIS_STORM, DESERT_UNWIND, UNWIND = (STUNT
 #: sum steady, a pitching moment at the beat.
 GEAR_RATIO, BEAT_PULSE = _FW['gear_ratio'], _FW['beat_pulse']
 PULL_MAX = (GOV_RAD_S * STUNT_BOOST) ** 2 * K_THRUST / MASS_KG
-#: Its laps' sphere: 2.0 and 1.7 struck gate 7, 1.5 lapped in 24 s whole.
-COURSE_SPHERE = 1.5 * GRAVITY
 
 
 def drive_loads(controls):

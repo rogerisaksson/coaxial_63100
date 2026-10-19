@@ -62,9 +62,9 @@ SWITCH_S = 2e-4
 
 #: The spectator of every page's figures: beside the runway's middle (`airfield.placed`),
 #: SPOT_ACROSS off its line by the hangar, SPOT_Y up; gaze LEAD_S ahead, lens over LENS_S.
-SPOT_ALONG, SPOT_ACROSS, SPOT_Y = -2.0, -14.0, 1.7
+SPOT_ALONG, SPOT_ACROSS, SPOT_Y = -2.0, -10.0, 1.7
 SPOT = airfield.placed(SPOT_ALONG, SPOT_ACROSS)
-LEAD_S, LENS_S, FILL, FILL_MIN, HORIZON_RAD = 0.15, 0.6, 0.25, 0.12, 0.035
+LEAD_S, LENS_S, FILL, FILL_MIN, HORIZON_RAD = 0.15, 0.6, 0.4, 0.3, 0.035
 UP_FADE = (0.35, 0.79)
 #: Before a flight and on the course: the reach framed on the floor, m, its pull over PULL_S;
 #: the side the spectator stands on and the chase's pitch, deg.

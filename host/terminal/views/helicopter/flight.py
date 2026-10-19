@@ -19,7 +19,7 @@ from terminal.views.quad.flight import (CRASHED, CRASH_S, FAULTS, THERMAL_S, TIC
 ROTORS = ('MAIN', 'TAIL')
 
 #: The page's flights: the 3D helicopter routine first, then the 16-gate race course.
-CARD = sweep.opened(helicopter.CARD) + course.CARD
+CARD = sweep.opened(helicopter.CARD) + course.MIDDLES
 
 
 def fresh(craft=helicopter):
@@ -129,6 +129,7 @@ def flown(rotors, sky, core, law, row, flight, dt, craft=helicopter):
         if air is not None:
             weather.blown(air, TICK_S)
         sky.step((rotors[0]['w'], rotors[1]['w']) + tuple(out.controls), TICK_S, air)
+    assert out is not None
     flight['controls'] = out.controls
     _step_bus_and_heat(rotors, sky, flight, dt, craft.COOLING)
     return out

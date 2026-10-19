@@ -103,6 +103,11 @@ house's ridge, round a mast, between two cars, a slalom).
   s late turned the rotors those seconds under a setpoint meant for 50 ms,
   and under the gate's load a gate was passed 2.7 m off; paced, 0.22 m alone
   and 0.25 m beside fourteen busy processes, envelopes 0.74 and 0.79.
+- Off its pad (`grounds.PADS`) into the lap, no hover at its grid: 35.8 s
+  where 39.8. After the sweep the page met the dive in turbulence, gate 7
+  1.0 m high and struck; its descent held to its spot sat 0.25-0.30 m off
+  it on its skids, leant 8.7 deg and struck. Not held, PULL 0.36: eighteen
+  page runs whole.
 - A pack gives the routine 21 % of itself and the course 27 %: spent on a lap
   of every fourth flight, ended at that lap's finish. Spent on a flight's way
   down, the card went on to the next flight's, that flight never flown, and

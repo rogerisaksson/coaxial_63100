@@ -41,7 +41,6 @@ WIND_REG, MIN_AIR_M_S = _OBS['wind_regularization'], _OBS['min_air_speed']
 FLOOR_M, HOVER_M, TOP_M = (
     KINEMATICS['envelope'][k] for k in ('floor_height', 'hover_height', 'top_height'))
 PULL_MAX = K_THRUST * (GOV_RAD_S * STUNT_BOOST) ** 2 / MASS_KG
-COURSE_SPHERE = 2.0 * GRAVITY
 TICTOC_HZ, TICTOC_RAD = (
     KINEMATICS['oscillator'][k] for k in ('tictoc_frequency', 'tictoc_amplitude'))
 FUNNEL, SPIRAL, FLIP_IN, INVERTED, INV_PIRO, TICTOC, AILERON_TICTOC, PIRO_FLIP, CHAOS, HURRICANE, UNWIND = (

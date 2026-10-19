@@ -187,6 +187,18 @@ up at rest).
   tumble 0.8 s, at 1.2 from 4 m its catch dipped to 2 cm (now 1.7 m). The four
   pages watched from one spot by the runway's middle, each craft a quarter of
   the frame: at a third the quad stood too near at its start.
+- The helicopter and the ornithopter fly the course through its gates'
+  middles (`course.MIDDLES`): its crossings were laid for the quad's own
+  misses, and on them the helicopter crossed gate 7 0.4-0.5 m right and
+  0.3-0.45 m low, into it off its pad in still air at 2.0 g and in
+  turbulence at 1.75. On the middles at 1.5 g, within 0.22 m of gate 7's
+  middle in six winds. `course.braked` had planned any line on the
+  course's bends - the sweep's among them.
+- The spectator 10 m beside the runway, each craft framed at 0.4 of the
+  view's half, 0.3 at the least under the horizon's claim: from 14 m at 0.25
+  and 0.12 the four drew 33-52 cells of a 100 x 36 page, the helicopter 33;
+  now 58-98, the helicopter 58. At 0.2 the least a snap roll drew 47 cells
+  of the page's 50.
 - Close to the runway, a spectator 14 m beside it: the card within 62 m of
   them where it reached 105, its 3D figures within 23 m, its circuit at 3.5
   m where it flew at 9, the burn from 31 m (44), 92 s (124). The opening's

@@ -154,6 +154,14 @@ def standing(field=grounds):
         edges['mast'] += _box(x, z, side, side, 0.0, high)
         for k in range(1, int(high / 3.5) + 1):
             edges['mast'] += _box(x, z, side, side, 3.5 * k, 3.5 * k)[:4]
+    for x, z, side in f.PADS:
+        half, ring = side / 2.0, [(x + 0.4 * side * math.cos(k * math.tau / 16), 0.01,
+                                   z + 0.4 * side * math.sin(k * math.tau / 16)) for k in range(16)]
+        edges['runway'] += _loop([(x - half, 0.01, z - half), (x + half, 0.01, z - half),
+                                  (x + half, 0.01, z + half), (x - half, 0.01, z + half)]) + _loop(ring) + [
+            ((x - 0.15 * side, 0.01, z - 0.2 * side), (x - 0.15 * side, 0.01, z + 0.2 * side)),
+            ((x + 0.15 * side, 0.01, z - 0.2 * side), (x + 0.15 * side, 0.01, z + 0.2 * side)),
+            ((x - 0.15 * side, 0.01, z), (x + 0.15 * side, 0.01, z))]
     edges['runway'] += ([(_rwy(-20.5, -1.35), _rwy(-20.5, 1.35))]
                         + [(_rwy(-20.0, w), _rwy(-18.4, w)) for w in (-0.9, -0.45, 0.45, 0.9)])
     return _laid(edges)

@@ -51,8 +51,10 @@ WAYS = ((3.8, 0.988, -0.24, 0.16), (-20.5, 1.163, 0.27, 0.00), (-8.8, 1.036, 0.0
 #: PULL 0.399 was searched on boards whose envelopes left 34-60 % of their pull on a second
 #: lap; on boards that hold 88 % of it at the least it came into gate 7 1.1 m high off the
 #: dive in two winds of three, as the ideal rotors did in one. Gridded there: 0.37, 34 flights
-#: of 34 whole in eleven winds, 14.2-14.3 and 14.5-15.2 s; 0.38 struck one.
-PULL, BRAKE, GO, EASE_S, STOP, FLOOR, AHEAD_M = 0.37, 0.735, 0.708, 2.0, 0.45, 1.1, 40.0
+#: of 34 whole in eleven winds, 14.2-14.3 and 14.5-15.2 s; 0.38 struck one. Off its pad
+#: straight into its laps, 0.37 came into gate 7 0.65 m high on its second in still air, 0.03 m
+#: into a tip's room; 0.36 left 0.085 m at the least in six winds.
+PULL, BRAKE, GO, EASE_S, STOP, FLOOR, AHEAD_M = 0.36, 0.735, 0.708, 2.0, 0.45, 1.1, 40.0
 
 #: The frame's place on the line is looked for REACH_M on from the last; the law's spot is kept
 #: on the line, SLACK_M from that place along it at most; a bend's pull is asked ahead of it
@@ -87,7 +89,7 @@ _UNITS = {'DS': (1, 0), 'AHEAD_M': (1, 0),
           'REACH_M': (1, 0), 'SLACK_M': (1, 0), 'LOOK_M': (1, 0), 'STAND_M': (1, 0),
           'EASE_S': (0, 1), 'SOFT_S': (0, 1),
           'LOOK_S': (0, 1), 'AIM_K': (0, -1), 'TURN_RAD_S': (0, -1), 'STAND_M_S': (1, -1)}
-_BUILT, _SET, _ROWS, _LAID = {}, {}, [], itertools.count()
+_BUILT, _SET, _ROWS, _LAID, _LINES = {}, {}, [], itertools.count(), {}
 
 
 def sized():
@@ -118,9 +120,10 @@ def _span(a, b, u):
 
 
 @functools.lru_cache(maxsize=None)
-def track():
-    """The course's line through its gates (`laid`)."""
-    fine, marks, gates = [], [], grounds.GATES
+def track(middles=False):
+    """The course's line through its gates (`laid`): where WAYS crosses them, or through their
+    `middles` - for a craft whose own misses the crossings were not laid for."""
+    fine, marks, gates, keep = [], [], grounds.GATES, float(not middles)
     count = len(gates)
     rises = [SLOPE * (gates[(i + 1) % count][1] - gates[i - 1][1]) / (
         math.dist(gates[i - 1][:3:2], gates[i][:3:2])
@@ -129,7 +132,7 @@ def track():
     cross = [(x + across * math.cos(math.radians(heading)), y + up,
               z - across * math.sin(math.radians(heading)), heading + turn, tension, rise)
              for (x, y, z, heading, _size), (turn, tension, across, up), rise
-             in zip(gates, WAYS, rises)]
+             in zip(gates, [(t, k, keep * a, keep * u) for t, k, a, u in WAYS], rises)]
     for i, gate in enumerate(cross):
         marks.append(len(fine))
         fine += [_span(gate, cross[(i + 1) % len(cross)], u / 64.0) for u in range(64)]
@@ -169,10 +172,12 @@ def laid(fine, marks):
              for j in range(n)]
     swings = [math.dist(curve[(j + 2) % n], curve[j - 2]) / (4.0 * step) for j in range(n)]
     where = [run[m] for m in marks]
-    return {'at': at, 'way': way, 'bends': bends, 'curve': curve, 'swings': swings,
-            'length': length, 'step': step, 'gates': where, 'laid': next(_LAID),
-            'next': [next((g for g, mark in enumerate(where) if mark > j * step), 0)
-                     for j in range(n)]}
+    out = {'at': at, 'way': way, 'bends': bends, 'curve': curve, 'swings': swings,
+           'length': length, 'step': step, 'gates': where, 'laid': next(_LAID),
+           'next': [next((g for g, mark in enumerate(where) if mark > j * step), 0)
+                    for j in range(n)]}
+    _LINES[out['laid']] = out
+    return out
 
 
 def trailed(dt):
@@ -243,7 +248,7 @@ def braked(laid, sphere, brake, swing_s):
     for on `brake` of what its bend leaves along its way, the slope's and the drag's in it;
     what that braking gains of v^2 a sample back). Run back from AHEAD_M past a lap's end:
     from twice as far the table is the same."""
-    line_ = track()
+    line_ = _LINES[laid]
     n, step = len(line_['at']), line_['step']
     drag, swung = 0.5 * quad.RHO * quad.BODY_CDA / quad.MASS_KG, 2.0 * sphere / swing_s
     local = [min(_fastest(curve, way[1], sphere),
@@ -278,6 +283,11 @@ def line(route, now):
     """The lap's row for now (`aerobatics.fly`'s giver): the course's line (`track`) flown LAPS
     times (`flown`), `lapped` at its end."""
     return flown(route, track(), LAPS, 'lapped', math.inf)
+
+
+def middle(route, now):
+    """`line`'s row on the line through the gates' middles (`track`)."""
+    return flown(route, track(True), LAPS, 'lapped', math.inf)
 
 
 def flown(route, line_, laps, word, most_m_s):
@@ -370,14 +380,17 @@ def flown(route, line_, laps, word, most_m_s):
                 turn=math.degrees(turn))
 
 
-#: The course's flight: from the floor onto its grid, its laps, and down.
-CARD = (
-    ('idle', DOWN, 2.0, 0.0, 'fit'),
-    ('spool', PRESSED, 2.5, 2.5, ''),
-    ('lift', GRID, 3.0, 3.0, ''),
-    ('grid', GRID, 1.0, 0.0, 'held'),
-    ('lap', line, 0.0, 0.0, 'lapped'),
-    ('level', GRID, 1.5, 1.0, 'held'),
-    ('descend', OVER, 1.5, 1.5, 'held'),
-    ('land', PRESSED, 3.0, 3.0, ''),
-)
+def _card(giver):
+    """The course's flight on `giver`'s line: off its pad (`grounds.PADS`) straight into its
+    laps on all its sphere, and down on the pad - its descent not held: on its skids 0.25 m off
+    its spot in gusts, asked to hold it, a quad leant over and struck."""
+    return (('idle', DOWN, 2.0, 0.0, 'fit'), ('spool', PRESSED, 2.5, 2.5, ''),
+            ('lap', giver, 0.0, 0.0, 'lapped'), ('level', GRID, 1.5, 1.0, 'held'),
+            ('descend', OVER, 1.5, 1.5, ''), ('land', PRESSED, 3.0, 3.0, ''))
+
+
+#: The course's flights: the quad's on the line laid for it, through the gates' middles for a
+#: craft it was not laid for, on MIDDLES_SPHERE, m/s^2 - the helicopter at 2.0 g went into gate
+#: 7 off its pad in still air and at 1.75 in turbulence, the ornithopter at 2.0 and 1.7; at 1.5
+#: both whole in six winds.
+CARD, MIDDLES, MIDDLES_SPHERE = _card(line), _card(middle), 1.5 * quad.GRAVITY

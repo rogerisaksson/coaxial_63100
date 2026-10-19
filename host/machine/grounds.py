@@ -44,6 +44,9 @@ CARS = ((26.0, -14.5, 10.0), (18.5, -5.0, 85.0), (11.5, -16.5, 95.0), (40.0, 0.0
         (-6.0, 22.0, 20.0), (44.0, 16.0, 5.0))
 CAR_M = (1.8, 1.4, 4.4)
 MASTS = ((42.0, 44.0, 1.6, 16.0),)
+#: The pad the course's flights go off and come down on, under the first gate: (x, z, its side),
+#: m, painted on the floor.
+PADS = ((0.0, 0.0, 2.4),)
 
 #: Their shapes: a tree's crown a six-sided cone from CROWN of its height up, on a trunk
 #: TRUNK_M thick; a car's body from CAR_LOW m up to CAR_BODY of its height, its cabin on it
@@ -55,7 +58,7 @@ CROWN, TRUNK_M, CAR_LOW, CAR_BODY, CAR_CABIN, BAR_M, WALL_M = (0.35, 0.12, 0.25,
 #: The grounds' lengths, and what is placed: for a frame of another size as much larger (`sized`).
 _UNITS = {'GATE_M': (1, 0), 'TRUNK_M': (1, 0), 'BAR_M': (1, 0), 'WALL_M': (1, 0)}
 _PLACED = {'GATES': (3,), 'TREES': (), 'HOUSES': (), 'HALLS': (), 'CARS': (2,), 'CAR_M': None,
-           'MASTS': ()}
+           'MASTS': (), 'PADS': ()}
 _BUILT, _SET = {}, {}
 _HERE = sys.modules[__name__]
 

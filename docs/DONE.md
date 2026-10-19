@@ -223,3 +223,8 @@ the hundred before these: [DONE_1-50](DONE_1-50.md),
     (1.0), its turns as quick; the Extra on a 1.4 m wing (1.6), its side
     its form's, its opening's turns 11 m and its knife 0.47 m; the quad and
     the ornithopter as they were ([aircraft](findings/aircraft.md)).
+56. The rotorcraft off a pad under the first gate straight into the course, its
+    descent not held; the helicopter and the ornithopter on the gates'
+    middles, the helicopter at 1.5 g; the spectator 10 m off the runway, each
+    craft framed at 0.4: eighteen page runs on the tour and in kept winds,
+    none struck ([quad](findings/quad.md), [aircraft](findings/aircraft.md)).
