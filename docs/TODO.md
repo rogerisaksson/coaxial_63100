@@ -47,9 +47,6 @@ the table under [Subjects](#subjects).
   kept: that ask stopped at the seat (seed 9 still down, the rise 2.50 -> 2.71
   s); a prop kept within 2 mm of where it bore (4 and 6 of 48 risen). DOD:
   64 of 64 perturbed runs seated and risen.
-- **Her wear's window stalls her world** 0.12 s every 4 s (`worker.stepped`:
-  its rows 31 ms - the regressor's C 16 -, its hems 15, its boxes 12); it
-  feeds her law (`wear.loaded`). DOD: no pass over 20 ms walking.
 
 1. **Orthokinematics, the one way she moves** (orthokinematics.md): the
    humanoid robot movement is text of balance, rhythm and elasticity, compiled

@@ -25,6 +25,8 @@ import math
 from machine import edge, regressor
 from machine.figure import JOINTS
 
+#: The states a part of `rowing` reads a regressor of: a part of her wear's window a pass.
+ROWS_AT = 100
 #: A link's inertial parameters, in its frame about its origin.
 INERTIAL = ('m', 'hx', 'hy', 'hz', 'Ixx', 'Ixy', 'Ixz', 'Iyy', 'Iyz', 'Izz')
 #: A drive's: the rotor's inertia at the joint, kg m^2; viscous, N m s/rad; Coulomb, N m.
@@ -171,12 +173,29 @@ def rows(lay, body, ys, taus, dt, every=1, extra=None):
     """(Y (N, driven, P), tau (N, driven)) of a campaign: `ys` (N + 1, SENSED) her edge arrays a
     step `dt` apart, `taus` (N, JOINTS) her drives' torques over each step, every `every`th
     step kept (`_state`); a drive's row zero where it does not slide (STICK)."""
+    return done(rowing(lay, body, ys, taus, dt, every, extra))
+
+
+def done(parts):
+    """A generator run to its end (`rowing`, `wear.windowing`): its return."""
+    while True:
+        try:
+            next(parts)
+        except StopIteration as end:
+            return end.value
+
+
+def rowing(lay, body, ys, taus, dt, every=1, extra=None):
+    """`rows` a part at a time: a generator yielding after each ROWS_AT states' regressor, `rows`'
+    its return - one state's program the same over any number of them (`regressor.in_c`)."""
     import numpy as np
     qpos, qvel, qacc, a0, wacc, at = _state(lay, body, ys, dt, every, extra)
+    yield
     Y = np.empty((len(at), len(lay['driven']), len(lay['names'])))
-    for s in range(0, len(at), 400):
-        e = min(s + 400, len(at))
+    for s in range(0, len(at), ROWS_AT):
+        e = min(s + ROWS_AT, len(at))
         Y[s:e] = regressor.in_c(lay, body, qpos[s:e], qvel[s:e], qacc[s:e], a0[s:e], wacc[s:e])[:, lay['driven']]
+        yield
     tau = np.asarray(taus, float)[at][:, lay['joint']]
     slides = np.abs(qvel[:, lay['dof']]) >= STICK
     Y *= slides[:, :, None]
@@ -220,12 +239,32 @@ def borne(lay, body, ys, dt, every=1):
     nothing - `f` what her insoles read, each one's pressure along its sole's normal at its
     centre of pressure. Her weight and its moments: her pelvis's own mass and first moments,
     which her drives' rows never show."""
+    return done(borning(lay, body, ys, dt, every))
+
+
+def borning(lay, body, ys, dt, every=1):
+    """`borne` a part at a time: its frames and its regressor ROWS_AT states a part, laid whole as
+    one call lays them - numpy's own orders the same on them."""
     import numpy as np
     m = body.m
     qpos, qvel, qacc, a0, wacc, at = _state(lay, body, ys, dt, every)
     now = np.asarray([ys[i] for i in at])
-    frames = regressor.posed(lay, body, qpos)
-    Y = regressor.in_c(lay, body, qpos, qvel, qacc, a0, wacc, frames)
+    yield
+    parts, Y = [], None
+    for s in range(0, len(at), ROWS_AT):
+        e = min(s + ROWS_AT, len(at))
+        part = regressor.posed(lay, body, qpos[s:e])
+        got = regressor.in_c(lay, body, qpos[s:e], qvel[s:e], qacc[s:e], a0[s:e], wacc[s:e], part)
+        if Y is None:
+            Y = np.empty((len(at),) + got.shape[1:])
+        Y[s:e] = got
+        parts.append(part)
+        yield
+    if Y is None:
+        frames = regressor.posed(lay, body, qpos)
+        Y = regressor.in_c(lay, body, qpos, qvel, qacc, a0, wacc, frames)
+    else:
+        frames = tuple(np.concatenate([p[k] for p in parts]) for k in range(4))
     xpos, xmat, _axis, _anchor = frames
     soles = lay['col'][[m.body(name).id for name in edge.INSOLES]] // 10
     Ri, pi = xmat[:, soles], xpos[:, soles]

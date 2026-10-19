@@ -102,6 +102,11 @@ def _hems(w, ys, dt, every):
     """((qadr, vadr, q, qd, qdd), free) her limb pendulums (`w['hems']`) integrated at `dt` over `ys`
     as 2-DoF pendulums with their stops, sampled every `every`th: what she does not measure on her
     shanks, following them from her IMU and her legs' encoders."""
+    return sysid.done(_hemming(w, ys, dt, every))
+
+
+def _hemming(w, ys, dt, every):
+    """`_hems` a hem at a time, yielding after each."""
     import numpy as np
     from tools.cores import wbc as cores
     lay, body, hems = w['lay'], w['body'], w['hems']
@@ -120,6 +125,7 @@ def _hems(w, ys, dt, every):
     qdd_all = (ys[1:n + 1, edge.QD] - qd_all) / dt
     q_out, v_out, a_out = np.zeros((n, len(jids))), np.zeros((n, len(jids))), np.zeros((n, len(jids)))
     hit, prev = np.zeros((n, len(hems)), bool), w.get('_hem_prev')
+    yield
     cont = prev is not None and float(np.max(np.abs(ys[0, edge.Q] - prev[0]))) < 1e-9
     next_state = []
     for s_idx, k in enumerate(hems):
@@ -167,6 +173,7 @@ def _hems(w, ys, dt, every):
         q_out[:, 2 * s_idx:2 * s_idx + 2], v_out[:, 2 * s_idx:2 * s_idx + 2], a_out[:, 2 * s_idx:2 * s_idx + 2] = steps
         hit[:, s_idx] = hits.astype(bool)
         next_state.append(tuple(state.tolist()))
+        yield
     w['_hem_prev'] = (ys[-1, edge.Q].copy(), next_state)
     pad = np.zeros((len(at), len(hems)), bool)
     for d_step in range(-5, 6):
@@ -182,13 +189,23 @@ def window(w, ys, taus, dt):
     predicted torque short of its friction, less - whole, it told nothing from the friction's own
     columns. While both soles bear weight through the window, her back's load is read off her
     insoles (`torso_load`)."""
+    return sysid.done(windowing(w, ys, taus, dt))
+
+
+def windowing(w, ys, taus, dt):
+    """`window` a part at a time, yielding between its parts - her hems, her rows a part at a time
+    (`sysid.rowing`), what the model holds, her movers' columns, the load riding her torso: its
+    result its return."""
     import numpy as np
     lay = w['lay']
     ys_arr = np.asarray(ys)
-    extra, hem_free = _hems(w, ys_arr, dt, EVERY)
-    Y, tau = sysid.rows(lay, w['body'], ys_arr, taus, dt, EVERY, extra)
+    yield
+    extra, hem_free = yield from _hemming(w, ys_arr, dt, EVERY)
+    Y, tau = yield from sysid.rowing(lay, w['body'], ys_arr, taus, dt, EVERY, extra)
     held = sysid.free(lay, ys_arr, EVERY) & (((~hem_free).astype(int) @ w['hem_limb']) == 0)
-    Y, tau = Y * held[:, :, None], tau * held
+    Y *= held[:, :, None]
+    tau = tau * held
+    yield
     n, n_d, p = Y.shape
     rows_ = Y.reshape(-1, p)
     pred = rows_ @ w['nominal']
@@ -197,12 +214,27 @@ def window(w, ys, taus, dt):
     A = np.zeros((n * n_d, movers + n_d))
     A[:, :movers] = rows_ @ w['D']
     A[np.arange(n * n_d), movers + drive] = (sliding - pred) * UNIT['kt']
+    yield
     keep = np.abs(rows_).sum(axis=1) > 0.0
     zero = (ys_arr[-1, edge.QM] - ys_arr[-1, edge.Q])[lay['joint']]
     if (ys_arr[:, edge.LOAD] >= flight.TOUCH_N).all(axis=1).mean() > 0.8:
-        torso_load(w, ys_arr, dt)
+        yield
+        yield from torso_loading(w, ys_arr, dt)
     return {'A': A[keep], 'left': (tau.reshape(-1) - pred)[keep], 'drive': drive[keep],
             'zero': zero, 'seconds': (len(ys_arr) - 1) * dt}
+
+
+def wearing(w, ys, taus, dt, g=None):
+    """A window's whole wear a part a pass (`worker.stepped`): `window`, the filter's `step`, her
+    `boxed` gearboxes and the load laid over her (`loaded`, onto `g`) - the arithmetic of the four
+    in one pass, the load laid as its last part; the links touched its return. In one pass the
+    window held her world 0.12 s."""
+    got = yield from windowing(w, ys, taus, dt)
+    step(w, got)
+    yield
+    boxed(w, ys, taus, dt)
+    yield
+    return loaded(w, g)
 
 
 def step(w, got):
@@ -342,9 +374,14 @@ def serviced(w):
 def torso_load(w, ys, dt):
     """(mass kg, (hx, hy, hz) m) of a load riding her torso, read off her insoles' rows
     (`sysid.borne`) against her build's prediction on the samples her insoles bear her."""
+    return sysid.done(torso_loading(w, ys, dt))
+
+
+def torso_loading(w, ys, dt):
+    """`torso_load` a part at a time (`sysid.borning`)."""
     import numpy as np
     lay, body = w['lay'], w['body']
-    Yb, fb = sysid.borne(lay, body, ys, dt, EVERY)
+    Yb, fb = yield from sysid.borning(lay, body, ys, dt, EVERY)
     borne = fb[:, 0] > 2.0 * flight.TOUCH_N * sysid.LEVER_M
     Yb, fb = Yb[borne], fb[borne]
     b = body.m.body('torso').id

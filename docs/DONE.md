@@ -193,3 +193,6 @@ the hundred before these: [DONE_1-50](DONE_1-50.md),
     held at the floor while something bears her, her python's and her C's -
     16 of 16 offsets seated and risen, her walk the same to the bit
     ([support](findings/support.md)).
+48. Her wear's window a part a pass: her worst pass walking 118-146 -> 18.2 ms,
+    her trajectory and her wear the same to the bit; her regressor compiled
+    from its numpy ([identification](findings/identification.md)).

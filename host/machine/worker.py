@@ -225,7 +225,7 @@ def laid(s):
         sprung.walked(g)
     n = len(g['world'].peak)
     s.update(fallen_at=None, torque=np.zeros(n), power=np.zeros(n), watts=0.0, epoch=s['epoch'] + 1,
-             passes=0, wear=wear.laid(g['body']), ys=[], taus=[])
+             passes=0, wear=wear.laid(g['body']), ys=[], taus=[], wearing=None)
     s['wear_told'] = wear.told(s['wear'])
     s['heard']((s['epoch'], 0, g['t'], {'laid': {'every': s['every'], 'walks': s['walks'], 'gym': s['gym_name'],
                                                  'room': physics.ROOM, 'sight': physics.SIGHT}}))
@@ -262,14 +262,8 @@ def stepped(s):
             ys.append(g['sense'].copy())
             taus.append(world.motor.copy())
             if len(ys) > WINDOW_STEPS:
-                t_wear = time.perf_counter()
-                w = s['wear']
-                wear.step(w, wear.window(w, ys, taus[:-1], DT))
-                wear.boxed(w, ys, taus[:-1], DT)
-                wear.loaded(w, g)
-                s['wear_told'] = wear.told(w)
+                s['wearing'] = wear.wearing(s['wear'], ys, taus[:-1], DT, g)
                 s['ys'], s['taus'] = [ys[-1]], [taus[-1]]
-                s['_wear_s'] = time.perf_counter() - t_wear
         else:
             s['ys'], s['taus'] = [], []
             world.feed[:], world.rate[:] = 0.0, 0.0
@@ -277,6 +271,15 @@ def stepped(s):
             world.target[:] += 0.05 * (g['sense'][edge.Q] - world.target)
             g['t'] += DT
             world.advance()
+        if s['wearing'] is not None:
+            # a part of her wear's window a pass: in one the window held her world 0.12 s
+            t_wear = time.perf_counter()
+            try:
+                next(s['wearing'])
+            except StopIteration:
+                s['wearing'] = None
+                s['wear_told'] = wear.told(s['wear'])
+            s['_wear_s'] = time.perf_counter() - t_wear
     except MachineError:
         s['fallen_at'] = g['t']
     if s['fallen_at'] is None and _is_fallen(g, world):

@@ -215,6 +215,12 @@ doubt.
   over three of her walk's windows, 9 against 57 ms a window, her wear's worst
   pass 202 -> 116 ms. Its port by hand ran 9.4 ms at 400 states, the build
   5.95 at -O3 (8.0 at -O2), each level bit for bit.
+- Her wear's window a part a pass (`wear.wearing`, `worker.stepped`): its hems,
+  its rows and her insoles' a hundred states a part, the movers' columns, the
+  filter, her boxes, the load laid last - the arithmetic of one pass; her
+  worst pass walking 118-146 -> 18.2 ms over three windows, her trajectory and
+  her wear the same to the bit, the load laid and the page's report 19 passes
+  later.
 
 ## On her boards
 
