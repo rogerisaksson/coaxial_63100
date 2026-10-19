@@ -168,3 +168,7 @@ the hundred before these: [DONE_1-50](DONE_1-50.md),
     their own (`machine.weather`, `machine.flightpack`).
 41. Her world past real time walking: her pass's glue and her ask in C bit for
     bit on numpy's own orders, 1.27 of real time ([body](findings/body.md)).
+42. The crafts and the gynoid drawn solid (`lit.braille`): a shaded cell keeps
+    0.4 of its dots at the least; her jeans darker and narrower, her
+    shoulders sloped, judged on PNGs beside the glTF and FBX models
+    ([host](findings/host.md)).

@@ -228,6 +228,12 @@ Pages, tooling, suites and the local model's runner. The board's findings:
   it. An edge on the slab's far face gets the fixed grace only; the face art
   (the top's layout) is not read from behind (rasters face down,
   up, tilted).
+- A shaded cell keeps 0.4 of its dots at the least (`lit.braille`, 0.40 + 0.60
+  of its light against the blue noise): on 0.04 + 0.96 of its light to the
+  1.5 the crafts' mid-grey shells and the gynoid's clothes read as clouds of
+  points beside the glTF and FBX models they were judged against. Her jeans
+  (70, 98, 150), 0.062-0.068 m a thigh where 0.072-0.088, 0.052 m a hem where
+  0.074; her shoulders' rings 0.118 m at 0.344 m where 0.14.
 - The tty's face (VS Code 1.141's xterm 6.1 in Edge 154, WebGL,
   125 %): a cell is the face's W wide, its braille and boxes drawn to fill
   it.

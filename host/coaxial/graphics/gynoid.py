@@ -30,10 +30,10 @@ def _np():
     return _NP
 
 
-DENIM, TEE = (150, 178, 206), (178, 30, 40)
-LOOSE_M, FIT_M, BAGGY_M, HEM_R = 0.02, 0.008, 0.02, (0.074, 0.08, 0.004)
+DENIM, TEE = (70, 98, 150), (178, 30, 40)
+LOOSE_M, FIT_M, BAGGY_M, HEM_R = 0.02, 0.008, 0.02, (0.052, 0.058, 0.004)
 HEM_UP, HEM_LEAN = 0.029, 0.26
-JEANS_LEG = ((0.01, 0.07, 0.076, -0.008), (-0.1, 0.072, 0.088, -0.016), (-0.2, 0.074, 0.092, -0.018),
+JEANS_LEG = ((0.01, 0.068, 0.072, -0.006), (-0.1, 0.062, 0.068, -0.008), (-0.2, 0.056, 0.062, -0.008),
              (HEM_UP - SHANK - ANKLE_H + HEM_AT, HEM_R[0], HEM_R[1], -HEM_R[2], HEM_LEAN))
 
 PAD_FULL_M = 0.002
@@ -57,15 +57,15 @@ def _wear():
                  ellipsoid(z0, tuple(r + FIT_M for r in INNER_R), denim, rows=8))]
     for side, x in _SIDES:
         out += [(f'cloth_{side}_sleeve', f'{side}_upper_arm', z0, loft(
-                    [(0.04, 0.056, 0.056), (0.0, 0.069, 0.065), (-0.07, 0.066, 0.062),
+                    [(0.022, 0.05, 0.052), (-0.01, 0.066, 0.063), (-0.07, 0.064, 0.06),
                      (-0.13, 0.06, 0.056)], tee, poles=(0.05, -0.133))),
                 (f'cloth_{side}_thigh', f'{side}_thigh', z0,
                  limb(THIGH, THIGH_R[0] + FIT_M, THIGH_R[1] + FIT_M, THIGH_R[2] + LOOSE_M,
                       denim, bulge_at=0.22, out=x * SCULPT_M, ahead=THIGH_AHEAD, behind=THIGH_BEHIND)),
                 (f'cloth_{side}_shin', f'{side}_shank', z0, loft(
                     [(0.03, 0.068 + PAD_FULL_M, 0.068 + PAD_FULL_M),
-                     (0.0, 0.077 + PAD_FULL_M, 0.077 + PAD_FULL_M), (-0.06, 0.078, 0.076),
-                     (-HEM_AT, 0.078, 0.076)], denim, poles=(0.045, -HEM_AT - 0.01))),
+                     (0.0, 0.074 + PAD_FULL_M, 0.074 + PAD_FULL_M), (-0.06, 0.073, 0.072),
+                     (-HEM_AT, 0.07, 0.074)], denim, poles=(0.045, -HEM_AT - 0.01))),
                 (f'cloth_{side}_leg', f'{side}_shank', ((f'{side}_hem_x', 'x', 1), (f'{side}_hem_z', 'z', 1)),
                  (0.0, -HEM_AT, 0.0), loft(JEANS_LEG, denim, poles=(0.02, JEANS_LEG[-1][0] - 0.02)))]
     return out
@@ -75,8 +75,8 @@ _SEAT = ((-0.07, 0.148, 0.084, 0.126), (-0.03, 0.18, 0.096, 0.157), (0.02, 0.178
          (0.07, 0.146, 0.088, 0.116))
 #: The torso's rings, (y, rx, rz): the tee hangs on them.
 _TORSO = ((-0.045, 0.094, 0.066), (0.0, 0.098, 0.069), (0.047, 0.102, 0.072), (0.093, 0.112, 0.079),
-          (0.149, 0.122, 0.082), (0.205, 0.126, 0.083), (0.26, 0.13, 0.078), (0.307, 0.138, 0.07),
-          (0.344, 0.14, 0.062), (0.372, 0.1, 0.055), (0.39, 0.05, 0.045))
+          (0.149, 0.122, 0.082), (0.205, 0.126, 0.083), (0.26, 0.13, 0.078), (0.307, 0.132, 0.07),
+          (0.344, 0.118, 0.062), (0.372, 0.086, 0.055), (0.39, 0.052, 0.046))
 #: The jeans' waistband under the tee's hem, in the torso's frame, (y, rx, front, back), the
 #: hem at HEM_Y over it; the tee fitted, EASE_M off the body.
 HEM_Y = -0.035
@@ -96,7 +96,7 @@ def _draped():
     for y, rx, rz in _TORSO[1:9]:
         front = bust if abs(y - BUST_AT[1]) <= BUST_R[1] else rz
         out.append(_hung(y, rx + EASE_M, max(front, out[-1][2] + out[-1][3] - 0.03) + EASE_M, rz + EASE_M))
-    return out + [(0.366, 0.112, 0.064)]
+    return out + [(0.37, 0.094, 0.062), (0.384, 0.066, 0.054)]
 
 
 HEAD_Y = 0.095
@@ -107,7 +107,7 @@ HAIR_FALL = ((0.085, 0.030, 0.026, -0.082), (0.05, 0.030, 0.026, -0.094), (0.0, 
              (-0.06, 0.026, 0.022, -0.100), (-0.12, 0.020, 0.016, -0.102))
 #: The skull's radii and its middle; the hair a cap HAIR_M over it from ear level, its front
 #: edge the hairline: at the ears' line below, up the forehead to HAIRLINE of the skull's height.
-SKULL_R, SKULL_Z, HAIR_M, HAIRLINE = (0.07, 0.104, 0.09), 0.012, 0.014, 0.65
+SKULL_R, SKULL_Z, HAIR_M, HAIRLINE = (0.07, 0.104, 0.09), 0.012, 0.02, 0.65
 BUST_AT, BUST_R = (0.056, 0.208, 0.062), (0.062, 0.056, 0.052)
 HUNG = (('hair_x', 'x', 1), ('hair_z', 'z', 1))
 
@@ -186,7 +186,7 @@ def _meshes():
         for tag, par, (ax, ay, az), rad, mat in (
                 ('bust', 'torso', BUST_AT, BUST_R, PLATE), ('cheek', 'pelvis', CHEEK_AT, CHEEK_R, PLATE),
                 ('inner', f'{side}_thigh', INNER_AT, INNER_R, MESH),
-                ('cap', 'torso', (0.135, 0.335, -0.004), (0.05, 0.042, 0.046), PLATE)):
+                ('cap', 'torso', (0.13, 0.318, -0.004), (0.048, 0.036, 0.044), PLATE)):
             extra.append((f'{side}_{tag}', par, (ax * x, ay, az), ellipsoid(z0, rad, mat, rows=8)))
         meshes.update({
             f'{side}_upper_arm': limb(UPPER_ARM, 0.04, 0.038, 0.040 + PAD_FULL_M, MESH, flat=0.95),
