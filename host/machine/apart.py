@@ -15,8 +15,9 @@ import multiprocessing
 import queue
 import time
 
-#: Behind the wall by more than SLICE_S, a world runs one slice and drops the rest of its debt, s.
-SLICE_S = 0.05
+#: Behind the wall by more than SLICE_S, a world runs one slice and drops the rest of its debt;
+#: held to its page, it runs LEAD_S of its time past what that has shown at the most, s.
+SLICE_S, LEAD_S = 0.05, 0.15
 
 #: The processes run apart are spawned: none inherits the page's threads.
 CONTEXT = multiprocessing.get_context('spawn')
@@ -35,7 +36,7 @@ def put(states, item):
         pass
 
 
-def paced(world, commands, states, shown=None, lead_s=0.0, realtime=True, say_s=0.0,
+def paced(world, commands, states, shown=None, lead_s=LEAD_S, realtime=True, say_s=0.0,
           rest_s=0.0, slice_s=SLICE_S):
     """`world` stepped until a None command: paced to the clock (`realtime`, or flat out a slice
     at a time without it), no further than `lead_s` past `shown` (a shared double) given one;

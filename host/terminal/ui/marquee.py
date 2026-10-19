@@ -166,8 +166,8 @@ class Marquee:
     slide.
     """
 
-    def __init__(self, art):
-        self.lines, self.widths = [], []
+    def __init__(self, art, centred=False):
+        self.lines, self.widths, self.centred = [], [], centred
         for raw in art.split('\n'):
             runs = _runs_of(raw)
             if runs is None:
@@ -179,11 +179,16 @@ class Marquee:
                 self.lines.append([Segment(text, style) for text, style in runs])
                 self.widths.append(cell_len(''.join(t for t, _ in runs)))
         self.wide = max(self.widths, default=0)
+        #: Every line plain runs, none a Text: what it can centre itself.
+        self.plain = not any(isinstance(line, Text) for line in self.lines)
 
     def __rich_measure__(self, console, options):
         return Measurement(min(self.wide, options.max_width), self.wide)
 
     def __rich_console__(self, console, options):
+        if self.centred and self.plain:
+            yield from self._centred(options)
+            return
         width = options.max_width
         extra = self.wide - width
         at = _slide(extra) if extra > 0 else 0
@@ -199,3 +204,36 @@ class Marquee:
                 line = _cropped(line, at, width)
             yield from line
             yield newline
+
+    def _centred(self, options):
+        """Its lines in the middle of the region, as Align(center, middle) put them: the widest
+        line's width (no more than the region's), each line padded to it, the region's excess
+        left - its half, rounded down - and right, blank lines above - half - and below."""
+        width = min(self.wide, options.max_width)
+        extra = self.wide - width
+        at = _slide(extra) if extra > 0 else 0
+        lines = [_cropped(line, at, width) if at or wide > width else line
+                 for line, wide in zip(self.lines, self.widths)]
+        shape = max((sum(cell_len(seg.text) for seg in line) for line in lines), default=0)
+        excess = options.max_width - shape
+        left = excess // 2 if excess > 0 else 0
+        right = excess - left if excess > 0 else 0
+        top = bottom = 0
+        if options.height is not None:
+            top = (options.height - len(lines)) // 2
+            bottom = options.height - top - len(lines)
+        blank, newline = Segment(' ' * options.max_width + '\n'), Segment.line()
+        for _ in range(top):
+            yield blank
+        for line in lines:
+            if left:
+                yield Segment(' ' * left)
+            yield from line
+            short = shape - sum(cell_len(seg.text) for seg in line)
+            if short > 0:
+                yield Segment(' ' * short)
+            if right:
+                yield Segment(' ' * right)
+            yield newline
+        for _ in range(bottom):
+            yield blank

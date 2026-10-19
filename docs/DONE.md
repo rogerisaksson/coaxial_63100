@@ -257,3 +257,7 @@ the hundred before these: [DONE_1-50](DONE_1-50.md),
     its surfaces in its slipstream, both boards on its own rotor: 2.65 g
     where 7.5; its routine lands in 9 airs of 9 where 7
     ([aircraft](findings/aircraft.md)).
+63. Her page held to what it shows and played back steady, her 3D drawn a
+    frame ahead in its own process (`terminal.ui.ahead`, the flights' too):
+    27.3 frames a second where 14.8, her motion on screen 0.92-1.03 of its
+    speed where 0.59-1.07 ([host](findings/host.md)).

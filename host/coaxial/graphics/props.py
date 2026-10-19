@@ -5,7 +5,7 @@ where she presses it.
 
     layers = props.lines(props, m, cam, centre, travel, dents)   # [(dots, ink)] for `lit.braille`
 """
-from coaxial.graphics.callouts import line
+from coaxial.graphics import callouts
 from coaxial.graphics.lit import project
 
 PROP_INK = {'hole': (255, 96, 128), 'sill': (255, 184, 80), 'slip': (96, 214, 255),
@@ -46,7 +46,8 @@ def _sagged(pos, half, turn, dents, shift):
 
 
 def lines(props, m, cam, centre, travel, dents=None):
-    """[(dots, ink)] of `props` (`floor.props`) seen by `cam`, a bed's top sagging over `dents`."""
+    """[(dots, ink)] of `props` (`floor.props`) seen by `cam`, a bed's top sagging over `dents`:
+    their edges in view gathered by ink, an ink's drawn in one call (`callouts.lines`)."""
     if not props:
         return []
     from coaxial.model.blocks import numpy as np
@@ -65,10 +66,14 @@ def lines(props, m, cam, centre, travel, dents=None):
         if (w <= 0.0).all():
             continue
         ink = PROP_INK.get(kind, (200, 200, 200))
-        dots = by_ink.get(ink)
-        if dots is None:
-            dots = by_ink[ink] = np.zeros((cam['height'], cam['width']), bool)
-        for a, b in edges:
-            if w[a] > 0.0 and w[b] > 0.0:
-                line(dots, (sx[a], sy[a]), (sx[b], sy[b]))
-    return [(dots, ink) for ink, dots in by_ink.items()]
+        ends = by_ink.setdefault(ink, ([], [], [], []))
+        a, b = np.asarray(edges, int).T
+        seen = (w[a] > 0.0) & (w[b] > 0.0)
+        for into, values in zip(ends, (sx[a[seen]], sy[a[seen]], sx[b[seen]], sy[b[seen]])):
+            into.append(values)
+    drawn = []
+    for ink, ends in by_ink.items():
+        dots = np.zeros((cam['height'], cam['width']), bool)
+        callouts.lines(dots, *(np.concatenate(values) for values in ends))
+        drawn.append((dots, ink))
+    return drawn

@@ -84,12 +84,19 @@ class _Row:
     __slots__ = ('segs', 'text', 'bg', 'put')
 
     def __init__(self, line):
-        self.segs, chars, self.bg, self.put = [], [], bytearray(), {}
-        for seg in line:
-            if seg.control:
-                continue
+        self.segs, self.put = [seg for seg in line if not seg.control], {}
+        text = ''.join(seg.text for seg in self.segs)
+        if cell_len(text) == len(text):             # a cell a char: the row measured once
+            self.text, self.bg, at = text, bytearray(len(text)), 0
+            for seg in self.segs:
+                end = at + len(seg.text)
+                if seg.style is not None and seg.style.bgcolor is not None:
+                    self.bg[at:end] = b'\x01' * (end - at)
+                at = end
+            return
+        chars, self.bg = [], bytearray()
+        for seg in self.segs:
             text, style = seg.text, seg.style
-            self.segs.append(seg)
             back = b'\x01' if style is not None and style.bgcolor is not None else b'\x00'
             if cell_len(text) == len(text):
                 chars.append(text)
@@ -126,11 +133,14 @@ class _Row:
         if not self.put:
             yield from self.segs
             return
-        at = 0
+        puts, k, at = sorted(self.put), 0, 0
         for seg in self.segs:
             text, style = seg.text, seg.style
             width = cell_len(text)
-            here = sorted(c for c in self.put if at <= c < at + width)
+            here = []
+            while k < len(puts) and puts[k] < at + width:
+                here.append(puts[k])
+                k += 1
             if not here:
                 yield seg
                 at += width
@@ -156,22 +166,28 @@ class _Row:
 
 class Chrome:
     """`inner` with the house HUD in its blank cells: lock brackets round
-    what it draws (`lock`), the clock and `title`'s tags (KANA, `tags`)."""
+    what it draws (`lock`), the clock and `title`'s tags (KANA, `tags`); `corner` (the frame
+    rate, `rate.Corner`'s) over its first cells, over all of it."""
 
-    def __init__(self, inner, title, lock=True, tags=True):
-        self.inner, self.title, self.lock, self.tags = inner, title, lock, tags
+    def __init__(self, inner, title, lock=True, tags=True, corner=''):
+        self.inner, self.title, self.lock, self.tags, self.corner = inner, title, lock, tags, corner
 
     def __rich_console__(self, console, options):
-        if options.height is None:                     # piped: no region to dress
-            yield from console.render(self.inner, options)
-            return
-        t = time.monotonic()
-        rows = [_Row(line) for line in console.render_lines(self.inner, options, pad=True)]
-        if rows:
-            _dress(rows, self.title if self.tags else None, self.lock, t)
         newline = Segment.line()
-        for row in rows:
-            yield from row.segments()
+        if options.height is None:                     # piped: no region to dress
+            lines = console.render_lines(self.inner, options, pad=True)
+        else:
+            t = time.monotonic()
+            rows = [_Row(line) for line in console.render_lines(self.inner, options, pad=True)]
+            if rows:
+                _dress(rows, self.title if self.tags else None, self.lock, t)
+            lines = [list(row.segments()) for row in rows]
+        wide = cell_len(self.corner)
+        if lines and 0 < wide < options.max_width:
+            cut = list(Segment.divide(lines[0], [wide, options.max_width]))
+            lines[0] = [Segment(self.corner, console.get_style('rate'))] + (cut[1] if len(cut) > 1 else [])
+        for line in lines:
+            yield from line
             yield newline
 
 

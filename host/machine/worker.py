@@ -339,21 +339,24 @@ class Her:
 def run(commands, states, shown, heard=None, every=sprung.STACK_EVERY, walks=False, realtime=True):
     """The worker: she stands on the loop, paced to the clock (`realtime`, or flat out without it);
     commands heard - each put on `heard` at its pass -, her state said. Laid, she stands at rest
-    unless `walks`. Run apart (`apart.paced`); what her page has `shown` holds her back nowhere."""
+    unless `walks`. Run apart (`apart.paced`), no further than its lead past what her page has
+    `shown`."""
     physics.ROOM, physics.SIGHT = 1.0, 0.0
     s = session(every, walks, heard.put if heard is not None else None)
-    apart.paced(Her(s), commands, states, realtime=realtime, say_s=sprung.SAY_S,
+    apart.paced(Her(s), commands, states, shown=shown, realtime=realtime, say_s=sprung.SAY_S,
                 rest_s=sprung.SAY_S / 4.0, slice_s=sprung.SLICE_S)
 
 
 class Running(apart.Apart):
 
     """Her worker process on the loop (`run`, apart): `send` it commands, read its `latest` state
-    and the commands it has `heard`; laid, she stands at rest unless `walks`."""
+    and the commands it has `heard`, tell it what her page has `shown` - from `shown`, none held
+    back till told; laid, she stands at rest unless `walks`."""
 
-    def __init__(self, every=sprung.STACK_EVERY, walks=False, realtime=True):
+    def __init__(self, every=sprung.STACK_EVERY, walks=False, realtime=True, shown=math.inf):
         self._heard = apart.CONTEXT.Queue()
-        super().__init__(run, self._heard, every, walks, realtime, states=8, kept=(self._heard,))
+        super().__init__(run, self._heard, every, walks, realtime, states=8, kept=(self._heard,),
+                         shown=shown)
 
     def send(self, **command):
         """{'say': the gym's entry by its place, in place of what was to come} | {'walk': True}:

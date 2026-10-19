@@ -205,6 +205,17 @@ Pages, tooling, suites and the local model's runner. The board's findings:
   On its course lap at 12.6 m/s the craft on screen is off smooth motion
   0.04 dots (0.38 at p95), its path in the world 9 mm at p95; the chase
   holds it 15 dots off the middle, 43 at p95.
+- HUMANOID drew a frame every 68 ms, her motion on screen 0.59-1.07 of its
+  speed: her playback eased to her process's ratio and caught up after it.
+  Held to what the page shows (`apart.LEAD_S`) and played back steady
+  (`Playback.steady`, as the flights are): 0.92-1.03, her wear window's
+  passes a slowing, not a burst. Her frame was 57 ms: her room's edges 413
+  `line` calls (13 ms; `props.lines` an ink a call), the braille's runs a
+  scan of every cell, rich 20. Her 3D drawn a frame ahead in a process of its
+  own (`terminal.ui.ahead`, the flights' too), the viewport two passes
+  flatter (`Marquee` centres, `Chrome` takes the rate): a frame every 36.6 ms
+  (27.3 a second), what is left rich's layout of her instruments (12 ms);
+  the flights 33.8 (29.6), on the cap.
 - HUMANOID's R crashed the page at once with no traceback
   kept; headless it took R and saved 97 rows then, and R starting, three
   states and R saving is test_views_humanoid.py's. The

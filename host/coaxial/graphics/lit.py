@@ -217,11 +217,13 @@ def braille(depth, rgb, floor, width, height, colour=True, overlay=None, leaders
     left = np.maximum.accumulate(np.where(key >= 0, np.arange(width), 0), axis=1)
     carried = np.take_along_axis(key, left, axis=1)
     key = np.where((key < 0) & (carried >= 0), carried & 0xFFFFFF, carried)
-    lines = []
-    for row, keys in zip(text, key.tolist()):
+    # A row's runs where a cell's key differs from its left one's, found in numpy: the Python
+    # only over the runs.
+    lines, bounds, inked = [], key[:, 1:] != key[:, :-1], (key.max(axis=1) >= 0).tolist()
+    for row, keys, steps, any_ink in zip(text, key.tolist(), bounds, inked):
         out, at, ground = [], 0, False
         line = ''.join(map(chr, row))
-        for end in [i for i in range(1, width) if keys[i] != keys[i - 1]] + [width]:
+        for end in (np.flatnonzero(steps) + 1).tolist() + [width]:
             if keys[at] >= 0:
                 out.append(_escape(keys[at]))
                 if ground and keys[at] < 1 << 24:
@@ -229,7 +231,7 @@ def braille(depth, rgb, floor, width, height, colour=True, overlay=None, leaders
                 ground = keys[at] >= 1 << 24
             out.append(line[at:end])
             at = end
-        lines.append(''.join(out) + (ansi.RESET if max(keys) >= 0 else ''))
+        lines.append(''.join(out) + (ansi.RESET if any_ink else ''))
     return lines
 
 

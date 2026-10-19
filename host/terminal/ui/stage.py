@@ -409,8 +409,10 @@ def viewport(title, art, corner='', page=None):
     """The drawing, centred in a heavy frame that owns its region; `corner`
     (a `Rate.label()`) over its top-left cells; `page` its title, the house HUD
     over it (Chrome), None for a drawing that carries its own."""
-    drawing = Align(Marquee(art), align='center', vertical='middle')
-    return Panel(Corner(drawing if page is None else Chrome(drawing, page), corner),
+    drawing = Marquee(art, centred=True)
+    if not drawing.plain:
+        drawing = Align(Marquee(art), align='center', vertical='middle')
+    return Panel(Corner(drawing, corner) if page is None else Chrome(drawing, page, corner=corner),
                  title=Text(' %s ' % title, style='name'),
                  title_align='left', box=box.HEAVY, border_style='frame',
                  padding=(0, 1), expand=True)

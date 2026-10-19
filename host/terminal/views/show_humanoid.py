@@ -10,7 +10,7 @@ from rich.text import Text
 
 from coaxial.comm.session import Origin
 from coaxial.draw import cross_section, gauges as _gauges
-from coaxial.graphics import arrows, gpu, gynoid, horizon
+from coaxial.graphics import arrows, gynoid, horizon
 from coaxial.graphics.callouts import packed
 from machine import figure, se2, sprung
 from machine.figure import JOINTS, quat
@@ -22,6 +22,7 @@ from terminal.views.humanoid_keys import CHARGE_MAX_N, act_on, charging, heard, 
 from terminal.views.playback import Playback
 from terminal.views.scanner import VisionScanner, docked_vision
 from terminal.ui import recorder, screen as _screen
+from terminal.ui.ahead import Ahead
 from terminal.ui.screen import PORT, FPS_CAP, closing, run_view, say
 from terminal.ui.scroll import HUD_WIDTH
 from terminal.ui.stage import boot, footer, frame_of, help_rows, helped, hud, stage
@@ -330,16 +331,18 @@ def _step_frame(state, dt):
     return t_mono
 
 
-def _draw_viewport(state, now, width, height, terminal, lit):
+def _draw_viewport(state, now, width, height, terminal):
+    """This frame's drawing of her - asked the frame before - and hers at `now` asked for the next
+    (`state['ahead']`, a frame ahead in its own process)."""
     if now is None:
         return '\n'.join(' ' * width for _ in range(height))
     x, y, z = now['where']
     camera = state['follow']((x, z), now['velocity'], now['t'])
     inset = {**docked_vision(state['scanner'], now, width, height), **badge(width, height, state),
              **recorder.corner(state.get('recording'), width)}
-    return '\n'.join(gynoid.render(
+    return '\n'.join(state['ahead'].drawn(
         now['angles'], width, height, yaw=state['yaw'], pitch=state['pitch'], pan=viewpoint.panned(state),
-        zoom=state['zoom'], colour=terminal, travel=camera, lit=lit,
+        zoom=state['zoom'], colour=terminal, travel=camera, lit=True,
         root=((x - camera[0], y, z - camera[1]), quat(*now['turn'])),
         labels=labels(now, state['called'], state['shown']), props=now.get('props'), dents=now.get('dents'),
         mark=marked(state, now, time.monotonic()),
@@ -351,16 +354,13 @@ def _draw_viewport(state, now, width, height, terminal, lit):
 def _boot_humanoid(_board_view, state):
     with boot('LINKING HUMANOID') as step:
         step(0.15, 'MUJOCO & LISP')
-        body = state['body'] = sprung.Running()
+        body = state['body'] = sprung.Running(shown=0.0)
         say('ok', 'body', '%.1f kg, %d drives, MuJoCo at 1 kHz in its own process'
             % (figure.mass(), sum(len(s.actuators) for s in TYPES['gynoid'].body)))
-        step(0.45, 'SHADER & RASTER')
-        card = gpu.adapter()
-        lit = gpu.LitRaster(found=card) if card is not None else None
-        name = lit.name if lit is not None else 'this process, dots'
+        step(0.45, 'SHADER, RASTER & MESHES')
+        ahead = state['ahead'] = Ahead('coaxial.graphics.gynoid', 'render')
+        name = ahead.name or 'a process of its own, dots'
         say('ok', 'drawing', name)
-        step(0.75, 'GYNOID MESHES')
-        gynoid.body(True, None)
         step(0.90, 'SETTLING STAND')
         for _ in range(300):
             first = body.latest()
@@ -369,7 +369,7 @@ def _boot_humanoid(_board_view, state):
                 break
             time.sleep(0.01)
         step()
-    return body, lit, name
+    return body, name
 
 
 def main(argv=None):
@@ -381,10 +381,10 @@ def main(argv=None):
         parser.add_argument(flag, type=int, default=0)
     parser.add_argument('--keys', default='', help="a key a frame from the first, '.' none")
     args, board_view = parser.parse_args(argv), stage()
-    terminal, body, leaving, lit, name = board_view.is_terminal, None, None, None, 'this process, dots'
+    terminal, body, leaving, name = board_view.is_terminal, None, None, 'a process of its own, dots'
     state = {'body': None, 'orbit': False, **viewpoint.HOME, 'side': 1.0, 'last_t': None,
              'called': 'strong', 'follow': gynoid.Follow(), 'recording': None, 'recorded': None,
-             'playback': Playback(), 'shown': 'torque', 'skin': 'dressed', 'scanner': VisionScanner(),
+             'playback': Playback.steady(), 'shown': 'torque', 'skin': 'dressed', 'scanner': VisionScanner(),
              'now': None, 'tour': None, 'pad': pad(), 'keys': KEYS}
 
     def draw():
@@ -396,7 +396,9 @@ def main(argv=None):
         if state['recording'] is not None:
             recorder.added(state['recording'], rows_of(state, said))
         state['playback'].push(said)
-        now = state['now'] = state['playback'].at(_screen.drawn_at())
+        now = state['now'] = state['playback'].at(_screen.drawn_next())
+        if now is not None:
+            state['body'].shown(now['t'])
         _sync_actual(now, state['pad'])
         pushed = released(state, t_mono)
         if pushed and now is not None:
@@ -405,12 +407,14 @@ def main(argv=None):
         if now is not None:
             viewpoint.orbited(state, now['t'])
         up = helped(state, state.pop('typed', ()), t_mono)
-        art = _draw_viewport(state, now, *size_of(board_view, args, up), terminal, lit)
-        return frame_of(board_view, ORIGIN, TITLE, art, boxes(state, now, name), BAR,
+        # Drawn a frame ahead: this frame shows the state asked the frame before, its boxes too.
+        shown, state['drawn'] = state.get('drawn') or now, now
+        art = _draw_viewport(state, now, *size_of(board_view, args, up), terminal)
+        return frame_of(board_view, ORIGIN, TITLE, art, boxes(state, shown, name), BAR,
                         gauges=gauges(state), help=(GROUPS, up))
 
     try:
-        body, lit, name = _boot_humanoid(board_view, state)
+        body, name = _boot_humanoid(board_view, state)
         on_in = lambda typed, w: ([_screen.scroll_by(board_view, _screen.SCROLL_STEP[k])
                                    for k in typed if k in _screen.SCROLL_STEP], act_on(KEYS, typed, state, w))
         leaving = run_view(board_view, terminal, 1.0 / max(1.0, args.hz), args.frames, draw, on_input=on_in,
@@ -418,6 +422,8 @@ def main(argv=None):
     finally:
         if body is not None:
             body.close()
+        if state.get('ahead') is not None:
+            state['ahead'].close()
         sys.stdout.write('\n')
         closing([('body', 'stopped, her process ended'),
                  ('boards', 'none - every drive was simulated')], terminal, 0)

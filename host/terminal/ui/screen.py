@@ -240,8 +240,9 @@ UI_HZ = 15.0
 #: and rich's update - of the last LEAD_FRAMES frames, LEAD_MARGIN_S over it, s.
 LEAD_FRAMES, LEAD_SHARE, LEAD_MARGIN_S = 40, 0.9, 0.002
 
-#: When the frame being drawn reaches the terminal, on time.perf_counter's clock; None between.
-_DRAWN_AT: list = [None]
+#: When the frame being drawn reaches the terminal and when the next will, on time.perf_counter's
+#: clock; None between frames.
+_DRAWN_AT: list = [None, None]
 
 
 def drawn_at():
@@ -251,11 +252,18 @@ def drawn_at():
     return time.perf_counter() if _DRAWN_AT[0] is None else _DRAWN_AT[0]
 
 
+def drawn_next():
+    """When the frame after this one reaches the terminal, on the beat as it stands: what a page
+    drawing a frame ahead (`terminal.ui.ahead`) asks to be drawn for."""
+    return time.perf_counter() if _DRAWN_AT[1] is None else _DRAWN_AT[1]
+
+
 class Beat:
 
-    """A view's frames on an even beat: a frame's slot the last one's write and the interval - the
-    view's `period` or the frames' `lead`, the longer -, no sooner than its own start and lead; the
-    work of the frames before measured (`took`), each write kept (`wrote`)."""
+    """A view's frames on an even beat: a frame's slot the last one's and the interval - the view's
+    `period` or the frames' `lead`, the longer -, no sooner than its own start and lead; the work
+    of the frames before measured (`took`), each frame's slot kept (`wrote`): its own, or when its
+    work ended where that was later."""
 
     def __init__(self, period):
         self.period, self.works, self.last = period, [], None
@@ -271,6 +279,10 @@ class Beat:
         lead = self.lead()
         due = began + lead
         return due if self.last is None else max(due, self.last + max(self.period, lead))
+
+    def after(self, slot):
+        """When the frame after the one at `slot` is to be written, the beat as it stands."""
+        return slot + max(self.period, self.lead())
 
     def took(self, seconds):
         self.works = (self.works + [seconds])[-LEAD_FRAMES:]
@@ -315,6 +327,7 @@ def run_view(board_view, console, period, frames, draw, on_input=None,
                     faulthandler.dump_traceback_later(STALL_S, file=stalls)
                 began = time.perf_counter()
                 _DRAWN_AT[0] = beat.slot(began)
+                _DRAWN_AT[1] = beat.after(_DRAWN_AT[0])
                 with board_view:
                     shown = draw()
                     if console:
@@ -322,12 +335,13 @@ def run_view(board_view, console, period, frames, draw, on_input=None,
                     page.update(shown, refresh=True)
                     if console:
                         board_view._buffer.append(Segment(SYNC_END))
-                    beat.took(time.perf_counter() - began)
-                    rest = _DRAWN_AT[0] - time.perf_counter()
+                    worked = time.perf_counter()
+                    beat.took(worked - began)
+                    rest = _DRAWN_AT[0] - worked
                     if rest > 0.0:
                         time.sleep(rest)
-                beat.wrote(time.perf_counter())
-                _DRAWN_AT[0] = None
+                beat.wrote(max(_DRAWN_AT[0], worked))
+                _DRAWN_AT[:] = [None, None]
                 rate_of(board_view).tick(started)
                 if (tick is not None and tick()) or (frames and count >= frames):
                     return None
@@ -353,7 +367,7 @@ def run_view(board_view, console, period, frames, draw, on_input=None,
     except KeyboardInterrupt:
         return None
     finally:
-        _DRAWN_AT[0] = None
+        _DRAWN_AT[:] = [None, None]
         gc.unfreeze()
         if stalls is not None:
             faulthandler.cancel_dump_traceback_later()

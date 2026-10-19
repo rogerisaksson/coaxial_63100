@@ -1,9 +1,9 @@
 """A craft's flight run apart as her body is: stepped in its own process, played back by its page.
 
 Its boards, its sky, its law and its card stepped STEP_S at a time (`machine.apart`), paced to the
-wall and no further than LEAD_S past what the page has shown; each step said as the page draws it:
-the frame, its rotors, the flight's instruments. The page plays them back (`terminal.views.playback`,
-`blend`): in real time while it draws a frame in MOST_S, slower when it cannot, never run ahead.
+wall and no further than its lead past what the page has shown; each step said as the page draws
+it: the frame, its rotors, the flight's instruments. The page plays them back steady
+(`terminal.views.playback`, `blend`): in real time or slower, never run ahead.
 
     flying = Flying(machine.helicopter, terminal.views.helicopter.flight, 2)
     said = flying.first()                  # the states said before the first frame
@@ -27,9 +27,8 @@ from machine import aerobatics, aerokin, apart, flightpack, gimbal, grounds, wea
 from machine.modes import SIMULATED
 from terminal.views.quad import flight as qflight
 
-#: The flight runs at most LEAD_S of its time past what the page has shown; the page plays a
-#: frame MOST_S of the wall at the most, slower past it; the loop's least turn waiting, s.
-LEAD_S, MOST_S, REST_S = 0.15, 0.1, 0.004
+#: The flight's loop's least turn while it waits, s.
+REST_S = 0.004
 
 #: What a state carries of a rotor, of the flight and of its air: what the page draws.
 ROTOR = ('w', 'angle', 'amps', 'fault', 'budget', 'board_c', 'cooling', 'ident')
@@ -104,7 +103,7 @@ class Flight:
 
 
 def run(commands, states, shown, craft, flown, count, setup=None):
-    """The flight apart (`apart.paced`), no further than LEAD_S past what the page has `shown`;
+    """The flight apart (`apart.paced`), no further than its lead past what the page has `shown`;
     `setup` (a function, its arguments) run on its flight's module first; its own prints kept
     off the page's terminal, a fault said as {'error': its trace}."""
     null = os.open(os.devnull, os.O_WRONLY)
@@ -117,7 +116,7 @@ def run(commands, states, shown, craft, flown, count, setup=None):
         if setup is not None:
             setup[0](flown, *setup[1])
         flight = Flight(importlib.import_module(craft), flown, count)
-        apart.paced(flight, commands, states, shown=shown, lead_s=LEAD_S, rest_s=REST_S)
+        apart.paced(flight, commands, states, shown=shown, rest_s=REST_S)
     except Exception:
         apart.put(states, {'error': traceback.format_exc()})
     finally:

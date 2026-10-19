@@ -24,7 +24,7 @@ def paged(card, done, pack_ah=None):
     from terminal.views.quad import flight as flown
     from tools.render import page
     steps, frames, flew = [], [], set()
-    was = view.compose, view.flying.Flying, view.quadcopter.render
+    was = view.compose, view.flying.Flying, view.Ahead
 
     class Done(Exception):
         """What it was flown for is flown."""
@@ -50,10 +50,13 @@ def paged(card, done, pack_ah=None):
                               'volts': cells['volts'], 'watts': cells['watts'], 'left': cells['left']})
             return out
 
-    def render(*args, **kw):
-        frames.append({'t': time.monotonic(), 'name': steps[-1]['name'] if steps else '',
-                       'gate': kw.get('gate'), 'cells': 0})
-        return was[2](*args, **kw)
+    class Drawing(was[2]):
+        """The page's drawing, a frame recorded as it is asked: its stage, the gate lit."""
+
+        def drawn(self, *args, **kw):
+            frames.append({'t': time.monotonic(), 'name': steps[-1]['name'] if steps else '',
+                           'gate': kw.get('gate'), 'cells': 0})
+            return super().drawn(*args, **kw)
 
     def compose(console, origin, rotors, frame, flight, trace, now, art, **kw):
         frames[-1]['cells'] = sum(0x2800 < ord(c) <= 0x28FF for c in art)
@@ -61,11 +64,11 @@ def paged(card, done, pack_ah=None):
         if done(flew, flight['stage']) or frames[-1]['t'] - frames[0]['t'] > LANDED_S:
             raise Done
         return was[0](console, origin, rotors, frame, flight, trace, now, art, **kw)
-    view.compose, view.flying.Flying, view.quadcopter.render = compose, Flying, render
+    view.compose, view.flying.Flying, view.Ahead = compose, Flying, Drawing
     try:
         page.frame('quad', 150, 44, frames=int(LANDED_S * FPS_CAP))
     except Done:
         pass
     finally:
-        view.compose, view.flying.Flying, view.quadcopter.render = was
+        view.compose, view.flying.Flying, view.Ahead = was
     return steps, frames, (len(frames) - 1) / max(1e-9, frames[-1]['t'] - frames[0]['t'])

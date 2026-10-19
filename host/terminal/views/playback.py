@@ -10,19 +10,27 @@ import math
 
 #: The page plays her back LAG_S of her time behind the newest state said, its clock's pace her
 #: process's ratio to real time and CATCH_UP of the lag's error a second, eased over PACE_S; a
-#: buffer of KEEP_S; a frame plays MOST_S of the wall at the most.
-LAG_S, CATCH_UP, PACE_S, KEEP_S, MOST_S = 0.06, 1.5, 0.35, 1.0, 0.2
+#: buffer of KEEP_S; a frame plays MOST_S of the wall at the most, STEADY_S held (`steady`).
+LAG_S, CATCH_UP, PACE_S, KEEP_S, MOST_S, STEADY_S = 0.06, 1.5, 0.35, 1.0, 0.2, 0.1
 
 
 class Playback:
 
     """States said, played back on a clock of their own at an even pace, the frame's state
     `blend`ed between the two it falls between: `push(states)`, `at(wall)`. `catch_up` of the
-    lag's error a second; a frame `most_s` of the wall at the most."""
+    lag's error a second; a frame `most_s` of the wall at the most; its pace its world's ratio to
+    real time where it `follows` it."""
 
-    def __init__(self, blend=None, catch_up=CATCH_UP, most_s=MOST_S):
+    def __init__(self, blend=None, catch_up=CATCH_UP, most_s=MOST_S, follows=True):
         self.states, self.shown, self.wall, self.pace = [], None, None, 1.0
-        self.blend, self.catch_up, self.most_s = blend or _blended, catch_up, most_s
+        self.blend, self.catch_up, self.most_s, self.follows = blend or _blended, catch_up, most_s, follows
+
+    @classmethod
+    def steady(cls, blend=None):
+        """For a world held to what its page has shown (`machine.apart`): in real time or slower,
+        never ahead - no catch-up, a frame STEADY_S at the most, the wall's pace, not its world's
+        ratio (held back, that ratio would slow the page that holds it)."""
+        return cls(blend, catch_up=0.0, most_s=STEADY_S, follows=False)
 
     def push(self, states):
         for s in states:
@@ -46,7 +54,7 @@ class Playback:
             self.shown, self.wall = max(self.states[0]['t'], newest - LAG_S), wall
         dt = max(0.0, min(self.most_s, wall - self.wall))
         self.wall = wall
-        ratio = min(1.0, max(0.2, float(self.states[-1].get('ratio', 1.0))))
+        ratio = min(1.0, max(0.2, float(self.states[-1].get('ratio', 1.0)))) if self.follows else 1.0
         want = ratio + self.catch_up * ((newest - LAG_S) - self.shown)
         self.pace += (want - self.pace) * min(1.0, dt / PACE_S)
         self.shown = min(newest, self.shown + max(0.0, self.pace) * dt)
