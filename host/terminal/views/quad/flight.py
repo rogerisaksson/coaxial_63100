@@ -18,7 +18,7 @@ from coaxial.control.commission import Commissioning
 from coaxial.control.motion import started
 from coaxial.model.thermal import MOTOR
 from coaxial.simulated.sto import PILOT_VOLTS
-from machine import aerobatics, aerokin, course, flightpack, heat as mheat, pull, quad, senses, weather
+from machine import aerobatics, aerokin, course, flightpack, heat as mheat, pull, quad, senses, sweep, weather
 from machine.controller import Feedback
 from machine.parts import Gain, Slew, SpeedPI
 from tools.cores import aero, stand
@@ -28,7 +28,7 @@ FAULTS = {0: None, 1: 'overcurrent', 2: 'stage', 3: 'supply'}
 
 #: The page's flights, one after the other and again: the routine first - the boards warm and
 #: their observers out of UNCERTAIN before the course asks its lean of them.
-CARD = aerobatics.CARD + course.CARD
+CARD = sweep.opened(aerobatics.CARD) + course.CARD
 
 #: Each rotor's machine and its trip for a flight, A, the board's rating. Its clamps, its
 #: tops and its reach are the action space's (`machine.pull`): the drive's clamp and its

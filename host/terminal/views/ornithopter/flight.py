@@ -9,7 +9,7 @@
 two 63100 drives (`FORE` and `AFT` flapping the fore and aft wing pairs) and their thermal
 observers warmed on it, then the 16-gate course (`machine.course`).
 """
-from machine import course, ornithopter
+from machine import course, ornithopter, sweep
 from terminal.views.helicopter import flight as hflight
 from terminal.views.quad.flight import arm, asked, observers, reset, spun, struck, warmth
 
@@ -17,7 +17,7 @@ from terminal.views.quad.flight import arm, asked, observers, reset, spun, struc
 ROTORS = ('FORE', 'AFT')
 
 #: The page's flights: the Dune ornithopter routine first, then the 16-gate race course.
-CARD = ornithopter.CARD + course.CARD
+CARD = sweep.opened(ornithopter.CARD) + course.CARD
 
 
 def fresh():

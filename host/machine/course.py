@@ -119,11 +119,7 @@ def _span(a, b, u):
 
 @functools.lru_cache(maxsize=None)
 def track():
-    """The line, a sample every DS m round the lap: {'at': its points, 'way': its unit
-    tangents, 'bends': its (curvature, 1/m, its slope's own, 1/m, its bearing's turn, rad/m),
-    'curve': its way's turn, a vector, 1/m, 'swings': what that changes by a metre, 1/m^2,
-    'gates': where each gate is along it, m, 'next': the gate flown to from each sample,
-    'length', 'step', 'laid': which laying of it this is}."""
+    """The course's line through its gates (`laid`)."""
     fine, marks, gates = [], [], grounds.GATES
     count = len(gates)
     rises = [SLOPE * (gates[(i + 1) % count][1] - gates[i - 1][1]) / (
@@ -137,6 +133,15 @@ def track():
     for i, gate in enumerate(cross):
         marks.append(len(fine))
         fine += [_span(gate, cross[(i + 1) % len(cross)], u / 64.0) for u in range(64)]
+    return laid(fine, marks)
+
+
+def laid(fine, marks):
+    """The closed line through `fine`, a sample every DS m round it: {'at': its points, 'way':
+    its unit tangents, 'bends': its (curvature, 1/m, its slope's own, 1/m, its bearing's turn,
+    rad/m), 'curve': its way's turn, a vector, 1/m, 'swings': what that changes by a metre,
+    1/m^2, 'gates': where each gate is along it, m (`marks` where along `fine`), 'next': the
+    gate flown to from each sample, 'length', 'step', 'laid': which laying of it this is}."""
     run = [0.0]
     for p, q in zip(fine, fine[1:] + fine[:1]):
         run.append(run[-1] + math.dist(p, q))
@@ -270,21 +275,27 @@ def _along(speed, across, sphere, pitch):
 
 
 def line(route, now):
-    """The lap's row for now (`aerobatics.fly`'s giver), by what `route['seen']` says
-    (`aerokin.seen`) - where the frame is and goes, the law's spot and heading, the pull its
-    rotors have, the pass's seconds, whether it is `spent`: its speed the
-    one the bends ahead allow in its sphere (`braked`, read where it is), along the line's way
-    and back onto it, its bend's pull asked ahead (`trailed`), its spot kept on the line - the air
-    none of its own. Its laps flown - spent, the one it is on - it stands in
-    the first gate, `lapped`. Where the line's turn swings, no faster than the bend's pull
-    goes from one side to the other in its tilt's swing (`swing`): v^3 a metre of swing is the
-    pull's change a second. No clause: a choice is a number of 0 or 1, a bound a least or a
-    most."""
+    """The lap's row for now (`aerobatics.fly`'s giver): the course's line (`track`) flown LAPS
+    times (`flown`), `lapped` at its end."""
+    return flown(route, track(), LAPS, 'lapped', math.inf)
+
+
+def flown(route, line_, laps, word, most_m_s):
+    """A row of the laid `line_` for now, by what `route['seen']` says (`aerokin.seen`) - where
+    the frame is and goes, the law's spot and heading, the pull its rotors have, the pass's
+    seconds, whether it is `spent`: its speed the one the bends ahead allow in its sphere
+    (`braked`, read where it is), along the line's way and back onto it, its bend's pull asked
+    ahead (`trailed`), no faster than `most_m_s`, its spot kept on the line - the air none of its
+    own. Its `laps` flown -
+    spent, the one it is on - it stands where the line starts, `word`. Where the line's turn
+    swings, no faster than the bend's pull goes from one side to the other in its tilt's swing
+    (`swing`): v^3 a metre of swing is the pull's change a second. No clause: a choice is a
+    number of 0 or 1, a bound a least or a most."""
     fresh = {'began': route['at'], 'k': 0, 'v': 0.0, 'asks': 0.0, 'laps': 0, 'gate': 1,
-             'of': LAPS, 'pull': 0.0}
+             'of': laps, 'pull': 0.0}
     lap = route.get('lap', fresh)
     lap = route['lap'] = (lap, fresh)[int(lap['began'] != route['at'])]
-    seen, line_ = route.get('seen', {}), track()
+    seen = route.get('seen', {})
     n, step = len(line_['at']), line_['step']
     dt, heading = seen.get('dt', 0.0), seen.get('heading', 0.0)
     at, vel = seen.get('at', line_['at'][0]), seen.get('vel', (0.0, 0.0, 0.0))
@@ -318,7 +329,7 @@ def line(route, now):
     square = (local[base % n], min(local[base % n], allowed[(base + 1) % n]
                                    + gains[(base + 1) % n] * (1.0 - soon % 1.0)))[
         int(min(int(AHEAD_M / step), int(end - soon)) >= 1)]
-    most = math.sqrt(max(0.0, min(square, 2.0 * STOP * sphere * (end - soon) * step)))
+    most = min(most_m_s, math.sqrt(max(0.0, min(square, 2.0 * STOP * sphere * (end - soon) * step))))
     was, curve = lap['v'], _on(line_['curve'], s)
     sped = (GO * _along(was, _across(was * was, curve, way[1]), sphere,
                         seen.get('pitch', math.inf)) - quad.GRAVITY * way[1] - drag * was * was)
@@ -327,7 +338,7 @@ def line(route, now):
     lap.update(laps=min(lap['of'] - 1, k // n), gate=line_['next'][k % n])
     stood = int((end - s) * step <= STAND_M) * int(
         math.sqrt(sum(float(v) ** 2 for v in vel)) <= STAND_M_S)
-    route['holds'] = (route.get('holds', ()), ('lapped',))[stood]
+    route['holds'] = (route.get('holds', ()), (word,))[stood]
     # its way: the line's, the frame's miss of the line taken back over its look
     to, veer = _on(line_['way'], on), _on(line_['bends'], on)[2]
     look = max(LOOK_M, LOOK_S * speed)

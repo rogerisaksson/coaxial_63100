@@ -40,8 +40,8 @@ def test_helicopter_stunt_routine(report):
     hover, funnel, spiral = by_stage['hover'], by_stage['funnel'], by_stage['spiral']
     report.check('upright hover holds 1.50 m on positive collective',
                  abs(hover[-1]['h'] - 1.5) < 0.05 and hover[-1]['lift'] > 18.0 and hover[-1]['held'])
-    report.check('funnel banks > 22 deg on the orbit and spiral climbs to 8 m',
-                 max(p['tilt'] for p in funnel) > 22.0 and max(p['r'] for p in funnel) > 2.0 and spiral[-1]['h'] > 7.5)
+    report.check('funnel banks > 22 deg on the orbit and spiral climbs to 4 m',
+                 max(p['tilt'] for p in funnel) > 22.0 and max(p['r'] for p in funnel) > 2.0 and spiral[-1]['h'] > 3.5)
     inv, piro_inv, tictoc = by_stage['inverted'], by_stage['piro-inv'], by_stage['tic-toc']
     report.check('inverted hover and inverted pirouette fly upside-down on negative collective',
                  inv[-1]['tilt'] > 170.0 and inv[-1]['r11'] < -0.98 and inv[-1]['lift'] < -18.0
@@ -50,15 +50,15 @@ def test_helicopter_stunt_routine(report):
     report.check('elevator tic-tocs rock across 90 deg vertical snapping collective + and -',
                  min(p['tilt'] for p in tictoc) < 60.0 and max(p['tilt'] for p in tictoc) > 120.0
                  and max(p['lift'] for p in tictoc) > 25.0 and min(p['lift'] for p in tictoc) < -20.0
-                 and min(p['h'] for p in tictoc) > 7.0)
+                 and min(p['h'] for p in tictoc) > 3.5)
     pflip, roll = by_stage['piro-flip'], by_stage['roll']
-    report.check('3D piro-flip stirs pitch/roll cyclic while flipping and axial roll recovers at 8 m',
+    report.check('3D piro-flip stirs pitch/roll cyclic while flipping and axial roll recovers at 4 m',
                  min(p['r11'] for p in pflip) < -0.85 and max(p['cyc_p'] for p in pflip) > 0.25
                  and max(p['cyc_r'] for p in pflip) > 0.25 and min(p['r11'] for p in roll) < -0.85
-                 and min(p['h'] for p in pflip + roll) > 7.2)
+                 and min(p['h'] for p in pflip + roll) > 3.4)
     full_tilt, burn, hold, land = (by_stage[k] for k in ('full tilt', 'burn', 'hold', 'land'))
-    report.check('full tilt climbs past 18 m on the governed head and the burn arrests at 10 cm',
-                 max(p['v'] for p in full_tilt) > 9.0 and max(p['h'] for p in burn) > 18.0
+    report.check('full tilt climbs past 12 m on the governed head and the burn arrests at 10 cm',
+                 max(p['v'] for p in full_tilt) > 9.0 and max(p['h'] for p in burn) > 12.0
                  and min(p['lift'] for p in burn if p['r11'] > 0.5) < 2.0
                  and stages.count('fall') == 1 and stages.count('burn') == 1
                  and abs(hold[-1]['h'] - helicopter.FLOOR_M) < 0.04 and hold[-1]['held']
@@ -68,11 +68,11 @@ def test_helicopter_stunt_routine(report):
     hov, orb, inv, cpg, tum = (c_by[k] for k in ('hover', 'spiral', 'dive', 'wing-rock', 'slash'))
     ft, burn, hold, land = (c_by[k] for k in ('full tilt', 'burn', 'hold', 'land'))
     report.check('machine.ornithopter flies its routine and arrests over the floor',
-                 abs(hov[-1]['h'] - 1.5) < 0.06 and hov[-1]['held'] and orb[-1]['h'] > 7.5
+                 abs(hov[-1]['h'] - 1.5) < 0.06 and hov[-1]['held'] and orb[-1]['h'] > 3.5
                  and inv[-1]['r11'] < -0.97 and inv[-1]['lift'] < -17.0
                  and min(p['tilt'] for p in cpg) < 65.0 and max(p['tilt'] for p in cpg) > 115.0
                  and min(p['r11'] for p in tum) < -0.80 and max(p['v'] for p in ft) > 9.0
-                 and max(p['h'] for p in burn) > 18.0 and min(p['lift'] for p in burn if p['r11'] > 0.5) < 2.0
+                 and max(p['h'] for p in burn) > 12.0 and min(p['lift'] for p in burn if p['r11'] > 0.5) < 2.0
                  and c_st.count('fall') == 1 and abs(hold[-1]['h'] - ornithopter.FLOOR_M) < 0.05
                  and land[-1]['h'] < 0.02 and land[-1]['hdg'] > 0.99 and c_sky.hit is None)
 
@@ -92,7 +92,7 @@ def test_helicopter_wind_observer_and_inverted_hold(report):
         st = sky.state()
         act, est = weather.wind_at(air['wind'], st['h']), ans.wind
         report.check('%s wind observer tracks gusty wind while holding its hover' % c.__name__,
-                     st['h'] > 6.5 and float(st['turn'][1][1]) * (-1.0 if c is aerobat else 1.0) < -0.90
+                     st['h'] > 3.5 and float(st['turn'][1][1]) * (-1.0 if c is aerobat else 1.0) < -0.90
                      and (act[0] * est[0] + act[2] * est[2]) > 0.5 and sky.hit is None)
 
 
@@ -324,7 +324,7 @@ def test_helicopter_behaviors_and_streams(report):
                         chaos_r.append(math.hypot(*[float(x) for x in st['spin']]))
         report.check('%s multi-phase stunt behaviors fly in MuJoCo' % craft.__name__,
                      bool(cpg_v) and max(cpg_v) - min(cpg_v) > 0.6 and bool(chaos_r) and max(chaos_r) > 6.0
-                     and sky.state()['h'] > 5.0 and sky.hit is None)
+                     and sky.state()['h'] > 3.5 and sky.hit is None)
 
     rows, orows, arows = ([c.row_from_payload(p) for p in c.STREAMS] for c in (helicopter, ornithopter, aerobat))
     rcpg = helicopter.row_from_payload(aerolisp.compiled(

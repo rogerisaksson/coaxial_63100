@@ -138,11 +138,12 @@ def test_a_late_pass_is_its_steps(report):
     report.check('a pass of 50 ms is two steps of 20 and 10 ms owed, one of 19 none',
                  count == 2 and abs(owed - 0.01) < 1e-12 and view.steps(0.019)[0] == 0,
                  '%d and %.3f s owed, %d' % (count, owed, view.steps(0.019)[0]))
-    rows, flight = flown(34.0, lambda flight: flight['stage'] == 'toss')
+    # The page's card sweeps past the spectator first, 14 s.
+    rows, flight = flown(48.0, lambda flight: flight['stage'] == 'toss')
     hard = [r for r in rows if r[0] in ('corkscrew', 'home')]
     report.check('passes of 50 ms: the corkscrew on three fifths of the rotors\' pull and more, '
                  'home held in its seconds, nothing struck',
-                 flight['stage'] == 'toss' and rows[-1][1] <= 28.5 and not flight['crashes']
+                 flight['stage'] == 'toss' and rows[-1][1] <= 43.0 and not flight['crashes']
                  and min(r[2] for r in hard) >= 0.6,
                  '%s at %.1f s; %.0f %% of their pull at the least, %.1f A at the most' % (
                      flight['stage'], rows[-1][1],
@@ -269,10 +270,11 @@ def test_full_tilt_cuts_no_rotor_alone(report):
             rotor['rig'].close()
     cut = [(t, k) for t, _a, budgets, _tilt, _h in rows for k, b in enumerate(budgets)
            if b.get('tripped') or (b.get('worst') or 0.0) > THROTTLE_AT + 1.0 / 255.0]
+    # Its full tilt 0.45 s, a row 0.02 s: the four 4.5 A apart at its first, 1.8 at most from 0.08 s.
     report.check('a full tilt flown, no board of the four past its throttle\'s point or '
-                 'tripped in it', len(rows) > 50 and not cut,
+                 'tripped in it', len(rows) > 15 and not cut,
                  '%d steps, %s' % (len(rows), cut[:3] or 'none past it'))
-    began = rows[0][0] + 0.5
+    began = rows[0][0] + 0.1
     apart = max(max(a) - min(a) for t, a, _b, _tilt, _h in rows if t >= began)
     most = max(max(a) for _t, a, _b, _tilt, _h in rows)
     report.check('the four on the same current, 0.15 of their clamp apart at the most',

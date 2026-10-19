@@ -153,7 +153,7 @@
   (base knife_circle) (height 6.0m) (pace 2.5m_s) (slide -2.0m_s) (turn UNWIND_TURN_DEG_S))
 
 (defstunt unwind
-  (base unwind) (slide -2.0m_s))
+  (base unwind) (pace 2.5m_s) (slide -2.0m_s))
 
 (defstunt takeoff
   (base hover) (height 3.0m) (pace 4.0m_s) (speed 12.0m_s) (home 0.0))

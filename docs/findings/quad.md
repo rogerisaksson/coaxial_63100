@@ -23,10 +23,19 @@ floor.
 ## Routine
 
 `machine.aerobatics`' card: a
-pirouette, an orbit and a corkscrew to 8 m, a roll and a flip over a toss,
-the way back down, full tilt, the burn. 59.9 s on ideal rotors, 0.5 g at most
-outside its turns, the pole 2.7 m off; on four stand-ins no board throttling,
-SOA 0.50 at most in its figures.
+pirouette, an orbit and a corkscrew to 4 m, a roll and a flip over a toss,
+the way back down, full tilt, the burn. 0.5 g at most outside its turns, the
+pole 2.7 m off; on four stand-ins no board throttling, SOA 0.50 at most in
+its figures.
+
+- Brought down from 8 m for the spectator: its flips peak at 8.2 m where they
+  peaked at 12.2, its full tilt of 0.45 s at 20 m where 2 s took it to 63
+  (1 s: 36). The unwind at the hover's 1.5 m/s: at 2.5 from 4 m it braked
+  into the hover at 0.94 g, its own stage reaching it where from 8 the hover's
+  did. Full tilt's four boards 56 A each, 1.8 A apart from 0.08 s in.
+- On the page its routine opens with the sweep (`machine.sweep`): out down
+  the runway and back past the spectator at 11.9 m/s, 1.5 m up and 9 m in
+  front of them, 13.9 s, home within 0.3 m.
 
 | Fault | Fix |
 | --- | --- |

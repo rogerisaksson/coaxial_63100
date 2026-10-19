@@ -165,10 +165,10 @@ def test_the_page_flies_four_boards(report):
         report.skip('the flight', "the page drew %.1f frames a second, its flight's clock "
                     "%.0f %% behind the wall's" % (rate, 100.0 * behind))
         return
-    # Its spectator's frame of the sky holds the quad alone, a third of its height: 90-110
-    # braille cells in its flips, rolls and corkscrew, where the ground made 1 700-2 200.
+    # Its spectator's frame of the sky holds the quad alone, a quarter of its height: 66 braille
+    # cells in its flips, rolls and corkscrew, where the ground made 1 700-2 200.
     report.check('the quad drawn in the viewport, every frame',
-                 min(f['cells'] for f in frames) >= 75, '%d braille cells at the least'
+                 min(f['cells'] for f in frames) >= 50, '%d braille cells at the least'
                  % min(f['cells'] for f in frames))
     early = [r for r in rows if r['name'] == first][:1]
     hard = [r for r in rows if r['name'] in ('full tilt', 'burn')]
@@ -191,8 +191,8 @@ def test_the_page_flies_four_boards(report):
     tilt = [r for r in rows if r['name'] == 'full tilt']
     held = [r['y'] for r in rows if r['name'] == 'hold']
     low = min((r['y'] for r in rows if r['name'] in ('burn', 'hold')), default=math.nan)
-    report.check('full tilt past 20 m',
-                 bool(tilt) and max(r['y'] for r in rows) >= 20.0,
+    report.check('full tilt past 15 m',
+                 bool(tilt) and max(r['y'] for r in rows) >= 15.0,
                  '%.1f A at most, %.1f m' % (max((r['amps'] for r in tilt), default=0.0),
                                             max(r['y'] for r in rows)))
     report.check('the fall burned to a stop over the floor, held at 10 cm',

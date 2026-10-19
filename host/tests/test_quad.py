@@ -79,9 +79,9 @@ def test_the_flight_stops_at_its_mark(report):
     low = min((r['h'] for r in burn + hold), default=math.nan)
     tilt = max((r['tilt'] for r in hover + hold), default=math.nan)
     apex = max(r['h'] for r in flown())
-    report.check('full tilt past 30 m; the burn and the hold never 2 cm under their mark, the '
+    report.check('full tilt past 15 m; the burn and the hold never 2 cm under their mark, the '
                  'hold within 2 cm of %.0f cm from a second in, level' % (100 * quad.FLOOR_M),
-                 apex >= 30.0 and low >= quad.FLOOR_M - 0.02 and bool(settled) and tilt < 1.0
+                 apex >= 15.0 and low >= quad.FLOOR_M - 0.02 and bool(settled) and tilt < 1.0
                  and all(abs(h - quad.FLOOR_M) <= 0.02 for h in settled),
                  'apex %.1f m, lowest %.3f m, settled %.3f-%.3f m, %.2f degrees at most' % (
                      apex, low, min(settled or [math.nan]), max(settled or [math.nan]), tilt))
@@ -95,7 +95,7 @@ def test_the_flight_stops_at_its_mark(report):
     stop = [r for r in weak if r['name'] in ('burn', 'hold', 'descend')]
     report.check('on a third of their pull: a lower apex, the burn still never 2 cm under its '
                  'mark and held on it',
-                 10.0 <= max(r['h'] for r in weak) < apex - 10.0 and bool(stop)
+                 5.0 <= max(r['h'] for r in weak) < apex - 10.0 and bool(stop)
                  and min(r['h'] for r in stop) >= quad.FLOOR_M - 0.02
                  and abs(stop[-1]['h'] - quad.FLOOR_M) <= 0.02,
                  'apex %.1f m, lowest %.3f m, held at %.3f m' % (

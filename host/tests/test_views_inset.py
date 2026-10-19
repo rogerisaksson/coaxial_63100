@@ -154,32 +154,28 @@ def test_figures_are_watched_from_beside_the_field(report):
     import numpy as np
     from coaxial.graphics import (aerobat as aero_gfx, engine, helicopter as heli_gfx,
                                   ornithopter as orni_gfx, quadcopter, scenery, shapes)
-    from machine import aerobat, aerobatics, aerokin, airfield, course, helicopter, ornithopter
+    from machine import aerobat, aerobatics, aerokin, airfield, course, helicopter, ornithopter, sweep
     from terminal.views import show_aerobat, show_helicopter, show_ornithopter, show_quad
     from terminal.views.aerobat import flight as aero_flown
     from terminal.views.helicopter import flight as heli_flown
     from terminal.views.ornithopter import flight as orni_flown
     from terminal.views.quad import flight as quad_flown
-    report.check('all four aircraft run their own warm-ups before their course',
-                 quad_flown.CARD == aerobatics.CARD + course.CARD
-                 and heli_flown.CARD == helicopter.CARD + course.CARD
-                 and orni_flown.CARD == ornithopter.CARD + course.CARD
+    report.check('all four aircraft run their own warm-ups before their course, the three on rotors '
+                 'swept past the spectator first',
+                 quad_flown.CARD == sweep.opened(aerobatics.CARD) + course.CARD
+                 and heli_flown.CARD == sweep.opened(helicopter.CARD) + course.CARD
+                 and orni_flown.CARD == sweep.opened(ornithopter.CARD) + course.CARD
                  and aero_flown.CARD == aerobat.CARD + airfield.CARD)
     chased = {name: [quad_flown.lined({'card': card, 'row': k}) for k in range(len(card))] == [
         k >= n for k in range(len(card))] for name, card, n in (
-        ('quad', quad_flown.CARD, len(aerobatics.CARD)), ('helicopter', heli_flown.CARD, len(helicopter.CARD)),
-        ('ornithopter', orni_flown.CARD, len(ornithopter.CARD)), ('aerobat', aero_flown.CARD, len(aerobat.CARD)))}
+        ('quad', quad_flown.CARD, len(aerobatics.CARD) + 1), ('helicopter', heli_flown.CARD, len(helicopter.CARD) + 1),
+        ('ornithopter', orni_flown.CARD, len(ornithopter.CARD) + 1), ('aerobat', aero_flown.CARD, len(aerobat.CARD)))}
     report.check('each page chases its course alone, the aerobat its laps and not its opening',
                  all(chased.values()), '%s' % chased)
     law, base = aerokin.fresh(), {'at': (0.0, 0.0, 0.0), 'vel': (0.0, 0.0, 0.0), 'v': 0.0}
-    crafts = [(mod, gfx, build, (show_quad.SPOT_M * math.sin(math.radians(mod.YAW)), show_quad.SPOT_Y,
-                                 show_quad.SPOT_M * math.cos(math.radians(mod.YAW))))
-              for mod, gfx, build in ((show_quad, quadcopter, quadcopter.mesh),
-                                      (show_helicopter, heli_gfx, heli_gfx.heli_mesh),
-                                      (show_ornithopter, orni_gfx, orni_gfx.orni_mesh))]
-    crafts.append((show_aerobat, aero_gfx, aero_gfx.aero_mesh,
-                   (show_aerobat.SPOT_X, show_aerobat.SPOT_Y, show_aerobat.SPOT_Z)))
-    for mod, gfx, build, eye in crafts:
+    eye = (show_quad.SPOT[0], show_quad.SPOT_Y, show_quad.SPOT[1])
+    for mod, gfx, build in ((show_quad, quadcopter, quadcopter.mesh), (show_helicopter, heli_gfx, heli_gfx.heli_mesh),
+                            (show_ornithopter, orni_gfx, orni_gfx.orni_mesh), (show_aerobat, aero_gfx, aero_gfx.aero_mesh)):
         cam = engine.camera(400, 100, 1.0, distance=gfx.SIGHT)
         half_tan, seen = cam['height'] / cam['scale'], []
         for at in ((0.0, 0.0, 0.0), (0.0, 1.5, 0.0), (40.0, 3.0, -30.0), (0.0, 30.0, 0.0)):

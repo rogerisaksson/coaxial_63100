@@ -123,7 +123,7 @@
   (base orbit) (height 1.5m) (slide 3.0m_s) (turn FUNNEL_TURN_DEG_S))
 
 (defstunt thermal_spiral
-  (base ridge_soar) (height 8.0m) (pace 2.0m_s))
+  (base ridge_soar) (height 4.0m) (pace 2.0m_s))
 
 (defstunt fold_entry
   (base high) (flip -0.5) (nose -1.0))
@@ -153,7 +153,7 @@
   (phase high_beat (stunt high) (duration 1.2s) (blend 100ms))
   (phase fold_wings (stunt fold_entry) (duration 1.0s) (blend 80ms))
   (phase stroke_rock (stunt wing_rock) (duration 2.0s) (blend 80ms))
-  (phase coriolis_burn (stunt coriolis_storm) (duration 1.2s) (blend 100ms))
+  (phase coriolis_burn (stunt coriolis_storm) (duration 0.8s) (blend 100ms))
   (phase catch_high (stunt high) (duration 1.6s) (blend 150ms) (gate held)))
 
 (defbehavior arrakis_ridge_soar
@@ -189,7 +189,7 @@
   (stage catch (stunt high) (duration 2.2s) (ramp 0.0s))
   (stage unwind (stunt unwind) (duration LAP_S) (ramp 1.5s))
   (stage level (stunt hover) (duration 2.0s) (ramp 1.5s) (gate held))
-  (stage full_tilt (stunt sky) (duration 2.0s) (ramp 0.0s))
+  (stage full_tilt (stunt sky) (duration 1.4s) (ramp 0.0s))
   (stage burn (stunt stop) (duration 0.0s) (ramp 0.0s) (gate held))
   (stage hold (stunt stop) (duration 1.5s) (ramp 0.0s))
   (stage descend (stunt over) (duration 1.5s) (ramp 1.5s) (gate held))

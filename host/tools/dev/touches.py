@@ -4,7 +4,7 @@ from tools.dev.suites import (AERO_CORE, MPPI_CORE, BENCH, BOARD_MEM, BOOT, BOOT
                               CONTROLLER, CORE, CTRL_CORE, CYCLIC, DAQ_API, DAQ_CORE, DRIVE,
                               DRIVE_OBSERVER, EMULATOR, ERRANDS, FILTER, FLIGHT, GVS, GYNOID,
                               HEATED, NATIVE, NATIVE_HEAT, NATIVE_SYSID, OLLAMA, ORTHO, FLOOR, QUADS, REACH, RENDER, REPLAYS, SCENES,
-                              SENSORLESS, SHTP, SIGHT, SITUATION, STREAMS, STRUCTURE, SYSID, SYSID_LIVE, TERMS, THERMAL,
+                              SENSORLESS, SHTP, SIGHT, SITUATION, STREAMS, STRUCTURE, SWEEP, SYSID, SYSID_LIVE, TERMS, THERMAL,
                               THERMAL_APP, VIEWS, WBC, WBC_CORE, WEAR, WIRE, WORLD_CORE, WRENCH)
 
 # What a change to each part of the tree can plausibly have broken.
@@ -62,15 +62,16 @@ TOUCHES = (
     ('host/machine/pull.py',                   QUADS + (STREAMS,)),
     ('host/machine/aerobatics.py',             QUADS + (STREAMS, 'test_aerobat.py')),
     ('host/machine/course.py',                 QUADS + (STREAMS,)),
+    ('host/machine/sweep.py',                  QUADS + ('test_helicopter.py',)),
     ('host/machine/grounds.py',                QUADS + (RENDER, STREAMS, 'test_aerobat.py')),
     ('host/machine/airfield.py',               ('test_aerobat.py', 'test_helicopter.py', RENDER, STRUCTURE)),
     ('host/coaxial/graphics/quadcopter.py',    QUADS + (RENDER,)),
     ('host/coaxial/graphics/helicopter.py',    ('test_helicopter.py', RENDER, STRUCTURE)),
     ('host/coaxial/graphics/ornithopter.py',   ('test_helicopter.py', RENDER, STRUCTURE)),
     ('host/coaxial/graphics/aerobat.py',       ('test_helicopter.py', 'test_aerobat.py', RENDER, STRUCTURE)),
-    ('host/machine/helicopter/',               ('test_helicopter.py', 'test_aerobat.py', STRUCTURE)),
+    ('host/machine/helicopter/',               ('test_helicopter.py', 'test_aerobat.py', SWEEP, STRUCTURE)),
     ('host/machine/helicopter.lisp',           ('test_helicopter.py', STRUCTURE)),
-    ('host/machine/ornithopter/',              ('test_helicopter.py', STRUCTURE)),
+    ('host/machine/ornithopter/',              ('test_helicopter.py', SWEEP, STRUCTURE)),
     ('host/machine/ornithopter.lisp',          ('test_helicopter.py', STRUCTURE)),
     ('host/machine/aerobat/',                  ('test_helicopter.py', 'test_aerobat.py', MPPI_CORE, STRUCTURE)),
     ('host/machine/wingborne.py',              ('test_helicopter.py', 'test_aerobat.py', MPPI_CORE, STRUCTURE)),

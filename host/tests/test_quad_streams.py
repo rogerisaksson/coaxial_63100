@@ -321,7 +321,7 @@ def test_the_routine_is_flown_from_its_rows(report):
                          math.hypot(float(catch[4]['at'][0]), float(catch[4]['at'][2]))))
     tilt, burn = got['full tilt'][0], got['burn'][0]
     report.check('full tilt, and its burn stopped over the floor, level',
-                 max(tilt[0]) > 35.0 and min(burn[0]) > 0.5 * quad.FLOOR_M
+                 max(tilt[0]) > aerobatics.TOP_M and min(burn[0]) > 0.5 * quad.FLOOR_M
                  and abs(burn[4]['h'] - quad.FLOOR_M) < 0.05 and burn[1][-1] < 1.0,
                  '%.1f m up; %.2f m at the lowest, %.2f at its end, %.1f deg off' % (
                      max(tilt[0]), min(burn[0]), burn[4]['h'], burn[1][-1]))

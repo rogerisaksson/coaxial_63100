@@ -3,8 +3,8 @@
 (defblock envelope standard_arena_envelope
   (floor_height 0.1m)
   (hover_height 1.5m)
-  (high_height 8.0m)
-  (top_height 8.0m)
+  (high_height 4.0m)
+  (top_height 4.0m)
   (least_pull 1.5)
   (hover_lean 8.0m_s2)
   (sky_lean 8.0m_s2))
@@ -88,10 +88,10 @@
   (base hover) (height 2.0m) (slide 3.0m_s) (turn FUNNEL_TURN_DEG_S) (home 0.0))
 
 (defstunt high
-  (base hover) (height 8.0m) (pace 4.0m_s))
+  (base hover) (height 4.0m) (pace 4.0m_s))
 
 (defstunt roll
   (base high) (roll 1.25))
 
 (defstunt unwind
-  (base orbit) (height 1.5m) (pace 2.5m_s) (slide -3.0m_s) (turn UNWIND_TURN_DEG_S))
+  (base orbit) (height 1.5m) (pace 1.5m_s) (slide -3.0m_s) (turn UNWIND_TURN_DEG_S))

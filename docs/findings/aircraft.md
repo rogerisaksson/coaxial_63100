@@ -166,6 +166,12 @@ tail arm with a 0.06 m^2 stabiliser and a 0.045 fin; a fuselage 0.16 m deep,
   course's laps only. `lined` read any line as the course: the aerobat's
   opening chased its whole routine on the course's 1.5 g sphere with its
   gates up, 33 rows of 33, now 5.
+- The helicopter's and the ornithopter's figures at 4 m where at 8, full
+  tilt 1.4 s where 2 - the burn from 15 m where 22 -, their sweep past the
+  spectator at 12.4 and 11.0 m/s, 1.5 m up; the ornithopter's dive attack's
+  tumble 0.8 s, at 1.2 from 4 m its catch dipped to 2 cm (now 1.7 m). The four
+  pages watched from one spot by the runway's middle, each craft a quarter of
+  the frame: at a third the quad stood too near at its start.
 - Close to the runway, a spectator 14 m beside it: the card within 62 m of
   them where it reached 105, its 3D figures within 23 m, its circuit at 3.5
   m where it flew at 9, the burn from 31 m (44), 92 s (124). The opening's
