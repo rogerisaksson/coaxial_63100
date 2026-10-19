@@ -290,3 +290,11 @@ Pages, tooling, suites and the local model's runner. The board's findings:
   (8.0 at -O2, 8.5 at -O1, each level bit for bit), gcc 18 s and 0.79 GB.
   Built in the walking process its trace held her world 0.88 s: built in a
   process of its own, numpy's own meanwhile, kept by what its C is made of.
+- Her sensing compiled on her body (`tools.cores.bodied`): `wbc.sense` traced
+  on a twin of her body, her data's arrays and her scratch externs, each
+  MuJoCo call mujoco.dll's by its prototype in mujoco.h, each matmul numpy's
+  BLAS through `wbc_matmul`. 130 -> 32 us a call, 0 of 40 configurations
+  apart; her walk 765 -> 713 us a pass, the two in one process pass by pass,
+  her trajectory the same to the bit over 6000 passes. Traced and written
+  10 ms at her law's first pass, built 0.9 s in a thread, held on the twin
+  4.5 ms; a new library's first load 40 ms, loaded in the thread.

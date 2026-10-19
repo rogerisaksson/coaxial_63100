@@ -3,13 +3,15 @@
 A statement over dense buffers and their affine views, what `tools.cores.emit` writes in C and
 `tools.cores.held` holds bit for bit.
 
-    prog = trace.traced(fn, args, inputs=(1, 2))    # fn(*args), the arrays at `inputs` traced
-    prog.statements, prog.buffers, prog.ins, prog.outs
+    prog, got = trace.traced(fn, args, inputs=(1, 2))    # fn(*args), the arrays at `inputs` traced
+    prog.statements, prog.buffers, prog.ins, prog.outs, prog.externs
 
 A statement: 'fill' a buffer laid by np.zeros; 'ew' an elementwise tree (IEEE per element, any loop
-order the same); 'einsum' a contraction, its order numpy's to be found (`emit.ordered`); 'gather' and
-'scatter' a copy through index tables. A branch, a float or a write into a plain array on her state
-cannot be traced and raises: what is compiled is a function of its arrays alone.
+order the same); 'einsum' a contraction, its order numpy's to be found (`orders.ordered`); 'matmul'
+numpy's a @ b, its BLAS's in C (`wbc_matmul`); 'gather' and 'scatter' a copy through index tables;
+'mj' a MuJoCo function on her model and data (`trace_mj`), an extern's memory theirs. A branch, a
+float or a write into a plain array on her state cannot be traced and raises: what is compiled is
+a function of its arrays alone.
 """
 import sys
 import threading
@@ -21,7 +23,13 @@ UFUNCS = ('add', 'subtract', 'multiply', 'divide', 'negative', 'positive', 'sign
           'sqrt', 'absolute', 'square', 'sin', 'cos', 'tan', 'arcsin', 'arccos', 'arctan', 'arctan2', 'exp',
           'log', 'hypot', 'floor', 'ceil', 'greater', 'greater_equal', 'less', 'less_equal', 'equal',
           'not_equal', 'logical_and', 'logical_or', 'logical_not')
-_HERE = (__file__,)
+#: Files whose frames are the tracer's, not her code's (`hide`).
+_HERE = {__file__}
+
+
+def hide(path):
+    """`path`'s frames the tracer's own: a statement placed at the line of her code that called it."""
+    _HERE.add(path)
 
 
 class Untraced(TypeError):
@@ -31,10 +39,11 @@ class Untraced(TypeError):
 
 class Buffer:
 
-    """A dense allocation: `root` numpy's own array over it, `role` 'in', 'zeros' or 'temp'."""
+    """A dense allocation: `root` numpy's own array over it, `role` 'in', 'zeros', 'temp' or 'extern'
+    (memory another's, `name`d, addressed at call time)."""
 
     def __init__(self, k, root, role):
-        self.id, self.role, self.root = k, role, root if role == 'in' else None
+        self.id, self.role, self.root, self.name = k, role, root if role in ('in', 'extern') else None, None
         lo = root.__array_interface__['data'][0] + sum(min(s, 0) * (n - 1) for s, n in zip(root.strides, root.shape))
         self.start, self.size, self.dtype, self.shape = lo, root.size, root.dtype, root.shape
 
@@ -63,8 +72,8 @@ class Ref:
 
 class Statement:
 
-    """One operation: `kind`, the view it writes `out`, its `args`, numpy's values after it `value`,
-    where in her code it stood `where`."""
+    """One operation: `kind`, the view it writes `out` (None for 'mj'), its `args`, numpy's values
+    after it `value`, where in her code it stood `where`."""
 
     def __init__(self, kind, out, args, value, where):
         self.kind, self.out, self.args, self.value, self.where = kind, out, args, value, where
@@ -72,15 +81,30 @@ class Statement:
 
 class Program:
 
-    """Her function as statements over buffers: its inputs and its outputs (Refs)."""
+    """Her function as statements over buffers: its inputs and its outputs (Refs), its externs; its
+    result's `shape` (`unflatten`); the MuJoCo functions it `calls` (name, parameters); the `consts`
+    a wrap read by name, the objects the trace holds the same."""
 
     def __init__(self):
-        self.buffers, self.statements, self.ins, self.outs = [], [], [], []
+        self.buffers, self.statements, self.ins, self.outs, self.externs = [], [], [], [], []
+        self.shape: tuple = ('leaf', 0)
+        self.calls: list = []
+        self.consts: dict = {}
 
     def buffer(self, root, role):
         b = Buffer(len(self.buffers), root, role)
         self.buffers.append(b)
         return b
+
+    def extern(self, name, arr):
+        """A Traced view of `arr`, memory another's (MuJoCo's, her body's), named: one buffer a name."""
+        for b in self.externs:
+            if b.name == name:
+                return Traced(self, b, b.root)
+        b = self.buffer(arr, 'extern')
+        b.name = name
+        self.externs.append(b)
+        return Traced(self, b, arr)
 
     def ref(self, buffer, view):
         """`view` (numpy's, over `buffer.root`) as an affine Ref."""
@@ -92,10 +116,10 @@ class Program:
 
     def add(self, kind, out, args, value=None):
         kept = None if value is None else np.array(value, copy=True)
-        self.statements.append(Statement(kind, out, args, kept, _where()))
+        self.statements.append(Statement(kind, out, args, kept, where()))
 
 
-def _where():
+def where():
     """file:line of the frame in her code nearest this statement."""
     f = sys._getframe(2)
     while f is not None and (f.f_code.co_filename in _HERE or 'numpy' in f.f_code.co_filename):
@@ -148,15 +172,15 @@ class Traced:
         return (self[k] for k in range(len(self)))
 
     def __bool__(self):
-        raise Untraced('a branch on her state at %s' % _where())
+        raise Untraced('a branch on her state at %s' % where())
 
     def __float__(self):
-        raise Untraced('a float of her state at %s' % _where())
+        raise Untraced('a float of her state at %s' % where())
 
     __int__ = __index__ = __float__
 
     def __array__(self, dtype=None, copy=None):
-        raise Untraced('her state written into a plain array at %s' % _where())
+        raise Untraced('her state written into a plain array at %s' % where())
 
     def __repr__(self):
         return 'Traced(%s)' % (self.shape,)
@@ -173,7 +197,7 @@ class Traced:
         got = self.view.reshape(*shape)
         if _owner(got) is _owner(self.view):
             return self._view(got)
-        raise Untraced('a reshape numpy copies at %s' % _where())
+        raise Untraced('a reshape numpy copies at %s' % where())
 
     def __getitem__(self, key):
         _static(key)
@@ -194,7 +218,7 @@ class Traced:
         shape = target.shape
         if isinstance(value, Traced):
             if value.buffer is self.buffer:
-                raise Untraced('a write from the array it writes at %s' % _where())
+                raise Untraced('a write from the array it writes at %s' % where())
             self.view[key] = value.view
             self.prog.add('scatter', Ref(self.buffer, 0, (), ()), (target, value.buffer, value.ref().broadcast(shape)))
         else:
@@ -218,21 +242,32 @@ class Traced:
     def __abs__(self):
         return np.absolute(self)
 
+    __matmul__, __rmatmul__ = _binary(np.matmul)
+
+    def copy(self):
+        """A copy, C-ordered, in a buffer of its own."""
+        got = np.array(self.view, copy=True)
+        out = Traced(self.prog, self.prog.buffer(got, 'temp'), got)
+        self.prog.add('ew', out.ref(), ('positive', ('ref', self.ref())))
+        return out
+
     def __pow__(self, other):
         """numpy's `**` on an array: a square by 2."""
         if isinstance(other, (int, float)) and float(other) == 2.0:
             return np.square(self)
-        raise Untraced('** %r at %s' % (other, _where()))
+        raise Untraced('** %r at %s' % (other, where()))
 
     def __array_ufunc__(self, ufunc, method, *inputs, **kwargs):
+        if ufunc is np.matmul and method == '__call__' and not kwargs:
+            return _matmul(self.prog, *inputs)
         if method != '__call__' or ufunc.__name__ not in UFUNCS or set(kwargs) - {'out'}:
-            raise Untraced('np.%s.%s at %s' % (ufunc.__name__, method, _where()))
+            raise Untraced('np.%s.%s at %s' % (ufunc.__name__, method, where()))
         return _ufunc(self.prog, ufunc, inputs, kwargs.get('out'))
 
     def __array_function__(self, func, types, args, kwargs):
         rule = FUNCTIONS.get(func.__name__)
         if rule is None:
-            raise Untraced('np.%s at %s' % (func.__name__, _where()))
+            raise Untraced('np.%s at %s' % (func.__name__, where()))
         return rule(self.prog, *args, **kwargs)
 
 
@@ -247,7 +282,7 @@ def _flat(value):
 def _static(key):
     for k in (key if isinstance(key, tuple) else (key,)):
         if isinstance(k, Traced):
-            raise Untraced('an index of her state at %s' % _where())
+            raise Untraced('an index of her state at %s' % where())
 
 
 def _sub(key, k, view):
@@ -303,7 +338,7 @@ def _ufunc(prog, ufunc, inputs, out):
     if out is not None:
         target = out[0] if isinstance(out, tuple) else out
         if not isinstance(target, Traced):
-            raise Untraced('her state written into a plain array at %s' % _where())
+            raise Untraced('her state written into a plain array at %s' % where())
         ufunc(*concrete, out=target.view)
         got, result = target.view, target
     else:
@@ -319,7 +354,7 @@ def _ufunc(prog, ufunc, inputs, out):
 
 def _einsum(prog, subscripts, *operands, **kwargs):
     if kwargs.get('optimize', False) or set(kwargs) - {'optimize'}:
-        raise Untraced('np.einsum %r with %s at %s' % (subscripts, kwargs, _where()))
+        raise Untraced('np.einsum %r with %s at %s' % (subscripts, kwargs, where()))
     concrete = [x.view if isinstance(x, Traced) else np.asarray(x) for x in operands]
     got = np.einsum(subscripts, *concrete)
     buf = prog.buffer(_owner(got), 'temp')
@@ -367,14 +402,105 @@ def _zeros(prog, shape, dtype=float):
     return result
 
 
-FUNCTIONS = {'einsum': _einsum, 'cross': _cross}
+def _matmul(prog, a, b):
+    """numpy's a @ b of 1-d and 2-d operands: a 'matmul' statement, its core dims (m, n, p), each side
+    (its Ref or constant, its strides with a 1-d operand's missing one 0), numpy's own dispatch on
+    them in C (`wbc_matmul`)."""
+    ca, cb = (x.view if isinstance(x, Traced) else np.asarray(x, dtype=float) for x in (a, b))
+    if ca.ndim > 2 or cb.ndim > 2 or not ca.ndim or not cb.ndim:
+        raise Untraced('a matmul of %d-d and %d-d at %s' % (ca.ndim, cb.ndim, where()))
+    got = np.matmul(ca, cb)
+    got = got if isinstance(got, np.ndarray) else np.array(got)
+    result = Traced(prog, prog.buffer(_owner(got), 'temp'), got)
+    m, n, p = (1 if ca.ndim == 1 else ca.shape[0]), ca.shape[-1], (1 if cb.ndim == 1 else cb.shape[1])
+
+    def side(x, c, left):
+        held = x.ref() if isinstance(x, Traced) else ('const', np.ascontiguousarray(c, dtype=float))
+        st = held.strides if isinstance(held, Ref) else tuple(k // 8 for k in held[1].strides)
+        return held, ((0, st[0]) if left else (st[0], 0)) if c.ndim == 1 else st
+    out = result.ref()
+    o = (0, 0) if got.ndim == 0 else (((out.strides[0], 0) if p == 1 else (0, out.strides[0])) if got.ndim == 1
+                                      else out.strides)
+    prog.add('matmul', out, (side(a, ca, True), side(b, cb, False), o, (m, n, p)))
+    return result
+
+
+def _placed(prog, func, arrays, *rest, **kw):
+    """np.stack, vstack or concatenate: numpy's own result, each array copied to its place in it."""
+    concrete = [x.view if isinstance(x, Traced) else np.asarray(x, dtype=float) for x in arrays]
+    got = func(concrete, *rest, **kw)
+    result = Traced(prog, prog.buffer(_owner(got), 'temp'), got)
+    tags = func([np.full(c.shape, k) for k, c in enumerate(concrete)], *rest, **kw)
+    addresses = result.ref().addresses()
+    for k, (x, c) in enumerate(zip(arrays, concrete)):
+        table = addresses[tags == k].reshape(c.shape)
+        if isinstance(x, Traced):
+            prog.add('scatter', Ref(result.buffer, 0, (), ()), (table, x.buffer, x.ref()))
+        else:
+            prog.add('scatter', Ref(result.buffer, 0, (), ()), (table, None, np.array(c)))
+    return result
+
+
+FUNCTIONS = {'einsum': _einsum, 'cross': _cross,
+             'stack': lambda prog, arrays, *a, **k: _placed(prog, np.stack, arrays, *a, **k),
+             'vstack': lambda prog, arrays, *a, **k: _placed(prog, np.vstack, arrays, *a, **k),
+             'concatenate': lambda prog, arrays, *a, **k: _placed(prog, np.concatenate, arrays, *a, **k)}
 #: numpy's array makers her code lays a traced buffer with, called from her code.
 MAKERS = {'zeros': _zeros}
 #: One trace at a time: numpy's makers patched by one alone.
 _ONE = threading.Lock()
 
 
-def traced(fn, args, inputs, kwargs=None):
+def _flatten(tree, leaves, seen):
+    """A nested dict, list or tuple's shape: its Traced leaves appended to `leaves` in order, one
+    returned twice one leaf."""
+    if isinstance(tree, Traced):
+        if id(tree) not in seen:
+            seen[id(tree)] = len(leaves)
+            leaves.append(tree)
+        return ('leaf', seen[id(tree)])
+    if isinstance(tree, dict):
+        return ('dict', [(k, _flatten(v, leaves, seen)) for k, v in tree.items()])
+    if isinstance(tree, (list, tuple)):
+        return ('list' if isinstance(tree, list) else 'tuple', [_flatten(v, leaves, seen) for v in tree])
+    if isinstance(tree, np.ndarray) or isinstance(tree, (float, int, bool, str, type(None))):
+        return ('const', tree)
+    raise Untraced('an output of %s' % type(tree).__name__)
+
+
+def unflatten(shape, leaves):
+    """The nested output laid back of `shape` (`traced`'s prog.shape) and its leaves' arrays."""
+    kind, body = shape
+    if kind == 'leaf':
+        return leaves[body]
+    if kind == 'dict':
+        return {k: unflatten(v, leaves) for k, v in body}
+    if kind in ('list', 'tuple'):
+        got = [unflatten(v, leaves) for v in body]
+        return got if kind == 'list' else tuple(got)
+    return body
+
+
+def leaves_of(shape, tree, out=None):
+    """{leaf: array} of `tree`, fn's own result, at `shape`'s leaves; Untraced where it is not shaped so."""
+    out = {} if out is None else out
+    kind, body = shape
+    if kind == 'leaf':
+        out[body] = tree
+    elif kind == 'dict':
+        if not isinstance(tree, dict) or set(tree) != {k for k, _v in body}:
+            raise Untraced('a result not of the keys traced')
+        for k, v in body:
+            leaves_of(v, tree[k], out)
+    elif kind in ('list', 'tuple'):
+        if not isinstance(tree, (list, tuple)) or len(tree) != len(body):
+            raise Untraced('a result not of the length traced')
+        for v, t in zip(body, tree):
+            leaves_of(v, t, out)
+    return out
+
+
+def traced(fn, args, inputs, kwargs=None, wrap=None):
     """(the Program, fn's own result) of `fn(*args, **kwargs)`, the arrays at `inputs` traced: numpy's
     makers patched for her code's own calls in this thread while it runs - another thread's, numpy's."""
     prog = Program()
@@ -384,6 +510,8 @@ def traced(fn, args, inputs, kwargs=None):
         buf = prog.buffer(root.copy(), 'in')
         args[k] = Traced(prog, buf, buf.root)
         prog.ins.append(buf)
+    if wrap is not None:
+        args = wrap(prog, args)
     with _ONE:
         kept = {name: getattr(np, name) for name in MAKERS}
         tracing = threading.get_ident()
@@ -404,8 +532,7 @@ def traced(fn, args, inputs, kwargs=None):
         finally:
             for name, real in kept.items():
                 setattr(np, name, real)
-    for out in (got if isinstance(got, tuple) else (got,)):
-        if not isinstance(out, Traced):
-            raise Untraced('an output not of her traced arrays: %r' % type(out))
-        prog.outs.append(out.ref())
+    leaves = []
+    prog.shape = _flatten(got, leaves, {})
+    prog.outs = [leaf.ref() for leaf in leaves]
     return prog, got

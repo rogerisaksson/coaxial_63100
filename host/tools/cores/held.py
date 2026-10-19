@@ -3,11 +3,13 @@
 Traced on her arrays (`trace`), written in C (`emit`), built once a source; held on the arrays it
 was traced on, then on fresh ones.
 
-    fn_c = held.compiled(fn, args, inputs, 'regressor')   # fn_c(*arrays at `inputs`) its C
+    fn_c = held.compiled(fn, args, inputs, 'name')        # fn_c(*arrays at `inputs`) its C
     fn_c = held.batched(fn, args, inputs, 'regressor')    # the same over any number of states
     fn_c = held.batched(fn, args, inputs, 'regressor', made_of=(module, lay))   # found again untraced
+    fn_c = bodied.on_body(wbc.sense, 'sense')             # fn(b, *arrays) on her body (`bodied`)
 """
 import ctypes
+import functools
 import hashlib
 import itertools
 import json
@@ -18,9 +20,9 @@ import sys
 
 import numpy as np
 
-from tools.cores import build, emit, trace
+from tools import REPO
+from tools.cores import build, emit, orders, trace, trace_mj
 from tools.cores.wbc import FLAGS, INCLUDES
-
 
 #: Generated C as her chain's library is built, at -O3: a loop nest a statement, numpy's arithmetic
 #: the same at every level (ISO C contracts nothing), the regressor 8.0 -> 5.95 ms at 400 states.
@@ -30,6 +32,8 @@ GENERATED = FLAGS + ('-O3',)
 STATES = 64
 #: A build apart's commit, booked in the relay's ledger: a first build peaks 1.36 GB, gcc 0.79 of it.
 APART_GB = 1.5
+#: numpy's matmul in C (`wbc_matmul`), built beside a program that has one.
+BLAS_C = os.path.join(REPO, 'wbc', 'src', 'wbc_blas.c')
 _count = itertools.count()
 
 
@@ -59,7 +63,7 @@ def digest(*parts):
         else:
             h.update(repr(x).encode())
     feed(parts)
-    for module in (trace, emit):
+    for module in (trace, emit, orders, trace_mj):
         feed(module)
     with open(__file__, 'rb') as f:
         h.update(f.read())
@@ -68,43 +72,63 @@ def digest(*parts):
     return h.hexdigest()[:16]
 
 
-def _build(source, name):
+def built(source, name, matmul):
+    """The library of `source` built once, its path: the C kept beside the builds, numpy's matmul
+    built with it where it has one, named by its source - a process builds any number at once."""
     folder = os.path.join(build.OUT, 'gen')
     os.makedirs(folder, exist_ok=True)
-    path = os.path.join(folder, '%s_%s.c' % (name, hashlib.sha1(source.encode()).hexdigest()[:12]))
+    key = hashlib.sha1(source.encode()).hexdigest()[:12]
+    path = os.path.join(folder, '%s_%s.c' % (name, key))
     if not os.path.exists(path):
-        with open(path, 'w', encoding='utf-8', newline='\n') as f:
+        with open(path + '.%d' % os.getpid(), 'w', encoding='utf-8', newline='\n') as f:
             f.write(source)
-    found = build.cached([path], INCLUDES, name, GENERATED)[0]
-    lib = ctypes.CDLL(found)
+        os.replace(path + '.%d' % os.getpid(), path)
+    return build.cached([path] + ([BLAS_C] if matmul else []), INCLUDES, '%s_%s' % (name, key), GENERATED)[0]
+
+
+def loaded(path, name, batch=False):
+    """(the library at `path`, its `name` typed: [long n, ]in, out, w, ext, blas, model, data, call)."""
+    lib = ctypes.CDLL(path)
     fn = getattr(lib, name)
     fn.restype = None
-    return lib, fn, found
+    fn.argtypes = ([ctypes.c_long] if batch else []) + [ctypes.c_void_p] * 8
+    return lib, fn
+
+
+def matmuls(prog):
+    return any(st.kind == 'matmul' for st in prog.statements)
+
+
+@functools.lru_cache(maxsize=None)
+def blas():
+    """numpy's own BLAS laid once (`law.numpy_blas`), every build's matmuls'."""
+    from tools.cores import law
+    return law.numpy_blas()
 
 
 def compiled(fn, args, inputs, name, fresh=2, seed=1):
     """`fn(*args)` compiled for the arrays at `inputs` (their shapes as traced, the rest of `args` as
-    they are): a callable of those arrays returning fn's own (the C's), held against numpy's own on
-    the traced arrays and on `fresh` draws of new ones - Parted where any element differs."""
+    they are): a callable of those arrays returning fn's own result (the C's), held against numpy's
+    own on the traced arrays and on `fresh` draws of new ones - Parted where any element differs."""
+    from tools.cores.bodied import Bound
     inputs = list(inputs)
     prog, _got = trace.traced(fn, args, inputs)
+    if prog.externs or prog.calls:
+        raise trace.Untraced('%s reads memory not its arrays: compiled on her body (on_body)' % name)
     source, info = emit.c(prog, name)
-    lib, cfn, _found = _build(source, name)
-    cfn.argtypes = [ctypes.c_void_p] * 3
+    lib, cfn = loaded(built(source, name, matmuls(prog)), name)
+    c = Bound(lib, cfn, prog, info)
+    c.bind(None)
     shapes = [b.root.shape for b in prog.ins]
-    work = np.empty(max(1, info['doubles']))
 
     def run(*arrays):
-        ins = [np.ascontiguousarray(a, dtype=float) for a in arrays]
-        if [a.shape for a in ins] != shapes:
-            raise ValueError('%s was compiled for %s, given %s' % (name, shapes, [a.shape for a in ins]))
-        outs = [np.empty(r.shape) for r in prog.outs]
-        ip = (ctypes.c_void_p * len(ins))(*[a.ctypes.data for a in ins])
-        op = (ctypes.c_void_p * len(outs))(*[o.ctypes.data for o in outs])
-        cfn(ip, op, work.ctypes.data)
-        return outs[0] if len(outs) == 1 else tuple(outs)
+        if [np.shape(a) for a in arrays] != shapes:
+            raise ValueError('%s was compiled for %s, given %s' % (name, shapes, [np.shape(a) for a in arrays]))
+        return c(arrays)
 
-    return _held(run, fn, args, inputs, shapes, fresh, seed, name, lib, source, info, prog)
+    held(run, fn, args, inputs, shapes, fresh, seed, name, prog)
+    run.lib, run.source, run.info, run.prog = lib, source, info, prog
+    return run
 
 
 def batched(fn, args, inputs, name, fresh=2, seed=1, made_of=None):
@@ -112,7 +136,7 @@ def batched(fn, args, inputs, name, fresh=2, seed=1, made_of=None):
     a state along their first axis, fn's outputs too; traced at one state for its program and at the
     states given for numpy's orders, held against numpy's own run at those states and on `fresh` draws.
     `made_of` what fn's arithmetic is made of beyond its arrays' shapes (its modules, its constants):
-    a build kept under it is loaded again untraced."""
+    a build kept under it is loaded again untraced. The run returns fn's outputs, a tuple."""
     inputs = list(inputs)
     rest = [tuple(np.shape(args[k])[1:]) for k in inputs]
     note = None if made_of is None else _note(name, made_of, rest)
@@ -128,18 +152,19 @@ def batched(fn, args, inputs, name, fresh=2, seed=1, made_of=None):
     kinds = [(st.kind, st.args[0] if st.kind == 'einsum' else None) for st in prog.statements]
     if kinds != [(st.kind, st.args[0] if st.kind == 'einsum' else None) for st in many.statements]:
         raise Parted('%s: one state\'s program is not each of many states\'' % name)
-    orders = [emit.ordered(st) for st in many.statements if st.kind == 'einsum']
-    source, info = emit.c(prog, name, orders, batch=True)
-    lib, _cfn, made = _build(source, name)
+    found_ = [orders.ordered(st) for st in many.statements if st.kind == 'einsum']
+    source, info = emit.c(prog, name, found_, batch=True)
+    made, matmul = built(source, name, matmuls(prog)), matmuls(prog)
     outs = [tuple(r.shape[1:]) for r in prog.outs]
-    run = _batched_run(lib, name, rest, outs, info['doubles'])
+    run = _batched_run(made, name, rest, outs, info['doubles'], matmul)
     shapes = [np.shape(args[k]) for k in inputs]
-    held = _held(run, fn, args, inputs, shapes, fresh, seed, name, lib, source, info, prog)
+    held(run, fn, args, inputs, shapes, fresh, seed, name, prog, flat=True)
+    run.source, run.info, run.prog = source, info, prog
     if note is not None:
         with open(note + '.%d' % os.getpid(), 'w', encoding='utf-8') as f:
-            json.dump({'lib': made, 'ins': rest, 'outs': outs, 'doubles': info['doubles']}, f)
+            json.dump({'lib': made, 'ins': rest, 'outs': outs, 'doubles': info['doubles'], 'matmul': matmul}, f)
         os.replace(note + '.%d' % os.getpid(), note)
-    return held
+    return run
 
 
 def _note(name, made_of, rest):
@@ -196,47 +221,52 @@ def found(name, made_of, rest):
     kept_ = kept(name, made_of, rest)
     if kept_ is None or kept_['lib'] is None or not os.path.exists(kept_['lib']):
         return None
-    with open(_note(name, made_of, rest), encoding='utf-8') as f:
-        kept_ = json.load(f)
-    return _batched_run(ctypes.CDLL(kept_['lib']), name, [tuple(r) for r in kept_['ins']],
-                        [tuple(r) for r in kept_['outs']], kept_['doubles'])
+    return _batched_run(kept_['lib'], name, [tuple(r) for r in kept_['ins']], [tuple(r) for r in kept_['outs']],
+                        kept_['doubles'], kept_['matmul'])
 
 
-def _batched_run(lib, name, rest, outs, doubles):
-    """A batched build's callable: its states' arrays in, fn's outputs over as many states out, a tuple."""
-    cfn = getattr(lib, name)
-    cfn.argtypes, cfn.restype = [ctypes.c_long] + [ctypes.c_void_p] * 3, None
+def _batched_run(path, name, rest, outs, doubles, matmul):
+    """A batched build's callable: its states' arrays in, fn's outputs over as many states out, a tuple
+    of views of one block."""
+    lib, cfn = loaded(path, name, batch=True)
     work = np.empty(max(1, doubles))
+    lapack = ctypes.addressof(blas()) if matmul else None
+    spans, total = emit.blocks(outs)
 
     def run(*arrays):
         ins = [np.ascontiguousarray(a, dtype=float) for a in arrays]
         n = len(ins[0])
         if [a.shape for a in ins] != [(n,) + tuple(r) for r in rest]:
             raise ValueError('%s takes states of %s, given %s' % (name, rest, [a.shape for a in ins]))
-        got = [np.empty((n,) + tuple(r)) for r in outs]
-        ip = (ctypes.c_void_p * len(ins))(*[a.ctypes.data for a in ins])
-        op = (ctypes.c_void_p * len(got))(*[o.ctypes.data for o in got])
-        cfn(n, ip, op, work.ctypes.data)
-        return tuple(got)
+        block, flat = np.concatenate([a.ravel() for a in ins]), np.empty(max(1, n * total))
+        cfn(n, block.ctypes.data, flat.ctypes.data, work.ctypes.data, None, lapack, None, None, None)
+        return tuple(flat[n * a:n * b].reshape((n,) + tuple(r)) for (a, b), r in zip(spans, outs))
     run.lib = lib
     return run
 
 
-def _held(run, fn, args, inputs, shapes, fresh, seed, name, lib, source, info, prog):
-    """`run` held bit for bit against `fn` on the traced arrays and `fresh` draws of new ones."""
+def held(run, fn, args, inputs, shapes, fresh, seed, name, prog, flat=False):
+    """`run` held bit for bit against `fn` on the traced arrays and `fresh` draws of new ones: each of
+    its result's arrays (`flat`: run's own a tuple of them) - Parted where any element differs."""
     rng = np.random.default_rng(seed)
     draws = [[args[k] for k in inputs]] + [[rng.normal(size=s) for s in shapes] for _ in range(fresh)]
     for d, arrays in enumerate(draws):
         full = list(args)
         for k, a in zip(inputs, arrays):
             full[k] = a
-        want = fn(*full)
+        want = trace.leaves_of(prog.shape, fn(*full))
         got = run(*arrays)
-        for k, (g, w_) in enumerate(zip(got if isinstance(got, tuple) else (got,), want if isinstance(want, tuple) else (want,))):
-            if not emit.same(g, w_):
-                apart = np.ascontiguousarray(g).view(np.int64) != np.ascontiguousarray(w_, dtype=float).view(np.int64)
-                raise Parted('%s output %d on %s: %d of %d elements apart, the first at %s' % (
-                    name, k, 'its traced arrays' if d == 0 else 'fresh arrays %d' % d, int(apart.sum()), apart.size,
-                    np.unravel_index(int(np.argmax(apart)), apart.shape)))
-    run.lib, run.source, run.info, run.prog = lib, source, info, prog
-    return run
+        alike(want, dict(enumerate(got)) if flat else trace.leaves_of(prog.shape, got), name,
+              'its traced arrays' if d == 0 else 'fresh arrays %d' % d)
+
+
+def alike(want, got, name, on):
+    """Parted where an array of `got` is not its of `want` bit for bit."""
+    for k in sorted(want):
+        g, w_ = np.ascontiguousarray(got[k], dtype=float), np.ascontiguousarray(want[k], dtype=float)
+        if g.shape != w_.shape:
+            raise Parted('%s output %d on %s: %s, numpy\'s %s' % (name, k, on, g.shape, w_.shape))
+        if not orders.same(g, w_):
+            apart_ = g.view(np.int64) != w_.view(np.int64)
+            raise Parted('%s output %d on %s: %d of %d elements apart, the first at %s' % (
+                name, k, on, int(apart_.sum()), apart_.size, np.unravel_index(int(np.argmax(apart_)), apart_.shape)))

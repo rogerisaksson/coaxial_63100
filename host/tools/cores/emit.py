@@ -2,13 +2,22 @@
 
 Its buffers laid in one workspace by when each lives; an elementwise tree per element, elementwise
 temps read once folded into their reader (`fused`), an einsum summed in the order numpy's own
-result shows (`ordered`), a gather or a scatter through separable index tables.
+result shows (`orders`), a matmul numpy's BLAS's (`wbc_matmul`), a MuJoCo function called by its
+prototype, a gather or a scatter through separable index tables.
 
-    source, laid = emit.c(prog, 'regressor')    # the C, and each buffer's place in the workspace
-    source, laid = emit.c(one, 'regressor', orders, batch=True)   # one state's program over n of them
+    source, info = emit.c(prog, 'sense')        # the C; each buffer's place, the blocks' spans
+    source, info = emit.c(one, 'regressor', orders, batch=True)   # one state's program over n of them
+
+    void name([long n, ]const double *in, double *out, double *w, double *const *ext,
+              const wbc_blas_t *blas, const void *model, void *data, void (*const *call)(void))
+
+The inputs one block in their order, the outputs one in theirs (`blocks`; over n states each
+array's n together), the workspace, each extern's address, numpy's BLAS, her model and data, the
+MuJoCo functions `prog.calls` names.
 """
 import numpy as np
 
+from tools.cores.orders import letters, ordered
 from tools.cores.trace import Ref, Untraced
 
 #: An elementwise node's C, by numpy's ufunc: a format over its children's C.
@@ -18,75 +27,6 @@ C_OF = {'add': '(%s + %s)', 'subtract': '(%s - %s)', 'multiply': '(%s * %s)', 'd
         'sin': 'sin(%s)', 'cos': 'cos(%s)', 'tan': 'tan(%s)', 'arcsin': 'asin(%s)', 'arccos': 'acos(%s)',
         'arctan': 'atan(%s)', 'arctan2': 'atan2(%s, %s)', 'exp': 'exp(%s)', 'log': 'log(%s)',
         'hypot': 'hypot(%s, %s)', 'floor': 'floor(%s)', 'ceil': 'ceil(%s)'}
-#: The orders an einsum's terms may be summed in, as numpy 2's sum_of_products adds them: a plain
-#: sum into its zeroed output, or SIMD lanes of 2 (SSE) or 4 (AVX2) summed across at the end.
-ORDERS = ('seq', 'lanes2', 'lanes4')
-
-
-def same(a, b):
-    """Whether `a` and `b` hold the same doubles, bit for bit."""
-    a, b = np.ascontiguousarray(a, dtype=float), np.ascontiguousarray(b, dtype=float)
-    return a.shape == b.shape and np.array_equal(a.view(np.int64), b.view(np.int64))
-
-
-def summed(P, order):
-    """`P` (..., J)'s terms summed along their last axis in `order`, numpy's arithmetic."""
-    J = P.shape[-1]
-    if order == 'seq':
-        acc = np.zeros(P.shape[:-1])
-        for j in range(J):
-            acc = acc + P[..., j]
-        return acc
-    v = int(order[5:])
-    lanes = [np.zeros(P.shape[:-1]) for _ in range(v)]
-    t = 0
-    while J - t >= 4 * v:
-        for k in range(v):
-            lanes[k] = (((lanes[k] + P[..., t + 3 * v + k]) + P[..., t + 2 * v + k]) + P[..., t + v + k]) + P[..., t + k]
-        t += 4 * v
-    while t < J:
-        for k in range(v):
-            lanes[k] = lanes[k] + (P[..., t + k] if t + k < J else 0.0)
-        t += v
-    across = lanes[0] + lanes[1] if v == 2 else (lanes[0] + lanes[2]) + (lanes[1] + lanes[3])
-    return 0.0 + across
-
-
-def _letters(st):
-    subscripts = st.args[0].replace(' ', '')
-    ins, out = subscripts.split('->')
-    ops = ins.split(',')
-    contracted = sorted(set(''.join(ops)) - set(out))
-    if len(contracted) != 1 or any(len(set(o)) != len(o) for o in ops):
-        raise Untraced('einsum %r: one index summed, none repeated in an operand (%s)' % (subscripts, st.where))
-    return ops, out, contracted[0]
-
-
-def products(st):
-    """The einsum's terms (out..., J), numpy's products left to right."""
-    ops, out, c = _letters(st)
-    full = out + c
-    factors = []
-    for letters, value in zip(ops, st.args[2]):
-        axes = [letters.index(x) for x in full if x in letters]
-        moved = np.transpose(value, axes)
-        factors.append(moved.reshape([value.shape[letters.index(x)] if x in letters else 1 for x in full]))
-    P = factors[0]
-    for f in factors[1:]:
-        P = P * f
-    return P
-
-
-def ordered(st):
-    """The order numpy summed an einsum's terms in, as its result shows: the first of ORDERS its
-    values are bit for bit; a plain sum where the terms cannot tell (one term, or zeros)."""
-    P = products(st)
-    found = [o for o in ORDERS if same(summed(P, o), st.value)]
-    if not found:
-        raise Untraced('einsum %r in no order numpy sums in (%s)' % (st.args[0], st.where))
-    return 'seq' if 'seq' in found else found[0]
-
-
 def separable(T):
     """(base, terms) with T == base + sum over its axes of each term's (('stride', s) or ('table', t))
     at that axis's index - None where it is not."""
@@ -132,9 +72,22 @@ class Writer:
         address = ' + '.join(p for p in parts if p) or '0'
         if buffer.role == 'in':
             return 'in%d[%s]' % (self.laid['in'][buffer.id], address)
+        if buffer.role == 'extern':
+            return 'e%d[%s]' % (self.laid['ext'][buffer.id], address)
         if buffer.id in self.laid['out']:
             return 'out%d[%s]' % (self.laid['out'][buffer.id], address)
         return 'w[%d + %s]' % (self.laid['at'][buffer.id], address)
+
+    def pointer(self, r):
+        """The address of a Ref's first element."""
+        b = r.buffer
+        if b.role == 'in':
+            return 'in%d + %d' % (self.laid['in'][b.id], r.offset)
+        if b.role == 'extern':
+            return 'e%d + %d' % (self.laid['ext'][b.id], r.offset)
+        if b.id in self.laid['out']:
+            return 'out%d + %d' % (self.laid['out'][b.id], r.offset)
+        return 'w + %d' % (self.laid['at'][b.id] + r.offset)
 
     def ref(self, r, idx):
         return self.at(r.buffer, r.offset, [('stride', s) for s in r.strides], idx)
@@ -181,7 +134,7 @@ def _tree(w, node, idx):
 
 
 def _einsum(w, st, order):
-    ops, out, c = _letters(st)
+    ops, out, c = letters(st)
     refs = st.args[1]
     J = dict(zip(''.join(ops), sum((list(np.shape(v)) for v in st.args[2]), [])))[c]
 
@@ -215,6 +168,45 @@ def _einsum(w, st, order):
             lanes[0], lanes[2], lanes[1], lanes[3])
         return ['%s = 0.0 + %s;' % (target, across)]
     return w.loops(st.out.shape, inner)
+
+
+def _matmul(w, st):
+    """numpy's a @ b: `wbc_matmul` on its operands' views, numpy's dispatch and BLAS."""
+    (a, sa), (b, sb), (om, op), (m, n, p) = st.args
+
+    def view(x, strides):
+        at = w.table(x[1], 'double') if isinstance(x, tuple) else w.pointer(x)
+        return '(wbc_view_t){%s, %d, %d}' % (at, strides[0], strides[1])
+    return ['  wbc_matmul(blas, %s, %s, %s, %d, %d, %d, %d, %d);' % (view(a, sa), view(b, sb), w.pointer(st.out),
+                                                                   om, op, m, n, p)]
+
+
+def _called(w, prog, st):
+    """A MuJoCo function through its prototype: her model, her data, buffers, NULL, ints."""
+    name, kinds = st.args
+    args = []
+    for kind in kinds:
+        if kind[0] in ('model', 'data'):
+            args.append(kind[0])
+        elif kind[0] == 'null':
+            args.append('NULL')
+        elif kind[0] == 'int':
+            args.append('%d' % kind[1])
+        else:
+            if kind[1].buffer.role == 'in' and not kind[2]:
+                raise Untraced('%s writes her input (%s)' % (name, st.where))
+            args.append(w.pointer(kind[1]))
+    return ['  ((%s_t)call[%d])(%s);' % (name, [c[0] for c in prog.calls].index(name), ', '.join(args))]
+
+
+def blocks(shapes):
+    """([(start, stop)] of each array of `shapes` in one block laid in order, the block's doubles)."""
+    spans, at = [], 0
+    for shape in shapes:
+        size = int(np.prod(shape))
+        spans.append((at, at + size))
+        at += size
+    return spans, at
 
 
 def _copy(w, shape, dst, src):
@@ -270,18 +262,22 @@ def _put(node, target, tree):
 def fused(prog):
     """`prog`'s statements with each elementwise temp written once and read by one later elementwise
     statement alone, element for element, folded into that statement's tree - none of what it read
-    written between. The per-element arithmetic numpy's, its temps gone."""
+    written between - a MuJoCo call writes every extern. The per-element arithmetic numpy's, its
+    temps gone."""
     sts = list(prog.statements)
     writes, reads = {}, {}
     for k, st in enumerate(sts):
-        writes.setdefault(st.out.buffer.id, []).append(k)
-        for b in _touched(st)[1:]:
+        for b in _writes(st):
+            writes.setdefault(b.id, []).append(k)
+        for b in _reads(st):
             reads.setdefault(b.id, []).append(k)
     outs = {r.buffer.id for r in prog.outs}
     gone = set()
     for k, st in enumerate(sts):
+        if st.kind != 'ew':
+            continue
         b = st.out.buffer
-        if (st.kind != 'ew' or b.role != 'temp' or b.id in outs or writes.get(b.id) != [k]
+        if (b.role != 'temp' or b.id in outs or writes.get(b.id) != [k]
                 or len(set(reads.get(b.id, []))) != 1 or st.out.offset != 0 or b.size != int(np.prod(st.out.shape))):
             continue
         j = reads[b.id][0]
@@ -292,7 +288,9 @@ def fused(prog):
         if not hits or any(not _same(leaf[1], st.out) for leaf in hits):
             continue
         read = {leaf[1].buffer.id for leaf in _leaves(st.args)}
-        if any(sts[i].out.buffer.id in read for i in range(k + 1, j) if i not in gone):
+        theirs = any(prog.buffers[i].role == 'extern' for i in read)
+        if any((theirs and sts[i].kind == 'mj') or read & {x.id for x in _writes(sts[i])}
+               for i in range(k + 1, j) if i not in gone):
             continue
         sts[j] = type(use)(use.kind, use.out, _put(use.args, st.out, st.args), use.value, use.where)
         for leaf in _leaves(st.args):
@@ -302,9 +300,9 @@ def fused(prog):
 
 
 def lay(prog, statements=None):
-    """Each buffer's place: inputs by their order; an output that is its whole buffer in C order the
-    caller's own array; the rest in one workspace, a place free once the statement after its last
-    has run; (places, the workspace's doubles)."""
+    """Each buffer's place: inputs by their order, externs by theirs; an output that is its whole
+    buffer in C order the caller's own array; the rest in one workspace, a place free once the
+    statement after its last has run; (places, the workspace's doubles)."""
     last, first = {}, {}
     statements = prog.statements if statements is None else statements
     for k, st in enumerate(statements):
@@ -316,7 +314,8 @@ def lay(prog, statements=None):
     for k, r in enumerate(prog.outs):
         last[r.buffer.id] = end
         b = r.buffer
-        if b.role != 'in' and r.offset == 0 and r.strides == tuple(_cstrides(r.shape)) and b.size == int(np.prod(r.shape)):
+        if (b.role not in ('in', 'extern') and r.offset == 0 and r.strides == tuple(_cstrides(r.shape))
+                and b.size == int(np.prod(r.shape))):
             outs.setdefault(b.id, k)
     starts = {}
     for bid, k in first.items():
@@ -327,7 +326,7 @@ def lay(prog, statements=None):
             free = _merged(free + [(at[bid], prog.buffers[bid].size)])
         for bid in starts.get(k, ()):
             b = prog.buffers[bid]
-            if b.role == 'in' or bid in outs:
+            if b.role in ('in', 'extern') or bid in outs:
                 continue
             spot = next((s for s in free if s[1] >= b.size), None)
             if spot is not None:
@@ -339,7 +338,8 @@ def lay(prog, statements=None):
                 at[bid] = top
                 top += b.size
             ending.setdefault(last[bid] + 1, []).append(bid)
-    return {'at': at, 'in': {b.id: k for k, b in enumerate(prog.ins)}, 'out': outs}, top
+    return {'at': at, 'in': {b.id: k for k, b in enumerate(prog.ins)}, 'out': outs,
+            'ext': {b.id: k for k, b in enumerate(prog.externs)}}, top
 
 
 def _merged(free):
@@ -353,36 +353,48 @@ def _merged(free):
     return out
 
 
-def _touched(st):
-    out = [st.out.buffer]
+def _writes(st):
+    """The buffers a statement writes: its own, a MuJoCo call's buffers not const."""
+    if st.kind == 'mj':
+        return [k[1].buffer for k in st.args[1] if k[0] == 'buf' and not k[2]]
+    return [st.out.buffer]
+
+
+def _reads(st):
+    """The buffers a statement reads."""
     if st.kind == 'ew':
-        stack = [st.args]
-        while stack:
-            node = stack.pop()
-            if node[0] == 'ref':
-                out.append(node[1].buffer)
-            elif node[0] not in ('scalar', 'const'):
-                stack.extend(node[1:])
-    elif st.kind == 'einsum':
-        out += [r.buffer for r in st.args[1] if not isinstance(r, tuple)]
-    elif st.kind in ('gather', 'scatter') and st.args[1 if st.kind == 'scatter' else 0] is not None:
-        out.append(st.args[1 if st.kind == 'scatter' else 0])
-    return out
+        return [leaf[1].buffer for leaf in _leaves(st.args)]
+    if st.kind == 'einsum':
+        return [r.buffer for r in st.args[1] if not isinstance(r, tuple)]
+    if st.kind == 'matmul':
+        return [side[0].buffer for side in st.args[:2] if isinstance(side[0], Ref)]
+    if st.kind == 'mj':
+        return [k[1].buffer for k in st.args[1] if k[0] == 'buf']
+    if st.kind in ('gather', 'scatter') and st.args[1 if st.kind == 'scatter' else 0] is not None:
+        return [st.args[1 if st.kind == 'scatter' else 0]]
+    return []
+
+
+def _touched(st):
+    return _writes(st) + _reads(st)
 
 
 def c(prog, name, orders=None, batch=False):
-    """(C11 source of `void name(const double *const *in, double *const *out, double *w)`, its layout:
-    places, the workspace's doubles, each einsum's order) - `orders` each einsum's where known, else
-    read off its own values. `batch`: `prog` one state's, its arrays' first axis 1, the C
+    """(C11 source of `void name(...)` (the module's), its layout: places, the workspace's doubles,
+    each einsum's order, the input and output blocks' spans) - `orders` each einsum's where known,
+    else read off its own values. `batch`: `prog` one state's, its arrays' first axis 1, the C
     `void name(long n, ...)` running it over n states, each its own slice of every input and output,
     its workspace reused."""
     statements = fused(prog)
     laid, top = lay(prog, statements)
     w = Writer(laid)
-    given, orders = list(orders) if orders is not None else None, []
+    given, found = list(orders) if orders is not None else None, []
     for k, st in enumerate(statements):
         w.body.append('  /* %d %s %s */' % (k, st.kind, st.where.replace('*/', '* /')))
-        if any(b.role == 'in' for b in [st.out.buffer]):
+        if st.kind == 'mj':
+            w.body += _called(w, prog, st)
+            continue
+        if st.out.buffer.role == 'in':
             raise Untraced('her code writes an input (%s)' % st.where)
         if 0 in (st.args[0].shape if st.kind == 'scatter' else st.out.shape):
             continue
@@ -395,8 +407,8 @@ def c(prog, name, orders=None, batch=False):
                 raise Untraced('an elementwise write over what it reads, elsewhere in it (%s)' % st.where)
             w.body += w.loops(st.out.shape, lambda idx, st=st: ['%s = %s;' % (w.ref(st.out, idx), _tree(w, st.args, idx))])
         elif st.kind == 'einsum':
-            order = given[len(orders)] if given is not None else ordered(st)
-            orders.append(order)
+            order = given[len(found)] if given is not None else ordered(st)
+            found.append(order)
             w.body += _einsum(w, st, order)
         elif st.kind == 'gather':
             src, table = st.args
@@ -410,6 +422,8 @@ def c(prog, name, orders=None, batch=False):
                 raise Untraced('a scatter from its own buffer (%s)' % st.where)
             from_ = (pick,) if src is None else (src,) + tuple(_split(pick, st.where))
             w.body += _copy(w, table.shape, (st.out.buffer, base, terms), from_)
+        elif st.kind == 'matmul':
+            w.body += _matmul(w, st)
     for k, r in enumerate(prog.outs):
         if laid['out'].get(r.buffer.id) == k:
             continue
@@ -417,20 +431,31 @@ def c(prog, name, orders=None, batch=False):
         w.body += w.loops(r.shape, lambda idx, r=r, k=k: ['out%d[%s] = %s;' % (
             k, ' + '.join(['0'] + ['%d * %s' % (s, i) for s, i in zip(_cstrides(r.shape), idx)]), w.ref(r, idx))])
     head = ['/* %s: generated by tools.cores.emit from her numpy, not by hand. */' % name,
-            '#include <math.h>', '#include <string.h>', '#include "wbc_np.h"', '',
-            '#ifdef _WIN32', '#define API __declspec(dllexport)', '#else', '#define API', '#endif', ''] + w.tables + [
-        '', 'API void %s(%sconst double *const *in, double *const *out, double *w)' % (name, 'long n, ' if batch else ''),
-        '{']
+            '#include <math.h>', '#include <string.h>', '#include "wbc_blas.h"', '#include "wbc_np.h"', '',
+            '#ifdef _WIN32', '#define API __declspec(dllexport)', '#else', '#define API', '#endif', '']
+    if prog.calls:
+        head += ['typedef double mjtNum;', 'typedef struct mjModel_ mjModel;', 'typedef struct mjData_ mjData;']
+        head += ['typedef void (*%s_t)(%s);' % call for call in prog.calls] + ['']
+    head += w.tables + ['', 'API void %s(%sconst double *in, double *out, double *w, double *const *ext, '
+                        'const wbc_blas_t *blas, const void *model, void *data, void (*const *call)(void))'
+                        % (name, 'long n, ' if batch else ''), '{']
+    ins, outs = blocks([b.root.shape for b in prog.ins]), blocks([r.shape for r in prog.outs])
+    names = ['in%d' % k for k in range(len(prog.ins))] + ['out%d' % k for k in range(len(prog.outs))]
     if batch:
         if any(b.root.shape[:1] != (1,) for b in prog.ins) or any(r.shape[:1] != (1,) for r in prog.outs):
             raise Untraced('a batch of one state: every input and output its first axis 1')
+        if prog.externs or prog.calls:
+            raise Untraced('a batch of states on memory of one: externs, MuJoCo')
         head += ['  for (long s = 0; s < n; s++)', '  {']
-        head += ['  const double *in%d = in[%d] + s * %d;' % (k, k, b.size) for k, b in enumerate(prog.ins)]
-        head += ['  double *out%d = out[%d] + s * %d;' % (k, k, int(np.prod(r.shape))) for k, r in enumerate(prog.outs)]
+        head += ['  const double *in%d = in + n * %d + s * %d;' % (k, a, b - a) for k, (a, b) in enumerate(ins[0])]
+        head += ['  double *out%d = out + n * %d + s * %d;' % (k, a, b - a) for k, (a, b) in enumerate(outs[0])]
+        head += ['  (void)%s;' % x for x in names]
         tail = ['  }', '}', '']
     else:
-        head += ['  const double *in%d = in[%d];' % (k, k) for k in range(len(prog.ins))]
-        head += ['  double *out%d = out[%d];' % (k, k) for k in range(len(prog.outs))]
+        head += ['  const double *in%d = in + %d;' % (k, a) for k, (a, _b) in enumerate(ins[0])]
+        head += ['  double *out%d = out + %d;' % (k, a) for k, (a, _b) in enumerate(outs[0])]
+        head += ['  double *e%d = ext[%d];' % (k, k) for k in range(len(prog.externs))]
+        head += ['  (void)%s;' % x for x in names + ['e%d' % k for k in range(len(prog.externs))]]
         tail = ['}', '']
-    head += ['  (void)w;']
-    return '\n'.join(head + w.body + tail), {'laid': laid, 'doubles': top, 'orders': orders}
+    head += ['  (void)%s;' % x for x in ('w', 'ext', 'blas', 'model', 'data', 'call')]
+    return '\n'.join(head + w.body + tail), {'laid': laid, 'doubles': top, 'orders': found, 'ins': ins, 'outs': outs}
