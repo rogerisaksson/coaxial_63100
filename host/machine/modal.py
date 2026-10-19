@@ -47,7 +47,8 @@ COM, VCOM, SOLE, VSOLE = slice(0, 3), slice(3, 6), slice(6, 12), slice(12, 18)
 LOAD, QUAT, SPIN, MOMENT = slice(18, 20), slice(20, 28), slice(28, 34), slice(34, 37)
 LOWEST, HIP, TILT, TILT_RATE, ARM = slice(37, 39), slice(39, 45), slice(45, 47), slice(47, 49), slice(49, 51)
 PROP, PROP_LO, PROP_HI, GRIP = 51, slice(52, 55), slice(55, 58), slice(58, 60)
-SENSED = 60
+VHEAD, HQUAT, HSPIN = slice(60, 63), slice(63, 67), slice(67, 70)
+SENSED = 70
 #: Her statics: her way's frame (3 x 3: along, left, up in the world); her centre of mass over
 #: her soles and her soles' half width as she stood; the floor; omega; her weight, N; her knees'
 #: bend standing, rad; the pelvis's and the trunk's pitch then; her heading, rad; a hip from
@@ -260,7 +261,7 @@ def swing(names):
 def sensed(s, loads, y):
     """`y` filled of `wbc.sense`'s `s` - with her hips' joints (`hips`, world) and her
     shoulders' reach forward (`arms`, rad) beside it - and her soles' `loads`, N."""
-    feet, turns = s['feet'], s['turns']
+    feet, turns, head = s['feet'], s['turns'], s['head']
     y[COM], y[VCOM], y[LOAD], y[MOMENT] = s['com'], s['vcom'], loads, s['k']
     y[SOLE] = np.concatenate([f['sole'] for f in feet])
     y[VSOLE] = np.concatenate([f['J6'][3:] @ s['v'] for f in feet])
@@ -271,6 +272,7 @@ def sensed(s, loads, y):
     y[PROP], y[PROP_LO], y[PROP_HI] = s.get('prop', (0.0, 0.0, 0.0))
     y[TILT] = np.arcsin(clip(np.array([-f['R'][1, 2] for f in feet]), -1.0, 1.0))
     y[TILT_RATE] = [(f['J6'][:3] @ s['v']) @ f['R'][:, 0] for f in feet]
+    y[VHEAD], y[HQUAT], y[HSPIN] = head['v'], head['quat'], head['w']
     return y
 
 

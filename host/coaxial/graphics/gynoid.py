@@ -327,10 +327,12 @@ class Follow:
         self.seconds, self.at = seconds, None
 
     def __call__(self, place, speed, t):
-        if self.at is None or math.dist(place, self.at[0]) > 1.0 or t <= self.at[2]:
+        if self.at is None or math.dist(place, self.at[0]) > 1.0 or t < self.at[2]:
             self.at = (tuple(place), tuple(speed), t)
             return self.at[0]
         at, mean, then = self.at
+        if t == then:
+            return at
         on, pull = min(1.0, (t - then) / self.seconds), min(1.0, (t - then) / (4.0 * self.seconds))
         mean = tuple(m + (s - m) * on for m, s in zip(mean, speed))
         at = tuple(a + m * (t - then) + (p - a) * pull for a, m, p in zip(at, mean, place))

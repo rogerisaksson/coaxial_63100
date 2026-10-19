@@ -325,7 +325,7 @@ def _step_frame(state, dt):
     t_mono, now = time.monotonic(), state.get('now')
     heading = float(now.get('heading') or 0.0) if now else 0.0
     steered(state, t_mono, heading)
-    going = bool(now) and math.hypot(*now['velocity']) > GOING_M_S
+    going = bool(now) and (math.hypot(*now['velocity']) > GOING_M_S or now.get('stage') == 'walk')
     viewpoint.chased(state, heading, going, t_mono)
     return t_mono
 

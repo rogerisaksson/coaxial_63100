@@ -176,10 +176,7 @@ def docked_vision(scanner, now, width, height):
     seen = now.get('seen') if now else None
     if seen is None:
         vw, vh = sight.VIEW
-        thumb = np.zeros((vh, vw, 3), dtype=np.uint8)
-        for r in range(vh):
-            for c in range(vw):
-                thumb[r, c] = (15, 22, 28)
+        thumb = np.full((vh, vw, 3), (15, 22, 28), dtype=np.uint8)
         hulls = []
         for item in detected[:3]:
             k = item['kind']

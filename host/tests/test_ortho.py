@@ -129,7 +129,7 @@ def test_the_core_and_the_renderer_branch_nowhere(report):
     """latent.py, impedance.py, stride.py, poise.py and modal.py: branchless AST verification."""
     branches = (ast.If, ast.IfExp, ast.While, ast.Match, ast.Try, ast.BoolOp, ast.ClassDef, ast.Lambda, ast.With)
     found = {}
-    pure = ('latent', 'impedance', 'stride', 'poise')
+    pure = ('latent', 'impedance', 'stride', 'poise', 'support')
     for name in pure + ('modal',):
         with open(os.path.join(HERE, 'machine', name + '.py'), encoding='utf-8') as f:
             tree = ast.parse(f.read())
@@ -226,12 +226,23 @@ def test_she_stands_on_one_sole(report):
 
 def test_she_hops_and_stands(report):
     """`hop`: loaded, thrown, landed on soft knees: >= 0.15 s off the floor, standing."""
-    got = _went(['hop'], to=2.5)
+    import numpy as np
+    from machine import latent, modal, support
+    got = _went(['hop'], to=5.0)
     report.check('she leaves the floor 0.15 s and more, 0.9 m/s up and more',
                  got['air'] >= 0.15 and got['up'] >= 0.9, '%.2f s, %.2f m/s' % (got['air'], got['up']))
     report.check('and stands after, never 15 deg over, both soles bearing',
                  got['stood'] and got['tilt'] < 15.0 and min(got['rest']) > 20.0,
                  'tilt %.1f deg, %s N' % (got['tilt'], got['rest']))
+    q, qd, ref_q, ref_v, eso_z = (np.zeros(support.DRIVEN) for _ in range(5))
+    out = np.zeros(latent.OUT)
+    q[5], eso_z[5] = -0.6, -50.0
+    dq = support.couple(q, qd, ref_q, ref_v, eso_z, out)
+    report.check('left arm held back: posture yields, ESO bleeds, lateral and turn shift right',
+                 dq[5] < -0.35 and abs(eso_z[5]) < 10.0 and out[latent.REF][modal.LATERAL] < -0.08
+                 and out[latent.REF][modal.TURN] < -0.14,
+                 'dq %.2f, eso %.1f, lat %+.3f, turn %+.3f' % (
+                     dq[5], eso_z[5], out[latent.REF][modal.LATERAL], out[latent.REF][modal.TURN]))
 
 
 def test_she_walks_on_her_own_payloads(report):

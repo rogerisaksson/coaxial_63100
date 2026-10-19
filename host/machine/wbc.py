@@ -120,7 +120,7 @@ class Body:
         m = self.m = mj.MjModel.from_xml_string(xml or mjcf.mjcf())
         m.opt.disableflags |= int(mj.mjtDisableBit.mjDSBL_CONSTRAINT)
         self.d = mj.MjData(m)
-        self.pelvis, self.torso = m.body('pelvis').id, m.body('torso').id
+        self.pelvis, self.torso, self.head = m.body('pelvis').id, m.body('torso').id, m.body('head').id
         #: Her links and drives corrected as identified (`identified.correct`).
         self.identified = []
         if identified:
@@ -180,7 +180,7 @@ class Body:
 def sense(b, qpos, qvel):
     """What the law reads of her at (qpos, qvel): {M, h (bias less passive), v, q, com, vcom,
     k (angular momentum about the centre of mass), feet [{R, quat, pts, Jc, J6, dJv, sole}],
-    turns [{quat, Jr, dJr, w}] (pelvis, trunk)}, world frame."""
+    turns [{quat, Jr, dJr, w}] (pelvis, trunk), head {pos, v, quat, w}}, world frame."""
     m, d, mj, n = b.m, b.d, b.mj, b.n
     d.qpos[:len(qpos)], d.qvel[:len(qvel)] = qpos, qvel
     mj.mj_fwdPosition(m, d)
@@ -211,9 +211,12 @@ def sense(b, qpos, qvel):
         Jr = jr[:, :n].copy()
         mj.mj_jacDot(m, d, None, jr, at, body)
         turns.append({'quat': d.xquat[body].copy(), 'Jr': Jr, 'dJr': jr[:, :n] @ v, 'w': Jr @ v})
+    at_h = d.xpos[b.head].copy()
+    mj.mj_jac(m, d, jp, jr, at_h, b.head)
+    head = {'pos': at_h, 'v': jp[:, :n] @ v, 'quat': d.xquat[b.head].copy(), 'w': jr[:, :n] @ v}
     return {'M': b._M[:n, :n].copy(), 'h': d.qfrc_bias[:n] - d.qfrc_passive[:n], 'v': v,
             'q': d.qpos[b.qact].copy(), 'com': d.subtree_com[b.pelvis].copy(), 'vcom': vcom,
-            'k': b._am[:, :n] @ v, 'feet': feet, 'turns': turns}
+            'k': b._am[:, :n] @ v, 'feet': feet, 'turns': turns, 'head': head}
 
 
 def step(b, s, ask):

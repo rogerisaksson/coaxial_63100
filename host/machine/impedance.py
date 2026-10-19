@@ -20,10 +20,10 @@ import numpy as np
 from machine import latent, poise, stride
 from machine.modal import (
     ARM_RAD, ARMS, AXIAL, AXIAL_M, BEND, CLEAR_M, COM, COM_ACC, DRIVE, DT, EDGE, FLOOR, FOLD, FOLD_RATE, FOLDS, G,
-    GOING, GRIP, GROUND, HANDS, HEADED, HEELED, HIP, HIPS_BY, HOT, KDOT, KNEE, LATERAL, LEAD, LEG_M, LIFT, LIST, LIST_RAD,
+    GOING, GRIP, GROUND, HANDS, HEADED, HEELED, HIP, HIPS_BY, HOT, HSPIN, KDOT, KNEE, LATERAL, LEAD, LEG_M, LIFT, LIST, LIST_RAD,
     LOAD, LOWEST, MASS, MOMENT, NEED, OUTSIDE, PELVIS, PROP, PROP_HI, PROP_LO, BORNE, WEIGHT, PITCH, PITCH0, PITCH_RAD, PREFOLD, QUAT, RAISE, REACH0, ROCK, ROLLED, ROT,
     SAGITTAL, SETTLE, SOLE, SOLE_ACC, SPIN, STANCE, STRIDES, SWINGS, SWUNG, TILT, TILT_RATE, TIPPED, TURN, TURN_RAD,
-    TURNED, UNIT, VCOM, VSOLE, W0, WANT, WIDTH, Z0, reading, shortened, under)
+    TURNED, UNIT, VCOM, VHEAD, VSOLE, W0, WANT, WIDTH, Z0, reading, shortened, under)
 from machine.poise import HALF_M, TINY
 from machine.stride import ALONG, LEFT, LIMBS, UP
 from machine.wbc import MOMENTUM_K, POSTURE_KD, TURN_KD
@@ -62,7 +62,7 @@ def ask(out, y, fr, a):
     stood = a[STANCE].copy()
     z, zd, legs, turn, spun = reading(y, fr, stood)
     turns = out[latent.TURNS]
-    c, v = rot @ y[COM], rot @ y[VCOM]
+    c, v, vh = rot @ y[COM], rot @ y[VCOM], rot @ y[VHEAD]
     om = np.sqrt(G / np.maximum(c[UP] - fr[FLOOR], LOW_M))
     soles, shod = y[SOLE].reshape(2, 3), y[VSOLE].reshape(2, 3) @ rot.T
     tilt, tilting = y[TILT], y[TILT_RATE]
@@ -74,12 +74,19 @@ def ask(out, y, fr, a):
     way = np.stack([np.repeat(xs, 2), np.zeros(4), np.tile(zs, 2)], axis=1) @ rot.T
     propped = poise.clip(y[PROP] / PROP_ON, 0.0, 1.0)
     prop = (way[:, :2].min(axis=0), way[:, :2].max(axis=0), propped)
+    # the lift's own rhythm is her stride's clearance, not a sole's place
+    beat = out[latent.PSI][LIFT]
+    tone = out[latent.SWAY][LIFT] * np.array([np.sin(beat), turns * np.cos(beat), -turns * turns * np.sin(beat)])
+    ref, rate, acc = (out[part] - HOT[LIFT] * t for part, t in zip((latent.REF, latent.RATE, latent.ACC), tone))
+    up = LIMBS * ref[LIFT]
     # her capture point past the soles that stood - past her ZMP's margin in them, flat on the
     # floor - steps her: on its ball, a sole's box its ball's line, a hop's throw stepped her
+    still = 1.0 - poise.clip(np.linalg.norm(out[latent.SWAY]) / stride.STIRS, 0.0, 1.0)
     out_of = poise.BIG * (1.0 - stood)[:, None]
+    lifted = out_of * np.maximum(1.0 - still, np.maximum(a[SWINGS], up > poise.LIFT_EPS))[:, None]
     lo, hi = poise.boxes(flat, 0.0 * a[EDGE], tilt)
     beyond = xi - poise.clip(xi, *poise.spanned((lo + out_of).min(axis=0), (hi - out_of).max(axis=0), prop))
-    past = np.linalg.norm(beyond)
+    past = np.linalg.norm(xi - poise.clip(xi, *poise.spanned((lo + lifted).min(axis=0), (hi - lifted).max(axis=0), prop)))
     a[NEED] = stood.max() * poise.clip(past / poise.MARGIN_M, 0.0, 1.0)
     stepping, way, sweep, phi, on, off, u, flying, swung = stride.beat(
         out[latent.SWAY][DRIVE], out[latent.PSI][DRIVE], out[latent.SWAY][LATERAL], out[latent.PSI][LATERAL], turns,
@@ -95,24 +102,21 @@ def ask(out, y, fr, a):
     a[LEAD] = on * (a[LEAD] + fr[DT] * swung * (hurry - 1.0))
     # a limb strides as far as her stride or its own swing has it
     limbs = np.maximum(stepping, off)
-    # the lift's own rhythm is her stride's clearance, not a sole's place
-    beat = out[latent.PSI][LIFT]
-    tone = out[latent.SWAY][LIFT] * np.array([np.sin(beat), turns * np.cos(beat), -turns * turns * np.sin(beat)])
-    ref, rate, acc = (out[part] - HOT[LIFT] * t for part, t in zip((latent.REF, latent.RATE, latent.ACC), tone))
     # along her way her centre of mass is damped to her cruise, not to her soles' middle:
     # damped to that she stopped between steps and each sole waited for her
-    cruise = stride.cruises(way, out[latent.SWAY][DRIVE], turns, a[GOING])
+    cruise = (1.0 - still) * stride.cruises(way, out[latent.SWAY][DRIVE], turns, a[GOING])
     lat_dc = stepping * (ref[LATERAL] - out[latent.SWAY][LATERAL] * np.sin(out[latent.PSI][LATERAL]))
     across = 2.5 * lat_dc
-    zd = (zd + HOT[SAGITTAL] * ((v[ALONG] - cruise) / HALF_M - zd[SAGITTAL])
-          + stepping * HOT[LATERAL] * ((v[LEFT] - across) / fr[W0] - zd[LATERAL]))
+    dv2 = (v[ALONG] - cruise - HALF_M * rate[SAGITTAL]) ** 2 + (v[LEFT] - across - fr[W0] * rate[LATERAL]) ** 2
+    ref = ref + HOT[AXIAL] * stood.max() * still * poise.clip(0.5 * dv2 / (G * AXIAL_M), 0.0, 0.25)
+    zd = (zd + HOT[SAGITTAL] * ((v[ALONG] - cruise + 0.5 * still * (vh[ALONG] - v[ALONG] - HALF_M * PITCH_RAD * rate[PITCH])) / HALF_M - zd[SAGITTAL])
+          + np.maximum(stepping, still) * HOT[LATERAL] * ((v[LEFT] - across + 0.5 * still * (vh[LEFT] - v[LEFT])) / fr[W0] - zd[LATERAL]))
     zdd = acc + kp * (ref - z) + kd * (rate - zd)
     # her limbs' places as her modes ask them; their sum's acceleration is her centre of
     # mass's, the other way; its ZMP into her soles, and which of them stand
     hands = HANDS * fr[UNIT][:, None, None]
     both = np.einsum('nia,n->ia', hands, zdd).mean(axis=0)
     swaying = (np.abs(ref[LATERAL] - lat_dc - z[LATERAL]) < ON[0]) & (np.abs(rate[LATERAL] - zd[LATERAL]) < ON[1])
-    up = LIMBS * ref[LIFT]
     stance, zmp = poise.stands(c[:2] + both[:2] / om ** 2, xi, low, high, om, out[latent.HELD], up, swaying,
                                (sweep, off, flying),
                                (y[LOAD], y[LOWEST] - floors, y[LOWEST] - fr[FLOOR], y[VCOM][1], y[PROP] * fr[WEIGHT]),
@@ -140,7 +144,7 @@ def ask(out, y, fr, a):
     # its hip is - her centre of mass less than her hips
     axial = shortened(legs, fr, stance)
     z += HOT[AXIAL] * (axial[0] - z[AXIAL])
-    zd += HOT[AXIAL] * (axial[1] - zd[AXIAL])
+    zd += HOT[AXIAL] * (axial[1] - stance.max() * still * (bears @ shod[:, UP] + 0.5 * (vh[UP] - v[UP])) / (AXIAL_M * fr[HIPS_BY]) - zd[AXIAL])
     pressed = acc[AXIAL] + kp[AXIAL] * (ref[AXIAL] - z[AXIAL]) + kd[AXIAL] * (rate[AXIAL] - zd[AXIAL])
     risen = ((legs[2] ** 2 - ((v - shod) ** 2).sum(axis=1) - legs[0][:, :2] @ along
               - legs[1] * AXIAL_M * fr[HIPS_BY] * pressed) / np.maximum(legs[0][:, UP], LOW_LEG * fr[REACH0]))
@@ -164,7 +168,7 @@ def ask(out, y, fr, a):
                         + TURN_KD[1] * tilting) / TURN_KD[0]
     a[GOING] += fr[DT] / GOING_S * ((y[VSOLE].reshape(2, 3) @ rot[ALONG]).mean() - a[GOING])
     a[STANCE], a[COM_ACC], a[STRIDES], a[BORNE] = stance, com @ rot, stepping, propped
-    _poses(out, y, fr, a, (z, ref, rate, acc, kp, kd), (turn, spun), up, aloft * (1.0 - limbs))
+    _poses(out, y, fr, a, (z, ref, rate, acc, kp, kd), (turn, spun), up, aloft * (1.0 - limbs), still)
     return a
 
 
@@ -215,7 +219,7 @@ def _swings(y, fr, at, said, clear, stance, cruise, grounded):
     return off3[2] + kp[FREE_BY] * (off3[0] + lead) + kd[FREE_BY] * off3[1], frame
 
 
-def _poses(out, y, fr, a, said, turned, up, folds):
+def _poses(out, y, fr, a, said, turned, up, folds, still):
     """Her turns, her arms and her knees into `a`. Her trunk's and her pelvis's pitch, each on
     the pitch's spring, her pelvis's list and its turn on theirs - her trunk upright and on
     her way -, the loop's own turn law asked for what gives that; her arms on the posture's
@@ -224,6 +228,8 @@ def _poses(out, y, fr, a, said, turned, up, folds):
     how far each sole is asked up, `folds` which soles' knees are asked a fold."""
     z, ref, rate, acc, kp, kd = said
     turn, spun = turned
+    wh = fr[ROT].reshape(3, 3) @ y[HSPIN]
+    spun = spun + 0.5 * still * (1.0 - PELVIS) * np.array([wh[LEFT] - spun[0, 1], wh[ALONG] - spun[1, 1], 0.0])[:, None]
     turn_dc = ref[TURN] - out[latent.SWAY][TURN] * np.sin(out[latent.PSI][TURN])
     aim = np.stack([fr[PITCH0] + PITCH_RAD * ref[PITCH], PELVIS * LIST_RAD * ref[LIST],
                     TURN_RAD * (PELVIS * ref[TURN] + (1.0 - PELVIS) * 1.10 * turn_dc)])

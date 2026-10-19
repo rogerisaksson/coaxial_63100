@@ -21,10 +21,10 @@ HEARD = ('say', 'walk', 'entries', 'gym', 'text', 'push', 'seconds', 'restart', 
 WALK = (('#201', 0.5), ('#202', 2.0), ('#203', 5.0), ('#204', 9.0))
 BRAKE = ('(stream_inject (sequence_id 200) (blend_duration 500ms) (latent_targets (mode_axial_compression 0.04)'
          ' (mode_pitch_attitude 0.0) (mode_sagittal_shift 0.0) (mode_lateral_shift 0.0) (mode_pelvis_turn 0.0)'
-         ' (mode_stance_width 0.0)) (impedance (stiffness mode_axial_compression 3000) (damping mode_axial_compression 600)'
-         ' (stiffness mode_lateral_shift 3000) (damping mode_lateral_shift 300) (stiffness mode_sagittal_shift 0)'
+         ' (mode_stance_width 0.0)) (impedance (stiffness mode_axial_compression 3000) (damping mode_axial_compression 800)'
+         ' (stiffness mode_lateral_shift 3000) (damping mode_lateral_shift 600) (stiffness mode_sagittal_shift 0)'
          ' (damping mode_sagittal_shift 260) (stiffness mode_foot_rock 2400) (damping mode_foot_rock 240))'
-         ' (cpg_config (enable true) (amplitude mode_lateral_shift 0.28) (amplitude mode_sagittal_drive 0.04)'
+         ' (cpg_config (enable true) (amplitude mode_lateral_shift 0.12) (amplitude mode_sagittal_drive 0.0)'
          ' (amplitude mode_foot_rock 0.0) (amplitude mode_pelvis_list 0.0)'
          ' (amplitude mode_pelvis_turn 0.0) (amplitude mode_arm_swing 0.0) (amplitude mode_stance_width 0.0)'
          ' (phase_offset mode_lateral_shift mode_sagittal_drive 108deg) (phase_offset mode_pelvis_list mode_sagittal_drive 108deg))'

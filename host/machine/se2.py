@@ -54,7 +54,8 @@ def said(g, label, wire, names=(), at=None, reset=False):
 
 
 def _dropped(g):
-    g['tab'], g['labels'], g['_sync_cpg_at'], g['_jump_until'] = g['tab'][:0], [(w, n) for w, n in g['labels'] if w <= g['t']], None, 0.0
+    g['tab'], g['labels'], g['_sync_cpg_at'], g['_jump_until'], g['_held_since'] = (
+        g['tab'][:0], [(w, n) for w, n in g['labels'] if w <= g['t']], None, 0.0, None)
 
 
 def doing(g):
@@ -145,20 +146,9 @@ def step_physical_twist(g, dt, out=None):
     floored(g, y, dt)
     cur_doing = doing(g)
     twist_mode = bool(g.get('_twist_active') or g.get('_twist_stop_until', 0.0) > g['t'] or cur_entry in WASD_GAITS or cur_doing == 'brake')
-    is_hop = cur_doing in ('load', 'throw', 'land') and cur_entry not in ('controlled_fall', 'hop_up_chair', 'hop_down_chair')
     vx, vy, wz = g.get('twist', (0.0, 0.0, 0.0))
     tx, ty, tz = (vx, vy, wz) if g.get('_twist_active') else NOMINAL_TWIST.get(cur_entry, (0.0, 0.0, 0.0))
     vxp, vyp, wzp = float(v[0]) * sh + float(v[2]) * ch, float(v[0]) * ch - float(v[2]) * sh, float(g['sense'][edge.GYRO][1])
-    dt_ld = (g['t'] - g['_land_touch_t']) if g.get('_land_touch_t') is not None else -1.0
-    if out is not None and is_hop and not (g.get('_leap') and dt_ld > 0.06):
-        out[latent.SWAY][:] = 0.0
-        for m in (modal.DRIVE, modal.LIFT, modal.LATERAL, modal.TURN, modal.LIST):
-            out[latent.REF][m] = out[latent.RATE][m] = out[latent.ACC][m] = 0.0
-        out[latent.REF][modal.WIDTH] = min(float(out[latent.REF][modal.WIDTH]), 0.04)
-        out[latent.RATE][modal.WIDTH] = out[latent.ACC][modal.WIDTH] = 0.0
-        if max(g['loads']) <= 10.0 and cur_doing in ('throw', 'land'):
-            out[latent.REF][modal.AXIAL] = min(1.10, max(0.20, 0.70 + 0.40 * float(v[1])))
-            out[latent.KS][modal.LIFT], out[latent.DS][modal.LIFT] = 680.0, 60.0
     ax, ay, az = g.get('twist_actual', (0.0, 0.0, 0.0))
     kv, ky, kz = min(1.0, dt / 0.06), min(1.0, dt / (0.07 if abs(ty) > 0.01 else 0.10)), min(1.0, dt / (0.07 if abs(tz) > 0.01 else 0.10))
     g['twist_actual'] = (
@@ -166,8 +156,6 @@ def step_physical_twist(g, dt, out=None):
         ay + ky * ((vyp if abs(ty) > 0.01 else 0.0) - ay),
         az + kz * ((wzp if abs(tz) > 0.01 else 0.0) - az),
     )
-    if g.get('_jump_until', 0.0) > g['t']:
-        return
     pelvis_yaw = edge.yaw(g['sense'])
     if abs(tz) > 1e-6 and g.get('target_heading') is None:
         l0, l1 = float(g['loads'][0]), float(g['loads'][1])

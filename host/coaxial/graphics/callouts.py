@@ -13,11 +13,34 @@ LEADER_INK = (96, 110, 124)
 def line(dots, a, b):
     """The dots from `a` to `b`, (x, y) dot coordinates, set in `dots`."""
     import numpy as np
-    n = int(max(abs(b[0] - a[0]), abs(b[1] - a[1]))) + 1
-    x = np.rint(np.linspace(a[0], b[0], n)).astype(int)
-    y = np.rint(np.linspace(a[1], b[1], n)).astype(int)
-    keep = (x >= 0) & (x < dots.shape[1]) & (y >= 0) & (y < dots.shape[0])
-    dots[y[keep], x[keep]] = True
+    h, w = dots.shape
+    if h <= 0 or w <= 0:
+        return
+    ax, ay, bx, by = float(a[0]), float(a[1]), float(b[0]), float(b[1])
+    dx, dy = bx - ax, by - ay
+    t0, t1 = 0.0, 1.0
+    for p, q in ((-dx, ax), (dx, (w - 1) - ax), (-dy, ay), (dy, (h - 1) - ay)):
+        if p == 0.0:
+            if q < 0.0:
+                return
+        else:
+            r = q / p
+            if p < 0.0:
+                if r > t1:
+                    return
+                if r > t0:
+                    t0 = r
+            else:
+                if r < t0:
+                    return
+                if r < t1:
+                    t1 = r
+    x0, y0 = ax + t0 * dx, ay + t0 * dy
+    x1, y1 = ax + t1 * dx, ay + t1 * dy
+    n = int(max(abs(x1 - x0), abs(y1 - y0))) + 1
+    x = np.clip(np.rint(np.linspace(x0, x1, n)).astype(int), 0, w - 1)
+    y = np.clip(np.rint(np.linspace(y0, y1, n)).astype(int), 0, h - 1)
+    dots[y, x] = True
 
 
 def packed(fg, bg=None):

@@ -9,17 +9,16 @@
     got = sysid.identify(base, Y, tau)              # each one fitted, with what it is worth
     identified.correction(lay, body, Y, tau)        # the least move of her build that fits it
 
-Her drives' torques are linear in what moves her: each link's ten inertial parameters - its
-mass, its first moment and its inertia about its frame's origin - and each drive's armature,
-viscous and Coulomb friction: tau = Y(q, v, a) theta. Y is Newton-Euler down her tree from her
-pelvis, whose IMU gives its turn, spin and specific force (gravity rides in it), her encoders
-each joint's angle and rate, their differences the accelerations (`machine.edge`); only her
-drives' rows are measured, so her pelvis's own parameters never show and what a link shares
-with its neighbours, or what a campaign never moves apart, comes out as a sum: `base` finds
-those sums numerically (Gautier) in the campaign's own regressor, and `identify` fits them by
-least squares; `machine.identified` moves her build the least that fits the campaign and lays
-it over her law's model. On the stand (`mjcf.STAND`) her pelvis is welded to the world and nothing
-touches her soles; a robot of her build hangs the same way, its boards' currents its torques.
+Her drives' torques are linear in what moves her: each link's ten inertial parameters - mass,
+first moment and inertia about its frame's origin - and each drive's armature, viscous and
+Coulomb friction: tau = Y(q, v, a) theta. Y is Newton-Euler down her tree from her pelvis, whose
+IMU gives turn, spin and specific force (gravity rides in it), her encoders each joint's angle
+and rate, their differences the accelerations (`machine.edge`); only her drives' rows are
+measured, so her pelvis's own parameters never show and what a link shares with its neighbours,
+or what a campaign never moves apart, comes out as a sum: `base` finds those sums numerically
+(Gautier) in the campaign's regressor, and `identify` fits them by least squares;
+`machine.identified` moves her build the least that fits the campaign and lays it over her law's
+model. On the stand (`mjcf.STAND`) her pelvis is welded to the world and nothing touches her soles.
 """
 import math
 
@@ -160,7 +159,7 @@ def _frames(lay, body, qpos):
     return xpos, xmat, axis, anchor
 
 
-def regressor(lay, body, qpos, qvel, qacc, a0, wacc=None):
+def regressor(lay, body, qpos, qvel, qacc, a0, wacc=None, frames=None):
     """Y (N, hinges + 6, P) at N states of her law's model: `qpos` (N, nq) and `qvel`, `qacc`
     (N, nv) in MuJoCo's convention, `a0` (N, 3) her pelvis's origin's acceleration less gravity,
     world; every hinge's row, as its torque would be in a world without gravity, then her
@@ -170,7 +169,7 @@ def regressor(lay, body, qpos, qvel, qacc, a0, wacc=None):
     import numpy as np
     hinge, parent, span, above = lay['hinge'], lay['parent'], lay['span'], lay['above']
     n, nb, nh = len(qpos), len(lay['bodies']), len(hinge)
-    xpos, xmat, axis, anchor = _frames(lay, body, qpos)
+    xpos, xmat, axis, anchor = _frames(lay, body, qpos) if frames is None else frames
     R, p = xmat[:, 0], xpos[:, 0]
     w = np.einsum('nij,nj->ni', R, qvel[:, 3:6])
     al = np.einsum('nij,nj->ni', R, qacc[:, 3:6])
@@ -242,7 +241,8 @@ def _state(lay, body, ys, dt, every, extra=None):
     m, at = body.m, np.arange(0, len(ys) - 1, every)
     n, qadr, vadr = len(at), lay['qadr'], lay['vadr']
     qpos, qvel, qacc = np.zeros((n, m.nq)), np.zeros((n, m.nv)), np.zeros((n, m.nv))
-    now, then, before = (np.asarray([ys[max(i + d, 0)] for i in at]) for d in (0, 1, -1))
+    ys_arr = np.asarray(ys)
+    now, then, before = (ys_arr[np.maximum(at + d, 0)] for d in (0, 1, -1))
     qpos[:, 3:7], qpos[:, qadr] = now[:, edge.QUAT], now[:, edge.Q]
     qvel[:, 3:6], qvel[:, vadr] = now[:, edge.GYRO], now[:, edge.QD]
     qacc[:, 3:6] = (then[:, edge.GYRO] - now[:, edge.GYRO]) / dt
@@ -265,7 +265,7 @@ def rows(lay, body, ys, taus, dt, every=1, extra=None):
     for s in range(0, len(at), 400):
         e = min(s + 400, len(at))
         Y[s:e] = regressor(lay, body, qpos[s:e], qvel[s:e], qacc[s:e], a0[s:e], wacc[s:e])[:, lay['driven']]
-    tau = np.asarray([taus[i] for i in at], float)[:, lay['joint']]
+    tau = np.asarray(taus, float)[at][:, lay['joint']]
     slides = np.abs(qvel[:, lay['dof']]) >= STICK
     Y *= slides[:, :, None]
     return Y, tau * slides
@@ -291,7 +291,7 @@ def free(lay, ys, every=1, stop_deg=STOP_DEG):
     unknown - against the world's own model a swinging hip's row read 0 within its swing and
     2-6 N m the sample its sole landed."""
     import numpy as np
-    seen = np.asarray([ys[i] for i in range(0, len(ys) - 1, every)])
+    seen = np.asarray(ys)[np.arange(0, len(ys) - 1, every)]
     q, margin = seen[:, edge.Q], math.radians(stop_deg)
     near = (q < lay['lo'] + margin) | (q > lay['hi'] - margin)
     touch = np.linalg.norm(seen[:, edge.TOUCH].reshape(len(seen), -1, 3), axis=2) > 0.0
@@ -312,8 +312,9 @@ def borne(lay, body, ys, dt, every=1):
     m = body.m
     qpos, qvel, qacc, a0, wacc, at = _state(lay, body, ys, dt, every)
     now = np.asarray([ys[i] for i in at])
-    Y = regressor(lay, body, qpos, qvel, qacc, a0, wacc)
-    xpos, xmat, _axis, _anchor = _frames(lay, body, qpos)
+    frames = _frames(lay, body, qpos)
+    Y = regressor(lay, body, qpos, qvel, qacc, a0, wacc, frames)
+    xpos, xmat, _axis, _anchor = frames
     soles = lay['col'][[m.body(name).id for name in edge.INSOLES]] // 10
     Ri, pi = xmat[:, soles], xpos[:, soles]
     pressed, cop = now[:, edge.PRESS], now[:, edge.COP].reshape(len(at), -1, 3)

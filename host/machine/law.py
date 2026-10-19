@@ -110,6 +110,35 @@ def risen_back(g, dt):
     g['labels'] = [(w + dt if w >= first else w, n) for w, n in g['labels']]
 
 
+def _step_latent(g, dt):
+    """Step her latent state via the compiled C law core when laid, else Python `latent.step`."""
+    lib = g.get('law_c')
+    if lib is None:
+        return latent.step(g['st'], g['tab'], g['t'], dt, g['out'])
+    dp = ctypes.POINTER(ctypes.c_double)
+    tab = np.ascontiguousarray(g['tab'], dtype=np.float64)
+    lib.law_latent_step(g['st'].ctypes.data_as(dp), tab.ctypes.data_as(dp), len(tab),
+                        float(g['t']), float(dt), g['out'].ctypes.data_as(dp))
+    return g['out']
+
+
+def _step_modal(g, s, y, y_in, out):
+    """Step `support.couple` and `impedance.ask` via the compiled C law core when laid."""
+    lib = g.get('law_c')
+    qd = y_in[edge.QD][g['joints']]
+    if lib is None:
+        return support.couple(s['q'], qd, g['ref_q'], g['ref_v'], g['eso'][2], out), impedance.ask(out, y, g['fr'], g['a'])
+    dp = ctypes.POINTER(ctypes.c_double)
+    q_c, qd_c = np.ascontiguousarray(s['q'], dtype=np.float64), np.ascontiguousarray(qd, dtype=np.float64)
+    dq = np.empty(len(q_c), dtype=np.float64)
+    lib.law_support_couple(q_c.ctypes.data_as(dp), qd_c.ctypes.data_as(dp), g['ref_q'].ctypes.data_as(dp),
+                           g['ref_v'].ctypes.data_as(dp), g['eso'][2].ctypes.data_as(dp),
+                           out.ctypes.data_as(dp), dq.ctypes.data_as(dp))
+    lib.law_impedance_ask(out.ctypes.data_as(dp), y.ctypes.data_as(dp), g['fr'].ctypes.data_as(dp),
+                          g['a'].ctypes.data_as(dp))
+    return dq, g['a']
+
+
 def control(g, dt):
     """A pass of her latent loop on what she senses: `g['got']` solved, `g['leg_kp']` her legs'
     stiffness by their stance."""
@@ -138,11 +167,11 @@ def control(g, dt):
             g['st'][latent.NOW][latent.PHASE] = np.where(ph, fut[0, latent.VALS][latent.PHASE], g['st'][latent.NOW][latent.PHASE])
     held_back(g, dt * ev)
     risen_back(g, dt * ev)
-    out = latent.step(g['st'], g['tab'], g['t'], dt * ev, g['out'])
+    out = _step_latent(g, dt * ev)
     cw = -1.0 if (math.sin(float(out[latent.PSI][modal.LATERAL]) - float(out[latent.PSI][modal.DRIVE])) * (1.0 if float(out[latent.SWAY][modal.LATERAL]) >= 0.0 else -1.0) < -0.5) else 1.0
     if g.get('_last_way') is not None and cw != g['_last_way'] and (g['st'][latent.NOW][latent.GAIN] > 0.05 or abs(float(out[latent.SWAY][modal.DRIVE])) > 0.02):
         g['st'][latent.THETA] = (float(g['st'][latent.THETA]) + math.pi) % math.tau
-        out = latent.step(g['st'], g['tab'], g['t'], 0.0, g['out'])
+        out = _step_latent(g, 0.0)
     g['_last_way'] = cw
     se2.step_physical_twist(g, dt * ev, out)
     gripped(out, g['held'], g['a'][modal.STANCE], g['situations']['caps'], g['into'])
@@ -157,12 +186,11 @@ def control(g, dt):
     for idx, k in ((g.get('waist_idx'), 0.38), (g.get('head_idx'), 0.72)):
         if idx is not None:
             g['posture'][idx] = k * g['_look_yaw'] if cur_doing not in se2.STUNT_PHASES else 0.0
-    imp = impedance.ask(out, y, g['fr'], g['a'])
+    dq, imp = _step_modal(g, s, y, y_in, out)
     if backing and abs(g['_look_yaw']) > 1e-3 and cur_doing not in se2.STUNT_PHASES and g.get('waist_idx') is not None:
         imp[modal.HEADED][1] = g['posture'][g['waist_idx']]
-    ask = g['ask'] = modal.given(imp, y, g['fr'], g['posture'], g['bend'], g['arms'], body.knees)
+    ask = g['ask'] = modal.given(imp, y, g['fr'], g['posture'] + dq, g['bend'], g['arms'], body.knees)
     ask['mu'] = g['held']
-    support.shape_hop_and_support(g, ask, out, cur_doing)
     s_solve, cv = s, list(g.get('cervical', ()))
     if (cur_doing in ('load', 'throw', 'land') or ae == 'hop') and ae not in ('hop_up_chair', 'hop_down_chair', 'controlled_fall'):
         cv = cv + list(g['limbs']['shoulders'])
@@ -192,7 +220,7 @@ def laid(g):
     pointing at `g`'s arrays once - the observers, the setpoints and their rates, the holds, the
     knees' spring, the feed and the clamps her drives are told (`g['cmd']`) - and what it reads
     by, kept beside it."""
-    from tools.cores import wbc as cores
+    from tools.cores import law_library, wbc as cores
     body, joints = g['body'], g['joints']
     n = len(joints)
     kept = {'joints': np.ascontiguousarray(joints, dtype=np.int32),
@@ -212,6 +240,7 @@ def laid(g):
         setattr(p, name, cores.pointer(arr))
     g['cmd'] = {'target': g['ref_q'], 'feed': kept['feed'], 'limit': kept['limit']}
     g['drives'] = (p, kept, cores.library().wbh_pass_drives)
+    g['law_c'] = law_library()
 
 
 def drives(g, dt):

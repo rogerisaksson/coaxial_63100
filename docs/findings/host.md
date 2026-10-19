@@ -167,6 +167,9 @@ Pages, tooling, suites and the local model's runner. The board's findings:
   m/s, W+A walks her an arc the chase follows, C has her down with `[F]
   #201 stand` offered, the chair scene offers `[F] sit chair` at 0.8 m. Her
   process ran at 0.2-0.3 of real time on four cores, 8-10 frames a second.
+  A frame at 15 a second showed the same state again 65 times in 235, the
+  rest 0.036 s of her time apart with 0.022 of spread, her process at 0.7 of
+  real time in slices of 0.05 s (`terminal/views/playback.py`).
 - HUMANOID's R crashed the page at once with no traceback
   kept; headless it took R and saved 97 rows then, and R starting, three
   states and R saving is test_views_humanoid.py's. The

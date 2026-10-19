@@ -262,12 +262,14 @@ def stepped(s):
             ys.append(g['sense'].copy())
             taus.append(world.motor.copy())
             if len(ys) > WINDOW_STEPS:
+                t_wear = time.perf_counter()
                 w = s['wear']
                 wear.step(w, wear.window(w, ys, taus[:-1], DT))
                 wear.boxed(w, ys, taus[:-1], DT)
                 wear.loaded(w, g)
                 s['wear_told'] = wear.told(w)
                 s['ys'], s['taus'] = [ys[-1]], [taus[-1]]
+                s['_wear_s'] = time.perf_counter() - t_wear
         else:
             s['ys'], s['taus'] = [], []
             world.feed[:], world.rate[:] = 0.0, 0.0
@@ -321,18 +323,22 @@ def run(commands, states, heard=None, every=sprung.STACK_EVERY, walks=False):
                 wall0, sim0 = began, due
             from_t = s['g']['t']
             while s['g']['t'] < due - 1e-9 and s['epoch'] == epoch:
+                t_step = time.perf_counter()
                 stepped(s)
-            spent += time.perf_counter() - began
-            ran += s['g']['t'] - from_t
+                dt_wear = s.pop('_wear_s', 0.0)
+                wall0 += dt_wear
+                spent += max(0.0, (time.perf_counter() - t_step) - dt_wear)
+                ran += s['g']['t'] - from_t
+                from_t = s['g']['t']
+                if s['epoch'] == epoch and s['g']['t'] - said_at >= sprung.SAY_S:
+                    s['ratio'] = ran / spent if spent > 1e-6 else s['ratio']
+                    spent = ran = 0.0
+                    said_at = s['g']['t']
+                    _put(states, told(s))
         if s['epoch'] != epoch:
             wall0, sim0, said_at, spent, ran = time.perf_counter(), s['g']['t'], 0.0, 0.0, 0.0
             _put(states, told(s))
             continue
-        if s['g']['t'] - said_at >= sprung.SAY_S:
-            s['ratio'] = ran / spent if spent > 1e-6 else s['ratio']
-            spent = ran = 0.0
-            said_at = s['g']['t']
-            _put(states, told(s))
         ahead = s['g']['t'] - (sim0 + (time.perf_counter() - wall0))
         if ahead > 0.002:
             time.sleep(min(ahead * 0.5, sprung.SAY_S / 4.0))

@@ -59,11 +59,11 @@
 (deftrait gait_brake
   (duration 1800ms)
   (blend_duration 500ms)
-  (impedance (stiffness mode_foot_rock 2400) (damping mode_foot_rock 240))
+  (impedance (damping mode_lateral_shift 600) (stiffness mode_foot_rock 2400) (damping mode_foot_rock 240))
   (cpg_config
     (frequency 0.85Hz)
-    (amplitude mode_lateral_shift 0.28)
-    (amplitude mode_sagittal_drive 0.04)
+    (amplitude mode_lateral_shift 0.12)
+    (amplitude mode_sagittal_drive 0.0)
     (amplitude mode_limb_lift 0.7)
     (amplitude mode_arm_swing 0.0))
   (task_constraints (maintain_zmp (polygon dynamic_footprint))))

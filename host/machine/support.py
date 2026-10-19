@@ -1,32 +1,50 @@
-"""Her whole-body ask shaped for a hop's flight, a hit's momentum and a swing kept clear."""
-import math
+"""Sparse coupling between her driven joints' kinematic innovation and her modal references.
 
-from machine import edge, se2
+    dq = support.couple(q, qd, ref_q, ref_v, eso_z, out)   # arrays in, array out, no branch
+
+When an upper-body joint (her arms or her waist) meets an obstruction that holds it back from
+its inner-loop reference (`ref_q`, `ref_v`), its kinematic innovation `nu` is shrunk smoothly
+by `nu^3 / (nu^2 + SIGMA^2)`: her non-weight-bearing posture yields (`GAMMA`), her observer's
+disturbance integral (`eso_z`) bleeds so the arm never winds up into a rigid hook, and the
+sparse coupling matrix `PI` shifts `LATERAL` and `TURN` away from the deflected side so she
+steps clear without stopping.
+"""
+import os
+
+os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
+
+import numpy as np
+
+from machine import latent
+from machine.modal import LATERAL, N, TURN
+
+#: Driven indices (`wrench._DRIVEN`) of the non-weight-bearing upper body: waist, left arm, right arm.
+UPPER = np.array([2, 5, 6, 13, 14])
+DRIVEN = 21
+
+#: Velocity lead, s; ESO disturbance floor and scale, rad/s^2; shrinkage knee, rad; ESO bleed, 1/rad^2.
+TAU_V, ESO_0, ESO_S, SIGMA, BLEED = 0.08, 12.0, 25.0, 0.38, 35.0
+
+#: Upper-body posture admittance per driven joint (0 on weight-bearing legs and spine pitch/roll).
+GAMMA = np.zeros(DRIVEN)
+GAMMA[UPPER] = (0.35, 0.95, 0.85, 0.95, 0.85)
+
+#: Sparse coupling matrix `PI` (modes, driven): left arm held back (`nu < 0`) shifts `LATERAL`
+#: and `TURN` negative (to her right); right arm held back (`nu < 0`) shifts them positive (left).
+PI = np.zeros((N, DRIVEN))
+PI[LATERAL, UPPER] = (0.18, 0.25, 0.12, -0.25, -0.12)
+PI[TURN, UPPER] = (0.45, 0.40, 0.18, -0.40, -0.18)
 
 
-def shape_hop_and_support(g, ask, out, cur_doing):
-    from machine import flight, latent, modal, wrench
-    y, cur_entry = g['y'], g.get('active_entry')
-    twist_mode = bool(g.get('_twist_active') or g.get('_twist_stop_until', 0.0) > g['t']
-                      or 0.0 < g.get('_jump_until', 0.0) and g['t'] < g['_jump_until'] + 1.5)
-    vx, vy_t, wz = g.get('twist', (0.0, 0.0, 0.0))
-    tx, ty, _ = (vx, vy_t, wz) if g.get('_twist_active') else se2.NOMINAL_TWIST.get(cur_entry, (0.0, 0.0, 0.0))
-    if (cur_doing in ('load', 'throw', 'land') or (cur_doing == 'rest' and g.get('_hop_until', 0.0) > g['t'])) and (
-            g.get('_jump_until', 0.0) > g['t'] or cur_entry == 'hop' or g.get('_hop_until', 0.0) > g['t']):
-        return flight.shape_hop(g, ask, out, cur_doing, tx, ty, (latent, modal, wrench))
-    if max(g['loads']) > 10.0 and g.get('_upper_hit'):
-        ask['kdot'] = -8.0 * y[modal.MOMENT]
-    if twist_mode and cur_doing not in se2.STUNT_PHASES and g.get('_jump_until', 0.0) <= g['t'] and ask.get('swing'):
-        pyaw = edge.yaw(g['sense'])
-        cp, sp, soles = math.cos(pyaw), -math.sin(pyaw), y[modal.SOLE].reshape(2, 3)
-        for k, sw in list(ask['swing'].items()):
-            other, sign = 1 - k, (1.0 if k == 0 else -1.0)
-            p_sw, v_sw = sw[0].copy(), sw[1]
-            lt_o = float(soles[other, 0]) * cp + float(soles[other, 2]) * sp
-            lt_k = (float(p_sw[0]) + 0.05 * float(v_sw[0])) * cp + (float(p_sw[2]) + 0.05 * float(v_sw[2])) * sp
-            dl = sign * (lt_k - lt_o)
-            if dl < 0.115:
-                adj = (0.115 - dl) * sign
-                p_sw[0] += adj * cp
-                p_sw[2] += adj * sp
-                ask['swing'][k] = (p_sw, sw[1], sw[2], sw[3])
+def couple(q, qd, ref_q, ref_v, eso_z, out):
+    """`dq` (driven,) rad of upper-body posture admittance, `out[latent.REF]` shifted by `PI @ phi`
+    and `eso_z` bled on obstructed non-weight-bearing joints."""
+    err, s2, z0 = q - ref_q, SIGMA * SIGMA, ESO_S * ESO_S
+    e2, z2 = err * err, np.maximum(eso_z * np.copysign(1.0, err) - ESO_0, 0.0) ** 2
+    e4, z4, s4, sz4 = e2 * e2, z2 * z2, s2 * s2, z0 * z0
+    e8, s8 = e4 * e4, s4 * s4
+    phi = (z4 / (z4 + sz4)) * (e8 / (e8 + s8)) * (err + TAU_V * (qd - ref_v) * e2 / (e2 + s2))
+    out[latent.REF] += PI @ phi
+    eso_z /= 1.0 + BLEED * GAMMA * (phi * phi)
+    return GAMMA * phi
+
