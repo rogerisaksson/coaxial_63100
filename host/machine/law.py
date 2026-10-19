@@ -136,7 +136,7 @@ def control(g, dt):
                           g['est']['slip'], float(g['fr'][modal.WEIGHT]), dt * ev, g['grip_prior'],
                           (y_in[edge.LOAD] >= flight.TOUCH_N) & ~np.array(g.get('bore', (True, True))))
     g['loads'] = [float(v) for v in y_in[edge.LOAD]]
-    y = modal.sensed(s, g['loads'], g['y'])
+    y = g['modal_sensed'](s, g['loads'], g['y'])
     y[modal.GRIP] = g['held'] = g['outside'](g['grip'], g['situations']['grips'])
     g['into'] = g['read'](g['situations'], g['readings'](
         y, g['fr'], g['a'], g['grip'], y_in[edge.TOUCH].reshape(-1, 3), float(g['fr'][modal.WEIGHT])))
@@ -219,6 +219,7 @@ def laid(g):
     g['read'] = bodied.on_args(situation.read, 'read', (0, 1))
     g['gripped'] = bodied.on_args(gripped, 'gripped', (0, 1, 2, 3, 4))
     g['poses'] = bodied.on_args(modal.poses, 'poses', (0, 1, 2, 3, 4, 5, 7))
+    g['modal_sensed'] = bodied.on_args(modal.sensed, 'modal_sensed', (0, 1, 2), sources={0: g['sensed']})
     g['impedance'] = functools.partial(c_law.asked, *c_law.laid())
     laid_ = c_law.latent_laid()
     g['latent'], g['couple'] = functools.partial(c_law.stepped, laid_), functools.partial(c_law.coupled, laid_)

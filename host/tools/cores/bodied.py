@@ -22,6 +22,7 @@ import threading
 import numpy as np
 
 from tools.cores import emit, held, layout, trace, trace_mj
+from tools.cores.wbc import address
 
 #: The builds under way in this process by their source's digest, a thread each.
 _BUILDING = {}
@@ -30,40 +31,24 @@ _LOCK = threading.Lock()
 F64 = np.dtype(np.float64)
 
 
-def _data_at():
-    """Where in an ndarray's object its data pointer is, bytes: numpy's PyArrayObject, after the head."""
-    probes = [np.empty(k + 1) for k in range(3)]
-    for at in range(8, 80, 8):
-        if all(ctypes.c_void_p.from_address(id(a) + at).value == a.ctypes.data for a in probes):
-            return at
-    raise RuntimeError("numpy's array head not found")
-
-
-#: An ndarray's data pointer, `address(a)`.
-_AT = _data_at()
-
-
-def address(a):
-    """The address of an ndarray's first element, read off its object."""
-    return ctypes.c_void_p.from_address(id(a) + _AT).value or 0
-
-
 def on_body(fn, name, inputs=(1, 2), fresh=2, seed=1, body=0):
     """`fn(..., b, ...)`, her body at `body`, the arrays at `inputs` (Compiled)."""
     return Compiled(fn, name, inputs, body, fresh, seed)
 
 
-def on_args(fn, name, inputs, fresh=2, seed=1):
-    """`fn(...)` of the arrays, numbers and dicts of arrays at `inputs` (Compiled)."""
-    return Compiled(fn, name, inputs, None, fresh, seed)
+def on_args(fn, name, inputs, fresh=2, seed=1, sources=None):
+    """`fn(...)` of the arrays, numbers and dicts of arrays at `inputs` (Compiled); `sources` {an
+    argument: the Compiled whose last result it is, where it is}."""
+    return Compiled(fn, name, inputs, None, fresh, seed, sources)
 
 
 class Compiled:
 
     """`fn` compiled on her memory: numpy's own until its C is held, then the C."""
 
-    def __init__(self, fn, name, inputs, body, fresh, seed):
+    def __init__(self, fn, name, inputs, body, fresh, seed, sources=None):
         self.fn, self.name, self.inputs, self.body, self.fresh, self.seed = fn, name, list(inputs), body, fresh, seed
+        self.sources = sources or {}
         self.made: tuple | None = None
         self.job: dict | None = None
         self.c: Bound | None = None
@@ -85,7 +70,7 @@ class Compiled:
                 print('%s stays numpy: %s' % (self.name, e), file=sys.stderr)
             c = self.c
             kept = None if c is None else c.fits(args)
-        return self.fn(*args) if c is None or kept is None else c(kept)
+        return self.fn(*args) if c is None or kept is None else c(args)
 
     def wait(self, *args):
         """Built and held at `args` now: its C (Bound), or why it stays numpy raised."""
@@ -111,7 +96,7 @@ class Compiled:
             if 'why' in job:
                 raise job['why']
             lib, cfn = job['lib']
-            c = Bound(lib, cfn, prog, info, specs, self.body)
+            c = Bound(lib, cfn, prog, info, specs, self.body, self.sources)
             self._hold(c, args, twin)
             self.c = c
         if self.body is not None:
@@ -161,24 +146,82 @@ class Compiled:
             if kept is None:
                 raise held.Parted('%s: its own copies do not fit it' % self.name)
             on = 'its copies of %s' % ("the call's arguments" if d == 0 else 'fresh draws %d' % d)
-            held.alike(trace.leaves_of(c.prog.shape, want), trace.leaves_of(c.prog.shape, c(kept)), self.name, on)
+            held.alike(trace.leaves_of(c.prog.shape, want), trace.leaves_of(c.prog.shape, c(other)), self.name, on)
             held.alike(dict(enumerate(_leaves_in(ours))), dict(enumerate(_leaves_in(theirs))), self.name + "'s arguments", on)
 
 
 def _tree_in(prog, k, path, v, specs, top):
-    """Argument `k`'s `v` at `path` as traced: an array (or at the top a number) an extern over a copy
-    of it; a dict or a list of arrays its own of each; anything else itself, pinned (`specs`)."""
+    """Argument `k`'s `v` at `path` as traced: an array or a float (or at the top a number) an extern
+    over a copy of it; a dict lazy (`Lazy`), a list of arrays its own of each, its length pinned;
+    anything else itself, pinned (`specs`)."""
     if isinstance(v, dict):
-        return {key: _tree_in(prog, k, path + (key,), x, specs, False) for key, x in v.items()}
+        return Lazy(prog, k, path, v, specs)
     if isinstance(v, (list, tuple)) and any(isinstance(x, (dict, list, tuple, np.ndarray)) for x in v):
+        specs.append(('length', k, path, len(v)))
         return type(v)(_tree_in(prog, k, path + (i,), x, specs, False) for i, x in enumerate(v))
-    if (isinstance(v, np.ndarray) and v.dtype.kind in 'fb') or (top and np.asarray(v).dtype.kind in 'fbiu'):
+    if ((isinstance(v, np.ndarray) and v.dtype.kind in 'fb') or isinstance(v, (float, np.floating))
+            or (top and np.asarray(v).dtype.kind in 'fbiu')):
         name = 'a%d%s' % (k, ''.join('/%s' % p for p in path))
         traced = prog.extern(name, np.array(v, dtype=float))
         specs.append(('array', k, path, name, traced))
         return traced
     specs.append(('pin', k, path, v))
     return v
+
+
+class Lazy(dict):
+
+    """A dict argument as traced: an entry made what `_tree_in` makes it as her code reads it, what
+    it finds there or not pinned; read whole, every entry made and its keys pinned."""
+
+    def __init__(self, prog, k, path, raw, specs):
+        super().__init__()
+        self.at = (prog, k, path, raw, specs)
+
+    def __getitem__(self, key):
+        if not dict.__contains__(self, key):
+            prog, k, path, raw, specs = self.at
+            dict.__setitem__(self, key, _tree_in(prog, k, path + (key,), raw[key], specs, False))
+        return dict.__getitem__(self, key)
+
+    def __contains__(self, key):
+        _prog, k, path, raw, specs = self.at
+        there = dict.__contains__(self, key) or key in raw
+        specs.append(('has', k, path, key, there))
+        return there
+
+    def get(self, key, default=None):
+        return self[key] if key in self else default
+
+    def _whole(self):
+        _prog, k, path, raw, specs = self.at
+        specs.append(('keys', k, path, tuple(raw)))
+        for key in raw:
+            self[key]
+
+    def keys(self):
+        self._whole()
+        return dict.keys(self)
+
+    def values(self):
+        self._whole()
+        return dict.values(self)
+
+    def items(self):
+        self._whole()
+        return dict.items(self)
+
+    def __iter__(self):
+        self._whole()
+        return dict.__iter__(self)
+
+    def __len__(self):
+        self._whole()
+        return dict.__len__(self)
+
+    def copy(self):
+        self._whole()
+        return dict(dict.items(self))
 
 
 def _rebound(prog, args, specs):
@@ -188,7 +231,7 @@ def _rebound(prog, args, specs):
         node = args[k]
         for p in path[:-1]:
             node = node[p]
-        now = node[path[-1]]
+        now = dict.__getitem__(node, path[-1]) if isinstance(node, Lazy) else node[path[-1]]
         if now is extern:
             continue
         if not isinstance(now, trace.Traced) or now.shape != extern.shape:
@@ -202,11 +245,12 @@ def _copy_in(v, rng, top):
         return {key: _copy_in(x, rng, False) for key, x in v.items()}
     if isinstance(v, (list, tuple)) and any(isinstance(x, (dict, list, tuple, np.ndarray)) for x in v):
         return type(v)(_copy_in(x, rng, False) for x in v)
-    if (isinstance(v, np.ndarray) and v.dtype.kind in 'fb') or (top and np.asarray(v).dtype.kind in 'fbiu'):
+    if ((isinstance(v, np.ndarray) and v.dtype.kind in 'fb') or isinstance(v, (float, np.floating))
+            or (top and np.asarray(v).dtype.kind in 'fbiu')):
         a = np.array(v)
         if rng is not None:
             a = rng.normal(size=a.shape) > 0.0 if a.dtype == bool else rng.normal(size=a.shape).astype(a.dtype)
-        return a if isinstance(v, np.ndarray) or a.ndim else a[()]
+        return a if isinstance(v, np.ndarray) or a.ndim else type(v)(a[()]) if isinstance(v, float) else a[()]
     return v
 
 
@@ -250,18 +294,24 @@ class Bound:
     and MuJoCo's addresses where bound; its arguments' addressed at each call; fn's result laid back
     of a fresh output block a call."""
 
-    def __init__(self, lib, cfn, prog, info, specs=(), body=None):
-        self.lib, self.cfn, self.prog, self.at = lib, cfn, prog, body
+    def __init__(self, lib, cfn, prog, info, specs=(), body=None, sources=None):
+        self.lib, self.cfn, self.prog, self.at, self.sources = lib, cfn, prog, body, sources or {}
         self.consts = list(prog.consts.items())
         index = {e.name: i for i, e in enumerate(prog.externs)}
         written = {b.id for st in prog.statements for b in layout.writes(st)}
         self.args = [(index[s[3]], s[1], s[2], s[4].buffer.id in written, s[4].shape) for s in specs if s[0] == 'array']
         self.pins = [s[1:] for s in specs if s[0] in ('pin', 'guard')]
+        self.checks = [s for s in specs if s[0] in ('has', 'keys', 'length')]
+        self.sourced: dict = {}
+        self.todo: dict = {}
+        self.matched: tuple = ()
         self.table = (ctypes.c_void_p * max(1, len(prog.externs)))()
         self.words = np.frombuffer(self.table, dtype=np.uint64)
         spans, self.total = info['outs']
         self.spans = [a for a, _b in spans]
-        self.made = maker(prog.shape, [(a, b, r.shape, r.buffer.dtype) for (a, b), r in zip(spans, prog.outs)])
+        whole = {s[4].buffer.id: s[1:3] for s in specs if s[0] == 'array'}
+        self.made = maker(prog.shape, [(a, b, r.shape, r.buffer.dtype, whole.get(r.buffer.id) if _whole(r) else None)
+                                       for (a, b), r in zip(spans, prog.outs)])
         self.work = np.empty(max(1, info['doubles']))
         self.lapack = ctypes.addressof(held.blas()) if held.matmuls(prog) else None
         self.funcs = (ctypes.c_void_p * max(1, len(prog.calls)))(*trace_mj.functions(prog))
@@ -287,17 +337,30 @@ class Bound:
             b = args[self.at]
             if b is not self.body or any(getattr(b, k) is not v for k, v in self.consts):
                 return None
-        for k, path, v in self.pins:
-            a = args[k]
-            for p in path:
-                a = a[p]
-            if a is not v and (isinstance(v, np.ndarray) or type(a) is not type(v) or a != v):
-                return None
+        try:
+            for k, path, v in self.pins:
+                a = args[k]
+                for p in path:
+                    a = a[p]
+                if a is not v and (isinstance(v, np.ndarray) or type(a) is not type(v) or a != v):
+                    return None
+            for kind, k, path, *rest in self.checks:
+                a = args[k]
+                for p in path:
+                    a = a[p]
+                if (kind == 'has' and (rest[0] in a) != rest[1]) or (kind == 'keys' and tuple(a) != rest[0]) or (
+                        kind == 'length' and len(a) != rest[0]):
+                    return None
+        except (KeyError, IndexError, TypeError):
+            return None
         seen, words = self.seen, self.words
-        for j, (i, k, path, written, shape) in enumerate(self.args):
+        for j, i, k, path, written, shape in self._sourced(args):
             a = args[k]
-            for p in path:
-                a = a[p]
+            try:
+                for p in path:
+                    a = a[p]
+            except (KeyError, IndexError, TypeError):
+                return None
             if a is seen[j] and a.shape == shape:
                 continue
             if type(a) is not np.ndarray or a.dtype is not F64 or not a.flags.c_contiguous:
@@ -314,11 +377,52 @@ class Bound:
             words[i] = address(a)
         return seen
 
-    def __call__(self, kept):
+    def _sourced(self, args):
+        """The arguments' externs another part's last result holds, addressed off its block in one
+        write each; the entries of `self.args` left, with their places."""
+        matched = ()
+        for k, source in self.sources.items():
+            last = source.last
+            if last is None or args[k] is not last[0]:
+                continue
+            laid = self.sourced.get(k)
+            if laid is None or laid[0] is not source.c:
+                laid = self.sourced[k] = (source.c,) + self._laid(k, source.c)
+                self.todo.clear()
+            self.words[laid[2]] = last[1] + laid[3]
+            matched += (k,)
+        if matched != self.matched:
+            for k in set(matched) ^ set(self.matched):
+                for j in self.sourced[k][1]:
+                    self.seen[j] = None
+            self.matched = matched
+        todo = self.todo.get(matched)
+        if todo is None:
+            done = set().union(*[self.sourced[k][1] for k in matched])
+            todo = self.todo[matched] = [(j,) + e for j, e in enumerate(self.args) if j not in done]
+        return todo
+
+    def _laid(self, k, c):
+        """(the places in `self.args`, their extern slots, their offsets in bytes) of argument `k`'s
+        leaves `c`'s result lays."""
+        places, slots, offs = [], [], []
+        for j, (i, at, path, written, shape) in enumerate(self.args):
+            if at != k or written:
+                continue
+            try:
+                start = c.place(path)
+            except (KeyError, IndexError, TypeError):
+                continue
+            places.append(j)
+            slots.append(i)
+            offs.append(8 * start)
+        return set(places), np.array(slots, dtype=np.intp), np.array(offs, dtype=np.uint64)
+
+    def __call__(self, args):
         flat = np.empty(self.total) if self.total else None
         at = None if flat is None else address(flat)
         self.cfn(None, at, *self.fixed)
-        got = self.made(flat)
+        got = self.made(flat, args)
         self.last = (got, at)
         return got
 
@@ -333,14 +437,22 @@ class Bound:
         return self.spans[node[1]]
 
 
+def _whole(r):
+    """Whether a Ref is the whole of its buffer in C order."""
+    return r.offset == 0 and r.shape == r.buffer.shape and r.strides == tuple(layout.cstrides(r.shape))
+
+
 def maker(shape, outs):
-    """fn's result laid back of an output block, a function of it: each leaf a view of the block at
-    its span (a 0-d one numpy's scalar, a bool one numpy's bools), its dicts, lists and tuples as
-    traced (`trace.unflatten`)."""
+    """fn's result laid back of an output block and its arguments, a function of them: each leaf a
+    view of the block at its span (a 0-d one numpy's scalar, a bool one numpy's bools) - a whole
+    argument array the caller's own, as Python returns it -, its dicts, lists and tuples as traced
+    (`trace.unflatten`)."""
     consts, lines = [], []
-    for k, (a, b, s, dtype) in enumerate(outs):
+    for k, (a, b, s, dtype, given) in enumerate(outs):
         view = 'f[%d]' % a if not s else 'f[%d:%d]' % (a, b) if len(s) == 1 else 'f[%d:%d].reshape(%r)' % (a, b, tuple(s))
-        lines.append('    l%d = %s' % (k, view + ' != 0.0' if dtype == bool else view))
+        if given is not None:
+            view = 'a[%d]%s' % (given[0], ''.join('[%r]' % p for p in given[1]))
+        lines.append('    l%d = %s' % (k, view + ' != 0.0' if dtype == bool and given is None else view))
 
     def put(x):
         consts.append(x)
@@ -356,7 +468,7 @@ def maker(shape, outs):
             items = [code(v) for v in body]
             return '[%s]' % ', '.join(items) if kind == 'list' else '(%s)' % ''.join(x + ', ' for x in items)
         return put(body)
-    text = 'def made(f):\n%s\n    return %s\n' % ('\n'.join(lines), code(shape))
+    text = 'def made(f, a):\n%s\n    return %s\n' % ('\n'.join(lines), code(shape))
     space: dict = {'c': consts}
     exec(text, space)
     return space['made']

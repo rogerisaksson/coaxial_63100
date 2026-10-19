@@ -174,4 +174,5 @@ FUNCTIONS = {'einsum': _einsum, 'cross': _cross,
              'mean': lambda prog, x, axis=None, keepdims=False: mean(prog, x, axis, keepdims),
              'min': _reducing('minimum'), 'amin': _reducing('minimum'), 'max': _reducing('maximum'),
              'amax': _reducing('maximum'), 'where': _where, 'clip': _clip, 'nan_to_num': _nan_to_num, 'norm': _norm,
-             'shape': lambda prog, x: x.shape, 'ndim': lambda prog, x: x.ndim, 'size': lambda prog, x: x.size}
+             'shape': lambda prog, x: x.shape, 'ndim': lambda prog, x: x.ndim, 'size': lambda prog, x: x.size,
+             'ravel': lambda prog, x, order='C': x.reshape(-1)}

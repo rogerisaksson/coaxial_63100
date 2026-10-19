@@ -133,14 +133,34 @@ class Heat(ctypes.Structure):
                 ('worst', _vp), ('trips', _vp), ('gates', _vp), ('shorted', _vp)]
 
 
+def _data_at():
+    """Where in an ndarray's object its data pointer is, bytes: numpy's PyArrayObject, after the head."""
+    probes = [np.empty(k + 1) for k in range(3)]
+    for at in range(8, 80, 8):
+        if all(ctypes.c_void_p.from_address(id(a) + at).value == a.ctypes.data for a in probes):
+            return at
+    raise RuntimeError("numpy's array head not found")
+
+
+#: Where an ndarray's data pointer lies in its object (`address`).
+_AT = _data_at()
+_DTYPES = {np.float64: np.dtype(np.float64), np.int32: np.dtype(np.int32), np.bool_: np.dtype(np.bool_)}
+
+
+def address(a):
+    """The address of an ndarray's first element, read off its object."""
+    return ctypes.c_void_p.from_address(id(a) + _AT).value or 0
+
+
 def pointer(a, dtype: type = np.float64):
     """`a`'s address for a struct's pointer, `a` contiguous and of `dtype` - a copy would be
     pointed at and written in vain."""
-    if not a.flags.c_contiguous or a.dtype != dtype:
-        raise ValueError('a laid array is contiguous %s, not %s %s' % (np.dtype(dtype).name, a.dtype.name,
+    want = _DTYPES.get(dtype) or np.dtype(dtype)
+    if not a.flags.c_contiguous or (a.dtype is not want and a.dtype != want):
+        raise ValueError('a laid array is contiguous %s, not %s %s' % (want.name, a.dtype.name,
                                                                         'contiguous' if a.flags.c_contiguous
                                                                         else 'strided'))
-    return a.ctypes.data
+    return address(a)
 
 
 def ask_of(ask, a=None):

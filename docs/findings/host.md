@@ -330,3 +330,11 @@ Pages, tooling, suites and the local model's runner. The board's findings:
   198 us); `borne.read` over the pushed segments alone. Her walk 792 -> 600
   us a pass, p99 2.26 -> 1.49 ms, the two in one process pass by pass, her
   trajectory the same to the bit.
+- Her sensing flat compiled (`modal.sensed`): a dict argument lazy - an
+  entry an extern as her code reads it, its presence pinned -, a float in it
+  traced; one another part's last result addressed off that part's block in
+  one write, 19 of her 24 sensed arrays (`sources`); an output that is a
+  whole argument handed back as the caller's own array, as Python returns it.
+  21 -> 10.6 us a call; `wbc.pointer` an address read off the array's head.
+  Her walk 773 -> 576 us a pass, p99 2.25 -> 1.42 ms, the two in one process
+  pass by pass, her trajectory the same to the bit.
