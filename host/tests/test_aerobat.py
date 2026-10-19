@@ -56,7 +56,8 @@ def test_aerobat_routine(report):
                  and sorted(p['tip'] for p in ke)[len(ke) // 2] < 0.06
                  and all(p['tip'] > 0.0 and p['span'] > 0.94 and abs(p['belly']) < 0.35 and p['ahead'] > 16.0
                          for p in ke)
-                 and abs(hov[-1]['h'] - 1.5) < 0.06 and hov[-1]['held'] and c['harrier'][-1]['h'] > 7.5
+                 and abs(hov[-1]['h'] - aerobat.STUNTS['hover']['height']) < 0.06 and hov[-1]['held']
+                 and c['harrier'][-1]['h'] > aerobat.STUNTS['climbing_harrier']['height'] - 0.5
                  and min(p['tilt'] for p in c['waterfall']) < 65.0 and max(p['tilt'] for p in c['waterfall']) > 115.0
                  and min(p['r11'] for p in c['snap-roll']) < -0.80 and max(p['v'] for p in ft) > 9.0,
                  'stages %s' % stages[-4:])

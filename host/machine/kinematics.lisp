@@ -2,9 +2,9 @@
 
 (defblock envelope standard_arena_envelope
   (floor_height 0.1m)
-  (hover_height 1.5m)
-  (high_height 4.0m)
-  (top_height 4.0m)
+  (hover_height 0.3m)
+  (high_height 0.75m)
+  (top_height 1.5m)
   (least_pull 1.5)
   (hover_lean 8.0m_s2)
   (sky_lean 8.0m_s2))
@@ -12,8 +12,9 @@
 (defblock envelope aerobat_envelope
   (use standard_arena_envelope)
   (floor_height 0.74m)
-  (high_height 14.0m)
-  (top_height 14.0m))
+  (hover_height 0.9m)
+  (high_height 4.5m)
+  (top_height 4.5m))
 
 (defblock vertical vertical_climb_brake
   (climb_speed 4.0m_s)
@@ -60,7 +61,7 @@
   (use hold_tolerances))
 
 (defstunt hover
-  (height 1.5m) (pace 1.5m_s) (climb 0.0m_s) (push 0.0m_s2)
+  (height 0.3m) (pace 1.5m_s) (climb 0.0m_s) (push 0.0m_s2)
   (speed 0.0m_s) (slide 0.0m_s) (surge 0.0m_s2) (sway 0.0m_s2)
   (turn 0.0deg_s) (nose 1.0) (x 0.0m) (z 0.0m) (home 1.0) (rail 0.0)
   (lean 8.0m_s2) (roll 0.0) (flip 0.0) (light 0.5) (wing 1.0)
@@ -85,13 +86,13 @@
   (base hover) (height 0.1m) (pace 2.0m_s))
 
 (defstunt orbit
-  (base hover) (height 2.0m) (slide 3.0m_s) (turn FUNNEL_TURN_DEG_S) (home 0.0))
+  (base hover) (height 0.45m) (slide 3.0m_s) (turn FUNNEL_TURN_DEG_S) (home 0.0))
 
 (defstunt high
-  (base hover) (height 4.0m) (pace 4.0m_s))
+  (base hover) (height 0.75m) (pace 4.0m_s))
 
 (defstunt roll
   (base high) (roll 1.25))
 
 (defstunt unwind
-  (base orbit) (height 1.5m) (pace 1.5m_s) (slide -3.0m_s) (turn UNWIND_TURN_DEG_S))
+  (base orbit) (height 0.45m) (pace 1.5m_s) (slide -3.0m_s) (turn UNWIND_TURN_DEG_S))

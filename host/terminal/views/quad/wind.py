@@ -74,7 +74,7 @@ def pointer(air, h, yaw):
     the wind, what of it is on the frame `h` m up, the gust in it, the kind's own wind and
     its eddies."""
     to, speed = seen(air['wind'], yaw)
-    here = weather.wind_at(air['wind'], h)
+    here = weather.wind_at(air['wind'], h, air['steady'])
     rim, needle = dial(to, speed / SPAN_M_S)
     ink = INKS[air['kind']]
     mean, _veer, gust, rough = air['come']

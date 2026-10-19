@@ -23,7 +23,7 @@ floor.
 ## Routine
 
 `machine.aerobatics`' card: a
-pirouette, an orbit and a corkscrew to 4 m, a roll and a flip over a toss,
+pirouette, an orbit and a corkscrew to 1.5 m, a roll and a flip over a toss,
 the way back down, full tilt, the burn. 0.5 g at most outside its turns, the
 pole 2.7 m off; on four stand-ins no board throttling, SOA 0.50 at most in
 its figures.
@@ -127,9 +127,10 @@ house's ridge, round a mast, between two cars, a slalom).
 
 - One kind of weather at a time: calm, constant, gusty, changing, turbulent,
   20 s each or one kept (W). A wind of 0.5-4 m/s at 5 m, sheared along the
-  floor; 1 - cos gusts of 2.4-4 m/s over it; eddies of 0.1-1.2 m/s rms, the
-  frame's and each disc's. The frame's drag is against it; a disc's thrust
-  rises with air rising.
+  floor; 1 - cos gusts of 2.4-4 m/s over it, eddies of 0.1-1.2 m/s rms, the
+  frame's and each disc's - these and its rise none at the floor, whole from
+  3 m. The frame's drag is against it; a disc's thrust rises with air rising
+  and over the floor, 1 / (1 - (R / 4d)^2), 4/3 within half a radius.
 - The law is told none of it and learns the wind from its drag in 0.12 s:
   a hover at 5 m in 3.9 m/s stood 0.68 m off its spot unlearnt, never
   `held`; 0.03 m learnt; in gusts to 6.8 m/s 0.23 m at most.

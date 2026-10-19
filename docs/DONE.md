@@ -228,3 +228,9 @@ the hundred before these: [DONE_1-50](DONE_1-50.md),
     middles, the helicopter at 1.5 g; the spectator 10 m off the runway, each
     craft framed at 0.4: eighteen page runs on the tour and in kept winds,
     none struck ([quad](findings/quad.md), [aircraft](findings/aircraft.md)).
+57. Every figure on the deck - the hover at 0.3 m, the high 0.75, each
+    figure's lowest point 0.2-0.5 m over the runway, the helicopter inverted
+    at 0.2 with its disc 0.12 over it, the quad's toss 0.7 s -; gusts, eddies
+    and rise none at the floor, whole from 3 m, and every disc's ground
+    effect: in six winds the quad struck none, the aerobat 16 times where 21
+    ([aircraft](findings/aircraft.md), [quad](findings/quad.md)).

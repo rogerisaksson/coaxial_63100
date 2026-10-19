@@ -295,17 +295,21 @@ class Sky:
         """The frame `dt` s on under the rotors at `speeds`, mechanical rad/s: each one's thrust
         up its axis at its place, their drags' torques about it, the air on the frame - still,
         or `air` (`blown`): its drag against the wind where it is, a quarter of it at each
-        disc in that disc's own eddy, a disc's thrust the more for the air rising through it."""
+        disc in that disc's own eddy, a disc's thrust the more for the air rising through it
+        and over the floor (`ground`)."""
         qv, xm = self._qv, self._xm
         thrusts = [K_THRUST * w * w for w in speeds]
         self.lift = sum(thrusts)
+        up, mid = xm[4], self._qp[1] + xm[4] * DISC_M
+        thrusts = [t * ground((mid + xm[3] * x + xm[5] * z) / up if up > 0.0 else 0.0, DISC_R)
+                   for t, (x, z) in zip(thrusts, ROTOR_AT)]
         wx = wy = wz = px = py = pz = tx = ty = tz = 0.0
         if air is None:
             along = qv[0] * xm[1] + qv[1] * xm[4] + qv[2] * xm[7]
             thrusts = [t * inflow(along, w) for t, w in zip(thrusts, speeds)]
         else:
             h = self._qp[1] - (SKID_M + FOOT_M)
-            wx, wy, wz = wind_at(air['wind'], h)
+            wx, wy, wz = wind_at(air['wind'], h, air['steady'])
             r00, r01, r02, r10, r11, r12, r20, r21, r22 = (
                 xm[0], xm[1], xm[2], xm[3], xm[4], xm[5], xm[6], xm[7], xm[8])
             s0, s1, s2 = qv[0] - wx, qv[1] - wy, qv[2] - wz
@@ -340,6 +344,14 @@ def inflow(along, w):
     """A disc's thrust's share with the air through it `along` its axis, m/s - the disc moving
     up it -, at `w` rad/s: falling to none at INFLOW_J0 of its pitch's speed."""
     return max(0.0, 1.0 - along / (INFLOW_J0 * max(1.0, PITCH_M * abs(w) / math.tau)))
+
+
+def ground(d, r):
+    """A disc's thrust's share over the floor `d` m along its wake, its radius `r` (Cheeseman and
+    Bennett, 1 / (1 - (r / 4d)^2)): held under half a radius, its pole at a quarter; none more
+    for a wake that never reaches the floor (`d` <= 0)."""
+    q = r / (4.0 * max(d, 0.5 * r)) if d > 0.0 else 0.0
+    return 1.0 / (1.0 - q * q)
 
 
 def speed_for(thrust, along=0.0):

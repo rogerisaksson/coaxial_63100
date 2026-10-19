@@ -44,7 +44,7 @@ def flown(share=1.0, base=False, spent_at=None):
                      'x': float(state['at'][0]), 'z': float(state['at'][2]),
                      'tilt': math.degrees(math.acos(max(-1.0, min(1.0, float(state['turn'][1][1]))))),
                      'heading': heading,
-                     'thrust': sum(quad.K_THRUST * w * w for w in flight.w),
+                     'thrust': sum(quad.K_THRUST * w * w for w in flight.w), 'least': min(flight.w),
                      'spin': tuple(abs(float(s)) for s in state['spin']), 'flat': flat})
         t += 0.01
     return tuple(rows)
@@ -134,13 +134,14 @@ def test_its_figures_are_flown(report):
                  '%.2f-%.2f m out, banked %.1f-%.1f degrees, %.0f degrees round' % (
                      min(out or [math.nan]), max(out or [math.nan]), min(bank or [math.nan]),
                      max(bank or [math.nan]), lap))
-    report.check('the corkscrew climbs that lap to %.0f m' % aerobatics.TOP_M,
+    report.check('the corkscrew climbs that lap to %.1f m' % aerobatics.TOP_M,
                  bool(screw) and abs(screw[-1]['h'] - aerobatics.TOP_M) <= 0.1
                  and abs(screw[-1]['heading'] - screw[0]['heading']) >= 300.0,
                  'ends at %.2f m, %.0f degrees round' % (
                      screw[-1]['h'] if screw else math.nan,
                      screw[-1]['heading'] - screw[0]['heading'] if screw else math.nan))
     # A turn over and its catch: the rows named for it and the catch after them.
+    high = aerobatics.HIGH['height']
     for name, axis, about in (('roll', 2, 'its nose'), ('flip', 0, 'its wing')):
         at = next((i for i, (n, _rows) in enumerate(flight) if n == name), None)
         over = flight[at][1] + flight[at + 1][1] if at is not None else []
@@ -150,8 +151,8 @@ def test_its_figures_are_flown(report):
                      'there level' % (name, about),
                      bool(over) and max(r['tilt'] for r in over) >= 170.0
                      and fast[axis] == max(fast) > 0.0
-                     and min(r['h'] for r in over) >= aerobatics.TOP_M - 0.1
-                     and abs(caught['h'] - aerobatics.TOP_M) <= 0.1 and caught['tilt'] <= 5.0
+                     and min(r['h'] for r in over) >= high - 0.1
+                     and abs(caught['h'] - high) <= 0.1 and caught['tilt'] <= 5.0
                      and abs(caught['v']) <= 0.2,
                      '%.0f degrees over, lowest %.2f m, caught at %.2f m %+.2f m/s, %.1f degrees'
                      % (max((r['tilt'] for r in over), default=math.nan),
@@ -201,9 +202,10 @@ def test_spent_it_comes_down(report):
                      down[-1]['h'] if down else math.nan, down[-1]['v'] if down else math.nan))
     report.check('it waits on the floor while it is not fit, its rotors run down to their idle',
                  bool(floor) and sum(r['flat'] for r in floor) >= 100.0 * FLOOR_S - 5
-                 and floor[-1]['thrust'] <= 1.05 * 4.0 * quad.K_THRUST * quad.IDLE_RAD_S ** 2,
-                 '%d passes spent on the floor, %.1f N at their end' % (
-                     sum(r['flat'] for r in floor), floor[-1]['thrust'] if floor else math.nan))
+                 and floor[-1]['least'] <= 1.01 * quad.IDLE_RAD_S,
+                 '%d passes spent on the floor, %.1f N at their end, the slowest rotor %.1f rad/s' % (
+                     sum(r['flat'] for r in floor), floor[-1]['thrust'] if floor else math.nan,
+                     floor[-1]['least'] if floor else math.nan))
 
 
 def test_its_pack(report):
@@ -270,11 +272,13 @@ def test_its_air(report):
     report.check('the same air from the same seed, another from another',
                  minute('gusty') == seen['gusty'] and minute('gusty', 4) != seen['gusty'],
                  '%d passes alike' % len(seen['gusty']))
-    low, ref, high = (weather.wind_at((4.0, 1.0, 0.0), h) for h in (0.0, weather.REF_M, 100.0))
+    low, ref, high = (weather.wind_at((5.0, 1.0, 0.0), h, (4.0, 0.0, 0.0))
+                      for h in (0.0, weather.REF_M, 100.0))
     report.check('sheared along the floor - under half of it at the floor, %.1f of it at the most '
-                 '- and rising nowhere at the floor' % weather.SHEAR_MOST,
-                 low[0] < 2.0 and low[1] == 0.0 and ref == (4.0, 1.0, 0.0)
-                 and abs(high[0] - weather.SHEAR_MOST * 4.0) < 1e-9,
+                 '-, its gusts and its rise none at the floor' % weather.SHEAR_MOST,
+                 abs(low[0] - 4.0 * (weather.SHEAR_M / weather.REF_M) ** weather.SHEAR) < 1e-9
+                 and low[0] < 2.0 and low[1] == 0.0 and ref == (5.0, 1.0, 0.0)
+                 and abs(high[0] - weather.SHEAR_MOST * 5.0) < 1e-9,
                  '%.2f m/s at the floor, %.2f up there; %.1f at %g m' % (
                      low[0], low[1], high[0], 100.0))
     air, kinds = weather.air(), []
@@ -319,7 +323,7 @@ def test_it_holds_in_wind(report):
             t += streams.PASS_S
             if t >= 20.0:
                 s = flight.sky.state()
-                wind, held = weather.wind_at(air['wind'], s['h']), flight.core.out.wind
+                wind, held = weather.wind_at(air['wind'], s['h'], air['steady']), flight.core.out.wind
                 rows.append((math.hypot(float(s['at'][0]) - law['spot'][0],
                                         float(s['at'][2]) - law['spot'][1]), law['held'],
                              math.hypot(held[0] - wind[0], held[2] - wind[2])))

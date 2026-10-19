@@ -116,17 +116,20 @@
   (task_constraints
     (limit_vertical_ascent 12.0m)))
 
+(defstunt hover
+  (base hover) (height 0.9m))
+
 (defstunt high
-  (base high) (height 14.0m))
+  (base high) (height 4.5m))
 
 (defstunt torque_roll
   (base hover) (turn 180.0deg_s))
 
 (defstunt knife_circle
-  (base orbit) (height 1.5m) (slide 2.0m_s) (turn FUNNEL_TURN_DEG_S))
+  (base orbit) (height 0.9m) (slide 2.0m_s) (turn FUNNEL_TURN_DEG_S))
 
 (defstunt climbing_harrier
-  (base knife_circle) (height 8.0m) (pace 2.0m_s))
+  (base knife_circle) (height 4.5m) (pace 2.0m_s))
 
 (defstunt snap_entry
   (base high) (flip -0.5) (nose -1.0))
@@ -150,19 +153,19 @@
   (base high) (flip -1.0) (roll 1.0) (turn 540.0deg_s))
 
 (defstunt cuban_unwind
-  (base knife_circle) (height 6.0m) (pace 2.5m_s) (slide -2.0m_s) (turn UNWIND_TURN_DEG_S))
+  (base knife_circle) (height 3.0m) (pace 2.5m_s) (slide -2.0m_s) (turn UNWIND_TURN_DEG_S))
 
 (defstunt unwind
-  (base unwind) (pace 2.5m_s) (slide -2.0m_s))
+  (base unwind) (height 0.9m) (pace 2.5m_s) (slide -2.0m_s))
 
 (defstunt takeoff
-  (base hover) (height 3.0m) (pace 4.0m_s) (speed 12.0m_s) (home 0.0))
+  (base hover) (height 1.0m) (pace 4.0m_s) (speed 12.0m_s) (home 0.0))
 
 (defstunt parachute
   (base stop) (height 0.74m) (pace 4.0m_s))
 
 (defstunt climbout
-  (base hover) (height 3.5m) (speed 12.0m_s) (pace 3.0m_s) (home 0.0))
+  (base hover) (height 1.8m) (speed 12.0m_s) (pace 3.0m_s) (home 0.0))
 
 (defstunt pattern_turn
   (base climbout) (turn 100.0deg_s) (lean 147.0m_s2))

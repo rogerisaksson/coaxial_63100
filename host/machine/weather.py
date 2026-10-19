@@ -33,8 +33,8 @@ GUST_S, GUST_SHARE, GUST_DEG = (1.5, 3.0), (0.6, 1.0), 30.0
 EDDY_S, EDDY_DISC_S, EDDY_DISC, EDDY_UP = 1.5, 0.3, 0.5, 0.5
 
 #: The wind over the ground: (h / REF_M) ** SHEAR of what it is at REF_M, counted from SHEAR_M
-#: up and SHEAR_MOST at the most; the air rises and falls not at all at the floor, wholly from
-#: RISE_M up.
+#: up and SHEAR_MOST at the most; its gusts, its eddies and its rise and fall none at the floor,
+#: whole from RISE_M up - no eddy larger than its height, a frame averaging those under its size.
 REF_M, SHEAR, SHEAR_M, SHEAR_MOST, RISE_M = 5.0, 0.2, 0.1, 1.5, 3.0
 
 #: The discs with an eddy each besides the frame's: the quad's four; a craft of two drives reads
@@ -48,11 +48,12 @@ def air(seed=3, kind=None):
     its gusts', its eddies'); the 'way' its wind blows, rad from z toward x, the way it comes
     round 'to' and its 'swing'; its 'gust' (s into it, of, its share, rad off the way) and the
     seconds to the 'next'; the frame's 'eddy' and each disc's, m/s; what they make: its 'wind'
-    at REF_M, m/s in the world, the gust in it 'blows', m/s."""
+    at REF_M, m/s in the world, of it the 'steady' - its mean along its way -, the gust in it
+    'blows', m/s."""
     return {'kind': kind or TOUR[0], 'kept': kind is not None, 'for': 0.0, 'come': [0.0] * 4,
             'way': 0.0, 'to': 0.0, 'swing': 0.0, 'gust': None, 'next': 0.0, 'blows': 0.0,
             'eddy': [0.0] * 3, 'eddies': [[0.0] * 3 for _ in range(DISCS)],
-            'dice': random.Random(seed), 'wind': (0.0, 0.0, 0.0)}
+            'dice': random.Random(seed), 'wind': (0.0, 0.0, 0.0), 'steady': (0.0, 0.0, 0.0)}
 
 
 def blown(air, dt):
@@ -88,10 +89,10 @@ def blown(air, dt):
         kick = size * math.sqrt(1.0 - keep * keep)
         for k in range(3):
             eddy[k] = eddy[k] * keep + (EDDY_UP if k == 1 else 1.0) * kick * dice.gauss(0.0, 1.0)
-    air['blows'] = blows
-    air['wind'] = (mean * math.sin(way) + blows * math.sin(way + off) + air['eddy'][0],
-                   air['eddy'][1],
-                   mean * math.cos(way) + blows * math.cos(way + off) + air['eddy'][2])
+    air['blows'], air['steady'] = blows, (mean * math.sin(way), 0.0, mean * math.cos(way))
+    steady = air['steady']
+    air['wind'] = (steady[0] + blows * math.sin(way + off) + air['eddy'][0], air['eddy'][1],
+                   steady[2] + blows * math.cos(way + off) + air['eddy'][2])
     return air['wind']
 
 
@@ -105,13 +106,15 @@ def kept(air):
 def airspeeds(frame, air):
     """(the frame's speed as its flight controller has it - over the ground -, its speed
     through `air`), m/s: what its boards' observers are told, what their truths fly in."""
-    wind = wind_at(air['wind'], frame['h']) if air else (0.0, 0.0, 0.0)
+    wind = wind_at(air['wind'], frame['h'], air['steady']) if air else (0.0, 0.0, 0.0)
     return (math.sqrt(sum(float(v) ** 2 for v in frame['vel'])),
             math.sqrt(sum((float(v) - u) ** 2 for v, u in zip(frame['vel'], wind))))
 
 
-def wind_at(wind, h):
+def wind_at(wind, h, steady=(0.0, 0.0, 0.0)):
     """The air's speed `wind`, m/s at REF_M, where the frame is `h` m up: sheared along the
-    floor, its rise and fall none at the floor."""
-    low = min(SHEAR_MOST, (max(h, SHEAR_M) / REF_M) ** SHEAR)
-    return (low * wind[0], low * min(1.0, max(0.0, h) / RISE_M) * wind[1], low * wind[2])
+    floor, what of it is not `steady` - its gusts, its eddies, its rise and fall - none at the
+    floor."""
+    low, near = min(SHEAR_MOST, (max(h, SHEAR_M) / REF_M) ** SHEAR), min(1.0, max(0.0, h) / RISE_M)
+    return (low * (steady[0] + near * (wind[0] - steady[0])), low * near * wind[1],
+            low * (steady[2] + near * (wind[2] - steady[2])))

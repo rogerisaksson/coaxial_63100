@@ -5,7 +5,7 @@
   waterfall's and the inverted nose at -1.5 and -0.5, the airborne latch,
   the burn -, as do the helicopter's and the ornithopter's laws, the line's
   lean its asked speed's derivative clipped. On their instruments the burn
-  leans 28 deg, the ornithopter's dive reversal is at its check. DOD: no
+  leans 28 deg, the ornithopter's dive turns its cyclic end to end. DOD: no
   branch on a threshold in the three laws; at each stage change the angular
   acceleration and the controls' step within the stage's own; the three on
   their instruments, the knife pass 2.5 cm higher; Dryden's scales.
@@ -21,6 +21,12 @@
 - **The courses after the aerobatics** (aircraft.md): brought to the
   routines' new shape - close by, watched, sized to the crafts. DOD: to be
   agreed.
+- **The aerobat in wind** (aircraft.md): its knife pass, its final and its
+  course struck in each of six winds, before the deck and on it. DOD: its
+  page on the tour and in kept winds, none struck.
+- **A spent pack mid-turn-over** (aircraft.md): spent in its roll or its
+  flip, the quad's way down begins upside down and strikes. DOD: spent
+  anywhere on its card, it lands.
 - **The aerobat's landing** (aircraft.md): its touch, its roll-out unsteered
   in wind. DOD: a touch under 0.5 m/s within 0.5 m of the centreline,
   stopped on the runway, still or gusty.

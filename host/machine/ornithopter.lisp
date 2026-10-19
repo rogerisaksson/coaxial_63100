@@ -120,34 +120,34 @@
   (base hover) (turn 180.0deg_s))
 
 (defstunt ridge_soar
-  (base orbit) (height 1.5m) (slide 3.0m_s) (turn FUNNEL_TURN_DEG_S))
+  (base orbit) (height 0.4m) (slide 3.0m_s) (turn FUNNEL_TURN_DEG_S))
 
 (defstunt thermal_spiral
-  (base ridge_soar) (height 4.0m) (pace 2.0m_s))
+  (base ridge_soar) (height 1.5m) (pace 2.0m_s))
 
 (defstunt fold_entry
   (base high) (flip -0.5) (nose -1.0))
 
 (defstunt sandstorm_dive
-  (base high) (nose -1.0))
+  (base high) (nose -1.0) (height 0.45m))
 
 (defstunt dive_piro
-  (base sandstorm_dive) (turn 240.0deg_s))
+  (base sandstorm_dive) (turn 240.0deg_s) (height 2.4m))
 
 (defstunt wing_rock
-  (base high) (nose -2.0))
+  (base high) (nose -2.0) (height 2.4m))
 
 (defstunt bank_rock
-  (base high) (nose -3.0))
+  (base high) (nose -3.0) (height 2.4m))
 
 (defstunt dune_slash
-  (base high) (flip -1.0) (turn 360.0deg_s))
+  (base high) (flip -1.0) (turn 360.0deg_s) (height 2.4m))
 
 (defstunt coriolis_storm
-  (base high) (flip -1.0) (roll 1.0) (turn 540.0deg_s))
+  (base high) (flip -1.0) (roll 1.0) (turn 540.0deg_s) (height 2.4m))
 
 (defstunt desert_unwind
-  (base ridge_soar) (height 6.0m) (pace 2.5m_s) (slide -3.0m_s) (turn UNWIND_TURN_DEG_S))
+  (base ridge_soar) (height 2.0m) (pace 2.5m_s) (slide -3.0m_s) (turn UNWIND_TURN_DEG_S))
 
 (defbehavior atreides_dive_attack
   (phase high_beat (stunt high) (duration 1.2s) (blend 100ms))

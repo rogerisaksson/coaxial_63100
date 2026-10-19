@@ -1,8 +1,9 @@
 """The 3D aerobatic monoplane in MuJoCo: its propeller, its surfaces in the propwash, its wing."""
 import math
 
-from machine.aerobat.airframe import (FOOT_M, K_PITCH, K_ROLL, K_THRUST, K_YAW, RHO, RUNWAY_RAD,
-                                      SKID_M, WING, _aero_cda, _aero_inflow, _prop_drag, mjcf)
+from machine.aerobat.airframe import (FOOT_M, K_PITCH, K_ROLL, K_THRUST, K_YAW, PROP_R, PROP_Z, RHO,
+                                      RUNWAY_RAD, SKID_M, WING, _aero_cda, _aero_inflow, _prop_drag,
+                                      mjcf)
 from machine.helicopter import sky as hsky
 from machine.quad import STEP_S
 from machine.wingborne import PITCH_REST, wing_substep
@@ -13,7 +14,7 @@ class Sky(hsky.Sky):
 
     """The 3D aerobatic monoplane in MuJoCo on the floor among `things`."""
 
-    _force_key = 'rudder_force'
+    _force_key, _disc = 'rudder_force', (PROP_Z, PROP_R)
 
     def __init__(self, things=()):
         self.rudder_force, self.wing = 0.0, WING
@@ -37,7 +38,7 @@ class Sky(hsky.Sky):
         """Step `dt` s under `command` `(w_prop, w_vect, throttle_pitch, elev, ail, rud)`."""
         (w_p, w_v), (throt, elev, ail, rud), (wx, wy, wz), along, vh = self._unpack_and_wind(command, air)
         self.lift = K_THRUST * w_p * w_p * throt
-        lift = self.lift * _aero_inflow(along, vh, w_p)
+        lift = self.lift * _aero_inflow(along, vh, w_p) * self.ground(throt)
         self.rudder_force = tau_rud = K_YAW * w_v * w_v * rud
         ab0 = K_PITCH * w_p * w_p * elev
         ab1 = tau_rud - _prop_drag(throt, elev, ail, w_p)

@@ -83,7 +83,7 @@
   (base hover) (turn 120.0deg_s))
 
 (defstunt corkscrew
-  (base orbit) (height 4.0m) (pace 2.0m_s))
+  (base orbit) (height 1.5m) (pace 2.0m_s))
 
 (defstunt toss
   (base sky) (pace 5.0m_s))
@@ -97,10 +97,10 @@
   (phase settle_top (stunt high) (duration 2.0s) (blend 150ms) (gate held)))
 
 (defbehavior toss_roll_flip
-  (phase toss_up (stunt toss) (duration 1.0s) (blend 50ms))
+  (phase toss_up (stunt toss) (duration 0.7s) (blend 50ms))
   (phase snap_roll (stunt roll) (duration 0.8s) (blend 50ms))
   (phase catch_roll (stunt high) (duration 3.0s) (blend 150ms))
-  (phase toss_again (stunt toss) (duration 1.0s) (blend 50ms))
+  (phase toss_again (stunt toss) (duration 0.7s) (blend 50ms))
   (phase snap_flip (stunt flip) (duration 0.8s) (blend 50ms))
   (phase catch_flip (stunt high) (duration 3.0s) (blend 150ms) (gate held)))
 
@@ -119,10 +119,10 @@
   (stage orbit (stunt orbit) (duration LAP_S) (ramp 1.5s))
   (stage corkscrew (stunt corkscrew) (duration LAP_S) (ramp 1.5s))
   (stage home (stunt high) (duration 2.0s) (ramp 1.5s) (gate held))
-  (stage toss (stunt toss) (duration 1.0s) (ramp 0.0s))
+  (stage toss (stunt toss) (duration 0.7s) (ramp 0.0s))
   (stage roll (stunt roll) (duration 0.8s) (ramp 0.0s))
   (stage catch (stunt high) (duration 3.0s) (ramp 0.0s))
-  (stage toss (stunt toss) (duration 1.0s) (ramp 0.0s))
+  (stage toss (stunt toss) (duration 0.7s) (ramp 0.0s))
   (stage flip (stunt flip) (duration 0.8s) (ramp 0.0s))
   (stage catch (stunt high) (duration 3.0s) (ramp 0.0s))
   (stage unwind (stunt unwind) (duration LAP_S) (ramp 1.5s))

@@ -152,11 +152,12 @@ def test_a_late_pass_is_its_steps(report):
 
 
 def test_struck_it_is_begun_again(report):
-    """A slab a metre over the spot, in the lift's way: struck, the flight is CRASHED and says
+    """A slab over the spot under its hover, in the lift's way: struck, the flight is CRASHED and says
     what it struck, its rotors stopped and the wreck on the floor; CRASH_S on the frame is on
     its spot again and the flight at its card's first row - and struck again."""
+    from machine import quad
     from terminal.views.quad import flight as view
-    slab = [('box', 'house', (0.0, 1.2, 0.0), (0.6, 0.05, 0.6), 0.0)]
+    slab = [('box', 'house', (0.0, 0.4, 0.0), (0.6, 0.05, 0.6), 0.0)]
     words = []
 
     def twice(flight):
@@ -170,7 +171,7 @@ def test_struck_it_is_begun_again(report):
     wreck = rows[first:max(first + 1, again - 1)]
     report.check('the lift struck the slab under it: crashed into a house, %.0f s a wreck, its '
                  'rotors stopped' % view.CRASH_S,
-                 first < len(rows) and rows[first - 1][0] == 'lift' and 0.5 < rows[first][4] < 1.2
+                 first < len(rows) and rows[first - 1][0] == 'lift' and 0.0 < rows[first][4] < quad.HOVER_M
                  and set(words) == {'into a house'} and again < len(rows)
                  and abs(rows[again][1] - rows[first][1] - view.CRASH_S) <= 0.1
                  and wreck[-1][3] < 1.0,

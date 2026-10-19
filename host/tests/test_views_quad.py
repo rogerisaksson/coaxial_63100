@@ -215,7 +215,7 @@ def test_the_page_flies_four_boards(report):
     spent = next((r for r in rows if r['left'] <= flightpack.RESERVE), None)
     report.check('its pack spent in the air, the way down, a charged one on the floor, and its '
                  'routine again',
-                 spent is not None and spent['y'] > 1.0
+                 spent is not None and spent['y'] > quad.FLOOR_M
                  and names[swap - 2:swap] == ['descend', 'land'] and rows[-1]['name'] == first
                  and rows[-1]['left'] > 0.9,
                  'spent at %.1f m in the %s; %s; %.0f %% in it at the end, in its %s' % (

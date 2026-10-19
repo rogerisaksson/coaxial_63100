@@ -3,8 +3,8 @@ import math
 
 from machine.helicopter import sky as hsky
 from machine.ornithopter.airframe import (AFT_Z, BEAT_PULSE, FOOT_M, FORE_Z, GEAR_RATIO, K_PITCH,
-                                          K_ROLL, K_THRUST, K_YAW, RHO, SKID_M, _flap_inflow,
-                                          _wing_cda, _wing_drag, mjcf)
+                                          K_ROLL, K_THRUST, K_YAW, RHO, SHOULDER_Y, SKID_M,
+                                          WING_SPAN, _flap_inflow, _wing_cda, _wing_drag, mjcf)
 from machine.quad import STEP_S
 
 
@@ -12,7 +12,7 @@ class Sky(hsky.Sky):
 
     """The 4-wing Dune ornithopter in MuJoCo on the floor among `things`."""
 
-    _force_key = 'yaw_force'
+    _force_key, _disc = 'yaw_force', (SHOULDER_Y, WING_SPAN)
 
     def __init__(self, things=()):
         self.yaw_force, self.phase = 0.0, 0.0
@@ -29,7 +29,7 @@ class Sky(hsky.Sky):
         w_sq = 0.5 * (w_f * w_f + w_a * w_a)
         w_eq = math.sqrt(w_sq)
         self.lift = K_THRUST * w_sq * stroke
-        lift = self.lift * _flap_inflow(along, vh, w_eq)
+        lift = self.lift * _flap_inflow(along, vh, w_eq) * self.ground(stroke)
         self.yaw_force = f_yaw = K_YAW * w_a * w_a * yaw_t
         ab0 = K_PITCH * w_sq * pitch_t
         ab1 = f_yaw - _wing_drag(stroke, pitch_t, roll_d, w_eq)

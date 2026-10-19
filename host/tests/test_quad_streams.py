@@ -303,7 +303,8 @@ def test_the_routine_is_flown_from_its_rows(report):
                      ', struck %s' % flight.sky.state()['hit'] if flight.sky.state()['hit'] else ''))
     hover, turned, orbit, screw = (got[name][0] for name in (
         'hover', 'pirouette', 'orbit', 'corkscrew'))
-    report.check('held at 1.5 m, turned on its spot, slid round its orbit banked, climbed it',
+    report.check('held at %.1f m, turned on its spot, slid round its orbit banked, climbed it'
+                 % aerobatics.HOVER_M,
                  abs(hover[4]['h'] - aerobatics.HOVER_M) < 0.02 and 1.8 < max(turned[2]) < 2.6
                  and max(turned[3]) < 0.1 and 20.0 < max(orbit[1]) < 35.0
                  and 2.5 < max(orbit[3]) < 3.6 and abs(screw[4]['h'] - aerobatics.TOP_M) < 0.05,
@@ -314,7 +315,7 @@ def test_the_routine_is_flown_from_its_rows(report):
         over = got[name][0]
         report.check('the %s: over its back, caught level over its spot at its height' % name,
                      max(over[1]) > 170.0 and catch[1][-1] < 2.0
-                     and abs(catch[4]['h'] - aerobatics.TOP_M) < 0.05
+                     and abs(catch[4]['h'] - aerobatics.HIGH['height']) < 0.05
                      and math.hypot(float(catch[4]['at'][0]), float(catch[4]['at'][2])) < 0.3,
                      '%.0f deg off at the most; %.1f off, %.2f m up, %.2f m from its spot' % (
                          max(over[1]), catch[1][-1], catch[4]['h'],

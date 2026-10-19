@@ -136,12 +136,13 @@ def now(name):
 def missed(rows):
     """(the most a propeller's tip passed nearer a gate's frame than MISS_M, m - none past it,
     less than nothing; the passes) of the laps' rows (x, y, z, m/s), MISS_M of the frame as
-    built: unscaled, a frame of 0.75 its size was held 0.47 of its own from a gate's frame.
+    built: unscaled, a frame of 0.75 its size was held 0.47 of its own from a gate's frame. A
+    gate on the floor has no frame under it (`grounds.gate`).
     """
     worst, count = -math.inf, 0
     size_, clock = quad.scales()
     for gx, gy, gz, heading, size in grounds.GATES:
-        leaves = size / 2.0 - quad.reach() - MISS_M * size_
+        leaves, under = size / 2.0 - quad.reach() - MISS_M * size_, int(gy > size / 2.0)
         nx, nz = math.sin(math.radians(heading)), math.cos(math.radians(heading))
         for a, b in zip(rows, rows[1:]):
             before = (a[0] - gx) * nx + (a[2] - gz) * nz
@@ -149,7 +150,7 @@ def missed(rows):
             if (before < 0.0 <= after and math.hypot(b[0] - gx, b[2] - gz) < 6.0 * size_
                     and b[3] > size_ / clock):
                 worst = max(worst, abs((b[0] - gx) * nz - (b[2] - gz) * nx) - leaves,
-                            abs(b[1] - gy) - leaves)
+                            max(b[1] - gy, under * (gy - b[1])) - leaves)
                 count += 1
     return worst, count
 

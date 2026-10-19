@@ -59,7 +59,8 @@ burn, land).
 - On their instruments (`machine.senses`) both lap the course and land. The
   ornithopter's dive turns its lean over the top - 1 m/s^2 asked up, its
   lean 80 deg each way -, its cyclic end to end in 30 ms: 1.37 a pass on the
-  truth, 1.50 on the instruments, the check 1.5.
+  truth, 1.50 on the instruments; 1.32-1.64 in ten gusty seeds, 0.80-1.90
+  with the air and the ground at the floor, the check 2.0.
 
 ## Drawn
 
@@ -187,6 +188,26 @@ up at rest).
   tumble 0.8 s, at 1.2 from 4 m its catch dipped to 2 cm (now 1.7 m). The four
   pages watched from one spot by the runway's middle, each craft a quarter of
   the frame: at a third the quad stood too near at its start.
+- On the deck, each figure's lowest point - skids, blade and prop tips,
+  wings, tail - 0.2-0.5 m over the runway, off the drawn frames and the
+  rotors' swept rings: the hover at 0.3 m, the orbit 0.45, the high 0.75. The
+  helicopter inverted at 0.2, its disc 0.12-0.13 m over the runway still and
+  in six winds; its inverted pirouette climbs to 0.95, where from 0.55 the
+  tic-toc after it brought its tips to 0.12. A tumble starts high: the
+  ornithopter's wing-rock and slash at 2.4, the slash 0.33 over at its foot;
+  the helicopter's chaos fell 1.3 m from 2.4 and struck from 2.0. The quad's
+  roll and flip over a 0.7 s toss at 2.0-3.0 m where 3.3-4.9: tossed 0.6 s
+  its catch dipped to 0.55, 0.5 s to the floor; spent mid-roll it strikes,
+  at 0.7 s as at 1.0. The Extra hangs at 0.9, its tail 0.33 over, its high
+  4.5, its knife pass's tip 5 cm; its circuit at 1.8 - at 1.0 it struck in
+  the tour's turbulence.
+- The air and the ground at the floor (quad.md's air): the helicopter holds
+  inverted at 0.2 on 0.21 collective where 0.27, the floor bearing a quarter
+  of it. In six winds over 250 s the quad struck none, twice without them,
+  both spent: in its 0.45 m orbit in a changing wind, leaning 30 deg at 3
+  m/s onto the floor, and in its roll; the helicopter once and the
+  ornithopter twice into gate 7. In 36 turbulent seeds two each, three and
+  one before the deck; without them the ornithopter struck the floor once.
 - The helicopter and the ornithopter fly the course through its gates'
   middles (`course.MIDDLES`): its crossings were laid for the quad's own
   misses, and on them the helicopter crossed gate 7 0.4-0.5 m right and
@@ -278,6 +299,10 @@ up at rest).
 - On its side the span stays up, the wing bearing what is asked across: the
   gusty course's knife gate at a belly of 0.00 on both laps, where the span
   rolled to every ask rocked it 0.07-0.86 and passed the gate at 0.29.
+- Its page in six winds over 250 s: 16 crashes with the air and the ground
+  at the floor, 20 without, 21 before the deck - on the runway, its knife
+  pass 15-25 s into turbulence among them, into the house 22 m beside it and
+  a car, into gates 2 and 3.
 
 ## Motors
 

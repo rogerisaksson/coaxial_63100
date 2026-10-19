@@ -14,8 +14,9 @@ from machine import airfield, course
 #: TURN_M toward the spectator and back past them at LOW_M over home to BACK_M, round and home
 #: again, no faster than SPEED_M_S - at 18 m/s the quad ran 3-5 m past its turns, on turns of
 #: 0.25 m it lost the line 47 m out. The field's solids stand off it: the trees 4.8 m and more,
-#: the pole 2.3 m.
-ACROSS_M, OUT_M, BACK_M, TURN_M, HIGH_M, LOW_M, SPEED_M_S = -2.0, -30.0, 14.0, 1.5, 2.5, 1.5, 12.0
+#: the pole 2.3 m. Low over the deck: at 12 m/s the helicopter's tilted rotor 0.54 m under its
+#: middle, its tips 0.3 m over the runway at LOW_M.
+ACROSS_M, OUT_M, BACK_M, TURN_M, HIGH_M, LOW_M, SPEED_M_S = -2.0, -30.0, 14.0, 1.5, 1.2, 0.85, 12.0
 
 
 @functools.lru_cache(maxsize=None)

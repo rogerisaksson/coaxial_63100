@@ -121,39 +121,40 @@
   (base hover) (turn 180.0deg_s))
 
 (defstunt funnel
-  (base orbit) (height 1.5m) (slide 3.0m_s) (turn FUNNEL_TURN_DEG_S))
+  (base orbit) (height 0.4m) (slide 3.0m_s) (turn FUNNEL_TURN_DEG_S))
 
 (defstunt spiral
-  (base funnel) (height 4.0m) (pace 2.0m_s))
+  (base funnel) (height 1.5m) (pace 2.0m_s))
 
 (defstunt flip_in
   (base high) (flip -0.5) (nose -1.0))
 
 (defstunt inverted
-  (base high) (nose -1.0))
+  (base high) (nose -1.0) (height 0.2m))
 
 (defstunt inv_piro
-  (base inverted) (turn 240.0deg_s))
+  (base inverted) (turn 240.0deg_s) (height 0.95m))
 
 (defstunt tictoc
-  (base high) (nose -2.0))
+  (base high) (nose -2.0) (height 0.95m))
 
 (defstunt aileron_tictoc
-  (base high) (nose -3.0))
+  (base high) (nose -3.0) (height 0.95m))
 
 (defstunt piro_flip
-  (base high) (flip -1.0) (turn 360.0deg_s))
+  (base high) (flip -1.0) (turn 360.0deg_s) (height 0.95m))
 
 (defstunt chaos
-  (base high) (flip -1.0) (roll 1.0) (turn 540.0deg_s))
+  (base high) (flip -1.0) (roll 1.0) (turn 540.0deg_s) (height 2.4m))
 
 (defstunt hurricane
-  (base funnel) (height 6.0m) (pace 2.5m_s) (slide -3.0m_s) (turn UNWIND_TURN_DEG_S))
+  (base funnel) (height 2.0m) (pace 2.5m_s) (slide -3.0m_s) (turn UNWIND_TURN_DEG_S))
 
 (defbehavior tareq_smackdown
   (phase punch (stunt high) (duration 1.2s) (blend 100ms))
   (phase flip_entry (stunt flip_in) (duration 1.0s) (blend 80ms))
-  (phase elevator_tictoc (stunt tictoc) (duration 2.0s) (blend 80ms))
+  (phase elevator_tictoc (stunt tictoc) (duration 2.0s) (blend 80ms)
+    (task_constraints (maintain_altitude 2.4m)))
   (phase chaos_burn (stunt chaos) (duration 1.2s) (blend 100ms))
   (phase catch_high (stunt high) (duration 1.6s) (blend 150ms) (gate held)))
 
