@@ -106,8 +106,40 @@ def test_a_chair_a_hair_off_is_sat_on_and_risen_from(report):
                  % (seated, height, stand))
 
 
+def test_doorway_arm_yields_and_she_walks_on(report):
+    """Walking through the room's doorway (`DOOR_X = (0.3, 1.2)` at `z = 3.5 m`) near either jamb
+    so her hand or forearm strikes the door frame, her arm yields backward (`<= -0.40 rad`) and she
+    walks on past the doorway without braking to `#201`."""
+    import numpy as np
+    from machine import edge, physics, touch, worker
+    for side_name, x0, sh_idx, arm_skin in (('right jamb', 0.54, 13, touch.ARMS[1]),
+                                            ('left jamb', 0.92, 5, touch.ARMS[0])):
+        physics.ROOM = 1.0
+        s = worker.session()
+        worker.apply(s, {'scenario': 'flat'})
+        g, d = s['g'], s['g']['world'].data
+        d.qpos[0], d.qpos[2] = x0, 2.0
+        g['world']._mj.mj_forward(g['world'].model, d)
+        g['est']['pos'][0], g['est']['pos'][2] = x0, 2.0
+        _run(s, 0.4)
+        worker.apply(s, {'twist': WALK})
+        min_sh, max_arm_f = 0.0, 0.0
+        for _ in range(int(round(4.5 / worker.DT))):
+            worker.stepped(s)
+            min_sh = min(min_sh, float(g['s']['q'][sh_idx]))
+            t_arr = g['sense'][edge.TOUCH].reshape(-1, 3)
+            max_arm_f = max(max_arm_f, max(float(np.linalg.norm(t_arr[k])) for k in arm_skin))
+        z_end = float(g['est']['pos'][2])
+        report.check('doorway %s: arm touched (%.0f N), yielded (%.2f rad) and walked on past z=3.5m'
+                     % (side_name, max_arm_f, min_sh),
+                     max_arm_f > edge.TOUCHED_N and min_sh < -0.40 and z_end > 3.68
+                     and g.get('active_entry') == '#204' and s['fallen_at'] is None,
+                     'z_end=%.2fm min_sh=%.2f max_f=%.1fN entry=%s fallen=%s'
+                     % (z_end, min_sh, max_arm_f, g.get('active_entry'), s['fallen_at']))
+
+
 ROSTER = (test_a_stop_settles_and_f_is_heard, test_a_halting_row_waits_for_a_swing_only_while_her_rhythm_turns,
-          test_a_chair_a_hair_off_is_sat_on_and_risen_from)
+          test_a_chair_a_hair_off_is_sat_on_and_risen_from, test_doorway_arm_yields_and_she_walks_on)
 
 
 def main(argv=None):

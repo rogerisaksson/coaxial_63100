@@ -39,7 +39,8 @@ if crc16(b'123456789') != CHECK_VALUE:
                        'not %#06x' % (crc16(b'123456789'), CHECK_VALUE))
 
 READ, WRITE, WRITE_ONE, BROADCAST = 0x03, 0x10, 0x06, 0
-SETPOINT_REG, STATE_REG, GATE_REG = 0x0100, 0x0200, 0x0300
+SETPOINT_REG, KP_REG, FEED_REG, LIMIT_REG, STATE_REG, GATE_REG = (
+    0x0100, 0x0140, 0x0180, 0x01C0, 0x0200, 0x0300)
 GATE_OFF, GATE_ON, GATE_SHORT = 0, 1, 2
 
 #: A state's registers and bytes: angle, rate, heat.
@@ -55,10 +56,10 @@ def framed(pdu):
     return pdu + struct.pack('<H', crc16(pdu))
 
 
-def broadcast(first, values):
-    """Setpoints for units `first` up, i32 mdeg each: 0x10 to every board."""
+def broadcast(first, values, reg=SETPOINT_REG):
+    """Registers for units `first` up, i32 each at `reg`: 0x10 to every board on the bus."""
     data = struct.pack('>%di' % len(values), *values)
-    return framed(struct.pack('>BBHHB', BROADCAST, WRITE, SETPOINT_REG + 2 * (first - 1),
+    return framed(struct.pack('>BBHHB', BROADCAST, WRITE, reg + 2 * (first - 1),
                               2 * len(values), len(data)) + data)
 
 
@@ -89,12 +90,18 @@ def echo(frame):
     return bytes(frame)
 
 
+def registers(body):
+    """(bank_reg, first_unit, (i32, ..)) a broadcast 0x10's body carries."""
+    address, count, _size = struct.unpack_from('>HHB', body)
+    bank = address & 0xFFC0
+    first = (address - bank) // 2 + 1
+    return bank, first, struct.unpack_from('>%di' % (count // 2), body, 5)
+
+
 def setpoints(body):
     """{unit: mdeg} a broadcast's body carries."""
-    address, count, _size = struct.unpack_from('>HHB', body)
-    first = (address - SETPOINT_REG) // 2 + 1
-    return dict(zip(range(first, first + count // 2),
-                    struct.unpack_from('>%di' % (count // 2), body, 5)))
+    _bank, first, vals = registers(body)
+    return dict(zip(range(first, first + len(vals)), vals))
 
 
 def state(body):

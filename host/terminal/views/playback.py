@@ -69,6 +69,9 @@ class Playback:
 
 def _blended(a, b, k):
     """The joints, the pelvis's place, turn, velocity and speed k of the way from state a to b."""
+    if math.dist(a['where'], b['where']) > 0.5:
+        return {'angles': b['angles'], 'where': b['where'], 'turn': b['turn'],
+                'velocity': b.get('velocity', (0.0, 0.0)), 'speed': b['speed']}
     turn = [x + (y - x) * k for x, y in zip(a['turn'], b['turn'])]
     norm = math.sqrt(sum(c * c for c in turn)) or 1.0
     vel_a, vel_b = a.get('velocity', (0.0, 0.0)), b.get('velocity', (0.0, 0.0))

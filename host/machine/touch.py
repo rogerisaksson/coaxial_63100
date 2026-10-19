@@ -16,6 +16,9 @@ SOLES = ((edge.SKIN.index('left_foot'), edge.SKIN.index('left_toes')),
          (edge.SKIN.index('right_foot'), edge.SKIN.index('right_toes')))
 HANDS = tuple(edge.SKIN.index(n) for n in ('left_hand', 'left_fingers', 'right_hand', 'right_fingers'))
 ABOVE = [k for k in range(len(edge.SKIN)) if k not in SOLES[0] + SOLES[1] + HANDS]
+ARMS = (tuple(edge.SKIN.index(n) for n in ('left_upper_arm', 'left_forearm', 'left_hand', 'left_fingers')),
+        tuple(edge.SKIN.index(n) for n in ('right_upper_arm', 'right_forearm', 'right_hand', 'right_fingers')))
+CORE = [k for k in ABOVE if k not in ARMS[0] + ARMS[1]]
 
 
 #: A touch above her soles not along her going - a wall, a tree, a hand that shoves her back or
@@ -44,6 +47,45 @@ def _ids(g):
     return ids
 
 
+def _yield_arms(g, out, model, ids, touch, cur_doing):
+    """When an arm or hand meets an obstruction opposing her walk (a doorway jamb), bleed its ESO,
+    yield its shoulder and elbow backward (`g['posture']`, `g['ref_q']`), narrow her step width,
+    and steer her heading slightly clear so she slips past without stopping."""
+    import numpy as np
+    from machine import latent, modal, se2
+    dt = 0.001 * g['every']
+    sh_h, ch_h = math.sin(g['heading']), math.cos(g['heading'])
+    ay_prev = g.get('_arm_yield', (0.0, 0.0))
+    walking = abs(float(out[latent.SWAY][modal.DRIVE])) > 0.06 and cur_doing not in se2.STUNT_PHASES
+    ays = []
+    for side in (0, 1):
+        f_vec = np.sum([model.xmat[ids[k]].reshape(3, 3) @ touch[k] for k in ARMS[side]], axis=0)
+        f_max = max(float(np.linalg.norm(touch[k])) for k in ARMS[side])
+        along = float(f_vec[0]) * sh_h + float(f_vec[2]) * ch_h
+        ob = walking and f_max > edge.TOUCHED_N and along < -12.0
+        ays.append(min(1.0, min(1.0, f_max / 42.0) if ob else max(0.0, ay_prev[side] - 2.2 * dt)))
+    g['_arm_yield'] = ay_l, ay_r = tuple(ays)
+    ay_max = max(ay_l, ay_r)
+    if ay_max <= 1e-3:
+        if max(ay_prev) > 1e-3:
+            g['posture'][[5, 6, 13, 14]] = 0.0
+        return 0.0
+    out[latent.SWAY][modal.ARMS] *= (1.0 - 0.85 * ay_max)
+    out[latent.REF][modal.ARMS] *= (1.0 - 0.85 * ay_max)
+    out[latent.RATE][modal.ARMS] *= (1.0 - 0.85 * ay_max)
+    out[latent.REF][modal.WIDTH] = -0.35 * ay_max
+    for ay, sh_idx, el_idx, sign in ((ay_l, 5, 6, -1.0), (ay_r, 13, 14, 1.0)):
+        if ay > 1e-3:
+            g['eso'][2][[sh_idx, el_idx]] = 0.0
+            g['posture'][sh_idx], g['posture'][el_idx] = -0.55 * ay, 0.30 * ay
+            g['ref_q'][sh_idx] = max(-0.75, g['ref_q'][sh_idx] + 0.45 * ay * (-0.55 - g['ref_q'][sh_idx]))
+            g['ref_q'][el_idx] = min(0.85, g['ref_q'][el_idx] + 0.45 * ay * (0.30 - g['ref_q'][el_idx]))
+            g['ref_v'][[sh_idx, el_idx]] *= (1.0 - 0.5 * ay)
+            out[latent.REF][modal.TURN] += -sign * 0.45 * ay
+            g['heading'] += sign * 0.75 * ay * dt
+    return ay_max
+
+
 def check_contacts(g, out, cur_doing):
     """A touch on her above her soles halts her drive and brakes her; a sole asked aloft that has
     come clear of everything, then is touched more along the floor than up it EDGE_M over it -
@@ -53,20 +95,23 @@ def check_contacts(g, out, cur_doing):
     from machine import latent, modal, se2
     y, model, ids = g['sense'], g['body'].d, _ids(g)
     touch = y[edge.TOUCH].reshape(-1, 3)
-    g['_upper_hit'] = bool((np.linalg.norm(touch[ABOVE], axis=1) > edge.TOUCHED_N).any())
+    ay_max = _yield_arms(g, out, model, ids, touch, cur_doing)
+    g['_upper_hit'] = bool((np.linalg.norm(touch[CORE], axis=1) > edge.TOUCHED_N).any())
     cx, cz = float(g['y'][modal.COM][0]), float(g['y'][modal.COM][2])
     if g['_upper_hit']:
-        f = np.sum([model.xmat[ids[k]].reshape(3, 3) @ touch[k] for k in ABOVE], axis=0)
+        f = np.sum([model.xmat[ids[k]].reshape(3, 3) @ touch[k] for k in CORE], axis=0)
         fx, fz = float(f[0]), float(f[2])
         f_mag = math.hypot(fx, fz)
-        x0, z0 = g.setdefault('_felt_pos', (cx, cz))
-        yielding = (cx - x0) * fx + (cz - z0) * fz < -0.08 * f_mag
+        x0, z0, t0 = g.setdefault('_felt_pos', (cx, cz, g['t']))
+        v = g['est']['vel']
+        adv = -((cx - x0) * fx + (cz - z0) * fz) / max(f_mag, 1e-9)
+        v_against = -(float(v[0]) * fx + float(v[2]) * fz) / max(f_mag, 1e-9)
+        yielding = adv > 0.04 or (ay_max > 0.25 and v_against > 0.20) or (g['t'] - t0 < 0.09 and v_against > 0.25)
         if yielding:
             g.pop('_felt', None)
             g['_resume_at'] = None
         else:
             g['_resume_at'], g['_felt'] = g['t'] + RESUME_S, (fx, fz, g['t'])
-            v = g['est']['vel']
             way = -1.0 if (cur_doing in se2._BACK_GAITS or g.get('active_entry') in se2._BACK_GAITS
                            or g.get('twist', (0.0, 0.0, 0.0))[0] < -0.01) else 1.0
             gx, gz = way * math.sin(g['heading']), way * math.cos(g['heading'])
@@ -85,8 +130,8 @@ def check_contacts(g, out, cur_doing):
     else:
         if '_felt' in g and '_felt_pos' in g:
             fx, fz, _at = g['_felt']
-            x0, z0 = g['_felt_pos']
-            if (cx - x0) * fx + (cz - z0) * fz < -0.08 * math.hypot(fx, fz):
+            x0, z0 = g['_felt_pos'][:2]
+            if (cx - x0) * fx + (cz - z0) * fz < -0.04 * math.hypot(fx, fz):
                 g.pop('_felt', None)
         g.pop('_felt_pos', None)
     aloft, clear = g['a'][modal.STANCE] < 0.5, list(g.get('_clear', (False, False)))

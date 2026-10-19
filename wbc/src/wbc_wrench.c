@@ -501,8 +501,7 @@ void wbc_wrench_step(wbc_body_t *b, wbc_wrench_t *w, const wbc_frame_t *base,
   const double grounded = (stance[0] > stance[1]) ? stance[0] : stance[1];
   const double mass = wbc_total_mass, lo = ask->com_acc[1] - HEIGHT_BAND, hi = ask->com_acc[1] + HEIGHT_BAND;
   double       want[WBC_DRIVEN], a6[12], asked[2], com[3], k3[3], row[NU], part[NU];
-  double       a[6][6], ai[6][6], d[6], mbt[6][6], own[NU], whole[NU], stood[NU], at[NU];
-  double       tau[WBC_DRIVEN], tau0[WBC_DRIVEN], carried[WBC_DRIVEN], limit[WBC_DRIVEN], s;
+  double       a[6][6], ai[6][6], d[6], mbt[6][6], own[NU], whole[NU], stood[NU];
 
   memset(out, 0, sizeof(*out));
   wbc_body_pose(b, base, q);
@@ -691,53 +690,5 @@ void wbc_wrench_step(wbc_body_t *b, wbc_wrench_t *w, const wbc_frame_t *base,
   {
     return;
   }
-  wbc_wrench_motion(w, whole, out->udot);
-  wbc_wrench_torques(b, w, stance, whole, out->udot, tau);
-  wbc_wrench_motion(w, stood, out->udot);
-  wbc_wrench_torques(b, w, stance, stood, out->udot, tau0);
-  for (int j = 0; j < WBC_DRIVEN; j++)
-  {
-    const double clamp = wbc_clamp[wbc_driven[j]], peak = wbc_peak[wbc_driven[j]];
-
-    limit[j] = ((ask->wep && (peak > clamp)) ? peak : clamp) * ask->derate[j];
-  }
-  s = wbc_shrunk(tau, tau0, limit);
-  out->alpha[0] = s;
-  for (int c = 0; c < NU; c++)
-  {
-    at[c] = whole[c] + (s - 1.0) * (whole[c] - stood[c]);
-  }
-
-  /* out: the accelerations, the soles' wrenches, the drives' torques inside their clamps; the
-     drives asked past their clamps and their loads the ask's, before it was shrunk */
-  wbc_wrench_motion(w, at, out->udot);
-  wbc_wrench_torques(b, w, stance, at, out->udot, carried);
-  for (int k = 0; k < 2; k++)
-  {
-    for (int i = 0; i < 6; i++)
-    {
-      out->wrench[k][i] = stance[k] * at[6 * k + i];
-    }
-    out->bears[k] = out->wrench[k][4];
-  }
-  for (int j = 0; j < WBC_DRIVEN; j++)
-  {
-    const double clamp = wbc_clamp[wbc_driven[j]];
-
-    out->over[j] = fabs(tau[j]) > clamp * (1.0 + 1e-6);
-    out->load[j] = fabs(tau[j]) / clamp;
-    out->tau[j] = clip(carried[j], -limit[j], limit[j]);
-  }
-  for (int j = 0; j < WBC_DRIVEN; j++)
-  {
-    const int pair = wbc_pair[wbc_driven[j]];
-
-    for (int o = 0; (pair > 0) && (o < WBC_DRIVEN); o++)
-    {
-      if (wbc_driven[o] == pair - 1)
-      {
-        out->over[j] = out->over[o] = out->over[j] || out->over[o];
-      }
-    }
-  }
+  wbc_wrench_out(b, w, ask, stance, whole, stood, out);
 }

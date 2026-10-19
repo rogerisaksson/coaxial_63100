@@ -28,8 +28,12 @@ SOURCES = [os.path.join(REPO, 'wbc', 'test', 'harness.c'),
            os.path.join(REPO, 'wbc', 'src', 'wbc_blas.c'),
            os.path.join(REPO, 'wbc', 'src', 'wbc_law.c'),
            os.path.join(REPO, 'wbc', 'src', 'wbc_step.c'),
-           os.path.join(REPO, 'wbc', 'src', 'wbc_rounds.c')]
-INCLUDES = [os.path.join(REPO, 'wbc', 'inc')]
+           os.path.join(REPO, 'wbc', 'src', 'wbc_rounds.c'),
+           os.path.join(REPO, 'wbc', 'src', 'wbc_sil.c'),
+           os.path.join(REPO, 'modbus', 'src', 'modbus_crc.c'),
+           os.path.join(REPO, 'modbus', 'src', 'modbus_rtu.c'),
+           os.path.join(REPO, 'modbus', 'src', 'modbus_slave.c')]
+INCLUDES = [os.path.join(REPO, 'wbc', 'inc'), os.path.join(REPO, 'modbus', 'inc')]
 #: The firmware compiles the chain at -O2 (CMakeLists.txt); sin and cos called apart, as numpy calls
 #: them: gcc's sincos for the pair is glibc's own path at 0.855 < |x| < 2.43, its sin's last bit not sin's.
 FLAGS = ('-O2', '-fno-builtin-sin', '-fno-builtin-cos')
@@ -263,9 +267,14 @@ def typed(lib):
     lib.wbh_pass_drawn.restype = d
     lib.wbh_pass_hem.argtypes = [i, d] + [_vp] * 9
     lib.wbh_pass_hem.restype = None
+    lib.wbh_sil_init.argtypes = [ctypes.POINTER(World), i, _vp, _vp]
+    lib.wbh_sil_transceive.argtypes = [ctypes.POINTER(World), i, ctypes.c_char_p, i]
+    lib.wbh_sil_transceive.restype = i
+    lib.wbh_sil_drive.argtypes = [ctypes.POINTER(World), i, _vp, _vp, _vp, _vp, _vp]
+    lib.wbh_sil_stats.argtypes = [i, _vp, _vp, _vp, _vp]
     for name in ('wbh_pass_drives', 'wbh_pass_ctrl', 'wbh_pass_motor', 'wbh_pass_metered', 'wbh_pass_felt',
                  'wbh_pass_contacts', 'wbh_pass_sensed', 'wbh_pass_heat_load', 'wbh_pass_heat',
-                 'wbh_pass_heat_peak'):
+                 'wbh_pass_heat_peak', 'wbh_sil_init', 'wbh_sil_drive', 'wbh_sil_stats'):
         getattr(lib, name).restype = None
     return lib
 

@@ -86,8 +86,8 @@ def test_the_humanoid_pages_keys(report):
 
 
 def test_the_keys_that_move_her_are_one_twist(report):
-    """W A S D go where the view looks, left of it, back to it, right of it; Q E sidestep; Shift
-    sprints: one twist, sent when it changes, each one the bench's plays hold."""
+    """W A S D move and turn her relative to her own body (independent of the viewport); Q E
+    sidestep; Shift sprints: one twist, sent when it changes, each one the bench's plays hold."""
     import time
     from terminal.views import humanoid_keys, viewpoint
     from tools.sim import scenarios
@@ -96,10 +96,11 @@ def test_the_keys_that_move_her_are_one_twist(report):
         keys = dict({k: k in word.lower() for k in 'wsadqe'}, shift=word != word.lower())
         return humanoid_keys.twist(keys, viewpoint.looks({'yaw': yaw}), heading)
 
-    report.check('the view behind her: W walks her on, S walks her back, A turns her left',
+    report.check('in her frame: W walks her on, S walks her back, A turns her left',
                  (tw('w'), tw('s'), tw('a')) == ((0.69, 0.0, 0.0), (-0.35, 0.0, 0.0), (0.0, 0.0, 0.7)))
-    report.check('the view 60 deg left of her: W arcs her left; facing it, Shift sprints; Q sidesteps her left',
-                 (tw('w', 240.0), tw('W'), tw('q')) == ((0.69, 0.0, 0.7), (1.4, 0.0, 0.0), (0.0, 0.5, 0.0)))
+    report.check('independent of view yaw: W walks straight, WA arcs left, Shift+W sprints, Q sidesteps left',
+                 (tw('w', 240.0), tw('wa', 240.0), tw('W', 90.0), tw('q', 45.0))
+                 == ((0.69, 0.0, 0.0), (0.69, 0.0, 0.7), (1.4, 0.0, 0.0), (0.0, 0.5, 0.0)))
     every = {tw(w, yaw, hd) for w in ('w', 's', 'a', 'd', 'wa', 'wd', 'sa', 'sd', 'q', 'e', 'W', 'WA', 'S')
              for yaw in range(0, 360, 15) for hd in (0.0, 1.0, -2.0)}
     bound = [max(abs(t[i]) for t in scenarios.KEYS.values()) for i in range(3)]

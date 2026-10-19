@@ -158,7 +158,10 @@ def ran(name, wobble=0.0):
     weight = float(s['g']['fr'][modal.WEIGHT])
     head, force = m.body('head').id, np.zeros(6)
     jerked = [m.body(n).id for n in JERKED]
+    from machine import wrench
+    leg_cols = [s['g']['body'].act[leg] for leg in wrench.LEGS]
     track, fell, hit, k, bore, most = [], None, None, 0, {}, {}
+    sigma_min, scale_min, shrunk_n, qacc_max = math.inf, 1.0, 0, 0.0
     plan = sorted(plan, key=lambda c: c[0])
     while s['g']['t'] < seconds and s['epoch'] == 0:
         while k < len(plan) and s['g']['t'] >= plan[k][0]:
@@ -166,6 +169,15 @@ def ran(name, wobble=0.0):
             k += 1
         worker.stepped(s)
         g = s['g']
+        if g['n'] % g['every'] == 1 and 'got' in g and 's' in g:
+            got, gs = g['got'], g['s']
+            sc = float(got['scale'])
+            scale_min = min(scale_min, sc)
+            shrunk_n += int(sc < 1.0 - 1e-6)
+            qacc_max = max(qacc_max, float(np.abs(got['qacc'][g['body'].act]).max()))
+            for side in (0, 1):
+                sv = float(np.linalg.svd(gs['feet'][side]['J6'][:, leg_cols[side]], compute_uv=False).min())
+                sigma_min = min(sigma_min, sv)
         if s['fallen_at'] is not None and fell is None:
             fell = round(g['t'], 3)
         speed_head = float(np.linalg.norm(d.cvel[head][3:]))
@@ -192,6 +204,8 @@ def ran(name, wobble=0.0):
            'bore': {kd: round(v, 2) for kd, v in bore.items()},
            'touched': {kd: round(v) for kd, v in most.items() if kd != 'floor'},
            'on_soles': round(sum(s['g']['loads']) / weight, 2), 'head_hit': hit,
+           'sigma_min': round(sigma_min, 4), 'scale_min': round(scale_min, 3),
+           'shrunk': shrunk_n, 'qacc_max': round(qacc_max, 1),
            'jerk': cut(lambda j: np.percentile(j, 99)), 'jerk_peak': cut(np.max)}
     out['met'] = judged(out)
     return out

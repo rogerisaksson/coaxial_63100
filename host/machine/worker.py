@@ -13,7 +13,7 @@ def _start_mode(g, by, entry, at):
     g['active_entry'] = name
     if name == 'hop':
         wire, names, dur, dt_load_ms = leap.standing_leap(entry[1], float(g.get('_hop_charge', 0.0)))
-        g['st'][latent.THETA] = ((0.10 - dt_load_ms * 0.001) % 1.0) * math.tau
+        g['_sync_cpg_at'], g['st'][latent.THETA] = None, ((0.10 - dt_load_ms * 0.001) % 1.0) * math.tau
         g['_jump_t0'], g['_jump_throw'], g['_jump_until'], g['_leap'] = at, at + dt_load_ms * 0.001, at + dur, False
         sprung.said(g, 'hop', wire, names, at=at, reset=True)
         if '#201' in by:
@@ -62,9 +62,10 @@ def heard_say(g, gym, entry):
     lph, lamp = float(g['st'][latent.NOW][latent.PHASE][modal.LATERAL]), float(g['st'][latent.NOW][latent.AMP][modal.LATERAL])
     back_now = (math.sin(lph) * (1.0 if lamp >= 0.0 else -1.0)) < -0.2
     spd, ref = math.hypot(float(g['est']['vel'][0]), float(g['est']['vel'][2])), g['out'][latent.REF]
-    off_c = not striding and (max(abs(float(ref[modal.LIFT])), abs(float(ref[modal.SAGITTAL])), abs(float(ref[modal.LATERAL]))) > 0.15
-                              or abs(float(ref[modal.AXIAL])) > 0.25 or abs(float(g['loads'][0]) - float(g['loads'][1])) > 90.0)
     t0, cur_d = g['t'] + 0.001, sprung.doing(g)
+    off_c = not striding and cur_d not in ('#201', 'rest') and (
+        max(abs(float(ref[modal.LIFT])), abs(float(ref[modal.SAGITTAL])), abs(float(ref[modal.LATERAL]))) > 0.15
+        or abs(float(ref[modal.AXIAL])) > 0.25 or abs(float(g['loads'][0]) - float(g['loads'][1])) > 90.0)
     future = g['tab'][g['tab'][:, latent.AT] > g['t']]
     if cur_d in ('brake', '#201', 'init_walk') and g.get('active_entry') in sprung._FWD_GAITS and name in sprung._FWD_GAITS and len(future):
         t_end = float(future[0, latent.AT])

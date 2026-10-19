@@ -29,3 +29,8 @@ share. A drive's heat: [thermals](thermals.md). Findings:
 | linkage | the transmissions off a joint's axis: the ankle's rods, the trunk roll's four-bar, spurs, belts |
 | rtu | Modbus RTU: CRC-16, a pass's frames |
 | buses | the boards on a bus a limb, a process each in lockstep with the world over a shared block, the host's frames bytes on a socket a bus |
+| edge | the 5 extremity 10 Mbit/s RS485 Modbus RTU SIL buses (`LIMBS`, `BAUD`) and their live topology diagram (`bus_layout_svg`) |
+
+## Extremity RS485 Modbus RTU Bus Topology
+
+![10 Mbit/s RS485 Modbus RTU extremity bus layout](bus_layout.svg)

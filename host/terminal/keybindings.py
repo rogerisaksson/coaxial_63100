@@ -33,7 +33,7 @@ def groups():
     """The TAB help, its groups of (key, what)."""
     return (
         ('HER', (
-            ('W A S D', 'go where the view looks, left, back to it, right'),
+            ('W A S D', 'walk ahead, turn left, walk back, turn right'),
             ('SHIFT', 'sprint'),
             ('Q E', 'sidestep left, right, facing kept'),
             ('SPACE', 'hop - onto a chair ahead, down from one'),

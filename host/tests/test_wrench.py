@@ -90,8 +90,33 @@ def test_she_hops(report):
                  % (out['air_s'], out['clear_mm'], out['landed_n'], out['tilt'], out['stances']))
 
 
+def test_singular_fall_is_bounded(report):
+    """When tumbling airborne near a straight-knee singularity (`|tau0| > limit`), `shrunk` and
+    `step` scale the baseline into the drives' clamps without collapsing `scale` to 0 or flinging
+    her driven joints at thousands of rad/s^2."""
+    import numpy as np
+    from machine import figure, physics, wbc, wrench
+    world, body = physics.World(), wbc.Body()
+    qpos = figure.stand()
+    for j in ('left_knee', 'right_knee'):
+        qpos[world.model.jnt_qposadr[world.model.joint(j).id]] = 0.005
+    world.reset(qpos)
+    qvel = np.zeros(len(world.data.qvel))
+    qvel[:body.n] = 25.0
+    s = wbc.sense(body, world.data.qpos, qvel)
+    feet = s['feet']
+    swung = {k: (feet[k]['sole'] + (0.0, 0.05, 0.05), np.zeros(3), np.zeros(3), feet[k]['quat']) for k in (0, 1)}
+    ask = {'stance': (False, False), 'com_acc': np.array([0.0, -9.81, 0.0]), 'posture': s['q'].copy(),
+           'turns': (), 'swing': swung, 'fold': {0: (0.6, 0.0, 0.0), 1: (0.6, 0.0, 0.0)}, 'wep': False}
+    out = wrench.step(body, s, ask)
+    qacc_max = float(np.abs(out['qacc'][body.act]).max())
+    report.check('tumbling near a straight-knee singularity keeps qacc bounded and scale > 0',
+                 0.0 < out['scale'] <= 1.0 and qacc_max < 1000.0 and bool((np.abs(out['tau']) <= body.clamp + 1e-9).all()),
+                 'scale %.4f, max |qacc| %.1f rad/s^2' % (out['scale'], qacc_max))
+
+
 ROSTER = (test_a_step_standing_is_the_stacks, test_a_contact_bears, test_she_stands_still, test_nudged_she_holds,
-          test_she_hops)
+          test_she_hops, test_singular_fall_is_bounded)
 
 
 def main(argv=None):

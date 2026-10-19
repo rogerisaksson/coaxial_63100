@@ -215,7 +215,7 @@ static int maps(const wbc_step_t *p, const double *want, double *T, double *E, d
 
 /** The drives' torques and every acceleration at the unknowns `u` (step's torques). */
 static void torques(const wbc_step_t *p, const double *full, const double *full0, const double stance[2],
-                    const double *u, int nu, double *tau, double *qdd, double *work)
+                    const double *u, double alpha, int nu, double *tau, double *qdd, double *work)
 {
   const wbc_blas_t *l = &p->blas;
   const int         n = p->n, nd = p->nd;
@@ -224,12 +224,14 @@ static void torques(const wbc_step_t *p, const double *full, const double *full0
   wbc_matmul(l, VIEW(full, nu, 1), VIEW(u, 1, 0), q, 1, 0, n, nu, 1);
   for (int i = 0; i < n; i++)
   {
-    qdd[i] = q[i] + full0[i];
+    qdd[i] = q[i] + (alpha == 1.0 ? full0[i] : alpha * full0[i]);
   }
   wbc_matmul(l, VIEW(p->M, n, 1), VIEW(qdd, 1, 0), Mq, 1, 0, n, n, 1);
   for (int i = 0; i < nd; i++)
   {
-    tau[i] = Mq[p->act[i]] + p->h[p->act[i]];
+    const double hi = p->h[p->act[i]];
+
+    tau[i] = Mq[p->act[i]] + (alpha == 1.0 ? hi : alpha * hi);
   }
   for (int c = 0; c < p->nc; c++)
   {
@@ -271,9 +273,10 @@ static double shrunk(int nd, const double *tau, const double *tau0, const double
 
   for (int i = 0; i < nd; i++)
   {
-    const double d = tau[i] - tau0[i];
-    const double leaves = (d > 0.0 ? limit[i] - tau0[i] : (-limit[i]) - tau0[i]) / d;
-    const double enters = (d > 0.0 ? (-limit[i]) - tau0[i] : limit[i] - tau0[i]) / d;
+    const double t0 = fabs(tau0[i]) <= limit[i] ? tau0[i] : 0.0;
+    const double d = tau[i] - t0;
+    const double leaves = (d > 0.0 ? limit[i] - t0 : (-limit[i]) - t0) / d;
+    const double enters = (d > 0.0 ? (-limit[i]) - t0 : limit[i] - t0) / d;
     double       s = d == 0.0 ? 1.0 * (double)(fabs(tau[i]) <= limit[i]) : npmin(1.0, leaves);
 
     s = s >= npmax(0.0, d == 0.0 ? 0.0 : enters) ? s : 0.0;
@@ -601,25 +604,51 @@ int wbc_step(wbc_step_t *p)
   {
     limit[i] = (p->wep ? p->wep_nm[i] : p->clamp[i]) * p->derate[i];
   }
-  torques(p, full, full0, stance, whole, nu, tau, qdd, rest);
+  torques(p, full, full0, stance, whole, 1.0, nu, tau, qdd, rest);
   for (int i = 0; i < nd; i++)
   {
     past |= fabs(tau[i]) > limit[i];
   }
   if (past)
   {
+    int    past0 = 0;
+    double s0 = 1.0;
+
     wbc_matmul(l, VIEW(R0, 1, nu), VIEW(rhs0, 1, 0), g0, 1, 0, nu, at, 1);
     if (wbc_rounds(p, &geo, H0, g0, S, r0, felt, -p->height_band, p->height_band, stood, rest))
     {
       return 1;
     }
-    torques(p, full, full0, stance, stood, nu, tau0, qdd, rest);
+    torques(p, full, full0, stance, stood, 1.0, nu, tau0, qdd, rest);
     p->scale = shrunk(nd, tau, tau0, limit);
     for (int j = 0; j < nu; j++)
     {
       u[j] = whole[j] + (p->scale - 1.0) * (whole[j] - stood[j]);
     }
-    torques(p, full, full0, stance, u, nu, carried, qdd, rest);
+    for (int i = 0; i < nd; i++)
+    {
+      past0 |= fabs(tau0[i]) > limit[i];
+    }
+    if (past0)
+    {
+      double t1[WBC_STEP_D], z0[WBC_STEP_D];
+
+      for (int i = 0; i < nd; i++)
+      {
+        t1[i] = tau[i] + (p->scale - 1.0) * (tau[i] - tau0[i]);
+        z0[i] = 0.0;
+      }
+      s0 = shrunk(nd, t1, z0, limit);
+      p->scale = s0 * p->scale;
+      if (s0 < 1.0)
+      {
+        for (int j = 0; j < nu; j++)
+        {
+          u[j] = s0 * u[j];
+        }
+      }
+    }
+    torques(p, full, full0, stance, u, s0, nu, carried, qdd, rest);
   }
   else
   {

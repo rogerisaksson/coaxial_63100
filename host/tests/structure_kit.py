@@ -82,6 +82,55 @@ def depth(node, at=0):
     return worst
 
 
+TWINS = (
+    ('coaxial.devices.afe:Afe', 'coaxial.simulated.analog:SimulatedAfe'),
+    ('coaxial.devices.analog:Analog', 'coaxial.simulated.analog:SimulatedAnalog'),
+    ('coaxial.devices.gpio:Gpio', 'coaxial.simulated.system:SimulatedGpio'),
+    ('coaxial.devices.power:Power', 'coaxial.simulated.power:SimulatedPower'),
+    ('coaxial.devices.gate_drivers:GateDrivers', 'coaxial.simulated.power:SimulatedGateDrivers'),
+    ('coaxial.devices.imu:Imu', 'coaxial.simulated.sensors:SimulatedImu'),
+    ('coaxial.devices.angle:Angle', 'coaxial.simulated.sensors:SimulatedAngle'),
+    ('coaxial.acquire.capture:Capture', 'coaxial.simulated.acquire.capture:SimulatedCapture'),
+    ('coaxial.acquire.clock:Clock', 'coaxial.simulated.acquire.clock:SimulatedClock'),
+    ('coaxial.acquire.daq:Daq', 'coaxial.simulated.acquire.daq:SimulatedDaq'),
+    ('coaxial.devices.drive:Drive', 'coaxial.simulated.drive.device:SimulatedDrive'),
+    ('coaxial.devices.thermal:Thermal', 'coaxial.simulated.thermal.observer:SimulatedThermal'),
+    ('coaxial.devices.calibration:Calibration', 'coaxial.simulated.analog:SimulatedCalibration'),
+    ('coaxial.devices.system:System', 'coaxial.simulated.system:SimulatedSystem'),
+    ('coaxial.devices.link:Link', 'coaxial.simulated.link:SimulatedLink'),
+    ('coaxial.devices.boot:Boot', 'coaxial.simulated.boot:SimulatedBoot'),
+    ('coaxial.devices.ctrl:Ctrl', 'coaxial.simulated.ctrl:SimulatedCtrl'),
+)
+
+WIRE_ONLY = {'board', 'request', 'took'}
+
+
+def svg_connectors_clear(svg_path):
+    """Every non-divider `<line>` and `<path>` in `svg_path` stays outside the interior of every card `<rect>`."""
+    import xml.etree.ElementTree as ET
+    root = ET.parse(svg_path).getroot()
+    rects, segs = [], []
+    for el in root.iter():
+        tag = el.tag.rpartition('}')[2]
+        if tag == 'rect' and float(el.get('x', '0')) > 0:
+            rects.append((float(el.get('x', '0')), float(el.get('y', '0')),
+                          float(el.get('width', '0')), float(el.get('height', '0'))))
+        elif tag == 'line' and el.get('stroke') != '#334155':
+            segs.append((float(el.get('x1', '0')), float(el.get('y1', '0')),
+                         float(el.get('x2', '0')), float(el.get('y2', '0'))))
+        elif tag == 'path' and 'M' in el.get('d', '') and 'L' in el.get('d', ''):
+            pts = [float(t) for t in el.get('d', '').replace('M', ' ').replace('L', ' ').split()
+                   if t.replace('.', '', 1).replace('-', '', 1).isdigit()]
+            for i in range(0, len(pts) - 2, 2):
+                segs.append((pts[i], pts[i + 1], pts[i + 2], pts[i + 3]))
+    for x1, y1, x2, y2 in segs:
+        for s in range(1, 20):
+            px, py = x1 + (x2 - x1) * (s / 20.0), y1 + (y2 - y1) * (s / 20.0)
+            if any(rx + 1.0 < px < rx + rw - 1.0 and ry + 1.0 < py < ry + rh - 1.0 for rx, ry, rw, rh in rects):
+                return False
+    return bool(rects and segs)
+
+
 #: The command header's op prefixes and the protocol module's enums. The
 #: rails have one op and no enum on the C side.
 OP_CLASSES = {'IMU': 'ImuOp', 'ANGLE': 'AngleOp', 'LINK': 'LinkOp',

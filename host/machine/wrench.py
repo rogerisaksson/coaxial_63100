@@ -188,10 +188,11 @@ def shrunk(tau, tau0, limit):
     """How far from `tau0`, the drives' torques with nothing asked, toward `tau`, the ask's,
     every drive stays within its `limit`: the largest s in [0, 1] with every |tau0 + s (tau -
     tau0)| <= limit, each drive's in closed form, the least of them; 0 where none is."""
-    d = tau - tau0
+    t0 = np.where(np.abs(tau0) <= limit, tau0, 0.0)
+    d = tau - t0
     with np.errstate(divide='ignore', invalid='ignore'):
-        leaves = np.where(d > 0.0, limit - tau0, -limit - tau0) / d
-        enters = np.where(d > 0.0, -limit - tau0, limit - tau0) / d
+        leaves = np.where(d > 0.0, limit - t0, -limit - t0) / d
+        enters = np.where(d > 0.0, -limit - t0, limit - t0) / d
     s = np.where(d == 0.0, 1.0 * (np.abs(tau) <= limit), np.minimum(1.0, leaves))
     s = np.where(s >= np.maximum(0.0, np.where(d == 0.0, 0.0, enters)), s, 0.0)
     return float(np.clip(s.min(), 0.0, 1.0))
@@ -299,11 +300,9 @@ def step(b, s, ask):
     rows'; `scale` how much of the ask her drives carry, 1 whole."""
     n, M, h, v, feet, act, mass = b.n, s['M'], s['h'], s['v'], s['feet'], b.act, b.mass
     contacts = s.get('contacts', ())
-    k3 = 3 * len(contacts)
-    nu = NU + k3
+    k3, nu = 3 * len(contacts), NU + 3 * len(contacts)
     stance = np.array([float(bool(k)) for k in ask['stance']])
-    each = np.repeat(stance, 6)
-    grounded = max(float(stance.max()), float(k3 > 0))
+    each, grounded = np.repeat(stance, 6), max(float(stance.max()), float(k3 > 0))
     turns = ask.get('turns', ())
     turned = max(grounded, float(ask.get('borne', 0.0))) * float(len(turns) > 0)
     want = POSTURE_KD[0] * (np.asarray(ask['posture']) - s['q']) - POSTURE_KD[1] * v[act]
@@ -330,8 +329,7 @@ def step(b, s, ask):
 
     sumf, about, still = np.zeros((3, nu)), np.zeros((3, nu)), []
     for k, f in enumerate(feet):
-        r = f['sole'] - s['com']
-        sk = stance[k]
+        r, sk = f['sole'] - s['com'], stance[k]
         sumf[:, 6 * k + 3:6 * k + 6] = sk * _EYE3
         about[:, 6 * k:6 * k + 3] = sk * _EYE3
         about[:, 6 * k + 3:6 * k + 6] = sk * np.array([[0.0, -r[2], r[1]], [r[2], 0.0, -r[0]],
@@ -365,9 +363,7 @@ def step(b, s, ask):
             W_STOP * min(max(float(short / KNEE_MIN), 0.0), 1.0), -full0[j])
     kdot = ask.get('kdot')
     lay(about, -MOMENTUM_K * s['k'] if kdot is None else np.asarray(kdot), W_MOMENT * grounded)
-    part = np.zeros(nu)
-    inv_mg = 1.0 / (mass * G)
-    inv_mgr = 1.0 / (mass * G * ROOM[0])
+    part, inv_mg, inv_mgr = np.zeros(nu), 1.0 / (mass * G), 1.0 / (mass * G * ROOM[0])
     part[:12] = (inv_mgr, inv_mgr, inv_mgr, inv_mg, inv_mg, inv_mg) * 2
     if k3:
         part[NU:] = inv_mg
@@ -378,17 +374,15 @@ def step(b, s, ask):
     H0 = R0.T @ R0 + 1e-12 * (_EYE_NU if not k3 else np.eye(nu))
     frames, moment = [f['R'] for f in feet], (MOMENT if not k3 else np.concatenate([MOMENT, np.zeros(k3)]))
     edges, mu, strides = ask.get('edge', (0.0, 0.0)), ask.get('mu', (MU, MU)), float(ask.get('strides', 0.0))
-    kinetic = None
-    if strides > 0.0:
-        keep = W_KEEP * np.concatenate([each, np.zeros(nu - 12)]) * part
-        kinetic = full.T @ M @ full + np.diag((W_SWING * swung + spare) ** 2 + keep ** 2)
+    keep = W_KEEP * np.concatenate([each, np.zeros(nu - 12)]) * part
+    kinetic = (full.T @ M @ full + np.diag((W_SWING * swung + spare) ** 2 + keep ** 2)) if strides > 0.0 else None
     geo, stride = (nu, k3, moment, part, up, sumf[1], mass, grounded, stance, frames, edges, mu), (strides, kinetic)
     felt = [c['f'][1] for c in contacts]
 
-    def torques(u):
+    def torques(u, alpha=1.0):
         """(the drives' torques, every acceleration) at the unknowns `u`."""
-        qdd = full @ u + full0
-        tau = (M @ qdd + h)[act]
+        qdd = full @ u + (full0 if alpha == 1.0 else alpha * full0)
+        tau = (M @ qdd + (h if alpha == 1.0 else alpha * h))[act]
         for i, c in enumerate(contacts):
             tau = tau - c['J'][:, act].T @ u[NU + 3 * i:NU + 3 * i + 3]
         for k, f in enumerate(feet):
@@ -403,9 +397,13 @@ def step(b, s, ask):
     if (np.abs(tau) > limit).any():
         stood = _rounds(H0, R0.T @ np.concatenate(rhs0), [(S, r0) for S, _r, r0 in still], felt,
                         -HEIGHT_BAND, HEIGHT_BAND, geo, stride)
-        scale = shrunk(tau, torques(stood)[0], limit)
+        tau0 = torques(stood)[0]
+        scale = shrunk(tau, tau0, limit)
         u = whole + (scale - 1.0) * (whole - stood)
-        carried, qdd = torques(u)
+        s0 = (shrunk(tau + (scale - 1.0) * (tau - tau0), np.zeros(len(limit)), limit)
+              if (np.abs(tau0) > limit).any() else 1.0)
+        scale, u = s0 * scale, (s0 * u if s0 < 1.0 else u)
+        carried, qdd = torques(u, s0)
     else:
         scale, u, carried = 1.0, whole, tau
     bears, cop = [0.0, 0.0], []

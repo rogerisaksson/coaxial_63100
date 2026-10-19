@@ -26,8 +26,9 @@ void wbc_pass_drives(wbc_drives_t *p, double dt, double wo, double wo3, double y
     const int    j = p->knee[k];
     const double qk = p->y[p->q_at + p->joints[j]], qvk = p->y[p->qd_at + p->joints[j]];
 
-    p->sb[j] = ((p->knee_nm * npclip(1.0 - qk / p->knee_soft, 0.0, 3.0) + 2400.0 * npmax(0.0, under - qk))
-                - (pull * npclip((0.20 - qk) / 0.15, 0.0, 1.5)) * npmin(0.0, qvk)) * ys;
+    p->sb[j] = npclip(((p->knee_nm * npclip(1.0 - qk / p->knee_soft, 0.0, 3.0) + 2400.0 * npmax(0.0, under - qk))
+                       - (pull * npclip((0.20 - qk) / 0.15, 0.0, 1.5)) * npmin(0.0, qvk)) * ys,
+                      -p->clamp_j[j], p->clamp_j[j]);
   }
   for (int i = 0; i < n; i++)
   {

@@ -24,9 +24,9 @@ from typing import Any
 from machine import heat, rtu
 from machine.errors import MachineError
 
-#: The link's rate, bits/s (USART2 and UART5, coaxial_63100.ioc), and a board's turn from a poll
+#: The link's rate, bits/s (10 Mbit/s RS485 per extremity), and a board's turn from a poll
 #: landing to its reply, s.
-BAUD, TURN_S = 9_216_000, 30e-6
+BAUD, TURN_S = 10_000_000, 30e-6
 
 #: The boards' pace and the world's step, s; a board's heat steps every THERMAL_S.
 LOCKSTEP_S, THERMAL_S = 0.001, 0.01

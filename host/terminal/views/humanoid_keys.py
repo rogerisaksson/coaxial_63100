@@ -10,7 +10,6 @@ move her, a verb for the rest - what an agent sends. R's recordings and their ro
 `row`) are here with the key that writes them.
 """
 import json
-import math
 import time
 
 from machine import se2
@@ -23,11 +22,10 @@ from terminal.views import gym, viewpoint
 #: terminal's first repeat comes 250-500 ms on) - along the view's line of sight.
 CHARGE_N_S, CHARGE_MAX_N, RELEASE_S, FIRST_S = 120.0, 250.0, 0.25, 0.8
 
-#: W A D a way from the view - W where it looks -: her heading turned to it, TURN_K rad/s a
-#: radian off, to se2.YAW_RATE in steps of TWIST_STEP; walked at se2.WALK_SPEED within a quarter
-#: turn of it, se2.RUN_SPEED on Shift within SPRINT_RAD; S a walk back at -se2.BACK_SPEED. Q E a
-#: sidestep at se2.STRAFE_SPEED, her facing kept. Each twist one the bench's plays hold
-#: (`tools/sim/scenarios.py`, KEYS).
+#: W S walk her ahead and back in her own frame (`se2.WALK_SPEED`, `se2.RUN_SPEED` on Shift,
+#: `-se2.BACK_SPEED`); A D turn her left and right at `se2.YAW_RATE` - in place alone, on an arc
+#: with W or S -; Q E sidestep at `se2.STRAFE_SPEED`, her facing kept. Each twist one the bench's
+#: plays hold (`tools/sim/scenarios.py`, KEYS).
 TURN_K, SPRINT_RAD, TWIST_STEP = 1.5, 0.2, 0.05
 MOVES = frozenset('wasdqeWASDQE')
 #: A key typed counts held this long, s, where the console cannot tell (a terminal's first
@@ -156,18 +154,17 @@ def polled(raw, st, now, held=None):
     return st['keys']
 
 
-def twist(keys, look, heading):
-    """(vx, vy, wz) the `keys` held (`polled`) ask of her: `look` the heading the view looks along,
-    `heading` hers, rad."""
+def twist(keys, look=0.0, heading=0.0):
+    """(vx, vy, wz) the `keys` held (`polled`) ask of her in her own frame, independent of `look`."""
+    _ = look, heading
     fwd, left = int(keys['w']) - int(keys['s']), int(keys['a']) - int(keys['d'])
+    wz = round(left * se2.YAW_RATE, 2)
     if fwd < 0:
-        return (-se2.BACK_SPEED, 0.0, round(left * se2.YAW_RATE, 2))
-    if fwd or left:
-        off = se2.wrap_angle(look + math.atan2(left, fwd) - heading)
-        wz = round(TWIST_STEP * round(max(-se2.YAW_RATE, min(se2.YAW_RATE, TURN_K * off)) / TWIST_STEP), 2)
-        if abs(off) >= 0.5 * math.pi:
-            return (0.0, 0.0, wz)
-        return (se2.RUN_SPEED if keys['shift'] and abs(off) < SPRINT_RAD else se2.WALK_SPEED, 0.0, wz)
+        return (-se2.BACK_SPEED, 0.0, wz)
+    if fwd > 0:
+        return (se2.RUN_SPEED if keys['shift'] and not left else se2.WALK_SPEED, 0.0, wz)
+    if left:
+        return (0.0, 0.0, wz)
     return (0.0, (int(keys['q']) - int(keys['e'])) * se2.STRAFE_SPEED, 0.0)
 
 

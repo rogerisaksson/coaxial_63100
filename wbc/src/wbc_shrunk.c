@@ -72,7 +72,7 @@ double wbc_shrunk(const double tau[WBC_DRIVEN], const double tau0[WBC_DRIVEN],
 
   for (int j = 0; j < WBC_DRIVEN; j++)
   {
-    const double d = tau[j] - tau0[j], l = limit[j];
+    const double l = limit[j], t0 = (fabs(tau0[j]) <= l) ? tau0[j] : 0.0, d = tau[j] - t0;
     double       sj;
 
     if (d == 0.0)
@@ -81,8 +81,8 @@ double wbc_shrunk(const double tau[WBC_DRIVEN], const double tau0[WBC_DRIVEN],
     }
     else
     {
-      const double leaves = ((d > 0.0) ? l - tau0[j] : -l - tau0[j]) / d;
-      const double enters = ((d > 0.0) ? -l - tau0[j] : l - tau0[j]) / d;
+      const double leaves = ((d > 0.0) ? l - t0 : -l - t0) / d;
+      const double enters = ((d > 0.0) ? -l - t0 : l - t0) / d;
 
       sj = (leaves < 1.0) ? leaves : 1.0;
       sj = (sj >= ((enters > 0.0) ? enters : 0.0)) ? sj : 0.0;
@@ -90,4 +90,103 @@ double wbc_shrunk(const double tau[WBC_DRIVEN], const double tau0[WBC_DRIVEN],
     s = (sj < s) ? sj : s;
   }
   return (s < 0.0) ? 0.0 : s;
+}
+
+/** The step's shrunk answer into `out`: the accelerations, the soles' wrenches, the drives'
+    torques inside their clamps; the drives asked past their clamps and their loads the ask's,
+    before it was shrunk. */
+void wbc_wrench_out(const wbc_body_t *b, const wbc_wrench_t *w, const wbc_ask_t *ask,
+                    const double stance[2], const double whole[NU], const double stood[NU],
+                    wbc_out_t *out)
+{
+  double at[NU], tau[WBC_DRIVEN], tau0[WBC_DRIVEN], carried[WBC_DRIVEN], limit[WBC_DRIVEN];
+  double s, s0 = 1.0;
+  int    past = 0, past0 = 0;
+
+  wbc_wrench_motion(w, whole, out->udot);
+  wbc_wrench_torques(b, w, stance, whole, out->udot, tau);
+  wbc_wrench_motion(w, stood, out->udot);
+  wbc_wrench_torques(b, w, stance, stood, out->udot, tau0);
+  for (int j = 0; j < WBC_DRIVEN; j++)
+  {
+    const double clamp = wbc_clamp[wbc_driven[j]], peak = wbc_peak[wbc_driven[j]];
+
+    limit[j] = ((ask->wep && (peak > clamp)) ? peak : clamp) * ask->derate[j];
+  }
+  s = wbc_shrunk(tau, tau0, limit);
+  for (int c = 0; c < NU; c++)
+  {
+    at[c] = whole[c] + (s - 1.0) * (whole[c] - stood[c]);
+  }
+  for (int j = 0; j < WBC_DRIVEN; j++)
+  {
+    past |= (fabs(tau[j]) > limit[j]);
+    past0 |= (fabs(tau0[j]) > limit[j]);
+  }
+  if (past && past0)
+  {
+    double t1[WBC_DRIVEN], z0[WBC_DRIVEN];
+
+    for (int j = 0; j < WBC_DRIVEN; j++)
+    {
+      t1[j] = tau[j] + (s - 1.0) * (tau[j] - tau0[j]);
+      z0[j] = 0.0;
+    }
+    s0 = wbc_shrunk(t1, z0, limit);
+    s *= s0;
+    if (s0 < 1.0)
+    {
+      for (int c = 0; c < NU; c++)
+      {
+        at[c] = s0 * at[c];
+      }
+    }
+  }
+  out->alpha[0] = s;
+  wbc_wrench_motion(w, at, out->udot);
+  if (s0 < 1.0)
+  {
+    for (int n = 0; n < WBC_N; n++)
+    {
+      out->udot[n] += (s0 - 1.0) * (w->t0[n] + w->t[n][0] * w->p0[0] + w->t[n][1] * w->p0[1]
+                                    + w->t[n][2] * w->p0[2] + w->t[n][3] * w->p0[3]
+                                    + w->t[n][4] * w->p0[4] + w->t[n][5] * w->p0[5]);
+    }
+  }
+  wbc_wrench_torques(b, w, stance, at, out->udot, carried);
+  if (s0 < 1.0)
+  {
+    for (int j = 0; j < WBC_DRIVEN; j++)
+    {
+      carried[j] += (s0 - 1.0) * b->h[5 + wbc_driven[j]];
+    }
+  }
+  for (int k = 0; k < 2; k++)
+  {
+    for (int i = 0; i < 6; i++)
+    {
+      out->wrench[k][i] = stance[k] * at[6 * k + i];
+    }
+    out->bears[k] = out->wrench[k][4];
+  }
+  for (int j = 0; j < WBC_DRIVEN; j++)
+  {
+    const double clamp = wbc_clamp[wbc_driven[j]], l = limit[j], c = carried[j];
+
+    out->over[j] = fabs(tau[j]) > clamp * (1.0 + 1e-6);
+    out->load[j] = fabs(tau[j]) / clamp;
+    out->tau[j] = (c < -l) ? -l : ((c > l) ? l : c);
+  }
+  for (int j = 0; j < WBC_DRIVEN; j++)
+  {
+    const int pair = wbc_pair[wbc_driven[j]];
+
+    for (int o = 0; (pair > 0) && (o < WBC_DRIVEN); o++)
+    {
+      if (wbc_driven[o] == pair - 1)
+      {
+        out->over[j] = out->over[o] = out->over[j] || out->over[o];
+      }
+    }
+  }
 }

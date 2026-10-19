@@ -6,7 +6,7 @@ import os
 import sys
 
 from tools.dev.focus import chosen
-from structure_kit import HOST, PACKAGES, Report, depth, sources
+from structure_kit import HOST, PACKAGES, TWINS, WIRE_ONLY, Report, depth, sources, svg_connectors_clear
 
 
 # The ceiling is the worst that survives a deliberate reading, not an ideal.
@@ -34,33 +34,6 @@ def modules():
                     found.append('%s.%s' % (dotted, name[:-3]))
     return found
 
-
-#: Every device on the board, and its stand-in: the stand-in answers every
-#: public call the device does (docs: add a method to both or neither).
-TWINS = (
-    ('coaxial.devices.afe:Afe', 'coaxial.simulated.analog:SimulatedAfe'),
-    ('coaxial.devices.analog:Analog', 'coaxial.simulated.analog:SimulatedAnalog'),
-    ('coaxial.devices.gpio:Gpio', 'coaxial.simulated.system:SimulatedGpio'),
-    ('coaxial.devices.power:Power', 'coaxial.simulated.power:SimulatedPower'),
-    ('coaxial.devices.gate_drivers:GateDrivers', 'coaxial.simulated.power:SimulatedGateDrivers'),
-    ('coaxial.devices.imu:Imu', 'coaxial.simulated.sensors:SimulatedImu'),
-    ('coaxial.devices.angle:Angle', 'coaxial.simulated.sensors:SimulatedAngle'),
-    ('coaxial.acquire.capture:Capture', 'coaxial.simulated.acquire.capture:SimulatedCapture'),
-    ('coaxial.acquire.clock:Clock', 'coaxial.simulated.acquire.clock:SimulatedClock'),
-    ('coaxial.acquire.daq:Daq', 'coaxial.simulated.acquire.daq:SimulatedDaq'),
-    ('coaxial.devices.drive:Drive', 'coaxial.simulated.drive.device:SimulatedDrive'),
-    ('coaxial.devices.thermal:Thermal',
-     'coaxial.simulated.thermal.observer:SimulatedThermal'),
-    ('coaxial.devices.calibration:Calibration', 'coaxial.simulated.analog:SimulatedCalibration'),
-    ('coaxial.devices.system:System', 'coaxial.simulated.system:SimulatedSystem'),
-    ('coaxial.devices.link:Link', 'coaxial.simulated.link:SimulatedLink'),
-    ('coaxial.devices.boot:Boot', 'coaxial.simulated.boot:SimulatedBoot'),
-    ('coaxial.devices.ctrl:Ctrl', 'coaxial.simulated.ctrl:SimulatedCtrl'),
-)
-
-
-#: The wire's own plumbing, which a stand-in has no wire to carry.
-WIRE_ONLY = {'board', 'request', 'took'}
 
 
 def _names_imported(node):
@@ -369,13 +342,18 @@ def test_her_law_reads_her_sensors_alone(r):
 
 
 #: The gym over her law lays her, places a scene and shoves her through the world's own calls
-#: (`physics.World.reset`, `.scenario`, `.push`) and writes none of the world's state itself.
-GYM, MOVES = ('sprung', 'worker', 'tour'), ('qpos', 'qvel', 'xfrc_applied', 'qfrc_applied', 'mocap_pos', 'mocap_quat')
+#: (`physics.World.reset`, `.scenario`, `.push`), commands her drives through `edge.drive`'s
+#: 10 Mbit/s RS485 Modbus RTU extremity buses alone, and writes none of the world's state itself.
+GYM = ('sprung', 'worker', 'tour')
+MOVES = ('qpos', 'qvel', 'ctrl', 'xfrc_applied', 'qfrc_applied', 'mocap_pos', 'mocap_quat',
+         'target', 'feed', 'rate', 'limit')
 
 
 def test_the_gym_moves_her_through_the_world_alone(r):
-    """The gym writes none of the world's state: her lay, a scene and a shove are the world's own
-    calls, and nothing else moves her."""
+    """The gym writes none of the world's state or drive arrays directly: her lay, a scene and a
+    shove are the world's own calls, and her drives are told on their 10 Mbit/s RS485 Modbus RTU
+    extremity buses (`edge.LIMBS`, `edge.drive`) alone."""
+    from machine import edge, figure, routines
     wrote = []
     for name in GYM:
         tree = ast.parse(open(os.path.join(HOST, 'machine', name + '.py'), encoding='utf-8').read())
@@ -386,6 +364,25 @@ def test_the_gym_moves_her_through_the_world_alone(r):
                 wrote.append('%s:%d' % (name, getattr(node, 'lineno', 0)))
     r.check("the gym writes none of the world's state: a lay, a scene and a shove are the world's own calls",
             not wrote, ', '.join(wrote[:6]))
+    limbs = [(s.name, s.actuators) for s in routines.TYPES['gynoid'].body]
+    flat = [j for _, jnts in edge.LIMBS for j in jnts]
+    r.check('every joint sits on one 10 Mbit/s RS485 Modbus RTU extremity bus (edge.LIMBS == gynoid subsystems)',
+            edge.BAUD == 10_000_000 and list(edge.LIMBS) == limbs
+            and len(flat) == len(set(flat)) == len(figure.JOINTS),
+            '%d buses, %d joints at %.1f Mbit/s' % (len(edge.LIMBS), len(flat), edge.BAUD / 1e6))
+    repo = os.path.dirname(HOST)
+    svg_path = os.path.join(repo, 'docs', 'architecture', 'bus_layout.svg')
+    doc_path = os.path.join(repo, 'docs', 'architecture', 'drivetrain.md')
+    svg_ok = (os.path.isfile(svg_path)
+              and open(svg_path, encoding='utf-8').read() == edge.bus_layout_svg()
+              and 'bus_layout.svg' in open(doc_path, encoding='utf-8').read())
+    r.check('docs/architecture/bus_layout.svg is generated from live code (edge.bus_layout_svg)',
+            svg_ok, svg_path)
+    sw_svg = os.path.join(repo, 'docs', 'architecture', 'software_layout.svg')
+    rob_doc = os.path.join(repo, 'docs', 'architecture', 'robotics.md')
+    r.check('docs/architecture/software_layout.svg has zero connector-box overlaps and is linked in robotics.md',
+            os.path.isfile(sw_svg) and 'software_layout.svg' in open(rob_doc, encoding='utf-8').read()
+            and svg_connectors_clear(sw_svg) and svg_connectors_clear(svg_path), sw_svg)
 
 
 def test_shape(r):

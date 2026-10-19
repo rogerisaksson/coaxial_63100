@@ -249,7 +249,34 @@ def _joint_row(now, joint, label, shown):
     return (label.rjust(10), _ansi('%+5.0f° %s %s' % (deg, bar, tail)))
 
 
+def _bus_row(now, name, joints, alarms):
+    from machine import drives
+    get = lambda k, j, d=0.0: float((now.get(k) or {}).get(j, d)) if now else d
+    nodes, pk_share, max_c = ['\x1b[38;5;66m├'], 0.0, 25.0
+    for u in range(7):
+        if u >= len(joints):
+            nodes.append('\x1b[38;5;66m─')
+            continue
+        j = joints[u]
+        pas, deg_c = drives.passive(j), get('temp', j, 25.0)
+        max_c = max(max_c, deg_c)
+        if pas:
+            nodes.append('\x1b[38;5;66m▱')
+        elif j in alarms:
+            nodes.append('\x1b[38;5;196m▰')
+        else:
+            sh = min(1.0, abs(get('torque', j)) / max(1.0, get('peak', j, float(drives.peak(j)))))
+            pk_share = max(pk_share, sh)
+            c = 208 if (deg_c > 85.0 or sh > 0.85) else (214 if sh > 0.35 else 44)
+            nodes.append(f'\x1b[38;5;{c}m▰')
+    strip = ''.join(nodes) + '\x1b[0m'
+    cls = cross_section.SOA_WARN if max_c > 85.0 else (cross_section.WATTS if pk_share > 0.5 else cross_section.SOA_OK)
+    bar = _gauges.gauge(pk_share, 6, cls=cls)
+    return (name.replace('_', ' ').rjust(10), _ansi('%s %d/%d %s %3.0f°C' % (strip, len(joints), len(joints), bar, max_c)))
+
+
 def boxes(state, now, name):
+    from machine import edge
     z0, keys, shown = (0.0, 0.0, 0.0), state.get('pad'), state.get('shown', 'torque')
     tw_act = _sync_actual(now, keys)
     raw_set = (keys.get('setpoint') or z0) if keys is not None else z0
@@ -279,15 +306,20 @@ def boxes(state, now, name):
         (' autopilot', state['tour'].current_label()[:25] if state.get('tour') and not state['tour'].done else 'manual'),
         ('    record', rec), ('   horizon', '%s  Z cycles' % (state.get('horizon') or 'off')),
         ('  drawn by', name[:25])])]
+    w_now = (now.get('wear') if now else None) or {}
+    al = w_now.get('alarms') or ()
+    alarms = {str(a[0]).split('.')[0] for a in al}
+    b_now = (now.get('buses') if now else None) or {}
+    crc_err = sum(int(v[1]) for v in b_now.values() if len(v) > 1)
+    out.append(hud('BUSES  10M RS485', [_bus_row(now, b, jnts, alarms) for b, jnts in edge.LIMBS] + [
+        ('  modbus', '5x10M 27/27 sil %4d crc' % crc_err)]))
     for sub in TYPES['gynoid'].body:
         out.append(hud(sub.name.replace('_', ' ').upper(), [
             _joint_row(now, j, j.split('_', 1)[-1] if sub.name != 'axis' else j, shown) for j in sub.actuators]))
-    w_now = (now.get('wear') if now else None) or {}
     ld = w_now.get('load') or {}
     lh = float((ld.get('left_hand') or (0.0,))[0])
     rh = float((ld.get('right_hand') or (0.0,))[0])
     tr = float((ld.get('torso') or (0.0,))[0])
-    al = w_now.get('alarms') or ()
     out.append(hud('SERVICE', [
         ('     hands', ('%+.2f kg L  %+.2f kg R' % (lh, rh))[:25]),
         ('     torso', ('%+.2f kg  due %.0fh' % (tr, float(w_now.get('left_h', 500.0))))[:25]),
@@ -354,7 +386,7 @@ def _draw_viewport(state, now, width, height, terminal):
 def _boot_humanoid(_board_view, state):
     with boot('LINKING HUMANOID') as step:
         step(0.15, 'MUJOCO & LISP')
-        body = state['body'] = sprung.Running(shown=0.0)
+        body = state['body'] = sprung.Running(realtime=not state.get('max', False), shown=0.0)
         say('ok', 'body', '%.1f kg, %d drives, MuJoCo at 1 kHz in its own process'
             % (figure.mass(), sum(len(s.actuators) for s in TYPES['gynoid'].body)))
         step(0.45, 'SHADER, RASTER & MESHES')
@@ -377,6 +409,7 @@ def main(argv=None):
     parser.add_argument('--port', default=PORT)
     parser.add_argument('--hz', type=float, default=FPS_CAP)
     parser.add_argument('--simulated', action='store_true')
+    parser.add_argument('--max', action='store_true', help='run flat out without real-time pacing')
     for flag in ('--frames', '--width', '--height'):
         parser.add_argument(flag, type=int, default=0)
     parser.add_argument('--keys', default='', help="a key a frame from the first, '.' none")
@@ -385,7 +418,7 @@ def main(argv=None):
     state = {'body': None, 'orbit': False, **viewpoint.HOME, 'side': 1.0, 'last_t': None,
              'called': 'strong', 'follow': gynoid.Follow(), 'recording': None, 'recorded': None,
              'playback': Playback.steady(), 'shown': 'torque', 'skin': 'dressed', 'scanner': VisionScanner(),
-             'now': None, 'tour': None, 'pad': pad(), 'keys': KEYS}
+             'now': None, 'tour': None, 'pad': pad(), 'keys': KEYS, 'max': args.max}
 
     def draw():
         scripted(state, args.keys)

@@ -160,9 +160,37 @@ def test_she_hops_on_the_loop(report):
                      % (out['air_s'], out['clear_mm'], out['landed_n'], out['tilt'], out['stances']))
 
 
+def test_she_leaps_in_stride_and_walks_on(report):
+    """Walking at 0.69 m/s, told `hop` at mid-stride (`t = 2.0 s`), she gathers onto both soles,
+    leaps with both soles off the floor (`air >= 0.15 s`, `>= 45 mm` clearance), lands and walks on."""
+    from machine import worker
+    for ch in (0.0, 1.0):
+        s = worker.session()
+        worker.apply(s, {'scenario': 'flat'})
+        for _ in range(500):
+            worker.stepped(s)
+        worker.apply(s, {'twist': (0.69, 0.0, 0.0)})
+        for _ in range(2000):
+            worker.stepped(s)
+        z0 = float(s['g']['est']['pos'][2])
+        worker.apply(s, {'charge': ch, 'say': 'hop'} if ch > 0.0 else {'say': 'hop'})
+        air_s, clear_mm = 0.0, 0.0
+        for _ in range(3500):
+            worker.stepped(s)
+            l0, l1 = s['g']['loads']
+            if l0 < 5.0 and l1 < 5.0:
+                air_s += worker.DT
+            clear_mm = max(clear_mm, 1e3 * min(float(f['pts'][:, 1].min()) for f in s['g']['s']['feet']))
+        dz = float(s['g']['est']['pos'][2]) - z0
+        report.check('in-stride leap (charge %.1f) flies on both soles, lands and walks on' % ch,
+                     s['fallen_at'] is None and air_s >= 0.15 and clear_mm >= 45.0 and dz >= 0.45,
+                     'air %.3f s, clear %.1f mm, dz %.2f m, fallen_at=%s'
+                     % (air_s, clear_mm, dz, s['fallen_at']))
+
+
 ROSTER = [test_her_soles_stand_as_they_bear, test_a_landing_is_under_her_within_reach,
           test_the_loop_meets_an_airborne_soles_ask, test_forward_leap_scales_with_charge,
-          test_she_hops_and_stands, test_she_hops_on_the_loop]
+          test_she_hops_and_stands, test_she_hops_on_the_loop, test_she_leaps_in_stride_and_walks_on]
 
 
 def main(argv=None):

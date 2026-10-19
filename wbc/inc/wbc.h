@@ -279,11 +279,14 @@ int wbc_cone_taken(const wbc_body_t *b, wbc_wrench_t *w, const wbc_ask_t *ask, c
     six by p, then udot = t base + e x + t0 -; the drives' torques at x and the udot they give;
     how far from tau0, the torques with nothing asked, toward tau, the ask's, every drive stays
     within its limit - the largest s in [0, 1] with every |tau0 + s (tau - tau0)| <= limit, 0
-    where none is. */
+    where none is; and the step's shrunk answer into `out`. */
 void wbc_wrench_motion(const wbc_wrench_t *w, const double x[WBC_U], double udot[WBC_N]);
 void wbc_wrench_torques(const wbc_body_t *b, const wbc_wrench_t *w, const double stance[2],
                         const double x[WBC_U], const double udot[WBC_N], double tau[WBC_DRIVEN]);
 double wbc_shrunk(const double tau[WBC_DRIVEN], const double tau0[WBC_DRIVEN],
                   const double limit[WBC_DRIVEN]);
+void wbc_wrench_out(const wbc_body_t *b, const wbc_wrench_t *w, const wbc_ask_t *ask,
+                    const double stance[2], const double whole[WBC_U], const double stood[WBC_U],
+                    wbc_out_t *out);
 
 #endif

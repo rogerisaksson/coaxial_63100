@@ -185,7 +185,8 @@ def control(g, dt):
         cv = cv + list(g['limbs']['shoulders'])
     no_stride = (((g['a'][modal.STRIDES] < 0.5 and float(g['st'][latent.TO][latent.GAIN]) < 0.5
                    and not (len(g['tab']) and (g['tab'][:, latent.VALS][:, latent.GAIN] >= 0.5).any()))
-                  or g.get('_jump_until', 0.0) > g['t']) and ae not in ('sit_chair', 'rise_chair', 'hop_up_chair', 'hop_down_chair'))
+                  or cur_doing in ('rest', '#201', 'brake') or g.get('_jump_until', 0.0) > g['t'])
+                 and ae not in ('sit_chair', 'rise_chair', 'hop_up_chair', 'hop_down_chair'))
     if len(cv) and no_stride:
         acv, M = body.act[cv], s['M'].copy()
         M[:6, acv] = M[acv, :6] = 0.0

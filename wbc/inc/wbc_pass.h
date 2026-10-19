@@ -221,4 +221,15 @@ double wbc_pass_drawn(const wbc_world_t *w, const double *tau, const double *spe
 void wbc_pass_hem(int n, double dt, const double *ap, const double *om, const double *alb, const double *c,
                   double *state, double *q, double *v, double *a, unsigned char *hit);
 
+/** Her 5 extremity 10 Mbit/s RS485 Modbus RTU buses and 27 SIL coaxial_63100 boards. */
+#define WBC_SIL_BUSES 5
+#define WBC_SIL_BAUD  10000000U
+
+void wbc_sil_init(wbc_world_t *w, int nbuses, const int *counts, const int *joints);
+int  wbc_sil_transceive(wbc_world_t *w, int bus_id, const unsigned char *frame, int len);
+void wbc_sil_drive(wbc_world_t *w, int n_idx, const int *idx, const double *target,
+                   const double *feed, const double *kp, const double *limit);
+void wbc_sil_stats(int bus_id, unsigned long long *counts, double *wire_s,
+                   unsigned char *last_frame, int *last_len);
+
 #endif

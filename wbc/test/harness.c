@@ -377,3 +377,24 @@ API void wbh_pass_hem(int n, double dt, const double *ap, const double *om, cons
 {
   wbc_pass_hem(n, dt, ap, om, alb, c, state, q, v, a, hit);
 }
+API void wbh_sil_init(wbc_world_t *w, int nbuses, const int *counts, const int *joints)
+{
+  wbc_sil_init(w, nbuses, counts, joints);
+}
+
+API int wbh_sil_transceive(wbc_world_t *w, int bus_id, const unsigned char *frame, int len)
+{
+  return wbc_sil_transceive(w, bus_id, frame, len);
+}
+
+API void wbh_sil_drive(wbc_world_t *w, int n_idx, const int *idx, const double *target,
+                       const double *feed, const double *kp, const double *limit)
+{
+  wbc_sil_drive(w, n_idx, idx, target, feed, kp, limit);
+}
+
+API void wbh_sil_stats(int bus_id, unsigned long long *counts, double *wire_s,
+                       unsigned char *last_frame, int *last_len)
+{
+  wbc_sil_stats(bus_id, counts, wire_s, last_frame, last_len);
+}
