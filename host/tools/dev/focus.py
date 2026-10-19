@@ -14,6 +14,7 @@ import collections
 import ctypes
 import faulthandler
 import functools
+import json
 import os
 import queue
 import re
@@ -33,6 +34,11 @@ TALLY_RE = re.compile(r'^(\d+) passed, (\d+) failed(?:, ~?(\d+) skipped)?$')
 #: emulator's Renode 0.6 and its Python 0.3 with OpenBLAS on one thread; eight at once left 1.3
 #: of 23.7 GB with no page file, the desktop holding 17.9.
 WORKER_GB, RESERVE_GB = 0.9, 2.5
+#: Every relay's running jobs, machine-wide: a file a job, its commit and its process. A job a
+#: relay took is counted against all of them at what it has still to commit - two sessions'
+#: relays each sized their batons on the same free commit and the desktop went out of memory
+#: (Windows' event 2004, 10.4 GB of 23.7 free before they started).
+LEDGER = os.path.join(os.environ.get('LOCALAPPDATA') or os.path.expanduser('~'), 'coaxial_63100', 'relay')
 
 #: One job on the relay: its name, its command, its commit (GB), its time (s), and its lock -
 #: jobs holding the same one never run together (a board's port), 'alone' none beside it.
@@ -86,6 +92,98 @@ def free_commit_gb():
     return status.commit_free / 2 ** 30
 
 
+def _alive(pid):
+    try:
+        import psutil
+        return psutil.pid_exists(pid)
+    except ImportError:
+        if os.name != 'nt':
+            with suppress(OSError):
+                os.kill(pid, 0)
+                return True
+            return False
+        handle = ctypes.windll.kernel32.OpenProcess(0x1000, False, pid)
+        if not handle:
+            return False
+        code = ctypes.c_uint32()
+        ctypes.windll.kernel32.GetExitCodeProcess(handle, ctypes.byref(code))
+        ctypes.windll.kernel32.CloseHandle(handle)
+        return code.value == 259
+
+
+def _private_gb(pid):
+    """A process's and its descendants' private bytes, GB; None unread."""
+    try:
+        import psutil
+        root = psutil.Process(pid)
+        return sum(p.memory_info().private if hasattr(p.memory_info(), 'private') else p.memory_info().rss
+                   for p in [root] + root.children(recursive=True)) / 2 ** 30
+    except Exception:
+        return None
+
+
+class _Locked:
+
+    """The ledger held by this process alone while a relay measures, decides and books."""
+
+    def __enter__(self):
+        os.makedirs(LEDGER, exist_ok=True)
+        self.f = open(os.path.join(LEDGER, '.lock'), 'a+b')
+        if os.name == 'nt':
+            import msvcrt
+            while True:
+                try:
+                    msvcrt.locking(self.f.fileno(), msvcrt.LK_NBLCK, 1)
+                    break
+                except OSError:
+                    time.sleep(0.02)
+        else:
+            import fcntl
+            fcntl.flock(self.f.fileno(), fcntl.LOCK_EX)
+        return self
+
+    def __exit__(self, *exc):
+        if os.name == 'nt':
+            import msvcrt
+            with suppress(OSError):
+                self.f.seek(0)
+                msvcrt.locking(self.f.fileno(), msvcrt.LK_UNLCK, 1)
+        self.f.close()
+
+
+def booked(path, gb, pid=None):
+    """A job in the ledger: `gb` its commit, `pid` its process once started."""
+    os.makedirs(LEDGER, exist_ok=True)
+    part = os.path.join(LEDGER, '.%s.part' % os.path.basename(path))
+    with open(part, 'w', encoding='utf-8') as f:
+        json.dump({'relay': os.getpid(), 'gb': gb, 'pid': pid}, f)
+    os.replace(part, path)
+
+
+def outstanding():
+    """(the commit every relay's running jobs have still to take, GB; how many run), machine-wide:
+    a job counted at its booking less what its process holds; one whose relay is gone, dropped."""
+    owed, running = 0.0, 0
+    with suppress(OSError):
+        for name in os.listdir(LEDGER):
+            if name.startswith('.'):
+                continue
+            path = os.path.join(LEDGER, name)
+            try:
+                with open(path, encoding='utf-8') as f:
+                    job = json.load(f)
+            except (OSError, ValueError):
+                continue
+            if not _alive(job['relay']) or (job['pid'] is not None and not _alive(job['pid'])):
+                with suppress(OSError):
+                    os.remove(path)
+                continue
+            held = _private_gb(job['pid']) if job['pid'] is not None else None
+            owed += max(0.0, job['gb'] - (held or 0.0))
+            running += 1
+    return owed, running
+
+
 def pick(tests, names):
     """The `tests` whose names hold one of `names` - `sto` picks
     test_the_sto_chain_follows_the_pilot - in the suite's order; all for no names. A name no
@@ -125,14 +223,18 @@ def watchdog(seconds):
     faulthandler.dump_traceback_later(seconds, exit=True)
 
 
-def run(job, env=None):
+def run(job, env=None, ledger=None):
     """One job in a process of its own, stdout and stderr in one, killed with its tree at its
-    time: (output, exit code - None out of time -, seconds)."""
+    time: (output, exit code - None out of time -, seconds); `ledger` its booking, its process
+    named in it while it runs."""
     started = time.monotonic()
     group = {'start_new_session': True} if os.name != 'nt' else {}
     proc = subprocess.Popen(job.argv, cwd=str(ROOT), env=env, stdout=subprocess.PIPE,
                             stderr=subprocess.STDOUT, text=True, encoding='utf-8',
                             errors='replace', **group)
+    if ledger is not None:
+        with suppress(OSError), _Locked():
+            booked(ledger, job.gb, proc.pid)
     try:
         out, _ = proc.communicate(timeout=job.timeout)
         code = proc.returncode
@@ -145,62 +247,65 @@ def run(job, env=None):
 
 def relay(jobs, batons=None):
     """`jobs` from a queue in their order, the longest first where the caller knows: `batons` -
-    a physical core each - each taking the first job whose commit fits the free commit over
-    RESERVE_GB, measured at the start and again as each job ends (one runs whatever it needs),
-    OpenBLAS on one thread in each; a job ending hands its baton to the next at once. (job,
-    output, exit code - None out of time -, seconds) as each ends."""
+    a physical core each - each taking the first job whose commit fits the free commit less what
+    every relay's running jobs have still to take (the ledger, machine-wide), over RESERVE_GB -
+    an idle host fits anything -, OpenBLAS on one thread in each; a job ending hands its baton to
+    the next at once. (job, output, exit code - None out of time -, seconds) as each ends."""
     waiting = collections.deque(jobs)
     count = len(waiting)
-    free = free_commit_gb()
-    held = {'gb': 0.0, 'running': 0, 'locks': set(),
-            'budget': float('inf') if free is None else free - RESERVE_GB}
+    held = {'running': 0, 'locks': set(), 'n': 0}
     turn = threading.Condition()
     ended = queue.Queue()
     env = dict(os.environ, PYTHONIOENCODING='utf-8')
     env.setdefault('OPENBLAS_NUM_THREADS', '1')
 
-    def fits(job):
-        """Its commit within the budget - anything fits an idle host - and its lock free: an
-        'alone' job waits for the host to empty, and holds it."""
+    def fits(job, room):
+        """Its lock free - an 'alone' job waits for this relay to empty, and holds it - and its
+        commit within `room` (None: anything)."""
         if 'alone' in held['locks']:
             return False
         if job.lock == 'alone':
             return not held['running']
         if job.lock is not None and job.lock in held['locks']:
             return False
-        return not held['running'] or held['gb'] + job.gb <= held['budget']
+        return room is None or job.gb <= room
 
     def take():
-        """The next job that fits; None once none is left. Waits while those left do not."""
+        """(the next job that fits, its booking); None once none is left. Waits while those
+        left do not, looking again each second: another relay's job may end."""
         with turn:
             while waiting:
-                job = next((j for j in waiting if fits(j)), None)
-                if job is not None:
-                    waiting.remove(job)
-                    held['gb'] += job.gb
-                    held['running'] += 1
-                    if job.lock is not None:
-                        held['locks'].add(job.lock)
-                    return job
-                turn.wait()
+                with _Locked():
+                    free = free_commit_gb()
+                    owed, running = outstanding()
+                    room = None if free is None or not running else free - owed - RESERVE_GB
+                    job = next((j for j in waiting if fits(j, room)), None)
+                    if job is not None:
+                        waiting.remove(job)
+                        held['running'] += 1
+                        held['n'] += 1
+                        if job.lock is not None:
+                            held['locks'].add(job.lock)
+                        path = os.path.join(LEDGER, '%d-%d' % (os.getpid(), held['n']))
+                        with suppress(OSError):
+                            booked(path, job.gb)
+                        return job, path
+                turn.wait(timeout=1.0)
             return None
 
     def baton():
-        while (job := take()) is not None:
+        while (taken := take()) is not None:
+            job, path = taken
             try:
-                ended.put((job,) + run(job, env))
+                ended.put((job,) + run(job, env, path))
             except OSError as exc:
                 ended.put((job, '%s: %s' % (type(exc).__name__, exc), 1, 0.0))
             finally:
+                with suppress(OSError):
+                    os.remove(path)
                 with turn:
-                    held['gb'] -= job.gb
                     held['running'] -= 1
                     held['locks'].discard(job.lock)
-                    # The host's own share moves too: what is free now, and what the jobs
-                    # still running hold of it.
-                    free = free_commit_gb()
-                    if free is not None:
-                        held['budget'] = free + held['gb'] - RESERVE_GB
                     turn.notify_all()
 
     for _ in range(max(1, min(count, batons or physical_cores()))):

@@ -274,3 +274,10 @@ Pages, tooling, suites and the local model's runner. The board's findings:
   kind. On llama3.1:8b on the CPU (Ollama 0.35.1's CUDA runner
   failed its PTX JIT on the RTX 4060's driver 617.42): three warmth rows
   called `thermal`, the NTC's still `analog_read`, 19-28 s a row.
+- The desktop went out of memory with no page file (Windows' event 2004, its
+  top three about 1 GB each): with nothing heavy running 15.1 of 23.7 GB was
+  committed, and each relay sized its batons on the free commit alone - two
+  sessions' relays booked the same headroom. A ledger every relay books its
+  jobs in (`focus.LEDGER`), each counted at what it has still to commit,
+  measured and booked under one lock: two relays side by side, room for 3
+  jobs of 2 GB, held 5 before, room for 2 held 2 after.
