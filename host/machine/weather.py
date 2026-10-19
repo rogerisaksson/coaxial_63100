@@ -102,6 +102,14 @@ def kept(air):
     air['kind'], air['kept'], air['for'] = TOUR[k % len(TOUR)], k < len(TOUR), 0.0
 
 
+def airspeeds(frame, air):
+    """(the frame's speed as its flight controller has it - over the ground -, its speed
+    through `air`), m/s: what its boards' observers are told, what their truths fly in."""
+    wind = wind_at(air['wind'], frame['h']) if air else (0.0, 0.0, 0.0)
+    return (math.sqrt(sum(float(v) ** 2 for v in frame['vel'])),
+            math.sqrt(sum((float(v) - u) ** 2 for v, u in zip(frame['vel'], wind))))
+
+
 def wind_at(wind, h):
     """The air's speed `wind`, m/s at REF_M, where the frame is `h` m up: sheared along the
     floor, its rise and fall none at the floor."""

@@ -56,6 +56,10 @@ burn, land).
   at most); the ornithopter on 2.0 and 1.7 struck gate 7, on 1.5 lapped in
   24 s whole. The head idles up (the stunt boost) where the plan leans past
   half of gravity, as in the figures.
+- On their instruments (`machine.senses`) both lap the course and land. The
+  ornithopter's dive turns its lean over the top - 1 m/s^2 asked up, its
+  lean 80 deg each way -, its cyclic end to end in 30 ms: 1.37 a pass on the
+  truth, 1.50 on the instruments, the check 1.5.
 
 ## Drawn
 
@@ -182,6 +186,12 @@ tail arm with a 0.06 m^2 stabiliser and a 0.045 fin; a fuselage 0.16 m deep,
   ahead of its middle, the elevator's 2.45 N m could not lift the tail
   (0.09 now). Its rudder, the ornithopter's and the helicopter's hold at
   2-3x their loads.
+- On its instruments the knife pass at 0.52 m struck the runway in two draws
+  of eight - a pull's tilt left its height 2 cm off -; at 0.545 m none of
+  ten, its tip 1.8-4.6 cm over. Full tilt's 0.2 deg of tilt on its 147 N
+  left it 0.6 m off its spot, 0.15 m/s off in speed, and the burn's coast -
+  no thrust, and hovering, a row's 5 m/s short of wing-borne at 9-17 m/s -
+  leant 28 deg after it against 1.6 on the truth.
 
 ## Motors
 

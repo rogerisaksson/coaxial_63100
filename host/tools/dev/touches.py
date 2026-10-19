@@ -50,6 +50,7 @@ TOUCHES = (
     ('host/machine/cyclic.py',                 (CYCLIC,)),
     ('host/machine/quad.py',                   QUADS + (AERO_CORE, STREAMS)),
     ('host/machine/weather.py',                QUADS + (STREAMS, 'test_helicopter.py', 'test_aerobat.py')),
+    ('host/machine/senses.py',                 QUADS + (STREAMS,)),
     ('host/machine/flightpack.py',             QUADS + ('test_helicopter.py',)),
     ('host/machine/aerodynamics.lisp',         QUADS + (AERO_CORE, STREAMS, 'test_helicopter.py', 'test_aerobat.py')),
     ('host/machine/dynamics.lisp',             QUADS + (AERO_CORE, STREAMS, 'test_helicopter.py', 'test_aerobat.py')),

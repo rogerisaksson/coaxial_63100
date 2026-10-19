@@ -14,7 +14,7 @@ import math
 
 from machine import aerobatics, aerokin, course, flightpack, heat as mheat, helicopter, pull, quad, weather
 from terminal.views.quad.flight import (CRASHED, CRASH_S, FAULTS, STEP_S, THERMAL_S, TICK_S, _LIB,
-                                        airspeeds, arm, asked, fallen, kept, lined, observers,
+                                        arm, asked, fallen, kept, lined, observers,
                                         reset, spun, steps, struck, warmth)
 
 #: The helicopter's two 63100 drives: main rotor on the mast and tail rotor on the boom.
@@ -164,7 +164,7 @@ def flown(rotors, sky, core, law, row, flight, dt, craft=helicopter):
     watts = sum(pull.watts(r['w'], r['iq'], r['amps']) for r in rotors)
     flightpack.drawn(cells, watts, dt)
     flight['over'] += dt * float(max(rotor['amps'] for rotor in rotors) > pull.I_MAX)
-    told, through = airspeeds(sky.state(), air)
+    told, through = weather.airspeeds(sky.state(), air)
     for rotor in rotors:
         heat = rotor['rig'].board.thermal
         heat.fast_forward(dt * heat.HASTE, live=True)

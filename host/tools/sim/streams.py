@@ -24,7 +24,7 @@ from typing import Any
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from machine import aerobatics, aerokin, aerolisp, course, grounds, intents, pull, quad, weather
+from machine import aerobatics, aerokin, aerolisp, course, grounds, intents, pull, quad, senses, weather
 from tools.cores import aero
 
 #: The ideal rotors: their top, rad/s, and what their speed changes by at the most, rad/s^2 -
@@ -69,11 +69,12 @@ def tilt(turn):
 class Flight:
 
     """The frame on the floor - or `at` (x, m up, z), hovering -, its core and its four ideal
-    rotors; `air` the flight's (`weather.air`), or still. The rotors' top, their spool and their
-    lag are its own (`top`, `spool`, `lag`): TOP_RAD_S, SPOOL_RAD_S2 and LAG_S as built."""
+    rotors; `air` the flight's (`weather.air`), or still; `eyes` its instruments
+    (`senses.eyes`), or its truth read. The rotors' top, their spool and their lag are its own
+    (`top`, `spool`, `lag`): TOP_RAD_S, SPOOL_RAD_S2 and LAG_S as built."""
 
-    def __init__(self, air=None, at=None, things=()):
-        self.sky, self.core, self.air = quad.Sky(things), aero.Core(), air
+    def __init__(self, air=None, at=None, things=(), eyes=None):
+        self.sky, self.core, self.air, self.eyes = quad.Sky(things), aero.Core(), air, eyes
         self.w, self.clock, self.dt, self.owed = [0.0] * 4, 0.0, quad.STEP_S, 0.0
         self.top, self.spool, self.lag = TOP_RAD_S, SPOOL_RAD_S2, LAG_S
         if at is not None:
@@ -88,7 +89,7 @@ class Flight:
     def step(self, payload):
         """One pass on `payload`: (the frame as read, the core's answer)."""
         dt, state = self.dt, self.sky.state()
-        out = self.core.step(payload, aero.reading(state, *aero.reach(
+        out = self.core.step(payload, aero.reading(senses.told(self.eyes, state, dt), *aero.reach(
             self.w, self.w, dt, self.spool, quad.IDLE_RAD_S, self.top), dt))
         gain = min(1.0, dt / self.lag)
         for k, want in enumerate(aero.speeds(out.thrust)):
@@ -106,14 +107,15 @@ class Boards:
     """The frame on the floor on four stand-in boards armed as the page's flight arms them
     (`terminal.views.quad.flight`), no page: a step the flight's, the core's passes in it."""
 
-    def __init__(self, air=None, things=(), clock=10, warm_s=0.0):
+    def __init__(self, air=None, things=(), clock=10, warm_s=0.0, eyes=None):
         from coaxial import Coaxial63100
         from machine.modes import SIMULATED
         from terminal.views.quad import flight as view
         self.view, self.sky, self.core, self.top = view, quad.Sky(things), aero.Core(), TOP_RAD_S
         self.rotors = [view.arm(Coaxial63100(execution_mode=SIMULATED).open(),
                                 clock=clock, warm_s=warm_s) for _ in range(4)]
-        self.flight: dict[str, Any] = dict(view.fresh(), air=air)
+        self.flight: dict[str, Any] = dict(view.fresh(), air=air, eyes=eyes)
+        self.eyes = eyes
         self.clock, self.dt, self.peak, self.owed = 0.0, view.STEP_S, {}, 0.0
 
     def step(self, payload):
@@ -196,8 +198,9 @@ def asked(flight, route, law, clock, dt=PASS_S, words=('fit',), share=1.0):
     where its row is up and what it waits for is among `words` or the law's own `held`
     (`aerobatics.fly`). The pass to come `dt` s, planned on `share` of the rotors' pull."""
     full = top(flight)
-    route['seen'] = dict(aerokin.seen(law, flight.sky.state(), dt, share * aerokin.HEADROOM * full,
-                                      full), spent='spent' in words)
+    route['seen'] = dict(aerokin.seen(law, senses.told(flight.eyes, flight.sky.state()), dt,
+                                      share * aerokin.HEADROOM * full, full),
+                         spent='spent' in words)
     return aerobatics.fly(route, clock, (['held'] if law['held'] else []) + list(words))
 
 
@@ -208,7 +211,7 @@ def flew(flight, route, law, row, dt=PASS_S, share=1.0):
     rest owed the next pass: a pass of 7.5 ms flown as four of 2 was 7 % of a second gained
     a second."""
     payload = aero.payload(aerokin.step(
-        law, row, flight.sky.state(), dt, share * aerokin.HEADROOM * top(flight),
+        law, row, senses.told(flight.eyes, flight.sky.state()), dt, share * aerokin.HEADROOM * top(flight),
         tuple(flight.core.out.head), route['seen']['pitch']))
     count = int((flight.owed + dt) / flight.dt + 1e-9)
     flight.owed += dt - count * flight.dt

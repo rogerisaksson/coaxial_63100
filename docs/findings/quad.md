@@ -114,6 +114,14 @@ house's ridge, round a mast, between two cars, a slalom).
 - The law is told none of it and learns the wind from its drag in 0.12 s:
   a hover at 5 m in 3.9 m/s stood 0.68 m off its spot unlearnt, never
   `held`; 0.03 m learnt; in gusts to 6.8 m/s 0.23 m at most.
+- On its instruments (`machine.senses`: the attitude 0.2 deg off, RTK fixes
+  at 20 Hz 60 ms behind, 2 cm and 3 cm/s) a hover at 1.5 m holds its spot
+  within 5-6 cm rms, 8-10 cm at most, in every air, calm too - the tilt on
+  gravity through the filter, not the wind; on the truth 0-2 cm, 7 cm in
+  gusts. The signal lost 12 s, the star camera holding the attitude: 0.53 m.
+  Dryden's scales - eddies over 15 and 2 m of the wind, risen from 1 m -
+  took the ornithopter's dive reversal from 1.37 to 1.52 of its cyclic a
+  pass ([aircraft](aircraft.md)): not kept.
 - Its push learnt and not the wind: a lap in a constant wind passed a gate
   0.65 m off where 0.37 in still air (the push turns with the frame's own
   speed through a bend); the wind itself: 0.36-0.44.

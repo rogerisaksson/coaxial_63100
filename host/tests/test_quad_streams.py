@@ -330,12 +330,12 @@ def test_the_routine_is_flown_from_its_rows(report):
 def test_the_course_is_flown_from_its_rows(report):
     """`course.CARD` among what stands, solid, a pass a row's payload: from the floor onto
     its grid, its laps and down - nothing struck, no propeller's tip nearer a gate's frame
-    than a quarter of a metre; and in the tour's air."""
-    from machine import course, grounds, weather
+    than a quarter of a metre; and in the tour's air on its instruments."""
+    from machine import course, grounds, senses, weather
     from tools.sim import quad_race, streams
     for seed in (None, 3):
         flight = streams.Flight(None if seed is None else weather.air(seed),
-                                things=grounds.solids())
+                                things=grounds.solids(), eyes=None if seed is None else senses.eyes())
         rows = streams.routine(flight, course.CARD)
         laps, hit = streams.laps(rows), flight.sky.state()['hit']
         flown = [(float(s['at'][0]), s['h'], float(s['at'][2]),

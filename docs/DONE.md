@@ -184,3 +184,7 @@ the hundred before these: [DONE_1-50](DONE_1-50.md),
     700's red teardrop canopy over the frames (its loft had dropped below
     them), a swept fin; the ornithopter's cabin fuller, its wings their
     0.085 m chord in sand ([host](findings/host.md)).
+46. The quad on its instruments (`machine.senses`): the board's IMU, an RTK
+    receiver on the RS485 bus, a star camera where the signal is lost; a
+    hover 5-6 cm rms off its spot in every air, 0.53 m without the signal
+    ([quad](findings/quad.md)).
