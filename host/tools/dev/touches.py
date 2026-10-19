@@ -87,6 +87,7 @@ TOUCHES = (
     ('host/machine/library/',                  (STRUCTURE, 'test_mirrors.py', GYNOID, ORTHO, WBC, WRENCH)),
     ('host/machine/robots/',                   (STRUCTURE, 'test_mirrors.py', WEAR, GYNOID, ORTHO, WBC, WRENCH)),
     ('host/machine/sysid.py',                  (STRUCTURE, SYSID, SYSID_LIVE, NATIVE_SYSID)),
+    ('host/machine/regressor.py',              (STRUCTURE, SYSID, SYSID_LIVE, NATIVE_SYSID, WEAR)),
     ('host/machine/campaign.py',               (STRUCTURE, SYSID, SYSID_LIVE, NATIVE_SYSID)),
     ('host/coaxial/control/identify.py',       (STRUCTURE, NATIVE_SYSID)),
     ('host/tools/bench/sysid_drives.py',       (STRUCTURE, NATIVE_SYSID)),

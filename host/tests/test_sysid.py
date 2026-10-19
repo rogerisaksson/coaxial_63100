@@ -78,13 +78,13 @@ def _states(b, rng):
 def test_the_regressor_is_mujocos(report, c):
     """Y theta, theta the model's own, is MuJoCo's inverse dynamics on her drives' rows at random
     states - the Coulomb columns aside, which no model without constraints has."""
-    from machine import sysid
+    from machine import regressor, sysid
     b, lay = c['body'], c['lay']
     m, d, mj = b.m, b.d, b.mj
     qpos, qvel, qacc = _states(b, np.random.default_rng(1))
     theta = sysid.truth(lay, m)
     theta[lay['drive'] + 2::3] = 0.0
-    Y = sysid.regressor(lay, b, qpos, qvel, qacc, qacc[:, :3] - np.array(m.opt.gravity))
+    Y = regressor.regressor(lay, b, qpos, qvel, qacc, qacc[:, :3] - np.array(m.opt.gravity))
     worst, most = 0.0, 0.0
     for k in range(STATES):
         d.qpos[:], d.qvel[:], d.qacc[:] = qpos[k], qvel[k], qacc[k]
@@ -120,6 +120,27 @@ def _campaign(c, seed, world=None, seconds=SECONDS, hung=False):
         cell_Y, cell = sysid.hung(c['lay'], c['body'], ys, physics.STEP_S, pulls, EVERY)
         Y, tau = np.concatenate([Y, cell_Y], axis=1), np.concatenate([tau, cell], axis=1)
     return Y, tau, touched, world
+
+
+def test_the_regressor_in_c_is_its_numpy_s(report, c):
+    """wbc_regressor.c beside machine.regressor's numpy at random states, a motor's own acceleration
+    given and not: bit for bit where numpy is the C's (`tools.cores.law.exact_host`), else within 1e-9."""
+    from machine import regressor
+    from tools.cores import law
+    b, lay = c['body'], c['lay']
+    qpos, qvel, qacc = _states(b, np.random.default_rng(2))
+    a0 = qacc[:, :3] - np.array(b.m.opt.gravity)
+    wacc = np.random.default_rng(3).normal(size=(len(qpos), len(lay['driven'])))
+    exact = law.exact_host()
+    for given in (None, wacc):
+        got = regressor.in_c(lay, b, qpos, qvel, qacc, a0, given)
+        want = regressor.regressor(lay, b, qpos, qvel, qacc, a0, given)
+        same = np.array_equal(got, want) if exact else np.allclose(got, want, rtol=1e-9, atol=1e-12)
+        report.check('the regressor in C is its numpy %s, %s' % (
+            'bit for bit' if exact else 'within 1e-9',
+            "a motor's acceleration given" if given is not None else "its joint's own"), same,
+            '%d of %d entries apart, at most %.1e' % (int((got != want).sum()), got.size,
+                                                      float(np.abs(got - want).max())))
 
 
 def test_her_drives_and_links_are_read(report, c):
@@ -350,7 +371,8 @@ def test_a_motor_is_read_off_its_rows(report, _c):
                  and abs(got['offset'] - c0) < 0.05 * c0 and abs(got['f']) < 1e-3 and got['gaps'] == 6)
 
 
-ROSTER = (test_the_regressor_is_mujocos, test_her_drives_and_links_are_read, test_a_payload_is_found,
+ROSTER = (test_the_regressor_is_mujocos, test_the_regressor_in_c_is_its_numpy_s, test_her_drives_and_links_are_read,
+          test_a_payload_is_found,
           test_her_corrections_are_laid_over_her_build, test_a_world_off_the_figure_is_read_back,
           test_her_gearboxes_are_read, test_a_motor_is_read_off_its_rows,
           test_hung_in_a_harness_she_reads_as_on_the_stand)

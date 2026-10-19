@@ -22,7 +22,7 @@ model. On the stand (`mjcf.STAND`) her pelvis is welded to the world and nothing
 """
 import math
 
-from machine import edge
+from machine import edge, regressor
 from machine.figure import JOINTS
 
 #: A link's inertial parameters, in its frame about its origin.
@@ -143,94 +143,6 @@ def _rotations(q):
                      np.stack([2 * (x * z - w * y), 2 * (y * z + w * x), 1 - 2 * (x * x + y * y)], -1)], -2)
 
 
-def _frames(lay, body, qpos):
-    """(xpos (N, bodies, 3), xmat (N, bodies, 3, 3), axis (N, hinges, 3), anchor (N, hinges, 3))
-    her links' frames and her hinges' axes, world, at `qpos` (N, nq)."""
-    import numpy as np
-    m, d, mj = body.m, body.d, body.mj
-    bodies, jnt, n = lay['bodies'], lay['jnt'], len(qpos)
-    xpos, xmat = np.zeros((n, len(bodies), 3)), np.zeros((n, len(bodies), 3, 3))
-    axis, anchor = np.zeros((n, len(jnt), 3)), np.zeros((n, len(jnt), 3))
-    for k in range(n):
-        d.qpos[:] = qpos[k]
-        mj.mj_kinematics(m, d)
-        xpos[k], xmat[k] = d.xpos[bodies], d.xmat[bodies].reshape(-1, 3, 3)
-        axis[k], anchor[k] = d.xaxis[jnt], d.xanchor[jnt]
-    return xpos, xmat, axis, anchor
-
-
-def regressor(lay, body, qpos, qvel, qacc, a0, wacc=None, frames=None):
-    """Y (N, hinges + 6, P) at N states of her law's model: `qpos` (N, nq) and `qvel`, `qacc`
-    (N, nv) in MuJoCo's convention, `a0` (N, 3) her pelvis's origin's acceleration less gravity,
-    world; every hinge's row, as its torque would be in a world without gravity, then her
-    pelvis's six: the force on her, world, and the moment about her pelvis's origin in its
-    frame - what the floor and whatever else touches her must supply. `wacc` (N, driven) each
-    motor's acceleration through its gearbox, the armature's column: the joint's own without."""
-    import numpy as np
-    hinge, parent, span, above = lay['hinge'], lay['parent'], lay['span'], lay['above']
-    n, nb, nh = len(qpos), len(lay['bodies']), len(hinge)
-    xpos, xmat, axis, anchor = _frames(lay, body, qpos) if frames is None else frames
-    R, p = xmat[:, 0], xpos[:, 0]
-    w = np.einsum('nij,nj->ni', R, qvel[:, 3:6])
-    al = np.einsum('nij,nj->ni', R, qacc[:, 3:6])
-    vp = qvel[:, 0:3]
-    # Plucker at the world's origin: (w, u) a body's point there and (al, a) its rate; each
-    # hinge's axis (sw, su).
-    V, A = np.zeros((nb, 2, n, 3)), np.zeros((nb, 2, n, 3))
-    V[0], A[0] = (w, vp - np.cross(w, p)), (al, a0 - np.cross(w, vp) - np.cross(al, p))
-    sw, su = axis, np.cross(anchor, axis)
-    for k in range(1, nb):
-        (wv, uv), (wa, ua) = V[parent[k]], A[parent[k]]
-        for h in range(span[k, 0], span[k, 1]):
-            dof = hinge[h]
-            qd, qdd = qvel[:, dof:dof + 1], qacc[:, dof:dof + 1]
-            dsw, dsu = np.cross(wv, sw[:, h]), np.cross(wv, su[:, h]) + np.cross(uv, sw[:, h])
-            wa, ua = wa + sw[:, h] * qdd + dsw * qd, ua + su[:, h] * qdd + dsu * qd
-            wv, uv = wv + sw[:, h] * qd, uv + su[:, h] * qd
-        V[k], A[k] = (wv, uv), (wa, ua)
-    Y = np.zeros((n, nh + 6, len(lay['names'])))
-    force, moment = slice(nh, nh + 3), slice(nh + 3, nh + 6)
-    for k in range(nb):
-        Rb, pb = xmat[:, k], xpos[:, k]
-        (wv, uv), (wa, ua) = V[k], A[k]
-        # In the body's frame at its origin: its spin, its angular and its classical acceleration.
-        om = np.einsum('nji,nj->ni', Rb, wv)
-        alb = np.einsum('nji,nj->ni', Rb, wa)
-        ac = np.einsum('nji,nj->ni', Rb, ua + np.cross(wa, pb) + np.cross(wv, uv + np.cross(wv, pb)))
-        f, nn = np.zeros((n, 3, 10)), np.zeros((n, 3, 10))
-        f[:, :, 0] = ac
-        for a in range(3):
-            e = np.zeros(3)
-            e[a] = 1.0
-            f[:, :, 1 + a] = np.cross(alb, e) + np.cross(om, np.cross(om, e))
-            nn[:, :, 1 + a] = np.cross(e, ac)
-        nn[:, :, 4:10] = _tensor(alb) + np.cross(om[:, :, None], _tensor(om), axis=1)
-        # To the world, about its origin; each hinge between the body and her pelvis takes its row.
-        fw = np.einsum('nij,njc->nic', Rb, f)
-        nw = np.einsum('nij,njc->nic', Rb, nn) + np.cross(pb[:, :, None], fw, axis=1)
-        cols, rows_ = slice(10 * k, 10 * k + 10), np.flatnonzero(above[k])
-        Y[:, force, cols] = fw
-        Y[:, moment, cols] = np.einsum('nji,njc->nic', R, nw - np.cross(p[:, :, None], fw, axis=1))
-        Y[:, rows_, cols] = (np.einsum('nhi,nic->nhc', sw[:, rows_], nw)
-                             + np.einsum('nhi,nic->nhc', su[:, rows_], fw))
-    at = lay['drive']
-    for i, (h, dof) in enumerate(zip(lay['driven'], lay['dof'])):
-        Y[:, h, at + 3 * i] = qacc[:, dof] if wacc is None else wacc[:, i]
-        Y[:, h, at + 3 * i + 1] = qvel[:, dof]
-        Y[:, h, at + 3 * i + 2] = np.sign(qvel[:, dof])
-    return Y
-
-
-def _tensor(w):
-    """L(w) (N, 3, 6): L(w) [Ixx Ixy Ixz Iyy Iyz Izz] = I w."""
-    import numpy as np
-    L = np.zeros((len(w), 3, 6))
-    L[:, 0, 0], L[:, 0, 1], L[:, 0, 2] = w[:, 0], w[:, 1], w[:, 2]
-    L[:, 1, 1], L[:, 1, 3], L[:, 1, 4] = w[:, 0], w[:, 1], w[:, 2]
-    L[:, 2, 2], L[:, 2, 4], L[:, 2, 5] = w[:, 0], w[:, 1], w[:, 2]
-    return L
-
-
 def _state(lay, body, ys, dt, every, extra=None):
     """(qpos, qvel, qacc, a0, wacc, at) of her edge arrays `ys` a step `dt` apart, every
     `every`th: her turn, spin and specific force her IMU's, her joints her encoders'; a rate's
@@ -264,7 +176,7 @@ def rows(lay, body, ys, taus, dt, every=1, extra=None):
     Y = np.empty((len(at), len(lay['driven']), len(lay['names'])))
     for s in range(0, len(at), 400):
         e = min(s + 400, len(at))
-        Y[s:e] = regressor(lay, body, qpos[s:e], qvel[s:e], qacc[s:e], a0[s:e], wacc[s:e])[:, lay['driven']]
+        Y[s:e] = regressor.in_c(lay, body, qpos[s:e], qvel[s:e], qacc[s:e], a0[s:e], wacc[s:e])[:, lay['driven']]
     tau = np.asarray(taus, float)[at][:, lay['joint']]
     slides = np.abs(qvel[:, lay['dof']]) >= STICK
     Y *= slides[:, :, None]
@@ -312,8 +224,8 @@ def borne(lay, body, ys, dt, every=1):
     m = body.m
     qpos, qvel, qacc, a0, wacc, at = _state(lay, body, ys, dt, every)
     now = np.asarray([ys[i] for i in at])
-    frames = _frames(lay, body, qpos)
-    Y = regressor(lay, body, qpos, qvel, qacc, a0, wacc, frames)
+    frames = regressor.posed(lay, body, qpos)
+    Y = regressor.in_c(lay, body, qpos, qvel, qacc, a0, wacc, frames)
     xpos, xmat, _axis, _anchor = frames
     soles = lay['col'][[m.body(name).id for name in edge.INSOLES]] // 10
     Ri, pi = xmat[:, soles], xpos[:, soles]
@@ -338,7 +250,7 @@ def hung(lay, body, ys, dt, pulls, every=1):
     own ten join the base parameters, her mass among them."""
     import numpy as np
     qpos, qvel, qacc, a0, wacc, at = _state(lay, body, ys, dt, every)
-    Y = regressor(lay, body, qpos, qvel, qacc, a0, wacc)
+    Y = regressor.in_c(lay, body, qpos, qvel, qacc, a0, wacc)
     n_h = len(lay['hinge'])
     out = np.concatenate([LEVER_M * Y[:, n_h:n_h + 3],
                           np.einsum('nij,njc->nic', _rotations(qpos[:, 3:7]), Y[:, n_h + 3:n_h + 6])], axis=1)
