@@ -32,6 +32,13 @@ WAYS = ((3.8, 0.988, -0.24, 0.16), (-20.5, 1.163, 0.27, 0.00), (-8.8, 1.036, 0.0
         (-2.9, 0.780, -0.08, 0.07), (-6.3, 0.735, -0.12, -0.03), (-13.6, 0.936, 0.14, 0.00),
         (-4.3, 1.209, -0.32, -0.03), (1.3, 0.818, -0.57, 0.16), (12.3, 1.091, 0.14, 0.06),
         (3.1, 1.041, 0.24, 0.06))
+#: Where the two-drive crafts cross each gate on WAYS' tangents, (across, up) m off its middle:
+#: laid by flight as WAYS, the helicopter on TWIN_SPHERE, its law on all it has, its misses 0.02-
+#: 0.03 m rms from the fifth pass; through the middles at 2.5 g it struck in five gusty airs of nine.
+TWIN_WAYS = ((0.07, -0.16), (0.29, -0.08), (0.05, -0.12), (0.03, -0.10), (-0.10, -0.18),
+             (0.05, -0.07), (-0.01, -0.18), (-0.04, 0.01), (0.00, -0.06), (-0.01, -0.13),
+             (-0.03, -0.10), (0.00, -0.12), (0.07, -0.06), (-0.19, -0.06), (0.01, -0.13),
+             (0.09, -0.05))
 
 #: The plan (raw - a dive pushed inverted, no level flight kept): a
 #: sphere about gravity, PULL of what the rotors pull on the flight's clamp - no more than
@@ -120,10 +127,11 @@ def _span(a, b, u):
 
 
 @functools.lru_cache(maxsize=None)
-def track(middles=False):
-    """The course's line through its gates (`laid`): where WAYS crosses them, or through their
-    `middles` - for a craft whose own misses the crossings were not laid for."""
-    fine, marks, gates, keep = [], [], grounds.GATES, float(not middles)
+def track(ways=None):
+    """The course's line through its gates (`laid`): where WAYS crosses them, or across and up
+    their middles as `ways` has it (`TWIN_WAYS`) - for a craft WAYS was not laid for."""
+    fine, marks, gates = [], [], grounds.GATES
+    places = [(a, u) for _t, _k, a, u in WAYS] if ways is None else ways
     count = len(gates)
     rises = [SLOPE * (gates[(i + 1) % count][1] - gates[i - 1][1]) / (
         math.dist(gates[i - 1][:3:2], gates[i][:3:2])
@@ -131,8 +139,8 @@ def track(middles=False):
         for i in range(count)]
     cross = [(x + across * math.cos(math.radians(heading)), y + up,
               z - across * math.sin(math.radians(heading)), heading + turn, tension, rise)
-             for (x, y, z, heading, _size), (turn, tension, across, up), rise
-             in zip(gates, [(t, k, keep * a, keep * u) for t, k, a, u in WAYS], rises)]
+             for (x, y, z, heading, _size), (turn, tension, _a, _u), (across, up), rise
+             in zip(gates, WAYS, places, rises)]
     for i, gate in enumerate(cross):
         marks.append(len(fine))
         fine += [_span(gate, cross[(i + 1) % len(cross)], u / 64.0) for u in range(64)]
@@ -285,9 +293,9 @@ def line(route, now):
     return flown(route, track(), LAPS, 'lapped', math.inf)
 
 
-def middle(route, now):
-    """`line`'s row on the line through the gates' middles (`track`)."""
-    return flown(route, track(True), LAPS, 'lapped', math.inf)
+def twin(route, now):
+    """`line`'s row on the line laid for the two-drive crafts (`TWIN_WAYS`)."""
+    return flown(route, track(TWIN_WAYS), LAPS, 'lapped', math.inf)
 
 
 def flown(route, line_, laps, word, most_m_s):
@@ -389,8 +397,7 @@ def _card(giver):
             ('descend', OVER, 1.5, 1.5, ''), ('land', PRESSED, 3.0, 3.0, ''))
 
 
-#: The course's flights: the quad's on the line laid for it, through the gates' middles for a
-#: craft it was not laid for, on MIDDLES_SPHERE, m/s^2 - the helicopter at 2.0 g went into gate
-#: 7 off its pad in still air and at 1.75 in turbulence, the ornithopter at 2.0 and 1.7; at 1.5
-#: both whole in six winds.
-CARD, MIDDLES, MIDDLES_SPHERE = _card(line), _card(middle), 1.5 * quad.GRAVITY
+#: The course's flights: the quad's on the line laid for it, the two-drive crafts' on theirs on
+#: TWIN_SPHERE, m/s^2, their laws on all they have - at 2.2 g none struck in seventeen airs, still,
+#: gusty and turbulent, a lap in 18 s where 24 at 1.5; at 2.5 the helicopter in three of nine.
+CARD, TWIN_CARD, TWIN_SPHERE = _card(line), _card(twin), 2.2 * quad.GRAVITY

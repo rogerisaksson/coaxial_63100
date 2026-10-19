@@ -19,7 +19,7 @@ from terminal.views.quad.flight import (CRASHED, CRASH_S, FAULTS, THERMAL_S, TIC
 ROTORS = ('MAIN', 'TAIL')
 
 #: The page's flights: the 3D helicopter routine first, then the 16-gate race course.
-CARD = sweep.opened(helicopter.CARD) + course.MIDDLES
+CARD = sweep.opened(helicopter.CARD) + course.TWIN_CARD
 
 
 def fresh(craft=helicopter):
@@ -65,12 +65,12 @@ def step(rotors, sky, route, law, flight, clock, dt, craft=helicopter):
         wreck = flight['wreck'] = {'what': frame['hit'], 'for': 0.0}
         flight['crashes'] += 1
     if wreck is None:
-        # The laps planned on the craft's sphere, the figures on all it has.
+        # The laps planned on the craft's sphere, the figures on all it has; its law on all.
         sphere = min(have, craft.COURSE_SPHERE) if lined(route) else have
         route['seen'] = dict(aerokin.seen(law, frame, dt, sphere, flight['top']), spent=spent)
         name, row = aerobatics.fly(route, clock, [word for word, holds in (
             ('held', law['held']), ('spent', spent), ('fit', fit)) if holds])
-        flight.update(pull=sphere, share=have / (aerokin.HEADROOM * flight['top']), row=row)
+        flight.update(pull=have, share=have / (aerokin.HEADROOM * flight['top']), row=row)
         flown(rotors, sky, core, law, row, flight, dt, craft)
     else:
         name = CRASHED

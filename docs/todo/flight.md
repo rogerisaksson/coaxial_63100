@@ -15,9 +15,8 @@
   `form`; the card flies whole, the knife pass's tip within 2 cm of its 4 cm
   over the runway.
 - **The line drawn is the one flown** (aircraft.md): the helicopter's and the
-  ornithopter's pages draw the quad's line (L) where they fly the gates'
-  middles (`course.MIDDLES`), up to 0.57 m apart. DOD: each page draws the
-  line its lap's giver flies.
+  ornithopter's pages draw the quad's line (L) where they fly their own
+  (`course.TWIN_WAYS`). DOD: each page draws the line its lap's giver flies.
 - **The courses after the aerobatics** (aircraft.md): brought to the
   routines' new shape - close by, watched, sized to the crafts. DOD: to be
   agreed.

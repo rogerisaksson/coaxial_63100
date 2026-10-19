@@ -8,7 +8,7 @@ Two 63100 drives: `MAIN` on the mast, `TAIL` on the boom. Its numbers and its XM
 its flight in MuJoCo (`sky`), its law (`law`) and its observer (`observer`); `kit` the SO(3)
 law's pieces it shares with the ornithopter and the aerobat.
 """
-from machine.course import MIDDLES_SPHERE as COURSE_SPHERE
+from machine.course import TWIN_SPHERE as COURSE_SPHERE
 from machine.helicopter.airframe import (BEHAVIORS, BODY_CDA, CARD, COLL_DEG, COOLING,
                                          CYC_DEG, DISC_M, FLIP_IN, FLOOR_M, FOOT_M, GRAVITY, HALF_M,
                                          HOVER, IDLE_RAD_S, INERTIA, INVERTED, K_DRAG, K_TAIL,

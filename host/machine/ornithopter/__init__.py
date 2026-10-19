@@ -12,7 +12,7 @@ rolls it, and fore/aft wing-twist skew yaws it through pirouettes, sandstorm div
 Its numbers and its XML (`airframe`), its flight in MuJoCo (`sky`), its law (`law`) and its
 observer (`observer`).
 """
-from machine.course import MIDDLES_SPHERE as COURSE_SPHERE
+from machine.course import TWIN_SPHERE as COURSE_SPHERE
 from machine.ornithopter.airframe import (AFT_Z, BEHAVIORS, BODY_CDA, CARD, COOLING, FLOOR_M,
                                           FOOT_M, FORE_Z, GEAR_RATIO, GRAVITY, HALF_M, IDLE_RAD_S, INERTIA,
                                           K_DRAG, K_PITCH, K_ROLL, K_THRUST, K_YAW, MANIFEST, MASS_KG,

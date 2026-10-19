@@ -161,11 +161,11 @@ def test_figures_are_watched_from_beside_the_field(report):
     from terminal.views.ornithopter import flight as orni_flown
     from terminal.views.quad import flight as quad_flown
     report.check('all four aircraft run their own warm-ups before their course, the three on rotors '
-                 'swept past the spectator first, the helicopter and the ornithopter through the '
-                 "gates' middles",
+                 'swept past the spectator first, the helicopter and the ornithopter on the line '
+                 'laid for them',
                  quad_flown.CARD == sweep.opened(aerobatics.CARD) + course.CARD
-                 and heli_flown.CARD == sweep.opened(helicopter.CARD) + course.MIDDLES
-                 and orni_flown.CARD == sweep.opened(ornithopter.CARD) + course.MIDDLES
+                 and heli_flown.CARD == sweep.opened(helicopter.CARD) + course.TWIN_CARD
+                 and orni_flown.CARD == sweep.opened(ornithopter.CARD) + course.TWIN_CARD
                  and aero_flown.CARD == aerobat.CARD + airfield.CARD)
     chased = {name: [quad_flown.lined({'card': card, 'row': k}) for k in range(len(card))] == [
         k >= n for k in range(len(card))] for name, card, n in (

@@ -17,7 +17,7 @@ from terminal.views.quad.flight import arm, asked, observers, reset, spun, struc
 ROTORS = ('FORE', 'AFT')
 
 #: The page's flights: the Dune ornithopter routine first, then the 16-gate race course.
-CARD = sweep.opened(ornithopter.CARD) + course.MIDDLES
+CARD = sweep.opened(ornithopter.CARD) + course.TWIN_CARD
 
 
 def fresh():

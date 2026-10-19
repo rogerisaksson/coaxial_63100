@@ -208,13 +208,21 @@ up at rest).
   m/s onto the floor, and in its roll; the helicopter once and the
   ornithopter twice into gate 7. In 36 turbulent seeds two each, three and
   one before the deck; without them the ornithopter struck the floor once.
-- The helicopter and the ornithopter fly the course through its gates'
-  middles (`course.MIDDLES`): its crossings were laid for the quad's own
-  misses, and on them the helicopter crossed gate 7 0.4-0.5 m right and
-  0.3-0.45 m low, into it off its pad in still air at 2.0 g and in
-  turbulence at 1.75. On the middles at 1.5 g, within 0.22 m of gate 7's
-  middle in six winds. `course.braked` had planned any line on the
-  course's bends - the sweep's among them.
+- The quad's crossings were laid for its own misses: on them the helicopter
+  crossed gate 7 0.4-0.5 m right and 0.3-0.45 m low, into it off its pad in
+  still air at 2.0 g and in turbulence at 1.75; through the gates' middles at
+  1.5 g it held within 0.22 m of gate 7's in six winds. `course.braked` had
+  planned any line on the course's bends - the sweep's among them.
+- The helicopter and the ornithopter on a line laid for them by flight
+  (`course.TWIN_WAYS`) at 2.2 g, their laws on all they have - the governed
+  head's 3.6 g; 10 g only at the drive's top, the tips at Mach 1.3: a lap in
+  18 s where 24, 14 m/s at the most; none struck in 17 airs, six page winds
+  and 36 turbulent seeds, where at 1.5 g on the middles two of 36 each.
+  Their laws had been held to the plan's 1.5 g. Planned on all 3.6 g the
+  head had nothing left to correct with - its tilt rang 19-89 deg, into gate
+  4; through the middles at 2.5 g five gusty airs of nine struck, laid at
+  2.5 three. Planned on its own tilt loop (a swing of 0.27 s, the quad's
+  0.21) gate 1 stood as far off: not kept.
 - The spectator 10 m beside the runway, each craft framed at 0.4 of the
   view's half, 0.3 at the least under the horizon's claim: from 14 m at 0.25
   and 0.12 the four drew 33-52 cells of a 100 x 36 page, the helicopter 33;

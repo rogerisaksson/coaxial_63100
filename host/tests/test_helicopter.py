@@ -202,8 +202,8 @@ def test_helicopter_course_laps(report):
     solids, dt, tick = grounds.solids(), 0.02, 0.002
     for c in (helicopter, ornithopter):
         sky, core, law = c.Sky(solids), c.Core(), aerokin.fresh()
-        route, air = aerobatics.routine(course.CARD), weather.air(7, 'gusty')
-        top = c.K_THRUST * pull.held(pull.I_MAX) ** 2 / c.MASS_KG
+        route, air = aerobatics.routine(course.TWIN_CARD), weather.air(7, 'gusty')
+        top, whole = c.K_THRUST * pull.held(pull.I_MAX) ** 2 / c.MASS_KG, aerokin.HEADROOM * c.PULL_MAX
         have, stages, max_dc, sum_dc, n_lap, prev_c, end_l = c.COURSE_SPHERE, [], 0.0, 0.0, 0, (0.0, 0.0), None
         for k in range(int(100.0 / dt)):
             st = sky.state()
@@ -211,9 +211,9 @@ def test_helicopter_course_laps(report):
             stage, row = aerobatics.fly(route, k * dt, ('held', 'fit') if law['held'] else ('fit',))
             if not stages or stages[-1] != stage:
                 stages.append(stage)
-            along = core.plan(law, row, st, dt, have)
+            along = core.plan(law, row, st, dt, whole)
             for _ in range(10):
-                ans = core.step(law, row, sky.state(), tick, have, None, along)
+                ans = core.step(law, row, sky.state(), tick, whole, None, along)
                 weather.blown(air, tick)
                 sky.step(ans.speeds + ans.controls, tick, air)
             if stage == 'lap':

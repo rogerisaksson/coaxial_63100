@@ -234,3 +234,7 @@ the hundred before these: [DONE_1-50](DONE_1-50.md),
     and rise none at the floor, whole from 3 m, and every disc's ground
     effect: in six winds the quad struck none, the aerobat 16 times where 21
     ([aircraft](findings/aircraft.md), [quad](findings/quad.md)).
+58. The helicopter and the ornithopter lap on a line laid for them by flight
+    at 2.2 g, their laws on all they have: 18 s a lap where 24, none struck in
+    17 airs, six page winds and 36 turbulent seeds
+    ([aircraft](findings/aircraft.md)).

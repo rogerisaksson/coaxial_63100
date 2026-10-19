@@ -59,13 +59,14 @@ def test_the_helicopter_and_the_ornithopter_sweep(report):
         sky.stand(False)
         route, rows = aerobatics.routine(sweep.opened(craft.CARD)), []
         top, have = craft.K_THRUST * pull.held(pull.I_MAX) ** 2 / craft.MASS_KG, craft.COURSE_SPHERE
+        whole = aerokin.HEADROOM * craft.PULL_MAX
         for k in range(int(60.0 / dt)):
             st = sky.state()
             route['seen'] = dict(aerokin.seen(law, st, dt, have, top), spent=False)
             stage, row = aerobatics.fly(route, k * dt, ('held', 'fit') if law['held'] else ('fit',))
-            along = core.plan(law, row, st, dt, have)
+            along = core.plan(law, row, st, dt, whole)
             for _ in range(10):
-                ans = core.step(law, row, sky.state(), tick, have, None, along)
+                ans = core.step(law, row, sky.state(), tick, whole, None, along)
                 sky.step(ans.speeds + ans.controls, tick)
             rows.append(_row(stage, sky.state(), sky.hit))
             if sky.hit is not None or stage == 'pirouette':
