@@ -201,6 +201,15 @@ tail arm with a 0.06 m^2 stabiliser and a 0.045 fin; a fuselage 0.16 m deep,
   184 -> 48, the pull-out 102 -> 13, the line-up 109 -> 76; the run's pitch
   by its speed, the lift 72 -> 49. The turn-out's roll at its stop is 108,
   the stunts' entries 150-276, the wheels' contacts 179.
+- Its turns on the wing's lift short of the stall, not the propeller's sphere
+  of 1.5 g, which held it to 1.1 g across: the course at 20 m/s on 12 m
+  turns (3.4 g, 7.6 g there to the stall), a 180 deg turn 1.9 s where it was
+  6 at 14 m/s on 27 m; every gate within 0.44 m, the pylons 3.5-4.4 m off,
+  its knife gate at a belly of 0.00. From 20 m/s its final needs the 90 m
+  the lap now starts short of the runway: from 56 m it floated 18 m past the
+  strip, at 9.5 m/s it ballooned to 5.5 m; it stops 3.2 m short of the
+  middle. The routine's teardrops at 18 m/s and 130 deg/s (4.2 g), its
+  circuit at 100 deg/s; the turn-out's roll at its stop is 166 rad/s^2.
 - On its side the span stays up, the wing bearing what is asked across: the
   gusty course's knife gate at a belly of 0.00 on both laps, where the span
   rolled to every ask rocked it 0.07-0.86 and passed the gate at 0.29.

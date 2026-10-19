@@ -21,22 +21,22 @@ from machine.aerobatics import DOWN, HOVER, PRESSED
 RUNWAY_RAD = math.radians(50.0)
 #: The runway's strip, m along its line from its end: where a landing stops.
 RUNWAY_ALONG = (-20.5, 16.0)
-SPEED_M_S, TURN_M, HIGH_M, LOW_M, TOP_M, LAPS = 14.0, 27.0, 3.0, 1.2, 10.0, 2
+SPEED_M_S, TURN_M, HIGH_M, LOW_M, TOP_M, LAPS = 20.0, 12.0, 3.0, 1.2, 10.0, 2
 #: The point on the line it turns for, s ahead over the floor (L1, ArduPlane's), its rate at the
 #: most; the height and the knife read so far ahead, s. The line's tangent crabbed onto it over
 #: a second (`wingborne.lined`) put it 3.9 m off the hoop in gusts.
-L1_S, TURN_RAD_S, LEAD_S = 1.0, math.radians(45.0), (0.8, 0.5)
+L1_S, TURN_RAD_S, LEAD_S = 0.7, math.radians(120.0), (0.8, 0.5)
 #: Faster on its side, m/s: at 14 m/s in gusts its wings swung 34 deg off upright in the gate.
 KNIFE_M_S = 4.0
 #: A pylon's side and the knife gate's width, m: an air race's, twice the wings, taken on its
 #: side by the rule - at 1.5 m, narrower than them, gusts put it 1.6 m off in knife-edge.
 PYLON_M, SLOT_M = 0.4, 3.2
 #: Where the lap starts, (along, across) the runway from its end: the near turn's exit.
-START = (-76.0, 0.0)
+START = (-110.0, 0.0)
 #: The slalom, (deg, m) turned, + toward the far side: its peaks 4 m either side of its pylons.
 WEAVE = ((-30.0, 30.0), (60.0, 30.0), (-60.0, 30.0), (60.0, 30.0), (-30.0, 30.0))
 #: The lap: metres straight, or (deg, m) turned.
-LEGS = (185.0, (180.0, TURN_M), 8.0) + WEAVE + (57.0, (180.0, TURN_M))
+LEGS = (219.0, (180.0, TURN_M), 8.0) + WEAVE + (91.0, (180.0, TURN_M))
 
 
 def placed(along, across):
@@ -72,7 +72,7 @@ def _laid():
 _LAP, _STARTS = _laid()
 #: Where along the lap, m: the air gate, the limbo, the hoop at the far turn's top, the pylons
 #: at the slalom's middle arcs, the slot.
-S_GATE, S_LIMBO = 120.0, 157.0
+S_GATE, S_LIMBO = 154.0, 179.0
 S_HOOP = _STARTS[1] + 0.5 * math.pi * TURN_M
 S_PYLONS = tuple(_STARTS[k] + 0.5 * (_STARTS[k + 1] - _STARTS[k]) for k in (4, 5, 6))
 S_SLOT = _STARTS[8] + 30.0
@@ -110,7 +110,7 @@ CARS = tuple(placed(a, c) + (math.degrees(RUNWAY_RAD),) for a, c in ((-3.0, -19.
 MASTS, HALLS = (), ()
 
 #: Its lean the wing's, m/s^2: 12 at 14 m/s is 10.5 deg; the hover's 8 left 0.7 in a turn.
-CRUISE = dict(HOVER, height=HIGH_M, pace=5.0, speed=SPEED_M_S, home=0.0, lean=12.0)
+CRUISE = dict(HOVER, height=HIGH_M, pace=5.0, speed=SPEED_M_S, home=0.0, lean=50.0)
 FINAL = dict(CRUISE, height=0.22, speed=11.5, pace=1.8)
 
 

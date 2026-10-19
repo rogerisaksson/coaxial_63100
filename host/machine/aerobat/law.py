@@ -12,7 +12,7 @@ from machine.aerobat.airframe import (ATT_KD, ATT_KP, FLOOR_M, GOV_RAD_S, GRAVIT
 from machine.aerobat.observer import observe
 from machine.helicopter.kit import (Answer, _smooth_target, _so3_torques,
                                     _stunt_step, _turn_heading)
-from machine.wingborne import AIRBORNE_M, flare, lined, plane, run, toward, whole
+from machine.wingborne import AIRBORNE_M, STALL_RAD, flare, lined, plane, run, toward, whole
 
 #: A row asked faster than FAST_M_S, m/s, flies on its wing whole once it is past half of it
 #: (`wingborne.whole`), eased in over the span: none slower, all faster.
@@ -118,6 +118,11 @@ class Core:
             r_climb, state['h'], state['v'], reach - GRAVITY,
             aerokin.spooled(self.out.speeds[0], math.sqrt(reach * MASS_KG / K_THRUST), IDLE_RAD_S), dt)
         beside = math.sqrt(max(reach * reach - GRAVITY * GRAVITY, 0.0))
+        # On its wing it turns on the wing, its lift short of the stall, not the propeller's
+        # sphere: held to its 1.1 g, a 12 m turn at 20 m/s ran 9.5 m wide of the hoop.
+        v2 = sum((float(state['vel'][a]) - self.wind[a]) ** 2 for a in range(3))
+        lift = WING.q * WING.area * v2 * STALL_RAD / MASS_KG
+        beside += self.wingborne * (math.sqrt(max(lift * lift - GRAVITY * GRAVITY, 0.0)) - beside)
         # On its wing it flies the air's speed: the ground's 14 m/s stalled it in a 7 m/s tail.
         c, s = law['heading']
         on = flies(row, self.wingborne)
