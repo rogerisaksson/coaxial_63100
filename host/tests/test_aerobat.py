@@ -49,7 +49,7 @@ def test_aerobat_routine(report):
     from machine import aerobat
     c, stages, sky = _routine()
     hov, ft, burn, hold, land = (c[k] for k in ('prop-hang', 'full tilt', 'burn', 'hold', 'land'))
-    ke = [p for p in c['knife pass'] if p['knife'] > 0.99]
+    ke = [p for p in c['knife pass'] if abs(p['knife']) > 0.99]
     gl, gd = [p['along'] for p in c['lift'] if p['h'] < 0.03], [p['along'] for p in land if p['h'] < 0.03]
     report.check('aerobat rolls its runway, flies a knife-edge back down it and its 3D figures',
                  c['spool'][0]['tilt'] > 55.0 and len(gl) > 20 and max(gl) - min(gl) > 3.0

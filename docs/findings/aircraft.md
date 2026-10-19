@@ -229,7 +229,8 @@ tail arm with a 0.06 m^2 stabiliser and a 0.045 fin; a fuselage 0.16 m deep,
 - Its opening a laid line (`airfield.opening`): 12 m on from the lift, right
   a quarter turn straight into a left three quarters round on 9 m turns, onto
   the runway's line and down it on its side at 19 m/s, its lower tip 4-6 cm
-  over the runway; a teardrop to the far side and up the line to the
+  over the runway, its top to the spectator (0.90 toward them abreast, -0.50
+  the other way round); a teardrop to the far side and up the line to the
   prop-hang. Flown as timed turns it ended 22 m beside the runway at 6 m/s.
 - On its side the span stays up, the wing bearing what is asked across: the
   gusty course's knife gate at a belly of 0.00 on both laps, where the span
