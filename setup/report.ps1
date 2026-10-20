@@ -215,7 +215,7 @@ function Install-WingetPackage {
         return $false
     }
     # Out-Host: winget's lines on the pipeline made the return an array, true on any failure.
-    winget install --id $Id --exact --silent `
+    winget install --id $Id --exact --source winget --silent `
                    --accept-package-agreements --accept-source-agreements | Out-Host
     if ($LASTEXITCODE -eq 0 -or $LASTEXITCODE -eq -1978335189) { return $true }
     Add-Todo "winget install --id $Id --exact   (winget exit $LASTEXITCODE)"
@@ -258,7 +258,7 @@ function Update-WingetPackage {
     if ($Why -ne '') { $prompt = $prompt + "  ($Why)" }
     if (-not (Confirm-Step $prompt)) { return $false }
 
-    winget upgrade --id $Id --exact --silent `
+    winget upgrade --id $Id --exact --source winget --silent `
                    --accept-package-agreements --accept-source-agreements
     if ($LASTEXITCODE -eq 0) {
         Write-Item $What 'done' 'upgraded to the newest winget offers'

@@ -150,15 +150,10 @@ function Install-VsCodeExtensions {
     $code = Find-Code
     if ($null -eq $code) {
         Write-Item 'vs code' 'missing' 'Microsoft.VisualStudioCode'
-        if (Install-WingetPackage -Id 'Microsoft.VisualStudioCode' `
-                                  -Why 'it carries cube.exe, which fetches the ST toolchain') {
-            $code = Find-Code
-        }
-        if ($null -eq $code) {
-            Add-Todo ('install VS Code and run this script again - or re-run with ' +
-                      '-WingetToolchain for a build toolchain that does not need it')
-            return
-        }
+        if (-not (Install-WingetPackage -Id 'Microsoft.VisualStudioCode' `
+                                        -Why 'it carries cube.exe, which fetches the ST toolchain')) { return }
+        $code = Find-Code
+        if ($null -eq $code) { Add-Todo 'open a new shell for VS Code on PATH, then run again'; return }
         Write-Item 'vs code' 'done' (Get-CodeVersion $code)
     } else {
         Write-Item 'vs code' 'ok' (Get-CodeVersion $code)
@@ -241,6 +236,16 @@ function Install-Bundles {
     if ($Absent.Count -eq 0) { return }
 
     $cube = Find-Cube
+    if ($Check) {
+        Write-Item 'cube' $(if ($cube) { 'ok' } else { 'missing' }) $(if ($cube) { $cube } else { 'stm32cube-ide-core' })
+        Write-Item 'bundles' 'missing' ($Absent -join ', ')
+        Add-Todo ('cube bundle install --yes ' + ($Absent -join ' '))
+        return
+    }
+    if (($null -eq $cube) -and ($code = Find-Code)) {
+        & $code --install-extension stmicroelectronics.stm32cube-ide-core --force 2>$null | Out-Null
+        $cube = Find-Cube
+    }
     if ($null -eq $cube) {
         Write-Item 'cube' 'missing' 'comes with the stm32cube-ide-core extension'
         Add-Todo ('the STM32 extension was just installed but its cube.exe is not ' +
@@ -249,13 +254,6 @@ function Install-Bundles {
         return
     }
     Write-Item 'cube' 'ok' $cube
-
-    if ($Check) {
-        Write-Item 'bundles' 'missing' ($Absent -join ', ')
-        Add-Todo ('run without -Check to fetch: ' + ($Absent -join ', ') +
-                  '  (cube bundle install --yes ...)')
-        return
-    }
 
     foreach ($name in $Absent) {
         $size = ''
@@ -365,6 +363,7 @@ function Install-CubeMXFromInstaller {
 
     if ($SkipCubeMX) { return }
     if ($null -ne (Find-CubeMX)) { return }
+    if ($Check -and (-not $WingetToolchain) -and (-not $CubeMXInstaller)) { return }
 
     if ($CubeMXInstaller) {
         if (-not (Test-Path $CubeMXInstaller)) {

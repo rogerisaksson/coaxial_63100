@@ -110,8 +110,8 @@ def find_programmer(path):
 
 
 def find_cube_cmake(path):
-    """cube-cmake.exe, searched on the augmented PATH."""
-    return which('cube-cmake', path=path)
+    """cube-cmake.exe (or cmake.exe from a winget toolchain), searched on PATH."""
+    return which('cube-cmake', path=path) or which('cmake', path=path)
 
 
 #: Helpers cube-cmake starts and never stops: four measured, 121 MB, still up
@@ -223,15 +223,32 @@ def room(elf, path):
                used[1], 100.0 * used[1] / regions['DTCMRAM'][1]))
 
 
+def _cache_valid(cache):
+    """True when CMakeCache.txt exists and its source dir and tools still match this tree."""
+    if not cache.is_file():
+        return False
+    text = cache.read_text(encoding='utf-8', errors='replace')
+    home = re.search(r'^CMAKE_HOME_DIRECTORY:INTERNAL=(.+)$', text, re.M)
+    if home and Path(home.group(1).strip()).resolve() != ROOT.resolve():
+        return False
+    for key in ('CMAKE_C_COMPILER', 'CMAKE_MAKE_PROGRAM'):
+        m = re.search(r'^%s:FILEPATH=(.+)$' % key, text, re.M)
+        if m and not Path(m.group(1).strip()).is_file():
+            return False
+    return True
+
+
 def build(preset, path):
     cube_cmake = find_cube_cmake(path)
     if cube_cmake is None:
         print('BUILD  FAIL  cube-cmake not found (VS Code extension '
               'stmicroelectronics.stm32cube-ide-build-cmake not installed - see setup.ps1)')
         return False
-    # A preset never configured on this machine has no build tree to build.
+    # A preset never configured on this machine (or cached from another path/bundle) needs configuring.
     code, output, elapsed = 0, '', 0.0
-    if not (ROOT / 'build' / preset / 'CMakeCache.txt').exists():
+    cache = ROOT / 'build' / preset / 'CMakeCache.txt'
+    if not _cache_valid(cache):
+        cache.unlink(missing_ok=True)
         code, output, elapsed = run([cube_cmake, '--preset', preset], cwd=str(ROOT), path=path)
     if code == 0:
         code, built, spent = run([cube_cmake, '--build', '--preset', preset],

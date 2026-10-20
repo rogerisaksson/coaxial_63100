@@ -98,14 +98,17 @@ function Find-Python {
     $found = Get-Tool 'python'
     if (Test-PythonRuns $found) { return $found }
 
-    $root = Join-Path $env:LOCALAPPDATA 'Programs\Python'
-    if (Test-Path $root) {
+    foreach ($root in @((Join-Path $env:LOCALAPPDATA 'Programs\Python'),
+                        (Join-Path $env:LOCALAPPDATA 'Python'))) {
+        if (-not (Test-Path $root)) { continue }
         # Sorted on the number, not the name: as strings Python39 comes after
         # Python314, which is exactly the pair this project sits between.
-        $dirs = Get-ChildItem $root -Directory -Filter 'Python3*' -ErrorAction SilentlyContinue |
+        $dirs = Get-ChildItem $root -Directory -ErrorAction SilentlyContinue |
             Sort-Object {
-                $m = [regex]::Match($_.Name, '^Python3(\d+)$')
-                if ($m.Success) { [int]$m.Groups[1].Value } else { -1 }
+                $m = [regex]::Match($_.Name, '^Python3(\d+)$|^pythoncore-3\.(\d+)')
+                if ($m.Success) {
+                    [int]$(if ($m.Groups[1].Success) { $m.Groups[1].Value } else { $m.Groups[2].Value })
+                } else { -1 }
             } -Descending
         foreach ($dir in $dirs) {
             $exe = Join-Path $dir.FullName 'python.exe'
@@ -126,7 +129,8 @@ function Find-Python {
             if ($line -match '([A-Za-z]:\\[^"]+python\.exe)') {
                 $exe = $Matches[1].Trim()
                 if (Test-PythonRuns $exe) {
-                    $env:PATH = (Split-Path $exe) + ';' + $env:PATH
+                    $dir = Split-Path $exe
+                    $env:PATH = $dir + ';' + (Join-Path $dir 'Scripts') + ';' + $env:PATH
                     return $exe
                 }
             }
@@ -308,9 +312,25 @@ print('%d.%d.%d  %s' % (sys.version_info[0], sys.version_info[1],
 
     $git = Get-Tool 'git'
     if ($null -eq $git) {
+        foreach ($c in @((Join-Path $env:ProgramFiles 'Git\cmd\git.exe'),
+                         (Join-Path $env:LOCALAPPDATA 'Programs\Git\cmd\git.exe'))) {
+            if (($null -ne $c) -and (Test-Path $c)) {
+                $env:PATH = (Split-Path $c) + ';' + $env:PATH
+                $git = $c; break
+            }
+        }
+    }
+    if ($null -eq $git) {
         Write-Item 'git' 'missing' 'Git.Git'
         if (Install-WingetPackage -Id 'Git.Git' -Why 'to update this checkout') {
-            Write-Item 'git' 'done' 'installed - new shells only'
+            foreach ($c in @((Join-Path $env:ProgramFiles 'Git\cmd\git.exe'),
+                             (Join-Path $env:LOCALAPPDATA 'Programs\Git\cmd\git.exe'))) {
+                if (($null -ne $c) -and (Test-Path $c)) {
+                    $env:PATH = (Split-Path $c) + ';' + $env:PATH
+                    $git = $c; break
+                }
+            }
+            Write-Item 'git' 'done' $(if ($git) { $git } else { 'installed - new shells only' })
         }
     } else {
         Write-Item 'git' 'ok' $git
@@ -353,7 +373,13 @@ print('%d.%d.%d  %s' % (sys.version_info[0], sys.version_info[1],
         Write-Item 'host gcc' 'missing' 'BrechtSanders.WinLibs.POSIX.UCRT - test_modbus_core.py skips without it'
         if (Install-WingetPackage -Id 'BrechtSanders.WinLibs.POSIX.UCRT' `
                                   -Why 'to build the Modbus core on this machine') {
-            Write-Item 'host gcc' 'done' 'installed - new shells only'
+            if ($null -ne $python) {
+                Push-Location $Host_
+                try { $cc = (& $python '-m' 'tools.cores.build' 2>$null | Select-Object -First 1) }
+                catch { $cc = '' }
+                finally { Pop-Location }
+            }
+            Write-Item 'host gcc' 'done' $(if ($cc) { $cc } else { 'installed - new shells only' })
         }
     } else {
         Write-Item 'host gcc' 'ok' $cc

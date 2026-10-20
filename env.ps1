@@ -11,6 +11,7 @@
 param([switch]$Quiet)
 
 $script:CoaxialRoot = $PSScriptRoot
+$env:PYTHONUTF8 = '1'
 $BundleRoot = Join-Path $env:LOCALAPPDATA 'stm32cube\bundles'
 
 # When this shell was dot-sourced.
@@ -83,6 +84,26 @@ if ($null -ne $ext) {
     }
 } else {
     $missing += 'cube-cmake (VS Code extension)'
+}
+
+# python and its Scripts (coaxial, coaxial-dbg, coaxial-mcp) from a per-user
+# python.org or pymanager install.
+$pyDir = @((Join-Path $env:LOCALAPPDATA 'Programs\Python'),
+           (Join-Path $env:LOCALAPPDATA 'Python')) |
+    Where-Object { Test-Path $_ } |
+    ForEach-Object { Get-ChildItem $_ -Directory -ErrorAction SilentlyContinue } |
+    Where-Object { Test-Path (Join-Path $_.FullName 'python.exe') } |
+    Sort-Object Name -Descending | Select-Object -First 1
+if ($null -ne $pyDir) {
+    $pyScripts = Join-Path $pyDir.FullName 'Scripts'
+    if ((Test-Path $pyScripts) -and ($env:Path -notlike "*$pyScripts*")) {
+        $env:Path = "$pyScripts;$env:Path"
+    }
+    $pyCmd = Get-Command 'python' -ErrorAction SilentlyContinue
+    if (($null -eq $pyCmd) -or ((Get-Item $pyCmd.Source -ErrorAction SilentlyContinue).Length -eq 0)) {
+        $env:Path = "$($pyDir.FullName);$env:Path"
+        $added += 'python'
+    }
 }
 
 # ollama installs per-user under LOCALAPPDATA and reaches the PATH of shells
@@ -238,7 +259,7 @@ function cube-cmake {
        its own `cube` alive and respawns it within a second; that one is not
        this shell's to end.
 #>
-    $exe = Get-Command 'cube-cmake.exe' -CommandType Application `
+    $exe = Get-Command 'cube-cmake.exe', 'cmake.exe' -CommandType Application `
                        -ErrorAction SilentlyContinue |
            Select-Object -First 1
     if ($null -eq $exe) {
@@ -268,7 +289,13 @@ function cbuild {
  Build.
 #>
     Push-Location $script:CoaxialRoot
-    try { cube-cmake --build --preset Debug @args }
+    try {
+        if (-not (Test-Path 'build\Debug\CMakeCache.txt')) {
+            cube-cmake --preset Debug
+            if ($LASTEXITCODE -ne 0) { return }
+        }
+        cube-cmake --build --preset Debug @args
+    }
     finally { Pop-Location }
 }
 

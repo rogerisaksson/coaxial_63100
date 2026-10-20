@@ -91,6 +91,19 @@ function Get-OllamaTags {
     return $null
 }
 
+function Get-LocalOllamaModels {
+    $root = if ($env:OLLAMA_MODELS) { $env:OLLAMA_MODELS } else { Join-Path $env:USERPROFILE '.ollama\models' }
+    $lib = Join-Path $root 'manifests\registry.ollama.ai\library'
+    if (-not (Test-Path $lib)) { return @() }
+    $found = @()
+    foreach ($dir in (Get-ChildItem $lib -Directory -ErrorAction SilentlyContinue)) {
+        foreach ($tag in (Get-ChildItem $dir.FullName -File -ErrorAction SilentlyContinue)) {
+            $found += ($dir.Name + ':' + $tag.Name)
+        }
+    }
+    return $found
+}
+
 function Install-OllamaExtension {
     <#
   The editor half of the same daemon.
@@ -198,7 +211,7 @@ function Install-Ollama {
     $ollama = Find-Ollama
     if ($null -eq $ollama) {
         Write-Item 'ollama' 'missing' 'Ollama.Ollama, or ollama.com/install.ps1'
-        $ollama = Install-OllamaBinary
+        if (-not $Check) { $ollama = Install-OllamaBinary }
         if ($null -eq $ollama) {
             Add-Todo 'winget install --id Ollama.Ollama --exact   (or: irm https://ollama.com/install.ps1 | iex)'
             Add-Todo "ollama pull $Model"
@@ -234,6 +247,21 @@ function Install-Ollama {
     }
 
     if ($null -eq $tags) {
+        if ($Check) {
+            $names = @(Get-LocalOllamaModels)
+            $stem = ($Model -split ':')[0]
+            $have = @($names | Where-Object { ($_ -split ':')[0] -eq $stem })
+            if ($have.Count -gt 0) {
+                Write-Item 'ollama serve' 'ok' ("idle - $($names.Count) model(s) on disk: " + ($names -join ', '))
+                Write-Item 'model' 'ok' ($have -join ', ')
+            } else {
+                Write-Item 'ollama serve' 'ok' 'idle - started on demand'
+                Write-Item 'model' 'missing' $Model
+                Add-Todo "ollama pull $Model"
+            }
+            Install-OllamaExtension
+            return
+        }
         Write-Item 'ollama serve' 'missing' 'nothing answering on 11434'
         Add-Todo ('start ollama - it normally runs as a service after install - then: ollama pull ' + $Model)
         Install-OllamaExtension

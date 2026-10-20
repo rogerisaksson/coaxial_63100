@@ -16,10 +16,11 @@ function Install-PythonDeps {
     # a copy drifted once - numpy and rich joined the file and this probe kept
     # saying 'all present' on a machine that had neither.
     $absent = Invoke-Python -Python $Python -Code @'
-import importlib.util as util
-import re
+import importlib.metadata as meta, importlib.util as util, re
 
 RENAMED = {'pyserial': 'serial', 'pyyaml': 'yaml'}
+def _v(s):
+    return tuple(int(x) for x in re.findall(r'\d+', s))
 missing = []
 for line in open(r'REQUIREMENTS_PATH', encoding='utf-8'):
     line = line.split('#')[0].strip()
@@ -29,6 +30,17 @@ for line in open(r'REQUIREMENTS_PATH', encoding='utf-8'):
     module = RENAMED.get(dist.lower(), dist.lower().replace('-', '_'))
     if util.find_spec(module) is None:
         missing.append(dist)
+        continue
+    try:
+        ver = _v(meta.version(dist))
+        for op, want in re.findall(r'(==|>=|<=|<|>)\s*([0-9.]+)', line[len(dist):]):
+            w = _v(want)
+            if ((op == '==' and ver != w) or (op == '>=' and ver < w)
+                    or (op == '<' and ver >= w) or (op == '<=' and ver > w)):
+                missing.append(dist)
+                break
+    except Exception:
+        pass
 print(','.join(missing))
 '@.Replace('REQUIREMENTS_PATH', $requirements)
 
@@ -89,7 +101,7 @@ print(','.join(stale))
         if (-not [string]::IsNullOrWhiteSpace($installed)) { $why = 'stale: ' + $stale + ' not on the path' }
         Write-Item 'pip install -e host/' 'missing' $why
         if (Confirm-Step 'pip install -e host/ ?  (editable: the checkout stays the source)') {
-            & $Python -m pip install --disable-pip-version-check -e $Host_
+            & $Python -m pip install --disable-pip-version-check --no-deps -e $Host_
             if ($LASTEXITCODE -eq 0) {
                 Write-Item 'pip install -e host/' 'done' 'installed'
                 $editable = $true
