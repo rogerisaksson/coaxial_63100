@@ -33,12 +33,40 @@ _BACK_GAITS = ('walk_back', 'turn_back_left', 'turn_back_right')
 RESET_MODES = ('ballistic_walk', 'jog', 'stand')
 INIT_GAITS = ('walk', 'trip', 'stairs_walk', 'stairs_down', 'ice_walk', 'slope_walk',
               'turn_left', 'turn_right', 'circle_walk')
-INIT_DELAYS = {'turn_left': 0.12, 'turn_right': 0.12, 'circle_walk': 0.12, 'twist': 0.28, 'say': 0.65}
-BRAKE_DELAYS = {'back_slow': 0.38, 'back_fast': 0.52, 'fwd_slow': 0.45, 'fwd_fast': 0.70,
-                'stand_slow': (0.55, 1.10), 'stand_fast': (1.20, 2.40)}
-RISES = {'seated': ('rise_chair', 2.20), 'bed_rest': ('rise_bed', 3.60), 'floor_rest': ('rise_floor', 3.30)}
+RISE_OF = {'seated': 'rise_chair', 'bed_rest': 'rise_bed', 'floor_rest': 'rise_floor'}
 HOLD_PHASES = ('hold', 'load', 'throw', 'land', 'step_off', 'drop', 'absorb',
                'crouch_load', 'propulsion', 'flight_tuck', 'seat_land')
+
+
+def init_lead(g):
+    """Continuous pre-sway lead horizon (s) from angular rate `asked[2]` and twist activation."""
+    wz = abs(float(g.get('asked', (0.0, 0.0, 0.0))[2]))
+    w_turn = min(1.0, max(0.0, (wz - 0.04) / 0.01))
+    w_tw = float(bool(g.get('_twist_active')))
+    return (1.0 - w_turn) * (0.65 - 0.37 * w_tw) + 0.12 * w_turn
+
+
+def brake_lead(spd, back_to=0.0):
+    """Continuous braking transition horizon (s) from speed `spd` (m/s) and direction `back_to` in [0, 1]."""
+    w_fast = min(1.0, max(0.0, (float(spd) - 0.55) / 1e-6))
+    b = float(back_to)
+    return b * (0.38 + 0.14 * w_fast) + (1.0 - b) * (0.45 + 0.25 * w_fast)
+
+
+def stand_lead(spd):
+    """Continuous braking-to-stand settling and follow-up horizons `(ts, tg)` (s) from speed `spd` (m/s)."""
+    w_fast = min(1.0, max(0.0, (float(spd) - 0.45) / 1e-6))
+    ts = 0.55 + 0.65 * w_fast
+    return ts, 2.0 * ts
+
+
+def rise_lead(wire):
+    """Continuous rise-to-walk horizon (s) derived directly from a rise stunt's compiled wire table."""
+    import numpy as np
+    from machine import latent
+    rows = np.frombuffer(wire, latent.WIRE)
+    a1, a3 = 0.001 * float(rows[-1]['at']), 0.001 * float(rows[-3]['at'])
+    return round(0.75 - 0.3375 * a1 + 3.1375 * a3, 4)
 
 
 def said(g, label, wire, names=(), at=None, reset=False):

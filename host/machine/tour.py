@@ -176,6 +176,9 @@ class HouseTour:
                 self.history = (self.history + [(th, cm)])[-8:]
                 state['llm_last'] = (th, cm)
                 state['llm_feed'] = (state.get('llm_feed', []) + [(th, cm)])[-8:]
+                rows = list(state.get('chat_rows') or ())
+                rows.extend([('label', '  tour [%s]: %s' % (_label, cm)), (None, th)])
+                state['chat_rows'] = rows[-24:]
                 sent(kind, value, state)
         self.step_t += dt
         if self.step_t >= duration - 1e-5:
@@ -223,7 +226,7 @@ def _prop_near(g, kind):
 def start_errand(g, gym, sc, heard_fn, heard_say_fn):
     """Begin an autonomous room errand (`sit_chair`, `lie_bed`, `exit_door`) when not yet beside the prop."""
     from machine import latent
-    if sc == 'exit_door' or (sc in ('sit_chair', 'lie_bed') and 0.85 <= _prop_near(g, sc) < 9.0):
+    if sc == 'exit_door' or (sc in ('sit_chair', 'lie_bed') and 0.62 <= _prop_near(g, sc) < 9.0):
         if g['st'][latent.NOW][latent.GAIN] < 1e-6:
             g['st'][latent.THETA] = 0.0
         g['_errand'] = {'kind': sc, 'phase': 'walk'}
@@ -234,7 +237,7 @@ def start_errand(g, gym, sc, heard_fn, heard_say_fn):
 
 def step_errand(g, gym, heard_fn, heard_say_fn):
     """Advance an active autonomous room errand (`sit_chair`, `lie_bed`, `exit_door`)."""
-    from machine import latent, sprung
+    from machine import edge, latent, se2, sprung
     er = g.get('_errand')
     if not er:
         return
@@ -250,8 +253,11 @@ def step_errand(g, gym, heard_fn, heard_say_fn):
             if not g.get('_twist_active'):
                 heard_fn(g, gym, {'twist': (0.69, 0.0, 0.0), '_errand_cmd': True})
         return
-    xd, zd, hdd, r_stop = (1.01, 0.44, math.pi, 0.38) if kind == 'sit_chair' else (-1.25, 1.75, math.pi / 2.0, 0.46)
+    xd, zd, hdd, r_stop = (1.01, 0.44, math.pi, 0.38) if kind == 'sit_chair' else (-1.24, 1.80, math.pi / 2.0, 0.36)
     dist = math.hypot(xd - gx, zd - gz)
+    pyaw = edge.yaw(g['sense'])
+    err_yaw = abs(se2.wrap_angle(hdd - pyaw))
+    err_hd = abs(se2.wrap_angle(hdd - g['heading']))
     if ph == 'walk':
         if dist > r_stop:
             g['has_heading'], g['target_heading'] = 1.0, math.atan2(xd - gx, zd - gz)
@@ -261,9 +267,25 @@ def step_errand(g, gym, heard_fn, heard_say_fn):
             er['phase'] = 'align'
             heard_fn(g, gym, {'heading': hdd, 'twist': (0.0, 0.0, 0.0), '_errand_cmd': True})
     elif ph == 'align':
-        err_hd = abs(math.atan2(math.sin(hdd - g['heading']), math.cos(hdd - g['heading'])))
-        gain_max, spd_max = (0.015, 0.12) if kind == 'sit_chair' else (0.08, 0.25)
-        if sprung.doing(g) in ('stand', 'rest') and float(g['st'][latent.NOW][latent.GAIN]) < gain_max and spd < spd_max and err_hd < 0.15:
+        gain_max, spd_max = (0.015, 0.12) if kind == 'sit_chair' else (0.03, 0.15)
+        if (sprung.doing(g) in ('stand', 'rest') and float(g['st'][latent.NOW][latent.GAIN]) < gain_max
+                and spd < spd_max and err_hd < 0.15 and (kind == 'sit_chair' or err_yaw < 0.18)):
+            if kind == 'lie_bed' and gx > -1.21:
+                er['phase'] = 'back'
+                heard_fn(g, gym, {'heading': hdd, 'twist': (-0.35, 0.0, 0.0), '_errand_cmd': True})
+                return
+            g['_errand'] = None
+            by = {e[0]: e for e in gym}
+            g['_twist_active'], g['_twist_stop_until'], g['_halt_at'] = False, 0.0, None
+            g['twist'] = g['asked'] = (0.0, 0.0, 0.0)
+            if kind in by:
+                heard_say_fn(g, gym, by[kind])
+    elif ph == 'back':
+        if gx <= -1.20:
+            er['phase'] = 'settle'
+            heard_fn(g, gym, {'heading': hdd, 'twist': (0.0, 0.0, 0.0), '_errand_cmd': True})
+    elif ph == 'settle':
+        if sprung.doing(g) in ('stand', 'rest') and float(g['st'][latent.NOW][latent.GAIN]) < 0.03 and spd < 0.15:
             g['_errand'] = None
             by = {e[0]: e for e in gym}
             g['_twist_active'], g['_twist_stop_until'], g['_halt_at'] = False, 0.0, None

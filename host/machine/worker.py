@@ -32,8 +32,7 @@ def _start_mode(g, by, entry, at):
         return sprung.said(g, *by['step'], at=at + 0.80)
     if name in se2.INIT_GAITS and iw is not None:
         sprung.said(g, 'init_walk', iw, ('init_walk',), at=at, reset=True)
-        dt_iw = se2.INIT_DELAYS.get(name, se2.INIT_DELAYS['twist' if g.get('_twist_active') else 'say'])
-        return sprung.said(g, *by[name], at=at + dt_iw)
+        return sprung.said(g, *by[name], at=at + se2.init_lead(g))
     sprung.said(g, *entry, at=at)
 
 
@@ -105,17 +104,17 @@ def heard_say(g, gym, entry):
         g['active_entry'] = name
         if name != 'stand' and name in (sprung._FWD_GAITS + sprung._BACK_GAITS):
             if name in sprung._BACK_GAITS:
-                dt_b = se2.BRAKE_DELAYS['back_slow' if spd <= 0.55 else 'back_fast']
+                dt_b = se2.brake_lead(spd, 1.0)
                 rb = np.frombuffer(entry[1], latent.WIRE)
                 if len(rb) > 1:
                     rb = rb[1:].copy()
                     rb['at'] -= rb['at'][0]
                     return sprung.said(g, name, rb.tobytes(), entry[2][1:], at=t0 + dt_b, reset=True)
                 return sprung.said(g, *entry, at=t0 + dt_b, reset=True)
-            dt_b = se2.BRAKE_DELAYS['fwd_slow' if spd <= 0.55 else 'fwd_fast']
+            dt_b = se2.brake_lead(spd, 0.0)
             return (sprung.said(g, 'walk', se2._WALK_ON_WIRE, ('walk',), at=t0 + dt_b, reset=True) if name == 'walk'
                     else sprung.said(g, *entry, at=t0 + dt_b, reset=True))
-        ts, tg = se2.BRAKE_DELAYS['stand_fast' if spd > 0.45 else 'stand_slow']
+        ts, tg = se2.stand_lead(spd)
         sprung.said(g, *by['stand'], at=t0 + ts, reset=True)
         if name != 'stand':
             _start_mode(g, by, entry, at=t0 + tg)
@@ -135,10 +134,10 @@ def heard_say(g, gym, entry):
         if name != 'stand':
             _start_mode(g, by, entry, at=t0 + 2.00)
         return
-    if cur_d in se2.RISES and name in (sprung._FWD_GAITS + sprung._BACK_GAITS) and se2.RISES[cur_d][0] in by:
-        rm, dt_r = se2.RISES[cur_d]
+    if cur_d in se2.RISE_OF and name in (sprung._FWD_GAITS + sprung._BACK_GAITS) and se2.RISE_OF[cur_d] in by:
+        rm = se2.RISE_OF[cur_d]
         sprung.said(g, *by[rm], at=t0, reset=True)
-        return _start_mode(g, by, entry, at=t0 + dt_r)
+        return _start_mode(g, by, entry, at=t0 + se2.rise_lead(by[rm][1]))
     if off_c and 'stand' in by and name not in (('stand', 'hop') + tuple(sprung.STUNT_MODES)):
         dt_s = 0.55 if cur_d == 'down' else 1.35
         sprung.said(g, *by['stand'], at=t0, reset=True)
