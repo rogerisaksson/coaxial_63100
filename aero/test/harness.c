@@ -317,21 +317,18 @@ API void aeh_aerobat_observe(double state_io[15], const double vel[3], const dou
 API double aeh_plane_alpha(double k_w, double cl_alpha, double along, double need, double sign)
 {
   const double al_pos = (along > 0.0) ? along : 0.0;
+  const double al_lim = (al_pos > 9.81) ? al_pos : 9.81;
+  const double hi_pos = atan2(need, al_lim);
   double       hi = (sign < 0.0) ? AERO_PASS_ALPHA_MAX
-                    : ((need > k_w * AERO_PASS_ALPHA_MAX) ? atan2(need, al_pos)
-                                                          : AERO_PASS_ALPHA_MAX);
+                    : ((hi_pos > AERO_PASS_ALPHA_MAX) ? hi_pos : AERO_PASS_ALPHA_MAX);
   double       lo = 0.0;
-  const double k_over_cla = k_w / cl_alpha;
 
   for (int i = 0; i < 10; i++)
   {
     const double mid = 0.5 * (lo + hi);
-    const double flat = clamp_d((mid - AERO_PASS_STALL_RAD) / AERO_PASS_STALL_BLEND, 0.0, 1.0);
-    const double c_lin = cl_alpha * mid;
-    const double sm = sin(mid), cm = cos(mid);
-    const double a_w = k_over_cla * ((1.0 - flat) * c_lin + ((flat * 2.0) * sm) * cm);
-    const double d_w = k_over_cla * (((1.0 - flat) * AERO_PASS_CD_LIFT * c_lin) * c_lin
-                                     + (flat * 2.0) * (sm * sm));
+    const double m_lin = (mid < AERO_PASS_STALL_RAD) ? mid : AERO_PASS_STALL_RAD;
+    const double a_w = k_w * m_lin;
+    const double d_w = (((k_w * AERO_PASS_CD_LIFT) * cl_alpha) * m_lin) * m_lin;
 
     if (need - (al_pos + d_w) * tan(mid) > a_w)
     {
@@ -427,6 +424,17 @@ static inline void exp_so3_3(double x, double y, double z, double out[9])
   out[8] = 1.0 - c * (x * x + y * y);
 }
 
+static inline double allowed_rate_d(double e, double a_p, double pole)
+{
+  const double d = fabs(e);
+  const double near = a_p / (pole * pole);
+  const double far = (d > near) ? 1.0 : 0.0;
+  const double rem = (d - 0.5 * near > 0.0) ? (d - 0.5 * near) : 0.0;
+  const double mag = (1.0 - far) * (pole * d) + far * sqrt((2.0 * a_p) * rem);
+
+  return copysign(mag, e);
+}
+
 /** Smooth attitude target (`helicopter.kit._smooth_target`).
     filt_io = {up_filt[3], r_prev[9], w_ff[3]}, flags = {has_up, has_r}. */
 API void aeh_smooth_target(double filt_io[15], int flags[2], const double want_in[3],
@@ -459,7 +467,8 @@ API void aeh_smooth_target(double filt_io[15], int flags[2], const double want_i
   {
     const double prev_y[3] = {r_prev[1], r_prev[4], r_prev[7]};
     const double wy = (sign * want_in[1] > 0.0) ? (sign * want_in[1]) : 0.0;
-    const double kp = 100.0, kd = 20.0, a_max = 50.0, w_max = 6.0;
+    const double pole = 5.5, kd = 22.0, a_p = 30.25, a_max = 60.0, w_max = 6.0;
+    const double wt[3] = {0.0, sign * rate, 0.0};
     double       aligned[9], ry_dt[9], r_tr[9], err0[3], ry_wy[9], r_t[9], er[3], d_exp[9];
 
     aeh_align_axis(prev_y, want_in, r_prev, aligned);
@@ -469,13 +478,12 @@ API void aeh_smooth_target(double filt_io[15], int flags[2], const double want_i
     rot_y3((wy * wy) * err0[1], ry_wy);
     mat_mul3(r_tr, ry_wy, r_t);
     aeh_so3_error(r_prev, r_t, er);
-    w_ff[0] = clamp_d(w_ff[0] + clamp_d(kp * er[0] - kd * w_ff[0], -a_max, a_max) * dt, -w_max,
-                      w_max);
-    w_ff[1] = clamp_d(
-        w_ff[1] + clamp_d(kp * er[1] - kd * (w_ff[1] - sign * rate), -a_max, a_max) * dt, -w_max,
-        w_max);
-    w_ff[2] = clamp_d(w_ff[2] + clamp_d(kp * er[2] - kd * w_ff[2], -a_max, a_max) * dt, -w_max,
-                      w_max);
+    for (int a = 0; a < 3; a++)
+    {
+      const double acc = kd * ((allowed_rate_d(er[a], a_p, pole) + wt[a]) - w_ff[a]);
+
+      w_ff[a] = clamp_d(w_ff[a] + clamp_d(acc, -a_max, a_max) * dt, -w_max, w_max);
+    }
     exp_so3_3(w_ff[0] * dt, w_ff[1] * dt, w_ff[2] * dt, d_exp);
     mat_mul3(r_prev, d_exp, r_des);
   }
@@ -577,7 +585,7 @@ API int aeh_plane(const double w_plane[7], const double turn[9], const double ac
   }
   {
     const double q = w_plane[0], area = w_plane[1], mass = w_plane[2], cl_alpha = w_plane[3];
-    const double rho = w_plane[4], side = w_plane[5], gravity = w_plane[6];
+    const double rho = w_plane[4], side = w_plane[5];
     const double v_hat[3] = {u[0] / fast, u[1] / fast, u[2] / fast};
     const double along = sum3(acc[0] * v_hat[0], acc[1] * v_hat[1], acc[2] * v_hat[2]);
     const double perp[3] = {acc[0] - along * v_hat[0], acc[1] - along * v_hat[1],
@@ -668,15 +676,6 @@ API int aeh_plane(const double w_plane[7], const double turn[9], const double ac
     across_n = norm3(across[0], across[1], across[2]);
     a_cross = clamp_d(across_n / ((k_w > 1e-9) ? k_w : 1e-9), -1e9, AERO_PASS_ALPHA_MAX)
               / ((across_n != 0.0) ? across_n : 1.0);
-    if (along < 0.0 && under >= 0.0)
-    {
-      const double slow_a = AERO_PASS_ALPHA_MAX * clamp_d(-along / gravity, -1e9, 1.0);
-
-      if (slow_a > alpha)
-      {
-        alpha = slow_a;
-      }
-    }
     ca = cos(alpha);
     sa = sin(alpha);
     for (int a = 0; a < 3; a++)

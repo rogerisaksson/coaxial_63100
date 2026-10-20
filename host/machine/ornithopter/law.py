@@ -2,8 +2,9 @@
 import math
 
 from machine import aerokin, pull
-from machine.helicopter.kit import (Answer, _course_rate, _mat_mul, _rot_x, _smooth_target,
-                                    _so3_torques, _stunt_step, _turn_heading)
+from machine.helicopter.kit import (Answer, _course_rate, _mat_mul, _plan_hold, _rot_x,
+                                    _smooth_target, _so3_torques, _step_hold, _stunt_step,
+                                    _turn_heading)
 from machine.ornithopter.airframe import (AFT_GOV_RAD_S, AFT_RATIO, AFT_Z, ATT_KD, ATT_KP,
                                           BEAT_PULSE, FLAP_ROCK_HZ, FLAP_ROCK_RAD, FORE_Z,
                                           GEAR_RATIO, GOV_RAD_S, GRAVITY, IDLE_RAD_S, INERTIA,
@@ -63,7 +64,7 @@ class Core:
         beside = math.sqrt(max(reach * reach - GRAVITY * GRAVITY, 0.0))
         along = aerokin.lean(law, row, state['at'], state['vel'], dt, min(row['lean'], beside))
         law['heading'] = (c0, s0)
-        return along
+        return _plan_hold(self, along, dt)
 
     def step(self, law, row, state, dt, pull_max, limits=None, along=None):
         """One pass of `dt` s on `row` and `state`: returns `Answer`."""
@@ -88,8 +89,7 @@ class Core:
         drag = 0.5 * RHO * _wing_cda(prev_stroke) / MASS_KG * math.sqrt(
             u[0] * u[0] + u[1] * u[1] + u[2] * u[2])
         air_acc = (self.push_hat[0] - drag * u[0], self.push_hat[1] - drag * u[1], self.push_hat[2] - drag * u[2])
-        if along is None:
-            along = self.plan(law, row, state, dt, pull_max)
+        along = self.plan(law, row, state, dt, pull_max) if along is None else _step_hold(self, along, dt)
         rate = _course_rate(law['heading'], row)
         law['heading'] = c, s = _turn_heading(law['heading'], rate, dt)
         yaw = math.atan2(s, c)

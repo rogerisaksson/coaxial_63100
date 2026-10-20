@@ -158,6 +158,16 @@ def track():
     return {'at': [(x, h, z) for a, c, _psi, _bend, h, _knife in TRACK for x, z in [placed(a, c)]]}
 
 
+def _at(track, s, round_=False):
+    """Linearly interpolated point along `track` at continuous arc-length coordinate `s`."""
+    n = len(track)
+    s = s % n if round_ else max(0.0, min(n - 1.0, s))
+    i = min(int(s), n - 1)
+    f = s - i
+    p, q = track[i], track[(i + 1) % n if round_ else min(n - 1, i + 1)]
+    return tuple(a + f * (b - a) for a, b in zip(p, q))
+
+
 def line(route, now):
     """The lap's row for now (`aerobatics.fly`'s giver): on its wing at SPEED_M_S at the height
     and the knife the line asks LEAD_S ahead, turned for its point L1_S ahead as `2 sin(eta) /
@@ -166,31 +176,31 @@ def line(route, now):
     fresh = {'began': route['at'], 'k': None, 'laps': 0, 'gate': 0, 'of': LAPS}
     lap = route.get('lap', fresh)
     lap = route['lap'] = (lap, fresh)[int(lap['began'] != route['at'])]
-    n = len(TRACK)
-    k, rate = _followed(TRACK, lap['k'], route.get('seen', {}), True)
+    k, s, rate = _followed(TRACK, lap['k'], route.get('seen', {}), True)
     lap.update(laps=lap['laps'] + int(lap['k'] is not None and k < lap['k']), k=k)
     lap['gate'] = next((g for g, at in enumerate(S_GATES) if at > k), 0)
     route['holds'] = (route.get('holds', ()), ('lapped',))[int(lap['laps'] >= LAPS)]
-    knife = TRACK[(k + round(LEAD_S[1] * SPEED_M_S)) % n][5]
-    return dict(CRUISE, turn=math.degrees(rate), height=TRACK[(k + round(LEAD_S[0] * SPEED_M_S)) % n][4],
+    knife = _at(TRACK, s + LEAD_S[1] * SPEED_M_S, True)[5]
+    return dict(CRUISE, turn=math.degrees(rate), height=_at(TRACK, s + LEAD_S[0] * SPEED_M_S, True)[4],
                 knife=knife, speed=SPEED_M_S + KNIFE_M_S * knife, lined=0.0)
 
 
 def _followed(track, k, seen, round_):
-    """(the point of `track` nearest the frame from `k` on - none, anywhere -, the turn for its
-    point L1_S ahead as `2 sin(eta) / L1_S`): round its end where it is `round_`, else held."""
+    """(the point of `track` nearest the frame from `k` on - none, anywhere -, its continuous
+    arc-length coordinate `s`, and the turn for its point L1_S ahead as `2 sin(eta) / L1_S`):
+    round its end where it is `round_`, else held."""
     x, _y, z = seen.get('at', (0.0, 0.0, 0.0))
     vel, heading = seen.get('vel', (0.0, 0.0, 0.0)), seen.get('heading', RUNWAY_RAD)
     s, c = math.sin(RUNWAY_RAD), math.cos(RUNWAY_RAD)
     a, b, n = x * s + z * c, x * c - z * s, len(track)
     near = range(n) if k is None else range(k, k + 40) if round_ else range(k, min(n, k + 40))
     k = min(near, key=lambda i: (track[i % n][0] - a) ** 2 + (track[i % n][1] - b) ** 2) % n
+    ds = max(-0.5, min(0.5, (a - track[k][0]) * math.cos(track[k][2]) + (b - track[k][1]) * math.sin(track[k][2])))
     fast = math.hypot(vel[0], vel[2])
-    ahead = k + max(4, round(L1_S * fast))
-    px, pz = placed(*track[ahead % n if round_ else min(ahead, n - 1)][:2])
+    px, pz = placed(*_at(track, k + ds + max(4.0, L1_S * fast), round_)[:2])
     eta = (math.atan2(px - x, pz - z) - (math.atan2(vel[0], vel[2]) if fast > 1.0 else heading)
            + math.pi) % math.tau - math.pi
-    return k, max(-TURN_RAD_S, min(TURN_RAD_S, 2.0 * math.sin(eta) / L1_S))
+    return k, k + ds, max(-TURN_RAD_S, min(TURN_RAD_S, 2.0 * math.sin(eta) / L1_S))
 
 
 def opening(route, now):
@@ -200,15 +210,15 @@ def opening(route, now):
     fresh = {'began': route['at'], 'k': 0}
     run = route.get('open', fresh)
     run = route['open'] = (run, fresh)[int(run['began'] != route['at'])]
-    k, rate = _followed(OPENING, run['k'], route.get('seen', {}), False)
+    k, s, rate = _followed(OPENING, run['k'], route.get('seen', {}), False)
     run['k'], n = k, len(OPENING)
     route['holds'] = (route.get('holds', ()), ('passed',))[int(k >= n - 2)]
-    knife = OPENING[min(n - 1, k + round(LEAD_S[1] * PASS_M_S))][5]
-    slow = (OPEN_M_S - RUN_IN_M_S) * _ramp((k - _OPEN_AT[7]) / RUN_IN_M)
+    knife = _at(OPENING, s + LEAD_S[1] * PASS_M_S, False)[5]
+    slow = (OPEN_M_S - RUN_IN_M_S) * _ramp((s - _OPEN_AT[7]) / RUN_IN_M)
     # Gusty, its pass higher by its law's gusts (`aerokin.seen`): at KNIFE_M on the 17x8 the
     # page's tours sank it onto its tip 15 times in 47 crashes.
     lift = GUST_S * route.get('seen', {}).get('gust', 0.0)
-    return dict(CRUISE, turn=math.degrees(rate), height=OPENING[min(n - 1, k + round(LEAD_S[0] * OPEN_M_S))][4] + lift,
+    return dict(CRUISE, turn=math.degrees(rate), height=_at(OPENING, s + LEAD_S[0] * OPEN_M_S, False)[4] + lift,
                 knife=knife, speed=OPEN_M_S + (PASS_M_S - OPEN_M_S) * abs(knife) - slow, lined=0.0, lean=G15_M_S2)
 
 
@@ -246,10 +256,10 @@ def circuit(route, now):
     fresh = {'began': route['at'], 'k': None, 'v': math.hypot(*seen.get('vel', (0.0, 0.0, 0.0))[::2])}
     run = route.get('circle', fresh)
     run = route['circle'] = (run, fresh)[int(run['began'] != route['at'])]
-    k, rate = _followed(CIRCUIT, run['k'], seen, False)
+    k, s, rate = _followed(CIRCUIT, run['k'], seen, False)
     run['k'], n = k, len(CIRCUIT)
     route['holds'] = (route.get('holds', ()), ('circled',))[int(k >= n - 2)]
-    speed = max(CIRCUIT_M_S, min(run['v'], math.sqrt(CIRCUIT_M_S ** 2 + 2.0 * SLOW_M_S2 * max(0, _TURN_K - k))))
+    speed = max(CIRCUIT_M_S, min(run['v'], math.sqrt(CIRCUIT_M_S ** 2 + 2.0 * SLOW_M_S2 * max(0.0, _TURN_K - s))))
     return dict(CRUISE, turn=math.degrees(rate), height=CIRCUIT_H, speed=speed, lined=0.0)
 
 
@@ -261,10 +271,11 @@ def approach(route, now):
     fresh = {'began': route['at'], 'k': None, 'v': math.hypot(*seen.get('vel', (0.0, 0.0, 0.0))[::2])}
     run = route.get('glide', fresh)
     run = route['glide'] = (run, fresh)[int(run['began'] != route['at'])]
-    k, rate = _followed(APPROACH, run['k'], seen, False)
-    run['k'], here = k, APPROACH[k][4]
+    k, s, rate = _followed(APPROACH, run['k'], seen, False)
+    pt = _at(APPROACH, s, False)
+    run['k'], here = k, pt[4]
     route['holds'] = (route.get('holds', ()), ('flared',))[int(here <= FLARE_H)]
-    left = max(0.0, _FLARE_AT - APPROACH[k][0])
+    left = max(0.0, _FLARE_AT - pt[0])
     speed = max(FINAL['speed'], min(run['v'], math.sqrt(FINAL['speed'] ** 2 + 2.0 * SLOW_M_S2 * left)))
     sloped = float(FLARE_H < here < HIGH_M)
     return dict(FINAL, turn=math.degrees(rate), height=max(FLARE_H, here), speed=speed,

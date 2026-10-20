@@ -7,8 +7,9 @@ from machine.helicopter.airframe import (ATT_KD, ATT_KP, BODY_CDA, GOV_RAD_S, GR
                                          RHO, ROLL_KD, ROLL_KP, STUNT_BOOST, STUNT_YAW_RAD_S,
                                          TAIL_GOV_RAD_S, TAIL_M, TAIL_RATIO, TICTOC_HZ, TICTOC_RAD,
                                          YAW_KD, YAW_KP, _rotor_drag, _rotor_inflow)
-from machine.helicopter.kit import (Answer, _course_rate, _mat_mul, _rot_x, _smooth_target,
-                                    _so3_torques, _stunt_step, _turn_heading)
+from machine.helicopter.kit import (Answer, _course_rate, _mat_mul, _plan_hold, _rot_x,
+                                    _smooth_target, _so3_torques, _step_hold, _stunt_step,
+                                    _turn_heading)
 from machine.helicopter.observer import observe
 
 
@@ -52,7 +53,7 @@ class Core:
             aerokin.spooled(self.out.speeds[0], math.sqrt(reach * MASS_KG / K_THRUST), IDLE_RAD_S), dt)
         along = aerokin.lean(law, row, state['at'], state['vel'], dt, min(row['lean'], math.sqrt(max(reach * reach - GRAVITY * GRAVITY, 0.0))))
         law['heading'] = (c0, s0)
-        return along
+        return _plan_hold(self, along, dt)
 
     def step(self, law, row, state, dt, pull_max, limits=None, along=None):
         observe(self, state, dt)
@@ -64,7 +65,7 @@ class Core:
         u = (vel[0] - self.wind[0], vel[1] - self.wind[1], vel[2] - self.wind[2])
         drag = 0.5 * RHO * BODY_CDA / MASS_KG * math.hypot(*u)
         air_acc = (self.push_hat[0] - drag * u[0], self.push_hat[1] - drag * u[1], self.push_hat[2] - drag * u[2])
-        along = self.plan(law, row, state, dt, pull_max) if along is None else along
+        along = self.plan(law, row, state, dt, pull_max) if along is None else _step_hold(self, along, dt)
         rate = _course_rate(law['heading'], row)
         law['heading'] = c, s = _turn_heading(law['heading'], rate, dt)
         yaw, reach, up_pull = math.atan2(s, c), max(aerokin.LEAST * GRAVITY, pull_max), self.up_pull

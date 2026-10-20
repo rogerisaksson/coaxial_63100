@@ -10,8 +10,8 @@ from machine.aerobat.airframe import (A_DISC, ATT_KD, ATT_KP, FLOOR_M, GRAVITY, 
                                       YAW_KP, _aero_cda, _aero_inflow, _prop_drag, prop_speed,
                                       slipstream)
 from machine.aerobat.observer import observe
-from machine.helicopter.kit import (Answer, _mat_mul, _rot_x, _smooth_target, _so3_torques,
-                                    _stunt_step, _turn_heading)
+from machine.helicopter.kit import (Answer, _mat_mul, _plan_hold, _rot_x, _smooth_target,
+                                    _so3_torques, _step_hold, _stunt_step, _turn_heading)
 from machine.wingborne import AIRBORNE_M, STALL_RAD, WHEELS_M, flare, lined, plane, run, toward, whole
 
 #: A row asked faster than FAST_M_S, m/s, flies on its wing whole once it is past half of it
@@ -113,10 +113,14 @@ class Core:
         # The thrust gives along the nose what the wing does not; the hover's share is in acc_des.
         w_nose = sum(x * turn[a][1] for a, x in enumerate(w_lift))
         f_des = MASS_KG * (ax_des * turn[0][1] + ay_use * turn[1][1] + az_des * turn[2][1]) - self.wing_air * w_nose
-        r_wing, want_up = plane(WING, turn, (ax_des, ay_des, az_des), u, self.wingborne, want_up,
+        gate = getattr(self, '_w_gate', None)
+        w_on = self.wingborne * (ease((row.get('speed', 0.0) - FAST_M_S[0]) / (FAST_M_S[1] - FAST_M_S[0]))
+                                 if gate is None else gate)
+        self._w_gate = None
+        r_wing, want_up = plane(WING, turn, (ax_des, ay_des, az_des), u, w_on, want_up,
                                 row.get('knife', 0.0))
         r_des, w_ff = _smooth_target(self, tuple(want_up), sign, yaw, rate, pace, dt)
-        k = whole(self.wingborne) * (r_wing is not None)
+        k = whole(w_on) * (r_wing is not None)
         return toward(r_des, r_wing or r_des, k), tuple((1.0 - k) * x for x in w_ff), f_des, stunt, inv
 
     def yawed(self, law, row, state):
@@ -178,7 +182,7 @@ class Core:
         if row['height'] >= 0.0:
             law['spot'] = [p + held * (float(state['at'][a]) - p) for p, a in zip(law['spot'], (0, 2))]
         law['heading'] = (c0, s0)
-        return along
+        return _plan_hold(self, along, dt, ease((row.get('speed', 0.0) - FAST_M_S[0]) / (FAST_M_S[1] - FAST_M_S[0])))
 
     def step(self, law, row, state, dt, pull_max, limits=None, along=None):
         """One pass of `dt` s on `row` and `state`: returns `Answer`."""
@@ -205,8 +209,7 @@ class Core:
         w_lift = WING.lift(u, turn)
         air_acc = [(1.0 - self.wing_air) * (self.push_hat[a] + w_lift[a] / MASS_KG)
                    + self.wing_air * self.push_slow[a] - drag * u[a] for a in (0, 1, 2)]
-        if along is None:
-            along = self.plan(law, row, state, dt, pull_max)
+        along = self.plan(law, row, state, dt, pull_max) if along is None else _step_hold(self, along, dt)
         rate, target_yaw = self.yawed(law, row, state)
         law['heading'] = c, s = _turn_heading(law['heading'], rate, dt)
         yaw = math.atan2(s, c)

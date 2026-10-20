@@ -187,6 +187,35 @@ def _exp_so3(x, y, z):
             (-s * y + c * x * z, s * x + c * y * z, 1.0 - c * (x * x + y * y)))
 
 
+def _allowed_rate(e, a_p, pole):
+    d, near = abs(e), a_p / (pole * pole)
+    far = float(d > near)
+    return math.copysign((1.0 - far) * pole * d + far * math.sqrt(2.0 * a_p * max(d - 0.5 * near, 0.0)), e)
+
+
+def _plan_hold(core, along, dt, wg=0.0):
+    al0 = getattr(core, '_al_to', None) if core.r_prev is not None else None
+    up0 = getattr(core, '_up_to', None) if core.r_prev is not None else None
+    wg0 = getattr(core, '_wg_to', None) if core.r_prev is not None else None
+    core._al_cur, core._al_to = (along if al0 is None else al0), along
+    core._up_cur, core._up_to = (core.up_pull if up0 is None else up0), core.up_pull
+    core._wg_cur, core._wg_to = (wg if wg0 is None else wg0), wg
+    core._plan_dt = dt
+    return along
+
+
+def _step_hold(core, along, dt):
+    if along is None or not hasattr(core, '_al_cur'):
+        return along
+    s = min(1.0, dt / max(core._plan_dt, 1e-6))
+    core._up_cur = core.up_pull = core._up_cur + (core._up_to - core._up_cur) * s
+    core._wg_cur = core._w_gate = core._wg_cur + (core._wg_to - core._wg_cur) * s
+    core._al_cur = (core._al_cur[0] + (core._al_to[0] - core._al_cur[0]) * s,
+                    core._al_cur[1] + (core._al_to[1] - core._al_cur[1]) * s)
+    core._plan_dt = max(0.0, core._plan_dt - dt)
+    return core._al_cur
+
+
 def _smooth_target(core, want_up, sign, yaw, rate, pace, dt):
     lib = _aero_lib()
     if lib is not None:
@@ -216,10 +245,11 @@ def _smooth_target(core, want_up, sign, yaw, rate, pace, dt):
     wy = max(0.0, sign * want_up[1])
     r_t = _mat_mul(r_tr, _rot_y((wy * wy) * _so3_error(r_tr, r0)[1]))
     er = _so3_error(r_ref, r_t)
-    kp, kd, a_max, w_max = 100.0, 20.0, 50.0, 6.0
-    w_ff = (max(-w_max, min(w_max, core.w_ff[0] + max(-a_max, min(a_max, kp * er[0] - kd * core.w_ff[0])) * dt)),
-            max(-w_max, min(w_max, core.w_ff[1] + max(-a_max, min(a_max, kp * er[1] - kd * (core.w_ff[1] - sign * rate))) * dt)),
-            max(-w_max, min(w_max, core.w_ff[2] + max(-a_max, min(a_max, kp * er[2] - kd * core.w_ff[2])) * dt)))
+    pole, kd, a_p, a_max, w_max = 5.5, 22.0, 30.25, 60.0, 6.0
+    wt = (0.0, sign * rate, 0.0)
+    w_ff = tuple(max(-w_max, min(w_max, core.w_ff[a] + max(
+        -a_max, min(a_max, kd * (_allowed_rate(er[a], a_p, pole) + wt[a] - core.w_ff[a]))) * dt))
+        for a in (0, 1, 2))
     r_des = _mat_mul(r_ref, _exp_so3(w_ff[0] * dt, w_ff[1] * dt, w_ff[2] * dt))
     core.up_filt, core.r_prev, core.w_ff = want_up, r_des, w_ff
     return r_des, w_ff

@@ -229,6 +229,7 @@ def run(wing, core, v_fwd, h, yaw, rate, up=math.inf):
     pitch = (PITCH_REST + (0.5 * math.pi - PITCH_REST) * ease((v - TAIL_UP) / RUN_EASE)
              - (climb + ALPHA_RAD) * core.rotated)
     r_des = _mat_mul(_rot_y(yaw), _rot_x(pitch))
+    core.r_prev, core.w_ff = r_des, (0.0, rate, 0.0)
     g = wing.gravity
     f_run = wing.mass * max(0.20 * g, min(RUN_G * g, 2.5 * (CLIMB_V * wing.rotate - v_fwd)
                                            + g * math.sin(0.5 * math.pi - pitch)))
@@ -255,7 +256,8 @@ def flare(wing, v_fwd, h, v, yaw, rate, r11):
     sink = max(TOUCH_M_S, h / FLARE_S)
     a_fl = min(HARRIER_RAD, max(0.0, m * max(0.0, g - 6.0 * (sink + v)) / q_fl + math.atan2(v, max(1.0, v_fwd))))
     rolled = PITCH_REST + (0.5 * math.pi - PITCH_REST) * ease((v_fwd / wing.rotate - TAIL_UP) / RUN_EASE)
-    r_des = _mat_mul(_rot_y(yaw), _rot_x(0.5 * math.pi - a_fl if h > 0.03 and v_fwd > 2.0 else rolled))
+    air = ease((h - 0.02) / 0.02) * ease((v_fwd - 1.5) / 1.0)
+    r_des = _mat_mul(_rot_y(yaw), _rot_x(rolled + air * (0.5 * math.pi - a_fl - rolled)))
     f_des = m * max(0.0, g - 3.0 * (0.4 + v)) * r11 if v_fwd <= 2.0 and r11 > 0.4 and h > 0.04 else 0.0
     return r_des, (0.0, rate, 0.0), f_des
 
@@ -316,17 +318,13 @@ def plane(wing, turn, acc, u, w, want_up, knife=0.0):
     across = [perp[a] - up_ask * upp[a] for a in range(3)]
     k_w = wing.q * wing.area * fast * fast / wing.mass
     al_pos = max(0.0, along)
-    hi = (ALPHA_MAX if sign < 0.0
-          else math.atan2(need, al_pos) if need > k_w * ALPHA_MAX else ALPHA_MAX)
+    hi = ALPHA_MAX if sign < 0.0 else max(ALPHA_MAX, math.atan2(need, max(al_pos, wing.gravity)))
     lo = 0.0
     for _ in range(10):
         mid = 0.5 * (lo + hi)
-        flat = min(1.0, max(0.0, (mid - STALL_RAD) / STALL_BLEND))
-        c_lin = wing.cl_alpha * mid
-        a_w = (k_w / wing.cl_alpha) * (
-            (1.0 - flat) * c_lin + flat * 2.0 * math.sin(mid) * math.cos(mid))
-        d_w = (k_w / wing.cl_alpha) * (
-            (1.0 - flat) * CD_LIFT * c_lin * c_lin + flat * 2.0 * math.sin(mid) ** 2)
+        m_lin = min(mid, STALL_RAD)
+        a_w = k_w * m_lin
+        d_w = k_w * CD_LIFT * wing.cl_alpha * m_lin * m_lin
         if need - (al_pos + d_w) * math.tan(mid) > a_w:
             lo = mid
         else:
@@ -335,10 +333,6 @@ def plane(wing, turn, acc, u, w, want_up, knife=0.0):
     alpha += ka * (math.atan2(up_ask, wing.rho * wing.side * fast * fast / wing.mass + al_pos) - alpha)
     across_n = math.sqrt((across[0] * across[0] + across[1] * across[1]) + across[2] * across[2])
     a_cross = min(ALPHA_MAX, across_n / max(k_w, 1e-9)) / (across_n or 1.0)
-    # Asked to slow, a propeller pulling one way, it pulls up: its speed goes into height until
-    # the hover's law has it; coasting on it ran 45 m into a tree.
-    if along < 0.0 and under >= 0.0:
-        alpha = max(alpha, ALPHA_MAX * min(1.0, -along / wing.gravity))
     nose = [math.cos(alpha) * v_hat[a] + math.sin(alpha) * d[a] + ka * a_cross * across[a] for a in range(3)]
     want_up = [(1.0 - w) * want_up[a] + w * nose[a] for a in range(3)]
     n = math.sqrt((want_up[0] * want_up[0] + want_up[1] * want_up[1]) + want_up[2] * want_up[2]) or 1.0
