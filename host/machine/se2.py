@@ -6,18 +6,18 @@ from machine import ortho
 #: Her twists' speeds: a walk, a sprint, a walk back, a sidestep, m/s; a turn, rad/s.
 WALK_SPEED, RUN_SPEED, BACK_SPEED, STRAFE_SPEED, YAW_RATE = 0.69, 1.40, 0.35, 0.50, 0.70
 
-WASD_GAITS = ('#204', '#205', 'jog', 'strafe_left', 'strafe_right',
-              'turn_left', 'turn_right', 'turn_back_left', 'turn_back_right', 'init_walk')
+WASD_GAITS = ('walk', 'walk_back', 'jog', 'strafe_left', 'strafe_right',
+              'turn_left', 'turn_right', 'turn_back_left', 'turn_back_right', 'spin_left', 'spin_right', 'init_walk')
 
 NOMINAL_TWIST = {
-    '#204': (WALK_SPEED, 0.0, 0.0), 'walk': (WALK_SPEED, 0.0, 0.0),
-    'init_walk': (WALK_SPEED, 0.0, 0.0), 'trip': (WALK_SPEED, 0.0, 0.0),
+    'walk': (WALK_SPEED, 0.0, 0.0), 'init_walk': (WALK_SPEED, 0.0, 0.0), 'trip': (WALK_SPEED, 0.0, 0.0),
     'stairs_walk': (0.50, 0.0, 0.0), 'stairs_down': (0.50, 0.0, 0.0),
     'ice_walk': (0.35, 0.0, 0.0), 'slope_walk': (0.55, 0.0, 0.0),
     'ballistic_walk': (0.75, 0.0, 0.0), 'jog': (RUN_SPEED, 0.0, 0.0),
-    '#205': (-BACK_SPEED, 0.0, 0.0),
+    'walk_back': (-BACK_SPEED, 0.0, 0.0),
     'strafe_left': (0.0, STRAFE_SPEED, 0.0), 'strafe_right': (0.0, -STRAFE_SPEED, 0.0),
     'turn_left': (WALK_SPEED, 0.0, YAW_RATE), 'turn_right': (WALK_SPEED, 0.0, -YAW_RATE),
+    'spin_left': (0.0, 0.0, YAW_RATE), 'spin_right': (0.0, 0.0, -YAW_RATE),
     'circle_walk': (0.55, 0.0, 0.45),
     'turn_back_left': (-BACK_SPEED, 0.0, YAW_RATE), 'turn_back_right': (-BACK_SPEED, 0.0, -YAW_RATE),
 }
@@ -27,11 +27,11 @@ STUNT_MODES = {'sit_chair', 'rise_chair', 'lie_bed', 'rise_bed', 'lie_floor', 'r
 STUNT_PHASES = {'approach', 'lower', 'seated', 'lean_forward', 'thrust', 'sit_edge', 'recline', 'bed_rest', 'sit_up',
                 'swing_out', 'kneel', 'floor_rest', 'push_arms', 'half_kneel', 'cushion', 'land', 'step_off', 'drop',
                 'absorb', 'crouch_load', 'propulsion', 'flight_tuck', 'seat_land', 'descent'}
-_FWD_GAITS = ('#204', 'trip', 'jog', 'ballistic_walk', 'stairs_walk', 'stairs_down', 'ice_walk', 'slope_walk',
-              'strafe_left', 'strafe_right', 'turn_left', 'turn_right', 'circle_walk')
-_BACK_GAITS = ('#205', 'turn_back_left', 'turn_back_right')
-RESET_MODES = ('ballistic_walk', 'jog', '#201')
-INIT_GAITS = ('#204', 'trip', 'stairs_walk', 'stairs_down', 'ice_walk', 'slope_walk',
+_FWD_GAITS = ('walk', 'trip', 'jog', 'ballistic_walk', 'stairs_walk', 'stairs_down', 'ice_walk', 'slope_walk',
+              'strafe_left', 'strafe_right', 'turn_left', 'turn_right', 'spin_left', 'spin_right', 'circle_walk')
+_BACK_GAITS = ('walk_back', 'turn_back_left', 'turn_back_right')
+RESET_MODES = ('ballistic_walk', 'jog', 'stand')
+INIT_GAITS = ('walk', 'trip', 'stairs_walk', 'stairs_down', 'ice_walk', 'slope_walk',
               'turn_left', 'turn_right', 'circle_walk')
 INIT_DELAYS = {'turn_left': 0.12, 'turn_right': 0.12, 'circle_walk': 0.12, 'twist': 0.28, 'say': 0.65}
 BRAKE_DELAYS = {'back_slow': 0.38, 'back_fast': 0.52, 'fwd_slow': 0.45, 'fwd_fast': 0.70,
@@ -78,15 +78,17 @@ def gait_for_twist(vx, vy, wz):
         return 'strafe_left' if vy > 0 else 'strafe_right'
     if abs(wz) > 0.05:
         return ('turn_left' if wz > 0 else 'turn_right') if vx >= -0.05 else ('turn_back_left' if wz > 0 else 'turn_back_right')
-    return 'jog' if vx > 0.96 else ('#204' if vx > 0.05 else ('#205' if vx < -0.05 else None))
+    return 'jog' if vx > 0.96 else ('walk' if vx > 0.05 else ('walk_back' if vx < -0.05 else None))
 
 
 def _modulate_cpg(g, vx, vy, wz, out, vxp=0.0):
     from machine import latent, modal
     tw_on = float(g.get('_twist_active', False))
     gain = float(g['st'][latent.NOW][latent.GAIN])
-    w_on = tw_on * min(1.0, max(0.0, (gain - 0.02) / 0.03))
-    w_rest = tw_on * (1.0 - w_on) * float(0.05 < float(g['st'][latent.TO][latent.AMP][modal.DRIVE]) < 0.30)
+    amp_d = abs(float(g['st'][latent.TO][latent.AMP][modal.DRIVE]))
+    w_gait = min(1.0, max(0.0, (max(amp_d, abs(vy), abs(wz)) - 0.02) / 0.02))
+    w_on = tw_on * min(1.0, max(0.0, (gain - 0.02) / 0.03)) * w_gait
+    w_rest = tw_on * (1.0 - min(1.0, max(0.0, (gain - 0.02) / 0.03))) * float(0.05 < amp_d < 0.30)
     w_fast_fwd = (min(1.0, max(0.0, (vx - WALK_SPEED) / 0.01))
                   * min(1.0, max(0.0, (0.05 - abs(wz)) / 0.01))
                   * min(1.0, max(0.0, (0.01 - abs(vy)) / 0.01)))
@@ -121,7 +123,7 @@ def _modulate_cpg(g, vx, vy, wz, out, vxp=0.0):
     w_back_hi = min(1.0, max(0.0, (-vx - BACK_SPEED) / 0.01)) * min(1.0, max(0.0, (0.01 - abs(vy)) / 0.01))
     w_wz_hi = min(1.0, max(0.0, (abs(wz) - YAW_RATE) / 0.01))
     w_hz = w_on * max(w_slip, w_vx_hi, w_vy_hi, w_back_hi, w_wz5)
-    hz_m = max(1.05 * w_slip, 0.98 * max(w_spin, w_wz_hi, w_vx_hi), 0.95 * w_hz)
+    hz_m = w_on * max(1.05 * w_slip, 0.98 * max(w_spin, w_wz_hi, w_vx_hi), 0.95 * w_hz)
     g['st'][latent.TO][latent.HZ] = max(float(g['st'][latent.TO][latent.HZ]), hz_m)
     g['st'][latent.NOW][latent.HZ] = max(float(g['st'][latent.NOW][latent.HZ]), hz_m)
     out[latent.TURNS] += w_hz * (math.tau * float(g['st'][latent.NOW][latent.HZ]) - float(out[latent.TURNS]))
@@ -237,7 +239,7 @@ def heard_twist(g, gym, tw, has_say, said_fn, dropped_fn, heard_say_fn, walk_on)
     decay = (not has_say and math.hypot(vx, vy) < math.hypot(pvx, pvy) - 1e-4
              and -(BACK_SPEED - 0.01) < vx < WALK_SPEED - 0.01 and abs(vy) < STRAFE_SPEED - 0.01 and abs(wz) < 0.01)
     if (abs(vx) > 0.01 or abs(vy) > 0.01 or abs(wz) > 0.01) and not decay:
-        label = gait_for_twist(vx, vy, wz) or ('#205' if vx < -0.01 else '#204')
+        label = gait_for_twist(vx, vy, wz) or ('walk_back' if vx < -0.01 else 'walk')
         g['_twist_active'], g['_twist_stop_until'], g['_halt_at'] = True, g['t'] + 2.5, None
         if jumping:
             if not has_say and label in by and g.get('active_entry') != label:
@@ -257,16 +259,16 @@ def heard_twist(g, gym, tw, has_say, said_fn, dropped_fn, heard_say_fn, walk_on)
         if jumping:
             g['tab'] = g['tab'][g['tab'][:, latent.AT] <= g['_jump_until'] + 0.01]
             g['labels'] = [(w, n) for w, n in g['labels'] if w <= g['_jump_until'] + 0.01]
-            if '#201' in by:
+            if 'stand' in by:
                 if g.get('_leap') and '_brake_wire' in g:
                     said_fn(g, 'brake', g['_brake_wire'], ('brake',), at=g['_jump_until'] + 0.01, reset=True)
-                    said_fn(g, *by['#201'], at=g['_jump_until'] + 0.56, reset=True)
+                    said_fn(g, *by['stand'], at=g['_jump_until'] + 0.56, reset=True)
                 else:
-                    said_fn(g, *by['#201'], at=g['_jump_until'] + 0.02, reset=True)
-            g['active_entry'] = '#201'
+                    said_fn(g, *by['stand'], at=g['_jump_until'] + 0.02, reset=True)
+            g['active_entry'] = 'stand'
             return
-        if not has_say and '#201' in by:
-            heard_say_fn(g, gym, by['#201'])
+        if not has_say and 'stand' in by:
+            heard_say_fn(g, gym, by['stand'])
 
 
 WALK_ON = ('(stream_inject (sequence_id 204) (blend_duration 650ms) (latent_targets (mode_axial_compression 0.065)'

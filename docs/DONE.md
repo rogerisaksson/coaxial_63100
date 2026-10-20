@@ -271,3 +271,12 @@ the hundred before these: [DONE_1-50](DONE_1-50.md),
     on its propeller, its height's loop at its wing's pace, its take-off and
     heading within what its wing does: 3 strikes in six tours where 7, its
     circuit's pitch 1.4 deg where 3.1 ([aerobat](findings/aerobat.md)).
+66. Her inner loop a branchless SE(3) and modal continuum (`machine.motion`,
+    `machine.touch`, `machine.grip`, `machine.se2`, `machine.sprung`,
+    `machine.edge`, `terminal/views/humanoid_keys.py`, `test_structure.py`):
+    zero `if`-branches or mode-name checks in `motion`, `touch` and `grip`;
+    off-sole leg-chord suspension (`impedance`, `poise`) dangling her legs on
+    chair and bed; named stream commands (`stand`, `sway`, `step`, `walk`,
+    `walk_back`), `A`/`D` sidestrafe and `Q`/`E` turn in place; cervical and
+    shoulder inertia decoupling on stop; and `software_layout.svg` generated
+    from live code constants ([scenarios](findings/scenarios.md)).

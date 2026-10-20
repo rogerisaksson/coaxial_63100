@@ -10,10 +10,51 @@ never read and not counted.
 """
 import argparse
 import os
+import re
 import sys
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(
     __file__)))))
+
+#: Non-English (Swedish / Swenglish) characters and words forbidden in code, docs and commits;
+#: coaxial_ollama's multilingual dictionaries and tests and measure_first's prompt matcher are
+#: exempt by path.
+SWEDISH_RE = re.compile(
+    r'[\u00e5\u00e4\u00f6\u00c5\u00c4\u00d6]|\b('
+    r'j\u00e4mfota\w*|jamfota\w*|spr\u00e5ng\w*|h\u00f6gt|g\u00e5ng\w*|l\u00f6pning\w*|'
+    r's\u00e4ng\w*|stol\w*|d\u00f6rr\w*|knapp\w*|huvud\w*|v\u00e4nster\w*|h\u00f6ger\w*|'
+    r'bak\u00e5t|fram\u00e5t|svenska|swenglish|fas\s+\d)\b',
+    re.IGNORECASE,
+)
+MULTILINGUAL_ALLOW = (
+    'host/coaxial_ollama/',
+    'host/tests/test_ollama_',
+    'host/tests/test_live_model.py',
+    'host/tools/dev/measure_first.py',
+    'host/tools/dev/token_budget.py',
+)
+
+
+def english_text_faults(path, text):
+    """['path:line: match'] of non-English / Swenglish tokens in `text` for `path`."""
+    rel = path.replace('\\', '/')
+    if any(rel.startswith(a) or ('/' + a) in rel for a in MULTILINGUAL_ALLOW):
+        return []
+    out = []
+    for i, line in enumerate(text.splitlines(), 1):
+        m = SWEDISH_RE.search(line)
+        if m:
+            out.append('%s:%d: non-English token %r' % (rel, i, m.group(0)))
+    return out
+
+
+def english_faults():
+    """Every non-English / Swenglish token across the repository's read files."""
+    out = []
+    for rel, _t in files():
+        with open(os.path.join(REPO, rel), encoding='utf-8', errors='replace') as f:
+            out.extend(english_text_faults(rel, f.read()))
+    return out
 
 #: What a file may hold, tokens: past the host's 90th percentile (5.6 k), a file
 #: read whole takes a tenth of a window's working room.

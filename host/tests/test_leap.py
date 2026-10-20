@@ -108,31 +108,78 @@ def test_the_loop_meets_an_airborne_soles_ask(report):
 
 
 def test_forward_leap_scales_with_charge(report):
-    """`leap.standing_leap`, `leap.stride_leap` and `leap.update_leap_charge`: a leap springs
-    forward without braking first, and holding charge longer lengthens the forward throw and
-    preload duration while keeping the active trajectory table continuous."""
+    """`leap.hop_charge`, `leap.standing_leap`, `leap.stride_leap` and `leap.update_leap_charge`:
+    Space hold duration in [5 ms, 250 ms] maps to [0, 1]; standing jump scales vertical preload
+    and throw; in-stride leap scales forward drive, lift, and sagittal throw with charge and speed."""
     import numpy as np
     from machine import latent, leap, modal, sprung
+    c_min, c_mid, c_max = leap.hop_charge(0.005), leap.hop_charge(0.1275), leap.hop_charge(0.250)
+    report.check('Space hold duration 5 ms to 250 ms maps linearly to [0, 1]',
+                 c_min == 0.0 and abs(c_mid - 0.5) < 1e-6 and c_max == 1.0,
+                 '5 ms -> %.2f, 127.5 ms -> %.2f, 250 ms -> %.2f' % (c_min, c_mid, c_max))
     by = {e[0]: e for e in sprung.entries()}
-    base_wire, walk_wire = by['hop'][1], by['#204'][1]
+    base_wire, walk_wire = by['hop'][1], by['walk'][1]
     tap_w, _names, tap_dur, tap_load = leap.standing_leap(base_wire, 0.0)
     full_w, _names, full_dur, full_load = leap.standing_leap(base_wire, 1.0)
     rtap = np.frombuffer(tap_w, latent.WIRE)
     rfull = np.frombuffer(full_w, latent.WIRE)
-    s_tap = float(rtap['p'][1, latent.Z.start + modal.SAGITTAL])
-    s_full = float(rfull['p'][1, latent.Z.start + modal.SAGITTAL])
-    report.check('standing leap springs forward and scales with hold charge',
-                 0.30 < s_tap < s_full and tap_load < full_load and tap_dur < full_dur,
-                 'sagittal throw %.3f -> %.3f, load %d -> %d ms' % (s_tap, s_full, tap_load, full_load))
-    st_tap, _n, st_tap_dur, _l = leap.stride_leap(base_wire, walk_wire, 0.0)
-    st_full, _n, st_full_dur, _l = leap.stride_leap(base_wire, walk_wire, 1.0)
+    a_tap = float(rtap['p'][0, latent.Z.start + modal.AXIAL])
+    a_full = float(rfull['p'][0, latent.Z.start + modal.AXIAL])
+    k_tap = float(rtap['p'][1, latent.K.start + modal.AXIAL])
+    k_full = float(rfull['p'][1, latent.K.start + modal.AXIAL])
+    report.check('standing high jump scales preload crouch, axial throw stiffness and duration with charge',
+                 0.55 < a_tap < a_full and k_tap < k_full and tap_load < full_load and tap_dur < full_dur,
+                 'crouch %.2f -> %.2f, K_axial %.0f -> %.0f, load %d -> %d ms' % (a_tap, a_full, k_tap, k_full, tap_load, full_load))
+    st_tap, _n, st_tap_dur, _l = leap.stride_leap(base_wire, walk_wire, 0.0, 0.69)
+    st_full, _n, st_full_dur, _l = leap.stride_leap(base_wire, walk_wire, 1.0, 0.69)
+    st_run, _n, _d, _l = leap.stride_leap(base_wire, walk_wire, 1.0, 1.40)
     rst_tap = np.frombuffer(st_tap, latent.WIRE)
     rst_full = np.frombuffer(st_full, latent.WIRE)
+    rst_run = np.frombuffer(st_run, latent.WIRE)
     d_tap = float(rst_tap['p'][1, latent.AMP.start + modal.DRIVE])
     d_full = float(rst_full['p'][1, latent.AMP.start + modal.DRIVE])
-    report.check('in-stride leap scales forward drive and lift with hold charge without braking',
-                 0.60 < d_tap < d_full and st_tap_dur < st_full_dur,
-                 'drive amp %.3f -> %.3f, dur %.3f -> %.3f s' % (d_tap, d_full, st_tap_dur, st_full_dur))
+    d_run = float(rst_run['p'][1, latent.AMP.start + modal.DRIVE])
+    report.check('in-stride leap scales forward drive and lift with hold charge and running speed',
+                 0.60 < d_tap < d_full < d_run and st_tap_dur < st_full_dur,
+                 'drive amp %.3f -> %.3f -> %.3f, dur %.3f -> %.3f s' % (d_tap, d_full, d_run, st_tap_dur, st_full_dur))
+
+
+def test_she_jumps_high_on_both_feet_from_standing(report):
+    """Standing still, told `hop` with 5 ms (`charge=0.0`) vs 250 ms (`charge=1.0`), she executes
+    a two-footed vertical jump (`SS -- SS`) whose airborne duration, sole clearance and CoM apex
+    strictly increase with charge while remaining near her starting spot."""
+    from machine import worker
+    stats = {}
+    for ch in (0.0, 1.0):
+        s = worker.session()
+        worker.apply(s, {'scenario': 'flat'})
+        for _ in range(500):
+            worker.stepped(s)
+        y0 = float(s['g']['s']['com'][1])
+        z0 = float(s['g']['est']['pos'][2])
+        worker.apply(s, {'charge': ch, 'say': 'hop'})
+        air_s, clear_mm, y_max, stances = 0.0, 0.0, y0, []
+        for _ in range(2500):
+            worker.stepped(s)
+            l0, l1 = float(s['g']['loads'][0]), float(s['g']['loads'][1])
+            st = ''.join('S' if k else '-' for k in s['g']['ask']['stance'])
+            if not stances or stances[-1] != st:
+                stances.append(st)
+            if l0 < 5.0 and l1 < 5.0:
+                air_s += worker.DT
+            clear_mm = max(clear_mm, 1e3 * min(float(f['pts'][:, 1].min()) for f in s['g']['s']['feet']))
+            y_max = max(y_max, float(s['g']['s']['com'][1]))
+        dz = float(s['g']['est']['pos'][2]) - z0
+        stats[ch] = (air_s, clear_mm, y_max - y0, dz, ' '.join(stances), s['fallen_at'])
+    a0, c0, dy0, dz0, st0, f0 = stats[0.0]
+    a1, c1, dy1, dz1, st1, f1 = stats[1.0]
+    report.check('standing two-footed jump (5 ms vs 250 ms) leaves and lands on both soles and jumps higher when held',
+                 f0 is None and f1 is None and st0[:8] == 'SS -- SS' and st1[:8] == 'SS -- SS'
+                 and a1 >= 0.18 and a1 > a0 + 0.04 and c1 >= 80.0 and c1 > c0 + 25.0
+                 and dy1 > dy0 + 0.012 and abs(dz0) <= 0.20 and abs(dz1) <= 0.20,
+                 '5 ms: air %.3f s, clear %.1f mm, dy +%.1f mm, dz %+.2f m (%s); '
+                 '250 ms: air %.3f s, clear %.1f mm, dy +%.1f mm, dz %+.2f m (%s)'
+                 % (a0, c0, dy0 * 1e3, dz0, st0, a1, c1, dy1 * 1e3, dz1, st1))
 
 
 def test_she_hops_and_stands(report):
@@ -161,36 +208,52 @@ def test_she_hops_on_the_loop(report):
 
 
 def test_she_leaps_in_stride_and_walks_on(report):
-    """Walking at 0.69 m/s, told `hop` at mid-stride (`t = 2.0 s`), she gathers onto both soles,
-    leaps with both soles off the floor (`air >= 0.15 s`, `>= 45 mm` clearance), lands and walks on."""
-    from machine import worker
-    for ch in (0.0, 1.0):
-        s = worker.session()
-        worker.apply(s, {'scenario': 'flat'})
-        for _ in range(500):
-            worker.stepped(s)
-        worker.apply(s, {'twist': (0.69, 0.0, 0.0)})
-        for _ in range(2000):
-            worker.stepped(s)
-        z0 = float(s['g']['est']['pos'][2])
-        worker.apply(s, {'charge': ch, 'say': 'hop'} if ch > 0.0 else {'say': 'hop'})
-        air_s, clear_mm = 0.0, 0.0
-        for _ in range(3500):
-            worker.stepped(s)
-            l0, l1 = s['g']['loads']
-            if l0 < 5.0 and l1 < 5.0:
-                air_s += worker.DT
-            clear_mm = max(clear_mm, 1e3 * min(float(f['pts'][:, 1].min()) for f in s['g']['s']['feet']))
-        dz = float(s['g']['est']['pos'][2]) - z0
-        report.check('in-stride leap (charge %.1f) flies on both soles, lands and walks on' % ch,
-                     s['fallen_at'] is None and air_s >= 0.15 and clear_mm >= 45.0 and dz >= 0.45,
-                     'air %.3f s, clear %.1f mm, dz %.2f m, fallen_at=%s'
-                     % (air_s, clear_mm, dz, s['fallen_at']))
+    """Walking (0.69 m/s) and running (1.40 m/s), told `hop` at mid-stride (`t = 2.0 s`), she
+    gathers onto both soles, leaps forward with both soles off the floor (`air >= 0.15 s`,
+    `>= 45 mm` clearance), leaps further when Space is held 250 ms vs 5 ms and when running vs
+    walking, lands and continues her gait."""
+    from machine import sprung, worker
+    leap_dz = {}
+    for label, vx in (('walk', 0.69), ('run', 1.40)):
+        for ch in (0.0, 1.0):
+            s = worker.session()
+            worker.apply(s, {'scenario': 'flat'})
+            for _ in range(500):
+                worker.stepped(s)
+            worker.apply(s, {'twist': (vx, 0.0, 0.0)})
+            for _ in range(2000):
+                worker.stepped(s)
+            z0 = float(s['g']['est']['pos'][2])
+            worker.apply(s, {'charge': ch, 'say': 'hop'} if ch > 0.0 else {'say': 'hop'})
+            air_s, clear_mm, z_hop = 0.0, 0.0, None
+            t_hop = float(s['g'].get('_jump_t0', 0.0))
+            for _ in range(4200):
+                worker.stepped(s)
+                if z_hop is None and s['g']['t'] >= t_hop:
+                    z_hop = float(s['g']['est']['pos'][2])
+                l0, l1 = s['g']['loads']
+                if l0 < 5.0 and l1 < 5.0:
+                    air_s += worker.DT
+                clear_mm = max(clear_mm, 1e3 * min(float(f['pts'][:, 1].min()) for f in s['g']['s']['feet']))
+            dz = float(s['g']['est']['pos'][2]) - z0
+            dz_leap = float(s['g']['est']['pos'][2]) - (z_hop if z_hop is not None else z0)
+            leap_dz[(label, ch)] = dz_leap
+            report.check('%s leap (charge %.1f) flies on both soles, lands and continues' % (label, ch),
+                         s['fallen_at'] is None and air_s >= 0.15 and clear_mm >= 45.0 and dz >= 0.45,
+                         'air %.3f s, clear %.1f mm, dz_leap %.2f m, dz %.2f m, fallen_at=%s'
+                         % (air_s, clear_mm, dz_leap, dz, s['fallen_at']))
+    report.check('holding Space longer (250 ms vs 5 ms) and running vs walking produce a longer forward leap',
+                 leap_dz[('walk', 1.0)] >= leap_dz[('walk', 0.0)] + 0.15
+                 and leap_dz[('run', 1.0)] >= leap_dz[('run', 0.0)] + 0.15
+                 and leap_dz[('run', 1.0)] > leap_dz[('walk', 1.0)],
+                 'walk %.2f -> %.2f m, run %.2f -> %.2f m'
+                 % (leap_dz[('walk', 0.0)], leap_dz[('walk', 1.0)], leap_dz[('run', 0.0)], leap_dz[('run', 1.0)]))
 
 
 ROSTER = [test_her_soles_stand_as_they_bear, test_a_landing_is_under_her_within_reach,
           test_the_loop_meets_an_airborne_soles_ask, test_forward_leap_scales_with_charge,
-          test_she_hops_and_stands, test_she_hops_on_the_loop, test_she_leaps_in_stride_and_walks_on]
+          test_she_jumps_high_on_both_feet_from_standing, test_she_hops_and_stands,
+          test_she_hops_on_the_loop, test_she_leaps_in_stride_and_walks_on]
 
 
 def main(argv=None):

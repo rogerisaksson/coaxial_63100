@@ -156,7 +156,7 @@ def test_a_box_played_out_and_a_zero_slipped_are_named(report):
 
 
 def test_a_load_on_her_back_is_read_off_her_insoles(report):
-    """Standing on her insoles (`#202`), TORSO_KG put on her back (`torso`) is read off her insoles'
+    """Standing on her insoles (`sway`), TORSO_KG put on her back (`torso`) is read off her insoles'
     rows (`wear.torso_load`, `wear.window`) within WITHIN of itself and laid into her law."""
     from machine import modal, worker
     s, _w = _laid()

@@ -49,10 +49,13 @@ def step(g, out, dt):
     af = min(1.0, max(0.0, (c_max - edge.TOUCHED_N) / edge.TOUCHED_N))
     fx, fz = float(f[0]), float(f[2])
     ox, oz = g.get('_felt', (0.0, 0.0))[:2]
-    decay = max(0.0, 1.0 - dt / FELT_S)
-    g['_felt'] = ((1.0 - af) * decay * ox + af * fx, (1.0 - af) * decay * oz + af * fz)
+    rem = math.hypot(ox, oz)
+    rem_d = max(0.0, rem - dt)
+    ox_d, oz_d = ox * (rem_d / max(rem, 1e-9)), oz * (rem_d / max(rem, 1e-9))
     v = g['est']['vel']
     fn, vn = math.hypot(fx, fz), math.hypot(float(v[0]), float(v[2]))
+    nx, nz = fx / max(fn, 1e-9), fz / max(fn, 1e-9)
+    g['_felt'] = ((1.0 - af) * ox_d + af * FELT_S * nx, (1.0 - af) * oz_d + af * FELT_S * nz)
     cv = (fx * float(v[0]) + fz * float(v[2])) / max(fn * vn, 1e-9)
     drv0 = abs(float(out[latent.SWAY][modal.DRIVE]))
     w_opp = (af * min(1.0, max(0.0, (ALONG_COS - cv) / 0.15))
@@ -123,10 +126,10 @@ def soles(b, touch, ids, tips, y, fr, stance):
 def against(g, tw):
     """`tw` (body frame) less any axis aimed into what she felt (`g['_felt']`):
     a wall walked into, a hand that shoved her - she does not walk on into it."""
-    fx, fz = g.get('_felt', (0.0, 0.0))[:2]
-    size = math.hypot(fx, fz)
-    w = min(1.0, max(0.0, (size - 0.5) / edge.TOUCHED_N))
-    nx, nz, sh, ch = fx / max(size, 1e-9), fz / max(size, 1e-9), math.sin(g['heading']), math.cos(g['heading'])
+    ox, oz = g.get('_felt', (0.0, 0.0))[:2]
+    rem = math.hypot(ox, oz)
+    w = min(1.0, rem / 0.10)
+    nx, nz, sh, ch = ox / max(rem, 1e-9), oz / max(rem, 1e-9), math.sin(g['heading']), math.cos(g['heading'])
     cx, cy = sh * nx + ch * nz, ch * nx - sh * nz
     kx = 1.0 - w * (1.0 - min(1.0, max(0.0, (math.copysign(cx, tw[0]) + ALONG_COS) / (1.0 - ALONG_COS))))
     ky = 1.0 - w * (1.0 - min(1.0, max(0.0, (math.copysign(cy, tw[1]) + ALONG_COS) / (1.0 - ALONG_COS))))

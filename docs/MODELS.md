@@ -93,7 +93,7 @@ clipped at 4000 chars.
   power, devices, link, words, control, orient); 11/12 on gemma4:12b.
   Thinking off (it spent the budget and returned nothing).
 - `language.py` locks the session to the question's language; only the
-  host releases it. Stdin/stdout re-coded (cp1252 split `läge`).
+  host releases it. Stdin/stdout re-coded (cp1252 split multi-byte UTF-8).
 - `replies.py`: catches a retyped channel table, tool calls written as
   text, marker noise, a tool named instead of called.
 - `context.py`: prompt <= 0.7 of `num_ctx`, old tool results stubbed to 80

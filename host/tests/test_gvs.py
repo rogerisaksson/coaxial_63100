@@ -181,11 +181,11 @@ def test_data_oriented_ballistic_wire_and_module_addressing(report):
     from tools.sim import ortho as sim_ortho
 
     plan = sim_ortho.planned(['%s@%g' % entry for entry in sprung.WALK] + ['ballistic_walk@30'])
-    # `#204` is entry 3, row 0; `amp.2` (sagittal_drive) is column 4 + ortho.AMP + 2
+    # `walk` is entry 3, row 0; `amp.2` (sagittal_drive) is column 4 + ortho.AMP + 2
     col_drive = 4 + ortho.AMP + 2
-    sym_val = ballistic.now(plan, '#204.amp.2')
+    sym_val = ballistic.now(plan, 'walk.amp.2')
     raw_val = ballistic.now(plan, 'wire[3,0,%d]' % col_drive)
-    report.check('flat wire[e,r,c] and symbolic #204.amp.2 address the exact same float cell',
+    report.check('flat wire[e,r,c] and symbolic walk.amp.2 address the exact same float cell',
                  abs(sym_val - raw_val) < 1e-6 and abs(sym_val - 0.6) < 1e-6,
                  'sym = %.3f, raw = %.3f' % (sym_val, raw_val))
 
@@ -193,15 +193,15 @@ def test_data_oriented_ballistic_wire_and_module_addressing(report):
     try:
         mutated = ballistic.put(plan, {
             'wire[3,0,%d]' % col_drive: 0.72,
-            '#203.blend': 0.55,
+            'step.blend': 0.55,
             'ballistic_walk.apa.amp.2': 0.25,
             'stride.AHEAD_M_S': 0.31,
             'impedance.GOING_S': 0.52,
             'stride.SWING': 0.38,
         })
         report.check('put() mutates wire rows, behaviour phases, and synced module constants',
-                     abs(ballistic.now(mutated, '#204.amp.2') - 0.72) < 1e-6
-                     and abs(ballistic.now(mutated, '#203.blend') - 0.55) < 1e-6
+                     abs(ballistic.now(mutated, 'walk.amp.2') - 0.72) < 1e-6
+                     and abs(ballistic.now(mutated, 'step.blend') - 0.55) < 1e-6
                      and abs(ballistic.now(mutated, 'ballistic_walk.apa.amp.2') - 0.25) < 1e-6
                      and abs(stride.AHEAD_M_S - 0.31) < 1e-9
                      and abs(impedance.GOING_S - 0.52) < 1e-9

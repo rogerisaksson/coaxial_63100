@@ -48,15 +48,19 @@ def ran():
 
 
 def main():
+    from tools.dev import token_budget
     began = time.perf_counter()
+    non_en = token_budget.english_faults()
+    for fault in non_en[:30]:
+        print('smoke: English-only violation - %s' % fault)
     bad = imported()
     for name, fault in bad:
         print('smoke: %s does not import - %s' % (name, fault))
-    fault = None if bad else ran()
+    fault = None if (bad or non_en) else ran()
     if fault:
         print('smoke: her first %.1f s on the loop: %s' % (SECONDS, fault))
-    print('smoke: %s (%.1f s)' % ('FAILED' if bad or fault else 'clean', time.perf_counter() - began))
-    return 1 if bad or fault else 0
+    print('smoke: %s (%.1f s)' % ('FAILED' if (bad or fault or non_en) else 'clean', time.perf_counter() - began))
+    return 1 if (bad or fault or non_en) else 0
 
 
 if __name__ == '__main__':

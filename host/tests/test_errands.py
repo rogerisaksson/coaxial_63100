@@ -45,7 +45,7 @@ def test_a_stop_settles_and_f_is_heard(report):
     worker.apply(s, {'twist': WALK})
     _run(s, 2.0)
     worker.apply(s, {'twist': STOP})
-    flips, stood = _run(s, 4.0, until='#201', after=2.0)
+    flips, stood = _run(s, 4.0, until='stand', after=2.0)
     report.check('the stop: the stand within 2.3 s, under 10 flips of her doing from 2 s on',
                  stood is not None and stood < 2.3 and flips < 10 and _speed(s) < 0.2,
                  'stand after %s, %d flips, %.2f m/s at the end' % (stood, flips, _speed(s)))
@@ -109,7 +109,7 @@ def test_a_chair_a_hair_off_is_sat_on_and_risen_from(report):
 def test_doorway_arm_yields_and_she_walks_on(report):
     """Walking through the room's doorway (`DOOR_X = (0.3, 1.2)` at `z = 3.5 m`) from her initial lay
     near either jamb so her hand or forearm strikes the door frame, her arm yields backward (`<= -0.40 rad`)
-    and she walks on past the doorway without braking to `#201`."""
+    and she walks on past the doorway without braking to `stand`."""
     import numpy as np
     from machine import edge, physics, touch, worker
     for side_name, hd, sh_idx, arm_skin in (('right jamb', 0.148, 13, touch.ARMS[1]),
@@ -130,7 +130,7 @@ def test_doorway_arm_yields_and_she_walks_on(report):
         report.check('doorway %s: arm touched (%.0f N), yielded (%.2f rad) and walked on past z=3.5m'
                      % (side_name, max_arm_f, min_sh),
                      max_arm_f > edge.TOUCHED_N and min_sh < -0.40 and z_end > 3.68
-                     and g.get('active_entry') == '#204' and s['fallen_at'] is None,
+                     and g.get('active_entry') == 'walk' and s['fallen_at'] is None,
                      'z_end=%.2fm min_sh=%.2f max_f=%.1fN entry=%s fallen=%s'
                      % (z_end, min_sh, max_arm_f, g.get('active_entry'), s['fallen_at']))
 

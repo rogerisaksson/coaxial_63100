@@ -12,8 +12,9 @@ move her, a verb for the rest - what an agent sends. R's recordings and their ro
 import json
 import time
 
-from machine import se2
+from machine import leap, se2
 from machine.figure import JOINTS, SEGMENTS, frames, quat
+from machine.leap import HOP_MAX_S, HOP_MIN_S, hop_charge
 from terminal.ui import console, recorder
 from terminal.views import gym, viewpoint
 
@@ -23,9 +24,9 @@ from terminal.views import gym, viewpoint
 CHARGE_N_S, CHARGE_MAX_N, RELEASE_S, FIRST_S = 120.0, 250.0, 0.25, 0.8
 
 #: W S walk her ahead and back in her own frame (`se2.WALK_SPEED`, `se2.RUN_SPEED` on Shift,
-#: `-se2.BACK_SPEED`); A D turn her left and right at `se2.YAW_RATE` - in place alone, on an arc
-#: with W or S -; Q E sidestep at `se2.STRAFE_SPEED`, her facing kept. Each twist one the bench's
-#: plays hold (`tools/sim/scenarios.py`, KEYS).
+#: `-se2.BACK_SPEED`); A D sidestep at `se2.STRAFE_SPEED` with her facing kept - or arc left and
+#: right at `se2.YAW_RATE` with W or S -; Q E turn her left and right in place at `se2.YAW_RATE`
+#: (or on an arc with W or S). Each twist one the bench's plays hold (`tools/sim/scenarios.py`, KEYS).
 TURN_K, SPRINT_RAD, TWIST_STEP = 1.5, 0.2, 0.05
 MOVES = frozenset('wasdqeWASDQE')
 #: A key typed counts held this long, s, where the console cannot tell (a terminal's first
@@ -157,25 +158,28 @@ def polled(raw, st, now, held=None):
 def twist(keys, look=0.0, heading=0.0):
     """(vx, vy, wz) the `keys` held (`polled`) ask of her in her own frame, independent of `look`."""
     _ = look, heading
-    fwd, left = int(keys['w']) - int(keys['s']), int(keys['a']) - int(keys['d'])
-    wz = round(left * se2.YAW_RATE, 2)
+    fwd = int(keys['w']) - int(keys['s'])
+    strafe = int(keys['a']) - int(keys['d'])
+    spin = int(keys['q']) - int(keys['e'])
+    turn = spin or strafe
+    wz = round(turn * se2.YAW_RATE, 2)
     if fwd < 0:
         return (-se2.BACK_SPEED, 0.0, wz)
     if fwd > 0:
-        return (se2.RUN_SPEED if keys['shift'] and not left else se2.WALK_SPEED, 0.0, wz)
-    if left:
-        return (0.0, 0.0, wz)
-    return (0.0, (int(keys['q']) - int(keys['e'])) * se2.STRAFE_SPEED, 0.0)
+        return (se2.RUN_SPEED if keys['shift'] and not turn else se2.WALK_SPEED, 0.0, wz)
+    if spin:
+        return (0.0, 0.0, round(spin * se2.YAW_RATE, 2))
+    return (0.0, strafe * se2.STRAFE_SPEED, 0.0)
 
 
 def _hop_held(state, now, held):
-    """Space held during the leap's preload window: sends progressive `charge` in [0, 1]."""
+    """Space held during the leap's preload window (5 ms to 250 ms): sends progressive `charge` in [0, 1]."""
     hh = state.get('hop_hold')
     if not hh or now - hh['began'] > 0.55:
         state['hop_hold'] = None
         return
     if ' ' in (held or ()) or (hh.get('repeats', 0) > 0 and now - hh['last'] <= 0.12):
-        ch = min(1.0, (now - hh['began']) / 0.40)
+        ch = hop_charge(now - hh['began'])
         if ch > hh['sent'] + 0.02:
             hh['sent'] = ch
             state['body'].send(charge=round(ch, 3))

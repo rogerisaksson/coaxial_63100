@@ -249,8 +249,8 @@ def test_she_hops_and_stands(report):
 
 
 def test_she_walks_on_her_own_payloads(report):
-    """Payloads 201 to 204: 5 m and more in 20 s, >= 0.5 m/s by the end, upright."""
-    got = _went(['#201@0.5', '#202@2', '#203@5', '#204@9'], to=9.5)
+    """Payloads stand to walk: 5 m and more in 20 s, >= 0.5 m/s by the end, upright."""
+    got = _went(['stand@0.5', 'sway@2', 'step@5', 'walk@9'], to=9.5)
     report.check('she walks 5 m and more, at 0.5 m/s and more by the end',
                  got['stood'] and got['went'] >= 5.0 and got['speed'] >= 0.5,
                  '%.2f m, %.2f m/s, %.1f s' % (got['went'], got['speed'], got['t']))
@@ -262,7 +262,7 @@ def test_her_walk_is_none_of_the_gaits_it_is_not_to_be(report):
     """Her walk over 20 s against normal.BAND and looks.FORM."""
     from tools.sim import looks
     from tools.sim import ortho as run
-    got = run.looked(run.planned(['#201@0.5', '#202@2', '#203@5', '#204@9']), 20.0)
+    got = run.looked(run.planned(['stand@0.5', 'sway@2', 'step@5', 'walk@9']), 20.0)
     band = got.get('band', {})
     report.check('she walks 0.5 m/s and more, under 450 J/m, standing',
                  got['stood'] and got.get('speed', 0.0) >= 0.5 and got.get('energy', 1e9) < 450.0,
@@ -368,7 +368,7 @@ def test_the_pages_keys_on_the_loop(report):
                  sent[:2] == [{'say': 0}, {'say': 2}] and abs(sent[2]['push'][2] - 80.0) < 1e-9
                  and sent[3] == {'gym': 'examples'} and sent[4] == {'say': 'crouch'}, '%s' % sent)
     modes = [(name, 0.1, 0.2, 3000.0, 60.0) for name in gym.SHORT]
-    boxes = gym.boxes({'modes': modes, 'says': ('gynoid_mesomorph_medium', '#201', 'crouch')})
+    boxes = gym.boxes({'modes': modes, 'says': ('gynoid_mesomorph_medium', 'stand', 'crouch')})
     report.check('LATENT and SAY of her state; none before it', len(boxes) == 2 and gym.boxes(None) == []
                  and gym.status({'fallen': False, 'doing': 'crouch'}) == 'LATENT  crouch')
     report.check('a text refused is said in her status',

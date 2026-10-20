@@ -18,7 +18,9 @@ SHOVES, SHOVE_S = {'nudge': 38.0, 'push': 80.0, 'shove': 120.0}, 0.12
 WALK_M_S, STEP_S = 0.1, 1.0
 HEARD = ('say', 'walk', 'entries', 'gym', 'text', 'push', 'seconds', 'restart', 'scenario', 'heading', 'twist',
          'grip', 'charge')
-WALK = (('#201', 0.5), ('#202', 2.0), ('#203', 5.0), ('#204', 9.0))
+STREAM_NAMES = {201: 'stand', 202: 'sway', 203: 'step', 204: 'walk', 205: 'walk_back'}
+ALIASES = {'#201': 'stand', '#202': 'sway', '#203': 'step', '#204': 'walk', '#205': 'walk_back', 'back': 'walk_back'}
+WALK = (('stand', 0.5), ('sway', 2.0), ('step', 5.0), ('walk', 9.0))
 BRAKE = ('(stream_inject (sequence_id 200) (blend_duration 500ms) (latent_targets (mode_axial_compression 0.04)'
          ' (mode_pitch_attitude 0.0) (mode_sagittal_shift 0.0) (mode_lateral_shift 0.0) (mode_pelvis_turn 0.0)'
          ' (mode_stance_width 0.0)) (impedance (stiffness mode_axial_compression 3000) (damping mode_axial_compression 800)'
@@ -53,7 +55,8 @@ def entries(text=None, name=GYMS[0]):
     tables, phases = ortho.compiled(text)
     sz = ortho.ROW.size
     stream = [tables[''][i:i + sz] for i in range(0, len(tables['']), sz)]
-    return ([('#%d' % ortho.rows(w)[0][0], w, ('#%d' % ortho.rows(w)[0][0],)) for w in stream]
+    return ([(STREAM_NAMES.get(ortho.rows(w)[0][0], '#%d' % ortho.rows(w)[0][0]), w,
+              (STREAM_NAMES.get(ortho.rows(w)[0][0], '#%d' % ortho.rows(w)[0][0]),)) for w in stream]
             + [(n, tables[n], phases[n] + ('rest',)) for n in phases])
 
 
@@ -111,7 +114,7 @@ def laid(every=1, inner=None, solver=None):
          'q_lo': np.array([_Q_LIM.get(kind(j), (-2.0, 2.0))[0] for j in names]), 'q_hi': np.array([_Q_LIM.get(kind(j), (-2.0, 2.0))[1] for j in names]),
          't': float(world.data.time), 'n': 0, 'every': every, 's': s, 'loads': [hw, hw], 'ask': {}, 'got': {}, 'wo': ESO_WO * (inner == 'eso'),
          'eso': np.array([q0, np.zeros(len(q0)), np.zeros(len(q0))]), 'jeff': np.diag(s['M'])[body.act].copy(), 'surety': 1.0,
-         '_brake_wire': _BRAKE_WIRE, '_stand_entry': next((e for e in entries() if e[0] == '#201'), None),
+         '_brake_wire': _BRAKE_WIRE, '_stand_entry': next((e for e in entries() if e[0] == 'stand'), None),
          'heading': float(fr[modal.HEADING]), 'twist': (0.0, 0.0, 0.0),
          'heat': heat.Heat.for_joints(JOINTS), 'temp': np.full(len(JOINTS), 25.0), 'scenario': 'flat',
          'solve': solve_step, 'sensed': sensed}

@@ -42,14 +42,14 @@ def _git(*args):
 
 
 def staged():
-    """(path, tokens) of every staged file the budget reads, as staged."""
+    """(path, tokens, text) of every staged file the budget reads, as staged."""
     for path in _git('diff', '--cached', '--name-only', '--diff-filter=ACMR').splitlines():
         if path.endswith(token_budget.EXTENSIONS) and not any(
                 part.lower() in token_budget.SKIP for part in path.split('/')[:-1]):
             text = _git('show', ':' + path)
             if token_budget.GENERATED in text.split('\n', 1)[0]:
                 continue
-            yield path, len(text) / 4.0
+            yield path, len(text) / 4.0, text
 
 
 def how(path):
@@ -159,7 +159,14 @@ def setup_faults():
 
 def main():
     code = 0
-    past = [(p, t, token_budget.HEAVY.get(p, token_budget.BUDGET)) for p, t in staged()
+    staged_items = list(staged())
+    non_en = [f for p, _t, txt in staged_items for f in token_budget.english_text_faults(p, txt)]
+    if non_en:
+        print('pre-commit: non-English text found (English only in code and docs):')
+        for fault in non_en[:30]:
+            print('  ' + fault)
+        code = 1
+    past = [(p, t, token_budget.HEAVY.get(p, token_budget.BUDGET)) for p, t, _txt in staged_items
             if t > token_budget.HEAVY.get(p, token_budget.BUDGET)]
     if past:
         print('pre-commit: %d file%s past what a model reads whole - split before committing:'

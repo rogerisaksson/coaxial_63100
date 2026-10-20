@@ -19,6 +19,13 @@ the table under [Subjects](#subjects).
   firmware and drives, emulated or on the bench.
 - Under the text no rule a case and no branch: flat static arrays, a mode a
   spring, a landing read from the gynoid humanoid robot capture point.
+- Avoid all conditional logic (`if`-statements, boolean gates, discrete mode
+  switches, string-name checks and hard thresholds) in favour of continuous
+  physical and mathematical formulas: SE(3) kinematics, Euler-Lagrange
+  dynamics, smooth convex blends and support-polygon projections. Whether she
+  walks, stands, sits on a chair, lies on a bed or leans on an obstacle is
+  implicit in her continuous SE(3) and modal state vectors; discrete labels
+  project strictly outward (`machine.situation` -> `state['situation']`).
 - A special case means the problem needs a more general form.
 
 ## Subjects

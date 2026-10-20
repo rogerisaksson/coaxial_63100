@@ -154,6 +154,7 @@ def planned(asked, text=None):
     plan, at = [], AT_S
     for word in asked:
         label, _, when = word.partition('@')
+        label = sprung.ALIASES.get(label, label)
         if label not in gym:
             raise KeyError('no entry %s: %s' % (label, ', '.join(gym)))
         at = float(when) if when else at

@@ -96,11 +96,11 @@ def test_the_keys_that_move_her_are_one_twist(report):
         keys = dict({k: k in word.lower() for k in 'wsadqe'}, shift=word != word.lower())
         return humanoid_keys.twist(keys, viewpoint.looks({'yaw': yaw}), heading)
 
-    report.check('in her frame: W walks her on, S walks her back, A turns her left',
-                 (tw('w'), tw('s'), tw('a')) == ((0.69, 0.0, 0.0), (-0.35, 0.0, 0.0), (0.0, 0.0, 0.7)))
-    report.check('independent of view yaw: W walks straight, WA arcs left, Shift+W sprints, Q sidesteps left',
-                 (tw('w', 240.0), tw('wa', 240.0), tw('W', 90.0), tw('q', 45.0))
-                 == ((0.69, 0.0, 0.0), (0.69, 0.0, 0.7), (1.4, 0.0, 0.0), (0.0, 0.5, 0.0)))
+    report.check('in her frame: W walks her on, S walks her back, A sidesteps left, Q turns her left in place',
+                 (tw('w'), tw('s'), tw('a'), tw('q')) == ((0.69, 0.0, 0.0), (-0.35, 0.0, 0.0), (0.0, 0.5, 0.0), (0.0, 0.0, 0.7)))
+    report.check('independent of view yaw: W walks straight, WA arcs left, Shift+W sprints, D sidesteps right',
+                 (tw('w', 240.0), tw('wa', 240.0), tw('W', 90.0), tw('d', 45.0))
+                 == ((0.69, 0.0, 0.0), (0.69, 0.0, 0.7), (1.4, 0.0, 0.0), (0.0, -0.5, 0.0)))
     every = {tw(w, yaw, hd) for w in ('w', 's', 'a', 'd', 'wa', 'wd', 'sa', 'sd', 'q', 'e', 'W', 'WA', 'S')
              for yaw in range(0, 360, 15) for hd in (0.0, 1.0, -2.0)}
     bound = [max(abs(t[i]) for t in scenarios.KEYS.values()) for i in range(3)]
@@ -192,7 +192,7 @@ def test_her_verbs_and_the_chase(report):
     show_humanoid.KEYS['c'](st)
     show_humanoid.KEYS['x'](st)
     report.check('C crouches her and stands her from it; X looks over her other shoulder',
-                 sent == [{'say': 'crouch'}, {'say': '#201'}] and st['shoulder'] == -1.0
+                 sent == [{'say': 'crouch'}, {'say': 'stand'}] and st['shoulder'] == -1.0
                  and viewpoint.panned(st)[0] == -viewpoint.SHOULDER_M)
     t, behind = 100.0, 180.0 + math.degrees(1.0)
     went, looked, stood = ({**viewpoint.HOME, 'orbit': False} for _ in range(3))
@@ -202,7 +202,7 @@ def test_her_verbs_and_the_chase(report):
             viewpoint.chased(view, 1.0, going, t + 0.5 + dt)
     from coaxial.graphics import arrows
     errands = [arrows.describe(dict(st['now'], doing=d, entry=e, velocity=(0.0, 0.35)))['kind']
-               for e in ('sit_chair', 'lie_bed', 'stairs_walk') for d in ('init_walk', 'brake', '#201', e)]
+               for e in ('sit_chair', 'lie_bed', 'stairs_walk') for d in ('init_walk', 'brake', 'stand', e)]
     orb = {**viewpoint.HOME, 'orbit': False, 'left_held': True}
     viewpoint.mouse(orb, lambda: (120, 50))['on_drag'](30, 5)
     yaw_held, pitch_held = orb['yaw'], orb['pitch']
@@ -274,7 +274,7 @@ def test_scenario_deck_tour_handoff_and_cybernetic_hud(report):
     humanoid_keys.act_on(show_humanoid.KEYS, ['w'], st)
     report.check('a key that moves her ends the tour', st.get('tour') is None)
 
-    nom = {'fallen': False, 'doing': '#204', 'watts': 120.0, 'turn': (1, 0, 0, 0), 'loads': (160.0, 160.0),
+    nom = {'fallen': False, 'doing': 'walk', 'watts': 120.0, 'turn': (1, 0, 0, 0), 'loads': (160.0, 160.0),
            'where': (0.0, 0.9, 0.0), 'cadence': 0.9, 'phase': 0.2, 'ratio': 1.2, 'speed': 0.65,
            'velocity': (0.0, 0.65), 'twist': (0.0, 0.0, 0.0), 'angles': {}, 'torque': {}, 'power': {}, 'temp': {}, 'peak': {}}
     bal, thm, stb, tag = show_humanoid.telemetry_core(nom)

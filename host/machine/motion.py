@@ -108,7 +108,7 @@ def _step_latent(g, dt):
     st, tab, t = g['st'], g['tab'], g['t']
     hit = ((tab[:, latent.AT] <= t + latent.EDGE_S) & (tab[:, latent.AT] > t - dt + latent.EDGE_S)).astype(float)
     w_row = ((tab[:, latent.SAID].min(axis=1) > 0.5) & (tab[:, latent.VALS][:, latent.AMP].max(axis=1) > 0.05)).astype(float)
-    wake = float(st[latent.NOW][latent.GAIN] <= 0.02) * min(1.0, float(hit @ w_row))
+    wake = min(1.0, max(0.0, (0.04 - float(st[latent.NOW][latent.GAIN])) / 0.02)) * min(1.0, float(hit @ w_row))
     st[latent.THETA] *= 1.0 - wake
     w_ph = wake * np.minimum(hit @ tab[:, latent.SAID][:, latent.PHASE], 1.0)
     st[latent.NOW][latent.PHASE] += w_ph * (hit @ tab[:, latent.VALS][:, latent.PHASE] - st[latent.NOW][latent.PHASE])
@@ -132,7 +132,7 @@ _BRACE_AX = {'spine': -0.25, 'neck': -0.20, 'left_shoulder': 0.65, 'right_should
 _BRACE_LAT = {'left_shoulder_roll': 0.45, 'right_shoulder_roll': 0.45, 'left_hip_roll': 0.15, 'right_hip_roll': 0.15}
 
 
-def surety(g, dt):
+def surety(g, dt, ct=math.nan):
     """Her directional surety field (`g['surety']` in [0, 1], `g['surety_vec']` = (s_ax, s_lat,
     d_ax, d_lat)) from her IMU, her soles' loads and her kinematics: highest in a wide double
     stance, lower on a single walking sole, held in quasi-static equilibrium on a seat or bed,
@@ -150,8 +150,10 @@ def surety(g, dt):
     ap_y, w_gyro = float(r_y @ acc), float(np.linalg.norm(gyro))
     wt = max(float(fr[modal.WEIGHT]), 1.0)
     loads = np.maximum(y[modal.LOAD], y_in[edge.LOAD])
-    w, f_soles = np.clip(loads / (0.25 * wt), 0.0, 1.0), float(loads.sum()) / wt
-    theta = math.radians(edge.tilt(y_in))
+    k_ax = max(float(g['st'][latent.TO][latent.K][modal.AXIAL]), float(g['st'][latent.FROM][latent.K][modal.AXIAL]))
+    w_jump = min(1.0, max(0.0, (k_ax - 15000.0) / 5000.0))
+    w, f_soles = np.maximum(np.clip(loads / (0.25 * wt), 0.0, 1.0), w_jump), float(loads.sum()) / wt
+    theta = math.radians(float(np.nan_to_num(ct, nan=edge.tilt(y_in))))
     theta_e = max(0.0, theta - abs(float(a[modal.WANT][0])))
     v_norm = float(np.linalg.norm(v))
     w_ext = min(1.0, max(0.0, (ap_y / modal.G - f_soles) / 0.45)) * math.exp(-(w_gyro / 1.2) ** 2 - (v_norm / 0.18) ** 2 - (theta_e / 0.65) ** 4)
@@ -161,7 +163,7 @@ def surety(g, dt):
     b_lo = (1.0 - w_both) * lo_1 + w_both * lo.min(axis=0) - w_ext * 0.16
     b_hi = (1.0 - w_both) * hi_1 + w_both * hi.max(axis=0) + w_ext * 0.16
     mid, span = 0.5 * (b_lo + b_hi), np.maximum(0.5 * (b_hi - b_lo), 0.02)
-    w_air = max(0.0, 1.0 - float(g['out'][latent.ZMP]))
+    w_air = max(0.0, 1.0 - float(g['out'][latent.ZMP]), w_jump)
     w_prop = max(w_ext, float(a[modal.BORNE]), w_air)
     w_sup = min(1.0, 0.42 + 0.30 * float(w[0] + w[1]) + 0.22 * float(max(w[0], w[1])) + 0.55 * w_prop)
     cap = w_sup * (0.85 + 0.15 * (span / (span + np.array([0.04, 0.05]))))
@@ -210,9 +212,11 @@ def control(g, dt):
     w_back = float(g.get('_w_back', 0.0))
     imp[modal.HEADED][1] += w_back * (float(g.get('_backing_yaw', 0.0)) - imp[modal.HEADED][1])
     sr = surety(g, dt * ev)
-    bw = max(0.0, 1.0 - (sr / 0.50) ** 2) ** 3
+    bw = max(0.0, 1.0 - (sr / 0.58) ** 4) ** 2
     sw = 1.0 - bw
     _, _, d_ax, d_lat = g['surety_vec']
+    k_ax = max(float(g['st'][latent.TO][latent.K][modal.AXIAL]), float(g['st'][latent.FROM][latent.K][modal.AXIAL]))
+    w_hop = float((k_ax > 15000.0) & (g['st'][latent.TO][latent.AMP][modal.DRIVE] < 0.1))
     imp[modal.BEND] *= sw
     imp[modal.SWUNG] *= sw
     imp[modal.PREFOLD] *= sw
@@ -227,12 +231,11 @@ def control(g, dt):
     ask = g['ask'] = modal.given(imp, y, posed, body.knees)
     ask['mu'] = g['held']
     cv, acv = g['_cv_sh'], g['_acv_sh']
-    k_ax = max(float(g['st'][latent.TO][latent.K][modal.AXIAL]), float(g['st'][latent.FROM][latent.K][modal.AXIAL]))
-    w_hop = float((k_ax > 15000.0) & (g['st'][latent.TO][latent.AMP][modal.DRIVE] < 0.1))
     w_gait = min(1.0, max(0.0, (0.05 - float(g['st'][latent.NOW][latent.GAIN])) / 0.05))
     z_to = g['st'][latent.TO][latent.Z]
-    w_sit = float((z_to[modal.AXIAL] > 1.5) & (z_to[modal.PITCH] > -0.2)
-                  & ~np.any(g['tab'][:, latent.VALS][:, latent.Z][:, modal.PITCH] < -0.2))
+    ax = float(z_to[modal.AXIAL])
+    rec = min(float(z_to[modal.PITCH]), float(np.min(g['tab'][:, latent.VALS][:, latent.Z][:, modal.PITCH], initial=0.0)))
+    w_sit = min(1.0, max(0.0, (ax - 1.5) / 0.01)) * min(1.0, max(0.0, (rec + 0.2) / 0.01))
     w_base = sw * max(w_hop, (1.0 - float(g['a'][modal.STRIDES])) * w_gait * (1.0 - w_sit))
     w_up = w_base * np.array([1.0, 1.0, w_hop, w_hop])
     M = s['M'].copy()
@@ -244,7 +247,9 @@ def control(g, dt):
     tau_br = np.clip(s['M'][act, :][:, act] @ qdd_br + s['M'][act, :6] @ g['got']['qacc'][:6] + s['h'][act], -body.clamp, body.clamp)
     g['got']['qacc'][act] = sw * g['got']['qacc'][act] + bw * qdd_br
     g['got']['tau'][:] = sw * g['got']['tau'] + bw * tau_br
-    qdd_cv = np.clip(3.2 * wbc.POSTURE_KD[0] * (ask['posture'][cv] - s['q'][cv]) - 1.8 * wbc.POSTURE_KD[1] * s['v'][acv], -130.0, 130.0)
+    kp_cv = np.array([3.2, 3.2, 1.0 + 2.2 * w_hop, 1.0 + 2.2 * w_hop]) * wbc.POSTURE_KD[0]
+    kd_cv = np.array([1.8, 1.8, 1.0 + 0.8 * w_hop, 1.0 + 0.8 * w_hop]) * wbc.POSTURE_KD[1]
+    qdd_cv = np.clip(kp_cv * (ask['posture'][cv] - s['q'][cv]) - kd_cv * s['v'][acv], -130.0, 130.0)
     tau_cv = M[acv, :][:, acv] @ qdd_cv + M[acv, :6] @ g['got']['qacc'][:6] + s['h'][acv]
     g['got']['qacc'][acv] += w_up * (qdd_cv - g['got']['qacc'][acv])
     g['got']['tau'][cv] += w_up * (tau_cv - g['got']['tau'][cv])

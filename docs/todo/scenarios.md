@@ -67,15 +67,32 @@ serves its DOD; none an entry a case.
    floor. 80 N met: standing 32 of 32, walking 28 (forward-aside 5 of 8).
    200 N: standing 14 of 32 stand or fall soft, walking 21; the rest strike
    her head at 1.1-4.5 m/s. DOD: 200 N falls with the head under 1 m/s.
-6. **One jump**: takeoff from the height and distance to land - a hop's
-   landing said with it, its throw forward from that, not from a twist; the
+6. **One jump** (`machine.leap`, `terminal.views.humanoid_keys`): takeoff from
+   the height and distance to land - a hop's landing said with it, its throw
+   parameterized continuously by `Space` hold duration (`5 ms` to `250 ms` ->
+   `charge` in `[0, 1]`): standing still (`stand`), a two-footed vertical jump
+   maximizing apex height (`SS -- SS`, `t_air >= 180 ms`, `h_clear >= 80 mm` at
+   `250 ms` hold); walking (`walk`) or running (`jog` / `Shift+W`), an in-stride
+   forward leap whose airborne distance and arc lengthen with `Space` hold time
+   and forward speed, landing on her capture point and continuing her gait; the
    chair's two texts reach no hop yet (scenarios.md); off and onto a 0.45 m
    seat her knees work at 0.93-1.0 of their peak, past the drives' 50 %
    margin (demand.md) - the seat's height or the knees' drives to decide. DOD:
-   down from a chair, two-footed up onto one (0.45 m), in place; landed
-   standing.
+   standing high two-footed jump (`5 ms` vs `250 ms`), walking forward leap and
+   running forward leap (`5 ms` vs `250 ms`) verified against flight-time,
+   dual-sole clearance and distance criteria in `test_leap.py`; down from a
+   chair, two-footed up onto one (0.45 m), in place; landed standing.
 7. **The drives for it**: a gait under way, a swing led or her capture point
    past a lone standing sole grants a held drive 1.45x its clamp, past its
    parts' peak. Without it the turns hold and the turnabout better (13 of 13,
    7 granted); the weave falls at 4 of 13 (demand.md). DOD: each scenario's
    peak, rms, speed and heat under 2/3 of its parts.
+8. **Viewport `[F]` affordance and autonomous approach to bed, chair and
+   doorway** (`terminal.views.scanner`, `terminal.views.gym`, `machine.worker`,
+   `machine.se2`): walking toward the bed, chair or doorway in the terminal
+   shows `[F]` in the viewport prompt (`[F] lie bed`, `[F] sit chair`,
+   `[F] exit door`) and clicking `[F]` or pressing `F` steers her autonomously
+   to the target's docking pose and completes the action (walks to the bed and
+   lies down, walks to the chair and sits down, or walks through the doorway out
+   of the house). DOD: verified end-to-end in `test_errands.py` and
+   `test_views_humanoid.py`.

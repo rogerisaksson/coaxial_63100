@@ -43,12 +43,12 @@ identification. Her figure: [kinematics](kinematics.md); her drives:
 | edge | the one reader of the world for her law - IMU, encoders, sole loads, a skin a segment, insoles - and the one writer of her drives |
 | estimate | her pelvis's place and speed of what she measures: the IMU carried, drawn to her bearing insoles; how fast they slide |
 | grip | each sole's floor friction as she feels it: what a sliding sole uses |
-| touch | what her skin and soles feel: a touch against her going stops it, one along it walked out, her going cut toward what she felt, a trip on an edge |
+| touch | what her skin and soles feel, with no branch: upper-body admittance yield, sole trip clearance and continuous twist gating |
 | borne | what bears the body off its soles as its skin feels it: the law's support, the step's contacts |
-| situation | where she is, from her sensors: bounds on six readings, the text's caps over her law |
-| law | her law's pass on her sensors alone: sensed, latent, impedance, wrench (or wbc), the drives' observers under it |
+| situation | where she is, projected outward from her continuous sensors and modal state to telemetry (`state['situation']`) |
+| motion | her branchless inner law's pass on her sensors alone: sensed, latent, impedance, wrench (or wbc), directional surety and the drives' observers |
 | sprung | the latent loop run: her world read and told through her edge, her law's pass between; her process, paced to the clock: the one thing that moves her |
-| worker | her process's session: a pass at a time, each command logged with its epoch and pass, falls recovered; the page's states |
+| worker | her outer loop and session: discrete commands mapped to continuous setpoints, each logged with its epoch and pass, falls recovered; the page's states |
 | tour | the scenes one after another, commanded as an agent commands them |
 | sysid | her body identified of her edge alone: Newton-Euler down her tree, the base parameters; her pelvis's rows off her insoles or a load cell |
 | campaign | the stand's campaign; each gearbox and rotor read |
@@ -79,5 +79,14 @@ identification. Her figure: [kinematics](kinematics.md); her drives:
 | `test_compiled.py` | her numpy compiled to C (`tools.cores.bodied`) beside numpy's own: its reductions and ties of zeros, her state in place, her sensing at random configurations, her law's compiled parts at every pass walking |
 
 ## Software Systems Engineering Architecture
+
+All inner control, contact and observer modules (`motion`, `touch`, `grip`,
+`se2`, `latent`, `modal`, `impedance`, `poise`, `stride`, `support`, `borne`,
+`wrench`) operate as a branchless physical and mathematical continuum on SE(3)
+and modal vectors without conditional logic (`if`-statements, mode-string
+branches or discrete thresholds). External commands enter through the outer
+setpoint loop (`worker`, `se2.heard_twist`), and discrete situation labels are
+projected strictly outward (`situation` -> `state['situation']`) for telemetry
+and external planners.
 
 ![Software systems engineering and real-time control architecture](software_layout.svg)

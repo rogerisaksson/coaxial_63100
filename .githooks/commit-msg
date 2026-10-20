@@ -1,0 +1,13 @@
+#!/bin/sh
+# Reject commit messages containing non-English characters or words.
+exec python -X utf8 -c "
+import sys
+from host.tools.dev import token_budget
+msg = open(sys.argv[1], encoding='utf-8', errors='replace').read()
+faults = token_budget.english_text_faults('COMMIT_EDITMSG', msg)
+if faults:
+    print('commit-msg: English only in commit messages:')
+    for f in faults:
+        print('  ' + f)
+    sys.exit(1)
+" "$1"

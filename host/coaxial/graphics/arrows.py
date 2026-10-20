@@ -10,7 +10,7 @@ FRAME_INK, FILL_INK = (72, 216, 255), (88, 255, 144)
 STOP_INK, LAND_INK = (255, 112, 96), (255, 184, 72)
 
 _TWISTS = (
-    (0.22, 0.0, '#202'), (0.28, 0.0, 'apa'), (0.30, 0.0, 'ice_walk', 'shuffle'), (0.32, 0.0, '#203'),
+    (0.22, 0.0, 'sway'), (0.28, 0.0, 'apa'), (0.30, 0.0, 'ice_walk', 'shuffle'), (0.32, 0.0, 'step'),
     (0.35, 0.0, 'init_walk', 'init', 'trip', 'mincing'), (0.45, 0.0, 'stairs_down', 'descent'),
     (0.55, 0.0, 'stairs_walk', 'climb', 'slope_walk', 'incline'), (0.85, 0.0, 'ballistic_walk', 'stride'),
     (1.25, 0.0, 'jog', 'run'), (0.69, 0.55, 'turn_left', 'circle_walk'), (0.69, -0.55, 'turn_right'),
@@ -234,7 +234,7 @@ def describe(now, se2_st=None):
     _, normal = surface_at(origin[0], origin[2], props)
     raw_hd, doing, vel_xz = float(now.get('heading', 0.0)), str(now.get('doing', 'rest')), now.get('velocity', (0.0, 0.0))
     entry = str(now.get('entry') or '')
-    intent = entry if doing in ('brake', '#201', 'rest', 'init_walk') and entry in (JUMP_DOING | FALL_DOING | RISE_DOING | set(GAIT_TWIST)) else doing
+    intent = entry if doing in ('brake', 'stand', 'rest', 'init_walk') and entry in (JUMP_DOING | FALL_DOING | RISE_DOING | set(GAIT_TWIST)) else doing
     pyaw = pelvis_yaw(now, raw_hd)
     set_hd = se2.wrap_angle(pyaw + 0.35 * se2.wrap_angle(raw_hd - pyaw))
     sh, ch, spd_phys = math.sin(pyaw), math.cos(pyaw), math.hypot(float(vel_xz[0]), float(vel_xz[1]))

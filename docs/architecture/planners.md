@@ -13,11 +13,11 @@ Run by her law ([robotics](robotics.md)). Findings:
 | latent | humanoid robot latent state stepped with no branch: a row laid by a mask, the state a lerp, humanoid robot rhythm one angle; each mode's reference and impedance out |
 | modal | humanoid robot modes on the body, no branch: the soles' places from the centre of mass as sums and differences, the standing legs' compression, the turns; what is sensed, the statics and the loop's ask laid flat |
 | impedance | humanoid robot modes' springs rendered, no branch: the centre of mass's acceleration, a sole in the air, the turns, arms and knees - the whole-body loop's ask |
-| poise | humanoid robot ZMP into humanoid robot soles' polygon, humanoid robot capture point kept in it; which soles stand |
+| poise | humanoid robot ZMP into humanoid robot spanned support polygon, humanoid robot capture point kept in it; which soles stand, with no branch |
 | stride | humanoid robot stride from humanoid robot drive's phase: when a limb swings, where its sole lands (humanoid robot capture point), its clearance, its rock heel to toe, a standing sole's heel rising |
-| flight | on the whole-body stack: which soles stand, told from one pass - each as it bears, an unloaded one beside one that bears or with humanoid robot at rest; one that does not is asked to its landing (reach) |
-| support | the whole-body ask shaped for a hop's flight, a hit's momentum and a swing kept clear |
-| se2 | the twist on the loop: the gait it walks by, the heading turned by it, the rhythm by it |
+| leap | on the whole-body stack: which soles stand, told from one pass - each as it bears, an unloaded one beside one that bears or with humanoid robot at rest; one that does not is asked to its landing (reach) |
+| support | sparse upper-body admittance coupling between driven joint innovations and modal references, with no branch |
+| se2 | the outer twist-to-setpoint gate and the inner branchless heading, analog insole floor-plane and CPG modulation pass |
 
 - The texts: `gynoid_mesomorph_medium.lisp` (and `_r80`), `gait_base.lisp`,
   `postures_base.lisp`, `stunts_base.lisp`, `situations.lisp`,

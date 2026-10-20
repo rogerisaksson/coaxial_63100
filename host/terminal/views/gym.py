@@ -38,12 +38,12 @@ CROUCHED = 'down'
 #: Each mode's name in the box; what each stream payload is called on the page.
 SHORT = ('axial', 'lateral', 'drive', 'pitch', 'sagittal', 'lift', 'width', 'list', 'turn', 'arms', 'rock')
 NAMED = {
-    '#201': '#201 stand', '#202': '#202 sway', '#203': '#203 step', '#204': '#204 walk', '#205': '#205 back',
+    'stand': 'stand', 'sway': 'sway', 'step': 'step', 'walk': 'walk', 'walk_back': 'walk back',
     'weight_shift': 'weight shift', 'bow': 'bow', 'ballistic_walk': 'ballistic walk',
     'sit_chair': 'sit chair', 'rise_chair': 'rise chair', 'lie_bed': 'lie bed', 'rise_bed': 'rise bed',
     'lie_floor': 'lie floor', 'rise_floor': 'rise floor', 'hop_down_chair': 'hop down chair',
     'hop_up_chair': 'hop up chair', 'strafe_left': 'sidestep left', 'strafe_right': 'sidestep right',
-    'turn_left': 'turn left', 'turn_right': 'turn right',
+    'turn_left': 'turn left', 'turn_right': 'turn right', 'spin_left': 'spin left', 'spin_right': 'spin right',
     'turn_back_left': 'turn back left', 'turn_back_right': 'turn back right',
 }
 
@@ -73,7 +73,7 @@ def contextual_rise(now, scenario=None):
             return move
     if now.get('stage') in ('down', 'fallen', 'floor'):
         return 'rise_floor'
-    return '#201' if (doing == CROUCHED or now.get('fallen')) else None
+    return 'stand' if (doing == CROUCHED or now.get('fallen')) else None
 
 
 def offered(now, seen):
@@ -131,7 +131,7 @@ def _offer(key):
 def _crouched(state):
     """C: a crouch, or up from one."""
     now = state.get('now') or {}
-    _said(state, '#201' if now.get('doing') == CROUCHED else 'crouch')
+    _said(state, 'stand' if now.get('doing') == CROUCHED else 'crouch')
 
 
 def _run_scenario(state, scen=None):
@@ -225,8 +225,8 @@ def boxes(now, tour=None):
         ('scenario'.rjust(10), scen[:25]),
         ('situation'.rjust(10), str(now.get('situation') or 'open')[:25]),
         ('objective'.rjust(10), keybindings.SCENARIO_DESC.get(scen, scen).split('//')[-1].strip()[:25]),
-        ('wasd / shf'.rjust(10), 'go from the view / sprint'),
-        ('q e / spc'.rjust(10), 'sidestep / hop'),
+        ('wasd / shf'.rjust(10), 'move & sidestep / sprint'),
+        ('q e / spc'.rjust(10), 'turn in place / hop'),
         ('f / c'.rjust(10), 'interact / crouch'),
     ]
     items = [(DIGITS[i], NAMED.get(s, str(s)).replace('_', ' '))

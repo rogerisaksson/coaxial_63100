@@ -88,12 +88,15 @@ def _bound(tree):
 
 def test_every_file_fits_a_reading(r):
     """No file past the token budget a model reads a file whole by, and none of those still
-    over it grown past its cap (tools/dev/token_budget.py)."""
+    over it grown past its cap (tools/dev/token_budget.py); English only across code and docs."""
     from tools.dev import token_budget
     past = token_budget.breaches()
     r.check('every file within %.0f k tokens, or its cap while it is split'
             % (token_budget.BUDGET / 1e3), not past,
             ', '.join('%s %.1f k of %.1f' % (p, t / 1e3, cap / 1e3) for p, t, cap in past))
+    non_en = token_budget.english_faults()
+    r.check('every code and documentation file is strictly in English',
+            not non_en, '; '.join(non_en[:5]))
 
 
 def test_imports(r):
@@ -381,8 +384,9 @@ def test_the_gym_moves_her_through_the_world_alone(r):
             svg_ok, svg_path)
     sw_svg = os.path.join(repo, 'docs', 'architecture', 'software_layout.svg')
     rob_doc = os.path.join(repo, 'docs', 'architecture', 'robotics.md')
-    r.check('docs/architecture/software_layout.svg has zero connector-box overlaps and is linked in robotics.md',
-            os.path.isfile(sw_svg) and 'software_layout.svg' in open(rob_doc, encoding='utf-8').read()
+    r.check('docs/architecture/software_layout.svg is generated from live code (edge.software_layout_svg), overlap-free and linked in robotics.md',
+            os.path.isfile(sw_svg) and open(sw_svg, encoding='utf-8').read() == edge.software_layout_svg()
+            and 'software_layout.svg' in open(rob_doc, encoding='utf-8').read()
             and svg_connectors_clear(sw_svg) and svg_connectors_clear(svg_path), sw_svg)
     abus_svg = os.path.join(repo, 'docs', 'architecture', 'aircraft_bus_layout.svg')
     asw_svg = os.path.join(repo, 'docs', 'architecture', 'aircraft_software_layout.svg')

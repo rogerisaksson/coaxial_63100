@@ -136,10 +136,16 @@ def lint_py(paths):
 
 
 def lint(paths):
-    paths = [os.path.abspath(p) for p in paths
-             if p.endswith(KINDS) and os.path.isfile(p)
-             and os.path.normcase(os.path.abspath(p)).startswith(os.path.normcase(REPO))]
-    return (lint_md([p for p in paths if p.endswith('.md')])
+    from tools.dev import token_budget
+    abs_all = [os.path.abspath(p) for p in paths if p.endswith(KINDS) and os.path.isfile(p)]
+    non_en = []
+    for p in abs_all:
+        with open(p, encoding='utf-8', errors='replace') as f:
+            non_en.extend(token_budget.english_text_faults(p, f.read()))
+    paths = [p for p in abs_all
+             if os.path.normcase(p).startswith(os.path.normcase(REPO))]
+    return (non_en
+            + lint_md([p for p in paths if p.endswith('.md')])
             + lint_py([p for p in paths if p.endswith(('.py', '.ipynb'))]))
 
 

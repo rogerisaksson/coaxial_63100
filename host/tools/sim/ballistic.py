@@ -3,8 +3,8 @@
 
     python tools/sim/ballistic.py                                       # evaluate default walk
     python tools/sim/ballistic.py --plan ballistic_walk --to 20         # evaluate behaviour
-    python tools/sim/ballistic.py --mc 16 --span stride.LEADS=0.2:0.8 #204.amp.2=0.5:0.8
-    python tools/sim/ballistic.py --search stride.LEADS=0.2:0.9 #204.amp.2=0.5:0.85
+    python tools/sim/ballistic.py --mc 16 --span stride.LEADS=0.2:0.8 walk.amp.2=0.5:0.8
+    python tools/sim/ballistic.py --search stride.LEADS=0.2:0.9 walk.amp.2=0.5:0.85
 
 Orchestrates simulations across flat wire rows (`ortho.ROW`, `<4I59f`) and branchless module
 constants (`stride`, `poise`, `impedance`, `modal`, `latent`) without coupling to anatomical
@@ -62,9 +62,10 @@ def _wire_coord(plan, key):
         return int(m.group(1)), int(m.group(2)), int(m.group(3)), 1.0
     parts = key.split('.')
     labels = [item[1] for item in plan]
-    if parts[0] not in labels:
+    lbl = sprung.ALIASES.get(parts[0], parts[0])
+    if lbl not in labels:
         raise KeyError('entry %s not in plan %s' % (parts[0], labels))
-    e_idx = labels.index(parts[0])
+    e_idx = labels.index(lbl)
     names = plan[e_idx][3]
     rest = parts[1:]
     r_idx = 0

@@ -2,7 +2,7 @@
 <rect width="1280" height="685" rx="10" fill="#020617"/>
 <g font-family="monospace">
 <text x="24" y="34" fill="#f8fafc" font-size="16" font-weight="bold">COAXIAL 63100 -- Software Systems Engineering &amp; Real-Time Control Architecture</text>
-<text x="24" y="54" fill="#94a3b8" font-size="11">5-Layer Data-Oriented Pipeline: Terminal UI (60 Hz) &lt;-&gt; Sensing &amp; Law (333 Hz) &lt;-&gt; WBC Solver (333 Hz) &lt;-&gt; Inner ESO &amp; SIL Buses (1 kHz)</text>
+<text x="24" y="54" fill="#94a3b8" font-size="11">5-Layer Data-Oriented Pipeline: Outer Setpoint UI (60 Hz) &lt;-&gt; Sensing &amp; Outward Situation (333 Hz) &lt;-&gt; Branchless SE(3)/Modal Continuum (333 Hz) &lt;-&gt; Inner ESO &amp; SIL (1 kHz)</text>
 <rect x="20" y="150" width="205" height="295" rx="8" fill="#0f172a" stroke="#38bdf8" stroke-width="2"/>
 <text x="32" y="176" fill="#38bdf8" font-size="12" font-weight="bold">RUNTIME ORCHESTRATOR</text>
 <text x="32" y="194" fill="#e2e8f0" font-size="10">machine.worker / apart</text>
@@ -10,45 +10,45 @@
 <line x1="32" y1="222" x2="213" y2="222" stroke="#334155" stroke-width="1"/>
 <text x="32" y="240" fill="#f8fafc" font-size="10" font-weight="bold">Shared State Arrays:</text>
 <text x="32" y="258" fill="#38bdf8" font-size="9">cmd / states  IPC (60 Hz)</text>
-<text x="32" y="276" fill="#a78bfa" font-size="9">y_in[289]     edge.SENSED</text>
-<text x="32" y="294" fill="#a78bfa" font-size="9">y[70], fr[60] modal.SENSED</text>
+<text x="32" y="276" fill="#a78bfa" font-size="9">y_in[233]     edge.SENSED</text>
+<text x="32" y="294" fill="#a78bfa" font-size="9">y[74], fr[60] modal.SENSED</text>
 <text x="32" y="312" fill="#34d399" font-size="9">st[180], tab  latent.STATE</text>
 <text x="32" y="330" fill="#34d399" font-size="9">out[80]       latent.OUT</text>
 <text x="32" y="348" fill="#fbbf24" font-size="9">a[59]         modal.ASK</text>
 <text x="32" y="366" fill="#fbbf24" font-size="9">got[qacc,tau] wrench.solve</text>
 <text x="32" y="384" fill="#f472b6" font-size="9">eso[3,21]     1 kHz observer</text>
 <text x="32" y="402" fill="#f472b6" font-size="9">5x RS485 RTU  10 Mbit/s SIL</text>
-<text x="32" y="424" fill="#94a3b8" font-size="9">0 dynamic allocs in step</text>
+<text x="32" y="424" fill="#94a3b8" font-size="9">0 branches in inner core</text>
 </g>
 <g font-family="monospace">
 <path d="M 225 295 L 255 130" stroke="#38bdf8" stroke-width="2.5" fill="none"/>
 <line x1="255" y1="130" x2="1256" y2="130" stroke="#38bdf8" stroke-width="3" stroke-dasharray="6,3"/>
-<rect x="255" y="102" width="320" height="20" rx="4" fill="#0f172a" stroke="#38bdf8" stroke-width="1.2"/>
-<text x="263" y="116" fill="#38bdf8" font-size="11" font-weight="bold">LAYER 1: terminal &amp; rig front door (60 Hz)</text>
+<rect x="255" y="102" width="350" height="20" rx="4" fill="#0f172a" stroke="#38bdf8" stroke-width="1.2"/>
+<text x="263" y="116" fill="#38bdf8" font-size="11" font-weight="bold">LAYER 1: terminal, outer setpoint &amp; rig front door (60 Hz)</text>
 <line x1="357" y1="130" x2="357" y2="142" stroke="#38bdf8" stroke-width="1.8"/>
 <rect x="265" y="142" width="184" height="62" rx="5" fill="#1e293b" stroke="#38bdf8" stroke-width="1.3"/>
 <text x="273" y="156" fill="#f8fafc" font-size="10" font-weight="bold">#1 show_humanoid.py</text>
 <text x="273" y="171" fill="#94a3b8" font-size="9">humanoid_keys / WASDQE</text>
-<text x="273" y="185" fill="#cbd5e1" font-size="9">chase cam &amp; viewport clip</text>
+<text x="273" y="185" fill="#cbd5e1" font-size="9">chase &amp; orbit cam</text>
 <text x="273" y="198" fill="#38bdf8" font-size="9">out: twist, say, charge</text>
 <line x1="557" y1="130" x2="557" y2="142" stroke="#38bdf8" stroke-width="1.8"/>
 <rect x="465" y="142" width="184" height="62" rx="5" fill="#1e293b" stroke="#38bdf8" stroke-width="1.3"/>
-<text x="473" y="156" fill="#f8fafc" font-size="10" font-weight="bold">#2 playback.py</text>
-<text x="473" y="171" fill="#94a3b8" font-size="9">LAG_S = 60 ms buffer</text>
-<text x="473" y="185" fill="#cbd5e1" font-size="9">quat slerp &amp; pose lerp</text>
-<text x="473" y="198" fill="#38bdf8" font-size="9">in: 60 Hz state snapshots</text>
+<text x="473" y="156" fill="#f8fafc" font-size="10" font-weight="bold">#2 worker.py &amp; se2.heard</text>
+<text x="473" y="171" fill="#94a3b8" font-size="9">outer command -&gt; setpoint</text>
+<text x="473" y="185" fill="#cbd5e1" font-size="9">asked, twist, heading, tab</text>
+<text x="473" y="198" fill="#38bdf8" font-size="9">zero inner mode strings</text>
 <line x1="757" y1="130" x2="757" y2="142" stroke="#38bdf8" stroke-width="1.8"/>
 <rect x="665" y="142" width="184" height="62" rx="5" fill="#1e293b" stroke="#38bdf8" stroke-width="1.3"/>
-<text x="673" y="156" fill="#f8fafc" font-size="10" font-weight="bold">#3 sight.py / scanner.py</text>
-<text x="673" y="171" fill="#94a3b8" font-size="9">stereo.py disparity</text>
-<text x="673" y="185" fill="#cbd5e1" font-size="9">room occupancy &amp; props</text>
-<text x="673" y="198" fill="#38bdf8" font-size="9">out: chair / bed / table</text>
+<text x="673" y="156" fill="#f8fafc" font-size="10" font-weight="bold">#3 playback.py &amp; apart.py</text>
+<text x="673" y="171" fill="#94a3b8" font-size="9">LAG_S = 60 ms / SLICE_S</text>
+<text x="673" y="185" fill="#cbd5e1" font-size="9">quat slerp &amp; pose lerp</text>
+<text x="673" y="198" fill="#38bdf8" font-size="9">in: 60 Hz state snapshots</text>
 <line x1="957" y1="130" x2="957" y2="142" stroke="#38bdf8" stroke-width="1.8"/>
 <rect x="865" y="142" width="184" height="62" rx="5" fill="#1e293b" stroke="#38bdf8" stroke-width="1.3"/>
-<text x="873" y="156" fill="#f8fafc" font-size="10" font-weight="bold">#4 apart.py (Running)</text>
-<text x="873" y="171" fill="#94a3b8" font-size="9">spawned worker process</text>
-<text x="873" y="185" fill="#cbd5e1" font-size="9">SLICE_S = 50 ms pacing</text>
-<text x="873" y="198" fill="#38bdf8" font-size="9">audit log: heard(epoch,t)</text>
+<text x="873" y="156" fill="#f8fafc" font-size="10" font-weight="bold">#4 sight.py / scanner.py</text>
+<text x="873" y="171" fill="#94a3b8" font-size="9">stereo.py disparity</text>
+<text x="873" y="185" fill="#cbd5e1" font-size="9">room occupancy &amp; props</text>
+<text x="873" y="198" fill="#38bdf8" font-size="9">out: chair / bed / table</text>
 <line x1="1157" y1="130" x2="1157" y2="142" stroke="#38bdf8" stroke-width="1.8"/>
 <rect x="1065" y="142" width="184" height="62" rx="5" fill="#1e293b" stroke="#38bdf8" stroke-width="1.3"/>
 <text x="1073" y="156" fill="#f8fafc" font-size="10" font-weight="bold">#5 coaxial/ &amp; mcp/</text>
@@ -59,13 +59,13 @@
 <g font-family="monospace">
 <path d="M 225 295 L 255 244" stroke="#a78bfa" stroke-width="2.5" fill="none"/>
 <line x1="255" y1="244" x2="1256" y2="244" stroke="#a78bfa" stroke-width="3" stroke-dasharray="6,3"/>
-<rect x="255" y="216" width="320" height="20" rx="4" fill="#0f172a" stroke="#a78bfa" stroke-width="1.2"/>
-<text x="263" y="230" fill="#a78bfa" font-size="11" font-weight="bold">LAYER 2: sensing &amp; situation (333 Hz, C)</text>
+<rect x="255" y="216" width="350" height="20" rx="4" fill="#0f172a" stroke="#a78bfa" stroke-width="1.2"/>
+<text x="263" y="230" fill="#a78bfa" font-size="11" font-weight="bold">LAYER 2: sensing, continuum touch &amp; outward situation (333 Hz, C)</text>
 <line x1="357" y1="244" x2="357" y2="256" stroke="#a78bfa" stroke-width="1.8"/>
 <rect x="265" y="256" width="184" height="62" rx="5" fill="#1e293b" stroke="#a78bfa" stroke-width="1.3"/>
-<text x="273" y="270" fill="#f8fafc" font-size="10" font-weight="bold">#1 edge.py (y_in[289])</text>
+<text x="273" y="270" fill="#f8fafc" font-size="10" font-weight="bold">#1 edge.py (y_in[233])</text>
 <text x="273" y="285" fill="#94a3b8" font-size="9">IMU + 27 encoders + qm</text>
-<text x="273" y="299" fill="#cbd5e1" font-size="9">4 insoles + 28 skin pads</text>
+<text x="273" y="299" fill="#cbd5e1" font-size="9">4 analog insoles + 28 skin</text>
 <text x="273" y="312" fill="#a78bfa" font-size="9">edge.felt &amp; edge.read</text>
 <line x1="557" y1="244" x2="557" y2="256" stroke="#a78bfa" stroke-width="1.8"/>
 <rect x="465" y="256" width="184" height="62" rx="5" fill="#1e293b" stroke="#a78bfa" stroke-width="1.3"/>
@@ -76,38 +76,38 @@
 <line x1="757" y1="244" x2="757" y2="256" stroke="#a78bfa" stroke-width="1.8"/>
 <rect x="665" y="256" width="184" height="62" rx="5" fill="#1e293b" stroke="#a78bfa" stroke-width="1.3"/>
 <text x="673" y="270" fill="#f8fafc" font-size="10" font-weight="bold">#3 borne.py &amp; grip.py</text>
-<text x="673" y="285" fill="#94a3b8" font-size="9">seat/bed support span</text>
+<text x="673" y="285" fill="#94a3b8" font-size="9">branchless support span</text>
 <text x="673" y="299" fill="#cbd5e1" font-size="9">online sole friction mu</text>
 <text x="673" y="312" fill="#a78bfa" font-size="9">out: prop, contacts, held</text>
 <line x1="957" y1="244" x2="957" y2="256" stroke="#a78bfa" stroke-width="1.8"/>
 <rect x="865" y="256" width="184" height="62" rx="5" fill="#1e293b" stroke="#a78bfa" stroke-width="1.3"/>
-<text x="873" y="270" fill="#f8fafc" font-size="10" font-weight="bold">#4 situation.py &amp; touch</text>
-<text x="873" y="285" fill="#94a3b8" font-size="9">6 terrain/load readings</text>
-<text x="873" y="299" fill="#cbd5e1" font-size="9">sill raise &amp; shove brake</text>
-<text x="873" y="312" fill="#a78bfa" font-size="9">out: into(S), RAISE, felt</text>
+<text x="873" y="270" fill="#f8fafc" font-size="10" font-weight="bold">#4 touch.py &amp; se2.floored</text>
+<text x="873" y="285" fill="#94a3b8" font-size="9">branchless skin admittance</text>
+<text x="873" y="299" fill="#cbd5e1" font-size="9">insole floor height/pitch</text>
+<text x="873" y="312" fill="#a78bfa" font-size="9">out: twist, RAISE, GROUND</text>
 <line x1="1157" y1="244" x2="1157" y2="256" stroke="#a78bfa" stroke-width="1.8"/>
 <rect x="1065" y="256" width="184" height="62" rx="5" fill="#1e293b" stroke="#a78bfa" stroke-width="1.3"/>
-<text x="1073" y="270" fill="#f8fafc" font-size="10" font-weight="bold">#5 modal.sensed &amp; frame</text>
-<text x="1073" y="285" fill="#94a3b8" font-size="9">world-&gt;way frame ROT(3x3)</text>
-<text x="1073" y="299" fill="#cbd5e1" font-size="9">11 modal units &amp; masses</text>
-<text x="1073" y="312" fill="#a78bfa" font-size="9">out: y[70], fr[60]</text>
+<text x="1073" y="270" fill="#f8fafc" font-size="10" font-weight="bold">#5 situation.py (outward)</text>
+<text x="1073" y="285" fill="#94a3b8" font-size="9">6 continuous readings</text>
+<text x="1073" y="299" fill="#cbd5e1" font-size="9">into(S) -&gt; state[situation]</text>
+<text x="1073" y="312" fill="#a78bfa" font-size="9">outward to UI / LLM only</text>
 </g>
 <g font-family="monospace">
 <path d="M 225 295 L 255 358" stroke="#34d399" stroke-width="2.5" fill="none"/>
 <line x1="255" y1="358" x2="1256" y2="358" stroke="#34d399" stroke-width="3" stroke-dasharray="6,3"/>
-<rect x="255" y="330" width="320" height="20" rx="4" fill="#0f172a" stroke="#34d399" stroke-width="1.2"/>
-<text x="263" y="344" fill="#34d399" font-size="11" font-weight="bold">LAYER 3: orthokinematics &amp; impedance (333 Hz)</text>
+<rect x="255" y="330" width="350" height="20" rx="4" fill="#0f172a" stroke="#34d399" stroke-width="1.2"/>
+<text x="263" y="344" fill="#34d399" font-size="11" font-weight="bold">LAYER 3: branchless inner SE(3) &amp; modal continuum (333 Hz, C)</text>
 <line x1="357" y1="358" x2="357" y2="370" stroke="#34d399" stroke-width="1.8"/>
 <rect x="265" y="370" width="184" height="62" rx="5" fill="#1e293b" stroke="#34d399" stroke-width="1.3"/>
 <text x="273" y="384" fill="#f8fafc" font-size="10" font-weight="bold">#1 ortho.py &amp; *.lisp</text>
 <text x="273" y="399" fill="#94a3b8" font-size="9">gait / postures / stunts</text>
 <text x="273" y="413" fill="#cbd5e1" font-size="9">244-byte latent.WIRE rows</text>
-<text x="273" y="426" fill="#34d399" font-size="9">se2.py &amp; leap.py schedule</text>
+<text x="273" y="426" fill="#34d399" font-size="9">continuous table schedule</text>
 <line x1="557" y1="358" x2="557" y2="370" stroke="#34d399" stroke-width="1.8"/>
 <rect x="465" y="370" width="184" height="62" rx="5" fill="#1e293b" stroke="#34d399" stroke-width="1.3"/>
-<text x="473" y="384" fill="#f8fafc" font-size="10" font-weight="bold">#2 latent.py (wbc_motion)</text>
+<text x="473" y="384" fill="#f8fafc" font-size="10" font-weight="bold">#2 latent.py &amp; se2.py</text>
 <text x="473" y="399" fill="#94a3b8" font-size="9">11 modes + CPG phase THETA</text>
-<text x="473" y="413" fill="#cbd5e1" font-size="9">motion.gripped sway caps</text>
+<text x="473" y="413" fill="#cbd5e1" font-size="9">continuous twist &amp; gripped</text>
 <text x="473" y="426" fill="#34d399" font-size="9">out: out[80] (REF..DS)</text>
 <line x1="757" y1="358" x2="757" y2="370" stroke="#34d399" stroke-width="1.8"/>
 <rect x="665" y="370" width="184" height="62" rx="5" fill="#1e293b" stroke="#34d399" stroke-width="1.3"/>
@@ -118,12 +118,12 @@
 <line x1="957" y1="358" x2="957" y2="370" stroke="#34d399" stroke-width="1.8"/>
 <rect x="865" y="370" width="184" height="62" rx="5" fill="#1e293b" stroke="#34d399" stroke-width="1.3"/>
 <text x="873" y="384" fill="#f8fafc" font-size="10" font-weight="bold">#4 impedance.py &amp; poise</text>
-<text x="873" y="399" fill="#94a3b8" font-size="9">ZMP support polygon</text>
+<text x="873" y="399" fill="#94a3b8" font-size="9">spanned ZMP + h_axial</text>
 <text x="873" y="413" fill="#cbd5e1" font-size="9">capture point xi = c+v/om</text>
 <text x="873" y="426" fill="#34d399" font-size="9">out: a[59] (STANCE, ACC)</text>
 <line x1="1157" y1="358" x2="1157" y2="370" stroke="#34d399" stroke-width="1.8"/>
 <rect x="1065" y="370" width="184" height="62" rx="5" fill="#1e293b" stroke="#34d399" stroke-width="1.3"/>
-<text x="1073" y="384" fill="#f8fafc" font-size="10" font-weight="bold">#5 stride.py &amp; poses</text>
+<text x="1073" y="384" fill="#f8fafc" font-size="10" font-weight="bold">#5 stride.py &amp; modal.py</text>
 <text x="1073" y="399" fill="#94a3b8" font-size="9">beat, meets, heels, clears</text>
 <text x="1073" y="413" fill="#cbd5e1" font-size="9">SE(3) turns &amp; knee folds</text>
 <text x="1073" y="426" fill="#34d399" font-size="9">out: ask dict for WBC</text>
@@ -131,8 +131,8 @@
 <g font-family="monospace">
 <path d="M 225 295 L 255 472" stroke="#fbbf24" stroke-width="2.5" fill="none"/>
 <line x1="255" y1="472" x2="1256" y2="472" stroke="#fbbf24" stroke-width="3" stroke-dasharray="6,3"/>
-<rect x="255" y="444" width="320" height="20" rx="4" fill="#0f172a" stroke="#fbbf24" stroke-width="1.2"/>
-<text x="263" y="458" fill="#fbbf24" font-size="11" font-weight="bold">LAYER 4: whole-body solver &amp; health (333 Hz)</text>
+<rect x="255" y="444" width="350" height="20" rx="4" fill="#0f172a" stroke="#fbbf24" stroke-width="1.2"/>
+<text x="263" y="458" fill="#fbbf24" font-size="11" font-weight="bold">LAYER 4: whole-body solver, surety field &amp; health (333 Hz)</text>
 <line x1="357" y1="472" x2="357" y2="484" stroke="#fbbf24" stroke-width="1.8"/>
 <rect x="265" y="484" width="184" height="62" rx="5" fill="#1e293b" stroke="#fbbf24" stroke-width="1.3"/>
 <text x="273" y="498" fill="#f8fafc" font-size="10" font-weight="bold">#1 wrench.py / wbc_wrench</text>
@@ -141,9 +141,9 @@
 <text x="273" y="540" fill="#fbbf24" font-size="9">0/9668 C vs Python diff</text>
 <line x1="557" y1="472" x2="557" y2="484" stroke="#fbbf24" stroke-width="1.8"/>
 <rect x="465" y="484" width="184" height="62" rx="5" fill="#1e293b" stroke="#fbbf24" stroke-width="1.3"/>
-<text x="473" y="498" fill="#f8fafc" font-size="10" font-weight="bold">#2 wbc_step.c &amp; wbc_cone</text>
-<text x="473" y="513" fill="#94a3b8" font-size="9">friction cone &amp; CoP edges</text>
-<text x="473" y="527" fill="#cbd5e1" font-size="9">Tikhonov swing/torso task</text>
+<text x="473" y="498" fill="#f8fafc" font-size="10" font-weight="bold">#2 motion.surety (ukemi)</text>
+<text x="473" y="513" fill="#94a3b8" font-size="9">Wendland attitude &amp; support</text>
+<text x="473" y="527" fill="#cbd5e1" font-size="9">convex Euler-Lagrange brace</text>
 <text x="473" y="540" fill="#fbbf24" font-size="9">out: qacc(33), tau(21)</text>
 <line x1="757" y1="472" x2="757" y2="484" stroke="#fbbf24" stroke-width="1.8"/>
 <rect x="665" y="484" width="184" height="62" rx="5" fill="#1e293b" stroke="#fbbf24" stroke-width="1.3"/>
@@ -167,14 +167,14 @@
 <g font-family="monospace">
 <path d="M 225 295 L 255 586" stroke="#f472b6" stroke-width="2.5" fill="none"/>
 <line x1="255" y1="586" x2="1256" y2="586" stroke="#f472b6" stroke-width="3" stroke-dasharray="6,3"/>
-<rect x="255" y="558" width="320" height="20" rx="4" fill="#0f172a" stroke="#f472b6" stroke-width="1.2"/>
+<rect x="255" y="558" width="350" height="20" rx="4" fill="#0f172a" stroke="#f472b6" stroke-width="1.2"/>
 <text x="263" y="572" fill="#f472b6" font-size="11" font-weight="bold">LAYER 5: inner ESO, SIL buses &amp; MCU (1 kHz)</text>
 <line x1="357" y1="586" x2="357" y2="598" stroke="#f472b6" stroke-width="1.8"/>
 <rect x="265" y="598" width="184" height="62" rx="5" fill="#1e293b" stroke="#f472b6" stroke-width="1.3"/>
 <text x="273" y="612" fill="#f8fafc" font-size="10" font-weight="bold">#1 wbh_pass_drives (C)</text>
 <text x="273" y="627" fill="#94a3b8" font-size="9">3rd-order ESO (wo=100)</text>
 <text x="273" y="641" fill="#cbd5e1" font-size="9">qacc -&gt; ref_v, ref_q, kp</text>
-<text x="273" y="654" fill="#f472b6" font-size="9">knee spring &amp; tilt yield</text>
+<text x="273" y="654" fill="#f472b6" font-size="9">dt-scaled leak &amp; bleed</text>
 <line x1="557" y1="586" x2="557" y2="598" stroke="#f472b6" stroke-width="1.8"/>
 <rect x="465" y="598" width="184" height="62" rx="5" fill="#1e293b" stroke="#f472b6" stroke-width="1.3"/>
 <text x="473" y="612" fill="#f8fafc" font-size="10" font-weight="bold">#2 wbc_sil.c &amp; rtu.py</text>

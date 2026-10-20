@@ -25,7 +25,7 @@ SCENARIO_DESC = {
 }
 
 #: The bar under the page.
-BAR = (('WASD', 'GO'), ('SHIFT', 'SPRINT'), ('Q E', 'SIDESTEP'), ('SPC', 'HOP'), ('F', 'INTERACT'),
+BAR = (('WASD', 'MOVE'), ('SHIFT', 'SPRINT'), ('Q E', 'TURN'), ('SPC', 'HOP'), ('F', 'INTERACT'),
        ('C', 'CROUCH'), ('X', 'SHOULDER'), ('[ ]', 'SCENE'), ('TAB', 'KEYS'), ('ESC', 'MENU'))
 
 
@@ -33,9 +33,9 @@ def groups():
     """The TAB help, its groups of (key, what)."""
     return (
         ('HER', (
-            ('W A S D', 'walk ahead, turn left, walk back, turn right'),
+            ('W A S D', 'walk ahead, sidestep left, walk back, sidestep right'),
             ('SHIFT', 'sprint'),
-            ('Q E', 'sidestep left, right, facing kept'),
+            ('Q E', 'turn left, right in place (or on an arc with W/S)'),
             ('SPACE', 'hop - onto a chair ahead, down from one'),
             ('F', 'sit, lie or rise: what is near or bears her'),
             ('C', 'crouch, and up'),

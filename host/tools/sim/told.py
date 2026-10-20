@@ -130,7 +130,7 @@ def errand_chair():
     sat_flips = r.flips
     r.go(1.0)
     r.tell(say='rise_chair')
-    up = r.go(7.0, doing('stand', '#201', 'rest'))
+    up = r.go(7.0, doing('stand', 'rest'))
     return 'F at a chair: seated at %s s (%d flips), up at %s s (%d flips)' % (seated, sat_flips, up, r.flips), r
 
 
@@ -141,14 +141,14 @@ def errand_bed():
     lay_flips = r.flips
     r.go(1.0)
     r.tell(say='rise_bed')
-    up = r.go(8.0, doing('stand', '#201', 'rest'))
+    up = r.go(8.0, doing('stand', 'rest'))
     return 'F at a bed: lying at %s s (%d flips), up at %s s (%d flips)' % (lying, lay_flips, up, r.flips), r
 
 
 def errand_hop():
     r = Run()
     r.tell(say='hop')
-    stood = r.go(6.0, lambda q: still(q) and doing('rest', '#201', 'stand')(q))
+    stood = r.go(6.0, lambda q: still(q) and doing('rest', 'stand')(q))
     return 'hop from a stand: still at %s s, %d flips' % (stood, r.flips), r
 
 
