@@ -19,7 +19,7 @@ import numpy as np
 
 from machine import latent, poise, stride
 from machine.modal import (
-    ARM_RAD, ARMS, AXIAL, AXIAL_M, BEND, CLEAR_M, COM, COM_ACC, DRIVE, DT, EDGE, FLOOR, FOLD, FOLD_RATE, FOLDS, G,
+    ANKLE_H, ARM_RAD, ARMS, AXIAL, AXIAL_M, BEND, CLEAR_M, COM, COM_ACC, DRIVE, DT, EDGE, FLOOR, FOLD, FOLD_RATE, FOLDS, G,
     GOING, GRIP, GROUND, HANDS, HEADED, HEELED, HIP, HIPS_BY, HOT, HSPIN, KDOT, KNEE, LATERAL, LEAD, LEG_M, LIFT, LIST, LIST_RAD,
     LOAD, LOWEST, MASS, MOMENT, NEED, OUTSIDE, PELVIS, PROP, PROP_HI, PROP_LO, BORNE, WEIGHT, PITCH, PITCH0, PITCH_RAD, PREFOLD, QUAT, RAISE, REACH0, ROCK, ROLLED, ROT,
     SAGITTAL, SETTLE, SOLE, SOLE_ACC, SPIN, STANCE, STRIDES, SWINGS, SWUNG, TILT, TILT_RATE, TIPPED, TURN, TURN_RAD,
@@ -112,8 +112,9 @@ def ask(out, y, fr, a):
     dvh4 = (dvh * dvh) ** 2
     dvh = 0.5 * still * dvh * dvh4 / (dvh4 + 0.02)
     ref = ref + HOT[AXIAL] * stood.max() * still * poise.clip(0.5 * dv2 * (dv2 * dv2 / (dv2 * dv2 + 0.02)) / (G * AXIAL_M), 0.0, 0.25)
+    z = z - propped * HOT[LATERAL] * z[LATERAL]
     zd = (zd + HOT[SAGITTAL] * ((v[ALONG] - cruise + dvh[0]) / HALF_M - zd[SAGITTAL])
-          + stepping * HOT[LATERAL] * ((v[LEFT] - across) / fr[W0] - zd[LATERAL])
+          + np.maximum(stepping, propped) * HOT[LATERAL] * ((v[LEFT] - across) / fr[W0] - zd[LATERAL])
           + HOT[LATERAL] * (dvh[1] / fr[W0]))
     zdd = acc + kp * (ref - z) + kd * (rate - zd)
     # her limbs' places as her modes ask them; their sum's acceleration is her centre of
@@ -121,8 +122,12 @@ def ask(out, y, fr, a):
     hands = HANDS * fr[UNIT][:, None, None]
     both = np.einsum('nia,n->ia', hands, zdd).mean(axis=0)
     swaying = (np.abs(ref[LATERAL] - lat_dc - z[LATERAL]) < ON[0]) & (np.abs(rate[LATERAL] - zd[LATERAL]) < ON[1])
-    stance, zmp = poise.stands(c[:2] + both[:2] / om ** 2, xi, low, high, om, out[latent.HELD], up, swaying,
-                               (sweep, off, flying),
+    hips = y[HIP].reshape(2, 3) @ rot.T
+    long = fr[REACH0] - AXIAL_M * fr[HIPS_BY] * np.maximum(ref[AXIAL], 0.0)
+    short_h = propped * np.maximum((hips[:, UP] - floors).mean() - (ANKLE_H + long), 0.0)
+    up = up + short_h / CLEAR_M
+    stance, zmp = poise.stands(c[:2] + both[:2] / om ** 2, xi, low, high, om, out[latent.HELD], up,
+                               swaying, (sweep, off, flying),
                                (y[LOAD], y[LOWEST] - floors, y[LOWEST] - fr[FLOOR], y[VCOM][1], y[PROP] * fr[WEIGHT]),
                                stood, prop)
     grounded, aloft = np.maximum(stance.max(), propped), 1.0 - stance
@@ -137,19 +142,19 @@ def ask(out, y, fr, a):
     reach = np.minimum(stride.REACH_M, (bears @ y[GRIP]) * (c[UP] - fr[FLOOR]))
     meet = stride.meets(xi, c, flat, cruise, om, turns, 2.0 * fr[W0] * (1.0 + ref[WIDTH]), across, reach)
     tip, tipping, tipped = stride.rocks(ref[ROCK], rate[ROCK], acc[ROCK])
-    long = fr[REACH0] - AXIAL_M * fr[HIPS_BY] * np.maximum(ref[AXIAL], 0.0)
     a[PREFOLD], short = stride.folds(off, y[LOAD], fr[KNEE] + a[BEND])
     a[HEELED], flatten, a[EDGE], rounds = stride.heels(
-        (soles @ rot.T, tilt, tilting), (y[HIP].reshape(2, 3) @ rot.T)[:, ALONG], floors, long, short, off,
+        (soles @ rot.T, tilt, tilting), hips[:, ALONG], floors, long, short, off,
         tip, stance, stepping, a[HEELED], fr[DT], fr[GROUND])
     a[SETTLE] = np.concatenate([flatten[:, None] * rot[LEFT], rounds @ rot], axis=1).ravel()
     # up as her height's spring asks of her standing legs' length: each leg's acceleration
     # along itself, what her going over it gives it taken off, by how far over its ankle
     # its hip is - her centre of mass less than her hips
     axial = shortened(legs, fr, stance)
-    z += HOT[AXIAL] * (axial[0] - z[AXIAL])
-    zd += HOT[AXIAL] * (axial[1] - stance.max() * dvh[2] / (AXIAL_M * fr[HIPS_BY]) - zd[AXIAL])
-    pressed = acc[AXIAL] + kp[AXIAL] * (ref[AXIAL] - z[AXIAL]) + kd[AXIAL] * (rate[AXIAL] - zd[AXIAL])
+    air = propped * aloft
+    z += HOT[AXIAL] * (axial[0] - (bears @ (air * np.maximum(y[LOWEST] - floors, 0.0))) / (AXIAL_M * fr[HIPS_BY]) - z[AXIAL])
+    zd += HOT[AXIAL] * (axial[1] - (bears @ (air * shod[:, UP]) + stance.max() * dvh[2]) / (AXIAL_M * fr[HIPS_BY]) - zd[AXIAL])
+    pressed = acc[AXIAL] + kp[AXIAL] * (ref[AXIAL] - short_h / (AXIAL_M * fr[HIPS_BY]) - z[AXIAL]) + kd[AXIAL] * (rate[AXIAL] - zd[AXIAL])
     risen = ((legs[2] ** 2 - ((v - shod) ** 2).sum(axis=1) - legs[0][:, :2] @ along
               - legs[1] * AXIAL_M * fr[HIPS_BY] * pressed) / np.maximum(legs[0][:, UP], LOW_LEG * fr[REACH0]))
     # borne off her soles alone, up as her height's spring asks of her centre of mass
@@ -158,8 +163,8 @@ def ask(out, y, fr, a):
     late = stride.lates(phi, turns, stepping)
     # what a sole met (`machine.touch`) her swings clear, for a turn of her rhythm
     a[RAISE] -= fr[DT] * turns / (2.0 * np.pi) * a[RAISE]
-    clear = aloft * stride.clears(u, flying, swung * hurry, CLEAR_M * (1.0 + np.abs(out[latent.SWAY][LIFT])) + a[RAISE], tip,
-                                  tipping, tilt, late)
+    clear = aloft * (stride.clears(u, flying, swung * hurry, CLEAR_M * (1.0 + np.abs(out[latent.SWAY][LIFT])) + a[RAISE], tip,
+                                   tipping, tilt, late) + HOT3[ALONG][:, None] * short_h)
     free, frame = _swings(y, fr, (rot, v, om, shod, floors, rise), (ref, rate, acc, kp, kd, hands), clear, stance, cruise,
                           grounded, propped)
     strides = (limbs * grounded)[:, None]

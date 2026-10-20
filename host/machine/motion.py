@@ -103,7 +103,7 @@ def risen_back(g, dt):
         return
     at, axial = tab[:, latent.AT], modal.AXIAL
     rises = ((tab[:, latent.SAID][:, latent.Z][:, axial] > 0.5)
-             & (tab[:, latent.VALS][:, latent.Z][:, axial] < g['st'][latent.TO][latent.Z][axial] - 1e-6))
+             & (tab[:, latent.VALS][:, latent.Z][:, axial] < min(float(g['st'][latent.TO][latent.Z][axial]), 2.0) - 1e-6))
     due = rises & (at <= t + latent.EDGE_S) & (at > t - dt + latent.EDGE_S)
     if not due.any():
         return
@@ -244,7 +244,7 @@ def control(g, dt):
                          and cur_doing not in se2.STUNT_PHASES and g.get('_jump_until', 0.0) <= g['t'])
     qacc_prev = g['got']['qacc'][body.act] if 'qacc' in g.get('got', {}) else None
     sr = surety(g, dt * ev, qacc=qacc_prev)
-    bw = (1.0 - sr * sr) ** 2
+    bw = max(0.0, 1.0 - (sr / 0.50) ** 2) ** 3
     sw = 1.0 - bw
     _, _, d_ax, d_lat = g['surety_vec']
     imp[modal.BEND] *= sw

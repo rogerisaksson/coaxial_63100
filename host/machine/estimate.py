@@ -62,9 +62,11 @@ def step(est, body, y, dt):
         at = d.xpos[seg] + d.xmat[seg].reshape(3, 3) @ y[edge.COP][3 * k:3 * k + 3]
         mj.mj_jac(m, d, jp, None, at, seg)
         est['speeds'][k] = jp @ qvel
+    rot = _rot(y[edge.QUAT])
+    up_f = (rot @ y[edge.TOUCH][0:3])[1]
     loads = y[edge.PRESS] * (y[edge.PRESS] >= TOUCH_N / 2.0)
-    bears = loads.sum()
-    falls = est['vel'] + (_rot(y[edge.QUAT]) @ y[edge.ACCEL] + edge.G) * dt
+    bears = loads.sum() + up_f * (up_f >= TOUCH_N / 2.0)
+    falls = est['vel'] + (rot @ y[edge.ACCEL] + edge.G) * dt
     went = -(loads @ est['speeds']) / np.maximum(bears, 1e-9)
     vel = falls + (bears > 0.0) * min(1.0, dt / HOLD_S) * (went - falls)
     est['slip'] = (1.0 - dt / SLIP_S) * (est['slip'] + falls - vel)

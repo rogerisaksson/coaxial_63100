@@ -91,7 +91,10 @@ def stands(zmp, xi, low, high, om, held, up, swaying, beat, bears, stood, prop):
     # her capture point, wherever that has gone: held down till her capture point was 5
     # cm from the other, her ZMP in the other took it further off and the sole went up
     # and down on its ball
-    within = ((zmp >= low - GATE_M) & (zmp <= high + GATE_M)).all(axis=1)
+    out_up = BIG * (up > LIFT_EPS)[:, None]
+    p_box = (prop[0] - EXTENT, prop[1] + EXTENT, prop[2])
+    lo_b, hi_b = spanned(low + out_up, high - out_up, p_box)
+    within = ((zmp >= lo_b - GATE_M) & (zmp <= hi_b + GATE_M)).all(axis=1)
     landed = np.array(leap.standing(off < 0.5, loads, level, rising, borne))
     early = (sweep > EARLY) & ((loads >= leap.TOUCH_N) | (stood > 0.5))
     gone = (flying > 0.5) & (landed[::-1] | (over > leap.TOUCH_M)) & ~early
@@ -105,5 +108,5 @@ def stands(zmp, xi, low, high, om, held, up, swaying, beat, bears, stood, prop):
     left = stance * (1.0 - off * landed[::-1])
     left = left + (1.0 - left.max()) * stance
     out_of = BIG * (1.0 - left)[:, None]
-    return stance, zmp + kept * (into(zmp, xi, *spanned((low + out_of).min(axis=0), (high - out_of).max(axis=0), prop),
+    return stance, zmp + kept * (into(zmp, xi, *spanned((low + out_of).min(axis=0), (high - out_of).max(axis=0), p_box),
                                       om, foot * left.min()) - zmp)

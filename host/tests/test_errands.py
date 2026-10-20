@@ -138,8 +138,43 @@ def test_doorway_arm_yields_and_she_walks_on(report):
                      % (z_end, min_sh, max_arm_f, g.get('active_entry'), s['fallen_at']))
 
 
+def test_chair_and_bed_dangling_legs_and_rising(report):
+    """Seated on a chair (`sit_chair`) or reclined on a bed (`lie_bed`), her prop bears her weight
+    (`y[PROP] > 0.85`), both soles leave stance (`stance == (False, False)`), and on `rise_chair` /
+    `rise_bed` she plants her feet and rises to stand on her soles (`sum(loads) >= 0.85 * weight`)."""
+    from machine import floor, modal, physics, worker
+    physics.ROOM, physics.SIGHT = 0.0, 0.0
+    for kind, prop_name, sit_cmd, sit_phase, rise_cmd, dz, yaw in (
+        ('chair', 'chair', 'sit_chair', 'seated', 'rise_chair', -0.30, math.pi),
+        ('bed', 'prop_bed', 'lie_bed', 'bed_rest', 'rise_bed', -0.10 - floor.BED_MATTRESS[0], math.pi / 2.0),
+    ):
+        s = worker.session()
+        worker.apply(s, {'scenario': 'flat'})
+        g = s['g']
+        floor.mocap(g['world'], prop_name, (0.0, 0.0, dz), yaw)
+        g['world']._mj.mj_forward(g['world'].model, g['world'].data)
+        _run(s, 1.0)
+        worker.apply(s, {'say': sit_cmd})
+        _flips, sat_t = _run(s, 6.0, until=sit_phase)
+        stance_sat = tuple(bool(v) for v in g['ask']['stance'])
+        prop_sat = float(g['y'][modal.PROP])
+        loads_sat = tuple(round(float(v), 1) for v in g['loads'])
+        worker.apply(s, {'say': rise_cmd})
+        _flips, stand_t = _run(s, 6.0, until='stand')
+        _run(s, 1.0)
+        weight = float(g['fr'][modal.WEIGHT])
+        soles_end = sum(g['loads']) / weight
+        report.check('%s: borne on prop (%.2f) with soles out of stance %s, then rises to stand (%.2f on soles)'
+                     % (kind, prop_sat, stance_sat, soles_end),
+                     sat_t is not None and stand_t is not None and stance_sat == (False, False)
+                     and prop_sat > 0.85 and soles_end >= 0.85 and s['fallen_at'] is None,
+                     'sat=%s loads=%s prop=%.2f stand=%s soles=%.2f fallen=%s'
+                     % (sat_t, loads_sat, prop_sat, stand_t, soles_end, s['fallen_at']))
+
+
 ROSTER = (test_a_stop_settles_and_f_is_heard, test_a_halting_row_waits_for_a_swing_only_while_her_rhythm_turns,
-          test_a_chair_a_hair_off_is_sat_on_and_risen_from, test_doorway_arm_yields_and_she_walks_on)
+          test_a_chair_a_hair_off_is_sat_on_and_risen_from, test_doorway_arm_yields_and_she_walks_on,
+          test_chair_and_bed_dangling_legs_and_rising)
 
 
 def main(argv=None):
