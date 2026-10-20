@@ -8,12 +8,15 @@ from machine.se2 import WALK_ON
 
 
 def _start_mode(g, by, entry, at):
-    from machine import latent, leap, se2
+    from machine import latent, leap, se2, touch
     name = entry[0]
     g['active_entry'] = name
+    if not g.get('_twist_active'):
+        g['asked'] = se2.NOMINAL_TWIST.get(name, (0.0, 0.0, 0.0))
+        g['twist'] = touch.against(g, g['asked'])
     if name == 'hop':
         wire, names, dur, dt_load_ms = leap.standing_leap(entry[1], float(g.get('_hop_charge', 0.0)))
-        g['_sync_cpg_at'], g['st'][latent.THETA] = None, ((0.10 - dt_load_ms * 0.001) % 1.0) * math.tau
+        g['st'][latent.THETA] = ((0.10 - dt_load_ms * 0.001) % 1.0) * math.tau
         g['_jump_t0'], g['_jump_throw'], g['_jump_until'], g['_leap'] = at, at + dt_load_ms * 0.001, at + dur, False
         sprung.said(g, 'hop', wire, names, at=at, reset=True)
         if '#201' in by:
@@ -35,7 +38,7 @@ def _start_mode(g, by, entry, at):
 
 
 def heard_say(g, gym, entry):
-    from machine import latent, leap, modal, se2, stride
+    from machine import latent, leap, modal, se2, stride, touch
     by, name = {e[0]: e for e in gym}, entry[0]
     if g.get('_jump_until', 0.0) > g['t']:
         if name == 'hop':
@@ -46,6 +49,9 @@ def heard_say(g, gym, entry):
         g['tab'] = g['tab'][g['tab'][:, latent.AT] <= g['_jump_until'] + 0.01]
         g['labels'] = [(w, n) for w, n in g['labels'] if w <= g['_jump_until'] + 0.01]
         g['active_entry'] = name
+        if not g.get('_twist_active'):
+            g['asked'] = se2.NOMINAL_TWIST.get(name, (0.0, 0.0, 0.0))
+            g['twist'] = touch.against(g, g['asked'])
         if name in ('#204', 'jog'):
             sprung.said(g, name, se2._WALK_ON_WIRE, (name,), at=t_res)
         elif name == '#201' and g.get('_leap') and '_brake_wire' in g:
@@ -72,6 +78,9 @@ def heard_say(g, gym, entry):
         t_last = min(t_end, g['t'] + 0.18) if (cur_d == 'init_walk' and name in ('jog', 'turn_left', 'turn_right')) else t_end
         g['tab'], g['labels'] = g['tab'][g['tab'][:, latent.AT] < t_end - 1e-4], [(w, n) for w, n in g['labels'] if w < t_end - 1e-4]
         g['active_entry'] = name
+        if not g.get('_twist_active'):
+            g['asked'] = se2.NOMINAL_TWIST.get(name, (0.0, 0.0, 0.0))
+            g['twist'] = touch.against(g, g['asked'])
         return sprung.said(g, '#204', se2._WALK_ON_WIRE, ('#204',), at=t_last) if name == '#204' else sprung.said(g, *entry, at=t_last)
     if cur_d in se2.HOLD_PHASES and len(g['tab']):
         g['tab'] = g['tab'][g['tab'][:, latent.AT] <= g['t'] + 1.5]
@@ -82,6 +91,9 @@ def heard_say(g, gym, entry):
     strafe_opp = ({name, ae} == {'strafe_left', 'strafe_right'}
                   or (((name in ('strafe_left', 'strafe_right')) != (ae in ('strafe_left', 'strafe_right'))) and spd > 0.28))
     same = cur_d not in ('brake', '#201') and not strafe_opp and ((name in sprung._FWD_GAITS and not back_now) or (name in sprung._BACK_GAITS and back_now))
+    if not g.get('_twist_active') and name != 'hop':
+        g['asked'] = se2.NOMINAL_TWIST.get(name, (0.0, 0.0, 0.0))
+        g['twist'] = touch.against(g, g['asked'])
     if name in ('parry_shove', 'controlled_fall'):
         g['active_entry'] = name
         return sprung.said(g, *entry, at=t0, reset=True)
@@ -106,7 +118,6 @@ def heard_say(g, gym, entry):
         ts, tg = se2.BRAKE_DELAYS['stand_fast' if spd > 0.45 else 'stand_slow']
         sprung.said(g, *by['#201'], at=t0 + ts, reset=True)
         if name != '#201':
-            g['_sync_cpg_at'] = t0 + tg
             _start_mode(g, by, entry, at=t0 + tg)
         return
     if striding and same:
@@ -122,22 +133,17 @@ def heard_say(g, gym, entry):
         sprung.said(g, 'touch', sprung._TOUCH_WIRE, ('touch',), at=t0)
         sprung.said(g, *by['#201'], at=t0 + 0.80, reset=True)
         if name != '#201':
-            g['_sync_cpg_at'] = t0 + 2.00
             _start_mode(g, by, entry, at=t0 + 2.00)
         return
     if cur_d in se2.RISES and name in (sprung._FWD_GAITS + sprung._BACK_GAITS) and se2.RISES[cur_d][0] in by:
         rm, dt_r = se2.RISES[cur_d]
         sprung.said(g, *by[rm], at=t0, reset=True)
-        g['_sync_cpg_at'] = t0 + dt_r
         return _start_mode(g, by, entry, at=t0 + dt_r)
     if off_c and '#201' in by and name not in (('#201', 'hop') + tuple(sprung.STUNT_MODES)):
         dt_s = 0.55 if cur_d == 'down' else 1.35
         sprung.said(g, *by['#201'], at=t0, reset=True)
-        g['_sync_cpg_at'] = t0 + dt_s
         return _start_mode(g, by, entry, at=t0 + dt_s)
     if not striding:
-        if name != '#201':
-            g['_sync_cpg_at'] = t0
         return _start_mode(g, by, entry, at=t0)
     g['active_entry'] = name
     sprung.said(g, *entry, at=t0)
@@ -167,10 +173,10 @@ def heard(g, gym, command):
             if entry[0] == 'hop' and 'charge' not in command and g.get('_jump_until', 0.0) <= g['t']:
                 g['_hop_charge'] = 0.0
             if 'twist' not in command and entry[0] != 'hop' and not (g.get('_twist_active') and entry[0] in se2.WASD_GAITS):
-                g['_twist_active'], g['_twist_stop_until'], g['_resume_at'] = False, 0.0, None
+                g['_twist_active'], g['_twist_stop_until'], g['_halt_at'] = False, 0.0, None
                 g['twist'] = g['asked'] = (0.0, 0.0, 0.0)
             if 'heading' not in command and entry[0] in ('turn_left', 'turn_right', 'turn_back_left', 'turn_back_right'):
-                g['target_heading'] = None
+                g['target_heading'], g['has_heading'] = 0.0, 0.0
             heard_say(g, gym, entry)
     if command.get('walk') and not (abs(float(g['out'][latent.SWAY][modal.DRIVE])) > stride.STIRS
                                     or abs(float(g['out'][latent.SWAY][modal.LATERAL])) > 0.08
@@ -179,7 +185,8 @@ def heard(g, gym, command):
     for entry in command.get('entries', ()):
         sprung.said(g, *entry)
     if 'heading' in command:
-        g['target_heading'] = None if command['heading'] is None else float(command['heading'])
+        g['has_heading'] = 0.0 if command['heading'] is None else 1.0
+        g['target_heading'] = 0.0 if command['heading'] is None else float(command['heading'])
     if 'push' in command:
         g['world'].push(command['push'], command.get('seconds', sprung.SHOVE_S))
     if 'grip' in command:
@@ -292,10 +299,6 @@ def stepped(s):
     if s['fallen_at'] is None and _is_fallen(g, world):
         s['fallen_at'] = g['t']
     s['passes'] += 1
-    if g.get('_resume_at') is not None and g['t'] >= g['_resume_at']:
-        g['_resume_at'] = None
-        if any(abs(v) > 0.01 for v in g.get('asked', (0.0, 0.0, 0.0))):
-            heard(g, s['gym'], {'twist': g['asked']})
     tau = world.data.ctrl
     s['torque'] += K * (tau - s['torque'])
     s['power'] += K * (tau * world.data.qvel[world.vadr] - s['power'])

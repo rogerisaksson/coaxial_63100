@@ -1,6 +1,6 @@
-"""What her skin and her soles feel: a touch that stops her going, a shove walked out, an edge.
+"""What her skin and her soles feel: a touch that gates her going, a shove walked out, an edge.
 
-    touch.check_contacts(g, out, doing)     # a pass of her motion, `g` and `out` as `machine.motion`'s
+    touch.step(g, out, dt)                  # a pass of her motion, `g` and `out` as `machine.motion`'s
     touch.soles(b, touch, ids, tips, y, fr, stance)   # its arithmetic of her soles
     touch.against(g, twist)                 # a twist less its part toward what she felt
 
@@ -14,15 +14,14 @@ from machine import edge, figure
 #: Her segments under her knees, a side's: what bears on the floor, or trips over what is on it.
 SOLES = ((edge.SKIN.index('left_foot'), edge.SKIN.index('left_toes')),
          (edge.SKIN.index('right_foot'), edge.SKIN.index('right_toes')))
-HANDS = tuple(edge.SKIN.index(n) for n in ('left_hand', 'left_fingers', 'right_hand', 'right_fingers'))
-ABOVE = [k for k in range(len(edge.SKIN)) if k not in SOLES[0] + SOLES[1] + HANDS]
 ARMS = (tuple(edge.SKIN.index(n) for n in ('left_upper_arm', 'left_forearm', 'left_hand', 'left_fingers')),
         tuple(edge.SKIN.index(n) for n in ('right_upper_arm', 'right_forearm', 'right_hand', 'right_fingers')))
-CORE = [k for k in ABOVE if k not in ARMS[0] + ARMS[1]]
+CORE = [edge.SKIN.index(n) for n in ('pelvis', 'torso', 'neck', 'head')]
+ABOVE = sorted(set(range(len(edge.SKIN))) - set(SOLES[0] + SOLES[1] + ARMS[0] + ARMS[1]))
 
 
 #: A touch above her soles not along her going - a wall, a tree, a hand that shoves her back or
-#: aside - interrupts it: she brakes and stands, steps where her capture point asks, and goes on
+#: aside - gates it: she brakes and stands, steps where her capture point asks, and goes on
 #: as she was told RESUME_S after it is gone; one within ALONG_COS of her going she walks out.
 #: Walking at 0.69 m/s an 80 N shove felled her 5 ways of 8 going on; stopped 0.1 s after it, 3 -
 #: those along her way among them.
@@ -39,119 +38,77 @@ EDGE_M = 0.01
 TIPS = tuple((x, -figure.TOE_RY, figure.TOE_M) for x in (-figure.SOLE_HALF, figure.SOLE_HALF))
 
 
-def _ids(g):
-    """Her segments' bodies in her law's model, `edge.SKIN`'s order, looked up once."""
-    ids = g.get('_skin_ids')
-    if ids is None:
-        ids = g['_skin_ids'] = [g['body'].m.body(n).id for n in edge.SKIN]
-    return ids
-
-
-def _yield_arms(g, out, model, ids, touch, cur_doing):
-    """When an arm or hand meets an obstruction opposing her walk (a doorway jamb), bleed its ESO,
-    yield its shoulder and elbow backward (`g['posture']`, `g['ref_q']`), narrow her step width,
-    and steer her heading slightly clear so she slips past without stopping."""
+def step(g, out, dt):
+    """Her skin's and her soles' continuous contact filter on `out` and `g['a']`."""
     import numpy as np
-    from machine import latent, modal, se2
-    dt = 0.001 * g['every']
-    sh_h, ch_h = math.sin(g['heading']), math.cos(g['heading'])
-    ay_prev = g.get('_arm_yield', (0.0, 0.0))
-    walking = abs(float(out[latent.SWAY][modal.DRIVE])) > 0.06 and cur_doing not in se2.STUNT_PHASES
-    ays = []
-    for side in (0, 1):
-        f_vec = np.sum([model.xmat[ids[k]].reshape(3, 3) @ touch[k] for k in ARMS[side]], axis=0)
-        f_max = max(float(np.linalg.norm(touch[k])) for k in ARMS[side])
-        along = float(f_vec[0]) * sh_h + float(f_vec[2]) * ch_h
-        ob = walking and f_max > edge.TOUCHED_N and along < -12.0
-        ays.append(min(1.0, min(1.0, f_max / 42.0) if ob else max(0.0, ay_prev[side] - 2.2 * dt)))
-    g['_arm_yield'] = ay_l, ay_r = tuple(ays)
-    ay_max = max(ay_l, ay_r)
-    if ay_max <= 1e-3:
-        if max(ay_prev) > 1e-3:
-            g['posture'][[5, 6, 13, 14]] = 0.0
-        return 0.0
-    out[latent.SWAY][modal.ARMS] *= (1.0 - 0.85 * ay_max)
-    out[latent.REF][modal.ARMS] *= (1.0 - 0.85 * ay_max)
-    out[latent.RATE][modal.ARMS] *= (1.0 - 0.85 * ay_max)
-    out[latent.REF][modal.WIDTH] = -0.35 * ay_max
-    for ay, sh_idx, el_idx, sign in ((ay_l, 5, 6, -1.0), (ay_r, 13, 14, 1.0)):
-        if ay > 1e-3:
-            g['eso'][2][[sh_idx, el_idx]] = 0.0
-            g['posture'][sh_idx], g['posture'][el_idx] = -0.55 * ay, 0.30 * ay
-            g['ref_q'][sh_idx] = max(-0.75, g['ref_q'][sh_idx] + 0.45 * ay * (-0.55 - g['ref_q'][sh_idx]))
-            g['ref_q'][el_idx] = min(0.85, g['ref_q'][el_idx] + 0.45 * ay * (0.30 - g['ref_q'][el_idx]))
-            g['ref_v'][[sh_idx, el_idx]] *= (1.0 - 0.5 * ay)
-            out[latent.REF][modal.TURN] += -sign * 0.45 * ay
-            g['heading'] += sign * 0.75 * ay * dt
-    return ay_max
-
-
-def check_contacts(g, out, cur_doing):
-    """A touch on her above her soles halts her drive and brakes her; a sole asked aloft that has
-    come clear of everything, then is touched more along the floor than up it EDGE_M over it -
-    an edge met, not the floor - raises her swings by how high it met it (`modal.RAISE`).
-    Touched aloft at all, her toes leaving a flat floor tripped her 13 times in 40 s."""
-    import numpy as np
-    from machine import latent, modal, se2
-    y, model, ids = g['sense'], g['body'].d, _ids(g)
-    touch = y[edge.TOUCH].reshape(-1, 3)
-    ay_max = _yield_arms(g, out, model, ids, touch, cur_doing)
-    g['_upper_hit'] = bool((np.linalg.norm(touch[CORE], axis=1) > edge.TOUCHED_N).any())
-    cx, cz = float(g['y'][modal.COM][0]), float(g['y'][modal.COM][2])
-    if g['_upper_hit']:
-        f = np.sum([model.xmat[ids[k]].reshape(3, 3) @ touch[k] for k in CORE], axis=0)
-        fx, fz = float(f[0]), float(f[2])
-        f_mag = math.hypot(fx, fz)
-        x0, z0, t0 = g.setdefault('_felt_pos', (cx, cz, g['t']))
-        v = g['est']['vel']
-        adv = -((cx - x0) * fx + (cz - z0) * fz) / max(f_mag, 1e-9)
-        v_against = -(float(v[0]) * fx + float(v[2]) * fz) / max(f_mag, 1e-9)
-        yielding = adv > 0.04 or (ay_max > 0.25 and v_against > 0.20) or (g['t'] - t0 < 0.09 and v_against > 0.25)
-        if yielding:
-            g.pop('_felt', None)
-            g['_resume_at'] = None
-        else:
-            g['_resume_at'], g['_felt'] = g['t'] + RESUME_S, (fx, fz, g['t'])
-            way = -1.0 if (cur_doing in se2._BACK_GAITS or g.get('active_entry') in se2._BACK_GAITS
-                           or g.get('twist', (0.0, 0.0, 0.0))[0] < -0.01) else 1.0
-            gx, gz = way * math.sin(g['heading']), way * math.cos(g['heading'])
-            driving = abs(float(out[latent.SWAY][modal.DRIVE])) > 0.06
-            opposed = (fx * float(v[0]) + fz * float(v[2]) <= ALONG_COS * f_mag * math.hypot(float(v[0]), float(v[2]))
-                       and fx * gx + fz * gz <= ALONG_COS * f_mag)
-            if opposed:
-                out[latent.SWAY][modal.DRIVE] = min(float(out[latent.SWAY][modal.DRIVE]), 0.04)
-                out[latent.REF][modal.DRIVE] = g['a'][modal.GOING] = 0.0
-            if opposed and driving and cur_doing not in ('brake', '#201', 'rest') and abs(float(g['st'][latent.NOW][latent.AMP][modal.DRIVE])) > 0.06:
-                se2._dropped(g)
-                se2.said(g, 'brake', g['_brake_wire'], ('brake',), at=g['t'] + 0.001, reset=True)
-                if g['_stand_entry'] is not None:
-                    se2.said(g, *g['_stand_entry'], at=g['t'] + 1.20, reset=True)
-                g['active_entry'] = '#201'
-    else:
-        if '_felt' in g and '_felt_pos' in g:
-            fx, fz, _at = g['_felt']
-            x0, z0 = g['_felt_pos'][:2]
-            if (cx - x0) * fx + (cz - z0) * fz < -0.04 * math.hypot(fx, fz):
-                g.pop('_felt', None)
-        g.pop('_felt_pos', None)
-    aloft, clear = g['a'][modal.STANCE] < 0.5, list(g.get('_clear', (False, False)))
-    tips = g.get('_tips')
-    if tips is None:
-        tips = g['_tips'] = np.array(TIPS)
+    from machine import latent, modal, ortho
+    y_in, d, ids, tips = g['sense'], g['body'].d, g['_skin_ids'], g['_tips']
+    touch = y_in[edge.TOUCH].reshape(-1, 3)
+    f = (d.xmat[ids[CORE]].reshape(-1, 3, 3) @ touch[CORE][..., None]).squeeze(-1).sum(axis=0)
+    c_max = float(np.linalg.norm(touch[CORE], axis=1).max())
+    af = min(1.0, max(0.0, (c_max - edge.TOUCHED_N) / edge.TOUCHED_N))
+    fx, fz = float(f[0]), float(f[2])
+    ox, oz = g.get('_felt', (0.0, 0.0))[:2]
+    decay = max(0.0, 1.0 - dt / FELT_S)
+    g['_felt'] = ((1.0 - af) * decay * ox + af * fx, (1.0 - af) * decay * oz + af * fz)
+    v = g['est']['vel']
+    fn, vn = math.hypot(fx, fz), math.hypot(float(v[0]), float(v[2]))
+    cv = (fx * float(v[0]) + fz * float(v[2])) / max(fn * vn, 1e-9)
+    drv0 = abs(float(out[latent.SWAY][modal.DRIVE]))
+    w_opp = (af * min(1.0, max(0.0, (ALONG_COS - cv) / 0.15))
+             * min(1.0, max(0.0, (drv0 - 0.02) / 0.04)) * (1.0 - float(g['a'][modal.BORNE])))
+    g['a'][modal.GOING] *= 1.0 - w_opp
+    asked = g.get('asked', (0.0, 0.0, 0.0))
+    tw_on = float(g.get('_twist_active', False))
+    tw = against(g, asked)
+    g['twist'] = tuple(tw_on * tw[i] + (1.0 - tw_on) * g['twist'][i] for i in range(3))
+    blocked = tw_on * min(1.0, max(0.0, (math.hypot(asked[0], asked[1]) - math.hypot(tw[0], tw[1])) / 0.05))
+    gain_on = min(1.0, max(0.0, (max(float(g['st'][latent.NOW][latent.GAIN]), float(g['st'][latent.TO][latent.GAIN])) - 0.02) / 0.02))
+    hold = gain_on * max(max(0.0, g.get('_hold_s', 0.0) - dt), blocked * 0.5, w_opp * RESUME_S)
+    g['_hold_s'] = hold
+    u_act = min(1.0, hold / 0.01)
+    u_b = min(1.0, max(0.0, g.get('_u_brake', 0.0) + (2.0 * u_act - 1.0) * (dt / (0.50 * u_act + 0.65 * (1.0 - u_act)))))
+    need = float(g['a'][modal.NEED]) + float(g['a'][modal.SWINGS].max())
+    u_set = u_act * min(1.0, max(0.0, (u_b - 0.95) / 0.05)) * min(1.0, max(0.0, 1.0 - need / 0.05))
+    u_s = min(1.0, max(0.0, g.get('_u_stand', 0.0) + u_set * (dt / 0.40) - (1.0 - u_act) * (dt / 0.20)))
+    g['_u_brake'], g['_u_stand'] = u_b, u_s
+    sway, turns, psi = out[latent.SWAY].copy(), float(out[latent.TURNS]), out[latent.PSI]
+    z0 = out[latent.REF] - sway * np.sin(psi)
+    zb = np.zeros(ortho.N)
+    zb[modal.AXIAL] = 0.04
+    z_new = (1.0 - u_b) * z0 + u_b * (1.0 - u_s) * zb + u_b * u_s * g['rest'][latent.Z]
+    sway_b = np.zeros(ortho.N)
+    sway_b[modal.LATERAL] = 0.12 * (1.0 - u_s)
+    sway_b[modal.LIFT] = float(sway[modal.LIFT]) * (1.0 - u_s)
+    sway_new = (1.0 - u_b) * sway + u_b * sway_b
+    u_drv = min(1.0, max(0.0, g.get('_u_drv', 1.0) * (1.0 - w_opp) + (1.0 - u_act) * (dt / 0.65) - u_act * (dt / 0.50)))
+    g['_u_drv'] = u_drv
+    sway_new[modal.DRIVE] = u_drv * float(sway[modal.DRIVE]) + (1.0 - u_drv) * min(float(sway[modal.DRIVE]), 0.04) * (1.0 - u_b)
+    sine_new = sway_new * np.sin(psi)
+    out[latent.REF] = z_new + sine_new
+    out[latent.RATE] = (1.0 - u_b) * (out[latent.RATE] - sway * turns * np.cos(psi)) + sway_new * turns * np.cos(psi)
+    out[latent.ACC] = -sine_new * turns * turns
+    out[latent.SWAY] = sway_new
+    kb, db = out[latent.KS].copy(), out[latent.DS].copy()
+    kb[modal.AXIAL], kb[modal.LATERAL], kb[modal.SAGITTAL], kb[modal.ROCK] = 3000.0, 3000.0, 0.0, 2400.0
+    db[modal.AXIAL], db[modal.LATERAL], db[modal.SAGITTAL], db[modal.ROCK] = 800.0, 600.0, 260.0, 240.0
+    out[latent.KS] = (1.0 - u_b) * out[latent.KS] + u_b * (1.0 - u_s) * kb + u_b * u_s * g['rest'][latent.K]
+    out[latent.DS] = (1.0 - u_b) * out[latent.DS] + u_b * (1.0 - u_s) * db + u_b * u_s * g['rest'][latent.D]
+    aloft = np.clip(1.0 - g['a'][modal.STANCE], 0.0, 1.0)
+    clear = np.asarray(g.get('_clear', (0.0, 0.0)), dtype=float)
     pushed, sizes, lowest, floors = g['soles'](g['body'], touch, ids, tips, g['y'], g['fr'], g['a'][modal.STANCE])
-    for side in range(len(SOLES)):
-        felt = max(float(n) for n in sizes[side]) > edge.TOUCHED_N
-        up = min(float(g['y'][modal.LOWEST][side]), float(lowest[side])) - float(floors[side])
-        met = clear[side] and up > EDGE_M and any(
-            n > edge.TOUCHED_N and math.hypot(float(p[0]), float(p[2])) > abs(float(p[1]))
-            for p, n in zip(pushed[side], sizes[side]))
-        g['a'][modal.RAISE] = max(float(g['a'][modal.RAISE]), met * up)
-        clear[side] = bool(aloft[side]) and (clear[side] or not felt)
-    g['_clear'] = tuple(clear)
+    up = np.minimum(g['y'][modal.LOWEST], lowest) - floors
+    w_up = np.clip((up - EDGE_M) / 0.004, 0.0, 1.0) * np.maximum(up, 0.0)
+    p_arr, s_arr = np.asarray(pushed), np.asarray(sizes)
+    w_edge = (np.clip((s_arr - edge.TOUCHED_N) / edge.TOUCHED_N, 0.0, 1.0)
+              * np.clip((np.hypot(p_arr[:, :, 0], p_arr[:, :, 2]) - np.abs(p_arr[:, :, 1])) / edge.TOUCHED_N, 0.0, 1.0)).max(axis=1)
+    g['a'][modal.RAISE] = max(float(g['a'][modal.RAISE]), float((clear * w_edge * w_up).max()))
+    unfelt = np.clip(1.0 - s_arr.max(axis=1) / edge.TOUCHED_N, 0.0, 1.0)
+    g['_clear'] = aloft * np.maximum(clear, unfelt)
 
 
 def soles(b, touch, ids, tips, y, fr, stance):
-    """`check_contacts`' arithmetic of her soles on her law's body `b` as `wbc.sense` left it: (each
+    """`step`'s arithmetic of her soles on her law's body `b` as `wbc.sense` left it: (each
     sole's pushes, world - its foot's and its toes' -, their sizes, N; its toes' lowest tip and the
     floor under it, m) - `touch` the edge's (SKIN, 3), `ids` her segments' bodies, `tips` TIPS."""
     import numpy as np
@@ -164,13 +121,13 @@ def soles(b, touch, ids, tips, y, fr, stance):
 
 
 def against(g, tw):
-    """`tw` (body frame) less any axis aimed within ALONG_COS into what she felt within FELT_S:
+    """`tw` (body frame) less any axis aimed into what she felt (`g['_felt']`):
     a wall walked into, a hand that shoved her - she does not walk on into it."""
-    fx, fz, at = g.get('_felt', (0.0, 0.0, -math.inf))
+    fx, fz = g.get('_felt', (0.0, 0.0))[:2]
     size = math.hypot(fx, fz)
-    if g['t'] - at > FELT_S or size < 1e-9:
-        return tw
-    nx, nz, sh, ch = fx / size, fz / size, math.sin(g['heading']), math.cos(g['heading'])
-    vx = 0.0 if tw[0] * (sh * nx + ch * nz) < -ALONG_COS * abs(tw[0]) else tw[0]
-    vy = 0.0 if tw[1] * (ch * nx - sh * nz) < -ALONG_COS * abs(tw[1]) else tw[1]
-    return (vx, vy, tw[2])
+    w = min(1.0, max(0.0, (size - 0.5) / edge.TOUCHED_N))
+    nx, nz, sh, ch = fx / max(size, 1e-9), fz / max(size, 1e-9), math.sin(g['heading']), math.cos(g['heading'])
+    cx, cy = sh * nx + ch * nz, ch * nx - sh * nz
+    kx = 1.0 - w * (1.0 - min(1.0, max(0.0, (math.copysign(cx, tw[0]) + ALONG_COS) / (1.0 - ALONG_COS))))
+    ky = 1.0 - w * (1.0 - min(1.0, max(0.0, (math.copysign(cy, tw[1]) + ALONG_COS) / (1.0 - ALONG_COS))))
+    return (kx * tw[0], ky * tw[1], tw[2])

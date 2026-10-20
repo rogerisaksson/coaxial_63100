@@ -286,6 +286,11 @@ def place(world, kind, z, x=0.0, heading=0.0, top=None):
 
 
 
+def _on_chair(world):
+    mocap(world, 'chair', (0.0, 0.0, 0.0), math.pi)
+    world.data.qpos[1] += CHAIR_SEAT_H
+
+
 def scenario(world, name, z=1.2, x=0.0):
     park(world)
     if name in ('flat', 'clear', 'none'):
@@ -297,8 +302,13 @@ def scenario(world, name, z=1.2, x=0.0):
             place(world, 'slope', z=5.5, x=2.5), place(world, 'ice', z=5.5, x=-2.0),
             place(world, 'chair', z=0.8, x=1.5), place(world, 'bed', z=1.8, x=-1.8)),
         'chair': lambda: place(world, 'chair', z=0.88, x=x),
+        'chair_behind': lambda: mocap(world, 'chair', (0.0, 0.0, -0.30), math.pi),
+        'chair_ahead': lambda: mocap(world, 'chair', (0.0, 0.0, 0.40), math.pi),
+        'on_chair': lambda: _on_chair(world),
         'bed': lambda: place(world, 'bed', z=1.8, x=x),
+        'bed_behind': lambda: mocap(world, 'prop_bed', (0.0, 0.0, -0.10 - BED_MATTRESS[0]), math.pi / 2.0),
         'mattress': lambda: place(world, 'mattress', z=0.6, x=x),
+        'mattress_under': lambda: mocap(world, 'prop_bed', (0.0, 0.004 - BED_MATTRESS_H, -0.20), 0.0),
         'slope': lambda: place(world, 'slope', z=0.25, x=x, top=UPPER_M),
         'slope_down': lambda: place(world, 'slope_down', z=0.25, x=x),
         'cross_slope': lambda: place(world, 'cross_slope', z=0.25, x=x),

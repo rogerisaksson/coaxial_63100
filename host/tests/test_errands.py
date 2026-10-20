@@ -107,24 +107,21 @@ def test_a_chair_a_hair_off_is_sat_on_and_risen_from(report):
 
 
 def test_doorway_arm_yields_and_she_walks_on(report):
-    """Walking through the room's doorway (`DOOR_X = (0.3, 1.2)` at `z = 3.5 m`) near either jamb
-    so her hand or forearm strikes the door frame, her arm yields backward (`<= -0.40 rad`) and she
-    walks on past the doorway without braking to `#201`."""
+    """Walking through the room's doorway (`DOOR_X = (0.3, 1.2)` at `z = 3.5 m`) from her initial lay
+    near either jamb so her hand or forearm strikes the door frame, her arm yields backward (`<= -0.40 rad`)
+    and she walks on past the doorway without braking to `#201`."""
     import numpy as np
     from machine import edge, physics, touch, worker
-    for side_name, x0, sh_idx, arm_skin in (('right jamb', 0.54, 13, touch.ARMS[1]),
-                                            ('left jamb', 0.92, 5, touch.ARMS[0])):
+    for side_name, hd, sh_idx, arm_skin in (('right jamb', 0.148, 13, touch.ARMS[1]),
+                                            ('left jamb', 0.265, 5, touch.ARMS[0])):
         physics.ROOM = 1.0
         s = worker.session()
         worker.apply(s, {'scenario': 'flat'})
-        g, d = s['g'], s['g']['world'].data
-        d.qpos[0], d.qpos[2] = x0, 2.0
-        g['world']._mj.mj_forward(g['world'].model, d)
-        g['est']['pos'][0], g['est']['pos'][2] = x0, 2.0
         _run(s, 0.4)
-        worker.apply(s, {'twist': WALK})
+        worker.apply(s, {'heading': hd, 'twist': WALK})
+        g = s['g']
         min_sh, max_arm_f = 0.0, 0.0
-        for _ in range(int(round(4.5 / worker.DT))):
+        for _ in range(int(round(7.5 / worker.DT))):
             worker.stepped(s)
             min_sh = min(min_sh, float(g['s']['q'][sh_idx]))
             t_arr = g['sense'][edge.TOUCH].reshape(-1, 3)
@@ -142,17 +139,15 @@ def test_chair_and_bed_dangling_legs_and_rising(report):
     """Seated on a chair (`sit_chair`) or reclined on a bed (`lie_bed`), her prop bears her weight
     (`y[PROP] > 0.85`), both soles leave stance (`stance == (False, False)`), and on `rise_chair` /
     `rise_bed` she plants her feet and rises to stand on her soles (`sum(loads) >= 0.85 * weight`)."""
-    from machine import floor, modal, physics, worker
+    from machine import modal, physics, worker
     physics.ROOM, physics.SIGHT = 0.0, 0.0
-    for kind, prop_name, sit_cmd, sit_phase, rise_cmd, dz, yaw in (
-        ('chair', 'chair', 'sit_chair', 'seated', 'rise_chair', -0.30, math.pi),
-        ('bed', 'prop_bed', 'lie_bed', 'bed_rest', 'rise_bed', -0.10 - floor.BED_MATTRESS[0], math.pi / 2.0),
+    for kind, scene, sit_cmd, sit_phase, rise_cmd in (
+        ('chair', 'chair_behind', 'sit_chair', 'seated', 'rise_chair'),
+        ('bed', 'bed_behind', 'lie_bed', 'bed_rest', 'rise_bed'),
     ):
         s = worker.session()
-        worker.apply(s, {'scenario': 'flat'})
+        worker.apply(s, {'scenario': scene})
         g = s['g']
-        floor.mocap(g['world'], prop_name, (0.0, 0.0, dz), yaw)
-        g['world']._mj.mj_forward(g['world'].model, g['world'].data)
         _run(s, 1.0)
         worker.apply(s, {'say': sit_cmd})
         _flips, sat_t = _run(s, 6.0, until=sit_phase)

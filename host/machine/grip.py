@@ -54,28 +54,28 @@ def outside(grip, grips):
     return MU + out * (grip - MU)
 
 
-def felt(grip, seen, frames, touch, slip, weight, dt, prior=MU, landed=(False, False)):
+def felt(grip, seen, frames, touch, slip, weight, dt, prior=MU):
     """Each sole's grip `dt` s on (2,), `seen` (2, SEEN) its last shares used sliding (0 holding)
     moved on: `frames` (2, 2, 3, 3) her model's of each sole's foot and toes, `touch` the edge's
     (SKIN, 3), `slip` her bearing soles' (3,, world, m/s), `weight` hers, N; `prior` what she
-    knows of the floor. A sole `landed` this pass is on the floor the other stands on, as far as
-    that is known under the prior - kept from where it stood itself, past a slick patch a
-    sole's reach was 5 cm on a floor of 1.0 for a second and she fell there."""
-    # a landing sole meets the floor the other stands on, as far as that is known under her prior
-    grip = np.where(landed, np.minimum(prior, grip.min()), grip)
-    pushed = np.einsum('kjab,kjb->ka', frames, touch[SOLES])
+    knows of the floor. An unloaded sole takes the floor the other stands on, as far as that is
+    known under the prior - kept from where it stood itself, past a slick patch a sole's reach
+    was 5 cm on a floor of 1.0 for a second and she fell there."""
+    pushed = np.einsum('kjab,kjb->kja', frames, touch[SOLES]).sum(axis=1)
     press = pushed @ UP
     across = pushed - press[:, None] * UP
     used = np.linalg.norm(across, axis=1) / np.maximum(press, 1e-9)
-    bears = press >= BEARS * weight
+    bears = np.clip(press / (BEARS * weight), 0.0, 1.0)
+    # an unloaded sole meets the floor the other stands on, as far as that is known under her prior
+    grip = grip + (1.0 - bears) * (np.minimum(prior, grip[[1, 0]]) - grip)
     # friction on a sliding sole is against its slide: her estimator's slip past SLIDE_M_S in a
     # turnabout's pivot, a trip or a shove read as slides, and walking 80 N shoves fell 30 -> 25
     against = across @ slip <= -AGAINST * np.linalg.norm(across, axis=1) * np.linalg.norm(slip)
-    moving = bears & (np.hypot(slip[0], slip[2]) > SLIDE_M_S) & against
+    moving = (bears >= 1.0) & (np.hypot(slip[0], slip[2]) > SLIDE_M_S) & against
     seen[:, :-1], seen[:, -1] = seen[:, 1:].copy(), moving * used
     slides = moving & (seen.min(axis=1) > 0.0) & (seen.max(axis=1) - seen.min(axis=1) <= PLATEAU * seen.mean(axis=1))
     # a holding sole's share is the least the floor holds, a sliding one's the most: what is not
     # friction - an edge's push, the sole's own inertia - only adds to a push across
-    held = grip + (bears & ~moving) * min(1.0, dt / TRUST_S) * np.maximum(used - grip, 0.0)
+    held = grip + ((bears >= 1.0) & ~moving) * min(1.0, dt / TRUST_S) * np.maximum(used - grip, 0.0)
     return np.minimum(np.where(slides, grip + np.minimum(used - grip, 0.0),
                                held + min(1.0, dt / RELAX_S) * (prior - held)), MU)

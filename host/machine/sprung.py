@@ -75,6 +75,7 @@ def laid(every=1, inner=None, solver=None):
     sense, est = edge.laid(world), estimate.laid(body, world.data.qpos[0:3])
     s = _sensed(body, est, sense, limbs)
     y = modal.sensed(s, (0.0, 0.0), np.zeros(modal.SENSED))
+    y[modal.CELLS] = sense[edge.CELLS]
     fr = modal.frame(y, body.mass, float(m.body_subtreemass[m.body('left_hip_yaw').id]), float(m.body_subtreemass[body.torso]),
                      float(m.body_subtreemass[m.body('left_upper_arm').id]), float(np.mean(s['q'][list(body.knees)])), 0.001 * every)
     rest = modal.rest(fr)
@@ -146,8 +147,9 @@ def reset_for_scenario(g, scen):
         g['grip_seen'][:] = 0.0
         s = g['s'] = _sensed(body, g['est'], edge.read(world, g['sense']), g['limbs'])
         hw, q0 = 0.5 * float(g['fr'][modal.WEIGHT]), g['sense'][edge.Q][g['joints']]
-        g['loads'], g['heading'], g['target_heading'] = [hw, hw], 0.0, None
+        g['loads'], g['heading'], g['target_heading'], g['has_heading'] = [hw, hw], 0.0, 0.0, 0.0
         modal.sensed(s, g['loads'], g['y'])
+        g['y'][modal.CELLS] = g['sense'][edge.CELLS]
         g['fr'][modal.HEADING], g['fr'][modal.FLOOR], g['fr'][modal.GROUND] = 0.0, g.get('floor0', 0.0), 0.0
         g['fr'][modal.FLOOR_AT] = g['y'][modal.SOLE].reshape(2, 3)[:, [0, 2]].mean(axis=0)
         g['fr'][modal.ROT] = np.array([0, 0, 1, 1, 0, 0, 0, 1, 0], float)
@@ -156,8 +158,11 @@ def reset_for_scenario(g, scen):
         g['a'][:], g['a'][modal.STANCE], g['ref_q'][:], g['ref_v'][:], g['hold'][:] = 0.0, 1.0, q0, 0.0, 0.0
         g['left'], g['eso'][:], g['surety'] = WEP_S, [q0, 0.0 * q0, 0.0 * q0], 1.0
         g['heat'], g['temp'][:] = type(g['heat']).for_joints(), 25.0
-        g['_twist_active'], g['_twist_stop_until'], g['twist'], g['twist_actual'] = False, 0.0, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)
-        g['active_entry'], g['n'], g['_look_yaw'], g['_last_way'] = None, 0, 0.0, 1.0
+        g['_twist_active'], g['_twist_stop_until'], g['twist'], g['asked'], g['twist_actual'] = (
+            False, 0.0, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0), (0.0, 0.0, 0.0))
+        g['active_entry'], g['n'], g['_look_yaw'], g['_halt_at'] = None, 0, 0.0, None
+        g['_hold_s'], g['_u_brake'], g['_u_stand'], g['_u_drv'], g['_clear'] = 0.0, 0.0, 0.0, 1.0, (0.0, 0.0)
+        g['_w_back'], g['_backing_yaw'], g['_turn_dc'] = 0.0, 0.0, 0.0
         g.pop('_felt', None)       # what she felt stood in the world laid away
         for idx in (g.get('waist_idx'), g.get('head_idx')):
             if idx is not None:

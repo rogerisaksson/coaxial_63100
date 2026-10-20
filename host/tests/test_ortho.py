@@ -126,11 +126,12 @@ def test_what_is_no_text_is_refused(report):
 
 
 def test_the_core_and_the_renderer_branch_nowhere(report):
-    """latent.py, impedance.py, stride.py, poise.py and modal.py: branchless AST verification."""
+    """latent.py, impedance.py, stride.py, poise.py, modal.py, touch.py, motion.py and grip.py: branchless AST verification."""
     branches = (ast.If, ast.IfExp, ast.While, ast.Match, ast.Try, ast.BoolOp, ast.ClassDef, ast.Lambda, ast.With)
     found = {}
     pure = ('latent', 'impedance', 'stride', 'poise', 'support')
-    for name in pure + ('modal',):
+    inner = ('touch', 'motion', 'grip')
+    for name in pure + ('modal',) + inner:
         with open(os.path.join(HERE, 'machine', name + '.py'), encoding='utf-8') as f:
             tree = ast.parse(f.read())
         found[name] = (['%s:%d' % (type(node).__name__, getattr(node, 'lineno', 0)) for node in ast.walk(tree)
@@ -140,6 +141,8 @@ def test_the_core_and_the_renderer_branch_nowhere(report):
     for name in pure:
         report.check('%s.py: no branch, no loop, no dict' % name, not found[name][0] and not found[name][1],
                      ', '.join(found[name][0]) or 'none')
+    for name in inner:
+        report.check('%s.py: no branch' % name, not found[name][0], ', '.join(found[name][0]) or 'none')
     given = next(node for node in found['modal'][2].body
                  if isinstance(node, ast.FunctionDef) and node.name == 'given')
     dicts = [node.lineno for node in found['modal'][1] if isinstance(node, (ast.Dict, ast.DictComp))]

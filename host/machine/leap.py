@@ -200,8 +200,6 @@ def update_leap_charge(g, by, walk_on_wire, ch):
     after_labels = [(w + dt_shift, n) for w, n in g['labels'] if w > old_until + 0.002]
     g['labels'] = (kept_labels + hop_labels + after_labels)[-16:]
     g['_jump_until'], g['_jump_throw'] = new_until, t0 + dt_load_ms * 0.001
-    if g.get('_sync_cpg_at') is not None and g['_sync_cpg_at'] > old_until:
-        g['_sync_cpg_at'] += dt_shift
 
 
 def stride_hop(g, by, t0, spd, back_now, fwd_gaits, back_gaits, said_fn, walk_on_wire):
@@ -232,7 +230,6 @@ def stride_hop(g, by, t0, spd, back_now, fwd_gaits, back_gaits, said_fn, walk_on
         said_fn(g, *by['#201'], at=t_res + 0.01, reset=True)
     if prev != '#201':
         t_go = t_res + 0.70
-        g['_sync_cpg_at'] = t_go
         iw = by['init_walk'][1][:ortho.ROW.size] if 'init_walk' in by else None
         if in_fwd and iw is not None:
             said_fn(g, 'init_walk', iw, ('init_walk',), at=t_go, reset=True)

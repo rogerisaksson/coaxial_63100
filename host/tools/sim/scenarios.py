@@ -94,22 +94,8 @@ FALL_M_S = 1.0
 
 def placed(s, scene):
     """`scene` laid round her in her session `s`: a floor event, or a chair or a bed set at her."""
-    from machine import floor, worker
-    world = s['g']['world']
-    set_at = scene.endswith(('_behind', '_ahead', '_under')) or scene == 'on_chair'
-    worker.apply(s, {'scenario': 'flat' if set_at else scene})
-    if scene == 'chair_behind':
-        floor.mocap(world, 'chair', (0.0, 0.0, -0.30), math.pi)
-    elif scene == 'chair_ahead':
-        floor.mocap(world, 'chair', (0.0, 0.0, 0.40), math.pi)
-    elif scene == 'bed_behind':
-        floor.mocap(world, 'prop_bed', (0.0, 0.0, -0.10 - floor.BED_MATTRESS[0]), math.pi / 2.0)
-    elif scene == 'mattress_under':
-        floor.mocap(world, 'prop_bed', (0.0, 0.004 - floor.BED_MATTRESS_H, -0.20), 0.0)
-    elif scene == 'on_chair':
-        floor.mocap(world, 'chair', (0.0, 0.0, 0.0), math.pi)
-        world.data.qpos[1] += floor.CHAIR_SEAT_H
-    world._mj.mj_forward(world.model, world.data)
+    from machine import worker
+    worker.apply(s, {'scenario': scene})
 
 
 def borne(world, hers, kinds, force):

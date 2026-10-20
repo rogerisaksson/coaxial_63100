@@ -16,7 +16,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
-from machine import borne, edge, estimate, grip, latent, leap, modal, poise, se2, situation, stride, touch, wbc
+from machine import borne, edge, estimate, grip, latent, modal, poise, se2, situation, stride, touch, wbc
 
 
 def seen(g, dt):
@@ -42,26 +42,20 @@ def held_back(g, dt):
     rhythm at rest, no swing comes: sitting, her centre of mass behind her heels, a seat asked
     was held for ever."""
     tab, t, a = g['tab'], g['t'], g['a']
-    if not len(tab) or (a[modal.NEED] <= 0.0 and a[modal.SWINGS].max() <= 0.0):
-        g['_held_since'] = None
-        return
+    stepping = float((a[modal.NEED] > 0.0) | (a[modal.SWINGS].max() > 0.0))
     at = tab[:, latent.AT]
     halts = (tab[:, latent.SAID][:, latent.GAIN] > 0.5) & (tab[:, latent.VALS][:, latent.GAIN] < 0.05)
     due = halts & (at <= t + latent.EDGE_S) & (at > t - dt + latent.EDGE_S)
-    if not due.any():
-        g['_held_since'] = None
-        return
-    since = g.get('_held_since')
-    if since is None:
-        since = g['_held_since'] = t
+    active = stepping * float(np.any(due))
+    held_s = active * g.get('_held_s', 0.0)
+    g['_held_s'] = held_s + active * dt
     turns = float(g['out'][latent.TURNS])
-    if turns <= stride.TINY or t - since > 4.0 * stride.PHI_W / turns:
-        return
-    first = float(at[due].min()) - latent.EDGE_S
-    at[at >= first] += dt
-    g['labels'] = [(w + dt if w >= first else w, n) for w, n in g['labels']]
-    if g.get('_jump_until', 0.0) > t:
-        g['_jump_until'] += dt
+    within = float((turns > stride.TINY) & (held_s <= 4.0 * stride.PHI_W / max(turns, stride.TINY)))
+    shift = dt * active * within
+    first = float(np.min(at, where=due, initial=math.inf)) - latent.EDGE_S
+    at += shift * (at >= first)
+    g['labels'] = [(w + shift * (w >= first), n) for w, n in g['labels']]
+    g['_jump_until'] = g.get('_jump_until', 0.0) + shift * (g.get('_jump_until', 0.0) > t)
 
 
 def gripped(out, held, stance, caps, into):
@@ -91,30 +85,34 @@ def risen_back(g, dt):
     a bed on the clock, her centre of mass 14 cm behind her soles' middle, she rose, her trunk
     came up and she stepped back as it let her go."""
     tab, t, y, fr = g['tab'], g['t'], g['y'], g['fr']
-    if y[modal.PROP] > 0.0:
-        g['_prop_until'] = t + (0.06 if g.get('active_entry') in ('rise_bed', 'rise_floor') else 0.0)
-    if not len(tab) or (y[modal.PROP] <= 0.0 and t > g.get('_prop_until', -1.0)):
-        return
+    has_prop = float(y[modal.PROP] > 0.0)
+    g['_prop_until'] = has_prop * (t + 0.06) + (1.0 - has_prop) * g.get('_prop_until', -1.0)
+    propped = float((y[modal.PROP] > 0.0) | (t <= g['_prop_until']))
     rot = fr[modal.ROT].reshape(3, 3)
     c, v = rot @ y[modal.COM], rot @ y[modal.VCOM]
     xi = c[:2] + v[:2] / math.sqrt(modal.G / max(float(c[2] - fr[modal.FLOOR]), 0.3))
     lo, hi = poise.boxes((y[modal.SOLE].reshape(2, 3) @ rot.T)[:, :2], g['a'][modal.EDGE], y[modal.TILT])
-    if (xi >= lo.min(axis=0)).all() and (xi <= hi.max(axis=0)).all():
-        return
+    outside = float(np.any((xi < lo.min(axis=0)) | (xi > hi.max(axis=0))))
     at, axial = tab[:, latent.AT], modal.AXIAL
     rises = ((tab[:, latent.SAID][:, latent.Z][:, axial] > 0.5)
              & (tab[:, latent.VALS][:, latent.Z][:, axial] < min(float(g['st'][latent.TO][latent.Z][axial]), 2.0) - 1e-6))
     due = rises & (at <= t + latent.EDGE_S) & (at > t - dt + latent.EDGE_S)
-    if not due.any():
-        return
-    first = float(at[due].min()) - latent.EDGE_S
-    at[at >= first] += dt
-    g['labels'] = [(w + dt if w >= first else w, n) for w, n in g['labels']]
+    shift = dt * propped * outside * float(np.any(due))
+    first = float(np.min(at, where=due, initial=math.inf)) - latent.EDGE_S
+    at += shift * (at >= first)
+    g['labels'] = [(w + shift * (w >= first), n) for w, n in g['labels']]
 
 
 def _step_latent(g, dt):
     """Her latent state stepped, `latent.step` in C bit for bit (`g['latent']`, `laid`)."""
-    return g['latent'](g['st'], g['tab'], g['t'], dt, g['out'])
+    st, tab, t = g['st'], g['tab'], g['t']
+    hit = ((tab[:, latent.AT] <= t + latent.EDGE_S) & (tab[:, latent.AT] > t - dt + latent.EDGE_S)).astype(float)
+    w_row = ((tab[:, latent.SAID].min(axis=1) > 0.5) & (tab[:, latent.VALS][:, latent.AMP].max(axis=1) > 0.05)).astype(float)
+    wake = float(st[latent.NOW][latent.GAIN] <= 0.02) * min(1.0, float(hit @ w_row))
+    st[latent.THETA] *= 1.0 - wake
+    w_ph = wake * np.minimum(hit @ tab[:, latent.SAID][:, latent.PHASE], 1.0)
+    st[latent.NOW][latent.PHASE] += w_ph * (hit @ tab[:, latent.VALS][:, latent.PHASE] - st[latent.NOW][latent.PHASE])
+    return g['latent'](st, tab, t, dt, g['out'])
 
 
 def _step_modal(g, s, y, y_in, out):
@@ -134,7 +132,7 @@ _BRACE_AX = {'spine': -0.25, 'neck': -0.20, 'left_shoulder': 0.65, 'right_should
 _BRACE_LAT = {'left_shoulder_roll': 0.45, 'right_shoulder_roll': 0.45, 'left_hip_roll': 0.15, 'right_hip_roll': 0.15}
 
 
-def surety(g, dt, ct=None, cur_doing=None, ae=None, qacc=None):
+def surety(g, dt):
     """Her directional surety field (`g['surety']` in [0, 1], `g['surety_vec']` = (s_ax, s_lat,
     d_ax, d_lat)) from her IMU, her soles' loads and her kinematics: highest in a wide double
     stance, lower on a single walking sole, held in quasi-static equilibrium on a seat or bed,
@@ -153,7 +151,7 @@ def surety(g, dt, ct=None, cur_doing=None, ae=None, qacc=None):
     wt = max(float(fr[modal.WEIGHT]), 1.0)
     loads = np.maximum(y[modal.LOAD], y_in[edge.LOAD])
     w, f_soles = np.clip(loads / (0.25 * wt), 0.0, 1.0), float(loads.sum()) / wt
-    theta = math.radians(edge.tilt(y_in) if ct is None else ct)
+    theta = math.radians(edge.tilt(y_in))
     theta_e = max(0.0, theta - abs(float(a[modal.WANT][0])))
     v_norm = float(np.linalg.norm(v))
     w_ext = min(1.0, max(0.0, (ap_y / modal.G - f_soles) / 0.45)) * math.exp(-(w_gyro / 1.2) ** 2 - (v_norm / 0.18) ** 2 - (theta_e / 0.65) ** 4)
@@ -164,23 +162,20 @@ def surety(g, dt, ct=None, cur_doing=None, ae=None, qacc=None):
     b_hi = (1.0 - w_both) * hi_1 + w_both * hi.max(axis=0) + w_ext * 0.16
     mid, span = 0.5 * (b_lo + b_hi), np.maximum(0.5 * (b_hi - b_lo), 0.02)
     w_air = max(0.0, 1.0 - float(g['out'][latent.ZMP]))
-    w_sup = min(1.0, 0.42 + 0.30 * float(w[0] + w[1]) + 0.22 * float(max(w[0], w[1])) + 0.55 * max(w_ext, float(a[modal.BORNE]), w_air))
+    w_prop = max(w_ext, float(a[modal.BORNE]), w_air)
+    w_sup = min(1.0, 0.42 + 0.30 * float(w[0] + w[1]) + 0.22 * float(max(w[0], w[1])) + 0.55 * w_prop)
     cap = w_sup * (0.85 + 0.15 * (span / (span + np.array([0.04, 0.05]))))
     r_gait = 0.28 * min(1.0, float(g['st'][latent.NOW][latent.GAIN]))
     r_lo, r_hi = np.minimum(b_lo, lo.min(axis=0) - r_gait), np.maximum(b_hi, hi.max(axis=0) + r_gait)
-    out_xi = (xi - np.clip(xi, r_lo, r_hi)) * (1.0 - max(w_ext, w_air))
+    out_xi = (xi - np.clip(xi, r_lo, r_hi)) * (1.0 - w_prop)
     w_tilt = float(np.hypot(gyro[0], gyro[2]))
-    s_dir = cap * (0.45 + 0.55 * np.exp(-((out_xi / 0.24) ** 2) - 0.04 * ((v[:2] * (1.0 - max(w_ext, w_air))) ** 2) - (0.22 * w_tilt) ** 2))
+    s_dir = cap * (0.45 + 0.55 * np.exp(-((out_xi / 0.24) ** 2) - 0.04 * ((v[:2] * (1.0 - w_prop)) ** 2) - (0.22 * w_tilt) ** 2))
     u_xy = np.array([float(up_w @ rot[0]), float(up_w @ rot[1])])
     e_vec = (xi - mid) * (1.0 - w_ext) + 0.35 * u_xy + 0.15 * v[:2]
     d_xy = e_vec / math.hypot(float(e_vec[0]), float(e_vec[1]), 0.08)
     f_att = max(0.0, 1.0 - (theta_e / 1.20) ** 4) ** 2
     s_vec = np.clip(s_dir * f_att, 0.0, 1.0)
     raw = float(np.mean(s_vec))
-    prev_q = g.get('_qacc_prev')
-    flip = max(0.0, -float(np.min(qacc * prev_q)) - 25000.0) if (qacc is not None and prev_q is not None and len(prev_q) == len(qacc)) else 0.0
-    g['_qacc_prev'] = prev_q if qacc is None else qacc.copy()
-    raw /= 1.0 + (flip / 50000.0) ** 2
     prev = float(g.get('surety', 1.0))
     diff = raw - prev
     step = min(1.0, dt / 0.012) * min(diff, 0.0) + min(1.0, dt / 0.12) * (prev ** 3) * max(diff, 0.0)
@@ -198,52 +193,23 @@ def control(g, dt):
     s = g['s'] = seen(g, dt * ev)
     g['grip'] = g['felt'](g['grip'], g['grip_seen'], body.d.xmat[g['grip_at']].reshape(2, 2, 3, 3),
                           y_in[edge.TOUCH].reshape(-1, 3),
-                          g['est']['slip'], float(g['fr'][modal.WEIGHT]), dt * ev, g['grip_prior'],
-                          (y_in[edge.LOAD] >= leap.TOUCH_N) & ~np.array(g.get('bore', (True, True))))
+                          g['est']['slip'], float(g['fr'][modal.WEIGHT]), dt * ev, g['grip_prior'])
     g['loads'] = [float(v) for v in y_in[edge.LOAD]]
     y = g['modal_sensed'](s, g['loads'], g['y'])
+    y[modal.CELLS] = y_in[edge.CELLS]
     y[modal.GRIP] = g['held'] = g['outside'](g['grip'], g['situations']['grips'])
     g['into'] = g['read'](g['situations'], g['readings'](
         y, g['fr'], g['a'], g['grip'], y_in[edge.TOUCH].reshape(-1, 3), float(g['fr'][modal.WEIGHT])))
-    thd, cur_doing = g.get('target_heading'), se2.doing(g)
-    if thd is not None:
-        g['heading'] += max(-1.6 * dt * ev, min(1.6 * dt * ev, se2.wrap_angle(thd - g['heading'])))
-    sh, ch = math.sin(g['heading']), math.cos(g['heading'])
-    g['fr'][modal.HEADING], g['fr'][modal.ROT] = g['heading'], np.array([[sh, 0.0, ch], [ch, 0.0, -sh], [0.0, 1.0, 0.0]]).ravel()
-    if g.get('_sync_cpg_at') is not None and g['t'] + 1e-9 >= g['_sync_cpg_at']:
-        g['_sync_cpg_at'], g['st'][latent.THETA] = None, 0.0
-        fut = g['tab'][(g['tab'][:, latent.AT] <= g['t'] + 1e-9) & (g['tab'][:, latent.AT] > g['t'] - dt * ev + 1e-9)]
-        if len(fut):
-            ph = fut[0, latent.SAID][latent.PHASE] > 0.5
-            g['st'][latent.NOW][latent.PHASE] = np.where(ph, fut[0, latent.VALS][latent.PHASE], g['st'][latent.NOW][latent.PHASE])
     held_back(g, dt * ev)
     risen_back(g, dt * ev)
     out = _step_latent(g, dt * ev)
-    cw = -1.0 if (math.sin(float(out[latent.PSI][modal.LATERAL]) - float(out[latent.PSI][modal.DRIVE])) * (1.0 if float(out[latent.SWAY][modal.LATERAL]) >= 0.0 else -1.0) < -0.5) else 1.0
-    if g.get('_last_way') is not None and cw != g['_last_way'] and (g['st'][latent.NOW][latent.GAIN] > 0.05 or abs(float(out[latent.SWAY][modal.DRIVE])) > 0.02):
-        g['st'][latent.THETA] = (float(g['st'][latent.THETA]) + math.pi) % math.tau
-        out = _step_latent(g, 0.0)
-    g['_last_way'] = cw
     se2.step_physical_twist(g, dt * ev, out)
     g['gripped'](out, g['held'], g['a'][modal.STANCE], g['situations']['caps'], g['into'])
-    cur_doing = se2.doing(g)
-    touch.check_contacts(g, out, cur_doing)
-    ae, tw = g.get('active_entry'), g.get('twist', (0.0, 0.0, 0.0))
-    backing = ((cur_doing in se2._BACK_GAITS or ae in se2._BACK_GAITS or tw[0] < -0.05)
-               and cur_doing not in ('rest', '#201', 'brake') and cur_doing not in se2.STUNT_PHASES and g.get('_jump_until', 0.0) <= g['t'])
-    tl = ((-1.0 if (cur_doing == 'turn_back_right' or ae == 'turn_back_right' or tw[2] < -0.05) else 1.0) if backing
-          else (max(-0.35, min(0.35, 0.35 * tw[2] / se2.YAW_RATE)) if abs(tw[2]) > 0.03 and cur_doing not in ('rest', '#201') else 0.0))
-    g['_look_yaw'] += min(1.0, (4.5 if backing else 5.0) * dt * ev) * (tl - g.get('_look_yaw', 0.0))
-    for idx, k in ((g.get('waist_idx'), 0.38), (g.get('head_idx'), 0.72)):
-        if idx is not None:
-            g['posture'][idx] = k * g['_look_yaw'] if cur_doing not in se2.STUNT_PHASES else 0.0
+    touch.step(g, out, dt * ev)
     dq, imp = _step_modal(g, s, y, y_in, out)
-    if backing and abs(g['_look_yaw']) > 1e-3 and cur_doing not in se2.STUNT_PHASES and g.get('waist_idx') is not None:
-        imp[modal.HEADED][1] = g['posture'][g['waist_idx']]
-    clear = 0.115 * bool((g.get('_twist_active') or g.get('_twist_stop_until', 0.0) > g['t'])
-                         and cur_doing not in se2.STUNT_PHASES and g.get('_jump_until', 0.0) <= g['t'])
-    qacc_prev = g['got']['qacc'][body.act] if 'qacc' in g.get('got', {}) else None
-    sr = surety(g, dt * ev, qacc=qacc_prev)
+    w_back = float(g.get('_w_back', 0.0))
+    imp[modal.HEADED][1] += w_back * (float(g.get('_backing_yaw', 0.0)) - imp[modal.HEADED][1])
+    sr = surety(g, dt * ev)
     bw = max(0.0, 1.0 - (sr / 0.50) ** 2) ** 3
     sw = 1.0 - bw
     _, _, d_ax, d_lat = g['surety_vec']
@@ -257,34 +223,32 @@ def control(g, dt):
     imp[modal.COM_ACC] = np.array([sw * imp[modal.COM_ACC][0], sw * imp[modal.COM_ACC][1] - bw * 2.5, sw * imp[modal.COM_ACC][2]])
     q_brace = np.array([1.0, d_ax, d_lat]) @ g['brace']
     q_post = sw * (g['posture'] + dq) + bw * q_brace
-    posed = g['poses'](imp, y, g['fr'], q_post, g['bend'], g['arms'], body.knees, clear * sw)
+    posed = g['poses'](imp, y, g['fr'], q_post, g['bend'], g['arms'], body.knees, g.get('_twist_clear', 0.0) * sw)
     ask = g['ask'] = modal.given(imp, y, posed, body.knees)
     ask['mu'] = g['held']
-    s_solve, cv = s, list(g.get('cervical', ()))
-    if (cur_doing in ('load', 'throw', 'land') or ae == 'hop') and ae not in ('hop_up_chair', 'hop_down_chair', 'controlled_fall'):
-        cv = cv + list(g['limbs']['shoulders'])
-    no_stride = (((g['a'][modal.STRIDES] < 0.5 and float(g['st'][latent.TO][latent.GAIN]) < 0.5
-                   and not (len(g['tab']) and (g['tab'][:, latent.VALS][:, latent.GAIN] >= 0.5).any()))
-                  or cur_doing in ('rest', '#201', 'brake') or g.get('_jump_until', 0.0) > g['t'])
-                 and ae not in ('sit_chair', 'rise_chair', 'hop_up_chair', 'hop_down_chair'))
-    if len(cv) and no_stride:
-        acv, M = body.act[cv], s['M'].copy()
-        M[:6, acv] = M[acv, :6] = 0.0
-        s_solve = dict(s, M=M)
-    wb = bool(g.get('_leap') or g.get('active_entry') in se2.WASD_GAITS or (g['a'][modal.LEAD] > 0.0).any() or g['a'][modal.OUTSIDE] > 0.0 or cur_doing in se2.STUNT_PHASES)
-    der = np.where((g['hold'] > 0.0) | wb, g['wep_lim'] / np.maximum(1.0, body.wep), 1.0)
-    g['got'] = g['solve'](body, s_solve, dict(ask, wep=(g['left'] > 0.0) and (sr > 0.25), derate=der))
+    cv, acv = g['_cv_sh'], g['_acv_sh']
+    k_ax = max(float(g['st'][latent.TO][latent.K][modal.AXIAL]), float(g['st'][latent.FROM][latent.K][modal.AXIAL]))
+    w_hop = float((k_ax > 15000.0) & (g['st'][latent.TO][latent.AMP][modal.DRIVE] < 0.1))
+    w_gait = min(1.0, max(0.0, (0.05 - float(g['st'][latent.NOW][latent.GAIN])) / 0.05))
+    z_to = g['st'][latent.TO][latent.Z]
+    w_sit = float((z_to[modal.AXIAL] > 1.5) & (z_to[modal.PITCH] > -0.2)
+                  & ~np.any(g['tab'][:, latent.VALS][:, latent.Z][:, modal.PITCH] < -0.2))
+    w_base = sw * max(w_hop, (1.0 - float(g['a'][modal.STRIDES])) * w_gait * (1.0 - w_sit))
+    w_up = w_base * np.array([1.0, 1.0, w_hop, w_hop])
+    M = s['M'].copy()
+    M[:6, acv] *= 1.0 - w_up[None, :]
+    M[acv, :6] *= 1.0 - w_up[:, None]
+    g['got'] = g['solve'](body, dict(s, M=M), dict(ask, wep=bool((g['left'] > 0.0) & (sr > 0.25)), derate=g['_derate']))
     act = body.act
     qdd_br = np.clip(3.5 * wbc.POSTURE_KD[0] * (q_brace - s['q']) - 1.8 * wbc.POSTURE_KD[1] * s['v'][act], -180.0, 180.0)
     tau_br = np.clip(s['M'][act, :][:, act] @ qdd_br + s['M'][act, :6] @ g['got']['qacc'][:6] + s['h'][act], -body.clamp, body.clamp)
     g['got']['qacc'][act] = sw * g['got']['qacc'][act] + bw * qdd_br
     g['got']['tau'][:] = sw * g['got']['tau'] + bw * tau_br
-    if len(cv) and no_stride:
-        cv_p = cv + ([1] if cur_doing == 'land' and g.get('_land_touch_t') is not None and not g.get('_leap') else [])
-        acv = body.act[cv_p]
-        qdd_cv = np.clip(3.2 * wbc.POSTURE_KD[0] * (ask['posture'][cv_p] - s['q'][cv_p]) - 1.8 * wbc.POSTURE_KD[1] * s['v'][acv], -130.0, 130.0)
-        g['got']['qacc'][acv], g['got']['over'][cv_p] = qdd_cv, False
-        g['got']['tau'][cv_p] = s['M'][acv, :][:, acv] @ qdd_cv + s['h'][acv]
+    qdd_cv = np.clip(3.2 * wbc.POSTURE_KD[0] * (ask['posture'][cv] - s['q'][cv]) - 1.8 * wbc.POSTURE_KD[1] * s['v'][acv], -130.0, 130.0)
+    tau_cv = M[acv, :][:, acv] @ qdd_cv + M[acv, :6] @ g['got']['qacc'][:6] + s['h'][acv]
+    g['got']['qacc'][acv] += w_up * (qdd_cv - g['got']['qacc'][acv])
+    g['got']['tau'][cv] += w_up * (tau_cv - g['got']['tau'][cv])
+    g['got']['over'][cv] = g['got']['over'][cv] & (w_up < 0.5)
     g['jeff'] = np.diag(s['M'])[body.act]
     g['leg_kp'] = np.concatenate([g['free_kp'][leg] * (1.0 + (se2.STANDING_KP - 1.0) * float(ask['stance'][k]))
                                   for k, leg in enumerate(g['legs'])])
@@ -300,7 +264,7 @@ def laid(g):
     from machine.figure import JOINTS
     from tools.cores import bodied, motion as c_motion, wbc as cores
     g['estimated'] = bodied.on_body(estimate.step, 'estimate', (0, 2), body=1)
-    g['felt'] = bodied.on_args(grip.felt, 'felt', (0, 1, 2, 3, 4, 5, 7, 8))
+    g['felt'] = bodied.on_args(grip.felt, 'felt', (0, 1, 2, 3, 4, 5, 7))
     g['outside'] = bodied.on_args(grip.outside, 'outside', (0, 1))
     g['readings'] = bodied.on_args(situation.readings, 'readings', (0, 1, 2, 3, 4, 5))
     g['read'] = bodied.on_args(situation.read, 'read', (0, 1))
@@ -312,25 +276,33 @@ def laid(g):
     laid_ = c_motion.latent_laid()
     g['latent'], g['couple'] = functools.partial(c_motion.stepped, laid_), functools.partial(c_motion.coupled, laid_)
     body, joints = g['body'], g['joints']
+    g['_skin_ids'] = np.array([body.m.body(n).id for n in edge.SKIN])
+    g['_tips'] = np.array(touch.TIPS)
+    g['_cv_sh'] = list(g['cervical']) + list(g['limbs']['shoulders'])
+    g['_acv_sh'] = body.act[g['_cv_sh']]
+    g['_derate'] = g['wep_lim'] / np.maximum(1.0, body.wep)
     names = [JOINTS[j] for j in joints]
     g['brace'] = np.array([[d.get(n, 0.0) for n in names] for d in (_BRACE_TUCK, _BRACE_AX, _BRACE_LAT)])
     n = len(joints)
     kept = {'joints': np.ascontiguousarray(joints, dtype=np.int32),
             'act': np.ascontiguousarray(body.act, dtype=np.int32), 'sb': np.zeros(n), 'feed': np.zeros(n),
             'limit': np.zeros(n), 'clamp_j': np.ascontiguousarray(g['clamp'][joints], dtype=np.float64),
-            'address': cores.address}
+            'qacc': np.zeros(body.n, dtype=np.float64), 'tau': np.zeros(n, dtype=np.float64),
+            'jeff': np.ascontiguousarray(g['jeff'], dtype=np.float64), 'over': np.zeros(n, dtype=np.bool_)}
+    g['got'] = {'qacc': kept['qacc'].copy(), 'tau': kept['tau'].copy(), 'over': kept['over'].copy()}
     p = cores.Drives(n=n, q_at=edge.Q.start, qd_at=edge.QD.start, qm_at=edge.QM.start, knee_nm=se2.KNEE_NM,
                      knee_soft=se2.KNEE_SOFT, leak_s=se2.LEAK_S, wep_hold_s=se2.WEP_HOLD_S)
     p.knee[0], p.knee[1] = body.knees
-    cv = list(g.get('cervical', ()))
-    p.cervical[0], p.cervical[1] = (cv[0], cv[1]) if len(cv) >= 2 else (-1, -1)
+    p.cervical[0], p.cervical[1] = g['cervical']
     for name, arr in (('joints', kept['joints']), ('act', kept['act'])):
         setattr(p, name, cores.pointer(arr, np.int32))
     for name, arr in (('y', g['sense']), ('clamp', body.clamp), ('wep', body.wep), ('wep_lim', g['wep_lim']),
                       ('clamp_j', kept['clamp_j']), ('q_lo', g['q_lo']), ('q_hi', g['q_hi']), ('eso', g['eso']),
                       ('ref_q', g['ref_q']), ('ref_v', g['ref_v']), ('hold', g['hold']), ('sb', kept['sb']),
-                      ('feed', kept['feed']), ('limit', kept['limit'])):
+                      ('feed', kept['feed']), ('limit', kept['limit']), ('qacc', kept['qacc']),
+                      ('tau', kept['tau']), ('jeff', kept['jeff'])):
         setattr(p, name, cores.pointer(arr))
+    p.over = cores.address(kept['over'])
     g['cmd'] = {'target': g['ref_q'], 'feed': kept['feed'], 'limit': kept['limit']}
     g['drives'] = (p, kept, cores.library().wbh_pass_drives)
 
@@ -339,22 +311,16 @@ def drives(g, dt):
     """Each driven joint's setpoint (`g['ref_q']`), feed and clamp (`g['cmd']`) this pass, its
     observer stepped on its motor's encoder: the step in C (`laid`), told here what of her it
     reads whole - her surety as she tilts or slips, a hop, which WEP limit is hers."""
-    y, got, p, kept, step = g['sense'], g['got'], *g['drives']
-    doing = se2.doing(g)
-    held, wo, ct = float(g['hold'].any()), g['wo'], edge.tilt(y)
-    ys = surety(g, dt, ct, doing)
+    got, p, kept, step = g['got'], *g['drives']
+    held, wo = float(g['hold'].any()), g['wo']
+    ys = surety(g, dt)
     drv = 1.0 - (1.0 - ys) ** 3
     wo_s = wo * drv
-    in_hop = (g.get('_jump_until', 0.0) > g['t'] or doing in ('load', 'throw', 'land')) and not g.get('_leap')
-    wb = bool(g.get('_leap') or g.get('active_entry') in se2.WASD_GAITS or (g['a'][modal.LEAD] > 0.0).any()
-              or g['a'][modal.OUTSIDE] > 0.0 or doing in se2.STUNT_PHASES)
-    arrays = (got['qacc'], got['tau'], g['jeff'], got['over'])
-    pointed = kept.get('pointed', ())
-    if len(pointed) != 4 or any(a is not b for a, b in zip(arrays, pointed)):
-        qacc, tau, jeff = (np.ascontiguousarray(a, dtype=np.float64) for a in arrays[:3])
-        over, at = np.ascontiguousarray(arrays[3], dtype=np.bool_), kept['address']
-        p.qacc, p.tau, p.over, p.jeff = at(qacc), at(tau), at(over), at(jeff)
-        kept['laid'] = (qacc, tau, jeff, over)
-        kept['pointed'] = arrays if all(x is y for x, y in zip(arrays, kept['laid'])) else ()
-    step(ctypes.byref(p), dt, wo_s, wo_s ** 3, drv, int(in_hop), int(wb))
+    k_ax = max(float(g['st'][latent.TO][latent.K][modal.AXIAL]), float(g['st'][latent.FROM][latent.K][modal.AXIAL]))
+    in_hop = int(k_ax > 15000.0)
+    kept['qacc'][:] = got['qacc']
+    kept['tau'][:] = got['tau']
+    kept['jeff'][:] = g['jeff']
+    kept['over'][:] = got['over']
+    step(ctypes.byref(p), dt, wo_s, wo_s ** 3, drv, in_hop, 1)
     g['left'] = min(se2.WEP_S, max(0.0, g['left'] + dt * (se2.WEP_FILL * (1.0 - held) - held)))
