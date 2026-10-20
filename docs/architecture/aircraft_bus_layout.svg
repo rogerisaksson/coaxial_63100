@@ -1,0 +1,169 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1220 665" width="100%" height="100%">
+<rect width="1220" height="665" rx="10" fill="#020617"/>
+<g font-family="monospace">
+<text x="24" y="34" fill="#f8fafc" font-size="16" font-weight="bold">COAXIAL 63100 -- 10 Mbit/s RS485 Modbus RTU Aircraft Drive, Servo &amp; Avionics Buses (4 Airframes, 10 SIL Drives)</text>
+<text x="24" y="54" fill="#94a3b8" font-size="11">Generated from machine.senses (GNSS=20 Hz, STAR=5 Hz), machine.pull (I_MAX=60 A), flightpack (15S 63 V), and craft airframes</text>
+<rect x="20" y="160" width="200" height="245" rx="8" fill="#0f172a" stroke="#38bdf8" stroke-width="2"/>
+<text x="32" y="186" fill="#38bdf8" font-size="12" font-weight="bold">FLIGHT LAW &amp; MASTER</text>
+<text x="32" y="204" fill="#e2e8f0" font-size="10">aero/ + SO(3) craft laws</text>
+<text x="32" y="220" fill="#94a3b8" font-size="10">CoaxialDrives (240-500 Hz)</text>
+<line x1="32" y1="232" x2="208" y2="232" stroke="#334155" stroke-width="1"/>
+<text x="32" y="250" fill="#f8fafc" font-size="10" font-weight="bold">Modbus &amp; Wire Banks:</text>
+<text x="32" y="268" fill="#cbd5e1" font-size="10">SETPOINT 0x0100</text>
+<text x="32" y="286" fill="#cbd5e1" font-size="10">KP       0x0140</text>
+<text x="32" y="304" fill="#cbd5e1" font-size="10">FEED     0x0180</text>
+<text x="32" y="322" fill="#cbd5e1" font-size="10">LIMIT    0x01c0</text>
+<text x="32" y="340" fill="#cbd5e1" font-size="10">STATE    0x0200</text>
+<text x="32" y="358" fill="#cbd5e1" font-size="10">AERO_OP  0x000e</text>
+</g>
+<g font-family="monospace">
+<path d="M 220 280 L 250 140" stroke="#38bdf8" stroke-width="2.5" fill="none"/>
+<line x1="250" y1="140" x2="796" y2="140" stroke="#38bdf8" stroke-width="3" stroke-dasharray="6,3"/>
+<rect x="250" y="112" width="215" height="20" rx="4" fill="#0f172a" stroke="#38bdf8" stroke-width="1.2"/>
+<text x="258" y="126" fill="#38bdf8" font-size="11" font-weight="bold">BUS 1: quad (10 Mbit/s)</text>
+<line x1="320" y1="140" x2="320" y2="152" stroke="#38bdf8" stroke-width="1.8"/>
+<rect x="260" y="152" width="124" height="54" rx="5" fill="#1e293b" stroke="#38bdf8" stroke-width="1.3"/>
+<text x="266" y="166" fill="#f8fafc" font-size="10" font-weight="bold">#1 rotor_fl</text>
+<text x="266" y="181" fill="#94a3b8" font-size="9">r00 / reg 0x0100</text>
+<text x="266" y="195" fill="#38bdf8" font-size="9">63100 / 60-90 A</text>
+<line x1="454" y1="140" x2="454" y2="152" stroke="#38bdf8" stroke-width="1.8"/>
+<rect x="394" y="152" width="124" height="54" rx="5" fill="#1e293b" stroke="#38bdf8" stroke-width="1.3"/>
+<text x="400" y="166" fill="#f8fafc" font-size="10" font-weight="bold">#2 rotor_fr</text>
+<text x="400" y="181" fill="#94a3b8" font-size="9">r01 / reg 0x0102</text>
+<text x="400" y="195" fill="#38bdf8" font-size="9">63100 / 60-90 A</text>
+<line x1="588" y1="140" x2="588" y2="152" stroke="#38bdf8" stroke-width="1.8"/>
+<rect x="528" y="152" width="124" height="54" rx="5" fill="#1e293b" stroke="#38bdf8" stroke-width="1.3"/>
+<text x="534" y="166" fill="#f8fafc" font-size="10" font-weight="bold">#3 rotor_rr</text>
+<text x="534" y="181" fill="#94a3b8" font-size="9">r02 / reg 0x0104</text>
+<text x="534" y="195" fill="#38bdf8" font-size="9">63100 / 60-90 A</text>
+<line x1="722" y1="140" x2="722" y2="152" stroke="#38bdf8" stroke-width="1.8"/>
+<rect x="662" y="152" width="124" height="54" rx="5" fill="#1e293b" stroke="#38bdf8" stroke-width="1.3"/>
+<text x="668" y="166" fill="#f8fafc" font-size="10" font-weight="bold">#4 rotor_rl</text>
+<text x="668" y="181" fill="#94a3b8" font-size="9">r03 / reg 0x0106</text>
+<text x="668" y="195" fill="#38bdf8" font-size="9">63100 / 60-90 A</text>
+</g>
+<g font-family="monospace">
+<path d="M 220 280 L 250 248" stroke="#a78bfa" stroke-width="2.5" fill="none"/>
+<line x1="250" y1="248" x2="930" y2="248" stroke="#a78bfa" stroke-width="3" stroke-dasharray="6,3"/>
+<rect x="250" y="220" width="215" height="20" rx="4" fill="#0f172a" stroke="#a78bfa" stroke-width="1.2"/>
+<text x="258" y="234" fill="#a78bfa" font-size="11" font-weight="bold">BUS 2: helicopter (10 Mbit/s)</text>
+<line x1="320" y1="248" x2="320" y2="260" stroke="#a78bfa" stroke-width="1.8"/>
+<rect x="260" y="260" width="124" height="54" rx="5" fill="#1e293b" stroke="#a78bfa" stroke-width="1.3"/>
+<text x="266" y="274" fill="#f8fafc" font-size="10" font-weight="bold">#1 main_drive</text>
+<text x="266" y="289" fill="#94a3b8" font-size="9">d00 / reg 0x0100</text>
+<text x="266" y="303" fill="#a78bfa" font-size="9">63100 / 360 rad/s</text>
+<line x1="454" y1="248" x2="454" y2="260" stroke="#a78bfa" stroke-width="1.8"/>
+<rect x="394" y="260" width="124" height="54" rx="5" fill="#1e293b" stroke="#a78bfa" stroke-width="1.3"/>
+<text x="400" y="274" fill="#f8fafc" font-size="10" font-weight="bold">#2 tail_drive</text>
+<text x="400" y="289" fill="#94a3b8" font-size="9">d01 / reg 0x0102</text>
+<text x="400" y="303" fill="#a78bfa" font-size="9">63100 / 340 rad/s</text>
+<line x1="588" y1="248" x2="588" y2="260" stroke="#a78bfa" stroke-width="1.8"/>
+<rect x="528" y="260" width="124" height="54" rx="5" fill="#1e293b" stroke="#a78bfa" stroke-width="1.3"/>
+<text x="534" y="274" fill="#f8fafc" font-size="10" font-weight="bold">#3 swash_coll</text>
+<text x="534" y="289" fill="#94a3b8" font-size="9">s00 / reg 0x0104</text>
+<text x="534" y="303" fill="#a78bfa" font-size="9">pitch +/-14 deg</text>
+<line x1="722" y1="248" x2="722" y2="260" stroke="#a78bfa" stroke-width="1.8"/>
+<rect x="662" y="260" width="124" height="54" rx="5" fill="#1e293b" stroke="#a78bfa" stroke-width="1.3"/>
+<text x="668" y="274" fill="#f8fafc" font-size="10" font-weight="bold">#4 swash_cyc</text>
+<text x="668" y="289" fill="#94a3b8" font-size="9">s01 / reg 0x0106</text>
+<text x="668" y="303" fill="#a78bfa" font-size="9">tilt +/-10 deg</text>
+<line x1="856" y1="248" x2="856" y2="260" stroke="#a78bfa" stroke-width="1.8"/>
+<rect x="796" y="260" width="124" height="54" rx="5" fill="#1e293b" stroke="#a78bfa" stroke-width="1.3"/>
+<text x="802" y="274" fill="#f8fafc" font-size="10" font-weight="bold">#5 tail_servo</text>
+<text x="802" y="289" fill="#94a3b8" font-size="9">s02 / reg 0x0108</text>
+<text x="802" y="303" fill="#a78bfa" font-size="9">yaw +/-16 deg</text>
+</g>
+<g font-family="monospace">
+<path d="M 220 280 L 250 356" stroke="#34d399" stroke-width="2.5" fill="none"/>
+<line x1="250" y1="356" x2="930" y2="356" stroke="#34d399" stroke-width="3" stroke-dasharray="6,3"/>
+<rect x="250" y="328" width="215" height="20" rx="4" fill="#0f172a" stroke="#34d399" stroke-width="1.2"/>
+<text x="258" y="342" fill="#34d399" font-size="11" font-weight="bold">BUS 3: ornithopter (10 Mbit/s)</text>
+<line x1="320" y1="356" x2="320" y2="368" stroke="#34d399" stroke-width="1.8"/>
+<rect x="260" y="368" width="124" height="54" rx="5" fill="#1e293b" stroke="#34d399" stroke-width="1.3"/>
+<text x="266" y="382" fill="#f8fafc" font-size="10" font-weight="bold">#1 fore_drive</text>
+<text x="266" y="397" fill="#94a3b8" font-size="9">d00 / reg 0x0100</text>
+<text x="266" y="411" fill="#34d399" font-size="9">63100 / 365 rad/s</text>
+<line x1="454" y1="356" x2="454" y2="368" stroke="#34d399" stroke-width="1.8"/>
+<rect x="394" y="368" width="124" height="54" rx="5" fill="#1e293b" stroke="#34d399" stroke-width="1.3"/>
+<text x="400" y="382" fill="#f8fafc" font-size="10" font-weight="bold">#2 aft_drive</text>
+<text x="400" y="397" fill="#94a3b8" font-size="9">d01 / reg 0x0102</text>
+<text x="400" y="411" fill="#34d399" font-size="9">63100 / 1:6.0 gear</text>
+<line x1="588" y1="356" x2="588" y2="368" stroke="#34d399" stroke-width="1.8"/>
+<rect x="528" y="368" width="124" height="54" rx="5" fill="#1e293b" stroke="#34d399" stroke-width="1.3"/>
+<text x="534" y="382" fill="#f8fafc" font-size="10" font-weight="bold">#3 wing_stroke</text>
+<text x="534" y="397" fill="#94a3b8" font-size="9">s00 / reg 0x0104</text>
+<text x="534" y="411" fill="#34d399" font-size="9">flap +/-38 deg</text>
+<line x1="722" y1="356" x2="722" y2="368" stroke="#34d399" stroke-width="1.8"/>
+<rect x="662" y="368" width="124" height="54" rx="5" fill="#1e293b" stroke="#34d399" stroke-width="1.3"/>
+<text x="668" y="382" fill="#f8fafc" font-size="10" font-weight="bold">#4 wing_pitch</text>
+<text x="668" y="397" fill="#94a3b8" font-size="9">s01 / reg 0x0106</text>
+<text x="668" y="411" fill="#34d399" font-size="9">twist +/-24 deg</text>
+<line x1="856" y1="356" x2="856" y2="368" stroke="#34d399" stroke-width="1.8"/>
+<rect x="796" y="368" width="124" height="54" rx="5" fill="#1e293b" stroke="#34d399" stroke-width="1.3"/>
+<text x="802" y="382" fill="#f8fafc" font-size="10" font-weight="bold">#5 wing_fold</text>
+<text x="802" y="397" fill="#94a3b8" font-size="9">s02 / reg 0x0108</text>
+<text x="802" y="411" fill="#34d399" font-size="9">sweep 52 deg</text>
+</g>
+<g font-family="monospace">
+<path d="M 220 280 L 250 464" stroke="#f472b6" stroke-width="2.5" fill="none"/>
+<line x1="250" y1="464" x2="930" y2="464" stroke="#f472b6" stroke-width="3" stroke-dasharray="6,3"/>
+<rect x="250" y="436" width="215" height="20" rx="4" fill="#0f172a" stroke="#f472b6" stroke-width="1.2"/>
+<text x="258" y="450" fill="#f472b6" font-size="11" font-weight="bold">BUS 4: aerobat (10 Mbit/s)</text>
+<line x1="320" y1="464" x2="320" y2="476" stroke="#f472b6" stroke-width="1.8"/>
+<rect x="260" y="476" width="124" height="54" rx="5" fill="#1e293b" stroke="#f472b6" stroke-width="1.3"/>
+<text x="266" y="490" fill="#f8fafc" font-size="10" font-weight="bold">#1 prop_drive</text>
+<text x="266" y="505" fill="#94a3b8" font-size="9">d00 / reg 0x0100</text>
+<text x="266" y="519" fill="#f472b6" font-size="9">63100 / 776 rad/s</text>
+<line x1="454" y1="464" x2="454" y2="476" stroke="#f472b6" stroke-width="1.8"/>
+<rect x="394" y="476" width="124" height="54" rx="5" fill="#1e293b" stroke="#f472b6" stroke-width="1.3"/>
+<text x="400" y="490" fill="#f8fafc" font-size="10" font-weight="bold">#2 vect_drive</text>
+<text x="400" y="505" fill="#94a3b8" font-size="9">d01 / reg 0x0102</text>
+<text x="400" y="519" fill="#f472b6" font-size="9">63100 / 345 rad/s</text>
+<line x1="588" y1="464" x2="588" y2="476" stroke="#f472b6" stroke-width="1.8"/>
+<rect x="528" y="476" width="124" height="54" rx="5" fill="#1e293b" stroke="#f472b6" stroke-width="1.3"/>
+<text x="534" y="490" fill="#f8fafc" font-size="10" font-weight="bold">#3 elevator</text>
+<text x="534" y="505" fill="#94a3b8" font-size="9">s00 / reg 0x0104</text>
+<text x="534" y="519" fill="#f472b6" font-size="9">3D +/-45 deg</text>
+<line x1="722" y1="464" x2="722" y2="476" stroke="#f472b6" stroke-width="1.8"/>
+<rect x="662" y="476" width="124" height="54" rx="5" fill="#1e293b" stroke="#f472b6" stroke-width="1.3"/>
+<text x="668" y="490" fill="#f8fafc" font-size="10" font-weight="bold">#4 ailerons</text>
+<text x="668" y="505" fill="#94a3b8" font-size="9">s01 / reg 0x0106</text>
+<text x="668" y="519" fill="#f472b6" font-size="9">3D +/-38 deg</text>
+<line x1="856" y1="464" x2="856" y2="476" stroke="#f472b6" stroke-width="1.8"/>
+<rect x="796" y="476" width="124" height="54" rx="5" fill="#1e293b" stroke="#f472b6" stroke-width="1.3"/>
+<text x="802" y="490" fill="#f8fafc" font-size="10" font-weight="bold">#5 rudder</text>
+<text x="802" y="505" fill="#94a3b8" font-size="9">s02 / reg 0x0108</text>
+<text x="802" y="519" fill="#f472b6" font-size="9">3D +/-48 deg</text>
+</g>
+<g font-family="monospace">
+<path d="M 220 280 L 250 572" stroke="#fbbf24" stroke-width="2.5" fill="none"/>
+<line x1="250" y1="572" x2="930" y2="572" stroke="#fbbf24" stroke-width="3" stroke-dasharray="6,3"/>
+<rect x="250" y="544" width="215" height="20" rx="4" fill="#0f172a" stroke="#fbbf24" stroke-width="1.2"/>
+<text x="258" y="558" fill="#fbbf24" font-size="11" font-weight="bold">BUS 5: avionics (10 Mbit/s)</text>
+<line x1="320" y1="572" x2="320" y2="584" stroke="#fbbf24" stroke-width="1.8"/>
+<rect x="260" y="584" width="124" height="54" rx="5" fill="#1e293b" stroke="#fbbf24" stroke-width="1.3"/>
+<text x="266" y="598" fill="#f8fafc" font-size="10" font-weight="bold">#1 bmi055_imu</text>
+<text x="266" y="613" fill="#94a3b8" font-size="9">senses.GYRO/ACC</text>
+<text x="266" y="627" fill="#fbbf24" font-size="9">0.2 deg RTK INS</text>
+<line x1="454" y1="572" x2="454" y2="584" stroke="#fbbf24" stroke-width="1.8"/>
+<rect x="394" y="584" width="124" height="54" rx="5" fill="#1e293b" stroke="#fbbf24" stroke-width="1.3"/>
+<text x="400" y="598" fill="#f8fafc" font-size="10" font-weight="bold">#2 rtk_gnss</text>
+<text x="400" y="613" fill="#94a3b8" font-size="9">senses.GNSS</text>
+<text x="400" y="627" fill="#fbbf24" font-size="9">20 Hz / 2 cm rms</text>
+<line x1="588" y1="572" x2="588" y2="584" stroke="#fbbf24" stroke-width="1.8"/>
+<rect x="528" y="584" width="124" height="54" rx="5" fill="#0f172a" stroke="#fbbf24" stroke-width="1.3"/>
+<text x="534" y="598" fill="#f8fafc" font-size="10" font-weight="bold">#3 star_cam</text>
+<text x="534" y="613" fill="#94a3b8" font-size="9">senses.STAR</text>
+<text x="534" y="627" fill="#fbbf24" font-size="9">5 Hz dead-reckon</text>
+<line x1="722" y1="572" x2="722" y2="584" stroke="#fbbf24" stroke-width="1.8"/>
+<rect x="662" y="584" width="124" height="54" rx="5" fill="#1e293b" stroke="#fbbf24" stroke-width="1.3"/>
+<text x="668" y="598" fill="#f8fafc" font-size="10" font-weight="bold">#4 flightpack</text>
+<text x="668" y="613" fill="#94a3b8" font-size="9">15S LiPo bus</text>
+<text x="668" y="627" fill="#fbbf24" font-size="9">63 V / 0.04 ohm</text>
+<line x1="856" y1="572" x2="856" y2="584" stroke="#fbbf24" stroke-width="1.8"/>
+<rect x="796" y="584" width="124" height="54" rx="5" fill="#1e293b" stroke="#fbbf24" stroke-width="1.3"/>
+<text x="802" y="598" fill="#f8fafc" font-size="10" font-weight="bold">#5 device_14</text>
+<text x="802" y="613" fill="#94a3b8" font-size="9">cmd_aero.c</text>
+<text x="802" y="627" fill="#fbbf24" font-size="9">500 Hz C11 core</text>
+</g>
+</svg>

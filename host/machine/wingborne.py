@@ -318,13 +318,17 @@ def plane(wing, turn, acc, u, w, want_up, knife=0.0):
     across = [perp[a] - up_ask * upp[a] for a in range(3)]
     k_w = wing.q * wing.area * fast * fast / wing.mass
     al_pos = max(0.0, along)
-    hi = ALPHA_MAX if sign < 0.0 else max(ALPHA_MAX, math.atan2(need, max(al_pos, wing.gravity)))
+    hi = (ALPHA_MAX if sign < 0.0
+          else math.atan2(need, al_pos) if need > k_w * ALPHA_MAX else ALPHA_MAX)
     lo = 0.0
     for _ in range(10):
         mid = 0.5 * (lo + hi)
-        m_lin = min(mid, STALL_RAD)
-        a_w = k_w * m_lin
-        d_w = k_w * CD_LIFT * wing.cl_alpha * m_lin * m_lin
+        flat = min(1.0, max(0.0, (mid - STALL_RAD) / STALL_BLEND))
+        c_lin = wing.cl_alpha * mid
+        a_w = (k_w / wing.cl_alpha) * (
+            (1.0 - flat) * c_lin + flat * 2.0 * math.sin(mid) * math.cos(mid))
+        d_w = (k_w / wing.cl_alpha) * (
+            (1.0 - flat) * CD_LIFT * c_lin * c_lin + flat * 2.0 * math.sin(mid) ** 2)
         if need - (al_pos + d_w) * math.tan(mid) > a_w:
             lo = mid
         else:
@@ -333,6 +337,9 @@ def plane(wing, turn, acc, u, w, want_up, knife=0.0):
     alpha += ka * (math.atan2(up_ask, wing.rho * wing.side * fast * fast / wing.mass + al_pos) - alpha)
     across_n = math.sqrt((across[0] * across[0] + across[1] * across[1]) + across[2] * across[2])
     a_cross = min(ALPHA_MAX, across_n / max(k_w, 1e-9)) / (across_n or 1.0)
+    # Asked to slow, a propeller pulling one way, it pulls up: its speed goes into height until
+    # the hover's law has it; coasting on it ran 45 m into a tree.
+    alpha = max(alpha, ALPHA_MAX * min(1.0, max(0.0, -sign * along) / wing.gravity))
     nose = [math.cos(alpha) * v_hat[a] + math.sin(alpha) * d[a] + ka * a_cross * across[a] for a in range(3)]
     want_up = [(1.0 - w) * want_up[a] + w * nose[a] for a in range(3)]
     n = math.sqrt((want_up[0] * want_up[0] + want_up[1] * want_up[1]) + want_up[2] * want_up[2]) or 1.0

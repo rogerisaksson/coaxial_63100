@@ -9,7 +9,7 @@ Findings: [quad](../findings/quad.md), [streams](../findings/streams.md).
 | --- | --- |
 | `machine/quad` | a quad on four coaxial boards in MuJoCo: its frame and on what its rotors turn |
 | `machine/weather` | the air every craft flies through: a kind of weather at a time, its wind, gusts and eddies |
-| `machine/senses` | what a craft's law reads of its frame: the board's IMU, an RTK receiver on the 10 Mbit RS485 bus, a star camera where the signal is lost |
+| `machine/senses` | what a craft's law reads of its frame: the board's IMU, an RTK receiver on the 10 Mbit RS485 bus, a star camera where the signal is lost; the live aircraft software & bus diagrams (`aircraft_software_layout_svg`, `aircraft_bus_layout_svg`) |
 | `machine/flightpack` | a craft's flight pack: its cells' volts by the charge left, its bus under its drives |
 | `aero/` | a frame flown from a compiled intent (machine.aerolisp's payload): its blend, oscillator and observers, the lift inside its constraints (aero.c), where the rotors' axis is asked and the torque there (aero_turn.c), the thrusts shared by an active set (aero_share.c); a choice a mask (aero_bits.h), no branch; host-tested; on the image behind device 14 (cmd_aero.c, `coaxial/devices/aero`) |
 | `machine/pull` | the quad's action space, no branch: a rotor's top on its clamp and on its link's volts, the four's on their pack's charge, its reach, its stage's watts - from motor, propeller and pack, its tables laid once |
@@ -35,3 +35,8 @@ Findings: [quad](../findings/quad.md), [streams](../findings/streams.md).
   stand-in boards; `test_views_flying.py` the crafts' flight in its own
   process and its playback, never run ahead;
   `test_views_inset.py` the quad's camera on its gimbal in the corner.
+
+## Aircraft RS485 Modbus RTU Drive, Servo & Avionics Bus Topology
+
+![10 Mbit/s RS485 Modbus RTU aircraft drive, servo and avionics bus layout](aircraft_bus_layout.svg)
+

@@ -333,7 +333,7 @@ def started(drive, wait, amps, to, seconds):
     a vector turned from standing up to `to` rad/s electrical in three quarters of `seconds`,
     `wait(s)` the board's seconds, then SETTLE_S for the estimate. Past its crossover the law's
     estimate is the back-EMF's, whichever way the rotor stood (drive.md)."""
-    drive.write(id_ref=amps, iq_ref=0.0, theta=0.0, omega_target=to,
+    drive.write(id_ref=amps, iq_ref=0.0, theta=drive.state()['theta_hat'], omega_target=to,
                 accel=to / (0.75 * seconds))
     drive.hold()
     wait(seconds)

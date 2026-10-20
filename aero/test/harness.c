@@ -107,30 +107,18 @@ static inline void rot_x3(double rad, double out[9])
 {
   const double c = cos(rad), s = sin(rad);
 
-  out[0] = 1.0;
-  out[1] = 0.0;
-  out[2] = 0.0;
-  out[3] = 0.0;
-  out[4] = c;
-  out[5] = -s;
-  out[6] = 0.0;
-  out[7] = s;
-  out[8] = c;
+  out[0] = 1.0; out[1] = 0.0; out[2] = 0.0;
+  out[3] = 0.0; out[4] = c;   out[5] = -s;
+  out[6] = 0.0; out[7] = s;   out[8] = c;
 }
 
 static inline void rot_y3(double rad, double out[9])
 {
   const double c = cos(rad), s = sin(rad);
 
-  out[0] = c;
-  out[1] = 0.0;
-  out[2] = s;
-  out[3] = 0.0;
-  out[4] = 1.0;
-  out[5] = 0.0;
-  out[6] = -s;
-  out[7] = 0.0;
-  out[8] = c;
+  out[0] = c;   out[1] = 0.0; out[2] = s;
+  out[3] = 0.0; out[4] = 1.0; out[5] = 0.0;
+  out[6] = -s;  out[7] = 0.0; out[8] = c;
 }
 
 /** Airframe force in world axes (`wingborne.Wing.lift`); w = {rho, side, area, cl_alpha}. */
@@ -317,27 +305,24 @@ API void aeh_aerobat_observe(double state_io[15], const double vel[3], const dou
 API double aeh_plane_alpha(double k_w, double cl_alpha, double along, double need, double sign)
 {
   const double al_pos = (along > 0.0) ? along : 0.0;
-  const double al_lim = (al_pos > 9.81) ? al_pos : 9.81;
-  const double hi_pos = atan2(need, al_lim);
   double       hi = (sign < 0.0) ? AERO_PASS_ALPHA_MAX
-                    : ((hi_pos > AERO_PASS_ALPHA_MAX) ? hi_pos : AERO_PASS_ALPHA_MAX);
+                    : ((need > k_w * AERO_PASS_ALPHA_MAX) ? atan2(need, al_pos)
+                                                          : AERO_PASS_ALPHA_MAX);
   double       lo = 0.0;
+  const double k_over_cla = k_w / cl_alpha;
 
   for (int i = 0; i < 10; i++)
   {
     const double mid = 0.5 * (lo + hi);
-    const double m_lin = (mid < AERO_PASS_STALL_RAD) ? mid : AERO_PASS_STALL_RAD;
-    const double a_w = k_w * m_lin;
-    const double d_w = (((k_w * AERO_PASS_CD_LIFT) * cl_alpha) * m_lin) * m_lin;
+    const double flat = clamp_d((mid - AERO_PASS_STALL_RAD) / AERO_PASS_STALL_BLEND, 0.0, 1.0);
+    const double c_lin = cl_alpha * mid;
+    const double sm = sin(mid), cm = cos(mid);
+    const double a_w = k_over_cla * ((1.0 - flat) * c_lin + ((flat * 2.0) * sm) * cm);
+    const double d_w = k_over_cla * (((1.0 - flat) * AERO_PASS_CD_LIFT * c_lin) * c_lin
+                                     + (flat * 2.0) * (sm * sm));
 
-    if (need - (al_pos + d_w) * tan(mid) > a_w)
-    {
-      lo = mid;
-    }
-    else
-    {
-      hi = mid;
-    }
+    if (need - (al_pos + d_w) * tan(mid) > a_w) lo = mid;
+    else hi = mid;
   }
   return sign * (0.5 * (lo + hi));
 }
@@ -413,15 +398,9 @@ static inline void exp_so3_3(double x, double y, double z, double out[9])
   const double s = (a > 1e-7) ? (sin(a) / a) : (1.0 - a2 / 6.0);
   const double c = (a > 1e-7) ? ((1.0 - cos(a)) / a2) : (0.5 - a2 / 24.0);
 
-  out[0] = 1.0 - c * (y * y + z * z);
-  out[1] = -s * z + c * x * y;
-  out[2] = s * y + c * x * z;
-  out[3] = s * z + c * x * y;
-  out[4] = 1.0 - c * (x * x + z * z);
-  out[5] = -s * x + c * y * z;
-  out[6] = -s * y + c * x * z;
-  out[7] = s * x + c * y * z;
-  out[8] = 1.0 - c * (x * x + y * y);
+  out[0] = 1.0 - c * (y * y + z * z); out[1] = -s * z + c * x * y; out[2] = s * y + c * x * z;
+  out[3] = s * z + c * x * y;         out[4] = 1.0 - c * (x * x + z * z); out[5] = -s * x + c * y * z;
+  out[6] = -s * y + c * x * z;        out[7] = s * x + c * y * z;         out[8] = 1.0 - c * (x * x + y * y);
 }
 
 static inline double allowed_rate_d(double e, double a_p, double pole)
@@ -454,14 +433,11 @@ API void aeh_smooth_target(double filt_io[15], int flags[2], const double want_i
   aeh_align_axis(from0, want_in, r_yx, r0);
   if (!flags[1] || dt <= 1e-6)
   {
-    w_ff[0] = 0.0;
-    w_ff[1] = sign * rate;
-    w_ff[2] = 0.0;
+    w_ff[0] = 0.0; w_ff[1] = sign * rate; w_ff[2] = 0.0;
     memcpy(up_filt, want_in, 3 * sizeof(double));
     memcpy(r_prev, r0, 9 * sizeof(double));
     memcpy(r_des_out, r0, 9 * sizeof(double));
-    flags[0] = 1;
-    flags[1] = 1;
+    flags[0] = 1; flags[1] = 1;
     return;
   }
   {
@@ -501,29 +477,13 @@ API void aeh_toward(const double r[9], const double to[9], double k, double out[
   double       k_[9], k2[9], turn[9];
 
   aeh_so3_error(r, to, err);
-  x = k * err[0];
-  y = k * err[1];
-  z = k * err[2];
+  x = k * err[0]; y = k * err[1]; z = k * err[2];
   a = sqrt((x * x + y * y) + z * z);
-  if (a > 1e-9)
-  {
-    s = sin(a) / a;
-    c = (1.0 - cos(a)) / (a * a);
-  }
-  else
-  {
-    s = 1.0;
-    c = 0.5;
-  }
-  k_[0] = 0.0;
-  k_[1] = -z;
-  k_[2] = y;
-  k_[3] = z;
-  k_[4] = 0.0;
-  k_[5] = -x;
-  k_[6] = -y;
-  k_[7] = x;
-  k_[8] = 0.0;
+  s = (a > 1e-9) ? (sin(a) / a) : 1.0;
+  c = (a > 1e-9) ? ((1.0 - cos(a)) / (a * a)) : 0.5;
+  k_[0] = 0.0; k_[1] = -z;  k_[2] = y;
+  k_[3] = z;   k_[4] = 0.0; k_[5] = -x;
+  k_[6] = -y;  k_[7] = x;   k_[8] = 0.0;
   mat_mul3(k_, k_, k2);
   for (int i = 0; i < 3; i++)
   {
@@ -585,7 +545,7 @@ API int aeh_plane(const double w_plane[7], const double turn[9], const double ac
   }
   {
     const double q = w_plane[0], area = w_plane[1], mass = w_plane[2], cl_alpha = w_plane[3];
-    const double rho = w_plane[4], side = w_plane[5];
+    const double rho = w_plane[4], side = w_plane[5], gravity = w_plane[6];
     const double v_hat[3] = {u[0] / fast, u[1] / fast, u[2] / fast};
     const double along = sum3(acc[0] * v_hat[0], acc[1] * v_hat[1], acc[2] * v_hat[2]);
     const double perp[3] = {acc[0] - along * v_hat[0], acc[1] - along * v_hat[1],
@@ -599,76 +559,42 @@ API int aeh_plane(const double w_plane[7], const double turn[9], const double ac
     double       n, under, d[3], sign, need, ka, upp[3], up_ask, across[3], k_w, al_pos, alpha;
     double       across_n, a_cross, ca, sa, nose[3], y[3], dy, z[3], x[3], xr[3], zr[3];
 
-    for (int a = 0; a < 3; a++)
-    {
-      back[a] -= bv * v_hat[a];
-    }
+    for (int a = 0; a < 3; a++) back[a] -= bv * v_hat[a];
     n = norm3(back[0], back[1], back[2]);
-    if (n == 0.0)
-    {
-      n = 1.0;
-    }
-    for (int a = 0; a < 3; a++)
-    {
-      back[a] /= n;
-    }
+    if (n == 0.0) n = 1.0;
+    for (int a = 0; a < 3; a++) back[a] /= n;
     under = sum3(perp[0] * back[0], perp[1] * back[1], perp[2] * back[2]);
     if (under < 0.0)
     {
-      d[0] = back[0];
-      d[1] = back[1];
-      d[2] = back[2];
-      sign = -1.0;
-      need = -under;
+      d[0] = back[0]; d[1] = back[1]; d[2] = back[2];
+      sign = -1.0; need = -under;
     }
     else
     {
       const double boost = (3.0 - size > 0.0) ? (3.0 - size) : 0.0;
 
-      for (int a = 0; a < 3; a++)
-      {
-        d[a] = perp[a] + boost * back[a];
-      }
+      for (int a = 0; a < 3; a++) d[a] = perp[a] + boost * back[a];
       n = norm3(d[0], d[1], d[2]);
-      if (n == 0.0)
-      {
-        n = 1.0;
-      }
-      for (int a = 0; a < 3; a++)
-      {
-        d[a] /= n;
-      }
-      sign = 1.0;
-      need = size;
+      if (n == 0.0) n = 1.0;
+      for (int a = 0; a < 3; a++) d[a] /= n;
+      sign = 1.0; need = size;
     }
     ka = fabs(knife);
     upp[0] = 0.0 - v_hat[1] * v_hat[0];
     upp[1] = 1.0 - v_hat[1] * v_hat[1];
     upp[2] = 0.0 - v_hat[1] * v_hat[2];
     n = norm3(upp[0], upp[1], upp[2]);
-    if (n == 0.0)
-    {
-      n = 1.0;
-    }
+    if (n == 0.0) n = 1.0;
     for (int a = 0; a < 3; a++)
     {
       upp[a] /= n;
       d[a] = (1.0 - ka) * d[a] + ka * upp[a];
     }
     n = norm3(d[0], d[1], d[2]);
-    if (n == 0.0)
-    {
-      n = 1.0;
-    }
-    for (int a = 0; a < 3; a++)
-    {
-      d[a] /= n;
-    }
+    if (n == 0.0) n = 1.0;
+    for (int a = 0; a < 3; a++) d[a] /= n;
     up_ask = sum3(perp[0] * upp[0], perp[1] * upp[1], perp[2] * upp[2]);
-    for (int a = 0; a < 3; a++)
-    {
-      across[a] = perp[a] - up_ask * upp[a];
-    }
+    for (int a = 0; a < 3; a++) across[a] = perp[a] - up_ask * upp[a];
     k_w = (((q * area) * fast) * fast) / mass;
     al_pos = (along > 0.0) ? along : 0.0;
     alpha = aeh_plane_alpha(k_w, cl_alpha, along, need, sign);
@@ -676,37 +602,24 @@ API int aeh_plane(const double w_plane[7], const double turn[9], const double ac
     across_n = norm3(across[0], across[1], across[2]);
     a_cross = clamp_d(across_n / ((k_w > 1e-9) ? k_w : 1e-9), -1e9, AERO_PASS_ALPHA_MAX)
               / ((across_n != 0.0) ? across_n : 1.0);
-    ca = cos(alpha);
-    sa = sin(alpha);
+    {
+      const double slow_a = AERO_PASS_ALPHA_MAX * clamp_d((-sign * along) / gravity, 0.0, 1.0);
+      if (slow_a > alpha) alpha = slow_a;
+    }
+    ca = cos(alpha); sa = sin(alpha);
     for (int a = 0; a < 3; a++)
     {
       nose[a] = (ca * v_hat[a] + sa * d[a]) + (ka * a_cross) * across[a];
       want_io[a] = (1.0 - w) * want_io[a] + w * nose[a];
     }
     n = norm3(want_io[0], want_io[1], want_io[2]);
-    if (n == 0.0)
-    {
-      n = 1.0;
-    }
-    for (int a = 0; a < 3; a++)
-    {
-      y[a] = want_io[a] / n;
-      want_io[a] = y[a];
-    }
+    if (n == 0.0) n = 1.0;
+    for (int a = 0; a < 3; a++) y[a] = want_io[a] = want_io[a] / n;
     dy = sum3(d[0] * y[0], d[1] * y[1], d[2] * y[2]);
-    for (int a = 0; a < 3; a++)
-    {
-      back[a] = d[a] - dy * y[a];
-    }
+    for (int a = 0; a < 3; a++) back[a] = d[a] - dy * y[a];
     n = norm3(back[0], back[1], back[2]);
-    if (n == 0.0)
-    {
-      n = 1.0;
-    }
-    for (int a = 0; a < 3; a++)
-    {
-      z[a] = -back[a] / n;
-    }
+    if (n == 0.0) n = 1.0;
+    for (int a = 0; a < 3; a++) z[a] = -back[a] / n;
     cross3(y, z, x);
     for (int a = 0; a < 3; a++)
     {

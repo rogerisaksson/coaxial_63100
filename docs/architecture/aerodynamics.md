@@ -28,3 +28,8 @@ MuJoCo, each on its 63100 drives. The quad and the core in C it flies on:
 - `test_helicopter.py`: the helicopter and the ornithopter in MuJoCo, the
   three's boards and views; `test_aerobat.py`: the aerobat's routine on its
   airfield and its gate course in wind.
+
+## Aircraft Flight Stack & Real-Time SO(3) Control Architecture
+
+![Aircraft flight stack and real-time SO(3) control architecture](aircraft_software_layout.svg)
+

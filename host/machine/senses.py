@@ -155,3 +155,190 @@ def told(eyes, state, dt=0.0):
     if eyes is None:
         return state
     return read(eyes, state, dt) if dt else seen(eyes, state)
+
+
+def _bus_row_svg(k, title, mbps, nodes):
+    y0, col = 112 + k * 108, ('#38bdf8', '#a78bfa', '#34d399', '#f472b6', '#fbbf24')[k % 5]
+    out = [
+        '<g font-family="monospace">',
+        '<path d="M 220 280 L 250 %d" stroke="%s" stroke-width="2.5" fill="none"/>' % (y0 + 28, col),
+        '<line x1="250" y1="%d" x2="%d" y2="%d" stroke="%s" stroke-width="3" stroke-dasharray="6,3"/>'
+        % (y0 + 28, 260 + len(nodes) * 134, y0 + 28, col),
+        '<rect x="250" y="%d" width="215" height="20" rx="4" fill="#0f172a" stroke="%s" stroke-width="1.2"/>' % (y0, col),
+        '<text x="258" y="%d" fill="%s" font-size="11" font-weight="bold">BUS %d: %s (%.0f Mbit/s)</text>'
+        % (y0 + 14, col, k + 1, title, mbps),
+    ]
+    for u, (name, sub, spec, active) in enumerate(nodes, 1):
+        nx, fill = 260 + (u - 1) * 134, ('#1e293b' if active else '#0f172a')
+        out += [
+            '<line x1="%d" y1="%d" x2="%d" y2="%d" stroke="%s" stroke-width="1.8"/>' % (nx + 60, y0 + 28, nx + 60, y0 + 40, col),
+            '<rect x="%d" y="%d" width="124" height="54" rx="5" fill="%s" stroke="%s" stroke-width="1.3"/>' % (nx, y0 + 40, fill, col),
+            '<text x="%d" y="%d" fill="#f8fafc" font-size="10" font-weight="bold">#%d %s</text>' % (nx + 6, y0 + 54, u, name),
+            '<text x="%d" y="%d" fill="#94a3b8" font-size="9">%s</text>' % (nx + 6, y0 + 69, sub),
+            '<text x="%d" y="%d" fill="%s" font-size="9">%s</text>' % (nx + 6, y0 + 83, col, spec),
+        ]
+    return '\n'.join(out + ['</g>'])
+
+
+def aircraft_bus_layout_svg():
+    """Render the live 10 Mbit/s RS485 Modbus RTU aircraft drive, servo & avionics bus topology
+    as a deterministic SVG diagram for `docs/architecture/aircraft_bus_layout.svg`."""
+    from machine import edge, flightpack, pull, quad, rtu
+    from machine.aerobat import airframe as aero_af
+    from machine.helicopter import airframe as heli_af
+    from machine.ornithopter import airframe as orni_af
+    mbps, reg = edge.BAUD / 1e6, rtu.SETPOINT_REG
+    quad_nodes = [(n, 'r%02d / reg %#06x' % (i, reg + 2 * i), '63100 / %.0f-%.0f A' % (pull.I_MAX, pull.I_WEP), True)
+                  for i, n in enumerate(('rotor_fl', 'rotor_fr', 'rotor_rr', 'rotor_rl'))]
+    heli_nodes = [
+        ('main_drive', 'd00 / reg %#06x' % reg, '63100 / %.0f rad/s' % heli_af.GOV_RAD_S, True),
+        ('tail_drive', 'd01 / reg %#06x' % (reg + 2), '63100 / %.0f rad/s' % heli_af.TAIL_GOV_RAD_S, True),
+        ('swash_coll', 's00 / reg %#06x' % (reg + 4), 'pitch +/-%.0f deg' % heli_af.COLL_DEG, True),
+        ('swash_cyc', 's01 / reg %#06x' % (reg + 6), 'tilt +/-%.0f deg' % heli_af.CYC_DEG, True),
+        ('tail_servo', 's02 / reg %#06x' % (reg + 8), 'yaw +/-%.0f deg' % heli_af.TAIL_DEG, True),
+    ]
+    orni_nodes = [
+        ('fore_drive', 'd00 / reg %#06x' % reg, '63100 / %.0f rad/s' % orni_af.GOV_RAD_S, True),
+        ('aft_drive', 'd01 / reg %#06x' % (reg + 2), '63100 / 1:%.1f gear' % orni_af.GEAR_RATIO, True),
+        ('wing_stroke', 's00 / reg %#06x' % (reg + 4), 'flap +/-%.0f deg' % orni_af.STROKE_DEG, True),
+        ('wing_pitch', 's01 / reg %#06x' % (reg + 6), 'twist +/-%.0f deg' % orni_af.PITCH_DEG, True),
+        ('wing_fold', 's02 / reg %#06x' % (reg + 8), 'sweep %.0f deg' % orni_af.FOLD_DEG, True),
+    ]
+    aero_nodes = [
+        ('prop_drive', 'd00 / reg %#06x' % reg, '63100 / %.0f rad/s' % aero_af.W_TOP, True),
+        ('vect_drive', 'd01 / reg %#06x' % (reg + 2), '63100 / %.0f rad/s' % aero_af.VECT_GOV_RAD_S, True),
+        ('elevator', 's00 / reg %#06x' % (reg + 4), '3D +/-%.0f deg' % aero_af.ELEV_DEG, True),
+        ('ailerons', 's01 / reg %#06x' % (reg + 6), '3D +/-%.0f deg' % aero_af.AIL_DEG, True),
+        ('rudder', 's02 / reg %#06x' % (reg + 8), '3D +/-%.0f deg' % aero_af.RUD_DEG, True),
+    ]
+    sense_nodes = [
+        ('bmi055_imu', 'senses.GYRO/ACC', '%.1f deg RTK INS' % math.degrees(ATT_RAD), True),
+        ('rtk_gnss', 'senses.GNSS', '%.0f Hz / %.0f cm rms' % (GNSS[0], GNSS[2] * 100.0), True),
+        ('star_cam', 'senses.STAR', '%.0f Hz dead-reckon' % STAR[0], False),
+        ('flightpack', '%dS LiPo bus' % flightpack.PACK_CELLS, '%.0f V / %.2f ohm' % (flightpack.open_volts(1.0), flightpack.PACK_OHM), True),
+        ('device_14', 'cmd_aero.c', '%.0f Hz C11 core' % (1.0 / quad.STEP_S), True),
+    ]
+    buses = (('quad', quad_nodes), ('helicopter', heli_nodes), ('ornithopter', orni_nodes),
+             ('aerobat', aero_nodes), ('avionics', sense_nodes))
+    banks = ('SETPOINT %#06x' % rtu.SETPOINT_REG, 'KP       %#06x' % rtu.KP_REG,
+             'FEED     %#06x' % rtu.FEED_REG, 'LIMIT    %#06x' % rtu.LIMIT_REG,
+             'STATE    %#06x' % rtu.STATE_REG, 'AERO_OP  0x000e')
+    head = [
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1220 665" width="100%" height="100%">',
+        '<rect width="1220" height="665" rx="10" fill="#020617"/>',
+        '<g font-family="monospace">',
+        '<text x="24" y="34" fill="#f8fafc" font-size="16" font-weight="bold">'
+        'COAXIAL 63100 -- %.0f Mbit/s RS485 Modbus RTU Aircraft Drive, Servo &amp; Avionics Buses (4 Airframes, 10 SIL Drives)</text>' % mbps,
+        '<text x="24" y="54" fill="#94a3b8" font-size="11">'
+        'Generated from machine.senses (GNSS=%.0f Hz, STAR=%.0f Hz), machine.pull (I_MAX=%.0f A), flightpack (%dS %.0f V), and craft airframes</text>'
+        % (GNSS[0], STAR[0], pull.I_MAX, flightpack.PACK_CELLS, flightpack.open_volts(1.0)),
+        '<rect x="20" y="160" width="200" height="245" rx="8" fill="#0f172a" stroke="#38bdf8" stroke-width="2"/>',
+        '<text x="32" y="186" fill="#38bdf8" font-size="12" font-weight="bold">FLIGHT LAW &amp; MASTER</text>',
+        '<text x="32" y="204" fill="#e2e8f0" font-size="10">aero/ + SO(3) craft laws</text>',
+        '<text x="32" y="220" fill="#94a3b8" font-size="10">CoaxialDrives (240-500 Hz)</text>',
+        '<line x1="32" y1="232" x2="208" y2="232" stroke="#334155" stroke-width="1"/>',
+        '<text x="32" y="250" fill="#f8fafc" font-size="10" font-weight="bold">Modbus &amp; Wire Banks:</text>',
+    ] + ['<text x="32" y="%d" fill="#cbd5e1" font-size="10">%s</text>' % (268 + i * 18, b) for i, b in enumerate(banks)] + ['</g>']
+    rows = [_bus_row_svg(k, name, mbps, nodes) for k, (name, nodes) in enumerate(buses)]
+    return '\n'.join(head + rows + ['</svg>\n'])
+
+
+def _layer_row_svg(k, title, cards):
+    y_line, col = 130 + k * 114, ('#38bdf8', '#a78bfa', '#34d399', '#fbbf24', '#f472b6')[k % 5]
+    y_tag, y_card = y_line - 28, y_line + 12
+    out = [
+        '<g font-family="monospace">',
+        '<path d="M 225 295 L 255 %d" stroke="%s" stroke-width="2.5" fill="none"/>' % (y_line, col),
+        '<line x1="255" y1="%d" x2="1256" y2="%d" stroke="%s" stroke-width="3" stroke-dasharray="6,3"/>' % (y_line, y_line, col),
+        '<rect x="255" y="%d" width="350" height="20" rx="4" fill="#0f172a" stroke="%s" stroke-width="1.2"/>' % (y_tag, col),
+        '<text x="263" y="%d" fill="%s" font-size="11" font-weight="bold">LAYER %d: %s</text>' % (y_tag + 14, col, k + 1, title),
+    ]
+    for u, (head, l1, l2, l3) in enumerate(cards, 1):
+        nx = 265 + (u - 1) * 200
+        out += [
+            '<line x1="%d" y1="%d" x2="%d" y2="%d" stroke="%s" stroke-width="1.8"/>' % (nx + 92, y_line, nx + 92, y_card, col),
+            '<rect x="%d" y="%d" width="184" height="62" rx="5" fill="#1e293b" stroke="%s" stroke-width="1.3"/>' % (nx, y_card, col),
+            '<text x="%d" y="%d" fill="#f8fafc" font-size="10" font-weight="bold">#%d %s</text>' % (nx + 8, y_card + 14, u, head),
+            '<text x="%d" y="%d" fill="#94a3b8" font-size="9">%s</text>' % (nx + 8, y_card + 29, l1),
+            '<text x="%d" y="%d" fill="#cbd5e1" font-size="9">%s</text>' % (nx + 8, y_card + 43, l2),
+            '<text x="%d" y="%d" fill="%s" font-size="9">%s</text>' % (nx + 8, y_card + 56, col, l3),
+        ]
+    return '\n'.join(out + ['</g>'])
+
+
+def aircraft_software_layout_svg():
+    """Render the live 5-layer aircraft flight control & simulation architecture as a deterministic
+    SVG diagram for `docs/architecture/aircraft_software_layout.svg`."""
+    from machine import flightpack, pull, quad
+    from machine.aerobat import airframe as aero_af
+    from machine.helicopter import airframe as heli_af
+    quad_hz = round(1.0 / quad.STEP_S)
+    shared = (
+        ('#38bdf8', 'cmd / frames  IPC (60 Hz)'),
+        ('#a78bfa', 'seen[state]   senses.told'),
+        ('#a78bfa', 'air[wx,wy,wz] weather.wind_at'),
+        ('#34d399', 'payload[66B]  aerolisp/aerokin'),
+        ('#34d399', 'alpha, pull   wingborne.plane'),
+        ('#fbbf24', 'acc, target_R helicopter.kit'),
+        ('#fbbf24', 'w[4], ctrl[4] aero/ &amp; laws'),
+        ('#f472b6', 'aeh_world_t   10x RK2 substep'),
+        ('#f472b6', '%dS %.0f V LiPo  %.0f-%.0f A 63100' % (flightpack.PACK_CELLS, flightpack.open_volts(1.0), pull.I_MAX, pull.I_WEP)),
+    )
+    layers = (
+        ('terminal, views &amp; flight worker (60 Hz)', (
+            ('show_&lt;craft&gt;.py', 'quad / heli / orni / aerobat', 'chase &amp; spectator cam', 'out: mode, weather, card'),
+            ('views/flying.py', 'Flying subprocess worker', 'playback.py LAG_S = 60 ms', 'in: 60 Hz state snapshots'),
+            ('aerolisp.py &amp; *.lisp', '4 craft manifests + shared', 'stream_inject &amp; defblock', 'out: CompiledAeroPayload'),
+            ('grounds &amp; airfield', 'gates, limbo, hoop, slalom', 'L1 arcs &amp; sweep.py', 'out: laid lines &amp; solids'),
+            ('coaxial/ &amp; rig.py', '0x6E wire / device 14 aero', 'motion.spun &amp; started', 'Kalman &amp; thermal twin'),
+        )),
+        ('sensing, weather &amp; observers (240-%d Hz)' % quad_hz, (
+            ('senses.py (eyes)', 'BMI055 IMU + %.0f Hz RTK' % GNSS[0], '%.0f Hz star camera backup' % STAR[0], 'out: seen(at,vel,turn,spin)'),
+            ('weather.py (wind_at)', 'Dryden gusts &amp; eddies', 'calm / breeze / gale / tour', 'out: air(wx, wy, wz)'),
+            ('aero.c ESO (quad)', '3-axis attitude &amp; pull ESO', 'wind vs push separation', 'in: aero_sense_t (%d Hz)' % quad_hz),
+            ('observer.py (heli/orni)', 'SO(3) turn_eso (wo=%.0f)' % heli_af.WO_TURN, 'pull_eso &amp; wind_eso', 'in: seen &amp; controls (240 Hz)'),
+            ('aerobat/observer.py', 'SO(3) turn_eso (wo=%.0f)' % aero_af.WO_TURN, 'slipstream &amp; pull_eso', 'out: d_tau, d_pull'),
+        )),
+        ('trajectory, kinematics &amp; guidance (240-%d Hz)' % quad_hz, (
+            ('aerobatics.py &amp; cards', 'HOVER + figure setpoints', 'routines &amp; gate courses', 'out: row(pos,vel,lean,rates)'),
+            ('aerokin.py (vacuum)', 'branch-free quad kinematics', 'collective + tilt + rates', 'out: AeroPayload (%d Hz)' % quad_hz),
+            ('course.py &amp; airfield.py', 'L1 arc guidance &amp; gates', 'runway takeoff &amp; flare', 'out: path row &amp; trigger'),
+            ('wingborne.py (plane)', 'post-stall + flat-plate lift', '10-step alpha bisection', 'out: alpha, target_R, pull'),
+            ('helicopter/kit.py', 'shared SO(3) track &amp; step', 'hover, orbit &amp; line track', 'out: acc_cmd, target_R'),
+        )),
+        ('SO(3) flight laws &amp; allocation (240-%d Hz)' % quad_hz, (
+            ('aero.c &amp; aero_turn.c', 'branch-free C11 core', 'impedance + CPG oscillator', 'tilt-prioritized SO(3) wrench'),
+            ('aero_share.c &amp; pull.py', 'active-set thrust share', '%.0f A / %.0f A WEP reach' % (pull.I_MAX, pull.I_WEP), 'out: 4x rotor rad/s'),
+            ('helicopter/law.py', 'collective + cyclic swash', 'tail anti-torque + piro', 'out: coll, cyc_p, cyc_r, tail'),
+            ('ornithopter/law.py', 'stroke + pitch + roll_d', 'dive wing fold &amp; soar', 'out: 4x flapping controls'),
+            ('aerobat/law.py', 'propeller + slipstream tail', 'knife-edge, harrier, flare', 'out: pitch, elev, ail, rud'),
+        )),
+        ('C harness, MuJoCo sky &amp; 63100 drives (1 kHz)', (
+            ('aero/test/harness.c', 'aeh_step_heli/orni/aerobat', '10-substep RK2 aerodynamics', '0 direct qpos/qvel writes'),
+            ('quad/heli/orni/aerobat', 'MuJoCo 6-DOF rigid body', 'skids, wheels &amp; contacts', 'out: state(at,vel,turn,spin)'),
+            ('CoaxialDrives &amp; motion', '2-4x 63100 FOC boards', 'theta_hat phase-locked spin', 'out: actual rotor speeds'),
+            ('flightpack.py (%dS LiPo)' % flightpack.PACK_CELLS, '%.1f V open, %.2f ohm sag' % (flightpack.open_volts(1.0), flightpack.PACK_OHM), 'regenerative braking charge', 'out: bus volts &amp; amps'),
+            ('STM32H743 &amp; Stand-In', '35 kHz FOC + cmd_aero.c', 'native:// &amp; emulator://', 'see: aircraft_bus_layout.svg'),
+        )),
+    )
+    head = [
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 685" width="100%" height="100%">',
+        '<rect width="1280" height="685" rx="10" fill="#020617"/>',
+        '<g font-family="monospace">',
+        '<text x="24" y="34" fill="#f8fafc" font-size="16" font-weight="bold">'
+        'COAXIAL 63100 -- Aircraft Flight Stack &amp; Real-Time SO(3) Control Architecture</text>',
+        '<text x="24" y="54" fill="#94a3b8" font-size="11">'
+        '5-Layer Pipeline: Terminal UI (60 Hz) &lt;-&gt; Sensing &amp; Weather &lt;-&gt; Trajectory &amp; Wingborne &lt;-&gt; SO(3) Laws (240-%d Hz) &lt;-&gt; C Harness &amp; 63100 Drives</text>' % quad_hz,
+        '<rect x="20" y="150" width="205" height="295" rx="8" fill="#0f172a" stroke="#38bdf8" stroke-width="2"/>',
+        '<text x="32" y="176" fill="#38bdf8" font-size="12" font-weight="bold">FLIGHT ORCHESTRATOR</text>',
+        '<text x="32" y="194" fill="#e2e8f0" font-size="10">views.flying / apart</text>',
+        '<text x="32" y="210" fill="#94a3b8" font-size="10">Sky + Law + CoaxialDrives</text>',
+        '<line x1="32" y1="222" x2="213" y2="222" stroke="#334155" stroke-width="1"/>',
+        '<text x="32" y="240" fill="#f8fafc" font-size="10" font-weight="bold">Shared State &amp; Payloads:</text>',
+    ] + ['<text x="32" y="%d" fill="%s" font-size="9">%s</text>' % (258 + i * 18, c, t) for i, (c, t) in enumerate(shared)] + [
+        '<text x="32" y="424" fill="#94a3b8" font-size="9">0 direct qpos/qvel hacks</text>',
+        '</g>',
+    ]
+    rows = [_layer_row_svg(k, title, cards) for k, (title, cards) in enumerate(layers)]
+    return '\n'.join(head + rows + ['</svg>\n'])
+

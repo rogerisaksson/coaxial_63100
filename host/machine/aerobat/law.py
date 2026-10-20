@@ -144,7 +144,8 @@ class Core:
 
     def margin(self, row):
         """How much higher `row` is flown in its air's gusts, m: a figure's, not a laid line's."""
-        return float(row.get('lined', 1.0) >= 0.5) * GUST_S * max(0.0, math.sqrt(self.gust2) - GUST_FLOOR)
+        return float(row.get('lined', 1.0) >= 0.5 and row.get('speed', 0.0) <= 5.0) * GUST_S * max(
+            0.0, math.sqrt(self.gust2) - GUST_FLOOR)
 
     def plan(self, law, row, state, dt, pull_max):
         """Advance outer horizontal kinematics `aerokin.lean` across `dt` s."""
@@ -216,7 +217,7 @@ class Core:
         reach, up_pull = max(aerokin.LEAST * GRAVITY, pull_max), self.up_pull
         # Landed, its motors cut till a row flies it again: idled, its propeller's thrust rolled
         # it on at 5 m/s; its land's row and its run's spool alike, restarted it idled at a stand.
-        self.landed = row['height'] < 0.0 and (self.landed or (self.airborne and state['h'] <= TOUCH_M))
+        self.landed = -0.1 < row['height'] < 0.0 and (self.landed or (self.airborne and state['h'] <= TOUCH_M))
 
         if row['height'] < 0.0 and (row['height'] <= -0.1 or not self.airborne):
             if state['h'] < 0.03 and max(abs(x) for x in vel) < 0.05:

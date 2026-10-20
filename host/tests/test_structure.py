@@ -345,24 +345,25 @@ def test_her_law_reads_her_sensors_alone(r):
 #: (`physics.World.reset`, `.scenario`, `.push`), commands her drives through `edge.drive`'s
 #: 10 Mbit/s RS485 Modbus RTU extremity buses alone, and writes none of the world's state itself.
 GYM = ('sprung', 'worker', 'tour')
+AERO_LAWS = ('aerokin', 'wingborne', 'helicopter/law', 'helicopter/kit', 'ornithopter/law', 'aerobat/law')
 MOVES = ('qpos', 'qvel', 'ctrl', 'xfrc_applied', 'qfrc_applied', 'mocap_pos', 'mocap_quat',
          'target', 'feed', 'rate', 'limit')
 
 
 def test_the_gym_moves_her_through_the_world_alone(r):
-    """The gym writes none of the world's state or drive arrays directly: her lay, a scene and a
-    shove are the world's own calls, and her drives are told on their 10 Mbit/s RS485 Modbus RTU
-    extremity buses (`edge.LIMBS`, `edge.drive`) alone."""
-    from machine import edge, figure, routines
+    """The gym and the aircraft flight laws write none of the world's state or drive arrays
+    directly: a lay, a scene and a shove are the world's own calls, and drives are told on their
+    10 Mbit/s RS485 Modbus RTU buses (`edge.LIMBS`, `edge.drive`, `CoaxialDrives`) alone."""
+    from machine import edge, figure, routines, senses
     wrote = []
-    for name in GYM:
-        tree = ast.parse(open(os.path.join(HOST, 'machine', name + '.py'), encoding='utf-8').read())
+    for name in GYM + AERO_LAWS:
+        tree = ast.parse(open(os.path.join(HOST, 'machine', *name.split('/')) + '.py', encoding='utf-8').read())
         for node in ast.walk(tree):
             targets = (node.targets if isinstance(node, ast.Assign)
                        else [node.target] if isinstance(node, ast.AugAssign) else [])
             if any(isinstance(t, ast.Attribute) and t.attr in MOVES for target in targets for t in ast.walk(target)):
                 wrote.append('%s:%d' % (name, getattr(node, 'lineno', 0)))
-    r.check("the gym writes none of the world's state: a lay, a scene and a shove are the world's own calls",
+    r.check("the gym and aircraft laws write none of MuJoCo's state arrays directly",
             not wrote, ', '.join(wrote[:6]))
     limbs = [(s.name, s.actuators) for s in routines.TYPES['gynoid'].body]
     flat = [j for _, jnts in edge.LIMBS for j in jnts]
@@ -383,6 +384,18 @@ def test_the_gym_moves_her_through_the_world_alone(r):
     r.check('docs/architecture/software_layout.svg has zero connector-box overlaps and is linked in robotics.md',
             os.path.isfile(sw_svg) and 'software_layout.svg' in open(rob_doc, encoding='utf-8').read()
             and svg_connectors_clear(sw_svg) and svg_connectors_clear(svg_path), sw_svg)
+    abus_svg = os.path.join(repo, 'docs', 'architecture', 'aircraft_bus_layout.svg')
+    asw_svg = os.path.join(repo, 'docs', 'architecture', 'aircraft_software_layout.svg')
+    quad_doc = os.path.join(repo, 'docs', 'architecture', 'quad.md')
+    aero_doc = os.path.join(repo, 'docs', 'architecture', 'aerodynamics.md')
+    aero_svg_ok = (os.path.isfile(abus_svg) and os.path.isfile(asw_svg)
+                   and open(abus_svg, encoding='utf-8').read() == senses.aircraft_bus_layout_svg()
+                   and open(asw_svg, encoding='utf-8').read() == senses.aircraft_software_layout_svg()
+                   and 'aircraft_bus_layout.svg' in open(quad_doc, encoding='utf-8').read()
+                   and 'aircraft_software_layout.svg' in open(aero_doc, encoding='utf-8').read()
+                   and svg_connectors_clear(abus_svg) and svg_connectors_clear(asw_svg))
+    r.check('docs/architecture/aircraft_{bus,software}_layout.svg are generated from live code and overlap-free',
+            aero_svg_ok, asw_svg)
 
 
 def test_shape(r):
