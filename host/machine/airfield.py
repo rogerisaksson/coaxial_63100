@@ -14,9 +14,14 @@ while it is flown (`quad.Sky.stand`); what stands always is clear of every line 
 the course fly.
 """
 import math
+import os
 
-from machine import grounds
+from machine import aerolisp, grounds
 from machine.aerobatics import DOWN, HOVER, PRESSED
+
+with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'aerobat.lisp'), encoding='utf-8') as _f:
+    _STUNTS = aerolisp.compile_manifest(_f.read())['stunts']
+KNIFE_PASS, ROLLING_HARRIER = _STUNTS['knife_pass'], _STUNTS['rolling_harrier']
 
 RUNWAY_RAD = math.radians(50.0)
 #: The runway's strip, m along its line from its end: where a landing stops. To 16 m, its
@@ -106,15 +111,21 @@ def _ramp(x):
 #: same figure ended 22 m beside the runway at 6 m/s, the teardrop 54 m out and 19 beside it;
 #: turned off the lift at 13 m/s on 8 m it bled to 3.6; the 1.4 m wing ran wide of 9 m turns.
 #: Its tip 4 cm over the runway on its side: at 0.45 m it struck.
-LIFT_M, RUN_M, OPENING_M, OPEN_M_S, PASS_M, PASS_M_S = 20.0, 12.0, 11.0, 18.0, 70.0, 20.0
-KNIFE_M, DESCENT_M, PULL_M, RUN_IN_M, RUN_IN_M_S = 0.47, 16.0, 15.0, 45.0, 12.0
+LIFT_M, RUN_M, OPENING_M, OPEN_M_S = 20.0, 12.0, 11.0, 18.0
+PASS_M, PASS_M_S, KNIFE_M, DESCENT_M, PULL_M = 74.0, KNIFE_PASS['speed'], KNIFE_PASS['height'], 16.0, 15.0
+HARRIER_M, HARRIER_H, HARRIER_M_S, HARRIER_ROLL = (
+    34.0, ROLLING_HARRIER['height'], ROLLING_HARRIER['speed'], ROLLING_HARRIER['roll'])
+RUN_IN_M, RUN_IN_M_S = 11.0, 11.5
 #: Gusty, the opening's pass higher by the law's gusts times GUST_S, m (`aerobat.law.GUST_S`).
 GUST_S = 0.6
 _OPEN, _OPEN_AT = _laid((LIFT_M, 0.0), (RUN_M, (-90.0, OPENING_M), (270.0, OPENING_M), PASS_M,
-                                        (-45.0, OPENING_M), 2.0 * OPENING_M, (225.0, OPENING_M), RUN_IN_M))
+                                        (-45.0, OPENING_M), 2.0 * OPENING_M, (225.0, OPENING_M),
+                                        HARRIER_M + RUN_IN_M))
 _SIDE = tuple(_ramp((s - _OPEN_AT[3]) / DESCENT_M) - _ramp((s - _OPEN_AT[4] + PULL_M) / PULL_M)
               for s in range(len(_OPEN)))
-OPENING = tuple(p + (HIGH_M - (HIGH_M - KNIFE_M) * k, -k) for p, k in zip(_OPEN, _SIDE))
+_HARR = tuple(_ramp((s - (_OPEN_AT[7] - 10.0)) / 14.0) for s in range(len(_OPEN)))
+OPENING = tuple(p + (HIGH_M - (HIGH_M - KNIFE_M) * k - (HIGH_M - HARRIER_H) * h, -k)
+                for p, k, h in zip(_OPEN, _SIDE, _HARR))
 
 
 def _gate(s, wide, high, middle, across=None):
@@ -205,21 +216,29 @@ def _followed(track, k, seen, round_):
 
 def opening(route, now):
     """The routine's opening's row for now (`aerobatics.fly`'s giver): OPENING's line flown as
-    the lap's (`line`), OPEN_M_S on to PASS_M_S on its side, RUN_IN_M_S at its end; `passed`
-    there."""
+    the lap's (`line`), OPEN_M_S on to PASS_M_S on its side (`knife_pass`), then the low
+    rolling harrier pass (`rolling_harrier`) back up the runway to RUN_IN_M_S at its end;
+    `passed` there."""
     fresh = {'began': route['at'], 'k': 0}
     run = route.get('open', fresh)
     run = route['open'] = (run, fresh)[int(run['began'] != route['at'])]
     k, s, rate = _followed(OPENING, run['k'], route.get('seen', {}), False)
     run['k'], n = k, len(OPENING)
     route['holds'] = (route.get('holds', ()), ('passed',))[int(k >= n - 2)]
+    lead_v = HARRIER_M_S if s >= _OPEN_AT[7] - 10.0 else OPEN_M_S
     knife = _at(OPENING, s + LEAD_S[1] * PASS_M_S, False)[5]
-    slow = (OPEN_M_S - RUN_IN_M_S) * _ramp((s - _OPEN_AT[7]) / RUN_IN_M)
+    h_pass = _ramp((s - (_OPEN_AT[7] - 10.0)) / 14.0)
+    end_ramp = _ramp((s - (_OPEN_AT[7] + HARRIER_M)) / RUN_IN_M)
+    roll = HARRIER_ROLL * float(_OPEN_AT[7] <= s <= _OPEN_AT[7] + HARRIER_M)
+    speed = (OPEN_M_S + (PASS_M_S - OPEN_M_S) * abs(knife)
+             - (OPEN_M_S - HARRIER_M_S) * h_pass - (HARRIER_M_S - RUN_IN_M_S) * end_ramp)
     # Gusty, its pass higher by its law's gusts (`aerokin.seen`): at KNIFE_M on the 17x8 the
     # page's tours sank it onto its tip 15 times in 47 crashes.
     lift = GUST_S * route.get('seen', {}).get('gust', 0.0)
-    return dict(CRUISE, turn=math.degrees(rate), height=_at(OPENING, s + LEAD_S[0] * OPEN_M_S, False)[4] + lift,
-                knife=knife, speed=OPEN_M_S + (PASS_M_S - OPEN_M_S) * abs(knife) - slow, lined=0.0, lean=G15_M_S2)
+    lean = G15_M_S2 - (G15_M_S2 - 12.0) * end_ramp
+    return dict(CRUISE, turn=math.degrees(rate),
+                height=_at(OPENING, s + LEAD_S[0] * lead_v, False)[4] + lift,
+                knife=knife, roll=roll, speed=speed, lined=0.0, lean=lean)
 
 
 #: The circuit, a line as the lap is: from the lap's START up the runway's line to TURN_AT_M,

@@ -299,19 +299,19 @@ def aircraft_software_layout_svg():
             ('observer.py (heli/orni)', 'SO(3) turn_eso (wo=%.0f)' % heli_af.WO_TURN, 'pull_eso &amp; wind_eso', 'in: seen &amp; controls (240 Hz)'),
             ('aerobat/observer.py', 'SO(3) turn_eso (wo=%.0f)' % aero_af.WO_TURN, 'slipstream &amp; pull_eso', 'out: d_tau, d_pull'),
         )),
-        ('trajectory, kinematics &amp; guidance (240-%d Hz)' % quad_hz, (
+        ('outer guidance &amp; setpoint (240-%d Hz)' % quad_hz, (
             ('aerobatics.py &amp; cards', 'HOVER + figure setpoints', 'routines &amp; gate courses', 'out: row(pos,vel,lean,rates)'),
             ('aerokin.py (vacuum)', 'branch-free quad kinematics', 'collective + tilt + rates', 'out: AeroPayload (%d Hz)' % quad_hz),
-            ('course.py &amp; airfield.py', 'L1 arc guidance &amp; gates', 'runway takeoff &amp; flare', 'out: path row &amp; trigger'),
-            ('wingborne.py (plane)', 'post-stall + flat-plate lift', '10-step alpha bisection', 'out: alpha, target_R, pull'),
-            ('helicopter/kit.py', 'shared SO(3) track &amp; step', 'hover, orbit &amp; line track', 'out: acc_cmd, target_R'),
+            ('course.py &amp; airfield.py', 'L1 arc guidance &amp; gates', 'knife_pass &amp; rolling_harrier', 'out: path row &amp; trigger'),
+            ('wingborne.py (plane)', 'monotone pre-stall + plate', '10-step alpha &amp; harrier roll', 'out: alpha, r_wing, want_up'),
+            ('Core.setpoint / kit.py', 'outer SE(3) reference loop', 'plan, yawed &amp; _smooth_target', 'out: r_des, w_ff, f_des'),
         )),
-        ('SO(3) flight laws &amp; allocation (240-%d Hz)' % quad_hz, (
+        ('inner dynamic SE(3) control &amp; allocation (240-%d Hz)' % quad_hz, (
             ('aero.c &amp; aero_turn.c', 'branch-free C11 core', 'impedance + CPG oscillator', 'tilt-prioritized SO(3) wrench'),
             ('aero_share.c &amp; pull.py', 'active-set thrust share', '%.0f A / %.0f A WEP reach' % (pull.I_MAX, pull.I_WEP), 'out: 4x rotor rad/s'),
-            ('helicopter/law.py', 'collective + cyclic swash', 'tail anti-torque + piro', 'out: coll, cyc_p, cyc_r, tail'),
-            ('ornithopter/law.py', 'stroke + pitch + roll_d', 'dive wing fold &amp; soar', 'out: 4x flapping controls'),
-            ('aerobat/law.py', 'propeller + slipstream tail', 'knife-edge, harrier, flare', 'out: pitch, elev, ail, rud'),
+            ('helicopter/law.py (se3)', 'collective + cyclic swash', 'tail anti-torque + piro', 'out: coll, cyc_p, cyc_r, tail'),
+            ('ornithopter/law.py (se3)', 'stroke + pitch + roll_d', 'dive wing fold &amp; soar', 'out: 4x flapping controls'),
+            ('aerobat/law.py (se3)', 'propeller + slipstream tail', 'WING.trimmed &amp; se3mpc blend', 'out: pitch, elev, ail, rud'),
         )),
         ('C harness, MuJoCo sky &amp; 63100 drives (1 kHz)', (
             ('aero/test/harness.c', 'aeh_step_heli/orni/aerobat', '10-substep RK2 aerodynamics', '0 direct qpos/qvel writes'),

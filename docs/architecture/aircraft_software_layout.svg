@@ -96,7 +96,7 @@
 <path d="M 225 295 L 255 358" stroke="#34d399" stroke-width="2.5" fill="none"/>
 <line x1="255" y1="358" x2="1256" y2="358" stroke="#34d399" stroke-width="3" stroke-dasharray="6,3"/>
 <rect x="255" y="330" width="350" height="20" rx="4" fill="#0f172a" stroke="#34d399" stroke-width="1.2"/>
-<text x="263" y="344" fill="#34d399" font-size="11" font-weight="bold">LAYER 3: trajectory, kinematics &amp; guidance (240-500 Hz)</text>
+<text x="263" y="344" fill="#34d399" font-size="11" font-weight="bold">LAYER 3: outer guidance &amp; setpoint (240-500 Hz)</text>
 <line x1="357" y1="358" x2="357" y2="370" stroke="#34d399" stroke-width="1.8"/>
 <rect x="265" y="370" width="184" height="62" rx="5" fill="#1e293b" stroke="#34d399" stroke-width="1.3"/>
 <text x="273" y="384" fill="#f8fafc" font-size="10" font-weight="bold">#1 aerobatics.py &amp; cards</text>
@@ -113,26 +113,26 @@
 <rect x="665" y="370" width="184" height="62" rx="5" fill="#1e293b" stroke="#34d399" stroke-width="1.3"/>
 <text x="673" y="384" fill="#f8fafc" font-size="10" font-weight="bold">#3 course.py &amp; airfield.py</text>
 <text x="673" y="399" fill="#94a3b8" font-size="9">L1 arc guidance &amp; gates</text>
-<text x="673" y="413" fill="#cbd5e1" font-size="9">runway takeoff &amp; flare</text>
+<text x="673" y="413" fill="#cbd5e1" font-size="9">knife_pass &amp; rolling_harrier</text>
 <text x="673" y="426" fill="#34d399" font-size="9">out: path row &amp; trigger</text>
 <line x1="957" y1="358" x2="957" y2="370" stroke="#34d399" stroke-width="1.8"/>
 <rect x="865" y="370" width="184" height="62" rx="5" fill="#1e293b" stroke="#34d399" stroke-width="1.3"/>
 <text x="873" y="384" fill="#f8fafc" font-size="10" font-weight="bold">#4 wingborne.py (plane)</text>
-<text x="873" y="399" fill="#94a3b8" font-size="9">post-stall + flat-plate lift</text>
-<text x="873" y="413" fill="#cbd5e1" font-size="9">10-step alpha bisection</text>
-<text x="873" y="426" fill="#34d399" font-size="9">out: alpha, target_R, pull</text>
+<text x="873" y="399" fill="#94a3b8" font-size="9">monotone pre-stall + plate</text>
+<text x="873" y="413" fill="#cbd5e1" font-size="9">10-step alpha &amp; harrier roll</text>
+<text x="873" y="426" fill="#34d399" font-size="9">out: alpha, r_wing, want_up</text>
 <line x1="1157" y1="358" x2="1157" y2="370" stroke="#34d399" stroke-width="1.8"/>
 <rect x="1065" y="370" width="184" height="62" rx="5" fill="#1e293b" stroke="#34d399" stroke-width="1.3"/>
-<text x="1073" y="384" fill="#f8fafc" font-size="10" font-weight="bold">#5 helicopter/kit.py</text>
-<text x="1073" y="399" fill="#94a3b8" font-size="9">shared SO(3) track &amp; step</text>
-<text x="1073" y="413" fill="#cbd5e1" font-size="9">hover, orbit &amp; line track</text>
-<text x="1073" y="426" fill="#34d399" font-size="9">out: acc_cmd, target_R</text>
+<text x="1073" y="384" fill="#f8fafc" font-size="10" font-weight="bold">#5 Core.setpoint / kit.py</text>
+<text x="1073" y="399" fill="#94a3b8" font-size="9">outer SE(3) reference loop</text>
+<text x="1073" y="413" fill="#cbd5e1" font-size="9">plan, yawed &amp; _smooth_target</text>
+<text x="1073" y="426" fill="#34d399" font-size="9">out: r_des, w_ff, f_des</text>
 </g>
 <g font-family="monospace">
 <path d="M 225 295 L 255 472" stroke="#fbbf24" stroke-width="2.5" fill="none"/>
 <line x1="255" y1="472" x2="1256" y2="472" stroke="#fbbf24" stroke-width="3" stroke-dasharray="6,3"/>
 <rect x="255" y="444" width="350" height="20" rx="4" fill="#0f172a" stroke="#fbbf24" stroke-width="1.2"/>
-<text x="263" y="458" fill="#fbbf24" font-size="11" font-weight="bold">LAYER 4: SO(3) flight laws &amp; allocation (240-500 Hz)</text>
+<text x="263" y="458" fill="#fbbf24" font-size="11" font-weight="bold">LAYER 4: inner dynamic SE(3) control &amp; allocation (240-500 Hz)</text>
 <line x1="357" y1="472" x2="357" y2="484" stroke="#fbbf24" stroke-width="1.8"/>
 <rect x="265" y="484" width="184" height="62" rx="5" fill="#1e293b" stroke="#fbbf24" stroke-width="1.3"/>
 <text x="273" y="498" fill="#f8fafc" font-size="10" font-weight="bold">#1 aero.c &amp; aero_turn.c</text>
@@ -147,21 +147,21 @@
 <text x="473" y="540" fill="#fbbf24" font-size="9">out: 4x rotor rad/s</text>
 <line x1="757" y1="472" x2="757" y2="484" stroke="#fbbf24" stroke-width="1.8"/>
 <rect x="665" y="484" width="184" height="62" rx="5" fill="#1e293b" stroke="#fbbf24" stroke-width="1.3"/>
-<text x="673" y="498" fill="#f8fafc" font-size="10" font-weight="bold">#3 helicopter/law.py</text>
+<text x="673" y="498" fill="#f8fafc" font-size="10" font-weight="bold">#3 helicopter/law.py (se3)</text>
 <text x="673" y="513" fill="#94a3b8" font-size="9">collective + cyclic swash</text>
 <text x="673" y="527" fill="#cbd5e1" font-size="9">tail anti-torque + piro</text>
 <text x="673" y="540" fill="#fbbf24" font-size="9">out: coll, cyc_p, cyc_r, tail</text>
 <line x1="957" y1="472" x2="957" y2="484" stroke="#fbbf24" stroke-width="1.8"/>
 <rect x="865" y="484" width="184" height="62" rx="5" fill="#1e293b" stroke="#fbbf24" stroke-width="1.3"/>
-<text x="873" y="498" fill="#f8fafc" font-size="10" font-weight="bold">#4 ornithopter/law.py</text>
+<text x="873" y="498" fill="#f8fafc" font-size="10" font-weight="bold">#4 ornithopter/law.py (se3)</text>
 <text x="873" y="513" fill="#94a3b8" font-size="9">stroke + pitch + roll_d</text>
 <text x="873" y="527" fill="#cbd5e1" font-size="9">dive wing fold &amp; soar</text>
 <text x="873" y="540" fill="#fbbf24" font-size="9">out: 4x flapping controls</text>
 <line x1="1157" y1="472" x2="1157" y2="484" stroke="#fbbf24" stroke-width="1.8"/>
 <rect x="1065" y="484" width="184" height="62" rx="5" fill="#1e293b" stroke="#fbbf24" stroke-width="1.3"/>
-<text x="1073" y="498" fill="#f8fafc" font-size="10" font-weight="bold">#5 aerobat/law.py</text>
+<text x="1073" y="498" fill="#f8fafc" font-size="10" font-weight="bold">#5 aerobat/law.py (se3)</text>
 <text x="1073" y="513" fill="#94a3b8" font-size="9">propeller + slipstream tail</text>
-<text x="1073" y="527" fill="#cbd5e1" font-size="9">knife-edge, harrier, flare</text>
+<text x="1073" y="527" fill="#cbd5e1" font-size="9">WING.trimmed &amp; se3mpc blend</text>
 <text x="1073" y="540" fill="#fbbf24" font-size="9">out: pitch, elev, ail, rud</text>
 </g>
 <g font-family="monospace">

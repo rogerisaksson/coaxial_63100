@@ -116,7 +116,7 @@ def library():
         _dp, ctypes.POINTER(ctypes.c_int), _dp, _d, _d, _d, _d, _d, _d, _dp]
     lib.aeh_toward.argtypes = [_dp, _dp, _d, _dp]
     lib.aeh_so3_torques.argtypes = [_dp, _dp, _dp, _dp, _dp, _dp, _dp, _dp, _dp]
-    lib.aeh_plane.argtypes = [_dp, _dp, _dp, _dp, _d, _dp, _d, _dp]
+    lib.aeh_plane.argtypes = [_dp, _dp, _dp, _dp, _d, _dp, _d, _d, _dp]
     lib.aeh_plane.restype = ctypes.c_int
     return lib
 

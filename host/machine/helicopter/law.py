@@ -55,49 +55,41 @@ class Core:
         law['heading'] = (c0, s0)
         return _plan_hold(self, along, dt)
 
-    def step(self, law, row, state, dt, pull_max, limits=None, along=None):
-        observe(self, state, dt)
-        t_in, s_in, v_in = state['turn'], state['spin'], state['vel']
-        turn = t_in if (type(t_in) is tuple and type(t_in[0]) is tuple and type(t_in[0][0]) is float) \
-            else (t_in.tolist() if hasattr(t_in, 'tolist') else [[float(t_in[r][c]) for c in range(3)] for r in range(3)])
-        spin = s_in if (type(s_in) is tuple and type(s_in[0]) is float) else [float(x) for x in s_in]
-        vel = v_in if (type(v_in) is tuple and type(v_in[0]) is float) else [float(x) for x in v_in]
-        u = (vel[0] - self.wind[0], vel[1] - self.wind[1], vel[2] - self.wind[2])
+    def setpoint(self, law, row, state, turn, u, dt, pull_max, along=None):
+        """Outer guidance and setpoint regulation on SE(3): `(r_des, w_ff, f_des, stunt, inv,
+        c, s, rate, along)` for the inner dynamic SE(3) loop (`se3`)."""
         drag = 0.5 * RHO * BODY_CDA / MASS_KG * math.hypot(*u)
         air_acc = (self.push_hat[0] - drag * u[0], self.push_hat[1] - drag * u[1], self.push_hat[2] - drag * u[2])
         along = self.plan(law, row, state, dt, pull_max) if along is None else _step_hold(self, along, dt)
         rate = _course_rate(law['heading'], row)
         law['heading'] = c, s = _turn_heading(law['heading'], rate, dt)
-        yaw, reach, up_pull = math.atan2(s, c), max(aerokin.LEAST * GRAVITY, pull_max), self.up_pull
+        yaw = math.atan2(s, c)
         if row['height'] < 0.0:
-            self.flip_ang = self.roll_ang = self.piro_ang = self.tic_phase = 0.0
-            self.r_prev, self.up_filt, self.w_ff = None, None, (0.0, 0.0, 0.0)
-            w_ask, w_t_ask = (GOV_RAD_S, TAIL_GOV_RAD_S) if row['height'] > -0.1 else (IDLE_RAD_S, IDLE_RAD_S)
-            if limits:
-                w_ask, w_t_ask = min(limits[0], w_ask), min(limits[1], w_t_ask)
-            self.Controls, law['held'] = (w_ask, w_t_ask, 0.0, 0.0, 0.0, 0.0), False
-            self.out = Answer((w_ask, w_t_ask), (0.0, 0.0, 0.0, 0.0), (0.0, 0.0), (c, s), tuple(self.wind))
-            return self.out
+            return None, None, 0.0, False, 0.0, c, s, rate, along
         light_val, tail_prev = float(row.get('light', 0.5)), float(state.get('tail', 0.0))
-        ay_des = max(GRAVITY + up_pull - air_acc[1], light_val * GRAVITY)
+        ay_des = max(GRAVITY + self.up_pull - air_acc[1], light_val * GRAVITY)
         acc_des = (along[0] - air_acc[0] - tail_prev * turn[0][0] / MASS_KG, ay_des,
                    along[1] - air_acc[2] - tail_prev * turn[2][0] / MASS_KG)
         ay_use = (1.0 - float(law.get('doing') == aerokin.FALL)) * ay_des
         r_des, w_ff, f_des, stunt, inv = self._target_attitude(
             row, state, turn, yaw, rate, acc_des, ay_use, dt)
+        return r_des, w_ff, f_des, stunt, inv, c, s, rate, along
 
+    def se3(self, state, turn, spin, u, r_des, w_ff, f_des, stunt, inv, rate, along, reach, limits=None):
+        """Inner dynamic SE(3) control and rotor/swash allocation for `(r_des, w_ff, f_des)`."""
         f_limit = MASS_KG * reach
         f_des = max(-f_limit, min(f_limit, f_des))
         tau_x, tau_y, tau_z = _so3_torques(
             self, turn, r_des, w_ff, spin, INERTIA, (ATT_KP, YAW_KP, ROLL_KP), (ATT_KD, YAW_KD, ROLL_KD))
-
-        w_top, w_tail_top = (limits[0] if limits else pull.held(pull.I_MAX)), (limits[1] if limits else pull.held(pull.I_MAX))
+        w_top = limits[0] if limits else pull.held(pull.I_MAX)
+        w_tail_top = limits[1] if limits else pull.held(pull.I_MAX)
         sp = state.get('speeds', (0.0, 0.0))
         w_gov = GOV_RAD_S * (STUNT_BOOST if stunt or inv >= 0.5 or abs(rate) > STUNT_YAW_RAD_S
                              or math.hypot(*along) > 0.5 * GRAVITY else 1.0)
         w_ref = max(w_gov, float(sp[0] if sp[0] > 1.0 else self.Controls[0]))
         along_u = sum(u[a] * turn[a][1] for a in range(3))
-        f_comp = f_des / max(INFLOW_FLOOR, _rotor_inflow(along_u if f_des >= 0.0 else -along_u, math.hypot(u[0], u[2]), w_ref))
+        f_comp = f_des / max(INFLOW_FLOOR, _rotor_inflow(
+            along_u if f_des >= 0.0 else -along_u, math.hypot(u[0], u[2]), w_ref))
         w_ask = min(w_top, w_gov)
         w_cur = max(IDLE_RAD_S, float(sp[0]) if limits and sp[0] > 1.0 else w_ask)
         coll = max(-1.0, min(1.0, f_comp / (K_THRUST * w_cur * w_cur)))
@@ -107,12 +99,37 @@ class Core:
         w_t_cur = max(IDLE_RAD_S, float(sp[1]) if limits and sp[1] > 1.0 else w_t_ask)
         tail_p = max(-1.0, min(1.0, f_tail_des / (K_TAIL * w_t_cur * w_t_cur)))
         controls = (coll, cyc_p, cyc_r, tail_p)
-        self.Controls = (w_ask, w_t_ask) + controls
+        bound = int(abs(coll) >= 0.999) | (int(abs(tail_p) >= 0.999) << 1)
+        return ((w_ask, w_t_ask), controls,
+                (K_THRUST * w_cur * w_cur * coll, K_TAIL * w_t_cur * w_t_cur * tail_p), bound)
+
+    def step(self, law, row, state, dt, pull_max, limits=None, along=None):
+        observe(self, state, dt)
+        t_in, s_in, v_in = state['turn'], state['spin'], state['vel']
+        turn = t_in if (type(t_in) is tuple and type(t_in[0]) is tuple and type(t_in[0][0]) is float) \
+            else (t_in.tolist() if hasattr(t_in, 'tolist') else [[float(t_in[r][c]) for c in range(3)] for r in range(3)])
+        spin = s_in if (type(s_in) is tuple and type(s_in[0]) is float) else [float(x) for x in s_in]
+        vel = v_in if (type(v_in) is tuple and type(v_in[0]) is float) else [float(x) for x in v_in]
+        u = (vel[0] - self.wind[0], vel[1] - self.wind[1], vel[2] - self.wind[2])
+        r_des, w_ff, f_des, stunt, inv, c, s, rate, along = self.setpoint(
+            law, row, state, turn, u, dt, pull_max, along)
+        if r_des is None:
+            self.flip_ang = self.roll_ang = self.piro_ang = self.tic_phase = 0.0
+            self.r_prev, self.up_filt, self.w_ff = None, None, (0.0, 0.0, 0.0)
+            w_ask, w_t_ask = (GOV_RAD_S, TAIL_GOV_RAD_S) if row['height'] > -0.1 else (IDLE_RAD_S, IDLE_RAD_S)
+            if limits:
+                w_ask, w_t_ask = min(limits[0], w_ask), min(limits[1], w_t_ask)
+            self.Controls, law['held'] = (w_ask, w_t_ask, 0.0, 0.0, 0.0, 0.0), False
+            self.out = Answer((w_ask, w_t_ask), (0.0, 0.0, 0.0, 0.0), (0.0, 0.0), (c, s), tuple(self.wind))
+            return self.out
+        reach = max(aerokin.LEAST * GRAVITY, pull_max)
+        speeds, controls, forces, bound = self.se3(
+            state, turn, spin, u, r_des, w_ff, f_des, stunt, inv, rate, along, reach, limits)
+        self.Controls = speeds + controls
         law['held'] = bool(
             not stunt and abs(row['height'] - state['h']) <= aerokin.HELD_M and max(abs(x) for x in vel) <= aerokin.HELD_M_S
             and math.hypot(float(state['at'][0]) - law['spot'][0], float(state['at'][2]) - law['spot'][1]) <= aerokin.HELD_SPOT_M
             and (-turn[1][1] if inv >= 0.5 else turn[1][1]) >= math.cos(2.0 * aerokin.HELD_RAD))
         law['sequence'] += 1
-        self.out = Answer((w_ask, w_t_ask), controls, (K_THRUST * w_cur * w_cur * coll, K_TAIL * w_t_cur * w_t_cur * tail_p),
-                          (c, s), tuple(self.wind), int(abs(coll) >= 0.999) | (int(abs(tail_p) >= 0.999) << 1))
+        self.out = Answer(speeds, controls, forces, (c, s), tuple(self.wind), bound)
         return self.out

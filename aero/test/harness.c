@@ -316,8 +316,8 @@ API double aeh_plane_alpha(double k_w, double cl_alpha, double along, double nee
     const double mid = 0.5 * (lo + hi);
     const double flat = clamp_d((mid - AERO_PASS_STALL_RAD) / AERO_PASS_STALL_BLEND, 0.0, 1.0);
     const double c_lin = cl_alpha * mid;
-    const double sm = sin(mid), cm = cos(mid);
-    const double a_w = k_over_cla * ((1.0 - flat) * c_lin + ((flat * 2.0) * sm) * cm);
+    const double sm = sin(mid);
+    const double a_w = k_w * ((mid < AERO_PASS_STALL_RAD) ? mid : AERO_PASS_STALL_RAD);
     const double d_w = k_over_cla * (((1.0 - flat) * AERO_PASS_CD_LIFT * c_lin) * c_lin
                                      + (flat * 2.0) * (sm * sm));
 
@@ -514,28 +514,12 @@ API void aeh_so3_torques(const double turn[9], const double r_des[9], const doub
            + ((inertia[1] - inertia[0]) * spin[0]) * spin[1];
 }
 
-/** SO(3) attitude torques less wing moments (`wingborne.Wing.trimmed(_so3_torques(...))`). */
-API void aeh_so3_torques_trimmed(const double turn[9], const double r_des[9],
-                                 const double w_ff[3], const double spin[3],
-                                 const double turn_hat[3], const double inertia[3],
-                                 const double kp[3], const double kd[3],
-                                 const double w_mom[6], const double u[3], double out[3])
-{
-  double tau[3], m[3];
-
-  aeh_so3_torques(turn, r_des, w_ff, spin, turn_hat, inertia, kp, kd, tau);
-  aeh_wing_moments(w_mom, u, turn, spin, m);
-  out[0] = tau[0] - m[0];
-  out[1] = tau[1] - m[1];
-  out[2] = tau[2] - m[2];
-}
-
 /** Wing-borne attitude law (`wingborne.plane`).
-    w_plane = {q, area, mass, cl_alpha, rho, side, gravity}.
+    w_plane = {q, area, mass, cl_alpha, rho, side, gravity, rotate}.
     Returns 1 if r_des_out was written, 0 if None. */
-API int aeh_plane(const double w_plane[7], const double turn[9], const double acc[3],
+API int aeh_plane(const double w_plane[8], const double turn[9], const double acc[3],
                   const double u[3], double w, double want_io[3], double knife,
-                  double r_des_out[9])
+                  double roll, double r_des_out[9])
 {
   const double fast = norm3(u[0], u[1], u[2]);
 
@@ -545,7 +529,7 @@ API int aeh_plane(const double w_plane[7], const double turn[9], const double ac
   }
   {
     const double q = w_plane[0], area = w_plane[1], mass = w_plane[2], cl_alpha = w_plane[3];
-    const double rho = w_plane[4], side = w_plane[5], gravity = w_plane[6];
+    const double rho = w_plane[4], side = w_plane[5], gravity = w_plane[6], rotate = w_plane[7];
     const double v_hat[3] = {u[0] / fast, u[1] / fast, u[2] / fast};
     const double along = sum3(acc[0] * v_hat[0], acc[1] * v_hat[1], acc[2] * v_hat[2]);
     const double perp[3] = {acc[0] - along * v_hat[0], acc[1] - along * v_hat[1],
@@ -556,7 +540,8 @@ API int aeh_plane(const double w_plane[7], const double turn[9], const double ac
     double       back[3] = {sr * turn[0] - cr * turn[2], sr * turn[3] - cr * turn[5],
                             sr * turn[6] - cr * turn[8]};
     const double bv = sum3(back[0] * v_hat[0], back[1] * v_hat[1], back[2] * v_hat[2]);
-    double       n, under, d[3], sign, need, ka, upp[3], up_ask, across[3], k_w, al_pos, alpha;
+    double       n, under, d[3], sign, need, ka, kh, upp[3], up_ask, across[3], k_w, al_pos, alpha;
+    double       need_w, sign_w, a_knife, k_pitch;
     double       across_n, a_cross, ca, sa, nose[3], y[3], dy, z[3], x[3], xr[3], zr[3];
 
     for (int a = 0; a < 3; a++) back[a] -= bv * v_hat[a];
@@ -579,7 +564,10 @@ API int aeh_plane(const double w_plane[7], const double turn[9], const double ac
       for (int a = 0; a < 3; a++) d[a] /= n;
       sign = 1.0; need = size;
     }
-    ka = fabs(knife);
+    ka = fabs(sr);
+    kh = fabs(roll) * 4.0;
+    if (kh > 1.0) kh = 1.0;
+    if (ka > kh) kh = ka;
     upp[0] = 0.0 - v_hat[1] * v_hat[0];
     upp[1] = 1.0 - v_hat[1] * v_hat[1];
     upp[2] = 0.0 - v_hat[1] * v_hat[2];
@@ -588,7 +576,7 @@ API int aeh_plane(const double w_plane[7], const double turn[9], const double ac
     for (int a = 0; a < 3; a++)
     {
       upp[a] /= n;
-      d[a] = (1.0 - ka) * d[a] + ka * upp[a];
+      d[a] = (1.0 - kh) * d[a] + kh * upp[a];
     }
     n = norm3(d[0], d[1], d[2]);
     if (n == 0.0) n = 1.0;
@@ -597,19 +585,25 @@ API int aeh_plane(const double w_plane[7], const double turn[9], const double ac
     for (int a = 0; a < 3; a++) across[a] = perp[a] - up_ask * upp[a];
     k_w = (((q * area) * fast) * fast) / mass;
     al_pos = (along > 0.0) ? along : 0.0;
-    alpha = aeh_plane_alpha(k_w, cl_alpha, along, need, sign);
-    alpha += ka * (atan2(up_ask, (((rho * side) * fast) * fast) / mass + al_pos) - alpha);
+    need_w = (1.0 - kh) * need + kh * ((up_ask > 0.0) ? up_ask : 0.0);
+    sign_w = (kh > 0.5) ? 1.0 : sign;
+    alpha = aeh_plane_alpha(k_w, cl_alpha, along, need_w, sign_w)
+            + ((1.0 - kh) * 0.03 * (sign * need - gravity * d[1]))
+              / ((fast > rotate) ? fast : rotate);
+    a_knife = atan2(up_ask, (((rho * side) * fast) * fast) / mass + al_pos);
+    k_pitch = (fabs(roll) > 1e-6) ? (0.22 * kh) : ka;
+    alpha += k_pitch * (a_knife - alpha);
     across_n = norm3(across[0], across[1], across[2]);
     a_cross = clamp_d(across_n / ((k_w > 1e-9) ? k_w : 1e-9), -1e9, AERO_PASS_ALPHA_MAX)
               / ((across_n != 0.0) ? across_n : 1.0);
     {
-      const double slow_a = AERO_PASS_ALPHA_MAX * clamp_d((-sign * along) / gravity, 0.0, 1.0);
+      const double slow_a = AERO_PASS_ALPHA_MAX * clamp_d((-sign_w * along) / gravity, 0.0, 1.0);
       if (slow_a > alpha) alpha = slow_a;
     }
     ca = cos(alpha); sa = sin(alpha);
     for (int a = 0; a < 3; a++)
     {
-      nose[a] = (ca * v_hat[a] + sa * d[a]) + (ka * a_cross) * across[a];
+      nose[a] = (ca * v_hat[a] + sa * d[a]) + (kh * a_cross) * across[a];
       want_io[a] = (1.0 - w) * want_io[a] + w * nose[a];
     }
     n = norm3(want_io[0], want_io[1], want_io[2]);

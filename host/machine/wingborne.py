@@ -24,8 +24,8 @@ from machine.aerobatics import ease
 from machine.figure import cross
 from machine.helicopter.kit import _aero_lib, _mat_mul, _rot_x, _rot_y, _so3_error
 
-_d3, _d4, _d6, _d7, _d9 = (
-    ctypes.c_double * 3, ctypes.c_double * 4, ctypes.c_double * 6, ctypes.c_double * 7, ctypes.c_double * 9)
+_d3, _d4, _d6, _d8, _d9 = (
+    ctypes.c_double * 3, ctypes.c_double * 4, ctypes.c_double * 6, ctypes.c_double * 8, ctypes.c_double * 9)
 _R_BUF, _TO_BUF, _OUT_R = _d9(), _d9(), _d9()
 
 ALPHA_RAD, TAIL_UP, CLIMB_RAD, AIRBORNE_M, RUN_G, CLIMB_V = (
@@ -87,7 +87,7 @@ class Wing:
         self.rotate = math.sqrt(2.0 * mass * gravity / (rho * area * cl_alpha * ALPHA_RAD))
         self._w_lift = _d4(rho, side_area, area, cl_alpha)
         self._w_mom = _d6(self.q, tail_arm, stab_area, area, span, fin_area)
-        self._w_plane = _d7(self.q, area, mass, cl_alpha, rho, side_area, gravity)
+        self._w_plane = _d8(self.q, area, mass, cl_alpha, rho, side_area, gravity, self.rotate)
         self._u, self._turn, self._spin, self._out3, self._out9 = _d3(), _d9(), _d3(), _d3(), _d9()
         self._acc, self._want = _d3(), _d3()
 
@@ -262,14 +262,15 @@ def flare(wing, v_fwd, h, v, yaw, rate, r11):
     return r_des, (0.0, rate, 0.0), f_des
 
 
-def plane(wing, turn, acc, u, w, want_up, knife=0.0):
+def plane(wing, turn, acc, u, w, want_up, knife=0.0, roll=0.0):
     """Wing-borne `w` (0 a hover, 1 at the wing's speed) through the air `u` asked `acc`: the
     nose `want_up` blended onto the air and over it by the wing's angle, and the wing's whole
     attitude `r_des`, its back to what is asked across the path - little asked, where it is.
     `knife` 1 (-1) rolls it a quarter turn about the nose, its left (right) wing where its back
     was: a knife-edge, its span up, the side's plate at the slip `rho S v^2 sin b = need cos b -
     along sin b` bearing what is asked up, the wing what is asked across - the span rolled to
-    all of it, a gusty course's asks across rocked its belly 0.07-0.86 in a second."""
+    all of it, a gusty course's asks across rocked its belly 0.07-0.86 in a second; `roll` rad/s
+    locks the reference frame to vertical (`upp`) during a continuous rolling harrier."""
     lib = _aero_lib()
     if lib is not None:
         if w <= 0.0:
@@ -279,7 +280,7 @@ def plane(wing, turn, acc, u, w, want_up, knife=0.0):
         wing._acc[:] = acc
         wing._u[:] = u
         wing._want[:] = want_up
-        ok = lib.aeh_plane(wing._w_plane, wing._turn, wing._acc, wing._u, w, wing._want, knife, wing._out9)
+        ok = lib.aeh_plane(wing._w_plane, wing._turn, wing._acc, wing._u, w, wing._want, knife, roll, wing._out9)
         if not ok:
             return None, want_up
         r = wing._out9
@@ -307,40 +308,44 @@ def plane(wing, turn, acc, u, w, want_up, knife=0.0):
         d = [perp[a] + max(0.0, 3.0 - size) * back[a] for a in range(3)]
         n = math.sqrt((d[0] * d[0] + d[1] * d[1]) + d[2] * d[2]) or 1.0
         d, sign, need = [x / n for x in d], 1.0, size
-    ka = abs(knife)
+    ka = abs(sr)
+    kh = max(ka, min(1.0, abs(roll) * 4.0))
     upp = [float(a == 1) - v_hat[1] * v_hat[a] for a in range(3)]
     n = math.sqrt((upp[0] * upp[0] + upp[1] * upp[1]) + upp[2] * upp[2]) or 1.0
     upp = [x / n for x in upp]
-    d = [(1.0 - ka) * d[a] + ka * upp[a] for a in range(3)]
+    d = [(1.0 - kh) * d[a] + kh * upp[a] for a in range(3)]
     n = math.sqrt((d[0] * d[0] + d[1] * d[1]) + d[2] * d[2]) or 1.0
     d = [x / n for x in d]
     up_ask = sum(perp[a] * upp[a] for a in range(3))
     across = [perp[a] - up_ask * upp[a] for a in range(3)]
     k_w = wing.q * wing.area * fast * fast / wing.mass
     al_pos = max(0.0, along)
-    hi = (ALPHA_MAX if sign < 0.0
-          else math.atan2(need, al_pos) if need > k_w * ALPHA_MAX else ALPHA_MAX)
+    need_w = (1.0 - kh) * need + kh * max(0.0, up_ask)
+    sign_w = 1.0 if kh > 0.5 else sign
+    hi = (ALPHA_MAX if sign_w < 0.0
+          else math.atan2(need_w, al_pos) if need_w > k_w * ALPHA_MAX else ALPHA_MAX)
     lo = 0.0
     for _ in range(10):
         mid = 0.5 * (lo + hi)
         flat = min(1.0, max(0.0, (mid - STALL_RAD) / STALL_BLEND))
         c_lin = wing.cl_alpha * mid
-        a_w = (k_w / wing.cl_alpha) * (
-            (1.0 - flat) * c_lin + flat * 2.0 * math.sin(mid) * math.cos(mid))
+        a_w = k_w * min(mid, STALL_RAD)
         d_w = (k_w / wing.cl_alpha) * (
             (1.0 - flat) * CD_LIFT * c_lin * c_lin + flat * 2.0 * math.sin(mid) ** 2)
-        if need - (al_pos + d_w) * math.tan(mid) > a_w:
+        if need_w - (al_pos + d_w) * math.tan(mid) > a_w:
             lo = mid
         else:
             hi = mid
-    alpha = sign * 0.5 * (lo + hi)
-    alpha += ka * (math.atan2(up_ask, wing.rho * wing.side * fast * fast / wing.mass + al_pos) - alpha)
+    alpha = sign_w * 0.5 * (lo + hi) + (1.0 - kh) * 0.03 * (sign * need - wing.gravity * d[1]) / max(fast, wing.rotate)
+    a_knife = math.atan2(up_ask, wing.rho * wing.side * fast * fast / wing.mass + al_pos)
+    k_pitch = 0.22 * kh if abs(roll) > 1e-6 else ka
+    alpha += k_pitch * (a_knife - alpha)
     across_n = math.sqrt((across[0] * across[0] + across[1] * across[1]) + across[2] * across[2])
     a_cross = min(ALPHA_MAX, across_n / max(k_w, 1e-9)) / (across_n or 1.0)
     # Asked to slow, a propeller pulling one way, it pulls up: its speed goes into height until
     # the hover's law has it; coasting on it ran 45 m into a tree.
-    alpha = max(alpha, ALPHA_MAX * min(1.0, max(0.0, -sign * along) / wing.gravity))
-    nose = [math.cos(alpha) * v_hat[a] + math.sin(alpha) * d[a] + ka * a_cross * across[a] for a in range(3)]
+    alpha = max(alpha, ALPHA_MAX * min(1.0, max(0.0, -sign_w * along) / wing.gravity))
+    nose = [math.cos(alpha) * v_hat[a] + math.sin(alpha) * d[a] + kh * a_cross * across[a] for a in range(3)]
     want_up = [(1.0 - w) * want_up[a] + w * nose[a] for a in range(3)]
     n = math.sqrt((want_up[0] * want_up[0] + want_up[1] * want_up[1]) + want_up[2] * want_up[2]) or 1.0
     y = [x / n for x in want_up]

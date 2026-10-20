@@ -35,7 +35,8 @@ def _routine():
             'held': law['held'], 'along': float(state['at'][0]) * rs + float(state['at'][2]) * rc,
             'vz': float(vel[2]), 'hdg': law['heading'][0], 'span': abs(float(turn[1][0])),
             'tip': state['h'] + foot + float(min(rest @ turn[1])),
-            'w': core.wingborne, 'knife': row.get('knife', 0.0),
+            'w': core.wingborne, 'knife': row.get('knife', 0.0), 'roll': row.get('roll', 0.0),
+            'roll_ang': core.roll_ang, 'sp0': abs(float(state['spin'][0])),
             'belly': float(turn[1][2]), 'ahead': float(vel @ turn[:, 1])})
         if sky.hit is not None:
             break
@@ -44,18 +45,23 @@ def _routine():
 
 def test_aerobat_routine(report):
     """`aerobat` flies its card on its airfield: off the runway, a teardrop at 60 deg/s, the
-    knife-edge back down it at 19 m/s - its wings within 20 deg of upright, its lower tip a few
-    centimetres over the runway -, its 3D figures, its circuit and down on the runway."""
+    knife-edge back down it at 20 m/s - its wings within 20 deg of upright, its lower tip a few
+    centimetres over the runway -, a low rolling harrier pass back up the runway, its 3D figures,
+    its circuit and down on the runway."""
     from machine import aerobat
     c, stages, sky = _routine()
     hov, ft, burn, hold, land = (c[k] for k in ('prop-hang', 'full tilt', 'burn', 'hold', 'land'))
     ke = [p for p in c['knife pass'] if abs(p['knife']) > 0.99]
+    rh = [p for p in c['knife pass'] if abs(p['roll']) > 0.5]
     gl, gd = [p['along'] for p in c['lift'] if p['h'] < 0.03], [p['along'] for p in land if p['h'] < 0.03]
-    report.check('aerobat rolls its runway, flies a knife-edge back down it and its 3D figures',
+    report.check('aerobat rolls its runway, flies a knife-edge and low rolling harrier back and forth, and its 3D figures',
                  c['spool'][0]['tilt'] > 55.0 and len(gl) > 20 and max(gl) - min(gl) > 3.0
                  and sorted(p['tip'] for p in ke)[len(ke) // 2] < 0.06
                  and all(p['tip'] > 0.0 and p['span'] > 0.94 and abs(p['belly']) < 0.35 and p['ahead'] > 16.0
-                         for p in ke)
+                         and p['sp0'] < 0.15 for p in ke)
+                 and len(rh) > 250 and max(p['roll_ang'] for p in rh) > 7.4
+                 and max(p['belly'] for p in rh) > 0.90 and min(p['belly'] for p in rh) < -0.90
+                 and all(1.0 < p['h'] < 1.5 and p['r11'] > 0.07 and p['tip'] > 0.5 for p in rh)
                  and abs(hov[-1]['h'] - aerobat.STUNTS['hover']['height']) < 0.06 and hov[-1]['held']
                  and c['harrier'][-1]['h'] > aerobat.STUNTS['climbing_harrier']['height'] - 0.5
                  and min(p['tilt'] for p in c['waterfall']) < 65.0 and max(p['tilt'] for p in c['waterfall']) > 115.0
