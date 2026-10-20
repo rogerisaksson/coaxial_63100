@@ -150,10 +150,13 @@ def heard_say(g, gym, entry):
 
 
 def heard(g, gym, command):
-    from machine import latent, leap, modal, se2, stride, wbc
-    unknown = sorted(set(command) - set(sprung.HEARD))
+    from machine import latent, leap, modal, se2, stride, tour, wbc
+    errand_step = bool(command.get('_errand_cmd'))
+    unknown = sorted(set(command) - set(sprung.HEARD) - {'_errand_cmd'})
     if unknown:
         raise MachineError('the loop hears %s: not %s' % (', '.join(sprung.HEARD), ', '.join(unknown)))
+    if not errand_step and any(k in command for k in ('scenario', 'twist', 'say', 'walk', 'entries')):
+        g['_errand'] = None
     if 'scenario' in command:
         sprung.reset_for_scenario(g, command['scenario'])
     if ('say' in command or command.get('walk') or command.get('entries')) and g['st'][latent.NOW][latent.GAIN] < 1e-6 and g.get('_jump_until', -9.0) + 0.03 <= g['t']:
@@ -167,8 +170,11 @@ def heard(g, gym, command):
             leap.update_leap_charge(g, by, se2._WALK_ON_WIRE, g['_hop_charge'])
     if 'say' in command:
         sc = command['say']
+        sc_str = sprung.ALIASES.get(str(sc), str(sc))
+        if not errand_step and tour.start_errand(g, gym, sc_str, heard, heard_say):
+            return
         entry = (gym[int(sc)] if (isinstance(sc, int) or (isinstance(sc, str) and sc.isdigit()))
-                 and 0 <= int(sc) < len(gym) else by.get(sprung.ALIASES.get(sc, sc)))
+                 and 0 <= int(sc) < len(gym) else by.get(sc_str))
         if entry is not None:
             if entry[0] == 'hop' and 'charge' not in command and g.get('_jump_until', 0.0) <= g['t']:
                 g['_hop_charge'] = 0.0
@@ -270,6 +276,8 @@ def stepped(s):
         return laid(s)
     try:
         if s['fallen_at'] is None:
+            from machine import tour
+            tour.step_errand(g, s['gym'], heard, heard_say)
             sprung.passed(g, DT)
             ys, taus = s['ys'], s['taus']
             ys.append(g['sense'].copy())

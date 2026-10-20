@@ -54,7 +54,7 @@ def groups():
             ('[ ] / ENTER', 'scene before, after / again'),
             ('P held', 'charge a push along the view'),
             ('SHIFT+P / SHIFT+N', '80 N / 200 N along the view'),
-            ('H', 'the tour of the scenes'),
+            ('H / /', 'the tour of the scenes / ask LLM prompt'),
             ('BACKSPACE', 'laid anew'),
             ('R', 'record / save'),
             ('TAB ? / ESC', 'these keys / menu'),

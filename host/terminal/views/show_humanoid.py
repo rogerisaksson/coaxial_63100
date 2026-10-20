@@ -115,19 +115,30 @@ def prompt(state):
     """What Space and F would say, as the page offers it: '[F] sit  [SPC] hop up', a plain hop
     unsaid; '' with nothing to offer."""
     now, sc = state.get('now'), state.get('scanner')
-    offer = gym.offered(now, sc.scan(now, reach=gym.REACH_M) if sc is not None and now else [])
+    offer = gym.offered(now, sc.scan(now, reach=gym.APPROACH_M) if sc is not None and now else [])
     words = [('F', offer.get('f')), ('SPC', offer.get(' ') if offer.get(' ') != 'hop' else None)]
     return '  '.join('[%s] %s' % (k, gym.NAMED.get(v, v).replace('_', ' ')) for k, v in words if v)
 
 
 def badge(width, height, state):
-    """The viewport's corners: the tour's step at its top, her balance strip under it, what
-    Space and F offer at its foot."""
+    """The viewport's corners: the tour's step and LLM command feed at its top, her balance
+    strip under it, the interactive LLM prompt bar and what Space and F offer at its foot."""
     if width < 30 or height < 6:
         return {}
     out, ink = {}, packed((120, 220, 255), (10, 22, 35))
     if gym.touring(state):
-        out.update({(0, 1 + i): (ord(ch), ink) for i, ch in enumerate(' [TOUR] %s ' % state['tour'].current_label())})
+        tr = state['tour']
+        th, cm = getattr(tr, 'last_thought', ''), getattr(tr, 'last_cmd', '')
+        line0 = (' [TOUR] %s  LLM ▸ %s (%s) ' % (tr.current_label(), th, cm)) if th else (' [TOUR] %s ' % tr.current_label())
+        out.update({(0, 1 + i): (ord(ch), ink) for i, ch in enumerate(line0[:width - 2])})
+    elif state.get('llm_last'):
+        th, cm = state['llm_last']
+        out.update({(0, 1 + i): (ord(ch), ink) for i, ch in enumerate((' [LLM] %s ▸ %s ' % (th, cm))[:width - 2])})
+    lp = state.get('llm_prompt')
+    if lp and lp.get('open'):
+        l_ink = packed((120, 255, 180), (10, 22, 35))
+        p_txt = (' LLM > %s_ ' % lp.get('text', ''))[:width - 2]
+        out.update({(height - 3, 1 + i): (ord(ch), l_ink) for i, ch in enumerate(p_txt)})
     offer = prompt(state)
     if offer:
         p_ink = packed(PROMPT_INK, (10, 22, 35))
@@ -330,6 +341,14 @@ def boxes(state, now, name):
         out.append(hud('VISION (EYES)', [
             ('     model', scanner.model_name()[:25]), ('  detected', (det[0]['label'] if det else 'none')[:25]),
             ('    action', (det[0]['affordances'][0][1] if (det and det[0]['affordances']) else '-')[:25])]))
+    llm_last = state.get('llm_last')
+    th_str = llm_last[0] if llm_last else (state['tour'].current_label() if gym.touring(state) else 'idle')
+    cm_str = llm_last[1] if llm_last else ('tour' if gym.touring(state) else '-')
+    out.append(hud('AGENT / LLM', [
+        ('    prompt', (state.get('llm_prompt_last') or '/ ask LLM  H tour')[:25]),
+        ('   thought', th_str[:25]),
+        ('   command', cm_str[:25])] + [
+        ('      feed', cm[:25]) for _th, cm in (state.get('llm_feed') or ())[-2:]]))
     return out
 
 
@@ -413,6 +432,8 @@ def main(argv=None):
     for flag in ('--frames', '--width', '--height'):
         parser.add_argument(flag, type=int, default=0)
     parser.add_argument('--keys', default='', help="a key a frame from the first, '.' none")
+    parser.add_argument('--tour', action='store_true', help='start the autonomous room tour on launch')
+    parser.add_argument('--prompt', default='', help='send an initial natural-language LLM prompt to the gynoid')
     args, board_view = parser.parse_args(argv), stage()
     terminal, body, leaving, name = board_view.is_terminal, None, None, 'a process of its own, dots'
     state = {'body': None, 'orbit': False, **viewpoint.HOME, 'side': 1.0, 'last_t': None,
@@ -448,6 +469,10 @@ def main(argv=None):
 
     try:
         body, name = _boot_humanoid(board_view, state)
+        if args.tour:
+            gym._toggle_tour(state)
+        if args.prompt:
+            gym.submit_prompt(state, args.prompt)
         on_in = lambda typed, w: ([_screen.scroll_by(board_view, _screen.SCROLL_STEP[k])
                                    for k in typed if k in _screen.SCROLL_STEP], act_on(KEYS, typed, state, w))
         leaving = run_view(board_view, terminal, 1.0 / max(1.0, args.hz), args.frames, draw, on_input=on_in,

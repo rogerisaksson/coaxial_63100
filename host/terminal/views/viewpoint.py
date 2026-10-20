@@ -111,11 +111,22 @@ def panned(state):
     return (x + SHOULDER_M * state.get('shoulder', 1.0), y)
 
 
+def _clicked(state, col, _row, size):
+    """A left click on the viewport (outside the right-hand HUD column): if `[F]` is offered,
+    say its verb (`gym._offer('f')`)."""
+    from terminal.views import gym
+    w, _h = size()
+    if not w or col <= w + 4:
+        gym._offer('f')(state)
+
+
 def mouse(state, size):
-    """`run_view`'s mouse: held throughout, F the page's pace; a left drag turns - across, the
-    other way round her than the arrows, and returns behind her on release -, a right drag moves,
-    `size` () -> the drawing's (width, height); the wheel zooms through `on_input`."""
+    """`run_view`'s mouse: held throughout, F the page's pace; a left click on the viewport
+    triggers `[F]` when offered, a left drag turns - across, the other way round her than the
+    arrows, and returns behind her on release -, a right drag moves, `size` () -> the drawing's
+    (width, height); the wheel zooms through `on_input`."""
     return {'mouse': True, 'select': frozenset(), 'scroll_keys': False,
+            'on_click': lambda col, row: _clicked(state, col, row, size),
             'on_drag': lambda dx, dy: dragged(state, -dx, dy),
             'on_pan': lambda dx, dy: moved(state, dx, dy, *size())}
 

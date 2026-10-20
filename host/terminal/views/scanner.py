@@ -19,7 +19,7 @@ from machine import sight
 
 #: What F says by the support nearest her (`gym.offered`): its verb, and the verb's name.
 AFFORDANCES = {'chair': ('sit_chair', 'sit'), 'bed': ('lie_bed', 'lie down'),
-               'mattress': ('lie_floor', 'lie down')}
+               'mattress': ('lie_floor', 'lie down'), 'door': ('exit_door', 'go out')}
 PRIMARY_ACTION = {kind: verb for kind, (verb, _name) in AFFORDANCES.items()}
 
 #: Inks for affordance plates
@@ -121,7 +121,7 @@ class VisionScanner:
                     'affordances': [AFFORDANCES[kind]] if kind in AFFORDANCES else [],
                 })
 
-        found.sort(key=lambda item: (not bool(item['affordances'] and item['dist'] < 1.2), item['dist']))
+        found.sort(key=lambda item: (not bool(item['affordances'] and item['dist'] < 3.4), item['dist']))
         self._cached = found
         return found
 

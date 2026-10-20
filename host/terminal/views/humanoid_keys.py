@@ -12,9 +12,9 @@ move her, a verb for the rest - what an agent sends. R's recordings and their ro
 import json
 import time
 
-from machine import leap, se2
+from machine import se2
 from machine.figure import JOINTS, SEGMENTS, frames, quat
-from machine.leap import HOP_MAX_S, HOP_MIN_S, hop_charge
+from machine.leap import hop_charge
 from terminal.ui import console, recorder
 from terminal.views import gym, viewpoint
 
@@ -269,6 +269,21 @@ def _shown(state, by):
     return MODES[(MODES.index(state.get('horizon') or 'off') + by) % len(MODES)]
 
 
+def _prompt_key(state, key):
+    lp = state.get('llm_prompt')
+    if not (lp and lp.get('open')):
+        return False
+    if key in ('\r', '\n'):
+        gym.submit_prompt(state)
+    elif key == '\x1b':
+        lp['open'] = False
+    elif key in ('\x08', '\x7f'):
+        lp['text'] = lp['text'][:-1]
+    elif isinstance(key, str) and len(key) == 1 and key.isprintable():
+        lp['text'] += key
+    return True
+
+
 def act_on(keys, typed, state, wheel=0.0):
     """`typed` and the wheel on the view's `state`, by `keys` (`table`): the keys that move her
     into her pad (`steered` sends them), the rest each its handler, a key repeated within 0.12 s
@@ -277,6 +292,11 @@ def act_on(keys, typed, state, wheel=0.0):
         viewpoint.zoomed(state, max(0.5, 1.0 + wheel))
     state.setdefault('typed', []).extend(typed)
     state.setdefault('keyed', []).extend(k for k in typed if isinstance(k, str))
+    if (state.get('llm_prompt') or {}).get('open') or any(k in ('/', ':') for k in typed):
+        for key in typed:
+            if not _prompt_key(state, key) and key in keys:
+                keys[key](state)
+        return
     now = time.monotonic()
     moves = [k for k in typed if k in MOVES]
     if moves:

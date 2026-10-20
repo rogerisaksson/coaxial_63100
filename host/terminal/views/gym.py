@@ -30,9 +30,10 @@ DIGITS = '1234567890'
 #: P and N shove her along the view, the bench's 80 N she parries and 200 N she falls to
 #: (`tools/sim/scenarios.py`, SHOVES), sprung.SHOVE_S long.
 SHOVES_N = {'P': 80.0, 'N': 200.0}
-#: A support near enough for F, m from her pelvis over the floor; a chair she hops onto, m
-#: ahead and within a quarter turn of her heading; her pelvis over this, m, on a chair's seat.
-REACH_M, ONTO_M, ON_CHAIR_M = 1.2, 0.7, 1.12
+#: A support near enough for F, m from her pelvis over the floor, or approached ahead within
+#: APPROACH_M; a chair she hops onto, m ahead and within a quarter turn of her heading; her pelvis
+#: over this, m, on a chair's seat.
+REACH_M, APPROACH_M, ONTO_M, ON_CHAIR_M = 1.2, 3.4, 0.7, 1.12
 #: The crouch's phase (`postures_base.lisp`).
 CROUCHED = 'down'
 #: Each mode's name in the box; what each stream payload is called on the page.
@@ -44,7 +45,7 @@ NAMED = {
     'lie_floor': 'lie floor', 'rise_floor': 'rise floor', 'hop_down_chair': 'hop down chair',
     'hop_up_chair': 'hop up chair', 'strafe_left': 'sidestep left', 'strafe_right': 'sidestep right',
     'turn_left': 'turn left', 'turn_right': 'turn right', 'spin_left': 'spin left', 'spin_right': 'spin right',
-    'turn_back_left': 'turn back left', 'turn_back_right': 'turn back right',
+    'turn_back_left': 'turn back left', 'turn_back_right': 'turn back right', 'exit_door': 'exit door',
 }
 
 _RISE_TABLE = (
@@ -76,6 +77,15 @@ def contextual_rise(now, scenario=None):
     return 'stand' if (doing == CROUCHED or now.get('fallen')) else None
 
 
+def _approaching(d, x, z, heading):
+    if d['kind'] not in scanner.PRIMARY_ACTION:
+        return False
+    if d['dist'] < REACH_M:
+        return True
+    dx, dz = d['pos'][0] - x, d['pos'][2] - z
+    return d['dist'] < APPROACH_M and (dx * math.sin(heading) + dz * math.cos(heading)) > 0.72 * d['dist']
+
+
 def offered(now, seen):
     """{key: verb} Space and F say now: `now` her state, `seen` the scanner's detections round
     her, nearest first (`scanner.scan`'s, `reach`). Space a hop - down from a chair's seat, up
@@ -87,8 +97,7 @@ def offered(now, seen):
     ahead = [d for d in seen if d['kind'] == 'chair' and d['dist'] < ONTO_M
              and (d['pos'][0] - x) * math.sin(heading) + (d['pos'][2] - z) * math.cos(heading) > 0.5 * d['dist']]
     rise = contextual_rise(now)
-    near = next((scanner.PRIMARY_ACTION[d['kind']] for d in seen
-                 if d['dist'] < REACH_M and d['kind'] in scanner.PRIMARY_ACTION), None)
+    near = next((scanner.PRIMARY_ACTION[d['kind']] for d in seen if _approaching(d, x, z, heading)), None)
     hop = 'hop_down_chair' if rise == 'hop_down_chair' else ('hop_up_chair' if ahead else 'hop')
     return {' ': hop, 'f': rise or near} if (rise or near) else {' ': hop}
 
@@ -123,7 +132,7 @@ def _said(state, verb):
 
 def _offer(key):
     def say(state):
-        seen = state['scanner'].scan(state.get('now'), reach=REACH_M) if state.get('scanner') else []
+        seen = state['scanner'].scan(state.get('now'), reach=APPROACH_M) if state.get('scanner') else []
         _said(state, offered(state.get('now'), seen).get(key))
     return say
 
@@ -163,12 +172,49 @@ def _shoved(n):
 
 
 def _toggle_tour(state):
-    """H: the tour from its start, or ended."""
+    """H / h: the tour from its start, or ended."""
     from machine.tour import HouseTour
     if touring(state):
         _cancel_tour(state)
         return
-    state['tour'] = HouseTour(loop=True)
+    tr = state['tour'] = HouseTour(loop=True)
+    state['llm_last'] = (tr.last_thought, tr.last_cmd)
+    state['llm_feed'] = (state.get('llm_feed', []) + [(tr.last_thought, tr.last_cmd)])[-8:]
+
+
+def open_prompt(state):
+    """/ or : opens the interactive LLM prompt bar for the gynoid."""
+    state['llm_prompt'] = {'open': True, 'text': ''}
+
+
+def submit_prompt(state, text=None):
+    """Compile and dispatch a natural-language LLM prompt for the gynoid."""
+    from machine import tour
+    q = (text if text is not None else (state.get('llm_prompt') or {}).get('text', '')).strip()
+    state['llm_prompt'] = {'open': False, 'text': ''}
+    if not q:
+        return None
+    state['llm_prompt_last'] = q
+    plan = tour.compile_prompt(q, state.get('now'))
+    if plan.get('tour'):
+        tr = state['tour'] = tour.HouseTour(loop=True)
+        entry = (plan['thought'], tr.last_cmd)
+        state['llm_last'] = entry
+        state['llm_feed'] = (state.get('llm_feed', []) + [entry])[-8:]
+        return plan
+    _cancel_tour(state)
+    pad = state.get('pad')
+    if isinstance(pad, dict):
+        pad['keys'] = dict.fromkeys(pad.get('keys') or ('w', 's', 'a', 'd', 'q', 'e', 'shift'), False)
+        pad['last_seen'], pad['setpoint'] = {}, (0.0, 0.0, 0.0)
+    for cmd in plan.get('cmds', ()):
+        cm = tour.format_cmd(cmd, None)
+        entry = (plan['thought'], cm)
+        state['llm_last'] = entry
+        state['llm_feed'] = (state.get('llm_feed', []) + [entry])[-8:]
+        if state.get('body') is not None:
+            state['body'].send(**cmd)
+    return plan
 
 
 def table(keys):
@@ -187,7 +233,10 @@ def table(keys):
         out[k] = _offer('f')
     for k in 'cC':
         out[k] = _crouched
-    out['H'] = _toggle_tour
+    for k in 'hH':
+        out[k] = _toggle_tour
+    for k in '/:':
+        out[k] = open_prompt
     return out
 
 

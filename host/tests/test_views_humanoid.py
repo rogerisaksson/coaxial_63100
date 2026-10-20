@@ -71,7 +71,7 @@ def test_the_humanoid_pages_keys(report):
                  st['called'] == 'all' and (s_pwr, s_tmp, st['shown']) == ('power', 'temp', 'torque')
                  and st['skin'] == 'shell' and st['orbit'] is True)
     letters = ''.join(sorted(k for k in show_humanoid.KEYS if len(k) == 1 and k.isalpha() and k.islower()))
-    report.check('its letters: verbs, the view, the lab - none moves her', letters == 'cflmoprtvxz', letters)
+    report.check('its letters: verbs, the view, the lab - none moves her', letters == 'cfhlmoprtvxz', letters)
     sent.clear()
     yaw = st['yaw']
     for k in ('left', 'up', '<', '\r'):
@@ -150,7 +150,8 @@ def test_a_held_p_charges_a_push(report):
 
 def test_vision_scanner_docked_pip_and_affordances(report):
     """The stereo scanner finds a support near her, F says its verb and the page prompts it."""
-    from terminal.views import scanner, show_humanoid
+    import math
+    from terminal.views import scanner, show_humanoid, viewpoint
     sc = scanner.VisionScanner()
     report.check('model identification resolves or reports local stereo',
                  'clef' in sc.model_name() or 'stereo' in sc.model_name())
@@ -168,6 +169,23 @@ def test_vision_scanner_docked_pip_and_affordances(report):
     show_humanoid.KEYS['f'](st)
     report.check('F by the chair says sit_chair, the page prompts it, a plain hop unprompted',
                  sent == [{'say': 'sit_chair'}] and show_humanoid.prompt(st) == '[F] sit chair', show_humanoid.prompt(st))
+    room_props = [
+        ('wood', (1.50, 0.45, 0.80), (0.22, 0.02, 0.22), ((1, 0, 0), (0, 1, 0), (0, 0, 1))),
+        ('bed', (-1.80, 0.35, 1.80), (0.50, 0.12, 1.00), ((1, 0, 0), (0, 1, 0), (0, 0, 1))),
+        ('door', (0.75, 1.05, 3.50), (0.45, 1.05, 0.03), ((1, 0, 0), (0, 1, 0), (0, 0, 1))),
+    ]
+    prompts, clicked = [], []
+    for pos, tx, tz in (((0.0, 0.9, 0.0), 1.50, 0.80), ((-0.3, 0.9, 0.3), -1.80, 1.80), ((0.2, 0.9, 1.5), 0.75, 3.50)):
+        sent.clear()
+        st['now'] = {'where': pos, 'turn': (1, 0, 0, 0), 'angles': {},
+                     'heading': math.atan2(tx - pos[0], tz - pos[2]), 'props': room_props}
+        prompts.append(show_humanoid.prompt(st))
+        viewpoint.mouse(st, lambda: (100, 40))['on_click'](20, 10)
+        clicked.extend(sent)
+    report.check('approaching chair, bed or door shows [F] in viewport and clicking it sends the errand verb',
+                 prompts == ['[F] sit chair', '[F] lie bed', '[F] exit door']
+                 and clicked == [{'say': 'sit_chair'}, {'say': 'lie_bed'}, {'say': 'exit_door'}],
+                 (prompts, clicked))
 
 
 def test_her_verbs_and_the_chase(report):
@@ -298,6 +316,20 @@ def test_scenario_deck_tour_handoff_and_cybernetic_hud(report):
                  all(w in r1 for w in ('BAL', 'THM', 'STB', 'NOMINAL')) and callable(show_humanoid.boot)
                  and len(gym.boxes(nom, tour=SN(done=False, current_label=lambda: 'x'))) == 2 and '42°C' in jr and len(jr) == 25
                  and '…' not in b_txt and ('%+5.2f' % se2.WALK_SPEED) in b_txt and len(show_humanoid.legend('temp', 60)) > 20)
+    sent.clear()
+    humanoid_keys.act_on(show_humanoid.KEYS, list('/sit in the chair\r'), st)
+    vpb_llm = show_humanoid.badge(100, 24, st)
+    r0_llm = ''.join(chr(c) for (r, _), (c, _) in sorted(vpb_llm.items()) if r == 0)
+    humanoid_keys.act_on(show_humanoid.KEYS, list('/go to bed'), st)
+    vpb_open = show_humanoid.badge(100, 24, st)
+    r_bar = ''.join(chr(c) for (r, _), (c, _) in sorted(vpb_open.items()) if r == 21)
+    humanoid_keys.act_on(show_humanoid.KEYS, ['\r'], st)
+    humanoid_keys.act_on(show_humanoid.KEYS, list('/exit out the door\r'), st)
+    humanoid_keys.act_on(show_humanoid.KEYS, list('/tour the room\r'), st)
+    report.check('/ opens interactive LLM prompt bar, compiles chair/bed/door/tour prompts and renders LLM feed',
+                 sent == [{'say': 'sit_chair'}, {'say': 'lie_bed'}, {'say': 'exit_door'}]
+                 and 'LLM > go to bed_' in r_bar and 'sit_chair' in r0_llm and gym.touring(st),
+                 (sent, r_bar, r0_llm))
 
 
 def test_her_clothes_bend_at_the_joints(report):

@@ -280,3 +280,10 @@ the hundred before these: [DONE_1-50](DONE_1-50.md),
     `walk_back`), `A`/`D` sidestrafe and `Q`/`E` turn in place; cervical and
     shoulder inertia decoupling on stop; and `software_layout.svg` generated
     from live code constants ([scenarios](findings/scenarios.md)).
+67. Space-charged (`5-250 ms`) standing two-footed high jump, walking and
+    running forward leaps, viewport `[F]` autonomous approach errands for
+    chair, bed and doorway exit, and TTY tour with live LLM command stream and
+    interactive `/` gynoid LLM prompt (`machine.leap`, `machine.tour`,
+    `machine.worker`, `terminal/views/scanner.py`, `terminal/views/gym.py`,
+    `terminal/views/viewpoint.py`, `terminal/views/show_humanoid.py`,
+    `test_leap.py`, `test_errands.py`, `test_views_humanoid.py`).

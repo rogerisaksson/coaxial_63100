@@ -167,9 +167,57 @@ def test_chair_and_bed_dangling_legs_and_rising(report):
                      % (sat_t, loads_sat, prop_sat, stand_t, soles_end, s['fallen_at']))
 
 
+def test_viewport_f_errands_chair_bed_and_door(report):
+    """Walking toward the chair, bed, or door shows `[F]` in the viewport, and clicking `[F]` makes her
+    autonomously walk to the chair and sit, walk to the bed and lie down, or walk to the door and exit."""
+    from types import SimpleNamespace as SN
+    from machine import modal, physics, sprung, worker
+    from terminal.views import scanner, show_humanoid, viewpoint
+    sc = scanner.VisionScanner()
+    physics.ROOM, physics.SIGHT = 1.0, 0.0
+    for label, hd0, walk_s, expected_prompt, goal_phase in (
+        ('chair', 1.0, 0.6, '[F] sit chair', 'seated'),
+        ('bed', -0.65, 1.0, '[F] lie bed', 'bed_rest'),
+        ('door', 0.22, 1.5, '[F] exit door', 'stand'),
+    ):
+        s = worker.session()
+        g = s['g']
+        if walk_s > 0.0:
+            worker.apply(s, {'heading': hd0, 'twist': WALK})
+            _run(s, walk_s)
+        else:
+            g['heading'] = hd0
+        now = worker.told(s)
+        st = {'body': SN(send=lambda **cmd: worker.apply(s, cmd)), 'scanner': sc,
+              'now': now, 'yaw': 180.0, 'tour': None, **viewpoint.HOME}
+        shown_prompt = show_humanoid.prompt(st)
+        viewpoint.mouse(st, lambda: (100, 40))['on_click'](20, 10)
+        max_prop = 0.0
+        for _ in range(13000):
+            worker.stepped(s)
+            max_prop = max(max_prop, float(g['y'][modal.PROP]))
+            if s['fallen_at'] is not None:
+                break
+            if label == 'door' and g.get('_errand') is None and float(g['world'].data.qpos[2]) > 4.1 and sprung.doing(g) in ('stand', 'rest'):
+                break
+            if label != 'door' and sprung.doing(g) == goal_phase and max_prop > 0.75 and g['t'] > 9.0:
+                break
+        gx, gy, gz = (float(g['world'].data.qpos[i]) for i in range(3))
+        if label == 'door':
+            dq = float(g['world'].data.qpos[g['world'].model.jnt_qposadr[g['world'].model.joint('door').id]])
+            ok = (shown_prompt == expected_prompt and gz > 4.1 and dq > 1.2 and s['fallen_at'] is None)
+            detail = 'prompt=%r z=%.2f door=%.2f fallen=%s' % (shown_prompt, gz, dq, s['fallen_at'])
+        else:
+            ok = (shown_prompt == expected_prompt and sprung.doing(g) == goal_phase
+                  and max_prop > 0.75 and gy < 0.68 and s['fallen_at'] is None)
+            detail = 'prompt=%r doing=%s pos=(%.2f,%.2f,%.2f) prop=%.2f fallen=%s' % (
+                shown_prompt, sprung.doing(g), gx, gy, gz, max_prop, s['fallen_at'])
+        report.check('viewport [F] click for %s: %s and completes autonomous errand' % (label, expected_prompt), ok, detail)
+
+
 ROSTER = (test_a_stop_settles_and_f_is_heard, test_a_halting_row_waits_for_a_swing_only_while_her_rhythm_turns,
           test_a_chair_a_hair_off_is_sat_on_and_risen_from, test_doorway_arm_yields_and_she_walks_on,
-          test_chair_and_bed_dangling_legs_and_rising)
+          test_chair_and_bed_dangling_legs_and_rising, test_viewport_f_errands_chair_bed_and_door)
 
 
 def main(argv=None):
