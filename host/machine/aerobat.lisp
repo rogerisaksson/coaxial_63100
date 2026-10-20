@@ -144,12 +144,12 @@
   (base high) (nose -2.0))
 
 (defstunt knife_pass
-  (base hover) (height 0.47m) (pace 5.0m_s) (speed 20.0m_s)
+  (base hover) (height 0.46m) (pace 5.0m_s) (speed 20.0m_s)
   (knife -1.0) (lean 147.15m_s2) (home 0.0) (lined 0.0))
 
 (defstunt rolling_harrier
-  (base hover) (height 1.25m) (pace 5.0m_s) (speed 13.0m_s)
-  (roll 0.7) (lean 147.15m_s2) (home 0.0) (lined 0.0))
+  (base hover) (height 1.25m) (pace 5.0m_s) (speed 9.5m_s)
+  (roll 0.70) (lean 147.15m_s2) (home 0.0) (lined 0.0))
 
 (defstunt lomcevak
   (base high) (flip -1.0) (turn 360.0deg_s))

@@ -301,30 +301,46 @@ API void aeh_aerobat_observe(double state_io[15], const double vel[3], const dou
                         ((w_lift[0] * w_lift[1]) * fast) / mass, span, wing_j, obs_p);
 }
 
+static inline double ease_d(double x)
+{
+  const double t = clamp_d(x, 0.0, 1.0);
+
+  return 0.5 * (1.0 - cos(AERO_PASS_PI * t));
+}
+
 /** 10-step angle-of-attack bisection in `wingborne.plane`. */
 API double aeh_plane_alpha(double k_w, double cl_alpha, double along, double need, double sign)
 {
   const double al_pos = (along > 0.0) ? along : 0.0;
-  double       hi = (sign < 0.0) ? AERO_PASS_ALPHA_MAX
-                    : ((need > k_w * AERO_PASS_ALPHA_MAX) ? atan2(need, al_pos)
-                                                          : AERO_PASS_ALPHA_MAX);
+  double       hi = AERO_PASS_ALPHA_MAX;
   double       lo = 0.0;
   const double k_over_cla = k_w / cl_alpha;
+  double       a_pre;
 
   for (int i = 0; i < 10; i++)
   {
     const double mid = 0.5 * (lo + hi);
     const double flat = clamp_d((mid - AERO_PASS_STALL_RAD) / AERO_PASS_STALL_BLEND, 0.0, 1.0);
     const double c_lin = cl_alpha * mid;
-    const double sm = sin(mid);
-    const double a_w = k_w * ((mid < AERO_PASS_STALL_RAD) ? mid : AERO_PASS_STALL_RAD);
+    const double sm = sin(mid), cm = cos(mid);
+    const double a_w = k_over_cla * ((1.0 - flat) * c_lin + ((flat * 2.0) * sm) * cm);
     const double d_w = k_over_cla * (((1.0 - flat) * AERO_PASS_CD_LIFT * c_lin) * c_lin
                                      + (flat * 2.0) * (sm * sm));
 
     if (need - (al_pos + d_w) * tan(mid) > a_w) lo = mid;
     else hi = mid;
   }
-  return sign * (0.5 * (lo + hi));
+  a_pre = 0.5 * (lo + hi);
+  if (sign > 0.0)
+  {
+    const double a_post = atan2(need, al_pos + 2.0 * k_over_cla);
+    const double kw_max = k_w * AERO_PASS_ALPHA_MAX;
+    const double s_st = ease_d((need / ((kw_max > 1e-9) ? kw_max : 1e-9) - 0.90) / 0.20);
+    const double diff = a_post - a_pre;
+
+    if (diff > 0.0) a_pre += s_st * diff;
+  }
+  return sign * a_pre;
 }
 
 /** SO(3) attitude error (`helicopter.kit._so3_error`). */
@@ -529,7 +545,7 @@ API int aeh_plane(const double w_plane[8], const double turn[9], const double ac
   }
   {
     const double q = w_plane[0], area = w_plane[1], mass = w_plane[2], cl_alpha = w_plane[3];
-    const double rho = w_plane[4], side = w_plane[5], gravity = w_plane[6], rotate = w_plane[7];
+    const double rho = w_plane[4], side = w_plane[5], gravity = w_plane[6];
     const double v_hat[3] = {u[0] / fast, u[1] / fast, u[2] / fast};
     const double along = sum3(acc[0] * v_hat[0], acc[1] * v_hat[1], acc[2] * v_hat[2]);
     const double perp[3] = {acc[0] - along * v_hat[0], acc[1] - along * v_hat[1],
@@ -587,17 +603,20 @@ API int aeh_plane(const double w_plane[8], const double turn[9], const double ac
     al_pos = (along > 0.0) ? along : 0.0;
     need_w = (1.0 - kh) * need + kh * ((up_ask > 0.0) ? up_ask : 0.0);
     sign_w = (kh > 0.5) ? 1.0 : sign;
-    alpha = aeh_plane_alpha(k_w, cl_alpha, along, need_w, sign_w)
-            + ((1.0 - kh) * 0.03 * (sign * need - gravity * d[1]))
-              / ((fast > rotate) ? fast : rotate);
-    a_knife = atan2(up_ask, (((rho * side) * fast) * fast) / mass + al_pos);
-    k_pitch = (fabs(roll) > 1e-6) ? (0.22 * kh) : ka;
-    alpha += k_pitch * (a_knife - alpha);
-    across_n = norm3(across[0], across[1], across[2]);
-    a_cross = clamp_d(across_n / ((k_w > 1e-9) ? k_w : 1e-9), -1e9, AERO_PASS_ALPHA_MAX)
-              / ((across_n != 0.0) ? across_n : 1.0);
+    alpha = aeh_plane_alpha(k_w, cl_alpha, along, need_w, sign_w);
     {
-      const double slow_a = AERO_PASS_ALPHA_MAX * clamp_d((-sign_w * along) / gravity, 0.0, 1.0);
+      const double k_side = (((rho * side) * fast) * fast) / mass + al_pos;
+      const double k_lat = (fabs(roll) > 1e-6) ? (0.35 * k_w + 0.65 * k_side) : k_w;
+
+      a_knife = atan2(up_ask, k_side);
+      k_pitch = (fabs(roll) > 1e-6) ? ((0.28 + 0.22 * ka) * kh) : ka;
+      alpha += k_pitch * (a_knife - alpha);
+      across_n = norm3(across[0], across[1], across[2]);
+      a_cross = clamp_d(across_n / ((k_lat > 1e-9) ? k_lat : 1e-9), -1e9, AERO_PASS_ALPHA_MAX)
+                / ((across_n != 0.0) ? across_n : 1.0);
+    }
+    {
+      const double slow_a = (1.0 - kh) * AERO_PASS_ALPHA_MAX * clamp_d((-sign_w * along) / gravity, 0.0, 1.0);
       if (slow_a > alpha) alpha = slow_a;
     }
     ca = cos(alpha); sa = sin(alpha);

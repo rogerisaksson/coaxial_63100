@@ -17,7 +17,8 @@ STREAMS, STUNTS, BEHAVIORS = MANIFEST['streams'], MANIFEST['stunts'], MANIFEST['
 #: (`airfield.opening`, `circuit`, `approach`).
 _ROUTINE, COOLING = MANIFEST['routines']['aerobat_3d'], DYNAMICS['cooling']
 _LIFT, _LAND = ([stage[0] for stage in _ROUTINE].index(name) for name in ('lift', 'land'))
-CARD = (_ROUTINE[:_LIFT + 1] + (('knife pass', airfield.opening, 0.0, 0.0, 'passed'),)
+CARD = (_ROUTINE[:_LIFT + 1] + (('knife pass', airfield.opening, 0.0, 0.0, 'knifed'),
+                                ('rolling harrier', airfield.rolling_harrier, 0.0, 0.0, 'passed'))
         + _ROUTINE[_LIFT + 1:_LAND] + (('circuit', airfield.circuit, 0.0, 0.0, 'circled'),
                                        ('final', airfield.approach, 0.0, 0.0, 'flared'))
         + _ROUTINE[_LAND:])

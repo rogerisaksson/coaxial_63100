@@ -241,7 +241,7 @@ def run(wing, core, v_fwd, h, yaw, rate, up=math.inf):
 #: its wing could hold it no longer it floated 12-38 m in gusts, every landing of 13 past the
 #: runway's end. On 0.3 m/s at any height it eased off from 8.8 deg at 0.29 m and touched at
 #: 0.64 m/s; on 0.2 at the least, its wing lifting it on its wheels, it skimmed 34-55 m.
-FLARE_S, TOUCH_M_S = 0.5, 0.15
+FLARE_S, TOUCH_M_S = 0.4, 0.25
 
 
 def flare(wing, v_fwd, h, v, yaw, rate, r11):
@@ -322,29 +322,36 @@ def plane(wing, turn, acc, u, w, want_up, knife=0.0, roll=0.0):
     al_pos = max(0.0, along)
     need_w = (1.0 - kh) * need + kh * max(0.0, up_ask)
     sign_w = 1.0 if kh > 0.5 else sign
-    hi = (ALPHA_MAX if sign_w < 0.0
-          else math.atan2(need_w, al_pos) if need_w > k_w * ALPHA_MAX else ALPHA_MAX)
+    hi = ALPHA_MAX
     lo = 0.0
     for _ in range(10):
         mid = 0.5 * (lo + hi)
         flat = min(1.0, max(0.0, (mid - STALL_RAD) / STALL_BLEND))
         c_lin = wing.cl_alpha * mid
-        a_w = k_w * min(mid, STALL_RAD)
+        a_w = (k_w / wing.cl_alpha) * (
+            (1.0 - flat) * c_lin + flat * 2.0 * math.sin(mid) * math.cos(mid))
         d_w = (k_w / wing.cl_alpha) * (
             (1.0 - flat) * CD_LIFT * c_lin * c_lin + flat * 2.0 * math.sin(mid) ** 2)
         if need_w - (al_pos + d_w) * math.tan(mid) > a_w:
             lo = mid
         else:
             hi = mid
-    alpha = sign_w * 0.5 * (lo + hi) + (1.0 - kh) * 0.03 * (sign * need - wing.gravity * d[1]) / max(fast, wing.rotate)
-    a_knife = math.atan2(up_ask, wing.rho * wing.side * fast * fast / wing.mass + al_pos)
-    k_pitch = 0.22 * kh if abs(roll) > 1e-6 else ka
+    a_pre = 0.5 * (lo + hi)
+    if sign_w > 0.0:
+        a_post = math.atan2(need_w, al_pos + 2.0 * k_w / wing.cl_alpha)
+        s_st = ease((need_w / max(k_w * ALPHA_MAX, 1e-9) - 0.90) / 0.20)
+        a_pre += s_st * max(0.0, a_post - a_pre)
+    alpha = sign_w * a_pre
+    k_side = wing.rho * wing.side * fast * fast / wing.mass + al_pos
+    a_knife = math.atan2(up_ask, k_side)
+    k_pitch = (0.28 + 0.22 * ka) * kh if abs(roll) > 1e-6 else ka
     alpha += k_pitch * (a_knife - alpha)
     across_n = math.sqrt((across[0] * across[0] + across[1] * across[1]) + across[2] * across[2])
-    a_cross = min(ALPHA_MAX, across_n / max(k_w, 1e-9)) / (across_n or 1.0)
+    k_lat = 0.35 * k_w + 0.65 * k_side if abs(roll) > 1e-6 else k_w
+    a_cross = min(ALPHA_MAX, across_n / max(k_lat, 1e-9)) / (across_n or 1.0)
     # Asked to slow, a propeller pulling one way, it pulls up: its speed goes into height until
     # the hover's law has it; coasting on it ran 45 m into a tree.
-    alpha = max(alpha, ALPHA_MAX * min(1.0, max(0.0, -sign_w * along) / wing.gravity))
+    alpha = max(alpha, (1.0 - kh) * ALPHA_MAX * min(1.0, max(0.0, -sign_w * along) / wing.gravity))
     nose = [math.cos(alpha) * v_hat[a] + math.sin(alpha) * d[a] + kh * a_cross * across[a] for a in range(3)]
     want_up = [(1.0 - w) * want_up[a] + w * nose[a] for a in range(3)]
     n = math.sqrt((want_up[0] * want_up[0] + want_up[1] * want_up[1]) + want_up[2] * want_up[2]) or 1.0
@@ -363,5 +370,7 @@ def lined(runway, heading, vel, at, h, rotate):
     (cos, sin), up it without one, crabbed onto its line over a second of flight from 0.1 m up."""
     way = math.copysign(1.0, heading[0] * math.cos(runway) + heading[1] * math.sin(runway)) if heading else 1.0
     rc, rs = way * math.cos(runway), way * math.sin(runway)
-    crab = math.atan2(rc * (vel[0] + at[0]) - rs * (vel[2] + at[2]), max(rotate, rs * vel[0] + rc * vel[2]))
-    return runway + 0.5 * math.pi * (1.0 - way) - crab * min(1.0, max(0.0, 10.0 * (h - 0.1)))
+    v_al = rs * vel[0] + rc * vel[2]
+    crab = math.atan2(rc * (vel[0] + 2.0 * at[0]) - rs * (vel[2] + 2.0 * at[2]), max(rotate, v_al))
+    on = max(min(1.0, max(0.0, 10.0 * (h - 0.1))), ease((v_al - 1.0) / 2.0))
+    return runway + 0.5 * math.pi * (1.0 - way) - crab * on

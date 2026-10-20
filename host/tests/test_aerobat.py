@@ -33,6 +33,7 @@ def _routine():
             'h': state['h'], 'v': state['v'], 'r11': float(turn[1][1]), 'lift': state['lift'],
             'tilt': math.degrees(math.acos(max(-1.0, min(1.0, float(turn[1][1]))))),
             'held': law['held'], 'along': float(state['at'][0]) * rs + float(state['at'][2]) * rc,
+            'across': float(state['at'][0]) * rc - float(state['at'][2]) * rs,
             'vz': float(vel[2]), 'hdg': law['heading'][0], 'span': abs(float(turn[1][0])),
             'tip': state['h'] + foot + float(min(rest @ turn[1])),
             'w': core.wingborne, 'knife': row.get('knife', 0.0), 'roll': row.get('roll', 0.0),
@@ -43,6 +44,34 @@ def _routine():
     return by_stage, stages, sky
 
 
+def _opening_in_wind():
+    """The routine's opening (`idle` .. `prop-hang`) flown with `core.plan` at 50 Hz and 10x
+    `core.step` at 500 Hz in `weather.air(3)`, as the live page flies it."""
+    from machine import aerobat, aerobatics, aerokin, airfield, weather
+    dt, tick = 0.02, 0.002
+    rc, rs = math.cos(airfield.RUNWAY_RAD), math.sin(airfield.RUNWAY_RAD)
+    sky, core, law = aerobat.Sky(airfield.solids()), aerobat.Core(), aerokin.fresh()
+    sky.stand(False)
+    route, air = aerobatics.routine(aerobat.CARD[:6]), weather.air(3)
+    max_roll, max_across, stage = 0.0, 0.0, 'idle'
+    for k in range(int(34.0 / dt)):
+        st = sky.state()
+        route['seen'] = dict(aerokin.seen(law, st, dt, aerobat.PULL_MAX, aerobat.PULL_MAX), spent=False)
+        stage, row = aerobatics.fly(route, k * dt, ('held', 'fit') if law['held'] else ('fit',))
+        along = core.plan(law, row, st, dt, aerobat.PULL_MAX)
+        for _ in range(10):
+            ans = core.step(law, row, sky.state(), tick, aerobat.PULL_MAX, None, along)
+            weather.blown(air, tick)
+            sky.step(ans.speeds + ans.controls, tick, air)
+        if core.roll_ang > 0.0:
+            max_roll = max(max_roll, core.roll_ang)
+            st = sky.state()
+            max_across = max(max_across, abs(float(st['at'][0]) * rc - float(st['at'][2]) * rs))
+        if sky.hit is not None or (stage == 'prop-hang' and law['held']):
+            break
+    return sky.hit, stage, bool(law['held']), max_roll, max_across
+
+
 def test_aerobat_routine(report):
     """`aerobat` flies its card on its airfield: off the runway, a teardrop at 60 deg/s, the
     knife-edge back down it at 20 m/s - its wings within 20 deg of upright, its lower tip a few
@@ -50,23 +79,28 @@ def test_aerobat_routine(report):
     its circuit and down on the runway."""
     from machine import aerobat
     c, stages, sky = _routine()
+    hit_w, stage_w, held_w, roll_w, across_w = _opening_in_wind()
     hov, ft, burn, hold, land = (c[k] for k in ('prop-hang', 'full tilt', 'burn', 'hold', 'land'))
     ke = [p for p in c['knife pass'] if abs(p['knife']) > 0.99]
-    rh = [p for p in c['knife pass'] if abs(p['roll']) > 0.5]
+    rh = [p for p in c['rolling harrier'] if p['roll_ang'] > 0.0]
+    turns = [p for p in c['knife pass'] + c['rolling harrier'] if abs(p['knife']) < 0.1 and p['roll_ang'] == 0.0]
     gl, gd = [p['along'] for p in c['lift'] if p['h'] < 0.03], [p['along'] for p in land if p['h'] < 0.03]
     report.check('aerobat rolls its runway, flies a knife-edge and low rolling harrier back and forth, and its 3D figures',
                  c['spool'][0]['tilt'] > 55.0 and len(gl) > 20 and max(gl) - min(gl) > 3.0
                  and sorted(p['tip'] for p in ke)[len(ke) // 2] < 0.06
                  and all(p['tip'] > 0.0 and p['span'] > 0.94 and abs(p['belly']) < 0.35 and p['ahead'] > 16.0
-                         and p['sp0'] < 0.15 for p in ke)
-                 and len(rh) > 250 and max(p['roll_ang'] for p in rh) > 7.4
+                         for p in ke)
+                 and max(p['sp0'] for p in turns) < 2.7 and 'rolling harrier' in stages
+                 and len(rh) > 250 and max(p['roll_ang'] for p in rh) > 7.8
                  and max(p['belly'] for p in rh) > 0.90 and min(p['belly'] for p in rh) < -0.90
-                 and all(1.0 < p['h'] < 1.5 and p['r11'] > 0.07 and p['tip'] > 0.5 for p in rh)
+                 and all(0.9 < p['h'] < 2.7 and abs(p['across']) < 1.5 and p['tip'] > 0.5 for p in rh)
+                 and hit_w is None and stage_w == 'prop-hang' and held_w and roll_w > 7.8 and across_w < 1.5
                  and abs(hov[-1]['h'] - aerobat.STUNTS['hover']['height']) < 0.06 and hov[-1]['held']
                  and c['harrier'][-1]['h'] > aerobat.STUNTS['climbing_harrier']['height'] - 0.5
                  and min(p['tilt'] for p in c['waterfall']) < 65.0 and max(p['tilt'] for p in c['waterfall']) > 115.0
                  and min(p['r11'] for p in c['snap-roll']) < -0.80 and max(p['v'] for p in ft) > 9.0,
-                 'stages %s' % stages[-4:])
+                 'stages %s, wind opening (%s, %s, roll %.2f, across %.2f m)' % (
+                     stages[-4:], hit_w, stage_w, roll_w, across_w))
     report.check('aerobat arrests its burn over the floor and lands on its runway',
                  max(p['tilt'] for p in ft + burn) < 10.0 and max(p['h'] for p in burn) > 12.0
                  and min(p['lift'] for p in burn if p['r11'] > 0.5) < 2.0 and stages.count('fall') == 1

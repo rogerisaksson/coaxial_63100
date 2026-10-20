@@ -443,6 +443,7 @@ def reset(rotors):
     """Every rotor from rest again (`spun`): the frame back on the floor, at their idle."""
     for rotor in rotors:
         rotor['rig'].board.drive.model.reset()
+        rotor['rig'].board.drive.set_theta(0.0)
         if 'cooling' in rotor:
             rotor['cooling'] = mheat.cooling_state(cooling=quad.COOLING)
         spun(rotor)
