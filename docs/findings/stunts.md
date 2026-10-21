@@ -68,3 +68,16 @@ run no lower than the human's, a fall's head under 1 m/s. The takes (a leg
   edge 12 700, rising from a crouch or a kneel 8 800-8 900, the runs
   770-1 400. The dance's bounce of 0.38 legs streamed as axial felled her
   (0.98 down, 1.9 m/s); told to lean back 13 deg standing she leans 3.7.
+- The trunk's pitch zeroed at her stand (`fr[PITCH0]`) instead of the take's
+  standing frame: the rig stands with its neck 3-6 deg behind its hips, and
+  zeroed there she leant 5 deg past the human and a crouch toppled her
+  (forward 106-130 deg at every wobble). Off her stand the crouch stands 0.58
+  legs down, knees 126, forward 45.6 where the take's 44.3, her hands' jerk
+  2 300 (5 400); the yawn's lean back 13.6 where 13.5. Not kept: the step's
+  upper rows at W_TURN - the sit's hands 20 800 to 4 800-6 700, the crouch's
+  5 400 to 900, but the walk 2.75 off a woman's (2.55), the pelvis rolling 3
+  deg where 5; the arms' rows alone at W_TURN - the walk as it was, but the
+  crouch's spine folded for the lever instead and she fell. 3 of 31 met, 255
+  widths off: the crouch within every width but its descent's time, 0.53 s
+  from a tenth to nine tenths of the way where the human's 1.03 - his hips
+  curve back and then down, hers drop straight.

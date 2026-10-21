@@ -22,6 +22,7 @@ SCENARIO_DESC = {
     'sill': 'door sill // trip, walk on',
     'hole': '10 cm hole // step in, walk on',
     'rug': 'loose rug // walk over',
+    'edge_behind': "step's edge behind // back off it",
 }
 
 #: The bar under the page.

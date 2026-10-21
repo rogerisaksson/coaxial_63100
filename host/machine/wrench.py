@@ -74,6 +74,11 @@ _EYE3, _EYE6, _EYE_NU = np.eye(3), np.eye(6), np.eye(NU)
 _DAMP_EYE6 = DAMP ** 2 * _EYE6
 _UPPER_IDX = 12 + np.arange(len(UPPER))
 _UPPER_ROWS = _EYE_NU[12:NU]
+#: Measured, not kept: the step swings her arms to pitch her trunk - the shoulders to 130 deg at
+#: 939 deg/s as a sit's rows begin, her hands' jerk 15-21 000 m/s^3 seated where her walk's
+#: is 1 400-1 800, a crouch's 5 400. The upper drives all at W_TURN: 4 800-6 700 and 900, but
+#: her pelvis rolled 3 deg where a woman's 5 and the walk 2.75 off (2.55); the arms alone at
+#: W_TURN: the walk as it was, but a crouch's spine folded for the lever instead and she fell.
 _GIVES = 1e-9 * (np.arange(13) == 12)
 
 

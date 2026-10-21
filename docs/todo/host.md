@@ -11,8 +11,10 @@
   (her insoles' weight 305.2 for 305.5 N at 0.315 N m rms,
   the moments under her pelvis 0.57 and 0.53 N m rms, her mass 31.15 for
   31.14 kg); the gate here 5347 of 5582 with these and the chair and snow
-  wobbles at -2e-4 (scenarios items 1 and 3). DOD: both workflows green on
-  main.
+  wobbles at -2e-4 (scenarios items 1 and 3); on CI's Linux the chair at
+  0 rad too (fell at 10.9 s rising, held here) and test_errands 4 of 18
+  (the chair borne 0.34, the jamb, the viewport's chair and bed; 18 here).
+  DOD: both workflows green on main.
 - **native://**: a limb's world on a fixed mount as board/emu's. A frame on
   an idle limb of four 32 ms, the wire's 10: three boards awake t3.5 and each
   chain's 2 ms recovery at 1 us substeps (emulation.md). DOD: the body's

@@ -251,8 +251,8 @@ def test_scenario_deck_tour_handoff_and_cybernetic_hud(report):
     st = {'body': SN(send=lambda **cmd: sent.append(cmd)), 'scenario': 'chair', 'pad': humanoid_keys.pad(),
           'keys': show_humanoid.KEYS, 'tour': None, **viewpoint.HOME, 'now': {'doing': 'rest', 'where': (0.0, 0.9, 0.0)}}
     show_humanoid.KEYS['N'](st)
-    report.check('all 20 floor scenarios described, Shift+N shoves 200 N along the view',
-                 not miss and len(floor.SCENARIOS) == 20 and abs(sent[0]['push'][2] - 200.0) < 1e-9)
+    report.check('all 21 floor scenarios described, Shift+N shoves 200 N along the view',
+                 not miss and len(floor.SCENARIOS) == 21 and abs(sent[0]['push'][2] - 200.0) < 1e-9)
     sent.clear()
     st['now'] = {'doing': 'lower', 'where': (0.0, 0.72, 0.0), 'scenario': 'chair'}
     show_humanoid.KEYS['f'](st)
@@ -322,10 +322,10 @@ def test_scenario_deck_tour_handoff_and_cybernetic_hud(report):
     r0_llm = ''.join(chr(c) for (r, _), (c, _) in sorted(show_humanoid.badge(100, 24, st).items()) if r == 0)
     act('/go to bed')
     r_bar = ''.join(chr(c) for (r, _), (c, _) in sorted(show_humanoid.badge(100, 24, st).items()) if r == 21)
-    cb_open = show_humanoid.chat_box(st, 80).renderable.plain
+    cb_open = str(show_humanoid.chat_box(st, 80).renderable)
     for q in ('\r', '/exit out the door\r', '/tour the room\r'):
         act(q)
-    cb_done = show_humanoid.chat_box(st, 80).renderable.plain
+    cb_done = str(show_humanoid.chat_box(st, 80).renderable)
     report.check('/ opens interactive LLM prompt bar, compiles chair/bed/door/tour prompts and renders GYNOID CHAT dock',
                  sent == [{'say': 'sit_chair'}, {'say': 'lie_bed'}, {'say': 'exit_door'}]
                  and 'LLM > go to bed_' in r_bar and 'sit_chair' in r0_llm and gym.touring(st)

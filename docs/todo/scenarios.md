@@ -105,13 +105,16 @@ serves its DOD; none an entry a case.
    and judged within a sole's length, her list, her arm's cone and one
    natural time of the take's, her head no lower than the human's and under
    1 m/s if she falls. A posture's take is told as its own rows (axial,
-   sagittal and pitch read off the take, the rest her balance's; stunts.md):
-   4 of 31 met - the slick patch, the ice, the crouch and the kneel -, the
-   backflip refused for want of a text, 25 short, 235 widths off in all. Open
-   by mechanism: her hands' jerk 8 800-20 800 m/s^3 where her walk's is
+   sagittal and pitch read off the take, the rest her balance's, the trunk's
+   pitch off her stand; stunts.md): 3 of 31 met - the slick patch, the ice
+   and the kneel; the crouch within every width but its descent's time -,
+   the backflip refused for want of a text, 26 short, 255 widths off in all.
+   Open by mechanism: her hands' jerk 7 700-20 900 m/s^3 where her walk's is
    1 400-1 800 through the sit, the rise, the dance and the bed - the
    whole-body step's upper joints at W_POSTURE 1 against W_COM 1000 make her
-   arms the lever when her support flickers (item 2); the shoves and the
+   arms the lever when her support flickers; weighed as her turn they stop,
+   but the walk's pelvis roll goes with them and, the arms alone, the spine
+   folds instead (item 2); the shoves and the
    step's edge put her head on the floor at 1.1-1.8 m/s where a human sits
    down or catches himself (item 5); the sit's hips 0.06-0.56 back run to
    run where 0.48, the bed's edge and lying (item 1); the chair's hops (item

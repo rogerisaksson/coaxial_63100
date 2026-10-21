@@ -232,8 +232,8 @@ def modes(times, joints, fr):
     frame `fr`, `modal.frame`): the legs shorter than standing, the centre of mass over the
     soles' middle to her left and along, the soles apart along, up and across, the trunk's pitch, the
     hips' line's list and turn, the arms' swing and the feet's rock off standing; lengths at her
-    size, times by similarity. The take's stand is her stand: its frames with the hips within
-    a sole of their highest, however it begins - seated, kneeling, lying."""
+    size, times by similarity. The take's stand is her stand: its standing end, however it
+    begins - seated, kneeling, lying."""
     t, j = _even(times, joints)
     hips, neck = j['Hips'], j['Neck']
     leg = _leg(j)
@@ -242,7 +242,10 @@ def modes(times, joints, fr):
     ankle = min(float(j[s + 'Foot'][:, 1].min()) for s in SIDES)
     soles = np.stack([j['LeftFoot'], j['RightFoot']]) - UP * ankle
     legs = np.linalg.norm(np.stack([j['LeftUpLeg'], j['RightUpLeg']]) - soles, axis=2).mean(axis=0)
-    stood = hips[:, 1] >= hips[:, 1].max() - WITHIN['legs'] * leg
+    # the take's stand: whichever end has the hips higher - a sit begins standing, a rise ends
+    # so; the frames between lean before they drop (a sit's trunk 6 deg back, then 45 forward)
+    stood = np.zeros(len(t), bool)
+    stood[int(np.argmax([hips[0, 1], hips[-1, 1]])) * (len(t) - 1)] = True
     place = soles - _com(j)
     mid = 0.5 * (place[0] + place[1])
     trunk = neck - hips
@@ -259,7 +262,9 @@ def modes(times, joints, fr):
     out[:, modal.DRIVE] = 0.5 * ((place[1] - place[0]) @ along) * scale / stride.STRIDE_M
     out[:, modal.LIFT] = ((place[0] - place[1]) @ UP) * scale / modal.CLEAR_M
     out[:, modal.WIDTH] = 0.5 * ((place[0] - place[1]) @ left) * scale / fr[modal.W0] - 1.0
-    out[:, modal.PITCH] = (pitch - np.median(pitch[stood])) / modal.PITCH_RAD
+    # the trunk's pitch she takes is the human's own, off her stand's: his rig stands with its
+    # neck 3-6 deg behind its hips, and zeroed there she leant 5 deg past him and fell
+    out[:, modal.PITCH] = (pitch - fr[modal.PITCH0][1]) / modal.PITCH_RAD
     out[:, modal.LIST] = np.arctan2(line @ UP, line @ left) / modal.LIST_RAD
     out[:, modal.TURN] = np.arctan2(line @ along, line @ left) / modal.TURN_RAD
     out[:, modal.ARMS] = 0.5 * (modal.LIMBS @ (swing - np.median(swing[:, stood], axis=1)[:, None])) / modal.ARM_RAD
