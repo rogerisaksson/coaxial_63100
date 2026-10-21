@@ -288,6 +288,14 @@ def _bus_row(now, name, joints, alarms):
     return (name.replace('_', ' ').rjust(10), _ansi('%s %d/%d %s %3.0f°C' % (strip, len(joints), len(joints), bar, max_c)))
 
 
+def _tier_row(state, now, emu):
+    """The BUSES box's tier row: where her boards run - her own process's SIL, or a limb on Renode
+    -, her process paced to the wall (rt) or flat out (max), and how many times real time it
+    could run (`headroom`)."""
+    where = 'renode %s' % emu.limb if emu else 'in-process sil'
+    return '%s  %s %.1fx' % (where, 'max' if state.get('max') else 'rt', float((now or {}).get('headroom', 1.0)))
+
+
 def boxes(state, now, name):
     from machine import edge
     z0, keys, shown = (0.0, 0.0, 0.0), state.get('pad'), state.get('shown', 'torque')
@@ -326,7 +334,8 @@ def boxes(state, now, name):
     crc_err = sum(int(v[1]) for v in b_now.values() if len(v) > 1)
     emu = state.get('emu')
     out.append(hud('BUSES  10M RS485', [_bus_row(now, b, jnts, alarms) for b, jnts in edge.LIMBS] + [
-        ('  modbus', emu.badge(crc_err) if emu else ('5x10M 27/27 sil %4d crc' % crc_err))]))
+        ('  modbus', emu.badge(crc_err) if emu else ('5x10M 27/27 sil %4d crc' % crc_err)),
+        ('    tier', _tier_row(state, now, emu))]))
     for sub in TYPES['gynoid'].body:
         out.append(hud(sub.name.replace('_', ' ').upper(), [
             _joint_row(now, j, j.split('_', 1)[-1] if sub.name != 'axis' else j, shown) for j in sub.actuators]))

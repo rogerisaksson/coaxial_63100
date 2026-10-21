@@ -250,7 +250,7 @@ def session(every=sprung.STACK_EVERY, walks=False, heard=None):
     each - and the passes in it. Each command heard goes to `heard` (a list's append, a queue's
     put) as (epoch, pass, t, command), each epoch's lay first."""
     s = {'every': every, 'walks': walks, 'gym_name': sprung.GYMS[0], 'gym': sprung.entries(),
-         'refused': None, 'epoch': -1, 'ratio': 1.0, 'heard': heard or (lambda entry: None)}
+         'refused': None, 'epoch': -1, 'ratio': 1.0, 'headroom': 1.0, 'heard': heard or (lambda entry: None)}
     s['says'] = [s['gym_name']] + [entry[0] for entry in s['gym']]
     laid(s)
     return s
@@ -337,13 +337,13 @@ def told(s):
     """Her state as the page hears it (`sprung.state`), her epoch and her wear beside it, as its
     last window left it."""
     return dict(sprung.state(s['g'], s['torque'], s['power'], s['watts'], s['ratio'], s['fallen_at'],
-                             s['says'], s['refused']), epoch=s['epoch'], wear=s['wear_told'])
+                             s['says'], s['refused'], s['headroom']), epoch=s['epoch'], wear=s['wear_told'])
 
 
 class Her:
 
     """Her session (`session`) as `apart.paced` steps it: her time, her epoch, a command applied,
-    a pass - its wear's seconds left out of the pace -, her state told at her ratio."""
+    a pass - its wear's seconds left out of the pace -, her state told at her ratio and headroom."""
 
     def __init__(self, s):
         self.s = s
@@ -363,9 +363,9 @@ class Her:
         stepped(self.s)
         return self.s.pop('_wear_s', 0.0)
 
-    def said(self, ratio):
+    def said(self, ratio, headroom=1.0):
         if ratio is not None:
-            self.s['ratio'] = ratio
+            self.s['ratio'], self.s['headroom'] = ratio, headroom
         return told(self.s)
 
 

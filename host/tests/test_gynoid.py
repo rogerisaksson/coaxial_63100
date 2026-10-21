@@ -295,7 +295,27 @@ def test_every_build_runs_her(report):
                      run.returncode == 0 and 'smoke: clean' in run.stdout, (run.stdout + run.stderr)[-300:])
 
 
-ROSTER = (test_every_build_runs_her, test_a_virtual_body_is_told, test_a_leg_by_its_foot, test_a_body_with_mass_is_fitted,
+def test_her_tiers_by_the_machine(report):
+    """`modes.afforded`, `chosen` and `told`: on 16 cores her 20 boards fit in-process and native,
+    not on Renode; her body wired to in-process alone, that is chosen; on 2 cores in-process alone
+    fits. `sprung.state` tells her headroom beside her ratio."""
+    from machine import modes, sprung, worker
+    fits = {name: ok for name, _c, ok in modes.afforded(16, 20)}
+    report.check('on 16 cores 20 boards fit in-process and native, not on Renode; in-process chosen, the one wired',
+                 fits['in-process'] and fits['native'] and not fits['emulated'] and modes.chosen(16, 20) == 'in-process',
+                 modes.told(16, 20))
+    few = {name: ok for name, _c, ok in modes.afforded(2, 20)}
+    report.check('on 2 cores in-process alone fits', few['in-process'] and not few['native'] and not few['emulated']
+                 and modes.chosen(2, 20) == 'in-process', modes.told(2, 20))
+    s = worker.session()
+    worker.Her(s).said(0.5, 1.7)
+    told = worker.told(s)
+    report.check("her state tells her ratio and her headroom", told['ratio'] == 0.5 and told['headroom'] == 1.7,
+                 'ratio %s headroom %s' % (told['ratio'], told['headroom']))
+    s['g']['world'].close()
+
+
+ROSTER = (test_her_tiers_by_the_machine, test_every_build_runs_her, test_a_virtual_body_is_told, test_a_leg_by_its_foot, test_a_body_with_mass_is_fitted,
           test_dressed_or_bare, test_her_views_draw, test_her_skeleton_collides,
           test_each_drive_turns_from_its_gearbox, test_each_drive_is_held,
           test_a_gearbox_has_play, test_her_kinematics_as_motors)

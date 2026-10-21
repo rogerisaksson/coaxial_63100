@@ -9,6 +9,7 @@ has `shown`, it runs no further than `lead_s` past it; commands in, states said 
 
     paced(world, commands, states)     # a target's loop on a world: its `t` and `epoch`, `apply`
                                        # (a command), `step` (wall s left out of the pace), `said`
+                                       # (its ratio to the wall, its headroom)
 """
 import math
 import multiprocessing
@@ -41,12 +42,12 @@ def paced(world, commands, states, shown=None, lead_s=LEAD_S, realtime=True, say
     """`world` stepped until a None command: paced to the clock (`realtime`, or flat out a slice
     at a time without it), no further than `lead_s` past `shown` (a shared double) given one;
     each command applied before the passes after it; said on `states` first, every `say_s` of
-    its time - each pass at none - with its ratio to the wall, and at each new epoch. A pass's
-    `step` returns the wall seconds it spent that the pace leaves out; `rest_s` the loop's least
-    turn while it waits."""
+    its time - each pass at none - with its ratio to the wall and its headroom (its time a wall
+    second stepping, the waits left out), and at each new epoch. A pass's `step` returns the wall
+    seconds it spent that the pace leaves out; `rest_s` the loop's least turn while it waits."""
     put(states, world.said(None))
     wall0 = wall_said = last_wall = time.perf_counter()
-    sim0, said_at, spent, ran, ratio = world.t, 0.0, 0.0, 0.0, 1.0
+    sim0, said_at, spent, ran, ratio, headroom = world.t, 0.0, 0.0, 0.0, 1.0, 1.0
     while True:
         epoch = world.epoch
         try:
@@ -82,10 +83,10 @@ def paced(world, commands, states, shown=None, lead_s=LEAD_S, realtime=True, say
                 if world.epoch == epoch and world.t - said_at >= say_s:
                     now_w = time.perf_counter()
                     wall_dt = now_w - wall_said
-                    ratio = (min(1.0, ran / wall_dt) if (realtime and wall_dt > 1e-6)
-                             else (ran / spent if spent > 1e-6 else ratio))
+                    headroom = ran / spent if spent > 1e-6 else headroom
+                    ratio = min(1.0, ran / wall_dt) if (realtime and wall_dt > 1e-6) else headroom
                     wall_said, spent, ran, said_at = now_w, 0.0, 0.0, world.t
-                    put(states, world.said(ratio))
+                    put(states, world.said(ratio, headroom))
         last_wall = time.perf_counter()
         if world.epoch != epoch:
             wall0 = wall_said = last_wall

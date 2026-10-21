@@ -128,7 +128,7 @@ class Flight:
             self.aim = gimbal.step(self.aim, self.frame['turn'], self.frame['vel'], qflight.STEP_S)
         return 0.0
 
-    def said(self, _ratio):
+    def said(self, _ratio, _headroom=1.0):
         """The flight as the page draws it, copied whole: its process goes on stepping."""
         air = self.flight.get('air') or {}
         return {'t': self.t, 'epoch': self.epoch, 'frame': self.frame, 'aim': self.aim,

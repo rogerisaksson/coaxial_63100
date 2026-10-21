@@ -58,3 +58,12 @@
   the code as readable, nothing of MuJoCo's state written for it. DOD: the
   numbers in docs/findings/body.md, the smoke and every suite the pass reaches
   green, her walk's measures unchanged.
+- **Her surety field reads `out[latent.ZMP]`** (found): `latent.ZMP` indexes a
+  parameter row (`ortho.P`), not `latent.OUT`; in `out` it lands on the
+  drive mode's phase, so `w_air` is 1 - psi. Kept as is, bit for bit, by the
+  C port. DOD: the read placed (the row's ZMP, or out's HELD), her walk and
+  the scenarios measured before and after.
+- **The orientation page is sluggish on Renode** (asked): the IMU page on
+  `emulator://` lags the hand. DOD: its frame rate and a read's latency on
+  Renode measured against native:// and the stand-in, the cause placed (the
+  board's pace, the reads a frame, the page's waits) and cut, measured again.

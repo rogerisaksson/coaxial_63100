@@ -22,7 +22,7 @@ identification. Her figure: [kinematics](kinematics.md); her drives:
 | alarms | L H logged; LL HH and stop() trip; the sequencer's hooks |
 | nodes | Node, Nodes, FAMILIES |
 | machine | Machine, Actuator, fit; node_hz: a feedback its node runs, the host forwarding |
-| modes | where a machine's boards run: the hardware, a stand-in, their images emulated, or none |
+| modes | where a machine's boards run: the hardware, a stand-in, their images emulated, or none; the tiers her page affords in real time by the machine's cores (`TIERS`, `chosen`), the page's BUSES box saying which runs and her headroom |
 | routines | types: a body of subsystems, a bus each |
 | live | fed a line at a time, a buffer, woken with a line, a failsafe |
 | simulated | pack, camera |

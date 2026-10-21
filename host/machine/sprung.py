@@ -229,10 +229,10 @@ def staged(g, fallen_at):
     return 'walk' if going or g['t'] - g.get('lifted', -math.inf) < STEP_S else 'stand'
 
 
-def state(g, torque, power, watts, ratio, fallen_at, says=(), refused=None):
+def state(g, torque, power, watts, ratio, fallen_at, says=(), refused=None, headroom=1.0):
     """Her state as the page hears it: stage, modes, joint torque/power/temp, physical velocity, and
     her law's horizon - her centre of mass, her capture point, her soles, which stand (world),
-    her shoulders' range."""
+    her shoulders' range; `ratio` her pace to the wall, `headroom` her process's flat out."""
     from machine import latent, modal
     from machine.figure import JOINTS
     world, out, d, hd = g['world'], g['out'], g['world'].data, float(g['heading'])
@@ -257,7 +257,8 @@ def state(g, torque, power, watts, ratio, fallen_at, says=(), refused=None):
             'fallen': fallen_at is not None, 'loads': tuple(g['loads']), 'props': world.props(), 'dents': world.dents(),
             'doing': doing(g), 'entry': g.get('active_entry'),
             'recover': None if fallen_at is None else RECOVER_S - (g['t'] - fallen_at),
-            'ratio': min(ratio, 99.0), 'says': tuple(says), 'refused': refused, 'buses': buses,
+            'ratio': min(ratio, 99.0), 'headroom': min(headroom, 99.0), 'says': tuple(says), 'refused': refused,
+            'buses': buses,
             'scenario': g.get('scenario', 'flat'), 'situation': situation.told(g['situations'], g['into']), 'horizon': horizon,
             'modes': [(n, float(out[latent.REF][i]), float(z[i]), float(out[latent.KS][i]),
                        float(out[latent.DS][i])) for i, n in enumerate(ortho.MODES)]}
@@ -287,13 +288,15 @@ def emulated_limb(state, say, limb_cls):
 
 def boot_humanoid(state, boot, say, ahead_cls, limb_cls):
     import time
-    from machine import figure
+    from machine import figure, modes
     from machine.routines import TYPES
+    drives = sum(len(s.actuators) for s in TYPES['gynoid'].body)
     with boot('LINKING HUMANOID') as step:
         step(0.15, 'MUJOCO & LISP')
         body = state['body'] = Running(realtime=not state.get('max', False), shown=0.0)
-        say('ok', 'body', '%.1f kg, %d drives, MuJoCo at 1 kHz in its own process'
-            % (figure.mass(), sum(len(s.actuators) for s in TYPES['gynoid'].body)))
+        say('ok', 'body', '%.1f kg, %d drives, MuJoCo at 1 kHz in its own process%s'
+            % (figure.mass(), drives, ', flat out' if state.get('max') else ', paced to the wall'))
+        say('ok', 'tier', modes.told(os.cpu_count() or 1, drives))
         if state.get('emu_port'):
             step(0.30, 'RENODE EXTREMITY BUS')
             state['emu'] = emulated_limb(state, say, limb_cls)
