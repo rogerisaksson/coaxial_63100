@@ -34,7 +34,10 @@ serves its DOD; none an entry a case.
    ask shrunk with it; a seat's touch flickering as she rises; a hop's
    landing, its shrink the neck's; a row's blend stepping her asks; her head
    and arms flung for her turns, seated and at a takeoff, where a seat's
-   points give no moment (jerk.md). DOD: every segment's peak through stand,
+   points give no moment (jerk.md); seated on the bed's or chair's edge
+   with her soles reaching the floor, the bed's share 0.96 to 0.28 and back
+   as a sole takes 98 N, her arm the trunk's lever meanwhile
+   (scenarios.md). DOD: every segment's peak through stand,
    walk, turn, strafe, back, stop, sit, rise, hop no higher than in her
    steady walk; a test holds it.
 3. **A landing on what is there**: a swinging sole that meets something

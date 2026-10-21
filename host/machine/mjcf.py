@@ -13,7 +13,10 @@ from machine.figure import BODY, HAIR_AT, HEM_AT, JOINTS, MASS_KG, SEGMENTS, con
 #: back as a woman's bends, the get-up asking -8 to 60 of the spine and the falls 45 of the waist -
 #: without, tripped on a sill and down, her spine folded back 98-101 degrees. The
 #: knee stopped at -5: its drive on its axis, swinging, it snapped to -24 in the air, the walk
-#: hopped and she fell (the page's recording).
+#: hopped and she fell (the page's recording). The shoulder has none: seated on a bed's edge
+#: as its share flickered, the whole-body step wound her right arm 421 deg for the trunk's
+#: moment; a human's 60 behind to 180 overhead met her back-walk's swing (65 deg back) and
+#: the standing turn at the dock, and she fell onto the bed (scenarios.md).
 STOPS = {'elbow': (-5.0, 160.0), 'spine': (-30.0, 85.0), 'spine_roll': (-35.0, 35.0),
          'waist': (-50.0, 50.0), 'knee': (-5.0, 165.0)}
 

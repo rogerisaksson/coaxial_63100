@@ -336,3 +336,15 @@ pass beside the world's floor under each sole (`tools/sim/trace.py`).
   falls off the bed at 6.6 s. Lying flat waits on her trunk's contacts as her
   support (item 1); mocap: lying down from sitting takes 5.7 s, the hips
   0.45 m back, the feet from the floor to the mattress.
+- Seated on the bed's edge from the errand (the page's recording, 17:56), her
+  soles reach the floor and her support flickers between the mattress and a
+  sole - the bed's share 0.96, 0.28, 0.99, 0.29, the loads 0 and 98 N - and the
+  whole-body step takes the trunk's moment from her right arm: wound 421 deg
+  on the page, -53 to -362 in 6 s here, the chair the same (-186, -310). Her
+  shoulders have no range; given a human's (60 behind, 180 overhead) the arm
+  pumped within it (+74 to +157 in 0.75 s) while the flicker lasted, and the
+  stop met her back-walk's arm swing (65 deg back) and the standing turn at
+  the dock: she fell onto the bed, where without it she lay. Not kept. The
+  stagger before it: 6 s turning in place for a
+  half turn at her YAW_RATE (0.5 rad/s made of 0.7 asked), roll 9.5 deg as it
+  begins, and the sidestep at 0.15 m/s.

@@ -410,7 +410,7 @@ def _to_face(g, gym, er, c, heard_fn, _say_fn):
 
 
 def _to_line(g, gym, er, c, heard_fn, _say_fn):
-    """Sidestepping to the dock's line, facing away from the prop."""
+    """Sidestepping toward the dock's line, facing away from the prop."""
     from machine import se2
     g['has_heading'], g['target_heading'] = 1.0, er['hdd']
     _tell(g, gym, heard_fn, {'heading': er['hdd'], 'twist': (0.0, math.copysign(se2.STRAFE_SPEED, c['way_left']), 0.0)})
@@ -428,7 +428,8 @@ def _on_rows():
     true row taken; and what she is told while none is. Read: walking, she stands where her
     stopping point enters the box; stood still (`idle`), she walks again past her stopping
     distance from it, turns to face away from the prop, sidesteps where the dock is more beside
-    than ahead of her, backs onto the edge, and begins the stunt with her heels at it."""
+    than ahead of her till the dock bears from her stopping point within her list, backs onto
+    the edge, and begins the stunt with her heels at it."""
     from machine import figure, modal, se2, stride
     back = (-se2.BACK_SPEED, 0.0, 0.0)
     return {
@@ -440,7 +441,7 @@ def _on_rows():
                    (lambda c, er: c['idle'] and abs(c['s_perp']) > max(c['s_par'], er['lat_tol']), 'side', _nothing),
                    (lambda c, er: c['idle'] and c['s_par'] > figure.HEEL, 'back', _told(back)),
                    (lambda c, er: c['idle'], 'done', _stunt)), _nothing),
-        'side': (((lambda c, er: c['s_perp'] * c['s_perp_stop'] <= 0.0, 'settle', _told(STOP)),), _to_line),
+        'side': (((lambda c, er: abs(math.atan2(c['s_perp_stop'], max(c['s_par'], figure.HEEL))) <= modal.LIST_RAD, 'settle', _told(STOP)),), _to_line),
         'back': (((lambda c, er: c['s_par'] <= figure.HEEL, 'done', _told(STOP)),), _to_edge),
         'done': (((lambda c, er: c['idle'], 'done', _stunt),), _nothing),
     }
