@@ -439,7 +439,7 @@ def test_smart_selection(report):
                table.QUAD_COURSE, table.SWEEP, table.COMPILED, table.AERO_CORE, table.MPPI_CORE, table.STREAMS,
                table.BOOT} | set(table.OLLAMA)
     for percent, expect in ((25, quarter),
-                            (75, quarter | {'test_parity.py', 'test_mcp.py', table.EMULATOR,
+                            (75, quarter | {'test_parity.py', 'test_mcp.py', table.EMULATOR, table.PORTED,
                                             table.NATIVE, table.NATIVE_HEAT, table.NATIVE_SYSID, table.CONFORMANCE,
                                             table.BENCH})):
         suites, _ = table.plan_for(percent)
