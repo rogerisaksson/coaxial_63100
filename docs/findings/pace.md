@@ -106,3 +106,9 @@ machine ([body](body.md), [emulation](emulation.md),
   329 us a pass, 3.04 of real time, walking 3.02; the worker 381, 2.62;
   MuJoCo's step 82 of the 329. The hand ports' tests a suite of their own,
   test_ported.
+- The rows that wake her rhythm in the waits' C (`wbc_wait_woken`,
+  `waits.woken`: the last numpy of her latent step; their python the
+  reference in `machine.waits`, the waits split off `motion`): bit for bit
+  at 4 001 calls over 12 s of her walk, 36 -> 6.0 us a call. Her loop 329 ->
+  325 us a pass, 3.08 of real time, walking 3.02; the worker 382, 2.62;
+  MuJoCo's step 84 of the 325.

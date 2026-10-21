@@ -1,24 +1,27 @@
-"""The rows of her table that wait, in C through ctypes (wbc_wait.c), her python's bit for bit.
+"""The rows of her table that wait or wake her, in C through ctypes (wbc_wait.c), bit for bit.
 
     k, ask = motion.laid()
-    waits = wait.laid(k, a, out, y, fr, st)                      # machine.motion.held_rows, risen_rows
+    waits = wait.laid(k, a, out, y, fr, st)                      # machine.waits.held_rows, risen_rows, woken_rows
     shift, first, held_s = waits.held(tab, t, dt, held_s)        # tab's times shifted in place
     shift, first, prop_until = waits.risen(tab, t, dt, prop_until)
+    waits.woken(tab, t, dt)                                      # her rhythm woken in st
 """
 import ctypes
 import functools
 
 import numpy as np
 
-from tools.cores import wbc
+from tools.cores import motion as c_motion, wbc
 
 
 class Wait(ctypes.Structure):
 
-    """wbc_wait_t: her table's layout and the waits' constants."""
+    """wbc_wait_t: her table's layout, the waits' constants, numpy's BLAS."""
 
-    _fields_ = ([(name, ctypes.c_int) for name in ('table', 'at', 'vals_z', 'said_z', 'vals_gain', 'said_gain', 'st_to_z')]
-                + [(name, ctypes.c_double) for name in ('edge_s', 'tiny', 'phi_w')])
+    _fields_ = ([(name, ctypes.c_int) for name in ('table', 'at', 'vals_z', 'said_z', 'vals_gain', 'said_gain', 'st_to_z',
+                                                   'p', 'said', 'vals_amp', 'said_phase', 'vals_phase', 'st_now_gain',
+                                                   'st_now_phase', 'st_theta')]
+                + [(name, ctypes.c_double) for name in ('edge_s', 'tiny', 'phi_w')] + [('blas', c_motion.Blas)])
 
 
 @functools.lru_cache(maxsize=None)
@@ -33,42 +36,52 @@ def _typed():
                                    ctypes.c_void_p] + [ctypes.c_double] * 3 + [ctypes.c_void_p])
     lib.wbh_wait_risen.argtypes = ([ctypes.c_void_p, ctypes.POINTER(Wait), ctypes.c_void_p, ctypes.c_int]
                                    + [ctypes.c_void_p] * 4 + [ctypes.c_double] * 3 + [ctypes.c_void_p])
-    lib.wbh_wait_held.restype = lib.wbh_wait_risen.restype = None
-    return lib.wbh_wait_held, lib.wbh_wait_risen, int(lib.wbh_wait_rows())
+    lib.wbh_wait_woken.argtypes = ([ctypes.c_void_p, ctypes.POINTER(Wait), ctypes.c_void_p, ctypes.c_int, ctypes.c_void_p]
+                                   + [ctypes.c_double] * 2)
+    lib.wbh_wait_held.restype = lib.wbh_wait_risen.restype = lib.wbh_wait_woken.restype = None
+    return lib.wbh_wait_held, lib.wbh_wait_risen, lib.wbh_wait_woken, int(lib.wbh_wait_rows())
 
 
 class Waits:
 
     """The waits in C on her law's arrays, pointed at once; her table given at each, rows at most
-    `rows` (wbc_wait.c's)."""
+    `rows` (wbc_wait.c's), an empty one a laid row read nowhere."""
 
     def __init__(self, k, a, out, y, fr, st):
         from machine import latent, stride
         self.w = Wait(table=latent.TABLE, at=latent.AT, vals_z=latent.VALS.start + latent.Z.start,
                       said_z=latent.SAID.start + latent.Z.start, vals_gain=latent.VALS.start + latent.GAIN,
                       said_gain=latent.SAID.start + latent.GAIN, st_to_z=latent.TO.start + latent.Z.start,
-                      edge_s=latent.EDGE_S, tiny=stride.TINY, phi_w=stride.PHI_W)
-        self.kept = (a, out, y, fr, st)
+                      p=latent.P, said=latent.SAID.start, vals_amp=latent.VALS.start + latent.AMP.start,
+                      said_phase=latent.SAID.start + latent.PHASE.start, vals_phase=latent.VALS.start + latent.PHASE.start,
+                      st_now_gain=latent.NOW.start + latent.GAIN, st_now_phase=latent.NOW.start + latent.PHASE.start,
+                      st_theta=latent.THETA, edge_s=latent.EDGE_S, tiny=stride.TINY, phi_w=stride.PHI_W,
+                      blas=c_motion.numpy_blas())
+        self.kept = (a, out, y, fr, st, np.zeros((1, latent.TABLE)))
         self.at = [wbc.pointer(arr) for arr in self.kept]
         self.got = np.zeros(3)
-        self.held_c, self.risen_c, self.rows = _typed()
+        self.held_c, self.risen_c, self.woken_c, self.rows = _typed()
         self.k, self.wp, self.gp = ctypes.addressof(k), ctypes.byref(self.w), self.got.ctypes.data
 
     def _table(self, tab):
         if len(tab) > self.rows:
             raise ValueError('wbc_wait.c lays %d rows at most, her table has %d' % (self.rows, len(tab)))
-        return wbc.pointer(tab) if len(tab) else None
+        return wbc.pointer(tab) if len(tab) else self.at[5]
 
     def held(self, tab, t, dt, held_s):
-        """(shift, first, held_s) of `machine.motion.held_rows`, `tab`'s times shifted in place."""
+        """(shift, first, held_s) of `machine.waits.held_rows`, `tab`'s times shifted in place."""
         self.held_c(self.k, self.wp, self._table(tab), len(tab), self.at[0], self.at[1], t, dt, held_s, self.gp)
         return tuple(self.got.tolist())
 
     def risen(self, tab, t, dt, prop_until):
-        """(shift, first, prop_until) of `machine.motion.risen_rows`, `tab`'s times shifted in place."""
+        """(shift, first, prop_until) of `machine.waits.risen_rows`, `tab`'s times shifted in place."""
         self.risen_c(self.k, self.wp, self._table(tab), len(tab), self.at[2], self.at[3], self.at[0], self.at[4], t, dt,
                      prop_until, self.gp)
         return tuple(self.got.tolist())
+
+    def woken(self, tab, t, dt):
+        """`machine.waits.woken_rows`: her rhythm woken in `st` by the rows of `tab` due."""
+        self.woken_c(self.k, self.wp, self._table(tab), len(tab), self.at[4], t, dt)
 
 
 def laid(k, a, out, y, fr, st):

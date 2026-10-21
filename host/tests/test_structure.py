@@ -250,9 +250,8 @@ def test_numpy_enters_behind_the_thread_cap(r):
             'the whole-body loop alone',
             sorted(importers) == sorted([os.path.join('coaxial', 'model', 'blocks.py')]
                                         + [os.path.join('machine', m + '.py') for m in (
-                                            'cyclic', 'qp', 'wbc', 'wrench',
-                                            'latent', 'modal', 'impedance', 'poise', 'stride', 'support',
-                                            'motion', 'edge', 'estimate', 'borne', 'grip', 'situation', 'touch')]),
+                                            'cyclic qp wbc wrench latent modal impedance poise stride support '
+                                            'motion edge estimate borne grip situation touch waits').split()]),
             ', '.join(importers) or 'nowhere')
     r.check('each sets OPENBLAS_NUM_THREADS before importing it', not uncapped,
             ', '.join(uncapped))

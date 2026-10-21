@@ -136,10 +136,11 @@ def test_her_twist_in_c_as_she_walks(report, c):
 
 
 def test_her_waits_in_c_as_she_walks(report, c):
-    """Her table's waits in C (`c_wait.laid`, wbc_wait.c) beside their python (`motion.held_rows`,
-    `risen_rows`) on copies of her table at every pass of her law over PASSES of her walk - the
-    table's times, the shift, the first row and the state bit for bit -, and a step's time."""
-    from machine import motion, worker
+    """Her table's waits in C (`c_wait.laid`, wbc_wait.c) beside their python (`waits.held_rows`,
+    `risen_rows`, `woken_rows`) on copies of her table and her state at every pass of her law over
+    PASSES of her walk - the table's times, the shift, the first row, the state and her rhythm woken
+    bit for bit -, and a step's time."""
+    from machine import latent, waits as py_waits, worker
     from tools.cores import motion as c_motion
     from tools.cores.orders import same
     s = worker.session(walks=True)
@@ -151,7 +152,7 @@ def test_her_waits_in_c_as_she_walks(report, c):
         def held(self, tab, t, dt, held_s):
             mine = tab.copy()
             t0 = time.perf_counter()
-            want = motion.held_rows(mine, g['a'], g['out'], t, dt, held_s)
+            want = py_waits.held_rows(mine, g['a'], g['out'], t, dt, held_s)
             t1 = time.perf_counter()
             got = waits.held(tab, t, dt, held_s)
             self.tallied(t1 - t0, time.perf_counter() - t1, tab, mine, got, want)
@@ -160,11 +161,19 @@ def test_her_waits_in_c_as_she_walks(report, c):
         def risen(self, tab, t, dt, prop_until):
             mine = tab.copy()
             t0 = time.perf_counter()
-            want = motion.risen_rows(mine, g['y'], g['fr'], g['a'], g['st'], t, dt, prop_until)
+            want = py_waits.risen_rows(mine, g['y'], g['fr'], g['a'], g['st'], t, dt, prop_until)
             t1 = time.perf_counter()
             got = waits.risen(tab, t, dt, prop_until)
             self.tallied(t1 - t0, time.perf_counter() - t1, tab, mine, got, want)
             return got
+
+        def woken(self, tab, t, dt):
+            mine = g['st'].copy()
+            t0 = time.perf_counter()
+            py_waits.woken_rows(tab, mine, t, dt)
+            t1 = time.perf_counter()
+            waits.woken(tab, t, dt)
+            self.tallied(t1 - t0, time.perf_counter() - t1, g['st'], mine, g['st'][latent.THETA], mine[latent.THETA])
 
         @staticmethod
         def tallied(py_s, c_s, tab, mine, got, want):
@@ -180,10 +189,10 @@ def test_her_waits_in_c_as_she_walks(report, c):
     n, bad, apart = tally
     if c_motion.exact_host():
         report.check("her table's waits in C are her python's bit for bit at %d calls of her law walking" % n,
-                     n >= 2 * PASSES and not bad, '%d apart, %.3g at most' % (bad, apart))
+                     n >= 3 * PASSES and not bad, '%d apart, %.3g at most' % (bad, apart))
     else:
         report.check("her table's waits in C are her python's within their last bits where numpy dispatches elsewhere",
-                     n >= 2 * PASSES and apart <= 1e-9, '%d of %d not bit for bit, %.3g apart at most' % (bad, n, apart))
+                     n >= 3 * PASSES and apart <= 1e-9, '%d of %d not bit for bit, %.3g apart at most' % (bad, n, apart))
     us = [1e6 * float(np.median(each)) for each in spent]
     report.check("a wait in C on this host", us[0] < 20.0, '%.1f us, its python %.0f' % tuple(us))
 

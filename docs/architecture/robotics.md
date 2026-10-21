@@ -47,6 +47,7 @@ identification. Her figure: [kinematics](kinematics.md); her drives:
 | borne | what bears the body off its soles as its skin feels it: the law's support, the step's contacts |
 | situation | where she is, projected outward from her continuous sensors and modal state to telemetry (`state['situation']`) |
 | motion | her branchless inner law's pass on her sensors alone: sensed, latent, impedance, wrench (or wbc), directional surety and the drives' observers |
+| waits | the rows of her table that wait a pass - halting her rhythm while her capture point steps her, raising her while something bears her - and those that wake her rhythm; in C bit for bit |
 | sprung | the latent loop run: her world read and told through her edge, her law's pass between; her process, paced to the clock: the one thing that moves her |
 | takes | the mocap takes as her texts: a take's posture modes at its frames said as rows, entered over her leg's half period; `lie_bed` sits on the bed and lies down |
 | worker | her outer loop and session: discrete commands mapped to continuous setpoints, each logged with its epoch and pass, falls recovered; the page's states |

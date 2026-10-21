@@ -1,6 +1,6 @@
-/** wbc_wait.c - the rows of her table that wait (wbc_imp.h): machine.motion.held_rows and
-    risen_rows on her law's arrays, numpy's and Python's arithmetic operation for operation
-    (wbc_np.h). Portable C11, the host's alone. */
+/** wbc_wait.c - the rows of her table that wait, and those that wake her (wbc_imp.h):
+    machine.waits.held_rows, risen_rows and woken_rows on her law's arrays, numpy's and Python's
+    arithmetic operation for operation (wbc_np.h, wbc_blas.h). Portable C11, the host's alone. */
 #include "wbc_imp.h"
 #include "wbc_np.h"
 
@@ -114,4 +114,39 @@ void wbc_wait_risen(const wbc_imp_t *k, const wbc_wait_t *w, double *tab, int n,
   got[0] = shift;
   got[1] = first;
   got[2] = until;
+}
+
+void wbc_wait_woken(const wbc_imp_t *k, const wbc_wait_t *w, const double *tab, int n, double *st, double t, double dt)
+{
+  const int        rows = n < WBC_WAIT_ROWS ? n : WBC_WAIT_ROWS, modes = k->n;
+  const wbc_view_t said = {tab + w->said_phase, w->table, 1}, vals = {tab + w->vals_phase, w->table, 1};
+  double           hit[WBC_WAIT_ROWS], w_row[WBC_WAIT_ROWS], said_ph[WBC_IMP_N], vals_ph[WBC_IMP_N], wake;
+  const wbc_view_t h = {hit, 0, 1};
+
+  for (int r = 0; r < rows; r++)
+  {
+    const double *row = tab + r * w->table;
+    double        least = row[w->said], most = row[w->vals_amp];
+
+    for (int c = 1; c < w->p; c++)
+    {
+      least = npminimum(least, row[w->said + c]);
+    }
+    for (int m = 1; m < modes; m++)
+    {
+      most = npmaximum(most, row[w->vals_amp + m]);
+    }
+    hit[r] = (double)((row[w->at] <= t + w->edge_s) && (row[w->at] > (t - dt) + w->edge_s));
+    w_row[r] = (double)((least > 0.5) && (most > 0.05));
+  }
+  wake = npmin(1.0, npmax(0.0, (0.04 - st[w->st_now_gain]) / 0.02)) * npmin(1.0, wbc_dot(&w->blas, hit, 1, w_row, 1, rows));
+  st[w->st_theta] *= 1.0 - wake;
+  wbc_matmul(&w->blas, h, said, said_ph, 0, 1, 1, rows, modes);
+  wbc_matmul(&w->blas, h, vals, vals_ph, 0, 1, 1, rows, modes);
+  for (int m = 0; m < modes; m++)
+  {
+    double *ph = st + w->st_now_phase + m;
+
+    *ph += (wake * npminimum(said_ph[m], 1.0)) * (vals_ph[m] - *ph);
+  }
 }

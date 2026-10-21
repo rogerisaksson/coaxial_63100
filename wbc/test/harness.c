@@ -322,6 +322,12 @@ API int wbh_wait_size(void)
   return (int)sizeof(wbc_wait_t);
 }
 
+API void wbh_wait_woken(const wbc_imp_t *k, const wbc_wait_t *w, const double *tab, int n, double *st, double t,
+                        double dt)
+{
+  wbc_wait_woken(k, w, tab, n, st, t, dt);
+}
+
 API int wbh_wait_rows(void)
 {
   return WBC_WAIT_ROWS;
