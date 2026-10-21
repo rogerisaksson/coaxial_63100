@@ -40,9 +40,9 @@ def _at(x):
 
 def _doubles():
     """wbc_imp_t's doubles in its order: (name, value) - a tuple or an array lays that many."""
-    from machine import figure, impedance as imp, leap, modal, poise, stride, wbc as law
+    from machine import edge, figure, impedance as imp, leap, modal, poise, stride, wbc as law
     return (('on', imp.ON), ('going_s', imp.GOING_S), ('ahead', imp.AHEAD), ('yaw_k', imp.YAW_K),
-            ('throw_m_s2', imp.THROW_M_S2), ('prop_on', imp.PROP_ON), ('low_m', imp.LOW_M), ('low_leg', imp.LOW_LEG),
+            ('throw_m_s2', imp.THROW_M_S2), ('touched_n', edge.TOUCHED_N), ('low_m', imp.LOW_M), ('low_leg', imp.LOW_LEG),
             ('falls', imp.FALLS), ('upward', imp.UPWARD), ('between', imp.BETWEEN),
             ('g', modal.G), ('axial_m', modal.AXIAL_M), ('pitch_rad', modal.PITCH_RAD), ('clear_m', modal.CLEAR_M),
             ('list_rad', modal.LIST_RAD), ('turn_rad', modal.TURN_RAD), ('arm_rad', modal.ARM_RAD),
@@ -175,8 +175,8 @@ def numpy_blas():
 
 
 #: wbc_law_t's ints and doubles in its order, by what fills them.
-LAW_INTS = ('n p driven z k d amp phase gain hz zmp yaw now from to t0 blend theta vals said at lerp table '
-            'ref rate acc ks ds psi sway turns held yawed').split()
+LAW_INTS = ('n p driven z k d amp phase gain hz zmp yaw now from to t0 blend theta v0 v1 contig vals said at lerp '
+            'table ref rate acc ks ds psi sway turns held yawed').split()
 LAW_DOUBLES = 'edge_s tau tau_v eso_0 eso_s sigma bleed'.split()
 
 
@@ -210,6 +210,7 @@ def latent_laid():
         raise ValueError('wbc_law.c lays 16 modes, 64 parameters and 32 drives at most')
     names = {'n': ortho.N, 'p': ortho.P, 'driven': support.DRIVEN, 'gain': latent.GAIN, 'hz': latent.HZ,
              'zmp': latent.ZMP, 'yaw': latent.YAW, 't0': latent.T0, 'blend': latent.BLEND, 'theta': latent.THETA,
+             'contig': latent.CONTIG,
              'at': latent.AT, 'lerp': latent.LERP, 'table': latent.TABLE, 'turns': latent.TURNS,
              'held': latent.HELD, 'yawed': latent.YAWED}
     k = Law(**{name: int(names[name]) if name in names else _at(getattr(latent, name.upper())) for name in LAW_INTS},

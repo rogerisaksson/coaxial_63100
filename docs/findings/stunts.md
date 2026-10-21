@@ -81,3 +81,37 @@ run no lower than the human's, a fall's head under 1 m/s. The takes (a leg
   widths off: the crouch within every width but its descent's time, 0.53 s
   from a tenth to nine tenths of the way where the human's 1.03 - his hips
   curve back and then down, hers drop straight.
+- Seated, traced at 10 ms: her height lagged the take's braking (4 m/s^2) by
+  a/kp = 7 cm and met the seat at 1.2 m/s, a 1.5 kN hit; the seat held her
+  hips above her legs' asked length, the springs pulled both soles up 2 cm,
+  each was swung and landed as a stand her centre of mass was behind, and
+  told her to step - her hips slid 0.31 to 0.07 m off the seat, the chair's
+  share 670 to 33 N, the arm 939 deg/s. Three laws changed. The prop counts
+  by its share of her weight, not whole at 0.15 of it (that switch made the
+  span and the relaxation come and go), and spans her support once it pushes
+  as a touch she counts (by its share, half of her on a chair left her centre
+  of mass outside and she stepped, a sole 12 cm up till she toppled); the
+  soles' lift by the excess is gone. A take's rows, each beginning where the
+  last blend ends, blend as a Hermite curve with the row after's rate
+  (Catmull-Rom), so her rate and acceleration are the curve's own; curving
+  the texts' blends too felled seven held scenes (moves, strafes, spin,
+  weave, sill, ice, snow). The bed's sit by the take then: the bed 0.95 of
+  her, hands' jerk 17 000 to 1 800, hips 0.13-0.30 legs back, but her feet
+  hang - a seat of 0.45 m over shanks of 0.455 with her thighs level - and
+  the 5 % of the excess left unrelaxed lifts them; the chair's sit by the
+  take perches (hips 0.16, soles 0.75 of her) and fell at one wobble, so the
+  held chair keeps its texts (3 of 3). Not kept: the take's legs scaled to the
+  seat's height (she hovered 6 cm over it, her hips not back); the seat told
+  to her law as a support before it bore her (her hips went back onto the
+  chair where the human's go, 0.36 m, and she rolled off it sideways; told
+  the whole mattress she lay down). No rise from the bed stands her: the
+  text's from the take's lie leaves her on it, the sit-up take's rows are
+  held by `risen_back` (a raise waits while the capture point is off her
+  soles), the chair's rise by the take fell at 2.7 m/s with her hands at
+  18 000. The C mirror's striding solve on two soles, nothing pinned, as a
+  stride began at a share of 1e-8: the torques 2.2e-2 N m off the python's;
+  the test judges two soles by her accelerations and loads, 3.6e-3 apart.
+  The bench then 4 of 31 met (the slick patch, the ice, the kneel, the rise
+  from a crouch), 226 widths off from 255: turning in bed -15.5, the dance
+  -5.4, the rise from the chair -4.3, lying down -2.8, the bed's sit -2.2;
+  the rise from a kneel +2.5 (fell at 3.1 m/s).

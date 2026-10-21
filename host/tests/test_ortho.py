@@ -152,7 +152,7 @@ def test_the_core_and_the_renderer_branch_nowhere(report):
 
 
 def test_her_latent_state_blends_and_turns(report):
-    """A row laid over her rest blends linearly, steps CPG sine references, and returns to rest on REST."""
+    """A row laid over her rest blends in, steps CPG sine references, and returns to rest on REST."""
     import numpy as np
     from machine import latent, ortho
     rest = np.zeros(ortho.P)

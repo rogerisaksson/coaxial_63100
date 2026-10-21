@@ -17,7 +17,7 @@ typedef struct
 {
   int           n, p, driven;
   int           z, k, d, amp, phase, gain, hz, zmp, yaw;
-  int           now, from, to, t0, blend, theta;
+  int           now, from, to, t0, blend, theta, v0, v1, contig;
   int           vals, said, at, lerp, table;
   int           ref, rate, acc, ks, ds, psi, sway, turns, held, yawed;
   double        edge_s, tau, tau_v, eso_0, eso_s, sigma, bleed;

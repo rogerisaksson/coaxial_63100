@@ -8,17 +8,18 @@ serves its DOD; none an entry a case.
 
 1. **Her support, whatever bears her** (`machine.borne`): a segment the skin
    feels pushed up is in her support region, grounds her, and is a contact of
-   her whole-body step. Met: the chair 2 of 3 wobbles (-2e-4 sits 0.66 s of
-   1); the bed 11 - rising
-   at -5e-4 the mattress's share flickers (2), at 2e-4 it bears half her
-   weight 0.51 s of 1. Open: lying flat and lengthwise - told to lie she
-   sits on the bed's edge and reclines 27 deg, her soles 44 mm up, the bed
-   bearing 1.08 of her weight, and rises from it; against a human's sit
-   (`tools/sim/seats.py`'s band) her feet come up 0.26 legs where a human's
-   stay down and her hips end 0.04-0.21 legs behind her ankles where
-   0.31-0.47: the sit laid from the takes whole, the hips back over the seat,
-   the weight onto it, the feet down, the rise; her pelvis and trunk pitched
-   apart; the floor mattress, told to lie she crouches, her pelvis
+   her whole-body step. A prop counts by its share of her weight and spans
+   her support once it touches; the soles' lift by the excess is gone
+   (stunts.md). Met: the chair by its texts 3 of 3 wobbles, the seat bearing
+   more of her than her soles for 5.8 s with her soles down; the bed sat and
+   lain on by the takes' rows 3 of 3. Open: no rise from the bed stands her
+   (bed_rise) - the text's from the take's lie leaves her on it, the sit-up
+   take's rows are held by `risen_back`; seated by the take her feet hang on
+   the 0.45 m seat (shanks 0.455 with the thighs level) and the 5 % of the
+   excess left unrelaxed lifts them, and the chair's sit by the take perches
+   on its edge (hips 0.16 legs back where 0.48); lying flat and lengthwise,
+   her pelvis and trunk pitched apart; the floor mattress, told to lie she
+   crouches, her pelvis
    at 0.763 m after 12 s (4), and lain on the bare floor the referee calls a
    fall;
    `wbc_wrench.c` without contacts. DOD: chair, soft bed, floor mattress and
@@ -38,11 +39,11 @@ serves its DOD; none an entry a case.
    ask shrunk with it; a seat's touch flickering as she rises; a hop's
    landing, its shrink the neck's; a row's blend stepping her asks; her head
    and arms flung for her turns, seated and at a takeoff, where a seat's
-   points give no moment (jerk.md); seated on the bed's or chair's edge
-   with her soles reaching the floor, the bed's share 0.96 to 0.28 and back
-   as a sole takes 98 N, her arm the trunk's lever meanwhile; her soles left
-   down the arm stays within 105 deg but the seat bears her with them, 0.53
-   and 0.39, and she fell rising from the bed (scenarios.md, `seats.py`).
+   points give no moment (jerk.md); the switch at 0.15 of her weight gone
+   (stunts.md): seated on the bed by the take her hands' jerk 17 000 to
+   1 800; rising from the chair by the take 18 000 and a fall at 2.7 m/s; a
+   stride's first passes, nothing pinned, the C step's two-sole solve 2.2e-2
+   N m off the python's (judged by her accelerations and loads since).
    DOD: every segment's peak through stand, walk, turn, strafe, back, stop,
    sit, rise, hop no higher than in her steady walk; a test holds it.
 3. **A landing on what is there**: a swinging sole that meets something
@@ -106,9 +107,10 @@ serves its DOD; none an entry a case.
    natural time of the take's, her head no lower than the human's and under
    1 m/s if she falls. A posture's take is told as its own rows (axial,
    sagittal and pitch read off the take, the rest her balance's, the trunk's
-   pitch off her stand; stunts.md): 3 of 31 met - the slick patch, the ice
-   and the kneel; the crouch within every width but its descent's time -,
-   the backflip refused for want of a text, 26 short, 255 widths off in all.
+   pitch off her stand; stunts.md): 4 of 31 met - the slick patch, the ice,
+   the kneel and the rise from a crouch; the crouch within every width but
+   its descent's time -, the backflip refused for want of a text, 25 short,
+   226 widths off in all.
    Open by mechanism: her hands' jerk 7 700-20 900 m/s^3 where her walk's is
    1 400-1 800 through the sit, the rise, the dance and the bed - the
    whole-body step's upper joints at W_POSTURE 1 against W_COM 1000 make her

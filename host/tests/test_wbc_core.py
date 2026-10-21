@@ -291,9 +291,13 @@ def test_the_step_in_c_strides_as_the_steps(report, c, b, rows):
         ours, theirs = python(body, s, ask), wrench_step(body, s, ask, c)
         soles = sum(bool(k) for k in ask['stance']) * (float(ask.get('strides', 0.0)) > 0.0)
         if soles:
+            # on two soles the drives' torques carry the force the soles share between them, free
+            # in both: judged by what it moves - her accelerations and her soles' loads. Standing
+            # on both with nothing pinned a stride began, the torques 2.2e-2 N m apart, the
+            # accelerations 3.6e-3 rad/s^2
             count[soles] += 1
-            worst[soles] = max(worst[soles], float(np.abs(ours['tau'] - theirs['tau']).max()),
-                               float(np.abs(ours['qacc'] - theirs['qacc']).max()) if soles == 1 else 0.0,
+            worst[soles] = max(worst[soles], float(np.abs(ours['tau'] - theirs['tau']).max()) if soles == 1 else 0.0,
+                               float(np.abs(ours['qacc'] - theirs['qacc']).max()),
                                max(abs(x - y) for x, y in zip(ours['bears'], theirs['bears'])))
         return ours
 
@@ -305,7 +309,7 @@ def test_the_step_in_c_strides_as_the_steps(report, c, b, rows):
                  '%.1e N m, rad/s^2 or N apart at most over %d solves' % (worst[1], count[1]))
     report.check('and on two, within what they share',
                  count[2] > 100 and worst[2] < STEP_APART,
-                 '%.1e N m or N apart at most over %d solves' % (worst[2], count[2]))
+                 '%.1e rad/s^2 or N apart at most over %d solves' % (worst[2], count[2]))
 
 
 def test_her_law_in_c_is_her_python_s(report, c, b, rows):

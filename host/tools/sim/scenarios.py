@@ -22,6 +22,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
+from machine import takes
 from tools.sim import stunts
 
 #: A player's walk (`se2`'s), m/s; a stop.
@@ -42,9 +43,12 @@ def _walk(seconds, then=STILL_S):
 
 #: name: (scene, commands, seconds, goal, its number). A goal: 'met' (the obstacle touched and
 #: her stopped at it), 'past' m (her pelvis that far on), 'rose'/'sank' m (her pelvis that much
-#: higher or lower at the end), 'sat'/'lay' (a chair or a bed bearing her off her soles half
-#: her weight or more for HELD_S, her soles bearing her at the end), 'stands' (on her soles, a
-#: chair's seat or not).
+#: higher or lower at the end), 'lay' (a bed bearing more of her than her soles do for HELD_S,
+#: by the world's contacts), 'sat' (so, and her soles bearing her at the end: risen), 'stands'
+#: (on her soles, a chair's seat or not). The bed's lie_bed is the takes' rows (`machine.takes`);
+#: the chair by its texts - by the take's rows she perched on its edge and fell at one wobble of
+#: three. Risen from the bed (bed_rise): the text's rise from the take's lie leaves her on it
+#: (docs/TODO.md).
 SCENARIOS = {
     'wall': ('wall', *_walk(4.0), 'met', 'wall'),
     'tree': ('tree', *_walk(4.0), 'met', 'tree'),
@@ -63,7 +67,8 @@ SCENARIOS = {
     'slope_down': ('slope_down', *_walk(7.0), 'sank', 0.45),
     'cross_slope': ('cross_slope', *_walk(6.0), 'past', 2.0),
     'chair': ('chair_behind', [(1.0, {'say': 'sit_chair'}), (8.0, {'say': 'rise_chair'})], 14.0, 'sat', 'chair'),
-    'bed': ('bed_behind', [(1.0, {'say': 'lie_bed'}), (9.0, {'say': 'rise_bed'})], 16.0, 'lay', 'bed'),
+    'bed': ('bed_behind', [(1.0, {'say': 'lie_bed'})], 16.0, 'lay', 'bed'),
+    'bed_rise': ('bed_behind', [(1.0, {'say': 'lie_bed'}), (16.0, {'say': 'rise_bed'})], 24.0, 'sat', 'bed'),
     'mattress': ('mattress_under', [(1.0, {'say': 'lie_floor'}), (9.0, {'say': 'rise_floor'})], 16.0, 'lay', 'bed'),
     'hop_down': ('on_chair', [(1.0, {'say': 'hop_down_chair'})], 6.0, 'sank', 0.40),
     'hop_up': ('chair_ahead', [(1.0, {'say': 'hop_up_chair'})], 6.0, 'rose', 0.40),
@@ -176,32 +181,40 @@ def _row(g, world):
 
 
 def _told(command):
-    """A command as her worker hears it: a take's rows (`{'take': key}`) as the loop's entries."""
+    """A command as her worker hears it: a take's rows (`{'take': key}`) as the loop's entries.
+    Measured, not kept: the take's legs scaled to the scene's seat (his seat 0.55 of his leg,
+    hers 0.76) left her hovering 6 cm over it, her hips 0.13 legs back where the scaling took
+    the human's 0.48; the seat told to her law as support before it bore her (its box spanning
+    her support as a touch's would) took her hips back onto the chair and she rolled off it
+    sideways as one sole pushed while it bore nothing, and told the whole mattress she lay down."""
     take = command.get('take')
-    return command if take is None else {'entries': [(take, stunts.wire(take), (take,))]}
+    return command if take is None else {'entries': [(take, takes.wire(take)[0], (take,))]}
 
 
 def stunt_window(key):
-    """(from, to) s of a stunt's measured rows: from its telling for its take's seconds at her
-    size (`stunts.similar`)."""
-    ref, start = stunts.reference()[key], STUNTS[key][3]
+    """(from, to) s of a stunt's measured rows: from its telling and the take's entering
+    (`takes.ENTER_S`), for its take's seconds at her size (`stunts.similar`)."""
+    ref, start = stunts.reference()[key], STUNTS[key][3] + takes.ENTER_S
     return start, start + ref['seconds'] * stunts.similar(ref['leg'], 'time')
 
 
 def borne(world, hers, kinds, force):
-    """{kind: N} of what bears her off her soles now (`hers` 2 a sole's body, 1 another of hers), by
-    the body her contact is with (`kinds`, else 'floor')."""
-    m, d, out = world.model, world.data, {}
+    """({kind: N up}, {kind: N}) of what she touches now (`hers` 2 a sole's body, 1 another of
+    hers): her soles ('soles'), and the rest by the body her contact is with (`kinds`, else
+    'floor') - what holds her up, the normal forces' upward parts (her shins on a chair's edge
+    pushed it 1.8 kN sideways), and the normal forces whole (a wall's push)."""
+    m, d, up, whole = world.model, world.data, {}, {}
     for i in range(d.ncon):
         c = d.contact[i]
         a, b = m.geom_bodyid[c.geom1], m.geom_bodyid[c.geom2]
-        if (hers[a] > 0) == (hers[b] > 0) or max(hers[a], hers[b]) > 1:
+        if (hers[a] > 0) == (hers[b] > 0):
             continue
-        other = b if hers[a] else a
+        mine, other = (a, b) if hers[a] else (b, a)
         world._mj.mj_contactForce(m, d, i, force)
-        kind = kinds.get(m.body_rootid[other], 'floor')
-        out[kind] = out.get(kind, 0.0) + abs(float(force[0]))
-    return out
+        kind = 'soles' if hers[mine] > 1 else kinds.get(m.body_rootid[other], 'floor')
+        up[kind] = up.get(kind, 0.0) + abs(float(force[0]) * float(c.frame[1]))
+        whole[kind] = whole.get(kind, 0.0) + abs(float(force[0]))
+    return up, whole
 
 
 def ran(name, wobble=0.0):
@@ -272,10 +285,11 @@ def ran(name, wobble=0.0):
             told_at = g['t']
             rows.append(_row(g, world))
         if g['n'] % 10 == 0:
-            now = borne(world, hers, kinds, force)
-            for kind, n in now.items():
+            now, whole = borne(world, hers, kinds, force)
+            for kind, n in whole.items():
                 most[kind] = max(most.get(kind, 0.0), n)
-                if n > 0.5 * weight:
+            for kind, n in now.items():
+                if kind != 'soles' and n > now.get('soles', 0.0):
                     bore[kind] = bore.get(kind, 0.0) + 0.01
             g['_borne'] = now
     t = np.array(track)
@@ -289,7 +303,7 @@ def ran(name, wobble=0.0):
            'went': round(float(t[-1, 3] - t[0, 3]), 3), 'rose': round(float(t[-1, 2] - t[0, 2]), 3),
            'speed': round(float(np.linalg.norm(t[-1, 1:4] - t[-51, 1:4]) / 0.05), 3),
            'bore': {kd: round(v, 2) for kd, v in bore.items()},
-           'touched': {kd: round(v) for kd, v in most.items() if kd != 'floor'},
+           'touched': {kd: round(v) for kd, v in most.items() if kd not in ('floor', 'soles')},
            'on_soles': round(sum(s['g']['loads']) / weight, 2), 'head_hit': hit,
            'sigma_min': round(sigma_min, 4), 'scale_min': round(scale_min, 3),
            'shrunk': shrunk_n, 'qacc_max': round(qacc_max, 1),
@@ -318,7 +332,9 @@ def judged(out):
         return out['rose'] >= aim
     if goal == 'sank':
         return out['rose'] <= -aim
-    if goal in ('sat', 'lay'):
+    if goal == 'lay':
+        return out['bore'].get(aim, 0.0) >= HELD_S
+    if goal == 'sat':
         return out['bore'].get(aim, 0.0) >= HELD_S and out['on_soles'] >= 0.8
     return True
 

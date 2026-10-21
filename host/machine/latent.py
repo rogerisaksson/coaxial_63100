@@ -29,7 +29,11 @@ GAIN, HZ, ZMP, YAW = ortho.GAIN, ortho.HZ, ortho.ZMP, ortho.YAW
 #: long it takes, her rhythm's angle.
 NOW, FROM, TO = (slice(i * P, (i + 1) * P) for i in range(3))
 T0, BLEND, THETA = 3 * P, 3 * P + 1, 3 * P + 2
-STATE = 3 * P + 3
+#: A blend's rates at its start and its end, a param each; whether the row after begins where
+#: this blend ends - a sample of a curve, not a step.
+V0, V1 = slice(3 * P + 3, 4 * P + 3), slice(4 * P + 3, 5 * P + 3)
+CONTIG = 5 * P + 3
+STATE = 5 * P + 4
 #: A table's row: what it says, which of it is said (1) or left (0), when it comes, its blend.
 VALS, SAID = slice(0, P), slice(P, 2 * P)
 AT, LERP = 2 * P, 2 * P + 1
@@ -68,26 +72,61 @@ def table(wire, begin, rest):
     return tab
 
 
+#: No row: nothing said, never due.
+_NONE = np.zeros((1, TABLE))
+_NONE[0, AT] = math.inf
+
+
+def _rate(st, u, span):
+    """A blend's rate at `u` of its `span`: the Hermite curve's slope from FROM to TO, V0 to V1."""
+    return ((6.0 * u * u - 6.0 * u) * st[FROM] + (3.0 * u * u - 4.0 * u + 1.0) * (span * st[V0])
+            + (6.0 * u - 6.0 * u * u) * st[TO] + (3.0 * u * u - 2.0 * u) * (span * st[V1])) / span
+
+
 def step(st, tab, now, dt, out):
     """`out` this pass: the row of `tab` whose time `now` is laid, `st` blended on a tick `dt`,
-    her rhythm turned."""
+    her rhythm turned. A text's row blends linearly to its target. A row the next begins on as
+    it ends (CONTIG) is a sample of a curve - a take's -, and blends as a Hermite curve, leaving
+    at the rate she had (V0) and arriving at the rate the row after asks (V1, Catmull-Rom's: the
+    way from FROM to that row over both spans), so her rate and acceleration are the curve's
+    own: blended linearly, a sit's rows braked 4 m/s^2 and her height, a/kp = 7 cm behind, met
+    the seat at 1.2 m/s where the human's hips arrive still; the texts' blends curved, seven
+    held scenes fell."""
     hit = ((tab[:, AT] <= now + EDGE_S) & (tab[:, AT] > now - dt + EDGE_S)).astype(float)
     came = np.minimum(hit.sum(), 1.0)
+    span = np.maximum(st[BLEND], dt)
+    leaving = _rate(st, np.clip((now - st[T0]) / span, 0.0, 1.0), span)
+    st[V0] += came * (leaving - st[V0])
     st[TO] += np.minimum(hit @ tab[:, SAID], 1.0) * (hit @ tab[:, VALS] - st[TO])
     st[FROM] += came * (st[NOW] - st[FROM])
     st[T0] += came * (now - st[T0])
     st[BLEND] += came * (hit @ tab[:, LERP] - st[BLEND])
     span = np.maximum(st[BLEND], dt)
+    ahead = tab[:, AT] > now + EDGE_S
+    has = float(ahead.any())
+    rows = np.concatenate([tab, _NONE])                          # a table may be empty
+    k = int(np.argmin(np.where(np.concatenate([ahead, [False]]), rows[:, AT], math.inf)))
+    after = np.where(rows[k, SAID] > 0.5, rows[k, VALS], st[TO])
+    st[V1] += came * (has * ((after - st[FROM]) / (span + np.maximum(rows[k, AT] - now, dt))) - st[V1])
+    contig = has * float(abs(rows[k, AT] - (hit @ tab[:, AT] + st[BLEND])) <= dt)
+    st[CONTIG] += came * (contig - st[CONTIG])
     u = np.clip((now - st[T0] + dt) / span, 0.0, 1.0)
     p = st[NOW]
-    p[:] = st[FROM] + (st[TO] - st[FROM]) * u
+    line = st[FROM] + (st[TO] - st[FROM]) * u
+    curve = ((2.0 * u * u * u - 3.0 * u * u + 1.0) * st[FROM] + (u * u * u - 2.0 * u * u + u) * (span * st[V0])
+             + (3.0 * u * u - 2.0 * u * u * u) * st[TO] + (u * u * u - u * u) * (span * st[V1]))
+    p[:] = line + st[CONTIG] * (curve - line)
+    slope = (st[TO][Z] - st[FROM][Z]) / span * (u < 1.0)
+    rate = slope + st[CONTIG] * (_rate(st, u, span)[Z] * (u < 1.0) - slope)
+    bend = st[CONTIG] * (((12.0 * u - 6.0) * st[FROM] + (6.0 * u - 4.0) * (span * st[V0]) + (6.0 - 12.0 * u) * st[TO]
+                          + (6.0 * u - 2.0) * (span * st[V1])) / (span * span) * (u < 1.0))[Z]
     turns = math.tau * p[HZ]
     st[THETA] = (st[THETA] + turns * dt) % math.tau
     psi = st[THETA] + p[PHASE]
     sway = p[GAIN] * p[AMP]
     out[REF] = p[Z] + sway * np.sin(psi)
-    out[RATE] = (st[TO][Z] - st[FROM][Z]) / span * (u < 1.0) + sway * turns * np.cos(psi)
-    out[ACC] = -sway * turns * turns * np.sin(psi)
+    out[RATE] = rate + sway * turns * np.cos(psi)
+    out[ACC] = bend - sway * turns * turns * np.sin(psi)
     out[KS], out[DS], out[PSI], out[SWAY] = p[K], p[D], psi, sway
     out[TURNS], out[HELD], out[YAWED] = turns, p[ZMP], p[YAW]
     return out

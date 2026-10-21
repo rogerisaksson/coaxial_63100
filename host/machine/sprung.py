@@ -5,7 +5,7 @@
 """
 import math
 import os
-from machine import mechatronics, edge, estimate, grip, leap, ortho, se2, situation
+from machine import mechatronics, edge, estimate, grip, leap, ortho, se2, situation, takes
 from machine.se2 import WEP_S, _dropped, doing, said
 
 LEAK_S, STANDING_KP, WEP_HOLD_S, WEP_FILL = se2.LEAK_S, se2.STANDING_KP, se2.WEP_HOLD_S, se2.WEP_FILL
@@ -57,7 +57,7 @@ def entries(text=None, name=GYMS[0]):
     stream = [tables[''][i:i + sz] for i in range(0, len(tables['']), sz)]
     return ([(STREAM_NAMES.get(ortho.rows(w)[0][0], '#%d' % ortho.rows(w)[0][0]), w,
               (STREAM_NAMES.get(ortho.rows(w)[0][0], '#%d' % ortho.rows(w)[0][0]),)) for w in stream]
-            + [(n, tables[n], phases[n] + ('rest',)) for n in phases])
+            + [(n, tables[n], phases[n] + ('rest',)) for n in phases] + takes.entries())
 
 
 def laid(every=1, inner=None, solver=None):

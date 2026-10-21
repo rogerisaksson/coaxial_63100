@@ -12,7 +12,7 @@
 <text x="32" y="258" fill="#38bdf8" font-size="9">cmd / states  IPC (60 Hz)</text>
 <text x="32" y="276" fill="#a78bfa" font-size="9">y_in[233]     edge.SENSED</text>
 <text x="32" y="294" fill="#a78bfa" font-size="9">y[74], fr[60] modal.SENSED</text>
-<text x="32" y="312" fill="#34d399" font-size="9">st[180], tab  latent.STATE</text>
+<text x="32" y="312" fill="#34d399" font-size="9">st[299], tab  latent.STATE</text>
 <text x="32" y="330" fill="#34d399" font-size="9">out[80]       latent.OUT</text>
 <text x="32" y="348" fill="#fbbf24" font-size="9">a[59]         modal.ASK</text>
 <text x="32" y="366" fill="#fbbf24" font-size="9">got[qacc,tau] wrench.solve</text>

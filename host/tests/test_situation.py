@@ -120,7 +120,7 @@ def _entered(name, wobble):
             k += 1
         worker.stepped(s)
         g = s['g']
-        if entered is None and scenarios.borne(world, hers, kinds, force).get(body, 0.0) > share * weight:
+        if entered is None and scenarios.borne(world, hers, kinds, force)[1].get(body, 0.0) > share * weight:
             entered = round(g['t'], 3)
         if entered is not None and told is None and situation.told(g['situations'], g['into']) == said:
             told = round(g['t'], 3)

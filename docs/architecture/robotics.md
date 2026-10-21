@@ -48,6 +48,7 @@ identification. Her figure: [kinematics](kinematics.md); her drives:
 | situation | where she is, projected outward from her continuous sensors and modal state to telemetry (`state['situation']`) |
 | motion | her branchless inner law's pass on her sensors alone: sensed, latent, impedance, wrench (or wbc), directional surety and the drives' observers |
 | sprung | the latent loop run: her world read and told through her edge, her law's pass between; her process, paced to the clock: the one thing that moves her |
+| takes | the mocap takes as her texts: a take's posture modes at its frames said as rows, entered over her leg's half period; `lie_bed` sits on the bed and lies down |
 | worker | her outer loop and session: discrete commands mapped to continuous setpoints, each logged with its epoch and pass, falls recovered; the page's states |
 | tour | the scenes one after another, commanded as an agent commands them |
 | sysid | her body identified of her edge alone: Newton-Euler down her tree, the base parameters; her pelvis's rows off her insoles or a load cell |
