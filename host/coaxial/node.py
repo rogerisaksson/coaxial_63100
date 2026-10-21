@@ -15,6 +15,7 @@ from coaxial.control.commission import Commissioning
 from coaxial.control.motion import started
 from coaxial.comm.session import standing
 from coaxial.errors import RigError
+from coaxial.simulated.sto import PILOT_VOLTS
 from machine.controller import Feedback
 from machine.machine import Actuator
 from machine.modes import EMULATED, HARDWARE, SIMULATED
@@ -45,6 +46,21 @@ def _arming(rig, arming):
     if arming is not None:
         return arming
     return {'bypass_sto': True, 'ignore_interlock': True} if rig.simulated else {}
+
+
+def arm_stage(rig, arming=None):
+    """The stage armed from rest. The schematic's board: +5 for the STO chain's pilot detector
+    and the master's pilot on its bus - an emulated or simulated bus's master is this host -,
+    the drivers' supply after the chain's charge; the unmodified bench board's drivers have
+    theirs with AFE_ON down. The chain is read through the meter, which a sync a past drive left
+    armed holds (its channels locked, MINOR 29): freed, the drive's next mode arms it again."""
+    if standing(rig.origin) != 'live':
+        was = rig.board.afe.is_on()
+        rig.board.afe.on()
+        rig.pilot(PILOT_VOLTS)
+        clock_of(rig).sleep(rig.AFE_SETTLE * (not was))
+    rig.board.gate_drivers.configure(sync=False)
+    rig.gates.on(**_arming(rig, arming))
 
 
 def discover(port='COM4', execution_mode=HARDWARE, units=range(1, 17), **kw):
@@ -78,13 +94,7 @@ class _OnDrive(Actuator):
         clock_of(self.node.rig).sleep(seconds)
 
     def _gates(self, arming):
-        rig = self.node.rig
-        if standing(rig.origin) != 'live':
-            # The schematic's board: +5 for the STO chain's pilot detector, the drivers' supply;
-            # the unmodified bench board's drivers have theirs with AFE_ON down.
-            rig.board.afe.on()
-            clock_of(rig).sleep(rig.AFE_SETTLE)
-        rig.gates.on(**_arming(rig, arming))
+        arm_stage(self.node.rig, arming)
 
     def hand_over(self, f, hz):
         ctrl = self.node.rig.ctrl
@@ -276,10 +286,7 @@ class Coaxial(Node):
         paced = getattr(rig.board.drive, 'paced', None)
         if rig.simulated:
             drive.configure(source='model')
-        if standing(rig.origin) != 'live':
-            rig.board.afe.on()
-            clock_of(rig).sleep(rig.AFE_SETTLE)
-        rig.gates.on(**_arming(rig, arming))
+        arm_stage(rig, arming)
         try:
             clock = Told(paced) if paced else clock_of(rig)    # the ring's own seconds
             axis = AXIS * round(drive.state()['theta_hat'] / AXIS)

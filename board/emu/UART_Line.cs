@@ -128,7 +128,7 @@ namespace Antmicro.Renode.Peripherals.UART
         }
 
         /// <summary>RTU's t3.5, s: 3.5 characters, and 1.75 ms above 19 200 baud.</summary>
-        private double Turnaround => Rate() > 19200 ? 0.00175 : 3.5 * BitsPerCharacter / Rate();
+        public double Turnaround => Rate() > 19200 ? 0.00175 : 3.5 * BitsPerCharacter / Rate();
 
         private double Now()
         {

@@ -7,11 +7,8 @@
   tour 20/0/21 (the errand a table, `_on_rows`), sprung 11/2/4, room 9.
   DOD: flat tables and arithmetic a reader follows, a raise where she
   cannot; test_structure holds the law's modules at 0.
-- **CI red since the emulator's update**: test_layout's machines.ipynb raises
-  MachineError on its humanoid program (`emulator://?body=humanoid&bus=AX@115200`;
-  here the connection is closed on it, then it hangs); firmware's Release
-  conformance 108 of 110 (FC05 a bad coil value, FC03 far out of range);
-  test_sysid_live 3 (her insoles' weight 305.2 for 305.5 N at 0.315 N m rms,
+- **CI red since the emulator's update**: test_sysid_live 3 since 1f1d039d
+  (her insoles' weight 305.2 for 305.5 N at 0.315 N m rms,
   the moments under her pelvis 0.57 and 0.53 N m rms, her mass 31.15 for
   31.14 kg); the gate here 5347 of 5582 with these and the chair and snow
   wobbles at -2e-4 (scenarios items 1 and 3). DOD: both workflows green on
@@ -46,9 +43,9 @@
   ticks 43 %; their hot helpers ported by hand (`aero/test/harness.c`'s
   `aeh_*`). The quad's law is the firmware's `aero.c`. DOD: the three steps
   generated from their Python, bit for bit, the hand ports gone.
-- **The emulated bus against the stand-in** (asked): CI red at 7c7af2c8 -
-  conformance on the emulator 107/110 behind the 257-byte ADU, a limb's
-  replies scrambled between Renode's machines, the machines paper's quad
-  faulted on the emulator alone. DOD: CI green; a limb of three answers
-  every echo; `make_notebooks.py --compare` alike; the bench board's suites
-  on COM3.
+- **The emulated bus against the stand-in** (asked): the papers on both
+  (`make_notebooks.py --compare`); the bench board's suites on COM3. The
+  machines paper on the emulated body: its waist rests on its stop and does
+  not ring, its pelvis spun as a quad's rotor faults at overcurrent - a
+  type over boards of its own world. DOD: every paper alike on both but
+  where a world's physics says otherwise; the bench suites green.

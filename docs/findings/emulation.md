@@ -166,8 +166,15 @@ board's findings: [FINDINGS](../FINDINGS.md).
   answered 13 echoes of 40. `RS485_Bus` is one medium, its characters heard in
   the order put: two nodes 40 of 40 in 62 s, three 51 of 51 in 81 s. A
   character time on the bus (10 bits at the UART's rate) ran on the other
-  node's thread and lost every reply. A node's timer syncing its CPU from
-  there is refused: 1 259 in a run of two, the STO chain's step among them.
+  node's thread and lost every reply. Heard at sync points, a reply spanning
+  two quanta reached discovery with a quantum's wall time inside it and
+  failed its CRC: the adapter hands the host a frame once the line has been
+  quiet t3.5 on its clock (`TimeSourceBase.SyncHook`).
+- From another node's thread a CPU's sync and skip are refused - 24 000 lines
+  a node in a paper, the plant's skip lost: there, at the quantum's barrier,
+  the handle stands synced and the skip waits for its own thread. Renode's
+  SPI and DMA warn of their unmodelled flag clears at every A1335 and BNO085
+  transfer: a limb's log 2.2-3.2 GB in one paper, 20 MB at error level.
 - A `frames://` socket waits on its emulator's clock
   (`protocol_frames.CLOCKS`), as `emulator://` does.
 

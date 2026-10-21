@@ -285,6 +285,12 @@ namespace Antmicro.Renode.Peripherals.Analog
         /// that last slice: in whole grains of the CPU's rate, which SkipTime takes exactly.</summary>
         private void Skip()
         {
+            // A skip is the CPU's own to take: a limb's events also run on another node's thread,
+            // at the quantum's barrier.
+            if(!cpu.OnPossessedThread)
+            {
+                return;
+            }
             cpu.SyncTime();
             var gap = ((BaseClockSource)machine.ClockSource).NearestLimitIn.Ticks;
             var slice = (ulong)(LoopSlice * 1e3);

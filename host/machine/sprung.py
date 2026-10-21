@@ -281,7 +281,7 @@ def run(*args, **kwargs):
 def emulated_limb(state, say, limb_cls):
     emu = limb_cls(state['emu_port'])
     state['origin'] = emu.origin
-    say('ok', 'boards', '%d STM32H743 nodes on Renode (%s, %s)' % (len(emu.rigs), emu.limb, emu.origin.port))
+    say('ok', 'boards', '%d STM32H753 nodes on Renode (%s, %s)' % (len(emu.rigs), emu.limb, emu.origin.port))
     return emu
 
 

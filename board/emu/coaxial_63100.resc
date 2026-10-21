@@ -30,6 +30,12 @@ machine UnregisterFromParent sysbus.dwt
 machine UnregisterFromParent sysbus.timer1
 machine LoadPlatformDescription @board/emu/coaxial_63100_board.repl
 machine LoadPlatformDescription @board/emu/coaxial_63100_afe.repl
+# Renode's STM32H7 SPI and DMA leave IFCR's TXTFC and LIFCR's flag clears unmodelled: a warning
+# each A1335 and BNO085 transfer, interleaved past the log's repeat count on a limb, 3 GB a limb
+# in a paper.
+logLevel 3 sysbus.spi2
+logLevel 3 sysbus.spi4
+logLevel 3 sysbus.dma1
 
 emulation CreateServerSocketTerminal $port $console false
 connector Connect sysbus.gpioPortB.consoleLine $console

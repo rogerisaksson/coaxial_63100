@@ -70,7 +70,12 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         private void Anchor()
         {
-            cpu.SyncTime();
+            // On another node's thread, at the quantum's barrier, the handle stands synced: a
+            // limb's events run on whichever CPU thread completes the quantum.
+            if(cpu.OnPossessedThread)
+            {
+                cpu.SyncTime();
+            }
             at = cpu.TimeHandle.TotalElapsedTime.Ticks / 1e9;
             since = cpu.ExecutedInstructions;
             mips = System.Math.Max(1U, cpu.PerformanceInMips);

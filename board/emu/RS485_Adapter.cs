@@ -1,11 +1,13 @@
 // RS485_Adapter.cs - The host's USB-RS485 adapter on an emulated limb: its host face on a socket
 // terminal, its bus face on the limb's bus (RS485_Bus.cs). The host's bytes reach the bus as
-// HostLine (UART_Line.cs) paces them; the bus's reach the host as they come. Renode joins a
-// terminal to a UART only, hence two faces.
+// HostLine (UART_Line.cs) paces them; the bus's reach the host a frame at a time, framed by
+// t3.5 on the machine's clock. Renode joins a terminal to a UART only, hence two faces.
 
 using System;
+using System.Collections.Generic;
 using Antmicro.Migrant;
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.Peripherals.UART
 {
@@ -17,6 +19,7 @@ namespace Antmicro.Renode.Peripherals.UART
             this.machine = machine;
             BaudRate = baudRate;
             line = new HostLine(machine, this, () => BaudRate, value => bus.Put(this, value));
+            machine.LocalTimeSource.SyncHook += Framed;
         }
 
         /// <summary>The bus it is on, by the name a limb's script gives it.</summary>
@@ -34,17 +37,45 @@ namespace Antmicro.Renode.Peripherals.UART
         public void Reset()
         {
             line.Reset();
+            lock(frame)
+            {
+                frame.Clear();
+            }
         }
 
         public void OnGPIO(int number, bool value)
         {
         }
 
-        /// <summary>A byte off the bus, to the host.</summary>
+        /// <summary>A byte off the bus, held with its frame.</summary>
         private void Heard(byte value)
         {
             line.Heard();
-            Host?.FromBus(value);
+            lock(frame)
+            {
+                frame.Add(value);
+                heardAt = machine.LocalTimeSource.ElapsedVirtualTime.TotalSeconds;
+            }
+        }
+
+        /// <summary>At a sync point, the bus's characters arriving at them: the frame heard handed
+        /// to the host whole once the line has been quiet t3.5 behind it, as a master's receiver
+        /// frames the line - on the line's clock. Handed over as they came, a reply that spanned
+        /// two quanta reached the host with a quantum's wall time inside it, and the host's gap,
+        /// on its own clock, cut it.</summary>
+        private void Framed(TimeInterval now)
+        {
+            byte[] whole;
+            lock(frame)
+            {
+                if(frame.Count == 0 || now.TotalSeconds - heardAt < line.Turnaround)
+                {
+                    return;
+                }
+                whole = frame.ToArray();
+                frame.Clear();
+            }
+            Array.ForEach(whole, value => Host?.FromBus(value));
         }
 
         /// <summary>The bus's rate, bits a second: 115 200 as the app starts, 10 000 000 as the
@@ -65,8 +96,10 @@ namespace Antmicro.Renode.Peripherals.UART
 
         private readonly IMachine machine;
         private readonly HostLine line;
+        private readonly List<byte> frame = new List<byte>();
         private RS485_Bus bus = new RS485_Bus();
         private string busName;
+        private double heardAt;
     }
 
     /// <summary>The face on the host's socket terminal.</summary>
