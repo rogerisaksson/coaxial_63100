@@ -15,7 +15,7 @@ from coaxial.graphics.callouts import packed
 from machine import figure, se2, sprung
 from machine.figure import JOINTS, quat
 from machine.routines import TYPES
-from terminal import keybindings
+from terminal import boards, keybindings
 from terminal.loader import TO_MENU
 from terminal.views import gym, viewpoint
 from terminal.views.humanoid_keys import CHARGE_MAX_N, act_on, charging, heard, pad, released, rows_of, steered, table
@@ -78,8 +78,20 @@ def _bar4(val):
     return '▰' * n + '▱' * (4 - n)
 
 
-_CONTROLLED_STUNTS = frozenset(sprung.STUNT_PHASES) | {
-    'sit_chair', 'lie_bed', 'lie_floor', 'lean', 'parry_shove', 'catch', 'restore'}
+_STUNT_BAL = dict.fromkeys(
+    frozenset(sprung.STUNT_PHASES) | {'sit_chair', 'lie_bed', 'lie_floor', 'lean', 'parry_shove', 'catch', 'restore'},
+    (0.95, 0.95))
+_STUNT_BAL['controlled_fall'] = (0.55, 0.55)
+
+
+def _live_bal_stb(now):
+    turn = now.get('turn', (1.0, 0.0, 0.0, 0.0))
+    qx, qz = float(turn[1]), float(turn[3])
+    bal = max(0.0, min(1.0, (1.0 - 2.0 * (qx * qx + qz * qz) - 0.5) / 0.5))
+    loads = now.get('loads', (160.0, 160.0))
+    load_norm = min(1.0, (float(loads[0]) + float(loads[1])) / 240.0)
+    where_y = float((now.get('where') or (0.0, 0.90, 0.0))[1])
+    return bal, max(0.0, min(1.0, 0.5 * load_norm + 0.5 * min(1.0, where_y / 0.85)))
 
 
 def telemetry_core(now):
@@ -87,23 +99,12 @@ def telemetry_core(now):
         return 1.0, 1.0, 1.0, 'NOMINAL'
     watts = float(now.get('watts', 45.0))
     thm = max(0.0, min(1.0, 1.0 - max(0.0, watts - 40.0) / 1160.0))
-    if now.get('temp'):
-        thm = min(thm, max(0.0, min(1.0, (125.0 - max(float(v) for v in now['temp'].values())) / 100.0)))
+    temps = now.get('temp')
+    thm = min(thm, max(0.0, min(1.0, (125.0 - max(float(v) for v in temps.values())) / 100.0))) if temps else thm
     if now.get('fallen'):
         return 0.0, thm, 0.0, 'CRITICAL'
     doing = str(now.get('doing', 'rest'))
-    if doing in _CONTROLLED_STUNTS:
-        bal, stb = 0.95, 0.95
-    elif doing == 'controlled_fall':
-        bal, stb = 0.55, 0.55
-    else:
-        turn = now.get('turn', (1.0, 0.0, 0.0, 0.0))
-        qx, qz = float(turn[1]), float(turn[3])
-        bal = max(0.0, min(1.0, (1.0 - 2.0 * (qx * qx + qz * qz) - 0.5) / 0.5))
-        loads = now.get('loads', (160.0, 160.0))
-        load_norm = min(1.0, (float(loads[0]) + float(loads[1])) / 240.0)
-        where_y = float((now.get('where') or (0.0, 0.90, 0.0))[1])
-        stb = max(0.0, min(1.0, 0.5 * load_norm + 0.5 * min(1.0, where_y / 0.85)))
+    bal, stb = _STUNT_BAL[doing] if doing in _STUNT_BAL else _live_bal_stb(now)
     worst = min(bal, thm, stb)
     return bal, thm, stb, ('CRITICAL' if worst < 0.35 else ('ALERT' if worst < 0.65 else 'NOMINAL'))
 
@@ -405,7 +406,7 @@ def _draw_viewport(state, now, width, height, terminal):
 
 
 def _boot_humanoid(_board_view, state):
-    return sprung.boot_humanoid(state, boot, say, Ahead)
+    return sprung.boot_humanoid(state, boot, say, Ahead, boards.EmulatedLimb)
 
 
 def main(argv=None):

@@ -180,14 +180,22 @@ def _toggle_tour(state):
     tr = state['tour'] = HouseTour(loop=True)
     state['llm_last'] = (tr.last_thought, tr.last_cmd)
     state['llm_feed'] = (state.get('llm_feed', []) + [(tr.last_thought, tr.last_cmd)])[-8:]
-    rows = list(state.get('chat_rows') or ())
+    rows: list = list(state.get('chat_rows') or ())
     rows.extend([('value', '> start tour'), ('label', '  cmd: ' + tr.last_cmd), (None, tr.last_thought)])
     state['chat_rows'] = rows[-24:]
 
 
 def open_prompt(state):
-    """/ or : opens the interactive LLM prompt bar for the gynoid."""
+    """/ or : opens the interactive LLM prompt bar for the gynoid and releases held motion keys."""
     state['llm_prompt'] = {'open': True, 'text': ''}
+    state['hop_hold'] = state['charge'] = None
+    pad = state.get('pad')
+    if isinstance(pad, dict):
+        pad['keys'] = dict.fromkeys(pad.get('keys') or ('w', 's', 'a', 'd', 'q', 'e', 'shift'), False)
+        pad['last_seen'] = {}
+        if pad.get('setpoint') not in (None, (0.0, 0.0, 0.0)) and state.get('body') is not None:
+            pad['setpoint'] = (0.0, 0.0, 0.0)
+            state['body'].send(twist=(0.0, 0.0, 0.0))
 
 
 def submit_prompt(state, text=None):
@@ -198,7 +206,7 @@ def submit_prompt(state, text=None):
     if not q:
         return None
     state['llm_prompt_last'] = q
-    rows = list(state.get('chat_rows') or ())
+    rows: list = list(state.get('chat_rows') or ())
     rows.append(('value', '> ' + q))
     plan = tour.compile_prompt(q, state.get('now'))
     if plan.get('tour'):
@@ -306,7 +314,7 @@ def chat_box(state, width=80):
     """The persistent BOARD CHAT-style transcript and prompt input panel under the viewport."""
     import time
     from terminal.ui.recorder import SPIN
-    rows = list(state.get('chat_rows') or (CHAT_GREETING,))
+    rows: list = list(state.get('chat_rows') or (CHAT_GREETING,))
     tail = rows[-(CHAT_ROWS - 1):]
     while len(tail) < CHAT_ROWS - 1:
         tail.insert(0, ('label', ''))

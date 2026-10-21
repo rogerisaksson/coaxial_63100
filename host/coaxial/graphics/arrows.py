@@ -163,40 +163,59 @@ def _spec(kind, origin=None, normal=None, setpoint=(0.0, 0.0, 0.0), actual=(0.0,
             'frame_segments': list(frame), 'fill_segments': list(fill_segs), 'target_segments': list(target)}
 
 
-def _describe_special(doing, now, origin, normal, heading, sh, ch, spd_phys, props, tw_ord):
-    """Handle jump, fall/parry/sit/lie, and postural arrow specifications."""
+def _jump_arrow(doing, _now, origin, normal, heading, sh, ch, spd_phys, props, tw_ord):
+    spd_f = max(tw_ord[0], spd_phys)
+    fwd = 0.45 if doing in _JUMP_UP else (0.38 if doing in _JUMP_DN else (min(0.55, spd_f * 0.55) if spd_f > 0.08 else 0.0))
+    vy_j = 2.2 if doing in (_JUMP_UP | {'throw'}) - {'crouch_load', 'seat_land'} else (1.2 if doing in ('load', 'crouch_load') else 1.6)
+    fill, l_pt = max(0.25, min(1.0, vy_j / 2.2)), (origin[0] + fwd * sh, origin[1], origin[2] + fwd * ch)
+    has_fwd = abs(fwd) > 0.05
+    l_pt = (l_pt[0], surface_at(l_pt[0], l_pt[2], props, True)[0], l_pt[2]) if has_fwd else l_pt
+    t_segs = _ring_segments(l_pt[0], l_pt[2], 0.16, props, 8, True) if has_fwd else []
+    return _spec('jump', origin, normal, (fwd, 0.85, 0.0), (tw_ord[0], vy_j, tw_ord[2]), fill, l_pt,
+                 *_vertical_arrow(origin, 0.85, fill, 1.0, fwd, heading, props), t_segs, heading=heading, pelvis_yaw=heading)
+
+
+def _fall_arrow(doing, now, origin, _normal, heading, sh, ch, _spd_phys, props, tw_ord):
     where, vel_xz = now.get('where', (0.0, 0.90, 0.0)), now.get('velocity', (0.0, 0.0))
-    if doing in JUMP_DOING:
-        spd_f = max(tw_ord[0], spd_phys)
-        fwd = 0.45 if doing in _JUMP_UP else (0.38 if doing in _JUMP_DN else (min(0.55, spd_f * 0.55) if spd_f > 0.08 else 0.0))
-        vy_j = 2.2 if doing in (_JUMP_UP | {'throw'}) - {'crouch_load', 'seat_land'} else (1.2 if doing in ('load', 'crouch_load') else 1.6)
-        fill, l_pt, t_segs = max(0.25, min(1.0, vy_j / 2.2)), (origin[0] + fwd * sh, origin[1], origin[2] + fwd * ch), []
-        if abs(fwd) > 0.05:
-            l_pt = (l_pt[0], surface_at(l_pt[0], l_pt[2], props, True)[0], l_pt[2])
-            t_segs = _ring_segments(l_pt[0], l_pt[2], 0.16, props, 8, True)
-        return _spec('jump', origin, normal, (fwd, 0.85, 0.0), (tw_ord[0], vy_j, tw_ord[2]), fill, l_pt,
-                     *_vertical_arrow(origin, 0.85, fill, 1.0, fwd, heading, props), t_segs, heading=heading, pelvis_yaw=heading)
-    if doing in FALL_DOING or now.get('fallen'):
-        ty = 0.45 if doing in _SEAT_BED else (0.22 if (doing in _FLOOR or now.get('fallen')) else 0.58)
-        tf, po = math.sqrt(2.0 * max(0.04, float(where[1]) - ty) / 9.81), (-0.18 if doing in _SEAT_BED else (0.22 if doing in _FLOOR else 0.25))
-        lx, lz = float(where[0]) + float(vel_xz[0]) * tf + po * sh, float(where[2]) + float(vel_xz[1]) * tf + po * ch
-        ly, l_norm = surface_at(lx, lz, props, True)
-        l_pt, fill = (lx, ly, lz), max(0.25, min(1.0, (0.90 - float(where[1])) / max(0.12, 0.90 - ty)))
-        f_segs, fl_segs = _surface_path_arrow(
-            origin, heading, (lx - origin[0]) * sh + (lz - origin[2]) * ch, (lx - origin[0]) * ch - (lz - origin[2]) * sh, 0.0, fill, props)
-        return _spec('fall', origin, l_norm, l_pt, tw_ord, fill, l_pt, [*f_segs, (tuple(map(float, where)), l_pt)], fl_segs,
-                     _ring_segments(lx, lz, 0.20, props, 8, True, True) + _ring_segments(lx, lz, 0.10, props, 8, True, False),
-                     heading=heading, pelvis_yaw=heading)
-    if doing in ('crouch', 'down') or doing in RISE_DOING:
-        vy_p = 0.65 if doing in RISE_DOING else -0.65
-        return _spec('posture', origin, normal, (0.0, vy_p, 0.0), (0.0, vy_p, 0.0), 1.0, origin,
-                     *_vertical_arrow(origin, 0.65, 1.0, 1.0 if vy_p > 0 else -1.0, 0.0, heading, props),
-                     heading=heading, pelvis_yaw=heading)
-    if doing in ('one_sole', 'weight_shift', 'over', 'bow', 'forward'):
-        vec = (0.0, 0.45, 0.0) if doing in ('one_sole', 'weight_shift', 'over') else (0.45, 0.0, 0.0)
-        return _spec('posture', origin, normal, vec, vec, 1.0, origin, *_surface_path_arrow(origin, heading, vec[0], vec[1], 0.0, 1.0, props),
-                     heading=heading, pelvis_yaw=heading)
-    return None
+    ty = 0.45 if doing in _SEAT_BED else (0.22 if (doing in _FLOOR or now.get('fallen')) else 0.58)
+    tf = math.sqrt(2.0 * max(0.04, float(where[1]) - ty) / 9.81)
+    po = -0.18 if doing in _SEAT_BED else (0.22 if doing in _FLOOR else 0.25)
+    lx, lz = float(where[0]) + float(vel_xz[0]) * tf + po * sh, float(where[2]) + float(vel_xz[1]) * tf + po * ch
+    ly, l_norm = surface_at(lx, lz, props, True)
+    l_pt, fill = (lx, ly, lz), max(0.25, min(1.0, (0.90 - float(where[1])) / max(0.12, 0.90 - ty)))
+    f_segs, fl_segs = _surface_path_arrow(
+        origin, heading, (lx - origin[0]) * sh + (lz - origin[2]) * ch, (lx - origin[0]) * ch - (lz - origin[2]) * sh, 0.0, fill, props)
+    rings = _ring_segments(lx, lz, 0.20, props, 8, True, True) + _ring_segments(lx, lz, 0.10, props, 8, True, False)
+    return _spec('fall', origin, l_norm, l_pt, tw_ord, fill, l_pt, [*f_segs, (tuple(map(float, where)), l_pt)], fl_segs,
+                 rings, heading=heading, pelvis_yaw=heading)
+
+
+def _vert_posture_arrow(doing, _now, origin, normal, heading, _sh, _ch, _spd_phys, props, _tw_ord):
+    vy_p = 0.65 if doing in RISE_DOING else -0.65
+    return _spec('posture', origin, normal, (0.0, vy_p, 0.0), (0.0, vy_p, 0.0), 1.0, origin,
+                 *_vertical_arrow(origin, 0.65, 1.0, 1.0 if vy_p > 0 else -1.0, 0.0, heading, props),
+                 heading=heading, pelvis_yaw=heading)
+
+
+def _surf_posture_arrow(doing, _now, origin, normal, heading, _sh, _ch, _spd_phys, props, _tw_ord):
+    vec = (0.0, 0.45, 0.0) if doing in ('one_sole', 'weight_shift', 'over') else (0.45, 0.0, 0.0)
+    return _spec('posture', origin, normal, vec, vec, 1.0, origin,
+                 *_surface_path_arrow(origin, heading, vec[0], vec[1], 0.0, 1.0, props),
+                 heading=heading, pelvis_yaw=heading)
+
+
+_SPECIAL_ARROWS = (
+    (lambda d, now: d in JUMP_DOING, _jump_arrow),
+    (lambda d, now: d in FALL_DOING or bool(now.get('fallen')), _fall_arrow),
+    (lambda d, _now: d in ('crouch', 'down') or d in RISE_DOING, _vert_posture_arrow),
+    (lambda d, _now: d in ('one_sole', 'weight_shift', 'over', 'bow', 'forward'), _surf_posture_arrow),
+)
+
+
+def _describe_special(doing, now, origin, normal, heading, sh, ch, spd_phys, props, tw_ord):
+    """Dispatch jump, fall/parry/sit/lie, and postural arrow specifications from `_SPECIAL_ARROWS`."""
+    fn = next((f for pred, f in _SPECIAL_ARROWS if pred(doing, now)), None)
+    return fn(doing, now, origin, normal, heading, sh, ch, spd_phys, props, tw_ord) if fn else None
 
 
 def _actual_twist(now, se2_st, sh, ch, doing, any_key):
@@ -206,18 +225,18 @@ def _actual_twist(now, se2_st, sh, ch, doing, any_key):
     v_mag = math.hypot(float(vel_xz[0]), float(vel_xz[1]))
     vx_v = float(vel_xz[0]) * sh + float(vel_xz[1]) * ch if v_mag > 1e-4 else spd_now
     vy_v = float(vel_xz[0]) * ch - float(vel_xz[1]) * sh if v_mag > 1e-4 else 0.0
-    wz_fb = float(tw_now[2]) if (tw_now is not None and abs(tw_now[2]) > 1e-4) else float((se2_st or {}).get('actual', (0.0, 0.0, 0.0))[2])
-    if v_mag > 1e-4 or abs(spd_now) > 1e-4:
-        tw_act = (vx_v, vy_v, wz_fb)
-    elif tw_now is not None and any(abs(v) > 1e-4 for v in tw_now[:3]):
-        tw_act = (float(tw_now[0]), float(tw_now[1]), float(tw_now[2]))
-    elif has_vel:
-        tw_act = (0.0, 0.0, wz_fb)
-    elif se2_st is not None:
-        tw_act = (tuple(map(float, se2_st['actual'])) if 'actual' in se2_st
-                  else (float(se2_st.get('v_x', 0.0)), float(se2_st.get('v_y', 0.0)), float(se2_st.get('omega_z', 0.0))))
-    else:
-        tw_act = tuple(map(float, (now.get('twist') or (0.0, 0.0, 0.0))[:3]))
+    st_act = ((tuple(map(float, se2_st['actual'])) if 'actual' in se2_st
+               else (float(se2_st.get('v_x', 0.0)), float(se2_st.get('v_y', 0.0)), float(se2_st.get('omega_z', 0.0))))
+              if se2_st is not None else tuple(map(float, (now.get('twist') or (0.0, 0.0, 0.0))[:3])))
+    wz_fb = float(tw_now[2]) if (tw_now is not None and abs(tw_now[2]) > 1e-4) else st_act[2]
+    candidates = (
+        (v_mag > 1e-4 or abs(spd_now) > 1e-4, (vx_v, vy_v, wz_fb)),
+        (tw_now is not None and any(abs(v) > 1e-4 for v in tw_now[:3]),
+         tuple(map(float, tw_now[:3])) if tw_now is not None else (0.0, 0.0, 0.0)),
+        (has_vel, (0.0, 0.0, wz_fb)),
+        (True, st_act),
+    )
+    tw_act = next(val for cond, val in candidates if cond)
     if se2_st is not None and (tw_now is not None or has_vel):
         se2_st['actual'] = tw_act
     if math.hypot(tw_act[0], tw_act[1]) <= 0.01 and abs(tw_act[2]) <= 0.01 and doing in GAIT_TWIST and not any_key and tw_now is None and not has_vel:
@@ -256,14 +275,13 @@ def describe(now, se2_st=None):
                      *_surface_path_arrow(origin, pyaw, vx_dir, vy_act, 0.0, fill, props, 0.75), t_segs,
                      heading=pyaw, pelvis_yaw=pyaw)
     tw_cmd = now.get('twist')
-    if any_key:
-        vx_set, vy_set, wz_set = (se2_st or {}).get('setpoint') or (0.0, 0.0, 0.0)
-    elif tw_cmd is not None and (math.hypot(float(tw_cmd[0]), float(tw_cmd[1])) > 0.02 or abs(float(tw_cmd[2])) > 0.03):
-        vx_set, vy_set, wz_set = float(tw_cmd[0]), float(tw_cmd[1]), float(tw_cmd[2])
-    elif intent in GAIT_TWIST:
-        vx_set, vy_set, wz_set = GAIT_TWIST[intent]
-    else:
-        vx_set, vy_set, wz_set = 0.0, 0.0, 0.0
+    has_cmd = tw_cmd is not None and (math.hypot(float(tw_cmd[0]), float(tw_cmd[1])) > 0.02 or abs(float(tw_cmd[2])) > 0.03)
+    vx_set, vy_set, wz_set = next(val for cond, val in (
+        (any_key, (se2_st or {}).get('setpoint') or (0.0, 0.0, 0.0)),
+        (has_cmd, (float(tw_cmd[0]), float(tw_cmd[1]), float(tw_cmd[2])) if tw_cmd is not None else (0.0, 0.0, 0.0)),
+        (intent in GAIT_TWIST, GAIT_TWIST.get(intent, (0.0, 0.0, 0.0))),
+        (True, (0.0, 0.0, 0.0)),
+    ) if cond)
     set_mag = math.hypot(vx_set, vy_set)
     if set_mag > 0.02 or abs(wz_set) > 0.03:
         lin_s = max(0.0, (vx_act * vx_set + vy_act * vy_set) / (set_mag * set_mag)) if set_mag > 0.02 else 0.0
@@ -291,16 +309,10 @@ def _rasterize(segments, m, cam, centre, travel):
 
 def layers(arrows_in, m, cam, centre, travel=(0.0, 0.0)):
     """[(dots, ink)] for `lit.braille`: setpoint frame, stop/landing target, and actual fill."""
-    if arrows_in is None:
+    if not isinstance(arrows_in, (tuple, dict)):
         return []
-    if isinstance(arrows_in, tuple) and len(arrows_in) == 2:
-        spec = describe(arrows_in[0], arrows_in[1])
-    elif isinstance(arrows_in, dict) and 'frame_segments' in arrows_in:
-        spec = arrows_in
-    elif isinstance(arrows_in, dict):
-        spec = describe(arrows_in, None)
-    else:
-        return []
+    spec = (describe(arrows_in[0], arrows_in[1]) if isinstance(arrows_in, tuple)
+            else (arrows_in if 'frame_segments' in arrows_in else describe(arrows_in, None)))
     kind = spec.get('kind', 'idle')
     out = []
     for key, ink in (('frame_segments', FRAME_INK), ('target_segments', LAND_INK), ('fill_segments', FILL_INK)):

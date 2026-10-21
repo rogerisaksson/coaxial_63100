@@ -91,92 +91,81 @@ def hop_charge(dt_s):
     return max(0.0, min(1.0, (float(dt_s) - HOP_MIN_S) / (HOP_MAX_S - HOP_MIN_S)))
 
 
+def _leap_specs():
+    from machine import latent, modal
+    z, k, d, amp, zmp, gain = latent.Z.start, latent.K.start, latent.D.start, latent.AMP.start, latent.ZMP, latent.GAIN
+    standing = (
+        (0, z + modal.AXIAL, 0.58, 0.48, 0.0, 0.0), (0, z + modal.SAGITTAL, -0.10, 0.0, 0.0, 0.0),
+        (0, z + modal.PITCH, 0.0, 0.0, 0.0, 0.0), (0, z + modal.ARMS, 0.0, -0.40, 0.0, 0.0),
+        (0, k + modal.AXIAL, 6000.0, 0.0, 0.0, 0.0), (0, d + modal.AXIAL, 900.0, 0.0, 0.0, 0.0),
+        (0, k + modal.SAGITTAL, 1200.0, 0.0, 0.0, 0.0), (0, d + modal.SAGITTAL, 400.0, 0.0, 0.0, 0.0),
+        (0, zmp, modal.SUPPORT, 0.0, 0.0, 0.0), (0, gain, 0.0, 0.0, 0.0, 0.0),
+        (1, z + modal.AXIAL, 0.20, -0.22, 0.0, 0.0), (1, k + modal.AXIAL, 18000.0, 11000.0, 0.0, 0.0),
+        (1, d + modal.AXIAL, 0.0, 0.0, 0.0, 0.0), (1, z + modal.SAGITTAL, 0.0, 0.0, 0.0, 0.0),
+        (1, k + modal.SAGITTAL, 1200.0, 0.0, 0.0, 0.0), (1, d + modal.SAGITTAL, 400.0, 0.0, 0.0, 0.0),
+        (1, z + modal.PITCH, 0.0, 0.0, 0.0, 0.0), (1, k + modal.PITCH, 0.0, 0.0, 0.0, 0.0),
+        (1, d + modal.PITCH, 200.0, 0.0, 0.0, 0.0), (1, z + modal.ARMS, 0.0, 0.70, 0.0, 0.0),
+        (1, zmp, modal.NONE, 0.0, 0.0, 0.0),
+        (2, z + modal.AXIAL, 0.36, 0.49, 0.0, 0.0), (2, z + modal.SAGITTAL, 0.0, 0.0, 0.0, 0.0),
+        (2, z + modal.PITCH, 0.0, 0.0, 0.0, 0.0), (2, z + modal.ARMS, 0.0, 0.0, 0.0, 0.0),
+        (2, k + modal.AXIAL, 3000.0, 0.0, 0.0, 0.0), (2, d + modal.AXIAL, 600.0, 0.0, 0.0, 0.0),
+        (2, k + modal.SAGITTAL, 600.0, 0.0, 0.0, 0.0), (2, d + modal.SAGITTAL, 300.0, 0.0, 0.0, 0.0),
+        (2, k + modal.PITCH, 1458.0, 0.0, 0.0, 0.0), (2, d + modal.PITCH, 292.0, 0.0, 0.0, 0.0),
+        (2, k + modal.LIFT, 2400.0, 3000.0, 0.0, 0.0), (2, d + modal.LIFT, 320.0, 0.0, 0.0, 0.0),
+        (2, zmp, modal.SUPPORT, 0.0, 0.0, 0.0),
+    )
+    stride = (
+        (0, z + modal.AXIAL, 0.66, 0.0, 0.24, 0.0), (0, z + modal.SAGITTAL, 0.14, 0.0, 0.54, 0.0),
+        (0, z + modal.PITCH, -0.05, 0.14, 0.0, 0.0), (0, z + modal.ARMS, -0.35, 0.0, -0.45, 0.0),
+        (0, k + modal.AXIAL, 6000.0, 0.0, 0.0, 0.0), (0, d + modal.AXIAL, 900.0, 0.0, 0.0, 0.0),
+        (0, k + modal.SAGITTAL, 1200.0, 0.0, 0.0, 0.0), (0, d + modal.SAGITTAL, 400.0, 0.0, 0.0, 0.0),
+        (0, zmp, modal.SUPPORT, 0.0, 0.0, 0.0), (0, gain, 0.0, 0.0, 0.0, 0.0),
+        (1, z + modal.AXIAL, 0.15, 0.0, 0.0, 0.0), (1, k + modal.AXIAL, 21600.0, 0.0, 3400.0, 0.0),
+        (1, d + modal.AXIAL, 0.0, 0.0, 0.0, 0.0), (1, z + modal.SAGITTAL, 0.28, 0.0, 0.60, 0.0),
+        (1, k + modal.SAGITTAL, 1800.0, 0.0, 1000.0, 0.0), (1, d + modal.SAGITTAL, 200.0, 0.0, 0.0, 0.0),
+        (1, z + modal.PITCH, -0.05, 0.14, 0.0, 0.0), (1, k + modal.PITCH, 1458.0, 0.0, 0.0, 0.0),
+        (1, d + modal.PITCH, 292.0, 0.0, 0.0, 0.0), (1, z + modal.ARMS, 0.45, 0.0, 0.45, 0.0),
+        (1, zmp, modal.NONE, 0.0, 0.0, 0.0), (1, amp + modal.DRIVE, 0.64, 0.0, 0.0, 0.24),
+        (1, amp + modal.LIFT, 1.20, 0.0, 0.0, 0.40), (1, gain, 0.0, 0.0, 0.0, 0.0),
+        (2, z + modal.AXIAL, 0.25, 0.0, 0.0, 0.0), (2, z + modal.SAGITTAL, -0.24, -0.10, 0.0, 0.0),
+        (2, z + modal.PITCH, 0.0, 0.0, 0.0, 0.0), (2, z + modal.ARMS, 0.0, 0.0, 0.0, 0.0),
+        (2, k + modal.AXIAL, 3000.0, 0.0, 0.0, 0.0), (2, d + modal.AXIAL, 600.0, 0.0, 0.0, 0.0),
+        (2, k + modal.SAGITTAL, 600.0, 0.0, 0.0, 0.0), (2, d + modal.SAGITTAL, 300.0, 0.0, 0.0, 0.0),
+        (2, k + modal.PITCH, 1458.0, 0.0, 0.0, 0.0), (2, d + modal.PITCH, 292.0, 0.0, 0.0, 0.0),
+        (2, zmp, modal.SUPPORT, 0.0, 0.0, 0.0), (2, gain, 0.0, 0.0, 0.0, 0.0),
+    )
+    return standing, stride
+
+
+def _build_leap(base_wire, times_ms, blends_ms, spec, weights):
+    import numpy as np
+    from machine import latent, ortho
+    rb = np.frombuffer(base_wire, latent.WIRE).copy()
+    t0, t1, t2 = times_ms
+    rb['at'][:3], rb['blend'][:3] = (0, t0, t0 + t1), blends_ms
+    if len(rb) > 3:
+        rb['at'][3], rb['blend'][3] = t0 + t1 + t2, ortho.REST_MS
+    w0, w1, w2, w3 = weights
+    for r, col, a0, a1, a2, a3 in spec:
+        rb['p'][r, col] = a0 * w0 + a1 * w1 + a2 * w2 + a3 * w3
+    return rb.tobytes(), ('load', 'throw', 'land', 'rest'), (t0 + t1 + t2) * 0.001, t0
+
+
 def standing_leap(base_wire, ch=0.0):
     """Construct the 11D modal trajectory table (`latent.WIRE`) for a standing vertical two-footed high jump parameterized by `ch` in [0, 1]."""
-    import numpy as np
-    from machine import latent, modal, ortho
     ch = max(0.0, min(1.0, float(ch)))
-    rb = np.frombuffer(base_wire, latent.WIRE).copy()
-    dt_load_ms = int(round(420 + 180 * ch))
-    dt_throw_ms = int(round(120 + 55 * ch))
-    dt_land_ms = 650
-    rb['at'][0], rb['blend'][0] = 0, int(round(0.75 * dt_load_ms))
-    rb['at'][1], rb['blend'][1] = dt_load_ms, 0
-    rb['at'][2], rb['blend'][2] = dt_load_ms + dt_throw_ms, 80
-    if len(rb) > 3:
-        rb['at'][3], rb['blend'][3] = dt_load_ms + dt_throw_ms + dt_land_ms, ortho.REST_MS
-    p0 = rb['p'][0]
-    p0[latent.Z.start + modal.AXIAL] = 0.58 + 0.48 * ch
-    p0[latent.Z.start + modal.SAGITTAL] = -0.10
-    p0[latent.Z.start + modal.PITCH] = 0.0
-    p0[latent.Z.start + modal.ARMS] = -0.40 * ch
-    p0[latent.K.start + modal.AXIAL], p0[latent.D.start + modal.AXIAL] = 6000.0, 900.0
-    p0[latent.K.start + modal.SAGITTAL], p0[latent.D.start + modal.SAGITTAL] = 1200.0, 400.0
-    p0[latent.ZMP], p0[latent.GAIN] = modal.SUPPORT, 0.0
-    p1 = rb['p'][1]
-    p1[latent.Z.start + modal.AXIAL] = 0.20 - 0.22 * ch
-    p1[latent.K.start + modal.AXIAL], p1[latent.D.start + modal.AXIAL] = 18000.0 + 11000.0 * ch, 0.0
-    p1[latent.Z.start + modal.SAGITTAL] = 0.0
-    p1[latent.K.start + modal.SAGITTAL], p1[latent.D.start + modal.SAGITTAL] = 1200.0, 400.0
-    p1[latent.Z.start + modal.PITCH] = 0.0
-    p1[latent.K.start + modal.PITCH], p1[latent.D.start + modal.PITCH] = 0.0, 200.0
-    p1[latent.Z.start + modal.ARMS], p1[latent.ZMP] = 0.70 * ch, modal.NONE
-    p2 = rb['p'][2]
-    p2[latent.Z.start + modal.AXIAL], p2[latent.Z.start + modal.SAGITTAL] = 0.36 + 0.49 * ch, 0.0
-    p2[latent.Z.start + modal.PITCH], p2[latent.Z.start + modal.ARMS] = 0.0, 0.0
-    p2[latent.K.start + modal.AXIAL], p2[latent.D.start + modal.AXIAL] = 3000.0, 600.0
-    p2[latent.K.start + modal.SAGITTAL], p2[latent.D.start + modal.SAGITTAL] = 600.0, 300.0
-    p2[latent.K.start + modal.PITCH], p2[latent.D.start + modal.PITCH] = 1458.0, 292.0
-    p2[latent.K.start + modal.LIFT], p2[latent.D.start + modal.LIFT] = 2400.0 + 3000.0 * ch, 320.0
-    p2[latent.ZMP] = modal.SUPPORT
-    dur = (dt_load_ms + dt_throw_ms + dt_land_ms) * 0.001
-    return rb.tobytes(), ('load', 'throw', 'land', 'rest'), dur, dt_load_ms
+    dt_load_ms, dt_throw_ms = int(round(420 + 180 * ch)), int(round(120 + 55 * ch))
+    return _build_leap(base_wire, (dt_load_ms, dt_throw_ms, 650), (int(round(0.75 * dt_load_ms)), 0, 80),
+                       _leap_specs()[0], (1.0, ch, 0.0, 0.0))
 
 
-def stride_leap(base_wire, walk_wire, ch=0.0, spd=0.69):
+def stride_leap(base_wire, _walk_wire, ch=0.0, spd=0.69):
     """Construct the 11D modal trajectory table (`latent.WIRE`) for an in-stride forward bound parameterized by `ch` in [0, 1] and approach speed `spd`."""
-    import numpy as np
-    from machine import latent, modal, ortho
     ch = max(0.0, min(1.0, float(ch)))
     w_fast = max(0.0, min(1.0, (float(spd) - 0.55) / 0.20))
-    rb = np.frombuffer(base_wire, latent.WIRE).copy()
-    s = 0.06 + 0.28 * ch + 0.08 * w_fast
-    u = 0.55 * ch + 0.15 * w_fast
-    dt_load_ms = int(round(440 + 140 * ch))
-    dt_throw_ms = int(round(146 + 21 * ch))
-    dt_land_ms = 400
-    rb['at'][0], rb['blend'][0] = 0, int(round(0.75 * dt_load_ms))
-    rb['at'][1], rb['blend'][1] = dt_load_ms, 0
-    rb['at'][2], rb['blend'][2] = dt_load_ms + dt_throw_ms, 0
-    if len(rb) > 3:
-        rb['at'][3], rb['blend'][3] = dt_load_ms + dt_throw_ms + dt_land_ms, ortho.REST_MS
-    p0 = rb['p'][0]
-    p0[latent.Z.start + modal.AXIAL] = 0.66 + 0.24 * s
-    p0[latent.Z.start + modal.SAGITTAL] = 0.14 + 0.54 * s
-    p0[latent.Z.start + modal.PITCH] = -0.05 + 0.14 * ch
-    p0[latent.Z.start + modal.ARMS] = -0.35 - 0.45 * s
-    p0[latent.K.start + modal.AXIAL], p0[latent.D.start + modal.AXIAL] = 6000.0, 900.0
-    p0[latent.K.start + modal.SAGITTAL], p0[latent.D.start + modal.SAGITTAL] = 1200.0, 400.0
-    p0[latent.ZMP], p0[latent.GAIN] = modal.SUPPORT, 0.0
-    p1 = rb['p'][1]
-    p1[latent.Z.start + modal.AXIAL] = 0.15
-    p1[latent.K.start + modal.AXIAL], p1[latent.D.start + modal.AXIAL] = 21600.0 + 3400.0 * s, 0.0
-    p1[latent.Z.start + modal.SAGITTAL] = 0.28 + 0.60 * s
-    p1[latent.K.start + modal.SAGITTAL], p1[latent.D.start + modal.SAGITTAL] = 1800.0 + 1000.0 * s, 200.0
-    p1[latent.Z.start + modal.PITCH] = -0.05 + 0.14 * ch
-    p1[latent.K.start + modal.PITCH], p1[latent.D.start + modal.PITCH] = 1458.0, 292.0
-    p1[latent.Z.start + modal.ARMS], p1[latent.ZMP] = 0.45 + 0.45 * s, modal.NONE
-    p1[latent.AMP.start + modal.DRIVE], p1[latent.AMP.start + modal.LIFT] = 0.64 + 0.24 * u, 1.20 + 0.40 * u
-    p1[latent.GAIN] = 0.0
-    p2 = rb['p'][2]
-    p2[latent.Z.start + modal.AXIAL], p2[latent.Z.start + modal.SAGITTAL] = 0.25, -0.24 - 0.10 * ch
-    p2[latent.Z.start + modal.PITCH], p2[latent.Z.start + modal.ARMS] = 0.0, 0.0
-    p2[latent.K.start + modal.AXIAL], p2[latent.D.start + modal.AXIAL] = 3000.0, 600.0
-    p2[latent.K.start + modal.SAGITTAL], p2[latent.D.start + modal.SAGITTAL] = 600.0, 300.0
-    p2[latent.K.start + modal.PITCH], p2[latent.D.start + modal.PITCH] = 1458.0, 292.0
-    p2[latent.ZMP], p2[latent.GAIN] = modal.SUPPORT, 0.0
-    dur = (dt_load_ms + dt_throw_ms + dt_land_ms) * 0.001
-    return rb.tobytes(), ('load', 'throw', 'land', 'rest'), dur, dt_load_ms
+    dt_load_ms, dt_throw_ms = int(round(440 + 140 * ch)), int(round(146 + 21 * ch))
+    return _build_leap(base_wire, (dt_load_ms, dt_throw_ms, 400), (int(round(0.75 * dt_load_ms)), 0, 0),
+                       _leap_specs()[1], (1.0, ch, 0.06 + 0.28 * ch + 0.08 * w_fast, 0.55 * ch + 0.15 * w_fast))
 
 
 def update_leap_charge(g, by, walk_on_wire, ch):
@@ -186,14 +175,14 @@ def update_leap_charge(g, by, walk_on_wire, ch):
     t_throw, t0 = g.get('_jump_throw', 0.0), g.get('_jump_t0', 0.0)
     if g['t'] >= t_throw - 0.015 or 'hop' not in by or t0 <= 0.0:
         return
-    in_stride = bool(g.get('_leap'))
-    spd = float(g.get('_leap_spd', 0.69))
+    in_stride, spd = bool(g.get('_leap')), float(g.get('_leap_spd', 0.69))
     wire, names, dur, dt_load_ms = (stride_leap(by['hop'][1], walk_on_wire, ch, spd) if in_stride
                                     else standing_leap(by['hop'][1], ch))
     new = latent.table(wire, t0, g['rest'])
     new[0, latent.VALS] = np.where(new[0, latent.SAID] > 0.5, new[0, latent.VALS], g['rest'])
     new[0, latent.SAID] = 1.0
-    if g['t'] >= t0 - 1e-4:
+    started = g['t'] >= t0 - 1e-4
+    if started:
         g['st'][latent.TO] = np.where(new[0, latent.SAID] > 0.5, new[0, latent.VALS], g['st'][latent.TO])
         g['st'][latent.BLEND] = new[0, latent.LERP]
         g['st'][latent.THETA] = ((0.10 - (t0 + dt_load_ms * 0.001 - g['t'])) % 1.0) * math.tau
@@ -201,36 +190,56 @@ def update_leap_charge(g, by, walk_on_wire, ch):
     dt_shift = new_until - old_until
     before = g['tab'][g['tab'][:, latent.AT] < t0 - 1e-4].copy()
     after = g['tab'][g['tab'][:, latent.AT] > old_until + 0.002].copy()
-    if len(after):
-        after[:, latent.AT] += dt_shift
-    g['tab'] = np.concatenate([before, new if g['t'] < t0 - 1e-4 else new[1:], after])
-    kept_labels = [(w, n) for w, n in g['labels'] if w < t0 - 1e-4 or (w <= t0 + 1e-4 and g['t'] >= t0 - 1e-4)]
-    hop_rows = new if g['t'] < t0 - 1e-4 else new[1:]
-    idx0 = 0 if g['t'] < t0 - 1e-4 else 1
+    after[:, latent.AT] += dt_shift
+    idx0 = int(started)
+    hop_rows = new[idx0:]
+    g['tab'] = np.concatenate([before, hop_rows, after])
+    kept_labels = [(w, n) for w, n in g['labels'] if w < t0 - 1e-4 or (w <= t0 + 1e-4 and started)]
     hop_labels = [(float(w), names[i + idx0] if i + idx0 < len(names) else 'rest') for i, w in enumerate(hop_rows[:, latent.AT])]
     after_labels = [(w + dt_shift, n) for w, n in g['labels'] if w > old_until + 0.002]
     g['labels'] = (kept_labels + hop_labels + after_labels)[-16:]
     g['_jump_until'], g['_jump_throw'] = new_until, t0 + dt_load_ms * 0.001
 
 
+def _jog_resume_entry(by):
+    import numpy as np
+    from machine import latent
+    rj = np.frombuffer(by['jog'][1], latent.WIRE)[:1].copy()
+    r1 = np.frombuffer(by['jog'][1], latent.WIRE)[1]
+    rj['p'][0, ~np.isnan(r1['p'])] = r1['p'][~np.isnan(r1['p'])]
+    rj['at'], rj['blend'] = (0,), (160,)
+    return ('jog', rj.tobytes(), ('run',))
+
+
+def _resume_gait(g, by, prev, in_fwd, t_go, walk_on_wire, said_fn):
+    from machine import ortho
+    if prev == 'stand':
+        return
+    iw = by['init_walk'][1][:ortho.ROW.size] if (in_fwd and 'init_walk' in by) else None
+    if iw is not None:
+        said_fn(g, 'init_walk', iw, ('init_walk',), at=t_go, reset=True)
+    t_gait = t_go + (0.28 if iw is not None else 0.0)
+    entry = (('walk', walk_on_wire, ('walk',)) if prev == 'walk'
+             else (_jog_resume_entry(by) if (prev == 'jog' and 'jog' in by) else by.get(prev)))
+    if entry is not None:
+        said_fn(g, *entry, at=t_gait)
+
+
 def stride_hop(g, by, t0, spd, back_now, fwd_gaits, back_gaits, said_fn, walk_on_wire):
     """Queue `hop` at `t0` (two-footed gather when striding, ballistic leap, then resume the gait)."""
-    import numpy as np
-    from machine import latent, ortho
+    from machine import latent
     prev = (g.get('active_entry') if g.get('active_entry') in (fwd_gaits + back_gaits)
             else ('stand' if not g.get('_twist_active') else ('walk_back' if back_now else ('jog' if g.get('asked', (0.0,))[0] > 0.9 else 'walk'))))
     in_fwd = prev in fwd_gaits and not back_now
     moving = in_fwd or prev != 'stand' or spd > 0.15
     w_fast = max(0.0, min(1.0, (float(spd) - 0.55) / 0.20))
-    dt_stand = 0.45 + 0.15 * w_fast
-    dt_b = (0.85 + 0.20 * w_fast) if moving else 0.0
+    dt_stand, dt_b = 0.45 + 0.15 * w_fast, (0.85 + 0.20 * w_fast) * float(moving)
     if dt_b > 0.0 and '_brake_wire' in g:
         said_fn(g, 'brake', g.get('_brake_back_wire', g['_brake_wire']) if back_now else g['_brake_wire'],
                 ('brake',), at=t0, reset=True)
-        if 'stand' in by:
-            said_fn(g, *by['stand'], at=t0 + dt_stand, reset=True)
-    t_hop = t0 + dt_b
-    ch = float(g.get('_hop_charge', 0.0))
+    if dt_b > 0.0 and '_brake_wire' in g and 'stand' in by:
+        said_fn(g, *by['stand'], at=t0 + dt_stand, reset=True)
+    t_hop, ch = t0 + dt_b, float(g.get('_hop_charge', 0.0))
     g['_leap_spd'] = float(spd)
     wire, names, dur, dt_load_ms = (stride_leap(by['hop'][1], walk_on_wire, ch, spd) if in_fwd
                                     else standing_leap(by['hop'][1], ch))
@@ -242,24 +251,7 @@ def stride_hop(g, by, t0, spd, back_now, fwd_gaits, back_gaits, said_fn, walk_on
     g['_leap'], g['active_entry'] = in_fwd, prev
     if 'stand' in by:
         said_fn(g, *by['stand'], at=t_res + 0.01, reset=True)
-    if prev != 'stand':
-        t_go = t_res + 0.70
-        iw = by['init_walk'][1][:ortho.ROW.size] if 'init_walk' in by else None
-        if in_fwd and iw is not None:
-            said_fn(g, 'init_walk', iw, ('init_walk',), at=t_go, reset=True)
-            t_gait = t_go + 0.28
-        else:
-            t_gait = t_go
-        if prev == 'walk':
-            said_fn(g, prev, walk_on_wire, (prev,), at=t_gait)
-        elif prev == 'jog' and 'jog' in by:
-            rj = np.frombuffer(by['jog'][1], latent.WIRE)[:1].copy()
-            r1 = np.frombuffer(by['jog'][1], latent.WIRE)[1]
-            rj['p'][0, ~np.isnan(r1['p'])] = r1['p'][~np.isnan(r1['p'])]
-            rj['at'], rj['blend'] = (0,), (160,)
-            said_fn(g, 'jog', rj.tobytes(), ('run',), at=t_gait)
-        elif prev in by:
-            said_fn(g, *by[prev], at=t_gait)
+    _resume_gait(g, by, prev, in_fwd, t_res + 0.70, walk_on_wire, said_fn)
 
 
 

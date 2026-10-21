@@ -4,61 +4,106 @@ import queue
 import time
 from machine import apart, edge, floor, ortho, physics, sprung, wear
 from machine.errors import MachineError
-from machine.se2 import WALK_ON
+
+
+_TURN_GAITS = ('turn_left', 'turn_right', 'spin_left', 'spin_right')
+_TURN_ALL = _TURN_GAITS + ('turn_back_left', 'turn_back_right')
+
+
+def _sync_nominal_twist(g, name):
+    from machine import se2, touch
+    if not g.get('_twist_active') and name != 'hop':
+        g['asked'] = se2.NOMINAL_TWIST.get(name, (0.0, 0.0, 0.0))
+        g['twist'] = touch.against(g, g['asked'])
+
+
+def _start_hop(g, by, entry, at):
+    from machine import latent, leap
+    wire, names, dur, dt_load_ms = leap.standing_leap(entry[1], float(g.get('_hop_charge', 0.0)))
+    g['st'][latent.THETA] = ((0.10 - dt_load_ms * 0.001) % 1.0) * math.tau
+    g['_jump_t0'], g['_jump_throw'], g['_jump_until'], g['_leap'] = at, at + dt_load_ms * 0.001, at + dur, False
+    sprung.said(g, 'hop', wire, names, at=at, reset=True)
+    if 'stand' in by:
+        sprung.said(g, *by['stand'], at=at + dur + 0.01, reset=True)
 
 
 def _start_mode(g, by, entry, at):
-    from machine import latent, leap, se2, touch
-    name = entry[0]
-    g['active_entry'] = name
-    if not g.get('_twist_active'):
-        g['asked'] = se2.NOMINAL_TWIST.get(name, (0.0, 0.0, 0.0))
-        g['twist'] = touch.against(g, g['asked'])
+    from machine import se2
+    name = g['active_entry'] = entry[0]
+    _sync_nominal_twist(g, name)
     if name == 'hop':
-        wire, names, dur, dt_load_ms = leap.standing_leap(entry[1], float(g.get('_hop_charge', 0.0)))
-        g['st'][latent.THETA] = ((0.10 - dt_load_ms * 0.001) % 1.0) * math.tau
-        g['_jump_t0'], g['_jump_throw'], g['_jump_until'], g['_leap'] = at, at + dt_load_ms * 0.001, at + dur, False
-        sprung.said(g, 'hop', wire, names, at=at, reset=True)
-        if 'stand' in by:
-            sprung.said(g, *by['stand'], at=at + dur + 0.01, reset=True)
-        return
+        return _start_hop(g, by, entry, at)
     iw = by['init_walk'][1][:ortho.ROW.size] if 'init_walk' in by else None
-    if name in se2.RESET_MODES:
-        return sprung.said(g, *entry, at=at, reset=True)
-    if (name in ('turn_left', 'turn_right', 'spin_left', 'spin_right') and g.get('_twist_active')) or name == 'sway':
-        return sprung.said(g, *entry, at=at)
-    if name == 'step' and 'sway' in by:
+    skip_iw = (name in _TURN_GAITS and g.get('_twist_active')) or name == 'sway' or name in se2.RESET_MODES
+    use_iw = name in se2.INIT_GAITS and iw is not None and not skip_iw
+    use_sway = name == 'step' and 'sway' in by
+    if use_sway:
         sprung.said(g, *by['sway'], at=at)
-        return sprung.said(g, *by['step'], at=at + 0.80)
-    if name in se2.INIT_GAITS and iw is not None:
+    if use_iw:
         sprung.said(g, 'init_walk', iw, ('init_walk',), at=at, reset=True)
-        return sprung.said(g, *by[name], at=at + se2.init_lead(g))
-    sprung.said(g, *entry, at=at)
+    dt_lead = 0.80 if use_sway else (se2.init_lead(g) if use_iw else 0.0)
+    sprung.said(g, *entry, at=at + dt_lead, reset=(name in se2.RESET_MODES))
+
+
+def _queue_post_jump(g, by, entry):
+    from machine import latent, leap, se2
+    name = entry[0]
+    if name == 'hop':
+        return leap.update_leap_charge(g, by, se2._WALK_ON_WIRE, float(g.get('_hop_charge', 0.0)))
+    if name == g.get('active_entry') and any(w > g['_jump_until'] for w, _ in g['labels']):
+        return
+    t_res = g['_jump_until'] + 0.02
+    g['tab'] = g['tab'][g['tab'][:, latent.AT] <= g['_jump_until'] + 0.01]
+    g['labels'] = [(w, n) for w, n in g['labels'] if w <= g['_jump_until'] + 0.01]
+    g['active_entry'] = name
+    _sync_nominal_twist(g, name)
+    leap_brake = name == 'stand' and g.get('_leap') and '_brake_wire' in g and 'stand' in by
+    if leap_brake:
+        sprung.said(g, 'brake', g['_brake_wire'], ('brake',), at=t_res - 0.01, reset=True)
+        return sprung.said(g, *by['stand'], at=t_res + 0.54, reset=True)
+    post = (name, se2._WALK_ON_WIRE, (name,)) if name in ('walk', 'jog') else by.get(name)
+    if post is not None:
+        sprung.said(g, *post, at=t_res, reset=(name == 'stand'))
+
+
+def _brake_and_switch(g, by, entry, t0, spd, back_now):
+    import numpy as np
+    from machine import latent, se2
+    name = g['active_entry'] = entry[0]
+    sprung.said(g, 'brake', sprung._BRAKE_BACK_WIRE if back_now else sprung._BRAKE_WIRE, ('brake',), at=t0, reset=True)
+    if name == 'stand' or name not in (sprung._FWD_GAITS + sprung._BACK_GAITS):
+        ts, tg = se2.stand_lead(spd)
+        sprung.said(g, *by['stand'], at=t0 + ts, reset=True)
+        return _start_mode(g, by, entry, at=t0 + tg) if name != 'stand' else None
+    if name not in sprung._BACK_GAITS:
+        dt_b = se2.brake_lead(spd, 0.0)
+        nxt = ('walk', se2._WALK_ON_WIRE, ('walk',)) if name == 'walk' else entry
+        return sprung.said(g, *nxt, at=t0 + dt_b, reset=True)
+    dt_b = se2.brake_lead(spd, 1.0)
+    rb = np.frombuffer(entry[1], latent.WIRE)
+    tail = rb[1:].copy() if len(rb) > 1 else rb.copy()
+    tail['at'] -= tail['at'][0]
+    names = entry[2][1:] if len(rb) > 1 else entry[2]
+    return sprung.said(g, name, tail.tobytes(), names, at=t0 + dt_b, reset=True)
+
+
+def _splice_fwd(g, entry, future, cur_d):
+    from machine import latent, se2
+    name = g['active_entry'] = entry[0]
+    t_end = float(future[0, latent.AT])
+    t_last = min(t_end, g['t'] + 0.18) if (cur_d == 'init_walk' and name in ('jog', 'turn_left', 'turn_right')) else t_end
+    g['tab'] = g['tab'][g['tab'][:, latent.AT] < t_end - 1e-4]
+    g['labels'] = [(w, n) for w, n in g['labels'] if w < t_end - 1e-4]
+    _sync_nominal_twist(g, name)
+    nxt = ('walk', se2._WALK_ON_WIRE, ('walk',)) if name == 'walk' else entry
+    sprung.said(g, *nxt, at=t_last)
 
 
 def heard_say(g, gym, entry):
-    from machine import latent, leap, modal, se2, stride, touch
+    from machine import latent, modal, se2, stride
     by, name = {e[0]: e for e in gym}, entry[0]
     if g.get('_jump_until', 0.0) > g['t']:
-        if name == 'hop':
-            return leap.update_leap_charge(g, by, se2._WALK_ON_WIRE, float(g.get('_hop_charge', 0.0)))
-        if name == g.get('active_entry') and any(w > g['_jump_until'] for w, _ in g['labels']):
-            return
-        t_res = g['_jump_until'] + 0.02
-        g['tab'] = g['tab'][g['tab'][:, latent.AT] <= g['_jump_until'] + 0.01]
-        g['labels'] = [(w, n) for w, n in g['labels'] if w <= g['_jump_until'] + 0.01]
-        g['active_entry'] = name
-        if not g.get('_twist_active'):
-            g['asked'] = se2.NOMINAL_TWIST.get(name, (0.0, 0.0, 0.0))
-            g['twist'] = touch.against(g, g['asked'])
-        if name in ('walk', 'jog'):
-            sprung.said(g, name, se2._WALK_ON_WIRE, (name,), at=t_res)
-        elif name == 'stand' and g.get('_leap') and '_brake_wire' in g:
-            sprung.said(g, 'brake', g['_brake_wire'], ('brake',), at=t_res - 0.01, reset=True)
-            sprung.said(g, *by['stand'], at=t_res + 0.54, reset=True)
-        elif name in by:
-            sprung.said(g, *by[name], at=t_res, reset=(name == 'stand'))
-        return
+        return _queue_post_jump(g, by, entry)
     if name == g.get('active_entry') and (name == 'stand' or sprung.doing(g) not in ('rest', 'stand')
                                           or bool(len(g['tab']) and (g['tab'][:, latent.AT] >= g['t']).any())):
         return
@@ -72,58 +117,34 @@ def heard_say(g, gym, entry):
         max(abs(float(ref[modal.LIFT])), abs(float(ref[modal.SAGITTAL])), abs(float(ref[modal.LATERAL]))) > 0.15
         or abs(float(ref[modal.AXIAL])) > 0.25 or abs(float(g['loads'][0]) - float(g['loads'][1])) > 90.0)
     future = g['tab'][g['tab'][:, latent.AT] > g['t']]
-    if cur_d in ('brake', 'stand', 'init_walk') and g.get('active_entry') in sprung._FWD_GAITS and name in sprung._FWD_GAITS and len(future):
-        t_end = float(future[0, latent.AT])
-        t_last = min(t_end, g['t'] + 0.18) if (cur_d == 'init_walk' and name in ('jog', 'turn_left', 'turn_right')) else t_end
-        g['tab'], g['labels'] = g['tab'][g['tab'][:, latent.AT] < t_end - 1e-4], [(w, n) for w, n in g['labels'] if w < t_end - 1e-4]
-        g['active_entry'] = name
-        if not g.get('_twist_active'):
-            g['asked'] = se2.NOMINAL_TWIST.get(name, (0.0, 0.0, 0.0))
-            g['twist'] = touch.against(g, g['asked'])
-        return sprung.said(g, 'walk', se2._WALK_ON_WIRE, ('walk',), at=t_last) if name == 'walk' else sprung.said(g, *entry, at=t_last)
-    if cur_d in se2.HOLD_PHASES and len(g['tab']):
-        g['tab'] = g['tab'][g['tab'][:, latent.AT] <= g['t'] + 1.5]
-        t0, off_c = (float(g['tab'][-1, latent.AT]) if len(g['tab']) else g['t']) + 0.05, True
-    else:
+    if (cur_d in ('brake', 'stand', 'init_walk') and g.get('active_entry') in sprung._FWD_GAITS
+            and name in sprung._FWD_GAITS and len(future)
+            and (cur_d != 'init_walk' or abs(float(g.get('twist', (0.0,))[0])) >= 0.05)):
+        return _splice_fwd(g, entry, future, cur_d)
+    hold = cur_d in se2.HOLD_PHASES and len(g['tab']) > 0
+    g['tab'] = g['tab'][g['tab'][:, latent.AT] <= g['t'] + 1.5] if hold else g['tab']
+    if not hold:
         sprung._dropped(g)
+    t0 = ((float(g['tab'][-1, latent.AT]) if len(g['tab']) else g['t']) + 0.05) if hold else t0
+    off_c = off_c or hold
     ae = g.get('active_entry')
     strafe_opp = ({name, ae} == {'strafe_left', 'strafe_right'}
                   or (((name in ('strafe_left', 'strafe_right')) != (ae in ('strafe_left', 'strafe_right'))) and spd > 0.28))
     same = cur_d not in ('brake', 'stand') and not strafe_opp and ((name in sprung._FWD_GAITS and not back_now) or (name in sprung._BACK_GAITS and back_now))
-    if not g.get('_twist_active') and name != 'hop':
-        g['asked'] = se2.NOMINAL_TWIST.get(name, (0.0, 0.0, 0.0))
-        g['twist'] = touch.against(g, g['asked'])
+    _sync_nominal_twist(g, name)
     if name in ('parry_shove', 'controlled_fall'):
         g['active_entry'] = name
         return sprung.said(g, *entry, at=t0, reset=True)
     if (striding or g.get('_twist_active')) and name == 'hop' and 'stand' in by:
         return se2.stride_hop(g, by, t0, spd, back_now, sprung._FWD_GAITS, sprung._BACK_GAITS, sprung.said)
     if striding and 'stand' in by and not same:
-        import numpy as np
-        sprung.said(g, 'brake', sprung._BRAKE_BACK_WIRE if back_now else sprung._BRAKE_WIRE, ('brake',), at=t0, reset=True)
-        g['active_entry'] = name
-        if name != 'stand' and name in (sprung._FWD_GAITS + sprung._BACK_GAITS):
-            if name in sprung._BACK_GAITS:
-                dt_b = se2.brake_lead(spd, 1.0)
-                rb = np.frombuffer(entry[1], latent.WIRE)
-                if len(rb) > 1:
-                    rb = rb[1:].copy()
-                    rb['at'] -= rb['at'][0]
-                    return sprung.said(g, name, rb.tobytes(), entry[2][1:], at=t0 + dt_b, reset=True)
-                return sprung.said(g, *entry, at=t0 + dt_b, reset=True)
-            dt_b = se2.brake_lead(spd, 0.0)
-            return (sprung.said(g, 'walk', se2._WALK_ON_WIRE, ('walk',), at=t0 + dt_b, reset=True) if name == 'walk'
-                    else sprung.said(g, *entry, at=t0 + dt_b, reset=True))
-        ts, tg = se2.stand_lead(spd)
-        sprung.said(g, *by['stand'], at=t0 + ts, reset=True)
-        if name != 'stand':
-            _start_mode(g, by, entry, at=t0 + tg)
-        return
+        return _brake_and_switch(g, by, entry, t0, spd, back_now)
     if striding and same:
-        if g.get('active_entry') != name:
+        rst = name in ('jog', 'walk') and ae in (('strafe_left', 'strafe_right') + _TURN_GAITS)
+        nxt = ('walk', se2._WALK_ON_WIRE, ('walk',)) if name == 'walk' else entry
+        if ae != name:
             g['active_entry'] = name
-            rst = name in ('jog', 'walk') and ae in ('strafe_left', 'strafe_right', 'turn_left', 'turn_right', 'spin_left', 'spin_right')
-            sprung.said(g, 'walk', se2._WALK_ON_WIRE, ('walk',), at=t0, reset=rst) if name == 'walk' else sprung.said(g, *entry, at=t0, reset=rst)
+            sprung.said(g, *nxt, at=t0, reset=rst)
         return
     if cur_d == 'sway' and name in (('step',) + sprung._FWD_GAITS):
         sprung.said(g, *by['step'], at=t0, reset=True)
@@ -131,25 +152,39 @@ def heard_say(g, gym, entry):
     if cur_d in ('over', 'touch') and name != 'one_sole':
         sprung.said(g, 'touch', sprung._TOUCH_WIRE, ('touch',), at=t0)
         sprung.said(g, *by['stand'], at=t0 + 0.80, reset=True)
-        if name != 'stand':
-            _start_mode(g, by, entry, at=t0 + 2.00)
-        return
+        return _start_mode(g, by, entry, at=t0 + 2.00) if name != 'stand' else None
     if cur_d in se2.RISE_OF and name in (sprung._FWD_GAITS + sprung._BACK_GAITS) and se2.RISE_OF[cur_d] in by:
         rm = se2.RISE_OF[cur_d]
         sprung.said(g, *by[rm], at=t0, reset=True)
         return _start_mode(g, by, entry, at=t0 + se2.rise_lead(by[rm][1]))
     if off_c and 'stand' in by and name not in (('stand', 'hop') + tuple(sprung.STUNT_MODES)):
-        dt_s = 0.55 if cur_d == 'down' else 1.35
         sprung.said(g, *by['stand'], at=t0, reset=True)
-        return _start_mode(g, by, entry, at=t0 + dt_s)
-    if not striding:
-        return _start_mode(g, by, entry, at=t0)
-    g['active_entry'] = name
-    sprung.said(g, *entry, at=t0)
+        return _start_mode(g, by, entry, at=t0 + (0.55 if cur_d == 'down' else 1.35))
+    return _start_mode(g, by, entry, at=t0) if not striding else sprung.said(g, *entry, at=t0)
+
+
+def _apply_say(g, gym, by, command, errand_step):
+    from machine import se2, tour
+    sc = command['say']
+    sc_str = sprung.ALIASES.get(str(sc), str(sc))
+    if not errand_step and tour.start_errand(g, gym, sc_str, heard, heard_say):
+        return
+    is_idx = (isinstance(sc, int) or (isinstance(sc, str) and sc.isdigit())) and 0 <= int(sc) < len(gym)
+    entry = gym[int(sc)] if is_idx else by.get(sc_str)
+    if entry is None:
+        return
+    if entry[0] == 'hop' and 'charge' not in command and g.get('_jump_until', 0.0) <= g['t']:
+        g['_hop_charge'] = 0.0
+    if 'twist' not in command and entry[0] != 'hop' and not (g.get('_twist_active') and entry[0] in se2.WASD_GAITS):
+        g['_twist_active'], g['_twist_stop_until'], g['_halt_at'] = False, 0.0, None
+        g['twist'] = g['asked'] = (0.0, 0.0, 0.0)
+    if 'heading' not in command and entry[0] in _TURN_ALL:
+        g['target_heading'], g['has_heading'] = 0.0, 0.0
+    heard_say(g, gym, entry)
 
 
 def heard(g, gym, command):
-    from machine import latent, leap, modal, se2, stride, tour, wbc
+    from machine import latent, leap, modal, se2, stride, wbc
     errand_step = bool(command.get('_errand_cmd'))
     unknown = sorted(set(command) - set(sprung.HEARD) - {'_errand_cmd'})
     if unknown:
@@ -161,28 +196,14 @@ def heard(g, gym, command):
     if ('say' in command or command.get('walk') or command.get('entries')) and g['st'][latent.NOW][latent.GAIN] < 1e-6 and g.get('_jump_until', -9.0) + 0.03 <= g['t']:
         g['st'][latent.THETA] = 0.0
     if 'twist' in command:
-        se2.heard_twist(g, gym, command['twist'], 'say' in command, sprung.said, sprung._dropped, heard_say, WALK_ON)
+        se2.heard_twist(g, gym, command['twist'], 'say' in command, heard_say)
     by = {e[0]: e for e in gym}
     if 'charge' in command:
         g['_hop_charge'] = max(0.0, min(1.0, float(command['charge'])))
-        if 'say' not in command and g.get('_jump_until', 0.0) > g['t']:
-            leap.update_leap_charge(g, by, se2._WALK_ON_WIRE, g['_hop_charge'])
+    if 'charge' in command and 'say' not in command and g.get('_jump_until', 0.0) > g['t']:
+        leap.update_leap_charge(g, by, se2._WALK_ON_WIRE, g['_hop_charge'])
     if 'say' in command:
-        sc = command['say']
-        sc_str = sprung.ALIASES.get(str(sc), str(sc))
-        if not errand_step and tour.start_errand(g, gym, sc_str, heard, heard_say):
-            return
-        entry = (gym[int(sc)] if (isinstance(sc, int) or (isinstance(sc, str) and sc.isdigit()))
-                 and 0 <= int(sc) < len(gym) else by.get(sc_str))
-        if entry is not None:
-            if entry[0] == 'hop' and 'charge' not in command and g.get('_jump_until', 0.0) <= g['t']:
-                g['_hop_charge'] = 0.0
-            if 'twist' not in command and entry[0] != 'hop' and not (g.get('_twist_active') and entry[0] in se2.WASD_GAITS):
-                g['_twist_active'], g['_twist_stop_until'], g['_halt_at'] = False, 0.0, None
-                g['twist'] = g['asked'] = (0.0, 0.0, 0.0)
-            if 'heading' not in command and entry[0] in ('turn_left', 'turn_right', 'turn_back_left', 'turn_back_right', 'spin_left', 'spin_right'):
-                g['target_heading'], g['has_heading'] = 0.0, 0.0
-            heard_say(g, gym, entry)
+        _apply_say(g, gym, by, command, errand_step)
     if command.get('walk') and not (abs(float(g['out'][latent.SWAY][modal.DRIVE])) > stride.STIRS
                                     or abs(float(g['out'][latent.SWAY][modal.LATERAL])) > 0.08
                                     or g['st'][latent.NOW][latent.GAIN] > 0.05):
@@ -387,73 +408,4 @@ class Running(apart.Apart):
         except queue.Empty:
             pass
         return out
-
-
-class EmulatedLimb:
-
-    """One extremity bus (`left_arm`, 4 nodes) mirrored onto live STM32H743 boards in Renode
-    (`emulator://`) from a background thread so the 60 Hz terminal page never blocks on UART."""
-
-    def __init__(self, port='emulator://', limb='left_arm'):
-        from contextlib import suppress
-        import threading
-        from coaxial import Coaxial63100
-        from coaxial.comm.hostclock import clock_of
-        from coaxial.errors import RigError
-        from machine import drives
-        from machine.modes import EMULATED
-        self.limb = limb
-        self.joints = dict(edge.LIMBS)[limb]
-        bus = 'emulator://?nodes=%d&world=humanoid_arm' % len(self.joints) if port == 'emulator://' else str(port)
-        self.rigs = [Coaxial63100(port=bus, unit=u, execution_mode=EMULATED).open()
-                     for u in range(1, len(self.joints) + 1)]
-        self.origin = self.rigs[0].origin
-        for rig, j in zip(self.rigs, self.joints):
-            if not drives.passive(j):
-                with suppress(RigError):
-                    rig.board.afe.on()
-                    clock_of(rig).sleep(0.05)
-                    rig.gates.on(bypass_sto=True, ignore_interlock=True)
-                    rig.board.drive.configure(source='model')
-                    rig.board.drive.hold()
-        self._now, self._stop = None, threading.Event()
-        self._thread = threading.Thread(target=self._run, daemon=True)
-        self._thread.start()
-
-    def sync(self, now):
-        self._now = now
-
-    def badge(self, crc_err):
-        return '5x10M %d emu %d sil %2d crc' % (len(self.rigs), 27 - len(self.rigs), crc_err)
-
-    def closed_note(self):
-        return '%d Renode boards (%s) closed' % (len(self.rigs), self.limb)
-
-    def _run(self):
-        from contextlib import suppress
-        from coaxial.errors import LINK_FAULTS, RigError
-        from machine import drives
-        k = 0
-        while not self._stop.is_set():
-            now = self._now
-            if now is not None and now.get('angles'):
-                j = self.joints[k % len(self.joints)]
-                rig = self.rigs[k % len(self.joints)]
-                k += 1
-                if not drives.passive(j):
-                    with suppress(LINK_FAULTS + (RigError,)):
-                        rig.board.drive.write(theta=math.radians(float(now['angles'].get(j, 0.0))))
-            self._stop.wait(0.05)
-
-    def close(self):
-        from contextlib import suppress
-        from coaxial.errors import LINK_FAULTS, RigError
-        self._stop.set()
-        self._thread.join(timeout=2.0)
-        for rig in self.rigs:
-            with suppress(LINK_FAULTS + (RigError,)):
-                rig.board.drive.off()
-                rig.gates.off()
-            with suppress( Exception):
-                rig.close()
 

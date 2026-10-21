@@ -318,3 +318,21 @@ pass beside the world's floor under each sole (`tools/sim/trace.py`).
   the prior twist and swallowed the next W asked at once; cleared on scene
   reset, a walk asked at once begins in 1 ms. `arrows.describe` draws the stop
   mark only on `STOP_DOING` and the going arrow only on a commanded twist.
+- Told to stand from her walk she goes on 0.70 m and is still 2.7 s later, at
+  0.81 m/s felt whatever speed was asked (0.25-0.69): she has the one walk
+  (`se2.STOP_M`). A left sidestep moves her at her heading plus a right angle,
+  0.12-0.35 m/s, 0.00-0.15 m on after a stop; her back-walk 0.09 rad off dead
+  astern, 0.05 m on. The errand from the viewport (`tour.step_errand`: stood
+  where her stopping point enters the box before the dock, the look-ahead on
+  the prop's normal, a turn, a sidestep, backing onto the edge) docks her at
+  the chair with her heels 0.05 m from its edge, seated at 18.8 s, and reclines
+  her into bed_rest at 29 s, surety 0.97. Before it: a stop radius of 0.6 m
+  from 0.69 m/s overshot the staging point by 0.95 m, and a cone of 0.3 rad
+  flipped her between walking and turning in place every half second, 16 s
+  round one spot, surety 0.36.
+- Asked flat on the bed from recline (pitch -3.0, sagittal -2.5) she lies at
+  -84 deg by 6 s and rolls: yaw 3.7 to 157 deg, the bed's share 1.10 to 0.20,
+  surety 0.51, the rise stuck in sit_up; sagittal -3.5 with her arms back
+  falls off the bed at 6.6 s. Lying flat waits on her trunk's contacts as her
+  support (item 1); mocap: lying down from sitting takes 5.7 s, the hips
+  0.45 m back, the feet from the floor to the mattress.

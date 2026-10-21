@@ -23,11 +23,15 @@
   loop in her own process (`machine.sprung`), the one thing that moves her.
 - Locomotion doctrine: Mocap is descriptive ground truth (an external answer
   key / CI benchmark), never prescriptive runtime trajectory tracking.
-  Phenomenological tuning (damping filters, deadbands, anti-wobble weights) is
-  strictly prohibited; solver deviations prove missing thermodynamic,
-  frictional, or structural constraints in Lisp. Hof-scaled Lie-algebraic SO(3)
-  GPS/GVS (`tools/sim/gvs.py`) gates CI. Mocap is completely erased from MCU
-  runtime.
+  Phenomenological tuning (damping filters, deadbands, anti-wobble weights,
+  literal magic numbers, nested `if`/`elif`/`else` trees, and boolean state
+  flags) is strictly prohibited; solver deviations prove missing thermodynamic,
+  frictional, or structural constraints in Lisp. Outer-loop navigation, prop
+  docking (`tour.py`), and twist mapping (`se2.py`) must use flat declarative
+  tables, SE(2)/SE(3) normal/tangent frames, Capture-Point braking horizons
+  (`v / omega`), and named physical constants from `figure`, `stride`, `poise`,
+  `modal`, `se2`, and `room`. Hof-scaled Lie-algebraic SO(3) GPS/GVS
+  (`tools/sim/gvs.py`) gates CI. Mocap is completely erased from MCU runtime.
 - A loop data-oriented: `machine.cyclic` - `frame` (a structured array, a row
   a board), the parts as steps over rows (`STEPS`, held to `machine.parts` by
   test_cyclic), `edge`/`poll`/`push` the only board access, `run` the cycle.

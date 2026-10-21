@@ -11,11 +11,19 @@ serves its DOD; none an entry a case.
    her whole-body step. Met: the chair 2 of 3 wobbles (-2e-4 sits 0.66 s of
    1); the bed 11 - rising
    at -5e-4 the mattress's share flickers (2), at 2e-4 it bears half her
-   weight 0.51 s of 1. Open: lying flat, her pelvis and trunk pitched
-   apart; the floor mattress, told to lie she crouches, her pelvis at 0.763 m
-   after 12 s (4), and lain on the bare floor the referee calls a fall;
+   weight 0.51 s of 1. Open: lying flat and lengthwise - told to lie she
+   sits on the bed's edge and reclines 27 deg, her soles 44 mm up, the bed
+   bearing 1.08 of her weight, and rises from it; her pelvis and trunk
+   pitched apart; the floor mattress, told to lie she crouches, her pelvis
+   at 0.763 m after 12 s (4), and lain on the bare floor the referee calls a
+   fall;
    `wbc_wrench.c` without contacts. DOD: chair, soft bed, floor mattress and
-   floor, down and up, no fall called.
+   floor, down and up, no fall called; reclined and risen from the errand's
+   dock (aligned, her heels 0.05 m from the edge, her pelvis 0.14 m onto the
+   mattress, the recline somersaults her: her soles unloaded, the bed's share
+   0.74 to 0.31, pitch -84 deg; her height estimate 0.15 m up after 17 s of
+   turning and backing), then the bed lengthwise, her soles on the mattress
+   (test_errands).
 2. **Weight handed over, never switched**: a sole's share of her support
    continuous in her height's reading, her support region and her step's
    bounds, where a flag now. `tools/sim/jerk.py` against her steady walk

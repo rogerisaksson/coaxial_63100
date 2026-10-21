@@ -30,8 +30,8 @@ def paged(card, done, pack_ah=None):
         """What it was flown for is flown."""
 
     class Flying(was[1]):
-        def __init__(self, craft, flown_mod, count):
-            super().__init__(craft, flown_mod, count, setup=(flown_as, (card, pack_ah)))
+        def __init__(self, craft, flown_mod, count, port=None):
+            super().__init__(craft, flown_mod, count, setup=(flown_as, (card, pack_ah)), port=port)
 
         def said(self):
             out = super().said()

@@ -189,6 +189,8 @@ def steered(state, now, heading):
     """Each frame: the keys held - the console's, else those typed within HOLD_WINDOW_S - as
     her twist, sent when it changes and again as she reports a scene laid anew, her twist
     zeroed with it; a key that moves her ends the tour. `now` the wall clock."""
+    if (state.get('llm_prompt') or {}).get('open'):
+        return
     raw_held = console.held()
     _hop_held(state, now, raw_held)
     held = state.setdefault('pad', pad())
@@ -269,16 +271,22 @@ def _shown(state, by):
     return MODES[(MODES.index(state.get('horizon') or 'off') + by) % len(MODES)]
 
 
+_PROMPT_ACTIONS = {
+    '\r': gym.submit_prompt,
+    '\n': gym.submit_prompt,
+    '\x1b': lambda s: s['llm_prompt'].update(open=False),
+    '\x08': lambda s: s['llm_prompt'].update(text=s['llm_prompt']['text'][:-1]),
+    '\x7f': lambda s: s['llm_prompt'].update(text=s['llm_prompt']['text'][:-1]),
+}
+
+
 def _prompt_key(state, key):
     lp = state.get('llm_prompt')
     if not (lp and lp.get('open')):
         return False
-    if key in ('\r', '\n'):
-        gym.submit_prompt(state)
-    elif key == '\x1b':
-        lp['open'] = False
-    elif key in ('\x08', '\x7f'):
-        lp['text'] = lp['text'][:-1]
+    act = _PROMPT_ACTIONS.get(key)
+    if act is not None:
+        act(state)
     elif isinstance(key, str) and len(key) == 1 and key.isprintable():
         lp['text'] += key
     return True
@@ -288,15 +296,15 @@ def act_on(keys, typed, state, wheel=0.0):
     """`typed` and the wheel on the view's `state`, by `keys` (`table`): the keys that move her
     into her pad (`steered` sends them), the rest each its handler, a key repeated within 0.12 s
     once - P's and Space's repeats charge them."""
+    if (state.get('llm_prompt') or {}).get('open') or any(k in ('/', ':') for k in typed):
+        for key in typed:
+            if not _prompt_key(state, key) and key in ('/', ':'):
+                keys[key](state)
+        return
     if wheel:
         viewpoint.zoomed(state, max(0.5, 1.0 + wheel))
     state.setdefault('typed', []).extend(typed)
     state.setdefault('keyed', []).extend(k for k in typed if isinstance(k, str))
-    if (state.get('llm_prompt') or {}).get('open') or any(k in ('/', ':') for k in typed):
-        for key in typed:
-            if not _prompt_key(state, key) and key in keys:
-                keys[key](state)
-        return
     now = time.monotonic()
     moves = [k for k in typed if k in MOVES]
     if moves:

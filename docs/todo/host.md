@@ -1,5 +1,18 @@
 # Host
 
+- **Branches out of her code** (asked): `if`/`else`/ternaries left, by module -
+  the law's: wrench 14/4/15 (`wbc_wrench.c`'s Python: a sole's stance, the
+  rounds, held contacts, the torque limit), wbc 11/0/4, leap 10/0/6, se2
+  4/0/6, situation 5, borne 2, reach 1; the outer loop's: worker 54/1/23,
+  tour 20/0/21 (the errand a table, `_on_rows`), sprung 11/2/4, room 9.
+  DOD: flat tables and arithmetic a reader follows, a raise where she
+  cannot; test_structure holds the law's modules at 0.
+- **CI red since the emulator's update**: test_layout's machines.ipynb raises
+  MachineError on its humanoid program (`emulator://?body=humanoid&bus=AX@115200`;
+  here the connection is closed on it, then it hangs); firmware's Release
+  conformance 108 of 110 (FC05 a bad coil value, FC03 far out of range); the
+  offline gate's test_scenarios 3 and test_sysid_live 4 (names in run.log).
+  DOD: both workflows green on main.
 - **native://**: a limb's world on a fixed mount as board/emu's. A frame on
   an idle limb of four 32 ms, the wire's 10: three boards awake t3.5 and each
   chain's 2 ms recovery at 1 us substeps (emulation.md). DOD: the body's

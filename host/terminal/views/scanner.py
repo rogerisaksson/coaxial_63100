@@ -14,13 +14,31 @@ import threading
 
 from coaxial.graphics.callouts import FRAME_CORNERS, FRAME_INK, packed
 from coaxial.graphics import inset
-from machine import sight
+from machine import room, sight
 
 
 #: What F says by the support nearest her (`gym.offered`): its verb, and the verb's name.
-AFFORDANCES = {'chair': ('sit_chair', 'sit'), 'bed': ('lie_bed', 'lie down'),
-               'mattress': ('lie_floor', 'lie down'), 'door': ('exit_door', 'go out')}
+AFFORDANCES = {'chair': ('sit_chair', 'sit'), 'armchair': ('sit_chair', 'sit'),
+               'bed': ('lie_bed', 'lie down'), 'mattress': ('lie_floor', 'lie down'),
+               'door': ('exit_door', 'go out')}
 PRIMARY_ACTION = {kind: verb for kind, (verb, _name) in AFFORDANCES.items()}
+
+_PROP_RULES = {
+    'wood': lambda py, sx, sz, _sc: (
+        'chair' if abs(py - room.SEAT_H) < room.SEAT[0] and 0.5 * room.SEAT[0] <= sx <= sz <= 2.0 * room.SEAT[0]
+        else ('table' if abs(py - room.TOP_H) < room.SEAT[0] and sz >= room.TOP[2] else None)),
+    'bed': lambda py, _sx, _sz, sc: 'mattress' if (py < 0.5 * room.BED[1] or sc == 'mattress') else 'bed',
+    'stairs': lambda py, _sx, _sz, sc: 'stairs_down' if (py < 0.0 or sc == 'stairs_down') else 'stairs',
+    'slope': lambda py, _sx, _sz, sc: (sc if sc in ('slope_down', 'cross_slope', 'asphalt')
+                                       else ('slope_down' if py < -room.THICK else 'slope')),
+}
+
+
+def _in_cone(dx, dz, dist, kind, reach, cones):
+    if reach is not None or (kind in AFFORDANCES and dist < 1.2):
+        return True
+    return any(abs((math.atan2(dx, dz) - a + math.pi) % math.tau - math.pi) < math.radians(75.0)
+               and (dx * math.sin(a) + dz * math.cos(a)) > -0.4 for a in cones)
 
 #: Inks for affordance plates
 PLATE_TITLE_INK = (0, 215, 215)
@@ -77,49 +95,24 @@ class VisionScanner:
 
         found = []
         for prop in props:
-            if not isinstance(prop, (tuple, list)) or len(prop) < 3:
+            if not isinstance(prop, (tuple, list)) or len(prop) < 3 or len(prop[1]) < 3:
                 continue
-            kind = str(prop[0])
-            pos = prop[1]
-            if len(pos) < 3:
-                continue
-            px, py, pz = float(pos[0]), float(pos[1]), float(pos[2])
-            if kind == 'wood':
-                sz = prop[2] if len(prop) > 2 and hasattr(prop[2], '__len__') and len(prop[2]) >= 3 else (0.0, 0.0, 0.0)
-                sx, sz_d = min(float(sz[0]), float(sz[2])), max(float(sz[0]), float(sz[2]))
-                if 0.35 <= py <= 0.60 and 0.12 <= sx <= sz_d <= 0.35:
-                    kind = 'chair'
-                elif py >= 0.65 and sz_d >= 0.40:
-                    kind = 'table'
-                else:
-                    continue
-            elif kind == 'bed' and (py < 0.15 or scen == 'mattress'):
-                kind = 'mattress'
-            elif kind == 'stairs' and (py < 0.0 or scen == 'stairs_down'):
-                kind = 'stairs_down'
-            elif kind == 'slope' and scen in ('slope_down', 'cross_slope', 'asphalt'):
-                kind = scen
-            elif kind == 'slope' and py < -0.05:
-                kind = 'slope_down'
+            raw_kind = str(prop[0])
+            px, py, pz = float(prop[1][0]), float(prop[1][1]), float(prop[1][2])
+            sz = prop[2] if hasattr(prop[2], '__len__') and len(prop[2]) >= 3 else (0.0, 0.0, 0.0)
+            sx, sz_d = min(float(sz[0]), float(sz[2])), max(float(sz[0]), float(sz[2]))
+            kind = _PROP_RULES[raw_kind](py, sx, sz_d, scen) if raw_kind in _PROP_RULES else raw_kind
             dx, dz = px - gx, pz - gz
             dist = math.hypot(dx, dz)
-            if dist > (reach or 8.0) or dist < 0.05:
+            if kind is None or dist > (reach or 8.0) or dist < 0.05 or not _in_cone(dx, dz, dist, kind, reach, cones):
                 continue
-            in_cone = reach is not None or (kind in AFFORDANCES and dist < 1.2)
-            for a_rad in () if in_cone else cones:
-                angle = (math.atan2(dx, dz) - a_rad + math.pi) % (2.0 * math.pi) - math.pi
-                fwd = dx * math.sin(a_rad) + dz * math.cos(a_rad)
-                if abs(angle) < math.radians(75.0) and fwd > -0.4:
-                    in_cone = True
-                    break
-            if in_cone:
-                found.append({
-                    'kind': kind,
-                    'dist': dist,
-                    'pos': (px, py, pz),
-                    'label': '%s (%.1fm)' % (kind, dist),
-                    'affordances': [AFFORDANCES[kind]] if kind in AFFORDANCES else [],
-                })
+            found.append({
+                'kind': kind,
+                'dist': dist,
+                'pos': (px, py, pz),
+                'label': '%s (%.1fm)' % (kind, dist),
+                'affordances': [AFFORDANCES[kind]] if kind in AFFORDANCES else [],
+            })
 
         found.sort(key=lambda item: (not bool(item['affordances'] and item['dist'] < 3.4), item['dist']))
         self._cached = found
@@ -191,16 +184,35 @@ def _board_cell(now, joint, alarmed, passive, pk_default):
     deg_c = float((now.get('temp') or {}).get(joint, 25.0)) if now else 25.0
     load = max(0.0, min(1.0, math.sqrt(tau / pk)))
     heat = max(0.0, min(1.0, (deg_c - 35.0) / 70.0))
-    if heat > load and heat > 0.35:
-        ink = tuple(int(a + (b - a) * heat) for a, b in zip((64, 214, 200), (255, 110, 64)))
-    else:
-        ink = tuple(int(a + (b - a) * load) for a, b in zip((64, 214, 200), (255, 184, 80)))
+    use_h = heat > load and heat > 0.35
+    u, target_rgb = (heat, (255, 110, 64)) if use_h else (load, (255, 184, 80))
+    ink = tuple(int(a + (b - a) * u) for a, b in zip((64, 214, 200), target_rgb))
     return ord('▰'), packed(ink, PLATE_BG)
+
+
+def _limb_bus_row(r, left, width, inner, b_name, joints, now, alarms, key_frame, trunk_code):
+    from machine import drives
+    out = {(r, left): (ord('│'), key_frame), (r, left + width - 1): (ord('│'), key_frame),
+           (r, left + 6): (ord('├'), packed(FRAME_INK, PLATE_BG))}
+    tag = BUS_TAGS.get(b_name) or b_name[:5].upper().ljust(5)
+    out.update({(r, left + 1 + c): (ord(ch), packed(PLATE_TITLE_INK, PLATE_BG)) for c, ch in enumerate(tag)})
+    torques = (now.get('torque') or {}) if now else {}
+    pk_share = 0.0
+    for u, j in enumerate(joints[:9]):
+        pas = drives.passive(j)
+        pk = 1.0 if pas else max(1.0, float(drives.peak(j)))
+        pk_share = max(pk_share, (0.0 if pas else min(1.0, abs(float(torques.get(j, 0.0))) / pk)))
+        out[(r, left + 7 + u)] = _board_cell(now, j, alarms, pas, pk)
+    for u in range(len(joints), 9):
+        out[(r, left + 7 + u)] = (ord('─'), trunk_code)
+    tail = ('%4.0f%%' % (pk_share * 100.0)).rjust(inner - 15)[:inner - 15]
+    out.update({(r, left + 16 + c): (ord(ch), packed(PLATE_LABEL_INK, PLATE_BG)) for c, ch in enumerate(tail)})
+    return out
 
 
 def bus_plate(now, top, left, width):
     """Render the framed 10 Mbit/s RS485 Modbus RTU per-extremity SIL bus & 27-board status graphic."""
-    from machine import drives, edge
+    from machine import edge
     inner = width - 2
     if inner < 18:
         return {}
@@ -214,26 +226,7 @@ def bus_plate(now, top, left, width):
         ch = title[c] if c < len(title) else '─'
         out[(top, left + 1 + c)] = (ord(ch), packed(PLATE_TITLE_INK) if c < len(title) else key_frame)
     for idx, (b_name, joints) in enumerate(edge.LIMBS):
-        r = top + 1 + idx
-        out[(r, left)] = out[(r, left + width - 1)] = (ord('│'), key_frame)
-        tag = BUS_TAGS.get(b_name, b_name[:5].upper().ljust(5))
-        for c, ch in enumerate(tag):
-            out[(r, left + 1 + c)] = (ord(ch), packed(PLATE_TITLE_INK, PLATE_BG))
-        out[(r, left + 6)] = (ord('├'), packed(FRAME_INK, PLATE_BG))
-        pk_share = 0.0
-        for u in range(9):
-            if u < len(joints):
-                j = joints[u]
-                pas = drives.passive(j)
-                pk = 1.0 if pas else max(1.0, float(drives.peak(j)))
-                if not pas and now:
-                    pk_share = max(pk_share, min(1.0, abs(float((now.get('torque') or {}).get(j, 0.0))) / pk))
-                out[(r, left + 7 + u)] = _board_cell(now, j, alarms, pas, pk)
-            else:
-                out[(r, left + 7 + u)] = (ord('─'), trunk_code)
-        tail = ('%4.0f%%' % (pk_share * 100.0)).rjust(inner - 15)[:inner - 15]
-        for c, ch in enumerate(tail):
-            out[(r, left + 16 + c)] = (ord(ch), packed(PLATE_LABEL_INK, PLATE_BG))
+        out.update(_limb_bus_row(top + 1 + idx, left, width, inner, b_name, joints, now, alarms, key_frame, trunk_code))
     bot = top + len(edge.LIMBS) + 1
     note = (' %d/27 OK ' % (27 - min(27, errs))) if not errs else (' %d ERR ' % errs)
     note_ink = packed(PLATE_KEY_INK if not errs else (255, 80, 80))
@@ -246,39 +239,35 @@ def bus_plate(now, top, left, width):
     return out
 
 
+def _fallback_seen(now, detected):
+    import numpy as np
+    vw, vh = sight.VIEW
+    thumb = np.full((vh, vw, 3), (15, 22, 28), dtype=np.uint8)
+    where = (now.get('where') if now else None) or (0.0, 0.0, 0.0)
+    hulls = []
+    for item in detected[:3]:
+        k = item['kind']
+        bx = max(2, min(vw - 6, int(vw / 2 + (item['pos'][0] - where[0]) * 8)))
+        by = max(2, min(vh - 6, int(vh / 2 - (item['pos'][2] - where[2]) * 4)))
+        hulls.append((k, sight.INK.get(k, sight.INK['thing']), [(bx, by), (bx + 5, by), (bx + 5, by + 4), (bx, by + 4)]))
+    return thumb, hulls
+
+
 def docked_vision(scanner, now, width, height):
     """Render the docked stereo eyes PiP, affordance plate, and 10 Mbit/s RS485 SIL bus graphic."""
-    import numpy as np
     detected = scanner.scan(now)
-    seen = now.get('seen') if now else None
-    if seen is None:
-        vw, vh = sight.VIEW
-        thumb = np.full((vh, vw, 3), (15, 22, 28), dtype=np.uint8)
-        hulls = []
-        for item in detected[:3]:
-            k = item['kind']
-            ink = sight.INK.get(k, sight.INK['thing'])
-            bx = max(2, min(vw - 6, int(vw / 2 + (item['pos'][0] - now.get('where', (0, 0, 0))[0]) * 8)))
-            by = max(2, min(vh - 6, int(vh / 2 - (item['pos'][2] - now.get('where', (0, 0, 0))[2]) * 4)))
-            box = [(bx, by), (bx + 5, by), (bx + 5, by + 4), (bx, by + 4)]
-            hulls.append((k, ink, box))
-        seen = (thumb, hulls)
-
+    seen = (now.get('seen') if now else None) or _fallback_seen(now, detected)
     cells = inset.eyes(seen, width, height)
     if not cells:
         return {}
-
     max_r = max(r for r, _c in cells)
     min_c = min(c for _r, c in cells)
-    max_c = max(c for _r, c in cells)
-    box_w = max_c - min_c + 1
-
+    box_w = max(c for _r, c in cells) - min_c + 1
     plate_top = max_r + 1
     if plate_top + 5 < height:
         cells.update(affordance_plate(detected, plate_top, min_c, box_w))
-        bus_top = max(r for r, _c in cells) + 1
-        if bus_top + 7 < height - 1:
-            cells.update(bus_plate(now, bus_top, min_c, box_w))
-
+    bus_top = max(r for r, _c in cells) + 1
+    if plate_top + 5 < height and bus_top + 7 < height - 1:
+        cells.update(bus_plate(now, bus_top, min_c, box_w))
     return cells
 

@@ -5,6 +5,9 @@ from machine import ortho
 
 #: Her twists' speeds: a walk, a sprint, a walk back, a sidestep, m/s; a turn, rad/s.
 WALK_SPEED, RUN_SPEED, BACK_SPEED, STRAFE_SPEED, YAW_RATE = 0.69, 1.40, 0.35, 0.50, 0.70
+#: Her walk's stopping distance, m: told to stand she goes on 0.70 m and is still 2.7 s later,
+#: 0.81 m/s felt whatever speed was asked - she has the one walk.
+STOP_M = 0.70
 
 WASD_GAITS = ('walk', 'walk_back', 'jog', 'strafe_left', 'strafe_right',
               'turn_left', 'turn_right', 'turn_back_left', 'turn_back_right', 'spin_left', 'spin_right', 'init_walk')
@@ -99,14 +102,26 @@ def wrap_angle(angle):
     return math.atan2(math.sin(angle), math.cos(angle))
 
 
+_INF = math.inf
+#: Twist-space polytope table: (vx_min, vx_max, vy_min, vy_max, wz_min, wz_max, gait_name).
+GAIT_BOXES = (
+    (-_INF, _INF, 0.05, _INF, -_INF, _INF, 'strafe_left'),
+    (-_INF, _INF, -_INF, -0.05, -_INF, _INF, 'strafe_right'),
+    (-0.05, _INF, -0.05, 0.05, 0.05, _INF, 'turn_left'),
+    (-0.05, _INF, -0.05, 0.05, -_INF, -0.05, 'turn_right'),
+    (-_INF, -0.05, -0.05, 0.05, 0.05, _INF, 'turn_back_left'),
+    (-_INF, -0.05, -0.05, 0.05, -_INF, -0.05, 'turn_back_right'),
+    (0.96, _INF, -0.05, 0.05, -0.05, 0.05, 'jog'),
+    (0.05, 0.96, -0.05, 0.05, -0.05, 0.05, 'walk'),
+    (-_INF, -0.05, -0.05, 0.05, -0.05, 0.05, 'walk_back'),
+)
+
+
 def gait_for_twist(vx, vy, wz):
-    """The gym's entry a twist walks her by: a sidestep, an arc or a turn in place, an arc back,
-    a jog past 0.96 m/s, a walk, a walk back; None at rest."""
-    if abs(vy) > 0.05:
-        return 'strafe_left' if vy > 0 else 'strafe_right'
-    if abs(wz) > 0.05:
-        return ('turn_left' if wz > 0 else 'turn_right') if vx >= -0.05 else ('turn_back_left' if wz > 0 else 'turn_back_right')
-    return 'jog' if vx > 0.96 else ('walk' if vx > 0.05 else ('walk_back' if vx < -0.05 else None))
+    """The gym's entry a twist walks her by, queried from `GAIT_BOXES`; None at rest."""
+    moving = max(abs(vx), abs(vy), abs(wz)) > 0.05
+    return next((name for x0, x1, y0, y1, z0, z1, name in GAIT_BOXES
+                 if moving and x0 <= vx <= x1 and y0 <= vy <= y1 and z0 <= wz <= z1), None)
 
 
 def _modulate_cpg(g, vx, vy, wz, out, vxp=0.0):
@@ -130,8 +145,8 @@ def _modulate_cpg(g, vx, vy, wz, out, vxp=0.0):
     ts = g['_turn_dc'] = g.get('_turn_dc', 0.0) + 0.18 * (ts_raw - g.get('_turn_dc', 0.0))
     w_turn = w_on * max(w_wz, min(1.0, max(0.0, (abs(ts) - 0.008) / 0.004)))
     bt_d, w = float(g['st'][latent.THETA] + g['st'][latent.NOW][latent.PHASE][modal.DRIVE]), float(out[latent.TURNS])
-    w_vxp = min(1.0, max(0.0, (abs(vxp) - 0.21) / 0.01))
-    drv = (1.0 - w_vxp) * 0.035 + w_vxp * max(0.035, float(out[latent.SWAY][modal.DRIVE]) * min(1.0, abs(vxp) / 0.50))
+    w_vxp = min(1.0, max(0.0, (abs(vxp) - 0.75) / 0.05))
+    drv = (1.0 - w_vxp) * 0.035 + w_vxp * max(0.035, 0.35 * (abs(vxp) - 0.15))
     out[latent.SWAY][modal.DRIVE] += w_spin * (drv - float(out[latent.SWAY][modal.DRIVE]))
     out[latent.REF][modal.DRIVE] += w_spin * (drv * math.sin(bt_d) - float(out[latent.REF][modal.DRIVE]))
     out[latent.RATE][modal.DRIVE] += w_spin * (drv * w * math.cos(bt_d) - float(out[latent.RATE][modal.DRIVE]))
@@ -256,47 +271,21 @@ def step_physical_twist(g, dt, out):
     g['_twist_clear'] = 0.115 * tw_on * unborne * float(out[latent.HELD] > 0.5)
 
 
-def heard_twist(g, gym, tw, has_say, said_fn, dropped_fn, heard_say_fn, walk_on):
-    from machine import latent
+def heard_twist(g, gym, tw, has_say, heard_say_fn):
+    from machine import touch
     pvx, pvy, _ = g.get('twist', (0.0, 0.0, 0.0))
     g['asked'] = (0.0, 0.0, 0.0) if tw is None else (float(tw[0]), float(tw[1]), float(tw[2]))
-    from machine import touch
-    g['twist'] = touch.against(g, g['asked'])
-    vx, vy, wz = g['twist']
-    by, jumping = {e[0]: e for e in gym}, g.get('_jump_until', 0.0) > g['t']
+    vx, vy, wz = g['twist'] = touch.against(g, g['asked'])
+    by = {e[0]: e for e in gym}
     decay = (not has_say and math.hypot(vx, vy) < math.hypot(pvx, pvy) - 1e-4
              and -(BACK_SPEED - 0.01) < vx < WALK_SPEED - 0.01 and abs(vy) < STRAFE_SPEED - 0.01 and abs(wz) < 0.01)
-    if (abs(vx) > 0.01 or abs(vy) > 0.01 or abs(wz) > 0.01) and not decay:
-        label = gait_for_twist(vx, vy, wz) or ('walk_back' if vx < -0.01 else 'walk')
-        g['_twist_active'], g['_twist_stop_until'], g['_halt_at'] = True, g['t'] + 2.5, None
-        if jumping:
-            if not has_say and label in by and g.get('active_entry') != label:
-                heard_say_fn(g, gym, by[label])
-            return
-        idle = float(g['st'][latent.NOW][latent.GAIN]) < 1e-6 and not bool(len(g['tab']) and (g['tab'][:, latent.AT] >= g['t']).any())
-        if abs(vx) < 0.05 and abs(vy) < 0.05 and abs(wz) > 0.05 and any(n == 'init_walk' for _, n in g.get('labels', ())):
-            dropped_fn(g)
-            if label in by:
-                said_fn(g, *by[label], at=g['t'] + 0.001)
-            g['active_entry'] = label
-        elif not has_say and label in by and (g.get('active_entry') != label or idle):
-            heard_say_fn(g, gym, by[label])
-            g['active_entry'] = label
-    elif g.get('_twist_active') or g.get('active_entry') in WASD_GAITS or doing(g) in WASD_GAITS:
-        g['_twist_active'], g['_twist_stop_until'], g['_halt_at'] = False, g['t'] + 2.5, None
-        if jumping:
-            g['tab'] = g['tab'][g['tab'][:, latent.AT] <= g['_jump_until'] + 0.01]
-            g['labels'] = [(w, n) for w, n in g['labels'] if w <= g['_jump_until'] + 0.01]
-            if 'stand' in by:
-                if g.get('_leap') and '_brake_wire' in g:
-                    said_fn(g, 'brake', g['_brake_wire'], ('brake',), at=g['_jump_until'] + 0.01, reset=True)
-                    said_fn(g, *by['stand'], at=g['_jump_until'] + 0.56, reset=True)
-                else:
-                    said_fn(g, *by['stand'], at=g['_jump_until'] + 0.02, reset=True)
-            g['active_entry'] = 'stand'
-            return
-        if not has_say and 'stand' in by:
-            heard_say_fn(g, gym, by['stand'])
+    active = max(abs(vx), abs(vy), abs(wz)) > 0.01 and not decay
+    was_on = bool(g.get('_twist_active') or g.get('active_entry') in WASD_GAITS or doing(g) in WASD_GAITS)
+    target = (gait_for_twist(vx, vy, wz) or ('walk_back' if vx < 0.0 else 'walk')) if active else ('stand' if was_on else None)
+    if target is not None:
+        g['_twist_active'], g['_twist_stop_until'], g['_halt_at'] = active, g['t'] + 2.5, None
+    if not has_say and target in by:
+        heard_say_fn(g, gym, by[target])
 
 
 WALK_ON = ('(stream_inject (sequence_id 204) (blend_duration 650ms) (latent_targets (mode_axial_compression 0.065)'

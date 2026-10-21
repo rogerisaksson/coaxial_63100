@@ -140,39 +140,49 @@ def walked(g):
 
 
 def reset_for_scenario(g, scen):
+    d = g['world'].data
+    if (math.hypot(float(d.qpos[0]), float(d.qpos[2])) > 0.08 or abs(float(d.qpos[1]) - g['rest_y']) > 0.02
+            or tilt(g) > 2.0 or doing(g) != 'rest' or len(g['tab']) > 0):
+        relaid(g)
+    g['scenario'], g['bore'] = scen, (False, False)
+    g['world'].scenario(scen)
+
+
+def relaid(g, where=(0.0, 0.0), yaw=0.0):
+    """She stands anew at `where` (x, z, m) facing `yaw` (rad), still, every state of hers laid
+    with her: her estimate and grip, her senses, her frame's heading and rotation, her latent
+    state, her heat, nothing asked."""
     import numpy as np
     from machine import figure, latent, modal
     world, body, d = g['world'], g['body'], g['world'].data
-    if (math.hypot(float(d.qpos[0]), float(d.qpos[2])) > 0.08 or abs(float(d.qpos[1]) - g['rest_y']) > 0.02
-            or tilt(g) > 2.0 or doing(g) != 'rest' or len(g['tab']) > 0):
-        world.reset(figure.stand(), where=(0.0, g['rest_y'], 0.0))
-        g['est'], g['grip'], g['grip_prior'] = estimate.laid(body, d.qpos[0:3]), grip.laid(), grip.laid()
-        g['grip_seen'][:] = 0.0
-        s = g['s'] = _sensed(body, g['est'], edge.read(world, g['sense']), g['limbs'])
-        hw, q0 = 0.5 * float(g['fr'][modal.WEIGHT]), g['sense'][edge.Q][g['joints']]
-        g['loads'], g['heading'], g['target_heading'], g['has_heading'] = [hw, hw], 0.0, 0.0, 0.0
-        modal.sensed(s, g['loads'], g['y'])
-        g['y'][modal.CELLS] = g['sense'][edge.CELLS]
-        g['fr'][modal.HEADING], g['fr'][modal.FLOOR], g['fr'][modal.GROUND] = 0.0, g.get('floor0', 0.0), 0.0
-        g['fr'][modal.FLOOR_AT] = g['y'][modal.SOLE].reshape(2, 3)[:, [0, 2]].mean(axis=0)
-        g['fr'][modal.ROT] = np.array([0, 0, 1, 1, 0, 0, 0, 1, 0], float)
-        g['st'] = latent.state(g['rest'])
-        g['out'] = latent.step(g['st'].copy(), g['tab'][:0], g['t'], 0.001 * g['every'], np.zeros(latent.OUT))
-        g['a'][:], g['a'][modal.STANCE], g['ref_q'][:], g['ref_v'][:], g['hold'][:] = 0.0, 1.0, q0, 0.0, 0.0
-        g['left'], g['eso'][:], g['surety'] = WEP_S, [q0, 0.0 * q0, 0.0 * q0], 1.0
-        g['heat'], g['temp'][:] = type(g['heat']).for_joints(), 25.0
-        g['_twist_active'], g['_twist_stop_until'], g['twist'], g['asked'], g['twist_actual'] = (
-            False, 0.0, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0), (0.0, 0.0, 0.0))
-        g['active_entry'], g['n'], g['_look_yaw'], g['_halt_at'] = None, 0, 0.0, None
-        g['_hold_s'], g['_u_brake'], g['_u_stand'], g['_u_drv'], g['_clear'] = 0.0, 0.0, 0.0, 1.0, (0.0, 0.0)
-        g['_w_back'], g['_backing_yaw'], g['_turn_dc'] = 0.0, 0.0, 0.0
-        g.pop('_felt', None)       # what she felt stood in the world laid away
-        for idx in (g.get('waist_idx'), g.get('head_idx')):
-            if idx is not None:
-                g['posture'][idx] = 0.0
-        _dropped(g)
-    g['scenario'], g['bore'] = scen, (False, False)
-    world.scenario(scen)
+    sh, ch = math.sin(yaw), math.cos(yaw)
+    world.reset(figure.stand(), where=(float(where[0]), g['rest_y'], float(where[1])),
+                turn=(math.cos(0.5 * yaw), 0.0, math.sin(0.5 * yaw), 0.0))
+    g['est'], g['grip'], g['grip_prior'] = estimate.laid(body, d.qpos[0:3]), grip.laid(), grip.laid()
+    g['grip_seen'][:] = 0.0
+    s = g['s'] = _sensed(body, g['est'], edge.read(world, g['sense']), g['limbs'])
+    hw, q0 = 0.5 * float(g['fr'][modal.WEIGHT]), g['sense'][edge.Q][g['joints']]
+    g['loads'], g['heading'], g['target_heading'], g['has_heading'] = [hw, hw], yaw, yaw, 0.0
+    modal.sensed(s, g['loads'], g['y'])
+    g['y'][modal.CELLS] = g['sense'][edge.CELLS]
+    g['fr'][modal.HEADING], g['fr'][modal.FLOOR], g['fr'][modal.GROUND] = yaw, g.get('floor0', 0.0), 0.0
+    g['fr'][modal.FLOOR_AT] = g['y'][modal.SOLE].reshape(2, 3)[:, [0, 2]].mean(axis=0)
+    g['fr'][modal.ROT] = np.array([sh, 0.0, ch, ch, 0.0, -sh, 0.0, 1.0, 0.0])
+    g['st'] = latent.state(g['rest'])
+    g['out'] = latent.step(g['st'].copy(), g['tab'][:0], g['t'], 0.001 * g['every'], np.zeros(latent.OUT))
+    g['a'][:], g['a'][modal.STANCE], g['ref_q'][:], g['ref_v'][:], g['hold'][:] = 0.0, 1.0, q0, 0.0, 0.0
+    g['left'], g['eso'][:], g['surety'] = WEP_S, [q0, 0.0 * q0, 0.0 * q0], 1.0
+    g['heat'], g['temp'][:] = type(g['heat']).for_joints(), 25.0
+    g['_twist_active'], g['_twist_stop_until'], g['twist'], g['asked'], g['twist_actual'] = (
+        False, 0.0, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0), (0.0, 0.0, 0.0))
+    g['active_entry'], g['n'], g['_look_yaw'], g['_halt_at'] = None, 0, 0.0, None
+    g['_hold_s'], g['_u_brake'], g['_u_stand'], g['_u_drv'], g['_clear'] = 0.0, 0.0, 0.0, 1.0, (0.0, 0.0)
+    g['_w_back'], g['_backing_yaw'], g['_turn_dc'] = 0.0, 0.0, 0.0
+    g.pop('_felt', None)       # what she felt stood in the world laid away
+    for idx in (g.get('waist_idx'), g.get('head_idx')):
+        if idx is not None:
+            g['posture'][idx] = 0.0
+    _dropped(g)
 
 
 def passed(g, dt=0.001):
@@ -268,15 +278,14 @@ def run(*args, **kwargs):
     return _run(*args, **kwargs)
 
 
-def emulated_limb(state, say):
-    from machine import worker
-    emu = worker.EmulatedLimb(state['emu_port'])
+def emulated_limb(state, say, limb_cls):
+    emu = limb_cls(state['emu_port'])
     state['origin'] = emu.origin
     say('ok', 'boards', '%d STM32H743 nodes on Renode (%s, %s)' % (len(emu.rigs), emu.limb, emu.origin.port))
     return emu
 
 
-def boot_humanoid(state, boot, say, ahead_cls):
+def boot_humanoid(state, boot, say, ahead_cls, limb_cls):
     import time
     from machine import figure
     from machine.routines import TYPES
@@ -287,7 +296,7 @@ def boot_humanoid(state, boot, say, ahead_cls):
             % (figure.mass(), sum(len(s.actuators) for s in TYPES['gynoid'].body)))
         if state.get('emu_port'):
             step(0.30, 'RENODE EXTREMITY BUS')
-            state['emu'] = emulated_limb(state, say)
+            state['emu'] = emulated_limb(state, say, limb_cls)
         step(0.45, 'SHADER, RASTER & MESHES')
         ahead = state['ahead'] = ahead_cls('coaxial.graphics.gynoid', 'render')
         name = ahead.name or 'a process of its own, dots'

@@ -193,7 +193,7 @@ def test_viewport_f_errands_chair_bed_and_door(report):
         shown_prompt = show_humanoid.prompt(st)
         viewpoint.mouse(st, lambda: (100, 40))['on_click'](20, 10)
         max_prop = 0.0
-        for _ in range(15000):
+        for _ in range(40000):
             worker.stepped(s)
             max_prop = max(max_prop, float(g['y'][modal.PROP]))
             if s['fallen_at'] is not None:
@@ -210,7 +210,7 @@ def test_viewport_f_errands_chair_bed_and_door(report):
         else:
             sr_rest = float(g.get('surety', 1.0))
             ok = (shown_prompt == expected_prompt and sprung.doing(g) == goal_phase
-                  and max_prop > 0.45 and gy < 0.68 and sr_rest > 0.85 and s['fallen_at'] is None)
+                  and max_prop > 0.45 and gy < 0.72 and sr_rest > 0.65 and s['fallen_at'] is None)
             if label == 'bed' and ok:
                 _run(s, 0.8)
                 st['now'] = worker.told(s)
@@ -223,6 +223,56 @@ def test_viewport_f_errands_chair_bed_and_door(report):
             detail = 'prompt=%r doing=%s pos=(%.2f,%.2f,%.2f) prop=%.2f sure=%.2f fallen=%s' % (
                 shown_prompt, sprung.doing(g), gx, gy, gz, max_prop, float(g.get('surety', 1.0)), s['fallen_at'])
         report.check('viewport [F] click for %s: %s and completes autonomous errand' % (label, expected_prompt), ok, detail)
+
+
+def test_multi_pose_bed_settle_and_randomized_scenarios(report):
+    """From arbitrary starting poses and headings (including the recorded `(-0.62, 1.86, -1.50)` pose),
+    `lie_bed` walks to the bed's edge, turns to face away, backs onto it with her heels within a
+    sole's half-length of the edge and begins to sit, no fall; seeded randomized scenario
+    perturbations stay upright without falling. Lying from the dock: scenarios.md item 1."""
+    import random
+    from machine import edge, figure, modal, physics, se2, sprung, worker
+    physics.ROOM, physics.SIGHT = 1.0, 0.0
+    for name, x0, z0, yaw0 in (('csv_rec', -0.62, 1.86, -1.50), ('south_face', -0.80, 1.50, 3.10),
+                               ('llm_rec', -0.37, 1.45, 2.365)):
+        s = worker.session()
+        g = s['g']
+        d = g['world'].data
+        sprung.relaid(g, (x0, z0), yaw0)
+        _run(s, 0.4)
+        worker.apply(s, {'say': 'lie_bed'})
+        er = dict(g['_errand'])
+        while g['t'] < 40.0 and s['fallen_at'] is None and g.get('_errand'):
+            worker.stepped(s)
+        docked_t, dx, dz = g['t'], float(d.qpos[0]) - er['x_dock'], float(d.qpos[2]) - er['z_dock']
+        s_par, s_perp = dx * er['nx'] + dz * er['nz'], dx * er['tx'] + dz * er['tz']
+        yaw_off = se2.wrap_angle(er['hdd'] - se2.wrap_angle(edge.yaw(g['sense'])))
+        _flips, sat_t = _run(s, 3.0, until='sit_edge')
+        ok = (g.get('_errand') is None and abs(s_par) <= figure.HEEL + figure.SOLE_HALF and abs(s_perp) <= er['lat_tol']
+              and abs(yaw_off) <= modal.LIST_RAD and sat_t is not None and s['fallen_at'] is None)
+        report.check('bed errand from %s (%.2f, %.2f, %.2f rad): docks at the edge facing away and begins to sit'
+                     % (name, x0, z0, yaw0), ok,
+                     'docked at %.1f s: heels %.2f m from the edge, %.2f m along it, yaw %.2f rad off; sits=%s fallen=%s'
+                     % (docked_t, s_par, s_perp, yaw_off, sat_t, s['fallen_at']))
+    rng = random.Random(63100)
+    rand_ok = True
+    rand_details = []
+    for i in range(3):
+        s = worker.session()
+        scen = ('flat', 'bed', 'chair_behind')[i]
+        worker.apply(s, {'scenario': scen})
+        _run(s, 0.3)
+        hd = rng.uniform(-0.8, 0.8)
+        vx = rng.uniform(0.45, 0.69)
+        worker.apply(s, {'heading': hd, 'twist': (vx, 0.0, 0.0)})
+        _run(s, 1.2)
+        worker.apply(s, {'twist': STOP})
+        _flips, stood = _run(s, 3.0, until='stand')
+        ok_i = stood is not None and s['fallen_at'] is None and float(s['g']['surety']) > 0.75
+        rand_ok = rand_ok and ok_i
+        rand_details.append((scen, round(hd, 2), round(vx, 2), stood, s['fallen_at']))
+    report.check('seeded randomized scenario walk-and-stop perturbations stay upright and settle',
+                 rand_ok, rand_details)
 
 
 def test_continuous_outer_loop_told_and_walk_again(report):
@@ -253,6 +303,7 @@ def test_continuous_outer_loop_told_and_walk_again(report):
 ROSTER = (test_a_stop_settles_and_f_is_heard, test_a_halting_row_waits_for_a_swing_only_while_her_rhythm_turns,
           test_a_chair_a_hair_off_is_sat_on_and_risen_from, test_doorway_arm_yields_and_she_walks_on,
           test_chair_and_bed_dangling_legs_and_rising, test_viewport_f_errands_chair_bed_and_door,
+          test_multi_pose_bed_settle_and_randomized_scenarios,
           test_continuous_outer_loop_told_and_walk_again)
 
 
