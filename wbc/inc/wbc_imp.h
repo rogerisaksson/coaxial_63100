@@ -65,11 +65,13 @@ void wbc_imp_spanned(const double lo[2], const double hi[2], const double plo[2]
                      double slo[2], double shi[2]);
 
 /** machine.poise.stands: which soles stand, her ZMP into `zmp`. `beat` sweep, off, flying;
-    `bears` loads, over, felt; `prop` its low, high and how far. */
+    `bears` loads, over, felt; `prop` its low, high and how far (`by`); `told` where her centre
+    of mass is told, trusted `trust`. */
 void wbc_imp_stands(const wbc_imp_t *k, double zmp[2], const double xi[2], const double low[2][2],
                     const double high[2][2], double om, double held, const double up[2], int swaying,
                     const double beat[3][2], const double bears[3][2], double rising, double borne,
-                    const double stood[2], const double prop[2][2], double by, double stance[2]);
+                    const double stood[2], const double prop[2][2], double by, const double told[2], double trust,
+                    double stance[2]);
 
 /** machine.stride.beat: (stepping, way, swung) out, each limb's sweep, phi, on, off, u, flying. */
 void wbc_imp_beat(const wbc_imp_t *k, double drive, double psi, double sway, double lateral, double turns,

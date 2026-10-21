@@ -189,9 +189,10 @@ static void standing(const wbc_imp_t *k, const int meant[2], const double loads[
 }
 
 /** The box `zmp` is let in: the soles' boxes - each pushed `out_of` off, none NULL -
-    spanned over prop. */
+    spanned over prop, then over where she is told. */
 static void spanned_of(const double low[2][2], const double high[2][2], const double *out_of,
-                       const double prop[2][2], double by, double slo[2], double shi[2])
+                       const double prop[2][2], double by, const double tp[2][2], double trust, double slo[2],
+                       double shi[2])
 {
   double lo[2], hi[2];
 
@@ -201,16 +202,19 @@ static void spanned_of(const double low[2][2], const double high[2][2], const do
     hi[j] = out_of ? npmax(high[0][j] - out_of[0], high[1][j] - out_of[1]) : npmax(high[0][j], high[1][j]);
   }
   wbc_imp_spanned(lo, hi, prop[0], prop[1], by, slo, shi);
+  wbc_imp_spanned(slo, shi, tp[0], tp[1], trust, slo, shi);
 }
 
 void wbc_imp_stands(const wbc_imp_t *k, double zmp[2], const double xi[2], const double low[2][2],
                     const double high[2][2], double om, double held, const double up[2], int swaying,
                     const double beat[3][2], const double bears[3][2], double rising, double borne,
-                    const double stood[2], const double prop[2][2], double by, double stance[2])
+                    const double stood[2], const double prop[2][2], double by, const double told[2], double trust,
+                    double stance[2])
 {
   const double *sweep = beat[0], *off = beat[1], *flying = beat[2];
   const double *loads = bears[0], *over = bears[1], *felt = bears[2];
   const double  kept = npclip(held, 0.0, 1.0), foot = npclip(held - 1.0, 0.0, 1.0);
+  const double  t_pt[2][2] = {{told[0], told[1]}, {told[0], told[1]}};
   double        level[2], slo[2], shi[2], got[2], left[2], out_of[2];
   int           within[2], landed[2], lifting[2], st[2], meant[2];
 
@@ -218,7 +222,7 @@ void wbc_imp_stands(const wbc_imp_t *k, double zmp[2], const double xi[2], const
   {
     level[b] = npmax(over[b], felt[b]);
   }
-  spanned_of(low, high, NULL, prop, by, slo, shi);
+  spanned_of(low, high, NULL, prop, by, t_pt, trust, slo, shi);
   into(k, zmp, xi, slo, shi, om, 1.0 - foot, got);
   for (int j = 0; j < 2; j++)
   {
@@ -227,6 +231,8 @@ void wbc_imp_stands(const wbc_imp_t *k, double zmp[2], const double xi[2], const
   {
     const double p_box[2][2] = {{prop[0][0] - k->extent[0], prop[0][1] - k->extent[1]},
                                 {prop[1][0] + k->extent[0], prop[1][1] + k->extent[1]}};
+    const double t_box[2][2] = {{told[0] - k->extent[0], told[1] - k->extent[1]},
+                                {told[0] + k->extent[0], told[1] + k->extent[1]}};
 
     for (int b = 0; b < 2; b++)
     {
@@ -236,6 +242,7 @@ void wbc_imp_stands(const wbc_imp_t *k, double zmp[2], const double xi[2], const
       double       sb_lo[2], sb_hi[2];
 
       wbc_imp_spanned(lb, hb, p_box[0], p_box[1], by, sb_lo, sb_hi);
+      wbc_imp_spanned(sb_lo, sb_hi, t_box[0], t_box[1], trust, sb_lo, sb_hi);
       within[b] = (zmp[0] >= sb_lo[0] - k->gate_m) && (zmp[0] <= sb_hi[0] + k->gate_m)
                   && (zmp[1] >= sb_lo[1] - k->gate_m) && (zmp[1] <= sb_hi[1] + k->gate_m);
       meant[b] = off[b] < 0.5;
@@ -264,7 +271,7 @@ void wbc_imp_stands(const wbc_imp_t *k, double zmp[2], const double xi[2], const
         out_of[b] = k->big * (1.0 - left[b]);
       }
     }
-    spanned_of(low, high, out_of, p_box, by, slo, shi);
+    spanned_of(low, high, out_of, p_box, by, t_box, trust, slo, shi);
   }
   into(k, zmp, xi, slo, shi, om, foot * npmin(left[0], left[1]), got);
   for (int j = 0; j < 2; j++)

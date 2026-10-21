@@ -53,11 +53,12 @@ def boxes(flat, edge, tilt):
     return mid - EXTENT * (1.0 - np.abs(on_edge)), mid + EXTENT * (1.0 - np.abs(on_edge))
 
 
-def spanned(lo, hi, prop):
-    """The box `lo` to `hi` grown over what bears her off her soles as far as it does: `prop`
-    its (low, high, how far)."""
-    low, high, by = prop
-    return lo + by * (np.minimum(lo, low) - lo), hi + by * (np.maximum(hi, high) - hi)
+def spanned(lo, hi, *props):
+    """The box `lo` to `hi` grown over what bears her off her soles as far as it does, each of
+    `props` its (low, high, how far) in turn."""
+    for low, high, by in props:
+        lo, hi = lo + by * (np.minimum(lo, low) - lo), hi + by * (np.maximum(hi, high) - hi)
+    return lo, hi
 
 
 def into(zmp, xi, lo, hi, om, share):
@@ -84,7 +85,7 @@ def stands(zmp, xi, low, high, om, held, up, swaying, beat, bears, stood, prop):
     # she came down at 1.8 kN
     level = np.maximum(over, felt)
     kept, foot = clip(held, 0.0, 1.0), clip(held - 1.0, 0.0, 1.0)
-    zmp = zmp + kept * (into(zmp, xi, *spanned(low.min(axis=0), high.max(axis=0), prop), om, 1.0 - foot) - zmp)
+    zmp = zmp + kept * (into(zmp, xi, *spanned(low.min(axis=0), high.max(axis=0), *prop), om, 1.0 - foot) - zmp)
     # which soles stand. One asked up leaves the floor once that ZMP lies in the other. One
     # whose swing has begun leaves once the other stands where it came down - or stays
     # down itself, come down ahead of her before its swing was out. Where it lands meets
@@ -92,8 +93,8 @@ def stands(zmp, xi, low, high, om, held, up, swaying, beat, bears, stood, prop):
     # cm from the other, her ZMP in the other took it further off and the sole went up
     # and down on its ball
     out_up = BIG * (up > LIFT_EPS)[:, None]
-    p_box = (prop[0] - EXTENT, prop[1] + EXTENT, prop[2])
-    lo_b, hi_b = spanned(low + out_up, high - out_up, p_box)
+    p_box = tuple((p[0] - EXTENT, p[1] + EXTENT, p[2]) for p in prop)
+    lo_b, hi_b = spanned(low + out_up, high - out_up, *p_box)
     within = ((zmp >= lo_b - GATE_M) & (zmp <= hi_b + GATE_M)).all(axis=1)
     landed = np.array(leap.standing(off < 0.5, loads, level, rising, borne))
     early = (sweep > EARLY) & ((loads >= leap.TOUCH_N) | (stood > 0.5))
@@ -108,5 +109,5 @@ def stands(zmp, xi, low, high, om, held, up, swaying, beat, bears, stood, prop):
     left = stance * (1.0 - off * landed[::-1])
     left = left + (1.0 - left.max()) * stance
     out_of = BIG * (1.0 - left)[:, None]
-    return stance, zmp + kept * (into(zmp, xi, *spanned((low + out_of).min(axis=0), (high - out_of).max(axis=0), p_box),
+    return stance, zmp + kept * (into(zmp, xi, *spanned((low + out_of).min(axis=0), (high - out_of).max(axis=0), *p_box),
                                       om, foot * left.min()) - zmp)

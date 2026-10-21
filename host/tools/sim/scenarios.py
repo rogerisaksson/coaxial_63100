@@ -218,8 +218,8 @@ def borne(world, hers, kinds, force):
 
 
 def ran(name, wobble=0.0):
-    """{name, stood, fell_at, goal, met, went m, rose m, speed m/s, bore {kind: share held}, jerk}:
-    laid turned `wobble` rad about up."""
+    """{name, stood, fell_at, goal, met, went m, rose m, rolled deg (her pelvis about her way at
+    the end), speed m/s, bore {kind: share held}, jerk}: laid turned `wobble` rad about up."""
     import numpy as np
     from tools.sim import look
     from machine import edge, modal, physics, sprung, worker
@@ -299,8 +299,10 @@ def ran(name, wobble=0.0):
     cut = lambda f: {seg: round(float(f(jerks(t[:, 4 + 3 * k:7 + 3 * k]))), 1) if len(t) > 4 * w else math.nan
                      for k, seg in enumerate(JERKED)}
     end = s['g'].get('_borne', {})
+    qw, qx, qy, qz = (float(v) for v in d.qpos[3:7])
     out = {'name': name, 'stood': fell is None, 'fell_at': fell, 'goal': goal, 'aim': aim,
            'went': round(float(t[-1, 3] - t[0, 3]), 3), 'rose': round(float(t[-1, 2] - t[0, 2]), 3),
+           'rolled': round(abs(math.degrees(math.atan2(2.0 * (qw * qz + qx * qy), 1.0 - 2.0 * (qy * qy + qz * qz)))), 1),
            'speed': round(float(np.linalg.norm(t[-1, 1:4] - t[-51, 1:4]) / 0.05), 3),
            'bore': {kd: round(v, 2) for kd, v in bore.items()},
            'touched': {kd: round(v) for kd, v in most.items() if kd not in ('floor', 'soles')},
@@ -333,7 +335,8 @@ def judged(out):
     if goal == 'sank':
         return out['rose'] <= -aim
     if goal == 'lay':
-        return out['bore'].get(aim, 0.0) >= HELD_S
+        from machine import modal
+        return out['bore'].get(aim, 0.0) >= HELD_S and out['rolled'] <= math.degrees(modal.LIST_RAD)
     if goal == 'sat':
         return out['bore'].get(aim, 0.0) >= HELD_S and out['on_soles'] >= 0.8
     return True

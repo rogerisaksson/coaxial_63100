@@ -107,7 +107,7 @@ def step(st, tab, now, dt, out):
     rows = np.concatenate([tab, _NONE])                          # a table may be empty
     k = int(np.argmin(np.where(np.concatenate([ahead, [False]]), rows[:, AT], math.inf)))
     after = np.where(rows[k, SAID] > 0.5, rows[k, VALS], st[TO])
-    st[V1] += came * (has * ((after - st[FROM]) / (span + np.maximum(rows[k, AT] - now, dt))) - st[V1])
+    st[V1] += came * (has * ((after - st[FROM]) / (span + np.maximum(rows[k, LERP], dt))) - st[V1])
     contig = has * float(abs(rows[k, AT] - (hit @ tab[:, AT] + st[BLEND])) <= dt)
     st[CONTIG] += came * (contig - st[CONTIG])
     u = np.clip((now - st[T0] + dt) / span, 0.0, 1.0)

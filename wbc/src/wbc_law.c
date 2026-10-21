@@ -106,7 +106,7 @@ void wbc_law_latent(const wbc_law_t *k, double *st, const double *tab, int ntab,
   for (int j = 0; j < P; j++)
   {
     const double after = any ? ((row[k->said + j] > 0.5) ? row[k->vals + j] : to[j]) : to[j];
-    const double next = any ? npmax(row[k->at] - now, dt) : dt;
+    const double next = any ? npmax(row[k->lerp], dt) : dt;
 
     v1[j] += came * (has * ((after - from[j]) / (span + next)) - v1[j]);
   }

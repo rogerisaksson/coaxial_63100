@@ -80,10 +80,10 @@ def gripped(out, held, stance, caps, into):
 
 
 def risen_back(g, dt):
-    """Rows that raise her - her height asked up - while something bears her off her soles wait a
-    pass, every row after them with them, while her capture point is off her soles: thrust up off
-    a bed on the clock, her centre of mass 14 cm behind her soles' middle, she rose, her trunk
-    came up and she stepped back as it let her go."""
+    """Rows that raise her - her height asked up, her centre of mass told over her soles - while
+    something bears her off her soles wait a pass, every row after them with them, while her
+    capture point is off her soles: thrust up off a bed on the clock, her centre of mass 14 cm
+    behind her soles' middle, she rose, her trunk came up and she stepped back as it let her go."""
     tab, t, y, fr = g['tab'], g['t'], g['y'], g['fr']
     has_prop = float(y[modal.PROP] > 0.0)
     g['_prop_until'] = has_prop * (t + 0.06) + (1.0 - has_prop) * g.get('_prop_until', -1.0)
@@ -93,9 +93,12 @@ def risen_back(g, dt):
     xi = c[:2] + v[:2] / math.sqrt(modal.G / max(float(c[2] - fr[modal.FLOOR]), 0.3))
     lo, hi = poise.boxes((y[modal.SOLE].reshape(2, 3) @ rot.T)[:, :2], g['a'][modal.EDGE], y[modal.TILT])
     outside = float(np.any((xi < lo.min(axis=0)) | (xi > hi.max(axis=0))))
-    at, axial = tab[:, latent.AT], modal.AXIAL
-    rises = ((tab[:, latent.SAID][:, latent.Z][:, axial] > 0.5)
-             & (tab[:, latent.VALS][:, latent.Z][:, axial] < min(float(g['st'][latent.TO][latent.Z][axial]), 2.0) - 1e-6))
+    at, axial, sag = tab[:, latent.AT], modal.AXIAL, modal.SAGITTAL
+    vals, said, to = tab[:, latent.VALS][:, latent.Z], tab[:, latent.SAID][:, latent.Z], g['st'][latent.TO][latent.Z]
+    # a row raises her over her soles with its centre of mass told from her heels' edge on (the
+    # sagittal's -1); told behind them her legs straighten lying, and would wait for nothing
+    over = np.where(said[:, sag] > 0.5, vals[:, sag], to[sag]) >= -1.0
+    rises = (said[:, axial] > 0.5) & (vals[:, axial] < min(float(to[axial]), 2.0) - 1e-6) & over
     due = rises & (at <= t + latent.EDGE_S) & (at > t - dt + latent.EDGE_S)
     shift = dt * propped * outside * float(np.any(due))
     first = float(np.min(at, where=due, initial=math.inf)) - latent.EDGE_S

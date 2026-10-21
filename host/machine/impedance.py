@@ -74,7 +74,6 @@ def ask(out, y, fr, a):
     # counts (by its share, half of her on a chair left her centre of mass out, and she stepped)
     propped = poise.clip(y[PROP], 0.0, 1.0)
     spans = poise.clip(y[PROP] * fr[WEIGHT] / edge.TOUCHED_N, 0.0, 1.0)
-    prop = (way[:, :2].min(axis=0), way[:, :2].max(axis=0), spans)
     # the lift's own rhythm is her stride's clearance, not a sole's place
     beat = out[latent.PSI][LIFT]
     tone = out[latent.SWAY][LIFT] * np.array([np.sin(beat), turns * np.cos(beat), -turns * turns * np.sin(beat)])
@@ -86,8 +85,15 @@ def ask(out, y, fr, a):
     out_of = poise.BIG * (1.0 - stood)[:, None]
     lifted = out_of * np.maximum(1.0 - still, np.maximum(a[SWINGS], up > poise.LIFT_EPS))[:, None]
     lo, hi = poise.boxes(flat, 0.0 * a[EDGE], tilt)
-    beyond = xi - poise.clip(xi, *poise.spanned((lo + out_of).min(axis=0), (hi - out_of).max(axis=0), prop))
-    past = np.linalg.norm(xi - poise.clip(xi, *poise.spanned((lo + lifted).min(axis=0), (hi - lifted).max(axis=0), prop)))
+    # told her centre of mass past her soles she trusts what she is told onto - a seat behind,
+    # a bed - and her support spans to there as far past them as she is told: a human sits and
+    # lies back off their feet, the seat met with their centre of mass at their heels' edge and
+    # 0.2 m behind it seated (sitting_on_bed); balanced on her soles she hovered 46 mm over it
+    told = flat.mean(axis=0) + np.array([ref[SAGITTAL] * HALF_M, ref[LATERAL] * fr[W0]])
+    trust = poise.clip(np.linalg.norm(told - poise.clip(told, lo.min(axis=0), hi.max(axis=0))) / poise.MARGIN_M, 0.0, 1.0)
+    prop = ((way[:, :2].min(axis=0), way[:, :2].max(axis=0), spans), (told, told, trust))
+    beyond = xi - poise.clip(xi, *poise.spanned((lo + out_of).min(axis=0), (hi - out_of).max(axis=0), *prop))
+    past = np.linalg.norm(xi - poise.clip(xi, *poise.spanned((lo + lifted).min(axis=0), (hi - lifted).max(axis=0), *prop)))
     a[NEED] = stood.max() * poise.clip(past / poise.MARGIN_M, 0.0, 1.0)
     stepping, way, sweep, phi, on, off, u, flying, swung = stride.beat(
         out[latent.SWAY][DRIVE], out[latent.PSI][DRIVE], out[latent.SWAY][LATERAL], out[latent.PSI][LATERAL], turns,
