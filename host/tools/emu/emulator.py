@@ -36,6 +36,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 from tools import REPO
 from coaxial.devices.boot import HAND_AT, HAND_MAGIC
 from coaxial.simulated.sto import PILOT_HZ
+from tools.emu import protocol_frames as frames
 from tools.emu import world as worlds
 from tools.emu.probes import (ANSI, answers, boot_answers, heard_quiet, heard_until,
                               own_temp, tied)
@@ -223,6 +224,8 @@ class Emulator:
         self._job = tied(self.process)
         self._ready(self.process)
         self.awake_scale = self.awake()
+        frames.CLOCKS[self.url] = {'time_scale_source': self.load,
+                                   'virtual_seconds': self.virtual_seconds}
         return self
 
     def virtual_seconds(self):
@@ -290,28 +293,19 @@ class Emulator:
         self._set(worlds.PLANT, Drag=k_drag, LoadTorque=torque)
 
     def model(self, j=None, b=None, load=None, unit=1):
-        """The unit's motor model parameters laid live on the plant."""
-        cmds = {}
-        if j is not None:
-            cmds['Inertia'] = j
-        if b is not None:
-            cmds['Damping'] = b
-        if load is not None:
-            cmds['LoadTorque'] = load
-        if cmds:
-            text = '; '.join('%s %s %s' % (worlds.PLANT, name, worlds._decimal(value))
-                             for name, value in cmds.items())
-            self._on_unit(unit, text)
-        else:
-            self._on_unit(unit, '%s Inertia 0.0' % worlds.PLANT)
+        """The unit's motor model laid live on the plant: what is given, or with nothing its
+        world's own back (an inertia of 0, world_emu.c)."""
+        given = {name: value for name, value in (('Inertia', j), ('Damping', b),
+                                                 ('LoadTorque', load)) if value is not None}
+        self._on_unit(unit, '; '.join('%s %s %s' % (worlds.PLANT, name, worlds._decimal(value))
+                                      for name, value in (given or {'Inertia': 0.0}).items()))
 
     def model_reset(self, unit=1):
         """The unit's rotor back to rest at theta0."""
         self._on_unit(unit, '%s ModelReset' % worlds.PLANT)
 
-    def _on_unit(self, unit, text):
-        for part in text.split('; '):
-            self.command(part)
+    def _on_unit(self, _unit, text):
+        self._each_cpu(text)
 
     def pilot(self, volts, hz=PILOT_HZ, noise=0.0):
         """The master's common-mode pilot on the bus, every board's STO chain on it: its
@@ -375,6 +369,7 @@ class Emulator:
             self.process.wait()
 
     def stop(self):
+        frames.CLOCKS.pop(self.url, None)
         if self.monitor_socket is not None:
             self.monitor_socket.close()
             self.monitor_socket = None
@@ -433,19 +428,16 @@ class Limb(Emulator):
                     # Its own board within the tolerances: the front end's errors drawn from
                     # its UID.
                     '%s NoiseSeed %d' % (worlds.AFE, 0x63100000 | unit)]
-        out += ['emulation CreateUARTHub "limb"']
         for unit in range(1, self.nodes + 1):
-            out += ['mach set "node%d"' % unit,
-                    'connector Connect sysbus.gpioPortA.transceiverA limb']
+            out += ['mach set "node%d"' % unit, 'sysbus.gpioPortA.transceiverA Bus "limb"']
         out += ['emulation SetGlobalQuantum "%s"' % QUANTUM,
                 'mach set "node1"', 'machine LoadPlatformDescription @%s' % LIMB_REPL,
-                'connector Connect sysbus.gpioPortK.adapterBus limb']
+                'sysbus.gpioPortK.adapterBus Bus "limb"']
         out += ['sysbus.gpioPortK.adapterBus BaudRate %d' % self.baud] if self.baud else []
         out += [
                 'emulation CreateServerSocketTerminal %d "limb-host" false' % self.port,
                 'connector Connect sysbus.gpioPortK.adapterHost limb-host', 'start']
         return out
-
 
     def bus_rate(self, baud):
         """The host's adapter at `baud`, bits a second, as its port sets it."""
@@ -463,16 +455,9 @@ class Limb(Emulator):
         self.command('mach set "node1"')
 
     def _on_unit(self, unit, text):
-        """A monitor command on a specific unit's plant."""
-        if self.nodes > 1 and 1 <= unit <= self.nodes:
-            self.command('mach set "node%d"' % unit)
-            for part in text.split('; '):
-                self.command(part)
-            self.command('mach set "node1"')
-        elif unit <= self.nodes:
-            for part in text.split('; '):
-                self.command(part)
-
+        """Monitor commands, `;` between them, on `unit`'s machine, node1 the machine after."""
+        for part in ['mach set "node%d"' % unit] + text.split('; ') + ['mach set "node1"']:
+            self.command(part)
 
 
 def check(emu):

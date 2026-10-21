@@ -313,7 +313,7 @@ def run_craft_view(argv, doc, craft, gfx, flown_mod, compose_fn, thrusts_fn, loo
         ready()
     origin = said[0]['origin']
     if emu:
-        say('ok', 'rotors', '%s STM32H743 boards on Renode (%s), %s on the 63100'
+        say('ok', 'rotors', '%s STM32H753 boards on Renode (%s), %s on the 63100'
             % (word, origin.port, ', '.join(labels)))
     else:
         say('warn', 'rotors', banner or ('two stand-in boards on the pilot, %s and %s on the 63100'

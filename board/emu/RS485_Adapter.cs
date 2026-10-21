@@ -1,7 +1,7 @@
 // RS485_Adapter.cs - The host's USB-RS485 adapter on an emulated limb: its host face on a socket
-// terminal, its bus face on the limb's hub. The host's bytes reach the bus as HostLine
-// (UART_Line.cs) paces them; the bus's reach the host as they come. Renode joins a terminal to a
-// UART only, hence two faces.
+// terminal, its bus face on the limb's bus (RS485_Bus.cs). The host's bytes reach the bus as
+// HostLine (UART_Line.cs) paces them; the bus's reach the host as they come. Renode joins a
+// terminal to a UART only, hence two faces.
 
 using System;
 using Antmicro.Migrant;
@@ -9,30 +9,31 @@ using Antmicro.Renode.Core;
 
 namespace Antmicro.Renode.Peripherals.UART
 {
-    /// <summary>The face on the limb's hub.</summary>
-    public class RS485_AdapterBus : IUART, IGPIOReceiver
+    /// <summary>The face on the limb's bus.</summary>
+    public class RS485_AdapterBus : IGPIOReceiver
     {
         public RS485_AdapterBus(IMachine machine, uint baudRate = 115200)
         {
+            this.machine = machine;
             BaudRate = baudRate;
-            lock(RS485_Transceiver.AdapterRx)
+            line = new HostLine(machine, this, () => BaudRate, value => bus.Put(this, value));
+        }
+
+        /// <summary>The bus it is on, by the name a limb's script gives it.</summary>
+        public string Bus
+        {
+            get => busName;
+            set
             {
-                RS485_Transceiver.AdapterRx.Clear();
+                busName = value;
+                bus = RS485_Bus.Named(value);
+                bus.Attach(machine, this, Heard);
             }
-            line = new HostLine(machine, this, () => BaudRate, value =>
-            {
-                RS485_Transceiver.Enqueue(null, value);
-                CharReceived?.Invoke(value);
-            });
         }
 
         public void Reset()
         {
             line.Reset();
-            lock(RS485_Transceiver.AdapterRx)
-            {
-                RS485_Transceiver.AdapterRx.Clear();
-            }
         }
 
         public void OnGPIO(int number, bool value)
@@ -40,21 +41,11 @@ namespace Antmicro.Renode.Peripherals.UART
         }
 
         /// <summary>A byte off the bus, to the host.</summary>
-        public void WriteChar(byte value)
+        private void Heard(byte value)
         {
-            lock(RS485_Transceiver.AdapterRx)
-            {
-                if(RS485_Transceiver.AdapterRx.Count > 0)
-                {
-                    value = RS485_Transceiver.AdapterRx.Dequeue();
-                }
-            }
             line.Heard();
             Host?.FromBus(value);
         }
-
-        [field: Transient]
-        public event Action<byte> CharReceived;
 
         /// <summary>The bus's rate, bits a second: 115 200 as the app starts, 10 000 000 as the
         /// bootloader runs. The nodes' transceivers decode against it.</summary>
@@ -64,10 +55,6 @@ namespace Antmicro.Renode.Peripherals.UART
             set => RS485_Transceiver.BusRate = value;
         }
 
-        public Bits StopBits => Bits.One;
-
-        public Parity ParityBit => Parity.None;
-
         public RS485_AdapterHost Host { get; set; }
 
         /// <summary>A byte of the host's framed stream, onto the bus at the bus's pace.</summary>
@@ -76,7 +63,10 @@ namespace Antmicro.Renode.Peripherals.UART
             line.Receive(value);
         }
 
+        private readonly IMachine machine;
         private readonly HostLine line;
+        private RS485_Bus bus = new RS485_Bus();
+        private string busName;
     }
 
     /// <summary>The face on the host's socket terminal.</summary>

@@ -6,7 +6,6 @@ using System;
 using System.Collections.Generic;
 using Antmicro.Migrant;
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Peripherals.Miscellaneous;
 using Antmicro.Renode.Peripherals.Timers;
 using Antmicro.Renode.Time;
 
@@ -107,7 +106,6 @@ namespace Antmicro.Renode.Peripherals.UART
                     timer.Value = timer.Limit;
                 }
             }
-            VirtualClock.Of(machine).TouchUart();
             deliver(value);
         }
 

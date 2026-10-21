@@ -42,7 +42,7 @@ FIRST_S = 120.0
 
 
 def arm_emulated(rig, clock=1, warm_s=100.0, room='bench', rotor_m=None):
-    """Arm an emulated STM32H743 board (`emulator://`) for flight and pair it with a local C
+    """Arm an emulated STM32H753 board (`emulator://`) for flight and pair it with a local C
     stand-in slot for 1 kHz inner substeps."""
     from coaxial.comm.hostclock import clock_of
     from coaxial.control.commission import Commissioning
@@ -89,8 +89,8 @@ class Flight:
 
     def __init__(self, craft, flown, count, port=None):
         self.flown, self.rotors = flown, []
-        emu = bool(port) and str(port).startswith('emulator://')
-        bus = ('emulator://?nodes=%d' % count if port == 'emulator://' else str(port)) if emu else None
+        emu = str(port or '').startswith('emulator://')
+        bus = 'emulator://?nodes=%d' % count if port == 'emulator://' else str(port)
         try:
             for u in range(1, count + 1):
                 rig = (Coaxial63100(port=bus, unit=u, execution_mode=EMULATED).open()

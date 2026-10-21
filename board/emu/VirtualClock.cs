@@ -63,18 +63,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             }
         }
 
-        /// <summary>Run the core at full speed for 100 us so UART RX interrupts and link_poll() drain the burst.</summary>
-        public void TouchUart()
-        {
-            uartUntil = Seconds + 0.0001;
-            if(cpu != null && cpu.PerformanceInMips < 475)
-            {
-                cpu.PerformanceInMips = 475;
-            }
-        }
-
-        public bool UartBusy => Seconds < uartUntil;
-
         private VirtualClock(IMachine machine)
         {
             this.machine = machine;
@@ -95,7 +83,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private volatile bool stale;
         private double at;
         private double last;
-        private double uartUntil;
         private ulong since;
         private uint mips;
         private ulong skipped;

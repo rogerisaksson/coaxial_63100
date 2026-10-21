@@ -251,43 +251,46 @@ def test_the_imu_answers(report, rig, emu):
                  abs(accel.get('z', 0.0) - 3.5) <= 1.0 / 256, str(accel))
 
 
-#: Echoes a blast sends, of the most a frame carries less the envelope.
-BLAST, BLAST_BYTES = 50, 240
+#: Echoes a blast sends, of the most a frame carries less the envelope, through a limb's units
+#: in turn.
+BLAST, BLAST_BYTES, BLAST_NODES = 51, 240, 3
 
 
 def test_echoes_on_the_bus(report):
-    """A limb's bus at the rate the app's record gives its port, the core at the part's own
-    speed: every echo comes back byte for byte, and the node counts no framing error past the
-    host's handover byte and drops nothing from its ring. The app refuses a `link_baud` past
-    921 600; at 10 Mbit it had answered only because Renode's UARTs ignored the rates, which the
-    transceivers now decode by."""
-    with Limb(1, mips=FAITHFUL_MIPS, idle_mips=None, mpu=True) as limb:
-        rig = Coaxial63100(port=limb.url, unit=1, own_image=False).open()
-        # Its waits on the limb's pace, as emulator:// gives them: the node asleep keeps real
-        # time, awake it replied after a scale-1 wait had given up.
-        rig.board.transport.time_scale_source = limb.load
+    """A limb of three on its bus at the rate the app's record gives its port, the core at the
+    part's own speed: every echo back byte for byte through each unit, no node counting a
+    framing error past those of the opens or dropping anything from its ring. The app
+    refuses a `link_baud` past 921 600; at 10 Mbit it had answered only because Renode's UARTs
+    ignored the rates, which the transceivers now decode by."""
+    with Limb(BLAST_NODES, mips=FAITHFUL_MIPS, idle_mips=None, mpu=True) as limb:
+        rigs = [Coaxial63100(port=limb.url, unit=unit, own_image=False).open()
+                for unit in limb.units]
         try:
-            link = rig.board.link
+            opened = [rig.board.link.state(port=1)['bus_comm_error'] for rig in rigs]
             wrong, lost = 0, []
-            opened = link.state(port=1)['bus_comm_error']
             for k in range(BLAST):
+                rig = rigs[k % len(rigs)]
                 data = bytes((k * 31 + n * 7) % 256 for n in range(BLAST_BYTES))
                 try:
-                    link.echo(data)
+                    rig.board.link.echo(data)
                 except Exception as exc:   # a lost echo is the finding, counted and named
                     wrong += 1
-                    lost.append('echo %d %s: %s' % (k, type(exc).__name__, str(exc)[:90]))
-            port = link.state(port=1)
-            scale = rig.board.transport.time_scale
+                    lost.append('echo %d unit %d %s: %s' % (k, rig.origin.unit,
+                                                          type(exc).__name__, str(exc)[:90]))
+            ports = [rig.board.link.state(port=1) for rig in rigs]
+            scale = rigs[0].board.transport.time_scale
         finally:
-            rig.close()
-    # Which echo, what the host raised, and the framing errors the open counted beside the
+            for rig in rigs:
+                rig.close()
+    errors = [port['bus_comm_error'] for port in ports]
+    dropped = sum(port['ring_dropped'] for port in ports)
+    # Which echo, what the host raised, and the framing errors the opens counted beside the
     # echoes': a request split on its way into Renode lost one of 50 with two framing errors on
-    # CI's runner, never on this host.
+    # CI's runner; on Renode's hub a second node lost 20 echoes of 20 (RS485_Bus.cs).
     report.check('the bus at the record\'s rate: every echo back, nothing dropped, framing clean',
-                 wrong == 0 and port['ring_dropped'] == 0 and port['bus_comm_error'] <= 1,
-                 '%d of %d echoes wrong, %d framing errors (%d at the open), %d dropped, pace %.0f%s'
-                 % (wrong, BLAST, port['bus_comm_error'], opened, port['ring_dropped'], scale,
+                 wrong == 0 and dropped == 0 and errors == opened,
+                 '%d of %d echoes wrong, framing errors %s (%s at the open), %d dropped, pace %.0f%s'
+                 % (wrong, BLAST, errors, opened, dropped, scale,
                     ''.join('; ' + row for row in lost[:2])))
 
 
@@ -421,7 +424,6 @@ def board(report, names=()):
     100 MIPS: nothing here runs to the part's cycle budget."""
     with Emulator(monitor=True, mips=None, mpu=True) as emu:
         rig = Coaxial63100(port=emu.url, own_image=False).open()
-        rig.board.transport.time_scale_source = emu.load
         try:
             run(report, [(test, rig) + ((emu,) if test.__module__ == __name__ else ())
                          for test in pick(BOARD, names)])

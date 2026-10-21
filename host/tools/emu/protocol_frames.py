@@ -14,6 +14,13 @@ from serial.serialutil import SerialException
 from serial.urlhandler import protocol_socket
 
 
+#: An emulated board's clock by its socket's URL, as its emulator registers it on start
+#: (tools.emu.emulator): a client of the socket waits by the board's time - its scale, what says
+#: it now, its virtual seconds - as the transport does on `emulator://`. A node's reply comes at
+#: the line's pace on that time; on the PC's a limb's open gave up on it.
+CLOCKS = {}
+
+
 def frame(data):
     """`data` as one frame on the socket: its length ahead of it, two bytes big-endian."""
     data = bytes(data)
@@ -23,7 +30,14 @@ def frame(data):
 
 
 class Serial(protocol_socket.Serial):
-    """A TCP socket whose writes are frames."""
+    """A TCP socket whose writes are frames, on its board's clock: the PC's where no emulator
+    registered it."""
+
+    time_scale, time_scale_source, virtual_seconds = 1.0, None, None
+
+    def open(self):
+        super().open()
+        vars(self).update(CLOCKS.get(self.port, {}))
 
     def from_url(self, url):
         parts = urllib.parse.urlsplit(url)

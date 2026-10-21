@@ -154,6 +154,22 @@ board's findings: [FINDINGS](../FINDINGS.md).
   beside it: the host's angle and IMU dropped 0.5 s every 30 s
   (test_emulator's angle read, None). They pause when the observer holds the
   rail alone, `Board_PowerAlone`.
+- A UART character set the core to 475 MIPS for 100 us and stopped the skip:
+  every emulator ran 475 from its first byte, Renode's 100 too, and FC05
+  behind the 257-byte ADU answered 0.59 s wall where 0.15 - conformance
+  107-108 of 110 under load. The pace is the plant's alone again (0.16 s): the
+  RX ISR stamps a character in tens of instructions, 4 300 at 50 MIPS.
+- Renode's UARTHub stamps a character with the time of the thread sending it,
+  and a limb's timers run on whichever node's CPU thread completes the quantum
+  (node1's on node2's, 249 of 252): the adapter's characters, stamped on two
+  clocks, reached node1 as `07 08 0D 0E 09 0A 0B 0C`, and a limb of two
+  answered 13 echoes of 40. `RS485_Bus` is one medium, its characters heard in
+  the order put: two nodes 40 of 40 in 62 s, three 51 of 51 in 81 s. A
+  character time on the bus (10 bits at the UART's rate) ran on the other
+  node's thread and lost every reply. A node's timer syncing its CPU from
+  there is refused: 1 259 in a run of two, the STO chain's step among them.
+- A `frames://` socket waits on its emulator's clock
+  (`protocol_frames.CLOCKS`), as `emulator://` does.
 
 ## Pages
 

@@ -21,7 +21,6 @@ using System.Runtime.InteropServices;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.CPU;
-using Antmicro.Renode.Peripherals.Miscellaneous;
 using Antmicro.Renode.Peripherals.Sensors;
 using Antmicro.Renode.Peripherals.Timers;
 using Antmicro.Renode.Time;
@@ -271,11 +270,11 @@ namespace Antmicro.Renode.Peripherals.Analog
             }
         }
 
-        /// <summary>BusyMips while an ADC waits on TRGO2 or a UART frame is in flight, IdleMips else.</summary>
+        /// <summary>BusyMips while an ADC waits on TRGO2, IdleMips else.</summary>
         private void Pace()
         {
-            var mips = busy || VirtualClock.Of(machine).UartBusy ? BusyMips : IdleMips;
-            if(IdleMips == 0 || cpu == null || cpu.PerformanceInMips == mips)
+            var mips = busy ? BusyMips : IdleMips;
+            if(IdleMips == 0 || cpu.PerformanceInMips == mips)
             {
                 return;
             }
@@ -286,10 +285,6 @@ namespace Antmicro.Renode.Peripherals.Analog
         /// that last slice: in whole grains of the CPU's rate, which SkipTime takes exactly.</summary>
         private void Skip()
         {
-            if(VirtualClock.Of(machine).UartBusy)
-            {
-                return;
-            }
             cpu.SyncTime();
             var gap = ((BaseClockSource)machine.ClockSource).NearestLimitIn.Ticks;
             var slice = (ulong)(LoopSlice * 1e3);
@@ -320,7 +315,6 @@ namespace Antmicro.Renode.Peripherals.Analog
         /// top (drive.c's PIPELINE).</summary>
         private void Step()
         {
-            Pace();
             if(attached)
             {
                 var got = new float[4];

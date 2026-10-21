@@ -46,3 +46,9 @@
   ticks 43 %; their hot helpers ported by hand (`aero/test/harness.c`'s
   `aeh_*`). The quad's law is the firmware's `aero.c`. DOD: the three steps
   generated from their Python, bit for bit, the hand ports gone.
+- **The emulated bus against the stand-in** (asked): CI red at 7c7af2c8 -
+  conformance on the emulator 107/110 behind the 257-byte ADU, a limb's
+  replies scrambled between Renode's machines, the machines paper's quad
+  faulted on the emulator alone. DOD: CI green; a limb of three answers
+  every echo; `make_notebooks.py --compare` alike; the bench board's suites
+  on COM3.
