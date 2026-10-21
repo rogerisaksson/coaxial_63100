@@ -5,9 +5,11 @@
 // hangs on its UART's DE pin; Renode's USART does not drive DE, so nothing waits for it.
 
 using System;
+using System.Collections.Generic;
 using Antmicro.Migrant;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Miscellaneous;
 
 namespace Antmicro.Renode.Peripherals.UART
 {
@@ -16,16 +18,52 @@ namespace Antmicro.Renode.Peripherals.UART
         public RS485_Transceiver(IMachine machine, IUART uart)
         {
             this.uart = uart;
+            clock = VirtualClock.Of(machine);
             rates = new UART_RateCache(machine, uart);
             uart.CharReceived += Transmitted;
+            lock(peers)
+            {
+                peers.Add(this);
+            }
         }
 
         /// <summary>The bus's rate, bits a second: the host adapter's (RS485_Adapter.cs), 0 with
         /// none.</summary>
         public static uint BusRate { get; set; }
 
+        /// <summary>Bytes on the way to the host adapter, in the order they went onto the bus.</summary>
+        public static readonly Queue<byte> AdapterRx = new Queue<byte>();
+
+        /// <summary>A byte queued in FIFO order for each peer on the hub before UARTHub schedules
+        /// its TimeDomainEvents: Renode's min-heap pops equal quantum timestamps out of order once
+        /// three or more bytes fall in one quantum.</summary>
+        public static void Enqueue(RS485_Transceiver sender, byte value)
+        {
+            lock(peers)
+            {
+                foreach(var peer in peers)
+                {
+                    if(peer != sender && peer.CharReceived != null)
+                    {
+                        peer.rx.Enqueue(value);
+                    }
+                }
+                if(sender != null)
+                {
+                    lock(AdapterRx)
+                    {
+                        AdapterRx.Enqueue(value);
+                    }
+                }
+            }
+        }
+
         public void Reset()
         {
+            lock(peers)
+            {
+                rx.Clear();
+            }
         }
 
         public void OnGPIO(int number, bool value)
@@ -35,8 +73,16 @@ namespace Antmicro.Renode.Peripherals.UART
         /// <summary>A byte off the bus, into the UART.</summary>
         public void WriteChar(byte value)
         {
+            lock(peers)
+            {
+                if(rx.Count > 0)
+                {
+                    value = rx.Dequeue();
+                }
+            }
             if(Decodes())
             {
+                clock.TouchUart();
                 uart.WriteChar(value);
             }
         }
@@ -52,10 +98,12 @@ namespace Antmicro.Renode.Peripherals.UART
 
         private void Transmitted(byte value)
         {
+            clock.TouchUart();
             uart.WriteChar(value);
-            if(Decodes())
+            if(Decodes() && CharReceived != null)
             {
-                CharReceived?.Invoke(value);
+                Enqueue(this, value);
+                CharReceived.Invoke(value);
             }
         }
 
@@ -81,7 +129,10 @@ namespace Antmicro.Renode.Peripherals.UART
             return ok;
         }
 
+        private static readonly List<RS485_Transceiver> peers = new List<RS485_Transceiver>();
+        private readonly Queue<byte> rx = new Queue<byte>();
         private readonly IUART uart;
+        private readonly VirtualClock clock;
         private readonly UART_RateCache rates;
         private bool decodes = true;
     }

@@ -107,6 +107,8 @@ void emu_world_model(int i, float j, float b, float load)
   }
   if (!isnan(load))
   {
+    s.world.load[i].mass = 0.0f;
+    s.world.load[i].k_drag = 0.0f;
     s.world.load[i].torque = load;
     s.plant[i].motor.p.load = load;
   }

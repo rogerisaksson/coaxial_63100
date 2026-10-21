@@ -33,7 +33,7 @@ from coaxial.model.thermal_app import APPLICATIONS
 from coaxial.simulated.sto import PILOT_HZ
 from tools import REPO
 from tools.cores import fakeboard
-from tools.cores.build import FAST, OUT, build, find_cc
+from tools.cores.build import FAST, OUT, cached, find_cc
 from tools.emu import world as worlds
 from tools.emu.protocol_emulator import BODIES
 
@@ -94,30 +94,30 @@ SEED = 0x63100000
 _BUILT = {}
 _COPIES = itertools.count()
 _LIMBS = {}
+_LOCK = threading.RLock()
 
 
 def _libraries():
-    """(the board's library, the world's), built at the first call in a process."""
-    if not _BUILT:
-        cc = find_cc()
-        if cc is None:
-            raise RuntimeError('no C compiler for the native board')
-        for stale in glob.glob(os.path.join(OUT, 'native_*')):
-            try:
-                os.remove(stale)
-            except OSError:
-                pass                 # a live process holds it
-        pid = os.getpid()
-        board = build(cc, SOURCES, INCLUDES, 'native_%d' % pid, EXTRA + tuple(FAST))[0]
-        world = build(cc, worlds.SOURCES, worlds.INCLUDES, 'native_world_%d' % pid, FAST)[0]
-        _BUILT['board'], _BUILT['world'] = board, world
-    return _BUILT['board'], _BUILT['world']
+    """(the board's library, the world's), built at the first call for these sources."""
+    with _LOCK:
+        if not _BUILT:
+            if find_cc() is None:
+                raise RuntimeError('no C compiler for the native board')
+            for stale in glob.glob(os.path.join(OUT, 'native_copy_*')):
+                try:
+                    os.remove(stale)
+                except OSError:
+                    pass                 # a live process holds it
+            board = cached(SOURCES, INCLUDES, 'native_board', EXTRA + tuple(FAST))[0]
+            world = cached(worlds.SOURCES, worlds.INCLUDES, 'native_world', FAST)[0]
+            _BUILT['board'], _BUILT['world'] = board, world
+        return _BUILT['board'], _BUILT['world']
 
 
 def _copy(path):
     """A library loaded under a name of its own: its statics its own."""
-    base, ext = os.path.splitext(path)
-    copy = '%s_%d%s' % (base, next(_COPIES), ext)
+    ext = os.path.splitext(path)[1]
+    copy = os.path.join(OUT, 'native_copy_%d_%d%s' % (os.getpid(), next(_COPIES), ext))
     shutil.copyfile(path, copy)
     return ctypes.CDLL(copy)
 
@@ -348,11 +348,9 @@ class Limb:
             timer.winmm.timeBeginPeriod(1)
         try:
             while not self._stop.wait(PACE_S):
-                while not self._stop.is_set():
-                    with self.lock:
-                        wall = int((time.monotonic() - self._start) * 1e6)
-                        if wall - self._us < PACE_S * 1e6:
-                            break
+                with self.lock:
+                    wall = int((time.monotonic() - self._start) * 1e6)
+                    if wall - self._us >= PACE_S * 1e6:
                         self._run_to(min(wall, self._us + int(BURST_S * 1e6)))
         finally:
             if timer is not None:
@@ -401,21 +399,22 @@ def limb_for(url):
     without `bus`; a bus of `nodes`; else one board on `world` (bench unless named, none by
     `world=none`)."""
     query = urllib.parse.parse_qs(urllib.parse.urlsplit(url).query)
-    if 'body' in query:
-        from coaxial.simulated.link import bus_nodes
+    with _LOCK:
+        if 'body' in query:
+            from coaxial.simulated.link import bus_nodes
 
-        kind = query['body'][0]
-        key = 'native://?body=%s' % kind
-        if key not in _LIMBS:
-            _LIMBS[key] = {name: Limb(len(bus_nodes(name)), world)
-                             for name, world in BODIES[kind].items()}
-        limbs = _LIMBS[key]
-        return limbs[query.get('bus', [sorted(limbs)[0]])[0]]
-    if url not in _LIMBS:
-        nodes = int(query.get('nodes', ['0'])[0])
-        world = query.get('world', [None if nodes else 'bench'])[0]
-        _LIMBS[url] = Limb(nodes, None if world == 'none' else world)
-    return _LIMBS[url]
+            kind = query['body'][0]
+            key = 'native://?body=%s' % kind
+            if key not in _LIMBS:
+                _LIMBS[key] = {name: Limb(len(bus_nodes(name)), world)
+                                 for name, world in BODIES[kind].items()}
+            limbs = _LIMBS[key]
+            return limbs[query.get('bus', [sorted(limbs)[0]])[0]]
+        if url not in _LIMBS:
+            nodes = int(query.get('nodes', ['0'])[0])
+            world = query.get('world', [None if nodes else 'bench'])[0]
+            _LIMBS[url] = Limb(nodes, None if world == 'none' else world)
+        return _LIMBS[url]
 
 
 class Serial(SerialBase):
@@ -434,6 +433,7 @@ class Serial(SerialBase):
         self.heat_clock = self._limb.heat_clock
         self.room = self._limb.room
         self.mount, self.mounted = self._limb.mount, self._limb.mounted()
+        self.world = self._limb.world.spec if self._limb.world else None
         self.drag = self._limb.drag
         self.model = self._limb.model
         self.model_reset = self._limb.model_reset

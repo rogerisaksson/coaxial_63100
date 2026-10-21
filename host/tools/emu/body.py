@@ -2,6 +2,7 @@
 """A multi-limb machine emulated across parallel Renode processes."""
 import threading
 
+from tools.emu import world as worlds
 from tools.emu.emulator import ELF, FAITHFUL_MIPS, Limb
 
 
@@ -19,6 +20,7 @@ class Body:
         self.urls = {name: limb.url for name, limb in self.limbs.items()}
 
     def start(self):
+        worlds.library()
         failed = []
 
         def up(limb):

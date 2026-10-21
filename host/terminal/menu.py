@@ -80,12 +80,12 @@ PROBE_EVERY = 30.0
 FIRST_IDENTITY_S = 60.0
 
 
-def _watch_broker():
+def _watch_broker(stop=None):
     """Keep the masthead's broker status fresh, off the frame loop."""
     from coaxial.comm import broker
     from coaxial.errors import LINK_FAULTS
 
-    while True:
+    while stop is None or not stop.is_set():
         try:
             # Nobody serving means no connect: the file outlives a killed
             # broker, and a connect nothing answers takes its full 2 s.
@@ -94,10 +94,14 @@ def _watch_broker():
             count = None
         # The broker holding the port is a session; its clients ride on it.
         _BROKER['held'] = count + 1 if count is not None else 0
-        time.sleep(3.0)
+        if stop is not None:
+            if stop.wait(3.0):
+                return
+        else:
+            time.sleep(3.0)
 
 
-def _watch_link(port):
+def _watch_link(port, stop=None):
     """Whether a board answers anywhere, on its own slow clock; where none does, whether the
     pages open the emulator (coaxial.comm.session.emulator_here). A board on an emulated URL is
     this process's own and never goes: asked once. Asked on, its session shared the line with
@@ -106,12 +110,22 @@ def _watch_link(port):
     from coaxial.comm.session import board_answers, emulator_here, url_kind
     from coaxial.errors import LINK_FAULTS
 
-    while True:
+    while stop is None or not stop.is_set():
+        if str(port).startswith('native:'):
+            from tools.cores.native import limb_for
+            try:
+                limb_for(str(port))
+            except RuntimeError:
+                pass
+            if stop is not None and stop.is_set():
+                return
         try:
             answered = board_answers(port)
         except LINK_FAULTS:
             answered = False
         _BROKER['board'] = answered or ('emulated' if emulator_here() else False)
+        if stop is not None and stop.is_set():
+            return
         # The readout follows the link: the board's own identity once one
         # answers, the stand-in's until then, and again if it moves.
         known = _BROKER.get('identity')
@@ -119,7 +133,11 @@ def _watch_link(port):
             _learn(port, not _BROKER['board'])
         if url_kind(str(port)) == 'emulator':
             return
-        time.sleep(PROBE_EVERY)
+        if stop is not None:
+            if stop.wait(PROBE_EVERY):
+                return
+        else:
+            time.sleep(PROBE_EVERY)
 
 
 def masthead(port):
@@ -333,8 +351,9 @@ def main(argv=None, preload=None):
         # No terminal to page on: read the choice as a line.
         return _typed_choice(sys.stdin.readline().strip().lower())
 
-    threading.Thread(target=_watch_broker, daemon=True).start()
-    learn = None
+    stop = threading.Event()
+    threading.Thread(target=_watch_broker, args=(stop,), daemon=True).start()
+    learn = link = None
     if args.simulated:
         # Asked for by name: no probe, and the chip says so from the first
         # frame rather than eight seconds into the page.
@@ -343,8 +362,9 @@ def main(argv=None, preload=None):
                                  daemon=True)
         learn.start()
     else:
-        threading.Thread(target=_watch_link, args=(args.port,),
-                         daemon=True).start()
+        link = threading.Thread(target=_watch_link, args=(args.port, stop),
+                                daemon=True)
+        link.start()
     warm = threading.Thread(target=stand.warm, daemon=True)
     warm.start()
     state = preload if preload is not None else loader.fresh()
@@ -366,36 +386,41 @@ def main(argv=None, preload=None):
                 time.sleep(0.05)
     hotkeys = {key.lower(): i for i, (key, _n, _w) in enumerate(ENTRIES)}
 
-    with curtain(page) as live, Keys(console, mouse=True) as keys:
-        while True:
-            frame += 1
-            now = time.monotonic()
-            stand.idle(view, now, now - last)
-            last = now
-            live.update(compose(args.port, picked, view, page.size, who,
-                                rate_of(page).label()), refresh=True)
-            rate_of(page).tick(now)
-            if args.frames and frame >= args.frames:
-                return 0
+    try:
+        with curtain(page) as live, Keys(console, mouse=True) as keys:
+            while True:
+                frame += 1
+                now = time.monotonic()
+                stand.idle(view, now, now - last)
+                last = now
+                live.update(compose(args.port, picked, view, page.size, who,
+                                    rate_of(page).label()), refresh=True)
+                rate_of(page).tick(now)
+                if args.frames and frame >= args.frames:
+                    return 0
 
-            # Frame to frame, like run_view: the turntable's 0.08 s is the
-            # period, not a pause after a draw that already took most of it.
-            leave, moved, typed = paced(
-                keys, max(0.0, 0.08 - (time.monotonic() - now)))
-            if leave == 'menu' and who is not None:
-                who = None            # ESC backs out of the second question
-                continue
-            if leave:
-                return 0
-            stand.grab(view, keys, moved, time.monotonic())
-            if who is not None:
-                who, chosen = _sub_act(typed, who)
-            else:
-                picked, chosen = _act(typed, picked, hotkeys)
-                who = _second_question(chosen)
-                chosen = None if who else chosen
-            if chosen is not None:
-                return chosen
+                # Frame to frame, like run_view: the turntable's 0.08 s is the
+                # period, not a pause after a draw that already took most of it.
+                leave, moved, typed = paced(
+                    keys, max(0.0, 0.08 - (time.monotonic() - now)))
+                if leave == 'menu' and who is not None:
+                    who = None            # ESC backs out of the second question
+                    continue
+                if leave:
+                    return 0
+                stand.grab(view, keys, moved, time.monotonic())
+                if who is not None:
+                    who, chosen = _sub_act(typed, who)
+                else:
+                    picked, chosen = _act(typed, picked, hotkeys)
+                    who = _second_question(chosen)
+                    chosen = None if who else chosen
+                if chosen is not None:
+                    return chosen
+    finally:
+        stop.set()
+        if link is not None:
+            link.join(timeout=1.0)
 
 
 if __name__ == '__main__':

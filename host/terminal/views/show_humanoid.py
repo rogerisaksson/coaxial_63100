@@ -322,8 +322,9 @@ def boxes(state, now, name):
     alarms = {str(a[0]).split('.')[0] for a in al}
     b_now = (now.get('buses') if now else None) or {}
     crc_err = sum(int(v[1]) for v in b_now.values() if len(v) > 1)
+    emu = state.get('emu')
     out.append(hud('BUSES  10M RS485', [_bus_row(now, b, jnts, alarms) for b, jnts in edge.LIMBS] + [
-        ('  modbus', '5x10M 27/27 sil %4d crc' % crc_err)]))
+        ('  modbus', emu.badge(crc_err) if emu else ('5x10M 27/27 sil %4d crc' % crc_err))]))
     for sub in TYPES['gynoid'].body:
         out.append(hud(sub.name.replace('_', ' ').upper(), [
             _joint_row(now, j, j.split('_', 1)[-1] if sub.name != 'axis' else j, shown) for j in sub.actuators]))
@@ -403,24 +404,7 @@ def _draw_viewport(state, now, width, height, terminal):
 
 
 def _boot_humanoid(_board_view, state):
-    with boot('LINKING HUMANOID') as step:
-        step(0.15, 'MUJOCO & LISP')
-        body = state['body'] = sprung.Running(realtime=not state.get('max', False), shown=0.0)
-        say('ok', 'body', '%.1f kg, %d drives, MuJoCo at 1 kHz in its own process'
-            % (figure.mass(), sum(len(s.actuators) for s in TYPES['gynoid'].body)))
-        step(0.45, 'SHADER, RASTER & MESHES')
-        ahead = state['ahead'] = Ahead('coaxial.graphics.gynoid', 'render')
-        name = ahead.name or 'a process of its own, dots'
-        say('ok', 'drawing', name)
-        step(0.90, 'SETTLING STAND')
-        for _ in range(300):
-            first = body.latest()
-            if first is not None:
-                state['playback'].push([first])
-                break
-            time.sleep(0.01)
-        step()
-    return body, name
+    return sprung.boot_humanoid(state, boot, say, Ahead)
 
 
 def main(argv=None):
@@ -436,10 +420,12 @@ def main(argv=None):
     parser.add_argument('--prompt', default='', help='send an initial natural-language LLM prompt to the gynoid')
     args, board_view = parser.parse_args(argv), stage()
     terminal, body, leaving, name = board_view.is_terminal, None, None, 'a process of its own, dots'
+    emu_port = args.port if (not args.simulated and str(args.port).startswith('emulator://')) else None
     state = {'body': None, 'orbit': False, **viewpoint.HOME, 'side': 1.0, 'last_t': None,
              'called': 'strong', 'follow': gynoid.Follow(), 'recording': None, 'recorded': None,
              'playback': Playback.steady(), 'shown': 'torque', 'skin': 'dressed', 'scanner': VisionScanner(),
-             'now': None, 'tour': None, 'pad': pad(), 'keys': KEYS, 'max': args.max}
+             'now': None, 'tour': None, 'pad': pad(), 'keys': KEYS, 'max': args.max,
+             'emu_port': emu_port, 'emu': None, 'origin': ORIGIN}
 
     def draw():
         scripted(state, args.keys)
@@ -453,6 +439,8 @@ def main(argv=None):
         now = state['now'] = state['playback'].at(_screen.drawn_next())
         if now is not None:
             state['body'].shown(now['t'])
+            if state.get('emu') is not None:
+                state['emu'].sync(now)
         _sync_actual(now, state['pad'])
         pushed = released(state, t_mono)
         if pushed and now is not None:
@@ -464,7 +452,7 @@ def main(argv=None):
         # Drawn a frame ahead: this frame shows the state asked the frame before, its boxes too.
         shown, state['drawn'] = state.get('drawn') or now, now
         art = _draw_viewport(state, now, *size_of(board_view, args, up), terminal)
-        return frame_of(board_view, ORIGIN, TITLE, art, boxes(state, shown, name), BAR,
+        return frame_of(board_view, state['origin'], TITLE, art, boxes(state, shown, name), BAR,
                         gauges=gauges(state), help=(GROUPS, up))
 
     try:
@@ -478,13 +466,16 @@ def main(argv=None):
         leaving = run_view(board_view, terminal, 1.0 / max(1.0, args.hz), args.frames, draw, on_input=on_in,
                            quits=frozenset(), **viewpoint.mouse(state, lambda: size_of(board_view, args)))
     finally:
+        if state.get('emu') is not None:
+            state['emu'].close()
         if body is not None:
             body.close()
         if state.get('ahead') is not None:
             state['ahead'].close()
         sys.stdout.write('\n')
+        emu = state.get('emu')
         closing([('body', 'stopped, her process ended'),
-                 ('boards', 'none - every drive was simulated')], terminal, 0)
+                 ('boards', emu.closed_note() if emu else 'none - every drive was simulated')], terminal, 0)
     return TO_MENU if leaving == 'menu' else 0
 
 

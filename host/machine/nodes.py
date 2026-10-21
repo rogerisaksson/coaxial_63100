@@ -13,6 +13,7 @@ measuring (`identify`). A family is the module that finds its boards: `FAMILIES`
 """
 import importlib
 import importlib.util
+import time
 from collections import namedtuple
 
 from machine.controller import Loop, Polled, flat
@@ -125,6 +126,10 @@ class Node(Endpoint):
         its sleeps alone -, on the wall's again with None; a board keeps its own."""
         return False
 
+    def clock(self):
+        """(clock, sleep) for a Loop over this node: the wall's unless the node keeps its own."""
+        return time.monotonic, time.sleep
+
     def close(self):
         pass
 
@@ -206,10 +211,12 @@ class Nodes:
                                    % (spec, ', '.join(self.nodes),
                                       ', '.join(next(iter(self)).modules) if self.nodes else '-'))
             return self.nodes[node], module
-        sources = {spec: node.source(module) for spec, (node, module)
-                   in ((s, pick(s)) for s in inputs)}
+        picked = [(s, pick(s)) for s in inputs]
+        sources = {spec: node.source(module) for spec, (node, module) in picked}
         sinks = {spec: node.sink(module) for spec, (node, module)
                  in ((s, pick(s)) for s in outputs)}
+        if picked and 'clock' not in kw and 'sleep' not in kw:
+            kw['clock'], kw['sleep'] = picked[0][1][0].clock()
         return Loop(sources, sinks, **kw)
 
     def close(self):

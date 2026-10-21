@@ -301,8 +301,9 @@ def run_craft_view(argv, doc, craft, gfx, flown_mod, compose_fn, thrusts_fn, loo
     parser.add_argument('--frames', type=int, default=0,
                         help='stop after this many, instead of running until closed')
     args = parser.parse_args(argv)
+    emu = not args.simulated and bool(args.port) and str(args.port).startswith('emulator://')
     with boot('LINKING %s ROTORS' % word.upper()) as ready:
-        apart = flying.Flying(craft, flown_mod, len(labels))
+        apart = flying.Flying(craft, flown_mod, len(labels), port=args.port if emu else None)
         try:
             said = apart.first()
         except RuntimeError as exc:
@@ -311,8 +312,12 @@ def run_craft_view(argv, doc, craft, gfx, flown_mod, compose_fn, thrusts_fn, loo
             return 1
         ready()
     origin = said[0]['origin']
-    say('warn', 'rotors', banner or ('two stand-in boards on the pilot, %s and %s on the 63100'
-                                     % labels))
+    if emu:
+        say('ok', 'rotors', '%s STM32H743 boards on Renode (%s), %s on the 63100'
+            % (word, origin.port, ', '.join(labels)))
+    else:
+        say('warn', 'rotors', banner or ('two stand-in boards on the pilot, %s and %s on the 63100'
+                                         % labels))
     drawing = Ahead(gfx.__name__, 'render')
     say('ok', 'drawing', drawing.name or 'a process of its own, dots')
     playback, trace = Playback.steady(flying.blend), []
@@ -386,7 +391,8 @@ def run_craft_view(argv, doc, craft, gfx, flown_mod, compose_fn, thrusts_fn, loo
         apart.close(wait=3.0)
         drawing.close()
         sys.stdout.write('\n')
-        closing([('rotors', close_note or ('%s drives off, gates off, %s stand-ins closed' % (word, word)))],
+        closing([('rotors', close_note or ('%s drives off, gates off, %s %s closed'
+                                           % (word, word, 'Renode boards' if emu else 'stand-ins')))],
                 terminal, 0)
     return TO_MENU if leaving == 'menu' else 0
 

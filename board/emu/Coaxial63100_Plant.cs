@@ -21,6 +21,7 @@ using System.Runtime.InteropServices;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.CPU;
+using Antmicro.Renode.Peripherals.Miscellaneous;
 using Antmicro.Renode.Peripherals.Sensors;
 using Antmicro.Renode.Peripherals.Timers;
 using Antmicro.Renode.Time;
@@ -183,6 +184,7 @@ namespace Antmicro.Renode.Peripherals.Analog
 
         public double Inertia { get => inertia; set { inertia = value; if(native != IntPtr.Zero) worldModel(Node, (float)inertia, float.NaN, float.NaN); } }
         public double Damping { get => damping; set { damping = value; if(native != IntPtr.Zero) worldModel(Node, float.NaN, (float)damping, float.NaN); } }
+        public double ModelLoad { get => loadTorque; set { loadTorque = value; if(native != IntPtr.Zero) worldModel(Node, float.NaN, float.NaN, (float)loadTorque); } }
         public void ModelReset() { if(native != IntPtr.Zero) plantReset(Node); }
 
         /// <summary>The heat's clock, thermal s per virtual s: 1 until the rig sets the world's
@@ -270,11 +272,11 @@ namespace Antmicro.Renode.Peripherals.Analog
             }
         }
 
-        /// <summary>BusyMips while an ADC waits on TRGO2, IdleMips else.</summary>
+        /// <summary>BusyMips while an ADC waits on TRGO2 or a UART frame is in flight, IdleMips else.</summary>
         private void Pace()
         {
-            var mips = busy ? BusyMips : IdleMips;
-            if(IdleMips == 0 || cpu.PerformanceInMips == mips)
+            var mips = busy || VirtualClock.Of(machine).UartBusy ? BusyMips : IdleMips;
+            if(IdleMips == 0 || cpu == null || cpu.PerformanceInMips == mips)
             {
                 return;
             }
@@ -285,6 +287,10 @@ namespace Antmicro.Renode.Peripherals.Analog
         /// that last slice: in whole grains of the CPU's rate, which SkipTime takes exactly.</summary>
         private void Skip()
         {
+            if(VirtualClock.Of(machine).UartBusy)
+            {
+                return;
+            }
             cpu.SyncTime();
             var gap = ((BaseClockSource)machine.ClockSource).NearestLimitIn.Ticks;
             var slice = (ulong)(LoopSlice * 1e3);
@@ -315,6 +321,7 @@ namespace Antmicro.Renode.Peripherals.Analog
         /// top (drive.c's PIPELINE).</summary>
         private void Step()
         {
+            Pace();
             if(attached)
             {
                 var got = new float[4];

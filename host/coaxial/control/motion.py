@@ -247,6 +247,7 @@ class Velocity(_Mode):
                  rate_hz=None, regulator=None, estimator=None):
         super().__init__(device)
         self.amps = float(amps)
+        self._model_loaded = False
         p = self._params
         motor = Parameters(
             name='the record', r=p['motor_r'], ld=p['motor_ld'],
@@ -298,8 +299,18 @@ class Velocity(_Mode):
         return self.rpm_now
 
     def stop(self, seconds=1.0):
-        """Back to rest, the same ramp down."""
-        return self.rpm(0.0, seconds)
+        """Back to rest, the same ramp down, then held to a stand."""
+        if self._model_loaded:
+            self.drive.model.configure(load=0.0)
+            self._model_loaded = False
+        self.rpm(0.0, seconds)
+        state = self.drive.state()
+        if state['mode'] == 'sensorless' and state['stage_enabled'] and not state['fault']:
+            rate = max(abs(state['omega_hat']), 100.0) / 0.1
+            self.drive.write(id_ref=self.amps, iq_ref=0.0, omega_target=0.0, accel=rate)
+            self.drive.hold()
+            self._clock.sleep(abs(state['omega_hat']) / rate + 0.1)
+        return self.rpm_now
 
 
 def on_model(load, drive, log=None):
@@ -308,6 +319,7 @@ def on_model(load, drive, log=None):
     at it to `model.configure`.
     """
     def watch(verb):
+        verb._model_loaded = True
         wm = drive.model.read()['omega'] / verb.poles
         drive.model.configure(load=load.torque(wm * verb.poles, verb.poles))
         if log is not None:

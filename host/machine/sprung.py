@@ -268,6 +268,41 @@ def run(*args, **kwargs):
     return _run(*args, **kwargs)
 
 
+def emulated_limb(state, say):
+    from machine import worker
+    emu = worker.EmulatedLimb(state['emu_port'])
+    state['origin'] = emu.origin
+    say('ok', 'boards', '%d STM32H743 nodes on Renode (%s, %s)' % (len(emu.rigs), emu.limb, emu.origin.port))
+    return emu
+
+
+def boot_humanoid(state, boot, say, ahead_cls):
+    import time
+    from machine import figure
+    from machine.routines import TYPES
+    with boot('LINKING HUMANOID') as step:
+        step(0.15, 'MUJOCO & LISP')
+        body = state['body'] = Running(realtime=not state.get('max', False), shown=0.0)
+        say('ok', 'body', '%.1f kg, %d drives, MuJoCo at 1 kHz in its own process'
+            % (figure.mass(), sum(len(s.actuators) for s in TYPES['gynoid'].body)))
+        if state.get('emu_port'):
+            step(0.30, 'RENODE EXTREMITY BUS')
+            state['emu'] = emulated_limb(state, say)
+        step(0.45, 'SHADER, RASTER & MESHES')
+        ahead = state['ahead'] = ahead_cls('coaxial.graphics.gynoid', 'render')
+        name = ahead.name or 'a process of its own, dots'
+        say('ok', 'drawing', name)
+        step(0.90, 'SETTLING STAND')
+        for _ in range(300):
+            first = body.latest()
+            if first is not None:
+                state['playback'].push([first])
+                break
+            time.sleep(0.01)
+        step()
+    return body, name
+
+
 class Running:
 
     """Her worker process on the loop (`worker.Running`)."""

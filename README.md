@@ -32,7 +32,8 @@ Renode; `-Check` only reports. Its stages and areas are `setup/*.ps1`.
 Views (`host/terminal/pages/`, one module each): session, imu (attitude),
 angle, adc (meter bridge), gate_drivers (the one that switches), rotor
 observer, thermal observer, humanoid (a gynoid walking under gravity,
-MuJoCo, a drive a joint), chat. `.\coaxial_tty.ps1 adc -Simulated` opens one
+MuJoCo, a drive a joint), quad, helicopter, ornithopter, aerobat, chat,
+claude. `.\coaxial_tty.ps1 adc -Simulated` opens one
 with no cable; `-Frames N` ends it after N frames. In a view: Q quits, ESC
 returns to the front page. The 3D pages raster on the GPU where a card
 answers (wgpu); `COAXIAL_GPU=0` keeps them on the CPU.
@@ -72,7 +73,8 @@ cores, each core tested on this host through gcc.
   (`comms/inc/board/<x>.h`).
 - `comms/`: the Modbus map and the 0x6E device operations - command tables,
   a handler `h_<device>_<op>` each, requests read and replies written.
-- The cores: `modbus drive thermal filter daq shtp boot ctrl`, portable C11.
+- The cores: `modbus drive thermal filter daq shtp boot ctrl wbc aero mppi`,
+  portable C11.
 - The drive runs field-oriented current control each PWM period, its rotor
   angle from high-frequency injection at rest and the back-EMF above the
   crossover: 2 922 of a period's 9 500 cycles, its sample path from ITCM.
@@ -225,16 +227,19 @@ with Coaxial63100(port='native://', execution_mode=EMULATED) as rig:
 - Everything raises rather than returning a status. Channels and parts come
   from the board.
 - `host/machine/` imports no board: a family (`coaxial.node`) is loaded by
-  `Nodes.discover` when installed. Types: humanoid, gynoid, quad, fixed_wing,
-  ebike.
+  `Nodes.discover` when installed. Types: humanoid, gynoid, quad, helicopter,
+  ornithopter, aerobat, fixed_wing, ebike.
+- `host/sim/`: 6-DOF rigid-body flight dynamics, whole-body control and MPPI
+  simulators behind the 3D craft views.
 
 </details>
 
 ## 7 The pages
 
-Eight on the front page, drawn in braille on the terminal: the session, the
+Twelve on the front page, drawn in braille on the terminal: the session, the
 board's attitude, the shaft's angle, the meter bridge, the motor controller,
-the thermal observer, the humanoid and the board chat.
+the thermal observer, the humanoid, the quad, the helicopter, the
+ornithopter, the aerobat and the board chat.
 
 <details><summary>Figures 2-4: the front page, the heat, the gynoid</summary>
 
@@ -261,13 +266,13 @@ Each drawn on the stand-in by `python host/tools/render/page.py <page>
 
 ## 8 Notebooks
 
-Fourteen executed papers in `notebook_examples/`, generated from
+Thirteen executed papers in `notebook_examples/`, generated from
 `host/tools/notebooks/`.
 
-<details><summary>The fourteen, and how they are made</summary>
+<details><summary>The thirteen, and how they are made</summary>
 
 Acquisition, link, sensors, power_stage, thermal, drive, controller, cycle,
-sequencer, machines, director, motion, applications, commissioning: each a
+sequencer, machines, motion, applications, commissioning: each a
 setup, numbered sections, results and references.
 
 ```powershell
@@ -396,6 +401,8 @@ thermal observer within 0.2 K of the thermistor after 120 s blind at 53.8 V;
 
 ## References
 
+- [docs/SETUP.md](docs/SETUP.md) - the setup scripts, the toolchain, the
+  machine preparation
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) - the layout, the
   data-oriented design, the tests
 - [docs/PROTOCOL.md](docs/PROTOCOL.md) - everything on the wire

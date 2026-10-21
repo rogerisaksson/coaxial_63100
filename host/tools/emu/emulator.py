@@ -97,6 +97,7 @@ MPU_OFF = 'sysbus SetHookBeforePeripheralWrite sysbus.nvic "value = value & ~1" 
 
 #: Wall s the emulation's speed is taken over once up.
 SCALE_S = 1.0
+_AWAKE_LOCK = threading.Lock()
 
 #: Renode above the host's other apps on Windows, which stretched its pace between two
 #: measures; not high: eight limbs' processes would starve the desktop.
@@ -242,12 +243,13 @@ class Emulator:
     def awake(self, seconds=SCALE_S):
         """`time_scale` over `seconds` with every core kept awake: WFI a no-op, taken up once
         the translations holding it are cleared."""
-        self._each_cpu('cpu WfiAsNop true; cpu ClearTranslationCache')
-        try:
-            time.sleep(seconds)                 # the image translated afresh first
-            return self.measure(seconds)
-        finally:
-            self._each_cpu('cpu WfiAsNop false; cpu ClearTranslationCache')
+        with _AWAKE_LOCK:
+            self._each_cpu('cpu WfiAsNop true; cpu ClearTranslationCache')
+            try:
+                time.sleep(seconds)                 # the image translated afresh first
+                return self.measure(seconds)
+            finally:
+                self._each_cpu('cpu WfiAsNop false; cpu ClearTranslationCache')
 
     def _each_cpu(self, text):
         """Monitor commands, `;` between them, on the machine's CPU."""
@@ -292,7 +294,7 @@ class Emulator:
         if b is not None:
             cmds['Damping'] = b
         if load is not None:
-            cmds['LoadTorque'] = load
+            cmds['ModelLoad'] = load
         if cmds:
             text = '; '.join('%s %s %s' % (worlds.PLANT, name, worlds._decimal(value))
                              for name, value in cmds.items())
@@ -406,8 +408,10 @@ class Limb(Emulator):
         """The board's script once a node, its name, port and console written in: Renode
         does not see variables set between two includes of one script."""
         with open(os.path.join(REPO, SCRIPT), encoding='utf-8') as f:
-            board = [line for line in f.read().splitlines() if not line.startswith(('$', ':'))]
-        out = ['$elf=@%s' % self.elf.replace(os.sep, '/')]
+            lines = [line for line in f.read().splitlines() if not line.startswith(('$', ':'))]
+        board = [line for line in lines if not line.startswith('include ')]
+        out = (['$elf=@%s' % self.elf.replace(os.sep, '/')]
+               + [line for line in lines if line.startswith('include ')])
         for unit, port in enumerate(self.consoles, 1):
             flags = FLAG_TERMINATE if unit == self.nodes else 0
             vtor = '0x%08X' % (BOOT_VTOR if self.boot else IMAGE_VTOR)

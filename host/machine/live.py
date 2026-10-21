@@ -33,9 +33,9 @@ class Live:
 
     """One thread plays chunks on the machine's loop; `send`, `feed`, `wait` from another."""
 
-    def __init__(self, machine, failsafe=None, timeout=1.0, horizon=2.0, clock=time.monotonic):
+    def __init__(self, machine, failsafe=None, timeout=1.0, horizon=2.0, clock=None):
         self.machine, self.timeout, self.horizon = machine, float(timeout), float(horizon)
-        self._clock = clock
+        self._clock = clock or getattr(getattr(machine, 'loop', None), '_clock', time.monotonic)
         self._failsafe = failsafe or getattr(machine, 'failsafe', None)
         self._chunks = collections.deque()
         self._lock = threading.RLock()

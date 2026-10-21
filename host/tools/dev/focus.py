@@ -27,6 +27,10 @@ from contextlib import suppress
 
 from tools.dev.suites import ROOT
 
+if os.name == 'nt':
+    # No Windows Error Reporting dialog on a child's unhandled exception.
+    ctypes.windll.kernel32.SetErrorMode(0x8003)
+
 #: A suite's closing line: what it passed and failed, and what it skipped.
 TALLY_RE = re.compile(r'^(\d+) passed, (\d+) failed(?:, ~?(\d+) skipped)?$')
 

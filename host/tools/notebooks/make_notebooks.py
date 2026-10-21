@@ -18,7 +18,7 @@ import re
 import sys
 
 from tools import notebooks
-from tools.dev.focus import WORKER_GB, Job, relay
+from tools.dev.focus import Job, relay
 
 OUT_DIR = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(
@@ -42,8 +42,14 @@ COMPARED = os.path.join(os.path.dirname(OUT_DIR), 'build', 'notebooks_compared')
 SECONDS = os.path.join(os.path.dirname(OUT_DIR), 'build', 'notebooks_seconds.json')
 
 #: A paper's commit on the relay, GB: the kernel alone on the stand-in, with a Renode beside it
-#: on the emulator.
+#: on the emulator (two in `link`, five in a body's).
 STAND_IN_GB = 0.4
+EMULATED_GB = {'cycle': STAND_IN_GB, 'link': 2.5, 'controller': 5.5, 'sequencer': 5.5,
+               'machines': 5.5}
+
+
+def _gb_of(name, mode):
+    return STAND_IN_GB if mode == 'SIMULATED' else EMULATED_GB.get(name, 1.6)
 
 #: A cell whose emulated run takes this many times the stand-in's and this many seconds more
 #: is out of proportion: the emulator runs a board second in 2-20 wall s. Numbers a cell
@@ -197,6 +203,7 @@ def main(argv=None):
                      % (', '.join(unknown), len(NOTEBOOKS),
                         ', '.join(sorted(NOTEBOOKS))))
     wanted = args.names or sorted(NOTEBOOKS)
+    args.out = os.path.abspath(args.out)
     if not os.path.isdir(args.out):
         os.makedirs(args.out)
 
@@ -253,8 +260,7 @@ def side_by_side_execute(wanted, args):
     jobs = [Job('%s:%s' % (name, _mode_of(name, args.mode)),
                 [sys.executable, '-X', 'utf8', os.path.abspath(__file__), '--execute',
                  '--out', args.out] + (['--mode', args.mode] if args.mode else []) + [name],
-                STAND_IN_GB if _mode_of(name, args.mode) == 'SIMULATED' else WORKER_GB,
-                NOTEBOOK_S) for name in wanted]
+                _gb_of(name, _mode_of(name, args.mode)), NOTEBOOK_S) for name in wanted]
     failed = []
     for job, out, code, took in _relayed(jobs, args.jobs):
         name = job.name.split(':')[0]
@@ -307,7 +313,7 @@ def compare(wanted, args):
     jobs = [Job('%s:%s' % (name, mode),
                 [sys.executable, '-X', 'utf8', os.path.abspath(__file__), '--execute', '--mode',
                  mode, '--out', runs[mode], name],
-                WORKER_GB if mode == 'EMULATED' else STAND_IN_GB, NOTEBOOK_S)
+                _gb_of(name, mode), NOTEBOOK_S)
             for mode in ('EMULATED', 'SIMULATED') for name in wanted]
     for job, _out, code, took in _relayed(jobs, args.jobs):
         name, mode = job.name.split(':')

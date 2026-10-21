@@ -15,12 +15,24 @@ namespace Antmicro.Renode.Peripherals.UART
         public RS485_AdapterBus(IMachine machine, uint baudRate = 115200)
         {
             BaudRate = baudRate;
-            line = new HostLine(machine, this, () => BaudRate, value => CharReceived?.Invoke(value));
+            lock(RS485_Transceiver.AdapterRx)
+            {
+                RS485_Transceiver.AdapterRx.Clear();
+            }
+            line = new HostLine(machine, this, () => BaudRate, value =>
+            {
+                RS485_Transceiver.Enqueue(null, value);
+                CharReceived?.Invoke(value);
+            });
         }
 
         public void Reset()
         {
             line.Reset();
+            lock(RS485_Transceiver.AdapterRx)
+            {
+                RS485_Transceiver.AdapterRx.Clear();
+            }
         }
 
         public void OnGPIO(int number, bool value)
@@ -30,6 +42,13 @@ namespace Antmicro.Renode.Peripherals.UART
         /// <summary>A byte off the bus, to the host.</summary>
         public void WriteChar(byte value)
         {
+            lock(RS485_Transceiver.AdapterRx)
+            {
+                if(RS485_Transceiver.AdapterRx.Count > 0)
+                {
+                    value = RS485_Transceiver.AdapterRx.Dequeue();
+                }
+            }
             line.Heard();
             Host?.FromBus(value);
         }

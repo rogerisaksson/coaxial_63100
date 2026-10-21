@@ -21,7 +21,18 @@ static int32_t milli_of(float x)
 static cmd_status_t h_drive_state(wr_t *out)
 {
   const drive_t *d = Board_Drive();
-  uint32_t last, max;
+  volatile const drive_t *v = d;
+  uint32_t last, max, p;
+  float theta_hat, omega_hat;
+  int32_t turns;
+
+  do
+  {
+    p = v->periods;
+    theta_hat = v->theta_hat;
+    omega_hat = v->omega_hat;
+    turns = (int32_t)v->turns;
+  } while (v->periods != p);
 
   Board_DriveCycles(&last, &max);
 
@@ -32,8 +43,8 @@ static cmd_status_t h_drive_state(wr_t *out)
                      | (d->inj_valid ? 0x04U : 0U)
                      | (Board_DriveOwnsCompares() ? 0x08U : 0U)
                      | (Board_SyncArmed() ? 0x10U : 0U)));
-  wr_i32(out, micro_of(d->theta_hat));
-  wr_i32(out, milli_of(d->omega_hat));
+  wr_i32(out, micro_of(theta_hat));
+  wr_i32(out, milli_of(omega_hat));
   wr_i32(out, micro_of(d->theta_cmd));
   wr_i32(out, milli_of(d->omega_cmd));
   wr_i32(out, milli_of(d->id));
@@ -59,7 +70,7 @@ static cmd_status_t h_drive_state(wr_t *out)
   wr_u32(out, d->cyc_step);
   wr_u32(out, d->cyc_advance);
   /* MINOR 24: the estimate's whole turns, counted at every step. */
-  wr_i32(out, (int32_t)d->turns);
+  wr_i32(out, turns);
   return wr_ok(out) ? CMD_OK : CMD_ERR_DEVICE;
 }
 
@@ -257,16 +268,28 @@ static cmd_status_t h_drive_model_param(rd_t *in, wr_t *out)
 static cmd_status_t h_drive_model(wr_t *out)
 {
   const drive_t *d = Board_Drive();
+  volatile const drive_t *v = d;
+  uint32_t p;
+  float m_theta, m_omega, theta_hat, omega_hat;
+
+  do
+  {
+    p = v->periods;
+    m_theta = v->model.theta;
+    m_omega = v->model.omega;
+    theta_hat = v->theta_hat;
+    omega_hat = v->omega_hat;
+  } while (v->periods != p);
 
   wr_u8(out, (uint8_t)d->source);
-  wr_i32(out, micro_of(d->model.theta));
-  wr_i32(out, milli_of(d->model.omega));
+  wr_i32(out, micro_of(m_theta));
+  wr_i32(out, milli_of(m_omega));
   wr_i32(out, milli_of(d->model.id));
   wr_i32(out, milli_of(d->model.iq));
   wr_i32(out, milli_of(d->model.p.vdc));
   /* The estimate in the same reply as the truth. */
-  wr_i32(out, micro_of(d->theta_hat));
-  wr_i32(out, milli_of(d->omega_hat));
+  wr_i32(out, micro_of(theta_hat));
+  wr_i32(out, milli_of(omega_hat));
   return wr_ok(out) ? CMD_OK : CMD_ERR_DEVICE;
 }
 

@@ -268,7 +268,9 @@ class Drive(Device, DriveControl, device=protocol.DEVICE_DRIVE):
 
     def state(self):
         """What the drive is doing now, in SI."""
-        r = Reader(self._op(DriveOp.STATE))
+        minor = (getattr(self.board, 'version_info', None) or {}).get('proto_minor', 0)
+        shape = {'head': 99, 'stride': 0} if minor >= 24 else None
+        r = Reader(self._op(DriveOp.STATE, reply_shape=shape))
         out = {'mode': MODE_NAMES.get(r.u8(), 'unknown'),
                'fault': FAULTS.get(r.u8(), 'unknown')}
         out.update(r.flags(FLAGS))

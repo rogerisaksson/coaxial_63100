@@ -239,6 +239,8 @@ class Transport:
 
     def _pay_gap(self):
         """What is left of t3.5 since the line went quiet, slept."""
+        if getattr(self.serial, 'paces_gap', False):
+            return
         owed = self.interframe_gap * self._time_scale - (time.monotonic() - self._quiet_since)
         if owed > 0:
             time.sleep(owed)
@@ -320,11 +322,12 @@ class Transport:
         return buffer
 
     def _arrives(self):
-        """Whether a byte comes within the port's quiet time - its own `quiet_time`, else
-        QUIET_TIME, at the board's pace - spun on `in_waiting`: a read's timeout and a sleep
-        are the OS's tick, 15.6 ms on Windows, and an unsized reply paid it every time, 28 ms
-        of an emulated board's 31 ms round trip."""
-        quiet = getattr(self.serial, 'quiet_time', self.QUIET_TIME) * self._time_scale
+        """Whether a byte comes within the port's quiet time - its own `quiet_time` (a burst on
+        a socket), else QUIET_TIME at the board's pace - spun on `in_waiting`: a read's timeout
+        and a sleep are the OS's tick, 15.6 ms on Windows, and an unsized reply paid it every
+        time, 28 ms of an emulated board's 31 ms round trip."""
+        own = getattr(self.serial, 'quiet_time', None)
+        quiet = (own if own is not None else self.QUIET_TIME) * self._time_scale
         deadline = time.perf_counter() + quiet
         while time.perf_counter() < deadline:
             if self.serial.in_waiting:

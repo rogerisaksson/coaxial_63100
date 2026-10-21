@@ -122,7 +122,9 @@ class Angle(Device, AngleSensor, device=protocol.DEVICE_ANGLE):
 
     def state(self):
         """The poll loop's shared record, and the reading in it."""
-        r = Reader(self._op(AngleOp.LATEST))
+        minor = (getattr(self.board, 'version_info', None) or {}).get('proto_minor', 0)
+        shape = {'head': 19, 'stride': 0} if minor >= 28 else None
+        r = Reader(self._op(AngleOp.LATEST, reply_shape=shape))
         got = {
             'loop': LOOP_STATES.get(r.u8(), 'unknown'),
             'error': LOOP_ERRORS.get(r.u8(), 'unknown'),

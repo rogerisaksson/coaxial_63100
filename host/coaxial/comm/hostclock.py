@@ -11,11 +11,12 @@ class HostClock:
     board's: the PC's clocks, or `virtual` - the board's seconds - offset to read like them."""
 
     #: How often the board's time is read, wall s; between, it runs on at the scale.
-    READ_S = 0.2
+    READ_S = 0.05
 
     def __init__(self, virtual=None, scale=None):
         self._virtual = virtual
         self._scale = scale or (lambda: 1.0)
+        self._pace = 1.0
         if virtual is not None:
             at = virtual()
             self._wall_at, self._perf_at = time.time() - at, time.perf_counter() - at
@@ -27,16 +28,22 @@ class HostClock:
         """Whether this is an emulated board's time, not the PC's."""
         return self._virtual is not None
 
+    def _sync(self):
+        now, mono = self._virtual(), time.monotonic()
+        if mono - self._read_at > 0.005 and now > self._read:
+            self._pace = min(100.0, (mono - self._read_at) / (now - self._read))
+        self._read, self._read_at = now, mono
+        self._last = max(self._last, now)
+        return self._last
+
     def _board(self):
         """The board's seconds: read every READ_S, carried between at the scale, never back."""
-        virtual = self._virtual
-        if virtual is None:
+        if self._virtual is None:
             return 0.0
         gone = time.monotonic() - self._read_at
         if gone > self.READ_S:
-            self._read, self._read_at = virtual(), time.monotonic()
-            gone = 0.0
-        self._last = max(self._last, self._read + gone / max(1.0, self._scale()))
+            return self._sync()
+        self._last = max(self._last, self._read + gone / max(1.0, self._scale(), self._pace))
         return self._last
 
     def now(self):
@@ -49,13 +56,12 @@ class HostClock:
         """`seconds` of the board's: the PC's at the scale; an emulated board's read as it
         goes, its pace between two reads being a guess - CI's runner fell behind the scale
         and a chain's settle was cut short."""
-        virtual = self._virtual
-        if virtual is None:
+        if self._virtual is None:
             time.sleep(seconds * self._scale())
             return
-        until = virtual() + seconds
+        until = self._sync() + seconds
         while True:
-            left = until - virtual()
+            left = until - self._sync()
             if left <= 0.0:
                 return
             time.sleep(min(left * self._scale(), self.READ_S))

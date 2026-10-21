@@ -249,19 +249,27 @@ def _open_one(spec, transports, verify):
         transports[key] = _reach(unit_port, unit_baud)
     transport = transports[key]
     board = Board(transport, unit)
-    # The console hands over; a bus - an emulated limb's says so - is binary already.
-    console = getattr(getattr(transport, 'serial', None), 'console', True)
-    if fresh and not transport.address and console:
-        board.open_binary()
-    if verify:
-        try:
-            board = _build(board)
-        except UnsupportedProtocolError:
-            raise
-        except RigError as exc:
-            raise ConnectError('unit %d on %s@%d did not answer: %s'
-                               % (unit, unit_port, unit_baud, exc)) from exc
-    _HOLDERS.setdefault(transport, set()).add(board)
+    holders = _HOLDERS.setdefault(transport, set())
+    holders.add(board)
+    try:
+        # The console hands over; a bus - an emulated limb's says so - is binary already.
+        console = getattr(getattr(transport, 'serial', None), 'console', True)
+        if fresh and not transport.address and console:
+            board.open_binary()
+        if verify:
+            try:
+                built = _build(board)
+            except UnsupportedProtocolError:
+                raise
+            except RigError as exc:
+                raise ConnectError('unit %d on %s@%d did not answer: %s'
+                                   % (unit, unit_port, unit_baud, exc)) from exc
+            holders.discard(board)
+            holders.add(built)
+            board = built
+    except Exception:
+        holders.discard(board)
+        raise
     return board
 
 

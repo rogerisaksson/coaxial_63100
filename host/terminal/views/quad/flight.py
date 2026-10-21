@@ -89,6 +89,9 @@ def arm(rig, clock=1, warm_s=100.0, room='bench', rotor_m=pull.ROTOR):
     The thermal observer runs on `clock` thermal seconds a second (1 for the flight's own
     seconds), warmed `warm_s` s at idle on the floor so the observers are out of UNCERTAIN
     before a first flight."""
+    if not getattr(rig, 'simulated', True):
+        from terminal.views.quad import flying
+        return flying.arm_emulated(rig, clock, warm_s, room, rotor_m)
     board = rig.board
     # Its heat on the flight's clock from here: on the wall's until the first pass, four boards
     # armed took a run's own seconds of it, and a flight run again was another.
@@ -214,6 +217,9 @@ def passed(rotors, sky, route, law, flight, clock, dt, step_fn=None):
                                and 'fit' in route['card'][row][4].split(), frame, part)
         if clock - flight['read'] >= THERMAL_S - 1e-9:
             flight['read'] = clock
+            emu_r = rotors[int(round(clock / THERMAL_S)) % len(rotors)] if rotors else None
+            if emu_r is not None and emu_r.get('emu') is not None and not emu_r.get('cut'):
+                emu_r['emu'].board.ctrl.rows([(0.0, emu_r['ask'])])
             for rotor in rotors:
                 rotor['budget'], rotor['ident'], rotor['board_c'] = warmth(rotor['rig'])
         yield clock, frame

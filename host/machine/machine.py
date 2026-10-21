@@ -180,7 +180,7 @@ class Machine:
         """Every actuator on; those that align ramped over `steps`, aligned, their zeros the
         mean of `reads` readings where they rest."""
         aligns = {n: a for n, a in self.actuators.items() if a.ALIGNS}
-        for name, actuator in self.actuators.items():
+        for name, actuator in aligns.items():
             actuator.arm(self.loop.feedbacks[name], self.arming)
         if aligns:
             rest = next(iter(aligns.values())).rest       # the rotors' time, not the wall's
@@ -199,6 +199,9 @@ class Machine:
                 rest(settle / 2.0)
             for name in aligns:
                 self.loop.feedbacks[name].measure.configure(zero=_mean_angle(zeros[name]))
+        for name, actuator in self.actuators.items():
+            if not actuator.ALIGNS:
+                actuator.arm(self.loop.feedbacks[name], self.arming)
         # each loop takes over from where its actuator reads, its parts stepped to rest there:
         # asked 0, a rotor its start left at 361 rpm was braked to 100, under its crossover
         bus = self.loop.poll()

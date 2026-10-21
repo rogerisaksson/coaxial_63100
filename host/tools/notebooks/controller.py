@@ -23,7 +23,8 @@ ansi.image(blocks([([('Nodes', 'discovered', ['every board, its channels', 'each
         md("The application's IO is an array of nodes, discovered; the first board's drive runs "
            'on the model. Ask what it offers, then build the loop over its `drive` module: '
            '`<node>.drive.omega_hat` in, `<node>.drive.iq_ref` out, every channel a float.'),
-        code('''from motor.pmsm import RAD_S_PER_RPM, Parameters
+        code('''from coaxial.control.commission import Commissioning
+from motor.pmsm import RAD_S_PER_RPM, Parameters
 from machine import ansi
 from machine.controller import Feedback, Loop, Paced
 from machine.nodes import Nodes
@@ -37,6 +38,7 @@ at = node.name + '.drive'
 drive, gates = node.rig.drive, node.rig.gates
 drive.configure(source='model')
 drive.model.configure(j=J, b=B, load=0.0, noise=0.05)
+Commissioning(node.rig).gains()
 node.rig.board.afe.on()                 # +5 for the STO chain: the drivers' supply
 gates.on(bypass_sto=True, ignore_interlock=True)
 drive.write(id_ref=0.0, iq_ref=0.0)

@@ -7,12 +7,16 @@ A joint (deg, the drive holding an angle), a surface (a joint of narrow span), a
 (rpm, a speed loop), a torque (A, the current itself). A board is named by its bus and unit
 ('LL_2'); what it drives, a machine measures (`Coaxial.identify`).
 """
+import json
 import math
+import os
+import urllib.parse
 
 from coaxial.comm.hostclock import Told, clock_of
 from coaxial.control.commission import Commissioning
 from coaxial.control.motion import started
 from coaxial.comm.session import standing
+from coaxial.devices.drive import PROFILES
 from coaxial.errors import RigError
 from machine.controller import Feedback
 from machine.machine import Actuator
@@ -42,7 +46,7 @@ def _arming(rig, arming):
     """What gates.on() takes: `arming`, or on the stand-in past the STO chain and interlock."""
     if arming is not None:
         return arming
-    return {'bypass_sto': True, 'ignore_interlock': True} if rig.simulated else {}
+    return {'bypass_sto': True, 'ignore_interlock': True} if standing(rig.origin) != 'live' else {}
 
 
 def discover(port='COM4', execution_mode=HARDWARE, units=range(1, 17), **kw):
@@ -81,6 +85,7 @@ class _OnDrive(Actuator):
             # The schematic's board: +5 for the STO chain's pilot detector, the drivers' supply;
             # the unmodified bench board's drivers have theirs with AFE_ON down.
             rig.board.afe.on()
+            clock_of(rig).sleep(0.05)
         rig.gates.on(**_arming(rig, arming))
 
     def hand_over(self, f, hz):
@@ -129,6 +134,7 @@ class Joint(_OnDrive):
         rig, drive = self.node.rig, self.node.rig.drive
         if rig.simulated:
             drive.configure(source='model')
+        if standing(rig.origin) != 'live':
             drive.model.configure(b=JOINT_B, load=0.0)
         self._gates(arming)
         f.regulator.configure(theta0=drive.state()['theta_hat'])
@@ -181,7 +187,8 @@ class Rotor(_OnDrive):
         rig, drive = self.node.rig, self.node.rig.drive
         if rig.simulated:
             drive.configure(source='model')
-            drive.model.configure(b=1e-5, load=0.0)
+        if standing(rig.origin) != 'live':
+            drive.model.configure(j=2e-5, b=1e-5, load=0.0)
             # The stand-in's record commissioned as a bench's is: on its placeholders the
             # board's law loses a rotor from rest and trips.
             Commissioning(rig).gains()
@@ -237,12 +244,27 @@ class Coaxial(Node):
     ACTUATORS = {'joint': Joint, 'surface': Surface, 'rotor': Rotor, 'torque': Torque}
 
     def __init__(self, rig, name=None):
-        identity = rig.board.system.version()
+        board = rig.board
+        world = getattr(getattr(board.transport, 'serial', None), 'world', None)
+        if world and rig.origin.unit <= len(world.get('nodes', ())):
+            node = world['nodes'][rig.origin.unit - 1]
+            motor = node.get('motor')
+            if motor:
+                with open(os.path.join(PROFILES, motor + '.json'), encoding='utf-8') as f:
+                    profile = json.load(f)
+                rig.drive.configure(**profile['drive'])
+                load, model = node.get('load', {}), profile.get('model', {})
+                gear = load.get('gear', 1.0) or 1.0
+                rig.drive.model.configure(
+                    j=model.get('j', 2e-5) + load.get('inertia', 0.0) / gear ** 2,
+                    b=model.get('b', 5e-4) + load.get('damping', 0.0) / gear ** 2)
+        identity = board.system.version()
         i_max = rig.drive.params().get('drv_i_max')
         currents = {'id_ref': (-i_max, i_max), 'iq_ref': (-i_max, i_max)} if i_max else {}
-        board = rig.board
+        bus = urllib.parse.parse_qs(urllib.parse.urlsplit(str(rig.origin.port)).query).get(
+            'bus', [rig.origin.port])[0]
         super().__init__(
-            name or '%s_%d' % (rig.origin.port, rig.origin.unit),
+            name or '%s_%d' % (bus, rig.origin.unit),
             {'type': identity.get('type'), 'device': identity.get('device'),
              'link': rig.origin.port, 'unit': rig.origin.unit},
             {'drive': Module(rig.drive.state, rig.drive, rig.drive.WRITES, currents),
@@ -267,6 +289,9 @@ class Coaxial(Node):
         paced = getattr(rig.board.drive, 'paced', None)
         if rig.simulated:
             drive.configure(source='model')
+        if standing(rig.origin) != 'live':
+            rig.board.afe.on()
+            clock_of(rig).sleep(0.05)
         rig.gates.on(**_arming(rig, arming))
         try:
             clock = Told(paced) if paced else clock_of(rig)    # the ring's own seconds
@@ -335,6 +360,10 @@ class Coaxial(Node):
             clock.paces.append(paced)
         paced(None if clock is None else 0.0)
         return True
+
+    def clock(self):
+        c = clock_of(self.rig)
+        return (c.perf, c.sleep) if c.virtual else super().clock()
 
     def close(self):
         self.rig.close()

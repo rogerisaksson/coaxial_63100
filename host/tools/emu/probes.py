@@ -39,7 +39,7 @@ def tied(process):
     kernel = ctypes.windll.kernel32
     job = kernel.CreateJobObjectW(None, None)
     limits = _Limits()
-    limits.flags = 0x2000                                  # KILL_ON_JOB_CLOSE
+    limits.flags = 0x2400                                  # KILL_ON_JOB_CLOSE | DIE_ON_UNHANDLED_EXCEPTION
     kernel.SetInformationJobObject(job, 9, ctypes.byref(limits), ctypes.sizeof(limits))
     kernel.AssignProcessToJobObject(job, ctypes.c_void_p(int(process._handle)))
     return job

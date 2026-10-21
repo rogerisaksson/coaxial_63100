@@ -22,7 +22,8 @@ ansi.image(blocks([([('Table', 'CSV', ['a row a step: setpoints,', 'tests, limit
         'The streams',
         md("An array of IO nodes, discovered; the first board's offer comes first - every "
            "module's channels, ins with units, outs with ranges - and every number is a float."),
-        code('''from motor.pmsm import RAD_S_PER_RPM
+        code('''from coaxial.control.commission import Commissioning
+from motor.pmsm import RAD_S_PER_RPM
 from machine import ansi
 from machine.nodes import Nodes
 from machine.parts import Gain
@@ -33,6 +34,7 @@ node = nodes.of_type('bldc_inverter')[0]
 drive, gates = node.rig.drive, node.rig.gates
 drive.configure(source='model')
 drive.model.configure(j=2e-5, b=1e-5, load=0.0, noise=0.05)
+Commissioning(node.rig).gains()
 node.rig.board.afe.on()                 # +5 for the STO chain: the drivers' supply
 gates.on(bypass_sto=True, ignore_interlock=True)
 print(Nodes([node]).card('drive', 'angle', keys=('omega_hat', 'iq', 'degrees', 'iq_ref', 'theta')))

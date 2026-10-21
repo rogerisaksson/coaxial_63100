@@ -99,6 +99,8 @@ class Serial(SerialBase):
 
     #: The gap that ends a reply, s: the emulated UART sends one whole, a burst on the socket.
     quiet_time = 0.005
+    #: HostLine (UART_Line.cs) paces t3.5 between frames on the virtual clock.
+    paces_gap = True
 
     def open(self):
         if self.port is None:
@@ -114,6 +116,7 @@ class Serial(SerialBase):
         self.heat_clock = emu.heat_clock
         self.room = emu.room
         self.mount, self.mounted = emu.mount, emu.mounted()
+        self.world = emu.world
         self.drag = emu.drag
         self.model = emu.model
         self.model_reset = getattr(emu, 'model_reset', None)
