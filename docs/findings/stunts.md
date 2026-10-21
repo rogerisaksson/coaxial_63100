@@ -51,3 +51,20 @@ run no lower than the human's, a fall's head under 1 m/s. The takes (a leg
   deg where 80; rising from the chair she is 0.19 up where 0.52 by the
   take's end; lying from sitting her head went to 0.17 where 0.60 (the
   roll); the stairs fell; the floor rise 0.17 up where 0.98.
+- A posture's take told as its own rows (`stunts.modes`, `stunts.wire`; the
+  take read into her modes as `modal.reading` reads hers, off the take's
+  standing frames, its centre of mass by her figure's segment shares on its
+  bones; `{'take': key}` in STUNTS). Streamed whole, the human's stance
+  felled her: his feet widened and shifted through a crouch (head 0.02 legs),
+  his pelvis's 20 deg list or his heels' rise in it (0.04, 0.24), his arms'
+  swing (0.05, hands' jerk 29 000 m/s^3). The axial, sagittal and pitch modes
+  alone: the crouch 0.62 legs down where 0.66, knees 128 where 140, the kneel
+  0.69 where 0.73, knees 144 where 155, both met (far 0.0; the sagittal from
+  his hips instead of his centre of mass put her capture point at her heels,
+  hands 8-12 000); the sit's hips 0.06-0.56 back where 0.48 run to run, its
+  trunk 45 deg forward where 43. 4 of 31 met, 235 widths off in all. Her
+  hands' jerk, the spasm, where her walk's is 1 400-1 800: the sit 20 800,
+  rising from it 19 800, the dance 20 200, turning in bed 16 000, the bed's
+  edge 12 700, rising from a crouch or a kneel 8 800-8 900, the runs
+  770-1 400. The dance's bounce of 0.38 legs streamed as axial felled her
+  (0.98 down, 1.9 m/s); told to lean back 13 deg standing she leans 3.7.

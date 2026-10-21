@@ -98,12 +98,14 @@ FALL_M_S = 1.0
 
 #: The takes as scenarios, each judged against its take (`tools/sim/stunts.py`): key: (the take
 #: under stunts/, scene, commands, from when her rows are measured - the telling, or MOMENTS[0]
-#: with a gait under way -, the measures of its signature). A verb she has no text for is
-#: refused by name: backflip, kneel, yawn, turn_over. The falls' signature is SAFE alone: a
-#: shove of the polar's most, the slick patch and the ice, a step's edge behind her.
+#: with a gait under way -, the measures of its signature). A posture's take is told as its own
+#: rows ({'take': key}, `stunts.wire`), a gait's as a player's twist, a jump's as the hop's text,
+#: a fall's as a shove; a verb she has no text for is refused by name: backflip. The falls'
+#: signature is SAFE alone: a shove of the polar's most, the slick patch and the ice, a step's
+#: edge behind her.
 _BACK, _RUN, _SHOVED = KEYS['s'], KEYS['W'], FORCES_N[1]
 STUNTS = {
-    'hip_hop': ('dance/Hip Hop Dancing', 'flat', [(1.0, {'say': 'dance'})], 1.0, ('travel', 'drop', 'arms')),
+    'hip_hop': ('dance/Hip Hop Dancing', 'flat', [(1.0, {'take': 'hip_hop'})], 1.0, ('travel', 'drop', 'arms')),
     'moonwalk': ('dance/Moonwalk', 'flat', [(1.0, {'twist': _BACK})], MOMENTS[0], ('travel', 'speed', 'flight', 'upright')),
     'falling_on_butt': ('falling/Falling on Butt', 'flat',
                         [(1.0, {'push': (0.0, 0.0, -_SHOVED), 'seconds': SHOVE_S})], 1.0, ()),
@@ -119,27 +121,29 @@ STUNTS = {
     'jumping_up': ('jumping/Jumping Up', 'chair_ahead', [(1.0, {'say': 'hop_up_chair'})], 1.0, ('ended', 'travel')),
     'running_jump': ('jumping/Running Jump', 'flat', [(0.5, {'twist': _RUN}), (MOMENTS[0], {'charge': 1.0, 'say': 'hop'})],
                      MOMENTS[0], ('flight', 'travel', 'speed')),
-    'crouch_up': ('kneel/Crouch Up', 'flat', [(1.0, {'say': 'crouch'}), (4.0, {'say': 'stand'})], 4.0, ('ended', 'lasted')),
-    'crouching_down': ('kneel/Crouching Down', 'flat', [(1.0, {'say': 'crouch'})], 1.0, ('drop', 'ended', 'knee', 'lasted')),
-    'kneeling_down': ('kneel/Kneeling Down', 'flat', [(1.0, {'say': 'kneel'})], 1.0, ('drop', 'ended', 'knee', 'lasted')),
-    'kneeling_up': ('kneel/Kneeling Up', 'flat', [(1.0, {'say': 'kneel'}), (4.0, {'say': 'stand'})], 4.0, ('ended', 'lasted')),
+    'crouch_up': ('kneel/Crouch Up', 'flat', [(1.0, {'take': 'crouching_down'}), (6.0, {'take': 'crouch_up'})], 6.0,
+                  ('ended', 'lasted')),
+    'crouching_down': ('kneel/Crouching Down', 'flat', [(1.0, {'take': 'crouching_down'})], 1.0, ('drop', 'ended', 'knee', 'lasted')),
+    'kneeling_down': ('kneel/Kneeling Down', 'flat', [(1.0, {'take': 'kneeling_down'})], 1.0, ('drop', 'ended', 'knee', 'lasted')),
+    'kneeling_up': ('kneel/Kneeling Up', 'flat', [(1.0, {'take': 'kneeling_down'}), (6.0, {'take': 'kneeling_up'})], 6.0,
+                    ('ended', 'lasted')),
     'lying_down_from_sitting': ('lying/Lying Down from Sitting', 'bed_behind',
-                                [(1.0, {'say': 'sit_chair'}), (7.0, {'say': 'lie_bed'})], 7.0,
+                                [(1.0, {'take': 'sitting_on_bed'}), (7.0, {'take': 'lying_down_from_sitting'})], 7.0,
                                 ('upright', 'hips back', 'ended', 'lasted')),
-    'sitting_on_bed': ('lying/Sitting on Bed', 'bed_behind', [(1.0, {'say': 'sit_chair'})], 1.0,
+    'sitting_on_bed': ('lying/Sitting on Bed', 'bed_behind', [(1.0, {'take': 'sitting_on_bed'})], 1.0,
                        ('drop', 'hips back', 'upright', 'knee', 'lifted', 'lasted')),
-    'standing_yawn': ('lying/Standing Yawn', 'flat', [(1.0, {'say': 'yawn'})], 1.0, ('arms', 'back', 'travel')),
+    'standing_yawn': ('lying/Standing Yawn', 'flat', [(1.0, {'take': 'standing_yawn'})], 1.0, ('arms', 'back', 'travel')),
     'turning_in_bed': ('lying/Turning in Bed', 'mattress_under',
-                       [(1.0, {'say': 'lie_floor'}), (9.0, {'say': 'turn_over'})], 9.0, ('rolled', 'turned', 'upright')),
+                       [(1.0, {'say': 'lie_floor'}), (9.0, {'take': 'turning_in_bed'})], 9.0, ('rolled', 'turned', 'upright')),
     'jogging_backwards': ('run/Jogging Backwards', 'flat', [(1.0, {'twist': _BACK})], MOMENTS[0], ('travel', 'speed', 'upright')),
     'jogging_forward': ('run/Jogging Forward', 'flat', [(1.0, {'twist': _RUN})], MOMENTS[0], ('travel', 'speed', 'flight')),
     'running_backward': ('run/Running Backward', 'flat', [(1.0, {'twist': _BACK})], MOMENTS[0], ('travel', 'speed')),
     'running_forward': ('run/Running Forward', 'flat', [(1.0, {'twist': _RUN})], MOMENTS[0], ('travel', 'speed', 'flight')),
-    'sit_to_stand': ('sitting/Sit To Stand', 'chair_behind', [(1.0, {'say': 'sit_chair'}), (8.0, {'say': 'rise_chair'})], 8.0,
+    'sit_to_stand': ('sitting/Sit To Stand', 'chair_behind', [(1.0, {'take': 'stand_to_sit'}), (8.0, {'take': 'sit_to_stand'})], 8.0,
                      ('ended', 'forward', 'lasted')),
     'situp_to_stand': ('sitting/Situp To Stand', 'mattress_under',
-                       [(1.0, {'say': 'lie_floor'}), (9.0, {'say': 'rise_floor'})], 9.0, ('ended', 'upright', 'lasted')),
-    'stand_to_sit': ('sitting/Stand To Sit', 'chair_behind', [(1.0, {'say': 'sit_chair'})], 1.0,
+                       [(1.0, {'say': 'lie_floor'}), (9.0, {'take': 'situp_to_stand'})], 9.0, ('ended', 'upright', 'lasted')),
+    'stand_to_sit': ('sitting/Stand To Sit', 'chair_behind', [(1.0, {'take': 'stand_to_sit'})], 1.0,
                      ('drop', 'hips back', 'forward', 'knee', 'lifted', 'lasted')),
     'edge_tripping_backwards': ('slipping/Edge Tripping Backwards', 'edge_behind', [(1.0, {'twist': _BACK})], 1.0, ('ended',)),
     'slipping_backwards': ('slipping/Slipping Backwards', 'ice', [(1.0, {'twist': WALK})], MOMENTS[0], ()),
@@ -168,6 +172,12 @@ def _row(g, world):
            'loads': tuple(float(v) for v in g['loads']), 'where': tuple(d.qpos[0:3].tolist()),
            'turn': tuple(d.qpos[3:7].tolist()), 'angles': angles, 'set': angles, 'watts': 0.0}
     return dict(zip(HEADER, row(now, 0.0)))
+
+
+def _told(command):
+    """A command as her worker hears it: a take's rows (`{'take': key}`) as the loop's entries."""
+    take = command.get('take')
+    return command if take is None else {'entries': [(take, stunts.wire(take), (take,))]}
 
 
 def stunt_window(key):
@@ -235,7 +245,7 @@ def ran(name, wobble=0.0):
     track, fell, hit, k, bore, most = [], None, None, 0, {}, {}
     rows, told_at = [], -math.inf
     sigma_min, scale_min, shrunk_n, qacc_max = math.inf, 1.0, 0, 0.0
-    plan = sorted(plan, key=lambda c: c[0])
+    plan = sorted(((at, _told(c)) for at, c in plan), key=lambda c: c[0])
     while s['g']['t'] < seconds and s['epoch'] == 0:
         while k < len(plan) and s['g']['t'] >= plan[k][0]:
             worker.apply(s, plan[k][1])

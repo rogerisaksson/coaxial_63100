@@ -104,19 +104,22 @@ serves its DOD; none an entry a case.
    her rows measured as the take is (lengths in legs, times in sqrt(leg/g))
    and judged within a sole's length, her list, her arm's cone and one
    natural time of the take's, her head no lower than the human's and under
-   1 m/s if she falls. 2 of 31 met, 6 refused for want of a text - backflip,
-   kneel, yawn, turn_over -, 23 short (scenarios.md, "The takes as
-   scenarios"): the shoves and the step's edge put her head on the floor at
-   1.1-1.8 m/s where a human sits down or catches himself (item 5); a crouch
-   8 cm where 0.59 m, the sit's hips and trunk (item 1); the chair's hops
-   (item 6) and a standing jump a tenth of the human's; W at 0.93 m/s where
-   a jog is 2.0 and a run 4.5, S at 0.19 where 1.3; the dance a bounce of 5
-   cm where 34; the stairs (item 3); lying (item 1). The moves as her rows
-   from the takes themselves: each latent mode read off a take's joints in
-   her units - axial from the hips' height, pitch from the trunk, sagittal
-   from the hips over the ankles, list, turn, the arms - and streamed as the
-   text's targets, the whole-body step keeping her balance; no spasm: each
-   segment's jerk no higher than her steady walk's (item 2). The take's
+   1 m/s if she falls. A posture's take is told as its own rows (axial,
+   sagittal and pitch read off the take, the rest her balance's; stunts.md):
+   4 of 31 met - the slick patch, the ice, the crouch and the kneel -, the
+   backflip refused for want of a text, 25 short, 235 widths off in all. Open
+   by mechanism: her hands' jerk 8 800-20 800 m/s^3 where her walk's is
+   1 400-1 800 through the sit, the rise, the dance and the bed - the
+   whole-body step's upper joints at W_POSTURE 1 against W_COM 1000 make her
+   arms the lever when her support flickers (item 2); the shoves and the
+   step's edge put her head on the floor at 1.1-1.8 m/s where a human sits
+   down or catches himself (item 5); the sit's hips 0.06-0.56 back run to
+   run where 0.48, the bed's edge and lying (item 1); the chair's hops (item
+   6) and a standing jump a tenth of the human's; W at 0.93 m/s where a jog
+   is 2.0 and a run 4.5, S at 0.19 where 1.3; the dance's bounce of 0.38
+   legs felling her when streamed; a lean back of 13 deg standing met with
+   3.7; the stairs (item 3). No spasm: each segment's jerk no higher than
+   her steady walk's (item 2). The take's
    human and she by similarity: lengths by the legs' ratio, times and speeds
    by its root, masses and forces by its cube, normative for a woman of her
    size (`figure.MASS_KG` at 165 cm). One evaluation to iterate while a

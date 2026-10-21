@@ -4,17 +4,20 @@
     python tools/sim/stunts.py                      # every take's scenario on the relay, a table
     python tools/sim/stunts.py stand_to_sit backflip
     python tools/sim/stunts.py --save build/stunts.json [--against build/was.json]
-    python tools/sim/stunts.py --reference          # the takes measured anew into tests/takes/stunts.json
+    python tools/sim/stunts.py --reference          # the takes measured anew into tests/takes/
     measures = stunts.measured(times, joints)       # {name: value} of a take's (`fbx.take`) or her rows'
     got = stunts.evaluate(); stunts.total(got)      # every stunt run, how far off its take, the one number
+    wire = stunts.wire('stand_to_sit')              # the take's rows for her loop
 
 The takes lie in stunts/<folder>/ beside the repo (dance, falling, flips, jumping, kneel, lying,
-run, sitting, slipping, stairs, standing), read once into tests/takes/stunts.json: a take's
-seconds, its leg and MOVES' measures, the reference each scenario in `scenarios.STUNTS` is
-judged by - the scene placed, her told as a player would, her rows measured here over the
-take's seconds from the telling, and each measure of the scenario's signature within WITHIN of
-the take's: a sole's length, her list, her arm's cone, one natural time. Whatever she does, her
-head goes no lower than the human's (SAFE).
+run, sitting, slipping, stairs, standing), read once into tests/takes/: a take's seconds, its
+leg and MOVES' measures (stunts.json), the reference each scenario in `scenarios.STUNTS` is
+judged by - the scene placed, her told as a player would or handed the take's own rows, her
+rows measured here over the take's seconds from the telling, and each measure of the
+scenario's signature within WITHIN of the take's: a sole's length, her list, her arm's cone,
+one natural time; whatever she does, her head goes no lower than the human's (SAFE) - and its
+modes at its frames (stunts_modes.npz), read as `modal.reading` reads hers: her posture's
+(STREAMED) said to her loop as rows, her stance's left to her balance.
 
 The take's human and she are alike by dynamic similarity (SIMILAR): the measures are in legs,
 sqrt(leg / g) and sqrt(g leg), so neither size enters them; what does is a woman of her size,
@@ -31,13 +34,14 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from coaxial.model.blocks import numpy as np  # behind the OpenBLAS cap
-from machine import figure, modal
+from machine import figure, modal, ortho, stride
 from tools import REPO
 
 G = 9.81
-#: The takes beside the repo; their measures kept here.
+#: The takes beside the repo; their measures and their modes kept here.
 TAKES = os.path.join(os.path.dirname(REPO), 'stunts')
 REFERENCE = os.path.join(REPO, 'host', 'tests', 'takes', 'stunts.json')
+MODES_FILE = os.path.join(REPO, 'host', 'tests', 'takes', 'stunts_modes.npz')
 
 #: A move's measures, (name, unit, side): lengths in legs (hip to knee to ankle), times in
 #: sqrt(leg / g), speeds in sqrt(g leg), so a human's and hers read alike. A side of 1 is met by
@@ -78,9 +82,55 @@ RISE = (0.1, 0.9)
 #: weight over L cubed, a woman of her build), a moment as its fourth power, a power as L^3.5.
 SIMILAR = {'length': 1.0, 'time': 0.5, 'speed': 0.5, 'acceleration': 0.0, 'mass': 3.0, 'force': 3.0,
            'moment': 4.0, 'power': 3.5, 'energy': 4.0}
+#: The modes a take's rows say, her posture's: the legs' shortening, the centre of mass over
+#: the soles along, the trunk's pitch. The rest stay her balance's - where her soles go and
+#: how they rock, her pelvis's list and turn over them, her arms' swing: the human's feet
+#: widened and shifted through a crouch collapsed her (head 0.02 legs), his pelvis's 20 deg
+#: list or his heels' rise in it felled her (head 0.04, 0.24), his arms' swing too (0.05,
+#: hands' jerk 29 000 m/s^3); with these three alone the crouch, the sit and the kneel are
+#: the takes' (far 0.0, 0.9, 0.0).
+STREAMED = (modal.AXIAL, modal.SAGITTAL, modal.PITCH)
+#: A take's rows' sequence id, after the texts' streams (200-205).
+TAKE_ID = 300
 SIDES = ('Left', 'Right')
 UP = np.array([0.0, 1.0, 0.0])
 FLAT = np.array([1.0, 0.0, 1.0])
+#: Each of her segments' bone, its share of her weight (`figure.SEGMENTS`, de Leva's for a
+#: woman) and where its centre lies: this far along the bone to the next joint's, or at the
+#: joint itself with none below it.
+CHAIN = {'torso': 'neck', 'neck': 'head', 'upper_arm': 'forearm', 'forearm': 'hand', 'hand': 'fingers',
+         'thigh': 'shank', 'shank': 'foot', 'foot': 'toes'}
+
+
+def _centres():
+    from tools.sim import fbx
+    by = {seg[0]: seg for seg in figure.SEGMENTS}
+    out = []
+    for name, _above, _joints, _offset, _z, share, com, _size in figure.SEGMENTS:
+        side, _bar, rest = name.partition('_')
+        below = CHAIN.get(rest if side in ('left', 'right') else name)
+        child = by.get((side + '_' + below) if below and side in ('left', 'right') else below) if below else None
+        along = np.array(child[3], float) if child else None
+        f = float(np.array(com) @ along / (along @ along)) if along is not None else 0.0
+        out.append((fbx.bone(name), fbx.bone(child[0]) if child else None, share, f))
+    return tuple(out)
+
+
+CENTRES = _centres()
+
+
+def _com(joints):
+    """A skeleton's centre of mass, (n, 3), by her segments' shares laid on its bones (CENTRES);
+    a bone the take lacks weighs nothing."""
+    total, com = 0.0, 0.0
+    for bone, child, share, f in CENTRES:
+        if bone not in joints:
+            continue
+        at = joints[bone]
+        if child in joints:
+            at = at + f * (joints[child] - at)
+        total, com = total + share, com + share * at
+    return com / total
 
 
 def similar(leg, quantity):
@@ -117,19 +167,29 @@ def _even(times, joints):
     return grid, {k: np.stack([np.interp(grid, t, p[:, a]) for a in range(3)], 1) for k, p in joints.items()}
 
 
+def _leg(joints):
+    """A skeleton's leg, m: hip to knee to ankle, both sides meaned."""
+    return float(np.mean([np.linalg.norm(joints[s + 'UpLeg'] - joints[s + 'Leg'], axis=1).mean()
+                          + np.linalg.norm(joints[s + 'Leg'] - joints[s + 'Foot'], axis=1).mean() for s in SIDES]))
+
+
+def _frame(joints):
+    """(left, ahead) of a skeleton on the floor, its hips' line at the first sample."""
+    left = (joints['LeftUpLeg'][0] - joints['RightUpLeg'][0]) * FLAT
+    left = left / max(float(np.linalg.norm(left)), 1e-9)
+    return left, np.cross(left, UP)
+
+
 def measured(times, joints):
     """{measure: value} (MOVES) of a move from its joints' places, with its `leg` m and `seconds`."""
     t, joints = _even(times, joints)
     hips, neck, head = joints['Hips'], joints['Neck'], joints['Head']
     feet = np.stack([joints['LeftFoot'], joints['RightFoot']])
-    leg = float(np.mean([np.linalg.norm(joints[s + 'UpLeg'] - joints[s + 'Leg'], axis=1).mean()
-                         + np.linalg.norm(joints[s + 'Leg'] - joints[s + 'Foot'], axis=1).mean() for s in SIDES]))
+    leg = _leg(joints)
     tick = math.sqrt(leg / G)
     rate = (len(t) - 1) / max(float(t[-1] - t[0]), 1e-9)
+    left, fwd = _frame(joints)
     line = joints['LeftUpLeg'] - joints['RightUpLeg']
-    left = line[0] * FLAT
-    left = left / max(float(np.linalg.norm(left)), 1e-9)
-    fwd = np.cross(left, UP)
     low = feet[:, :, 1].min(axis=0)
     floor = float(low.min())
     h, flat = hips[:, 1], hips[:, [0, 2]]
@@ -165,6 +225,61 @@ def measured(times, joints):
         'arms': float(max(a.max() - a.min() for a in arms)),
         'leg': leg, 'seconds': float(t[-1] - t[0]),
     }
+
+
+def modes(times, joints, fr):
+    """(times s at her size, (n, N) her modes) of a take, as `modal.reading` reads hers (her
+    frame `fr`, `modal.frame`): the legs shorter than standing, the centre of mass over the
+    soles' middle to her left and along, the soles apart along, up and across, the trunk's pitch, the
+    hips' line's list and turn, the arms' swing and the feet's rock off standing; lengths at her
+    size, times by similarity. The take's stand is her stand: its frames with the hips within
+    a sole of their highest, however it begins - seated, kneeling, lying."""
+    t, j = _even(times, joints)
+    hips, neck = j['Hips'], j['Neck']
+    leg = _leg(j)
+    scale = modal.LEG_M / leg
+    left, along = _frame(j)
+    ankle = min(float(j[s + 'Foot'][:, 1].min()) for s in SIDES)
+    soles = np.stack([j['LeftFoot'], j['RightFoot']]) - UP * ankle
+    legs = np.linalg.norm(np.stack([j['LeftUpLeg'], j['RightUpLeg']]) - soles, axis=2).mean(axis=0)
+    stood = hips[:, 1] >= hips[:, 1].max() - WITHIN['legs'] * leg
+    place = soles - _com(j)
+    mid = 0.5 * (place[0] + place[1])
+    trunk = neck - hips
+    pitch = np.arctan2(trunk @ along, trunk @ UP)
+    line = j['LeftUpLeg'] - j['RightUpLeg']
+    arm = [j[s + 'ForeArm'] - j[s + 'Arm'] for s in SIDES]
+    swing = np.stack([np.arctan2(u @ along, -(u @ UP)) for u in arm])
+    foot = [j[s + 'ToeBase'] - j[s + 'Foot'] for s in SIDES]
+    tilt = np.stack([np.arcsin(np.clip(f @ UP / np.maximum(np.linalg.norm(f, axis=1), 1e-9), -1.0, 1.0)) for f in foot])
+    out = np.zeros((len(t), modal.N))
+    out[:, modal.AXIAL] = (np.median(legs[stood]) - legs) * scale / (modal.AXIAL_M * fr[modal.HIPS_BY])
+    out[:, modal.LATERAL] = -(mid @ left) * scale / fr[modal.W0]
+    out[:, modal.SAGITTAL] = -(mid @ along) * scale / modal.HALF_M
+    out[:, modal.DRIVE] = 0.5 * ((place[1] - place[0]) @ along) * scale / stride.STRIDE_M
+    out[:, modal.LIFT] = ((place[0] - place[1]) @ UP) * scale / modal.CLEAR_M
+    out[:, modal.WIDTH] = 0.5 * ((place[0] - place[1]) @ left) * scale / fr[modal.W0] - 1.0
+    out[:, modal.PITCH] = (pitch - np.median(pitch[stood])) / modal.PITCH_RAD
+    out[:, modal.LIST] = np.arctan2(line @ UP, line @ left) / modal.LIST_RAD
+    out[:, modal.TURN] = np.arctan2(line @ along, line @ left) / modal.TURN_RAD
+    out[:, modal.ARMS] = 0.5 * (modal.LIMBS @ (swing - np.median(swing[:, stood], axis=1)[:, None])) / modal.ARM_RAD
+    out[:, modal.ROCK] = 0.5 * (modal.LIMBS @ (tilt - np.median(tilt[:, stood], axis=1)[:, None])) / modal.ROCK_RAD
+    return ((t - t[0]) * similar(leg, 'time')).astype(np.float32), out.astype(np.float32)
+
+
+def wire(key):
+    """A take's rows for her loop (`ortho.ROW`): its STREAMED modes said at its frames, each
+    blended over a frame, the rest left as they are; from MODES_FILE."""
+    with np.load(MODES_FILE) as kept:
+        t, z = kept[key + '_t'], kept[key + '_z']
+    step = int(round(1e3 * (t[1] - t[0])))
+    rows = []
+    for k in range(len(t)):
+        p = [math.nan] * ortho.P
+        for i in STREAMED:
+            p[ortho.Z + i] = float(z[k, i])
+        rows.append(ortho.ROW.pack(TAKE_ID, int(round(1e3 * t[k])), step, 0, *p))
+    return b''.join(rows)
 
 
 def moved(rows, start, stop):
@@ -217,14 +332,16 @@ def reference():
         return json.load(f)
 
 
-def measure_takes(takes):
-    """{take: its measures} of the takes read from TAKES: `takes` {key: 'folder/Name'}."""
+def measure_takes(takes, fr):
+    """({take: its measures}, {take_t, take_z: its modes at her size}) of the takes read from
+    TAKES: `takes` {key: 'folder/Name'}, `fr` her frame."""
     from tools.sim import fbx
-    out = {}
+    out, kept = {}, {}
     for key, take in takes.items():
         times, joints = fbx.take(os.path.join(TAKES, take + '.fbx'))
         out[key] = dict(take=take, **{k: round(float(v), 4) for k, v in measured(times, joints).items()})
-    return out
+        kept[key + '_t'], kept[key + '_z'] = modes(times, joints, fr)
+    return out, kept
 
 
 def evaluate(names=None, wobble=0.0):
@@ -252,29 +369,32 @@ def total(got):
 
 
 def line(name, got, ref, signature):
-    """One scenario's line: how far, met, stood or refused, each signature measure take -> hers,
-    * out."""
+    """One scenario's line: how far, met, stood or refused, her hands' jerk, each signature
+    measure take -> hers, * out."""
     if 'refused' in got:
         return '%-24s %5.1f refused %r: no text' % (name, got['far'], got['refused'])
     pairs = ' '.join('%s %.2f>%.2f%s' % (n, b, a, '' if ok else '*') for n, a, b, ok in apart(got.get('moved', {}), ref, signature))
     fell = 'stood' if got['stood'] else 'fell' + ('' if got['head_hit'] is None else ' %.1f m/s' % got['head_hit'])
-    return '%-24s %5.1f %-4s %-14s %s' % (name, got['far'], 'met' if got['met'] else '-', fell, pairs)
+    hands = max(got['jerk']['left_hand'], got['jerk']['right_hand'])
+    return '%-24s %5.1f %-4s %-14s hands %6.0f  %s' % (name, got['far'], 'met' if got['met'] else '-', fell, hands, pairs)
 
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
     parser.add_argument('names', nargs='*', help='stunts (all where none)')
-    parser.add_argument('--reference', action='store_true', help='the takes measured anew into tests/takes/stunts.json')
+    parser.add_argument('--reference', action='store_true', help='the takes measured anew into tests/takes/')
     parser.add_argument('--wobble', type=float, default=0.0, help='each laid turned this rad')
     parser.add_argument('--save', help='the runs written here as JSON')
     parser.add_argument('--against', help="a saved run's JSON: what moved")
     args = parser.parse_args(argv)
     from tools.sim import scenarios
     if args.reference:
-        got = measure_takes({k: row[0] for k, row in scenarios.STUNTS.items()})
+        from machine import worker
+        got, kept = measure_takes({k: row[0] for k, row in scenarios.STUNTS.items()}, worker.session()['g']['fr'])
         with open(REFERENCE, 'w', encoding='utf-8') as f:
             json.dump(got, f, indent=1, sort_keys=True)
             f.write('\n')
+        np.savez_compressed(MODES_FILE, **kept)
         for key, m in got.items():
             print('%-26s %5.1f s  leg %.2f (%.0f kg)  ' % (key, m['seconds'], m['leg'], figure.MASS_KG / similar(m['leg'], 'mass'))
                   + ' '.join('%s %.2f' % (n, m[n]) for n in scenarios.STUNTS[key][4] + SAFE))
