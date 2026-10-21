@@ -41,21 +41,28 @@ def held_back(g, dt):
     hop said 2.1 s after a stop, still stepping, loaded on one sole at once on the stand's. Her
     rhythm at rest, no swing comes: sitting, her centre of mass behind her heels, a seat asked
     was held for ever."""
-    tab, t, a = g['tab'], g['t'], g['a']
+    t = g['t']
+    shift, first, g['_held_s'] = g['waits'].held(g['tab'], t, dt, g.get('_held_s', 0.0))
+    g['labels'] = [(w + shift * (w >= first), n) for w, n in g['labels']]
+    g['_jump_until'] = g.get('_jump_until', 0.0) + shift * (g.get('_jump_until', 0.0) > t)
+
+
+def held_rows(tab, a, out, t, dt, held_s):
+    """(shift, first, held_s) of `held_back` on her table `tab` (its times shifted in place), modal's
+    `a`, the latent `out`, at `t`, `dt` on, her hold `held_s` s so far. In C bit for bit (`g['waits']`,
+    `laid`)."""
     stepping = float((a[modal.NEED] > 0.0) | (a[modal.SWINGS].max() > 0.0))
     at = tab[:, latent.AT]
     halts = (tab[:, latent.SAID][:, latent.GAIN] > 0.5) & (tab[:, latent.VALS][:, latent.GAIN] < 0.05)
     due = halts & (at <= t + latent.EDGE_S) & (at > t - dt + latent.EDGE_S)
     active = stepping * float(np.any(due))
-    held_s = active * g.get('_held_s', 0.0)
-    g['_held_s'] = held_s + active * dt
-    turns = float(g['out'][latent.TURNS])
-    within = float((turns > stride.TINY) & (held_s <= 4.0 * stride.PHI_W / max(turns, stride.TINY)))
+    held = active * held_s
+    turns = float(out[latent.TURNS])
+    within = float((turns > stride.TINY) & (held <= 4.0 * stride.PHI_W / max(turns, stride.TINY)))
     shift = dt * active * within
     first = float(np.min(at, where=due, initial=math.inf)) - latent.EDGE_S
     at += shift * (at >= first)
-    g['labels'] = [(w + shift * (w >= first), n) for w, n in g['labels']]
-    g['_jump_until'] = g.get('_jump_until', 0.0) + shift * (g.get('_jump_until', 0.0) > t)
+    return shift, first, held + active * dt
 
 
 def gripped(out, held, stance, caps, into):
@@ -84,17 +91,24 @@ def risen_back(g, dt):
     something bears her off her soles wait a pass, every row after them with them, while her
     capture point is off her soles: thrust up off a bed on the clock, her centre of mass 14 cm
     behind her soles' middle, she rose, her trunk came up and she stepped back as it let her go."""
-    tab, t, y, fr = g['tab'], g['t'], g['y'], g['fr']
+    shift, first, g['_prop_until'] = g['waits'].risen(g['tab'], g['t'], dt, g.get('_prop_until', -1.0))
+    g['labels'] = [(w + shift * (w >= first), n) for w, n in g['labels']]
+
+
+def risen_rows(tab, y, fr, a, st, t, dt, prop_until):
+    """(shift, first, prop_until) of `risen_back` on her table `tab` (its times shifted in place),
+    modal's `y`, `fr` and `a`, her latent `st`, at `t`, `dt` on, `prop_until` when a prop last
+    bore her. In C bit for bit (`g['waits']`, `laid`)."""
     has_prop = float(y[modal.PROP] > 0.0)
-    g['_prop_until'] = has_prop * (t + 0.06) + (1.0 - has_prop) * g.get('_prop_until', -1.0)
-    propped = float((y[modal.PROP] > 0.0) | (t <= g['_prop_until']))
+    until = has_prop * (t + 0.06) + (1.0 - has_prop) * prop_until
+    propped = float((y[modal.PROP] > 0.0) | (t <= until))
     rot = fr[modal.ROT].reshape(3, 3)
     c, v = rot @ y[modal.COM], rot @ y[modal.VCOM]
     xi = c[:2] + v[:2] / math.sqrt(modal.G / max(float(c[2] - fr[modal.FLOOR]), 0.3))
-    lo, hi = poise.boxes((y[modal.SOLE].reshape(2, 3) @ rot.T)[:, :2], g['a'][modal.EDGE], y[modal.TILT])
+    lo, hi = poise.boxes((y[modal.SOLE].reshape(2, 3) @ rot.T)[:, :2], a[modal.EDGE], y[modal.TILT])
     outside = float(np.any((xi < lo.min(axis=0)) | (xi > hi.max(axis=0))))
     at, axial, sag = tab[:, latent.AT], modal.AXIAL, modal.SAGITTAL
-    vals, said, to = tab[:, latent.VALS][:, latent.Z], tab[:, latent.SAID][:, latent.Z], g['st'][latent.TO][latent.Z]
+    vals, said, to = tab[:, latent.VALS][:, latent.Z], tab[:, latent.SAID][:, latent.Z], st[latent.TO][latent.Z]
     # a row raises her over her soles with its centre of mass told from her heels' edge on (the
     # sagittal's -1); told behind them her legs straighten lying, and would wait for nothing
     over = np.where(said[:, sag] > 0.5, vals[:, sag], to[sag]) >= -1.0
@@ -103,7 +117,7 @@ def risen_back(g, dt):
     shift = dt * propped * outside * float(np.any(due))
     first = float(np.min(at, where=due, initial=math.inf)) - latent.EDGE_S
     at += shift * (at >= first)
-    g['labels'] = [(w + shift * (w >= first), n) for w, n in g['labels']]
+    return shift, first, until
 
 
 def _step_latent(g, dt):
@@ -274,12 +288,12 @@ def laid(g):
     pointing at `g`'s arrays once - the observers, the setpoints and their rates, the holds, the
     knees' spring, the feed and the clamps her drives are told (`g['cmd']`) - and what it reads
     by, kept beside it. Her latent step, her upper body's coupling, her ask, her surety field, her
-    touch's filter and her twist's step in C, her python's bit for bit (`tools.cores.motion`, `surety`,
-    `touch`, `twist`); her estimate, her grip's feel and floor, her
+    touch's filter, her twist's step and her table's waits in C, her python's bit for bit
+    (`tools.cores.motion`, `surety`, `touch`, `twist`, `wait`); her estimate, her grip's feel and floor, her
     situation, her drive's cap and her ask's poses compiled from their numpy (`tools.cores.bodied`)."""
     from machine.figure import JOINTS
     from tools.cores import bodied, motion as c_motion, surety as c_surety, touch as c_touch, twist as c_twist
-    from tools.cores import wbc as cores
+    from tools.cores import wait as c_wait, wbc as cores
     g['estimated'] = bodied.on_body(estimate.step, 'estimate', (0, 2), body=1)
     g['felt'] = bodied.on_args(grip.felt, 'felt', (0, 1, 2, 3, 4, 5, 7))
     g['outside'] = bodied.on_args(grip.outside, 'outside', (0, 1))
@@ -300,6 +314,7 @@ def laid(g):
                                      g['fr'], g['a'], g['st'], g['out'], g['rest'], g['touched'])
     g['twist_step'] = c_twist.laid(k, g['sense'], g['y'], g['fr'], g['a'], g['st'], g['out'], g['posture'],
                                    g['twisted'], g['words'], g['waist_idx'], g['head_idx'])
+    g['waits'] = c_wait.laid(k, g['a'], g['out'], g['y'], g['fr'], g['st'])
     g['_cv_sh'] = list(g['cervical']) + list(g['limbs']['shoulders'])
     g['_acv_sh'] = body.act[g['_cv_sh']]
     g['_derate'] = g['wep_lim'] / np.maximum(1.0, body.wep)

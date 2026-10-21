@@ -305,6 +305,28 @@ API int wbh_twist_size(void)
   return (int)sizeof(wbc_twist_t);
 }
 
+API void wbh_wait_held(const wbc_imp_t *k, const wbc_wait_t *w, double *tab, int n, const double *a, const double *out,
+                       double t, double dt, double held_s, double *got)
+{
+  wbc_wait_held(k, w, tab, n, a, out, t, dt, held_s, got);
+}
+
+API void wbh_wait_risen(const wbc_imp_t *k, const wbc_wait_t *w, double *tab, int n, const double *y, const double *fr,
+                        const double *a, const double *st, double t, double dt, double prop_until, double *got)
+{
+  wbc_wait_risen(k, w, tab, n, y, fr, a, st, t, dt, prop_until, got);
+}
+
+API int wbh_wait_size(void)
+{
+  return (int)sizeof(wbc_wait_t);
+}
+
+API int wbh_wait_rows(void)
+{
+  return WBC_WAIT_ROWS;
+}
+
 API void wbh_law_latent(const wbc_law_t *k, double *st, const double *tab, int ntab, double now, double dt,
                         double *out, double *hit)
 {

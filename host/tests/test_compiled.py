@@ -321,6 +321,59 @@ def test_her_twist_in_c_as_she_walks(report, c):
     report.check("a step of her twist in C on this host", us[0] < 30.0, '%.1f us, its python %.0f' % tuple(us))
 
 
+def test_her_waits_in_c_as_she_walks(report, c):
+    """Her table's waits in C (`c_wait.laid`, wbc_wait.c) beside their python (`motion.held_rows`,
+    `risen_rows`) on copies of her table at every pass of her law over 4 PASSES of her walk - the
+    table's times, the shift, the first row and the state bit for bit -, and a step's time."""
+    from machine import motion, worker
+    from tools.cores import motion as c_motion
+    from tools.cores.orders import same
+    s = worker.session(walks=True)
+    g = s['g']
+    waits, tally, spent = g['waits'], [0, 0, 0.0], [[], []]
+
+    class Beside:
+
+        def held(self, tab, t, dt, held_s):
+            mine = tab.copy()
+            t0 = time.perf_counter()
+            want = motion.held_rows(mine, g['a'], g['out'], t, dt, held_s)
+            t1 = time.perf_counter()
+            got = waits.held(tab, t, dt, held_s)
+            self.tallied(t1 - t0, time.perf_counter() - t1, tab, mine, got, want)
+            return got
+
+        def risen(self, tab, t, dt, prop_until):
+            mine = tab.copy()
+            t0 = time.perf_counter()
+            want = motion.risen_rows(mine, g['y'], g['fr'], g['a'], g['st'], t, dt, prop_until)
+            t1 = time.perf_counter()
+            got = waits.risen(tab, t, dt, prop_until)
+            self.tallied(t1 - t0, time.perf_counter() - t1, tab, mine, got, want)
+            return got
+
+        @staticmethod
+        def tallied(py_s, c_s, tab, mine, got, want):
+            spent[0].append(c_s)
+            spent[1].append(py_s)
+            tally[0] += 1
+            tally[1] += not (same(tab, mine) and same(got, want))
+            tally[2] = max(tally[2], float(np.nan_to_num(np.abs(np.asarray(got) - np.asarray(want))).max()),
+                           float(np.abs(tab - mine).max()) if len(tab) else 0.0)
+    g['waits'] = Beside()
+    for _ in range(4 * PASSES):
+        worker.stepped(s)
+    n, bad, apart = tally
+    if c_motion.exact_host():
+        report.check("her table's waits in C are her python's bit for bit at %d calls of her law walking" % n,
+                     n >= 2 * PASSES and not bad, '%d apart, %.3g at most' % (bad, apart))
+    else:
+        report.check("her table's waits in C are her python's within their last bits where numpy dispatches elsewhere",
+                     n >= 2 * PASSES and apart <= 1e-9, '%d of %d not bit for bit, %.3g apart at most' % (bad, n, apart))
+    us = [1e6 * float(np.median(each)) for each in spent]
+    report.check("a wait in C on this host", us[0] < 20.0, '%.1f us, its python %.0f' % tuple(us))
+
+
 def test_aircraft_substeps_in_c_are_their_numpys(report, c):
     """`quad.substep` and `wingborne.wing_substep` compiled on each aircraft's `Sky` beside numpy's
     on a twin `Sky`, over 40 substeps: `qpos`, `qvel`, `qacc` and `xfrc_applied` bit for bit."""
@@ -359,7 +412,8 @@ def test_aircraft_substeps_in_c_are_their_numpys(report, c):
 
 ROSTER = (test_numpys_reductions_and_selections_in_c, test_her_state_in_place_in_c, test_her_sensing_in_c_is_her_numpys,
           test_her_law_in_c_as_she_walks, test_her_surety_in_c_as_she_walks, test_her_touch_in_c_as_she_walks,
-          test_her_twist_in_c_as_she_walks, test_aircraft_substeps_in_c_are_their_numpys)
+          test_her_twist_in_c_as_she_walks, test_her_waits_in_c_as_she_walks,
+          test_aircraft_substeps_in_c_are_their_numpys)
 
 
 def main(argv=None):

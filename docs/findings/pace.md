@@ -92,3 +92,8 @@ machine ([body](body.md), [emulation](emulation.md),
   took numpy's order for a fancy-indexed matrix, F-ordered, the (2, 2) @ (2,)
   fma; 118 -> 8.7 us a call. Her loop 440 -> 399 us a pass, 2.51 of real
   time, walking 2.50; the worker 455, 2.20; MuJoCo's step 85 of the 399.
+- Her table's waits in C (`wbc_wait.c`, `tools.cores.wait`: the rows that halt
+  her rhythm and the rows that raise her, held a pass; her table given at
+  each call, 512 rows at most): bit for bit at 8 002 calls over 12 s of her
+  walk, 60 -> 7.2 us a call. Her loop 399 -> 368 us a pass, 2.72 of real
+  time, walking 2.69; the worker 418, 2.39; MuJoCo's step 84 of the 368.

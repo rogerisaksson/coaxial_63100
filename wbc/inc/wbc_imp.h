@@ -181,4 +181,26 @@ typedef struct
 void wbc_twist_step(const wbc_imp_t *k, const wbc_twist_t *t, double dt, const double *vel, const double *held,
                     const double *prior);
 
+/** The most rows of her table the waits take. */
+#define WBC_WAIT_ROWS 512
+
+/** machine.motion.held_rows's and risen_rows's reading of her table (machine.latent): a row's
+    doubles, its time's place, its targets told and said, its gain told and said; her latent
+    state's targets asked; the waits' constants. */
+typedef struct
+{
+  int    table, at, vals_z, said_z, vals_gain, said_gain, st_to_z;
+  double edge_s, tiny, phi_w;
+} wbc_wait_t;
+
+/** Rows that halt her rhythm wait while her capture point steps her or a swing is under way
+    (machine.motion.held_rows): `tab` (n rows) its times shifted in place; `got` the shift, the
+    first row shifted, her hold's seconds. Rows that raise her wait while something bears her
+    off her soles and her capture point is off them (risen_rows): `got` the shift, the first,
+    until when a prop counts. */
+void wbc_wait_held(const wbc_imp_t *k, const wbc_wait_t *w, double *tab, int n, const double *a, const double *out,
+                   double t, double dt, double held_s, double got[3]);
+void wbc_wait_risen(const wbc_imp_t *k, const wbc_wait_t *w, double *tab, int n, const double *y, const double *fr,
+                    const double *a, const double *st, double t, double dt, double prop_until, double got[3]);
+
 #endif
