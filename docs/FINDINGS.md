@@ -189,6 +189,13 @@ Six firmware defects, no hardware fault:
   -273.15 C there.
 - TSEN is the die, reset whenever AFE_ON breaks; 0.125 K steps. FIELD ~2 G
   with no magnet.
+- The poll read the part back to back whenever AFE_ON was up: 8 346 reads a
+  second on native, 3 575 on Renode, where the board then ran at 2.2-3.5 wall
+  s a virtual s (1.34 with the loop held) and the attitude page's tumble at
+  0.4 of real time. With the drive and the DAQ off a read every 1 ms
+  (`ANGLE_IDLE_HZ`; the part refreshes every 32 us), back to back under
+  either: Renode 1.48, the page's reads 16 -> 12 ms, its vectors 52 -> 78 a
+  second; native 993 reads a second, hold and resume as before.
 
 ## DAQ and clocks
 

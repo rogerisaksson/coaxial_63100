@@ -63,6 +63,12 @@
 
 #define ANGLE_SETTLE_US 1U
 
+/* The A1335 read this often with the drive and the DAQ off - a page's worth; the part refreshes
+   every 32 us -, back to back under either. Read back to back whenever the AFE was on, the
+   emulated board ran at 2.2-3.5 wall s a virtual s, 1.34 with the loop held. */
+
+#define ANGLE_IDLE_HZ 1000U
+
 /* ---- Acquisition ------------------------------------------------------- */
 
 /** The reference up behind AFE_ON before the converters calibrate on it: the

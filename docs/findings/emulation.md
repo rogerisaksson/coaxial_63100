@@ -200,7 +200,11 @@ board's findings: [FINDINGS](../FINDINGS.md).
   WFIs only with it low and MOE clear - runs 1.9-2.8 wall s a virtual s (1.45
   idle), so the part's 10 ms reports and its tumble come at 0.4 of real time,
   52 rotation vectors a second where native gives 100; the IMU loop held
-  changes nothing (2.1-2.4). The REPORT box says the clock's pace.
+  changes nothing (2.1-2.4), the angle loop held 1.34: the A1335 read back
+  to back (FINDINGS, A1335). Paced to 1 kHz with the drive off: 1.48, 78
+  vectors a second, a read 12 ms. The floor is main() spinning for the
+  keepalive, 200 kHz of BSRR writes at 1.4 us each (HARDWARE.md: AFE_ON keeps
+  it pumping for the interlock's read). The REPORT box says the clock's pace.
 - native:// had no console: after 0x48 gave the line back a board went silent
   for every later session in the process, the tty's next page on the
   stand-in. The fake board takes 'm' again.

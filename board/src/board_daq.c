@@ -317,6 +317,11 @@ bool Board_DaqToneOn(void)
   return engine()->tone.on;
 }
 
+bool Board_DaqRunning(void)
+{
+  return engine()->running;
+}
+
 bool Board_DaqRateIsAuto(void)
 {
   return s.rate_auto;

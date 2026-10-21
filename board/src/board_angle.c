@@ -213,6 +213,25 @@ static bool up_a_settle(void)
   return (uint32_t)(Board_Cycles() - s_up_at) >= settle_cycles();
 }
 
+/* A read due: back to back under the drive or the DAQ, else one every 1/ANGLE_IDLE_HZ by
+   CYCCNT - nothing reads the angle faster than a page with both off. */
+static bool read_due(void)
+{
+  static uint32_t last;
+  const uint32_t now = Board_Cycles();
+
+  if (Board_PwmIsEnabled() || Board_DaqRunning())
+  {
+    return true;
+  }
+  if ((now - last) < SystemCoreClock / ANGLE_IDLE_HZ)
+  {
+    return false;
+  }
+  last = now;
+  return true;
+}
+
 /* The 20 bits the last packet brought back. */
 static uint32_t word_in(void)
 {
@@ -279,7 +298,7 @@ static bool read_step(uint32_t *got, bool *failed)
     switch (r.step)
     {
     case STEP_IDLE:
-      if (!up_a_settle())
+      if (!up_a_settle() || !read_due())
       {
         return false;
       }

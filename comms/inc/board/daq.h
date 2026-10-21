@@ -130,6 +130,9 @@ void Board_DaqTonePoll(void);
 /** Whether a tone is standing in for the converter. */
 bool Board_DaqToneOn(void);
 
+/** Whether a task is running. */
+bool Board_DaqRunning(void);
+
 /** Triggers one record costs: the decimation, the accumulate and the
     filter's own decimation. */
 uint32_t Board_DaqTriggersPerRecord(void);

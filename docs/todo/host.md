@@ -57,9 +57,12 @@
   drive mode's phase, so `w_air` is 1 - psi. Kept as is, bit for bit, by the
   C port. DOD: the read placed (the row's ZMP, or out's HELD), her walk and
   the scenarios measured before and after.
-- **The orientation page is sluggish on Renode** (asked): measured, the board
-  awake with AFE_ON up runs 1.9-2.8 wall s a virtual s on Renode, its reports
-  and its tumble at 0.4 of real time (emulation.md); the reads keep up. The
-  page says the clock's pace. DOD: the board idle between SysTicks with AFE_ON
-  up and MOE clear (`Board_StoIdle`), the angle's and the DAQ's poll latency
-  on the bench measured before and after; the page at real time on Renode.
+- **The orientation page is sluggish on Renode** (asked): the A1335 read back
+  to back was the load, paced to 1 kHz with the drive and the DAQ off:
+  Renode 2.2-3.5 -> 1.48 wall s a virtual s, the page's vectors 52 -> 78 a
+  second (FINDINGS, A1335). Left: main() spinning for the keepalive's 200 kHz
+  edges while AFE_ON is up, 1.34-1.48 of the 1.0 an idle board makes in WFI.
+  PA10 is TIM1_CH3: a timer-driven pump re-armed by main() would let it sleep
+  with the front end on - a change to the STO chain, HARDWARE.md's, to be
+  measured on the probe first. DOD: the page at real time on Renode, Clevel
+  on the probe as before.
