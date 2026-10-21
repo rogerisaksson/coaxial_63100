@@ -298,6 +298,9 @@ class Limb:
         """What the limb's world has its boards mounted in now."""
         return self.mounting
 
+    def world_drive(self, unit=1):
+        return worlds.drive_params(self.world.spec if self.world else None, unit)
+
     def airspeed(self, m_s):
         """Every board's frame flown through the air at `m_s`, m/s: their heat's truth in it."""
         with self.lock:
@@ -433,7 +436,7 @@ class Serial(SerialBase):
         self.heat_clock = self._limb.heat_clock
         self.room = self._limb.room
         self.mount, self.mounted = self._limb.mount, self._limb.mounted()
-        self.world = self._limb.world.spec if self._limb.world else None
+        self.world_drive = self._limb.world_drive
         self.drag = self._limb.drag
         self.model = self._limb.model
         self.model_reset = self._limb.model_reset

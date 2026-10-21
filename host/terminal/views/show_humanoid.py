@@ -216,13 +216,14 @@ def labels(now, called, shown='torque'):
 
 BAR = keybindings.BAR
 GROUPS = keybindings.groups()
+chat_box = gym.chat_box
 
 
 def size_of(console, args, up=0.0):
     size = console.size if console.is_terminal else None
     width = args.width or max(24, (size.width if size else 110) - HUD_WIDTH - 6)
     bar = footer(BAR).row_count + help_rows(GROUPS, up)
-    return width, args.height or max(12, (size.height if size else 44) - 5 - bar)
+    return width, args.height or max(12, (size.height if size else 44) - 5 - bar - (gym.CHAT_ROWS + 2))
 
 
 def _sync_actual(now, keys):
@@ -425,7 +426,8 @@ def main(argv=None):
              'called': 'strong', 'follow': gynoid.Follow(), 'recording': None, 'recorded': None,
              'playback': Playback.steady(), 'shown': 'torque', 'skin': 'dressed', 'scanner': VisionScanner(),
              'now': None, 'tour': None, 'pad': pad(), 'keys': KEYS, 'max': args.max,
-             'emu_port': emu_port, 'emu': None, 'origin': ORIGIN}
+             'emu_port': emu_port, 'emu': None, 'origin': ORIGIN,
+             'chat_rows': [gym.CHAT_GREETING]}
 
     def draw():
         scripted(state, args.keys)
@@ -451,9 +453,10 @@ def main(argv=None):
         up = helped(state, state.pop('typed', ()), t_mono)
         # Drawn a frame ahead: this frame shows the state asked the frame before, its boxes too.
         shown, state['drawn'] = state.get('drawn') or now, now
-        art = _draw_viewport(state, now, *size_of(board_view, args, up), terminal)
+        w_vp, h_vp = size_of(board_view, args, up)
+        art = _draw_viewport(state, now, w_vp, h_vp, terminal)
         return frame_of(board_view, state['origin'], TITLE, art, boxes(state, shown, name), BAR,
-                        gauges=gauges(state), help=(GROUPS, up))
+                        under=chat_box(state, w_vp), gauges=gauges(state), help=(GROUPS, up))
 
     try:
         body, name = _boot_humanoid(board_view, state)

@@ -26,7 +26,7 @@ SCENARIO_DESC = {
 
 #: The bar under the page.
 BAR = (('WASD', 'MOVE'), ('SHIFT', 'SPRINT'), ('Q E', 'TURN'), ('SPC', 'HOP'), ('F', 'INTERACT'),
-       ('C', 'CROUCH'), ('X', 'SHOULDER'), ('[ ]', 'SCENE'), ('TAB', 'KEYS'), ('ESC', 'MENU'))
+       ('C', 'CROUCH'), ('H', 'TOUR'), ('/', 'CHAT'), ('X', 'SHOULDER'), ('[ ]', 'SCENE'), ('TAB', 'KEYS'), ('ESC', 'MENU'))
 
 
 def groups():

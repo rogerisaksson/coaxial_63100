@@ -163,6 +163,15 @@ def mounted(world):
     return (world or {}).get('application', STILL)
 
 
+def drive_params(world, unit):
+    """The `drive` record for `unit` (1-based) in `world`, or {}."""
+    nodes = (world or {}).get('nodes', ())
+    if not 1 <= unit <= len(nodes):
+        return {}
+    with open(os.path.join(PROFILES, nodes[unit - 1]['motor'] + '.json'), encoding='utf-8') as f:
+        return dict(json.load(f)['drive'])
+
+
 def commands(world, node, lib, first):
     """The monitor's lines for the board at `node` (0-based) in `world`: the world itself set
     up by the `first`."""

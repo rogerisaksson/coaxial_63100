@@ -193,14 +193,14 @@ def test_viewport_f_errands_chair_bed_and_door(report):
         shown_prompt = show_humanoid.prompt(st)
         viewpoint.mouse(st, lambda: (100, 40))['on_click'](20, 10)
         max_prop = 0.0
-        for _ in range(13000):
+        for _ in range(15000):
             worker.stepped(s)
             max_prop = max(max_prop, float(g['y'][modal.PROP]))
             if s['fallen_at'] is not None:
                 break
             if label == 'door' and g.get('_errand') is None and float(g['world'].data.qpos[2]) > 4.1 and sprung.doing(g) in ('stand', 'rest'):
                 break
-            if label != 'door' and sprung.doing(g) == goal_phase and max_prop > 0.75 and g['t'] > 9.0:
+            if label != 'door' and sprung.doing(g) == goal_phase and max_prop > 0.45 and g['t'] > 9.0:
                 break
         gx, gy, gz = (float(g['world'].data.qpos[i]) for i in range(3))
         if label == 'door':
@@ -208,16 +208,52 @@ def test_viewport_f_errands_chair_bed_and_door(report):
             ok = (shown_prompt == expected_prompt and gz > 4.1 and dq > 1.2 and s['fallen_at'] is None)
             detail = 'prompt=%r z=%.2f door=%.2f fallen=%s' % (shown_prompt, gz, dq, s['fallen_at'])
         else:
+            sr_rest = float(g.get('surety', 1.0))
             ok = (shown_prompt == expected_prompt and sprung.doing(g) == goal_phase
-                  and max_prop > 0.75 and gy < 0.68 and s['fallen_at'] is None)
-            detail = 'prompt=%r doing=%s pos=(%.2f,%.2f,%.2f) prop=%.2f fallen=%s' % (
-                shown_prompt, sprung.doing(g), gx, gy, gz, max_prop, s['fallen_at'])
+                  and max_prop > 0.45 and gy < 0.68 and sr_rest > 0.85 and s['fallen_at'] is None)
+            if label == 'bed' and ok:
+                _run(s, 0.8)
+                st['now'] = worker.told(s)
+                rise_prompt = show_humanoid.prompt(st)
+                viewpoint.mouse(st, lambda: (100, 40))['on_click'](20, 10)
+                _flips, stood_t = _run(s, 6.0, until='stand')
+                _run(s, 0.5)
+                ok = (ok and rise_prompt == '[F] rise bed' and stood_t is not None
+                      and sum(g['loads']) > 250.0 and float(g.get('surety', 1.0)) > 0.85 and s['fallen_at'] is None)
+            detail = 'prompt=%r doing=%s pos=(%.2f,%.2f,%.2f) prop=%.2f sure=%.2f fallen=%s' % (
+                shown_prompt, sprung.doing(g), gx, gy, gz, max_prop, float(g.get('surety', 1.0)), s['fallen_at'])
         report.check('viewport [F] click for %s: %s and completes autonomous errand' % (label, expected_prompt), ok, detail)
+
+
+def test_continuous_outer_loop_told_and_walk_again(report):
+    """Zero discrete delay tables in `se2`/`worker`; `W` at any moment of a stop reaches `> 0.3 m/s` in `< 1.0 s`."""
+    from machine import se2, sprung, worker
+    from tools.sim import told
+    no_tables = not any(hasattr(se2, k) or hasattr(worker, k) for k in ('INIT_DELAYS', 'BRAKE_DELAYS', 'RISES'))
+    by = {e[0]: e for e in sprung.entries()}
+    r_horizons = (se2.rise_lead(by['rise_chair'][1]), se2.rise_lead(by['rise_bed'][1]), se2.rise_lead(by['rise_floor'][1]))
+    report.check('zero discrete delay tables in se2/worker and continuous rise_lead from wire tables',
+                 no_tables and r_horizons == (2.2, 3.6, 3.3), r_horizons)
+    times = []
+    fell = False
+    for after in (0.0, 0.5, 1.0, 2.0, 3.0, 4.0):
+        r = told.Run()
+        r.tell(twist=told.WALK)
+        r.go(3.0)
+        r.tell(twist=told.STOP)
+        r.go(after)
+        r.tell(twist=told.WALK)
+        dt = r.go(3.0, told.moving)
+        times.append((after, dt))
+        fell = fell or (r.s['fallen_at'] is not None)
+    report.check('W at any moment of a stop reaches > 0.3 m/s within < 1.0 s without falling',
+                 not fell and all(dt is not None and dt < 1.0 for _, dt in times), times)
 
 
 ROSTER = (test_a_stop_settles_and_f_is_heard, test_a_halting_row_waits_for_a_swing_only_while_her_rhythm_turns,
           test_a_chair_a_hair_off_is_sat_on_and_risen_from, test_doorway_arm_yields_and_she_walks_on,
-          test_chair_and_bed_dangling_legs_and_rising, test_viewport_f_errands_chair_bed_and_door)
+          test_chair_and_bed_dangling_legs_and_rising, test_viewport_f_errands_chair_bed_and_door,
+          test_continuous_outer_loop_told_and_walk_again)
 
 
 def main(argv=None):

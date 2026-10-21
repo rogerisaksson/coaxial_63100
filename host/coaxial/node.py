@@ -7,16 +7,13 @@ A joint (deg, the drive holding an angle), a surface (a joint of narrow span), a
 (rpm, a speed loop), a torque (A, the current itself). A board is named by its bus and unit
 ('LL_2'); what it drives, a machine measures (`Coaxial.identify`).
 """
-import json
 import math
-import os
 import urllib.parse
 
 from coaxial.comm.hostclock import Told, clock_of
 from coaxial.control.commission import Commissioning
 from coaxial.control.motion import started
 from coaxial.comm.session import standing
-from coaxial.devices.drive import PROFILES
 from coaxial.errors import RigError
 from machine.controller import Feedback
 from machine.machine import Actuator
@@ -30,6 +27,7 @@ from motor.pmsm import RAD_S_PER_RPM
 #: 1e-5 (zeta 0.0013) rings at 30 Hz for seconds, and a 25 Hz loop pumps it until a pole
 #: slips.
 JOINT_B = 4e-3
+ROT_J, ROT_B = 2e-5, 1e-5
 
 #: A rotor's start: its vector turned up to START times the record's crossover in START_S s -
 #: at 1.3 and 2 times it the bare rotor's swing about the vector had it under the crossover
@@ -85,7 +83,7 @@ class _OnDrive(Actuator):
             # The schematic's board: +5 for the STO chain's pilot detector, the drivers' supply;
             # the unmodified bench board's drivers have theirs with AFE_ON down.
             rig.board.afe.on()
-            clock_of(rig).sleep(0.05)
+            clock_of(rig).sleep(rig.AFE_SETTLE)
         rig.gates.on(**_arming(rig, arming))
 
     def hand_over(self, f, hz):
@@ -177,7 +175,7 @@ class Rotor(_OnDrive):
     def feedback(self, name):
         p = self.node.rig.drive.params()
         kt = 1.5 * self.poles * p.get('motor_lambda', 0.005)
-        return Feedback(SpeedPI(self.hz, self.amps, kt, 2e-5, 1e-5, scale=RAD_S_PER_RPM),
+        return Feedback(SpeedPI(self.hz, self.amps, kt, ROT_J, ROT_B, scale=RAD_S_PER_RPM),
                         setpoint=name, measured=self.node.name + '.drive.omega_hat',
                         command=name + '.iq', sink='%s.drive.iq_ref' % self.node.name,
                         prefilter=Slew(self.rpm_s), measure=Gain(1.0 / (self.poles * RAD_S_PER_RPM)),
@@ -188,7 +186,7 @@ class Rotor(_OnDrive):
         if rig.simulated:
             drive.configure(source='model')
         if standing(rig.origin) != 'live':
-            drive.model.configure(j=2e-5, b=1e-5, load=0.0)
+            drive.model.configure(j=ROT_J, b=ROT_B, load=0.0)
             # The stand-in's record commissioned as a bench's is: on its placeholders the
             # board's law loses a rotor from rest and trips.
             Commissioning(rig).gains()
@@ -245,19 +243,10 @@ class Coaxial(Node):
 
     def __init__(self, rig, name=None):
         board = rig.board
-        world = getattr(getattr(board.transport, 'serial', None), 'world', None)
-        if world and rig.origin.unit <= len(world.get('nodes', ())):
-            node = world['nodes'][rig.origin.unit - 1]
-            motor = node.get('motor')
-            if motor:
-                with open(os.path.join(PROFILES, motor + '.json'), encoding='utf-8') as f:
-                    profile = json.load(f)
-                rig.drive.configure(**profile['drive'])
-                load, model = node.get('load', {}), profile.get('model', {})
-                gear = load.get('gear', 1.0) or 1.0
-                rig.drive.model.configure(
-                    j=model.get('j', 2e-5) + load.get('inertia', 0.0) / gear ** 2,
-                    b=model.get('b', 5e-4) + load.get('damping', 0.0) / gear ** 2)
+        serial = getattr(board.transport, 'serial', None)
+        if getattr(serial, 'world_drive', None):
+            rig.drive.configure(**serial.world_drive(rig.origin.unit))
+            rig.drive.model.configure()
         identity = board.system.version()
         i_max = rig.drive.params().get('drv_i_max')
         currents = {'id_ref': (-i_max, i_max), 'iq_ref': (-i_max, i_max)} if i_max else {}
@@ -291,7 +280,7 @@ class Coaxial(Node):
             drive.configure(source='model')
         if standing(rig.origin) != 'live':
             rig.board.afe.on()
-            clock_of(rig).sleep(0.05)
+            clock_of(rig).sleep(rig.AFE_SETTLE)
         rig.gates.on(**_arming(rig, arming))
         try:
             clock = Told(paced) if paced else clock_of(rig)    # the ring's own seconds

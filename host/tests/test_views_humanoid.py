@@ -317,19 +317,20 @@ def test_scenario_deck_tour_handoff_and_cybernetic_hud(report):
                  and len(gym.boxes(nom, tour=SN(done=False, current_label=lambda: 'x'))) == 2 and '42°C' in jr and len(jr) == 25
                  and '…' not in b_txt and ('%+5.2f' % se2.WALK_SPEED) in b_txt and len(show_humanoid.legend('temp', 60)) > 20)
     sent.clear()
-    humanoid_keys.act_on(show_humanoid.KEYS, list('/sit in the chair\r'), st)
-    vpb_llm = show_humanoid.badge(100, 24, st)
-    r0_llm = ''.join(chr(c) for (r, _), (c, _) in sorted(vpb_llm.items()) if r == 0)
-    humanoid_keys.act_on(show_humanoid.KEYS, list('/go to bed'), st)
-    vpb_open = show_humanoid.badge(100, 24, st)
-    r_bar = ''.join(chr(c) for (r, _), (c, _) in sorted(vpb_open.items()) if r == 21)
-    humanoid_keys.act_on(show_humanoid.KEYS, ['\r'], st)
-    humanoid_keys.act_on(show_humanoid.KEYS, list('/exit out the door\r'), st)
-    humanoid_keys.act_on(show_humanoid.KEYS, list('/tour the room\r'), st)
-    report.check('/ opens interactive LLM prompt bar, compiles chair/bed/door/tour prompts and renders LLM feed',
+    act = lambda s: humanoid_keys.act_on(show_humanoid.KEYS, list(s), st)
+    act('/sit in the chair\r')
+    r0_llm = ''.join(chr(c) for (r, _), (c, _) in sorted(show_humanoid.badge(100, 24, st).items()) if r == 0)
+    act('/go to bed')
+    r_bar = ''.join(chr(c) for (r, _), (c, _) in sorted(show_humanoid.badge(100, 24, st).items()) if r == 21)
+    cb_open = show_humanoid.chat_box(st, 80).renderable.plain
+    for q in ('\r', '/exit out the door\r', '/tour the room\r'):
+        act(q)
+    cb_done = show_humanoid.chat_box(st, 80).renderable.plain
+    report.check('/ opens interactive LLM prompt bar, compiles chair/bed/door/tour prompts and renders GYNOID CHAT dock',
                  sent == [{'say': 'sit_chair'}, {'say': 'lie_bed'}, {'say': 'exit_door'}]
-                 and 'LLM > go to bed_' in r_bar and 'sit_chair' in r0_llm and gym.touring(st),
-                 (sent, r_bar, r0_llm))
+                 and 'LLM > go to bed_' in r_bar and 'sit_chair' in r0_llm and gym.touring(st)
+                 and '> sit in the chair' in cb_open and 'go to bed' in cb_open
+                 and 'cmd: tour=start' in cb_done and ('/', 'CHAT') in keybindings.BAR, (sent, r_bar))
 
 
 def test_her_clothes_bend_at_the_joints(report):

@@ -116,7 +116,7 @@ class Serial(SerialBase):
         self.heat_clock = emu.heat_clock
         self.room = emu.room
         self.mount, self.mounted = emu.mount, emu.mounted()
-        self.world = emu.world
+        self.world_drive = emu.world_drive
         self.drag = emu.drag
         self.model = emu.model
         self.model_reset = getattr(emu, 'model_reset', None)

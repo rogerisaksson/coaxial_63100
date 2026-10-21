@@ -14,6 +14,9 @@
 static struct
 {
   world_t        world;
+  world_load_t   load0[WORLD_MOTORS];
+  float          j0[WORLD_MOTORS];
+  float          b0[WORLD_MOTORS];
   world_plant_t  plant[WORLD_MOTORS];
   double         t[WORLD_MOTORS];     /* each plant's own time, s */
   bool           attached[WORLD_MOTORS];
@@ -28,6 +31,9 @@ static struct
 void emu_world_reset(int motors)
 {
   memset(&s.world, 0, sizeof(s.world));
+  memset(s.load0, 0, sizeof(s.load0));
+  memset(s.j0, 0, sizeof(s.j0));
+  memset(s.b0, 0, sizeof(s.b0));
   memset(s.plant, 0, sizeof(s.plant));
   memset(s.t, 0, sizeof(s.t));
   memset(s.attached, 0, sizeof(s.attached));
@@ -73,6 +79,7 @@ void emu_world_load(int i, int kind, float gear, float inertia, float mass, floa
   l->radius = radius;
   l->angle = angle;
   l->torque = 0.0f;
+  s.load0[i] = *l;
 }
 
 /** Board `i`'s load laid live: its drag, N m per (rad/s)^2, and a torque against its turning,
@@ -83,6 +90,10 @@ void emu_world_drag(int i, float k_drag, float torque)
   {
     return;
   }
+  if (k_drag == 0.0f)
+  {
+    s.world.load[i].mass = 0.0f;
+  }
   s.world.load[i].k_drag = k_drag;
   s.world.load[i].torque = torque;
 }
@@ -92,6 +103,15 @@ void emu_world_model(int i, float j, float b, float load)
 {
   if ((i < 0) || (i >= (int)WORLD_MOTORS))
   {
+    return;
+  }
+  if ((isnan(j) && isnan(b) && isnan(load)) || (!isnan(j) && (j <= 0.0f)))
+  {
+    s.world.load[i] = s.load0[i];
+    s.plant[i].j_motor = s.j0[i];
+    s.plant[i].motor.p.j = s.j0[i];
+    s.plant[i].motor.p.b = s.b0[i];
+    s.plant[i].motor.p.load = 0.0f;
     return;
   }
   if (!isnan(j) && (j > 0.0f))
@@ -147,6 +167,8 @@ void emu_plant_attach(int i, float r, float ld, float lq, float lambda, float po
   p.b = b;
   p.vdc = vdc;
   p.noise = noise;
+  s.j0[i] = j;
+  s.b0[i] = b;
   world_plant_init(&s.plant[i], &s.world, (uint8_t)i, &p);
   s.attached[i] = true;
 }

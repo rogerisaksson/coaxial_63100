@@ -184,7 +184,6 @@ namespace Antmicro.Renode.Peripherals.Analog
 
         public double Inertia { get => inertia; set { inertia = value; if(native != IntPtr.Zero) worldModel(Node, (float)inertia, float.NaN, float.NaN); } }
         public double Damping { get => damping; set { damping = value; if(native != IntPtr.Zero) worldModel(Node, float.NaN, (float)damping, float.NaN); } }
-        public double ModelLoad { get => loadTorque; set { loadTorque = value; if(native != IntPtr.Zero) worldModel(Node, float.NaN, float.NaN, (float)loadTorque); } }
         public void ModelReset() { if(native != IntPtr.Zero) plantReset(Node); }
 
         /// <summary>The heat's clock, thermal s per virtual s: 1 until the rig sets the world's

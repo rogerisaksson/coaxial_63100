@@ -282,6 +282,9 @@ class Emulator:
     def mounted(self):
         return worlds.mounted(self.world)
 
+    def world_drive(self, unit=1):
+        return worlds.drive_params(self.world, unit)
+
     def drag(self, k_drag, torque):
         """Every plant's load laid live (native.Limb.drag): drag, N m per (rad/s)^2, torque."""
         self._set(worlds.PLANT, Drag=k_drag, LoadTorque=torque)
@@ -294,11 +297,13 @@ class Emulator:
         if b is not None:
             cmds['Damping'] = b
         if load is not None:
-            cmds['ModelLoad'] = load
+            cmds['LoadTorque'] = load
         if cmds:
             text = '; '.join('%s %s %s' % (worlds.PLANT, name, worlds._decimal(value))
                              for name, value in cmds.items())
             self._on_unit(unit, text)
+        else:
+            self._on_unit(unit, '%s Inertia 0.0' % worlds.PLANT)
 
     def model_reset(self, unit=1):
         """The unit's rotor back to rest at theta0."""

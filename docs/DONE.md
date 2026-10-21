@@ -287,3 +287,11 @@ the hundred before these: [DONE_1-50](DONE_1-50.md),
     `machine.worker`, `terminal/views/scanner.py`, `terminal/views/gym.py`,
     `terminal/views/viewpoint.py`, `terminal/views/show_humanoid.py`,
     `test_leap.py`, `test_errands.py`, `test_views_humanoid.py`).
+68. Smooth room bed entry and rise (`lie_bed` and `rise_bed` with physical
+    pelvis alignment, backing, foam compliance and heel clearance), persistent
+    `BOARD CHAT`-style `GYNOID CHAT` LLM prompt dock under the viewport, and
+    continuous outer-loop horizon functions (`init_lead`, `brake_lead`,
+    `stand_lead`, `rise_lead`) replacing discrete delay tables (`machine.room`,
+    `machine.motion`, `machine.tour`, `machine.se2`, `machine.worker`,
+    `terminal/views/gym.py`, `terminal/views/show_humanoid.py`,
+    `terminal/keybindings.py`, `test_errands.py`, `test_views_humanoid.py`).
