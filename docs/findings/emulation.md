@@ -195,6 +195,12 @@ board's findings: [FINDINGS](../FINDINGS.md).
 - The attitude's tumble turned 140 and 280 deg/s on the emulator and native
   (2.56 s); the stand-in stepped it a read, a turn in 1.28 s at 200 reads/s.
   25.6 s on the clock: 31 deg/s.
+- The attitude page on Renode: a read 16.4 ms at the median (native 14.4),
+  the Feed's 20 a second met; the board awake with AFE_ON up - `Board_StoIdle`
+  WFIs only with it low and MOE clear - runs 1.9-2.8 wall s a virtual s (1.45
+  idle), so the part's 10 ms reports and its tumble come at 0.4 of real time,
+  52 rotation vectors a second where native gives 100; the IMU loop held
+  changes nothing (2.1-2.4). The REPORT box says the clock's pace.
 - native:// had no console: after 0x48 gave the line back a board went silent
   for every later session in the process, the tty's next page on the
   stand-in. The fake board takes 'm' again.

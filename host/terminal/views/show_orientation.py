@@ -182,8 +182,9 @@ def start_reporting(board, interval_us):
     return pid
 
 
-def boxes(part, pid, record, q, rate):
-    """The instrument boxes, every value off the target."""
+def boxes(part, pid, record, q, rate, scale=1.0):
+    """The instrument boxes, every value off the target; `scale` the link's wall seconds a second of
+    the board's - an emulated board awake runs at a fraction of real time, its reports with it."""
 
     roll, pitch, yaw = orientation.euler_degrees(q)
     ident = []
@@ -201,7 +202,8 @@ def boxes(part, pid, record, q, rate):
                   ('rate', '%.1f vectors/s' % rate),
                   ('errors', '%d  last %s'
                    % (record.get('errors', 0),
-                      record.get('last_fault') or '-'))]
+                      record.get('last_fault') or '-')),
+                  ('clock', '%.2f of real time' % (1.0 / max(float(scale), 1e-9)))]
     return [hud(part['name'], ident or ['-']),
             hud('REPORT', stream or ['-']),
             hud('ATTITUDE', [
@@ -295,7 +297,7 @@ def compose(origin, args, view, colour, console):
     note = view['note']
     return frame_of(
         console, origin, 'BOARD ATTITUDE', '\n'.join(art),
-        boxes(view['part'], view['pid'], view['record'], q, view['rate']),
+        boxes(view['part'], view['pid'], view['record'], q, view['rate'], view.get('scale', 1.0)),
         (tuple(_mirror_keys(view['flip']))
          + (('C', 'FRAME'), ('T', 'TARE'), ('WHEEL', 'ZOOM'),
             ('+ -', 'ZOOM'),
@@ -437,7 +439,7 @@ def main(argv=None):
         tally.take(record['updates'] if record else None)
         view['frame'] += 1
         shown = dict(state, part=part, pid=pid, record=record,
-                     quaternion=view['quaternion'], rate=tally.rate,
+                     quaternion=view['quaternion'], rate=tally.rate, scale=board.transport.time_scale,
                      stale=tally.stale, note=tally.note, frame=view['frame'],
                      zoom=view['zoom'], shop=shop, crew=pool,
                      wide=wide, tall=tall,

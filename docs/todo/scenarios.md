@@ -134,3 +134,12 @@ serves its DOD; none an entry a case.
    short of a flip or a jump, a "performance" drivetrain config beside the
    one stack, the demand measured first (demand.md). DOD: 31 of 31 met at
    every wobble, each stunt's jerk within her walk's.
+9. **Her place a glazed mountain lodge** (asked, pictures given): her room
+   (`machine.room`) and floor (`machine.floor`) a dark timber lodge on a
+   slope - glass gables that do not break, a deck and its rail, wooden stairs
+   inside, stone steps outside, the valley and the ridge beyond the glass
+   drawn by the page (`coaxial.graphics.props`, VISION's map of it); her
+   scenes on its stairs and steps. DOD: the lodge placed and drawn, judged
+   on a PNG against the pictures; her walk up and down its stairs and steps
+   held in test_scenarios; her sight telling its door, its stairs and its
+   glass.

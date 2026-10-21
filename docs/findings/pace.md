@@ -1,0 +1,81 @@
+# Findings: pace
+
+Her pace against real time on this laptop: a pass of her loop, MuJoCo's step
+in it, her law's parts ported to C bit for bit, the page's tiers by the
+machine ([body](body.md), [emulation](emulation.md),
+[compiler](compiler.md)).
+
+- Her worker's pass walking, the laptop, two trees interleaved by process
+  time: 1 680 -> 1 460 us, 0.60 -> 0.69 of real time, her trajectory's sha1
+  a pass the same over 9 s and her walk's smoke the same to the digit. Her
+  wear's window had stood her 0.9-1.3 s every 4 s: 8 000 steps of np.cross
+  on 3-vectors (`wear._hems`), in floats 250 ms, sysid's rows the rest. The
+  referee's and her edge's contact loops are arrays - a contact's force its
+  rows of `efc_force`, the cone elliptic -, the props' ids and her skin's
+  looked up once, her heat's state arrays where lists went to and fro each
+  step, `paired`'s index once, the shove's rows zeroed only while it acts.
+  MuJoCo's step is 92 us of the pass; her law 2.7 ms every third
+  (`impedance.ask` 1.0, the wrench step 0.6, her sensing 0.4, her heat
+  0.2). The C step through its ctypes edge: 1 355 us a pass, 0.74; the law
+  every fourth pass 1 180, 0.85; both 1 060, 0.94. CPython's JIT: slower.
+- The pass's glue in C (`wbc/src/wbc_pass.c`, `tools.cores.wbc`, the arrays
+  laid once and pointed to): her drives told (`law.drives`), her world's
+  torques, pairs and meters (`physics.advance`, `drawn`), her IMU, encoders,
+  soles and skin read (`edge.felt`, `edge.read`: a contact's force its rows
+  of `efc_force`), her drives' heat (`heat.Heat`) - numpy's arithmetic
+  operation for operation, its clip and its pairwise sum: the trajectory the
+  same bit for bit, 1 530 -> 1 260 us a pass, 0.65 -> 0.79. The C wrench
+  step's ctypes edge 180 -> 60 us (laid buffers, no np.cross); as the
+  default, 0.83, it sat the chair 0 of 3 wobbles (bore 0.35 s of 1), fell
+  in snow 3 of 3, hopped 0.85 m/s where 0.9 and fell turning at 0.69 m/s:
+  the python step stays. libm here gives numpy's bits for sin, cos, tan,
+  exp, log, atan2, sqrt, acos, asin, hypot and pow, tanh an ulp off.
+- Her ask in C (`wbc/src/wbc_imp.c`, `wbc_stride.c`, `tools.cores.motion`):
+  `impedance.ask` with modal's reading, poise, stride and leap.standing
+  under it, numpy's orders in `wbc/inc/wbc_np.h` - (3,3)@(3,) and (2,3)@(3,)
+  dgemv_t's tail contracted, fma(a2, x2, fma(a0, x0, a1 x1)), (2,2)@(2,)
+  fma(a0, x0, a1 x1), dgemm's fma chain, a vector @ a stack and a 1-d dot a
+  plain sum, einsum 'nia,ia->n' SSE's two lanes (20 000 draws each). 47 880
+  asks over 14 scenarios, still in half of them, the same bit for bit; 1 280
+  -> 8 us an ask; her pass 1 130 -> 785 us, 0.88 -> 1.27 of real time, her
+  trajectory's sha1 her python's. The law core's own C ask (`tools.cores`),
+  as fast, left her python's bits from 0.5 s on: cut. Her latent step and
+  her upper body's coupling on numpy's own OpenBLAS (`wbc_law.c`,
+  `wbc_blas.c`: numpy's matmul dispatch - gemm, syrk, gemv, ddot or its own
+  loop by shapes and strides - and its linalg's dgesv on Fortran copies,
+  4 000 random shapes the same): 41 022 steps and 41 011 couplings bit for
+  bit. Bit for bit where numpy is the C's (`law.exact_host`: its orders and
+  its libm, here UCRT's - whose pow(x, 2) is not x x in 1 of 2 000, numpy's
+  for a scalar's square, its x x an array's); CI's runners parted 3 asks of
+  9 463 on one - gcc's sincos for a sin and cos of one angle, glibc's own
+  path at 0.855 < |x| < 2.43, built apart since -, 3 709 of 9 668 on
+  another, numpy's kernels theirs: there within 1e-9. Her whole-body step
+  too (`wbc_step.c`, `wbc_rounds.c`, the
+  generated core's rounds cut): numpy's a[:, idx] is F-ordered, its .T C -
+  `J6[:, act].T @ w` is dgemv_t, a sum's other order -, and her mass is read
+  at each solve, her wear moving it as it finds a load; every solve of 12
+  scenarios bit for bit, her pass 825 -> 645 us, 1.55 of real time. Left in
+  the pass: her sensing, the wear's window 0.23 s every 4 s - it feeds her
+  law (`wear.loaded`).
+- Her pace against real time, this laptop, nothing else running: MuJoCo's
+  step alone 74 us standing (nv 46, 17 contacts), 13.6 of real time; her loop
+  (`sprung.passed`) 727 us a pass, 1.38, walking 690 and 1.45; the page's
+  worker 731, 1.37, its wear 3 %. Of a pass MuJoCo 91 us, her ask and
+  sensing 391, her drives' pass 162 - her surety field in python 155 us a
+  call, four calls in three passes -, the world's glue 19, her drives told
+  over the SIL buses 36. The field in C (`wbc_surety.c`, `tools.cores.surety`:
+  CPython's vector_norm for math.hypot, C's for numpy's; pow for a scalar's
+  square, x x for an array's), bit for bit at every call of her law over
+  12 s of her walk (test_compiled): her drives' pass 162 -> 20 us. The
+  whole-body step's pointed write taken with M rescaled - `dict(s, M=M)` had
+  sent 28 arrays through ascontiguousarray a solve -: 579 us a pass, 1.73,
+  walking 520 and 1.92; the worker 535, 1.87. Her walk's smoke the same to
+  the digit. MuJoCo's own timers over her walk: a step 88 us - the constraint
+  solver 40, collision 15 over 74 geoms, the rest kinematics, inertia and
+  make. Her drives told over the SIL buses 24 us a call, the C's five frames
+  19 of it. Her suites run her flat out (`worker.session`, `sprung.laid`);
+  real time is `worker.run`'s, the page's. The page's tier by the machine
+  (`modes.TIERS`, said at boot; the BUSES box's row, her headroom from
+  `apart.paced`'s time stepped against the wall's): on 16 cores her 27
+  boards in-process; native would take 3.0 and fit once her body is wired to
+  it (todo/host.md); Renode 113.
