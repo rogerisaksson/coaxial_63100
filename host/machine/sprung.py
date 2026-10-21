@@ -117,7 +117,7 @@ def laid(every=1, inner=None, solver=None):
          '_brake_wire': _BRAKE_WIRE, '_stand_entry': next((e for e in entries() if e[0] == 'stand'), None),
          'heading': float(fr[modal.HEADING]), 'twist': (0.0, 0.0, 0.0),
          'heat': heat.Heat.for_joints(JOINTS), 'temp': np.full(len(JOINTS), 25.0), 'scenario': 'flat',
-         'touched': touch.laid(),
+         'touched': touch.laid(), 'twisted': se2.twist_laid(), 'words': se2.words_laid(),
          'solve': solve_step, 'sensed': sensed}
     motion.laid(g)
     world.clock = lambda: g['t']
@@ -179,9 +179,10 @@ def relaid(g, where=(0.0, 0.0), yaw=0.0):
     g['heat'], g['temp'][:] = type(g['heat']).for_joints(), 25.0
     g['_twist_active'], g['_twist_stop_until'], g['twist'], g['asked'], g['twist_actual'] = (
         False, 0.0, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0), (0.0, 0.0, 0.0))
-    g['active_entry'], g['n'], g['_look_yaw'], g['_halt_at'] = None, 0, 0.0, None
+    g['active_entry'], g['n'], g['_halt_at'] = None, 0, None
+    g['twisted'][se2.LOOK_YAW], g['twisted'][se2.TURN_DC] = 0.0, 0.0
     g['touched'][:] = touch.REST       # what she felt stood in the world laid away
-    g['_w_back'], g['_backing_yaw'], g['_turn_dc'] = 0.0, 0.0, 0.0
+    g['_w_back'], g['_backing_yaw'] = 0.0, 0.0
     for idx in (g.get('waist_idx'), g.get('head_idx')):
         if idx is not None:
             g['posture'][idx] = 0.0

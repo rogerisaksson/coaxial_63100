@@ -294,6 +294,17 @@ API int wbh_touch_size(void)
   return (int)sizeof(wbc_touch_t);
 }
 
+API void wbh_twist_step(const wbc_imp_t *k, const wbc_twist_t *t, double dt, const double *vel, const double *held,
+                        const double *prior)
+{
+  wbc_twist_step(k, t, dt, vel, held, prior);
+}
+
+API int wbh_twist_size(void)
+{
+  return (int)sizeof(wbc_twist_t);
+}
+
 API void wbh_law_latent(const wbc_law_t *k, double *st, const double *tab, int ntab, double now, double dt,
                         double *out, double *hit)
 {

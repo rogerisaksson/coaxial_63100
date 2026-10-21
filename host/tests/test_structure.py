@@ -283,8 +283,8 @@ def test_motor_imports_no_board(r):
 LAW = ('motion', 'se2', 'leap', 'support', 'latent', 'impedance', 'modal', 'poise', 'stride',
        'estimate', 'wrench', 'wbc', 'reach', 'touch', 'situation', 'borne', 'grip')
 #: Her motion pass in C: its bindings and their sources name no world and no MuJoCo.
-LAW_C = ('tools/cores/motion.py', 'tools/cores/surety.py', 'tools/cores/touch.py')
-LAW_C_SOURCES = ('wbc_imp.c', 'wbc_stride.c', 'wbc_surety.c', 'wbc_touch.c', 'wbc_law.c', 'wbc_blas.c')
+LAW_C = ('tools/cores/motion.py', 'tools/cores/surety.py', 'tools/cores/touch.py', 'tools/cores/twist.py')
+LAW_C_SOURCES = ('wbc_imp.c', 'wbc_stride.c', 'wbc_surety.c', 'wbc_touch.c', 'wbc_twist.c', 'wbc_law.c', 'wbc_blas.c')
 #: What her law may not name: the world, its truth, its ids, the writes that move it, the world's
 #: own modules. Her model posed is wbc.sense's and estimate.step's alone.
 TRUTH = {'world', 'obstacle_ids', 'sill_ids', 'upper_ids', 'robot_ids', 'push_until', 'push_n',

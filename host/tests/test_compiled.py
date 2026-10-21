@@ -282,6 +282,45 @@ def test_her_touch_in_c_as_she_walks(report, c):
     report.check("a step of her touch's filter in C on this host", us[0] < 30.0, '%.1f us, its python %.0f' % tuple(us))
 
 
+def test_her_twist_in_c_as_she_walks(report, c):
+    """Her twist's step in C (`c_twist.laid`, wbc_twist.c) beside its python (`se2.twisted`) on
+    copies of her arrays at every pass of her law over 4 PASSES of her walk - fr, st, the latent
+    out, her posture, the state and the words bit for bit -, and a step's time beside its python's."""
+    from machine import se2, worker
+    from tools.cores import motion as c_motion
+    from tools.cores.orders import same
+    s = worker.session(walks=True)
+    g = s['g']
+    real, tally, spent = g['twist_step'], [0, 0, 0.0], [[], []]
+
+    def beside(dt, vel, held, prior):
+        copies = [g[name].copy() for name in ('fr', 'st', 'out', 'posture', 'twisted', 'words')]
+        t0 = time.perf_counter()
+        fr, st, out, posture, state, words = copies
+        se2.twisted(g['sense'], vel, g['y'], fr, g['a'], st, out, posture, held, prior, state, words, dt, g['waist_idx'],
+                    g['head_idx'])
+        t1 = time.perf_counter()
+        real(dt, vel, held, prior)
+        spent[0].append(time.perf_counter() - t1)
+        spent[1].append(t1 - t0)
+        tally[0] += 1
+        pairs = [(g[name], want) for name, want in zip(('fr', 'st', 'out', 'posture', 'twisted', 'words'), copies)]
+        tally[1] += not all(same(x, y) for x, y in pairs)
+        tally[2] = max(tally[2], max(float(np.nan_to_num(np.abs(x - y)).max()) for x, y in pairs))
+    g['twist_step'] = beside
+    for _ in range(4 * PASSES):
+        worker.stepped(s)
+    n, bad, apart = tally
+    if c_motion.exact_host():
+        report.check("her twist's step in C is her python's bit for bit at %d passes of her law walking" % n,
+                     n >= PASSES and not bad, '%d apart, %.3g at most' % (bad, apart))
+    else:
+        report.check("her twist's step in C is her python's within its last bits where numpy dispatches elsewhere",
+                     n >= PASSES and apart <= 1e-9, '%d of %d not bit for bit, %.3g apart at most' % (bad, n, apart))
+    us = [1e6 * float(np.median(each)) for each in spent]
+    report.check("a step of her twist in C on this host", us[0] < 30.0, '%.1f us, its python %.0f' % tuple(us))
+
+
 def test_aircraft_substeps_in_c_are_their_numpys(report, c):
     """`quad.substep` and `wingborne.wing_substep` compiled on each aircraft's `Sky` beside numpy's
     on a twin `Sky`, over 40 substeps: `qpos`, `qvel`, `qacc` and `xfrc_applied` bit for bit."""
@@ -320,7 +359,7 @@ def test_aircraft_substeps_in_c_are_their_numpys(report, c):
 
 ROSTER = (test_numpys_reductions_and_selections_in_c, test_her_state_in_place_in_c, test_her_sensing_in_c_is_her_numpys,
           test_her_law_in_c_as_she_walks, test_her_surety_in_c_as_she_walks, test_her_touch_in_c_as_she_walks,
-          test_aircraft_substeps_in_c_are_their_numpys)
+          test_her_twist_in_c_as_she_walks, test_aircraft_substeps_in_c_are_their_numpys)
 
 
 def main(argv=None):

@@ -160,4 +160,25 @@ typedef struct
 void wbc_touch_step(const wbc_imp_t *k, const wbc_touch_t *t, const double asked[3], double twist[3], double tw_on,
                     double heading, double dt, const double *vel);
 
+/** machine.se2.twisted's reading of her law's arrays, laid once: the edge's and modal's offsets
+    the ask's struct lacks, latent's in st, her waist and her head among her driven joints, the
+    step's state's and its words' offsets (machine.se2), its constants, the arrays. */
+typedef struct
+{
+  int           gyro_at, quat_at, y_cells, f_heading;
+  int           st_now_gain, st_now_phase, st_to_amp, st_to_hz, st_now_hz, st_theta;
+  int           waist, head;
+  int           s_last_way, s_look_yaw, s_turn_dc;
+  int           w_heading, w_target, w_has, w_twist, w_actual, w_active, w_stop, w_t, w_back, w_backing, w_clear;
+  double        walk_m_s, back_m_s, strafe_m_s, yaw_rate, floor_hz, touch_n, stirs;
+  const double *y_in, *y, *a;
+  double       *fr, *st, *out, *posture, *state, *words;
+} wbc_twist_t;
+
+/** A pass of her twist `dt` s on (machine.se2.twisted, wbc_twist.c): `vel` her estimate's, `held`
+    her soles' grip, `prior` what she knows of the floor; fr, st, out, her posture, the state and
+    the words in place. */
+void wbc_twist_step(const wbc_imp_t *k, const wbc_twist_t *t, double dt, const double *vel, const double *held,
+                    const double *prior);
+
 #endif

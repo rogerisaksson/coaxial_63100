@@ -273,11 +273,13 @@ def laid(g):
     """Her drive-side step laid in C (`wbc_pass.c`, `tools.cores.wbc.Drives`): the struct
     pointing at `g`'s arrays once - the observers, the setpoints and their rates, the holds, the
     knees' spring, the feed and the clamps her drives are told (`g['cmd']`) - and what it reads
-    by, kept beside it. Her latent step, her upper body's coupling, her ask, her surety field and her
-    touch's filter in C, her python's bit for bit (`tools.cores.motion`, `surety`, `touch`); her estimate, her grip's feel and floor, her
+    by, kept beside it. Her latent step, her upper body's coupling, her ask, her surety field, her
+    touch's filter and her twist's step in C, her python's bit for bit (`tools.cores.motion`, `surety`,
+    `touch`, `twist`); her estimate, her grip's feel and floor, her
     situation, her drive's cap and her ask's poses compiled from their numpy (`tools.cores.bodied`)."""
     from machine.figure import JOINTS
-    from tools.cores import bodied, motion as c_motion, surety as c_surety, touch as c_touch, wbc as cores
+    from tools.cores import bodied, motion as c_motion, surety as c_surety, touch as c_touch, twist as c_twist
+    from tools.cores import wbc as cores
     g['estimated'] = bodied.on_body(estimate.step, 'estimate', (0, 2), body=1)
     g['felt'] = bodied.on_args(grip.felt, 'felt', (0, 1, 2, 3, 4, 5, 7))
     g['outside'] = bodied.on_args(grip.outside, 'outside', (0, 1))
@@ -296,6 +298,8 @@ def laid(g):
     g['_tips'] = np.array(touch.TIPS)
     g['touched_step'] = c_touch.laid(k, g['sense'], body.d.xmat, body.d.xpos, g['_skin_ids'], g['_tips'], g['y'],
                                      g['fr'], g['a'], g['st'], g['out'], g['rest'], g['touched'])
+    g['twist_step'] = c_twist.laid(k, g['sense'], g['y'], g['fr'], g['a'], g['st'], g['out'], g['posture'],
+                                   g['twisted'], g['words'], g['waist_idx'], g['head_idx'])
     g['_cv_sh'] = list(g['cervical']) + list(g['limbs']['shoulders'])
     g['_acv_sh'] = body.act[g['_cv_sh']]
     g['_derate'] = g['wep_lim'] / np.maximum(1.0, body.wep)

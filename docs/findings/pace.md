@@ -85,3 +85,10 @@ machine ([body](body.md), [emulation](emulation.md),
   arithmetic (`touch.soles`) the C's own, the python's beside it in the
   test. Her loop 579 -> 440 us a pass, 1.73 -> 2.27 of real time, walking
   2.28; the worker 487, 2.05. Her walk's smoke the same to the digit.
+- Her twist's step in C (`wbc_twist.c`, `tools.cores.twist`: the floor under her,
+  her heading, her rhythm flipped, her gait modulated, her look; its memory
+  one array, its words with `g` another, `se2.twist_laid`, `words_laid`):
+  bit for bit at 4 001 passes over 12 s of her walk once the floor's point
+  took numpy's order for a fancy-indexed matrix, F-ordered, the (2, 2) @ (2,)
+  fma; 118 -> 8.7 us a call. Her loop 440 -> 399 us a pass, 2.51 of real
+  time, walking 2.50; the worker 455, 2.20; MuJoCo's step 85 of the 399.
