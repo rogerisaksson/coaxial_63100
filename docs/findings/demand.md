@@ -38,6 +38,14 @@ its no-load speed at 48 V, a node's span to its ceiling. Worst of the sides.
   0.93 of a knee's 960 deg/s.
 - The peaks are the loop's own torques: past 2/3, its feed alone is past it
   in every pass, the PD under it never half the torque.
+- The performance build (`machine/robots/gynoid_mesomorph_medium_performance.toml`:
+  the U12 II KV120 - 7.9 N m at 48 V, 4.5 kW, 778 g - on box A for the
+  spine, hips, knees and ankles, 3.7 kg more; her text extended): her hop
+  asks its hips 144 A, 1.44 of their amps, the knees 114 A, 1.15, where hers
+  asks 76 A, 1.58, and the spine 1.11; the box 0.93 of its momentary where
+  1.33; her standing jump rises 0.03 legs on it for 0.01, 0.01 of flight
+  either way, the human's 0.55 and 0.91. The hop's ask is the law's, past
+  any drive: a jump needs its throw laid from what the drives give.
 - Walking, a hip's are its leg's lift: the pass its sole goes from standing
   to swinging the sole is asked 33 m/s^2 at once, bearing 50 N still; the
   hip gives -108 N m for 15 ms, the knee 80, then 10 to 20 as before.

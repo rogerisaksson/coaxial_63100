@@ -144,8 +144,12 @@ serves its DOD; none an entry a case.
    beside it, never in it, so a motor or a ratio changed alters what she
    reaches, not what a score or a parameter means. Where the drives fall
    short of a flip or a jump, a "performance" drivetrain config beside the
-   one stack, the demand measured first (demand.md). DOD: 31 of 31 met at
-   every wobble, each stunt's jerk within her walk's.
+   one stack, the demand measured first (demand.md): laid - the U12 II KV120
+   on box A for her spine, hips, knees and ankles
+   (`machine/robots/gynoid_mesomorph_medium_performance.toml`) -, her
+   standing jump rises 0.03 legs on it where 0.01, none of the human's 0.55:
+   the hop's ask is the law's, 1.44 of the U12's amps at the hips. DOD: 31
+   of 31 met at every wobble, each stunt's jerk within her walk's.
 9. **Her place a glazed mountain lodge** (asked, pictures given): built and
    drawn (`machine.room`, scene 'lodge', [lodge](../findings/lodge.md)):
    the timber walls, the glass gable and its door, the snowy roof, the deck

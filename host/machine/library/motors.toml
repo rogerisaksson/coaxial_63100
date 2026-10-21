@@ -89,3 +89,30 @@ peak_nm = 2.4
 rotor_kgm2 = 1.15e-4
 kv = 115.0
 stator_j_k = 273.0
+
+# For the performance build (machine/robots/gynoid_mesomorph_medium_performance.toml): the U12
+# II's 7.9 N m is its page's test point at 48 V (94.3 A, 4742 rpm, 4.5 kW, 95 A for 180 s), the
+# U10 II's peak its stator's class (1.6 kW, 32 A for 180 s); rotors and windings' heat estimated
+# as the others above.
+
+[U12]
+name = "T-Motor U12 II KV120"
+can_m = 0.1068
+height_m = 0.0476
+kg = 0.778
+ohm = 0.022
+peak_nm = 7.9
+rotor_kgm2 = 8.65e-4
+kv = 120.0
+stator_j_k = 856.0
+
+[U10]
+name = "T-Motor U10 II KV100"
+can_m = 0.0986
+height_m = 0.0331
+kg = 0.415
+ohm = 0.101
+peak_nm = 6.0
+rotor_kgm2 = 3.9e-4
+kv = 100.0
+stator_j_k = 457.0
