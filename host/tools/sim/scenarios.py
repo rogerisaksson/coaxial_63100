@@ -58,6 +58,7 @@ SCENARIOS = {
     'asphalt': ('asphalt', *_walk(6.0), 'past', 2.0),
     'stairs': ('stairs', *_walk(10.0), 'rose', 0.70),
     'stairs_down': ('stairs_down', *_walk(10.0), 'sank', 0.70),
+    'lodge_down': ('lodge', *_walk(14.0), 'sank', 0.70),
     'slope': ('slope', *_walk(7.0), 'rose', 0.45),
     'slope_down': ('slope_down', *_walk(7.0), 'sank', 0.45),
     'cross_slope': ('cross_slope', *_walk(6.0), 'past', 2.0),
@@ -209,8 +210,6 @@ def ran(name, wobble=0.0):
     import numpy as np
     from tools.sim import look
     from machine import edge, modal, physics, sprung, worker
-    # an open floor: the page's living room walls the longer walks in
-    physics.ROOM, physics.SIGHT = 0.0, 0.0
     shove = SHOVES.get(name)
     if shove:
         n, way, gait, at = shove
@@ -220,6 +219,8 @@ def ran(name, wobble=0.0):
         scene, seconds, goal, aim = 'flat', 9.0, 'held', n
     else:
         scene, plan, seconds, goal, aim = SCENARIOS[name]
+    # the lodge round her for its own scenes alone: its walls would end the longer walks
+    physics.ROOM, physics.SIGHT = float(scene == 'lodge'), 0.0
     told = [c['say'] for _at, c in plan if 'say' in c]
     refused = sorted(set(told) - {e[0] for e in sprung.entries()})
     if refused:

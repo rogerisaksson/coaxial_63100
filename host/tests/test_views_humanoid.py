@@ -77,7 +77,7 @@ def test_the_humanoid_pages_keys(report):
     for k in ('left', 'up', '<', '\r'):
         show_humanoid.KEYS[k](st)
     report.check('the arrows turn and lift the view, < lays the next scene, Enter lays it again, nothing said',
-                 st['yaw'] < yaw and st['pan'][1] > 0.0 and sent == [{'scenario': 'glass_room'}] * 2, sent)
+                 st['yaw'] < yaw and st['pan'][1] > 0.0 and sent == [{'scenario': 'lodge'}] * 2, sent)
     st.update(keys=show_humanoid.KEYS, orbit=False)
     for _ in range(4):
         show_humanoid.scripted(st, 'o.x')

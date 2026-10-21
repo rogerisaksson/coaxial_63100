@@ -15,7 +15,8 @@ PROP_INK = {'hole': (255, 96, 128), 'sill': (255, 184, 80), 'slip': (96, 214, 25
             'snow': (240, 245, 255), 'wall': (180, 180, 195), 'tree': (90, 170, 90),
             'glass': (110, 160, 210), 'wood': (176, 120, 70),
             'door': (205, 150, 90), 'lamp': (110, 100, 80), 'lit': (255, 220, 120),
-            'switch': (200, 200, 200)}
+            'switch': (200, 200, 200), 'timber': (128, 104, 88), 'roof': (236, 240, 248),
+            'stone': (168, 162, 150), 'rail': (188, 194, 204)}
 
 _BOX_SIGNS = tuple((float(i), float(j), float(k)) for i in (-1, 1) for j in (-1, 1) for k in (-1, 1))
 _BOX_EDGES = tuple((a, b) for a in range(8) for b in range(a + 1, 8) if bin(a ^ b).count('1') == 1)

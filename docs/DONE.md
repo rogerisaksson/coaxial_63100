@@ -307,3 +307,11 @@ the hundred before these: [DONE_1-50](DONE_1-50.md),
     (`coaxial.node.arm_stage`, SIL); a limb of three 51 echoes of 51,
     conformance 110 of 110 on the emulator and on the bench board, the bench
     suites green on COM3 ([emulation](findings/emulation.md)).
+- **Her simulator's pace against real time**: MuJoCo's step alone 13.6 of
+  real time; her loop 1.38 -> 1.73 (walking 1.92), the page's worker 1.37 ->
+  1.87 on this laptop, her walk's smoke the same to the digit: her surety
+  field in C bit for bit (`wbc_surety.c`, held over 12 s of her walk), the
+  whole-body step's pointed write with M rescaled; her suites run her flat
+  out, real time the page's; the tiers her page affords by the machine's
+  cores said at boot and in its BUSES box with her headroom
+  ([pace](findings/pace.md)).

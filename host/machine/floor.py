@@ -13,6 +13,9 @@ HOLE_M, HOLE_LONG_M, SILL_M, SILL_LONG_M = 0.10, 0.40, 0.035, 0.04
 SLIP_LONG_M, SLIP_FRICTION = 0.5, 0.06
 RUG_LONG_M, RUG_M, RUG_KG, RUG_FRICTION = 0.9, 0.01, 1.5, 0.55
 SLAB_FROM_M, SEAM_M, SLAB_TO_M, PARKED_M = -20.0, 30.0, 10000.0, -50.0
+#: A prop is drawn higher than this, m: parked, they lie at -2 (the steps) and -5; a stair down
+#: puts its lowest step's body at -1.1.
+SHOWN_Y = -1.5
 DEEP_M = 0.2
 #: A flight of stairs: its steps, each's rise and run, m, and the landing at its top. A house's.
 STEPS, RISE_M, RUN_M, TOP_M = 5, 0.15, 0.30, 1.5
@@ -37,7 +40,7 @@ SNOW_HALF, SNOW_FRICTION = (0.60, 0.03, 1.25), 0.35
 SLIP_TOP_M, ICE_TOP_M, SNOW_TOP_M = 0.005, 0.005, 0.04
 
 SCENARIOS = (
-    'flat', 'glass_room', 'chair', 'bed', 'mattress', 'slope', 'slope_down', 'cross_slope',
+    'flat', 'lodge', 'chair', 'bed', 'mattress', 'slope', 'slope_down', 'cross_slope',
     'stairs', 'stairs_down', 'ice', 'snow', 'asphalt', 'slip', 'obstacle', 'wall', 'tree',
     'sill', 'hole', 'rug', 'edge_behind',
 )
@@ -57,9 +60,18 @@ def _steps(top=TOP_M):
 
 def grounds(m):
     """Her ground's bodies in model `m`: the world's - the floor, its slabs -, what lies on it
-    (`TERRAIN`) and the steps; a chair, a bed, a wall, what may bear her above her soles, none."""
-    laid = {m.body(n).id for n in TERRAIN + tuple(n for n, _h, _a in _steps())}
+    (`TERRAIN`), the steps and the lodge's deck, terrace and stair (`room.GROUND`); a chair, a
+    bed, a wall, what may bear her above her soles, none."""
+    from machine import room
+    ids = {m.body(b).name: b for b in range(m.nbody)}
+    laid = {ids[n] for n in TERRAIN + tuple(n for n, _h, _a in _steps()) + room.GROUND if n in ids}
     return {0} | {b for b in range(m.nbody) if m.body_rootid[b] in laid}
+
+
+def lay(name):
+    """(x, z) she is laid at for scene `name`: the lodge's door line, else her origin."""
+    from machine import room
+    return {'lodge': (room.STAIR_X, 0.0)}.get(name, (0.0, 0.0))
 
 
 def _sized(world, body, half):
@@ -304,12 +316,17 @@ def scenario(world, name, z=1.2, x=0.0):
     park(world)
     if name in ('flat', 'clear', 'none'):
         return
+    from machine import room
+    low = -STEPS * RISE_M
     cases = {
-        'glass_room': lambda: (
-            place(world, 'tree', z=6.0, x=0.88), place(world, 'sill', z=4.5, x=0.75),
-            place(world, 'rug', z=1.5, x=0.0), place(world, 'stairs', z=2.0, x=1.8),
-            place(world, 'slope', z=5.5, x=2.5), place(world, 'ice', z=5.5, x=-2.0),
-            place(world, 'chair', z=0.8, x=1.5), place(world, 'bed', z=1.8, x=-1.8)),
+        # the lodge's slope: the wooden stair down from the deck on the door's line, snow at its
+        # foot, a spruce beyond; the rug inside, the sill at the door
+        'lodge': lambda: (
+            place(world, 'stairs_down', z=room.DECK_TO, x=room.STAIR_X, top=UPPER_M),
+            mocap(world, 'snow', (room.STAIR_X, low + SNOW_TOP_M - SNOW_HALF[1],
+                                  room.DECK_TO + STEPS * RUN_M + SNOW_HALF[2])),
+            mocap(world, 'tree', (-1.6, low + 1.5, room.DECK_TO + 3.4)),
+            place(world, 'rug', z=1.5, x=0.0), place(world, 'sill', z=room.TO, x=room.STAIR_X)),
         'chair': lambda: place(world, 'chair', z=0.88, x=x),
         'chair_behind': lambda: mocap(world, 'chair', (0.0, 0.0, -0.30), math.pi),
         'chair_ahead': lambda: mocap(world, 'chair', (0.0, 0.0, 0.40), math.pi),
@@ -398,7 +415,7 @@ def props(world):
         out.append(('hole', (getattr(world, 'hole_x', 0.0), -HOLE_M / 2.0, sum(gap) / 2.0),
                     (0.5, HOLE_M / 2.0, (gap[1] - gap[0]) / 2.0), ((1, 0, 0), (0, 1, 0), (0, 0, 1))))
     for kind, body, g, whole in ids['events']:
-        if d.xpos[body][1] > -0.5:
+        if d.xpos[body][1] > SHOWN_Y:
             c, half = d.geom_xpos[g], m.geom_size[g]
             top = c[1] + half[1]
             low = c[1] - half[1] if whole else max(0.0, c[1] - half[1])
@@ -409,18 +426,18 @@ def props(world):
         out.append(('rug', tuple(d.xpos[rug_id]), (0.3, RUG_M / 2.0, RUG_LONG_M / 2.0),
                     tuple(map(tuple, d.xmat[rug_id].reshape(3, 3)))))
     chair_id, seat, back = ids['chair']
-    if d.xpos[chair_id][1] > -0.5:
+    if d.xpos[chair_id][1] > SHOWN_Y:
         c_mat = tuple(map(tuple, d.xmat[chair_id].reshape(3, 3)))
         for g in (seat, back):
             out.append(('chair', tuple(d.geom_xpos[g]), tuple(m.geom_size[g]), c_mat))
     bed_id, g_mat, g_hb = ids['bed']
-    if d.xpos[bed_id][1] > -0.5:
+    if d.xpos[bed_id][1] > SHOWN_Y:
         b_mat = tuple(map(tuple, d.xmat[bed_id].reshape(3, 3)))
         out.append(('bed', tuple(d.geom_xpos[g_mat]), tuple(m.geom_size[g_mat]), b_mat))
         if d.xpos[bed_id][1] > -0.1:
             out.append(('bed', tuple(d.geom_xpos[g_hb]), tuple(m.geom_size[g_hb]), b_mat))
     for bid, g in ids['slopes']:
-        if d.xpos[bid][1] > -0.5:
+        if d.xpos[bid][1] > SHOWN_Y:
             out.append(('slope', tuple(d.geom_xpos[g]), tuple(m.geom_size[g]),
                         tuple(map(tuple, d.xmat[bid].reshape(3, 3)))))
     return out

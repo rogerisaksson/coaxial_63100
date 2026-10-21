@@ -182,9 +182,10 @@ def start_reporting(board, interval_us):
     return pid
 
 
-def boxes(part, pid, record, q, rate, scale=1.0):
-    """The instrument boxes, every value off the target; `scale` the link's wall seconds a second of
-    the board's - an emulated board awake runs at a fraction of real time, its reports with it."""
+def boxes(part, pid, record, q, rate):
+    """The instrument boxes, every value off the target; the record's `clock` the link's wall
+    seconds a second of the board's - an emulated board awake runs at a fraction of real time, its
+    reports with it."""
 
     roll, pitch, yaw = orientation.euler_degrees(q)
     ident = []
@@ -203,7 +204,7 @@ def boxes(part, pid, record, q, rate, scale=1.0):
                   ('errors', '%d  last %s'
                    % (record.get('errors', 0),
                       record.get('last_fault') or '-')),
-                  ('clock', '%.2f of real time' % (1.0 / max(float(scale), 1e-9)))]
+                  ('clock', '%.2f of real time' % (1.0 / max(float(record.get('clock', 1.0)), 1e-9)))]
     return [hud(part['name'], ident or ['-']),
             hud('REPORT', stream or ['-']),
             hud('ATTITUDE', [
@@ -297,7 +298,7 @@ def compose(origin, args, view, colour, console):
     note = view['note']
     return frame_of(
         console, origin, 'BOARD ATTITUDE', '\n'.join(art),
-        boxes(view['part'], view['pid'], view['record'], q, view['rate'], view.get('scale', 1.0)),
+        boxes(view['part'], view['pid'], view['record'], q, view['rate']),
         (tuple(_mirror_keys(view['flip']))
          + (('C', 'FRAME'), ('T', 'TARE'), ('WHEEL', 'ZOOM'),
             ('+ -', 'ZOOM'),
@@ -431,6 +432,8 @@ def main(argv=None):
     def draw():
         wide, tall = canvas(args)
         record = feed.latest
+        if record is not None:
+            record = dict(record, clock=getattr(board.transport, 'time_scale', 1.0))
         fresh = record['quaternion'] if record else None
         if record is not None and fresh is not None \
                 and record['updates'] != tally.seen:
@@ -439,7 +442,7 @@ def main(argv=None):
         tally.take(record['updates'] if record else None)
         view['frame'] += 1
         shown = dict(state, part=part, pid=pid, record=record,
-                     quaternion=view['quaternion'], rate=tally.rate, scale=board.transport.time_scale,
+                     quaternion=view['quaternion'], rate=tally.rate,
                      stale=tally.stale, note=tally.note, frame=view['frame'],
                      zoom=view['zoom'], shop=shop, crew=pool,
                      wide=wide, tall=tall,

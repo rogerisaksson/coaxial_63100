@@ -13,8 +13,8 @@ WALK, STOP, LEFT, RIGHT = (0.69, 0.0, 0.0), (0.0, 0.0, 0.0), (0.69, 0.0, 0.7), (
 #: (label, seconds, [(at s, kind, value)]): kind 'scene', 'twist', 'say', 'push' (N, from
 #: the view's side), 'look' ((yaw, pitch) deg).
 STEPS = [
-    ('Look round the house', 4.0, [
-        (0.0, 'scene', 'glass_room'), (0.5, 'look', (205.0, 8.0)), (2.0, 'look', (155.0, 8.0)),
+    ('Look round the lodge', 4.0, [
+        (0.0, 'scene', 'lodge'), (0.5, 'look', (205.0, 8.0)), (2.0, 'look', (155.0, 8.0)),
         (3.5, 'look', (180.0, 8.0))]),
     ('Sit on the chair and rise', 14.0, [
         (0.0, 'scene', 'flat'), (0.5, 'say', 'sit_chair'), (8.5, 'say', 'rise_chair')]),

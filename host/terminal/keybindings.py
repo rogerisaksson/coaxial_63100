@@ -3,7 +3,7 @@
 #: Each scene's objective (`machine.floor.SCENARIOS`).
 SCENARIO_DESC = {
     'flat': 'level ground // stand and go',
-    'glass_room': 'the house // its props in reach',
+    'lodge': 'the lodge // its deck, stair and steps',
     'chair': 'chair // F sit, Space hop',
     'bed': 'soft bed // F lies and rises',
     'mattress': 'floor mattress // F lies and rises',

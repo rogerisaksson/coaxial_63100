@@ -35,8 +35,8 @@ identification. Her figure: [kinematics](kinematics.md); her drives:
 | --- | --- |
 | build | the build as made: carbon-fibre shells over the shape, what they hold, the drives where they sit |
 | physics | DYNAMIC: the figure in MuJoCo, a drive a joint |
-| room | a living room round humanoid robot: glass walls, furniture, a door, a lamp |
-| floor | the slab, a sill, a patch, a rug, a stair, bricks, a board |
+| room | her glazed mountain lodge: timber walls, a glass gable with the door in it, a roof under snow, a deck with its glass rail and a stone terrace a step up, a loft stair; the furniture, a lamp |
+| floor | the slab, a sill, a patch, a rug, a stair, bricks, a board; a scene's lay (`lay`), her grounds the lodge's deck and stairs among them |
 | sight | humanoid robot eyes: a stereo pair on humanoid robot head, the disparity by block matching, the map she keeps, its things, humanoid robot way round them |
 | stereo | the stereo disparity on the card (wgpu or cupy) or the CPU: block matching over DISPARITIES |
 | gimbal | a camera on a stabilised gimbal: its sight the world's, leant a little into a turn |

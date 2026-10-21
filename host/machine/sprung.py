@@ -140,10 +140,13 @@ def walked(g):
 
 
 def reset_for_scenario(g, scen):
-    d = g['world'].data
-    if (math.hypot(float(d.qpos[0]), float(d.qpos[2])) > 0.08 or abs(float(d.qpos[1]) - g['rest_y']) > 0.02
+    """Scene `scen` laid round her, she laid anew where it has her (`floor.lay`) unless she stands
+    there at rest already."""
+    from machine import floor
+    d, (x0, z0) = g['world'].data, floor.lay(scen)
+    if (math.hypot(float(d.qpos[0]) - x0, float(d.qpos[2]) - z0) > 0.08 or abs(float(d.qpos[1]) - g['rest_y']) > 0.02
             or tilt(g) > 2.0 or doing(g) != 'rest' or len(g['tab']) > 0):
-        relaid(g)
+        relaid(g, where=(x0, z0))
     g['scenario'], g['bore'] = scen, (False, False)
     g['world'].scenario(scen)
 

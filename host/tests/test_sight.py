@@ -88,7 +88,8 @@ def test_her_map_is_the_room(report):
                  ((room.WIDE, (room.FROM + room.TO) / 2.0), (room.THICK, (room.TO - room.FROM) / 2.0)),
                  ((0.0, room.FROM), (room.WIDE, room.THICK)), ((0.0, room.TO), (room.WIDE, room.THICK)),
                  (room.CHAIR_AT, (0.25, 0.25)), (room.BED_AT, (room.BED[0], room.BED[2])),
-                 (room.TABLE_AT, (0.55, 0.3)), (room.LAMP_AT, (0.15, 0.15))]
+                 (room.TABLE_AT, (0.55, 0.3)), (room.LAMP_AT, (0.15, 0.15)),
+                 ((room.LOFT_X, room.LOFT_FROM / 2.0), (room.LOFT[0], room.LOFT_FROM / 2.0))]
 
         def away(x, z):
             return min(math.hypot(max(abs(x - c[0]) - h[0], 0.0), max(abs(z - c[1]) - h[1], 0.0))
