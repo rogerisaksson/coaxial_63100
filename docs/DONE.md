@@ -300,3 +300,10 @@ the hundred before these: [DONE_1-50](DONE_1-50.md),
     a move from joints' places, a take's and hers alike; a scene, a telling
     and a signature a take; a step's edge behind her (`floor` `edge_behind`);
     a verb without a text refused by name. First run 2 of 31 met.
+70. The emulated RS485 bus in order and conformance at its own pace: a limb's
+    characters on one medium, framed by t3.5 on its clock (`RS485_Bus.cs`,
+    `RS485_Adapter.cs`), the UART's 475-MIPS touch and the receive FIFO
+    gone; emulated boards armed on the host's emulated pilot
+    (`coaxial.node.arm_stage`, SIL); a limb of three 51 echoes of 51,
+    conformance 110 of 110 on the emulator and on the bench board, the bench
+    suites green on COM3 ([emulation](findings/emulation.md)).

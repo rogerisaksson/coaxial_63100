@@ -284,7 +284,14 @@ board's findings: [FINDINGS](../FINDINGS.md).
   against 0.00546 V.s).
 - The stand-in's link gave t1.5/t3.5 as 1750/4083, not the part's cycles, and
   the console's frames on all three ports.
-- `motion` and `applications` set J, damping, and load through `drive.model`:
-  forwarded to the emulated world plant via `emu_world_model` and `emu_plant_reset`
-  so the rotor runs bare or under commanded inertia/load instead of the demo flywheel.
-  Both papers execute cleanly on `EMULATED`.
+- `motion` and `applications` lay J, damping and the load through
+  `drive.model` on the emulated plant (`emu_world_model`, `emu_plant_reset`):
+  the rotor bare or as asked, not the demo flywheel. The applications paper's
+  servo and velocity cells trip the emulator at overcurrent, a cell further or
+  nearer run to run (2 of 2, the night's tree as now); the motion paper's stop
+  ramp through the sensorless crossover trips the stand-in, 2 runs of 4 before
+  the night and 4 of 4 now.
+- The machines paper's humanoid and crafts over the emulated body's boards
+  meet its world's links under gravity: the waist on its stop unringing at 2
+  A, the pelvis spun as a quad's rotor at overcurrent. On the stand-in, done in
+  4.2, 8.7 and 2.3 s.

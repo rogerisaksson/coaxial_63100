@@ -45,9 +45,10 @@
   ticks 43 %; their hot helpers ported by hand (`aero/test/harness.c`'s
   `aeh_*`). The quad's law is the firmware's `aero.c`. DOD: the three steps
   generated from their Python, bit for bit, the hand ports gone.
-- **The emulated bus against the stand-in** (asked): the papers on both
-  (`make_notebooks.py --compare`); the bench board's suites on COM3. The
-  machines paper on the emulated body: its waist rests on its stop and does
-  not ring, its pelvis spun as a quad's rotor faults at overcurrent - a
-  type over boards of its own world. DOD: every paper alike on both but
-  where a world's physics says otherwise; the bench suites green.
+- **The papers on the stand-in against the emulator** (asked,
+  `make_notebooks.py --compare`): the motion paper's stop ramp through the
+  sensorless crossover trips the stand-in at overcurrent, 2 runs of 4 before
+  the night and 4 of 4 now; the applications paper's servo and velocity
+  cells trip the emulator, a cell further or nearer run to run, on the
+  night's tree as now. DOD: every paper alike on both but where a world's
+  physics says otherwise (the machines paper's, on the stand-in).

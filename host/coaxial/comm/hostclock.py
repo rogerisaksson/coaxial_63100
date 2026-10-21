@@ -15,6 +15,7 @@ class HostClock:
 
     def __init__(self, virtual=None, scale=None):
         self._virtual = virtual
+        self._read_board = virtual or (lambda: 0.0)
         self._scale = scale or (lambda: 1.0)
         self._pace = 1.0
         if virtual is not None:
@@ -29,9 +30,11 @@ class HostClock:
         return self._virtual is not None
 
     def _sync(self):
-        now, mono = self._virtual(), time.monotonic()
-        if mono - self._read_at > 0.005 and now > self._read:
-            self._pace = min(100.0, (mono - self._read_at) / (now - self._read))
+        """The board's time read, and its pace since the last read - wall s a board s, over a
+        read period at least, under one the monitor's own latency."""
+        now, mono = self._read_board(), time.monotonic()
+        if mono - self._read_at > self.READ_S and now > self._read:
+            self._pace = (mono - self._read_at) / (now - self._read)
         self._read, self._read_at = now, mono
         self._last = max(self._last, now)
         return self._last
