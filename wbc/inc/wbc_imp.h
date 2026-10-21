@@ -109,4 +109,30 @@ void wbc_imp_clears(const wbc_imp_t *k, const double u[2], const double flying[2
                     double high, const double tip[2], const double tipping[2], const double tilt[2],
                     const double late[2], double clear[3][2]);
 
+/** machine.motion.surety_field's reading of her law's arrays, laid once: machine.edge's offsets in
+    y_in, machine.latent's in st and out, the arrays themselves. */
+typedef struct
+{
+  int           quat_at;   /**< the IMU's turn, spin and specific force, the soles' loads in y_in */
+  int           gyro_at;
+  int           accel_at;
+  int           load_at;
+  int           k_to;      /**< the axial stiffness asked and left in st, its gain now; out's ZMP */
+  int           k_from;
+  int           gain_now;
+  int           zmp_out;
+  const double *y_in;      /**< her edge's array; modal's y, fr and a; her latent state and its out */
+  const double *y;
+  const double *fr;
+  const double *a;
+  const double *st;
+  const double *out;
+} wbc_surety_t;
+
+/** Her directional surety field `dt` s on from `prev` (machine.motion.surety_field, wbc_surety.c):
+    her tilt `ct` deg where given, nan her IMU's; `t` her time; `vec` out: her surety along and
+    across, its direction, its probe. */
+double wbc_imp_surety(const wbc_imp_t *k, const wbc_surety_t *s, double prev, double dt, double ct, double t,
+                      double vec[5]);
+
 #endif

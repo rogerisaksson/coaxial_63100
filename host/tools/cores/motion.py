@@ -2,7 +2,7 @@
 
 Her ask (wbc_imp.c, wbc_stride.c), her latent step and her upper body's coupling (wbc_law.c) on
 numpy's own OpenBLAS (wbc_blas.c); the structs they are laid on, filled of the modules that define
-their layouts and constants.
+their layouts and constants. Her surety field: `tools.cores.surety`.
 
     k, ask = motion.laid()
     motion.asked(k, ask, out, y, fr, a)     # `a` this pass, in place: impedance.ask(out, y, fr, a)
@@ -110,8 +110,6 @@ def asked(k, ask, out, y, fr, a):
     """`a`, the loop's ask this pass, in place - `impedance.ask(out, y, fr, a)` in C."""
     ask(ctypes.byref(k), wbc.pointer(out), wbc.pointer(y), wbc.pointer(fr), wbc.pointer(a))
     return a
-
-
 @functools.lru_cache(maxsize=None)
 def exact_host(draws=1000):
     """Whether this host's numpy computes her law's primitives as her law's C does, bit for bit -
@@ -325,6 +323,8 @@ POINTED = ([(name, 0, (name,)) for name in ('M', 'h', 'v', 'q', 'com', 'k')]
                                                                 ('tw', 'w')) for t in (0, 1)])
 
 
+#: What of her sensing the pointed write takes as her compiled sensing's: the same objects, M apart.
+SENSED = ('h', 'v', 'q', 'com', 'k', 'feet', 'turns')
 #: The step's fields read and written through numpy views of the struct's own memory.
 VIEWED = ('stance', 'com_acc', 'turn', 'kdot', 'settle', 'edge', 'mus', 'swing', 'fold', 'swing_at', 'swing_speed',
           'swing_acc', 'swing_quat', 'fold_knee', 'fold_rate', 'fold_acc', 'tau', 'qacc', 'bears', 'cop', 'forces',
@@ -332,8 +332,8 @@ VIEWED = ('stance', 'com_acc', 'turn', 'kdot', 'settle', 'edge', 'mus', 'swing',
 
 
 def _stepped(k, step, v, b, s, ask):
-    """wrench.step(b, s, ask) on the laid `k`: what `s` senses pointed at, what `ask` asks copied
-    through `v`, its fields' views."""
+    """wrench.step(b, s, ask) on the laid `k`: what `s` senses pointed at - her compiled sensing's
+    last in one write, its M as `s` has it -, what `ask` asks copied through `v`, its fields' views."""
     from machine import wbc as law
     kept = []
 
@@ -342,11 +342,12 @@ def _stepped(k, step, v, b, s, ask):
         kept.append(a)
         return a.ctypes.data
     last = getattr(k.sensed, 'last', None)
-    if last is not None and s is last[0]:
+    if last is not None and all(s.get(n) is last[0].get(n) for n in SENSED):
         c = k.sensed.c
         if k.placed is None or k.placed[0] is not c:
             k.placed = (c, np.array([8 * c.place(path) for _f, _i, path in POINTED], dtype=np.uint64))
         v['words'][k.pointed] = last[1] + k.placed[1]
+        k.M = at(s['M'])
     else:
         k.M, k.h, k.v, k.q, k.com, k.k = (at(s[name]) for name in ('M', 'h', 'v', 'q', 'com', 'k'))
         for side, f in enumerate(s['feet']):

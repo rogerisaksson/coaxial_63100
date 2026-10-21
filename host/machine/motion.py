@@ -132,12 +132,13 @@ _BRACE_AX = {'spine': -0.25, 'neck': -0.20, 'left_shoulder': 0.65, 'right_should
 _BRACE_LAT = {'left_shoulder_roll': 0.45, 'right_shoulder_roll': 0.45, 'left_hip_roll': 0.15, 'right_hip_roll': 0.15}
 
 
-def surety(g, dt, ct=math.nan):
-    """Her directional surety field (`g['surety']` in [0, 1], `g['surety_vec']` = (s_ax, s_lat,
-    d_ax, d_lat)) from her IMU, her soles' loads and her kinematics: highest in a wide double
-    stance, lower on a single walking sole, held in quasi-static equilibrium on a seat or bed,
-    contracting into her 2D tuck-and-brace regime on an unrecoverable topple and absorbing at 0."""
-    y_in, y, fr, a = g['sense'], g['y'], g['fr'], g['a']
+def surety_field(y_in, y, fr, a, st, out, prev, dt, ct, t):
+    """(her surety `dt` s on from `prev`, in [0, 1]; (surety along, across, its direction's two,
+    its probe)) of her edge's array `y_in`, modal's `y`, `fr` and `a`, her latent `st` and its
+    `out` alone at her time `t` - `ct` her tilt, deg, where given (nan: her IMU's): highest in a wide
+    double stance, lower on a single walking sole, held in quasi-static equilibrium on a seat or
+    bed, contracting into her 2D tuck-and-brace regime on an unrecoverable topple and absorbing at
+    0. In C bit for bit (`g['surety_field']`, `laid`)."""
     rot = fr[modal.ROT].reshape(3, 3)
     c, v = rot @ y[modal.COM], rot @ y[modal.VCOM]
     om = math.sqrt(modal.G / max(float(c[2] - fr[modal.FLOOR]), 0.3))
@@ -150,24 +151,24 @@ def surety(g, dt, ct=math.nan):
     ap_y, w_gyro = float(r_y @ acc), float(np.linalg.norm(gyro))
     wt = max(float(fr[modal.WEIGHT]), 1.0)
     loads = np.maximum(y[modal.LOAD], y_in[edge.LOAD])
-    k_ax = max(float(g['st'][latent.TO][latent.K][modal.AXIAL]), float(g['st'][latent.FROM][latent.K][modal.AXIAL]))
+    k_ax = max(float(st[latent.TO][latent.K][modal.AXIAL]), float(st[latent.FROM][latent.K][modal.AXIAL]))
     w_jump = min(1.0, max(0.0, (k_ax - 15000.0) / 5000.0))
     w, f_soles = np.maximum(np.clip(loads / (0.25 * wt), 0.0, 1.0), w_jump), float(loads.sum()) / wt
     theta = math.radians(float(np.nan_to_num(ct, nan=edge.tilt(y_in))))
     theta_e = max(0.0, theta - abs(float(a[modal.WANT][0])))
     v_norm = float(np.linalg.norm(v))
     w_ext = min(1.0, max(0.0, (ap_y / modal.G - f_soles) / 0.45)) * math.exp(-(w_gyro / 1.2) ** 2 - (v_norm / 0.18) ** 2 - (theta_e / 0.65) ** 4)
-    g['surety_probe'] = 0.008 * max(0.0, 4.0 * f_soles * (1.0 - f_soles)) * math.exp(-(w_gyro / 0.6) ** 2) * math.sin(math.tau * 6.0 * float(g.get('t', 0.0)))
+    probe = 0.008 * max(0.0, 4.0 * f_soles * (1.0 - f_soles)) * math.exp(-(w_gyro / 0.6) ** 2) * math.sin(math.tau * 6.0 * t)
     w_sum, w_both = float(w[0] + w[1]) + 1e-9, float(min(w[0], w[1]))
     lo_1, hi_1 = (w @ lo) / w_sum, (w @ hi) / w_sum
     b_lo = (1.0 - w_both) * lo_1 + w_both * lo.min(axis=0) - w_ext * 0.16
     b_hi = (1.0 - w_both) * hi_1 + w_both * hi.max(axis=0) + w_ext * 0.16
     mid, span = 0.5 * (b_lo + b_hi), np.maximum(0.5 * (b_hi - b_lo), 0.02)
-    w_air = max(0.0, 1.0 - float(g['out'][latent.ZMP]), w_jump)
+    w_air = max(0.0, 1.0 - float(out[latent.ZMP]), w_jump)
     w_prop = max(w_ext, float(a[modal.BORNE]), w_air)
     w_sup = min(1.0, 0.42 + 0.30 * float(w[0] + w[1]) + 0.22 * float(max(w[0], w[1])) + 0.55 * w_prop)
     cap = w_sup * (0.85 + 0.15 * (span / (span + np.array([0.04, 0.05]))))
-    r_gait = 0.28 * min(1.0, float(g['st'][latent.NOW][latent.GAIN]))
+    r_gait = 0.28 * min(1.0, float(st[latent.NOW][latent.GAIN]))
     r_lo, r_hi = np.minimum(b_lo, lo.min(axis=0) - r_gait), np.maximum(b_hi, hi.max(axis=0) + r_gait)
     out_xi = (xi - np.clip(xi, r_lo, r_hi)) * (1.0 - w_prop)
     w_tilt = float(np.hypot(gyro[0], gyro[2]))
@@ -178,12 +179,18 @@ def surety(g, dt, ct=math.nan):
     f_att = max(0.0, 1.0 - (theta_e / 1.20) ** 4) ** 2
     s_vec = np.clip(s_dir * f_att, 0.0, 1.0)
     raw = float(np.mean(s_vec))
-    prev = float(g.get('surety', 1.0))
     diff = raw - prev
     step = min(1.0, dt / 0.012) * min(diff, 0.0) + min(1.0, dt / 0.12) * max(prev ** 3, 0.08 * float(a[modal.BORNE])) * max(diff, 0.0)
     cur = min(1.0, max(0.0, prev + step))
-    g['surety'] = cur
-    g['surety_vec'] = (float(s_vec[0]), float(s_vec[1]), float(d_xy[0]), float(d_xy[1]))
+    return cur, np.array([s_vec[0], s_vec[1], d_xy[0], d_xy[1], probe])
+
+
+def surety(g, dt, ct=math.nan):
+    """Her surety field stepped `dt` s on her arrays (`surety_field`, in C): `g['surety']` in
+    [0, 1], `g['surety_vec']` (s_ax, s_lat, d_ax, d_lat), `g['surety_probe']`."""
+    cur, vec = g['surety_field'](float(g['surety']), dt, ct, float(g['t']))
+    s_ax, s_lat, d_ax, d_lat, g['surety_probe'] = vec.tolist()
+    g['surety'], g['surety_vec'] = cur, (s_ax, s_lat, d_ax, d_lat)
     return cur
 
 
@@ -263,11 +270,11 @@ def laid(g):
     """Her drive-side step laid in C (`wbc_pass.c`, `tools.cores.wbc.Drives`): the struct
     pointing at `g`'s arrays once - the observers, the setpoints and their rates, the holds, the
     knees' spring, the feed and the clamps her drives are told (`g['cmd']`) - and what it reads
-    by, kept beside it. Her latent step, her upper body's coupling and her ask in C, her python's
-    bit for bit (`tools.cores.motion`); her estimate, her grip's feel and floor, her situation, her
-    drive's cap and her ask's poses compiled from their numpy (`tools.cores.bodied`)."""
+    by, kept beside it. Her latent step, her upper body's coupling, her ask and her surety field in
+    C, her python's bit for bit (`tools.cores.motion`, `tools.cores.surety`); her estimate, her grip's feel and floor, her
+    situation, her drive's cap and her ask's poses compiled from their numpy (`tools.cores.bodied`)."""
     from machine.figure import JOINTS
-    from tools.cores import bodied, motion as c_motion, wbc as cores
+    from tools.cores import bodied, motion as c_motion, surety as c_surety, wbc as cores
     g['estimated'] = bodied.on_body(estimate.step, 'estimate', (0, 2), body=1)
     g['felt'] = bodied.on_args(grip.felt, 'felt', (0, 1, 2, 3, 4, 5, 7))
     g['outside'] = bodied.on_args(grip.outside, 'outside', (0, 1))
@@ -277,7 +284,9 @@ def laid(g):
     g['poses'] = bodied.on_args(modal.poses, 'poses', (0, 1, 2, 3, 4, 5, 7))
     g['modal_sensed'] = bodied.on_args(modal.sensed, 'modal_sensed', (0, 1, 2), sources={0: g['sensed']})
     g['soles'] = bodied.on_body(touch.soles, 'soles', (1, 3, 4, 5, 6), body=0)
-    g['impedance'] = functools.partial(c_motion.asked, *c_motion.laid())
+    k, ask = c_motion.laid()
+    g['impedance'] = functools.partial(c_motion.asked, k, ask)
+    g['surety_field'] = c_surety.laid(k, g['sense'], g['y'], g['fr'], g['a'], g['st'], g['out'])
     laid_ = c_motion.latent_laid()
     g['latent'], g['couple'] = functools.partial(c_motion.stepped, laid_), functools.partial(c_motion.coupled, laid_)
     body, joints = g['body'], g['joints']

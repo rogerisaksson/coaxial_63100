@@ -52,3 +52,9 @@
   cells trip the emulator, a cell further or nearer run to run, on the
   night's tree as now. DOD: every paper alike on both but where a world's
   physics says otherwise (the machines paper's, on the stand-in).
+- **Her simulator's pace against real time** (asked): her loop as the page
+  runs it (`worker.stepped`) and bare (`tools/sim/ortho.py`) in simulated s a
+  wall s, MuJoCo's step alone beside them; the bottlenecks profiled and cut,
+  the code as readable, nothing of MuJoCo's state written for it. DOD: the
+  numbers in docs/findings/body.md, the smoke and every suite the pass reaches
+  green, her walk's measures unchanged.

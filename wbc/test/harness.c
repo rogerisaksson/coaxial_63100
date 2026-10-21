@@ -272,6 +272,17 @@ API int wbh_imp_size(void)
   return (int)sizeof(wbc_imp_t);
 }
 
+API double wbh_imp_surety(const wbc_imp_t *k, const wbc_surety_t *s, double prev, double dt, double ct, double t,
+                          double *vec)
+{
+  return wbc_imp_surety(k, s, prev, dt, ct, t, vec);
+}
+
+API int wbh_surety_size(void)
+{
+  return (int)sizeof(wbc_surety_t);
+}
+
 API void wbh_law_latent(const wbc_law_t *k, double *st, const double *tab, int ntab, double now, double dt,
                         double *out, double *hit)
 {

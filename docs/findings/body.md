@@ -140,6 +140,20 @@ her latent loop in [orthokinematics](orthokinematics.md).
   scenarios bit for bit, her pass 825 -> 645 us, 1.55 of real time. Left in
   the pass: her sensing, the wear's window 0.23 s every 4 s - it feeds her
   law (`wear.loaded`).
+- Her pace against real time, this laptop, nothing else running: MuJoCo's
+  step alone 74 us standing (nv 46, 17 contacts), 13.6 of real time; her loop
+  (`sprung.passed`) 727 us a pass, 1.38, walking 690 and 1.45; the page's
+  worker 731, 1.37, its wear 3 %. Of a pass MuJoCo 91 us, her ask and
+  sensing 391, her drives' pass 162 - her surety field in python 155 us a
+  call, four calls in three passes -, the world's glue 19, her drives told
+  over the SIL buses 36. The field in C (`wbc_surety.c`, `tools.cores.surety`:
+  CPython's vector_norm for math.hypot, C's for numpy's; pow for a scalar's
+  square, x x for an array's), bit for bit at every call of her law over
+  12 s of her walk (test_compiled): her drives' pass 162 -> 20 us. The
+  whole-body step's pointed write taken with M rescaled - `dict(s, M=M)` had
+  sent 28 arrays through ascontiguousarray a solve -: 579 us a pass, 1.73,
+  walking 520 and 1.92; the worker 535, 1.87. Her walk's smoke the same to
+  the digit.
 - What her law sees, reviewed: her edge's array alone - an IMU in its own
   frame, encoders, load cells, skin in each segment's frame, no place or
   speed of hers in the world - and her own model as her estimate poses it;

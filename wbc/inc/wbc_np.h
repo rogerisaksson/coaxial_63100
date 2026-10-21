@@ -143,6 +143,46 @@ static inline double npdot(const double *a, int sa, const double *b, int sb, int
   return 0.0 + t;
 }
 
+/** Python's math.hypot of `n` finite, normal coordinates, eight at most (CPython's vector_norm):
+    scaled, squared and summed losslessly, a differential correction. numpy's hypot is C's. */
+static inline double pyhypot(const double *x, int n)
+{
+  double vec[8], top = 0.0, csum = 1.0, frac1 = 0.0, frac2 = 0.0, s, pr_hi, pr_lo, sm_hi, h, scale;
+  int    top_e;
+
+  for (int i = 0; i < n; i++)
+  {
+    vec[i] = fabs(x[i]);
+    top = vec[i] > top ? vec[i] : top;
+  }
+  if (top == 0.0 || n <= 1)
+  {
+    return top;
+  }
+  frexp(top, &top_e);
+  scale = ldexp(1.0, -top_e);
+  for (int i = 0; i < n; i++)
+  {
+    s = vec[i] * scale;
+    pr_hi = s * s;
+    pr_lo = fma(s, s, -pr_hi);
+    sm_hi = csum + pr_hi;
+    frac2 += (csum - sm_hi) + pr_hi;
+    csum = sm_hi;
+    frac1 += pr_lo;
+  }
+  h = sqrt(csum - 1.0 + (frac1 + frac2));
+  pr_hi = (-h) * h;
+  pr_lo = fma(-h, h, -pr_hi);
+  sm_hi = csum + pr_hi;
+  frac2 += (csum - sm_hi) + pr_hi;
+  csum = sm_hi;
+  frac1 += pr_lo;
+  s = csum - 1.0 + (frac1 + frac2);
+  h += s / (2.0 * h);
+  return h / scale;
+}
+
 /** A row of a matrix @ a vector, three long or two (dgemv_t's tail, contracted). */
 static inline double npmv3(const double *a, const double *x)
 {
