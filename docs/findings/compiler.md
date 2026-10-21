@@ -72,7 +72,7 @@ time and in memory. The board's findings: [FINDINGS](../FINDINGS.md).
   A ctypes field's view in numpy's own dtype (`wbc.plain`): as_array's equal
   one made numpy copy the step's arrays at each `ascontiguousarray`, her
   drives re-pointed each pass (29 -> 23 us a pass).
-- `check_contacts`' arithmetic its own function, compiled (`touch.soles`):
+- `check_contacts`' arithmetic its own function, compiled (`touch.soles`, now the python reference's beside `wbc_touch.c`):
   each sole's pushes and their sizes as numpy's 1-d norms, its toes' lowest
   tip, the floor under it; `check_contacts` keeps her state, its branch and
   Python's hypot. Her walk 710 -> 491 us a pass with ten parts, p99 2.17 ->

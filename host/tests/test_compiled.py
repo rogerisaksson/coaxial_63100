@@ -180,7 +180,7 @@ def _beside(real, fn, twin, tally, at=0):
 
 def test_her_law_in_c_as_she_walks(report, c):
     """Her motion's compiled parts - her estimate, her sensing, her grip's feel and floor, her
-    situation, her drive's cap, her ask's poses, her sensing flat, her soles' touch (`motion.laid`) -
+    situation, her drive's cap, her ask's poses, her sensing flat (`motion.laid`) -
     at every pass of her motion over PASSES of her walk, built at their first and held there, each
     beside its numpy on copies."""
     from machine import estimate, grip, modal, motion, situation, touch, wbc, worker
@@ -189,10 +189,10 @@ def test_her_law_in_c_as_she_walks(report, c):
     g = s['g']
     parts = {'estimated': estimate.step, 'sensed': wbc.sense, 'felt': grip.felt, 'outside': grip.outside,
              'readings': situation.readings, 'read': situation.read, 'gripped': motion.gripped, 'poses': modal.poses,
-             'modal_sensed': modal.sensed, 'soles': touch.soles}
+             'modal_sensed': modal.sensed}
     tallies, reals = {name: [0, 0, None] for name in parts}, {name: g[name] for name in parts}
     for name, fn in parts.items():
-        twin = trace_mj.twin(g['body']) if name in ('sensed', 'estimated', 'soles') else None
+        twin = trace_mj.twin(g['body']) if name in ('sensed', 'estimated') else None
         g[name] = _beside(g[name], fn, twin, tallies[name], 1 if name == 'estimated' else 0)
     for _ in range(PASSES):
         worker.stepped(s)
@@ -241,6 +241,47 @@ def test_her_surety_in_c_as_she_walks(report, c):
     report.check('a step of her surety field in C on this host', us[0] < 20.0, '%.1f us, its python %.0f' % tuple(us))
 
 
+def test_her_touch_in_c_as_she_walks(report, c):
+    """Her touch's filter in C (`c_touch.laid`, wbc_touch.c) beside its python (`touch.stepped`) on
+    copies of her arrays at every pass of her law over 4 PASSES of her walk - the latent out, the
+    ask, the filter's state and her twist bit for bit -, and a step's time beside its python's."""
+    from machine import edge, modal, touch, worker
+    from tools.cores import motion as c_motion
+    from tools.cores.orders import same
+    s = worker.session(walks=True)
+    g = s['g']
+    real, tally, spent = g['touched_step'], [0, 0, 0.0], [[], []]
+
+    def beside(asked, twist, tw_on, heading, dt, vel):
+        a, out, state = g['a'].copy(), g['out'].copy(), g['touched'].copy()
+        soled = touch.soles(g['body'], g['sense'][edge.TOUCH].reshape(-1, 3), g['_skin_ids'], g['_tips'], g['y'],
+                            g['fr'], g['a'][modal.STANCE])
+        t0 = time.perf_counter()
+        want = touch.stepped(g['sense'], vel, g['y'], g['fr'], a, g['st'], out, g['rest'], state, soled, asked, twist,
+                             tw_on, heading, dt)
+        t1 = time.perf_counter()
+        got = real(asked, twist, tw_on, heading, dt, vel)
+        spent[0].append(time.perf_counter() - t1)
+        spent[1].append(t1 - t0)
+        tally[0] += 1
+        pairs = ((g['a'], a), (g['out'], out), (g['touched'], state), (np.array(got), np.array(want)))
+        tally[1] += not all(same(x, y) for x, y in pairs)
+        tally[2] = max(tally[2], max(float(np.abs(x - y).max()) for x, y in pairs))
+        return got
+    g['touched_step'] = beside
+    for _ in range(4 * PASSES):
+        worker.stepped(s)
+    n, bad, apart = tally
+    if c_motion.exact_host():
+        report.check("her touch's filter in C is her python's bit for bit at %d passes of her law walking" % n,
+                     n >= PASSES and not bad, '%d apart, %.3g at most' % (bad, apart))
+    else:
+        report.check("her touch's filter in C is her python's within its last bits where numpy dispatches elsewhere",
+                     n >= PASSES and apart <= 1e-9, '%d of %d not bit for bit, %.3g apart at most' % (bad, n, apart))
+    us = [1e6 * float(np.median(each)) for each in spent]
+    report.check("a step of her touch's filter in C on this host", us[0] < 30.0, '%.1f us, its python %.0f' % tuple(us))
+
+
 def test_aircraft_substeps_in_c_are_their_numpys(report, c):
     """`quad.substep` and `wingborne.wing_substep` compiled on each aircraft's `Sky` beside numpy's
     on a twin `Sky`, over 40 substeps: `qpos`, `qvel`, `qacc` and `xfrc_applied` bit for bit."""
@@ -278,7 +319,7 @@ def test_aircraft_substeps_in_c_are_their_numpys(report, c):
 
 
 ROSTER = (test_numpys_reductions_and_selections_in_c, test_her_state_in_place_in_c, test_her_sensing_in_c_is_her_numpys,
-          test_her_law_in_c_as_she_walks, test_her_surety_in_c_as_she_walks,
+          test_her_law_in_c_as_she_walks, test_her_surety_in_c_as_she_walks, test_her_touch_in_c_as_she_walks,
           test_aircraft_substeps_in_c_are_their_numpys)
 
 

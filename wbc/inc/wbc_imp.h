@@ -137,4 +137,27 @@ typedef struct
 double wbc_imp_surety(const wbc_imp_t *k, const wbc_surety_t *s, double prev, double dt, double ct, double t,
                       double vec[5]);
 
+/** machine.touch.stepped's reading of her law's arrays, laid once: the edge's touch offset in
+    y_in, latent's gains in st, her rest's Z, K and D, the filter's state's offsets; her core's
+    and her soles' skin indices, each's body, the toes' tips; the filter's constants; the arrays. */
+typedef struct
+{
+  int           touch_at;  /**< the skin's touch in y_in */
+  int           st_now_gain, st_to_gain;  /**< the gain now and asked in st */
+  int           r_z, r_k, r_d;  /**< rest's targets, springs, dampers */
+  int           s_felt, s_hold, s_brake, s_stand, s_drv, s_clear;  /**< the state's */
+  int           core[4];   /**< her pelvis, torso, neck and head among the skin */
+  int           soles[2][2];  /**< each sole's foot and toes among the skin */
+  const int    *ids;       /**< each skin index's body */
+  const double *tips;      /**< the toes' tips (2, 3) */
+  double        resume_s, along_cos, felt_s, edge_m, touched_n;
+  const double *y_in, *xmat, *xpos, *y, *fr, *st, *rest;
+  double       *a, *out, *state;  /**< written: the ask, the latent out, the filter's state */
+} wbc_touch_t;
+
+/** A pass of the filter `dt` s on (machine.touch.stepped, wbc_touch.c): `asked` the twist told,
+    `twist` hers in and out, `tw_on` whether one is told, `heading` hers, `vel` her estimate's. */
+void wbc_touch_step(const wbc_imp_t *k, const wbc_touch_t *t, const double asked[3], double twist[3], double tw_on,
+                    double heading, double dt, const double *vel);
+
 #endif

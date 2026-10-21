@@ -79,3 +79,9 @@ machine ([body](body.md), [emulation](emulation.md),
   `apart.paced`'s time stepped against the wall's): on 16 cores her 27
   boards in-process; native would take 3.0 and fit once her body is wired to
   it (todo/host.md); Renode 113.
+- Her touch's filter in C (`wbc_touch.c`, `tools.cores.touch`; its memory one
+  array, `touch.laid`, where seven keys of `g` were): bit for bit at 4 001
+  passes of her law over 12 s of her walk, 120 -> 9.5 us a call; her soles'
+  arithmetic (`touch.soles`) the C's own, the python's beside it in the
+  test. Her loop 579 -> 440 us a pass, 1.73 -> 2.27 of real time, walking
+  2.28; the worker 487, 2.05. Her walk's smoke the same to the digit.

@@ -234,7 +234,7 @@ def test_no_unused_imports(r):
 def test_numpy_enters_behind_the_thread_cap(r):
     """numpy is imported at module level by the modules that step arrays - blocks.py,
     machine/cyclic.py and the whole-body loop's qp, wbc, wrench, latent, modal, impedance, poise,
-    stride, support, motion, edge, estimate, borne, grip, situation - each capping OpenBLAS's thread pool before importing it.
+    stride, support, motion, edge, estimate, borne, grip, situation, touch - each capping OpenBLAS's thread pool before importing it.
     """
     importers, uncapped = [], []
     for path, _text, tree in sources(beside=False):
@@ -252,7 +252,7 @@ def test_numpy_enters_behind_the_thread_cap(r):
                                         + [os.path.join('machine', m + '.py') for m in (
                                             'cyclic', 'qp', 'wbc', 'wrench',
                                             'latent', 'modal', 'impedance', 'poise', 'stride', 'support',
-                                            'motion', 'edge', 'estimate', 'borne', 'grip', 'situation')]),
+                                            'motion', 'edge', 'estimate', 'borne', 'grip', 'situation', 'touch')]),
             ', '.join(importers) or 'nowhere')
     r.check('each sets OPENBLAS_NUM_THREADS before importing it', not uncapped,
             ', '.join(uncapped))
@@ -282,10 +282,9 @@ def test_motor_imports_no_board(r):
 #: Her motion pass: what `machine.motion` steps. It reads the world through `machine.edge` alone.
 LAW = ('motion', 'se2', 'leap', 'support', 'latent', 'impedance', 'modal', 'poise', 'stride',
        'estimate', 'wrench', 'wbc', 'reach', 'touch', 'situation', 'borne', 'grip')
-#: Her motion pass in C: its bindings and the sources they run, given her motion's arrays alone:
-#: they name no world and no MuJoCo.
-LAW_C = ('tools/cores/motion.py', 'tools/cores/surety.py')
-LAW_C_SOURCES = ('wbc_imp.c', 'wbc_stride.c', 'wbc_surety.c', 'wbc_law.c', 'wbc_blas.c')
+#: Her motion pass in C: its bindings and their sources name no world and no MuJoCo.
+LAW_C = ('tools/cores/motion.py', 'tools/cores/surety.py', 'tools/cores/touch.py')
+LAW_C_SOURCES = ('wbc_imp.c', 'wbc_stride.c', 'wbc_surety.c', 'wbc_touch.c', 'wbc_law.c', 'wbc_blas.c')
 #: What her law may not name: the world, its truth, its ids, the writes that move it, the world's
 #: own modules. Her model posed is wbc.sense's and estimate.step's alone.
 TRUTH = {'world', 'obstacle_ids', 'sill_ids', 'upper_ids', 'robot_ids', 'push_until', 'push_n',

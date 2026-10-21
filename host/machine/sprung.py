@@ -5,7 +5,7 @@
 """
 import math
 import os
-from machine import mechatronics, edge, estimate, grip, leap, ortho, se2, situation, takes
+from machine import mechatronics, edge, estimate, grip, leap, ortho, se2, situation, takes, touch
 from machine.se2 import WEP_S, _dropped, doing, said
 
 LEAK_S, STANDING_KP, WEP_HOLD_S, WEP_FILL = se2.LEAK_S, se2.STANDING_KP, se2.WEP_HOLD_S, se2.WEP_FILL
@@ -117,6 +117,7 @@ def laid(every=1, inner=None, solver=None):
          '_brake_wire': _BRAKE_WIRE, '_stand_entry': next((e for e in entries() if e[0] == 'stand'), None),
          'heading': float(fr[modal.HEADING]), 'twist': (0.0, 0.0, 0.0),
          'heat': heat.Heat.for_joints(JOINTS), 'temp': np.full(len(JOINTS), 25.0), 'scenario': 'flat',
+         'touched': touch.laid(),
          'solve': solve_step, 'sensed': sensed}
     motion.laid(g)
     world.clock = lambda: g['t']
@@ -179,9 +180,8 @@ def relaid(g, where=(0.0, 0.0), yaw=0.0):
     g['_twist_active'], g['_twist_stop_until'], g['twist'], g['asked'], g['twist_actual'] = (
         False, 0.0, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0), (0.0, 0.0, 0.0))
     g['active_entry'], g['n'], g['_look_yaw'], g['_halt_at'] = None, 0, 0.0, None
-    g['_hold_s'], g['_u_brake'], g['_u_stand'], g['_u_drv'], g['_clear'] = 0.0, 0.0, 0.0, 1.0, (0.0, 0.0)
+    g['touched'][:] = touch.REST       # what she felt stood in the world laid away
     g['_w_back'], g['_backing_yaw'], g['_turn_dc'] = 0.0, 0.0, 0.0
-    g.pop('_felt', None)       # what she felt stood in the world laid away
     for idx in (g.get('waist_idx'), g.get('head_idx')):
         if idx is not None:
             g['posture'][idx] = 0.0
