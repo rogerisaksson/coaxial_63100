@@ -367,3 +367,7 @@ pass beside the world's floor under each sole (`tools/sim/trace.py`).
   touch 32 times in 8 s, and rising from the bed she fell at swing_out. Not
   kept: the sit is to be laid from the takes whole - the hips back over the
   seat, the weight onto it, the feet down, the rise.
+
+## The takes as scenarios
+
+Each take a scenario judged against its take: [stunts](stunts.md).

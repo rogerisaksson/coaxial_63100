@@ -57,7 +57,9 @@ identification. Her figure: [kinematics](kinematics.md); her drives:
 
 - `host/tools/sim/`: look (a HUMANOID recording a stage a row); replay (a
   recording's commands run again, pass for pass); scenarios (each scene
-  placed, commanded and judged, a table); sysid (her identification
+  placed, commanded and judged, a table); stunts (the mocap takes as
+  scenarios: a move's measures from joints' places, a take's and hers
+  alike, the takes' kept in tests/takes/stunts.json); sysid (her identification
   campaign on the stand, tabled, its corrections written); strides, normal,
   looks (a walk's measures, a woman's band, humanoid robot form).
 

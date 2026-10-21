@@ -295,3 +295,8 @@ the hundred before these: [DONE_1-50](DONE_1-50.md),
     `machine.motion`, `machine.tour`, `machine.se2`, `machine.worker`,
     `terminal/views/gym.py`, `terminal/views/show_humanoid.py`,
     `terminal/keybindings.py`, `test_errands.py`, `test_views_humanoid.py`).
+69. The 31 mocap takes as MuJoCo scenarios (`tools/sim/stunts.py`,
+    `scenarios.STUNTS`, `tests/takes/stunts.json`): one measuring function for
+    a move from joints' places, a take's and hers alike; a scene, a telling
+    and a signature a take; a step's edge behind her (`floor` `edge_behind`);
+    a verb without a text refused by name. First run 2 of 31 met.

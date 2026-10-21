@@ -99,3 +99,32 @@ serves its DOD; none an entry a case.
    parts' peak. Without it the turns hold and the turnabout better (13 of 13,
    7 granted); the weave falls at 4 of 13 (demand.md). DOD: each scenario's
    peak, rms, speed and heat under 2/3 of its parts.
+8. **The takes as her moves** (`tools/sim/stunts.py`, `scenarios.STUNTS`):
+   each of the 31 takes a scenario - its scene, her told as a player would,
+   her rows measured as the take is (lengths in legs, times in sqrt(leg/g))
+   and judged within a sole's length, her list, her arm's cone and one
+   natural time of the take's, her head no lower than the human's and under
+   1 m/s if she falls. 2 of 31 met, 6 refused for want of a text - backflip,
+   kneel, yawn, turn_over -, 23 short (scenarios.md, "The takes as
+   scenarios"): the shoves and the step's edge put her head on the floor at
+   1.1-1.8 m/s where a human sits down or catches himself (item 5); a crouch
+   8 cm where 0.59 m, the sit's hips and trunk (item 1); the chair's hops
+   (item 6) and a standing jump a tenth of the human's; W at 0.93 m/s where
+   a jog is 2.0 and a run 4.5, S at 0.19 where 1.3; the dance a bounce of 5
+   cm where 34; the stairs (item 3); lying (item 1). The moves as her rows
+   from the takes themselves: each latent mode read off a take's joints in
+   her units - axial from the hips' height, pitch from the trunk, sagittal
+   from the hips over the ankles, list, turn, the arms - and streamed as the
+   text's targets, the whole-body step keeping her balance; no spasm: each
+   segment's jerk no higher than her steady walk's (item 2). The take's
+   human and she by similarity: lengths by the legs' ratio, times and speeds
+   by its root, masses and forces by its cube, normative for a woman of her
+   size (`figure.MASS_KG` at 165 cm). One evaluation to iterate while a
+   parameter of hers or of the loop is tuned (`stunts.evaluate`): how far
+   each stunt is off its take in the measures' widths, the total, saved and
+   diffed run to run; kinematic in her body's units, the drives' demand
+   beside it, never in it, so a motor or a ratio changed alters what she
+   reaches, not what a score or a parameter means. Where the drives fall
+   short of a flip or a jump, a "performance" drivetrain config beside the
+   one stack, the demand measured first (demand.md). DOD: 31 of 31 met at
+   every wobble, each stunt's jerk within her walk's.

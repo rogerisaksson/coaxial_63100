@@ -22,6 +22,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from coaxial.model.blocks import numpy as np  # behind the OpenBLAS cap
+from tools.sim.stunts import angle
 
 #: The reference, two takes sitting down (Stand To Sit, Sitting on Bed): (measure, unit, least,
 #: most). A length in legs (hip to knee to ankle) reads a walker's size out of it.
@@ -40,11 +41,6 @@ SEAT = (
 EDGE = 0.1
 #: Seated: the last SEATED_S of a sit.
 SEATED_S = 0.5
-
-
-def _angle(u, v):
-    cos = (u * v).sum(axis=-1) / np.maximum(np.linalg.norm(u, axis=-1) * np.linalg.norm(v, axis=-1), 1e-9)
-    return np.degrees(np.arccos(np.clip(cos, -1.0, 1.0)))
 
 
 def measured(times, joints):
@@ -68,9 +64,9 @@ def measured(times, joints):
     t_there = float(times[there][0]) if there.any() else float(times[-1])
     trunk = neck - hips
     pitch = np.degrees(np.arctan2(trunk @ fwd, trunk[:, 1]))
-    knees = np.mean([180.0 - _angle(joints[s + 'UpLeg'] - joints[s + 'Leg'], joints[s + 'Foot'] - joints[s + 'Leg'])
+    knees = np.mean([180.0 - angle(joints[s + 'UpLeg'] - joints[s + 'Leg'], joints[s + 'Foot'] - joints[s + 'Leg'])
                      for s in ('Left', 'Right')], axis=0)
-    arms = np.stack([_angle(joints[s + 'ForeArm'] - joints[s + 'Arm'], hips - neck) for s in ('Left', 'Right')])
+    arms = np.stack([angle(joints[s + 'ForeArm'] - joints[s + 'Arm'], hips - neck) for s in ('Left', 'Right')])
     return {
         'drop': drop / leg,
         'descent': t_there - t_down,

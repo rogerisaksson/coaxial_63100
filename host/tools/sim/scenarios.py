@@ -4,13 +4,15 @@
     python tools/sim/scenarios.py                    # every scenario on the relay, a table
     python tools/sim/scenarios.py wall chair         # those named; --shoves the shoves' polar too
     python tools/sim/scenarios.py --one wall         # one, its line as JSON (the relay's job)
+    python tools/sim/stunts.py                       # the takes' scenarios (STUNTS) against their takes
 
 A scenario is a scene (`floor.scenario`, or a chair or a bed set at her) and its commands at their
 seconds, given through her worker's own session (`worker.apply`, `worker.stepped`) as the page
 gives them. The referee reads the world's truth her law never sees: whether she fell
 (`worker._is_fallen`), what bore her off her soles - the floor, a chair, a mattress, a wall -,
 her soles' loads, where her pelvis went, and each segment's jerk (`JERKED`) through a 20 ms
-window, its 99th percentile and its peak.
+window, its 99th percentile and its peak; a stunt's rows as the page records her, measured as
+its take is (`stunts.measured`).
 """
 import argparse
 import json
@@ -20,17 +22,20 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
+from tools.sim import stunts
+
 #: A player's walk (`se2`'s), m/s; a stop.
 WALK, STOP = (0.69, 0.0, 0.0), (0.0, 0.0, 0.0)
 #: What bears her, by the body it is: the props a scene places.
 BEARS = {'chair': 'chair', 'prop_bed': 'bed', 'wall': 'wall', 'tree': 'tree'}
-#: A goal held this long, s; jerk through this window, s; an obstacle met past this, N.
-HELD_S, JERK_S, MET_N = 1.0, 0.02, 20.0
+#: A goal held this long, s; jerk through this window, s; an obstacle met past this, N; standing
+#: on after the last command, s.
+HELD_S, JERK_S, MET_N, STILL_S = 1.0, 0.02, 20.0, 6.0
 #: The segments whose jerk is judged: her core, her head, her hands and her feet.
 JERKED = ('pelvis', 'torso', 'head', 'left_hand', 'right_hand', 'left_foot', 'right_foot')
 
 
-def _walk(seconds, then=6.0):
+def _walk(seconds, then=STILL_S):
     """Walk from 1 s for `seconds`, then stop and stand `then` s: (commands, seconds)."""
     return [(1.0, {'twist': WALK}), (1.0 + seconds, {'twist': STOP})], 1.0 + seconds + then
 
@@ -82,20 +87,94 @@ def _played(keys):
 
 SCENARIOS.update({'play_' + n: ('flat', *_played(k), 'stands', None) for n, k in PLAYS.items()})
 
-#: Shoves: N, the way they push (deg about up from ahead, 90 to her left), standing or walking,
-#: at one of MOMENTS - a quarter of her stride apart, the foot that swings decides; 80 N held, 200 N
-#: held or fallen with her head slower than FALL_M_S onto the floor.
-MOMENTS = (5.0, 5.15, 5.30, 5.45)
+#: Shoves: N for SHOVE_S, the way they push (deg about up from ahead, 90 to her left), standing or
+#: walking, at one of MOMENTS - a quarter of her stride apart, the foot that swings decides; 80 N
+#: held, 200 N held or fallen with her head slower than FALL_M_S onto the floor.
+FORCES_N, SHOVE_S, MOMENTS = (80, 200), 0.12, (5.0, 5.15, 5.30, 5.45)
 SHOVES = {'shove_%d_%03d_%s_%d' % (n, way, gait, k): (n, way, gait, at)
-          for n in (80, 200) for way in range(0, 360, 45) for gait in ('stand', 'walk')
+          for n in FORCES_N for way in range(0, 360, 45) for gait in ('stand', 'walk')
           for k, at in enumerate(MOMENTS)}
 FALL_M_S = 1.0
+
+#: The takes as scenarios, each judged against its take (`tools/sim/stunts.py`): key: (the take
+#: under stunts/, scene, commands, from when her rows are measured - the telling, or MOMENTS[0]
+#: with a gait under way -, the measures of its signature). A verb she has no text for is
+#: refused by name: backflip, kneel, yawn, turn_over. The falls' signature is SAFE alone: a
+#: shove of the polar's most, the slick patch and the ice, a step's edge behind her.
+_BACK, _RUN, _SHOVED = KEYS['s'], KEYS['W'], FORCES_N[1]
+STUNTS = {
+    'hip_hop': ('dance/Hip Hop Dancing', 'flat', [(1.0, {'say': 'dance'})], 1.0, ('travel', 'drop', 'arms')),
+    'moonwalk': ('dance/Moonwalk', 'flat', [(1.0, {'twist': _BACK})], MOMENTS[0], ('travel', 'speed', 'flight', 'upright')),
+    'falling_on_butt': ('falling/Falling on Butt', 'flat',
+                        [(1.0, {'push': (0.0, 0.0, -_SHOVED), 'seconds': SHOVE_S})], 1.0, ()),
+    'slipping_on_a_patch': ('falling/Slipping Backwards', 'slip', [(1.0, {'twist': WALK})], 1.0, ()),
+    'tripping_forward': ('falling/Tripping Forward', 'flat',
+                         [(0.5, {'twist': WALK}), (MOMENTS[0], {'push': (0.0, 0.0, _SHOVED), 'seconds': SHOVE_S})],
+                         MOMENTS[0], ()),
+    'backflip': ('flips/Backflip', 'flat', [(1.0, {'say': 'backflip'})], 1.0, ('rise', 'flight', 'pitched')),
+    'run_to_flip': ('flips/Run To Flip', 'flat', [(0.5, {'twist': _RUN}), (MOMENTS[0], {'say': 'backflip'})],
+                    MOMENTS[0], ('rise', 'flight', 'pitched')),
+    'jump_down': ('jumping/Jump Down', 'on_chair', [(1.0, {'say': 'hop_down_chair'})], 1.0, ('ended', 'travel')),
+    'jumping_down': ('jumping/Jumping Down', 'on_chair', [(1.0, {'say': 'hop_down_chair'})], 1.0, ('ended', 'travel')),
+    'jumping_up': ('jumping/Jumping Up', 'chair_ahead', [(1.0, {'say': 'hop_up_chair'})], 1.0, ('ended', 'travel')),
+    'running_jump': ('jumping/Running Jump', 'flat', [(0.5, {'twist': _RUN}), (MOMENTS[0], {'charge': 1.0, 'say': 'hop'})],
+                     MOMENTS[0], ('flight', 'travel', 'speed')),
+    'crouch_up': ('kneel/Crouch Up', 'flat', [(1.0, {'say': 'crouch'}), (4.0, {'say': 'stand'})], 4.0, ('ended', 'lasted')),
+    'crouching_down': ('kneel/Crouching Down', 'flat', [(1.0, {'say': 'crouch'})], 1.0, ('drop', 'ended', 'knee', 'lasted')),
+    'kneeling_down': ('kneel/Kneeling Down', 'flat', [(1.0, {'say': 'kneel'})], 1.0, ('drop', 'ended', 'knee', 'lasted')),
+    'kneeling_up': ('kneel/Kneeling Up', 'flat', [(1.0, {'say': 'kneel'}), (4.0, {'say': 'stand'})], 4.0, ('ended', 'lasted')),
+    'lying_down_from_sitting': ('lying/Lying Down from Sitting', 'bed_behind',
+                                [(1.0, {'say': 'sit_chair'}), (7.0, {'say': 'lie_bed'})], 7.0,
+                                ('upright', 'hips back', 'ended', 'lasted')),
+    'sitting_on_bed': ('lying/Sitting on Bed', 'bed_behind', [(1.0, {'say': 'sit_chair'})], 1.0,
+                       ('drop', 'hips back', 'upright', 'knee', 'lifted', 'lasted')),
+    'standing_yawn': ('lying/Standing Yawn', 'flat', [(1.0, {'say': 'yawn'})], 1.0, ('arms', 'back', 'travel')),
+    'turning_in_bed': ('lying/Turning in Bed', 'mattress_under',
+                       [(1.0, {'say': 'lie_floor'}), (9.0, {'say': 'turn_over'})], 9.0, ('rolled', 'turned', 'upright')),
+    'jogging_backwards': ('run/Jogging Backwards', 'flat', [(1.0, {'twist': _BACK})], MOMENTS[0], ('travel', 'speed', 'upright')),
+    'jogging_forward': ('run/Jogging Forward', 'flat', [(1.0, {'twist': _RUN})], MOMENTS[0], ('travel', 'speed', 'flight')),
+    'running_backward': ('run/Running Backward', 'flat', [(1.0, {'twist': _BACK})], MOMENTS[0], ('travel', 'speed')),
+    'running_forward': ('run/Running Forward', 'flat', [(1.0, {'twist': _RUN})], MOMENTS[0], ('travel', 'speed', 'flight')),
+    'sit_to_stand': ('sitting/Sit To Stand', 'chair_behind', [(1.0, {'say': 'sit_chair'}), (8.0, {'say': 'rise_chair'})], 8.0,
+                     ('ended', 'forward', 'lasted')),
+    'situp_to_stand': ('sitting/Situp To Stand', 'mattress_under',
+                       [(1.0, {'say': 'lie_floor'}), (9.0, {'say': 'rise_floor'})], 9.0, ('ended', 'upright', 'lasted')),
+    'stand_to_sit': ('sitting/Stand To Sit', 'chair_behind', [(1.0, {'say': 'sit_chair'})], 1.0,
+                     ('drop', 'hips back', 'forward', 'knee', 'lifted', 'lasted')),
+    'edge_tripping_backwards': ('slipping/Edge Tripping Backwards', 'edge_behind', [(1.0, {'twist': _BACK})], 1.0, ('ended',)),
+    'slipping_backwards': ('slipping/Slipping Backwards', 'ice', [(1.0, {'twist': WALK})], MOMENTS[0], ()),
+    'ascending_stairs': ('stairs/Ascending Stairs', 'stairs', [(1.0, {'twist': WALK})], MOMENTS[0], ('ended', 'travel')),
+    'walking_up_the_stairs': ('stairs/Walking Up The Stairs', 'stairs', [(1.0, {'twist': WALK})], MOMENTS[0], ('ended', 'travel')),
+    'standing_jump': ('standing/Standing Jump', 'flat', [(1.0, {'charge': 1.0, 'say': 'hop'})], 1.0, ('rise', 'flight', 'travel')),
+}
+SCENARIOS.update({key: (scene, plan, start + ref['seconds'] + STILL_S, 'stunt', key)
+                  for key, (_take, scene, plan, start, _signature) in STUNTS.items()
+                  for ref in [stunts.reference().get(key, {'seconds': 0.0})]})
 
 
 def placed(s, scene):
     """`scene` laid round her in her session `s`: a floor event, or a chair or a bed set at her."""
     from machine import worker
     worker.apply(s, {'scenario': scene})
+
+
+def _row(g, world):
+    """Her look's row now, as the page records her (`humanoid_keys.row`)."""
+    from machine.figure import JOINTS
+    from terminal.views.humanoid_keys import HEADER, row
+    d = world.data
+    angles = {j: math.degrees(float(d.qpos[world.qadr[i]])) for i, j in enumerate(JOINTS)}
+    now = {'t': g['t'], 'stage': '', 'speed': float(d.qvel[2]), 'phase': 0.0,
+           'loads': tuple(float(v) for v in g['loads']), 'where': tuple(d.qpos[0:3].tolist()),
+           'turn': tuple(d.qpos[3:7].tolist()), 'angles': angles, 'set': angles, 'watts': 0.0}
+    return dict(zip(HEADER, row(now, 0.0)))
+
+
+def stunt_window(key):
+    """(from, to) s of a stunt's measured rows: from its telling for its take's seconds at her
+    size (`stunts.similar`)."""
+    ref, start = stunts.reference()[key], STUNTS[key][3]
+    return start, start + ref['seconds'] * stunts.similar(ref['leg'], 'time')
 
 
 def borne(world, hers, kinds, force):
@@ -118,7 +197,8 @@ def ran(name, wobble=0.0):
     """{name, stood, fell_at, goal, met, went m, rose m, speed m/s, bore {kind: share held}, jerk}:
     laid turned `wobble` rad about up."""
     import numpy as np
-    from machine import edge, modal, physics, worker
+    from tools.sim import look
+    from machine import edge, modal, physics, sprung, worker
     # an open floor: the page's living room walls the longer walks in
     physics.ROOM, physics.SIGHT = 0.0, 0.0
     shove = SHOVES.get(name)
@@ -126,10 +206,16 @@ def ran(name, wobble=0.0):
         n, way, gait, at = shove
         yaw = math.radians(way)
         plan = ([(0.5, {'twist': WALK})] if gait == 'walk' else []) + [
-            (at, {'push': (n * math.sin(yaw), 0.0, n * math.cos(yaw)), 'seconds': 0.12})]
+            (at, {'push': (n * math.sin(yaw), 0.0, n * math.cos(yaw)), 'seconds': SHOVE_S})]
         scene, seconds, goal, aim = 'flat', 9.0, 'held', n
     else:
         scene, plan, seconds, goal, aim = SCENARIOS[name]
+    told = [c['say'] for _at, c in plan if 'say' in c]
+    refused = sorted(set(told) - {e[0] for e in sprung.entries()})
+    if refused:
+        return {'name': name, 'stood': False, 'fell_at': None, 'goal': goal, 'aim': aim, 'refused': refused[0],
+                'went': math.nan, 'rose': math.nan, 'speed': math.nan, 'bore': {}, 'on_soles': math.nan,
+                'jerk': {seg: math.nan for seg in JERKED}, 'met': False}
     s = worker.session()
     placed(s, scene)
     world = s['g']['world']
@@ -147,6 +233,7 @@ def ran(name, wobble=0.0):
     from machine import wrench
     leg_cols = [s['g']['body'].act[leg] for leg in wrench.LEGS]
     track, fell, hit, k, bore, most = [], None, None, 0, {}, {}
+    rows, told_at = [], -math.inf
     sigma_min, scale_min, shrunk_n, qacc_max = math.inf, 1.0, 0, 0.0
     plan = sorted(plan, key=lambda c: c[0])
     while s['g']['t'] < seconds and s['epoch'] == 0:
@@ -170,6 +257,9 @@ def ran(name, wobble=0.0):
         if fell is not None and hit is None and float(d.xpos[head][1]) < 0.25:
             hit = speed_head
         track.append((g['t'], *d.qpos[0:3].tolist(), *d.xpos[jerked].ravel().tolist()))
+        if g['t'] - told_at >= 1.0 / look.RATE_HZ:
+            told_at = g['t']
+            rows.append(_row(g, world))
         if g['n'] % 10 == 0:
             now = borne(world, hers, kinds, force)
             for kind, n in now.items():
@@ -193,6 +283,8 @@ def ran(name, wobble=0.0):
            'sigma_min': round(sigma_min, 4), 'scale_min': round(scale_min, 3),
            'shrunk': shrunk_n, 'qacc_max': round(qacc_max, 1),
            'jerk': cut(lambda j: np.percentile(j, 99)), 'jerk_peak': cut(np.max)}
+    if goal == 'stunt':
+        out['moved'] = stunts.moved(rows, *stunt_window(aim))
     out['met'] = judged(out)
     return out
 
@@ -200,6 +292,9 @@ def ran(name, wobble=0.0):
 def judged(out):
     """Whether a run met its goal, by the world's truth."""
     goal, aim = out['goal'], out['aim']
+    if goal == 'stunt':
+        return ('refused' not in out and stunts.met(out['moved'], stunts.reference()[aim], STUNTS[aim][4])
+                and (out['head_hit'] is None or out['head_hit'] < FALL_M_S))
     if goal == 'held':
         return out['stood'] or (aim > 150 and out['head_hit'] is not None and out['head_hit'] < FALL_M_S)
     if not out['stood']:
@@ -245,6 +340,9 @@ def main(argv=None):
         r = rows[n]
         if 'error' in r:
             print('%-22s ERROR %s' % (n, r['error'][-120:]))
+            continue
+        if 'refused' in r:
+            print('%-22s refused %r: no text' % (n, r['refused']))
             continue
         print('%-22s %-5s %-7s %-6s %-6s %6.2f %6.2f %6.2f %-22s %5.2f %8.0f %8.0f' % (
             n, r['stood'], r['fell_at'] or '-', r['goal'], r['met'], r['went'], r['rose'], r['speed'],

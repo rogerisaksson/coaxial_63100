@@ -6,6 +6,7 @@ functions of the `physics.World`.
 """
 import math
 
+from machine import figure
 from machine.errors import MachineError
 
 HOLE_M, HOLE_LONG_M, SILL_M, SILL_LONG_M = 0.10, 0.40, 0.035, 0.04
@@ -38,7 +39,7 @@ SLIP_TOP_M, ICE_TOP_M, SNOW_TOP_M = 0.005, 0.005, 0.04
 SCENARIOS = (
     'flat', 'glass_room', 'chair', 'bed', 'mattress', 'slope', 'slope_down', 'cross_slope',
     'stairs', 'stairs_down', 'ice', 'snow', 'asphalt', 'slip', 'obstacle', 'wall', 'tree',
-    'sill', 'hole', 'rug',
+    'sill', 'hole', 'rug', 'edge_behind',
 )
 
 
@@ -291,6 +292,14 @@ def _on_chair(world):
     world.data.qpos[1] += CHAIR_SEAT_H
 
 
+def _edge_behind(world):
+    """She stands on a floor a step's rise up that ends half a tread behind her heels: a step
+    back lands off its edge."""
+    _sized(world, 'slope_top', (SLOPE_TOP_HALF[0], RISE_M / 2.0, UPPER_M / 2.0))
+    mocap(world, 'slope_top', (0.0, RISE_M / 2.0, UPPER_M / 2.0 - figure.HEEL - RUN_M / 2.0))
+    world.data.qpos[1] += RISE_M
+
+
 def scenario(world, name, z=1.2, x=0.0):
     park(world)
     if name in ('flat', 'clear', 'none'):
@@ -305,6 +314,7 @@ def scenario(world, name, z=1.2, x=0.0):
         'chair_behind': lambda: mocap(world, 'chair', (0.0, 0.0, -0.30), math.pi),
         'chair_ahead': lambda: mocap(world, 'chair', (0.0, 0.0, 0.40), math.pi),
         'on_chair': lambda: _on_chair(world),
+        'edge_behind': lambda: _edge_behind(world),
         'bed': lambda: place(world, 'bed', z=1.8, x=x),
         'bed_behind': lambda: mocap(world, 'prop_bed', (0.0, 0.0, -0.10 - BED_MATTRESS[0]), math.pi / 2.0),
         'mattress': lambda: place(world, 'mattress', z=0.6, x=x),

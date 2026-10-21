@@ -150,6 +150,7 @@ TOUCHES = (
     ('host/tools/sim/gvs.py',                  (STRUCTURE, GVS)),
     ('host/tools/sim/replay.py',               (STRUCTURE, REPLAYS)),
     ('host/tools/sim/scenarios.py',            (STRUCTURE, SCENES)),
+    ('host/tools/sim/stunts.py',               (STRUCTURE, SCENES)),
     ('host/tools/sim/jerk.py',                 (STRUCTURE,)),
     ('host/tools/sim/bench.py',                (STRUCTURE,)),
     ('host/tools/cores/manifest.py',           (STRUCTURE, 'test_mirrors.py', ORTHO)),
@@ -157,7 +158,7 @@ TOUCHES = (
     ('host/tools/cores/terms.py',              (STRUCTURE, TERMS)),
     ('host/tools/cores/',                      (WIRE, NATIVE, NATIVE_HEAT)),
     ('host/tools/dev/counts.py',               ('test_ollama_runner.py',)),
-    ('host/tests/takes/',                      (ORTHO,)),
+    ('host/tests/takes/',                      (ORTHO, SCENES)),
     ('host/tests/aero_kit.py',                 (AERO_CORE, WIRE, EMULATOR)),
     ('host/tests/',                            ()),          # decided by name below
     # Firmware and protocol: the byte-level master is the point of it - but the

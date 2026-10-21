@@ -266,6 +266,7 @@ Six firmware defects, no hardware fault:
 | What her law senses: edge, estimate, insoles | [findings/sensing.md](findings/sensing.md) |
 | Her body identified | [findings/identification.md](findings/identification.md) |
 | Her scenarios as a player commands them | [findings/scenarios.md](findings/scenarios.md) |
+| The mocap takes as her scenarios, each judged against its take | [findings/stunts.md](findings/stunts.md) |
 | Support, whatever bears her: a seat, a bed, a knee on the floor | [findings/support.md](findings/support.md) |
 | The board's thermal: the network, the camera, the observer, the envelope | [findings/thermal.md](findings/thermal.md) |
 | Her floor's grip: felt as a sole slides, told, her law bounded by it | [findings/grip.md](findings/grip.md) |
