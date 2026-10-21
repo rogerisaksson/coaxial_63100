@@ -142,4 +142,27 @@ run no lower than the human's, a fall's head under 1 m/s. The takes (a leg
   where it bore 1.08 with her soles 44 mm up; reclined 57 deg she rolled 90
   deg at 2e-4 rad. The lying take's hips go back 1.07 legs: a shuffle her
   loop has no mode for. The chair by its texts 5.8 s, the walk 0.70 m/s, 409
-  J/m, 2.55 off throughout.
+  J/m, 2.55 off throughout. The bench after: 5 of 31 met (the slick patch,
+  the ice, the kneel, the chair's sit and rise), 214 widths off; the crouch
+  takes, half a unit deeper with the straight leg their zero, bottom out at
+  the human's full squat (knee 140 deg, drop 0.93 legs where 0.66) and sit
+  down at 0.3 m/s; hip_hop, standing_yawn and turning_in_bed (630-1320
+  frames) thinned to every second or third for the table's 512 rows
+  (wbc_wait.c). The viewport's bed errand, broken since the seat round: at
+  the dock her shank brushes the bed's frame, 0.07 of her weight up, and the
+  prop counted by its share alone her parry steps her back into it and over
+  the edge (2.3 of her weight on the bed, her surety 0, no lie said); the
+  count and the span whole from 0.15 of her weight (PROP_ON, the ramp as
+  before the round; spanned by the share against her soles she fell the
+  same) she stands at the dock and lies, bed_rest at 26.2 s. Her soles'
+  lift by the seat's excess kept after all: down they bore 0.61 of her
+  reclined on the bed to its 0.39 and the page's rise from the recline fell
+  at the click. The chair's 'lean', the one text row begun on as it ends,
+  curved as a take's frames are, bent its rise with the arriving rate's
+  span and she fell: a row curves only flagged a curve's sample
+  (`ortho.CURVE`, a take's). Then the bed holds at 0 and 2e-4 rad (rolled
+  8.0 and 0.3 deg, 13 at -2e-4), the chair at 0 and 2e-4 (2.6, 5.1 s); at
+  -2e-4 her perch slides off the chair and she falls at 9.06 s, as at the
+  base before the takes. Measured, not kept: her soles lifted by the prop's
+  share instead of its count (the chair 3 of 3, 4.4-7.5 s, the bed 3 of 3)
+  brushed the bed's frame docking and stepped her over it.

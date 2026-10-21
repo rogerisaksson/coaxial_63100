@@ -15,7 +15,7 @@ its edge as the human did and collapsed back from there (stunts.md).
 import math
 import os
 
-from machine import modal, ortho
+from machine import latent, modal, ortho
 
 #: Each take's '<key>_t' and '<key>_z' (frames, modes), at her size.
 FILE = os.path.join(os.path.dirname(__file__), 'takes.npz')
@@ -30,12 +30,14 @@ ENTER_S = math.pi * math.sqrt(modal.LEG_M / modal.G)
 
 def wire(key, at_ms=0):
     """A take's rows for her loop (`ortho.ROW`) from `at_ms` on: its first row blended over
-    ENTER_S, the frames after it at the take's pace, each over one frame; its STREAMED modes
-    said, the rest left as they are. And the ms its last frame's blend ends at, where a next
-    take's rows join."""
+    ENTER_S, the frames after it at the take's pace, each over one frame - every second or third
+    where more than her table holds (`latent.ROWS`); its STREAMED modes said, the rest left as
+    they are. And the ms its last frame's blend ends at, where a next take's rows join."""
     import numpy as np
     with np.load(FILE) as kept:
         t, z = kept[key + '_t'], kept[key + '_z'].astype(float)
+    thin = -(-len(t) // latent.ROWS)
+    t, z = t[::thin], z[::thin]
     step = int(round(1e3 * (t[1] - t[0])))
     enter = int(round(1e3 * ENTER_S))
     at = [at_ms] + [at_ms + enter + int(round(1e3 * (t[k] - t[1]))) for k in range(1, len(t))]
@@ -45,5 +47,5 @@ def wire(key, at_ms=0):
         p = [math.nan] * ortho.P
         for i in STREAMED:
             p[ortho.Z + i] = float(z[k, i])
-        rows.append(ortho.ROW.pack(TAKE_ID, at[k], blend[k], 0, *p))
+        rows.append(ortho.ROW.pack(TAKE_ID, at[k], blend[k], ortho.CURVE, *p))
     return b''.join(rows), at[-1] + step

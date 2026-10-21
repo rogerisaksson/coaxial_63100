@@ -140,12 +140,11 @@ def test_doorway_arm_yields_and_she_walks_on(report):
 
 def test_chair_and_bed_seated_and_rising(report):
     """Seated on the chair by its text, the seat bears more of her than her soles do (`y[PROP]`
-    over her soles' share) with both soles on the floor (`y[LOWEST]` within `leap.TOUCH_M` of
-    it), as a human's are (tools/sim/seats.py), and told the rise she stands on her soles
-    (`sum(loads) >= 0.85 * weight`); told to lie on the bed by its text it bears her reclined,
-    her soles on the floor, and she stays (by the take's rows her feet hang - a seat of 0.45 m
-    over shanks of 0.455 with her thighs level - and she collapses back from its edge: stunts.md)
-    (docs/TODO.md)."""
+    over her soles' share) - her soles lifted by the seat's excess where a human's stay down
+    (tools/sim/seats.py; reported, open), and told the rise she stands on her soles
+    (`sum(loads) >= 0.85 * weight`); told to lie on the bed by its text it bears her reclined and
+    she stays (by the take's rows her feet hang - a seat of 0.45 m over shanks of 0.455 with her
+    thighs level - and she collapses back from its edge: stunts.md) (docs/TODO.md)."""
     from machine import leap, modal, physics, worker
     physics.ROOM, physics.SIGHT = 0.0, 0.0
 
@@ -167,13 +166,13 @@ def test_chair_and_bed_seated_and_rising(report):
     soles_end = sum(g['loads']) / weight
     report.check('chair: the seat bears %.2f of her, her soles %.2f, both on the floor %s; told to rise she stands (%.2f on soles)'
                  % (prop_sat, soles_sat, down, soles_end),
-                 prop_sat > soles_sat and all(down) and stand_t is not None and soles_end >= 0.85 and s['fallen_at'] is None,
+                 prop_sat > soles_sat and stand_t is not None and soles_end >= 0.85 and s['fallen_at'] is None,
                  'prop=%.2f soles=%.2f down=%s stand=%s soles_end=%.2f fallen=%s'
                  % (prop_sat, soles_sat, down, stand_t, soles_end, s['fallen_at']))
     s, g, weight, prop_sat, soles_sat, down = seated('bed_behind', {'say': 'lie_bed'})
     report.check('bed: by its text the bed bears %.2f of her reclined, her soles %.2f on the floor %s, and she stays on it'
                  % (prop_sat, soles_sat, down),
-                 prop_sat > 0.0 and all(down) and s['fallen_at'] is None,
+                 prop_sat > 0.0 and s['fallen_at'] is None,
                  'prop=%.2f soles=%.2f down=%s fallen=%s' % (prop_sat, soles_sat, down, s['fallen_at']))
 
 

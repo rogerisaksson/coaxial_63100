@@ -85,6 +85,9 @@ P = 5 * N + 4
 ROW = struct.Struct('<4I%df' % P)
 #: A row's flag: every parameter back to her rest. A behaviour's last row, blended REST_MS.
 REST, REST_MS = 1, 200
+#: A row's flag: a sample of a curve - a take's frame - blended as one with the rows about it
+#: (`latent.CONTIG`); a text's rows blend each its own way.
+CURVE = 2
 _CLEAR = float('nan')
 #: A name that is a number (or `none` / `unsaid` to clear an inherited parameter back to NaN).
 SYMBOLS = {'MAX_SYS_K': 8.0e4, 'true': 1.0, 'false': 0.0, 'support_polygon': 1.0, 'dynamic_footprint': 2.0,

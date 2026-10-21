@@ -26,7 +26,7 @@ typedef struct
   int           free_by[3];   /**< the modes holding a sole that does not stand, an axis each */
   const double *hands;        /**< each mode's hand on a limb's place (n, 2, 3) */
   /* machine.impedance */
-  double        on[2], going_s, ahead, yaw_k, throw_m_s2, touched_n, low_m, low_leg, falls[3], upward[3];
+  double        on[2], going_s, ahead, yaw_k, throw_m_s2, prop_on, low_m, low_leg, falls[3], upward[3];
   double        between[3];
   /* machine.modal, machine.wbc */
   double        g, axial_m, pitch_rad, clear_m, list_rad, turn_rad, arm_rad, leg_m, pelvis[2];

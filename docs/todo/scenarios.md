@@ -8,10 +8,14 @@ serves its DOD; none an entry a case.
 
 1. **Her support, whatever bears her** (`machine.borne`): a segment the skin
    feels pushed up is in her support region, grounds her, and is a contact of
-   her whole-body step. A prop counts by its share of her weight and spans
-   her support once it touches; the soles' lift by the excess is gone
-   (stunts.md). Met: the chair by its texts 3 of 3 wobbles, the seat bearing
-   more of her than her soles for 5.8 s with her soles down. The bed by its
+   her whole-body step. A prop counts, and spans her support, by its share
+   of her weight up to 0.15 of it, whole from there (by the share alone a
+   brush of the bed's frame at the dock stepped her over its edge); her soles
+   lifted by the seat's excess stay so, a human's seated feet down open
+   (stunts.md). Met: the chair by its texts at 0 and 2e-4 rad, the seat
+   bearing more of her than her soles for 2.6-5.1 s (at -2e-4 her perch
+   slides off and she falls at 9.06 s, so at the base before the takes). The
+   bed by its
    text is out of the held scenes: a 27 deg recline, the bed 0.39 of her to
    her soles' 0.61 - the step splits her weight evenly over three contacts
    where the legs should give it - and the page's lie wants 0.45. Open: the
@@ -110,10 +114,13 @@ serves its DOD; none an entry a case.
    natural time of the take's, her head no lower than the human's and under
    1 m/s if she falls. A posture's take is told as its own rows (axial,
    sagittal and pitch read off the take, the rest her balance's, the trunk's
-   pitch off her stand; stunts.md): 4 of 31 met - the slick patch, the ice,
-   the kneel and the rise from a crouch; the crouch within every width but
-   its descent's time -, the backflip refused for want of a text, 25 short,
-   226 widths off in all.
+   pitch off her stand; stunts.md): 5 of 31 met - the slick patch, the ice,
+   the kneel, the sit onto the chair and the rise from it -, the backflip
+   refused for want of a text, 24 short, 214 widths off in all; the crouch
+   takes, half a unit deeper with the straight leg their legs' zero, bottom
+   out at the human's full squat (knee 140 deg) and sit down at 0.3 m/s; the
+   long takes thinned to every second or third frame for the table's 512
+   rows.
    Open by mechanism: her hands' jerk 7 700-20 900 m/s^3 where her walk's is
    1 400-1 800 through the sit, the rise, the dance and the bed - the
    whole-body step's upper joints at W_POSTURE 1 against W_COM 1000 make her

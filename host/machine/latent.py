@@ -34,10 +34,12 @@ T0, BLEND, THETA = 3 * P, 3 * P + 1, 3 * P + 2
 V0, V1 = slice(3 * P + 3, 4 * P + 3), slice(4 * P + 3, 5 * P + 3)
 CONTIG = 5 * P + 3
 STATE = 5 * P + 4
+#: The most rows her table holds (wbc_imp.h's WBC_WAIT_ROWS): a take's frames are thinned to fit.
+ROWS = 512
 #: A table's row: what it says, which of it is said (1) or left (0), when it comes, its blend.
 VALS, SAID = slice(0, P), slice(P, 2 * P)
-AT, LERP = 2 * P, 2 * P + 1
-TABLE = 2 * P + 2
+AT, LERP, CURVE = 2 * P, 2 * P + 1, 2 * P + 2
+TABLE = 2 * P + 3
 #: What a pass gives: each mode's reference, its rate and acceleration, its stiffness (N/m) and
 #: damping (N s/m), its rhythm's phase (rad) and amplitude; her rhythm's rate (rad/s), her
 #: ZMP's polygon, her yaw momentum's limit.
@@ -59,7 +61,7 @@ def state(rest):
 
 def table(wire, begin, rest):
     """The rows of `wire` (`ortho.ROW`) as a table, each `begin` s past its own time; a row
-    flagged `ortho.REST` says all of `rest`."""
+    flagged `ortho.REST` says all of `rest`, one flagged `ortho.CURVE` is a curve's sample."""
     rows = np.frombuffer(wire, WIRE)
     vals = rows['p'].astype(float)
     said = ~np.isnan(vals)
@@ -69,6 +71,7 @@ def table(wire, begin, rest):
     tab[:, SAID] = said | back
     tab[:, AT] = begin + 1e-3 * rows['at']
     tab[:, LERP] = 1e-3 * rows['blend']
+    tab[:, CURVE] = (rows['flags'] & ortho.CURVE).astype(bool)
     return tab
 
 
@@ -85,8 +88,10 @@ def _rate(st, u, span):
 
 def step(st, tab, now, dt, out):
     """`out` this pass: the row of `tab` whose time `now` is laid, `st` blended on a tick `dt`,
-    her rhythm turned. A text's row blends linearly to its target. A row the next begins on as
-    it ends (CONTIG) is a sample of a curve - a take's -, and blends as a Hermite curve, leaving
+    her rhythm turned. A text's row blends linearly to its target. A row flagged a curve's sample
+    (`ortho.CURVE`, a take's frame) that the next begins on as it ends (CONTIG) blends as a
+    Hermite curve (a text's row begun on as it ends, rise_chair's lean, curved too, bent its rise
+    with the arriving rate's span and she fell), leaving
     at the rate she had (V0) and arriving at the rate the row after asks (V1, Catmull-Rom's: the
     way from FROM to that row over both spans), so her rate and acceleration are the curve's
     own: blended linearly, a sit's rows braked 4 m/s^2 and her height, a/kp = 7 cm behind, met
@@ -108,7 +113,7 @@ def step(st, tab, now, dt, out):
     k = int(np.argmin(np.where(np.concatenate([ahead, [False]]), rows[:, AT], math.inf)))
     after = np.where(rows[k, SAID] > 0.5, rows[k, VALS], st[TO])
     st[V1] += came * (has * ((after - st[FROM]) / (span + np.maximum(rows[k, LERP], dt))) - st[V1])
-    contig = has * float(abs(rows[k, AT] - (hit @ tab[:, AT] + st[BLEND])) <= dt)
+    contig = has * float(abs(rows[k, AT] - (hit @ tab[:, AT] + st[BLEND])) <= dt) * float(hit @ tab[:, CURVE])
     st[CONTIG] += came * (contig - st[CONTIG])
     u = np.clip((now - st[T0] + dt) / span, 0.0, 1.0)
     p = st[NOW]

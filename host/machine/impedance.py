@@ -17,7 +17,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
-from machine import edge, latent, poise, stride
+from machine import latent, poise, stride
 from machine.modal import (
     ANKLE_H, ARM_RAD, ARMS, AXIAL, AXIAL_M, BEND, CLEAR_M, COM, COM_ACC, DRIVE, DT, EDGE, FLOOR, FOLD, FOLD_RATE, FOLDS, G,
     GOING, GRIP, GROUND, HANDS, HEADED, HEELED, HIP, HIPS_BY, HOT, HSPIN, KDOT, KNEE, LATERAL, LEAD, LEG_M, LIFT, LIST, LIST_RAD,
@@ -53,6 +53,11 @@ FALLS, UPWARD = np.array([0.0, 0.0, -G]), np.array([0.0, 1.0, 0.0])
 BETWEEN, HOT3 = np.array([0.0, 0.0, 1.0]), np.eye(3)
 
 
+#: Borne off her soles this share of her weight, she is supported there wholly: her support
+#: region spans where, her centre of mass asked of her springs, not let fall.
+PROP_ON = 0.15
+
+
 def ask(out, y, fr, a):
     """`a`, the loop's ask this pass: `out` (`latent.step`) rendered on her as she is sensed."""
     rot = fr[ROT].reshape(3, 3)
@@ -69,12 +74,12 @@ def ask(out, y, fr, a):
     # what bears her off her soles - a seat, a bed, a knee's floor - in her way's frame
     xs, zs = np.array([y[PROP_LO][0], y[PROP_HI][0]]), np.array([y[PROP_LO][2], y[PROP_HI][2]])
     way = np.stack([np.repeat(xs, 2), np.zeros(4), np.tile(zs, 2)], axis=1) @ rot.T
-    # what bears her off her soles counts by its share of her weight (whole at 0.15, a chair's
-    # 670 to 33 N made it come and go) and spans her support once it pushes as a touch she
-    # counts (by its share, half of her on a chair left her centre of mass out, and she stepped)
-    propped = poise.clip(y[PROP], 0.0, 1.0)
-    spans = poise.clip(y[PROP] * fr[WEIGHT] / edge.TOUCHED_N, 0.0, 1.0)
-    prop = (way[:, :2].min(axis=0), way[:, :2].max(axis=0), spans)
+    # borne off her soles PROP_ON of her weight she is supported there wholly, less so below:
+    # counted and spanned by its share alone (a chair's 670 to 33 N made the whole count come and
+    # go) a brush of the bed's frame at the dock, 0.07 of her, counted 0.07, her parry stepped her
+    # back into it and over the edge; counted whole she stood there and lay (the viewport's errand)
+    propped = poise.clip(y[PROP] / PROP_ON, 0.0, 1.0)
+    prop = (way[:, :2].min(axis=0), way[:, :2].max(axis=0), propped)
     # the lift's own rhythm is her stride's clearance, not a sole's place
     beat = out[latent.PSI][LIFT]
     tone = out[latent.SWAY][LIFT] * np.array([np.sin(beat), turns * np.cos(beat), -turns * turns * np.sin(beat)])
@@ -125,16 +130,16 @@ def ask(out, y, fr, a):
     swaying = (np.abs(ref[LATERAL] - lat_dc - z[LATERAL]) < ON[0]) & (np.abs(rate[LATERAL] - zd[LATERAL]) < ON[1])
     hips = y[HIP].reshape(2, 3) @ rot.T
     long = fr[REACH0] - AXIAL_M * fr[HIPS_BY] * np.maximum(ref[AXIAL], 0.0)
-    # a prop bearing her higher than her legs are asked relaxes her height's spring by the
-    # excess as far as it bears her (`pressed`); her soles stay down, a human's seated do -
-    # lifted by it they landed one at a time, each landing a stand her centre of mass was
-    # behind: her hips slid 0.31 to 0.07 m off the chair, its share 670 to 33 N (stunts.md)
+    # a prop bearing her higher than her legs are asked lifts her soles by the excess and relaxes her
+    # height's spring by it (`pressed`): down (a human's are) they bore 0.61 of her on the bed and the
+    # page's rise fell; lifted by the prop's share she brushed the bed's frame docking and stepped over it
     short_h = propped * np.maximum((hips[:, UP] - floors).mean() - (ANKLE_H + long), 0.0)
+    up = up + short_h / CLEAR_M
     stance, zmp = poise.stands(c[:2] + both[:2] / om ** 2, xi, low, high, om, out[latent.HELD], up,
                                swaying, (sweep, off, flying),
                                (y[LOAD], y[LOWEST] - floors, y[LOWEST] - fr[FLOOR], y[VCOM][1], y[PROP] * fr[WEIGHT]),
                                stood, prop)
-    grounded, aloft = np.maximum(stance.max(), spans), 1.0 - stance
+    grounded, aloft = np.maximum(stance.max(), propped), 1.0 - stance
     bears = (stance + TINY) / (stance.sum() + 2.0 * TINY)
     along = om ** 2 * (c[:2] - zmp)
     # along the floor no harder than her standing soles' grip gives: on ice (0.02) her step asked
@@ -170,7 +175,7 @@ def ask(out, y, fr, a):
     clear = aloft * (stride.clears(u, flying, swung * hurry, CLEAR_M * (1.0 + np.abs(out[latent.SWAY][LIFT])) + a[RAISE], tip,
                                    tipping, tilt, late) + HOT3[ALONG][:, None] * short_h)
     free, frame = _swings(y, fr, (rot, v, om, shod, floors, rise), (ref, rate, acc, kp, kd, hands), clear, stance, cruise,
-                          grounded, spans)
+                          grounded, propped)
     strides = (limbs * grounded)[:, None]
     a[SOLE_ACC] = ((1.0 - strides) * (free @ frame + ((1.0 - grounded * BETWEEN) * com) @ rot) + strides * (
         np.concatenate([stride.goes(meet, flat, shod, v, u, turns * hurry, kp[FREE_BY][:2], kd[FREE_BY][:2]),
@@ -185,7 +190,7 @@ def ask(out, y, fr, a):
     return a
 
 
-def _swings(y, fr, at, said, clear, stance, cruise, grounded, spans):
+def _swings(y, fr, at, said, clear, stance, cruise, grounded, propped):
     """A sole that does not stand, on the limbs' own impedance: (its acceleration (2, 3) in
     the frame its place is read in, that frame). Up against the soles that do, from the floor
     they touch: what is asked of it - `clear` over it, its rate and its acceleration (3, 2) -
@@ -198,7 +203,7 @@ def _swings(y, fr, at, said, clear, stance, cruise, grounded, spans):
     trunk took it all - 0.7 rad forward in 0.15 s off the floor; none standing and something
     else bearing her (`grounded` past them), up from the floor, in her way's frame: in her
     pelvis's on a chair, pitched forward 0.5 rad, her soles rose 9 cm off the floor and she
-    slid off it. So each sole that does not stand while something else bears her (`spans`):
+    slid off it. So each sole that does not stand while something else bears her (`propped`):
     one let go seated, the other standing, rose where her folded legs put it, 7 mm in 70 ms,
     and she was thrown off the chair. Up from the floor under it (`modal.under`). `at` her (way's frame, speed in it,
     omega, soles' speeds in it, the floor under each sole, its rise along her way); `said` her
@@ -229,7 +234,7 @@ def _swings(y, fr, at, said, clear, stance, cruise, grounded, spans):
     off3[0, :, UP] -= aloft * (bears @ (soles[:, 1] - y[LOWEST]) - rise * (along - bears @ along))
     off3[1, :, UP] -= aloft * (bears @ shod[:, UP] - rise * (shod[:, ALONG] - bears @ shod[:, ALONG]))
     floor = np.stack([clear[0] - (y[LOWEST] - floors), clear[1] - shod[:, UP], clear[2]])
-    off3[:, :, UP] += np.maximum(grounded - stood, spans * (1.0 - stance)) * (floor - off3[:, :, UP])
+    off3[:, :, UP] += np.maximum(grounded - stood, propped * (1.0 - stance)) * (floor - off3[:, :, UP])
     lead = grounded * HOT3[ALONG] * (v[ALONG] - cruise) / om
     return off3[2] + kp[FREE_BY] * (off3[0] + lead) + kd[FREE_BY] * off3[1], frame
 

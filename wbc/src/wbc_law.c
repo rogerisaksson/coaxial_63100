@@ -112,7 +112,8 @@ void wbc_law_latent(const wbc_law_t *k, double *st, const double *tab, int ntab,
   }
   /* the row after beginning where this blend ends: a sample of a curve, blended as one */
   hit_at = wbc_dot(&k->blas, hit, 1, tab + k->at, T, ntab);
-  contig = has * (double)(fabs((any ? row[k->at] : INFINITY) - (hit_at + st[k->blend])) <= dt);
+  contig = (has * (double)(fabs((any ? row[k->at] : INFINITY) - (hit_at + st[k->blend])) <= dt))
+           * wbc_dot(&k->blas, hit, 1, tab + k->curve, T, ntab);
   st[k->contig] += came * (contig - st[k->contig]);
   cg = st[k->contig];
   u = clipped(((now - st[k->t0]) + dt) / span, 0.0, 1.0);
