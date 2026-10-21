@@ -13,8 +13,12 @@ serves its DOD; none an entry a case.
    at -5e-4 the mattress's share flickers (2), at 2e-4 it bears half her
    weight 0.51 s of 1. Open: lying flat and lengthwise - told to lie she
    sits on the bed's edge and reclines 27 deg, her soles 44 mm up, the bed
-   bearing 1.08 of her weight, and rises from it; her pelvis and trunk
-   pitched apart; the floor mattress, told to lie she crouches, her pelvis
+   bearing 1.08 of her weight, and rises from it; against a human's sit
+   (`tools/sim/seats.py`'s band) her feet come up 0.26 legs where a human's
+   stay down and her hips end 0.04-0.21 legs behind her ankles where
+   0.31-0.47: the sit laid from the takes whole, the hips back over the seat,
+   the weight onto it, the feet down, the rise; her pelvis and trunk pitched
+   apart; the floor mattress, told to lie she crouches, her pelvis
    at 0.763 m after 12 s (4), and lain on the bare floor the referee calls a
    fall;
    `wbc_wrench.c` without contacts. DOD: chair, soft bed, floor mattress and
@@ -36,10 +40,11 @@ serves its DOD; none an entry a case.
    and arms flung for her turns, seated and at a takeoff, where a seat's
    points give no moment (jerk.md); seated on the bed's or chair's edge
    with her soles reaching the floor, the bed's share 0.96 to 0.28 and back
-   as a sole takes 98 N, her arm the trunk's lever meanwhile
-   (scenarios.md). DOD: every segment's peak through stand,
-   walk, turn, strafe, back, stop, sit, rise, hop no higher than in her
-   steady walk; a test holds it.
+   as a sole takes 98 N, her arm the trunk's lever meanwhile; her soles left
+   down the arm stays within 105 deg but the seat bears her with them, 0.53
+   and 0.39, and she fell rising from the bed (scenarios.md, `seats.py`).
+   DOD: every segment's peak through stand, walk, turn, strafe, back, stop,
+   sit, rise, hop no higher than in her steady walk; a test holds it.
 3. **A landing on what is there**: a swinging sole that meets something
    raises her swings by its height, one that meets nothing reaches on down; a
    sliding one lowers the friction she asks. Met at 13 of 13 wobbles: the

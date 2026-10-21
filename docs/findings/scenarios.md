@@ -348,3 +348,22 @@ pass beside the world's floor under each sole (`tools/sim/trace.py`).
   stagger before it: 6 s turning in place for a
   half turn at her YAW_RATE (0.5 rad/s made of 0.7 asked), roll 9.5 deg as it
   begins, and the sidestep at 0.15 m/s.
+- A human's sit (`tools/sim/seats.py`, the takes Stand To Sit and Sitting on
+  Bed): 0.6 s down for 0.45-0.52 legs, the hips 0.31-0.47 legs behind the
+  ankles, knees 94-98 deg, the trunk 45 deg forward on the way onto a chair
+  and 14 back onto a bed's edge, seated within 7 deg of upright, the feet
+  never off the floor, the upper arms within 40 deg through it and 10 seated.
+  Hers on the page: feet up 0.26 legs, arms 170 deg, hips 0.04 legs back,
+  trunk -31 (the lie's recline). The feet: `impedance.ask` lifts her soles by
+  what a prop holds her above her legs' asked length. Left down (the spring
+  relaxed by it alone) through the viewport's bed errand the right shoulder
+  stayed within -53 to +52 deg where -383 to +99, seated 10 deg, soles 98 and
+  90 N, the bed 0.34-0.41, surety 0.98; the chair -56 to +131, seated 15; her
+  sits then against the band: feet rise 0.00, arms seated 0.3-0.7 deg, descent
+  0.54-0.59 s, off it drop 0.38-0.40 legs and knees 101-102 deg (a seat 0.45 m
+  high on legs of 0.77 m), hips 0.13-0.21 legs back, the arms' swing down
+  54-56 deg. But a seat then bears her with her soles (chair 0.53, bed 0.39),
+  not off them as the scenarios judge a sit, a chair's sole loads cross her
+  touch 32 times in 8 s, and rising from the bed she fell at swing_out. Not
+  kept: the sit is to be laid from the takes whole - the hips back over the
+  seat, the weight onto it, the feet down, the rise.

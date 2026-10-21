@@ -124,6 +124,12 @@ def ask(out, y, fr, a):
     swaying = (np.abs(ref[LATERAL] - lat_dc - z[LATERAL]) < ON[0]) & (np.abs(rate[LATERAL] - zd[LATERAL]) < ON[1])
     hips = y[HIP].reshape(2, 3) @ rot.T
     long = fr[REACH0] - AXIAL_M * fr[HIPS_BY] * np.maximum(ref[AXIAL], 0.0)
+    # a prop bearing her higher than her legs are asked lifts her soles by the excess and
+    # relaxes her height's spring by it (`pressed`). A human seated keeps the feet down
+    # (tools/sim/seats.py): left down here they shared her weight with the seat (chair 0.53,
+    # bed 0.39) and her arm, wound 421 deg for the trunk's moment as her support flickered,
+    # stayed within 105; but she fell rising from the bed, and a seat no longer bore her off
+    # her soles (scenarios.md). The sit from the takes is the item.
     short_h = propped * np.maximum((hips[:, UP] - floors).mean() - (ANKLE_H + long), 0.0)
     up = up + short_h / CLEAR_M
     stance, zmp = poise.stands(c[:2] + both[:2] / om ** 2, xi, low, high, om, out[latent.HELD], up,
