@@ -45,10 +45,9 @@ def _walk(seconds, then=STILL_S):
 #: her stopped at it), 'past' m (her pelvis that far on), 'rose'/'sank' m (her pelvis that much
 #: higher or lower at the end), 'lay' (a bed bearing more of her than her soles do for HELD_S,
 #: by the world's contacts), 'sat' (so, and her soles bearing her at the end: risen), 'stands'
-#: (on her soles, a chair's seat or not). The bed's lie_bed is the takes' rows (`machine.takes`);
-#: the chair by its texts - by the take's rows she perched on its edge and fell at one wobble of
-#: three. Risen from the bed (bed_rise): the text's rise from the take's lie leaves her on it
-#: (docs/TODO.md).
+#: (on her soles, a chair's seat or not). The bed and the chair by their texts; by the takes'
+#: rows she perched on the chair's edge and fell at one wobble of three, and sat at the bed's
+#: edge as the human did and collapsed back from there (stunts.md).
 SCENARIOS = {
     'wall': ('wall', *_walk(4.0), 'met', 'wall'),
     'tree': ('tree', *_walk(4.0), 'met', 'tree'),

@@ -115,3 +115,31 @@ run no lower than the human's, a fall's head under 1 m/s. The takes (a leg
   from a crouch), 226 widths off from 255: turning in bed -15.5, the dance
   -5.4, the rise from the chair -4.3, lying down -2.8, the bed's sit -2.2;
   the rise from a kneel +2.5 (fell at 3.1 m/s).
+- The lie by the takes on the page, measured and not kept: the law back to
+  the seat round's, the lisp's lie_bed the page's text, `machine/takes.py`
+  telling a take for the bench. Kept: a take's legs hip to ankle, the
+  straight leg their zero (hip to sole had the ankle's 0.05 m in it; the
+  takes' standing ends' median fell 3.7 cm short of a straight stand); a take
+  enters over pi sqrt(leg/g) = 0.88 s; a blend's arriving rate over the next
+  row's own span (over this one's, a 0.88 s row after 31 ms ones dipped her
+  axial 1.8 to 0.5); a raise waits only told over her soles (the lying take's
+  legs straightening behind them froze its rows). At axial 1.8 her hips
+  0.284 m behind the soles' middle sit at 0.585 m, the seat; balanced over
+  her soles, 0.09 back, she hovers at 0.63 - her law never lets her centre of
+  mass behind the heels. Told past her soles as a support she trusts (the
+  capture point's box, the parry, her surety) she tipped back from the hover
+  at 0.34-0.4 m/s onto the bed; the ZMP's box grown over the told point asked
+  the soles a ZMP behind the heels. Landed on target (sagittal -2.52, told
+  -2.71) with her legs' spring relaxed by the gap in their reach (as her hips'
+  height it drew her 0.15 m forward off the chair), a sole 2 mm up was swung
+  5.6 cm by the clearance, her knees bent to the told axial folded the
+  hanging legs up 0.27 m, and the pelvis's pitch task on a point contact went
+  to the arms - elbows 2.05 times their clamp, the step shrunk to 0.1-0.4,
+  hands' jerk 48 000 - and she rolled 57-157 deg or fell at every wobble; the
+  pelvis's turn let go to the seat tipped her 82 deg in 0.6 s. The lisp's
+  lie_bed since the soles' lift went: a 27 deg recline, the bed 0.39 of her
+  and her soles 0.61 (the step splits her weight evenly over three contacts)
+  where it bore 1.08 with her soles 44 mm up; reclined 57 deg she rolled 90
+  deg at 2e-4 rad. The lying take's hips go back 1.07 legs: a shuffle her
+  loop has no mode for. The chair by its texts 5.8 s, the walk 0.70 m/s, 409
+  J/m, 2.55 off throughout.

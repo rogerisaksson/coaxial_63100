@@ -228,7 +228,6 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
   double        c[3], v[3], vh[3], om, om2, shod[2][3], sr[2][3], flat[2][2], xi[2], low[2][2], high[2][2];
   double        floors[2], rise, still, dvh[3];
   double        way4[4][3], plo[2], phig[2], propped, spans, lo[2][2], hi[2][2], slo[2], shi[2], beyond[2], edge0[2];
-  double        told[2], trust;
   double        smax, stepping, way, swung, sweep[2], phi[2], on[2], off[2], u[2], flying[2], kpf[2], kdf[2];
   double        aside[2], hurry[2], limbs[2], tone[3], cruise, lat_dc, across, e[6], both[2], up[2], zmp[2];
   double        stance[2], grounded, aloft[2], bears[2], along[2], gd, reach, meet[2][2], tip[2], tipping[2];
@@ -297,19 +296,6 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
   edge0[0] = 0.0 * a[k->a_edge];
   edge0[1] = 0.0 * a[k->a_edge + 1];
   wbc_imp_boxes(k, flat, edge0, tilt, lo, hi);
-  /* told her centre of mass past her soles she trusts what she is told onto: her support spans
-     to there as far past them as she is told */
-  {
-    double d[2];
-
-    told[0] = 0.5 * (flat[0][0] + flat[1][0]) + s.ref[k->sagittal] * k->half_m;
-    told[1] = 0.5 * (flat[0][1] + flat[1][1]) + s.ref[k->lateral] * fr[k->f_w0];
-    for (int j = 0; j < 2; j++)
-    {
-      d[j] = told[j] - npclip(told[j], npmin(lo[0][j], lo[1][j]), npmax(hi[0][j], hi[1][j]));
-    }
-    trust = npclip(sqrt(npdot(d, 1, d, 1, 2)) / k->margin_m, 0.0, 1.0);
-  }
   {
     const double out_of[2] = {k->big * (1.0 - stood[0]), k->big * (1.0 - stood[1])};
     double       l2[2], h2[2], lifting[2], past[2];
@@ -324,7 +310,6 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
       h2[j] = npmax(hi[0][j] - out_of[0], hi[1][j] - out_of[1]);
     }
     wbc_imp_spanned(l2, h2, plo, phig, spans, slo, shi);
-    wbc_imp_spanned(slo, shi, told, told, trust, slo, shi);
     for (int j = 0; j < 2; j++)
     {
       beyond[j] = xi[j] - npclip(xi[j], slo[j], shi[j]);
@@ -332,7 +317,6 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
       h2[j] = npmax(hi[0][j] - lifting[0], hi[1][j] - lifting[1]);
     }
     wbc_imp_spanned(l2, h2, plo, phig, spans, slo, shi);
-    wbc_imp_spanned(slo, shi, told, told, trust, slo, shi);
     for (int j = 0; j < 2; j++)
     {
       past[j] = xi[j] - npclip(xi[j], slo[j], shi[j]);
@@ -441,7 +425,7 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
     zmp[0] = c[0] + both[0] / om2;
     zmp[1] = c[1] + both[1] / om2;
     wbc_imp_stands(k, zmp, xi, low, high, om, out[k->o_held], up_h, swaying, beat3, bears3, y[k->y_vcom + 1],
-                   y[k->y_prop] * fr[k->f_weight], stood, prop, spans, told, trust, stance);
+                   y[k->y_prop] * fr[k->f_weight], stood, prop, spans, stance);
   }
   grounded = npmax(npmax(stance[0], stance[1]), spans);
   aloft[0] = 1.0 - stance[0];

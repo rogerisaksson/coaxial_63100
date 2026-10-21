@@ -1,7 +1,6 @@
-"""The mocap takes as her texts: a take's modes at its frames, laid once, said as rows.
+"""The mocap takes as rows for her loop: a take's modes at its frames, laid once, said as rows.
 
     wire, end_ms = takes.wire('stand_to_sit')  # the take's rows (ortho.ROW), its posture's modes said
-    sprung.entries() includes takes.entries()  # 'lie_bed': sitting on the bed, then lying down
 
 FILE holds each take's times (s, at her size) and her eleven modes at them, read off the take as
 `modal.reading` reads hers (`tools/sim/stunts.py --reference`; the takes lie beside the repo).
@@ -9,9 +8,9 @@ STREAMED are the modes a take says, her posture's: the legs' shortening, the cen
 the soles along, the trunk's pitch; her stance's and her arms' stay her balance's (the human's
 feet, pelvis list, heels and arm swing each felled her when said). A take enters over ENTER_S
 from wherever she is, its first row's blend; its frames then follow at their own pace, each
-blended over one, contiguous, so her loop draws them as one curve (`latent.CONTIG`). TOLD names
-the texts that are takes: a sequence of takes, their rows one after another, a phase name each
-(`se2.STUNT_PHASES`) and the name its last row rests at.
+blended over one, contiguous, so her loop draws them as one curve (`latent.CONTIG`). The bench
+tells a take (`scenarios._told`); her texts stay the lisp's: told the bed's takes she sat at
+its edge as the human did and collapsed back from there (stunts.md).
 """
 import math
 import os
@@ -27,8 +26,6 @@ TAKE_ID = 300
 #: A take's first row's blend, s: the half period of her leg's swing, the window its measures
 #: are smoothed over too.
 ENTER_S = math.pi * math.sqrt(modal.LEG_M / modal.G)
-#: Her texts that are takes: name: (((take, its rows' phase), ..), the last row's phase).
-TOLD = {'lie_bed': ((('sitting_on_bed', 'sit_edge'), ('lying_down_from_sitting', 'recline')), 'bed_rest')}
 
 
 def wire(key, at_ms=0):
@@ -50,21 +47,3 @@ def wire(key, at_ms=0):
             p[ortho.Z + i] = float(z[k, i])
         rows.append(ortho.ROW.pack(TAKE_ID, at[k], blend[k], 0, *p))
     return b''.join(rows), at[-1] + step
-
-
-def told(name):
-    """(label, wire, names) of the text `name` (TOLD): its takes' rows one after another, a
-    row's phase its take's, the last row's the text's rest."""
-    takes, rest = TOLD[name]
-    wires, names, at = [], [], 0
-    for key, phase in takes:
-        w, at = wire(key, at)
-        wires.append(w)
-        names += [phase] * (len(w) // ortho.ROW.size)
-    names[-1] = rest
-    return name, b''.join(wires), tuple(names)
-
-
-def entries():
-    """[(label, wire, names)] of every text that is a take (TOLD)."""
-    return [told(name) for name in TOLD]

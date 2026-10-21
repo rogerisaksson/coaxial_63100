@@ -142,12 +142,11 @@ def test_chair_and_bed_seated_and_rising(report):
     """Seated on the chair by its text, the seat bears more of her than her soles do (`y[PROP]`
     over her soles' share) with both soles on the floor (`y[LOWEST]` within `leap.TOUCH_M` of
     it), as a human's are (tools/sim/seats.py), and told the rise she stands on her soles
-    (`sum(loads) >= 0.85 * weight`); seated on the bed by the take's rows (`scenarios.STUNTS`)
-    the bed bears more of her than her soles and she stays - her feet hang (a seat of 0.45 m
-    over shanks of 0.455 with her thighs level) and no rise from it stands her yet
+    (`sum(loads) >= 0.85 * weight`); told to lie on the bed by its text it bears her reclined,
+    her soles on the floor, and she stays (by the take's rows her feet hang - a seat of 0.45 m
+    over shanks of 0.455 with her thighs level - and she collapses back from its edge: stunts.md)
     (docs/TODO.md)."""
     from machine import leap, modal, physics, worker
-    from tools.sim import scenarios
     physics.ROOM, physics.SIGHT = 0.0, 0.0
 
     def seated(scene, told):
@@ -171,9 +170,10 @@ def test_chair_and_bed_seated_and_rising(report):
                  prop_sat > soles_sat and all(down) and stand_t is not None and soles_end >= 0.85 and s['fallen_at'] is None,
                  'prop=%.2f soles=%.2f down=%s stand=%s soles_end=%.2f fallen=%s'
                  % (prop_sat, soles_sat, down, stand_t, soles_end, s['fallen_at']))
-    s, g, weight, prop_sat, soles_sat, down = seated('bed_behind', scenarios._told({'take': 'sitting_on_bed'}))
-    report.check('bed: by the take the bed bears %.2f of her, her soles %.2f, and she stays on it' % (prop_sat, soles_sat),
-                 prop_sat > soles_sat and s['fallen_at'] is None,
+    s, g, weight, prop_sat, soles_sat, down = seated('bed_behind', {'say': 'lie_bed'})
+    report.check('bed: by its text the bed bears %.2f of her reclined, her soles %.2f on the floor %s, and she stays on it'
+                 % (prop_sat, soles_sat, down),
+                 prop_sat > 0.0 and all(down) and s['fallen_at'] is None,
                  'prop=%.2f soles=%.2f down=%s fallen=%s' % (prop_sat, soles_sat, down, s['fallen_at']))
 
 

@@ -11,15 +11,18 @@ serves its DOD; none an entry a case.
    her whole-body step. A prop counts by its share of her weight and spans
    her support once it touches; the soles' lift by the excess is gone
    (stunts.md). Met: the chair by its texts 3 of 3 wobbles, the seat bearing
-   more of her than her soles for 5.8 s with her soles down; the bed sat and
-   lain on by the takes' rows 3 of 3. Open: no rise from the bed stands her
-   (bed_rise) - the text's from the take's lie leaves her on it, the sit-up
-   take's rows are held by `risen_back`; seated by the take her feet hang on
-   the 0.45 m seat (shanks 0.455 with the thighs level) and the 5 % of the
-   excess left unrelaxed lifts them, and the chair's sit by the take perches
-   on its edge (hips 0.16 legs back where 0.48); lying flat and lengthwise,
-   her pelvis and trunk pitched apart; the floor mattress, told to lie she
-   crouches, her pelvis
+   more of her than her soles for 5.8 s with her soles down. The bed by its
+   text is out of the held scenes: a 27 deg recline, the bed 0.39 of her to
+   her soles' 0.61 - the step splits her weight evenly over three contacts
+   where the legs should give it - and the page's lie wants 0.45. Open: the
+   sit by the take collapses from its landing (stunts.md: her centre of mass
+   released past the soles, the landing's sole swung up by the clearance, the
+   knees folded to the told axial, the pelvis's pitch task given to the
+   arms); a lie needs a trunk that does not roll (reclined 57 deg she rolled
+   90 at 2e-4 rad) and a shuffle onto the bed (the human's hips go back 1.07
+   legs); no rise from the bed stands her (bed_rise); the chair's sit by the
+   take perches on its edge (hips 0.16 legs back where 0.48); the floor
+   mattress, told to lie she crouches, her pelvis
    at 0.763 m after 12 s (4), and lain on the bare floor the referee calls a
    fall;
    `wbc_wrench.c` without contacts. DOD: chair, soft bed, floor mattress and

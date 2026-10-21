@@ -40,6 +40,19 @@
     (latent_targets (mode_axial_compression 0.0) (mode_pitch_attitude 0.0))
     (impedance (stiffness mode_axial_compression 3000) (damping mode_axial_compression 600))))
 
+;; lie down on a bed: onto its edge as on a seat, her trunk back over it, her soles drawn up
+(defbehavior lie_bed (extends stance_hold)
+  (phase sit_edge
+    (duration 900ms) (blend_duration 800ms)
+    (latent_targets (mode_axial_compression 2.0) (mode_pitch_attitude 0.8) (mode_sagittal_shift -0.5)))
+  (phase recline
+    (duration 1200ms) (blend_duration 600ms)
+    (latent_targets (mode_axial_compression 2.3) (mode_pitch_attitude -1.0) (mode_sagittal_shift -1.5))
+    (impedance (stiffness mode_axial_compression 3000) (damping mode_axial_compression 600)))
+  (phase bed_rest (use recline)
+    (duration 60s) (blend_duration 800ms)
+    (latent_targets (mode_axial_compression 2.40))))
+
 ;; rise up from a bed: soles down to the floor, forward over them, up as she gets there
 (defbehavior rise_bed (extends stance_hold)
   (phase plant
