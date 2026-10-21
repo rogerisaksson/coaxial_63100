@@ -10,9 +10,12 @@
 - **CI red since the emulator's update**: test_layout's machines.ipynb raises
   MachineError on its humanoid program (`emulator://?body=humanoid&bus=AX@115200`;
   here the connection is closed on it, then it hangs); firmware's Release
-  conformance 108 of 110 (FC05 a bad coil value, FC03 far out of range); the
-  offline gate's test_scenarios 3 and test_sysid_live 4 (names in run.log).
-  DOD: both workflows green on main.
+  conformance 108 of 110 (FC05 a bad coil value, FC03 far out of range);
+  test_sysid_live 3 (her insoles' weight 305.2 for 305.5 N at 0.315 N m rms,
+  the moments under her pelvis 0.57 and 0.53 N m rms, her mass 31.15 for
+  31.14 kg); the gate here 5347 of 5582 with these and the chair and snow
+  wobbles at -2e-4 (scenarios items 1 and 3). DOD: both workflows green on
+  main.
 - **native://**: a limb's world on a fixed mount as board/emu's. A frame on
   an idle limb of four 32 ms, the wire's 10: three boards awake t3.5 and each
   chain's 2 ms recovery at 1 us substeps (emulation.md). DOD: the body's
