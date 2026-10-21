@@ -44,7 +44,7 @@ def _arming(rig, arming):
     """What gates.on() takes: `arming`, or on the stand-in past the STO chain and interlock."""
     if arming is not None:
         return arming
-    return {'bypass_sto': True, 'ignore_interlock': True} if standing(rig.origin) != 'live' else {}
+    return {'bypass_sto': True, 'ignore_interlock': True} if rig.simulated else {}
 
 
 def discover(port='COM4', execution_mode=HARDWARE, units=range(1, 17), **kw):
@@ -132,7 +132,6 @@ class Joint(_OnDrive):
         rig, drive = self.node.rig, self.node.rig.drive
         if rig.simulated:
             drive.configure(source='model')
-        if standing(rig.origin) != 'live':
             drive.model.configure(b=JOINT_B, load=0.0)
         self._gates(arming)
         f.regulator.configure(theta0=drive.state()['theta_hat'])
@@ -185,7 +184,6 @@ class Rotor(_OnDrive):
         rig, drive = self.node.rig, self.node.rig.drive
         if rig.simulated:
             drive.configure(source='model')
-        if standing(rig.origin) != 'live':
             drive.model.configure(j=ROT_J, b=ROT_B, load=0.0)
             # The stand-in's record commissioned as a bench's is: on its placeholders the
             # board's law loses a rotor from rest and trips.
@@ -243,9 +241,9 @@ class Coaxial(Node):
 
     def __init__(self, rig, name=None):
         board = rig.board
-        serial = getattr(board.transport, 'serial', None)
-        if getattr(serial, 'world_drive', None):
-            rig.drive.configure(**serial.world_drive(rig.origin.unit))
+        world_drive = getattr(getattr(board.transport, 'serial', None), 'world_drive', None)
+        if world_drive:
+            rig.drive.configure(**world_drive(rig.origin.unit))
             rig.drive.model.configure()
         identity = board.system.version()
         i_max = rig.drive.params().get('drv_i_max')
