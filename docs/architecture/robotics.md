@@ -80,6 +80,7 @@ identification. Her figure: [kinematics](kinematics.md); her drives:
 | `test_errands.py` | errands: a stop settles, F heard, a new scene walked |
 | `test_sysid_live.py` | her identification off the stand: her model held to her walk on a world off the figure; her weight and its moments standing on her insoles |
 | `test_compiled.py` | her numpy compiled to C (`tools.cores.bodied`) beside numpy's own: its reductions and ties of zeros, her state in place, her sensing at random configurations, her law's compiled parts at every pass walking |
+| `test_ported.py` | her law's hand ports in C beside their python at every pass of her walk, bit for bit: her surety field, her touch's filter, her twist's step, her table's waits, her brace on the solve; each step's time |
 
 ## Software Systems Engineering Architecture
 

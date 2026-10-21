@@ -113,6 +113,8 @@ WBC_CORE, LEAP, WRENCH = 'test_wbc_core.py', 'test_leap.py', 'test_wrench.py'
 SYSID, SYSID_LIVE = 'test_sysid.py', 'test_sysid_live.py'
 #: Her numpy compiled to C beside numpy's own (tools.cores.trace, emit, held, bodied).
 COMPILED = 'test_compiled.py'
+#: Her law's hand ports in C beside their python at every pass of her walk (tools.cores.surety, touch, twist, wait, brace).
+PORTED = 'test_ported.py'
 #: Orthokinematics: a text compiled, her latent loop, her walk on it, the page's gym.
 ORTHO = 'test_ortho.py'
 #: Her floor: the plane under her soles, its grip as she feels it, the situations that cap her rhythm.
@@ -154,7 +156,7 @@ DEFAULT_SUITES = (STRUCTURES + (CORE, SHTP, DRIVE, DRIVE_OBSERVER, FILTER, THERM
                    CTRL_CORE, WORLD_CORE, WIRE, NATIVE, NATIVE_HEAT, NATIVE_SYSID, EMULATOR,
                    SENSORLESS,
                    BROKER, DAQ_API, CONTROLLER, GYNOID, SIGHT, REACH, TERMS, GVS, REPLAYS, SCENES, WBC,
-                   WBC_CORE, LEAP, WRENCH, SYSID, SYSID_LIVE, COMPILED, WEAR, ORTHO, FLOOR, SITUATION, ERRANDS, CYCLIC,
+                   WBC_CORE, LEAP, WRENCH, SYSID, SYSID_LIVE, COMPILED, PORTED, WEAR, ORTHO, FLOOR, SITUATION, ERRANDS, CYCLIC,
                    QUAD, QUAD_PULL,
                    AERO_CORE, MPPI_CORE, STREAMS, QUAD_COURSE, SWEEP, BOOT)
                   + VIEWS
@@ -216,7 +218,7 @@ JOINS = (
     (20, CTRL_CORE),
     (20, WORLD_CORE),
     (20, WBC_CORE),
-    (20, SYSID), (20, SYSID_LIVE), (20, COMPILED),
+    (20, SYSID), (20, SYSID_LIVE), (20, COMPILED), (35, PORTED),
     (20, AERO_CORE),
     (20, MPPI_CORE),
     (20, WIRE),

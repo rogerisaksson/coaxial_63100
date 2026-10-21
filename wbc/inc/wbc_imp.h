@@ -4,6 +4,8 @@
 #ifndef WBC_IMP_H
 #define WBC_IMP_H
 
+#include "wbc_blas.h"
+
 /** The most modes she has. */
 #define WBC_IMP_N 16
 
@@ -202,5 +204,31 @@ void wbc_wait_held(const wbc_imp_t *k, const wbc_wait_t *w, double *tab, int n, 
                    double t, double dt, double held_s, double got[3]);
 void wbc_wait_risen(const wbc_imp_t *k, const wbc_wait_t *w, double *tab, int n, const double *y, const double *fr,
                     const double *a, const double *st, double t, double dt, double prop_until, double got[3]);
+
+/** machine.motion.scaled's and braced's reading of her body: its dofs and driven, the cervical and
+    shoulder joints among the driven (cv) and their dofs (acv), the tuck's rows (3, driven), her
+    drives' clamps, her legs' joints and their free stiffness, the posture gains, numpy's BLAS, a
+    scratch (wbc_brace.c). */
+typedef struct
+{
+  int           n, nd, ncv, nleg;
+  const int    *act, *acv, *cv, *leg_joints, *leg_len;
+  const double *brace, *clamp, *free_kp;
+  double       *work;
+  double        kd0, kd1, standing_kp;
+  wbc_blas_t    blas;
+} wbc_brace_t;
+
+/** The solve's M: `M` copied into `Ms`, the four dofs' rows and columns against the base scaled
+    by 1 - w_up (machine.motion.scaled). */
+void wbc_brace_scaled(const wbc_brace_t *b, const double *M, const double *w_up, double *Ms);
+
+/** The solve's `qacc`, `tau` and `over` blended in place with the tuck's by her surety's `sw` and
+    `bw`, the cervical blend by `w_up`; her drives' inertia `jeff` and her legs' stiffness `leg_kp`
+    by their `stance` out (machine.motion.braced). */
+void wbc_brace_blend(const wbc_brace_t *b, const double *M, const double *Ms, const double *q, const double *v,
+                     const double *h, const double *posture, double *qacc, double *tau, unsigned char *over,
+                     double sw, double bw, double d_ax, double d_lat, double w_hop, const double *w_up,
+                     const double *stance, double *jeff, double *leg_kp);
 
 #endif

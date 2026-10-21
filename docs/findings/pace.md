@@ -97,3 +97,12 @@ machine ([body](body.md), [emulation](emulation.md),
   each call, 512 rows at most): bit for bit at 8 002 calls over 12 s of her
   walk, 60 -> 7.2 us a call. Her loop 399 -> 368 us a pass, 2.72 of real
   time, walking 2.69; the worker 418, 2.39; MuJoCo's step 84 of the 368.
+- Her surety's brace on the solve in C (`wbc_brace.c`, `tools.cores.brace`:
+  the four dofs' inertia scaled off the solve's M, the tuck's torques and
+  the cervical blend over its answer, her drives' inertia, her legs'
+  stiffness; its matmuls numpy's own BLAS on the gathered submatrices in
+  numpy's memory order, `M[rows, :][:, rows]` F-ordered): bit for bit at
+  4 001 passes over 12 s of her walk, 96 -> 14.6 us a blend. Her loop 368 ->
+  329 us a pass, 3.04 of real time, walking 3.02; the worker 381, 2.62;
+  MuJoCo's step 82 of the 329. The hand ports' tests a suite of their own,
+  test_ported.

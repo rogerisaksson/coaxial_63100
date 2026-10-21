@@ -327,6 +327,24 @@ API int wbh_wait_rows(void)
   return WBC_WAIT_ROWS;
 }
 
+API void wbh_brace_scaled(const wbc_brace_t *b, const double *M, const double *w_up, double *Ms)
+{
+  wbc_brace_scaled(b, M, w_up, Ms);
+}
+
+API void wbh_brace_blend(const wbc_brace_t *b, const double *M, const double *Ms, const double *q, const double *v,
+                         const double *h, const double *posture, double *qacc, double *tau, unsigned char *over,
+                         double sw, double bw, double d_ax, double d_lat, double w_hop, const double *w_up,
+                         const double *stance, double *jeff, double *leg_kp)
+{
+  wbc_brace_blend(b, M, Ms, q, v, h, posture, qacc, tau, over, sw, bw, d_ax, d_lat, w_hop, w_up, stance, jeff, leg_kp);
+}
+
+API int wbh_brace_size(void)
+{
+  return (int)sizeof(wbc_brace_t);
+}
+
 API void wbh_law_latent(const wbc_law_t *k, double *st, const double *tab, int ntab, double now, double dt,
                         double *out, double *hit)
 {
