@@ -22,8 +22,8 @@ AFFORDANCES = {'chair': ('sit_chair', 'sit'), 'armchair': ('sit_chair', 'sit'),
                'bed': ('lie_bed', 'lie down'), 'mattress': ('lie_floor', 'lie down'),
                'door': ('exit_door', 'go out')}
 PRIMARY_ACTION = {kind: verb for kind, (verb, _name) in AFFORDANCES.items()}
-#: A box's turn where a thing has none: her map's are upright.
-UPRIGHT = ((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0))
+#: A box's turn where a thing has none: her map's are upright. Her sight's reach, m.
+UPRIGHT, SIGHT_M = ((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0)), 8.0
 
 _PROP_RULES = {
     'wood': lambda py, sx, sz, _sc: (
@@ -56,12 +56,13 @@ def auto_action(detected):
 
 class VisionScanner:
 
-    """Stereo camera vision scanner with local Ollama model integration."""
+    """Stereo camera vision scanner with local Ollama model integration; what she has told apart
+    since her scene was laid kept (`identified`)."""
 
     def __init__(self):
         self._ollama_checked = False
         self._ollama_model = None
-        self._cached = []
+        self._laid, self._known = None, set()
 
     def model_name(self):
         """Return the name of the local Ollama model if connected, else 'local/stereo'."""
@@ -82,10 +83,21 @@ class VisionScanner:
 
         threading.Thread(target=_probe, daemon=True).start()
 
+    def identified(self, now):
+        """What she has told in her sight (`scan`) since her scene was laid - its scenario, her
+        epoch -, wherever it stands now within SIGHT_M, nearest first: a thing once seen is known,
+        her sway at its edge none of its."""
+        laid = (now.get('scenario'), now.get('epoch')) if now else None
+        if laid != self._laid:
+            self._laid, self._known = laid, set()
+        self._known |= {d['index'] for d in self.scan(now)}
+        return [d for d in self.scan(now, reach=SIGHT_M) if d['index'] in self._known]
+
     def scan(self, now, look=None, reach=None):
         """The props in her sight - within 75 deg of her heading or the heading the view looks
-        along (`look`, rad), 8 m -, or with `reach` every one that near, nearest first; each box's
-        half sizes along the world's axes its `extent`."""
+        along (`look`, rad), SIGHT_M -, or with `reach` every one that near, nearest first; each
+        box's half sizes along the world's axes its `extent`, its place in her state's its
+        `index`."""
         if not now:
             return []
         things = now.get('things') or ()
@@ -97,7 +109,7 @@ class VisionScanner:
         cones = [float(now.get('heading') or 0.0)] + ([look] if look is not None else [])
 
         found = []
-        for prop in props:
+        for index, prop in enumerate(props):
             if not isinstance(prop, (tuple, list)) or len(prop) < 3 or len(prop[1]) < 3:
                 continue
             raw_kind = str(prop[0])
@@ -108,10 +120,11 @@ class VisionScanner:
             kind = _PROP_RULES[raw_kind](py, sx, sz_d, scen) if raw_kind in _PROP_RULES else raw_kind
             dx, dz = px - gx, pz - gz
             dist = math.hypot(dx, dz)
-            if kind is None or dist > (reach or 8.0) or dist < 0.05 or not _in_cone(dx, dz, dist, kind, reach, cones):
+            if kind is None or dist > (reach or SIGHT_M) or dist < 0.05 or not _in_cone(dx, dz, dist, kind, reach, cones):
                 continue
             found.append({
                 'kind': kind,
+                'index': index,
                 'dist': dist,
                 'pos': (px, py, pz),
                 'extent': tuple(sum(abs(float(a)) * float(h) for a, h in zip(row, sz)) for row in turn),
@@ -120,7 +133,6 @@ class VisionScanner:
             })
 
         found.sort(key=lambda item: (not bool(item['affordances'] and item['dist'] < 3.4), item['dist']))
-        self._cached = found
         return found
 
 

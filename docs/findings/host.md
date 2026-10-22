@@ -184,7 +184,10 @@ Pages, tooling, suites and the local model's runner. The board's findings:
   bed behind the docked eyes and its balloon at their edge. Numbered nearest
   first, F alone sent her from (0.12, 0.28) to the chair 56 deg aside, not
   the door ahead, and she fell at 5.19 s (scenarios item 10): numbered by
-  her turn to them, F alone keeps what she faces.
+  her turn to them, F alone keeps what she faces. Lying on the bed her one
+  offer read F where three had read F1-F3, and backing to it the door at her
+  sight's edge came and went four times in 1.5 s: one alone is F1 too, a
+  thing once seen kept till her scene or her epoch is laid anew.
 - The crafts' pages flew on a `Feed` thread in the page's process and drew
   the newest of its 20 ms steps: on a 200 x 56 truecolor terminal 13.4-18.7
   frames a second, gaps p95 80-115 ms, the longest 484-639, the flight's

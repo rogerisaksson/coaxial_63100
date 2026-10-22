@@ -121,11 +121,13 @@ def test_surface_arrows_setpoint_actual_and_landing_zones(report):
 
 
 def test_balloons_on_what_she_sees(report):
-    """Each thing she sees a balloon's offer, the one she faces first (`gym.offered`), keyed F1 on
-    - a chair's seat and back one thing, a mattress out of her reach none, what bears her alone -;
-    F opens the choice, a digit within `console.HOLD_WINDOW_S` says that one at its thing, F again
-    or the window lapsed the first's, the function key at once, a click the first's; a digit with
-    no F the gym's entry; a balloon on the viewport over each."""
+    """Each thing she has seen a balloon's offer, the one she faces first (`gym.offered`), keyed
+    F1 on - one alone too; a chair's seat and back one thing, a mattress out of her reach none,
+    what bears her alone; turned away still offered, laid anew forgotten -; F opens the choice, a
+    digit within `console.HOLD_WINDOW_S` says that one at its thing, F again or the window lapsed
+    the first's, the function key at once, a click the first's; a digit with no F the gym's
+    entry; a balloon on the viewport over each."""
+    import math
     import time
     from types import SimpleNamespace as SN
     from terminal.ui import console
@@ -155,8 +157,13 @@ def test_balloons_on_what_she_sees(report):
                  "gym's second, a click the door",
                  opened and said == [('sit_chair', (1.5, 0.8)), door, ('lie_bed', (-1.8, 1.8)), door, (1, ()), door],
                  said)
-    st['now'] = dict(st['now'], props=room + [('chair', (0.0, 0.43, 0.88), (0.22, 0.02, 0.22), up),
-                                              ('chair', (0.0, 0.65, 1.10), (0.22, 0.2, 0.02), up)])
+    st['now'] = dict(st['now'], heading=math.pi)
+    behind = [o[1] for o in gym.offered(st)]
+    st['now'] = dict(st['now'], epoch=1)
+    report.check('turned away, what she has seen still offered; laid anew, none of it',
+                 sorted(behind) == ['exit_door', 'lie_bed', 'sit_chair'] and gym.offered(st) == [], behind)
+    st['now'] = {'where': (0.0, 0.9, 0.0), 'heading': 0.0, 'props': room + [
+        ('chair', (0.0, 0.43, 0.88), (0.22, 0.02, 0.22), up), ('chair', (0.0, 0.65, 1.10), (0.22, 0.2, 0.02), up)]}
     ahead = gym.offered(st)
     st['now'] = {'where': (0.0, 0.9, 0.0), 'heading': 0.0, 'scenario': 'mattress',
                  'props': [('bed', (0.0, 0.08, 2.5), (0.45, 0.08, 0.95), up)]}
@@ -168,7 +175,7 @@ def test_balloons_on_what_she_sees(report):
                  'lie_floor; seated, her rise alone',
                  [o[1] for o in ahead] == ['sit_chair', 'exit_door', 'lie_bed', 'sit_chair'] and abs(ahead[0][3][0]) < 1e-9
                  and far == [] and [o[1] for o in near] == ['lie_floor']
-                 and [o[:2] for o in gym.offered(st)] == [('F', 'rise_chair')], (ahead, far, near))
+                 and [o[:2] for o in gym.offered(st)] == [('F1', 'rise_chair')], (ahead, far, near))
     st['now'] = {'where': (0.0, 0.9, 0.0), 'heading': 0.0, 'props': room}
     drawn = gym.ballooned(st, gym.offered(st), 110, 36, (0.0, 0.0))
     text = ''.join(chr(code) for _at, (code, _key) in sorted(drawn.items()))

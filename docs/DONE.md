@@ -135,8 +135,8 @@ the hundred and fifty before these: [DONE_1-50](DONE_1-50.md),
     ([stunts](findings/stunts.md)).
 24. Balloons on what she sees, HUMANOID: each support in her sight a balloon
     on it, its key and its word, the one she faces first (from her lay in the
-    lodge F1 go out, F2 lie down, F3 sit; F alone with one offered, F and her
-    rise on her while something bears her), a chair's seat and back one
+    lodge F1 go out, F2 lie down, F3 sit; one alone F1 too, F1 and her rise on
+    her while something bears her), a chair's seat and back one
     thing, one behind the docked eyes or off the drawing at their edge
     pointing on; F then the digit within a typed key's hold
     (`console.HOLD_WINDOW_S`, 0.65 s) or the function key says that one's

@@ -165,11 +165,11 @@ def test_vision_scanner_docked_pip_and_affordances(report):
     st = {'body': SN(send=lambda **kw: sent.append(kw)), 'scanner': sc, 'now': now, 'yaw': 180.0, 'tour': None}
     cells = scanner.docked_vision(sc, now, 100, 40, gym.offered(st))
     chars = ''.join(chr(c) for c, _k in cells.values())
-    report.check('the docked eyes name the chair and F on it', 'chair' in chars and '[F] sit' in chars)
+    report.check('the docked eyes name the chair and F1 on it', 'chair' in chars and '[F1] sit' in chars)
     show_humanoid.KEYS['f'](st)
     report.check('F by the chair says sit_chair at it, the page prompts it, a plain hop unprompted',
                  [(c['say'], tuple(round(v, 9) for v in c['at'])) for c in sent] == [('sit_chair', (0.0, 0.9))]
-                 and gym.prompt(st) == '[F] sit chair', (sent, gym.prompt(st)))
+                 and gym.prompt(st) == '[F1] sit chair', (sent, gym.prompt(st)))
 
 
 def test_her_verbs_and_the_chase(report):

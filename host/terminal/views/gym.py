@@ -7,7 +7,7 @@
 
 She stands on the loop (`machine.sprung`); the keys that move her are a twist (`humanoid_keys`).
 Space, C and F are verbs - a hop, a crouch, a balloon's offer -, each one an agent would send.
-F offers rising from what bears her, else each thing she sees and its verb, a balloon on it:
+F offers rising from what bears her, else each thing she has seen and its verb, a balloon on it:
 F alone says the first's - the one she faces -, F then a digit - or the function key - the one so
 keyed. A digit says
 an entry of the gym's text (`sprung.entries`) in place of what was to come, > takes the gym's
@@ -120,9 +120,9 @@ def _turn(now, at):
 
 def offers(now, seen):
     """[(verb, word, at (x, y, z), thing)] F offers now, the one she faces most nearly first - the
-    nearer of two in line -: rising from what bears her alone, at her; else each thing she sees
-    (`seen`, `scanner.scan`'s) with a verb - one she walks to (`tour.errands`) wherever she sees it,
-    one she does where she stands within REACH_M -, at its middle."""
+    nearer of two in line -: rising from what bears her alone, at her; else each thing she has
+    identified (`seen`, `scanner.identified`'s) with a verb - one she walks to (`tour.errands`)
+    wherever it stands, one she does where she stands within REACH_M -, at its middle."""
     if not now:
         return []
     rise, walked = contextual_rise(now), tour.errands()
@@ -135,15 +135,15 @@ def offers(now, seen):
 
 
 def keyed(n):
-    """The keys of `n` offers: F alone for one, else F and each's digit (`DIGITS`)."""
-    return ['F'] if n == 1 else ['F' + d for d in DIGITS[:n]]
+    """The keys of `n` offers: F and each's digit (`DIGITS`), one alone F1 too."""
+    return ['F' + d for d in DIGITS[:n]]
 
 
 def offered(state):
-    """[(key, verb, word, at, thing)] F offers as the page shows them: what she sees now (`offers`,
-    `keyed`)."""
+    """[(key, verb, word, at, thing)] F offers as the page shows them: what she has identified
+    (`offers`, `keyed`)."""
     now, sc = state.get('now'), state.get('scanner')
-    got = offers(now, sc.scan(now) if sc is not None and now else [])
+    got = offers(now, sc.identified(now) if sc is not None and now else [])
     return [(key,) + offer for key, offer in zip(keyed(len(got)), got)]
 
 

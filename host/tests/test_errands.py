@@ -230,7 +230,7 @@ def test_viewport_f_errands_chair_bed_and_door(report):
                 viewpoint.mouse(st, lambda: (100, 40))['on_click'](20, 10)
                 _flips, stood_t = _run(s, 6.0, until='stand')
                 _run(s, 0.5)
-                ok = (ok and rise_prompt == '[F] rise bed' and stood_t is not None
+                ok = (ok and rise_prompt == '[F1] rise bed' and stood_t is not None
                       and sum(g['loads']) > 250.0 and float(g.get('surety', 1.0)) > 0.85 and s['fallen_at'] is None)
             detail = 'prompt=%r doing=%s pos=(%.2f,%.2f,%.2f) prop=%.2f sure=%.2f fallen=%s' % (
                 shown_prompt, sprung.doing(g), gx, gy, gz, max_prop, float(g.get('surety', 1.0)), s['fallen_at'])
