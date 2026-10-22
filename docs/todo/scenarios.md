@@ -148,8 +148,13 @@ serves its DOD; none an entry a case.
    plays fall at their stops and turns, the run's leap holds 0.57 m for a
    tap's 0.48 and the running jump falls: the brake, the gather and the
    leap (`leap.stride_hop`, `stride_leap`, tuned to 0.86 m/s) laid from the
-   drives at her speed first, as the standing jump's push is (item 3); at
-   1.8 Hz her stance chatters and she falls; the dance's bounce of 0.38
+   drives at her speed first, as the standing jump's push is (item 3) - the
+   leap so laid (scratch/stride_leap_from_drives.patch, stunts.md) stands a
+   tap on the walk and the run landing on the other leg, 9 cm up and no
+   flight at one knee's 2/3 clamp, and a hold saturates the knee and falls:
+   the one stack's knees or the performance build, and test_leap's stride
+   checks re-based on what the drives give, to decide; at 1.8 Hz her stance
+   chatters and she falls; the dance's bounce of 0.38
    legs felling her when streamed; a lean back of 13 deg standing met with
    3.7; the stairs (item 3). No spasm: each segment's jerk no higher than
    her steady walk's (item 2). The take's

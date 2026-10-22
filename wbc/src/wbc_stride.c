@@ -301,7 +301,7 @@ void wbc_imp_hurried(const wbc_imp_t *k, const double aside[2], double om, const
   {
     const double due = log(npmax(k->reach_m / npmax(aside[b], k->tiny), 1.0)) / om;
 
-    hurry[b] = npmax(1.0, (1.0 - u[b]) / (rate * npmax(due, sqrt(6.0 / kp[b]))));
+    hurry[b] = npmax(1.0, (1.0 - u[b]) / (npmax(rate, k->tiny) * npmax(due, sqrt(6.0 / kp[b]))));
   }
 }
 

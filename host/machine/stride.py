@@ -110,7 +110,7 @@ def hurried(aside, om, u, rate, kp):
     reversed landed its swing 0.54 s on and she fell; her whole rhythm hurried for it turned her
     pelvis with it and spun her 1.9 rad."""
     due = np.log(np.maximum(REACH_M / np.maximum(aside, TINY), 1.0)) / om
-    return np.maximum(1.0, (1.0 - u) / (rate * np.maximum(due, np.sqrt(6.0 / kp))))
+    return np.maximum(1.0, (1.0 - u) / (max(rate, TINY) * np.maximum(due, np.sqrt(6.0 / kp))))
 
 
 def cruises(way, drive, turns, going):

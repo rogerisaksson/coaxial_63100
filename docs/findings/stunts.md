@@ -252,6 +252,20 @@ run no lower than the human's, a fall's head under 1 m/s. The takes (a leg
   swing's clearance scaled by its reach over a sole's half-length (where it
   lies, none) still lifted it 10.8 mm and landed her weight on it at 265 N,
   the parry's landing 5 cm off. Open: a let-go sole counting by its grip.
+  The leap from a stride laid from the drives, kept as a patch
+  (scratch/stride_leap_from_drives.patch): off the sole that lands next
+  (`stride.beat`'s phase to PHI_W), a half-cosine dip to the depth one knee
+  pushes out of in half the stance, the push `pushed` on one leg at the
+  whole share, her rhythm frozen through it (HZ 0; `stride.hurried`'s rate
+  floored at TINY, a rhythm at rest made the ask NaN) and the swing's hurry
+  only under a held polygon, so the swing holds and lands her after the
+  flight, the gait on from the landing. A tap stands on the walk and the
+  run and lands on the other leg (the running jump 24.3 -> 20.5 widths,
+  travel 0.36 -> 0.95 legs) but rises 9 cm with no flight: one knee at 2/3
+  of its clamp. A hold's deeper dip saturates it (the drives' scale 0.48)
+  and the landing's damper, laid for a fall from flight, drops her. The
+  leap it replaces stops her 0.85-1.05 s and hops in place on both soles,
+  and test_leap's stride checks are that hop's (0.15 s air, 45 mm clear).
   Measured, not kept: the push integrated with the lever's
   force along it (the knee's lever growing as she rises, 18 axial/s at
   take-off for the parabola's 12.3) flew her 0.21 s with 20 mm clear and
