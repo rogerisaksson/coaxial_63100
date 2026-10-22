@@ -64,12 +64,13 @@ UNIT, Z0, MASS = (slice(23 + i * N, 23 + (i + 1) * N) for i in range(3))
 GROUND = slice(23 + 3 * N, 25 + 3 * N)
 FLOOR_AT = slice(25 + 3 * N, 27 + 3 * N)
 #: And a floor told her (`worker.told_floor`), MAP_K breakpoints at most: where she stood when
-#: told and her way then, world x and z; each breakpoint along that way, m, and its height over
-#: the floor felt then (MAP_FLOOR0); how many were told, 0 none.
+#: told and her way then, world x and z; each breakpoint along that way, m, and its height; how
+#: many were told, 0 none. Its heights are read over the floor felt under her standing soles
+#: (`impedance._landings`): her observer's height drifts, 1.2 cm/s on a landing.
 MAP_K = 16
 MAP_AT, MAP_WAY = slice(27 + 3 * N, 29 + 3 * N), slice(29 + 3 * N, 31 + 3 * N)
 MAP_ALONG, MAP_RISE = slice(31 + 3 * N, 31 + 3 * N + MAP_K), slice(31 + 3 * N + MAP_K, 31 + 3 * N + 2 * MAP_K)
-MAP_FLOOR0, MAP_N = 31 + 3 * N + 2 * MAP_K, 32 + 3 * N + 2 * MAP_K
+MAP_N = 31 + 3 * N + 2 * MAP_K
 FRAME = MAP_N + 1
 #: The loop's ask, flat: each sole standing (1) or not; her centre of mass's acceleration and
 #: each sole's, world; the pelvis's and the trunk's pitch wanted, rad; each knee's fold over its

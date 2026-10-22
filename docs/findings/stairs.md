@@ -33,12 +33,21 @@ scene `stairs` (0.15 x 0.30 m treads); the bench and the blind scenes:
   the run leap lost its flight, the viewport's errands fell); the trailing sole
   let go only with her capture point in the landed one (0.64 m/s, 450 J/m); a
   swing's own lowest point held clear (491 J/m, her pelvis rolling 4.3 deg).
-- Three treads, 0.45 m, by 3.45 s; on the fourth her centre runs 0.65 -> 1.0 m/s
-  against the 0.55 cap - a sole lands 6-9 cm ahead of it and the pull-up pushes
-  her on past the toe - 0.47 m ahead of the trailing sole as it lifts: it must
-  rise 0.3 m from there, the leg straightens behind her, down at 3.77 s. The takes
-  at her size (Ascending Stairs, Walking Up The Stairs): a run a step at 0.57-0.70
-  s, the hips 0.30-0.36 m/s and 0.6-0.7 m/s up at most, the foot up first then on,
-  5-9 cm over its tread, the knee 75-90 deg at landing and 7-11 rad/s at most,
-  the hips 0.1-0.14 m behind the stance foot at toe-off, 0.14-0.25 behind the
-  landing one.
+- Kept after them: a landing drawn to its tread's end by how near that end lies
+  within a step (by its natural landing alone a sole came down 6-9 cm ahead of
+  her centre where the takes' feet land 14-25, and the pull-up pushed her past
+  the stance toe at 1.0 m/s: three treads, down on the fourth); the told map's
+  last cell open past its end (at the top landing's told end the landing was
+  drawn 37 cm back to the last band and she stumbled at 8.5 s); the told floor
+  read over the floor felt under her standing soles each pass (anchored at the
+  telling, her observer's height drifted 1.2 cm/s on the landing - dead
+  reckoning, by design -, the told treads sank under the felt floor with it,
+  each swing was driven under the floor, 549 N at a landing, and she stepped
+  off the landing's side at 14.4 s).
+- Stands: the flight of five, 0.747 m, walked on to 5.2 m and stopped on the
+  landing, rolled 0.3 deg; her walk unmoved. The takes at her size (Ascending
+  Stairs, Walking Up The Stairs): a run a step at 0.57-0.70 s, the hips
+  0.30-0.36 m/s and 0.6-0.7 m/s up at most, the foot up first then on, 5-9 cm
+  over its tread, the knee 75-90 deg at landing and 7-11 rad/s at most, the
+  hips 0.1-0.14 m behind the stance foot at toe-off, 0.14-0.25 behind the
+  landing one; hers climb at her walk's 0.54 s step.

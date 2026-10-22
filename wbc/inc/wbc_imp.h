@@ -19,7 +19,7 @@ typedef struct
   int           y_com, y_vcom, y_sole, y_vsole, y_load, y_quat, y_spin, y_moment, y_lowest, y_hip, y_tilt;
   int           y_tilt_rate, y_arm, y_prop, y_prop_lo, y_prop_hi, y_grip, y_vhead, y_hspin;
   int           f_rot, f_w0, f_floor, f_weight, f_knee, f_pitch0, f_dt, f_reach0, f_hips_by, f_arm0, f_unit;
-  int           f_z0, f_mass, f_ground, f_floor_at, f_map_at, f_map_way, f_map_along, f_map_rise, f_map_floor0, f_map_n;
+  int           f_z0, f_mass, f_ground, f_floor_at, f_map_at, f_map_way, f_map_along, f_map_rise, f_map_n;
   int           a_stance, a_com_acc, a_sole_acc, a_want, a_fold, a_fold_rate, a_turned, a_bend, a_kdot;
   int           a_going, a_rolled, a_headed, a_tipped, a_swung, a_folds, a_settle, a_edge, a_heeled;
   int           a_strides, a_prefold, a_swings, a_raise, a_need, a_lead, a_outside, a_borne, a_bend_rate, a_cell;
@@ -112,7 +112,7 @@ void wbc_imp_clears(const wbc_imp_t *k, const double u[2], const double flying[2
                     const double late[2], const double land[2], double clear[3][2]);
 void wbc_imp_footholds(const wbc_imp_t *k, const double *along, const double *rise, int told, const double s_meet[2],
                        const double s_fore[2], const double s_now[2], double s_com, double reach, const double hold[2],
-                       double gap, double s_new[2], double top[2], double land[2], double run[2], double cell[2]);
+                       double gap, double step, double s_new[2], double top[2], double land[2], double run[2], double cell[2]);
 double wbc_imp_interp(double x, const double *along, const double *rise, int n);
 void wbc_imp_landings(const wbc_imp_t *k, const double *y, const double *fr, double *a, const double *rot, const double c[3],
                       const double flat[2][2], const double xi[2], double *cruise, double om, double turns, double wide,

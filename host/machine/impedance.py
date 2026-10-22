@@ -21,7 +21,7 @@ from machine import latent, poise, stride
 from machine.modal import (
     ANKLE_H, ARM_RAD, ARMS, AXIAL, AXIAL_M, BEND, BEND_RATE, CLEAR_M, COM, COM_ACC, DRIVE, DT, EDGE, FLOOR, FOLD, FOLD_RATE, FOLDS, G,
     GOING, GRIP, GROUND, HANDS, HEADED, HEELED, HIP, HIPS_BY, HOT, HSPIN, KDOT, KNEE, LATERAL, LEAD, LEG_M, LIFT, LIST, LIST_RAD,
-    LOAD, LOWEST, MAP_ALONG, MAP_AT, MAP_FLOOR0, MAP_N, MAP_RISE, MAP_WAY, MASS, MOMENT, NEED, OUTSIDE, PELVIS, PROP, PROP_HI, PROP_LO, BORNE, WEIGHT,
+    LOAD, LOWEST, MAP_ALONG, MAP_AT, MAP_N, MAP_RISE, MAP_WAY, MASS, MOMENT, NEED, OUTSIDE, PELVIS, PROP, PROP_HI, PROP_LO, BORNE, WEIGHT,
     PITCH, PITCH0, PITCH_RAD, PREFOLD, QUAT, RAISE, REACH0, ROCK, ROLLED, ROT, CELL,
     SAGITTAL, SETTLE, SOLE, SOLE_ACC, SPIN, STANCE, STRIDES, SWINGS, SWUNG, TILT, TILT_RATE, TIPPED, TURN, TURN_RAD,
     TURNED, UNIT, VCOM, VHEAD, VSOLE, W0, WANT, WIDTH, Z0, reading, shortened, under)
@@ -206,15 +206,21 @@ def _landings(y, fr, a, rot, c, flat, xi, cruise, om, turns, wide, across, reach
     way, told, start = fr[MAP_WAY], fr[MAP_N], fr[MAP_AT] @ fr[MAP_WAY]
     xz = np.stack([rot[ALONG][[0, 2]], rot[LEFT][[0, 2]]])
     s_now, s_com = y[SOLE].reshape(2, 3)[:, [0, 2]] @ way - start, y[COM][[0, 2]] @ way - start
-    hold, gap = np.where(stood > 0.5, -1.0, a[CELL]), fr[MAP_FLOOR0] - fr[FLOOR]
-    left_s = np.pi / np.maximum(turns, TINY) * (1.0 - u * flying)
+    hold = np.where(stood > 0.5, -1.0, a[CELL])
+    # the told floor over the felt one, anchored under her standing soles: anchored at the telling,
+    # her observer's height drifted 1.2 cm/s on the landing and each swing was driven under the floor
+    gap = -(((stood + TINY) / (stood.sum() + 2.0 * TINY)) @ stride.floor_at(fr[MAP_ALONG], fr[MAP_RISE], told, s_now))
+    step_s = np.pi / np.maximum(turns, TINY)
+    left_s = step_s * (1.0 - u * flying)
     meet = stride.meets(xi, c, flat, cruise, om, turns, wide, across, reach)
     s_meet = (meet @ xz) @ way - start
-    run = stride.footholds(fr[MAP_ALONG], fr[MAP_RISE], told, s_meet, s_meet + cruise * left_s, s_now, s_com, reach, hold, gap)[3]
+    run = stride.footholds(fr[MAP_ALONG], fr[MAP_RISE], told, s_meet, s_meet + cruise * left_s, s_now, s_com, reach, hold, gap,
+                           cruise * step_s)[3]
     cruise = np.minimum(cruise, run.min() * turns / np.pi)
     meet = stride.meets(xi, c, flat, cruise, om, turns, wide, across, reach)
     s_meet = (meet @ xz) @ way - start
-    s_new, top, land, _run, a[CELL] = stride.footholds(fr[MAP_ALONG], fr[MAP_RISE], told, s_meet, s_meet + cruise * left_s, s_now, s_com, reach, hold, gap)
+    s_new, top, land, _run, a[CELL] = stride.footholds(fr[MAP_ALONG], fr[MAP_RISE], told, s_meet, s_meet + cruise * left_s, s_now, s_com,
+                                                       reach, hold, gap, cruise * step_s)
     adj = (told > 0) * (stride.floor_at(fr[MAP_ALONG], fr[MAP_RISE], told, s_now)
                         - stride.floor_mean(fr[MAP_ALONG], fr[MAP_RISE], told, s_com - stride.STRIDE_M, s_com))
     return (cruise, meet + ((s_new - s_meet)[:, None] * way[None, :]) @ xz.T, top, land, adj,

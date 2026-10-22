@@ -62,15 +62,17 @@ serves its DOD; none an entry a case.
    swing hangs 6-27 cm over the floor. Measured and not kept (scenarios.md,
    blind on a flight): a sole standing by its load alone, a swing held at an
    edge till its toes clear it, the floor's rise read from her landings, a
-   late swing lowering her - each took a held scene. Up the stairs told
-   (stairs.md): three treads, down on the fourth as her
-   centre runs 0.84 m/s against the run-a-step cap and the pull-up throws her;
-   the takes climb at one run a step with the hips 0.1 m behind the stance foot
-   at toe-off. Left: her centre of mass running on past a lone standing sole
-   while the next swing is late, the common root on every descent and on the
-   climb; the first step down a flight, nothing told, a drop. DOD: stairs of
-   0.15 x 0.30 m up and down, a slope of 10 deg up, down and across; 3 times
-   in 4 each.
+   late swing lowering her - each took a held scene. Up the stairs told she
+   climbs the flight and stands on the landing (stairs.md), at her walk's
+   0.54 s step where the takes climb at 0.6-0.7 s: the climb's rhythm is still
+   the impedance's. To come, a sequencer on her loop: each tread a beat, its
+   rise read from the map as data and setting that beat's lift, its pull-up as
+   a played axial envelope over the stance and its cadence, uneven risers each
+   their own note; the reading-side climb (`floor_mean`) goes with it. Left:
+   her centre of mass running on past a lone standing sole while the next
+   swing is late, the common root on every descent; the first step down a
+   flight, nothing told, a drop. DOD: stairs of 0.15 x 0.30 m up and down, a
+   slope of 10 deg up, down and across; 3 times in 4 each.
 4. **Her floor identified, a text over the general law**: what her
    standing soles meet - slip and sink under their load - read from her
    sensors against what her law assumes (friction 0.6 in her step, a rigid

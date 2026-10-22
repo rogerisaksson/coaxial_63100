@@ -225,7 +225,7 @@ def heard(g, gym, command):
 
 def told_floor(g, profile):
     """A floor told her into her frame's map (`modal.MAP_*`): (along, rise) m from where she
-    stands along her heading, its heights over the floor felt now; None forgets it."""
+    stands along her heading, its heights over the floor under her; None forgets it."""
     import numpy as np
     from machine import modal
     fr = g['fr']
@@ -235,7 +235,7 @@ def told_floor(g, profile):
     pts, hd = np.array(profile, float)[:modal.MAP_K], float(g['heading'])
     fr[modal.MAP_AT], fr[modal.MAP_WAY] = (g['est']['pos'][0], g['est']['pos'][2]), (math.sin(hd), math.cos(hd))
     fr[modal.MAP_ALONG][:len(pts)], fr[modal.MAP_RISE][:len(pts)] = pts[:, 0], pts[:, 1]
-    fr[modal.MAP_FLOOR0], fr[modal.MAP_N] = fr[modal.FLOOR], float(len(pts))
+    fr[modal.MAP_N] = float(len(pts))
 
 
 def _is_fallen(g, world):
