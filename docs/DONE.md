@@ -151,3 +151,8 @@ the hundred and fifty before these: [DONE_1-50](DONE_1-50.md),
     the moved bed's 95th 0.74 on Linux, told a table, 0.49 now. Her walk's
     correction judged as a share of what the world's own model takes: 0.57
     here, 0.62 on Linux ([identification](findings/identification.md)).
+26. The firmware workflow's Release job green again: the emulator suite's
+    bus group, out of time at 480 s on CI's runner, split in two - the
+    echoes through a limb of three 129 s here, the off-rate open 63 -, each
+    test's seconds printed, a group out of time keeping its lines (the
+    relay's children unbuffered).

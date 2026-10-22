@@ -28,10 +28,6 @@
   SET_CLOCK unanswered at a dyno board's open, 2 gates of 4 - both with an
   ortho shard hung in `Apart.close` - and none of 30 opens and 3 suite runs
   alone. DOD: both workflows green on main.
-- **CI red, the firmware workflow's Release job**: the emulator suite's bus
-  group out of time at 480 s on CI's runner, its lines lost with it; here
-  150 s since the echo test's limb of three at 475 MIPS. DOD: both presets
-  green on main, a group out of time keeping its lines.
 - **native://**: a limb's world on a fixed mount as board/emu's. A frame on
   an idle limb of four 32 ms, the wire's 10: three boards awake t3.5 and each
   chain's 2 ms recovery at 1 us substeps (emulation.md). DOD: the body's
@@ -83,10 +79,8 @@
   with the front end on - a change to the STO chain, HARDWARE.md's, to be
   measured on the probe first. DOD: the page at real time on Renode, Clevel
   on the probe as before.
-- **The attitude page at the screen's 30 Hz** (asked): 17.9 fps at 150x44 on
-  native:// turning, where ANGLE draws 29.7 (host.md): the rich update 14.6
-  ms, the GPU's raster and fold 6.4, the floor 5.7, the shadow map 4.0 a new
-  bin, the paint 4.3; its start 5.2 s to the first frame on the bench (wgpu's
-  C types parsed 1.9 s, the casters' decimate 0.9). DOD: 30 fps while the
-  board turns, the feed at the screen's rate, the first frame under a second
-  from the front page.
+- **The attitude page's first frame** (asked): 2.3 s from its key on
+  native://, 29.6 fps after (host.md): its drawing's process starts cold
+  beside the board's open (1.07 s), 1.5 s of its 1.9 wgpu's C types parsed by
+  cffi. DOD: the first frame under a second from the front page, measured on
+  the bench.
