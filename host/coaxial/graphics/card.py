@@ -41,6 +41,13 @@ def _asked():
     return found
 
 
+def held():
+    """This process's device where one was asked for - the card's start paid here, as the front
+    page's stand pays it - else None."""
+    with _LOCK:
+        return next((pair[1] for key, pair in _CARD.items() if key != 'adapter'), None)
+
+
 def device_of(found):
     """`found`'s one device in this process, requested on first ask."""
     with _LOCK:

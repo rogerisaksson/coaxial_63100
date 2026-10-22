@@ -477,13 +477,55 @@ def test_the_thermal_page_arms_with_the_break_in(report):
                  said == ['afe on', 'arm, bypassed True', 'duty [0.2]'], str(said))
 
 
+def test_the_attitude_draws_here_till_its_process_is_up(report):
+    """Its drawing's process not yet up and this process's card warm, BOARD ATTITUDE's frames are
+    this process's crew's (`drawn.where`); the frame the process is up they are its, the exposure
+    and the three frames' vote carried to it once (`drawn.handed`): the first frame waits on no
+    process's start - 2.3 -> 0.9 s from the front page on the bench."""
+    import threading
+    from coaxial.graphics import card
+    from terminal.views import drawn
+
+    class Starting:
+        """A drawing's process on its way up."""
+        is_up = False
+
+        def up(self):
+            return self.is_up
+
+        @property
+        def name(self):
+            return 'a card' if self.is_up else None
+
+        def close(self):
+            """Nothing to end."""
+
+    process, warming = Starting(), threading.Thread(target=lambda: None)
+    warming.start()
+    was, card.held = card.held, lambda: 'a device'
+    try:
+        drawing, crew = drawn.where(None, None, process, None, (warming, {'crew': 'here'}))
+    finally:
+        card.held = was
+    state = {'ahead': drawing, 'asked': None, 'handed': False}
+    persist = {'exposure': (1.0, 2.0), 'steady': {'size': (2, 1), 'held': []}, 'face': 'its own'}
+    before = drawn.handed(state, persist)
+    process.is_up = True
+    after, again = drawn.handed(state, persist), drawn.handed(state, persist)
+    carried = state.get('carried')
+    report.check('the attitude draws here till its process is up, then hands over once',
+                 (crew, drawing, before, after, again) == ('here', process, False, True, True)
+                 and carried == {'exposure': (1.0, 2.0), 'steady': {'size': (2, 1), 'held': []}},
+                 str((crew, before, after, again, carried)))
+
+
 ROSTER = (test_the_stand_shows_its_acts, test_the_page_tool_holds_one_frame, test_the_screen_keeps_its_own_rate,
           test_a_stalled_frame_leaves_its_stack, test_the_thermal_page_arms_with_the_break_in,
           test_the_chrome_at_its_edges,
           test_each_page_draws_on_a_terminal, test_the_console_it_draws_on,
           test_the_crt_draws_on_the_terminal, test_the_terminal_is_asked_how_tall_a_cell_is,
           test_every_page_scrolls_its_boxes, test_a_frame_rasterises_as_the_terminal_draws_it,
-          test_the_attitude_caps_its_frame_rate)
+          test_the_attitude_caps_its_frame_rate, test_the_attitude_draws_here_till_its_process_is_up)
 
 #: The suite's time, s: past it every thread's stack said and the suite gone (`watchdog`),
 #: inside the relay's 300.

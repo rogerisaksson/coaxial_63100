@@ -122,10 +122,14 @@ class SimulatedSystem:
                 'unit': UNITS.get(row['signal']),
             })
         return {'subsystems': SUBSYSTEMS,
-                'parts': [dict(p) for p in PARTS],
+                'parts': self.parts(),
                 'analog': analog,
                 'digital': [dict(d) for d in DIGITAL],
                 'reserved': [dict(d) for d in RESERVED]}
+
+    def parts(self, refresh=False):
+        """What is fitted on the board, one entry per part: the map's parts alone."""
+        return [dict(p) for p in PARTS]
 
     def self_test(self):
         return [{'name': 'PLL lock', 'status': 'pass', 'value': 1},

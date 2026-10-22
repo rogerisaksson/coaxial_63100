@@ -40,10 +40,12 @@ def warm():
                            colour=True, crew=crew, persist={}, scroll=0.0)
 
 
-def render(q, width, height, zoom=1.0, colour=False, frame_on=True, scroll=None):
-    """`orientation.render`'s toon drawing of `q` with the held crew, its frames' state carried."""
+def render(q, width, height, zoom=1.0, colour=False, frame_on=True, scroll=None, carried=None):
+    """`orientation.render`'s toon drawing of `q` with the held crew, its frames' state carried
+    from one ask to the next - and from the page's own, `carried`, when it hands over."""
     if not HELD:
         warm()
+    HELD['persist'].update(carried or {})
     return orientation.render(q, width=width, height=height, zoom=zoom, toon=True, wire=True,
                               colour=colour, frame_on=frame_on, crew=HELD['crew'],
                               persist=HELD['persist'], scroll=scroll)

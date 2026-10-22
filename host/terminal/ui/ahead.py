@@ -67,6 +67,14 @@ def serve(asks, drawn, module, function):
         drawn.put(('error', traceback.format_exc()))
 
 
+def _word(said):
+    """What the worker said, (kind, value): its value, its fault raised as its trace's last line."""
+    kind, value = said
+    if kind == 'error':
+        raise RuntimeError('the drawing: ' + value.strip().splitlines()[-1])
+    return value
+
+
 class Ahead:
 
     """`module.function` drawing in a process of its own, a frame ahead of the page that asks."""
@@ -93,12 +101,20 @@ class Ahead:
 
     def _take(self):
         try:
-            kind, value = self._drawn.get(timeout=WAIT_S)
+            said = self._drawn.get(timeout=WAIT_S)
         except queue.Empty:
             raise RuntimeError('the drawing said nothing in %.0f s' % WAIT_S) from None
-        if kind == 'error':
-            raise RuntimeError('the drawing: ' + value.strip().splitlines()[-1])
-        return value
+        return _word(said)
+
+    def up(self):
+        """Whether the worker has said it is up, asked without waiting; its fault raised."""
+        if self._up is None:
+            try:
+                said = self._drawn.get_nowait()
+            except queue.Empty:
+                return False
+            self._up = (_word(said),)
+        return True
 
     def drawn(self, *args, **kwargs):
         """What the frame before asked to be drawn - this frame's, drawn while it was shown - and

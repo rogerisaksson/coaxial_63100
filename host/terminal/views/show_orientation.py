@@ -14,13 +14,15 @@ and the angles that follow from it (invariant 10).
 import argparse
 import os
 import sys
+import threading
 import time
 from typing import Any
 
 from rich.text import Text
 
 from coaxial.comm.session import standing
-from coaxial.draw import easel, farm, orientation
+from coaxial.draw import easel, orientation
+from coaxial.graphics import card
 from coaxial.errors import RigError
 from terminal.loader import TO_MENU
 from terminal.ui.ahead import Ahead
@@ -29,6 +31,7 @@ from terminal.ui.console import WHEEL_STEP
 from terminal.ui.screen import (PORT, FEED_HZ, FPS_CAP, Feed, Freshness, closing, mode_of, open_rig, run_view,
                                 say)
 from terminal.ui.stage import boot, frame_of, hud, stage
+from terminal.views import drawn
 
 _screen.CHATTER = False     # the boot bar replaced the scroll
 
@@ -53,8 +56,8 @@ def latest(board):
 def capability(board):
     """The board's own entry for its IMU, or None if it reports none."""
     try:
-        parts = board.system.channel_map()['parts']
-    except (RigError, KeyError):
+        parts = board.system.parts()
+    except RigError:
         return None
 
     for part in parts:
@@ -86,61 +89,6 @@ def canvas(args):
         width, height = 100, 40         # not a terminal: still worth drawing
 
     return (args.width or max(40, width), args.height or max(16, height))
-
-
-def workshop(args):
-    """A pool of drawing processes, or None if this run is too short for
-    one.
-    """
-    if args.frames and args.frames <= 4:
-        return None
-    if not args.photo:
-        # The toon mesh draws in 12 ms single-process, measured, against 108
-        # for the photographic one: a pool would cost more in spawn time than
-        # it saves, and render() only draws the toon package when no shop is
-        # passed.
-        return None
-
-    try:
-        return _announced(farm.Farm(orientation.MODEL_MESH))
-    except (OSError, ValueError) as exc:
-        say('warn', 'drawing', 'one process only: %s' % exc)
-        return None
-
-
-def _announced(pool):
-    name = getattr(pool, 'name', None)
-    say('ok', 'drawing', ('the GPU, %s' % name) if name else
-        '%d processes, one band of the picture each' % pool.workers)
-    return pool
-
-
-def bands(args, step):
-    """The staged engine's crew for the vector drawing, or None for a run
-    too short to pay for spawning it.
-    """
-    from coaxial.graphics import creases, crew, gpu, shading, solids, stereotype, wireframe
-    levels = len(solids.LODS)
-
-    def landed(done, _total, divisions):
-        step(0.15 + 0.45 * done / levels, 'DECIMATING GRID %d' % divisions)
-
-    lods = wireframe._lods(landed)
-    step(0.62, 'SHADOW CASTERS')
-    shading._shadowmap((1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0))
-    # The outline's exact index and its loops: 0.6 s once, here behind the
-    # strip rather than as a hitch on the first frame.
-    step(0.66, 'OUTLINE EDGES')
-    creases._outline_source()
-    stereotype._stereotypes()
-    if args.photo or (args.frames and args.frames <= 4):
-        return None
-    step(0.70, 'THE GPU, OR %d PROCESSES' % crew.MAX_WORKERS)
-    try:
-        return _announced(gpu.crew_for(lods, art=shading._face()))
-    except (OSError, ValueError) as exc:
-        say('warn', 'drawing', 'one process only: %s' % exc)
-        return None
 
 
 def silent_part(record):
@@ -280,14 +228,13 @@ def compose(origin, args, view, colour, console):
                              if view['tare'] is not None else None)
 
     tall = view['tall']
-    # The full width the HUD leaves over: a 2*tall+14 cap cropped a zoomed
-    # model at the frame long before the window ran out of columns.
-    art_w = max(24, view['wide'] - 42)
-    zoom = view['zoom'] * (0.88 if not args.photo else 1.0)
+    art_w = art_width(view['wide'])
+    zoom = view['zoom'] * (TOON_ZOOM if not args.photo else 1.0)
     record, drawing = view['record'], view.get('drawing')
-    if drawing is not None:
+    if drawing is not None and drawn.handed(drawing, view['persist']):
         art = drawing['ahead'].drawn(q, art_w, tall, zoom=zoom, colour=colour,
-                                     frame_on=view['frame_on'], scroll=view.get('scroll'))
+                                     frame_on=view['frame_on'], scroll=view.get('scroll'),
+                                     carried=drawing.pop('carried', None))
         # Drawn a frame ahead: this frame shows the pose asked the frame before, its numbers too.
         (q, record), drawing['asked'] = drawing['asked'] or (q, record), (q, record)
     else:
@@ -317,6 +264,21 @@ def compose(origin, args, view, colour, console):
             ('F', _lit('MOUSE') if _console.holding() else 'MOUSE'),
             ('Q', 'EXIT'), ('ESC', 'MENU'), ('', note))),
         dressed=False)
+
+
+#: The zoom a view opens at: 1.0 is the guaranteed fit at any attitude; 1.44 rests larger and lets
+#: an axis tip clip in the extremes - 77 % of the 1.875 it rested at. The toon's drawing a share of
+#: it.
+ZOOM, TOON_ZOOM = 1.44, 0.88
+
+#: Columns the instruments take beside the drawing, and the fewest the drawing keeps.
+HUD_COLUMNS, ART_LEAST = 42, 24
+
+
+def art_width(wide):
+    """The drawing's columns in a window `wide` across: the full width the HUD leaves over - a
+    2*tall+14 cap cropped a zoomed model at the frame long before the window ran out."""
+    return max(ART_LEAST, wide - HUD_COLUMNS)
 
 
 def period_of(hz):
@@ -354,40 +316,26 @@ def parse_args(argv):
     return parser.parse_args(argv)
 
 
-def apart(args):
-    """Whether the toon drawing runs in a process of its own (`easel`): not the photographic
-    one, which bands its own, nor a run too short to pay for starting it."""
-    return not args.photo and not (args.frames and args.frames <= 4)
-
-
 def launch(args):
     """Everything before the first frame, the drawing's process started first: its card, meshes
     and crew come up while this one opens the board. Its process closed where the start fails."""
-    drawing = Ahead(easel.__name__, 'render') if apart(args) else None
-    started = _launched(args, drawing)
+    drawing = Ahead(easel.__name__, 'render') if drawn.apart(args) else None
+    # While the board opens, this process's own drawing readied where its card is warm: it draws
+    # until its drawing's process is up.
+    held = {}
+    wide, tall = canvas(args)
+    warming = (threading.Thread(target=drawn.warm_here, daemon=True, args=(
+        (art_width(wide), tall), ZOOM * TOON_ZOOM, held))
+               if drawing is not None and card.held() is not None else None)
+    if warming is not None:
+        warming.start()
+    started = _launched(args, drawing, (warming, held))
     if started is None and drawing is not None:
         drawing.close()
     return started
 
 
-def _drawn_where(args, step, drawing, pool):
-    """(drawing, pool): the drawing's process once it is up on a card; else closed - no card
-    answers there, or its start failed - and this process draws on `bands`' crew, said why."""
-    if drawing is None:
-        return None, pool
-    try:
-        card, why = drawing.name, 'no card answers'
-    except RuntimeError as exc:
-        card, why = None, str(exc)
-    if card is not None:
-        say('ok', 'drawing', 'a process of its own, on %s' % card)
-        return drawing, pool
-    say('warn', 'drawing', 'in this process: %s' % why)
-    drawing.close()
-    return None, bands(args, step)
-
-
-def _launched(args, drawing):
+def _launched(args, drawing, warmed):
     """Behind one boot strip that rides the milestones (link, six
     decimations, shadow casters, the part, its power, the rotation vector,
     the pool or the drawing's process), so the strip ends where the view
@@ -402,7 +350,7 @@ def _launched(args, drawing):
     with boot('BRINGING THE PART UP') as step:
         origin, board = rig.origin, rig.board
         step(0.12, 'BNO085 LINKED')
-        pool = bands(args, step) if drawing is None else None
+        pool = drawn.bands(args, step) if drawing is None else None
         step(0.78, 'THE PART')
         part = capability(board)
         if part is None:
@@ -428,8 +376,8 @@ def _launched(args, drawing):
             rig.close()
             return None
         step(0.95, 'DRAWING')
-        drawing, pool = _drawn_where(args, step, drawing, pool)
-        shop = workshop(args)
+        drawing, pool = drawn.where(args, step, drawing, pool, warmed)
+        shop = drawn.workshop(args)
     say('ok' if origin.real else 'warn', 'link',
         '%s - %s' % (origin.label, standing(origin)))
     say('wait', 'drawing',
@@ -460,15 +408,14 @@ def main(argv=None):
     terminal = board_view.is_terminal
     leaving = None
 
-    # zoom: 1.0 is the guaranteed fit at any attitude; 1.44 rests larger and
-    # lets an axis tip clip in the extremes.
-    view = {'zoom': 1.44,                # 77% of the 1.875 it rested at
+    view = {'zoom': ZOOM,
             'quaternion': (0.0, 0.0, 0.0, 1.0), 'frame': 0}
     # `persist` holds the two frames before this one, so three can vote per
     # cell - steady._steady, one frame of latency for no blinks.
     state = {'tare': None, 'flip': [False, False, False],
              'frame_on': True, 'persist': {}, 't0': time.monotonic(),
-             'drawing': None if drawing is None else {'ahead': drawing, 'asked': None}}
+             'drawing': None if drawing is None else {'ahead': drawing, 'asked': None,
+                                                      'handed': False}}
     tally = Freshness()
     # The board read on its own thread: a frame draws at the screen's pace, not the link's - an
     # emulated board's link is several times slower than a real one's. Asked as each frame takes
@@ -519,8 +466,8 @@ def main(argv=None):
             shop.close()
         if pool:
             pool.close()
-        if drawing is not None:
-            drawing.close()
+        if state['drawing'] is not None and state['drawing']['ahead'] is not None:
+            state['drawing']['ahead'].close()
         done = put_back(board, part)
         rig.close()
         done.append((part['power'] or 'supply',

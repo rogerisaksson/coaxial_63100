@@ -50,6 +50,7 @@ TOUCHES = (
     ('host/coaxial/graphics/card.py',          (RENDER, *VIEWS)),
     ('host/coaxial/draw/easel.py',             (RENDER, NATIVE, *VIEWS)),
     ('host/terminal/views/show_orientation.py', (RENDER, NATIVE, *VIEWS)),
+    ('host/terminal/views/drawn.py',          (RENDER, NATIVE, *VIEWS)),
     ('host/terminal/ui/ahead.py',              (NATIVE, *VIEWS)),
     ('host/coaxial/draw/ascii3d.py',           ('test_simulated.py',)),
     ('host/coaxial/draw/desk.py',              ('test_simulated.py',)),
