@@ -215,3 +215,28 @@ serves its DOD; none an entry a case.
     on 0.75 m to its back and is down at 5.19 s. The balloons offer it there
     (F2; F alone the door ahead). DOD: the chair's, the bed's and the door's
     errands from every pose she sees them from, no fall.
+11. **Her stride handed over, not switched, at a stop** (found, the jerk in
+    her head): at the stop ending `play_walk`, `play_reverse` and
+    `play_sprint` her brake's last landing brings her capture point inside her
+    soles, her `need` and her step's `strides` go 1 to 0 in a law pass, and her
+    step leaves its projection for its rounds: their answer drives her neck 0 to
+    25 N m (268 rad/s^2), her WEP lifting its clamp 15 to 51.3, and her head
+    nods 101-105 deg in 0.15 s, chattering at its end - her neck unranged in her
+    world and her step, `_Q_LIM`'s -20 to +26 deg her setpoint's alone; the
+    referee's steady walk ends before it. Measured: her step's strides let go at
+    her omega (1/omega 0.3 s), her soles bearing alone - her head 12.8 -> 4.1
+    times her walk's reversing, 11.8 -> 3.4 sprinting, 2.4 -> 1.2 in her moves,
+    her neck within +21 deg - but three errands dock 0.5 m off and fall
+    (test_errands 16 of 19); her neck's range a braking stop row - within +29
+    deg, her head 2-4 times lower, her hands taking it (reversing 1.7 -> 6.4,
+    the chair 28 -> 59); ranged in her world - a hard stop, 3 300 m/s^3. DOD: no
+    segment flung at a stop, her errands as they are.
+12. **Her soles' friction a pyramid along them** (found): her step clips a
+    sole's force to mu along the world's x and z (`wbc_rounds.c`,
+    `machine.wrench`'s `bounded`, `faced`, `_taken`; `pushed`, `wbc_cone.c`,
+    `wbc_stack.c` alike): walking straight 45 or 135 deg off them her head's
+    and pelvis's peaks are 2 250-2 500 and 1 140-1 270 m/s^3, 0, 90 and 180 deg
+    off 570-600 and 530-560 - MuJoCo's own pyramid felled her on its diagonal
+    once (`mjcf.CONE`). Along each sole's floor axes, the C alone, the
+    diagonals' are the axes' (577, 547). DOD: her walk the same every way, the
+    python twin bit for bit, no scene lost.

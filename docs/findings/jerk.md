@@ -151,3 +151,15 @@ strafes 2.9, turns 3.8, a spin 4.4, a hop down 11.1, the chair 11.6, the weave
   clamp, whole a tenth past it): her head nodded 8 deg walking where 2, the
   weave's 99th percentiles 856/1353 -> 1155/2263, the turns' 391/430 ->
   446/648, the chair's the same.
+- Her head at a stop (the stop ending her walk, a reverse, a sprint): her neck
+  nods 101-105 deg in 0.15 s, its drive at 25 N m, at its WEP's 51.3
+  chattering 50 either way at its end. At her brake's last landing her
+  capture point is inside her soles, her step's strides 1 to 0 in a law pass,
+  its rounds' answer her neck at 268 rad/s^2 where its projection's was -0.3;
+  her turns' rows asked 4-7 rad/s^2 then. Not it: the law's 3 ms hold (solved
+  every pass, the same peaks), her drawing (her head within 1 mm and 0.65 deg
+  of MuJoCo's), her floor's boxes (the slab's top a plane, bit for bit).
+- Her friction by heading: walking straight 45, -45 and -135 deg her head's
+  peaks are 2 499, 2 276 and 2 252 m/s^3 where 0, 90 and 180 deg give 585, 597
+  and 576 - her step's friction pyramid the world's x and z. Along each sole's
+  floor axes 577, 578 and 593; that table's chair missed its goal.
