@@ -1,56 +1,63 @@
 # Synth: her loop as a synthesizer
 
-The latent loop is a synthesizer feeding a control system: a sequencer lays
-notes, an oscillator turns at the tempo, envelopes blend each voice to its
-note, gates open a limb's swing, sidechains move a voice's depth or the tempo
-from what she senses; the control system - the impedance, the whole-body
-step, the drives - renders what comes out. Each term names one thing in the
-code, no term a second thing. The parts themselves: [planners](planners.md).
+The latent loop is a synthesizer feeding a control system. Read as a producer
+reads a patch: a master clock on a grid, transients that gate, LFOs on the
+voices, envelopes, sidechains ducking one voice from another, a filter stack
+on the top, a DC offset driving the Q. Each term names one quantity in the
+code with its number; what her walk's patch does not have is said so. The
+parts themselves: [planners](planners.md).
 
-## Signal chain
+## The patch as built
 
-| stage | the loop's | where |
+Her walk (`sprung.WALK`: stand, sway, step, walk; `ortho.py --walk --look`:
+0.70 m/s, 409 J/m, 2.55 off a woman's):
+
+| stage | setting | her loop's |
 | --- | --- | --- |
-| sequencer | rows laid at their times, one a tick | `latent.table`, `latent.step` |
-| note | a row: its voices' targets, its attack, its track | `ortho.ROW`, `latent.VALS`, `SAID` |
-| clip | a take's beats as notes, legato | `takes.beats`, `takes.wire` |
-| patch | a text: its phases as notes, its oscillator, its springs | the lisp, `ortho.compiled` |
-| program change | a text said in place of what was to come | `worker.heard_say`, `se2.said` |
-| oscillator | one angle at the tempo, a voice's depth and phase at it | `latent.THETA`, `HZ`, `GAIN`, `AMP`, `PHASE` |
-| envelope | a voice's blend from where it is to its note | `latent.FROM`, `TO`, `T0`, `BLEND`, `CONTIG` |
-| generator out | each voice's reference, rate and acceleration, its spring and damper, the phases | `latent.OUT`: `REF`, `RATE`, `ACC`, `KS`, `DS`, `PSI`, `SWAY`, `TURNS` |
-| gate | each limb's swing window and its share done | `stride.beat`: `on`, `off`, `u` |
-| sidechain | a parameter moved by a sensed signal, weighted 0 to 1 | the table below |
-| modulation | the patch's knobs moved by named amounts | `gait.MODIFIERS`, `gait.modified` |
-| control system | the ask on her body, the step, the drives | `impedance.ask`, `wrench.step`, `edge` |
+| master clock | 108 BPM a step (0.9 Hz a stride), free-running, no PLL: the clock turns at `HZ`, the body follows; re-locked only by a half-turn flip when her sway leads the other way (`se2.twisted`, `THETA` + pi) and by a due note waking a dead rhythm (`waits.woken_rows`) | `latent.THETA`, `HZ`, `TURNS` |
+| grid, groove | hard-quantized: a landing on its beat's share (`u`), the second limb exactly half a turn behind (`LIMBS`), groove 0, humanize 0 - the one deviation the capture point's sidechain hurrying a swing | `stride.beat`, `stride.hurried` |
+| gate | a limb's swing 40 % of the turn, stance 60 (a woman's 60-62): `SWING` 0.4, `PHI_W`; opened by the heel transient, closed by the let-go | `stride.beat`: `on`, `off`, `u`; `leap.standing` |
+| transient | the heel strike: 1.37 of her weight, 0 ms attack, a 15 mm fall, the gate's trigger at 15 N (`TOUCH_N`); the sole turned flat at 400 /s^2 (`FLAT_K`), its heel let 0.6 rad up at 6 rad/s at most (`HEEL_RAD`, `HEEL_RAD_S`) | `stride.heels`, `looks.FORM` |
+| LFO | one sine per voice on the clock: the lateral 0.31 (of her stance half width) and the pelvis list 0.4 at +108 deg to the drive (a 1/2 note at the stride), the drive 0.6, the lift 1.0, the rock 0.6, the turn 0.4, the arms 0.8 in phase | `AMP`, `PHASE`, `GAIN`; `gait_base.lisp` |
+| mid/side | the feet 0.13 legs apart (a woman's 0.02-0.22), never mono-summed: each landing is laid its own side of the other by `APART_M` 0.1 m, a limiter the width voice cannot pass (roll +0.86's width -0.48 moved nothing); the hips narrow stereo: pelvis roll 5.0 deg at the floor of a woman's 5-15 | `stride.meets`, `WIDTH`, `LIST` |
+| sidechain, duck | the heel transient ducks her height 15 mm as it lands and the knee loads to 1.37; the release is the height spring's, critically damped (`HEIGHT_KD` 100 /s^2 and 20 /s, 122.8 and 20.9 on her hips by `HIPS_BY`: zeta 0.94-1.0) - no overshoot, no fling to the other side; the weight crosses on the lateral LFO alone | `wbc.HEIGHT_KD`, `impedance.ask` |
+| low-pass, top | a spring and a damper a voice, 12 dB/oct: the trunk's turns and the arms at 100 /s^2 and 20 /s (`TURN_KD`, `POSTURE_KD`, zeta 1.0) behind the note's blend (6 dB/oct, linear); the whole-body step weighs the upper joints 1 against the centre's 1 000 (`W_POSTURE`, `W_COM`): the head nods 2 deg, the elbow 2.8 (a woman's 5-45: over-filtered), the arm 28 | `modal.rest`, `wrench.W_*` |
+| counter-phase | the arms 0.8 in phase with the drive (each arm against its own leg: the counterweight), the pelvis turn 0.4 in phase | `phase_offset` 0 deg |
+| DC offset | the trunk's pitch 0 (0.01 on the walk-on), the centre over the soles' middle 0 along, the crouch 0.065 (`WALK_ON`) | `Z[PITCH]`, `Z[SAGITTAL]`, `Z[AXIAL]` |
+| Q | the sway's spring on the capture point (`REST_K` 2.0: a spring K omega, a damper omega + K): zeta 1.03 at omega 3.3 /s, Q 0.49 - dead flat, no ring, nothing near self-oscillation | `poise.into`, `modal.rest` |
+
+## The catwalk patch
+
+The runway take (Mocaps/woman_catwalk_test.fbx) as a patch, and what the
+loop does with it ([sequencer](../findings/sequencer.md)):
+
+| the patch | the take | hers so modified |
+| --- | --- | --- |
+| hard-quantize the calcaneal transients to the grid, groove 0 | 102 BPM (0.85 Hz) | 108 BPM; pace -0.05 says 102, her stance held it |
+| mono-sum the tarsal sub to the dead-centre sagittal line | feet 0.08 legs apart | not available: `APART_M` limits the mid channel at 0.1 m, feet stay 0.13 |
+| pan the pelvic-obliquity LFO wide, sidechain-ducked by each heel | roll 23 deg, swinging 0.45 | roll +0.86 (list 1.26): 18.8 deg, named a catwalk; the duck the height spring's, no overdriven release |
+| 24 dB/oct low-pass on the thoracic and scapular jitter | arms 82 deg, swinging | her top is 12 + 6 dB/oct; the arms' swing +1.13 (1.93) fell her with the stride +0.40 |
+| bias the L4-L5 lordotic DC offset to the edge of self-oscillation | trunk lean -1.4 deg, crouch 0.26 | lean -0.16 is sayable (`Z[PITCH]`); the Q is `REST_K`'s, dead flat: no knob rings her |
 
 ## Terms
 
-| term | her loop's | the number |
+| term | her loop's | number |
 | --- | --- | --- |
 | voice | a mode of her latent vector | 11, `ortho.MODES` |
-| pitch | a voice's target | `Z`, the mode's unit (`modal.AXIAL_M` 0.115 m, `PITCH_RAD` 0.5) |
-| velocity, accent | a voice's depth on the oscillator | `AMP` |
-| tempo | the oscillator's frequency, a stride a turn | `HZ`: the walk 0.9, a jog take 1.27, a run 1.65 |
-| beat | a footfall, the oscillator half a turn on | `stride.beat`'s `phi` through `PHI_W` |
-| bar | a stride, the oscillator a turn | 2 pi of `THETA` |
-| clock | the oscillator's angle, turned | `THETA`, `TURNS` rad/s |
-| attack | a note's blend time | `blend_duration`: the walk-on 2000 ms, a beat its gap |
-| sustain | the note held till the next | `TO` |
-| decay | the gait let down to the stand | `gait_brake` 1800 ms, `sprung.BRAKE` 500 ms |
-| release | the row back to rest | `ortho.REST`, `REST_MS` 200 |
-| legato, glide | contiguous notes drawn as one curve | `ortho.CURVE`, `latent.CONTIG` (Catmull-Rom) |
+| note | a row: its voices' targets, its attack, its track | `ortho.ROW`, `latent.VALS`, `SAID` |
+| clip | a take's beats as notes, legato | `takes.beats`, `takes.wire` |
+| patch, preset | a text; a gait take as amounts on the walk | the lisp; `takes.amounts` |
+| modulation, mod wheel | the patch's knobs moved by named amounts; a word of her movement language as one | `gait.MODIFIERS`, `tools.sim.normal` |
+| program change | a text said in place of what was to come | `worker.heard_say`, `se2.said` |
+| envelope | a voice's blend from where it is to its note: attack the blend, sustain the note held, release the row back to rest (`REST_MS` 200), decay the brake (`gait_brake` 1800 ms, `sprung.BRAKE` 500) | `latent.FROM`, `TO`, `BLEND` |
+| legato, glide | contiguous notes drawn as one curve | `ortho.CURVE`, `latent.CONTIG` |
+| flam | two notes in one tick: they add (Hz 1.78 = 0.86 + 0.92) | `latent.step` |
 | rest | a stand, the oscillator halted | `cpg_override (halt_oscillators)`, `GAIN` 0 |
-| gate length | the swing's share of a turn | `stride.SWING` 0.4, `PHI_W` |
-| swing (the feel) | the sway a quarter turn ahead of the drive | `phase_offset` 108 deg |
 | hold | a note waiting on the soles or the floor | `waits.held_rows`, `risen_rows`, `landed_rows` |
 | quantize | a landing drawn to a tread's grid | `stride.footholds` |
 | transpose | a floor's rise read into her height | `stride.floor_mean`, `impedance._landings` |
-| flam | two notes in one tick: they add | `latent.step`, `hit @ VALS`: Hz 1.78 = 0.86 + 0.92 |
-| track | a row's sequence id | 200-205 the texts, 300 a take, 301 a modified row |
-| preset | a gait take as amounts on the patch | `takes.amounts`, `takes.pattern` |
-| mod wheel | a word of her movement language as an amount | roll +0.86 a catwalk (`tools.sim.normal`) |
-| polyphony | a note says some voices, leaves the rest | `SAID`, NaN unsaid |
+| generator out | each voice's reference, rate and acceleration, spring, damper, the phases, the clock's rate | `latent.OUT` |
+| control system | the ask on her body, the whole-body step, the drives | `impedance.ask`, `wrench.step`, `edge` |
 
 ## Sidechains
 
@@ -62,16 +69,16 @@ code, no term a second thing. The parts themselves: [planners](planners.md).
 | her soles' grip, told or felt | the tempo capped, the landings' reach | `situation`, `grip` |
 | the floor told | the swing's clearance, its tread, her height's rise | `impedance._landings` |
 | her need to step | the stride on at any drive | `stride.beat` |
-| a seat bearing her | the notes that raise her held | `waits.risen_rows` |
-| nothing bearing her | the notes that lower her held | `waits.landed_rows` |
+| a seat bearing her; nothing bearing her | the notes that raise her held; those that lower her held | `waits.risen_rows`, `landed_rows` |
 | her rhythm died down | a due note restarts the clock | `waits.woken_rows` |
 
 ## No voice yet
 
-- Flight: no note lifts both soles; a jump is the leap's throw (`leap`), not
-  the oscillator's. A jog or a run on the oscillator is her walk at the
-  take's tempo and drive, 1.3-2.0 m/s ([sequencer](../findings/sequencer.md)).
+- Flight: no note lifts both soles; a jump is the leap's throw (`leap`), a jog
+  or a run on the oscillator her walk at the take's tempo and drive, 1.3-2.0
+  m/s. A gate past 50 % (both legs swinging) is not a knob: `SWING` is a
+  constant, not a note's.
+- Mono-summed feet, a ringing Q, an overdriven duck: `APART_M`, `REST_K` and
+  `HEIGHT_KD` are constants of the law, not the patch's.
 - Both arms overhead, both heels up: no voice (each is one limb against the
   other).
-- A hold longer than two swings' time lets the note through
-  (`waits.held_rows`): the swing waited for is not coming.
