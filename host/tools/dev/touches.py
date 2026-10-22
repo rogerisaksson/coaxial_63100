@@ -3,7 +3,7 @@ from tools.dev.suites import (AERO_CORE, MPPI_CORE, BENCH, BOARD_MEM, BOOT, BOOT
                               COMPILED, CONFORMANCE, PORTED,
                               CONTROLLER, CORE, CTRL_CORE, CYCLIC, DAQ_API, DAQ_CORE, DRIVE,
                               DRIVE_OBSERVER, EMULATOR, ERRANDS, FILTER, GVS, GYNOID,
-                              HEATED, LEAP, NATIVE, NATIVE_HEAT, NATIVE_SYSID, OLLAMA, ORTHO, FLOOR, QUADS, REACH, RENDER, REPLAYS, SCENES,
+                              GROUND, HEATED, LEAP, NATIVE, NATIVE_HEAT, NATIVE_SYSID, OLLAMA, ORTHO, FLOOR, PAINT, QUADS, REACH, RENDER, REPLAYS, SCENES,
                               SENSORLESS, SHTP, SIGHT, SITUATION, STREAMS, STRUCTURE, SWEEP, SYSID, SYSID_LIVE, TERMS, THERMAL,
                               THERMAL_APP, VIEWS, WBC, WBC_CORE, WEAR, WIRE, WORLD_CORE, WRENCH)
 
@@ -40,7 +40,12 @@ TOUCHES = (
     ('host/coaxial/draw/orientation.py',       ('test_simulated.py', 'test_mcp.py',
                                                 RENDER)),
     ('host/coaxial/graphics/engine.py',        (RENDER, *VIEWS)),
-    ('host/coaxial/graphics/wireframe.py',     (RENDER, *VIEWS)),
+    ('host/coaxial/graphics/wireframe.py',     (RENDER, PAINT, GROUND, *VIEWS)),
+    ('host/coaxial/graphics/ground.py',        (GROUND, RENDER, *VIEWS)),
+    ('host/coaxial/graphics/paint.py',         (PAINT, RENDER, *VIEWS)),
+    ('host/coaxial/graphics/strokes.py',       (PAINT, RENDER, *VIEWS)),
+    ('host/coaxial/graphics/shading.py',       (PAINT, RENDER, *VIEWS)),
+    ('host/coaxial/graphics/lines.py',         (PAINT, RENDER, *VIEWS)),
     ('host/coaxial/draw/ascii3d.py',           ('test_simulated.py',)),
     ('host/coaxial/draw/desk.py',              ('test_simulated.py',)),
     ('host/coaxial/draw/dial.py',              ('test_simulated.py',)),

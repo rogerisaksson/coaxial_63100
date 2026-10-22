@@ -6,8 +6,9 @@ import sys
 
 from coaxial.draw import braille, orientation
 from coaxial.draw.orientation import _qmul
-from coaxial.graphics import (creases, engine, ground, lines, mesh, raster, shading, solids,
-                              stereotype, wireframe)
+from coaxial.graphics import (creases, engine, ground, lines, mesh, paint, raster, shading,
+                              solids, stereotype, strokes, wireframe)
+from coaxial.model.blocks import numpy as np
 from coaxial.graphics import crew as crewmod
 from tools.render.oracle import DISTANCE, cube, oracle
 
@@ -437,24 +438,21 @@ def test_the_outline_holds_together(report):
     """
     q = _diagonal_pose(65.0)
     keep = {}
-    real = lines._outline
+    real = strokes.outline
 
-    def hook(grid, tone, buf, cam, m, colour, heat=None):
+    def hook(glyph, tone, buf, cam, m, colour, heat):
         keep['args'] = (buf, cam, m, heat)
-        return 0
-    wireframe._outline = hook
+    strokes.outline = hook
     try:
         wireframe.render(q, 108, 44, zoom=1.2672, colour=True, horizon=False,
                          triad=False, lift=orientation.LIFT,
                          least=wireframe.CREW_LEAST, persist={})
     finally:
-        wireframe._outline = real
+        strokes.outline = real
     buf, cam, m, heat = keep['args']
-    grid = [[' '] * 108 for _ in range(44)]
-    tone = [[None] * 108 for _ in range(44)]
-    lines._outline(grid, tone, buf, cam, m, True, heat=heat)
-    cells = {(r, c) for r in range(44) for c in range(108)
-             if grid[r][c] != ' '}
+    drawn, inks = np.full(108 * 44, paint.BLANK), np.full(108 * 44, -1)
+    strokes.outline(drawn, inks, buf, cam, m, True, heat)
+    cells = {divmod(int(at), 108) for at in np.flatnonzero(drawn != paint.BLANK)}
     seen, largest = set(), 0
     for start in cells:
         if start in seen:
@@ -955,7 +953,7 @@ def test_the_face_is_held_while_the_pose_holds(report):
     drawn: no raster, no shading, no outline.
     """
     calls, rasters = [], []
-    real, real_cells = wireframe._paint, wireframe._cells
+    real, real_cells = paint.painted, wireframe._cells
 
     def counted(*args, **kwargs):
         calls.append(1)
@@ -967,7 +965,7 @@ def test_the_face_is_held_while_the_pose_holds(report):
 
     q = (0.05, 0.02, 0.0, 0.998)
     state = {}
-    wireframe._paint, wireframe._cells = counted, counted_cells
+    paint.painted, wireframe._cells = counted, counted_cells
     try:
         shown = [wireframe.render(q, 60, 20, zoom=1.0, colour=True,
                                   persist=state, scroll=0.0)
@@ -985,7 +983,7 @@ def test_the_face_is_held_while_the_pose_holds(report):
         turned = wireframe.render((0.3, 0.02, 0.0, 0.95), 60, 20, zoom=1.0,
                                   colour=True, persist=state, scroll=0.7)
     finally:
-        wireframe._paint, wireframe._cells = real, real_cells
+        paint.painted, wireframe._cells = real, real_cells
 
     report.check('a new pose is drawn in full FACE_SETTLE + 1 times',
                  drawn == wireframe.FACE_SETTLE + 1, '%d drawings' % drawn)

@@ -150,6 +150,7 @@ QUADS = (QUAD, QUAD_COURSE, QUAD_PAGE, QUAD_PULL, SWEEP, 'test_views_quad_flight
 
 RENDER = 'test_render.py'
 GROUND = 'test_ground.py'
+PAINT = 'test_paint.py'
 
 DEFAULT_SUITES = (STRUCTURES + (CORE, SHTP, DRIVE, DRIVE_OBSERVER, FILTER, THERMAL, THERMAL_APP,
                                 DAQ_CORE, BOARD_MEM,
@@ -161,7 +162,7 @@ DEFAULT_SUITES = (STRUCTURES + (CORE, SHTP, DRIVE, DRIVE_OBSERVER, FILTER, THERM
                    QUAD, QUAD_PULL,
                    AERO_CORE, MPPI_CORE, STREAMS, QUAD_COURSE, SWEEP, BOOT)
                   + VIEWS
-                  + (RENDER, GROUND) + OLLAMA
+                  + (RENDER, GROUND, PAINT) + OLLAMA
                   + ('test_mcp.py', 'test_simulated.py', 'test_parity.py',
                      BENCH))
 
@@ -313,4 +314,4 @@ FULL_EVERY = 10
 #: run. Where the map has an explicit rule it is also the better answer,
 #: written by someone reading the imports.
 CHEAP = frozenset({*STRUCTURES, CORE, SHTP, DRIVE, DRIVE_OBSERVER, SENSORLESS,
-                   'test_simulated.py', *VIEWS, RENDER, GROUND})
+                   'test_simulated.py', *VIEWS, RENDER, GROUND, PAINT})

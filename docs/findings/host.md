@@ -259,6 +259,12 @@ Pages, tooling, suites and the local model's runner. The board's findings:
   (glow 10, outline 7, halftone 5, edge 5) cell by cell in Python, the raster
   6 - and rich's print 12. The floor laid at once (numpy): 16 -> 6, the frame
   51. Its feed reads the board 20 times a second (`FEED_HZ`), 13.8 ms a read.
+  The face painted at once too (paint.py, strokes.py; 157 frames of HEAD's
+  drawing bit for bit, test_paint): 24 -> 4.3 ms; the frames composited on
+  arrays. Turning, its own beat (the work's p90): 85 -> 56 ms, 11.8 -> 17.9
+  fps; left the rich update 14.6, the GPU's raster and fold 6.4, the shadow
+  map 4.0 (a new 9-degree bin most frames), the floor 5.7. The feed's GIL
+  share is nil: a told board's frames are the read one's.
 - The front page's model was drawn at inner height - 2 inside a 1-column
   padding: a blank row top and bottom, a column each wall. Now the box's
   full inside (checked at 90x28, 120x36, 200x60).

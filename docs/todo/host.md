@@ -77,11 +77,15 @@
   with the front end on - a change to the STO chain, HARDWARE.md's, to be
   measured on the probe first. DOD: the page at real time on Renode, Clevel
   on the probe as before.
-- **The attitude page at the screen's 30 Hz** (asked): 10.4 fps at 150x44 on
-  native:// where ANGLE draws 29.7 (host.md): a turning pose's frame 51 ms -
-  the face's paint 30 (glow 10, outline 7, halftone 5, edge 5) cell by cell
-  in Python, the floor 8, the raster 6 - and rich's print 12; then the feed's
-  20 reads a second (`FEED_HZ`) bind, a native read 13.8 ms. DOD: the paint
-  laid at once as the floor is (numpy, bit for bit, held by test_ground's
-  kind of check), the page at 30 fps while the board turns, the feed at the
-  screen's rate.
+- **The attitude page at the screen's 30 Hz** (asked): 17.9 fps at 150x44 on
+  native:// turning, where ANGLE draws 29.7 (host.md): the rich update 14.6
+  ms, the GPU's raster and fold 6.4, the floor 5.7, the shadow map 4.0 a new
+  bin, the paint 4.3; its start 5.2 s to the first frame on the bench (wgpu's
+  C types parsed 1.9 s, the casters' decimate 0.9). DOD: 30 fps while the
+  board turns, the feed at the screen's rate, the first frame under a second
+  from the front page.
+- **Balloons on what she sees** (asked): F says the support she approaches
+  alone, a second one in reach unreachable. DOD: each support in her sight a
+  balloon on it, its key and its word (F1 sit, F2 go out, F3 lie down), F
+  then the digit or the function key says that one's errand to that thing,
+  F alone the one she faces.

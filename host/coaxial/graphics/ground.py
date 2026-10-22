@@ -139,13 +139,21 @@ def _backdrop(width, height, distance, view, phase=0.0):
         return got
     if len(_BACKDROP) >= BACKDROPS_KEPT:
         _BACKDROP.clear()
+    static = _static(width, height, distance, view)
+    laid = _laid(_runs(static, width, height, step), width, height)
+    masks = {} if laid is None else {at: (mk, (g, g, g)) for at, mk, g in zip(
+        laid[0].tolist(), laid[1].tolist(), _shaded(laid, static).tolist())}
+    _BACKDROP[key] = masks
+    return masks
+
+
+def _static(width, height, distance, view):
+    """The window size's horizon, camera and fan (`_ground_static`), cast once."""
     static = _BACKDROP_STATIC.get((width, height))
     if static is None:
         static = _BACKDROP_STATIC[(width, height)] = _ground_static(width, height, distance,
                                                                     view)
-    masks = _greys(_lay(_runs(static, width, height, step), width, height), static)
-    _BACKDROP[key] = masks
-    return masks
+    return static
 
 
 def _runs(static, width, height, step):
@@ -242,15 +250,17 @@ def _crossings(c0, dc, c1, scale):
     return seg, (i / scale - c0[seg]) / dc[seg]
 
 
-def _lay(runs, width, height, roll=None):
+def _laid(runs, width, height, roll=None):
     """Polylines into _ground_dot's cells, every dot they pass through - each point moved
     by `roll` first, when given, so a rolled line is drawn, not a line's dots moved. Every
     segment at once (numpy), each dot where _segment and _ground_dot put it and in their
-    order, a faint dot landing only where none before it has: 15.7 -> 5.7 ms a frame at 108x44."""
+    order, a faint dot landing only where none before it has. The cells as arrays in the
+    order their first dot landed: cell, mask, horizon, depth sum, dots, lines through it, the
+    brightest fade, and the (cell, line) pairs; None for no line."""
     from coaxial.model.blocks import numpy as np      # behind the OpenBLAS cap
     runs = [run for run in runs if len(run[1]) > 1]
     if not runs:
-        return {}
+        return None
     labels: dict = {}
     ids = np.array([labels.setdefault(line, len(labels)) for line, _p, _f in runs])
     fades = np.array([fade for _l, _p, fade in runs], dtype=np.float64)
@@ -303,14 +313,41 @@ def _lay(runs, width, height, roll=None):
     faded = np.full(m, -np.inf)
     np.maximum.at(faded, inv, fade)
     held = np.unique(inv.astype(np.int64) * len(labels) + line)
-    lines: list = [set() for _ in range(m)]
-    for j, k in zip((held // len(labels)).tolist(), (held % len(labels)).tolist()):
+    order = np.argsort(first, kind='stable')
+    rank = np.empty(m, np.int64)
+    rank[order] = np.arange(m)
+    lines = np.bincount(held // len(labels), minlength=m)
+    return (cell[order], mask[order], horizon[order], depth[order], dots[order], lines[order],
+            faded[order], (rank[held // len(labels)], held % len(labels)))
+
+
+def _lay(runs, width, height, roll=None):
+    """`_laid`'s cells as _ground_dot keeps them: {cell: [mask, horizon, depth, dots, lines,
+    fade]} in landing order, the lines a set."""
+    laid = _laid(runs, width, height, roll)
+    if laid is None:
+        return {}
+    cell, mask, horizon, depth, dots, _count, fade, (owner, line) = laid
+    lines: list = [set() for _ in range(len(cell))]
+    for j, k in zip(owner.tolist(), line.tolist()):
         lines[j].add(k)
-    fields = zip(cell.tolist(), mask.tolist(), horizon.tolist(), depth.tolist(), dots.tolist(),
-                 lines, faded.tolist())
-    laid = sorted(zip(first.tolist(), fields))
-    return {at: [mask, horizon, depth, dots, lines, fade]
-            for _first, (at, mask, horizon, depth, dots, lines, fade) in laid}
+    return {at: [mk, hz, d, n, ls, fd] for at, mk, hz, d, n, ls, fd in zip(
+        cell.tolist(), mask.tolist(), horizon.tolist(), depth.tolist(), dots.tolist(), lines,
+        fade.tolist())}
+
+
+def _shaded(laid, static):
+    """`_greys` on `_laid`'s arrays: each cell's grey, the haze's power Python's own."""
+    from coaxial.model.blocks import numpy as np
+    _cell, _mask, horizon, depth, dots, lines, fade, _pairs = laid
+    near_depth = static['near_depth']
+    reach = max(1e-9, static['far_depth'] - near_depth)
+    grey = np.full(len(depth), float(HORIZON_GREY))
+    fan = np.flatnonzero(~horizon)
+    hazed = ((depth[fan] / dots[fan] - near_depth) / reach).tolist()
+    grey[fan] = FAN_GREY * np.fromiter(map(pow, [FAN_HAZE] * len(hazed), hazed), float,
+                                       len(hazed))
+    return (grey * fade / np.sqrt(lines) + 0.5).astype(np.int64)
 
 
 def _greys(cells, static):
@@ -417,32 +454,41 @@ def _fan_cells(static, width, height, phase):
                  if not (isinstance(r[0], tuple) and r[0][0] == 'rung')], width, height)
 
 
-def _ground(grid, tone, buf, distance, width, height, colour, view, scroll=None,
+def _ground(codes, inks, buf, distance, width, height, colour, view, scroll=None,
             flown=None):
-    """The landscape behind the board at `scroll` seconds (None: at rest): the cached
-    backdrop - rungs and dashes GROUND_SPEED spacings a second toward the camera -
-    replayed against this frame's depth buffer so the board occludes it. `flown`
-    (approach.flight): the corridor's gates laid on, the whole rolled by its bank.
-    """
+    """The landscape behind the board at `scroll` seconds (None: at rest) into the frame's
+    codepoints and packed tones, where the board's depth buffer `buf` (an array) is empty: the
+    cached backdrop - rungs and dashes GROUND_SPEED spacings a second toward the camera -, or
+    with `flown` (approach.flight) the floor's own dots rolled by the bank, the stars and the
+    corridor's gates over them."""
+    from coaxial.model.blocks import numpy as np
     phase = (scroll * GROUND_SPEED) % 1.0 if scroll is not None else 0.0
-    masks = _backdrop(width, height, distance, view, phase)
-    if flown is not None:
-        # The approach: the floor's own dots rolled by the bank, the gates over them.
-        static = _BACKDROP_STATIC[(width, height)]
+    if flown is None:
+        masks = _backdrop(width, height, distance, view, phase)
+        parts = [masks]
+    else:
+        static = _static(width, height, distance, view)
         roll = approach.roller(flown, width, height, static)
         step = int(phase * RUNG_STEPS + 0.5) % RUNG_STEPS
-        masks = _greys(_lay(_runs(static, width, height, step), width, height, roll), static)
-        masks.update(approach.stars(static, width, height, scroll or 0.0, roll))
-        masks.update(approach.corridor(static, width, height,
-                                       (scroll or 0.0) * GROUND_SPEED * RUNG_SPACING,
-                                       flown['curve'], roll, _segment,
-                                       beacons=int((scroll or 0.0) * 2.0) % 2 == 0,
-                                       search=flown['search']))
-    for at, (mask, grey) in masks.items():
-        r, c = divmod(at, width)
-        if buf[at] == 0.0 and grid[r][c] == ' ':
-            grid[r][c] = chr(BRAILLE + mask)
-            tone[r][c] = grey if colour else None
+        laid = _laid(_runs(static, width, height, step), width, height, roll)
+        if laid is not None:
+            codes[laid[0]] = BRAILLE + laid[1]
+            inks[laid[0]] = _shaded(laid, static) * 0x010101
+        parts = [approach.stars(static, width, height, scroll or 0.0, roll),
+                 approach.corridor(static, width, height,
+                                   (scroll or 0.0) * GROUND_SPEED * RUNG_SPACING,
+                                   flown['curve'], roll, _segment,
+                                   beacons=int((scroll or 0.0) * 2.0) % 2 == 0,
+                                   search=flown['search'])]
+    for got in parts:
+        if got:
+            at = np.fromiter(got, np.int64, len(got))
+            codes[at] = BRAILLE + np.fromiter((v[0] for v in got.values()), np.int64, len(got))
+            inks[at] = np.fromiter(((g[0] << 16) | (g[1] << 8) | g[2]
+                                    for _m, g in got.values()), np.int64, len(got))
+    board = buf != 0.0
+    codes[board] = 0x20
+    inks[board | (not colour)] = -1
 
 
 def _segment(dot, prev, fx, fy, depth, k):

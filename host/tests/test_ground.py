@@ -8,7 +8,8 @@ from tools.dev.focus import chosen
 
 def test_the_floor_is_laid_at_once(report):
     """`_lay` lays every segment at once: cell for cell, bit for bit, what `_segment` and
-    `_ground_dot` lay one dot at a time - flat and rolled by a bank, at two sizes."""
+    `_ground_dot` lay one dot at a time, and `_shaded` greys them as `_greys` does - flat and
+    rolled by a bank, at two sizes."""
 
     def dot_by_dot(runs, width, height, roll):
         cells = {}
@@ -36,8 +37,12 @@ def test_the_floor_is_laid_at_once(report):
             roll = (approach.roller({'bank': bank, 'bob': bob}, width, height, static)
                     if bank is not None else None)
             once, slow = ground._lay(runs, width, height, roll), dot_by_dot(runs, width, height, roll)
+            laid = ground._laid(runs, width, height, roll)
+            shaded = {} if laid is None else {at: (mk, (g, g, g)) for at, mk, g in zip(
+                laid[0].tolist(), laid[1].tolist(), ground._shaded(laid, static).tolist())}
             report.check('the floor laid at once is the floor laid dot by dot, %dx%d step %d%s'
-                         % (width, height, step, ' rolled' if roll else ''), same(once, slow),
+                         % (width, height, step, ' rolled' if roll else ''),
+                         same(once, slow) and shaded == ground._greys(slow, static),
                          '%d cells against %d' % (len(once), len(slow)))
 
 

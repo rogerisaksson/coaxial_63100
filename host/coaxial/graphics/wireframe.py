@@ -5,7 +5,7 @@ import math
 import os
 
 from coaxial.draw import orientation
-from coaxial.graphics import creases, engine, preload, solids, stereotype
+from coaxial.graphics import creases, engine, paint, preload, solids, stereotype
 from coaxial.graphics.creases import OUTLINE_EXACT
 from coaxial.graphics import approach as _approach
 from coaxial.graphics import craft as _craft
@@ -259,7 +259,7 @@ def _cells(solid, m, cam, crew, face, foreign):
 
 def _paint(grid, tone, cells, cam, m, colour, persist, foreign):
     """The face: glow, halftone, rim, outline - in that order, each over the
-    last.
+    last; cell by cell, the reference `paint.painted` is held to (test_paint).
     """
     buf, coverage, reached, classes, levels, bare, seed = cells
     width, height = cam['width'], cam['height']
@@ -278,16 +278,9 @@ def _paint(grid, tone, cells, cam, m, colour, persist, foreign):
 
 
 def _painted(solid, m, cam, cells, colour, persist, foreign):
-    """`(buf, layer)`: the face painted from `cells` onto a blank grid -
-    `(row, col, glyph, tone)` for every cell it marks."""
-    width, height = cam['width'], cam['height']
-    grid = [[' '] * width for _ in range(height)]
-    tone = [[None] * width for _ in range(height)]
-    _paint(grid, tone, cells, cam, m, colour, persist, foreign)
-    layer = [(r, c, grid[r][c], tone[r][c])
-             for r in range(height) for c in range(width)
-             if grid[r][c] != ' ']
-    return cells[0], layer
+    """`(buf, layer)`: the face painted from `cells` at once (`paint.painted`) - its
+    cells, codepoints and packed tones: 24 -> 4.6 ms at 108x44."""
+    return cells[0], paint.painted(cells, cam, m, colour, persist, foreign)
 
 
 def _hold(persist, key, m, cells, buf, layer, settles):
@@ -391,6 +384,73 @@ def _geometry(width, height):
     return _geometries[(width, height)]
 
 
+#: Each solid's bounding radius by identity, the solid held so its id stays its own.
+_REACH = {}
+
+
+def _reach(solid):
+    """The solid's bounding radius about its origin, once a solid: a frame's walk over the
+    vertices was 1.5 ms at 108x44."""
+    got = _REACH.get(id(solid))
+    if got is None or got[0] is not solid:
+        if len(_REACH) >= MESHES_KEPT:
+            _REACH.clear()
+        pts = solid[0]
+        got = _REACH[id(solid)] = (solid, max(
+            math.sqrt(pts[3 * i] ** 2 + pts[3 * i + 1] ** 2 + pts[3 * i + 2] ** 2)
+            for i in range(len(pts) // 3)))
+    return got[1]
+
+
+def _rows(codes, inks, width, height):
+    """The frame's codepoints and packed tones as the writers after the face take them: rows of
+    characters, and of (r, g, b) or None."""
+    from coaxial.model.blocks import numpy as np
+    chars = list(map(chr, codes.tolist()))
+    kinds, which = np.unique(inks, return_inverse=True)
+    tuples = [None if v < 0 else (v >> 16, (v >> 8) & 0xFF, v & 0xFF) for v in kinds.tolist()]
+    tones = [tuples[k] for k in which.ravel().tolist()]
+    return ([chars[r * width:(r + 1) * width] for r in range(height)],
+            [tones[r * width:(r + 1) * width] for r in range(height)])
+
+
+def _wire(grid, tone, edges, buf, m, cam, colour):
+    """The chosen edges as strokes, hidden by the solid with a 2 % grace, cued by depth: the
+    drawing with no face."""
+    width, height = cam['width'], cam['height']
+    scale, cx, cy, distance = cam['scale'], cam['cx'], cam['cy'], cam['distance']
+    z_lo = min((v for v in buf if v), default=0.0)
+    z_hi = max(buf, default=1.0) or 1.0
+    span = (z_hi - z_lo) or 1.0
+    m0, m1, m2, m3, m4, m5, m6, m7, m8 = m
+    for a, b, zone in edges:
+        ax = m0 * a[0] + m1 * a[1] + m2 * a[2]
+        ay = m3 * a[0] + m4 * a[1] + m5 * a[2]
+        az = m6 * a[0] + m7 * a[1] + m8 * a[2]
+        bx = m0 * b[0] + m1 * b[1] + m2 * b[2]
+        by = m3 * b[0] + m4 * b[1] + m5 * b[2]
+        bz = m6 * b[0] + m7 * b[1] + m8 * b[2]
+        wa, wb = 1.0 / (distance - az), 1.0 / (distance - bz)
+        x0, y0 = cx + scale * wa * ax, cy - scale * 0.5 * wa * ay
+        x1, y1 = cx + scale * wb * bx, cy - scale * 0.5 * wb * by
+        steps = max(1, int(max(abs(x1 - x0), 2.0 * abs(y1 - y0))))
+        glyph = _glyph(x1 - x0, y1 - y0)
+        shades = SHADES.get(zone, SHADES['board'])
+        for i in range(steps + 1):
+            t = i / steps
+            px, py = int(x0 + (x1 - x0) * t), int(y0 + (y1 - y0) * t)
+            if not (0 <= px < width and 0 <= py < height):
+                continue
+            here = wa + (wb - wa) * t
+            # The solid decides visibility; the 2 % grace keeps an edge from
+            # losing to the very face it borders.
+            if here < buf[py * width + px] * 0.98:
+                continue
+            third = min(2, int(3.0 * (here - z_lo) / span))
+            grid[py][px] = glyph
+            tone[py][px] = shades[third] if colour else None
+
+
 def render(q, width, height, zoom=1.0, colour=True,
            horizon=True, face=True, tip=None, solid=None,
            distance=None, lift=0.44, crew=None, least=0, triad=False,
@@ -410,10 +470,7 @@ def render(q, width, height, zoom=1.0, colour=True,
     # horizon the way the old flight sims drew it.
     distance = 3.2 if distance is None else distance
     # The fit is a BOUNDING SPHERE, deliberately NOT the frame at hand.
-    pts = solid[0]
-    reach = max(math.sqrt(pts[3 * i] ** 2 + pts[3 * i + 1] ** 2
-                          + pts[3 * i + 2] ** 2)
-                for i in range(len(pts) // 3))
+    reach = _reach(solid)
     # The camera is tipped OUTSIDE the attitude, so screen X and Y map
     # one-to-one onto board X and Y; cy sits a shade above centre so the ground
     # fills the lower field.
@@ -422,7 +479,6 @@ def render(q, width, height, zoom=1.0, colour=True,
                         lift=lift)
     view = cam['view']
     m = engine.multiply(view, orientation.matrix(q))
-    scale, cx, cy = cam['scale'], cam['cx'], cam['cy']
 
     if face:
         # `m` comes back as the PAINTED pose's - one behind, ahead - so the
@@ -434,59 +490,30 @@ def render(q, width, height, zoom=1.0, colour=True,
     else:
         buf, layer = _cells(solid, m, cam, crew, False, foreign)[0], ()
 
-    grid = [[' '] * width for _ in range(height)]
-    tone = [[None] * width for _ in range(height)]
-
+    # The ground and the face composited at once, then rows for the writers over them.
+    from coaxial.model.blocks import numpy as np
+    depths = np.asarray(buf, float)
+    codes = np.full(width * height, paint.BLANK, np.int64)
+    inks = np.full(width * height, -1, np.int64)
     flown = _approach.flight(scroll or 0.0) if approach else None
     if horizon:
-        _ground(grid, tone, buf, distance, width, height, colour, view, scroll, flown)
-    for r, c, glyph, ink in layer:
-        grid[r][c] = glyph
-        tone[r][c] = ink
+        _ground(codes, inks, depths, distance, width, height, colour, view, scroll, flown)
+    if layer:
+        at, code, ink = layer
+        codes[at], inks[at] = code, ink
+    grid, tone = _rows(codes, inks, width, height)
     if triad:
         _triad(grid, tone, cam, m, colour)
     if persist is not None:
         _steady(grid, tone, width, height, persist)
-
-    z_lo = min((v for v in buf if v), default=0.0)
-    z_hi = max(buf, default=1.0) or 1.0
-    span = (z_hi - z_lo) or 1.0
-    m0, m1, m2, m3, m4, m5, m6, m7, m8 = m
-    # The lit raster IS the picture; the chosen edges only draw in wire mode.
-    for a, b, zone in ([] if face else edges):
-        ax = m0 * a[0] + m1 * a[1] + m2 * a[2]
-        ay = m3 * a[0] + m4 * a[1] + m5 * a[2]
-        az = m6 * a[0] + m7 * a[1] + m8 * a[2]
-        bx = m0 * b[0] + m1 * b[1] + m2 * b[2]
-        by = m3 * b[0] + m4 * b[1] + m5 * b[2]
-        bz = m6 * b[0] + m7 * b[1] + m8 * b[2]
-
-        wa, wb = 1.0 / (distance - az), 1.0 / (distance - bz)
-        x0, y0 = cx + scale * wa * ax, cy - scale * 0.5 * wa * ay
-        x1, y1 = cx + scale * wb * bx, cy - scale * 0.5 * wb * by
-
-        steps = max(1, int(max(abs(x1 - x0), 2.0 * abs(y1 - y0))))
-        glyph = _glyph(x1 - x0, y1 - y0)
-        shades = SHADES.get(zone, SHADES['board'])
-        for i in range(steps + 1):
-            t = i / steps
-            px, py = int(x0 + (x1 - x0) * t), int(y0 + (y1 - y0) * t)
-            if not (0 <= px < width and 0 <= py < height):
-                continue
-            here = wa + (wb - wa) * t
-            # The solid decides visibility; the 2 % grace keeps an edge from
-            # losing to the very face it borders.
-            if here < buf[py * width + px] * 0.98:
-                continue
-            third = min(2, int(3.0 * (here - z_lo) / span))
-            grid[py][px] = glyph
-            tone[py][px] = shades[third] if colour else None
-
+    if not face:
+        # The lit raster IS the picture; the chosen edges only draw in wire mode.
+        _wire(grid, tone, edges, buf, m, cam, colour)
 
     if approach:
-        lit = [at for at, v in enumerate(buf) if v]
-        box = ((lit[0] // width, lit[-1] // width, min(at % width for at in lit),
-                max(at % width for at in lit)) if lit else None)
+        lit = np.flatnonzero(depths)
+        box = ((int(lit[0]) // width, int(lit[-1]) // width, int((lit % width).min()),
+                int((lit % width).max())) if len(lit) else None)
         _approach.hud(grid, tone, buf, width, height, flown, _geometry(width, height),
                       scroll, int((scroll or 0.0) * GROUND_SPEED * RUNG_SPACING
                                   / _approach.GATE_EVERY), box, colour)
