@@ -186,6 +186,10 @@ strafes 2.9, turns 3.8, a spin 4.4, a hop down 11.1, the chair 11.6, the weave
   rad, 0.22 m/s for 0.15, into the chair's side -; lying back, the bed's
   touch lost two passes and her soles took 225/116 N; kept with a seat
   bearing her, its two points side by side giving no pitch, she slid off it.
+- The stop's nod bisected (`play_walk` on her law in C, her head against her
+  torso): 0.1 deg at 1c05786f, 101.2 at 1f1d039d, the branchless control pass -
+  its neck cut from her step only under 0.05 of her rhythm's gain, a brake's
+  1.000 all through. Before it `no_stride` let her neck go in a brake by name.
 - Her friction by heading: walking straight 45, -45 and -135 deg her head's
   peaks are 2 499, 2 276 and 2 252 m/s^3 where 0, 90 and 180 deg give 585, 597
   and 576 - her step's friction pyramid the world's x and z. Along each sole's
