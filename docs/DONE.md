@@ -341,3 +341,12 @@ the hundred before these: [DONE_1-50](DONE_1-50.md),
     (`console.HOLD_WINDOW_S`, 0.65 s) or the function key says that one's
     errand to that thing (`at`: the chair scene's two chairs each their
     own), F alone the first's once the hold lapses ([host](findings/host.md)).
+75. CI's host gate out of time and its moved bed: her page's close read its
+    world's pipe after ending it, and half a state on a POSIX pipe waited for
+    its rest for ever (show_humanoid past 120 s, the terminal pages and an
+    ortho shard past 300 s); drained while it ends now, `test_views_flying`
+    holding a world spilling 4 MB states closed within its wait, red on the
+    old close on CI. Her map's cell as high as HITS of a look's points say:
+    the moved bed's 95th 0.74 on Linux, told a table, 0.49 now. Her walk's
+    correction judged as a share of what the world's own model takes: 0.57
+    here, 0.62 on Linux ([identification](findings/identification.md)).

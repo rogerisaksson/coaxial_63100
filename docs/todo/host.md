@@ -14,14 +14,17 @@
   tour 20/0/21 (the errand a table, `_on_rows`), sprung 11/2/4, room 9.
   DOD: flat tables and arithmetic a reader follows, a raise where she
   cannot; test_structure holds the law's modules at 0.
-- **CI red since the emulator's update**: test_sysid_live 3 since 1f1d039d
-  (her insoles' weight 305.2 for 305.5 N at 0.315 N m rms,
-  the moments under her pelvis 0.57 and 0.53 N m rms, her mass 31.15 for
-  31.14 kg); the gate here 5347 of 5582 with these and the chair and snow
-  wobbles at -2e-4 (scenarios items 1 and 3); on CI's Linux the chair at
-  0 rad too (fell at 10.9 s rising, held here) and test_errands 4 of 18
-  (the chair borne 0.34, the jamb, the viewport's chair and bed; 18 here).
-  DOD: both workflows green on main.
+- **CI red, the host workflow**: test_sysid_live's sway, 3 checks (her
+  insoles 0.315 N m rms apart, the moments 0.57 and 0.53, no first moment
+  trusted) - at the sway's extreme her bare right sole lies 2.0 mm over the
+  floor, `leap.TOUCH_M`, is let go at 3.10 s, lifted 15 mm and lands at
+  3.34 s on 172 N (1f1d039d^: 1.9 mm, stood); the gate here the chair and
+  snow wobbles at -2e-4 (scenarios items 1 and 3). On CI's Linux alone:
+  test_errands' viewport chair (fell at 14.4 s) and bed (ends braking), on
+  3.12 the chair borne 0.34 and the door at z 3.35 too; test_scenarios'
+  chair at 0 rad (fell at 10.905 s); test_leap's standing two-footed jump;
+  test_native_heat on 3.12, SET_CLOCK unanswered at a dyno board's open, 2
+  runs of 3. DOD: both workflows green on main.
 - **CI red, the firmware workflow's Release job**: the emulator suite's bus
   group out of time at 480 s on CI's runner, its lines lost with it; here
   150 s since the echo test's limb of three at 475 MIPS. DOD: both presets
