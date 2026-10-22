@@ -1,7 +1,7 @@
 """The terminal the pages draw on: its rate, its chrome, the CRT, the console, a frame as it rasterises."""
 import sys
 
-from tools.dev.focus import chosen
+from tools.dev.focus import chosen, watchdog
 from views_kit import Report
 
 
@@ -485,9 +485,15 @@ ROSTER = (test_the_stand_shows_its_acts, test_the_page_tool_holds_one_frame, tes
           test_every_page_scrolls_its_boxes, test_a_frame_rasterises_as_the_terminal_draws_it,
           test_the_attitude_caps_its_frame_rate)
 
+#: The suite's time, s: past it every thread's stack said and the suite gone (`watchdog`),
+#: inside the relay's 300.
+SUITE_S = 280
+
+
 def main(argv=None):
     """Every test, or those the command line's words name, or its --shard k/n (tools.dev.focus)."""
     report = Report()
+    watchdog(SUITE_S)
     for test in chosen(ROSTER, sys.argv[1:] if argv is None else argv):
         print('\n-- %s --' % test.__name__[5:].replace('_', ' '))
         test(report)

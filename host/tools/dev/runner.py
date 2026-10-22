@@ -2,9 +2,12 @@
 
 The long ones as shards and the emulator's groups a job each: run, timed out, their trees
 killed."""
+import collections
+import contextlib
 import math
 import os
 import re
+import signal
 import subprocess
 import sys
 import time
@@ -45,11 +48,19 @@ SLICE_S = 10.0
 MAX_SHARDS = 32
 
 
+#: A run out of time: its Python processes' stacks said this long before its tree is killed, s.
+SAY_S = 10.0
+#: A captured run: its argv, its exit code - None out of time -, what it said.
+Captured = collections.namedtuple('Captured', 'args returncode stdout stderr')
+#: A crash's or a timeout's tail said, characters: a stuck page's stacks, the last header.
+CRASH_TAIL = 6000
+
+
 def run_captured(argv, timeout, cwd=None):
-    """`argv` run with its output captured, or None once `timeout` has
-    passed - the whole tree killed, not the child alone.
-    """
-    env = dict(os.environ, PYTHONIOENCODING='utf-8', PYTHONPATH=str(ROOT))
+    """`argv` run with its output captured. Past `timeout` its whole tree is killed, not the child
+    alone - on POSIX each of its Python processes first says its threads' stacks (faulthandler on
+    SIGABRT) - and its returncode is None, its output what it said till then."""
+    env = dict(os.environ, PYTHONIOENCODING='utf-8', PYTHONPATH=str(ROOT), PYTHONFAULTHANDLER='1')
     group = {'start_new_session': True} if os.name != 'nt' else {}
     proc = subprocess.Popen(argv, cwd=cwd, env=env, stdout=subprocess.PIPE,
                             stderr=subprocess.PIPE, text=True,
@@ -57,18 +68,30 @@ def run_captured(argv, timeout, cwd=None):
     try:
         out, err = proc.communicate(timeout=timeout)
     except subprocess.TimeoutExpired:
-        kill_tree(proc.pid)
-        proc.communicate()
-        return None
-    return subprocess.CompletedProcess(argv, proc.returncode, out, err)
+        return Captured(argv, None, *_last_words(proc))
+    return Captured(argv, proc.returncode, out, err)
+
+
+def _last_words(proc):
+    """(stdout, stderr) of `proc` out of time, its tree killed: on POSIX each Python process of its
+    group says its threads' stacks first (faulthandler on SIGABRT), SAY_S s at the most."""
+    if os.name != 'nt':
+        with contextlib.suppress(OSError):
+            os.killpg(proc.pid, signal.SIGABRT)
+        with contextlib.suppress(subprocess.TimeoutExpired):
+            proc.wait(timeout=SAY_S)
+    kill_tree(proc.pid)
+    return proc.communicate()
 
 
 def _parse(out, code, elapsed, timeout):
     """(tally, code, failing, elapsed, crash-or-None, groups-line-or-None) out of a suite's
-    output; `code` None is out of time."""
-    if code is None:
-        return None, None, [], elapsed, 'TIMEOUT after %ss' % timeout, None
+    output; `code` None is out of time, its last header and tail said with it."""
     lines = (out or '').splitlines()
+    header = next((l.strip() for l in reversed(lines) if HEADER_RE.match(l.strip())), None)
+    if code is None:
+        return None, None, [], elapsed, '\n'.join(filter(None, ['TIMEOUT after %ss' % timeout, header,
+                                                               ANSI_RE.sub('', out or '').strip()[-CRASH_TAIL:]])), None
     tally = None
     for line in reversed(lines):
         m = TALLY_RE.match(line.strip())
@@ -83,9 +106,8 @@ def _parse(out, code, elapsed, timeout):
     if tally is None:
         # The suite crashed before printing its own tally - a traceback, an
         # import error - in the test its last header names.
-        header = next((l.strip() for l in reversed(lines) if HEADER_RE.match(l.strip())), None)
         return (None, code, failing, elapsed,
-                '\n'.join(filter(None, [header, (out or '').strip()[-1500:]])), groups)
+                '\n'.join(filter(None, [header, (out or '').strip()[-CRASH_TAIL:]])), groups)
     return tally, code, failing, elapsed, None, groups
 
 
@@ -94,8 +116,6 @@ def run_one(path, timeout=300, extra=()):
     started = time.monotonic()
     done = run_captured([sys.executable, str(path)] + list(extra), timeout,
                         cwd=str(ROOT))
-    if done is None:
-        return _parse('', None, time.monotonic() - started, timeout)
     return _parse((done.stdout or '') + (done.stderr or ''), done.returncode,
                   time.monotonic() - started, timeout)
 

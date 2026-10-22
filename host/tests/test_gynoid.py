@@ -298,7 +298,8 @@ def test_every_build_runs_her(report):
 def test_her_tiers_by_the_machine(report):
     """`modes.afforded`, `chosen` and `told`: on 16 cores her 20 boards fit in-process and native,
     not on Renode; her body wired to in-process alone, that is chosen; on 2 cores in-process alone
-    fits. `sprung.state` tells her headroom beside her ratio."""
+    fits; on 1 none does and she runs in her own process. `sprung.state` tells her headroom beside
+    her ratio."""
     from machine import modes, sprung, worker
     fits = {name: ok for name, _c, ok in modes.afforded(16, 20)}
     report.check('on 16 cores 20 boards fit in-process and native, not on Renode; in-process chosen, the one wired',
@@ -307,6 +308,8 @@ def test_her_tiers_by_the_machine(report):
     few = {name: ok for name, _c, ok in modes.afforded(2, 20)}
     report.check('on 2 cores in-process alone fits', few['in-process'] and not few['native'] and not few['emulated']
                  and modes.chosen(2, 20) == 'in-process', modes.told(2, 20))
+    report.check('on 1 core none fits and she runs in her own process', modes.chosen(1, 20) == 'in-process',
+                 modes.told(1, 20))
     s = worker.session()
     worker.Her(s).said(0.5, 1.7)
     told = worker.told(s)

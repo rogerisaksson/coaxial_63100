@@ -50,17 +50,24 @@ def views():
 VIEW_TIMEOUT = 120
 
 
+#: A view out of time says this many of its last lines.
+LAST_WORDS = 120
+
+
 def run_view(name):
     """One view run against the stand-in for two frames; its whole process
     tree killed at the timeout - a view's crew workers held the captured
-    pipe otherwise, and the suite sat on it."""
+    pipe otherwise, and the suite sat on it -, its last words and its
+    processes' stacks said first (`tools.dev.runner.run_captured`)."""
     from tools.dev.runner import run_captured
     where = 'terminal' if name == 'menu.py' else os.path.join('terminal', 'views')
     done = run_captured(
         [sys.executable, '-X', 'utf8', os.path.join(where, name),
          '--simulated', '--frames', '2'] + EXTRA.get(name, []),
         VIEW_TIMEOUT, cwd=HOST)
-    if done is None:
+    if done.returncode is None:
+        said = [line.rstrip() for line in ansi_plain(done.stdout + '\n' + done.stderr).splitlines() if line.strip()]
+        print('\n'.join(['  %s out of time, its last words:' % name] + said[-LAST_WORDS:]))
         raise subprocess.TimeoutExpired(name, VIEW_TIMEOUT)
     return done
 

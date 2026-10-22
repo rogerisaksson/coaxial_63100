@@ -57,10 +57,9 @@ def test_the_loader_reads_the_pages(report):
     done = run_captured([sys.executable, '-X', 'utf8', '-m', 'terminal',
                          '--simulated', '--frames', '2'], VIEW_TIMEOUT, cwd=HOST)
     tail = ((done.stdout + done.stderr).strip().splitlines() or ['no output'])[-1][:70] \
-        if done is not None else 'timed out'
+        if done.returncode is not None else 'timed out'
     report.check('loader: python -m terminal --frames 2 exits 0',
-                 done is not None and done.returncode == 0
-                 and 'Traceback' not in done.stdout + done.stderr, tail)
+                 done.returncode == 0 and 'Traceback' not in done.stdout + done.stderr, tail)
 
 
 def test_the_view_loop_and_its_helpers(report):

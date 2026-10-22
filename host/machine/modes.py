@@ -41,9 +41,10 @@ def afforded(cores, boards):
 
 
 def chosen(cores, boards):
-    """The last tier of TIERS her body is wired to whose boards fit `cores` (`afforded`)."""
-    return [name for (name, _c, fits), (_n, _a, wired) in zip(afforded(cores, boards), TIERS)
-            if fits and wired][-1]
+    """The last tier of TIERS her body is wired to whose boards fit `cores` (`afforded`); the first,
+    her own process, where none does."""
+    return ([TIERS[0][0]] + [name for (name, _c, fits), (_n, _a, wired) in zip(afforded(cores, boards), TIERS)
+                             if fits and wired])[-1]
 
 
 def told(cores, boards):
