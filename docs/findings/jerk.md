@@ -159,6 +159,33 @@ strafes 2.9, turns 3.8, a spin 4.4, a hop down 11.1, the chair 11.6, the weave
   her turns' rows asked 4-7 rad/s^2 then. Not it: the law's 3 ms hold (solved
   every pass, the same peaks), her drawing (her head within 1 mm and 0.65 deg
   of MuJoCo's), her floor's boxes (the slab's top a plane, bit for bit).
+- Who pays at a stop: her rounds solve round what her soles' bounds clip and
+  trade it among the rows, the cheapest her neck (W_POSTURE among W_TURN and
+  W_COM). At the reverse's stop the rows ask the landed sole to pull, -71 to
+  -224 N in 0.1 s - her knees' row the most (-210 -> -44 N without it), her
+  turns' and her posture's next (-90, -91), her settle, contact damping,
+  momentum and height none -; the clip lets it go and the moment left is her
+  neck's at 268 rad/s^2, her arms' 15-38, her spine's 0. On the python twin,
+  whose errands are the C's to the digit (her neck's widest nod walk, reverse,
+  sprint, spin, weave, deg; a hand's peak walking, m/s^3; errands of 19):
+
+  | what her soles cannot give | neck | hand | errands |
+  | --- | --- | --- | --- |
+  | traded among the rows (as it is) | 101/105/102/52/62 | 3 679 | 19 |
+  | the rows', her strides handed over at omega (C) | 22/92/53/-/- | - | 18 |
+  | her inertia's while her soles alone bear her (C) | 0/15/0/0/17 | - | 14 |
+  | her neck and head at W_TURN | 0/3/1/0/3 | 13 332 | - |
+  | her upper body kept as first asked, soles alone | 0/1/0/0/16 | 2 334 | 16 |
+  | that, a prop's bearing held over 1/omega | 0/1/0/0/16 | 2 334 | 16 |
+  | her neck and head alone kept | 0/2/1/0/16 | 13 521 | 15 |
+
+  Handed over, her backing to the bed drifts 0.75 m aside in 2.75 s; her
+  inertia's, W from a stop takes 1.02-1.03 s (1.0) and a chair's seat bears
+  0.35 of her. Her upper body kept, her walk as it was (ortho 50 of 50):
+  backing, her yaw yields where her arms bore it - her heading -2.35 -> -1.82
+  rad, 0.22 m/s for 0.15, into the chair's side -; lying back, the bed's
+  touch lost two passes and her soles took 225/116 N; kept with a seat
+  bearing her, its two points side by side giving no pitch, she slid off it.
 - Her friction by heading: walking straight 45, -45 and -135 deg her head's
   peaks are 2 499, 2 276 and 2 252 m/s^3 where 0, 90 and 180 deg give 585, 597
   and 576 - her step's friction pyramid the world's x and z. Along each sole's

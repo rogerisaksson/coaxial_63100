@@ -220,22 +220,20 @@ serves its DOD; none an entry a case.
     on 0.75 m to its back and is down at 5.19 s. The balloons offer it there
     (F2; F alone the door ahead). DOD: the chair's, the bed's and the door's
     errands from every pose she sees them from, no fall.
-11. **Her stride handed over, not switched, at a stop** (found, the jerk in
-    her head): at the stop ending `play_walk`, `play_reverse` and
-    `play_sprint` her brake's last landing brings her capture point inside her
-    soles, her `need` and her step's `strides` go 1 to 0 in a law pass, and her
-    step leaves its projection for its rounds: their answer drives her neck 0 to
-    25 N m (268 rad/s^2), her WEP lifting its clamp 15 to 51.3, and her head
-    nods 101-105 deg in 0.15 s, chattering at its end - her neck unranged in her
-    world and her step, `_Q_LIM`'s -20 to +26 deg her setpoint's alone; the
-    referee's steady walk ends before it. Measured: her step's strides let go at
-    her omega (1/omega 0.3 s), her soles bearing alone - her head 12.8 -> 4.1
-    times her walk's reversing, 11.8 -> 3.4 sprinting, 2.4 -> 1.2 in her moves,
-    her neck within +21 deg - but three errands dock 0.5 m off and fall
-    (test_errands 16 of 19); her neck's range a braking stop row - within +29
-    deg, her head 2-4 times lower, her hands taking it (reversing 1.7 -> 6.4,
-    the chair 28 -> 59); ranged in her world - a hard stop, 3 300 m/s^3. DOD: no
-    segment flung at a stop, her errands as they are.
+11. **Her head not her balance's reaction mass** (found, the jerk in her
+    head; [jerk](../findings/jerk.md)): what her soles cannot give, her step's
+    rounds trade among its rows and her neck is the cheapest - at the stop
+    ending a walk, a reverse or a sprint it nods 101-105 deg in 0.15 s (268
+    rad/s^2, its WEP's 51.3 N m), 52 in a spin, 62 in the weave, 25-96 seated
+    and sitting down; her neck unranged in her world, `_Q_LIM` her setpoint's
+    alone. Kept as the rows first asked once a round has clipped, on her soles
+    alone, her upper body nods nowhere (0-16 deg), her hands no higher, her
+    walk the same - but backing, her yaw yields where her arms bore it and
+    three errands dock into the chair or lie unsure (16 of 19). Wants: her yaw
+    at a backing held without her arms (12 a candidate); a seat's and a bed's
+    touch giving pitch (1, a segment the skin); the dock's backing steer at
+    her own speed. DOD: her neck within `_Q_LIM` through every stop, spin and
+    weave, her hands no higher, her errands as they are.
 12. **Her soles' friction a pyramid along them** (found): her step clips a
     sole's force to mu along the world's x and z (`wbc_rounds.c`,
     `machine.wrench`'s `bounded`, `faced`, `_taken`; `pushed`, `wbc_cone.c`,
