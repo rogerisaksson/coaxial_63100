@@ -116,7 +116,13 @@ run no lower than the human's, a fall's head under 1 m/s. The takes (a leg
   kept: the prop counted by its share with the support spanned from PROP_ON
   (the rise fell at 1.3 m/s, 9.5 widths), and the soles not lifted by its
   excess besides (no rise, 6.5; errands 16 of 19 - the viewport's bed and
-  door, the south_face dock). The C mirror's striding solve on two soles,
+  door, the south_face dock). The crouch-down take tells her hips 0.17 m
+  ahead of her soles' middle (sagittal +2.05, past her toes: his heels
+  rise) and her legs 1.06 m/s shorter (8.4 axial/s): her knees fold ahead
+  of her fall and both soles unload at 2.95 s (60 -> 0 N at 0.4 g), and as
+  she lands in the squat her parry steps (NEED 1 at 3.05 s) - a human
+  squats on his toes and steps nowhere; crouch_up tells its hips 0.45
+  ahead at most. The C mirror's striding solve on two soles,
   nothing pinned, as a
   stride began at a share of 1e-8: the torques 2.2e-2 N m off the python's;
   the test judges two soles by her accelerations and loads, 3.6e-3 apart.

@@ -126,7 +126,10 @@ serves its DOD; none an entry a case.
    from it 6.4 with its rows waiting on `risen_back`, the runs and jogs 72:
    told 1.64 m/s she goes 0.34); the crouch
    takes, half a unit deeper with the straight leg their legs' zero, bottom
-   out at the human's full squat (knee 140 deg) and sit down at 0.3 m/s; the
+   out at the human's full squat (knee 140 deg) and sit down at 0.3 m/s -
+   told 0.17 m ahead of her soles' middle (past her toes) her parry steps,
+   and told 1.06 m/s shorter her knees fold ahead of her fall and her soles
+   unload (stunts.md); the
    long takes thinned to every second or third frame for the table's 512
    rows.
    Open by mechanism: her hands' jerk 7 700-20 900 m/s^3 where her walk's is
