@@ -98,8 +98,13 @@ saying): the take's tempo, drive, arms, crouch and lean, the rest the walk's.
   and the jog's 1.95 m/s at her size is a flight gait's.
 - A stop from the jog's 1.3-1.5 m/s falls, by the brake's rows or by the
   walk's pattern laid back over 2 s first (the rhythm slowed to 0.92 Hz, her
-  speed held at 1.3-1.6 m/s and the landings fell behind her capture point):
-  the stride's brake at speed, the law's; the bench's runs do not stop.
+  speed held at 1.3-1.6 m/s and the landings fell behind her capture point).
+  The brake's row (`sprung.BRAKE`, 500 ms to drive 0 and lift 0) ends her
+  stride at 1.0-1.6 m/s with her capture point 0.02-0.16 m past the front
+  sole, where the jog's landings had caught it 0.03-0.26 m ahead each step;
+  no step comes, both soles down she brakes 1.0 to 0.6 m/s in 0.3 s, her
+  knees fold (axial 0.5 to 1.4) and she pitches over at 15.95 s: the
+  stride's brake at speed, the law's. The bench's runs do not stop.
 - The loop lays one row a tick: two rows due in the same tick add (a
   pattern laid in the twist's tick read Hz 1.78 = 0.86 + 0.92, lift 1.90). A
   pattern is laid after the gait's rows.

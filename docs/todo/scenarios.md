@@ -161,7 +161,9 @@ serves its DOD; none an entry a case.
    is 2.0 and a run 4.5, S at 0.19 where 1.3 - by their patterns the jog
    take 6.0 widths and the run 20.5 at 1.3-2.0 m/s, her stride without
    flight, and a stop from 1.3 m/s falls as the sprint and moves
-   plays fall at their stops and turns; the run's leap holds 0.57 m for a
+   plays fall at their stops and turns (the brake's row ends the stride
+   in 500 ms with her capture point past the front sole, no step comes,
+   sequencer.md); the run's leap holds 0.57 m for a
    tap's 0.48 and the running jump falls: the brake, the gather and the
    leap (`leap.stride_hop`, `stride_leap`, tuned to 0.86 m/s) laid from the
    drives at her speed first, as the standing jump's push is (item 3) - the
