@@ -187,6 +187,16 @@ def front_page(args, opened, state):
     return menu.main(argv, preload=state)
 
 
+def kept(args, listed):
+    """The drawings the pages in `listed` draw in processes of their own (their AHEAD), started
+    for them now - by the time one is picked its drawing is up; none for a smoke run."""
+    from terminal.ui import ahead
+    for page in listed:
+        drawing = getattr(page, 'AHEAD', None)
+        if drawing is not None and not args.frames:
+            ahead.keep(*drawing)
+
+
 def run_page(page, name, args):
     """One page in this process: its answer."""
     try:
@@ -226,6 +236,7 @@ def main(argv=None):
     parser.add_argument('--frames', type=int, default=0,
                         help='draw this many and exit - the smoke')
     args = parser.parse_args(argv)
+    kept(args, [by_name(args.name)[0]] if args.name else pages())
     if sys.stdin.isatty() and not args.frames:
         # A pull's sources, built before a page runs their images (tools/target/current.py).
         from tools.target import current
@@ -254,5 +265,8 @@ def main(argv=None):
         view = None
         if code != TO_MENU:
             break
+        kept(args, pages())
+    from terminal.ui import ahead
+    ahead.let_go()
     leave(args)
     return code

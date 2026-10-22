@@ -9,6 +9,9 @@ page's own work, its instruments and rich, on one core while the drawing takes a
     lines = ahead.drawn(*args, lit=True, **kwargs)         # the frame before's asked; this one's asked
     ahead.close()
 
+A drawing can be started before its page opens and kept for it (`keep`, `take`, `let_go`): the
+terminal starts the pages' that say so (their AHEAD) as it opens and after a page closes.
+
 A module with a `warm()` has it run in the worker before the worker says it is up: what its first
 frame waits on, built while the page opens its board. The worker is a daemon and has no children:
 nothing it draws or warms may start a pool or a process crew (`coaxial.draw.easel` decimates
@@ -18,6 +21,7 @@ import importlib
 import os
 import queue
 import sys
+import threading
 import traceback
 import types
 
@@ -89,6 +93,10 @@ class Ahead:
         self._up = None
         self._asked = False
 
+    def alive(self):
+        """Whether its worker runs."""
+        return self._process.is_alive()
+
     def _ready(self):
         """The card the worker draws on, or None: waited for once, its start and `warm()` done."""
         if self._up is None:
@@ -137,3 +145,37 @@ class Ahead:
         self._process.join(timeout=wait)
         if self._process.is_alive():
             self._process.terminate()
+
+
+#: Drawings started before the page that draws with them, by (module, function).
+_KEPT: dict = {}
+_KEPT_LOCK = threading.Lock()
+
+
+def keep(module, function):
+    """A drawing of `module.function` started now and kept for the page that takes it; one a
+    drawing, the one kept left running."""
+    with _KEPT_LOCK:
+        kept = _KEPT.get((module, function))
+        if kept is None or not kept.alive():
+            _KEPT[(module, function)] = Ahead(module, function)
+
+
+def take(module, function):
+    """The kept drawing of `module.function` where it runs, else one started now."""
+    with _KEPT_LOCK:
+        kept = _KEPT.pop((module, function), None)
+    if kept is not None and kept.alive():
+        return kept
+    if kept is not None:
+        kept.close()
+    return Ahead(module, function)
+
+
+def let_go():
+    """Every kept drawing closed: the terminal on its way out."""
+    with _KEPT_LOCK:
+        kept = list(_KEPT.values())
+        _KEPT.clear()
+    for each in kept:
+        each.close()

@@ -1,5 +1,5 @@
 """The face painted at once (coaxial.graphics.paint, strokes): cell for cell, glyph and tone, what
-the reference passes (`wireframe._paint`) paint one cell at a time; the shadow it casts, the meshes under it, the easel it is drawn on."""
+the reference passes (`wireframe._paint`) paint one cell at a time; the shadow it casts, the meshes under it, the easel it is drawn on and kept for its page."""
 import math
 import sys
 
@@ -194,8 +194,49 @@ def test_the_easel_warms_from_a_cold_preload(report):
     report.check('the easel warms in a daemon process from a cold preload', got == 'up', got)
 
 
+def test_a_drawing_is_kept_for_its_page(report):
+    """The terminal starts a page's drawing as it opens (`ahead.keep`, one a drawing) and the page
+    takes that one (`ahead.take`); a take with none kept starts one; the terminal's way out closes
+    what is kept (`ahead.let_go`). On json.dumps: the mechanism, not the board's drawing."""
+    from terminal.ui import ahead
+    ahead.keep('json', 'dumps')
+    first = ahead._KEPT.get(('json', 'dumps'))
+    ahead.keep('json', 'dumps')
+    again = ahead._KEPT.get(('json', 'dumps'))
+    taken = ahead.take('json', 'dumps')
+    said = taken.drawn([1, 2])
+    fresh = ahead.take('json', 'dumps')
+    ahead.keep('json', 'loads')
+    kept = ahead._KEPT.get(('json', 'loads'))
+    ahead.let_go()
+    taken.close()
+    fresh.close()
+    report.check('a drawing kept for its page is the one it takes, and draws',
+                 first is again is taken and fresh is not taken and said == '[1, 2]'
+                 and not ahead._KEPT and kept is not None and not kept.alive(),
+                 '%r, kept %d' % (said, len(ahead._KEPT)))
+
+
+def test_a_named_page_s_drawing_starts_first(report):
+    """`python -m terminal imu` starts the page's drawing (its AHEAD) before the loader's own
+    imports; a page with none, a name no page has and a smoke run start nothing."""
+    import importlib
+    from terminal.ui import ahead
+    entry = importlib.import_module('terminal.__main__')
+    asked, real = [], ahead.keep
+    ahead.keep = lambda *drawing: asked.append(drawing)
+    try:
+        for argv in (['imu', '--port', 'COM3'], ['desk'], ['COM3'], ['imu', '--frames', '2'], []):
+            entry._drawing_first(argv)
+    finally:
+        ahead.keep = real
+    report.check('a named page\'s drawing starts first, and nothing else does',
+                 asked == [('coaxial.draw.easel', 'render')], str(asked))
+
+
 ROSTER = (test_the_face_is_painted_at_once, test_the_shadow_is_cast_at_once,
-          test_the_crew_decimates_as_this_process_does, test_the_easel_warms_from_a_cold_preload)
+          test_the_crew_decimates_as_this_process_does, test_the_easel_warms_from_a_cold_preload,
+          test_a_drawing_is_kept_for_its_page, test_a_named_page_s_drawing_starts_first)
 
 
 def main(argv=None):

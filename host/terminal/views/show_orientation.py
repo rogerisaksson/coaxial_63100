@@ -25,7 +25,7 @@ from coaxial.draw import easel, orientation
 from coaxial.graphics import card
 from coaxial.errors import RigError
 from terminal.loader import TO_MENU
-from terminal.ui.ahead import Ahead
+from terminal.ui import ahead
 from terminal.ui import console as _console, screen as _screen
 from terminal.ui.console import WHEEL_STEP
 from terminal.ui.screen import (PORT, FEED_HZ, FPS_CAP, Feed, Freshness, closing, mode_of, open_rig, run_view,
@@ -319,7 +319,7 @@ def parse_args(argv):
 def launch(args):
     """Everything before the first frame, the drawing's process started first: its card, meshes
     and crew come up while this one opens the board. Its process closed where the start fails."""
-    drawing = Ahead(easel.__name__, 'render') if drawn.apart(args) else None
+    drawing = ahead.take(easel.__name__, 'render') if drawn.apart(args) else None
     # While the board opens, this process's own drawing readied where its card is warm: it draws
     # until its drawing's process is up.
     held = {}
