@@ -277,7 +277,10 @@ Pages, tooling, suites and the local model's runner. The board's findings:
   front page 2.3 -> 0.9 s: the board's open 0.49 (the AFE's settle 0.3), its
   parts 0.10 (the map 0.25), the rotation vector 0.12, the first frame 0.15,
   drawn here on the warm card till the process is up, 2.1 s on, the exposure
-  and vote carried; by name, the card cold, 2.5 s. The crew's decimates had
+  and vote carried; by name, the card cold, 2.5 s. Its drawing kept from the
+  terminal's start (`AHEAD`), a named page's before the loader's imports:
+  by name 1.9 s, from the front page 0.9 s its own process's first frame.
+  The crew's decimates had
   dropped the bore's keep: a missing preload drew the two holes.
 - The front page's model was drawn at inner height - 2 inside a 1-column
   padding: a blank row top and bottom, a column each wall. Now the box's

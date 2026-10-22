@@ -168,3 +168,8 @@ the hundred and fifty before these: [DONE_1-50](DONE_1-50.md),
     29.6 fps turning, 19 -> 27 new poses a second; from the front page on the
     bench 2.3 -> 0.9 s, drawn here on the warm card till its process is up
     ([host](findings/host.md)).
+29. BOARD ATTITUDE's drawing started as the terminal opens and again after
+    the page closes (its AHEAD; `ahead.keep`, `take`, `let_go`), a named
+    page's before the loader's imports: on the bench by name 2.5 -> 1.9 s to
+    the first frame, from the front page 0.9 s, its own process's
+    ([host](findings/host.md)).
