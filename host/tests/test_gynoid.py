@@ -318,7 +318,34 @@ def test_her_tiers_by_the_machine(report):
     s['g']['world'].close()
 
 
-ROSTER = (test_her_tiers_by_the_machine, test_every_build_runs_her, test_a_virtual_body_is_told, test_a_leg_by_its_foot, test_a_body_with_mass_is_fitted,
+def test_the_referee_and_her_averages_in_c(report):
+    """Her worker's referee (`worker._is_fallen`, wbc_pass_paired) and her drives' averages
+    (wbc_pass_averaged) beside their numpy at every pass of her walk and a shove that throws her:
+    the same fall at each pass, a fall seen, the averages bit for bit."""
+    import numpy as np
+    from machine import worker
+    from tools.cores.orders import same
+    s = worker.session(walks=True)
+    g, apart, falls = s['g'], 0, 0
+    while g['t'] < 9.0 and s['fallen_at'] is None:
+        if abs(g['t'] - 5.0) < 0.0005:
+            g['world'].push((0.0, 0.0, 900.0), 0.2)
+        torque, power = s['torque'].copy(), s['power'].copy()
+        worker.stepped(s)
+        world, d = g['world'], g['world'].data
+        torque += worker.K * (d.ctrl - torque)
+        power += worker.K * (d.ctrl * d.qvel[world.vadr] - power)
+        _m, (down, ground), _at = g['_falls_by']
+        a, b = d.contact.geom[:d.ncon, 0], d.contact.geom[:d.ncon, 1]
+        fallen = bool(((down[a] & ground[b]) | (down[b] & ground[a])).any())
+        falls += fallen
+        apart += (fallen != worker._is_fallen(g, world)) + (not (same(torque, s['torque']) and same(power, s['power'])))
+    report.check('the referee and her averages in C are their numpy at every pass, a shove her fall',
+                 not apart and falls > 0 and s['fallen_at'] is not None, '%d apart, fallen at %s' % (apart, s['fallen_at']))
+    g['world'].close()
+
+
+ROSTER = (test_her_tiers_by_the_machine, test_the_referee_and_her_averages_in_c, test_every_build_runs_her, test_a_virtual_body_is_told, test_a_leg_by_its_foot, test_a_body_with_mass_is_fitted,
           test_dressed_or_bare, test_her_views_draw, test_her_skeleton_collides,
           test_each_drive_turns_from_its_gearbox, test_each_drive_is_held,
           test_a_gearbox_has_play, test_her_kinematics_as_motors)

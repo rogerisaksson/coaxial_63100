@@ -101,6 +101,15 @@ void wbc_pass_motor(wbc_world_t *w, double step_s);
 /** After the world's step: the work done and braked on `speed` (NULL: the joints'), each gearbox's peak. */
 void wbc_pass_metered(wbc_world_t *w, const double *speed, double step_s);
 
+/** Whether any of `ncon` contacts pairs a geom `a` marks with one `b` marks: each contact's geom
+    pair two ints at `geom`, `stride` bytes on from the one before (MuJoCo's mjContact). */
+int wbc_pass_paired(const unsigned char *geom, ptrdiff_t stride, int ncon, const unsigned char *a,
+                    const unsigned char *b);
+
+/** The drives' torque (ctrl) and its power on each joint's speed eased into `torque` and `power` by
+    `k` of the way (machine.worker's averages). */
+void wbc_pass_averaged(const wbc_world_t *w, double k, double *torque, double *power);
+
 /** Her IMU and encoders into `y` at its offsets (machine.edge): her turn, spin and specific force,
     each joint's angle and rate, each motor's angle through its gearbox. */
 void wbc_pass_felt(const wbc_world_t *w, double *y, int quat_at, int gyro_at, int accel_at, int q_at, int qd_at,

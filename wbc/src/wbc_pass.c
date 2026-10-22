@@ -8,6 +8,7 @@
 
 #include <math.h>
 #include <stddef.h>
+#include <string.h>
 
 void wbc_pass_drives(wbc_drives_t *p, double dt, double wo, double wo3, double ys, int in_hop, int wb)
 {
@@ -175,6 +176,32 @@ void wbc_pass_metered(wbc_world_t *w, const double *speed, double step_s)
   }
   w->work += npsum(pos, np_) * step_s;
   w->brake -= npsum(neg, nn) * step_s;
+}
+
+int wbc_pass_paired(const unsigned char *geom, ptrdiff_t stride, int ncon, const unsigned char *a,
+                    const unsigned char *b)
+{
+  int paired = 0;
+
+  for (int i = 0; i < ncon; i++)
+  {
+    int g[2];
+
+    memcpy(g, geom + i * stride, sizeof g);
+    paired |= (a[g[0]] & b[g[1]]) | (a[g[1]] & b[g[0]]);
+  }
+  return paired;
+}
+
+void wbc_pass_averaged(const wbc_world_t *w, double k, double *torque, double *power)
+{
+  const int n = w->n < WBC_PASS_MAX ? w->n : WBC_PASS_MAX;
+
+  for (int i = 0; i < n; i++)
+  {
+    torque[i] += k * (w->ctrl[i] - torque[i]);
+    power[i] += k * (w->ctrl[i] * w->qvel[w->vadr[i]] - power[i]);
+  }
 }
 
 double wbc_pass_drawn(const wbc_world_t *w, const double *tau, const double *speed, const double *loss,

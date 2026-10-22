@@ -275,13 +275,15 @@ def typed(lib):
     lib.wbh_pass_drawn.argtypes = [ctypes.POINTER(World), _vp, _vp, _vp, _vp, _vp, _vp, d, d]
     lib.wbh_pass_drawn.restype = d
     lib.wbh_pass_hem.argtypes = [i, d] + [_vp] * 9
+    lib.wbh_pass_paired.argtypes, lib.wbh_pass_paired.restype = [_vp, ctypes.c_ssize_t, i, _vp, _vp], i
+    lib.wbh_pass_averaged.argtypes = [ctypes.POINTER(World), d, _vp, _vp]
     lib.wbh_pass_hem.restype = None
     lib.wbh_sil_init.argtypes = [ctypes.POINTER(World), i, _vp, _vp]
     lib.wbh_sil_transceive.argtypes = [ctypes.POINTER(World), i, ctypes.c_char_p, i]
     lib.wbh_sil_transceive.restype = i
     lib.wbh_sil_drive.argtypes = [ctypes.POINTER(World), i, _vp, _vp, _vp, _vp, _vp]
     lib.wbh_sil_stats.argtypes = [i, _vp, _vp, _vp, _vp]
-    for name in ('wbh_pass_drives', 'wbh_pass_ctrl', 'wbh_pass_motor', 'wbh_pass_metered', 'wbh_pass_felt',
+    for name in ('wbh_pass_drives', 'wbh_pass_ctrl', 'wbh_pass_motor', 'wbh_pass_metered', 'wbh_pass_averaged', 'wbh_pass_felt',
                  'wbh_pass_contacts', 'wbh_pass_sensed', 'wbh_pass_heat_load', 'wbh_pass_heat',
                  'wbh_pass_heat_peak', 'wbh_sil_init', 'wbh_sil_drive', 'wbh_sil_stats'):
         getattr(lib, name).restype = None

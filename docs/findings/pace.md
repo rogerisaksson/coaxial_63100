@@ -118,3 +118,7 @@ machine ([body](body.md), [emulation](emulation.md),
   `.ctypes` built an object a call. Her loop 327 -> 311 us a pass, 5.0 %: two
   trees interleaved, each run's fastest 1 500 passes - another session's
   bursts doubled a whole run's own.
+- The page worker's referee and averages in C (`wbc_pass_paired` on MuJoCo's
+  own contact array, `wbc_pass_averaged`), their numpy's at every pass of a
+  walk and a shove that throws her (test_gynoid): a fall's test 7.2 -> 2.6
+  us, the averages 4.8 -> 1.4 us, 8 us of a worker pass's 380.

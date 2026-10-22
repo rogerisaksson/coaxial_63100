@@ -1,4 +1,6 @@
 """The gynoid worker process on her latent loop: paced to the clock, commands heard, state said."""
+import ctypes
+import functools
 import math
 import queue
 import time
@@ -224,17 +226,22 @@ def _is_fallen(g, world):
     hands - touches her ground (`floor.grounds`). By what she was doing, a tilt past 45 deg on a bed
     was a fall, and thrown back onto it she was down at 3.7 s."""
     m, d = world.model, world.data
+    paired, _averaged, address = _passing()
     if g.get('_falls_by', (None,))[0] is not m:
         np = world._np
         down = {m.body(n).id for n in edge.SKIN if not n.endswith(('_shank', '_foot', '_toes'))}
-        g['_falls_by'] = (m, np.isin(m.geom_bodyid, list(down)), np.isin(m.geom_bodyid, list(floor.grounds(m))))
-    _m, down, ground = g['_falls_by']
-    ncon = d.ncon
-    if not ncon:
-        return False
-    geom = d.contact.geom[:ncon]
-    a, b = geom[:, 0], geom[:, 1]
-    return bool(((down[a] & ground[b]) | (down[b] & ground[a])).any())
+        masks = (np.isin(m.geom_bodyid, list(down)), np.isin(m.geom_bodyid, list(floor.grounds(m))))
+        g['_falls_by'] = (m, masks, [address(mask) for mask in masks])
+    geom = d.contact.geom
+    return bool(paired(address(geom), geom.strides[0], d.ncon, *g['_falls_by'][2]))
+
+
+@functools.cache
+def _passing():
+    """wbc_pass.c's referee and the page's averages, bound once; `tools.cores.wbc.address`."""
+    from tools.cores import wbc as cores
+    lib = cores.library()
+    return lib.wbh_pass_paired, lib.wbh_pass_averaged, cores.address
 
 
 #: A pass of her world, s; her drives' torque, power and watts averaged over AVERAGE_S; a wear
@@ -327,9 +334,8 @@ def stepped(s):
     if s['fallen_at'] is None and _is_fallen(g, world):
         s['fallen_at'] = g['t']
     s['passes'] += 1
-    tau = world.data.ctrl
-    s['torque'] += K * (tau - s['torque'])
-    s['power'] += K * (tau * world.data.qvel[world.vadr] - s['power'])
+    _paired, averaged, address = _passing()
+    averaged(ctypes.byref(world.passing), K, address(s['torque']), address(s['power']))
     s['watts'] += K * (world.drawn() - s['watts'])
 
 

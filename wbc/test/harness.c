@@ -218,6 +218,17 @@ API void wbh_pass_motor(wbc_world_t *w, double step_s)
   wbc_pass_motor(w, step_s);
 }
 
+API int wbh_pass_paired(const unsigned char *geom, ptrdiff_t stride, int ncon, const unsigned char *a,
+                        const unsigned char *b)
+{
+  return wbc_pass_paired(geom, stride, ncon, a, b);
+}
+
+API void wbh_pass_averaged(const wbc_world_t *w, double k, double *torque, double *power)
+{
+  wbc_pass_averaged(w, k, torque, power);
+}
+
 API int wbh_world_size(void)
 {
   return (int)sizeof(wbc_world_t);
