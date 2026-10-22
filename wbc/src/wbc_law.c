@@ -150,6 +150,10 @@ void wbc_law_latent(const wbc_law_t *k, double *st, const double *tab, int ntab,
   out[k->turns] = turns;
   out[k->held] = p[k->zmp];
   out[k->yawed] = p[k->yaw];
+  for (int i = 0; i < 3; i++)
+  {
+    out[k->ducked + i] = p[k->duck + i];
+  }
 }
 
 void wbc_law_couple(const wbc_law_t *k, const double *q, const double *qd, const double *ref_q, const double *ref_v,

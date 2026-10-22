@@ -122,7 +122,7 @@ def cruises(way, drive, turns, going):
     return clip(cruise, going - AHEAD_M_S, going + AHEAD_M_S)
 
 
-def meets(xi, c, flat, cruise, om, turns, wide, across=0.0, reach=REACH_M):
+def meets(xi, c, flat, cruise, om, turns, wide, across=0.0, reach=REACH_M, apart=APART_M):
     """Where each sole lands (2, 2: along, across): it meets her capture point `xi`, carried
     along with her - a step's offset short of it along her going, what her `cruise` makes of
     a step, and the sole's own side of it by her width's (`wide` m between her soles). On its
@@ -131,7 +131,8 @@ def meets(xi, c, flat, cruise, om, turns, wide, across=0.0, reach=REACH_M):
     capture point was foreseen from her ZMP, e^(omega t) on, she lost 0.06 m/s a landing and
     went 0.33 m/s where 0.46 was asked; half a step ahead of her, she went 0.2 m/s: over a
     leg 16 cm ahead she rises 17 mm, 0.58 m/s to do it. No further than `reach` from her
-    centre of mass `c`, and APART_M its own side of the other sole (`flat` their middles)."""
+    centre of mass `c`, and `apart` its own side of the other sole (`flat` their middles): APART_M,
+    less as her width is asked narrower than she stood (`guarded` holds a swing off as it passes)."""
     step_s = np.pi / np.maximum(turns, TINY)
     grown = np.exp(om * step_s)
     led = LEADS * np.maximum((xi[ALONG] - c[ALONG]) - cruise / om, -0.04)
@@ -140,8 +141,33 @@ def meets(xi, c, flat, cruise, om, turns, wide, across=0.0, reach=REACH_M):
     meet = xi - np.stack([cruise * step_s / (grown - 1.0) - led + 0.0 * LIMBS,
                           -led_lat - LIMBS * wide / (grown + 1.0)], axis=1)
     return np.stack([c[ALONG] + clip(meet[:, ALONG] - c[ALONG], -reach, reach),
-                     flat[::-1, LEFT] + LIMBS * np.maximum(LIMBS * (meet[:, LEFT] - flat[::-1, LEFT]), APART_M)],
+                     flat[::-1, LEFT] + LIMBS * np.maximum(LIMBS * (meet[:, LEFT] - flat[::-1, LEFT]), apart)],
                     axis=1)
+
+
+def guarded(meet, over, flat, apart):
+    """Each striding sole's target (2, 2: along, across) - from `flat` to its landing `meet` as
+    far as it clears the floor (`over`) - held APART_M its own side of the other sole while their
+    middles lie within a sole's length along her way, `apart` past it: a track narrower than her
+    soles are wide passes the standing sole, then closes. As it was where far enough off."""
+    target, other = flat + (meet - flat) * over[:, None], flat[::-1]
+    overlap = clip(1.0 - np.abs(flat[:, ALONG] - other[:, ALONG]) / (2.0 * HALF_M), 0.0, 1.0)
+    floor = apart + (APART_M - apart) * overlap
+    held = LIMBS * np.maximum(floor - LIMBS * (target[:, LEFT] - other[:, LEFT]), 0.0)
+    return np.stack([target[:, ALONG], target[:, LEFT] + held], axis=1)
+
+
+def ducked(duck, held, stance, stood, dt):
+    """Her height's sidechain (a row's `ortho.DUCK`: depth m, attack s, release s): a touchdown
+    latches it, the envelope rises at the attack's rate to full, the latch lets go and it falls
+    on the release's time constant. ((latch, envelope) as `held` was, (her height's duck, its
+    rate), m): none at a depth of 0."""
+    depth, attack, release = duck
+    latch0, env0 = held
+    latch = np.maximum(latch0 * float(env0 < 1.0), np.maximum(stance - stood, 0.0).max())
+    env = np.minimum(env0 + latch * dt / np.maximum(attack, dt)
+                     - (1.0 - latch) * env0 * np.minimum(dt / np.maximum(release, dt), 1.0), 1.0)
+    return np.array([latch, env]), -depth * np.array([env, (env - env0) / dt])
 
 
 def rocks(rock, rate, acc):

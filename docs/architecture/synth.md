@@ -48,6 +48,9 @@ loop does with it ([sequencer](../findings/sequencer.md)):
 | clip | a take's beats as notes, legato | `takes.beats`, `takes.wire` |
 | patch, preset | a text; a gait take as amounts on the walk | the lisp; `takes.amounts` |
 | modulation, mod wheel | the patch's knobs moved by named amounts; a word of her movement language as one | `gait.MODIFIERS`, `tools.sim.normal` |
+| patch file | a dry state, a modifier, a morph, a schedule in bars, read as written | `machine.patch`, machine/runway.lisp |
+| sidechain | each touchdown latches a duck of her height: depth, attack, release | `ortho.DUCK`, `stride.ducked` |
+| sync trigger | the morph begun in the double support past the lateral voice's zero crossing, the asked ZMP in the soles' boxes | `patch.crossing`, `window`, `locked` |
 | program change | a text said in place of what was to come | `worker.heard_say`, `se2.said` |
 | envelope | a voice's blend from where it is to its note: attack the blend, sustain the note held, release the row back to rest (`REST_MS` 200), decay the brake (`gait_brake` 1800 ms, `sprung.BRAKE` 500) | `latent.FROM`, `TO`, `BLEND` |
 | legato, glide | contiguous notes drawn as one curve | `ortho.CURVE`, `latent.CONTIG` |
@@ -78,7 +81,9 @@ loop does with it ([sequencer](../findings/sequencer.md)):
   or a run on the oscillator her walk at the take's tempo and drive, 1.3-2.0
   m/s. A gate past 50 % (both legs swinging) is not a knob: `SWING` is a
   constant, not a note's.
-- Mono-summed feet, a ringing Q, an overdriven duck: `APART_M`, `REST_K` and
+- Mono-summed feet: her width asked narrower lowers the landings' floor
+  (APART_M) and `stride.guarded` keeps the swing off as it passes, but she
+  holds 81-95 mm at most (findings/sequencer.md). A ringing Q: `REST_K` and
   `HEIGHT_KD` are constants of the law, not the patch's.
 - Both arms overhead, both heels up: no voice (each is one limb against the
   other).

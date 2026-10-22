@@ -6,7 +6,7 @@
     python tools/sim/ballistic.py --mc 16 --span stride.LEADS=0.2:0.8 walk.amp.2=0.5:0.8
     python tools/sim/ballistic.py --search stride.LEADS=0.2:0.9 walk.amp.2=0.5:0.85
 
-Orchestrates simulations across flat wire rows (`ortho.ROW`, `<4I59f`) and branchless module
+Orchestrates simulations across flat wire rows (`ortho.ROW`, `<4I62f`) and branchless module
 constants (`stride`, `poise`, `impedance`, `modal`, `latent`) without coupling to anatomical
 or kinematic names. Candidates are scored against SO(3) geodesic mocap alignment (`gvs`),
 dimensionless Capture Point invariant gates, and normative human gait bounds (`normal`, `looks`).

@@ -27,13 +27,13 @@ from tools.cores import wbc
 #: wbc_imp_t's ints in its order, by the names of what fills them: her modes (`machine.modal`),
 #: the offsets of latent.step's out, of modal's y, fr and a.
 MODES = 'axial lateral drive pitch sagittal lift width list turn arms rock'.split()
-OUT = 'ref rate acc ks ds psi sway turns held yawed bend'.split()
+OUT = 'ref rate acc ks ds psi sway turns held yawed bend ducked'.split()
 Y = ('com vcom sole vsole load quat spin moment lowest hip tilt tilt_rate arm prop prop_lo prop_hi grip vhead '
      'hspin').split()
 FR = ('rot w0 floor weight knee pitch0 dt reach0 hips_by arm0 unit z0 mass ground floor_at'
       ' map_at map_way map_along map_rise map_n').split()
 A = ('stance com_acc sole_acc want fold fold_rate turned bend kdot going rolled headed tipped swung folds settle '
-     'edge heeled strides prefold swings raise need lead outside borne bend_rate cell').split()
+     'edge heeled strides prefold swings raise need lead outside borne bend_rate cell ducking').split()
 
 
 def _at(x):
@@ -179,7 +179,7 @@ def numpy_blas():
 
 #: wbc_law_t's ints and doubles in its order, by what fills them.
 LAW_INTS = ('n p driven z k d amp phase gain hz zmp yaw now from to t0 blend theta v0 v1 contig vals said at lerp '
-            'curve table ref rate acc ks ds psi sway turns held yawed bend').split()
+            'curve table ref rate acc ks ds psi sway turns held yawed bend duck ducked').split()
 LAW_DOUBLES = 'edge_s tau tau_v eso_0 eso_s sigma bleed'.split()
 
 

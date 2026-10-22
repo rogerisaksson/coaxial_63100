@@ -37,7 +37,8 @@ def test_a_text_compiles_to_rows(report):
                  and _same(k, (nan, 1200.0) + (nan,) * (n - 2)) and _same(d, (nan, 15.0) + (nan,) * (n - 2))
                  and _same(amp, (nan, 0.35, 0.4) + (nan,) * (n - 3))
                  and _same(phase, (nan, math.pi / 2) + (nan,) * (n - 2))
-                 and _same(p[ortho.GAIN:], (1.0, 1.1, nan, nan)), '%s' % (stream[1][:4],))
+                 and _same(p[ortho.GAIN:ortho.YAW + 1], (1.0, 1.1, nan, nan))
+                 and _same(p[ortho.DUCK], (nan,) * 3), '%s' % (stream[1][:4],))
     pre, go, rest = ortho.rows(tables['hop_asymmetric'])
     report.check('the hop: pre_load at 0 ms, propulsion at 400, her rest at 550 blended 200',
                  phases['hop_asymmetric'] == ('pre_load', 'propulsion')

@@ -235,7 +235,7 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
   double        stance[2], grounded, aloft[2], bears[2], along[2], gd, reach, meet[2][2], tip[2], tipping[2];
   double        tipped[2], fold[2], shorter[2], hip3[2][3], hips[2], rocked[2], flatten[2], edge[2], rounds[2][3];
   double        rr[2][3], axial[2], pressed, risen[2], lifted, com[3], late[2], lift2[2], clr[3][2], clear[3][2];
-  double        wide, top[2], land[2], adj[2], over[2], gated[2][2], len2[2];
+  double        wide, top[2], land[2], adj[2], over[2], len2[2], apart, held2[2][2], duck[2];
   double        loose[2][3], frame[3][3], ff[2][3], cm[3], gc[3], th[2], g2[2][2], cat[2][3], gg[2][3], pg2[2], pg;
   double        mvs[2], folds[2], l_ask, short_h, up_h[2];
   int           swaying;
@@ -447,7 +447,7 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
   reach = npmin(k->reach_m, gd * (c[2] - fr[k->f_floor]));
   wide = (2.0 * fr[k->f_w0]) * (1.0 + s.ref[k->width]);
   wbc_imp_landings(k, y, fr, a, rot, c, flat, xi, &cruise, om, turns, wide, across, reach, stood, u, flying, meet, top, land, adj,
-                   over);
+                   over, &apart);
   wbc_imp_rocks(k, s.ref[k->rock], s.rate[k->rock], s.acc[k->rock], tip, tipping, tipped);
   wbc_imp_folds(k, off, y + k->y_load, fr[k->f_knee] + a[k->a_bend], fold, shorter);
   a[k->a_prefold] = fold[0];
@@ -485,8 +485,9 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
       zd[m] += npeye(m, ax) * zda;
     }
   }
-  pressed = (s.acc[ax] + s.kp[ax] * ((s.ref[ax] - short_h / (k->axial_m * fr[k->f_hips_by])) - z[ax]))
-            + s.kd[ax] * (s.rate[ax] - zd[ax]);
+  wbc_imp_ducked(out + k->o_ducked, a + k->a_ducking, stance, stood, fr[k->f_dt], duck);
+  pressed = (s.acc[ax] + s.kp[ax] * (((s.ref[ax] + duck[0] / k->axial_m) - short_h / (k->axial_m * fr[k->f_hips_by])) - z[ax]))
+            + s.kd[ax] * ((s.rate[ax] + duck[1] / k->axial_m) - zd[ax]);
   for (int b = 0; b < 2; b++)
   {
     double sq[3];
@@ -533,12 +534,8 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
   }
   th[0] = turns * hurry[0];
   th[1] = turns * hurry[1];
-  for (int b = 0; b < 2; b++)
-  {
-    gated[b][0] = flat[b][0] + (meet[b][0] - flat[b][0]) * over[b];
-    gated[b][1] = flat[b][1] + (meet[b][1] - flat[b][1]) * over[b];
-  }
-  wbc_imp_goes(k, gated, flat, shod, v, u, th, kpf, kdf, g2);
+  wbc_imp_guarded(k, meet, over, flat, apart, held2);
+  wbc_imp_goes(k, held2, flat, shod, v, u, th, kpf, kdf, g2);
   for (int b = 0; b < 2; b++)
   {
     cat[b][0] = g2[b][0];

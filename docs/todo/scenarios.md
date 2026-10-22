@@ -150,7 +150,12 @@ serves its DOD; none an entry a case.
    slope_walk) are specials of the kind the modifiers replace - their
    amounts into the steering table's rows, one walk under them; the width
    amount moves nothing, the stride laying each landing its own side
-   (`stride.meets`).
+   (`stride.meets`). The runway patch (machine/runway.lisp) plays on her
+   but its 42 mm track: her landings hold 81-95 mm with the centre's sway
+   cut, and the sway kept she falls (sequencer.md) - the catwalk's line
+   wants the stance's lateral reach (the trunk's roll taking the swing's
+   reaction) before its track. DOD: the runway patch's wet, track and all,
+   26 bars standing, the feet never into each other passing.
    Open by mechanism: her hands' jerk 7 700-20 900 m/s^3 where her walk's is
    1 400-1 800 through the sit, the rise, the dance and the bed - the
    whole-body step's upper joints at W_POSTURE 1 against W_COM 1000 make her

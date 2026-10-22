@@ -102,7 +102,8 @@ double wbc_imp_interp(double x, const double *along, const double *rise, int n)
 void wbc_imp_landings(const wbc_imp_t *k, const double *y, const double *fr, double *a, const double *rot, const double c[3],
                       const double flat[2][2], const double xi[2], double *cruise, double om, double turns, double wide,
                       double across, double reach, const double stood[2], const double u[2], const double flying[2],
-                      double meet[2][2], double top[2], double land[2], double adj[2], double over[2])
+                      double meet[2][2], double top[2], double land[2], double adj[2], double over[2],
+                      double *apart)
 {
   const double *way = fr + k->f_map_way, *along = fr + k->f_map_along, *rise = fr + k->f_map_rise;
   const int     told = (int)fr[k->f_map_n];
@@ -124,7 +125,8 @@ void wbc_imp_landings(const wbc_imp_t *k, const double *y, const double *fr, dou
   {
     left_s[b] = step_s * (1.0 - u[b] * flying[b]);
   }
-  wbc_imp_meets(k, xi, c, flat, *cruise, om, turns, wide, across, reach, meet);
+  *apart = k->apart_m * npmin(wide / (2.0 * fr[k->f_w0]), 1.0);
+  wbc_imp_meets(k, xi, c, flat, *cruise, om, turns, wide, across, reach, *apart, meet);
   for (int b = 0; b < 2; b++)
   {
     s_meet[b] = ((meet[b][0] * rot[0] + meet[b][1] * rot[3]) * way[0] + (meet[b][0] * rot[2] + meet[b][1] * rot[5]) * way[1]) - start;
@@ -133,7 +135,7 @@ void wbc_imp_landings(const wbc_imp_t *k, const double *y, const double *fr, dou
   wbc_imp_footholds(k, along, rise, told, s_meet, s_fore, s_now, s_com, reach, hold, gap, (*cruise) * step_s, s_new, t2, l2, run,
                     cell);
   *cruise = npmin(*cruise, (npmin(run[0], run[1]) * turns) / PI);
-  wbc_imp_meets(k, xi, c, flat, *cruise, om, turns, wide, across, reach, meet);
+  wbc_imp_meets(k, xi, c, flat, *cruise, om, turns, wide, across, reach, *apart, meet);
   for (int b = 0; b < 2; b++)
   {
     s_meet[b] = ((meet[b][0] * rot[0] + meet[b][1] * rot[3]) * way[0] + (meet[b][0] * rot[2] + meet[b][1] * rot[5]) * way[1]) - start;

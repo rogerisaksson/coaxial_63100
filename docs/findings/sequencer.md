@@ -169,3 +169,47 @@ Her walk so modified, 12 s after the row (scratchpad modifier_play.py):
   ice_walk, slope_walk) are specials of the kind the modifiers replace: their
   amounts belong in the steering table's rows (the peer's rebuild), one walk
   under them.
+
+## The runway patch
+
+The patch as written (machine/runway.lisp: a dry state, the sneaker
+modifier, the phase-locked morph, the 32-bar schedule) compiled by
+`machine.patch` onto her voices (`patch.NODES`, `VOICELESS`) and played on
+her walk said: the dry laid at 10 s, the wet four bars on, at once, by a naive
+linear crossfade over two bars at a phase of the stride, or by the morph
+locked to the lateral voice's zero crossing (scratchpad patch_run.py with its
+meter: steps, touchdowns, the feet's lateral gap while they pass, the swing's
+clearance, the ZMP's margin in the hull of the standing soles, jerk).
+
+- Read as voices on the first pass, the heel's transient as the rock's
+  stiffening (13.6x K) felled her alone at 21.9 s; the hips' stereo width as
+  the centre's lateral sway (x1.55) beside the width target widened her to
+  230 mm and felled her. The heel's attack is her shoe's sole
+  (`mjcf.SOLE_S`): 21.6 ms on a 9.5 ms sole, 24.6 on her 20, 27.3 on 35.
+- With the voices she had, the naive crossfade at four phases of the stride
+  and the morph alike: no scuff, the swing at least 32.7 mm up, the ZMP never
+  out of the hull; the morph's fast high band (10 deg of lean in 3/4 of a
+  bar) touched the hull's edge 0.04 % of its two bars. Her blend crosses
+  parameters, not signals, and every swing is timed off one clock: her
+  touchdowns lie 0.3 deg apart on it, no PLL to add.
+- Two knobs laid, Python and C, her walk at their defaults to the last
+  column (0.70 m/s, 409 J/m, 2.55 off): the sidechain (a row's DUCK: depth,
+  attack, release; latched by each touchdown on her height's spring) and the
+  track (her width asked narrower lowers the landings' floor APART_M, which
+  her walk's 103 mm sits on; `stride.guarded` holds a swing APART_M off the
+  standing sole while they overlap along her way).
+- The morph locks on the ZMP her law asks, in the double support past the
+  crossing (pi - 2 PHI_W, her soles both standing 0 to 0.6 rad past it): at
+  the crossing itself the ZMP is mid-transfer, and her capture point runs
+  ahead of her soles walking, so a lock on it never opened.
+
+| the wet | laid | she does |
+| --- | --- | --- |
+| without its track | at once, naive at 0 and 0.5, the morph | stands; 114 BPM, 0.75 m/s, pelvis roll 0.096 rad (0.115), trunk 0.18 rad, bounce 14.9 mm (22.5) |
+| whole, the track 42 mm | naive at four phases | falls 4-10 s on, the feet 31-37 mm into each other passing |
+| whole | the morph | falls 24 s on, its track widening to 336 mm |
+
+- The narrow track is not hers yet: at a width of -0.58 (42 mm) she stands
+  only with the centre's lateral sway cut (0.31 to 0.11 or 0), her landings
+  then 81-95 mm apart, not 42: the swing sole on one stance sole's moment
+  reaches 75-87 mm (a 4 m/s^2 lateral against the 27 the pass at 42 asks).

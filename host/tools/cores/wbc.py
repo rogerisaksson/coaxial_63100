@@ -11,6 +11,7 @@ import numpy as np
 
 from tools import REPO
 from tools.cores.build import cached
+from machine import ortho
 from machine.wbc import MU
 from tools.cores.model import HEADER, rotation
 
@@ -87,7 +88,7 @@ class OrthoRow(ctypes.Structure):
     """ortho_row_t: a row on the wire (machine.ortho.ROW)."""
 
     _fields_ = [('id', ctypes.c_uint32), ('at', ctypes.c_uint32), ('blend', ctypes.c_uint32),
-                ('flags', ctypes.c_uint32), ('p', ctypes.c_float * 59)]
+                ('flags', ctypes.c_uint32), ('p', ctypes.c_float * ortho.P)]
 
 
 _vp = ctypes.c_void_p
@@ -332,7 +333,7 @@ class Core:
     def ortho_row(self, wire):
         """(id, at, blend, flags, p) unpacked by `ortho_row_t` in C from `wire`."""
         head = np.zeros(4, dtype=np.uint32)
-        p = np.zeros(59, dtype=np.float32)
+        p = np.zeros(ortho.P, dtype=np.float32)
         self.lib.wbh_ortho_row(
             ctypes.c_char_p(bytes(wire)),
             head.ctypes.data_as(ctypes.POINTER(ctypes.c_uint32)),

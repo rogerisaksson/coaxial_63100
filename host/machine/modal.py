@@ -100,7 +100,9 @@ STRIDES, PREFOLD, SWINGS, RAISE, NEED, LEAD, OUTSIDE, BORNE = 48, slice(49, 51),
 BEND_RATE = 59
 #: And, kept, the tread of a floor told her each swing lands on (`stride.footholds`), -1 none.
 CELL = slice(60, 62)
-ASK = 62
+#: And her sidechain's latch and envelope (`impedance._ducked`).
+DUCKING = slice(62, 64)
+ASK = 64
 
 #: A unit of each mode on her: her centre of mass down, m - to her ankles' stroke, her trunk
 #: upright over her soles: asked 0.15 m she came down 0.117 and stood there; her trunk's

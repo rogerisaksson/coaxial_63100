@@ -77,10 +77,12 @@ MODES = ('axial_compression', 'lateral_shift', 'sagittal_drive', 'pitch_attitude
 N = len(MODES)
 #: A row's parameters, one vector: each mode's target, stiffness, damping, amplitude and phase
 #: (rad); then her rhythm's gain (0 off, 1 on) and Hz, her ZMP's polygon (0 none, 1 the
-#: support polygon, 2 the dynamic footprint), her yaw momentum's limit, N m s.
+#: support polygon, 2 the dynamic footprint), her yaw momentum's limit, N m s; her sidechain
+#: (DUCK): her height ducked on each touchdown, m (down negative), its attack and its release, s.
 Z, K, D, AMP, PHASE = (i * N for i in range(5))
 GAIN, HZ, ZMP, YAW = (5 * N + i for i in range(4))
-P = 5 * N + 4
+DUCK = slice(5 * N + 4, 5 * N + 7)
+P = 5 * N + 7
 #: A row on the wire: id, at ms, blend ms, flags as u32; the parameters as f32.
 ROW = struct.Struct('<4I%df' % P)
 #: A row's flag: every parameter back to her rest. A behaviour's last row, blended REST_MS.
@@ -104,7 +106,7 @@ _HAS = ('(sequence_id N), (blend_duration 800ms), (duration 400ms) a phase, (lat
         '(impedance (stiffness MODE|global N|MAX_SYS_K) (damping MODE|global N) ..), (cpg_config (enable '
         'true|false) (frequency 1.1Hz) (amplitude MODE N) (phase_offset MODE OF_MODE 90deg)), (cpg_override '
         '(halt_oscillators)) a phase, (task_constraints (maintain_zmp (polygon support_polygon|'
-        'dynamic_footprint)) (limit_yaw_momentum N))')
+        'dynamic_footprint)) (limit_yaw_momentum N)), (sidechain (duck -0.026) (attack 12ms) (release 280ms))')
 
 
 def read(text):
@@ -214,6 +216,9 @@ _PAYLOAD = {
     ('cpg_config', 'phase_offset'): _offset,
     ('task_constraints', 'maintain_zmp', 'polygon'): _one(ZMP, 0.0, 2.0),
     ('task_constraints', 'limit_yaw_momentum'): _one(YAW, 0.0),
+    ('sidechain', 'duck'): _one(DUCK.start),
+    ('sidechain', 'attack'): _one(DUCK.start + 1, 0.0, unit='s'),
+    ('sidechain', 'release'): _one(DUCK.start + 2, 0.0, unit='s'),
 }
 _PHASE = {**{path: lay for path, lay in _PAYLOAD.items() if path != ('sequence_id',)},
           ('duration',): _head(_LASTS, 's'), ('cpg_override', 'halt_oscillators'): _halt}

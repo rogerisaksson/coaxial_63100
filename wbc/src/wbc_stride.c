@@ -314,7 +314,7 @@ double wbc_imp_cruises(const wbc_imp_t *k, double way, double drive, double turn
 
 void wbc_imp_meets(const wbc_imp_t *k, const double xi[2], const double c[3], const double flat[2][2],
                    double cruise, double om, double turns, double wide, double across, double reach,
-                   double meet[2][2])
+                   double apart, double meet[2][2])
 {
   const double step_s = PI / npmax(turns, k->tiny), grown = exp(om * step_s);
   const double led = k->leads * npmax((xi[0] - c[0]) - cruise / om, -0.04), s_ac = npsign(across);
@@ -326,8 +326,38 @@ void wbc_imp_meets(const wbc_imp_t *k, const double xi[2], const double c[3], co
     const double m1 = xi[1] - ((-led_lat) - (k->limbs[b] * wide) / (grown + 1.0));
 
     meet[b][0] = c[0] + npclip(m0 - c[0], -reach, reach);
-    meet[b][1] = flat[1 - b][1] + k->limbs[b] * npmax(k->limbs[b] * (m1 - flat[1 - b][1]), k->apart_m);
+    meet[b][1] = flat[1 - b][1] + k->limbs[b] * npmax(k->limbs[b] * (m1 - flat[1 - b][1]), apart);
   }
+}
+
+void wbc_imp_guarded(const wbc_imp_t *k, const double meet[2][2], const double over[2], const double flat[2][2],
+                     double apart, double held[2][2])
+{
+  for (int b = 0; b < 2; b++)
+  {
+    const double t0 = flat[b][0] + (meet[b][0] - flat[b][0]) * over[b], t1 = flat[b][1] + (meet[b][1] - flat[b][1]) * over[b];
+    const double overlap = npclip(1.0 - fabs(flat[b][0] - flat[1 - b][0]) / (2.0 * k->half_m), 0.0, 1.0);
+    const double floor_ = apart + (k->apart_m - apart) * overlap;
+
+    held[b][0] = t0;
+    held[b][1] = t1 + k->limbs[b] * npmax(floor_ - k->limbs[b] * (t1 - flat[1 - b][1]), 0.0);
+  }
+}
+
+void wbc_imp_ducked(const double duck_p[3], double held[2], const double stance[2], const double stood[2], double dt,
+                    double duck[2])
+{
+  const double latch0 = held[0], env0 = held[1];
+  const double landed = npmax(npmax(stance[0] - stood[0], 0.0), npmax(stance[1] - stood[1], 0.0));
+  const double latch = npmax(latch0 * (double)(env0 < 1.0), landed);
+  const double env = npmin((env0 + (latch * dt) / npmax(duck_p[1], dt))
+                               - ((1.0 - latch) * env0) * npmin(dt / npmax(duck_p[2], dt), 1.0),
+                           1.0);
+
+  held[0] = latch;
+  held[1] = env;
+  duck[0] = -duck_p[0] * env;
+  duck[1] = -duck_p[0] * ((env - env0) / dt);
 }
 
 void wbc_imp_rocks(const wbc_imp_t *k, double rock, double rate, double acc, double tip[2], double tipping[2],

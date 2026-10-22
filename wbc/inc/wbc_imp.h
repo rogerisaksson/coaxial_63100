@@ -15,7 +15,7 @@ typedef struct
 {
   int           n;            /**< her modes, and each's index */
   int           axial, lateral, drive, pitch, sagittal, lift, width, list, turn, arms, rock;
-  int           o_ref, o_rate, o_acc, o_ks, o_ds, o_psi, o_sway, o_turns, o_held, o_yawed, o_bend;
+  int           o_ref, o_rate, o_acc, o_ks, o_ds, o_psi, o_sway, o_turns, o_held, o_yawed, o_bend, o_ducked;
   int           y_com, y_vcom, y_sole, y_vsole, y_load, y_quat, y_spin, y_moment, y_lowest, y_hip, y_tilt;
   int           y_tilt_rate, y_arm, y_prop, y_prop_lo, y_prop_hi, y_grip, y_vhead, y_hspin;
   int           f_rot, f_w0, f_floor, f_weight, f_knee, f_pitch0, f_dt, f_reach0, f_hips_by, f_arm0, f_unit;
@@ -23,6 +23,7 @@ typedef struct
   int           a_stance, a_com_acc, a_sole_acc, a_want, a_fold, a_fold_rate, a_turned, a_bend, a_kdot;
   int           a_going, a_rolled, a_headed, a_tipped, a_swung, a_folds, a_settle, a_edge, a_heeled;
   int           a_strides, a_prefold, a_swings, a_raise, a_need, a_lead, a_outside, a_borne, a_bend_rate, a_cell;
+  int           a_ducking;
   int           free_by[3];   /**< the modes holding a sole that does not stand, an axis each */
   const double *hands;        /**< each mode's hand on a limb's place (n, 2, 3) */
   /* machine.impedance */
@@ -85,7 +86,12 @@ void   wbc_imp_hurried(const wbc_imp_t *k, const double aside[2], double om, con
 double wbc_imp_cruises(const wbc_imp_t *k, double way, double drive, double turns, double going);
 void   wbc_imp_meets(const wbc_imp_t *k, const double xi[2], const double c[3], const double flat[2][2],
                      double cruise, double om, double turns, double wide, double across, double reach,
-                     double meet[2][2]);
+                     double apart, double meet[2][2]);
+void   wbc_imp_guarded(const wbc_imp_t *k, const double meet[2][2], const double over[2], const double flat[2][2],
+                       double apart, double held[2][2]);
+/** machine.stride.ducked: her height's sidechain, (latch, envelope) `held` in place, the duck and its rate, m. */
+void   wbc_imp_ducked(const double duck_p[3], double held[2], const double stance[2], const double stood[2], double dt,
+                      double duck[2]);
 void   wbc_imp_rocks(const wbc_imp_t *k, double rock, double rate, double acc, double tip[2], double tipping[2],
                      double tipped[2]);
 void   wbc_imp_folds(const wbc_imp_t *k, const double off[2], const double loads[2], double bent, double fold[2],
@@ -117,7 +123,8 @@ double wbc_imp_interp(double x, const double *along, const double *rise, int n);
 void wbc_imp_landings(const wbc_imp_t *k, const double *y, const double *fr, double *a, const double *rot, const double c[3],
                       const double flat[2][2], const double xi[2], double *cruise, double om, double turns, double wide,
                       double across, double reach, const double stood[2], const double u[2], const double flying[2],
-                      double meet[2][2], double top[2], double land[2], double adj[2], double over[2]);
+                      double meet[2][2], double top[2], double land[2], double adj[2], double over[2],
+                      double *apart);
 double wbc_imp_floor_at(const double *along, const double *rise, int told, double s);
 double wbc_imp_floor_mean(const wbc_imp_t *k, const double *along, const double *rise, int told, double s0, double s1);
 
