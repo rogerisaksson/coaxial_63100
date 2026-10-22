@@ -24,9 +24,10 @@
   snow wobbles at -2e-4 (scenarios items 1 and 3). On CI's Linux alone:
   test_errands' viewport chair (fell at 14.4 s) and bed (ends braking), on
   3.12 the chair borne 0.34 and the door at z 3.35 too; test_scenarios'
-  chair at 0 rad (fell at 10.905 s); test_leap's standing two-footed jump;
-  test_native_heat on 3.12, SET_CLOCK unanswered at a dyno board's open, 2
-  runs of 3. DOD: both workflows green on main.
+  chair at 0 rad (fell at 10.905 s, 3.14); test_native_heat on 3.12,
+  SET_CLOCK unanswered at a dyno board's open, 2 gates of 4 - both with an
+  ortho shard hung in `Apart.close` - and none of 30 opens and 3 suite runs
+  alone. DOD: both workflows green on main.
 - **CI red, the firmware workflow's Release job**: the emulator suite's bus
   group out of time at 480 s on CI's runner, its lines lost with it; here
   150 s since the echo test's limb of three at 475 MIPS. DOD: both presets
