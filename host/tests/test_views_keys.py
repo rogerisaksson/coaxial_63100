@@ -121,7 +121,7 @@ def test_folded_into_the_page(report):
         folded, out = drawn(), drawn(column=True)
     finally:
         bindings.UX.update(column=False)
-    side = [line[-2] for line in folded.splitlines()[1:-1]]
+    side = [line[-1 - taskbar.RAIL // 2] for line in folded.splitlines()[1:-1]]
     mid = side.index('◂') if '◂' in side else -1
     key, edge = (taskbar._rgb(con.get_style(name)) for name in ('keys.key', 'frame.hud'))
     lit, dim = (taskbar._rgb(taskbar.breath(con, t)) for t in (0.0, SWEEP_S / 2.0))
@@ -149,8 +149,8 @@ def test_the_drawing_takes_the_columns_room(report):
         out, folded = at(True), at(False)
     finally:
         bindings.UX.update(column=False)
-    report.check("out: 106 of 150 the drawing's, the bridge's bar 48 of 120; folded, the rail's room: 143, "
-                 "the bar at its 80", out == (106, 106, 48) and folded == (143, 143, 80), (out, folded))
+    report.check("out: 106 of 150 the drawing's, the bridge's bar 48 of 120; folded, the rail's room: 141, "
+                 "83", out == (106, 106, 48) and folded == (141, 141, 83), (out, folded))
 
 
 ROSTER = (test_a_page_its_keys_the_terminals_after, test_esc_the_front_page, test_tab_and_help_in_any_mode,

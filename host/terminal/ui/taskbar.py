@@ -88,8 +88,13 @@ def bar_of(keys, now):
     return keys, None
 
 
-#: The instruments' column folded (Tab): a rail RAIL cells wide on the right edge.
-RAIL = 3
+#: The folded column's tab, a row each: its top on its edge's line, its arrow, the key that
+#: brings the column out (Tab, its keycap's ↹), its bottom on the line again.
+TAB = ('╭─┴─╮', '│ ◂ │', '│ ↹ │', '╰─┬─╯')
+#: The instruments' column folded (Tab): a rail its tab's width on the right edge, its edge's
+#: line down the middle.
+RAIL = len(TAB[0])
+EDGE = '│'.center(RAIL)
 #: The rail's arrow breathes with the screen's sweep (`chrome.SWEEP_S`): its ink from a key's
 #: down BREATH of the way to an instrument edge's and back - faint, slow.
 BREATH = 0.5
@@ -129,27 +134,22 @@ def breath(console, now):
     return key + Style(color=Color.from_rgb(*(round(b + k * (d - b)) for b, d in zip(bright, dim))))
 
 
-#: The folded column's tab, a row each: its top, its arrow, the key that brings the column out
-#: (Tab, its keycap's ↹), its bottom - on its edge's line.
-TAB = ('╭─╮', '│◂│', '│↹│', '╰─╯')
-
-
 class _Rail:
     """The instruments' column folded: its edge a line down the page, a tab in the middle of it,
-    its arrow breathing (`breath`) over its key - read when it is drawn, so a frame shown again
-    between draws breathes on."""
+    its arrow breathing (`breath`) over its key on the key bar's ground - read when it is drawn,
+    so a frame shown again between draws breathes on."""
 
     def __rich_console__(self, console, options):
         rows = options.height or len(TAB)
         top = (rows - len(TAB)) // 2
-        inks = {'◂': breath(console, time.monotonic()), '↹': 'keys.key'}
+        inks = {'◂': breath(console, time.monotonic()), '↹': 'keys.key', ' ': 'keys'}
         rail = Text(no_wrap=True)
         for row in range(rows):
             at = row - top
-            line = TAB[at] if 0 <= at < len(TAB) else ' │ '
+            line, ink = (TAB[at], inks) if 0 <= at < len(TAB) else (EDGE, {})
             rail.append('\n' if row else '')
             for cell in line:
-                rail.append(cell, style=inks.get(cell, 'frame.hud'))
+                rail.append(cell, style=ink.get(cell, 'frame.hud'))
         yield rail
 
 

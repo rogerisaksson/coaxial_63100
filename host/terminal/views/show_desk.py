@@ -40,8 +40,8 @@ VALUE = '[38;5;214m'       # the theme's `value`, the light source
 
 def bar_in(columns):
     """The bridge's bar in a window `columns` across: the drawing's room (`taskbar.room`, the
-    column as it stands) less a row's name, scale and reading (`desk.ROW`), 20 to 80."""
-    return max(20, min(80, room(columns) - desk.ROW))
+    column as it stands) less a row's name, scale and reading (`desk.ROW`), 20 at the least."""
+    return max(20, room(columns) - desk.ROW)
 
 
 def main(argv=None):

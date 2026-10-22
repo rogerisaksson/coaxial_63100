@@ -202,3 +202,7 @@ the hundred and fifty before these: [DONE_1-50](DONE_1-50.md),
 36. The drawing takes the folded column's room: BOARD ATTITUDE, angle, desk
     and thermal the window less the column as it stands (`taskbar.room`),
     not the open column's ([host](findings/host.md)).
+37. The folded column's tab 5 cells across, its edge's line run into it, its
+    arrow and key on the key bar's ground; one column on every page: chat
+    and render the template's 40 and its instrument, desk's bridge the whole
+    room, HUMANOID and the crafts `taskbar.room` (`terminal.ui.taskbar`).

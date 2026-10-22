@@ -16,12 +16,7 @@ import math
 import sys
 import time
 
-from rich import box
-from rich.align import Align
 from rich.layout import Layout
-from rich.panel import Panel
-from rich.table import Table
-from rich.text import Text
 
 from coaxial.draw.orientation import _qmul, matrix, normalise
 from coaxial.errors import RigError
@@ -30,11 +25,10 @@ from coaxial.graphics.crew import Crew
 from terminal.loader import answer
 from terminal.ui import bindings, screen as _screen
 from terminal.ui.console import WHEEL_STEP, Keys
-from terminal.ui.rate import Corner, rate_of
+from terminal.ui.rate import rate_of
 from terminal.ui.screen import paced
-from terminal.ui.chrome import Chrome
-from terminal.ui.stage import band_of, curtain, stage
-from terminal.ui.taskbar import RAIL, bar_of, footer, rail
+from terminal.ui.stage import band_of, curtain, hud, stage, viewport
+from terminal.ui.taskbar import bar_of, column, footer, rail, room
 from tools.render import facecheck
 
 _screen.CHATTER = False
@@ -72,28 +66,23 @@ def shown_angles(pose):
             math.degrees(math.atan2(m[3], m[0])))
 
 
-def hud(view, tris, cost_ms):
+def engine(view, tris, cost_ms):
+    """The column's instrument: the pose, the mesh budget, what the frame cost (`stage.hud`)."""
     shown = shown_angles(view['pose'])
-    grid = Table.grid(padding=(0, 1))
-    grid.add_column(style='label', justify='right')
-    grid.add_column(style='value')
-    for name, value in (('MODEL', view['model'].upper()),
-                        ('X', '%+7.1f' % shown[0]),
-                        ('Y', '%+7.1f' % shown[1]),
-                        ('Z', '%+7.1f' % shown[2]),
-                        ('SPIN', 'ON' if view['spin'] else 'off'),
-                        ('ZOOM', '%.2f' % view['zoom']),
-                        ('TRIS', '%d' % tris),
-                        ('FRAME', '%.1f ms' % cost_ms),
-                        ('LIGHT', '%.2f' % -shading.DUSK),
-                        ('SPOT', '%.2f' % shading.SPOT)):
-        grid.add_row(name, value)
-    return Panel(grid, title=' ENGINE ', title_align='left',
-                 box=box.ROUNDED, border_style='frame.hud')
+    return hud('ENGINE', (('MODEL', view['model'].upper()),
+                          ('X', '%+7.1f' % shown[0]),
+                          ('Y', '%+7.1f' % shown[1]),
+                          ('Z', '%+7.1f' % shown[2]),
+                          ('SPIN', 'ON' if view['spin'] else 'off'),
+                          ('ZOOM', '%.2f' % view['zoom']),
+                          ('TRIS', '%d' % tris),
+                          ('FRAME', '%.1f ms' % cost_ms),
+                          ('LIGHT', '%.2f' % -shading.DUSK),
+                          ('SPOT', '%.2f' % shading.SPOT)))
 
 
 def compose(view, size, rate=''):
-    wide = max(24, size.width - (24 if bindings.UX['column'] else RAIL) - 2)
+    wide = max(24, room(size.width))
     tall = max(10, size.height - 4)
     q = view['pose']
     # The cube is drawn from its own solid; the board is render's own, art and
@@ -110,13 +99,9 @@ def compose(view, size, rate=''):
     cost = 1000.0 * (time.perf_counter() - began)
 
     body = Layout()
-    drawn = Panel(Corner(Chrome(Align(Text.from_ansi(art), align='center',
-                                      vertical='middle'), 'RENDER'), rate),
-                  title=' RENDER ', title_align='left', box=box.HEAVY,
-                  border_style='frame', padding=0)
-    body.split_row(Layout(drawn, name='view'),
-                   Layout(hud(view, len(solid[1]) // 3, cost) if bindings.UX['column'] else rail(), name='hud',
-                          size=24 if bindings.UX['column'] else RAIL))
+    body.split_row(Layout(viewport('RENDER', art, rate, 'RENDER'), name='view'),
+                   Layout(engine(view, len(solid[1]) // 3, cost) if bindings.UX['column'] else rail(), name='hud',
+                          size=column()))
 
     whole = Layout()
     bar = footer(bar_of(PAD, time.monotonic())[0])

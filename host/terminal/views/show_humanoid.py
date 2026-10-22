@@ -25,7 +25,7 @@ from terminal.ui import bindings, recorder, screen as _screen
 from terminal.ui.ahead import Ahead
 from terminal.ui.screen import PORT, FPS_CAP, closing, run_view, say
 from terminal.ui.stage import boot, frame_of, hud, stage
-from terminal.ui.taskbar import column, footer, help_rows, helped
+from terminal.ui.taskbar import footer, help_rows, helped, room
 
 _screen.CHATTER = False
 
@@ -210,7 +210,7 @@ chat_box = gym.chat_box
 
 def size_of(console, args, up=0.0):
     size = console.size if console.is_terminal else None
-    width = args.width or max(24, (size.width if size else 110) - column() - 6)
+    width = args.width or max(24, room(size.width if size else 110))
     bar = footer(PAD['bar']).row_count + help_rows(PAD['groups'], up)
     return width, args.height or max(12, (size.height if size else 44) - 5 - bar - (gym.CHAT_ROWS + 2))
 

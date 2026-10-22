@@ -339,7 +339,8 @@ Pages, tooling, suites and the local model's runner. The board's findings:
   HUMANOID's pairs ran 194 cells, the terminal's at the bar's right end now,
   the page's cut before them. Esc over HUMANOID showed a small second front
   page; now the front page, the band its page's name alone. Folded, BOARD
-  ATTITUDE drew the open column's 106 of 150; now `taskbar.room`, 143.
+  ATTITUDE drew the open column's 106, chat, render a 24 column; now
+  `taskbar.room`, 141.
 
 ## Local model
 
