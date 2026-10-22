@@ -85,7 +85,9 @@ def stands(zmp, xi, low, high, om, held, up, swaying, beat, bears, stood, prop):
     level = np.maximum(over, felt)
     kept, foot = clip(held, 0.0, 1.0), clip(held - 1.0, 0.0, 1.0)
     zmp = zmp + kept * (into(zmp, xi, *spanned(low.min(axis=0), high.max(axis=0), prop), om, 1.0 - foot) - zmp)
-    # which soles stand. One asked up leaves the floor once that ZMP lies in the other. One
+    # which soles stand. One asked up leaves the floor once that ZMP lies in the other and the
+    # other bears as much of her: let go bearing 196 N, the other 43, she dropped onto it
+    # at 51 N and fell (play_about's stop, her head's swing no longer under her). One
     # whose swing has begun leaves once the other stands where it came down - or stays
     # down itself, come down ahead of her before its swing was out. Where it lands meets
     # her capture point, wherever that has gone: held down till her capture point was 5
@@ -98,7 +100,7 @@ def stands(zmp, xi, low, high, om, held, up, swaying, beat, bears, stood, prop):
     landed = np.array(leap.standing(off < 0.5, loads, level, rising, borne))
     early = (sweep > EARLY) & ((loads >= leap.TOUCH_N) | (stood > 0.5))
     gone = (flying > 0.5) & (landed[::-1] | (over > leap.TOUCH_M)) & ~early
-    lifting = ((up > LIFT_EPS) & ((within[::-1] & swaying) | (over > leap.TOUCH_M))) | gone
+    lifting = ((up > LIFT_EPS) & ((within[::-1] & swaying) | (over > leap.TOUCH_M)) & (loads <= loads[::-1])) | gone
     stance = np.array(leap.standing(~lifting, loads, level, rising, borne), float)
     # and into the soles that are to stand - her capture point kept in them too while both
     # do, the footprint said: let go there, a drive asked under a sway her soles refused

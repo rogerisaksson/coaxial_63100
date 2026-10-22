@@ -226,21 +226,11 @@ serves its DOD; none an entry a case.
     on 0.75 m to its back and is down at 5.19 s. The balloons offer it there
     (F2; F alone the door ahead). DOD: the chair's, the bed's and the door's
     errands from every pose she sees them from, no fall.
-11. **Her neck let go through a brake** (found, bisected; [jerk](../findings/jerk.md)):
-    since 1f1d039d `motion.control` cuts her neck from her step (its own PD)
-    only while her rhythm's gain is under 0.05; a brake's rhythm runs undriven
-    at gain 1, so at its last landing her step's rounds throw her head 101-105
-    deg (walk, reverse, sprint), 53 in a spin - before it a brake let it go by
-    name, 0.1-1.1 deg. Let go while her rhythm runs undriven in her landings'
-    footprint (`latent.HELD` 2): walk, sprint, spin 0.1, 1.1, 2.5 deg, bed and
-    bed_rise met - but play_about falls at 8.8 s, her stop leaning on the
-    head's swing since: the stand's row halts her rhythm (gain 0.76 -> 0) as
-    her need steps her again, `waits.held_rows` holding a halt the pass it is
-    due alone. Wants: a halt held through its blend while her need steps her,
-    then her neck let go. Before it already: 36 deg mid-gait (reverse, moves),
-    98-128 seated (the seat's two points give no pitch), the bed's slide at
-    13.5 s. DOD: her neck within `_Q_LIM` through every stop, her errands and
-    scenes as they are.
+11. **Her head's spasms left** ([jerk](../findings/jerk.md)): her neck let go
+    through a brake, a stop nods 1-4 deg; left: a spin's stop through a stand
+    34 deg (53 before), 36 mid-gait in reverse and moves, 106 seated (the
+    seat's two points give no pitch, her head its counterweight). DOD: her neck
+    within `_Q_LIM` through every scene, her errands and scenes as they are.
 12. **Her soles' friction a pyramid along them** (found): her step clips a
     sole's force to mu along the world's x and z (`wbc_rounds.c`,
     `machine.wrench`'s `bounded`, `faced`, `_taken`; `pushed`, `wbc_cone.c`,
@@ -250,3 +240,11 @@ serves its DOD; none an entry a case.
     once (`mjcf.CONE`). Along each sole's floor axes, the C alone, the
     diagonals' are the axes' (577, 547). DOD: her walk the same every way, the
     python twin bit for bit, no scene lost.
+13. **The bed's dock a coin's toss** (found): the viewport's lie_bed errand
+    lies in 3 of 11 starts 1e-4 rad apart, before her neck's brake and after
+    (test_errands' one passes by its start alone, CI's Linux red): she backs
+    39 deg off the bed's normal - `settle` sidesteps her past 45 deg alone, the
+    side's own end at her list (0.15 rad) - and stopped at its edge is turned
+    those 39 deg back at once and tips onto it. A stride's look-ahead in her
+    backing steer, the back ended in `settle`, the sidestep entered at her list:
+    the chair's dock 0 of 5. DOD: 11 of 11, the chair's 5 of 5 kept.

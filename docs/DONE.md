@@ -192,7 +192,27 @@ the hundred and fifty before these: [DONE_1-50](DONE_1-50.md),
 33. The start menu over a page taken out: Esc leaves a page for the front
     page, the band its name alone (`terminal.ui.bindings`, `taskbar`,
     `stage`; test_views_keys.py, [host](findings/host.md)).
-34. The suite's chair: sit and rise played from the ortho-DSP suite's
+34. Her head through a stop: her neck let go through a brake and a sole
+    let go only once the other bears as much of her (`motion.control`,
+    `poise.stands`, wbc_stride.c; [jerk](findings/jerk.md)).
+35. The folded column a tab: its edge a line, a tab in the middle of it,
+    its arrow breathing over Tab's keycap (`terminal.ui.taskbar`); the
+    pictures draw what the terminal draws where Consolas has no glyph
+    (`machine.ansi`).
+36. The drawing takes the folded column's room: BOARD ATTITUDE, angle, desk
+    and thermal the window less the column as it stands (`taskbar.room`),
+    not the open column's ([host](findings/host.md)).
+37. The folded column's tab 5 cells across, its edge's line run into it, its
+    arrow and key on the key bar's ground; one column on every page: chat
+    and render the template's 40 and its instrument, desk's bridge the whole
+    room, HUMANOID and the crafts `taskbar.room` (`terminal.ui.taskbar`).
+38. The tab's arrow breathing fainter: 0.3 of the way to an instrument
+    edge's ink, from 0.5 (`taskbar.BREATH`).
+39. Her agent's chat a drawer, slid as ?'s help (`taskbar.slid`): up with
+    the greeting as HUMANOID opens, on / while her prompt is open and
+    HELP_S after its last line, then down, her drawing taking its rows; its
+    lead a braille turning (`gym.drawer`, test_views_humanoid.py).
+40. The suite's chair: sit and rise played from the ortho-DSP suite's
     patches, paced to her springs, her arms held, docked at the patch's
     standoff (`machine.maneuver`, `seated`, `swing`; test_errands.py,
     [sequencer](findings/sequencer.md)).

@@ -2,7 +2,7 @@
 import math
 
 from coaxial.draw import cross_section
-from terminal.ui.taskbar import column
+from terminal.ui.taskbar import room
 
 
 #: The drawing's height before `fit` sizes it to the terminal. The can is
@@ -33,10 +33,8 @@ class Box:
 #: and below it (the two floor gauges); `fit` adds them to the can's rows.
 HOP_ROWS, FLOOR_GAUGES = 0, 2
 
-#: `stage.frame_of`'s furniture round the drawing: the viewport's frame and
-#: padding, 4 columns; the title band, key bar and frame edges, 4 rows.
-VIEWPORT_COLUMNS = 4
-
+#: `stage.frame_of`'s furniture round the drawing: the title band, key bar
+#: and frame edges, 4 rows.
 PAGE_ROWS = 4
 
 #: The narrowest drawing and lowest band on any terminal: below them the
@@ -70,7 +68,7 @@ def fit(aspect, size=None):
     """
     stretch = aspect / cross_section.DOTS_Y * cross_section.DOTS_X
     width = (NOMINAL_WIDTH if size is None else
-             max(MIN_WIDTH, size.width - column() - VIEWPORT_COLUMNS))
+             max(MIN_WIDTH, room(size.width)))
     band = (10 ** 6 if size is None else
             max(MIN_BAND, size.height - PAGE_ROWS - CAPTION_ROWS - FOOT_ROWS
                 - HOP_ROWS - FLOOR_GAUGES))

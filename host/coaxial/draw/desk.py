@@ -11,6 +11,10 @@ BAR = 38
 #: the thermistor's, which is asymmetric and needs both ends written out.
 SCALE = 13
 
+#: A row round its bar: the channel's name and scale ahead, its reading after; ROW their columns.
+HEAD, TAIL = '%3s %s ', ' %9s'
+ROW = len(HEAD % ('', ' ' * SCALE) + TAIL % '')
+
 #: THE RELEASE: how far a held peak falls back toward the bar's level an
 #: update, as a fraction of the distance between them. Fifteen percent
 #: at the ~8 updates a second these views run is a time constant of
@@ -157,8 +161,8 @@ class Desk:
             ends, now = self._scale(row)
             bar = self._bar(row, colour)
 
-            head = '%3s %s ' % (name, ends)
-            tail = ' %9s' % now
+            head = HEAD % (name, ends)
+            tail = TAIL % now
             if colour:
                 head = ansi.paint(head, ansi.WHITE)
                 tail = ansi.paint(tail, ansi.WHITE)

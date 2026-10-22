@@ -294,7 +294,7 @@ def test_the_thermal_page_shows_its_evidence(report):
                  and rows['AFE'].startswith('OP1U..OP2W (6)')
                  # three cells of label, a space, the value, inside the panel's
                  # frame and padding
-                 and all(len(value) <= page.PANEL_W - 8
+                 and all(len(value) <= scroll.HUD_WIDTH - 8
                          for value in rows.values()),
                  rows)
     # At the column's own width, in its states: a reading, none yet, a cold room, a limit.

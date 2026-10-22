@@ -44,7 +44,7 @@ from terminal.ui.ahead import Ahead
 from terminal.ui.screen import FPS_CAP, closing, drawn_next, run_view, say
 from terminal.ui.scroll import HUD_WIDTH
 from terminal.ui.stage import boot, frame_of, hud, stage
-from terminal.ui.taskbar import column
+from terminal.ui.taskbar import room
 from terminal.views.playback import Playback
 from terminal.views.quad import flight as flown
 from terminal.views.quad import flying, traces, wind
@@ -260,7 +260,7 @@ def look(camera, law, row, frame, chased, dt, near_m=NEAR_M, chase_m=CHASE_M, ba
 def size_of(console):
     """Cells for the drawing: what the viewport leaves beside the side column."""
     size = console.size if console.is_terminal else None
-    return (max(24, (size.width if size else 110) - column() - 6),
+    return (max(24, room(size.width if size else 110)),
             max(12, (size.height if size else 44) - 6))
 
 

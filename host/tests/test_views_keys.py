@@ -100,9 +100,9 @@ def test_her_modes_before_her_rows(report):
 
 
 def test_folded_into_the_page(report):
-    """A page drawn (`stage.frame_of`): its column folded to a rail - its arrow breathing with the
-    screen's sweep, a key's ink BREATH of the way to an edge's and back - at first, its band its name
-    alone; its boxes out on Tab."""
+    """A page drawn (`stage.frame_of`): its column folded to its edge, a tab in the edge's middle -
+    its arrow breathing with the screen's sweep, a key's ink BREATH of the way to an edge's and back
+    - at first, its band its name alone; its boxes out on Tab."""
     import io
     from rich.console import Console
     from rich.panel import Panel
@@ -121,19 +121,40 @@ def test_folded_into_the_page(report):
         folded, out = drawn(), drawn(column=True)
     finally:
         bindings.UX.update(column=False)
-    rail = [line.rstrip()[-2:-1] for line in folded.splitlines()[2:4]]
+    side = [line[-1 - taskbar.RAIL // 2] for line in folded.splitlines()[1:-1]]
+    mid = side.index('◂') if '◂' in side else -1
     key, edge = (taskbar._rgb(con.get_style(name)) for name in ('keys.key', 'frame.hud'))
     lit, dim = (taskbar._rgb(taskbar.breath(con, t)) for t in (0.0, SWEEP_S / 2.0))
-    report.check("at first: the band its name alone, the rail's arrow alone, no boxes; Tab the boxes, no rail",
-                 '≡' not in folded and 'TESTBED' in folded and rail == ['◂', ' '] and 'BOXED' not in folded
-                 and 'BOXED' in out and '◂' not in out, rail)
+    report.check("at first: the band its name alone, the column's edge a line with a tab in its middle - its "
+                 "arrow over Tab's keycap, no word -, no boxes; Tab the boxes, no rail",
+                 '≡' not in folded and 'TESTBED' in folded and abs(mid - len(side) // 2) <= 2 and side[0] == '│'
+                 and side[mid + 1] == '↹' and not set('TAB') & set(side) and 'BOXED' not in folded
+                 and 'BOXED' in out and '◂' not in out, (mid, len(side)))
     report.check("the arrow a key's ink as the sweep starts, BREATH of the way to an edge's half a sweep on",
                  lit == key and all(abs(d - k - taskbar.BREATH * (e - k)) <= 0.5 for d, k, e in zip(dim, key, edge)),
                  (lit, dim))
 
 
+def test_the_drawing_takes_the_columns_room(report):
+    """A page's drawing the window less the column as it stands and the viewport's frame
+    (`taskbar.room`): BOARD ATTITUDE drew 106 of 150 folded, open and folded again - the open
+    column's room, centred in the folded one's."""
+    from terminal.ui import bindings, taskbar
+    from terminal.views import show_desk, show_orientation
+
+    def at(column):
+        bindings.UX.update(column=column)
+        return taskbar.room(150), show_orientation.art_width(150), show_desk.bar_in(120)
+    try:
+        out, folded = at(True), at(False)
+    finally:
+        bindings.UX.update(column=False)
+    report.check("out: 106 of 150 the drawing's, the bridge's bar 48 of 120; folded, the rail's room: 141, "
+                 "83", out == (106, 106, 48) and folded == (141, 141, 83), (out, folded))
+
+
 ROSTER = (test_a_page_its_keys_the_terminals_after, test_esc_the_front_page, test_tab_and_help_in_any_mode,
-          test_her_modes_before_her_rows, test_folded_into_the_page)
+          test_her_modes_before_her_rows, test_folded_into_the_page, test_the_drawing_takes_the_columns_room)
 
 
 def main(argv=None):

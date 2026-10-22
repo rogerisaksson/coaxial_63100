@@ -34,7 +34,7 @@ from terminal.ui.console import Keys
 from terminal.ui.screen import PORT, ENTER_KEYS, paced
 from terminal.ui.chrome import Chrome
 from terminal.ui.stage import boot, curtain, header, hud, stage
-from terminal.ui.taskbar import RAIL, bar_of, footer, rail
+from terminal.ui.taskbar import bar_of, column, footer, rail
 
 #: Rows the page spends outside the transcript: band, input, key bar,
 #: and the frame's own two edges.
@@ -379,7 +379,7 @@ def compose(script, entry, state, origin, size, lead, blink):
     mid = Layout(name='mid')
     if state['tools']:
         side = Layout(hud(state['served'], state['tools']) if bindings.UX['column'] else rail(),
-                      name='tools', size=24 if bindings.UX['column'] else RAIL)
+                      name='tools', size=column())
         mid.split_row(Layout(log, name='log'), side)
     else:
         mid.update(log)

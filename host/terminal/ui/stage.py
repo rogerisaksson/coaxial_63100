@@ -338,11 +338,12 @@ def viewport(title, art, corner='', page=None):
 
 
 def frame_of(console, origin, title, art, boxes, keys, art_title=None,
-             under=None, dressed=True, gauges=None, wrap=False):
+             under=None, dressed=True, gauges=None, wrap=False, under_rows=None):
     """The template: title band (its `gauges` a Text after the name), viewport left,
     instruments right - hidden on Tab -, key bar - on two rows `wrap`ped -, `keys` the page's
-    pad (`bindings.page`): its bar, its help over it on ? (`help_panel`); `dressed` False for a
-    drawing with a HUD of its own."""
+    pad (`bindings.page`): its bar, its help over it on ? (`help_panel`); `under` the drawing
+    a hud, `under_rows` of it shown where it slides (`taskbar.slid`), else all; `dressed` False
+    for a drawing with a HUD of its own."""
     keys, help = bar_of(keys, time.monotonic())
     panel, rows = help_panel(*help, width=console.width) if help else (None, 0)
     shown = bindings.UX['column']
@@ -370,7 +371,7 @@ def frame_of(console, origin, title, art, boxes, keys, art_title=None,
         # short terminal instead of the other way round.
         whole['top'].update(drawn)
         whole['under'].update(under)
-        whole['under'].size = _rows_of(under) + 2
+        whole['under'].size = under_rows or _rows_of(under) + 2
     whole['hud'].update((Group(*boxes) if boxes else Text('')) if shown else rail())
     whole['hud'].size = column()
     whole['header'].update(header(title, origin, gauges))

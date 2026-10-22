@@ -2,7 +2,9 @@
 
     footer(pairs)          # the page's pairs from the left, the terminal's at the bar's right end
     bar_of(pad, now)       # (its bar's pairs, its help)
-    rail()                 # in the column's place, folded (`column`)
+    slid(held, wanted, now)  # a drawer's share up, slid as the help's
+    rail()                 # in the column's place, folded (`column`): its edge, a tab in its middle
+    room(width)            # the drawing's columns, `beside()` - the column as it stands, the frame - off
 
 A page's keys are its pad's (`terminal.ui.bindings`); `terminal.ui.stage` lays these round its
 drawing.
@@ -10,9 +12,7 @@ drawing.
 import math
 import time
 
-from rich import box
 from rich.color import Color
-from rich.panel import Panel
 from rich.style import Style
 from rich.table import Table
 from rich.text import Text
@@ -69,16 +69,22 @@ def footer(pairs, width=0):
 SLIDE_S, HELP_S = 0.25, 8.0
 
 
+def slid(held, wanted, now):
+    """How much of a drawer is up, 0 to 1, at the clock `now`: `held['up']` slid toward `wanted`
+    over SLIDE_S since its last frame (`held['framed']`)."""
+    step = (now - held['framed']) / SLIDE_S
+    held['up'] = max(0.0, min(1.0, held['up'] + max(-step, min(step, float(wanted) - held['up']))))
+    held['framed'] = now
+    return held['up']
+
+
 def helped(now):
-    """How much of the help is up, 0 to 1, at the clock `now`: slid toward ? (`bindings.UX`)
-    over SLIDE_S, let down HELP_S after the last key."""
+    """How much of the help is up at the clock `now`: slid toward ? (`bindings.UX`), let down
+    HELP_S after the last key."""
     ux = bindings.UX
     if ux['help'] and now - ux['keyed'] > HELP_S:
         ux['help'] = False
-    step = (now - ux['framed']) / SLIDE_S
-    ux['up'] = max(0.0, min(1.0, ux['up'] + max(-step, min(step, float(ux['help']) - ux['up']))))
-    ux['framed'] = now
-    return ux['up']
+    return slid(ux, ux['help'], now)
 
 
 def bar_of(keys, now):
@@ -89,16 +95,36 @@ def bar_of(keys, now):
     return keys, None
 
 
-#: The instruments' column folded (Tab): a rail RAIL cells wide on the right edge.
-RAIL = 3
+#: The folded column's tab, a row each: its top on its edge's line, its arrow, the key that
+#: brings the column out (Tab, its keycap's ↹), its bottom on the line again.
+TAB = ('╭─┴─╮', '│ ◂ │', '│ ↹ │', '╰─┬─╯')
+#: The instruments' column folded (Tab): a rail its tab's width on the right edge, its edge's
+#: line down the middle.
+RAIL = len(TAB[0])
+EDGE = '│'.center(RAIL)
 #: The rail's arrow breathes with the screen's sweep (`chrome.SWEEP_S`): its ink from a key's
 #: down BREATH of the way to an instrument edge's and back - faint, slow.
-BREATH = 0.5
+BREATH = 0.3
 
 
 def column():
     """The instruments' column's width, cells: its rail's folded (Tab, `bindings.UX`)."""
     return HUD_WIDTH if bindings.UX['column'] else RAIL
+
+
+#: `stage.viewport`'s frame and padding round the drawing, columns.
+VIEWPORT_COLUMNS = 4
+
+
+def beside():
+    """The columns beside the drawing: the instruments', folded or out (`column`), and the
+    viewport's frame."""
+    return column() + VIEWPORT_COLUMNS
+
+
+def room(width):
+    """The drawing's columns in a window `width` across: what `beside` leaves it."""
+    return width - beside()
 
 
 def _rgb(style):
@@ -116,19 +142,29 @@ def breath(console, now):
 
 
 class _Rail:
-    """The instruments' column folded: a rail on the right edge, its arrow breathing (`breath`) -
-    read when it is drawn, so a frame shown again between draws breathes on."""
+    """The instruments' column folded: its edge a line down the page, a tab in the middle of it,
+    its arrow breathing (`breath`) over its key on the key bar's ground - read when it is drawn,
+    so a frame shown again between draws breathes on."""
 
     def __rich_console__(self, console, options):
-        yield Panel(Text('◂', style=breath(console, time.monotonic()), justify='center'), box=box.ROUNDED,
-                    border_style='frame.hud', padding=0, expand=True, height=options.height)
+        rows = options.height or len(TAB)
+        top = (rows - len(TAB)) // 2
+        inks = {'◂': breath(console, time.monotonic()), '↹': 'keys.key', ' ': 'keys'}
+        rail = Text(no_wrap=True)
+        for row in range(rows):
+            at = row - top
+            line, ink = (TAB[at], inks) if 0 <= at < len(TAB) else (EDGE, {})
+            rail.append('\n' if row else '')
+            for cell in line:
+                rail.append(cell, style=ink.get(cell, 'frame.hud'))
+        yield rail
 
 
 _RAIL = _Rail()
 
 
 def rail():
-    """The instruments' column folded: a rail on the right edge, its arrow breathing."""
+    """The instruments' column folded: its edge, a tab in its middle, its arrow breathing."""
     return _RAIL
 
 

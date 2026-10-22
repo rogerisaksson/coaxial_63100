@@ -26,6 +26,7 @@ from terminal.ui import screen as _screen
 from terminal.ui.screen import PORT, FEED_HZ, FPS_CAP, Feed, closing, mode_of, open_rig, run_view, say
 from terminal.ui import bindings
 from terminal.ui.stage import frame_of, stage
+from terminal.ui.taskbar import room
 from terminal.views.desk.boxes import (buffer_box, chain_box, digital_box, legend,
                                        scale)
 from terminal.views.desk.load import (HOST_RING, _clocked, drain, duties_from, plan,
@@ -35,6 +36,12 @@ _screen.CHATTER = False     # the boot bar replaced the scroll
 
 
 VALUE = '[38;5;214m'       # the theme's `value`, the light source
+
+
+def bar_in(columns):
+    """The bridge's bar in a window `columns` across: the drawing's room (`taskbar.room`, the
+    column as it stands) less a row's name, scale and reading (`desk.ROW`), 20 at the least."""
+    return max(20, room(columns) - desk.ROW)
 
 
 def main(argv=None):
@@ -102,7 +109,7 @@ def watch(rig, args, layout, chain, params):
         columns = os.get_terminal_size().columns
     except OSError:
         columns = 100
-    bridge = desk.Desk(bar=max(20, min(80, columns - 72)))
+    bridge = desk.Desk(bar=bar_in(columns))
     period = 1.0 / max(args.hz, 0.5)
 
 
@@ -149,7 +156,7 @@ def watch(rig, args, layout, chain, params):
     def draw():
         # Re-fitted every frame: the bars shrink with the tty instead of
         # overflowing the frame and sliding.
-        bridge.bar = max(20, min(80, (board_view.size.width or 100) - 72))
+        bridge.bar = bar_in(board_view.size.width or 100)
         # Everything queued since the last frame, taken in one go.
         records = [inbox.popleft() for _ in range(len(inbox))]
         host['held'] = len(inbox)

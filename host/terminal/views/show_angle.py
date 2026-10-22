@@ -28,7 +28,7 @@ from terminal.ui import aspect as _aspect, screen as _screen
 from terminal.ui.demo import stop_motor, sweep_motor
 from terminal.ui.screen import (PORT, FEED_HZ, FPS_CAP, Feed, Freshness, closing, mode_of, open_rig, run_view,
                                 say, steady)
-from terminal.ui import bindings
+from terminal.ui import bindings, taskbar
 from terminal.ui.stage import frame_of, hud, stage
 
 _screen.CHATTER = False     # the boot bar replaced the scroll
@@ -59,10 +59,9 @@ ART_LEAST = 12
 #: with the scales beside it. Under that the face stands alone;
 #: `--scales` and `--no-scales` force either way.
 FACE_MIN = 36
-#: What the stage takes off a terminal's columns before the art: the
-#: instrument column and the viewport's frame and padding; off its rows:
-#: the band, the key bar, the viewport's frame and the caption under the face.
-STAGE_COLS = 40 + 4
+#: What the stage takes off a terminal's rows before the art: the band, the
+#: key bar, the viewport's frame and the caption under the face; off its
+#: columns, `taskbar.room`.
 STAGE_ROWS = 5
 #: How often TSEN and FIELD are read again while the page runs. Each read
 #: is one register through `configuring()`, which stops the poll loop on
@@ -112,7 +111,7 @@ def fit(columns, lines=0, forced=None):
     """(scales, face width, face height) for a terminal `columns` wide and
     `lines` tall - 0 for one that would not say - and `forced` True or
     False from the command line, None to decide from the width."""
-    room = columns - STAGE_COLS if columns else 0
+    room = taskbar.room(columns) if columns else 0
     tall = max(ART_LEAST, lines - STAGE_ROWS) if lines else ART_HEIGHT
     with_scales = room - 2 * (dial.SCALE_W + 1)
     scales = (with_scales >= FACE_MIN) if forced is None else forced

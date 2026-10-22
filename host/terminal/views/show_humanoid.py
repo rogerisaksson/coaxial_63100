@@ -25,7 +25,7 @@ from terminal.ui import bindings, recorder, screen as _screen
 from terminal.ui.ahead import Ahead
 from terminal.ui.screen import PORT, FPS_CAP, closing, run_view, say
 from terminal.ui.stage import boot, frame_of, hud, stage
-from terminal.ui.taskbar import column, footer, help_rows, helped
+from terminal.ui.taskbar import footer, help_rows, helped, room
 
 _screen.CHATTER = False
 
@@ -208,11 +208,13 @@ def labels(now, called, shown='torque'):
 chat_box = gym.chat_box
 
 
-def size_of(console, args, up=0.0):
+def size_of(console, args, up=0.0, below=0):
+    """(width, height) of her drawing: the room beside the column, the rows the band, the bar, `up`
+    of the help and the `below` her chat's drawer takes leave."""
     size = console.size if console.is_terminal else None
-    width = args.width or max(24, (size.width if size else 110) - column() - 6)
+    width = args.width or max(24, room(size.width if size else 110))
     bar = footer(PAD['bar']).row_count + help_rows(PAD['groups'], up)
-    return width, args.height or max(12, (size.height if size else 44) - 5 - bar - (gym.CHAT_ROWS + 2))
+    return width, args.height or max(12, (size.height if size else 44) - 5 - bar - below)
 
 
 def _sync_actual(now, keys):
@@ -445,13 +447,14 @@ def main(argv=None):
         _sync_actual(now, state['pad'])
         if now is not None:
             viewpoint.orbited(state, now['t'])
-        up = helped(t_mono)
+        up, below = helped(t_mono), gym.drawer(state, t_mono)
         # Drawn a frame ahead: this frame shows the state asked the frame before, its boxes too.
         shown, state['drawn'] = state.get('drawn') or now, now
-        w_vp, h_vp = size_of(board_view, args, up)
+        w_vp, h_vp = size_of(board_view, args, up, below)
         art = _draw_viewport(state, now, w_vp, h_vp, terminal)
         return frame_of(board_view, state['origin'], TITLE, art, boxes(state, shown, name), PAD,
-                        under=chat_box(state, w_vp), gauges=gauges(state))
+                        under=chat_box(state, w_vp) if below else None, under_rows=below,
+                        gauges=gauges(state))
 
     try:
         body, name = _boot_humanoid(board_view, state)
@@ -461,7 +464,8 @@ def main(argv=None):
             gym.submit_prompt(state, args.prompt)
         wheeled = lambda _keys, wheel: viewpoint.zoomed(state, max(0.5, 1.0 + wheel)) if wheel else None
         leaving = run_view(board_view, terminal, 1.0 / max(1.0, args.hz), args.frames, draw, on_input=wheeled,
-                           pad=PAD, state=state, **viewpoint.mouse(state, lambda: size_of(board_view, args), clicked))
+                           pad=PAD, state=state, **viewpoint.mouse(state, lambda: size_of(
+                               board_view, args, below=state['drawer']['rows']), clicked))
     finally:
         if state.get('emu') is not None:
             state['emu'].close()

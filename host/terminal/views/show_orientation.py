@@ -31,6 +31,7 @@ from terminal.ui.console import WHEEL_STEP
 from terminal.ui.screen import (PORT, FEED_HZ, FPS_CAP, Feed, Freshness, closing, mode_of, open_rig, run_view,
                                 say)
 from terminal.ui.stage import boot, frame_of, hud, stage
+from terminal.ui.taskbar import room
 from terminal.views import drawn
 
 _screen.CHATTER = False     # the boot bar replaced the scroll
@@ -84,7 +85,7 @@ def canvas(args):
 
     try:
         size = os.get_terminal_size()
-        width, height = size.columns - 2, size.lines - 4
+        width, height = size.columns, size.lines - 4
     except OSError:
         width, height = 100, 40         # not a terminal: still worth drawing
 
@@ -273,14 +274,15 @@ def compose(origin, args, view, colour, console):
 #: it.
 ZOOM, TOON_ZOOM = 1.44, 0.88
 
-#: Columns the instruments take beside the drawing, and the fewest the drawing keeps.
-HUD_COLUMNS, ART_LEAST = 42, 24
+#: The fewest columns the drawing keeps.
+ART_LEAST = 24
 
 
 def art_width(wide):
-    """The drawing's columns in a window `wide` across: the full width the HUD leaves over - a
-    2*tall+14 cap cropped a zoomed model at the frame long before the window ran out."""
-    return max(ART_LEAST, wide - HUD_COLUMNS)
+    """The drawing's columns in a window `wide` across: all the instruments' column leaves, folded
+    or out (`taskbar.room`) - a 2*tall+14 cap cropped a zoomed model at the frame long before the
+    window ran out."""
+    return max(ART_LEAST, room(wide))
 
 
 def period_of(hz):

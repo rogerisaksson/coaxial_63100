@@ -347,10 +347,32 @@ def test_a_scene_laid_anew_is_told_the_keys_again(report):
                  len(twists) == 2 and twists[0] == twists[1] and twists[0][0] > 0.5, twists)
 
 
+def test_her_chat_a_drawer(report):
+    """Her chat slides as ?'s help (`gym.drawer`): up with the greeting as the page opens, down
+    HELP_S after; up on / while her prompt is open, HELP_S after her answer, then down; its lead
+    a braille turning."""
+    from terminal.ui.recorder import SPIN
+    from terminal.ui.taskbar import HELP_S, SLIDE_S
+    from terminal.views import gym
+    st, t = {'chat_rows': [gym.CHAT_GREETING]}, 100.0
+    opened = [gym.drawer(st, t + k * SLIDE_S / 2.0) for k in range(3)]
+    greeted = [gym.drawer(st, t + HELP_S - 0.01), gym.drawer(st, t + HELP_S + SLIDE_S)]
+    gym.open_prompt(st)
+    typing = [gym.drawer(st, t + 30.0), gym.drawer(st, t + 30.0 + 2.0 * HELP_S)]
+    gym.submit_prompt(st, 'hello')
+    answered = [gym.drawer(st, t + 60.0), gym.drawer(st, t + 60.0 + HELP_S + SLIDE_S)]
+    lead = str(gym.chat_box(st, 80).renderable).splitlines()[-1].split()[0]
+    full = gym.CHAT_ROWS + 2
+    report.check('opened 0, half, all of its rows; the greeting HELP_S up, then down; / up while typing; '
+                 'the answer HELP_S up, then down; a braille its lead',
+                 opened == [0, full // 2, full] and greeted == [full, 0] and typing == [full, full]
+                 and answered == [full, 0] and lead in SPIN, (opened, greeted, typing, answered, lead))
+
+
 ROSTER = (test_the_humanoid_pages_mouse, test_the_humanoid_pages_keys, test_the_keys_that_move_her_are_one_twist,
           test_a_held_p_charges_a_push, test_vision_scanner_docked_pip_and_affordances, test_her_verbs_and_the_chase,
           test_scenario_deck_tour_handoff_and_cybernetic_hud, test_her_clothes_bend_at_the_joints,
-          test_a_scene_laid_anew_is_told_the_keys_again)
+          test_a_scene_laid_anew_is_told_the_keys_again, test_her_chat_a_drawer)
 
 
 def main(argv=None):
