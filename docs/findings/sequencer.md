@@ -1,8 +1,9 @@
 # Findings: sequencer
 
-The takes played as a sequencer plays a score: a take's beats as rows on her
-loop (`machine.takes`), a gait take's pattern as its rhythm's parameters; the
-takes' bench: [stunts](stunts.md); the vocabulary: docs/todo/scenarios.md.
+The takes played as a sequencer plays a score: a posture take's beats as rows
+on her loop (`machine.takes`), a gait take as amounts on her one standard
+gait (`machine.gait`); the takes' bench: [stunts](stunts.md); the vocabulary:
+docs/todo/scenarios.md.
 
 ## Beats
 
@@ -128,3 +129,43 @@ saying): the take's tempo, drive, arms, crouch and lean, the rest the walk's.
   soles onto a prop), the lie and the rise from it, the jumps' throw, the
   runs' flight and the brake at speed, the falls' parry; the yawn's
   overhead arms and both heels up are no modes of hers.
+
+## Modifiers
+
+One standard gait, moved by named amounts (`machine.gait`): the walk's
+parameters as the lisp's streams fold them (stand, sway, step, walk), each
+modifier one of them. A gait take is its amounts (`takes.amounts`), a word of
+her movement language (`tools.sim.normal`) an amount; no gait a special.
+
+| | pace Hz | stride | swing | sway | roll | turn | rock | crouch | lean | width |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| the standard | 0.90 | 0.60 | 0.80 | 0.31 | 0.40 | 0.40 | 0.60 | 0 | 0 | 0 |
+| jogging_forward | +0.37 | +0.20 | +0.41 | | | | | +0.58 | +0.19 | |
+| running_forward | +0.75 | +0.76 | +1.94 | | | | | +1.04 | +0.71 | |
+| jogging_backwards | +0.23 | +0.10 | -0.12 | | | | | +0.83 | +0.05 | |
+| running_backward | +0.60 | +0.39 | +1.87 | | | | | +0.73 | +0.07 | |
+| moonwalk | +0.16 | -0.05 | +0.08 | | | | | +0.41 | +0.23 | |
+| a woman's walk (tests/takes/walk.fbx) | -0.06 | +0.10 | -0.22 | +0.16 | +0.32 | +0.09 | -0.12 | +0.17 | +0.02 | -0.70 |
+| a catwalk (Mocaps/woman_catwalk_test.fbx, its straight 5.3 s) | -0.05 | +0.40 | +1.13 | +0.12 | +0.86 | +0.49 | +0.38 | +0.26 | -0.16 | -0.48 |
+
+Her walk so modified, 12 s after the row (scratchpad modifier_play.py):
+
+| modifiers | named | pelvis roll deg | off a woman's | speed m/s |
+| --- | --- | --- | --- | --- |
+| none | - | 5.0 | 2.49 | 0.71 |
+| roll +0.86 | a catwalk | 18.8 (the take's 23.3) | 3.44 | 0.73 |
+| roll +0.86, width -0.48 | a catwalk | 18.8, feet apart 0.13 as before | 3.44 | 0.74 |
+| the catwalk's eight | fell at 14.8 s | | | |
+
+- The roll alone names her gait a catwalk (`normal.named`: swaying 0.38, not
+  wide); the width's amount moves nothing - her stride lays each landing its
+  own side of the other (`stride.meets`, APART_M), not the width mode's; the
+  catwalk's stride +0.40 at 0.85 Hz falls her as the jog's step length did.
+  The roll costs her knee at landing 35.5 to 40.8 deg (off 2.49 to 3.44).
+- A woman's walk over her standard: roll +0.32, width -0.70, swing -0.22,
+  crouch +0.17 - what her walk's words (landing bent, tripping) are not;
+  her walk stays as judged (test_ortho's FORM), the amounts a reading.
+- The lisp's gaits beside the walk (trip, jog, ballistic_walk, stairs_walk,
+  ice_walk, slope_walk) are specials of the kind the modifiers replace: their
+  amounts belong in the steering table's rows (the peer's rebuild), one walk
+  under them.

@@ -144,10 +144,17 @@ serves its DOD; none an entry a case.
    runs and jogs 47 by their patterns, her stride without flight at
    1.3-2.0 m/s where the takes go 1.9-4.5); a take said at its beats, the
    squats and the dance on the legs and the trunk alone, a gait take as
-   its pattern over her walk (sequencer.md); the score's reach ends there,
+   amounts on her one standard gait (`machine.gait`: pace, stride, swing,
+   sway, roll, turn, rock, crouch, lean, width; a catwalk is roll +0.86,
+   sequencer.md); the score's reach ends there,
    the rest the law's (the seats, the lie, the jumps' throw, the runs'
    flight and the brake at speed, the falls) or no mode of hers (the
-   yawn's overhead arms, both heels up).
+   yawn's overhead arms, both heels up). Left of the one gait: the lisp's
+   gaits beside the walk (trip, jog, ballistic_walk, stairs_walk, ice_walk,
+   slope_walk) are specials of the kind the modifiers replace - their
+   amounts into the steering table's rows, one walk under them; the width
+   amount moves nothing, the stride laying each landing its own side
+   (`stride.meets`).
    Open by mechanism: her hands' jerk 7 700-20 900 m/s^3 where her walk's is
    1 400-1 800 through the sit, the rise, the dance and the bed - the
    whole-body step's upper joints at W_POSTURE 1 against W_COM 1000 make her

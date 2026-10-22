@@ -49,7 +49,8 @@ identification. Her figure: [kinematics](kinematics.md); her drives:
 | motion | her branchless inner law's pass on her sensors alone: sensed, latent, impedance, wrench (or wbc), directional surety and the drives' observers |
 | waits | the rows of her table that wait a pass - halting her rhythm while her capture point steps her, raising her while something bears her, lowering her while nothing does - and those that wake her rhythm; in C bit for bit |
 | sprung | the latent loop run: her world read and told through her edge, her law's pass between; her process, paced to the clock: the one thing that moves her |
-| takes | the mocap takes as rows for her loop: a take's posture modes at its frames, entered over her leg's half period, told by the bench |
+| gait | her standard gait and its modifiers: the walk's parameters as the lisp's streams fold them, moved by named amounts (pace, stride, swing, sway, roll, turn, rock, crouch, lean, width): a gait take's, a catwalk's roll |
+| takes | the mocap takes as rows for her loop: a posture take's voices at its beats, a gait take's amounts on her standard gait, entered over her leg's half period, told by the bench |
 | worker | her outer loop and session: discrete commands mapped to continuous setpoints, each logged with its epoch and pass, falls recovered; the page's states |
 | tour | the scenes one after another, commanded as an agent commands them |
 | sysid | her body identified of her edge alone: Newton-Euler down her tree, the base parameters; her pelvis's rows off her insoles or a load cell |

@@ -1,7 +1,7 @@
 """The mocap takes as rows for her loop: a take's modes at its beats, laid once, said as rows.
 
     wire, end_ms = takes.wire('stand_to_sit')  # the take's rows (ortho.ROW), its voices at its beats
-    row = takes.pattern('jogging_forward')     # a gait take's rhythm as one row over the gait she is on
+    row = takes.pattern('jogging_forward')     # a gait take as its amounts on her standard gait (machine.gait)
 
 FILE holds each take's times (s, at her size) and her eleven modes at them, read off the take as
 `modal.reading` reads hers (`tools/sim/stunts.py --reference`; the takes lie beside the repo).
@@ -12,8 +12,9 @@ the frames' noise bent her 118 sagittal/s^2 and 56 pitch/s^2 (stunts.md). STREAM
 voices a take says, her posture's: the legs' shortening, the centre of mass over the soles
 along, the trunk's pitch; her stance's and her arms' stay her balance's (the human's feet,
 pelvis list, heels and arm swing each felled her when said), and VOICES names a take's own. A
-take enters over ENTER_S from wherever she is, its first row's blend. A gait take is a pattern
-(`pattern`): its stride's Hz and what its voices sing at it, laid over the gait she is on. The
+take enters over ENTER_S from wherever she is, its first row's blend. A gait take is its amounts
+on her standard gait (`amounts`, `pattern`: `gait.modified`): its stride's Hz and what its voices
+sing at it, less the walk's own, laid over the gait she is on. The
 bench tells a take (`scenarios._told`); her texts stay the lisp's: told the bed's takes she sat
 at its edge as the human did and collapsed back from there (stunts.md).
 """
@@ -38,11 +39,11 @@ TAKE_ID = 300
 ENTER_S = math.pi * math.sqrt(modal.LEG_M / modal.G)
 #: A beat's resolution, s: her natural time, the window a take's measures are read over.
 TICK_S = math.sqrt(modal.LEG_M / modal.G)
-#: A pattern's voices: these sung at the stride's Hz (their amplitudes), these held (their means).
-#: A climb's pattern is not hers yet (sequencer.md): its crouch said over the floor's fold she
-#: squatted twice as deep on the second tread, and its tempo and lean alone hopped her onto the
-#: first tread and toppled her backward, where the walk climbs the flight.
-SUNG, HELD = (modal.DRIVE, modal.ARMS), (modal.AXIAL, modal.PITCH)
+#: A pattern's modifiers (`gait.MODIFIERS`): its pace, these sung at the stride's Hz (their
+#: amplitudes) and these held (their means). A climb's is not hers yet (sequencer.md): its crouch
+#: said over the floor's fold she squatted twice as deep on the second tread, and its pace, stride
+#: and lean alone hopped her onto the first tread and toppled her backward, where the walk climbs.
+SUNG, HELD = {'stride': modal.DRIVE, 'swing': modal.ARMS}, {'crouch': modal.AXIAL, 'lean': modal.PITCH}
 
 
 def frames(key, since_s=0.0, until_s=math.inf):
@@ -92,13 +93,13 @@ def beats(key, voices, since_s=0.0):
     return t[on][::thin], z[on][::thin]
 
 
-def pattern(key, blend_s=ENTER_S):
-    """A gait take's pattern as one row (`ortho.ROW`) over the gait she is on: her rhythm on at
-    the take's stride Hz - the drive voice's strongest line -, SUNG's amplitudes and HELD's
-    means at that Hz by least squares, the rest left the gait's (its springs, its sway, its
-    lift and its phases), blended over `blend_s`. The lift's amplitude is the swing's height
-    in the take, not her clearance's; her stride renders it."""
+def amounts(key):
+    """{modifier: amount} of a gait take on her standard gait (`gait.MODIFIERS`): its stride's Hz
+    - the drive voice's strongest line -, SUNG's amplitudes and HELD's means at that Hz by least
+    squares, each less the walk's own (`gait.standard`). The lift's amplitude is the swing's
+    height in the take, not her clearance's; her stride renders it."""
     import numpy as np
+    from machine import gait
     t, z = frames(key)
     x = z[:, modal.DRIVE] - z[:, modal.DRIVE].mean()
     n = 16 * len(x)
@@ -107,13 +108,17 @@ def pattern(key, blend_s=ENTER_S):
     hz = float(f[int(np.argmax(line))])
     w = math.tau * hz * t
     c, *_ = np.linalg.lstsq(np.stack([np.ones_like(t), np.sin(w), np.cos(w)], 1), z, rcond=None)
-    p = [math.nan] * ortho.P
-    p[ortho.GAIN], p[ortho.HZ] = 1.0, hz
-    for i in SUNG:
-        p[ortho.AMP + i] = float(np.hypot(c[1, i], c[2, i]))
-    for i in HELD:
-        p[ortho.Z + i] = float(c[0, i])
-    return ortho.ROW.pack(TAKE_ID, 0, int(round(1e3 * blend_s)), 0, *p)
+    std = gait.standard()
+    got = {'pace': hz, **{name: float(np.hypot(c[1, i], c[2, i])) for name, i in SUNG.items()},
+           **{name: float(c[0, i]) for name, i in HELD.items()}}
+    return {name: value - float(std[gait.MODIFIERS[name]]) for name, value in got.items()}
+
+
+def pattern(key, blend_s=ENTER_S):
+    """A gait take as one row (`ortho.ROW`) over the gait she is on: her standard gait moved by
+    the take's amounts (`gait.modified`), the rest left the gait's, blended over `blend_s`."""
+    from machine import gait
+    return gait.modified(blend_s, **amounts(key))
 
 
 def wire(key, at_ms=0, since_s=0.0, enter_s=ENTER_S):
