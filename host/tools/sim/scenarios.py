@@ -23,7 +23,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from machine import floor as fl
-from machine import takes
+from machine import sprung, takes
 from tools.sim import stunts
 
 #: A player's walk (`se2`'s), m/s; a stop.
@@ -114,9 +114,18 @@ FALL_M_S = 1.0
 #: signature is SAFE alone: a shove of the polar's most, the slick patch and the ice, a step's
 #: edge behind her.
 _BACK, _RUN, _SHOVED = KEYS['s'], KEYS['W'], FORCES_N[1]
+#: A gait take's pattern laid over her walk said, as the walk's last entry (`sprung.WALK`) has
+#: entered: forward over the walk, backward over the walk back (on within 1.5 s of its saying).
+PATTERN_S = sprung.WALK[-1][1] + takes.ENTER_S
+_PATTERN = lambda key: [(1.0, {'say': 'walk'}), (PATTERN_S, {'pattern': key})]
+_BACK_PATTERN = lambda key: [(1.0, {'say': 'walk_back'}), (PATTERN_S, {'pattern': key})]
+#: The stairs takes' flight told at 0 s where the scene stands, the walk by twist: a climb's pattern
+#: (its tempo, drive and lean over the walk) hopped her onto the first tread and toppled her
+#: backward at 4.0 s where the walk climbs the flight (sequencer.md).
+_FLIGHT = [(0.0, {'floor': fl.told_stairs(fl.TAKE_RISE_M, fl.TAKE_RUN_M)}), (1.0, {'twist': WALK})]
 STUNTS = {
     'hip_hop': ('dance/Hip Hop Dancing', 'flat', [(1.0, {'take': 'hip_hop'})], 1.0, ('travel', 'drop', 'arms')),
-    'moonwalk': ('dance/Moonwalk', 'flat', [(1.0, {'twist': _BACK})], MOMENTS[0], ('travel', 'speed', 'flight', 'upright')),
+    'moonwalk': ('dance/Moonwalk', 'flat', _BACK_PATTERN('moonwalk'), PATTERN_S, ('travel', 'speed', 'flight', 'upright')),
     'falling_on_butt': ('falling/Falling on Butt', 'flat',
                         [(1.0, {'push': (0.0, 0.0, -_SHOVED), 'seconds': SHOVE_S})], 1.0, ()),
     'slipping_on_a_patch': ('falling/Slipping Backwards', 'slip', [(1.0, {'twist': WALK})], 1.0, ()),
@@ -145,10 +154,11 @@ STUNTS = {
     'standing_yawn': ('lying/Standing Yawn', 'flat', [(1.0, {'take': 'standing_yawn'})], 1.0, ('arms', 'back', 'travel')),
     'turning_in_bed': ('lying/Turning in Bed', 'mattress_under',
                        [(1.0, {'say': 'lie_floor'}), (9.0, {'take': 'turning_in_bed'})], 9.0, ('rolled', 'turned', 'upright')),
-    'jogging_backwards': ('run/Jogging Backwards', 'flat', [(1.0, {'twist': _BACK})], MOMENTS[0], ('travel', 'speed', 'upright')),
-    'jogging_forward': ('run/Jogging Forward', 'flat', [(1.0, {'twist': _RUN})], MOMENTS[0], ('travel', 'speed', 'flight')),
-    'running_backward': ('run/Running Backward', 'flat', [(1.0, {'twist': _BACK})], MOMENTS[0], ('travel', 'speed')),
-    'running_forward': ('run/Running Forward', 'flat', [(1.0, {'twist': _RUN})], MOMENTS[0], ('travel', 'speed', 'flight')),
+    'jogging_backwards': ('run/Jogging Backwards', 'flat', _BACK_PATTERN('jogging_backwards'), PATTERN_S,
+                          ('travel', 'speed', 'upright')),
+    'jogging_forward': ('run/Jogging Forward', 'flat', _PATTERN('jogging_forward'), PATTERN_S, ('travel', 'speed', 'flight')),
+    'running_backward': ('run/Running Backward', 'flat', _BACK_PATTERN('running_backward'), PATTERN_S, ('travel', 'speed')),
+    'running_forward': ('run/Running Forward', 'flat', _PATTERN('running_forward'), PATTERN_S, ('travel', 'speed', 'flight')),
     'sit_to_stand': ('sitting/Sit To Stand', 'chair_behind', [(1.0, {'take': 'stand_to_sit'}), (8.0, {'take': 'sit_to_stand'})], 8.0,
                      ('ended', 'forward', 'lasted')),
     'situp_to_stand': ('sitting/Situp To Stand', 'mattress_under',
@@ -157,10 +167,8 @@ STUNTS = {
                      ('drop', 'hips back', 'forward', 'knee', 'lifted', 'lasted')),
     'edge_tripping_backwards': ('slipping/Edge Tripping Backwards', 'edge_behind', [(1.0, {'twist': _BACK})], 1.0, ('ended',)),
     'slipping_backwards': ('slipping/Slipping Backwards', 'ice', [(1.0, {'twist': WALK})], MOMENTS[0], ()),
-    'ascending_stairs': ('stairs/Ascending Stairs', 'stairs_take', [(0.0, {'floor': fl.told_stairs(fl.TAKE_RISE_M, fl.TAKE_RUN_M)}), (1.0, {'twist': WALK})],
-                         STAIRS_TAKE_S, ('ended', 'travel')),
-    'walking_up_the_stairs': ('stairs/Walking Up The Stairs', 'stairs_take',
-                              [(0.0, {'floor': fl.told_stairs(fl.TAKE_RISE_M, fl.TAKE_RUN_M)}), (1.0, {'twist': WALK})], STAIRS_TAKE_S, ('ended', 'travel')),
+    'ascending_stairs': ('stairs/Ascending Stairs', 'stairs_take', _FLIGHT, STAIRS_TAKE_S, ('ended', 'travel')),
+    'walking_up_the_stairs': ('stairs/Walking Up The Stairs', 'stairs_take', _FLIGHT, STAIRS_TAKE_S, ('ended', 'travel')),
     'standing_jump': ('standing/Standing Jump', 'flat', [(1.0, {'charge': 1.0, 'say': 'hop'})], 1.0, ('rise', 'flight', 'travel')),
 }
 SCENARIOS.update({key: (scene, plan, start + ref['seconds'] + STILL_S, 'stunt', key)
@@ -184,17 +192,6 @@ def _row(g, world):
            'loads': tuple(float(v) for v in g['loads']), 'where': tuple(d.qpos[0:3].tolist()),
            'turn': tuple(d.qpos[3:7].tolist()), 'angles': angles, 'set': angles, 'watts': 0.0}
     return dict(zip(HEADER, row(now, 0.0)))
-
-
-def _told(command):
-    """A command as her worker hears it: a take's rows (`{'take': key}`) as the loop's entries.
-    Measured, not kept: the take's legs scaled to the scene's seat (his seat 0.55 of his leg,
-    hers 0.76) left her hovering 6 cm over it, her hips 0.13 legs back where the scaling took
-    the human's 0.48; the seat told to her law as support before it bore her (its box spanning
-    her support as a touch's would) took her hips back onto the chair and she rolled off it
-    sideways as one sole pushed while it bore nothing, and told the whole mattress she lay down."""
-    take = command.get('take')
-    return command if take is None else {'entries': [(take, takes.wire(take)[0], (take,))]}
 
 
 def stunt_window(key):
@@ -265,7 +262,7 @@ def ran(name, wobble=0.0):
     track, fell, hit, k, bore, most = [], None, None, 0, {}, {}
     rows, told_at = [], -math.inf
     sigma_min, scale_min, shrunk_n, qacc_max = math.inf, 1.0, 0, 0.0
-    plan = sorted(((at, _told(c)) for at, c in plan), key=lambda c: c[0])
+    plan = sorted(((at, stunts.told(c)) for at, c in plan), key=lambda c: c[0])
     while s['g']['t'] < seconds and s['epoch'] == 0:
         while k < len(plan) and s['g']['t'] >= plan[k][0]:
             worker.apply(s, plan[k][1])

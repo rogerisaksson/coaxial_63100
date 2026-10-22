@@ -76,3 +76,40 @@ half its swing): a song of patterns. The lift's amplitude is the swing's
 height (the jog 10.8, the run 21.8, the stairs 14.4-14.8 units of 2 cm), not
 her clearance's, which her stride renders: a pattern says the tempo, the
 drive, the crouch, the lean and the arms and leaves the rest the walk's.
+
+### Played
+
+A pattern laid over her walk said (`scenarios.PATTERN_S`, as the walk's last
+entry has entered; the back ones over her walk back, on within 1.5 s of its
+saying): the take's tempo, drive, arms, crouch and lean, the rest the walk's.
+
+| take | told by twist | by its pattern | she does |
+| --- | --- | --- | --- |
+| jogging_forward | 13.6 | 6.0 | 1.3-1.4 m/s at 1.27 Hz, travel 4.1 legs of 5.7 |
+| jogging_backwards | 11.4 | 4.0 | travel 1.8 of 2.9 |
+| moonwalk | 8.0 | 2.8 | travel 1.4 of 2.3 |
+| running_forward | 27.6 | 20.5 | 1.5-2.0 m/s, crouched, travel 2.6 of 6.6 |
+| running_backward | 19.2 | 16.8 | 0.9-1.8 m/s folding to axial 2-3, down after |
+
+- Her stride has no flight. The drive from the take's step length (its
+  travel over its steps: 0.73 m, drive 1.2; the run's 1.30 m, 2.2) chattered
+  her stance at 2.1-3.2 landings a second and fell her within the window;
+  the take's own drive, the soles' separation, is what her stride renders,
+  and the jog's 1.95 m/s at her size is a flight gait's.
+- A stop from the jog's 1.3-1.5 m/s falls, by the brake's rows or by the
+  walk's pattern laid back over 2 s first (the rhythm slowed to 0.92 Hz, her
+  speed held at 1.3-1.6 m/s and the landings fell behind her capture point):
+  the stride's brake at speed, the law's; the bench's runs do not stop.
+- The loop lays one row a tick: two rows due in the same tick add (a
+  pattern laid in the twist's tick read Hz 1.78 = 0.86 + 0.92, lift 1.90). A
+  pattern is laid after the gait's rows.
+- The climb's pattern (0.86 Hz, drive 0.38, lean 7 deg, crouch 0.86) over the
+  stairs takes' flight, not kept: with its crouch she squatted twice as deep
+  (axial 2.4 read for 0.86) on the second tread and fell at 3.4 s; its tempo,
+  drive and lean alone, laid as the walk's rows had entered, hopped her onto
+  the first tread with her shin on the riser and toppled her backward at 4.0
+  s (9.2 and 8.7 widths for the walk's 3.0 and 2.5). The climb's rhythm waits
+  on the steering table's rise axis.
+- The dance on the legs and the trunk alone (`takes.VOICES`): 12.4 to 9.0
+  widths, down at 13.3 s for 4.1; with its arms said too, at 5.2 s.
+- The bench whole: 5 of 31 met, 185.3 widths off (227.7 before the beats).

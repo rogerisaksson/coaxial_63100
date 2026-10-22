@@ -282,5 +282,6 @@ run no lower than the human's, a fall's head under 1 m/s. The takes (a leg
   the hold flew 0.13 s: the stack's lag at the push's end, not the
   drives', caps the apex. Her walk unmoved: 2.53 off a
   woman's at 0.70 m/s and 409 J/m, 2.55 at the commit before.
-- A take said at its beats, the squats on the legs and the trunk alone: 5
-  of 31 met, 218.4 widths off ([sequencer](sequencer.md)).
+- A take said at its beats, the squats and the dance on the legs and the
+  trunk alone, the jogs, the runs and the moonwalk by their patterns over
+  her walk: 5 of 31 met, 185.3 widths off ([sequencer](sequencer.md)).

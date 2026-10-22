@@ -317,6 +317,16 @@ def far(hers, ref, signature):
     return out
 
 
+def told(command):
+    """A command as her worker hears it: a take's rows (`{'take': key}`, `takes.wire`) or a gait
+    take's pattern (`{'pattern': key}`, `takes.pattern`) as the loop's entries. Measured, not kept
+    (stunts.md): the take's legs scaled to the seat's height; the seat told as her support before
+    it bore her."""
+    take, pattern = command.get('take'), command.get('pattern')
+    rows = {'entries': [(take, takes.wire(take)[0], (take,))]} if take else command
+    return {'entries': [(pattern, takes.pattern(pattern), (pattern,))]} if pattern else rows
+
+
 def reference():
     """{take: its measures} as kept (REFERENCE); {} before the takes were measured."""
     if not os.path.exists(REFERENCE):

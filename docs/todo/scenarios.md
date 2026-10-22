@@ -139,10 +139,12 @@ serves its DOD; none an entry a case.
    sagittal and pitch read off the take, the rest her balance's, the trunk's
    pitch off her stand; stunts.md): 5 of 31 met - the slick patch, the ice, the
    kneel down and up, the rise from a crouch -, the backflip and the run to
-   it refused for want of a text, 24 short, 218.4 widths off in all (the
+   it refused for want of a text, 24 short, 185.3 widths off in all (the
    sit onto the chair 0.4, the rise from it 7.6, fallen at 2.2 m/s, the
-   runs and jogs 72: told 1.64 m/s she goes 0.34); a take said at its
-   beats, the squats on the legs and the trunk alone (sequencer.md).
+   runs and jogs 47 by their patterns, her stride without flight at
+   1.3-2.0 m/s where the takes go 1.9-4.5); a take said at its beats, the
+   squats and the dance on the legs and the trunk alone, a gait take as
+   its pattern over her walk (sequencer.md).
    Open by mechanism: her hands' jerk 7 700-20 900 m/s^3 where her walk's is
    1 400-1 800 through the sit, the rise, the dance and the bed - the
    whole-body step's upper joints at W_POSTURE 1 against W_COM 1000 make her
@@ -153,10 +155,10 @@ serves its DOD; none an entry a case.
    down or catches himself (item 5); the sit's hips 0.06-0.56 back run to
    run where 0.48, the bed's edge and lying (item 1); the chair's hops and
    the standing jump's landing (item 6); W at 0.93 m/s where a jog
-   is 2.0 and a run 4.5, S at 0.19 where 1.3 - the walk's text at 1.5 Hz
-   with the drive whole jogs 1.66 m/s on her loop as it is (the jog take
-   13.6 -> 7.4 widths, the run 27.6 -> 24.1) but the sprint and moves
-   plays fall at their stops and turns, the run's leap holds 0.57 m for a
+   is 2.0 and a run 4.5, S at 0.19 where 1.3 - by their patterns the jog
+   take 6.0 widths and the run 20.5 at 1.3-2.0 m/s, her stride without
+   flight, and a stop from 1.3 m/s falls as the sprint and moves
+   plays fall at their stops and turns; the run's leap holds 0.57 m for a
    tap's 0.48 and the running jump falls: the brake, the gather and the
    leap (`leap.stride_hop`, `stride_leap`, tuned to 0.86 m/s) laid from the
    drives at her speed first, as the standing jump's push is (item 3) - the
