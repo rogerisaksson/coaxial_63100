@@ -162,3 +162,9 @@ the hundred and fifty before these: [DONE_1-50](DONE_1-50.md),
     sit-down take fell seated at 6.9 s (3.8 widths, 0.6 now; the standing
     jump 3.9 -> 3.0); test_leap 21 of 21, errands 19 of 19
     ([stunts](findings/stunts.md)).
+28. BOARD ATTITUDE at the screen's 30 Hz and its first frame under a second:
+    drawn in a process of its own a frame ahead, its face, outline, floor and
+    shadow at once on arrays (bit for bit), its feed asked a frame - 10.4 ->
+    29.6 fps turning, 19 -> 27 new poses a second; from the front page on the
+    bench 2.3 -> 0.9 s, drawn here on the warm card till its process is up
+    ([host](findings/host.md)).

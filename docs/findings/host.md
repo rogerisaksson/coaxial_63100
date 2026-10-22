@@ -263,31 +263,22 @@ Pages, tooling, suites and the local model's runner. The board's findings:
 - The board's raster on a GTX 1080 Ti (wgpu, Vulkan): 392x224 100 ms -> 2.1
   ms; the menu's turntable 64 -> 13 ms at 52x18. BOARD ATTITUDE 66 -> 64 ms
   a frame at 200x60: its ground (32 ms) and paint (15) are the frame now.
-- BOARD ATTITUDE at 150x44 on native:// drew 10.4 fps, 97 ms a frame, where
-  ANGLE drew 29.7 at 17, the RTX 4060 rastering: a turning pose's frame 61 ms -
-  the floor re-laid rolled and bobbed by the approach 16, the face's paint 30
-  (glow 10, outline 7, halftone 5, edge 5) cell by cell in Python, the raster
-  6 - and rich's print 12. The floor laid at once (numpy): 16 -> 6, the frame
-  51. Its feed reads the board 20 times a second (`FEED_HZ`), 13.8 ms a read.
-  The face painted at once too (paint.py, strokes.py; 157 frames of HEAD's
-  drawing bit for bit, test_paint): 24 -> 4.3 ms; the frames composited on
-  arrays. Turning, its own beat (the work's p90): 85 -> 56 ms, 11.8 -> 17.9
-  fps; left the rich update 14.6, the GPU's raster and fold 6.4, the shadow
-  map 4.0 (a new 9-degree bin most frames), the floor 5.7. The feed's GIL
-  share is nil: a told board's frames are the read one's.
-- BOARD ATTITUDE in a process of its own a frame ahead (`ahead`, `easel`), as
-  QUAD and HUMANOID draw: 29.6 fps turning, the page's own work 21 ms a frame
-  (rich 14-18); its feed asked as each frame takes its reading, 27 new poses
-  a second of 29.6 frames where FEED_HZ gave 19, the rest a read longer than
-  a frame (25 ms beside the page, 14 alone). Its start, 2.3 s to the first
-  frame on native:// beside the board's own open (1.07 s): the preload was one file
-  for the machine's trees, each tree's build leaving the others cold
-  (decimates 1.5 s, outline 1.0); a file a stamp, the casters in it, a cold
-  drawing's first frame 5.15 -> 1.92 s, 1.5 s of it wgpu's C types, which
-  cffi parses in every process. The crew's decimates had dropped the bore's
-  keep: a missing preload drew the two holes again. The drawing's process is a
-  daemon and has no children: a cold preload's decimates handed to a pool
-  stopped the bench's page at its start; it decimates them itself now.
+- BOARD ATTITUDE, 150x44 on native://: 10.4 -> 29.6 fps turning (ANGLE 29.7).
+  Its frame was Python cell by cell - the face's paint 30 ms, the floor 16,
+  the shadow map 4 a new bin; on arrays now, bit for bit (test_paint,
+  test_ground, 157 frames A/B), drawn in a process of its own a frame ahead
+  (`ahead`, `easel`), the page's own work 21 ms, rich 14-18 of it. Its feed
+  asked a frame: 19 -> 27 new poses a second of 29.6 frames, the rest a read
+  past a frame (25 ms beside the page, 14 alone). Its start: one preload file
+  for the machine's trees left each other's pages cold (decimates 1.5 s,
+  outline 1.0), a file a stamp now; the drawing's process 1.9 s cold, 1.5 of
+  it wgpu's C types cffi parses in every process; a daemon, it decimates a
+  cold preload itself (a pool stopped the bench's page). On the bench from the
+  front page 2.3 -> 0.9 s: the board's open 0.49 (the AFE's settle 0.3), its
+  parts 0.10 (the map 0.25), the rotation vector 0.12, the first frame 0.15,
+  drawn here on the warm card till the process is up, 2.1 s on, the exposure
+  and vote carried; by name, the card cold, 2.5 s. The crew's decimates had
+  dropped the bore's keep: a missing preload drew the two holes.
 - The front page's model was drawn at inner height - 2 inside a 1-column
   padding: a blank row top and bottom, a column each wall. Now the box's
   full inside (checked at 90x28, 120x36, 200x60).

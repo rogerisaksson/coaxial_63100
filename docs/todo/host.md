@@ -82,9 +82,3 @@
   with the front end on - a change to the STO chain, HARDWARE.md's, to be
   measured on the probe first. DOD: the page at real time on Renode, Clevel
   on the probe as before.
-- **The attitude page's first frame** (asked): 2.05 s from its key on the
-  front page on native://, 29.6 fps after (host.md): the board's open with its
-  AFE rail 0.95 s, the link the watcher's already; its drawing's process 2.0 s
-  cold beside it, 1.5 s of that wgpu's C types parsed by cffi - one the front
-  page started would leave 1.25 s. DOD: the first frame under a second from
-  the front page, measured on the bench.
