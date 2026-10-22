@@ -2,7 +2,7 @@
 
     footer(pairs)          # the page's pairs from the left, the terminal's at the bar's right end
     bar_of(pad, now)       # (its bar's pairs, its help)
-    rail()                 # in the column's place, folded (`column`)
+    rail()                 # in the column's place, folded (`column`): its edge, a tab in its middle
 
 A page's keys are its pad's (`terminal.ui.bindings`); `terminal.ui.stage` lays these round its
 drawing.
@@ -10,9 +10,7 @@ drawing.
 import math
 import time
 
-from rich import box
 from rich.color import Color
-from rich.panel import Panel
 from rich.style import Style
 from rich.table import Table
 from rich.text import Text
@@ -115,20 +113,35 @@ def breath(console, now):
     return key + Style(color=Color.from_rgb(*(round(b + k * (d - b)) for b, d in zip(bright, dim))))
 
 
+#: The folded column's tab, a row each: its top, its arrow, the key that brings the column out
+#: (Tab, its keycap's ↹), its bottom - on its edge's line.
+TAB = ('╭─╮', '│◂│', '│↹│', '╰─╯')
+
+
 class _Rail:
-    """The instruments' column folded: a rail on the right edge, its arrow breathing (`breath`) -
-    read when it is drawn, so a frame shown again between draws breathes on."""
+    """The instruments' column folded: its edge a line down the page, a tab in the middle of it,
+    its arrow breathing (`breath`) over its key - read when it is drawn, so a frame shown again
+    between draws breathes on."""
 
     def __rich_console__(self, console, options):
-        yield Panel(Text('◂', style=breath(console, time.monotonic()), justify='center'), box=box.ROUNDED,
-                    border_style='frame.hud', padding=0, expand=True, height=options.height)
+        rows = options.height or len(TAB)
+        top = (rows - len(TAB)) // 2
+        inks = {'◂': breath(console, time.monotonic()), '↹': 'keys.key'}
+        rail = Text(no_wrap=True)
+        for row in range(rows):
+            at = row - top
+            line = TAB[at] if 0 <= at < len(TAB) else ' │ '
+            rail.append('\n' if row else '')
+            for cell in line:
+                rail.append(cell, style=inks.get(cell, 'frame.hud'))
+        yield rail
 
 
 _RAIL = _Rail()
 
 
 def rail():
-    """The instruments' column folded: a rail on the right edge, its arrow breathing."""
+    """The instruments' column folded: its edge, a tab in its middle, its arrow breathing."""
     return _RAIL
 
 

@@ -302,6 +302,22 @@ def _font(path, size):
         return ImageFont.load_default()
 
 
+def _carried(path):
+    """The code points the face at `path` draws, or None where its table cannot be read: a
+    glyph it lacks the terminal draws in its fallback, Segoe UI Symbol - drawn in Consolas, the
+    folded column's tab showed its keycap (U+21B9) as a box."""
+    if path not in _CARRIED:
+        try:
+            from fontTools.ttLib import TTFont
+            _CARRIED[path] = frozenset(TTFont(path, fontNumber=0).getBestCmap() or ())
+        except (ImportError, OSError):
+            _CARRIED[path] = None
+    return _CARRIED[path]
+
+
+_CARRIED = {}
+
+
 def image(text, cell=CELL, fonts=(TEXT_FONT, BRAILLE_FONT)):
     """`text` drawn cell by cell in its colours on black, as a Pillow image
     - a notebook shows it inline as the value of a cell, or under
@@ -321,6 +337,7 @@ def image(text, cell=CELL, fonts=(TEXT_FONT, BRAILLE_FONT)):
     text_font = _font(fonts[0], int(cell_h * 0.8))
     symbol_font = _font(fonts[1], int(cell_h * 0.8))
     kana_font = _font(KANA_FONT, int(cell_h * 0.8))
+    carried = _carried(fonts[0])
     for y, row in enumerate(rows):
         for x, (c, fg, bg) in enumerate(row):
             if bg:
@@ -330,7 +347,8 @@ def image(text, cell=CELL, fonts=(TEXT_FONT, BRAILLE_FONT)):
             if c == ' ':
                 continue
             font = (kana_font if KANA[0] <= ord(c) <= KANA[1] else
-                    symbol_font if ord(c) >= SYMBOL_FROM else text_font)
+                    symbol_font if ord(c) >= SYMBOL_FROM or (carried is not None and ord(c) not in carried)
+                    else text_font)
             draw.text((x * cell_w, y * cell_h), c, fill=fg, font=font)
     return img
 

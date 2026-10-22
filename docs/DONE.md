@@ -195,3 +195,7 @@ the hundred and fifty before these: [DONE_1-50](DONE_1-50.md),
 34. Her head through a stop: her neck let go through a brake and a sole
     let go only once the other bears as much of her (`motion.control`,
     `poise.stands`, wbc_stride.c; [jerk](findings/jerk.md)).
+35. The folded column a tab: its edge a line, a tab in the middle of it,
+    its arrow breathing over Tab's keycap (`terminal.ui.taskbar`); the
+    pictures draw what the terminal draws where Consolas has no glyph
+    (`machine.ansi`).
