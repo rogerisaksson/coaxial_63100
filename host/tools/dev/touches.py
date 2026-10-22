@@ -2,7 +2,7 @@
 from tools.dev.suites import (AERO_CORE, MPPI_CORE, BENCH, BOARD_MEM, BOOT, BOOT_CLIENT, BOOT_CORE, BROKER,
                               COMPILED, CONFORMANCE, PORTED,
                               CONTROLLER, CORE, CTRL_CORE, CYCLIC, DAQ_API, DAQ_CORE, DRIVE,
-                              DRIVE_OBSERVER, EMULATOR, ERRANDS, FILTER, GVS, GYNOID,
+                              DRIVE_OBSERVER, DSP, EMULATOR, ERRANDS, FILTER, GVS, GYNOID,
                               GROUND, HEATED, LEAP, NATIVE, NATIVE_HEAT, NATIVE_SYSID, OLLAMA, ORTHO, FLOOR, PAINT, QUADS, REACH, RENDER, REPLAYS, SCENES,
                               SENSORLESS, SHTP, SIGHT, SITUATION, STREAMS, STRUCTURE, SWEEP, SYSID, SYSID_LIVE, TERMS, THERMAL,
                               THERMAL_APP, VIEWS, WBC, WBC_CORE, WEAR, WIRE, WORLD_CORE, WRENCH)
@@ -109,6 +109,10 @@ TOUCHES = (
     ('host/machine/situation.py',              (STRUCTURE, SITUATION, FLOOR, SCENES, REPLAYS)),
     ('host/machine/situations.lisp',           (SITUATION, FLOOR, ORTHO, SCENES)),
     ('host/machine/takes.npz',                 (SCENES, ERRANDS)),
+    ('host/machine/dsp.py',                    (STRUCTURE, DSP)),
+    ('host/machine/patch.py',                  (STRUCTURE, DSP)),
+    ('host/machine/ortho_dsp/',                (DSP,)),
+    ('host/machine/runway.lisp',               (DSP,)),
     ('host/machine/',                          (CONTROLLER, GYNOID, SIGHT, REACH, TERMS, WBC, WBC_CORE, COMPILED, PORTED,
                                                 LEAP, WRENCH, SYSID, SYSID_LIVE, WEAR, ORTHO, FLOOR, SITUATION, ERRANDS, CYCLIC, REPLAYS, SCENES,
                                                 'test_simulated.py', 'test_mcp.py',
@@ -215,8 +219,10 @@ TOUCHES = (
     ('host/tools/sim/looks.py',                (STRUCTURE, ORTHO)),
     ('host/tools/sim/strides.py',              (STRUCTURE, ORTHO)),
     ('host/tools/sim/look.py',                 (STRUCTURE, ORTHO)),
-    ('host/tools/sim/normal.py',               (STRUCTURE, ORTHO)),
-    ('host/tools/sim/fbx.py',                  (STRUCTURE, ORTHO)),
+    ('host/tools/sim/normal.py',               (STRUCTURE, ORTHO, DSP)),
+    ('host/tools/sim/fbx.py',                  (STRUCTURE, ORTHO, DSP)),
+    ('host/tools/sim/identify.py',             (STRUCTURE, DSP)),
+    ('host/tools/sim/suite.py',                (STRUCTURE,)),
     ('host/tools/sim/quad_race.py',            QUADS + (STREAMS,)),
     # BENCH: firmware in the main loop is what slows the board (the thermal
     # observer's per-poll ADC and SPI reads; a poll that lost a Modbus byte).

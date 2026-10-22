@@ -173,8 +173,8 @@ Her walk so modified, 12 s after the row (scratchpad modifier_play.py):
 ## The runway patch
 
 The patch as written (machine/runway.lisp: a dry state, the sneaker
-modifier, the phase-locked morph, the 32-bar schedule) compiled by
-`machine.patch` onto her voices (`patch.NODES`, `VOICELESS`) and played on
+modifier, the phase-locked morph, the 32-bar schedule) compiled onto her
+voices and played on
 her walk said: the dry laid at 10 s, the wet four bars on, at once, by a naive
 linear crossfade over two bars at a phase of the stride, or by the morph
 locked to the lateral voice's zero crossing (scratchpad patch_run.py with its
@@ -213,3 +213,71 @@ clearance, the ZMP's margin in the hull of the standing soles, jerk).
   only with the centre's lateral sway cut (0.31 to 0.11 or 0), her landings
   then 81-95 mm apart, not 42: the swing sole on one stance sole's moment
   reaches 75-87 mm (a 4 m/s^2 lateral against the 27 the pass at 42 asks).
+
+## The ortho-DSP suite
+
+The six modules as given (machine/ortho_dsp/) read by `machine.dsp`, each
+patch voiced on her walk by its changes off the nominal manifold - the
+nominal plays her walk to the last slot -, told its twist and grip, laid
+3 s into her walk on its stages' scene, measured by the converter that
+makes a modifier of a take (`tools/sim/suite.py`, 20 s).
+
+| patch | scene | she does |
+| --- | --- | --- |
+| sneaker runway | flat | stands: 118 BPM, 0.78 m/s, pelvis roll 0.107 rad (her walk 0.044), trunk 0.21 rad; track 92 mm for the 42.5 asked |
+| stealth crouch on ice | ice, told 0.08 | stands: 82 BPM, 0.13 m/s for the 0.31 told, her hips 505 mm up (749), a vault of -1.5 mm (her walk +18: level) |
+| loaded boot, snow ascent | snow | falls at 10.5 s; on a flat floor stands, trunk 0.37 rad |
+| barefoot stair descent | stairs down | falls at 3.4 s, as her walk alone does at 3.43 |
+| asymmetric gallop | - | refused: inter-limb-phase-rad |
+| ballistic sprint | - | refused: a duty under 0.5 |
+
+- Its schedule to its first refusal on a flat floor, the worlds named, not
+  laid: the runway at 3.0 s, the morph locked at 7.45 s, the crouch at
+  10.15, the morph at 14.24, the descent at 16.76 - standing -, the gallop
+  refused at bar 16.
+- The thoracic cutoff read as her trunk's spring, her posture's 1.59 Hz
+  moved by its ratio to the nominal's 8 Hz, bent her 0.85 rad on the runway
+  and 1.03 on the runway's wet for 0.16 and 0.17 asked: voiceless.
+- A stride read as her drive's amplitude (x1.54) moved hers 713 -> 759 mm
+  where 1 220 was asked and felled three takes at 6.2-10.3 s: told as her
+  speed alone, her step her capture point's.
+- A take's way read 4.8 deg off its facing told her 0.08 m/s aside and
+  strafed her (`se2.GAIT_BOXES`): 117 BPM, 0.16 m/s, the swing 4 mm up. A
+  way is the nearest of her four; ahead past 0.96 m/s her twist picks her
+  jog, a patch is told 0.96 and the speed asked said beside.
+- Told the runway take's 0.95 m/s alone she falls at 11.9 s, without its
+  arms at 8.8 s; with its row (arms x2.9, roll x4.3) she stands.
+
+## Takes as modifiers
+
+A take converted against her walk (`tools/sim/identify.py`: Zeni's strikes,
+a period in 0.5-2.5 s, the vault's sign the topology, lengths and times at
+her size) and played as the patches are. Her walk by it: 110.1 BPM, track
+106.5 mm (her soles 108 by the world), vault +18 mm, duty 0.65 (Zeni's lift
+late; her gate 0.6). Of 53 takes beside the repo 20 played and 8 of them
+fell, 14 were refused by name, 19 not identified (a start, an end, a turn
+in place, a strike a side).
+
+| take / hers | BPM | track mm | roll rad | trunk rad | arms rad | m/s | stride mm |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| an injured run, treadmill | 131 / 129 | 211 / 202 | 0.096 / 0.104 | 0.088 / 0.087 | 0.325 / 0.311 | 0.87 / 0.84 | 794 / 781 |
+| a hand-keyed slow walk | 92 / 90 | 54 / 92 | 0 / 0.021 | -0.051 / -0.050 | 0.108 / 0.121 | 0.55 / 0.47 | 724 / 625 |
+| a hand-keyed phone walk | 92 / 90 | 56 / 101 | 0 / 0.031 | 0.124 / 0.126 | 0.002 / 0.096 | 0.55 / 0.47 | 724 / 632 |
+| a forward walk | 110 / 118 | 192 / 162 | 0.102 / 0.108 | 0.014 / -0.009 | 0.314 / 0.367 | 1.12 / 0.70 | 1 220 / 713 |
+| a runway catwalk | 101 / 118 | 72 / 108 | 0.19 / 0.23 | -0.005 / -0.026 | 0.73 / 0.83 | 0.93 / 0.74 | 1 100 / 757 |
+| a catwalk loop | 98 / 118 | 3 / 100 | 0.057 / 0.061 | -0.006 / -0.014 | 0.259 / 0.258 | 0.87 / 0.72 | 1 060 / 736 |
+| a suit's walk | 104 / 118 | 145 / 134 | 0.037 / 0.025 | 0.055 / 0.060 | 0.50 / 0.61 | 0.84 / 0.63 | 961 / 643 |
+
+- Her trunk, her arms and her pelvis's roll follow a take within 10-20 %,
+  its tempo within 2 % where she can stride its length. Past her 0.76 m she
+  steps 118 BPM at her own stride, her twist capped at her walk's 0.96 m/s.
+- A wider track she follows (192 -> 162); a narrower one she holds at
+  92-108 mm: the width lowers her landings' floor, not her sway's reach.
+- Refused by name: the runs by their vault (-68 to -81 mm), a treadmill run,
+  a skip, the hand-keyed jog and run; a backward run by its duty (0.3); the
+  stairs takes by their phase or vault on the climb (their floor is the
+  stunts bench's, told).
+- Five studio walks, a monster's walk and a relaxed loop key 22-77 steps a
+  minute: she falls at 4.7-6.3 s, her centre diverging at 0.31 s; one gait
+  cycle looped falls at 12.9 s. A curving walk turns her at 0.12 rad/s, her
+  run no straight stride to measure.

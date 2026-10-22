@@ -183,3 +183,9 @@ the hundred and fifty before these: [DONE_1-50](DONE_1-50.md),
     bears her offered at that thing, none with none known; from the floor
     alone (a crouch, a fall) offered, unballooned. Lying in the bed she walked
     to: `[F1] rise bed` on the bed, the click up ([sight](findings/sight.md)).
+32. The ortho-DSP suite read, voiced on her walk by its changes off the
+    nominal and refused by name where she cannot (`machine.dsp`,
+    test_dsp.py); a take converted to its modifier against her walk, numpy
+    alone (`tools/sim/identify.py`); the patches, the schedule and the takes
+    played on her and measured by it (`tools/sim/suite.py`,
+    [sequencer](findings/sequencer.md)).

@@ -28,8 +28,8 @@ Her walk (`sprung.WALK`: stand, sway, step, walk; `ortho.py --walk --look`:
 
 ## The catwalk patch
 
-The runway take (Mocaps/woman_catwalk_test.fbx) as a patch, and what the
-loop does with it ([sequencer](../findings/sequencer.md)):
+A runway take as a patch, and what the loop does with it
+([sequencer](../findings/sequencer.md)):
 
 | the patch | the take | hers so modified |
 | --- | --- | --- |
@@ -48,7 +48,9 @@ loop does with it ([sequencer](../findings/sequencer.md)):
 | clip | a take's beats as notes, legato | `takes.beats`, `takes.wire` |
 | patch, preset | a text; a gait take as amounts on the walk | the lisp; `takes.amounts` |
 | modulation, mod wheel | the patch's knobs moved by named amounts; a word of her movement language as one | `gait.MODIFIERS`, `tools.sim.normal` |
-| patch file | a dry state, a modifier, a morph, a schedule in bars, read as written | `machine.patch`, machine/runway.lisp |
+| patch file | a dry state, a modifier, a morph, a schedule in bars, read as written | `machine.dsp`, machine/runway.lisp |
+| suite | the ortho-DSP modules: a manifold, transducers, topologies, modulators, limiters, a sequencer; their patches gaits voiced on her walk by their changes off the nominal, which plays her walk | `dsp.read`, `voiced`, `VOICES`, machine/ortho_dsp/ |
+| system identification | a take's clock on its strikes, its coronal mid and side, its sidechain, its filter bank, emitted as a modifier against her walk | `tools/sim/identify.py` |
 | sidechain | each touchdown latches a duck of her height: depth, attack, release | `ortho.DUCK`, `stride.ducked` |
 | sync trigger | the morph begun in the double support past the lateral voice's zero crossing, the asked ZMP in the soles' boxes | `patch.crossing`, `window`, `locked` |
 | program change | a text said in place of what was to come | `worker.heard_say`, `se2.said` |

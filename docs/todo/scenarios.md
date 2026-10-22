@@ -155,7 +155,12 @@ serves its DOD; none an entry a case.
    cut, and the sway kept she falls (sequencer.md) - the catwalk's line
    wants the stance's lateral reach (the trunk's roll taking the swing's
    reaction) before its track. DOD: the runway patch's wet, track and all,
-   26 bars standing, the feet never into each other passing.
+   26 bars standing, the feet never into each other passing. The ortho-DSP
+   suite and the takes as its modifiers play on her walk (`machine.dsp`,
+   `tools/sim/suite.py`, sequencer.md): her trunk, arms and roll within
+   10-20 % of a take's, her stride 0.76 m and 118 BPM where the takes stride
+   1.0-1.2 m at 98-110. DOD: three of the pack's walks at their tempo and
+   stride within 10 %, 20 s standing.
    Open by mechanism: her hands' jerk 7 700-20 900 m/s^3 where her walk's is
    1 400-1 800 through the sit, the rise, the dance and the bed - the
    whole-body step's upper joints at W_POSTURE 1 against W_COM 1000 make her

@@ -28,18 +28,24 @@ ROW_ID = 301
 BLEND_S = math.pi * math.sqrt(modal.LEG_M / modal.G)
 
 
-def standard():
-    """The walk's parameters (`ortho.P`): each parameter as the last of the walk's streams that
-    says it has it, 0 where none does."""
+def said():
+    """The walk's parameters (`ortho.P`): each as the last of the walk's streams that says it,
+    nan where none does - her loop keeps what she had there, her rest (`modal.rest`) from a stand."""
     import numpy as np
     from machine import latent, sprung
     by = {entry[0]: entry for entry in sprung.entries()}
     std = np.full(ortho.P, math.nan)
     for name in STREAMS:
         for row in np.frombuffer(by[name][1], latent.WIRE):
-            said = ~np.isnan(row['p'])
-            std[said] = row['p'][said]
-    return np.nan_to_num(std, nan=0.0)
+            given = ~np.isnan(row['p'])
+            std[given] = row['p'][given]
+    return std
+
+
+def standard():
+    """The walk's parameters (`said`), 0 where none says one."""
+    import numpy as np
+    return np.nan_to_num(said(), nan=0.0)
 
 
 def modified(blend_s=BLEND_S, **amounts):

@@ -28,9 +28,11 @@ ORDERS = ('xyz', 'xzy', 'yzx', 'yxz', 'zxy', 'zyx')
 
 #: HumanIK's name of a joint by another rig's - 3ds Max's Biped, Character Creator's, Rokoko's -
 #: its lead (`bip`, `CC_Base_`), spaces and underscores off, lower case.
-RIGS = {'pelvis': 'Hips', 'hip': 'Hips', 'spine': 'Spine', 'spine1': 'Spine', 'neck': 'Neck',
-        'head': 'Head'}
+RIGS = {'pelvis': 'Hips', 'hip': 'Hips', 'hips': 'Hips', 'spine': 'Spine', 'spine1': 'Spine', 'waist': 'Spine',
+        'neck': 'Neck', 'necktwist01': 'Neck', 'head': 'Head'}
 for _side, _s in (('Left', 'l'), ('Right', 'r')):
+    RIGS.update({_side.lower() + part.lower(): _side + part
+                 for part in ('UpLeg', 'Leg', 'Foot', 'ToeBase', 'Arm', 'ForeArm', 'Hand')})
     RIGS.update({_s + 'thigh': _side + 'UpLeg', _s + 'calf': _side + 'Leg',
                  _s + 'foot': _side + 'Foot', _s + 'toe0': _side + 'ToeBase',
                  _s + 'toebase': _side + 'ToeBase', _s + 'upperarm': _side + 'Arm',
@@ -218,7 +220,7 @@ def take(path):
               for i, n in models.items()}
     for name in list(joints):
         key = name.lower().replace(' ', '').replace('_', '')
-        key = next((key[len(lead):] for lead in ('ccbase', 'bip001', 'bip01', 'bip')
+        key = next((key[len(lead):] for lead in ('ccbase', 'bip001', 'bip01', 'bip', 'character1')
                     if key.startswith(lead)), key)
         if RIGS.get(key, name) not in joints:
             joints[RIGS[key]] = joints[name]
