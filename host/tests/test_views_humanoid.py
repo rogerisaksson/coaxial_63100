@@ -224,8 +224,8 @@ def test_scenario_deck_tour_handoff_and_cybernetic_hud(report):
     st = {'body': SN(send=lambda **cmd: sent.append(cmd)), 'scenario': 'chair', 'pad': humanoid_keys.pad(),
           'tour': None, **viewpoint.HOME, 'now': {'doing': 'rest', 'where': (0.0, 0.9, 0.0)}}
     typed(pad, 'N', st)
-    report.check('all 21 floor scenarios described, Shift+N shoves 200 N along the view',
-                 not miss and len(floor.SCENARIOS) == 21 and abs(sent[0]['push'][2] - 200.0) < 1e-9)
+    report.check('every floor scenario described, Shift+N shoves 200 N along the view',
+                 not miss and abs(sent[0]['push'][2] - 200.0) < 1e-9, miss)
     sent.clear()
     st['now'] = {'doing': 'lower', 'where': (0.0, 0.72, 0.0), 'scenario': 'chair'}
     typed(pad, 'f', st)

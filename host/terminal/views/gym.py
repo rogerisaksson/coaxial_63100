@@ -41,6 +41,7 @@ SCENARIO_DESC = {
     'cross_slope': 'camber // walk across 10 deg',
     'stairs': 'stairs // walk up',
     'stairs_down': 'stairs // walk down',
+    'stairs_take': "the takes' stairs // walk up",
     'ice': 'ice // walk on, slick',
     'snow': 'snow // walk on, yielding',
     'asphalt': 'asphalt // walk on, rough',
