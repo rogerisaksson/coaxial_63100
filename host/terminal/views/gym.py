@@ -23,6 +23,7 @@ from coaxial.draw import gauges
 from coaxial.graphics import balloons, gynoid
 from machine import sight, sprung, tour
 from terminal.ui.stage import hud
+from terminal.ui.taskbar import HELP_S, slid
 from terminal.views import scanner, viewpoint
 
 #: A digit says the gym's entry of its place: 1 the first, 0 the tenth.
@@ -390,12 +391,26 @@ def boxes(now, tour=None):
             hud('SAY  ' + gym_name.upper(), say_rows)]
 
 
-CHAT_ROWS = 4
+#: Her chat's lines, its prompt's among them; its braille's steps a second.
+CHAT_ROWS, SPIN_HZ = 4, 8.0
 CHAT_GREETING = ('name', 'GYNOID LLM AGENT - press / to prompt, H for autonomous house tour')
 
 
+def drawer(state, now):
+    """The rows her chat takes under the viewport at the clock `now`: CHAT_ROWS and its frame as
+    much as is up, slid as ?'s help (`taskbar.slid`) - up while her prompt is open and HELP_S
+    after its last line, the greeting's as the page opens."""
+    held = state.setdefault('drawer', {'up': 0.0, 'framed': now, 'last': None, 'said': now})
+    last = (state.get('chat_rows') or [None])[-1]
+    if last is not held['last']:
+        held['last'], held['said'] = last, now
+    wanted = bool((state.get('llm_prompt') or {}).get('open')) or now - held['said'] < HELP_S
+    held['rows'] = round(slid(held, wanted, now) * (CHAT_ROWS + 2))
+    return held['rows']
+
+
 def chat_box(state, width=80):
-    """The persistent BOARD CHAT-style transcript and prompt input panel under the viewport."""
+    """Her chat's transcript and prompt, its lead a braille turning (`recorder.SPIN`)."""
     from terminal.ui.recorder import SPIN
     rows: list = list(state.get('chat_rows') or (CHAT_GREETING,))
     tail = rows[-(CHAT_ROWS - 1):]
@@ -410,7 +425,7 @@ def chat_box(state, width=80):
     lp = state.get('llm_prompt') or {}
     open_p, entry = bool(lp.get('open')), str(lp.get('text', ''))
     blink = int(time.monotonic() * 2.0) % 2 == 0
-    lead = SPIN[int(time.monotonic() * 8.0) % len(SPIN)] if state.get('llm_busy') else '>'
+    lead = SPIN[int(time.monotonic() * SPIN_HZ) % len(SPIN)]
     body.append('\n')
     body.append('  %s ' % lead, style='value')
     if open_p or entry:

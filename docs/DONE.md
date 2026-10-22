@@ -208,3 +208,7 @@ the hundred and fifty before these: [DONE_1-50](DONE_1-50.md),
     room, HUMANOID and the crafts `taskbar.room` (`terminal.ui.taskbar`).
 38. The tab's arrow breathing fainter: 0.3 of the way to an instrument
     edge's ink, from 0.5 (`taskbar.BREATH`).
+39. Her agent's chat a drawer, slid as ?'s help (`taskbar.slid`): up with
+    the greeting as HUMANOID opens, on / while her prompt is open and
+    HELP_S after its last line, then down, her drawing taking its rows; its
+    lead a braille turning (`gym.drawer`, test_views_humanoid.py).

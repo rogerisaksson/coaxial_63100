@@ -2,6 +2,7 @@
 
     footer(pairs)          # the page's pairs from the left, the terminal's at the bar's right end
     bar_of(pad, now)       # (its bar's pairs, its help)
+    slid(held, wanted, now)  # a drawer's share up, slid as the help's
     rail()                 # in the column's place, folded (`column`): its edge, a tab in its middle
     room(width)            # the drawing's columns, `beside()` - the column as it stands, the frame - off
 
@@ -68,16 +69,22 @@ def footer(pairs, width=0):
 SLIDE_S, HELP_S = 0.25, 8.0
 
 
+def slid(held, wanted, now):
+    """How much of a drawer is up, 0 to 1, at the clock `now`: `held['up']` slid toward `wanted`
+    over SLIDE_S since its last frame (`held['framed']`)."""
+    step = (now - held['framed']) / SLIDE_S
+    held['up'] = max(0.0, min(1.0, held['up'] + max(-step, min(step, float(wanted) - held['up']))))
+    held['framed'] = now
+    return held['up']
+
+
 def helped(now):
-    """How much of the help is up, 0 to 1, at the clock `now`: slid toward ? (`bindings.UX`)
-    over SLIDE_S, let down HELP_S after the last key."""
+    """How much of the help is up at the clock `now`: slid toward ? (`bindings.UX`), let down
+    HELP_S after the last key."""
     ux = bindings.UX
     if ux['help'] and now - ux['keyed'] > HELP_S:
         ux['help'] = False
-    step = (now - ux['framed']) / SLIDE_S
-    ux['up'] = max(0.0, min(1.0, ux['up'] + max(-step, min(step, float(ux['help']) - ux['up']))))
-    ux['framed'] = now
-    return ux['up']
+    return slid(ux, ux['help'], now)
 
 
 def bar_of(keys, now):
