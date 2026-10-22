@@ -20,19 +20,11 @@ jobs:
           cache-dependency-path: host/requirements.txt
       - run: pip install -r host/requirements.txt && pip install --no-deps -e host
       - run: sudo apt-get update && sudo apt-get install -y libegl1 libgl1-mesa-dri
-      - name: sit texts at three wobbles
+      - name: the base sit traced past its contact
         shell: bash
         env:
           MUJOCO_GL: egl
         run: |
-          for v in base w_soft_base; do
-            for w in 0 0.0002 -0.0002; do
-              python .github/probe/seat_probe.py host "$v" "$w" || echo "{\"variant\": \"$v\", \"wobble\": $w, \"crashed\": true}"
-            done
+          for w in 0 0.0002; do
+            python .github/probe/seat_probe.py host base "$w" 1.80 4.20
           done
-      - name: the errands' chair and bed
-        shell: bash
-        working-directory: host
-        env:
-          MUJOCO_GL: egl
-        run: python tools/dev/run_tests.py --file test_errands.py:chair 2>&1 | tail -30

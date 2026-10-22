@@ -139,9 +139,49 @@ VARIANTS = {
     (latent_targets (mode_axial_compression 2.40) (mode_pitch_attitude 0.0) (mode_arm_swing 0.0) (mode_sagittal_shift -1.35))
     (impedance (stiffness mode_axial_compression 189) (damping mode_axial_compression 38))))
 ''',
+    'r_design': '''
+(defbehavior rise_chair (extends stance_hold)
+  (phase preload
+    (duration 350ms) (blend_duration 350ms)
+    (latent_targets (mode_axial_compression 2.2) (mode_pitch_attitude 1.48) (mode_sagittal_shift 0.0))
+    (impedance (stiffness mode_axial_compression 5000) (damping mode_axial_compression 800)))
+  (phase drive (use preload)
+    (duration 2000ms) (blend_duration 950ms)
+    (latent_targets (mode_axial_compression 0.05) (mode_pitch_attitude 0.08))
+    (impedance (stiffness mode_axial_compression 3000) (damping mode_axial_compression 600)))
+  (phase stand (use drive)
+    (latent_targets (mode_axial_compression 0.0) (mode_pitch_attitude 0.0))))
+''',
+    'r_mid': '''
+(defbehavior rise_chair (extends stance_hold)
+  (phase preload
+    (duration 350ms) (blend_duration 350ms)
+    (latent_targets (mode_axial_compression 2.2) (mode_pitch_attitude 1.0) (mode_sagittal_shift 0.0))
+    (impedance (stiffness mode_axial_compression 5000) (damping mode_axial_compression 800)))
+  (phase drive (use preload)
+    (duration 2000ms) (blend_duration 950ms)
+    (latent_targets (mode_axial_compression 0.05) (mode_pitch_attitude 0.08))
+    (impedance (stiffness mode_axial_compression 3000) (damping mode_axial_compression 600)))
+  (phase stand (use drive)
+    (latent_targets (mode_axial_compression 0.0) (mode_pitch_attitude 0.0))))
+''',
+    'r_soft_design': '''
+(defbehavior rise_chair (extends stance_hold)
+  (phase preload
+    (duration 350ms) (blend_duration 350ms)
+    (latent_targets (mode_axial_compression 2.2) (mode_pitch_attitude 1.48) (mode_sagittal_shift 0.0))
+    (impedance (stiffness mode_axial_compression 5000) (damping mode_axial_compression 800)))
+  (phase drive (use preload)
+    (duration 2000ms) (blend_duration 950ms)
+    (latent_targets (mode_axial_compression 0.05) (mode_pitch_attitude 0.08))
+    (impedance (stiffness mode_axial_compression 3000) (damping mode_axial_compression 600)))
+  (phase stand (use drive)
+    (latent_targets (mode_axial_compression 0.0) (mode_pitch_attitude 0.0))))
+''',
 }
 
 variant, wobble = sys.argv[2], float(sys.argv[3])
+VARIANTS['r_soft_design'] = VARIANTS['w_soft_base'] + VARIANTS['r_soft_design']
 extra = VARIANTS[variant]
 
 
