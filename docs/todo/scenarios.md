@@ -221,8 +221,10 @@ serves its DOD; none an entry a case.
    drawn beyond the rail.
 10. **An errand from every spot** (`tools/sim/house.py`, her way round the
     furniture `route`): the chair from 21 of the 58 spots that offer it, 4
-    before ([errands](../findings/errands.md)). Open: its rise's lean tips
-    her trunk back; turning and backing in the 1 m before the table she
+    before; the bed from 17 of 52 ([errands](../findings/errands.md)). Open:
+    the chair's rise's lean tips her trunk back, sat up on the bed her back
+    stays down - a borne point held still in its three axes, away from the
+    furniture too; turning and backing in the 1 m before the table she
     brushes it and the loft; docking takes 19 s. DOD: the chair's, the bed's
     and the door's errands from every pose she sees them from, no fall.
 11. **Her head's spasms left** ([jerk](../findings/jerk.md)): her neck let go

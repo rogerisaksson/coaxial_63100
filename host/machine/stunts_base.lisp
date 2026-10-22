@@ -9,10 +9,15 @@
 (deftrait two_footed
   (latent_targets (mode_limb_lift 0.0)))
 
+;; Her arms held where they hang, as the suite's maneuvers hold them (`maneuver._armed`: her rest's
+;; stiffness times W_STILL over W_POSTURE): let go, lying back on the bed her shoulders turned 260-500 deg
+(deftrait arms_held
+  (impedance (stiffness mode_arm_swing 1198000) (damping mode_arm_swing 2395)))
+
 ;; sit_chair and rise_chair: the ortho-DSP suite's maneuvers (machine/maneuver.py)
 
 ;; lie down on a bed: onto its edge as on a seat, her trunk back over it, her soles drawn up
-(defbehavior lie_bed (extends stance_hold)
+(defbehavior lie_bed (extends stance_hold arms_held)
   (phase sit_edge
     (duration 900ms) (blend_duration 800ms)
     (latent_targets (mode_axial_compression 2.0) (mode_pitch_attitude 0.8) (mode_sagittal_shift -0.5)))
@@ -25,7 +30,7 @@
     (latent_targets (mode_axial_compression 2.40))))
 
 ;; rise up from a bed: soles down to the floor, forward over them, up as she gets there
-(defbehavior rise_bed (extends stance_hold)
+(defbehavior rise_bed (extends stance_hold arms_held)
   (phase plant
     (duration 400ms) (blend_duration 350ms)
     (latent_targets (mode_axial_compression 2.20) (mode_pitch_attitude -0.8) (mode_sagittal_shift -1.4))

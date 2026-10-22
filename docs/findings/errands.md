@@ -130,6 +130,13 @@ its furniture, four headings, the chair said as F says it (`gym.offered`,
 - Her pelvis's turn kept sprung while a seat bears her
   (`impedance.SEAT_HOLDS`): let go, sat 3 deg askew she turned 0.05 rad in
   0.1 s and lifted a sole.
+- The bed by its texts from every spot: 10 of 52, 16 down. Its lie let her
+  arms go: lying back her shoulders turned 260-500 deg, the step's
+  reaction masses. Held as the suite holds them (`arms_held`), lying back
+  -22 to 14 deg, the bed bearing 0.72 of her: 17 of 52, 4 down, none
+  lying. Left: her rise from lying, 29 of 52 still lying 12 s on - sat up
+  by the text her back stays on the mattress, her step holding each point
+  it bears still in its three axes, away from it too.
 
 ## The keys that send her
 
