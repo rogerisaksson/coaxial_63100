@@ -5,7 +5,7 @@
     wire, span = patch.morph(dry, wet, bands, got)  # the transition's rows, contiguous, on the bar grid
     at = patch.crossing(st, now)                  # her lateral voice's next zero crossing, s
     span = patch.window(st)                       # its double support, s, to wait in for the lock
-    ok = patch.locked(y, fr, a)                   # both soles stand, her capture point in their boxes
+    ok = patch.locked(y, fr, a)                   # both soles stand, the ZMP asked in their boxes
 
 A patch (machine/runway.lisp) is a dry state (defstate), a wet one made of it by a modifier's ops
 (defmodifier), a transition between them (deftransition: a sync trigger, a clock slew, bands of

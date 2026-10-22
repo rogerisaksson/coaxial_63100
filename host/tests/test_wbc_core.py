@@ -315,10 +315,10 @@ def test_the_step_in_c_strides_as_the_steps(report, c, b, rows):
 def test_her_law_in_c_is_her_python_s(report, c, b, rows):
     """wbc_law.c, wbc_imp.c and wbc_step.c (`tools.cores.motion`) beside `latent.step`,
     `support.couple`, `impedance.ask` and `wrench.step` at every pass of her motion over a player's
-    moves - a walk, turns, a strafe, back, a sprint, a stop - and a sit on a chair and up: every
-    field the same, bit for bit."""
+    moves - a walk, turns, a strafe, back, a sprint, a stop -, a sit on a chair and up, and her walk
+    ducked and narrowed by a row: every field the same, bit for bit."""
     import numpy as np
-    from machine import impedance, latent, support
+    from machine import impedance, latent, modal, ortho, support, worker
     from tools.cores import motion
     from tools.sim import scenarios
     from machine import wrench
@@ -363,8 +363,15 @@ def test_her_law_in_c_is_her_python_s(report, c, b, rows):
     try:
         for name in ('play_moves', 'chair'):
             scenarios.ran(name)
+        s, p = worker.session(), np.full(ortho.P, np.nan)
+        p[[ortho.GAIN, ortho.Z + modal.WIDTH, ortho.AMP + modal.LATERAL]], p[ortho.DUCK] = (1, -.3, .2), (-.026, .012, .28)
+        scenarios.placed(s, 'flat')
+        worker.apply(s, {'say': 'walk', 'entries': [('knob', ortho.ROW.pack(302, 3000, 1000, 0, *p), ('knob',))]})
+        while s['g']['t'] < WALK_S:
+            worker.stepped(s)
     finally:
         motion.asked, motion.stepped, motion.coupled, motion._stepped = kept
+    report.check('the knobs bite', s['g']['a'][modal.DUCKING][1] > 0 > s['g']['out'][latent.REF][modal.WIDTH])
     exact = motion.exact_host()
     features = getattr(getattr(getattr(np, '_core', None), '_multiarray_umath', None), '__cpu_features__', {})
     host = 'numpy %s %s' % (np.__version__, ','.join(sorted(k for k, on in features.items()
