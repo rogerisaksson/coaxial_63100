@@ -23,6 +23,9 @@ SLICE_S, LEAD_S = 0.05, 0.15
 #: The processes run apart are spawned: none inherits the page's threads.
 CONTEXT = multiprocessing.get_context('spawn')
 
+#: Closing, a state is read off each queue every DRAIN_S s while the world ends.
+DRAIN_S = 0.01
+
 
 def put(states, item):
     """`item` on `states`, the oldest dropped while it is full."""
@@ -142,20 +145,21 @@ class Apart:
         return self._process.is_alive()
 
     def close(self, wait=1.0):
-        """The world stopped: a None command, its queues drained, the process joined - `wait` s
-        at the most - or ended."""
+        """The world stopped: a None command, its queues drained while it ends - `wait` s at the
+        most - or ended, and not read after: ended mid-write it leaves half a state on a POSIX
+        pipe, and a read waits for the rest (her page hung so in close on CI's runner)."""
         try:
             self._commands.put_nowait(None)
         except queue.Full:
             pass
-        for _ in (0, 1):
+        until = time.monotonic() + wait
+        while self._process.is_alive() and time.monotonic() < until:
             for each in (self._states,) + self._kept:
-                while True:
-                    try:
-                        each.get_nowait()
-                    except queue.Empty:
-                        break
-            if not _:
-                self._process.join(timeout=wait)
-                if self._process.is_alive():
-                    self._process.terminate()
+                try:
+                    each.get_nowait()
+                except queue.Empty:
+                    pass
+            self._process.join(timeout=DRAIN_S)
+        if self._process.is_alive():
+            self._process.terminate()
+            self._process.join(timeout=wait)

@@ -132,6 +132,32 @@ def test_the_frames_leave_on_their_beat(report):
                      1e3 * change[int(0.9 * (len(change) - 1))]))
 
 
+def _spilling(commands, states, shown):
+    """A world that says states bigger than its pipe, one after another, and never stops."""
+    import time
+    while True:
+        states.put(b'.' * (1 << 22))
+        time.sleep(0.01)
+
+
+def test_a_world_ended_mid_state_is_left_unread(report):
+    """`apart.Apart.close` on a world that never stops, each state bigger than its pipe: ended at
+    its wait with a state half written, it is not read after - read, a POSIX pipe's half message
+    waits for its rest for ever (her page hung so in close on CI's runner)."""
+    import threading
+    import time
+    from machine import apart as world_apart
+    apart = world_apart.Apart(_spilling)
+    time.sleep(0.5)
+    began = time.monotonic()
+    closing = threading.Thread(target=apart.close, kwargs={'wait': 0.5}, daemon=True)
+    closing.start()
+    closing.join(5.0)
+    took = time.monotonic() - began
+    report.check('closed within its wait and ended, its pipe not read after',
+                 not closing.is_alive() and not apart.alive(), '%.2f s' % took)
+
+
 def test_the_drawing_is_a_frame_ahead(report):
     """`ahead.Ahead`: a render in a process of its own, each frame given what the frame before
     asked - the first its own."""
@@ -147,7 +173,8 @@ def test_the_drawing_is_a_frame_ahead(report):
 
 
 ROSTER = (test_the_flight_apart_keeps_to_what_is_shown, test_the_page_plays_it_back_never_ahead,
-          test_the_frames_leave_on_their_beat, test_the_drawing_is_a_frame_ahead)
+          test_the_frames_leave_on_their_beat, test_a_world_ended_mid_state_is_left_unread,
+          test_the_drawing_is_a_frame_ahead)
 
 
 def main(argv=None):
