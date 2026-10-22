@@ -112,4 +112,14 @@ saying): the take's tempo, drive, arms, crouch and lean, the rest the walk's.
   on the steering table's rise axis.
 - The dance on the legs and the trunk alone (`takes.VOICES`): 12.4 to 9.0
   widths, down at 13.3 s for 4.1; with its arms said too, at 5.2 s.
+- Told by their beats instead of their texts the chair's jumps fall from
+  the crouch (jump_down 7.4 to 11.3 widths, jumping_down 12.7 to 18.8,
+  jumping_up 21.5 to 23.1): a jump is the drives' throw (`machine.leap`),
+  not a score. The dance on the legs alone drifts 2.6 legs and falls at
+  21.8 s (16.4); the bed turn with the pelvis's list and turn said rolls
+  60 deg for the take's 88 (4.1 for 4.2 without): neither kept.
 - The bench whole: 5 of 31 met, 185.3 widths off (227.7 before the beats).
+  Left to the law, not the score: the seats (the centre of mass off the
+  soles onto a prop), the lie and the rise from it, the jumps' throw, the
+  runs' flight and the brake at speed, the falls' parry; the yawn's
+  overhead arms and both heels up are no modes of hers.
