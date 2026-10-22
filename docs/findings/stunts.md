@@ -251,7 +251,14 @@ run no lower than the human's, a fall's head under 1 m/s. The takes (a leg
   for a tap's 0.73, 1.5 kg on her back read 0.00 kg off her insoles; the
   swing's clearance scaled by its reach over a sole's half-length (where it
   lies, none) still lifted it 10.8 mm and landed her weight on it at 265 N,
-  the parry's landing 5 cm off. Open: a let-go sole counting by its grip.
+  the parry's landing 5 cm off. Counting it while it rests (under `leap.REST_M_S`)
+  in its give (5 mm) of the floor, under a sway with no drive, held the stand's
+  sway (0.057, 0.19 and 0.50 N m rms, test_sysid_live 7/0) and kept her walk
+  (0.70 m/s, 410 J/m), the wear, the scenarios and the replays; the run's leap
+  fell at 6.41 s - after its brake a sole let go 1.7-3.2 mm up on 0-13 N at
+  rest counted at 3.80-3.81 and 4.27-4.34 s where the parry had stepped (need
+  0.51, 0.61) - and the viewport's chair at 16.87 s (not kept,
+  scratch/sway_rests_not_kept.patch). Open: a let-go sole counting by its grip.
   The leap from a stride laid from the drives, kept as a patch
   (scratch/stride_leap_from_drives.patch): off the sole that lands next
   (`stride.beat`'s phase to PHI_W), a half-cosine dip to the depth one knee
