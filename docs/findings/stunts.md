@@ -220,5 +220,25 @@ run no lower than the human's, a fall's head under 1 m/s. The takes (a leg
   (travel 0.42 legs in the bench's scene, 0.04 m in the page's), her soles
   11 mm clear; a tap hops 0.07 m from its dip and stays on its spot; her
   apex over her stand is 0.015 m, the legs 0.5 axial short of straight as
-  she leaves. Her walk unmoved: 2.53 off a
+  she leaves. A sole let go is out of the parry's support under any sway
+  (`lifted`, `1 - still`): the sole a stand's sway hung 2.4 mm up
+  ([feet](feet.md), test_sysid_live's three reds) is parried in place, 15 mm
+  up and down at 172 N, her capture point 2.5 cm past the one sole left
+  while the other lies under it. Measured, not kept: counting it unless her
+  drive strides left a sole still in the air at a sprint's end in the
+  support and she fell (sill, hole, snow, sprint, turns); counting it
+  within its sole's give (5 mm) of the floor let a sliding sole on snow
+  count (snow +-2e-4 fell at 9.35 and 7.61 s), the run's leap held 0.55 m
+  for a tap's 0.73, 1.5 kg on her back read 0.00 kg off her insoles; the
+  swing's clearance scaled by its reach over a sole's half-length (where it
+  lies, none) still lifted it 10.8 mm and landed her weight on it at 265 N,
+  the parry's landing 5 cm off. Open: a let-go sole counting by its grip.
+  Measured, not kept: the push integrated with the lever's
+  force along it (the knee's lever growing as she rises, 18 axial/s at
+  take-off for the parabola's 12.3) flew her 0.21 s with 20 mm clear and
+  stood 3.5 widths, but a tap's late burst left its legs 0.5 behind and
+  never off the floor; on the motor's torque-speed line through the lever
+  (10.5 axial/s, no lever for a straight leg's turn) she fell at 7.3 and
+  the hold flew 0.13 s: the stack's lag at the push's end, not the
+  drives', caps the apex. Her walk unmoved: 2.53 off a
   woman's at 0.70 m/s and 409 J/m, 2.55 at the commit before.

@@ -19,7 +19,9 @@ from machine.figure import ANKLE_H, BALL, HEEL
 
 G = 9.81
 
-#: A sole bears at TOUCH_N, lies on the floor within TOUCH_M; she rests under REST_M_S.
+#: A sole bears at TOUCH_N, lies on the floor within TOUCH_M; she rests under REST_M_S. Kept
+#: standing within its sole's give instead (5 mm, a sole that stood only too) the run's leap
+#: fell 0.69 -> 0.30 m and the seats went: a sole 2 mm up has left.
 #: Near alone, the stack pressed a sole 1 mm over the floor onto it as she left: 648 N on it,
 #: 23 deg over. All or none while she rises flickered on one sole: 21 deg over three hops.
 TOUCH_N, TOUCH_M, REST_M_S = 15.0, 0.002, 0.1
