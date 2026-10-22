@@ -122,14 +122,14 @@ def _envelope(p, at, modes, body):
 
 def _contact(p, then, at, modes, body):
     """A contact's threshold: a seat's, her support's own (`impedance.PROP_ON`) - the acts it releases
-    wait for it, the first laid at the descent's start -, her soles' her rise's wait
-    (`waits.risen_back`)."""
+    wait for it, the first laid at the descent's start -; her soles', its share of her: the acts
+    it releases wait till her soles bear it (`ortho.SOLES`)."""
     plantar = p['sensor-bus'] in PLANTAR
     if not plantar and p['trigger-fz-ratio'] != impedance.PROP_ON:
         raise MachineError('refused: a seat bears her from %g of her weight (impedance.PROP_ON), not %g'
                            % (impedance.PROP_ON, p['trigger-fz-ratio']))
     out = [phase for op, q, more in then for phase in ACTS[op](q, more, at, modes, body)]
-    return out if plantar or not out else [out[0]._replace(waits='contact')] + out[1:]
+    return [out[0]._replace(waits=('soles', p['trigger-fz-ratio']) if plantar else ('contact',))] + out[1:] if out else out
 
 
 def _crossfade(p, then, at, modes, body):
@@ -193,7 +193,7 @@ def _equilibrium(p, then, at, modes, body):
     if p['min-distributed-fz-ratio'] != impedance.PROP_ON:
         raise MachineError('refused: the furniture bears her from %g of her weight (impedance.PROP_ON), not %g'
                            % (impedance.PROP_ON, p['min-distributed-fz-ratio']))
-    return [Phase('rest', 'equilibrium', p['dwell-verify-ms'], p['dwell-verify-ms'], {}, {}, None, 'contact')] + [
+    return [Phase('rest', 'equilibrium', p['dwell-verify-ms'], p['dwell-verify-ms'], {}, {}, None, ('contact',))] + [
         phase for op, q, more in then for phase in ACTS[op](q, more, at, modes, body)]
 
 
@@ -299,7 +299,7 @@ def _supported(ps):
 def _form(name, p, last):
     """Her text's phase of `p`, named `name`: the `last` of a sit or a lie held REST_S."""
     lines = ['(duration %dms) (blend_duration %dms)' % (round(1e3 * REST_S if last else p.ms), round(p.blend))]
-    lines += ['(wait %s)' % p.waits] if p.waits else []
+    lines += ['(wait %s)' % ' '.join(map(str, p.waits))] if p.waits else []
     lines += ['(latch)'] if p.latch else []
     lines += ['(shape %s)' % p.shape] if p.shape != 'linear' else []
     lines += ['(latent_targets %s)' % ' '.join('(%s %.4f)' % kv for kv in p.targets.items())] if p.targets else []

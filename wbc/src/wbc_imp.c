@@ -55,7 +55,7 @@ static void poses(const wbc_imp_t *k, const double *out, const double *y, const 
     for (int r = 0; r < 3; r++)
     {
       const double turning
-        = (acc[r] + (s->kp[by[r]] * (aim[r] - turn[r][b])) * (1.0 - (a[k->a_borne] * (1.0 - npclip(out[k->o_held], 0.0, 1.0))) * p))
+        = (acc[r] + (s->kp[by[r]] * (aim[r] - turn[r][b])) * (1.0 - (a[k->a_borne] * (1.0 - npclip(out[k->o_held], 0.0, 1.0))) * p * (r < 2)))
           + s->kd[by[r]] * (rate[r] - spun[r][b]);
 
       a[at[r] + b] = turn[r][b] + (turning + k->turn_kd[1] * spun[r][b]) / k->turn_kd[0];

@@ -53,6 +53,9 @@ FALLS, UPWARD = np.array([0.0, 0.0, -G]), np.array([0.0, 1.0, 0.0])
 #: Borne off her soles this share of her weight, she is supported there wholly: her support
 #: region spans where, her centre of mass asked of her springs, not let fall.
 PROP_ON = 0.15
+#: Her pelvis's axes a seat holds once it bears her - its pitch and list on her two ischia -, its
+#: turn hers: let go with them, sat 3 deg askew she turned 0.05 rad in 0.1 s and lifted a sole.
+SEAT_HOLDS = np.array([[1.0], [1.0], [0.0]])
 
 
 def ask(out, y, fr, a):
@@ -257,7 +260,7 @@ def _poses(out, y, fr, a, said, turned, up, folds, still):
     # holds it -, its rates her trunk's: sprung to her standing pitch on a seat, or on her trunk's
     # error, it snapped 0.33 rad on in 0.11 s as her trunk came upright
     sat = a[BORNE] * (1.0 - poise.clip(out[latent.HELD], 0.0, 1.0))
-    turning = aim_acc + kp[by][:, None] * (aim - turn) * (1.0 - sat * PELVIS) + kd[by][:, None] * (aim_rate - spun)
+    turning = aim_acc + kp[by][:, None] * (aim - turn) * (1.0 - sat * PELVIS * SEAT_HOLDS) + kd[by][:, None] * (aim_rate - spun)
     a[WANT], a[ROLLED], a[HEADED] = turn + (turning + TURN_KD[1] * spun) / TURN_KD[0]
     a[TURNED] = np.maximum(a[STANCE].max(), a[BORNE]) * (kp[PITCH] + kd[PITCH] > 0.0)
     a[SWUNG] = ARM_RAD * (ref[ARMS] + (acc[ARMS] + POSTURE_KD[1] * rate[ARMS]) / POSTURE_KD[0])

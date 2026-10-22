@@ -141,16 +141,20 @@ void wbc_wait_landed(const wbc_imp_t *k, const wbc_wait_t *w, double *tab, int n
 void wbc_wait_borne(const wbc_imp_t *k, const wbc_wait_t *w, double *tab, int n, const double *y, double t, double dt,
                     double got[3])
 {
-  unsigned char released[WBC_WAIT_ROWS] = {0};
+  unsigned char released[WBC_WAIT_ROWS] = {0}, short_[WBC_WAIT_ROWS] = {0};
   const int     rows = n < WBC_WAIT_ROWS ? n : WBC_WAIT_ROWS;
-  const double  short_ = (double)(y[k->y_prop] < k->prop_on);
-  double        first, shift;
+  const double  prop = y[k->y_prop];
+  double        first, first_short, shift;
 
   for (int r = 0; r < rows; r++)
   {
-    released[r] = (unsigned char)(tab[r * w->table + w->contact] > 0.5);
+    const double contact = tab[r * w->table + w->contact];
+
+    released[r] = (unsigned char)(contact != 0.0);
+    short_[r] = (unsigned char)((contact > 0.5 && prop < k->prop_on) || (contact < 0.0 && prop > 1.0 + contact));
   }
-  shift = (dt * short_) * (double)due_rows(w, tab, rows, released, t, dt, &first);
+  shift = dt * (double)due_rows(w, tab, rows, short_, t, dt, &first_short);
+  (void)due_rows(w, tab, rows, released, t, dt, &first);
   first = first - w->edge_s;
   shifted(w, tab, rows, shift, first);
   got[0] = shift;

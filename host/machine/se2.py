@@ -6,8 +6,9 @@ from machine import ortho
 #: Her twists' speeds: a walk, a sprint, a walk back, a sidestep, m/s; a turn, rad/s.
 WALK_SPEED, RUN_SPEED, BACK_SPEED, STRAFE_SPEED, YAW_RATE = 0.69, 1.40, 0.35, 0.50, 0.70
 #: Her walk's stopping distance, m: told to stand she goes on 0.70 m and is still 2.7 s later,
-#: 0.81 m/s felt whatever speed was asked - she has the one walk.
-STOP_M = 0.70
+#: 0.81 m/s felt whatever speed was asked - she has the one walk; her walk back's 0.05 m on, her
+#: sidestep's 0.15.
+STOP_M, BACK_STOP_M, SIDE_STOP_M = 0.70, 0.05, 0.15
 
 WASD_GAITS = ('walk', 'walk_back', 'jog', 'strafe_left', 'strafe_right',
               'turn_left', 'turn_right', 'turn_back_left', 'turn_back_right', 'spin_left', 'spin_right', 'init_walk')

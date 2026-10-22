@@ -42,27 +42,6 @@ import struct
 from machine import mechatronics
 from machine.curves import QUINTICS
 
-#: Classification schema following the gynoid_<morphology>_<scale> convention:
-#: - gynoid_ectomorph_petite: Small-framed and fine-boned (waif/gamine, < 165 cm); yields an
-#:   extremely low limb moment of inertia, but minimal joint volume forces tendon-driven
-#:   architectures or low-torque actuators (the Ava archetype).
-#: - gynoid_ectomorph_tall: Slender, statuesque column form (> 175 cm); long lever arms provide
-#:   extended reach but demand high structural flexural rigidity and strictly minimized distal
-#:   mass at the knees and ankles.
-#: - gynoid_mesomorph_medium: Anthropometric standard (160-168 cm); a pragmatic compromise
-#:   between statistical human proportions and sufficient internal/external envelope so the
-#:   structural chassis is robust rather than overly fragile,
-#:   accommodating all structural 3D prints, actuators, harmonic drives, battery packs, TPU
-#:   gel pads, and clothing (165 cm, 55.0 kg, 24 cm sole in machine.figure).
-#: - gynoid_hourglass_full: Hyper-gynoid geometry (WHR <= 0.70); introduces a severe structural
-#:   bottleneck for power buses and spinal actuators at the waist, while offering generous
-#:   packaging volume for cells and high-torque hip actuators in the pelvis and thorax.
-#: - gynoid_athletic_heavy: High-dynamic, muscular profile; expanded thigh, gluteal, and shoulder
-#:   envelopes dictated by high-torque-density QDD actuators, structural stiffness under impact
-#:   loads, and thermal dissipation requirements.
-#: - gynoid_skeletal_ultralight: Hollowed truss or exoskeleton chassis stripped of synthetic soft
-#:   tissue; reduces feminine cues strictly to pelvic geometry, Q-angle, and lumbar lordosis to
-#:   minimize total system mass.
 _FILE = os.path.join(os.path.dirname(__file__), mechatronics.ROBOT + '.lisp')
 
 #: Her latent coordinates, a row's vectors in this order. Of her centre of mass over her soles'
@@ -86,18 +65,13 @@ DUCK = slice(5 * N + 4, 5 * N + 7)
 P = 5 * N + 7
 #: A row on the wire: id, at ms, blend ms, flags as u32; the parameters as f32.
 ROW = struct.Struct('<4I%df' % P)
-#: A row's flag: every parameter back to her rest. A behaviour's last row, blended REST_MS.
-REST, REST_MS = 1, 200
-#: A row's flag: a sample of a curve - a take's frame - blended as one with the rows about it
-#: (`latent.CONTIG`); a text's rows blend each its own way.
-CURVE = 2
-#: A row's flag (wait contact): it and the rows after it wait till a seat or bed bears her
-#: (`waits.borne_back`).
-CONTACT = 4
-WAITS = {'contact': CONTACT}
-#: A row's flag (latch): her vector set where she is read, her gains back on no error
-#: (`waits.latched_back`).
-LATCH = 8
+#: A row's flags: REST every parameter back to her rest (a behaviour's last row, blended REST_MS);
+#: CURVE a curve's sample - a take's frame - blended as one with the rows about it (`latent.CONTIG`),
+#: a text's rows each their own way; it and the rows after it wait (`waits.borne_back`) till a seat
+#: or bed bears her (CONTACT), her soles SHARE of her (SOLES, thousandths from SHARE_BIT); LATCH her
+#: vector set where she is read, her gains back on no error (`waits.latched_back`).
+REST, REST_MS, CURVE, CONTACT, LATCH, SOLES, SHARE_BIT = 1, 200, 2, 4, 8, 256, 9
+WAITS = {'contact': CONTACT, 'soles': SOLES}
 #: A row's blend's shape (shape NAME): its index in the flags from SHAPE_BIT (`latent.SHAPES`);
 #: unsaid, linear.
 SHAPES = tuple(QUINTICS)
@@ -117,7 +91,7 @@ _ID, _BLEND, _LASTS, _FLAGS, _HEAD = 0, 1, 2, 3, 4
 _HAS = ('(sequence_id N), (blend_duration 800ms), (duration 400ms) a phase, (latent_targets (MODE N) ..), '
         '(impedance (stiffness MODE|global N|MAX_SYS_K) (damping MODE|global N) ..), (cpg_config (enable '
         'true|false) (frequency 1.1Hz) (amplitude MODE N) (phase_offset MODE OF_MODE 90deg)), (cpg_override '
-        '(halt_oscillators)) a phase, (wait contact) a phase, (latch) a phase, (shape equal_power) a phase, (task_constraints (maintain_zmp (polygon support_polygon|'
+        '(halt_oscillators)) a phase, (wait contact|soles SHARE) a phase, (latch) a phase, (shape equal_power) a phase, (task_constraints (maintain_zmp (polygon support_polygon|'
         'dynamic_footprint)) (limit_yaw_momentum N)), (sidechain (duck -0.026) (attack 12ms) (release 280ms))')
 
 
@@ -214,10 +188,10 @@ def _shape(r, v):
     r[_FLAGS] = r[_FLAGS] & ~(15 << SHAPE_BIT) | SHAPES.index(v) << SHAPE_BIT
 
 
-def _waits(r, v):
-    if v not in WAITS:
-        raise ValueError('a phase waits for %s, not %s' % (', '.join(WAITS), said(v)))
-    r[_FLAGS] |= WAITS[v]
+def _waits(r, v, *share):
+    if v not in WAITS or len(share) != (v == 'soles'):
+        raise ValueError('a phase waits for contact or soles SHARE, not %s' % said([v, *share]))
+    r[_FLAGS] |= WAITS[v] | sum(round(1e3 * _number(s, 0.0, 1.0)) << SHARE_BIT for s in share)
 
 
 def _offset(r, mode, of, v):

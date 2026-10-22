@@ -55,6 +55,7 @@ identification. Her figure: [kinematics](kinematics.md); her drives:
 | maneuver | the suite's maneuvers as her texts: a stunt's patch played on the one it rises from, its acts her phases, each paced to her springs, her arms held; the bed's patches read, not played |
 | seated | her legs and centre of mass sat or sitting down: the knee and ankle a seen seat asks, where they put her centre of mass |
 | furniture | what her eyes tell her of a thing a verb goes to: its top, its near edge, its centre |
+| route | her way round the furniture to an errand's dock: what stands on her floor grown by her radius on her map's cells, A* through the rest; each errand's dock |
 | curves | the suite's curves as shares of the way, and as quintics for a row's blend |
 | swing | a sole that does not stand: where her modes put it, or at rest on the floor while something bears her |
 | voicing | a gait voiced on her walk's row by its changes off the nominal; what has no voice named, what she cannot do refused by name |
@@ -75,7 +76,8 @@ identification. Her figure: [kinematics](kinematics.md); her drives:
   looks (a walk's measures, a woman's band, humanoid robot form); identify (a
   take as an ortho-DSP modifier against her walk, numpy alone); suite (the
   suite's patches and the takes' modifiers played on her, measured by it);
-  told (her scenarios, each alone on her loop as the page runs her).
+  told (her scenarios, each alone on her loop as the page runs her); house
+  (her errands from every spot of the lodge, said as F says them).
 
 ## Suites
 

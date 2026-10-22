@@ -115,7 +115,10 @@ def landed_rows(tab, y, st, t, dt):
 def borne_back(g, dt):
     """Rows a contact releases (`ortho.CONTACT`: a seat's or a bed's cross-fade) wait a pass, every
     row after them with them, while the furniture bears less of her than her support counts it from
-    (`impedance.PROP_ON`): laid from her descent's start they meet the seat where it is."""
+    (`impedance.PROP_ON`): laid from her descent's start they meet the seat where it is. Rows her
+    soles' share releases (`ortho.SOLES`: a rise's cross-fade onto them) wait while the furniture
+    bears more of her than the rest: crossed on the clock off a seat bearing half of her, her ZMP
+    engaged asked a step and she fell."""
     shift, first = g['waits'].borne(g['tab'], g['t'], dt)
     g['labels'] = [(w + shift * (w >= first), n) for w, n in g['labels']]
 
@@ -142,10 +145,10 @@ def latched_rows(tab, y, fr, a, st, t, dt):
 def borne_rows(tab, y, t, dt):
     """(shift, first) of `borne_back` on her table `tab` (its times shifted in place), modal's `y`,
     at `t`, `dt` on. In C bit for bit (`g['waits']`)."""
-    short = float(y[modal.PROP] < impedance.PROP_ON)
-    at = tab[:, latent.AT]
-    due = (tab[:, latent.CONTACT] > 0.5) & (at <= t + latent.EDGE_S) & (at > t - dt + latent.EDGE_S)
-    shift = dt * short * float(np.any(due))
+    prop, contact, at = float(y[modal.PROP]), tab[:, latent.CONTACT], tab[:, latent.AT]
+    due = (contact != 0.0) & (at <= t + latent.EDGE_S) & (at > t - dt + latent.EDGE_S)
+    short = ((contact > 0.5) & (prop < impedance.PROP_ON)) | ((contact < 0.0) & (prop > 1.0 + contact))
+    shift = dt * float(np.any(due & short))
     first = float(np.min(at, where=due, initial=math.inf)) - latent.EDGE_S
     at += shift * (at >= first)
     return shift, first

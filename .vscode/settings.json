@@ -27,10 +27,19 @@
     // cells at ONE brightness: the surface texture and the whole dark half
     // of the ramp gone, measured. 1 shows the colours as sent.
     "terminal.integrated.minimumContrastRatio": 1,
-    // Prevent VS Code from intercepting F1 (Command Palette) when the terminal
-    // has focus so function keys can reach the terminal simulator directly.
+    // F1-F10 reach the terminal's pages (HUMANOID's balloons): VS Code's own
+    // take F1, F3 (find next), F5 (debug), F6 (next part) and F10 (step over)
+    // in a focused terminal - F3 never reached the page.
     "terminal.integrated.commandsToSkipShell": [
-        "-workbench.action.showCommands"
+        "-workbench.action.showCommands",
+        "-workbench.action.terminal.findNext",
+        "-workbench.action.terminal.findPrevious",
+        "-workbench.action.debug.start",
+        "-workbench.action.debug.continue",
+        "-workbench.action.debug.pause",
+        "-workbench.action.focusNextPart",
+        "-workbench.action.focusPreviousPart",
+        "-workbench.action.debug.stepOver"
     ],
     "cmake.cmakePath": "cube-cmake",
     "cmake.configureArgs": [
