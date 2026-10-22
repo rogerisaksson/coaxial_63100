@@ -51,10 +51,10 @@ scene `stairs` (0.15 x 0.30 m treads); the bench and the blind scenes:
   over its tread, the knee 75-90 deg at landing and 7-11 rad/s at most, the
   hips 0.1-0.14 m behind the stance foot at toe-off, 0.14-0.25 behind the
   landing one; hers climb at her walk's 0.54 s step.
-- `stairs_walk` said over the flight instead of the walk's twist (the say path as it
-  is): the committed text falls at the third tread (3.56 s, the sole landing 0.30 m
-  behind her centre); with the takes' numbers (0.77 Hz, drive 0.53, lift 2.5, the
-  axial spring 1200/380) at the second (2.77 s), its beat still the walk's 0.55 s:
-  a text's frequency does not reach her loop by `say`. The climb's cadence, lift
-  and pull-up belong to the steering table's rise axis (se2, in rebuild), a tread a
-  beat.
+- `stairs_walk` said over the flight instead of the walk's twist (the say path
+  as it is): the committed text falls at the third tread (3.56 s, the sole
+  landing 0.30 m behind her centre); with the takes' numbers (0.77 Hz, drive
+  0.53, lift 2.5, the axial spring 1200/380) at the second (2.77 s), its beat
+  still the walk's 0.55 s: a text's frequency does not reach her loop by `say`.
+  The climb's cadence, lift and pull-up belong to the steering table's rise axis
+  (se2, in rebuild), a tread a beat.
