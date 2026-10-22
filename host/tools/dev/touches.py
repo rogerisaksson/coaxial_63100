@@ -110,6 +110,7 @@ TOUCHES = (
     ('host/machine/situations.lisp',           (SITUATION, FLOOR, ORTHO, SCENES)),
     ('host/machine/takes.npz',                 (SCENES, ERRANDS)),
     ('host/machine/dsp.py',                    (STRUCTURE, DSP)),
+    ('host/machine/voicing.py',                (STRUCTURE, DSP)),
     ('host/machine/patch.py',                  (STRUCTURE, DSP)),
     ('host/machine/ortho_dsp/',                (DSP,)),
     ('host/machine/runway.lisp',               (DSP,)),

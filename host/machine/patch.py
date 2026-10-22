@@ -55,16 +55,22 @@ def _tokens(text):
 def _atom(tok):
     if tok.startswith('"'):
         return tok[1:-1]
-    if tok in ('true', 'false'):
-        return tok == 'true'
+    if tok in ('true', 'false', 'nil'):
+        return {'true': True, 'false': False, 'nil': None}[tok]
     try:
         return float(tok)
     except ValueError:
         return tok
 
 
+def _put(into, item):
+    """`item` onto the open form `into`, as (quote item) where a quote stands before it."""
+    into[-1:] = [['quote', item]] if into[-1:] == ["'"] else into[-1:] + [item]
+
+
 def forms(text):
-    """The text's forms: lists, vectors as tuples, keywords and symbols as strings, numbers."""
+    """The text's forms: lists, vectors as tuples, keywords and symbols as strings, numbers, a
+    quoted form (quote form)."""
     stack = [[]]
     for tok in _tokens(text):
         if tok in ('(', '['):
@@ -73,9 +79,9 @@ def forms(text):
             if len(stack) == 1:
                 raise SyntaxError('a %s closes nothing' % tok)
             done = stack.pop()
-            stack[-1].append(tuple(done[1:]) if done[:1] == ['[]'] else done)
+            _put(stack[-1], tuple(done[1:]) if done[:1] == ['[]'] else done)
         else:
-            stack[-1].append(_atom(tok))
+            _put(stack[-1], _atom(tok))
     if len(stack) != 1:
         raise SyntaxError('%d forms left open' % (len(stack) - 1))
     return stack[0]

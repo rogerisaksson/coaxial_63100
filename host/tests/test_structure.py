@@ -74,8 +74,8 @@ def _bound(tree):
                     if one:
                         names.add(one.arg)
         elif isinstance(node, ast.Lambda):
-            for group in (node.args.args, node.args.kwonlyargs):
-                names |= {a.arg for a in group}
+            for group in (node.args.args, node.args.kwonlyargs, (node.args.vararg, node.args.kwarg)):
+                names |= {a.arg for a in group if a}
         elif isinstance(node, ast.ExceptHandler) and node.name:
             names.add(node.name)
         elif isinstance(node, ast.Global):

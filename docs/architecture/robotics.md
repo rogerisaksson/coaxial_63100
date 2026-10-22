@@ -51,7 +51,8 @@ identification. Her figure: [kinematics](kinematics.md); her drives:
 | sprung | the latent loop run: her world read and told through her edge, her law's pass between; her process, paced to the clock: the one thing that moves her |
 | gait | her standard gait and its modifiers: the walk's parameters as the lisp's streams fold them, moved by named amounts (pace, stride, swing, sway, roll, turn, rock, crouch, lean, width): a gait take's, a catwalk's roll |
 | patch | a transition on her loop: lisp read as forms, a morph as contiguous curve rows on the bar grid, begun locked to her double support |
-| dsp | the ortho-DSP suite (machine/ortho_dsp/) and the runway's dialect evaluated to gaits, each voiced on her walk's row by its changes off the nominal; what has no voice named, what she cannot do refused by name |
+| dsp | the ortho-DSP suite (machine/ortho_dsp/) and the runway's dialect evaluated to gaits: their stages, transitions and maneuvers' acts in order |
+| voicing | a gait voiced on her walk's row by its changes off the nominal; what has no voice named, what she cannot do refused by name |
 | takes | the mocap takes as rows for her loop: a posture take's voices at its beats, a gait take's amounts on her standard gait, entered over her leg's half period, told by the bench |
 | worker | her outer loop and session: discrete commands mapped to continuous setpoints, each logged with its epoch and pass, falls recovered; the page's states |
 | tour | the scenes one after another, commanded as an agent commands them |

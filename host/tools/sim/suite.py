@@ -118,7 +118,7 @@ def _her():
 def line(item):
     """{item, told, her, ...} of one item: a suite patch by name or a take's FBX, voiced, played,
     measured; refused by name where she cannot."""
-    from machine import dsp
+    from machine import dsp, voicing
     from machine.errors import MachineError
     got = dsp.read(dsp.SUITE)
     out = {'item': item}
@@ -143,7 +143,7 @@ def line(item):
         g = got[item]
     fr = _her()
     try:
-        row, told = dsp.voiced(g, got['nominal-biped-manifold'], fr)
+        row, told = voicing.voiced(g, got['nominal-biped-manifold'], fr)
     except MachineError as error:
         return dict(out, refused=str(error))
     scene = scene_of(g)
@@ -191,7 +191,7 @@ def schedule():
     """The suite's schedule played to its first refusal on a flat floor - its worlds named, not
     laid -: each patch's row at its bar, each morph's rows from the lock past its crossing.
     [(from bar, to bar, what, laid at s or the refusal)] and her rows."""
-    from machine import dsp, patch, worker
+    from machine import dsp, patch, voicing, worker
     from machine.errors import MachineError
     got = dsp.read(dsp.SUITE)
     dry, fr = got['nominal-biped-manifold'], _her()
@@ -199,10 +199,10 @@ def schedule():
     for b0, b1, item in dsp.schedule(got['compile-omnidirectional-suite']):
         try:
             if isinstance(item, dsp.Morph):
-                wire, span = dsp.morphed(item, dry, fr)
+                wire, span = voicing.morphed(item, dry, fr)
                 steps.append(('morph', b0, b1, wire, span))
             else:
-                row, told = dsp.voiced(item, dry, fr)
+                row, told = voicing.voiced(item, dry, fr)
                 steps.append(('patch', b0, b1, row, told))
         except MachineError as error:
             plan.append((b0, b1, 'refused', str(error)))
@@ -262,7 +262,7 @@ def main(argv=None):
         print(json.dumps(line(args.items[0]), default=float))
         return 0
     from machine import dsp
-    items = args.items or [k for k in dsp.read(dsp.SUITE) if k.startswith('patch-')]
+    items = args.items or [k for k, v in dsp.read(dsp.SUITE).items() if k.startswith('patch-') and isinstance(v, dict)]
     reference()
     from tools.dev import focus
     jobs = [focus.Job(os.path.basename(item), [sys.executable, '-X', 'utf8', os.path.abspath(__file__), item, '--one'],
