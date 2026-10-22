@@ -1,5 +1,5 @@
 ;; =============================================================================
-;; FILE: 08_substrate_impedance.lisp
+;; FILE: substrate_impedance.lisp
 ;; DOMAIN: External Furniture Compliance Filters & High-Z Inverter Gating
 ;; =============================================================================
 (defpackage :ortho-dsp.substrates
@@ -45,13 +45,12 @@
 (defmodifier gate-inverter-high-z [state &key (verify-dwell-ms 400.0)]
   (-> state
       (on-manifold-equilibrium
-        :min-distributed-fz-ratio 0.96
+        :min-distributed-fz-ratio 0.15 ; her support counts the furniture from 0.15 of her weight (impedance.PROP_ON)
         :dwell-verify-ms verify-dwell-ms
 
         (cascade-actuator-gates
           :direction :distal-to-proximal
-          :nodes [:calcaneus :tibiofemoral :coxofemoral :l4-l5-lumbar
-                  :c7-t12-thoracic :glenohumeral :c1-c2-atlas :craniofacial]
+          :nodes [:l4-l5-lumbar :c7-t12-thoracic :glenohumeral :c1-c2-atlas :craniofacial] ; her legs carry themselves, her feet on the floor
           :stagger-ms 75.0
           :torque-decay-ms 300.0
           :bridge-state :high-z-passive-bypass

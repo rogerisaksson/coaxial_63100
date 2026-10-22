@@ -1,5 +1,5 @@
 ;; =============================================================================
-;; FILE: 00_core_manifold.lisp
+;; FILE: core_manifold.lisp
 ;; DOMAIN: Physical Invariants, Universal Phase Oscillator & Baseline Manifold
 ;; =============================================================================
 (defpackage :ortho-dsp.core

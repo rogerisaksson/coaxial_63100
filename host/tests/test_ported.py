@@ -137,9 +137,9 @@ def test_her_twist_in_c_as_she_walks(report, c):
 
 def test_her_waits_in_c_as_she_walks(report, c):
     """Her table's waits in C (`c_wait.laid`, wbc_wait.c) beside their python (`waits.held_rows`,
-    `risen_rows`, `woken_rows`) on copies of her table and her state at every pass of her law over
-    PASSES of her walk - the table's times, the shift, the first row, the state and her rhythm woken
-    bit for bit -, and a step's time."""
+    `risen_rows`, `woken_rows`, `borne_rows`, `latched_rows`) on copies of her table and her state at
+    every pass of her law over PASSES of her walk - the table's times, the shift, the first row, the
+    state and her rhythm woken bit for bit -, and a step's time."""
     from machine import latent, waits as py_waits, worker
     from tools.cores import motion as c_motion
     from tools.cores.orders import same
@@ -175,6 +175,23 @@ def test_her_waits_in_c_as_she_walks(report, c):
             got = waits.landed(tab, t, dt)
             self.tallied(t1 - t0, time.perf_counter() - t1, tab, mine, got, want)
             return got
+
+        def borne(self, tab, t, dt):
+            mine = tab.copy()
+            t0 = time.perf_counter()
+            want = py_waits.borne_rows(mine, g['y'], t, dt)
+            t1 = time.perf_counter()
+            got = waits.borne(tab, t, dt)
+            self.tallied(t1 - t0, time.perf_counter() - t1, tab, mine, got, want)
+            return got
+
+        def latched(self, tab, t, dt):
+            mine = g['st'].copy()
+            t0 = time.perf_counter()
+            py_waits.latched_rows(tab, g['y'], g['fr'], g['a'], mine, t, dt)
+            t1 = time.perf_counter()
+            waits.latched(tab, t, dt)
+            self.tallied(t1 - t0, time.perf_counter() - t1, g['st'], mine, g['st'][latent.Z], mine[latent.Z])
 
         def woken(self, tab, t, dt):
             mine = g['st'].copy()

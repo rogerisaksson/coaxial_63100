@@ -1,5 +1,5 @@
 ;; =============================================================================
-;; FILE: 02_locomotion_topologies.lisp
+;; FILE: locomotion_topologies.lisp
 ;; DOMAIN: Fundamental Phase & CoM Engines (Walk, Run, Crouch, Skip, Hop, Retro, Lateral)
 ;; =============================================================================
 (defpackage :ortho-dsp.topologies

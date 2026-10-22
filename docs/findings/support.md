@@ -66,7 +66,7 @@ scenarios: [scenarios](scenarios.md).
   where 4.2, still at 3.4 where 6.3, 7.5 cm in where 5.5; 1 fall in 13 lain
   where 2. Quicker on the firm one, 5.
 - A sole let go as she sat, the other standing, rose where her folded legs put
-  it (`impedance._swings` held a free sole at the floor only with none
+  it (`swing.free` held a free sole at the floor only with none
   standing): the chair 0.4 um off, off the seat 36 ms at 2.07 s and back on it
   at 488 N, her left sole 0 N, up 2.2 mm at 2.22 s and 7.3 at 2.29, and she was
   thrown off the chair at 4.1 s, 1 of 16 offsets. Each sole that does not stand

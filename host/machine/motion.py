@@ -169,6 +169,8 @@ def control(g, dt):
     waits.held_back(g, dt * ev)
     waits.risen_back(g, dt * ev)
     waits.landed_back(g, dt * ev)
+    waits.borne_back(g, dt * ev)
+    waits.latched_back(g, dt * ev)
     out = _step_latent(g, dt * ev)
     se2.step_physical_twist(g, dt * ev, out)
     g['gripped'](out, g['held'], g['a'][modal.STANCE], g['situations']['caps'], g['into'])
@@ -193,6 +195,7 @@ def control(g, dt):
     posed = g['poses'](imp, y, g['fr'], q_post, g['bend'], g['arms'], body.knees, g.get('_twist_clear', 0.0) * sw)
     ask = g['ask'] = modal.given(imp, y, posed, body.knees, g['bend'])
     ask['mu'] = g['held']
+    ask['hold'] = max(1.0, float(g['out'][latent.KS][modal.ARMS] / g['rest'][latent.K][modal.ARMS]))
     cv, acv = g['_cv_sh'], g['_acv_sh']
     w_gait = min(1.0, max(0.0, (0.05 - float(g['st'][latent.NOW][latent.GAIN])) / 0.05))
     z_to = g['st'][latent.TO][latent.Z]

@@ -40,6 +40,7 @@ import os
 import re
 import struct
 from machine import mechatronics
+from machine.curves import QUINTICS
 
 #: Classification schema following the gynoid_<morphology>_<scale> convention:
 #: - gynoid_ectomorph_petite: Small-framed and fine-boned (waif/gamine, < 165 cm); yields an
@@ -90,6 +91,17 @@ REST, REST_MS = 1, 200
 #: A row's flag: a sample of a curve - a take's frame - blended as one with the rows about it
 #: (`latent.CONTIG`); a text's rows blend each its own way.
 CURVE = 2
+#: A row's flag (wait contact): it and the rows after it wait till a seat or bed bears her
+#: (`waits.borne_back`).
+CONTACT = 4
+WAITS = {'contact': CONTACT}
+#: A row's flag (latch): her vector set where she is read, her gains back on no error
+#: (`waits.latched_back`).
+LATCH = 8
+#: A row's blend's shape (shape NAME): its index in the flags from SHAPE_BIT (`latent.SHAPES`);
+#: unsaid, linear.
+SHAPES = tuple(QUINTICS)
+SHAPE_BIT = 4
 _CLEAR = float('nan')
 #: A name that is a number (or `none` / `unsaid` to clear an inherited parameter back to NaN).
 SYMBOLS = {'MAX_SYS_K': 8.0e4, 'true': 1.0, 'false': 0.0, 'support_polygon': 1.0, 'dynamic_footprint': 2.0,
@@ -100,12 +112,12 @@ _SCALE = {'ms': ('s', 1e-3), 's': ('s', 1.0), 'Hz': ('Hz', 1.0), 'deg': ('rad', 
 _WANTS = {'s': 'ms or s', 'Hz': 'Hz', 'rad': 'deg'}
 _MODE = {'mode_' + m: (i,) for i, m in enumerate(MODES)}
 _SPRUNG = {**_MODE, 'global': tuple(range(N))}
-#: A row as it is compiled: [id, blend ms, its ms as a phase] and the parameters.
-_ID, _BLEND, _LASTS, _HEAD = 0, 1, 2, 3
+#: A row as it is compiled: [id, blend ms, its ms as a phase, its flags] and the parameters.
+_ID, _BLEND, _LASTS, _FLAGS, _HEAD = 0, 1, 2, 3, 4
 _HAS = ('(sequence_id N), (blend_duration 800ms), (duration 400ms) a phase, (latent_targets (MODE N) ..), '
         '(impedance (stiffness MODE|global N|MAX_SYS_K) (damping MODE|global N) ..), (cpg_config (enable '
         'true|false) (frequency 1.1Hz) (amplitude MODE N) (phase_offset MODE OF_MODE 90deg)), (cpg_override '
-        '(halt_oscillators)) a phase, (task_constraints (maintain_zmp (polygon support_polygon|'
+        '(halt_oscillators)) a phase, (wait contact) a phase, (latch) a phase, (shape equal_power) a phase, (task_constraints (maintain_zmp (polygon support_polygon|'
         'dynamic_footprint)) (limit_yaw_momentum N)), (sidechain (duck -0.026) (attack 12ms) (release 280ms))')
 
 
@@ -192,6 +204,22 @@ def _halt(r):
     r[_HEAD + GAIN] = 0.0
 
 
+def _latch(r):
+    r[_FLAGS] |= LATCH
+
+
+def _shape(r, v):
+    if v not in SHAPES:
+        raise ValueError('a phase blends %s, not %s' % (', '.join(SHAPES), said(v)))
+    r[_FLAGS] = r[_FLAGS] & ~(15 << SHAPE_BIT) | SHAPES.index(v) << SHAPE_BIT
+
+
+def _waits(r, v):
+    if v not in WAITS:
+        raise ValueError('a phase waits for %s, not %s' % (', '.join(WAITS), said(v)))
+    r[_FLAGS] |= WAITS[v]
+
+
 def _offset(r, mode, of, v):
     lead = r[_HEAD + PHASE + _MODE[of][0]]
     rad = _in(v, 'rad')
@@ -221,7 +249,8 @@ _PAYLOAD = {
     ('sidechain', 'release'): _one(DUCK.start + 2, 0.0, unit='s'),
 }
 _PHASE = {**{path: lay for path, lay in _PAYLOAD.items() if path != ('sequence_id',)},
-          ('duration',): _head(_LASTS, 's'), ('cpg_override', 'halt_oscillators'): _halt}
+          ('duration',): _head(_LASTS, 's'), ('cpg_override', 'halt_oscillators'): _halt, ('wait',): _waits,
+          ('latch',): _latch, ('shape',): _shape}
 
 
 def _sayings(form, path=()):
@@ -260,7 +289,7 @@ def _use(r, clause, rules, traits):
 
 def _row(clauses, rules, base=None, traits=None, row_traits=()):
     """A row of a payload's or a phase's `clauses`, by `rules`."""
-    r = list(base) if base else [0, 0, 0] + [math.nan] * P
+    r = list(base) if base else [0, 0, 0, 0] + [math.nan] * P
     for tr in row_traits:
         _merge(r, tr, rules)
     for clause in clauses:
@@ -285,7 +314,7 @@ def _row(clauses, rules, base=None, traits=None, row_traits=()):
 
 
 def _packed(r, at, flags=0):
-    return ROW.pack(r[_ID], at, r[_BLEND], flags, *r[_HEAD:])
+    return ROW.pack(r[_ID], at, r[_BLEND], r[_FLAGS] | flags, *r[_HEAD:])
 
 
 def _parents(name, spec, raw, traits):
@@ -297,7 +326,7 @@ def _parents(name, spec, raw, traits):
         if p in raw:
             b_list = []
             for i, (b_name, b_row) in enumerate(raw[p]):
-                r = [0, 0, 0] + [math.nan] * P
+                r = [0, 0, 0, 0] + [math.nan] * P
                 for tr in pre_traits:
                     _merge(r, tr, _PHASE)
                 if i < len(base):

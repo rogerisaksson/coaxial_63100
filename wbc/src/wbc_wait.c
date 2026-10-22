@@ -1,5 +1,5 @@
 /** wbc_wait.c - the rows of her table that wait, and those that wake her (wbc_imp.h):
-    machine.waits.held_rows, risen_rows and woken_rows on her law's arrays, numpy's and Python's
+    machine.waits.held_rows, risen_rows, borne_rows, latched_rows and woken_rows on her law's arrays, numpy's and Python's
     arithmetic operation for operation (wbc_np.h, wbc_blas.h). Portable C11, the host's alone. */
 #include "wbc_imp.h"
 #include "wbc_np.h"
@@ -136,6 +136,51 @@ void wbc_wait_landed(const wbc_imp_t *k, const wbc_wait_t *w, double *tab, int n
   shifted(w, tab, rows, shift, first);
   got[0] = shift;
   got[1] = first;
+}
+
+void wbc_wait_borne(const wbc_imp_t *k, const wbc_wait_t *w, double *tab, int n, const double *y, double t, double dt,
+                    double got[3])
+{
+  unsigned char released[WBC_WAIT_ROWS] = {0};
+  const int     rows = n < WBC_WAIT_ROWS ? n : WBC_WAIT_ROWS;
+  const double  short_ = (double)(y[k->y_prop] < k->prop_on);
+  double        first, shift;
+
+  for (int r = 0; r < rows; r++)
+  {
+    released[r] = (unsigned char)(tab[r * w->table + w->contact] > 0.5);
+  }
+  shift = (dt * short_) * (double)due_rows(w, tab, rows, released, t, dt, &first);
+  first = first - w->edge_s;
+  shifted(w, tab, rows, shift, first);
+  got[0] = shift;
+  got[1] = first;
+}
+
+void wbc_wait_latched(const wbc_imp_t *k, const wbc_wait_t *w, const double *tab, int n, const double *y,
+                      const double *fr, const double *a, double *st, double t, double dt)
+{
+  unsigned char latches[WBC_WAIT_ROWS] = {0};
+  const int     rows = n < WBC_WAIT_ROWS ? n : WBC_WAIT_ROWS;
+  const double  stance[2] = {a[k->a_stance], a[k->a_stance + 1]};
+  double        z[WBC_IMP_N], zd[WBC_IMP_N], leg[2][3], len[2], lrate[2], turn[3][2], spun[3][2], first, latch;
+
+  for (int r = 0; r < rows; r++)
+  {
+    latches[r] = (unsigned char)(tab[r * w->table + w->latch] > 0.5);
+  }
+  latch = (double)due_rows(w, tab, rows, latches, t, dt, &first);
+  wbc_imp_reading(k, y, fr, stance, z, zd, leg, len, lrate, turn, spun);
+  for (int m = 0; m < k->n; m++)
+  {
+    double *now = st + w->st_now_z + m, *from = st + w->st_from_z + m, *to = st + w->st_to_z + m;
+
+    *now = *now + latch * (z[m] - *now);
+    *from = *from + latch * (z[m] - *from);
+    *to = *to + latch * (z[m] - *to);
+    st[w->st_v0_z + m] = st[w->st_v0_z + m] * (1.0 - latch);
+    st[w->st_v1_z + m] = st[w->st_v1_z + m] * (1.0 - latch);
+  }
 }
 
 void wbc_wait_woken(const wbc_imp_t *k, const wbc_wait_t *w, const double *tab, int n, double *st, double t, double dt)

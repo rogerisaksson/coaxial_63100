@@ -1,5 +1,5 @@
 ;; =============================================================================
-;; FILE: 03_spatial_and_style_modulators.lisp
+;; FILE: spatial_and_style_modulators.lisp
 ;; DOMAIN: Terrain Elevation (Stairs/Slopes), Style Overlays & Inertial Payloads
 ;; =============================================================================
 (defpackage :ortho-dsp.modulators

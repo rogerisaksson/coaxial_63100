@@ -18,20 +18,10 @@ import math
 import re
 
 from machine import modal, ortho, stride
+from machine.curves import CURVES
 
 #: The morph's grid, sixteenths of a bar.
 GRID = 16
-#: The curves a band rides, u in [0, 1] -> the wet's share: an exponential with e^-SPAN_E of its
-#: way left at the window's end, normalized there; the equal-power crossfade's energy share; an
-#: audio taper's swell over SWELL_DB; Hermite's smoothstep.
-SPAN_E, SWELL_DB = 4.0, 40.0
-CURVES = {
-    'exponential-fast': lambda u: (1.0 - math.exp(-SPAN_E * u)) / (1.0 - math.exp(-SPAN_E)),
-    'equal-power': lambda u: math.sin(0.5 * math.pi * u) ** 2,
-    'logarithmic-swell': lambda u: (10.0 ** (SWELL_DB / 20.0 * u) - 1.0) / (10.0 ** (SWELL_DB / 20.0) - 1.0),
-    'hermite-s-curve': lambda u: u * u * (3.0 - 2.0 * u),
-    'linear': lambda u: u,
-}
 #: A morph's rows' sequence id, after the takes' (300) and a modified row (301).
 ROW_ID = 302
 

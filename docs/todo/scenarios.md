@@ -12,13 +12,14 @@ serves its DOD; none an entry a case.
    of her weight up to 0.15 of it, whole from there (by the share alone a
    brush of the bed's frame at the dock stepped her over its edge); her soles
    lifted by the seat's excess stay so, a human's seated feet down open
-   (stunts.md). Met: the chair by its texts at 0 and 2e-4 rad, the seat
-   bearing more of her than her soles for 2.6-5.1 s (at -2e-4 her perch
-   slides off and she falls at 9.06 s, so at the base before the takes). The
-   bed by its
-   text is out of the held scenes: a 27 deg recline, the bed 0.39 of her to
-   her soles' 0.61 - the step splits her weight evenly over three contacts
-   where the legs should give it - and the page's lie wants 0.45. Open: the
+   (stunts.md). Met: the chair by the suite's patches (`machine.maneuver`),
+   risen at the dock 13-14 of 14 ([sequencer](../findings/sequencer.md)). The
+   bed by its text is out of the held scenes: a 27 deg recline, the bed 0.39
+   of her to her soles' 0.61 - the step splits her weight evenly over three
+   contacts where the legs should give it - and the page's lie wants 0.45; on
+   the page it throws her arms to -109 deg, drops her onto the bed and calls
+   her fallen 2.7 s later, rolled 180 deg. Its patches wait on a step that
+   lets a borne point roll (sequencer.md). Open: the
    sit by the take collapses from its landing (stunts.md: her centre of mass
    released past the soles, the landing's sole swung up by the clearance, the
    knees folded to the told axial, the pelvis's pitch task given to the

@@ -9,36 +9,7 @@
 (deftrait two_footed
   (latent_targets (mode_limb_lift 0.0)))
 
-;; sit down on a chair: down until the seat bears her, her weight back onto it, her soles drawn up
-(defbehavior sit_chair (extends stance_hold)
-  (phase approach
-    (duration 1500ms) (blend_duration 800ms)
-    (latent_targets (mode_axial_compression 2.0) (mode_pitch_attitude 0.8) (mode_sagittal_shift -0.5)))
-  (phase lower
-    (duration 1500ms) (blend_duration 800ms)
-    (latent_targets (mode_axial_compression 2.3) (mode_pitch_attitude 0.1) (mode_sagittal_shift -1.3))
-    (impedance (stiffness mode_axial_compression 3000) (damping mode_axial_compression 600)))
-  (phase seated (use lower)
-    (duration 60s) (blend_duration 800ms)
-    (latent_targets (mode_axial_compression 2.40) (mode_pitch_attitude 0.0) (mode_sagittal_shift -1.35))))
-
-;; rise up from a chair: soles down to the floor, forward over them, up as she gets there
-(defbehavior rise_chair (extends stance_hold)
-  (phase plant
-    (duration 500ms) (blend_duration 400ms)
-    (latent_targets (mode_axial_compression 2.20) (mode_pitch_attitude 0.3) (mode_sagittal_shift -1.0))
-    (impedance (stiffness mode_axial_compression 3000) (damping mode_axial_compression 600)))
-  (phase lean
-    (duration 500ms) (blend_duration 500ms)
-    (latent_targets (mode_axial_compression 2.20) (mode_pitch_attitude 1.0) (mode_sagittal_shift 0.0))
-    (impedance (stiffness mode_axial_compression 5000) (damping mode_axial_compression 800)))
-  (phase thrust (use lean)
-    (duration 2000ms) (blend_duration 1500ms)
-    (latent_targets (mode_axial_compression 0.5) (mode_pitch_attitude 0.3))
-    (impedance (stiffness mode_axial_compression 2000) (damping mode_axial_compression 600)))
-  (phase stand (use thrust)
-    (latent_targets (mode_axial_compression 0.0) (mode_pitch_attitude 0.0))
-    (impedance (stiffness mode_axial_compression 3000) (damping mode_axial_compression 600))))
+;; sit_chair and rise_chair: the ortho-DSP suite's maneuvers (machine/maneuver.py)
 
 ;; lie down on a bed: onto its edge as on a seat, her trunk back over it, her soles drawn up
 (defbehavior lie_bed (extends stance_hold)

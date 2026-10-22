@@ -48,10 +48,12 @@ GYMS = (mechatronics.ROBOT, 'examples')
 
 
 def entries(text=None, name=GYMS[0]):
-    """[(label, wire, names)]: the gym's entries of `text` (machine/`name`.lisp's)."""
+    """[(label, wire, names)]: the gym's entries of `text` - machine/`name`.lisp's, hers with the
+    ortho-DSP suite's stunts played on it (`maneuver.texts`)."""
     if text is None:
+        from machine import maneuver
         with open(os.path.join(os.path.dirname(__file__), name + '.lisp'), encoding='utf-8') as f:
-            text = f.read()
+            text = f.read() + ('\n' + maneuver.texts() if name == GYMS[0] else '')
     tables, phases = ortho.compiled(text)
     sz = ortho.ROW.size
     stream = [tables[''][i:i + sz] for i in range(0, len(tables['']), sz)]

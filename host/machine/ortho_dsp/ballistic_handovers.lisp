@@ -1,5 +1,5 @@
 ;; =============================================================================
-;; FILE: 11_ballistic_handovers.lisp
+;; FILE: ballistic_handovers.lisp
 ;; DOMAIN: Geometry-Parameterized Descent Envelopes & Wavefront Impedance Release
 ;; =============================================================================
 (defpackage :ortho-dsp.ballistic-handovers
@@ -30,7 +30,7 @@
 
       (on-contact-threshold
         :sensor-bus :ischial-bilateral
-        :trigger-fz-ratio 0.12
+        :trigger-fz-ratio 0.15             ; her seat bears her from 0.15 of her weight (impedance.PROP_ON)
         :max-impact-velocity-mps 0.02           ; Silent, zero-thump contact
         (crossfade-support-manifold
           :from-bus :plantar-bilateral

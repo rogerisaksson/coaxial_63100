@@ -52,6 +52,11 @@ identification. Her figure: [kinematics](kinematics.md); her drives:
 | gait | her standard gait and its modifiers: the walk's parameters as the lisp's streams fold them, moved by named amounts (pace, stride, swing, sway, roll, turn, rock, crouch, lean, width): a gait take's, a catwalk's roll |
 | patch | a transition on her loop: lisp read as forms, a morph as contiguous curve rows on the bar grid, begun locked to her double support |
 | dsp | the ortho-DSP suite (machine/ortho_dsp/) and the runway's dialect evaluated to gaits: their stages, transitions and maneuvers' acts in order |
+| maneuver | the suite's maneuvers as her texts: a stunt's patch played on the one it rises from, its acts her phases, each paced to her springs, her arms held; the bed's patches read, not played |
+| seated | her legs and centre of mass sat or sitting down: the knee and ankle a seen seat asks, where they put her centre of mass |
+| furniture | what her eyes tell her of a thing a verb goes to: its top, its near edge, its centre |
+| curves | the suite's curves as shares of the way, and as quintics for a row's blend |
+| swing | a sole that does not stand: where her modes put it, or at rest on the floor while something bears her |
 | voicing | a gait voiced on her walk's row by its changes off the nominal; what has no voice named, what she cannot do refused by name |
 | takes | the mocap takes as rows for her loop: a posture take's voices at its beats, a gait take's amounts on her standard gait, entered over her leg's half period, told by the bench |
 | worker | her outer loop and session: discrete commands mapped to continuous setpoints, each logged with its epoch and pass, falls recovered; the page's states |
@@ -69,7 +74,8 @@ identification. Her figure: [kinematics](kinematics.md); her drives:
   campaign on the stand, tabled, its corrections written); strides, normal,
   looks (a walk's measures, a woman's band, humanoid robot form); identify (a
   take as an ortho-DSP modifier against her walk, numpy alone); suite (the
-  suite's patches and the takes' modifiers played on her, measured by it).
+  suite's patches and the takes' modifiers played on her, measured by it);
+  told (her scenarios, each alone on her loop as the page runs her).
 
 ## Suites
 
@@ -93,7 +99,7 @@ identification. Her figure: [kinematics](kinematics.md); her drives:
 ## Software Systems Engineering Architecture
 
 All inner control, contact and observer modules (`motion`, `touch`, `grip`,
-`se2`, `latent`, `modal`, `impedance`, `poise`, `stride`, `support`, `borne`,
+`se2`, `latent`, `modal`, `impedance`, `swing`, `poise`, `stride`, `support`, `borne`,
 `wrench`) operate as a branchless physical and mathematical continuum on SE(3)
 and modal vectors without conditional logic (`if`-statements, mode-string
 branches or discrete thresholds). External commands enter through the outer

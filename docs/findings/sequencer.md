@@ -248,6 +248,32 @@ makes a modifier of a take (`tools/sim/suite.py`, 20 s).
 - Told the runway take's 0.95 m/s alone she falls at 11.9 s, without its
   arms at 8.8 s; with its row (arms x2.9, roll x4.3) she stands.
 
+## The suite's maneuvers
+
+The chair's sit and rise played from the suite's patches (`machine.maneuver`):
+a patch's acts her phases, each paced to the spring it moves (1e3 sqrt(BENT) /
+omega_n ms: the preload 350 -> 575), her arms held (`mode_arm_swing` is
+antisymmetric: no counterweight to voice), her hips landed where her centre of
+mass stands over her ankles, no further than a buttock behind the seen edge
+(`seated.landed`), docked at the patch's standoff (chair 85 mm, bed 70).
+
+- Risen at the dock 13-14 of 14 in 4.5-15 s, her soles within 3 mm, her arms
+  0 deg/s; the room's chair by the viewport met; her walk 0.70 m/s, 409 J/m,
+  2.55 off, unchanged.
+- Her centre of mass's zero her soles' middle, the sagittal mode's: her
+  stand's is 2.9 cm off it; a manifest mass model 4 mm off `figure.com`.
+- Not kept: her pelvis sprung while seated (off the seat at 4.0 s); her pelvis
+  after her trunk (leaned in 3 cm nearer); landed on the edge alone (9 of 14);
+  a sole resting wherever it does not stand (her walk 2.55 -> 2.51 off, a bob
+  in the stumble): it rests with her ZMP let go alone (`swing.rested`).
+- The bed's patches read, not played: her step holds each borne point still
+  in 3 axes, and lying back stops at her spine's 0.6 rad; weighed 0.003
+  tangentially she lay back and rolled over as the cascade went high-Z
+  mid-motion; the mattress gives 2.3 N/mm to the patch's 18.5, her descent
+  2 cm short.
+- Open on the chair: off its seat at 10.5 s now and then; docked 3-6 cm
+  nearer, risen 4 of 6.
+
 ## Takes as modifiers
 
 A take converted against her walk (`tools/sim/identify.py`: Zeni's strikes,

@@ -102,7 +102,9 @@ BEND_RATE = 59
 CELL = slice(60, 62)
 #: And her sidechain's latch and envelope (`impedance._ducked`).
 DUCKING = slice(62, 64)
-ASK = 64
+#: And how far each sole rests where it is, 0 to 1 - her step's swing rows weigh so.
+RESTS = slice(64, 66)
+ASK = 66
 
 #: A unit of each mode on her: her centre of mass down, m - to her ankles' stroke, her trunk
 #: upright over her soles: asked 0.15 m she came down 0.117 and stood there; her trunk's
@@ -321,6 +323,6 @@ def given(a, y, posed, knees, bend):
             'turns': tuple(turns[:2 * int(a[TURNED])]), 'posture': pose, 'kdot': a[KDOT].copy(),
             'knee_rate': tuple(float(bend[k] * a[BEND_RATE]) for k in knees),
             'settle': a[SETTLE].reshape(2, 6).copy(), 'edge': tuple(a[EDGE]), 'strides': float(a[STRIDES]),
-            'borne': float(a[BORNE]),
+            'borne': float(a[BORNE]), 'rests': tuple(a[RESTS]),
             'swing': {int(i): (sw_at[i].copy(), speeds[i].copy(), accs[i].copy(), tips[i]) for i in free},
             'fold': {int(i): (pose[knees[i]] + a[FOLD][i], a[FOLD_RATE][i], 0.0) for i in folded}}

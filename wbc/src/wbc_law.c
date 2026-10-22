@@ -39,12 +39,22 @@ static double remainder_of(double a, double b)
   return mod;
 }
 
-/** machine.latent._rate: a blend's rate at `u` of its `span`: the line's slope while it blends, a
+/** machine.latent._shaped: the blend's shape's share of the way, its slope and its bend at `u`. */
+static void shaped(const wbc_law_t *k, const double *st, double u, double got[3])
+{
+  const double *c = st + k->shape;
+
+  got[0] = u * (c[0] + u * (c[1] + u * (c[2] + u * (c[3] + u * c[4]))));
+  got[1] = c[0] + u * (2.0 * c[1] + u * (3.0 * c[2] + u * (4.0 * c[3] + u * (5.0 * c[4]))));
+  got[2] = 2.0 * c[1] + u * (6.0 * c[2] + u * (12.0 * c[3] + u * (20.0 * c[4])));
+}
+
+/** machine.latent._rate: a blend's rate at `u` of its `span`: its shape's `slope` while it blends, a
     contiguous curve's (CONTIG) the Hermite's. */
-static double rate_at(const wbc_law_t *k, const double *st, double u, double span, int j)
+static double rate_at(const wbc_law_t *k, const double *st, double u, double span, double slope, int j)
 {
   const double *from = st + k->from, *to = st + k->to, *v0 = st + k->v0, *v1 = st + k->v1;
-  const double  line = ((to[j] - from[j]) / span) * (double)(u < 1.0);
+  const double  line = (((to[j] - from[j]) / span) * slope) * (double)(u < 1.0);
   const double  hermite = ((((6.0 * u * u - 6.0 * u) * from[j] + (3.0 * u * u - 4.0 * u + 1.0) * (span * v0[j]))
                            + (6.0 * u - 6.0 * u * u) * to[j]) + (3.0 * u * u - 2.0 * u) * (span * v1[j])) / span;
 
@@ -57,7 +67,7 @@ void wbc_law_latent(const wbc_law_t *k, double *st, const double *tab, int ntab,
   const int     T = k->table, P = k->p, n = k->n;
   double       *to = st + k->to, *from = st + k->from, *p = st + k->now, *v0 = st + k->v0, *v1 = st + k->v1;
   double        said[WBC_LAW_P], vals[WBC_LAW_P], leaving[WBC_LAW_P], came, span, u, turns, lerp, best, has;
-  double        hit_at, contig, cg;
+  double        hit_at, contig, cg, shape[3], laid[5];
   int           any = 0, kk = 0;
   const double *row;
 
@@ -71,9 +81,10 @@ void wbc_law_latent(const wbc_law_t *k, double *st, const double *tab, int ntab,
   /* the blend under way leaves at the rate it has now; a curve's row begins where the last ended */
   span = npmax(st[k->blend], dt);
   u = clipped((now - st[k->t0]) / span, 0.0, 1.0);
+  shaped(k, st, u, shape);
   for (int j = 0; j < P; j++)
   {
-    leaving[j] = rate_at(k, st, u, span, j);
+    leaving[j] = rate_at(k, st, u, span, shape[1], j);
   }
   for (int j = 0; j < P; j++)
   {
@@ -93,6 +104,11 @@ void wbc_law_latent(const wbc_law_t *k, double *st, const double *tab, int ntab,
   hit_at = wbc_dot(&k->blas, hit, 1, tab + k->at, T, ntab);
   lerp = wbc_dot(&k->blas, hit, 1, tab + k->lerp, T, ntab);
   st[k->blend] += came * (lerp - st[k->blend]);
+  wbc_matmul(&k->blas, VIEW(hit, 0, 1), VIEW(tab + k->shaped, T, 1), laid, 0, 1, 1, ntab, 5);
+  for (int c = 0; c < 5; c++)
+  {
+    st[k->shape + c] += came * (laid[c] - st[k->shape + c]);
+  }
   span = npmax(st[k->blend], dt);
   /* the first row ahead: the blend arrives at Catmull-Rom's rate toward it; none, at rest */
   best = INFINITY;
@@ -120,9 +136,10 @@ void wbc_law_latent(const wbc_law_t *k, double *st, const double *tab, int ntab,
   st[k->contig] += came * (contig - st[k->contig]);
   cg = st[k->contig];
   u = clipped(((now - st[k->t0]) + dt) / span, 0.0, 1.0 + (cg * dt) / span);
+  shaped(k, st, u, shape);
   for (int j = 0; j < P; j++)
   {
-    const double line = from[j] + (to[j] - from[j]) * u;
+    const double line = from[j] + (to[j] - from[j]) * shape[0];
     const double curve = (((2.0 * u * u * u - 3.0 * u * u + 1.0) * from[j] + (u * u * u - 2.0 * u * u + u) * (span * v0[j]))
                           + (3.0 * u * u - 2.0 * u * u * u) * to[j]) + (u * u * u - u * u) * (span * v1[j]);
 
@@ -134,9 +151,11 @@ void wbc_law_latent(const wbc_law_t *k, double *st, const double *tab, int ntab,
   {
     const int    j = k->z + m;
     const double psi = st[k->theta] + p[k->phase + m], sway = p[k->gain] * p[k->amp + m];
-    const double rate = rate_at(k, st, u, span, j);
-    const double bend = cg * (((((12.0 * u - 6.0) * from[j] + (6.0 * u - 4.0) * (span * v0[j])) + (6.0 - 12.0 * u) * to[j])
-                               + (6.0 * u - 2.0) * (span * v1[j])) / (span * span));
+    const double rate = rate_at(k, st, u, span, shape[1], j);
+    const double flat = (((to[j] - from[j]) / (span * span)) * shape[2]) * (double)(u < 1.0);
+    const double bend = flat + cg * ((((((12.0 * u - 6.0) * from[j] + (6.0 * u - 4.0) * (span * v0[j]))
+                                       + (6.0 - 12.0 * u) * to[j]) + (6.0 * u - 2.0) * (span * v1[j])) / (span * span))
+                                     - flat);
 
     out[k->ref + m] = p[j] + sway * sin(psi);
     out[k->rate + m] = rate + (sway * turns) * cos(psi);

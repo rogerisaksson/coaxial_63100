@@ -259,17 +259,6 @@ def sent(kind, value, state):
     _SENT_DISPATCH[kind](value, state)
 
 
-def _prop_match():
-    from machine import room
-    return {
-        'sit_chair': lambda k, py, sx, sz: (
-            k in ('chair', 'armchair', 'wood')
-            and abs(py - room.SEAT_H) < room.SEAT[0] and 0.5 * room.SEAT[0] <= sx <= sz <= 2.0 * room.SEAT[0]),
-        'lie_bed': lambda k, py, sx, _sz: k == 'bed' and py >= 0.5 * room.BED[1] and sx >= 0.5 * room.BED[0],
-        'exit_door': lambda k, _py, _sx, _sz: k == 'door',
-    }
-
-
 def _errand_specs():
     """How each errand docks, from her figure's, her stride's and the room's dimensions: kind ->
     (the dock on the prop's edge from its centre, m; her heading docked, rad; how far along the
@@ -290,44 +279,24 @@ def errands():
     return tuple(_errand_specs())
 
 
-def _nearest_prop(g, kind, at=None):
-    """`(dist_edge, px, pz)` of the prop matching `kind` nearest `at` (x, z) - her without one -,
-    its edge's distance from her."""
-    specs, matches = _errand_specs(), _prop_match()
-    fx, fz = specs[kind][5] if kind in specs else (0.0, 0.0)
-    match = matches.get(kind)
-    if not match:
-        return math.inf, fx, fz
-    gx, gz = float(g['world'].data.qpos[0]), float(g['world'].data.qpos[2])
-    ax, az = at if at is not None else (gx, gz)
-    hits = [
-        (math.hypot(float(p[1][0]) - ax, float(p[1][2]) - az),
-         max(0.0, math.hypot(float(p[1][0]) - gx, float(p[1][2]) - gz) - min(float(p[2][0]), float(p[2][2]))),
-         float(p[1][0]), float(p[1][2]))
-        for p in g['world'].props()
-        if len(p) >= 3 and len(p[1]) >= 3 and hasattr(p[2], '__len__') and len(p[2]) >= 3
-        and match(p[0], float(p[1][1]), min(float(p[2][0]), float(p[2][2])), max(float(p[2][0]), float(p[2][2])))
-    ]
-    return min(hits, default=(math.inf, math.inf, fx, fz))[1:]
-
-
-def _fire_errand_stunt(g, gym, kind, heard_say_fn):
+def _fire_errand_stunt(g, gym, kind, heard_say_fn, at=None):
+    from machine import furniture, maneuver
     g['_errand'] = None
     by = {e[0]: e for e in gym}
     g['_twist_active'], g['_twist_stop_until'], g['_halt_at'], g['has_heading'] = False, 0.0, None, 0.0
     g['twist'] = g['asked'] = STOP
     if kind in by:
-        heard_say_fn(g, gym, by[kind])
+        heard_say_fn(g, gym, maneuver.entry(kind, furniture.seen(g, kind, at)) if kind in maneuver.PLAYED else by[kind])
 
 
 def start_errand(g, gym, sc, heard_fn, heard_say_fn, at=None):
     """Begin an autonomous SE(2) room errand (`sit_chair`, `lie_bed`, `exit_door`) from prop geometry,
     to the prop nearest `at` (x, z) - her without one."""
-    from machine import latent, room, stride
+    from machine import furniture, latent, maneuver, room, stride
     specs = _errand_specs()
     if sc not in specs:
         return False
-    d_near, px, pz = _nearest_prop(g, sc, at)
+    d_near, px, pz, _top = furniture.nearest(g, sc, at, specs[sc][5])
     if sc != 'exit_door' and not (stride.STRIDE_M < d_near < 3.0 * room.WIDE):
         return False
     g['st'][latent.THETA] *= float(g['st'][latent.NOW][latent.GAIN] >= 1e-6)
@@ -339,6 +308,7 @@ def start_errand(g, gym, sc, heard_fn, heard_say_fn, at=None):
         'x_dock': x_dock, 'z_dock': z_dock, 'nx': nx, 'nz': nz, 'tx': nz, 'tz': -nx,
         'xd': x_dock + d_stage * nx, 'zd': z_dock + d_stage * nz,
         'hdd': hdd, 'lat_tol': lat_tol, 'd_stage': d_stage, 'turn_dir': 0.0,
+        'standoff': maneuver.standoff(sc) if sc in maneuver.PLAYED else 0.0,
     }
     step_errand(g, gym, heard_fn, heard_say_fn)
     return True
@@ -374,8 +344,8 @@ def _ended(g, gym, er, c, heard_fn, _say_fn):
 
 
 def _stunt(g, gym, er, c, heard_fn, heard_say_fn):
-    """Docked and still: the stunt begins, the errand over."""
-    _fire_errand_stunt(g, gym, er['kind'], heard_say_fn)
+    """Docked and still: the stunt begins on the furniture as she sees it, the errand over."""
+    _fire_errand_stunt(g, gym, er['kind'], heard_say_fn, (er['x_dock'], er['z_dock']))
 
 
 def _nothing(g, gym, er, c, heard_fn, heard_say_fn):
@@ -439,8 +409,9 @@ def _on_rows():
     true row taken; and what she is told while none is. Read: walking, she stands where her
     stopping point enters the box; stood still (`idle`), she walks again past her stopping
     distance from it, turns to face away from the prop, sidesteps where the dock is more beside
-    than ahead of her till the dock bears from her stopping point within her list, backs onto
-    the edge, and begins the stunt with her heels at it."""
+    than ahead of her till the dock bears from her stopping point within her list, backs till her
+    heels are the stunt's standoff off the edge (`maneuver.standoff`) - her hips over her ankles, her
+    heels HEEL behind them -, and begins the stunt."""
     from machine import figure, modal, se2, stride
     back = (-se2.BACK_SPEED, 0.0, 0.0)
     return {
@@ -450,10 +421,10 @@ def _on_rows():
         'settle': (((lambda c, er: c['idle'] and c['s_par'] > er['d_stage'] + se2.STOP_M, 'walk', _nothing),
                    (lambda c, er: c['idle'] and abs(c['err_yaw']) > modal.LIST_RAD, 'turn', _nothing),
                    (lambda c, er: c['idle'] and abs(c['s_perp']) > max(c['s_par'], er['lat_tol']), 'side', _nothing),
-                   (lambda c, er: c['idle'] and c['s_par'] > figure.HEEL, 'back', _told(back)),
+                   (lambda c, er: c['idle'] and c['s_par'] > figure.HEEL + er['standoff'], 'back', _told(back)),
                    (lambda c, er: c['idle'], 'done', _stunt)), _nothing),
         'side': (((lambda c, er: abs(math.atan2(c['s_perp_stop'], max(c['s_par'], figure.HEEL))) <= modal.LIST_RAD, 'settle', _told(STOP)),), _to_line),
-        'back': (((lambda c, er: c['s_par'] <= figure.HEEL, 'done', _told(STOP)),), _to_edge),
+        'back': (((lambda c, er: c['s_par'] <= figure.HEEL + er['standoff'], 'done', _told(STOP)),), _to_edge),
         'done': (((lambda c, er: c['idle'], 'done', _stunt),), _nothing),
     }
 

@@ -23,7 +23,7 @@ typedef struct
   int           a_stance, a_com_acc, a_sole_acc, a_want, a_fold, a_fold_rate, a_turned, a_bend, a_kdot;
   int           a_going, a_rolled, a_headed, a_tipped, a_swung, a_folds, a_settle, a_edge, a_heeled;
   int           a_strides, a_prefold, a_swings, a_raise, a_need, a_lead, a_outside, a_borne, a_bend_rate, a_cell;
-  int           a_ducking;
+  int           a_ducking, a_rests;
   int           free_by[3];   /**< the modes holding a sole that does not stand, an axis each */
   const double *hands;        /**< each mode's hand on a limb's place (n, 2, 3) */
   /* machine.impedance */
@@ -57,6 +57,21 @@ void wbc_imp_reading(const wbc_imp_t *k, const double *y, const double *fr, cons
 void   wbc_imp_shortened(const wbc_imp_t *k, const double len[2], const double rate[2], const double *fr,
                          const double stance[2], double axial[2]);
 double wbc_imp_under(const wbc_imp_t *k, const double *y, const double *fr, const double stance[2], double floors[2]);
+/** What she asks of her: her modes' reference, rate, acceleration, springs and dampers. */
+typedef struct
+{
+  double ref[WBC_IMP_N], rate[WBC_IMP_N], acc[WBC_IMP_N], kp[WBC_IMP_N], kd[WBC_IMP_N];
+  double hands[WBC_IMP_N * 6];
+} wbc_imp_said_t;
+
+/** machine.swing.free and rested (wbc_swing.c). */
+void wbc_imp_swings(const wbc_imp_t *k, const double *y, const double *fr, const double v[3], double om,
+                    const double shod[2][3], const double floors[2], double rise, const wbc_imp_said_t *s,
+                    const double clear[3][2], const double stance[2], double cruise, double grounded, double propped,
+                    double got[2][3], double frame[3][3]);
+void wbc_imp_rested(const wbc_imp_t *k, const wbc_imp_said_t *s, double held, double grounded, const double aloft[2],
+                    const double limbs[2], const double floors[2], const double *y, const double shod[2][3],
+                    const double *rot, double *a);
 void   wbc_imp_shares(const wbc_imp_t *k, const double stance[2], double bears[2]);
 
 /** machine.poise.boxes: each sole's box (low, high; along, across) round its middle `flat`. */
@@ -205,11 +220,13 @@ void wbc_twist_step(const wbc_imp_t *k, const wbc_twist_t *t, double dt, const d
 /** machine.waits.held_rows's, risen_rows's and woken_rows's reading of her table (machine.latent):
     a row's doubles, its time's place, its targets told and said, its gain told and said, its said
     block (p long), its amplitudes told, its phases said and told; her latent state's targets asked,
-    its gain and phases now, her rhythm's angle; the waits' constants; numpy's BLAS. */
+    its gain and phases now, her rhythm's angle; a row's latch, her state's targets now and from and
+    its blend's rates; the waits' constants; numpy's BLAS. */
 typedef struct
 {
-  int        table, at, vals_z, said_z, vals_gain, said_gain, st_to_z;
+  int        table, at, vals_z, said_z, vals_gain, said_gain, st_to_z, contact;
   int        p, said, vals_amp, said_phase, vals_phase, st_now_gain, st_now_phase, st_theta;
+  int        latch, st_now_z, st_from_z, st_v0_z, st_v1_z;
   double     edge_s, tiny, phi_w;
   wbc_blas_t blas;
 } wbc_wait_t;
@@ -226,6 +243,16 @@ void wbc_wait_risen(const wbc_imp_t *k, const wbc_wait_t *w, double *tab, int n,
                     const double *a, const double *st, double t, double dt, double prop_until, double got[3]);
 void wbc_wait_landed(const wbc_imp_t *k, const wbc_wait_t *w, double *tab, int n, const double *y, const double *st,
                      double t, double dt, double got[3]);
+
+/** Rows a contact releases (machine.waits.borne_rows) wait while a seat or a bed bears less of her
+    than her support counts it from: `got` the shift, the first. */
+void wbc_wait_borne(const wbc_imp_t *k, const wbc_wait_t *w, double *tab, int n, const double *y, double t, double dt,
+                    double got[3]);
+
+/** A row due this pass that latches her (machine.waits.latched_rows) sets her latent `st`'s targets
+    now, from and to where she is read (wbc_imp_reading, the ask's stance in `a`), its rates 0. */
+void wbc_wait_latched(const wbc_imp_t *k, const wbc_wait_t *w, const double *tab, int n, const double *y,
+                      const double *fr, const double *a, double *st, double t, double dt);
 
 /** The rows due this pass wake her rhythm where its gain has died down (machine.waits.woken_rows):
     its angle let go, its phases those the rows say, in her latent `st`. */

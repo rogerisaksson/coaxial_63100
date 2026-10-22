@@ -64,12 +64,10 @@ def stand_lead(spd):
 
 
 def rise_lead(wire):
-    """Continuous rise-to-walk horizon (s) derived directly from a rise stunt's compiled wire table."""
+    """A rise stunt's own length, s: its last row, her rest given back once she stands."""
     import numpy as np
     from machine import latent
-    rows = np.frombuffer(wire, latent.WIRE)
-    a1, a3 = 0.001 * float(rows[-1]['at']), 0.001 * float(rows[-3]['at'])
-    return round(0.75 - 0.3375 * a1 + 3.1375 * a3, 4)
+    return float(np.frombuffer(wire, latent.WIRE)[-1]['at']) / 1e3
 
 
 def said(g, label, wire, names=(), at=None, reset=False):

@@ -192,3 +192,7 @@ the hundred and fifty before these: [DONE_1-50](DONE_1-50.md),
 33. The start menu over a page taken out: Esc leaves a page for the front
     page, the band its name alone (`terminal.ui.bindings`, `taskbar`,
     `stage`; test_views_keys.py, [host](findings/host.md)).
+34. The suite's chair: sit and rise played from the ortho-DSP suite's
+    patches, paced to her springs, her arms held, docked at the patch's
+    standoff (`machine.maneuver`, `seated`, `swing`; test_errands.py,
+    [sequencer](findings/sequencer.md)).

@@ -1,5 +1,5 @@
 ;; =============================================================================
-;; FILE: 10_momentum_pivots.lisp
+;; FILE: momentum_pivots.lisp
 ;; DOMAIN: Continuous-Momentum Pivots, Horizon Gaze Lock & Corkscrew Spirals
 ;; =============================================================================
 (defpackage :ortho-dsp.pivots

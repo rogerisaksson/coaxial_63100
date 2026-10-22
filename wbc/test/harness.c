@@ -339,6 +339,18 @@ API void wbh_wait_landed(const wbc_imp_t *k, const wbc_wait_t *w, double *tab, i
   wbc_wait_landed(k, w, tab, n, y, st, t, dt, got);
 }
 
+API void wbh_wait_borne(const wbc_imp_t *k, const wbc_wait_t *w, double *tab, int n, const double *y, double t,
+                        double dt, double *got)
+{
+  wbc_wait_borne(k, w, tab, n, y, t, dt, got);
+}
+
+API void wbh_wait_latched(const wbc_imp_t *k, const wbc_wait_t *w, const double *tab, int n, const double *y,
+                          const double *fr, const double *a, double *st, double t, double dt)
+{
+  wbc_wait_latched(k, w, tab, n, y, fr, a, st, t, dt);
+}
+
 API int wbh_wait_size(void)
 {
   return (int)sizeof(wbc_wait_t);

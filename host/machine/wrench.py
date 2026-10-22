@@ -74,12 +74,12 @@ _EYE3, _EYE6, _EYE_NU = np.eye(3), np.eye(6), np.eye(NU)
 _DAMP_EYE6 = DAMP ** 2 * _EYE6
 _UPPER_IDX = 12 + np.arange(len(UPPER))
 _UPPER_ROWS = _EYE_NU[12:NU]
-#: Measured, not kept: the step swings her arms to pitch her trunk - the shoulders to 130 deg at
-#: 939 deg/s as a sit's rows begin, her hands' jerk 15-21 000 m/s^3 seated where her walk's
-#: is 1 400-1 800, a crouch's 5 400. The upper drives all at W_TURN: 4 800-6 700 and 900, but
-#: her pelvis rolled 3 deg where a woman's 5 and the walk 2.75 off (2.55); the arms alone at
-#: W_TURN: the walk as it was, but a crouch's spine folded for the lever instead and she fell.
 _GIVES = 1e-9 * (np.arange(13) == 12)
+#: Her arms' rows `ask['hold']` times the posture's, else the step pitched her trunk by them: shoulders
+#: 130 deg at 939 deg/s sitting, 255 at 1 633 lying back; hands' jerk 15-21 000 m/s^3 seated, 1 400-1 800
+#: walking. Not kept: all upper drives at W_TURN (4 800-6 700, 900; pelvis rolled 3 deg, a woman's 5;
+#: walk 2.75 off, 2.55); the arms alone (a crouch's spine folded, fell).
+ARMED = np.array([float(_DRIVEN[i].endswith(('shoulder', 'elbow'))) for i in UPPER])
 
 
 def _inv(A):
@@ -327,10 +327,10 @@ def step(b, s, ask):
 
     def lay(R, c, weight, c0=None):
         """A row = `c`, weighed; `c0` what it is with nothing asked, every acceleration 0."""
-        c = np.atleast_1d(c)
-        rows.append(weight * (R if R.ndim == 2 else R[None, :]))
-        rhs.append(weight * c)
-        rhs0.append(np.zeros(c.shape) if c0 is None else weight * (np.full(c.shape, float(c0)) if np.ndim(c0) == 0 else np.asarray(c0, float)))
+        c, w = np.atleast_1d(c), np.asarray(weight, float)
+        rows.append((w[:, None] if w.ndim else w) * (R if R.ndim == 2 else R[None, :]))
+        rhs.append(w * c)
+        rhs0.append(w * np.broadcast_to(np.asarray(0.0 if c0 is None else c0, float), c.shape))
 
     sumf, about, still = np.zeros((3, nu)), np.zeros((3, nu)), []
     for k, f in enumerate(feet):
@@ -352,9 +352,10 @@ def step(b, s, ask):
         left = -t['dJr'] - t['Jr'] @ full0
         lay(t['Jr'] @ full, TURN_KD[0] * turn_error(turn, t['quat']) - TURN_KD[1] * t['w'] + left, W_TURN * turned,
             left)
-    lay(_UPPER_ROWS if not k3 else np.eye(nu)[12:NU], want[UPPER], W_POSTURE)
+    lay(_UPPER_ROWS if not k3 else np.eye(nu)[12:NU], want[UPPER], W_POSTURE * (1.0 + (ask.get('hold', 1.0) - 1.0) * ARMED))
+    edges, mu, strides = ask.get('edge', (0.0, 0.0)), ask.get('mu', (MU, MU)), float(ask.get('strides', 0.0))
     swung = np.concatenate([np.repeat(asked, 6), np.zeros(nu - 12)])
-    lay(np.diag(swung), a6, W_SWING)
+    lay(np.diag(swung), a6, W_SWING + (W_STILL - W_SWING) * np.concatenate([np.repeat(ask.get('rests', (0.0, 0.0)), 6), np.zeros(nu - 12)]))
     knees = act[KNEES]
     left = -float(stance @ full0[knees])
     # the knees' rows damped against the posture's rate: against still, a push's knees were held
@@ -375,13 +376,11 @@ def step(b, s, ask):
     part[:12] = (inv_mgr, inv_mgr, inv_mgr, inv_mg, inv_mg, inv_mg) * 2
     if k3:
         part[NU:] = inv_mg
-    spare = W_PART * (np.concatenate([each, np.zeros(NU - 12), np.ones(k3)]) if k3 else np.concatenate([each, np.zeros(NU - 12)])) * part + W_AIR * np.concatenate(
-        [1.0 - each, np.zeros(nu - 12)])
+    spare = W_PART * np.concatenate([each, np.zeros(NU - 12), np.ones(k3)]) * part + W_AIR * np.concatenate([1.0 - each, np.zeros(nu - 12)])
     lay(np.diag(spare), np.zeros(nu), 1.0)
     R0, up = np.vstack(rows), sumf[1] / mass
     H0 = R0.T @ R0 + 1e-12 * (_EYE_NU if not k3 else np.eye(nu))
     frames, moment = [f['R'] for f in feet], (MOMENT if not k3 else np.concatenate([MOMENT, np.zeros(k3)]))
-    edges, mu, strides = ask.get('edge', (0.0, 0.0)), ask.get('mu', (MU, MU)), float(ask.get('strides', 0.0))
     keep = W_KEEP * np.concatenate([each, np.zeros(nu - 12)]) * part
     kinetic = (full.T @ M @ full + np.diag((W_SWING * swung + spare) ** 2 + keep ** 2)) if strides > 0.0 else None
     geo, stride = (nu, k3, moment, part, up, sumf[1], mass, grounded, stance, frames, edges, mu), (strides, kinetic)

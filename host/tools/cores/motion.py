@@ -33,7 +33,7 @@ Y = ('com vcom sole vsole load quat spin moment lowest hip tilt tilt_rate arm pr
 FR = ('rot w0 floor weight knee pitch0 dt reach0 hips_by arm0 unit z0 mass ground floor_at'
       ' map_at map_way map_along map_rise map_n').split()
 A = ('stance com_acc sole_acc want fold fold_rate turned bend kdot going rolled headed tipped swung folds settle '
-     'edge heeled strides prefold swings raise need lead outside borne bend_rate cell ducking').split()
+     'edge heeled strides prefold swings raise need lead outside borne bend_rate cell ducking rests').split()
 
 
 def _at(x):
@@ -178,8 +178,8 @@ def numpy_blas():
 
 
 #: wbc_law_t's ints and doubles in its order, by what fills them.
-LAW_INTS = ('n p driven z k d amp phase gain hz zmp yaw now from to t0 blend theta v0 v1 contig vals said at lerp '
-            'curve table ref rate acc ks ds psi sway turns held yawed bend duck ducked').split()
+LAW_INTS = ('n p driven z k d amp phase gain hz zmp yaw now from to t0 blend theta v0 v1 contig shape vals said at '
+            'lerp curve shaped table ref rate acc ks ds psi sway turns held yawed bend duck ducked').split()
 LAW_DOUBLES = 'edge_s tau tau_v eso_0 eso_s sigma bleed'.split()
 
 
@@ -256,7 +256,7 @@ def _step_typed():
     fields = [(name, i) for name in 'n nd nu0 nupper nheld npass nact npairs'.split()]
     fields += [('act', i * d), ('legs', (i * 6) * 2), ('knees', i * 2), ('upper', i * d), ('held', i * n),
                ('passive', i * n), ('active', i * n), ('pairs', (i * 2) * d), ('rounds', i), ('past', i),
-               ('mass', f), ('moment', f * u), ('room', f * 2)]
+               ('mass', f), ('moment', f * u), ('room', f * 2), ('arms', f * d)]
     fields += [(name, f) for name in ('yaw_m damp2 knee_min w_com w_turn w_swing w_knee w_posture w_height w_moment '
                                       'w_fold w_stop w_part w_air w_pin w_keep w_still grow_n ridge contact_k '
                                       'height_band held_k momentum_k mu g').split()]
@@ -266,7 +266,8 @@ def _step_typed():
     fields += [('nc', i)] + [(name, p * c) for name in 'cJ cp cdJv cf'.split()]
     fields += [('stance', i * 2), ('nturns', i), ('kdot_given', i), ('swing', i * 2), ('fold', i * 2), ('wep', i),
                ('com_acc', f * 3), ('turn', (f * 4) * 2), ('kdot', f * 3), ('settle', (f * 6) * 2), ('edge', f * 2),
-               ('strides', f), ('borne', f), ('mus', f * 2), ('swing_at', (f * 3) * 2), ('swing_speed', (f * 3) * 2),
+               ('strides', f), ('borne', f), ('hold', f), ('mus', f * 2), ('rests', f * 2), ('swing_at', (f * 3) * 2),
+               ('swing_speed', (f * 3) * 2),
                ('swing_acc', (f * 3) * 2), ('swing_quat', (f * 4) * 2), ('fold_knee', f * 2), ('fold_rate', f * 2),
                ('fold_acc', f * 2), ('knee_rate', f * 2)]
     fields += [(name, p) for name in 'posture derate clamp wep_nm'.split()]
@@ -300,6 +301,7 @@ def wrench_laid(b, sensed=None):
         k.legs[side][:] = wrench.LEGS[side]
         k.knees[side] = wrench.KNEES[side]
     k.upper[:len(wrench.UPPER)] = wrench.UPPER
+    k.arms[:len(wrench.UPPER)] = wrench.ARMED.tolist()
     k.held[:len(b.held)] = [int(x) for x in b.held]
     k.passive[:len(passive)] = passive.tolist()
     k.active[:len(active)] = active.tolist()
@@ -330,7 +332,7 @@ POINTED = ([(name, 0, (name,)) for name in ('M', 'h', 'v', 'q', 'com', 'k')]
 #: What of her sensing the pointed write takes as her compiled sensing's: the same objects, M apart.
 SENSED = ('h', 'v', 'q', 'com', 'k', 'feet', 'turns')
 #: The step's fields read and written through numpy views of the struct's own memory.
-VIEWED = ('stance', 'com_acc', 'turn', 'kdot', 'settle', 'edge', 'mus', 'swing', 'fold', 'swing_at', 'swing_speed',
+VIEWED = ('stance', 'com_acc', 'turn', 'kdot', 'settle', 'edge', 'mus', 'rests', 'swing', 'fold', 'swing_at', 'swing_speed',
           'swing_acc', 'swing_quat', 'fold_knee', 'fold_rate', 'fold_acc', 'knee_rate', 'tau', 'qacc', 'bears', 'cop',
           'forces',
           'load', 'cop_none', 'over')
@@ -379,7 +381,8 @@ def _stepped(k, step, v, b, s, ask):
     v['settle'][:] = ask.get('settle', 0.0)
     v['edge'][:] = ask.get('edge', (0.0, 0.0))
     v['mus'][:] = ask.get('mu', (law.MU, law.MU))
-    k.strides, k.borne = float(ask.get('strides', 0.0)), float(ask.get('borne', 0.0))
+    v['rests'][:] = ask.get('rests', (0.0, 0.0))
+    k.strides, k.borne, k.hold = float(ask.get('strides', 0.0)), float(ask.get('borne', 0.0)), float(ask.get('hold', 1.0))
     swing, fold = ask.get('swing', {}), ask.get('fold', {})
     for side in range(2):
         v['swing'][side] = side in swing

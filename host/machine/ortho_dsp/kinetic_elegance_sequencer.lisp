@@ -1,11 +1,11 @@
 ;; =============================================================================
-;; FILE: 12_kinetic_elegance_sequencer.lisp
+;; FILE: kinetic_elegance_sequencer.lisp
 ;; DOMAIN: Composite Momentum-Preserving Patches & 1 kHz SoA Schedule
 ;; =============================================================================
 (defpackage :ortho-dsp.elegance-sequencer
   (:use :ortho-dsp.core
         :ortho-dsp.transducers
-        :ortho-dsp.regimes
+        :ortho-dsp.modulators
         :ortho-dsp.surfaces
         :ortho-dsp.pivots
         :ortho-dsp.ballistic-handovers)
@@ -18,11 +18,11 @@
 (in-package :ortho-dsp.elegance-sequencer)
 
 ;; 1. Rigid Chair: Single-anchor pivot -> Staggered upright drop -> Wavefront settle
-(defpatch patch-confident-chair-sit [approach-gait]
+(defpatch patch-confident-chair-sit [approach-gait &key (seat-z-mm 450.0)] ; the seat her eyes see
   (-> approach-gait
       (lock-horizon-gaze :room-pan-yaw-rad 0.0)
       (pivot-single-anchor-arc :target-yaw-rad 3.14159 :sagittal-stagger-mm 95.0)
-      (handover-staggered-vertical-chair :seat-z-mm 450.0)
+      (handover-staggered-vertical-chair :seat-z-mm seat-z-mm)
       (release-impedance-wavefront :terminal-mode :seated-active-rest)))
 
 ;; 2. Armchair: Single-anchor pivot -> Forearm rail-skim arc -> Leg-cross settle
@@ -63,14 +63,14 @@
 ;; DETERMINISTIC 1 kHz SOA COMPILATION (SHOWCASE PIPELINE)
 ;; -----------------------------------------------------------------------------
 (defpatch compile-elegance-showcase-soa
-  (let [sneaker-catwalk (-> nominal-biped-gait
-                            (transducer-viscoelastic-flat)
-                            (regime-coronal-catwalk :axial-profile :thoracic-kyphotic)
-                            (limiter-high-mu-planar))
-        barefoot-glide  (-> nominal-biped-gait
-                            (transducer-unshod)
-                            (regime-coronal-catwalk :axial-profile :lumbar-lordotic)
-                            (limiter-high-mu-planar))]
+  (let [sneaker-catwalk (-> nominal-biped-manifold
+                            (transducer-elastomer-flat)
+                            (modulator-coronal-catwalk :posture-profile :thoracic-kyphotic-bias)
+                            (surface-high-mu-planar))
+        barefoot-glide  (-> nominal-biped-manifold
+                            (transducer-barefoot)
+                            (modulator-coronal-catwalk :posture-profile :lumbar-lordotic-bias)
+                            (surface-high-mu-planar))]
 
     (compile-to-soa
       :align-bytes 64

@@ -1,5 +1,5 @@
 ;; =============================================================================
-;; FILE: 04_surface_wrench_limiters.lisp
+;; FILE: surface_wrench_limiters.lisp
 ;; DOMAIN: Master-Bus Contact Wrench-Cone & Medium Impedance Limiters
 ;; =============================================================================
 (defpackage :ortho-dsp.surfaces

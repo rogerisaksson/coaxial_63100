@@ -166,7 +166,7 @@ def heard_say(g, gym, entry):
 
 
 def _apply_say(g, gym, by, command, errand_step):
-    from machine import se2, tour
+    from machine import furniture, maneuver, se2, tour
     sc = command['say']
     sc_str = sprung.ALIASES.get(str(sc), str(sc))
     if not errand_step and tour.start_errand(g, gym, sc_str, heard, heard_say, command.get('at')):
@@ -182,7 +182,7 @@ def _apply_say(g, gym, by, command, errand_step):
         g['twist'] = g['asked'] = (0.0, 0.0, 0.0)
     if 'heading' not in command and entry[0] in _TURN_ALL:
         g['target_heading'], g['has_heading'] = 0.0, 0.0
-    heard_say(g, gym, entry)
+    heard_say(g, gym, maneuver.entry(entry[0], furniture.seen(g, entry[0])) if entry[0] in maneuver.PLAYED else entry)
 
 
 def heard(g, gym, command):

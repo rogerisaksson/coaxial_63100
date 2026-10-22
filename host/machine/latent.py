@@ -20,7 +20,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
-from machine import ortho
+from machine import curves, ortho
 
 N, P = ortho.N, ortho.P
 #: A row's parameters as slices (`ortho`'s layout): a mode each, then four numbers.
@@ -34,13 +34,18 @@ T0, BLEND, THETA = 3 * P, 3 * P + 1, 3 * P + 2
 #: this blend ends - a sample of a curve, not a step.
 V0, V1 = slice(3 * P + 3, 4 * P + 3), slice(4 * P + 3, 5 * P + 3)
 CONTIG = 5 * P + 3
-STATE = 5 * P + 4
+#: The blend's shape: its share of the way at u, a quintic's coefficients on u..u^5 (SHAPES).
+SHAPE = slice(5 * P + 4, 5 * P + 9)
+STATE = 5 * P + 9
 #: The most rows her table holds (wbc_imp.h's WBC_WAIT_ROWS): a take's frames are thinned to fit.
 ROWS = 512
-#: A table's row: what it says, which of it is said (1) or left (0), when it comes, its blend.
+#: A table's row: what it says, which of it is said (1) or left (0), when it comes, its blend,
+#: whether a curve's sample, whether it waits for a seat or a bed to bear her (`ortho.CONTACT`),
+#: whether it latches her vector where she is (`ortho.LATCH`), its blend's shape (SHAPES).
 VALS, SAID = slice(0, P), slice(P, 2 * P)
-AT, LERP, CURVE = 2 * P, 2 * P + 1, 2 * P + 2
-TABLE = 2 * P + 3
+AT, LERP, CURVE, CONTACT, LATCH = 2 * P, 2 * P + 1, 2 * P + 2, 2 * P + 3, 2 * P + 4
+SHAPED = slice(2 * P + 5, 2 * P + 10)
+TABLE = 2 * P + 10
 #: What a pass gives: each mode's reference, its rate and acceleration, its stiffness (N/m) and
 #: damping (N s/m), its rhythm's phase (rad) and amplitude; her rhythm's rate (rad/s), her
 #: ZMP's polygon, her yaw momentum's limit; and each mode's curve's own acceleration (BEND),
@@ -57,10 +62,15 @@ WIRE = np.dtype([('id', '<u4'), ('at', '<u4'), ('blend', '<u4'), ('flags', '<u4'
 EDGE_S = 1e-9
 
 
+#: Each blend's shape (`ortho.SHAPES`), a quintic's coefficients on u..u^5 (`curves.QUINTICS`).
+SHAPES = np.array([curves.QUINTICS[name] for name in ortho.SHAPES])
+
+
 def state(rest):
     """Her state at `rest` (P,), going nowhere, her rhythm's angle 0."""
     st = np.zeros(STATE)
     st[NOW] = st[FROM] = st[TO] = rest
+    st[SHAPE] = SHAPES[0]
     return st
 
 
@@ -77,6 +87,9 @@ def table(wire, begin, rest):
     tab[:, AT] = begin + 1e-3 * rows['at']
     tab[:, LERP] = 1e-3 * rows['blend']
     tab[:, CURVE] = (rows['flags'] & ortho.CURVE).astype(bool)
+    tab[:, CONTACT] = (rows['flags'] & ortho.CONTACT).astype(bool)
+    tab[:, LATCH] = (rows['flags'] & ortho.LATCH).astype(bool)
+    tab[:, SHAPED] = SHAPES[(rows['flags'] >> ortho.SHAPE_BIT) & 15]
     return tab
 
 
@@ -85,10 +98,18 @@ _NONE = np.zeros((1, TABLE))
 _NONE[0, AT] = math.inf
 
 
+def _shaped(st, u):
+    """(its share of the way, its slope, its bend) of the blend's shape (SHAPE) at `u`."""
+    c1, c2, c3, c4, c5 = (float(c) for c in st[SHAPE])
+    return (u * (c1 + u * (c2 + u * (c3 + u * (c4 + u * c5)))),
+            c1 + u * (2.0 * c2 + u * (3.0 * c3 + u * (4.0 * c4 + u * (5.0 * c5)))),
+            2.0 * c2 + u * (6.0 * c3 + u * (12.0 * c4 + u * (20.0 * c5))))
+
+
 def _rate(st, u, span):
-    """A blend's rate at `u` of its `span`: the line's slope while it blends, a contiguous curve's
+    """A blend's rate at `u` of its `span`: its shape's slope while it blends, a contiguous curve's
     (CONTIG) the Hermite's from FROM to TO, V0 to V1."""
-    line = (st[TO] - st[FROM]) / span * (u < 1.0)
+    line = (st[TO] - st[FROM]) / span * _shaped(st, u)[1] * (u < 1.0)
     hermite = ((6.0 * u * u - 6.0 * u) * st[FROM] + (3.0 * u * u - 4.0 * u + 1.0) * (span * st[V0])
                + (6.0 * u - 6.0 * u * u) * st[TO] + (3.0 * u * u - 2.0 * u) * (span * st[V1])) / span
     return line + st[CONTIG] * (hermite - line)
@@ -121,6 +142,7 @@ def step(st, tab, now, dt, out):
     st[TO] += np.minimum(hit @ tab[:, SAID], 1.0) * (hit @ tab[:, VALS] - st[TO])
     st[T0] += came * (now - st[T0])
     st[BLEND] += came * (hit @ tab[:, LERP] - st[BLEND])
+    st[SHAPE] += came * (hit @ tab[:, SHAPED] - st[SHAPE])
     span = np.maximum(st[BLEND], dt)
     ahead = tab[:, AT] > now + EDGE_S
     has = float(ahead.any())
@@ -132,13 +154,15 @@ def step(st, tab, now, dt, out):
     st[CONTIG] += came * (contig - st[CONTIG])
     u = np.clip((now - st[T0] + dt) / span, 0.0, 1.0 + st[CONTIG] * dt / span)
     p = st[NOW]
-    line = st[FROM] + (st[TO] - st[FROM]) * u
+    share, _slope, bent = _shaped(st, u)
+    line = st[FROM] + (st[TO] - st[FROM]) * share
     curve = ((2.0 * u * u * u - 3.0 * u * u + 1.0) * st[FROM] + (u * u * u - 2.0 * u * u + u) * (span * st[V0])
              + (3.0 * u * u - 2.0 * u * u * u) * st[TO] + (u * u * u - u * u) * (span * st[V1]))
     p[:] = line + st[CONTIG] * (curve - line)
     rate = _rate(st, u, span)[Z]
-    bend = st[CONTIG] * (((12.0 * u - 6.0) * st[FROM] + (6.0 * u - 4.0) * (span * st[V0]) + (6.0 - 12.0 * u) * st[TO]
-                          + (6.0 * u - 2.0) * (span * st[V1])) / (span * span))[Z]
+    flat = (st[TO] - st[FROM]) / (span * span) * bent * (u < 1.0)
+    bend = (flat + st[CONTIG] * (((12.0 * u - 6.0) * st[FROM] + (6.0 * u - 4.0) * (span * st[V0]) + (6.0 - 12.0 * u)
+                                  * st[TO] + (6.0 * u - 2.0) * (span * st[V1])) / (span * span) - flat))[Z]
     turns = math.tau * p[HZ]
     st[THETA] = (st[THETA] + turns * dt) % math.tau
     psi = st[THETA] + p[PHASE]

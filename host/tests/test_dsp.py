@@ -82,11 +82,11 @@ def test_the_maneuvers_read_as_written(report):
                  and pivot.bars == 1.0 and pivot.target is None
                  and pivot.acts[0][1]['terminal-footprint']['sagittal-stagger-mm'] == 95.0
                  and pivot.acts[1][1]['fire-below-rad'] == 0.785, str(pivot.acts))
-    report.check('its envelope at 468 mm, the trunk 0.14; the seat at 0.12 g releases 240 ms of cross-fade; -26 dB',
+    report.check('its envelope at 468 mm, the trunk 0.14; the seat at 0.15 g releases 240 ms of cross-fade; -26 dB',
                  env[0] == 'trigger-one-shot-envelope' and env[1]['apex-deceleration-height-mm'] == 468.0
                  and env[1]['joint-targets'][0] == (':tibiofemoral', 1.54)
                  and env[1]['axial-counterweight']['dc-offset-rad'] == 0.14
-                 and at[0] == 'on-contact-threshold' and at[1]['trigger-fz-ratio'] == 0.12
+                 and at[0] == 'on-contact-threshold' and at[1]['trigger-fz-ratio'] == 0.15
                  and at[2][0][0] == 'crossfade-support-manifold' and at[2][0][1]['transfer-time-ms'] == 240.0
                  and release['stiffness-atten-db'] == -26.0, str(chair['_events']))
     bed = patched('patch-confident-bed-roll')['_events'][-1][1]

@@ -3,6 +3,7 @@
     waits.held_back(g, dt)     # rows that halt her rhythm wait while her capture point steps her
     waits.risen_back(g, dt)    # rows that raise her wait while something bears her off her soles
     waits.landed_back(g, dt)   # rows that lower her wait while nothing bears her
+    waits.borne_back(g, dt)    # rows a contact releases wait till a seat or a bed bears her
     waits.woken_rows(tab, st, t, dt)   # the rows due wake her rhythm where it has died down
 
 `g` is `sprung.laid`'s; the C is `tools.cores.wait` on `g['waits']` (`motion.laid`); `held_rows`,
@@ -15,7 +16,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
-from machine import latent, leap, modal, poise, stride
+from machine import impedance, latent, leap, modal, poise, stride
 
 
 def held_back(g, dt):
@@ -106,6 +107,45 @@ def landed_rows(tab, y, st, t, dt):
     lowers = (said[:, modal.AXIAL] > 0.5) & (vals[:, modal.AXIAL] > to[modal.AXIAL] + 1e-6)
     due = lowers & (at <= t + latent.EDGE_S) & (at > t - dt + latent.EDGE_S)
     shift = dt * airborne * float(np.any(due))
+    first = float(np.min(at, where=due, initial=math.inf)) - latent.EDGE_S
+    at += shift * (at >= first)
+    return shift, first
+
+
+def borne_back(g, dt):
+    """Rows a contact releases (`ortho.CONTACT`: a seat's or a bed's cross-fade) wait a pass, every
+    row after them with them, while the furniture bears less of her than her support counts it from
+    (`impedance.PROP_ON`): laid from her descent's start they meet the seat where it is."""
+    shift, first = g['waits'].borne(g['tab'], g['t'], dt)
+    g['labels'] = [(w + shift * (w >= first), n) for w, n in g['labels']]
+
+
+def latched_back(g, dt):
+    """A row that latches her (`ortho.LATCH`: a wake's) sets her vector where she is read at its
+    time (`modal.read`), going nowhere: her gains come back on no error - woken with her trunk 0.7
+    rad back of its last word, its spring threw her off the chair at twice her weight."""
+    g['waits'].latched(g['tab'], g['t'], dt)
+
+
+def latched_rows(tab, y, fr, a, st, t, dt):
+    """`latched_back` on her latent `st` (in place), her table `tab`, modal's `y`, `fr` and `a`, at
+    `t`, `dt` on. In C bit for bit (`g['waits']`)."""
+    at = tab[:, latent.AT]
+    due = (tab[:, latent.LATCH] > 0.5) & (at <= t + latent.EDGE_S) & (at > t - dt + latent.EDGE_S)
+    latch, z = float(np.any(due)), modal.read(y, fr, a[modal.STANCE])[0]
+    for part in (latent.NOW, latent.FROM, latent.TO):
+        st[part][latent.Z] += latch * (z - st[part][latent.Z])
+    for part in (latent.V0, latent.V1):
+        st[part][latent.Z] *= 1.0 - latch
+
+
+def borne_rows(tab, y, t, dt):
+    """(shift, first) of `borne_back` on her table `tab` (its times shifted in place), modal's `y`,
+    at `t`, `dt` on. In C bit for bit (`g['waits']`)."""
+    short = float(y[modal.PROP] < impedance.PROP_ON)
+    at = tab[:, latent.AT]
+    due = (tab[:, latent.CONTACT] > 0.5) & (at <= t + latent.EDGE_S) & (at > t - dt + latent.EDGE_S)
+    shift = dt * short * float(np.any(due))
     first = float(np.min(at, where=due, initial=math.inf)) - latent.EDGE_S
     at += shift * (at >= first)
     return shift, first

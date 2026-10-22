@@ -38,7 +38,7 @@ def test_a_stop_settles_and_f_is_heard(report):
     and two of her rhythm's swings more, and holds - read between her law's passes it came at 1.2 s
     and went; told to sit she is seated within 5 s, told to rise she stands within 6 s; a scene
     laid anew with a walk asked at once, she walks at once."""
-    from machine import floor, worker
+    from machine import floor, leap, modal, worker
     s = worker.session()
     worker.apply(s, {'scenario': 'flat'})
     _run(s, 0.5)
@@ -49,8 +49,9 @@ def test_a_stop_settles_and_f_is_heard(report):
     report.check('the stop: the stand within 2.3 s, under 10 flips of her doing from 2 s on',
                  stood is not None and stood < 2.3 and flips < 10 and _speed(s) < 0.2,
                  'stand after %s, %d flips, %.2f m/s at the end' % (stood, flips, _speed(s)))
-    x, _, z = s['g']['est']['pos']
-    floor.mocap(s['g']['world'], 'chair', (float(x), 0.0, float(z) - 0.30), math.pi)
+    x, _, z = s['g']['y'][modal.SOLE].reshape(2, 3).mean(axis=0)
+    floor.mocap(s['g']['world'], 'chair', (float(x), 0.0, float(z) - leap.MIDDLE + floor.behind('sit_chair', floor.CHAIR_SEAT[2])),
+                math.pi)
     worker.apply(s, {'say': 'sit_chair'})
     _flips, seated = _run(s, 5.0, until='seated')
     worker.apply(s, {'say': 'rise_chair'})
@@ -87,9 +88,9 @@ def test_a_halting_row_waits_for_a_swing_only_while_her_rhythm_turns(report):
 
 def test_a_chair_a_hair_off_is_sat_on_and_risen_from(report):
     """The chair 0.4 um off where her stop left her: a sole let go as she sat, the other standing,
-    rose where her folded legs put it and she was thrown off the chair at 4.1 s (`impedance._swings`);
+    rose where her folded legs put it and she was thrown off the chair at 4.1 s (`swing.free`);
     she sits within 5 s and rises within 6 s."""
-    from machine import floor, worker
+    from machine import floor, leap, modal, worker
     s = worker.session()
     worker.apply(s, {'scenario': 'flat'})
     _run(s, 0.5)
@@ -97,8 +98,9 @@ def test_a_chair_a_hair_off_is_sat_on_and_risen_from(report):
     _run(s, 2.0)
     worker.apply(s, {'twist': STOP})
     _run(s, 4.0)
-    x, _, z = s['g']['est']['pos']
-    floor.mocap(s['g']['world'], 'chair', (float(x) + 4e-7, 0.0, float(z) - 0.30), math.pi)
+    x, _, z = s['g']['y'][modal.SOLE].reshape(2, 3).mean(axis=0)
+    floor.mocap(s['g']['world'], 'chair',
+                (float(x) + 4e-7, 0.0, float(z) - leap.MIDDLE + floor.behind('sit_chair', floor.CHAIR_SEAT[2])), math.pi)
     worker.apply(s, {'say': 'sit_chair'})
     _flips, seated = _run(s, 5.0, until='seated')
     height = float(s['g']['world'].data.qpos[1])
@@ -312,8 +314,8 @@ def test_continuous_outer_loop_told_and_walk_again(report):
     no_tables = not any(hasattr(se2, k) or hasattr(worker, k) for k in ('INIT_DELAYS', 'BRAKE_DELAYS', 'RISES'))
     by = {e[0]: e for e in sprung.entries()}
     r_horizons = (se2.rise_lead(by['rise_chair'][1]), se2.rise_lead(by['rise_bed'][1]), se2.rise_lead(by['rise_floor'][1]))
-    report.check('zero discrete delay tables in se2/worker and continuous rise_lead from wire tables',
-                 no_tables and r_horizons == (2.2, 3.6, 3.3), r_horizons)
+    report.check('zero discrete delay tables in se2/worker; a rise leads her walk by its own length',
+                 no_tables and r_horizons == (2.106, 5.5, 3.6), r_horizons)
     times = []
     fell = False
     for after in (0.0, 0.5, 1.0, 2.0, 3.0, 4.0):

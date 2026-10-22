@@ -1,5 +1,5 @@
 ;; =============================================================================
-;; FILE: 05_universal_sequencer.lisp
+;; FILE: universal_sequencer.lisp
 ;; DOMAIN: Phase-Locked Topology Morphing & 64-Byte Aligned SoA Compilation
 ;; =============================================================================
 (defpackage :ortho-dsp.sequencer

@@ -460,11 +460,14 @@ int wbc_step(wbc_step_t *p)
   }
   for (int i = 0; i < p->nupper; i++)
   {
+    /* her arms' rows weigh as her text stiffens them over her rest */
+    const double w = p->w_posture * (1.0 + (p->hold - 1.0) * p->arms[i]);
+
     for (int j = 0; j < nu; j++)
     {
-      R0[(at + i) * nu + j] = p->w_posture * (double)(j == 12 + i);
+      R0[(at + i) * nu + j] = w * (double)(j == 12 + i);
     }
-    rhs[at + i] = p->w_posture * want[p->upper[i]];
+    rhs[at + i] = w * want[p->upper[i]];
     rhs0[at + i] = 0.0;
   }
   at += p->nupper;
@@ -472,13 +475,18 @@ int wbc_step(wbc_step_t *p)
   {
     swung[i] = i < 12 ? asked[i / 6] : 0.0;
   }
+  /* a sole that does not stand while something else bears her rests: its rows weigh as a pressing
+     contact's point */
   for (int i = 0; i < nu; i++)
   {
+    const double resting = i < 12 ? p->rests[i / 6] : 0.0;
+    const double w = p->w_swing + (p->w_still - p->w_swing) * resting;
+
     for (int j = 0; j < nu; j++)
     {
-      R0[(at + i) * nu + j] = p->w_swing * (i == j ? swung[i] : 0.0);
+      R0[(at + i) * nu + j] = w * (i == j ? swung[i] : 0.0);
     }
-    rhs[at + i] = p->w_swing * (i < nu0 ? a6[i] : 0.0);
+    rhs[at + i] = w * (i < nu0 ? a6[i] : 0.0);
     rhs0[at + i] = 0.0;
   }
   at += nu;

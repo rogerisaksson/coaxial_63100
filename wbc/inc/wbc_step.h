@@ -28,7 +28,7 @@ typedef struct
   int           act[WBC_STEP_D], legs[2][6], knees[2], upper[WBC_STEP_D];
   int           held[WBC_STEP_N], passive[WBC_STEP_N], active[WBC_STEP_N], pairs[WBC_STEP_D][2];
   int           rounds, past;
-  double        mass, moment[WBC_STEP_U], room[2], yaw_m, damp2, knee_min;
+  double        mass, moment[WBC_STEP_U], room[2], arms[WBC_STEP_D], yaw_m, damp2, knee_min;
   double        w_com, w_turn, w_swing, w_knee, w_posture, w_height, w_moment, w_fold, w_stop, w_part, w_air;
   double        w_pin, w_keep, w_still, grow_n, ridge, contact_k, height_band, held_k, momentum_k, mu, g;
   double        posture_kd[2], swing_kd[2], turn_kd[2];
@@ -42,7 +42,7 @@ typedef struct
   const double *cJ[WBC_STEP_C], *cp[WBC_STEP_C], *cdJv[WBC_STEP_C], *cf[WBC_STEP_C];
   /* asked */
   int           stance[2], nturns, kdot_given, swing[2], fold[2], wep;
-  double        com_acc[3], turn[2][4], kdot[3], settle[2][6], edge[2], strides, borne, mus[2];
+  double        com_acc[3], turn[2][4], kdot[3], settle[2][6], edge[2], strides, borne, hold, mus[2], rests[2];
   double        swing_at[2][3], swing_speed[2][3], swing_acc[2][3], swing_quat[2][4];
   double        fold_knee[2], fold_rate[2], fold_acc[2], knee_rate[2];
   const double *posture, *derate, *clamp, *wep_nm;

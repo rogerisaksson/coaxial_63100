@@ -310,6 +310,13 @@ def place(world, kind, z, x=0.0, heading=0.0, top=None, rise=RISE_M, run=RUN_M):
 
 
 
+def behind(stunt, half):
+    """m along her way from her ankles, a prop's middle `half` m in from its edge behind her: her
+    heels the stunt's standoff off that edge (`maneuver.standoff`)."""
+    from machine import maneuver
+    return -(figure.HEEL + maneuver.standoff(stunt) + half)
+
+
 def _on_chair(world):
     mocap(world, 'chair', (0.0, 0.0, 0.0), math.pi)
     world.data.qpos[1] += CHAIR_SEAT_H
@@ -339,7 +346,7 @@ def scenario(world, name, z=1.2, x=0.0):
             mocap(world, 'tree', (-1.6, low + 1.5, room.DECK_TO + 3.4)),
             place(world, 'rug', z=1.5, x=0.0), place(world, 'sill', z=room.TO, x=room.STAIR_X)),
         'chair': lambda: place(world, 'chair', z=0.88, x=x),
-        'chair_behind': lambda: mocap(world, 'chair', (0.0, 0.0, -0.30), math.pi),
+        'chair_behind': lambda: mocap(world, 'chair', (0.0, 0.0, behind('sit_chair', CHAIR_SEAT[2])), math.pi),
         'chair_ahead': lambda: mocap(world, 'chair', (0.0, 0.0, 0.40), math.pi),
         'on_chair': lambda: _on_chair(world),
         'edge_behind': lambda: _edge_behind(world),

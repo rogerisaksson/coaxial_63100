@@ -5,12 +5,12 @@
     plan = dsp.schedule(got['compile-omnidirectional-suite'])  # [(from bar, to bar, gait or Morph)]
 
 A gait is the suite's manifold as nodes of params, a sidechain on the node it ducks; the runway's
-dialect (runway.lisp, `tools/sim/identify.py`'s) says the same by ALIASES, the later modules' names
-for the first six's by NAMES and WORDS. Stages - transducers, modifiers, limiters, maneuvers, a
-patch with parameters - are functions of a gait threaded by `->`; ops (GAIT_OPS), functions (FUNCS)
-and special forms (SPECIAL) are tables. A gait keeps the stages and transitions it went through in
+dialect (runway.lisp, `tools/sim/identify.py`'s) says the same by ALIASES. The modules are read
+each after those its package uses. Stages - transducers, modifiers, limiters, maneuvers, a patch
+with parameters - are functions of a gait threaded by `->`; ops (GAIT_OPS), functions (FUNCS) and
+special forms (SPECIAL) are tables. A gait keeps the stages and transitions it went through in
 order ('_trace') and a maneuver's acts ('_events': an envelope, a contact's threshold and the acts
-it releases). `machine.voicing` plays a gait on her loop.
+it releases). `machine.voicing` plays a gait on her walk, `machine.maneuver` a maneuver on her.
 """
 import collections
 import copy
@@ -22,8 +22,31 @@ import os
 from machine import patch
 from machine.errors import MachineError
 
-#: The suite's modules, read in their order.
-SUITE = sorted(glob.glob(os.path.join(os.path.dirname(__file__), 'ortho_dsp', '*.lisp')))
+
+
+def _ordered(paths):
+    """`paths`, each module after the modules its package uses (`defpackage`'s :use)."""
+    found, out = {}, []
+    for path in paths:
+        with open(path, encoding='utf-8') as f:
+            head = next(form for form in patch.forms(f.read()) if form[0] == 'defpackage')
+        found[head[1]] = (path, [u for clause in head[2:] if clause[0] == ':use' for u in clause[1:]])
+
+    def after(name, seen=()):
+        if name in seen or name not in found:
+            raise MachineError('%s: %s' % (name, 'a package using itself' if name in seen else 'no module of the suite'))
+        path, uses = found[name]
+        for used in uses:
+            after(used, seen + (name,))
+        out.extend([path] * (path not in out))
+
+    for name in sorted(found):
+        after(name)
+    return out
+
+
+#: The suite's modules, read each after those it uses.
+SUITE = _ordered(sorted(glob.glob(os.path.join(os.path.dirname(__file__), 'ortho_dsp', '*.lisp'))))
 #: An op on a param, `(:scale 1.2)`; a bare value sets. Clamped, an unset param takes the bound.
 Op = collections.namedtuple('Op', 'name value')
 OPS = {'set': lambda old, v: v, 'scale': operator.mul, 'add': operator.add,
@@ -34,11 +57,6 @@ Stage = collections.namedtuple('Stage', 'name params keys body')
 #: A transition from a gait (to a gait): its sync trigger, its clock's slew, its bands, its bars,
 #: its other acts as events.
 Morph = collections.namedtuple('Morph', 'source target sync clock bands bars acts')
-#: The later modules' names of the first six's stages and states, and of their keywords.
-NAMES = {'nominal-biped-gait': 'nominal-biped-manifold', 'transducer-viscoelastic-flat': 'transducer-elastomer-flat',
-         'transducer-unshod': 'transducer-barefoot', 'regime-coronal-catwalk': 'modulator-coronal-catwalk',
-         'limiter-high-mu-planar': 'surface-high-mu-planar'}
-WORDS = {':thoracic-kyphotic': ':thoracic-kyphotic-bias', ':lumbar-lordotic': ':lumbar-lordotic-bias'}
 #: The runway's nodes and params by the suite's names; a param said of two.
 NODE_ALIASES = {'clock': 'oscillator', 'sacroiliac-z': 'com-dynamics'}
 ALIASES = {'target-bpm': 'bpm', 'swing-gate': 'even-step-swing-offset', 'flexion-cushion-rad': 'stance-yield-rad',
@@ -47,7 +65,7 @@ ALIASES = {'target-bpm': 'bpm', 'swing-gate': 'even-step-swing-offset', 'flexion
            'offset-rad': 'dc-offset-rad', 'cutoff-hz': 'lpf-cutoff-hz', 'slope-db': 'lpf-slope-db',
            'lag-rad': 'phase-lag-rad', 'headroom-rad': 'angular-ceiling-rad', 'ceiling-rad': 'angular-ceiling-rad',
            'velocity-sensitivity': 'velocity-gain', 'duck-depth-mm': 'modulation-depth-mm',
-           'key-input': 'trigger-source', 'saturation-mode': 'saturation', 'axial-profile': 'posture-profile'}
+           'key-input': 'trigger-source', 'saturation-mode': 'saturation'}
 SPLIT = {'stance-duty-pwm': ('duty-factor-l', 'duty-factor-r')}
 #: The runway's transient shaper's params that land on its soft-clip node, the knee.
 CLIP = ('stance-yield-rad', 'compliance')
@@ -213,11 +231,6 @@ def _then(g, name, got):
     return dict(g, _trace=g['_trace'] + [(name, got)]) if isinstance(got, Morph) else got
 
 
-def _named(name, env):
-    """`name` as `env` holds it: its own, else the first six modules' (NAMES)."""
-    return name if name in env else NAMES.get(name, name)
-
-
 def _datum(x):
     """A quoted form as data, its lists as tuples."""
     return tuple(_datum(e) for e in x) if isinstance(x, (list, tuple)) else x
@@ -235,9 +248,9 @@ def value(x, env):
     if isinstance(x, tuple):
         return tuple(value(e, env) for e in x if e != '->')
     if isinstance(x, str) and not x.startswith(':'):
-        if _named(x, env) not in env:
+        if x not in env:
             raise MachineError('%s: not defined' % x)
-        return env[_named(x, env)]
+        return env[x]
     if not isinstance(x, list) or not x:
         return x
     head = x[0]
@@ -254,7 +267,7 @@ def called(name, given, args, env):
     """Stage or op `name` called on `given` (its leading values, a gait first) and keyword `args`."""
     if name in GAIT_OPS:
         return GAIT_OPS[name](given[0], args, env)
-    stage = env.get(_named(name, env))
+    stage = env.get(name)
     if not isinstance(stage, Stage):
         raise MachineError('(%s ..): no stage, op or function of that name' % name)
     keys = dict(_pairs(args))
@@ -264,8 +277,7 @@ def called(name, given, args, env):
                                                             len(given), len(stage.params)))
     inner = dict(env)
     inner.update(zip(stage.params, given))
-    told = {k: value(keys.get(k, form), env if k in keys else inner) for k, form in stage.keys.items()}
-    inner.update({k: WORDS.get(v, v) if isinstance(v, str) else v for k, v in told.items()})
+    inner.update({k: value(keys.get(k, form), env if k in keys else inner) for k, form in stage.keys.items()})
     if stage.name == 'transition':
         return _morph(stage.body, inner, stage.params)
     g = [value(form, inner) for form in stage.body][-1]

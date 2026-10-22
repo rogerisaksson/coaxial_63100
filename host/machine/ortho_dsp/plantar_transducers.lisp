@@ -1,5 +1,5 @@
 ;; =============================================================================
-;; FILE: 01_plantar_transducers.lisp
+;; FILE: plantar_transducers.lisp
 ;; DOMAIN: Footwear Mechanical Impedance & Contact Geometry
 ;; =============================================================================
 (defpackage :ortho-dsp.transducers
