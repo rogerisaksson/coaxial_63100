@@ -227,16 +227,15 @@ def test_scenario_deck_tour_handoff_and_cybernetic_hud(report):
     report.check('every floor scenario described, Shift+N shoves 200 N along the view',
                  not miss and abs(sent[0]['push'][2] - 200.0) < 1e-9, miss)
     sent.clear()
-    st['now'] = {'doing': 'lower', 'where': (0.0, 0.72, 0.0), 'scenario': 'chair'}
-    typed(pad, 'f', st)
-    st['now'] = {'doing': 'seat_land', 'where': (0.0, 1.25, 0.0), 'scenario': 'chair'}
-    typed(pad, 'f', st)
-    st['now'] = {'doing': 'sit_edge', 'scenario': 'bed'}
-    typed(pad, 'f', st)
-    st['now'] = {'doing': 'kneel', 'scenario': 'mattress'}
-    typed(pad, 'f', st)
-    report.check('F rises her from a chair, hops her down from its seat, rises her from a bed and a mattress',
-                 [c['say'] for c in sent] == ['rise_chair', 'hop_down_chair', 'rise_bed', 'rise_floor'], sent)
+    nows = ({'doing': 'lower', 'where': (0.0, 0.72, 0.0), 'scenario': 'chair'}, {'doing': 'sit_edge', 'scenario': 'bed'},
+            {'doing': 'seat_land', 'where': (0.0, 1.25, 0.0), 'scenario': 'chair'},
+            {'doing': 'kneel', 'scenario': 'mattress'}, {'doing': 'down', 'scenario': 'flat'})
+    for now in nows:
+        st['now'] = now
+        typed(pad, 'f', st)
+    report.check("up from a chair, a bed, a seat, a mattress, a crouch; F with none of them seen the crouch's alone",
+                 [gym.contextual_rise(n) for n in nows] == ['rise_chair', 'rise_bed', 'hop_down_chair', 'rise_floor', 'stand']
+                 and sent == [{'say': 'stand'}], sent)
     sent.clear()
     st['scenario'] = 'bed'
     typed(pad, '[', st)

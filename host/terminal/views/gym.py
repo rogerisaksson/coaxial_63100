@@ -6,8 +6,9 @@
     gym.status(now)              # what she is doing, in a line
 
 She stands on the loop (`machine.sprung`); the keys that move her are a twist (`humanoid_keys`).
-A hop, a crouch, a balloon's offer are verbs, each one an agent would send. F offers rising from
-what bears her, else each thing she has seen and its verb, a balloon on it. A gym entry is said
+A hop, a crouch, a balloon's offer are verbs, each one an agent would send. F offers only what she
+has identified, a balloon on it: rising from the thing that bears her, else each thing and its
+verb; from the floor alone her rise, no thing and no balloon. A gym entry is said
 by its place in the gym's text (`sprung.entries`) in place of what was to come, the gym's other
 text (`sprung.GYMS`) read anew each time - an edit to machine/gynoid_mesomorph_medium.lisp is two
 presses away -; the scenes stepped through and laid again, shoves along the view, the tour of the
@@ -83,22 +84,31 @@ _RISE_TABLE = (
     (('approach', 'lower'), None, 'rise_chair'),
     (('cushion',), None, 'rise_floor'),
 )
+#: The thing a rise takes her up from, by the verb that put her on it (`scanner.AFFORDANCES`).
+_BEARS = {'hop_down_chair': 'sit_chair', 'rise_chair': 'sit_chair', 'rise_bed': 'lie_bed', 'rise_floor': 'lie_floor'}
 
 
-def contextual_rise(now, scenario=None):
-    """The verb that takes her up from what bears her - seated, lying, kneeling, crouched, on a
-    chair's seat -; None standing."""
-    if not now:
-        return None
+def _propped(now, scenario=None):
+    """The verb that takes her up from a thing bearing her - a chair's seat, a bed, a mattress
+    (`_RISE_TABLE`) -; None on her feet or on the floor alone."""
     doing, scen = now.get('doing', ''), scenario or now.get('scenario') or 'open'
     if (now.get('where') or (0.0, 0.90, 0.0))[1] > ON_CHAIR_M:
         return 'hop_down_chair'
-    for phases, scens, move in _RISE_TABLE:
-        if doing in phases and (scens is None or scen in scens):
-            return move
+    return next((move for phases, scens, move in _RISE_TABLE
+                 if doing in phases and (scens is None or scen in scens)), None)
+
+
+def _floored(now):
+    """The verb that takes her up from the floor alone - down, fallen, crouched -; None else."""
     if now.get('stage') in ('down', 'fallen', 'floor'):
         return 'rise_floor'
-    return 'stand' if (doing == CROUCHED or now.get('fallen')) else None
+    return 'stand' if (now.get('doing') == CROUCHED or now.get('fallen')) else None
+
+
+def contextual_rise(now, scenario=None):
+    """The verb that takes her up from what bears her - a thing (`_propped`), else the floor
+    (`_floored`) -; None standing."""
+    return (_propped(now, scenario) or _floored(now)) if now else None
 
 
 def hop(now, seen):
@@ -136,18 +146,31 @@ def _turn(now, at):
     return abs((off + math.pi) % math.tau - math.pi)
 
 
+def _middle(lo, hi):
+    """A box's middle, (x, y, z)."""
+    return tuple((a + b) / 2.0 for a, b in zip(lo, hi))
+
+
 def offers(now, seen):
-    """[(verb, word, at (x, y, z), thing)] F offers now, the one she faces most nearly first - the
-    nearer of two in line -: rising from what bears her alone, at her; else each thing she has
-    identified (`seen`, `scanner.identified`'s) with a verb - one she walks to (`tour.errands`)
-    wherever it stands, one she does where she stands within REACH_M -, at its middle."""
+    """[(verb, word, at (x, y, z) or None, thing)] F offers now, each a thing she has identified
+    (`seen`, `scanner.identified`'s), never one she has not: on a thing, its rise alone, at that
+    thing (`_BEARS`) within REACH_M; on the floor alone, its rise at none - no thing, no balloon -;
+    on her feet, each thing with a verb - one she walks to (`tour.errands`) wherever it stands, one
+    she does where she stands within REACH_M -, at its middle, the one she faces most nearly first,
+    the nearer of two in line."""
     if not now:
         return []
-    rise, walked = contextual_rise(now), tour.errands()
-    if rise:
-        return [(rise, NAMED.get(rise, rise), tuple(now.get('where') or (0.0, 0.9, 0.0)), 'her')]
-    got = [(verb, word, tuple((a + b) / 2.0 for a, b in zip(lo, hi)), '%s %.1fm' % (kind, dist), dist)
-           for kind, dist, lo, hi in _things(seen) if kind in scanner.AFFORDANCES
+    things = [(kind, dist, lo, hi) for kind, dist, lo, hi in _things(seen) if kind in scanner.AFFORDANCES]
+    propped, floored = _propped(now), _floored(now)
+    if propped:
+        bearing = sorted((dist, kind, lo, hi) for kind, dist, lo, hi in things
+                         if scanner.AFFORDANCES[kind][0] == _BEARS[propped] and dist < REACH_M)
+        return [(propped, NAMED.get(propped, propped), _middle(lo, hi), '%s %.1fm' % (kind, dist))
+                for dist, kind, lo, hi in bearing[:1]]
+    if floored:
+        return [(floored, NAMED.get(floored, floored), None, 'her')]
+    walked = tour.errands()
+    got = [(verb, word, _middle(lo, hi), '%s %.1fm' % (kind, dist), dist) for kind, dist, lo, hi in things
            for verb, word in (scanner.AFFORDANCES[kind],) if verb in walked or dist < REACH_M]
     return [offer[:4] for offer in sorted(got, key=lambda o: (_turn(now, o[2]), o[4]))][:len(DIGITS)]
 
@@ -175,12 +198,13 @@ def prompt(state):
 
 
 def ballooned(state, offer, width, height, travel, docked=()):
-    """The viewport's balloons: each of `offer` (`offered`'s) its key and word on its thing, on a
-    drawing `width` by `height` of the page's view over `travel`, out of the `docked` picture's
+    """The viewport's balloons: each of `offer` (`offered`'s) at a thing its key and word on it, on
+    a drawing `width` by `height` of the page's view over `travel`, out of the `docked` picture's
     cells; framed lit while F's choice is open (`coaxial.graphics.balloons`)."""
-    places = gynoid.cells([at for _k, _v, _w, at, _t in offer], width, height, yaw=state['yaw'],
+    on = [o for o in offer if o[3] is not None]
+    places = gynoid.cells([at for _k, _v, _w, at, _t in on], width, height, yaw=state['yaw'],
                           pitch=state['pitch'], zoom=state['zoom'], travel=travel, pan=viewpoint.panned(state))
-    return balloons.laid([(p, key, word) for p, (key, _v, word, _a, _t) in zip(places, offer) if p],
+    return balloons.laid([(p, key, word) for p, (key, _v, word, _a, _t) in zip(places, on) if p],
                          width, height, lit=state.get('choosing') is not None, shut=frozenset(docked))
 
 
@@ -218,9 +242,9 @@ def hopped(state):
 
 
 def chose(state, k):
-    """F's `k`th offer said: its verb at its thing (`at`, x z)."""
+    """F's `k`th offer said: its verb at its thing (`at`, x z), the floor's at none."""
     for _key, verb, _word, at, _thing in offered(state)[k:k + 1]:
-        said(state, verb, at=(at[0], at[2]))
+        said(state, verb, **({} if at is None else {'at': (at[0], at[2])}))
 
 
 def crouched(state):

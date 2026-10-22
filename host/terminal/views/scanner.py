@@ -120,7 +120,7 @@ class VisionScanner:
             kind = _PROP_RULES[raw_kind](py, sx, sz_d, scen) if raw_kind in _PROP_RULES else raw_kind
             dx, dz = px - gx, pz - gz
             dist = math.hypot(dx, dz)
-            if kind is None or dist > (reach or SIGHT_M) or dist < 0.05 or not _in_cone(dx, dz, dist, kind, reach, cones):
+            if kind is None or dist > (reach or SIGHT_M) or not _in_cone(dx, dz, dist, kind, reach, cones):
                 continue
             found.append({
                 'kind': kind,

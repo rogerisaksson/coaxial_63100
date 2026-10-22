@@ -179,3 +179,7 @@ the hundred and fifty before these: [DONE_1-50](DONE_1-50.md),
     over any page, Tab the instruments' column - folded at first to a rail,
     its arrow breathing, the front page's panels up -, ? the keys; the 13
     pages drawn with it at 150 x 44 ([host](findings/host.md)).
+31. F's balloons only on what she has identified: a rise from the thing that
+    bears her offered at that thing, none with none known; from the floor
+    alone (a crouch, a fall) offered, unballooned. Lying in the bed she walked
+    to: `[F1] rise bed` on the bed, the click up ([sight](findings/sight.md)).

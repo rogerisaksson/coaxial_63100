@@ -71,3 +71,8 @@ left, moved a row off another's: `thing` under `lamp` read `thlamp`. The four
 rows of black over the walls are the room's: it has no ceiling. In a viewport
 12 rows high the picture threw an IndexError once she had looked: nothing is
 drawn where it has no room.
+
+What bears her is what she has identified: a scan dropped every box within
+0.05 m of her across, so the chair centred under her seat was out of her
+sight and its rise could not stand on it. A thing with a verb within 1.2 m is
+in her sight whichever way she faces (`scanner._in_cone`).

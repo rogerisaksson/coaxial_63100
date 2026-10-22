@@ -165,13 +165,23 @@ def test_balloons_on_what_she_sees(report):
     far = gym.offered(st)
     st['now'] = dict(st['now'], props=[('bed', (0.0, 0.08, 0.6), (0.45, 0.08, 0.95), up)])
     near = gym.offered(st)
-    st['now'] = {'where': (1.5, 0.6, 0.8), 'heading': 0.0, 'doing': 'seated', 'props': room}
-    report.check('a chair ahead, seat and back, one thing first; a mattress out of her reach none, in it '
-                 'lie_floor; seated, her rise alone',
+    report.check('a chair ahead, seat and back, one thing first; a mattress out of her reach none, in it lie_floor',
                  [o[1] for o in ahead] == ['sit_chair', 'exit_door', 'lie_bed', 'sit_chair'] and abs(ahead[0][3][0]) < 1e-9
-                 and far == [] and [o[1] for o in near] == ['lie_floor']
-                 and [o[:2] for o in gym.offered(st)] == [('F1', 'rise_chair')], (ahead, far, near))
-    st['now'] = {'where': (0.0, 0.9, 0.0), 'heading': 0.0, 'props': room}
+                 and far == [] and [o[1] for o in near] == ['lie_floor'], (ahead, far, near))
+
+    def balloons_of(now, sc):
+        st.update(now=now, scanner=sc)
+        drawn = gym.ballooned(st, gym.offered(st), 110, 36, (0.0, 0.0))
+        return ([(o[1], o[3] and tuple(round(c, 9) for c in o[3])) for o in gym.offered(st)],
+                ''.join(chr(code) for _at, (code, _key) in sorted(drawn.items())))
+    sitting = {'where': (1.5, 0.6, 0.8), 'heading': math.pi, 'doing': 'seated', 'props': room}
+    seated, unseen = (balloons_of(now, scanner.VisionScanner()) for now in (sitting, dict(sitting, props=[])))
+    crouched = balloons_of({'where': (0.0, 0.7, 0.0), 'heading': 0.0, 'doing': gym.CROUCHED, 'props': []}, None)
+    report.check("seated, the chair under her identified facing away, its rise there, its balloon on it; on a "
+                 "seat her eyes know no thing of, none; crouched on the floor, its rise, no balloon",
+                 seated[0] == [('rise_chair', (1.5, 0.45, 0.8))] and 'F1 rise chair' in seated[1]
+                 and unseen == ([], '') and crouched == ([('stand', None)], ''), (seated, unseen, crouched))
+    st.update(now={'where': (0.0, 0.9, 0.0), 'heading': 0.0, 'props': room}, scanner=scanner.VisionScanner())
     drawn = gym.ballooned(st, gym.offered(st), 110, 36, (0.0, 0.0))
     text = ''.join(chr(code) for _at, (code, _key) in sorted(drawn.items()))
     report.check('a balloon on the viewport over each', all(w in text for w in ('F1 go out', 'F2 lie down', 'F3 sit')),
