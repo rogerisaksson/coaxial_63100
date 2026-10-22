@@ -120,9 +120,11 @@ serves its DOD; none an entry a case.
    natural time of the take's, her head no lower than the human's and under
    1 m/s if she falls. A posture's take is told as its own rows (axial,
    sagittal and pitch read off the take, the rest her balance's, the trunk's
-   pitch off her stand; stunts.md): 5 of 31 met - the slick patch, the ice,
-   the kneel, the sit onto the chair and the rise from it -, the backflip
-   refused for want of a text, 24 short, 214 widths off in all; the crouch
+   pitch off her stand; stunts.md): 3 of 31 met - the slick patch, the ice,
+   the kneel -, the backflip and the run to it refused for want of a text,
+   26 short, 237.6 widths off in all (the sit onto the chair 0.6, the rise
+   from it 6.4 with its rows waiting on `risen_back`, the runs and jogs 72:
+   told 1.64 m/s she goes 0.34); the crouch
    takes, half a unit deeper with the straight leg their legs' zero, bottom
    out at the human's full squat (knee 140 deg) and sit down at 0.3 m/s; the
    long takes thinned to every second or third frame for the table's 512

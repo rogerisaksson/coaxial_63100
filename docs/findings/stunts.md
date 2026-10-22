@@ -108,7 +108,16 @@ run no lower than the human's, a fall's head under 1 m/s. The takes (a leg
   text's from the take's lie leaves her on it, the sit-up take's rows are
   held by `risen_back` (a raise waits while the capture point is off her
   soles), the chair's rise by the take fell at 2.7 m/s with her hands at
-  18 000. The C mirror's striding solve on two soles, nothing pinned, as a
+  18 000. Told at 8 s after the sit-down take, the rise's rows play to a
+  lean (sagittal -3.1 to -1.1, pitch 1.9) and the rest wait on `risen_back`
+  for ever: seated, her soles slide 0.3-0.5 m ahead (the read sagittal -3.7
+  to -6.8, both loads 0) and her capture point never reaches them - the
+  human rises with his centre of mass still behind his heels. Measured, not
+  kept: the prop counted by its share with the support spanned from PROP_ON
+  (the rise fell at 1.3 m/s, 9.5 widths), and the soles not lifted by its
+  excess besides (no rise, 6.5; errands 16 of 19 - the viewport's bed and
+  door, the south_face dock). The C mirror's striding solve on two soles,
+  nothing pinned, as a
   stride began at a share of 1e-8: the torques 2.2e-2 N m off the python's;
   the test judges two soles by her accelerations and loads, 3.6e-3 apart.
   The bench then 4 of 31 met (the slick patch, the ice, the kneel, the rise
