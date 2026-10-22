@@ -65,8 +65,10 @@ serves its DOD; none an entry a case.
    late swing lowering her - each took a held scene. Up the stairs told she
    climbs the flight and stands on the landing (stairs.md), at her walk's
    0.54 s step where the takes climb at 0.6-0.7 s: the climb's rhythm is still
-   the impedance's. To come, a sequencer on her loop (asked): her beats a
-   stream of keywords with a sequencer's modifiers, each beat a footfall -
+   the impedance's. A sequencer on her loop (asked), begun: a take said at
+   its beats, its voices hers, a gait take's pattern fitted
+   ([sequencer](../findings/sequencer.md)); her beats a stream of keywords
+   with a sequencer's modifiers, each beat a footfall -
    tempo (the stride's Hz), pitch (the step's rise: a tread a note, a slope a
    transpose), gate (the swing's share of the beat), accent (the push-off),
    envelope (the pull-up's attack over the stance), slide (the step's
@@ -135,18 +137,12 @@ serves its DOD; none an entry a case.
    natural time of the take's, her head no lower than the human's and under
    1 m/s if she falls. A posture's take is told as its own rows (axial,
    sagittal and pitch read off the take, the rest her balance's, the trunk's
-   pitch off her stand; stunts.md): 3 of 31 met - the slick patch, the ice,
-   the kneel -, the backflip and the run to it refused for want of a text,
-   26 short, 227.7 widths off in all (the sit onto the chair 0.6, the rise
-   from it 6.4 with its rows waiting on `risen_back`, the runs and jogs 72:
-   told 1.64 m/s she goes 0.34); the crouch
-   takes, half a unit deeper with the straight leg their legs' zero, bottom
-   out at the human's full squat (knee 140 deg) and sit down at 0.3 m/s -
-   told 0.17 m ahead of her soles' middle (past her toes) her parry steps,
-   and told 1.06 m/s shorter her knees fold ahead of her fall and her soles
-   unload (stunts.md); the
-   long takes thinned to every second or third frame for the table's 512
-   rows.
+   pitch off her stand; stunts.md): 5 of 31 met - the slick patch, the ice, the
+   kneel down and up, the rise from a crouch -, the backflip and the run to
+   it refused for want of a text, 24 short, 218.4 widths off in all (the
+   sit onto the chair 0.4, the rise from it 7.6, fallen at 2.2 m/s, the
+   runs and jogs 72: told 1.64 m/s she goes 0.34); a take said at its
+   beats, the squats on the legs and the trunk alone (sequencer.md).
    Open by mechanism: her hands' jerk 7 700-20 900 m/s^3 where her walk's is
    1 400-1 800 through the sit, the rise, the dance and the bed - the
    whole-body step's upper joints at W_POSTURE 1 against W_COM 1000 make her
