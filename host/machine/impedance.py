@@ -85,15 +85,15 @@ def ask(out, y, fr, a):
     tone = out[latent.SWAY][LIFT] * np.array([np.sin(beat), turns * np.cos(beat), -turns * turns * np.sin(beat)])
     ref, rate, acc = (out[part] - HOT[LIFT] * t for part, t in zip((latent.REF, latent.RATE, latent.ACC), tone))
     up = LIMBS * ref[LIFT]
-    # her capture point past the soles that stood - past her ZMP's margin in them, flat on the
-    # floor - steps her: on its ball, a sole's box its ball's line, a hop's throw stepped her
+    # her capture point past the soles that stood - past her ZMP's margin in them - steps her
+    # while the rows hold the polygon: let go, a push stepped a sole at its end (0/497 N)
     still = 1.0 - poise.clip(np.linalg.norm(out[latent.SWAY]) / TINY, 0.0, 1.0)
     out_of = poise.BIG * (1.0 - stood)[:, None]
     lifted = out_of * np.maximum(1.0 - still, np.maximum(a[SWINGS], up > poise.LIFT_EPS))[:, None]
     lo, hi = poise.boxes(flat, 0.0 * a[EDGE], tilt)
     beyond = xi - poise.clip(xi, *poise.spanned((lo + out_of).min(axis=0), (hi - out_of).max(axis=0), prop))
     past = np.linalg.norm(xi - poise.clip(xi, *poise.spanned((lo + lifted).min(axis=0), (hi - lifted).max(axis=0), prop)))
-    a[NEED] = stood.max() * poise.clip(past / poise.MARGIN_M, 0.0, 1.0)
+    a[NEED] = stood.max() * poise.clip(past / poise.MARGIN_M, 0.0, 1.0) * poise.clip(out[latent.HELD], 0.0, 1.0)
     stepping, way, sweep, phi, on, off, u, flying, swung = stride.beat(
         out[latent.SWAY][DRIVE], out[latent.PSI][DRIVE], out[latent.SWAY][LATERAL], out[latent.PSI][LATERAL], turns,
         a[SWINGS], a[NEED], a[LEAD])

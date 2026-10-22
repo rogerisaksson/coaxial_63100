@@ -249,7 +249,8 @@ def standing_leap(base_wire, fr, ch=0.0):
     # landed on her heels 0.17 m behind them), his trunk's fold over it; the absorption a damper told the bottom the
     # drives brake her to (`bottom`): it asks them what her speed is worth and the clamp gives
     # what it can (a parabola from the push's end speed yanked her down at 23 m/s^2 where she
-    # met the floor slower); the polygon let go till the bottom; then her rest over his rise's
+    # met the floor slower), the polygon held again from the floor (let go through the
+    # absorption, no parry stepped her off a landing's tip and she fell); then her rest over his rise's
     # seconds (his own rise, told as rows, carries his rebound - a second squat at 1.3-1.5 s -
     # and she jumped again off the landing)
     v_off = a_z * seconds
@@ -273,7 +274,7 @@ def standing_leap(base_wire, fr, ch=0.0):
         brake['at'][k], brake['blend'][k], brake['flags'][k] = t_land + k * push_ms, push_ms, ortho.CURVE
         brake['p'][k, axial], brake['p'][k, latent.K.start + modal.AXIAL] = deep, 0.0
         brake['p'][k, sagittal] = sag0 + (sag_deep - sag0) * k / max(1, n_b - 1)
-        brake['p'][k, pitch], brake['p'][k, latent.ZMP] = fold * z_h[deepest, modal.PITCH], modal.NONE
+        brake['p'][k, pitch], brake['p'][k, latent.ZMP] = fold * z_h[deepest, modal.PITCH], modal.SUPPORT
     rows['at'][3] = t_land + n_b * push_ms
     rows['blend'][3] = int(round(1e3 * (t_h[-1] - t_h[deepest])))
     end_ms = int(rows['at'][3] + rows['blend'][3])

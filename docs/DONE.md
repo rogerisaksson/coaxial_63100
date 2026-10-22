@@ -328,5 +328,7 @@ the hundred before these: [DONE_1-50](DONE_1-50.md),
     0.43-0.51 legs of the human's 0.55 where 0.01; four faults of the law
     found on the way - the latent's curve anchoring, `touch.step`'s dropped
     acceleration, the knee rows' damping against still, the surety's phase
-    read for the held polygon - and rows that lower her waiting for a floor
-    (`waits.landed_rows`) ([stunts](findings/stunts.md)).
+    read for the held polygon - rows that lower her waiting for a floor
+    (`waits.landed_rows`), and the parry stepping her only while the rows
+    hold the polygon: off and down on both soles
+    ([stunts](findings/stunts.md)).

@@ -323,7 +323,8 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
       past[j] = xi[j] - npclip(xi[j], slo[j], shi[j]);
     }
     smax = npmax(stood[0], stood[1]);
-    a[k->a_need] = smax * npclip(sqrt(npdot(past, 1, past, 1, 2)) / k->margin_m, 0.0, 1.0);
+    a[k->a_need] = (smax * npclip(sqrt(npdot(past, 1, past, 1, 2)) / k->margin_m, 0.0, 1.0))
+                   * npclip(out[k->o_held], 0.0, 1.0);
   }
   wbc_imp_beat(k, sway[k->drive], psi[k->drive], sway[k->lateral], psi[k->lateral], turns, a + k->a_swings,
                a[k->a_need], a + k->a_lead, &stepping, &way, &swung, sweep, phi, on, off, u, flying);

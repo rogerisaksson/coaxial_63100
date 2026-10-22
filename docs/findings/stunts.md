@@ -211,8 +211,14 @@ run no lower than the human's, a fall's head under 1 m/s. The takes (a leg
   rise's seconds: she stands, 2.9 widths off (rise 0.49 of his 0.55 from the
   crouch, travel -0.16, head 1.07, flight 0.04 of his 0.91 - the tuck is
   beyond her drives), the same in two runs, but on one leg: the push's
-  last rows load one sole (0/497 N), she lands on the other (1 449/0 N)
-  and stands on it; a tap hops 0.1 m from its dip and stays on its spot;
-  her apex over her stand is 0.015 m, the legs 0.5 axial short of straight
-  as she leaves. Her walk unmoved: 2.53 off a
+  last rows loaded one sole (0/497 N), she landed on the other (1 449/0
+  N) and stood on it - her capture point 0.14 m past her toes at the
+  push's end had her parry step a sole. The parry steps her only while
+  the rows hold the polygon (`a[NEED]` by out[HELD]; let go through the
+  absorption too, no step saved a landing on its tip and she fell: the
+  absorption holds it again): off and down on both soles, 3.9 widths
+  (travel 0.42 legs in the bench's scene, 0.04 m in the page's), her soles
+  11 mm clear; a tap hops 0.07 m from its dip and stays on its spot; her
+  apex over her stand is 0.015 m, the legs 0.5 axial short of straight as
+  she leaves. Her walk unmoved: 2.53 off a
   woman's at 0.70 m/s and 409 J/m, 2.55 at the commit before.

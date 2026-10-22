@@ -98,11 +98,11 @@ serves its DOD; none an entry a case.
    vs `250 ms`) against flight-time, dual-sole clearance and distance in
    `test_leap.py`; the standing jump's push from the drives (stunts.md:
    take-off 1.5-1.65 m/s, rise 0.49 legs of the human's 0.55 from the
-   crouch, 0.015 m over her stand, landed standing at 2.9 widths). Left:
-   she leaves and lands on one leg (0/497 N at take-off, 1 449/0 N at
-   touchdown) and stands on it after; the legs 0.5 axial short of
-   straight as she leaves (the apex over her stand); the surety's phase
-   read kept for the seats (stunts.md); the
+   crouch, 0.015 m over her stand, two-footed off and down, standing at
+   3.9 widths). Left: her soles clear 11 mm, her legs long in flight; she
+   lands 0.32 m ahead in the bench's scene, in place in the page's; the
+   legs 0.5 axial short of straight as she leaves (the apex over her
+   stand); the surety's phase read kept for the seats (stunts.md); the
    chair's two texts reach no hop yet (scenarios.md);
    off and onto a 0.45 m seat her knees work at 0.93-1.0 of their peak, past the
    drives' 50 % margin (demand.md) - the seat's height or the knees' drives to
