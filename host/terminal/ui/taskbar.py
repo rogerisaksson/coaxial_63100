@@ -3,6 +3,7 @@
     footer(pairs)          # the page's pairs from the left, the terminal's at the bar's right end
     bar_of(pad, now)       # (its bar's pairs, its help)
     rail()                 # in the column's place, folded (`column`): its edge, a tab in its middle
+    room(width)            # the drawing's columns, `beside()` - the column as it stands, the frame - off
 
 A page's keys are its pad's (`terminal.ui.bindings`); `terminal.ui.stage` lays these round its
 drawing.
@@ -97,6 +98,21 @@ BREATH = 0.5
 def column():
     """The instruments' column's width, cells: its rail's folded (Tab, `bindings.UX`)."""
     return HUD_WIDTH if bindings.UX['column'] else RAIL
+
+
+#: `stage.viewport`'s frame and padding round the drawing, columns.
+VIEWPORT_COLUMNS = 4
+
+
+def beside():
+    """The columns beside the drawing: the instruments', folded or out (`column`), and the
+    viewport's frame."""
+    return column() + VIEWPORT_COLUMNS
+
+
+def room(width):
+    """The drawing's columns in a window `width` across: what `beside` leaves it."""
+    return width - beside()
 
 
 def _rgb(style):

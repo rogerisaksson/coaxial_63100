@@ -276,18 +276,26 @@ def test_the_face_wears_its_two_scales(report):
                  and ansi.code(dial.die_ink(61.0)) in art[-1]
                  and '61.0 C' in ansi_plain(art[-1]),
                  (len(art), sorted({len(ansi_plain(l)) for l in art})))
+    from terminal.ui import bindings, taskbar
     from terminal.views import show_angle as page
-    report.check('and the face gives way to the scales and fills the rest: 68 wide at 130 '
-                 'columns, FACE_MIN at 98, alone under that, as tall as the terminal leaves, '
-                 'the whole face where the terminal would not say',
-                 page.fit(130) == (True, 68, page.ART_HEIGHT)
-                 and page.fit(100) == (True, 38, page.ART_HEIGHT)
-                 and page.fit(98) == (True, page.FACE_MIN, page.ART_HEIGHT)
-                 and page.fit(90) == (False, 46, page.ART_HEIGHT)
-                 and page.fit(150, 44) == (True, 88, 44 - page.STAGE_ROWS)
+    was, bindings.UX['column'] = bindings.UX['column'], True
+    try:
+        out = [page.fit(c) for c in (130, 100, 98, 90)] + [page.fit(150, 44)]
+        bindings.UX['column'] = False
+        folded = page.fit(130)
+    finally:
+        bindings.UX['column'] = was
+    report.check('and the face gives way to the scales and fills the rest - the column out: 68 '
+                 'wide at 130 columns, FACE_MIN at 98, alone under that, as tall as the terminal '
+                 "leaves; folded, the column's room more -, the whole face where the terminal "
+                 'would not say',
+                 out == [(True, 68, page.ART_HEIGHT), (True, 38, page.ART_HEIGHT),
+                         (True, page.FACE_MIN, page.ART_HEIGHT), (False, 46, page.ART_HEIGHT),
+                         (True, 88, 44 - page.STAGE_ROWS)]
+                 and folded == (True, 68 + taskbar.HUD_WIDTH - taskbar.RAIL, page.ART_HEIGHT)
                  and page.fit(0) == (False, page.ART_WIDTH, page.ART_HEIGHT)
                  and page.fit(0, 0, True) == (True, page.ART_WIDTH, page.ART_HEIGHT),
-                 [page.fit(c) for c in (130, 100, 98, 90, 0)])
+                 (out, folded))
     report.check('and the caption leaves the gauss to the scale that shows it',
                  'gauss' not in dial.caption(137.0, 380, gauss=False)
                  and 'gauss' in dial.caption(137.0, 380)

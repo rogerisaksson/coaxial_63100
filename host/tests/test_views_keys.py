@@ -135,8 +135,26 @@ def test_folded_into_the_page(report):
                  (lit, dim))
 
 
+def test_the_drawing_takes_the_columns_room(report):
+    """A page's drawing the window less the column as it stands and the viewport's frame
+    (`taskbar.room`): BOARD ATTITUDE drew 106 of 150 folded, open and folded again - the open
+    column's room, centred in the folded one's."""
+    from terminal.ui import bindings, taskbar
+    from terminal.views import show_desk, show_orientation
+
+    def at(column):
+        bindings.UX.update(column=column)
+        return taskbar.room(150), show_orientation.art_width(150), show_desk.bar_in(120)
+    try:
+        out, folded = at(True), at(False)
+    finally:
+        bindings.UX.update(column=False)
+    report.check("out: 106 of 150 the drawing's, the bridge's bar 48 of 120; folded, the rail's room: 143, "
+                 "the bar at its 80", out == (106, 106, 48) and folded == (143, 143, 80), (out, folded))
+
+
 ROSTER = (test_a_page_its_keys_the_terminals_after, test_esc_the_front_page, test_tab_and_help_in_any_mode,
-          test_her_modes_before_her_rows, test_folded_into_the_page)
+          test_her_modes_before_her_rows, test_folded_into_the_page, test_the_drawing_takes_the_columns_room)
 
 
 def main(argv=None):

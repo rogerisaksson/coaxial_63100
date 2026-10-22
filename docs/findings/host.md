@@ -335,11 +335,11 @@ Pages, tooling, suites and the local model's runner. The board's findings:
   choice outlived the keys after it, the rotor's keys took lower case alone,
   SESSION's + - were unbound. At 150 x 44 the 13 pages open with the column
   a rail - its arrow breathing with the screen's sweep, a key's ink to (48,
-  175, 175) and back over 5 s - and the start menu the band's ≡, the front
-  page's panels up (no Tab); HUMANOID's pairs ran 194 cells, the terminal's
-  at the bar's right end now, the page's cut before them. The start menu over
-  a page taken out: leaving HUMANOID by Esc showed it, a small second front
-  page; Esc the front page again, the band its page's name alone.
+  175, 175) and back over 5 s -, the front page's panels up (no Tab);
+  HUMANOID's pairs ran 194 cells, the terminal's at the bar's right end now,
+  the page's cut before them. Esc over HUMANOID showed a small second front
+  page; now the front page, the band its page's name alone. Folded, BOARD
+  ATTITUDE drew the open column's 106 of 150; now `taskbar.room`, 143.
 
 ## Local model
 

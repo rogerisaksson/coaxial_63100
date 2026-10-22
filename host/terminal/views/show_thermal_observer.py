@@ -28,6 +28,7 @@ from terminal.ui.screen import (PORT, FEED_HZ, FPS_CAP, Feed, closing, mode_of, 
                                 visible)
 from terminal.ui import bindings
 from terminal.ui.stage import boot, frame_of, hud, stage
+from terminal.ui.taskbar import beside
 from terminal.views.thermal.boxes import room_hint, status_boxes
 
 _screen.CHATTER = False     # the boot bar replaced the scroll
@@ -51,10 +52,6 @@ GAUGE_CELLS = 20
 #: board's demo motor.
 PAGE_CYCLE_ON_S, PAGE_CYCLE_OFF_S = 120.0, 240.0
 PAGE_CYCLE_AMPS = 30.0 * math.sqrt(2.0)
-
-#: The status panel's field width, map margin included. Fixed, so the map
-#: never breathes when a number changes length.
-PANEL_W = 42
 
 #: How often the page asks for the identification, seconds. It moves once
 #: a sample - every thirty seconds on the board.
@@ -102,7 +99,7 @@ def picture(state, console, reserve, aspect=CELL_ASPECT):
     # leading blank moves the board one row down the frame, counted
     # in the caller's reserve.
     return [''] + render(nodes, board_c=board_c, colour=console,
-                         margin=PANEL_W, reserve=reserve,
+                         margin=beside(), reserve=reserve,
                          trailing=0, aspect=aspect).split('\n')
 
 

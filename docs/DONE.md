@@ -199,3 +199,6 @@ the hundred and fifty before these: [DONE_1-50](DONE_1-50.md),
     its arrow breathing over Tab's keycap (`terminal.ui.taskbar`); the
     pictures draw what the terminal draws where Consolas has no glyph
     (`machine.ansi`).
+36. The drawing takes the folded column's room: BOARD ATTITUDE, angle, desk
+    and thermal the window less the column as it stands (`taskbar.room`),
+    not the open column's ([host](findings/host.md)).
