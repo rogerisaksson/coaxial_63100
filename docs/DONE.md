@@ -2,276 +2,77 @@
 
 What left [TODO](TODO.md), the oldest first; a line's numbers are in the file
 it names. A closed item is cut from the list and gets its line here, last;
-the hundred before these: [DONE_1-50](DONE_1-50.md),
-[DONE_51-100](DONE_51-100.md).
+the hundred and fifty before these: [DONE_1-50](DONE_1-50.md),
+[DONE_51-100](DONE_51-100.md), [DONE_101-150](DONE_101-150.md).
 
-1. Her horizon an externality each: the floor a leg reaches, the room her
-   law allows it, an arm's band; Z cycles them.
-2. The third-person controls as the games have them, a PNG each under
-   `--keys`: orbit, follow, shoulder swap, sprint, crouch, the prompt.
-3. The gym under her sensor boundary's check: `sprung`, `worker` and `tour`
-   write none of the world's state, a lay, a scene and a shove its own calls.
-4. Her situation read from her sensors: six readings, `situations.lisp`'s
-   bounds and caps over her law in the surfaces' place; the ice, a ramp, a
-   chair and a wall entered unannounced told within a second at every lay.
-5. The wing stalls; the aerobat's circuit a rectangle at 9 m aimed at its
-   runway, its figures at 14 m ([aircraft](findings/aircraft.md)).
-6. The four drawn as the real things: an Edge 540, a tactical quad, a Goblin
-   Raw, Dune's ornithopter ([aircraft](findings/aircraft.md)).
-7. The four crafts undressed on S: shell, airframe, pack, bare; their motors
-   sized to the sim's shaft power, the 63100 board behind each stator or on
-   the frame's face.
-8. A drive identified on its board through the wire: held and swung by the
-   board's own loop, its DAQ's currents and A1335 the rows; the leg's four
-   on native:// within 11 % of the world's J and 5 % of its gravity.
-9. The lift at any pace and the burn a free fall, braked on all the rotors
-   have from the lead their spool and the pass take; the quad's full tilt at the
-   link's ceiling, its hold trending to it.
-10. The STO chain's hold kept through a frame heard idle: a transaction on 1,
-    2 and 4 native boards 18, 41 and 80 -> 9, 13 and 32 ms.
-11. Her tee a tube hung plumb from the chest and bust over the hips, the seat
-    tapering into the thighs, the hair a cap on the skull with a hairline, the
-    fall and the locks close to it.
-12. Her rotors read on the steps inside their play, within 1.2 %; the boxed
-    world's wind-up and damping off the link's stale speed.
-13. Hung in a harness she reads as on the stand: 0 touches, residual 0.24 N
-    m, 110 base parameters trusted.
-14. An ask her drives cannot carry shrunk as one toward asking nothing, in
-    the step and its C, in the clip's place: a hop down's hand 18.7 -> 11.1 of
-    her walk's, turns 6.5 -> 3.8 ([jerk](findings/jerk.md)).
-15. A load cell in her harness: her pelvis's six rows, ten more base
-    parameters, her mass to 0.1 %.
-16. The five drawn to their pictures: the orni a dusty pod with a canopy and
-    slender wings, the quad a slate hump on round arms over two skid frames,
-    the Edge navy with a yellow cowl, the Goblin a lime canopy and blade
-    tips, her a fitted red tee, light jeans and a ponytail.
-17. Her clothes bent at the joints they span (`graphics.drape`): the tee into
-    the pelvis, the seat into each thigh, the shins and sleeves into theirs,
-    two frames a corner by its height.
-18. Her errands settle without hesitation or flicker (`machine.motion`,
-    `terminal/views/gym.py`, `coaxial/graphics/arrows.py`, `test_errands.py`):
-    `held_back` lets a held row go after two of her rhythm's swings, F sits
-    and rises her; a walk asked of a swaying stand no longer waits 1.35 s; a
-    scene laid anew clears what she felt and is told the keys' twist again
-    ([scenarios](findings/scenarios.md)).
-19. Findings that told of the laws before the loop cut to what holds on the
-    loop (body, feet, drives, stacks, normal, wbc); `test_layout` holds that no
-    document names a module, a tool or a suite not in the tree.
-20. The budget's throttling flag (`thermal/src/thermal.c`,
-    `thermal/src/thermal_run.c`, `host/tests/test_thermal_core.py`):
-    `throttling` means `derate < 1.0f` across both `thermal_budget` and
-    `thermal_run_slice`, matching lookahead-triggered derating from cold and
-    staying false when `derate == 1.0f`.
-21. Bootloader torn flash word protection (`boot/src/boot_main.c`,
-    `boot/src/boot_core.c`, `host/tests/test_boot_core.py`): 256-bit flash
-    words probed under `FAULTMASK` and `SCB_CCR_BFHFNMIGN_Msk`, clearing
-    `FLASH_SR_DBECCERR` and `SCB_CFSR_BUSFAULTSR_Msk` on a torn word while
-    store CRCs and record dumps read word by word.
-22. Drive thermal reciprocal precomputation, TIM1 dynamic ARR/CCR4 caching,
-    and striding wrench parity (`drive/src/drive_thermal.c`,
-    `board/src/board_drive.c`, `wbc/src/wbc_wrench.c`,
-    `host/machine/wrench.py`): eight redundant `vdiv.f32` instructions
-    replaced by reciprocals in `drive_thermal_step`, redundant APB2 MMIO
-    writes skipped when `arr_dyn` is unchanged while preserving calibrated
-    `drv_trigger_ticks` lead, and `wbc_wrench.c` / `machine.wrench` matching
-    within `1.5e-10` across all 1 259 striding solves.
-23. The aerobat's knife-edge pass out and back after its prop-hang, its full
-    tilt apex under 10 deg (3.2 deg), its final flown wing-borne (`w = 1.0`) to
-    a progressive flare touching at -0.85 m/s, and both laps of the 16-gate
-    course flown nose first, banked and pulled on `COURSE_SPHERE`
-    ([aircraft](findings/aircraft.md)).
-24. Each hold on her halting rows counts from its own start
-    (`machine.motion.held_back`): a hop said after a stop no longer loads on one
-    sole mid-step; `hop_after_a_stop.csv` stands at 8 of 9 wobbles where 6
-    ([scenarios](findings/scenarios.md)).
-25. Identification on-line, under a load (`machine.wear`, `machine.worker`,
-    `terminal/views/show_humanoid.py`, `tests/test_wear.py`): her jeans' hems
-    integrated as 2-DoF pendulums with their stops at the world's step, a
-    slipped encoder zero read on both rigid and boxed drives, a load on her
-    back read off her insoles (`wear.torso_load`), and her hands' and torso's
-    loads laid into her law (`wear.loaded`) and shown on the page
-    ([identification](findings/identification.md)).
-26. Her map's boxes from their cells alone (`machine/sight.py`, `test_sight.py`):
-    `FAR_M` 3.5 m maps the whole bed with no case by kind (0.05 m off at
-    (-1.8, 1.8), 0.00 m off moved to (-0.9, 1.2), half sizes within 0.05 m,
-    697 of 725 occupied cells within 0.15 m of a wall or a thing) and the
-    unwired scaffolding (`rtu.FEED_REG`, `drives.wave_stage`,
-    `figure.lumbar_curve`, `SHELL_ARMOR`, `skeleton.printed_holders`,
-    `flange_mounts`, `campaign.de_ring_ankles`) is out
-    ([sight](findings/sight.md)).
-27. Stereo disparity on the card and columnar telemetry tables
-    (`machine/stereo.py`, `machine/sight.py`, `tools/sim/tabular.py`,
-    `tools/bench/analyze_phase_log.py`, `tools/sim/gvs.py`, `tools/sim/replay.py`,
-    `tools/sim/look.py`, `coaxial/acquire/task.py`, `coaxial/graphics/lit.py`):
-    3-stage WGSL compute / CuPy stereo block matching cuts 320x240 x 48
-    disparity from 95.6 ms to 1.60 ms (60x faster, 99.85 % kept agreement, max
-    0.0173 px), RAPIDS (`cudf` / `cupy`) and `pandas` / `numpy` columnar CSV
-    ingestion and trend fitting replace row-by-row `csv.DictReader` loops, and
-    unrolled 4x2 cell reductions in `lit.braille` shave 1.8 ms/frame bit-for-bit
-    ([sight](findings/sight.md)).
-28. Her doing read at her law's passes (`se2.doing`): a stand held while she
-    swings no longer comes and goes at the world's passes between, 596 flips in
-    a stop to 2; `tools/sim/told.py` times what a player's keys and F ask
-    ([scenarios](findings/scenarios.md)).
-29. Her grip bounded by what her soles read (`machine.grip`): a slide lowers it
-    and never raises it, a slide read is taken whole; the slick patch stands at
-    every wobble ([grip](findings/grip.md)).
-30. Her fall judged by what she touches (`worker._is_fallen`, `floor.grounds`):
-    a part above her shins on the floor, what lies on it or a step; a chair, a
-    bed and a wall bear her. On her back on a bed she lies where a tilt past
-    45 deg fell her ([scenarios](findings/scenarios.md)).
-31. ARCHITECTURE.md an index; a subject a file in docs/architecture/: firmware,
-    electronics, drivetrain, thermals, kinematics, solvers, planners, robotics,
-    aerodynamics, quad, host, views, tests. Every machine/ module named in one
-    of them; a drive's heat at its four nodes, not three.
-32. Her rhythm at rest holds no row (`law.held_back`): sitting and rising, her
-    centre of mass behind her heels before the seat bore her, a seat asked was
-    held for ever - CI's 3.12 seated her in none of 5 s
-    ([orthokinematics](findings/orthokinematics.md)).
-33. Her slide kept through a pass no sole bears (`machine.estimate`): a swing's
-    scuff no longer reads as a slide of the sole that holds, on the snow 393
-    passes of 11 219 to 21 ([sensing](findings/sensing.md)).
-34. The bed soft, her lie-down quicker (`floor`, `stunts_base.lisp`, `gynoid`):
-    F at the bed lies her at 2.2 s where 4.2, still at 3.4 where 6.3, 7.5 cm into
-    a foam's mattress where 5.5; the page draws its top a grid sagging where she
-    presses ([scenarios](findings/scenarios.md)).
-35. The aerobat's low passes flown by a sampling MPC on SE(3) (`machine.se3mpc`,
-    `mppi/`, one C rollout for gcc and NVRTC with a numpy twin): sideways on
-    the hover's law, the tail's lowest point 0.01 m median over the runway;
-    a fuselage side plate in the plant and the wind observer; the takeoff
-    rotates to its climb at the wing's speed.
-36. The aerobat opens with a knife-edge back down the runway on its wing law
-    (`wingborne.plane`'s `knife`): takeoff, a teardrop onto the runway's
-    line, wings vertical, the nose 38 deg over the path at 11.9 m/s nose
-    first, the tail's lowest point 0.029 m median; nose first it flies a
-    speed, not a place; the landing stops on the runway
-    ([aircraft](findings/aircraft.md)).
-37. The aerobat on an airfield of its own (`machine.airfield`): its runway, six
-    6 m arches on its straights and a pylon in each 22 m turn - a run-up off the
-    runway into the straightest leg, a slalom of three - flown on its wing by
-    the line of the way ahead, two laps through every gate in gusty wind and
-    down on the runway; the routine among its standing things unstruck, home
-    from the knife-edge on its wing, the prop-hang held at home in 7.4 s where
-    it walked 53 m in 18.5 s ([aircraft](findings/aircraft.md)).
-38. The aerobat flies on its wing (`wingborne`, `machine.aerobat`): its lift
-    across the air, its airframe's drag, its moments trimmed, the wind read
-    through its wing, the air's speed held; its circuit and teardrops at 14
-    m/s, 7-8 deg, where 50 deg/s at 10.5 m/s flew 25 deg on the propeller
-    ([aircraft](findings/aircraft.md)).
-39. The airfield's course laid for a plane (`machine.airfield`): an air gate, a
-    limbo bar, a hoop at the far turn's top, a slalom of three pylons, a
-    knife gate taken on its side, on one line of arcs it flies by L1 and
-    draws; two laps through all in gusty wind, every gate within 0.9 m.
-40. The crafts' modules of a subject a file: `machine.aerobat`,
-    `machine.helicopter` and `machine.ornithopter` packages - airframe, sky,
-    law, observer, the SO(3) law's shared kit -, the quad's air and pack
-    their own (`machine.weather`, `machine.flightpack`).
-41. Her world past real time walking: her pass's glue and her ask in C bit for
-    bit on numpy's own orders, 1.27 of real time ([body](findings/body.md)).
-42. The crafts and the gynoid drawn solid (`lit.braille`): a shaded cell keeps
-    0.4 of its dots at the least; her jeans darker and narrower, her
-    shoulders sloped, judged on PNGs beside the glTF and FBX models
-    ([host](findings/host.md)).
-43. The aerobat lighter and pushed (`machine.aerobat`): a 1.6 m wing at 39
-    g/dm^2, a 20 in propeller on its boards' loads at 9.7 g, its damping
-    trimmed; off the runway a teardrop at 60 deg/s and a normal knife-edge
-    down it at 19 m/s, the wings within 16 deg of upright, the lower tip 2 cm
-    over the runway ([aircraft](findings/aircraft.md)).
-44. Her law in C her python's bit for bit: her ask, latent step, coupling and
-    whole-body step on numpy's own OpenBLAS (`tools.cores.law`), the generated
-    law core cut; 1.55 of real time ([body](findings/body.md)).
-45. The helicopter and the ornithopter drawn after their models: the T-REX
-    700's red teardrop canopy over the frames (its loft had dropped below
-    them), a swept fin; the ornithopter's cabin fuller, its wings their
-    0.085 m chord in sand ([host](findings/host.md)).
-46. The quad on its instruments (`machine.senses`): the board's IMU, an RTK
-    receiver on the RS485 bus, a star camera where the signal is lost; a
-    hover 5-6 cm rms off its spot in every air, 0.53 m without the signal
-    ([quad](findings/quad.md)).
-47. Seated on a chair 0.4 um off she was thrown off it: a sole let go, the other
-    standing, rose where her folded legs put it; each sole that does not stand
-    held at the floor while something bears her, her python's and her C's -
-    16 of 16 offsets seated and risen, her walk the same to the bit
-    ([support](findings/support.md)).
-48. Her wear's window a part a pass: her worst pass walking 118-146 -> 18.2 ms,
-    her trajectory and her wear the same to the bit; her regressor compiled
-    from its numpy ([identification](findings/identification.md)).
-49. The aerobat an Extra 300 measured off a model, drawn as an assembly
-    (`machine.aerobat.form`): ailerons on their swept hinges, the elevator's
-    halves, a full-height rudder, the Extra's gear; the flight model's
-    contacts on its wheels, tail and fuselage, the low hover's floor 0.74 m,
-    the rudder 5.8 cm over the runway ([aircraft](findings/aircraft.md)).
-50. The aerobat's card close to the runway: within 62 m of the spectator
-    where it reached 105, its 3D figures within 23 m, its circuit at 3.5 m,
-    its teardrop laid on the opening's line ([aircraft](findings/aircraft.md)).
-51. The flight pages watched by a spectator beside the field: one eye, a
-    filtered gaze, a lens framing the craft over its horizon, the chase on the
-    course's laps alone - the aerobat's routine had been chased and flown on
-    the course's 1.5 g ([aircraft](findings/aircraft.md)).
-52. The rotorcraft swept past the spectator before their figures and the
-    figures brought down to 4 m, full tilt to 15-20 m where 22-63; the four
-    pages watched from one spot by the runway ([quad](findings/quad.md)).
-53. The helicopter drawn a T-REX 700's and the quad a Hunter's, measured off
-    models, the ornithopter a dragonfly's: a canopy over frames, a boom on
-    supports, bowed gear; plates on flat arms, the pack, a GPS mast, legs on
-    the sky's feet; a ribbed glass head, veined wings
-    ([aircraft](findings/aircraft.md)).
-54. The rotorcraft's routines flown on the airfield, as the aerobat's, the
-    course's grounds standing for the course alone: a tree had stood 6 m from
-    home ([quad](findings/quad.md)).
-55. The four of one size at 2 kg, 1.25-1.4 m: the helicopter on a 1.25 m rotor
-    (1.0), its turns as quick; the Extra on a 1.4 m wing (1.6), its side
-    its form's, its opening's turns 11 m and its knife 0.47 m; the quad and
-    the ornithopter as they were ([aircraft](findings/aircraft.md)).
-56. The rotorcraft off a pad under the first gate straight into the course, its
-    descent not held; the helicopter and the ornithopter on the gates'
-    middles, the helicopter at 1.5 g; the spectator 10 m off the runway, each
-    craft framed at 0.4: eighteen page runs on the tour and in kept winds,
-    none struck ([quad](findings/quad.md), [aircraft](findings/aircraft.md)).
-57. Every figure on the deck - the hover at 0.3 m, the high 0.75, each
-    figure's lowest point 0.2-0.5 m over the runway, the helicopter inverted
-    at 0.2 with its disc 0.12 over it, the quad's toss 0.7 s -; gusts, eddies
-    and rise none at the floor, whole from 3 m, and every disc's ground
-    effect: in six winds the quad struck none, the aerobat 16 times where 21
-    ([aircraft](findings/aircraft.md), [quad](findings/quad.md)).
-58. The helicopter and the ornithopter lap on a line laid for them by flight
-    at 2.2 g, their laws on all they have: 18 s a lap where 24, none struck in
-    17 airs, six page winds and 36 turbulent seeds
-    ([aircraft](findings/aircraft.md)).
-59. The aerobat lands off a circuit and a final laid as its laps are, the
-    course's off its last lap: in still air a touch at 0.22 m/s 0.04 m off
-    the centreline where 0.64 m/s; in gusts 13 of 13 at 0.11-0.22 m/s, no
-    final past the stall where every course's hung on its propeller, all
-    stopped on a strip to 30 m where the timed circuit came down 25-37 m
-    beside the runway ([aircraft](findings/aircraft.md)).
-60. The crafts' pages run as her page does: the flight in a process of its
+1. The flight pages watched by a spectator beside the field: one eye, a
+   filtered gaze, a lens framing the craft over its horizon, the chase on the
+   course's laps alone - the aerobat's routine had been chased and flown on
+   the course's 1.5 g ([aircraft](findings/aircraft.md)).
+2. The rotorcraft swept past the spectator before their figures and the
+   figures brought down to 4 m, full tilt to 15-20 m where 22-63; the four
+   pages watched from one spot by the runway ([quad](findings/quad.md)).
+3. The helicopter drawn a T-REX 700's and the quad a Hunter's, measured off
+   models, the ornithopter a dragonfly's: a canopy over frames, a boom on
+   supports, bowed gear; plates on flat arms, the pack, a GPS mast, legs on
+   the sky's feet; a ribbed glass head, veined wings
+   ([aircraft](findings/aircraft.md)).
+4. The rotorcraft's routines flown on the airfield, as the aerobat's, the
+   course's grounds standing for the course alone: a tree had stood 6 m from
+   home ([quad](findings/quad.md)).
+5. The four of one size at 2 kg, 1.25-1.4 m: the helicopter on a 1.25 m rotor
+   (1.0), its turns as quick; the Extra on a 1.4 m wing (1.6), its side
+   its form's, its opening's turns 11 m and its knife 0.47 m; the quad and
+   the ornithopter as they were ([aircraft](findings/aircraft.md)).
+6. The rotorcraft off a pad under the first gate straight into the course, its
+   descent not held; the helicopter and the ornithopter on the gates'
+   middles, the helicopter at 1.5 g; the spectator 10 m off the runway, each
+   craft framed at 0.4: eighteen page runs on the tour and in kept winds,
+   none struck ([quad](findings/quad.md), [aircraft](findings/aircraft.md)).
+7. Every figure on the deck - the hover at 0.3 m, the high 0.75, each
+   figure's lowest point 0.2-0.5 m over the runway, the helicopter inverted
+   at 0.2 with its disc 0.12 over it, the quad's toss 0.7 s -; gusts, eddies
+   and rise none at the floor, whole from 3 m, and every disc's ground
+   effect: in six winds the quad struck none, the aerobat 16 times where 21
+   ([aircraft](findings/aircraft.md), [quad](findings/quad.md)).
+8. The helicopter and the ornithopter lap on a line laid for them by flight
+   at 2.2 g, their laws on all they have: 18 s a lap where 24, none struck in
+   17 airs, six page winds and 36 turbulent seeds
+   ([aircraft](findings/aircraft.md)).
+9. The aerobat lands off a circuit and a final laid as its laps are, the
+   course's off its last lap: in still air a touch at 0.22 m/s 0.04 m off
+   the centreline where 0.64 m/s; in gusts 13 of 13 at 0.11-0.22 m/s, no
+   final past the stall where every course's hung on its propeller, all
+   stopped on a strip to 30 m where the timed circuit came down 25-37 m
+   beside the runway ([aircraft](findings/aircraft.md)).
+10. The crafts' pages run as her page does: the flight in a process of its
     own, her worker's loop made general (`machine.apart`), played back in
     real time or slower, never ahead: 18.7-19.3 frames a second where
     13.4-18.7, the longest gap 89 ms where 639 ([host](findings/host.md)).
-61. The flights drawn in step and at 30 frames a second: each frame on a
+11. The flights drawn in step and at 30 frames a second: each frame on a
     beat, the flight shown at the instant it is written (`screen.drawn_at`),
     a synchronized update - on screen 0.98-1.02 of its speed where
     0.67-1.48, on its lap 0.04 dots off smooth motion -, a frame 35 ms where
     52 ([host](findings/host.md)).
-62. The aerobat's propeller a 1.4 m 3D model's 17x8, fixed, on its speed,
+12. The aerobat's propeller a 1.4 m 3D model's 17x8, fixed, on its speed,
     its surfaces in its slipstream, both boards on its own rotor: 2.65 g
     where 7.5; its routine lands in 9 airs of 9 where 7
     ([aircraft](findings/aircraft.md)).
-63. Her page held to what it shows and played back steady, her 3D drawn a
+13. Her page held to what it shows and played back steady, her 3D drawn a
     frame ahead in its own process (`terminal.ui.ahead`, the flights' too):
     27.3 frames a second where 14.8, her motion on screen 0.92-1.03 of its
     speed where 0.59-1.07 ([host](findings/host.md)).
-64. The aerobat's page on its 17x8 as its boards turn it: gusty, its figures
+14. The aerobat's page on its 17x8 as its boards turn it: gusty, its figures
     higher by its law's gusts, the waterfall one tumble from 6 m, its lap at
     16 m/s, its course on all it has - 2 crashes in six tours of 400 s where
     47 ([aerobat](findings/aerobat.md)).
-65. The aerobat flown, not forced, in air grown and subsided: gusts over 4-8 s,
+15. The aerobat flown, not forced, in air grown and subsided: gusts over 4-8 s,
     eddies of two stages, a kind eased in on an S - the air's change 0.09-1.5
     m/s^2 rms where 1.2-14 -; its wing-borne share whatever its pitch, sped up
     on its propeller, its height's loop at its wing's pace, its take-off and
     heading within what its wing does: 3 strikes in six tours where 7, its
     circuit's pitch 1.4 deg where 3.1 ([aerobat](findings/aerobat.md)).
-66. Her inner loop a branchless SE(3) and modal continuum (`machine.motion`,
+16. Her inner loop a branchless SE(3) and modal continuum (`machine.motion`,
     `machine.touch`, `machine.grip`, `machine.se2`, `machine.sprung`,
     `machine.edge`, `terminal/views/humanoid_keys.py`, `test_structure.py`):
     zero `if`-branches or mode-name checks in `motion`, `touch` and `grip`;
@@ -280,14 +81,14 @@ the hundred before these: [DONE_1-50](DONE_1-50.md),
     `walk_back`), `A`/`D` sidestrafe and `Q`/`E` turn in place; cervical and
     shoulder inertia decoupling on stop; and `software_layout.svg` generated
     from live code constants ([scenarios](findings/scenarios.md)).
-67. Space-charged (`5-250 ms`) standing two-footed high jump, walking and
+17. Space-charged (`5-250 ms`) standing two-footed high jump, walking and
     running forward leaps, viewport `[F]` autonomous approach errands for
     chair, bed and doorway exit, and TTY tour with live LLM command stream and
     interactive `/` gynoid LLM prompt (`machine.leap`, `machine.tour`,
     `machine.worker`, `terminal/views/scanner.py`, `terminal/views/gym.py`,
     `terminal/views/viewpoint.py`, `terminal/views/show_humanoid.py`,
     `test_leap.py`, `test_errands.py`, `test_views_humanoid.py`).
-68. Smooth room bed entry and rise (`lie_bed` and `rise_bed` with physical
+18. Smooth room bed entry and rise (`lie_bed` and `rise_bed` with physical
     pelvis alignment, backing, foam compliance and heel clearance), persistent
     `BOARD CHAT`-style `GYNOID CHAT` LLM prompt dock under the viewport, and
     continuous outer-loop horizon functions (`init_lead`, `brake_lead`,
@@ -295,19 +96,19 @@ the hundred before these: [DONE_1-50](DONE_1-50.md),
     `machine.motion`, `machine.tour`, `machine.se2`, `machine.worker`,
     `terminal/views/gym.py`, `terminal/views/show_humanoid.py`,
     `terminal/keybindings.py`, `test_errands.py`, `test_views_humanoid.py`).
-69. The 31 mocap takes as MuJoCo scenarios (`tools/sim/stunts.py`,
+19. The 31 mocap takes as MuJoCo scenarios (`tools/sim/stunts.py`,
     `scenarios.STUNTS`, `tests/takes/stunts.json`): one measuring function for
     a move from joints' places, a take's and hers alike; a scene, a telling
     and a signature a take; a step's edge behind her (`floor` `edge_behind`);
     a verb without a text refused by name. First run 2 of 31 met.
-70. The emulated RS485 bus in order and conformance at its own pace: a limb's
+20. The emulated RS485 bus in order and conformance at its own pace: a limb's
     characters on one medium, framed by t3.5 on its clock (`RS485_Bus.cs`,
     `RS485_Adapter.cs`), the UART's 475-MIPS touch and the receive FIFO
     gone; emulated boards armed on the host's emulated pilot
     (`coaxial.node.arm_stage`, SIL); a limb of three 51 echoes of 51,
     conformance 110 of 110 on the emulator and on the bench board, the bench
     suites green on COM3 ([emulation](findings/emulation.md)).
-71. Her simulator's pace against real time: MuJoCo's step alone 13.6 of
+21. Her simulator's pace against real time: MuJoCo's step alone 13.6 of
     real time; her loop 1.38 -> 1.73 (walking 1.92), the page's worker 1.37 ->
     1.87 on this laptop, her walk's smoke the same to the digit: her surety
     field in C bit for bit (`wbc_surety.c`, held over 12 s of her walk), the
@@ -315,14 +116,14 @@ the hundred before these: [DONE_1-50](DONE_1-50.md),
     out, real time the page's; the tiers her page affords by the machine's
     cores said at boot and in its BUSES box with her headroom
     ([pace](findings/pace.md)).
-72. A performance build beside her stack
+22. A performance build beside her stack
     (`gynoid_mesomorph_medium_performance`: the U12 II KV120 on box A for her
     spine, hips, knees and ankles, its manifest and its text extending hers,
     the U12 II and U10 II in the motors' library as bought): her hop's demand
     on it measured, 1.44 of the U12's amps at the hips and the box 0.93 where
     1.33, and her standing jump 0.03 legs' rise on it for 0.01: the hop's ask
     is the law's ([demand](findings/demand.md)).
-73. The standing jump's push laid from what the drives give (`leap.pushed`:
+23. The standing jump's push laid from what the drives give (`leap.pushed`:
     a curve of rows at the knees' clamp through the lever, the crouch the
     take's own frames held a spring's period): take-off 1.5-1.65 m/s, rise
     0.43-0.51 legs of the human's 0.55 where 0.01; four faults of the law
@@ -332,7 +133,7 @@ the hundred before these: [DONE_1-50](DONE_1-50.md),
     (`waits.landed_rows`), and the parry stepping her only while the rows
     hold the polygon: off and down on both soles
     ([stunts](findings/stunts.md)).
-74. Balloons on what she sees, HUMANOID: each support in her sight a balloon
+24. Balloons on what she sees, HUMANOID: each support in her sight a balloon
     on it, its key and its word, the one she faces first (from her lay in the
     lodge F1 go out, F2 lie down, F3 sit; F alone with one offered, F and her
     rise on her while something bears her), a chair's seat and back one
@@ -341,7 +142,7 @@ the hundred before these: [DONE_1-50](DONE_1-50.md),
     (`console.HOLD_WINDOW_S`, 0.65 s) or the function key says that one's
     errand to that thing (`at`: the chair scene's two chairs each their
     own), F alone the first's once the hold lapses ([host](findings/host.md)).
-75. CI's host gate out of time and its moved bed: her page's close read its
+25. CI's host gate out of time and its moved bed: her page's close read its
     world's pipe after ending it, and half a state on a POSIX pipe waited for
     its rest for ever (show_humanoid past 120 s, the terminal pages and an
     ortho shard past 300 s); drained while it ends now, `test_views_flying`
