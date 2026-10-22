@@ -169,6 +169,7 @@ def control(g, dt):
     waits.held_back(g, dt * ev)
     waits.risen_back(g, dt * ev)
     waits.landed_back(g, dt * ev)
+    waits.seated_back(g, dt * ev)
     out = _step_latent(g, dt * ev)
     se2.step_physical_twist(g, dt * ev, out)
     g['gripped'](out, g['held'], g['a'][modal.STANCE], g['situations']['caps'], g['into'])

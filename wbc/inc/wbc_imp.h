@@ -219,13 +219,16 @@ typedef struct
     first row shifted, her hold's seconds. Rows that raise her wait while something bears her
     off her soles and her capture point is off them (risen_rows): `got` the shift, the first,
     until when a prop counts. Rows that lower her wait while nothing bears her, soles or prop
-    (landed_rows): `got` the shift, the first. */
+    (landed_rows), and rows that tell her centre of mass behind her heels while a seat bears
+    less than prop_on of her (seated_rows): `got` the shift, the first. */
 void wbc_wait_held(const wbc_imp_t *k, const wbc_wait_t *w, double *tab, int n, const double *a, const double *out,
                    double t, double dt, double held_s, double got[3]);
 void wbc_wait_risen(const wbc_imp_t *k, const wbc_wait_t *w, double *tab, int n, const double *y, const double *fr,
                     const double *a, const double *st, double t, double dt, double prop_until, double got[3]);
 void wbc_wait_landed(const wbc_imp_t *k, const wbc_wait_t *w, double *tab, int n, const double *y, const double *st,
                      double t, double dt, double got[3]);
+void wbc_wait_seated(const wbc_imp_t *k, const wbc_wait_t *w, double *tab, int n, const double *y, double t, double dt,
+                     double got[3]);
 
 /** The rows due this pass wake her rhythm where its gain has died down (machine.waits.woken_rows):
     its angle let go, its phases those the rows say, in her latent `st`. */

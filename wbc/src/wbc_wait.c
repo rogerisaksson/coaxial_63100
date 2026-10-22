@@ -1,5 +1,6 @@
 /** wbc_wait.c - the rows of her table that wait, and those that wake her (wbc_imp.h):
-    machine.waits.held_rows, risen_rows and woken_rows on her law's arrays, numpy's and Python's
+    machine.waits.held_rows, risen_rows, landed_rows, seated_rows and woken_rows on her law's
+    arrays, numpy's and Python's
     arithmetic operation for operation (wbc_np.h, wbc_blas.h). Portable C11, the host's alone. */
 #include "wbc_imp.h"
 #include "wbc_np.h"
@@ -132,6 +133,27 @@ void wbc_wait_landed(const wbc_imp_t *k, const wbc_wait_t *w, double *tab, int n
     lowers[r] = (unsigned char)(row[w->said_z + k->axial] > 0.5 && row[w->vals_z + k->axial] > to_ax + 1e-6);
   }
   shift = (dt * airborne) * (double)due_rows(w, tab, rows, lowers, t, dt, &first);
+  first = first - w->edge_s;
+  shifted(w, tab, rows, shift, first);
+  got[0] = shift;
+  got[1] = first;
+}
+
+void wbc_wait_seated(const wbc_imp_t *k, const wbc_wait_t *w, double *tab, int n, const double *y, double t, double dt,
+                     double got[3])
+{
+  unsigned char behind[WBC_WAIT_ROWS] = {0};
+  const int     rows = n < WBC_WAIT_ROWS ? n : WBC_WAIT_ROWS;
+  const double  unborne = (double)(y[k->y_prop] < k->prop_on);
+  double        first, shift;
+
+  for (int r = 0; r < rows; r++)
+  {
+    const double *row = tab + r * w->table;
+
+    behind[r] = (unsigned char)(row[w->said_z + k->sagittal] > 0.5 && row[w->vals_z + k->sagittal] < -1.0);
+  }
+  shift = (dt * unborne) * (double)due_rows(w, tab, rows, behind, t, dt, &first);
   first = first - w->edge_s;
   shifted(w, tab, rows, shift, first);
   got[0] = shift;

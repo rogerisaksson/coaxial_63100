@@ -137,9 +137,10 @@ def test_her_twist_in_c_as_she_walks(report, c):
 
 def test_her_waits_in_c_as_she_walks(report, c):
     """Her table's waits in C (`c_wait.laid`, wbc_wait.c) beside their python (`waits.held_rows`,
-    `risen_rows`, `woken_rows`) on copies of her table and her state at every pass of her law over
-    PASSES of her walk - the table's times, the shift, the first row, the state and her rhythm woken
-    bit for bit -, and a step's time."""
+    `risen_rows`, `landed_rows`, `seated_rows`, `woken_rows`) on copies of her table and her state at
+    every pass of her law over PASSES of her walk and down onto a chair behind her - the table's
+    times, the shift, the first row, the state and her rhythm woken bit for bit -, and a step's
+    time."""
     from machine import latent, waits as py_waits, worker
     from tools.cores import motion as c_motion
     from tools.cores.orders import same
@@ -176,6 +177,15 @@ def test_her_waits_in_c_as_she_walks(report, c):
             self.tallied(t1 - t0, time.perf_counter() - t1, tab, mine, got, want)
             return got
 
+        def seated(self, tab, t, dt):
+            mine = tab.copy()
+            t0 = time.perf_counter()
+            want = py_waits.seated_rows(mine, g['y'], t, dt)
+            t1 = time.perf_counter()
+            got = waits.seated(tab, t, dt)
+            self.tallied(t1 - t0, time.perf_counter() - t1, tab, mine, got, want)
+            return got
+
         def woken(self, tab, t, dt):
             mine = g['st'].copy()
             t0 = time.perf_counter()
@@ -194,6 +204,10 @@ def test_her_waits_in_c_as_she_walks(report, c):
                            float(np.abs(tab - mine).max()) if len(tab) else 0.0)
     g['waits'] = Beside()
     for _ in range(4 * PASSES):
+        worker.stepped(s)
+    worker.apply(s, {'scenario': 'chair_behind'})
+    worker.apply(s, {'say': 'sit_chair'})
+    for _ in range(2 * PASSES):
         worker.stepped(s)
     n, bad, apart = tally
     if c_motion.exact_host():

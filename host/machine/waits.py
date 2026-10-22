@@ -3,10 +3,11 @@
     waits.held_back(g, dt)     # rows that halt her rhythm wait while her capture point steps her
     waits.risen_back(g, dt)    # rows that raise her wait while something bears her off her soles
     waits.landed_back(g, dt)   # rows that lower her wait while nothing bears her
+    waits.seated_back(g, dt)   # rows that put her centre of mass behind her heels wait for a seat
     waits.woken_rows(tab, st, t, dt)   # the rows due wake her rhythm where it has died down
 
 `g` is `sprung.laid`'s; the C is `tools.cores.wait` on `g['waits']` (`motion.laid`); `held_rows`,
-`risen_rows`, `landed_rows` and `woken_rows` are its python, the reference.
+`risen_rows`, `landed_rows`, `seated_rows` and `woken_rows` are its python, the reference.
 """
 import math
 import os
@@ -95,6 +96,31 @@ def landed_back(g, dt):
     shift, first = g['waits'].landed(g['tab'], g['t'], dt)
     g['labels'] = [(w + shift * (w >= first), n) for w, n in g['labels']]
     g['_jump_until'] = g.get('_jump_until', 0.0) + shift * (g.get('_jump_until', 0.0) > g['t'])
+
+
+def seated_back(g, dt):
+    """Rows that tell her centre of mass behind her heels wait a pass, every row after them with
+    them, while nothing bears her there - a seat bearing less than PROP_ON of her (`impedance`): a
+    sit's hand-over comes as the seat takes her. Told on the clock, she met the seat at 0.04 m/s
+    with her centre of mass over her heels and her trunk 0.7 rad forward, the seat bore half of
+    her, the trunk went on to 0.97 rad and she hopped on its edge 3 s and slid off it."""
+    shift, first = g['waits'].seated(g['tab'], g['t'], dt)
+    g['labels'] = [(w + shift * (w >= first), n) for w, n in g['labels']]
+
+
+def seated_rows(tab, y, t, dt):
+    """(shift, first) of `seated_back` on her table `tab` (its times shifted in place), modal's `y`,
+    at `t`, `dt` on. In C bit for bit (`g['waits']`, `laid`)."""
+    from machine.impedance import PROP_ON
+    unborne = float(y[modal.PROP] < PROP_ON)
+    at = tab[:, latent.AT]
+    vals, said = tab[:, latent.VALS][:, latent.Z], tab[:, latent.SAID][:, latent.Z]
+    behind = (said[:, modal.SAGITTAL] > 0.5) & (vals[:, modal.SAGITTAL] < -1.0)
+    due = behind & (at <= t + latent.EDGE_S) & (at > t - dt + latent.EDGE_S)
+    shift = dt * unborne * float(np.any(due))
+    first = float(np.min(at, where=due, initial=math.inf)) - latent.EDGE_S
+    at += shift * (at >= first)
+    return shift, first
 
 
 def landed_rows(tab, y, st, t, dt):

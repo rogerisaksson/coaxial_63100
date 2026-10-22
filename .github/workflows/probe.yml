@@ -1,0 +1,38 @@
+name: probe
+
+on:
+  push:
+    branches: [ci-probe]
+
+jobs:
+  seat:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.12', '3.14']
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+          cache-dependency-path: host/requirements.txt
+      - run: pip install -r host/requirements.txt && pip install --no-deps -e host
+      - run: sudo apt-get update && sudo apt-get install -y libegl1 libgl1-mesa-dri
+      - name: sit texts at three wobbles
+        shell: bash
+        env:
+          MUJOCO_GL: egl
+        run: |
+          for v in base w_soft_base; do
+            for w in 0 0.0002 -0.0002; do
+              python .github/probe/seat_probe.py host "$v" "$w" || echo "{\"variant\": \"$v\", \"wobble\": $w, \"crashed\": true}"
+            done
+          done
+      - name: the errands' chair and bed
+        shell: bash
+        working-directory: host
+        env:
+          MUJOCO_GL: egl
+        run: python tools/dev/run_tests.py --file test_errands.py:chair 2>&1 | tail -30

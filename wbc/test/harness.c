@@ -339,6 +339,12 @@ API void wbh_wait_landed(const wbc_imp_t *k, const wbc_wait_t *w, double *tab, i
   wbc_wait_landed(k, w, tab, n, y, st, t, dt, got);
 }
 
+API void wbh_wait_seated(const wbc_imp_t *k, const wbc_wait_t *w, double *tab, int n, const double *y, double t,
+                         double dt, double *got)
+{
+  wbc_wait_seated(k, w, tab, n, y, t, dt, got);
+}
+
 API int wbh_wait_size(void)
 {
   return (int)sizeof(wbc_wait_t);
