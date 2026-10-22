@@ -243,6 +243,10 @@ board's findings: [FINDINGS](../FINDINGS.md).
   where silence at 0.51. On the board's clock alone Renode's, carried ahead
   between reads, ended waits early and test_emulator read a late reply into the
   next.
+- SET_CLOCK at the dyno board's open (`Coaxial63100._in_its_world`) went
+  unanswered on CI's 3.12 in 2 gates of 4, both with an ortho shard hung in
+  `Apart.close` in the same gate; in none of the 8 gates after that close was
+  fixed, of 30 opens alone (2-5 ms to a reply's first byte) or of 3 suite runs.
 - A frame heard cost an idle board 12 ms of the STO chain's 1 us substeps:
   main() out of WFI for the frame (the addressed board 0.5 ms, the rest t3.5
   longer), PA10 pumped at the pass's 20 us, and the chain took the pump for a

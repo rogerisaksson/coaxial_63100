@@ -29,10 +29,8 @@
   chair and snow wobbles at -2e-4 (scenarios items 1 and 3). On CI's Linux alone:
   test_errands' viewport chair (fell at 14.4 s) and bed (ends braking), on
   3.12 the chair borne 0.34 and the door at z 3.35 too; test_scenarios'
-  chair at 0 rad (fell at 10.905 s, 3.14); test_native_heat on 3.12,
-  SET_CLOCK unanswered at a dyno board's open, 2 gates of 4 - both with an
-  ortho shard hung in `Apart.close` - and none of 30 opens and 3 suite runs
-  alone. DOD: both workflows green on main.
+  chair at 0 rad (fell at 10.905 s, 3.14). DOD: both workflows green on
+  main.
 - **native://**: a limb's world on a fixed mount as board/emu's. A frame on
   an idle limb of four 32 ms, the wire's 10: three boards awake t3.5 and each
   chain's 2 ms recovery at 1 us substeps (emulation.md). DOD: the body's
