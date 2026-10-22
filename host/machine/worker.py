@@ -219,6 +219,23 @@ def heard(g, gym, command):
         g['world'].push(command['push'], command.get('seconds', sprung.SHOVE_S))
     if 'grip' in command:
         g['grip'][:] = g['grip_prior'][:] = min(float(command['grip']), wbc.MU)
+    if 'floor' in command:
+        told_floor(g, command['floor'])
+
+
+def told_floor(g, profile):
+    """A floor told her into her frame's map (`modal.MAP_*`): (along, rise) m from where she
+    stands along her heading, its heights over the floor felt now; None forgets it."""
+    import numpy as np
+    from machine import modal
+    fr = g['fr']
+    fr[modal.MAP_N] = 0.0
+    if profile is None:
+        return
+    pts, hd = np.array(profile, float)[:modal.MAP_K], float(g['heading'])
+    fr[modal.MAP_AT], fr[modal.MAP_WAY] = (g['est']['pos'][0], g['est']['pos'][2]), (math.sin(hd), math.cos(hd))
+    fr[modal.MAP_ALONG][:len(pts)], fr[modal.MAP_RISE][:len(pts)] = pts[:, 0], pts[:, 1]
+    fr[modal.MAP_FLOOR0], fr[modal.MAP_N] = fr[modal.FLOOR], float(len(pts))
 
 
 def _is_fallen(g, world):

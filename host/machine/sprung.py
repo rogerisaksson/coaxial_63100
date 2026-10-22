@@ -17,7 +17,7 @@ SHOVES, SHOVE_S = {'nudge': 38.0, 'push': 80.0, 'shove': 120.0}, 0.12
 #: Her stage (`staged`): walking past WALK_M_S, or with a sole off the floor within STEP_S.
 WALK_M_S, STEP_S = 0.1, 1.0
 HEARD = ('say', 'at', 'walk', 'entries', 'gym', 'text', 'push', 'seconds', 'restart', 'scenario', 'heading', 'twist',
-         'grip', 'charge')
+         'grip', 'charge', 'floor')
 STREAM_NAMES = {201: 'stand', 202: 'sway', 203: 'step', 204: 'walk', 205: 'walk_back'}
 ALIASES = {'#201': 'stand', '#202': 'sway', '#203': 'step', '#204': 'walk', '#205': 'walk_back', 'back': 'walk_back'}
 WALK = (('stand', 0.5), ('sway', 2.0), ('step', 5.0), ('walk', 9.0))
@@ -143,8 +143,9 @@ def walked(g):
 def reset_for_scenario(g, scen):
     """Scene `scen` laid round her, she laid anew where it has her (`floor.lay`) unless she stands
     there at rest already."""
-    from machine import floor
+    from machine import floor, modal
     d, (x0, z0) = g['world'].data, floor.lay(scen)
+    g['fr'][modal.MAP_N] = 0.0
     if (math.hypot(float(d.qpos[0]) - x0, float(d.qpos[2]) - z0) > 0.08 or abs(float(d.qpos[1]) - g['rest_y']) > 0.02
             or tilt(g) > 2.0 or doing(g) != 'rest' or len(g['tab']) > 0):
         relaid(g, where=(x0, z0))

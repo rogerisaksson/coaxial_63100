@@ -234,7 +234,8 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
   double        aside[2], hurry[2], limbs[2], tone[3], cruise, lat_dc, across, e[6], both[2], up[2], zmp[2];
   double        stance[2], grounded, aloft[2], bears[2], along[2], gd, reach, meet[2][2], tip[2], tipping[2];
   double        tipped[2], fold[2], shorter[2], hip3[2][3], hips[2], rocked[2], flatten[2], edge[2], rounds[2][3];
-  double        rr[2][3], axial[2], pressed, risen[2], lifted, com[3], late[2], lift_m, clr[3][2], clear[3][2];
+  double        rr[2][3], axial[2], pressed, risen[2], lifted, com[3], late[2], lift2[2], clr[3][2], clear[3][2];
+  double        wide, top[2], land[2], adj[2], over[2], gated[2][2], len2[2];
   double        loose[2][3], frame[3][3], ff[2][3], cm[3], gc[3], th[2], g2[2][2], cat[2][3], gg[2][3], pg2[2], pg;
   double        mvs[2], folds[2], l_ask, short_h, up_h[2];
   int           swaying;
@@ -444,7 +445,9 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
   }
   /* striding: where a sole lands, how it is pitched, how a standing one is turned */
   reach = npmin(k->reach_m, gd * (c[2] - fr[k->f_floor]));
-  wbc_imp_meets(k, xi, c, flat, cruise, om, turns, (2.0 * fr[k->f_w0]) * (1.0 + s.ref[k->width]), across, reach, meet);
+  wide = (2.0 * fr[k->f_w0]) * (1.0 + s.ref[k->width]);
+  wbc_imp_landings(k, y, fr, a, rot, c, flat, xi, &cruise, om, turns, wide, across, reach, stood, u, flying, meet, top, land, adj,
+                   over);
   wbc_imp_rocks(k, s.ref[k->rock], s.rate[k->rock], s.acc[k->rock], tip, tipping, tipped);
   wbc_imp_folds(k, off, y + k->y_load, fr[k->f_knee] + a[k->a_bend], fold, shorter);
   a[k->a_prefold] = fold[0];
@@ -463,7 +466,9 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
     }
   }
   /* up as her height's spring asks of her standing legs' length */
-  wbc_imp_shortened(k, len, lrate, fr, stance, axial);
+  len2[0] = len[0] + adj[0];
+  len2[1] = len[1] + adj[1];
+  wbc_imp_shortened(k, len2, lrate, fr, stance, axial);
   {
     const double air0 = propped * aloft[0];
     const double air1 = propped * aloft[1];
@@ -502,10 +507,13 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
   wbc_imp_lates(k, phi, turns, stepping, late);
   /* what a sole met her swings clear, for a turn of her rhythm */
   a[k->a_raise] -= ((fr[k->f_dt] * turns) / (2.0 * PI)) * a[k->a_raise];
-  lift_m = k->clear_m * (1.0 + fabs(sway[k->lift])) + a[k->a_raise];
+  for (int b = 0; b < 2; b++)
+  {
+    lift2[b] = npmax(k->clear_m * (1.0 + fabs(sway[k->lift])) + a[k->a_raise], top[b] + 2.0 * k->clear_m);
+  }
   th[0] = swung * hurry[0];
   th[1] = swung * hurry[1];
-  wbc_imp_clears(k, u, flying, th, lift_m, tip, tipping, tilt, late, clr);
+  wbc_imp_clears(k, u, flying, th, lift2, tip, tipping, tilt, late, land, clr);
   for (int r = 0; r < 3; r++)
   {
     for (int b = 0; b < 2; b++)
@@ -525,7 +533,12 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
   }
   th[0] = turns * hurry[0];
   th[1] = turns * hurry[1];
-  wbc_imp_goes(k, meet, flat, shod, v, u, th, kpf, kdf, g2);
+  for (int b = 0; b < 2; b++)
+  {
+    gated[b][0] = flat[b][0] + (meet[b][0] - flat[b][0]) * over[b];
+    gated[b][1] = flat[b][1] + (meet[b][1] - flat[b][1]) * over[b];
+  }
+  wbc_imp_goes(k, gated, flat, shod, v, u, th, kpf, kdf, g2);
   for (int b = 0; b < 2; b++)
   {
     cat[b][0] = g2[b][0];

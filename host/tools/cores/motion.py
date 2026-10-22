@@ -30,9 +30,10 @@ MODES = 'axial lateral drive pitch sagittal lift width list turn arms rock'.spli
 OUT = 'ref rate acc ks ds psi sway turns held yawed bend'.split()
 Y = ('com vcom sole vsole load quat spin moment lowest hip tilt tilt_rate arm prop prop_lo prop_hi grip vhead '
      'hspin').split()
-FR = 'rot w0 floor weight knee pitch0 dt reach0 hips_by arm0 unit z0 mass ground floor_at'.split()
+FR = ('rot w0 floor weight knee pitch0 dt reach0 hips_by arm0 unit z0 mass ground floor_at'
+      ' map_at map_way map_along map_rise map_floor0 map_n').split()
 A = ('stance com_acc sole_acc want fold fold_rate turned bend kdot going rolled headed tipped swung folds settle '
-     'edge heeled strides prefold swings raise need lead outside borne bend_rate').split()
+     'edge heeled strides prefold swings raise need lead outside borne bend_rate cell').split()
 
 
 def _at(x):
@@ -61,7 +62,8 @@ def _doubles():
             ('fall_u2', stride.FALL_U ** 2), ('arrive_u', stride.ARRIVE_U), ('leads', stride.LEADS),
             ('reach_m_s', stride.REACH_M_S), ('reach_s', stride.REACH_S), ('flat_k', stride.FLAT_K),
             ('heel_rad', stride.HEEL_RAD), ('heel_rad_s', stride.HEEL_RAD_S), ('dip_m', stride.DIP_M),
-            ('edge_rad', stride.EDGE_RAD), ('fold_rad', stride.FOLD_RAD), ('heel_up', stride.HEEL_UP))
+            ('edge_rad', stride.EDGE_RAD), ('fold_rad', stride.FOLD_RAD), ('heel_up', stride.HEEL_UP),
+            ('map_k', float(modal.MAP_K)))
 
 
 @functools.lru_cache(maxsize=None)

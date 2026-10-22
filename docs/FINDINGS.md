@@ -273,6 +273,7 @@ Six firmware defects, no hardware fault:
 | What her law senses: edge, estimate, insoles | [findings/sensing.md](findings/sensing.md) |
 | Her body identified | [findings/identification.md](findings/identification.md) |
 | Her scenarios as a player commands them | [findings/scenarios.md](findings/scenarios.md) |
+| The stairs told her: footholds, her height over the incline, the climb | [findings/stairs.md](findings/stairs.md) |
 | Her place: the glazed mountain lodge, its scene, its drawing | [findings/lodge.md](findings/lodge.md) |
 | The mocap takes as her scenarios, each judged against its take | [findings/stunts.md](findings/stunts.md) |
 | Support, whatever bears her: a seat, a bed, a knee on the floor | [findings/support.md](findings/support.md) |

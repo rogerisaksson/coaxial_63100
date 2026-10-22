@@ -15,7 +15,7 @@ Passive toes, the sole's give, and the heel's rise on the loop
   the forefoot bends under the push-off without a motor.
 - The motors off the feet: 21 driven joints of 27 (`drives.passive`), 1.1 kg of
   drives saved across the two feet.
-- The sole's give (`mjcf.SOLE_S` 0.02, `SOLE_DAMP` 1.5 of critical, `figure.SOLE_GIVE_M`
+- The sole's give (`mjcf.SOLE_S` 0.02, `SOLE_DAMP` 1.5 of critical, `mjcf.SOLE_WIDTH_M`
   5 mm) is the sneaker's foam and gum sole; the carbon flex is the toe hinge
   alone. On rigid soles (1 mm give, 1.0 of critical) a touchdown peaked at
   1.9 kN, 3.5 times her weight; over 5 mm at 1.5 of critical: 1.5 kN. Softer

@@ -63,7 +63,14 @@ UNIT, Z0, MASS = (slice(23 + i * N, 23 + (i + 1) * N) for i in range(3))
 #: point its height is read at, world x and z, m.
 GROUND = slice(23 + 3 * N, 25 + 3 * N)
 FLOOR_AT = slice(25 + 3 * N, 27 + 3 * N)
-FRAME = FLOOR_AT.stop
+#: And a floor told her (`worker.told_floor`), MAP_K breakpoints at most: where she stood when
+#: told and her way then, world x and z; each breakpoint along that way, m, and its height over
+#: the floor felt then (MAP_FLOOR0); how many were told, 0 none.
+MAP_K = 16
+MAP_AT, MAP_WAY = slice(27 + 3 * N, 29 + 3 * N), slice(29 + 3 * N, 31 + 3 * N)
+MAP_ALONG, MAP_RISE = slice(31 + 3 * N, 31 + 3 * N + MAP_K), slice(31 + 3 * N + MAP_K, 31 + 3 * N + 2 * MAP_K)
+MAP_FLOOR0, MAP_N = 31 + 3 * N + 2 * MAP_K, 32 + 3 * N + 2 * MAP_K
+FRAME = MAP_N + 1
 #: The loop's ask, flat: each sole standing (1) or not; her centre of mass's acceleration and
 #: each sole's, world; the pelvis's and the trunk's pitch wanted, rad; each knee's fold over its
 #: posture and its rate; whether a turn is asked; her knees' bend with her height; her angular
@@ -90,7 +97,9 @@ SETTLE, EDGE, HEELED = slice(32, 44), slice(44, 46), slice(46, 48)
 STRIDES, PREFOLD, SWINGS, RAISE, NEED, LEAD, OUTSIDE, BORNE = 48, slice(49, 51), slice(51, 53), 53, 54, slice(55, 57), 57, 58
 #: And her knees' bend's rate, rad/s: the stack's knee rows damp against it, not against still.
 BEND_RATE = 59
-ASK = 60
+#: And, kept, the tread of a floor told her each swing lands on (`stride.footholds`), -1 none.
+CELL = slice(60, 62)
+ASK = 62
 
 #: A unit of each mode on her: her centre of mass down, m - to her ankles' stroke, her trunk
 #: upright over her soles: asked 0.15 m she came down 0.117 and stood there; her trunk's
@@ -208,7 +217,8 @@ def under(y, fr, stance):
 
 def shortened(legs, fr, stance):
     """Her axial compression and its rate: how much shorter than she stood on the legs in
-    `stance` are - none in it, both."""
+    `stance` are - none in it, both. Each by the load it bears (not kept): the chairs fell 3 of
+    3 laid, snow 2, the run leap lost its flight and the viewport's errands fell."""
     w = (stance + TINY) / (stance.sum() + 2.0 * TINY)
     return ((fr[REACH0] - w @ legs[1]) / (AXIAL_M * fr[HIPS_BY]), -(w @ legs[2]) / (AXIAL_M * fr[HIPS_BY]))
 

@@ -402,8 +402,8 @@ void wbc_imp_heels(const wbc_imp_t *k, const double place[2][3], const double ti
 }
 
 void wbc_imp_clears(const wbc_imp_t *k, const double u[2], const double flying[2], const double swung[2],
-                    double high, const double tip[2], const double tipping[2], const double tilt[2],
-                    const double late[2], double clear[3][2])
+                    const double high[2], const double tip[2], const double tipping[2], const double tilt[2],
+                    const double late[2], const double land[2], double clear[3][2])
 {
   for (int b = 0; b < 2; b++)
   {
@@ -414,12 +414,14 @@ void wbc_imp_clears(const wbc_imp_t *k, const double u[2], const double flying[2
     const double e21 = ((6.0 * (1.0 - 2.0 * by)) * (double)(by < 1.0)) / k->fall_u2;
     const double down = npmax(tip[b], tilt[b]), toes = k->half_m + k->toe_m;
 
-    clear[0][b] = ((((high * flying[b]) * e00) * e01) - k->reach_m_s * late[b])
+    clear[0][b] = (((((high[b] * flying[b]) * e00) * e01) - k->reach_m_s * late[b]) + (land[b] * flying[b]) * (1.0 - e01))
                   + flying[b] * (k->half_m * npmax(-sin(tip[b]), 0.0) + toes * npmax(sin(down), 0.0));
-    clear[1][b] = ((((high * flying[b]) * (e10 * e01 + e00 * e11)) * swung[b]) - k->reach_m_s * (double)(late[b] > 0.0))
+    clear[1][b] = (((((high[b] * flying[b]) * (e10 * e01 + e00 * e11)) * swung[b]) - k->reach_m_s * (double)(late[b] > 0.0))
+                   - ((land[b] * flying[b]) * e11) * swung[b])
                   + ((flying[b] * ((-k->half_m) * (double)(tip[b] < 0.0) + toes * (double)(tip[b] > 0.0))) * cos(tip[b]))
                     * tipping[b];
-    clear[2][b] = ((high * flying[b]) * (e20 * e01 + e00 * e21)) * (swung[b] * swung[b]);
+    clear[2][b] = (((high[b] * flying[b]) * (e20 * e01 + e00 * e21)) * (swung[b] * swung[b]))
+                  - ((land[b] * flying[b]) * e21) * (swung[b] * swung[b]);
   }
 }
 
