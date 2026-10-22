@@ -84,8 +84,3 @@
   C types parsed 1.9 s, the casters' decimate 0.9). DOD: 30 fps while the
   board turns, the feed at the screen's rate, the first frame under a second
   from the front page.
-- **Balloons on what she sees** (asked): F says the support she approaches
-  alone, a second one in reach unreachable. DOD: each support in her sight a
-  balloon on it, its key and its word (F1 sit, F2 go out, F3 lie down), F
-  then the digit or the function key says that one's errand to that thing,
-  F alone the one she faces.
