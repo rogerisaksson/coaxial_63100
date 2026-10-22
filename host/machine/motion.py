@@ -19,6 +19,18 @@ import numpy as np
 from machine import borne, edge, estimate, grip, latent, modal, poise, se2, situation, stride, touch, waits, wbc
 
 
+#: Her axial stiffness in her latent state, where it goes and where it comes from; past HOP_K
+#: (N/m) a hop's.
+_AXIAL_K = tuple(block.start + latent.K.start + modal.AXIAL for block in (latent.TO, latent.FROM))
+HOP_K = 15000.0
+
+
+def axial_k(st):
+    """Her axial stiffness asked in her latent `st`, the stiffer of where it goes and where it comes
+    from, N/m."""
+    return max(float(st[_AXIAL_K[0]]), float(st[_AXIAL_K[1]]))
+
+
 def seen(g, dt):
     """`wbc.sense`'s view of her as her sensors and her estimate have her, `dt` s on: both in C bit
     for bit once built (`g['estimated']`, `laid`; `g['sensed']`, `sprung.laid`)."""
@@ -168,8 +180,7 @@ def control(g, dt):
     bw = max(0.0, 1.0 - (sr / 0.58) ** 4) ** 2
     sw = 1.0 - bw
     _, _, d_ax, d_lat = g['surety_vec']
-    k_ax = max(float(g['st'][latent.TO][latent.K][modal.AXIAL]), float(g['st'][latent.FROM][latent.K][modal.AXIAL]))
-    w_hop = float((k_ax > 15000.0) & (g['st'][latent.TO][latent.AMP][modal.DRIVE] < 0.1))
+    w_hop = float((axial_k(g['st']) > HOP_K) & (g['st'][latent.TO][latent.AMP][modal.DRIVE] < 0.1))
     imp[modal.BEND] *= sw
     imp[modal.SWUNG] *= sw
     imp[modal.PREFOLD] *= sw
@@ -195,6 +206,17 @@ def control(g, dt):
     got = g['got']
     g['jeff'], g['leg_kp'] = g['braced'].blend(s['M'], M, s['q'], s['v'], s['h'], ask['posture'], got['qacc'], got['tau'],
                                                got['over'], sw, bw, d_ax, d_lat, w_hop, w_up, np.array(ask['stance'], float))
+    _told(g)
+
+
+def _told(g):
+    """The solve's answer and her drives' inertia told her drives' step (`g['drives']`'s arrays,
+    `laid`): what it reads every pass till her law's next."""
+    got, kept = g['got'], g['drives'][1]
+    kept['qacc'][:] = got['qacc']
+    kept['tau'][:] = got['tau']
+    kept['jeff'][:] = g['jeff']
+    kept['over'][:] = got['over']
 
 
 def scaled(M, acv, w_up):
@@ -296,16 +318,11 @@ def drives(g, dt):
     """Each driven joint's setpoint (`g['ref_q']`), feed and clamp (`g['cmd']`) this pass, its
     observer stepped on its motor's encoder: the step in C (`laid`), told here what of her it
     reads whole - her surety as she tilts or slips, a hop, which WEP limit is hers."""
-    got, p, kept, step = g['got'], *g['drives']
+    p, _kept, step = g['drives']
     held, wo = float(g['hold'].any()), g['wo']
     ys = surety(g, dt)
     drv = 1.0 - (1.0 - ys) ** 3
     wo_s = wo * drv
-    k_ax = max(float(g['st'][latent.TO][latent.K][modal.AXIAL]), float(g['st'][latent.FROM][latent.K][modal.AXIAL]))
-    in_hop = int(k_ax > 15000.0)
-    kept['qacc'][:] = got['qacc']
-    kept['tau'][:] = got['tau']
-    kept['jeff'][:] = g['jeff']
-    kept['over'][:] = got['over']
+    in_hop = int(axial_k(g['st']) > HOP_K)
     step(ctypes.byref(p), dt, wo_s, wo_s ** 3, drv, in_hop, 1)
     g['left'] = min(se2.WEP_S, max(0.0, g['left'] + dt * (se2.WEP_FILL * (1.0 - held) - held)))

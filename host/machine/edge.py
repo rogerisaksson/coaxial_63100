@@ -98,21 +98,15 @@ def _rooted(m, body, pelvis):
 
 def felt(world, y):
     """`y`'s IMU and encoders as the world stands now (wbc_pass.c, on the world's laid pass)."""
-    _read()(ctypes.byref(world.passing), y.ctypes.data, QUAT.start, GYRO.start, ACCEL.start, Q.start, QD.start,
+    _read()(ctypes.byref(world.passing), _cores().address(y), QUAT.start, GYRO.start, ACCEL.start, Q.start, QD.start,
             QM.start)
     return y
 
 
+@functools.cache
 def _read():
     """The C read, bound once."""
-    global _FELT
-    if _FELT is None:
-        from tools.cores import wbc as cores
-        _FELT = cores.library().wbh_pass_felt
-    return _FELT
-
-
-_FELT = None
+    return _cores().library().wbh_pass_felt
 
 
 def read(world, y):
