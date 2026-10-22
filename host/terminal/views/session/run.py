@@ -1,10 +1,11 @@
-"""The session dash's run: the keys, the plan, the sweep, the way out."""
+"""The session dash's run: its keys (PAD), the plan, the sweep, the way out."""
 import time
 from contextlib import suppress
 
 from coaxial import Coaxial63100
 from machine.errors import MachineError
 from machine.modes import HARDWARE, SIMULATED
+from terminal.ui import bindings
 from terminal.ui.screen import park, QUIET, say, steady
 from terminal.views.session.state import ACTIVITIES, DEFAULT_PHASES
 
@@ -31,16 +32,26 @@ def toggle_rail(session):
     session.note = ''
 
 
-def act_on(session, typed, by_key):
-    """What one keystroke does."""
-    if typed == 'up':
-        session.set_duty(session.duty + DUTY_STEP)
-    elif typed == 'down':
-        session.set_duty(session.duty - DUTY_STEP)
-    elif typed in ('a', 'A'):
-        toggle_rail(session)
-    elif typed in by_key:
-        session.toggle(by_key[typed])
+def _duty(by):
+    """The act that moves the duty `by`."""
+    return bindings.did(lambda session: session.set_duty(session.duty + by))
+
+
+def _running(activity):
+    """An activity's bar word: its name, [ON] while it runs."""
+    return lambda session: activity.name.upper() + (' [ON]' if activity.name in session.running else '')
+
+
+#: The dash's keys, rows of the terminal's one table (`terminal.ui.bindings`) on its session: an
+#: activity's letter it, the rail, the duty - the arrows or + and -.
+PAD = bindings.page(tuple(('RUN', act.key.upper(), 'the %s started, or stopped' % act.name, ((act.key.upper(), _running(act)),),
+              bindings.cased(act.key, bindings.did(lambda session, act=act: session.toggle(act))))
+             for act in ACTIVITIES) + (
+    ('RIG', 'A', "the front end's rail on, or off", (('A', 'AFE'),), bindings.cased('a', bindings.did(toggle_rail))),
+    ('RIG', 'UP DOWN / + -', 'the duty up, down %.0f %%' % (100 * DUTY_STEP),
+     (('+ -', lambda session: 'DUTY %.0f%%' % (100 * session.duty)),),
+     {**dict.fromkeys(('up', '+', '='), _duty(DUTY_STEP)), **dict.fromkeys(('down', '-', '_'), _duty(-DUTY_STEP))}),
+), column=False)
 
 
 class Plan:

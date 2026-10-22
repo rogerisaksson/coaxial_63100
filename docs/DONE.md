@@ -173,3 +173,9 @@ the hundred and fifty before these: [DONE_1-50](DONE_1-50.md),
     page's before the loader's imports: on the bench by name 2.5 -> 1.9 s to
     the first frame, from the front page 0.9 s, its own process's
     ([host](findings/host.md)).
+30. The terminal's one UX: every page's keys rows of one table
+    (`terminal/ui/bindings.py`), its bar and help read off them, one dispatch
+    with each page's modes, a key two rows bind refused; Esc the start menu
+    over any page, Tab the instruments' column - folded at first to a rail,
+    its arrow breathing, the front page's panels up -, ? the keys; the 13
+    pages drawn with it at 150 x 44 ([host](findings/host.md)).

@@ -1,20 +1,17 @@
 """The HUMANOID page's gym: her verbs, her latent loop's moves said by digit, her modes shown.
 
-    KEYS = gym.table(KEYS)       # the page's keys with the gym's: verbs, digits, scenes, shoves
+    gym.said(state, verb)        # a verb, what an agent sends; the page's keys bind them (`humanoid_keys`)
     gym.offered(state)           # what F offers now, keyed: the balloons, the plate, the prompt
     gym.boxes(now)               # the side column's LATENT and SAY boxes
     gym.status(now)              # what she is doing, in a line
 
 She stands on the loop (`machine.sprung`); the keys that move her are a twist (`humanoid_keys`).
-Space, C and F are verbs - a hop, a crouch, a balloon's offer -, each one an agent would send.
-F offers rising from what bears her, else each thing she has seen and its verb, a balloon on it:
-F alone says the first's - the one she faces -, F then a digit - or the function key - the one so
-keyed. A digit says
-an entry of the gym's text (`sprung.entries`) in place of what was to come, > takes the gym's
-other text (`sprung.GYMS`), read anew each time - an edit to machine/gynoid_mesomorph_medium.lisp
-is two presses away -; [ ] step through the scenes, Enter lays the scene again, P N shove her
-along the view, H tours the scenes. LATENT shows each mode as it is asked and as she is, and its
-spring.
+A hop, a crouch, a balloon's offer are verbs, each one an agent would send. F offers rising from
+what bears her, else each thing she has seen and its verb, a balloon on it. A gym entry is said
+by its place in the gym's text (`sprung.entries`) in place of what was to come, the gym's other
+text (`sprung.GYMS`) read anew each time - an edit to machine/gynoid_mesomorph_medium.lisp is two
+presses away -; the scenes stepped through and laid again, shoves along the view, the tour of the
+scenes. LATENT shows each mode as it is asked and as she is, and its spring.
 """
 import math
 import time
@@ -24,18 +21,38 @@ from rich.text import Text
 from coaxial.draw import gauges
 from coaxial.graphics import balloons, gynoid
 from machine import sight, sprung, tour
-from terminal import keybindings
-from terminal.ui import console
 from terminal.ui.stage import hud
 from terminal.views import scanner, viewpoint
 
-#: The gym's next text.
-NEXT = '>'
 #: A digit says the gym's entry of its place: 1 the first, 0 the tenth.
 DIGITS = '1234567890'
 #: P and N shove her along the view, the bench's 80 N she parries and 200 N she falls to
 #: (`tools/sim/scenarios.py`, SHOVES), sprung.SHOVE_S long.
 SHOVES_N = {'P': 80.0, 'N': 200.0}
+#: Each scene's objective (`machine.floor.SCENARIOS`).
+SCENARIO_DESC = {
+    'flat': 'level ground // stand and go',
+    'lodge': 'the lodge // its deck, stair and steps',
+    'chair': 'chair // F sit, Space hop',
+    'bed': 'soft bed // F lies and rises',
+    'mattress': 'floor mattress // F lies and rises',
+    'slope': 'ramp // walk up 10 deg',
+    'slope_down': 'ramp // walk down 10 deg',
+    'cross_slope': 'camber // walk across 10 deg',
+    'stairs': 'stairs // walk up',
+    'stairs_down': 'stairs // walk down',
+    'ice': 'ice // walk on, slick',
+    'snow': 'snow // walk on, yielding',
+    'asphalt': 'asphalt // walk on, rough',
+    'slip': 'slick patch // walk over',
+    'obstacle': 'wall and tree // walk into',
+    'wall': 'wall // walk into, stand',
+    'tree': 'tree // walk into, stand',
+    'sill': 'door sill // trip, walk on',
+    'hole': '10 cm hole // step in, walk on',
+    'rug': 'loose rug // walk over',
+    'edge_behind': "step's edge behind // back off it",
+}
 #: A thing near enough for a verb she does where she stands, m from her pelvis over the floor; a
 #: chair she hops onto, m ahead and within a quarter turn of her heading; her pelvis over this, m,
 #: on a chair's seat.
@@ -172,108 +189,79 @@ def touring(state):
     return tour is not None and not tour.done
 
 
-def _cancel_tour(state):
+def cancel_tour(state):
     """The tour ended by a key that acts on her; the keys' twist sent again on the next frame."""
     if touring(state):
         state['tour'] = None
         state.setdefault('pad', {})['setpoint'] = None
 
 
-def _said(state, verb, **where):
+def said(state, verb, **where):
     """`verb` said, the tour and any held pad keys ended: a gym entry's name or place; `where`
     its thing's place (`at`, x z)."""
-    _cancel_tour(state)
+    cancel_tour(state)
     pad = state.get('pad')
     if isinstance(pad, dict) and verb != 'hop':
         pad['keys'] = dict.fromkeys(pad.get('keys') or ('w', 's', 'a', 'd', 'q', 'e', 'shift'), False)
         pad['last_seen'], pad['setpoint'] = {}, (0.0, 0.0, 0.0)
     if verb is not None:
-        if verb == 'hop':
-            now_t = time.monotonic()
-            state['hop_hold'] = {'began': now_t, 'last': now_t, 'sent': 0.0}
         state['body'].send(say=verb, **where)
 
 
-def _hopped(state):
-    """Space: what it says now (`hop`)."""
+def hopped(state):
+    """A hop, what it is now (`hop`): the verb said."""
     now, sc = state.get('now'), state.get('scanner')
-    _said(state, hop(now, sc.scan(now) if sc is not None and now else []))
+    verb = hop(now, sc.scan(now) if sc is not None and now else [])
+    said(state, verb)
+    return verb
 
 
 def chose(state, k):
-    """F's `k`th offer said - its verb at its thing (`at`, x z) -, F's choice closed."""
-    state['choosing'] = None
+    """F's `k`th offer said: its verb at its thing (`at`, x z)."""
     for _key, verb, _word, at, _thing in offered(state)[k:k + 1]:
-        _said(state, verb, at=(at[0], at[2]))
+        said(state, verb, at=(at[0], at[2]))
 
 
-def _interact(state):
-    """F: with one offer, or F again while the choice is open, the first's said at once; with
-    more, the choice open - a digit within `console.HOLD_WINDOW_S` (F counted held) says its
-    offer (`_digit`), else the first's once that passes (`lapsed`)."""
-    t = state['f_at'] = time.monotonic()
-    if state.get('choosing') is None and len(offered(state)) > 1:
-        state['choosing'] = t
-        return
-    chose(state, 0)
-
-
-def _digit(state, i):
-    """A digit: within `console.HOLD_WINDOW_S` of F, F's `i`th offer while its choice is open -
-    nothing once F said its one -; else the gym's `i`th entry."""
-    if time.monotonic() - state.get('f_at', -math.inf) > console.HOLD_WINDOW_S:
-        return _said(state, i)
-    state['f_at'] = -math.inf
-    if state.get('choosing') is not None:
-        chose(state, i)
-
-
-def lapsed(state, now):
-    """Each frame: F's choice open past `console.HOLD_WINDOW_S` of the wall clock `now` says the
-    first's."""
-    if now - (state.get('choosing') or math.inf) > console.HOLD_WINDOW_S:
-        chose(state, 0)
-
-
-def _crouched(state):
-    """C: a crouch, or up from one."""
+def crouched(state):
+    """A crouch, or up from one."""
     now = state.get('now') or {}
-    _said(state, 'stand' if now.get('doing') == CROUCHED else 'crouch')
+    said(state, 'stand' if now.get('doing') == CROUCHED else 'crouch')
 
 
-def _run_scenario(state, scen=None):
+def run_scenario(state, scen=None):
     """Scene `scen` laid round her, the one she is in again with none."""
-    _cancel_tour(state)
+    cancel_tour(state)
     scen = scen or state.get('scenario', 'flat')
     state['scenario'] = scen
     state['body'].send(scenario=scen)
     state.setdefault('pad', {})['setpoint'] = None
 
 
-def _next(state):
+def next_text(state):
+    """The gym's other text (`sprung.GYMS`)."""
     state['gym'] = sprung.GYMS[(sprung.GYMS.index(state.get('gym', sprung.GYMS[0])) + 1) % len(sprung.GYMS)]
     state['body'].send(gym=state['gym'])
 
 
-def _step_scenario(state, delta=1):
+def step_scenario(state, delta):
+    """The scene `delta` on through `floor.SCENARIOS` laid, the one she is in with 0."""
     from machine import floor
     scens = floor.SCENARIOS
     cur = state.get('scenario', 'flat')
-    _run_scenario(state, scens[(scens.index(cur) + delta) % len(scens)] if cur in scens else scens[0])
+    run_scenario(state, scens[(scens.index(cur) + delta) % len(scens)] if cur in scens else scens[0])
 
 
-def _shoved(n):
-    def shove(state):
-        _cancel_tour(state)
-        state['body'].send(push=tuple(n * a for a in viewpoint.along(state)), seconds=sprung.SHOVE_S)
-    return shove
+def shoved(state, n):
+    """A shove of `n` N along the view, sprung.SHOVE_S long."""
+    cancel_tour(state)
+    state['body'].send(push=tuple(n * a for a in viewpoint.along(state)), seconds=sprung.SHOVE_S)
 
 
-def _toggle_tour(state):
-    """H / h: the tour from its start, or ended."""
+def toggle_tour(state):
+    """The tour from its start, or ended."""
     from machine.tour import HouseTour
     if touring(state):
-        _cancel_tour(state)
+        cancel_tour(state)
         return
     tr = state['tour'] = HouseTour(loop=True)
     state['llm_last'] = (tr.last_thought, tr.last_cmd)
@@ -284,9 +272,8 @@ def _toggle_tour(state):
 
 
 def open_prompt(state):
-    """/ or : opens the interactive LLM prompt bar for the gynoid and releases held motion keys."""
+    """The interactive LLM prompt bar for the gynoid opened, held motion keys released."""
     state['llm_prompt'] = {'open': True, 'text': ''}
-    state['hop_hold'] = state['charge'] = None
     pad = state.get('pad')
     if isinstance(pad, dict):
         pad['keys'] = dict.fromkeys(pad.get('keys') or ('w', 's', 'a', 'd', 'q', 'e', 'shift'), False)
@@ -315,7 +302,7 @@ def submit_prompt(state, text=None):
         rows.extend([('label', '  cmd: ' + tr.last_cmd), (None, plan['thought'])])
         state['chat_rows'] = rows[-24:]
         return plan
-    _cancel_tour(state)
+    cancel_tour(state)
     pad = state.get('pad')
     if isinstance(pad, dict):
         pad['keys'] = dict.fromkeys(pad.get('keys') or ('w', 's', 'a', 'd', 'q', 'e', 'shift'), False)
@@ -331,30 +318,6 @@ def submit_prompt(state, text=None):
     rows.append((None, plan['thought']))
     state['chat_rows'] = rows[-24:]
     return plan
-
-
-def table(keys):
-    """`keys` (the page's own) with the gym's laid over them: verbs, digits, scenes, shoves."""
-    out = dict(keys)
-    out[NEXT] = _next
-    for k in ('<', ',', ']'):
-        out[k] = lambda state: _step_scenario(state, 1)
-    out['['] = lambda state: _step_scenario(state, -1)
-    for k in ('\r', '\n'):
-        out[k] = lambda state: _run_scenario(state)
-    out.update((k, lambda state, i=i: _digit(state, i)) for i, k in enumerate(DIGITS))
-    out.update(('f%d' % (i + 1), lambda state, i=i: chose(state, i)) for i in range(len(DIGITS)))
-    out.update((k, _shoved(n)) for k, n in SHOVES_N.items())
-    out[' '] = _hopped
-    for k in 'fF':
-        out[k] = _interact
-    for k in 'cC':
-        out[k] = _crouched
-    for k in 'hH':
-        out[k] = _toggle_tour
-    for k in '/:':
-        out[k] = open_prompt
-    return out
 
 
 def status(now):
@@ -378,8 +341,8 @@ def _mode_row(name, row):
 
 
 def boxes(now, tour=None):
-    """The side column's boxes: each mode asked and as she is, its spring's N/m; the scene, the
-    verbs' keys, what each digit says."""
+    """The side column's boxes: each mode asked and as she is, its spring's N/m; the scene, what
+    each digit says (the keys' bar and help say the rest, `humanoid_keys`)."""
     if not now:
         return []
     says = now.get('says') or ('gynoid_mesomorph_medium',)
@@ -390,10 +353,7 @@ def boxes(now, tour=None):
          else 'keys or an agent'),
         ('scenario'.rjust(10), scen[:25]),
         ('situation'.rjust(10), str(now.get('situation') or 'open')[:25]),
-        ('objective'.rjust(10), keybindings.SCENARIO_DESC.get(scen, scen).split('//')[-1].strip()[:25]),
-        ('wasd / shf'.rjust(10), 'move & sidestep / sprint'),
-        ('q e / spc'.rjust(10), 'turn in place / hop'),
-        ('f / c'.rjust(10), 'interact / crouch'),
+        ('objective'.rjust(10), SCENARIO_DESC.get(scen, scen).split('//')[-1].strip()[:25]),
     ]
     items = [(DIGITS[i], NAMED.get(s, str(s)).replace('_', ' '))
              for i, s in enumerate(entries[:len(DIGITS)])]
@@ -411,7 +371,6 @@ CHAT_GREETING = ('name', 'GYNOID LLM AGENT - press / to prompt, H for autonomous
 
 def chat_box(state, width=80):
     """The persistent BOARD CHAT-style transcript and prompt input panel under the viewport."""
-    import time
     from terminal.ui.recorder import SPIN
     rows: list = list(state.get('chat_rows') or (CHAT_GREETING,))
     tail = rows[-(CHAT_ROWS - 1):]

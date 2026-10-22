@@ -24,13 +24,12 @@ import sys
 import time
 
 from coaxial import Coaxial63100
-from terminal.loader import TO_MENU
+from terminal.loader import answer
 from terminal.ui import screen as _screen
 from terminal.ui.screen import PORT, FEED_HZ, FPS_CAP, Feed, mode_of, run_view, say, steady
 from terminal.ui.stage import boot, stage
 from terminal.views.session.blocks import frame, snapshot
-from terminal.views.session.run import (Plan, act_on, leave, start_activities,
-                                        teardown)
+from terminal.views.session.run import PAD, Plan, leave, start_activities, teardown
 from terminal.views.session.state import (ACTIVITIES, DEFAULT_DUTY, Session,
                                           _start_imu)
 
@@ -114,7 +113,6 @@ def main():
         session.afe_found = session_afe_found
         session.imu_started = imu_started
         session.duty = min(1.0, max(0.0, a.duty))
-        by_key = dict((act.key, act) for act in ACTIVITIES)
         start_activities(session, a.start)
         if a.sequence:
             session.plan = Plan(a.sequence, a.duty)
@@ -141,23 +139,18 @@ def main():
                 return False
             return session.plan.done()      # the last step ran: the run ends
 
-        def on_input(typed, _moved):
-            for key in typed:
-                act_on(session, key, by_key)
-
         leaving = None
         try:
             # The arrows are the duty's here, and the dashboard is a grid of
             # instruments with no column to scroll.
             leaving = run_view(dashboard, console, 1.0 / max(a.hz, 0.2),
-                               a.frames, draw, on_input, tick,
-                               scroll_keys=False)
+                               a.frames, draw, tick=tick, scroll_keys=False, pad=PAD, state=session)
         finally:
             feed.stop()
             print()
-            teardown(session, console, 0, hold=leaving != 'menu')
+            teardown(session, console, 0, hold=answer(leaving) == 0)
 
-    return TO_MENU if leaving == 'menu' else 0
+    return answer(leaving)
 
 
 if __name__ == '__main__':

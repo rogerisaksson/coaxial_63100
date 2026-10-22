@@ -1065,12 +1065,13 @@ def test_the_terminal_keeps_the_mouse(r):
             and 'c' not in SELECT_KEYS)
 
     # The wheel is not the only way in.
+    from terminal.ui import bindings
     from terminal.views import show_render
     view = {'zoom': 1.0, 'q': None, 'spin': False}
-    show_render.act_on(['+'], view)
+    bindings.act_on(show_render.PAD, ['+'], view)
     r.check('the render view zooms on a key', view['zoom'] > 1.0,
             '%.3f' % view['zoom'])
-    show_render.act_on(['-', '-'], view)
+    bindings.act_on(show_render.PAD, ['-', '-'], view)
     r.check('and back out again', view['zoom'] < 1.0, '%.3f' % view['zoom'])
 
 

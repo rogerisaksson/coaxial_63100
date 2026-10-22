@@ -80,7 +80,7 @@ def test_the_view_loop_and_its_helpers(report):
         """Keys that say what the test says, a frame at a time."""
         script, typed = [], []
 
-        def __init__(self, _console, mouse=False, select=(), pan=False):
+        def __init__(self, _console, mouse=False, select=(), pan=False, **_keys):
             self.mouse, self.select, self.pan = mouse, select, pan
 
         def __enter__(self):

@@ -37,8 +37,8 @@ from coaxial.comm.session import standing
 from coaxial.devices import scaling
 from coaxial.errors import RigError
 from coaxial.simulated.sto import PILOT_VOLTS
-from terminal.loader import TO_MENU
-from terminal.ui import screen as _screen
+from terminal.loader import answer
+from terminal.ui import bindings, screen as _screen
 from terminal.ui.screen import (PORT, ASH, FPS_CAP, LABEL, SODIUM, closing, demo, open_rig, panel_width,
                                 run_view, say, tint, mode_of)
 from terminal.ui.stage import hud, panels_of, stage
@@ -279,36 +279,44 @@ def _pulse(rig, view):
                'latched' if state['fault'] else 'clear', state['overruns']))
 
 
-def act(rig, key, view):
-    """One keypress."""
-    try:
-        if key in ('+', '='):
-            return _duty(rig, view, view['step'])
-        if key in ('-', '_'):
-            return _duty(rig, view, -view['step'])
-        if key == ']':
-            return _step(view, 1)
-        if key == '[':
-            return _step(view, -1)
-        if key in ('a', 'A'):
-            return _arm(rig, view)
-        if key in ('b', 'B'):
-            return _bkin(rig)
-        if key in ('i', 'I'):
-            return _interlock(view)
-        if key in ('p', 'P'):
-            return _pulse(rig, view)
-        if key in ('l', 'L'):
-            return _pilot(rig, view)
-        if key in RUNS:
-            view['seconds'] = RUNS[key]
-            return 'run length %.0f ms' % (view['seconds'] * 1e3)
-        if key in ('r', 'R'):
-            capture(rig, view['seconds'], view)
-            return 'ran %.0f ms' % (view['seconds'] * 1e3)
-        return None
-    except RigError as exc:
-        return str(exc)
+def _told(fn):
+    """The act of `fn` (view, key) on the rig (`view['rig']`): what it says on the page, the rig's
+    refusal where it refuses."""
+    def told(view, key, _now):
+        try:
+            view['said'] = fn(view, key) or view['said']
+        except RigError as exc:
+            view['said'] = str(exc)
+    return told
+
+
+def _timed(view, key):
+    view['seconds'] = RUNS[key]
+    return 'run length %.0f ms' % (view['seconds'] * 1e3)
+
+
+def _ran(view, _key):
+    capture(view['rig'], view['seconds'], view)
+    return 'ran %.0f ms' % (view['seconds'] * 1e3)
+
+
+#: The page's keys, rows of the terminal's one table (`terminal.ui.bindings`).
+PAD = bindings.page((
+    ('STAGE', '+ -', "the legs' duty up, down a step", (('+ -', 'DUTY'),),
+     dict.fromkeys('+=-_', _told(lambda v, k: _duty(v['rig'], v, v['step'] if k in '+=' else -v['step'])))),
+    ('STAGE', '[ ]', "the duty's step down, up", (('[ ]', 'STEP'),),
+     dict.fromkeys('[]', _told(lambda v, k: _step(v, 1 if k == ']' else -1)))),
+    ('STAGE', 'A', 'the stage armed, or not', (('A', 'ARM'),), bindings.cased('a', _told(lambda v, _k: _arm(v['rig'], v)))),
+    ('STAGE', 'B', "STO's break input out of the circuit, or back", (('B', 'BKIN'),),
+     bindings.cased('b', _told(lambda v, _k: _bkin(v['rig'])))),
+    ('STAGE', 'I', 'Cinj and Clevel unchecked, or checked', (('I', lambda v: 'INTERLOCK %s' % ('OFF' if v['override'] else 'ON')),),
+     bindings.cased('i', _told(lambda v, _k: _interlock(v)))),
+    ('STAGE', 'P', 'U pulsed against V low', (('P', 'PULSE U-V'),), bindings.cased('p', _told(lambda v, _k: _pulse(v['rig'], v)))),
+    ('STAGE', 'L', "the master's pilot cut, or restored", (('L', lambda v: 'PILOT %s' % ('ON' if v['pilot'] else 'OFF')),),
+     bindings.cased('l', _told(lambda v, _k: _pilot(v['rig'], v)))),
+    ('RUN', '1-4', "a run's length: 1, 10, 100, 1000 ms", (('1-4', 'MS'),), dict.fromkeys(RUNS, _told(_timed))),
+    ('RUN', 'R', 'a run of it captured', (('R', 'RUN'),), bindings.cased('r', _told(_ran))),
+), column=False)
 
 
 def compose(rig, origin, console, view, layout, width):
@@ -331,14 +339,8 @@ def compose(rig, origin, console, view, layout, width):
                                view.get('refused'), width, view['scaling'], view['bench']))
     run_box = hud('RUN', run_rows(view, width))
 
-    keys = [('+ -', 'DUTY'), ('[ ]', 'STEP'), ('A', 'ARM'), ('B', 'BKIN'),
-            ('I', 'INTERLOCK %s' % ('OFF' if view['override'] else 'ON')),
-            ('P', 'PULSE U-V'), ('L', 'PILOT %s' % ('ON' if view['pilot'] else 'OFF')),
-            ('1-4', 'MS'), ('R', 'RUN'), ('Q', 'EXIT'), ('ESC', 'MENU')]
-    if view.get('said'):
-        keys.append(('', view['said']))
-    return panels_of(console, origin, 'GATE DRIVERS',
-                     [[stage_box, gates_box], [currents, run_box]], keys)
+    return panels_of(console, origin, 'GATE DRIVERS', [[stage_box, gates_box], [currents, run_box]],
+                     bindings.shown(PAD, view, view.get('said')))
 
 
 def parse_args(argv):
@@ -409,7 +411,7 @@ def main(argv=None):
         refused = str(exc)
         say('warn', 'task', '%s' % refused)
 
-    view = {'duty': 0.0, 'step': 0.01, 'seconds': RUNS['3'], 'said': '',
+    view = {'rig': rig, 'duty': 0.0, 'step': 0.01, 'seconds': RUNS['3'], 'said': '',
             'gate_drivers': board.gate_drivers.state(), 'live': None, 'refused': refused,
             'layout': layout, 'override': bench and not args.interlock,
             'bench': bench, 'pilot': True,
@@ -429,13 +431,9 @@ def main(argv=None):
                 view['live'] = rig.latest(block=False)
         return compose(rig, origin, board_view, view, layout, panel_width())
 
-    def on_input(typed, _moved):
-        for key in typed:
-            view['said'] = act(rig, key, view) or view['said']
-
     try:
         leaving = run_view(board_view, terminal, 1.0 / max(args.hz, 0.5),
-                           args.frames, draw, on_input)
+                           args.frames, draw, pad=PAD, state=view)
     finally:
         done = []
         try:
@@ -457,7 +455,7 @@ def main(argv=None):
         sys.stdout.write('\n')
         closing(done, terminal, 0)
 
-    return TO_MENU if leaving == 'menu' else 0
+    return answer(leaving)
 
 
 if __name__ == '__main__':

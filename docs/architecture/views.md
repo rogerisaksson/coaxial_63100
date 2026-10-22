@@ -8,8 +8,11 @@ terminal/           python -m terminal: loader, menu, readout
 terminal/pages/     the front page's entries, one module each
 terminal/views/     the live views (show_*.py), each runnable on its own
 terminal/ui/        what they draw with: stage, chrome (the house HUD: CRT snow, lock,
-                    clock, kana tags), screen, console, scroll, recorder (R: a
-                    page's rows to a CSV, its counter on the page), ..
+                    clock, kana tags), screen, console, bindings (every page's
+                    keys, one table: Esc's start menu, Tab's column, ?'s keys),
+                    taskbar (the key bar, its help, the start menu, the folded
+                    column's rail), scroll, recorder (R: a page's rows to a
+                    CSV, its counter on the page), ..
 coaxial/graphics/   board renderer (wireframe pipeline + one module per concern);
                     gpu (the raster and a lit mesh on a card, wgpu; the crew
                     where none), gynoid (the figure's body, posed and lit),

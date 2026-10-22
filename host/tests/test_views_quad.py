@@ -3,7 +3,7 @@ import math
 import sys
 
 from tools.dev.focus import chosen
-from views_kit import Report
+from views_kit import Report, typed
 
 from page_kit import paged
 
@@ -261,17 +261,18 @@ def test_r_records_its_flight(report):
     from machine import grounds, quad
     from terminal.ui import recorder
     from terminal.views import show_quad
+    from terminal.views.quad import keys
     held: dict = {}
     rotors, sent = [{'w': 100.0}, {'w': 110.0}], []
-    keys = show_quad.hands(held, lambda k: None, lambda: show_quad.recorded(held, 'quad', rotors),
-                           lambda **command: sent.append(command))
+    held.update(zoomed=lambda k: None, record=lambda: show_quad.recorded(held, 'quad', rotors),
+                send=lambda **command: sent.append(command))
     frame, cells = quad.Sky(grounds.solids()).state(), {'volts': 50.0, 'watts': 10.0}
     was, recorder.RECORDINGS = recorder.RECORDINGS, tempfile.mkdtemp()
     try:
-        show_quad.typed(held, keys, ['r', 'w'])
+        typed(keys.PAD, 'rw', held)
         recorder.added(held['recording'], [show_quad.flown_row(0.01, frame, cells, rotors, held.pop('keyed', ''))])
         corner = ''.join(chr(c) for c, _ink in recorder.corner(held['recording'], 80).values())
-        show_quad.typed(held, keys, ['R', 'a'])
+        typed(keys.PAD, 'Ra', held)
         with open(held['recorded'], newline='', encoding='utf-8') as f:
             rows = list(csv.reader(f))
     finally:
@@ -296,12 +297,11 @@ def test_s_undresses_the_crafts(report):
     the motors and their 63100 boards stay till bare, and every layer draws."""
     from coaxial.graphics import aerobat, helicopter, ornithopter, quadcopter
     from coaxial.graphics.lit import paint
-    from terminal.views import show_quad
-    held = {'see': 0, 'reset': False}
-    keys = show_quad.hands(held, lambda k: None)
-    show_quad.typed(held, keys, ['s'])
+    from terminal.views.quad import keys
+    held = {'see': 0}
+    typed(keys.PAD, 's', held)
     once = held['see']
-    show_quad.typed(held, keys, ['S', 's', 's'])
+    typed(keys.PAD, 'Sss', held)
     report.check('S steps the layer, four steps round', (once, held['see']) == (1, 0), (once, held['see']))
     crafts = ((quadcopter, quadcopter.mesh, 4, 'shaft0'), (helicopter, helicopter.heli_mesh, 2, 'mast'),
               (ornithopter, ornithopter.orni_mesh, 2, 'crank0'), (aerobat, aerobat.aero_mesh, 2, 'shaft0'))

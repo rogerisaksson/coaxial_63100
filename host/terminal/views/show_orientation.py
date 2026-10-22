@@ -24,9 +24,9 @@ from coaxial.comm.session import standing
 from coaxial.draw import easel, orientation
 from coaxial.graphics import card
 from coaxial.errors import RigError
-from terminal.loader import TO_MENU
+from terminal.loader import answer
 from terminal.ui import ahead
-from terminal.ui import console as _console, screen as _screen
+from terminal.ui import bindings, console as _console, screen as _screen
 from terminal.ui.console import WHEEL_STEP
 from terminal.ui.screen import (PORT, FEED_HZ, FPS_CAP, Feed, Freshness, closing, mode_of, open_rig, run_view,
                                 say)
@@ -188,27 +188,36 @@ def _lit(word):
     return Text(word, style='chip.live')
 
 
-def _mirror_keys(flip):
-    """One footer pair per axis."""
-
-    for name, flipped in zip('XYZ', flip):
-        yield (name, Text('INV', style='bold color(214) on grey15')
-               if flipped else Text('+', style='keys'))
+def _mirrored(axis):
+    """An axis's bar word: INV mirrored, + not."""
+    return lambda state: (Text('INV', style='bold color(214) on grey15') if state['flip'][axis]
+                          else Text('+', style='keys'))
 
 
-def bindings(typed, view, quaternion):
-    """Apply one frame of keys to the view state, in place."""
-    for t in typed:
-        if t in 'xX':
-            view['flip'][0] = not view['flip'][0]
-        elif t in 'yY':
-            view['flip'][1] = not view['flip'][1]
-        elif t in 'zZ':
-            view['flip'][2] = not view['flip'][2]
-        elif t in 'cC':
-            view['frame_on'] = not view['frame_on']
-        elif t in 'tT':
-            view['tare'] = quaternion
+def _flipped(state, key, _now):
+    """X Y Z: an axis of the quaternion mirrored, or back."""
+    axis = 'xyz'.index(key.lower())
+    state['flip'][axis] = not state['flip'][axis]
+
+
+def _zoomed(state, key, _now):
+    """+ -: nearer, farther, a wheel's step."""
+    view = state['view']
+    view['zoom'] = max(0.25, min(6.0, view['zoom'] * (1.0 + (WHEEL_STEP if key in '+=' else -WHEEL_STEP))))
+
+
+#: The page's keys, rows of the terminal's one table (`terminal.ui.bindings`); F lends the mouse
+#: to the view, the console's own (`console.SELECT_KEYS`).
+PAD = bindings.page((
+    ('VIEW', 'X Y Z', "an axis of the board's quaternion mirrored, or back",
+     tuple((name, _mirrored(axis)) for axis, name in enumerate('XYZ')), dict.fromkeys('xyzXYZ', _flipped)),
+    ('VIEW', 'C', "the board's frame drawn, or not", (('C', 'FRAME'),),
+     bindings.cased('c', bindings.did(lambda state: state.update(frame_on=not state['frame_on'])))),
+    ('VIEW', 'T', 'its attitude now its zero', (('T', 'TARE'),),
+     bindings.cased('t', bindings.did(lambda state: state.update(tare=state['view']['quaternion'])))),
+    ('VIEW', 'WHEEL / + -', 'nearer, farther', (('WHEEL', 'ZOOM'), ('+ -', 'ZOOM')), dict.fromkeys('+=-_', _zoomed)),
+    ('VIEW', 'F', "the mouse the view's - lit -, or the terminal's", (('F', lambda _s: _lit('MOUSE') if _console.holding() else 'MOUSE'),), {}),
+))
 
 
 def compose(origin, args, view, colour, console):
@@ -256,14 +265,7 @@ def compose(origin, args, view, colour, console):
     return frame_of(
         console, origin, 'BOARD ATTITUDE', '\n'.join(art),
         boxes(view['part'], view['pid'], record, q, view['rate']),
-        (tuple(_mirror_keys(view['flip']))
-         + (('C', 'FRAME'), ('T', 'TARE'), ('WHEEL', 'ZOOM'),
-            ('+ -', 'ZOOM'),
-            # Lit while the view has the mouse, dark while the terminal has
-            # it, the default, so a left-drag marks text.
-            ('F', _lit('MOUSE') if _console.holding() else 'MOUSE'),
-            ('Q', 'EXIT'), ('ESC', 'MENU'), ('', note))),
-        dressed=False)
+        bindings.shown(PAD, view, note), dressed=False)
 
 
 #: The zoom a view opens at: 1.0 is the guaranteed fit at any attitude; 1.44 rests larger and lets
@@ -447,18 +449,14 @@ def main(argv=None):
                        colour=terminal and not args.photo,
                        console=board_view)
 
-    def on_input(typed, moved):
-        # The keys zoom too.
-        for key in typed:
-            if key in '+=-_':
-                moved += WHEEL_STEP if key in '+=' else -WHEEL_STEP
+    def wheeled(_keys, moved):
         if moved:
             view['zoom'] = max(0.25, min(6.0, view['zoom'] * (1.0 + moved)))
-        bindings(typed, state, view['quaternion'])
 
+    state['view'] = view
     try:
         leaving = run_view(board_view, terminal, period, args.frames, draw,
-                           on_input, mouse=True)
+                           wheeled, mouse=True, pad=PAD, state=state)
     finally:
         feed.stop()
         sys.stdout.write('\n')
@@ -474,7 +472,7 @@ def main(argv=None):
                      'back the way it was found'))
         closing(done, terminal, 0)
 
-    return TO_MENU if leaving == 'menu' else 0
+    return answer(leaving)
 
 
 if __name__ == '__main__':

@@ -12,12 +12,19 @@ import traceback
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
-#: What a view exits with when ESC sent it back: not 0 (that is all), not
-#: 130 (Ctrl+C).
+#: What a view exits with for the front page (the start menu's 0): not 0 (that
+#: is all), not 130 (Ctrl+C).
 TO_MENU = 64
-#: The front page answers with FIRST + the entry's index; a second
-#: question's later options take codes past the list.
+#: The front page answers with FIRST + the entry's index - a view with a page
+#: picked off the start menu over it too -; a second question's later options
+#: take codes past the list.
 FIRST = 101
+
+
+def answer(leaving):
+    """A view's answer off where it left (`bindings.act_on`): the front page,
+    a page's code, or 0 - out of the terminal."""
+    return TO_MENU if leaving == 'menu' else (leaving if isinstance(leaving, int) else 0)
 
 
 def pages():
@@ -262,8 +269,8 @@ def main(argv=None):
         page, name = view
         code = run_page(page, name, args)
         opened = name if name in listing()[2] else None
-        view = None
-        if code != TO_MENU:
+        view = listing()[3].get(code)
+        if view is None and code != TO_MENU:
             break
         kept(args, pages())
     from terminal.ui import ahead

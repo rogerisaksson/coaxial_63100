@@ -19,7 +19,8 @@ from coaxial.draw import cross_section, gauges
 from coaxial.errors import DeviceStateError, NoReplyError, RigError
 from machine.modes import HARDWARE, SIMULATED
 from machine import ansi
-from terminal.ui.console import QUIT_KEYS, SELECT_KEYS, Keys, _ignore
+from terminal.ui import bindings
+from terminal.ui.console import SELECT_KEYS, Keys, _ignore
 from terminal.ui.rate import rate_of
 from terminal.ui.scroll import scroll_by, scroll_click, scroll_drag
 from terminal.ui import sto
@@ -316,20 +317,22 @@ def _wait_frame(keys, page, shown, started, period):
 
 def run_view(board_view, console, period, frames, draw, on_input=None,
              tick=None, mouse=False, on_click=None, on_drag=None,
-             scroll_keys=True, on_pan=None, select=SELECT_KEYS, quits=QUIT_KEYS):
+             scroll_keys=True, on_pan=None, select=SELECT_KEYS, pad=None, state=None):
     """Run a view loop: draw, pace at `period` (capped by `FPS_CAP`), and dispatch keys/mouse.
     A frame is held till its beat (`Beat`, `drawn_at`); the heap built before the view is frozen
-    out of its collections: a full one in a frame held it 25 ms."""
+    out of its collections: a full one in a frame held it 25 ms. A frame's keys on the page's
+    `state` by its `pad` (`bindings.page`, the terminal's own alone without one): where the page
+    leaves - 'menu', 'quit' or a page's code - returned; the arrows no row binds page the column,
+    the rest and the wheel to `on_input` (keys, wheel)."""
     period = max(period, 1.0 / FPS_CAP)
     click, drag = on_click or _ignore, on_drag or _ignore
     count, beat = 0, Beat(period)
     gc.collect()
     gc.freeze()
-    q_kw = {'quits': quits} if quits != QUIT_KEYS else {}
-    stalls = _stall_log() if console else None
+    stalls, bindings.UX['menu'] = (_stall_log() if console else None), None
     try:
-        with curtain(board_view) as page, Keys(console, mouse=mouse, select=select,
-                                               pan=on_pan is not None, **q_kw) as keys:
+        with curtain(board_view) as page, Keys(console, mouse=mouse, select=select, pan=on_pan is not None,
+                                               quits=frozenset(), menus=frozenset()) as keys:
             while True:
                 count += 1
                 started = time.monotonic()
@@ -356,14 +359,13 @@ def run_view(board_view, console, period, frames, draw, on_input=None,
                 if (tick is not None and tick()) or (frames and count >= frames):
                     return None
                 leaving, moved, typed = _wait_frame(keys, page, shown, started, period)
+                leaving, rest = (leaving, ()) if leaving else bindings.act_on(pad or bindings.BARE, typed, state)
                 if leaving:
                     return leaving
-                for step in (SCROLL_STEP[k] for k in typed if scroll_keys and k in SCROLL_STEP):
+                for step in (SCROLL_STEP[k] for k in rest if scroll_keys and k in SCROLL_STEP):
                     scroll_by(board_view, step)
-                if scroll_keys:
-                    typed = [k for k in typed if k not in SCROLL_STEP]
                 if on_input is not None:
-                    on_input(typed, moved)
+                    on_input([k for k in rest if not (scroll_keys and k in SCROLL_STEP)], moved)
                 for col, row in (keys.clicked() if mouse or on_click is not None else ()):
                     scroll_click(board_view, col, row)
                     click(col, row)

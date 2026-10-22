@@ -27,12 +27,14 @@ from coaxial.comm.session import Origin
 from coaxial_mcp.schema import TOOLS
 from coaxial_ollama import cli, language, pull as pulling
 from coaxial_ollama.client import OllamaError
-from terminal.loader import TO_MENU
+from terminal.loader import answer
+from terminal.ui import bindings
 from terminal.ui.recorder import SPIN
 from terminal.ui.console import Keys
 from terminal.ui.screen import PORT, ENTER_KEYS, paced
 from terminal.ui.chrome import Chrome
-from terminal.ui.stage import boot, curtain, footer, header, hud, stage
+from terminal.ui.stage import boot, curtain, header, hud, stage
+from terminal.ui.taskbar import RAIL, bar_of, footer, rail, start_menu
 
 #: Rows the page spends outside the transcript: band, input, key bar,
 #: and the frame's own two edges.
@@ -336,6 +338,31 @@ def scrolled(script, zoom, room):
         script.pin = None if at + 3 >= total - room else at + 3
 
 
+def _scrolled(held, key, _now):
+    """UP DOWN: the transcript three rows up, down."""
+    size = held['page'].size
+    scrolled(held['script'], 1 if key == 'up' else -1, max(3, (size.height if size else 24) - RESERVE))
+
+
+def _typed(held, key, _now):
+    """The page's mode, its line: a character typed into it, Backspace one back, ENTER it to the
+    model (`took`); the rest to their rows."""
+    if key in ENTER_KEYS or key in ('\x08', '\x7f') or (len(key) == 1 and key.isprintable()):
+        held['entry'] = took(held['entry'], key, held['script'], held['state'], held['chat'])
+        return None
+    return bindings.PASS
+
+
+#: The page's keys, rows of the terminal's one table (`terminal.ui.bindings`): its line takes what
+#: is typed, ? and Q among it.
+ROWS = (
+    ('CHAT', 'ENTER', 'the line to the model', (('ENTER', 'SEND'),), {}),
+    ('CHAT', 'UP DOWN', 'the transcript up, down three rows', (('UP DOWN', 'SCROLL'),), dict.fromkeys(('up', 'down'), _scrolled)),
+    ('CHAT', 'CTRL+C', 'the terminal left', (('CTRL+C', 'EXIT'),), {}),
+)
+PAD = bindings.page(ROWS, take=_typed, typing=True)
+
+
 def compose(script, entry, state, origin, size, lead, blink):
     height = size.height if size else 24
     room = max(3, height - RESERVE)
@@ -345,15 +372,14 @@ def compose(script, entry, state, origin, size, lead, blink):
     ask = Text('  %s ' % lead, style='value')
     ask.append(entry)
     ask.append('_' if blink else ' ', style='value')
-    keys = (('ENTER', 'SEND'), ('UP DOWN', 'SCROLL'), ('ESC', 'MENU'),
-            ('CTRL+C', 'EXIT'))
+    keys, _help = bar_of(PAD, time.monotonic())
     log = Panel(Chrome(body, 'BOARD CHAT', lock=False), box=box.HEAVY, border_style='frame',
                 title=Text(' %s ' % state['title'], style='name'),
-                title_align='left', padding=(0, 1))
+                title_align='left', padding=(0, 1)) if bindings.UX['menu'] is None else start_menu()
     mid = Layout(name='mid')
     if state['tools']:
-        side = Layout(hud(state['served'], state['tools']),
-                      name='tools', size=24)
+        side = Layout(hud(state['served'], state['tools']) if bindings.UX['column'] else rail(),
+                      name='tools', size=24 if bindings.UX['column'] else RAIL)
         mid.split_row(Layout(log, name='log'), side)
     else:
         mid.update(log)
@@ -471,10 +497,11 @@ def _run(a, page, console, script, state, chat, origin):
     entry, frame, drawn, painted, face = '', 0, None, 0.0, None
     # No mouse mode: with reporting on, the terminal hands selections to the
     # view and copy stops working; the transcript is what gets copied.
-    with curtain(page) as show, Keys(console,
-                                     quits=frozenset()) as keys:
+    held = {'entry': '', 'page': page, 'script': script, 'state': state, 'chat': chat}
+    bindings.UX['menu'] = None
+    with curtain(page) as show, Keys(console, quits=frozenset(), menus=frozenset()) as keys:
         while True:
-            frame += 1
+            frame, entry = frame + 1, held['entry']
             # Painted only when something changed.
             blink = frame % 16 < 8
             lead = (SPIN[frame // 2 % len(SPIN)] if state['busy']
@@ -484,30 +511,22 @@ def _run(a, page, console, script, state, chat, origin):
             # only its own row through echo().
             mark = (len(script.rows), script.pin,
                     size.width if size else 0,
-                    size.height if size else 0)
+                    size.height if size else 0, bindings.UX['menu'], bindings.UX['column'])
             now = time.monotonic()
             if mark != drawn and now - painted >= 0.1:
                 show.update(compose(script, entry, state, origin, size,
                                     lead, blink), refresh=True)
                 drawn, painted, face = mark, now, None
             want = (entry, lead, blink)
-            if console and want != face:
+            if console and want != face and bindings.UX['menu'] is None:
                 echo(page, entry, lead, blink)
                 face = want
             if a.frames and frame >= a.frames:
                 return 0
             leave, _zoom, typed = paced(keys, 0.05)
-            if leave == 'menu':
-                return TO_MENU
+            leave = leave or bindings.act_on(PAD, typed, held)[0]
             if leave:
-                return 0
-            for key in typed:
-                if key in ('up', 'down'):
-                    height = page.size.height if page.size else 24
-                    scrolled(script, 1 if key == 'up' else -1,
-                             max(3, height - RESERVE))
-                else:
-                    entry = took(entry, key, script, state, chat)
+                return answer(leave)
 
 
 if __name__ == '__main__':

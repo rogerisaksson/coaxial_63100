@@ -25,9 +25,10 @@ import time
 from coaxial.comm.session import standing
 from coaxial.devices import scaling
 from coaxial.errors import RigError
-from terminal.loader import TO_MENU
+from terminal.loader import answer
 from terminal.ui.screen import (PORT, FEED_HZ, FPS_CAP, Feed, closing, mode_of, open_rig, panel_width, run_view,
                                 say)
+from terminal.ui import bindings
 from terminal.ui.stage import hud, panels_of, stage
 
 ROTATION_VECTOR = 0x05
@@ -158,7 +159,7 @@ def compose(origin, console, layout, view, width):
 
     return panels_of(console, origin, 'CAPTURE',
                      [[task, analog, digital], [ring_box, spi]],
-                     (('Q', 'EXIT'), ('ESC', 'MENU')))
+                     bindings.FLAT)
 
 
 def drain(rig, layout, view):
@@ -298,7 +299,7 @@ def main(argv=None):
     try:
         leaving = run_view(board_view, terminal, 1.0 / max(args.hz, 0.5), args.frames,
                            lambda: compose(origin, board_view, task['layout'], view,
-                                           panel_width()))
+                                           panel_width()), pad=bindings.FLAT)
     finally:
         feed.stop()
         done = put_back(board)
@@ -307,7 +308,7 @@ def main(argv=None):
         sys.stdout.write('\n')
         closing(done, terminal, 0)
 
-    return TO_MENU if leaving == 'menu' else 0
+    return answer(leaving)
 
 
 if __name__ == '__main__':

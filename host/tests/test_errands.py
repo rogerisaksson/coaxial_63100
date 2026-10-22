@@ -182,7 +182,7 @@ def test_viewport_f_errands_chair_bed_and_door(report):
     the door and exit."""
     from types import SimpleNamespace as SN
     from machine import modal, physics, sprung, worker
-    from terminal.views import gym, scanner, viewpoint
+    from terminal.views import gym, humanoid_keys, scanner, viewpoint
     sc = scanner.VisionScanner()
     physics.ROOM, physics.SIGHT = 1.0, 0.0
     for label, hd0, walk_s, verb, goal_phase in (
@@ -203,7 +203,7 @@ def test_viewport_f_errands_chair_bed_and_door(report):
         key, first = (gym.offered(st) or [('', None)])[0][:2]
         shown_prompt, expected_prompt = gym.prompt(st), '[%s] %s' % (key, gym.NAMED[verb])
         shown = first == verb and shown_prompt.startswith(expected_prompt)
-        viewpoint.mouse(st, lambda: (100, 40))['on_click'](20, 10)
+        viewpoint.mouse(st, lambda: (100, 40), humanoid_keys.clicked)['on_click'](20, 10)
         max_prop = 0.0
         for _ in range(40000):
             worker.stepped(s)
@@ -227,7 +227,7 @@ def test_viewport_f_errands_chair_bed_and_door(report):
                 _run(s, 0.8)
                 st['now'] = worker.told(s)
                 rise_prompt = gym.prompt(st)
-                viewpoint.mouse(st, lambda: (100, 40))['on_click'](20, 10)
+                viewpoint.mouse(st, lambda: (100, 40), humanoid_keys.clicked)['on_click'](20, 10)
                 _flips, stood_t = _run(s, 6.0, until='stand')
                 _run(s, 0.5)
                 ok = (ok and rise_prompt == '[F1] rise bed' and stood_t is not None

@@ -6,9 +6,10 @@ from rich.text import Text
 from coaxial.devices import scaling
 from coaxial.draw import desk, gauges
 from coaxial.model import thermal
+from terminal.ui import bindings
 from terminal.ui.screen import ASH, LABEL, SODIUM, gauge, steady, tint
 from terminal.ui.stage import hud, panels_of
-from terminal.views.session.state import ACTIVITIES
+from terminal.views.session.run import PAD
 
 
 #: Samples per channel in the dash's analog read. 64 costs 88 ms of round
@@ -266,12 +267,4 @@ def frame(session, console, note, got=None):
             [adc_block(got), thermal_block(got), bridges_block(got)],
             [dio_block(got), imu_block(got), angle_block(got),
              acquisition_block(got)]]
-    keys = [(a.key.upper(), a.name.upper()
-             + (' [ON]' if a.name in session.running else ''))
-            for a in ACTIVITIES]
-    keys += [('A', 'AFE'), ('+ -', 'DUTY %.0f%%' % (100 * session.duty)),
-             ('Q', 'EXIT'), ('ESC', 'MENU')]
-    if note:
-        keys.append(('', note))
-    return panels_of(console, session.rig.origin, 'SESSION', rows,
-                     keys)
+    return panels_of(console, session.rig.origin, 'SESSION', rows, bindings.shown(PAD, session, note))

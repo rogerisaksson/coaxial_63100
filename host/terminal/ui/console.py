@@ -132,8 +132,8 @@ class Keys:
     VK_MAP = {87: 'w', 65: 'a', 83: 's', 68: 'd', 81: 'q', 69: 'e', 32: ' ',
               16: 'shift', 160: 'shift', 161: 'shift'}
 
-    def __init__(self, console, mouse=False, quits=QUIT_KEYS, select=SELECT_KEYS, pan=False):
-        self._quits, self._select, self._pan = frozenset(quits), frozenset(select), pan
+    def __init__(self, console, mouse=False, quits=QUIT_KEYS, select=SELECT_KEYS, pan=False, menus=MENU_KEYS):
+        self._quits, self._select, self._pan, self._menus = frozenset(quits), frozenset(select), pan, frozenset(menus)
         self.console, self.mouse, self.reports = console, mouse and console, 0
         self._clicked, self._typed, self._keys_down = [], [], set()
         self._saved = self._was_mode = self._posix = self._last_row = self._grip = self._term_hwnd = None
@@ -225,7 +225,7 @@ class Keys:
         for key in keys:
             if leave is None and key in self._quits:
                 leave = 'quit'
-            elif leave is None and key in MENU_KEYS:
+            elif leave is None and key in self._menus:
                 leave = 'menu'
             elif self.mouse and key in self._select:
                 self.grab(not self._grabbed)

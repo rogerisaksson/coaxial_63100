@@ -27,13 +27,14 @@ from coaxial.draw.orientation import _qmul, matrix, normalise
 from coaxial.errors import RigError
 from coaxial.graphics import card, gpu, shading, wireframe
 from coaxial.graphics.crew import Crew
-from terminal.loader import TO_MENU
-from terminal.ui import screen as _screen
+from terminal.loader import answer
+from terminal.ui import bindings, screen as _screen
 from terminal.ui.console import WHEEL_STEP, Keys
 from terminal.ui.rate import Corner, rate_of
 from terminal.ui.screen import paced
 from terminal.ui.chrome import Chrome
-from terminal.ui.stage import band_of, curtain, footer, stage
+from terminal.ui.stage import band_of, curtain, stage
+from terminal.ui.taskbar import RAIL, bar_of, footer, rail, start_menu
 from tools.render import facecheck
 
 _screen.CHATTER = False
@@ -92,7 +93,7 @@ def hud(view, tris, cost_ms):
 
 
 def compose(view, size, rate=''):
-    wide = max(24, size.width - 26)
+    wide = max(24, size.width - (24 if bindings.UX['column'] else RAIL) - 2)
     tall = max(10, size.height - 4)
     q = view['pose']
     # The cube is drawn from its own solid; the board is render's own, art and
@@ -109,56 +110,60 @@ def compose(view, size, rate=''):
     cost = 1000.0 * (time.perf_counter() - began)
 
     body = Layout()
-    body.split_row(
-        Layout(Panel(Corner(Chrome(Align(Text.from_ansi(art), align='center',
-                                         vertical='middle'), 'RENDER'), rate),
-                     title=' RENDER ', title_align='left', box=box.HEAVY,
-                     border_style='frame', padding=0), name='view'),
-        Layout(hud(view, len(solid[1]) // 3, cost), name='hud', size=24))
+    drawn = Panel(Corner(Chrome(Align(Text.from_ansi(art), align='center',
+                                      vertical='middle'), 'RENDER'), rate),
+                  title=' RENDER ', title_align='left', box=box.HEAVY,
+                  border_style='frame', padding=0)
+    body.split_row(Layout(drawn if bindings.UX['menu'] is None else start_menu(), name='view'),
+                   Layout(hud(view, len(solid[1]) // 3, cost) if bindings.UX['column'] else rail(), name='hud',
+                          size=24 if bindings.UX['column'] else RAIL))
 
     whole = Layout()
+    bar = footer(bar_of(PAD, time.monotonic())[0])
     whole.split_column(
         Layout(band_of('RENDER', 'ENGINE TESTBED'), size=1),
         Layout(body, name='body'),
-        # F, the mouse toggle, near the front.
-        Layout(footer((('F', 'MOUSE'), ('+ -', 'ZOOM'),
-                       ('UP DN', 'LIGHT'), ('LT RT', 'SPOT'),
-                       ('x/X y/Y z/Z', 'DEG'), ('SPACE', 'SPIN'),
-                       ('R', 'RESET'), ('M', 'MODEL'),
-                       ('Q', 'EXIT'))), size=1))
+        Layout(bar, size=bar.row_count))
     return whole
 
 
 AXES3 = ((1, 0, 0), (0, 1, 0), (0, 0, 1))
 
 
-def act_on(typed, view):
-    for key in typed:
-        # Zoom on keys as well as the wheel.
-        if key in '+=-_':
-            step = 1.0 + (WHEEL_STEP if key in '+=' else -WHEEL_STEP)
-            view['zoom'] = max(0.3, min(4.0, view['zoom'] * step))
-            continue
-        if key in ('up', 'down'):
-            step = -0.03 if key == 'up' else 0.03
-            shading.DUSK = min(0.60, max(-0.30, shading.DUSK + step))
-            continue
-        if key in ('left', 'right'):
-            step = 0.03 if key == 'right' else -0.03
-            shading.SPOT = min(0.80, max(0.0, shading.SPOT + step))
-            continue
-        if key in 'xyz':
-            turn(view, AXES3['xyz'.index(key)], STEP)
-            continue
-        if key in 'XYZ':
-            turn(view, AXES3['XYZ'.index(key)], -STEP)
-            continue
-        if key == ' ':
-            view['spin'] = not view['spin']
-        elif key in 'rR':
-            view['pose'] = (0.0, 0.0, 0.0, 1.0)
-        elif key in 'mM':
-            view['model'] = 'board' if view['model'] == 'cube' else 'cube'
+def _zoomed(view, key, _now):
+    """+ -: nearer, farther, a wheel's step."""
+    view['zoom'] = max(0.3, min(4.0, view['zoom'] * (1.0 + (WHEEL_STEP if key in '+=' else -WHEEL_STEP))))
+
+
+def _lit(_view, key, _now):
+    """UP DOWN: the light's dusk lower, higher."""
+    shading.DUSK = min(0.60, max(-0.30, shading.DUSK + (-0.03 if key == 'up' else 0.03)))
+
+
+def _spot(_view, key, _now):
+    """LEFT RIGHT: the spot less, more."""
+    shading.SPOT = min(0.80, max(0.0, shading.SPOT + (0.03 if key == 'right' else -0.03)))
+
+
+def _turned(view, key, _now):
+    """x y z: STEP deg about the axis, X Y Z back."""
+    turn(view, AXES3['xyz'.index(key.lower())], STEP if key.islower() else -STEP)
+
+
+#: The page's keys, rows of the terminal's one table (`terminal.ui.bindings`); F lends the mouse
+#: to the view, the console's own (`console.SELECT_KEYS`).
+PAD = bindings.page((
+    ('VIEW', 'F', "the mouse the view's, or the terminal's", (('F', 'MOUSE'),), {}),
+    ('VIEW', 'WHEEL / + -', 'nearer, farther', (('+ -', 'ZOOM'),), dict.fromkeys('+=-_', _zoomed)),
+    ('LIGHT', 'UP DOWN', "the light's dusk lower, higher", (('UP DN', 'LIGHT'),), dict.fromkeys(('up', 'down'), _lit)),
+    ('LIGHT', 'LEFT RIGHT', 'the spot less, more', (('LT RT', 'SPOT'),), dict.fromkeys(('left', 'right'), _spot)),
+    ('POSE', 'x/X y/Y z/Z', '%.0f deg about an axis, each way' % STEP, (('x/X y/Y z/Z', 'DEG'),), dict.fromkeys('xyzXYZ', _turned)),
+    ('POSE', 'SPACE', 'the idle tumble, or still', (('SPACE', 'SPIN'),), {' ': bindings.did(lambda v: v.update(spin=not v['spin']))}),
+    ('POSE', 'R', 'the pose square again', (('R', 'RESET'),),
+     bindings.cased('r', bindings.did(lambda v: v.update(pose=(0.0, 0.0, 0.0, 1.0))))),
+    ('POSE', 'M', 'the cube, or the board', (('M', 'MODEL'),),
+     bindings.cased('m', bindings.did(lambda v: v.update(model='board' if v['model'] == 'cube' else 'cube')))),
+))
 
 
 def main(argv=None):
@@ -197,7 +202,8 @@ def main(argv=None):
 
 
 def loop(args, page, view, frame, last):
-    with curtain(page) as live, Keys(page.is_terminal, mouse=True) as keys:
+    bindings.UX['menu'] = None
+    with curtain(page) as live, Keys(page.is_terminal, mouse=True, quits=frozenset(), menus=frozenset()) as keys:
         while True:
             now = time.monotonic()
             if view['spin']:
@@ -213,8 +219,9 @@ def loop(args, page, view, frame, last):
                 return 0
 
             leave, moved, typed = paced(keys, 0.06)
+            leave = leave or bindings.act_on(PAD, typed, view)[0]
             if leave:
-                return TO_MENU if leave == 'menu' else 0
+                return answer(leave)
             if moved:
                 view['zoom'] = max(0.3, min(4.0,
                                             view['zoom'] * (1.0 + moved)))
@@ -223,7 +230,6 @@ def loop(args, page, view, frame, last):
             if dx or dy:
                 view['spin'] = False
             carry(view, dx, dy)
-            act_on(typed, view)
 
 
 def carry(view, dx, dy):

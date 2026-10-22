@@ -1,34 +1,31 @@
-"""The HUMANOID page's keys: what each does to the view's state and asks of her body.
+"""The HUMANOID page's keys: its rows of the terminal's one table (`terminal.ui.bindings`), its modes.
 
-    KEYS = humanoid_keys.table(viewpoint.KEYS, CALLING, SHOWN)
-    humanoid_keys.act_on(KEYS, typed, state, wheel)
-    humanoid_keys.steered(state, now, heading)     # each frame: the keys held as her twist
+    run_view(.., pad=humanoid_keys.PAD, state=state)       # her page's keys, the terminal's after them
+    humanoid_keys.frame(state, now, heading)               # each frame: what is held, F's choice
 
-The view (`terminal.views.show_humanoid`) holds the state and draws it; a key's handler takes
-that state, moves it and sends her body (`machine.sprung`) what it asks: a twist for the keys that
-move her, a verb for the rest - what an agent sends. R's recordings and their rows (HEADER,
-`row`) are here with the key that writes them.
+Her modes come before her rows: the LLM prompt open takes every key - Enter says it, Esc closes
+it, Backspace takes a character back -; F's choice open takes a digit, F or a function key, a key
+that acts on her closing it first, the view's leaving it, Esc shutting it. W A S D Q E - Shift
+sprints - are held into her pad, its twist told her each frame (`steered`); Space and P charge
+while held; the rest act once a press. An act takes the view's state, moves it and sends her body
+(`machine.sprung`) what it asks - what an agent sends, its verbs `terminal.views.gym`'s. R's
+recordings and their rows (HEADER, `row`) are here with the key that writes them.
 """
 import json
-import time
+import math
 
-from machine import se2
+from machine import se2, sprung
 from machine.figure import JOINTS, SEGMENTS, frames, quat
 from machine.leap import hop_charge
-from terminal.ui import console, recorder
+from terminal.ui import bindings, console, recorder
 from terminal.views import gym, viewpoint
 
 #: P held charges a push from the view onto her: CHARGE_N_S a second held, CHARGE_MAX_N at most,
 #: landing once the key's repeats stop - RELEASE_S after the last, FIRST_S after a lone press (a
 #: terminal's first repeat comes 250-500 ms on) - along the view's line of sight.
 CHARGE_N_S, CHARGE_MAX_N, RELEASE_S, FIRST_S = 120.0, 250.0, 0.25, 0.8
-
-#: W S walk her ahead and back in her own frame (`se2.WALK_SPEED`, `se2.RUN_SPEED` on Shift,
-#: `-se2.BACK_SPEED`); A D sidestep at `se2.STRAFE_SPEED` with her facing kept - or arc left and
-#: right at `se2.YAW_RATE` with W or S -; Q E turn her left and right in place at `se2.YAW_RATE`
-#: (or on an arc with W or S). Each twist one the bench's plays hold (`tools/sim/scenarios.py`, KEYS).
-TURN_K, SPRINT_RAD, TWIST_STEP = 1.5, 0.2, 0.05
-MOVES = frozenset('wasdqeWASDQE')
+#: Space's repeats feed her hop's charge HOP_HOLD_S after it.
+HOP_HOLD_S = 0.55
 
 #: Where R's recordings go, a CSV from a press to the next: every state the page hears from her,
 #: 10-20 a second of her time (HEADER); beside each, the keys typed and held since the row before
@@ -40,9 +37,17 @@ HEADER = (['t', 'stage', 'yaw', 'speed', 'phase', 'left_load', 'right_load',
           + ['%s_%s' % (seg[0], axis) for seg in SEGMENTS for axis in 'xyz']
           + ['set_' + j for j in JOINTS] + ['watts', 'epoch', 'keys', 'commands'])
 
-#: What M steps her through: dressed, her shell, her mechanism (`coaxial.graphics.mechanism`),
-#: her drives alone - the stick figure.
-SKINS = ('dressed', 'shell', 'mechanism', 'actuators')
+#: What L, T and M step through: the joints called out (`show_humanoid.CALLED`), what each
+#: callout shows, her skin - dressed, her shell, her mechanism (`coaxial.graphics.mechanism`), her
+#: drives alone.
+CALLING, SHOWN, SKINS = ('strong', 'all', 'none'), ('torque', 'power', 'temp'), ('dressed', 'shell', 'mechanism', 'actuators')
+_CYCLES = {'l': ('called', CALLING), 't': ('shown', SHOWN), 'm': ('skin', SKINS)}
+#: The view's steps: an arrow's turn, deg, round her; a key's zoom.
+_LOOKS, _ZOOMS = {'left': -viewpoint.TURN_DEG, 'right': viewpoint.TURN_DEG}, {'+': 1.1, '=': 1.1, '-': 1 / 1.1, '_': 1 / 1.1}
+#: The scenes' keys, each the step through `floor.SCENARIOS` it takes - Enter the one she is in.
+_SCENES = {'[': -1, ']': 1, ',': 1, '<': 1, '\r': 0, '\n': 0}
+#: The function keys, F1 the first balloon's.
+FUNCTION_KEYS = tuple('f%d' % (k + 1) for k in range(len(gym.DIGITS)))
 
 
 def row(now, yaw, keys='', commands=()):
@@ -172,10 +177,10 @@ def twist(keys, look=0.0, heading=0.0):
 def _hop_held(state, now, held):
     """Space held during the leap's preload window (5 ms to 250 ms): sends progressive `charge` in [0, 1]."""
     hh = state.get('hop_hold')
-    if not hh or now - hh['began'] > 0.55:
+    if not hh or now - hh['began'] > HOP_HOLD_S:
         state['hop_hold'] = None
         return
-    if ' ' in (held or ()) or (hh.get('repeats', 0) > 0 and now - hh['last'] <= 0.12):
+    if ' ' in (held or ()) or (hh.get('repeats', 0) > 0 and now - hh['last'] <= bindings.REPEAT_S):
         ch = hop_charge(now - hh['began'])
         if ch > hh['sent'] + 0.02:
             hh['sent'] = ch
@@ -193,7 +198,7 @@ def steered(state, now, heading):
     held = state.setdefault('pad', pad())
     keys = polled((), held, now, raw_held)
     if any(keys[k] for k in 'wsadqe'):
-        gym._cancel_tour(state)
+        gym.cancel_tour(state)
     elif gym.touring(state):
         return
     tw = twist(keys, viewpoint.looks(state), heading)
@@ -203,16 +208,6 @@ def steered(state, now, heading):
     if tw != held['setpoint']:
         held['setpoint'] = tw
         state['body'].send(twist=tw)
-
-
-def _charged(state):
-    """P, each press and repeat: the push charging."""
-    now = time.monotonic()
-    charge = state.get('charge')
-    if not charge:
-        charge = state['charge'] = {'began': now, 'last': now, 'repeats': 0}
-    charge['last'] = now
-    charge['repeats'] += 1
 
 
 def charging(state, now):
@@ -233,40 +228,133 @@ def released(state, now):
     return n
 
 
-def _skinned(state):
-    """The next of SKINS."""
-    state['skin'] = SKINS[(SKINS.index(state['skin']) + 1) % len(SKINS)]
+def _chosen(state, k):
+    """F's `k`th offer said (`gym.chose`), its choice closed."""
+    state['choosing'] = None
+    gym.chose(state, k)
+
+
+def _interact(state, _key, now):
+    """F: with one offer, or F again while its choice is open, the first's at once; with more, the
+    choice open - a digit within `console.HOLD_WINDOW_S` says its offer (`_digit`), else the
+    first's once that passes (`frame`)."""
+    state['f_at'] = now
+    if state.get('choosing') is None and len(gym.offered(state)) > 1:
+        state['choosing'] = now
+        return
+    _chosen(state, 0)
+
+
+def _digit(state, key, now):
+    """A digit: within `console.HOLD_WINDOW_S` of F the offer it keys while F's choice is open -
+    nothing once F said its one -, else the gym's entry of its place."""
+    k = gym.DIGITS.index(key)
+    if now - state.get('f_at', -math.inf) > console.HOLD_WINDOW_S:
+        return gym.said(state, k)
+    state['f_at'] = -math.inf
+    if state.get('choosing') is not None:
+        _chosen(state, k)
+
+
+def _picked(state, key, _now):
+    """A function key: the balloon it keys, at once."""
+    _chosen(state, FUNCTION_KEYS.index(key))
+
+
+def _hopped(state, _key, now):
+    """A hop said (`gym.hopped`), its charge from now."""
+    if gym.hopped(state) == 'hop':
+        state['hop_hold'] = {'began': now, 'last': now, 'sent': 0.0}
+
+
+_HOPPED = bindings.once(_hopped)
+
+
+def _hop(state, key, now):
+    """Space: a hop once a press, its repeats while she loads it charging it (`_hop_held`)."""
+    hh = state.get('hop_hold')
+    if hh and now - hh['began'] <= HOP_HOLD_S and (state.get('now') or {}).get('doing') in ('load', 'push', 'hop'):
+        hh['last'], hh['repeats'] = now, hh.get('repeats', 0) + 1
+        return _hop_held(state, now, (' ',))
+    return _HOPPED(state, key, now)
+
+
+def _charged(state, _key, now):
+    """P, each press and repeat: the push charging."""
+    charge = state.get('charge')
+    if not charge:
+        charge = state['charge'] = {'began': now, 'last': now, 'repeats': 0}
+    charge['last'] = now
+    charge['repeats'] += 1
+
+
+def _prompted(state, _key, _now):
+    """/ or : the LLM prompt open (`gym.open_prompt`), what was held or chosen let go."""
+    gym.open_prompt(state)
+    state['hop_hold'] = state['charge'] = state['choosing'] = None
 
 
 def _restarted(state):
     """Backspace: her laid anew on the floor, the tour and the keys' twist ended."""
-    gym._cancel_tour(state)
+    gym.cancel_tour(state)
     state['pad'] = pad()
     state['body'].send(restart=True)
 
 
-def table(view, calling, shown):
-    """{key: what it does to the state}: `view`'s keys and the page's own; L and T step through
-    `calling` and `shown`."""
-    return dict(
-        list(view.items())
-        + [(k, _restarted) for k in ('\x08', '\x7f')]
-        + [(k, lambda state: state.update(orbit=not state['orbit'])) for k in 'oO']
-        + [(k, lambda state: state.update(called=calling[(calling.index(state['called']) + 1)
-                                                         % len(calling)])) for k in 'lL']
-        + [(k, _recorded) for k in 'rR']
-        + [(k, lambda state: state.update(shown=shown[(shown.index(state['shown']) + 1)
-                                                      % len(shown)])) for k in 'tT']
-        + [(k, _skinned) for k in 'mM'] + [('p', _charged)]
-        + [('z', lambda state: state.update(horizon=_shown(state, 1))),
-           ('Z', lambda state: state.update(horizon=_shown(state, -1)))])
+def _cycled(state, key, _now):
+    """L, T, M: the next of what the key steps through (_CYCLES)."""
+    name, ring = _CYCLES[key.lower()]
+    state[name] = ring[(ring.index(state[name]) + 1) % len(ring)]
 
 
-def _shown(state, by):
-    """The horizon's next mode (`horizon.MODES`): z on through them, Z back."""
+def _horizon(state, key, _now):
+    """Z on through her horizon's modes (`horizon.MODES`), Shift+Z back."""
     from coaxial.graphics.horizon import MODES
-    return MODES[(MODES.index(state.get('horizon') or 'off') + by) % len(MODES)]
+    state['horizon'] = MODES[(MODES.index(state.get('horizon') or 'off') + (1 if key == 'z' else -1)) % len(MODES)]
 
+
+_did, _cased, _HELD = bindings.did, bindings.cased, bindings.HELD
+#: Her page's keys, a row a line of TAB's help (`bindings.page`), the terminal's after them.
+_ROWS = (
+    ('HER', 'W A S D', 'walk ahead, sidestep left, walk back, sidestep right', (('WASD', 'MOVE'),),
+     dict.fromkeys('wasdWASD', _HELD)),
+    ('HER', 'SHIFT', 'sprint', (('SHIFT', 'SPRINT'),), {}),
+    ('HER', 'Q E', 'turn left, right in place (or on an arc with W/S)', (('Q E', 'TURN'),), dict.fromkeys('qeQE', _HELD)),
+    ('HER', 'SPACE', 'hop - onto a chair ahead, down from one', (('SPC', 'HOP'),), {' ': _hop}),
+    ('HER', 'F / F 1-0', "a balloon's verb: the one she faces / the one so keyed (or F1-F10)",
+     (('F', 'INTERACT'),), {**_cased('f', _interact), **dict.fromkeys(FUNCTION_KEYS, _picked)}),
+    ('HER', 'C', 'crouch, and up', (('C', 'CROUCH'),), _cased('c', _did(gym.crouched))),
+    ('HER', '1-0 / >', "the gym's entries, but after F / its other text", (),
+     {**dict.fromkeys(gym.DIGITS, _digit), '>': _did(gym.next_text)}),
+    ('VIEW', 'L-DRAG / ← →', 'look round her; behind her again as she goes', (),
+     {k: lambda state, key, _now: viewpoint.turned(state, _LOOKS[key] / viewpoint.DRAG_DEG[0], 0.0) for k in _LOOKS}),
+    ('VIEW', 'X', 'the other shoulder', (('X', 'SHOULDER'),), _cased('x', _did(viewpoint.shouldered))),
+    ('VIEW', 'Z', "her horizon: each sole's landing room, her capture point", (), _cased('z', _horizon)),
+    ('VIEW', 'R-DRAG / WHEEL + -', 'pan / zoom', (),
+     {k: lambda state, key, _now: viewpoint.zoomed(state, _ZOOMS[key]) for k in _ZOOMS}),
+    ('VIEW', 'V / O', 'behind her / orbit', (), {**_cased('v', _did(lambda state: state.update(viewpoint.HOME))),
+                                                 **_cased('o', _did(lambda state: state.update(orbit=not state['orbit'])))}),
+    ('VIEW', 'M', 'dressed, shell, mechanism, drives', (), _cased('m', _cycled)),
+    ('VIEW', 'L / T', 'callouts / torque, power, temp', (), {**_cased('l', _cycled), **_cased('t', _cycled)}),
+    ('LAB', '[ / ] , < / ENTER', 'scene before / after / again', (('[ ]', 'SCENE'),),
+     {k: lambda state, key, _now: gym.step_scenario(state, _SCENES[key]) for k in _SCENES}),
+    ('LAB', 'P held', 'charge a push along the view', (), {'p': _charged}),
+    ('LAB', 'SHIFT+P / SHIFT+N', '%.0f N / %.0f N along the view' % tuple(gym.SHOVES_N.values()), (),
+     {k: lambda state, key, _now: gym.shoved(state, gym.SHOVES_N[key]) for k in gym.SHOVES_N}),
+    ('LAB', 'H / /', 'the tour of the scenes / ask LLM prompt', (('H', 'TOUR'), ('/', 'CHAT')),
+     {**_cased('h', _did(gym.toggle_tour)), '/': _prompted, ':': _prompted}),
+    ('LAB', 'BACKSPACE', 'laid anew', (), dict.fromkeys('\x08\x7f', _did(_restarted))),
+    ('LAB', 'R', 'record / save', (), _cased('r', _did(_recorded))),
+)
+#: Keys whose repeats are their own - P's charge it, Space's its hop's -; every other key's act
+#: once a press (`bindings.once`).
+REPEATING = frozenset('p ')
+ROWS = tuple((group, label, what, bar, {key: act if act is _HELD or key in REPEATING else bindings.once(act)
+                                        for key, act in binds.items()})
+             for group, label, what, bar, binds in _ROWS)
+#: The keys F's choice takes; the view's leave it open, the rest shut it before they act.
+CHOOSING = frozenset(gym.DIGITS) | frozenset('fF') | frozenset(FUNCTION_KEYS)
+VIEWING = frozenset(key for group, *_mid, binds in ROWS if group == 'VIEW' for key in binds)
 
 _PROMPT_ACTIONS = {
     '\r': gym.submit_prompt,
@@ -278,45 +366,58 @@ _PROMPT_ACTIONS = {
 
 
 def _prompt_key(state, key):
-    lp = state.get('llm_prompt')
-    if not (lp and lp.get('open')):
-        return False
+    """`key` into the open LLM prompt: its own (_PROMPT_ACTIONS), else a character of its text."""
     act = _PROMPT_ACTIONS.get(key)
     if act is not None:
         act(state)
     elif isinstance(key, str) and len(key) == 1 and key.isprintable():
-        lp['text'] += key
-    return True
+        state['llm_prompt']['text'] += key
 
 
-def act_on(keys, typed, state, wheel=0.0):
-    """`typed` and the wheel on the view's `state`, by `keys` (`table`): the keys that move her
-    into her pad (`steered` sends them), the rest each its handler, a key repeated within 0.12 s
-    once - P's and Space's repeats charge them."""
-    if (state.get('llm_prompt') or {}).get('open') or any(k in ('/', ':') for k in typed):
-        for key in typed:
-            if not _prompt_key(state, key) and key in ('/', ':'):
-                keys[key](state)
-        return
-    if wheel:
-        viewpoint.zoomed(state, max(0.5, 1.0 + wheel))
-    state.setdefault('typed', []).extend(typed)
-    state.setdefault('keyed', []).extend(k for k in typed if isinstance(k, str))
-    now = time.monotonic()
-    moves = [k for k in typed if k in MOVES]
-    if moves:
-        gym._cancel_tour(state)
-        polled(moves, state.setdefault('pad', pad()), now, console.held())
-    for key in typed:
-        if key in MOVES or key not in keys:
-            continue
-        hh = state.get('hop_hold')
-        if key == ' ' and hh and now - hh['began'] <= 0.55 and (state.get('now') or {}).get('doing') in ('load', 'push', 'hop'):
-            hh['last'], hh['repeats'] = now, hh.get('repeats', 0) + 1
-            _hop_held(state, now, (' ',))
-            continue
-        last, at = state.get('_last_action_key', (None, 0.0))
-        if key == last and key != 'p' and now - at < 0.12:
-            continue
-        state['_last_action_key'] = (key, now)
-        keys[key](state)
+def _take(state, key, _now):
+    """Her page's modes, before its rows: the LLM prompt open takes every key (`_prompt_key`); F's
+    choice open takes Esc - shut -, leaves its own keys and the view's to their rows, and is shut by
+    any other before it acts; a key past the prompt kept for R's recording (`rows_of`)."""
+    if (state.get('llm_prompt') or {}).get('open'):
+        return _prompt_key(state, key)
+    state.setdefault('keyed', []).append(key)
+    if state.get('choosing') is not None and key == '\x1b':
+        state['choosing'] = None
+        return None
+    if key not in CHOOSING | VIEWING:
+        state['choosing'] = None
+    return bindings.PASS
+
+
+def _held(state, keys, now):
+    """`keys` that move her, typed together, into her pad; the tour ended."""
+    gym.cancel_tour(state)
+    polled(keys, state.setdefault('pad', pad()), now, console.held())
+
+
+#: Her page's keys for `run_view`: its rows, the terminal's after them, its modes and its pad.
+PAD = bindings.page(ROWS, take=_take, held=_held)
+
+
+def clicked(state):
+    """A left click on the viewport: F's first offer said, its choice closed."""
+    _chosen(state, 0)
+
+
+def lapsed(state, now):
+    """F's choice open past `console.HOLD_WINDOW_S`: the first offer said, its choice closed."""
+    opened = state.get('choosing')
+    if opened is not None and now - opened > console.HOLD_WINDOW_S:
+        _chosen(state, 0)
+
+
+def frame(state, now, heading):
+    """Each frame: F's choice lapsed (`lapsed`); the keys held - the console's, else those typed
+    within `console.HOLD_WINDOW_S` - her twist and Space's charge (`steered`); P let go shoves her
+    along the view. `now` the wall clock."""
+    lapsed(state, now)
+    steered(state, now, heading)
+    pushed = released(state, now)
+    if pushed and state.get('now') is not None:
+        state['body'].send(push=tuple(pushed * a for a in viewpoint.along(state)), seconds=sprung.SHOVE_S)
+        state['landed'] = (now, pushed)

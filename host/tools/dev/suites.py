@@ -98,7 +98,7 @@ VIEWS = ('test_views_terminal.py', 'test_views_front.py', 'test_views_rotor.py',
          'test_views_demo.py', 'test_views_segments.py',
          'test_views_quad.py', 'test_views_quad_flight.py', 'test_views_flying.py', 'test_helicopter.py',
          'test_aerobat.py',
-         'test_views_humanoid.py', 'test_views_floor.py', 'test_views_inset.py')
+         'test_views_humanoid.py', 'test_views_floor.py', 'test_views_inset.py', 'test_views_keys.py')
 
 #: The composed controller and its parts, against a toy rotor and the stand-in.
 CONTROLLER = 'test_controller.py'

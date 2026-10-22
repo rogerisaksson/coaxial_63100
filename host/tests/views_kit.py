@@ -82,3 +82,14 @@ def ansi_plain(text):
     """`text` without its colour escapes."""
     import re
     return re.sub(r'\x1b\[[0-9;]*m', '', text)
+
+
+def typed(pad, keys, state, now=None):
+    """`keys` typed on a page one a frame (`bindings.act_on`), each two `bindings.REPEAT_S` after
+    the one before - a press, not its repeat, within `console.HOLD_WINDOW_S` of it -, from `now`,
+    else on from the page's last press: where the page leaves, the first of them, or None."""
+    from terminal.ui import bindings
+    step = 2 * bindings.REPEAT_S
+    start = state.get('_last_action_key', (None, 0.0))[1] + step if now is None else now
+    acted = [bindings.act_on(pad, [key], state, start + k * step)[0] for k, key in enumerate(keys)]
+    return next((leaving for leaving in acted if leaving is not None), None)

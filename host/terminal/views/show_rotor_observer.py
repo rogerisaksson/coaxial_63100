@@ -41,8 +41,6 @@ import time
 import types
 from contextlib import suppress
 
-from rich.text import Text
-
 from coaxial.comm.hostclock import clock_of
 from coaxial.comm.session import standing
 from coaxial.control.commission import Commissioning
@@ -50,12 +48,12 @@ from coaxial.draw import cross_section
 from coaxial.draw.gauges import TEMP_FLOOR_C, TEMP_SCALE_C, temp_share
 from coaxial.errors import RigError
 from coaxial.model import thermal as _thermal
-from terminal.loader import TO_MENU
-from terminal.ui import aspect as _aspect, console as _console, screen as _screen
+from terminal.loader import answer
+from terminal.ui import aspect as _aspect, bindings, screen as _screen
 from terminal.ui.screen import PORT, FEED_HZ, FPS_CAP, Feed, closing, mode_of, open_rig, run_view, say
 from terminal.ui.stage import frame_of, hud, stage
 from terminal.ui.stage import mode_of as port_mode
-from terminal.views.rotor.keys import LIMITS, MODES, RATING_A, act
+from terminal.views.rotor.keys import LIMITS, MODES, PAD, RATING_A
 from tools.emu import world as worlds
 from terminal.views.rotor.layout import (BOARD_NODES, BOX, CAPTION_ROWS,
                                          HEADROOM_GAP, LEFT_COLUMNS, NTC_GAP, RIGHT_COLUMNS,
@@ -194,31 +192,7 @@ def compose(rig, origin, console, view):
     # Paged by `frame_of`, which is every view's; this only says what the boxes
     # are.
     boxes = [hud(*panel) for panel in panels]
-    # Fixed-width labels.
-    keys = [('S', '%-5s' % ('STOP' if s['mode'] != 'off' else 'START')),
-            ('M', '%-10s' % (s['mode'].upper() if s['mode'] != 'off'
-                             else view['mode'].upper())),
-            ('V', view['source'].upper()), ('I', 'INJ'),
-            ('+ -', 'IQ'), ('[ ]', 'STEP'), ('O L', 'I/F'), ('R', 'RESET'),
-            ('T', 'TARE'),
-            # The word stays and the colour changes: a chip that appeared and
-            # vanished moved every key after it.
-            ('B', Text('START', style='alarm')
-             if view['clock'].now() < view['burst_until'] else 'START'),
-            ('E', Text('SPEED', style='chip.live') if view['spin']
-             else 'SPEED'),
-            ('W', Text('LOAD', style='chip.live') if view['load']
-             else 'LOAD'),
-            # Who has the mouse.
-            ('F', Text('MOUSE', style='chip.live') if _console.holding()
-             else 'MOUSE')]
-    if view['switch']:
-        keys.append(('A', Text('ARMED', style='chip.live')
-                     if s['stage_enabled'] else 'ARM  '))
-    keys += [('Q', 'EXIT'), ('ESC', 'MENU')]
-    if view.get('said'):
-        keys.append(('', view['said']))
-    return frame_of(console, origin, 'ROTOR OBSERVER', art, boxes, keys)
+    return frame_of(console, origin, 'ROTOR OBSERVER', art, boxes, bindings.shown(PAD, view, view.get('said')))
 
 
 def aspect_of(args):
@@ -483,10 +457,10 @@ def main(argv=None):
             'params': params, 'said': '', 'state': board.drive.state(),
             'chain': board.drive.observers.read(),
             'gate': board.gate_drivers.state(), 'model': None,
-            'thermal': None, 'budget': None, 'ident': None}
-    # The emulated MCU's drive starts off, the stand-in's running: a demo starts it.
+            'thermal': None, 'budget': None, 'ident': None, 'rig': rig}
+    # The emulated MCU's drive starts off, the stand-in's running: a demo starts it - its S.
     if args.start or (view['demo'] and origin.real):
-        view['said'] = act(rig, 's', view)
+        PAD['keys']['s'](view, 's', 0.0)
 
     board_view = _console_for(args)
     console = board_view.is_terminal
@@ -537,13 +511,9 @@ def main(argv=None):
         fit(view['aspect'], _sized(args, board_view))
         return compose(rig, origin, board_view, view)
 
-    def on_input(typed, _moved):
-        for key in typed:
-            view['said'] = act(rig, key, view) or view['said']
-
     try:
         leaving = run_view(board_view, console, 1.0 / max(args.hz, 0.5),
-                           args.frames, draw, on_input, mouse=True)
+                           args.frames, draw, mouse=True, pad=PAD, state=view)
     finally:
         feed.stop()
         done = []
@@ -565,7 +535,7 @@ def main(argv=None):
         rig.close()
         sys.stdout.write('\n')
         closing(done, console, 0)
-    return TO_MENU if leaving == 'menu' else 0
+    return answer(leaving)
 
 
 if __name__ == '__main__':

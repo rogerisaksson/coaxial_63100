@@ -329,6 +329,16 @@ Pages, tooling, suites and the local model's runner. The board's findings:
   uneven either way: back on VS Code's own. DTC's Eurostile Extended reaches
   Chromium as Times New Roman: a cmap subtable truncated.
 
+- The terminal's keys from one table (`terminal/ui/bindings.py`): HUMANOID's
+  bound in five places, each page its own way; where they met, the arrows
+  lifted her view and paged the column, Esc in her prompt left the page, F's
+  choice outlived the keys after it, the rotor's keys took lower case alone,
+  SESSION's + - were unbound. At 150 x 44 the 13 pages open with the column
+  a rail - its arrow breathing with the screen's sweep, a key's ink to (48,
+  175, 175) and back over 5 s - and the start menu the band's ≡, the front
+  page's panels up (no Tab); HUMANOID's pairs ran 194 cells, the terminal's
+  at the bar's right end now, the page's cut before them.
+
 ## Local model
 
 - Model weights (7.6 GB) reloaded per suite were most of a run: loaded once,

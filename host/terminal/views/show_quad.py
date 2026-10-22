@@ -35,13 +35,16 @@ from rich.text import Text
 from coaxial.draw.gauges import policy_word
 from coaxial.graphics import engine, inset, onboard, quadcopter
 from machine import airfield, flightpack, gimbal, grounds, pull, quad
-from terminal.loader import TO_MENU
+from terminal.loader import answer
 from terminal.ui import recorder
 from terminal.ui.console import WHEEL_STEP
+from terminal.views.quad import keys as craft_keys
+from terminal.views.quad.keys import ZOOM_STEP
 from terminal.ui.ahead import Ahead
 from terminal.ui.screen import FPS_CAP, closing, drawn_next, run_view, say
 from terminal.ui.scroll import HUD_WIDTH
 from terminal.ui.stage import boot, frame_of, hud, stage
+from terminal.ui.taskbar import column
 from terminal.views.playback import Playback
 from terminal.views.quad import flight as flown
 from terminal.views.quad import flying, traces, wind
@@ -66,7 +69,7 @@ TRAIL_S, TRAIL_SHARE = 0.12, 0.4
 CHASE_M, CHASE_K, CHASE_S = 4.0, 2.0, 0.3
 
 #: A press of + or -, the reach framed over or times it, and the zoom's bounds.
-ZOOM_STEP, ZOOM = 1.15, (0.25, 4.0)
+ZOOM = (0.25, 4.0)
 
 
 def thrusts(frame, rotors):
@@ -140,8 +143,7 @@ def compose_craft(console, origin, rotors, frame, flight, trace, now, art, yaw, 
                      hud('ROTORS  rpm, current, SOA, TH OBS', lines),
                      hud(power_hdr % traces.TRACE_S, traces.heights(trace, now, HUD_WIDTH - 4)),
                      hud('BUS V, PEAK TEMP C', traces.buses(trace, now, HUD_WIDTH - 4))],
-                    (('+ -', 'ZOOM'), ('W', 'WIND'), ('T', 'THRUST'), ('S', 'LAYER'), ('L', 'LINE'),
-                     ('C', 'CAMERA'), ('R', 'RECORD'), ('A', 'RESET'), ('Q', 'EXIT'), ('ESC', 'MENU')))
+                    craft_keys.PAD)
 
 
 def compose(console, origin, rotors, frame, flight, trace, now, art, yaw=0.0):
@@ -176,14 +178,6 @@ def recorded(held, name, rotors):
     held['recorded'] = recorder.saved(rec)
 
 
-def typed(held, keys, keyed):
-    """`keyed` on the page's `keys`, each kept for the recording's next row."""
-    held['keyed'] = held.get('keyed', '') + ''.join(k for k in keyed if isinstance(k, str))
-    for k in keyed:
-        if k in keys:
-            keys[k]()
-
-
 def carried(frame, aim, gate, line_, width, height, field=grounds):
     """The carried camera's picture for `quadcopter.render`'s `inset`: the world on `field` from
     its lens on the `frame`, its sight `aim` (`gimbal.step`), the course's gates where `gate` is
@@ -198,22 +192,6 @@ def wheeled(zoomed, moved):
     """The wheel's `moved` (WHEEL_STEP a notch) on the view's `zoomed`: a notch a ZOOM_STEP."""
     if moved:
         zoomed(ZOOM_STEP ** (moved / WHEEL_STEP))
-
-
-def hands(held, zoomed, record=None, send=None):
-    """{key: what it does}: the page's keys on its `held` state, `zoomed` the view's zoom times
-    its argument, `record` R's, `send` the flight's commands (`flying.Flight.apply`)."""
-    sent = send or (lambda **command: None)
-    return dict([(k, lambda: zoomed(ZOOM_STEP)) for k in '+=']
-                + [(k, lambda: zoomed(1.0 / ZOOM_STEP)) for k in '-_']
-                + [(k, lambda: sent(reset=True)) for k in 'aA']
-                + [(k, record or (lambda: None)) for k in 'rR']
-                + [(k, lambda: sent(wind=True)) for k in 'wW']
-                + [(k, lambda: held.update(arrows=not held['arrows'])) for k in 'tT']
-                + [(k, lambda: held.update(line=not held['line'])) for k in 'lL']
-                + [(k, lambda: held.update(carried=not held['carried'])) for k in 'cC']
-                + [(k, lambda: held.update(see=(held['see'] + 1) % len(quadcopter.LAYERS)))
-                   for k in 'sS'])
 
 
 @functools.lru_cache(maxsize=None)
@@ -282,7 +260,7 @@ def look(camera, law, row, frame, chased, dt, near_m=NEAR_M, chase_m=CHASE_M, ba
 def size_of(console):
     """Cells for the drawing: what the viewport leaves beside the side column."""
     size = console.size if console.is_terminal else None
-    return (max(24, (size.width if size else 110) - HUD_WIDTH - 6),
+    return (max(24, (size.width if size else 110) - column() - 6),
             max(12, (size.height if size else 44) - 6))
 
 
@@ -326,8 +304,8 @@ def run_craft_view(argv, doc, craft, gfx, flown_mod, compose_fn, thrusts_fn, loo
 
     def zoomed(k):
         camera['zoom'] = max(ZOOM[0], min(ZOOM[1], camera['zoom'] * k))
-    keys = hands(held, zoomed, lambda: recorded(held, craft.__name__.rpartition('.')[2], labels),
-                 apart.send)
+    held.update(zoomed=zoomed, record=lambda: recorded(held, craft.__name__.rpartition('.')[2], labels),
+                send=apart.send)
 
     def took(states):
         """The states the flight said since the last frame: the trace's rows and a recording's."""
@@ -383,7 +361,7 @@ def run_craft_view(argv, doc, craft, gfx, flown_mod, compose_fn, thrusts_fn, loo
 
     try:
         leaving = run_view(board_view, terminal, 1.0 / max(args.hz, 0.5), args.frames, draw,
-                           on_input=lambda keyed, moved: (typed(held, keys, keyed), wheeled(zoomed, moved)),
+                           on_input=lambda _keys, moved: wheeled(zoomed, moved), pad=craft_keys.PAD, state=held,
                            mouse=True, select=frozenset(), scroll_keys=False)
     except RuntimeError as exc:
         say('fail', 'flight', str(exc))
@@ -394,7 +372,7 @@ def run_craft_view(argv, doc, craft, gfx, flown_mod, compose_fn, thrusts_fn, loo
         closing([('rotors', close_note or ('%s drives off, gates off, %s %s closed'
                                            % (word, word, 'Renode boards' if emu else 'stand-ins')))],
                 terminal, 0)
-    return TO_MENU if leaving == 'menu' else 0
+    return answer(leaving)
 
 
 def main(argv=None):

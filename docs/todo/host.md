@@ -82,12 +82,3 @@
   with the front end on - a change to the STO chain, HARDWARE.md's, to be
   measured on the probe first. DOD: the page at real time on Renode, Clevel
   on the probe as before.
-- **The terminal's one UX** (asked): each page binds its keys its own way -
-  if-chains, lambda tables, a loop of its own (chat, menu) -, HUMANOID's in
-  five files with odd effects where they meet (the arrows lift her view and
-  page the column, Esc in her prompt leaves the page, F's choice outlives
-  the keys after it); the start menu only as the page's end; the column on
-  the right always up. DOD: every page's keys rows of one table, its bar and
-  help read off it, one dispatch with each page's modes; Esc the start menu
-  over any page - a page picked opens, Esc again stays -, Tab the column
-  hidden or shown, ? the page's keys; the views' suites holding them.

@@ -114,7 +114,7 @@ def test_helicopter_boards_and_view(report):
                                   ornithopter as orni_gfx, quadcopter as quad_gfx)
     from machine import aerobat, aerobatics, aerokin, helicopter, ornithopter
     from machine.modes import SIMULATED
-    from terminal.ui import stage
+    from terminal.ui import bindings, stage
     from terminal.views import (show_aerobat as aview, show_helicopter as view,
                                 show_ornithopter as oview, show_quad as quad_view)
     from terminal.views.aerobat import flight as aflown
@@ -157,7 +157,7 @@ def test_helicopter_boards_and_view(report):
         a_s, a_f = ('\n'.join(aero_gfx.render(aframe, r, 60, 24, thrusts=aview.thrusts(aframe, rotors))) for r in (sr, fr))
         q_art = '\n'.join(quad_gfx.render(frame, [(0.3 * k, 420.0, 65.0, 58.0, 85.0) for k in range(4)], 60, 24))
 
-        con = Console(width=150, height=44, theme=stage.THEME, force_terminal=True)
+        con, bindings.UX['column'] = Console(width=150, height=44, theme=stage.THEME, force_terminal=True), True
         orig, tr = rotors[0]['rig'].origin, [(clock, frame['h'], 62.0, 240.0, 48.0)]
         hi_f = dict(frame, h=45.2, v=-22.4, a=-11.2 * 9.80665)
         outs = []
@@ -176,7 +176,7 @@ def test_helicopter_boards_and_view(report):
                      and g.force_arrows(up_p, [-60.0, 0.0], g.ARROWS, m, cam, up_p['at'])[1][0][45:].any()
                      and g.force_arrows(inv_p, [-60.0, 0.0], g.ARROWS, m, cam, inv_p['at'])[1][0][:45].any()
                      for g in (heli_gfx, orni_gfx, aero_gfx))
-        report.check('all four aircraft renderers and HUDs fit all 5 boxes at 150x44 without truncation',
+        report.check('four renderers, the HUDs out, fit 5 boxes at 150x44 uncut',
                      len(h_s.splitlines()) == 24 == len(o_f.splitlines()) == len(a_f.splitlines())
                      and h_s != h_f and o_s != o_f and a_s != a_f and arr_ok
                      and heli_gfx.BLADES_RAD_S == orni_gfx.BLADES_RAD_S == aero_gfx.BLADES_RAD_S == 20.0

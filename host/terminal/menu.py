@@ -30,13 +30,14 @@ from rich.text import Text
 from terminal import loader
 from terminal import readout
 from terminal import stand
-from terminal.ui import screen as _screen
+from terminal.ui import bindings, screen as _screen
 from terminal.ui.console import Keys
 from terminal.ui.marquee import Marquee
 from terminal.ui.rate import Corner, rate_of
 from terminal.ui.screen import PORT, ENTER_KEYS, paced
 from terminal.ui.chrome import KANA, Chrome
-from terminal.ui.stage import band_of, curtain, footer, live, mode_of, modes, stage
+from terminal.ui.stage import band_of, curtain, live, mode_of, modes, stage
+from terminal.ui.taskbar import bar_of, footer, help_panel
 
 _screen.CHATTER = False     # the boot bar replaced the scroll
 
@@ -248,55 +249,64 @@ def compose(port, picked, view, size=None, who=None, rate=''):
                name='list'),
         Layout(column, name='board', size=wide))
 
+    keys, help = bar_of(bindings.shown(FRONT, {'who': who}), time.monotonic())
+    panel, rows = help_panel(*help, width=size.width if size else 150) if help else (None, 0)
+    bar = footer(keys)
+    chromed = Group(panel, bar) if panel is not None else bar
     whole = Layout()
     whole.split_column(
         Layout(masthead(port), size=1),
         Layout(body, name='body'),
-        Layout(footer((('UP DOWN', 'NAVIGATE'), ('ENTER', 'SELECT'),
-                       (' '.join(o[0] for o in SUB[who[0]][1]), 'DIRECT'),
-                       ('ESC', 'BACK'), ('Q', 'EXIT'))
-                      if who is not None else
-                      (('UP DOWN', 'NAVIGATE'), ('ENTER', 'SELECT'),
-                       ('S B A M G T C', 'DIRECT'), ('F', 'MOUSE'),
-                       ('Q', 'EXIT'))),
-               size=1))
+        Layout(chromed, size=bar.row_count + rows))
     return whole
 
 
-def _act(typed, picked, hotkeys):
-    """(new pick, chosen exit code or None) for one frame of keys."""
-    for key in typed:
-        if key == 'up':
-            picked = (picked - 1) % len(ENTRIES)
-        elif key == 'down':
-            picked = (picked + 1) % len(ENTRIES)
-        elif key in ENTER_KEYS:
-            return picked, 101 + picked
-        elif key.isdigit() and 1 <= int(key) <= len(ENTRIES):
-            return picked, 101 + int(key) - 1
-        elif key.lower() in hotkeys:
-            return picked, 101 + hotkeys[key.lower()]
-    return picked, None
+#: The cursor's steps.
+_STEPS = {'up': -1, 'down': 1}
 
 
-def _sub_act(typed, sub):
-    """(new (entry, pick), chosen exit code or None) for a second
-    question's list."""
-    entry, who = sub
+def _chosen(nav, at):
+    """The page at `at` chosen: its code, or its second question opened (`nav['who']`)."""
+    nav['picked'], nav['who'] = at, _second_question(loader.FIRST + at)
+    return None if nav['who'] else loader.FIRST + at
+
+
+def _second(nav, key, _now):
+    """A second question open (`nav['who']`), the front page's mode: the cursor, ENTER or an item's
+    letter its answer, ESC out of it; the rest to their rows."""
+    if nav['who'] is None:
+        return bindings.PASS
+    entry, at = nav['who']
     options = SUB[entry][1]
-    by_key = {option[0].lower(): (i, option[3])
-              for i, option in enumerate(options)}
-    for key in typed:
-        if key == 'up':
-            who = (who - 1) % len(options)
-        elif key == 'down':
-            who = (who + 1) % len(options)
-        elif key in ENTER_KEYS:
-            return (entry, who), options[who][3]
-        elif key.lower() in by_key:
-            picked, code = by_key[key.lower()]
-            return (entry, picked), code
-    return (entry, who), None
+    by_key = {option[0].lower(): k for k, option in enumerate(options)}
+    if key in _STEPS:
+        nav['who'] = (entry, (at + _STEPS[key]) % len(options))
+        return None
+    if key == '\x1b':
+        nav['who'] = None
+        return None
+    pick = at if key in ENTER_KEYS else by_key.get(str(key).lower())
+    return bindings.PASS if pick is None else options[pick][3]
+
+
+#: The front page's keys, rows of the terminal's one table (`terminal.ui.bindings`), on its `nav`
+#: ({'picked', 'who'}): a page by the cursor, its letter or its place; ESC out of a second question,
+#: none over this page, the start menu it is; F lends the mouse to the turntable.
+ROWS = (
+    ('PAGES', 'UP DOWN', 'the cursor up, down', (('UP DOWN', 'NAVIGATE'),),
+     dict.fromkeys(_STEPS, lambda nav, key, _now: nav.update(picked=(nav['picked'] + _STEPS[key]) % len(ENTRIES)))),
+    ('PAGES', 'ENTER', 'the page under the cursor', (('ENTER', 'SELECT'),),
+     dict.fromkeys(ENTER_KEYS, lambda nav, _key, _now: _chosen(nav, nav['picked']))),
+    ('PAGES', 'A LETTER / 1-%d' % len(ENTRIES), 'a page by its letter or its place',
+     ((lambda nav: ' '.join(o[0] for o in (SUB[nav['who'][0]][1] if nav['who'] else ENTRIES)), 'DIRECT'),),
+     {**{key: lambda nav, key, _now: _chosen(nav, int(key) - 1) for key in '123456789'[:len(ENTRIES)]},
+      **{letter: lambda nav, key, _now: _chosen(nav, [e[0].lower() for e in ENTRIES].index(key.lower()))
+         for entry in ENTRIES for letter in (entry[0].lower(), entry[0].upper())}}),
+    ('PAGES', 'ESC', 'out of a second question', (('ESC', lambda nav: 'BACK' if nav['who'] else None),),
+     {'\x1b': lambda nav, _key, _now: nav.update(who=None)}),
+    ('PAGES', 'F', "the mouse the turntable's, or the terminal's", (('F', lambda nav: None if nav['who'] else 'MOUSE'),), {}),
+)
+FRONT = bindings.page(ROWS, take=_second, column=False)
 
 
 def _typed_choice(line):
@@ -340,10 +350,9 @@ def main(argv=None, preload=None):
 
     page = stage()
     console = page.is_terminal
-    picked, frame, began = 0, 0, time.monotonic()
+    frame, began = 0, time.monotonic()
     who = OPEN.get(args.open)
-    if who is not None:
-        picked = who[0]
+    nav = {'picked': who[0] if who is not None else 0, 'who': who}
     view = stand.fresh(began)
     last = began
 
@@ -384,16 +393,14 @@ def main(argv=None, preload=None):
             while (_BROKER['identity'] is None and _BROKER['said'] is None
                    and time.monotonic() < until):
                 time.sleep(0.05)
-    hotkeys = {key.lower(): i for i, (key, _n, _w) in enumerate(ENTRIES)}
-
     try:
-        with curtain(page) as live, Keys(console, mouse=True) as keys:
+        with curtain(page) as live, Keys(console, mouse=True, quits=frozenset(), menus=frozenset()) as keys:
             while True:
                 frame += 1
                 now = time.monotonic()
                 stand.idle(view, now, now - last)
                 last = now
-                live.update(compose(args.port, picked, view, page.size, who,
+                live.update(compose(args.port, nav['picked'], view, page.size, nav['who'],
                                     rate_of(page).label()), refresh=True)
                 rate_of(page).tick(now)
                 if args.frames and frame >= args.frames:
@@ -403,20 +410,10 @@ def main(argv=None, preload=None):
                 # period, not a pause after a draw that already took most of it.
                 leave, moved, typed = paced(
                     keys, max(0.0, 0.08 - (time.monotonic() - now)))
-                if leave == 'menu' and who is not None:
-                    who = None            # ESC backs out of the second question
-                    continue
+                leave = leave or bindings.act_on(FRONT, typed, nav)[0]
                 if leave:
-                    return 0
+                    return loader.answer(leave)
                 stand.grab(view, keys, moved, time.monotonic())
-                if who is not None:
-                    who, chosen = _sub_act(typed, who)
-                else:
-                    picked, chosen = _act(typed, picked, hotkeys)
-                    who = _second_question(chosen)
-                    chosen = None if who else chosen
-                if chosen is not None:
-                    return chosen
     finally:
         stop.set()
         if link is not None:

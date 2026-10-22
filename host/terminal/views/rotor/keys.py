@@ -1,7 +1,10 @@
-"""The rotor observer's keys: one handler per key, the table, the dispatch."""
+"""The rotor observer's keys: one handler per key, its rows of the terminal's one table (PAD)."""
 import math
 
+from rich.text import Text
+
 from coaxial.errors import RigError
+from terminal.ui import bindings, console as _console
 from terminal.views.rotor.motions import BURST_A, BURST_HOLD_S, BURST_S
 
 
@@ -133,23 +136,51 @@ def _key_arm(rig, d, key, view):
     return 'STAGE ARMED - the gates switch'
 
 
-#: The keys, each `(rig, drive, key, view) -> what to say`. Scrolling the
-#: box column is `run_view`'s, on every page.
-KEYS = {
-    's': _key_start_stop, 'm': _key_mode, 'v': _key_source, 'i': _key_inject,
-    '+': _key_iq, '=': _key_iq, '-': _key_iq, '_': _key_iq,
-    '[': _key_step, ']': _key_step, 'o': _key_omega, 'l': _key_omega,
-    'b': _key_burst, 'e': _key_spin, 'w': _key_load, 't': _key_tare,
-    'r': _key_reset, 'a': _key_arm,
-}
+def _told(handler):
+    """The act of `handler` (rig, drive, key, view) on the board (`view['rig']`), a letter either
+    case: what it says on the page, the board's refusal where it refuses."""
+    def told(view, key, _now):
+        try:
+            view['said'] = handler(view['rig'], view['rig'].board.drive, key.lower(), view) or view['said']
+        except RigError as exc:
+            view['said'] = str(exc)
+    return told
 
 
-def act(rig, key, view):
-    """One keystroke against the board; returns what to say."""
-    handler = KEYS.get(key)
-    if handler is None:
-        return ''
-    try:
-        return handler(rig, rig.board.drive, key, view)
-    except RigError as exc:
-        return str(exc)
+def _lit(word, on):
+    """A bar word that stays put, its colour lit while `on`: a chip that came and went moved every
+    key after it."""
+    return Text(word, style='chip.live') if on else word
+
+
+#: The page's keys, rows of the terminal's one table (`terminal.ui.bindings`), each act a handler
+#: `(rig, drive, key, view) -> what to say`; F lends the mouse to the view (`console.SELECT_KEYS`).
+PAD = bindings.page((
+    ('DRIVE', 'S', 'the drive in its mode, or stopped',
+     (('S', lambda v: '%-5s' % ('STOP' if v['state']['mode'] != 'off' else 'START')),),
+     bindings.cased('s', _told(_key_start_stop))),
+    ('DRIVE', 'M', 'the next mode: %s' % ', '.join(MODES),
+     (('M', lambda v: '%-10s' % (v['state']['mode'].upper() if v['state']['mode'] != 'off' else v['mode'].upper())),),
+     bindings.cased('m', _told(_key_mode))),
+    ('DRIVE', 'V', "the observer's source: the model, the ADC", (('V', lambda v: v['source'].upper()),),
+     bindings.cased('v', _told(_key_source))),
+    ('DRIVE', 'I', 'the injection on, or off', (('I', 'INJ'),), bindings.cased('i', _told(_key_inject))),
+    ('DRIVE', '+ -', 'iq_ref up, down a step', (('+ -', 'IQ'),), dict.fromkeys('+=-_', _told(_key_iq))),
+    ('DRIVE', '[ ]', "the step down, up: %s A" % ', '.join('%g' % s for s in STEPS), (('[ ]', 'STEP'),),
+     dict.fromkeys('[]', _told(_key_step))),
+    ('DRIVE', 'O L', 'the I/f target up, down 50 rad/s', (('O L', 'I/F'),),
+     {**bindings.cased('o', _told(_key_omega)), **bindings.cased('l', _told(_key_omega))}),
+    ('DRIVE', 'A', 'the stage armed, or not - its switch given', (('A', lambda v: (_lit('ARMED', True) if v['state']['stage_enabled']
+                                                                                   else 'ARM  ') if v['switch'] else None),),
+     bindings.cased('a', _told(_key_arm))),
+    ('DEMO', 'B', 'a heavy start: %.0f A for %.1f s, then %.0f s at half speed' % (BURST_A, BURST_S, BURST_HOLD_S),
+     (('B', lambda v: Text('START', style='alarm') if v['clock'].now() < v['burst_until'] else 'START'),),
+     bindings.cased('b', _told(_key_burst))),
+    ('DEMO', 'E', 'the speed demo: up, coast and brake each way, a load', (('E', lambda v: _lit('SPEED', v['spin'])),),
+     bindings.cased('e', _told(_key_spin))),
+    ('DEMO', 'W', 'the load loop: d current in steps', (('W', lambda v: _lit('LOAD', v['load'])),),
+     bindings.cased('w', _told(_key_load))),
+    ('VIEW', 'T', "the pointer's zero where the rotor stands", (('T', 'TARE'),), bindings.cased('t', _told(_key_tare))),
+    ('VIEW', 'R', "the model's rotor reset, theta_hat 0.3 rad off it", (('R', 'RESET'),), bindings.cased('r', _told(_key_reset))),
+    ('VIEW', 'F', "the mouse the view's - lit -, or the terminal's", (('F', lambda _v: _lit('MOUSE', _console.holding())),), {}),
+))

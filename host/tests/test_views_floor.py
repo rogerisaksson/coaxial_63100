@@ -2,7 +2,7 @@
 import sys
 
 from tools.dev.focus import chosen
-from views_kit import Report
+from views_kit import Report, typed
 
 
 def test_her_horizon(report):
@@ -13,7 +13,7 @@ def test_her_horizon(report):
     from coaxial.graphics import gynoid, horizon
     from machine import reach, sprung, stride
     from machine.figure import ANKLE_H
-    from terminal.views import show_humanoid, viewpoint
+    from terminal.views import humanoid_keys, viewpoint
     z3 = np.zeros(27)
     seen = sprung.state(sprung.laid(every=3), z3, z3, 0.0, 1.0, None)['horizon']
     report.check('her state: centre of mass, capture point under it, soles, both standing, her shoulders\' range',
@@ -51,9 +51,9 @@ def test_her_horizon(report):
     st = {**viewpoint.HOME, 'orbit': False}
     modes = []
     for _ in range(4):
-        show_humanoid.KEYS['z'](st)
+        typed(humanoid_keys.PAD, 'z', st)
         modes.append(st['horizon'])
-    show_humanoid.KEYS['Z'](st)
+    typed(humanoid_keys.PAD, 'Z', st)
     report.check('z cycles soles, arms, all, off; Z back; and it draws on her',
                  modes == ['soles', 'arms', 'all', 'off'] and st['horizon'] == 'all' and gynoid.render(
                      {}, 64, 28, colour=False) != gynoid.render({}, 64, 28, colour=False, horizon=got), modes)
@@ -128,10 +128,9 @@ def test_balloons_on_what_she_sees(report):
     the first's, the function key at once, a click the first's; a digit with no F the gym's
     entry; a balloon on the viewport over each."""
     import math
-    import time
     from types import SimpleNamespace as SN
     from terminal.ui import console
-    from terminal.views import gym, scanner, show_humanoid, viewpoint
+    from terminal.views import gym, humanoid_keys, scanner, viewpoint
     up = ((1, 0, 0), (0, 1, 0), (0, 0, 1))
     room = [('wood', (1.5, 0.45, 0.8), (0.22, 0.02, 0.22), up), ('bed', (-1.8, 0.35, 1.8), (0.5, 0.12, 1.0), up),
             ('door', (0.75, 1.05, 3.5), (0.45, 1.05, 0.03), up)]
@@ -142,15 +141,11 @@ def test_balloons_on_what_she_sees(report):
     report.check('the door ahead, the bed and the chair aside she sees, the one she faces first, F1 F2 F3',
                  shown == [('F1', 'exit_door'), ('F2', 'lie_bed'), ('F3', 'sit_chair')]
                  and gym.prompt(st) == '[F1] exit door  [F2] lie bed  [F3] sit chair', (shown, gym.prompt(st)))
-    for typed in ('f', '3', 'ff', ('f2',), 'f'):
-        for k in typed:
-            show_humanoid.KEYS[k](st)
+    typed(humanoid_keys.PAD, ('f', '3', 'f', 'f', 'f2', 'f'), st)
     opened = st.get('choosing') is not None
-    st['choosing'] -= 2.0 * console.HOLD_WINDOW_S
-    st['f_at'] -= 2.0 * console.HOLD_WINDOW_S
-    gym.lapsed(st, time.monotonic())
-    show_humanoid.KEYS['2'](st)
-    viewpoint.mouse(st, lambda: (100, 40))['on_click'](20, 10)
+    humanoid_keys.lapsed(st, st['choosing'] + 2.0 * console.HOLD_WINDOW_S)
+    typed(humanoid_keys.PAD, '2', st, st['f_at'] + 2.0 * console.HOLD_WINDOW_S)
+    viewpoint.mouse(st, lambda: (100, 40), humanoid_keys.clicked)['on_click'](20, 10)
     said = [(c['say'], tuple(round(v, 9) for v in c.get('at', ()))) for c in sent]
     door = ('exit_door', (0.75, 3.5))
     report.check('F then 3 the chair, F F the door at once, F2 the bed, F lapsed the door, 2 with no F the '

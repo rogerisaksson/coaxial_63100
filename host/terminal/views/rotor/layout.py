@@ -2,7 +2,7 @@
 import math
 
 from coaxial.draw import cross_section
-from terminal.ui.scroll import HUD_WIDTH
+from terminal.ui.taskbar import column
 
 
 #: The drawing's height before `fit` sizes it to the terminal. The can is
@@ -70,7 +70,7 @@ def fit(aspect, size=None):
     """
     stretch = aspect / cross_section.DOTS_Y * cross_section.DOTS_X
     width = (NOMINAL_WIDTH if size is None else
-             max(MIN_WIDTH, size.width - HUD_WIDTH - VIEWPORT_COLUMNS))
+             max(MIN_WIDTH, size.width - column() - VIEWPORT_COLUMNS))
     band = (10 ** 6 if size is None else
             max(MIN_BAND, size.height - PAGE_ROWS - CAPTION_ROWS - FOOT_ROWS
                 - HOP_ROWS - FLOOR_GAUGES))

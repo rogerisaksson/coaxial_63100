@@ -354,16 +354,14 @@ def test_the_gym_runs_her_in_a_process(report):
 
 
 def test_the_pages_keys_on_the_loop(report):
-    """`terminal.views.gym`: a digit says its entry, Shift+P shoves her along the view, > takes
-    the other text, C crouches her; LATENT and SAY are her state's."""
+    """Her page's keys (`humanoid_keys.PAD`): a digit says its entry, Shift+P shoves her along the
+    view, > takes the other text, C crouches her; LATENT and SAY are her state's (`gym`)."""
     import types
-    from terminal.views import gym
+    from terminal.views import gym, humanoid_keys
+    from views_kit import typed
     sent = []
     body = types.SimpleNamespace(send=lambda **command: sent.append(command), close=lambda: None)
-    keys = gym.table({})
-    state: dict = {'body': body, 'yaw': 180.0}
-    for key in '13P>c':
-        keys[key](state)
+    typed(humanoid_keys.PAD, '13P>c', {'body': body, 'yaw': 180.0})
     report.check('1 and 3 say the first and third, Shift+P 80 N along the view, > the other text, C a crouch',
                  sent[:2] == [{'say': 0}, {'say': 2}] and abs(sent[2]['push'][2] - 80.0) < 1e-9
                  and sent[3] == {'gym': 'examples'} and sent[4] == {'say': 'crouch'}, '%s' % sent)

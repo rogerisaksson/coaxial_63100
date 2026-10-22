@@ -37,9 +37,11 @@ from rich.text import Text
 from rich.theme import Theme
 
 from coaxial.comm import broker
+from terminal.ui import bindings
 from terminal.ui.chrome import KANA, Chrome, Crt, clock
 from terminal.ui.marquee import Marquee
 from terminal.ui.sto import chip as sto_chip
+from terminal.ui.taskbar import bar_of, column, footer, help_panel, rail, start_menu
 from terminal.ui.rate import Corner, rate_of
 from terminal.ui.scroll import (DOWN, HUD_WIDTH, UP, _fills, _height_of, _rows_of, paged,
                                 scroll_state)
@@ -235,8 +237,8 @@ def band_of(name, extra='', tag=None, gauges=None):
     the band's end.
     """
     kana = KANA[name][0] if name in KANA else ''
-    left = Text.assemble((name, 'bar'), ('  ' + kana if kana else '', 'bar.dim'),
-                         ('   ' + extra if extra else '', 'bar.dim'))
+    left = Text.assemble(('≡ ', 'bar' if bindings.UX['menu'] is not None else 'bar.dim'), (name, 'bar'),
+                         ('  ' + kana if kana else '', 'bar.dim'), ('   ' + extra if extra else '', 'bar.dim'))
     if gauges is not None:
         left.append('   ')
         left.append_text(gauges)
@@ -292,89 +294,6 @@ def band(*cells):
     return bar
 
 
-def footer(pairs, width=0):
-    """The key bar: KEY: WHAT pairs on a reversed strip, terminal style - broken between pairs
-    onto a second row where `width` cells hold them not on one."""
-    rows = [Text('  ', style='keys')]
-    for i, (key, what) in enumerate(pairs):
-        pair = Text(style='keys')
-        if key:
-            pair.append(key, style='keys.key')
-            pair.append(': ', style='keys')
-        if isinstance(what, Text):
-            pair.append_text(what)
-        else:
-            pair.append(what, style='keys')
-        if i and width and len(rows) < 2 and rows[-1].cell_len + 5 + pair.cell_len > width:
-            rows.append(Text('  ', style='keys'))
-        elif i:
-            rows[-1].append('  |  ', style='keys')
-        rows[-1].append_text(pair)
-    bar = Table.grid(expand=True)
-    bar.add_column(justify='left')
-    for row in rows:
-        bar.add_row(row)
-    bar.style = 'keys'
-    return bar
-
-
-#: The key help: a page's keys by group on a panel that slides up from the bar on TAB or ? over
-#: SLIDE_S and down again HELP_S after the last key, by itself - the old taskbar.
-HELP_KEYS, SLIDE_S, HELP_S = ('\t', '?'), 0.25, 8.0
-
-
-def helped(state, typed, now):
-    """How much of the help is up, 0 to 1: `state['help']` [to, up, last key at, last frame at]
-    moved by `typed` this frame and the clock `now` (HELP_KEYS, SLIDE_S, HELP_S)."""
-    to, up, keyed, framed = state.setdefault('help', [0.0, 0.0, now, now])
-    if typed:
-        keyed = now
-        if any(key in HELP_KEYS for key in typed):
-            to = 0.0 if to else 1.0
-    if to and now - keyed > HELP_S:
-        to = 0.0
-    step = (now - framed) / SLIDE_S
-    up = max(0.0, min(1.0, up + max(-step, min(step, to - up))))
-    state['help'] = [to, up, keyed, now]
-    return up
-
-
-def help_rows(groups, up):
-    """How many rows of the help are up: `up` of a title row and its longest group's."""
-    return round(up * (1 + max(len(pairs) for _title, pairs in groups)))
-
-
-def help_panel(groups, up, width=150):
-    """(the help's top `up` of its rows on the bar's strip, how many rows): `groups` ((title,
-    ((key, what), ..)), ..) in equal columns across `width`, a title over each, nothing
-    wrapped - None and 0 with nothing up."""
-    rows = help_rows(groups, up)
-    if rows <= 0:
-        return None, 0
-    column = max(12, (width - 2) // len(groups))
-    columns = [column] * (len(groups) - 1) + [max(column, width - 2 - column * (len(groups) - 1))]
-    grid = Table.grid(padding=0)
-    grid.add_column(width=2)
-    for wide in columns:
-        grid.add_column(width=wide)
-    for r in range(rows):
-        cells = [Text('  ', style='keys')]
-        for (title, pairs), wide in zip(groups, columns):
-            keys = max(len(key) for key, _what in pairs) + 1
-            cell = Text(style='keys', no_wrap=True, overflow='ellipsis')
-            if r == 0:
-                cell.append(title, style='keys.key')
-            elif r - 1 < len(pairs):
-                key, what = pairs[r - 1]
-                cell.append(key.ljust(keys), style='keys.key')
-                cell.append(what, style='keys')
-            cell.pad_right(wide - cell.cell_len)
-            cells.append(cell)
-        grid.add_row(*cells)
-    grid.style = 'keys'
-    return grid, rows
-
-
 def hud(title, rows):
     """One instrument: labels recede, values glow, rounded frame. Lines of one Text, not a
     grid: seven grids measured their columns every frame, a third of the rotor page's.
@@ -419,27 +338,30 @@ def viewport(title, art, corner='', page=None):
 
 
 def frame_of(console, origin, title, art, boxes, keys, art_title=None,
-             under=None, dressed=True, gauges=None, wrap=False, help=None):
+             under=None, dressed=True, gauges=None, wrap=False):
     """The template: title band (its `gauges` a Text after the name), viewport left,
-    instruments right, key bar - on two rows `wrap`ped, the key `help` (groups, up) over it
-    (`help_panel`); `dressed` False for a drawing with a HUD of its own."""
+    instruments right - hidden on Tab -, key bar - on two rows `wrap`ped -, `keys` the page's
+    pad (`bindings.page`): its bar, its help over it on ? (`help_panel`); the start menu in the
+    viewport while it is up; `dressed` False for a drawing with a HUD of its own."""
+    keys, help = bar_of(keys, time.monotonic())
     panel, rows = help_panel(*help, width=console.width) if help else (None, 0)
+    shown = bindings.UX['column']
     if not _fills(console):
         return Group(header(title, origin, gauges),
-                     viewport(art_title or title, art),
+                     viewport(art_title or title, art) if bindings.UX['menu'] is None else start_menu(),
                      *([under] if under is not None else []),
-                     *boxes, *([panel] if panel is not None else []), footer(keys))
+                     *(boxes if shown else ()), *([panel] if panel is not None else []), footer(keys))
 
     # The column is paged here, for every view at once; the key bar says so
     # only while there is something to scroll to.
     boxes = paged(console, boxes)
     rate = rate_of(console).label()
     at, seen, total = scroll_state(console)['pages']
-    if at or seen < total:
+    if (at or seen < total) and shown and bindings.UX['menu'] is None:
         keys = list(keys) + [(UP + ' ' + DOWN, 'SCROLL')]
     whole = _laid(console, under is not None)
     page = title if dressed else None
-    drawn = viewport(art_title or title, art, rate, page)
+    drawn = viewport(art_title or title, art, rate, page) if bindings.UX['menu'] is None else start_menu()
     if under is None:
         whole['art'].update(drawn)
     else:
@@ -449,7 +371,8 @@ def frame_of(console, origin, title, art, boxes, keys, art_title=None,
         whole['top'].update(drawn)
         whole['under'].update(under)
         whole['under'].size = _rows_of(under) + 2
-    whole['hud'].update(Group(*boxes) if boxes else Text(''))
+    whole['hud'].update((Group(*boxes) if boxes else Text('')) if shown else rail())
+    whole['hud'].size = column()
     whole['header'].update(header(title, origin, gauges))
     bar = footer(keys, console.width if wrap else 0)
     whole['footer'].update(Group(panel, bar) if panel is not None else bar)
@@ -479,7 +402,12 @@ def _laid(console, under):
 
 
 def panels_of(console, origin, title, groups, keys):
-    """The template for table views: a fixed grid of instruments, no art."""
+    """The template for table views: a fixed grid of instruments, no art; `keys` as `frame_of`'s,
+    the start menu over the grid while it is up."""
+    keys, help = bar_of(keys, time.monotonic())
+    panel, rows = help_panel(*help, width=console.width) if help else (None, 0)
+    if bindings.UX['menu'] is not None:
+        groups = [[start_menu()]]
     if not _fills(console):
         flat = [Columns(row, padding=(0, 1), expand=False)
                 for row in groups]
@@ -510,7 +438,8 @@ def panels_of(console, origin, title, groups, keys):
                    padding=0, expand=True)
 
     whole = Layout()
+    bar = footer(keys)
     whole.split_column(Layout(header(title, origin), size=1),
                        Layout(framed, name='grid'),
-                       Layout(footer(keys), size=1))
+                       Layout(Group(panel, bar) if panel is not None else bar, size=bar.row_count + rows))
     return whole

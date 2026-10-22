@@ -21,11 +21,12 @@ from coaxial.draw.thermalmap import CELL_ASPECT, render
 from coaxial.errors import NoReplyError, RigError
 from coaxial.model import thermal
 from coaxial.model.thermal import IDENT_MARGIN_FLOOR
-from terminal.loader import TO_MENU
+from terminal.loader import answer
 from terminal.ui import aspect as _aspect, screen as _screen
 from terminal.ui.demo import cycle_motor, stop_motor
 from terminal.ui.screen import (PORT, FEED_HZ, FPS_CAP, Feed, closing, mode_of, run_view, say, stamp_crosses,
                                 visible)
+from terminal.ui import bindings
 from terminal.ui.stage import boot, frame_of, hud, stage
 from terminal.views.thermal.boxes import room_hint, status_boxes
 
@@ -289,7 +290,7 @@ def main():
                                            style='alarm'), Text(why)])] + boxes
             return frame_of(board_view, origin, 'THERMAL OBSERVER',
                             '\n'.join(art), boxes,
-                            (('Q', 'EXIT'), ('ESC', 'MENU')))
+                            bindings.BARE)
 
         done = []
         try:
@@ -305,7 +306,7 @@ def main():
             sys.stdout.write('\n')
             closing(done, console, 0)
 
-    return TO_MENU if leaving == 'menu' else 0
+    return answer(leaving)
 
 
 if __name__ == '__main__':

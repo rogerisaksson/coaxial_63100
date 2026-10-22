@@ -21,9 +21,10 @@ import time
 from coaxial.comm.session import standing
 from coaxial.draw import desk
 from coaxial.errors import RigError
-from terminal.loader import TO_MENU
+from terminal.loader import answer
 from terminal.ui import screen as _screen
 from terminal.ui.screen import PORT, FEED_HZ, FPS_CAP, Feed, closing, mode_of, open_rig, run_view, say
+from terminal.ui import bindings
 from terminal.ui.stage import frame_of, stage
 from terminal.views.desk.boxes import (buffer_box, chain_box, digital_box, legend,
                                        scale)
@@ -161,7 +162,7 @@ def watch(rig, args, layout, chain, params):
                     else 'waiting for the first block')
             return frame_of(board_view, origin, 'METER BRIDGE', said,
                             [buffer_box(feed.latest, host, link)],
-                            (('Q', 'EXIT'), ('ESC', 'MENU')),
+                            bindings.BARE,
                             art_title='ANALOGUE')
         face = bridge.update(rows, colour=console)
         for row in rows:
@@ -170,7 +171,7 @@ def watch(rig, args, layout, chain, params):
                         [legend(rows, held),
                          chain_box(chain, clock['sweeps'], len(rows)),
                          buffer_box(feed.latest, host, link)],
-                        (('Q', 'EXIT'), ('ESC', 'MENU')),
+                        bindings.BARE,
                         art_title='ANALOGUE',
                         under=digital_box(last['pins'], bridge.bar + 30))
 
@@ -186,7 +187,7 @@ def watch(rig, args, layout, chain, params):
         sys.stdout.write('\n')
         closing(done, console, 0)
 
-    return TO_MENU if leaving == 'menu' else 0
+    return answer(leaving)
 
 
 if __name__ == '__main__':

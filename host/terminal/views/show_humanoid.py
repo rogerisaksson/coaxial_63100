@@ -15,17 +15,17 @@ from coaxial.graphics.callouts import packed
 from machine import figure, se2, sprung
 from machine.figure import JOINTS, quat
 from machine.routines import TYPES
-from terminal import boards, keybindings
-from terminal.loader import TO_MENU
+from terminal import boards
+from terminal.loader import answer
 from terminal.views import gym, viewpoint
-from terminal.views.humanoid_keys import CHARGE_MAX_N, act_on, charging, heard, pad, released, rows_of, steered, table
+from terminal.views.humanoid_keys import CHARGE_MAX_N, PAD, charging, clicked, frame, heard, pad, rows_of
 from terminal.views.playback import Playback
 from terminal.views.scanner import VisionScanner, docked_vision
-from terminal.ui import recorder, screen as _screen
+from terminal.ui import bindings, recorder, screen as _screen
 from terminal.ui.ahead import Ahead
 from terminal.ui.screen import PORT, FPS_CAP, closing, run_view, say
-from terminal.ui.scroll import HUD_WIDTH
-from terminal.ui.stage import boot, footer, frame_of, help_rows, helped, hud, stage
+from terminal.ui.stage import boot, frame_of, hud, stage
+from terminal.ui.taskbar import column, footer, help_rows, helped
 
 _screen.CHATTER = False
 
@@ -162,7 +162,6 @@ def gauges(state):
     return out
 
 
-SHOWN = ('torque', 'power', 'temp')
 SAYS = {'torque': 'TORQUE N m, of its peak', 'power': 'POWER W, driving | braking', 'temp': 'TEMP C, winding'}
 RAD_S = 4.0
 
@@ -199,7 +198,6 @@ def legend(shown, width):
 
 CALLED = {'strong': tuple(j for j in JOINTS if j == 'spine' or j.endswith(
     ('_hip', '_hip_roll', '_knee', '_ankle'))), 'all': JOINTS, 'none': ()}
-CALLING = ('strong', 'all', 'none')
 
 
 def labels(now, called, shown='torque'):
@@ -207,15 +205,13 @@ def labels(now, called, shown='torque'):
             for j in CALLED[called] for t, g in (_patch(now, j, shown),)}
 
 
-BAR = keybindings.BAR
-GROUPS = keybindings.groups()
 chat_box = gym.chat_box
 
 
 def size_of(console, args, up=0.0):
     size = console.size if console.is_terminal else None
-    width = args.width or max(24, (size.width if size else 110) - HUD_WIDTH - 6)
-    bar = footer(BAR).row_count + help_rows(GROUPS, up)
+    width = args.width or max(24, (size.width if size else 110) - column() - 6)
+    bar = footer(PAD['bar']).row_count + help_rows(PAD['groups'], up)
     return width, args.height or max(12, (size.height if size else 44) - 5 - bar - (gym.CHAT_ROWS + 2))
 
 
@@ -360,7 +356,6 @@ def _seen(state):
     return state['skin'] if state['skin'] in ('mechanism', 'actuators') else None
 
 
-KEYS = gym.table(table(viewpoint.KEYS, CALLING, SHOWN))
 #: Her speed over the floor past which she goes and the chase camera follows, m/s.
 GOING_M_S = 0.1
 
@@ -371,18 +366,17 @@ def scripted(state, keys):
     k = state.get('frame', 0)
     state['frame'] = k + 1
     if k < len(keys) and keys[k] != '.':
-        act_on(state['keys'], [keys[k]], state)
+        bindings.act_on(PAD, [keys[k]], state)
 
 
 def _step_frame(state, dt):
-    """A frame's commands: the tour's due, F's choice lapsed, the keys' twist; the chase camera
-    eased behind her."""
+    """A frame's commands: the tour's due, what her keys hold (`humanoid_keys.frame`); the chase
+    camera eased behind her."""
     if gym.touring(state):
         state['tour'].step(state, dt)
     t_mono, now = time.monotonic(), state.get('now')
-    gym.lapsed(state, t_mono)
     heading = float(now.get('heading') or 0.0) if now else 0.0
-    steered(state, t_mono, heading)
+    frame(state, t_mono, heading)
     going = bool(now) and (math.hypot(*now['velocity']) > GOING_M_S or now.get('stage') == 'walk')
     viewpoint.chased(state, heading, going, t_mono)
     return t_mono
@@ -430,7 +424,7 @@ def main(argv=None):
     state = {'body': None, 'orbit': False, **viewpoint.HOME, 'side': 1.0, 'last_t': None,
              'called': 'strong', 'follow': gynoid.Follow(), 'recording': None, 'recorded': None,
              'playback': Playback.steady(), 'shown': 'torque', 'skin': 'dressed', 'scanner': VisionScanner(),
-             'now': None, 'tour': None, 'pad': pad(), 'keys': KEYS, 'max': args.max,
+             'now': None, 'tour': None, 'pad': pad(), 'max': args.max,
              'emu_port': emu_port, 'emu': None, 'origin': ORIGIN,
              'chat_rows': [gym.CHAT_GREETING]}
 
@@ -449,30 +443,25 @@ def main(argv=None):
             if state.get('emu') is not None:
                 state['emu'].sync(now)
         _sync_actual(now, state['pad'])
-        pushed = released(state, t_mono)
-        if pushed and now is not None:
-            state['body'].send(push=tuple(pushed * a for a in viewpoint.along(state)), seconds=sprung.SHOVE_S)
-            state['landed'] = (t_mono, pushed)
         if now is not None:
             viewpoint.orbited(state, now['t'])
-        up = helped(state, state.pop('typed', ()), t_mono)
+        up = helped(t_mono)
         # Drawn a frame ahead: this frame shows the state asked the frame before, its boxes too.
         shown, state['drawn'] = state.get('drawn') or now, now
         w_vp, h_vp = size_of(board_view, args, up)
         art = _draw_viewport(state, now, w_vp, h_vp, terminal)
-        return frame_of(board_view, state['origin'], TITLE, art, boxes(state, shown, name), BAR,
-                        under=chat_box(state, w_vp), gauges=gauges(state), help=(GROUPS, up))
+        return frame_of(board_view, state['origin'], TITLE, art, boxes(state, shown, name), PAD,
+                        under=chat_box(state, w_vp), gauges=gauges(state))
 
     try:
         body, name = _boot_humanoid(board_view, state)
         if args.tour:
-            gym._toggle_tour(state)
+            gym.toggle_tour(state)
         if args.prompt:
             gym.submit_prompt(state, args.prompt)
-        on_in = lambda typed, w: ([_screen.scroll_by(board_view, _screen.SCROLL_STEP[k])
-                                   for k in typed if k in _screen.SCROLL_STEP], act_on(KEYS, typed, state, w))
-        leaving = run_view(board_view, terminal, 1.0 / max(1.0, args.hz), args.frames, draw, on_input=on_in,
-                           quits=frozenset(), **viewpoint.mouse(state, lambda: size_of(board_view, args)))
+        wheeled = lambda _keys, wheel: viewpoint.zoomed(state, max(0.5, 1.0 + wheel)) if wheel else None
+        leaving = run_view(board_view, terminal, 1.0 / max(1.0, args.hz), args.frames, draw, on_input=wheeled,
+                           pad=PAD, state=state, **viewpoint.mouse(state, lambda: size_of(board_view, args), clicked))
     finally:
         if state.get('emu') is not None:
             state['emu'].close()
@@ -484,7 +473,7 @@ def main(argv=None):
         emu = state.get('emu')
         closing([('body', 'stopped, her process ended'),
                  ('boards', emu.closed_note() if emu else 'none - every drive was simulated')], terminal, 0)
-    return TO_MENU if leaving == 'menu' else 0
+    return answer(leaving)
 
 
 if __name__ == '__main__':

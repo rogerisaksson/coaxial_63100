@@ -23,11 +23,12 @@ from coaxial.devices import angle
 from coaxial.draw import dial
 from coaxial.errors import RigError
 from machine import ansi
-from terminal.loader import TO_MENU
+from terminal.loader import answer
 from terminal.ui import aspect as _aspect, screen as _screen
 from terminal.ui.demo import stop_motor, sweep_motor
 from terminal.ui.screen import (PORT, FEED_HZ, FPS_CAP, Feed, Freshness, closing, mode_of, open_rig, run_view,
                                 say, steady)
+from terminal.ui import bindings
 from terminal.ui.stage import frame_of, hud, stage
 
 _screen.CHATTER = False     # the boot bar replaced the scroll
@@ -191,8 +192,7 @@ def compose(origin, console, part, state, field, kelvin, rate, note,
                      % (state.get('errors', 0),
                         state.get('error') or '-'))])]
 
-    return frame_of(console, origin, 'SHAFT ANGLE', art, side,
-                    (('Q', 'EXIT'), ('ESC', 'MENU'), ('', note)))
+    return frame_of(console, origin, 'SHAFT ANGLE', art, side, bindings.shown(bindings.BARE, note=note))
 
 
 def main(argv=None):
@@ -311,7 +311,7 @@ def main(argv=None):
         sys.stdout.write('\n')
         closing(done, terminal, 0)
 
-    return TO_MENU if leaving == 'menu' else 0
+    return answer(leaving)
 
 
 if __name__ == '__main__':

@@ -3,7 +3,7 @@ import math
 import sys
 
 from tools.dev.focus import chosen
-from views_kit import Report
+from views_kit import Report, typed
 
 
 def test_her_eyes_picture_is_framed(report):
@@ -59,6 +59,7 @@ def test_its_camera_rides_a_gimbal(report):
     from coaxial.graphics.raster import DOTS_Y
     from machine import gimbal, grounds
     from terminal.views import show_quad
+    from terminal.views.quad import keys
     level = ((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0))
     rolled = shapes.turn_about('z', 80.0).tolist()
     over = shapes.turn_about('z', 180.0).tolist()
@@ -131,10 +132,9 @@ def test_its_camera_rides_a_gimbal(report):
     report.check('the gate flown to next in its ink on the course, none of it off',
                  lit >= 8 and none == 0, '%d cells on, %d off' % (lit, none))
     held = {'carried': True}
-    keys = show_quad.hands(held, lambda k: None)
-    keys['c']()
+    typed(keys.PAD, 'c', held)
     off = held['carried']
-    keys['C']()
+    typed(keys.PAD, 'C', held)
     report.check('C takes the picture away and gives it back', off is False and held['carried'])
     frame = {'at': (0.0, 6.0, 0.0), 'turn': rolled}
     cells = show_quad.carried(frame, side, gate, True, 110, 38)
