@@ -10,7 +10,9 @@ page's own work, its instruments and rich, on one core while the drawing takes a
     ahead.close()
 
 A module with a `warm()` has it run in the worker before the worker says it is up: what its first
-frame waits on, built while the page opens its board.
+frame waits on, built while the page opens its board. The worker is a daemon and has no children:
+nothing it draws or warms may start a pool or a process crew (`coaxial.draw.easel` decimates
+itself).
 """
 import importlib
 import os
