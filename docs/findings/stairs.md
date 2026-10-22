@@ -45,10 +45,11 @@ scene `stairs` (0.15 x 0.30 m treads); the bench and the blind scenes:
   each swing was driven under the floor, 549 N at a landing, and she stepped
   off the landing's side at 14.4 s).
 - Stands: the flight of five, 0.747 m, walked on to 5.2 m and stopped on the
-  landing, rolled 0.3 deg; her walk unmoved. The takes at her size (Ascending
-  Stairs, Walking Up The Stairs): a run a step at 0.57-0.70 s, the hips
-  0.30-0.36 m/s and 0.6-0.7 m/s up at most, the foot up first then on, 5-9 cm
-  over its tread, the knee 75-90 deg at landing and 7-11 rad/s at most, the
+  landing, rolled 0.3 deg, laid 0.2 mrad either way the same (3 of 3; the scene
+  is the bench's, not test_scenarios'); her walk unmoved. The takes at her size
+  (Ascending Stairs, Walking Up The Stairs): a run a step at 0.57-0.70 s, the
+  hips 0.30-0.36 m/s and 0.6-0.7 m/s up at most, the foot up first then on, 5-9
+  cm over its tread, the knee 75-90 deg at landing and 7-11 rad/s at most, the
   hips 0.1-0.14 m behind the stance foot at toe-off, 0.14-0.25 behind the
   landing one; hers climb at her walk's 0.54 s step.
 - `stairs_walk` said over the flight instead of the walk's twist (the say path
@@ -58,3 +59,14 @@ scene `stairs` (0.15 x 0.30 m treads); the bench and the blind scenes:
   still the walk's 0.55 s: a text's frequency does not reach her loop by `say`.
   The climb's cadence, lift and pull-up belong to the steering table's rise axis
   (se2, in rebuild), a tread a beat.
+- The stairs takes judged on their own flight at her size (`floor.TAKE_RISE_M`
+  0.21, `TAKE_RUN_M` 0.225, the window from her first tread,
+  `scenarios.STAIRS_TAKE_S`): she climbs its five treads 0.25-0.3 m low (her
+  legs read 1.4-2.2 units short the whole way, knees 85-135 deg where the takes'
+  land at 75-90), both knees at 168 of 171 N m and 20-23 rad/s past the drive's
+  16.8 unloaded, the shoulders at their 51 N m 3-6 % of the climb; on the fifth
+  tread the spring discharges, a hop at 1.57 m/s up, down at 5.2 s. Within the
+  takes' widths meanwhile: ended 0.46-0.50 legs of 0.55-0.56, travel 0.42-0.49
+  of 0.57-0.58; the head not. On the bench 3.0 and 2.5 widths off (2.0 and 1.5
+  on the 0.15 x 0.30 flight with the window on the landing). The steep flight
+  wants the takes' tempo and lean a beat: the sequencer's.

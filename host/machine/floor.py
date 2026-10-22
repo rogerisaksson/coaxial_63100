@@ -19,6 +19,8 @@ SHOWN_Y = -1.5
 DEEP_M = 0.2
 #: A flight of stairs: its steps, each's rise and run, m, and the landing at its top. A house's.
 STEPS, RISE_M, RUN_M, TOP_M = 5, 0.15, 0.30, 1.5
+#: The stairs takes' flight at her size: Ascending Stairs rises 0.421 m and runs 0.451 a stride.
+TAKE_RISE_M, TAKE_RUN_M = 0.21, 0.225
 #: A scene's floor a flight or a ramp climbs to or comes down to goes on this far, m: the base
 #: plane, the hole's bottom 10 cm down, lay over a descent's lower half and a 1.2 m top ended in
 #: a drop.
@@ -41,7 +43,7 @@ SLIP_TOP_M, ICE_TOP_M, SNOW_TOP_M = 0.005, 0.005, 0.04
 
 SCENARIOS = (
     'flat', 'lodge', 'chair', 'bed', 'mattress', 'slope', 'slope_down', 'cross_slope',
-    'stairs', 'stairs_down', 'ice', 'snow', 'asphalt', 'slip', 'obstacle', 'wall', 'tree',
+    'stairs', 'stairs_down', 'stairs_take', 'ice', 'snow', 'asphalt', 'slip', 'obstacle', 'wall', 'tree',
     'sill', 'hole', 'rug', 'edge_behind',
 )
 
@@ -50,12 +52,21 @@ def _rock():
     return math.degrees(math.atan(BOARD_HINGE_M / BOARD[0]))
 
 
-def _steps(top=TOP_M):
-    return [('step%d' % k, (0.5, (k + 1) * RISE_M / 2.0,
-                             (RUN_M + (top if k == STEPS - 1 else 0.0)) / 2.0),
-             (0.0, (k + 1) * RISE_M / 2.0,
-              k * RUN_M + (RUN_M + (top if k == STEPS - 1 else 0.0)) / 2.0))
+def _steps(top=TOP_M, rise=RISE_M, run=RUN_M):
+    return [('step%d' % k, (0.5, (k + 1) * rise / 2.0,
+                             (run + (top if k == STEPS - 1 else 0.0)) / 2.0),
+             (0.0, (k + 1) * rise / 2.0,
+              k * run + (run + (top if k == STEPS - 1 else 0.0)) / 2.0))
             for k in range(STEPS)]
+
+
+def told_stairs(rise=RISE_M, run=RUN_M):
+    """The stairs as told her (`worker.told_floor`) where she starts: level to the first riser
+    0.30 m on (`events`), STEPS treads of `run` at `rise`, the top landing TOP_M long."""
+    pts = [(-2.0, 0.0), (0.30, 0.0)]
+    for k in range(STEPS):
+        pts += [(0.30 + k * run, (k + 1) * rise), (0.30 + (k + 1) * run + TOP_M * (k == STEPS - 1), (k + 1) * rise)]
+    return pts
 
 
 def grounds(m):
@@ -259,7 +270,7 @@ _SIMPLE_PROPS = {
 }
 
 
-def place(world, kind, z, x=0.0, heading=0.0, top=None):
+def place(world, kind, z, x=0.0, heading=0.0, top=None, rise=RISE_M, run=RUN_M):
     c, s = math.cos(heading), math.sin(heading)
     at = (x * c + z * s, -x * s + z * c)
     if kind in _SIMPLE_PROPS:
@@ -277,7 +288,7 @@ def place(world, kind, z, x=0.0, heading=0.0, top=None):
         lay_rug(world, at, heading)
         return
     if kind == 'stairs':
-        for name, half, (dx, y, dz) in _steps(TOP_M if top is None else top):
+        for name, half, (dx, y, dz) in _steps(TOP_M if top is None else top, rise, run):
             _sized(world, name, half)
             mocap(world, name, _on(at, heading, dx, y, dz), heading)
         return
@@ -341,6 +352,7 @@ def scenario(world, name, z=1.2, x=0.0):
         'cross_slope': lambda: place(world, 'cross_slope', z=0.25, x=x),
         'stairs': lambda: place(world, 'stairs', z=0.30, x=x, top=UPPER_M),
         'stairs_down': lambda: place(world, 'stairs_down', z=0.30, x=x, top=UPPER_M),
+        'stairs_take': lambda: place(world, 'stairs', z=0.30, x=x, top=UPPER_M, rise=TAKE_RISE_M, run=TAKE_RUN_M),
         'ice': lambda: place(world, 'ice', z=0.15, x=x),
         'snow': lambda: place(world, 'snow', z=0.15, x=x),
         'asphalt': lambda: place(world, 'asphalt', z=0.15, x=x),

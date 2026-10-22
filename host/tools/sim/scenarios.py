@@ -22,6 +22,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
+from machine import floor as fl
 from machine import takes
 from tools.sim import stunts
 
@@ -48,15 +49,8 @@ def _walk(seconds, then=STILL_S):
 #: (on her soles, a chair's seat or not). The bed and the chair by their texts; by the takes'
 #: rows she perched on the chair's edge and fell at one wobble of three, and sat at the bed's
 #: edge as the human did and collapsed back from there (stunts.md).
-def _stairs():
-    """The stairs scene's floor as told her where she starts: level to the first riser 0.30 m on
-    (`floor.events`), then STEPS treads of RUN_M at RISE_M each, the top landing TOP_M long."""
-    from machine import floor as fl
-    pts = [(-2.0, 0.0), (0.30, 0.0)]
-    for k in range(fl.STEPS):
-        pts += [(0.30 + k * fl.RUN_M, (k + 1) * fl.RISE_M),
-                (0.30 + (k + 1) * fl.RUN_M + fl.TOP_M * (k == fl.STEPS - 1), (k + 1) * fl.RISE_M)]
-    return pts
+#: A stairs take's window opens as her first sole lands on the first tread, its first frame's.
+STAIRS_TAKE_S = 1.5
 
 
 SCENARIOS = {
@@ -70,7 +64,7 @@ SCENARIOS = {
     'ice_told': ('ice', [(0.5, {'grip': 0.1})] + _walk(13.0)[0], _walk(13.0)[1], 'past', 2.8),
     'snow': ('snow', *_walk(6.0), 'past', 2.0),
     'asphalt': ('asphalt', *_walk(6.0), 'past', 2.0),
-    'stairs': ('stairs', [(0.0, {'floor': _stairs()})] + _walk(10.0)[0], _walk(10.0)[1], 'rose', 0.70),
+    'stairs': ('stairs', [(0.0, {'floor': fl.told_stairs()})] + _walk(10.0)[0], _walk(10.0)[1], 'rose', 0.70),
     'stairs_down': ('stairs_down', *_walk(10.0), 'sank', 0.70),
     'lodge_down': ('lodge', *_walk(14.0), 'sank', 0.70),
     'slope': ('slope', *_walk(7.0), 'rose', 0.45),
@@ -163,10 +157,10 @@ STUNTS = {
                      ('drop', 'hips back', 'forward', 'knee', 'lifted', 'lasted')),
     'edge_tripping_backwards': ('slipping/Edge Tripping Backwards', 'edge_behind', [(1.0, {'twist': _BACK})], 1.0, ('ended',)),
     'slipping_backwards': ('slipping/Slipping Backwards', 'ice', [(1.0, {'twist': WALK})], MOMENTS[0], ()),
-    'ascending_stairs': ('stairs/Ascending Stairs', 'stairs', [(0.0, {'floor': _stairs()}), (1.0, {'twist': WALK})], MOMENTS[0],
-                         ('ended', 'travel')),
-    'walking_up_the_stairs': ('stairs/Walking Up The Stairs', 'stairs', [(0.0, {'floor': _stairs()}), (1.0, {'twist': WALK})],
-                              MOMENTS[0], ('ended', 'travel')),
+    'ascending_stairs': ('stairs/Ascending Stairs', 'stairs_take', [(0.0, {'floor': fl.told_stairs(fl.TAKE_RISE_M, fl.TAKE_RUN_M)}), (1.0, {'twist': WALK})],
+                         STAIRS_TAKE_S, ('ended', 'travel')),
+    'walking_up_the_stairs': ('stairs/Walking Up The Stairs', 'stairs_take',
+                              [(0.0, {'floor': fl.told_stairs(fl.TAKE_RISE_M, fl.TAKE_RUN_M)}), (1.0, {'twist': WALK})], STAIRS_TAKE_S, ('ended', 'travel')),
     'standing_jump': ('standing/Standing Jump', 'flat', [(1.0, {'charge': 1.0, 'say': 'hop'})], 1.0, ('rise', 'flight', 'travel')),
 }
 SCENARIOS.update({key: (scene, plan, start + ref['seconds'] + STILL_S, 'stunt', key)

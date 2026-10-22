@@ -65,10 +65,19 @@ serves its DOD; none an entry a case.
    late swing lowering her - each took a held scene. Up the stairs told she
    climbs the flight and stands on the landing (stairs.md), at her walk's
    0.54 s step where the takes climb at 0.6-0.7 s: the climb's rhythm is still
-   the impedance's. To come, a sequencer on her loop: each tread a beat, its
-   rise read from the map as data and setting that beat's lift, its pull-up as
-   a played axial envelope over the stance and its cadence, uneven risers each
-   their own note; the reading-side climb (`floor_mean`) goes with it. Left:
+   the impedance's. To come, a sequencer on her loop (asked): her beats a
+   stream of keywords with a sequencer's modifiers, each beat a footfall -
+   tempo (the stride's Hz), pitch (the step's rise: a tread a note, a slope a
+   transpose), gate (the swing's share of the beat), accent (the push-off),
+   envelope (the pull-up's attack over the stance), slide (the step's
+   length), tie (a sole held down across beats), rest (a stand), quantize
+   (footfalls to the treads' grid, `stride.footholds`), flam (a quick double
+   footfall: the let-go's stutter at the stairs' foot, a fault), fill (a
+   parry's steps), pattern (a gait text), chain (the gaits in order). A told
+   floor compiles to such a stream (a tread a beat with its pitch), the model
+   says the rest; each beat's modifiers set the steering table's coordinate
+   for that beat (se2's grid, the rise its fourth axis, in rebuild) and the
+   loop plays it; the reading-side climb (`floor_mean`) goes with it. Left:
    her centre of mass running on past a lone standing sole while the next
    swing is late, the common root on every descent; the first step down a
    flight, nothing told, a drop. DOD: stairs of 0.15 x 0.30 m up and down, a
@@ -128,7 +137,7 @@ serves its DOD; none an entry a case.
    sagittal and pitch read off the take, the rest her balance's, the trunk's
    pitch off her stand; stunts.md): 3 of 31 met - the slick patch, the ice,
    the kneel -, the backflip and the run to it refused for want of a text,
-   26 short, 237.6 widths off in all (the sit onto the chair 0.6, the rise
+   26 short, 227.7 widths off in all (the sit onto the chair 0.6, the rise
    from it 6.4 with its rows waiting on `risen_back`, the runs and jogs 72:
    told 1.64 m/s she goes 0.34); the crouch
    takes, half a unit deeper with the straight leg their legs' zero, bottom
@@ -162,7 +171,9 @@ serves its DOD; none an entry a case.
    checks re-based on what the drives give, to decide; at 1.8 Hz her stance
    chatters and she falls; the dance's bounce of 0.38
    legs felling her when streamed; a lean back of 13 deg standing met with
-   3.7; the stairs (item 3). No spasm: each segment's jerk no higher than
+   3.7; the stairs takes on their own flight (0.21 x 0.225 m) climbed 0.3 m low
+   on knees at their drive's limit and fallen at the top, ended and travel within
+   (stairs.md, item 3). No spasm: each segment's jerk no higher than
    her steady walk's (item 2). The take's
    human and she by similarity: lengths by the legs' ratio, times and speeds
    by its root, masses and forces by its cube, normative for a woman of her
