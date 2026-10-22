@@ -186,11 +186,11 @@ def warm():
     try:
         _draw({'pose': (0.0, 0.0, 0.0, 1.0), 'zoom': SWELL_FROM}, 8, 4)
         # On the card where one answers: 64 ms a frame at 52x18 on the CPU.
-        from coaxial.graphics import gpu, shading
+        from coaxial.graphics import card, gpu, shading
         _STAGE['crew'] = gpu.card_crew(art=shading._face())
-        card = gpu.adapter()
-        if card is not None:
-            _STAGE['lit'] = gpu.LitRaster(found=card)
+        found = card.adapter()
+        if found is not None:
+            _STAGE['lit'] = gpu.LitRaster(found=found)
             _her({'opened': time.monotonic(), 'spun': 0.0}, 8, 4)
             _quad({'opened': time.monotonic(), 'spun': 0.0}, 8, 4)
     finally:

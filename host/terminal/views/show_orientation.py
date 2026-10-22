@@ -15,16 +15,18 @@ import argparse
 import os
 import sys
 import time
+from typing import Any
 
 from rich.text import Text
 
 from coaxial.comm.session import standing
-from coaxial.draw import farm, orientation
+from coaxial.draw import easel, farm, orientation
 from coaxial.errors import RigError
 from terminal.loader import TO_MENU
+from terminal.ui.ahead import Ahead
 from terminal.ui import console as _console, screen as _screen
 from terminal.ui.console import WHEEL_STEP
-from terminal.ui.screen import (PORT, FEED_HZ, FPS_CAP, Feed, Freshness, closing, mode_of, open_rig, run_view,
+from terminal.ui.screen import (PORT, FPS_CAP, Feed, Freshness, closing, mode_of, open_rig, run_view,
                                 say)
 from terminal.ui.stage import boot, frame_of, hud, stage
 
@@ -281,15 +283,23 @@ def compose(origin, args, view, colour, console):
     # The full width the HUD leaves over: a 2*tall+14 cap cropped a zoomed
     # model at the frame long before the window ran out of columns.
     art_w = max(24, view['wide'] - 42)
-    art = orientation.render(
-        q, width=art_w, height=tall,
-        zoom=view['zoom'] * (0.88 if not args.photo else 1.0),
-        shop=view['shop'], toon=not args.photo, wire=not args.photo,
-        colour=colour, frame_on=view['frame_on'],
-        crew=view.get('crew'), persist=view.get('persist'),
-        # One pose ahead: the crew rasters the pose just read while the
-        # previous one is painted; wireframe._face_ahead has the numbers.
-        scroll=view.get('scroll'), ahead=True).splitlines()
+    zoom = view['zoom'] * (0.88 if not args.photo else 1.0)
+    record, drawing = view['record'], view.get('drawing')
+    if drawing is not None:
+        art = drawing['ahead'].drawn(q, art_w, tall, zoom=zoom, colour=colour,
+                                     frame_on=view['frame_on'], scroll=view.get('scroll'))
+        # Drawn a frame ahead: this frame shows the pose asked the frame before, its numbers too.
+        (q, record), drawing['asked'] = drawing['asked'] or (q, record), (q, record)
+    else:
+        art = orientation.render(
+            q, width=art_w, height=tall, zoom=zoom,
+            shop=view['shop'], toon=not args.photo, wire=not args.photo,
+            colour=colour, frame_on=view['frame_on'],
+            crew=view.get('crew'), persist=view.get('persist'),
+            # One pose ahead: the crew rasters the pose just read while the
+            # previous one is painted; wireframe._face_ahead has the numbers.
+            scroll=view.get('scroll'), ahead=True)
+    art = art.splitlines()
     margin = min((len(l) - len(l.lstrip(' '))
                   for l in art if l.strip()), default=0)
     art = [l[margin:] for l in art]
@@ -298,7 +308,7 @@ def compose(origin, args, view, colour, console):
     note = view['note']
     return frame_of(
         console, origin, 'BOARD ATTITUDE', '\n'.join(art),
-        boxes(view['part'], view['pid'], view['record'], q, view['rate']),
+        boxes(view['part'], view['pid'], record, q, view['rate']),
         (tuple(_mirror_keys(view['flip']))
          + (('C', 'FRAME'), ('T', 'TARE'), ('WHEEL', 'ZOOM'),
             ('+ -', 'ZOOM'),
@@ -344,11 +354,27 @@ def parse_args(argv):
     return parser.parse_args(argv)
 
 
+def apart(args):
+    """Whether the toon drawing runs in a process of its own (`easel`): not the photographic
+    one, which bands its own, nor a run too short to pay for starting it."""
+    return not args.photo and not (args.frames and args.frames <= 4)
+
+
 def launch(args):
-    """Everything before the first frame, behind one boot strip that rides
-    the milestones (link, six decimations, shadow casters, the part, its
-    power, the rotation vector, the pool), so the strip ends where the
-    view begins.
+    """Everything before the first frame, the drawing's process started first: its card, meshes
+    and crew come up while this one opens the board. Its process closed where the start fails."""
+    drawing = Ahead(easel.__name__, 'render') if apart(args) else None
+    started = _launched(args, drawing)
+    if started is None and drawing is not None:
+        drawing.close()
+    return started
+
+
+def _launched(args, drawing):
+    """Behind one boot strip that rides the milestones (link, six
+    decimations, shadow casters, the part, its power, the rotation vector,
+    the pool or the drawing's process), so the strip ends where the view
+    begins.
     """
     # power_afe by name: the default is False and the part this view shows
     # is AFE-powered; the rail goes back as found.
@@ -359,7 +385,7 @@ def launch(args):
     with boot('BRINGING THE PART UP') as step:
         origin, board = rig.origin, rig.board
         step(0.12, 'BNO085 LINKED')
-        pool = bands(args, step)
+        pool = bands(args, step) if drawing is None else None
         step(0.78, 'THE PART')
         part = capability(board)
         if part is None:
@@ -386,11 +412,14 @@ def launch(args):
             return None
         step(0.95, 'DRAWING')
         shop = workshop(args)
+        if drawing is not None:
+            say('ok', 'drawing', 'a process of its own, on %s'
+                % (drawing.name or 'processes of its own'))
     say('ok' if origin.real else 'warn', 'link',
         '%s - %s' % (origin.label, standing(origin)))
     say('wait', 'drawing',
         'Q closes it, ESC goes back to the menu, and both undo the above')
-    return rig, origin, board, part, pid, pool, shop
+    return rig, origin, board, part, pid, pool, shop, drawing
 
 
 def _taken(view, state, first, new):
@@ -408,7 +437,7 @@ def main(argv=None):
     started = launch(args)
     if started is None:
         return 1
-    rig, origin, board, part, pid, pool, shop = started
+    rig, origin, board, part, pid, pool, shop, drawing = started
 
     period = period_of(args.hz)
 
@@ -423,15 +452,18 @@ def main(argv=None):
     # `persist` holds the two frames before this one, so three can vote per
     # cell - steady._steady, one frame of latency for no blinks.
     state = {'tare': None, 'flip': [False, False, False],
-             'frame_on': True, 'persist': {}, 't0': time.monotonic()}
+             'frame_on': True, 'persist': {}, 't0': time.monotonic(),
+             'drawing': None if drawing is None else {'ahead': drawing, 'asked': None}}
     tally = Freshness()
     # The board read on its own thread: a frame draws at the screen's pace, not the link's - an
-    # emulated board's link is several times slower than a real one's.
-    feed = Feed(lambda: latest(board), period=1.0 / FEED_HZ).start()
+    # emulated board's link is several times slower than a real one's. At the screen's rate, the
+    # pose being the picture: at FEED_HZ a third of the frames drew the pose before (19 new poses
+    # a second of 29.5 frames on native://), at 30 Hz 26.
+    feed = Feed(lambda: latest(board), period=1.0 / FPS_CAP).start()
 
     def draw():
         wide, tall = canvas(args)
-        record = feed.latest
+        record: Any = feed.latest
         if record is not None:
             record = dict(record, clock=getattr(board.transport, 'time_scale', 1.0))
         fresh = record['quaternion'] if record else None
@@ -470,6 +502,8 @@ def main(argv=None):
             shop.close()
         if pool:
             pool.close()
+        if drawing is not None:
+            drawing.close()
         done = put_back(board, part)
         rig.close()
         done.append((part['power'] or 'supply',

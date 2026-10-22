@@ -366,13 +366,13 @@ def test_the_preload_is_the_first_inquiry(report):
         bundle = {'stamp': preload.stamp(orientation.MODEL), 'lods': {},
                   'exact': (None, []), 'prims': []}
         size = preload.save(bundle, where=where)
+        preload.save(dict(bundle, stamp=('elsewhere',) + bundle['stamp'][1:]), where=where)
         back = preload.load(orientation.MODEL, where=where)
-        bundle['stamp'] = ('elsewhere',) + bundle['stamp'][1:]
-        preload.save(bundle, where=where)
+        os.remove(os.path.join(where, preload.named(bundle['stamp'])))
         stale = preload.load(orientation.MODEL, where=where)
         why = preload.refusal(where)
-    report.check('preload: a saved bundle loads back on the model\'s stamp '
-                 'and not on another', size > 0 and back is not None
+    report.check('preload: a saved bundle loads back on the model\'s stamp beside '
+                 'another tree\'s, and another\'s never loads', size > 0 and back is not None
                  and back['stamp'] == preload.stamp(orientation.MODEL)
                  and stale is None, '%d bytes, %s, %s' % (size, back is not None, stale))
     report.check('preload: the room is measured - no refusal, or one in '

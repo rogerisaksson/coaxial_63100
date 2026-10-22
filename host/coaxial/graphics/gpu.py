@@ -6,16 +6,13 @@ processes. The GPU draws the dot raster - `engine.raster`'s contract, 100 ms -> 
 (`crew.cells`). Against the CPU raster: 0-2 of 11 000 cells' dots differ, where coplanar
 faces tie and f32 rounds another way than f64. COAXIAL_GPU=0 keeps every frame on the CPU.
 """
-import os
 from typing import Any
 
 from coaxial.errors import RigError
+from coaxial.graphics.card import adapter, device_of
 from coaxial.graphics import crew as crewmod
 from coaxial.graphics import engine
 from coaxial.graphics.lit import FILL, KEY
-
-#: The switch: 0 keeps the pages on the CPU crew.
-ENV = 'COAXIAL_GPU'
 
 #: A sample is engine.raster's integer point (px, py) and a pixel's centre is at +0.5, so every
 #: screen coordinate moves half a pixel. Depth is `ooz`, linear in screen space as the engine
@@ -65,24 +62,6 @@ fn fs(i: VOut) -> FOut {
     return f;
 }
 """
-
-
-def adapter():
-    """The card's adapter, or None: wgpu absent, no GPU but a software one, or
-    COAXIAL_GPU=0."""
-    if os.environ.get(ENV, '1') == '0':
-        return None
-    try:
-        import wgpu
-    except ImportError:
-        return None
-    try:
-        found = wgpu.gpu.request_adapter_sync(power_preference='high-performance')
-    except (RuntimeError, OSError, wgpu.GPUError):
-        return None
-    if found is None or found.info.get('adapter_type') == 'CPU':
-        return None
-    return found
 
 
 #: id(device) -> (device, bind group layout, pipeline): the shader compiled once a device.
@@ -305,7 +284,7 @@ class LitRaster:
             found = found or adapter()
             if found is None:
                 raise RigError('no GPU to draw on')
-            device = found.request_device_sync()
+            device = device_of(found)
             self.name = found.info.get('device', 'GPU')
         self.device = device
         shader = device.create_shader_module(code=LIT_WGSL)
@@ -433,7 +412,7 @@ class GpuCrew:
         found = found or adapter()
         if found is None:
             raise RigError('no GPU to draw on')
-        self.device = found.request_device_sync()
+        self.device = device_of(found)
         self.art = art
         self.name = found.info.get('device', 'GPU')
         #: id -> (solid, its GpuRaster): the solid held so its id stays its own.

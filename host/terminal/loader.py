@@ -159,7 +159,7 @@ def preload(state, model=None):
         state['steps'] = state['steps'][-3:] + [line]
 
     began = time.perf_counter()
-    if pickled.load(path) is None:
+    if not pickled.whole(pickled.load(path)):
         why = pickled.refusal()
         if why is None:
             say('written: %.1f mb' % (pickled.build(path, progress=say) / 2**20))

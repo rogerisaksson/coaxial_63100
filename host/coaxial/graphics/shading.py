@@ -4,6 +4,7 @@ import functools
 import math
 import os
 
+from coaxial.graphics import shadow
 from coaxial.graphics.raster import BRAILLE, BRAILLE_BITS, NOISE, NOISE_N, RUNGS, SHADE
 from coaxial.graphics.solids import _casters
 from machine.ansi import rgb as _rgb
@@ -232,7 +233,7 @@ _SHADOWS = {}
 def _shadowmap(m, size=56, extent=1.3):
     """The scene from LIGHT: an orthographic depth raster along the
     beam, so any cell can ask whether something sits sunward of it - the
-    cast shadow a component throws across the pcb.
+    cast shadow a component throws across the pcb (`shadow.cast`).
     """
     key = tuple(int(v * 6.5) for v in m)
     got = _SHADOWS.get(key)
@@ -240,70 +241,7 @@ def _shadowmap(m, size=56, extent=1.3):
         return got
     if len(_SHADOWS) > 64:
         _SHADOWS.clear()
-    solid = _casters()
-    pos, idx, _nrm = solid
-    m0, m1, m2, m3, m4, m5, m6, m7, m8 = m
-    lx, ly, lz = LIGHT
-    rn = math.sqrt(lz * lz + lx * lx)
-    right = (lz / rn, 0.0, -lx / rn)
-    up = (ly * right[2] - lz * right[1],
-          lz * right[0] - lx * right[2],
-          lx * right[1] - ly * right[0])
-    n = len(pos) // 3
-    la, lb, lc = [0.0] * n, [0.0] * n, [0.0] * n
-    half = (size - 1) / 2.0
-    for i in range(n):
-        x, y, z = pos[3 * i], pos[3 * i + 1], pos[3 * i + 2]
-        tx = m0 * x + m1 * y + m2 * z
-        ty = m3 * x + m4 * y + m5 * z
-        tz = m6 * x + m7 * y + m8 * z
-        la[i] = ((tx * right[0] + ty * right[1] + tz * right[2])
-                 / extent + 1.0) * half
-        lb[i] = ((tx * up[0] + ty * up[1] + tz * up[2])
-                 / extent + 1.0) * half
-        lc[i] = tx * lx + ty * ly + tz * lz
-
-    sbuf = [-9.0] * (size * size)
-    for t in range(len(idx) // 3):
-        a, b, c = idx[3 * t], idx[3 * t + 1], idx[3 * t + 2]
-        x0, y0, x1, y1, x2, y2 = la[a], lb[a], la[b], lb[b], la[c], lb[c]
-        area = (x1 - x0) * (y2 - y0) - (y1 - y0) * (x2 - x0)
-        if area == 0.0:
-            continue
-        da, db, dc = lc[a], lc[b], lc[c]
-        if area < 0.0:
-            x1, y1, x2, y2 = x2, y2, x1, y1
-            db, dc = dc, db
-            area = -area
-        lo_x = max(0, int(min(x0, x1, x2)))
-        hi_x = min(size - 1, int(max(x0, x1, x2)) + 1)
-        lo_y = max(0, int(min(y0, y1, y2)))
-        hi_y = min(size - 1, int(max(y0, y1, y2)) + 1)
-        inv = 1.0 / area
-        # The row terms hoisted as in engine.raster: the same floats, less work
-        # per pixel.
-        e0x, e0y = x2 - x1, y2 - y1
-        e1x, e1y = x0 - x2, y0 - y2
-        for py in range(lo_y, hi_y + 1):
-            row = py * size
-            r0 = e0x * (py - y1)
-            r1 = e1x * (py - y2)
-            for px in range(lo_x, hi_x + 1):
-                w0 = (r0 - e0y * (px - x1)) * inv
-                if w0 < 0.0:
-                    continue
-                w1 = (r1 - e1y * (px - x2)) * inv
-                if w1 < 0.0:
-                    continue
-                w2 = 1.0 - w0 - w1
-                if w2 < 0.0:
-                    continue
-                here = w0 * da + w1 * db + w2 * dc
-                at = row + px
-                if here > sbuf[at]:
-                    sbuf[at] = here
-    made = (sbuf, size, extent, right, up, (lx, ly, lz))
-    _SHADOWS[key] = made
+    made = _SHADOWS[key] = shadow.cast(_casters(), m, LIGHT, size, extent)
     return made
 
 

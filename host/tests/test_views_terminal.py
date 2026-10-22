@@ -334,8 +334,8 @@ def test_a_frame_rasterises_as_the_terminal_draws_it(report):
 
 def test_the_attitude_caps_its_frame_rate(report):
     """Every view draws at most FPS_CAP frames a second whatever `--hz` asks - so the
-    laptop's fans stay down -, its feeds read the board FEED_HZ times; BOARD ATTITUDE never
-    slower than one every two seconds."""
+    laptop's fans stay down -, its feeds read the board FEED_HZ times, the attitude's at the
+    screen's; BOARD ATTITUDE never slower than one every two seconds."""
     from terminal.ui.screen import FEED_HZ, FPS_CAP
     from terminal.views import show_orientation as view
 
@@ -393,9 +393,9 @@ def test_the_stand_shows_its_acts(report):
         stand._STAGE.clear()
         stand._STAGE.update(was[0])
     # On the CPU where no card answers: its dots, as the QUAD page draws them.
-    from coaxial.graphics import gpu
-    card = gpu.adapter()
-    stand._STAGE['lit'] = gpu.LitRaster(found=card) if card is not None else None
+    from coaxial.graphics import card, gpu
+    found = card.adapter()
+    stand._STAGE['lit'] = gpu.LitRaster(found=found) if found is not None else None
     try:
         art = stand._quad({'opened': time.monotonic() - cycle + 1.0, 'spun': 1.0}, 52, 18)
     finally:

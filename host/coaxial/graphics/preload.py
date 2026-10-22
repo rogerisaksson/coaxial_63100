@@ -18,7 +18,15 @@ from coaxial.memory import physical
 #: free disk under which the pickle is not written.
 RAM_FLOOR = 1 << 30
 DISK_FLOOR = 100 << 20
-FILE = 'preload.pickle'
+
+#: Bundles kept side by side, a file a stamp: one file for the machine's trees had each tree's
+#: build leave the others' pages cold - their decimates 1.5 s, the outline 1.0 s, a start's.
+KEPT = 6
+
+
+def named(stamped):
+    """The file of the bundle stamped `stamped`."""
+    return 'preload-%s.pickle' % hashlib.sha1(repr(stamped).encode()).hexdigest()[:12]
 
 
 def cache_dir():
@@ -79,7 +87,7 @@ def build(path, progress=None, where=None):
     from coaxial.graphics import creases, solids, stereotype
     say = progress or (lambda label: None)
     lods = {}
-    for _zoom, divisions in solids.LODS:
+    for divisions in levels():
         lods[divisions] = solids._decimated(path, divisions)
         say('decimate grid %d: %d triangles' % (divisions, len(lods[divisions][1]) // 3))
     exact, loops = creases._outline_source()
@@ -91,25 +99,50 @@ def build(path, progress=None, where=None):
     return save(bundle, where)
 
 
+def levels():
+    """The grids a bundle holds: every level of detail and the shadow casters'."""
+    from coaxial.graphics import solids
+    return tuple(divisions for _zoom, divisions in solids.LODS) + (solids.CASTERS,)
+
+
+def whole(bundle):
+    """Whether `bundle` holds every level `build` writes: one short of the casters is
+    rebuilt."""
+    return bundle is not None and set(levels()) <= set(bundle.get('lods', ()))
+
+
 def save(bundle, where=None):
     """Write `bundle` as the pickle, through a temporary name so a reader
     never sees half a file.
     """
     where = where or cache_dir()
     os.makedirs(where, exist_ok=True)
-    final = os.path.join(where, FILE)
+    final = os.path.join(where, named(bundle['stamp']))
     tmp = final + '.%d.tmp' % os.getpid()
     with open(tmp, 'wb') as out:
         pickle.dump(bundle, out, protocol=pickle.HIGHEST_PROTOCOL)
     os.replace(tmp, final)
+    _pruned(where)
     return os.path.getsize(final)
+
+
+def _pruned(where):
+    """The bundles in `where` past the newest KEPT, removed."""
+    kept = sorted((os.path.join(where, name) for name in os.listdir(where)
+                   if name.startswith('preload') and name.endswith('.pickle')),
+                  key=os.path.getmtime, reverse=True)
+    for stale in kept[KEPT:]:
+        try:
+            os.remove(stale)
+        except OSError:
+            pass
 
 
 def load(path, where=None):
     """The bundle for `path` when the pickle is there and its stamp
     matches, else None - never an exception: a torn or foreign file is
     just no preload."""
-    final = os.path.join(where or cache_dir(), FILE)
+    final = os.path.join(where or cache_dir(), named(stamp(path)))
     try:
         with open(final, 'rb') as source:
             bundle = pickle.load(source)

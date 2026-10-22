@@ -25,7 +25,7 @@ from rich.text import Text
 
 from coaxial.draw.orientation import _qmul, matrix, normalise
 from coaxial.errors import RigError
-from coaxial.graphics import gpu, shading, wireframe
+from coaxial.graphics import card, gpu, shading, wireframe
 from coaxial.graphics.crew import Crew
 from terminal.loader import TO_MENU
 from terminal.ui import screen as _screen
@@ -185,8 +185,8 @@ def main(argv=None):
     if args.workers > 0:
         view['crew'] = Crew(wireframe._lods(), art=shading._face(),
                             workers=args.workers)
-    elif (card := gpu.adapter()) is not None:
-        view['crew'] = gpu.GpuCrew(wireframe._lods(), art=shading._face(), found=card)
+    elif (found := card.adapter()) is not None:
+        view['crew'] = gpu.GpuCrew(wireframe._lods(), art=shading._face(), found=found)
     frame, last = 0, time.monotonic()
 
     try:

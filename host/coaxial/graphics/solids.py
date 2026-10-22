@@ -71,7 +71,7 @@ def _decimate_missing(path, stamp, missing, progress):
     """The absent decimates, built by the crew at once."""
     if len(_MESHES) + len(missing) > MESHES_KEPT:
         _forget()
-    for divisions, solid in crew.decimate(path, missing, progress).items():
+    for divisions, solid in crew.decimate(path, missing, progress, keep=_bore_keep).items():
         _MESHES[(path, divisions, stamp)] = solid
 
 
@@ -88,10 +88,14 @@ def _parametric_casters():
     return orientation.facets(steps=20, relief=1.5)
 
 
+#: The shadow pass's grid: the same STL, coarser than any level of detail.
+CASTERS = 10
+
+
 def _casters() -> tuple:
     """The shadow pass's own solid: the same STL, coarser still."""
     try:
-        return _decimated(orientation.MODEL, 10)
+        return _decimated(orientation.MODEL, CASTERS)
     except (OSError, ValueError):
         return _parametric_casters()
 

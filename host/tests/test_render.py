@@ -1377,7 +1377,7 @@ def test_the_alphabet(report):
 def test_the_gynoid(report):
     """The gynoid stands on the floor at her height, a stride shows, and her dots are the same
     cells on the GPU as splatted here - where a card answers."""
-    from coaxial.graphics import gpu, gynoid
+    from coaxial.graphics import card, gpu, gynoid
     from machine import figure
     body = gynoid.body()
     stride = dict(figure.stand(), left_hip=-22.0, right_hip=16.0)   # her left leg ahead
@@ -1395,11 +1395,11 @@ def test_the_gynoid(report):
                  len(here) == 22 and all(len(line) == 48 for line in here)
                  and sum(ch not in ' ' for line in here for ch in line) > 100,
                  sum(ch not in ' ' for line in here for ch in line))
-    card = gpu.adapter()
-    if card is None:
+    found = card.adapter()
+    if found is None:
         report.check('gynoid: no card here - drawn by this process alone', True)
         return
-    there = gynoid.render(stride, 48, 22, colour=False, lit=gpu.LitRaster(found=card))
+    there = gynoid.render(stride, 48, 22, colour=False, lit=gpu.LitRaster(found=found))
     a = {(r, c) for r, line in enumerate(here) for c, ch in enumerate(line) if ch != ' '}
     b = {(r, c) for r, line in enumerate(there) for c, ch in enumerate(line) if ch != ' '}
     report.check('gynoid: the card lights the cells the splat does (Jaccard over 0.8)',

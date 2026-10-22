@@ -58,21 +58,22 @@ def cells(depth, top, sun, m, cam, band, shading, face_art) -> tuple:
 
 
 def _decimate(job):
-    path, divisions = job
+    path, divisions, keep = job
     with open(path, 'rb') as f:
         raw = f.read()
     return divisions, mesh._clustered(mesh._centred(list(mesh._faces(raw))),
-                                      divisions)
+                                      divisions, keep=keep)
 
 
-def decimate(path, grids, progress=None):
+def decimate(path, grids, progress=None, keep=None):
     """{divisions: solid} for every grid in `grids`, each decimated in its
-    own process.
+    own process, `keep`'s corners their own clusters (solids._bore_keep):
+    without it a missing preload drew the bore's two holes.
     """
     out = {}
     with multiprocessing.Pool(min(len(grids), os.cpu_count() or 1)) as pool:
         for i, (divisions, solid) in enumerate(pool.imap_unordered(
-                _decimate, [(path, d) for d in grids])):
+                _decimate, [(path, d, keep) for d in grids])):
             out[divisions] = solid
             if progress:
                 progress(i + 1, len(grids), divisions)

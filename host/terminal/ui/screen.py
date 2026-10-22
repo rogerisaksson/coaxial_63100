@@ -150,7 +150,8 @@ def gauge(fraction, width, hot=THROTTLE_AT):
                         else cross_section.SOA_OK)
 
 
-#: Maximum frames per second across views; the most a feed reads its board a second.
+#: Maximum frames per second across views; the most a feed reads its board a second, but the
+#: attitude's, whose pose is its picture, at the screen's.
 FPS_CAP, FEED_HZ = 30.0, 20.0
 
 #: A frame between these, a synchronized update (DEC mode 2026): a terminal that knows it paints
