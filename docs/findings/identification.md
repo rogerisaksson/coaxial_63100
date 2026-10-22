@@ -152,6 +152,10 @@ torques. What her law senses: [sensing](sensing.md); the drives:
   stand, masses and first moments never stand apart -; on the walk's first
   half alone 0.44; on both 0.42, the trunk's 0.47, 0.45, 0.11 -> 0.30, 0.17,
   0.03, no drive's up by more than 0.02 (`test_her_model_holds_on_her_walk`).
+- Of what the world's own model takes off the build, the correction on both
+  takes 0.57 (build 0.613, corrected 0.511, world 0.433) and on CI's Linux
+  0.62 (0.872, 0.782, 0.726): of the build's whole 17 and 10 %. The
+  platform's arithmetic moves the floor no model takes, not the share.
 
 ## Standing on her insoles
 
