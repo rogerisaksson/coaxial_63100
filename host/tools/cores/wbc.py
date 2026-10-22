@@ -113,7 +113,7 @@ class World(ctypes.Structure):
                 ('xmat', _vp), ('ctrl', _vp), ('target', _vp), ('rate', _vp), ('feed', _vp), ('gains', _vp),
                 ('limit', _vp), ('kt', _vp), ('shorted', _vp), ('cut', _vp), ('delta', _vp), ('zero', _vp),
                 ('armature', _vp), ('motor', _vp), ('geared', _vp),
-                ('effort', _d), ('work', _d), ('brake', _d)]
+                ('effort', _d), ('work', _d), ('brake', _d), ('loss', _vp), ('blas', _vp), ('heat', _d)]
 
 
 class Contacts(ctypes.Structure):
@@ -232,6 +232,9 @@ def typed(lib):
     dp = ctypes.POINTER(d)
     u32p = ctypes.POINTER(ctypes.c_uint32)
     fp = ctypes.POINTER(ctypes.c_float)
+    lib.wbh_world_size.restype = i
+    if lib.wbh_world_size() != ctypes.sizeof(World):
+        raise ValueError('wbc_world_t is %d bytes, its mirror %d' % (lib.wbh_world_size(), ctypes.sizeof(World)))
     lib.wbh_links.restype = i
     lib.wbh_n.restype = i
     lib.wbh_name.restype = ctypes.c_char_p

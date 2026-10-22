@@ -140,14 +140,16 @@ void wbc_pass_ctrl(wbc_world_t *w, double span, const double *ahead, const doubl
 void wbc_pass_motor(wbc_world_t *w, double step_s)
 {
   const int n = w->n < WBC_PASS_MAX ? w->n : WBC_PASS_MAX;
-  double    held[WBC_PASS_MAX];
+  double    held[WBC_PASS_MAX], squared[WBC_PASS_MAX];
 
   for (int i = 0; i < n; i++)
   {
     w->motor[i] = w->ctrl[i];
     held[i] = fabs(w->motor[i]);
+    squared[i] = w->motor[i] * w->motor[i];
   }
   w->effort += npsum(held, n) * step_s;
+  w->heat += wbc_dot(w->blas, w->loss, 1, squared, 1, n) * step_s;
 }
 
 void wbc_pass_metered(wbc_world_t *w, const double *speed, double step_s)

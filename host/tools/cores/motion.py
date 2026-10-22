@@ -17,6 +17,7 @@ import ctypes
 import functools
 import glob
 import math
+import operator
 import os
 
 import numpy as np
@@ -342,13 +343,13 @@ def _stepped(k, step, v, b, s, ask):
     def at(a):
         a = np.ascontiguousarray(a, dtype=np.float64)
         kept.append(a)
-        return a.ctypes.data
+        return wbc.address(a)
     last = getattr(k.sensed, 'last', None)
-    if last is not None and all(s.get(n) is last[0].get(n) for n in SENSED):
+    if last is not None and all(map(operator.is_, map(s.get, SENSED), map(last[0].get, SENSED))):
         c = k.sensed.c
         if k.placed is None or k.placed[0] is not c:
             k.placed = (c, np.array([8 * c.place(path) for _f, _i, path in POINTED], dtype=np.uint64))
-        v['words'][k.pointed] = last[1] + k.placed[1]
+        np.add(k.placed[1], last[1], out=v['words'][k.pointed])
         k.M = at(s['M'])
     else:
         k.M, k.h, k.v, k.q, k.com, k.k = (at(s[name]) for name in ('M', 'h', 'v', 'q', 'com', 'k'))

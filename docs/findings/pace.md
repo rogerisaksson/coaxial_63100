@@ -112,3 +112,9 @@ machine ([body](body.md), [emulation](emulation.md),
   at 4 001 calls over 12 s of her walk, 36 -> 6.0 us a call. Her loop 329 ->
   325 us a pass, 3.08 of real time, walking 3.02; the worker 382, 2.62;
   MuJoCo's step 84 of the 325.
+- The copper's heat metered in the world's motor step in C (`wbc_pass_motor`,
+  numpy's ddot), bit for bit over 12 001 steps; the drive frames' and the
+  solve's pointers read off their arrays (`tools.cores.wbc.address`) where
+  `.ctypes` built an object a call. Her loop 327 -> 311 us a pass, 5.0 %: two
+  trees interleaved, each run's fastest 1 500 passes - another session's
+  bursts doubled a whole run's own.

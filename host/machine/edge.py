@@ -12,6 +12,7 @@ is not her, in its own frame -, each insole's centre of pressure, never the worl
 stiffness and clamps alone (test_structure).
 """
 import ctypes
+import functools
 import math
 import os
 
@@ -241,11 +242,17 @@ class LimbBus:
             raise ValueError('Modbus RTU CRC-16 fault on %s' % self.name)
 
 
+@functools.cache
+def _cores():
+    """`tools.cores.wbc`, imported on first use."""
+    from tools.cores import wbc
+    return wbc
+
+
 def _buses_of(world):
     buses = getattr(world, 'limb_buses', None)
     if buses is None:
-        from tools.cores import wbc as cores
-        lib = cores.library()
+        lib = _cores().library()
         counts = np.array([len(jnts) for _, jnts in LIMBS], dtype=np.int32)
         flat = np.array([JOINTS.index(j) for _, jnts in LIMBS for j in jnts], dtype=np.int32)
         lib.wbh_sil_init(ctypes.byref(world.passing), len(LIMBS), counts.ctypes.data, flat.ctypes.data)
@@ -256,10 +263,11 @@ def _buses_of(world):
 
 
 def _c_arr(arr):
+    """(`arr` laid contiguous in doubles, its address), (None, None) for none."""
     if arr is None:
         return None, None
     a = arr if (isinstance(arr, np.ndarray) and arr.dtype == np.float64 and arr.flags.c_contiguous) else np.ascontiguousarray(arr, dtype=np.float64)
-    return a, a.ctypes.data
+    return a, _cores().address(a)
 
 
 def drive(world, joints, target=None, feed=None, kp=None, limit=None):
@@ -276,7 +284,7 @@ def drive(world, joints, target=None, feed=None, kp=None, limit=None):
     f_a, f_p = _c_arr(feed)
     k_a, k_p = _c_arr(kp)
     l_a, l_p = _c_arr(limit)
-    world._sil_drive(ctypes.byref(world.passing), len(idx), idx.ctypes.data, t_p, f_p, k_p, l_p)
+    world._sil_drive(ctypes.byref(world.passing), len(idx), _cores().address(idx), t_p, f_p, k_p, l_p)
 
 
 def _bus_row_svg(k, name, joints, rtu, drives):

@@ -161,7 +161,7 @@ class World:
         self.lace_at, self.laced = m.tendon('lace').id, False
         #: A board glitched in its SOA (`glitch`): its index and until when.
         self.glitch_at, self.glitch_until = None, -1.0
-        #: The drives' energy since the reset: work done and work braked (J), heat (J), and
+        #: The drives' energy since the reset: work done and braked (J), heat (J), and
         #: torque held (N m s) - what a muscle would pay for.
         self.work = self.brake = self.heat = self.effort = 0.0
         #: Each gearbox's peak torque since the reset, N m: its drive's less its rotor's
@@ -187,7 +187,7 @@ class World:
         self._park()
 
     def _laid(self):
-        from tools.cores import wbc as cores
+        from tools.cores import motion, wbc as cores
         np, d = self._np, self.data
         self._kept = tuple(np.ascontiguousarray(a, dtype=np.int32) for a in (self.qadr, self.vadr, self.pairs))
         p = cores.World(n=len(JOINTS), npairs=len(self.pairs), pelvis=self.pelvis, wound=WOUND)
@@ -196,14 +196,15 @@ class World:
         for name, a in (('qpos', d.qpos), ('qvel', d.qvel), ('qacc', d.qacc), ('xmat', d.xmat), ('ctrl', d.ctrl),
                         ('target', self.target), ('rate', self.rate), ('feed', self.feed), ('gains', self.gains),
                         ('limit', self.limit), ('kt', self.kt), ('delta', self.boxes.delta), ('zero', self.boxes.zero),
-                        ('armature', self.armature), ('motor', self.motor), ('geared', self.geared)):
+                        ('armature', self.armature), ('motor', self.motor), ('geared', self.geared), ('loss', self.loss)):
             setattr(p, name, cores.pointer(a))
         for name, a in (('shorted', self.shorted), ('cut', self.cut)):
             setattr(p, name, cores.pointer(a, np.bool_))
+        p.blas = ctypes.addressof(motion.numpy_blas())
         lib = cores.library()
         self._ctrl, self._motor, self._metered = lib.wbh_pass_ctrl, lib.wbh_pass_motor, lib.wbh_pass_metered
         self._drawn = lib.wbh_pass_drawn
-        self._drawn_of = (cores.pointer(self.loss), cores.pointer(self.driven, np.bool_), cores.pointer(self.testing),
+        self._drawn_of = (p.loss, cores.pointer(self.driven, np.bool_), cores.pointer(self.testing),
                           cores.pointer(self.ohm))
         return p
 
@@ -264,7 +265,7 @@ class World:
         self.target[:] = d.qpos[self.qadr]
         self.was[:], self.rate[:] = self.target, d.qvel[self.vadr]
         self.work = self.brake = self.heat = self.effort = 0.0
-        self.passing.effort = self.passing.work = self.passing.brake = 0.0
+        self.passing.effort = self.passing.work = self.passing.brake = self.passing.heat = 0.0
         self.geared[:] = 0.0
         self.boxes.reset(d.qpos[self.qadr])
         self.motor[:] = 0.0
@@ -335,7 +336,6 @@ class World:
                                             d.qvel[self.vadr] + 0.5 * STEP_S * d.qacc[self.vadr],
                                             np.where(self.shorted, self.damping, 0.0), STEP_S)
                 p.delta = self.boxes.delta.ctypes.data
-            self.heat += float(self.loss @ (self.motor * self.motor)) * STEP_S
             pushing = d.time < self.push_until
             if pushing or self.pushed:
                 d.xfrc_applied[:, 0:3] = 0.0
@@ -352,7 +352,7 @@ class World:
             if ROOM:
                 room.touched(self, STEP_S)
         self.at = d.time
-        self.effort, self.work, self.brake = p.effort, p.work, p.brake
+        self.effort, self.work, self.brake, self.heat = p.effort, p.work, p.brake, p.heat
         if self.buses is not None:
             self.buses.drain()
 

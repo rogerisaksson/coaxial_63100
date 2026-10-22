@@ -218,6 +218,11 @@ API void wbh_pass_motor(wbc_world_t *w, double step_s)
   wbc_pass_motor(w, step_s);
 }
 
+API int wbh_world_size(void)
+{
+  return (int)sizeof(wbc_world_t);
+}
+
 API void wbh_pass_metered(wbc_world_t *w, const double *speed, double step_s)
 {
   wbc_pass_metered(w, speed, step_s);

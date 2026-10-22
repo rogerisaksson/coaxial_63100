@@ -5,6 +5,7 @@
 #define WBC_PASS_H
 
 #include "wbc.h"
+#include "wbc_blas.h"
 
 /** A pass of her world on the host (wbc_pass.c): arrays laid once and pointed to, nothing allocated,
     numpy's arithmetic operation for operation. The most joints a world has. */
@@ -85,13 +86,16 @@ typedef struct
   double               effort;     /**< the meters since the reset: torque held (N m s), work done and braked (J) */
   double               work;
   double               brake;
+  const double        *loss;       /**< each drive's copper, W/(N m)^2; numpy's BLAS its sum */
+  const wbc_blas_t    *blas;
+  double               heat;       /**< the meter of its heat since the reset, J */
 } wbc_world_t;
 
 /** The torques into ctrl, `span` s past the setpoints' stamp; `ahead` and `wrate` the gearboxes'
     rotors past the setpoints and the links' speeds (boxed), NULL rigid. */
 void wbc_pass_ctrl(wbc_world_t *w, double span, const double *ahead, const double *wrate);
 
-/** The motors' torques off ctrl, the effort metered over `step_s`. */
+/** The motors' torques off ctrl, the effort and the copper's heat metered over `step_s`. */
 void wbc_pass_motor(wbc_world_t *w, double step_s);
 
 /** After the world's step: the work done and braked on `speed` (NULL: the joints'), each gearbox's peak. */
