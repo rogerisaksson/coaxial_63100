@@ -117,7 +117,9 @@ def stepped(y_in, vel, y, fr, a, st, out, rest, state, soled, asked, twist, tw_o
     sine_new = sway_new * np.sin(psi)
     out[latent.REF] = z_new + sine_new
     out[latent.RATE] = (1.0 - u_b) * (out[latent.RATE] - sway * turns * np.cos(psi)) + sway_new * turns * np.cos(psi)
-    out[latent.ACC] = (1.0 - u_b) * out[latent.BEND] - sine_new * turns * turns
+    # the curve's own acceleration reaches the impedance only with no polygon held (a throw's rows): held, a take's
+    # frames 31 ms apart bent 118 sagittal/s^2 and 56 pitch/s^2 of noise and the sit-down take fell seated
+    out[latent.ACC] = (1.0 - u_b) * out[latent.BEND] * (1.0 - np.clip(out[latent.HELD], 0.0, 1.0)) - sine_new * turns * turns
     out[latent.SWAY] = sway_new
     kb, db = out[latent.KS].copy(), out[latent.DS].copy()
     kb[modal.AXIAL], kb[modal.LATERAL], kb[modal.SAGITTAL], kb[modal.ROCK] = 3000.0, 3000.0, 0.0, 2400.0

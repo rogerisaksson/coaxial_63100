@@ -185,7 +185,10 @@ run no lower than the human's, a fall's head under 1 m/s. The takes (a leg
   +98 for its -36; a row's blend begun at its own time instead tipped the
   chair's rise (a 3 ms phase, a knife edge) and was undone. `touch.step`
   overwrote the latent's acceleration with the sway's term: no curve's feed
-  reached the impedance. The whole-body step's knee rows damped against
+  reached the impedance; it reaches it only with no polygon held, a throw's
+  rows - held, a take's frames 31 ms apart bent 118 sagittal/s^2 and 56
+  pitch/s^2 of noise and the sit-down take fell seated at 6.9 s (3.8
+  widths, 0.6 now; the standing jump 3.9 -> 3.0). The whole-body step's knee rows damped against
   still, so its height band pinned the push at 3 m/s^2 under its ask with
   the knees at 0.2 of their clamp; they damp against the told height's rate
   where the rows let the polygon go (`modal.BEND_RATE`, the ask's

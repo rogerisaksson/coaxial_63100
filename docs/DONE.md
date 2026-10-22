@@ -156,3 +156,9 @@ the hundred and fifty before these: [DONE_1-50](DONE_1-50.md),
     echoes through a limb of three 129 s here, the off-rate open 63 -, each
     test's seconds printed, a group out of time keeping its lines (the
     relay's children unbuffered).
+27. The curve's own acceleration reaches the impedance only with no polygon
+    held, a throw's rows (`touch.step`, `wbc_touch.c`): held, a take's frames
+    31 ms apart bent 118 sagittal/s^2 and 56 pitch/s^2 of noise and the
+    sit-down take fell seated at 6.9 s (3.8 widths, 0.6 now; the standing
+    jump 3.9 -> 3.0); test_leap 21 of 21, errands 19 of 19
+    ([stunts](findings/stunts.md)).
