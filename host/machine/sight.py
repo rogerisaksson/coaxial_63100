@@ -196,7 +196,14 @@ class Map:
         np.add.at(self.hits, (i, j), 1)
         self.told += np.bincount(i * self.nz + j, minlength=self.nx * self.nz).reshape(
             self.nx, self.nz) >= HITS
-        np.maximum.at(self.high, (i, j), y.astype(np.float32))
+        # a cell as high as HITS of a look's points in it say, as many as tell it: by its
+        # highest point alone a wrong disparity stood a cell 1.9 m over the bed's 0.46
+        key = i * self.nz + j
+        order = np.lexsort((-y, key))
+        ks, ys = key[order], y[order]
+        first = np.flatnonzero(np.r_[True, ks[1:] != ks[:-1]])
+        at = first[np.diff(np.r_[first, len(ks)]) >= HITS] + HITS - 1
+        np.maximum.at(self.high.reshape(-1), ks[at], ys[at].astype(np.float32))
         np.add.at(self.colour, (i, j), rgb)
         self.looks += 1
         return Look(seen, rows[inside], cols[inside], np.stack([i, j], axis=1))
