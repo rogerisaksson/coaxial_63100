@@ -97,7 +97,7 @@ RAIL = len(TAB[0])
 EDGE = '│'.center(RAIL)
 #: The rail's arrow breathes with the screen's sweep (`chrome.SWEEP_S`): its ink from a key's
 #: down BREATH of the way to an instrument edge's and back - faint, slow.
-BREATH = 0.5
+BREATH = 0.3
 
 
 def column():
