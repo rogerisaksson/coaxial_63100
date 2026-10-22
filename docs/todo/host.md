@@ -82,3 +82,10 @@
   with the front end on - a change to the STO chain, HARDWARE.md's, to be
   measured on the probe first. DOD: the page at real time on Renode, Clevel
   on the probe as before.
+- **HUMANOID's keys from one place** (asked): bound in five files - gym's
+  table, humanoid_keys' table and dispatch, viewpoint's keys, keybindings'
+  bar and help, the page's tick - each with its own case, repeat and mode
+  rules; odd effects where they meet (F's choice and the gym's digits).
+  DOD: one table binds every key, its bar and its help read off it, one
+  dispatch with the prompt and F's choice as its modes, behaviour held by
+  the views' and errands' suites.
