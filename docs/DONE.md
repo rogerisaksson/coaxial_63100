@@ -192,3 +192,6 @@ the hundred and fifty before these: [DONE_1-50](DONE_1-50.md),
 33. The start menu over a page taken out: Esc leaves a page for the front
     page, the band its name alone (`terminal.ui.bindings`, `taskbar`,
     `stage`; test_views_keys.py, [host](findings/host.md)).
+34. Her head through a stop: her neck let go through a brake and a sole
+    let go only once the other bears as much of her (`motion.control`,
+    `poise.stands`, wbc_stride.c; [jerk](findings/jerk.md)).

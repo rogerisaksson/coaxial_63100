@@ -190,6 +190,17 @@ strafes 2.9, turns 3.8, a spin 4.4, a hop down 11.1, the chair 11.6, the weave
   torso): 0.1 deg at 1c05786f, 101.2 at 1f1d039d, the branchless control pass -
   its neck cut from her step only under 0.05 of her rhythm's gain, a brake's
   1.000 all through. Before it `no_stride` let her neck go in a brake by name.
+- Her neck let go through a brake (`motion.control`: her rhythm told to run,
+  held to her landings' footprint, told no drive) and a sole asked up off the
+  floor only once the other bears as much of her (`poise.stands`,
+  wbc_stride.c): her head's widest nod, walk 101 -> 1.3 deg, sprint 102 -> 1.4,
+  the reverse's stop 105 -> none (36.7 mid-gait, as before), start and stop
+  6.6 -> 4.1, a spin 53 -> 34, bed 29 -> 0.3, bed_rise 29 -> 7; her walk the
+  same (0.70 m/s, 409 J/m, 2.55 off). Without the guard play_about's stop let
+  go a sole bearing 196 N of her, the other 43, and she fell at 8.8 s. Not kept:
+  let go wherever her rhythm was told no drive - a hop's stand sank her in a
+  replay; her head's yaw let go with it - the chair's dock put her hand on the
+  loft, 0 of 5 starts.
 - Her friction by heading: walking straight 45, -45 and -135 deg her head's
   peaks are 2 499, 2 276 and 2 252 m/s^3 where 0, 90 and 180 deg give 585, 597
   and 576 - her step's friction pyramid the world's x and z. Along each sole's

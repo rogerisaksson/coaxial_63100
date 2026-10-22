@@ -195,12 +195,20 @@ def control(g, dt):
     ask['mu'] = g['held']
     cv, acv = g['_cv_sh'], g['_acv_sh']
     w_gait = min(1.0, max(0.0, (0.05 - float(g['st'][latent.NOW][latent.GAIN])) / 0.05))
+    w_drive = min(1.0, abs(float(g['st'][latent.TO][latent.AMP][modal.DRIVE])) / stride.STIRS)
+    foot = min(1.0, max(0.0, float(g['out'][latent.HELD]) - 1.0))
     z_to = g['st'][latent.TO][latent.Z]
     ax = float(z_to[modal.AXIAL])
     rec = min(float(z_to[modal.PITCH]), float(np.min(g['tab'][:, latent.VALS][:, latent.Z][:, modal.PITCH], initial=0.0)))
     w_sit = min(1.0, max(0.0, (ax - 1.5) / 0.01)) * min(1.0, max(0.0, (rec + 0.2) / 0.01))
-    w_base = sw * max(w_hop, (1.0 - float(g['a'][modal.STRIDES])) * w_gait * (1.0 - w_sit))
-    w_up = w_base * np.array([1.0, 1.0, w_hop, w_hop])
+    rest = (1.0 - float(g['a'][modal.STRIDES])) * w_gait
+    w_base = sw * max(w_hop, rest * (1.0 - w_sit))
+    # her neck holds her head's pitch itself also while her rhythm is told to run, held to her
+    # landings' footprint, but told no drive - a brake: coupled, her step's rounds threw her head
+    # 101-105 deg as her last landing let her strides go; her head's yaw turns with her
+    brake = foot * (1.0 - w_drive) * float(g['st'][latent.TO][latent.GAIN])
+    w_neck = sw * max(w_hop, max(rest, brake) * (1.0 - w_sit))
+    w_up = np.array([w_neck, w_base, w_hop * w_base, w_hop * w_base])
     M = g['braced'].scaled(s['M'], w_up)
     g['got'] = g['solve'](body, dict(s, M=M), dict(ask, wep=bool((g['left'] > 0.0) & (sr > 0.25)), derate=g['_derate']))
     got = g['got']

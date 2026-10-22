@@ -246,7 +246,9 @@ void wbc_imp_stands(const wbc_imp_t *k, double zmp[2], const double xi[2], const
       const int early = (sweep[b] > k->early) && ((loads[b] >= k->touch_n) || (stood[b] > 0.5));
       const int gone = (flying[b] > 0.5) && (landed[1 - b] || (over[b] > k->touch_m)) && !early;
 
-      lifting[b] = ((up[b] > k->lift_eps) && ((within[1 - b] && swaying) || (over[b] > k->touch_m))) || gone;
+      lifting[b] = ((up[b] > k->lift_eps) && ((within[1 - b] && swaying) || (over[b] > k->touch_m))
+                    && (loads[b] <= loads[1 - b]))
+                   || gone;
       meant[b] = !lifting[b];
     }
     standing(k, meant, loads, level, rising, borne, st);
