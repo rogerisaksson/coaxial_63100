@@ -17,6 +17,7 @@ image, unless COAXIAL_EMULATOR is `required` (CI).
 import os
 import subprocess
 import sys
+import time
 import zlib
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -413,10 +414,12 @@ BOARD = (wire.test_every_read_decodes, wire.test_settings_are_taken, wire.test_t
 
 
 def run(report, tests):
-    """`tests` in order, their names first."""
+    """`tests` in order, their names first, each one's seconds after it."""
     for test, *given in tests:
         print('\n-- %s --' % test.__name__[5:].replace('_', ' '))
+        began = time.monotonic()
         test(report, *given)
+        print('  %.0f s' % (time.monotonic() - began))
 
 
 def board(report, names=()):
@@ -436,22 +439,17 @@ def conformance(report, _names=()):
         run(report, [(test_the_bench_conformance_holds, emu)])
 
 
-def fallback(report, _names=()):
-    run(report, [(test_emulated_falls_back_where_none_runs,)])
+def one(test):
+    """A group of `test` alone."""
+    return lambda report, _names=(): run(report, [(test,)])
 
 
-def bus(report, _names=()):
-    run(report, [(test_echoes_on_the_bus,), (test_a_bus_off_the_nodes_rate_carries_nothing,)])
-
-
-def blank(report, _names=()):
-    run(report, [(test_a_blank_node_takes_the_host_build,)])
-
-
-#: Each a process and a Renode of its own on the relay, the longest first (the rig
-#: 84 s, the blank node 71, conformance 44, the bus 43).
-GROUPS = {'board': board, 'blank': blank, 'conformance': conformance, 'bus': bus,
-          'fallback': fallback}
+#: A Renode and a process each, the longest first: board 150 s here, blank 133, bus 129,
+#: rate 63, conformance 44.
+GROUPS = {'board': board, 'blank': one(test_a_blank_node_takes_the_host_build),
+          'bus': one(test_echoes_on_the_bus),
+          'rate': one(test_a_bus_off_the_nodes_rate_carries_nothing),
+          'conformance': conformance, 'fallback': one(test_emulated_falls_back_where_none_runs)}
 
 
 

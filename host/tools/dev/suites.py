@@ -149,6 +149,7 @@ QUADS = (QUAD, QUAD_COURSE, QUAD_PAGE, QUAD_PULL, SWEEP, 'test_views_quad_flight
          'test_views_flying.py', 'test_views_inset.py', STRUCTURE)
 
 RENDER = 'test_render.py'
+GROUND = 'test_ground.py'
 
 DEFAULT_SUITES = (STRUCTURES + (CORE, SHTP, DRIVE, DRIVE_OBSERVER, FILTER, THERMAL, THERMAL_APP,
                                 DAQ_CORE, BOARD_MEM,
@@ -160,7 +161,7 @@ DEFAULT_SUITES = (STRUCTURES + (CORE, SHTP, DRIVE, DRIVE_OBSERVER, FILTER, THERM
                    QUAD, QUAD_PULL,
                    AERO_CORE, MPPI_CORE, STREAMS, QUAD_COURSE, SWEEP, BOOT)
                   + VIEWS
-                  + (RENDER,) + OLLAMA
+                  + (RENDER, GROUND) + OLLAMA
                   + ('test_mcp.py', 'test_simulated.py', 'test_parity.py',
                      BENCH))
 
@@ -295,8 +296,10 @@ FRESH_S = {ORTHO: 300.0, QUAD_PAGE: 250.0, REPLAYS: 900.0, SCENES: 2400.0, SITUA
 #: The emulator's groups and each one's time, s, a Renode each: the rig's took 150 of the
 #: suite's 211 one after another here, and CI's runner ran the Release image's past 240.
 #: The blank node's, its image streamed at the emulator's pace, 157 to past 480
-#: on CI's runner against 133 here.
-EMULATOR_GROUPS = {'board': 480, 'blank': 900, 'conformance': 480, 'bus': 480,
+#: on CI's runner against 133 here; the bus's echoes through a limb of three at 475 MIPS
+#: 129 here at 56 wall s a board s, past 480 on CI's runner with the off-rate open (63)
+#: in the same group.
+EMULATOR_GROUPS = {'board': 480, 'blank': 900, 'bus': 900, 'rate': 480, 'conformance': 480,
                    'fallback': 480}
 
 #: What a change to a page the world's heat is judged on reaches.
@@ -310,4 +313,4 @@ FULL_EVERY = 10
 #: run. Where the map has an explicit rule it is also the better answer,
 #: written by someone reading the imports.
 CHEAP = frozenset({*STRUCTURES, CORE, SHTP, DRIVE, DRIVE_OBSERVER, SENSORLESS,
-                   'test_simulated.py', *VIEWS, RENDER})
+                   'test_simulated.py', *VIEWS, RENDER, GROUND})

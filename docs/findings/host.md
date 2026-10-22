@@ -253,6 +253,12 @@ Pages, tooling, suites and the local model's runner. The board's findings:
 - The board's raster on a GTX 1080 Ti (wgpu, Vulkan): 392x224 100 ms -> 2.1
   ms; the menu's turntable 64 -> 13 ms at 52x18. BOARD ATTITUDE 66 -> 64 ms
   a frame at 200x60: its ground (32 ms) and paint (15) are the frame now.
+- BOARD ATTITUDE at 150x44 on native:// drew 10.4 fps, 97 ms a frame, where
+  ANGLE drew 29.7 at 17, the RTX 4060 rastering: a turning pose's frame 61 ms -
+  the floor re-laid rolled and bobbed by the approach 16, the face's paint 30
+  (glow 10, outline 7, halftone 5, edge 5) cell by cell in Python, the raster
+  6 - and rich's print 12. The floor laid at once (numpy): 16 -> 6, the frame
+  51. Its feed reads the board 20 times a second (`FEED_HZ`), 13.8 ms a read.
 - The front page's model was drawn at inner height - 2 inside a 1-column
   padding: a blank row top and bottom, a column each wall. Now the box's
   full inside (checked at 90x28, 120x36, 200x60).

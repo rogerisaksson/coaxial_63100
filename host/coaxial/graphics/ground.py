@@ -229,21 +229,88 @@ def _lit(wy0, wy1, south, phase, solid):
     return sorted(out)
 
 
+def _crossings(c0, dc, c1, scale):
+    """_segment's crossings of the dot grid along one axis, every segment at once: (segment,
+    t) for each `i / scale` strictly between a segment's ends, `scale` dots a cell."""
+    from coaxial.model.blocks import numpy as np
+    a, b = np.minimum(c0 * scale, c1 * scale), np.maximum(c0 * scale, c1 * scale)
+    first = np.floor(a) + 1.0
+    count = np.where(dc != 0.0, np.maximum(np.ceil(b) - first, 0.0), 0.0).astype(np.int64)
+    seg = np.repeat(np.arange(len(dc)), count)
+    i = (np.repeat(first, count) + np.arange(int(count.sum()))
+         - np.repeat(np.cumsum(count) - count, count))
+    return seg, (i / scale - c0[seg]) / dc[seg]
+
+
 def _lay(runs, width, height, roll=None):
     """Polylines into _ground_dot's cells, every dot they pass through - each point moved
-    by `roll` first, when given, so a rolled line is drawn, not a line's dots moved."""
-    cells = {}
-    for line, points, fade in runs:
-        def dot(fx, fy, depth, _k, line=line, fade=fade):
-            _ground_dot(cells, width, height, fx, fy, depth, line, fade)
-        prev = None
-        for fx, fy, depth in points:
-            if roll is not None:
-                fx, fy = roll(fx, fy)
-            if prev is not None:
-                _segment(dot, prev, fx, fy, depth, line)
-            prev = (fx, fy, depth)
-    return cells
+    by `roll` first, when given, so a rolled line is drawn, not a line's dots moved. Every
+    segment at once (numpy), each dot where _segment and _ground_dot put it and in their
+    order, a faint dot landing only where none before it has: 15.7 -> 5.7 ms a frame at 108x44."""
+    from coaxial.model.blocks import numpy as np      # behind the OpenBLAS cap
+    runs = [run for run in runs if len(run[1]) > 1]
+    if not runs:
+        return {}
+    labels: dict = {}
+    ids = np.array([labels.setdefault(line, len(labels)) for line, _p, _f in runs])
+    fades = np.array([fade for _l, _p, fade in runs], dtype=np.float64)
+    lengths = np.array([len(points) for _l, points, _f in runs])
+    p = np.array([point for _l, points, _f in runs for point in points], dtype=np.float64)
+    fx, fy, fd = p[:, 0], p[:, 1], p[:, 2]
+    if roll is not None:
+        fx, fy = roll(fx, fy)
+    start = np.ones(len(p), dtype=bool)
+    start[np.cumsum(lengths) - 1] = False
+    s = np.flatnonzero(start)
+    x0, y0, d0 = fx[s], fy[s], fd[s]
+    dx, dy, dd = fx[s + 1] - x0, fy[s + 1] - y0, fd[s + 1] - d0
+    run_of = np.repeat(np.arange(len(runs)), lengths - 1)
+    n = len(s)
+    sx, tx = _crossings(x0, dx, fx[s + 1], 2.0)
+    sy, ty = _crossings(y0, dy, fy[s + 1], 4.0)
+    seg = np.concatenate([np.arange(n), np.arange(n), sx, sy])
+    t = np.concatenate([np.zeros(n), np.ones(n), tx, ty])
+    order = np.lexsort((t, seg))
+    seg, t = seg[order], t[order]
+    fresh = np.ones(len(t), dtype=bool)
+    fresh[1:] = (seg[1:] != seg[:-1]) | (t[1:] != t[:-1])
+    seg, t = seg[fresh], t[fresh]
+    pair = seg[1:] == seg[:-1]
+    sg = seg[:-1][pair]
+    t = 0.5 * (t[:-1][pair] + t[1:][pair])
+    gx, gy, gd = x0[sg] + dx[sg] * t, y0[sg] + dy[sg] * t, d0[sg] + dd[sg] * t
+    inside = (gx >= 0.0) & (gy >= 0.0)
+    px, py = gx.astype(np.int64), gy.astype(np.int64)
+    inside &= (px < width) & (py < height)
+    gx, gy, gd, sg = gx[inside], gy[inside], gd[inside], sg[inside]
+    px, py = px[inside], py[inside]
+    at = py * width + px
+    col = (gx - px >= 0.5).astype(np.int64)
+    row = np.minimum(3, ((gy - py) * 4.0).astype(np.int64))
+    bit = np.asarray(BRAILLE_BITS)[col, row]
+    line, fade = ids[run_of[sg]], fades[run_of[sg]]
+    landed = fade >= 0.5
+    landed[np.unique(at, return_index=True)[1]] = True
+    at, bit, line = at[landed], bit[landed], line[landed]
+    gd, fade = gd[landed], fade[landed]
+    cell, first, inv = np.unique(at, return_index=True, return_inverse=True)
+    m = len(cell)
+    mask, horizon, depth = np.zeros(m, dtype=np.int64), np.zeros(m, dtype=bool), np.zeros(m)
+    np.bitwise_or.at(mask, inv, bit)
+    np.logical_or.at(horizon, inv, line == labels.get('horizon', -1))
+    np.add.at(depth, inv, gd)
+    dots = np.bincount(inv, minlength=m)
+    faded = np.full(m, -np.inf)
+    np.maximum.at(faded, inv, fade)
+    held = np.unique(inv.astype(np.int64) * len(labels) + line)
+    lines: list = [set() for _ in range(m)]
+    for j, k in zip((held // len(labels)).tolist(), (held % len(labels)).tolist()):
+        lines[j].add(k)
+    fields = zip(cell.tolist(), mask.tolist(), horizon.tolist(), depth.tolist(), dots.tolist(),
+                 lines, faded.tolist())
+    laid = sorted(zip(first.tolist(), fields))
+    return {at: [mask, horizon, depth, dots, lines, fade]
+            for _first, (at, mask, horizon, depth, dots, lines, fade) in laid}
 
 
 def _greys(cells, static):

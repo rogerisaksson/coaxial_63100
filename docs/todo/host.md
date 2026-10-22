@@ -22,6 +22,10 @@
   0 rad too (fell at 10.9 s rising, held here) and test_errands 4 of 18
   (the chair borne 0.34, the jamb, the viewport's chair and bed; 18 here).
   DOD: both workflows green on main.
+- **CI red, the firmware workflow's Release job**: the emulator suite's bus
+  group out of time at 480 s on CI's runner, its lines lost with it; here
+  150 s since the echo test's limb of three at 475 MIPS. DOD: both presets
+  green on main, a group out of time keeping its lines.
 - **native://**: a limb's world on a fixed mount as board/emu's. A frame on
   an idle limb of four 32 ms, the wire's 10: three boards awake t3.5 and each
   chain's 2 ms recovery at 1 us substeps (emulation.md). DOD: the body's
@@ -73,3 +77,11 @@
   with the front end on - a change to the STO chain, HARDWARE.md's, to be
   measured on the probe first. DOD: the page at real time on Renode, Clevel
   on the probe as before.
+- **The attitude page at the screen's 30 Hz** (asked): 10.4 fps at 150x44 on
+  native:// where ANGLE draws 29.7 (host.md): a turning pose's frame 51 ms -
+  the face's paint 30 (glow 10, outline 7, halftone 5, edge 5) cell by cell
+  in Python, the floor 8, the raster 6 - and rich's print 12; then the feed's
+  20 reads a second (`FEED_HZ`) bind, a native read 13.8 ms. DOD: the paint
+  laid at once as the floor is (numpy, bit for bit, held by test_ground's
+  kind of check), the page at 30 fps while the board turns, the feed at the
+  screen's rate.

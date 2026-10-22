@@ -340,7 +340,7 @@ def run_groups(path, groups, timeout, batons=None):
     without a tally one failure. `timeout`, s: one for all, or a group's own by name. The exit
     code."""
     passed = failed = 0
-    jobs = [Job(group, [sys.executable, '-X', 'utf8', str(path), group], WORKER_GB,
+    jobs = [Job(group, [sys.executable, '-X', 'utf8', '-u', str(path), group], WORKER_GB,
                 timeout[group] if isinstance(timeout, dict) else timeout)
             for group in groups]
     for job, out, code, took in relay(jobs, batons):
