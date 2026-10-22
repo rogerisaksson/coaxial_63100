@@ -1,5 +1,5 @@
 """The face painted at once (coaxial.graphics.paint, strokes): cell for cell, glyph and tone, what
-the reference passes (`wireframe._paint`) paint one cell at a time; the shadow it casts, the meshes under it."""
+the reference passes (`wireframe._paint`) paint one cell at a time; the shadow it casts, the meshes under it, the easel it is drawn on."""
 import math
 import sys
 
@@ -163,8 +163,39 @@ def test_the_crew_decimates_as_this_process_does(report):
                  crewed == solids._decimated(orientation.MODEL, grid), 'differs')
 
 
+def _cold_warm(said):
+    """`easel.warm` with no preload and none written, its fault or 'up' said."""
+    from coaxial.graphics import preload
+    preload.load = lambda *_args, **_kwargs: None
+    preload.refusal = lambda *_args, **_kwargs: 'skipped: a test'
+    try:
+        from coaxial.draw import easel
+        easel.warm()
+        said.put('up')
+    except Exception as exc:              # the fault is the finding
+        said.put('%s: %s' % (type(exc).__name__, exc))
+
+
+def test_the_easel_warms_from_a_cold_preload(report):
+    """The drawing's process is a daemon and has no children: with no preload `easel.warm`
+    decimates every level in it, one after another - a pool there stopped the bench's attitude
+    page at its start."""
+    import multiprocessing
+    import queue
+    context = multiprocessing.get_context('spawn')
+    said = context.Queue()
+    process = context.Process(target=_cold_warm, args=(said,), daemon=True)
+    process.start()
+    try:
+        got = said.get(timeout=240.0)
+    except queue.Empty:
+        got = 'nothing in 240 s'
+    process.join(5.0)
+    report.check('the easel warms in a daemon process from a cold preload', got == 'up', got)
+
+
 ROSTER = (test_the_face_is_painted_at_once, test_the_shadow_is_cast_at_once,
-          test_the_crew_decimates_as_this_process_does)
+          test_the_crew_decimates_as_this_process_does, test_the_easel_warms_from_a_cold_preload)
 
 
 def main(argv=None):

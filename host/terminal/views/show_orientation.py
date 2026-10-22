@@ -26,7 +26,7 @@ from terminal.loader import TO_MENU
 from terminal.ui.ahead import Ahead
 from terminal.ui import console as _console, screen as _screen
 from terminal.ui.console import WHEEL_STEP
-from terminal.ui.screen import (PORT, FPS_CAP, Feed, Freshness, closing, mode_of, open_rig, run_view,
+from terminal.ui.screen import (PORT, FEED_HZ, FPS_CAP, Feed, Freshness, closing, mode_of, open_rig, run_view,
                                 say)
 from terminal.ui.stage import boot, frame_of, hud, stage
 
@@ -370,6 +370,23 @@ def launch(args):
     return started
 
 
+def _drawn_where(args, step, drawing, pool):
+    """(drawing, pool): the drawing's process once it is up on a card; else closed - no card
+    answers there, or its start failed - and this process draws on `bands`' crew, said why."""
+    if drawing is None:
+        return None, pool
+    try:
+        card, why = drawing.name, 'no card answers'
+    except RuntimeError as exc:
+        card, why = None, str(exc)
+    if card is not None:
+        say('ok', 'drawing', 'a process of its own, on %s' % card)
+        return drawing, pool
+    say('warn', 'drawing', 'in this process: %s' % why)
+    drawing.close()
+    return None, bands(args, step)
+
+
 def _launched(args, drawing):
     """Behind one boot strip that rides the milestones (link, six
     decimations, shadow casters, the part, its power, the rotation vector,
@@ -411,10 +428,8 @@ def _launched(args, drawing):
             rig.close()
             return None
         step(0.95, 'DRAWING')
+        drawing, pool = _drawn_where(args, step, drawing, pool)
         shop = workshop(args)
-        if drawing is not None:
-            say('ok', 'drawing', 'a process of its own, on %s'
-                % (drawing.name or 'processes of its own'))
     say('ok' if origin.real else 'warn', 'link',
         '%s - %s' % (origin.label, standing(origin)))
     say('wait', 'drawing',
@@ -456,14 +471,16 @@ def main(argv=None):
              'drawing': None if drawing is None else {'ahead': drawing, 'asked': None}}
     tally = Freshness()
     # The board read on its own thread: a frame draws at the screen's pace, not the link's - an
-    # emulated board's link is several times slower than a real one's. At the screen's rate, the
-    # pose being the picture: at FEED_HZ a third of the frames drew the pose before (19 new poses
-    # a second of 29.5 frames on native://), at 30 Hz 26.
-    feed = Feed(lambda: latest(board), period=1.0 / FPS_CAP).start()
+    # emulated board's link is several times slower than a real one's. Asked as each frame takes
+    # its reading (`Feed.kick`), at the screen's rate, the pose being the picture; FEED_HZ when
+    # no frame asks. At FEED_HZ alone a third of the frames drew the pose before (19 new poses a
+    # second of 29.5 frames on native://).
+    feed = Feed(lambda: latest(board), period=1.0 / FEED_HZ).start()
 
     def draw():
         wide, tall = canvas(args)
         record: Any = feed.latest
+        feed.kick()
         if record is not None:
             record = dict(record, clock=getattr(board.transport, 'time_scale', 1.0))
         fresh = record['quaternion'] if record else None

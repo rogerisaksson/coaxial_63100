@@ -182,6 +182,7 @@ class Feed:
         self.error = None
         self.reads = 0
         self._stop = threading.Event()
+        self._kicked = threading.Event()
         self._thread = None
 
     def start(self):
@@ -202,11 +203,19 @@ class Feed:
                     self.latest = got
                 self.reads += 1
             if self.period:
-                time.sleep(max(FEED_GAP_S, self.period - (time.monotonic() - began)))
+                time.sleep(FEED_GAP_S)
+                self._kicked.wait(max(0.0, self.period - (time.monotonic() - began)))
+                self._kicked.clear()
+
+    def kick(self):
+        """A read asked now, the period's wait cut short, FEED_GAP_S after the last: a page asking
+        as it takes a frame's reading has a new one for the next frame."""
+        self._kicked.set()
 
     def stop(self, wait=1.0):
         """Ask it to stop and wait, so nothing touches the link during teardown."""
         self._stop.set()
+        self._kicked.set()
         if self._thread is not None:
             self._thread.join(wait)
         return self
