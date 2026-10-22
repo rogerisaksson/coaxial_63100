@@ -274,14 +274,17 @@ Pages, tooling, suites and the local model's runner. The board's findings:
   share is nil: a told board's frames are the read one's.
 - BOARD ATTITUDE in a process of its own a frame ahead (`ahead`, `easel`), as
   QUAD and HUMANOID draw: 29.6 fps turning, the page's own work 21 ms a frame
-  (rich 14-18); its feed at the screen's rate, 26 new poses a second of 29.5
-  frames where FEED_HZ gave 19. Its start, 2.3 s to the first frame on
-  native:// beside the board's own open (1.07 s): the preload was one file
+  (rich 14-18); its feed asked as each frame takes its reading, 27 new poses
+  a second of 29.6 frames where FEED_HZ gave 19, the rest a read longer than
+  a frame (25 ms beside the page, 14 alone). Its start, 2.3 s to the first
+  frame on native:// beside the board's own open (1.07 s): the preload was one file
   for the machine's trees, each tree's build leaving the others cold
   (decimates 1.5 s, outline 1.0); a file a stamp, the casters in it, a cold
   drawing's first frame 5.15 -> 1.92 s, 1.5 s of it wgpu's C types, which
   cffi parses in every process. The crew's decimates had dropped the bore's
-  keep: a missing preload drew the two holes again.
+  keep: a missing preload drew the two holes again. The drawing's process is a
+  daemon and has no children: a cold preload's decimates handed to a pool
+  stopped the bench's page at its start; it decimates them itself now.
 - The front page's model was drawn at inner height - 2 inside a 1-column
   padding: a blank row top and bottom, a column each wall. Now the box's
   full inside (checked at 90x28, 120x36, 200x60).
