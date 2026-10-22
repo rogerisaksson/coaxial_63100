@@ -338,6 +338,19 @@ pass beside the world's floor under each sole (`tools/sim/trace.py`).
   stagger before it: 6 s turning in place for a
   half turn at her YAW_RATE (0.5 rad/s made of 0.7 asked), roll 9.5 deg as it
   begins, and the sidestep at 0.15 m/s.
+- The door errand on CI's Linux: aimed at the errand's end a stage past the
+  door, a room's height ahead at the least, she closed on the doorway's
+  middle by a room's height's worth a room's height walked, met the post at
+  x 0.5 for the middle's 0.75 and pushed it 8 s on Windows, 30 s on Linux
+  (a probe on the runner, both Pythons). Docked on the line and aimed at
+  the middle her stage (1.2 m) ahead at the least she passes at x 0.72,
+  through at 7.5 s, over at 8.8 s on both; her stopping distance ahead she
+  swung to x 1.18 at the other post. Left red on Linux: the chair's sit by
+  its text bears 0.34 of her at 7 s on 3.12 where Windows' 1.02 (the
+  perch), the viewport chair misses the seat (3.12) or falls at the dock
+  (3.14), the bed's lie sits down before the bed and falls at 22 s where
+  Windows finds it at 21.5 s and sits again at 24: the dock's backing stop
+  and the seat's perch, item 1's.
 - A human's sit (`tools/sim/seats.py`, the takes Stand To Sit and Sitting on
   Bed): 0.6 s down for 0.45-0.52 legs, the hips 0.31-0.47 legs behind the
   ankles, knees 94-98 deg, the trunk 45 deg forward on the way onto a chair

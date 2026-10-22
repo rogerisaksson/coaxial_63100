@@ -280,7 +280,7 @@ def _errand_specs():
     return {
         'sit_chair': (0.0, -room.SEAT[2], math.pi, room.SEAT[0] - figure.HIP_HALF, d_stage, room.CHAIR_AT),
         'lie_bed': (room.BED[0], 0.0, math.pi / 2.0, room.BED[2] - figure.HIP_HALF, d_stage, room.BED_AT),
-        'exit_door': (0.0, 4.0 * stride.STRIDE_M, 0.0, 0.5 * (room.DOOR_X[1] - room.DOOR_X[0]), 0.0,
+        'exit_door': (0.0, 0.0, 0.0, 0.5 * (room.DOOR_X[1] - room.DOOR_X[0]), 4.0 * stride.STRIDE_M,
                       (0.5 * (room.DOOR_X[0] + room.DOOR_X[1]), room.TO)),
     }
 
@@ -383,10 +383,12 @@ def _nothing(g, gym, er, c, heard_fn, heard_say_fn):
 
 
 def _to_door(g, gym, er, c, heard_fn, _say_fn):
-    """Walking out: her heading at the door's line, a room's height ahead at the least."""
-    from machine import room
+    """Walking out: her heading at the doorway's middle on the door's line, her stage ahead at
+    the least; the errand over that stage past the line. Aimed at that end a room's height
+    ahead she met the post at x 0.5 for the middle's 0.75 and pushed it 30 s on Linux; her
+    stopping distance ahead she swung to x 1.18 at the other post."""
     g['has_heading'] = 1.0
-    g['target_heading'] = math.atan2(er['xd'] - c['gx'], max(er['zd'], c['gz'] + room.HIGH) - c['gz'])
+    g['target_heading'] = math.atan2(er['xd'] - c['gx'], max(er['z_dock'], c['gz'] + er['d_stage']) - c['gz'])
     _tell(g, gym, heard_fn, {'twist': WALK})
 
 
@@ -442,7 +444,7 @@ def _on_rows():
     from machine import figure, modal, se2, stride
     back = (-se2.BACK_SPEED, 0.0, 0.0)
     return {
-        'door': (((lambda c, er: c['s_par'] > -1.5 * stride.STRIDE_M, 'door', _ended),), _to_door),
+        'door': (((lambda c, er: c['s_par'] > er['d_stage'] - 1.5 * stride.STRIDE_M, 'door', _ended),), _to_door),
         'walk': (((lambda c, er: c['stops_in'], 'settle', _stood),), _to_aim),
         'turn': (((lambda c, er: abs(c['err_yaw']) <= modal.LIST_RAD, 'settle', _faced),), _to_face),
         'settle': (((lambda c, er: c['idle'] and c['s_par'] > er['d_stage'] + se2.STOP_M, 'walk', _nothing),
