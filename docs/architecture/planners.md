@@ -1,5 +1,7 @@
 # Architecture: Planners
 
+The loop in a synthesizer's terms, a term a thing: [synth](synth.md).
+
 The gynoid's latent loop, the one way she moves: a text compiled to rows,
 the latent state stepped, the modes on her body and their springs rendered
 into the whole-body loop's ask ([solvers](solvers.md)), then her drives.

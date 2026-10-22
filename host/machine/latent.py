@@ -10,7 +10,8 @@ in a straight line over the row's blend. Her rhythm is one angle turning at its 
 mode's reference is its target and its amplitude's sine at that angle and the mode's phase, with
 the rate and the acceleration that makes. Out go each mode's reference, stiffness and damping
 and her rhythm's phases: what a mode is on her body, and what her drives can give of it, are
-downstream's (`machine.modal`, `machine.wbc`). One row a tick.
+downstream's (`machine.modal`, `machine.wbc`). One row a tick. In a synthesizer's terms - a
+sequencer of notes, an oscillator, envelopes, the generator's out - docs/architecture/synth.md.
 """
 import math
 import os

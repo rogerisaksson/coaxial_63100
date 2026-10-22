@@ -70,3 +70,13 @@ scene `stairs` (0.15 x 0.30 m treads); the bench and the blind scenes:
   of 0.57-0.58; the head not. On the bench 3.0 and 2.5 widths off (2.0 and 1.5
   on the 0.15 x 0.30 flight with the window on the landing). The steep flight
   wants the takes' tempo and lean a beat: the sequencer's.
+- The takes' flight climbed by the walk with its modifiers (`gait.modified`,
+  scratchpad stairs_mod.py): the plain walk falls on the fifth tread at 5.2
+  s, her knees at 168 of 171 N m and 21-23 rad/s (the no-load 16.8) over
+  the climb, the step shrunk 222 passes; the pace alone (0.86 Hz) falls at
+  5.0 s, the stride alone (0.38, a tread a step) at 4.5 s with both soles
+  on the third tread, the lean alone (7 deg) at 3.8 s with her centre ahead
+  of the landing sole, all three at 3.8 s. On the performance build (the
+  U12 knees, 250 N m) she stumbles on the third tread at 4.2 s: the swing
+  rises 0.18 m in place against the riser and lands where it left. Her
+  centre lands 0.09-0.24 m behind each landing sole, the takes' 0.14-0.25.

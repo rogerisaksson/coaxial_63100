@@ -9,7 +9,7 @@ its crouch, its lean, its width. Laid over the walk she is on, a row says the mo
 alone, the standard's value and the amount; the rest stays the walk's. A gait take is its amounts
 (`takes.amounts`), a word of her movement language (`tools.sim.normal`) an amount: a woman's
 catwalk is roll +0.86, and so modified her walk is named a catwalk - its pelvis rolls 18.8 deg
-for the take's 23.3 (sequencer.md).
+for the take's 23.3 (sequencer.md). The patch and its modulation, docs/architecture/synth.md.
 """
 import math
 

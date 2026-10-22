@@ -67,19 +67,15 @@ serves its DOD; none an entry a case.
    0.54 s step where the takes climb at 0.6-0.7 s: the climb's rhythm is still
    the impedance's. A sequencer on her loop (asked), begun: a take said at
    its beats, its voices hers, a gait take's pattern fitted
-   ([sequencer](../findings/sequencer.md)); her beats a stream of keywords
-   with a sequencer's modifiers, each beat a footfall -
-   tempo (the stride's Hz), pitch (the step's rise: a tread a note, a slope a
-   transpose), gate (the swing's share of the beat), accent (the push-off),
-   envelope (the pull-up's attack over the stance), slide (the step's
-   length), tie (a sole held down across beats), rest (a stand), quantize
-   (footfalls to the treads' grid, `stride.footholds`), flam (a quick double
-   footfall: the let-go's stutter at the stairs' foot, a fault), fill (a
-   parry's steps), pattern (a gait text), chain (the gaits in order). A told
-   floor compiles to such a stream (a tread a beat with its pitch), the model
-   says the rest; each beat's modifiers set the steering table's coordinate
-   for that beat (se2's grid, the rise its fourth axis, in rebuild) and the
-   loop plays it; the reading-side climb (`floor_mean`) goes with it. Left:
+   ([sequencer](../findings/sequencer.md)); the loop's lingo a synthesizer's,
+   a term a thing ([synth](../architecture/synth.md)): a tread a note at its
+   pitch, a told floor a clip, each note's amounts the steering table's
+   coordinate (se2's grid, the rise its fourth axis, in rebuild), the
+   reading-side climb (`floor_mean`) going with it. The takes' flight (0.21
+   rise) with the walk's knees at 168 of 171 N m and 21-23 rad/s (no-load
+   16.8), fallen on the fifth tread; the performance build's on the third,
+   its swing gated against the riser; the walk's modifiers (pace, stride,
+   lean) each fall her sooner (stairs.md). Left:
    her centre of mass running on past a lone standing sole while the next
    swing is late, the common root on every descent; the first step down a
    flight, nothing told, a drop. DOD: stairs of 0.15 x 0.30 m up and down, a
