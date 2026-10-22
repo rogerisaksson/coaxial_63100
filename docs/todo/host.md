@@ -82,3 +82,9 @@
   with the front end on - a change to the STO chain, HARDWARE.md's, to be
   measured on the probe first. DOD: the page at real time on Renode, Clevel
   on the probe as before.
+- **Balloons only on what she has identified** (the teleoperation session's
+  ruling): a rise from what bears her is offered from her posture alone, its
+  balloon on her, whether she has seen the chair, bed or mattress or not.
+  DOD: a rise from a thing offered only with that thing identified
+  (`scanner.identified`), its balloon on it; from the floor alone (a
+  crouch, a fall) offered, unballooned; test_views_floor holding both.
