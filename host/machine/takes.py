@@ -28,18 +28,39 @@ TAKE_ID = 300
 ENTER_S = math.pi * math.sqrt(modal.LEG_M / modal.G)
 
 
-def wire(key, at_ms=0):
-    """A take's rows for her loop (`ortho.ROW`) from `at_ms` on: its first row blended over
-    ENTER_S, the frames after it at the take's pace, each over one frame - every second or third
-    where more than her table holds (`latent.ROWS`); its STREAMED modes said, the rest left as
-    they are. And the ms its last frame's blend ends at, where a next take's rows join."""
+def frames(key, since_s=0.0, until_s=math.inf):
+    """(s, modes (frames, N)) of a take's frames from `since_s` to `until_s`, at her size."""
     import numpy as np
     with np.load(FILE) as kept:
         t, z = kept[key + '_t'], kept[key + '_z'].astype(float)
+    kept = (t >= since_s - 1e-9) & (t <= until_s + 1e-9)
+    return t[kept], z[kept]
+
+
+def jump(key):
+    """(its crouch's s, its take-off's s, its modes at the crouch, its modes at the take-off, its
+    legs' lengthening at take-off, axial/s) of a jump's take: the crouch where its legs are
+    shortest, the take-off where they are longest again within ENTER_S after."""
+    import numpy as np
+    t, z = frames(key)
+    crouch = int(np.argmax(z[:, modal.AXIAL]))
+    after = (t > t[crouch]) & (t <= t[crouch] + ENTER_S)
+    off = int(np.argmin(np.where(after, z[:, modal.AXIAL], np.inf)))
+    rate = (z[off - 1, modal.AXIAL] - z[off, modal.AXIAL]) / (t[off] - t[off - 1])
+    return float(t[crouch]), float(t[off]), z[crouch], z[off], float(rate)
+
+
+def wire(key, at_ms=0, since_s=0.0, enter_s=ENTER_S):
+    """A take's rows for her loop (`ortho.ROW`) from `at_ms` on, its frames from `since_s` of it:
+    its first row blended over `enter_s`, the frames after it at the take's pace, each over one
+    frame - every second or third where more than her table holds (`latent.ROWS`); its STREAMED
+    modes said, the rest left as they are. And the ms its last frame's blend ends at, where a
+    next take's rows join."""
+    t, z = frames(key, since_s)
     thin = -(-len(t) // latent.ROWS)
     t, z = t[::thin], z[::thin]
     step = int(round(1e3 * (t[1] - t[0])))
-    enter = int(round(1e3 * ENTER_S))
+    enter = int(round(1e3 * enter_s))
     at = [at_ms] + [at_ms + enter + int(round(1e3 * (t[k] - t[1]))) for k in range(1, len(t))]
     blend = [enter] + [step] * (len(t) - 1)
     rows = []

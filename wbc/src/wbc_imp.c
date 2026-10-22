@@ -157,7 +157,7 @@ static void poses(const wbc_imp_t *k, const double *out, const double *y, const 
   const double  turn_dc = s->ref[k->turn] - sway[k->turn] * sin(psi[k->turn]);
   const int     by[3] = {k->pitch, k->list, k->turn}, at[3] = {k->a_want, k->a_rolled, k->a_headed};
   const double  knee = fr[k->f_knee], yawed = out[k->o_yawed];
-  double        bent, wh[3], spun[3][2];
+  double        bent, cosine, wh[3], spun[3][2];
 
   for (int j = 0; j < 3; j++)
   {
@@ -198,8 +198,10 @@ static void poses(const wbc_imp_t *k, const double *out, const double *y, const 
                    * (double)((s->kp[k->pitch] + s->kd[k->pitch]) > 0.0);
   a[k->a_swung] = k->arm_rad * (s->ref[k->arms] + (s->acc[k->arms] + k->posture_kd[1] * s->rate[k->arms]) / k->posture_kd[0]);
   bent = z[k->axial] + npclip(s->ref[k->axial] - z[k->axial], -k->ahead, k->ahead);
-  a[k->a_bend] = 2.0 * acos(npclip(cos(0.5 * knee) - ((k->axial_m * bent) * fr[k->f_hips_by]) / k->leg_m, -1.0, 1.0))
-                 - knee;
+  cosine = cos(0.5 * knee) - ((k->axial_m * bent) * fr[k->f_hips_by]) / k->leg_m;
+  a[k->a_bend] = 2.0 * acos(npclip(cosine, -1.0, 1.0)) - knee;
+  a[k->a_bend_rate] = ((((((2.0 * k->axial_m) * fr[k->f_hips_by]) * s->rate[k->axial]) * (double)(fabs(cosine) < 1.0)) / k->leg_m)
+                       / sqrt(npmax(1.0 - cosine * cosine, k->tiny))) * (1.0 - npclip(out[k->o_held], 0.0, 1.0));
   for (int b = 0; b < 2; b++)
   {
     const double shorter = npclip(cos(0.5 * (knee + a[k->a_bend])) - (k->clear_m * npmax(up[b], 0.0)) / k->leg_m,

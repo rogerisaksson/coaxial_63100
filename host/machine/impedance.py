@@ -19,7 +19,7 @@ import numpy as np
 
 from machine import latent, poise, stride
 from machine.modal import (
-    ANKLE_H, ARM_RAD, ARMS, AXIAL, AXIAL_M, BEND, CLEAR_M, COM, COM_ACC, DRIVE, DT, EDGE, FLOOR, FOLD, FOLD_RATE, FOLDS, G,
+    ANKLE_H, ARM_RAD, ARMS, AXIAL, AXIAL_M, BEND, BEND_RATE, CLEAR_M, COM, COM_ACC, DRIVE, DT, EDGE, FLOOR, FOLD, FOLD_RATE, FOLDS, G,
     GOING, GRIP, GROUND, HANDS, HEADED, HEELED, HIP, HIPS_BY, HOT, HSPIN, KDOT, KNEE, LATERAL, LEAD, LEG_M, LIFT, LIST, LIST_RAD,
     LOAD, LOWEST, MASS, MOMENT, NEED, OUTSIDE, PELVIS, PROP, PROP_HI, PROP_LO, BORNE, WEIGHT, PITCH, PITCH0, PITCH_RAD, PREFOLD, QUAT, RAISE, REACH0, ROCK, ROLLED, ROT,
     SAGITTAL, SETTLE, SOLE, SOLE_ACC, SPIN, STANCE, STRIDES, SWINGS, SWUNG, TILT, TILT_RATE, TIPPED, TURN, TURN_RAD,
@@ -268,8 +268,16 @@ def _poses(out, y, fr, a, said, turned, up, folds, still):
     # asked, a throw's step threw her knees straight at 100 rad/s^2 and her over forward,
     # 8 kg m^2/s about her; bent as she is, a crouch asked 0.6 stopped at 0.56
     bent = z[AXIAL] + poise.clip(ref[AXIAL] - z[AXIAL], -AHEAD, AHEAD)
-    a[BEND] = 2.0 * np.arccos(poise.clip(np.cos(0.5 * fr[KNEE]) - AXIAL_M * bent * fr[HIPS_BY] / LEG_M,
-                                         -1.0, 1.0)) - fr[KNEE]
+    cosine = np.cos(0.5 * fr[KNEE]) - AXIAL_M * bent * fr[HIPS_BY] / LEG_M
+    a[BEND] = 2.0 * np.arccos(poise.clip(cosine, -1.0, 1.0)) - fr[KNEE]
+    # and at the told height's rate where the rows let her soles go (a throw's ZMP NONE): damped
+    # against still, the stack's knee rows held a push's knees at 0.2 of their clamp, her height
+    # at its band's floor, 3 m/s^2 under its ask; at the told rate under a held polygon the
+    # seats' texts, laid against that damping, sat her onto the bed at 1.86 of her weight and
+    # she fell, or had it bear 0.00 of her; at her own rate past AHEAD, a stride's instant
+    # throw left its knees undamped and the leap flew 0.20 s for 0.23
+    a[BEND_RATE] = (2.0 * AXIAL_M * fr[HIPS_BY] * rate[AXIAL] * float(abs(cosine) < 1.0) / LEG_M
+                    / np.sqrt(np.maximum(1.0 - cosine * cosine, TINY))) * (1.0 - poise.clip(out[latent.HELD], 0.0, 1.0))
     # a sole asked up where she stands: its knee folded as its leg is shorter by the lift
     # under its hip. Striding, a limb's knee is its sole's place's alone
     short = poise.clip(np.cos(0.5 * (fr[KNEE] + a[BEND])) - CLEAR_M * np.maximum(up, 0.0) / LEG_M, -1.0, 1.0)

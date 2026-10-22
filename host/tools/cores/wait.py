@@ -36,10 +36,13 @@ def _typed():
                                    ctypes.c_void_p] + [ctypes.c_double] * 3 + [ctypes.c_void_p])
     lib.wbh_wait_risen.argtypes = ([ctypes.c_void_p, ctypes.POINTER(Wait), ctypes.c_void_p, ctypes.c_int]
                                    + [ctypes.c_void_p] * 4 + [ctypes.c_double] * 3 + [ctypes.c_void_p])
+    lib.wbh_wait_landed.argtypes = ([ctypes.c_void_p, ctypes.POINTER(Wait), ctypes.c_void_p, ctypes.c_int]
+                                    + [ctypes.c_void_p] * 2 + [ctypes.c_double] * 2 + [ctypes.c_void_p])
     lib.wbh_wait_woken.argtypes = ([ctypes.c_void_p, ctypes.POINTER(Wait), ctypes.c_void_p, ctypes.c_int, ctypes.c_void_p]
                                    + [ctypes.c_double] * 2)
-    lib.wbh_wait_held.restype = lib.wbh_wait_risen.restype = lib.wbh_wait_woken.restype = None
-    return lib.wbh_wait_held, lib.wbh_wait_risen, lib.wbh_wait_woken, int(lib.wbh_wait_rows())
+    lib.wbh_wait_held.restype = lib.wbh_wait_risen.restype = lib.wbh_wait_landed.restype = None
+    lib.wbh_wait_woken.restype = None
+    return lib.wbh_wait_held, lib.wbh_wait_risen, lib.wbh_wait_landed, lib.wbh_wait_woken, int(lib.wbh_wait_rows())
 
 
 class Waits:
@@ -60,7 +63,7 @@ class Waits:
         self.kept = (a, out, y, fr, st, np.zeros((1, latent.TABLE)))
         self.at = [wbc.pointer(arr) for arr in self.kept]
         self.got = np.zeros(3)
-        self.held_c, self.risen_c, self.woken_c, self.rows = _typed()
+        self.held_c, self.risen_c, self.landed_c, self.woken_c, self.rows = _typed()
         self.k, self.wp, self.gp = ctypes.addressof(k), ctypes.byref(self.w), self.got.ctypes.data
 
     def _table(self, tab):
@@ -78,6 +81,11 @@ class Waits:
         self.risen_c(self.k, self.wp, self._table(tab), len(tab), self.at[2], self.at[3], self.at[0], self.at[4], t, dt,
                      prop_until, self.gp)
         return tuple(self.got.tolist())
+
+    def landed(self, tab, t, dt):
+        """(shift, first) of `machine.waits.landed_rows`, `tab`'s times shifted in place."""
+        self.landed_c(self.k, self.wp, self._table(tab), len(tab), self.at[2], self.at[4], t, dt, self.gp)
+        return tuple(self.got[:2].tolist())
 
     def woken(self, tab, t, dt):
         """`machine.waits.woken_rows`: her rhythm woken in `st` by the rows of `tab` due."""

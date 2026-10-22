@@ -19,7 +19,7 @@ def _sync_nominal_twist(g, name):
 
 def _start_hop(g, by, entry, at):
     from machine import latent, leap
-    wire, names, dur, dt_load_ms = leap.standing_leap(entry[1], float(g.get('_hop_charge', 0.0)))
+    wire, names, dur, dt_load_ms = leap.standing_leap(entry[1], g['fr'], float(g.get('_hop_charge', 0.0)))
     g['st'][latent.THETA] = ((0.10 - dt_load_ms * 0.001) % 1.0) * math.tau
     g['_jump_t0'], g['_jump_throw'], g['_jump_until'], g['_leap'] = at, at + dt_load_ms * 0.001, at + dur, False
     sprung.said(g, 'hop', wire, names, at=at, reset=True)

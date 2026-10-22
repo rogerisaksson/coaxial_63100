@@ -26,12 +26,12 @@ from tools.cores import wbc
 #: wbc_imp_t's ints in its order, by the names of what fills them: her modes (`machine.modal`),
 #: the offsets of latent.step's out, of modal's y, fr and a.
 MODES = 'axial lateral drive pitch sagittal lift width list turn arms rock'.split()
-OUT = 'ref rate acc ks ds psi sway turns held yawed'.split()
+OUT = 'ref rate acc ks ds psi sway turns held yawed bend'.split()
 Y = ('com vcom sole vsole load quat spin moment lowest hip tilt tilt_rate arm prop prop_lo prop_hi grip vhead '
      'hspin').split()
 FR = 'rot w0 floor weight knee pitch0 dt reach0 hips_by arm0 unit z0 mass ground floor_at'.split()
 A = ('stance com_acc sole_acc want fold fold_rate turned bend kdot going rolled headed tipped swung folds settle '
-     'edge heeled strides prefold swings raise need lead outside borne').split()
+     'edge heeled strides prefold swings raise need lead outside borne bend_rate').split()
 
 
 def _at(x):
@@ -176,7 +176,7 @@ def numpy_blas():
 
 #: wbc_law_t's ints and doubles in its order, by what fills them.
 LAW_INTS = ('n p driven z k d amp phase gain hz zmp yaw now from to t0 blend theta v0 v1 contig vals said at lerp '
-            'curve table ref rate acc ks ds psi sway turns held yawed').split()
+            'curve table ref rate acc ks ds psi sway turns held yawed bend').split()
 LAW_DOUBLES = 'edge_s tau tau_v eso_0 eso_s sigma bleed'.split()
 
 
@@ -265,7 +265,7 @@ def _step_typed():
                ('com_acc', f * 3), ('turn', (f * 4) * 2), ('kdot', f * 3), ('settle', (f * 6) * 2), ('edge', f * 2),
                ('strides', f), ('borne', f), ('mus', f * 2), ('swing_at', (f * 3) * 2), ('swing_speed', (f * 3) * 2),
                ('swing_acc', (f * 3) * 2), ('swing_quat', (f * 4) * 2), ('fold_knee', f * 2), ('fold_rate', f * 2),
-               ('fold_acc', f * 2)]
+               ('fold_acc', f * 2), ('knee_rate', f * 2)]
     fields += [(name, p) for name in 'posture derate clamp wep_nm'.split()]
     fields += [('tau', f * d), ('qacc', f * n), ('bears', f * 2), ('cop', (f * 2) * 2), ('forces', (f * 3) * c),
                ('scale', f), ('load', f * d), ('cop_n', i), ('cop_none', i * 2), ('over', i * d), ('work', f * work)]
@@ -328,7 +328,8 @@ POINTED = ([(name, 0, (name,)) for name in ('M', 'h', 'v', 'q', 'com', 'k')]
 SENSED = ('h', 'v', 'q', 'com', 'k', 'feet', 'turns')
 #: The step's fields read and written through numpy views of the struct's own memory.
 VIEWED = ('stance', 'com_acc', 'turn', 'kdot', 'settle', 'edge', 'mus', 'swing', 'fold', 'swing_at', 'swing_speed',
-          'swing_acc', 'swing_quat', 'fold_knee', 'fold_rate', 'fold_acc', 'tau', 'qacc', 'bears', 'cop', 'forces',
+          'swing_acc', 'swing_quat', 'fold_knee', 'fold_rate', 'fold_acc', 'knee_rate', 'tau', 'qacc', 'bears', 'cop',
+          'forces',
           'load', 'cop_none', 'over')
 
 
@@ -384,6 +385,7 @@ def _stepped(k, step, v, b, s, ask):
         v['fold'][side] = side in fold
         if side in fold:
             v['fold_knee'][side], v['fold_rate'][side], v['fold_acc'][side] = fold[side]
+    v['knee_rate'][:] = ask.get('knee_rate', (0.0, 0.0))
     k.wep = int(bool(ask.get('wep')))
     k.posture = at(ask['posture'])
     derate = np.asarray(ask.get('derate', 1.0), float)

@@ -15,14 +15,14 @@ typedef struct
 {
   int           n;            /**< her modes, and each's index */
   int           axial, lateral, drive, pitch, sagittal, lift, width, list, turn, arms, rock;
-  int           o_ref, o_rate, o_acc, o_ks, o_ds, o_psi, o_sway, o_turns, o_held, o_yawed;
+  int           o_ref, o_rate, o_acc, o_ks, o_ds, o_psi, o_sway, o_turns, o_held, o_yawed, o_bend;
   int           y_com, y_vcom, y_sole, y_vsole, y_load, y_quat, y_spin, y_moment, y_lowest, y_hip, y_tilt;
   int           y_tilt_rate, y_arm, y_prop, y_prop_lo, y_prop_hi, y_grip, y_vhead, y_hspin;
   int           f_rot, f_w0, f_floor, f_weight, f_knee, f_pitch0, f_dt, f_reach0, f_hips_by, f_arm0, f_unit;
   int           f_z0, f_mass, f_ground, f_floor_at;
   int           a_stance, a_com_acc, a_sole_acc, a_want, a_fold, a_fold_rate, a_turned, a_bend, a_kdot;
   int           a_going, a_rolled, a_headed, a_tipped, a_swung, a_folds, a_settle, a_edge, a_heeled;
-  int           a_strides, a_prefold, a_swings, a_raise, a_need, a_lead, a_outside, a_borne;
+  int           a_strides, a_prefold, a_swings, a_raise, a_need, a_lead, a_outside, a_borne, a_bend_rate;
   int           free_by[3];   /**< the modes holding a sole that does not stand, an axis each */
   const double *hands;        /**< each mode's hand on a limb's place (n, 2, 3) */
   /* machine.impedance */
@@ -123,6 +123,7 @@ typedef struct
   int           k_from;
   int           gain_now;
   int           zmp_out;
+  int           held_out;
   const double *y_in;      /**< her edge's array; modal's y, fr and a; her latent state and its out */
   const double *y;
   const double *fr;
@@ -200,11 +201,14 @@ typedef struct
     (machine.waits.held_rows): `tab` (n rows) its times shifted in place; `got` the shift, the
     first row shifted, her hold's seconds. Rows that raise her wait while something bears her
     off her soles and her capture point is off them (risen_rows): `got` the shift, the first,
-    until when a prop counts. */
+    until when a prop counts. Rows that lower her wait while nothing bears her, soles or prop
+    (landed_rows): `got` the shift, the first. */
 void wbc_wait_held(const wbc_imp_t *k, const wbc_wait_t *w, double *tab, int n, const double *a, const double *out,
                    double t, double dt, double held_s, double got[3]);
 void wbc_wait_risen(const wbc_imp_t *k, const wbc_wait_t *w, double *tab, int n, const double *y, const double *fr,
                     const double *a, const double *st, double t, double dt, double prop_until, double got[3]);
+void wbc_wait_landed(const wbc_imp_t *k, const wbc_wait_t *w, double *tab, int n, const double *y, const double *st,
+                     double t, double dt, double got[3]);
 
 /** The rows due this pass wake her rhythm where its gain has died down (machine.waits.woken_rows):
     its angle let go, its phases those the rows say, in her latent `st`. */

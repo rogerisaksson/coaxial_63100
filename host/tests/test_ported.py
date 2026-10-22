@@ -167,6 +167,15 @@ def test_her_waits_in_c_as_she_walks(report, c):
             self.tallied(t1 - t0, time.perf_counter() - t1, tab, mine, got, want)
             return got
 
+        def landed(self, tab, t, dt):
+            mine = tab.copy()
+            t0 = time.perf_counter()
+            want = py_waits.landed_rows(mine, g['y'], g['st'], t, dt)
+            t1 = time.perf_counter()
+            got = waits.landed(tab, t, dt)
+            self.tallied(t1 - t0, time.perf_counter() - t1, tab, mine, got, want)
+            return got
+
         def woken(self, tab, t, dt):
             mine = g['st'].copy()
             t0 = time.perf_counter()

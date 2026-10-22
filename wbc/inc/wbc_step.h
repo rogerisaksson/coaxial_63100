@@ -44,7 +44,7 @@ typedef struct
   int           stance[2], nturns, kdot_given, swing[2], fold[2], wep;
   double        com_acc[3], turn[2][4], kdot[3], settle[2][6], edge[2], strides, borne, mus[2];
   double        swing_at[2][3], swing_speed[2][3], swing_acc[2][3], swing_quat[2][4];
-  double        fold_knee[2], fold_rate[2], fold_acc[2];
+  double        fold_knee[2], fold_rate[2], fold_acc[2], knee_rate[2];
   const double *posture, *derate, *clamp, *wep_nm;
   /* answered: the drives' torques clipped, every acceleration, each sole's load, its centre of
      pressure where it stands (cop_n of them, none where it bears nothing), each contact's force,

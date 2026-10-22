@@ -17,7 +17,7 @@ class Surety(ctypes.Structure):
     """wbc_surety_t: her surety field's reading of her law's arrays, laid once."""
 
     _fields_ = ([(name, ctypes.c_int) for name in ('quat_at', 'gyro_at', 'accel_at', 'load_at', 'k_to', 'k_from',
-                                                   'gain_now', 'zmp_out')]
+                                                   'gain_now', 'zmp_out', 'held_out')]
                 + [(name, ctypes.c_void_p) for name in ('y_in', 'y', 'fr', 'a', 'st', 'out')])
 
 
@@ -40,7 +40,8 @@ def laid(k, y_in, y, fr, a, st, out):
     from machine import edge, latent, modal
     s = Surety(quat_at=edge.QUAT.start, gyro_at=edge.GYRO.start, accel_at=edge.ACCEL.start, load_at=edge.LOAD.start,
                k_to=latent.TO.start + latent.K.start + modal.AXIAL, k_from=latent.FROM.start + latent.K.start + modal.AXIAL,
-               gain_now=latent.NOW.start + latent.GAIN, zmp_out=latent.ZMP)
+               gain_now=latent.NOW.start + latent.GAIN, zmp_out=latent.ZMP,
+               held_out=latent.HELD)
     s.kept = (y_in, y, fr, a, st, out)
     for name, arr in zip(('y_in', 'y', 'fr', 'a', 'st', 'out'), s.kept):
         setattr(s, name, wbc.pointer(arr))

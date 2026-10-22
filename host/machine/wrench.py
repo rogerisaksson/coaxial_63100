@@ -357,7 +357,10 @@ def step(b, s, ask):
     lay(np.diag(swung), a6, W_SWING)
     knees = act[KNEES]
     left = -float(stance @ full0[knees])
-    lay(stance @ full[knees], float(stance @ want[KNEES]) + left, W_KNEE * grounded, left)
+    # the knees' rows damped against the posture's rate: against still, a push's knees were held
+    # at 0.2 of their clamp and her height at its band's floor
+    knee_rate = np.asarray(ask.get('knee_rate', (0.0, 0.0)), float)
+    lay(stance @ full[knees], float(stance @ (want[KNEES] + POSTURE_KD[1] * knee_rate)) + left, W_KNEE * grounded, left)
     for k, (knee, rate, acc) in ask.get('fold', {}).items():
         j = knees[k]
         lay(full[j], acc + SWING_KD[0] * (knee - s['q'][KNEES[k]]) + SWING_KD[1] * (rate - v[j]) - full0[j], W_FOLD,

@@ -116,6 +116,28 @@ void wbc_wait_risen(const wbc_imp_t *k, const wbc_wait_t *w, double *tab, int n,
   got[2] = until;
 }
 
+void wbc_wait_landed(const wbc_imp_t *k, const wbc_wait_t *w, double *tab, int n, const double *y, const double *st,
+                     double t, double dt, double got[3])
+{
+  unsigned char lowers[WBC_WAIT_ROWS] = {0};
+  const int     rows = n < WBC_WAIT_ROWS ? n : WBC_WAIT_ROWS;
+  const double  airborne = (double)((npmaximum(y[k->y_load], y[k->y_load + 1]) < k->touch_n) && (y[k->y_prop] <= 0.0));
+  const double  to_ax = st[w->st_to_z + k->axial];
+  double        first, shift;
+
+  for (int r = 0; r < rows; r++)
+  {
+    const double *row = tab + r * w->table;
+
+    lowers[r] = (unsigned char)(row[w->said_z + k->axial] > 0.5 && row[w->vals_z + k->axial] > to_ax + 1e-6);
+  }
+  shift = (dt * airborne) * (double)due_rows(w, tab, rows, lowers, t, dt, &first);
+  first = first - w->edge_s;
+  shifted(w, tab, rows, shift, first);
+  got[0] = shift;
+  got[1] = first;
+}
+
 void wbc_wait_woken(const wbc_imp_t *k, const wbc_wait_t *w, const double *tab, int n, double *st, double t, double dt)
 {
   const int        rows = n < WBC_WAIT_ROWS ? n : WBC_WAIT_ROWS, modes = k->n;

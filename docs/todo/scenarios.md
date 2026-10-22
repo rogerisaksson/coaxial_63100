@@ -94,10 +94,16 @@ serves its DOD; none an entry a case.
 6. **One jump** (`machine.leap`, `terminal.views.humanoid_keys`): takeoff from
    the height and distance to land - a hop's landing said with it, its throw
    parameterized continuously by `Space` hold duration (`5 ms` to `250 ms` ->
-   `charge` in `[0, 1]`). Met: standing high two-footed jump (`5 ms` vs
-   `250 ms`), walking forward leap and running forward leap (`5 ms` vs `250 ms`)
-   verified against flight-time, dual-sole clearance and distance criteria in
-   `test_leap.py`. Left: the chair's two texts reach no hop yet (scenarios.md);
+   `charge` in `[0, 1]`). Met: the walking and running forward leaps (`5 ms`
+   vs `250 ms`) against flight-time, dual-sole clearance and distance in
+   `test_leap.py`; the standing jump's push from the drives (stunts.md:
+   take-off 1.5-1.65 m/s, rise 0.49 legs of the human's 0.55 from the
+   crouch, 0.015 m over her stand, landed standing at 2.9 widths). Left:
+   she leaves and lands on one leg (0/497 N at take-off, 1 449/0 N at
+   touchdown) and stands on it after; the legs 0.5 axial short of
+   straight as she leaves (the apex over her stand); the surety's phase
+   read kept for the seats (stunts.md); the
+   chair's two texts reach no hop yet (scenarios.md);
    off and onto a 0.45 m seat her knees work at 0.93-1.0 of their peak, past the
    drives' 50 % margin (demand.md) - the seat's height or the knees' drives to
    decide. DOD: down from a chair, two-footed up onto one (0.45 m), in place;
@@ -129,8 +135,8 @@ serves its DOD; none an entry a case.
    folds instead (item 2); the shoves and the
    step's edge put her head on the floor at 1.1-1.8 m/s where a human sits
    down or catches himself (item 5); the sit's hips 0.06-0.56 back run to
-   run where 0.48, the bed's edge and lying (item 1); the chair's hops (item
-   6) and a standing jump a tenth of the human's; W at 0.93 m/s where a jog
+   run where 0.48, the bed's edge and lying (item 1); the chair's hops and
+   the standing jump's landing (item 6); W at 0.93 m/s where a jog
    is 2.0 and a run 4.5, S at 0.19 where 1.3; the dance's bounce of 0.38
    legs felling her when streamed; a lean back of 13 deg standing met with
    3.7; the stairs (item 3). No spasm: each segment's jerk no higher than
@@ -147,8 +153,9 @@ serves its DOD; none an entry a case.
    one stack, the demand measured first (demand.md): laid - the U12 II KV120
    on box A for her spine, hips, knees and ankles
    (`machine/robots/gynoid_mesomorph_medium_performance.toml`) -, her
-   standing jump rises 0.03 legs on it where 0.01, none of the human's 0.55:
-   the hop's ask is the law's, 1.44 of the U12's amps at the hips. DOD: 31
+   standing jump rose 0.03 legs on it where 0.01: the hop's ask was the
+   law's, 1.44 of the U12's amps at the hips; from the drives she rises
+   0.43-0.51 legs of the human's 0.55 on her own stack (stunts.md). DOD: 31
    of 31 met at every wobble, each stunt's jerk within her walk's.
 9. **Her place a glazed mountain lodge** (asked, pictures given): built and
    drawn (`machine.room`, scene 'lodge', [lodge](../findings/lodge.md)):

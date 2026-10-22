@@ -484,7 +484,9 @@ int wbc_step(wbc_step_t *p)
   at += nu;
   {
     const int    knee[2] = {p->act[p->knees[0]], p->act[p->knees[1]]};
-    const double f0k[2] = {full0[knee[0]], full0[knee[1]]}, wk[2] = {want[p->knees[0]], want[p->knees[1]]};
+    const double f0k[2] = {full0[knee[0]], full0[knee[1]]};
+    const double wk[2] = {want[p->knees[0]] + p->posture_kd[1] * p->knee_rate[0],
+                          want[p->knees[1]] + p->posture_kd[1] * p->knee_rate[1]};
     double       left, *fk = row + nu;
 
     left = -wbc_dot(l, stance, 1, f0k, 1, 2);

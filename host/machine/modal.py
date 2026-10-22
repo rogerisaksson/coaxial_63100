@@ -5,7 +5,7 @@
     rest = modal.rest(fr)                               # her rest vector (`latent.state`)
     z, rate = modal.read(y, fr, a[modal.STANCE])        # her modes as she is, and their rates
     posed = modal.poses(a, y, fr, posture, bend, arms, knees)  # the arithmetic of the stack's ask
-    ask = modal.given(a, y, posed, knees)               # the stack's ask (`wbc.step`) of `a`
+    ask = modal.given(a, y, posed, knees, bend)         # the stack's ask (`wbc.step`) of `a`
 
 Flat arrays and arithmetic on them; a choice is a mask, a limit a minimum or a maximum, a
 change a blend. A limb's place is its sole's from her centre of mass, along her way, to her
@@ -88,7 +88,9 @@ SETTLE, EDGE, HEELED = slice(32, 44), slice(44, 46), slice(46, 48)
 #: standing sole's own side, m - where no swing reaches; how far what bears her off her soles
 #: supports her, 0 to 1.
 STRIDES, PREFOLD, SWINGS, RAISE, NEED, LEAD, OUTSIDE, BORNE = 48, slice(49, 51), slice(51, 53), 53, 54, slice(55, 57), 57, 58
-ASK = 59
+#: And her knees' bend's rate, rad/s: the stack's knee rows damp against it, not against still.
+BEND_RATE = 59
+ASK = 60
 
 #: A unit of each mode on her: her centre of mass down, m - to her ankles' stroke, her trunk
 #: upright over her soles: asked 0.15 m she came down 0.117 and stood there; her trunk's
@@ -295,14 +297,16 @@ def poses(a, y, fr, posture, bend, arms, knees, clear=0.0):
     return sw_at, pose, turns, tips
 
 
-def given(a, y, posed, knees):
+def given(a, y, posed, knees, bend):
     """The stack's ask (`wbc.step`) of `a` and its poses (`posed`, `poses`), by her stance: a sole
-    that does not stand is asked its acceleration where it is; no turn is asked with none standing."""
+    that does not stand is asked its acceleration where it is; no turn is asked with none standing;
+    each knee's posture goes at its share (`bend`, `crouch`) of her knees' bend's rate."""
     (sw_at, pose, turns, tips), speeds, accs = posed, y[VSOLE].reshape(2, 3), a[SOLE_ACC].reshape(2, 3)
     free = np.flatnonzero(a[STANCE] < 0.5)
     folded = np.flatnonzero((a[STANCE] < 0.5) & (a[FOLDS] > 0.5))
     return {'stance': tuple(a[STANCE] > 0.5), 'com_acc': a[COM_ACC].copy(),
             'turns': tuple(turns[:2 * int(a[TURNED])]), 'posture': pose, 'kdot': a[KDOT].copy(),
+            'knee_rate': tuple(float(bend[k] * a[BEND_RATE]) for k in knees),
             'settle': a[SETTLE].reshape(2, 6).copy(), 'edge': tuple(a[EDGE]), 'strides': float(a[STRIDES]),
             'borne': float(a[BORNE]),
             'swing': {int(i): (sw_at[i].copy(), speeds[i].copy(), accs[i].copy(), tips[i]) for i in free},

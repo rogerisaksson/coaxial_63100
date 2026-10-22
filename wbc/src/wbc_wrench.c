@@ -638,7 +638,7 @@ void wbc_wrench_step(wbc_body_t *b, wbc_wrench_t *w, const wbc_frame_t *base,
       memset(pick, 0, sizeof(pick));
       pick[5 + wbc_knee[k]] = 1.0;
       left[k] = over(w, pick, bends[k]);
-      rhs += stance[k] * (want[w->leg[k][3]] - left[k]);
+      rhs += stance[k] * ((want[w->leg[k][3]] + POSTURE_KD * ask->knee_rate[k]) - left[k]);
       none -= stance[k] * left[k];
       for (int c = 0; c < NU; c++)
       {

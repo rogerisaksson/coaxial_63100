@@ -91,6 +91,52 @@ def hop_charge(dt_s):
     return max(0.0, min(1.0, (float(dt_s) - HOP_MIN_S) / (HOP_MAX_S - HOP_MIN_S)))
 
 
+#: The human's standing jump (`takes.jump(JUMP)`, test_leap holds them to it): the s his crouch
+#: takes and his take-off comes at; the crouch he pushes from and his trunk's lean there, axial
+#: and pitch; his stand at take-off, axial, and his legs' lengthening there, axial/s.
+JUMP = 'standing_jump'
+CROUCH_S, TAKEOFF_S = 0.465, 0.745
+CROUCH, LEAN, STRAIGHT, LEAVES = 2.18, 1.70, 0.11, 11.7
+#: What a push asks of the knees' clamp, as `tools.sim.demand.PAST`: at the limit no margin.
+PUSH = 2.0 / 3.0
+#: A push's rows this far apart, ms, a sample of its curve each.
+PUSH_MS = 20
+
+
+def _a_z(fr, z):
+    """The drives' acceleration of her legs' shortening at `z` (axial/s^2): PUSH of the knees'
+    clamp through the knee's lever to the leg's line there, against her weight."""
+    from machine import drives, figure, modal
+    reach = fr[modal.REACH0] - modal.AXIAL_M * fr[modal.HIPS_BY] * z
+    cos_knee = (figure.THIGH ** 2 + figure.SHANK ** 2 - reach ** 2) / (2.0 * figure.THIGH * figure.SHANK)
+    lever = figure.THIGH * figure.SHANK * math.sqrt(1.0 - max(-1.0, min(1.0, cos_knee)) ** 2) / reach
+    force = 2.0 * PUSH * drives.peak('left_knee') / lever
+    return (force / fr[modal.WEIGHT] * G - G) / (modal.AXIAL_M * fr[modal.HIPS_BY])
+
+
+def pushed(fr, z0):
+    """(the push's acceleration, axial a s^2, and its seconds) from the crouch `z0` to STRAIGHT
+    at PUSH of the knees' clamp against her weight, the knee's lever to the leg's line at the
+    crouch - the longest of the push, where the clamp gives the least - so the drives carry every
+    pass of it, the throw's share of it the crouch's share of his (a tap's shallow crouch at
+    the whole clamp left at 10.5 axial/s of a hold's 12.3, a hop as high as the jump; the
+    clamp's share so, a tap's push fell short of her weight): asked as a spring (18 000) the
+    step shrank the throw to a tenth and she rose 0.01 legs on either stack; his push 0.29 m
+    in 0.3 s, hers 0.33 s at 472 N."""
+    a_z = _a_z(fr, z0) * (z0 - STRAIGHT) / (CROUCH - STRAIGHT)
+    return a_z, math.sqrt(2.0 * (z0 - STRAIGHT) / a_z)
+
+
+def bottom(fr, v_off):
+    """The legs' shortening a landing at `v_off` axial/s brakes to from STRAIGHT at the drives'
+    acceleration (`_a_z`), CROUCH at most: folded in flight as his, she had 0.07 m to brake 1.6
+    m/s in and sank to the floor; from the crouch down, a tap's 0.7 m/s landed in a full squat."""
+    import numpy as np
+    zs = np.linspace(STRAIGHT, CROUCH, 200)
+    v2 = np.concatenate([[0.0], np.cumsum(2.0 * np.array([_a_z(fr, z) for z in zs[1:]]) * (zs[1] - zs[0]))])
+    return float(np.interp(v_off * v_off, v2, zs))
+
+
 def _leap_specs():
     from machine import latent, modal
     z, k, d, amp, zmp, gain = latent.Z.start, latent.K.start, latent.D.start, latent.AMP.start, latent.ZMP, latent.GAIN
@@ -100,8 +146,8 @@ def _leap_specs():
         (0, k + modal.AXIAL, 6000.0, 0.0, 0.0, 0.0), (0, d + modal.AXIAL, 900.0, 0.0, 0.0, 0.0),
         (0, k + modal.SAGITTAL, 1200.0, 0.0, 0.0, 0.0), (0, d + modal.SAGITTAL, 400.0, 0.0, 0.0, 0.0),
         (0, zmp, modal.SUPPORT, 0.0, 0.0, 0.0), (0, gain, 0.0, 0.0, 0.0, 0.0),
-        (1, z + modal.AXIAL, 0.20, -0.22, 0.0, 0.0), (1, k + modal.AXIAL, 18000.0, 11000.0, 0.0, 0.0),
-        (1, d + modal.AXIAL, 0.0, 0.0, 0.0, 0.0), (1, z + modal.SAGITTAL, 0.0, 0.0, 0.0, 0.0),
+        (1, z + modal.AXIAL, 0.20, -0.22, 0.0, 0.0), (1, k + modal.AXIAL, 2000.0, 0.0, 0.0, 0.0),
+        (1, d + modal.AXIAL, 600.0, 0.0, 0.0, 0.0), (1, z + modal.SAGITTAL, 0.0, 0.0, 0.0, 0.0),
         (1, k + modal.SAGITTAL, 1200.0, 0.0, 0.0, 0.0), (1, d + modal.SAGITTAL, 400.0, 0.0, 0.0, 0.0),
         (1, z + modal.PITCH, 0.0, 0.0, 0.0, 0.0), (1, k + modal.PITCH, 0.0, 0.0, 0.0, 0.0),
         (1, d + modal.PITCH, 200.0, 0.0, 0.0, 0.0), (1, z + modal.ARMS, 0.0, 0.70, 0.0, 0.0),
@@ -151,12 +197,88 @@ def _build_leap(base_wire, times_ms, blends_ms, spec, weights):
     return rb.tobytes(), ('load', 'throw', 'land', 'rest'), (t0 + t1 + t2) * 0.001, t0
 
 
-def standing_leap(base_wire, ch=0.0):
-    """Construct the 11D modal trajectory table (`latent.WIRE`) for a standing vertical two-footed high jump parameterized by `ch` in [0, 1]."""
+def standing_leap(base_wire, fr, ch=0.0):
+    """Her standing jump's rows (`latent.WIRE`, the lisp's `hop` their base) by the hold's charge
+    `ch` in [0, 1]: the human's own descent (`takes.frames` to CROUCH_S) to his crouch at full
+    charge (CROUCH, leant LEAN), shallower by the charge at his pace - told a line to it she fell
+    70 ms free, a sole 8 mm up, her parry stepped it and she crouched and pushed on one leg;
+    quickened by its depth, a tap's dip of 0.08 m in 0.12 s dropped her 0.2 m off her soles -,
+    held a period of the row's spring so the push begins from rest - begun as she still sank,
+    the step caught her up at 14 m/s^2 and she led the curve by 0.1 -; the push a curve of rows
+    PUSH_MS apart (`pushed`, her frame `fr`) to STRAIGHT; then his frames from his take-off on
+    (`takes.wire`), his fold in flight and his squat landing by how fast she leaves against him
+    (LEAVES) - told upright in flight, her legs swung 0.35 m ahead with her trunk's spin and she
+    fell back -, the landing row's springs on the first; her rest. And their names, the seconds
+    to her rest, the ms the push begins at."""
+    import numpy as np
+    from machine import latent, modal, ortho, takes
     ch = max(0.0, min(1.0, float(ch)))
-    dt_load_ms, dt_throw_ms = int(round(420 + 180 * ch)), int(round(120 + 55 * ch))
-    return _build_leap(base_wire, (dt_load_ms, dt_throw_ms, 650), (int(round(0.75 * dt_load_ms)), 0, 80),
-                       _leap_specs()[0], (1.0, ch, 0.0, 0.0))
+    z0 = 0.58 + ch * (CROUCH - 0.58)
+    a_z, seconds = pushed(fr, z0)
+    n = max(2, int(math.ceil(1e3 * seconds / PUSH_MS)))
+    push_ms = int(round(1e3 * seconds / n))
+    wire, _names, _dur, _t0 = _build_leap(base_wire, (0, (n + 1) * push_ms, 0), (0, push_ms, 0),
+                                          _leap_specs()[0], (1.0, ch, 0.0, 0.0))
+    rows = np.frombuffer(wire, latent.WIRE).copy()
+    z = latent.Z.start
+    axial, pitch, sagittal = z + modal.AXIAL, z + modal.PITCH, z + modal.SAGITTAL
+    depth = z0 / CROUCH
+    t_d, z_d = takes.frames(JUMP, 0.0, CROUCH_S)
+    step = t_d[1] - t_d[0]
+    load = np.repeat(rows[0:1], len(t_d) + 1)
+    for k in range(len(t_d)):
+        load['at'][k], load['blend'][k] = int(round(1e3 * t_d[k])), int(round(1e3 * step))
+        load['flags'][k] = ortho.CURVE
+        load['p'][k, axial], load['p'][k, sagittal] = z_d[k, modal.AXIAL] * depth, z_d[k, modal.SAGITTAL] * depth
+        load['p'][k, pitch] = z_d[k, modal.PITCH] * ch
+    load['at'][-1], load['blend'][-1], load['flags'][-1] = load['at'][-2] + load['blend'][-2], 0, 0
+    load['p'][-1, axial], load['p'][-1, sagittal], load['p'][-1, pitch] = z0, z_d[-1, modal.SAGITTAL] * depth, LEAN * ch
+    period_ms = int(round(1e3 * math.tau * math.sqrt(fr[modal.WEIGHT] / G / rows['p'][0, latent.K.start + modal.AXIAL])))
+    t0 = int(load['at'][-1]) + period_ms
+    throw = np.repeat(rows[1:2], n + 1)
+    for k in range(n + 1):
+        t = k * push_ms * 1e-3
+        throw['at'][k], throw['blend'][k], throw['flags'][k] = t0 + k * push_ms, push_ms, ortho.CURVE
+        throw['p'][k, axial] = max(STRAIGHT, z0 - 0.5 * a_z * t * t)
+        throw['p'][k, pitch] = LEAN * ch * (1.0 - t / seconds)
+        throw['p'][k, sagittal] = z_d[-1, modal.SAGITTAL] * depth
+    # her flight at the push's end speed, her legs long and soft (no height spring) and her
+    # centre of mass where the crouch had it over her soles, 0.21 m forward over the jump
+    # (his 0.45 to 0.04 in his last 30 ms is his heels' rise: told there in a line she left
+    # 0.17 m back, told there with its rate dying 0.28 m back; folded in flight as his she
+    # landed on her heels 0.17 m behind them), his trunk's fold over it; the absorption a damper told the bottom the
+    # drives brake her to (`bottom`): it asks them what her speed is worth and the clamp gives
+    # what it can (a parabola from the push's end speed yanked her down at 23 m/s^2 where she
+    # met the floor slower); the polygon let go till the bottom; then her rest over his rise's
+    # seconds (his own rise, told as rows, carries his rebound - a second squat at 1.3-1.5 s -
+    # and she jumped again off the landing)
+    v_off = a_z * seconds
+    flight_s = 2.0 * v_off * modal.AXIAL_M * fr[modal.HIPS_BY] / G
+    fold = min(1.0, v_off / LEAVES)
+    t_h, z_h = takes.frames(JUMP, TAKEOFF_S)
+    deepest = int(np.argmax(z_h[:, modal.AXIAL]))
+    deep = bottom(fr, v_off)
+    n_f, n_b = max(1, int(round(1e3 * flight_s / push_ms))), max(2, int(round(1e3 * v_off / a_z / push_ms)))
+    t_off = t0 + (n + 1) * push_ms
+    sag0, sag_deep = float(z_d[-1, modal.SAGITTAL] * depth), fold * float(z_h[deepest, modal.SAGITTAL])
+    flight = np.repeat(rows[2:3], n_f)
+    for k in range(n_f):
+        flight['at'][k], flight['blend'][k], flight['flags'][k] = t_off + k * push_ms, push_ms, ortho.CURVE
+        flight['p'][k, axial], flight['p'][k, sagittal] = STRAIGHT, sag0
+        flight['p'][k, pitch] = fold * np.interp(k * push_ms * 1e-3 * LEAVES / v_off, t_h - TAKEOFF_S, z_h[:, modal.PITCH])
+        flight['p'][k, latent.ZMP], flight['p'][k, latent.K.start + modal.AXIAL] = modal.NONE, 0.0
+    t_land = t_off + n_f * push_ms
+    brake = np.repeat(rows[2:3], n_b)
+    for k in range(n_b):
+        brake['at'][k], brake['blend'][k], brake['flags'][k] = t_land + k * push_ms, push_ms, ortho.CURVE
+        brake['p'][k, axial], brake['p'][k, latent.K.start + modal.AXIAL] = deep, 0.0
+        brake['p'][k, sagittal] = sag0 + (sag_deep - sag0) * k / max(1, n_b - 1)
+        brake['p'][k, pitch], brake['p'][k, latent.ZMP] = fold * z_h[deepest, modal.PITCH], modal.NONE
+    rows['at'][3] = t_land + n_b * push_ms
+    rows['blend'][3] = int(round(1e3 * (t_h[-1] - t_h[deepest])))
+    end_ms = int(rows['at'][3] + rows['blend'][3])
+    names = ('load',) * len(load) + ('throw',) * (n + 1) + ('flight',) * n_f + ('land',) * n_b + ('rest',)
+    return np.concatenate([load, throw, flight, brake, rows[3:]]).tobytes(), names, end_ms * 1e-3, t0
 
 
 def stride_leap(base_wire, _walk_wire, ch=0.0, spd=0.69):
@@ -177,7 +299,7 @@ def update_leap_charge(g, by, walk_on_wire, ch):
         return
     in_stride, spd = bool(g.get('_leap')), float(g.get('_leap_spd', 0.69))
     wire, names, dur, dt_load_ms = (stride_leap(by['hop'][1], walk_on_wire, ch, spd) if in_stride
-                                    else standing_leap(by['hop'][1], ch))
+                                    else standing_leap(by['hop'][1], g['fr'], ch))
     new = latent.table(wire, t0, g['rest'])
     new[0, latent.VALS] = np.where(new[0, latent.SAID] > 0.5, new[0, latent.VALS], g['rest'])
     new[0, latent.SAID] = 1.0
@@ -242,7 +364,7 @@ def stride_hop(g, by, t0, spd, back_now, fwd_gaits, back_gaits, said_fn, walk_on
     t_hop, ch = t0 + dt_b, float(g.get('_hop_charge', 0.0))
     g['_leap_spd'] = float(spd)
     wire, names, dur, dt_load_ms = (stride_leap(by['hop'][1], walk_on_wire, ch, spd) if in_fwd
-                                    else standing_leap(by['hop'][1], ch))
+                                    else standing_leap(by['hop'][1], g['fr'], ch))
     if dt_b == 0.0:
         g['st'][latent.THETA] = ((0.10 - dt_load_ms * 0.001) % 1.0) * math.tau
     said_fn(g, 'hop', wire, names, at=t_hop, reset=True)

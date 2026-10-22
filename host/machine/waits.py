@@ -2,10 +2,11 @@
 
     waits.held_back(g, dt)     # rows that halt her rhythm wait while her capture point steps her
     waits.risen_back(g, dt)    # rows that raise her wait while something bears her off her soles
+    waits.landed_back(g, dt)   # rows that lower her wait while nothing bears her
     waits.woken_rows(tab, st, t, dt)   # the rows due wake her rhythm where it has died down
 
 `g` is `sprung.laid`'s; the C is `tools.cores.wait` on `g['waits']` (`motion.laid`); `held_rows`,
-`risen_rows` and `woken_rows` are its python, the reference.
+`risen_rows`, `landed_rows` and `woken_rows` are its python, the reference.
 """
 import math
 import os
@@ -14,7 +15,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
-from machine import latent, modal, poise, stride
+from machine import latent, leap, modal, poise, stride
 
 
 def held_back(g, dt):
@@ -84,6 +85,30 @@ def risen_rows(tab, y, fr, a, st, t, dt, prop_until):
     first = float(np.min(at, where=due, initial=math.inf)) - latent.EDGE_S
     at += shift * (at >= first)
     return shift, first, until
+
+
+def landed_back(g, dt):
+    """Rows that lower her - her height asked down - wait a pass while nothing bears her, soles or
+    prop, every row after them and a hop's end with them: a jump's absorption on the clock met
+    her soles 0.1 s early, her legs long on the told stand, and she bounced off them to a
+    second fall."""
+    shift, first = g['waits'].landed(g['tab'], g['t'], dt)
+    g['labels'] = [(w + shift * (w >= first), n) for w, n in g['labels']]
+    g['_jump_until'] = g.get('_jump_until', 0.0) + shift * (g.get('_jump_until', 0.0) > g['t'])
+
+
+def landed_rows(tab, y, st, t, dt):
+    """(shift, first) of `landed_back` on her table `tab` (its times shifted in place), modal's `y`,
+    her latent `st`, at `t`, `dt` on. In C bit for bit (`g['waits']`, `laid`)."""
+    airborne = float((y[modal.LOAD].max() < leap.TOUCH_N) & (y[modal.PROP] <= 0.0))
+    at = tab[:, latent.AT]
+    vals, said, to = tab[:, latent.VALS][:, latent.Z], tab[:, latent.SAID][:, latent.Z], st[latent.TO][latent.Z]
+    lowers = (said[:, modal.AXIAL] > 0.5) & (vals[:, modal.AXIAL] > to[modal.AXIAL] + 1e-6)
+    due = lowers & (at <= t + latent.EDGE_S) & (at > t - dt + latent.EDGE_S)
+    shift = dt * airborne * float(np.any(due))
+    first = float(np.min(at, where=due, initial=math.inf)) - latent.EDGE_S
+    at += shift * (at >= first)
+    return shift, first
 
 
 def woken_rows(tab, st, t, dt):

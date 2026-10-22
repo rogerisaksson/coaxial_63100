@@ -106,7 +106,10 @@ def surety_field(y_in, y, fr, a, st, out, prev, dt, ct, t):
     b_lo = (1.0 - w_both) * lo_1 + w_both * lo.min(axis=0) - w_ext * 0.16
     b_hi = (1.0 - w_both) * hi_1 + w_both * hi.max(axis=0) + w_ext * 0.16
     mid, span = 0.5 * (b_lo + b_hi), np.maximum(0.5 * (b_hi - b_lo), 0.02)
-    w_air = max(0.0, 1.0 - float(out[latent.ZMP]), w_jump)
+    # sure of the air where the rows let the polygon go (out[HELD]: a throw, a landing's
+    # absorption) - and, kept, the read at the ZMP's slot that is a mode's phase (out[57], PSI):
+    # the seats lie on it (the bed bore 0.00 of her without it; docs/TODO.md)
+    w_air = max(0.0, 1.0 - float(out[latent.ZMP]), 1.0 - float(out[latent.HELD]), w_jump)
     w_prop = max(w_ext, float(a[modal.BORNE]), w_air)
     w_sup = min(1.0, 0.42 + 0.30 * float(w[0] + w[1]) + 0.22 * float(max(w[0], w[1])) + 0.55 * w_prop)
     cap = w_sup * (0.85 + 0.15 * (span / (span + np.array([0.04, 0.05]))))
@@ -153,6 +156,7 @@ def control(g, dt):
         y, g['fr'], g['a'], g['grip'], y_in[edge.TOUCH].reshape(-1, 3), float(g['fr'][modal.WEIGHT])))
     waits.held_back(g, dt * ev)
     waits.risen_back(g, dt * ev)
+    waits.landed_back(g, dt * ev)
     out = _step_latent(g, dt * ev)
     se2.step_physical_twist(g, dt * ev, out)
     g['gripped'](out, g['held'], g['a'][modal.STANCE], g['situations']['caps'], g['into'])
@@ -176,7 +180,7 @@ def control(g, dt):
     imp[modal.COM_ACC] = np.array([sw * imp[modal.COM_ACC][0], sw * imp[modal.COM_ACC][1] - bw * 2.5, sw * imp[modal.COM_ACC][2]])
     q_post = sw * (g['posture'] + dq) + bw * (np.array([1.0, d_ax, d_lat]) @ g['brace'])
     posed = g['poses'](imp, y, g['fr'], q_post, g['bend'], g['arms'], body.knees, g.get('_twist_clear', 0.0) * sw)
-    ask = g['ask'] = modal.given(imp, y, posed, body.knees)
+    ask = g['ask'] = modal.given(imp, y, posed, body.knees, g['bend'])
     ask['mu'] = g['held']
     cv, acv = g['_cv_sh'], g['_acv_sh']
     w_gait = min(1.0, max(0.0, (0.05 - float(g['st'][latent.NOW][latent.GAIN])) / 0.05))

@@ -117,7 +117,7 @@ def stepped(y_in, vel, y, fr, a, st, out, rest, state, soled, asked, twist, tw_o
     sine_new = sway_new * np.sin(psi)
     out[latent.REF] = z_new + sine_new
     out[latent.RATE] = (1.0 - u_b) * (out[latent.RATE] - sway * turns * np.cos(psi)) + sway_new * turns * np.cos(psi)
-    out[latent.ACC] = -sine_new * turns * turns
+    out[latent.ACC] = (1.0 - u_b) * out[latent.BEND] - sine_new * turns * turns
     out[latent.SWAY] = sway_new
     kb, db = out[latent.KS].copy(), out[latent.DS].copy()
     kb[modal.AXIAL], kb[modal.LATERAL], kb[modal.SAGITTAL], kb[modal.ROCK] = 3000.0, 3000.0, 0.0, 2400.0

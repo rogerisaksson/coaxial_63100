@@ -126,7 +126,7 @@ void wbc_touch_step(const wbc_imp_t *k, const wbc_touch_t *t, const double asked
     out[k->o_ref + m] = z_new[m] + sine_new[m];
     out[k->o_rate + m] = (1.0 - u_b) * (out0[k->o_rate + m] - (sway[m] * turns) * cos(psi[m]))
                          + (sway_new[m] * turns) * cos(psi[m]);
-    out[k->o_acc + m] = ((-sine_new[m]) * turns) * turns;
+    out[k->o_acc + m] = (1.0 - u_b) * out0[k->o_bend + m] - (sine_new[m] * turns) * turns;
     out[k->o_sway + m] = sway_new[m];
     out[k->o_ks + m] = ((1.0 - u_b) * out0[k->o_ks + m] + (u_b * (1.0 - u_s)) * kb[m]) + (u_b * u_s) * t->rest[t->r_k + m];
     out[k->o_ds + m] = ((1.0 - u_b) * out0[k->o_ds + m] + (u_b * (1.0 - u_s)) * db[m]) + (u_b * u_s) * t->rest[t->r_d + m];

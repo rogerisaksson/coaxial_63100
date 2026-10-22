@@ -64,7 +64,7 @@ class Ask(ctypes.Structure):
     _fields_ = [('stance', _i * 2), ('com_acc', _d * 3), ('turn', (_d * 4) * 2),
                 ('swing', _i * 2), ('swing_at', (_d * 3) * 2), ('swing_speed', (_d * 3) * 2),
                 ('swing_acc', (_d * 3) * 2), ('swing_quat', (_d * 4) * 2), ('fold', _i * 2),
-                ('fold_knee', _d * 2), ('fold_rate', _d * 2), ('fold_acc', _d * 2),
+                ('fold_knee', _d * 2), ('fold_rate', _d * 2), ('fold_acc', _d * 2), ('knee_rate', _d * 2),
                 ('posture', _d * DRIVEN), ('derate', _d * DRIVEN), ('wep', _i),
                 ('kdot_given', _i), ('kdot', _d * 3), ('settle', (_d * 6) * 2), ('edge', _d * 2),
                 ('strides', _d), ('mu', _d * 2)]
@@ -202,6 +202,7 @@ def ask_of(ask, a=None):
     if fold:
         for k, (knee, rate, acc) in fold.items():
             a.fold[k], a.fold_knee[k], a.fold_rate[k], a.fold_acc[k] = 1, knee, rate, acc
+    a.knee_rate[:] = ask.get('knee_rate', (0.0, 0.0))
     np.ctypeslib.as_array(a.posture)[:] = ask['posture']
     np.ctypeslib.as_array(a.derate)[:] = ask.get('derate', 1.0)
     a.wep = int(bool(ask.get('wep', False)))

@@ -98,6 +98,7 @@ typedef struct
   double fold_knee[2];
   double fold_rate[2];
   double fold_acc[2];
+  double knee_rate[2];
   double posture[WBC_DRIVEN];
   double derate[WBC_DRIVEN];
   int    wep;

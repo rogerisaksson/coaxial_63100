@@ -72,7 +72,7 @@ double wbc_imp_surety(const wbc_imp_t *k, const wbc_surety_t *s, double prev, do
           * sin(((2.0 * PI) * 6.0) * t);
   w_sum = (w[0] + w[1]) + 1e-9;
   w_both = npmin(w[0], w[1]);
-  w_air = npmax(npmax(0.0, 1.0 - s->out[s->zmp_out]), w_jump);
+  w_air = npmax(npmax(npmax(0.0, 1.0 - s->out[s->zmp_out]), 1.0 - s->out[s->held_out]), w_jump);
   w_prop = npmax(npmax(w_ext, borne), w_air);
   w_sup = npmin(1.0, ((0.42 + 0.30 * (w[0] + w[1])) + 0.22 * npmax(w[0], w[1])) + 0.55 * w_prop);
   r_gait = 0.28 * npmin(1.0, st[s->gain_now]);

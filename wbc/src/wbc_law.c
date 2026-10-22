@@ -39,13 +39,16 @@ static double remainder_of(double a, double b)
   return mod;
 }
 
-/** machine.latent._rate: a blend's rate at `u` of its `span`, the Hermite curve's slope. */
+/** machine.latent._rate: a blend's rate at `u` of its `span`: the line's slope while it blends, a
+    contiguous curve's (CONTIG) the Hermite's. */
 static double rate_at(const wbc_law_t *k, const double *st, double u, double span, int j)
 {
   const double *from = st + k->from, *to = st + k->to, *v0 = st + k->v0, *v1 = st + k->v1;
+  const double  line = ((to[j] - from[j]) / span) * (double)(u < 1.0);
+  const double  hermite = ((((6.0 * u * u - 6.0 * u) * from[j] + (3.0 * u * u - 4.0 * u + 1.0) * (span * v0[j]))
+                           + (6.0 * u - 6.0 * u * u) * to[j]) + (3.0 * u * u - 2.0 * u) * (span * v1[j])) / span;
 
-  return ((((6.0 * u * u - 6.0 * u) * from[j] + (3.0 * u * u - 4.0 * u + 1.0) * (span * v0[j]))
-           + (6.0 * u - 6.0 * u * u) * to[j]) + (3.0 * u * u - 2.0 * u) * (span * v1[j])) / span;
+  return line + st[k->contig] * (hermite - line);
 }
 
 void wbc_law_latent(const wbc_law_t *k, double *st, const double *tab, int ntab, double now, double dt, double *out,
@@ -65,7 +68,7 @@ void wbc_law_latent(const wbc_law_t *k, double *st, const double *tab, int ntab,
     hit[i] = (double)((at <= now + k->edge_s) && (at > (now - dt) + k->edge_s));
   }
   came = npmin(npsum(hit, ntab), 1.0);
-  /* the blend under way leaves at the rate it has now */
+  /* the blend under way leaves at the rate it has now; a curve's row begins where the last ended */
   span = npmax(st[k->blend], dt);
   u = clipped((now - st[k->t0]) / span, 0.0, 1.0);
   for (int j = 0; j < P; j++)
@@ -76,17 +79,18 @@ void wbc_law_latent(const wbc_law_t *k, double *st, const double *tab, int ntab,
   {
     v0[j] += came * (leaving[j] - v0[j]);
   }
+  for (int j = 0; j < P; j++)
+  {
+    from[j] += came * ((p[j] + st[k->contig] * (to[j] - p[j])) - from[j]);
+  }
   wbc_matmul(&k->blas, VIEW(hit, 0, 1), VIEW(tab + k->said, T, 1), said, 0, 1, 1, ntab, P);
   wbc_matmul(&k->blas, VIEW(hit, 0, 1), VIEW(tab + k->vals, T, 1), vals, 0, 1, 1, ntab, P);
   for (int j = 0; j < P; j++)
   {
     to[j] += npmin(said[j], 1.0) * (vals[j] - to[j]);
   }
-  for (int j = 0; j < P; j++)
-  {
-    from[j] += came * (p[j] - from[j]);
-  }
   st[k->t0] += came * (now - st[k->t0]);
+  hit_at = wbc_dot(&k->blas, hit, 1, tab + k->at, T, ntab);
   lerp = wbc_dot(&k->blas, hit, 1, tab + k->lerp, T, ntab);
   st[k->blend] += came * (lerp - st[k->blend]);
   span = npmax(st[k->blend], dt);
@@ -111,12 +115,11 @@ void wbc_law_latent(const wbc_law_t *k, double *st, const double *tab, int ntab,
     v1[j] += came * (has * ((after - from[j]) / (span + next)) - v1[j]);
   }
   /* the row after beginning where this blend ends: a sample of a curve, blended as one */
-  hit_at = wbc_dot(&k->blas, hit, 1, tab + k->at, T, ntab);
   contig = (has * (double)(fabs((any ? row[k->at] : INFINITY) - (hit_at + st[k->blend])) <= dt))
            * wbc_dot(&k->blas, hit, 1, tab + k->curve, T, ntab);
   st[k->contig] += came * (contig - st[k->contig]);
   cg = st[k->contig];
-  u = clipped(((now - st[k->t0]) + dt) / span, 0.0, 1.0);
+  u = clipped(((now - st[k->t0]) + dt) / span, 0.0, 1.0 + (cg * dt) / span);
   for (int j = 0; j < P; j++)
   {
     const double line = from[j] + (to[j] - from[j]) * u;
@@ -131,14 +134,14 @@ void wbc_law_latent(const wbc_law_t *k, double *st, const double *tab, int ntab,
   {
     const int    j = k->z + m;
     const double psi = st[k->theta] + p[k->phase + m], sway = p[k->gain] * p[k->amp + m];
-    const double slope = ((to[j] - from[j]) / span) * (double)(u < 1.0);
-    const double rate = slope + cg * (rate_at(k, st, u, span, j) * (double)(u < 1.0) - slope);
+    const double rate = rate_at(k, st, u, span, j);
     const double bend = cg * (((((12.0 * u - 6.0) * from[j] + (6.0 * u - 4.0) * (span * v0[j])) + (6.0 - 12.0 * u) * to[j])
-                               + (6.0 * u - 2.0) * (span * v1[j])) / (span * span) * (double)(u < 1.0));
+                               + (6.0 * u - 2.0) * (span * v1[j])) / (span * span));
 
     out[k->ref + m] = p[j] + sway * sin(psi);
     out[k->rate + m] = rate + (sway * turns) * cos(psi);
     out[k->acc + m] = bend - ((sway * turns) * turns) * sin(psi);
+    out[k->bend + m] = bend;
     out[k->ks + m] = p[k->k + m];
     out[k->ds + m] = p[k->d + m];
     out[k->psi + m] = psi;

@@ -166,3 +166,53 @@ run no lower than the human's, a fall's head under 1 m/s. The takes (a leg
   base before the takes. Measured, not kept: her soles lifted by the prop's
   share instead of its count (the chair 3 of 3, 4.4-7.5 s, the bed 3 of 3)
   brushed the bed's frame docking and stepped her over it.
+- The standing jump laid from what the drives give (`leap.standing_leap`,
+  `pushed`, `absorbed`): the crouch his own frames (`takes.frames` to his
+  crouch, 0.465 s, by its depth), held one period of the load row's spring
+  (2 pi sqrt(m/K), 0.45 s) so the push begins from rest - told a line to the
+  crouch she fell 70 ms free and her parry stepped a sole; told while she
+  sank, the step caught her up at 14 m/s^2 -; the push a curve of rows 20 ms
+  apart from the knees' clamp at 2/3 through the knee's lever at the crouch,
+  36.3 axial/s^2 (5.2 m/s^2 net, 466 N) for 0.34 s at full charge, the
+  throw's share of it the crouch's share of his (at the whole clamp a tap
+  left at 10.5 axial/s of a hold's 12.3; the clamp's share so, a tap's push
+  fell short of her weight): take-off 1.5-1.65 m/s, rise 0.43-0.51 legs
+  of his 0.55. Four faults of the law on the way, each measured. The latent's
+  curve left a row at the Hermite's end slope of the row before though that
+  blended linearly (the push's first row from a held crouch at 4.6/s,
+  709/s^2) and began each row from the reference at the tick that met it:
+  20 ms rows on a 3 ms tick held one tick in seven, the acceleration -228 to
+  +98 for its -36; a row's blend begun at its own time instead tipped the
+  chair's rise (a 3 ms phase, a knife edge) and was undone. `touch.step`
+  overwrote the latent's acceleration with the sway's term: no curve's feed
+  reached the impedance. The whole-body step's knee rows damped against
+  still, so its height band pinned the push at 3 m/s^2 under its ask with
+  the knees at 0.2 of their clamp; they damp against the told height's rate
+  where the rows let the polygon go (`modal.BEND_RATE`, the ask's
+  `knee_rate`) - under a held polygon the seats' texts, laid against that
+  damping, sat her onto the bed at 1.86 of her weight or had it bear 0.00,
+  and at her own rate past AHEAD a stride's instant throw flew 0.20 s for
+  0.23. The surety read a mode's phase (out[57], the ZMP's slot in the
+  table) for the polygon the rows hold, a sixth of every rhythm sure of the
+  air: the held polygon is read beside it, the phase read kept - without it
+  the bed bears 0.00 of her. The landing, measured to its law: told his
+  pre-folded squat she had 0.07 m to brake 1.6 m/s in and sank to the
+  floor; long-legged on a spring till the clock's touchdown she met the floor
+  0.1 s early at the apex (973 N) and bounced to a second fall; a parabola
+  from the push's end speed yanked her down at 23 m/s^2 where she met the
+  floor slower; his own rise told as rows carries his rebound (a second
+  squat at 1.3-1.5 s) and she jumped again off the landing; the crouch's
+  frames quickened by their depth dropped a tap 0.2 m off her soles. Kept:
+  legs long and soft in flight (no height spring), the absorption a damper
+  told the bottom the drives brake her to from straight legs (`bottom`: the
+  clamp's work along the squat against her landing speed, the whole crouch
+  for a hold's 12.3 axial/s, 0.1 of it for a tap's 5), rows that lower her
+  waiting for a floor under her (`waits.landed_rows`), her rest over his
+  rise's seconds: she stands, 2.9 widths off (rise 0.49 of his 0.55 from the
+  crouch, travel -0.16, head 1.07, flight 0.04 of his 0.91 - the tuck is
+  beyond her drives), the same in two runs, but on one leg: the push's
+  last rows load one sole (0/497 N), she lands on the other (1 449/0 N)
+  and stands on it; a tap hops 0.1 m from its dip and stays on its spot;
+  her apex over her stand is 0.015 m, the legs 0.5 axial short of straight
+  as she leaves. Her walk unmoved: 2.53 off a
+  woman's at 0.70 m/s and 409 J/m, 2.55 at the commit before.

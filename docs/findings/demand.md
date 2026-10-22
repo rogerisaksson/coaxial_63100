@@ -76,3 +76,8 @@ its no-load speed at 48 V, a node's span to its ceiling. Worst of the sides.
   while a swing leads or her capture point is past a lone standing sole's own
   side - never in her plain walk, 0 of 6 666 passes. Granted by the gait under
   way, whoever said it: the bench as before, walking 80 N shoves 28 of 32.
+- The standing jump's push at 2/3 of the knees' clamp (108 N m) through the
+  knee's lever to the leg's line at the human's crouch (0.31 m): 466 N, 5.2
+  m/s^2 net for 0.34 s, take-off 1.74 m/s ideal and 1.5-1.65 realized; his
+  1.66 (11.7 axial/s). The landing's absorption at the same clamp: 1.9 axial
+  units of squat for 12.3 axial/s, the whole crouch (stunts.md).

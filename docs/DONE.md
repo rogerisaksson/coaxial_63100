@@ -322,3 +322,11 @@ the hundred before these: [DONE_1-50](DONE_1-50.md),
     on it measured, 1.44 of the U12's amps at the hips and the box 0.93 where
     1.33, and her standing jump 0.03 legs' rise on it for 0.01: the hop's ask
     is the law's ([demand](findings/demand.md)).
+73. The standing jump's push laid from what the drives give (`leap.pushed`:
+    a curve of rows at the knees' clamp through the lever, the crouch the
+    take's own frames held a spring's period): take-off 1.5-1.65 m/s, rise
+    0.43-0.51 legs of the human's 0.55 where 0.01; four faults of the law
+    found on the way - the latent's curve anchoring, `touch.step`'s dropped
+    acceleration, the knee rows' damping against still, the surety's phase
+    read for the held polygon - and rows that lower her waiting for a floor
+    (`waits.landed_rows`) ([stunts](findings/stunts.md)).
