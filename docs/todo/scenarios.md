@@ -139,7 +139,14 @@ serves its DOD; none an entry a case.
    down or catches himself (item 5); the sit's hips 0.06-0.56 back run to
    run where 0.48, the bed's edge and lying (item 1); the chair's hops and
    the standing jump's landing (item 6); W at 0.93 m/s where a jog
-   is 2.0 and a run 4.5, S at 0.19 where 1.3; the dance's bounce of 0.38
+   is 2.0 and a run 4.5, S at 0.19 where 1.3 - the walk's text at 1.5 Hz
+   with the drive whole jogs 1.66 m/s on her loop as it is (the jog take
+   13.6 -> 7.4 widths, the run 27.6 -> 24.1) but the sprint and moves
+   plays fall at their stops and turns, the run's leap holds 0.57 m for a
+   tap's 0.48 and the running jump falls: the brake, the gather and the
+   leap (`leap.stride_hop`, `stride_leap`, tuned to 0.86 m/s) laid from the
+   drives at her speed first, as the standing jump's push is (item 3); at
+   1.8 Hz her stance chatters and she falls; the dance's bounce of 0.38
    legs felling her when streamed; a lean back of 13 deg standing met with
    3.7; the stairs (item 3). No spasm: each segment's jerk no higher than
    her steady walk's (item 2). The take's
