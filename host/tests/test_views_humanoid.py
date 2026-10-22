@@ -149,9 +149,9 @@ def test_a_held_p_charges_a_push(report):
 
 
 def test_vision_scanner_docked_pip_and_affordances(report):
-    """The stereo scanner finds a support near her, F says its verb and the page prompts it."""
-    import math
-    from terminal.views import scanner, show_humanoid, viewpoint
+    """The stereo scanner finds a support near her, F says its verb at it and the page prompts
+    it; the balloons' keys on the docked plate (test_views_floor: the balloons)."""
+    from terminal.views import gym, scanner, show_humanoid
     sc = scanner.VisionScanner()
     report.check('model identification resolves or reports local stereo',
                  'clef' in sc.model_name() or 'stereo' in sc.model_name())
@@ -161,31 +161,15 @@ def test_vision_scanner_docked_pip_and_affordances(report):
     report.check('a chair in her sight, its verb sit_chair',
                  len(det) == 1 and det[0]['kind'] == 'chair' and scanner.auto_action(det) == 'sit_chair'
                  and det[0]['affordances'] == [('sit_chair', 'sit')])
-    cells = scanner.docked_vision(sc, now, 100, 40)
-    chars = ''.join(chr(c) for c, _k in cells.values())
-    report.check('the docked eyes name the chair and F on it', 'chair' in chars and '[F] sit' in chars)
     sent = []
     st = {'body': SN(send=lambda **kw: sent.append(kw)), 'scanner': sc, 'now': now, 'yaw': 180.0, 'tour': None}
+    cells = scanner.docked_vision(sc, now, 100, 40, gym.offered(st))
+    chars = ''.join(chr(c) for c, _k in cells.values())
+    report.check('the docked eyes name the chair and F on it', 'chair' in chars and '[F] sit' in chars)
     show_humanoid.KEYS['f'](st)
-    report.check('F by the chair says sit_chair, the page prompts it, a plain hop unprompted',
-                 sent == [{'say': 'sit_chair'}] and show_humanoid.prompt(st) == '[F] sit chair', show_humanoid.prompt(st))
-    room_props = [
-        ('wood', (1.50, 0.45, 0.80), (0.22, 0.02, 0.22), ((1, 0, 0), (0, 1, 0), (0, 0, 1))),
-        ('bed', (-1.80, 0.35, 1.80), (0.50, 0.12, 1.00), ((1, 0, 0), (0, 1, 0), (0, 0, 1))),
-        ('door', (0.75, 1.05, 3.50), (0.45, 1.05, 0.03), ((1, 0, 0), (0, 1, 0), (0, 0, 1))),
-    ]
-    prompts, clicked = [], []
-    for pos, tx, tz in (((0.0, 0.9, 0.0), 1.50, 0.80), ((-0.3, 0.9, 0.3), -1.80, 1.80), ((0.2, 0.9, 1.5), 0.75, 3.50)):
-        sent.clear()
-        st['now'] = {'where': pos, 'turn': (1, 0, 0, 0), 'angles': {},
-                     'heading': math.atan2(tx - pos[0], tz - pos[2]), 'props': room_props}
-        prompts.append(show_humanoid.prompt(st))
-        viewpoint.mouse(st, lambda: (100, 40))['on_click'](20, 10)
-        clicked.extend(sent)
-    report.check('approaching chair, bed or door shows [F] in viewport and clicking it sends the errand verb',
-                 prompts == ['[F] sit chair', '[F] lie bed', '[F] exit door']
-                 and clicked == [{'say': 'sit_chair'}, {'say': 'lie_bed'}, {'say': 'exit_door'}],
-                 (prompts, clicked))
+    report.check('F by the chair says sit_chair at it, the page prompts it, a plain hop unprompted',
+                 [(c['say'], tuple(round(v, 9) for v in c['at'])) for c in sent] == [('sit_chair', (0.0, 0.9))]
+                 and gym.prompt(st) == '[F] sit chair', (sent, gym.prompt(st)))
 
 
 def test_her_verbs_and_the_chase(report):
@@ -263,7 +247,7 @@ def test_scenario_deck_tour_handoff_and_cybernetic_hud(report):
     st['now'] = {'doing': 'kneel', 'scenario': 'mattress'}
     show_humanoid.KEYS['f'](st)
     report.check('F rises her from a chair, hops her down from its seat, rises her from a bed and a mattress',
-                 sent == [{'say': 'rise_chair'}, {'say': 'hop_down_chair'}, {'say': 'rise_bed'}, {'say': 'rise_floor'}])
+                 [c['say'] for c in sent] == ['rise_chair', 'hop_down_chair', 'rise_bed', 'rise_floor'], sent)
     sent.clear()
     st['scenario'] = 'bed'
     show_humanoid.KEYS['['](st)

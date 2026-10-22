@@ -177,17 +177,18 @@ def test_chair_and_bed_seated_and_rising(report):
 
 
 def test_viewport_f_errands_chair_bed_and_door(report):
-    """Walking toward the chair, bed, or door shows `[F]` in the viewport, and clicking `[F]` makes her
-    autonomously walk to the chair and sit, walk to the bed and lie down, or walk to the door and exit."""
+    """Walking toward the chair, bed, or door offers it first in the viewport (`gym.offered`), and a
+    click makes her autonomously walk to the chair and sit, walk to the bed and lie down, or walk to
+    the door and exit."""
     from types import SimpleNamespace as SN
     from machine import modal, physics, sprung, worker
-    from terminal.views import scanner, show_humanoid, viewpoint
+    from terminal.views import gym, scanner, viewpoint
     sc = scanner.VisionScanner()
     physics.ROOM, physics.SIGHT = 1.0, 0.0
-    for label, hd0, walk_s, expected_prompt, goal_phase in (
-        ('chair', 1.0, 0.6, '[F] sit chair', 'seated'),
-        ('bed', -0.65, 1.0, '[F] lie bed', 'bed_rest'),
-        ('door', 0.22, 1.5, '[F] exit door', 'stand'),
+    for label, hd0, walk_s, verb, goal_phase in (
+        ('chair', 1.0, 0.6, 'sit_chair', 'seated'),
+        ('bed', -0.65, 1.0, 'lie_bed', 'bed_rest'),
+        ('door', 0.22, 1.5, 'exit_door', 'stand'),
     ):
         s = worker.session()
         g = s['g']
@@ -199,7 +200,9 @@ def test_viewport_f_errands_chair_bed_and_door(report):
         now = worker.told(s)
         st = {'body': SN(send=lambda **cmd: worker.apply(s, cmd)), 'scanner': sc,
               'now': now, 'yaw': 180.0, 'tour': None, **viewpoint.HOME}
-        shown_prompt = show_humanoid.prompt(st)
+        key, first = (gym.offered(st) or [('', None)])[0][:2]
+        shown_prompt, expected_prompt = gym.prompt(st), '[%s] %s' % (key, gym.NAMED[verb])
+        shown = first == verb and shown_prompt.startswith(expected_prompt)
         viewpoint.mouse(st, lambda: (100, 40))['on_click'](20, 10)
         max_prop = 0.0
         for _ in range(40000):
@@ -214,16 +217,16 @@ def test_viewport_f_errands_chair_bed_and_door(report):
         gx, gy, gz = (float(g['world'].data.qpos[i]) for i in range(3))
         if label == 'door':
             dq = float(g['world'].data.qpos[g['world'].model.jnt_qposadr[g['world'].model.joint('door').id]])
-            ok = (shown_prompt == expected_prompt and gz > 4.1 and dq > 1.2 and s['fallen_at'] is None)
+            ok = (shown and gz > 4.1 and dq > 1.2 and s['fallen_at'] is None)
             detail = 'prompt=%r z=%.2f door=%.2f fallen=%s' % (shown_prompt, gz, dq, s['fallen_at'])
         else:
             sr_rest = float(g.get('surety', 1.0))
-            ok = (shown_prompt == expected_prompt and sprung.doing(g) == goal_phase
+            ok = (shown and sprung.doing(g) == goal_phase
                   and max_prop > 0.45 and gy < 0.72 and sr_rest > 0.65 and s['fallen_at'] is None)
             if label == 'bed' and ok:
                 _run(s, 0.8)
                 st['now'] = worker.told(s)
-                rise_prompt = show_humanoid.prompt(st)
+                rise_prompt = gym.prompt(st)
                 viewpoint.mouse(st, lambda: (100, 40))['on_click'](20, 10)
                 _flips, stood_t = _run(s, 6.0, until='stand')
                 _run(s, 0.5)
@@ -231,7 +234,25 @@ def test_viewport_f_errands_chair_bed_and_door(report):
                       and sum(g['loads']) > 250.0 and float(g.get('surety', 1.0)) > 0.85 and s['fallen_at'] is None)
             detail = 'prompt=%r doing=%s pos=(%.2f,%.2f,%.2f) prop=%.2f sure=%.2f fallen=%s' % (
                 shown_prompt, sprung.doing(g), gx, gy, gz, max_prop, float(g.get('surety', 1.0)), s['fallen_at'])
-        report.check('viewport [F] click for %s: %s and completes autonomous errand' % (label, expected_prompt), ok, detail)
+        report.check('viewport click for %s: %s offered first and completes autonomous errand' % (label, expected_prompt),
+                     ok, detail)
+
+
+def test_the_errand_goes_to_the_thing_told(report):
+    """Two chairs, the scene's ahead and the lodge's aside: told to sit she walks to the nearer one,
+    told to sit at the lodge's (`at`, its balloon's) to that one."""
+    from machine import physics, room, worker
+    physics.ROOM, physics.SIGHT = 1.0, 0.0
+    docks = []
+    for told in ({'say': 'sit_chair'}, {'say': 'sit_chair', 'at': room.CHAIR_AT}):
+        s = worker.session()
+        worker.apply(s, {'scenario': 'chair'})
+        worker.apply(s, told)
+        er = s['g'].get('_errand') or {}
+        docks.append(tuple(round(er.get(k, math.nan), 6) for k in ('x_dock', 'z_dock')))
+    report.check("told to sit, the chair ahead's edge; told the lodge's, the lodge's",
+                 docks == [(0.0, round(0.88 - room.SEAT[2], 6)), (room.CHAIR_AT[0], round(room.CHAIR_AT[1] - room.SEAT[2], 6))],
+                 docks)
 
 
 def test_multi_pose_bed_settle_and_randomized_scenarios(report):
@@ -312,6 +333,7 @@ def test_continuous_outer_loop_told_and_walk_again(report):
 ROSTER = (test_a_stop_settles_and_f_is_heard, test_a_halting_row_waits_for_a_swing_only_while_her_rhythm_turns,
           test_a_chair_a_hair_off_is_sat_on_and_risen_from, test_doorway_arm_yields_and_she_walks_on,
           test_chair_and_bed_seated_and_rising, test_viewport_f_errands_chair_bed_and_door,
+          test_the_errand_goes_to_the_thing_told,
           test_multi_pose_bed_settle_and_randomized_scenarios,
           test_continuous_outer_loop_told_and_walk_again)
 

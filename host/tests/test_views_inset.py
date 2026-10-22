@@ -225,8 +225,44 @@ def test_figures_are_watched_from_beside_the_field(report):
                          seen, jumped, settled, chase['lens'], chase['yaw']))
 
 
+def test_balloons_stand_on_what_she_sees(report):
+    """Balloons on her drawing (`coaxial.graphics.balloons`): a point's cell (`gynoid.cells`) the
+    one `render` marks it in; each balloon framed over its thing, its key in the key's ink, its tip
+    on the thing; a second meeting the first risen over it, its tail down behind it; one off the
+    drawing or behind the eye none; lit, framed in the key's ink."""
+    import math
+    from coaxial.graphics import balloons, callouts, gynoid, inset
+    point, travel, pan = (1.5, 0.45, 0.8), (0.4, 0.3), (0.22, 0.0)
+    drawn = gynoid.render({}, 110, 36, yaw=200.0, colour=False, travel=travel, pan=pan,
+                          mark=(point, (255, 255, 255)))
+    marked = [(r, line.index('┼')) for r, line in enumerate(drawn) if '┼' in line]
+    behind = (0.4 + 20.0 * math.sin(math.radians(200.0)), 0.9, 0.3 + 20.0 * math.cos(math.radians(200.0)))
+    report.check('a point falls in the cell render marks it in, one behind the eye in none',
+                 gynoid.cells([point, behind], 110, 36, yaw=200.0, travel=travel, pan=pan) == marked + [None]
+                 and len(marked) == 1, marked)
+    cells = balloons.laid([((20, 40), 'F1', 'sit'), ((21, 42), 'F2', 'go out'), ((1, 40), 'F3', 'lie down')],
+                          110, 36)
+    text = {at: chr(code) for at, (code, _key) in cells.items()}
+    rows = {r: ''.join(text.get((r, c), ' ') for c in range(110)).strip() for r in range(36)}
+    key, frame = callouts.packed(inset.NOTE_INK, inset.PLATE), callouts.packed(callouts.FRAME_INK)
+    report.check("framed over its thing, its key in the key's ink, its tip on the thing",
+                 rows[18] == '│ F1 sit │' and rows[17] == '╭────────╮' and text[(20, 40)] == balloons.TIP
+                 and text[(19, 40)] == balloons.NOTCH and cells[(18, 37)][1] == key and cells[(17, 36)][1] == frame,
+                 rows)
+    report.check('the second risen over the first, its tail down behind it to its tip; one with no room none',
+                 rows[15] == '│ F2 go out │' and text[(21, 42)] == balloons.TIP and text[(17, 42)] == '─'
+                 and text[(16, 42)] == balloons.NOTCH and 'F3' not in ''.join(rows.values()), rows)
+    shut = frozenset((r, c) for r in range(30) for c in range(70, 110))
+    out = balloons.laid([((20, 90), 'F1', 'sit'), ((20, 130), 'F2', 'sit')], 110, 36, lit=True, shut=shut)
+    tips = sorted((at, chr(code)) for at, (code, _key) in out.items() if chr(code) in balloons.TIPS.values())
+    report.check("behind a docked picture or off the drawing, its balloon beside it, its tip pointing on; "
+                 "lit, framed in the key's ink",
+                 tips == [((20, 69), '▸')] and not set(out) & shut
+                 and out[(20, 69)][1] == callouts.packed(inset.NOTE_INK), tips)
+
+
 ROSTER = (test_her_eyes_picture_is_framed, test_its_camera_rides_a_gimbal,
-          test_figures_are_watched_from_beside_the_field)
+          test_figures_are_watched_from_beside_the_field, test_balloons_stand_on_what_she_sees)
 
 
 def main(argv=None):

@@ -1,25 +1,31 @@
 """The HUMANOID page's gym: her verbs, her latent loop's moves said by digit, her modes shown.
 
     KEYS = gym.table(KEYS)       # the page's keys with the gym's: verbs, digits, scenes, shoves
-    gym.offered(now, seen)       # what Space and F say now, the page's prompt
+    gym.offered(state)           # what F offers now, keyed: the balloons, the plate, the prompt
     gym.boxes(now)               # the side column's LATENT and SAY boxes
     gym.status(now)              # what she is doing, in a line
 
 She stands on the loop (`machine.sprung`); the keys that move her are a twist (`humanoid_keys`).
-Space, C and F are verbs - a hop, a crouch, settling on or rising from what is near -, each one
-an agent would send. A digit says an entry of the gym's text (`sprung.entries`) in place of what
-was to come, > takes the gym's other text (`sprung.GYMS`), read anew each time - an edit to
-machine/gynoid_mesomorph_medium.lisp is two presses away -; [ ] step through the scenes, Enter
-lays the scene again, P N shove her along the view, H tours the scenes. LATENT shows each mode
-as it is asked and as she is, and its spring.
+Space, C and F are verbs - a hop, a crouch, a balloon's offer -, each one an agent would send.
+F offers rising from what bears her, else each thing she sees and its verb, a balloon on it:
+F alone says the first's - the one she faces -, F then a digit - or the function key - the one so
+keyed. A digit says
+an entry of the gym's text (`sprung.entries`) in place of what was to come, > takes the gym's
+other text (`sprung.GYMS`), read anew each time - an edit to machine/gynoid_mesomorph_medium.lisp
+is two presses away -; [ ] step through the scenes, Enter lays the scene again, P N shove her
+along the view, H tours the scenes. LATENT shows each mode as it is asked and as she is, and its
+spring.
 """
 import math
+import time
 
 from rich.text import Text
 
 from coaxial.draw import gauges
-from machine import sprung
+from coaxial.graphics import balloons, gynoid
+from machine import sight, sprung, tour
 from terminal import keybindings
+from terminal.ui import console
 from terminal.ui.stage import hud
 from terminal.views import scanner, viewpoint
 
@@ -30,10 +36,10 @@ DIGITS = '1234567890'
 #: P and N shove her along the view, the bench's 80 N she parries and 200 N she falls to
 #: (`tools/sim/scenarios.py`, SHOVES), sprung.SHOVE_S long.
 SHOVES_N = {'P': 80.0, 'N': 200.0}
-#: A support near enough for F, m from her pelvis over the floor, or approached ahead within
-#: APPROACH_M; a chair she hops onto, m ahead and within a quarter turn of her heading; her pelvis
-#: over this, m, on a chair's seat.
-REACH_M, APPROACH_M, ONTO_M, ON_CHAIR_M = 1.2, 3.4, 0.7, 1.12
+#: A thing near enough for a verb she does where she stands, m from her pelvis over the floor; a
+#: chair she hops onto, m ahead and within a quarter turn of her heading; her pelvis over this, m,
+#: on a chair's seat.
+REACH_M, ONTO_M, ON_CHAIR_M = 1.2, 0.7, 1.12
 #: The crouch's phase (`postures_base.lisp`).
 CROUCHED = 'down'
 #: Each mode's name in the box; what each stream payload is called on the page.
@@ -77,29 +83,87 @@ def contextual_rise(now, scenario=None):
     return 'stand' if (doing == CROUCHED or now.get('fallen')) else None
 
 
-def _approaching(d, x, z, heading):
-    if d['kind'] not in scanner.PRIMARY_ACTION:
-        return False
-    if d['dist'] < REACH_M:
-        return True
-    dx, dz = d['pos'][0] - x, d['pos'][2] - z
-    return d['dist'] < APPROACH_M and (dx * math.sin(heading) + dz * math.cos(heading)) > 0.72 * d['dist']
-
-
-def offered(now, seen):
-    """{key: verb} Space and F say now: `now` her state, `seen` the scanner's detections round
-    her, nearest first (`scanner.scan`'s, `reach`). Space a hop - down from a chair's seat, up
-    onto a chair close ahead -; F up from what bears her, else onto the support nearest."""
+def hop(now, seen):
+    """What Space says now: down from a chair's seat, up onto a chair close ahead (`seen`,
+    `scanner.scan`'s), else a hop; None before her first state."""
     if not now:
-        return {}
+        return None
     x, _y, z = now.get('where') or (0.0, 0.9, 0.0)
     heading = float(now.get('heading') or 0.0)
     ahead = [d for d in seen if d['kind'] == 'chair' and d['dist'] < ONTO_M
              and (d['pos'][0] - x) * math.sin(heading) + (d['pos'][2] - z) * math.cos(heading) > 0.5 * d['dist']]
-    rise = contextual_rise(now)
-    near = next((scanner.PRIMARY_ACTION[d['kind']] for d in seen if _approaching(d, x, z, heading)), None)
-    hop = 'hop_down_chair' if rise == 'hop_down_chair' else ('hop_up_chair' if ahead else 'hop')
-    return {' ': hop, 'f': rise or near} if (rise or near) else {' ': hop}
+    return 'hop_down_chair' if contextual_rise(now) == 'hop_down_chair' else ('hop_up_chair' if ahead else 'hop')
+
+
+def _things(seen):
+    """`seen` (`scanner.scan`'s) joined into things: a kind's boxes within her map's cell of each
+    other one (`sight.lumps`) - a chair's seat and its back -; each (kind, its nearest box's dist,
+    lo, hi), its bounds."""
+    things = []
+    for d in seen:
+        lo = [p - e for p, e in zip(d['pos'], d['extent'])]
+        hi = [p + e for p, e in zip(d['pos'], d['extent'])]
+        met = [t for t in things if t[0] == d['kind'] and all(
+            a <= y + sight.CELL_M and x <= b + sight.CELL_M for a, b, x, y in zip(lo, hi, t[2], t[3]))]
+        for _kind, _dist, a, b in met:
+            lo, hi = [min(u, v) for u, v in zip(lo, a)], [max(u, v) for u, v in zip(hi, b)]
+        things = [t for t in things if t not in met] + [(d['kind'], min([d['dist']] + [t[1] for t in met]), lo, hi)]
+    return things
+
+
+def _turn(now, at):
+    """How far she turns to face `at` (x, y, z), rad."""
+    x, _y, z = now.get('where') or (0.0, 0.9, 0.0)
+    off = math.atan2(at[0] - x, at[2] - z) - float(now.get('heading') or 0.0)
+    return abs((off + math.pi) % math.tau - math.pi)
+
+
+def offers(now, seen):
+    """[(verb, word, at (x, y, z), thing)] F offers now, the one she faces most nearly first - the
+    nearer of two in line -: rising from what bears her alone, at her; else each thing she sees
+    (`seen`, `scanner.scan`'s) with a verb - one she walks to (`tour.errands`) wherever she sees it,
+    one she does where she stands within REACH_M -, at its middle."""
+    if not now:
+        return []
+    rise, walked = contextual_rise(now), tour.errands()
+    if rise:
+        return [(rise, NAMED.get(rise, rise), tuple(now.get('where') or (0.0, 0.9, 0.0)), 'her')]
+    got = [(verb, word, tuple((a + b) / 2.0 for a, b in zip(lo, hi)), '%s %.1fm' % (kind, dist), dist)
+           for kind, dist, lo, hi in _things(seen) if kind in scanner.AFFORDANCES
+           for verb, word in (scanner.AFFORDANCES[kind],) if verb in walked or dist < REACH_M]
+    return [offer[:4] for offer in sorted(got, key=lambda o: (_turn(now, o[2]), o[4]))][:len(DIGITS)]
+
+
+def keyed(n):
+    """The keys of `n` offers: F alone for one, else F and each's digit (`DIGITS`)."""
+    return ['F'] if n == 1 else ['F' + d for d in DIGITS[:n]]
+
+
+def offered(state):
+    """[(key, verb, word, at, thing)] F offers as the page shows them: what she sees now (`offers`,
+    `keyed`)."""
+    now, sc = state.get('now'), state.get('scanner')
+    got = offers(now, sc.scan(now) if sc is not None and now else [])
+    return [(key,) + offer for key, offer in zip(keyed(len(got)), got)]
+
+
+def prompt(state):
+    """What F and Space would say, as the page offers it: '[F1] sit chair  [F2] exit door  [SPC]
+    hop up', a plain hop unsaid; '' with nothing to offer."""
+    now, sc = state.get('now'), state.get('scanner')
+    words = ([(key, verb) for key, verb, *_rest in offered(state)]
+             + [('SPC', hop(now, sc.scan(now) if sc is not None and now else []) or '')])
+    return '  '.join('[%s] %s' % (k, NAMED.get(v, v).replace('_', ' ')) for k, v in words if v and v != 'hop')
+
+
+def ballooned(state, offer, width, height, travel, docked=()):
+    """The viewport's balloons: each of `offer` (`offered`'s) its key and word on its thing, on a
+    drawing `width` by `height` of the page's view over `travel`, out of the `docked` picture's
+    cells; framed lit while F's choice is open (`coaxial.graphics.balloons`)."""
+    places = gynoid.cells([at for _k, _v, _w, at, _t in offer], width, height, yaw=state['yaw'],
+                          pitch=state['pitch'], zoom=state['zoom'], travel=travel, pan=viewpoint.panned(state))
+    return balloons.laid([(p, key, word) for p, (key, _v, word, _a, _t) in zip(places, offer) if p],
+                         width, height, lit=state.get('choosing') is not None, shut=frozenset(docked))
 
 
 def touring(state):
@@ -115,9 +179,9 @@ def _cancel_tour(state):
         state.setdefault('pad', {})['setpoint'] = None
 
 
-def _said(state, verb):
-    """`verb` said, the tour and any held pad keys ended: a gym entry's name or place."""
-    import time
+def _said(state, verb, **where):
+    """`verb` said, the tour and any held pad keys ended: a gym entry's name or place; `where`
+    its thing's place (`at`, x z)."""
     _cancel_tour(state)
     pad = state.get('pad')
     if isinstance(pad, dict) and verb != 'hop':
@@ -127,14 +191,48 @@ def _said(state, verb):
         if verb == 'hop':
             now_t = time.monotonic()
             state['hop_hold'] = {'began': now_t, 'last': now_t, 'sent': 0.0}
-        state['body'].send(say=verb)
+        state['body'].send(say=verb, **where)
 
 
-def _offer(key):
-    def say(state):
-        seen = state['scanner'].scan(state.get('now'), reach=APPROACH_M) if state.get('scanner') else []
-        _said(state, offered(state.get('now'), seen).get(key))
-    return say
+def _hopped(state):
+    """Space: what it says now (`hop`)."""
+    now, sc = state.get('now'), state.get('scanner')
+    _said(state, hop(now, sc.scan(now) if sc is not None and now else []))
+
+
+def chose(state, k):
+    """F's `k`th offer said - its verb at its thing (`at`, x z) -, F's choice closed."""
+    state['choosing'] = None
+    for _key, verb, _word, at, _thing in offered(state)[k:k + 1]:
+        _said(state, verb, at=(at[0], at[2]))
+
+
+def _interact(state):
+    """F: with one offer, or F again while the choice is open, the first's said at once; with
+    more, the choice open - a digit within `console.HOLD_WINDOW_S` (F counted held) says its
+    offer (`_digit`), else the first's once that passes (`lapsed`)."""
+    t = state['f_at'] = time.monotonic()
+    if state.get('choosing') is None and len(offered(state)) > 1:
+        state['choosing'] = t
+        return
+    chose(state, 0)
+
+
+def _digit(state, i):
+    """A digit: within `console.HOLD_WINDOW_S` of F, F's `i`th offer while its choice is open -
+    nothing once F said its one -; else the gym's `i`th entry."""
+    if time.monotonic() - state.get('f_at', -math.inf) > console.HOLD_WINDOW_S:
+        return _said(state, i)
+    state['f_at'] = -math.inf
+    if state.get('choosing') is not None:
+        chose(state, i)
+
+
+def lapsed(state, now):
+    """Each frame: F's choice open past `console.HOLD_WINDOW_S` of the wall clock `now` says the
+    first's."""
+    if now - (state.get('choosing') or math.inf) > console.HOLD_WINDOW_S:
+        chose(state, 0)
 
 
 def _crouched(state):
@@ -244,11 +342,12 @@ def table(keys):
     out['['] = lambda state: _step_scenario(state, -1)
     for k in ('\r', '\n'):
         out[k] = lambda state: _run_scenario(state)
-    out.update((k, lambda state, i=i: _said(state, i)) for i, k in enumerate(DIGITS))
+    out.update((k, lambda state, i=i: _digit(state, i)) for i, k in enumerate(DIGITS))
+    out.update(('f%d' % (i + 1), lambda state, i=i: chose(state, i)) for i in range(len(DIGITS)))
     out.update((k, _shoved(n)) for k, n in SHOVES_N.items())
-    out[' '] = _offer(' ')
+    out[' '] = _hopped
     for k in 'fF':
-        out[k] = _offer('f')
+        out[k] = _interact
     for k in 'cC':
         out[k] = _crouched
     for k in 'hH':

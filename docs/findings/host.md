@@ -178,6 +178,13 @@ Pages, tooling, suites and the local model's runner. The board's findings:
   A frame at 15 a second showed the same state again 65 times in 235, the
   rest 0.036 s of her time apart with 0.022 of spread, her process at 0.7 of
   real time in slices of 0.05 s (`terminal/views/playback.py`).
+- HUMANOID's balloons (`gym.offered`, `coaxial.graphics.balloons`): from her
+  lay in the lodge facing +z the door 3.6 m at 12 deg, the bed 2.5 m at 45,
+  the chair 1.7 m at 62 - F1 go out, F2 lie down, F3 sit -, at 150 x 44 the
+  bed behind the docked eyes and its balloon at their edge. Numbered nearest
+  first, F alone sent her from (0.12, 0.28) to the chair 56 deg aside, not
+  the door ahead, and she fell at 5.19 s (scenarios item 10): numbered by
+  her turn to them, F alone keeps what she faces.
 - The crafts' pages flew on a `Feed` thread in the page's process and drew
   the newest of its 20 ms steps: on a 200 x 56 truecolor terminal 13.4-18.7
   frames a second, gaps p95 80-115 ms, the longest 484-639, the flight's

@@ -38,9 +38,9 @@ def groups():
             ('SHIFT', 'sprint'),
             ('Q E', 'turn left, right in place (or on an arc with W/S)'),
             ('SPACE', 'hop - onto a chair ahead, down from one'),
-            ('F', 'sit, lie or rise: what is near or bears her'),
+            ('F / F 1-0', "a balloon's verb: the one she faces / the one so keyed (or F1-F10)"),
             ('C', 'crouch, and up'),
-            ('1-0 / >', 'the gym\'s entries / its other text'),
+            ('1-0 / >', "the gym's entries, but after F / its other text"),
         )),
         ('VIEW', (
             ('L-DRAG / ARROWS', 'look round her; behind her again as she goes'),

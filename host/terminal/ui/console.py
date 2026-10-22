@@ -60,6 +60,9 @@ def console_mode(was, mouse=True):
 MOUSE_ON, MOUSE_OFF = '\033[?1002h\033[?1006h', '\033[?1006l\033[?1002l'
 PASTE_ON, PASTE_OFF = '\033[?2004h', '\033[?2004l'
 HOLD_S, WHEEL_STEP, DRAG_STEP = 1.0, 0.12, 0.02
+#: A key typed counts held this long, s, where the console cannot tell (a terminal's first
+#: repeat comes 250-500 ms on).
+HOLD_WINDOW_S = 0.65
 
 
 def _set_console_mode(restore=None, mouse=True):
@@ -378,7 +381,7 @@ class Keys:
                         self._latched_wasd = False
                         self._keys_down.clear()
                         return set()
-                    if now - self._last_key_at > 0.65:
+                    if now - self._last_key_at > HOLD_WINDOW_S:
                         self._latched_wasd = False
                         self._keys_down.clear()
                 return set() if self._hw_seen else None

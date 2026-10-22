@@ -17,11 +17,13 @@ from coaxial.graphics import inset
 from machine import room, sight
 
 
-#: What F says by the support nearest her (`gym.offered`): its verb, and the verb's name.
+#: What F says by a support she sees (`gym.offers`): its verb, and the verb's name.
 AFFORDANCES = {'chair': ('sit_chair', 'sit'), 'armchair': ('sit_chair', 'sit'),
                'bed': ('lie_bed', 'lie down'), 'mattress': ('lie_floor', 'lie down'),
                'door': ('exit_door', 'go out')}
 PRIMARY_ACTION = {kind: verb for kind, (verb, _name) in AFFORDANCES.items()}
+#: A box's turn where a thing has none: her map's are upright.
+UPRIGHT = ((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0))
 
 _PROP_RULES = {
     'wood': lambda py, sx, sz, _sc: (
@@ -82,7 +84,8 @@ class VisionScanner:
 
     def scan(self, now, look=None, reach=None):
         """The props in her sight - within 75 deg of her heading or the heading the view looks
-        along (`look`, rad), 8 m -, or with `reach` every one that near, nearest first."""
+        along (`look`, rad), 8 m -, or with `reach` every one that near, nearest first; each box's
+        half sizes along the world's axes its `extent`."""
         if not now:
             return []
         things = now.get('things') or ()
@@ -101,6 +104,7 @@ class VisionScanner:
             px, py, pz = float(prop[1][0]), float(prop[1][1]), float(prop[1][2])
             sz = prop[2] if hasattr(prop[2], '__len__') and len(prop[2]) >= 3 else (0.0, 0.0, 0.0)
             sx, sz_d = min(float(sz[0]), float(sz[2])), max(float(sz[0]), float(sz[2]))
+            turn = prop[3] if len(prop) > 3 else UPRIGHT
             kind = _PROP_RULES[raw_kind](py, sx, sz_d, scen) if raw_kind in _PROP_RULES else raw_kind
             dx, dz = px - gx, pz - gz
             dist = math.hypot(dx, dz)
@@ -110,6 +114,7 @@ class VisionScanner:
                 'kind': kind,
                 'dist': dist,
                 'pos': (px, py, pz),
+                'extent': tuple(sum(abs(float(a)) * float(h) for a, h in zip(row, sz)) for row in turn),
                 'label': '%s (%.1fm)' % (kind, dist),
                 'affordances': [AFFORDANCES[kind]] if kind in AFFORDANCES else [],
             })
@@ -130,25 +135,18 @@ def _render_plate_row(row_idx, top, left, width, text, code, key_frame):
     return out
 
 
-def _build_plate_rows(detected, max_rows=7):
-    lines, detected = [], [d for d in detected if d['affordances']]
-    if not detected:
-        lines.append(('(nothing to act on)', packed(PLATE_LABEL_INK, PLATE_BG)))
-    else:
-        for item in detected[:2]:
-            kind, dist = item['kind'], item['dist']
-            affs = item['affordances']
-            head = '%s (%.1fm):' % (kind, dist)
-            lines.append((head, packed(PLATE_TITLE_INK, PLATE_BG)))
-            for _verb, name in affs:
-                lines.append(('  [F] %s' % name, packed(PLATE_KEY_INK, PLATE_BG)))
-    return lines[:max_rows]
+def _build_plate_rows(offered, max_rows=7):
+    """A row an offer (`gym.offered`'s): its key, its word and its thing; one saying none."""
+    return ([('[%s] %s  %s' % (key, word, thing), packed(PLATE_KEY_INK, PLATE_BG))
+             for key, _verb, word, _at, thing in offered[:max_rows]]
+            or [('(nothing to act on)', packed(PLATE_LABEL_INK, PLATE_BG))])
 
 
-def affordance_plate(detected, top, left, width):
-    """Render the framed affordance interaction plate beneath the picture-in-picture inset."""
+def affordance_plate(offered, top, left, width):
+    """Render the framed affordance interaction plate beneath the picture-in-picture inset:
+    `offered` (`gym.offered`'s), the balloons' keys."""
     key_frame = packed(FRAME_INK)
-    lines = _build_plate_rows(detected)
+    lines = _build_plate_rows(offered)
     height = len(lines) + 2
     out = {}
 
@@ -253,8 +251,9 @@ def _fallback_seen(now, detected):
     return thumb, hulls
 
 
-def docked_vision(scanner, now, width, height):
-    """Render the docked stereo eyes PiP, affordance plate, and 10 Mbit/s RS485 SIL bus graphic."""
+def docked_vision(scanner, now, width, height, offered=()):
+    """Render the docked stereo eyes PiP, affordance plate (`offered`, `gym.offered`'s), and
+    10 Mbit/s RS485 SIL bus graphic."""
     detected = scanner.scan(now)
     seen = (now.get('seen') if now else None) or _fallback_seen(now, detected)
     cells = inset.eyes(seen, width, height)
@@ -265,7 +264,7 @@ def docked_vision(scanner, now, width, height):
     box_w = max(c for _r, c in cells) - min_c + 1
     plate_top = max_r + 1
     if plate_top + 5 < height:
-        cells.update(affordance_plate(detected, plate_top, min_c, box_w))
+        cells.update(affordance_plate(offered, plate_top, min_c, box_w))
     bus_top = max(r for r, _c in cells) + 1
     if plate_top + 5 < height and bus_top + 7 < height - 1:
         cells.update(bus_plate(now, bus_top, min_c, box_w))

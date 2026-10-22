@@ -392,14 +392,30 @@ def _wired(who, frames, root, m, fine, centre):
     return depth, rgb, wired
 
 
+def _looked(width, height, yaw, pitch, zoom, pan):
+    """The view's attitude, its camera at dot resolution and the point it looks at."""
+    np, m = _np(), view(yaw, pitch)
+    fine = engine.fine(engine.camera(width, height, REACH, distance=DISTANCE, zoom=zoom))
+    return m, fine, np.asarray(CENTRE) + np.asarray(pan) @ np.reshape(m, (3, 3))[:2]
+
+
+def cells(points, width, height, yaw=30.0, pitch=8.0, zoom=1.0, travel=(0.0, 0.0), pan=(0.0, 0.0)):
+    """The cells (row, col) world `points` [(x, y, z)] fall in on `render`'s drawing of the same
+    view, None for one behind the eye."""
+    if not len(points):
+        return []
+    sx, sy, w = project(_np().asarray(points, float) - (travel[0], 0.0, travel[1]),
+                        *_looked(width, height, yaw, pitch, zoom, pan))
+    return [(int(y // DOTS_Y), int(x // DOTS_X)) if k > 0.0 else None
+            for x, y, k in zip(sx.tolist(), sy.tolist(), w.tolist())]
+
+
 def render(angles, width, height, yaw=30.0, pitch=8.0, zoom=1.0, colour=True, travel=(0.0, 0.0),
            lit=None, root=None, labels=None, heat=None, props=None, legend=None, dressed=True, dents=None,
            mark=None, around=False, see=None, pan=(0.0, 0.0), inset=None, arrows=None, horizon=None):
     """Render the gynoid at `angles` (`{joint: deg}`) into `width` x `height` braille lines;
     `horizon` [(segments, ink)] on it (`coaxial.graphics.horizon`)."""
-    np, who, m = _np(), body(dressed, see), view(yaw, pitch)
-    fine = engine.fine(engine.camera(width, height, REACH, distance=DISTANCE, zoom=zoom))
-    centre = np.asarray(CENTRE) + np.asarray(pan) @ np.reshape(m, (3, 3))[:2]
+    who, (m, fine, centre) = body(dressed, see), _looked(width, height, yaw, pitch, zoom, pan)
     mats, dense = _heated(who, heat)
     frames, wired = who._frames(angles, root), []
     if see == 'actuators':

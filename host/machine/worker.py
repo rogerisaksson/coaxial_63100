@@ -167,7 +167,7 @@ def _apply_say(g, gym, by, command, errand_step):
     from machine import se2, tour
     sc = command['say']
     sc_str = sprung.ALIASES.get(str(sc), str(sc))
-    if not errand_step and tour.start_errand(g, gym, sc_str, heard, heard_say):
+    if not errand_step and tour.start_errand(g, gym, sc_str, heard, heard_say, command.get('at')):
         return
     is_idx = (isinstance(sc, int) or (isinstance(sc, str) and sc.isdigit())) and 0 <= int(sc) < len(gym)
     entry = gym[int(sc)] if is_idx else by.get(sc_str)

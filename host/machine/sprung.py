@@ -16,7 +16,7 @@ RATE_HZ, SLICE_S, SAY_S, AVERAGE_S, RECOVER_S = 1000.0, 0.05, 1.0 / 60.0, 0.05, 
 SHOVES, SHOVE_S = {'nudge': 38.0, 'push': 80.0, 'shove': 120.0}, 0.12
 #: Her stage (`staged`): walking past WALK_M_S, or with a sole off the floor within STEP_S.
 WALK_M_S, STEP_S = 0.1, 1.0
-HEARD = ('say', 'walk', 'entries', 'gym', 'text', 'push', 'seconds', 'restart', 'scenario', 'heading', 'twist',
+HEARD = ('say', 'at', 'walk', 'entries', 'gym', 'text', 'push', 'seconds', 'restart', 'scenario', 'heading', 'twist',
          'grip', 'charge')
 STREAM_NAMES = {201: 'stand', 202: 'sway', 203: 'step', 204: 'walk', 205: 'walk_back'}
 ALIASES = {'#201': 'stand', '#202': 'sway', '#203': 'step', '#204': 'walk', '#205': 'walk_back', 'back': 'walk_back'}

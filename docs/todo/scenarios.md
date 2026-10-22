@@ -168,3 +168,10 @@ serves its DOD; none an entry a case.
    lodge_down and a climb of the loft stair held in test_scenarios; her
    sight telling its door and its glass; the ground snowed and the valley
    drawn beyond the rail.
+10. **An errand from her side** (found, `tour.step_errand`): at (0.12, 0.28)
+    facing 0.22 rad, the lodge's chair 1.47 m off and 56 deg to her left,
+    told to sit she walks to (0.54, 0.83), where the walk's row (`stops_in`)
+    passes 0.96 m off the dock's line, its tolerance 0.125; braking she goes
+    on 0.75 m to its back and is down at 5.19 s. The balloons offer it there
+    (F2; F alone the door ahead). DOD: the chair's, the bed's and the door's
+    errands from every pose she sees them from, no fall.

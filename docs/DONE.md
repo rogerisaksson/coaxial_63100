@@ -332,3 +332,12 @@ the hundred before these: [DONE_1-50](DONE_1-50.md),
     (`waits.landed_rows`), and the parry stepping her only while the rows
     hold the polygon: off and down on both soles
     ([stunts](findings/stunts.md)).
+74. Balloons on what she sees, HUMANOID: each support in her sight a balloon
+    on it, its key and its word, the one she faces first (from her lay in the
+    lodge F1 go out, F2 lie down, F3 sit; F alone with one offered, F and her
+    rise on her while something bears her), a chair's seat and back one
+    thing, one behind the docked eyes or off the drawing at their edge
+    pointing on; F then the digit within a typed key's hold
+    (`console.HOLD_WINDOW_S`, 0.65 s) or the function key says that one's
+    errand to that thing (`at`: the chair scene's two chairs each their
+    own), F alone the first's once the hold lapses ([host](findings/host.md)).

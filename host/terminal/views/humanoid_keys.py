@@ -29,9 +29,6 @@ CHARGE_N_S, CHARGE_MAX_N, RELEASE_S, FIRST_S = 120.0, 250.0, 0.25, 0.8
 #: (or on an arc with W or S). Each twist one the bench's plays hold (`tools/sim/scenarios.py`, KEYS).
 TURN_K, SPRINT_RAD, TWIST_STEP = 1.5, 0.2, 0.05
 MOVES = frozenset('wasdqeWASDQE')
-#: A key typed counts held this long, s, where the console cannot tell (a terminal's first
-#: repeat comes 250-500 ms on).
-HOLD_WINDOW_S = 0.65
 
 #: Where R's recordings go, a CSV from a press to the next: every state the page hears from her,
 #: 10-20 a second of her time (HEADER); beside each, the keys typed and held since the row before
@@ -130,8 +127,8 @@ def _moving(raw):
 
 def polled(raw, st, now, held=None):
     """{key: held} of `st` (`pad`) with `raw` typed now: the console's `held` where it tells, else
-    each key seen within HOLD_WINDOW_S - one key typed renews those held beside it, its opposite
-    dropped -; of two opposite keys, neither."""
+    each key seen within `console.HOLD_WINDOW_S` - one key typed renews those held beside it, its
+    opposite dropped -; of two opposite keys, neither."""
     tokens, seen = _moving(raw), st['last_seen']
     if held is not None:
         active = _moving(held)
@@ -144,10 +141,10 @@ def polled(raw, st, now, held=None):
             seen.pop('shift', None)
         if tokens:
             for k in list(seen):
-                if now - seen[k] <= HOLD_WINDOW_S:
+                if now - seen[k] <= console.HOLD_WINDOW_S:
                     seen[k] = float(now)
         seen.update(dict.fromkeys(tokens, float(now)))
-        active = {k for k, ts in seen.items() if now - ts <= HOLD_WINDOW_S}
+        active = {k for k, ts in seen.items() if now - ts <= console.HOLD_WINDOW_S}
     w, s, a, d = ('w' in active) > ('s' in active), ('s' in active) > ('w' in active), \
         ('a' in active) > ('d' in active), ('d' in active) > ('a' in active)
     q, e = ('q' in active) > ('e' in active), ('e' in active) > ('q' in active)
@@ -186,9 +183,9 @@ def _hop_held(state, now, held):
 
 
 def steered(state, now, heading):
-    """Each frame: the keys held - the console's, else those typed within HOLD_WINDOW_S - as
-    her twist, sent when it changes and again as she reports a scene laid anew, her twist
-    zeroed with it; a key that moves her ends the tour. `now` the wall clock."""
+    """Each frame: the keys held - the console's, else those typed within
+    `console.HOLD_WINDOW_S` - as her twist, sent when it changes and again as she reports a scene
+    laid anew, her twist zeroed with it; a key that moves her ends the tour. `now` the wall clock."""
     if (state.get('llm_prompt') or {}).get('open'):
         return
     raw_held = console.held()

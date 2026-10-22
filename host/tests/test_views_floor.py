@@ -120,7 +120,63 @@ def test_surface_arrows_setpoint_actual_and_landing_zones(report):
                  != gynoid.render(b0['angles'], 64, 28, colour=False, arrows=(nw_fast, held('W', (1.4, 0.0, 0.0)))))
 
 
-ROSTER = (test_her_horizon, test_surface_arrows_setpoint_actual_and_landing_zones)
+def test_balloons_on_what_she_sees(report):
+    """Each thing she sees a balloon's offer, the one she faces first (`gym.offered`), keyed F1 on
+    - a chair's seat and back one thing, a mattress out of her reach none, what bears her alone -;
+    F opens the choice, a digit within `console.HOLD_WINDOW_S` says that one at its thing, F again
+    or the window lapsed the first's, the function key at once, a click the first's; a digit with
+    no F the gym's entry; a balloon on the viewport over each."""
+    import time
+    from types import SimpleNamespace as SN
+    from terminal.ui import console
+    from terminal.views import gym, scanner, show_humanoid, viewpoint
+    up = ((1, 0, 0), (0, 1, 0), (0, 0, 1))
+    room = [('wood', (1.5, 0.45, 0.8), (0.22, 0.02, 0.22), up), ('bed', (-1.8, 0.35, 1.8), (0.5, 0.12, 1.0), up),
+            ('door', (0.75, 1.05, 3.5), (0.45, 1.05, 0.03), up)]
+    sent = []
+    st = {'body': SN(send=lambda **kw: sent.append(kw)), 'scanner': scanner.VisionScanner(), 'tour': None,
+          **viewpoint.HOME, 'now': {'where': (0.0, 0.9, 0.0), 'heading': 0.0, 'props': room}}
+    shown = [(key, verb) for key, verb, *_rest in gym.offered(st)]
+    report.check('the door ahead, the bed and the chair aside she sees, the one she faces first, F1 F2 F3',
+                 shown == [('F1', 'exit_door'), ('F2', 'lie_bed'), ('F3', 'sit_chair')]
+                 and gym.prompt(st) == '[F1] exit door  [F2] lie bed  [F3] sit chair', (shown, gym.prompt(st)))
+    for typed in ('f', '3', 'ff', ('f2',), 'f'):
+        for k in typed:
+            show_humanoid.KEYS[k](st)
+    opened = st.get('choosing') is not None
+    st['choosing'] -= 2.0 * console.HOLD_WINDOW_S
+    st['f_at'] -= 2.0 * console.HOLD_WINDOW_S
+    gym.lapsed(st, time.monotonic())
+    show_humanoid.KEYS['2'](st)
+    viewpoint.mouse(st, lambda: (100, 40))['on_click'](20, 10)
+    said = [(c['say'], tuple(round(v, 9) for v in c.get('at', ()))) for c in sent]
+    door = ('exit_door', (0.75, 3.5))
+    report.check('F then 3 the chair, F F the door at once, F2 the bed, F lapsed the door, 2 with no F the '
+                 "gym's second, a click the door",
+                 opened and said == [('sit_chair', (1.5, 0.8)), door, ('lie_bed', (-1.8, 1.8)), door, (1, ()), door],
+                 said)
+    st['now'] = dict(st['now'], props=room + [('chair', (0.0, 0.43, 0.88), (0.22, 0.02, 0.22), up),
+                                              ('chair', (0.0, 0.65, 1.10), (0.22, 0.2, 0.02), up)])
+    ahead = gym.offered(st)
+    st['now'] = {'where': (0.0, 0.9, 0.0), 'heading': 0.0, 'scenario': 'mattress',
+                 'props': [('bed', (0.0, 0.08, 2.5), (0.45, 0.08, 0.95), up)]}
+    far = gym.offered(st)
+    st['now'] = dict(st['now'], props=[('bed', (0.0, 0.08, 0.6), (0.45, 0.08, 0.95), up)])
+    near = gym.offered(st)
+    st['now'] = {'where': (1.5, 0.6, 0.8), 'heading': 0.0, 'doing': 'seated', 'props': room}
+    report.check('a chair ahead, seat and back, one thing first; a mattress out of her reach none, in it '
+                 'lie_floor; seated, her rise alone',
+                 [o[1] for o in ahead] == ['sit_chair', 'exit_door', 'lie_bed', 'sit_chair'] and abs(ahead[0][3][0]) < 1e-9
+                 and far == [] and [o[1] for o in near] == ['lie_floor']
+                 and [o[:2] for o in gym.offered(st)] == [('F', 'rise_chair')], (ahead, far, near))
+    st['now'] = {'where': (0.0, 0.9, 0.0), 'heading': 0.0, 'props': room}
+    drawn = gym.ballooned(st, gym.offered(st), 110, 36, (0.0, 0.0))
+    text = ''.join(chr(code) for _at, (code, _key) in sorted(drawn.items()))
+    report.check('a balloon on the viewport over each', all(w in text for w in ('F1 go out', 'F2 lie down', 'F3 sit')),
+                 text)
+
+
+ROSTER = (test_her_horizon, test_surface_arrows_setpoint_actual_and_landing_zones, test_balloons_on_what_she_sees)
 
 
 def main(argv=None):

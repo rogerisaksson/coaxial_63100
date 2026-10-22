@@ -203,7 +203,7 @@ def _laid(edges):
     return np.asarray(ends, float).reshape(-1, 3), np.asarray(inks, int)
 
 
-def asked(field=grounds, line_=True):
+def asked(field=grounds, line_: object = True):
     """(ends, inks) of the line the course asks (`course.track`, or the `field`'s), dashed."""
     from coaxial.model.blocks import numpy as np
     from machine import course

@@ -285,22 +285,30 @@ def _errand_specs():
     }
 
 
-def _nearest_prop(g, kind):
-    """Return `(dist_edge, px, pz)` of the nearest prop matching `kind`."""
+def errands():
+    """The verbs she walks to a thing for (`start_errand`)."""
+    return tuple(_errand_specs())
+
+
+def _nearest_prop(g, kind, at=None):
+    """`(dist_edge, px, pz)` of the prop matching `kind` nearest `at` (x, z) - her without one -,
+    its edge's distance from her."""
     specs, matches = _errand_specs(), _prop_match()
     fx, fz = specs[kind][5] if kind in specs else (0.0, 0.0)
     match = matches.get(kind)
     if not match:
         return math.inf, fx, fz
     gx, gz = float(g['world'].data.qpos[0]), float(g['world'].data.qpos[2])
+    ax, az = at if at is not None else (gx, gz)
     hits = [
-        (max(0.0, math.hypot(float(p[1][0]) - gx, float(p[1][2]) - gz) - min(float(p[2][0]), float(p[2][2]))),
+        (math.hypot(float(p[1][0]) - ax, float(p[1][2]) - az),
+         max(0.0, math.hypot(float(p[1][0]) - gx, float(p[1][2]) - gz) - min(float(p[2][0]), float(p[2][2]))),
          float(p[1][0]), float(p[1][2]))
         for p in g['world'].props()
         if len(p) >= 3 and len(p[1]) >= 3 and hasattr(p[2], '__len__') and len(p[2]) >= 3
         and match(p[0], float(p[1][1]), min(float(p[2][0]), float(p[2][2])), max(float(p[2][0]), float(p[2][2])))
     ]
-    return min(hits, default=(math.inf, fx, fz))
+    return min(hits, default=(math.inf, math.inf, fx, fz))[1:]
 
 
 def _fire_errand_stunt(g, gym, kind, heard_say_fn):
@@ -312,13 +320,14 @@ def _fire_errand_stunt(g, gym, kind, heard_say_fn):
         heard_say_fn(g, gym, by[kind])
 
 
-def start_errand(g, gym, sc, heard_fn, heard_say_fn):
-    """Begin an autonomous SE(2) room errand (`sit_chair`, `lie_bed`, `exit_door`) from prop geometry."""
+def start_errand(g, gym, sc, heard_fn, heard_say_fn, at=None):
+    """Begin an autonomous SE(2) room errand (`sit_chair`, `lie_bed`, `exit_door`) from prop geometry,
+    to the prop nearest `at` (x, z) - her without one."""
     from machine import latent, room, stride
     specs = _errand_specs()
     if sc not in specs:
         return False
-    d_near, px, pz = _nearest_prop(g, sc)
+    d_near, px, pz = _nearest_prop(g, sc, at)
     if sc != 'exit_door' and not (stride.STRIDE_M < d_near < 3.0 * room.WIDE):
         return False
     g['st'][latent.THETA] *= float(g['st'][latent.NOW][latent.GAIN] >= 1e-6)

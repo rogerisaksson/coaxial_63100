@@ -112,18 +112,10 @@ def telemetry_core(now):
 PROMPT_INK = (255, 196, 80)
 
 
-def prompt(state):
-    """What Space and F would say, as the page offers it: '[F] sit  [SPC] hop up', a plain hop
-    unsaid; '' with nothing to offer."""
-    now, sc = state.get('now'), state.get('scanner')
-    offer = gym.offered(now, sc.scan(now, reach=gym.APPROACH_M) if sc is not None and now else [])
-    words = [('F', offer.get('f')), ('SPC', offer.get(' ') if offer.get(' ') != 'hop' else None)]
-    return '  '.join('[%s] %s' % (k, gym.NAMED.get(v, v).replace('_', ' ')) for k, v in words if v)
-
-
 def badge(width, height, state):
     """The viewport's corners: the tour's step and LLM command feed at its top, her balance
-    strip under it, the interactive LLM prompt bar and what Space and F offer at its foot."""
+    strip under it, the interactive LLM prompt bar and what Space and F offer at its foot
+    (`gym.prompt`)."""
     if width < 30 or height < 6:
         return {}
     out, ink = {}, packed((120, 220, 255), (10, 22, 35))
@@ -140,7 +132,7 @@ def badge(width, height, state):
         l_ink = packed((120, 255, 180), (10, 22, 35))
         p_txt = (' LLM > %s_ ' % lp.get('text', ''))[:width - 2]
         out.update({(height - 3, 1 + i): (ord(ch), l_ink) for i, ch in enumerate(p_txt)})
-    offer = prompt(state)
+    offer = gym.prompt(state)
     if offer:
         p_ink = packed(PROMPT_INK, (10, 22, 35))
         out.update({(height - 2, max(0, (width - len(offer) - 2) // 2) + i): (ord(ch), p_ink)
@@ -383,10 +375,12 @@ def scripted(state, keys):
 
 
 def _step_frame(state, dt):
-    """A frame's commands: the tour's due, the keys' twist; the chase camera eased behind her."""
+    """A frame's commands: the tour's due, F's choice lapsed, the keys' twist; the chase camera
+    eased behind her."""
     if gym.touring(state):
         state['tour'].step(state, dt)
     t_mono, now = time.monotonic(), state.get('now')
+    gym.lapsed(state, t_mono)
     heading = float(now.get('heading') or 0.0) if now else 0.0
     steered(state, t_mono, heading)
     going = bool(now) and (math.hypot(*now['velocity']) > GOING_M_S or now.get('stage') == 'walk')
@@ -400,8 +394,9 @@ def _draw_viewport(state, now, width, height, terminal):
     if now is None:
         return '\n'.join(' ' * width for _ in range(height))
     x, y, z = now['where']
-    camera = state['follow']((x, z), now['velocity'], now['t'])
-    inset = {**docked_vision(state['scanner'], now, width, height), **badge(width, height, state),
+    camera, offer = state['follow']((x, z), now['velocity'], now['t']), gym.offered(state)
+    docked = docked_vision(state['scanner'], now, width, height, offer)
+    inset = {**gym.ballooned(state, offer, width, height, camera, docked), **docked, **badge(width, height, state),
              **recorder.corner(state.get('recording'), width)}
     return '\n'.join(state['ahead'].drawn(
         now['angles'], width, height, yaw=state['yaw'], pitch=state['pitch'], pan=viewpoint.panned(state),
