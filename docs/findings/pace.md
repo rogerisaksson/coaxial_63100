@@ -122,3 +122,6 @@ machine ([body](body.md), [emulation](emulation.md),
   own contact array, `wbc_pass_averaged`), their numpy's at every pass of a
   walk and a shove that throws her (test_gynoid): a fall's test 7.2 -> 2.6
   us, the averages 4.8 -> 1.4 us, 8 us of a worker pass's 380.
+- CPython 3.14's experimental JIT (`PYTHON_JIT=1`, in this host's 3.14.7): her
+  loop 307 -> 319 us a pass, 4 % slower over three runs each interleaved; it
+  stays off.

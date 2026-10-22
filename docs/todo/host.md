@@ -1,12 +1,14 @@
 # Host
 
 - **Her loop's Python round MuJoCo** (asked): profiled walking and cut,
-  each step bit for bit ([pace](../findings/pace.md)). Left, a law pass:
-  the whole-body step's wrapper (`tools.cores.motion._stepped`: the ask
-  dict copied twice, its answer's dicts), `bodied`'s `fits` round her
-  compiled parts, `physics.advance`'s three calls, `motion.control`'s own
-  arithmetic. DOD: her loop at the solve's and MuJoCo's cost alone, the glue
-  under 10 % of a pass.
+  each step bit for bit ([pace](../findings/pace.md)). Left, the largest
+  first: `bodied`'s glue round her nine compiled parts (sixteen arrays fresh
+  a law pass rebound, her sensing's 33 views laid a call), `modal.given` and
+  the solve's wrapper (the ask a dict, copied into the step's struct),
+  `borne.read` with nothing on her, the page worker's wear window (11 ms
+  parts). Each sits in her law's own files or changes how a compiled part's
+  result lives. DOD: her loop at the solve's and MuJoCo's cost alone, the
+  glue under 10 % of a pass.
 - **Branches out of her code** (asked): `if`/`else`/ternaries left, by module -
   the law's: wrench 14/4/15 (`wbc_wrench.c`'s Python: a sole's stance, the
   rounds, held contacts, the torque limit), wbc 11/0/4, leap 10/0/6, se2
