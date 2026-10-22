@@ -329,7 +329,7 @@ def run_view(board_view, console, period, frames, draw, on_input=None,
     count, beat = 0, Beat(period)
     gc.collect()
     gc.freeze()
-    stalls, bindings.UX['menu'] = (_stall_log() if console else None), None
+    stalls = _stall_log() if console else None
     try:
         with curtain(board_view) as page, Keys(console, mouse=mouse, select=select, pan=on_pan is not None,
                                                quits=frozenset(), menus=frozenset()) as keys:

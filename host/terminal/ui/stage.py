@@ -41,7 +41,7 @@ from terminal.ui import bindings
 from terminal.ui.chrome import KANA, Chrome, Crt, clock
 from terminal.ui.marquee import Marquee
 from terminal.ui.sto import chip as sto_chip
-from terminal.ui.taskbar import bar_of, column, footer, help_panel, rail, start_menu
+from terminal.ui.taskbar import bar_of, column, footer, help_panel, rail
 from terminal.ui.rate import Corner, rate_of
 from terminal.ui.scroll import (DOWN, HUD_WIDTH, UP, _fills, _height_of, _rows_of, paged,
                                 scroll_state)
@@ -237,7 +237,7 @@ def band_of(name, extra='', tag=None, gauges=None):
     the band's end.
     """
     kana = KANA[name][0] if name in KANA else ''
-    left = Text.assemble(('≡ ', 'bar' if bindings.UX['menu'] is not None else 'bar.dim'), (name, 'bar'),
+    left = Text.assemble((name, 'bar'),
                          ('  ' + kana if kana else '', 'bar.dim'), ('   ' + extra if extra else '', 'bar.dim'))
     if gauges is not None:
         left.append('   ')
@@ -341,14 +341,14 @@ def frame_of(console, origin, title, art, boxes, keys, art_title=None,
              under=None, dressed=True, gauges=None, wrap=False):
     """The template: title band (its `gauges` a Text after the name), viewport left,
     instruments right - hidden on Tab -, key bar - on two rows `wrap`ped -, `keys` the page's
-    pad (`bindings.page`): its bar, its help over it on ? (`help_panel`); the start menu in the
-    viewport while it is up; `dressed` False for a drawing with a HUD of its own."""
+    pad (`bindings.page`): its bar, its help over it on ? (`help_panel`); `dressed` False for a
+    drawing with a HUD of its own."""
     keys, help = bar_of(keys, time.monotonic())
     panel, rows = help_panel(*help, width=console.width) if help else (None, 0)
     shown = bindings.UX['column']
     if not _fills(console):
         return Group(header(title, origin, gauges),
-                     viewport(art_title or title, art) if bindings.UX['menu'] is None else start_menu(),
+                     viewport(art_title or title, art),
                      *([under] if under is not None else []),
                      *(boxes if shown else ()), *([panel] if panel is not None else []), footer(keys))
 
@@ -357,11 +357,11 @@ def frame_of(console, origin, title, art, boxes, keys, art_title=None,
     boxes = paged(console, boxes)
     rate = rate_of(console).label()
     at, seen, total = scroll_state(console)['pages']
-    if (at or seen < total) and shown and bindings.UX['menu'] is None:
+    if (at or seen < total) and shown:
         keys = list(keys) + [(UP + ' ' + DOWN, 'SCROLL')]
     whole = _laid(console, under is not None)
     page = title if dressed else None
-    drawn = viewport(art_title or title, art, rate, page) if bindings.UX['menu'] is None else start_menu()
+    drawn = viewport(art_title or title, art, rate, page)
     if under is None:
         whole['art'].update(drawn)
     else:
@@ -402,12 +402,9 @@ def _laid(console, under):
 
 
 def panels_of(console, origin, title, groups, keys):
-    """The template for table views: a fixed grid of instruments, no art; `keys` as `frame_of`'s,
-    the start menu over the grid while it is up."""
+    """The template for table views: a fixed grid of instruments, no art; `keys` as `frame_of`'s."""
     keys, help = bar_of(keys, time.monotonic())
     panel, rows = help_panel(*help, width=console.width) if help else (None, 0)
-    if bindings.UX['menu'] is not None:
-        groups = [[start_menu()]]
     if not _fills(console):
         flat = [Columns(row, padding=(0, 1), expand=False)
                 for row in groups]

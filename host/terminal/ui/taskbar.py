@@ -1,8 +1,8 @@
-"""The terminal's own round every page: its key bar and help, the start menu, the column's rail.
+"""The terminal's own round every page: its key bar and help, the column's rail.
 
     footer(pairs)          # the page's pairs from the left, the terminal's at the bar's right end
-    bar_of(pad, now)       # (its bar's pairs, its help) - the start menu's bar while it is up
-    start_menu(), rail()   # over the viewport; in the column's place, folded (`column`)
+    bar_of(pad, now)       # (its bar's pairs, its help)
+    rail()                 # in the column's place, folded (`column`)
 
 A page's keys are its pad's (`terminal.ui.bindings`); `terminal.ui.stage` lays these round its
 drawing.
@@ -11,7 +11,6 @@ import math
 import time
 
 from rich import box
-from rich.align import Align
 from rich.color import Color
 from rich.panel import Panel
 from rich.style import Style
@@ -20,7 +19,7 @@ from rich.text import Text
 
 from terminal.ui import bindings
 from terminal.ui.chrome import SWEEP_S
-from terminal.ui.scroll import DOWN, HUD_WIDTH, UP
+from terminal.ui.scroll import HUD_WIDTH
 
 
 #: The terminal's own pairs on every bar (`bindings.SHARED`): at its right end, never cut.
@@ -82,32 +81,9 @@ def helped(now):
     return ux['up']
 
 
-#: The start menu's bar, while it is over a page.
-MENU_BAR = ((UP + ' ' + DOWN, 'MOVE'), ('ENTER', 'OPEN'), ('LETTER', 'DIRECT'), ('0', 'FRONT PAGE'),
-            ('ESC', 'STAY'), ('Q', 'EXIT'))
-
-
-def start_menu():
-    """The start menu over a page (`bindings.UX['menu']` its cursor): the front page's line, then
-    each page's (`terminal.loader.listing`), its letter, its name and what it is."""
-    from terminal import loader
-    lines = (('0', 'FRONT PAGE', 'the terminal\'s first page'),) + tuple(loader.listing()[0])
-    body = Text(no_wrap=True, overflow='ellipsis')
-    for k, (key, head, what) in enumerate(lines):
-        lit = k == bindings.UX['menu']
-        body.append(('\n' if k else '') + (' \u25b8 ' if lit else '   '), style='value')
-        body.append('%s  %-26s ' % (key, head), style='value' if lit else 'name')
-        body.append(what, style='value' if lit else 'label')
-    return Align(Panel(body, title=Text(' // MAIN TERMINAL ACCESS ', style='name'), title_align='left',
-                       box=box.ROUNDED, border_style='frame', padding=(0, 1), expand=False),
-                 align='center', vertical='middle')
-
-
 def bar_of(keys, now):
     """(the bar's pairs, the help (groups, up) or None) of a page's `keys` - its pad
-    (`bindings.page`), or a bar's pairs alone - the start menu's bar while it is up."""
-    if bindings.UX['menu'] is not None:
-        return MENU_BAR, None
+    (`bindings.page`), or a bar's pairs alone."""
     if isinstance(keys, dict):
         return keys['bar'], (keys['groups'], helped(now))
     return keys, None

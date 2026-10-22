@@ -34,7 +34,7 @@ from terminal.ui.rate import Corner, rate_of
 from terminal.ui.screen import paced
 from terminal.ui.chrome import Chrome
 from terminal.ui.stage import band_of, curtain, stage
-from terminal.ui.taskbar import RAIL, bar_of, footer, rail, start_menu
+from terminal.ui.taskbar import RAIL, bar_of, footer, rail
 from tools.render import facecheck
 
 _screen.CHATTER = False
@@ -114,7 +114,7 @@ def compose(view, size, rate=''):
                                       vertical='middle'), 'RENDER'), rate),
                   title=' RENDER ', title_align='left', box=box.HEAVY,
                   border_style='frame', padding=0)
-    body.split_row(Layout(drawn if bindings.UX['menu'] is None else start_menu(), name='view'),
+    body.split_row(Layout(drawn, name='view'),
                    Layout(hud(view, len(solid[1]) // 3, cost) if bindings.UX['column'] else rail(), name='hud',
                           size=24 if bindings.UX['column'] else RAIL))
 
@@ -202,7 +202,6 @@ def main(argv=None):
 
 
 def loop(args, page, view, frame, last):
-    bindings.UX['menu'] = None
     with curtain(page) as live, Keys(page.is_terminal, mouse=True, quits=frozenset(), menus=frozenset()) as keys:
         while True:
             now = time.monotonic()

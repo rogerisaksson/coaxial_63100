@@ -34,7 +34,7 @@ from terminal.ui.console import Keys
 from terminal.ui.screen import PORT, ENTER_KEYS, paced
 from terminal.ui.chrome import Chrome
 from terminal.ui.stage import boot, curtain, header, hud, stage
-from terminal.ui.taskbar import RAIL, bar_of, footer, rail, start_menu
+from terminal.ui.taskbar import RAIL, bar_of, footer, rail
 
 #: Rows the page spends outside the transcript: band, input, key bar,
 #: and the frame's own two edges.
@@ -375,7 +375,7 @@ def compose(script, entry, state, origin, size, lead, blink):
     keys, _help = bar_of(PAD, time.monotonic())
     log = Panel(Chrome(body, 'BOARD CHAT', lock=False), box=box.HEAVY, border_style='frame',
                 title=Text(' %s ' % state['title'], style='name'),
-                title_align='left', padding=(0, 1)) if bindings.UX['menu'] is None else start_menu()
+                title_align='left', padding=(0, 1))
     mid = Layout(name='mid')
     if state['tools']:
         side = Layout(hud(state['served'], state['tools']) if bindings.UX['column'] else rail(),
@@ -498,7 +498,6 @@ def _run(a, page, console, script, state, chat, origin):
     # No mouse mode: with reporting on, the terminal hands selections to the
     # view and copy stops working; the transcript is what gets copied.
     held = {'entry': '', 'page': page, 'script': script, 'state': state, 'chat': chat}
-    bindings.UX['menu'] = None
     with curtain(page) as show, Keys(console, quits=frozenset(), menus=frozenset()) as keys:
         while True:
             frame, entry = frame + 1, held['entry']
@@ -511,14 +510,14 @@ def _run(a, page, console, script, state, chat, origin):
             # only its own row through echo().
             mark = (len(script.rows), script.pin,
                     size.width if size else 0,
-                    size.height if size else 0, bindings.UX['menu'], bindings.UX['column'])
+                    size.height if size else 0, bindings.UX['column'])
             now = time.monotonic()
             if mark != drawn and now - painted >= 0.1:
                 show.update(compose(script, entry, state, origin, size,
                                     lead, blink), refresh=True)
                 drawn, painted, face = mark, now, None
             want = (entry, lead, blink)
-            if console and want != face and bindings.UX['menu'] is None:
+            if console and want != face:
                 echo(page, entry, lead, blink)
                 face = want
             if a.frames and frame >= a.frames:

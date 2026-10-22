@@ -2,25 +2,23 @@
 
     pad = bindings.page(ROWS, take=None, held=None)    # its acts, bar and help read off its rows
     leaving, rest = bindings.act_on(pad, typed, state)  # a frame's keys; where the page leaves
-    bindings.UX                                        # the terminal's: its column, its start menu
+    bindings.UX                                        # the terminal's: its column, its help
 
 A row is a line of the page's help: (its group, its keys as the help says them, what they do, its
 words on the bar, {key: act}), an act (state, key, now) -> where the page leaves or None: 'menu',
 'quit' or a page's code (`terminal.loader`). HELD binds a key the page holds - its pad's (`held`,
-the keys typed together). SHARED, every page's after its own: Esc the start menu over the page,
-Tab the instruments' column hidden or shown, ? the page's keys, Q the terminal left. A key acts by
-the mode it finds: the start menu open takes every key - a page's letter or Enter opens it, 0 the
-front page, Esc closes it -; Tab in any; a page's own mode next (`take`, PASS to hand the key on);
+the keys typed together). SHARED, every page's after its own: Esc the front page, Tab the
+instruments' column hidden or shown, ? the page's keys, Q the terminal left. A key acts by the
+mode it finds: Tab in any; a page's own mode next (`take`, PASS to hand the key on);
 then its row; a key no row binds goes back (`rest`), what a page's own loop still reads.
 """
 import time
 from collections import Counter
 
-#: The terminal's: the instruments' column out - folded to a rail at first -; the start menu's line
-#: under the cursor, None folded into the page;
-#: the page's keys asked up (?), how far up they are, when a key was last typed, when they were
-#: last drawn (`taskbar.helped`).
-UX = {'column': False, 'menu': None, 'help': False, 'up': 0.0, 'keyed': 0.0, 'framed': 0.0}
+#: The terminal's: the instruments' column out - folded to a rail at first -; the page's keys
+#: asked up (?), how far up they are, when a key was last typed, when they were last drawn
+#: (`taskbar.helped`).
+UX = {'column': False, 'help': False, 'up': 0.0, 'keyed': 0.0, 'framed': 0.0}
 #: A key bound to HELD the page holds; PASS a mode hands a key on.
 HELD, PASS = None, 'pass'
 #: A key typed again within REPEAT_S of its act is its repeat (`once`).
@@ -48,11 +46,6 @@ def cased(letter, act):
     return {letter: act, letter.upper(): act}
 
 
-def _menu(_state, _key, _now):
-    """Esc: the start menu over the page, its cursor on the front page's line."""
-    UX['menu'] = 0
-
-
 def _column(_state, _key, _now):
     """Tab: the instruments' column hidden, or shown."""
     UX['column'] = not UX['column']
@@ -65,7 +58,7 @@ def _helped(_state, _key, _now):
 
 #: Every page's, after its own: a key the page binds stays the page's.
 SHARED = (
-    ('TERMINAL', 'ESC', 'the start menu over the page', (('ESC', 'MENU'),), {'\x1b': _menu}),
+    ('TERMINAL', 'ESC', 'the front page', (('ESC', 'BACK'),), {'\x1b': did(lambda _s: 'menu')}),
     ('TERMINAL', 'TAB', "the instruments' column hidden, or shown", (('TAB', 'COLUMN'),), {'\t': _column}),
     ('TERMINAL', '?', "these keys", (('?', 'KEYS'),), {'?': _helped}),
     ('TERMINAL', 'Q', 'the terminal left', (('Q', 'EXIT'),), {'q': did(lambda _s: 'quit'), 'Q': did(lambda _s: 'quit')}),
@@ -108,34 +101,6 @@ def shown(pad, state=None, note=''):
     return dict(pad, bar=tuple(pair for pair in told if pair[1] is not None) + ((('', note),) if note else ()))
 
 
-def _chosen(at):
-    """The start menu shut, the line `at` its answer: the front page ('menu') or a page's code."""
-    from terminal import loader
-    UX['menu'] = None
-    return 'menu' if at == 0 else loader.FIRST + at - 1
-
-
-def _in_menu(key):
-    """`key` in the start menu: the cursor moved, a line opened - its page's letter, Enter, 0 the
-    front page -, Esc shut, Q the terminal left."""
-    from terminal import loader
-    entries = loader.listing()[0]
-    letters = {letter.lower(): k + 1 for k, (letter, _head, _what) in enumerate(entries)}
-    steps = {'up': -1, 'down': 1}
-    if key in steps:
-        UX['menu'] = (UX['menu'] + steps[key]) % (len(entries) + 1)
-        return None
-    if key in ('\r', '\n'):
-        return _chosen(UX['menu'])
-    if key == '\x1b':
-        UX['menu'] = None
-        return None
-    if key in ('q', 'Q'):
-        return 'quit'
-    at = 0 if key == '0' else letters.get(str(key).lower())
-    return None if at is None else _chosen(at)
-
-
 def act_on(pad, typed, state, now=None):
     """A frame's `typed` keys on the page's `state` by its `pad` (`page`), each by the mode it
     finds (the module's head), its HELD keys typed together held together: (where the page
@@ -144,9 +109,6 @@ def act_on(pad, typed, state, now=None):
     UX['keyed'] = now if typed else UX['keyed']
     leaving, held, rest = None, [], []
     for key in typed:
-        if UX['menu'] is not None:
-            leaving = leaving or _in_menu(key)
-            continue
         if key == '\t' and key in pad['keys']:
             _column(state, key, now)
             continue

@@ -337,7 +337,9 @@ Pages, tooling, suites and the local model's runner. The board's findings:
   a rail - its arrow breathing with the screen's sweep, a key's ink to (48,
   175, 175) and back over 5 s - and the start menu the band's ≡, the front
   page's panels up (no Tab); HUMANOID's pairs ran 194 cells, the terminal's
-  at the bar's right end now, the page's cut before them.
+  at the bar's right end now, the page's cut before them. The start menu over
+  a page taken out: leaving HUMANOID by Esc showed it, a small second front
+  page; Esc the front page again, the band its page's name alone.
 
 ## Local model
 

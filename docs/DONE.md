@@ -189,3 +189,6 @@ the hundred and fifty before these: [DONE_1-50](DONE_1-50.md),
     alone (`tools/sim/identify.py`); the patches, the schedule and the takes
     played on her and measured by it (`tools/sim/suite.py`,
     [sequencer](findings/sequencer.md)).
+33. The start menu over a page taken out: Esc leaves a page for the front
+    page, the band its name alone (`terminal.ui.bindings`, `taskbar`,
+    `stage`; test_views_keys.py, [host](findings/host.md)).
