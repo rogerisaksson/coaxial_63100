@@ -259,8 +259,8 @@ serves its DOD; none an entry a case.
     backing steer, the back ended in `settle`, the sidestep entered at her list:
     the chair's dock 0 of 5. DOD: 11 of 11, the chair's 5 of 5 kept.
 14. **The anti-spasm insert's open stages** ([synth](../architecture/synth.md),
-    [insert](../findings/insert.md)): its damped least squares on a swung leg - her
-    walk 2.63 off where 2.49, her head aside 48 where its form's 35; with it her
+    [insert](../findings/insert.md)): its damped least squares on a swung
+    leg - her walk 2.63 off where 2.49, her head aside 48 where its form's 35; with it her
     heel's cap must be a woman's at lift (36.2 deg), which fells the charged run
     leap -; its zero crossing's bridge and its C2 85 ms handover each alone
     felled her walking a right turn
