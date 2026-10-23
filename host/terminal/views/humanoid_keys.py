@@ -35,7 +35,7 @@ RECORDINGS = recorder.RECORDINGS
 HEADER = (['t', 'stage', 'yaw', 'speed', 'phase', 'left_load', 'right_load',
            'x', 'y', 'z', 'qw', 'qx', 'qy', 'qz'] + list(JOINTS)
           + ['%s_%s' % (seg[0], axis) for seg in SEGMENTS for axis in 'xyz']
-          + ['set_' + j for j in JOINTS] + ['watts', 'epoch', 'keys', 'commands'])
+          + ['set_' + j for j in JOINTS] + ['watts', 'epoch', 'ratio', 'headroom', 'crc', 'keys', 'commands'])
 
 #: What L, T and M step through: the joints called out (`show_humanoid.CALLED`), what each
 #: callout shows, her skin - dressed, her shell, her mechanism (`coaxial.graphics.mechanism`), her
@@ -50,8 +50,9 @@ _SCENES = {'[': -1, ']': 1, ',': 1, '<': 1, '\r': 0, '\n': 0}
 FUNCTION_KEYS = tuple('f%d' % (k + 1) for k in range(len(gym.DIGITS)))
 
 
-def row(now, yaw, keys='', commands=()):
-    """A recording's row (HEADER) at the page's `yaw`: `keys` typed and held, `commands` heard."""
+def row(now, yaw, keys='', commands=(), crc=0):
+    """A recording's row (HEADER) at the page's `yaw`: `keys` typed and held, `commands` heard, her
+    pace against the wall and what it could be, and the frames her buses refused (`crc`) so far."""
     placed = frames(now['angles'], now['where'], quat(*now['turn']))
     asked = now.get('set', {})
     return ([round(now['t'], 4), now['stage'], yaw, now['speed'], now['phase']]
@@ -59,7 +60,9 @@ def row(now, yaw, keys='', commands=()):
             + [now['angles'].get(j, 0.0) for j in JOINTS]
             + [v for seg in SEGMENTS for v in placed[seg[0]][0]]
             + [asked.get(j, float('nan')) for j in JOINTS] + [now.get('watts', float('nan')),
-                                                              now.get('epoch', 0), keys,
+                                                              now.get('epoch', 0),
+                                                              now.get('ratio', float('nan')),
+                                                              now.get('headroom', float('nan')), crc, keys,
                                                               json.dumps(plain(list(commands)))])
 
 
@@ -93,9 +96,10 @@ def rows_of(state, said):
     typed, state['keyed'] = state.get('keyed', []), []
     held = sorted(k for k in (console.held() or ()) if isinstance(k, str) and k != ' ')
     keys = ' '.join(typed) + (' [%s]' % '+'.join(held) if held else '')
-    out = []
+    out, emu = [], state.get('emu')
     for k, now in enumerate(said):
-        out.append(row(now, state['yaw'], keys if k == 0 else '', state['pending'] if k == 0 else ()))
+        crc = sum(int(v[1]) for v in (now.get('buses') or {}).values() if len(v) > 1) + (emu.faults if emu else 0)
+        out.append(row(now, state['yaw'], keys if k == 0 else '', state['pending'] if k == 0 else (), crc))
         if k == 0:
             state['pending'] = []
     return out
