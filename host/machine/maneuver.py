@@ -336,22 +336,50 @@ def _suite():
     return dsp.read(dsp.SUITE)
 
 
-@functools.lru_cache(maxsize=None)
-def standoff(name):
-    """m, her heels off the edge of the furniture stunt `name` docks her at: its patch's terminal
-    footprint (`dock-terminal-stance`), 0 where it docks her at none."""
-    g = _played(name, _suite(), None)[0]
+def _footprint(name, got):
+    g = _played(name, got, None)[0]
     return next((1e-3 * q['sagittal-standoff-mm'] for step, info in g['_trace'] if step == 'dock-terminal-stance'
                  for op, q, _then in info.acts if op == 'align-terminal-footprint'), 0.0)
 
 
-def entry(name, seen=None):
-    """(label, wire, names) of stunt `name`, its furniture `seen`: her gym's entry (`sprung.entries`)."""
-    tables, named = ortho.compiled('(include "gait_base.lisp")\n' + text(name, seen, _suite()))
+@functools.lru_cache(maxsize=None)
+def _standoff(name):
+    return _footprint(name, _suite())
+
+
+def standoff(name, got=None):
+    """m, her heels off the edge of the furniture stunt `name` docks her at, of the suite `got` (else
+    its files'): its patch's terminal footprint (`dock-terminal-stance`), 0 where it docks her at none."""
+    return _standoff(name) if got is None else _footprint(name, got)
+
+
+def entry(name, seen=None, got=None, texts=None):
+    """(label, wire, names) of stunt `name`, its furniture `seen`, of the suite `got` and her texts
+    `texts` (else their files'): her gym's entry (`sprung.entries`)."""
+    tables, named = ortho.compiled('(include "gait_base.lisp")\n' + text(name, seen, _suite() if got is None else got),
+                                   texts=texts)
     return name, tables[name], named[name] + ('rest',)
 
 
+def said(g, item, at=None):
+    """A gym entry `item` as her session says it: a stunt she plays (PLAYED) compiled for the furniture
+    she sees nearest `at` (`furniture.seen`), of her session's suite and texts; else itself."""
+    from machine import furniture
+    if item[0] not in PLAYED:
+        return item
+    return entry(item[0], furniture.seen(g, item[0], at), g['suite'], g['texts'])
+
+
+def _joined(got):
+    return '\n'.join(text(name, None, got) for name in PLAYED)
+
+
 @functools.lru_cache(maxsize=1)
-def texts():
-    """Every stunt the suite plays (PLAYED), its patches' own seats, as one text for her gym."""
-    return '\n'.join(text(name, None, _suite()) for name in PLAYED)
+def _texts():
+    return _joined(_suite())
+
+
+def texts(got=None):
+    """Every stunt the suite plays (PLAYED), its patches' own seats, as one text for her gym, of the
+    suite `got` (else its files')."""
+    return _texts() if got is None else _joined(got)

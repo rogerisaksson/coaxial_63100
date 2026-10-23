@@ -18,8 +18,9 @@ import glob
 import math
 import operator
 import os
+from typing import Any
 
-from machine import patch
+from machine import ortho, patch
 from machine.errors import MachineError
 
 
@@ -46,7 +47,7 @@ def _ordered(paths):
 
 
 #: The suite's modules, read each after those it uses.
-SUITE = _ordered(sorted(glob.glob(os.path.join(os.path.dirname(__file__), 'ortho_dsp', '*.lisp'))))
+SUITE = _ordered(sorted(ortho.key(p) for p in glob.glob(os.path.join(os.path.dirname(__file__), 'ortho_dsp', '*.lisp'))))
 #: An op on a param, `(:scale 1.2)`; a bare value sets. Clamped, an unset param takes the bound.
 Op = collections.namedtuple('Op', 'name value')
 OPS = {'set': lambda old, v: v, 'scale': operator.mul, 'add': operator.add,
@@ -252,7 +253,7 @@ SPECIAL = {'let': _let, 'case': _case, '->': _threaded, 'quote': lambda a, env: 
            'and': lambda a, env: all(value(x, env) for x in a), 'or': lambda a, env: any(value(x, env) for x in a)}
 
 
-def value(x, env):
+def value(x, env) -> Any:
     """`x` evaluated in `env`: a vector's items (a ramp `[a -> b]` its ends), a symbol's binding,
     a form by its head - a special form, an op, a keyword list, a function, a stage called."""
     if isinstance(x, tuple):
@@ -340,19 +341,13 @@ DEFINE = {
 }
 
 
-def text(path):
-    """A lisp file's text as it is on disk, its line ends kept."""
-    with open(path, encoding='utf-8', newline='') as f:
-        return f.read()
-
-
 def read(paths, texts=None):
-    """{name: what it defines} of lisp files `paths` in order, `texts` ({path: text}) read in place
-    of their files: constants as {param: value}, states and patches as gaits, stages, transitions,
+    """{name: what it defines} of lisp files `paths` in order, each `texts`' ({key: text}) where given
+    (`ortho.source`): constants as {param: value}, states and patches as gaits, stages, transitions,
     a schedule as compile-to-soa's keys."""
     env = {}
     for path in paths:
-        for form in patch.forms(texts[path] if texts and path in texts else text(path)):
+        for form in patch.forms(ortho.source(path, texts)):
             if form[0] not in DEFINE:
                 raise MachineError('(%s ..): a patch file has %s' % (form[0], ', '.join(DEFINE)))
             env.update(DEFINE[form[0]](env, form))

@@ -285,9 +285,25 @@ The text as given (machine/meta_ast_autotuner.lisp), read by `machine.tune`:
 six classes, 33 keys (32 in the suite's names); its step's numbers its own (lambda
 0.08, a literal's move 0.15 of its scale, tol 1e-3, four places).
 
-- The suite's 331 keyword literals: the grammar names 75, 18 move her - a
-  gait's voices or the chair's phases, by evaluation -; 57 no voice or phase
-  of hers reads, their columns 0 (114 runs a pass not run).
+- Her texts, the suite's and her gym's (20, given to her session as an
+  argument, `tune.texts`): 554 literals, her gym's 199 bound to the suite's
+  name voicing reads into the slot their clause lays (the clause compiled
+  alone); the grammar names 173, a root walks 159, 100 move her by
+  evaluation: in 32 of her gym's 34 behaviours, 5 of 8 gaits, the 3
+  schedules, the 2 stunts. The rest no voice or phase of hers reads, their
+  columns 0. Of the suite's alone (331): 75 named, 18 live.
+- Her walk (her gym's four streams) reaches 5, 3 live: her stand's axial
+  spring 3000 and damper 600 (compliance, damping ratio), her step's lift
+  1.0; her lean's 0s have no scale. On her loop: the centroidal pivot under
+  15 mm on 54 % of passes, the friction cone 0.40 used, her peak 1.80 of her
+  weight, her master bus's tank (wbc_bus.c) bled 161.7 J in 16 s against its
+  12 J: 13.47 of |r| 13.7 - the anti-spasm insert's tank at its floor through
+  her walk.
+- The classes now read the cone's use for shear (|F_t| over mu F_n, each
+  contact's own mu; slip reported) and the tank's bleed over its capacity for
+  passivity; the runway's and ice's numbers below were measured on slip and
+  her drives' J/m. Her vertical mode fitted on her centre's acceleration read
+  her step's rate (1.86 Hz, zeta 0.003), not the contact's: not kept.
 - The runway reaches 17, 3 live, each by its voice's rule: the nominal's
   stride on her twist, its thoracic lean -2.0 on her pitch (unit 0.5), the
   catwalk's attack 1e-3 on her duck; a circumduction of 0 has no scale. The

@@ -266,13 +266,13 @@ def errands():
 
 
 def _fire_errand_stunt(g, gym, kind, heard_say_fn, at=None):
-    from machine import furniture, maneuver
+    from machine import maneuver
     g['_errand'] = None
     by = {e[0]: e for e in gym}
     g['_twist_active'], g['_twist_stop_until'], g['_halt_at'], g['has_heading'] = False, 0.0, None, 0.0
     g['twist'] = g['asked'] = STOP
     if kind in by:
-        heard_say_fn(g, gym, maneuver.entry(kind, furniture.seen(g, kind, at)) if kind in maneuver.PLAYED else by[kind])
+        heard_say_fn(g, gym, maneuver.said(g, by[kind], at))
 
 
 def start_errand(g, gym, sc, heard_fn, heard_say_fn, at=None):
@@ -298,7 +298,7 @@ def start_errand(g, gym, sc, heard_fn, heard_say_fn, at=None):
         'x_dock': x_dock, 'z_dock': z_dock, 'nx': nx, 'nz': nz, 'tx': nz, 'tz': -nx,
         'xd': stage[0], 'zd': stage[1],
         'hdd': hdd, 'lat_tol': lat_tol, 'd_stage': d_stage, 'turn_dir': 0.0,
-        'standoff': maneuver.standoff(sc) if sc in maneuver.PLAYED else 0.0,
+        'standoff': maneuver.standoff(sc, g['suite']) if sc in maneuver.PLAYED else 0.0,
         'way': way, 'curve': curve, 'k': 0, 'held': held,
     }
     step_errand(g, gym, heard_fn, heard_say_fn)

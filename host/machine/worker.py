@@ -166,7 +166,7 @@ def heard_say(g, gym, entry):
 
 
 def _apply_say(g, gym, by, command, errand_step):
-    from machine import furniture, maneuver, se2, tour
+    from machine import maneuver, se2, tour
     sc = command['say']
     sc_str = sprung.ALIASES.get(str(sc), str(sc))
     if not errand_step and tour.start_errand(g, gym, sc_str, heard, heard_say, command.get('at')):
@@ -182,7 +182,7 @@ def _apply_say(g, gym, by, command, errand_step):
         g['twist'] = g['asked'] = (0.0, 0.0, 0.0)
     if 'heading' not in command and entry[0] in _TURN_ALL:
         g['target_heading'], g['has_heading'] = 0.0, 0.0
-    heard_say(g, gym, maneuver.entry(entry[0], furniture.seen(g, entry[0])) if entry[0] in maneuver.PLAYED else entry)
+    heard_say(g, gym, maneuver.said(g, entry))
 
 
 def heard(g, gym, command):
@@ -268,12 +268,16 @@ K = DT / sprung.AVERAGE_S
 WINDOW_STEPS = int(round(wear.WINDOW_S / DT))
 
 
-def session(every=sprung.STACK_EVERY, walks=False, heard=None):
-    """Her run on the loop, paced by nothing: her world `g`, the gym and what it says, the last
+def session(every=sprung.STACK_EVERY, walks=False, heard=None, texts=None):
+    """Her run on the loop, paced by nothing, of her texts `texts` ({key: text}: her gym's and the
+    suite's) where given, else their files': her world `g`, the gym and what it says, the last
     refusal, when she fell, her drives' torque, power and watts, the epoch - a world laid anew
     each - and the passes in it. Each command heard goes to `heard` (a list's append, a queue's
     put) as (epoch, pass, t, command), each epoch's lay first."""
-    s = {'every': every, 'walks': walks, 'gym_name': sprung.GYMS[0], 'gym': sprung.entries(),
+    from machine import dsp
+    suite = None if texts is None else dsp.read(dsp.SUITE, texts)
+    s = {'every': every, 'walks': walks, 'gym_name': sprung.GYMS[0], 'gym': sprung.entries(texts=texts, suite=suite),
+         'texts': texts, 'suite': suite,
          'refused': None, 'epoch': -1, 'ratio': 1.0, 'headroom': 1.0, 'heard': heard or (lambda entry: None)}
     s['says'] = [s['gym_name']] + [entry[0] for entry in s['gym']]
     laid(s)
@@ -283,7 +287,7 @@ def session(every=sprung.STACK_EVERY, walks=False, heard=None):
 def laid(s):
     """A new epoch: her world laid anew, standing (walking where the session `walks`)."""
     import numpy as np
-    g = s['g'] = sprung.laid(s['every'])
+    g = s['g'] = sprung.laid(s['every'], texts=s['texts'], suite=s['suite'])
     if s['walks']:
         sprung.walked(g)
     n = len(g['world'].peak)
@@ -302,7 +306,7 @@ def apply(s, command):
         s['refused'] = None
     try:
         if command.get('gym') in sprung.GYMS:
-            s['gym_name'], s['gym'] = command['gym'], sprung.entries(name=command['gym'])
+            s['gym_name'], s['gym'] = command['gym'], sprung.entries(name=command['gym'], texts=s['texts'], suite=s['suite'])
             s['says'], s['refused'] = [command['gym']] + [entry[0] for entry in s['gym']], None
         if 'text' in command:
             command, s['refused'] = dict(command, entries=sprung.entries(command['text'])), None

@@ -31,6 +31,14 @@
   3.12 the chair borne 0.34 and the door at z 3.35 too; test_scenarios'
   chair at 0 rad (fell at 10.905 s, 3.14). DOD: both workflows green on
   main.
+- **The autotuner at runtime** (asked): her loop and a tuner on another
+  core with no lock between them - her samples on a ring, a double bank of
+  compiled rows in shared memory -, a bank laid at her lateral voice's
+  crossing with both soles locked or at rest, blended minimum-jerk (C2); the
+  text's step from windows of her running walk; a converged step written into
+  her texts. DOD: her walk tuned while she walks; with the tuner attached and
+  no step taken her trajectory bit for bit and her pass's time as without
+  it; a converged step written and committed.
 - **native://**: a limb's world on a fixed mount as board/emu's. A frame on
   an idle limb of four 32 ms, the wire's 10: three boards awake t3.5 and each
   chain's 2 ms recovery at 1 us substeps (emulation.md). DOD: the body's

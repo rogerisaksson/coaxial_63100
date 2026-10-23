@@ -44,8 +44,8 @@ def off(run):
 
 
 def _formed(run):
-    """Whether her form is a run's condition: a gait's, on a flat floor."""
-    return run['kind'] == 'gait' and run['scene'] == 'flat'
+    """Whether her form is a run's condition: her walk's, on a flat floor (`telemetry.ran`'s word)."""
+    return run['formed']
 
 
 def _worse(before, after):
@@ -97,12 +97,12 @@ def runs(items):
 def walk_report(root, table, cols, refused):
     """The binding table's lines: * a live literal and how many voices it moves, ! one refused and
     why, the rest inert."""
-    from machine import dsp
+    from machine import ortho
     lines = ['%s: %d literals walked, %d live, %d refused, %d inert' % (
         root, len(table), len(cols), len(refused), len(table) - len(cols) - len(refused))]
     for i, (lit, cls) in enumerate(table):
         mark = '*' if i in cols else '!' if i in refused else ' '
-        where = '%s:%d' % (os.path.basename(lit.path), dsp.text(lit.path).count('\n', 0, lit.start) + 1)
+        where = '%s:%d' % (os.path.basename(lit.path), ortho.source(lit.path).count('\n', 0, lit.start) + 1)
         said = '%d voices' % len(cols[i]) if i in cols else refused.get(i, '')
         lines.append(' %s %-34s %-28s %-24s %-26s %-9s %9g  %-26s %s' % (
             mark, where, lit.symbol[:28], lit.node[:24], lit.key, lit.op or '', lit.value, cls, said[:60]))
@@ -116,10 +116,11 @@ def run_report(gr, before, after, table, live, cur, new):
               for k, (name, r) in enumerate(gr.items())]
     for run, label in ((before, 'before'), (after, 'after')):
         m, nan = run.get('measures', {}), [math.nan, math.nan]
-        lines.append('  %s: pivot median %.1f mm, under its bound %.0f %%; load %.3f-%.3f; slip %.0f mm; feet >= %.1f mm; '
-                     '%.0f J/m%s; form broken: %s' % (
+        lines.append('  %s: pivot median %.1f mm, under its bound %.0f %%; load %.3f-%.3f; cone %.3f; slip %.0f mm; '
+                     'feet >= %.1f mm; tank bled %.2f J; %.0f J/m%s; form broken: %s' % (
                          label, m.get('pivot', nan)[0], 1e2 * m.get('pivot', nan)[1], m.get('load', math.nan),
-                         m.get('peak', math.nan), m.get('slip', math.nan), m.get('gap', math.nan), m.get('energy', math.nan),
+                         m.get('peak', math.nan), m.get('cone', math.nan), m.get('slip', math.nan), m.get('gap', math.nan),
+                         m.get('bleed', math.nan), m.get('energy', math.nan),
                          '' if 'met' not in run else '; its goal %s' % ('met' if run['met'] else 'not met'),
                          ', '.join(run.get('broken', [])) or '-'))
     lines += ['  %-28s %-24s %-26s %9g -> %g' % (table[i][0].symbol[:28], table[i][0].node[:24], table[i][0].key, cur[j], new[j])
@@ -130,14 +131,15 @@ def run_report(gr, before, after, table, live, cur, new):
 def tuned(root, steps):
     """(the kept state {span: value}, whether the norm converged) of `root`'s live literals stepped
     up to `steps` times from the texts as they are, each step printed."""
-    from machine import dsp, tune
+    from machine import tune, voicing
     gr, tx, fr = tune.grammar(), tune.texts(), suite._her()
     table = tune.walked(root, gr, tx)
     cols, refused = tune.reach(root, table, tx, fr)
     print(walk_report(root, table, cols, refused), flush=True)
-    live, got, k = sorted(cols), dsp.read(dsp.SUITE, tx), tune.knobs()
+    (got, gym), live, k = tune.evaluated(tx), sorted(cols), tune.knobs()
+    row = voicing.walk(fr, gym)
     c = {'root': root, 'gr': gr, 'table': table, 'live': live, 'digits': k[('sync-mutated-packages-to-disk', 'float-precision')],
-         'scales': np.array([tune.scale(table[i][0], got) for i in live]),
+         'scales': np.array([tune.scale(table[i][0], got, row) for i in live]),
          'span': [(table[i][0].path, table[i][0].start, table[i][0].end) for i in live]}
     c['h'] = k[('compute-adjoint-ast-deltas', 'trust-region-scale')] * c['scales']
     state, converged = {}, False
@@ -218,22 +220,35 @@ def stepped(c, state, cur, before, measured):
     return state, None
 
 
-def elsewhere(root, state):
-    """[(root, why)] of each other root a literal of `state` moves that it breaks: run as the texts
-    are and with `state`, judged as a step is but for the norm; one not run as they are, named."""
-    from machine import dsp, maneuver, tune
+def _voices(name, played, fr):
+    """`name`'s voices as `played` (the suite, her gym) has them, or the refusal's words."""
+    from machine import tune
     from machine.errors import MachineError
-    gr, tx, fr = tune.grammar(), tune.texts(), suite._her()
-    got, unit = dsp.read(dsp.SUITE, tx), 10.0 ** -tune.knobs()[('sync-mutated-packages-to-disk', 'float-precision')]
-    others = []
-    for other in [n for n in got if n != root and isinstance(got[n], dict) and n.startswith(('patch-', 'compile-'))] + [
-            n for n in maneuver.PLAYED if n != root]:
-        try:
-            table = tune.walked(other, gr, tx)
-            cols, _refused = tune.reach(other, table, tx, fr)
-        except MachineError:
-            continue
-        others += [other] * any((table[i][0].path, table[i][0].start, table[i][0].end) in state for i in cols)
+    got, gym = played
+    try:
+        return tune.voices(name, got, fr, gym)
+    except (MachineError, SyntaxError, ValueError) as error:
+        return str(error)
+
+
+def moved(root, state):
+    """The other roots `state` moves, by evaluation: each gait and schedule of the suite, each stunt
+    she plays, each behaviour of her gym, whose voices differ as her texts are and with `state` - a
+    gait on her walk moved by her walk's numbers too."""
+    from machine import maneuver, tune
+    fr, tx = suite._her(), tune.texts()
+    lits = [tune.Literal(p, a, z, None, None, None, None, v) for (p, a, z), v in state.items()]
+    was, now = tune.evaluated(tx), tune.evaluated(tune.spliced(tx, lits, [lit.value for lit in lits]))
+    names = dict.fromkeys(list(was[0]) + list(maneuver.PLAYED) + [e[0] for e in was[1]] + list(tune.WHOLE))
+    return [n for n in names if n != root and _voices(n, was, fr) != _voices(n, now, fr)]
+
+
+def elsewhere(root, state):
+    """[(root, why)] of each other root `state` moves (`moved`) that it breaks: run as the texts are
+    and with `state`, judged as a step is but for the norm; one not run as they are, named."""
+    from machine import tune
+    unit = 10.0 ** -tune.knobs()[('sync-mutated-packages-to-disk', 'float-precision')]
+    others = moved(root, state)
     got_runs = runs([(other, said) for other in others for said in (
         {}, state, {span: v + unit for span, v in state.items()}, {span: v - unit for span, v in state.items()})])
     out, unjudged = [], []

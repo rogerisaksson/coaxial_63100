@@ -1,0 +1,190 @@
+"""The autotuner on her texts: its text read, her texts given, every literal walked, its reach, its step.
+
+`machine.tune`, `tools/sim/tune.py`, `tools/sim/telemetry.py`: her texts given play as her files,
+every literal is walked where it stands and reaches her where a voice reads it, the step is the
+text's, a run's residuals and the verdicts on a step."""
+import math
+import sys
+
+from tools.dev.focus import chosen
+from gynoid_kit import Report
+
+
+def _got():
+    from machine import dsp
+    return dsp.read(dsp.SUITE)
+
+
+def _her():
+    from machine import worker
+    return worker.session()['g']['fr']
+
+
+def _near(a, b):
+    return math.isclose(a, b, rel_tol=1e-9, abs_tol=1e-9)
+
+
+def test_the_autotuner_reads_as_written(report):
+    """The autotuner's text: its six classes in order, its keys and invariants the suite's names,
+    each primitive done here, its step's numbers its own."""
+    from machine import tune
+    gr = tune.grammar()
+    report.check("six classes in its order, their invariants the manifold's",
+                 [(r.name, r.invariant) for r in gr.values()] == [
+                     ('com-wrench-balance', 'min-zmp-margin-mm'), ('normal-force-floor', 'min-normal-force-ratio'),
+                     ('tangential-shear-slip', None), ('spatial-sdf-clearance', 'min-coronal-clearance-mm'),
+                     ('contact-transient-ringdown', None), ('actuator-thermal-passivity', None)]
+                 and all(r.invariant in _got()['physical-invariants'] for r in gr.values() if r.invariant),
+                 str([(r.name, r.invariant) for r in gr.values()]))
+    report.check("its keys the suite's: a duck's depth its modulation, a cutoff its low-pass's",
+                 'modulation-depth-mm' in gr['normal-force-floor'].keys
+                 and 'lpf-cutoff-hz' in gr['actuator-thermal-passivity'].keys, str(gr['normal-force-floor'].keys))
+    k = tune.knobs()
+    said = [k[('compute-adjoint-ast-deltas', 'damping-lambda')], k[('compute-adjoint-ast-deltas', 'trust-region-scale')],
+            k[('universal-autotune-daemon', 'tol')], k[('sync-mutated-packages-to-disk', 'float-precision')],
+            k[('introspect-active-ast', 'max-nodes')]]
+    report.check('each primitive done here; lambda, trust, tol, precision, table its own',
+                 tune.primitives() == list(tune.PRIMITIVES) and said == [0.08, 0.15, 1e-3, 4.0, 512.0],
+                 '%s %s' % (tune.primitives(), said))
+
+
+def test_her_texts_given_play_as_her_files(report):
+    """Her texts read and given (`tune.texts`): the suite, her gym's entries and a stunt's entry the
+    same as her files'; one not among them refused by name."""
+    from machine import dsp, maneuver, ortho, sprung, tune
+    tx = tune.texts()
+    got, gym = tune.evaluated(tx)
+    report.check('%d texts: the suite and her gym as from her files' % len(tx),
+                 got == _got() and gym == sprung.entries()
+                 and maneuver.entry('sit_chair', None, got, tx) == maneuver.entry('sit_chair'), '')
+    short = {k: v for k, v in tx.items() if not k.endswith('gait_base.lisp')}
+    try:
+        ortho.compiled(texts=short)
+        said = ''
+    except SyntaxError as error:
+        said = str(error)
+    report.check('a text not given refused by name', 'gait_base.lisp' in said, said)
+
+
+def test_a_literal_is_walked_where_it_stands(report):
+    """Each keyword's number, each op's and each of her gym's clauses' where it stands: written back
+    in full the suite and her gym read the same; a value at the text's precision reads back; her gym's
+    stiffness the suite's compliance, its slot her axial spring's."""
+    from machine import dsp, modal, ortho, sprung, tune
+    tx = tune.texts()
+    lits = [lit for path, text in tx.items() for lit in tune.literals(path, text)]
+    report.check('%d literals, each span its value' % len(lits),
+                 lits and all(float(tx[lit.path][lit.start:lit.end]) == lit.value for lit in lits), '')
+    back = tune.spliced(tx, lits, [lit.value for lit in lits])
+    report.check('every literal written back: the suite and her gym read the same',
+                 dsp.read(dsp.SUITE, back) == _got() and sprung.entries(texts=back) == sprung.entries(), '')
+    spring = next(lit for lit in lits if lit.symbol == 'stand' and lit.node == 'impedance stiffness mode_axial_compression')
+    report.check("her stand's axial stiffness is the suite's compliance, in her row's axial spring",
+                 spring.key == 'compliance' and spring.slot == ortho.K + modal.AXIAL and spring.value == 3000.0, str(spring))
+    op = next(lit for lit in lits if lit.symbol == 'surface-granular-dissipative' and lit.key == 'stride-length-mm')
+    moved = tune.spliced(tx, [op], [0.71234567], 4)
+    report.check("an op's number said of its keyword, written at four places",
+                 op.op == 'scale' and op.value == 0.82 and '(:scale 0.7123)' in moved[op.path]
+                 and dsp.read(dsp.SUITE, moved)['surface-granular-dissipative'] != _got()['surface-granular-dissipative'],
+                 str(op))
+
+
+def test_a_literal_reaches_her_where_a_voice_reads_it(report):
+    """The runway reaches 17 literals: its stride, its trunk's lean and its duck's attack move her
+    voices by their rules, nothing voiceless does, a 0 the manifold says nothing larger of has no
+    scale. The chair's sit: its hand-over's and its descent's times move her phases."""
+    from machine import modal, ortho, tune, voicing
+    tx, fr, gr = tune.texts(), _her(), tune.grammar()
+    table = tune.walked('patch-sneaker-runway', gr, tx)
+    cols, refused = tune.reach('patch-sneaker-runway', table, tx, fr)
+    live = {table[i][0].key: col for i, col in cols.items()}
+    twist = voicing.voiced(_got()['patch-sneaker-runway'], _got()['nominal-biped-manifold'], fr)[1]['twist'][0]
+    h = 0.15 * 640.0
+    want = {'stride-length-mm': {('twist', 0): -twist * 640.0 / (640.0 ** 2 - h * h)},
+            'dc-offset-rad': {('slot', ortho.Z + modal.PITCH): -1.0 / fr[modal.UNIT][modal.PITCH]},
+            'attack-ms': {('slot', ortho.DUCK.start + 1): 1e-3}}
+    report.check('17 walked: stride, lean and attack move her by their rules, the rest inert',
+                 len(table) == 17 and set(live) == set(want)
+                 and all(set(live[k]) == set(v) and all(_near(live[k][j], x) for j, x in v.items()) for k, v in want.items()),
+                 '%d %s' % (len(table), live))
+    report.check('a circumduction of 0 has no scale', [table[i][0].key for i in refused] == ['swing-circumduction-mm'],
+                 str(refused))
+    table = tune.walked('sit_chair', gr, tx)
+    cols, refused = tune.reach('sit_chair', table, tx, fr)
+    report.check("the sit: its hand-over's and descent's ms move her phases' times",
+                 sorted(table[i][0].key for i in cols) == ['descent-duration-ms', 'transfer-time-ms']
+                 and all(v == 1.0 for col in cols.values() for v in col.values()), str(cols))
+    table = tune.walked('walk', gr, tx)
+    cols, refused = tune.reach('walk', table, tx, fr)
+    report.check("her walk: her stand's axial spring and damper and her step's lift move her row, her lean's 0s no scale",
+                 sorted(table[i][0].key for i in cols) == ['compliance', 'damping-ratio', 'swing-clearance-z-mm']
+                 and sorted(table[i][0].key for i in refused) == ['dc-offset-rad', 'dc-offset-rad'], '%s %s' % (cols, refused))
+
+
+def test_the_step_is_damped_least_squares_in_its_trust_region(report):
+    """The step solves (J^T J + lambda I) x = -J^T r in the literals' scales, each move within the
+    text's trust region of its scale, a held measure not growing."""
+    import numpy as np
+    from machine import tune
+    J, scales = np.array([[2.0, 0.0], [0.0, 0.5]]), np.array([1.0, 4.0])
+    small = tune.step(J, np.array([0.01, -0.02]), scales)
+    a = np.diag(J) * scales
+    want = -a * np.array([0.01, -0.02]) / (a * a + 0.08) * scales
+    big = tune.step(J, np.array([10.0, 0.0]), scales)
+    report.check('a small residual: the damped solve; a large one: held to 0.15 of its scale',
+                 np.allclose(small, want) and math.isclose(abs(big[0]), 0.15 * scales[0]) and abs(big[1]) < 1e-12,
+                 '%s %s %s' % (small, want, big))
+    free = tune.step(np.eye(2), np.array([-0.02, 0.01]), np.ones(2))
+    held = tune.step(np.eye(2), np.array([-0.02, 0.01]), np.ones(2), [[1.0, 1.0]])
+    report.check('a measure growing with both literals held: free it grows, held they move against each other',
+                 free[0] + free[1] > 0.0 and np.allclose(held, [0.015 / 1.08, -0.015 / 1.08]), '%s %s' % (free, held))
+
+
+def test_a_run_measured_and_a_step_judged(report):
+    """Her contacts' hull and a point's margin in it; the six residuals of known measures in their
+    dimensions; a step not kept where she falls, its goal is lost, her form moves out past its
+    floor or the norm falls no further than its floor."""
+    import numpy as np
+    from machine import tune
+    from tools.sim import looks, telemetry, tune as tuner
+    square = [(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0), (0.5, 0.5)]
+    margin = telemetry.margin
+    report.check("a square's centre 0.5 inside, a point 0.25 past its side outside, a segment's off point outside",
+                 math.isclose(margin((0.5, 0.5), square), 0.5) and math.isclose(margin((1.25, 0.5), square), -0.25)
+                 and math.isclose(margin((0.5, 1.0), [(0.0, 0.0), (1.0, 0.0)]), -1.0),
+                 '%s %s' % (margin((0.5, 0.5), square), margin((1.25, 0.5), square)))
+    bounds = telemetry.bounds(_got())
+    r = telemetry.residuals({'pivot': [10.0, 20.0], 'load': 0.7, 'cone': 0.5, 'gap': 3.25, 'peak': 1.5,
+                             'bleed': 0.5 * bounds['tank-capacity-joules']}, tune.grammar(), bounds)
+    report.check('a pivot 5 mm short half the time, no load short, half the cone used, the feet half their gap '
+                 'short, a peak 0.2 past a landing, half the tank bled',
+                 np.allclose(r, [2.5 / 15.0, 0.0, 0.5, 0.5, 0.25 / 1.25, 0.5]), str(r))
+    form = {name: None for name, _least, _most in looks.FORM}
+    base = {'r': [1.0, 0, 0, 0, 0, 0], 'fell': None, 'formed': True, 'met': True, 'floor': 0.1,
+            'form': dict(form, **{'landing load': 1.3}), 'off_floor': {name: 0.01 for name in form}}
+    said = [tuner.judged(base, dict(base, **change)) for change in (
+        {'fell': 3.2}, {'met': False}, {'form': dict(form, **{'landing load': 1.4}), 'r': [0.5, 0, 0, 0, 0, 0]},
+        {'r': [0.95, 0, 0, 0, 0, 0]}, {'r': [0.5, 0, 0, 0, 0, 0]})]
+    report.check('a fall, a lost goal, a landing worse, a gain under its floor not kept; a gain past it kept',
+                 [str(s).split(':')[0].split(',')[0] for s in said] == [
+                     'she fell at 3.20 s', 'its goal no longer met', 'her form worse', '|r| 1.0000 -> 0.9500', 'None'],
+                 str(said))
+
+
+ROSTER = (test_the_autotuner_reads_as_written, test_her_texts_given_play_as_her_files,
+          test_a_literal_is_walked_where_it_stands, test_a_literal_reaches_her_where_a_voice_reads_it,
+          test_the_step_is_damped_least_squares_in_its_trust_region,
+          test_a_run_measured_and_a_step_judged)
+
+
+def main(argv=None):
+    report = Report()
+    for test in chosen(ROSTER, sys.argv[1:] if argv is None else argv):
+        print('\n-- %s --' % test.__name__[5:].replace('_', ' '))
+        test(report)
+    print('\n%d passed, %d failed' % (report.passed, report.failed))
+    return 1 if report.failed else 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())

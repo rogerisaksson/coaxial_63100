@@ -119,6 +119,9 @@ PORTED = 'test_ported.py'
 ORTHO = 'test_ortho.py'
 #: The ortho-DSP suite read, voiced on her walk and refused by name; a take converted to a modifier.
 DSP = 'test_dsp.py'
+#: The autotuner on her texts: its text read, her texts given, every literal walked and its reach on
+#: her, its step, a run's residuals and the verdicts on a step.
+TUNE = 'test_tune.py'
 #: Her floor: the plane under her soles, its grip as she feels it, the situations that cap her rhythm.
 FLOOR = 'test_floor.py'
 #: Her situation read from her sensors: her text's bounds and caps, each entered unannounced told
@@ -160,7 +163,7 @@ DEFAULT_SUITES = (STRUCTURES + (CORE, SHTP, DRIVE, DRIVE_OBSERVER, FILTER, THERM
                    CTRL_CORE, WORLD_CORE, WIRE, NATIVE, NATIVE_HEAT, NATIVE_SYSID, EMULATOR,
                    SENSORLESS,
                    BROKER, DAQ_API, CONTROLLER, GYNOID, SIGHT, REACH, TERMS, GVS, REPLAYS, SCENES, WBC,
-                   WBC_CORE, LEAP, WRENCH, SYSID, SYSID_LIVE, COMPILED, PORTED, WEAR, ORTHO, DSP, FLOOR, SITUATION, ERRANDS, CYCLIC,
+                   WBC_CORE, LEAP, WRENCH, SYSID, SYSID_LIVE, COMPILED, PORTED, WEAR, ORTHO, DSP, TUNE, FLOOR, SITUATION, ERRANDS, CYCLIC,
                    QUAD, QUAD_PULL,
                    AERO_CORE, MPPI_CORE, STREAMS, QUAD_COURSE, SWEEP, BOOT)
                   + VIEWS
@@ -192,6 +195,7 @@ JOINS = (
     (12, LEAP),
     (12, ORTHO),
     (12, DSP),
+    (12, TUNE),
     (12, FLOOR),
     (12, SITUATION),
     (12, WEAR),

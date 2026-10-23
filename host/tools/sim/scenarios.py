@@ -220,13 +220,13 @@ def borne(world, hers, kinds, force):
     return up, whole
 
 
-def ran(name, wobble=0.0, laid=None):
+def ran(name, wobble=0.0, laid=None, texts=None):
     """{name, stood, fell_at, goal, met, went m, rose m, rolled deg (her pelvis about her way at
-    the end), speed m/s, bore {kind: share held}, jerk}: laid turned `wobble` rad about up;
-    `laid(s)` each pass after."""
+    the end), speed m/s, bore {kind: share held}, jerk}: laid turned `wobble` rad about up, of her
+    texts `texts` where given (`worker.session`); `laid(s)` each pass after."""
     import numpy as np
     from tools.sim import look
-    from machine import edge, modal, physics, sprung, worker
+    from machine import edge, modal, physics, worker
     shove = SHOVES.get(name)
     if shove:
         n, way, gait, at = shove
@@ -239,12 +239,12 @@ def ran(name, wobble=0.0, laid=None):
     # the lodge round her for its own scenes alone: its walls would end the longer walks
     physics.ROOM, physics.SIGHT = float(scene == 'lodge'), 0.0
     told = [c['say'] for _at, c in plan if 'say' in c]
-    refused = sorted(set(told) - {e[0] for e in sprung.entries()})
+    s = worker.session(texts=texts)
+    refused = sorted(set(told) - {e[0] for e in s['gym']})
     if refused:
         return {'name': name, 'stood': False, 'fell_at': None, 'goal': goal, 'aim': aim, 'refused': refused[0],
                 'went': math.nan, 'rose': math.nan, 'speed': math.nan, 'bore': {}, 'on_soles': math.nan,
                 'jerk': {seg: math.nan for seg in JERKED}, 'met': False}
-    s = worker.session()
     placed(s, scene)
     world = s['g']['world']
     q = world.data.qpos[3:7].copy()
