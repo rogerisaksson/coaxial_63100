@@ -46,6 +46,25 @@ her dock, its stunt; the scenes themselves in [scenarios](scenarios.md).
   from 0.69 m/s overshot the staging point by 0.95 m, and a cone of 0.3 rad
   flipped her between walking and turning in place every half second, 16 s
   round one spot, surety 0.36.
+- Her stop's spasms: the brake cuts her drive in 500 ms and lets her stride go
+  (`a[STRIDES]` 1 to 0 in a law pass) mid-step at 0.5-0.9 m/s; her step's
+  rounds, its projection gone, trade what her soles cannot give to her arms
+  and head - a shoulder at -294 rad/s^2 (under 6 with her stride held), -99
+  deg at 1 168 deg/s. Her stand lets her neck go while her rhythm's gain falls
+  to 0.05 (the brake's hold reads the gain told, the rest's the gain as it
+  is): 97 deg at 900 deg/s. The suite's stop (`dock-terminal-stance`) laid on
+  her loop - from her lateral crossing every voice's amplitude to 0 on the log
+  brake over two bars, her stand at its end, her clock's rate kept - meets the
+  22 held scenes unwobbled and stops a steady walk with her arms at her walk's
+  own swing, her neck at 16 deg/s at most, her stride let go at 0.16-0.23 m/s;
+  but she goes on 1.24 m and is still 3.9 s after the word (0.72 m, 2.2 s by
+  the same reading), and in the lodge her errands lose to her stops by the
+  furniture and to the clock: the chair 66 down and 29 short of 112 (38, 7),
+  the bed 9 and 52 (3, 4). Her clock slowed with the rest stalled her last
+  swing, a sole 16-21 cm up for 0.9-2.0 s, 3 runs of 4 down; her neck held
+  through the stand cut the runs whose neck spasm is at a stop 52 -> 22 and
+  moved the trade to her arms (corner stops' median 208 -> 261 deg/s). Not
+  kept.
 - Asked flat on the bed from recline (pitch -3.0, sagittal -2.5) she lies at
   -84 deg by 6 s and rolls: yaw 3.7 to 157 deg, the bed's share 1.10 to 0.20,
   surety 0.51, the rise stuck in sit_up; sagittal -3.5 with her arms back
