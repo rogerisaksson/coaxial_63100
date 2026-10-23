@@ -142,16 +142,19 @@ its furniture, four headings, the chair said as F says it (`gym.offered`,
   stride, its acceleration within `WALK_SPEED * YAW_RATE`, its last 1.23 m
   straight; a solve 0.31 ms median where one fits, 12.6 where none, a plan
   1.1 ms median, 29.9 most. Bent past her arc or none found, the corner
-  stays a stop: a curve fits from 3 of the 27 spots whose way turns (the
+  stays a stop: a curve fits from 2-3 of the 27 spots whose way turns (the
   chair's 20, the bed's 7), the chair's slot from above tighter than her
-  arc. Held by her heading a 0.5
-  rad turn left her path on its line 2 s; on her arc's twist her path
-  turned 0.48 rad/s, 0.3-0.5 rad behind her; arced while she lags the
-  curve she keeps within 0.15 m of it, the chair from (-1.9, -1.0) seated
-  and risen where she fell, docked in 17.7 s where 27.3. Told to stand
-  from her walk she goes on 0.5-1.0 rad left of her heading, at every stop
-  traced, the old way's too: off the bed's curve at 0.87 m/s it threw her,
-  the bed's falls 4 -> 5.
+  arc. Held by her heading, a 0.5 rad step turned her path's chord 0.32 rad
+  in 1 s; on her arc's twist her path turned 0.33-0.40 rad/s, a median 0.17
+  rad behind her heading; walking a curve she kept within 0.05-0.33 m of
+  it, the chair from (-1.9, -1.0) seated and risen where she fell, docked
+  in 17.7 s where 27.3. Off the bed's curve her stop drifted 0.8 rad off her
+  heading at 0.87 m/s and threw her, the bed's falls 4 -> 5.
+- Said from every spot (`--said`, 28 spots x 4 headings, the lamp's post
+  kept clear): which spot falls is chaotic in her start - a heading 0.4
+  mrad off 3pi/2 sat where its exact value fell -, a change in her loop
+  moves 110 of 112 rows, and the chair's tally spreads about 5 of 112; a
+  difference is judged with each heading also +-2e-4 rad (336 runs).
 - Her stage before the chair: the middle of the free run on its normal, 0.5
   m where the table leaves 1.03 m; her back-walk's 0.05 m on and her
   sidestep's 0.15 counted in her stops.
