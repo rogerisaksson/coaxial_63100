@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
-"""Her errands from every spot of the lodge: the thing a verb goes to said as the page's F says it.
+"""Her errands from every spot of the lodge: sat or lain, held, her joints against her own walk's.
 
-    python tools/sim/house.py                      # sit_chair from every spot and heading, on the relay
-    python tools/sim/house.py lie_bed sit_chair    # those verbs
-    python tools/sim/house.py --one 0.32 1.01 1.37 sit_chair    # one spot, its line and its phases
+    python tools/sim/house.py                      # sit_chair from every spot and heading, as F says it
+    python tools/sim/house.py lie_bed --said       # said as the prompt says it, seen or not
+    python tools/sim/house.py --one 0.32 1.01 1.37 sit_chair [--said] [--rise]   # one spot, here
     python tools/sim/house.py --docks              # the chair's sit and rise laid at its dock, off by a grid
 
 A spot is a cell of a GRID_M grid on the lodge's free floor, CLEAR_M clear of every furniture box, at
-each of four headings; what F offers there (`gym.offered`, her identified things) is said as F says
-it (`gym.chose`). A line: the key, the dock (along its normal, along its edge, her heading off it, s),
-seconds to the goal held REST_S, its rise's seconds to up, her fall, what she bumped in which phase.
+each of four headings; what F offers there (`gym.offered`) is said as F says it (`gym.chose`), or
+with --said as a prompt says it, whatever she sees. A run: seconds to the goal borne and held REST_S
+(its rise's to up with --rise), her fall, what she bumped in which phase, the dock (along its normal,
+along its edge, her heading off it, s), and each joint group's fastest swing and widest sweep - a
+spasm is a group swung faster than her own walk swings it (`walked`).
 """
 import argparse
 import json
@@ -24,8 +26,15 @@ GOALS = {'sit_chair': ('seated', 'rise_chair', 35.0), 'lie_bed': ('bed_rest', 'r
 #: The furniture her bumps are counted on, and the lodge's own boxes that are not.
 FURNITURE = ('seat', 'back', 'chair_leg', 'bed', 'table', 'lamp', 'loft', 'stair')
 SCENERY = ('floor', 'wall', 'roof', 'deck', 'door', 'pane', 'mullion', 'rail', 'post', 'stone', 'switch', 'shade')
-#: Her spots: a grid this fine, this clear of the furniture, four headings; a goal held this long.
-GRID_M, CLEAR_M, REST_S = 0.6, 0.45, 3.0
+#: Her joint groups a spasm is read on, and her walk's seconds they are judged against.
+GROUPS = {'arms': ('left_shoulder', 'right_shoulder', 'left_elbow', 'right_elbow'), 'neck': ('neck', 'head'),
+          'trunk': ('spine', 'spine_roll', 'waist')}
+WALK_S = 8.0
+#: The groups a spasm is judged on: her trunk's motion is the maneuver's own lean.
+SPASM = ('arms', 'neck')
+#: Her spots: a grid this fine, this clear of the furniture, four headings; a goal held this long; her
+#: joints read this often, s.
+GRID_M, CLEAR_M, REST_S, EVERY_S = 0.6, 0.45, 3.0, 0.01
 HEADINGS = tuple(0.5 * math.pi * k for k in range(4))
 #: The chair's dock sweep: off along its edge, her root off it, her heading off it.
 DOCK_GRID = ((-0.06, -0.03, 0.0, 0.03, 0.06), (0.14, 0.19), (-0.1, -0.05, 0.0, 0.05, 0.1))
@@ -35,89 +44,142 @@ def _named(m, i, heads):
     return any(m.geom(i).name.startswith(h) for h in heads)
 
 
-def _laid(x, z, yaw):
-    """Her session in the lodge, her laid at (x, z) facing `yaw` and stood half a second."""
-    from machine import physics, sprung, worker
-    physics.ROOM, physics.SIGHT = 1.0, 0.0
-    s = worker.session()
-    sprung.relaid(s['g'], (x, z), yaw)
-    for _ in range(int(round(0.5 / worker.DT))):
-        worker.stepped(s)
-    return s
+class Watch:
+
+    """Her session stepped: each joint group's fastest swing (deg/s) and widest sweep (deg), her phases,
+    what of hers bumped the furniture in which."""
+
+    def __init__(self, x, z, yaw):
+        from machine import physics, sprung, worker
+        physics.ROOM, physics.SIGHT = 1.0, 0.0
+        self.s = s = worker.session()
+        sprung.relaid(s['g'], (x, z), yaw)
+        self.g, self.world = s['g'], s['g']['world']
+        m = self.world.model
+        self.furn = {i for i in range(m.ngeom) if _named(m, i, FURNITURE) and float(self.world.data.geom_xpos[i][1]) > -0.5}
+        self.hers = {i for i in range(m.ngeom) if int(m.geom_bodyid[i]) > 0 and i not in self.furn and not _named(m, i, SCENERY)}
+        self.last, self.read, self.fast, self.lo, self.hi = None, -1.0, {}, {}, {}
+        self.phases, self.bumps = [], {}
+        self.go(0.5)
+        self.fast, self.lo, self.hi = {}, {}, {}
+
+    def go(self, seconds, until=None):
+        """`seconds` of passes, or to her fall or `until(self)`: whether `until` came."""
+        from machine import sprung, worker
+        g, t0 = self.g, self.g['t']
+        while g['t'] - t0 < seconds and self.s['fallen_at'] is None:
+            worker.stepped(self.s)
+            self._read()
+            er = g.get('_errand') or {}
+            tag = '%s/%s' % (er.get('phase'), sprung.doing(g))
+            q = self.world.data.qpos
+            self.phases += [(round(g['t'], 2), tag, round(float(q[0]), 2), round(float(q[2]), 2))] if not self.phases or self.phases[-1][1] != tag else []
+            if until is not None and until(self):
+                return True
+        return False
+
+    def _read(self):
+        from machine import worker
+        g, d, m = self.g, self.world.data, self.world.model
+        if g['t'] - self.read < EVERY_S:
+            return
+        angles, dt = worker.told(self.s)['angles'], g['t'] - self.read
+        for name, joints in GROUPS.items():
+            for j in joints:
+                v = float(angles.get(j, 0.0))
+                if self.last is not None:
+                    self.fast[name] = max(self.fast.get(name, 0.0), abs(v - self.last.get(j, v)) / dt)
+                self.lo[name], self.hi[name] = min(self.lo.get(name, v), v), max(self.hi.get(name, v), v)
+        self.last, self.read = {j: float(angles.get(j, 0.0)) for js in GROUPS.values() for j in js}, g['t']
+        phase = (g.get('_errand') or {}).get('phase')
+        for k in range(d.ncon):
+            a, b = int(d.contact[k].geom1), int(d.contact[k].geom2)
+            for f, o in ((a, b), (b, a)):
+                if f in self.furn and o in self.hers:
+                    self.bumps.setdefault('%s@%s' % (m.geom(f).name, phase), round(g['t'], 2))
+
+    def spasm(self):
+        return {name: (round(self.fast.get(name, 0.0)), round(self.hi.get(name, 0.0) - self.lo.get(name, 0.0)))
+                for name in GROUPS}
 
 
-def _held(s, goal, rise, limit, t0):
-    """(seconds to `goal` borne, held REST_S, seconds to up once `rise` is said) from `t0`."""
+def walked():
+    """Each joint group's fastest swing and widest sweep over WALK_S of her walk: a spasm's bound."""
+    from machine import worker
+    w = Watch(0.0, -1.0, 0.0)
+    worker.apply(w.s, {'twist': (0.69, 0.0, 0.0)})
+    w.go(WALK_S)
+    return w.spasm()
+
+
+def _goal(w, goal, rise, limit, t0):
+    """(seconds to `goal` borne, held REST_S, seconds to up once `rise` is said, None unsaid) from `t0`."""
     from machine import modal, sprung, worker
-    g, reached, held, up = s['g'], None, None, None
-    while g['t'] - t0 < limit and s['fallen_at'] is None and reached is None:
-        worker.stepped(s)
-        reached = round(g['t'] - t0, 2) if sprung.doing(g) == goal and float(g['y'][modal.PROP]) > 0.45 else None
-    t1 = g['t']
-    while reached is not None and g['t'] - t1 < REST_S and s['fallen_at'] is None:
-        worker.stepped(s)
-    held = reached is not None and s['fallen_at'] is None and sprung.doing(g) == goal
-    if held:
-        worker.apply(s, {'say': rise})
-    t2 = g['t']
-    while held and up is None and g['t'] - t2 < 12.0 and s['fallen_at'] is None:
-        worker.stepped(s)
-        up = round(g['t'] - t2, 2) if sprung.doing(g) in ('stand', 'rest') and float(g['y'][modal.PROP]) < 0.05 else None
+    g = w.g
+    def borne(q):
+        return sprung.doing(g) == goal and float(g['y'][modal.PROP]) > 0.45
+    reached = round(g['t'] - t0, 2) if w.go(limit - (g['t'] - t0), borne) else None
+    if reached is not None:
+        w.go(REST_S)
+    held = reached is not None and w.s['fallen_at'] is None and sprung.doing(g) == goal
+    up = None
+    if held and rise:
+        worker.apply(w.s, {'say': rise})
+        t2 = g['t']
+        if w.go(12.0, lambda q: sprung.doing(g) in ('stand', 'rest') and float(g['y'][modal.PROP]) < 0.05):
+            up = round(g['t'] - t2, 2)
     return reached, held, up
 
 
-def one(x, z, yaw, verb):
-    """Her errand `verb` from (x, z, `yaw`) as F says it: a line's fields."""
+def one(x, z, yaw, verb, said=False, rise=False):
+    """Her errand `verb` from (x, z, `yaw`), as F says it or `said` as a prompt does: a line's fields."""
     from types import SimpleNamespace as SN
-    from machine import edge, sprung, worker
+    from machine import edge, worker
     from terminal.views import gym, scanner, viewpoint
-    s = _laid(x, z, yaw)
-    g, world = s['g'], s['g']['world']
-    m = world.model
-    furn = {i for i in range(m.ngeom) if _named(m, i, FURNITURE) and float(world.data.geom_xpos[i][1]) > -0.5}
-    hers = {i for i in range(m.ngeom) if int(m.geom_bodyid[i]) > 0 and i not in furn and not _named(m, i, SCENERY)}
-    st = {'body': SN(send=lambda **cmd: worker.apply(s, cmd)), 'scanner': scanner.VisionScanner(),
-          'now': worker.told(s), 'yaw': 180.0, 'tour': None, **viewpoint.HOME}
+    w = Watch(x, z, yaw)
+    g = w.g
+    st = {'body': SN(send=lambda **cmd: worker.apply(w.s, cmd)), 'scanner': scanner.VisionScanner(),
+          'now': worker.told(w.s), 'yaw': 180.0, 'tour': None, **viewpoint.HOME}
     offers = gym.offered(st)
-    out = {'x': x, 'z': z, 'yaw': round(yaw, 3), 'verb': verb, 'offers': [(o[0], o[1], o[4]) for o in offers]}
+    out = {'x': x, 'z': z, 'yaw': round(yaw, 3), 'verb': verb, 'said': said}
     pick = [k for k, o in enumerate(offers) if o[1] == verb]
-    if not pick:
+    if not said and not pick:
         return dict(out, result='not offered')
-    out['key'] = offers[pick[0]][0]
-    gym.chose(st, pick[0])
-    t0, phases, bumps, dock = g['t'], [], {}, None
-    goal, rise, limit = GOALS[verb]
-    while g.get('_errand') and g['t'] - t0 < limit and s['fallen_at'] is None:
-        worker.stepped(s)
-        er, q = g.get('_errand') or {}, world.data.qpos
-        tag = '%s/%s' % (er.get('phase'), sprung.doing(g))
-        phases += [(round(g['t'] - t0, 2), tag, round(float(q[0]), 2), round(float(q[2]), 2))] if not phases or phases[-1][1] != tag else []
-        dx, dz = float(q[0]) - er.get('x_dock', 0.0), float(q[2]) - er.get('z_dock', 0.0)
-        dock = dock or ((round(dx * er['nx'] + dz * er['nz'], 3), round(dx * er['tx'] + dz * er['tz'], 3),
+    if said:
+        worker.apply(w.s, {'say': verb})
+    else:
+        out['key'] = offers[pick[0]][0]
+        gym.chose(st, pick[0])
+    t0, dock = g['t'], []
+    goal, rise_verb, limit = GOALS[verb]
+
+    def docked(q):
+        er = g.get('_errand') or {}
+        if er.get('phase') == 'done' and not dock:
+            p = w.world.data.qpos
+            dx, dz = float(p[0]) - er['x_dock'], float(p[2]) - er['z_dock']
+            dock.extend((round(dx * er['nx'] + dz * er['nz'], 3), round(dx * er['tx'] + dz * er['tz'], 3),
                          round(math.remainder(float(edge.yaw(g['sense'])) - er['hdd'], 2.0 * math.pi), 3),
-                         round(g['t'] - t0, 2)) if er.get('phase') == 'done' else None)
-        for k in range(world.data.ncon):
-            c = world.data.contact[k]
-            a, b = int(c.geom1), int(c.geom2)
-            for f, o in ((a, b), (b, a)):
-                if f in furn and o in hers:
-                    bumps.setdefault('%s@%s' % (m.geom(f).name, er.get('phase')), round(g['t'] - t0, 2))
-    reached, held, up = _held(s, goal, rise, limit, t0)
-    fell = None if s['fallen_at'] is None else round(s['fallen_at'] - t0, 2)
-    result = 'ok' if up is not None and fell is None else ('fell' if fell is not None else 'short')
-    return dict(out, dock=dock, reached=reached, held=held, up=up, fell=fell, bumps=bumps, phases=phases[-12:], result=result)
+                         round(g['t'] - t0, 2)))
+        return not g.get('_errand')
+    w.go(limit, docked)
+    reached, held, up = _goal(w, goal, rise_verb if rise else None, limit, t0)
+    fell = None if w.s['fallen_at'] is None else round(w.s['fallen_at'] - t0, 2)
+    ok = held and fell is None and (up is not None or not rise)
+    return dict(out, dock=dock or None, reached=reached, held=held, up=up, fell=fell, spasm=w.spasm(), bumps=w.bumps,
+                phases=w.phases[-12:], result='ok' if ok else ('fell' if fell is not None else 'short'))
 
 
 def dock(dx, spar, dyaw):
     """The chair's sit laid at its dock `dx` along its edge, her root `spar` off it, `dyaw` turned off
     it; held, risen: a line's fields."""
     from machine import room, worker
-    s = _laid(room.CHAIR_AT[0] + dx, room.CHAIR_AT[1] - room.SEAT[2] - spar, math.pi + dyaw)
-    worker.apply(s, {'say': 'sit_chair'})
-    reached, held, up = _held(s, 'seated', 'rise_chair', 15.0, s['g']['t'])
-    fell = None if s['fallen_at'] is None else round(s['fallen_at'], 2)
+    w = Watch(room.CHAIR_AT[0] + dx, room.CHAIR_AT[1] - room.SEAT[2] - spar, math.pi + dyaw)
+    worker.apply(w.s, {'say': 'sit_chair'})
+    reached, held, up = _goal(w, 'seated', 'rise_chair', 15.0, w.g['t'])
+    fell = None if w.s['fallen_at'] is None else round(w.s['fallen_at'], 2)
     return {'dx': dx, 'spar': spar, 'dyaw': dyaw, 'reached': reached, 'held': held, 'up': up, 'fell': fell,
-            'result': 'ok' if up is not None and fell is None else ('fell' if fell is not None else 'short')}
+            'spasm': w.spasm(), 'result': 'ok' if up is not None and fell is None else ('fell' if fell is not None else 'short')}
 
 
 def spots():
@@ -140,7 +202,7 @@ def _relayed(argvs):
     jobs = [focus.Job('house_%d' % k, [sys.executable, '-X', 'utf8', os.path.abspath(__file__)] + a, 0.4, 900.0, None)
             for k, a in enumerate(argvs)]
     lines = [[ln for ln in (text or '').splitlines() if ln.startswith('{')] for _job, text, _code, _s in focus.relay(jobs)]
-    return [json.loads(ln[-1]) if ln else {'result': 'crashed'} for ln in lines]
+    return [dict(json.loads(ln[-1])) if ln else dict(result='crashed', spasm={}) for ln in lines]
 
 
 def main(argv=None):
@@ -149,24 +211,37 @@ def main(argv=None):
     p.add_argument('--one', nargs=4, metavar=('X', 'Z', 'YAW', 'VERB'), help='one spot, here')
     p.add_argument('--dock', nargs=3, type=float, metavar=('DX', 'SPAR', 'DYAW'), help='one dock, here')
     p.add_argument('--docks', action='store_true', help='the chair at its dock, off by DOCK_GRID, on the relay')
+    p.add_argument('--said', action='store_true', help='said as a prompt says it, seen or not')
+    p.add_argument('--rise', action='store_true', help='its rise said once it held')
+    p.add_argument('--walked', action='store_true', help='her walk\'s fastest swings, here')
     args = p.parse_args(argv)
+    flags = ['--said'] * args.said + ['--rise'] * args.rise
+    if args.walked:
+        print(json.dumps(walked()), flush=True)
+        return 0
     if args.one:
-        print(json.dumps(one(float(args.one[0]), float(args.one[1]), float(args.one[2]), args.one[3])), flush=True)
+        print(json.dumps(one(float(args.one[0]), float(args.one[1]), float(args.one[2]), args.one[3], args.said, args.rise)), flush=True)
         return 0
     if args.dock:
         print(json.dumps(dock(*args.dock)), flush=True)
         return 0
     runs = ([['--dock', str(a), str(b), str(c)] for a in DOCK_GRID[0] for b in DOCK_GRID[1] for c in DOCK_GRID[2]]
-            if args.docks else [['--one', str(x), str(z), str(h), v] for x, z in spots() for h in HEADINGS
+            if args.docks else [['--one', str(x), str(z), str(h), v] + flags for x, z in spots() for h in HEADINGS
                                 for v in (args.verbs or ['sit_chair'])])
+    bound = _relayed([['--walked']])[0]
     rows = _relayed(runs)
     counts = {}
-    for r in rows:
-        counts[r.get('result')] = counts.get(r.get('result'), 0) + 1
-    print('  '.join('%s %d' % kv for kv in sorted(counts.items(), key=lambda kv: str(kv[0]))), flush=True)
-    for r in rows:
-        if r.get('result') not in ('ok', 'not offered'):
-            print(json.dumps(r), flush=True)
+    spasms = {}
+    for k, r in enumerate(rows):
+        got = r.get('spasm')
+        spasms[k] = [n for n, (fast, _wide) in (got if isinstance(got, dict) else {}).items() if n in SPASM and fast > bound.get(n, (math.inf,))[0]]
+        spasm = spasms[k]
+        key = '%s%s' % (r.get('result'), ' spasm' if spasm and r.get('result') == 'ok' else '')
+        counts[key] = counts.get(key, 0) + 1
+    print('walk %s | %s' % (bound, '  '.join('%s %d' % kv for kv in sorted(counts.items()))), flush=True)
+    for k, r in enumerate(rows):
+        if r.get('result') not in ('ok', 'not offered') or spasms[k]:
+            print(json.dumps(dict(r, spasms=spasms[k])), flush=True)
     return 0
 
 
