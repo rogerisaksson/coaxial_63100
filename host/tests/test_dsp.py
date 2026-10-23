@@ -293,11 +293,42 @@ def test_the_step_is_damped_least_squares_in_its_trust_region(report):
                  free[0] + free[1] > 0.0 and np.allclose(held, [0.015 / 1.08, -0.015 / 1.08]), '%s %s' % (free, held))
 
 
+def test_a_run_measured_and_a_step_judged(report):
+    """Her contacts' hull and a point's margin in it; the six residuals of known measures in their
+    dimensions; a step not kept where she falls, its goal is lost, her form moves out past its
+    floor or the norm falls no further than its floor."""
+    import numpy as np
+    from machine import tune
+    from tools.sim import looks, telemetry, tune as tuner
+    square = [(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0), (0.5, 0.5)]
+    margin = telemetry.margin
+    report.check("a square's centre 0.5 inside, a point 0.25 past its side outside, a segment's off point outside",
+                 math.isclose(margin((0.5, 0.5), square), 0.5) and math.isclose(margin((1.25, 0.5), square), -0.25)
+                 and math.isclose(margin((0.5, 1.0), [(0.0, 0.0), (1.0, 0.0)]), -1.0),
+                 '%s %s' % (margin((0.5, 0.5), square), margin((1.25, 0.5), square)))
+    bounds = {'min-zmp-margin-mm': 15.0, 'min-normal-force-ratio': 0.35, 'min-coronal-clearance-mm': 6.5,
+              'support-polygon-x-mm': 240.0, 'weight': 500.0}
+    r = telemetry.residuals({'pivot': [10.0, 20.0], 'load': 0.7, 'slip': 120.0, 'gap': 3.25, 'peak': 1.5, 'energy': 250.0},
+                            tune.grammar(), bounds)
+    report.check('a pivot 5 mm short half the time, no load short, slip half a sole, the feet half their gap short, '
+                 'a peak 0.2 past a landing, a cost of transport 0.5', np.allclose(r, [2.5 / 15.0, 0.0, 0.5, 0.5, 0.2, 0.5]), str(r))
+    form = {name: None for name, _least, _most in looks.FORM}
+    base = {'r': [1.0, 0, 0, 0, 0, 0], 'fell': None, 'kind': 'gait', 'scene': 'flat', 'met': True, 'floor': 0.1,
+            'form': dict(form, **{'landing load': 1.3}), 'off_floor': {name: 0.01 for name in form}}
+    said = [tuner.judged(base, dict(base, **change)) for change in (
+        {'fell': 3.2}, {'met': False}, {'form': dict(form, **{'landing load': 1.4}), 'r': [0.5, 0, 0, 0, 0, 0]},
+        {'r': [0.95, 0, 0, 0, 0, 0]}, {'r': [0.5, 0, 0, 0, 0, 0]})]
+    report.check('a fall, a lost goal, a landing worse, a gain under its floor not kept; a gain past it kept',
+                 [str(s).split(':')[0].split(',')[0] for s in said] == [
+                     'she fell at 3.20 s', 'its goal no longer met', 'her form worse', '|r| 1.0000 -> 0.9500', 'None'],
+                 str(said))
+
+
 ROSTER = (test_the_suite_reads_as_written, test_the_maneuvers_read_as_written, test_a_patch_moves_her_walk_by_its_changes,
           test_what_she_cannot_do_is_refused_by_name, test_the_runway_reads_in_its_own_dialect,
           test_a_take_converts_to_a_modifier_she_reads, test_the_autotuner_reads_as_written,
           test_a_literal_is_walked_where_it_stands, test_a_literal_reaches_her_where_a_voice_reads_it,
-          test_the_step_is_damped_least_squares_in_its_trust_region)
+          test_the_step_is_damped_least_squares_in_its_trust_region, test_a_run_measured_and_a_step_judged)
 
 
 def main(argv=None):

@@ -187,17 +187,20 @@ def table(lines, ref):
     return '\n'.join(out)
 
 
-def schedule():
-    """The suite's schedule played to its first refusal on a flat floor - its worlds named, not
-    laid -: each patch's row at its bar, each morph's rows from the lock past its crossing.
-    [(from bar, to bar, what, laid at s or the refusal)] and her rows."""
+def schedule(name='compile-omnidirectional-suite', also=None):
+    """The suite's schedule `name` played to its first refusal - a one-shot or a dwell the gym's -
+    on a flat floor, its worlds named, not laid: each patch's row at its bar, each morph's rows from
+    the lock past its crossing; `also(s)` each pass. [(from bar, to bar, what, laid at s or the
+    refusal)] and her rows."""
     from machine import dsp, patch, voicing, worker
     from machine.errors import MachineError
     got = dsp.read(dsp.SUITE)
     dry, fr = got['nominal-biped-manifold'], _her()
     plan, at, steps = [], LAY_S, []
-    for b0, b1, item in dsp.schedule(got['compile-omnidirectional-suite']):
+    for b0, b1, item in (seg if len(seg) == 3 else (seg[0], None, None) for seg in dsp.schedule(got[name])):
         try:
+            if item is None:
+                raise MachineError("a %s: the gym's" % b0)
             if isinstance(item, dsp.Morph):
                 wire, span = voicing.morphed(item, dry, fr)
                 steps.append(('morph', b0, b1, wire, span))
@@ -241,7 +244,7 @@ def schedule():
 
     from tools.sim import scenarios
     total = LAY_S + sum((st[2] - st[1]) * 1.4 for st in steps) + 4.0
-    rows, fell = played({}, {'twist': scenarios.WALK}, 'flat', total, laid)
+    rows, fell = played({}, {'twist': scenarios.WALK}, 'flat', total, laid if also is None else lambda s: (laid(s), also(s)))
     return plan, rows, fell
 
 

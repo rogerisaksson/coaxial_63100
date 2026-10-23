@@ -220,9 +220,10 @@ def borne(world, hers, kinds, force):
     return up, whole
 
 
-def ran(name, wobble=0.0):
+def ran(name, wobble=0.0, laid=None):
     """{name, stood, fell_at, goal, met, went m, rose m, rolled deg (her pelvis about her way at
-    the end), speed m/s, bore {kind: share held}, jerk}: laid turned `wobble` rad about up."""
+    the end), speed m/s, bore {kind: share held}, jerk}: laid turned `wobble` rad about up;
+    `laid(s)` each pass after."""
     import numpy as np
     from tools.sim import look
     from machine import edge, modal, physics, sprung, worker
@@ -268,6 +269,8 @@ def ran(name, wobble=0.0):
             worker.apply(s, plan[k][1])
             k += 1
         worker.stepped(s)
+        if laid is not None:
+            laid(s)
         g = s['g']
         if g['n'] % g['every'] == 1 and 'got' in g and 's' in g:
             got, gs = g['got'], g['s']

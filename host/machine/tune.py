@@ -20,7 +20,7 @@ import math
 import os
 import re
 
-from machine import dsp, maneuver, patch, voicing
+from machine import dsp, maneuver, ortho, patch, voicing
 from machine.errors import MachineError
 
 #: The autotuner's text.
@@ -180,8 +180,9 @@ def _voiced(g, got, fr):
 
 def _morphed(m, got, fr):
     wire, span = voicing.morphed(m, got['nominal-biped-manifold'], fr)
-    return dict({('row', k): float(v) for k, v in enumerate(v for row in ortho.ROW.iter_unpack(wire) for v in row)},
-                **{('span',): span})
+    out: dict = {('row', k): float(v) for k, v in enumerate(v for row in ortho.ROW.iter_unpack(wire) for v in row)}
+    out[('span',)] = span
+    return out
 
 
 def _scheduled(root, got, fr):
@@ -250,8 +251,7 @@ def reach(root, table, texts, fr):
         except MachineError as error:
             refused[i] = str(error)
             continue
-        col = {k: ((up[k] - down[k]) / (2.0 * h) if k in up and k in down else math.nan)
-               for k in set(base) | set(up) | set(down) if not _same(up.get(k), down.get(k))}
+        col = {k: _slope(up.get(k), down.get(k), h) for k in set(base) | set(up) | set(down) if not _same(up.get(k), down.get(k))}
         cols.update({i: col} if col else {})
     return cols, refused
 
