@@ -86,8 +86,8 @@ named on her loop (`machine.supervisor`); a gait saying another is refused:
 
 | stage | as written | on her loop |
 | --- | --- | --- |
-| velocity noise gate | 0.0035 rad/s, 4 / 25 ms, smooth-step | open: under her encoders' step, 0.05 rad/s at 1 kHz |
-| D-term low-pass | Butterworth 2nd order, 42 Hz, causal | open ([scenarios](../todo/scenarios.md) 14) |
+| velocity noise gate | 0.0035 rad/s, 4 / 25 ms, smooth-step | the rate her drives' D terms read - passive damping, the knee's damper, the tank's injection (`wbc_bus_rate`) |
+| D-term low-pass | Butterworth 2nd order, 42 Hz, causal | on that rate after the gate; the setpoint's leak and the tank's detector read it raw |
 | jerk | each drive's current loop, cubic soft knee | each drive's asked acceleration and its torque's share of what is cut: its slew over its rotor's inertia, 5.75-16.1 M rad/s^3 |
 | torque slew | each drive's current loop | its peak x 2 pi x 2.5 kHz, the loop's sampling bound: 806-3 089 kN m/s |
 | damped least squares | sigma_min 0.045, lambda_max 0.18, raised cosine | open: lambda 0.02 at every sigma (`wrench.DAMP`) |

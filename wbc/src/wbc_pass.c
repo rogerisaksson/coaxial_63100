@@ -22,15 +22,16 @@ void wbc_pass_drives(wbc_drives_t *p, double dt, double wo, double wo3, double y
   for (int i = 0; i < n; i++)
   {
     p->sb[i] = 0.0;
+    wbc_bus_rate(p->bus_k, p->bus, i, dt, p->y[p->qd_at + p->joints[i]]);
   }
   /* her knees' spring: back from straight, and against folding back past it */
   for (int k = 0; k < 2; k++)
   {
     const int    j = p->knee[k];
-    const double qk = p->y[p->q_at + p->joints[j]], qvk = p->y[p->qd_at + p->joints[j]];
+    const double qk = p->y[p->q_at + p->joints[j]];
 
     p->sb[j] = npclip(((p->knee_nm * npclip(1.0 - qk / p->knee_soft, 0.0, 3.0) + 2400.0 * npmax(0.0, under - qk))
-                       - (pull * npclip((0.20 - qk) / 0.15, 0.0, 1.5)) * npmin(0.0, qvk)) * ys,
+                       - (pull * npclip((0.20 - qk) / 0.15, 0.0, 1.5)) * npmin(0.0, p->bus->qd[j])) * ys,
                       -p->clamp_j[j], p->clamp_j[j]);
   }
   for (int i = 0; i < n; i++)
@@ -96,7 +97,7 @@ void wbc_pass_drives(wbc_drives_t *p, double dt, double wo, double wo3, double y
     }
     /* less its inertia's share of what the jerk's clip cut: its observer, told the clipped ask,
        pushed against the rest - a jamb's touch yielded her arm 0.24 rad where 0.55 */
-    p->feed[i] = (((wbc_bus_slew(p->bus, i, dt, p->tau[i] * ys) + p->sb[i]) - p->jeff[i] * eso2[i]) - b_pas * qvel)
+    p->feed[i] = (((wbc_bus_slew(p->bus, i, dt, p->tau[i] * ys) + p->sb[i]) - p->jeff[i] * eso2[i]) - b_pas * p->bus->qd[i])
                  - p->jeff[i] * (asked - qa);
     p->limit[i] = p->hold[i] > 0.0 ? (wb ? p->wep_lim[i] : p->wep[i]) : p->clamp_j[i];
   }

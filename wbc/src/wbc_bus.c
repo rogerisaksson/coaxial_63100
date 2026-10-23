@@ -42,6 +42,16 @@ double wbc_bus_slew(wbc_bus_t *b, int i, double dt, double tau)
   return b->tau_out[i];
 }
 
+double wbc_bus_rate(const wbc_bus_k *k, wbc_bus_t *b, int i, double dt, double qd)
+{
+  const double open = (double)(fabs(qd) >= k->gate_rad_s);
+  const double g = npclip(b->gate[i] + dt * (open / k->gate_attack_s - (1.0 - open) / k->gate_release_s), 0.0, 1.0);
+
+  b->gate[i] = g;
+  b->qd[i] = biquad(k->d_b, k->d_a, b->dz1 + i, b->dz2 + i, qd * ((g * g) * (3.0 - 2.0 * g)));
+  return b->qd[i];
+}
+
 double wbc_bus_feed(const wbc_bus_k *k, wbc_bus_t *b, int i, double dt, double qd, double feed, double damping)
 {
   const int    n = b->n;
@@ -70,7 +80,7 @@ double wbc_bus_feed(const wbc_bus_k *k, wbc_bus_t *b, int i, double dt, double q
   trip = (double)(b->count[i] >= k->reversals);
   b->alpha[i] = npmax(trip, b->alpha[i] - dt / k->recover_s);
   gain = b->alpha[i] * (1.0 - k->rollback);
-  cmd = (feed - gain * t) - ((b->alpha[i] * k->inject) * damping) * qd;
+  cmd = (feed - gain * t) - ((b->alpha[i] * k->inject) * damping) * b->qd[i];
   /* what the bus changed of the command, for her drive's observer to know what moved its rotor */
   b->given[i] = cmd - feed;
   return cmd;

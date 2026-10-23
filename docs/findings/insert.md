@@ -149,6 +149,11 @@ anti_spasm_supervisor.lisp):
   s, snow falls at every wobble (1 of 3 as built). Let go 18 ms after: 3 of
   4 leaps 0.045-0.072 s. Not kept: her step plans on her stance, and a
   contact held past its unloading is a force planned where none is.
+- The gate and the D channel's 42 Hz low-pass on the rate her drives' D terms
+  read, wobbled: 23 of 24 bed errands (21 without), 8 of 8 chairs (7); the
+  bench 88/192 scenes (86), shoves 29/25 of 64 (31/24); her walk 0.70 m/s,
+  407 J/m, 2.51 off. A rate's step damped in its first pass is b0 of it:
+  -0.10 W where -6.55, held 26 ms -6.60.
 - Her drives damp a step of their rates once the D channel settles: a pass
   after it 0.3 % of the damping and the preload's sign, +2.5 W; at the gate's
   attack and the low-pass's 2 % time (26 ms), -6.64 W where -6.55 bare.

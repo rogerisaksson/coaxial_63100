@@ -43,7 +43,9 @@ class Bus(ctypes.Structure):
 
     """wbc_bus_k: the insert's numbers."""
 
-    _fields_ = [(name, ctypes.c_double) for name in ('tank_max_j', 'tank_min_j')] + [
+    _fields_ = [(name, ctypes.c_double) for name in ('gate_rad_s', 'gate_attack_s', 'gate_release_s')] + [
+        ('d_b', ctypes.c_double * 3), ('d_a', ctypes.c_double * 2)] + [
+        (name, ctypes.c_double) for name in ('tank_max_j', 'tank_min_j')] + [
         ('hp_b', ctypes.c_double * 3), ('hp_a', ctypes.c_double * 2), ('lp_b', ctypes.c_double * 3),
         ('lp_a', ctypes.c_double * 2)] + [
         (name, ctypes.c_double) for name in ('period_s', 'reversals', 'trip_w', 'inject', 'rollback', 'recover_s')]
@@ -55,7 +57,7 @@ class State(ctypes.Structure):
 
     _fields_ = [('n', ctypes.c_int)] + [(name, ctypes.c_void_p) for name in (
         'slew', 'jerk', 'qa_out', 'tau_out', 'bv', 'bt', 'sign', 'half_e', 'half_t', 'count',
-        'alpha', 'given')] + [
+        'gate', 'dz1', 'dz2', 'qd', 'alpha', 'given')] + [
         ('energy', ctypes.c_double), ('power', ctypes.c_double), ('primed', ctypes.c_int)]
 
 
@@ -124,15 +126,18 @@ def constants(rate):
     lo, hi = detector['bandpass-window-hz']
     hp_b, hp_a = high_pass(lo, rate)
     lp_b, lp_a = low_pass(hi, rate)
-    return Bus(tank_max_j=tank['tank-capacity-joules'], tank_min_j=tank['lower-depletion-bound-joules'], hp_b=hp_b, hp_a=hp_a,
+    gate, d = k['velocity-gate'], k['derivative-channel']
+    d_b, d_a = low_pass(d['lpf-cutoff-hz'], rate)
+    return Bus(gate_rad_s=gate['deadband-radps'], gate_attack_s=1e-3 * gate['gate-open-attack-ms'],
+               gate_release_s=1e-3 * gate['gate-close-release-ms'], d_b=d_b, d_a=d_a, tank_max_j=tank['tank-capacity-joules'], tank_min_j=tank['lower-depletion-bound-joules'], hp_b=hp_b, hp_a=hp_a,
                lp_b=lp_b, lp_a=lp_a,
                period_s=1.0 / lo, reversals=detector['max-consecutive-reversals'],
                trip_w=detector['trigger-power-threshold-watts'], inject=violation['damping-injection-gain'],
                rollback=10.0 ** (violation['stiffness-rollback-db'] / 20.0), recover_s=1e-3 * violation['recovery-release-ms'])
 
 
-#: The bus's arrays laid once, kept by a reset.
-LAID = ('slew', 'jerk')
+#: The bus's arrays laid once, kept by a reset; and at what a reset lays the rest (its gates open).
+LAID, RESET = ('slew', 'jerk'), {'gate': 1.0}
 
 
 def bus(names, rate):
@@ -142,7 +147,8 @@ def bus(names, rate):
     k, n = constants(rate), len(names)
     arrays = dict(slew=np.array([drives.slew(name) for name in names]),
                   jerk=np.array([drives.jerk(name) for name in names]), bv=np.zeros(4 * n), bt=np.zeros(4 * n), **{name: np.zeros(n) for name in (
-        'qa_out', 'tau_out', 'sign', 'half_e', 'half_t', 'count', 'alpha', 'given')})
+        'qa_out', 'tau_out', 'sign', 'half_e', 'half_t', 'count', 'dz1', 'dz2', 'qd', 'alpha', 'given')},
+                  gate=np.ones(n))
     s = State(n=n, energy=insert()['energy-tank']['initial-energy-joules'], power=0.0, primed=0)
     for name, a in arrays.items():
         setattr(s, name, cores.address(a))
@@ -153,7 +159,7 @@ def reset(laid):
     """The bus `laid` (`bus`'s) as at its lay: nothing given, the tank at its initial energy."""
     _k, s, arrays = laid
     for name, a in arrays.items():
-        a[:] = a if name in LAID else 0.0
+        a[:] = a if name in LAID else RESET.get(name, 0.0)
     s.energy, s.power, s.primed = insert()['energy-tank']['initial-energy-joules'], 0.0, 0
 
 

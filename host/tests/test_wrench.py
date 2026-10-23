@@ -143,7 +143,8 @@ def test_surety_contracts_authority_and_damps_fall(report):
     s_col = motion.surety(g, 0.05, ct=70.0)
     s_bnc = motion.surety(g, 0.05, ct=42.0)
     g['sense'][edge.QD][g['joints']] = 2.0
-    motion.drives(g, 0.001)
+    for _ in range(26):      # the D channel's low-pass at 2 % of a step, 42 Hz
+        motion.drives(g, 0.001)
     feed = g['cmd']['feed'].copy()
     qd = g['sense'][edge.QD][g['joints']]
     power = float((feed * qd).max())
