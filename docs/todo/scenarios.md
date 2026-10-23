@@ -227,8 +227,14 @@ serves its DOD; none an entry a case.
     furniture too; turning and backing in the 1 m before the table she
     brushes it and the loft; docking takes 19 s, still at each corner of her
     way - walked through instead: A* -> convex corridors on her cells -> a
-    B-spline held in them by linear rows (`qp.solve`). DOD: the chair's, the
-    bed's and the door's errands from every pose she sees them from, no fall.
+    B-spline held in them by linear rows (`qp.solve`). Said from every spot
+    (112 runs a verb) none is free of a spasm: her arms at her stop - the
+    suite's phase-locked brake (`dock-terminal-stance`) -, her neck seated
+    and reclining - its `lock-horizon-gaze`; the dock the suite's
+    (`pivot-single-anchor-arc`) where tour's turn in place and back fell 13;
+    the chair's sit held laid at its dock 16 of 50. DOD: the chair's, the
+    bed's and the door's errands from every pose she sees them from and said
+    from every spot, no fall, no spasm.
 11. **Her head's spasms left** ([jerk](../findings/jerk.md)): her neck let go
     through a brake, a stop nods 1-4 deg; left: a spin's stop through a stand
     34 deg (53 before), 36 mid-gait in reverse and moves, 106 seated (the
