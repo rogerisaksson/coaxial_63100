@@ -409,9 +409,10 @@ def _on_rows():
     true row taken; and what she is told while none is. Read: walking, she stands where her
     stopping point enters the box; stood still (`idle`), she walks again past her stopping
     distance from it, turns to face away from the prop, sidesteps while her stop would end past
-    the dock's tolerance off its line till the dock bears from it within her list (read where she
-    stood, it flipped each pass), backs till her heels are the stunt's standoff off the edge
-    (`maneuver.standoff`), and begins the stunt."""
+    the dock's tolerance off its line till that stop is on it (read where she stood, it flipped
+    each pass; left 0.13 m off, her back-walk drifted her out), backs till her heels are the stunt's standoff off the edge
+    (`maneuver.standoff`), and begins the stunt within both, else settles again: begun off
+    them she sat on 54-60 of 100, within them 79-90."""
     from machine import figure, modal, se2, stride
     back = (-se2.BACK_SPEED, 0.0, 0.0)
     return {
@@ -424,9 +425,9 @@ def _on_rows():
                    (lambda c, er: c['idle'] and abs(c['s_perp_side']) > er['lat_tol'], 'side', _nothing),
                    (lambda c, er: c['idle'] and c['s_par'] > figure.HEEL + er['standoff'] + se2.BACK_STOP_M, 'back', _told(back)),
                    (lambda c, er: c['idle'] and c['still'], 'done', _stunt)), _nothing),
-        'side': (((lambda c, er: abs(math.atan2(c['s_perp_side'], max(c['s_par'], figure.HEEL))) <= modal.LIST_RAD, 'settle', _told(STOP)),), _to_line),
+        'side': (((lambda c, er: c['s_perp_side'] * c['s_perp'] <= 0.0, 'settle', _told(STOP)),), _to_line),
         'back': (((lambda c, er: c['s_par'] <= figure.HEEL + er['standoff'] + se2.BACK_STOP_M, 'done', _told(STOP)),), _to_edge),
-        'done': (((lambda c, er: c['idle'] and c['still'], 'done', _stunt),), _nothing),
+        'done': (((lambda c, er: c['idle'] and (abs(c['err_yaw']) > modal.LIST_RAD or abs(c['s_perp_side']) > er['lat_tol']), 'settle', _nothing), (lambda c, er: c['idle'] and c['still'], 'done', _stunt)), _nothing),
     }
 
 
@@ -447,10 +448,8 @@ def _settled(g):
 
 
 def step_errand(g, gym, heard_fn, heard_say_fn):
-    """Advance an active autonomous SE(2) room errand (`sit_chair`, `lie_bed`, `exit_door`): her
-    place in the dock's frame (along its normal, along its edge), where her walk would stop
-    her, her aim - on her curve, else her next stop, else on its normal line a stopping distance
-    ahead, never short of the box -, which way her left is to the line; then the phase's row
+    """Advance an active room errand (`sit_chair`, `lie_bed`, `exit_door`): her place in the dock's
+    frame, her stop, her aim - her curve, her next stop, else its normal line -, the row
     (`_on_rows`)."""
     from machine import edge, latent, route, se2, sight, stride
     er = g.get('_errand')
