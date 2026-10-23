@@ -353,11 +353,13 @@ def main(argv=None):
     parser.add_argument('names', nargs='*', help='scenarios (all where none)')
     parser.add_argument('--one', help="one scenario, its line as JSON")
     parser.add_argument('--wobble', type=float, default=0.0, help='with --one: laid turned this rad')
+    parser.add_argument('--set', action='append', default=[], help='with --one: PATH:START:END=VALUE, a literal of her texts')
     parser.add_argument('--wobbles', action='store_true', help='each laid turned 0 and 2e-4 rad either way too')
     parser.add_argument('--shoves', help="the shoves' polar too, of these N (80, 200)")
     args = parser.parse_args(argv)
     if args.one:
-        print(json.dumps(ran(args.one, args.wobble)))
+        from machine import tune
+        print(json.dumps(ran(args.one, args.wobble, texts=tune.given(dict(tune.setting(s) for s in args.set)) if args.set else None)))
         return 0
     from tools.dev import focus
     names = args.names or (list(SCENARIOS) + [n for n in SHOVES if args.shoves and n.split('_')[1] == args.shoves])

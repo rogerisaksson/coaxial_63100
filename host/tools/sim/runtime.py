@@ -48,8 +48,7 @@ def row(c, state):
     """Her walk's row in its reached slots (`c['slots']`) compiled from her texts with `state`'s
     literals ({span: value}) spliced: her gym re-read, her walk voiced (`voicing.walk`)."""
     from machine import tune, voicing
-    lits = [tune.Literal(p, a, z, None, None, None, None, v) for (p, a, z), v in state.items()]
-    walked = voicing.walk(c['fr'], tune.evaluated(tune.spliced(c['texts'], lits, [lit.value for lit in lits]))[1])
+    walked = voicing.walk(c['fr'], tune.evaluated(tune.given(state, c['texts']))[1])
     return {k: float(walked[k]) for k in c['slots']}
 
 

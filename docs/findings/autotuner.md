@@ -78,9 +78,11 @@ six classes, 33 keys (32 in the suite's names); its step's numbers its own (lamb
   one step, her stand's axial spring 3000 to 3450 and damper 600 to 510, her
   step's lift 1.0 to 0.85; the tank bled 54.7 J a window for 61.7, 379 J/m
   for 388. The next step not kept: her hip over stance, then her landing
-  load worse, then under its floor. Held elsewhere on 39 roots; written. Her
-  page's walk (40 s): 401 J/m for 408, off a woman's walk 2.42 for 2.51, her
-  knee at landing 31.3 deg for 32.7, behind plumb 10.9 for 10.7.
+  load worse, then under its floor. Held elsewhere on 39 roots and written,
+  her page's walk (40 s) 401 J/m for 408, off a woman's walk 2.42 for 2.51,
+  her knee at landing 31.3 deg for 32.7, behind plumb 10.9 for 10.7; but the
+  wall's scenario no longer met (she went -0.78 m): undone. A write is now
+  held on the bench's scenarios and shoves too (`tune.benched`).
 - Held strictly (no form measure growing at all) the step was 0: five form
   rows of noise-sized slopes over three literals; free it gained 0.47. A
   held measure now grows by its floor at most, as the verdict judges it, and

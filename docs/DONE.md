@@ -237,5 +237,5 @@ the hundred and fifty before these: [DONE_1-50](DONE_1-50.md),
     (`machine.rcu`), her raw passes copied in C and cooked off-core, a table
     of her walk's row compiled from her texts laid at her barrier
     minimum-jerk (`machine.tap`); her walk tuned while she walks, one step
-    kept and written (`tools/sim/runtime.py`; test_tune.py,
+    kept (`tools/sim/runtime.py`; test_tune.py,
     [autotuner](findings/autotuner.md)).

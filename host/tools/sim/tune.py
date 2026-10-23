@@ -72,13 +72,6 @@ def judged(before, after, verdicts=VERDICTS):
     return next((why(before, after) for test, why in verdicts if test(before, after)), None)
 
 
-def _said(arg):
-    """((path, start, end), value) of a --set PATH:START:END=VALUE."""
-    where, value = arg.rsplit('=', 1)
-    path, start, end = where.rsplit(':', 2)
-    return (path, int(start), int(end)), float(value)
-
-
 def runs(items):
     """[`telemetry.ran`'s dict, or {error}] of each (root, state {span: value}) of `items`, side by side on
     the relay's batons."""
@@ -241,15 +234,15 @@ def moved(root, state):
     gait on her walk moved by her walk's numbers too."""
     from machine import maneuver, tune
     fr, tx = suite._her(), tune.texts()
-    lits = [tune.Literal(p, a, z, None, None, None, None, v) for (p, a, z), v in state.items()]
-    was, now = tune.evaluated(tx), tune.evaluated(tune.spliced(tx, lits, [lit.value for lit in lits]))
+    was, now = tune.evaluated(tx), tune.evaluated(tune.given(state, tx))
     names = dict.fromkeys(list(was[0]) + list(maneuver.PLAYED) + [e[0] for e in was[1]] + list(tune.WHOLE))
     return [n for n in names if n != root and _voices(n, was, fr) != _voices(n, now, fr)]
 
 
 def elsewhere(root, state):
     """[(root, why)] of each other root `state` moves (`moved`) that it breaks: run as the texts are
-    and with `state`, judged as a step is but for the norm; one not run as they are, named."""
+    and with `state`, judged as a step is but for the norm; one not run as they are, named; the
+    bench's scenarios too (`benched`)."""
     from machine import tune
     unit = 10.0 ** -tune.knobs()[('sync-mutated-packages-to-disk', 'float-precision')]
     others = moved(root, state)
@@ -266,6 +259,23 @@ def elsewhere(root, state):
         out += [(other, why)] * (why is not None)
     print('held elsewhere: %d roots run, %s; not run as the texts are, not judged: %s' % (
         len(others), '; '.join('%s: %s' % o for o in out) or 'none broken', ', '.join(unjudged) or 'none'), flush=True)
+    return out + benched(state)
+
+
+def benched(state):
+    """[(scenario@wobble, why)] of the bench's scenarios and shoves (`bench.jobs`) met as her texts
+    are and not with `state`: a step on her walk held her suite's roots and broke the wall."""
+    from machine import tune
+    from tools.sim import bench
+    host = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    sets = ['%s:%d:%d=%s' % (p, a, z, tune.number(v)) for (p, a, z), v in state.items()]
+    pairs = [(j, w._replace(name='with ' + w.name)) for j, w in zip(bench.jobs(host), bench.jobs(host, sets))
+             if not j.name.startswith('replay:')]
+    got = bench.ran([job for pair in pairs for job in pair])
+    out = [(j.name, 'not met') for j, w in pairs if bench.met(j.name, got[j.name]) and not bench.met(j.name, got[w.name])]
+    print('held on the bench: %d of %d met as the texts are, %s' % (
+        sum(bench.met(j.name, got[j.name]) for j, _w in pairs), len(pairs),
+        ', '.join(name for name, _why in out) + ' not met with it' if out else 'all still met'), flush=True)
     return out
 
 
@@ -281,7 +291,7 @@ def main(argv=None):
     args = p.parse_args(argv)
     from machine import tune
     if args.one:
-        print(json.dumps(telemetry.ran(args.root, dict(_said(s) for s in args.set)), default=float))
+        print(json.dumps(telemetry.ran(args.root, dict(tune.setting(s) for s in args.set)), default=float))
         return 0
     if args.reach:
         gr, tx = tune.grammar(), tune.texts()
@@ -296,9 +306,7 @@ def kept(root, state, converged, write):
     """The kept `state` said; written (`write`) where it converged and holds on every other root it
     moves (`elsewhere`)."""
     from machine import tune
-    lits = [tune.Literal(p_, a, z, None, None, None, None, v) for (p_, a, z), v in state.items()]
-    texts = tune.spliced(tune.texts(), lits, [lit.value for lit in lits],
-                         tune.knobs()[('sync-mutated-packages-to-disk', 'float-precision')])
+    texts = tune.given(state, digits=tune.knobs()[('sync-mutated-packages-to-disk', 'float-precision')])
     print('\n%d literals kept moved; %s' % (len(state), 'converged' if converged else 'not converged'))
     if state and converged and not elsewhere(root, state) and write:
         print('written: ' + ', '.join(os.path.basename(path) for path in tune.written(texts)))

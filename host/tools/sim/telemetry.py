@@ -108,8 +108,7 @@ def ran(root, said):
     texts with `said` ({(path, start, end): value}) at those spans."""
     from machine import tap, tune
     from machine.errors import MachineError
-    lits = [tune.Literal(p, a, z, None, None, None, None, v) for (p, a, z), v in said.items()]
-    texts = tune.spliced(tune.texts(), lits, [lit.value for lit in lits])
+    texts = tune.given(said)
     got, gym = tune.evaluated(texts)
     rec = {'raws': [], 'state': tap.fresh(), 'weight': None}
     began, kind = time.time(), tune.kind(root, got, gym)

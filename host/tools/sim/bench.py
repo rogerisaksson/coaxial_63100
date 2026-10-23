@@ -30,20 +30,32 @@ REPLAYED = ('import csv, json, sys; sys.path.insert(0, sys.argv[3]); from tools.
             "print(json.dumps({'fell': got['fell'], 't': got['t']}))")
 
 
-def jobs(host):
-    """The bench's jobs on `host`'s code: (name, argv)."""
+def jobs(host, sets=()):
+    """The bench's jobs on `host`'s code: (name, argv); its scenarios and shoves on her texts with
+    `sets` (PATH:START:END=VALUE) spliced - a replay replays her texts as they are."""
     from tools.dev import focus
     names = json.loads(subprocess.check_output(
         [sys.executable, '-c', 'import json; from tools.sim import scenarios as s; print(json.dumps([list(s.SCENARIOS), '
          '[n for n in s.SHOVES if n.split("_")[1] == "%s"]]))' % SHOVE_N], cwd=host, text=True).strip().splitlines()[-1])
     scenes, shoves = names
-    one = [sys.executable, '-X', 'utf8', os.path.join(host, 'tools', 'sim', 'scenarios.py'), '--one']
-    out = [focus.Job('%s@%s' % (n, w), one + [n, '--wobble', w], timeout=900.0) for n in scenes for w in WOBBLES]
-    out += [focus.Job('%s@0' % n, one + [n, '--wobble', '0'], timeout=900.0) for n in shoves]
+    one, said = [sys.executable, '-X', 'utf8', os.path.join(host, 'tools', 'sim', 'scenarios.py'), '--one'], [
+        '--set=' + s for s in sets]
+    out = [focus.Job('%s@%s' % (n, w), one + [n, '--wobble', w] + said, timeout=900.0) for n in scenes for w in WOBBLES]
+    out += [focus.Job('%s@0' % n, one + [n, '--wobble', '0'] + said, timeout=900.0) for n in shoves]
     kept = sorted(glob.glob(os.path.join(host, 'tests', 'replays', '*.csv')))
     out += [focus.Job('replay:%s@%s' % (os.path.basename(p), w), [sys.executable, '-X', 'utf8', '-c', REPLAYED, p, w, host],
                       timeout=900.0) for p in kept for w in WOBBLES]
     return out
+
+
+def ran(bench):
+    """{job's name: its line} of the jobs `bench` on the relay."""
+    from tools.dev import focus
+    got = {}
+    for job, text, _code, _s in focus.relay(bench):
+        line = next((ln for ln in reversed((text or '').splitlines()) if ln.startswith('{')), None)
+        got[job.name] = json.loads(line) if line else {'error': (text or '').strip()[-400:]}
+    return got
 
 
 def met(name, r):
@@ -71,13 +83,9 @@ def main(argv=None):
     parser.add_argument('--host', default=os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
                         help="the host tree whose code runs (a worktree's for a baseline)")
     args = parser.parse_args(argv)
-    from tools.dev import focus
     host = os.path.abspath(args.host)
     os.environ['PYTHONPATH'] = host
-    got = {}
-    for job, text, _code, _s in focus.relay(jobs(host)):
-        line = next((ln for ln in reversed((text or '').splitlines()) if ln.startswith('{')), None)
-        got[job.name] = json.loads(line) if line else {'error': (text or '').strip()[-400:]}
+    got = ran(jobs(host))
     with open(args.out, 'w', encoding='utf-8') as f:
         json.dump(got, f, indent=0, sort_keys=True)
     was = {}

@@ -397,6 +397,19 @@ def spliced(texts, lits, values, digits=None):
     return out
 
 
+def given(state, base=None, digits=None):
+    """Her texts (`base`, else `texts()`) with `state`'s literals ({(path, start, end): value}) spliced."""
+    lits = [Literal(p, a, z, None, None, None, None, v) for (p, a, z), v in state.items()]
+    return spliced(texts() if base is None else base, lits, [lit.value for lit in lits], digits)
+
+
+def setting(arg):
+    """((path, start, end), value) of a PATH:START:END=VALUE, a run's `--set`."""
+    where, value = arg.rsplit('=', 1)
+    path, start, end = where.rsplit(':', 2)
+    return (path, int(start), int(end)), float(value)
+
+
 def step(J, r, scales, held=(), shrink=1.0, slack=None):
     """Each literal's step against residuals `r` (`J` their Jacobian, a column a literal): the damped
     least squares min |r + J d|^2 + lambda |d|^2 in the literals' `scales`, each move within
