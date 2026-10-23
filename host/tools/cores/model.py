@@ -8,7 +8,7 @@ its frame at rest in the parent's (R, p), its screw in its own frame (w, v), the
 carries (nothing for the first joint of a body with two), its centre and its inertia about it,
 the rotor's armature, its stops, its spring and damper, whether a drive turns it, a stop holds it
 or nothing does, the drive's clamp, peak and kt, the drive it shares its rods with. The soles'
-points, the knees, the trunk and her mass go with them. Her chain is the body form of the
+points, the knees, the trunk, her mass and the master insert's buffers (`wbc.Body`'s) go with them. Her chain is the body form of the
 product of exponentials, T = T_parent X exp([S] q); the firmware runs it (`wbc/`), MuJoCo stays
 the reference (tests/test_wbc_core.py).
 """
@@ -155,6 +155,7 @@ def render(rows, b):
     names = [r['name'] for r in rows]
     driven = [names.index(wbc_name) for wbc_name in _driven(b)]
     held = [k for k, r in enumerate(rows) if r['kind'] == HELD]
+    buffers, buffer = b.buffers
     header = '\n'.join([
         '/** wbc_model.h - %s */' % NOTICE,
         '#ifndef WBC_MODEL_H', '#define WBC_MODEL_H', '',
@@ -163,7 +164,8 @@ def render(rows, b):
         '#define WBC_LINKS %d' % len(rows),
         '#define WBC_N %d' % n,
         '#define WBC_DRIVEN %d' % len(driven),
-        '#define WBC_HELD %d' % len(held), '',
+        '#define WBC_HELD %d' % len(held),
+        '#define WBC_BUFFERS %d' % len(buffers), '',
         '/** A link\'s kind (wbc_kind). */',
         '#define WBC_FREE %d' % FREE, '#define WBC_IS_DRIVEN %d' % DRIVEN,
         '#define WBC_IS_HELD %d' % HELD, '',
@@ -185,6 +187,9 @@ def render(rows, b):
         'extern const int    wbc_held[WBC_HELD];      /**< the held joints\' links */',
         'extern const int    wbc_sole[2];             /**< the feet\'s links, left and right */',
         'extern const int    wbc_knee[2];             /**< the knees\' links */',
+        'extern const int    wbc_buffer_link[WBC_BUFFERS]; /**< the master insert\'s buffers: each one\'s link */',
+        'extern const double wbc_buffer_stop[WBC_BUFFERS][2]; /**< its stop rad and side, 1 a low end */',
+        'extern const double wbc_buffer[3];           /**< their width rad, stiffness 1/s^2, damping 1/s */',
         'extern const int    wbc_trunk;               /**< the trunk\'s link */',
         'extern const double wbc_sole_at[3];          /**< a sole\'s middle, in its foot\'s frame */',
         'extern const double wbc_sole_corner[4][3];   /**< its corners */',
@@ -208,6 +213,10 @@ def render(rows, b):
         _ints('wbc_held[WBC_HELD]', held),
         _ints('wbc_sole[2]', [names.index(s) for s in _soles(b, names)]),
         _ints('wbc_knee[2]', [names.index(s) for s in ('left_knee', 'right_knee')]),
+        _ints('wbc_buffer_link[WBC_BUFFERS]', [driven[i] for i, _s, _d in buffers]),
+        'const double wbc_buffer_stop[WBC_BUFFERS][2] = {\n  %s};'
+        % (',\n  '.join('{%s}' % _nums((stop, side)) for _i, stop, side in buffers)),
+        'const double wbc_buffer[3] = {%s};' % _nums(buffer),
         'const int wbc_trunk = %d;' % names.index(_last_joint(b, 'torso')), '',
         'const double wbc_sole_at[3] = {%s};' % _nums(b.sole),
         'const double wbc_sole_corner[4][3] = {\n  %s};'

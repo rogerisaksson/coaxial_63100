@@ -8,6 +8,7 @@
 #define WBC_N 39
 #define WBC_DRIVEN 21
 #define WBC_HELD 4
+#define WBC_BUFFERS 8
 
 /** A link's kind (wbc_kind). */
 #define WBC_FREE 0
@@ -32,6 +33,9 @@ extern const int    wbc_driven[WBC_DRIVEN];  /**< the drives' links, in the driv
 extern const int    wbc_held[WBC_HELD];      /**< the held joints' links */
 extern const int    wbc_sole[2];             /**< the feet's links, left and right */
 extern const int    wbc_knee[2];             /**< the knees' links */
+extern const int    wbc_buffer_link[WBC_BUFFERS]; /**< the master insert's buffers: each one's link */
+extern const double wbc_buffer_stop[WBC_BUFFERS][2]; /**< its stop rad and side, 1 a low end */
+extern const double wbc_buffer[3];           /**< their width rad, stiffness 1/s^2, damping 1/s */
 extern const int    wbc_trunk;               /**< the trunk's link */
 extern const double wbc_sole_at[3];          /**< a sole's middle, in its foot's frame */
 extern const double wbc_sole_corner[4][3];   /**< its corners */

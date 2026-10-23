@@ -51,9 +51,9 @@ static void turn_error(const wbc_blas_t *l, const double want[4], const double h
   }
 }
 
-/** machine.wrench._inv: A's damped inverse, A (6, 6) as numpy's a[:, idx] lays it - F-ordered,
-    its memory A.T's in C order. */
-static int inv6(const wbc_step_t *p, const double At[36], double out[36], double *work)
+/** machine.wrench._inv: A's damped inverse, `damp2` its lambda^2, A (6, 6) as numpy's a[:, idx]
+    lays it - F-ordered, its memory A.T's in C order. */
+static int inv6(const wbc_step_t *p, const double At[36], double damp2, double out[36], double *work)
 {
   double K[36];
 
@@ -62,7 +62,7 @@ static int inv6(const wbc_step_t *p, const double At[36], double out[36], double
   {
     for (int j = 0; j < 6; j++)
     {
-      K[6 * i + j] = K[6 * i + j] + p->damp2 * (double)(i == j);
+      K[6 * i + j] = K[6 * i + j] + damp2 * (double)(i == j);
     }
   }
   return wbc_solve(&p->blas, VIEW(K, 6, 1), VIEW(At, 6, 1), 6, 6, out, work);
@@ -122,7 +122,7 @@ static int maps(const wbc_step_t *p, const double *want, double *T, double *E, d
         A[6 * j + i] = J6[i * n + cols[j]];
       }
     }
-    if (inv6(p, A, inv, rest))
+    if (inv6(p, A, p->damp2, inv, rest))
     {
       return 1;
     }
@@ -517,16 +517,16 @@ int wbc_step(wbc_step_t *p)
       c0[0] = -full0[j];
       at = lay(R0, rhs, rhs0, at, nu, VIEW(full + j * nu, nu, 1), 1, c, p->w_fold, c0);
     }
-    for (int k = 0; k < 2; k++)
-    {
-      const int    j = knee[k];
-      const double shorter = p->knee_min - p->q[p->knees[k]];
+  }
+  for (int b = 0; b < p->nbuffers; b++)
+  {
+    const int    j = p->act[p->buffer_at[b]];
+    const double depth = p->buffer_side[b] * (p->buffer_stop[b] - p->q[p->buffer_at[b]]) + p->buffer[0];
 
-      c[0] = (p->posture_kd[0] * shorter - p->posture_kd[1] * p->v[j]) - full0[j];
-      c0[0] = -full0[j];
-      at = lay(R0, rhs, rhs0, at, nu, VIEW(full + j * nu, nu, 1), 1, c,
-               p->w_stop * pymin(pymax(shorter / p->knee_min, 0.0), 1.0), c0);
-    }
+    c[0] = ((p->buffer[1] * p->buffer_side[b]) * depth - p->buffer[2] * p->v[j]) - full0[j];
+    c0[0] = -full0[j];
+    at = lay(R0, rhs, rhs0, at, nu, VIEW(full + j * nu, nu, 1), 1, c,
+             p->w_stop * pymin(pymax(depth / p->buffer[0], 0.0), 1.0), c0);
   }
   for (int i = 0; i < 3; i++)
   {

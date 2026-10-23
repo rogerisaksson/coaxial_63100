@@ -5,7 +5,7 @@
 """
 import math
 import os
-from machine import mechatronics, edge, estimate, grip, leap, ortho, se2, situation, touch
+from machine import mechatronics, edge, estimate, grip, leap, ortho, se2, situation, supervisor, touch
 from machine.se2 import WEP_S, _dropped, doing, said
 
 LEAK_S, STANDING_KP, WEP_HOLD_S, WEP_FILL = se2.LEAK_S, se2.STANDING_KP, se2.WEP_HOLD_S, se2.WEP_FILL
@@ -99,8 +99,8 @@ def laid(every=1, inner=None, solver=None):
     if (solver or SOLVER) == 'c':
         from tools.cores.wbc import wrench_step as solve_step
     elif (solver or SOLVER) == 'wrench':
-        from tools.cores import motion as c_motion
-        solve_step = c_motion.wrench_laid(body, sensed)
+        from tools.cores import step as c_step
+        solve_step = c_step.wrench_laid(body, sensed)
     else:
         solve_step = {'stack': wbc.step}[solver or SOLVER]
     g = {'world': world, 'body': body, 'y': y, 'fr': fr, 'rest': rest, 'rest_y': rest_y, 'st': st, 'out': out, 'a': a, 'tab': tab,
@@ -120,7 +120,7 @@ def laid(every=1, inner=None, solver=None):
          'heading': float(fr[modal.HEADING]), 'twist': (0.0, 0.0, 0.0),
          'heat': heat.Heat.for_joints(JOINTS), 'temp': np.full(len(JOINTS), 25.0), 'scenario': 'flat',
          'touched': touch.laid(), 'twisted': se2.twist_laid(), 'words': se2.words_laid(),
-         'solve': solve_step, 'sensed': sensed}
+         'solve': solve_step, 'sensed': sensed, 'rate_hz': RATE_HZ}
     motion.laid(g)
     world.clock = lambda: g['t']
     return g
@@ -186,6 +186,7 @@ def relaid(g, where=(0.0, 0.0), yaw=0.0):
     g['twisted'][se2.LOOK_YAW], g['twisted'][se2.TURN_DC] = 0.0, 0.0
     g['touched'][:] = touch.REST       # what she felt stood in the world laid away
     g['_w_back'], g['_backing_yaw'] = 0.0, 0.0
+    supervisor.reset(g['bus'])
     for idx in (g.get('waist_idx'), g.get('head_idx')):
         if idx is not None:
             g['posture'][idx] = 0.0

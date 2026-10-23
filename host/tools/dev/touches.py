@@ -152,6 +152,7 @@ TOUCHES = (
     ('host/tools/cores/reach.py',              (STRUCTURE, REACH)),
     ('host/tools/cores/wbc.py',                (STRUCTURE, WBC_CORE, LEAP)),
     ('host/tools/cores/motion.py',             (STRUCTURE, WBC_CORE, PORTED)),
+    ('host/tools/cores/step.py',               (STRUCTURE, WBC_CORE, PORTED)),
     ('host/tools/cores/surety.py',                    (STRUCTURE, PORTED)),
     ('host/tools/cores/touch.py',                     (STRUCTURE, PORTED)),
     ('host/tools/cores/twist.py',                     (STRUCTURE, PORTED)),

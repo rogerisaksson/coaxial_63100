@@ -25,7 +25,7 @@ import collections
 import functools
 import math
 
-from machine import curves, dsp, figure, impedance, leap, ortho, seated, wrench
+from machine import curves, dsp, figure, impedance, leap, ortho, seated, supervisor, wrench
 from machine.errors import MachineError
 
 #: Each stunt of hers the suite plays: its patch, the stunt it rises from (its patch played on that
@@ -240,6 +240,7 @@ def _played(name, got, seat):
     g = dsp.called(patch_name, [base] + [got['nominal-biped-manifold']] * (len(got[patch_name].params) - 1), keys, got)
     if not isinstance(g, dict):
         raise MachineError('%s: a patch of a gait, not of a transition' % patch_name)
+    supervisor.checked(g)
     for step, info in g['_trace']:
         if isinstance(info, dsp.Morph) and step not in PASSED:
             raise MachineError('refused: %s, no phase of hers for it' % step)

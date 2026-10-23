@@ -12,7 +12,7 @@
 #define WBC_STEP_D 32
 #define WBC_STEP_C 8
 #define WBC_STEP_U (WBC_STEP_D + 3 * WBC_STEP_C)
-#define WBC_STEP_R (2 * WBC_STEP_U + 40)
+#define WBC_STEP_R (2 * WBC_STEP_U + 2 * WBC_STEP_D + 40)
 /** The workspace's doubles. */
 #define WBC_STEP_WORK (8 * WBC_STEP_N * WBC_STEP_U + 12 * WBC_STEP_U * WBC_STEP_U + 2 * WBC_STEP_R * WBC_STEP_U)
 
@@ -23,12 +23,15 @@ typedef struct
 {
   /* her body, laid once: dofs, driven, unknowns before the contacts (NU), each driven joint's
      dof, each leg's six and each knee among the driven, her upper body's, the held dofs, the
-     passive and the active, the parallel pairs */
-  int           n, nd, nu0, nupper, nheld, npass, nact, npairs;
+     passive and the active, the parallel pairs; the master insert's buffers (machine.wbc.Body's
+     buffers): each one's driven joint, stop rad and side, 1 a low end; their width rad,
+     stiffness 1/s^2 and damping 1/s */
+  int           n, nd, nu0, nupper, nheld, npass, nact, npairs, nbuffers;
   int           act[WBC_STEP_D], legs[2][6], knees[2], upper[WBC_STEP_D];
   int           held[WBC_STEP_N], passive[WBC_STEP_N], active[WBC_STEP_N], pairs[WBC_STEP_D][2];
-  int           rounds, past;
-  double        mass, moment[WBC_STEP_U], room[2], arms[WBC_STEP_D], yaw_m, damp2, knee_min;
+  int           rounds, past, buffer_at[2 * WBC_STEP_D];
+  double        buffer_stop[2 * WBC_STEP_D], buffer_side[2 * WBC_STEP_D], buffer[3];
+  double        mass, moment[WBC_STEP_U], room[2], arms[WBC_STEP_D], yaw_m, damp2;
   double        w_com, w_turn, w_swing, w_knee, w_posture, w_height, w_moment, w_fold, w_stop, w_part, w_air;
   double        w_pin, w_keep, w_still, grow_n, ridge, contact_k, height_band, held_k, momentum_k, mu, g;
   double        posture_kd[2], swing_kd[2], turn_kd[2];

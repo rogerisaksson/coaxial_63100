@@ -6,6 +6,7 @@
 
 #include "wbc.h"
 #include "wbc_blas.h"
+#include "wbc_bus.h"
 
 /** A pass of her world on the host (wbc_pass.c): arrays laid once and pointed to, nothing allocated,
     numpy's arithmetic operation for operation. The most joints a world has. */
@@ -47,6 +48,9 @@ typedef struct
   double              *sb;         /**< the knees' spring this pass */
   double              *feed;       /**< out: each drive's feed and its clamp this pass */
   double              *limit;
+  const wbc_bus_k     *bus_k;      /**< the master bus insert (machine.supervisor): its numbers, its state */
+  wbc_bus_t           *bus;
+  double               posture_kd; /**< a drive's own damping over its inertia, 1/s */
 } wbc_drives_t;
 
 /** The step, `dt` s on: `wo` the observers' bandwidth and `wo3` its cube, `ys` her law's yield as

@@ -97,9 +97,10 @@ def _applied(old, v, where):
 
 
 def _modulated(g, node, said):
-    """A copy of gait `g`, `node`'s params `said` ({param: value or Op}) applied."""
-    g = copy.deepcopy(g)
-    at = g.setdefault(node, {})
+    """A copy of gait `g`, `node`'s params `said` ({param: value or Op}) applied: that node copied,
+    the rest - its trace's transitions among them - shared."""
+    g = dict(g)
+    at = g[node] = copy.deepcopy(g.get(node, {}))
     for param, v in said.items():
         for p in SPLIT.get(param, (param,)):
             at[p] = _applied(at.get(p), v, '%s.%s' % (node, p))
@@ -109,8 +110,9 @@ def _modulated(g, node, said):
 def _sidechain(g, args, env):
     said = _plist(args, env)
     at = node(said.pop('target-node', said.pop('target', ':com-dynamics')))
-    g = copy.deepcopy(g)
-    held = g.setdefault(at, {}).setdefault('sidechain', {})
+    g = dict(g)
+    g[at] = copy.deepcopy(g.get(at, {}))
+    held = g[at].setdefault('sidechain', {})
     held.update({p: _applied(held.get(p), v, '%s.sidechain.%s' % (at, p)) for p, v in said.items()})
     return g
 
@@ -164,8 +166,15 @@ def _event(op):
 EVENTS = ('trigger-one-shot-envelope', 'on-contact-threshold', 'crossfade-support-manifold', 'stage-sequential-manifold',
           'configure-contact-compliance', 'on-manifold-equilibrium', 'cascade-actuator-gates', 'latch-current-encoders',
           'stage-coupled-pendulum', 'absorb-and-rebound-manifold', 'cascade-impedance-envelope')
+#: The anti-spasm insert's ops (anti_spasm_supervisor.lisp), each its node's params: her loop's
+#: (`machine.supervisor`).
+GUARDS = {'apply-velocity-noise-gate': 'velocity-gate', 'filter-derivative-channel': 'derivative-channel',
+          'limit-torque-transients': 'torque-transients', 'configure-jacobian-solver': 'jacobian-solver',
+          'enforce-joint-boundary-buffer': 'joint-boundary', 'configure-contact-comparators': 'contact-comparators',
+          'enforce-bumpless-handover': 'bumpless-handover', 'apply-zero-crossing-governor': 'zero-crossing',
+          'monitor-energy-tank': 'energy-tank'}
 #: The ops on a gait: (gait, raw args, env) -> a new gait.
-GAIT_OPS = {**{op: _event(op) for op in EVENTS},
+GAIT_OPS = {**{op: _event(op) for op in EVENTS}, **{op: _on(at) for op, at in GUARDS.items()},
     'modulate-oscillator': _on('oscillator'), 'quantize-grid': _on('oscillator'),
     'set-plantar-boundary': _on('plantar-boundary'), 'modulate-plantar-boundary': _on('plantar-boundary'),
     'modulate-node': lambda g, a, env: _modulated(g, node(a[0]), _plist(a[1:], env)),
@@ -193,7 +202,8 @@ FUNCS = {'+': lambda *a: sum(a), '-': lambda a, *b: a - sum(b) if b else -a, '*'
          **{name: (lambda p: lambda g: g['oscillator'][p])(p) for name, p in (
              ('get-bpm', 'bpm'), ('get-phase-diff', 'inter-limb-phase-rad'), ('get-duty-l', 'duty-factor-l'),
              ('get-duty-r', 'duty-factor-r'), ('get-duty', 'duty-factor-l'))},
-         'compile-to-soa': lambda *a: {k.lstrip(':'): v for k, v in zip(a[::2], a[1::2])}}
+         **{name: lambda *a: {k.lstrip(':'): v for k, v in zip(a[::2], a[1::2])}
+            for name in ('compile-to-soa', 'engage-virtual-dissipative-load')}}
 
 
 def _let(args, env):

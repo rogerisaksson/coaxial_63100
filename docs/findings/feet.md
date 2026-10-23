@@ -39,11 +39,23 @@ Passive toes, the sole's give, and the heel's rise on the loop
 - A flat foot at her walking height reaches 0.124 m along the floor
   ([kinematics](kinematics.md)); her stride rolls the standing sole about its
   ball (`stride.rocks`, `stride.heels`), its heel rising as far as its leg at
-  its length needs for her hip under where it stood, 0.6 rad at most at
-  6 rad/s.
+  its length needs for her hip under where it stood, at most a woman's as her
+  toes leave (36.2 deg, the reference take's), at 6 rad/s. Bus and DLS on, by
+  the cap: 0.6 rad on stilts (2.87 off, knee at lift 18.5); 36.2 deg 0.71 m/s,
+  411 J/m, 2.58 off (without them at 0.6, 0.70, 409, 2.55); 37.6 2.47; 40 deg
+  2.42, 62 (the band's) 2.36 - past 37.6 her sprint, stutter, start and stop,
+  rug, hole, snow and moves fell at 5-12 s, all eight standing at 36.2.
 - As the trailing sole's load leaves it, its knee folds (`stride.FOLD_RAD`
   0.26 rad with none on it), its leg that much shorter for its heel's rise
-  ([orthokinematics](orthokinematics.md)).
+  ([orthokinematics](orthokinematics.md)). The heel's cap at 40-46 deg, the
+  fold bites: 0.45 knee at lift 23.4-23.6, stiff 0.23, 2.25 off, 459-462 J/m; 0.6
+  24.1-26.5, 2.20-2.21, 443-479 J/m.
+- Her pre-swing against a woman's take (`tests/takes/walk.fbx`), a stride's
+  share from toe-off -0.12, -0.07, -0.02, 0: the woman's trailing knee 11.5,
+  23.2, 25.0, 36.5 deg and her thigh behind 12.2, 8.9, 9.8, 5.2 - it folds and
+  comes forward while her toes bear -; hers 10.1, 13.6, 15.2, 21.5 and 14.7,
+  15.1, 16.5, 14.8, going on back till they leave. Her leading foot lands 0.16
+  of a stride before, the woman's 0.25.
 - On the stacks (`drives.md`, `stacks.md`), the ankles' and hip rolls' rotors
   reflect 0.103 and 0.173 kg m^2 through their rods and spur pairs, and the
   passive toes' rows sit in her dynamics under the rest (`wbc_wrench.c`,

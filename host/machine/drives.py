@@ -10,6 +10,8 @@ trunk, one for the arms and the head.
     drives.speed('left_knee')          # deg/s at the supply's lowest, unloaded
     drives.backdrive('left_knee')      # N m to turn it by its output, unpowered
     drives.shock('left_knee')          # N m its gearbox takes momentarily, a fall's blow
+    drives.slew('left_knee')           # N m/s its torque slews at most, its board's current loop
+    drives.jerk('left_knee')           # rad/s^3 its joint's at most, that over its rotor's inertia
 
 A size: the inverter (its amps; its heat as the 63 V 100 A board's scaled to them, its laminate
 bolted to the stack's housing), the outrunner (Kt, the winding's resistance, KV, its rotor's
@@ -62,6 +64,7 @@ BOXES = {k: b['diameter_m'] for k, b in _LIB['gearboxes'].items()}
 BOX_K = {k: b['stiffness_nm_rad'] for k, b in _LIB['gearboxes'].items()}
 INVERTERS = {k: (v['disc_m'], v['amps'], v['kg'], v['laminate_k_w'], v['height_m'])
              for k, v in _LIB['inverters'].items()}
+LOOP_HZ = {k: v['loop_hz'] for k, v in _LIB['inverters'].items()}
 STACKS = {kind: tuple(stack) for kind, stack in _BUILD['stacks'].items()}
 _BOX = _LIB['gearboxes'][STACKS['knee'][1]]
 RATIO, GEAR_J, BOX_ZETA = _BOX['ratio'], _BOX['input_j_share'], _BOX['zeta']
@@ -342,6 +345,18 @@ def r_ohm(joint):
 def peak(joint):
     """The joint torque at the board's amps, N m."""
     return kt(joint) * of(joint)[1].amps
+
+
+def slew(joint):
+    """Its torque's fastest slew, N m/s: its peak through its board's current loop, first order at
+    its bandwidth (`LOOP_HZ`)."""
+    return peak(joint) * 2.0 * math.pi * LOOP_HZ[STACKS[kind(joint)][2]]
+
+
+def jerk(joint):
+    """Its joint's fastest angular jerk, rad/s^3: its torque's slew over its rotor's inertia
+    through its box, unloaded (`armature`)."""
+    return slew(joint) / armature(joint)
 
 
 def passive(joint):

@@ -7,7 +7,8 @@
         :ortho-dsp.transducers
         :ortho-dsp.topologies
         :ortho-dsp.modulators
-        :ortho-dsp.surfaces)
+        :ortho-dsp.surfaces
+        :ortho-dsp.supervisor)
   (:export #:universal-topology-morph
            #:compile-omnidirectional-suite))
 (in-package :ortho-dsp.sequencer)
@@ -53,13 +54,15 @@
       (transducer-elastomer-flat)
       (topology-pendular-walk :bpm 110.0)
       (modulator-coronal-catwalk :posture-profile :thoracic-kyphotic-bias)
-      (surface-high-mu-planar)))
+      (surface-high-mu-planar)
+      (master-anti-spasm-insert)))
 
 (defpatch patch-stealth-crouch-on-ice
   (-> nominal-biped-manifold
       (transducer-elastomer-flat)
       (topology-level-com-stealth :crouch-depth-mm 165.0)
-      (surface-low-mu-ice)))
+      (surface-low-mu-ice)
+      (master-anti-spasm-insert)))
 
 (defpatch patch-loaded-boot-snow-ascent
   (-> nominal-biped-manifold
@@ -67,26 +70,38 @@
       (topology-pendular-walk :bpm 96.0)
       (modulator-continuous-slope :grade-angle-rad 0.21)
       (modulator-inertial-payload :mass-kg 25.0 :mount :dorsal-pack)
-      (surface-granular-dissipative :sink-depth-mm 75.0)))
+      (surface-granular-dissipative :sink-depth-mm 75.0)
+      (master-anti-spasm-insert)))
 
 (defpatch patch-barefoot-stair-descent
   (-> nominal-biped-manifold
       (transducer-barefoot)
       (topology-pendular-walk)
       (modulator-discrete-stairs :riser-z-mm -175.0 :tread-x-mm 280.0) ; Negative Z = Eccentric Descent
-      (surface-high-mu-planar)))
+      (surface-high-mu-planar)
+      (master-anti-spasm-insert)))
 
 (defpatch patch-asymmetric-gallop-trail
   (-> nominal-biped-manifold
       (transducer-elastomer-flat)
       (topology-asymmetric-gallop :lead-side :right)
-      (surface-stochastic-uneven :rugosity-mm 40.0)))
+      (surface-stochastic-uneven :rugosity-mm 40.0)
+      (master-anti-spasm-insert)))
 
 (defpatch patch-ballistic-sprint
   (-> nominal-biped-manifold
       (transducer-elastomer-flat)
       (topology-ballistic-slip-run :bpm 188.0 :stride-mm 1420.0)
-      (surface-high-mu-planar)))
+      (surface-high-mu-planar)
+      (master-anti-spasm-insert)))
+
+;; The insert last before her SoA, whatever the patch above it
+(defpatch clean-runtime-stream
+  (-> nominal-biped-manifold
+      (transducer-elastomer-flat)
+      (modulator-coronal-catwalk :posture-profile :thoracic-kyphotic-bias)
+      (surface-high-mu-planar)
+      (master-anti-spasm-insert)))
 
 ;; -----------------------------------------------------------------------------
 ;; STATIC DMA RINGBUFFER COMPILATION

@@ -1,5 +1,7 @@
 # Inverters: disc diameter (m), phase amps, mass (kg), its laminate's K/W to the air through the
-# housing it is bolted to, its height with its parts (m), its supply's top (V).
+# housing it is bolted to, its height with its parts (m), its supply's top (V), its current loop's
+# bandwidth (Hz) as commissioning lays it with the winding's inductance unpublished - its sampling
+# bound, 0.05 of 50 kHz (`coaxial.model.sensorless.current_loop`).
 #
 # The 63100 as built: 100 mm, 100 A, 0.2 kg, 3.6 K/W (parts' centres 92 x 93 mm, the housing's
 # skin at 10 W/m^2 K still and the pad 0.3), 14.7 mm over all by its model (docs/HARDWARE.md).
@@ -13,6 +15,7 @@ kg = 0.2
 laminate_k_w = 3.6
 height_m = 0.015
 volts = 63.0
+loop_hz = 2500.0
 
 # A 50 A board on a 70 mm disc, estimated from the 63100's size class (stacks.md's frame B):
 # its laminate's K/W as the disc's area, its parts the 63100's at half the amps.
@@ -24,3 +27,4 @@ kg = 0.12
 laminate_k_w = 7.3
 height_m = 0.015
 volts = 63.0
+loop_hz = 2500.0

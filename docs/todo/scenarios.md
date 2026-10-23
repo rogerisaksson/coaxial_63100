@@ -230,7 +230,11 @@ serves its DOD; none an entry a case.
     B-spline held in them by linear rows (`qp.solve`). Said from every spot
     (112 runs a verb) none is free of a spasm: her arms at her stop - the
     suite's phase-locked brake (`dock-terminal-stance`) -, her neck seated
-    and reclining - its `lock-horizon-gaze`; the dock the suite's
+    and reclining - its `lock-horizon-gaze`; traced ([jerk](../findings/jerk.md)),
+    her step's strides 1 -> 0 in a pass at a landing, a borne point let go and
+    back, the seat's force flipping each pass - the anti-spasm insert her
+    master bus ([synth](../architecture/synth.md)), its Schmitt comparators no
+    part of her yet; the dock the suite's
     (`pivot-single-anchor-arc`) where tour's turn in place and back fell 13;
     the chair's sit held laid at its dock 16 of 50. DOD: the chair's, the
     bed's and the door's errands from every pose she sees them from and said
@@ -257,3 +261,19 @@ serves its DOD; none an entry a case.
     those 39 deg back at once and tips onto it. A stride's look-ahead in her
     backing steer, the back ended in `settle`, the sidestep entered at her list:
     the chair's dock 0 of 5. DOD: 11 of 11, the chair's 5 of 5 kept.
+14. **The anti-spasm insert's open stages** ([synth](../architecture/synth.md),
+    [jerk](../findings/jerk.md)): its velocity gate - under her encoders' step
+    (0.05 rad/s at 1 kHz), it shut a seated drive's rate and her chair's rise
+    ended on 0.78 of her soles -; its damped least squares on a swung leg - her
+    walk 2.63 off where 2.49, her head aside 48 where its form's 35 -; its D
+    low-pass at 42 Hz, its zero crossing's
+    bridge and its C2 85 ms handover each alone felled her walking a right turn
+    (replay walk_turn_right_at_0.69, 8.4-8.9 s at every nudge; the base stands
+    to 13.5 s); the handover lagged her step's regime while her ask switched,
+    both soles let go. Its Schmitt comparators on her soles and her borne
+    segments not begun. Red where the base is green with the rest on: the
+    standing jump (the neck's and head's buffers; the knee's alone passes),
+    the walk leap's 0.38 m at no charge and the run leap's landing at full,
+    F's rise within 6 s, the bed's dock from south_face, the turning replay
+    at -0.2 mm. DOD: each on her loop at its text's numbers, every suite as
+    green as the base.

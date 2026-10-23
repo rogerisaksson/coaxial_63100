@@ -166,7 +166,10 @@ class Body:
         self.stops = np.array([k for k, _r in stops], int)
         self.stop_lo = np.array([r[0] for _k, r in stops])
         self.stop_hi = np.array([r[1] for _k, r in stops])
-        self.feet = (m.body('left_foot').id, m.body('right_foot').id)
+        from machine import supervisor
+        #: The master insert's buffers before her stops (`supervisor.buffers`): rows of her step.
+        self.buffers = supervisor.buffers(names, dict(stops))
+        self.feet =(m.body('left_foot').id, m.body('right_foot').id)
         self.corners = np.array([(x, -ANKLE_H, z) for z in (-HEEL, BALL)
                                  for x in (-SOLE_HALF, SOLE_HALF)])
         self.sole = np.array((0.0, -ANKLE_H, (BALL - HEEL) / 2.0))

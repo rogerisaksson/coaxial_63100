@@ -17,7 +17,7 @@ from tools.cores.model import HEADER, rotation
 
 SOURCES = ([os.path.join(REPO, 'wbc', 'test', 'harness.c')]
            + [os.path.join(REPO, 'wbc', 'src', 'wbc_%s.c' % n) for n in (
-               'body stack solve wrench cone shrunk model pass imp stride swing floor surety touch twist wait brace blas law step rounds sil').split()]
+               'body stack solve wrench cone shrunk model pass bus imp stride swing floor surety touch twist wait brace blas law step rounds sil').split()]
            + [os.path.join(REPO, 'modbus', 'src', 'modbus_%s.c' % n) for n in ('crc rtu slave').split()])
 INCLUDES = [os.path.join(REPO, 'wbc', 'inc'), os.path.join(REPO, 'modbus', 'inc')]
 #: The firmware compiles the chain at -O2 (CMakeLists.txt); sin and cos called apart, as numpy calls
@@ -82,7 +82,7 @@ class Drives(ctypes.Structure):
                 ('joints', _vp), ('act', _vp), ('y', _vp), ('qacc', _vp), ('tau', _vp), ('over', _vp),
                 ('jeff', _vp), ('clamp', _vp), ('wep', _vp), ('wep_lim', _vp), ('clamp_j', _vp), ('q_lo', _vp),
                 ('q_hi', _vp), ('eso', _vp), ('ref_q', _vp), ('ref_v', _vp), ('hold', _vp), ('sb', _vp),
-                ('feed', _vp), ('limit', _vp)]
+                ('feed', _vp), ('limit', _vp), ('bus_k', _vp), ('bus', _vp), ('posture_kd', _d)]
 
 
 class World(ctypes.Structure):

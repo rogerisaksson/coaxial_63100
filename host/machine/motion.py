@@ -16,7 +16,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
-from machine import borne, edge, estimate, grip, latent, modal, poise, se2, situation, stride, touch, waits, wbc
+from machine import borne, edge, estimate, grip, latent, modal, poise, se2, situation, stride, supervisor, touch, waits, wbc
 
 
 #: Her axial stiffness in her latent state, where it goes and where it comes from; past HOP_K
@@ -269,7 +269,7 @@ def laid(g):
     knees' spring, the feed and the clamps her drives are told (`g['cmd']`) - and what it reads
     by, kept beside it. Her latent step, her upper body's coupling, her ask, her surety field, her
     touch's filter, her twist's step, her table's waits and her surety's brace on the solve in C, her
-    python's bit for bit (`tools.cores.motion`, `surety`, `touch`, `twist`, `wait`, `brace`); her estimate, her grip's feel and floor, her
+    python's bit for bit (`tools.cores.motion`, `step`, `surety`, `touch`, `twist`, `wait`, `brace`); her estimate, her grip's feel and floor, her
     situation, her drive's cap and her ask's poses compiled from their numpy (`tools.cores.bodied`)."""
     from machine.figure import JOINTS
     from tools.cores import bodied, motion as c_motion, surety as c_surety, touch as c_touch, twist as c_twist
@@ -308,8 +308,10 @@ def laid(g):
             'qacc': np.zeros(body.n, dtype=np.float64), 'tau': np.zeros(n, dtype=np.float64),
             'jeff': np.ascontiguousarray(g['jeff'], dtype=np.float64), 'over': np.zeros(n, dtype=np.bool_)}
     g['got'] = {'qacc': kept['qacc'].copy(), 'tau': kept['tau'].copy(), 'over': kept['over'].copy()}
+    k, bus, _arrays = g['bus'] = supervisor.bus(names, g['rate_hz'])
     p = cores.Drives(n=n, q_at=edge.Q.start, qd_at=edge.QD.start, qm_at=edge.QM.start, knee_nm=se2.KNEE_NM,
-                     knee_soft=se2.KNEE_SOFT, leak_s=se2.LEAK_S, wep_hold_s=se2.WEP_HOLD_S)
+                     knee_soft=se2.KNEE_SOFT, leak_s=se2.LEAK_S, wep_hold_s=se2.WEP_HOLD_S,
+                     bus_k=ctypes.addressof(k), bus=ctypes.addressof(bus), posture_kd=supervisor.POSTURE_KD)
     p.knee[0], p.knee[1] = body.knees
     p.cervical[0], p.cervical[1] = g['cervical']
     for name, arr in (('joints', kept['joints']), ('act', kept['act'])):

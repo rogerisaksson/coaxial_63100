@@ -41,15 +41,14 @@ MOMENT = np.array([1.0, 1.0, 1.0, 0.0, 0.0, 0.0] * 2 + [0.0] * len(UPPER))
 EDGE_M, YAW_M = 0.003, 0.04
 ROOM = np.array([SOLE_HALF - EDGE_M, (BALL + HEEL) / 2.0 - EDGE_M])
 #: Rounds of clipping; a leg's solve's damping - at 1e-3 a swung leg straight at the knee was
-#: asked 17 000 rad/s^2, at 0.05 she left the floor 8 mm where 20; a knee nearer straight than
-#: KNEE_MIN rad is sprung back.
-ROUNDS, DAMP, KNEE_MIN = 4, 0.02, 0.07
+#: asked 17 000 rad/s^2, at 0.05 she left the floor 8 mm where 20.
+ROUNDS, DAMP = 4, 0.02
 #: Rounds more, at most, for an answer past her height's band after them.
 PAST = 2
 #: The rows' weights. Her centre of mass along the floor, m/s^2, all but exact; the turns and a
 #: swinging sole, rad/s^2 and m/s^2 - the sole at a third of the turns the walk fell at its 7th
 #: step -; her standing knees' posture, rad/s^2 - at 1, 60 N felled her 2 times of 8 -; the
-#: posture, her height, her angular momentum (N m), a swinging knee's fold, a knee's stop; a
+#: posture, her height, her angular momentum (N m), a swinging knee's fold, a buffer; a
 #: wrench's parts in shares of her weight, a sole's acceleration left alone, a pinned part.
 W_COM, W_TURN, W_SWING, W_KNEE, W_POSTURE, W_HEIGHT, W_MOMENT = 1000.0, 30.0, 30.0, 3.0, 1.0, 1.0, 0.3
 W_FOLD, W_STOP, W_PART, W_AIR, W_PIN = 3.0, 30.0, 0.1, 1e-3, 1e5
@@ -71,7 +70,6 @@ RIDGE = 1e-12
 
 
 _EYE3, _EYE6, _EYE_NU = np.eye(3), np.eye(6), np.eye(NU)
-_DAMP_EYE6 = DAMP ** 2 * _EYE6
 _UPPER_IDX = 12 + np.arange(len(UPPER))
 _UPPER_ROWS = _EYE_NU[12:NU]
 _GIVES = 1e-9 * (np.arange(13) == 12)
@@ -82,9 +80,9 @@ _GIVES = 1e-9 * (np.arange(13) == 12)
 ARMED = np.array([float(_DRIVEN[i].endswith(('shoulder', 'elbow'))) for i in UPPER])
 
 
-def _inv(A):
-    """A's damped inverse."""
-    return np.linalg.solve(A.T @ A + (_DAMP_EYE6 if A.shape[1] == 6 else DAMP ** 2 * np.eye(A.shape[1])), A.T)
+def _inv(A, damp2):
+    """A's damped inverse, lambda^2 `damp2`."""
+    return np.linalg.solve(A.T @ A + damp2 * _EYE6, A.T)
 
 
 def _solved(K, rhs, free):
@@ -221,7 +219,7 @@ def _maps(b, s, ask, want):
         if not ask['stance'][k] and k not in swing:
             t0[cols] = want[leg]
             continue
-        inv = _inv(f['J6'][:, cols])
+        inv = _inv(f['J6'][:, cols], DAMP ** 2)
         T[cols] = -inv @ f['J6'][:, :6]
         if ask['stance'][k]:
             t0[cols] = inv @ (settle[k] - f['dJv'] - CONTACT_K * twist)
@@ -366,10 +364,11 @@ def step(b, s, ask):
         j = knees[k]
         lay(full[j], acc + SWING_KD[0] * (knee - s['q'][KNEES[k]]) + SWING_KD[1] * (rate - v[j]) - full0[j], W_FOLD,
             -full0[j])
-    for k, j in enumerate(knees):
-        short = KNEE_MIN - s['q'][KNEES[k]]
-        lay(full[j], POSTURE_KD[0] * short - POSTURE_KD[1] * v[j] - full0[j],
-            W_STOP * min(max(float(short / KNEE_MIN), 0.0), 1.0), -full0[j])
+    stops, (width, stiff, damp) = b.buffers
+    for i, stop, side in stops:
+        j, depth = act[i], side * (stop - s['q'][i]) + width
+        lay(full[j], stiff * side * depth - damp * v[j] - full0[j], W_STOP * np.clip(depth / width, 0.0, 1.0),
+            -full0[j])
     kdot = ask.get('kdot')
     lay(about, -MOMENTUM_K * s['k'] if kdot is None else np.asarray(kdot), W_MOMENT * grounded)
     part, inv_mg, inv_mgr = np.zeros(nu), 1.0 / (mass * G), 1.0 / (mass * G * ROOM[0])

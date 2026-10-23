@@ -155,6 +155,66 @@ def test_what_she_cannot_do_is_refused_by_name(report):
                  and told[1][0] < 0.0, str(told))
 
 
+def test_the_insert_is_every_patch_last(report):
+    """The anti-spasm insert: its five stages in order, its nine nodes; every param of it named on
+    her loop (`machine.supervisor`); every patch of the suite and the clean runtime stream ending
+    in it, a number said otherwise refused by name; her bus laid of it - each drive's slew and jerk
+    its own (its peak through its current loop, over its rotor's inertia), a buffer before each stop
+    of its boundary nodes' joints."""
+    import copy
+    from machine import dsp, supervisor, voicing
+    from machine.errors import MachineError
+    from machine.figure import JOINTS
+    got, fr = _got(), _her()
+    g = dsp.value(['->', 'nominal-biped-manifold', ['master-anti-spasm-insert']], got)
+    assert isinstance(g, dict), g
+    stages = ['latch-hysteretic-contact', 'regularize-kinematic-singularities', 'bridge-backlash-zero-crossing',
+              'suppress-derivative-chatter', 'enforce-passivity-energy-tank', 'master-anti-spasm-insert']
+    report.check('its stages in order, a node an op', [t[0] for t in g['_trace']] == stages
+                 and all(at in g for at in dsp.GUARDS.values()), str([t[0] for t in g['_trace']]))
+    said = {k for k in voicing._flat(g) if k[0] in dsp.GUARDS.values()}
+    unnamed = sorted('%s.%s' % k for k in said if not supervisor.named(*k))
+    report.check('every param of it named on her loop: %d' % len(said), not unnamed, str(unnamed))
+    def last(name):
+        v = got[name]
+        p = v if isinstance(v, dict) else dsp.value([name] + ['nominal-biped-manifold'] * len(v.params), got)
+        assert isinstance(p, dict), p
+        trace = [step for step, _info in p['_trace']]
+        return trace[-2] if trace[-1] == name else trace[-1]
+    ends = {n: last(n) for n in got if n.startswith(('patch-', 'clean-'))}
+    report.check('every patch ends in it: %d' % len(ends), set(ends.values()) == {'master-anti-spasm-insert'}, str(ends))
+    stream = got['clean-runtime-stream']
+    supervisor.checked(stream)
+    bad = copy.deepcopy(stream)
+    bad['zero-crossing']['co-contraction-bias-nm'] = 2.4
+    try:
+        supervisor.checked(bad)
+        refusal = ''
+    except MachineError as error:
+        refusal = str(error)
+    report.check('its text hers; another preload refused by name', 'co-contraction-bias-nm' in refusal, refusal)
+    row, _told = voicing.voiced(stream, got['nominal-biped-manifold'], fr)
+    run, _told = voicing.voiced(got['patch-sneaker-runway'], got['nominal-biped-manifold'], fr)
+    report.check('the stream voices her walk as the runway, its clock its own', set(row) <= set(run), str(sorted(row)))
+    from coaxial.model import inverter, sensorless
+    from machine import drives, wbc
+    names = [j for j in JOINTS if drives.passive(j) is None]
+    _k, _s, laid = supervisor.bus(names, 1000.0)
+    loop = sensorless.current_loop(0.0, 0.0, inverter.FSW, 0.0, drives.PACK_V)['bw_hz']
+    report.check("her bus: each slew its peak x 2 pi x its board's loop, %.0f Hz; its jerk that over its rotor's inertia" % loop,
+                 set(drives.LOOP_HZ.values()) == {loop}
+                 and all(_near(v, drives.peak(n) * 2.0 * math.pi * loop) for n, v in zip(names, laid['slew']))
+                 and all(_near(j, v / drives.armature(n)) for n, v, j in zip(names, laid['slew'], laid['jerk'])),
+                 str([(n, round(v / 1e3)) for n, v in zip(names, laid['slew'])]))
+    body = wbc.Body()
+    rows, (width, stiff, damp) = body.buffers
+    ends = sorted((names[i], side) for i, _stop, side in rows)
+    report.check('a buffer %.2f rad before each stop of %d joints, critically damped' % (width, len(ends) // 2),
+                 ends == sorted((names[i], side) for i in supervisor.joints_of(
+                     supervisor.insert()['joint-boundary']['nodes'], names) if i in body.stops for side in (1.0, -1.0))
+                 and _near(damp * damp, 4.0 * stiff), str(ends))
+
+
 def test_the_runway_reads_in_its_own_dialect(report):
     """machine/runway.lisp through the same reader: its dry plays her walk, its wet narrows her
     track by its own ratio, its morph lays a curve row every sixteenth of two bars."""
@@ -206,8 +266,8 @@ def test_a_take_converts_to_a_modifier_she_reads(report):
 
 
 ROSTER = (test_the_suite_reads_as_written, test_the_maneuvers_read_as_written, test_a_patch_moves_her_walk_by_its_changes,
-          test_what_she_cannot_do_is_refused_by_name, test_the_runway_reads_in_its_own_dialect,
-          test_a_take_converts_to_a_modifier_she_reads)
+          test_what_she_cannot_do_is_refused_by_name, test_the_insert_is_every_patch_last,
+          test_the_runway_reads_in_its_own_dialect, test_a_take_converts_to_a_modifier_she_reads)
 
 
 def main(argv=None):

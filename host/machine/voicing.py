@@ -9,7 +9,7 @@ has instead (VOICELESS), what she cannot do refused by name (REFUSED), anything 
 """
 import math
 
-from machine import dsp, modal, ortho, patch, se2
+from machine import dsp, modal, ortho, patch, se2, supervisor
 from machine.errors import MachineError
 
 #: Her voices' slots.
@@ -127,7 +127,7 @@ def _covered(node, param):
     return ((node, param) in VOICELESS or (node, param.split('.')[0] + '.*') in VOICELESS
             or (node, '*') in VOICELESS or (node, param) in TOLD
             or any(n == node and p == param for n, p, _s, _r in VOICES)
-            or any(n == node and param in s for n, _p, s, _h in DERIVED))
+            or any(n == node and param in s for n, _p, s, _h in DERIVED) or supervisor.named(node, param))
 
 
 def walk(fr):
@@ -146,6 +146,7 @@ def voiced(g, dry, fr):
     for node, test, why in REFUSED:
         if test(g.get(node, {}), dry.get(node, {})):
             raise MachineError('refused: ' + why)
+    supervisor.checked(g)
     now, was = _flat(g), _flat(dry)
     changed = {k for k in set(now) | set(was) if now.get(k, UNSAID.get(k)) != was.get(k, UNSAID.get(k))}
     unknown = sorted('%s.%s' % k for k in changed if not _covered(*k))

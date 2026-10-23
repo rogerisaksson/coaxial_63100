@@ -9,7 +9,8 @@
         :ortho-dsp.surfaces
         :ortho-dsp.docking
         :ortho-dsp.manifolds
-        :ortho-dsp.substrates)
+        :ortho-dsp.substrates
+        :ortho-dsp.supervisor)
   (:export #:patch-sit-rigid-chair
            #:patch-supine-mattress-sleep
            #:patch-wake-and-stand
@@ -26,7 +27,8 @@
         :source-manifold :plantar-bilateral
         :target-manifold :ischial-bilateral
         :descent-duration-ms 1050.0
-        :seat-z-mm seat-z-mm)))
+        :seat-z-mm seat-z-mm)
+      (master-anti-spasm-insert)))
 
 ;; Composite 2: Dock at bed, sit on mattress edge, roll to supine, and gate off inverters
 (defpatch patch-supine-mattress-sleep [approach-gait &key (seat-z-mm 450.0)] ; the bed her eyes see
@@ -39,7 +41,8 @@
         :descent-duration-ms 1150.0
         :seat-z-mm seat-z-mm)
       (sequence-recumbent-cascade :direction :to-supine :duration-ms 1750.0)
-      (gate-inverter-high-z :verify-dwell-ms 400.0)))
+      (gate-inverter-high-z :verify-dwell-ms 400.0)
+      (master-anti-spasm-insert)))
 
 ;; Composite 3: Precharge bridges from High-Z sleep, roll to seated, stand up, ignite clock
 (defpatch patch-wake-and-stand [sleeping-state target-walk-gait]
@@ -51,7 +54,8 @@
         :source-manifold :ischial-bilateral
         :target-manifold :plantar-bilateral
         :ascent-duration-ms 950.0)
-      (ignite-cyclic-clock target-walk-gait :bars 2)))
+      (ignite-cyclic-clock target-walk-gait :bars 2)
+      (master-anti-spasm-insert)))
 
 ;; Composite 4: Precharge from the chair's settled rest and stand up
 (defpatch patch-rise-chair [seated-state]
@@ -60,7 +64,8 @@
       (transfer-concentric-handover
         :source-manifold :ischial-bilateral
         :target-manifold :plantar-bilateral
-        :ascent-duration-ms 950.0)))
+        :ascent-duration-ms 950.0)
+      (master-anti-spasm-insert)))
 
 ;; -----------------------------------------------------------------------------
 ;; COMPLETE LIFECYCLE SCHEDULE: CATWALK -> SLEEP (HIGH-Z) -> WAKE -> CATWALK
@@ -69,7 +74,8 @@
   (let [runway-gait (-> nominal-biped-manifold
                         (transducer-elastomer-flat)
                         (modulator-coronal-catwalk :posture-profile :thoracic-kyphotic-bias)
-                        (surface-high-mu-planar))
+                        (surface-high-mu-planar)
+                        (master-anti-spasm-insert))
         bed-sleep   (patch-supine-mattress-sleep runway-gait)
         bed-egress  (patch-wake-and-stand bed-sleep runway-gait)]
 

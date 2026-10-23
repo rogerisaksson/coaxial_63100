@@ -319,10 +319,10 @@ def test_her_law_in_c_is_her_python_s(report, c, b, rows):
     ducked and narrowed by a row: every field the same, bit for bit."""
     import numpy as np
     from machine import impedance, latent, modal, ortho, support, worker
-    from tools.cores import motion
+    from tools.cores import motion, step
     from tools.sim import scenarios
     from machine import wrench
-    kept, tally = (motion.asked, motion.stepped, motion.coupled, motion._stepped), {}
+    kept, tally = (motion.asked, motion.stepped, motion.coupled, step._stepped), {}
 
     def check(name, got, want):
         n, bad, apart = tally.get(name, (0, 0, 0))
@@ -359,7 +359,7 @@ def test_her_law_in_c_is_her_python_s(report, c, b, rows):
         check('whole-body step', [np.asarray(got[f], float) for f in fields] + [b.load, nones[0]] + [x for x, _y in cops],
               [np.asarray(want[f], float) for f in fields] + [load, nones[1]] + [y for _x, y in cops])
         return got
-    motion.asked, motion.stepped, motion.coupled, motion._stepped = asked, stepped, coupled, solved
+    motion.asked, motion.stepped, motion.coupled, step._stepped = asked, stepped, coupled, solved
     try:
         for name in ('play_moves', 'chair'):
             scenarios.ran(name)
@@ -370,7 +370,7 @@ def test_her_law_in_c_is_her_python_s(report, c, b, rows):
         while s['g']['t'] < WALK_S:
             worker.stepped(s)
     finally:
-        motion.asked, motion.stepped, motion.coupled, motion._stepped = kept
+        motion.asked, motion.stepped, motion.coupled, step._stepped = kept
     report.check('the knobs bite', s['g']['a'][modal.DUCKING][1] > 0 > s['g']['out'][latent.REF][modal.WIDTH])
     exact = motion.exact_host()
     features = getattr(getattr(getattr(np, '_core', None), '_multiarray_umath', None), '__cpu_features__', {})

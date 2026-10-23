@@ -216,3 +216,8 @@ the hundred and fifty before these: [DONE_1-50](DONE_1-50.md),
     patches, paced to her springs, her arms held, docked at the patch's
     standoff (`machine.maneuver`, `seated`, `swing`; test_errands.py,
     [sequencer](findings/sequencer.md)).
+41. The anti-spasm insert her master bus, the last stage of every patch: its
+    tank on her drives' 1 kHz pass, each slew and jerk its drive's own, buffers
+    before her stops;
+    her heel's cap a woman's (`machine.supervisor`, `wbc_bus.c`,
+    `stride.HEEL_RAD`; [synth](architecture/synth.md), [jerk](findings/jerk.md)).

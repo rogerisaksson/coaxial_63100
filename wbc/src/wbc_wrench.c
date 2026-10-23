@@ -24,9 +24,8 @@ static const double G = 9.81;
 static const double HELD_K = 50.0, CONTACT_K = 20.0, MOMENTUM_K = 3.0, HEIGHT_BAND = 3.0;
 static const double TURN_KP = 100.0, TURN_KD = 20.0, POSTURE_KP = 100.0, POSTURE_KD = 20.0;
 static const double SWING_KP = 1600.0, SWING_KD = 80.0;
-/** machine/wrench.py's: a sole's edge, m; a leg's solve's damping; a knee nearer straight
-    than KNEE_MIN rad is sprung back; the rows' weights. */
-static const double EDGE_M = 0.003, DAMP = 0.02, KNEE_MIN = 0.07;
+/** machine/wrench.py's: a sole's edge, m; a leg's solve's damping; the rows' weights. */
+static const double EDGE_M = 0.003, DAMP = 0.02;
 static const double W_COM = 1000.0, W_TURN = 30.0, W_SWING = 30.0, W_KNEE = 3.0, W_POSTURE = 1.0;
 static const double W_HEIGHT = 1.0, W_MOMENT = 0.3, W_FOLD = 3.0, W_STOP = 30.0, W_PART = 0.1;
 static const double W_AIR = 1e-3, W_PIN = 1e5;
@@ -629,7 +628,7 @@ void wbc_wrench_step(wbc_body_t *b, wbc_wrench_t *w, const wbc_frame_t *base,
   }
   {
     /* each knee's acceleration over the unknowns: her standing knees' posture, a swinging
-       knee's fold, a knee sprung back from straight */
+       knee's fold */
     double pick[WBC_N], bends[2][NU], left[2], rhs = 0.0, none = 0.0;
 
     memset(row, 0, sizeof(row));
@@ -649,13 +648,25 @@ void wbc_wrench_step(wbc_body_t *b, wbc_wrench_t *w, const wbc_frame_t *base,
     for (int k = 0; k < 2; k++)
     {
       const int    knee = 5 + wbc_knee[k];
-      const double bend = b->q[knee - 6], shrt = KNEE_MIN - bend;
+      const double bend = b->q[knee - 6];
 
       lay(w, bends[k], ask->fold_acc[k] + SWING_KP * (ask->fold_knee[k] - bend)
           + SWING_KD * (ask->fold_rate[k] - u[knee]) - left[k], -left[k], ask->fold[k] ? W_FOLD : 0.0);
-      lay(w, bends[k], POSTURE_KP * shrt - POSTURE_KD * u[knee] - left[k], -left[k],
-          W_STOP * clip(shrt / KNEE_MIN, 0.0, 1.0));
     }
+  }
+  /* the master insert's buffers: each joint sprung back, critically damped, from its width
+     before its stop (wbc_model.h) */
+  for (int i = 0; i < WBC_BUFFERS; i++)
+  {
+    const int    dof = 5 + wbc_buffer_link[i];
+    const double side = wbc_buffer_stop[i][1], depth = side * (wbc_buffer_stop[i][0] - b->q[dof - 6]) + wbc_buffer[0];
+    double       pick[WBC_N], stop, left;
+
+    memset(pick, 0, sizeof(pick));
+    pick[dof] = 1.0;
+    left = over(w, pick, row);
+    stop = (wbc_buffer[1] * side) * depth - wbc_buffer[2] * u[dof];
+    lay(w, row, stop - left, -left, W_STOP * clip(depth / wbc_buffer[0], 0.0, 1.0));
   }
   wbc_body_momentum(b, com, k3);
   for (int i = 0; i < 3; i++)

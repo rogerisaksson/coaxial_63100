@@ -38,16 +38,18 @@ void wbc_pass_drives(wbc_drives_t *p, double dt, double wo, double wo3, double y
     const int    jo = p->joints[i];
     const double qm = p->y[p->qm_at + jo], qpos = p->y[p->q_at + jo], qvel = p->y[p->qd_at + jo];
     const double b_pas = (1.0 - ys) * 25.0 * npmin(p->jeff[i], 0.6);
-    double       qa = p->qacc[p->act[i]] * ys, e;
+    double       qa = p->qacc[p->act[i]] * ys, asked, e;
 
     if (!in_hop)
     {
       qa = npclip(qa, -250.0, 250.0);
     }
+    asked = qa;
+    qa = wbc_bus_ask(p->bus, i, dt, qa);
     /* the observer on the motor's encoder: angle, rate, what else moves it */
     e = qm - eso0[i];
     eso0[i] += dt * (eso1[i] + c3 * e);
-    eso1[i] += dt * (((qa + p->sb[i] / p->jeff[i]) + eso2[i]) + c33 * e);
+    eso1[i] += dt * (((qa + (p->sb[i] + p->bus->given[i]) / p->jeff[i]) + eso2[i]) + c33 * e);
     eso2[i] += dt * (wo3 * e);
     if (!in_hop)
     {
@@ -92,9 +94,19 @@ void wbc_pass_drives(wbc_drives_t *p, double dt, double wo, double wo3, double y
       }
       p->ref_q[i] = npclip(p->ref_q[i], p->q_lo[i], p->q_hi[i]);
     }
-    p->feed[i] = ((p->tau[i] * ys + p->sb[i]) - p->jeff[i] * eso2[i]) - b_pas * qvel;
+    /* less its inertia's share of what the jerk's clip cut: its observer, told the clipped ask,
+       pushed against the rest - a jamb's touch yielded her arm 0.24 rad where 0.55 */
+    p->feed[i] = (((wbc_bus_slew(p->bus, i, dt, p->tau[i] * ys) + p->sb[i]) - p->jeff[i] * eso2[i]) - b_pas * qvel)
+                 - p->jeff[i] * (asked - qa);
     p->limit[i] = p->hold[i] > 0.0 ? (wb ? p->wep_lim[i] : p->wep[i]) : p->clamp_j[i];
   }
+  /* the master bus insert (wbc_bus.c): her torque command through the tank, the zero crossing, the slew */
+  for (int i = 0; i < n; i++)
+  {
+    p->feed[i] = wbc_bus_feed(p->bus_k, p->bus, i, dt, p->y[p->qd_at + p->joints[i]], p->feed[i],
+                              p->jeff[i] * p->posture_kd);
+  }
+  wbc_bus_pass(p->bus_k, p->bus, dt);
 }
 
 void wbc_pass_ctrl(wbc_world_t *w, double span, const double *ahead, const double *wrate)
