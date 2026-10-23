@@ -323,7 +323,7 @@ def test_the_referee_and_her_averages_in_c(report):
     (wbc_pass_averaged) beside their numpy at every pass of her walk and a shove that throws her:
     the same fall at each pass, a fall seen, the averages bit for bit."""
     import numpy as np
-    from machine import worker
+    from machine import figure, modal, worker
     from tools.cores.orders import same
     s = worker.session(walks=True)
     g, apart, falls = s['g'], 0, 0
@@ -337,7 +337,8 @@ def test_the_referee_and_her_averages_in_c(report):
         power += worker.K * (d.ctrl * d.qvel[world.vadr] - power)
         _m, (down, ground), _at = g['_falls_by']
         a, b = d.contact.geom[:d.ncon, 0], d.contact.geom[:d.ncon, 1]
-        fallen = bool(((down[a] & ground[b]) | (down[b] & ground[a])).any())
+        under = d.contact.pos[:d.ncon, 1] < float(g['fr'][modal.FLOOR]) + figure.ANKLE_H + figure.SHANK
+        fallen = bool((((down[a] & ground[b]) | (down[b] & ground[a])) & under).any())
         falls += fallen
         apart += (fallen != worker._is_fallen(g, world)) + (not (same(torque, s['torque']) and same(power, s['power'])))
     report.check('the referee and her averages in C are their numpy at every pass, a shove her fall',

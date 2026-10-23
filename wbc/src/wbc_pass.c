@@ -190,17 +190,19 @@ void wbc_pass_metered(wbc_world_t *w, const double *speed, double step_s)
   w->brake -= npsum(neg, nn) * step_s;
 }
 
-int wbc_pass_paired(const unsigned char *geom, ptrdiff_t stride, int ncon, const unsigned char *a,
-                    const unsigned char *b)
+int wbc_pass_paired(const unsigned char *geom, const unsigned char *pos, ptrdiff_t stride, int ncon,
+                    const unsigned char *a, const unsigned char *b, double below)
 {
   int paired = 0;
 
   for (int i = 0; i < ncon; i++)
   {
-    int g[2];
+    int    g[2];
+    double p[3];
 
     memcpy(g, geom + i * stride, sizeof g);
-    paired |= (a[g[0]] & b[g[1]]) | (a[g[1]] & b[g[0]]);
+    memcpy(p, pos + i * stride, sizeof p);
+    paired |= ((a[g[0]] & b[g[1]]) | (a[g[1]] & b[g[0]])) & (p[1] < below);
   }
   return paired;
 }

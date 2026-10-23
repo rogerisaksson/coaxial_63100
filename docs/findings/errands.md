@@ -247,6 +247,13 @@ its furniture, four headings, the chair said as F says it (`gym.offered`,
   held 268 -> 286, ok 206 -> 267, trunk p90 631 -> 456 deg/s. Landing her
   thighs clear of the edge instead: the seat bore 0.37 of her (DODs red);
   her trunk 9 deg back for the seat's share: 12 sits of 58 fell.
+- The referee felled her on the loft beside the chair, 0.75 m up: 25 of
+  the 33 errands that fell on their way, her right hand 17 of them, and
+  her law let go as she stood. Her ground counts under her knees' height
+  over her floor (`worker._is_fallen`, `wbc_pass_paired`): chair wobbled
+  with its rise fell 56 -> 28, held 286 -> 306, ok 267 -> 292; the bed
+  the same to the bit. Of the 33, 9 were falls: hands on slab_a 7,
+  stair4 1, pelvis 1.
 
 ## The keys that send her
 

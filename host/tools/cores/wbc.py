@@ -258,7 +258,7 @@ def typed(lib):
     lib.wbh_pass_drawn.argtypes = [ctypes.POINTER(World), _vp, _vp, _vp, _vp, _vp, _vp, d, d]
     lib.wbh_pass_drawn.restype = d
     lib.wbh_pass_hem.argtypes = [i, d] + [_vp] * 9
-    lib.wbh_pass_paired.argtypes, lib.wbh_pass_paired.restype = [_vp, ctypes.c_ssize_t, i, _vp, _vp], i
+    lib.wbh_pass_paired.argtypes, lib.wbh_pass_paired.restype = [_vp, _vp, ctypes.c_ssize_t, i, _vp, _vp, ctypes.c_double], i
     lib.wbh_pass_averaged.argtypes = [ctypes.POINTER(World), d, _vp, _vp]
     lib.wbh_pass_hem.restype = None
     lib.wbh_sil_init.argtypes = [ctypes.POINTER(World), i, _vp, _vp]

@@ -4,7 +4,7 @@ import functools
 import math
 import queue
 import time
-from machine import apart, edge, floor, ortho, physics, sprung, wear
+from machine import apart, edge, figure, floor, modal, ortho, physics, sprung, wear
 from machine.errors import MachineError
 
 
@@ -242,8 +242,10 @@ def told_floor(g, profile):
 
 def _is_fallen(g, world):
     """Fallen, the referee's: a part of her above her shins - thighs, pelvis, trunk, head, arms,
-    hands - touches her ground (`floor.grounds`). By what she was doing, a tilt past 45 deg on a bed
-    was a fall, and thrown back onto it she was down at 3.7 s."""
+    hands - touches her ground (`floor.grounds`) under her knees' height over her floor
+    (`modal.FLOOR`). By what she was doing, a tilt past 45 deg on a bed was a fall, and thrown back
+    onto it she was down at 3.7 s; touched at any height, her hand on the loft beside the chair,
+    0.75 m up, felled 25 of 33 errands that fell on their way, her law let go as she stood."""
     m, d = world.model, world.data
     paired, _averaged, address = _passing()
     if g.get('_falls_by', (None,))[0] is not m:
@@ -251,8 +253,9 @@ def _is_fallen(g, world):
         down = {m.body(n).id for n in edge.SKIN if not n.endswith(('_shank', '_foot', '_toes'))}
         masks = (np.isin(m.geom_bodyid, list(down)), np.isin(m.geom_bodyid, list(floor.grounds(m))))
         g['_falls_by'] = (m, masks, [address(mask) for mask in masks])
-    geom = d.contact.geom
-    return bool(paired(address(geom), geom.strides[0], d.ncon, *g['_falls_by'][2]))
+    geom, pos = d.contact.geom, d.contact.pos
+    below = float(g['fr'][modal.FLOOR]) + figure.ANKLE_H + figure.SHANK
+    return bool(paired(address(geom), address(pos), geom.strides[0], d.ncon, *g['_falls_by'][2], below))
 
 
 @functools.cache
