@@ -31,6 +31,10 @@
   3.12 the chair borne 0.34 and the door at z 3.35 too; test_scenarios'
   chair at 0 rad (fell at 10.905 s, 3.14). DOD: both workflows green on
   main.
+- **The autotuner's write** (asked): her walk's step held on her suite's
+  roots and the bench broke test_errands' viewport bed and was undone. DOD: a
+  write held on the errands too (their house runs as the bench's), written
+  and committed.
 - **native://**: a limb's world on a fixed mount as board/emu's. A frame on
   an idle limb of four 32 ms, the wire's 10: three boards awake t3.5 and each
   chain's 2 ms recovery at 1 us substeps (emulation.md). DOD: the body's

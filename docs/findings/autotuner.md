@@ -88,7 +88,9 @@ six classes, 33 keys (32 in the suite's names); its step's numbers its own (lamb
   floor: converged; held on 39 roots and the bench (142 of 256 met as the
   texts are, all still met); written. Her page's walk 402 J/m for 408, off
   a woman's walk 2.42 for 2.51, knee behind plumb 10.1 for 10.7, unloading
-  0.665 for 0.68. Three steps from the texts reached 4.82, not converged.
+  0.665 for 0.68; her chair wobbled 57/265/14 fell/ok/short for 79/237/20.
+  But test_errands' viewport bed no longer rose (doing bed_rest, green 3/3
+  without it): undone. Three steps from the texts reached 4.82.
 - Held strictly (no form measure growing at all) the step was 0: five form
   rows of noise-sized slopes over three literals; free it gained 0.47. A
   held measure now grows by its floor at most, as the verdict judges it, and
