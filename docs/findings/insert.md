@@ -139,6 +139,16 @@ anti_spasm_supervisor.lisp):
   viewport's chair and bed rise, scenarios 66 of 67 (snow, as on main). Its
   slot first named SUPPORT, modal's ZMP mode of that name, 1.0, laid it on
   her right sole's stance: slip fell at every wobble.
+- The comparators on her soles, outside the tree, as the loads her stance's
+  modes read (on 0.18 of her weight, held through dropouts under 0.06 for 45
+  ms, 18 ms blanking): her stance's toggles within 45 ms, bed 27 -> 7, jump
+  40 -> 2; but a sole held standing while it unloads is pushed on as it
+  leaves. Let go as the sole rises: every leap's flight 0.05-0.11 s where
+  0.18-0.22, 3 errands red. Let go as her centre of mass rises past 0.1 m/s:
+  the walking leaps and the jump hold, the run leap at no charge flies 0.06
+  s, snow falls at every wobble (1 of 3 as built). Let go 18 ms after: 3 of
+  4 leaps 0.045-0.072 s. Not kept: her step plans on her stance, and a
+  contact held past its unloading is a force planned where none is.
 - Her drives damp a step of their rates once the D channel settles: a pass
   after it 0.3 % of the damping and the preload's sign, +2.5 W; at the gate's
   attack and the low-pass's 2 % time (26 ms), -6.64 W where -6.55 bare.
