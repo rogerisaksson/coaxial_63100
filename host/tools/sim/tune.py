@@ -303,13 +303,24 @@ def main(argv=None):
 
 
 def kept(root, state, converged, write):
-    """The kept `state` said; written (`write`) where it converged and holds on every other root it
-    moves (`elsewhere`)."""
+    """The kept `state` said; written (`write`) where it converged, holds on every other root it
+    moves (`elsewhere`) and on the suites its files reach (`gate.held`) - refused, half its move
+    from her texts as they are, as a step's trust region halves, till it rounds to nothing."""
     from machine import tune
-    texts = tune.given(state, digits=tune.knobs()[('sync-mutated-packages-to-disk', 'float-precision')])
+    from tools.sim import gate
+    digits, tx = tune.knobs()[('sync-mutated-packages-to-disk', 'float-precision')], tune.texts()
     print('\n%d literals kept moved; %s' % (len(state), 'converged' if converged else 'not converged'))
-    if state and converged and not elsewhere(root, state) and write:
-        print('written: ' + ', '.join(os.path.basename(path) for path in tune.written(texts)))
+    was, share = {span: float(tx[span[0]][span[1]:span[2]]) for span in state}, 1.0
+    while state and converged and write:
+        said = {span: float(tune.number(was[span] + share * (v - was[span]), digits)) for span, v in state.items()}
+        if said == was:
+            print('its move rounds to nothing: none written', flush=True)
+            return
+        texts = tune.given(said, digits=digits)
+        if not elsewhere(root, said) and not gate.held(texts):
+            print('written at %g of its move: %s' % (share, ', '.join(os.path.basename(p) for p in tune.written(texts))))
+            return
+        share /= 2.0
 
 
 if __name__ == '__main__':

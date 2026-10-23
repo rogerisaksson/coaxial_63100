@@ -95,3 +95,8 @@ six classes, 33 keys (32 in the suite's names); its step's numbers its own (lamb
   rows of noise-sized slopes over three literals; free it gained 0.47. A
   held measure now grows by its floor at most, as the verdict judges it, and
   a slope counts only where its pair moved it past that floor.
+- A write is held on the suites its files reach (`tools/sim/gate.py`: a
+  worktree at HEAD, the relay as the files are and with it, failing checks
+  compared by name). On the bed-breaking step counts hid it: the bare
+  worktree failed the chair's rise (seated 1.48 s, never stood), the step
+  the viewport's bed instead, one each. Refused, the write halves its move.
