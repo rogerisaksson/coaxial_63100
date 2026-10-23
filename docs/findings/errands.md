@@ -195,6 +195,16 @@ its furniture, four headings, the chair said as F says it (`gym.offered`,
   lying. Left: her rise from lying, 29 of 52 still lying 12 s on - sat up
   by the text her back stays on the mattress, her step holding each point
   it bears still in its three axes, away from it too.
+- The viewport's bed errand on the spin: lain, her pelvis 0.33 m onto the
+  mattress past its edge, both soles at 0 N; F's rise plants soles that
+  cannot reach the floor and holds in `sit_up` at surety 0 for 7 s. Lying
+  back she slides off its edge 12 of 336 wobbled runs, her pelvis's
+  contact coming and going, her feet on the floor.
+- The sit begun only docked within the dock's tolerance and her list, her
+  sidestep onto the line (branch `dock-in-tolerance`): wobbled the chair 237
+  where 228, the bed as it was; not on main, the viewport's chair seated
+  1.5 s past test_errands' 40 s, corner stops overshooting 0.5-0.7 m into
+  the nook before it.
 
 ## The keys that send her
 
