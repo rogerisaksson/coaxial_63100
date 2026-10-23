@@ -408,10 +408,10 @@ def _on_rows():
     """The errand's phases, a row each: (on what -> the phase next, told what) in order, the first
     true row taken; and what she is told while none is. Read: walking, she stands where her
     stopping point enters the box; stood still (`idle`), she walks again past her stopping
-    distance from it, turns to face away from the prop, sidesteps where the dock is more beside
-    than ahead of her till the dock bears from her stopping point within her list, backs till her
-    heels are the stunt's standoff off the edge (`maneuver.standoff`) - her hips over her ankles, her
-    heels HEEL behind them -, and begins the stunt."""
+    distance from it, turns to face away from the prop, sidesteps while her stop would end past
+    the dock's tolerance off its line till the dock bears from it within her list (read where she
+    stood, it flipped each pass), backs till her heels are the stunt's standoff off the edge
+    (`maneuver.standoff`), and begins the stunt."""
     from machine import figure, modal, se2, stride
     back = (-se2.BACK_SPEED, 0.0, 0.0)
     return {
@@ -421,7 +421,7 @@ def _on_rows():
         'turn': (((lambda c, er: abs(c['err_yaw']) <= modal.LIST_RAD, 'settle', _faced),), _to_face),
         'settle': (((lambda c, er: c['idle'] and c['s_par'] > er['d_stage'] + se2.STOP_M, 'walk', _nothing),
                    (lambda c, er: c['idle'] and abs(c['err_yaw']) > modal.LIST_RAD, 'turn', _nothing),
-                   (lambda c, er: c['idle'] and abs(c['s_perp']) > er['lat_tol'], 'side', _nothing),
+                   (lambda c, er: c['idle'] and abs(c['s_perp_side']) > er['lat_tol'], 'side', _nothing),
                    (lambda c, er: c['idle'] and c['s_par'] > figure.HEEL + er['standoff'] + se2.BACK_STOP_M, 'back', _told(back)),
                    (lambda c, er: c['idle'] and c['still'], 'done', _stunt)), _nothing),
         'side': (((lambda c, er: abs(math.atan2(c['s_perp_side'], max(c['s_par'], figure.HEEL))) <= modal.LIST_RAD, 'settle', _told(STOP)),), _to_line),

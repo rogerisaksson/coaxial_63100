@@ -106,6 +106,8 @@ _INF = math.inf
 GAIT_BOXES = (
     (-_INF, _INF, 0.05, _INF, -_INF, _INF, 'strafe_left'),
     (-_INF, _INF, -_INF, -0.05, -_INF, _INF, 'strafe_right'),
+    (-0.05, 0.05, -0.05, 0.05, 0.05, _INF, 'spin_left'),
+    (-0.05, 0.05, -0.05, 0.05, -_INF, -0.05, 'spin_right'),
     (-0.05, _INF, -0.05, 0.05, 0.05, _INF, 'turn_left'),
     (-0.05, _INF, -0.05, 0.05, -_INF, -0.05, 'turn_right'),
     (-_INF, -0.05, -0.05, 0.05, 0.05, _INF, 'turn_back_left'),

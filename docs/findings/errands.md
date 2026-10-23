@@ -162,6 +162,16 @@ its furniture, four headings, the chair said as F says it (`gym.offered`,
   centre 0.45-0.58 m in 9-9.5 s, her hands 0.65-0.74 m from where she
   stood; at half her yaw rate 0.65-0.80 m in 13-14 s - about 0.05 m/s
   turning with her, not the spin's cruise (zeroed, 0.43-0.54 m).
+- Her turn in place a spin of its own (`spin_left`, `spin_right`: her
+  reverse gait's stand, the turn's stepping and stance width; a twist under
+  0.05 m/s ahead walks her by it, `se2.GAIT_BOXES`): a half turn creeps her
+  0.18-0.19 m, her hands 0.34-0.38 m from where she stood; its stance width
+  her reverse gait's, 0.33-0.36 m. Wobbled from every spot (336 runs a verb)
+  the chair 228 where 215, 84 down where 101, its turns' falls 20 -> 2; the
+  bed 296 where 294, short 1 where 14, 39 down where 28 - corner stops.
+- Her sidestep entered on her predicted stop, as it is left: entered on where
+  she stood, it flipped in and out every pass at 0.13 m off the line (the
+  dock's tolerance 0.125), her dock 4 s longer.
 - Her stage before the chair: the middle of the free run on its normal, 0.5
   m where the table leaves 1.03 m; her back-walk's 0.05 m on and her
   sidestep's 0.15 counted in her stops.
