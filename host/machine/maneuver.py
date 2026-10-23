@@ -124,7 +124,10 @@ def _envelope(p, at, modes, body):
             'mode_pelvis_turn': at['turn']}
     targets.update({m: v * seen / modes[m][0] for m, v in seat.items()} if seen or sat else {})
     targets.update({'mode_pitch_attitude': trunk / modes['mode_pitch_attitude'][0]} if 'axial-counterweight' in p else {})
-    return [Phase(stage, p['mode'], p['duration-ms'], p['duration-ms'], targets, {}, None, None, shape=_curve(p))]
+    # held at her rest's springs, as `_paced` paces it: on her stand's sagittal 300 her centre of mass
+    # ended 2.1 cm behind a descent's, her hips 2.8 cm back, a thigh on the seat's edge and not her buttocks
+    springs = {m: _sprung(m, 1.0, 1.0, modes) for m in targets if m != 'mode_arm_swing'}
+    return [Phase(stage, p['mode'], p['duration-ms'], p['duration-ms'], targets, springs, None, None, shape=_curve(p))]
 
 
 def _contact(p, then, at, modes, body):

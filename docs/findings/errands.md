@@ -237,6 +237,16 @@ its furniture, four headings, the chair said as F says it (`gym.offered`,
   wobbled with its rise: fell 149 -> 114, risen 171 -> 206, held 268 both;
   trunk p90 698 -> 631 deg/s, arms 478 -> 424; the bed the same to the bit.
   The chair a hair off rises 4 of 12 offsets (0-1 mm) on either curve.
+- She sat on the chair's edge and slid off it: the descent ran on her
+  stand's sagittal spring (300, 3.1 rad/s) though paced to her rest's (1500,
+  6.9): her centre of mass ended 2.1 cm behind its 3.48 cm, her hips 2.8 cm
+  further back than planned, a thigh on the seat's edge 8.5 mm before her
+  buttocks met it, and she rolled 30 deg off it. Its targets held at her
+  rest springs: 3 mm behind, both buttocks bear (maneuver._envelope). Chair
+  wobbled with its rise: fell 114 -> 56 (seated 20 -> 5, rise 62 -> 19),
+  held 268 -> 286, ok 206 -> 267, trunk p90 631 -> 456 deg/s. Landing her
+  thighs clear of the edge instead: the seat bore 0.37 of her (DODs red);
+  her trunk 9 deg back for the seat's share: 12 sits of 58 fell.
 
 ## The keys that send her
 
