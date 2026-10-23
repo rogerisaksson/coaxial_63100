@@ -227,7 +227,7 @@ the hundred and fifty before these: [DONE_1-50](DONE_1-50.md),
     run on the relay, its six classes over whatever bears her, the text's
     step a QP with her form held, judged against its floors, a write held on
     every root it reaches (`machine.tune`, `tools/sim/tune.py`, `telemetry`;
-    test_dsp.py, [sequencer](findings/sequencer.md)).
+    test_dsp.py, [autotuner](findings/autotuner.md)).
 43. The anti-spasm insert her master bus, the last stage of every patch: its
     tank on her drives' 1 kHz pass, each slew and jerk its drive's own,
     buffers before her stops; her heel's cap a woman's (`machine.supervisor`,

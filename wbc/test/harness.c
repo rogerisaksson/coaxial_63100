@@ -250,6 +250,12 @@ API void wbh_pass_contacts(wbc_contacts_t *c, int ncon, const char *pos, const d
   wbc_pass_contacts(c, ncon, pos, efc_force);
 }
 
+API int wbh_pass_tapped(const wbc_contacts_t *c, int ncon, const char *pos, const double *efc_force,
+                        const double *efc_vel, const int *at, int width, int cap, double *out)
+{
+  return wbc_pass_tapped(c, ncon, pos, efc_force, efc_vel, at, width, cap, out);
+}
+
 API void wbh_pass_sensed(const wbc_contacts_t *c, double *y, int load_at, int touch_at, int press_at, int cop_at,
                          int cells_at, int at_at)
 {

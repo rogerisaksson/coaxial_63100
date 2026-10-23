@@ -1,8 +1,10 @@
 """The autotuner on her texts: its text read, her texts given, every literal walked, its reach, its step.
 
-`machine.tune`, `tools/sim/tune.py`, `tools/sim/telemetry.py`: her texts given play as her files,
-every literal is walked where it stands and reaches her where a voice reads it, the step is the
-text's, a run's residuals and the verdicts on a step."""
+`machine.tune`, `tools/sim/tune.py`, `tools/sim/telemetry.py`, `machine.rcu`, `machine.tap`: her texts
+given play as her files, every literal is walked where it stands and reaches her where a voice reads
+it, the step is the text's, a run's residuals and the verdicts on a step; at runtime a link between
+her loop and a tuner apart, her walk linked as unlinked, her raw passes cooked as MuJoCo reads
+them, a table laid at her barrier blending C2."""
 import math
 import sys
 
@@ -145,10 +147,10 @@ def test_a_run_measured_and_a_step_judged(report):
     dimensions; a step not kept where she falls, its goal is lost, her form moves out past its
     floor or the norm falls no further than its floor."""
     import numpy as np
-    from machine import tune
+    from machine import tap, tune
     from tools.sim import looks, telemetry, tune as tuner
     square = [(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0), (0.5, 0.5)]
-    margin = telemetry.margin
+    margin = tap.margin
     report.check("a square's centre 0.5 inside, a point 0.25 past its side outside, a segment's off point outside",
                  math.isclose(margin((0.5, 0.5), square), 0.5) and math.isclose(margin((1.25, 0.5), square), -0.25)
                  and math.isclose(margin((0.5, 1.0), [(0.0, 0.0), (1.0, 0.0)]), -1.0),
@@ -171,10 +173,139 @@ def test_a_run_measured_and_a_step_judged(report):
                  str(said))
 
 
+def test_a_link_between_her_loop_and_a_tuner(report):
+    """Two sides of one block of shared memory: a ring's samples drained in order, a full one dropping
+    and counting; a table published, a second refused till her loop took the first; every section on
+    a 64-byte line."""
+    import numpy as np
+    from machine import rcu
+    a = rcu.Link.made(((13, 4), (5, 3)), 5, 3)
+    b = rcu.Link.found(a.name)
+    tapped = [b.tap(np.arange(13.0) + k) for k in range(5)]
+    dropped, drained = b.word('dropped', 0), a.drained()
+    first, second = a.published(np.ones((5, 2))), a.published(np.full((5, 2), 2.0))
+    took = b.taken()
+    again, lines = b.taken(), [x.ctypes.data % rcu.LINE for x in a.rings + [a.banks, a.banks[0, 1], a.banks[1]]]
+    b.closed()
+    a.closed()
+    report.check('four of five samples kept, the fifth dropped and counted, drained in order; one table taken, '
+                 'a second refused before it; every section on a line',
+                 tapped == [True] * 4 + [False] and dropped == 1 and drained[:, 0].tolist() == [0.0, 1.0, 2.0, 3.0]
+                 and first and not second and took is not None and took[0] == 1
+                 and took[1].tolist() == np.ones((5, 2)).tolist() and again is None
+                 and not any(lines), '%s %d %s %s' % (tapped, dropped, drained[:, 0], lines))
+
+
+def _walked(seconds, link=None):
+    """Her session walking `seconds` s, linked to `link` where given: (the session, each pass's time)."""
+    import time
+    from machine import worker
+    from tools.sim import scenarios
+    s = worker.session()
+    if link is not None:
+        worker.apply(s, {'link': link.name})
+    worker.apply(s, {'twist': scenarios.WALK})
+    times = []
+    while s['g']['t'] < seconds:
+        began = time.perf_counter()
+        worker.stepped(s)
+        times.append(time.perf_counter() - began)
+    return s, times
+
+
+def test_her_loop_linked_passes_as_unlinked(report):
+    """Her walk with a tuner linked and nothing laid passes as without one, bit for bit: the hook reads
+    her world and writes the link alone."""
+    import numpy as np
+    from machine import tap
+    plain, plain_s = _walked(3.0)
+    link = tap.made(4.0)
+    linked, linked_s = _walked(3.0, link)
+    same = np.array_equal(plain['g']['world'].data.qpos, linked['g']['world'].data.qpos)
+    tapped = link.word('head', 0)
+    for found in linked['links']:
+        found.closed()
+    link.closed()
+    report.check('her pose after 3 s the same bit for bit, %d passes tapped; a pass %.2f ms linked, %.2f ms not'
+                 % (tapped, 1e3 * float(np.median(linked_s)), 1e3 * float(np.median(plain_s))),
+                 same and tapped == len(linked_s), '%s %d' % (same, tapped))
+
+
+def test_her_raw_passes_cook_as_mujoco_reads_them(report):
+    """Her raw passes (C) cooked: the world's force on her, her slip and the cone's use as MuJoCo's
+    own reads of each contact give them - `mj_contactForce`, her point's velocity off `cvel`."""
+    import importlib
+    import numpy as np
+    from machine import edge, tap, worker
+    mujoco = importlib.import_module('mujoco')
+    s, _times = _walked(1.0)
+    world = s['g']['world']
+    m, d = world.model, world.data
+    state, raws, want = tap.fresh(), [], []
+    hers = np.array([edge._rooted(m, b, world.pelvis) for b in range(m.nbody)])[m.geom_bodyid]
+    while s['g']['t'] < 1.3:
+        worker.stepped(s)
+        raws.append(tap.raw(s, state))
+        f_on, slip, cone, borne, grip = np.zeros(3), 0.0, 0.0, 0.0, 0.0
+        for i in range(d.ncon):
+            c, f6, v6 = d.contact[i], np.zeros(6), np.zeros(6)
+            one = hers[c.geom1]
+            if one == hers[c.geom2] or c.efc_address < 0:
+                continue
+            mujoco.mj_contactForce(m, d, i, f6)
+            frame, body = c.frame.reshape(3, 3), m.geom_bodyid[c.geom1 if one else c.geom2]
+            mujoco.mju_transformSpatial(v6, d.cvel[body], 0, c.pos, d.subtree_com[m.body_rootid[body]], np.eye(3).ravel())
+            f_on += (-1.0 if one else 1.0) * frame.T @ f6[:3]
+            slip += abs(f6[0]) * float(np.linalg.norm(v6[3:] - (v6[3:] @ frame[0]) * frame[0]))
+            cone, borne, grip = cone + math.hypot(f6[1], f6[2]), borne + abs(f6[0]), grip + c.friction[0] * abs(f6[0])
+        want.append((*f_on, slip / borne, cone / grip))
+    got, want = tap.cooked(raws), np.array(want)
+    off = np.abs(got[:, [tap.S[k] for k in ('fx', 'fy', 'fz', 'slip', 'cone')]] - want).max(0) / np.abs(want).max(0)
+    report.check('%d passes: force, slip and cone use off MuJoCo\'s by %.1e, %.1e, %.1e of their most'
+                 % (len(raws), off[:3].max(), off[3], off[4]), bool(off.max() < 1e-12), str(off))
+
+
+def test_a_table_is_laid_at_her_barrier_and_blends_c2(report):
+    """Her walk linked, a table of her lean published walking: laid at a pass with both soles locked
+    and her last blend done; her lean's target leaves and meets its new value minimum-jerk, its rate
+    with no step - a linear blend's step the control."""
+    import numpy as np
+    from machine import gait, latent, modal, ortho, patch, tap, worker
+    slot, link = ortho.Z + modal.PITCH, tap.made(30.0)
+    s, _times = _walked(6.0, link)
+    g, said, flags = s['g'], [], []
+    for k, (delta, shaped) in enumerate(((0.1, True), (-0.1, False))):
+        table = tap.table({slot: float(g['st'][latent.NOW][slot]) + delta}, gait.BLEND_S, gait.ROW_ID)
+        table[3, 0] = table[3, 0] if shaped else 0
+        link.published(table)
+        while link.word('laid') == k:
+            worker.stepped(s)
+            said.append((g['t'], float(g['st'][latent.NOW][slot])))
+        flags.append((g['t'], patch.locked(g['y'], g['fr'], g['a']),
+                      g['t'] >= float(g['st'][latent.T0] + g['st'][latent.BLEND])))
+        while g['t'] < flags[-1][0] + gait.BLEND_S + 0.5:
+            worker.stepped(s)
+            said.append((g['t'], float(g['st'][latent.NOW][slot])))
+    for found in s['links']:
+        found.closed()
+    link.closed()
+    t, v = np.array(said).T
+    steps = []
+    for at, _locked, _done in flags:
+        k, j = int(np.searchsorted(t, at)), int(np.searchsorted(t, at + gait.BLEND_S + 0.1))
+        rate = np.abs(np.diff(v[k - 3:k + 15:3]))
+        steps.append(float(rate.max() / (abs(v[j] - v[k - 3]) * 3e-3 / gait.BLEND_S)))
+    report.check('laid with both soles locked, her last blend done; its rate leaving %.4f of its mean '
+                 'minimum-jerk, %.2f linear' % tuple(steps),
+                 all(locked and done for _t, locked, done in flags) and steps[0] < steps[1], str(flags))
+
+
 ROSTER = (test_the_autotuner_reads_as_written, test_her_texts_given_play_as_her_files,
           test_a_literal_is_walked_where_it_stands, test_a_literal_reaches_her_where_a_voice_reads_it,
           test_the_step_is_damped_least_squares_in_its_trust_region,
-          test_a_run_measured_and_a_step_judged)
+          test_a_run_measured_and_a_step_judged, test_a_link_between_her_loop_and_a_tuner,
+          test_her_loop_linked_passes_as_unlinked, test_her_raw_passes_cook_as_mujoco_reads_them,
+          test_a_table_is_laid_at_her_barrier_and_blends_c2)
 
 
 def main(argv=None):
