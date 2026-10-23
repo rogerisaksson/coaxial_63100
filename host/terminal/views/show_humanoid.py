@@ -252,7 +252,9 @@ def _joint_row(now, joint, label, shown):
     return (label.rjust(10), _ansi('%+5.0f° %s %s' % (deg, bar, tail)))
 
 
-def _bus_row(now, name, joints, alarms):
+def _bus_row(now, name, joints):
+    """A bus's boards, each by its drive's load and heat: her wear's alarms are SERVICE's - red
+    here, a seat's and a fall's misread drift was taken for her buses' errors."""
     from machine import drives
     get = lambda k, j, d=0.0: float((now.get(k) or {}).get(j, d)) if now else d
     nodes, pk_share, max_c = ['\x1b[38;5;66m├'], 0.0, 25.0
@@ -265,8 +267,6 @@ def _bus_row(now, name, joints, alarms):
         max_c = max(max_c, deg_c)
         if pas:
             nodes.append('\x1b[38;5;66m▱')
-        elif j in alarms:
-            nodes.append('\x1b[38;5;196m▰')
         else:
             sh = min(1.0, abs(get('torque', j)) / max(1.0, get('peak', j, float(drives.peak(j)))))
             pk_share = max(pk_share, sh)
@@ -319,11 +319,10 @@ def boxes(state, now, name):
         ('  drawn by', name[:25])])]
     w_now = (now.get('wear') if now else None) or {}
     al = w_now.get('alarms') or ()
-    alarms = {str(a[0]).split('.')[0] for a in al}
     b_now = (now.get('buses') if now else None) or {}
     crc_err = sum(int(v[1]) for v in b_now.values() if len(v) > 1)
     emu = state.get('emu')
-    out.append(hud('BUSES  10M RS485', [_bus_row(now, b, jnts, alarms) for b, jnts in edge.LIMBS] + [
+    out.append(hud('BUSES  10M RS485', [_bus_row(now, b, jnts) for b, jnts in edge.LIMBS] + [
         ('  modbus', emu.badge(crc_err) if emu else ('5x10M 27/27 sil %4d crc' % crc_err)),
         ('    tier', _tier_row(state, now, emu))]))
     for sub in TYPES['gynoid'].body:

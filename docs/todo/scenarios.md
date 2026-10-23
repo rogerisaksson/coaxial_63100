@@ -281,5 +281,12 @@ serves its DOD; none an entry a case.
 15. **A refused frame resent** (found): `wbc_sil_drive` drops
     `wbc_sil_transceive`'s return - a frame a board refuses is not resent in
     its pass, and the bus's boards before it applied it; none refused in
-    46 000 frames a bus in-process, Renode's link faults on the same badge.
-    DOD: a refused frame resent within its pass, a bus's boards all or none.
+    46 000 frames a bus in-process, none through the page's worker's sit,
+    rise, 400 N shove and slide off a seat; Renode's link faults (a write
+    timed out or refused) its badge's own count. DOD: a refused frame resent
+    within its pass, a bus's boards all or none.
+16. **Wear alarms off a seat and a fall** (found): sat on the lodge's chair her
+    wear filter named waist.kt 4.3 s in, and spine, spine_roll and waist
+    friction and kt as she slid off - the seat's and the fall's forces read as
+    drift; the bus strip drew them red as bus faults (it no longer does).
+    DOD: no alarm through the chair's sit, rise and a shove's fall.

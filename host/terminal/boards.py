@@ -15,9 +15,6 @@ from machine import drives, edge
 from machine.modes import EMULATED
 from tools.emu.protocol_emulator import BODIES
 
-#: Her drives, a board each on her buses: what the BUSES box counts.
-DRIVES = sum(len(joints) for _bus, joints in edge.LIMBS)
-
 
 class EmulatedLimb:
 
@@ -55,10 +52,9 @@ class EmulatedLimb:
         self._shown.set()
 
     def badge(self, crc_err):
-        """The BUSES box's modbus row: her buses, her drives on Renode and on the stand-in, the
-        CRC errors and the emulated link's faults."""
-        return '%dx10M %d emu %d sil %2d crc' % (len(edge.LIMBS), len(self.rigs),
-                                                 DRIVES - len(self.rigs), crc_err + self.faults)
+        """The BUSES box's modbus row: her buses, her drives on Renode, the CRC errors and apart
+        the emulated link's faults - a write timed out or refused."""
+        return '%dx10M %d emu crc %d lnk %d' % (len(edge.LIMBS), len(self.rigs), crc_err, self.faults)
 
     def closed_note(self):
         return '%d Renode boards (%s) closed' % (len(self.rigs), self.limb)
